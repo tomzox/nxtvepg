@@ -34,7 +34,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgscan.c,v 1.30 2002/09/14 18:13:12 tom Exp tom $
+ *  $Id: epgscan.c,v 1.32 2002/11/17 20:35:39 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -169,8 +169,9 @@ static bool EpgScan_AiCallback( const AI_BLOCK *pNewAi )
          }
          else
          {
-            sprintf(msgbuf, "Provider '%s' is already known - skipping.",
-                            AI_GET_NETWOP_NAME(pNewAi, pNewAi->thisNetwop));
+            sprintf(msgbuf, "Provider '%s' is %s.",
+                            AI_GET_NETWOP_NAME(pNewAi, pNewAi->thisNetwop),
+                            scanCtl.doRefresh ? "ok" : "already known - skipping");
             scanCtl.MsgCallback(msgbuf, TRUE);
 
             // in refresh mode count this provider as done (used in the summary)
@@ -409,7 +410,8 @@ uint EpgScan_EvHandler( void )
                }
                else
                {  // CNI not known as provider -> keep checking for data page
-                  scanCtl.state = SCAN_STATE_WAIT_DATA;
+                  if (scanCtl.state <= SCAN_STATE_WAIT_NI)
+                     scanCtl.state = SCAN_STATE_WAIT_DATA;
                }
             }
          }
@@ -545,8 +547,16 @@ uint EpgScan_EvHandler( void )
             }
             else
             {
+               #ifndef WIN32
+               const char * pErrStr = BtDriver_GetLastError();
+               sprintf(msgbuf, "\nFatal error: channel change failed:\n%.200s.\n",
+                       ((pErrStr != NULL) ? pErrStr : "(unknown - internal error, please report)"));
+               scanCtl.MsgCallback(msgbuf, TRUE);
+               #else
+               scanCtl.MsgCallback("channel change failed (driver error) - abort.", TRUE);
+               #endif
+
                EpgScan_Stop();
-               scanCtl.MsgCallback("channel change failed - abort.", TRUE);
             }
          }
          else
@@ -631,7 +641,7 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv,
    uint  freq;
    bool  isTuner;
    EPGSCAN_START_RESULT result;
-   uchar chanName[10], msgbuf[80];
+   uchar chanName[10], msgbuf[300];
    uint rescheduleMs;
 
    scanCtl.inputSrc      = inputSource;
@@ -664,7 +674,15 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv,
       {
          EpgDbQueue_Init(&scanCtl.dbQueue);
          if (BtDriver_StartAcq() == FALSE)
+         {
+            #ifndef WIN32
+            const char * pErrStr = BtDriver_GetLastError();
+            sprintf(msgbuf, "\nFailed to open the VBI (i.e. teletext) device:\n%.200s.\n",
+                    ((pErrStr != NULL) ? pErrStr : "(unknown - internal error, please report)"));
+            scanCtl.MsgCallback(msgbuf, FALSE);
+            #endif
             result = EPGSCAN_ACCESS_DEV_VBI;
+         }
       }
       else
          EpgAcqCtl_Suspend(TRUE);
@@ -674,43 +692,54 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv,
    {
       scanCtl.channelIdx = 0;
       scanCtl.channel = 0;
-      if ( EpgScan_NextChannel(&freq) &&
-           BtDriver_TuneChannel(scanCtl.inputSrc, freq, TRUE, &isTuner) )
+      if (EpgScan_NextChannel(&freq))
       {
-         if (isTuner)
+         if ( BtDriver_TuneChannel(scanCtl.inputSrc, freq, TRUE, &isTuner) )
          {
-            scanCtl.pDbContext->tunerFreq = freq;
-            scanCtl.pDbContext->pageNo    = EPG_DEFAULT_PAGENO;
-
-            EpgStreamClear();
-            EpgStreamInit(&scanCtl.dbQueue, TRUE, EPG_DEFAULT_APPID, EPG_DEFAULT_PAGENO);
-
-            TtxDecode_StartEpgAcq(EPG_DEFAULT_PAGENO, TRUE);
-
-            dprintf1("RESET channel %d\n", scanCtl.channel);
-            scanCtl.state = SCAN_STATE_RESET;
-            scanCtl.startTime = time(NULL);
-            scanCtl.extraWait = 0;
-            scanCtl.foundBi = FALSE;
-            rescheduleMs = 50;
-            scanCtl.signalFound = 0;
-            scanCtl.newProvCount = 0;
-            scanCtl.badProvCount = 0;
-
-            if (scanCtl.provFreqCount == 0)
+            if (isTuner)
             {
-               TvChannels_GetName(scanCtl.channel, chanName, sizeof(chanName));
-               sprintf(msgbuf, "Starting scan on channel %s", chanName);
+               scanCtl.pDbContext->tunerFreq = freq;
+               scanCtl.pDbContext->pageNo    = EPG_DEFAULT_PAGENO;
+
+               EpgStreamInit(&scanCtl.dbQueue, TRUE, EPG_DEFAULT_APPID, EPG_DEFAULT_PAGENO);
+
+               TtxDecode_StartEpgAcq(EPG_DEFAULT_PAGENO, TRUE);
+
+               dprintf1("RESET channel %d\n", scanCtl.channel);
+               scanCtl.state = SCAN_STATE_RESET;
+               scanCtl.startTime = time(NULL);
+               scanCtl.extraWait = 0;
+               scanCtl.foundBi = FALSE;
+               rescheduleMs = 50;
+               scanCtl.signalFound = 0;
+               scanCtl.newProvCount = 0;
+               scanCtl.badProvCount = 0;
+
+               if (scanCtl.provFreqCount == 0)
+               {
+                  TvChannels_GetName(scanCtl.channel, chanName, sizeof(chanName));
+                  sprintf(msgbuf, "Starting scan on channel %s", chanName);
+               }
+               else
+                  sprintf(msgbuf, "Starting scan on %d known channels", scanCtl.provFreqCount);
+               scanCtl.MsgCallback(msgbuf, FALSE);
             }
             else
-               sprintf(msgbuf, "Starting scan on %d known channels", scanCtl.provFreqCount);
-            scanCtl.MsgCallback(msgbuf, FALSE);
+               result = EPGSCAN_NO_TUNER;
          }
          else
-            result = EPGSCAN_NO_TUNER;
+         {
+            #ifndef WIN32
+            const char * pErrStr = BtDriver_GetLastError();
+            sprintf(msgbuf, "\nFailed to open video input channel:\n%.200s.\n",
+                            ((pErrStr != NULL) ? pErrStr : "(unknown - internal error, please report)"));
+            scanCtl.MsgCallback(msgbuf, FALSE);
+            #endif
+            result = EPGSCAN_ACCESS_DEV_VIDEO;
+         }
       }
       else
-         result = EPGSCAN_ACCESS_DEV_VIDEO;
+         result = EPGSCAN_INTERNAL;
 
       if ((result != EPGSCAN_OK) && (scanCtl.acqWasEnabled == FALSE))
       {
@@ -730,7 +759,6 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv,
          if (scanCtl.acqWasEnabled == FALSE)
          {
             TtxDecode_StopAcq();
-            EpgStreamClear();
          }
          else if (pAcqDbContext == NULL)
             EpgAcqCtl_Suspend(FALSE);

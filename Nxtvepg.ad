@@ -1,0 +1,54 @@
+!
+!  Nextview EPG resource definitions
+!
+!  This program is free software; you can redistribute it and/or modify
+!  it under the terms of the GNU General Public License Version 2 as
+!  published by the Free Software Foundation. You find a copy of this
+!  license in the file COPYRIGHT in the root directory of this release.
+!
+!  THIS PROGRAM IS DISTRIBUTED IN THE HOPE THAT IT WILL BE USEFUL,
+!  BUT WITHOUT ANY WARRANTY; WITHOUT EVEN THE IMPLIED WARRANTY OF
+!  MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.  See the
+!  GNU General Public License for more details.
+!
+!
+!  Description:
+!
+!    This file documents defaults for configurable resources.
+!    These assignments can be used to change appearance of the GUI
+!    (colors and fonts). On UNIX this file is usually installed in
+!    the app-defaults subdirectory in the X11 tree.  However it should
+!    not be edited there; instead any resources which differ from the
+!    defaults below should be copied into $HOME/.Xdefaults
+!
+!  Author: Tom Zoerner
+!
+!  $Id: Nxtvepg.ad,v 1.1 2002/11/10 19:49:40 tom Exp tom $
+!
+
+! Remove comment sign ! from values you want to change
+
+! background color for all text and list in- and output fields
+!nxtvepg*text_bg: #E9E9EC
+! background in TV schedule for currently running programmes
+!nxtvepg*pi_bg_now: #d9d9ef
+! background in TV schedule for expired programmes
+!nxtvepg*pi_bg_past: #dfc9c9
+! background for cursor in TV schedule
+!nxtvepg*pi_cursor_bg: #d4d4d4
+! background for cursor when above a currently running programme
+!nxtvepg*pi_cursor_bg_now: #d8d8ff
+! background for cursor when above an expired programme
+!nxtvepg*pi_cursor_bg_past: #ffd8d8
+! background for help text
+!nxtvepg*help_bg: #ffd840
+
+! font for TV schedule and programme description text
+!nxtvepg*pi_font: Helvetica -12 normal
+! font for help text
+!nxtvepg*help_font: Helvetica -12 normal
+! font for xawtv popup window
+!nxtvepg*xawtv_font: Helvetica -14 bold
+! font for message popups (e.g. warnings and error messages)
+!nxtvepg*msgbox_font: Helvetica -14 bold
+

@@ -10436,3 +10436,781 @@ www/changelog.html [rev:1.40, 2002-10-13T19:02:13]:
 CHANGES [rev:1.28, 2002-10-13T19:10:05]:
 - updated for release 2.3.1
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_3_1 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+epgdb/epgstream.c [rev:1.25, 2002-10-19T15:31:13]:
+- Improved 2 lines of debug output
+epgui/xawtv.c [rev:1.28, 2002-10-19T15:31:28]:
+- added several CONST84 for tcl 8.4 compatibility
+epgui/pioutput.c [rev:1.32, 2002-10-19T15:43:07]:
+- bugfix: changed type of alphaNumTab from char to schar
+    reported to debian.org by Gerhard Tonn (GerhardTonn@swol.de)
+- changed URL and mail address (in HTML) from tripod.com to sourceforge.net
+- added CONST84 for tcl 8.4 compatibility
+epgui/epgmain.c [rev:1.100, 2002-10-19T15:53:20]:
+- moved all bitmaps into new subdirectory ./images
+- MenuCmd_Init() moved above pioutput.c init for Tcl callbacks
+- fix setlocale(): must pass empty string, not "C" for LC_ALL
+epgtcl/mainwin.tcl [rev:1.187, 2002-10-19T15:53:31]:
+- Implemented inverted filters
+- new global variable filter_invert
+    new proc IntertFilter; C-proc C_InvertFilter <list>
+- inserted new elem fsc_inv_idx into shortcut definition
+    LoadRcFile: convert shortcut definitions from older versions
+- split off new top-level menu "Shortcuts" from Configure and Filter menus
+- reordered filter menu: most often used ones on top
+    added invert checkbutton to various filter menus
+- added VPS/PDC filter cascade to the Filter menu
+    moved proc FilterMenuAdd_VpsPdc from column sel. dlg. into filter section
+- split off "Program index" cascade into separate proc FilterMenuAdd_ProgIdx
+- include "C_ResetFilter all" with proc ResetFilterState
+    and additionally call C_InvertFilter with empty list
+- sortcrit filter dialog: replaced class checkbutton matrix with popup menu;
+    added popup menu for invert
+- DescribeCurrentFilter: also return invert setting
+- ShortcutPrettyPrint: prepend "NOT" to inverted filters
+- CheckShortcutDeselection: check for undone invert filters too
+- SelectSingleShortcut and SelectShortcut: invert filters acc. fsc_inv_idx
+- changed layout of "Edit filter shortcut list" dialog: use poup menu for
+    mask instead of checkbutton matrix
+- Also:
+- new helper array pi_attr_labels with names for filter types
+- added new arg "param" to PostDynamicMenu and every call:
+    is passed through to the menu generation function;
+    used by CreateSeriesMenu, CreateSeriesNetworkMenu, etc.
+- win32 cursor color adapted for new listbox bg color
+- dursel filter menu: added grid options for window resizing
+- changed URL and mail address from tripod.com to sourceforge.net
+epgui/pifilter.c [rev:1.72, 2002-10-19T15:53:41]:
+- Implemented inverted filters
+- added function (Tcl callback) PiFilter_Invert: makes use of new db filter
+    interfaces EpgDbFilterInitNi() and new filter type FILTER_INVERT
+- Also:
+- use #define THEME_CLASS_COUNT instead of constant
+- added CONST84 for tcl 8.4 compatibility
+- CreateNi(): get additional proc arg <ni-block-idx> passed through
+    proc PostDynamicMenu; also: changed to object based Tcl interface
+- SelectNi(): changed to object based Tcl interface; made some pointers const
+epgui/menucmd.c [rev:1.92, 2002-10-19T15:54:01]:
+- appended param 0 to Tcl proc call FilterMenuAdd_Themes
+- removed calls to "C_ResetFilter all" before proc ResetFilterState
+    because this is now done implicitly
+dsdrv/dsdrv34.c [rev:1.4, 2002-10-19T17:20:12]:
+- Replaced #include <malloc.h> with <stdlib.h>
+tvsim/winshmclnt.c [rev:1.9, 2002-10-19T17:20:32]:
+- Replaced #include <malloc.h> with <stdlib.h>
+epgctl/debug.c [rev:1.17, 2002-10-19T17:31:33]:
+- Replaced #include <malloc.h> with <stdlib.h>
+epgvbi/btdrv4win.c [rev:1.26, 2002-10-19T17:32:25]:
+- Replaced #include <malloc.h> with <stdlib.h>
+epgvbi/winshmsrv.c [rev:1.9, 2002-10-19T17:32:25]:
+- Replaced #include <malloc.h> with <stdlib.h>
+epgvbi/btdrv.h [rev:1.25, 2002-10-19T17:34:58]:
+- added support for FreeBSD: #if defined(__NetBSD__) || defined(__FreeBSD__)
+- fix: renamed DEBUG_SWITCH_DUMP_TTX_PACKETS into DUMP_TTX_PACKETS
+epgvbi/btdrv4linux.c [rev:1.33, 2002-10-19T17:40:39]:
+- Added support for FreeBSD: (patch provided by Simon Barner)
+- exended #ifdef __NetBSD__ with: __NetBSD__ || __FreeBSD__
+- replaced some strcpy() with strncpy()
+- bugfix BtDriver_StartCapture(): appended %u to VIDEONAME
+epgdb/epgblock.c [rev:1.47, 2002-10-19T17:42:01]:
+- Added support for FreeBSD: (patch provided by Simon Barner)
+- LTO functions: exended #ifdef __NetBSD__ with: __NetBSD__ || __FreeBSD__
+epgctl/mytypes.h [rev:1.18, 2002-10-19T17:42:22]:
+- Added support for FreeBSD: (patch provided by Simon Barner)
+- define slong for __FreeBSD__
+epgtcl/mainwin.tcl [rev:1.188, 2002-10-19T18:36:55]:
+- added key binding for Key-F1: popup help page (same as Help button)
+- set background color for nxtv_logo in PI listbox
+nxtvepg.pod [rev:1.79, 2002-10-19T19:00:39]:
+- added chapter for configuration dialog for user-defined columns
+epgtcl/mainwin.tcl [rev:1.189, 2002-10-20T08:26:32]:
+- made duration filter dialog wider
+    + so that all 5*x min steps can be entered via the scale slider
+    + fix for resizing of dialog: Removed -fillx from command frame
+- fixed background color for nextview logo in PI listbox
+epgui/pilistbox.c [rev:1.80, 2002-10-20T08:27:34]:
+- fix PiListBox_SelectItem():
+- suppress selecting lines when in one of the error states
+epgui/epgmain.c [rev:1.101, 2002-10-20T17:34:48]:
+- XMLTV dump implemented (by Massis Siripan)
+- added "xml" mode keyword fr -dump command line option
+- call new function PiOutput_DumpDatabaseXml()
+- Also:
+- added global Tcl vars NXTVEPG_URL and NXTVEPG_MAILTO
+epgui/epgtabdump.c [epgui/dumptext.c, rev:1.4, 2002-10-20T17:34:57]:
+- XMLTV dump implemented (by Massis Siripan)
+- EpgTabDump_GetMode(): added "xml" keyword: EPGTAB_DUMP_XML
+epgui/epgtabdump.h [epgui/dumptext.h, rev:1.2, 2002-10-20T17:35:02]:
+- XMLTV dump implemented (by Massis Siripan)
+- new enum EPGTAB_DUMP_MODE elem: EPGTAB_DUMP_MODE
+epgtcl/mainwin.tcl [rev:1.190, 2002-10-20T17:35:08]:
+- XMLTV dump implemented (by Massis Siripan)
+- added "Export as XMLTV..." to control menu
+- new proc PopupDumpXml to create dialog
+- added dumpxml_filename to rc/ini file
+- Also:
+- use new globals NXTVEPG_URL and NXTVEPG_MAILTO in about popup
+epgui/pioutput.c [rev:1.33, 2002-10-20T17:35:18]:
+- XMLTV dump implemented (by Massis Siripan)
+- new dump func PiOutput_DumpDatabaseXml(), Tcl interface PiOutput_DumpXml()
+- split off sub-func from HTML dump: PiOutput_HtmlRemoveQuotes()
+- split off sub-func from user-ctx menu var subst.: PiOutput_GetVpsTimestamp()
+- Also:
+- use new macros NXTVEPG_URL and NXTVEPG_MAILTO for HTML and XML file headers
+epgui/pioutput.h [rev:1.11, 2002-10-20T17:35:27]:
+- XMLTV dump implemented (by Massis Siripan)
+- added declaration for dump func PiOutput_DumpDatabaseXml()
+www/pre-releases.html [rev:1.15, 2002-10-21T20:38:29]:
+- added nxtvepg-2.4.0pre0.tar.gz
+www/index.html [rev:1.55, 2002-10-21T20:38:35]:
+- added link to sourcefore.net nxtvepg project files page
+www/index-de.html [rev:1.43, 2002-10-21T20:38:45]:
+- added note that Aldi TV card is not supported
+- added link to sourcefore.net nxtvepg project files page
+www/nefkom-src-index.html [rev:1.11, 2002-10-21T20:39:05]:
+- added new release 2.3.1
+- removed 2.2.0 sources and 2.3.0-tvsim to save space
+- added link to sourceforge.net project files page
+epgui/pioutput.c [rev:1.34, 2002-10-22T20:12:23]:
+- Fixes for XML dump
+- added XML DTD header
+- fixed date format (month and day were swapped)
+- adapted channel names for some broken XML parsers
+- escape "&" characters in theme category output
+epgdb/epgdbfil.c [rev:1.37, 2002-10-25T19:08:21]:
+- Implemented inverted filters
+- Added new interface function EpgDbFilterInvert()
+- EpgDbFilterMatches(): handle local and global inversions
+- EpgDbFilterInitNi(): clear filter context with memset instead of just
+    setting filter mask to 0: req. at least for invert mask
+epgdb/epgdbfil.h [rev:1.22, 2002-10-25T19:08:21]:
+- Implemented inverted filters
+- added new filter #define FILTER_INVERT
+- added new context elements invertedFilters, invertedThemeClasses, ..SortCrit
+- added new interface function EpgDbFilterInvert()
+epgui/loadtcl.c [rev:1.1, 2002-10-25T19:41:44]:
+- Initial revision
+epgui/loadtcl.h [rev:1.1, 2002-10-25T19:41:46]:
+- Initial revision
+epgui/epgmain.c [rev:1.102, 2002-10-25T19:51:05]:
+- Split GUI Tcl/Tk "epgui/epgui.tcl" script into smaller parts
+- moved eval of splitted scripts in new C modules loadtcl.c
+    because of make dependencies
+- renamed script strings, e.g. tk_init_scripts into tk_libs_tcl_static
+- moved setting of Tcl variable "is_unix" here so that daemon needs only
+    load rcfile.tcl
+- moved eval of proc CreateMainWindow etc. from ui_init() into main()
+Makefile [rev:1.47, 2002-10-25T19:56:57]:
+- Split GUI Tcl/Tk "epgui/epgui.tcl" script into smaller parts
+- moved into new sub-directory epgtcl/
+- added implicit rule to derive .c from .tcl
+- tcl2c tool extended
+    + included comment removal, formerly done by "egrep -v '^#'"
+    + now produces both .c and .h files
+    + output and script names are derived from input names
+- added new module epgui/loadtcl.c
+- renamed epgui/help.tcl into eogtcl/helptexts.tcl
+nxtvepg.pod [rev:1.80, 2002-10-25T20:01:45]:
+- added sub-chapter on filter inversion
+- updated section on filter-types (split off as sub-section from FILTERING)
+tcl2c.c [rev:1.3, 2002-10-25T20:07:25]:
+- Massive rewrite, in connection with split of epgui.tcl
+- included comment removal, formerly done by "egrep -v '^#'"
+- now produces both .c and .h files
+- output and script names are derived from input names
+- support for special commands #=LOAD= and #=DYNAMIC=<script>
+    generate stubs to dynamically load scripts at runtime
+pod2help.pl [rev:1.16, 2002-10-25T20:07:51]:
+- removed filling of menu commands into .menubar.help
+- the titles are available in the helpIndex array
+- the menu is now filled in mainwin.tcl
+- reason: during eval of a script file no actions should be performed
+epgtcl/mainwin.tcl [rev:1.191, 2002-10-25T20:16:15]:
+- Split GUI Tcl/Tk "epgui/epgui.tcl" script into smaller parts
+- renamed main file from epgui.tcl into mainwin.tcl
+- moved setting of global "is_unix" to C level
+- added filling of help menu (moved from base level of help.tcl)
+- split off new proc ApplyRcSettingsToMenu from LoadRcFile
+- moved proc Motd2HHMM: used by 2 split off modules
+epgtcl/dlg_acqmode.tcl [rev:1.1, 2002-10-25T20:16:27]:
+- Initial revision
+epgtcl/dlg_ctxmencf.tcl [rev:1.1, 2002-10-25T20:16:27]:
+- Initial revision
+epgtcl/dlg_dump.tcl [rev:1.1, 2002-10-25T20:16:27]:
+- Initial revision
+epgtcl/dlg_filter.tcl [rev:1.1, 2002-10-25T20:16:27]:
+- Initial revision
+epgtcl/dlg_hwcfg.tcl [rev:1.1, 2002-10-25T20:16:27]:
+- Initial revision
+epgtcl/dlg_netname.tcl [rev:1.1, 2002-10-25T20:16:27]:
+- Initial revision
+epgtcl/dlg_netsel.tcl [rev:1.1, 2002-10-25T20:16:27]:
+- Initial revision
+epgtcl/dlg_prov.tcl [rev:1.1, 2002-10-25T20:16:27]:
+- Initial revision
+epgtcl/dlg_shortcuts.tcl [rev:1.1, 2002-10-25T20:16:27]:
+- Initial revision
+epgtcl/dlg_udefcols.tcl [rev:1.1, 2002-10-25T20:16:27]:
+- Initial revision
+epgtcl/dlg_xawtvcf.tcl [rev:1.1, 2002-10-25T20:16:27]:
+- Initial revision
+epgtcl/draw_stats.tcl [rev:1.1, 2002-10-25T20:16:46]:
+- Initial revision
+epgtcl/rcfile.tcl [rev:1.1, 2002-10-25T20:16:46]:
+- Initial revision
+epgtcl/shortcuts.tcl [rev:1.1, 2002-10-25T20:16:46]:
+- Initial revision
+epgui/pioutput.c [rev:1.35, 2002-10-26T08:21:05]:
+- XML output: removed network index from channel ID; use CNI only
+epgui/pioutput.c [rev:1.36, 2002-10-26T12:09:09]:
+- added " %z" to all timestamps in XML output (on request of Thierry)
+pod2help.pl [rev:1.17, 2002-10-26T14:41:13]:
+- Indent paragraphs between =over and =back
+- to achieve that, no longer write chapter in one chunk, instead print
+    each paragraph separately, and add an "indent" tag when neccessary
+- split off sub-function PrintParagraph
+nxtvepg.pod [rev:1.81, 2002-10-26T14:41:25]:
+- added new section on database export in XML
+- show/hide options in configure menu are now a sub-menu (cascade)
+    -> combined them into a list in one sub-section
+- split "show networks" into ... (left) and ... (middle)
+- removed sub-section on filter-shortcuts in configure menu (was moved away)
+README [rev:1.29, 2002-10-26T14:41:32]:
+- added note that Aldi card are not supported
+images/colsel.xbm [rev:1.1, 2002-10-26T14:42:00]:
+- Initial revision
+epgui/epgmain.c [rev:1.103, 2002-10-26T14:44:47]:
+- fixed setlocale: must set locale "C" for LC_ALL
+    required for Tcl or parsing of floating point numbers fails
+    only set LC_TIME to user-defined value
+- added bitmap_colsel for PI listbox column header config button
+epgtcl/mainwin.tcl [rev:1.192, 2002-10-26T14:50:52]:
+- Split "show networks" configure menu entry into left/middle
+- moved .all.netwops.list into .all.sortcuts frame to allow to change the
+    listbox's position below the shortcut list -> use grid manager for the frame
+- moved "show" menu entries in the configure menu into new sub-menu "Show/Hide"
+- merged proc ToggleNetwopListbox and ToggleShortcutListbox into new
+    proc ShowOrHideShortcutList
+- moved proc UpdateNetwopFilterBar here from dlg_netsel.tcl
+- Also:
+- added "popup column selection dialog" button to PI listbox column headers
+epgtcl/rcfile.tcl [rev:1.2, 2002-10-26T14:50:56]:
+- Split "show networks" configure menu entry into left/middle
+- added new global showNetwopListboxLeft to rc/ini file
+epgtcl/dlg_netsel.tcl [rev:1.2, 2002-10-26T14:51:08]:
+- moved proc UpdateNetwopFilterBar into mainwin.tcl
+epgtcl/shortcuts.tcl [rev:1.2, 2002-10-26T14:51:36]:
+- Split "show networks" configure menu entry into left/middle
+- moved .all.netwops.list into .all.sortcuts frame
+www/index-de.html [rev:1.44, 2002-10-26T16:20:57]:
+- appended "?download" to .tar.gz and .zip links to avoid confusion
+www/index.html [rev:1.56, 2002-10-26T16:20:57]:
+- appended "?download" to .tar.gz and .zip links to avoid confusion
+Makefile.win32 [rev:1.27, 2002-10-27T10:04:59]:
+- Split GUI Tcl/Tk "epgui/epgui.tcl" script into smaller parts
+- moved into new sub-directory epgtcl/
+- added implicit rule to derive .c from .tcl
+- tcl2c tool extended
+    + included comment removal, formerly done by "egrep -v '^#'"
+    + now produces both .c and .h files
+    + output and script names are derived from input names
+- added new module epgui/loadtcl.c
+- renamed epgui/help.tcl into eogtcl/helptexts.tcl
+tvsim/tvsim_main.c [rev:1.14, 2002-10-27T10:09:25]:
+- Adadpted Tcl/Tk script loading for new version of tcl2c.c
+tvsim/vbirec_main.c [rev:1.15, 2002-10-27T10:09:25]:
+- Adadpted Tcl/Tk script loading for new version of tcl2c.c
+tvsim/tvsim.pod [rev:1.5, 2002-10-27T10:09:54]:
+tvsim/vbiplay.pod [rev:1.3, 2002-10-27T10:09:54]:
+tvsim/vbirec.pod [rev:1.6, 2002-10-27T10:09:54]:
+nxtvepg.pod [rev:1.82, 2002-10-27T10:09:58]:
+- Replaced real name with "Th." to avoid that the name shows up in a web search
+epgui/epgmain.c [rev:1.104, 2002-10-27T10:13:37]:
+- removed "wm withdraw" and "wm deiconify" because it caused problems on WIN32
+    (the window was mapped as small empty box and later seen to grow) and is no
+    longer required anyway.
+- replaced #include for tcl_libs include with extern declaration (simpler)
+epgui/pioutput.c [rev:1.37, 2002-10-27T11:16:33]:
+- removed "%z" in XML timestamps agai nsince it's a GNU extension.
+    print times in GMT instead2s, except for VPS/PDC label
+- further optimized PiOutput_PiListboxInsert(): keep all objects permanently
+    even if no static content, to avoid re-allocating them for every text line
+epgtcl/dlg_netsel.tcl [rev:1.3, 2002-10-27T11:40:18]:
+- added offset of 1 pixel around "Official name" entry field to avoid that
+    it meshes with the borders of other elements
+epgtcl/dlg_xawtvcf.tcl [rev:1.2, 2002-10-27T11:40:27]:
+- moved proc XawtvConfigShmAttach into static area
+- now calls split off, new proc XawtvConfigDisplayShmAttach if dialog is open
+epgtcl/mainwin.tcl [rev:1.193, 2002-10-27T11:40:34]:
+- changed binding of Double-Button-1: equiv. Tune-TV
+    moved prv. binding to Double-Button-2
+- added binding for Key-Up/Down: scroll +/- 1
+- fixed mapping of Tune-TV button (was wrong row)
+    make clock and reset columnspan 2 only of both sc. and netwops lists are disp.
+epgtcl/dlg_filter.tcl [rev:1.2, 2002-10-27T14:51:56]:
+- Fixed unresolved ref's to dynamically loaded Tcl procs
+- new proc TimeFilterExternalChange, used instead of proc UndoTimeFilter
+- changed prefixes from SelectTimeFilter... into UpdateTimeFilter
+    because there's a new global proc in mainwin.tcl names SelectTimeFilter
+- UpdateTime procs use new proc SelectTimeFilter
+epgtcl/dlg_hwcfg.tcl [rev:1.2, 2002-10-27T14:52:04]:
+- Fixed unresolved ref's to dynamically loaded Tcl procs
+- moved proc HardwareConfigUpdateCardIdx from danymic to static
+epgtcl/dlg_netsel.tcl [rev:1.4, 2002-10-27T14:52:11]:
+- Fixed unresolved ref's to dynamically loaded Tcl procs
+- added stubs for proc SelBoxShiftUp/DownItem
+epgtcl/mainwin.tcl [rev:1.194, 2002-10-27T14:52:17]:
+- Fixed unresolved ref's to dynamically loaded Tcl procs
+- added new proc SelectTimeFilter: split off from dlg_filter.tcl
+epgtcl/shortcuts.tcl [rev:1.3, 2002-10-27T14:52:25]:
+- Localized shortcut defaults: German and French version
+- French version provided by Thierry Menetrier
+- German version is currently a plain trnalsation of the generic version
+epgui/epgmain.c [rev:1.105, 2002-10-27T14:53:43]:
+- ui_init(): Pass LC_TIME setting to Tcl in new global var user_language
+- used for localized shortcut defaults
+epgui/pifilter.c [rev:1.73, 2002-10-27T14:55:46]:
+- Fixed unresolved ref's to dynamically loaded Tcl procs
+- replaced reference to proc SelectTimeFilterRelStart with new interface
+    proc TimeFilterExternalChange (wrapper arund the old proc)
+- replaced reference to proc UndoTimeFilter with discrete implementation:
+    set timsel_enabled 0 & call new proc SelectTimeFilter
+epgtcl/dlg_filter.tcl [rev:1.3, 2002-10-27T18:48:04]:
+- Start time filter: added "ignore date" option
+- new global var timsel_nodate
+- dialog: new checkbutton; disable date scale when checked
+- Also bugfix:
+- proc UpdateTimeFilterRelStart not always called when dialog opened
+    -> sometimes "time span" was printed instead of "start time"
+- allow to resize the dialog horizontally
+epgtcl/mainwin.tcl [rev:1.195, 2002-10-27T18:48:11]:
+- Start time filter: added "ignore date" option
+- SelectTimeFilter: pass new global var timsel_nodate to C_SelectStartTime
+epgtcl/shortcuts.tcl [rev:1.4, 2002-10-27T18:48:20]:
+- Start time filter: added "ignore date" option
+- new global var timsel_nodate
+- for backwards compatibility timsel_nodate is not added to the timsel array;
+    instead timsel_date is set to -1
+epgui/pifilter.c [rev:1.74, 2002-10-27T18:48:28]:
+- Start time filter: added "ignore date" option
+- added new argument to C_SelectStartTime at objv index 2
+    if bool is TRUE; do not set flag NI_DATE_RELDATE;
+    set new filter type FILTER_TIME_DAILY instead of FILTER_TIME_ONCE
+- merged filter types FILTER_TIME_BEG, FILTER_TIME_END to FILTER_TIME_ONCE
+epgdb/epgdbfil.c [rev:1.38, 2002-10-27T18:48:36]:
+- Start time filter: added "ignore date" option:
+- EpgDbFilterFinishNi(): when NI_DATE_RELDATE is not set, use FILTER_TIME_DAILY
+    set timeBegin and timeEnd to "secs of day" instead of absolute times
+- EpgDbFilterMatch() handles new filter type FILTER_TIME_DAILY
+- merged filter types FILTER_TIME_BEG, FILTER_TIME_END to FILTER_TIME_ONCE
+    and removed complicated invert handling
+- Bugfix EpgDbFilterInitNi: must not memset() filter context
+- prefilters must remain set
+epgdb/epgdbfil.h [rev:1.23, 2002-10-27T18:48:42]:
+- Start time filter: added "ignore date" option:
+- new filter type FILTER_TIME_DAILY
+- merged filter types FILTER_TIME_BEG, FILTER_TIME_END to FILTER_TIME_ONCE
+www/index.html [rev:1.57, 2002-10-28T20:39:14]:
+- bugfix: link to -win.zip actually referred to -tvsim.zip
+Makefile [rev:1.48, 2002-11-03T12:14:50]:
+- added possibility to put the EPG_DB_DIR into the user's $HOME
+- defined a macro INST_DB_PERM to configure dbdir permissions
+- clean: remove generated tcl header files too
+tcl2c.c [rev:1.4, 2002-11-03T12:15:10]:
+- made generated array const (note: with Tcl <= 8.3 this requires some hacks
+    to avoid SEGV during eval; see loadtcl.c)
+- added #include of the generated header to the generated C files
+epgui/epgmain.c [rev:1.106, 2002-11-03T12:15:18]:
+- added possibility to put the EPG_DB_DIR into the user's $HOME
+    new macro passed from Makefile: EPG_DB_ENV (UNIX only)
+- removed redundant extern decl for tcl_libs_tcl_static for Win32
+- moved loading of tcl_libs_tcl_static into loadtcl.c
+    reordered ui_init() a bit
+epgdb/epgdbsav.c [rev:1.49, 2002-11-03T12:16:09]:
+- UNIX: removed chmod for dbdir and files
+- chmod(0666) for files was not needed anyways (since dir is writable)
+- chmod(0777) for directory is done during installation only
+- changes suggested by Matthias Brill for multi-user systems
+tvsim/tvsim_main.c [rev:1.15, 2002-11-03T12:16:19]:
+- replaced extern decl for tcl_libs_tcl_static with #include
+- tcl scripts are now converted into const arrays by tcl2c.c
+    defined macro TCL_EVAL_CONST() as workaround for Tcl 8.3 which requires
+    scripts to be in writable memory
+tvsim/vbirec_main.c [rev:1.16, 2002-11-03T12:16:26]:
+- removed redundant extern decl for tcl_libs_tcl_static
+- tcl scripts are now converted into const arrays by tcl2c.c
+    defined macro TCL_EVAL_CONST() as workaround for Tcl 8.3 which requires
+    scripts to be in writable memory
+epgui/loadtcl.c [rev:1.2, 2002-11-03T12:58:44]:
+- tcl scripts are now converted into const arrays by tcl2c.c
+    defined macro TCL_EVAL_CONST() as workaround for Tcl 8.3 which requires
+    scripts to be in writable memory
+- moved all scripts into an array, to allow processing by for() loop
+epgtcl/dlg_prov.tcl [rev:1.2, 2002-11-03T16:02:20]:
+- use new bind tag TextReadOnly for .provsel text widgets
+- bindings like Text minus the ones which allow modification of the content
+- before it was put into -state disabled, which prevented copy&paste on WIN32
+epgtcl/dlg_ctxmencf.tcl [rev:1.2, 2002-11-03T16:02:42]:
+- fix xalarm example: changed -time arg to ${start:%H:%M}
+epgtcl/dlg_shortcuts.tcl [rev:1.2, 2002-11-03T16:28:08]:
+- Changed shortcut definition: use tag as array index; added "hide" flag
+- globally replaced fsc_tag_idx with fsc_hide_idx
+- globally replaced shortcut_count with shortcut_order; same with fscedit_count
+- edit dialog now selects the last used shortcut
+    index can be passed as argument from new shortcut list context menu
+- added horizontal scrollbar to "filter pretty print" text widget;
+    use new bind tag TextReadOnly
+- removed necessity to press "update" after changes in edit dialog
+- added "invoke" and "(filter) update" buttons for interaction with main window
+- added "hide from main window list" checkbutton
+- made shortcut update dialog resizable;
+    limit list max. length to 25; added vertical scrollbar
+epgtcl/shortcuts.tcl [rev:1.5, 2002-11-03T16:28:15]:
+- Changed shortcut definition: use tag as array index; added "hide" flag
+- globally replaced fsc_tag_idx with fsc_hide_idx;
+    adapted default shortcuts
+- globally replaced shortcut_count with shortcut_order;
+    renamed many shortcut ref' variables from "index" to "sc_tag"
+- changed fsc_prevselection to hold shortcut tag instead of index
+- changed proc SelectShortcuts to receive tag and array name as args:
+    + useful to set yet unsaved shortcuts from the "edit" dialog
+    + added new intermediate proc InvokeSelectedShortcuts: used by mainwin
+- Bugfixes:
+- shortcut adding: theme, sortcrit & global inversions were "forgotten"
+- pretty print: feature "apect=full" and "not encrypted" etc. were printed wrong
+    also added "AND" between multiple features in the same class
+- pretty print "timsel": say "daily" if date euquals -1
+epgtcl/rcfile.tcl [rev:1.3, 2002-11-03T16:28:27]:
+- Changed shortcut definition: use tag as array index; added "hide" flag
+- added conversion of older shortcuts array formats;
+    added consistancy check for references from user-defined columns
+- replaced shortcut_count with shortcut_order
+epgtcl/mainwin.tcl [rev:1.196, 2002-11-03T16:28:34]:
+- new bind tag TextReadOnly: sub-set of Text bindings; concept was formerly
+    only used locally for the short-info text; now in several dialogs too
+- added context menus to shortcuts and netwops filter lists
+- added MouseWheel event handling (WIN32 only)
+- changed shortcut definition: use tag as array index; added "hide" flag
+    + globally replaced fsc_tag_idx with fsc_hide_idx
+    + globally replaced shortcut_count with shortcut_order;
+- use new intermediate proc InvokeSelectedShortcuts instead of SelectShortcuts
+epgtcl/dlg_udefcols.tcl [rev:1.2, 2002-11-03T16:28:43]:
+- Changed shortcut definition: use tag as array index; added "hide" flag
+- globally replaced fsc_tag_idx with fsc_hide_idx
+- globally replaced shortcut_count with shortcut_order;
+    use new helper proc CompleteShortcutOrder to get "hidden" shortcuts' tags
+epgctl/debug.c [rev:1.18, 2002-11-04T19:04:21]:
+- improved chk_memleakage():
+- print summary of non-freed memory (first 10 elements)
+- required to put the info into debug output, i.e. allow debugging w/o core
+www/provnets.html [rev:1.19, 2002-11-05T21:42:59]:
+- TV5 is providing service again
+- moved table entry back up to the active providers
+- added note that it was inactive
+- info provided by anthony@ricou.fr.fm
+pod2help.pl [rev:1.18, 2002-11-09T11:10:45]:
+- added "FILES" section to internal help
+- i.e. do stop at "SEE ALSO" section with conversion instead of "FILES"
+epgtcl/dlg_filter.tcl [rev:1.4, 2002-11-09T20:21:43]:
+- bugfixes:
+- global timsel_nodate was not initialized
+- proc UndoTimeFilter: timsel_enabled not declared global
+epgtcl/dlg_prov.tcl [rev:1.3, 2002-11-09T20:21:52]:
+- fix proc ProvWin_Select:
+- still did set TextReadOnly widget's state to disabled
+epgtcl/dlg_shortcuts.tcl [rev:1.3, 2002-11-09T20:22:03]:
+- Extended shortcut context menu's functionality
+- added new global proc DeleteFilterShortcut: delete specified shortcut
+    (without use of the edit dialog, as before)
+- added new global proc UpdateFilterShortcutByContext: assign current filter
+    directly to the specified shortcut (without going through the fscupd dialog)
+- added warning when updated filter is identical to old filter setting
+- Also:
+- removed use of color in listbox to mark "hidden" shortcuts; the colors were
+    incompatible with the color scheme on M$ Windows 98
+epgtcl/mainwin.tcl [rev:1.197, 2002-11-09T20:22:09]:
+- Extended shortcut context menu's functionality
+- added selected shortcut's name to the top of the menu
+- added "delete" entry
+- use new proc CreateListboxContextMenu to create the popup menu
+- Also:
+- fixed MouseWheel bindings for Win98
+epgtcl/shortcuts.tcl [rev:1.6, 2002-11-09T20:22:18]:
+- bugfix proc SelectShortcuts: must check if shortcuts in fsc_prevselection
+    still exist (bug appeared after deleting a previously selected shortcut)
+- bugfix proc SelectShortcuts: do not pass invert_all to C_ResetFilter
+- bugfix proc DescribeCurrentFilter: not only check if filter_invert(tag)
+    exists, but also vor value != 0
+- updated shortcut defaults for France (provided by Thierry)
+epgui/epgmain.c [rev:1.107, 2002-11-09T20:36:01]:
+- improved -help output and added default -dbdir path
+    because it's now likely to be changed via the Makefile
+- fix for WIN32: do not xfree() statically allocated defaultDbDir
+epgui/pilistbox.c [rev:1.81, 2002-11-09T20:36:07]:
+- fixed PiListBox_ScrollLineDown() and ...Up() for wheel mouse:
+- if last or first line is already visible, move the cursor towards the end;
+    this makes the behaviour equivalent to page-wise scrolling
+- the fix is also useful for the arrow buttons in the scrollbars
+epgvbi/syserrmsg.c [rev:1.1, 2002-11-10T19:49:30]:
+- Initial revision
+epgvbi/syserrmsg.h [rev:1.1, 2002-11-10T19:49:31]:
+- Initial revision
+Nxtvepg.ad [rev:1.1, 2002-11-10T19:49:40]:
+- Initial revision
+nxtvepg.pod [rev:1.83, 2002-11-10T19:56:59]:
+- start time filter: added "ignore date" option
+- duration filter: added note that time can be entered into entry widget
+- bugfix: link from -dump to Control menu was broken
+- added note that daemon is not terminated upon Control->Quit
+- FILES: added note about permissions for device files
+    suggested by Thomas Hartmann
+- FILES: added sections on .Xdefaults (UNIX) and Nxtvepg.ad (WIN32)
+- extended FILTER SHORTCUTS section for new context menu
+Makefile [rev:1.49, 2002-11-10T19:57:05]:
+- added new module epgvbi/syserrmsg: split off from epgdb/epgnetio
+- added dependencies for .h files generated from .tcl (for stability)
+- added install rule for new file Nxtvepg.ad
+- added .SUFFIX rule
+- changed bak dir from /e to /c (changed partitions on 40GB disk)
+Makefile.win32 [rev:1.28, 2002-11-10T19:57:10]:
+- added new module epgvbi/syserrmsg: split off from epgdb/epgnetio
+- added dependencies for .h files generated from .tcl (for stability)
+- added zip rule for new file Nxtvepg.ad
+- added .SUFFIX rule
+- changed bak dir from /e to /c (changed partitions on 40GB disk)
+pod2help.pl [rev:1.19, 2002-11-10T19:58:25]:
+- pre-formatted paragraphs are now indented too between =over and =back
+epgui/loadtcl.c [rev:1.3, 2002-11-10T20:05:19]:
+- bugfix TCL_EVAL_CONST() for version 8.3:
+- must put script inside uplevel #0:
+    else defined vars are not global (and vanish)
+epgtcl/dlg_acqmode.tcl [rev:1.2, 2002-11-10T20:30:27]:
+- Made background colors and PI fonts configurable via X11 resources
+- globally renamed variable "textfont" into "font_normal"
+epgtcl/dlg_hwcfg.tcl [rev:1.3, 2002-11-10T20:30:35]:
+- Made background colors and PI fonts configurable via X11 resources
+- small clean-up: replaced #ffffff entry bg with $text_bg
+epgtcl/dlg_prov.tcl [rev:1.4, 2002-11-10T20:30:41]:
+- Made background colors and PI fonts configurable via X11 resources
+- globally renamed variable "textfont" into "font_normal"
+- replaced need for font_bold with new proc DeriveFont
+epgtcl/dlg_shortcuts.tcl [rev:1.4, 2002-11-10T20:30:48]:
+- Made background colors and PI fonts configurable via X11 resources
+- globally renamed variable "textfont" into "font_normal"
+epgtcl/dlg_udefcols.tcl [rev:1.3, 2002-11-10T20:30:54]:
+- Made background colors and PI fonts configurable via X11 resources
+- globally renamed variable "textfont" into "font_normal"
+- replaced need for font_bold with new proc DeriveFont
+epgtcl/dlg_xawtvcf.tcl [rev:1.3, 2002-11-10T20:31:01]:
+- Made background colors and PI fonts configurable via X11 resources
+- small clean-up: replaced #ffffff entry bg with $text_bg
+epgtcl/draw_stats.tcl [rev:1.2, 2002-11-10T20:31:06]:
+- Made background colors and PI fonts configurable via X11 resources
+- replaced need for font_bold and font_small with new proc DeriveFont
+epgtcl/mainwin.tcl [rev:1.198, 2002-11-10T20:31:12]:
+- Made background colors and PI fonts configurable via X11 resources
+- moved initial global variable set-up into new proc LoadWidgetOptions
+- WIN32: read option file Nxtvepg.ad
+- instead of var "textfont" use different variables for different windows:
+    PI & short-info, help, Xawtv, tk_messageBox
+- use new proc DeriveFont to get larger or bold variants of fonts;
+    replaced all font variants variables font_pl2_bold, font_pl4_bold etc.
+- renamed some globals (e.g. cursor_bg into pi_cursor_bg) since the same
+    names are used in the resource file
+- column headers: calculate height from font size
+epgui/pioutput.c [rev:1.38, 2002-11-10T20:35:13]:
+- Made background colors and PI fonts configurable via X11 resources
+- replaced Tcl global textfont with pi_font: use different variables for
+    fonts in different windows (PI & short-info, help, Xawtv, tk_messageBox)
+epgui/pilistbox.c [rev:1.82, 2002-11-10T20:35:23]:
+- Made background colors and PI fonts configurable via X11 resources
+- renamed some globals (e.g. cursor_bg into pi_cursor_bg) since the same
+    names are used in the resource file
+epgui/epgmain.c [rev:1.108, 2002-11-10T20:35:33]:
+- Made background colors and PI fonts configurable via X11 resources
+- main: startup with GUI: added call to Tcl proc LoadWidgetOptions
+    was formerly invoked at mainwin.tcl base-level, i.e. during script-eval
+epgtcl/dlg_dump.tcl [rev:1.2, 2002-11-15T19:30:25]:
+- Split off output file handling of all export types into new proc
+- new proc DlgDump_CheckOutputFile
+- append default extension to filenames if no "." in name given by the user
+- fix use of -defaultextension Tk option: must include "." in extension
+- Also: bugfix XML: do not allow empty 0-length filenames
+epgtcl/dlg_shortcuts.tcl [rev:1.5, 2002-11-15T19:31:19]:
+- small change in proc AddFilterShortcut
+- insert new shortcuts after the selected shortcut ($edit_idx)
+epgtcl/mainwin.tcl [rev:1.199, 2002-11-15T19:37:54]:
+- added Tcl global pi_bold_font (for efficiency of text insertions)
+- enlarged default sizes for PI listbox columns because column gap was
+    increased from 5 to 10 pixels for larger fonts
+- bugfix proc FillColumnSelectionDialog: .all missing in widget paths
+epgui/pioutput.c [rev:1.39, 2002-11-15T19:45:32]:
+- PI listbox text insertion: measure bold font correctly
+- use new Tcl global pi_bold_font
+- check text format for tag "bold" -> moved text length measurement behind
+    format parsing
+- column gap was increased from 5 to 10 pixels for larger fonts
+- Support for user-defined columns in HTML output
+- added processing of pPiboxColCfg, derived from PI listbox output
+    split off into new sub-function PiOutput_DumpHtmlTitleRow()
+- use first column for hyperlinks if no title column is available
+    split off in new sub-function PiOutput_SelectHyperlinkCol()
+nxtvepg.pod [rev:1.84, 2002-11-16T16:56:58]:
+- improved chapter on FILTER SHORTCUTS
+epgvbi/btdrv4win.c [rev:1.27, 2002-11-17T18:04:52]:
+- Added workaround for Hauppauge "WinTV2000" TV application
+- image was too dark when app was started after nxtvepg acq
+- solution: write BT848_COLOR_CTL_GAMMA register before quitting
+- reported by volker.beck@gmx.de and peter.rolf@arcor.de
+- Make VBI device errors available to GUI
+- added dummy for new function BtDriver_GetLastError()
+epgvbi/btdrv.h [rev:1.26, 2002-11-17T18:12:34]:
+- Make VBI device errors available to GUI
+- added new element failureErrno to struct EPGACQ_BUF
+epgvbi/btdrv4dummy.c [rev:1.13, 2002-11-17T18:12:45]:
+- Make VBI device errors available to GUI
+- added dummy for new function BtDriver_GetLastError()
+epgvbi/btdrv4linux.c [rev:1.34, 2002-11-17T18:12:55]:
+- Make VBI device errors available to GUI
+- added new interface #include syserrmsg.h
+- call SystemErrorMessage_Set() for all device errors
+    new global pSysErrorText to hold error text
+- VBI slave passes error code via new element failureErrno in struct EPGACQ_BUF
+- added new function BtDriver_GetLastError()
+- changed semantics of BtDriver_TuneChannel(): input source is only set upon
+    the first call when the device is kept open; required new global devKeptOpen
+    for NetBSD
+epgdb/epgnetio.c [rev:1.31, 2002-11-17T18:14:14]:
+- Make VBI device errors available to GUI
+- split off EpgNetIo_SetErrorText() into new module epgvbi/syserrmsg.c
+    because it's used by btdrv4linux.c too
+- globally replaced EpgNetIo_SetErrorText() with SystemErrorMessage_Set()
+epgdb/epgnetio.h [rev:1.19, 2002-11-17T18:15:19]:
+- Make VBI device errors available to GUI
+- split off EpgNetIo_SetErrorText() into new module epgvbi/syserrmsg.c
+    because it's used by btdrv4linux.c too
+epgctl/epgacqclnt.c [rev:1.9, 2002-11-17T18:19:20]:
+- Make VBI device errors available to GUI
+- globally replaced EpgNetIo_SetErrorText() with SystemErrorMessage_Set()
+- the function was moved from epgnetio.c into the new module syserrmsg.c
+epgctl/epgacqctl.c [rev:1.77, 2002-11-17T18:19:46]:
+- Bug fix EPG scan
+- EpgAcqCtl_Suspend(): clear stream buffer upon suspend
+- Make VBI device errors available to GUI
+- added new function EpgAcqCtl_GetLastError(): pass through driver error
+    messages (not supported in net acq mode)
+epgctl/epgacqctl.h [rev:1.40, 2002-11-17T18:19:54]:
+- Make VBI device errors available to GUI
+- added declaration for new function EpgAcqCtl_GetLastError()
+epgctl/epgscan.c [rev:1.31, 2002-11-17T18:20:28]:
+- Make VBI device errors available to GUI (UNIX only)
+- use new btdrv interface function BtDriver_GetLastError() to retrieve msg.
+    and print it in the scan output window
+- Bugfixes:
+- stream queue was cleared although not initialized when acq had to be
+    newly started but input channel change failed
+- acq suspend did not clear the stream buffer (error was in epgacqctl.c)
+- refresh mode: print "db ok" instead of "already known"
+epgui/menucmd.c [rev:1.93, 2002-11-17T18:21:59]:
+- Make VBI device errors available to GUI (UNIX only)
+- upon acq start failure, retrieve error message from driver and display
+    to replace the former "Close all other video applications and try again"
+- upon EPG scan failure: only print short message with reference to EPG scan
+    message window
+epgtcl/mainwin.tcl [rev:1.200, 2002-11-17T19:40:38]:
+- Made columns configurable for HTML export
+- removed call to proc DownloadUserDefinedColumnFilters after PI column change:
+    the cache now contains all shortcuts ref'd by user-defined columns
+- made proc FillColumnSelectionDialog generic: gets widget path and variable
+    names as args; is now used by HTML column config dialog too;
+    added new wrapper proc PiListboxColsel_ColUpdate, called by u-def cf. dlg.
+epgtcl/rcfile.tcl [rev:1.4, 2002-11-17T19:40:44]:
+- Made columns configurable for HTML export
+- new rcfile parameters dumphtml_sel, dumphtml_sel_count, dumphtml_use_colsel,
+    dumphtml_sel: replacing dumphtml_sel_only
+- added consistancy check for dumphtml_colsel, eq. to PI columns
+epgtcl/dlg_udefcols.tcl [rev:1.4, 2002-11-17T19:40:57]:
+- Made columns configurable for HTML export
+- proc DownloadUserDefinedColumnFilters: cache all shortcuts, not only those
+    used in PI listbox
+- proc UserColsDlg_Delete: also check HTML export config for deleted column
+- use proc PiListboxColsel_ColUpdate and DumpHtml_ColUpdate
+    instead of proc FillColumnSelectionDialog
+epgtcl/dlg_dump.tcl [rev:1.3, 2002-11-17T19:41:06]:
+- Made columns configurable for HTML export
+- new rcfile parameters dumphtml_sel, dumphtml_sel_count, dumphtml_use_colsel,
+    dumphtml_sel: replacing dumphtml_sel_only
+- added new configuration buttons in proc PopupDumpHtml;
+    added callbacks HtmlDump_ToggleType, HtmlDump_ToggleColsel
+- added new dialog PopupHtmlColumnSelection
+- new "static" proc DumpHtml_ColUpdate: trigger by user-defined column dialog
+epgvbi/cni_tables.c [rev:1.18, 2002-11-17T20:30:53]:
+- Added TV5 back into "known providers" table
+epgctl/epgscan.c [rev:1.32, 2002-11-17T20:35:39]:
+- bugfix EpgScan_EvHandler(): after "data" was found on a non-known provider
+    channel, the state was reset to WAIT_DATA once a CNI was found
+- WIN32 fix: moved declaration of pErrStr into #ifdef WIN32
+epgui/pioutput.c [rev:1.40, 2002-11-17T20:43:20]:
+- Made columns configurable for HTML export
+- split off new function PiOutput_CfgColumnsCache(): is now used to parse
+    HTML column definition too; PiOutput_CfgColumnsClear() gets pointer to cache
+- removed function PiOutput_SelectHyperlinkCol(): moved in Tcl level
+- moved loop across columns into PiOutput_HtmlTitle()
+- added gap between PI title list and descriptions in HTML output
+- added new params to C_DumpHtml: <max-count> <hyperlink=col-idx/-1> <colsel>
+    hyperlink is column index instead of boolean
+- Bugfix PI column type keywords
+- array pColTypeKeywords was not NULL terminated
+- also moved "INVALID" back to the end of the list
+- also fixed funtion names in debug output
+epgui/pioutput.c [rev:1.41, 2002-11-19T18:40:36]:
+- bugfix PiOutput_HtmlDesc(): <A> link to title did not match anchor
+nxtvepg.pod [rev:1.85, 2002-11-19T18:57:10]:
+- updated section on EXPORT AS HTML for changes in the dialog options
+- moved mention of code for merged database (0x00ff) from -dump to -prov
+epgctl/epgversion.h [rev:1.28, 2002-11-19T18:59:32]:
+- updated for release 2.4.0
+- added macros for the project homepage and mail address
+README [rev:1.30, 2002-11-19T20:55:23]:
+- added TV5 back to list of French providers
+Makefile.win32 [rev:1.29, 2002-11-19T20:56:38]:
+- added -9 for win zip archive compression
+- added images/*.png to win zip archive
+epgvbi/btdrv4win.c [rev:1.28, 2002-11-19T20:57:48]:
+- corrections & additions in tuner table, imported from bttv-0.7.100
+- added tuner norm handling - still disabled in Tuner_SetFrequency()
+    because GUI doesn't support it yet and SECAM multi-norm tuner would not work
+- added more debug output in Tuner_SetFrequency()
+epgvbi/bt848.h [dsdrv/bt8x8_reg.h, rev:1.8, 2002-11-19T20:57:55]:
+- added 3 new tuner types to enum, imported from bttv-0.7.100
+epgvbi/winshm.h [rev:1.9, 2002-11-19T20:58:06]:
+- adapted comment for tvCurFreq: high byte contains TV norm
+tvsim/tvsim_main.c [rev:1.16, 2002-11-19T20:58:21]:
+- adapted comment for tvCurFreq: high byte contains TV norm
+CHANGES [rev:1.29, 2002-11-19T20:59:51]:
+- updated for release 2.4.0
+TODO [rev:1.22, 2002-11-19T20:59:51]:
+- updated for release 2.4.0
+nxtvepg.spec [rev:1.10, 2002-11-19T21:00:17]:
+- updated for release 2.4.0
+- added TV5 back to list of French providers
+www/changelog.html [rev:1.41, 2002-11-19T22:21:11]:
+- updated for release 2.4.0
+www/man.html [rev:1.23, 2002-11-19T22:21:11]:
+- updated for release 2.4.0
+www/index-de.html [rev:1.45, 2002-11-19T22:21:26]:
+- updated for release 2.4.0
+- replaced Linux screenshot (the previous one was VERY old; Thanks to Thierry
+    for pointing this out); contains image markers for movies and highlights
+    "Harald Schmidt" in bold red
+- removed "K!TV" and "c't / moved to sourceforge.net" news flashes
+- removed warning about bugs in < 2.2.1 and link to patches
+www/index.html [rev:1.58, 2002-11-19T22:21:26]:
+- updated for release 2.4.0
+- replaced Linux screenshot (the previous one was VERY old; Thanks to Thierry
+    for pointing this out); contains image markers for movies and highlights
+    "Harald Schmidt" in bold red
+- removed "K!TV" and "c't / moved to sourceforge.net" news flashes
+- removed warning about bugs in < 2.2.1 and link to patches
+www/pre-releases.html [rev:1.16, 2002-11-19T22:21:48]:
+- update to release 2.4.0pre5
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_4_0 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

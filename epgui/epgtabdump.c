@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgtabdump.c,v 1.3 2002/09/11 12:40:46 tom Exp tom $
+ *  $Id: epgtabdump.c,v 1.4 2002/10/20 17:34:57 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -277,6 +277,8 @@ EPGTAB_DUMP_MODE EpgTabDump_GetMode( const char * pModeStr )
          mode = EPGTAB_DUMP_PI;
       else if (strcasecmp("pdc", pModeStr) == 0)
          mode = EPGTAB_DUMP_PDC;
+      else if (strcasecmp("xml", pModeStr) == 0)
+         mode = EPGTAB_DUMP_XML;
       else
          debug1("EpgTabDump-GetMode: unknown mode: %s", pModeStr);
    }

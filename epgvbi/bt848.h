@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: bt848.h,v 1.7 2002/04/29 19:02:36 tom Exp tom $
+ *  $Id: bt848.h,v 1.8 2002/11/19 20:57:55 tom Exp tom $
  */
 
 #ifndef __BT848_H
@@ -371,6 +371,9 @@ typedef enum
    TUNER_TEMIC_4106FH5,
    TUNER_TEMIC_4012FY5,
    TUNER_TEMIC_4136FY5,
+   TUNER_LG_PAL_NEW_TAPC,
+   TUNER_PHILIPS_FM1216ME_MK3,
+   TUNER_LG_NTSC_NEW_TAPC,
    TUNER_COUNT
 } TUNER_TYPE;
 

@@ -5,6 +5,18 @@ boost any item's priority, find more points that need to be fixed or if
 you have ideas for additional features.
 
 
+Misc. changes planned for the near future:
+- optimize filtering for user-def columns
+- new drop-down menu for user-defined columns: derived from shortcuts
+- single click on short-info size slider: resize by one line
+- improved text search: keywords (google style), multi-line (OR), parity-safe/fuzzy
+- series search via title
+- allow provider channel names at the -prov command line arg
+- refuse to load rcfile from newer versions
+  (include backwards compat flag in rcfile?)
+- HTML dump: allow to specify which column to use for hyperlink
+
+
 daemon:
 - make concurrent updates of shared rc file safe (e.g. daemon writes provider freq)
   or use a different rc for acq parameters; currently data can be lost!
@@ -46,6 +58,7 @@ WIN32 port fixes:
   do not use DOS shell to start applications, use CreateProcess instead;
   do not use Bourne shell quoting
 - prevent manual horizontal resizing (esp. during window maximize)
+- support for SAA7134 capture chip (e.g. on Aldi Tevion MD9717)
 
 merged database fixes:
 - fine control for provider merge
@@ -71,7 +84,7 @@ other required fixes:
 - improve VBI/TTX decoder: use code from aletv
 - improve streams decoder hamming error handling: assemble AI block
   from multiple instances if neccessary
-- add decoding error statistics to epgdbacq (e.g. # of dropped blocks)
+- add decoding error statistics to epgdbacq (e.g. # of dropped packets & blocks)
 - fix: external mode & tuner input source -> nonsense as status output
 - fix: obsolete series codes can not be deleted, because only series which
   have an instance in the db are listed in the series menu

@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pifilter.h,v 1.7 2001/05/19 14:58:25 tom Exp tom $
+ *  $Id: pifilter.h,v 1.8 2002/09/28 12:52:07 tom Exp tom $
  */
 
 #ifndef __PIFILTER_H
@@ -35,5 +35,8 @@ void PiFilter_Destroy( void );
 // Interface to ui control module
 void PiFilter_UpdateNetwopList( void );
 void PiFilter_Expire( void );
+
+// Interface to PI listbox column output
+bool PiFilter_ContextCacheMatch( const PI_BLOCK * pPiBlock, uint idx );
 
 #endif  // __PIFILTER_H

@@ -16,36 +16,15 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pioutput.h,v 1.9 2002/09/06 15:09:10 tom Exp tom $
+ *  $Id: pioutput.h,v 1.11 2002/10/20 17:35:27 tom Exp tom $
  */
 
 #ifndef __PIOUTPUT_H
 #define __PIOUTPUT_H
 
 
-// Definition of PI listbox column types
-typedef enum
-{
-   PIBOX_COL_NETNAME,
-   PIBOX_COL_TIME,
-   PIBOX_COL_WEEKDAY,
-   PIBOX_COL_DAY,
-   PIBOX_COL_DAY_MONTH,
-   PIBOX_COL_DAY_MONTH_YEAR,
-   PIBOX_COL_TITLE,
-   PIBOX_COL_DESCR,
-   PIBOX_COL_PIL,
-   PIBOX_COL_THEME,
-   PIBOX_COL_SOUND,
-   PIBOX_COL_FORMAT,
-   PIBOX_COL_ED_RATING,
-   PIBOX_COL_PAR_RATING,
-   PIBOX_COL_LIVE_REPEAT,
-   PIBOX_COL_SUBTITLES,
-   PIBOX_COL_COUNT
-
-} PIBOX_COL_TYPES;
-
+// ----------------------------------------------------------------------------
+// Interface functions declaration
 
 typedef void (PiOutput_AppendInfoTextCb_Type) ( void *fp, const char * pShortInfo, bool insertSeparator, const char * pLongInfo );
 
@@ -53,8 +32,8 @@ typedef void (PiOutput_AppendInfoTextCb_Type) ( void *fp, const char * pShortInf
 const char * PiOutput_DictifyTitle( const char * pTitle, uchar lang, char * outbuf, uint maxLen );
 void PiOutput_CtxMenuAddUserDef( const char * pMenu, bool addSeparator );
 
-// Interface to PI listbox and HTML dump
-void PiOutput_PrintColumnItems( const PI_BLOCK * pPiBlock, char * outstr, uint maxLen );
+// Interface to PI listbox
+void PiOutput_PiListboxInsert( const PI_BLOCK *pPiBlock, uint textrow );
 void PiOutput_AppendShortAndLongInfoText( const PI_BLOCK *pPiBlock,
                                           PiOutput_AppendInfoTextCb_Type AppendInfoTextCb,
                                           void *fp, bool isMerged );
@@ -64,6 +43,6 @@ void PiOutput_AppendFeatureList( const PI_BLOCK *pPiBlock, char * outstr );
 // Interface to main module
 void PiOutput_Create( void );
 void PiOutput_Destroy( void );
-
+void PiOutput_DumpDatabaseXml( EPGDB_CONTEXT * pDbContext, FILE * fp );
 
 #endif  // __PIOUTPUT_H

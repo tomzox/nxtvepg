@@ -29,7 +29,7 @@
  *    so their respective copyright applies too. Please see the notes in
  *    functions headers below.
  *
- *  $Id: wintvcfg.c,v 1.9 2002/09/17 14:40:12 tom Exp tom $
+ *  $Id: wintvcfg.c,v 1.10 2002/09/29 17:16:52 tom Exp tom $
  */
 
 #ifndef WIN32
@@ -1410,7 +1410,7 @@ static const TVAPP_LIST tvAppList[TVAPP_COUNT] =
 // ----------------------------------------------------------------------------
 // Return list of names of supported TV applications
 //
-static int WintvCfg_GetTvappList( ClientData ttp, Tcl_Interp * interp, int argc, char *argv[] )
+static int WintvCfg_GetTvappList( ClientData ttp, Tcl_Interp * interp, int argc, CONST84 char *argv[] )
 {
    uint  idx;
    int   result;
@@ -1436,7 +1436,7 @@ static int WintvCfg_GetTvappList( ClientData ttp, Tcl_Interp * interp, int argc,
 // ----------------------------------------------------------------------------
 // Extract channel names listed in TV app configuration file
 //
-static int WintvCfg_GetStationNames( ClientData ttp, Tcl_Interp * interp, int argc, char *argv[] )
+static int WintvCfg_GetStationNames( ClientData ttp, Tcl_Interp * interp, int argc, CONST84 char *argv[] )
 {
    const char * const pUsage = "Usage: C_Tvapp_GetStationNames";
    const char * pTvAppPath;
@@ -1522,7 +1522,7 @@ bool WintvCfg_GetFreqTab( Tcl_Interp * interp, uint ** ppFreqTab, uint * pCount 
 // ----------------------------------------------------------------------------
 // Load configuration params from TV app ini file into the dialog
 //
-static int WintvCfg_CfgNeedsPath( ClientData ttp, Tcl_Interp * interp, int argc, char *argv[] )
+static int WintvCfg_CfgNeedsPath( ClientData ttp, Tcl_Interp * interp, int argc, CONST84 char *argv[] )
 {
    int   appIdx;
    bool  needPath;
@@ -1555,7 +1555,7 @@ static int WintvCfg_CfgNeedsPath( ClientData ttp, Tcl_Interp * interp, int argc,
 // ----------------------------------------------------------------------------
 // Tcl callback to check if a TV app is configured
 //
-static int WintvCfg_Enabled( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+static int WintvCfg_Enabled( ClientData ttp, Tcl_Interp *interp, int argc, CONST84 char *argv[] )
 {
    const char * const pUsage = "Usage: C_Tvapp_Enabled";
    int result;
@@ -1577,7 +1577,7 @@ static int WintvCfg_Enabled( ClientData ttp, Tcl_Interp *interp, int argc, char 
 // Load configuration params from TV app ini file into the TV card dialog
 // - the parameters are not applies to the driver yet, only loaded into Tcl vars
 //
-static int WintvCfg_TestChanTab( ClientData ttp, Tcl_Interp * interp, int argc, char *argv[] )
+static int WintvCfg_TestChanTab( ClientData ttp, Tcl_Interp * interp, int argc, CONST84 char *argv[] )
 {
    DYN_FREQ_BUF freqBuf;
    int    newAppIdx;
@@ -1647,7 +1647,7 @@ static int WintvCfg_TestChanTab( ClientData ttp, Tcl_Interp * interp, int argc, 
 // Load configuration params from TV app ini file into the TV card dialog
 // - the parameters are not applied to the driver yet, only loaded into Tcl vars
 //
-static int WintvCfg_LoadHwConfig( ClientData ttp, Tcl_Interp * interp, int argc, char *argv[] )
+static int WintvCfg_LoadHwConfig( ClientData ttp, Tcl_Interp * interp, int argc, CONST84 char *argv[] )
 {
    int    newAppIdx;
    int    result;

@@ -24,7 +24,7 @@
 #
 #  Author: Tom Zoerner
 #
-# $Id: vbirec.pod,v 1.5 2002/10/13 14:05:41 tom Exp tom $
+# $Id: vbirec.pod,v 1.6 2002/10/27 10:09:54 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME
@@ -48,7 +48,7 @@ TV app. and displays all TV app controlled values in it's main window.
 =head1 MONITORING VBI RECEPTION
 
 The following shared memory elements are displayed
-and updated every 500 milleseconds:
+and updated every 500 millyseconds:
 
 =over 4
 
@@ -195,14 +195,14 @@ See also the manuals for B<nxtvepg>, B<tvsim> and B<vbiplay>.
 
 =head1 AUTHOR
 
-Tom Zoerner, Erlangen, Germany.
+T. Zoerner, Erlangen, Germany.
 
 Email: tomzo (at) users (dot) sourceforge (dot) net
 
 
 =head1 COPYRIGHT
 
-Copyright (C) 2002 by Tom Zoerner.
+Copyright (C) 2002 by T. Zoerner.
 All rights reserved.
 
 This program is free software; you can redistribute it and/or modify

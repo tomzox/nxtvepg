@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: menucmd.c,v 1.91 2002/09/14 18:11:59 tom Exp $
+ *  $Id: menucmd.c,v 1.93 2002/11/17 18:21:59 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -280,6 +280,7 @@ void MenuCmd_AcqStatsUpdate( void )
 //
 static void MenuCmd_StartLocalAcq( Tcl_Interp * interp )
 {
+   const char * pErrStr;
    bool wasNetAcq;
 
    // save previous acq mode to detect mode changes
@@ -330,9 +331,13 @@ static void MenuCmd_StartLocalAcq( Tcl_Interp * interp )
       #endif
       #ifndef WIN32  //is handled by bt-driver in win32
       {
-         strcpy(comm, "tk_messageBox -type ok -icon error "
-                      "-message {Failed to start acquisition. "
-                                "Close all other video applications and try again.}\n");
+         strcpy(comm, "tk_messageBox -type ok -icon error -parent . -message {Failed to start acquisition: ");
+         pErrStr = EpgAcqCtl_GetLastError();
+         if (pErrStr != NULL)
+            strcat(comm, pErrStr);
+         else
+            strcat(comm, "(Internal error, please report. Try to restart the application.)}\n");
+         strcat(comm, "}\n");
          eval_check(interp, comm);
       }
       #else
@@ -714,7 +719,7 @@ void SetUserLanguage( Tcl_Interp *interp )
          if ((lang != last_lang) && (last_lang != -1))
          {
             // rebuild the themes filter menu
-            eval_check(interp, "FilterMenuAdd_Themes .menubar.filter.themes");
+            eval_check(interp, "FilterMenuAdd_Themes .menubar.filter.themes 0");
          }
          last_lang = lang;
       }
@@ -771,7 +776,7 @@ static int MenuCmd_ChangeProvider( ClientData ttp, Tcl_Interp *interp, int objc,
             SetUserLanguage(interp);
 
             UiControl_AiStateChange(DB_TARGET_UI);
-            eval_check(interp, "C_ResetFilter all; ResetFilterState");
+            eval_check(interp, "ResetFilterState");
 
             PiListBox_Reset();
 
@@ -1358,7 +1363,7 @@ static int ProvMerge_Start( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Ob
          SetUserLanguage(interp);
 
          UiControl_AiStateChange(DB_TARGET_UI);
-         eval_check(interp, "C_ResetFilter all; ResetFilterState");
+         eval_check(interp, "ResetFilterState");
 
          PiListBox_Reset();
 
@@ -2115,17 +2120,6 @@ static int MenuCmd_StartEpgScan( ClientData ttp, Tcl_Interp *interp, int objc, T
          switch (scanResult)
          {
             case EPGSCAN_ACCESS_DEV_VBI:
-               #ifndef WIN32
-               sprintf(comm, "tk_messageBox -type ok -icon error -parent .epgscan -message \""
-                             "Failed to open the VBI (i.e. teletext) device "
-                             "(/dev/vbi[expr {[info exists hwcfg] ? [lindex $hwcfg 4] : 0}]). "
-                             "Close all other video or teletext related applications and try again."
-                             "\"");
-               eval_check(interp, comm);
-               break;
-               #endif
-               // Win32: fall-through!
-
             case EPGSCAN_ACCESS_DEV_VIDEO:
             {
                #ifdef WIN32
@@ -2141,16 +2135,14 @@ static int MenuCmd_StartEpgScan( ClientData ttp, Tcl_Interp *interp, int objc, T
                else
                #endif
                {
-                  sprintf(comm, "tk_messageBox -type ok -icon error -parent .epgscan -message \""
+                  sprintf(comm, "tk_messageBox -type ok -icon error -parent .epgscan -message {"
                                 #ifndef WIN32
-                                "Failed to open the video device"
-                                " (/dev/video[expr {[info exists hwcfg] ? [lindex $hwcfg 4] : 0}]). "
-                                "Close all other video or teletext related applications and try again"
+                                "Failed to open input device: see the scan output window for the system error message"
                                 #else
                                 "Failed to start the EPG scan due to a TV card driver problem. "
                                 "Press 'Help' for more information."
                                 #endif
-                                ".\"");
+                                "}");
                }
                eval_check(interp, comm);
                break;

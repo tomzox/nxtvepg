@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: tvsim_main.c,v 1.13 2002/09/14 19:03:12 tom Exp tom $
+ *  $Id: tvsim_main.c,v 1.16 2002/11/19 20:58:21 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_TVSIM
@@ -48,8 +48,16 @@
 #include "epgui/wintvcfg.h"
 #include "epgui/pdc_themes.h"
 #include "tvsim/winshmclnt.h"
+#include "tvsim/tvsim_gui.h"
 #include "tvsim/tvsim_version.h"
 
+
+// prior to 8.4 there's a SEGV when evaluating const scripts (Tcl tries to modify the string)
+#if (TCL_MAJOR_VERSION > 8) || ((TCL_MAJOR_VERSION == 8) && (TCL_MINOR_VERSION >= 4))
+# define TCL_EVAL_CONST(INTERP, SCRIPT) Tcl_EvalEx(INTERP, SCRIPT, -1, TCL_EVAL_GLOBAL)
+#else
+# define TCL_EVAL_CONST(INTERP, SCRIPT) Tcl_VarEval(INTERP, (char *) SCRIPT, NULL)
+#endif
 
 #ifndef USE_PRECOMPILED_TCL_LIBS
 # if !defined(TCL_LIBRARY_PATH) || !defined(TK_LIBRARY_PATH)
@@ -58,13 +66,11 @@
 #else
 # define TCL_LIBRARY_PATH  "."
 # define TK_LIBRARY_PATH   "."
+# include "epgtcl/tcl_libs.h"
+# include "epgtcl/tk_libs.h"
 #endif
 
 char tvsim_rcs_id_str[] = TVSIM_VERSION_RCS_ID;
-
-extern char gui_tcl_script[];
-extern char tcl_init_scripts[];
-extern char tk_init_scripts[];
 
 Tcl_Interp *interp;          // Interpreter for application
 #define TCL_COMM_BUF_SIZE  1000
@@ -782,6 +788,7 @@ static int TclCb_TuneChan( ClientData ttp, Tcl_Interp *interp, int argc, char *a
       result = Tcl_GetInt(interp, argv[1], &freqIdx);
       if (result == TCL_OK)
       {
+         // read frequencies & norms from channel table file
          if ( WintvCfg_GetFreqTab(interp, &pFreqTab, &freqCount) &&
               (pFreqTab != NULL) && (freqCount > 0))
          {
@@ -791,6 +798,7 @@ static int TclCb_TuneChan( ClientData ttp, Tcl_Interp *interp, int argc, char *a
                BtDriver_TuneChannel(TVSIM_INPUT_IDX, pFreqTab[freqIdx], FALSE, &isTuner);
 
                // Request EPG info & update frequency info
+               // - norms are coded into the high byte of the frequency dword (0=PAL-BG, 1=NTSC, 2=SECAM)
                // - input source is hard-wired to TV tuner in this simulation
                // - channel ID is hard-wired to 0 too (see comments in the winshmclnt.c)
                WinSharedMemClient_SetStation(argv[2], 0, 0, pFreqTab[freqIdx]);
@@ -860,15 +868,15 @@ static int ui_init( int argc, char **argv )
    }
 
    #ifdef USE_PRECOMPILED_TCL_LIBS
-   if (Tcl_VarEval(interp, tcl_init_scripts, NULL) != TCL_OK)
+   if (TCL_EVAL_CONST(interp, tcl_libs_tcl_static) != TCL_OK)
    {
-      debug1("tcl_init_scripts error: %s\n", Tcl_GetStringResult(interp));
-      debugTclErr(interp, "tcl_init_scripts");
+      debug1("tcl_libs_tcl_static error: %s\n", Tcl_GetStringResult(interp));
+      debugTclErr(interp, "tcl_libs_tcl_static");
    }
-   if (Tcl_VarEval(interp, tk_init_scripts, NULL) != TCL_OK)
+   if (TCL_EVAL_CONST(interp, tk_libs_tcl_static) != TCL_OK)
    {
-      debug1("tk_init_scripts error: %s\n", Tcl_GetStringResult(interp));
-      debugTclErr(interp, "tk_init_scripts");
+      debug1("tk_libs_tcl_static error: %s\n", Tcl_GetStringResult(interp));
+      debugTclErr(interp, "tk_libs_tcl_static");
    }
    #endif
 
@@ -884,7 +892,11 @@ static int ui_init( int argc, char **argv )
    Tcl_CreateCommand(interp, "C_TuneChan", TclCb_TuneChan, (ClientData) NULL, NULL);
    Tcl_CreateCommand(interp, "C_GrantTuner", TclCb_GrantTuner, (ClientData) NULL, NULL);
 
-   eval_check(interp, gui_tcl_script);
+   if (TCL_EVAL_CONST(interp, tvsim_gui_tcl_static) != TCL_OK)
+   {
+      debug1("tvsim_gui_tcl_static error: %s\n", Tcl_GetStringResult(interp));
+      debugTclErr(interp, "tvsim_gui_tcl_static");
+   }
 
    sprintf(comm, "LoadRcFile {%s}", rcfile);
    eval_check(interp, comm);

@@ -21,7 +21,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgacqclnt.c,v 1.8 2002/05/30 14:03:47 tom Exp $
+ *  $Id: epgacqclnt.c,v 1.9 2002/11/17 18:19:20 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -36,6 +36,7 @@
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
 #include "epgctl/epgversion.h"
+#include "epgvbi/syserrmsg.h"
 #include "epgdb/epgblock.h"
 #include "epgdb/epgswap.h"
 #include "epgdb/epgdbif.h"
@@ -113,7 +114,7 @@ static void EpgAcqClient_ConnectServer( void )
    int  sock_fd;
 
    // clear any old error messages
-   EpgNetIo_SetErrorText(&clientState.pErrorText, 0, NULL);
+   SystemErrorMessage_Set(&clientState.pErrorText, 0, NULL);
 
    // check if a server address has been configured
    if ((clientState.pSrvHost != NULL) && (clientState.pSrvPort != NULL))
@@ -142,9 +143,9 @@ static void EpgAcqClient_ConnectServer( void )
    {
       debug0("EpgDbClient-ConnectServer: Hostname or port not configured");
       if (clientState.pSrvHost == NULL)
-         EpgNetIo_SetErrorText(&clientState.pErrorText, 0, "Server hostname not configured", NULL);
+         SystemErrorMessage_Set(&clientState.pErrorText, 0, "Server hostname not configured", NULL);
       else if (clientState.pSrvPort == NULL)
-         EpgNetIo_SetErrorText(&clientState.pErrorText, 0, "Server service name (aka port) not configured", NULL);
+         SystemErrorMessage_Set(&clientState.pErrorText, 0, "Server service name (aka port) not configured", NULL);
    }
 }
 
@@ -486,7 +487,7 @@ static bool EpgAcqClient_TakeMessage( EPGACQ_EVHAND * pAcqEv, EPGDBSRV_MSG_BODY 
             if ( (pMsg->con_cnf.blockCompatVersion != DUMP_COMPAT) ||
                  (pMsg->con_cnf.protocolCompatVersion != PROTOCOL_COMPAT) )
             {
-               EpgNetIo_SetErrorText(&clientState.pErrorText, 0, "Incompatible server version", NULL);
+               SystemErrorMessage_Set(&clientState.pErrorText, 0, "Incompatible server version", NULL);
             }
             else
             {  // version ok -> request block forwarding
@@ -667,7 +668,7 @@ static bool EpgAcqClient_TakeMessage( EPGACQ_EVHAND * pAcqEv, EPGDBSRV_MSG_BODY 
    if ((result == FALSE) && (clientState.pErrorText == NULL))
    {
       debug3("EpgDbClient-TakeMessage: message type %d (len %d) not expected in state %d", clientState.io.readHeader.type, clientState.io.readHeader.len, clientState.state);
-      EpgNetIo_SetErrorText(&clientState.pErrorText, 0, "Protocol error (unecpected message)", NULL);
+      SystemErrorMessage_Set(&clientState.pErrorText, 0, "Protocol error (unecpected message)", NULL);
    }
    if (pMsg != NULL)
       xfree(pMsg);
@@ -736,7 +737,7 @@ void EpgAcqClient_HandleSocket( EPGACQ_EVHAND * pAcqEv )
    if (pAcqEv->errCode != ERROR_SUCCESS)
    {
       debug1("EpgAcqClient-HandleSocket: aborting due to select err code %d", pAcqEv->errCode);
-      EpgNetIo_SetErrorText(&clientState.pErrorText, pAcqEv->errCode,
+      SystemErrorMessage_Set(&clientState.pErrorText, pAcqEv->errCode,
                             ((clientState.state == CLNT_STATE_WAIT_CONNECT) ? "Connect failed: " : "I/O error: "), NULL);
       EpgAcqClient_Close(FALSE);
    }
@@ -836,7 +837,7 @@ void EpgAcqClient_HandleSocket( EPGACQ_EVHAND * pAcqEv )
          }
          else
          {  // I/O error; note: acq is not stopped, instead try to reconnect periodically
-            EpgNetIo_SetErrorText(&clientState.pErrorText, 0, "Lost connection (I/O error)", NULL);
+            SystemErrorMessage_Set(&clientState.pErrorText, 0, "Lost connection (I/O error)", NULL);
             EpgAcqClient_Close(FALSE);
          }
          readable = FALSE;
@@ -974,7 +975,7 @@ bool EpgAcqClient_ChangeProviders( const uint * pCniTab, uint cniCount )
                }
                else
                {
-                  EpgNetIo_SetErrorText(&clientState.pErrorText, 0, "Lost connection (I/O error)", NULL);
+                  SystemErrorMessage_Set(&clientState.pErrorText, 0, "Lost connection (I/O error)", NULL);
                   EpgAcqClient_Close(TRUE);
                }
             }
@@ -1027,7 +1028,7 @@ static bool EpgAcqClient_UpdateAcqStatsMode( uint statsReqBits )
             }
             else
             {
-               EpgNetIo_SetErrorText(&clientState.pErrorText, 0, "Lost connection (I/O error)", NULL);
+               SystemErrorMessage_Set(&clientState.pErrorText, 0, "Lost connection (I/O error)", NULL);
                EpgAcqClient_Close(TRUE);
             }
 
@@ -1135,7 +1136,7 @@ bool EpgAcqClient_CheckTimeouts( void )
           (clientState.state == CLNT_STATE_WAIT_FWD_CNF) ))
    {
       debug0("EpgDbClient-CheckForBlocks: network timeout");
-      EpgNetIo_SetErrorText(&clientState.pErrorText, 0, "Lost connection (I/O timeout)", NULL);
+      SystemErrorMessage_Set(&clientState.pErrorText, 0, "Lost connection (I/O timeout)", NULL);
       EpgAcqClient_Close(TRUE);
    }
    else if ( (clientState.state == CLNT_STATE_RETRY) &&
@@ -1413,7 +1414,7 @@ void EpgAcqClient_Destroy( void )
 
    // free the memory allocated for the config strings and error text
    EpgAcqClient_SetAddress(NULL, NULL);
-   EpgNetIo_SetErrorText(&clientState.pErrorText, 0, NULL);
+   SystemErrorMessage_Set(&clientState.pErrorText, 0, NULL);
 
    EpgNetIo_Destroy();
 }

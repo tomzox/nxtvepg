@@ -29,7 +29,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbsav.c,v 1.48 2002/09/14 18:17:46 tom Exp tom $
+ *  $Id: epgdbsav.c,v 1.49 2002/11/03 12:16:09 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -182,8 +182,6 @@ bool EpgDbDump( PDBC dbc )
       fd = open(pFilename, O_WRONLY|O_CREAT|O_TRUNC|O_BINARY, 0666);
       if (fd >= 0)
       {
-         chmod(pFilename, 0666);
-
          result = EpgDbDumpHeader(dbc, fd) &&
                   EpgDbDumpAppendBlock(dbc->pAiBlock, fd);
 
@@ -1078,26 +1076,17 @@ bool EpgDbSavSetupDir( const char * pDirPath, const char * pDemoDb )
    else if (pDirPath != NULL)
    {
       if (stat(pDirPath, &st) != 0)
-      {  // directory does no exist -> create it
+      {  // directory does not exist -> create it
          if ((errno != ENOENT) || (mkdir(pDirPath, 0777) != 0))
          {
-            fprintf(stderr, "cannot create dbdir %s: %s\n", pDirPath, strerror(errno));
+            fprintf(stderr, "cannot create database dir %s: %s\n", pDirPath, strerror(errno));
             result = FALSE;
          }
       }
       else if (S_ISDIR(st.st_mode) == FALSE)
       {  // target is not a directory -> warn
-         fprintf(stderr, "dbdir '%s' is not a directory\n", pDirPath);
+         fprintf(stderr, "database path '%s' exists but is not a directory\n", pDirPath);
          result = FALSE;
-      }
-
-      if (result)
-      {  // set permissions of database directory: world-r/w-access
-         if (((st.st_mode & 07777) != 0777) && (chmod(pDirPath, 0777) != 0))
-         {
-            fprintf(stderr, "warning: cannot set permissions 0777 for dbdir %s: %s\n", pDirPath, strerror(errno));
-            // this is not a fatal error, result remains TRUE
-         }
       }
    }
 

@@ -45,7 +45,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: winshmclnt.c,v 1.8 2002/08/03 14:35:50 tom Exp tom $
+ *  $Id: winshmclnt.c,v 1.9 2002/10/19 17:20:32 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_TVSIM
@@ -53,7 +53,7 @@
 
 #include <windows.h>
 #include <stdio.h>
-#include <malloc.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "epgctl/mytypes.h"

@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqctl.h,v 1.39 2002/04/29 19:46:00 tom Exp tom $
+ *  $Id: epgacqctl.h,v 1.40 2002/11/17 18:19:54 tom Exp tom $
  */
 
 #ifndef __EPGACQCTL_H
@@ -209,6 +209,7 @@ typedef enum
 void EpgAcqCtl_InitDaemon( void );
 bool EpgAcqCtl_Start( void );
 void EpgAcqCtl_Stop( void );
+const char * EpgAcqCtl_GetLastError( void );
 bool EpgAcqCtl_SelectMode( EPGACQ_MODE newAcqMode, uint cniCount, const uint * pCniTab );
 bool EpgAcqCtl_SetInputSource( uint inputIdx );
 bool EpgAcqCtl_CheckDeviceAccess( void );

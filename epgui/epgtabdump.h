@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgtabdump.h,v 1.1 2002/08/11 19:53:15 tom Exp tom $
+ *  $Id: epgtabdump.h,v 1.2 2002/10/20 17:35:02 tom Exp tom $
  */
 
 #ifndef __EPGTABDUMP_H
@@ -28,6 +28,7 @@ typedef enum
    EPGTAB_DUMP_AI,
    EPGTAB_DUMP_PI,
    EPGTAB_DUMP_PDC,
+   EPGTAB_DUMP_XML,
    EPGTAB_DUMP_COUNT,
    EPGTAB_DUMP_NONE = EPGTAB_DUMP_COUNT
 } EPGTAB_DUMP_MODE;

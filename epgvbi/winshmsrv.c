@@ -19,7 +19,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: winshmsrv.c,v 1.8 2002/08/03 14:36:24 tom Exp tom $
+ *  $Id: winshmsrv.c,v 1.9 2002/10/19 17:32:25 tom Exp tom $
  */
 
 #ifndef WIN32
@@ -31,7 +31,7 @@
 
 #include <windows.h>
 #include <stdio.h>
-#include <malloc.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "epgctl/mytypes.h"

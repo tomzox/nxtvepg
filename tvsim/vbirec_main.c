@@ -26,7 +26,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: vbirec_main.c,v 1.14 2002/09/02 19:50:31 tom Exp tom $
+ *  $Id: vbirec_main.c,v 1.16 2002/11/03 12:16:26 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_TVSIM
@@ -53,8 +53,16 @@
 #include "epgvbi/cni_tables.h"
 #include "epgvbi/hamming.h"
 #include "epgdb/epgblock.h"
+#include "tvsim/vbirec_gui.h"
 #include "tvsim/tvsim_version.h"
 
+
+// prior to 8.4 there's a SEGV when evaluating const scripts (Tcl tries to modify the string)
+#if (TCL_MAJOR_VERSION > 8) || ((TCL_MAJOR_VERSION == 8) && (TCL_MINOR_VERSION >= 4))
+# define TCL_EVAL_CONST(INTERP, SCRIPT) Tcl_EvalEx(INTERP, SCRIPT, -1, TCL_EVAL_GLOBAL)
+#else
+# define TCL_EVAL_CONST(INTERP, SCRIPT) Tcl_VarEval(INTERP, (char *) SCRIPT, NULL)
+#endif
 
 #ifndef USE_PRECOMPILED_TCL_LIBS
 # if !defined(TCL_LIBRARY_PATH) || !defined(TK_LIBRARY_PATH)
@@ -63,13 +71,11 @@
 #else
 # define TCL_LIBRARY_PATH  "."
 # define TK_LIBRARY_PATH   "."
+# include "epgtcl/tcl_libs.h"
+# include "epgtcl/tk_libs.h"
 #endif
 
 char tvsim_rcs_id_str[] = TVSIM_VERSION_RCS_ID;
-
-extern char gui_tcl_script[];
-extern char tcl_init_scripts[];
-extern char tk_init_scripts[];
 
 Tcl_Interp *interp;          // Interpreter for application
 #define TCL_COMM_BUF_SIZE  1000
@@ -680,15 +686,15 @@ static int ui_init( int argc, char **argv )
    }
 
    #ifdef USE_PRECOMPILED_TCL_LIBS
-   if (Tcl_VarEval(interp, tcl_init_scripts, NULL) != TCL_OK)
+   if (TCL_EVAL_CONST(interp, tcl_libs_tcl_static) != TCL_OK)
    {
-      debug1("tcl_init_scripts error: %s\n", Tcl_GetStringResult(interp));
-      debugTclErr(interp, "tcl_init_scripts");
+      debug1("tcl_libs_tcl_static error: %s\n", Tcl_GetStringResult(interp));
+      debugTclErr(interp, "tcl_libs_tcl_static");
    }
-   if (Tcl_VarEval(interp, tk_init_scripts, NULL) != TCL_OK)
+   if (TCL_EVAL_CONST(interp, tk_libs_tcl_static) != TCL_OK)
    {
-      debug1("tk_init_scripts error: %s\n", Tcl_GetStringResult(interp));
-      debugTclErr(interp, "tk_init_scripts");
+      debug1("tk_libs_tcl_static error: %s\n", Tcl_GetStringResult(interp));
+      debugTclErr(interp, "tk_libs_tcl_static");
    }
    #endif
 
@@ -701,7 +707,11 @@ static int ui_init( int argc, char **argv )
    // create an asynchronous event source that allows to receive triggers from the EPG message receptor thread
    asyncThreadHandler = Tcl_AsyncCreate(VbiRec_AsyncThreadHandler, NULL);
 
-   eval_check(interp, gui_tcl_script);
+   if (TCL_EVAL_CONST(interp, vbirec_gui_tcl_static) != TCL_OK)
+   {
+      debug1("vbirec_gui_tcl_static error: %s\n", Tcl_GetStringResult(interp));
+      debugTclErr(interp, "vbirec_gui_tcl_static");
+   }
 
    Tcl_TraceVar(interp, "dumpttx_enable", TCL_TRACE_WRITES|TCL_GLOBAL_ONLY, TclCb_EnableDump, NULL);
 

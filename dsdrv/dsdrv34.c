@@ -17,7 +17,7 @@
 // PCICard.cpp, HardwareDriver.cpp, HardwareMemory is from Dscaler
 // Copyright (c) 2001 John Adcock.  All rights reserved.
 /////////////////////////////////////////////////////////////////////////////
-// nxtvepg $Id: dsdrv34.c,v 1.3 2002/05/10 00:16:30 tom Exp tom $
+// nxtvepg $Id: dsdrv34.c,v 1.4 2002/10/19 17:20:12 tom Exp tom $
 /////////////////////////////////////////////////////////////////////////////
 
 // What's this ?
@@ -47,7 +47,7 @@
 
 #define WIN32_LEAN_AND_MEAN		// Exclude rarely-used stuff from Windows headers
 #include <windows.h>
-#include <malloc.h>
+#include <stdlib.h>
 #include <winsvc.h>
 
 #include <io.h>

@@ -36,7 +36,7 @@
  *
  *     Additional code and adaptions to nxtvepg by Tom Zoerner
  *
- *  $Id: xawtv.c,v 1.26 2002/09/14 18:11:34 tom Exp tom $
+ *  $Id: xawtv.c,v 1.28 2002/10/19 15:31:28 tom Exp tom $
  */
 
 #ifdef WIN32
@@ -175,7 +175,7 @@ static bool Xawtv_Check( void )
 // ----------------------------------------------------------------------------
 // Tcl interface to Xawtv_Check
 //
-static int Xawtv_Enabled(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+static int Xawtv_Enabled(ClientData ttp, Tcl_Interp *interp, int argc, CONST84 char *argv[])
 {
    const char * const pUsage = "Usage: C_Tvapp_Enabled";
    int result;
@@ -375,7 +375,7 @@ bool Xawtv_GetFreqTab( Tcl_Interp * interp, uint ** ppFreqTab, uint * pCount )
 //   e.g. "[arte / kinderkanal]". Those are broken up around the separator and
 //   each segment added separately to the output list
 //
-static int Xawtv_GetStationNames(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+static int Xawtv_GetStationNames(ClientData ttp, Tcl_Interp *interp, int argc, CONST84 char *argv[])
 {
    const char * const pUsage = "Usage: C_Tvapp_GetStationNames";
    char line[256], section[100];
@@ -744,7 +744,7 @@ static void Xawtv_Popup( float rperc, const char *rtime, const char * ptitle )
 // ---------------------------------------------------------------------------
 // Send a command to xawtv via X11 property
 //
-static int Xawtv_SendCmd(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+static int Xawtv_SendCmd(ClientData ttp, Tcl_Interp *interp, int argc, CONST84 char *argv[])
 {
    const char * const pUsage = "Usage: C_Tvapp_SendCmd <command> [<args> [<...>]]";
    Tk_ErrorHandler errHandler;
@@ -1020,7 +1020,7 @@ static const PI_BLOCK * Xawtv_SearchCurrentPi( uint cni, uint pil )
 //
 static void Xawtv_PopDownNowNext( ClientData clientData )
 {
-   char *argv[10];
+   CONST84 char *argv[10];
 
    if (popDownEvent != NULL)
    {  // if not called by the timer remove the timer event
@@ -1070,7 +1070,7 @@ static void Xawtv_PopDownNowNextTimer( ClientData clientData )
 //
 static void Xawtv_NowNext( const PI_BLOCK *pPiBlock )
 {
-   char *argv[10];
+   CONST84 char *argv[10];
    char start_str[10], stop_str[10], time_str[35];
    float percentage;
    time_t now;
@@ -1440,7 +1440,7 @@ static int Xawtv_ReadConfig( Tcl_Interp *interp, XAWTVCF *pNewXawtvcf )
 // - loads config from rc/ini file
 // - searches xawtv window and sets up X event mask
 //
-static int Xawtv_InitConfig(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+static int Xawtv_InitConfig(ClientData ttp, Tcl_Interp *interp, int argc, CONST84 char *argv[])
 {
    Tk_ErrorHandler errHandler;
    Tk_Window tkwin;
