@@ -15,7 +15,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgdbif.h,v 1.9 2000/06/26 18:22:32 tom Exp tom $
+ *  $Id: epgdbif.h,v 1.10 2000/10/15 17:41:04 tom Exp tom $
  */
 
 #ifndef __EPGDBIF_H
@@ -42,6 +42,7 @@ const PI_BLOCK * EpgDbSearchObsoletePi( const EPGDB_CONTEXT * dbc, uchar netwop_
 
 #ifdef __EPGDBFIL_H
 const PI_BLOCK * EpgDbSearchPi( const EPGDB_CONTEXT * dbc, const FILTER_CONTEXT *fc, uint block_no, uchar netwop_no );
+const PI_BLOCK * EpgDbSearchPiExact( const EPGDB_CONTEXT * dbc, uint block_no, uchar netwop_no, ulong start_time );
 const PI_BLOCK * EpgDbSearchFirstPi( const EPGDB_CONTEXT * dbc, const FILTER_CONTEXT *fc );
 const PI_BLOCK * EpgDbSearchLastPi( const EPGDB_CONTEXT * dbc, const FILTER_CONTEXT *fc );
 const PI_BLOCK * EpgDbSearchNextPi( const EPGDB_CONTEXT * dbc, const FILTER_CONTEXT *fc, const PI_BLOCK * pPiBlock );

@@ -15,7 +15,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgmain.h,v 1.8 2000/06/13 18:20:12 tom Exp tom $
+ *  $Id: epgmain.h,v 1.9 2000/09/20 10:57:51 tom Exp tom $
  */
 
 #ifndef __EPGMAIN_H
@@ -38,5 +38,8 @@ int eval_check(Tcl_Interp *i, char *c);
 extern EPGDB_CONTEXT * pUiDbContext;
 extern EPGDB_CONTEXT * pAcqDbContext;
 #endif
+
+// database directory
+extern const char * dbdir;
 
 #endif  // __EPGMAIN_H

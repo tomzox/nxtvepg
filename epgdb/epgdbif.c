@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgdbif.c,v 1.13 2000/06/26 18:21:37 tom Exp tom $
+ *  $Id: epgdbif.c,v 1.14 2000/10/15 17:41:04 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -355,6 +355,38 @@ const PI_BLOCK * EpgDbSearchObsoletePi( CPDBC dbc, uchar netwop_no, ulong start_
 const PI_BLOCK * EpgDbGetPi( CPDBC dbc, uint block_no, uchar netwop_no )
 {
    return EpgDbSearchPi(dbc, NULL, block_no, netwop_no);
+}
+
+// ---------------------------------------------------------------------------
+// Search for a PI block in the database: by netwop, blockno and start time
+// - this is needed during db removal only, when 2 versions of the same block
+//   are in the database
+//
+const PI_BLOCK * EpgDbSearchPiExact( CPDBC dbc, uint block_no, uchar netwop_no, ulong start_time )
+{
+   EPGDB_BLOCK * pBlock;
+
+   assert(netwop_no < MAX_NETWOP_COUNT);
+
+   if ( EpgDbIsLocked(dbc) )
+   {
+      pBlock = dbc->pFirstNetwopPi[netwop_no];
+
+      while (pBlock != NULL)
+      {
+         if ( (pBlock->blk.pi.block_no == block_no) &&
+              (pBlock->blk.pi.netwop_no == netwop_no) &&
+              (pBlock->blk.pi.start_time == start_time) )
+         {
+            return &pBlock->blk.pi;
+         }
+         pBlock = pBlock->pNextNetwopBlock;
+      }
+   }
+   else
+      debug0("EpgDb-SearchPiExact: DB not locked");
+
+   return NULL;
 }
 
 // ---------------------------------------------------------------------------

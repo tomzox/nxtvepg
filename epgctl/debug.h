@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: debug.h,v 1.4 2000/06/15 17:56:31 tom Exp tom $
+ *  $Id: debug.h,v 1.6 2000/10/14 21:58:21 tom Exp tom $
  */
 
 #ifndef __DEBUG_H
@@ -118,6 +118,19 @@ extern char debugStr[DEBUGSTR_LEN];
 
 void DebugLogLine( void );
 void DebugSetError( void );
+#endif
+
+
+#if CHK_MALLOC == ON
+void * chk_malloc( size_t size, const char * pFileName, int line );
+void chk_free( void * ptr );
+void chk_memleakage( void );
+#define xmalloc(SIZE)  chk_malloc((SIZE),__FILE__,__LINE__)
+#define xfree(PTR)     chk_free(PTR)
+#else
+#include <malloc.h>
+void * xmalloc( size_t size );
+#define xfree(PTR)     free(PTR)
 #endif
 
 #endif  /* not __DEBUG_H */

@@ -23,14 +23,13 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgdbfil.c,v 1.14 2000/06/19 19:20:54 tom Exp tom $
+ *  $Id: epgdbfil.c,v 1.19 2000/09/26 13:22:42 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
 #define DPRINTF_OFF
 
 #include <string.h>
-#include <malloc.h>
 #include <ctype.h>
 #include <time.h>
 
@@ -58,7 +57,7 @@ FILTER_CONTEXT * EpgDbFilterCreateContext( void )
 {
    FILTER_CONTEXT * fc;
 
-   fc = (FILTER_CONTEXT *) malloc(sizeof(*fc));
+   fc = (FILTER_CONTEXT *) xmalloc(sizeof(*fc));
    fc->enabledFilters = 0;
 
    return fc;
@@ -69,7 +68,7 @@ FILTER_CONTEXT * EpgDbFilterCreateContext( void )
 //
 void EpgDbFilterDestroyContext( FILTER_CONTEXT * fc )
 {
-   free(fc);
+   xfree(fc);
 }
 
 // ---------------------------------------------------------------------------
@@ -109,6 +108,7 @@ void EpgDbFilterSetThemes( FILTER_CONTEXT *fc, uchar firstTheme, uchar lastTheme
    uint index;
    
    assert(themeClassBitField != 0);
+   assert(firstTheme <= lastTheme);
 
    for (index = firstTheme; index <= lastTheme; index++)
    {
@@ -143,10 +143,25 @@ void EpgDbFilterSetSeries( FILTER_CONTEXT *fc, uchar netwop, uchar series, bool 
 // - the meaning of sorting criteria is not fixed by the ETSI spec
 // - it's implicitly defined e.g. by use in NI menus
 //
-void EpgDbFilterInitSortCrit( FILTER_CONTEXT *fc )
+uchar EpgDbFilterInitSortCrit( FILTER_CONTEXT *fc, uchar sortCritClassBitField )
 {
-   memset(fc->sortCritFilterField, 0, sizeof(fc->sortCritFilterField));
-   fc->usedSortCritClasses = 0;
+   uint index;
+
+   if (sortCritClassBitField == 0xff)
+   {  // clear all classes
+      memset(fc->sortCritFilterField, 0, sizeof(fc->sortCritFilterField));
+      fc->usedSortCritClasses = 0;
+   }
+   else
+   {  // clear the setting of selected classes only
+      for (index=0; index < 256; index++)
+      {
+         fc->sortCritFilterField[index] &= ~ sortCritClassBitField;
+      }
+      fc->usedSortCritClasses &= ~ sortCritClassBitField;
+   }
+
+   return fc->usedSortCritClasses;
 }
 
 // ---------------------------------------------------------------------------
@@ -157,6 +172,7 @@ void EpgDbFilterSetSortCrit( FILTER_CONTEXT *fc, uchar firstSortCrit, uchar last
    uint index;
    
    assert(sortCritClassBitField != 0);
+   assert(firstSortCrit <= lastSortCrit);
 
    for (index = firstSortCrit; index <= lastSortCrit; index++)
    {
@@ -367,7 +383,41 @@ void EpgDbFilterInitNetwop( FILTER_CONTEXT *fc )
 //
 void EpgDbFilterSetNetwop( FILTER_CONTEXT *fc, uchar netwopNo )
 {
-   fc->netwopFilterField[netwopNo] = TRUE;
+   if (netwopNo < MAX_NETWOP_COUNT)
+   {
+      fc->netwopFilterField[netwopNo] = TRUE;
+   }
+   else
+      debug1("EpgDbFilter-SetNetwop: illegal netwop idx %d", netwopNo);
+}
+
+// ---------------------------------------------------------------------------
+// Reset network pre-filter -> all networks enabled
+// - The netwop pre-filter basically works exactly like the netwop filter.
+//   However having a separate list that is automatically used when the
+//   netwop filter is unised greatly simplifies the handling.
+// - The netwop pre-filter is only activated when the normal one is unused
+//   to allow netwops outside of the prefilter to be explicitly requested,
+//   e.g. by a NI menu.
+// - ATTENTION: The semantics of init and set are opposite to
+//              the normal netwop filter!
+//
+void EpgDbFilterInitNetwopPreFilter( FILTER_CONTEXT *fc )
+{
+   memset(fc->netwopPreFilterField, TRUE, sizeof(fc->netwopPreFilterField));
+}
+
+// ---------------------------------------------------------------------------
+// Disable one network in the network pre-filter array
+//
+void EpgDbFilterSetNetwopPreFilter( FILTER_CONTEXT *fc, uchar netwopNo )
+{
+   if (netwopNo < MAX_NETWOP_COUNT)
+   {
+      fc->netwopPreFilterField[netwopNo] = FALSE;
+   }
+   else
+      debug1("EpgDbFilter-SetNetwopPreFilter: illegal netwop idx %d", netwopNo);
 }
 
 // ---------------------------------------------------------------------------
@@ -393,6 +443,8 @@ void EpgDbFilterSetDateTimeEnd( FILTER_CONTEXT *fc, ulong newTimeEnd )
 //
 void EpgDbFilterSetProgIdx( FILTER_CONTEXT *fc, uchar newFirstProgIdx, uchar newLastProgIdx )
 {
+   assert(newFirstProgIdx <= newLastProgIdx);
+
    fc->firstProgIdx = newFirstProgIdx;
    fc->lastProgIdx  = newLastProgIdx;
 }
@@ -400,6 +452,9 @@ void EpgDbFilterSetProgIdx( FILTER_CONTEXT *fc, uchar newFirstProgIdx, uchar new
 // ---------------------------------------------------------------------------
 // Set string for sub-string search in title, short- and long info
 //
+                                     //"ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞß"
+const uchar latin1LowerCaseTable[32] = "àáâãäåæçèéêëìíîïðñòóôõö×øùúûüýþß";
+
 void EpgDbFilterSetSubStr( FILTER_CONTEXT *fc, const uchar *pStr, bool ignoreCase )
 {
    uchar *p, c;
@@ -414,7 +469,14 @@ void EpgDbFilterSetSubStr( FILTER_CONTEXT *fc, const uchar *pStr, bool ignoreCas
       {  // convert search string to all lowercase
          p = fc->subStrFilter;
          while ((c = *p) != 0)
-            *(p++) = tolower(c);
+         {
+            if ((c <= 'Z') && (c >= 'A'))
+               *(p++) = c + ('a' - 'A');
+            else if ((c >= 0xA0 + 32)  && (c < 0xA0 + 2*32))
+               *(p++) = latin1LowerCaseTable[c - (0xA0 + 32)];
+            else
+               *(p++) = c;
+         }
       }
    }
    else
@@ -425,21 +487,25 @@ void EpgDbFilterSetSubStr( FILTER_CONTEXT *fc, const uchar *pStr, bool ignoreCas
 // Case-insensitive sub-string search
 // - make a lower-cas copy of the haystack and then use the strstr library func.
 //   the needle already has to be lower-case
-// - XXX this does not work outside the C Locale yet (e.g. German umlauts)
 //
 static const char * strstri( const char *haystack, const char *needle )
 {
-   register const char *src;
-   register char c, *dst;
+   register const uchar *src;
+   register uchar c, *dst;
    register int  len;
-   char copy[1030];
+   uchar copy[1030];
 
    len = 1024;
    dst = copy;
    src = haystack;
    while ( ((c = *(src++)) != 0) && len )
    {
-      *(dst++) = tolower(c);
+      if ((c <= 'Z') && (c >= 'A'))
+         *(dst++) = c + ('a' - 'A');
+      else if ((c >= 0xA0 + 32)  && (c < 0xA0 + 2*32))
+         *(dst++) = latin1LowerCaseTable[c - (0xA0 + 32)];
+      else
+         *(dst++) = c;
       len--;
    }
    *(dst++) = 0;
@@ -548,7 +614,7 @@ void EpgDbFilterApplyNi( CPDBC dbc, FILTER_CONTEXT *fc, NI_FILTER_STATE *pNiStat
       case EV_ATTRIB_KIND_SORTCRIT + 6:
       case EV_ATTRIB_KIND_SORTCRIT + 7:
          if ((fc->enabledFilters & FILTER_SORTCRIT) == FALSE)
-            EpgDbFilterInitSortCrit(fc);
+            EpgDbFilterInitSortCrit(fc, 0xff);
          class = 1 << (kind - EV_ATTRIB_KIND_SORTCRIT);
          fc->sortCritFilterField[data & 0xff] |= class;
          fc->usedSortCritClasses |= class;
@@ -662,7 +728,7 @@ void EpgDbFilterFinishNi( FILTER_CONTEXT *fc, NI_FILTER_STATE *pNiState )
       {  // time slot crosses date border
          pNiState->stopMoD += 24*60;
       }
-      else if ((pNiState->startMoD < nowMoD) && (pNiState->reldate == 0))
+      else if ((pNiState->stopMoD <= nowMoD) && (pNiState->reldate == 0))
       {  // time slot has completely elapsed today -> use tomorrow
          pNiState->reldate += 1;
       }
@@ -692,6 +758,12 @@ bool EpgDbFilterMatches( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT *fc, con
       if (fc->enabledFilters & FILTER_NETWOP)
       {
          if (fc->netwopFilterField[pPi->netwop_no] == FALSE)
+            goto failed;
+      }
+      else if (fc->enabledFilters & FILTER_NETWOP_PRE)
+      {  // netwop pre-filter is only activated when netwop is unused
+         // this way also netwops outside of the prefilter can be explicitly requested, e.g. by a NI menu
+         if (fc->netwopPreFilterField[pPi->netwop_no] == FALSE)
             goto failed;
       }
 
@@ -766,7 +838,11 @@ bool EpgDbFilterMatches( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT *fc, con
                for (index=0; index < pPi->no_themes; index++)
                {  // OR across all themes in a class
                   if (fc->themeFilterField[pPi->themes[index]] & class)
-                     break;
+                  {  // ignore theme series codes if series filter is used
+                     // (or a "series - general" selection couldn't be reduced by selecting particular series)
+                     if ((pPi->themes[index] < 0x80) || ((fc->enabledFilters & FILTER_SERIES) == FALSE))
+                        break;
+                  }
                }
                if (index >= pPi->no_themes)
                {  // no match for this class -> abort (because of AND)

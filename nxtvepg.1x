@@ -1,0 +1,661 @@
+.\"----------------------------------------------------------------------------
+.\"
+.\"  Nextview decoder online manual
+.\"
+.\"  This program is free software; you can redistribute it and/or modify
+.\"  it under the terms of the GNU General Public License Version 2 as
+.\"  published by the Free Software Foundation. You find a copy of this
+.\"  license in the file COPYRIGHT in the root directory of this release.
+.\"
+.\"  THIS PROGRAM IS DISTRIBUTED IN THE HOPE THAT IT WILL BE USEFUL,
+.\"  BUT WITHOUT ANY WARRANTY; WITHOUT EVEN THE IMPLIED WARRANTY OF
+.\"  MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\"  GNU General Public License for more details.
+.\"
+.\"
+.\"  Description:
+.\"
+.\"    User's documentation in nroff -man format.
+.\"
+.\"  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+.\"
+.\" $Id: nxtvepg.1x,v 1.10 2000/10/14 21:55:39 tom Exp tom $
+.\"----------------------------------------------------------------------------
+.na
+.TH nxtvepg 1x "version 0.3.1 (C) 1999,2000 Tom Zoerner" "" "Nextview EPG Decoder"
+.SH NAME
+nxtvepg \- Decoder, Browser and Analyzer for the
+Nextview Electronic Programme Guide
+
+.SH SYNOPSIS
+.B nxtvepg
+.RI [ options ]
+
+.SH DESCRIPTION
+.B nxtvepg
+is an X11 application to receive, store and browse TV programme information
+transmitted in the Nextview format by analog TV channels as defined in the
+ETSI standard ETS 300 707.
+.PP
+Nextview was developed for use in TV sets, but it can also be received and
+used by a PC - provided you have a Teletext capable TV tuner card and are
+lucky enough to have a Nextview provider in your country.
+
+.SH OPTIONS
+A summary of command line options is included below. The X11 user
+interface is described in the X server man pages.
+.TP
+.BI \-display \ display
+Where to display the windows.
+Default: $DISPLAY.
+.TP
+.BI \-geometry \ geometry
+Specifies the position of the main window.
+The size of the window cannot be changed.
+.TP
+.BI \-iconic
+Start with the main window iconified.
+.TP
+.BI \-rcfile \ path
+Specify an alternate configuration file.
+Default: ~/.nxtvepgrc
+.TP
+.BI \-dbdir \ directory
+Specify an alternate directory for the databases.
+Default: /usr/tmp/nxtvdb.
+Note that the database management is not equipped for concurrent writing,
+so if you have more than one TV tuner card in your system or network,
+relocate the directory into the users' homes.
+.TP
+.BI \-card \ index
+Specify which tuner card to use, if you have more than one.
+The given index is appended to /dev/vbi and /dev/video.
+Default: no index postfix, i.e. whatever minor device the symlink
+.B /dev/vbi
+refers to.
+.TP
+.BI \-provider \ CNI
+Select a provider by its hexadecimal CNI (Country and Network Identifier),
+e.g. -provider d94 for "Pro Sieben". You can find out the provider's CNI
+during a provider scan or from the database file names.
+Default: the last provider selected during the previous session.
+.TP
+.BI \-noacq
+Start with acquisition disabled.
+The acquisition can still be started later from the Control menu.
+.TP
+.BI \-help
+List of command line options.
+
+.\"----------------------------------------------------------------------------
+
+.SH GETTING STARTED
+The first time you start the Nextview decoder, there won't be
+a provider yet, so there won't be any programme data either.
+To start reading in data (called
+.I acquisition
+from hereon), the decoder needs to know on which TV channel(s)
+data can be received.
+.PP
+The best way to get started is to run a provider scan from the
+Configure menu.  During the scan all TV channels are checked for
+Nextview transmissions.  If there are found any, you then can select
+your favorite provider in the Provider selection menu from the
+Configure menu.
+.PP
+Alternatively, you can use a separate application like
+.BR xtvscreen (1)
+to tune in a provider's channel (currently Pro7, RTL2, 3SAT,
+TV5, EuroNews, Canal+, M6 and several Swiss channels).
+.I Note:
+if you use
+.BR xawtv (1)
+be aware that the version including nagra decoding hogs the VBI
+device, hence it does not work together with this Nextview decoder
+(or any other teletext based software). Of course you still can
+browse the already stored programme databases.
+.PP
+Acquisition of a complete database takes about 20 minutes. However
+programmes that are nearer in the future are available much faster,
+since they are transmitted more often. The currently running and
+directly following programmes of all networks are usually available
+after about 2-3 minutes max.
+
+.\"----------------------------------------------------------------------------
+
+.SH BASIC BROWSING
+The browsing area consists of two windows: the upper one contains
+a list of programme titles, sorted by start time. All currently running
+programmes are marked by a light blue background color. One line in
+the list is selected by a cursor; the lower window contains the attributes
+and description for this selected title. The amount of data available
+depends entirely on the content provider.
+.PP
+The basic browsing of programme information works very straight-forward.
+You can either use the mouse or the keyboard cursor keys:
+.PP
+With the mouse, you can click on any title to select it and get its
+description in the lower window. With a double-click you get a popup
+window with a summary of all attributes known for that title.  See the
+.I Filter
+chapter on how to use those for filtering. Use the scrollbar
+to scroll the listing forward to programmes farer in the future.
+.PP
+With the keyboard, use the Cursor up/down keys to select any title.
+For fast scrolling use the page up/down keys. With the Home key you
+always get back to the first title.
+.PP
+.I Note:
+For most providers it holds true that the description is not available
+(or only partially) until the start time of that title is very close.
+The time span can be as short as 2 hours, or the next 5 titles per
+network. For details on the acquisition process see the following chapter.
+
+.\"----------------------------------------------------------------------------
+
+.SH DATA ACQUISITION
+As long as acquisition is enabled, programme titles are constantly being
+acquired or updated in the background. You will notice that all incoming
+programme information is instantly inserted to the programme listing.
+Every effort is taken to not alter the cursor position or title selection,
+except if the cursor is on the very first item - then the cursor
+stays on top.
+.PP
+There are two modes of operation:
+.I active
+and
+.I passive.
+Which one is used depends on on whether the
+.I /dev/video
+device is busy (i.e. used by a TV application).
+.PP
+In active acquisition mode, data is always acquired for the currently
+selected provider. At startup or when a new provider is selected from
+the Configure menu, the tuner frequency is set to the frequency of that
+provider's channel. Please note that this mode is only possible after
+a provider scan, because that's the only way to find out the frequencies
+(that's a limitation of the
+.I Video\ 4\ Linux
+driver).
+.PP
+In passive mode (e.g. while you are watching TV), acquisition follows
+the external channel selection.  If there's no Nextview transmission
+on the selected channel, no data will be acquired. If there is a
+transmission belonging to a different provider than the one selected
+for the browser, a second database will automatically be opened in
+the background to store the incoming data.
+.PP
+The transmitted database is constantly in change: Elapsed titles are
+removed, new titles appended, and the titles closest to the current time
+updated with an increased amount of description. (The reason that the
+complete description is not transmitted for all titles is simply that
+the size of the database has to be reduced - it shall be transmitted
+in 20 minutes maximum.)  So you should start the acquisition as often
+as possible, at least a couple of minutes before you browse.
+.PP
+You can monitor the progress of acquisition with the timescale windows
+which can be opened from the Control menu. There's one window for
+the browser database, and one for the acquisition database, if it's
+a different one. The timescale windows have one scale for each
+network covered by the selected provider. Each scale covers the
+next 5 days. Ranges that are covered by programmes available in the
+database are marked in red or blue.
+.PP
+The differences in colors are of interest only to technical insiders
+and shall therefore only be mentioned briefly:
+.I red:
+PI blocks received in stream 1;
+.I blue:
+PI blocks received in stream 2;
+.I shaded red or blue:
+PI blocks from an earlier database version;
+.I yellow:
+expired or invalid PI blocks (overlapping or zero run-time,
+block number not in the range given in AI, etc.)
+.PP
+There's also a statistics window available from the Control menu
+which informs you about the acquisition progress.  The statistics
+are updated every time a new AI block is received and reset when the
+database version changes.
+.PP
+The diagram at the left displays a history of fill percentages for
+stream 1 and 2; the meaning of the colors is the same as in the
+timescale windows.  The baud rates are computed as avarage of received
+bits during the total acquisition runtime; every teletext packet is
+counted as 45 * 8 Bits.
+.I "AI min/avg/max"
+describes the frequency of AI packet reception as: minimum, average
+and maximum interval length between AI blocks. The last 3 lines
+reflect the PI (programme information) block counts in the database.
+.PP
+.I "Block count db"
+gives the total number of PI blocks; in the brackets the sum is broken up
+into stream 1, stream 2 and expired & obsolete (colors red, blue and
+yellow in the graphics).  The next line has the same meaning, but only
+PI blocks of the current database version are counted. 
+The last line gives the number of PI blocks that are transmitted in
+the current Nextview cycle. This value is computed from the block ranges
+given in the AI block. The percentages behind the total express how many
+of the blocks already are available in the database; the second of the
+percentages only considers PI of the current version.
+.PP
+When you interpret thos values, please remember that PI blocks may be
+appended to the transmission cycle when programmes have expired (in a
+slight violation of the Nextview standard this is done even without
+changing the database version). So you might see from time to time that
+the fill percentages take a step back down during acquisition. Also note
+that expired PI are not accessible from the user interface, however they
+are included in the database dump from the
+.I Control
+menu.
+
+.\"----------------------------------------------------------------------------
+
+.SH NAVIGATE
+The Navigate menu contains a tree of filtering options, that's transmitted
+by the selected provider together with the programme data. Filtering allows
+to restrict the listing of programme information to those titles matching
+the selected menu entry.
+.PP
+The extent and content of this menu depends entirely on the provider.
+Unfortunately most providers supply only a very limited menu, so you'll
+probably want to define your own filters, as described in the next two
+chapters.
+.PP
+Any filter selection can always be undone by the
+.I Reset
+menu entry or the reset button in the main window.
+
+.\"----------------------------------------------------------------------------
+
+.SH FILTERING
+Similar to
+.I Navigate,
+this menu allows to control which of the programmes in the database
+are presented in the listing.  However here, you are not limited to a
+preselection of filter options.  There's a filter for every kind of
+attributes that can be attached to a program, e.g. it's network,
+start time, theme descriptors, ... and many more.
+.PP
+Filters can be undone either singularily by selecting the same filter
+menu entry again, or globally by clicking on the
+.I Reset
+button or menu entries.
+.PP
+You can combine as many filters as you want to build a complex filter.
+If you combine two filters of different types, only programmes that
+match both attributes will be listed (logical AND). If you choose more
+than one filter of the same type, all programmes that match either
+attribute will be listed (logical OR).
+.PP
+.I Examples:
+If you want to see all programmes listed for either network ARD or
+ZDF, simply select both networks. If you want to see all movies
+scheduled on PRO7, select network=PRO7 and theme=movies.
+.PP
+Summary of filter options:
+
+.TP
+.B Features
+Restrict the listing to programmes that match all given attributes
+(logical AND), i.e. sound format, picture format, analog/digital,
+encrypted yes/no, live/new/repeat and subtitles yes/no. If you want
+to allow more than one value of the same attribute (e.g. picture format
+wide OR Pal+) you have to put them into different feature classes.
+
+.TP
+.B Parental Rating
+Restrict the listing to programmes that are suitable for children
+of the given age or elder.
+
+.TP
+.B Editorial Rating
+Restrict the listing to programmes that are rated (by the content
+provider) to have at least the given quality. The range of rating
+values is 1 to 7. Note that some providers do not use all values,
+e.g. only 1 to 5, or e.g. just 3, 5 and 7.
+
+.TP
+.B Themes
+Restrict the listing to programmes that have any of the given theme
+categories attached to them (logical OR). The Nextview standard
+contains a list of 76 predefined themes, which are structured into
+11 main categories and subcategories. A programme can have up to
+5 themes attached. If you want to restrict the listing to programmes
+that have more than one of the given themes (logical AND) you need
+to specify them in different theme classes.
+
+.TP
+.B Series
+Restrict the listing to programmes that belong to any of the given
+series. A series code always implies a network specification (even if the
+same programme is transmitted on different networks). This filter type is
+only available for providers that assign series codes; for the other ones
+you can use text search among programme titles.
+
+.TP
+.B Program index
+Restrict the listing to programmes who's index is in the given range.
+The currently running programme of each network is given index zero,
+the following programme of each network index one etc. The three most
+important combinations are available as radio buttons:
+.I now
+(range 0-0),
+.I next
+(range 1-1) and
+.I now or next
+(range 0-1).
+
+.TP
+.B Networks
+Restrict the listing to programmes of the given networks. Note that the
+order and selection of networks can be configured (see
+.I Configure
+menu).
+
+.TP
+.B Text search
+Restrict the listing to programmes who's title or description contain
+the given text.
+
+.TP
+.B Start Time
+Restrict the listing to programmes who's start time lies in the given
+interval. There are two special modes for the interval specification:
+If you enable
+.I "Start at current time"
+the interval start is fixed to the actual time when the filter is
+applied and the value given as stop time is interpreted as duration, i.e.
+it's added to the interval start. If you enable
+.I "Stop at end of day"
+the interval end is fixed to 23:59 of the same day.
+
+.TP
+.B Sorting Criterions
+Restrict the listing to programmes that have any of the given sorting
+criteria attached to them. Sorting criteria work very much like themes,
+however their meaning is not predefined by the Nextview standard.
+The content provider can use arbitrary numbers to represent an attribute.
+Attributes usually are themes that are not in the predefined catalog,
+e.g. current events like the Olympic Games, but could also be not
+content related at all.  The meaning of these numbers is only
+defined by the provider's navigation menus (see chapter
+.I Navigate
+above).
+
+.PP
+Note that the interpretation of two filter types depends on the
+provider: sorting criterion and series. That's because those are
+just arbitrary numbers which only have a meaning in the context of
+the provider's navigation menu.
+.PP
+.I Hint:
+the filter menu can also be used to examine the filter options
+that are invoked by the entries in the Navigate menu.
+
+.\"----------------------------------------------------------------------------
+
+.SH FILTER SHORTCUTS
+There's a number of predefined filter options in the box below the
+clock. These shortcuts allow you to invoke filters by a single click
+of the mouse. You can freely add or remove entries from this list.
+.PP
+When you want to add a shortcut, either choose an entry from the
+Navigate menu or define your own filters via the Filter menu, possibly
+based on one or more already defined shortcuts. When you have found an
+interesting selection, call
+.I "Add filter shortcut..."
+from the Filter menu to save the setting. You will get a pop-up
+window that allows you to change any names or the ordering, or to
+delete shortcuts. If you want to discard all changes made in the
+pop-up, leave it with the
+.I Abort
+button. Else, use
+.I Save.
+.PP
+The filter mask list in the pop-up reflects which types of filters
+you currently have chosen. When you invoke the shortcut from the listbox
+later, all filters of the same type will be cleared (masked out). If you
+deselect the button for that filter type in the filter mask list, then
+those filters will remain untouched.
+.PP
+The masking can also be enabled when no filter of that type has been
+chosen. This can be used to define
+.I undo
+shortcuts. E.g. choose the mask 'Themes' if you want a shortcut that
+allows to clear all theme-related filters at once.
+.PP
+You can combine several shortcuts by pressing the
+.I CTRL
+or
+.I SHIFT
+keys on your keyboard when selecting - just as you know it from
+other applications. However the behavior of the combined shortcuts
+is slightly subtle and might not match your expectations in all
+cases. That's because the shortcuts are not cleanly separated when
+processed. Instead all filters are thrown together and then
+processed as if they belonged all to one shortcut in the way
+described in the previous chapter. This might change in the future
+if someone convices me there's a real need to.
+.PP
+If you want to modify the shortcut list without adding a new one,
+you can also access the popup from the
+.I Configure
+menu.
+.PP
+If you want to change the filter settings of a shortcut, you can do
+this only indirectly: first invoke the shortcut, then modify the
+settings as you need; then add it as a new shortcut and at the same
+time delete the old version.
+
+.\"----------------------------------------------------------------------------
+
+.SH CONTEXT MENU
+Another quick way to select and deselect filters is by using the
+context menu, which is popped up with the right mouse button in
+the browser window.
+.PP
+This menu consists of two parts: the first entries allow to undo the
+previously selected filters - either one by one or globally (reset).
+.PP
+The second part offers a number of possible new filter options, which
+depend on the currently selected title and the already selected filters.
+The offered filter types include: themes and network of the selected
+programme title, it's series code, repeat or original transmission
+suppression (only in cunjunction with series or title text filters)
+and last but not least the title text (as substring search).
+.PP
+The series and title text filters allow you to check very quickly for
+repeats of any programmes. If there is no match for these filters except
+for the already selected title, they are not offered.
+
+.\"----------------------------------------------------------------------------
+
+.SH CONTROL
+Summary of commands available from the Control menu:
+
+.TP
+.B Enable\ acquisition
+Toggles acquisition on or off.  When acquisition is switched off, the
+.I /dev/vbi
+device is freed, so that other applications (e.g. a teletext decoder)
+can use it.  Acquisition can also been turned off automatically
+by sending the process the signal HUP.  The process id is stored in
+.I /tmp/.vbi.pid
+while the device is in use.
+
+.TP
+.B Dump stream
+All incoming Nextview blocks are dumped to
+.I stdout
+in an ASCII format. This is intended for developers only.
+
+.TP
+.B Dump database
+Allows to dump all blocks of selected types in the database to
+.I stdout
+or into the given file.  Also for developers only.
+
+.TP
+.B View timescales
+Toggles the timescale window for the browser database.  See the
+.I Data Acquisition
+chapter for details.
+
+.TP
+.B View acq timescales
+Toggles the timescale window for the acquisition database. This entry
+is only available if the acquisition uses a different database than
+the browser.
+
+.TP
+.B Acq statistics
+Toggles the acquisition statistics window, which informs you about
+the progress of the acquisition.  See the
+.I Data Acquisition
+chapter for details.
+
+.TP
+.B Quit
+Close all windows and terminate the application.
+
+.\"----------------------------------------------------------------------------
+
+.SH CONFIGURATION
+Summary of commands available from the Configure menu:
+
+.TP
+.B Select provider...
+Open the provider selection popup.  This popup lists all TV channels
+from which Nextview data can be received.  When you select a channel
+name on the list, you'll see the name of the Nextview service that's
+transmitted there and a list of all networks covered by it on the right.
+If you close the popup with Ok, the selected provider's database will be
+loaded into the browser.  In active acquisition mode the according
+TV channel will also be tuned to update the database.
+
+.TP
+.B Provider scan...
+Open a popup that allows to start a scan across all TV channels for
+Nextview transmissions.  You should perform this search at least once,
+firstly to get a complete list of all providers, and secondly to find
+out the frequencies to all provider's channels. They are required for
+active acquisition mode.
+
+.TP
+.B Select networks...
+Open the network selection popup. This popup has two lists: on the
+left you'll find all networks that are covered by the provider in
+their original order, on the right those that are selected for the
+programme listing in your preferred order. By default, both lists
+will have exactly the same content. If you want to exclude networks,
+e.g. if you can not receive them, select them in the right list and press
+.I Delete.
+You can always include them again by selecting them in the left
+list and pressing
+.I Add.
+You can change the order in the right list (e.g. to achieve that the
+order is the same for all providers) by selecting one or more
+networks and pressing
+.I up
+or
+.I down.
+
+.TP
+.B Filter shortcuts...
+Open the filter shortcut popup to rename, reorder or delete shortcuts. 
+You have to press the
+.I Update
+button to save any changes for a shortcut and then close the popup with
+.I Save.
+
+.TP
+.B Show shortcuts
+Toggle visibility of the shortcut listbox.
+
+.TP
+.B Show networks
+Toggle visibility of the network listbox.
+
+.\"----------------------------------------------------------------------------
+
+.SH FILES
+.TP
+.B ~/.nxtvepgrc
+Configuration file where all personal settings are stored. Per default
+this is created in your home directory, but a different path and file
+name can be specified with the
+.B \-rcfile
+option.
+
+.TP
+.B /usr/tmp/nxtvdb/nxtvdb-####
+Directory containing one file for each provider's database.
+Can be changed with the
+.B \-dbdir
+command line option.
+The last 4 digits of the file names are the hexadecimal CNI (Country
+and Network Identifier) of the provider.
+
+.TP
+.B /dev/vbi, /dev/vbi0, etc.
+Device files from which Nextview data is being read.
+The index postfix can be specified with the
+.B -card
+command line option.
+
+.TP
+.B /dev/video, /dev/video0, etc.
+Device files that are needed to set tuner frequency for VBI reception.
+The index postfix can be specified with the
+.B -card
+command line option.
+The device is only kept open during a provider search. Else, it's just
+opened shortly to set the tuner frequency at the start of acquisition.
+If the device is busy, acquisition starts on the currently selected channel
+and follows any externally controlled channel changes (passive acquisition
+mode).
+
+.TP
+.BI /tmp/.vbi.pid
+This file contains the process id of the Nextview decoder (or the
+acquisition slave process) whenever /dev/vbi is kept open. The
+process can be forced to free the device by sending it signal SIGHUP,
+e.g. from a wrapper script around a teletext decoder.
+
+.\"----------------------------------------------------------------------------
+
+.SH SEE ALSO
+For in-depth information about Nextview please refer to the specifications
+ETS 300 707 (data structures and basic principles), ETS 300 708
+(transmission protocol) and ETR 288 (code of practice). These specs
+are available from
+.PP
+http://www.etsi.org/
+
+.\"----------------------------------------------------------------------------
+
+.SH REPORTING BUGS
+Feel free to mail any bug reports to me, but please make sure that
+(a) you have the latest version of this software, (b) it's not already
+in the TODO file and (c) it's not just an error in your provider's EPG
+transmission. And please note that I've got no telepathic capabilities,
+so be comprehensive in describing your problem.
+
+.SH AUTHOR
+Tom Zoerner, Erlangen, Germany.
+.PP
+Email: <Tom.Zoerner@informatik.uni-erlangen.de>
+
+.SH COPYRIGHT
+Copyright (C) 1999,2000 Tom Zoerner
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License Version 2 as
+published by the Free Software Foundation.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+file COPYRIGHT for more details.
+

@@ -15,7 +15,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgdbsav.h,v 1.8 2000/06/26 18:31:20 tom Exp tom $
+ *  $Id: epgdbsav.h,v 1.10 2000/10/12 18:25:36 tom Exp tom $
  */
 
 #ifndef __EPGDBSAV_H
@@ -28,7 +28,7 @@
 #define MAGIC_STR      "NEXTVIEW-DB by TOMZO\n"
 #define MAGIC_STR_LEN  20
 
-#define DUMP_VERSION   0x0000020a // current version 0.2a
+#define DUMP_VERSION   0x00000301 // current version 0.3.1
 #define DUMP_COMPAT    0x0000010a // last compatible version
 
 #ifdef WIN32
@@ -80,7 +80,7 @@ typedef struct
 
 bool EpgDbDump( EPGDB_CONTEXT *pDbContext );
 bool EpgDbReload( EPGDB_CONTEXT *pDbContext, uint cni );
-uint EpgDbReloadScan( const char *path, int index );
+uint EpgDbReloadScan( int index );
 
 const EPGDBSAV_PEEK * EpgDbPeek( uint cni );
 void EpgDbPeekDestroy( const EPGDBSAV_PEEK *pPeek );

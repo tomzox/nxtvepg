@@ -15,7 +15,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: pdc_themes.h,v 1.1 2000/06/01 19:52:40 tom Exp tom $
+ *  $Id: pdc_themes.h,v 1.2 2000/09/26 13:56:48 tom Exp tom $
  */
 
 #ifndef __PDC_THEMES_H
@@ -25,5 +25,8 @@
 extern const uchar * const pdc_themes[];
 extern const uchar * const pdc_series;
 extern const uchar * const pdc_undefined_theme;
+extern const uchar         pdc_categories[];
+
+uchar PdcThemeGetCategory( uchar theme );
 
 #endif //__PDC_THEMES_H

@@ -15,7 +15,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: pilistbox.h,v 1.2 2000/06/13 18:24:18 tom Exp tom $
+ *  $Id: pilistbox.h,v 1.5 2000/10/11 18:07:04 tom Exp tom $
  */
 
 #ifndef __PILISTBOX_H
@@ -28,13 +28,17 @@ void PiListBox_Reset( void );
 
 // Interface to filter control module
 void PiListBox_Refresh( void );
+const PI_BLOCK * PiListBox_GetSelectedPi( void );
+
+// Interface to menu cmd handler
+void PiListBox_UpdateState( void );
 
 // Interface to database management
 void PiListBox_DbInserted( const EPGDB_CONTEXT *usedDbc, const PI_BLOCK *pPiBlock );
-void PiListBox_DbUpdated( const EPGDB_CONTEXT *usedDbc, const PI_BLOCK *pPiBlock );
+bool PiListBox_DbPreUpdate( const EPGDB_CONTEXT *usedDbc, const PI_BLOCK *pObsolete, const PI_BLOCK *pPiBlock );
+void PiListBox_DbPostUpdate( const EPGDB_CONTEXT *usedDbc, const PI_BLOCK *pObsolete, const PI_BLOCK *pPiBlock );
 void PiListBox_DbRemoved( const EPGDB_CONTEXT *usedDbc, const PI_BLOCK *pPiBlock );
 void PiListBox_DbRecount( const EPGDB_CONTEXT *usedDbc );
 void PiListBox_UpdateNowItems( const EPGDB_CONTEXT *usedDbc );
-bool PiListBox_ConsistancyCheck( void );
 
 #endif  // __PILISTBOX_H

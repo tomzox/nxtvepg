@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgmain.c,v 1.27 2000/07/08 18:33:20 tom Exp tom $
+ *  $Id: epgmain.c,v 1.34 2000/10/15 18:45:57 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -37,7 +37,6 @@
 #include <io.h>
 #endif
 #include <math.h>
-#include <malloc.h>
 #include <stdio.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -71,6 +70,7 @@
 
 
 extern char epgui_tcl_script[];
+extern char help_tcl_script[];
 
 Tcl_Interp *interp;          // Interpreter for application
 char comm[1000];             // Command buffer
@@ -78,8 +78,11 @@ char comm[1000];             // Command buffer
 // command line options
 #ifdef WIN32
 static const char *rcfile = "NXTVEPG.INI";
+       const char *dbdir  = ".";
 #else
 static const char *rcfile = "~/.nxtvepgrc";
+       const char *dbdir  = "/usr/tmp/nxtvdb";
+static uchar videoCardPostfix = '\0';
 #endif
 static bool disableAcq = FALSE;
 static bool startIconified = FALSE;
@@ -228,16 +231,10 @@ static void signal_handler(int sigval)
 //
 static void InitLTO( void )
 {
-   time_t now;
+   tzset();
+   lto = 60*60 * daylight - timezone;
 
-   #ifdef WIN32
-   // Win32 fails to call tzset() automatically
-   _tzset();
-   #endif
-
-   now = time(NULL);
-   lto = now - mktime(gmtime(&now));
-   //printf("LTO = %d sec = %d min\n", lto, lto/60);
+   //printf("LTO = %d min, %s/%s, off=%ld, daylight=%d\n", lto/60, tzname[0], tzname[1], timezone/60, daylight);
 }
 
 #ifndef WIN32
@@ -247,10 +244,13 @@ static void InitLTO( void )
 static void Usage( const char *argv0, const char *argvn, const char * reason )
 {
    fprintf(stderr, "%s: %s: %s\n"
-                   "Usage: -display <display>   : X11 display\n"
+                   "Usage: -help                : this message\n"
+                   "       -display <display>   : X11 display\n"
                    "       -geometry <geometry> : window geometry\n"
                    "       -iconic              : iconify window\n"
                    "       -rcfile <path>       : path and file name of setup file\n"
+                   "       -dbdir <path>        : directory where to store databases\n"
+                   "       -card <digit>        : index of TV card (1-4)\n"
                    "       -provider <cni>      : network id of EPG provider (hex)\n"
                    "       -noacq               : disable acquisition\n",
                    argv0, reason, argvn);
@@ -269,7 +269,11 @@ static void ParseArgv( int argc, char * argv[] )
    {
       if (argv[argIdx][0] == '-')
       {
-         if (!strcmp(argv[argIdx], "-noacq"))
+         if (!strcmp(argv[argIdx], "-help"))
+         {
+            Usage(argv[0], "", "the following command line options are available");
+         }
+         else if (!strcmp(argv[argIdx], "-noacq"))
          {  // do not enable acquisition
             disableAcq = TRUE;
             argIdx += 1;
@@ -285,6 +289,30 @@ static void ParseArgv( int argc, char * argv[] )
             }
             else
                Usage(argv[0], argv[argIdx], "missing file name after");
+         }
+         else if (!strcmp(argv[argIdx], "-dbdir"))
+         {
+            if (argIdx + 1 < argc)
+            {  // read path of database directory
+               dbdir = argv[argIdx + 1];
+               argIdx += 2;
+            }
+            else
+               Usage(argv[0], argv[argIdx], "missing path name after");
+         }
+         else if (!strcmp(argv[argIdx], "-card"))
+         {
+            if (argIdx + 1 < argc)
+            {  // read index of TV card device
+               char *pe;
+               ulong cardIdx = strtol(argv[argIdx + 1], &pe, 0);
+               if ((pe != (argv[argIdx + 1] + strlen(argv[argIdx + 1]))) || (cardIdx > 9))
+                  Usage(argv[0], argv[argIdx+1], "invalid index (range 0-9)");
+               videoCardPostfix = '0' + cardIdx;
+               argIdx += 2;
+            }
+            else
+               Usage(argv[0], argv[argIdx], "missing card index after");
          }
          else if (!strcmp(argv[argIdx], "-provider"))
          {
@@ -324,9 +352,9 @@ static void ParseArgv( int argc, char * argv[] )
 // ---------------------------------------------------------------------------
 // Initialize the Tcl/Tk interpreter
 //
-//#if !defined(TCL_LIBRARY_PATH) || !defined(TK_LIBRARY_PATH)
-//#include "epgui/tcl_libs.c"
-//#endif
+#if !defined(TCL_LIBRARY_PATH) || !defined(TK_LIBRARY_PATH)
+#include "epgui/tcl_libs.c"
+#endif
 static int ui_init( int argc, char **argv )
 {
    char *args, buffer[128];
@@ -346,10 +374,10 @@ static int ui_init( int argc, char **argv )
       Tcl_SetVar(interp, "argc", buffer, TCL_GLOBAL_ONLY);
       Tcl_SetVar(interp, "argv0", argv[0], TCL_GLOBAL_ONLY);
    }
-   //#if defined(TCL_LIBRARY_PATH) && defined(TK_LIBRARY_PATH)
+   #if defined(TCL_LIBRARY_PATH) && defined(TK_LIBRARY_PATH)
    Tcl_SetVar(interp, "tcl_library", TCL_LIBRARY_PATH, TCL_GLOBAL_ONLY);
    Tcl_SetVar(interp, "tk_library", TK_LIBRARY_PATH, TCL_GLOBAL_ONLY);
-   //#endif
+   #endif
    Tcl_SetVar(interp, "tcl_interactive", "0", TCL_GLOBAL_ONLY);
 
    Tcl_Init(interp);
@@ -359,12 +387,12 @@ static int ui_init( int argc, char **argv )
       exit(1);
    }
 
-   //#if !defined(TCL_LIBRARY_PATH) || !defined(TK_LIBRARY_PATH)
-   //if (Tcl_VarEval(interp, TCL_LIBS, NULL) != TCL_OK)
-   //{
-   //   debug1("TCL_LIBS error: %s\n", interp->result);
-   //}
-   //#endif
+   #if !defined(TCL_LIBRARY_PATH) || !defined(TK_LIBRARY_PATH)
+   if (Tcl_VarEval(interp, TCL_LIBS, NULL) != TCL_OK)
+   {
+      debug1("TCL_LIBS error: %s\n", interp->result);
+   }
+   #endif
 
    Tk_DefineBitmap(interp, Tk_GetUid("nxtv_logo"), nxtv_logo_bits, nxtv_logo_width, nxtv_logo_height);
 
@@ -378,6 +406,7 @@ static int ui_init( int argc, char **argv )
       eval_check(interp, "wm iconify .");
 
    eval_check(interp, epgui_tcl_script);
+   eval_check(interp, help_tcl_script);
 
    Tcl_ResetResult(interp);
    return (TRUE);
@@ -405,7 +434,7 @@ int main( int argc, char *argv[] )
 
    #ifndef WIN32
    ParseArgv(argc, argv);
-   VbiDecodeInit();
+   VbiDecodeInit(videoCardPostfix);
 
    ui_init(argc, argv);
 
@@ -419,6 +448,26 @@ int main( int argc, char *argv[] )
 
    sprintf(comm, "LoadRcFile %s\n", rcfile);
    eval_check(interp, comm);
+
+   // set up the directory for the databases
+   if (dbdir != NULL)
+   {
+      struct stat st;
+      if (stat(dbdir, &st) != 0)
+      {
+         if ((errno != ENOENT) || (mkdir(dbdir, 0777) != 0) || (stat(dbdir, &st) != 0))
+         {
+            fprintf(stderr, "cannot create dbdir %s: %s\n", dbdir, strerror(errno));
+            exit(1);
+         }
+      }
+      // set permissions of database directory: world-r/w-access & sticky-bit
+      if ((st.st_mode != (0777 | S_ISVTX)) && (chmod(dbdir, 0777 | S_ISVTX) != 0))
+      {
+         fprintf(stderr, "cannot set permissions for dbdir %s: %s\n", dbdir, strerror(errno));
+         exit(1);
+      }
+   }
 
    if (startUiCni == 0)
    {
@@ -454,6 +503,7 @@ int main( int argc, char *argv[] )
    if (disableAcq == FALSE)
    {
       EpgAcqCtl_Start();
+      PiListBox_UpdateState();
    }
 
    if (Tk_GetNumMainWindows() > 0)
@@ -493,6 +543,12 @@ int main( int argc, char *argv[] )
    VbiDecodeExit();
    #endif
    EpgAcqCtl_CloseDb(DB_TARGET_UI);
+   PiFilter_Destroy();
+
+   #if CHK_MALLOC == ON
+   // check for allocated memory that was not freed
+   chk_memleakage();
+   #endif
 
    return 0;
 }

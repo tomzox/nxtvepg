@@ -15,7 +15,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: statswin.h,v 1.4 2000/06/26 18:51:07 tom Exp tom $
+ *  $Id: statswin.h,v 1.5 2000/09/16 12:58:39 tom Exp tom $
  */
 
 #ifndef __STATSWIN_H
@@ -31,5 +31,6 @@ void StatsWin_NewAi( void );
 
 // Interface to acq control and provider selection menu
 void StatsWin_ProvChange( int target );
+void StatsWin_VersionChange( void );
 
 #endif  // __STATSWIN_H

@@ -23,7 +23,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: statswin.c,v 1.14 2000/07/08 18:34:53 tom Exp tom $
+ *  $Id: statswin.c,v 1.19 2000/09/21 14:51:27 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -60,14 +60,14 @@ static struct
    uchar  lastStream;        // dito
 } tscaleState[2];
 
-const char *tscn[2] =
+const char * const tscn[2] =
 {
    ".tscale_ui",
    ".tscale_acq"
 };
 
 #define STREAM_COLOR_COUNT  5
-const char *streamColors[STREAM_COLOR_COUNT] =
+const char * const streamColors[STREAM_COLOR_COUNT] =
 {
    "red",           // stream 1, current version -> red
    "#4040ff",       // stream 1, current version -> blue
@@ -193,7 +193,6 @@ static void StatsWin_DisplayAcqStats( ClientData clientData )
 {
    const EPGDB_STATS *sv;
    const AI_BLOCK *pAi;
-   double avgAiDistance;
    uchar netname[20+1];
    uchar version, versionSwo;
    ulong duration;
@@ -249,11 +248,6 @@ static void StatsWin_DisplayAcqStats( ClientData clientData )
             eval_check(interp, comm);
             lastHistPos = sv->histIdx;
 
-            if (sv->aiCount > 1)
-               avgAiDistance = (sv->lastAiTime - sv->acqStartTime) / (sv->aiCount - 1);
-            else
-               avgAiDistance = 0.0;
-
             duration = now - sv->acqStartTime;
             if (duration == 0)
                duration = 1;
@@ -279,7 +273,7 @@ static void StatsWin_DisplayAcqStats( ClientData clientData )
                           ((sv->ttxPkgCount > 0) ? ((double)sv->epgPkgCount*100.0/sv->ttxPkgCount) : 0.0),
                           ((double)sv->epgPagCount / duration),
                           sv->aiCount,
-                          sv->minAiDistance, avgAiDistance, sv->maxAiDistance,
+                          sv->minAiDistance, sv->avgAiDistance, sv->maxAiDistance,
                           allVersionsCount, sv->count[0].allVersions, sv->count[1].allVersions, sv->count[0].obsolete + sv->count[1].obsolete,
                           curVersionCount, sv->count[0].curVersion, sv->count[1].curVersion, sv->count[0].obsolete + sv->count[1].obsolete,
                           total,
@@ -453,6 +447,69 @@ static void StatsWin_Load( int target, EPGDB_CONTEXT *dbc )
 }
 
 // ----------------------------------------------------------------------------
+// update history diagram and stats text
+//
+static void StatsWin_RebuildCanvas( ClientData clientData )
+{
+   const AI_BLOCK  *pAi;
+   const AI_NETWOP *pNetwops;
+   EPGDB_CONTEXT   *dbc;
+   uchar netwop;
+   uint  target;
+
+   target = (int) clientData;
+   if (target < 2)
+   {
+      if (tscaleState[target].open)
+      {
+         dbc = ((target == 0) ? pUiDbContext : pAcqDbContext);
+
+         // remove the previous timescales
+         sprintf(comm, "foreach temp [info command %s.top.n*] {pack forget $temp; destroy $temp}\n", tscn[target]);
+         eval_check(interp, comm);
+
+         // create the timescales anew
+         EpgDbLockDatabase(dbc, TRUE);
+         pAi = EpgDbGetAi(dbc);
+         if (pAi != NULL)
+         {
+            pNetwops = AI_GET_NETWOPS(pAi);
+            for (netwop=0; netwop < pAi->netwopCount; netwop++)
+            {
+               sprintf(comm, "TimeScale_Create %s.top.n%d {%s}\n", tscn[target], netwop, AI_GET_STR_BY_OFF(pAi, pNetwops[netwop].off_name));
+               eval_check(interp, comm);
+            }
+         }
+         EpgDbLockDatabase(dbc, FALSE);
+
+         // preload the timescales
+         StatsWin_Load(target, dbc);
+      }
+   }
+   else
+      debug1("StatsWin_RebuildCanvas: illegal target: %d", target);
+}
+
+// ----------------------------------------------------------------------------
+// Notify timescale windows about an AI version change
+// - number and names of netwops might have changed,
+//   range of valid PI might have changed, and PI hence gotten removed
+// - scale contents have to be recolored (shaded) to reflect obsolete version
+//
+void StatsWin_VersionChange( void )
+{
+   // determine in which of the opened timescale windows acq is running
+   if ( tscaleState[DB_TARGET_ACQ].open )
+   {
+      Tcl_DoWhenIdle(StatsWin_RebuildCanvas, (ClientData) DB_TARGET_ACQ);
+   }
+   else if ( tscaleState[DB_TARGET_UI].open && (pAcqDbContext == pUiDbContext) )
+   {
+      Tcl_DoWhenIdle(StatsWin_RebuildCanvas, (ClientData) DB_TARGET_UI);
+   }
+}
+
+// ----------------------------------------------------------------------------
 // build the sclaes for each network in the current EPG
 //
 static void StatsWin_BuildCanvas( int target, EPGDB_CONTEXT *dbc )
@@ -571,12 +628,14 @@ static int StatsWin_ToggleTimescale( ClientData ttp, Tcl_Interp *interp, int arg
          {  // destroy the window
             tscaleState[target].open = FALSE;
 
-            sprintf(comm, "destroy %s; update", tscn[target]);
+            sprintf(comm, "bind %s.bottom <Destroy> {}\n"
+                          "destroy %s; update",
+                          tscn[target], tscn[target]);
             eval_check(interp, comm);
          }
+         sprintf(comm, "set menuStatusTscaleOpen(%s) %d\n", argv[1], tscaleState[target].open);
+         eval_check(interp, comm);
       }
-      sprintf(comm, "set menuStatusTscaleOpen(%s) %d\n", argv[1], tscaleState[target].open);
-      eval_check(interp, comm);
    }
    else
    {  // error of any kind -> display usage
@@ -650,7 +709,7 @@ static int StatsWin_ToggleStatistics( ClientData ttp, Tcl_Interp *interp, int ar
       }
       else
       {  // destroy the window
-         sprintf(comm, "destroy .acqstat");
+         sprintf(comm, "bind .acqstat <Destroy> {}; destroy .acqstat");
          eval_check(interp, comm);
 
          acqStatOpen = FALSE;
@@ -665,7 +724,7 @@ static int StatsWin_ToggleStatistics( ClientData ttp, Tcl_Interp *interp, int ar
 
 // ----------------------------------------------------------------------------
 // Notify the windows of this module about a database provider change
-// - when provider changes, the according window is destroyed
+// - when provider changes, the according window is rebuild
 // - when acq shift from ui db to a separate acq db, the highlighted
 //   netwop in the ui window must be unmarked
 //
@@ -673,21 +732,18 @@ void StatsWin_ProvChange( int target )
 {
    if (target < 2)
    {
-      if (tscaleState[target].open)
+      // close separate acq timescale window, if ui now has the same db
+      if ( (tscaleState[DB_TARGET_ACQ].open) &&
+           ((pAcqDbContext == pUiDbContext) || (pAcqDbContext == NULL)) )
       {
-         tscaleState[target].open = FALSE;
-
-         sprintf(comm, "destroy %s", tscn[target]);
+         sprintf(comm, "destroy %s", tscn[DB_TARGET_ACQ]);
          eval_check(interp, comm);
       }
 
-      // close separate acq timescale window, if ui now has the same db
-      if ( (tscaleState[DB_TARGET_ACQ].open) && (pAcqDbContext == pUiDbContext) )
+      // rebuild network timescales
+      if (tscaleState[target].open)
       {
-         tscaleState[DB_TARGET_ACQ].open = FALSE;
-
-         sprintf(comm, "destroy %s", tscn[DB_TARGET_ACQ]);
-         eval_check(interp, comm);
+         Tcl_DoWhenIdle(StatsWin_RebuildCanvas, (ClientData) target);
       }
 
       // if a network in the inactive UI window is still marked, unmark it
@@ -700,7 +756,7 @@ void StatsWin_ProvChange( int target )
       // if the acq stats window is open, update its content
       if (acqStatOpen && (target == DB_TARGET_ACQ))
       {
-         StatsWin_DisplayAcqStats(NULL);
+         Tcl_DoWhenIdle(StatsWin_DisplayAcqStats, NULL);
       }
    }
    else

@@ -15,7 +15,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgacqctl.h,v 1.10 2000/07/08 18:34:22 tom Exp tom $
+ *  $Id: epgacqctl.h,v 1.12 2000/09/27 17:34:51 tom Exp tom $
  */
 
 #ifndef __EPGACQCTL_H
@@ -27,14 +27,14 @@
 //
 typedef enum
 {
-   // states while acq is running
-   DBSTATE_NO_TTX,          // no teletext reception
-   DBSTATE_WAIT_EPG,        // TTX, but no EPG on default page 0x1DF
-   DBSTATE_WAIT_AI,         // EPG reception; wait for AI,BI
-   DBSTATE_UPDATING,        // acq running, db ok
-   // states while acq is stopped
-   DBSTATE_EMPTY,           // acq not running, db empty
-   DBSTATE_OK               // acq not running, db ok
+   EPGDB_NOT_INIT,
+   EPGDB_NO_PROVIDERS,
+   EPGDB_NO_PROV_SEL,
+   EPGDB_ACQ_NO_FREQ,
+   EPGDB_ACQ_PASSIVE,
+   EPGDB_ACQ_WAIT,
+   EPGDB_EMPTY,
+   EPGDB_OK
 } EPGDB_STATE;
 
 // internal state of the control module
@@ -79,6 +79,7 @@ typedef struct
    ulong  lastAiTime;
    uint   minAiDistance;
    uint   maxAiDistance;
+   float  avgAiDistance;
    uint   aiCount;
    uchar  hist_expir[STATS_HIST_WIDTH];
    uchar  hist_s1cur[STATS_HIST_WIDTH];
@@ -105,6 +106,7 @@ bool EpgAcqCtl_OpenDb( int target, uint cni );
 void EpgAcqCtl_CloseDb( int target );
 bool EpgAcqCtl_StartScan( void );
 void EpgAcqCtl_StopScan( void );
+EPGDB_STATE EpgAcqCtl_GetDbState( void );
 
 // Interface for notifications from acquisition
 #ifdef __EPGBLOCK_H

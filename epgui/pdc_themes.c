@@ -19,12 +19,20 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: pdc_themes.c,v 1.2 2000/06/10 16:06:18 tom Exp tom $
+ *  $Id: pdc_themes.c,v 1.4 2000/09/28 20:28:58 tom Exp tom $
  */
 
 #define __PDC_THEMES_C
 
-const char * const pdc_themes[] =
+#define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
+#define DPRINTF_OFF
+
+#include "epgctl/mytypes.h"
+#include "epgctl/debug.h"
+
+#include "epgui/pdc_themes.h"
+
+const uchar * const pdc_themes[] =
 {
             0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
    /*0x10*/ "movie - general",
@@ -42,6 +50,7 @@ const char * const pdc_themes[] =
    /*0x22*/ "news magazine",
    /*0x23*/ "documentary",
    /*0x24*/ "discussion/interview/debate",
+
    /*0x25*/ "social/political/economics - general",
    /*0x26*/ "news magazines/reports",
    /*0x27*/ "economics/social advisory",
@@ -51,6 +60,7 @@ const char * const pdc_themes[] =
    /*0x31*/ "game/show/quiz/contest",
    /*0x32*/ "variety show",
    /*0x33*/ "talk show",
+
    /*0x34*/ "leisure hobbies - general",
    /*0x35*/ "tourism/travel",
    /*0x36*/ "handicraft",
@@ -60,11 +70,11 @@ const char * const pdc_themes[] =
    /*0x3A*/ "advertisement/shopping",
             0,0,0,0,0,
    /*0x40*/ "sports - general",
-   /*0x41*/ "special events",
+   /*0x41*/ "special sports events",
    /*0x42*/ "sports magazines",
-   /*0x43*/ "football/soccer",
-   /*0x44*/ "tennis/squash",
-   /*0x45*/ "other team sports",
+   /*0x43*/ "football & soccer",
+   /*0x44*/ "tennis & squash",
+   /*0x45*/ "misc. team sports",
    /*0x46*/ "athletics",
    /*0x47*/ "motor sports",
    /*0x48*/ "water sports",
@@ -75,38 +85,39 @@ const char * const pdc_themes[] =
             0,0,0,
    /*0x50*/ "kids - general",
    /*0x51*/ "pre-school",
-   /*0x52*/ "entertainment programmes for 6 to 14",
-   /*0x53*/ "entertainment programmes for 10 to 16",
+   /*0x52*/ "kids from 6 to 14",
+   /*0x53*/ "kids from 10 to 16",
    /*0x54*/ "kids educational",
-   /*0x55*/ "cartoons/puppets",
+   /*0x55*/ "cartoons & puppets",
+
    /*0x56*/ "science - general",
    /*0x57*/ "nature",
    /*0x58*/ "technology",
    /*0x59*/ "medicine",
    /*0x5A*/ "foreign",
    /*0x5B*/ "social",
-   /*0x5C*/ "further education",
+   /*0x5C*/ "misc. education",
    /*0x5D*/ "languages",
             0,0,
    /*0x60*/ "music/ballet/dance - general",
-   /*0x61*/ "rock/pop",
-   /*0x62*/ "serious music/classical music",
-   /*0x63*/ "folk/traditional music",
+   /*0x61*/ "rock & pop",
+   /*0x62*/ "serious & classical music",
+   /*0x63*/ "folk & traditional music",
    /*0x64*/ "jazz",
-   /*0x65*/ "musical/opera",
+   /*0x65*/ "musical & opera",
    /*0x66*/ "ballet",
             0,0,0,0,0,0,0,0,0,
    /*0x70*/ "arts/culture - general",
    /*0x71*/ "performing arts",
    /*0x72*/ "fine arts",
    /*0x73*/ "religion",
-   /*0x74*/ "popular culture/traditional arts",
+   /*0x74*/ "pop culture/traditional arts",
    /*0x75*/ "literature",
-   /*0x76*/ "film/cinema",
+   /*0x76*/ "film & cinema",
    /*0x77*/ "experimental film/video",
-   /*0x78*/ "broadcasting/press",
+   /*0x78*/ "broadcasting & press",
    /*0x79*/ "new media",
-   /*0x7A*/ "arts/culture magazines",
+   /*0x7A*/ "arts & culture magazines",
    /*0x7B*/ "fashion",
             0,0,0,0,
    /*0x80*/ "series - general",
@@ -116,7 +127,42 @@ const char * const pdc_themes[] =
 // The codes above 0x80 are defined indiviually for each network
 // The names for these codes are implied by the titles of the
 // assigned programme entries, i.e. PI blocks.
-const char * const pdc_series = "series";
+const uchar * const pdc_series = "series";
 
-const char * const pdc_undefined_theme = "undefined";
+const uchar * const pdc_undefined_theme = "undefined";
 
+const uchar pdc_categories[] =
+{
+   0x10, // movie - general
+   0x20, // news - general
+   0x25, // social/political/economics - general
+   0x30, // show/game show - general
+   0x34, // leisure hobbies - general
+   0x40, // sports - general
+   0x50, // kids - general
+   0x56, // science - general
+   0x60, // music/ballet/dance - general
+   0x70, // arts/culture - general
+   0x80, // series - general
+   0
+};
+
+// ---------------------------------------------------------------------------
+// Determine in which category the given theme falls
+//
+uchar PdcThemeGetCategory( uchar theme )
+{
+   int idx, category;
+
+   category = theme;
+   for (idx=0; pdc_categories[idx] != 0; idx++)
+   {
+      if (pdc_categories[idx + 1] > theme)
+      {
+         category = pdc_categories[idx];
+         break;
+      }
+   }
+
+   return category;
+}

@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: vbidecode.h,v 1.8 2000/06/29 18:22:34 tom Exp tom $
+ *  $Id: vbidecode.h,v 1.10 2000/09/28 20:32:05 tom Exp tom $
  */
 
 #ifndef __VBIDECODE_H
@@ -33,10 +33,10 @@ extern EPGACQ_BUF *pVbiBuf;
 // ---------------------------------------------------------------------------
 // declaration of service interface functions
 //
-void VbiDecodeLine(uchar *lbuf, int line);
+void VbiDecodeLine(const uchar *lbuf, int line);
 
 #ifndef WIN32
-bool VbiDecodeInit( void );
+bool VbiDecodeInit( uchar cardPostfix );
 void VbiDecodeExit( void );
 bool VbiDecodeFrame( void );
 void VbiDecodeCheckParent( void );

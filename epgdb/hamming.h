@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: hamming.h,v 1.2 2000/06/01 19:42:30 tom Exp tom $
+ *  $Id: hamming.h,v 1.3 2000/09/17 19:48:34 tom Exp tom $
  */
 
 #ifndef __HAMMING_H
@@ -33,7 +33,7 @@
 // - single errors are ignored
 // - 0xff = double-error
 //
-EXT const uchar unhamtab[256]
+EXT const schar unhamtab[256]
 #ifdef __HAMMING_C
 = {
    0x01, 0xff, 0x01, 0x01, 0xff, 0x00, 0x01, 0xff,
@@ -75,7 +75,7 @@ EXT const uchar unhamtab[256]
 // ----------------------------------------------------------------------------
 // odd-parity decoding table: bit 7 set <-> parity error
 //
-EXT const uchar parityTab[256]
+EXT const schar parityTab[256]
 #ifdef __HAMMING_C
 = {
    0x80, 0x01, 0x02, 0x83, 0x04, 0x85, 0x86, 0x07,
@@ -115,20 +115,13 @@ EXT const uchar parityTab[256]
 ;
 
 // ----------------------------------------------------------------------------
-// this global variable is cleared at block decoding start
-// if set after the block header is decoded, the block is thrown away
-//
-EXT volatile uint hamErr;
-
-
-// ----------------------------------------------------------------------------
 // declaration of service interface functions
 //
-uchar UnHam84Byte( const uchar *d );
-uint  UnHam84Word( const uchar *d );
-uchar UnHam84Nibble( const uchar *d );
-void  UnHam84Array( uchar *pin, uint byteCount );
-void  UnHamParityArray( const uchar *pin, uchar *pout, uint byteCount );
+#define UnHam84Nibble(P,V) (( *(V) = unhamtab[(uint)*(P)] ) >= 0 )
+#define UnHam84Byte(P,V)   (( *(V) = ((sint)unhamtab[*(P)] | ((sint)unhamtab[*((P)+1)] << 4)) ) >= 0 )
+
+bool UnHam84Array( uchar *pin, uint byteCount );
+void UnHamParityArray( const uchar *pin, uchar *pout, uint byteCount );
 
 #undef EXT
 

@@ -17,7 +17,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: menucmd.c,v 1.9 2000/07/08 11:04:16 tom Exp tom $
+ *  $Id: menucmd.c,v 1.13 2000/09/27 17:49:50 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -53,7 +53,6 @@
 static int SetControlMenuStates(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
 {
    const char * const pUsage = "Usage: C_SetControlMenuStates";
-   bool acqDbOk;
    int result;
 
    if (argc != 1)
@@ -63,23 +62,24 @@ static int SetControlMenuStates(ClientData ttp, Tcl_Interp *interp, int argc, ch
    }
    else
    {
-      if (pAcqDbContext != NULL)
-      {  // acq db must contain at least an AI block to allow statistics output
-         EpgDbLockDatabase(pAcqDbContext, TRUE);
-         acqDbOk = (EpgDbGetAi(pAcqDbContext) != NULL);
-         EpgDbLockDatabase(pAcqDbContext, FALSE);
-      }
-      else
-         acqDbOk = FALSE;
+      // enable "dump database" only if UI database has at least an AI block
+      sprintf(comm, ".menubar.ctrl entryconfigure 2 -state %s\n",
+                    ((EpgDbContextGetCni(pUiDbContext) != 0) ? "normal" : "disabled"));
+      eval_check(interp, comm);
+
+      // enable "timescales" only if UI database has AI block
+      sprintf(comm, ".menubar.ctrl entryconfigure 4 -state %s\n",
+                    ((EpgDbContextGetCni(pUiDbContext) != 0) ? "normal" : "disabled"));
+      eval_check(interp, comm);
 
       // enable "acq timescales" only if acq running on different db than ui
       sprintf(comm, ".menubar.ctrl entryconfigure 5 -state %s\n",
-                    ((acqDbOk && (pAcqDbContext != pUiDbContext)) ? "normal" : "disabled"));
+                    (((EpgDbContextGetCni(pAcqDbContext) != 0) && (pAcqDbContext != pUiDbContext)) ? "normal" : "disabled"));
       eval_check(interp, comm);
 
       // enable "acq stats" only if acq running
       sprintf(comm, ".menubar.ctrl entryconfigure 6 -state %s\n",
-                    (acqDbOk ? "normal" : "disabled"));
+                    ((EpgDbContextGetCni(pAcqDbContext) != 0) ? "normal" : "disabled"));
       eval_check(interp, comm);
 
       // check button of "Enable Acq" if acq is running
@@ -147,6 +147,9 @@ static int MenuCmd_ToggleAcq(ClientData ttp, Tcl_Interp *interp, int argc, char 
                        (value ? "start" : "stop"));
          eval_check(interp, comm);
       }
+      // update help message in listbox if database is empty
+      PiListBox_UpdateState();
+
       result = TCL_OK;
    }
 
@@ -267,7 +270,7 @@ static int ProvWin_Open(ClientData ttp, Tcl_Interp *interp, int argc, char *argv
       EpgDbLockDatabase(pUiDbContext, FALSE);
 
       index = 0;
-      while ( (cni = EpgDbReloadScan(".", index)) != 0 )
+      while ( (cni = EpgDbReloadScan(index)) != 0 )
       {
          pPeek = EpgDbPeek(cni);
          if (pPeek != NULL)
@@ -394,6 +397,9 @@ static int ProvWin_Exit(ClientData ttp, Tcl_Interp *interp, int argc, char *argv
                StatsWin_ProvChange(DB_TARGET_ACQ);
 
             PiFilter_UpdateNetwopList(NULL);
+            eval_check(interp, "C_ResetFilter all; ResetFilterState");
+
+            PiListBox_UpdateState();
             PiListBox_Reset();
 
             // put the new CNI at the front of the selection order and update the config file
@@ -465,6 +471,8 @@ int MenuCmd_StopEpgScan(ClientData ttp, Tcl_Interp *interp, int argc, char *argv
                  "   .epgscan.cmd.dismiss configure -state normal\n"
                  "}\n");
    eval_check(interp, comm);
+
+   PiListBox_UpdateState();
 
    return TCL_OK;
 }

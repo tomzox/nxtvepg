@@ -22,17 +22,24 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: debug.c,v 1.3 2000/06/01 19:44:32 tom Exp tom $
+ *  $Id: debug.c,v 1.5 2000/10/14 21:57:42 tom Exp tom $
  */
 
 #define __DEBUG_C
 
-#include "epgctl/mytypes.h"
-
 #if DEBUG_GLOBAL_SWITCH == ON
+# define DEBUG_SWITCH ON
+#else
+# define DEBUG_SWITCH OFF
+#endif
 
-#define DEBUG_SWITCH ON
+#include <malloc.h>
+
+#include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
+
+
+#if DEBUG_SWITCH == ON
 
 #ifdef WIN32
 #include <io.h>
@@ -47,6 +54,34 @@
 #include <errno.h>
 #include <string.h>
 
+// ---------------------------------------------------------------------------
+// definitions and globals vars for Malloc verification
+//
+#if CHK_MALLOC == ON
+// define magic string that allows to detect memory overwrites
+static const char * const pMallocMagic = "Mägi";
+#define MALLOC_CHAIN_MAGIC_LEN     4
+
+// define structure that's used to chain all malloc'ed memory
+#define MALLOC_CHAIN_FILENAME_LEN 20
+typedef struct MALLOC_CHAIN_STRUCT
+{
+   struct MALLOC_CHAIN_STRUCT * prev;
+   struct MALLOC_CHAIN_STRUCT * next;
+   char                         fileName[MALLOC_CHAIN_FILENAME_LEN];
+   int                          line;
+   int                          size;
+   char                         magic1[MALLOC_CHAIN_MAGIC_LEN];
+} MALLOC_CHAIN;
+#define MALLOC_CHAIN_ADD_LEN (sizeof(MALLOC_CHAIN) + MALLOC_CHAIN_MAGIC_LEN)
+
+// global that points to the start of the chain of malloc'ed memory
+static MALLOC_CHAIN * pMallocChain = NULL;
+
+// globals that allow to monitor memory usage
+static ulong malUsage = 0L;
+static ulong malPeak  = 0L;
+#endif
 
 // ---------------------------------------------------------------------------
 // global that contains the to-be-logged string
@@ -84,4 +119,123 @@ void DebugSetError( void )
 }  
 
 #endif // DEBUG_GLOBAL_SWITCH == ON
+
+#if CHK_MALLOC == ON
+// ---------------------------------------------------------------------------
+// Wrapper for the C library malloc() function
+// - maintains a list of all allocated blocks
+//
+void * chk_malloc( size_t size, const char * pFileName, int line )
+{
+   MALLOC_CHAIN * pElem;
+
+   // perform the actual allocation, including some bytes for our framework
+   pElem = malloc(size + MALLOC_CHAIN_ADD_LEN);
+
+   // check the result pointer
+   if (pElem == NULL)
+   {
+      SHOULD_NOT_BE_REACHED;
+      fprintf(stderr, "malloc failed (%d bytes) - abort.\n", size);
+      exit(-1);
+   }
+
+   // save info about the caller
+   strncpy(pElem->fileName, pFileName, MALLOC_CHAIN_FILENAME_LEN - 1);
+   pElem->fileName[MALLOC_CHAIN_FILENAME_LEN - 1] = 0;
+   pElem->line = line;
+   pElem->size = size;
+
+   // monitor maximum memory usage
+   malUsage += size;
+   if (malUsage > malPeak)
+      malPeak = malUsage;
+
+   // write a magic before and after the data
+   memcpy(pElem->magic1, pMallocMagic, sizeof(MALLOC_CHAIN_MAGIC_LEN));
+   memcpy((uchar *)&pElem[1] + size, pMallocMagic, sizeof(MALLOC_CHAIN_MAGIC_LEN));
+
+   // unshift the element to the start of the chain
+   pElem->next = pMallocChain;
+   pElem->prev = NULL;
+   pMallocChain = pElem;
+   if (pElem->next != NULL)
+   {
+      assert(pElem->next->prev == NULL);
+      pElem->next->prev = pElem;
+   }
+
+   return (void *)&pElem[1];
+}  
+
+// ---------------------------------------------------------------------------
+// Wrapper for the C library free() function
+// - removes the block from the list of allocated blocks
+// - checks if block boundaries were overwritten
+//
+void chk_free( void * ptr )
+{
+   MALLOC_CHAIN * pElem;
+
+   pElem = (MALLOC_CHAIN *)((ulong)ptr - sizeof(MALLOC_CHAIN));
+
+   // check the magic strings before and after the data
+   assert(memcmp(pElem->magic1, pMallocMagic, sizeof(MALLOC_CHAIN_MAGIC_LEN)) == 0);
+   assert(memcmp((uchar *)&pElem[1] + pElem->size, pMallocMagic, sizeof(MALLOC_CHAIN_MAGIC_LEN)) == 0);
+
+   // update memory usage
+   assert(malUsage >= pElem->size);
+   malUsage -= pElem->size;
+
+   // remove the element from the chain
+   if (pElem->prev != NULL)
+   {
+      assert(pElem->prev->next == pElem);
+      pElem->prev->next = pElem->next;
+   }
+   else
+   {
+      assert(pMallocChain == pElem);
+      pMallocChain = pElem->next;
+   }
+   if (pElem->next != NULL)
+   {
+      assert(pElem->next->prev == pElem);
+      pElem->next->prev = pElem->prev;
+   }
+
+   // perform the actual free
+   free(pElem);
+}
+
+// ---------------------------------------------------------------------------
+// Check if all memory was freed
+// - should be called right before the process terminates
+//
+void chk_memleakage( void )
+{
+   assert(pMallocChain == NULL);
+   assert(malUsage == 0);
+
+   //printf("chk-memleakage: no leak, max usage: %ld bytes\n", malPeak);
+}
+
+#else //CHK_MALLOC == OFF
+
+// ---------------------------------------------------------------------------
+// Wrapper for malloc to check for error return
+//
+void * xmalloc( size_t size )
+{
+   void * ptr = malloc(size);
+   if (ptr == NULL)
+   {  // malloc failed - should never happen on systems with a virtual address room
+      SHOULD_NOT_BE_REACHED;
+      fprintf(stderr, "malloc failed (%d bytes) - abort.\n", size);
+      exit(-1);
+   }
+   return ptr;
+}
+
+#endif //CHK_MALLOC == OFF
 

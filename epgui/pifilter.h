@@ -15,7 +15,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: pifilter.h,v 1.3 2000/06/08 20:24:03 tom Exp tom $
+ *  $Id: pifilter.h,v 1.4 2000/09/16 19:29:41 tom Exp tom $
  */
 
 #ifndef __PIFILTER_H
@@ -27,8 +27,9 @@
 extern const FILTER_CONTEXT *pPiFilterContext;
 #endif
 
-// Initialization - Interface to the EPG main module
+// Initialization and destruction - Interface to the EPG main module
 void PiFilter_Create( void );
+void PiFilter_Destroy( void );
 
 // Interface to acquisition control module
 void PiFilter_UpdateNetwopList( ClientData clientData );

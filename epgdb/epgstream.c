@@ -20,14 +20,13 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgstream.c,v 1.6 2000/06/26 18:31:55 tom Exp tom $
+ *  $Id: epgstream.c,v 1.8 2000/09/17 19:48:34 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
 #define DPRINTF_OFF
 
 #include <stdio.h>
-#include <malloc.h>
 #include <string.h>
 
 #include "epgctl/mytypes.h"
@@ -138,7 +137,7 @@ void EpgStreamClearScratchBuffer( void )
    while (pScratchBuffer != NULL)
    {
       pNext = pScratchBuffer->pNextBlock;
-      free(pScratchBuffer);
+      xfree(pScratchBuffer);
       pScratchBuffer = pNext;
    }
 }
@@ -208,7 +207,7 @@ static void EpgStreamConvertBlock( const uchar *pBuffer, uint blockLen, uchar st
          EpgStreamAddBlockToScratch(pBlock);
       }
       else
-         free(pBlock);
+         xfree(pBlock);
    }
 }
 
@@ -236,17 +235,17 @@ static uint EpgStreamComputeChkSum( uchar *pdat, uint len )
 //
 static void EpgStreamCheckBlock( NXTV_STREAM * const psd, uchar stream )
 {
-   uint type, tmp, ctrlLen, strLen, chkSum, myChkSum;
+   schar c1, c2, c3, c4;
+   uint  type, ctrlLen, strLen, chkSum, myChkSum;
 
    if (psd->appID == 0)
-   { // Bundle Inventory (BI block)
-      UnHam84Array(psd->blockBuf, psd->blockLen / 2);
-      if (!hamErr)
+   {  // Bundle Inventory (BI block)
+      if (UnHam84Array(psd->blockBuf, psd->blockLen / 2))
       {
          chkSum = psd->blockBuf[2];
          psd->blockBuf[2] = 0;  // checksum does not include itself
          myChkSum = EpgStreamComputeChkSum(psd->blockBuf, psd->blockLen / 2);
-         if (!hamErr && (chkSum == myChkSum))
+         if (chkSum == myChkSum)
          {
             psd->blockBuf[2] = chkSum;
             EpgStreamConvertBlock(psd->blockBuf, psd->blockLen/2, stream, EPGDBACQ_TYPE_BI);
@@ -259,30 +258,41 @@ static void EpgStreamCheckBlock( NXTV_STREAM * const psd, uchar stream )
    }
    else if (psd->appID == epgStreamAppId)
    {  // All kinds of EPG blocks
-      tmp = UnHam84Word(psd->blockBuf + 6);
-      type = tmp >> 10;
-      ctrlLen = tmp & 0x3ff;
-
-      if (!hamErr && (psd->blockLen >= (ctrlLen+2) * 2))
+      if ( UnHam84Nibble(psd->blockBuf + 6, &c1) &&
+           UnHam84Nibble(psd->blockBuf + 7, &c2) &&
+           UnHam84Nibble(psd->blockBuf + 8, &c3) &&
+           UnHam84Nibble(psd->blockBuf + 9, &c4) )
       {
-         strLen = psd->blockLen - (ctrlLen + 2)*2;
-         UnHam84Array(psd->blockBuf, ctrlLen + 2);
-         UnHamParityArray(psd->blockBuf + (ctrlLen+2)*2, psd->blockBuf + ctrlLen+2, strLen);
+         ctrlLen = ((uint)(c3 & 3)<<8) | (c2<<4) | c1;
+         type    = (c3>>2) | (c4<<2);
 
-         chkSum = psd->blockBuf[2];
-         psd->blockBuf[2] = 0;  // chksum does not include itself
-         myChkSum = EpgStreamComputeChkSum(psd->blockBuf, ctrlLen + 2);
-         if (!hamErr && (chkSum == myChkSum))
+         if (psd->blockLen >= (ctrlLen+2) * 2)
          {
-            psd->blockBuf[2] = chkSum;
-            // real block size = header + control-data + string-data
-            EpgStreamConvertBlock(psd->blockBuf, 2 + ctrlLen + strLen, stream, type);
+            if ( UnHam84Array(psd->blockBuf, ctrlLen + 2) )
+            {
+               strLen = psd->blockLen - (ctrlLen + 2)*2;
+               UnHamParityArray(psd->blockBuf + (ctrlLen+2)*2, psd->blockBuf + ctrlLen+2, strLen);
+
+               chkSum = psd->blockBuf[2];
+               psd->blockBuf[2] = 0;  // chksum does not include itself
+               myChkSum = EpgStreamComputeChkSum(psd->blockBuf, ctrlLen + 2);
+               if (chkSum == myChkSum)
+               {
+                  psd->blockBuf[2] = chkSum;
+                  // real block size = header + control-data + string-data
+                  EpgStreamConvertBlock(psd->blockBuf, 2 + ctrlLen + strLen, stream, type);
+               }
+               else
+                  debug2("block chksum error: my %x != %x", myChkSum, chkSum);
+            }
+            else
+               debug0("block content hamming error");
          }
          else
-            debug2("block chksum error: my %x != %x", myChkSum, chkSum);
+            debug2("block ctrl length error block=%d ctrl=%d", psd->blockLen, ctrlLen);
       }
       else
-          debug2("block hamming or length error block=%d ctrl=%d", psd->blockLen, ctrlLen);
+         debug0("block header hamming error");
    }
    else
       debug1("unknown appID=%d", psd->appID);
@@ -296,8 +306,8 @@ static void EpgStreamCheckBlock( NXTV_STREAM * const psd, uchar stream )
 void EpgStreamDecodePacket( uchar packNo, const uchar * dat )
 {
    NXTV_STREAM * const psd = &streamData[streamOfPage];
-   uchar bs, blockPtr;
-   uchar c1,c2,c3,c4;
+   schar blockPtr, bs;
+   schar c1,c2,c3,c4;
    uint  restLine;
 
    if ( (streamOfPage < NXTV_NO_STREAM) &&
@@ -305,17 +315,14 @@ void EpgStreamDecodePacket( uchar packNo, const uchar * dat )
    {
       if ((psd->haveBlock || psd->haveHeader) &&
           (packNo != psd->lastPkg + 1))
-      { // packet missing
-        debug2("missing packet %d (have %d) - discard block", psd->lastPkg + 1, packNo);
-        psd->haveHeader = FALSE;
-        psd->haveBlock = FALSE;
+      {  // packet missing
+         debug2("missing packet %d (have %d) - discard block", psd->lastPkg + 1, packNo);
+         psd->haveHeader = FALSE;
+         psd->haveBlock = FALSE;
       }
       psd->lastPkg = packNo;
 
-      hamErr = 0;
-      blockPtr = UnHam84Nibble(dat);
-
-      if (!hamErr && (blockPtr <= 0x0d))
+      if ( UnHam84Nibble(dat, &blockPtr) && (blockPtr <= 0x0d) )
       {
          blockPtr = 1 + 3 * blockPtr;
 
@@ -327,11 +334,11 @@ void EpgStreamDecodePacket( uchar packNo, const uchar * dat )
                psd->blockBuf[restLine] = psd->headerFragment[restLine];
             for ( ; restLine < 4; restLine++)
                psd->blockBuf[restLine] = dat[1 + restLine - psd->haveHeader];
-            c1 = UnHam84Nibble(psd->blockBuf + 0);
-            c2 = UnHam84Nibble(psd->blockBuf + 1);
-            c3 = UnHam84Nibble(psd->blockBuf + 2);
-            c4 = UnHam84Nibble(psd->blockBuf + 3);
-            if (!hamErr)
+
+            if ( UnHam84Nibble(psd->blockBuf + 0, &c1) &&
+                 UnHam84Nibble(psd->blockBuf + 1, &c2) &&
+                 UnHam84Nibble(psd->blockBuf + 2, &c3) &&
+                 UnHam84Nibble(psd->blockBuf + 3, &c4) )
             {
                psd->appID    = c1 | ((c2 & 1) << 4);
                psd->blockLen = ((c2 >> 1) | (c3 << 3) | (c4 << 7)) + 4;  // + length of block len itself
@@ -384,47 +391,37 @@ void EpgStreamDecodePacket( uchar packNo, const uchar * dat )
             }
             else
             {
-               debug7("pkg=%d: too few data for block rest len: %d < %d of %d, stream=%d app=%d, type=%d",
-                      packNo, blockPtr-1, restLine, psd->blockLen - psd->recvLen, streamOfPage, psd->appID, (UnHam84Word(psd->blockBuf + 6) >> 10));
+               debug6("pkg=%d: too few data for block rest len: %d < %d of %d, stream=%d app=%d", packNo, blockPtr-1, restLine, psd->blockLen - psd->recvLen, streamOfPage, psd->appID);
                psd->haveBlock = FALSE;
             }
          }
          else if (blockPtr == 40) dprintf1("BS=0xD -> no block start in this packet %d\n", packNo);
 
          while (blockPtr < 40)
-         { // start of at least one new structure in this packet
-            hamErr = 0;
-            if (blockPtr >= 36)
-            {  // part of the header is in the next packet
-               bs = UnHam84Nibble(dat + blockPtr);
-               if (bs == 0x0c)
-               {
+         {  // start of at least one new structure in this packet
+            if ( UnHam84Nibble(dat + blockPtr, &bs) && (bs == 0x0c) )
+            {
+               if (blockPtr >= 36)
+               {  // part of the header is in the next packet
                   psd->haveHeader = 40 - blockPtr;  // 1+ Anz. Bytes im Buffer
                   dprintf3("pkg=%d, BP=%d: start new block with %d byte header fragment\n", packNo, blockPtr, psd->haveHeader-1);
                   for (restLine=0; restLine < psd->haveHeader-1; restLine++)
                   {
                      psd->headerFragment[restLine] = dat[blockPtr + 1 + restLine];
                   }
+                  blockPtr = 40;
                }
                else
-                  debug3("pck %d, BP=%d: discard new block header fragment, BS=%x", packNo, blockPtr, bs);
-               blockPtr = 40;
-            }
-            else
-            {
-               bs = UnHam84Nibble(dat + blockPtr);
-               c1 = UnHam84Nibble(dat + blockPtr + 1);
-               c2 = UnHam84Nibble(dat + blockPtr + 2);
-               c3 = UnHam84Nibble(dat + blockPtr + 3);
-               c4 = UnHam84Nibble(dat + blockPtr + 4);
-               if (!hamErr)
                {
-                  psd->appID    = c1 | ((c2 & 1) << 4);
-                  psd->blockLen = ((c2 >> 1) | (c3 << 3) | (c4 << 7)) + 4;  // + length of block len itself
-                  psd->recvLen  = 0;
-
-                  if (bs == 0x0c)
+                  if ( UnHam84Nibble(dat + blockPtr + 1, &c1) &&
+                       UnHam84Nibble(dat + blockPtr + 2, &c2) &&
+                       UnHam84Nibble(dat + blockPtr + 3, &c3) &&
+                       UnHam84Nibble(dat + blockPtr + 4, &c4) )
                   {
+                     psd->appID    = c1 | ((c2 & 1) << 4);
+                     psd->blockLen = ((c2 >> 1) | (c3 << 3) | (c4 << 7)) + 4;  // + length of block len itself
+                     psd->recvLen  = 0;
+
                      psd->haveBlock = TRUE;
                      restLine = 40 - (blockPtr + 1);
                      if (restLine > psd->blockLen)
@@ -434,13 +431,13 @@ void EpgStreamDecodePacket( uchar packNo, const uchar * dat )
                      psd->recvLen = restLine;
                      blockPtr += 1 + restLine;
                      if (psd->recvLen >= psd->blockLen)
-                     { // Block complete
+                     {  // Block complete
                         dprintf2("pkg=%d, BP=%d: short block complete\n", packNo, blockPtr);
                         EpgStreamCheckBlock(psd, streamOfPage);
                         psd->haveHeader = FALSE;
                         psd->haveBlock = FALSE;
                         // Filler bytes ueberspringen
-                        while ((blockPtr < 40) && (UnHam84Nibble(dat + blockPtr) == 0x03))
+                        while ((blockPtr < 40) && UnHam84Nibble(dat + blockPtr, &bs) && (bs == 0x03))
                         {
                            dprintf2("pkg=%d, BP=%d: skipping filler byte\n", packNo, blockPtr);
                            blockPtr += 1;
@@ -448,26 +445,26 @@ void EpgStreamDecodePacket( uchar packNo, const uchar * dat )
                      }
                   }
                   else
-                  {  // decoding error - skip this packet
-                     debug3("struct header error: appID=%x blockLen=%x bs=%x - skipping block", psd->appID, psd->blockLen, bs);
+                  {  // hamming error
+                     debug0("structure header hamming error - skipping block");
                      psd->haveHeader = FALSE;
                      psd->haveBlock = FALSE;
                      blockPtr = 40;
                   }
                }
-               else
-               {  // hamming error
-                  debug0("structure header hamming error - skipping block");
-                  psd->haveHeader = FALSE;
-                  psd->haveBlock = FALSE;
-                  blockPtr = 40;
-               }
+            }
+            else
+            {  // decoding error - skip this packet
+               debug3("struct header error: appID=%x blockLen=%x bs=%x - skipping block", psd->appID, psd->blockLen, bs);
+               psd->haveHeader = FALSE;
+               psd->haveBlock = FALSE;
+               blockPtr = 40;
             }
          }
       }
       else
       {
-         debug2("packet hamming error in BP=%x - discard packet %d", blockPtr, packNo);
+         debug2("hamming error in BP=%x - discard packet %d", blockPtr, packNo);
          psd->haveHeader = FALSE;
          psd->haveBlock = FALSE;
       }
@@ -636,7 +633,7 @@ void EpgStreamSyntaxScanHeader( uint page, uint sub )
 bool EpgStreamSyntaxScanPacket( uchar mag, uchar packNo, const uchar * dat )
 {
    PAGE_SCAN_STATE *psc;
-   uchar bs, bp;
+   schar bs, bp, c1, c2, c3, c4;
    bool result = FALSE;
 
    if ((mag < 8) && (lastMagIdx[mag] >= 0))
@@ -646,44 +643,43 @@ bool EpgStreamSyntaxScanPacket( uchar mag, uchar packNo, const uchar * dat )
       {
          if (packNo <= psc->pkgCount)
          {
-            hamErr = 0;
-            bp = UnHam84Nibble(dat);
-
-            if (bp < 0x0c)
+            if ( UnHam84Nibble(dat, &bp) )
             {
-               bp = 1 + 3 * bp;
+               if (bp < 0x0c)
+               {
+                  bp = 1 + 3 * bp;
 
-               bs = UnHam84Nibble(dat + bp);
-               UnHam84Nibble(dat + bp + 1);
-               UnHam84Nibble(dat + bp + 2);
-               UnHam84Nibble(dat + bp + 3);
-               UnHam84Nibble(dat + bp + 4);
+                  if ( UnHam84Nibble(dat + bp, &bs) && (bs == 0x0c) &&
+                       UnHam84Nibble(dat + bp + 1, &c1) &&
+                       UnHam84Nibble(dat + bp + 2, &c2) &&
+                       UnHam84Nibble(dat + bp + 3, &c3) &&
+                       UnHam84Nibble(dat + bp + 4, &c4) )
+                  {
+                     psc->okCount++;
+                  }
+               }
+               else if (bp == 0x0c)
+               {
+                  bp = 1 + 3 * bp;
 
-               if ((bs == 0x0c) && !hamErr)
+                  if ( UnHam84Nibble(dat + bp, &bs) && (bs == 0x0c) &&
+                       UnHam84Nibble(dat + bp + 1, &c1) &&
+                       UnHam84Nibble(dat + bp + 2, &c2) )
+                  {
+                     psc->okCount++;
+                  }
+               }
+               else if (bp == 0x0d)
+               {
                   psc->okCount++;
-            }
-            else if (bp == 0x0c)
-            {
-               bp = 1 + 3 * bp;
+               }
 
-               bs = UnHam84Nibble(dat + bp);
-               UnHam84Nibble(dat + bp + 1);
-               UnHam84Nibble(dat + bp + 2);
-
-               if ((bs == 0x0c) && !hamErr)
-                  psc->okCount++;
-            }
-            else if (bp == 0x0d)
-            {
-               if (!hamErr)
-                  psc->okCount++;
-            }
-
-            if (psc->okCount >= 16)
-            {  // this page has had enough syntactically correct packages
-               dprintf2("EpgStream-ScanPacketSyntax: syntax ok: mag=%d, idx=%d\n", mag, lastMagIdx[mag]);
-               lastMagIdx[mag] = -1;
-               result = TRUE;
+               if (psc->okCount >= 16)
+               {  // this page has had enough syntactically correct packages
+                  dprintf2("EpgStream-ScanPacketSyntax: syntax ok: mag=%d, idx=%d\n", mag, lastMagIdx[mag]);
+                  lastMagIdx[mag] = -1;
+                  result = TRUE;
+               }
             }
          }
       }

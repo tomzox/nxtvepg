@@ -18,22 +18,26 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: mytypes.h,v 1.3 2000/06/01 19:45:08 tom Exp tom $
+ *  $Id: mytypes.h,v 1.6 2000/09/20 10:58:09 tom Exp tom $
  */
 
 #include <sys/types.h>
 
 #ifndef __MYTYPES_H
 #define __MYTYPES_H
-typedef unsigned char uchar;
-typedef   signed int  sint;
-typedef   signed long slong;
-typedef unsigned char bool;
-#ifdef WIN32
-typedef unsigned int  uint;
-typedef unsigned long ulong;
-#endif
 
+// required basic types
+typedef unsigned char bool;     // >=1 bit unsigned
+typedef   signed char schar;    // 8 bit signed
+typedef unsigned char uchar;    // 8 bit unsigned
+typedef   signed int  sint;     // 32 bit signed
+#ifdef WIN32
+typedef unsigned int  uint;     // 32 bit unsigned
+typedef unsigned long ulong;    // >=32 bit unsigned
+#endif
+typedef   signed long slong;    // >=32 bit signed
+
+// boolean values
 #define FALSE 0
 #define TRUE  1
 
@@ -44,8 +48,11 @@ typedef unsigned long ulong;
 // en-/disable debugging
 #define HALT_ON_FAILED_ASSERTION OFF
 #define DEBUG_GLOBAL_SWITCH      OFF
-#define DEBUG_SWITCH_EPGDB       ON
-#define DEBUG_SWITCH_EPGCTL      ON
-#define DEBUG_SWITCH_EPGUI       ON
+#define DEBUG_SWITCH_EPGDB       OFF
+#define DEBUG_SWITCH_EPGCTL      OFF
+#define DEBUG_SWITCH_EPGUI       OFF
+
+// enable memory leak detection for debugging
+#define CHK_MALLOC               OFF
 
 #endif // __MYTYPES_H

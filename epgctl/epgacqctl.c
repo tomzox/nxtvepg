@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgacqctl.c,v 1.13 2000/07/08 18:31:47 tom Exp tom $
+ *  $Id: epgacqctl.c,v 1.20 2000/10/04 17:55:34 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -51,6 +51,8 @@ static EPGACQ_STATE acqState    = ACQSTATE_OFF;
 static EPGDB_STATS acqStats;
 static bool acqStatsUpdate;
 static ulong dumpTime;
+static bool isAcqActiveMode;
+static bool isAcqNoFrequency;
 
 static EPGSCAN_STATE  scanState = SCAN_STATE_OFF;
 static Tcl_TimerToken scanHandler = NULL;
@@ -95,6 +97,22 @@ static void EpgAcqCtl_StatisticsUpdate( void )
 
    if (acqState == ACQSTATE_RUNNING)
    {
+      // compute minimum and maximum distance between AI blocks (in seconds)
+      if (acqStats.aiCount > 0)
+      {
+         if ((now - acqStats.lastAiTime < acqStats.minAiDistance) || (acqStats.aiCount == 1))
+            acqStats.minAiDistance = now - acqStats.lastAiTime;
+         if (now - acqStats.lastAiTime > acqStats.maxAiDistance)
+            acqStats.maxAiDistance = now - acqStats.lastAiTime;
+         acqStats.avgAiDistance = ((double)acqStats.lastAiTime - acqStats.acqStartTime) / acqStats.aiCount;
+
+      }
+      else
+      {
+         acqStats.maxAiDistance =
+         acqStats.minAiDistance =
+         acqStats.avgAiDistance = now - acqStats.lastAiTime;
+      }
       acqStats.lastAiTime = now;
       acqStats.aiCount += 1;
 
@@ -109,18 +127,8 @@ static void EpgAcqCtl_StatisticsUpdate( void )
       acqStats.hist_s1old[acqStats.histIdx] = (uchar)((double)(acqStats.count[0].allVersions + obsolete) / total * 128.0);
       acqStats.hist_s2cur[acqStats.histIdx] = (uchar)((double)(acqStats.count[0].allVersions + obsolete + acqStats.count[1].curVersion) / total * 128.0);
       acqStats.hist_s2old[acqStats.histIdx] = (uchar)((double)(acqStats.count[0].allVersions + obsolete + acqStats.count[1].allVersions) / total * 128.0);
-
-      // compute minimum and maximum distance between AI blocks (in seconds)
-      if (acqStats.minAiDistance > 0)
-      {
-         if (now - acqStats.lastAiTime < acqStats.minAiDistance)
-            acqStats.minAiDistance = now - acqStats.lastAiTime;
-         if (now - acqStats.lastAiTime > acqStats.maxAiDistance)
-            acqStats.maxAiDistance = now - acqStats.lastAiTime;
-      }
-      else
-         acqStats.maxAiDistance = acqStats.minAiDistance = now - acqStats.lastAiTime;
    }
+
 }
 
 // ---------------------------------------------------------------------------
@@ -164,8 +172,11 @@ bool EpgAcqCtl_Start( void )
       #ifndef WIN32
       // try to tune onto the provider's channel
       // (before starting acq, to avoid catching false data)
+      isAcqNoFrequency = FALSE;
       if (pAcqDbContext->tunerFreq != 0)
-         VbiTuneChannel(pAcqDbContext->tunerFreq, FALSE);
+         isAcqActiveMode = VbiTuneChannel(pAcqDbContext->tunerFreq, FALSE);
+      else
+         isAcqNoFrequency = TRUE;
       #endif
 
       EpgDbAcqStart(pAcqDbContext, EPG_ILLEGAL_PAGENO, EPG_ILLEGAL_APPID);
@@ -209,6 +220,8 @@ void EpgAcqCtl_Stop( void )
       EpgDbAcqStop();
       EpgAcqCtl_CloseDb(DB_TARGET_ACQ);
 
+      StatsWin_ProvChange(DB_TARGET_ACQ);
+
       acqState = ACQSTATE_OFF;
    }
 }
@@ -236,6 +249,61 @@ int EpgAcqCtl_Toggle( int newState )
    }
 
    return acqState;
+}
+
+// ---------------------------------------------------------------------------
+// Determine state of UI database and acquisition
+// - this is used to display a helpful message in the PI listbox as long as
+//   the database is empty
+//
+EPGDB_STATE EpgAcqCtl_GetDbState( void )
+{
+   const AI_BLOCK *pAiBlock;
+   const PI_BLOCK *pPiBlock;
+   EPGDB_STATE state;
+
+   if (pUiDbContext != NULL)
+   {
+      EpgDbLockDatabase(pUiDbContext, TRUE);
+      pAiBlock = EpgDbGetAi(pUiDbContext);
+      if (pAiBlock == NULL)
+      {  // no AI block in current database
+         if (EpgDbReloadScan(-1) == 0)
+            state = EPGDB_NO_PROVIDERS;
+         else
+            state = EPGDB_NO_PROV_SEL;
+      }
+      else
+      {  // provider present -> check for PI
+         pPiBlock = EpgDbSearchFirstPi(pUiDbContext, NULL);
+         if (pPiBlock == NULL)
+         {  // no PI in database (probably all expired)
+            if (acqState != ACQSTATE_OFF)
+            {  // acq is running
+               if (isAcqNoFrequency == FALSE)
+               {
+                  if (isAcqActiveMode == FALSE)
+                     state = EPGDB_ACQ_PASSIVE;
+                  else
+                     state = EPGDB_ACQ_WAIT;
+               }
+               else
+                  state = EPGDB_ACQ_NO_FREQ;
+            }
+            else
+               state = EPGDB_EMPTY;
+         }
+         else
+         {  // everything is ok
+            state = EPGDB_OK;
+         }
+      }
+      EpgDbLockDatabase(pUiDbContext, FALSE);
+   }
+   else
+      state = EPGDB_NOT_INIT;
+
+   return state;
 }
 
 // ---------------------------------------------------------------------------
@@ -296,6 +364,7 @@ bool EpgAcqCtl_AiCallback( const AI_BLOCK *pNewAi )
             {
                dprintf2("EpgAcqCtl: version number has changed, was: %d/%d\n", pOldAi->version, pOldAi->version_swo);
                Tcl_DoWhenIdle(PiFilter_UpdateNetwopList, NULL);
+               StatsWin_VersionChange();
                EpgAcqCtl_StatisticsReset();
                dumpTime = 0;  // dump asap
             }
@@ -406,6 +475,7 @@ void EpgAcqCtl_ChannelChange( void )
       {  // close acq db and fall back to ui db
          EpgAcqCtl_CloseDb(DB_TARGET_ACQ);
          EpgAcqCtl_OpenDb(DB_TARGET_ACQ, 0);
+         StatsWin_ProvChange(DB_TARGET_ACQ);
       }
 
       EpgDbAcqReset(pAcqDbContext, EPG_ILLEGAL_PAGENO, EPG_ILLEGAL_APPID);
@@ -458,9 +528,11 @@ void EpgAcqCtl_Idle( void )
          {
             dprintf1("EpgAcqCtl-Idle: no reception from provider %04X - reset acq\n", EpgDbContextGetCni(pAcqDbContext));
             EpgAcqCtl_ChannelChange();
+            EpgAcqCtl_StatisticsUpdate();
          }
       }
    }
+   assert(acqStatsUpdate == FALSE);
 }
 
 // ---------------------------------------------------------------------------
@@ -500,7 +572,7 @@ bool EpgAcqCtl_OpenDb( int target, uint cni )
       }
       else
       {  // no db open yet -> search for the best
-         cni = EpgDbReloadScan(".", -1);
+         cni = EpgDbReloadScan(-1);
 
          if (cni == 0)
          {  // no database found that could be opened -> create an empty one
@@ -527,10 +599,14 @@ bool EpgAcqCtl_OpenDb( int target, uint cni )
                result = EpgDbReload(pUiDbContext, cni);
 
                #ifndef WIN32
+               isAcqNoFrequency = TRUE;
                if ( (pUiDbContext->tunerFreq != 0) &&
+                    (acqState != ACQSTATE_OFF) &&
                     VbiTuneChannel(pUiDbContext->tunerFreq, FALSE) )
                {  // tuned onto provider's channel
                   // XXX do nothing - channel change is handled automatically (but not very well)
+                  isAcqNoFrequency = FALSE;
+                  isAcqActiveMode = TRUE;
                }
                else
                #endif
@@ -541,6 +617,7 @@ bool EpgAcqCtl_OpenDb( int target, uint cni )
                   pAcqDbContext = pUiDbContext;
                   // reset acquisition
                   EpgAcqCtl_ChannelChange();
+                  EpgAcqCtl_StatisticsUpdate();
                }
             }
             break;
@@ -871,6 +948,7 @@ void EpgAcqCtl_StopScan( void )
       EpgDbAcqStop();
       EpgDbDestroy(pAcqDbContext);
       pAcqDbContext = NULL;
+      acqState = ACQSTATE_OFF;
 
       if (scanAcqWasEnabled)
          EpgAcqCtl_Start();

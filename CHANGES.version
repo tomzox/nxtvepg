@@ -1,0 +1,16 @@
+Steps to prepare new distribution:
+
+version no contained in:
+- epgui/epgui.tcl
+- epgdb/epgdbsav.h
+- nxtvepg.1x
+
+RCS
+- check in all files, including TODO & CHANGES
+- tag all archives
+
+remove dependencies from Makefile
+
+adapt epgctl/mytypes.h
+- all debug options from ON to OFF
+

@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgblock.c,v 1.20 2000/06/19 19:17:24 tom Exp tom $
+ *  $Id: epgblock.c,v 1.22 2000/10/15 18:52:49 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -28,7 +28,6 @@
 
 #include <time.h>
 #include <string.h>
-#include <malloc.h>
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
@@ -66,7 +65,7 @@ static EPGDB_BLOCK * EpgBlockCreate( uchar type, uint size )
 {
    EPGDB_BLOCK *pBlock;
 
-   pBlock = (EPGDB_BLOCK *) malloc(size + BLK_UNION_OFF);
+   pBlock = (EPGDB_BLOCK *) xmalloc(size + BLK_UNION_OFF);
 
    pBlock->pNextBlock       = NULL;
    pBlock->pPrevBlock       = NULL;
@@ -206,8 +205,8 @@ static void SetStartAndStopTime(uint bcdStart, uint julian, uint bcdStop, time_t
 
    GetDateFromJulian(&tm, julian);
 
-   // add LTO because mktime expects localtime but gets UTC
-   *pStartTime = mktime(&tm) + lto;
+   // add UTC offset because mktime expects localtime but gets UTC
+   *pStartTime = mktime(&tm) - timezone;
 
    *pStopTime  = *pStartTime + (stopMoD - startMoD) * 60;
 }
@@ -394,7 +393,7 @@ static uchar * ApplyEscapes(const uchar *pText, uint textLen, const uchar *pEsca
    else
       alphabet = providerAlphabet;
 
-   pout = (uchar *) malloc(textLen + 1 + (textLen + 39) / 40);
+   pout = (uchar *) xmalloc(textLen + 1 + (textLen + 39) / 40);
    if (pout != NULL)
    {
       po = pout;
@@ -526,7 +525,7 @@ static DESCRIPTOR * DecodeDescriptorLoop( const uchar *psd, uchar count, uchar b
 
    if (count > 0)
    {
-      pDescriptors = malloc(count * sizeof(DESCRIPTOR));
+      pDescriptors = xmalloc(count * sizeof(DESCRIPTOR));
       if (pDescriptors != NULL)
       {
          for (desc=0; desc < count; desc++)
@@ -694,22 +693,22 @@ EPGDB_BLOCK * EpgBlockConvertPi(const uchar *pCtrl, uint ctrlLen, uint strLen)
    if (pTitle != NULL)
    {
       memcpy(PI_GET_TITLE(pPi), pTitle, strlen(pTitle) + 1);
-      free(pTitle);
+      xfree(pTitle);
    }
    if (pShortInfo != NULL)
    {
       memcpy(PI_GET_SHORT_INFO(pPi), pShortInfo, strlen(pShortInfo) + 1);
-      free(pShortInfo);
+      xfree(pShortInfo);
    }
    if (pLongInfo != NULL)
    {
       memcpy(PI_GET_LONG_INFO(pPi), pLongInfo, strlen(pLongInfo) + 1);
-      free(pLongInfo);
+      xfree(pLongInfo);
    }
    if (pDescriptors != NULL)
    {
       memcpy(PI_GET_DESCRIPTORS(pPi), pDescriptors, pi.no_descriptors * sizeof(DESCRIPTOR));
-      free(pDescriptors);
+      xfree(pDescriptors);
    }
   
    return pBlk;
@@ -743,7 +742,7 @@ EPGDB_BLOCK * EpgBlockConvertAi(const uchar *pCtrl, uint ctrlLen, uint strLen)
    psd += 7 + 15;
    pst = pCtrl + ctrlLen + 2;
 
-   pNetwops = malloc(ai.netwopCount * sizeof(AI_NETWOP));
+   pNetwops = xmalloc(ai.netwopCount * sizeof(AI_NETWOP));
    lenSum = 0;
    for (i=0; i<ai.netwopCount; i++)
    {
@@ -808,7 +807,7 @@ EPGDB_BLOCK * EpgBlockConvertAi(const uchar *pCtrl, uint ctrlLen, uint strLen)
       blockLen += pNetwop->nameLen + 1;
       pst += pNetwop->nameLen;
    }
-   free(pNetwops);
+   xfree(pNetwops);
    assert(blockLen == pBlk->size);
 
    // update the alphabet list for string decoding
@@ -892,17 +891,17 @@ EPGDB_BLOCK * EpgBlockConvertOi(const uchar *pCtrl, uint ctrlLen, uint strLen)
    if (pHeader != NULL)
    {
       memcpy(OI_GET_HEADER(*pOi), pHeader, strlen(pHeader) + 1);
-      free(pHeader);
+      xfree(pHeader);
    }
    if (pMessage != NULL)
    {
       memcpy(OI_GET_MESSAGE(*pOi), pMessage, strlen(pMessage) + 1);
-      free(pMessage);
+      xfree(pMessage);
    }
    if (pDescriptors != NULL)
    {
       memcpy(OI_GET_DESCRIPTORS(*pOi), pDescriptors, oi.no_descriptors * sizeof(DESCRIPTOR));
-      free(pDescriptors);
+      xfree(pDescriptors);
    }
 
    return(pBlk);
@@ -1024,19 +1023,19 @@ EPGDB_BLOCK * EpgBlockConvertNi(const uchar *pCtrl, uint ctrlLen, uint strLen)
    if (pHeader != NULL)
    {
       memcpy(NI_GET_HEADER(*pNi), pHeader, strlen(pHeader) + 1);
-      free(pHeader);
+      xfree(pHeader);
    }
    if (pDescriptors != NULL)
    {
       memcpy(NI_GET_DESCRIPTORS(*pNi), pDescriptors, ni.no_descriptors * sizeof(DESCRIPTOR));
-      free(pDescriptors);
+      xfree(pDescriptors);
    }
    for (i=0; i<ni.no_events; i++)
    {
       if (tmp_evstr[i] != NULL)
       {
          memcpy(NI_GET_EVENT_STR(*pNi, ev[i]), tmp_evstr[i], strlen(tmp_evstr[i]) + 1);
-         free(tmp_evstr[i]);
+         xfree(tmp_evstr[i]);
       }
    } 
 
@@ -1094,12 +1093,12 @@ EPGDB_BLOCK * EpgBlockConvertMi(const uchar *pCtrl, uint ctrlLen, uint strLen)
    if (pMessage != NULL)
    {
       memcpy(MI_GET_MESSAGE(*pMi), pMessage, strlen(pMessage) + 1);
-      free(pMessage);
+      xfree(pMessage);
    }
    if (pDescriptors != NULL)
    {
       memcpy(MI_GET_DESCRIPTORS(*pMi), pDescriptors, mi.no_descriptors * sizeof(DESCRIPTOR));
-      free(pDescriptors);
+      xfree(pDescriptors);
    }
 
    return(pBlk);
@@ -1189,7 +1188,7 @@ EPGDB_BLOCK * EpgBlockConvertLi(const uchar *pCtrl, uint ctrlLen, uint strLen)
    li.off_desc = blockLen;
    blockLen += li.desc_no * sizeof(LI_DESC);
 
-   // 2nd step: copy elements one after each other, then free single elements
+   // 2nd step: copy elements one after each other
    pBlk = EpgBlockCreate(BLOCK_TYPE_LI, blockLen);
    pLi = &pBlk->blk.li;
    memcpy((void*)pLi, &li, sizeof(LI_BLOCK));
@@ -1301,7 +1300,7 @@ EPGDB_BLOCK * EpgBlockConvertTi(const uchar *pCtrl, uint ctrlLen, uint strLen)
    ti.off_desc = blockLen;
    blockLen += ti.desc_no * sizeof(TI_DESC);
 
-   // 2nd step: copy elements one after each other, then free single elements
+   // 2nd step: copy elements one after each other
    pBlk = EpgBlockCreate(BLOCK_TYPE_TI, blockLen);
    pTi = &pBlk->blk.ti;
    memcpy((void *)pTi, &ti, sizeof(TI_BLOCK));

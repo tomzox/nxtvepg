@@ -28,14 +28,13 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgdbacq.c,v 1.13 2000/06/24 18:03:13 tom Exp tom $
+ *  $Id: epgdbacq.c,v 1.15 2000/09/17 19:48:34 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
 #define DPRINTF_OFF
 
 #include <string.h>
-#include <malloc.h>
 #include <stdio.h>
 
 #include "epgctl/mytypes.h"
@@ -82,8 +81,8 @@ void EpgDbAcqInit( EPGACQ_BUF * pShm )
       pVbiBuf = pShm;
    }
    else
-   {  // no shared memory needed for multi-threading -> malloc does it
-      pVbiBuf = malloc(sizeof(EPGACQ_BUF));
+   {  // no shared memory needed for multi-threading -> Malloc does it
+      pVbiBuf = xmalloc(sizeof(EPGACQ_BUF));
    }
    pVbiBuf->writer_idx = 0;
    pVbiBuf->reader_idx = 0;
@@ -247,18 +246,16 @@ void EpgDbAcqGetScanResults( uint *pCni, bool *pNiWait, uint *pDataPageCnt )
 //
 static void EpgDbAcqMipPacket( uchar magNo, uchar pkgNo, const uchar *data )
 {
-   uint i, id;
+   sint id;
+   uint i;
 
    if ((pkgNo >= 6) && (pkgNo <= 8))
    {
       for (i=0; i < 20; i++)
       {
-         hamErr = 0;
-         id = UnHam84Byte(data + i * 2);
-         if ((hamErr == 0) && (id == MIP_EPG_ID))
+         if ( UnHam84Byte(data + i * 2, &id) && (id == MIP_EPG_ID))
          {
-            pVbiBuf->mipPageNo = 0xA0 + (pkgNo - 6) * 0x20 + (i / 10) * 0x10 + (i % 10);
-            pVbiBuf->mipPageNo |= (uint)magNo << 8;
+            pVbiBuf->mipPageNo = (0xA0 + (pkgNo - 6) * 0x20 + (i / 10) * 0x10 + (i % 10)) | (uint)(magNo << 8);
             break;
          }
       }
@@ -267,12 +264,9 @@ static void EpgDbAcqMipPacket( uchar magNo, uchar pkgNo, const uchar *data )
    {
       for (i=0; i < 18; i++)
       {
-         hamErr = 0;
-         id = UnHam84Byte(data + i * 2);
-         if ((hamErr == 0) && (id == MIP_EPG_ID))
+         if ( UnHam84Byte(data + i * 2, &id) && (id == MIP_EPG_ID))
          {
-            pVbiBuf->mipPageNo = 0x0A + (pkgNo - 9) * 0x30 + (i / 6) * 0x10 + (i % 6);
-            pVbiBuf->mipPageNo |= (uint)magNo << 8;
+            pVbiBuf->mipPageNo = (0x0A + (pkgNo - 9) * 0x30 + (i / 6) * 0x10 + (i % 6)) | (uint)(magNo << 8);
             break;
          }
       }
@@ -281,12 +275,9 @@ static void EpgDbAcqMipPacket( uchar magNo, uchar pkgNo, const uchar *data )
    {
       for (i=0; i < 6; i++)
       {
-         hamErr = 0;
-         id = UnHam84Byte(data + i * 2);
-         if ((hamErr == 0) && (id == MIP_EPG_ID))
+         if ( UnHam84Byte(data + i * 2, &id) && (id == MIP_EPG_ID))
          {
-            pVbiBuf->mipPageNo = 0xFA + i;
-            pVbiBuf->mipPageNo |= (uint)magNo << 8;
+            pVbiBuf->mipPageNo = (0xFA + i) | (uint)(magNo << 8);
             break;
          }
       }
@@ -329,12 +320,10 @@ static uchar EpgDbAcqReverseBitOrder( uchar b )
 static void EpgDbAcqGetP830Cni( const char * data )
 {
    uchar pdcbuf[10];
-   uchar dc;
+   schar dc;
    uint cni;
 
-   hamErr = 0;
-   dc = UnHam84Nibble(data);
-   if (hamErr == 0)
+   if ( UnHam84Nibble(data, &dc) )
    {
       if (dc == 0)
       {  // this is a packet 8/30/1
@@ -355,8 +344,7 @@ static void EpgDbAcqGetP830Cni( const char * data )
       else if (dc == 4)
       {  // this is a packet 8/30/2 (PDC)
          memcpy(pdcbuf, data + 9, 9);
-         UnHam84Array(pdcbuf, 9);
-         if (hamErr == 0)
+         if (UnHam84Array(pdcbuf, 9))
          {
             cni = (data[0] << 12) | ((data[6] & 3) << 10) | ((data[7] & 0xc) << 6) |
                   ((data[1] & 0xc) << 4) | ((data[7] & 0x3) << 4) | (data[8] & 0xf);
@@ -391,7 +379,7 @@ void EpgDbAcqGetStatistics( ulong *pTtxPkgCount, ulong *pEpgPkgCount, ulong *pEp
 static bool EpgDbAcqDoPageHeaderCheck( const uchar * curPageHeader )
 {
    uint  i, err;
-   uchar dec;
+   schar dec;
    bool  result = TRUE;
 
    if (bHeaderCheckInit)
@@ -400,7 +388,7 @@ static bool EpgDbAcqDoPageHeaderCheck( const uchar * curPageHeader )
       for (i=0; i < HEADER_CHECK_LEN; i++)
       {
          dec = parityTab[curPageHeader[i]];
-         if ( ((dec & 0x80) == 0) && (dec != lastPageHeader[i]) )
+         if ( (dec >= 0) && (dec != lastPageHeader[i]) )
          {  // Abweichung gefunden
             err += 1;
          }
@@ -417,7 +405,7 @@ static bool EpgDbAcqDoPageHeaderCheck( const uchar * curPageHeader )
       for (i=0; i < HEADER_CHECK_LEN; i++)
       {
          dec = parityTab[ curPageHeader[i] ];
-         if ((dec & 0x80) == 0)
+         if (dec >= 0)
          {
             lastPageHeader[i] = dec;
          }
@@ -515,11 +503,11 @@ void EpgDbAcqProcessPackets( EPGDB_CONTEXT * const * pdbc )
                      pBiBlock = NULL;
                }
                else
-                  free(pBlock);
+                  xfree(pBlock);
             }
          }
          if (pBiBlock != NULL)
-            free(pBiBlock);
+            xfree(pBiBlock);
       }
 
       if ( bEpgDbAcqEnabled && !bScratchAcqMode )
@@ -534,7 +522,7 @@ void EpgDbAcqProcessPackets( EPGDB_CONTEXT * const * pdbc )
                    (EpgAcqCtl_AiCallback(&pBlock->blk.ai) == FALSE) ) ||
                  ( EpgDbAddBlock(*pdbc, pBlock) == FALSE ) )
             {  // block was not accepted
-               free(pBlock);
+               xfree(pBlock);
             }
          }
       }

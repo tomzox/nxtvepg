@@ -1,9 +1,27 @@
-If you need a detailed overview of differences between versions,
-then ask for the RCS log files. In the CHANGES file you'll find
-only a very brief listing of major changes or additions.
+If you need a detailed overview of differences between versions, ask for the
+RCS log files. In this file you'll find only a very brief listing of major
+changes or additions.
 
 Before you submit any feature requests, please read the TODO file.
 
+
+from 0.02a to 0.3.1 (first release) Sep./Oct. 2000
+- added netwop, start time & sorting criterion filters to menus & shortcuts
+- fixed bugs in shortcut selection: series were not set in the menu checkbuttons,
+  and series filter not disabled in filter context after deselection
+- automatic shortcut deselection when it's filters are manually undone
+- timescale windows are reloaded after AI version changed and
+  not closed anymore upon provider change
+- created manual page & help menu
+- added install rule to Makefile and added installations instructions to README
+- changed default for db directory to /usr/tmp/nxtvepg; added option -dbdir
+- added command line option -card for alternate vbi & video devices
+  (needed when there's more than one TV card)
+- added context menu, invoked by right mouse button: allows quick filter
+  selection, depending on currently selected title
+- show copyright & helpful message if no provider known or db empty
+- added programme title & feature summary to short-info field
+- fixed LTO (GMT offset) computation during daylight saving time
 
 from 0.01a to 0.02a (pre-release)
 - added rc/ini file to save filter shortcuts and other config options

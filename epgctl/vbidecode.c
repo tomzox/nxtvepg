@@ -23,7 +23,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: vbidecode.c,v 1.15 2000/07/08 18:33:53 tom Exp tom $
+ *  $Id: vbidecode.c,v 1.18 2000/09/28 20:32:05 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -45,14 +45,13 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <sys/resource.h>
-#ifdef linux
-# define _WAITFLAGS_H              // conflicts with linux/wait.h
-#endif
+//#ifdef linux
+//# define _WAITFLAGS_H              // conflicts with linux/wait.h
+//#endif
 #include <sys/wait.h>
 #endif
 #include <time.h>
 #include <string.h>
-#include <malloc.h>
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
@@ -67,15 +66,17 @@
 #  include <dev/ic/bt8xx.h>
 #  define VBI_MAXLINES 19
 # else
-#  include "bttv.h"
+#  include "linux/videodev.h"
+#  define VBI_MAXLINES 16
 # endif
-# define DEVNAME "/dev/vbi0"
+# define VBINAME "/dev/vbi%c"
+# define VIDEONAME "/dev/video%c"
 # define PIDFILENAME "/tmp/.vbi.pid"
 #endif
 
 #define VBI_LINENUM VBI_MAXLINES
 #define VBI_BPL     2048
-#define VBI_BPF     VBI_LINENUM*2*VBI_BPL
+#define VBI_BPF     (VBI_LINENUM*2*VBI_BPL)
 
 // use fixpoint arithmetic for scanning steps
 #define FPSHIFT 16
@@ -90,45 +91,45 @@
 // ---------------------------------------------------------------------------
 // Decode teletext packet header
 //
-static void VbiDecodePacket( uchar *dat )
+static void VbiDecodePacket( const uchar * data )
 {
-   uchar mpag, mag, pack;
+   sint  tmp1, tmp2, tmp3;
+   uchar mag, pkgno;
    uint  page;
    uint  sub;
 
-   hamErr = 0;
-   mpag = UnHam84Byte(dat+3);
-   mag  = mpag & 7;
-   pack = (mpag>>3) & 0x1f;
-
-   if (hamErr)
+   if ( UnHam84Byte(data, &tmp1) )
    {
-      //debug0("packet header decoding error - skipping");
-   }
-   else if (pack == 0)
-   { // this is a page header - start of a new page
-      page = UnHam84Byte(dat+5);
-      sub = (((uint)UnHam84Byte(dat+9)<<8) | UnHam84Byte(dat+7)) & 0x3f7f;
-      if (!hamErr)
-      {
-         //printf("**** page=%x%02x.%04X\n", mag, page, sub);
-         EpgDbAcqAddPacket(((uint)mag << 8) | page, sub, 0, dat + 5);
+      mag   = tmp1 & 7;
+      pkgno = (tmp1 >> 3) & 0x1f;
+
+      if (pkgno == 0)
+      {  // this is a page header - start of a new page
+         if ( UnHam84Byte(data + 2, &tmp1) &&
+              UnHam84Byte(data + 4, &tmp2) &&
+              UnHam84Byte(data + 6, &tmp3) )
+         {
+            page = tmp1 | (mag << 8);
+            sub = (tmp2 | (tmp3 << 8)) & 0x3f7f;
+            //printf("**** page=%03x.%04X\n", page, sub);
+            EpgDbAcqAddPacket(page, sub, 0, data + 2);
+         }
+         //else debug0("page number or subcode hamming error - skipping page");
       }
-      //else debug0("page number or subcode hamming error - skipping page");
+      else
+      {
+         EpgDbAcqAddPacket((uint)mag << 8, 0, pkgno, data + 2);
+         //printf("**** pkgno=%d\n", pkgno);
+      }
    }
-   else
-   {
-      EpgDbAcqAddPacket((uint)mag << 8, 0, pack, dat + 5);
-      //printf("**** pack=%d\n", pack);
-   }
+   //else debug0("packet header decoding error - skipping");
 }
-
 
 
 // ---------------------------------------------------------------------------
 // Get one byte from the analog VBI data line
 //
-static uchar vtscan(uchar *lbuf, ulong *spos, int off)
+static uchar vtscan(const uchar *lbuf, ulong *spos, int off)
 { 
   int j;
   uchar theByte;
@@ -144,7 +145,7 @@ static uchar vtscan(uchar *lbuf, ulong *spos, int off)
 //   Get one byte from the analog VPS data line
 //   VPS uses a lower bit rate than teletext
 //
-static uchar vps_scan(uchar *lbuf, ulong *spos, int off)
+static uchar vps_scan(const uchar *lbuf, ulong *spos, int off)
 { 
   int j;
   uchar theByte;
@@ -160,7 +161,7 @@ static uchar vps_scan(uchar *lbuf, ulong *spos, int off)
 // Low level decoder of raw VBI data 
 // It calls the higher level decoders as needed 
 //
-void VbiDecodeLine(uchar *lbuf, int line)
+void VbiDecodeLine(const uchar *lbuf, int line)
 {
   uchar data[45];
   int i,p;
@@ -214,7 +215,7 @@ void VbiDecodeLine(uchar *lbuf, int line)
           case 0x27:
             for (i=3; i<45; i++) 
               data[i]=vtscan(lbuf, &spos, off);
-            VbiDecodePacket(data);
+            VbiDecodePacket(data + 3);
             break;
           default:
 	    //printf("****** line=%d  [2]=%x != 0x27 && 0xd8\n", line, data[2]);
@@ -279,6 +280,9 @@ static bool recvWakeUpSig;
 static int vbi_fdin;
 static int shmId;
 EPGACQ_BUF *pVbiBuf;
+
+static char devName[20];  //sizeof(*VBINAME)
+static uchar videoDevicePostfix;
 
 // ---------------------------------------------------------------------------
 // Decode all VBI lines of the last seen frame
@@ -399,48 +403,59 @@ static bool VbiTuneOpenDevice( void )
    struct video_capability vcapab;
    struct video_channel vchan;
    struct video_tuner vtuner;
+   int channel;
    bool result = FALSE;
 
-   video_fd = open("/dev/video", O_RDWR);
+   sprintf(devName, VIDEONAME, videoDevicePostfix);
+   video_fd = open(devName, O_RDWR);
    if (video_fd != -1)
    {
       // get capabilities: number of channels
-      if (ioctl(video_fd, VIDIOCGCAP, &vcapab) == 0)
+      memset(&vcapab, 0, sizeof(vcapab));
+      if ( (ioctl(video_fd, VIDIOCGCAP, &vcapab) == 0) &&
+           (vcapab.type & VID_TYPE_TUNER) )
       {
          // search for the TV tuner channel
-         for (vchan.channel=0; vchan.channel < vcapab.channels; vchan.channel++)
+         for (channel=0; channel < vcapab.channels; channel++)
          {
+            memset(&vchan, 0, sizeof(vchan));
+            vchan.channel = channel;
+
             if ((ioctl(video_fd, VIDIOCGCHAN, &vchan) == 0) &&
-                (vchan.type == VIDEO_TYPE_TV) &&
+                (vchan.type & VIDEO_TYPE_TV) &&
                 (vchan.flags & VIDEO_VC_TUNER))
                break;
          }
-         if (vchan.channel < vcapab.channels)
-         {  // found a tuner
+         if (channel < vcapab.channels)
+         {  // found a tuner -> set it as input channel
             //printf("found tuner on channel %d\n", vchan.channel);
 
-            // query the settings of tuner #0
-            vtuner.tuner = 0;
-            if (ioctl(video_fd, VIDIOCGTUNER, &vtuner) == 0)
+            // set the tuner as input channel
+            vchan.channel = channel;
+            // XXX BUG WORKAROUND: need to set a different norm first, since
+            // XXX initialization is only done upon norm change (needed after reboot)
+            //vchan.norm  = VIDEO_MODE_PAL;
+            vchan.norm    = VIDEO_MODE_AUTO;
+            if(ioctl(video_fd, VIDIOCSCHAN, &vchan) == 0)
             {
-               vtuner.mode = VIDEO_MODE_PAL;
-               if (ioctl(video_fd, VIDIOCSTUNER, &vtuner) == 0)
+               // query the settings of tuner #0
+               memset(&vtuner, 0, sizeof(vtuner));
+               if ( (ioctl(video_fd, VIDIOCGTUNER, &vtuner) == 0) &&
+                    (vtuner.flags & VIDEO_TUNER_PAL) )
                {
-                  // set the tuner as input channel
-                  vchan.channel = 0;
-                  vchan.norm = VIDEO_MODE_PAL;
-                  if(ioctl(video_fd, VIDIOCSCHAN, &vchan) == 0)
+                  vtuner.mode = VIDEO_MODE_PAL;
+                  if (ioctl(video_fd, VIDIOCSTUNER, &vtuner) == 0)
                   {
                      result = TRUE;
                   }
                   else
-                     perror("VIDIOCSCHAN");
+                     perror("VIDIOCSTUNER");
                }
                else
-                  perror("VIDIOCSTUNER");
+                  perror("VIDIOCGTUNER");
             }
             else
-               perror("VIDIOCGTUNER");
+               perror("VIDIOCSCHAN");
          }
          else
             debug1("no tuner found among %d input channels", vcapab.channels);
@@ -449,7 +464,7 @@ static bool VbiTuneOpenDevice( void )
          perror("VIDIOCGCAP");
    }
    else
-      printf("Vbi-TuneChannel: could not open device\n");
+      debug1("Vbi-TuneOpenDevice: could not open device %s", devName);
 
    return result;
 }
@@ -645,10 +660,11 @@ static void VbiDecodeMain( void )
       {
          if (vbi_fdin == -1)
          {  // acq was switched on -> open device
-            vbi_fdin = open(DEVNAME, O_RDONLY);
+            sprintf(devName, VBINAME, videoDevicePostfix);
+            vbi_fdin = open(devName, O_RDONLY);
             if (vbi_fdin == -1)
             {
-               debug1("VBI open failed: errno=%d", errno);
+               debug2("VBI open %s failed: errno=%d", devName, errno);
                pVbiBuf->isEnabled = FALSE;
             }
             else
@@ -685,13 +701,14 @@ static void VbiDecodeMain( void )
 // ---------------------------------------------------------------------------
 // Create the VBI slave process - also slave main loop
 //
-bool VbiDecodeInit( void )
+bool VbiDecodeInit( uchar cardPostfix )
 {
    struct timeval tv;
    int dbTaskPid;
 
    pVbiBuf = NULL;
    isVbiProcess = FALSE;
+   videoDevicePostfix = cardPostfix;
 
    shmId = shmget(IPC_PRIVATE, sizeof(EPGACQ_BUF), IPC_CREAT|IPC_EXCL|0600);
    if (shmId == -1)

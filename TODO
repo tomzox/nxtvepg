@@ -1,22 +1,29 @@
 fixes:
-- active acq: round robin of providers when 100% complete
+- do not tune channel if vbi busy
 - filter shortcut combination logic modes: OR,AND
-- disable or suppress shortcuts with series & sortcrit from different provider
-- acq abort: slave should pass errno as reason via shmem
-- sigchld -> acq off
-- vbi slave: check parent every 30 sec, also when no ttx reception
-- start-up: show message window for 4 secs and help if db is empty
+- provider-specific shortcuts: are listed only for one provider
+  mandatory when shortcut includes series or sortcrit filter
+- improve sync with acq slave process:
+  + acq abort: slave should pass errno as reason via shmem
+  + sigchld -> acq off
+  + check parent every 30 sec, also when no ttx reception
 - count parity errors before replacing blocks of same version
-- start-time, sorting criterion, LI & TI filter popup
 - debugging: make serious debugX events fatal (developers only)
 
-new features:
-- provider selection: display db age & fill percentage
-  save stats and start time of 1st PI in db header
-- navigation: disable leafs with zero PI
+possible new features: (in order of decreasing priority)
+- cyclic acq: round robin of providers when 100% complete
 - timer programming & invocation or external dispatch
 - merge data of all providers into new database
   user may specify which categories to take from which provider,
   e.g. short&long info from 3SAT, series code from Pro7, rating from RTL2 etc.
-- context menu with right mouse button
-  containing: list of repeats, filter shortcuts (same title, netwop, theme etc.)
+- long-term search: maintain list of search filters that are applied each time
+  new data has been acquired; notify the user when a matching PI arrives. This
+  can be used for a list of favourite movies or actors
+- links to Internet Movie Database from titles and actor's names
+  main difficulties: finding out the original title from the national AKA
+  and fuzzy-matching actor's names in the description
+- provider selection: display db age & fill percentage
+  save stats and start time of 1st PI in db header
+- navigation: disable leafs with zero PI / display number of matches
+- multiple VBI devices (locally or in network)
+
