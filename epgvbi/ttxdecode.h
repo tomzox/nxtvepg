@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: ttxdecode.h,v 1.27 2002/09/14 19:01:47 tom Exp tom $
+ *  $Id: ttxdecode.h,v 1.28 2003/04/09 20:44:05 tom Exp tom $
  */
 
 #ifndef __TTXDECODE_H
@@ -60,7 +60,7 @@ void TtxDecode_StopAcq( void );
 void TtxDecode_InitScan( void );
 void TtxDecode_GetScanResults( uint *pCni, bool *pNiWait, uint *pDataPageCnt, uchar *pDispText, uint textMaxLen );
 uint TtxDecode_GetMipPageNo( void );
-void TtxDecode_GetStatistics( uint32_t * pTtxPkgCount, uint32_t * pVbiLineCount,
+void TtxDecode_GetStatistics( uint32_t * pTtxPkgCount,
                               uint32_t * pEpgPkgCount, uint32_t * pEpgPagCount );
 bool TtxDecode_CheckForPackets( bool * pStopped );
 #ifdef __BTDRV_H

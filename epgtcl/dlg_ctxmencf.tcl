@@ -19,7 +19,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_ctxmencf.tcl,v 1.4 2002/12/08 19:59:00 tom Exp tom $
+#  $Id: dlg_ctxmencf.tcl,v 1.5 2003/03/31 19:15:21 tom Exp tom $
 #
 set ctxmencf_popup 0
 set ctxmencf {}
@@ -138,6 +138,7 @@ proc ContextMenuConfigPopup {} {
       bind .ctxmencf <Key-F1> {PopupHelp $helpIndex(Configuration) "Context menu"}
       bind .ctxmencf <Alt-KeyPress> [bind Menubutton <Alt-KeyPress>]
       bind .ctxmencf.cmd <Destroy> {+ set ctxmencf_popup 0}
+      wm protocol .ctxmencf WM_DELETE_WINDOW {ContextMenuConfigQuit 1}
       focus .ctxmencf.all.edit.title_ent
 
       # display the entries in the listbox

@@ -6,22 +6,19 @@ you have ideas for additional features.
 
 
 Misc. fixes & changes recently suggested/planned for the near future:
-- WIN32 TV app shm: resend info for same channel (req. by zoomin)
+- TV app shm: resend info for same channel (req. by zoomin)
   also: add more EPG info to shared memory; add video norm to shm
-- WIN32: SECAM support for wintvcfg.c channel table parsers
 - single click on short-info size slider: resize by one line
 - start time search: abs. stop time val "23:10" excludes titles starting at 23:10
 - improve text search: keywords (google style AND), parity-safe/fuzzy
 - parity-safe short/long info redundancy removal
 - series search via title
 - allow provider channel names at the -prov command line arg
-- HTML dump: allow to specify which column to use for hyperlink
+- HTML dump: allow to specify which column to use for hyperlink?
 - user-def column: background color (maybe of complete row?)
 - context menu config menu: remove need for "update" button: save automatically
 - new PI column type which displays full weekday name (Thierry)
 - different background colors for PI, alternating by date (Ronceval)
-- WIN32: menubutton popups does not work when invoked for the 2nd time via
-  ALT key binding (Thierry)
 - WIN32: save main window position in INI file (when manually changed; Thierry)
 - graying out filtered programmes instead of removing them
 - localize language for date drop-down menu (Thierry)
@@ -29,10 +26,14 @@ Misc. fixes & changes recently suggested/planned for the near future:
   without use of the keyboard (like in -selectmode multiple)
   (suggested via discussion forum by "Philippe")
 - allow expired PI in the database and browser window (at least for VPS)
+- optionally hide short-info window -> display with double-click
+- sort networks in merged provider database by default in the user-configured
+  order of the merged providers; when adding a new provider to an merge
+  config, append new networks to the merged db's network list
+- add note to acq config dlg: does not affect display db
 
 New "NetBox" layout: open issues/known problems:
 - refresh may leave excessive gaps between items;
-  refresh brings scrolled-out elements back into view
 - special marker row between different days?
 - changing column count/width by resizing outer window?
 - possible additional formatting options:
@@ -51,7 +52,7 @@ Acquisition daemon:
   or client hangs)
 - client-side db mgmt during dump state: lock merge & PI listbox?
 optional:
-- cmdline option -nodbdir: suck the complete db through the pipe
+- cmdline option -non-shared-dbdir: suck the complete db through the pipe
 - avoid copying memory each forwarded EPG block for each connected client
 win32 port:
 - install daemon as a service, possibly with helper app. in the systray
@@ -59,16 +60,17 @@ win32 port:
 - add support for named pipes as alternative to TCP/IP
 
 xawtv TV app interaction:
-- add option for TV app connections via socket
+- add option for TV app connections via socket, to allow the daemon serving
+  EPG data to TV apps (note: connection must be routed through to GUI to
+  allow changing the channel and following TV channel changes)
 - Tune-TV: warn if station name is not in .xawtv?
 - Tune-TV: offer to start xawtv if not running?
   may not work if xawtv requires command line options
 - VPS empty/pause codes display
 
 WIN32 port fixes:
-- Bt8x8 driver: make video input matrix configurable
-- Btx8x8 card auto-detection from bttv driver
 - support for Secam/PAL multi-norm TV tuners
+  SECAM support for wintvcfg.c channel table parsers
 - use TV app directory in shm for auto-configuration
 - dump stream feature: must use window or file instead of stdout
   note: output to stdout works when started inside a GNU/Cygwin bash
@@ -77,8 +79,9 @@ WIN32 port fixes:
 - fill context menu config dialog with useful examples for Windows;
   do not use DOS shell to start applications, use CreateProcess instead;
   do not use Bourne shell quoting
-- prevent manual horizontal resizing (esp. during window maximize)
-- support for SAA7134 capture chip (e.g. on Aldi Tevion MD9717)
+- allow manual horizontal resizing for grid layout
+- menubutton popups does not work when invoked for the 2nd time via
+  ALT key binding (Thierry)
 
 merged database fixes:
 - fine control for provider merge

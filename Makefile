@@ -28,7 +28,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile,v 1.57 2003/02/26 22:38:12 tom Exp tom $
+#  $Id: Makefile,v 1.59 2003/04/20 22:10:19 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -37,8 +37,10 @@ include Makefile.win32
 else
 OS = $(shell uname)
 ifeq ($(OS), FreeBSD)
-# for FreeBSD 
-include Makefile.freebsd
+include Makefile.bsd
+else
+ifeq ($(OS), NetBSD)
+include Makefile.bsd
 else
 
 ROOT    =
@@ -66,8 +68,10 @@ DEFS   += -DX11_APP_DEFAULTS=\"$(resdir)/app-defaults/Nxtvepg\"
 #INCS   += -I/usr/local/tcl/tcl8.0/generic -I/usr/local/tcl/tk8.0/generic
 
 # path to Tcl/Tk script library (Tk is usually in X11/lib/tk#.#)
-DEFS   += -DTK_LIBRARY_PATH=\"/usr/lib/tk$(TCL_VER)\"
-DEFS   += -DTCL_LIBRARY_PATH=\"/usr/lib/tcl$(TCL_VER)\"
+TK_LIBRARY_PATH  = /usr/lib/tk$(TCL_VER)
+TCL_LIBRARY_PATH = /usr/lib/tcl$(TCL_VER)
+DEFS   += -DTK_LIBRARY_PATH=\"$(TK_LIBRARY_PATH)\"
+DEFS   += -DTCL_LIBRARY_PATH=\"$(TCL_LIBRARY_PATH)\"
 
 # enable use of multi-threading
 DEFS   += -DUSE_THREADS
@@ -76,9 +80,13 @@ LDLIBS += -lpthread
 # enable use of daemon and client/server connection
 DEFS   += -DUSE_DAEMON
 
-# enable workarounds for linux saa7134 driver version 0.2.2
-# - set SAA7134 sampling rate (because the driver doesn't support ioctl VIDIOCGVBIFMT)
-# - wrong field sequence
+# enable use of zvbi slicer (does not require the zvbi library)
+#DEFS   += -DZVBI_DECODER
+
+# enable workarounds for linux saa7134 driver: up to version 0.2.6
+# - change VBI default sampling rate (because the driver doesn't support ioctl VIDIOCGVBIFMT)
+# - skip ioctls VIDIOCGTUNER and  VIDIOCSTUNER
+# - fix video field sequence
 #DEFS   += -DSAA7134_0_2_2
 
 # The database directory can be either in the user's $HOME (or relative to any
@@ -103,11 +111,13 @@ CFLAGS += $(WARN) $(INCS) $(DEFS)
 
 # end Linux specific part
 endif
+endif
 
 # ----- don't change anything below ------------------------------------------
 
-CSRC    = epgvbi/btdrv4linux epgvbi/vbidecode epgvbi/ttxdecode epgvbi/hamming \
-          epgvbi/tvchan epgvbi/cni_tables epgvbi/syserrmsg \
+CSRC    = epgvbi/btdrv4linux epgvbi/vbidecode epgvbi/zvbidecoder \
+          epgvbi/ttxdecode epgvbi/hamming epgvbi/cni_tables epgvbi/tvchan \
+          epgvbi/syserrmsg \
           epgctl/debug epgctl/epgacqctl epgctl/epgscan epgctl/epgctxctl \
           epgctl/epgctxmerge epgctl/epgacqclnt epgctl/epgacqsrv \
           epgdb/epgstream epgdb/epgdbmerge epgdb/epgdbsav \
@@ -116,8 +126,9 @@ CSRC    = epgvbi/btdrv4linux epgvbi/vbidecode epgvbi/ttxdecode epgvbi/hamming \
           epgui/pibox epgui/pilistbox epgui/pinetbox \
           epgui/uictrl epgui/pioutput epgui/pidescr epgui/pifilter \
           epgui/statswin epgui/timescale epgui/pdc_themes epgui/menucmd \
-          epgui/epgmain epgui/loadtcl epgui/xawtv epgui/dumptext epgui/dumpraw \
-          epgui/dumphtml epgui/dumpxml epgui/shellcmd
+          epgui/epgmain epgui/loadtcl epgui/xawtv epgui/wintvcfg \
+          epgui/dumptext epgui/dumpraw epgui/dumphtml epgui/dumpxml \
+          epgui/shellcmd
 TCLSRC  = epgtcl/mainwin epgtcl/helptexts epgtcl/dlg_hwcfg epgtcl/dlg_xawtvcf \
           epgtcl/dlg_ctxmencf epgtcl/dlg_acqmode epgtcl/dlg_netsel \
           epgtcl/dlg_dump epgtcl/dlg_netname epgtcl/dlg_udefcols \
@@ -155,6 +166,13 @@ endif
 
 tcl2c: tcl2c.c
 	$(CC) $(CFLAGS) -o tcl2c tcl2c.c
+
+$(TCL_LIBRARY_PATH)/tclIndex $(TK_LIBRARY_PATH)/tclIndex :
+	@echo "$(@D) is not a valid Tcl/Tk library directory"
+	@echo "Check the definitions of TCL_LIBRARY_PATH and TK_LIBRARY_PATH"
+	@false
+
+epgui/loadtcl.c :: $(TCL_LIBRARY_PATH)/tclIndex $(TK_LIBRARY_PATH)/tclIndex
 
 epgui/loadtcl.c :: $(addsuffix .c, $(TCLSRC))
 

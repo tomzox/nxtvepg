@@ -1,5 +1,5 @@
 #
-#  FreeBSD specific Makefile setup
+#  FreeBSD and NetBSD specific Makefile setup
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License Version 2 as
@@ -14,13 +14,15 @@
 #
 #  Description:
 #
-#    This make file is included by the main Makefile on FreeBSD.
-#    It sets up make variables for the FreeBSD ports collection
-#    so that less adaptions are necessary for FreeBSD.
+#    This make file is included by the main Makefile on FreeBSD and NetBSD.
+#    It sets up make variables for the FreeBSD ports collection so that
+#    fewer adaptions are necessary.
 #
-#  Author: Simon Barner
+#  Authors:
+#    Simon Barner (FreeBSD)
+#    Mario Kemper (NetBSD adaptions)
 #
-#  $Id: Makefile.freebsd,v 1.1 2003/01/19 11:48:12 tom Exp tom $
+#  $Id: Makefile.bsd,v 1.3 2003/04/20 22:10:19 tom Exp tom $
 #
 
 # X11BASE, LOCALBASE and PREFIX are variables used by the ports collection
@@ -33,7 +35,11 @@ PREFIX          ?= $(X11BASE)
 
 prefix          = $(PREFIX)
 TK_LIBRARY_BASE = $(LOCALBASE)/lib
+ifeq ($(OS), FreeBSD)
 SYS_DBDIR       = /var/tmp/nxtvdb
+else
+SYS_DBDIR       = /tmp/nxtvdb
+endif
 # uncomment to force system wide db dir
 WANT_USER_DBDIR = 1
 
@@ -64,10 +70,14 @@ ROOT    =
 exec_prefix = ${prefix}
 bindir  = $(ROOT)${exec_prefix}/bin
 mandir  = $(ROOT)${prefix}/man/man1
+ifeq ($(OS), FreeBSD)
 resdir  = $(ROOT)/usr/X11R6/lib/X11
+else
+resdir  = $(LOCALBASE)/lib/X11
+endif
 
 # other settings
-OPTFLAGS = -O6 -pipe
+OPTFLAGS = -O6 -pipe -g
 
 # use static libraries for debugging only
 #LDLIBS += -Ldbglib -static
@@ -78,8 +88,12 @@ INCS   += -I. -I$(X11BASE)/include
 #INCS   += -I/usr/local/tcl/tcl8.0/generic -I/usr/local/tcl/tk8.0/generic
 
 # path to Tcl/Tk script library (Tk is usually in X11/lib/tk#.#)
-DEFS   += -DTK_LIBRARY_PATH=\"$(TK_LIBRARY_BASE)/tk$(TCL_VER)\"
-DEFS   += -DTCL_LIBRARY_PATH=\"$(TK_LIBRARY_BASE)/tcl$(TCL_VER)\"
+TK_LIBRARY_PATH  = $(TK_LIBRARY_BASE)/tk$(TCL_VER)
+TCL_LIBRARY_PATH = $(TK_LIBRARY_BASE)/tcl$(TCL_VER)
+DEFS   += -DTK_LIBRARY_PATH=\"$(TK_LIBRARY_PATH)\"
+DEFS   += -DTCL_LIBRARY_PATH=\"$(TCL_LIBRARY_PATH)\"
+
+DEFS   += -DX11_APP_DEFAULTS=\"$(resdir)/app-defaults/Nxtvepg\"
 
 # enable use of multi-threading
 ifdef WANT_THREADS
@@ -136,5 +150,5 @@ endif
 	$(ECHO) "   C compiler:                                $(CC)"
 	$(ECHO)
 
-# end of FreeBSD specific makefile
+# end of BSD specific makefile
 # here the main Makefile continues

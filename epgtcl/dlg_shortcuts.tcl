@@ -19,7 +19,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_shortcuts.tcl,v 1.8 2003/03/04 21:30:34 tom Exp tom $
+#  $Id: dlg_shortcuts.tcl,v 1.9 2003/03/31 19:15:21 tom Exp tom $
 #
 set fscupd_popup 0
 
@@ -554,6 +554,7 @@ proc PopupFilterShortcuts {} {
       bind .fscedit.cmd <Destroy> {+ set fscedit_popup 0}
       bind .fscedit <Alt-KeyPress> [bind Menubutton <Alt-KeyPress>]
       bind .fscedit <Key-F1> {PopupHelp $helpIndex(Filter shortcuts)}
+      wm protocol .fscedit WM_DELETE_WINDOW AbortEditedShortcuts
 
       ## third column: attributes
       frame .fscedit.flags

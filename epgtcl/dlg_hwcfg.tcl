@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_hwcfg.tcl,v 1.9 2003/03/09 19:30:16 tom Exp tom $
+#  $Id: dlg_hwcfg.tcl,v 1.10 2003/03/31 19:15:21 tom Exp tom $
 #
 
 set hwcf_cardidx 0
@@ -135,6 +135,7 @@ proc PopupHardwareConfig {} {
       bind .hwcfg.cmd <Destroy> {+ set hwcfg_popup 0 ; catch {destroy .tvcard}}
       bind .hwcfg.cmd.ok <Return> {tkButtonInvoke .hwcfg.cmd.ok}
       bind .hwcfg.cmd.ok <Escape> {tkButtonInvoke .hwcfg.cmd.abort}
+      wm protocol .hwcfg WM_DELETE_WINDOW {HardwareConfigQuit 0}
       focus .hwcfg.cmd.ok
 
    } else {

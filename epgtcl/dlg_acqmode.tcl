@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_acqmode.tcl,v 1.3 2002/12/08 19:59:00 tom Exp tom $
+#  $Id: dlg_acqmode.tcl,v 1.4 2003/03/31 19:15:21 tom Exp tom $
 #
 set acqmode_popup 0
 set acq_mode "follow-ui"
@@ -272,6 +272,7 @@ proc PopupNetAcqConfig {} {
       pack .netacqcf.cmd -side top -pady 5
 
       # key bindings
+      wm protocol .netacqcf WM_DELETE_WINDOW {NetAcqConfigQuit 0}
       bind .netacqcf.cmd <Destroy> {+ set netacqcf_popup 0}
       bind .netacqcf.cmd.save <Return> {tkButtonInvoke %W}
       bind .netacqcf.cmd.save <Escape> {tkButtonInvoke .netacqcf.cmd.abort}

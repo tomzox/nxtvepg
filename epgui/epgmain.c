@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgmain.c,v 1.118 2003/03/16 21:40:53 tom Exp tom $
+ *  $Id: epgmain.c,v 1.121 2003/04/12 13:36:58 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -94,6 +94,8 @@
 #include "images/zoom_in.xbm"
 #include "images/zoom_out.xbm"
 #include "images/colsel.xbm"
+#include "images/col_plus.xbm"
+#include "images/col_minus.xbm"
 #include "images/hatch.xbm"
 
 #include "epgvbi/btdrv.h"
@@ -123,6 +125,7 @@ static const char * const defaultDbDir  = ".";
 #else
 static char * defaultRcFile = "~/.nxtvepgrc";
 static char * defaultDbDir  = NULL;
+static char * pTvX11Display = NULL;
 #endif
 static const char * rcfile = NULL;
 static const char * dbdir  = NULL;
@@ -1918,6 +1921,7 @@ static void Usage( const char *argv0, const char *argvn, const char * reason )
                    "       -help       \t\t: this message\n"
                    #ifndef WIN32
                    "       -display <display>  \t: X11 server, if different from $DISPLAY\n"
+                   "       -tvdisplay <display>\t: X11 server for TV application\n"
                    #endif
                    "       -geometry <geometry>\t: initial window position\n"
                    #ifndef WIN32
@@ -2118,6 +2122,15 @@ static void ParseArgv( int argc, char * argv[] )
                Usage(argv[0], argv[argIdx], "missing argument after");
             argIdx += 2;
          }
+         #ifndef WIN32
+         else if ( !strcmp(argv[argIdx], "-tvdisplay") )
+         {  // alternate display for TV application
+            if (argIdx + 1 >= argc)
+               Usage(argv[0], argv[argIdx], "missing argument after");
+            pTvX11Display = argv[argIdx + 1];
+            argIdx += 2;
+         }
+         #endif
          else if ( !strcmp(argv[argIdx], "-guipipe") )
          {  // undocumented option (internal use only): pass fd of pipe to GUI for daemon start
             if (argIdx + 1 < argc)
@@ -2237,14 +2250,14 @@ static int ui_init( int argc, char **argv, bool withTk )
       }
    }
 
+   // load all Tcl/Tk scripts which handle toplevel window, menus and dialogs
+   LoadTcl_Init(withTk);
+
    #if (DEBUG_SWITCH_TCL_BGERR != ON)
    // switch off Tcl/Tk background error reports for release version
    sprintf(comm, "proc bgerror foo {}\n");
    eval_check(interp, comm);
    #endif
-
-   // load all Tcl/Tk scripts which handle toplevel window, menus and dialogs
-   LoadTcl_Init(withTk);
 
    if (withTk)
    {
@@ -2255,6 +2268,8 @@ static int ui_init( int argc, char **argv, bool withTk )
       Tk_DefineBitmap(interp, Tk_GetUid("bitmap_zoom_in"), zoom_in_bits, zoom_in_width, zoom_in_height);
       Tk_DefineBitmap(interp, Tk_GetUid("bitmap_zoom_out"), zoom_out_bits, zoom_out_width, zoom_out_height);
       Tk_DefineBitmap(interp, Tk_GetUid("bitmap_colsel"), colsel_bits, colsel_width, colsel_height);
+      Tk_DefineBitmap(interp, Tk_GetUid("bitmap_col_plus"), col_plus_bits, col_plus_width, col_plus_height);
+      Tk_DefineBitmap(interp, Tk_GetUid("bitmap_col_minus"), col_minus_bits, col_minus_width, col_minus_height);
       Tk_DefineBitmap(interp, Tk_GetUid("bitmap_hatch"), hatch_bits, hatch_width, hatch_height);
       Tk_DefineBitmap(interp, Tk_GetUid("nxtv_logo"), nxtv_logo_bits, nxtv_logo_width, nxtv_logo_height);
 
@@ -2444,10 +2459,10 @@ int main( int argc, char *argv[] )
       EpgDumpXml_Init();
       EpgDumpRaw_Init();
       ShellCmd_Init();
-      #ifndef WIN32
-      Xawtv_Init();
-      #else
       WintvCfg_Init(TRUE);
+      #ifndef WIN32
+      Xawtv_Init(pTvX11Display);
+      #else
       Wintv_Init();
       #endif
 
@@ -2469,8 +2484,8 @@ int main( int argc, char *argv[] )
       // set app icon in window title bar - note: must be called *after* the window is mapped!
       SetWindowsIcon(hInstance);
       #endif
-      if (startIconified == FALSE)
-         eval_check(interp, "wm deiconify .");
+      sprintf(comm, "DisplayMainWindow %d", startIconified);
+      eval_check(interp, comm);
 
       if (disableAcq == FALSE)
       {  // enable EPG acquisition

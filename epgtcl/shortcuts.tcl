@@ -19,7 +19,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: shortcuts.tcl,v 1.11 2003/03/19 16:19:16 tom Exp tom $
+#  $Id: shortcuts.tcl,v 1.12 2003/04/01 20:56:03 tom Exp tom $
 #
 set fsc_name_idx 0
 set fsc_mask_idx 1
@@ -64,7 +64,7 @@ proc PreloadShortcuts {} {
       set shortcuts(8)  {Musique themes {theme_class1 96} {} merge 0}
       set shortcuts(9)  {Religion themes {theme_class1 112} {} merge 0}
       set shortcuts(10) {Variétés themes {theme_class1 50} {} merge 0}
-      set shortcuts(11) {Météo substr {substr {{1 0 0 0 Météo}}} {} merge 0}
+      set shortcuts(11) {Météo substr {substr {{Météo 1 0 0 0 0 0}}} {} merge 0}
       set shortcuts(12) {{12 ans et +} parental {parental 5} parental merge 0}
       set shortcuts(13) {{16 ans et +} parental {parental 7} parental merge 0}
       set shortcuts(14) {{45 minutes et +} dursel {dursel {45 1435}} {} merge 0}

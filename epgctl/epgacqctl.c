@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqctl.c,v 1.77 2002/11/17 18:19:46 tom Exp tom $
+ *  $Id: epgacqctl.c,v 1.78 2003/04/09 20:44:17 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -248,7 +248,6 @@ const EPGDB_BLOCK_COUNT * EpgAcqCtl_GetDbStats( void )
 const EPGDB_STATS * EpgAcqCtl_GetAcqStats( void )
 {
    const EPGDB_STATS   * pAcqStats;
-   uint32_t  vbiLineCount;  // dummy
 
    if (acqCtl.state != ACQSTATE_OFF)
    {
@@ -256,7 +255,7 @@ const EPGDB_STATS * EpgAcqCtl_GetAcqStats( void )
 
       if (acqCtl.mode != ACQMODE_NETWORK)
       {  // retrieve additional data from TTX packet decoder
-         TtxDecode_GetStatistics(&acqStats.ttx.ttxPkgCount, &vbiLineCount,
+         TtxDecode_GetStatistics(&acqStats.ttx.ttxPkgCount,
                                  &acqStats.ttx.epgPkgCount, &acqStats.ttx.epgPagCount);
       }
 

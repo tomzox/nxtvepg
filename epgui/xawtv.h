@@ -1,5 +1,5 @@
 /*
- *  Nextview decoder: xawtv remote control module
+ *  Nextview EPG: xawtv remote control module
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
@@ -16,18 +16,17 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: xawtv.h,v 1.5 2002/05/11 15:52:12 tom Exp tom $
+ *  $Id: xawtv.h,v 1.6 2003/04/12 13:37:28 tom Exp tom $
  */
 
 #ifndef __XAWTV_H
 #define __XAWTV_H
 
 
-// Interface to GUI
-bool Xawtv_GetFreqTab( Tcl_Interp * interp, uint ** ppFreqTab, uint * pCount );
-
-// Initialisation
-void Xawtv_Init( void );
+// ----------------------------------------------------------------------------
+// Initialization
+//
+void Xawtv_Init( char * pTvX11Display );
 void Xawtv_Destroy( void );
 
 

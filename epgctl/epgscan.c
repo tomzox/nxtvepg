@@ -34,7 +34,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgscan.c,v 1.33 2003/03/13 13:13:00 tom Exp tom $
+ *  $Id: epgscan.c,v 1.34 2003/04/09 20:45:37 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -262,7 +262,7 @@ uint EpgScan_EvHandler( void )
    time_t now = time(NULL);
    uchar chanName[10], msgbuf[300], dispText[PDC_TEXT_LEN + 1];
    uint  freq;
-   uint32_t ttxPkgCount, vbiLineCount, epgPkgCount, epgPageCount;
+   uint32_t ttxPkgCount, epgPkgCount, epgPageCount;
    uint cni, dataPageCnt;
    uint pageNo;
    time_t delay;
@@ -289,9 +289,9 @@ uint EpgScan_EvHandler( void )
       }
       else if (scanCtl.state == SCAN_STATE_WAIT_SIGNAL)
       {  // skip this channel if there's no stable signal
-         TtxDecode_GetStatistics(&ttxPkgCount, &vbiLineCount, &epgPkgCount, &epgPageCount);
+         TtxDecode_GetStatistics(&ttxPkgCount, &epgPkgCount, &epgPageCount);
          if ( scanCtl.doSlow || scanCtl.useXawtv || scanCtl.doRefresh ||
-              BtDriver_IsVideoPresent() || (ttxPkgCount > 0) || (vbiLineCount > 0) )
+              BtDriver_IsVideoPresent() || (ttxPkgCount > 0) )
          {
             dprintf2("WAIT for data on channel %d (%d ttx pkgs)\n", scanCtl.channel, ttxPkgCount);
             if (BtDriver_IsVideoPresent())

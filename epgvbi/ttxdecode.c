@@ -32,7 +32,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: ttxdecode.c,v 1.52 2002/09/14 19:01:50 tom Exp tom $
+ *  $Id: ttxdecode.c,v 1.54 2003/04/09 20:44:05 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -483,6 +483,8 @@ void TtxDecode_AddVpsData( const uchar * data )
          hour   =  (data[12] & 0x1f);
          minute =  (data[13] >> 2);
 
+         dprintf4("AddVpsData: %d.%d. %02d:%02d\n", mday, month, hour, minute);
+
          // check the date and time and assemble them to a PIL
          pil = TtxDecode_AssemblePil(mday, month, hour, minute);
 
@@ -584,21 +586,21 @@ static void TtxDecode_GetP830Cni( const uchar * data )
 // ---------------------------------------------------------------------------
 // Return statistics collected by slave process/thread during acquisition
 //
-void TtxDecode_GetStatistics( uint32_t * pTtxPkgCount, uint32_t * pVbiLineCount,
+void TtxDecode_GetStatistics( uint32_t * pTtxPkgCount,
                               uint32_t * pEpgPkgCount, uint32_t * pEpgPagCount )
 {
    // check if initialization for the current channel is complete
    if (pVbiBuf->chanChangeReq == pVbiBuf->chanChangeCnf)
    {
-      *pTtxPkgCount = pVbiBuf->ttxStats.ttxPkgCount;
-      *pEpgPkgCount = pVbiBuf->ttxStats.epgPkgCount;
-      *pEpgPagCount = pVbiBuf->ttxStats.epgPagCount;
+      *pTtxPkgCount  = pVbiBuf->ttxStats.ttxPkgCount;
+      *pEpgPkgCount  = pVbiBuf->ttxStats.epgPkgCount;
+      *pEpgPagCount  = pVbiBuf->ttxStats.epgPagCount;
    }
    else
    {
-      *pTtxPkgCount = 0;
-      *pEpgPkgCount = 0;
-      *pEpgPagCount = 0;
+      *pTtxPkgCount  = 0;
+      *pEpgPkgCount  = 0;
+      *pEpgPagCount  = 0;
    }
 }
 

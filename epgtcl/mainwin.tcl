@@ -20,7 +20,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: mainwin.tcl,v 1.216 2003/03/16 22:28:09 tom Exp tom $
+#  $Id: mainwin.tcl,v 1.223 2003/04/21 18:57:55 tom Exp tom $
 #
 
 ##  ---------------------------------------------------------------------------
@@ -232,15 +232,18 @@ proc CreateMainWindow {} {
    frame     .all.pi
    #panedwindow .all.pi -orient vertical
    frame     .all.pi.list
-   button    .all.pi.list.colcfg -command PopupColumnSelection \
-                                 -bitmap "bitmap_colsel" \
+   button    .all.pi.list.colcfg -command PopupColumnSelection -bitmap "bitmap_colsel" \
                                  -cursor top_left_arrow -borderwidth 1 -padx 0 -pady 0 -takefocus 0
    grid      .all.pi.list.colcfg -row 0 -column 0 -sticky news
+   button    .all.pi.list.col_pl -command {NetboxColumnRecount 1} -bitmap "bitmap_col_plus" \
+                                 -cursor top_left_arrow -borderwidth 1 -padx 0 -pady 0 -takefocus 0
+   button    .all.pi.list.col_mi -command {NetboxColumnRecount -1} -bitmap "bitmap_col_minus" \
+                                 -cursor top_left_arrow -borderwidth 1 -padx 0 -pady 0 -takefocus 0
    frame     .all.pi.list.colheads
    grid      .all.pi.list.colheads -row 0 -column 1 -columnspan 2 -sticky news
 
    scrollbar .all.pi.list.sc -orient vertical -command {C_PiBox_Scroll} -takefocus 0
-   grid      .all.pi.list.sc -row 1 -column 0 -sticky ns
+   grid      .all.pi.list.sc -row 3 -column 0 -sticky ns
    text      .all.pi.list.text -width 50 -height 25 -wrap none \
                                -font $pi_font -exportselection false \
                                -cursor top_left_arrow \
@@ -249,6 +252,8 @@ proc CreateMainWindow {} {
    #bind     TextPiBox <Configure>       PiListboxResized
    bind      TextPiBox <ButtonPress-1>   {SelectPi %W %x %y}
    bind      TextPiBox <ButtonRelease-1> {SelectPiRelease %W}
+   bind      TextPiBox <ButtonPress-2>   {DragListboxStart %W %X %Y}
+   bind      TextPiBox <ButtonRelease-2> {DragListboxStop %W}
    bind      TextPiBox <Double-Button-2> {C_PopupPi %W %x %y}
    bind      TextPiBox <Button-3>        {CreateContextMenu mouse %W %x %y}
    bind      TextPiBox <Button-4>        {C_PiBox_Scroll scroll -3 units}
@@ -289,7 +294,7 @@ proc CreateMainWindow {} {
    bindtags  .all.pi.list.text {.all.pi.list.text TextPiBox . all}
 
    if {$pibox_type == 0} {
-      grid   .all.pi.list.text -row 1 -column 1 -columnspan 2 -sticky news
+      grid   .all.pi.list.text -row 1 -rowspan 3 -column 1 -columnspan 2 -sticky news
    }
 
    ###########################################################################
@@ -300,18 +305,20 @@ proc CreateMainWindow {} {
    }
    scrollbar .all.pi.list.hsc -orient horizontal -command {C_PiBox_ScrollHorizontal} -takefocus 0
    if {$pibox_type == 1} {
-      grid   .all.pi.list.nets -row 0 -rowspan 2 -column 1 -columnspan 2 -sticky news
-      grid   .all.pi.list.hsc -row 2 -column 1 -sticky ew
+      grid   .all.pi.list.col_pl -row 1 -column 0 -sticky news
+      grid   .all.pi.list.col_mi -row 2 -column 0 -sticky news
+      grid   .all.pi.list.nets -row 0 -rowspan 4 -column 1 -columnspan 2 -sticky news
+      grid   .all.pi.list.hsc -row 4 -column 1 -sticky ew
    }
    ###########################################################################
 
    button    .all.pi.list.panner -bitmap bitmap_pan_updown -cursor top_left_arrow -takefocus 0
    bind      .all.pi.list.panner <ButtonPress-1> {+ PanningControl 1}
    bind      .all.pi.list.panner <ButtonRelease-1> {+ PanningControl 0}
-   grid      .all.pi.list.panner -row 2 -column 2 -sticky ens
+   grid      .all.pi.list.panner -row 4 -column 2 -sticky ens
 
    grid      columnconfigure .all.pi.list 1 -weight 1
-   grid      rowconfigure .all.pi.list 1 -weight 1
+   grid      rowconfigure .all.pi.list 3 -weight 1
    pack      .all.pi.list -side top -fill x
    #.all.pi   add .all.pi.list -sticky news -minsize 40 -height 372
 
@@ -328,19 +335,18 @@ proc CreateMainWindow {} {
    .all.pi.info.text tag configure paragraph -font $pi_font -spacing3 4
    # remove the regular text widget event bindings
    bindtags  .all.pi.info.text {.all.pi.info.text TextReadOnly . all}
-   bind      .all.pi.info.text <Configure> ShortInfoResized
    bind      .all.pi.info.text <Button-4> {.all.pi.info.text yview scroll -3 units}
    bind      .all.pi.info.text <Button-5> {.all.pi.info.text yview scroll 3 units}
    pack      .all.pi.info.text -side left -fill both -expand 1
    pack      .all.pi.info -side top -fill both -expand 1
    #.all.pi   add .all.pi.info -sticky news -minsize 25 -height 150
-   pack      .all.pi -side top -fill y -expand 1
+   pack      .all.pi -side top -fill both -expand 1
 
    entry     .all.statusline -state disabled -relief flat -borderwidth 1 \
                              -font [DeriveFont $font_normal -2] -background $default_bg $entry_disabledforeground black \
                              -textvariable dbstatus_line
    pack      .all.statusline -side bottom -fill x
-   pack      .all -side left -fill y -expand 1
+   pack      .all -side left -fill both -expand 1
 
    bind      . <Key-F1> {PopupHelp $helpIndex(Basic browsing) {}}
    if {$pibox_type == 0} {
@@ -451,7 +457,7 @@ proc AssignPiTextTags {wid} {
 ##
 proc CreateListboxNetCol {idx} {
    global pi_font pi_bg_now
-   global pinetbox_col_width
+   global pibox_height pinetbox_col_width
    global is_unix
 
    set colhead_font   [DeriveFont $pi_font -2]
@@ -474,7 +480,7 @@ proc CreateListboxNetCol {idx} {
    bind      .all.pi.list.nets.h_${idx}.b <ButtonRelease-1> [concat ColumnHeaderButtonRel $idx]
    bind      .all.pi.list.nets.h_${idx}.b <Leave> [concat ColumnHeaderLeave $idx]
 
-   text      .all.pi.list.nets.n_$idx -width 1 -height 25 -wrap none \
+   text      .all.pi.list.nets.n_$idx -width 1 -height $pibox_height -wrap none \
                                       -font $pi_font -exportselection false \
                                       -cursor top_left_arrow -insertofftime 0 \
                                       -highlightthickness 0 -takefocus [expr $idx == 0]
@@ -484,7 +490,7 @@ proc CreateListboxNetCol {idx} {
 
    grid      .all.pi.list.nets.h_$idx -row 0 -column $idx -sticky news
    grid      .all.pi.list.nets.n_$idx -row 1 -column $idx -sticky news
-   grid      columnconfigure .all.pi.list.nets.h_$idx $idx -weight 1
+   grid      columnconfigure .all.pi.list.nets $idx -weight 1
 }
 
 ##  ---------------------------------------------------------------------------
@@ -729,18 +735,21 @@ proc CreateMenubar {} {
 }
 
 ##  ---------------------------------------------------------------------------
-##  Apply seetings loaded from rc/ini file to menu and PI listbox
+##  Apply settings loaded from rc/ini file to menu and PI listbox
 ##
 proc ApplyRcSettingsToMenu {} {
    global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_inv_idx fsc_logi_idx fsc_hide_idx
    global showColumnHeader showStatusLine hideOnMinimize
-   global pibox_height shortinfo_height
+   global pibox_type pibox_height shortinfo_height
    global shortcuts shortcut_order
    global usercols
 
    ShowOrHideShortcutList
 
-   if {$showColumnHeader == 0} {
+   if {$pibox_type != 0} {
+      # option not available for netbox layout
+      .menubar.config.show_hide entryconfigure "Show column headers" -state disable
+   } elseif {$showColumnHeader == 0} {
       # use "remove" instead of "forget" so that grid parameters are not lost
       grid remove .all.pi.list.colcfg
    }
@@ -776,6 +785,27 @@ proc ApplyRcSettingsToMenu {} {
    if {[array size usercols] == 0} {
       PreloadUserDefinedColumns
    }
+}
+
+##  ---------------------------------------------------------------------------
+##  After all steps during start-up are completed, finally map the window
+##
+proc DisplayMainWindow {iconified} {
+   global is_unix pibox_type
+
+   # the "netbox" layout allows horizontal resizing, except on WIN32
+   # (because on WIN32 resizability cannot be changed dynamically)
+   if {$is_unix && ($pibox_type != 0)} {
+      wm resizable . 1 1
+   }
+   if {! $iconified} {
+      wm deiconify .
+   }
+
+   update
+   after idle {bind  .all <Configure> ShortInfoResized}
+
+   wm minsize . 0 [expr [winfo height .] - [winfo height .all.pi.info.text] + 80]
 }
 
 ##  ---------------------------------------------------------------------------
@@ -867,11 +897,13 @@ proc AddInvertMenuForClasses {widget filt} {
 }
 
 ##  ---------------------------------------------------------------------------
-##  Create a popup menu below the xawtv window
-##  - params #1-#4 are the coordinates and dimensions of the xawtv window
-##  - params #5-#7 are the info to be displayed in the popup
+##  Create a popup menu below the xawtv window (UNIX only)
+##  - param #1 is the TV app's X11 display name (given by -tvdisplay command line option)
+##  - param #2 is the user-configured popup format
+##  - params #3-#6 are the coordinates and dimensions of the xawtv window
+##  - params #7-#9 are the EPG info to be displayed in the popup
 ##
-proc Create_XawtvPopup {mode xcoo ycoo width height rperc rtime ptitle} {
+proc Create_XawtvPopup {dpyname mode xcoo ycoo width height rperc rtime ptitle} {
    global xawtv_font xawtv_overlay_fg xawtv_overlay_bg
 
    if {$mode == 0} {
@@ -891,7 +923,7 @@ proc Create_XawtvPopup {mode xcoo ycoo width height rperc rtime ptitle} {
    set ww [expr ($ww1 >= $ww2) ? $ww1 : $ww2]
 
    if {[string length [info commands .xawtv_epg]] == 0} {
-      toplevel .xawtv_epg -class InputOutput
+      toplevel .xawtv_epg -class InputOutput -screen $dpyname
       wm overrideredirect .xawtv_epg 1
       wm withdraw .xawtv_epg
 
@@ -1111,6 +1143,7 @@ proc ToggleColumnHeader {} {
    global showColumnHeader
 
    # show of hide the "config" button (it's save to do this even if already shown or hidden)
+   # (note: this option is only enabled in "single list" layout)
    if $showColumnHeader {
       # note: grid position is alread configured during start-up, and need not be set again
       grid .all.pi.list.colcfg
@@ -1136,22 +1169,41 @@ proc ToggleHideOnMinimize {} {
 }
 
 proc Toggle_PiBoxType {} {
-   global pibox_type
+   global is_unix pibox_type showColumnHeader
+
+   # make sure pending events are processed before the windows are unmapped
+   update
 
    if {$pibox_type == 0} {
       C_PiBox_Toggle
       grid forget .all.pi.list.nets
       grid forget .all.pi.list.hsc
       grid        .all.pi.list.colheads
-      grid        .all.pi.list.text -row 1 -column 1 -columnspan 2 -sticky news
+      grid forget .all.pi.list.col_pl
+      grid forget .all.pi.list.col_mi
+      grid        .all.pi.list.text -row 1 -rowspan 3 -column 1 -columnspan 2 -sticky news
       focus       .all.pi.list.text
+      .menubar.config.show_hide entryconfigure "Show column headers" -state normal
+      if {$showColumnHeader == 0} {
+         grid remove .all.pi.list.colcfg
+      }
+      set hor_resizable 0
    } else {
       C_PiBox_Toggle
       grid forget .all.pi.list.text
       grid remove .all.pi.list.colheads
-      grid        .all.pi.list.nets -row 0 -rowspan 2 -column 1 -columnspan 2 -sticky news
-      grid        .all.pi.list.hsc -row 2 -column 1 -sticky ew
+      grid        .all.pi.list.colcfg
+      grid        .all.pi.list.col_pl -row 1 -column 0 -sticky news
+      grid        .all.pi.list.col_mi -row 2 -column 0 -sticky news
+      grid        .all.pi.list.nets -row 0 -rowspan 4 -column 1 -columnspan 2 -sticky news
+      grid        .all.pi.list.hsc -row 4 -column 1 -sticky ew
       focus       .all.pi.list.nets.n_0
+      .menubar.config.show_hide entryconfigure "Show column headers" -state disable
+      set hor_resizable 1
+   }
+
+   if $is_unix {
+      wm resizable . $hor_resizable 1
    }
    UpdatePiListboxColumns
    PiListboxColsel_ColUpdate
@@ -2190,6 +2242,65 @@ proc PiMotionScrollTimer {} {
 }
 
 ##  ---------------------------------------------------------------------------
+##  Callback for scrolling the listbox by dragging with the middle mouse button
+##
+proc DragListboxStart {wid xcoo ycoo} {
+   global drag_listbox_x drag_listbox_y
+
+   set drag_listbox_x $xcoo
+   set drag_listbox_y $ycoo
+
+   # binding for motion event to follow the mouse with the view
+   bind $wid <Motion> {DragListboxMotion %s %X %Y}
+}
+
+proc DragListboxMotion {state xcoo ycoo} {
+   global pibox_type pinetbox_col_width pinetbox_col_count
+   global pi_font
+   global drag_listbox_x drag_listbox_y
+
+   if {[info exists drag_listbox_x] && ($pibox_type != 0)} {
+
+      set delta [expr round(double($drag_listbox_x - $xcoo) / $pinetbox_col_width)]
+
+      # check if we're already at the left or right border
+      set tmpl [C_PiNetBox_GetCniList]
+      set net_off [lindex $tmpl 0]
+      set net_cnt [expr [llength $tmpl] - 1]
+      if {$pinetbox_col_count < $net_cnt} {
+         if {$delta < -$net_off} {
+            # left border will be reached
+            set delta [expr 0 - $net_off]
+         } elseif {($delta > 0) && \
+                   ($net_off + $pinetbox_col_count + $delta > $net_cnt)} {
+            # right border will be reached
+            set delta [expr ($net_cnt - $pinetbox_col_count) - $net_off]
+         }
+
+         if {abs($delta) >= 1} {
+            C_PiBox_ScrollHorizontal scroll $delta units
+            incr drag_listbox_x [expr -$delta * $pinetbox_col_width]
+         }
+      }
+   }
+
+   if [info exists drag_listbox_y] {
+      set cheight [font metrics $pi_font -linespace]
+      set delta [expr round(double($drag_listbox_y - $ycoo) / $cheight)]
+      if {abs($delta) >= 1} {
+         # note: move twice as far as the mouse was moved
+         C_PiBox_Scroll scroll [expr $delta * 2] units
+         incr drag_listbox_y [expr -$delta * $cheight]
+      }
+   }
+}
+
+proc DragListboxStop {wid} {
+
+   bind $wid <Motion> {}
+}
+
+##  ---------------------------------------------------------------------------
 ##  Callback for opening the context menu
 ##  invoked either after click with right mouse button or CTRL-C
 ##
@@ -2554,40 +2665,29 @@ proc CountVisibleTextLines {w} {
 ##    or the other way around
 
 set pibox_height 25
-set pibox_resized 0
 set shortinfo_height 10
+set mainwin_zoomed 0
 
 proc AdjustTextWidgetProportions {delta} {
    global panning_list_height panning_info_height
    global pibox_type pibox_height
-   global pibox_resized
 
    pack propagate .all.pi.list 1
    set hl [winfo height .all.pi.list]
    set hi [winfo height .all.pi.info]
 
-   if {$pibox_type == 0} {
-      .all.pi.list.text configure -height [expr $panning_list_height - $delta]
-   } else {
-      foreach wid [info commands .all.pi.list.nets.n_*] {
-         $wid configure -height [expr $panning_list_height - $delta]
-      }
+   # set height for both layouts
+   .all.pi.list.text configure -height [expr $panning_list_height - $delta]
+   foreach wid [info commands .all.pi.list.nets.n_*] {
+      $wid configure -height [expr $panning_list_height - $delta]
    }
 
-   # Workaround for UNIX window management
-   # - Before the user has resized the toplevel window, the size of the window
-   #   is controlled entirely by the size of the enclosed widgets.
-   # - Afterwards, the window height "sticks" to the configured height.
-   #   Under Windows any resize of expanded widgets is ignored then, but
-   #   UNIX also adds the offset by which the toplevel was resized
-   if {$pibox_resized == 0} {
-      .all.pi.info.text configure -height [expr $panning_info_height + $delta]
-   }
-   #.all.pi.info configure -height [expr $hi + ($hl - [winfo height .all.pi.list])]
+   .all.pi.info.text configure -height [expr $panning_info_height + $delta]
 
    set pibox_height [expr $panning_list_height - $delta]
    C_PiBox_Resize
 
+   update idletasks
    wm minsize . 0 [expr [winfo height .] - [winfo height .all.pi.info.text] + 80]
 }
 
@@ -2616,9 +2716,7 @@ proc PanningMotion {w state ypos} {
 # sets up or stops the panning
 proc PanningControl {start} {
    global panning_root_y1 panning_root_y2 panning_list_height panning_info_height
-   global pibox_resized
    global shortinfo_height pi_font pibox_type
-   global is_unix
 
    if {$start} {
       if {$pibox_type == 0} {
@@ -2630,8 +2728,6 @@ proc PanningControl {start} {
       set panning_root_y2 [expr $panning_root_y1 + [winfo height .all.pi.list.panner]]
       set panning_list_height [$wid cget -height]
       set panning_info_height [.all.pi.info.text cget -height]
-      # check if the toplevel window was resized by the user
-      set pibox_resized [expr !$is_unix || ([winfo height .all.pi.info.text] != [winfo reqheight .all.pi.info.text])]
 
       bind .all.pi.list.panner <Motion> {PanningMotion .all.pi.list.panner %s %Y}
    } else {
@@ -2648,14 +2744,65 @@ proc PanningControl {start} {
 
 # callback for Configure (aka resize) event in short info text widget
 proc ShortInfoResized {} {
-   global pi_font shortinfo_height
+   global is_unix pi_font shortinfo_height mainwin_zoomed showStatusLine
+   global short_info_resized_recurse
 
-   set new_height [expr int([winfo height .all.pi.info.text] / \
-                            [font metrics $pi_font -linespace])]
+   if {![info exists short_info_resized_recurse]} {
+      set short_info_resized_recurse 1
 
-   if {$new_height != $shortinfo_height} {
-      set shortinfo_height $new_height
-      UpdateRcFile
+      update idletasks
+
+      if $is_unix {
+         set is_maximized 0
+      } else {
+         set is_maximized [expr [string compare [wm state .] "zoomed"] == 0]
+      }
+
+      if {!$mainwin_zoomed && $is_maximized} {
+         # WIN32: window was maximized -> store last height
+         set mainwin_zoomed 1
+
+      } elseif {$mainwin_zoomed && !$is_maximized} {
+         # window was un-maximized -> set old height again
+         set mainwin_zoomed 0
+         .all.pi.info.text configure -height $shortinfo_height
+
+      } else {
+
+         if {[winfo viewable .all.pi.info.text]} {
+            set new_height [winfo height .all.pi.info.text]
+            if $showStatusLine {
+               if {[winfo viewable .all.statusline]} {
+                  incr new_height [expr [winfo height .all.statusline] - [winfo reqheight .all.statusline]]
+               } else {
+                  incr new_height [expr 0 - [winfo reqheight .all.statusline]]
+               }
+            }
+            set new_height [expr int($new_height / [font metrics $pi_font -linespace])]
+
+            if {$new_height != $shortinfo_height} {
+               .all.pi.info.text configure -height $new_height
+               set shortinfo_height $new_height
+               set update_rc 1
+            }
+         }
+
+         # horizontal resizing (grid layout only)
+         global pibox_type pinetbox_col_width pinetbox_col_count
+         if {($pibox_type != 0)} {
+            if {[winfo viewable .all.pi.list.nets]} {
+               set new_width [winfo width .all.pi.list.nets]
+               set pinetbox_col_width [expr $new_width / $pinetbox_col_count]
+               for {set idx 0} {$idx < $pinetbox_col_count} {incr idx} {
+                  .all.pi.list.nets.h_$idx configure -width $pinetbox_col_width
+               }
+            }
+         }
+      }
+
+      wm geometry . ""
+      update
+      unset short_info_resized_recurse
    }
 }
 
@@ -3421,20 +3568,30 @@ proc NetboxColumnHeaderMenu {widget is_stand_alone} {
 
    # add "Goto time X" sub-menu (same as in pilistbox)
    $widget add cascade -label "Time" -menu ${widget}.time
-   menu ${widget}.time -postcommand [list PostDynamicMenu ${widget}.time FilterMenuAdd_Time 0]
+   if {[string length [info commands ${widget}.time]] == 0} {
+      menu ${widget}.time -postcommand [list PostDynamicMenu ${widget}.time FilterMenuAdd_Time 0]
+   }
 
    # add "Goto date X" sub-menu (same as in pilistbox)
    $widget add cascade -label "Date" -menu ${widget}.date
-   menu ${widget}.date -postcommand [list PostDynamicMenu ${widget}.date FilterMenuAdd_Date 0]
+   if {[string length [info commands ${widget}.date]] == 0} {
+      menu ${widget}.date -postcommand [list PostDynamicMenu ${widget}.date FilterMenuAdd_Date 0]
+   }
 
    # add sub-menu with netbox control functions
    $widget add separator
    $widget add cascade -label "Control" -menu ${widget}.control
-   menu ${widget}.control -tearoff 0
-   ${widget}.control add command -label "Add one more network column" -command {NetboxColumnRecount 1}
-   ${widget}.control add command -label "Remove one network column" -command {NetboxColumnRecount -1}
-   ${widget}.control add command -label "Join column with network to the right" -command [list NetboxColumnJoin $widget]
-   ${widget}.control add command -label "Undo joined columns" -command [list NetboxColumnDejoin $widget]
+   if {[string length [info commands ${widget}.control]] == 0} {
+      menu ${widget}.control -tearoff 0
+      ${widget}.control add command -label "Add one more network column" -command {NetboxColumnRecount 1}
+      ${widget}.control add command -label "Remove one network column" -command {NetboxColumnRecount -1}
+      ${widget}.control add command -label "Join column with network to the right" -command [list NetboxColumnJoin $widget]
+      ${widget}.control add command -label "Undo joined columns" -command [list NetboxColumnDejoin $widget]
+   } else {
+      ${widget}.control entryconfigure 1 -state normal
+      ${widget}.control entryconfigure 2 -state normal
+      ${widget}.control entryconfigure 3 -state normal
+   }
 
    if {$pinetbox_col_count <= 1} {
       # only one column left -> disable column removal
@@ -3796,7 +3953,7 @@ proc PiBox_DisplayErrorMessage {text} {
                       -exportselection false -cursor top_left_arrow -insertofftime 0
          }
          # note: stack the new text widget on top of the columns' text widgets
-         grid $wid -row 0 -rowspan 2 -column 1 -columnspan 2 -sticky news
+         grid $wid -row 0 -rowspan 4 -column 1 -columnspan 2 -sticky news
       }
 
       $wid delete 1.0 end
