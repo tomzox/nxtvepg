@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbacq.h,v 1.14 2001/06/10 08:08:37 tom Exp tom $
+ *  $Id: epgdbacq.h,v 1.16 2001/11/24 20:28:41 tom Exp tom $
  */
 
 #ifndef __EPGDBACQ_H
@@ -47,27 +47,15 @@
 
 
 // ---------------------------------------------------------------------------
-// Definition of callback functions from the 
-//
-typedef struct 
-{
-   bool (* pAiCallback)( const AI_BLOCK *pNewAi );
-   bool (* pBiCallback)( const BI_BLOCK *pNewBi );
-   void (* pChannelChange)( bool changeDb );
-   void (* pStopped)( void );
-} EPGDB_ACQ_CB;
-
-// ---------------------------------------------------------------------------
 // Declaration of the service interface functions
 //
 
 // interface to the EPG acquisition control module
 void EpgDbAcqInit( void );
-void EpgDbAcqStart( EPGDB_CONTEXT *dbc, uint pageNo, uint appId );
+void EpgDbAcqStart( EPGDB_CONTEXT *dbc, EPGDB_QUEUE * pQueue, uint pageNo, uint appId );
 void EpgDbAcqStop( void );
-void EpgDbAcqReset( EPGDB_CONTEXT *dbc, uint pageNo, uint appId );
+void EpgDbAcqReset( EPGDB_CONTEXT *dbc, EPGDB_QUEUE * pQueue, uint pageNo, uint appId );
 void EpgDbAcqInitScan( void );
-void EpgDbAcqSetCallbacks( const EPGDB_ACQ_CB * pCb );
 void EpgDbAcqNotifyChannelChange( void );
 void EpgDbAcqGetScanResults( uint *pCni, bool *pNiWait, uint *pDataPageCnt );
 uint EpgDbAcqGetMipPageNo( void );
@@ -81,8 +69,8 @@ void EpgDbAcqAddVpsData( const char * data );
 void EpgDbAcqLostFrame( void );
 
 // interface to the main event control - should be called every 1-2 secs in average
-void EpgDbAcqProcessPackets( EPGDB_CONTEXT * const * pdbc );
-bool EpgDbAcqCheckForPackets( void );
+bool EpgDbAcqProcessPackets( void );
+bool EpgDbAcqCheckForPackets( bool * pStopped );
 
 
 #endif  // __EPGDBACQ_H

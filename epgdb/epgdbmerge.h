@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbmerge.h,v 1.7 2001/09/02 16:28:04 tom Exp tom $
+ *  $Id: epgdbmerge.h,v 1.8 2002/01/02 17:04:19 tom Exp tom $
  */
 
 #ifndef __EPGDBMERGE_H
@@ -62,6 +62,9 @@ typedef struct
    uint            cnis         [MAX_MERGED_DB_COUNT];
    EPGDB_MERGE_MAP netwopMap    [MAX_MERGED_DB_COUNT];
    EPGDB_MERGE_MAP revNetwopMap [MAX_MERGED_DB_COUNT];
+
+   EPGDB_PI_TSC    tscQueue;
+   bool            tscEnable;
 
    MERGE_ATTRIB_VECTOR max[MERGE_TYPE_COUNT];
 } EPGDB_MERGE_CONTEXT;

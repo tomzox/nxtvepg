@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbif.h,v 1.21 2001/08/31 16:55:36 tom Exp tom $
+ *  $Id: epgdbif.h,v 1.24 2002/02/13 21:00:26 tom Exp tom $
  */
 
 #ifndef __EPGDBIF_H
@@ -49,14 +49,16 @@ const PI_BLOCK * EpgDbSearchNextPi( const EPGDB_CONTEXT * dbc, const FILTER_CONT
 const PI_BLOCK * EpgDbSearchPrevPi( const EPGDB_CONTEXT * dbc, const FILTER_CONTEXT *fc, const PI_BLOCK * pPiBlock );
 #endif
 
-uint  EpgDbGetProgIdx( const EPGDB_CONTEXT * dbc, uint iBlockNo, uchar netwop );
+uint  EpgDbGetProgIdx( const EPGDB_CONTEXT * dbc, const PI_BLOCK * pPiBlock );
 uchar EpgDbGetStream( const void * pBlock );
 uchar EpgDbGetVersion( const void * pBlock );
 ulong EpgDbGetPiBlockCount( uint startNo, uint stopNo );
-ulong EpgDbGetPiBlockIndex( uint startNo, uint blockNo );
-uchar EpgDbGetStreamByBlockNo( const EPGDB_CONTEXT * dbc, uint block_no, uchar netwop );
+uint  EpgDbGetPiBlockIndex( uint startNo, uint blockNo );
+uchar EpgDbGetStreamByBlockNo( const EPGDB_CONTEXT * dbc, const EPGDB_BLOCK * pBlock );
 uint  EpgDbContextGetCni( const EPGDB_CONTEXT * dbc );
 bool  EpgDbContextIsMerged( const EPGDB_CONTEXT * dbc );
+time_t EpgDbGetAiUpdateTime( const EPGDB_CONTEXT * dbc );
+void EpgDbSetAiUpdateTime( const EPGDB_CONTEXT * dbc, time_t acqTimestamp );
 
 bool  EpgDbGetStat( const EPGDB_CONTEXT * dbc, EPGDB_BLOCK_COUNT * pCount, time_t * acqMinTime, uint maxNowRepCount );
 void  EpgDbResetAcqRepCounters( EPGDB_CONTEXT * dbc );

@@ -1,5 +1,5 @@
 /*
- *  Nextview EPG GUI: Database statistics and main window status line
+ *  Nextview EPG GUI: PI timescale window
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
@@ -16,18 +16,22 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: statswin.h,v 1.13 2002/01/26 15:22:04 tom Exp tom $
+ *  $Id: timescale.h,v 1.2 2002/01/02 17:08:31 tom Exp tom $
  */
 
-#ifndef __STATSWIN_H
-#define __STATSWIN_H
+#ifndef __TIMESCALE_H
+#define __TIMESCALE_H
 
 
 // Initialization - Interface to main module
-void StatsWin_Create( void );
+void TimeScale_Create( void );
 
-// Interface to ui event distribution
-void StatsWin_StatsUpdate( int target );
+// Interface to acq control and provider selection menu
+void TimeScale_ProvChange( int target );
+void TimeScale_VersionChange( void );
+void TimeScale_AcqStatsUpdate( void );
+void TimeScale_AcqPiAdded( void );
+void TimeScale_AcqPiMerged( void );
 
 
-#endif  // __STATSWIN_H
+#endif  // __TIMESCALE_H

@@ -22,7 +22,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbmerge.c,v 1.17 2001/11/05 21:43:54 tom Exp tom $
+ *  $Id: epgdbmerge.c,v 1.24 2002/01/31 20:28:19 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -37,9 +37,9 @@
 #include "epgdb/epgblock.h"
 #include "epgui/epgmain.h"
 #include "epgdb/epgdbmgmt.h"
+#include "epgdb/epgtscqueue.h"
 #include "epgdb/epgstream.h"
 #include "epgui/pilistbox.h"
-#include "epgui/statswin.h"
 #include "epgdb/epgdbmerge.h"
 
 
@@ -103,7 +103,7 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
    const PI_BLOCK * pOnePi;
    PI_BLOCK       * pPi;
    DESCRIPTOR       piDesc[MAX_MERGED_DB_COUNT];
-   uchar *pTitle;
+   const uchar *pTitle;
    uint slInfoLen;
    uint blockSize, off;
    uint dbCount, dbIdx, actIdx;
@@ -184,7 +184,6 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
    pMergedBlock = EpgBlockCreate(BLOCK_TYPE_PI, blockSize);
    pMergedBlock->stream     = stream;
    pMergedBlock->version    = version;
-   pMergedBlock->mergeCount = piCount;
    pPi = (PI_BLOCK *) &pMergedBlock->blk.pi;  // cast to remove const from pointer
    off = sizeof(PI_BLOCK);
 
@@ -196,7 +195,6 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
    pPi->background_ref    = 0;
    pPi->background_reuse  = 0;
    pPi->off_long_info     = 0;
-   pPi->long_info_type    = EPG_STR_TYPE_TRANSP_LONG;
 
    pPi->feature_flags = 0;
    // feature sound
@@ -392,12 +390,12 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
    // append merge descriptor array
    pPi->no_descriptors    = piCount;
    pPi->off_descriptors   = off;
-   memcpy(PI_GET_DESCRIPTORS(pPi), piDesc, piCount * sizeof(DESCRIPTOR));
+   memcpy((char*)PI_GET_DESCRIPTORS(pPi), piDesc, piCount * sizeof(DESCRIPTOR));
    off += piCount * sizeof(DESCRIPTOR);
 
    // append title
    pPi->off_title = off;
-   strcpy(PI_GET_TITLE(pPi), pTitle);
+   strcpy((char*)PI_GET_TITLE(pPi), pTitle);
    off += strlen(pTitle) + 1;
 
    // append concatenated short infos, separated by ASCII #12 = form-feed
@@ -416,26 +414,26 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
 
                if (hasShort)
                {
-                  strcpy(PI_GET_STR_BY_OFF(pPi, off), PI_GET_SHORT_INFO(&pFoundBlocks[actIdx]->blk.pi));
+                  strcpy((char*)PI_GET_STR_BY_OFF(pPi, off), PI_GET_SHORT_INFO(&pFoundBlocks[actIdx]->blk.pi));
                   off += strlen(PI_GET_STR_BY_OFF(pPi, off));
 
-                  PI_GET_STR_BY_OFF(pPi, off)[0] = (hasLong ? '\n' : 12);
-                  PI_GET_STR_BY_OFF(pPi, off)[1] = 0;
+                  ((char *) PI_GET_STR_BY_OFF(pPi, off))[0] = (hasLong ? '\n' : 12);  // cast to remove const from macro result
+                  ((char *) PI_GET_STR_BY_OFF(pPi, off))[1] = 0;
                   off += 1;
                }
                if (hasLong)
                {
                   if (hasShort == FALSE)
                   {
-                     PI_GET_STR_BY_OFF(pPi, off)[0] = '\n';
+                     ((char *) PI_GET_STR_BY_OFF(pPi, off))[0] = '\n';
                      off += 1;
                   }
 
-                  strcpy(PI_GET_STR_BY_OFF(pPi, off), PI_GET_LONG_INFO(&pFoundBlocks[actIdx]->blk.pi));
+                  strcpy((char*)PI_GET_STR_BY_OFF(pPi, off), PI_GET_LONG_INFO(&pFoundBlocks[actIdx]->blk.pi));
                   off += strlen(PI_GET_STR_BY_OFF(pPi, off));
 
-                  PI_GET_STR_BY_OFF(pPi, off)[0] = 12;
-                  PI_GET_STR_BY_OFF(pPi, off)[1] = 0;
+                  ((char *) PI_GET_STR_BY_OFF(pPi, off))[0] = 12;
+                  ((char *) PI_GET_STR_BY_OFF(pPi, off))[1] = 0;
                   off += 1;
                }
             }
@@ -463,6 +461,7 @@ void EpgDbMergeAllPiBlocks( PDBC dbc )
    EPGDB_BLOCK *pBlock;
    EPGDB_BLOCK *pPrevNetwopBlock[MAX_NETWOP_COUNT];
    time_t firstStartTime, firstStopTime, minStartTime;
+   time_t now;
    uchar  netwop, minMappedNetwop, firstNetwop;
    uint dbCount, dbIdx;
 
@@ -475,6 +474,7 @@ void EpgDbMergeAllPiBlocks( PDBC dbc )
    {
       pNextBlock[dbIdx] = dbmc->pDbContext[dbIdx]->pFirstPi;
    }
+   now = time(NULL);
 
    // loop until all PI blocks are processed
    while (1)
@@ -487,8 +487,9 @@ void EpgDbMergeAllPiBlocks( PDBC dbc )
       {
          // skip PI before the minimum start time
          pBlock = pNextBlock[dbIdx];
-         while( (pBlock != NULL) &&
-                (pBlock->blk.pi.start_time < minStartTime) )
+         while ( (pBlock != NULL) &&
+                 ( (pBlock->blk.pi.start_time < minStartTime) ||
+                   (pBlock->blk.pi.stop_time < now) ) )
          {
             pBlock = pBlock->pNextBlock;
          }
@@ -670,9 +671,11 @@ void EpgDbMergeInsertPi( EPGDB_MERGE_CONTEXT * dbmc, EPGDB_BLOCK * pNewBlock )
 {
    EPGDB_BLOCK *pFoundBlocks[MAX_MERGED_DB_COUNT];
    EPGDB_BLOCK *pWalk, *pPrev, *pNext;
+   time_t now = time(NULL);
 
    // find equivalent blocks in all other dbs and check for conflicts with higher-priorized PI
-   if ( EpgDbMergeGetPiEquivs(dbmc, pNewBlock, pFoundBlocks) )
+   if ( (pNewBlock->blk.pi.stop_time >= now) &&
+        EpgDbMergeGetPiEquivs(dbmc, pNewBlock, pFoundBlocks) )
    {
       // merge the found blocks
       pNewBlock = EpgDbMergePiBlocks(pUiDbContext, pFoundBlocks);
@@ -729,7 +732,9 @@ void EpgDbMergeInsertPi( EPGDB_MERGE_CONTEXT * dbmc, EPGDB_BLOCK * pNewBlock )
       // if blocks were removed, re-evaluate scrollbar position
       PiListBox_DbRecount(pUiDbContext);
 
-      StatsWin_NewPi(pUiDbContext, &pNewBlock->blk.pi, pNewBlock->stream);
+      // append the block's covered time range to the PI timescale queue
+      if (dbmc->tscEnable)
+         EpgTscQueue_AddPi(&dbmc->tscQueue, pUiDbContext, &pNewBlock->blk.pi, pNewBlock->stream);
    }
 }
 
@@ -751,7 +756,7 @@ void EpgDbMerge_ResetPiVersion( PDBC dbc, uint dbIdx )
    pBlock = dbc->pFirstPi;
    while (pBlock != NULL)
    {
-      pDesc = PI_GET_DESCRIPTORS(&pBlock->blk.pi);
+      pDesc = (DESCRIPTOR *) PI_GET_DESCRIPTORS(&pBlock->blk.pi);
       for (idx = pBlock->blk.pi.no_descriptors; idx > 0; idx--, pDesc++)
       {
          if ((pDesc->type == MERGE_DESCR_TYPE) && (pDesc->id == dbIdx))
@@ -773,7 +778,8 @@ static uchar * EpgDbMergeAiServiceNames( EPGDB_MERGE_CONTEXT * dbmc )
    static const uchar * const mergedServiceName = "Merged database (";
    AI_BLOCK  * pAi;
    uint dbIdx, len;
-   uchar *mergeName, *name;
+   const uchar *name;
+   uchar *mergeName;
 
    // sum up netwop name lens
    len = strlen(mergedServiceName) + 5;
@@ -808,62 +814,102 @@ static uchar * EpgDbMergeAiServiceNames( EPGDB_MERGE_CONTEXT * dbmc )
 // - during the very first merge the network list is always empty, because the
 //   user hasn't had a chance to invoke the network selection -> must include
 //   all CNIs of all providers
+// - XXX must not use passed netwop list to build new netwop list - might be too short!
 //
-void EpgDbMergeAiBlocks( PDBC dbc, uint netwopCount, uint * pNetwopList )
+void EpgDbMergeAiBlocks( PDBC dbc, uint cfNetwopCount, uint * pNetwopList )
 {
    EPGDB_MERGE_CONTEXT * dbmc;
-   AI_BLOCK  * pAi, * pTargetAi;
-   AI_NETWOP * pNetwops, * pTargetNetwops;
+   const AI_BLOCK  * pAi;
+   const AI_NETWOP * pNetwops;
+   AI_BLOCK  * pTargetAi;
+   AI_NETWOP * pTargetNetwops;
    uint netwop, dbIdx, idx;
-   bool  useAllNetwops;
+   bool  found;
    uchar netOrigIdx[MAX_NETWOP_COUNT];
    uchar * pServiceName;          // temporarily holds merged service name
    uint nameLen;                  // sum of netwop name lengths
    uint blockLen;                 // length of composed AI block
+   uint netwopCount;              // number of CNIs in merged netwop table
    uint dbCount;
+   uint cni;
 
    // determine number of netwops in merged db
    dbmc = dbc->pMergeContext;
    dbCount = dbmc->dbCount;
    nameLen = 0;
-   if (netwopCount > MAX_NETWOP_COUNT)
-      netwopCount = MAX_NETWOP_COUNT;
+   if (cfNetwopCount > MAX_NETWOP_COUNT)
+      cfNetwopCount = MAX_NETWOP_COUNT;
    memset(netOrigIdx, 0xff, sizeof(netOrigIdx));
-
-   // if empty CNI preselection is given, all CNIs of all providers are included (initial merge)
-   useAllNetwops = (netwopCount == 0);
 
    for (dbIdx=0; dbIdx < dbCount; dbIdx++)
    {
-      pAi = (AI_BLOCK *) &dbmc->pDbContext[dbIdx]->pAiBlock->blk.ai;
-      pNetwops = AI_GET_NETWOPS(pAi);
       memset(dbmc->revNetwopMap[dbIdx], 0xff, sizeof(dbmc->revNetwopMap[0]));
       memset(dbmc->netwopMap[dbIdx], 0xff, sizeof(dbmc->netwopMap[0]));
+   }
 
-      for (netwop=0; netwop < pAi->netwopCount; netwop++)
+   if (cfNetwopCount == 0)
+   {  // user-configured netwop table is empty -> build one of all CNIs in all AIs
+      for (dbIdx=0; dbIdx < dbCount; dbIdx++)
       {
-         // search through the list of requested CNIs for this network
-         for (idx=0; idx < netwopCount; idx++)
-            if (pNetwopList[idx] == pNetwops[netwop].cni)
-               break;
+         pAi = (AI_BLOCK *) &dbmc->pDbContext[dbIdx]->pAiBlock->blk.ai;
+         pNetwops = AI_GET_NETWOPS(pAi);
 
-         if (useAllNetwops && (idx >= netwopCount) && (netwopCount < MAX_NETWOP_COUNT))
-         {  // initial merge & CNI not yet in the CNI list -> append it
-            pNetwopList[netwopCount] = pNetwops[netwop].cni;
-            netwopCount += 1;
-         }
-
-         if (idx < netwopCount)
+         for (netwop=0; netwop < pAi->netwopCount; netwop++, pNetwops++)
          {
-            if (netOrigIdx[idx] == 0xff)
-            {  // first db with that CNI -> copy params from here
-               netOrigIdx[idx] = dbIdx;
-               nameLen += strlen(AI_GET_STR_BY_OFF(pAi, pNetwops[netwop].off_name)) + 1;
+            // check if the CNI already is in the generated table
+            for (idx=0; idx < cfNetwopCount; idx++)
+               if (pNetwops->cni == pNetwopList[idx])
+                  break;
+
+            if ((idx == cfNetwopCount) && (cfNetwopCount < MAX_NETWOP_COUNT))
+            {
+               pNetwopList[cfNetwopCount] = pNetwops->cni;
+               cfNetwopCount += 1;
             }
-            dbmc->netwopMap[dbIdx][netwop] = idx;
-            dbmc->revNetwopMap[dbIdx][idx] = netwop;
          }
       }
+   }
+
+   netwopCount = 0;
+   for (idx=0; idx < cfNetwopCount; idx++)
+   {
+      found = FALSE;
+      cni = pNetwopList[idx];
+      // check if the same CNI already was in the list
+      for (netwop=0; netwop < netwopCount; netwop++)
+         if (pNetwopList[netwop] == cni)
+            break;
+      // check if it's a valid CNI
+      if ((netwop >= netwopCount) && (cni != 0) && (cni != 0x00ff) &&
+          (netwopCount < MAX_NETWOP_COUNT))
+      {
+         for (dbIdx=0; dbIdx < dbCount; dbIdx++)
+         {
+            pAi = (AI_BLOCK *) &dbmc->pDbContext[dbIdx]->pAiBlock->blk.ai;
+            pNetwops = AI_GET_NETWOPS(pAi);
+            for (netwop=0; netwop < pAi->netwopCount; netwop++, pNetwops++)
+               if (pNetwops->cni == cni)
+                  break;
+            if (netwop < pAi->netwopCount)
+            {  // found
+               if (found == FALSE)
+               {  // first db with that CNI -> copy params from here
+                  assert(netOrigIdx[netwopCount] == 0xff);
+                  netOrigIdx[netwopCount] = dbIdx;
+                  nameLen += strlen(AI_GET_STR_BY_OFF(pAi, pNetwops->off_name)) + 1;
+
+                  pNetwopList[netwopCount] = cni;
+                  found = TRUE;
+               }
+               dbmc->netwopMap[dbIdx][netwop] = netwopCount;
+               dbmc->revNetwopMap[dbIdx][netwopCount] = netwop;
+            }
+         }
+         if (found)
+            netwopCount += 1;
+      }
+      // if the CNI is in none of the databases, it's skipped
+      ifdebug1(found == FALSE, "EpgDb-MergeAiBlocks: skipping CNI 0x%04X", cni);
    }
 
    // merge service names
@@ -881,18 +927,17 @@ void EpgDbMergeAiBlocks( PDBC dbc, uint netwopCount, uint * pNetwopList )
    memcpy(pTargetAi, &dbmc->pDbContext[0]->pAiBlock->blk.ai, sizeof(AI_BLOCK));
    pTargetAi->off_netwops = sizeof(AI_BLOCK);
    pTargetAi->netwopCount = netwopCount;
-   pTargetAi->serviceNameLen = strlen(pServiceName);
    pTargetAi->version     = 1;
    pTargetAi->version_swo = 1;
    blockLen = sizeof(AI_BLOCK) + netwopCount * sizeof(AI_NETWOP);
 
    // append service name
    pTargetAi->off_serviceNameStr = blockLen;
-   strcpy(AI_GET_STR_BY_OFF(pTargetAi, blockLen), pServiceName);
+   strcpy((char *)AI_GET_STR_BY_OFF(pTargetAi, blockLen), pServiceName);
    blockLen += strlen(pServiceName) + 1;
 
    // append netwop structs and netwop names
-   pTargetNetwops = AI_GET_NETWOPS(pTargetAi);
+   pTargetNetwops = (AI_NETWOP *) AI_GET_NETWOPS(pTargetAi);
    memset(pTargetNetwops, 0, netwopCount * sizeof(AI_NETWOP));
 
    for (netwop=0; netwop < netwopCount; netwop++)
@@ -900,20 +945,24 @@ void EpgDbMergeAiBlocks( PDBC dbc, uint netwopCount, uint * pNetwopList )
       dbIdx = netOrigIdx[netwop];
       if (dbIdx != 0xff)
       {
+         pAi = (AI_BLOCK *) &dbmc->pDbContext[dbIdx]->pAiBlock->blk.ai;
          idx = dbmc->revNetwopMap[dbIdx][netwop];
-         if (idx != 0xff)
+         if (idx < pAi->netwopCount)
          {
-            pAi = (AI_BLOCK *) &dbmc->pDbContext[dbIdx]->pAiBlock->blk.ai;
             pNetwops = AI_GET_NETWOP_N(pAi, idx);
+            assert(pNetwops->cni == pNetwopList[netwop]);
 
             pTargetNetwops[netwop].cni      = pNetwops->cni;
             pTargetNetwops[netwop].alphabet = pNetwops->alphabet;
-            pTargetNetwops[netwop].nameLen  = pNetwops->nameLen;
             pTargetNetwops[netwop].off_name = blockLen;
-            strcpy(AI_GET_STR_BY_OFF(pTargetAi, blockLen), AI_GET_STR_BY_OFF(pAi, pNetwops->off_name));
+            strcpy((char *) AI_GET_STR_BY_OFF(pTargetAi, blockLen), AI_GET_STR_BY_OFF(pAi, pNetwops->off_name));
             blockLen += strlen(AI_GET_STR_BY_OFF(pAi, pNetwops->off_name)) + 1;
          }
+         else
+            fatal4("EpgDb-MergeAiBlocks: netwop %d (CNI 0x%04X) mapped to illegal netwop %d in db #%d", netwop, pNetwopList[netwop], idx, dbIdx);
       }
+      else
+         fatal2("EpgDb-MergeAiBlocks: netwop %d (CNI 0x%04X) not mapped", netwop, pNetwopList[netwop]);
    }
    xfree(pServiceName);
 }

@@ -24,10 +24,11 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pilistbox.c,v 1.62 2001/08/31 17:00:44 tom Exp tom $
+ *  $Id: pilistbox.c,v 1.65 2002/02/28 19:17:55 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
+#define DEBUG_PILISTBOX_CONSISTANCY OFF
 #define DPRINTF_OFF
 
 #include <time.h>
@@ -43,8 +44,6 @@
 #include "epgdb/epgblock.h"
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
-#include "epgdb/epgdbsav.h"
-#include "epgdb/epgdbmerge.h"
 #include "epgctl/epgacqctl.h"
 #include "epgui/epgmain.h"
 #include "epgui/uictrl.h"
@@ -80,6 +79,7 @@ int         pibox_curpos;        // relative cursor position in window or -1 if 
 int         pibox_max;           // total number of matching items
 int         pibox_off;           // number of currently invisible items above the window
 bool        pibox_resync;        // if TRUE, need to evaluate off and max
+bool        pibox_lock;          // if TRUE, refuse additions from acq
 PIBOX_STATE pibox_state = PIBOX_NOT_INIT;  // listbox state
 EPGDB_STATE pibox_dbstate;       // database state
 
@@ -91,7 +91,7 @@ EPGDB_STATE pibox_dbstate;       // database state
 //   raises a SEGV (developer release), adds a message to EPG.LOG (tester release)
 //   or is ignored (production release). For more details, see debug.[ch]
 //
-#if DEBUG_SWITCH == ON
+#if DEBUG_PILISTBOX_CONSISTANCY == ON
 static bool PiListBox_ConsistancyCheck( void )
 {
    const PI_BLOCK *pPiBlock;
@@ -171,7 +171,9 @@ static bool PiListBox_ConsistancyCheck( void )
 
    return TRUE;  //dummy for assert()
 }
-#endif //DEBUG_SWITCH == ON
+#else // DEBUG_PILISTBOX_CONSISTANCY == OFF
+#define PiListBox_ConsistancyCheck() TRUE
+#endif
 
 // ----------------------------------------------------------------------------
 // Update the listbox state according to database and acq state
@@ -285,6 +287,17 @@ void PiListBox_UpdateState( EPGDB_STATE newDbState )
             eval_check(interp, comm);
             break;
 
+         case EPGDB_ACQ_WAIT_DAEMON:
+            pibox_state = PIBOX_MESSAGE;
+            sprintf(comm, "PiListBox_PrintHelpHeader {"
+                          "The database of the currently selected provider is empty. "
+                          "The acquisition daemon is currently working on a different provider. "
+                          "Either change the daemon's acquisition mode to \"Follow-UI\" "
+                          "or select a different provider from the Configure menu."
+                          "\n}\n");
+            eval_check(interp, comm);
+            break;
+
          case EPGDB_ACQ_OTHER_PROV:
             pibox_state = PIBOX_MESSAGE;
             sprintf(comm, "PiListBox_PrintHelpHeader {"
@@ -329,7 +342,7 @@ void PiListBox_UpdateState( EPGDB_STATE newDbState )
       }
 
       if (pibox_dbstate != EPGDB_OK)
-      {
+      {  // reset the listbox scrollbar and clear the short-info text field
          sprintf(comm, ".all.pi.list.sc set 0.0 1.0\n"
                        ".all.pi.info.text configure -state normal\n"
                        ".all.pi.info.text delete 1.0 end\n"
@@ -1396,7 +1409,7 @@ void PiListBox_DbInserted( const EPGDB_CONTEXT *usedDbc, const PI_BLOCK *pPiBloc
       return;
    }
 
-   if (pPiFilterContext->enabledFilters & FILTER_PROGIDX)
+   if ((pPiFilterContext->enabledFilters & FILTER_PROGIDX) || pibox_lock)
    {  // when progidx filter is used insertion is too complicated, hence do complete refresh
       pibox_resync = TRUE;
       return;
@@ -1564,7 +1577,7 @@ void PiListBox_DbPostUpdate( const EPGDB_CONTEXT *usedDbc, const PI_BLOCK *pObso
 
    if ((pibox_state == PIBOX_LIST) && (usedDbc == dbc))
    {
-      if (pPiFilterContext->enabledFilters & FILTER_PROGIDX)
+      if ((pPiFilterContext->enabledFilters & FILTER_PROGIDX) || pibox_lock)
       {  // when progidx filter is used check is too complicated, hence do complete refresh
          pibox_resync = TRUE;
       }
@@ -1736,7 +1749,7 @@ void PiListBox_DbRecount( const EPGDB_CONTEXT *usedDbc )
 {
    const PI_BLOCK *pPrev, *pNext;
 
-   if ((pibox_state == PIBOX_LIST) && (usedDbc == dbc) && pibox_resync)
+   if ((pibox_state == PIBOX_LIST) && (usedDbc == dbc) && pibox_resync && (pibox_lock == FALSE))
    {
       pibox_resync = FALSE;
 
@@ -1845,6 +1858,22 @@ void PiListBox_UpdateNowItems( void )
          PiListBox_DbRecount(dbc);
       }
       #endif
+   }
+}
+
+// ----------------------------------------------------------------------------
+// Lock/Unlock the direct link between listbox and acquisition
+//
+void PiListBox_Lock( bool lock )
+{
+   if (lock)
+   {
+      pibox_lock = TRUE;
+   }
+   else
+   {
+      pibox_lock = FALSE;
+      PiListBox_Refresh();
    }
 }
 

@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgscan.h,v 1.6 2001/06/10 08:32:58 tom Exp tom $
+ *  $Id: epgscan.h,v 1.8 2002/01/02 17:07:00 tom Exp tom $
  */
 
 #ifndef __EPGSCAN_H
@@ -27,6 +27,7 @@
 typedef enum
 {
    EPGSCAN_OK,                  // no error
+   EPGSCAN_INTERNAL,            // internal error
    EPGSCAN_ACCESS_DEV_VIDEO,    // failed to set input source or tuner freq
    EPGSCAN_ACCESS_DEV_VBI,      // failed to start acq
    EPGSCAN_NO_TUNER,            // input source is not a TV tuner
@@ -51,9 +52,9 @@ typedef enum
 // ---------------------------------------------------------------------------
 // Interface to main control module and user interface
 //
-EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool doRefresh,
-                                    ulong *freqTab, uint freqCount, uint * pRescheduleMs,
-                                    void (* MsgCallback)(const char * pMsg) );
+EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv, bool doRefresh,
+                                    uint *cniTab, ulong *freqTab, uint freqCount,
+                                    uint * pRescheduleMs, void (* MsgCallback)(const char * pMsg) );
 uint EpgScan_EvHandler( void );
 void EpgScan_Stop( void );
 void EpgScan_ProcessPackets( void );

@@ -5,6 +5,31 @@ boost any item's priority, find more points that need to be fixed or if
 you have ideas for additional features.
 
 
+daemon:
+- make concurrent updates of shared rc file safe (e.g. daemon writes provider freq)
+  or use a different rc for acq parameters; currently data can be lost!
+- when dump is aborted, keep the old modification time on client-side
+- VPS: trigger check device access via remove cmd (upon xawtv start/exit)
+- limit queue max length on server side (e.g. when bandwidth too low
+  or client hangs)
+- client-side db mgmt during dump state: lock merge & PI listbox?
+options:
+- cmdline option -nodbdir: suck the complete db through the pipe
+- avoid copying each forwarded EPG block for each client
+
+misc:
+- epgdbmerge.c: AI merge: design fixes (don't modify caller's CNI array)
+- advance ranges of expired PI in timescale popup every minute
+- epgblock.h: make use of latest additions
+- merge db: remove expired PI from db every minute
+- netwop name config: counts names to "automatic selection"
+  even if there was just one provider (or just one with that netwop)
+  note: no xawtv sync is done, so it must only appear if there's more than one provider
+
+
+Bugs reported by Jan:
+- sometimes falsely detected "forced passive" after acq cycle advance
+
 xawtv patches (Gerd Knorr)
 - vtx: ESC codes for proportional font and possibly centering
 - vtx: remove subtitles upon channel changes
@@ -19,9 +44,10 @@ nxtvepg xawtv.c:
 - VPS empty/pause codes display
 
 WIN32 port fixes:
+- should replace WinDriver, e.g. by DScaler driver (GPL)  However: Dscaler does
+  NOT work on my system! (hangs up, maybe due to 2nd TV card?)
 - input source naming needs to be configurable for exotic cards
 - dump stream feature: must use window or file instead of stdout
-- catch exceptions in VBI thread separately (anyone still seeing blue-screens?)
 - need to debug source of crash in MessageBox()
 - better workaround for dynamic menus needed
 
@@ -34,11 +60,20 @@ merged database fixes:
   break up into substrings at any non-alnum except space
 
 other required fixes:
+- during very bad reception acq restarts every 2-4 secs
+  due to ttx page header decoding error (falsely detected channel change)
+- AdvanceCyclePhase: limit number of tries to update provider (first "if")
+- improve VBI/TTX decoder: use code from aletv
+- improve streams decoder hamming error handling: assemble AI block
+  from multiple instances if neccessary
+- add decoding error statistics to epgdbacq (e.g. # of dropped blocks)
+- external mode & tuner input source -> nonsense as status output
 - fix: obsolete series codes can not be deleted, because only series which
   have an instance in the db are listed in the series menu
+- fix: series filter uses netwop index; in a merged db when the netwop
+  selection is changed the indices change -> shortcuts with series useless
+  must use CNI instead of netwop index in shortcuts
 - startup: if nxtvepg version is incompatible don't recommend prov selection
-- limit number of error/warning popups for database reload errors
-  or combine several CNIs into one popup
 - allow to set input source via /dev/vbi (bttv version >= 0.7.5x)
 - cmd line option "predatory": in this mode the tuner is set via /dev/vbi
   regardless of other /dev/video users
@@ -50,14 +85,15 @@ other required fixes:
   + acq abort: slave should pass errno as reason via shmem
   + sigchld -> acq off
   + check parent every 30 sec, also when no ttx reception
-- debugging: make serious debugX events fatal (developers only)
 
 possible new features: (in order of decreasing priority)
+- wheel mouse: make scroll speed configurable
+- network selection: allow to specify time windows, e.g. for ARTE 19:00-06:00
+- additional dump format: as text with TABS as separators
 - bookmarks with multiple priority levels and reminders for bookmarks above
   an adjustable priority level (raise popup or dispatch external app.)
 - series management based on titles only, across all networks
 - use GTK+ or Tix library to improve GUI
-- daemon mode without GUI (for background acq while all users are logged out)
 - allow multiple acquisition and GUI clients, possibly on different hosts
 - export database content via HTTP
 - export database content to mysql server

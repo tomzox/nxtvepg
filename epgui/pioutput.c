@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pioutput.c,v 1.9 2001/09/12 19:26:54 tom Exp tom $
+ *  $Id: pioutput.c,v 1.13 2002/02/03 19:27:37 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -46,6 +46,7 @@
 #include "epgdb/epgblock.h"
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
+#include "epgdb/epgtscqueue.h"
 #include "epgdb/epgdbmerge.h"
 #include "epgui/epgmain.h"
 #include "epgui/pdc_themes.h"
@@ -407,6 +408,7 @@ int PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, uint idx, char * outstr
                   {  // ignore theme class
                      theme = pPiBlock->themes[themeIdx];
                      if ( (theme < 0x80) &&
+                          (pdc_themes[theme] != NULL) &&
                           ((pPiFilterContext->themeFilterField[theme] & pPiFilterContext->usedThemeClasses) == 0) )
                      {
                         break;
@@ -416,7 +418,25 @@ int PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, uint idx, char * outstr
                      themeIdx = 0;
                }
                else
-                  themeIdx = 0;
+               {  // no filter enabled -> select the "most significant" theme: lowest PDC index
+                  uint minThemeIdx = PI_MAX_THEME_COUNT;
+                  for (themeIdx=0; themeIdx < pPiBlock->no_themes; themeIdx++)
+                  {
+                     theme = pPiBlock->themes[themeIdx];
+                     if ( (theme >= 0x80) || (pdc_themes[theme] != NULL) )
+                     {
+                        if ( (minThemeIdx == PI_MAX_THEME_COUNT) ||
+                             (theme < pPiBlock->themes[minThemeIdx]) )
+                        {
+                           minThemeIdx = themeIdx;
+                        }
+                     }
+                  }
+                  if (minThemeIdx < pPiBlock->no_themes)
+                     themeIdx = minThemeIdx;
+                  else
+                     themeIdx = 0;
+               }
 
                if (pPiBlock->themes[themeIdx] >= 0x80)
                {  // series
@@ -610,7 +630,8 @@ static uint PiOutput_UnifyMergedInfo( uchar ** infoStrTab, uint infoCount )
 //
 static uint PiOutput_SeparateMergedInfo( const PI_BLOCK * pPiBlock, uchar ** infoStrTab )
 {
-   uchar c, *p, *ps, *pl, *pt;
+   const char *p, *ps, *pl, *pt;
+   uchar c;
    int   shortInfoLen, longInfoLen, len;
    uint  count;
 
@@ -964,10 +985,10 @@ static void PiOutput_HtmlDesc( FILE *fp, const PI_BLOCK * pPiBlock, const AI_BLO
    const uchar *pCfNetname;
    uchar date_str[20], start_str[20], stop_str[20], cni_str[7], label_str[50];
 
-   strftime(date_str, 19, " %a %d.%m", localtime(&pPiBlock->start_time));
-   strftime(start_str, 19, "%H:%M", localtime(&pPiBlock->start_time));
-   strftime(stop_str, 19, "%H:%M", localtime(&pPiBlock->stop_time));
-   strftime(label_str, 19, "%Y%d%m%H%M", localtime(&pPiBlock->start_time));
+   strftime(date_str, sizeof(date_str), " %a %d.%m", localtime(&pPiBlock->start_time));
+   strftime(start_str, sizeof(start_str), "%H:%M", localtime(&pPiBlock->start_time));
+   strftime(stop_str, sizeof(stop_str), "%H:%M", localtime(&pPiBlock->stop_time));
+   strftime(label_str, sizeof(label_str), "%Y%d%m%H%M", localtime(&pPiBlock->start_time));
 
    sprintf(cni_str, "0x%04X", AI_GET_NETWOP_N(pAiBlock, pPiBlock->netwop_no)->cni);
    pCfNetname = Tcl_GetVar2(interp, "cfnetnames", cni_str, TCL_GLOBAL_ONLY);
@@ -1074,7 +1095,8 @@ typedef enum
 //
 static void HtmlFileCreate( const char * pFileName, bool optAppend, FILE ** fppSrc, FILE ** fppDst, const AI_BLOCK * pAiBlock )
 {
-   char * pBakName, *po, *ps;
+   const char *ps;
+   char * pBakName, *po;
    FILE *fpSrc, *fpDst;
    time_t now;
    bool abort = FALSE;
@@ -1321,7 +1343,7 @@ static int PiOutput_DumpHtml( ClientData ttp, Tcl_Interp *interp, int argc, char
                      if (optHyperlinks && (pPiboxCols[idx] == PIBOX_COL_TITLE))
                      {  // if requested add hyperlink to the description on the title
                         uchar label_str[50];
-                        strftime(label_str, 19, "%Y%d%m%H%M", localtime(&pPiBlock->start_time));
+                        strftime(label_str, sizeof(label_str), "%Y%d%m%H%M", localtime(&pPiBlock->start_time));
                         fprintf(fpDst, "<A HREF=\"#TITLE_0x%04X_%s\">\n", AI_GET_NETWOP_N(pAiBlock, pPiBlock->netwop_no)->cni, label_str);
                      }
                      PiOutput_PrintColumnItem(pPiBlock, idx, comm);
@@ -1426,8 +1448,8 @@ static int PiOutput_PopupPi( ClientData ttp, Tcl_Interp *interp, int argc, char 
          sprintf(comm, "%s.text insert end {BlockNo:\t0x%04X in %04X-%04X-%04X\n} body\n", ident, pPiBlock->block_no, pNetwop->startNo, pNetwop->stopNo, pNetwop->stopNoSwo);
          eval_check(interp, comm);
 
-         strftime(start_str, 49, "%a %d.%m %H:%M", localtime(&pPiBlock->start_time));
-         strftime(stop_str, 49, "%a %d.%m %H:%M", localtime(&pPiBlock->stop_time));
+         strftime(start_str, sizeof(start_str), "%a %d.%m %H:%M", localtime(&pPiBlock->start_time));
+         strftime(stop_str, sizeof(stop_str), "%a %d.%m %H:%M", localtime(&pPiBlock->stop_time));
          sprintf(comm, "%s.text insert end {Start:\t%s\nStop:\t%s\n} body\n", ident, start_str, stop_str);
          eval_check(interp, comm);
 
@@ -1779,9 +1801,6 @@ static int PiOutput_ExecUserCmd( ClientData ttp, Tcl_Interp *interp, int argc, c
    char ** userCmds;
    char *ps, *pe, *pa;
    int  idx, userCmdCount;
-   #ifndef WIN32
-   void (*oldSigHandler)(int);
-   #endif
    int  result;
 
    if (argc != 2) 
@@ -1856,17 +1875,12 @@ static int PiOutput_ExecUserCmd( ClientData ttp, Tcl_Interp *interp, int argc, c
                // XXX how does this work on Windows?
                #ifndef WIN32
                PiOutput_ExtCmdAppendChar('&', &cmdbuf);
-               oldSigHandler = signal(SIGCHLD, SIG_IGN);
                #endif
                // finally null-terminate the string
                PiOutput_ExtCmdAppendChar('\0', &cmdbuf);
 
                // execute the command
                system(cmdbuf.strbuf);
-
-               #ifndef WIN32
-               signal(SIGCHLD, oldSigHandler);
-               #endif
             }
             else
                debug1("PiOutput-ExecUserCmd: user cmd #%d not found", idx);

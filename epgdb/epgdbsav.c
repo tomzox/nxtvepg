@@ -29,7 +29,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbsav.c,v 1.40 2001/11/02 23:47:56 tom Exp tom $
+ *  $Id: epgdbsav.c,v 1.45 2002/02/13 21:02:28 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -94,7 +94,7 @@ static bool EpgDbDumpHeader( CPDBC dbc, int fd )
       header.pageNo = dbc->pageNo;
       header.tunerFreq = dbc->tunerFreq;
       header.appId = dbc->appId;
-      header.lastAiUpdate = dbc->lastAiUpdate;
+      header.lastAiUpdate = dbc->pAiBlock->acqTimestamp;
 
       if (dbc->pFirstPi != NULL)
          header.firstPiDate = dbc->pFirstPi->blk.pi.start_time;
@@ -247,65 +247,13 @@ bool EpgDbDump( PDBC dbc )
 }
 
 // ---------------------------------------------------------------------------
-// Check reloaded AI block for gross consistancy errors
-//
-static EPGDB_RELOAD_RESULT EpgDbReloadCheckAiBlock( EPGDB_BLOCK * pBlock )
-{
-   EPGDB_RELOAD_RESULT result = EPGDB_RELOAD_CORRUPT;
-   const AI_NETWOP * pNetwop;
-   const uchar *pBlockEnd, *pName;
-   uchar netwop;
-
-   pBlockEnd = (uchar *) pBlock + pBlock->size + BLK_UNION_OFF;
-
-   if ((pBlock->blk.ai.netwopCount == 0) || (pBlock->blk.ai.netwopCount > MAX_NETWOP_COUNT))
-   {
-      debug1("EpgDbReload-CheckAiBlock: illegal netwop count %d", pBlock->blk.ai.netwopCount);
-   }
-   else if (pBlock->blk.ai.thisNetwop >= pBlock->blk.ai.netwopCount)
-   {
-      debug2("EpgDbReload-CheckAiBlock: this netwop %d >= count %d", pBlock->blk.ai.thisNetwop, pBlock->blk.ai.netwopCount);
-   }
-   else if ((uchar *)AI_GET_NETWOP_N(&pBlock->blk.ai, pBlock->blk.ai.netwopCount) > pBlockEnd)
-   {
-      debug1("EpgDbReload-CheckAiBlock: netwop count %d exceeds block length", pBlock->blk.ai.netwopCount);
-   }
-   else if ( (AI_GET_SERVICENAME(&pBlock->blk.ai) >= pBlockEnd) ||
-             (AI_GET_SERVICENAME(&pBlock->blk.ai) + strlen(AI_GET_SERVICENAME(&pBlock->blk.ai)) + 1 > pBlockEnd) )
-   {
-      debug0("EpgDbReload-CheckAiBlock: service name exceeds block size");
-   }
-   else
-   {
-      result = EPGDB_RELOAD_OK;
-
-      // check the name string offsets the netwop array
-      pNetwop = AI_GET_NETWOPS(&pBlock->blk.ai);
-      for (netwop=0; netwop < pBlock->blk.ai.netwopCount; netwop++, pNetwop++)
-      {
-         pName = AI_GET_STR_BY_OFF(&pBlock->blk.ai, pNetwop->off_name);
-         if ( (pName >= pBlockEnd) ||
-              (pName + strlen(pName) + 1 > pBlockEnd) )
-         {
-            debug1("EpgDbReload-CheckAiBlock: netwop name #%d exceeds block size", netwop);
-            result = EPGDB_RELOAD_CORRUPT;
-            break;
-         }
-      }
-   }
-
-   return result;
-}
-
-// ---------------------------------------------------------------------------
 // Add a loaded AI block to the database
 //
 static EPGDB_RELOAD_RESULT EpgDbReloadAddAiBlock( PDBC dbc, EPGDB_BLOCK * pBlock )
 {
    EPGDB_RELOAD_RESULT result;
 
-   result = EpgDbReloadCheckAiBlock(pBlock);
-   if (result == EPGDB_RELOAD_OK)
+   if ( EpgBlockCheckConsistancy(pBlock) )
    {
       if (dbc->pAiBlock == NULL)
       {
@@ -315,16 +263,19 @@ static EPGDB_RELOAD_RESULT EpgDbReloadAddAiBlock( PDBC dbc, EPGDB_BLOCK * pBlock
          pBlock->pPrevNetwopBlock = NULL;
 
          dbc->pAiBlock = pBlock;
-         result = EPGDB_RELOAD_OK;
       }
       else
       {
          debug2("EpgDbReload-AddAiBlock: prov=0x%04X: AI block already exists - new CNI 0x%04X", AI_GET_CNI(&dbc->pAiBlock->blk.ai), AI_GET_CNI(&pBlock->blk.ai));
          xfree(pBlock);
       }
+      result = EPGDB_RELOAD_OK;
    }
    else
+   {
       xfree(pBlock);
+      result = EPGDB_RELOAD_CORRUPT;
+   }
 
    return result;
 }
@@ -337,9 +288,9 @@ static EPGDB_RELOAD_RESULT EpgDbReloadAddGenericBlock( PDBC dbc, EPGDB_BLOCK *pB
    EPGDB_BLOCK *pPrev;
    uint  blockCount;
    uint  block_no;
-   EPGDB_RELOAD_RESULT result = EPGDB_RELOAD_CORRUPT;
+   EPGDB_RELOAD_RESULT result;
 
-   if (pBlock->type < BLOCK_TYPE_GENERIC_COUNT)
+   if ( EpgBlockCheckConsistancy(pBlock) )
    {
       block_no = pBlock->blk.all.block_no;
       blockCount = EpgDbGetGenericMaxCount(dbc, pBlock->type);
@@ -352,20 +303,18 @@ static EPGDB_RELOAD_RESULT EpgDbReloadAddGenericBlock( PDBC dbc, EPGDB_BLOCK *pB
             pBlock->pNextBlock = NULL;
             dbc->pFirstGenericBlock[pBlock->type] = pBlock;
             pPrevGeneric[pBlock->type] = pBlock;
-            result = EPGDB_RELOAD_OK;
          }
          else
          {
             pPrev = pPrevGeneric[pBlock->type];
             assert(pPrev != NULL);
 
-            if ( pPrev->blk.all.block_no < block_no)
+            if (pPrev->blk.all.block_no < block_no)
             {  // blocks are still sorted by increasing block numbers -> append the block
                //dprintf3("RELOAD GENERIC type=%d ptr=%lx: blockno=%d\n", type, (ulong)pBlock, block_no);
                pBlock->pNextBlock = NULL;
                pPrev->pNextBlock = pBlock;
                pPrevGeneric[pBlock->type] = pBlock;
-               result = EPGDB_RELOAD_OK;
             }
             else
             {  // unexpected block number - refuse (should never happen, since blocks are dumped sorted)
@@ -380,60 +329,13 @@ static EPGDB_RELOAD_RESULT EpgDbReloadAddGenericBlock( PDBC dbc, EPGDB_BLOCK *pB
          xfree(pBlock);
       }
       //assert(EpgDbCheckChains());
+      result = EPGDB_RELOAD_OK;
    }
    else
    {
-      debug3("EpgDbReload-AddGenericBlock: prov=0x%04X: invalid type %d or block_no %d", AI_GET_CNI(&dbc->pAiBlock->blk.ai), pBlock->type, pBlock->blk.all.block_no);
+      result = EPGDB_RELOAD_CORRUPT;
       xfree(pBlock);
    }
-   return result;
-}
-
-// ---------------------------------------------------------------------------
-// Check reloaded PI block for gross consistancy errors
-//
-static EPGDB_RELOAD_RESULT EpgDbReloadCheckPiBlock( EPGDB_BLOCK * pBlock )
-{
-   EPGDB_RELOAD_RESULT result = EPGDB_RELOAD_CORRUPT;
-   const PI_BLOCK * pPi = &pBlock->blk.pi;
-   uchar *pBlockEnd;
-
-   pBlockEnd = (uchar *) pBlock + pBlock->size + BLK_UNION_OFF;
-
-   if (pPi->no_themes > PI_MAX_THEME_COUNT)
-   {
-      debug1("EpgDbReload-CheckPiBlock: illegal theme count %d", pPi->no_themes);
-   }
-   else if (pPi->no_sortcrit > PI_MAX_SORTCRIT_COUNT)
-   {
-      debug1("EpgDbReload-CheckPiBlock: illegal sortcrit count %d", pPi->no_sortcrit);
-   }
-   else if (pPi->off_title == 0)
-   {
-      debug0("EpgDbReload-CheckPiBlock: has no title");
-   }
-   #if 0
-   // these tests are too time consuming and the other tests should be safe enough
-   else if ( PI_HAS_SHORT_INFO(pPi) &&
-             ( (pStr = PI_GET_SHORT_INFO(pPi) >= pBlockEnd) ||
-               (pStr + strlen(pStr) + 1 > pBlockEnd) ))
-   {
-      debug0("EpgDbReload-CheckPiBlock: short info exceeds block size");
-   }
-   else if ( PI_HAS_LONG_INFO(pPi) &&
-             ( (pStr = PI_GET_LONG_INFO(pPi) >= pBlockEnd) ||
-               (pStr + strlen(pStr) + 1 > pBlockEnd) ))
-   {
-      debug0("EpgDbReload-CheckPiBlock: short info exceeds block size");
-   }
-   #endif
-   else if ( (pPi->no_descriptors > 0) &&
-             ((uchar *)&PI_GET_DESCRIPTORS(pPi)[pPi->no_descriptors] > pBlockEnd) )
-   {
-      debug1("EpgDbReload-CheckPiBlock: descriptor count %d exceeds block length", pPi->no_descriptors);
-   }
-   else
-      result = EPGDB_RELOAD_OK;
 
    return result;
 }
@@ -445,19 +347,18 @@ static EPGDB_RELOAD_RESULT EpgDbReloadAddDefectPiBlock( PDBC dbc, EPGDB_BLOCK * 
 {
    EPGDB_RELOAD_RESULT result;
 
-   result = EpgDbReloadCheckPiBlock(pBlock);
-   if (result == EPGDB_RELOAD_OK)
+   // convert type to normal PI, since the "defect pi" type is known only inside this module
+   pBlock->type = BLOCK_TYPE_PI;
+
+   if ( EpgBlockCheckConsistancy(pBlock) )
    {
       if (pBlock->version == ((pBlock->stream == 0) ? dbc->pAiBlock->blk.ai.version : dbc->pAiBlock->blk.ai.version_swo))
       {
          if ( EpgDbPiBlockNoValid(dbc, pBlock->blk.pi.block_no, pBlock->blk.pi.netwop_no) )
          {
-            // convert type to normal PI, since the "defect pi" type is known only inside this module
-            pBlock->type = BLOCK_TYPE_PI;
             // prepend to list of defect blocks
             pBlock->pNextBlock = dbc->pObsoletePi;
             dbc->pObsoletePi = pBlock;
-            result = EPGDB_RELOAD_OK;
          }
          else
          {
@@ -468,11 +369,14 @@ static EPGDB_RELOAD_RESULT EpgDbReloadAddDefectPiBlock( PDBC dbc, EPGDB_BLOCK * 
       else
       {  // this is not an error, since the PI block may not (yet) have been obsolete when the db was dumped
          xfree(pBlock);
-         result = EPGDB_RELOAD_OK;
       }
+      result = EPGDB_RELOAD_OK;
    }
    else
+   {
       xfree(pBlock);
+      result = EPGDB_RELOAD_CORRUPT;
+   }
 
    return result;
 }
@@ -486,8 +390,7 @@ static EPGDB_RELOAD_RESULT EpgDbReloadAddPiBlock( PDBC dbc, EPGDB_BLOCK * pBlock
    uchar netwop;
    EPGDB_RELOAD_RESULT result;
    
-   result = EpgDbReloadCheckPiBlock(pBlock);
-   if (result == EPGDB_RELOAD_OK)
+   if (EpgBlockCheckConsistancy(pBlock))
    {
       netwop = pBlock->blk.pi.netwop_no;
       if ( EpgDbPiBlockNoValid(dbc, pBlock->blk.pi.block_no, netwop) )
@@ -509,7 +412,6 @@ static EPGDB_RELOAD_RESULT EpgDbReloadAddPiBlock( PDBC dbc, EPGDB_BLOCK * pBlock
                dbc->pFirstPi = pBlock;
                dbc->pLastPi  = pBlock;
                pPrevNetwop[netwop] = pBlock;
-               result = EPGDB_RELOAD_OK;
             }
             else
             if ( ( (pBlock->blk.pi.start_time > dbc->pLastPi->blk.pi.start_time) ||
@@ -539,7 +441,6 @@ static EPGDB_RELOAD_RESULT EpgDbReloadAddPiBlock( PDBC dbc, EPGDB_BLOCK * pBlock
                pBlock->pNextBlock = NULL;
                dbc->pLastPi->pNextBlock = pBlock;
                dbc->pLastPi = pBlock;
-               result = EPGDB_RELOAD_OK;
             }
             else
             {  // unexpected block number or start time -> refuse the block (should never happen)
@@ -559,10 +460,12 @@ static EPGDB_RELOAD_RESULT EpgDbReloadAddPiBlock( PDBC dbc, EPGDB_BLOCK * pBlock
       {  // invalid netwop or blockno
          xfree(pBlock);
       }
+      result = EPGDB_RELOAD_OK;
    }
    else
    {  // PI inconsistant
       xfree(pBlock);
+      result = EPGDB_RELOAD_CORRUPT;
    }
    return result;
 }
@@ -679,7 +582,6 @@ PDBC EpgDbReload( uint cni, EPGDB_RELOAD_RESULT * pResult )
          dbc->pageNo       = head.pageNo;
          dbc->tunerFreq    = head.tunerFreq;
          dbc->appId        = head.appId;
-         dbc->lastAiUpdate = head.lastAiUpdate;
 
          if (epgDemoDb != NULL)
          {  // demo mode: shift all PI in time to the current time and future
@@ -792,7 +694,7 @@ PDBC EpgDbReload( uint cni, EPGDB_RELOAD_RESULT * pResult )
    // upon any errors, destroy the context
    if (result != EPGDB_RELOAD_OK)
    {
-      EpgDbDestroy(dbc);
+      EpgDbDestroy(dbc, FALSE);
       dbc = NULL;
    }
 
@@ -831,12 +733,24 @@ static EPGDB_BLOCK * EpgDbPeekOi( int fd )
             size = read(fd, (uchar *)pBlock + BLK_UNION_OFF, pBlock->size);
             if (size == pBlock->size)
             {
-               if (pBlock->blk.oi.block_no != 0)
+               if (pBlock->blk.oi.block_no == 0)
+               {  // found -> done
+                  pBlock->pNextBlock = NULL;
+               }
+               else
                {  // OI block, but not #0 -> finished (blocks are sorted by increasing blockno)
                   xfree(pBlock);
                   pBlock = NULL;
                }
-               // return the pointer to the block
+
+               // found the block -> check it's consistancy
+               if (EpgBlockCheckConsistancy(pBlock) == FALSE)
+               {
+                  xfree(pBlock);
+                  pBlock = NULL;
+               }
+
+               // done: return the found block or NULL
                break;
             }
             else
@@ -871,35 +785,32 @@ static EPGDB_BLOCK * EpgDbPeekOi( int fd )
 // ---------------------------------------------------------------------------
 // Peek inside a dumped database: retrieve provider info
 //
-const EPGDBSAV_PEEK * EpgDbPeek( uint cni, EPGDB_RELOAD_RESULT * pResult )
+EPGDB_CONTEXT * EpgDbPeek( uint cni, EPGDB_RELOAD_RESULT * pResult )
 {
    EPGDBSAV_HEADER head;
-   EPGDBSAV_PEEK *pPeek;
-   EPGDB_BLOCK *pBlock;
+   EPGDB_CONTEXT * pDbContext;
+   EPGDB_BLOCK   * pBlock;
    uchar buffer[BLK_UNION_OFF];
    size_t size;
    int fd;
    uchar *pFilename;
    EPGDB_RELOAD_RESULT result;
 
-   pPeek = NULL;
+   pDbContext = NULL;
    pFilename = xmalloc(strlen(epgDbDirPath) + 1 + DUMP_NAME_MAX);
    sprintf(pFilename, "%s/" DUMP_NAME_FMT, epgDbDirPath, cni);
    fd = open(pFilename, O_RDONLY|O_BINARY);
    if (fd >= 0)
    {
-      pPeek = (EPGDBSAV_PEEK *) xmalloc(sizeof(EPGDBSAV_PEEK));
-      memset(pPeek, 0, sizeof(EPGDBSAV_PEEK));
+      pDbContext = xmalloc(sizeof(EPGDB_CONTEXT));
+      memset(pDbContext, 0, sizeof(EPGDB_CONTEXT));
 
       result = EpgDbReloadHeader(cni, fd, &head);
       if (result == EPGDB_RELOAD_OK)
       {
-         pPeek->pageNo       = head.pageNo;
-         pPeek->tunerFreq    = head.tunerFreq;
-         pPeek->appId        = head.appId;
-         pPeek->lastAiUpdate = head.lastAiUpdate;
-         pPeek->firstPiDate  = head.firstPiDate;
-         pPeek->lastPiDate   = head.lastPiDate;
+         pDbContext->pageNo       = head.pageNo;
+         pDbContext->tunerFreq    = head.tunerFreq;
+         pDbContext->appId        = head.appId;
 
          if ((size = read(fd, buffer, BLK_UNION_OFF)) == BLK_UNION_OFF)
          {
@@ -914,10 +825,10 @@ const EPGDBSAV_PEEK * EpgDbPeek( uint cni, EPGDB_RELOAD_RESULT * pResult )
                // check if it's a valid AI block (the first block in the dumped db must be AI)
                if ( (size == pBlock->size) &&
                     (pBlock->type == BLOCK_TYPE_AI) &&
-                    (EpgDbReloadCheckAiBlock(pBlock) == EPGDB_RELOAD_OK) )
+                    EpgBlockCheckConsistancy(pBlock) )
                {
-                  pPeek->pAiBlock = pBlock;
-                  pPeek->pOiBlock = EpgDbPeekOi(fd);
+                  pDbContext->pAiBlock = pBlock;
+                  pDbContext->pFirstGenericBlock[BLOCK_TYPE_OI] = EpgDbPeekOi(fd);
                }
                else
                {
@@ -940,10 +851,10 @@ const EPGDBSAV_PEEK * EpgDbPeek( uint cni, EPGDB_RELOAD_RESULT * pResult )
       }
       close(fd);
 
-      if (pPeek->pAiBlock == NULL)
+      if (pDbContext->pAiBlock == NULL)
       {  // database corrupt or wrong version -> free context
-         xfree(pPeek);
-         pPeek = NULL;
+         xfree(pDbContext);
+         pDbContext = NULL;
       }
    }
    else
@@ -962,44 +873,58 @@ const EPGDBSAV_PEEK * EpgDbPeek( uint cni, EPGDB_RELOAD_RESULT * pResult )
       *pResult = result;
    }
 
-   return (const EPGDBSAV_PEEK *) pPeek;
+   return pDbContext;
 }
 
-// ---------------------------------------------------------------------------
-// Free a PEEK struct
+// ----------------------------------------------------------------------------
+// Append one element to the dynamically growing output buffer
+// - helper function for the dbdir scan
 //
-void EpgDbPeekDestroy( const EPGDBSAV_PEEK *pPeek )
+static EPGDB_SCAN_BUF * EpgDbReloadScanAddCni( EPGDB_SCAN_BUF * pBuf, uint cni, time_t mtime )
 {
-   if (pPeek != NULL)
-   {
-      if (pPeek->pAiBlock != NULL)
-         xfree(pPeek->pAiBlock);
-      if (pPeek->pOiBlock != NULL)
-         xfree(pPeek->pOiBlock);
-      xfree((uchar*)pPeek);
+   EPGDB_SCAN_BUF  * pNewBuf;
+
+   if (pBuf->count >= pBuf->size)
+   {  // buffer is full -> allocate larger one and copy the old content into it
+      assert(pBuf->count == pBuf->size);
+
+      pNewBuf = xmalloc(EPGDB_SCAN_BUFSIZE(pBuf->size + EPGDB_SCAN_BUFSIZE_INCREMENT));
+      memcpy(pNewBuf, pBuf, EPGDB_SCAN_BUFSIZE(pBuf->size));
+      xfree(pBuf);
+      pBuf = pNewBuf;
+
+      pBuf->size  += EPGDB_SCAN_BUFSIZE_INCREMENT;
    }
+
+   // append the new element
+   pBuf->list[pBuf->count].cni   = cni;
+   pBuf->list[pBuf->count].mtime = mtime;
+   pBuf->count += 1;
+
+   return pBuf;
 }
 
 // ---------------------------------------------------------------------------
-// Scans a given directory for the best or the next database
-// - if index is -1 the best is searched
-// - the "best" db is currently the last used (i.e. youngest mtime)
-// - returns CNI of best provider, 0 if none found
+// Scans a given directory EPG databases
+// - returns dynamically allocated struct which has to be freed by the caller
+// - the struct holds a list which contains for each database the CNI
+//   (extracted from the file name) and the file modification timestamp
 //
-uint EpgDbReloadScan( int nextIndex )
+const EPGDB_SCAN_BUF * EpgDbReloadScan( void )
 {
 #ifndef WIN32
    DIR    *dir;
    struct dirent *entry;
    struct stat st;
-   time_t best_mtime;
-   uint   cni, best_cni;
-   int    this_index, scanLen;
+   uint   cni;
+   int    scanLen;
    char   *pFilePath;
+   EPGDB_SCAN_BUF  * pBuf;
 
-   best_cni = 0;
-   best_mtime = 0;
-   this_index = -1;
+   pBuf = xmalloc(EPGDB_SCAN_BUFSIZE(EPGDB_SCAN_BUFSIZE_DEFAULT));
+   pBuf->size  = EPGDB_SCAN_BUFSIZE_DEFAULT;
+   pBuf->count = 0;
+
    dir = opendir(epgDbDirPath);
    if (dir != NULL)
    {
@@ -1009,48 +934,44 @@ uint EpgDbReloadScan( int nextIndex )
               (sscanf(entry->d_name, DUMP_NAME_FMT "%n", &cni, &scanLen) == 1) &&
               (scanLen == DUMP_NAME_LEN) )
          {  // file name matched (complete match is forced by %n)
-            if (nextIndex != -1)
+            pFilePath = xmalloc(strlen(epgDbDirPath) + 1 + strlen(entry->d_name) + 1);
+            sprintf(pFilePath, "%s/%s", epgDbDirPath, entry->d_name);
+
+            // get file status
+            if (lstat(pFilePath, &st) == 0)
             {
-               this_index += 1;
-               if (this_index == nextIndex)
-               {
-                  best_cni = cni;
-                  break;
-               }
+               // check if it's a regular file; reject directories, devices, pipes etc.
+               if (S_ISREG(st.st_mode))
+                  pBuf = EpgDbReloadScanAddCni(pBuf, cni, st.st_mtime);
+               else
+                  fprintf(stderr, "dbdir scan: not a regular file: %s (skipped)\n", pFilePath);
             }
             else
-            {
-               pFilePath = xmalloc(strlen(epgDbDirPath) + 1 + strlen(entry->d_name) + 1);
-               sprintf(pFilePath, "%s/%s", epgDbDirPath, entry->d_name);
+               fprintf(stderr, "dbdir scan: failed stat %s: %s\n", pFilePath, strerror(errno));
 
-               if ( (stat(pFilePath, &st) == 0) &&
-                    (st.st_mtime > best_mtime) )
-               {
-                  best_mtime = st.st_mtime;
-                  best_cni = cni;
-               }
-               xfree(pFilePath);
-            }
+            xfree(pFilePath);
          }
       }
       closedir(dir);
    }
    else
-      perror("opendir");
+      fprintf(stderr, "failed to open dbdir %s: %s\n", epgDbDirPath, strerror(errno));
 
-   return best_cni;
+   return pBuf;
 
 #else  //WIN32
    HANDLE hFind;
    WIN32_FIND_DATA finddata;
-   FILETIME best_mtime;
-   uint cni, best_cni;
+   SYSTEMTIME  systime;
+   uint cni;
    uchar *p, *pDirPath;
+   struct tm tm;
    bool bMore;
-   int  this_index;
+   EPGDB_SCAN_BUF  * pBuf;
 
-   best_cni = 0;
-   this_index = -1;
+   pBuf = xmalloc(EPGDB_SCAN_BUFSIZE(EPGDB_SCAN_BUFSIZE_DEFAULT));
+   pBuf->size  = EPGDB_SCAN_BUFSIZE_DEFAULT;
+   pBuf->count = 0;
 
    pDirPath = xmalloc(strlen(epgDbDirPath) + 1 + DUMP_NAME_MAX);
    sprintf(pDirPath, "%s\\%s", epgDbDirPath, DUMP_NAME_PAT);
@@ -1066,28 +987,24 @@ uint EpgDbReloadScan( int nextIndex )
       if ( (strlen(finddata.cFileName) == DUMP_NAME_LEN) &&
            (sscanf(finddata.cFileName, DUMP_NAME_FMT, &cni) == 1) )
       {  // file name matched
-         if (nextIndex != -1)
-         {
-            this_index += 1;
-            if (this_index == nextIndex)
-            {
-               best_cni = cni;
-               break;
-            }
-         }
-         else if ( (best_cni == 0) ||
-                   (CompareFileTime(&best_mtime, &finddata.ftLastWriteTime) == -1) )
-         {
-            best_mtime = finddata.ftLastWriteTime;
-            best_cni = cni;
-         }
+         FileTimeToSystemTime(&finddata.ftLastWriteTime, &systime);
+         dprintf7("DB 0x%04X:  %02d:%02d:%02d - %02d.%02d.%04d\n", cni, systime.wHour, systime.wMinute, systime.wSecond, systime.wDay, systime.wMonth, systime.wYear);
+         memset(&tm, 0, sizeof(tm));
+         tm.tm_sec   = systime.wSecond;
+         tm.tm_min   = systime.wMinute;
+         tm.tm_hour  = systime.wHour;
+         tm.tm_mday  = systime.wDay;
+         tm.tm_mon   = systime.wMonth - 1;
+         tm.tm_year  = systime.wYear - 1900;
+
+         pBuf = EpgDbReloadScanAddCni(pBuf, cni, mktime(&tm));
       }
       bMore = FindNextFile(hFind, &finddata);
    }
    FindClose(hFind);
    xfree(pDirPath);
 
-   return best_cni;
+   return pBuf;
 #endif  //WIN32
 }
 
@@ -1273,8 +1190,76 @@ bool EpgDbDumpUpdateHeader( uint cni, ulong freq )
          else
             debug0("EpgDbDump-UpdateHeader: invalid magic or cni in db");
       }
+      close(fd);
    }
    xfree(pFilename);
    return result;
+}
+
+// ---------------------------------------------------------------------------
+// Read AI modification time from a database header
+//
+time_t EpgReadAiUpdateTime( uint cni )
+{
+   EPGDBSAV_HEADER head;
+   size_t  size;
+   uchar * pFilename;
+   int     fd;
+   time_t  aiUpdateTime = (time_t) 0;
+
+   pFilename = xmalloc(strlen(epgDbDirPath) + 1 + DUMP_NAME_MAX);
+   sprintf(pFilename, "%s/" DUMP_NAME_FMT, epgDbDirPath, cni);
+   fd = open(pFilename, O_RDONLY|O_BINARY);
+   if (fd >= 0)
+   {
+      size = read(fd, (uchar *)&head, sizeof(head));
+      if (size == sizeof(head))
+      {
+         if ( (strncmp(head.magic, MAGIC_STR, MAGIC_STR_LEN) == 0) &&
+              (head.compatVersion == DUMP_COMPAT) &&
+              (head.endianMagic == ENDIAN_MAGIC) &&
+              (head.cni == cni) )
+         {
+            aiUpdateTime = head.lastAiUpdate;
+         }
+      }
+      close(fd);
+   }
+
+   xfree(pFilename);
+   return aiUpdateTime;
+}
+
+// ---------------------------------------------------------------------------
+// Reads tuner frequency from a database header, even for incompatible db versions
+//
+ulong EpgDbReadFreqFromDefective( uint cni )
+{
+   EPGDBSAV_HEADER head;
+   size_t  size;
+   uchar * pFilename;
+   int     fd;
+   ulong   tunerFreq = 0L;
+
+   pFilename = xmalloc(strlen(epgDbDirPath) + 1 + DUMP_NAME_MAX);
+   sprintf(pFilename, "%s/" DUMP_NAME_FMT, epgDbDirPath, cni);
+   fd = open(pFilename, O_RDONLY|O_BINARY);
+   if (fd >= 0)
+   {
+      size = read(fd, (uchar *)&head, sizeof(head));
+      if (size == sizeof(head))
+      {
+         if ( (strncmp(head.magic, MAGIC_STR, MAGIC_STR_LEN) == 0) &&
+              (head.endianMagic == ENDIAN_MAGIC) &&
+              (head.cni == cni) )
+         {
+            tunerFreq = head.tunerFreq;
+         }
+      }
+      close(fd);
+   }
+
+   xfree(pFilename);
+   return tunerFreq;
 }
 

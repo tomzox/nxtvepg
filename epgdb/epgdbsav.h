@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbsav.h,v 1.26 2001/04/04 18:31:02 tom Exp tom $
+ *  $Id: epgdbsav.h,v 1.30 2002/01/05 19:36:51 tom Exp tom $
  */
 
 #ifndef __EPGDBSAV_H
@@ -29,7 +29,7 @@
 #define MAGIC_STR      "NEXTVIEW-DB by TOMZO\n"
 #define MAGIC_STR_LEN  20
 
-#define DUMP_COMPAT    EPG_VERSION_TO_INT(0,4,3)   // latest compatible
+#define DUMP_COMPAT    EPG_VERSION_TO_INT(0,7,0)   // latest compatible
 
 #define ENDIAN_MAGIC   0xAA55
 #define WRONG_ENDIAN   (((ENDIAN_MAGIC>>8)&0xFF)|((ENDIAN_MAGIC&0xFF)<<8))
@@ -75,20 +75,6 @@ typedef struct
 
 #define RELOAD_ANY_CNI   0
 
-typedef struct
-{
-   uint         pageNo;
-   ulong        tunerFreq;
-   uint         appId;
-   time_t       lastAiUpdate;
-   time_t       firstPiDate;
-   time_t       lastPiDate;
-   EPGDB_BLOCK  *pBiBlock;
-   EPGDB_BLOCK  *pAiBlock;
-   EPGDB_BLOCK  *pOiBlock;
-} EPGDBSAV_PEEK;
-
-
 #define BLOCK_TYPE_DEFECT_PI  0x77
 
 // max size is much larger than any block will ever become
@@ -133,17 +119,38 @@ typedef struct
 } OBSOLETE_EPGDBSAV_HEADER;
 
 // ---------------------------------------------------------------------------
+// structure which hols the result of a database directory scan
+//
+typedef struct
+{
+   uint   cni;
+   time_t mtime;
+} EPGDB_SCAN_BUF_ELEM;
+
+typedef struct
+{
+   uint   count;
+   uint   size;
+   EPGDB_SCAN_BUF_ELEM list[1];
+} EPGDB_SCAN_BUF;
+
+#define EPGDB_SCAN_BUFSIZE_DEFAULT     32
+#define EPGDB_SCAN_BUFSIZE_INCREMENT   32
+#define EPGDB_SCAN_BUFSIZE(COUNT)  (sizeof(EPGDB_SCAN_BUF) + ((COUNT) - 1) * sizeof(EPGDB_SCAN_BUF_ELEM))
+
+// ---------------------------------------------------------------------------
 // declaration of service interface functions
 
 bool EpgDbDump( EPGDB_CONTEXT * pDbContext );
 EPGDB_CONTEXT * EpgDbReload( uint cni, EPGDB_RELOAD_RESULT * pError );
-uint EpgDbReloadScan( int index );
+const EPGDB_SCAN_BUF * EpgDbReloadScan( void );
 bool EpgDbSavSetupDir( const char * pDirPath, const char * pDemoDb );
 void EpgDbDumpGetDirAndCniFromArg( char * pArg, const char ** ppDirPath, uint * pCni );
 
-const EPGDBSAV_PEEK * EpgDbPeek( uint cni, EPGDB_RELOAD_RESULT * pResult );
-void EpgDbPeekDestroy( const EPGDBSAV_PEEK *pPeek );
+EPGDB_CONTEXT * EpgDbPeek( uint cni, EPGDB_RELOAD_RESULT * pResult );
 bool EpgDbDumpUpdateHeader( uint cni, ulong freq );
+ulong EpgDbReadFreqFromDefective( uint cni );
+time_t EpgReadAiUpdateTime( uint cni );
 
 
 #endif  // __EPGDBSAV_H

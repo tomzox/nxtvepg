@@ -15,1426 +15,1455 @@
 <P><HR><P>
 <H1>Nextview EPG Decoder Documentation</H1>
 This is the manual page for the
-<A HREF="http://nxtvepg.tripod.com/">nxtvepg</A> software package.
+<A HREF="http://nxtvepg.tripod.com/">nxtvepg</A> software package.<P>
+<HR>
 
+<A NAME="__index__"></A>
 <!-- INDEX BEGIN -->
 
 <UL>
 
-	<LI><A HREF="#NAME">NAME</A>
-	<LI><A HREF="#SYNOPSIS">SYNOPSIS</A>
-	<LI><A HREF="#DESCRIPTION">DESCRIPTION</A>
-	<LI><A HREF="#OPTIONS">OPTIONS</A>
-	<LI><A HREF="#GETTING_STARTED">GETTING STARTED</A>
-	<LI><A HREF="#BASIC_BROWSING">BASIC BROWSING</A>
-	<LI><A HREF="#DATA_ACQUISITION">DATA ACQUISITION</A>
-	<LI><A HREF="#ACQUISITION_MODES">ACQUISITION MODES</A>
-	<LI><A HREF="#STATISTICS">STATISTICS</A>
+	<LI><A HREF="#name">NAME</A></LI>
+	<LI><A HREF="#synopsis">SYNOPSIS</A></LI>
+	<LI><A HREF="#description">DESCRIPTION</A></LI>
+	<LI><A HREF="#options">OPTIONS</A></LI>
+	<LI><A HREF="#getting started">GETTING STARTED</A></LI>
+	<LI><A HREF="#basic browsing">BASIC BROWSING</A></LI>
+	<LI><A HREF="#data acquisition">DATA ACQUISITION</A></LI>
+	<LI><A HREF="#acquisition modes">ACQUISITION MODES</A></LI>
+	<LI><A HREF="#statistics">STATISTICS</A></LI>
 	<UL>
 
-		<LI><A HREF="#Status_line">Status line</A>
-		<LI><A HREF="#Timescale_popup_windows">Timescale popup windows</A>
-		<LI><A HREF="#Database_statistics_popup_window">Database statistics popup windows</A>
+		<LI><A HREF="#status line">Status line</A></LI>
+		<LI><A HREF="#timescale popup windows">Timescale popup windows</A></LI>
+		<LI><A HREF="#database statistics popup windows">Database statistics popup windows</A></LI>
 	</UL>
 
-	<LI><A HREF="#MERGED_DATABASES">MERGED DATABASES</A>
-	<LI><A HREF="#NAVIGATE">NAVIGATE</A>
-	<LI><A HREF="#FILTERING">FILTERING</A>
-	<LI><A HREF="#FILTER_SHORTCUTS">FILTER SHORTCUTS</A>
-	<LI><A HREF="#CONTEXT_MENU">CONTEXT MENU</A>
-	<LI><A HREF="#CONTROL">CONTROL</A>
-	<LI><A HREF="#CONFIGURATION">CONFIGURATION</A>
-	<LI><A HREF="#FILES">FILES</A>
+	<LI><A HREF="#merged databases">MERGED DATABASES</A></LI>
+	<LI><A HREF="#navigate">NAVIGATE</A></LI>
+	<LI><A HREF="#filtering">FILTERING</A></LI>
+	<LI><A HREF="#filter shortcuts">FILTER SHORTCUTS</A></LI>
+	<LI><A HREF="#context menu">CONTEXT MENU</A></LI>
+	<LI><A HREF="#control">CONTROL</A></LI>
+	<LI><A HREF="#configuration">CONFIGURATION</A></LI>
+	<LI><A HREF="#files">FILES</A></LI>
 	<UL>
 
-		<LI><A HREF="#Files_used_on_UNIX_systems">Files used on UNIX systems</A>
-		<LI><A HREF="#Files_used_on_Windows_systems">Files used on Windows systems</A>
+		<LI><A HREF="#files used on unix systems">Files used on UNIX systems</A></LI>
+		<LI><A HREF="#files used on windows systems">Files used on Windows systems</A></LI>
 	</UL>
 
-	<LI><A HREF="#SEE_ALSO">SEE ALSO</A>
-	<LI><A HREF="#KNOWN_BUGS">KNOWN BUGS</A>
-	<LI><A HREF="#REPORTING_BUGS">REPORTING BUGS</A>
-	<LI><A HREF="#AUTHOR">AUTHOR</A>
-	<LI><A HREF="#COPYRIGHT">COPYRIGHT</A>
+	<LI><A HREF="#see also">SEE ALSO</A></LI>
+	<LI><A HREF="#known bugs">KNOWN BUGS</A></LI>
+	<LI><A HREF="#reporting bugs">REPORTING BUGS</A></LI>
+	<LI><A HREF="#author">AUTHOR</A></LI>
+	<LI><A HREF="#copyright">COPYRIGHT</A></LI>
 </UL>
 <!-- INDEX END -->
 
 <HR>
 <P>
-<H1><A NAME="NAME">NAME</A></H1>
-<P>
-nxtvepg - Decoder, Browser and Analyzer for the Nextview Electronic
-Programme Guide
-
-<P>
-<HR>
-<H1><A NAME="SYNOPSIS">SYNOPSIS</A></H1>
-<P>
-<STRONG>nxtvepg</STRONG>  [&nbsp;options&nbsp;]  [&nbsp;database&nbsp;]
-
-
-
+<H1><A NAME="name">NAME</A></H1>
+<P>nxtvepg - Decoder, Browser and Analyzer for the Nextview Electronic Programme Guide</P>
+<H1><A NAME="synopsis">SYNOPSIS</A></H1>
+<P><STRONG>nxtvepg</STRONG> [&nbsp;options&nbsp;] [&nbsp;database&nbsp;]</P>
 <P>
 <HR>
-<H1><A NAME="DESCRIPTION">DESCRIPTION</A></H1>
-<P>
-<STRONG>nxtvepg</STRONG>
-is an X11 and Win32API application to decode, analyze and browse TV
-programme schedules transmitted on analog TV channels as defined in ETS 300
-707: ``Protocol for a TV Guide using electronic data transmission'' by the
-European Telecommunications Standards Institute.
-
-<P>
-The Nextview standard was developed for use in TV sets, but it can also be
+<H1><A NAME="description">DESCRIPTION</A></H1>
+<P><STRONG>nxtvepg</STRONG>
+is an X11 and Win32API application to decode, analyze and browse TV programme
+schedules transmitted on analog TV channels as defined in ETS 300 707:
+``Protocol for a TV Guide using electronic data transmission'' by the
+European Telecommunications Standards Institute.</P>
+<P>The Nextview standard was developed for use in TV sets, but it can also be
 received and used in a PC - provided you have a Teletext capable TV tuner
-card and are lucky enough to have a Nextview content provider in your
-country.
-
-<P>
-<STRONG>nxtvepg</STRONG>
+card and are lucky enough to have a Nextview content provider in your country.</P>
+<P><STRONG>nxtvepg</STRONG>
 enables you to obtain free TV programme listings for all of the major
-networks in Germany, Austria, France and Switzerland. Currently Nextview
-EPG is transmitted by the following TV networks (note that each of these
-EPGs cover not only the provider's programme but also that of many other
-networks):
-
+networks in Germany, Austria, France and Switzerland. Currently
+Nextview EPG is transmitted by the following TV networks (note that each
+of these EPGs cover not only the provider's programme but also that of
+many other networks):</P>
 <UL>
 <LI>
-<P>
 In Germany and Austria: Pro7, 3Sat, RTL-II.
-
+<P></P>
 <LI>
-<P>
-In Switzerland: EuroNews, TSR1 and others.
-
+In Switzerland: DRS1, TSR1, TSI1, EuroNews.
+<P></P>
 <LI>
-<P>
 In France: Canal+, M6, TV5.
-
-</UL>
-<P>
-For up-to-date information check the nxtvepg homepage in the Internet (see
-the About popup in the Help menu). If you don't receive any of the channels
-listed above, you can only use the demo mode as described with the <STRONG>-demo</STRONG> command line option.
-
+<P></P>
+<LI>
+In Turkey: TRT-1
+<P></P></UL>
+<P>For up-to-date information check the nxtvepg homepage in the Internet
+(see the About popup in the Help menu). If you don't receive any of the
+channels listed above, you can only use the demo mode as described
+with the <STRONG>-demo</STRONG> command line option.</P>
 <P>
 <HR>
-<H1><A NAME="OPTIONS">OPTIONS</A></H1>
-<P>
-Summary of command line options:
-
+<H1><A NAME="options">OPTIONS</A></H1>
+<P>Summary of command line options:</P>
 <DL>
-<DT><STRONG><A NAME="item__display">-display display</A></STRONG><DD>
-<P>
-UNIX only: The display on which the windows will be created. Default: taken
-from environment variable DISPLAY.
-
-<DT><STRONG><A NAME="item__geometry">-geometry geometry</A></STRONG><DD>
-<P>
+<DT><STRONG><A NAME="item_%2Ddisplay_display"><STRONG>-display</STRONG> <EM>display</EM></A></STRONG><BR>
+<DD>
+UNIX only: The display on which the windows will be created.
+Default: taken from environment variable DISPLAY.
+<P></P>
+<DT><STRONG><A NAME="item_%2Dgeometry_geometry"><STRONG>-geometry</STRONG> <EM>geometry</EM></A></STRONG><BR>
+<DD>
 Specifies the position of the main window, e.g.  <STRONG>-geometry -0+0</STRONG>
-to put the main window in the upper right corner of the visible screen. The
-size of the window cannot be changed.
-
-<DT><STRONG><A NAME="item__iconic">-iconic</A></STRONG><DD>
-<P>
+to put the main window in the upper right corner of the visible screen.
+The size of the window cannot be changed.
+<P></P>
+<DT><STRONG><A NAME="item_%2Diconic"><STRONG>-iconic</STRONG></A></STRONG><BR>
+<DD>
 Start with the main window iconified (i.e. minimized).
-
-<DT><STRONG><A NAME="item__rcfile">-rcfile path</A></STRONG><DD>
-<P>
-Specify an alternate configuration file. Default: on UNIX ~/.nxtvepgrc, on
-Windows nxtvepg.ini in the current directory.
-
-<DT><STRONG><A NAME="item__dbdir">-dbdir directory</A></STRONG><DD>
-<P>
-Specify an alternate directory for the databases. Default: On UNIX
-/usr/tmp/nxtvdb, on Windows the current directory. Note that the database
-management is not equipped for concurrent writing, so if you have more than
-one TV tuner card in your system or network, relocate the directory into
-the users' homes.
-
-<DT><STRONG><A NAME="item__card">-card index</A></STRONG><DD>
-<P>
-Specify which tuner card to use, if you have more than one. The given index
-is appended to /dev/vbi and /dev/video. Default: index 0, i.e. the card in
-the first PCI slot.
-
-<DT><STRONG><A NAME="item__provider">-provider CNI</A></STRONG><DD>
-<P>
+<P></P>
+<DT><STRONG><A NAME="item_%2Drcfile_path"><STRONG>-rcfile</STRONG> <EM>path</EM></A></STRONG><BR>
+<DD>
+Specify an alternate configuration file.
+Default: on UNIX $HOME/.nxtvepgrc,
+on Windows nxtvepg.ini in the current directory.
+<P></P>
+<DT><STRONG><A NAME="item_%2Ddbdir_directory"><STRONG>-dbdir</STRONG> <EM>directory</EM></A></STRONG><BR>
+<DD>
+Specify an alternate directory for the databases.
+Default: On UNIX /usr/tmp/nxtvdb, on Windows the current directory.
+Note that the database management is not equipped for concurrent writing,
+so if you have more than one TV tuner card in your system or network,
+relocate the directory into the users' homes.
+<P>If you're using an acquisition daemon, the browser must be configured
+to use the same directory as the daemon.  If the daemon is running on
+a different host, you need to mount the remote directory, e.g. via NFS.</P>
+<P></P>
+<DT><STRONG><A NAME="item_%2Dcard_index"><STRONG>-card</STRONG> <EM>index</EM></A></STRONG><BR>
+<DD>
+Specify which tuner card to use, if you have more than one.
+The given index is appended to /dev/vbi and /dev/video.
+Default: index 0, i.e. the card in the first PCI slot.
+<P></P>
+<DT><STRONG><A NAME="item_%2Dprovider_CNI"><STRONG>-provider</STRONG> <EM>CNI</EM></A></STRONG><BR>
+<DD>
 Select a provider by its hexadecimal CNI (Country and Network Identifier),
-e.g. <CODE>-provider d94</CODE> for ``Pro Sieben''. You can find out the provider's CNI during a provider
-scan or from the database file names. Default: the last provider selected
-during the previous session.
-
-<DT><STRONG><A NAME="item__noacq">-noacq</A></STRONG><DD>
-<P>
-Start with acquisition disabled. The acquisition can still be started later
-from the Control menu.
-
-<DT><STRONG><A NAME="item__daemon">-daemon</A></STRONG><DD>
-<P>
+e.g. <CODE>-provider d94</CODE> for ``Pro Sieben''. You can find out the provider's CNI
+during a provider scan or from the database file names.
+Default: the last provider selected during the previous session.
+<P></P>
+<DT><STRONG><A NAME="item_%2Dnoacq"><STRONG>-noacq</STRONG></A></STRONG><BR>
+<DD>
+Start with acquisition disabled.
+The acquisition can still be started later from the Control menu.
+<P></P>
+<DT><STRONG><A NAME="item_%2Ddaemon"><STRONG>-daemon</STRONG></A></STRONG><BR>
+<DD>
 Start without the graphical user interface (UNIX only). The process will
 detach from the terminal and perform background acquisition. If no other
 options are given the same provider and acquisition mode as configured with
-the GUI will be used. If the -provider option is given acquisition will
-work for this provider only (note the difference to non-daemon mode, where
-that option selects the browser database). The -daemon option cannot be
-combined with the -noacq or -demo options.
-
-<P>
-The only way to stop the process in this mode is to send it a signal, i.e.
-kill it with SIGTERM. This can simply be done with:
-
-<P>
-<PRE>   kill `cat /tmp/.vbi0.pid`
-</PRE>
-<P>
-Note that it is not advisable to run the daemon while the GUI is in use,
-because incoming data will not be forwarded from the daemon to the GUI
-process (such a feature may be added in the future). If you plan on using
-the daemon on a regular basis, put a little wrapper script around nxtvepg
-that automatically terminates the daemon when the GUI is started and
-restarts it afterwards.
-
-<DT><STRONG><A NAME="item__acqpassive">-acqpassive</A></STRONG><DD>
-<P>
+the GUI will be used. If the -provider option is given acquisition will work
+for this provider only (note the difference to non-daemon mode, where that
+option selects the browser database). The -daemon option cannot be combined
+with the -noacq or -demo options.
+<P>The daemon always creates a named socket in the <EM>/tmp</EM> directory plus
+optionally a TCP/IP socket to allow connects by browser processes. While
+connected, the browser receives updates for opened Nextview databases and
+reports about the acquisition progress; if left unconnected, the browser
+listing might be incomplete or outdated.</P>
+<P>It's important to note that the browser <STRONG>must use</STRONG> the same <EM>-dbdir</EM>
+directory, because the daemon forwards only deltas to the database files
+stored in that directory. For more details see the <EM>Client/Server</EM> dialog
+described in <A HREF="#configuration">CONFIGURATION</A>.</P>
+<P>Warning: for security reasons it's depreciated to run the daemon with root
+privileges, because nxtvepg has not been reviewed yet for possible exploits.
+If you want to start the daemon already during system startup, you should
+use su(1). Also note that you'll probably need to specify -rcfile because
+the $HOME environment variable  might not be (correctly) defined.  Example:</P>
+<PRE>
+   su nobody -c &quot;/usr/local/bin/nxtvepg -daemon \
+                 -rcfile /usr/local/etc/nxtvepgrc&quot;</PRE>
+<P>The only way to stop the daemon is to send it a signal, i.e. kill it with
+SIGTERM. For more details see <A HREF="#control">CONTROL</A> and <A HREF="#files">FILES</A>.</P>
+<P></P>
+<DT><STRONG><A NAME="item_%2Dnodetach"><STRONG>-nodetach</STRONG></A></STRONG><BR>
+<DD>
+In daemon mode this option prevents the process actually making itself a
+daemon, i.e. it doesn't fork and stays connected to the terminal. Also
+all log messages starting with level
+.I warning
+are sent to standard error out (e.g. configuration errors that lead to
+an immediate exit).  This mode is intended for debugging purposes only.
+<P></P>
+<DT><STRONG><A NAME="item_%2Dacqpassive"><STRONG>-acqpassive</STRONG></A></STRONG><BR>
+<DD>
 In daemon mode this option overrides the acquisition mode setting in the
 configuration file and forces the acquisition into passive mode (see
-<A HREF="#ACQUISITION_MODES">ACQUISITION MODES</A>). The configuration file is not changed, so that you can use different
-acquisition strategies for daemon and GUI.
-
-<DT><STRONG><A NAME="item__demo">-demo path</A></STRONG><DD>
-<P>
+<A HREF="#acquisition modes">ACQUISITION MODES</A>).  The configuration file is not changed, so that
+you can use different acquisition strategies for daemon and GUI.
+<P></P>
+<DT><STRONG><A NAME="item_%2Ddemo_path"><STRONG>-demo</STRONG> <EM>path</EM></A></STRONG><BR>
+<DD>
 Load database given by <EM>path</EM>
 and enter demo mode. In this mode all entries of the database are shifted
 into the presence, i.e. just far enough so that none expire. Hence the
 entries' dates and times are not for real and acquisition or database
 reselection is not possible.
-
-<DT><STRONG><A NAME="item__help">-help</A></STRONG><DD>
-<P>
+<P></P>
+<DT><STRONG><A NAME="item_%2Dhelp"><STRONG>-help</STRONG></A></STRONG><BR>
+<DD>
 List all available command line options.
-
-</DL>
-<P>
-After the options you can add a database filename. This is equivalent to
-specifying <STRONG>-dbdir</STRONG> and <STRONG>-provider</STRONG>. The provider CNI is taken from the file name. If the file name does not
-have the format as defined in <A HREF="#FILES">FILES</A>, it's assumed to be a demo database and loaded just as with the <STRONG>-demo</STRONG> option. The database filename argument silently overrides any previously
-given options.
-
-<P>
-This is particularily useful for users of graphical file managers (like the
-Windows Explorer) who can just drag and drop a database file onto the
-executable. When used on Windows systems the working directory is set to
-the one that contains the executable, because the Explorer seems to set it
-to the user's desktop root, so that none of the DLLs and drivers are found.
-
-<P>
-Note to Windows users: all these options - unless otherwise noted - are
-available in the Win32 version too. You can supply the options either from
-a ``MS-DOS'' command prompt or batch file, or by appending them to the
-executable in a shortcut definition.
-
+<P></P></DL>
+<P>After the options you can add a database filename. This is equivalent
+to specifying <STRONG>-dbdir</STRONG> and <STRONG>-provider</STRONG>. The provider CNI is taken
+from the file name. If the file name does not have the format as
+defined in <A HREF="#files">FILES</A>, it's assumed to be a demo database and loaded
+just as with the <STRONG>-demo</STRONG> option. The database filename argument
+silently overrides any previously given options.</P>
+<P>This is particularily useful for users of graphical file managers
+(like the Windows Explorer) who can just drag and drop a database file
+onto the executable. When used on Windows systems the working
+directory is set to the one that contains the executable, because
+the Explorer seems to set it to the user's desktop root, so that none
+of the DLLs and drivers are found.</P>
+<P>Note to Windows users: all these options - unless otherwise noted -
+are available in the Win32 version too. You can supply the options
+either from a ``MS-DOS'' command prompt or batch file, or by appending
+them to the executable in a shortcut definition.</P>
 <P>
 <HR>
-<H1><A NAME="GETTING_STARTED">GETTING STARTED</A></H1>
-<P>
-Before you can start reading in TV programme schedules (called
+<H1><A NAME="getting started">GETTING STARTED</A></H1>
+<P>Before you can start reading in TV programme schedules (called
 <EM>acquisition</EM>
-from here on), you have to do just a few configurations. Which ones depends
-on your setup and will be described in the following. As long as your
-browser window contains no data, there's also a recommondation how to get
-to data in the browser window, highlighted with a yellow background.
-
-<P>
-This manual describes all features of nxtvepg in detail. You do not have to
-read all of it at once to operate the software. However it's recommended to
-skim at least through <A HREF="#BASIC_BROWSING">BASIC BROWSING</A>,
-<A HREF="#DATA_ACQUISITION">DATA ACQUISITION</A> and <A HREF="#FILTERING">FILTERING</A>.
-
-<P>
-Windows users first have to configure the driver for their TV card.
-Therefore invoke the 'TV card input' dialog from the Configure menu (see <A HREF="#CONFIGURATION">CONFIGURATION</A>) and specify the type of your tuner. In Germany, Austria and Switzerland
-it should be either Philips PAL or Temic PAL. In France it's one of the
-SECAM types. Then select how your card's <EM>PLL</EM>
-needs to be set up. On most cards it's either <EM>No init</EM> or <EM>28 MHz</EM>. If you're not sure about your configuration, start with the topmost and
-then try them one after each other and start an EPG scan inbetween to check
-if the tuner works. If this seems too much work, open your PC and read the
-manufacturer from the metal tuner box on the TV tuner card.
-
-<P>
-If you don't have an antenna connected to your PC, you can select an
+from here on), you have to do just a few configurations. Which
+ones depends on your setup and will be described in the following.
+As long as your browser window contains no data, there's also a
+recommondation how to get to data in the browser window,
+highlighted with a yellow background.</P>
+<P>This manual describes all features of nxtvepg in detail. You
+do not have to read all of it at once to operate the software.
+However it's recommended to skim at least through <A HREF="#basic browsing">BASIC BROWSING</A>,
+<A HREF="#data acquisition">DATA ACQUISITION</A> and <A HREF="#filtering">FILTERING</A>.</P>
+<P>Windows users first have to configure the driver for their TV card.
+Therefore invoke the 'TV card input' dialog from the Configure menu
+(see <A HREF="#configuration">CONFIGURATION</A>) and specify the type of your tuner. In Germany,
+Austria and Switzerland it should be either Philips PAL or Temic PAL.
+In France it's one of the SECAM types. Then select how your card's <EM>PLL</EM>
+needs to be set up. On most cards it's either <EM>No init</EM> or <EM>28 MHz</EM>.
+If you're not sure about your configuration, start with the topmost and
+then try them one after each other and start an EPG scan inbetween to
+check if the tuner works. If this seems too much work, open your PC
+and read the manufacturer from the metal tuner box on the TV tuner card.</P>
+<P>If you don't have an antenna connected to your PC, you can select an
 external source for video input. If you have problems see <EM>README</EM>
-for more details and a list of error messages from the Windows driver.
-
-<P>
-UNIX users just need to check if the correct input source and frequency
-table are selected in the TV card input dialog.
-
-<P>
-In the next step - if you chose to use the TV tuner - run a provider scan
-from the Configure menu. During the scan all TV channels are checked for
-Nextview transmissions. After the scan has finished, open the provider
-selection dialog from the Configure menu and select you favorite one.
-
-<P>
-If the provider scan does not find all Nextview provider channels (possibly
-due to weak reception - this is a very simple scan that does not attempt
-any fine-tuning) check the <EM>Slow</EM> button and try again. If this does not help, you can still add the missing
-providers manually. set the acquisition mode to <EM>external</EM> or <EM>passive</EM> (UNIX only). Then use an external application to tune the channel (Windows
-users have to stop acquisition first; then start the TV application; then
-tune the channel; then quit the other application; finally start
-acquisition again). In external mode nxtvepg will not touch the tuner and
-wait infinitly for Nextview reception on the current channel. On Windows
-(and Linux with bttv drivers version 0.7.50 and earlier) this method has
-the disadvantage that no frequency will be known for this provider so this
-procedure has to be repeated every time you start acquisition.
-
-<P>
-Alternatively if you decided not to use the tuner, open the Acquisition
+for more details and a list of error messages from the Windows driver.</P>
+<P>UNIX users just need to check if the correct input source and
+frequency table are selected in the TV card input dialog.</P>
+<P>In the next step - if you chose to use the TV tuner - run a provider
+scan from the Configure menu.  During the scan all TV channels are
+checked for Nextview transmissions. After the scan has finished,
+open the provider selection dialog from the Configure menu and select
+you favorite one.</P>
+<P>If the provider scan does not find all Nextview provider channels
+(possibly due to weak reception - this is a very simple scan that does
+not attempt any fine-tuning) check the <EM>Slow</EM> button and try again.
+If this does not help, you can still add the missing providers manually.
+set the acquisition mode to <EM>external</EM> or <EM>passive</EM> (UNIX only). Then
+use an external application to tune the channel (Windows users have to
+stop acquisition first; then start the TV application; then tune the
+channel; then quit the other application; finally start acquisition again).
+In external mode nxtvepg will not touch the tuner and wait infinitly for
+Nextview reception on the current channel.  On Windows (and Linux with
+bttv drivers version 0.7.50 and earlier) this method has the disadvantage
+that no frequency will be known for this provider so this procedure has
+to be repeated every time you start acquisition.</P>
+<P>Alternatively if you decided not to use the tuner, open the Acquisition
 mode dialog from the Configure menu and select external mode. Then provide
 the video signal of one of the content provider channels listed in the
 introduction to the selected input socket. As soon as an EPG provider is
-recognized, its data will appear in the browser window. See <A HREF="#DATA_ACQUISITION">DATA ACQUISITION</A> about the disadvantages of not using the TV tuner as input.
-
-<P>
-Acquisition of a complete database takes about 20 minutes. However
-programmes that are nearer in the future are available much faster, since
-they are transmitted more often. The currently running and directly
-following programmes of all networks are usually available after about 2-3
-minutes max.
-
+recognized, its data will appear in the browser window.
+See <A HREF="#data acquisition">DATA ACQUISITION</A> about the disadvantages of not using the
+TV tuner as input.</P>
+<P>Acquisition of a complete database takes about 20 minutes. However
+programmes that are nearer in the future are available much faster,
+since they are transmitted more often. The currently running and
+directly following programmes of all networks are usually available
+after about 2-3 minutes max.</P>
 <P>
 <HR>
-<H1><A NAME="BASIC_BROWSING">BASIC BROWSING</A></H1>
-<P>
-The browser mainly consists of two windows: the upper one contains a list
-of programme titles, sorted by start time. All currently running programmes
-(or rather: all programmes that should be running according to their start
-time) are marked by a light blue background color. One line in the list is
-selected by a cursor; the lower window contains the attributes and
-description for this selected title. The amount of information available
-here depends entirely on the content provider.
-
-<P>
-The basic browsing of programme information works very straight-forward.
-You can either use the mouse or the keyboard cursor keys:
-
-<P>
-With the mouse, you can click on any title to select it and display its
+<H1><A NAME="basic browsing">BASIC BROWSING</A></H1>
+<P>The browser mainly consists of two windows: the upper one contains
+a list of programme titles, sorted by start time. All currently running
+programmes (or rather: all programmes that should be running according
+to their start time) are marked by a light blue background color.
+One line in the list is selected by a cursor; the lower window contains
+the attributes and description for this selected title. The amount of
+information available here depends entirely on the content provider.</P>
+<P>The basic browsing of programme information works very straight-forward.
+You can either use the mouse or the keyboard cursor keys:</P>
+<P>With the mouse, you can click on any title to select it and display its
 description in the lower window. With a double-click you open a popup
-window with a summary of all attributes known for that title. See
-<A HREF="#FILTERING">FILTERING</A> on how to use those for filtering. Use the scrollbar to scroll the listing
-forward to programmes farer in the future.
-
-<P>
-With the keyboard, use the Cursor up/down keys to select any title. For
-fast scrolling use the page up/down keys. With the Home key you always get
-back to the first title. With TAB and SHIFT-TAB you can move the keyboard
-input focus to other widgets, e.g. to the scrollbars or the shortcut list.
-On Unix, the menus can be accessed with the Meta key (usually the ALT key)
-together with one of the underlined characters in the menu buttons.
-
-<P>
-nxtvepg can communicate with the <EM>xawtv</EM> TV application (UNIX only) to provide a connection in both directions:
-Firstly you'll find a
-<EM>Tune-TV</EM> button in the main window below the clock. When you press it, the network
-of the currently selected programme will be tuned into xawtv. With the
-right mouse button you can also pop up a small menu which offers basic
-control over xawtv. Secondly, when you change the channel in xawtv, the
-cursor will automatically jump onto the programme currently running on that
-network. To use these features, you'll have to open the
-<EM>Network name configuration</EM> dialog at least once to synchronize network names with your xawtv station
-names. See <A HREF="#CONFIGURATION">CONFIGURATION</A> for details.
-
-<P>
-At the bottom of the window there is a status line which informs you about
-the state of the browser database and background acquisition. It's
-basically a very dense summary of the <STRONG>Statistics</STRONG> popups from the <STRONG>Control</STRONG> menu and is especially useful to warn you about the database age or stalled
-acquisition.
-
-<P>
-<EM>Note:</EM>
-For most providers it holds true that descriptions are available only (or
-only in full length) for currently running programmes and those whose start
-time is very close. This time span for full coverage can be as short as 2
-hours, or 3 titles per network. For details on the acquisition process see
-the following chapter.
-
+window with a summary of all attributes known for that title.  See
+<A HREF="#filtering">FILTERING</A> on how to use those for filtering. Use the scrollbar
+to scroll the listing forward to programmes farer in the future.</P>
+<P>With the keyboard, use the Cursor up/down keys to select any title.
+For fast scrolling use the page up/down keys. With the Home key you
+always get back to the first title. With TAB and SHIFT-TAB you can
+move the keyboard input focus to other widgets, e.g. to the scrollbars
+or the shortcut list. On Unix, the menus can be accessed with the
+Meta key (usually the ALT key) together with one of the underlined
+characters in the menu buttons.</P>
+<P>nxtvepg can communicate with the <EM>xawtv</EM> TV application (UNIX only)
+to provide a connection in both directions: Firstly you'll find a
+<EM>Tune-TV</EM> button in the main window below the clock. When you press it,
+the network of the currently selected programme will be tuned into xawtv.
+With the right mouse button you can also pop up a small menu which offers
+basic control over xawtv. Secondly, when you change the channel in xawtv,
+the cursor will automatically jump onto the programme currently running
+on that network. To use these features, you'll have to open the
+<EM>Network name configuration</EM> dialog at least once to synchronize
+network names with your xawtv station names. See <A HREF="#configuration">CONFIGURATION</A> for
+details.</P>
+<P>At the bottom of the window there is a status line which informs you
+about the state of the browser database and background acquisition.
+It's basically a very dense summary of the <STRONG>Statistics</STRONG> popups from
+the <STRONG>Control</STRONG> menu and is especially useful to warn you about the
+database age or stalled acquisition.</P>
+<P><EM>Note:</EM>
+For most providers it holds true that descriptions are available only
+(or only in full length) for currently running programmes and those
+whose start time is very close. This time span for full coverage can
+be as short as 2 hours, or 3 titles per network. For details on the
+acquisition process see the following chapter.</P>
 <P>
 <HR>
-<H1><A NAME="DATA_ACQUISITION">DATA ACQUISITION</A></H1>
-<P>
-As long as acquisition is enabled, programme titles are constantly being
+<H1><A NAME="data acquisition">DATA ACQUISITION</A></H1>
+<P>As long as acquisition is enabled, programme titles are constantly being
 acquired or updated in the background. You will notice that all incoming
-programme information is instantly inserted to the programme listing. Every
-effort is taken to not alter the cursor position or title selection, except
-if the cursor is on the very first item - then the cursor stays on top.
-
-<P>
-By default, the acquisition always works for the provider whose database
+programme information is instantly inserted to the programme listing.
+Every effort is taken to not alter the cursor position or title selection,
+except if the cursor is on the very first item - then the cursor
+stays on top.</P>
+<P>By default, the acquisition always works for the provider whose database
 you have loaded into the browser. Therefore, upon program start or whenever
 you switch providers, the TV tuner is set onto the frequency of the
-provider's TV channel. Please note that this mode is only possible after a
-provider scan, because that's the only way to find out the frequencies.
-Check out <A HREF="#ACQUISITION_MODES">ACQUISITION MODES</A> for more sophisticated acquisition strategies.
-
-<P>
-If you do not choose the TV tuner as input (e.g. if you choose an external
+provider's TV channel.  Please note that this mode is only possible after
+a provider scan, because that's the only way to find out the frequencies.
+Check out <A HREF="#acquisition modes">ACQUISITION MODES</A> for more sophisticated acquisition
+strategies.</P>
+<P>If you do not choose the TV tuner as input (e.g. if you choose an external
 source via the Composite or S-Video input sockets), or if the TV tuner is
 kept busy by another application (UNIX only, e.g. if you watch TV) data is
 still being acquired, but it's no longer possible to automatically change
 the TV channel. Hence you are resposible for selecting the channel of the
 provider who's database you want to load or refresh. If a transmission
-belonging to a different provider than the one selected in the browser is
-detected, a second database is automatically opened in the background to
-store the incoming data.
-
-<P>
-The transmitted database is constantly in change: Elapsed titles are
+belonging to a different provider than the one selected in the browser
+is detected, a second database is automatically opened in the background
+to store the incoming data.</P>
+<P>The transmitted database is constantly in change: Elapsed titles are
 removed, new titles appended, and the titles closest to the current time
 updated with an increased amount of description. (The reason that the
-complete description is not transmitted for all titles is simply that the
-size of the database has to be reduced - it shall be transmitted in 20
-minutes maximum.) So you should start the acquisition as often as possible,
-about every 2-3 hours, at least a couple of minutes before you browse.
-
-<P>
-You can monitor the progress of acquisition with the timescale and database
-statistics windows from the Control menu. See <A HREF="#STATISTICS">STATISTICS</A>
-for details.
-
+complete description is not transmitted for all titles is simply that
+the size of the database has to be reduced - it shall be transmitted
+in 20 minutes maximum.)  So you should start the acquisition as often
+as possible, about every 2-3 hours, at least a couple of minutes before
+you browse.</P>
+<P>You can monitor the progress of acquisition with the timescale and
+database statistics windows from the Control menu. See <A HREF="#statistics">STATISTICS</A>
+for details.</P>
 <P>
 <HR>
-<H1><A NAME="ACQUISITION_MODES">ACQUISITION MODES</A></H1>
-<P>
-The acquisition mode configuration dialog enables you to control for which
-providers data is collected, and in which order. It's mainly intended for
-users who use more than one provider's database, i.e. in a merged database,
-or want to optimize startup time. If you're happy with a single provider or
-don't want to browse immediately after program start, you should keep the
+<H1><A NAME="acquisition modes">ACQUISITION MODES</A></H1>
+<P>The acquisition mode configuration dialog enables you to control for which providers
+data is collected, and in which order. It's mainly intended for users who use
+more than one provider's database, i.e. in a merged database, or want to
+optimize startup time. If you're happy with a single provider or don't
+want to browse immediately after program start, you should keep the
 default, which is loading data always for the provider selected in the
-browser.
-
+browser.</P>
 <DL>
-<DT><STRONG><A NAME="item_Passive">Passive</A></STRONG><DD>
-<P>
-UNIX only: In this mode the software never accesses the video device and
-never changes the input channel or tuner frequency. It's useful if you want
-to set up the source with command line tools like <EM>v4lctl</EM>. If you're using applications which keep the video device busy (e.g. a TV
-application) you don't need this mode, because when nxtvepg detects an
-unsolicited channel change, it automatically switches to the passive mode
-for as long as the video device remains busy.
-
-<P>
-Please note: when nxtvepg does not control the input channel, it can not
+<DT><STRONG><A NAME="item_Passive"><STRONG>Passive</STRONG></A></STRONG><BR>
+<DD>
+UNIX only:
+In this mode the software never accesses the video device and never changes
+the input channel or tuner frequency.  It's useful if you want to set up the
+source with command line tools like <EM>v4lctl</EM>. If you're using applications
+which keep the video device busy (e.g. a TV application) you don't need this
+mode, because when nxtvepg detects an unsolicited channel change, it
+automatically switches to the passive mode for as long as the video device
+remains busy.
+<P>Please note: when nxtvepg does not control the input channel, it can not
 automatically take care of updating your databases. Even if the browser
 database should be completely empty, no data will appear until you tune in
 the provider's channel manually with an external application. Because of
-this, passive mode is depreciated.
-
-<DT><STRONG><A NAME="item_External">External</A></STRONG><DD>
-<P>
+this, passive mode is depreciated.</P>
+<P></P>
+<DT><STRONG><A NAME="item_External"><STRONG>External</STRONG></A></STRONG><BR>
+<DD>
 This is the recommended mode for Composite or S-Video input sources. Only
 the input source will be set; the tuner is not touched. Hence the provider
 channel has to be selected either externally (e.g. in a satellite receiver
 connected to the Composite or S-Video input sockets) or by a different
 application (e.g. TV application, UNIX only), just like in passive mode.
-
-<P>
-On Windows systems this mode can be used if your tuner is not known to
+<P>On Windows systems this mode can be used if your tuner is not known to
 nxtvepg, i.e. if the EPG scan does not find any channels with all of the
-available tuner types. In this case tune in the provider channel with a TV
-application; then quit this application and start nxtvepg. When you view
-the acquisition statistics from the Control menu, the VPS/PDC code of the
-tuned channel should appear in the lower half of the window.
-
-<DT><STRONG><A NAME="item_Follow">Follow-UI</A></STRONG><DD>
-<P>
+available tuner types. In this case tune in the provider channel with a
+TV application; then quit this application and start nxtvepg. When you
+view the acquisition statistics from the Control menu, the VPS/PDC code
+of the tuned channel should appear in the lower half of the window.</P>
+<P></P>
+<DT><STRONG><A NAME="item_Follow%2DUI"><STRONG>Follow-UI</STRONG></A></STRONG><BR>
+<DD>
 This is the default mode: the acquisition always works for the provider you
 have selected for the browser (i.e. user interface). If you change the
-provider in the browser window, acquisition follows by tuning the new
-channel. Of course this requires to have performed an EPG scan at least
-once, so that the tuner frequencies of all providers are known. When you
-use a merged database in the browser, acquisition works on each of the
-merged providers, one after another, just like in the mode described next.
-
-<DT><STRONG><A NAME="item_Manually">Manually selected</A></STRONG><DD>
-<P>
-This mode enables you to manually select for which providers the
-acquisition should work. If you select more than one provider, they are
-loaded one after another, in your specified order. Warning: if you choose a
-provider for the browser that's not on the list, no data will be loaded
-into the browser, even if it's completely empty.
-
-<P>
-Since transmission errors have to be considered, it's not attempted to load
-every single block of a provider before acquisitions switches to the next.
-Instead a statistical criterium was defined, that regards the variance in
-coverage of all networks contained in the database, and the slope of that
-variance.
-
-<DT><STRONG><A NAME="item_Cyclic">Cyclic: Now - Near - All</A></STRONG><DD>
-<P>
+provider in the browser window, acquisition follows by tuning the new channel.
+Of course this requires to have performed an EPG scan at least once, so that
+the tuner frequencies of all providers are known. When you use a merged
+database in the browser, acquisition works on each of the merged providers,
+one after another, just like in the mode described next.
+<P></P>
+<DT><STRONG><A NAME="item_Manually_selected"><STRONG>Manually selected</STRONG></A></STRONG><BR>
+<DD>
+This mode enables you to manually select for which providers the acquisition
+should work. If you select more than one provider, they are loaded one after
+another, in your specified order. Warning: if you choose a provider for the
+browser that's not on the list, no data will be loaded into the browser,
+even if it's completely empty.
+<P>Since transmission errors have to be considered, it's not attempted
+to load every single block of a provider before acquisitions switches to the
+next. Instead a statistical criterium was defined, that regards the variance
+in coverage of all networks contained in the database, and the slope of that
+variance.</P>
+<P></P>
+<DT><STRONG><A NAME="item_Cyclic%3A_Now_%2D_Near_%2D_All"><STRONG>Cyclic: Now - Near - All</STRONG></A></STRONG><BR>
+<DD>
 Like the previous mode, this one enables you to specify a list of providers
-to load data for. However they are not just loaded completely one after
-another. Instead, a 3-staged round-robin is implemented. In the first
-stage, only
+to load data for. However they are not just loaded completely one after another.
+Instead, a 3-staged round-robin is implemented. In the first stage, only
 <EM>Now</EM>
 data is loaded, i.e. the currently running and next 2-3 programmes. When
-this has been completed for all providers, the next stage begins, which
-loads
+this has been completed for all providers, the next stage begins, which loads
 <EM>Near</EM>
 data, i.e. all programmes running in the next 12-24 hours. When that was
 completed, the final stage loads the outstanding blocks for all providers.
 See below for an explanation what this mode is good for.
-
-<DT><STRONG>Cyclic: Now - All</STRONG><DD>
-<P>
+<P></P>
+<DT><STRONG><A NAME="item_Cyclic%3A_Now_%2D_All"><STRONG>Cyclic: Now - All</STRONG></A></STRONG><BR>
+<DD>
 This is the same as the previous mode, except that the
 <EM>Near</EM> stage is skipped.
-
-<DT><STRONG>Cyclic: Near - All</STRONG><DD>
-<P>
+<P></P>
+<DT><STRONG><A NAME="item_Cyclic%3A_Near_%2D_All"><STRONG>Cyclic: Near - All</STRONG></A></STRONG><BR>
+<DD>
 This is the same as the mode before the previous one, except that the
 <EM>Now</EM> stage is skipped.
-
-</DL>
-<P>
-Which mode is best for you depends on how you use the browser. As said
+<P></P></DL>
+<P>Which mode is best for you depends on how you use the browser. As said
 above, if you're mainly using a single provider, stick with the Follow-UI
 mode. If you use a merged database, data is automatically loaded for all
 contained providers. However if you switch manually between multiple
-providers, you should choose one of the manual acquisition modes.
-
-<P>
-The Cyclic modes enables you to optimize startup time. While in standard
-manual mode, the first database is loaded completely before the next one is
-started, in Cyclic modes you can specify to load only Now data of all
+providers, you should choose one of the manual acquisition modes.</P>
+<P>The Cyclic modes enables you to optimize startup time. While in standard
+manual mode, the first database is loaded completely before the next one
+is started, in Cyclic modes you can specify to load only Now data of all
 providers first. Hence already after a couple minutes you'll have updated
-Now information for all providers. If you require more look-ahead than the
-next 2-3 programmes, e.g. the complete evening, use a Cyclic mode that
-starts with the Near stage.
-
-<P>
-If you use manual acquisition together with a merged browser database, make
-sure to put the same provider at top in both lists, i.e. acquisition should
-always start for the ``master database'' of the merge.
-
-<P>
-Please note that the time until all databases are complete is longer in the
-cyclic modes than in standard manual mode. In general, the time used for
-the Now and Next stages just adds to the time to complete the database.
-
-<P>
-Also note that the cyclic modes depend on the transmission cycles of the
-providers. Firstly this means that the time ranges covered by the cycle
-stages may differ between providers. Secondly, the cycle times may vary. In
-the worst case the Near cycle runs as long as the cycle for the complete
-database (e.g. the German provider RTL2). In this case you don't win
-anything by selecting a mode that contains a Near stage.
-
+Now information for all providers. If you require more look-ahead than
+the next 2-3 programmes, e.g. the complete evening, use a Cyclic mode
+that starts with the Near stage.</P>
+<P>If you use manual acquisition together with a merged browser database,
+make sure to put the same provider at top in both lists, i.e. acquisition
+should always start for the ``master database'' of the merge.</P>
+<P>Please note that the time until all databases are complete is longer
+in the cyclic modes than in standard manual mode. In general, the time
+used for the Now and Next stages just adds to the time to complete the
+database.</P>
+<P>Also note that the cyclic modes depend on the transmission cycles of
+the providers. Firstly this means that the time ranges covered by the
+cycle stages may differ between providers. Secondly, the cycle times
+may vary. In the worst case the Near cycle runs as long as the cycle
+for the complete database (e.g. the German provider RTL2). In this case
+you don't win anything by selecting a mode that contains a Near stage.</P>
 <P>
 <HR>
-<H1><A NAME="STATISTICS">STATISTICS</A></H1>
-<P>
-There are currently three ways to obtain information about the state of the
+<H1><A NAME="statistics">STATISTICS</A></H1>
+<P>There are currently three ways to obtain information about the state of the
 databases and the acquisition process: the first and most obvious is the
-status line at the bottom of the main window (only if enabled, see see <A HREF="#CONFIGURATION">CONFIGURATION</A>). The second one are the timescale popup windows, which visualize for each
-TV network the time ranges which are covered with TV programme data. The
-third one are the database statistics popup windows which offer technical
-details about the database, e.g. which percentage of entries is already
-loaded etc., both in textual form and as a pie chart.
-
+status line at the bottom of the main window (only if enabled, see
+see <A HREF="#configuration">CONFIGURATION</A>). The second one are the timescale popup windows,
+which visualize for each TV network the time ranges which are covered
+with TV programme data. The third one are the database statistics popup
+windows which offer technical details about the database, e.g. which
+percentage of entries is already loaded etc., both in textual form and
+as charts.</P>
+<P>The latter two windows are available separately for the browser and
+acquisition databases. (By default both are the same databases, but you
+can configure background acquisition on multiple databases,
+see <A HREF="#acquisition modes">ACQUISITION MODES</A>).
+All types of statistics are regularily updated while acquisition is running.
+While connected to an acquisition daemon, all statistics output refers to
+the acquisition running in the daemon.</P>
 <P>
-The latter two windows are available separately for the browser and
-acquisition databases. (By default these are identical, but you can
-configure background acquisition on multiple databases, see <A HREF="#ACQUISITION_MODES">ACQUISITION MODES</A>). All types of statistics are regularily updated while acquisition is
-running.
-
-<P>
-<HR>
-<H2><A NAME="Status_line">Status line</A></H2>
-<P>
-The status line separately summarizes the state of the browser database
+<H2><A NAME="status line">Status line</A></H2>
+<P>The status line separately summarizes the state of the browser database
 (unless it's a merged database) and the acquisition process. Since there's
 not much room only the most relevant information is included there, i.e.
-kind of information presented depends on the current state.
-
-<P>
-For the browser database you'll normally just see the name of the content
-provider network and a percentage that describes how many of the blocks
-(i.e. TV programmes) in the provider database already have been received.
-
-<P>
-If more than 10% of the blocks in the database lie in the past, you'll
-additionally see a note about this percentage of expired blocks. Note that
-a 100% loaded database may appear completely empty when all blocks are
-expired. As soon as you start acquisition the fill percentage will drop to
-0 because a new inventory will have been loaded which no longer contains
-the expired blocks.
-
-<P>
-When acquisition for the browser database stopped more than 60 minutes ago,
+the kind of information presented depends on the current state.</P>
+<P>For the browser database you'll normally just see the name of the
+content provider network and a percentage that describes how many of the
+blocks (i.e. TV programmes) in the provider database already have been
+received.</P>
+<P>If more than 10% of the blocks in the database lie in the past, you'll
+additionally see a note about this percentage of expired blocks. Note
+that a 100% loaded database may appear completely empty when all blocks
+are expired.  As soon as you start acquisition the fill percentage will
+drop to 0 because a new inventory will have been loaded which no longer
+contains the expired blocks.</P>
+<P>When acquisition for the browser database stopped more than 60 minutes ago,
 a note is added to the status line. In this case it may be advisable to
 start acquisition for this database to load descriptions for programmes
-that are now included in the ``Near'' time range (see <A HREF="#DATA_ACQUISITION">DATA ACQUISITION</A>).
-
-<P>
-If acquisition is currently not active you'll see a note about that, often
-together with a reason, e.g. ``no reception'' when you've manually tuned a
-station that doesn't transmit Nextview.
-
-<P>
-Else you'll see the name of the content provider network and a percentage
+that are now included in the ``Near'' time range (see <A HREF="#data acquisition">DATA ACQUISITION</A>).</P>
+<P>If acquisition is currently not active you'll see a note about that,
+often together with a reason, e.g. ``no reception'' when you've manually
+tuned a station that doesn't transmit Nextview.</P>
+<P>Else you'll see the name of the content provider network and a percentage
 that describes the progress of acquisition. Note that this percentage may
 be different from the overall fill percentage given with the browser
 database, as it also reflects blocks that have to be reloaded due to
-version changes.
-
+version changes.</P>
+<P>Additionally there may be a note about the current mode of acquisition,
+like the current phase for cyclic acquisition modes or ``forced passive'' when
+nxtvepg is not able to change the channel, maybe due to a TV application
+running in parallel. See <A HREF="#acquisition modes">ACQUISITION MODES</A> for details.</P>
 <P>
-Additionally there may be a note about the current mode of acquisition,
-like the current phase for cyclic acquisition modes or ``forced passive''
-when nxtvepg is not able to change the channel, maybe due to a TV
-application running in parallel. See <A HREF="#ACQUISITION_MODES">ACQUISITION MODES</A> for details.
-
-<P>
-<HR>
-<H2><A NAME="Timescale_popup_windows">Timescale popup windows</A></H2>
-<P>
-You can monitor the progress of acquisition with the timescale windows
-which can be opened from the Control menu. There's one window for the
-browser database, and one for the acquisition database.
-
-<P>
-The timescale windows have one scale for each network covered by the
-selected provider. Each scale covers the next 5 days, starting with the
-current time. Ranges that are covered by programmes in the database are
-marked in red or blue, uncovered ranges are left black.
-
-<P>
-The different colors reflect the <EM>stream</EM> in which the data was received, or an error status. Stream numbers are
-directly connected with the cycle phases mentioned in <A HREF="#ACQUISITION_MODES">ACQUISITION MODES</A>; besides this the difference is not relevant during normal operation.
-
+<H2><A NAME="timescale popup windows">Timescale popup windows</A></H2>
+<P>You can monitor the progress of acquisition with the timescale windows
+which can be opened from the Control menu. There's one window for
+the browser database, and one for the acquisition database. The
+acquisition window is updated whenenever new EPG blocks are received.</P>
+<P>The timescale windows have one scale for each network covered by the
+selected provider. Each scale covers 5 days, beginning with the start time
+of the first TV programme in the database. Depending on how long ago
+the database was updated, the dates may be partly or entirely in the past.
+The exact dates are printed in the date scale at top of the window.</P>
+<P>Ranges that are covered by programmes of the respective network in the
+database are marked in shades of red or blue, uncovered ranges are left black.
+The different colors reflect the <EM>stream</EM> in which the data was received,
+or an error status; the shades age and version. Stream numbers are directly
+connected with the cycle phases mentioned in <A HREF="#acquisition modes">ACQUISITION MODES</A>; besides
+this the difference is not relevant during normal operation.</P>
 <DL>
-<DT><STRONG><A NAME="item_red">red:</A></STRONG><DD>
-<P>
+<DT><STRONG><A NAME="item_red%3A"><EM>red:</EM></A></STRONG><BR>
+<DD>
 PI blocks received in stream 1, i.e. cycle phase 'Near'.
-
-<DT><STRONG><A NAME="item_blue">blue:</A></STRONG><DD>
-<P>
+<P></P>
+<DT><STRONG><A NAME="item_blue%3A"><EM>blue:</EM></A></STRONG><BR>
+<DD>
 PI blocks received in stream 2, i.e. cycle phase 'All'.
-
-<DT><STRONG><A NAME="item_shaded">shaded red or blue:</A></STRONG><DD>
-<P>
+<P></P>
+<DT><STRONG><A NAME="item_dark_red_or_blue%3A"><EM>dark red or blue:</EM></A></STRONG><BR>
+<DD>
 PI blocks from an earlier database version.
-
-<DT><STRONG><A NAME="item_yellow">yellow:</A></STRONG><DD>
-<P>
-expired or invalid PI blocks (overlapping or zero run-time, block number
-not in the range given in inventory, etc.)
-
-<DT><STRONG><A NAME="item_gray">gray:</A></STRONG><DD>
-<P>
-missing PI blocks. Note that the range can only be roughly estimated, as
-the time range a block covers is not known until the actual block is
-available.
-
-<DT><STRONG><A NAME="item_black">black:</A></STRONG><DD>
-<P>
+<P></P>
+<DT><STRONG><A NAME="item_orange%3A"><EM>orange:</EM></A></STRONG><BR>
+<DD>
+expired PI blocks from stream 1.
+<P></P>
+<DT><STRONG><A NAME="item_cyan%3A"><EM>cyan:</EM></A></STRONG><BR>
+<DD>
+expired PI blocks from stream 2.
+<P></P>
+<DT><STRONG><A NAME="item_yellow%3A"><EM>yellow:</EM></A></STRONG><BR>
+<DD>
+invalid PI blocks (overlapping or zero run-time,
+block number not in the range given in inventory, etc.)
+<P></P>
+<DT><STRONG><A NAME="item_gray%3A"><EM>gray:</EM></A></STRONG><BR>
+<DD>
+missing PI blocks. Note that the range can only be roughly estimated,
+as the time range a block covers is not known until the actual block
+is available.
+<P></P>
+<DT><STRONG><A NAME="item_black%3A"><EM>black:</EM></A></STRONG><BR>
+<DD>
 time range which is not covered by the provider.
-
-</DL>
+<P></P></DL>
+<P>In front of the scales there are 5 separate boxes, which refer to the
+first 5 programmes (PI blocks) in the inventory (AI block).  They have
+two purposes: firstly, during acquisition you can see when the 'Now'
+cycle phase is complete; secondly you can check if the data from the
+Now cycle is expired (marked orange).  If all 5 are orange, it's time
+to update the database.</P>
 <P>
-In front of the scales there are 5 separate boxes, which refer to the first
-5 programmes (PI blocks) in the inventory (AI block). Please note that in
-contrary to the timescales these boxes do not start with the currently
-running programmes. They have two purposes: firstly, during acquisition you
-can see when the 'Now' cycle phase is complete; secondly you can check if
-the data from the Now cycle is expired (marked yellow). If all 5 are
-yellow, it's time to update the database.
-
-<P>
-<HR>
-<H2><A NAME="Database_statistics_popup_window">Database statistics popup windows</A></H2>
-<P>
-There are two popup windows available from the Control menu which contain
+<H2><A NAME="database statistics popup windows">Database statistics popup windows</A></H2>
+<P>There are two popup windows available from the Control menu which contain
 statistical information about the browser database and the acquisition
-database and progress. The window is horizontally divided in two parts: the
-upper part lists static information; the lower part lists dynamic info and
-is available only while acquisition is active.
-
-<P>
-The acquisition statistics are updated every time a new AI block (inventory
-which lists all covered networks and block counts per network; usually
-transmitted every 10 seconds) is received.
-
+database and progress. The window is horizontally divided in two parts:
+the upper part lists static information; the lower part lists dynamic info
+and is available only while acquisition is active.</P>
+<P>The acquisition statistics are updated every time a new AI block
+(inventory which lists all covered networks and block counts per
+network; usually transmitted every 10 seconds) is received.</P>
 <DL>
-<DT><STRONG><A NAME="item_Last">Last AI update:</A></STRONG><DD>
-<P>
-The (local) time when the last inventory block was received. Since this
-block has to be transmitted on a regular basis it tells you when
+<DT><STRONG><A NAME="item_Last_AI_update%3A"><EM>Last AI update:</EM></A></STRONG><BR>
+<DD>
+The (local) time when the last inventory block was received. Since
+this block has to be transmitted on a regular basis it tells you when
 acquisition was active for this database.
-
-<DT><STRONG><A NAME="item_Database">Database version:</A></STRONG><DD>
-<P>
+<P></P>
+<DT><STRONG><A NAME="item_Database_version%3A"><EM>Database version:</EM></A></STRONG><BR>
+<DD>
 The version number is incremented by the provider every day or after
-content changes. A version change forces a complete reload of the database.
-
-<DT><STRONG><A NAME="item_Blocks">Blocks in AI:</A></STRONG><DD>
-<P>
+content changes.  A version change forces a complete reload of the
+database.
+<P></P>
+<DT><STRONG><A NAME="item_Blocks_in_AI%3A"><EM>Blocks in AI:</EM></A></STRONG><BR>
+<DD>
 How many blocks are transmitted in total. This number is taken from the
-provider's AI block, i.e. the inventory. Additionally listed separately for
-stream 1 and 2 (swo).
-
-<DT><STRONG><A NAME="item_Block">Block count db:</A></STRONG><DD>
-<P>
+provider's AI block, i.e. the inventory.  Additionally listed separately
+for stream 1 and 2 (swo).
+<P></P>
+<DT><STRONG><A NAME="item_Block_count_db%3A"><EM>Block count db:</EM></A></STRONG><BR>
+<DD>
 How many blocks are in the local database. At maximum this can be the
 number of blocks given in the AI block.
-
-<DT><STRONG><A NAME="item_Current">Current version:</A></STRONG><DD>
-<P>
+<P></P>
+<DT><STRONG><A NAME="item_Current_version%3A"><EM>Current version:</EM></A></STRONG><BR>
+<DD>
 How many blocks are in the local database and have the latest version.
-
-<DT><STRONG><A NAME="item_Filled">Filled:</A></STRONG><DD>
-<P>
-Percentage of blocks in the database in respect to the total given in the
-AI block, i.e. ``Block count db'' divided by ``Blocks in AI''. The second
-percentage in the line only reflects blocks of the current version and
-hence the degree of completeness of acquisition.
-
-<DT><STRONG><A NAME="item_Expired">Expired blocks:</A></STRONG><DD>
-<P>
-Number of blocks which have a stop time that's in the past, i.e. which no
-longer show up in the browser. The percentage given here is in respect to
-the actual number of blocks in the local database (all versions), not the
-AI.
-
-<DT><STRONG><A NAME="item_Defective">Defective blocks:</A></STRONG><DD>
-<P>
-Number of blocks with invalid or overlapping start time. These blocks do
-not show up in the browser (as it would be impossible to handle if there is
-more than one ``now'' entry for a network). The percentage given here is in
-respect to the actual number of blocks in the local database (all
-versions), not the AI.
-
-</DL>
-<P>
-The pie chart on the left on the window visualizes these numbers. The
-circle represents 100% of the blocks listed in AI. It's divided in stream 1
-(red) and stream 2 (blue). The shaded segments represent the blocks that
-are still missing in the local database. The yellow segments the percentage
-of expired and/or defective blocks.
-
-<P>
-When you interpret those values, please remember that blocks may be
+<P></P>
+<DT><STRONG><A NAME="item_Filled%3A"><EM>Filled:</EM></A></STRONG><BR>
+<DD>
+Percentage of blocks in the database in respect to the total given in
+the AI block, i.e. ``Block count db'' divided by ``Blocks in AI''. The
+second percentage in the line only reflects blocks of the current version
+and hence the degree of completeness of acquisition.
+<P></P>
+<DT><STRONG><A NAME="item_Expired_blocks%3A"><EM>Expired blocks:</EM></A></STRONG><BR>
+<DD>
+Number of blocks which have a stop time that's in the past, i.e. which
+no longer show up in the browser. The percentage given here is in respect
+to the actual number of blocks in the local database (all versions),
+not the AI.
+<P></P>
+<DT><STRONG><A NAME="item_Defective_blocks%3A"><EM>Defective blocks:</EM></A></STRONG><BR>
+<DD>
+Number of blocks with invalid or overlapping start time. These blocks
+do not show up in the browser (as it would be impossible to handle if
+there is more than one ``now'' entry for a network).  The percentage given
+here is in respect to the actual number of blocks in the local database
+(all versions), not the AI.
+<P></P></DL>
+<P>The pie chart on the left on the window visualizes these numbers. The
+circle represents 100% of the blocks listed in AI.  It's divided in
+stream 1 (red) and stream 2 (blue). The shaded segments represent the
+blocks that are still missing in the local database. The yellow segments
+the percentage of expired and/or defective blocks.</P>
+<P>When you interpret those values, please remember that blocks may be
 appended to the transmission cycle when programmes have expired (in a
 slight violation of the Nextview standard this is done even without
-changing the database version). So you might see from time to time that the
-fill percentages take a step back down during acquisition. Also note that
-expired PI are not accessible from the user interface, however they are
-included in the database dump from the <EM>Control</EM> menu.
-
+changing the database version). So you might see from time to time that
+the fill percentages take a step back down during acquisition. Also note
+that expired PI are not accessible from the user interface, however they
+are included in the database dump from the <EM>Control</EM> menu.</P>
 <DL>
-<DT><STRONG><A NAME="item_Acq">Acq. runtime:</A></STRONG><DD>
-<P>
+<DT><STRONG><A NAME="item_Acq%2E_runtime%3A"><EM>Acq. runtime:</EM></A></STRONG><BR>
+<DD>
 How long the acquisition has been continuously running for this database.
-
-<DT><STRONG><A NAME="item_Channel">Channel VPS/PDC:</A></STRONG><DD>
-<P>
-The VPS/PDC code that has last been received on the currently tuned
-channel. Usually this will be the same as the provider CNI given in the
-database statistics, but you might see different values here when you
-manually tune in a different channel with an external application.
-
-<DT><STRONG><A NAME="item_TTX">TTX data rate:</A></STRONG><DD>
-<P>
+This timer is reset upon provider or database version changes or when an
+external channel change is detected.
+<P></P>
+<DT><STRONG><A NAME="item_Channel_VPS%2FPDC%3A"><EM>Channel VPS/PDC:</EM></A></STRONG><BR>
+<DD>
+The VPS/PDC code that has last been received on the currently tuned channel.
+Usually this will be the same as the provider CNI given in the database
+statistics, but you might see different values here when you manually tune
+in a different channel with an external application.
+<P>If a valid VPS/PDC code (Programme Identification Label, PIL) was received
+together with the CNI it is appended after the CNI in decoded format
+(i.e. DD.MM HH:MM with day, month, hour and minute).  Note: the VPS/PDC
+codes are used to uniquely identify the current programme on a given
+network.  You can display the codes for all programmes in the database
+if you enable them in the <EM>Column selection</EM> dialog (see <A HREF="#configuration">CONFIGURATION</A>).</P>
+<P></P>
+<DT><STRONG><A NAME="item_TTX_data_rate%3A"><EM>TTX data rate:</EM></A></STRONG><BR>
+<DD>
 The rate at which teletext data lines are received on the current channel
-in baud, i.e. bits per second. Each teletext line counts as 45 bytes.
-
-<DT><STRONG><A NAME="item_EPG">EPG data rate:</A></STRONG><DD>
-<P>
-Same as TTX data rate, however only teletext lines that belong to the page
-which transmits Nextview are counted.
-
-<DT><STRONG>EPG page rate:</STRONG><DD>
-<P>
+in baud, i.e. bits per second.  Each teletext line counts as 45 bytes.
+<P></P>
+<DT><STRONG><A NAME="item_EPG_data_rate%3A"><EM>EPG data rate:</EM></A></STRONG><BR>
+<DD>
+Same as TTX data rate, however only teletext lines that belong to the
+page which transmits Nextview are counted.
+<P></P>
+<DT><STRONG><A NAME="item_EPG_page_rate%3A"><EM>EPG page rate:</EM></A></STRONG><BR>
+<DD>
 The per second average of received teletext pages with carry Nextview data.
-
-<DT><STRONG><A NAME="item_AI">AI recv. count:</A></STRONG><DD>
-<P>
-The number of AI blocks received since acquisition start.
-
-<DT><STRONG>AI min/avg/max:</STRONG><DD>
-<P>
+Many provider transmit one page per second during the day and up to
+1.5 or 2 pages per second during the night.
+<P></P>
+<DT><STRONG><A NAME="item_AI_recv%2E_count%3A"><EM>AI recv. count:</EM></A></STRONG><BR>
+<DD>
+The number of AI blocks received since acquisition start.  As long as this
+counter remains at zero, no data is added to the database (because the
+AI block is mandatory to identify the provider.)
+<P></P>
+<DT><STRONG><A NAME="item_AI_min%2Favg%2Fmax%3A"><EM>AI min/avg/max:</EM></A></STRONG><BR>
+<DD>
 The minimum, average and maximum distance between reception of AI blocks.
-The average should usually be 10 seconds. The maximum should not be much
+The average should usually be 10 seconds.  The maximum should not be much
 higher or else an EPG scan might have a hard time finding this provider;
-also the acquisition start-up time would be higher because at first an AI
-block must be awaited.
-
-<DT><STRONG><A NAME="item_PI">PI rx repetition:</A></STRONG><DD>
-<P>
-The average how often each block in the AI was received since start of the
-acquisition. Divided in Now, stream 1 and stream 2.
-
-<DT><STRONG><A NAME="item_Acq">Acq mode:</A></STRONG><DD>
-<P>
+also the acquisition start-up time would be higher because at first an
+AI block must be awaited.
+<P></P>
+<DT><STRONG><A NAME="item_PI_rx_repetition%3A"><EM>PI rx repetition:</EM></A></STRONG><BR>
+<DD>
+The average of the number of times each block in the AI was received
+since start of the acquisition.  Divided in Now, stream 1 and stream 2.
+This value is used by acquisition control in the termination criterium
+for acquisition phases, if the acquisition mode is cyclic.
+<P></P>
+<DT><STRONG><A NAME="item_Acq_mode%3A"><EM>Acq mode:</EM></A></STRONG><BR>
+<DD>
 The current acquisition mode as configured by the user, or forced passive
 if nxtvepg failed to switch the channel.
-
-<DT><STRONG><A NAME="item_Network">Network variance:</A></STRONG><DD>
-<P>
+<P></P>
+<DT><STRONG><A NAME="item_Network_variance%3A"><EM>Network variance:</EM></A></STRONG><BR>
+<DD>
 The variance of block coverage across all networks.
-
-</DL>
-<P>
-The diagram at the left displays a history of fill percentages for stream 1
-and 2; the meaning of the colors is the same as in the timescale windows.
-
+This value is used by acquisition control in the termination criterium
+for acquisition phases, if the acquisition mode is cyclic.
+It's calculated by separately counting the number of blocks in the
+database for each network; then for each network calculating the
+percentage of available blocks in regard to expected blocks; then
+calculating the average and finally variance of these percentages.
+<P></P></DL>
+<P>The diagram at the left displays a history of fill percentages for
+stream 1 and 2; the meaning of the colors is the same as in the
+timescale windows.</P>
 <P>
 <HR>
-<H1><A NAME="MERGED_DATABASES">MERGED DATABASES</A></H1>
-<P>
-If you compare databases of different Nextview providers, you will often
-find that each has one or more nice features, or covers networks, that the
-others lack. Instead of changing back and forth between several providers
-all the time, database merging enables to select and combine features or
-networks from several original databases into one newly created database.
-
-<P>
-When you select the <STRONG>Merge providers...</STRONG> entry from the <STRONG>Configure</STRONG>
-menu, you will get a dialog with two listboxes: the left one contains a
-list of all currently available databases. The right one is the list of
-databases you want to merge. You can add, delete or reorder the entries is
-this list. When you're done with your selection, press <STRONG>Ok</STRONG>
-to start the merge and switch the browser to the new database.
-
-<P>
-By ordering providers in your selection, you assign priorities which are
+<H1><A NAME="merged databases">MERGED DATABASES</A></H1>
+<P>If you compare databases of different Nextview providers, you will
+often find that each has one or more nice features, or covers networks,
+that the others lack. Instead of changing back and forth between
+several providers all the time, database merging allows to select and
+combine features or networks from several original databases into one
+newly created database.</P>
+<P>When you select the <STRONG>Merge providers...</STRONG> entry from the <STRONG>Configure</STRONG>
+menu, you will get a dialog with two listboxes: the left one contains
+a list of all currently available databases. The right one is the list
+of databases you want to merge. You can add, delete or reorder the
+entries is this list. When you're done with your selection, press <STRONG>Ok</STRONG>
+to start the merge and switch the browser to the new database.</P>
+<P>By ordering providers in your selection, you assign priorities which are
 important for conflict resolution. A conflict occurs when programme start
 and stop times differ between providers. The likelyhood of such conflicts
 depends on the quality of your providers; theoretically they should never
 happen except if there are late program changes. In reality, conflicts are
-not that unlikely, particularily for programmes early in the morning. You
-should put the most reliable provider in the first position, because
-conflicting programmes from providers further down will be rejected, i.e.
-not added to the merged database.
-
-<P>
-The <STRONG>Configure</STRONG> button in the dialog gives you fine-control over the priority of providers
-during the merge of all distinct programme attributes. You can even
-completely remove a provider for an attribute, e.g. if they transmit false
-data (e.g. the Sound attribute is handled wrong by the German provider
-3Sat: they have swapped Stereo and Surround). An exception is the title,
-where you must not delete any providers.
-
-<P>
-Attributes that cannot be merged, e.g. editorial rating, are fetched from
+not that unlikely, particularily for programmes early in the morning.
+You should put the most reliable provider in the first position, because
+conflicting programmes from providers further down will be rejected,
+i.e. not added to the merged database.</P>
+<P>The <STRONG>Configure</STRONG> button in the dialog gives you fine-control over the
+priority of providers during the merge of all distinct programme
+attributes. You can even completely remove a provider for an attribute,
+e.g. if they transmit false data (e.g. the Sound attribute is handled
+wrong by the German provider 3Sat: they have swapped Stereo and Surround).
+An exception is the title, where you must not delete any providers.</P>
+<P>Attributes that cannot be merged, e.g. editorial rating, are fetched from
 the first database in the list that contains the attribute for a given
-programme. An exception are sorting criteria and series, where only the
-first provider in the list is queried (i.e. even if the first provider does
-not have a sorting criterion for a given programme, the further databases
-are not searched) because these types of attributes cannot be mixed between
-providers (see also <A HREF="#FILTERING">FILTERING</A>).
-
-<P>
-Note: If you use a manual or cyclic acquisition mode, you should take care
+programme.  An exception are sorting criteria and series, where only the
+first provider in the list is queried (i.e. even if the first provider
+does not have a sorting criterion for a given programme, the further
+databases are not searched) because these types of attributes cannot
+be mixed between providers (see also <A HREF="#filtering">FILTERING</A>).</P>
+<P>Note: If you use a manual or cyclic acquisition mode, you should take care
 to include all providers of your merged database in the same order. Else,
 program changes will not appear in your database until the provider with
-highest priority is loaded. If you stay with the default <STRONG>Follow-UI</STRONG>, acquisition control will automatically cycle across all merged providers
-in the correct order.
-
+highest priority is loaded. If you stay with the default <STRONG>Follow-UI</STRONG>,
+acquisition control will automatically cycle across all merged providers
+in the correct order.</P>
 <P>
 <HR>
-<H1><A NAME="NAVIGATE">NAVIGATE</A></H1>
-<P>
-The Navigate menu contains a tree of filtering options, that's transmitted
-by the selected provider together with the programme data. Filtering
-enables to restrict the listing of programme information to those titles
-matching the selected menu entry.
-
-<P>
-The extent and content of this menu depends entirely on the provider.
+<H1><A NAME="navigate">NAVIGATE</A></H1>
+<P>The Navigate menu contains a tree of filtering options, that's transmitted
+by the selected provider together with the programme data. Filtering enables
+to restrict the listing of programme information to those titles matching
+the selected menu entry.</P>
+<P>The extent and content of this menu depends entirely on the provider.
 Unfortunately most providers supply only a very limited menu, so you'll
 probably want to define your own filters, as described in the next two
-chapters.
-
-<P>
-Any filter selection can always be undone by the
-<EM>Reset</EM> menu entry or the reset button in the main window.
-
+chapters.</P>
+<P>Any filter selection can always be undone by the
+<EM>Reset</EM> menu entry or the reset button in the main window.</P>
 <P>
 <HR>
-<H1><A NAME="FILTERING">FILTERING</A></H1>
-<P>
-Similar to <EM>Navigate</EM>, this menu allows to control which of the programmes in the database are
-presented in the listing. However here, you are not limited to a
-preselection of filter options. There's a filter for every kind of
-attributes that can be attached to a program, e.g. it's network, start
-time, theme descriptors, ... and many more.
-
-<P>
-Filters can be undone either singularily by selecting the same filter menu
-entry again, or globally by clicking on the <EM>Reset</EM>
-button or menu entries.
-
-<P>
-You can combine as many filters as you want to build a complex filter. If
-you combine two filters of different types, only programmes that match both
-attributes will be listed (logical AND). If you choose more than one filter
-of the same type, all programmes that match either attribute will be listed
-(logical OR).
-
-<P>
-<EM>Examples:</EM>
-If you want to see all programmes listed for either network ARD or ZDF,
-simply select both networks. If you want to see all movies scheduled on
-PRO7, select network=PRO7 and theme=movies.
-
-<P>
-Summary of filter options:
-
+<H1><A NAME="filtering">FILTERING</A></H1>
+<P>Similar to <EM>Navigate</EM>,
+this menu allows to control which of the programmes in the database
+are presented in the listing.  However here, you are not limited to a
+preselection of filter options.  There's a filter for every kind of
+attributes that can be attached to a program, e.g. it's network,
+start time, theme descriptors, ... and many more.</P>
+<P>Filters can be undone either singularily by selecting the same filter
+menu entry again, or globally by clicking on the <EM>Reset</EM>
+button or menu entries.</P>
+<P>You can combine as many filters as you want to build a complex filter.
+If you combine two filters of different types, only programmes that
+match both attributes will be listed (logical AND). If you choose more
+than one filter of the same type, all programmes that match either
+attribute will be listed (logical OR).</P>
+<P><EM>Examples:</EM>
+If you want to see all programmes listed for either network ARD or
+ZDF, simply select both networks. If you want to see all movies
+scheduled on PRO7, select network=PRO7 and theme=movies.</P>
+<P>Summary of filter options:</P>
 <DL>
-<DT><STRONG><A NAME="item_Features">Features</A></STRONG><DD>
-<P>
-Restrict the listing to programmes that match all given attributes (logical
-AND), i.e. sound format, picture format, analog/digital, encrypted yes/no,
-live/new/repeat and subtitles yes/no. If you want to allow more than one
-value of the same attribute (e.g. picture format wide OR Pal+) you have to
-put them into different feature classes.
-
-<DT><STRONG><A NAME="item_Parental">Parental Rating</A></STRONG><DD>
-<P>
-Restrict the listing to programmes that are suitable for children of the
-given age or elder.
-
-<DT><STRONG><A NAME="item_Editorial">Editorial Rating</A></STRONG><DD>
-<P>
-Restrict the listing to programmes that are rated (by the content provider)
-to have at least the given quality. The range of rating values is 1 to 7.
-Note that some providers do not use all values, e.g. only 1 to 5, or e.g.
-just 3, 5 and 7.
-
-<DT><STRONG><A NAME="item_Themes">Themes</A></STRONG><DD>
-<P>
+<DT><STRONG><A NAME="item_Features"><STRONG>Features</STRONG></A></STRONG><BR>
+<DD>
+Restrict the listing to programmes that match all given attributes
+(logical AND), i.e. sound format, picture format, analog/digital,
+encrypted yes/no, live/new/repeat and subtitles yes/no. If you want
+to allow more than one value of the same attribute (e.g. picture format
+wide OR Pal+) you have to put them into different feature classes.
+<P></P>
+<DT><STRONG><A NAME="item_Parental_Rating"><STRONG>Parental Rating</STRONG></A></STRONG><BR>
+<DD>
+Restrict the listing to programmes that are suitable for children
+of the given age or elder.
+<P></P>
+<DT><STRONG><A NAME="item_Editorial_Rating"><STRONG>Editorial Rating</STRONG></A></STRONG><BR>
+<DD>
+Restrict the listing to programmes that are rated (by the content
+provider) to have at least the given quality. The range of rating
+values is 1 to 7. Note that some providers do not use all values,
+e.g. only 1 to 5, or e.g. just 3, 5 and 7.
+<P></P>
+<DT><STRONG><A NAME="item_Themes"><STRONG>Themes</STRONG></A></STRONG><BR>
+<DD>
 Restrict the listing to programmes that have any of the given theme
-categories attached to them (logical OR). The Nextview standard contains a
-list of 76 predefined themes, which are structured into 11 main categories
-and subcategories. A programme can have up to 5 themes attached. If you
-want to restrict the listing to programmes that have more than one of the
-given themes (logical AND) you need to specify them in different theme
-classes.
-
-<DT><STRONG><A NAME="item_Series">Series</A></STRONG><DD>
-<P>
-Restrict the listing to programmes that belong to any of the given series.
-A series code always implies a network specification (even if the same
-programme is transmitted on different networks). This filter type is only
-available for providers that assign series codes; for the other ones you
-can use text search among programme titles.
-
-<DT><STRONG><A NAME="item_Program">Program index</A></STRONG><DD>
-<P>
-Restrict the listing to programmes who's index is in the given range. The
-currently running programme of each network is given index zero, the
-following programme of each network index one etc. The three most important
-combinations are available as radio buttons:
+categories attached to them (logical OR). The Nextview standard
+contains a list of 76 predefined themes, which are structured into
+11 main categories and subcategories. A programme can have up to
+5 themes attached. If you want to restrict the listing to programmes
+that have more than one of the given themes (logical AND) you need
+to specify them in different theme classes.
+<P></P>
+<DT><STRONG><A NAME="item_Series"><STRONG>Series</STRONG></A></STRONG><BR>
+<DD>
+Restrict the listing to programmes that belong to any of the given
+series. A series code always implies a network specification (even if the
+same programme is transmitted on different networks). This filter type is
+only available for providers that assign series codes; for the other ones
+you can use text search among programme titles.
+<P></P>
+<DT><STRONG><A NAME="item_Program_index"><STRONG>Program index</STRONG></A></STRONG><BR>
+<DD>
+Restrict the listing to programmes who's index is in the given range.
+The currently running programme of each network is given index zero,
+the following programme of each network index one etc. The three most
+important combinations are available as radio buttons:
 <EM>now</EM> (range 0-0),
 <EM>next</EM> (range 1-1) and
 <EM>now or next</EM> (range 0-1).
-
-<DT><STRONG><A NAME="item_Networks">Networks</A></STRONG><DD>
-<P>
-Restrict the listing to programmes of the given networks. Note that the
-order and selection of networks can be configured (see <A HREF="#CONFIGURATION">CONFIGURATION</A>).
-
-<DT><STRONG><A NAME="item_Text">Text search</A></STRONG><DD>
-<P>
-Restrict the listing to programmes who's title or description contain the
-given text.
-
-<DT><STRONG><A NAME="item_Start">Start Time</A></STRONG><DD>
-<P>
+<P>For merged databases only indices 0 and 1 are supported.</P>
+<P></P>
+<DT><STRONG><A NAME="item_Networks"><STRONG>Networks</STRONG></A></STRONG><BR>
+<DD>
+Restrict the listing to programmes of one or more given networks.
+The filter is disabled when all checkbuttons are deactivated.
+<P>You can also permanently add an equivalent network filter menu to
+the main window by enabling <EM>Show networks</EM> at the end of the
+<A HREF="#configuration">CONFIGURATION</A> menu. Note that selection, order and names of
+networks are all configurable.</P>
+<P></P>
+<DT><STRONG><A NAME="item_Text_search"><STRONG>Text search</STRONG></A></STRONG><BR>
+<DD>
+Restrict the listing to programmes who's title or description (or either
+if both options are enabled) contain the given text.  If you enable
+<EM>match complete text</EM> an exact match will be required, i.e. a search for
+``heute'' will not match on ``heute journal'' (this option is intended for
+title-only searches, as started from the context menu). If you enable
+<EM>match case</EM> character case is relevant in comparisons, i.e. a search
+for ``heute'' will not match on title ``Heute Abend''.
+<P>The last used options are remembered in your personal configuration file.
+A history of the last searches, including options, are also stored and
+available in the ``Title'' drop-down menu in the main browser window.</P>
+<P></P>
+<DT><STRONG><A NAME="item_Start_Time"><STRONG>Start Time</STRONG></A></STRONG><BR>
+<DD>
 Restrict the listing to programmes who's start time lies in the given
-interval. There are two special modes for the interval specification: If
-you enable <EM>Start at current time</EM>
-the interval start is fixed to the actual time when the filter is applied
-and the value given as stop time is interpreted as duration, i.e. it's
-added to the interval start. If you enable <EM>Stop at end of day</EM>
+interval. There are two special modes for the interval specification:
+If you enable <EM>Start at current time</EM>
+the interval start is fixed to the actual time when the filter is
+applied and the value given as stop time is interpreted as duration, i.e.
+it's added to the interval start. If you enable <EM>Stop at end of day</EM>
 the interval end is fixed to 23:59 of the same day.
-
-<DT><STRONG><A NAME="item_Sorting">Sorting Criterions</A></STRONG><DD>
-<P>
+<P>Note that the main intention of this filter is to support time
+restrictions in the provider's navigation menus (see <A HREF="#navigate">NAVIGATE</A>).
+For manual navigation there are more practical alternatives, e.g.
+the scrollbar and drop-down menus in the main browser window.</P>
+<P></P>
+<DT><STRONG><A NAME="item_Sorting_Criterions"><STRONG>Sorting Criterions</STRONG></A></STRONG><BR>
+<DD>
 Restrict the listing to programmes that have any of the given sorting
 criteria attached to them. Sorting criteria work very much like themes,
-however their meaning is not predefined by the Nextview standard. The
-content provider can use arbitrary numbers to represent an attribute.
-Attributes usually are themes that are not in the predefined catalog, e.g.
-current events like the Olympic Games, but could also be not content
-related at all. The meaning of these numbers is only defined by the
-provider's navigation menus (see <A HREF="#NAVIGATE">NAVIGATE</A>).
-
-</DL>
-<P>
-Note that the interpretation of two filter types depends on the provider:
-sorting criterion and series. That's because those are just arbitrary
-numbers which only have a meaning in the context of the provider's
-navigation menu.
-
-<P>
-<EM>Hint:</EM>
-the filter menu can also be used to examine the filter options that are
-invoked by the entries in the Navigate menu.
-
+however their meaning is not predefined by the Nextview standard.
+The content provider can use arbitrary numbers to represent an attribute.
+Attributes usually are themes that are not in the predefined catalog,
+e.g. current events like the Olympic Games, but could also be not
+content related at all.  The meaning of these numbers is only
+defined by the provider's navigation menus (see <A HREF="#navigate">NAVIGATE</A>).
+<P></P></DL>
+<P>Note that the interpretation of two filter types depends on the
+provider: sorting criterion and series. That's because those are
+just arbitrary numbers which only have a meaning in the context of
+the provider's navigation menu.</P>
+<P><EM>Hint:</EM>
+the filter menu can also be used to examine the filter options
+that are invoked by the entries in the Navigate menu.</P>
 <P>
 <HR>
-<H1><A NAME="FILTER_SHORTCUTS">FILTER SHORTCUTS</A></H1>
-<P>
-There's a number of predefined filter options in the main window below the
-clock. These shortcuts enable you to invoke filters by a single click of
-the mouse. You can freely add or remove entries from this list.
-
-<P>
-When you want to add a shortcut, either choose an entry from the Navigate
-menu or define your own filters via the Filter menu, possibly based on one
-or more already defined shortcuts. When you have found an interesting
-selection, call <EM>Add filter shortcut...</EM> from the Filter menu. You'll find a new shortcut appended to the list of
-existing shortcuts. First you'll probably want to enter a description in
-the entry field at the top of the dialog; default is just ``shortcut #xx''.
-When you're done just press <EM>Save</EM>, or <EM>Abort</EM> if you've changed your mind and don't want to add this shortcut after all.
-
-<P>
-You can also change descriptions or ordering of existing shortcuts in this
-dialog. If you want to modify the shortcut list without adding a new one,
-you can also access the dialog from the <EM>Configure</EM> menu.
-
-<P>
-If you want to change the filter settings of an existing shortcut, then
-invoke the shortcut, modify the settings as you need and then use the <EM>Update filter shortcut</EM> dialog in the Filter menu to save the new settings of any existing
-shortcut. You can use the
-<EM>Update & Edit</EM> Button to jump to the filter configuration dialog, e.g. if you want to
-fine-tune the description or ordering.
-
-<P>
-When you deselect a shortcut, either by selecting another shortcut or
-clicking on it a second time with <EM>CTRL</EM> held down, all it's filters will automatically be undone. Hence when you
-have two themes shortcuts, e.g. ``Movies'' and ``Sports'', and select first
-Movies, then Sports, you'll see only sports programmes afterwards. However
-if you had selected theme movies manually, e.g. by the context menu
-explained in the next chapter, the movies filter might remain set, so that
-you'd get all programmes of theme movies OR sports. Since that is usually
+<H1><A NAME="filter shortcuts">FILTER SHORTCUTS</A></H1>
+<P>There's a number of predefined filter options in the main window below
+the clock. These shortcuts enable you to invoke filters by a single click
+of the mouse. You can freely add or remove entries from this list.</P>
+<P>When you want to add a shortcut, either choose an entry from the
+Navigate menu or define your own filters via the Filter menu, possibly
+based on one or more already defined shortcuts. When you have found an
+interesting selection, call <EM>Add filter shortcut...</EM> from the Filter
+menu. You'll find a new shortcut appended to the list of existing
+shortcuts. First you'll probably want to enter a description in the
+entry field at the top of the dialog; default is just ``shortcut #xx''.
+When you're done just press <EM>Save</EM>, or <EM>Abort</EM> if you've changed
+your mind and don't want to add this shortcut after all.</P>
+<P>You can also change descriptions or ordering of existing shortcuts
+in this dialog.  If you want to modify the shortcut list without adding
+a new one, you can also access the dialog from the <EM>Configure</EM> menu.</P>
+<P>If you want to change the filter settings of an existing shortcut,
+then invoke the shortcut, modify the settings as you need and then
+use the <EM>Update filter shortcut</EM> dialog in the Filter menu to save
+the new settings of any existing shortcut. You can use the
+<EM>Update &amp; Edit</EM> Button to jump to the filter configuration dialog,
+e.g. if you want to fine-tune the description or ordering.</P>
+<P>When you deselect a shortcut, either by selecting another shortcut
+or clicking on it a second time with <EM>CTRL</EM> held down, all it's
+filters will automatically be undone. Hence when you have two themes
+shortcuts, e.g. ``Movies'' and ``Sports'', and select first Movies, then
+Sports, you'll see only sports programmes afterwards.  However if you
+had selected theme movies manually, e.g. by the context menu explained
+in the next chapter, the movies filter might remain set, so that you'd
+get all programmes of theme movies OR sports.  Since that is usually
 not what one expects, a filter mask has been introduced to the shortcut
-setting.
-
-<P>
-The filter mask is defined in the shortcuts dialog with a checkbutton for
-each filter type. By default, the mask is enabled for every filter type
-you've included in the shortcut filter setting. When you invoke the
-shortcut from the main window later, all filters of the given types will be
-cleared (masked out) before the shortcut filters are added. To return to
-the above example: if the ``Sports'' shortcut is defined with a themes
-mask, the manually set movies filter would be cleared before the theme
-filter is set to sports.
-
-<P>
-The masking can also be enabled when no filter of that type has been
-chosen. This can be used to define <EM>undo</EM> shortcuts. E.g. choose the mask 'Themes' if you want a shortcut that allows
-to clear all theme-related filters at once. Or enabled all masks for a <EM>Reset</EM>
-button (the only difference to the pre-defined Reset button would be that
-the cursor does not jump to the first Now programme.)
-
-<P>
-You can invoke several shortcuts in parallel by pressing the <EM>CTRL</EM>
-or <EM>SHIFT</EM> keys when selecting in the listbox - just as you know it from other
-applications. However the behavior of the combined shortcuts is slightly
-subtle and might not always match your expectations. That's because the
-shortcuts are not cleanly separated when processed. Instead all filters of
-all selected shortcuts are thrown together and then processed as if they
-belonged all to one shortcut in the way described in <A HREF="#FILTERING">FILTERING</A>. This might change in the future if someone convices me there's a real
-need to.
-
+setting.</P>
+<P>The filter mask is defined in the shortcuts dialog with a checkbutton
+for each filter type. By default, the mask is enabled for every filter
+type you've included in the shortcut filter setting.  When you invoke
+the shortcut from the main window later, all filters of the given types
+will be cleared (masked out) before the shortcut filters are added.
+To return to the above example: if the ``Sports'' shortcut is defined
+with a themes mask, the manually set movies filter would be cleared
+before the theme filter is set to sports.</P>
+<P>The masking can also be enabled when no filter of that type has been
+chosen. This can be used to define <EM>undo</EM> shortcuts. E.g. choose the
+mask 'Themes' if you want a shortcut that allows to clear all
+theme-related filters at once. Or enabled all masks for a <EM>Reset</EM>
+button (the only difference to the pre-defined Reset button would
+be that the cursor does not jump to the first Now programme.)</P>
+<P>You can invoke several shortcuts in parallel by pressing the <EM>CTRL</EM>
+or <EM>SHIFT</EM> keys when selecting in the listbox - just as you know it
+from other applications. However the behavior of the combined shortcuts
+is slightly subtle and might not always match your expectations.
+That's because the shortcuts are not cleanly separated when processed.
+Instead all filters of all selected shortcuts are thrown together and
+then processed as if they belonged all to one shortcut in the way
+described in <A HREF="#filtering">FILTERING</A>. This might change in the future
+if someone convices me there's a real need to.</P>
 <P>
 <HR>
-<H1><A NAME="CONTEXT_MENU">CONTEXT MENU</A></H1>
-<P>
-Another quick way to select and deselect filters is by using the context
-menu, which is popped up with the right mouse button in the browser window.
-
-<P>
-This menu consists of three parts: the first entries allow to undo the
-previously selected filters - either one by one or globally (reset).
-
-<P>
-The second part offers a number of possible new filter options, which
+<H1><A NAME="context menu">CONTEXT MENU</A></H1>
+<P>Another quick way to select and deselect filters is by using the
+context menu, which is popped up with the right mouse button in
+the browser window.</P>
+<P>This menu consists of three parts: the first entries allow to undo the
+previously selected filters - either one by one or globally (reset).</P>
+<P>The second part offers a number of possible new filter options, which
 depend on the currently selected title and the already selected filters.
 The offered filter types include: themes and network of the selected
 programme title, it's series code, repeat or original transmission
-suppression (only in cunjunction with series or title text filters) and
-last but not least the title text.
-
-<P>
-The title text and series filters allow to check very quickly for repeats
-of a programme. These filter options are included only if there is a match,
-i.e. if there's another programme with the same title or series code
-repectively.
-
-<P>
-The optional third part is empty by default, but can be used to invoke
+suppression (only in cunjunction with series or title text filters)
+and last but not least the title text.</P>
+<P>The title text and series filters allow to check very quickly for
+repeats of a programme. These filter options are included only if
+there is a match, i.e. if there's another programme with the same
+title or series code repectively.</P>
+<P>The optional third part is empty by default, but can be used to invoke
 user-defined external commands on the selected programme. More precisely,
-you can execute any command with parameters of the selected programme (like
-title or start time) on its command line. The user commands and can be
-added via the Configure menu (see <A HREF="#CONFIGURATION">CONFIGURATION</A>).
-
+you can execute any command with parameters of the selected programme
+(like title or start time) on its command line. The user commands and
+can be added via the Configure menu (see <A HREF="#configuration">CONFIGURATION</A>).</P>
 <P>
 <HR>
-<H1><A NAME="CONTROL">CONTROL</A></H1>
-<P>
-Summary of commands available from the Control menu:
-
+<H1><A NAME="control">CONTROL</A></H1>
+<P>Summary of commands available from the Control menu:</P>
 <DL>
-<DT><STRONG><A NAME="item_Enable">Enable acquisition</A></STRONG><DD>
-<P>
-Toggles acquisition on or off. Switching off allows other applications
-(e.g. a teletext decoder) to use the TV card while you browse the database.
-If you have more than one card, it's always possible to use one for
-watching TV and the other for loading data.
-
-<P>
-UNIX: When acquisition is switched off, the <EM>/dev/vbi</EM> device is freed. Acquisition can also been switched on and off
-automatically by sending the process the signal HUP. Note: the signal must
-be sent to the acquisition slave process, the pid of which is stored in <EM>/tmp/.vbi.pid</EM> while the device is in use.
-
-<P>
-Windows: When acquisition is switched off, the driver is unloaded.
-
-<DT><STRONG><A NAME="item_Dump">Dump stream</A></STRONG><DD>
-<P>
+<DT><STRONG><A NAME="item_Enable_acquisition"><STRONG>Enable acquisition</STRONG></A></STRONG><BR>
+<DD>
+Toggles acquisition on or off.  When you start the browser, acquisition
+is automatically enabled (although failure to do so is silently ignored).
+Switching off acquisition allows other applications (e.g. a teletext
+decoder) to use the TV card while you browse the database, if you have
+only one TV card.
+<P>UNIX: When acquisition is switched off, the <EM>/dev/vbi</EM> device is freed.
+Acquisition can also been switched on and off automatically (i.e. from a
+shell script) by sending signal HUP (e.g. with the <CODE>kill(1)</CODE> command) to
+any of the nxtvepg processes or threads.  If you're using a daemon for
+acquisition (see the next command) you have to send the signal to one of
+the daemon processes/threads.  To simplify this, the pid of the process
+which needs to be signalled is stored in <EM>/tmp/.vbi.pid</EM> while the device
+is in use.</P>
+<P>Windows: When acquisition is switched off, the driver is unloaded so
+that other programs can access the TV card.  Note that most Windows
+driver implementations do not allow for more than one TV card in the PC.</P>
+<P></P>
+<DT><STRONG><A NAME="item_Connect_to_acq%2E_daemon"><STRONG>Connect to acq. daemon</STRONG></A></STRONG><BR>
+<DD>
+UNIX only:
+Connect to or disconnect from an acquisition daemon, running in the
+background on the same host, or somewhere else in the network.  The
+address of the daemon and other parameters are configured in the
+<EM>Client/Server</EM> menu (see <A HREF="#configuration">CONFIGURATION</A>). By default the daemon
+is started on the local host.  The main advantage of using the daemon
+is that you can keep running acquisition permanently in the background,
+even if you terminate the browser, or even the X11 server (i.e. the
+windowing system).
+<P>If you attempt to connect, but no daemon is running, you'll be offered
+the option to automatically start the daemon and retry the connect,
+provided you have configured server hostname <EM>localhost</EM>.
+The daemon will be started with the same database directory and rcfile
+as the browser.</P>
+<P>Note that disconnecting from the daemon or terminating the browser does
+not stop the acquisition and hence does not free the device.  If that's
+what you want, choose the <EM>Enable acquisition</EM> command instead, which
+sends the TERM signal to the daemon, i.e. it terminates the process.
+Of course this option only is available if your daemon is running on the
+same host and with the same user id as the browser process.</P>
+<P></P>
+<DT><STRONG><A NAME="item_Dump_stream"><STRONG>Dump stream</STRONG></A></STRONG><BR>
+<DD>
 UNIX only: All incoming Nextview blocks are dumped to <EM>stdout</EM>
-in an ASCII format. This is mainly intended for developers, but it may also
-help to debug reception problems, because in the dump you'll find any block
-that could be decoded without hamming errors, even before an inventory
-block (AI) has been received. This may help if you have very bad reception,
-because it may take a long time until a error-free copy of the usually
-large AI block is received.
-
-<DT><STRONG>Dump raw database</STRONG><DD>
-<P>
+in an ASCII format. This is mainly intended for developers, but
+it may also help to debug reception problems, because in the dump
+you'll find any block that could be decoded without hamming errors,
+even before an inventory block (AI) has been received. This may help
+if you have very bad reception, because it may take a long time
+until a error-free copy of the usually large AI block is received.
+<P>When connected to a acquisition daemon, blocks are only dumped if
+they are new to the database or their content changed (because only
+those are forwarded by the daemon to the client.)</P>
+<P></P>
+<DT><STRONG><A NAME="item_Dump_raw_database"><STRONG>Dump raw database</STRONG></A></STRONG><BR>
+<DD>
 Open a dialog that allows to dump all blocks in the database to
-<EM>stdout</EM> (UNIX only) or into the named file in a raw text format, which is actually
-the same as with the <EM>Dump stream</EM> command. This feature is mainly intended for developers. To understand all
+<EM>stdout</EM> (UNIX only) or into the named file in a raw text format,
+which is actually the same as with the <EM>Dump stream</EM> command.
+This feature is mainly intended for developers. To understand all
 the infos in the text dump, you'll have to look at the source in
 <EM>epgui/epgtxtdump.c</EM> in the nxtvepg source package.
-
-<P>
-The array of checkbuttons allows to control which kind of blocks will be
-written. The programme information blocks (PI) do contain the actual
-programme descriptions; <EM>Defective PI</EM> contains those PI which were not accepted into the database because of
-inconsistencies like a zero or overlapping running time. For an explanation
-of the other block types please see the ETSI specification 707.
-
-<DT><STRONG>Dump in HTML</STRONG><DD>
-<P>
+<P>The array of checkbuttons allows to control which kind of blocks
+will be written. The programme information blocks (PI) do contain
+the actual programme descriptions; <EM>Defective PI</EM> contains those
+PI which were not accepted into the database because of inconsistencies
+like a zero or overlapping running time. For an explanation of the
+other block types please see the ETSI specification 707.</P>
+<P></P>
+<DT><STRONG><A NAME="item_Dump_in_HTML"><STRONG>Dump in HTML</STRONG></A></STRONG><BR>
+<DD>
 Open a dialog that allows to export the complete database or selected
 programmes into a file in HTML format (Hypertext Markup Language) which can
-then be loaded into a WWW browser, e.g. <EM>Netscape</EM>. This is particularily useful if you want to print out TV descriptions.
-
-<P>
-At the top of the dialog window you have to enter the output file name.
-Click on the little folder button for a file selection dialog.
-
-<P>
-By default the checkbutton <EM>Selected programme only</EM> is enabled. In this mode only info on the programme which is currently
-selected with the cursor will be written. In combination with the <EM>Append to file</EM> mode this allows to build a document with the programmes that interest you
-step by step. If you deselect <EM>Selected programme only</EM>, info on all programmes that match your current filter will be written.
-Note that this can generate very large files which may take a long time to
-load into your Web browser. In this mode you may want to set an additional
-start time filter (see <A HREF="#FILTERING">FILTERING</A>) to restrict the number of programmes written.
-
-<P>
-In the bottommost box you see three radio buttons with which you select the
-format in which the information will be written. If you select <EM>titles</EM> you'll get a table in the same configuration as in the titles list in the
-upper part of the main window. If you select
-<EM>descriptions</EM> you'll get roughly the same as in the lower part of the main window.
-Obviously, if you select <EM>titles and descriptions</EM> you'll get both, in form of one table with all the titles on top and all
-descriptions separately below. If you select <EM>Add hyperlinks</EM> the titles in the table will be linked to the descriptions.
-
-<P>
-The look of the generated document is almost entirely determined by use of
-an internal CSS stylesheet. If you don't like the look you can override it
-with your own stylesheet. Save it to a file named <EM>nxtvhtml.css</EM> and put it in the same directory as the generated HTML file. For more
-information on HTML and style sheets see <EM>http://www.w3.org/</EM>
-
-
-
-<DT><STRONG><A NAME="item_View">View timescales</A></STRONG><DD>
-<P>
-Toggles the timescale window for the browser database. The window reflects
-for each network included in the selected database, which time ranges are
-covered by programme information. If acquisition is working on the
-database, you can watch how more and more of the scales get covered. See <A HREF="#STATISTICS">STATISTICS</A> for details.
-
-<DT><STRONG>View statistics</STRONG><DD>
-<P>
+then be loaded into a WWW browser, e.g. <EM>Netscape</EM>. This is particularily
+useful if you want to print out TV descriptions.
+<P>At the top of the dialog window you have to enter the output file name.
+Click on the little folder button for a file selection dialog.</P>
+<P>By default the checkbutton <EM>Selected programme only</EM> is enabled. In this
+mode only info on the programme which is currently selected with the cursor
+will be written. In combination with the <EM>Append to file</EM> mode this
+allows to build a document with the programmes that interest you step by
+step. If you deselect <EM>Selected programme only</EM>, info on all programmes
+that match your current filter will be written. Note that this can generate
+very large files which may take a long time to load into your Web browser.
+In this mode you may want to set an additional start time filter
+(see <A HREF="#filtering">FILTERING</A>) to restrict the number of programmes written.</P>
+<P>In the bottommost box you see three radio buttons with which
+you select the format in which the information will be written. If you
+select <EM>titles</EM> you'll get a table in the same configuration as in the
+titles list in the upper part of the main window. If you select
+<EM>descriptions</EM> you'll get roughly the same as in the lower part of the
+main window. Obviously, if you select <EM>titles and descriptions</EM> you'll
+get both, in form of one table with all the titles on top and all
+descriptions separately below. If you select <EM>Add hyperlinks</EM> the
+titles in the table will be linked to the descriptions.</P>
+<P>The look of the generated document is almost entirely determined by use
+of an internal CSS stylesheet. If you don't like the look you can override
+it with your own stylesheet. Save it to a file named <EM>nxtvhtml.css</EM> and
+put it in the same directory as the generated HTML file. For more
+information on HTML and style sheets see <EM><A HREF="http://www.w3.org/">http://www.w3.org/</A></EM></P>
+<P></P>
+<DT><STRONG><A NAME="item_View_timescales"><STRONG>View timescales</STRONG></A></STRONG><BR>
+<DD>
+Toggles the timescale window for the browser database. The window
+reflects for each network included in the selected database, which
+time ranges are covered by programme information. If acquisition
+is working on the database, you can watch how more and more of the
+scales get covered.  See <A HREF="#statistics">STATISTICS</A> for details.
+<P></P>
+<DT><STRONG><A NAME="item_View_statistics"><STRONG>View statistics</STRONG></A></STRONG><BR>
+<DD>
 Toggles the browser database statistics window, which informs you about
 number of program entries in the database, fill percentage, expiration
-percentage, date of last update etc. If the acquisition is working on the
-same database, it also contains information about state and progress of
-acquisition. See <A HREF="#STATISTICS">STATISTICS</A> for details.
-
-<DT><STRONG>View acq timescales</STRONG><DD>
-<P>
-Toggles the timescale window for the acquisition database. This entry is
-only available if the acquisition uses a different database than the
-browser.
-
-<DT><STRONG>View acq statistics</STRONG><DD>
-<P>
-Toggles the acquisition statistics window, which informs you about state
-and progress of acquisition. If the acquisition control mechanism switches
-to a different database, the acq statistics window will automatically
-follow. See <A HREF="#DATA_ACQUISITION">DATA ACQUISITION</A> for details.
-
-<DT><STRONG><A NAME="item_Quit">Quit</A></STRONG><DD>
-<P>
+percentage, date of last update etc.  If the acquisition is working on
+the same database, it also contains information about state and progress
+of acquisition.  See <A HREF="#statistics">STATISTICS</A> for details.
+<P></P>
+<DT><STRONG><A NAME="item_View_acq_timescales"><STRONG>View acq timescales</STRONG></A></STRONG><BR>
+<DD>
+Toggles the timescale window for the acquisition database. This entry
+is only available if the acquisition uses a different database than
+the browser.
+<P></P>
+<DT><STRONG><A NAME="item_View_acq_statistics"><STRONG>View acq statistics</STRONG></A></STRONG><BR>
+<DD>
+Toggles the acquisition statistics window, which informs you about
+state and progress of acquisition. If the acquisition control mechanism
+switches to a different database, the acq statistics window will
+automatically follow.  See <A HREF="#data acquisition">DATA ACQUISITION</A> for details.
+<P></P>
+<DT><STRONG><A NAME="item_Quit"><STRONG>Quit</STRONG></A></STRONG><BR>
+<DD>
 Close all windows and terminate the application.
-
-</DL>
+<P></P></DL>
 <P>
 <HR>
-<H1><A NAME="CONFIGURATION">CONFIGURATION</A></H1>
-<P>
-Summary of commands available from the Configure menu:
-
+<H1><A NAME="configuration">CONFIGURATION</A></H1>
+<P>Summary of commands available from the Configure menu:</P>
 <DL>
-<DT><STRONG><A NAME="item_Select">Select provider...</A></STRONG><DD>
-<P>
-Open the provider selection dialog. This dialog lists all TV channels from
-which Nextview data can be received. When you select a channel name on the
-list, you'll see the name of the Nextview service that's transmitted there
-and a list of all networks covered by it on the right. If you leave the
-dialog with Ok, the selected provider's database will be loaded into the
-browser. The according TV channel will also be tuned to update the
-database, if you have selected ``Follow-UI'' acquisition mode.
-
-<DT><STRONG><A NAME="item_Merge">Merge providers...</A></STRONG><DD>
-<P>
-Open a dialog that allows to merge several databases into one. See <A HREF="#MERGED_DATABASES">MERGED DATABASES</A> for details.
-
-<DT><STRONG><A NAME="item_Acquisition">Acquisition mode...</A></STRONG><DD>
-<P>
+<DT><STRONG><A NAME="item_Select_provider%2E%2E%2E"><STRONG>Select provider...</STRONG></A></STRONG><BR>
+<DD>
+Open the provider selection dialog.  This dialog lists all TV channels
+from which Nextview data can be received.  When you select a channel
+name on the list, you'll see the name of the Nextview service that's
+transmitted there and a list of all networks covered by it on the right.
+If you leave the dialog with Ok, the selected provider's database will be
+loaded into the browser.  The according TV channel will also be tuned
+to update the database, if you have selected ``Follow-UI'' acquisition mode.
+<P></P>
+<DT><STRONG><A NAME="item_Merge_providers%2E%2E%2E"><STRONG>Merge providers...</STRONG></A></STRONG><BR>
+<DD>
+Open a dialog that allows to merge several databases into one.
+See <A HREF="#merged databases">MERGED DATABASES</A> for details.
+<P></P>
+<DT><STRONG><A NAME="item_Acquisition_mode%2E%2E%2E"><STRONG>Acquisition mode...</STRONG></A></STRONG><BR>
+<DD>
 Open a dialog that allows to control the background acquisition process.
-See <A HREF="#ACQUISITION_MODES">ACQUISITION MODES</A> for more details.
-
-<DT><STRONG><A NAME="item_Provider">Provider scan...</A></STRONG><DD>
-<P>
+See <A HREF="#acquisition modes">ACQUISITION MODES</A> for more details.
+<P></P>
+<DT><STRONG><A NAME="item_Provider_scan%2E%2E%2E"><STRONG>Provider scan...</STRONG></A></STRONG><BR>
+<DD>
 Open a dialog that allows to start a scan across all TV channels for
-Nextview transmissions. You should perform this search at least once,
+Nextview transmissions.  You should perform this search at least once,
 firstly to find out which providers are available in your area, and
 secondly to determine the frequencies of all provider's TV channels. They
 are required for most acquisition modes, and due to driver limitations
 often not available without a scan (e.g. on Windows or Linux with bttv
-driver &lt;= 0.7.50). See also <A HREF="#GETTING_STARTED">GETTING STARTED</A>.
-
-<P>
-Check the <EM>Slow</EM> button if you have bad reception on some channels. In slow mode the scanner
-will wait at least for 2 seconds on each channel for a VPS or PDC
-identification or an EPG package. Else channels without a stable video
-signal and without any teletext packets will be skipped after 150 ms.
-
-<P>
-UNIX only: The <EM>Use .xawtv</EM> button is automatically checked if an xawtv configuration file is found in
-your home directory. Instead of searching all possible channels in all
-bands, nxtvepg then just checks the channels assigned there (fine-tuning
-and absolute frequencies currently are ignored though).
-
-<P>
-Use the <EM>Refresh only</EM> mode if you deleted your database files or if you upgrade from an
-incompatible software version. In this mode only the channels on which
-Nextview data was received before are checked (the frequencies are kept in
-the rc/ini file). This enables you to regain your complete provider list
-very quickly.
-
-<DT><STRONG><A NAME="item_TV">TV card input...</A></STRONG><DD>
-<P>
-Open a dialog where the driver for the TV card can be configured. On
-Windows systems you must at least specify which type of tuner is on your
-card, and how the PLL needs to be initialized. You can check your setting
-by starting an EPG scan: if nothing is found, try a different setting (or
-check the antenna cable). For more details see <A HREF="#GETTING_STARTED">GETTING STARTED</A>, or <EM>README</EM> if you get error messages from the Bt8x8 driver. If you experience data
-loss due to heavy system load, you can raise the acquisition thread
-priority.
-
-<P>
-The remaining three configuration options apply to both Linux and Windows:
-firstly you may choose which video input source to use. See <A HREF="#DATA_ACQUISITION">DATA ACQUISITION</A> about the consequences of not using the TV tuner as input. If you live in
-France, select the French frequency table to be used for the EPG scan. If
-you have more than one TV tuner card, you can also choose which one to use,
-just like with the <STRONG>-card</STRONG> command line option.
-
-<DT><STRONG><A NAME="item_Xawtv">Xawtv connection...</A></STRONG><DD>
-<P>
+driver &lt;= 0.7.50). See also <A HREF="#getting started">GETTING STARTED</A>.
+<P>Check the <EM>Slow</EM> button if you have bad reception on some channels.
+In slow mode the scanner will wait at least for 2 seconds on each
+channel for a VPS or PDC identification or an EPG package. Else
+channels without a stable video signal and without any teletext packets
+will be skipped after 150 ms.</P>
+<P>UNIX only: The <EM>Use .xawtv</EM> button is automatically checked if an xawtv
+configuration file is found in your home directory. Instead of searching
+all possible channels in all bands, nxtvepg then just checks the channels
+assigned there (fine-tuning and absolute frequencies currently are ignored
+though).</P>
+<P>Use the <EM>Refresh only</EM> mode if you deleted your database files or if you
+upgrade from an incompatible software version. In this mode only the
+channels on which Nextview data was received before are checked (the
+frequencies are kept in the rc/ini file). This enables you to regain your
+complete provider list very quickly.</P>
+<P></P>
+<DT><STRONG><A NAME="item_TV_card_input%2E%2E%2E"><STRONG>TV card input...</STRONG></A></STRONG><BR>
+<DD>
+Open a dialog where the driver for the TV card can be configured.
+On Windows systems you must at least specify which type of tuner
+is on your card, and how the PLL needs to be initialized. You can
+check your setting by starting an EPG scan: if nothing is found,
+try a different setting (or check the antenna cable). For more
+details see <A HREF="#getting started">GETTING STARTED</A>, or <EM>README</EM> if you get error messages
+from the Bt8x8 driver. If you experience data loss due to heavy
+system load, you can raise the acquisition thread priority.
+<P>The remaining three configuration options apply to both Linux and
+Windows: firstly you may choose which video input source to use.
+See <A HREF="#data acquisition">DATA ACQUISITION</A> about the consequences of not using the
+TV tuner as input. If you live in France, select the French
+frequency table to be used for the EPG scan.
+If you have more than one TV tuner card, you can also choose which
+one to use, just like with the <STRONG>-card</STRONG> command line option.</P>
+<P></P>
+<DT><STRONG><A NAME="item_Client%2FServer%2E%2E%2E"><STRONG>Client/Server...</STRONG></A></STRONG><BR>
+<DD>
+Opens a dialog that allows to configure the connection between acquisition
+daemon (called ``server'' here) and GUI.  The connection allows to forward
+all newly acquired EPG data from the daemon to the GUI and to monitor the
+daemon's acquisition progress.
+<P>The dialog contains settings of which some refer to the server-side only,
+some to the client-side only and some to both server and client.  To avoid
+confusion, there are three radio buttons at the top of the dialog which
+allow to grey out items that do not refer to the client or server
+respectively.</P>
+<DL>
+<DT><STRONG><A NAME="item_Enable_remote_control"><EM>Enable remote control</EM></A></STRONG><BR>
+<DD>
+By enabling remote-control you can stop acquisition, change acquisition
+mode, TV card parameters or any parameters configured by this dialog
+in a running daemon via the network connection.
+<P></P>
+<DT><STRONG><A NAME="item_Enable_TCP%2FIP"><EM>Enable TCP/IP</EM></A></STRONG><BR>
+<DD>
+By enabling connections via the TCP/IP network protocol, you allow
+connections from remote hosts.  Since there's currently no access
+control in nxtvepg, these hosts can be anywhere in your network,
+or anywhere in the world if you're connected to the Internet. If
+you don't have a firewall which prevents incoming connections of
+untrusted hosts, this mode is highly depreciated, because nxtvepg
+is not in any way secured against malicious client connections.
+<P></P>
+<DT><STRONG><A NAME="item_Server_hostname"><EM>Server hostname</EM></A></STRONG><BR>
+<DD>
+Client-side only: this setting identifies the host on which the daemon
+is running. You can enter either a hostname in ``dot.com'' format or
+an IP address in ``127.0.0.1'' format.  If you set it to <EM>localhost</EM> the
+connection is automatically established via UNIX domain sockets (i.e.
+pipes), which is more efficient than TCP/IP.  You can still use TCP/IP
+locally if you set it to the name of your local host, as returned
+by hostname(1).
+<P></P>
+<DT><STRONG><A NAME="item_Server_TCP_port"><EM>Server TCP port</EM></A></STRONG><BR>
+<DD>
+If TCP/IP is enabled, this setting tells server and client which port
+to use. You can enter an arbitrary number between 1024 and 65535 here,
+but you have to make sure no other server is using the same port.
+Make sure you configure the same port number for client and server.
+The default is 7658.
+<P></P>
+<DT><STRONG><A NAME="item_Bind_IP_address"><EM>Bind IP address</EM></A></STRONG><BR>
+<DD>
+If TCP/IP is enabled and your server host has more than one IP address,
+you can select here on which one to listen for incoming connections.
+Make sure you use the same IP address as server hostname on client-side,
+or a hostname that resolves to that IP address.  This setting is optional;
+if you leave the field blank (default) the server will bind to all
+IP addresses.
+<P>Note: on systems that support it, TCP/IP sockets are created in the
+IPv6 domain (<EM>PF_INET6</EM>) by default.  On some systems (e.g. NetBSD)
+you cannot connect via IPv4 to an IPv6 server and vice versa, i.e. you
+need to use the same domain on both ends.  If your client only supports
+IPv4, you can force your server to create an IPv4 socket by binding to
+an IPv4 address.  If you fail to connect to a local IPv6 server via
+the IPv4 loopback address 127.0.0.1, use the IPv6 equivalent ``::1''.</P>
+<P></P>
+<DT><STRONG><A NAME="item_Max%2E_connections"><EM>Max. connections</EM></A></STRONG><BR>
+<DD>
+This setting limits the number of client connections the server will
+allow.  Once the limit is reached the server will stop listening for
+new connections.
+<P></P>
+<DT><STRONG><A NAME="item_Log_filename"><EM>Log filename</EM></A></STRONG><BR>
+<DD>
+If you enable log generation by the following option, you can choose
+here where the log will go. Make sure the file is writable to the uid
+under which the daemon process is running.  The file opened and closed
+for each appended log line (usually there's very low traffic into that
+file) so you can operate on it (e.g. truncate it) without restarting
+the daemon.
+<P></P>
+<DT><STRONG><A NAME="item_File_min%2E_log_level"><EM>File min. log level</EM></A></STRONG><BR>
+<DD>
+Here you can choose if log information should be written to a file.
+If you run nxtvepg with TCP/IP disabled, you don't need to use logging;
+but if you allow remote connections you should keep log files at
+``info'' level to be able to check which hosts connect to your server.
+<P>The following settings are available: ``no logging'' disables logging;
+``error'' enables logging of internal errors that lead to an immediate
+exit of the daemon; ``warning'' additionally enables logging of
+unexpected events, i.e. internal errors which do not lead to exit;
+``notice'' additionally enables logging of server status changes,
+i.e. startup and shutdown; ``info'' additionally enables logging of
+connection establishment or shutdown.</P>
+<P></P>
+<DT><STRONG><A NAME="item_Syslog_min%2E_level"><EM>Syslog min. level</EM></A></STRONG><BR>
+<DD>
+Here you can enable or disable logging to syslog. See <EM>syslogd(8)</EM>
+and <EM>syslog.conf(5)</EM> for details about the syslog facility. The log
+levels you can choose here are the same as described in the previous
+paragraph for logging to files.
+<P></P></DL>
+<P>Note that while network mode is enabled configuration of acquisition
+mode and TV card input has no effect and no EPG scan is possible.
+If you use the same rc/ini file for daemon and GUI the changed settings
+will however be used by the daemon upon the next start.</P>
+<DT><STRONG><A NAME="item_Xawtv_connection%2E%2E%2E"><STRONG>Xawtv connection...</STRONG></A></STRONG><BR>
+<DD>
 Opens a dialog that allows to configure the interaction between the
-<EM>xawtv</EM> TV application and nxtvepg. This menu entry is available only on UNIX when
-a <EM>.xawtv</EM> configuration file is found in your home. The first three buttons allow to
-switch the interaction features separately on or off. If you want to
-improve startup time, turn them all off; in this case nxtvepg does not need
-to search for the xawtv window (which can take up to several seconds if you
-have many applications running or a slow connection to your X server.) By
-default all three interaction features are enabled.
-
-<P>
-The first button relates to the <EM>Tune TV</EM> button and it's little popup menu (accessed with right mouse button) below
-the clock. If you're not interested in remote-controlling xawtv, switch it
-off.
-
-<P>
-If you leave the <EM>Cursor follows channel changes</EM> option enabled, nxtvepg will monitor xawtv channel changes. Whenever such a
-change is detected, the cursor in the programme listbox will be set onto
-the title currently running on that network. During EPG acquisition VPS/PDC
-is used to exactly determine the current programme (only on networks which
-support VPS/PDC); however if the nominal running time is in the past it's
-currently not possible to display the programme in the listbox. This info
-may however be sent to xawtv (see next option). If you have just a network
-filter enabled, it will be switched to the new network so that you'll get a
-complete listing of that network's programmes, starting with the currently
-running one. This works even when you have excluded this network in the
-network selection configuration. If there are more or other filters than
-network enabled, then they will remain unchanged. If the current programme
-on the new network does not match this filter setting, then neither cursor
-nor listbox content will be changed.
-
-<P>
-If you leave the <EM>Display EPG info in xawtv</EM> option enabled, nxtvepg will monitor xawtv channel changes. During EPG
-acquisition VPS/PDC are also monitored to determine newly starting
-programmes. VPS/PDC also allows to detect channel changes on an external
-input source, e.g. a satellite receiver connected via the Composite socket.
-After a change of channel or current programme title, the info about the
-currently running title will be displayed in xawtv. The display format is
-selected by the following radio buttons:
-
-<P>
-With <EM>Separate popup</EM> nxtvepg will generate a small popup window and put it right beneath the
-xawtv window. The blue area in the small bar on top represents how much of
-the (nominal) running time lies in the past. With <EM>Video overlay</EM> the info will be handed to xawtv and displayed as subtitles (please note
-that this option only works properly with XFree86 version 4 and the XVideo
-extension). If you prefer a proportional font add the following line to <EM>~/.Xdefaults</EM>:
-
-<P>
-<PRE>  xawtv.vtx.label.font: -*-helvetica-bold-r-*--14-*-*-*-*-*-iso8859-*
-</PRE>
-<P>
-and execute <EM>xrdb -load ~/.Xdefaults</EM> afterwards. Note that this will affect subtitles too. Future versions of
-xawtv will hopefully allow for dynamic font selection.
-<EM>Video overlay, 2 lines</EM> is the same except that it writes running time and title in separate lines
-and additionally contains the percentage of expired running time. (Not
-recommended with xawtv versions older than 3.48 as there was a bug in
-displaying lines of different width.) With <EM>Xawtv window title</EM> the info will be sent to xawtv and displayed in the window title. Except
-for this last option, you can configure the desired display duration with
-the slider at the bottom of the dialog. A duration of zero means the
-display will never be removed.
-
-<DT><STRONG>Select columns...</STRONG><DD>
-<P>
-Open the browser listbox column configuration dialog. It allows to select
-which attributes are displayed for the listed programmes. In the listbox on
-the left you find a list of all available categories, e.g. title, running
-time &amp; date, TV network, rating, sound and picture format, i.e. mostly
-the same attributes that are available for filtering. The listbox on the
-right contains the types currently selected for display. The topmost entry
-appears on the left side of the listbox. Press <EM>Apply</EM>
+<EM>xawtv</EM> TV application and nxtvepg. This menu entry is available
+only on UNIX when a <EM>.xawtv</EM> configuration file is found in your home.
+The first three buttons allow to switch the interaction features
+separately on or off. If you want to improve startup time, turn them
+all off; in this case nxtvepg does not need to search for the xawtv
+window (which can take up to several seconds if you have many
+applications running or a slow connection to your X server.)
+By default all three interaction features are enabled.
+<P>The first button relates to the <EM>Tune TV</EM> button and it's little
+popup menu (accessed with right mouse button) below the clock.
+If you're not interested in remote-controlling xawtv, switch it off.</P>
+<P>If you leave the <EM>Cursor follows channel changes</EM> option enabled,
+nxtvepg will monitor xawtv channel changes. Whenever such a change is
+detected, the cursor in the programme listbox will be set onto the
+title currently running on that network. During EPG acquisition VPS/PDC
+is used to exactly determine the current programme (only on networks
+which support VPS/PDC); however if the nominal running time is in the
+past it's currently not possible to display the programme in the
+listbox. This info may however be sent to xawtv (see next option).
+If you have just a network filter enabled, it will be switched to the
+new network so that you'll get a complete listing of that network's
+programmes, starting with the currently running one. This works even
+when you have excluded this network in the network selection configuration.
+If there are more or other filters than network enabled, then they will
+remain unchanged. If the current programme on the new network does not
+match this filter setting, then neither cursor nor listbox content will
+be changed.</P>
+<P>If you leave the <EM>Display EPG info in xawtv</EM> option enabled,
+nxtvepg will monitor xawtv channel changes. During EPG acquisition
+VPS/PDC are also monitored to determine newly starting programmes.
+VPS/PDC also allows to detect channel changes on an external input
+source, e.g. a satellite receiver connected via the Composite socket.
+After a change of channel or current programme title, the info about
+the currently running title will be displayed in xawtv. The display
+format is selected by the following radio buttons:</P>
+<P>With <EM>Separate popup</EM> nxtvepg will generate a small popup window and
+put it right beneath the xawtv window. The blue area in the small bar
+on top represents how much of the (nominal) running time lies in the past.
+With <EM>Video overlay</EM> the info will be handed to xawtv and displayed
+as subtitles (please note that this option only works properly with
+XFree86 version 4 and the XVideo extension). If you prefer a proportional
+font add the following line to <EM>~/.Xdefaults</EM>:</P>
+<PRE>
+  xawtv.vtx.label.font: -*-helvetica-bold-r-*--14-*-*-*-*-*-iso8859-*</PRE>
+<P>and execute <EM>xrdb -load ~/.Xdefaults</EM> afterwards. Note that this will
+affect subtitles too. Future versions of xawtv will hopefully allow for
+dynamic font selection.
+<EM>Video overlay, 2 lines</EM> is the same except that it writes running time
+and title in separate lines and additionally contains the percentage of
+expired running time. (Not recommended with xawtv versions older than 3.48
+as there was a bug in displaying lines of different width.)
+With <EM>Xawtv window title</EM> the info will be sent to xawtv and displayed
+in the window title. Except for this last option, you can configure the
+desired display duration with the slider at the bottom of the dialog.
+A duration of zero means the display will never be removed.</P>
+<P></P>
+<DT><STRONG><A NAME="item_Select_columns%2E%2E%2E"><STRONG>Select columns...</STRONG></A></STRONG><BR>
+<DD>
+Open the browser listbox column configuration dialog. It allows to
+select which attributes are displayed for the listed programmes. In the
+listbox on the left you find a list of all available categories, e.g.
+title, running time &amp; date, TV network, rating, sound and picture format,
+i.e. mostly the same attributes that are available for filtering.
+The listbox on the right contains the types currently selected for display.
+The topmost entry appears on the left side of the listbox.  Press <EM>Apply</EM>
 to refresh the browser listbox with the new column selection and save the
 new configuration to the config file.
-
-<DT><STRONG>Select networks...</STRONG><DD>
-<P>
-Open the network selection dialog. It allows to permanently suppress TV
-networks in a provider's listing, e.g. if you can not receive the channel.
-You can also change the order of the networks, e.g. to put your favorite
-networks at the top of the filter menus.
-
-<P>
-This window has two lists: on the left you'll find all networks that are
+<P></P>
+<DT><STRONG><A NAME="item_Select_networks%2E%2E%2E"><STRONG>Select networks...</STRONG></A></STRONG><BR>
+<DD>
+Open the network selection dialog. It allows to permanently suppress
+TV networks in a provider's listing, e.g. if you can not receive the
+channel. You can also change the order of the networks, e.g. to put
+your favorite networks at the top of the filter menus.
+<P>This window has two lists: on the left you'll find all networks that are
 covered by the provider in their original order, on the right those that
 are selected for the programme listing in your preferred order. By default,
 both lists will have exactly the same content. If you want to exclude
-networks, select them in the right list and press <EM>Delete</EM>. You can always include them again by selecting them in the left list and
-pressing <EM>Add</EM>. You can change the order in the right list by selecting one or more
-networks and pressing the <EM>up</EM> or <EM>down</EM> arrows. If you want the same selection and order for all providers, you can
-simply copy your selection with the <EM>copy</EM>
-menu.
-
-<DT><STRONG>Network names...</STRONG><DD>
-<P>
+networks, select them in the right list and press <EM>Delete</EM>. You can always
+include them again by selecting them in the left list and pressing <EM>Add</EM>.
+You can change the order in the right list by selecting one or more networks
+and pressing the <EM>up</EM> or <EM>down</EM> arrows. If you want the same selection and
+order for all providers, you can simply copy your selection with the <EM>copy</EM>
+menu.</P>
+<P></P>
+<DT><STRONG><A NAME="item_Network_names%2E%2E%2E"><STRONG>Network names...</STRONG></A></STRONG><BR>
+<DD>
 Open the network names configuration dialog. It's main purpose is to
-synchronize the network names with <EM>xawtv</EM> (UNIX TV application), i.e. the <EM>~/.xawtv</EM> configuration file. This is required because the network name is used in
-communication with <EM>xawtv</EM> for the <EM>"Tune TV"</EM> remote control, and as well for channel change notifications. For many
-networks there will be no need to change anything, but for some there exist
-different variants, e.g. in Germany ``Super RTL'' vs. ``S-RTL'' or ``KiKa''
-vs. ``Kinderkanal''.
-
-<P>
-Another use of this dialog is to make network naming consistent across all
-providers. The names you specify here will be used in the programme listbox
-and all filter menus, independently of the provider.
-
-<P>
-On the left side of the window you'll find a list of all networks of all
-known Nextview providers. The names used here are the ones you configured
-before, or if you haven't done so, the names that match the station names
-in <EM>.xawtv</EM> best; unmatched names are marked red. If that file does not exist, the name
-is taken from the first database which covers this network, in order of
-your provider selection history.
-
-<P>
-On the right side, you're offered four ways to change the name: topmost is
-a simple entry field where you can type in an arbitrary name. Below is a
-popup menu which contains all network names defined in <EM>.xawtv</EM>. Below is a button which contains the one name in <EM>.xawtv</EM> which resembles the current string in the entry field most, or <EM>none</EM>. It's marked red until it's identical to the entry field. You can copy the
-name to the entry field by clicking the button. Below is a listbox with the
-original names used in the various provider databases. When you select a
-name from the menu or the listbox, it will be copied into the entry field
-and the network name list on the left. If you want to save the changed
-list, leave the dialog with <EM>Save</EM>, else use <EM>Abort</EM>.
-
-<P>
-Note: if you receive channels that carry multiple networks, e.g. in Germany
-``Arte / Kinderkanal'', it's recommended to include all networks' names in
-the xawtv network name, separated by a slash. The slash is recognized as
-separator by nxtvepg (and hopefully future versions of xawtv) and all
-resulting segments can be used as network names.
-
-<DT><STRONG><A NAME="item_Context">Context menu...</A></STRONG><DD>
-<P>
+synchronize the network names with <EM>xawtv</EM> (UNIX TV application), i.e.
+the <EM>~/.xawtv</EM> configuration file. This is required because the network
+name is used in communication with <EM>xawtv</EM> for the <EM>``Tune TV''</EM> remote
+control, and as well for channel change notifications.  For many
+networks there will be no need to change anything, but for some there
+exist different variants, e.g. in Germany ``Super RTL'' vs. ``S-RTL''
+or ``KiKa'' vs. ``Kinderkanal''.
+<P>Another use of this dialog is to make network naming consistent across
+all providers. The names you specify here will be used in the programme
+listbox and all filter menus, independently of the provider.</P>
+<P>On the left side of the window you'll find a list of all networks of
+all known Nextview providers. The names used here are the ones you
+configured before, or if you haven't done so, the names that match
+the station names in <EM>.xawtv</EM> best; unmatched names are marked red.
+If that file does not exist, the name is taken from the first database
+which covers this network, in order of your provider selection history.</P>
+<P>On the right side, you're offered four ways to change the name: topmost
+is a simple entry field where you can type in an arbitrary name. Below
+is a popup menu which contains all network names defined in <EM>.xawtv</EM>.
+Below is a button which contains the one name in <EM>.xawtv</EM> which resembles
+the current string in the entry field most, or <EM>none</EM>. It's marked red
+until it's identical to the entry field. You can copy the name to the
+entry field by clicking the button. Below is a listbox with the original
+names used in the various provider databases. When you select a name from
+the menu or the listbox, it will be copied into the entry field and the
+network name list on the left. If you want to save the changed list,
+leave the dialog with <EM>Save</EM>, else use <EM>Abort</EM>.</P>
+<P>Note: if you receive channels that carry multiple networks, e.g.
+in Germany ``Arte / Kinderkanal'', it's recommended to include all
+networks' names in the xawtv network name, separated by a slash.
+The slash is recognized as separator by nxtvepg (and hopefully future
+versions of xawtv) and all resulting segments can be used as
+network names.</P>
+<P></P>
+<DT><STRONG><A NAME="item_Context_menu%2E%2E%2E"><STRONG>Context menu...</STRONG></A></STRONG><BR>
+<DD>
 Open the context menu configuration dialog which allows to add references
-to external commands to the context popup menu. (See also <A HREF="#CONTEXT_MENU">CONTEXT MENU</A>.) At the top of the dialog window there is a list of all currently defined
-command titles. When you open the dialog for the first time, it'll be
-empty.
-
-<P>
-Below the list there are two text input fields which allow to modify or
-create new commands. The field labeled <STRONG>Title</STRONG> defines the text which will be included to the popup menu. The field
-labeled <STRONG>Command</STRONG> defines the command line to be executed when the entry is selected in the
-popup menu, with possible placeholders enclosed in ${} which are replaced
-by parameters of the currently selected programme in the browser listbox.
-After the substitution and after appending an ampersand '&amp;' sign to
-allow asynchronous execution (UNIX only), the command line is passed to a
-shell via the <CODE>system(3)</CODE> function.
-
-<P>
-When you press the menu button <EM>Copy Example</EM> a list pops up which contains a few example commands which can be copied
-into the title and command entry fields. To save a new or modified title
-and command, you have to press either the <EM>New</EM> or <EM>Update</EM> button and leave the popup with <EM>Ok</EM>. Use <EM>Delete</EM>
-to remove an entry from the listbox; the buttons with up/down arrows to
-change the ordering. Use <EM>Clear</EM> to clear the entry fields, e.g. before you create a new entry.
-
-<P>
-The following is a list of formal variables (i.e. placeholders) which are
-substituted in the command line with parameters of the selected title upon
+to external commands to the context popup menu. (See also <A HREF="#context menu">CONTEXT MENU</A>.)
+At the top of the dialog window there is a list of all currently defined
+command titles. When you open the dialog for the first time, it'll be empty.
+<P>Below the list there are two text input fields which allow to modify or
+create new commands. The field labeled <STRONG>Title</STRONG> defines the text which will
+be included to the popup menu.  The field labeled <STRONG>Command</STRONG> defines the
+command line to be executed when the entry is selected in the popup menu, with
+possible placeholders enclosed in ${} which are replaced by parameters of the
+currently selected programme in the browser listbox. After the substitution
+and after appending an ampersand '&amp;' sign to allow asynchronous execution
+(UNIX only), the command line is passed to a shell via the <CODE>system(3)</CODE> function.</P>
+<P>When you press the menu button <EM>Copy Example</EM> a list pops up which contains
+a few example commands which can be copied into the title and command entry
+fields.  To save a new or modified title and command, you have to press either
+the <EM>New</EM> or <EM>Update</EM> button and leave the popup with <EM>Ok</EM>.  Use <EM>Delete</EM>
+to remove an entry from the listbox; the buttons with up/down arrows to change
+the ordering.  Use <EM>Clear</EM> to clear the entry fields, e.g. before you create
+a new entry.</P>
+<P>The following is a list of formal variables (i.e. placeholders) which
+are substituted in the command line with parameters of the selected title upon
 invocation of the external command. The meaning of the variables should be
-self-explanatory, except possibly for CNI, which is a hexadecimal network
-code; and e/p_rating which are editorial and parental rating respectively.
-
-<P>
-<PRE>  ${title}
+self-explanatory, except possibly for CNI, which is a hexadecimal network code;
+and e/p_rating which are editorial and parental rating respectively.</P>
+<PRE>
+  ${title}
   ${network}
   ${start}
   ${stop}
@@ -1452,198 +1481,187 @@ code; and e/p_rating which are editorial and parental rating respectively.
   ${encrypted}
   ${live}
   ${repeat}
-  ${subtitle}
-</PRE>
-<P>
-The keywords can be followed by a colon and an output format specification.
+  ${subtitle}</PRE>
+<P>The keywords can be followed by a colon and an output format specification.
 In case of the start, stop and VPS/PDC times, all options defined in the
-<STRONG>strftime(3)</STRONG> manpage are available; default is %H:%M-%d.%m.%Y (hour, minute, day, month,
-year). In case of relative start time and duration, you can choose between
-minutes (default) and seconds by appending ``m'' or ``s''. For all other
-variables the modifiers are currently ignored.
-
-<P>
-The substrings which replace the formal variables are enclosed in single
+<STRONG>strftime(3)</STRONG> manpage are available; default is %H:%M-%d.%m.%Y (hour, minute,
+day, month, year). In case of relative start time and duration, you can choose
+between minutes (default) and seconds by appending ``m'' or ``s''. For all other
+variables the modifiers are currently ignored.</P>
+<P>The substrings which replace the formal variables are enclosed in single
 quotes to protect them from interpretation by the shell. Single quotes
-inside the substituted string are correctly escaped.
-
-<P>
-Example: The command line
-
-<P>
-<PRE>  plan ${start:%d.%m.%Y %H:%M} ${title}
-</PRE>
-<P>
-could for example result in
-
-<P>
-<PRE>  plan '22.08.2001 13:05' 'Käpt'\''n Blaubärs Seemannsgarn'
-</PRE>
-<P>
-to be passed to the Bourne Shell.
-
-<DT><STRONG><A NAME="item_Filter">Filter shortcuts...</A></STRONG><DD>
-<P>
-Open the filter shortcut dialog to rename, reorder or delete shortcuts. You
-have to press the <EM>Update</EM> button to save any changes for a shortcut and then close the dialog with <EM>Save</EM>. See <A HREF="#FILTER_SHORTCUTS">FILTER SHORTCUTS</A> for more details.
-
-<DT><STRONG><A NAME="item_Show">Show shortcuts</A></STRONG><DD>
-<P>
+inside the substituted string are correctly escaped.</P>
+<P>Example: The command line</P>
+<PRE>
+  plan ${start:%d.%m.%Y %H:%M} ${title}</PRE>
+<P>could for example result in</P>
+<PRE>
+  plan '22.08.2001 13:05' 'Käpt'\''n Blaubärs Seemannsgarn'</PRE>
+<P>to be passed to the Bourne Shell.</P>
+<P></P>
+<DT><STRONG><A NAME="item_Filter_shortcuts%2E%2E%2E"><STRONG>Filter shortcuts...</STRONG></A></STRONG><BR>
+<DD>
+Open the filter shortcut dialog to rename, reorder or delete shortcuts. 
+You have to press the <EM>Update</EM> button to save any changes for a shortcut
+and then close the dialog with <EM>Save</EM>.
+See <A HREF="#filter shortcuts">FILTER SHORTCUTS</A> for more details.
+<P></P>
+<DT><STRONG><A NAME="item_Show_shortcuts"><STRONG>Show shortcuts</STRONG></A></STRONG><BR>
+<DD>
 Toggle visibility of the shortcut listbox.
-
-<DT><STRONG>Show networks</STRONG><DD>
-<P>
+<P></P>
+<DT><STRONG><A NAME="item_Show_networks"><STRONG>Show networks</STRONG></A></STRONG><BR>
+<DD>
 Toggle visibility of the network filter listbox.
-
-<DT><STRONG>Show status line</STRONG><DD>
-<P>
+<P></P>
+<DT><STRONG><A NAME="item_Show_status_line"><STRONG>Show status line</STRONG></A></STRONG><BR>
+<DD>
 Toggle visibility of the status line at the bottom of the browser window.
-
-<DT><STRONG>Show column headers</STRONG><DD>
-<P>
+<P></P>
+<DT><STRONG><A NAME="item_Show_column_headers"><STRONG>Show column headers</STRONG></A></STRONG><BR>
+<DD>
 Toggle visibility of the browser listbox column header menu bar.
-
-</DL>
+<P></P></DL>
 <P>
 <HR>
-<H1><A NAME="FILES">FILES</A></H1>
+<H1><A NAME="files">FILES</A></H1>
 <P>
-<HR>
-<H2><A NAME="Files_used_on_UNIX_systems">Files used on UNIX systems</A></H2>
+<H2><A NAME="files used on unix systems">Files used on UNIX systems</A></H2>
 <DL>
-<DT><STRONG><A NAME="item__nxtvepgrc">~/.nxtvepgrc</A></STRONG><DD>
-<P>
-Configuration file where all personal settings are stored. Per default this
-is created in your home directory, but a different path and file name can
-be specified with the <STRONG>-rcfile</STRONG> option.
-
-<DT><STRONG><A NAME="item__usr_tmp_nxtvdb_nxtvdb_">/usr/tmp/nxtvdb/nxtvdb-####</A></STRONG><DD>
-<P>
-Directory containing one file for each provider's database. Can be changed
-with the <STRONG>-dbdir</STRONG> command line option. The last 4 digits of the file names are the
-hexadecimal CNI (Country and Network Identifier) of the provider.
-
-<DT><STRONG><A NAME="item__dev_vbi0_">/dev/vbi0, /dev/vbi1, etc.</A></STRONG><DD>
-<P>
-Device files from which Nextview data is being read during acquisition. The
-index postfix can be specified with the <STRONG>-card</STRONG> command line option.
-
-<DT><STRONG><A NAME="item__dev_video0_">/dev/video0, /dev/video1, etc.</A></STRONG><DD>
-<P>
+<DT><STRONG><A NAME="item_%24HOME%2F%2Enxtvepgrc"><STRONG>$HOME/.nxtvepgrc</STRONG></A></STRONG><BR>
+<DD>
+Configuration file where all personal settings are stored. Per default
+this is created in your home directory, but a different path and file
+name can be specified with the <STRONG>-rcfile</STRONG> option.
+<P></P>
+<DT><STRONG><A NAME="item_%2Fusr%2Ftmp%2Fnxtvdb%2Fnxtvdb%2D%23%23%23%23"><STRONG>/usr/tmp/nxtvdb/nxtvdb-####</STRONG></A></STRONG><BR>
+<DD>
+Directory containing one file for each provider's database.
+Can be changed with the <STRONG>-dbdir</STRONG> command line option.
+The last 4 digits of the file names are the hexadecimal CNI (Country
+and Network Identifier) of the provider.
+<P></P>
+<DT><STRONG><A NAME="item_%2Fdev%2Fvbi0%2C_%2Fdev%2Fvbi1%2C_etc%2E"><STRONG>/dev/vbi0</STRONG>, <STRONG>/dev/vbi1</STRONG>, etc.</A></STRONG><BR>
+<DD>
+Device files from which Nextview data is being read during acquisition.
+The index postfix can be specified with the <STRONG>-card</STRONG> command line option.
+<P></P>
+<DT><STRONG><A NAME="item_%2Fdev%2Fvideo0%2C_%2Fdev%2Fvideo1%2C_etc%2E"><STRONG>/dev/video0</STRONG>, <STRONG>/dev/video1</STRONG>, etc.</A></STRONG><BR>
+<DD>
 Device files which are needed to set input source (e.g. TV tuner or one of
 the composite or S-Video sockets) and tuner frequency for VBI reception,
 unless you choose the passive acquisition mode. The index postfix can be
 specified with the <STRONG>-card</STRONG> command line option.
-
-<P>
-The device is only kept open during a provider search. Else, it's just
+<P>The device is only kept open during a provider search. Else, it's just
 opened shortly to set the input source and tuner frequency. If the device
 is busy (e.g. while you watch TV), acquisition starts on the currently
 selected channel and automatically follows any externally controlled
-changes (this will be reported, e.g. in the status line at the bottom of
-the browser window, as <EM>forced passive</EM> acquisition mode).
-
-<DT><STRONG><A NAME="item__tmp_vbi0_pid_">/tmp/.vbi0.pid, /tmp/.vbi1.pid, etc.</A></STRONG><DD>
-<P>
+changes (this will be reported, e.g. in the status line at the bottom
+of the browser window, as <EM>forced passive</EM> acquisition mode).</P>
+<P></P>
+<DT><STRONG><A NAME="item_%2Ftmp%2F%2Evbi0%2Epid%2C_%2Ftmp%2F%2Evbi1%2Epid%2"><STRONG>/tmp/.vbi0.pid</STRONG>, <STRONG>/tmp/.vbi1.pid</STRONG>, etc.</A></STRONG><BR>
+<DD>
 This file contains the process id of the Nextview decoder (or the
-acquisition slave process) whenever a vbi device is kept open. The process
-can be forced to free the device by sending it signal SIGHUP, e.g. from a
-wrapper script around a teletext decoder.
-
-<DT><STRONG><A NAME="item__HOME_xawtv_">$HOME/.xawtv, etc.</A></STRONG><DD>
+acquisition slave process unless threading is used) whenever a vbi device
+is kept open. The process can be forced to free the device by sending
+it signal SIGHUP, e.g. from a wrapper script around a teletext decoder.
+An example which works with sh, bash or tcsh:
+<PRE>
+   kill -HUP `cat /tmp/.vbi0.pid`</PRE>
+<P>Note that the daemon is not kept alive when acquisition is disabled,
+so that sending HUP equals sending TERM.  You can restart acquisition
+by starting a new daemon.  The browser attempts to reconnect every
+10 seconds when the connection was broken, but you can also trigger
+an immediate reconnect be signalling it a HUP.</P>
+<P>To restart acquisition in non-daemon mode, signal again with HUP,
+either to the acquisition slave process or the browser process.</P>
+<P></P>
+<DT><STRONG><A NAME="item_%2Ftmp%2Fnxtvepg%2E0"><STRONG>/tmp/nxtvepg.0</STRONG></A></STRONG><BR>
+<DD>
+This non-regular file (socket) is created by the daemon to allow
+local client connections via UNIX domain sockets.  The same socket
+can be used for more than one client connection.  It's deleted when
+the daemon terminates (unless the daemon crashes or receives an
+uncatchable signal like KILL).
+<P></P>
+<DT><STRONG><A NAME="item_%24HOME%2F%2Exawtv%2C_etc%2E"><STRONG>$HOME/.xawtv</STRONG>, etc.</A></STRONG><BR>
+<DD>
+This file belongs to the TV viewer <EM>xawtv</EM>. It's not required or
+created by nxtvepg. But if it exists, it will be used in the
+EPG scan (for a fast scan mode where only the channels defined in
+this file will be checked) and in the network name configuration
+dialog.
+<P></P></DL>
 <P>
-This file belongs to the TV viewer <EM>xawtv</EM>. It's not required or created by nxtvepg. But if it exists, it will be
-used in the EPG scan (for a fast scan mode where only the channels defined
-in this file will be checked) and in the network name configuration dialog.
-
-</DL>
-<P>
-<HR>
-<H2><A NAME="Files_used_on_Windows_systems">Files used on Windows systems</A></H2>
+<H2><A NAME="files used on windows systems">Files used on Windows systems</A></H2>
 <DL>
-<DT><STRONG><A NAME="item_nxtvepg">nxtvepg.ini</A></STRONG><DD>
-<P>
-Configuration file where all personal settings are stored. Per default this
-is created in the working directory, but a different path and file name can
-be specified with the <STRONG>-rcfile</STRONG> option.
-
-<DT><STRONG><A NAME="item_nxtv">nxtv####.epg</A></STRONG><DD>
-<P>
+<DT><STRONG><A NAME="item_nxtvepg%2Eini"><STRONG>nxtvepg.ini</STRONG></A></STRONG><BR>
+<DD>
+Configuration file where all personal settings are stored. Per default
+this is created in the working directory, but a different path and file
+name can be specified with the <STRONG>-rcfile</STRONG> option.
+<P></P>
+<DT><STRONG><A NAME="item_nxtv%23%23%23%23%2Eepg"><STRONG>nxtv####.epg</STRONG></A></STRONG><BR>
+<DD>
 One file for each provider's database is created in the working directory
-or the one given with the <STRONG>-dbdir</STRONG> command line option. The last 4 digits of the file base names are the
-hexadecimal CNI (Country and Network Identifier) of the provider.
-
-</DL>
+or the one given with the <STRONG>-dbdir</STRONG> command line option.
+The last 4 digits of the file base names are the hexadecimal CNI (Country
+and Network Identifier) of the provider.
+<P></P></DL>
 <P>
 <HR>
-<H1><A NAME="SEE_ALSO">SEE ALSO</A></H1>
-<P>
-For in-depth information about Nextview please refer to the specifications
+<H1><A NAME="see also">SEE ALSO</A></H1>
+<P>For in-depth information about Nextview please refer to the specifications
 ETS 300 707 (data structures and basic principles), ETS 300 708
-(transmission protocol) and ETR 288 (code of practice). These specs are
-available from <A HREF="http://www.etsi.org/">http://www.etsi.org/</A>
-
-<P>
-You can also have Nextview directly inside your television set - check out
-the catalogues of Grundig, Loewe, Metz, Sony, Philips, Thompson or
-Telefunken. However be aware that not all models do support the same set of
-Nextview features.
-
+(transmission protocol) and ETR 288 (code of practice). These specs
+are available from <A HREF="http://www.etsi.org/">http://www.etsi.org/</A></P>
+<P>You can also have Nextview directly inside your television set - check
+out the catalogues of Grundig, Loewe, Metz, Sony, Philips, Thompson or
+Telefunken. However be aware that not all models do support the same
+set of Nextview features.</P>
 <P>
 <HR>
-<H1><A NAME="KNOWN_BUGS">KNOWN BUGS</A></H1>
-<P>
-Under Windows there's a risk of system crash (``blue screen'') when the
-application is terminated by force, e.g. with
-<CODE>TerminateProcess().</CODE> This cannot be changed because in this
-case there's no chance to stop the driver and disable the interrupt. In
-normal operation this should be very unlikely though, since all software
-exceptions (e.g. page faults) and shutdown messages are caught and the
-driver then stopped before the exit.
-
+<H1><A NAME="known bugs">KNOWN BUGS</A></H1>
+<P>Under Windows there's a risk of system crash (``blue screen'') when the
+application is terminated by force, e.g. with TerminateProcess(). This
+cannot be changed because in this case there's no chance to stop the
+driver and disable the interrupt. In normal operation this should be
+very unlikely though, since all software exceptions (e.g. page faults)
+and shutdown messages are caught and the driver then stopped before
+the exit.</P>
 <P>
 <HR>
-<H1><A NAME="REPORTING_BUGS">REPORTING BUGS</A></H1>
-<P>
-Feel free to mail any bug reports to me, but please make sure that (a) you
-have the latest version of this software, (b) it's not already in the TODO
-file and (c) it's not just an error in your provider's EPG transmission.
-And please note that I've got no telepathic capabilities, so be
-comprehensive in describing your problem. See the README file for
-instructions on which information must be included in a bug report.
-
+<H1><A NAME="reporting bugs">REPORTING BUGS</A></H1>
+<P>Feel free to mail any bug reports to me, but please make sure that
+(a) you have the latest version of this software, (b) it's not already
+in the TODO file and (c) it's not just an error in your provider's EPG
+transmission. And please note that I've got no telepathic capabilities,
+so be comprehensive in describing your problem. See the README file
+for instructions on which information must be included in a bug report.</P>
 <P>
 <HR>
-<H1><A NAME="AUTHOR">AUTHOR</A></H1>
-<P>
-Tom Zoerner, Erlangen, Germany.
-
-<P>
-Email: tomzo (at) nefkom (dot) net
-
-<P>
-Many thanks to Mario Kemper for the NetBSD port and beta testing; to
-``Mario's brother'' for beta testing the Windows port; to Gerd Knorr for
-xawtv; to Ralph Metzler for his teletext decoder; to Edgar Toernig for the
-Latin-1 conversion tables in alevt; and last but not least to the authors
-of bttv and v4l for their excellent work.
-
+<H1><A NAME="author">AUTHOR</A></H1>
+<P>Tom Zoerner, Erlangen, Germany.</P>
+<P>Email: tomzo (at) nefkom (dot) net</P>
+<P>Many thanks to Jan Schuster for beta testing starting with 0.7.0;
+to Mario Kemper for the NetBSD port and early beta testing;
+to ``Mario's brother'' for beta testing the Windows port;
+to Gerd Knorr for xawtv;
+to Ralph Metzler for his teletext decoder;
+to Edgar Toernig for the Latin-1 conversion tables in alevt;
+and last but not least to the authors of bttv and v4l for their excellent work.</P>
 <P>
 <HR>
-<H1><A NAME="COPYRIGHT">COPYRIGHT</A></H1>
-<P>
-Copyright (C) 1999, 2000, 2001 by Tom Zoerner.
-
-<P>
-This program is free software; you can redistribute it and/or modify it
-under the terms of the GNU General Public License Version 2 as published by
-the Free Software Foundation, e.g. at <A
-HREF="http://www.fsf.org/">http://www.fsf.org/</A>
-
-<P>
-This program is distributed in the hope that it will be useful, but
-<STRONG>WITHOUT ANY WARRANTY</STRONG>; without even the implied warranty of merchantability or fitness for a
-particular purpose. See the file <EM>COPYRIGHT</EM> for more details.
+<H1><A NAME="copyright">COPYRIGHT</A></H1>
+<P>Copyright (C) 1999, 2000, 2001 by Tom Zoerner.</P>
+<P>This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License Version 2 as
+published by the Free Software Foundation, e.g. at
+<A HREF="http://www.fsf.org/">http://www.fsf.org/</A></P>
+<P>This program is distributed in the hope that it will be useful, but
+<STRONG>WITHOUT ANY WARRANTY</STRONG>; without even the implied warranty of
+merchantability or fitness for a particular purpose. See the
+file <EM>COPYRIGHT</EM> for more details.</P>
 
 </BODY>
 

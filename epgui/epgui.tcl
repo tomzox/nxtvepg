@@ -21,7 +21,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: epgui.tcl,v 1.135 2001/09/12 18:43:17 tom Exp tom $
+#  $Id: epgui.tcl,v 1.150 2002/02/28 19:11:34 tom Exp tom $
 #
 
 set is_unix [expr [string compare $tcl_platform(platform) "unix"] == 0]
@@ -100,6 +100,8 @@ proc CreateMainWindow {} {
    bind      .all.pi.list.text <Button-1> {SelectPi %x %y}
    bind      .all.pi.list.text <Double-Button-1> {C_PopupPi %x %y}
    bind      .all.pi.list.text <Button-3> {CreateContextMenu %x %y}
+   bind      .all.pi.list.text <Button-4> {C_PiListBox_Scroll scroll -1 pages}
+   bind      .all.pi.list.text <Button-5> {C_PiListBox_Scroll scroll 1 pages}
    bind      .all.pi.list.text <Up>    {C_PiListBox_CursorUp}
    bind      .all.pi.list.text <Down>  {C_PiListBox_CursorDown}
    bind      .all.pi.list.text <Prior> {C_PiListBox_Scroll scroll -1 pages}
@@ -164,6 +166,7 @@ proc CreateMainWindow {} {
 
 # initialize menu state
 set menuStatusStartAcq 0
+set menuStatusDaemon 0
 set menuStatusDumpStream 0
 set menuStatusThemeClass 1
 set menuStatusTscaleOpen(ui) 0
@@ -187,14 +190,18 @@ proc CreateMenubar {} {
    .menubar add cascade -label "Help" -menu .menubar.help -underline 0
    # Control menu
    menu .menubar.ctrl -tearoff 0 -postcommand C_SetControlMenuStates
-   .menubar.ctrl add checkbutton -label "Enable acquisition" -variable menuStatusStartAcq -command {C_ToggleAcq $menuStatusStartAcq}
+   .menubar.ctrl add checkbutton -label "Enable acquisition" -variable menuStatusStartAcq -command {C_ToggleAcq $menuStatusStartAcq $menuStatusDaemon}
+   if {$is_unix} {
+      .menubar.ctrl add checkbutton -label "Connect to acq. daemon" -variable menuStatusDaemon -command {C_ToggleAcq $menuStatusStartAcq $menuStatusDaemon}
+      .menubar.ctrl add separator
+   }
    .menubar.ctrl add checkbutton -label "Dump stream" -variable menuStatusDumpStream -command {C_ToggleDumpStream $menuStatusDumpStream}
    .menubar.ctrl add command -label "Dump raw database..." -command PopupDumpDatabase
    .menubar.ctrl add command -label "Dump in HTML..." -command PopupDumpHtml
    .menubar.ctrl add separator
-   .menubar.ctrl add checkbutton -label "View timescales..." -command {C_StatsWin_ToggleTimescale ui} -variable menuStatusTscaleOpen(ui)
+   .menubar.ctrl add checkbutton -label "View timescales..." -command {C_TimeScale_Toggle ui} -variable menuStatusTscaleOpen(ui)
    .menubar.ctrl add checkbutton -label "View statistics..." -command {C_StatsWin_ToggleDbStats ui} -variable menuStatusStatsOpen(ui)
-   .menubar.ctrl add checkbutton -label "View acq timescales..." -command {C_StatsWin_ToggleTimescale acq} -variable menuStatusTscaleOpen(acq)
+   .menubar.ctrl add checkbutton -label "View acq timescales..." -command {C_TimeScale_Toggle acq} -variable menuStatusTscaleOpen(acq)
    .menubar.ctrl add checkbutton -label "View acq statistics..." -command {C_StatsWin_ToggleDbStats acq} -variable menuStatusStatsOpen(acq)
    .menubar.ctrl add separator
    .menubar.ctrl add command -label "Quit" -command {destroy .; update}
@@ -206,6 +213,7 @@ proc CreateMenubar {} {
    .menubar.config add separator
    .menubar.config add command -label "Provider scan..." -command PopupEpgScan
    .menubar.config add command -label "TV card input..." -command PopupHardwareConfig
+   .menubar.config add command -label "Client/Server..." -command PopupNetAcqConfig
    #.menubar.config add command -label "Time zone..." -command PopupTimeZone
    .menubar.config add separator
    .menubar.config add command -label "Select columns..." -command PopupColumnSelection
@@ -482,6 +490,7 @@ proc CreateDemoModePseudoMenu {} {
 
    # acq not possible since start time of all PI in the db were modified during reload
    .menubar.ctrl entryconfigure "Enable acquisition" -state disabled
+   .menubar.ctrl entryconfigure "Connect to acq. daemon" -state disabled
    # since acq is not possible, dump stream not possible either
    .menubar.ctrl entryconfigure "Dump stream" -state disabled
 
@@ -495,6 +504,8 @@ proc CreateDemoModePseudoMenu {} {
    .menubar.config entryconfigure "TV card input*" -state disabled
    # acq not possible, hence no mode change
    .menubar.config entryconfigure "Acquisition mode*" -state disabled
+   # acq not possible, hence no client/server config
+   .menubar.config entryconfigure "Client/Server*" -state disabled
 }
 
 ##  ---------------------------------------------------------------------------
@@ -1697,11 +1708,11 @@ proc SubStrPopup {} {
       label .substr.all.name.prompt -text "Enter text:"
       pack .substr.all.name.prompt -side left
       entry .substr.all.name.str -textvariable substr_pattern -width 30
-      pack .substr.all.name.str -side left
+      pack .substr.all.name.str -side left -fill x -expand 1
       bind .substr.all.name.str <Enter> {focus %W}
       bind .substr.all.name.str <Return> SubstrUpdateFilter
       bind .substr.all.name.str <Escape> {destroy .substr}
-      pack .substr.all.name -side top -pady 10
+      pack .substr.all.name -side top -pady 10 -fill x -expand 1
 
       frame .substr.all.opt
       frame .substr.all.opt.scope
@@ -1725,8 +1736,12 @@ proc SubStrPopup {} {
       pack .substr.all.cmd.help .substr.all.cmd.clear .substr.all.cmd.apply .substr.all.cmd.dismiss -side left -padx 10
       pack .substr.all.cmd -side top
 
-      pack .substr.all -padx 10 -pady 10
+      pack .substr.all -padx 10 -pady 10 -fill x -expand 1
       bind .substr.all <Destroy> {+ set substr_popup 0}
+
+      wm resizable .substr 1 0
+      update
+      wm minsize .substr [winfo reqwidth .substr] [winfo reqheight .substr]
    } else {
       raise .substr
    }
@@ -1960,7 +1975,7 @@ proc PopupSortCritSelection {} {
       set sortcrit_popup 1
 
       frame .sortcrit.fl
-      listbox .sortcrit.fl.list -exportselection false -setgrid true -height 15 -width 10 -selectmode extended -relief ridge -yscrollcommand {.sortcrit.fl.sb set}
+      listbox .sortcrit.fl.list -exportselection false -height 15 -width 10 -selectmode extended -relief ridge -yscrollcommand {.sortcrit.fl.sb set}
       scrollbar .sortcrit.fl.sb -orient vertical -command {.sortcrit.fl.list yview}
       pack .sortcrit.fl.sb .sortcrit.fl.list -side left -expand 1 -fill y
       pack .sortcrit.fl -padx 5 -pady 5 -side left
@@ -2368,6 +2383,9 @@ proc PopupHelp {index {subheading {}}} {
       bind   .help.disp.text <Home>  {.help.disp.text yview moveto 0.0}
       bind   .help.disp.text <End>   {.help.disp.text yview moveto 1.0}
       bind   .help.disp.text <Enter> {focus %W}
+      # allow to scroll the text with a wheel mouse
+      bind   .help.disp.text <Button-4> {.help.disp.text yview scroll -1 pages}
+      bind   .help.disp.text <Button-5> {.help.disp.text yview scroll 1 pages}
 
    } else {
       # when the popup is already open, just exchange the text
@@ -2508,34 +2526,42 @@ proc ProvWin_Create {} {
       frame .provwin.n
       frame .provwin.n.b
       scrollbar .provwin.n.b.sb -orient vertical -command {.provwin.n.b.list yview}
+      pack .provwin.n.b.sb -side left -fill y
       listbox .provwin.n.b.list -relief ridge -selectmode single -exportselection 0 \
                                 -width 12 -height 5 -yscrollcommand {.provwin.n.b.sb set}
-      pack .provwin.n.b.sb .provwin.n.b.list -side left -fill y
-      pack .provwin.n.b -side left -fill y
+      pack .provwin.n.b.list -side left -fill both -expand 1
+      pack .provwin.n.b -side left -fill both -expand 1
       bind .provwin.n.b.list <ButtonRelease-1> {+ ProvWin_Select}
       bind .provwin.n.b.list <KeyRelease-space> {+ ProvWin_Select}
 
       # provider info at the right side of the window
       if {[info exists provwin_servicename]} {unset provwin_servicename}
       frame .provwin.n.info
-      label .provwin.n.info.serviceheader -text "Name of service"
-      entry .provwin.n.info.servicename -state disabled -textvariable provwin_servicename -width 45
-      pack .provwin.n.info.serviceheader .provwin.n.info.servicename -side top -anchor nw
+      frame .provwin.n.info.service
+      label .provwin.n.info.service.header -text "Name of service"
+      pack  .provwin.n.info.service.header -side top -anchor nw
+      entry .provwin.n.info.service.name -state disabled -textvariable provwin_servicename -width 45
+      pack  .provwin.n.info.service.name -side top -anchor nw -fill x
+      pack  .provwin.n.info.service -side top -anchor nw -fill x
+
       frame .provwin.n.info.net
       label .provwin.n.info.net.header -text "List of networks"
+      pack .provwin.n.info.net.header -side top -anchor nw
       text .provwin.n.info.net.list -width 45 -height 4 -wrap word \
                                     -font $textfont -background $default_bg \
                                     -insertofftime 0 -state disabled -exportselection 1
-      pack .provwin.n.info.net.header .provwin.n.info.net.list -side top -anchor nw
-      pack .provwin.n.info.net -side top -anchor nw
+      pack .provwin.n.info.net.list -side top -anchor nw -fill both -expand 1
+      pack .provwin.n.info.net -side top -anchor nw -fill both -expand 1
 
       # OI block header and message
       label .provwin.n.info.oiheader -text "OSD header and message"
+      pack .provwin.n.info.oiheader -side top -anchor nw
       text .provwin.n.info.oimsg -width 45 -height 6 -wrap word \
                                  -font $textfont -background $default_bg \
                                  -insertofftime 0 -state disabled -exportselection 1
-      pack .provwin.n.info.oiheader .provwin.n.info.oimsg -side top -anchor nw
-      pack .provwin.n.info -side left -fill y -padx 10
+      pack .provwin.n.info.oimsg -side top -anchor nw -fill both -expand 1
+      pack .provwin.n.info -side left -padx 10 -fill both -expand 1
+      pack .provwin.n -side top -pady 10 -fill both -expand 1
 
       # buttons at the bottom of the window
       frame .provwin.cmd
@@ -2544,7 +2570,7 @@ proc ProvWin_Create {} {
       button .provwin.cmd.ok -text "Ok" -width 5 -command ProvWin_Exit
       pack .provwin.cmd.help .provwin.cmd.abort .provwin.cmd.ok -side left -padx 10
 
-      pack .provwin.n .provwin.cmd -side top -pady 10
+      pack .provwin.cmd -side top -pady 10
       bind .provwin.n <Destroy> {+ set provwin_popup 0}
 
       # fill the listbox with the provider's network names
@@ -2558,6 +2584,10 @@ proc ProvWin_Create {} {
          .provwin.n.b.list selection set $index
          ProvWin_Select
       }
+
+      wm resizable .provwin 1 1
+      update
+      wm minsize .provwin [winfo reqwidth .provwin] [winfo reqheight .provwin]
    } else {
       raise .provwin
    }
@@ -2621,7 +2651,13 @@ proc PopupEpgScan {} {
    global epgscan_opt_slow epgscan_opt_refresh epgscan_opt_xawtv
 
    if {$epgscan_popup == 0} {
-      if {!$is_unix} {
+      if {$is_unix} {
+         if [IsNetAcqMode] {
+            # acquisition is not running local -> abort
+            tk_messageBox -type ok -icon info -message "EPG scan cannot be started while in client/server mode."
+            return
+         }
+      } else {
          if {![info exists hwcfg] || (([lindex $hwcfg 0] == 0) && ([lindex $hwcfg 1] == 0))} {
             # tuner type has not been configured yet -> abort
             tk_messageBox -type ok -icon info -message "Before you start the scan, please do configure your card's tuner type in the 'TV card input' sub-menu of the Configure menu.\nIf no channels are found during the scan, try to enable the tuner PLL initialization in that menu."
@@ -2638,7 +2674,7 @@ proc PopupEpgScan {} {
 
       frame  .epgscan.cmd
       # control commands
-      button .epgscan.cmd.start -text "Start scan" -width 12 -command {if {[info exists hwcfg]} {C_StartEpgScan [lindex $hwcfg 0] $epgscan_opt_slow $epgscan_opt_refresh $epgscan_opt_xawtv} else {C_StartEpgScan [lindex $hwcfg_default 0] $epgscan_opt_slow $epgscan_opt_refresh $epgscan_opt_xawtv}}
+      button .epgscan.cmd.start -text "Start scan" -width 12 -command EpgScan_Start
       button .epgscan.cmd.stop -text "Abort scan" -width 12 -command C_StopEpgScan -state disabled
       button .epgscan.cmd.help -text "Help" -width 12 -command {PopupHelp $helpIndex(Configuration) "Provider scan"}
       button .epgscan.cmd.dismiss -text "Dismiss" -width 12 -command {destroy .epgscan}
@@ -2656,11 +2692,11 @@ proc PopupEpgScan {} {
 
       # message window to inform about the scanning state
       frame .epgscan.all.fmsg
-      text .epgscan.all.fmsg.msg -width 40 -height 7 -yscrollcommand {.epgscan.all.fmsg.sb set} -wrap none
-      pack .epgscan.all.fmsg.msg -side left -expand 1 -fill y
+      text .epgscan.all.fmsg.msg -width 60 -height 20 -yscrollcommand {.epgscan.all.fmsg.sb set} -wrap none
+      pack .epgscan.all.fmsg.msg -side left -expand 1 -fill both
       scrollbar .epgscan.all.fmsg.sb -orient vertical -command {.epgscan.all.fmsg.msg yview}
       pack .epgscan.all.fmsg.sb -side left -fill y
-      pack .epgscan.all.fmsg -side top -padx 10 -fill y -expand 1
+      pack .epgscan.all.fmsg -side top -padx 10 -fill both -expand 1
 
       # mode buttons
       frame .epgscan.all.opt
@@ -2676,17 +2712,44 @@ proc PopupEpgScan {} {
          }
       }
       pack .epgscan.all.opt -side top -padx 10 -pady 5
+
+      # check if provider frequencies are available
+      UpdateProvFrequency [C_LoadProvFreqsFromDbs]
       if {[llength $prov_freqs] == 0} {
          .epgscan.all.opt.refresh configure -state disabled
       }
 
-      pack .epgscan.all -side top -fill y -expand 1
+      pack .epgscan.all -side top -fill both -expand 1
       bind .epgscan.all <Destroy> {+ set epgscan_popup 0; C_StopEpgScan}
 
       .epgscan.all.fmsg.msg insert end "Press the <Start scan> button\n"
+
+      wm resizable .epgscan 1 1
+      update
+      wm minsize .epgscan [winfo reqwidth .epgscan] [winfo reqheight .epgscan]
    } else {
       raise .epgscan
    }
+}
+
+# callback for "Start" button
+proc EpgScan_Start {} {
+   global epgscan_opt_slow epgscan_opt_refresh epgscan_opt_xawtv
+   global hwcfg hwcfg_default
+   global is_unix
+
+   if {$is_unix && [IsNetAcqMode]} {
+      # acquisition is not running local -> abort
+      tk_messageBox -type ok -icon info -message "EPG scan cannot be started while in client/server mode."
+      return
+   }
+
+   if {[info exists hwcfg]} {
+      set input_src [lindex $hwcfg 0]
+   } else {
+      set input_src [lindex $hwcfg_default 0]
+   }
+   C_StartEpgScan $input_src $epgscan_opt_slow $epgscan_opt_refresh $epgscan_opt_xawtv
 }
 
 # called after start or stop of EPG scan to update button states
@@ -2735,19 +2798,32 @@ proc SelBoxCreate {lbox arr_ailist arr_selist arr_names} {
    upvar $arr_selist selist
    upvar $arr_names names
 
+   # determine listbox height and check if scrollbar is required
+   set lbox_height [llength $ailist]
+   set do_scrollbar 0
+   if {$lbox_height > 27} {
+      set lbox_height 25
+      set do_scrollbar 1
+   }
+
    ## first column: listbox with all netwops in AI order
-   listbox $lbox.ailist -exportselection false -setgrid true -height 10 -width 12 -selectmode extended -relief ridge
-   pack $lbox.ailist -fill x -anchor nw -side left -pady 10 -padx 10 -fill y -expand 1
-   bind $lbox.ailist <ButtonPress-1> [list + after idle [list SelBoxButtonPress $lbox orig]]
+   frame $lbox.ai
+   scrollbar $lbox.ai.sb -orient vertical -command [list $lbox.ai.ailist yview]
+   if $do_scrollbar { pack $lbox.ai.sb -fill y -side left }
+   listbox $lbox.ai.ailist -exportselection false -height $lbox_height -width 12 \
+                           -selectmode extended -relief ridge -yscrollcommand [list $lbox.ai.sb set]
+   pack $lbox.ai.ailist -side left -fill both -expand 1
+   pack $lbox.ai -anchor nw -side left -pady 10 -padx 10 -fill both -expand 1
+   bind $lbox.ai.ailist <ButtonPress-1> [list + after idle [list SelBoxButtonPress $lbox orig]]
 
    ## second column: command buttons
    frame $lbox.cmd
    button $lbox.cmd.add -text "add" -command [list SelBoxAddItem $lbox $arr_ailist $arr_selist $arr_names] -width 7
    pack $lbox.cmd.add -side top -anchor nw -pady 10
    frame $lbox.cmd.updown
-   button $lbox.cmd.updown.up -bitmap "bitmap_ptr_up" -command [list SelBoxShiftUpItem $lbox.selist $arr_selist $arr_names]
+   button $lbox.cmd.updown.up -bitmap "bitmap_ptr_up" -command [list SelBoxShiftUpItem $lbox.sel.selist $arr_selist $arr_names]
    pack $lbox.cmd.updown.up -side left -fill x -expand 1
-   button $lbox.cmd.updown.down -bitmap "bitmap_ptr_down" -command [list SelBoxShiftDownItem $lbox.selist $arr_selist $arr_names]
+   button $lbox.cmd.updown.down -bitmap "bitmap_ptr_down" -command [list SelBoxShiftDownItem $lbox.sel.selist $arr_selist $arr_names]
    pack $lbox.cmd.updown.down -side left -fill x -expand 1
    pack $lbox.cmd.updown -side top -anchor nw -fill x
    button $lbox.cmd.delnet -text "delete" -command [list SelBoxRemoveItem $lbox $arr_selist] -width 7
@@ -2755,17 +2831,18 @@ proc SelBoxCreate {lbox arr_ailist arr_selist arr_names} {
    pack $lbox.cmd -side left -anchor nw -pady 10 -padx 5 -fill y
 
    ## third column: selected providers in selected order
-   listbox $lbox.selist -exportselection false -setgrid true -height 10 -width 12 -selectmode extended -relief ridge
-   pack $lbox.selist -fill x -anchor nw -side left -pady 10 -padx 10 -fill y -expand 1
-   bind $lbox.selist <ButtonPress-1> [list + after idle [list SelBoxButtonPress $lbox sel]]
+   frame $lbox.sel
+   scrollbar $lbox.sel.sb -orient vertical -command [list $lbox.sel.selist yview]
+   listbox $lbox.sel.selist -exportselection false -height $lbox_height -width 12 \
+                            -selectmode extended -relief ridge -yscrollcommand [list $lbox.sel.sb set]
+   if $do_scrollbar { pack $lbox.sel.sb -fill y -side left }
+   pack $lbox.sel.selist -side left -fill both -expand 1
+   pack $lbox.sel -anchor nw -side left -pady 10 -padx 10 -fill both -expand 1
+   bind $lbox.sel.selist <ButtonPress-1> [list + after idle [list SelBoxButtonPress $lbox sel]]
 
    # fill the listboxes
-   foreach item $ailist { $lbox.ailist insert end $names($item) }
-   foreach item $selist { $lbox.selist insert end $names($item) }
-
-   # adjust the listbox size to fit exactly the max. number of entries
-   $lbox.ailist configure -height [llength $ailist]
-   $lbox.selist configure -height [llength $ailist]
+   foreach item $ailist { $lbox.ai.ailist insert end $names($item) }
+   foreach item $selist { $lbox.sel.selist insert end $names($item) }
 
    # initialize command button state
    # (all disabled until an item is selected from either the left or right list)
@@ -2778,14 +2855,14 @@ proc SelBoxAddItem {lbox arr_ailist arr_selist arr_names} {
    upvar $arr_selist selist
    upvar $arr_names names
 
-   foreach index [$lbox.ailist curselection] {
+   foreach index [$lbox.ai.ailist curselection] {
       set cni [lindex $ailist $index]
       if {[lsearch -exact $selist $cni] == -1} {
          # append the selected item to the right listbox
          lappend selist $cni
-         $lbox.selist insert end $names($cni)
+         $lbox.sel.selist insert end $names($cni)
          # select the newly inserted item
-         $lbox.selist selection set end
+         $lbox.sel.selist selection set end
       }
    }
 
@@ -2797,8 +2874,8 @@ proc SelBoxAddItem {lbox arr_ailist arr_selist arr_names} {
 proc SelBoxRemoveItem {lbox arr_selist} {
    upvar $arr_selist selist
 
-   foreach index [lsort -integer -decreasing [$lbox.selist curselection]] {
-      $lbox.selist delete $index
+   foreach index [lsort -integer -decreasing [$lbox.sel.selist curselection]] {
+      $lbox.sel.selist delete $index
       set selist [lreplace $selist $index $index]
    }
 
@@ -2850,20 +2927,20 @@ proc SelBoxShiftDownItem {lbox arr_selist arr_names} {
 proc SelBoxButtonPress {lbox which} {
    # clear the selection in the opposite listbox
    if {[string compare $which "orig"] == 0} {
-      $lbox.selist selection clear 0 end
+      $lbox.sel.selist selection clear 0 end
    } else {
-      $lbox.ailist selection clear 0 end
+      $lbox.ai.ailist selection clear 0 end
    }
 
    # selection in the left box <--> "add" enabled
-   if {[llength [$lbox.ailist curselection]] > 0} {
+   if {[llength [$lbox.ai.ailist curselection]] > 0} {
       $lbox.cmd.add configure -state normal
    } else {
       $lbox.cmd.add configure -state disabled
    }
 
    # selection in the right box <--> "delete" & "shift up/down" enabled
-   if {[llength [$lbox.selist curselection]] > 0} {
+   if {[llength [$lbox.sel.selist curselection]] > 0} {
       $lbox.cmd.updown.up configure -state normal
       $lbox.cmd.updown.down configure -state normal
       $lbox.cmd.delnet configure -state normal
@@ -2913,6 +2990,10 @@ proc PopupNetwopSelection {} {
          button .netsel.cmd.save -text "Save" -width 7 -command {SaveSelectedNetwopList}
          pack .netsel.cmd.help .netsel.cmd.abort .netsel.cmd.save -side bottom -anchor sw
          bind .netsel.cmd <Destroy> {+ set netsel_popup 0}
+
+         wm resizable .netsel 1 1
+         update
+         wm minsize .netsel [winfo reqwidth .netsel] [winfo reqheight .netsel]
       } else {
          # no AI block in database
          tk_messageBox -type ok -default ok -icon error -message "Cannot configure networks without a provider selected."
@@ -2979,18 +3060,18 @@ proc NetselCopyNetwopList {copycni} {
       if {($copycni != $netsel_prov) && [array exists cfnetwops] && [info exists cfnetwops($copycni)]} {
 
          set netsel_selist {}
-         .netsel.selist delete 0 end
+         .netsel.sel.selist delete 0 end
          foreach cni [lindex $cfnetwops($copycni) 0] {
             if {[lsearch -exact $netsel_ailist $cni] != -1} {
                lappend netsel_selist $cni
-               .netsel.selist insert end $netsel_names($cni)
+               .netsel.sel.selist insert end $netsel_names($cni)
             }
          }
          set suppressed [lindex $cfnetwops($copycni) 1]
          foreach cni $netsel_ailist {
             if {([lsearch -exact $suppressed $cni] == -1) && ([lsearch -exact $netsel_selist $cni] == -1)} {
                lappend netsel_selist $cni
-               .netsel.selist insert end $netsel_names($cni)
+               .netsel.sel.selist insert end $netsel_names($cni)
             }
          }
       }
@@ -3209,12 +3290,14 @@ proc NetworkNamingPopup {} {
       set xawtv_auto_match 0
       foreach cni $netname_ailist {
          if [info exists cfnetnames($cni)] {
+            # network name is already configured by the user
             set netname_names($cni) $cfnetnames($cni)
          } else {
-            # no name yet defined -> search best among all providers
+            # no name yet configured -> search best among all providers
             lappend netname_automatch $cni
             foreach prov $netname_prov_cnis {
                if [info exists netname_provnets($prov,$cni)] {
+                  # remove all non-alphanumeric characters from the name and make it lower case
                   regsub -all -- {[^a-zA-Z0-9]*} $netname_provnets($prov,$cni) {} name
                   set name [string tolower $name]
                   if [info exists netname_xawtv($netname_provnets($prov,$cni))] {
@@ -3239,13 +3322,13 @@ proc NetworkNamingPopup {} {
 
       CreateTransientPopup .netname "Network name configuration"
 
-      ## first column: listbox with all netwops in AI order
+      ## first column: listbox with sorted listing of all netwops
       frame .netname.list
-      listbox .netname.list.ailist -exportselection false -setgrid true -height 20 -width 0 -selectmode single -relief ridge -yscrollcommand {.netname.list.sc set}
+      listbox .netname.list.ailist -exportselection false -height 20 -width 0 -selectmode single -relief ridge -yscrollcommand {.netname.list.sc set}
       pack .netname.list.ailist -anchor nw -side left -fill both -expand 1
       scrollbar .netname.list.sc -orient vertical -command {.netname.list.ailist yview}
       pack .netname.list.sc -side left -fill y
-      pack .netname.list -side left -fill both -pady 10 -padx 10
+      pack .netname.list -side left -pady 10 -padx 10 -fill both -expand 1
       bind .netname.list.ailist <ButtonPress-1> [list + after idle NetworkNameSelection]
       bind .netname.list.ailist <space>         [list + after idle NetworkNameSelection]
 
@@ -3283,11 +3366,17 @@ proc NetworkNamingPopup {} {
          }
       }
 
-      # fourth row: provider name selection
+      # fourth row: network description
+      label .netname.cmd.lnetdesc -text "Official network description:"
+      pack  .netname.cmd.lnetdesc -side top -anchor nw -pady 5
+      entry .netname.cmd.enetdesc -state disabled
+      pack  .netname.cmd.enetdesc -side top -anchor nw -fill x
+
+      # fifth row: provider name selection
       label .netname.cmd.lprovnams -text "Names used by providers:"
-      pack .netname.cmd.lprovnams -side top -anchor nw -pady 10
+      pack .netname.cmd.lprovnams -side top -anchor nw -pady 5
       listbox .netname.cmd.provnams -exportselection false -height [llength $netname_prov_cnis] -width 0 -selectmode single
-      pack .netname.cmd.provnams -side top -anchor n -fill x
+      pack .netname.cmd.provnams -side top -anchor n -fill both -expand 1
       bind .netname.cmd.provnams <ButtonPress-1> [list + after idle NetworkNameProvSelection]
       bind .netname.cmd.provnams <space>         [list + after idle NetworkNameProvSelection]
 
@@ -3297,7 +3386,7 @@ proc NetworkNamingPopup {} {
       button .netname.cmd.help -text "Help" -width 7 -command {PopupHelp $helpIndex(Configuration) "Network names"}
       pack .netname.cmd.help .netname.cmd.abort .netname.cmd.save -side bottom -anchor sw
 
-      pack .netname.cmd -side left -fill y -anchor n -pady 10 -padx 10
+      pack .netname.cmd -side left -anchor n -pady 10 -padx 10 -fill both -expand 1
 
       bind .netname.cmd <Destroy> {+ set netname_popup 0}
       focus .netname.cmd.myname
@@ -3346,6 +3435,10 @@ proc NetworkNamingPopup {} {
          tk_messageBox -type ok -icon info -parent .netname \
             -message "The name$plural been automatically selected among the names in the available provider databases. Leave the dialog with 'Save' to keep the new list."
       }
+
+      wm resizable .netname 1 1
+      update
+      wm minsize .netname [winfo reqwidth .netname] [winfo reqheight .netname]
 
    } else {
       raise .netname
@@ -3450,6 +3543,12 @@ proc NetworkNameSelection {} {
             .netname.cmd.fm.match configure -text "none" -foreground red
          }
       }
+
+      # display description of the network if available
+      .netname.cmd.enetdesc configure -state normal
+      .netname.cmd.enetdesc delete 0 end
+      .netname.cmd.enetdesc insert 0 [C_GetCniDescription $cni]
+      .netname.cmd.enetdesc configure -state disabled
 
       # rebuild the list of provider's network names
       set netname_provlist {}
@@ -3678,8 +3777,8 @@ proc PopupColumnSelection {} {
       set colsel_selist $pilistbox_cols
 
       SelBoxCreate .colsel colsel_ailist colsel_selist colsel_names
-      .colsel.ailist configure -width 20
-      .colsel.selist configure -width 20
+      .colsel.ai.ailist configure -width 20
+      .colsel.sel.selist configure -width 20
 
       button .colsel.cmd.help -text "Help" -width 7 -command {PopupHelp $helpIndex(Configuration) "Select columns"}
       button .colsel.cmd.apply -text "Apply" -width 7 -command {ApplySelectedColumnList normal}
@@ -3959,7 +4058,7 @@ proc PopupProviderMerge {} {
 }
 
 # create menu for option selection
-set provmergeopt_popup 0
+set provmergeopt_popup {}
 
 proc PopupProviderMergeOpt {cfoption} {
    global provmerge_selist provmerge_cf provmerge_names
@@ -3967,9 +4066,9 @@ proc PopupProviderMergeOpt {cfoption} {
    global ProvmergeOptLabels
 
    if {$provmerge_popup == 1} {
-      if {$provmergeopt_popup == 0} {
+      if {[string length $provmergeopt_popup] == 0} {
          CreateTransientPopup .provmergeopt "Database Selection for $ProvmergeOptLabels($cfoption)"
-         set provmergeopt_popup 1
+         set provmergeopt_popup $cfoption
 
          # initialize the result array: default is all databases
          if {![info exists provmerge_cf($cfoption)]} {
@@ -3989,7 +4088,7 @@ proc PopupProviderMergeOpt {cfoption} {
          button .provmergeopt.cb.ok -text "Ok" -width 7 -command {destroy .provmergeopt}
          pack .provmergeopt.cb.ok -side left -padx 10
          pack .provmergeopt.cb -side top -pady 10
-         bind .provmergeopt.cb <Destroy> {+ set provmergeopt_popup 0}
+         bind .provmergeopt.cb <Destroy> {+ set provmergeopt_popup {}}
       } else {
          # the popup is already opened -> just exchange the contents
          wm title .provmergeopt "Database Selection for $ProvmergeOptLabels($cfoption)"
@@ -4014,10 +4113,15 @@ proc PopupProviderMergeOpt {cfoption} {
 
 # Reset the attribute configuration
 proc ProvMerge_Reset {} {
+   global provmergeopt_popup
    global provmerge_cf
 
    if {[info exists provmerge_cf]} {
       array unset provmerge_cf
+   }
+
+   if {[string length $provmergeopt_popup] != 0} {
+      PopupProviderMergeOpt $provmergeopt_popup
    }
 }
 
@@ -4067,7 +4171,7 @@ proc ProvMerge_Quit {cause} {
       destroy .provmerge
    }
    # close attribute selection popup (slave)
-   if {$provmergeopt_popup} {
+   if {[string length $provmergeopt_popup] > 0} {
       destroy .provmergeopt
    }
    # free space from arrays
@@ -4136,6 +4240,7 @@ proc SortProvList_cmd {a b} {
 ## Open popup for acquisition mode selection
 ## - can not be popped up if /dev/video is busy
 ##
+set acq_mode "follow-ui"
 set acqmode_popup 0
 
 proc PopupAcqMode {} {
@@ -4146,6 +4251,15 @@ proc PopupAcqMode {} {
    global is_unix
 
    if {$acqmode_popup == 0} {
+
+      if {$is_unix && [IsNetAcqMode]} {
+         # warn that params do not affect acquisition running remotely
+         set answer [tk_messageBox -type okcancel -icon info -message "Please note that this dialog does not update acquisition parameters on server side."]
+         if {[string compare $answer "ok"] != 0} {
+            return
+         }
+      }
+
       CreateTransientPopup .acqmode "Acquisition mode selection"
       set acqmode_popup 1
 
@@ -4159,11 +4273,7 @@ proc PopupAcqMode {} {
       set acqmode_selist $acqmode_ailist
 
       # initialize popup with current settings
-      if {[info exists acq_mode]} {
-         set acqmode_sel $acq_mode
-      } else {
-         set acqmode_sel "follow-ui"
-      }
+      set acqmode_sel $acq_mode
 
       # checkbuttons for modes
       frame .acqmode.mode
@@ -4206,12 +4316,12 @@ proc UpdateAcqModePopup {} {
 
    if {[string compare -length 6 "cyclic" $acqmode_sel] == 0} {
       # manual selection -> add listboxes to allow selection of multiple databases and priority
-      if {[string length [info commands .acqmode.lb.ailist]] == 0} {
+      if {[string length [info commands .acqmode.lb.ai.ailist]] == 0} {
          # listbox does not yet exist
          foreach widget [info commands .acqmode.lb.*] {
             destroy $widget
          }
-         if {[info exists acq_mode_cnis]} {
+         if {[info exists acq_mode_cnis] && ([llength $acq_mode_cnis] > 0)} {
             set acqmode_selist $acq_mode_cnis
             RemoveObsoleteCnisFromList acqmode_selist $acqmode_ailist
          } else {
@@ -4306,6 +4416,14 @@ proc PopupHardwareConfig {} {
    global hwcfg_popup hwcfg hwcfg_default
 
    if {$hwcfg_popup == 0} {
+      if {$is_unix && [IsNetAcqMode]} {
+         # warn that params do not affect acquisition running remotely
+         set answer [tk_messageBox -type okcancel -icon info -message "Please note that this dialog does not update acquisition parameters on server side."]
+         if {[string compare $answer "ok"] != 0} {
+            return
+         }
+      }
+
       CreateTransientPopup .hwcfg "TV card input configuration"
       set hwcfg_popup 1
 
@@ -4715,6 +4833,250 @@ proc XawtvConfigSave {} {
 
 
 ##  --------------------------------------------------------------------------
+##  Creates the remote acquisition configuration dialog
+##
+set netacqcf_popup 0
+set netacqcf {remctl 1 do_tcp_ip 0 host localhost ip {} port 7658 max_conn 10 sysloglev 3 fileloglev 0 logname {}}
+set netacqcf_loglev_names {"no logging" error warning notice info}
+set netacqcf_remctl_names {disabled "local only" "from anywhere"}
+set netacqcf_view "both"
+set netacq_enable 0
+
+proc PopupNetAcqConfig {} {
+   global netacqcf netacqcf_tmpcf
+   global netacqcf_remctl_names
+   global netacqcf_view
+   global fileImage textfont
+   global netacqcf_popup
+
+   if {$netacqcf_popup == 0} {
+      CreateTransientPopup .netacqcf "Client/Server Configuration"
+      set netacqcf_popup 1
+
+      # load configuration into temporary array
+      foreach {opt val} $netacqcf {
+         set netacqcf_tmpcf($opt) $val
+      }
+
+      frame .netacqcf.view -borderwidth 2 -relief ridge
+      label .netacqcf.view.view_lab -text "Enable settings for:"
+      pack  .netacqcf.view.view_lab -side left -pady 5
+      radiobutton .netacqcf.view.clnt_radio -text "client" -variable netacqcf_view -value "client" -command NetAcqChangeView
+      radiobutton .netacqcf.view.serv_radio -text "server" -variable netacqcf_view -value "server" -command NetAcqChangeView
+      radiobutton .netacqcf.view.both_radio -text "both"   -variable netacqcf_view -value "both" -command NetAcqChangeView
+      pack  .netacqcf.view.clnt_radio .netacqcf.view.serv_radio .netacqcf.view.both_radio -side left
+      pack  .netacqcf.view -side top -pady 10 -padx 10 -fill x
+
+      set gridrow 0
+      frame .netacqcf.all
+      label .netacqcf.all.remote_lab -text "Enable remote control:"
+      grid  .netacqcf.all.remote_lab -row $gridrow -column 0 -sticky w -padx 5
+      menubutton .netacqcf.all.remote_mb -text [lindex $netacqcf_remctl_names $netacqcf_tmpcf(remctl)] \
+                      -width 22 -justify center -relief raised -borderwidth 2 -menu .netacqcf.all.remote_mb.men \
+                      -indicatoron 1
+      menu  .netacqcf.all.remote_mb.men -tearoff 0
+      set cmd {.netacqcf.all.remote_mb configure -text [lindex $netacqcf_remctl_names $netacqcf_tmpcf(remctl)]}
+      set idx 0
+      foreach name $netacqcf_remctl_names {
+         .netacqcf.all.remote_mb.men add radiobutton -label $name -variable netacqcf_tmpcf(remctl) -value $idx -command $cmd
+         incr idx
+      }
+      grid  .netacqcf.all.remote_mb -row $gridrow -column 1 -sticky we
+      incr gridrow
+      label .netacqcf.all.tcpip_lab -text "Enable TCP/IP:"
+      grid  .netacqcf.all.tcpip_lab -row $gridrow -column 0 -sticky w -padx 5
+      checkbutton .netacqcf.all.tcpip_but -text "(depreciated w/o firewall)" -variable netacqcf_tmpcf(do_tcp_ip) -font $textfont
+      grid  .netacqcf.all.tcpip_but -row $gridrow -column 1 -sticky w
+      incr gridrow
+      label .netacqcf.all.host_lab -text "Server hostname:"
+      grid  .netacqcf.all.host_lab -row $gridrow -column 0 -sticky w -padx 5
+      entry .netacqcf.all.host_ent -textvariable netacqcf_tmpcf(host) -width 25
+      grid  .netacqcf.all.host_ent -row $gridrow -column 1 -sticky we
+      incr gridrow
+      label .netacqcf.all.port_lab -text "Server TCP port:"
+      grid  .netacqcf.all.port_lab -row $gridrow -column 0 -sticky w -padx 5
+      entry .netacqcf.all.port_ent -textvariable netacqcf_tmpcf(port) -width 25
+      grid  .netacqcf.all.port_ent -row $gridrow -column 1 -sticky we
+      incr gridrow
+      label .netacqcf.all.ip_lab -text "Bind IP address:"
+      grid  .netacqcf.all.ip_lab -row $gridrow -column 0 -sticky w -padx 5
+      entry .netacqcf.all.ip_ent -textvariable netacqcf_tmpcf(ip) -width 25
+      grid  .netacqcf.all.ip_ent -row $gridrow -column 1 -sticky we
+      incr gridrow
+      label .netacqcf.all.max_conn_lab -text "Max. connections:"
+      grid  .netacqcf.all.max_conn_lab -row $gridrow -column 0 -sticky w -padx 5
+      entry .netacqcf.all.max_conn_ent -textvariable netacqcf_tmpcf(max_conn) -width 25
+      grid  .netacqcf.all.max_conn_ent -row $gridrow -column 1 -sticky we
+      incr gridrow
+      label .netacqcf.all.logname_lab -text "Log filename:"
+      grid  .netacqcf.all.logname_lab -row $gridrow -column 0 -sticky w -padx 5
+      frame .netacqcf.all.logname_frm
+      entry .netacqcf.all.logname_frm.ent -textvariable netacqcf_tmpcf(logname) -width 21
+      button .netacqcf.all.logname_frm.dlgbut -image $fileImage -command {
+         set tmp [tk_getSaveFile -parent .netacqcf \
+                     -initialfile [file tail $netacqcf_tmpcf(logname)] \
+                     -initialdir [file dirname $netacqcf_tmpcf(logname)]]
+         if {[string length $tmp] > 0} {
+            set netacqcf_tmpcf(logname) $tmp
+         }
+         unset tmp
+      }
+      pack  .netacqcf.all.logname_frm.ent -side left -fill x -expand 1
+      pack  .netacqcf.all.logname_frm.dlgbut -side left
+      grid  .netacqcf.all.logname_frm -row $gridrow -column 1 -sticky we
+      incr gridrow
+      label .netacqcf.all.loglev_lab -text "File min. log level:"
+      grid  .netacqcf.all.loglev_lab -row $gridrow -column 0 -sticky w -padx 5
+      NetAcqCreateLogLevMenu .netacqcf.all.loglev_men fileloglev
+      grid  .netacqcf.all.loglev_men -row $gridrow -column 1 -sticky we
+      incr gridrow
+      label .netacqcf.all.syslev_lab -text "Syslog min. level:"
+      grid  .netacqcf.all.syslev_lab -row $gridrow -column 0 -sticky w -padx 5
+      NetAcqCreateLogLevMenu .netacqcf.all.syslev_men sysloglev
+      grid  .netacqcf.all.syslev_men -row $gridrow -column 1 -sticky we
+      incr gridrow
+      grid  columnconfigure .netacqcf.all 1 -weight 1
+      pack  .netacqcf.all -side top -padx 10 -pady 10 -fill both -expand 1
+
+      # standard dialog buttons: Ok, Abort, Help
+      frame .netacqcf.cmd
+      button .netacqcf.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Configuration) "Client/Server"}
+      button .netacqcf.cmd.abort -text "Abort" -width 5 -command {NetAcqConfigQuit 0}
+      button .netacqcf.cmd.save -text "Ok" -width 5 -command {NetAcqConfigQuit 1}
+      pack .netacqcf.cmd.help .netacqcf.cmd.abort .netacqcf.cmd.save -side left -padx 10
+      pack .netacqcf.cmd -side top -pady 5
+
+      bind .netacqcf.cmd <Destroy> {+ set netacqcf_popup 0}
+
+      wm resizable .netacqcf 1 0
+      update
+      wm minsize .netacqcf [winfo reqwidth .netacqcf] [winfo reqheight .netacqcf]
+
+   } else {
+      raise .netacqcf
+   }
+}
+
+# callback for "Abort" and "OK" buttons
+proc NetAcqConfigQuit {do_save} {
+   global netacqcf netacqcf_tmpcf
+
+   if $do_save {
+      # check config for consistancy
+      if {[string length $netacqcf_tmpcf(host)] == 0} {
+         # hostname must always be given (used only by client though)
+         tk_messageBox -type ok -default ok -icon error -parent .netacqcf -message "You must enter a hostname, at least 'localhost'."
+         return
+      }
+      if {[string compare $netacqcf_tmpcf(host) "localhost"] != 0} {
+         # non-local host -> TCP/IP must be enabled
+         if {$netacqcf_tmpcf(do_tcp_ip) == 0} {
+            tk_messageBox -type ok -default ok -icon error -parent .netacqcf -message "Cannot use any host but 'localhost' as server when TCP/IP is not enabled."
+            return
+         }
+      }
+      if {$netacqcf_tmpcf(do_tcp_ip) && ([string length $netacqcf_tmpcf(port)] == 0)} {
+         # TCP/IP enabled -> must give a port name (even if unused by this client b/c server is localhost)
+         tk_messageBox -type ok -default ok -icon error -parent .netacqcf -message "You must enter either a TCP port number or a service name."
+         return
+      }
+      if {($netacqcf_tmpcf(fileloglev) > 0) && ([string length $netacqcf_tmpcf(logname)] == 0)} {
+         # when logging to a file is enabled we obviously require a file name
+         tk_messageBox -type ok -default ok -icon error -parent .netacqcf -message "If you enable logging into a file, you must enter a file name."
+         return
+      }
+
+      # copy temporary variables back into config parameter list
+      set netacqcf [list "remctl" $netacqcf_tmpcf(remctl) \
+                         "do_tcp_ip" $netacqcf_tmpcf(do_tcp_ip) \
+                         "host" $netacqcf_tmpcf(host) \
+                         "port" $netacqcf_tmpcf(port) \
+                         "ip" $netacqcf_tmpcf(ip) \
+                         "logname" $netacqcf_tmpcf(logname) \
+                         "max_conn" $netacqcf_tmpcf(max_conn) \
+                         "fileloglev" $netacqcf_tmpcf(fileloglev) \
+                         "sysloglev" $netacqcf_tmpcf(sysloglev)]
+      UpdateRcFile
+      C_UpdateNetAcqConfig
+   }
+   # close the dialog window
+   destroy .netacqcf
+   # free memory allocated for temporary array
+   array unset netacqcf_tmpcf
+}
+
+# callback for "View" radio buttons
+proc NetAcqChangeView {} {
+   global netacqcf_view
+
+   set view_dst [list \
+      .netacqcf.all.remote_lab 1 \
+      .netacqcf.all.remote_mb 1 \
+      .netacqcf.all.tcpip_lab 1 \
+      .netacqcf.all.tcpip_but 1 \
+      .netacqcf.all.host_lab 2 \
+      .netacqcf.all.host_ent 2 \
+      .netacqcf.all.port_lab 3 \
+      .netacqcf.all.port_ent 3 \
+      .netacqcf.all.ip_lab 1 \
+      .netacqcf.all.ip_ent 1 \
+      .netacqcf.all.max_conn_lab 1 \
+      .netacqcf.all.max_conn_ent 1 \
+      .netacqcf.all.logname_lab 1 \
+      .netacqcf.all.logname_frm.ent 1 \
+      .netacqcf.all.logname_frm.dlgbut 1 \
+      .netacqcf.all.loglev_lab 1 \
+      .netacqcf.all.loglev_men 1 \
+      .netacqcf.all.syslev_lab 1 \
+      .netacqcf.all.syslev_men 1 \
+   ]
+
+   if {[string compare $netacqcf_view "server"] == 0} {
+      set mask 1
+   } elseif {[string compare $netacqcf_view "client"] == 0} {
+      set mask 2
+   } else {
+      set mask 3
+   }
+
+   foreach {widg val} $view_dst {
+      if {$val & $mask} {
+         $widg configure -state normal
+      } else {
+         $widg configure -state disabled
+      }
+   }
+}
+
+# create popdown menu to allow choosing log levels (for file logging and syslog)
+proc NetAcqCreateLogLevMenu {wmen logtype} {
+   global netacqcf_loglev_names
+   global netacqcf_tmpcf
+
+   # build callback command for menubutton: set button label to label of selected entry
+   # (use "append" b/c some vars need to be evaluated now, others at time of invocation)
+   set cmd {}
+   append cmd $wmen { configure -text [lindex $netacqcf_loglev_names $netacqcf_tmpcf(} $logtype {)]}
+
+   menubutton $wmen -text [lindex $netacqcf_loglev_names $netacqcf_tmpcf($logtype)] \
+                   -width 22 -justify center -relief raised -borderwidth 2 -menu $wmen.men \
+                   -indicatoron 1
+   menu  $wmen.men -tearoff 0
+   set idx 0
+   foreach name $netacqcf_loglev_names {
+      $wmen.men add radiobutton -label $name -variable netacqcf_tmpcf($logtype) -value $idx -command $cmd
+      incr idx
+   }
+}
+
+# check if acquisition runs in remote mode
+proc IsNetAcqMode {} {
+   global netacq_enable
+
+   return $netacq_enable
+}
+
+##  --------------------------------------------------------------------------
 ##  Creates the Context menu popup configuration dialog
 ##
 set ctxmencf_popup 0
@@ -4754,8 +5116,8 @@ proc ContextMenuConfigPopup {} {
                                          -yscrollcommand {.ctxmencf.all.lbox.sc set}
       bind .ctxmencf.all.lbox.cmdlist <ButtonRelease-1> {ContextMenuConfigSelection 1}
       bind .ctxmencf.all.lbox.cmdlist <KeyRelease-space> {ContextMenuConfigSelection 1}
-      pack .ctxmencf.all.lbox.cmdlist -side left -expand 1 -fill x
-      pack .ctxmencf.all.lbox  -fill x -side top
+      pack .ctxmencf.all.lbox.cmdlist -side left -fill both -expand 1
+      pack .ctxmencf.all.lbox -side top -fill both -expand 1
 
       # section #2: command buttons to manipulate the list
       frame  .ctxmencf.all.cmd
@@ -4791,20 +5153,15 @@ proc ContextMenuConfigPopup {} {
 
       # section #3: entry field to modify or create commands
       frame .ctxmencf.all.edit -borderwidth 2 -relief ridge
-      frame .ctxmencf.all.edit.fr_title
-      entry .ctxmencf.all.edit.fr_title.ent -textvariable ctxmencf_title -width 55 -font $font_fixed
-      pack  .ctxmencf.all.edit.fr_title.ent -side right
-      label .ctxmencf.all.edit.fr_title.lab -text "Title:"
-      pack  .ctxmencf.all.edit.fr_title.lab -side right
-      pack  .ctxmencf.all.edit.fr_title -side top -fill x
-      frame .ctxmencf.all.edit.fr_cmd
-      entry .ctxmencf.all.edit.fr_cmd.ent -textvariable ctxmencf_cmd -width 55 -font $font_fixed
-      pack  .ctxmencf.all.edit.fr_cmd.ent -side right
-      label .ctxmencf.all.edit.fr_cmd.lab -text "Command:"
-      pack  .ctxmencf.all.edit.fr_cmd.lab -side right
-      pack  .ctxmencf.all.edit.fr_cmd -side top -fill x
-      pack  .ctxmencf.all.edit -side top -pady 5
-      pack  .ctxmencf.all -side top -pady 5 -padx 5
+      label .ctxmencf.all.edit.title_lab -text "Title:"
+      entry .ctxmencf.all.edit.title_ent -textvariable ctxmencf_title -width 50 -font $font_fixed
+      grid  .ctxmencf.all.edit.title_lab .ctxmencf.all.edit.title_ent -sticky we
+      label .ctxmencf.all.edit.cmd_lab -text "Command:"
+      entry .ctxmencf.all.edit.cmd_ent -textvariable ctxmencf_cmd -width 50 -font $font_fixed
+      grid  .ctxmencf.all.edit.cmd_lab .ctxmencf.all.edit.cmd_ent -sticky we
+      grid  columnconfigure .ctxmencf.all.edit 1 -weight 1
+      pack  .ctxmencf.all.edit -side top -pady 5 -fill x
+      pack  .ctxmencf.all -side top -pady 5 -padx 5 -fill both -expand 1
 
       # section #4: standard dialog buttons: Ok, Abort, Help
       frame .ctxmencf.cmd
@@ -4823,6 +5180,10 @@ proc ContextMenuConfigPopup {} {
       set ctxmencf_title {}
       set ctxmencf_cmd {}
       set ctxmencf_selidx -1
+
+      wm resizable .ctxmencf 1 1
+      update
+      wm minsize .ctxmencf [winfo reqwidth .ctxmencf] [winfo reqheight .ctxmencf]
    } else {
       raise .ctxmencf
    }
@@ -5086,6 +5447,8 @@ proc ContextMenuConfigQuit {is_abort} {
 ## Open or update a timescale popup window
 ##
 proc TimeScale_Open {w cni key isMerged} {
+   global default_bg
+   global tsc_tail
 
    # fetch network list from AI block in database
    set netsel_ailist [C_GetAiNetwopList $cni netnames]
@@ -5102,12 +5465,17 @@ proc TimeScale_Open {w cni key isMerged} {
       wm resizable $w 0 0
       wm group $w .
 
+      frame $w.top
+      # create a canvas at the top which holds markers for current time and date breaks
+      canvas $w.top.now -bg $default_bg -height 12 -width 298
+      grid $w.top.now -sticky we -column 1 -row 0
+      grid columnconfigure $w.top 1 -weight 1
+
       # create a time scale for each network;  note: use numerical indices
       # instead of CNIs to be able to reuse the scales for another provider
-      frame $w.top
       set idx 0
       foreach cni $netsel_ailist {
-         TimeScale_Create $w $idx $netnames($cni) $isMerged
+         TimeScale_CreateCanvas $w $idx $netnames($cni) $isMerged
          incr idx
       }
       pack $w.top -padx 5 -pady 5 -side top -fill x
@@ -5119,7 +5487,10 @@ proc TimeScale_Open {w cni key isMerged} {
       pack $w.bottom -side top -fill x
 
       # create notification callback in case the window is closed
-      bind $w.bottom <Destroy> [list + C_StatsWin_ToggleTimescale $key 0]
+      bind $w.bottom <Destroy> [list + C_TimeScale_Toggle $key 0]
+
+      # clear information about existing acq tail shades
+      array unset tsc_tail "${w}*"
 
    } else {
 
@@ -5127,24 +5498,34 @@ proc TimeScale_Open {w cni key isMerged} {
 
       set idx 0
       foreach cni $netsel_ailist {
-         TimeScale_Create $w $idx $netnames($cni) $isMerged
+         TimeScale_CreateCanvas $w $idx $netnames($cni) $isMerged
          incr idx
       }
 
+      # clear information about existing acq tail shades
+      array unset tsc_tail "${w}*"
+
       # remove obsolete timescales at the bottom
       # e.g. after an AI update in case the new AI has less networks
-      while {[string length [info commands $w.top.n$idx]] != 0} {
-         pack forget $w.top.n$idx
-         destroy $w.top.n$idx
+      set tmp {}
+      while {[string length [info commands $w.top.n${idx}_name]] != 0} {
+         lappend tmp $w.top.n${idx}_name $w.top.n${idx}_stream
          incr idx
       }
+      if {[llength $tmp] > 0} {
+         eval [concat grid forget $tmp]
+         eval [concat destroy $tmp]
+      }
+      # optionally display the resized window immediately because
+      # filling the timescales takes a long time
+      #update
    }
 }
 
 ## ---------------------------------------------------------------------------
 ## Create or update the n'th timescale
 ##
-proc TimeScale_Create {w netwop netwopName isMerged} {
+proc TimeScale_CreateCanvas {w netwop netwopName isMerged} {
    global tscnowid default_bg
 
    set w $w.top.n$netwop
@@ -5156,41 +5537,40 @@ proc TimeScale_Create {w netwop netwopName isMerged} {
       set now_bg black
    }
 
-   if {[string length [info commands $w]] == 0} {
-      frame $w
+   if {[string length [info commands ${w}_name]] == 0} {
 
-      label $w.name -text $netwopName -anchor w
-      pack $w.name -side left -fill x -expand true
+      label ${w}_name -text $netwopName -anchor w
+      grid ${w}_name -sticky we -column 0 -row [expr $netwop + 1]
 
-      canvas $w.stream -bg $default_bg -height 12 -width 298
-      pack $w.stream -side left
+      canvas ${w}_stream -bg $default_bg -height 12 -width 298
+      grid ${w}_stream -sticky we -column 1 -row [expr $netwop + 1]
+      bind ${w}_stream <Button-1> [list TimeScale_GotoTime $netwop ${w}_stream %x]
 
-      set tscnowid(0) [$w.stream create rect  1 4  5 12 -outline "" -fill $now_bg]
-      set tscnowid(1) [$w.stream create rect  8 4 12 12 -outline "" -fill $now_bg]
-      set tscnowid(2) [$w.stream create rect 15 4 19 12 -outline "" -fill $now_bg]
-      set tscnowid(3) [$w.stream create rect 22 4 26 12 -outline "" -fill $now_bg]
-      set tscnowid(4) [$w.stream create rect 29 4 33 12 -outline "" -fill $now_bg]
+      # TODO should use different variables for each canvas, because the IDs might differ
+      set tscnowid(0) [${w}_stream create rect  1 4  5 12 -outline "" -fill $now_bg]
+      set tscnowid(1) [${w}_stream create rect  8 4 12 12 -outline "" -fill $now_bg]
+      set tscnowid(2) [${w}_stream create rect 15 4 19 12 -outline "" -fill $now_bg]
+      set tscnowid(3) [${w}_stream create rect 22 4 26 12 -outline "" -fill $now_bg]
+      set tscnowid(4) [${w}_stream create rect 29 4 33 12 -outline "" -fill $now_bg]
 
-      set tscnowid(bg) [$w.stream create rect 40 4 298 12 -outline "" -fill black]
-
-      pack $w -fill x -expand true
+      set tscnowid(bg) [${w}_stream create rect 40 4 298 12 -outline "" -fill black]
 
    } else {
       # timescale already exists -> just update it
 
-      # update the network name
-      $w.name configure -text $netwopName
+      # update the network name and undo highlighting
+      ${w}_name configure -text $netwopName -bg $default_bg
 
-      # reset the "Now" buttons
+      # reset the Now & Next boxes
       for {set idx 0} {$idx < 5} {incr idx} {
-         $w.stream itemconfigure $tscnowid($idx) -fill $now_bg
+         ${w}_stream itemconfigure $tscnowid($idx) -fill $now_bg
       }
 
-      # clear the scale
+      # clear all PI range info in the scale
       set id_bg $tscnowid(bg)
-      foreach id [$w.stream find overlapping 39 0 299 12] {
+      foreach id [${w}_stream find overlapping 39 0 296 12] {
          if {$id != $id_bg} {
-            $w.stream delete $id
+            ${w}_stream delete $id
          }
       }
    }
@@ -5199,23 +5579,166 @@ proc TimeScale_Create {w netwop netwopName isMerged} {
 ## ---------------------------------------------------------------------------
 ## Display the timespan covered by a PI in its network timescale
 ##
-proc TimeScale_AddPi {w pos1 pos2 color hasShort hasLong isLast} {
+proc TimeScale_AddRange {w netwop pos1 pos2 color hasShort hasLong isLast} {
    global tscnowid
+
+   set wc ${w}.top.n${netwop}_stream
 
    set y0 4
    set y1 12
    if {$hasShort} {set y0 [expr $y0 - 2]}
    if {$hasLong}  {set y1 [expr $y1 + 2]}
-   $w.stream create rect [expr 40 + $pos1] $y0 [expr 40 + $pos2] $y1 -fill $color -outline ""
+   $wc create rect [expr 40 + $pos1] $y0 [expr 40 + $pos2] $y1 -fill $color -outline ""
 
    if $isLast {
       # this was the last block as defined in the AI block
       # -> remove any remaining blocks to the right, esp. the "PI missing" range
       set id_bg $tscnowid(bg)
-      foreach id [$w.stream find overlapping [expr 41 + $pos2] 0 299 12] {
+      foreach id [$wc find overlapping [expr 41 + $pos2] 0 296 12] {
          if {$id != $id_bg} {
-            $w.stream delete $id
+            $wc delete $id
          }
+      }
+   }
+}
+
+## ---------------------------------------------------------------------------
+## Mark the last added ranges, i.e. the tail of acquisition
+## - stream 1 and 2 have separate tails
+## - every time a new tail element is added, the older ones are faded out
+##   by 10%, i.e. the initial color is white and then fades to the normal
+##   stream color, i.e. red or blue
+##
+proc TimeScale_AddTail {w netwop pos1 pos2 stream} {
+   global tsc_tail
+
+   foreach {tel col} [array get tsc_tail "${w}*"] {
+      set wo [lindex $tel 0]
+      set id [lindex $tel 1]
+      set si [lindex $tel 2]
+      # skip tail elements of the other stream
+      if {$si == $stream} {
+         # fade the color (25 is 10% of the maximum 255)
+         set col [expr $col - 25]
+         if {$col >= 40} {
+            # update the tail element's color in the array
+            set tsc_tail($tel) $col
+            # generate color code in #RRGGBB hex format
+            if {$si == 0} {
+               set colstr [format "#ff%02x%02x" $col $col]
+            } else {
+               set colstr [format "#%02x%02xff" $col $col]
+            }
+            # repaint the element in the canvas
+            $wo itemconfigure $id -fill $colstr
+         } else {
+            # remove this tail element from the tail array and the canvas
+            unset tsc_tail($tel)
+            $wo delete $id
+         }
+      }
+   }
+
+   set wc ${w}.top.n${netwop}_stream
+   set id [$wc create rect [expr 40 + $pos1] 6 [expr 40 + $pos2] 10 -fill "#ffffff" -outline ""]
+   set tsc_tail([list $wc $id $stream]) 255
+}
+
+## ---------------------------------------------------------------------------
+## Remove tail from all canvas widgets in a timescale popup
+## - called for the UI timescales when acquisition is stopped
+##
+proc TimeScale_ClearTail {w} {
+   global tsc_tail
+
+   foreach tel [array names tsc_tail "${w}*"] {
+      set wo [lindex $tel 0]
+      set id [lindex $tel 1]
+      $wo delete $id
+   }
+}
+
+## ---------------------------------------------------------------------------
+## Shift all content to the right
+##
+proc TimeScale_ShiftRight {w dist} {
+   global tscnowid
+
+   set idx 0
+   while {[string length [info commands $w.top.n$idx]] != 0} {
+
+      set wc $w.top.n$idx_stream
+      set id_bg $tscnowid(bg)
+
+      foreach id [$wc find overlapping 40 0 296 12] {
+         if {$id != $id_bg} {
+            $wc move $id $dist 0
+         }
+      }
+      incr idx
+   }
+}
+
+## ---------------------------------------------------------------------------
+## Callback for right-click in a timescale
+##
+proc TimeScale_GotoTime {netwop w xcoo} {
+
+   # translate screen coordinates to canvas coordinates
+   set xcoo [expr int([$w canvasx $xcoo])]
+
+   if {$xcoo >= 40} {
+      set xcoo [expr $xcoo - 40]
+   } else {
+      # click onto the Now&Next rectangles -> jump to Now
+      set xcoo 0
+   }
+   set pi_time [C_TimeScale_GetTime $w $xcoo]
+   if {$pi_time != 0} {
+      # set filter: show the selected network only
+      ResetFilterState
+      C_ResetFilter all
+      SelectNetwopByIdx $netwop 1
+      # set cursor onto the first PI starting after the selected time
+      C_PiListBox_GotoTime $pi_time
+   }
+}
+
+## ---------------------------------------------------------------------------
+## Move the "NOW" slider to the position which reflects the current time
+## - the slider is drawn as a small arrow which points downwards
+##
+proc TimeScale_DrawDateScale {frame nowoff daybrklist} {
+   global font_bold font_small
+
+   catch [ $frame.top.now delete all ]
+
+   # draw daybreak markers
+   foreach {xcoo lab} $daybrklist {
+      incr xcoo 40
+      $frame.top.now create line $xcoo 1 $xcoo 12 -arrow none
+      if {$xcoo < 296 - 50} {
+        $frame.top.now create text [expr $xcoo + 25] 6 -anchor c -text $lab -font $font_small
+      }
+   }
+
+   if {[string compare "off" $nowoff] != 0} {
+      set x1 [expr 40 + $nowoff - 5]
+      set x2 [expr 40 + $nowoff]
+      set id_lab [$frame.top.now create text $x1 1 -anchor ne -text "now" -font $font_bold]
+      set id_arr [$frame.top.now create line $x2 1 $x2 12 -arrow last]
+
+   } else {
+      # "now" lies beyond the end of the scale
+      set id_arr [$frame.top.now create line 280 6 296 6 -arrow last]
+      set id_lab [$frame.top.now create text 275 0 -anchor ne -text "now" -font $font_bold]
+   }
+
+   # remove daybreak markers which are overlapped by "now" and the arrow
+   set bbox [$frame.top.now bbox $id_arr $id_lab]
+   foreach id [$frame.top.now find overlapping [lindex $bbox 0] 0 [lindex $bbox 2] 12] {
+      if {($id != $id_arr) && ($id != $id_lab)} {
+         $frame.top.now delete $id
       }
    }
 }
@@ -5223,9 +5746,9 @@ proc TimeScale_AddPi {w pos1 pos2 color hasShort hasLong isLast} {
 ## ---------------------------------------------------------------------------
 ## Mark a network label for which a PI was received
 ##
-proc TimeScale_MarkNow {frame num color} {
+proc TimeScale_MarkNow {w num color} {
    global tscnowid
-   $frame.stream itemconfigure $tscnowid($num) -fill $color
+   ${w}_stream itemconfigure $tscnowid($num) -fill $color
 }
 
 ## ---------------------------------------------------------------------------
@@ -5419,13 +5942,13 @@ proc ShortcutPrettyPrint {filter} {
          theme_class* {
             scan $ident "theme_class%d" class
             foreach theme $valist {
-               append out "Theme, class $class: [C_GetPdcString $theme]\n"
+               append out "Theme, class ${class}: [C_GetPdcString $theme]\n"
             }
          }
          sortcrit_class* {
             scan $ident "sortcrit_class%d" class
             foreach sortcrit $valist {
-               append out "Sort.crit., class $class: [format 0x%02X $sortcrit]\n"
+               append out "Sort.crit., class ${class}: [format 0x%02X $sortcrit]\n"
             }
          }
          series {
@@ -6685,21 +7208,21 @@ proc ShiftDownEditedShortcut {} {
 ## ---------------------------------------------------------------------------
 set myrcfile ""
 
-proc LoadRcFile {filename} {
+proc LoadRcFile {filename isDefault} {
    global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_logi_idx fsc_tag_idx
    global shortcuts shortcut_count
    global prov_selection prov_freqs cfnetwops cfnetnames
    global showNetwopListbox showShortcutListbox showStatusLine showColumnHeader
    global prov_merge_cnis prov_merge_cf
-   global acq_mode acq_mode_cnis
+   global acq_mode acq_mode_cnis netacq_enable
    global pibox_height pilistbox_cols shortinfo_height
-   global hwcfg xawtvcf ctxmencf
+   global hwcfg netacqcf xawtvcf ctxmencf
    global substr_history
    global dumpdb_filename
    global dumpdb_pi dumpdb_xi dumpdb_ai dumpdb_ni dumpdb_oi dumpdb_mi dumpdb_li dumpdb_ti
    global dumphtml_filename dumphtml_type dumphtml_sel_only
    global dumphtml_hyperlinks dumphtml_file_append dumphtml_file_overwrite
-   global EPG_VERSION_NO
+   global EPG_VERSION_NO is_unix
    global myrcfile
 
    set myrcfile $filename
@@ -6707,7 +7230,7 @@ proc LoadRcFile {filename} {
    set error 0
    set line_no 0
 
-   if {[catch {set rcfile [open $filename "r"]}] == 0} {
+   if {[catch {set rcfile [open $filename "r"]} errmsg] == 0} {
       while {[gets $rcfile line] >= 0} {
          incr line_no
          if {([catch $line] != 0) && !$error} {
@@ -6743,6 +7266,13 @@ proc LoadRcFile {filename} {
                [lindex $shortcuts($index) $fsc_logi_idx] \
                [lindex $shortcuts($index) $fsc_tag_idx] ]
          }
+      }
+   } elseif {!$isDefault} {
+      # warn if rc/ini file could not be loaded
+      if $is_unix {
+         puts stderr "Warning: reading rc/ini file: $errmsg"
+      } else {
+         after idle [list tk_messageBox -type ok -default ok -icon warning -message "Warning: rcfile: $errmsg"]
       }
    }
 
@@ -6786,9 +7316,9 @@ proc UpdateRcFile {} {
    global prov_selection prov_freqs cfnetwops cfnetnames
    global showNetwopListbox showShortcutListbox showStatusLine showColumnHeader
    global prov_merge_cnis prov_merge_cf
-   global acq_mode acq_mode_cnis
+   global acq_mode acq_mode_cnis netacq_enable
    global pibox_height pilistbox_cols shortinfo_height
-   global hwcfg xawtvcf ctxmencf
+   global hwcfg netacqcf xawtvcf ctxmencf
    global substr_history
    global dumpdb_filename
    global dumpdb_pi dumpdb_xi dumpdb_ai dumpdb_ni dumpdb_oi dumpdb_mi dumpdb_li dumpdb_ti
@@ -6848,9 +7378,11 @@ proc UpdateRcFile {} {
       # dump acquisition mode and provider CNIs
       if {[info exists acq_mode]} { puts $rcfile [list set acq_mode $acq_mode] }
       if {[info exists acq_mode_cnis]} {puts $rcfile [list set acq_mode_cnis $acq_mode_cnis]}
+      puts $rcfile [list set netacq_enable $netacq_enable]
 
       if {[info exists hwcfg]} {puts $rcfile [list set hwcfg $hwcfg]}
 
+      puts $rcfile [list set netacqcf $netacqcf]
       puts $rcfile [list set xawtvcf $xawtvcf]
       puts $rcfile [list set ctxmencf $ctxmencf]
 
@@ -6880,7 +7412,7 @@ proc UpdateRcFile {} {
 }
 
 ##
-##  Update the provider selection order: move the last selected CNI to the front
+##  Update the provider preference order: move the last selected CNI to the front
 ##
 set prov_selection {}
 
@@ -6908,28 +7440,79 @@ proc UpdateProvSelection {cni} {
 }
 
 ##
+##  Same as above, but with the possibility to submit more than one CNI
+##  - used for the merged db (starting with the special CNI 0x00FF)
+##
+proc UpdateMergedProvSelection {cni_list} {
+   global prov_selection
+
+   set cni_count [llength $cni_list]
+
+   # compare the given list with the beginning of the old list
+   set index 0
+   foreach cni $cni_list {
+      if {$cni != [lindex $prov_selection $index]} {
+         break
+      }
+      incr index
+   }
+
+   # check if an update is required
+   if {$index < $cni_count} {
+
+      # delete the given CNIs in the old list
+      set new_list {}
+      foreach cni $prov_selection {
+         if {[lsearch -exact $cni_list $cni] == -1} {
+            lappend new_list $cni
+         }
+      }
+
+      # assemble the new provider selection list
+      set prov_selection [concat $cni_list $new_list]
+
+      # save the new list into the ini/rc file
+      UpdateRcFile
+   }
+}
+
+##
 ##  Update the frequency for a given provider
 ##
 set prov_freqs {}
 
-proc UpdateProvFrequency {cni freq} {
+proc UpdateProvFrequency {cniFreqList} {
    global prov_freqs
 
-   # search the list for the given CNI
-   set idx 0
-   foreach {rc_cni rc_freq} $prov_freqs {
-      if {$rc_cni == $cni} {
-         if {$rc_freq != $freq} {
-            # CNI already in the list with a different frequency -> update
-            set prov_freqs [lreplace $prov_freqs $idx [expr $idx + 1] $cni $freq]
-            UpdateRcFile
+   set modified 0
+
+   foreach {cni freq} $cniFreqList {
+      # search the list for the given CNI
+      set found 0
+      set idx 0
+      foreach {rc_cni rc_freq} $prov_freqs {
+         if {$rc_cni == $cni} {
+            if {$rc_freq != $freq} {
+               # CNI already in the list with a different frequency -> update
+               set prov_freqs [lreplace $prov_freqs $idx [expr $idx + 1] $cni $freq]
+               set modified 1
+            }
+            set found 1
+            break
          }
-         return
+         incr idx 2
       }
-      incr idx 2
+
+      if {$found == 0} {
+         # not found in the list -> append new pair to the list
+         lappend prov_freqs $cni $freq
+         set modified 1
+      }
    }
-   # not found in the list -> append new pair to the list
-   lappend prov_freqs $cni $freq
-   UpdateRcFile
+
+   if $modified {
+      # frequency added or modified -> write the rc/ini file
+      UpdateRcFile
+   }
 }
 

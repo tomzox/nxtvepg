@@ -1,4 +1,4 @@
-## $Id: CHANGES.version,v 1.7 2001/08/25 12:48:10 tom Exp $ ##
+## $Id: CHANGES.version,v 1.8 2002/03/02 12:54:27 tom Exp $ ##
 
 Steps to prepare new distribution:
 
@@ -21,6 +21,7 @@ Makefile
 - test compile with -g, -O2, -O6
 - set CFLAGS optimization to -O6
 - remove -Werr
+- enable USE_THREADS
 - empty Makefile.dep
 
 adapt epgctl/mytypes.h

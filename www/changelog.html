@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: changelog.html,v 1.22 2001/11/07 19:38:12 tom Exp $ -->
+<!-- $Id: changelog.html,v 1.25 2002/03/07 21:40:17 tom Exp $ -->
 <HEAD>
 <TITLE>Nextview EPG Decoder Change-Log</TITLE>
 <LINK href="nxtvepg.css" rel=stylesheet type=text/css>
@@ -28,19 +28,78 @@ updated while work is in progress and new bugs are fixed or features added.
 If you're interested in beta testing pre-releases, just send me a mail.
 </P>
 
-<H2>From 0.6.4 to 0.7.0 (yet unreleased)</H2>
+<H2>From 0.7.0 to 0.7.1 (yet unreleased)</H2>
 <P>
-The next release will contain the following new features and fixes:
+The next release will contain the following new features:
 </P>
 <UL>
-<LI>Added network connection between acquisition daemon and GUI.
-  The daemon now acts as a server which forwards all incoming EPG data
-  to one or more connected GUI clients. Both TCP/IP and UNIX pipes
-  are supported.
-<LI>Added compile-time option to use multi-threading for VBI acquisition
-  instead of a separate process. The advantage is that the threads are
-  only created when acquisition is enabled.
+<LI>Remote control for the acquisition daemon, to allow changing the daemon's
+  acquisition mode, TV card and network parameters via the client GUI
+  (there's already an <I>"Enable remote control"</I> option in the Client/Server
+  configuration dialog in version 0.7.0, but it's not doing anything yet,
+  in case you haven't noticed :)
 </UL>
+
+<H2>From 0.6.4 to 0.7.0 (March/02/2002)</H2>
+<P>
+Note that as of this release the database format is changed (due to a
+bugfix and several extensions); it's recommended to delete all database
+files from the nxtvepg directory before the next program start (expect
+to see a few warnings, which you can ignore in this case). Then
+start an EPG scan with the option "Refresh only" (this checkbox is
+located below the EPG scan message window)
+</P><P>
+This release contains the following new features:
+</P><P>
+<UL>
+<LI>Added a network connection between the acquisition daemon and the GUI.
+  While connected, the browser receives updates for opened Nextview databases
+  (i.e. all incoming EPG blocks are forwarded) and constant updates about
+  the acquisition progress.
+<LI>Added compile-time option to use multi-threading for VBI acquisition
+  instead of a separate process. The advantage is that the threads are only
+  created when acquisition is enabled and not when connected to a daemon.
+<LI>Added support for wheel mouse in main and help windows,
+  thanks to Serge Koenigsmann.
+<LI>xawtv popup is immediately removed when xawtv is terminated or iconified
+<LI>Fixed bug in status line statistics output: expired percentage did not
+  reach 100% even after the database appeared empty because the total of
+  "defective" blocks was erronously included in the quotient.
+<LI>Added scollbars to network list in network selection dialog and limited
+  listbox height to 27 networks.
+<LI>Added field with official network description in network name config dialog
+  to avoid confusion in case different stations have similar logos
+  (e.g. there's "ntv" in Turkey and "n-tv" in Germany)
+<LI>Added network name output during EPG scan (e.g. "ARD" instead of "0x0DC1")
+  generally improved diagnostic output (summary at the end)
+<LI>The timescales windows now show all blocks in the database; they used
+  to start with the current time, omitting all expired blocks.
+  That was confusing esp. in case all blocks were expired, because the
+  status line said "100% complete" but no blocks were displayed.
+<LI>Added "acquisition tail" to timescales: the most recently updated ranges
+  are marked with a white bar which fades to the background color over time
+<LI>Added callback to timescale windows: mouse click on a scale now filters
+  the slected netwop in the main window and jumps to the given time
+<LI>Fixed bug in database structure which holds navigation menu entries
+  (a fixed length array was too short and caused memory overwrites)
+<LI>Both acquisition and EPG scan now extract channel frequecies from both
+  databases and rc/ini file, so that in case of loss of either databases
+  or rc/ini file they still can be recovered.
+<LI>Fixed bug which let the browser hang in wait(2) after the process group
+  was delivered a STOP signal (i.e. CTRL-Z in the controlling terminal)
+<LI>Made dialog windows which display lists resizable, e.g. netwop selection
+<LI>Bugfix in database merge (yes, yet another one): the merged netwop table
+  could contain uninitialized entries, if the user network selection contained
+  networks that were included in none of the merged databases (e.g. remains
+  of a previous merge with different providers)
+<LI>Implemented "Index" filters for merged database; due to technical
+  limitations currently only "now" &amp; "next" searches are supported; others
+  will return empty lists.  Thanks to Mathias Homann for prompting this fix.
+</UL>
+<P>
+Thanks to Jan Schuster for alpha testing and much useful feedback
+and to Mario Kemper for beta testing and adaptions for NetBSD.
+</P>
 
 <H2>From 0.6.3 to 0.6.4 (November/06/2001)</H2>
 <P>

@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgblock.c,v 1.38 2001/08/31 16:43:33 tom Exp tom $
+ *  $Id: epgblock.c,v 1.41 2001/12/25 19:43:34 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -80,8 +80,9 @@ EPGDB_BLOCK * EpgBlockCreate( uchar type, uint size )
    pBlock->version = 0xff;
    pBlock->stream = 0xff;
 
-   time(&pBlock->acqTimestamp);
-   pBlock->acqRepCount = 1;
+   pBlock->acqTimestamp =
+   pBlock->updTimestamp = time(NULL);
+   pBlock->acqRepCount  = 1;
 
    dprintf2("EpgBlock-Create: created block type=%d, (0x%lx)\n", type, (long)pBlock);
    return pBlock;
@@ -433,7 +434,7 @@ static uchar * ApplyEscapes(const uchar *pText, uint textLen, const uchar *pEsca
                   *po = ' ';
                   break;
                case 0x08:  // change alphabet
-                  if (data < 8)
+                  if (data < NATOPT_ALPHA_COUNT)
                      alphabet = data;
                   else
                      debug1("Apply-Escapes: unsupported alphabet %d", alphabet);
@@ -537,6 +538,8 @@ static uchar * ApplyEscapes(const uchar *pText, uint textLen, const uchar *pEsca
          }
       }
 
+      ifdebug1((strLen == 0) && (i < textLen), "Apply-Escapes: output string length exceeded: %d bytes remaining", textLen - i);
+
       if ( (po > pout) && (*(po - 1) == ' ') )
       {  // remove blank from end of line
          po -= 1;
@@ -613,7 +616,8 @@ EPGDB_BLOCK * EpgBlockConvertPi(const uchar *pCtrl, uint ctrlLen, uint strLen)
    const uchar *psd;
    int titleLen, shortInfoLen, longInfoLen;
    uchar *pTitle, *pShortInfo, *pLongInfo;
-   uint piLen;
+   uchar long_info_type;
+   uint piLen, idx;
  
    psd = pCtrl;
    pi.block_no              = (psd[5]>>4) | (psd[6]<<4) | ((psd[7]&0x0f)<<12);
@@ -630,11 +634,12 @@ EPGDB_BLOCK * EpgBlockConvertPi(const uchar *pCtrl, uint ctrlLen, uint strLen)
    pi.no_sortcrit           = (psd[19]>>6) | ((psd[20]&1)<<2);
    pi.no_descriptors        = (psd[20]>>1)&0x3f;
    pi.background_reuse      = psd[20]>>7;
-   if (pi.no_themes > 0)
-      memcpy(pi.themes, psd + 21, pi.no_themes);
-   if (pi.no_sortcrit > 0)
-      memcpy(pi.sortcrits, psd + 21 + pi.no_themes, pi.no_sortcrit);
-   psd += 21 + pi.no_themes + pi.no_sortcrit;
+   psd += 21;
+
+   for (idx=0; idx < pi.no_themes; idx++)
+      pi.themes[idx] = *(psd++);
+   for (idx=0; idx < pi.no_sortcrit; idx++)
+      pi.sortcrits[idx] = *(psd++);
 
    pDescriptors = DecodeDescriptorLoop(psd, pi.no_descriptors, 0);
    psd += ((pi.no_descriptors * 5) + 1) / 2;
@@ -648,7 +653,6 @@ EPGDB_BLOCK * EpgBlockConvertPi(const uchar *pCtrl, uint ctrlLen, uint strLen)
       pi.background_ref     = psd[0] + (psd[1] << 8);
       pShortInfo = NULL;
       pLongInfo = NULL;
-      pi.long_info_type = 0;
    }
    else
    {
@@ -659,9 +663,9 @@ EPGDB_BLOCK * EpgBlockConvertPi(const uchar *pCtrl, uint ctrlLen, uint strLen)
         pShortInfo = NULL;
       psd += psd[0] * 3 + 2;
  
-      pi.long_info_type   = psd[0] & 0x7;
+      long_info_type = psd[0] & 0x7;
       psd += 1;
-      switch (pi.long_info_type)
+      switch (long_info_type)
       {
          case EPG_STR_TYPE_TRANSP_SHORT:
            longInfoLen = psd[psd[0]*3 + 1];
@@ -682,6 +686,10 @@ EPGDB_BLOCK * EpgBlockConvertPi(const uchar *pCtrl, uint ctrlLen, uint strLen)
       else
         pLongInfo = NULL;
    }
+
+   // initialize values that are maintained elsewhere
+   pi.block_no_in_ai = TRUE;
+   pi.series_code    = 0;
  
    // concatenate the various parts of PI to a compound structure
    // 1st step: sum up the length & compute the offsets of each element from the start
@@ -727,32 +735,101 @@ EPGDB_BLOCK * EpgBlockConvertPi(const uchar *pCtrl, uint ctrlLen, uint strLen)
    memcpy(pPi, &pi, sizeof(PI_BLOCK));
    if (pTitle != NULL)
    {
-      memcpy(PI_GET_TITLE(pPi), pTitle, strlen(pTitle) + 1);
+      memcpy((void *) PI_GET_TITLE(pPi), pTitle, strlen(pTitle) + 1);
       xfree(pTitle);
    }
    else
    {  // title string shall always be available -> set a 0-Byte
-      PI_GET_TITLE(pPi)[0] = 0;
+      ((char *) PI_GET_TITLE(pPi))[0] = 0;  // cast to remove const
    }
    if (pShortInfo != NULL)
    {
-      memcpy(PI_GET_SHORT_INFO(pPi), pShortInfo, strlen(pShortInfo) + 1);
+      memcpy((void *) PI_GET_SHORT_INFO(pPi), pShortInfo, strlen(pShortInfo) + 1);
       xfree(pShortInfo);
    }
    if (pLongInfo != NULL)
    {
-      memcpy(PI_GET_LONG_INFO(pPi), pLongInfo, strlen(pLongInfo) + 1);
+      memcpy((void *) PI_GET_LONG_INFO(pPi), pLongInfo, strlen(pLongInfo) + 1);
       xfree(pLongInfo);
    }
    if (pDescriptors != NULL)
    {
-      memcpy(PI_GET_DESCRIPTORS(pPi), pDescriptors, pi.no_descriptors * sizeof(DESCRIPTOR));
+      memcpy((void *) PI_GET_DESCRIPTORS(pPi), pDescriptors, pi.no_descriptors * sizeof(DESCRIPTOR));
       xfree(pDescriptors);
    }
   
    return pBlk;
 }
 
+// ---------------------------------------------------------------------------
+// Check reloaded PI block for gross consistancy errors
+//
+static bool EpgBlockCheckPi( EPGDB_BLOCK * pBlock )
+{
+   bool result = FALSE;
+   const PI_BLOCK * pPi;
+
+   pPi = &pBlock->blk.pi;
+
+   if (pPi->netwop_no >= MAX_NETWOP_COUNT)
+   {
+      debug1("EpgBlock-CheckPi: illegal netwop %d", pPi->netwop_no);
+   }
+   else if (pPi->no_themes > PI_MAX_THEME_COUNT)
+   {
+      debug1("EpgBlock-CheckPi: illegal theme count %d", pPi->no_themes);
+   }
+   else if (pPi->no_sortcrit > PI_MAX_SORTCRIT_COUNT)
+   {
+      debug1("EpgBlock-CheckPi: illegal sortcrit count %d", pPi->no_sortcrit);
+   }
+   else if (pPi->off_title != sizeof(PI_BLOCK))
+   {
+      debug1("EpgBlock-CheckPi: illegal off_title=%d", pPi->off_title);
+   }
+   else if (pPi->stop_time < pPi->start_time)
+   {
+      // note: stop == start is allowed for "defective" blocks
+      // but stop < start is never possible because the duration is transmitted in Nextview
+      debug2("EpgBlock-CheckPi: illegal start/stop times: %ld, %ld", pPi->start_time, pPi->stop_time);
+   }
+   else if ( PI_HAS_SHORT_INFO(pPi) &&
+             ( (pPi->off_short_info <= pPi->off_title) ||
+               (pPi->off_short_info >= pBlock->size) ||
+               // check if the title string is terminated by a null byte
+               (*(PI_GET_SHORT_INFO(pPi) - 1) != 0) ))
+   {
+      debug2("EpgBlock-CheckPi: short info exceeds block size: off=%d, size=%d", pPi->off_short_info, pBlock->size + BLK_UNION_OFF);
+   }
+   else if ( PI_HAS_LONG_INFO(pPi) &&
+             ( (pPi->off_long_info <= pPi->off_short_info) ||
+               (pPi->off_long_info <= pPi->off_title) ||
+               (pPi->off_long_info >= pBlock->size) ||
+               // check if the title or short info string is terminated by a null byte
+               (*(PI_GET_LONG_INFO(pPi) - 1) != 0) ))
+   {
+      debug2("EpgBlock-CheckPi: short info exceeds block size: off=%d, size=%d", pPi->off_long_info, pBlock->size + BLK_UNION_OFF);
+   }
+   else if ( (pPi->no_descriptors > 0) &&
+             ( (pPi->off_descriptors <= pPi->off_long_info) ||
+               (pPi->off_descriptors <= pPi->off_short_info) ||
+               (pPi->off_descriptors <= pPi->off_title) ||
+               (pPi->off_descriptors + (pPi->no_descriptors * sizeof(DESCRIPTOR)) != pBlock->size) ||
+               // check if the title or short or long info string is terminated by a null byte
+               (*(((uchar *)PI_GET_DESCRIPTORS(pPi)) - 1) != 0) ))
+   {
+      debug3("EpgBlock-CheckPi: descriptor count %d exceeds block length: off=%d, size=%d", pPi->no_descriptors, pPi->off_descriptors, pBlock->size + BLK_UNION_OFF);
+   }
+   else if ( (pPi->no_descriptors == 0) &&
+             (*((uchar *) pBlock + pBlock->size + BLK_UNION_OFF - 1) != 0) )
+   {
+      debug0("EpgBlock-CheckPi: last string not terminated by 0 byte");
+   }
+   else
+      result = TRUE;
+
+   return result;
+}
 
 // ----------------------------------------------------------------------------
 // Convert an AI block
@@ -763,7 +840,9 @@ EPGDB_BLOCK * EpgBlockConvertAi(const uchar *pCtrl, uint ctrlLen, uint strLen)
    AI_BLOCK ai, *pAi;
    AI_NETWOP *pNetwops;
    uchar i;
-   uint  lenSum, blockLen;
+   uchar netNameLen[MAX_NETWOP_COUNT];
+   uint  serviceNameLen;
+   uint  netNameLenSum, blockLen;
    const uchar *psd, *pst;
 
    psd = pCtrl;
@@ -777,12 +856,12 @@ EPGDB_BLOCK * EpgBlockConvertAi(const uchar *pCtrl, uint ctrlLen, uint strLen)
    ai.miCountSwo     = psd[7+10] | (psd[7+11] << 8);
    ai.netwopCount    = psd[7+12];
    ai.thisNetwop     = psd[7+13];
-   ai.serviceNameLen = psd[7+14] & 0x1f;
+   serviceNameLen    = psd[7+14] & 0x1f;
    psd += 7 + 15;
    pst = pCtrl + ctrlLen + 2;
 
    pNetwops = xmalloc(ai.netwopCount * sizeof(AI_NETWOP));
-   lenSum = 0;
+   netNameLenSum = 0;
    for (i=0; i<ai.netwopCount; i++)
    {
       if ((i & 1) == 0)
@@ -790,69 +869,135 @@ EPGDB_BLOCK * EpgBlockConvertAi(const uchar *pCtrl, uint ctrlLen, uint strLen)
          pNetwops[i].cni         = psd[0] | (psd[1] << 8);
          pNetwops[i].lto         = psd[2];
          pNetwops[i].dayCount    = psd[3] & 0x1f;
-         pNetwops[i].nameLen     = (psd[3] >> 5) | ((psd[4] & 3) << 3);
+         netNameLen[i]           = (psd[3] >> 5) | ((psd[4] & 3) << 3);
          pNetwops[i].alphabet    = (psd[4] >> 2) | ((psd[5] & 1) << 6);
          pNetwops[i].startNo     = (psd[5] >> 1) | (psd[6] << 7) | ((psd[7] & 1) << 15);
          pNetwops[i].stopNo      = (psd[7] >> 1) | (psd[8] << 7) | ((psd[9] & 1) << 15);
          pNetwops[i].stopNoSwo   = (psd[9] >> 1) | (psd[10] << 7) | ((psd[11] & 1) << 15);
          pNetwops[i].addInfo     = (psd[11] >> 1) | ((psd[12] & 0xf) << 7);
-         psd += 12;  // plus 4 Bit im folgenden Block
+         psd += 12;  // plus 4 Bit in the following block
       }
       else
       {
          pNetwops[i].cni         = (psd[0] >> 4) | (psd[1] << 4) | ((psd[2] & 0x0f) << 12);
          pNetwops[i].lto         = (psd[2] >> 4) | (psd[3] << 4);
          pNetwops[i].dayCount    = (psd[3] >> 4) | ((psd[4] & 1) << 4);
-         pNetwops[i].nameLen     = (psd[4] >> 1) & 0x1f;
+         netNameLen[i]           = (psd[4] >> 1) & 0x1f;
          pNetwops[i].alphabet    = (psd[4] >> 6) | ((psd[5] & 0x1f) << 2);
          pNetwops[i].startNo     = (psd[5] >> 5) | (psd[6] << 3) | ((psd[7] & 0x1f) << 11);
          pNetwops[i].stopNo      = (psd[7] >> 5) | (psd[8] << 3) | ((psd[9] & 0x1f) << 11);
          pNetwops[i].stopNoSwo   = (psd[9] >> 5) | (psd[10] << 3) | ((psd[11] & 0x1f) << 11);
          pNetwops[i].addInfo     = (psd[11] >> 5) | (psd[12] << 3);
-         psd += 13;  // inklusive 4 Bit vom vorherigen Block
+         psd += 13;  // including 4 bit of the previous block
       }
-      lenSum += pNetwops[i].nameLen;
+      // initialize unused space in struct to allow comparison by memcmp()
+      pNetwops[i].reserved_1 = 0;
+      netNameLenSum += netNameLen[i] + 1;
    }
 
    // concatenate the various parts of the block to a compound structure
    pst = pCtrl + ctrlLen + 2;
    blockLen = sizeof(AI_BLOCK) +
               (ai.netwopCount * sizeof(AI_NETWOP)) +
-              (ai.serviceNameLen + 1) +
-              (lenSum + ai.netwopCount);
+              (serviceNameLen + 1) +
+              netNameLenSum;
    pBlk = EpgBlockCreate(BLOCK_TYPE_AI, blockLen);
    pAi = (AI_BLOCK *) &pBlk->blk.ai;  // remove const from pointer
    memcpy(pAi, &ai, sizeof(AI_BLOCK));
    blockLen = sizeof(AI_BLOCK);
 
    pAi->off_netwops = blockLen;
-   memcpy(AI_GET_NETWOPS(pAi), pNetwops, ai.netwopCount * sizeof(AI_NETWOP));
+   memcpy((void *) AI_GET_NETWOPS(pAi), pNetwops, ai.netwopCount * sizeof(AI_NETWOP));
    blockLen += ai.netwopCount * sizeof(AI_NETWOP);
+   xfree(pNetwops);
 
    pAi->off_serviceNameStr = blockLen;
-   memcpy(AI_GET_SERVICENAME(pAi), pst, ai.serviceNameLen);
-   *((uchar *)pAi + blockLen + ai.serviceNameLen) = 0;
-   blockLen += ai.serviceNameLen + 1;
-   pst += ai.serviceNameLen;
+   memcpy((void *) AI_GET_SERVICENAME(pAi), pst, serviceNameLen);
+   *((uchar *)pAi + blockLen + serviceNameLen) = 0;
+   blockLen += serviceNameLen + 1;
+   pst += serviceNameLen;
 
-   for (i=0; i<ai.netwopCount; i++)
+   pNetwops = (AI_NETWOP *) AI_GET_NETWOPS(pAi);  // cast to remove const
+   for (i=0; i < ai.netwopCount; i++, pNetwops++)
    {
-      AI_NETWOP *pNetwop;
-
-      pNetwop = &AI_GET_NETWOPS(pAi)[i];
-      pNetwop->off_name = blockLen;
-      memcpy((uchar *)pAi + blockLen, pst, pNetwop->nameLen);
-      *((uchar *)pAi + blockLen + pNetwop->nameLen) = 0;
-      blockLen += pNetwop->nameLen + 1;
-      pst += pNetwop->nameLen;
+      pNetwops->off_name = blockLen;
+      memcpy((char *) pAi + blockLen, pst, netNameLen[i]);
+      *((uchar *)pAi + blockLen + netNameLen[i]) = 0;
+      blockLen += netNameLen[i] + 1;
+      pst += netNameLen[i];
    }
-   xfree(pNetwops);
    assert(blockLen == pBlk->size);
 
    // update the alphabet list for string decoding
    EpgBlockSetAlphabets(&pBlk->blk.ai);
 
    return pBlk;
+}
+
+// ---------------------------------------------------------------------------
+// Check an AI block for consistancy errors in counters, offsets or value ranges
+//
+static bool EpgBlockCheckAi( EPGDB_BLOCK * pBlock )
+{
+   const AI_BLOCK  * pAi;
+   const AI_NETWOP * pNetwop;
+   const uchar *pBlockEnd, *pName, *pPrevName;
+   uchar netwop;
+   bool result = FALSE;
+
+   pAi       = &pBlock->blk.ai;
+   pBlockEnd = (uchar *) pBlock + pBlock->size + BLK_UNION_OFF;
+
+   if ((pAi->netwopCount == 0) || (pAi->netwopCount > MAX_NETWOP_COUNT))
+   {
+      debug1("EpgBlock-CheckAi: illegal netwop count %d", pAi->netwopCount);
+   }
+   else if (pAi->thisNetwop >= pAi->netwopCount)
+   {
+      debug2("EpgBlock-CheckAi: this netwop %d >= count %d", pAi->thisNetwop, pAi->netwopCount);
+   }
+   else if (pAi->off_netwops != sizeof(AI_BLOCK))
+   {
+      debug1("EpgBlock-CheckAi: off_netwops=%d illegal", pAi->off_netwops);
+   }
+   else if (pAi->off_serviceNameStr != sizeof(AI_BLOCK) + (pAi->netwopCount * sizeof(AI_NETWOP)))
+   {
+      debug1("EpgBlock-CheckAi: off_serviceNameStr=%d illegal", pAi->off_serviceNameStr);
+   }
+   else if (pAi->off_serviceNameStr >= pBlock->size)
+   {
+      // note: this check implies the check for netwop list end > block size
+      debug3("EpgBlock-CheckAi: service name off=%d or netwop list (count %d) exceeds block length %d", pAi->off_serviceNameStr, pAi->netwopCount, pBlock->size);
+   }
+   else
+   {
+      result = TRUE;
+
+      // check the name string offsets the netwop array
+      pNetwop   = AI_GET_NETWOPS(pAi);
+      pPrevName = AI_GET_SERVICENAME(pAi);
+      for (netwop=0; netwop < pAi->netwopCount; netwop++, pNetwop++)
+      {
+         pName = AI_GET_STR_BY_OFF(pAi, pNetwop->off_name);
+         if ( (pName <= pPrevName) ||
+              (pName >= pBlockEnd) ||
+              (*(pName - 1) != 0) )
+         {
+            debug2("EpgBlock-CheckAi: netwop name #%d has illegal offset %d", netwop, pNetwop->off_name);
+            result = FALSE;
+            break;
+         }
+         pPrevName = pName;
+      }
+
+      if (result && (*(pBlockEnd - 1) != 0))
+      {
+        debug0("EpgBlock-CheckAi: last netwop name not 0 terminated");
+        result = FALSE;
+      }
+   }
+
+   return result;
 }
 
 // ----------------------------------------------------------------------------
@@ -929,23 +1074,54 @@ EPGDB_BLOCK * EpgBlockConvertOi(const uchar *pCtrl, uint ctrlLen, uint strLen)
    memcpy(pOi, &oi, sizeof(OI_BLOCK));
    if (pHeader != NULL)
    {
-      memcpy(OI_GET_HEADER(pOi), pHeader, strlen(pHeader) + 1);
+      memcpy((void *) OI_GET_HEADER(pOi), pHeader, strlen(pHeader) + 1);
       xfree(pHeader);
    }
    if (pMessage != NULL)
    {
-      memcpy(OI_GET_MESSAGE(pOi), pMessage, strlen(pMessage) + 1);
+      memcpy((void *) OI_GET_MESSAGE(pOi), pMessage, strlen(pMessage) + 1);
       xfree(pMessage);
    }
    if (pDescriptors != NULL)
    {
-      memcpy(OI_GET_DESCRIPTORS(pOi), pDescriptors, oi.no_descriptors * sizeof(DESCRIPTOR));
+      memcpy((void *) OI_GET_DESCRIPTORS(pOi), pDescriptors, oi.no_descriptors * sizeof(DESCRIPTOR));
       xfree(pDescriptors);
    }
 
    return(pBlk);
 }
 
+// ---------------------------------------------------------------------------
+// Check an OI block for consistancy errors in counters, offsets or value ranges
+//
+static bool EpgBlockCheckOi( EPGDB_BLOCK * pBlock )
+{
+   const OI_BLOCK * pOi;
+   bool result = FALSE;
+
+   pOi = &pBlock->blk.oi;
+
+   if (OI_HAS_HEADER(pOi) && (pOi->off_header != sizeof(OI_BLOCK)))
+   {
+      debug1("EpgBlock-CheckOi: illegal off_header=%d", pOi->off_header);
+   }
+   else if ( OI_HAS_MESSAGE(pOi) &&
+             ((pOi->off_message <= pOi->off_header) || (pOi->off_header >= pBlock->size)) )
+   {
+      debug2("EpgBlock-CheckOi: message exceeds block size: off=%d, size=%d", pOi->off_message, pBlock->size + BLK_UNION_OFF);
+   }
+   else if ( (pOi->no_descriptors > 0) &&
+             ( (pOi->off_descriptors <= pOi->off_header) ||
+               (pOi->off_descriptors <= pOi->off_message) ||
+               (pOi->off_descriptors + (pOi->no_descriptors * sizeof(DESCRIPTOR)) != pBlock->size) ))
+   {
+      debug3("EpgBlock-CheckOi: descriptor count %d exceeds block length: off=%d, size=%d", pOi->no_descriptors, pOi->off_descriptors, pBlock->size + BLK_UNION_OFF);
+   }
+   else
+      result = TRUE;
+
+   return result;
+}
 
 // ----------------------------------------------------------------------------
 // Convert a NI block
@@ -1054,31 +1230,93 @@ EPGDB_BLOCK * EpgBlockConvertNi(const uchar *pCtrl, uint ctrlLen, uint strLen)
    // 2nd step: copy elements one after each other, then free single elements
    pBlk = EpgBlockCreate(BLOCK_TYPE_NI, blockLen);
    pNi = &pBlk->blk.ni;
-   memcpy((void *)pNi, &ni, sizeof(NI_BLOCK));
+   memcpy((void *) pNi, &ni, sizeof(NI_BLOCK));
    if (pNi->no_events > 0)
    {
-      memcpy(NI_GET_EVENTS(pNi), ev, ni.no_events * sizeof(EVENT_ATTRIB));
+      memcpy((void *) NI_GET_EVENTS(pNi), ev, ni.no_events * sizeof(EVENT_ATTRIB));
    }
    if (pHeader != NULL)
    {
-      memcpy(NI_GET_HEADER(pNi), pHeader, strlen(pHeader) + 1);
+      memcpy((void *) NI_GET_HEADER(pNi), pHeader, strlen(pHeader) + 1);
       xfree(pHeader);
    }
    if (pDescriptors != NULL)
    {
-      memcpy(NI_GET_DESCRIPTORS(pNi), pDescriptors, ni.no_descriptors * sizeof(DESCRIPTOR));
+      memcpy((void *) NI_GET_DESCRIPTORS(pNi), pDescriptors, ni.no_descriptors * sizeof(DESCRIPTOR));
       xfree(pDescriptors);
    }
    for (i=0; i<ni.no_events; i++)
    {
       if (tmp_evstr[i] != NULL)
       {
-         memcpy(NI_GET_EVENT_STR(pNi, &ev[i]), tmp_evstr[i], strlen(tmp_evstr[i]) + 1);
+         memcpy((void *) NI_GET_EVENT_STR(pNi, &ev[i]), tmp_evstr[i], strlen(tmp_evstr[i]) + 1);
          xfree(tmp_evstr[i]);
       }
    } 
 
    return(pBlk);
+}
+
+// ---------------------------------------------------------------------------
+// Check a NI block for consistancy errors in counters, offsets or value ranges
+//
+static bool EpgBlockCheckNi( EPGDB_BLOCK * pBlock )
+{
+   bool result = FALSE;
+   const NI_BLOCK * pNi;
+   const EVENT_ATTRIB * pEv;
+   const uchar * pBlockEnd;
+   uint  ev_idx;
+
+   pNi       = &pBlock->blk.ni;
+   pBlockEnd = (uchar *) pBlock + pBlock->size + BLK_UNION_OFF;
+
+   if (pNi->no_events > NI_MAX_EVENT_COUNT)
+   {
+      debug1("EpgBlock-CheckNi: too many events: %d", pNi->no_events);
+   }
+   else if ( (pNi->no_events != 0) && 
+             ( (pNi->off_events == 0) ||
+               (((uchar *)&NI_GET_EVENTS(pNi)[pNi->no_events]) > pBlockEnd) ))
+   {
+      debug3("EpgBlock-CheckNi: events array missing (expected %d) or exceeds block size: off=%d, size=%d", pNi->no_events, pNi->off_events, pBlock->size + BLK_UNION_OFF);
+   }
+   else if (NI_HAS_HEADER(pNi) && (NI_GET_HEADER(pNi) >= pBlockEnd))
+   {
+      debug2("EpgBlock-CheckNi: header exceeds block size: off=%d, size=%d", pNi->off_header, pBlock->size + BLK_UNION_OFF);
+   }
+   else if ( (pNi->no_descriptors > 0) &&
+             ( (pNi->off_descriptors == 0) ||
+               (((uchar *)&NI_GET_DESCRIPTORS(pNi)[pNi->no_descriptors]) > pBlockEnd) ))
+   {
+      debug3("EpgBlock-CheckNi: descriptor count %d exceeds block length: off=%d, size=%d", pNi->no_descriptors, pNi->off_descriptors, pBlock->size + BLK_UNION_OFF);
+   }
+   else
+   {
+      result = TRUE;
+
+      if (pNi->off_events != 0)
+      {
+         pEv = NI_GET_EVENTS(pNi);
+         for (ev_idx=0; ev_idx < pNi->no_events; ev_idx++, pEv++)
+         {
+            if (pEv->no_attribs > NI_MAX_ATTRIB_COUNT)
+            {
+               debug2("EpgBlock-CheckNi: too many attribs: %d in ev %d", pEv->no_attribs, ev_idx);
+               result = FALSE;
+               break;
+            }
+            else if ((pEv->off_evstr != 0) && (NI_GET_EVENT_STR(pNi, pEv) >= pBlockEnd))
+            {
+               debug3("EpgBlock-CheckNi: event str %d exceeds block length: off=%d, size=%d", ev_idx, pEv->off_evstr, pBlock->size + BLK_UNION_OFF);
+               result = FALSE;
+               break;
+            }
+         }
+      }
+   }
+
+   return result;
 }
 
 // ----------------------------------------------------------------------------
@@ -1128,19 +1366,45 @@ EPGDB_BLOCK * EpgBlockConvertMi(const uchar *pCtrl, uint ctrlLen, uint strLen)
    // 2nd step: copy elements one after each other, then free single elements
    pBlk = EpgBlockCreate(BLOCK_TYPE_MI, blockLen);
    pMi = &pBlk->blk.mi;
-   memcpy((void *)pMi, &mi, sizeof(MI_BLOCK));
+   memcpy((void *) pMi, &mi, sizeof(MI_BLOCK));
    if (pMessage != NULL)
    {
-      memcpy(MI_GET_MESSAGE(pMi), pMessage, strlen(pMessage) + 1);
+      memcpy((void *) MI_GET_MESSAGE(pMi), pMessage, strlen(pMessage) + 1);
       xfree(pMessage);
    }
    if (pDescriptors != NULL)
    {
-      memcpy(MI_GET_DESCRIPTORS(pMi), pDescriptors, mi.no_descriptors * sizeof(DESCRIPTOR));
+      memcpy((void *) MI_GET_DESCRIPTORS(pMi), pDescriptors, mi.no_descriptors * sizeof(DESCRIPTOR));
       xfree(pDescriptors);
    }
 
    return(pBlk);
+}
+
+// ---------------------------------------------------------------------------
+// Check a MI block for consistancy errors in counters, offsets or value ranges
+//
+static bool EpgBlockCheckMi( EPGDB_BLOCK * pBlock )
+{
+   bool result = FALSE;
+   const MI_BLOCK * pMi;
+
+   pMi = &pBlock->blk.mi;
+
+   if (MI_HAS_MESSAGE(pMi) && (pMi->off_message != sizeof(MI_BLOCK)))
+   {
+      debug1("EpgBlock-CheckMi: illegal off_message=%d", pMi->off_message);
+   }
+   else if ( (pMi->no_descriptors > 0) &&
+             ( (pMi->off_descriptors <= pMi->off_message) ||
+               (pMi->off_descriptors + (pMi->no_descriptors * sizeof(DESCRIPTOR)) != pBlock->size) ))
+   {
+      debug3("EpgBlock-CheckMi: descriptor count %d exceeds block length: off=%d, size=%d", pMi->no_descriptors, pMi->off_descriptors, pBlock->size + BLK_UNION_OFF);
+   }
+   else
+      result = TRUE;
+
+   return result;
 }
 
 // ----------------------------------------------------------------------------
@@ -1230,13 +1494,59 @@ EPGDB_BLOCK * EpgBlockConvertLi(const uchar *pCtrl, uint ctrlLen, uint strLen)
    // 2nd step: copy elements one after each other
    pBlk = EpgBlockCreate(BLOCK_TYPE_LI, blockLen);
    pLi = &pBlk->blk.li;
-   memcpy((void*)pLi, &li, sizeof(LI_BLOCK));
+   memcpy((void *) pLi, &li, sizeof(LI_BLOCK));
    if (li.desc_no > 0)
    {
-      memcpy((void*)LI_GET_DESC(pLi), ld, li.desc_no * sizeof(LI_DESC));
+      memcpy((void *) LI_GET_DESC(pLi), ld, li.desc_no * sizeof(LI_DESC));
    }
 
    return(pBlk);
+}
+
+// ---------------------------------------------------------------------------
+// Check a LI block for consistancy errors in counters, offsets or value ranges
+//
+static bool EpgBlockCheckLi( EPGDB_BLOCK * pBlock )
+{
+   bool result = FALSE;
+   const LI_BLOCK * pLi;
+   const LI_DESC  * pLd;
+   uint desc;
+
+   pLi = &pBlock->blk.li;
+
+   if (pLi->desc_no > LI_MAX_DESC_COUNT)
+   {
+      debug1("EpgBlock-CheckLi: illegal descriptor count %d", pLi->desc_no);
+   }
+   else if (pBlock->size != sizeof(LI_BLOCK) + pLi->desc_no * sizeof(LI_DESC))
+   {
+      debug2("EpgBlock-CheckLi: illegal block size %d for %d descriptors", pBlock->size, pLi->desc_no);
+   }
+   else if (pLi->desc_no > 0)
+   {
+      if (pLi->off_desc == sizeof(LI_BLOCK))
+      {
+         result = TRUE;
+
+         pLd = LI_GET_DESC(pLi);
+         for (desc=0; desc < pLi->desc_no; desc++, pLd++)
+         {
+            if (pLd->lang_count > LI_MAX_LANG_COUNT)
+            {
+               debug2("EpgBlock-CheckLi: illegal lang count %d in desc #%d", pLd->lang_count, desc);
+               result = FALSE;
+               break;
+            }
+         }
+      }
+      else
+         debug2("EpgBlock-CheckLi: illegal descriptor array offset %d for desc_no=%d", pLi->desc_no, pLi->off_desc);
+   }
+   else
+      result = TRUE;
+
+   return result;
 }
 
 // ----------------------------------------------------------------------------
@@ -1342,13 +1652,59 @@ EPGDB_BLOCK * EpgBlockConvertTi(const uchar *pCtrl, uint ctrlLen, uint strLen)
    // 2nd step: copy elements one after each other
    pBlk = EpgBlockCreate(BLOCK_TYPE_TI, blockLen);
    pTi = &pBlk->blk.ti;
-   memcpy((void *)pTi, &ti, sizeof(TI_BLOCK));
+   memcpy((void *) pTi, &ti, sizeof(TI_BLOCK));
    if (ti.desc_no > 0)
    {
-      memcpy(TI_GET_DESC(pTi), std, ti.desc_no * sizeof(TI_DESC));
+      memcpy((void *) TI_GET_DESC(pTi), std, ti.desc_no * sizeof(TI_DESC));
    }
 
    return(pBlk);
+}
+
+// ---------------------------------------------------------------------------
+// Check a TI block for consistancy errors in counters, offsets or value ranges
+//
+static bool EpgBlockCheckTi( EPGDB_BLOCK * pBlock )
+{
+   bool result = FALSE;
+   const TI_BLOCK * pTi;
+   const TI_DESC  * pTd;
+   uint desc;
+
+   pTi = &pBlock->blk.ti;
+
+   if (pTi->desc_no > TI_MAX_DESC_COUNT)
+   {
+      debug1("EpgBlock-CheckTi: illegal descriptor count %d", pTi->desc_no);
+   }
+   else if (pBlock->size != sizeof(TI_BLOCK) + pTi->desc_no * sizeof(TI_DESC))
+   {
+      debug2("EpgBlock-CheckTi: illegal block size %d for %d descriptors", pBlock->size, pTi->desc_no);
+   }
+   else if (pTi->desc_no > 0)
+   {
+      if (pTi->off_desc == sizeof(TI_BLOCK))
+      {
+         result = TRUE;
+
+         pTd = TI_GET_DESC(pTi);
+         for (desc=0; desc < pTi->desc_no; desc++, pTd++)
+         {
+            if (pTd->subt_count > TI_MAX_LANG_COUNT)
+            {
+               debug2("EpgBlock-CheckTi: illegal lang count %d in desc #%d", pTd->subt_count, desc);
+               result = FALSE;
+               break;
+            }
+         }
+      }
+      else
+         debug2("EpgBlock-CheckTi: illegal descriptor array offset %d for desc_no=%d", pTi->desc_no, pTi->off_desc);
+   }
+   else
+      result = TRUE;
+
+   return result;
 }
 
 // ----------------------------------------------------------------------------
@@ -1381,5 +1737,61 @@ EPGDB_BLOCK * EpgBlockConvertBi(const uchar *pCtrl, uint ctrlLen)
       pBi->app_id = EPG_ILLEGAL_APPID;
 
    return pBlk;
+}
+
+// ---------------------------------------------------------------------------
+// Check consistancy of an EPG block
+// - this check is required when loading a block from a file or through the
+//   network, as it might contain errors due to undetected version conflicts or
+//   data corruption; the application should not crash due to any such errors
+// - checks for errors in counters, offsets or value ranges
+//
+bool EpgBlockCheckConsistancy( EPGDB_BLOCK * pBlock )
+{
+   bool result;
+
+   if (pBlock != NULL)
+   {
+      switch (pBlock->type)
+      {
+         case BLOCK_TYPE_BI:
+            debug0("EpgBlock-CheckBlock: BI block encountered - should never be in the db");
+            result = FALSE;
+            break;
+         case BLOCK_TYPE_AI:
+            result = EpgBlockCheckAi(pBlock);
+            break;
+         case BLOCK_TYPE_NI:
+            result = EpgBlockCheckNi(pBlock);
+            break;
+         case BLOCK_TYPE_OI:
+            result = EpgBlockCheckOi(pBlock);
+            break;
+         case BLOCK_TYPE_MI:
+            result = EpgBlockCheckMi(pBlock);
+            break;
+         case BLOCK_TYPE_LI:
+            result = EpgBlockCheckLi(pBlock);
+            break;
+         case BLOCK_TYPE_TI:
+            result = EpgBlockCheckTi(pBlock);
+            result = TRUE;
+            break;
+         case BLOCK_TYPE_PI:
+            result = EpgBlockCheckPi(pBlock);
+            break;
+         default:
+            debug1("EpgBlock-CheckBlock: illegal block type %d", pBlock->type);
+            result = FALSE;
+            break;
+      }
+   }
+   else
+   {
+      debug0("EpgBlock-CheckBlock: illegal NULL ptr arg");
+      result = FALSE;
+   }
+
+   return result;
 }
 

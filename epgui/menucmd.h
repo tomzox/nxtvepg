@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: menucmd.h,v 1.10 2001/09/12 19:23:46 tom Exp tom $
+ *  $Id: menucmd.h,v 1.14 2002/01/26 15:21:30 tom Exp tom $
  */
 
 #ifndef __MENUCMD_H
@@ -26,9 +26,13 @@
 void MenuCmd_Init( bool isDemoMode );
 void OpenInitialDb( uint startUiCni );
 
-int  SetAcquisitionMode( void );
-bool SetDaemonAcquisitionMode( uint startUiCni, bool forcePassive );
+void SetAcquisitionMode( void );
+bool SetDaemonAcquisitionMode( uint cmdLineCni, bool forcePassive );
 int  SetHardwareConfig( Tcl_Interp *interp, int cardIndex );
+void SetNetAcqParams( Tcl_Interp * interp, bool isServer );
+bool IsRemoteAcqEnabled( Tcl_Interp * interp );
+void AutoStartAcq( Tcl_Interp * interp );
+ulong GetProvFreqForCni( uint provCni );
 
 
 #endif  // __MENUCMD_H

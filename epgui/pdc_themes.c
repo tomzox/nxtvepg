@@ -12,7 +12,7 @@
  *  GNU General Public License for more details.
  *
  *
- *  Description: see according C source file.
+ *  Description:
  *
  *    This table conforms to the programme type principle of classification
  *    as defined in in ETS 300 231 (PDC) and ETS 300 707 (Nextview EPG)
@@ -20,10 +20,8 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pdc_themes.c,v 1.5 2001/02/25 16:03:47 tom Exp tom $
+ *  $Id: pdc_themes.c,v 1.6 2001/12/02 20:56:20 tom Exp tom $
  */
-
-#define __PDC_THEMES_C
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
 #define DPRINTF_OFF

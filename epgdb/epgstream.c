@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgstream.c,v 1.15 2001/06/04 17:19:29 tom Exp tom $
+ *  $Id: epgstream.c,v 1.18 2001/12/21 20:06:07 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -34,110 +34,55 @@
 #include "epgvbi/hamming.h"
 #include "epgdb/epgblock.h"
 #include "epgui/epgtxtdump.h"
+#include "epgdb/epgqueue.h"
 #include "epgdb/epgstream.h"
 
 
 // ----------------------------------------------------------------------------
-// internal status
-//
+// declaration of local data types
+
+// max block len (12 bits) - see ETS 300 708
+// note that this does not include the 4 header bytes with length and appId
+#define NXTV_BLOCK_MAXLEN 2048
+
+typedef struct
+{
+   uchar   ci;
+   uchar   pkgCount;
+   uchar   lastPkg;
+   uchar   appID;
+   uint    blockLen;
+   uint    recvLen;
+   bool    haveBlock;
+   uint    haveHeader;
+   uchar   headerFragment[3];
+   uchar   blockBuf[NXTV_BLOCK_MAXLEN + 4];
+} NXTV_STREAM;
+
+// max. number of pages that are allowed for EPG transmission: mFd & mdF: m[0..7],d[0..9]
+#define NXTV_VALID_PAGE_PER_MAG (1 + 10 + 10)
+#define NXTV_VALID_PAGE_COUNT   (8 * NXTV_VALID_PAGE_PER_MAG)
+
+typedef struct
+{
+   uchar   pkgCount;
+   uchar   lastPkg;
+   uchar   okCount;
+} PAGE_SCAN_STATE;
+
+
+// ----------------------------------------------------------------------------
+// local variables
 
 static NXTV_STREAM streamData[2];
 static uchar       streamOfPage;
-static EPGDB_BLOCK * pScratchBuffer = NULL;
+static EPGDB_QUEUE * pBlockQueue = NULL;
 static uint        epgStreamAppId;
 static bool        enableAllTypes;
 
 static PAGE_SCAN_STATE scanState[NXTV_VALID_PAGE_COUNT];
 static int             lastMagIdx[8];
 
-// ----------------------------------------------------------------------------
-// Append the converted block to a temporary buffer
-// - the buffer is neccessary because more than one block end in one packet,
-//   so we can not simply return a block address from the stream decoder.
-//
-static void EpgStreamAddBlockToScratch( EPGDB_BLOCK *pBlock )
-{
-   EPGDB_BLOCK *pWalk;
-
-   if (pBlock != NULL)
-   {
-      if (pScratchBuffer != NULL)
-      {
-         pWalk = pScratchBuffer;
-         while (pWalk->pNextBlock != NULL)
-         {
-            pWalk = pWalk->pNextBlock;
-         }
-         pWalk->pNextBlock = pBlock;
-      }
-      else
-         pScratchBuffer = pBlock;
-   }
-   else
-      debug0("EpgStream-AddBlockToScratch: called with NULL ptr");
-}
-
-// ----------------------------------------------------------------------------
-// Get the first block from the scratch buffer
-//
-EPGDB_BLOCK * EpgStreamGetNextBlock( void )
-{
-   EPGDB_BLOCK * pBlock;
-
-   if (pScratchBuffer != NULL)
-   {
-      pBlock = pScratchBuffer;
-      pScratchBuffer = pBlock->pNextBlock;
-      pBlock->pNextBlock = NULL;
-   }
-   else
-      pBlock = NULL;
-
-   return pBlock;
-}
-
-// ----------------------------------------------------------------------------
-// Return a block with the given type from the scratch buffer
-//
-EPGDB_BLOCK * EpgStreamGetBlockByType( uchar type )
-{
-   EPGDB_BLOCK *pWalk, *pPrev;
-
-   pPrev = NULL;
-   pWalk = pScratchBuffer;
-   while (pWalk != NULL)
-   {
-      if (pWalk->type == type)
-      {  // found -> remove block from chain
-         if (pPrev != NULL)
-            pPrev->pNextBlock = pWalk->pNextBlock;
-         else
-            pScratchBuffer = pWalk->pNextBlock;
-
-         pWalk->pNextBlock = NULL;
-         return pWalk;
-      }
-      pPrev = pWalk;
-      pWalk = pWalk->pNextBlock;
-   }
-
-   return NULL;
-}
-
-// ----------------------------------------------------------------------------
-// Free all blocks in the scratch buffer
-//
-void EpgStreamClearScratchBuffer( void )
-{
-   EPGDB_BLOCK *pNext;
-
-   while (pScratchBuffer != NULL)
-   {
-      pNext = pScratchBuffer->pNextBlock;
-      xfree(pScratchBuffer);
-      pScratchBuffer = pNext;
-   }
-}
 
 // ----------------------------------------------------------------------------
 // Take a pointer the control and string bit fields from the block decoder and
@@ -156,6 +101,7 @@ static void EpgStreamConvertBlock( const uchar *pBuffer, uint blockLen, uchar st
          break;
       case EPGDBACQ_TYPE_AI:
          pBlock = EpgBlockConvertAi(pBuffer, ctrlLen, strLen);
+         enableAllTypes = TRUE;
          break;
       case EPGDBACQ_TYPE_PI:
          pBlock = EpgBlockConvertPi(pBuffer, ctrlLen, strLen);
@@ -195,7 +141,10 @@ static void EpgStreamConvertBlock( const uchar *pBuffer, uint blockLen, uchar st
       if (enableAllTypes || (type <= EPGDBACQ_TYPE_AI))
       {
          dprintf2("SCRATCH ADD type=%d (0x%lx)\n", pBlock->type, (ulong)pBlock);
-         EpgStreamAddBlockToScratch(pBlock);
+         // Append the converted block to a queue
+         // (the buffer is neccessary because more than one block end in one packet,
+         // so we can not simply return a block address from the stream decoder)
+         EpgDbQueue_Add(pBlockQueue, pBlock);
       }
       else
       {
@@ -299,6 +248,86 @@ static void EpgStreamCheckBlock( NXTV_STREAM * const psd, uchar stream )
 }
 
 // ---------------------------------------------------------------------------
+// Add data from a TTX packet to the current or a new EPG block
+//
+static uint EpgStreamAddData( const uchar * dat, uint restLine, bool isNewBlock )
+{
+   NXTV_STREAM * const psd = &streamData[streamOfPage];
+   uint usedLen;
+   schar c1,c2,c3,c4;
+
+   if (isNewBlock)
+   {
+      if (psd->haveBlock && (psd->recvLen > 0))
+         debug1("missing data for last block with recvLen=%d - discard block\n", psd->recvLen);
+
+      psd->haveBlock  = TRUE;
+      psd->haveHeader = FALSE;
+      psd->recvLen    = 0;
+   }
+   usedLen = 0;
+
+   if (psd->haveHeader == FALSE)
+   {
+      assert(psd->recvLen < 4);
+      if (psd->recvLen + restLine < 4)
+      {  // part of the header is in the next packet
+         dprintf1("               start new block with %d byte header fragment\n", /*packNo, blockPtr - 1,*/ restLine);
+
+         memcpy(psd->blockBuf + psd->recvLen, dat, restLine);
+         psd->recvLen += restLine;
+         usedLen = restLine;
+         restLine = 0;
+      }
+      else
+      {  // enough data for the block header -> complete and decode it
+         memcpy(psd->blockBuf + psd->recvLen, dat, 4 - psd->recvLen);
+         usedLen   = 4 - psd->recvLen;
+         dat      += usedLen;
+         restLine -= usedLen;
+         psd->recvLen = 4;
+
+         if ( UnHam84Nibble(psd->blockBuf + 0, &c1) &&
+              UnHam84Nibble(psd->blockBuf + 1, &c2) &&
+              UnHam84Nibble(psd->blockBuf + 2, &c3) &&
+              UnHam84Nibble(psd->blockBuf + 3, &c4) )
+         {
+            psd->appID    = c1 | ((c2 & 1) << 4);
+            psd->blockLen = ((c2 >> 1) | (c3 << 3) | (c4 << 7)) + 4;  // + length of block len itself
+            psd->haveHeader = TRUE;
+
+            dprintf4("               start block recv stream %d, appID=%d, len=%d, startlen=%d\n", /*packNo, blockPtr,*/ streamOfPage+1, psd->appID, psd->blockLen, restLine);
+         }
+         else
+         {  // hamming error
+            debug0("structure header hamming error - skipping block");
+            psd->haveBlock = FALSE;
+         }
+      }
+   }
+
+   if (psd->haveBlock && psd->haveHeader)
+   {
+      if (psd->recvLen + restLine > psd->blockLen)
+         restLine = psd->blockLen - psd->recvLen;
+
+      dprintf2("               added %d bytes to block, sum=%d\n", /* packNo, blockPtr,*/ restLine, psd->recvLen + restLine);
+      memcpy(psd->blockBuf + psd->recvLen, dat, restLine);
+      psd->recvLen += restLine;
+      usedLen += restLine;
+
+      if (psd->recvLen >= psd->blockLen)
+      {  // block complete
+         dprintf1("               block complete, length %d\n", /* packNo, blockPtr*/ psd->blockLen);
+         EpgStreamCheckBlock(psd, streamOfPage);
+
+         psd->haveBlock = FALSE;
+      }
+   }
+   return usedLen;
+}
+
+// ---------------------------------------------------------------------------
 // Process EPG data packet
 // - the function uses two separate internal states the two streams
 // - a single teletext packet can produce several blocks
@@ -306,17 +335,16 @@ static void EpgStreamCheckBlock( NXTV_STREAM * const psd, uchar stream )
 void EpgStreamDecodePacket( uchar packNo, const uchar * dat )
 {
    NXTV_STREAM * const psd = &streamData[streamOfPage];
-   schar c1,c2,c3,c4;
-   uint  blockPtr, restLine;
+   schar c1;
+   uint  blockPtr;
 
    if ( (streamOfPage < NXTV_NO_STREAM) &&
         (packNo <= streamData[streamOfPage].pkgCount) )
    {
-      if ((psd->haveBlock || psd->haveHeader) &&
+      if ( psd->haveBlock &&
           (packNo != psd->lastPkg + 1))
       {  // packet missing
          debug2("missing packet %d (have %d) - discard block", psd->lastPkg + 1, packNo);
-         psd->haveHeader = FALSE;
          psd->haveBlock = FALSE;
       }
       psd->lastPkg = packNo;
@@ -325,137 +353,32 @@ void EpgStreamDecodePacket( uchar packNo, const uchar * dat )
       {
          blockPtr = 1 + 3 * c1;
 
-         if (psd->haveHeader)
-         {  // continuation of the header fragment in the last packet
-            assert(psd->haveHeader < 4+1);
-            psd->haveHeader -= 1;
-            for (restLine=0; restLine < psd->haveHeader; restLine++)
-               psd->blockBuf[restLine] = psd->headerFragment[restLine];
-            for ( ; restLine < 4; restLine++)
-               psd->blockBuf[restLine] = dat[1 + restLine - psd->haveHeader];
-
-            if ( UnHam84Nibble(psd->blockBuf + 0, &c1) &&
-                 UnHam84Nibble(psd->blockBuf + 1, &c2) &&
-                 UnHam84Nibble(psd->blockBuf + 2, &c3) &&
-                 UnHam84Nibble(psd->blockBuf + 3, &c4) )
-            {
-               psd->appID    = c1 | ((c2 & 1) << 4);
-               psd->blockLen = ((c2 >> 1) | (c3 << 3) | (c4 << 7)) + 4;  // + length of block len itself
-               psd->recvLen  = 0;
-
-               if ((blockPtr == 40) || (blockPtr - 1 >= psd->blockLen - psd->haveHeader))
-               {
-                  restLine = blockPtr - 1 - (4 - psd->haveHeader);
-                  if ((psd->blockLen - 4) < restLine)
-                     // ToDo: assert diff<3 && filler bytes==ham48(0x03)
-                     restLine = psd->blockLen - 4;
-                  dprintf6("pkg=%d, BP=%d: start frag. block recv stream %d, appID=%d, len=%d, startlen=%d\n", packNo, blockPtr, streamOfPage+1, psd->appID, psd->blockLen, restLine+4);
-                  memcpy(psd->blockBuf + 4, dat + 1 + (4 - psd->haveHeader), restLine);
-                  psd->recvLen = restLine + 4;
-                  if (psd->recvLen >= psd->blockLen)
-                  {  // Block complete
-                     dprintf1("pkg=%d: short block complete\n", packNo);
-                     EpgStreamCheckBlock(psd, streamOfPage);
-                  }
-                  else
-                     psd->haveBlock = TRUE;
-               }
-               else
-               {  // nicht genug Restdaten im packet
-                  debug5("pkg=%d: too few data for frag. block rest len: %d < %d, stream=%d appID=%d", packNo, blockPtr-1, psd->blockLen - psd->haveHeader, streamOfPage, psd->appID);
-               }
-            }
-            else
-            {  // hamming error
-               debug0("structure header hamming error - skipping block");
-            }
-            psd->haveHeader = FALSE;
+         if (psd->haveBlock && (blockPtr > 1))
+         {  // append data to a block
+            dprintf2("pkg=%2d, BP= 1: append %d bytes\n", packNo, blockPtr - 1);
+            EpgStreamAddData(dat + 1, blockPtr - 1, FALSE);
          }
-         else if (psd->haveBlock)
-         {  // append data to current block
-            restLine = psd->blockLen - psd->recvLen;
-            if (restLine > 39)
-               restLine = 39;
-            if (blockPtr - 1 >= restLine)
-            {
-               memcpy(psd->blockBuf+psd->recvLen, dat+1, restLine);
-               psd->recvLen += restLine;
-               if (psd->recvLen >= psd->blockLen)
-               {  // Block complete
-                  dprintf4("pkg=%d, BP=%d: completed block with %d bytes, sum=%d\n", packNo, blockPtr, restLine, psd->recvLen);
-                  EpgStreamCheckBlock(psd, streamOfPage);
-                  psd->haveBlock = FALSE;
-               }
-               else dprintf4("pkg=%d, BP=%d: added %d bytes to block, sum=%d\n", packNo, blockPtr, restLine, psd->recvLen);
-            }
-            else
-            {
-               debug6("pkg=%d: too few data for block rest len: %d < %d of %d, stream=%d app=%d", packNo, blockPtr-1, restLine, psd->blockLen - psd->recvLen, streamOfPage, psd->appID);
-               psd->haveBlock = FALSE;
-            }
-         }
-         else if (blockPtr == 40) dprintf1("BS=0xD -> no block start in this packet %d\n", packNo);
+         else if (blockPtr == 40) dprintf1("BP=0xD -> no block start in this packet %d\n", packNo);
 
          while (blockPtr < 40)
          {  // start of at least one new structure in this packet
             if ( UnHam84Nibble(dat + blockPtr, &c1) && (c1 == 0x0c) )
             {
-               if (blockPtr >= 36)
-               {  // part of the header is in the next packet
-                  psd->haveHeader = 40 - blockPtr;  // 1+ Anz. Bytes im Buffer
-                  dprintf3("pkg=%d, BP=%d: start new block with %d byte header fragment\n", packNo, blockPtr, psd->haveHeader-1);
-                  for (restLine=0; restLine < psd->haveHeader-1; restLine++)
-                  {
-                     psd->headerFragment[restLine] = dat[blockPtr + 1 + restLine];
-                  }
-                  blockPtr = 40;
-               }
-               else
-               {
-                  if ( UnHam84Nibble(dat + blockPtr + 1, &c1) &&
-                       UnHam84Nibble(dat + blockPtr + 2, &c2) &&
-                       UnHam84Nibble(dat + blockPtr + 3, &c3) &&
-                       UnHam84Nibble(dat + blockPtr + 4, &c4) )
-                  {
-                     psd->appID    = c1 | ((c2 & 1) << 4);
-                     psd->blockLen = ((c2 >> 1) | (c3 << 3) | (c4 << 7)) + 4;  // + length of block len itself
-                     psd->recvLen  = 0;
+               dprintf3("pkg=%2d, BP=%2d: start with %d bytes\n", packNo, blockPtr, 40 - 1 - blockPtr);
+               blockPtr += 1;
+               // write the data in the output buffer & process the EPG block when complete
+               blockPtr += EpgStreamAddData(dat + blockPtr, 40 - blockPtr, TRUE);
 
-                     psd->haveBlock = TRUE;
-                     restLine = 40 - (blockPtr + 1);
-                     if (restLine > psd->blockLen)
-                        restLine = psd->blockLen;
-                     dprintf6("pkg=%d, BP=%d: start block recv stream %d, appID=%d, len=%d, startlen=%d\n", packNo, blockPtr, streamOfPage+1, psd->appID, psd->blockLen, restLine);
-                     memcpy(psd->blockBuf, dat+blockPtr+1, restLine);
-                     psd->recvLen = restLine;
-                     blockPtr += 1 + restLine;
-                     if (psd->recvLen >= psd->blockLen)
-                     {  // Block complete
-                        dprintf2("pkg=%d, BP=%d: short block complete\n", packNo, blockPtr);
-                        EpgStreamCheckBlock(psd, streamOfPage);
-                        psd->haveHeader = FALSE;
-                        psd->haveBlock = FALSE;
-                        // Filler bytes ueberspringen
-                        while ((blockPtr < 40) && UnHam84Nibble(dat + blockPtr, &c1) && (c1 == 0x03))
-                        {
-                           dprintf2("pkg=%d, BP=%d: skipping filler byte\n", packNo, blockPtr);
-                           blockPtr += 1;
-                        }
-                     }
-                  }
-                  else
-                  {  // hamming error
-                     debug0("structure header hamming error - skipping block");
-                     psd->haveHeader = FALSE;
-                     psd->haveBlock = FALSE;
-                     blockPtr = 40;
-                  }
+               // skip filler bytes
+               while ((blockPtr < 40) && UnHam84Nibble(dat + blockPtr, &c1) && (c1 == 0x03))
+               {
+                  dprintf2("pkg=%2d, BP=%2d: skipping filler byte\n", packNo, blockPtr);
+                  blockPtr += 1;
                }
             }
             else
             {  // decoding error - skip this packet
-               debug3("struct header error: appID=%x blockLen=%x bs=%x - skipping block", psd->appID, psd->blockLen, c1);
-               psd->haveHeader = FALSE;
+               debug4("struct header error: BP=%d appID=%x blockLen=%x bs=%x - skipping block", blockPtr, psd->appID, psd->blockLen, c1);
                psd->haveBlock = FALSE;
                blockPtr = 40;
             }
@@ -464,7 +387,6 @@ void EpgStreamDecodePacket( uchar packNo, const uchar * dat )
       else
       {
          debug2("hamming error in BP=%x - discard packet %d", c1, packNo);
-         psd->haveHeader = FALSE;
          psd->haveBlock = FALSE;
       }
    }
@@ -474,15 +396,16 @@ void EpgStreamDecodePacket( uchar packNo, const uchar * dat )
 
 // ---------------------------------------------------------------------------
 // Process a newly acquire teletext header packet
-// - returns TRUE if this is an EPG page
+// - returns TRUE if this is an EPG page, i.e. if the rest of the packets
+//   should be passed into the decoder
 //
 bool EpgStreamNewPage( uint sub )
 {
    uchar newCi, newPkgCount, firstPkg;
    bool  result = FALSE;
 
-   // Stream-number fuer folgende Seite merken
-   switch ((sub & 0xf00) >> 8)
+   // decode stream number of the data in the new page: only 0 or 1 are valid for Nextview
+   switch ((sub >> 8) & 0xf)
    {
       case 0:
          streamOfPage = NXTV_STREAM_NO_1;
@@ -498,31 +421,29 @@ bool EpgStreamNewPage( uint sub )
 
    if (streamOfPage != NXTV_NO_STREAM)
    {
-      // Anzahl packages mit Nutzdaten in der folgenden Seite
+      // decode TTX packet count in the new page  (#0 is the header, #1-#25 can be used for data)
       newPkgCount = ((sub & 0x3000) >> (12-3)) | ((sub & 0x70) >> 4);
       if (newPkgCount <= 25)
       {
          newCi = sub & 0xf;
          firstPkg = 0;
 
-         if (streamData[streamOfPage].haveBlock || streamData[streamOfPage].haveHeader)
-         {  // unvollstaendiger block im Buffer - Kontinuitaet pruefen
+         if (streamData[streamOfPage].haveBlock)
+         {  // partial EPG block in the buffer -> check continuity
 
             if ( streamData[streamOfPage].ci == newCi )
-            {  // fragmentierte Uebertragung der Seite -> Fortsetzung ab letzter pkg-no +1
+            {  // fragmented page transmission -> continue normally with pkg-no +1
                dprintf2("repetition of CI=%d in stream %d\n", newCi, streamOfPage);
                firstPkg = streamData[streamOfPage].lastPkg;
             }
             else if ( ((streamData[streamOfPage].ci + 1) & 0xf) != newCi )
-            {  // Luecke in Seitennumerierung -> unvollstaendiger Block muss verworfen werden
+            {  // continuity is broken -> discard partial EPG block in the buffer
                debug3("EpgStream-NewPage: page continuity error (%d -> %d) - discard current block in stream %d", streamData[streamOfPage].ci, newCi, streamOfPage);
-               streamData[streamOfPage].haveHeader = FALSE;
                streamData[streamOfPage].haveBlock = FALSE;
             }
             else if (streamData[streamOfPage].lastPkg != streamData[streamOfPage].pkgCount)
-            {  // packets am Ende der letzten Seite fehlen -> unvollstaendiger Block
+            {  // packets missing at the end of the last page -> discard partial block
                debug2("EpgStream-NewPage: packets missing at page end: %d < %d", streamData[streamOfPage].lastPkg, streamData[streamOfPage].pkgCount);
-               streamData[streamOfPage].haveHeader = FALSE;
                streamData[streamOfPage].haveBlock = FALSE;
             }
          }
@@ -544,28 +465,29 @@ bool EpgStreamNewPage( uint sub )
 }
 
 // ---------------------------------------------------------------------------
-// Allow all block types into scratch buffer from now on
-//
-void EpgStreamEnableAllTypes( void )
-{
-   enableAllTypes = TRUE;
-}
-
-// ---------------------------------------------------------------------------
 // Initialize the internal decoder state
 //
-void EpgStreamInit( bool bWaitForBiAi, uint appId )
+void EpgStreamInit( EPGDB_QUEUE *pDbQueue, bool bWaitForBiAi, uint appId )
 {
    memset(&streamData, 0, sizeof(streamData));
-   streamOfPage = NXTV_NO_STREAM;
+   streamOfPage   = NXTV_NO_STREAM;
    epgStreamAppId = appId;
    enableAllTypes = !bWaitForBiAi;
+   pBlockQueue    = pDbQueue;
 
    // note: intentionally using clear func instead of overwriting the pointer with NULL
    // (simplifies upper layers' state machines: start acq may be called while acq is already running)
-   EpgStreamClearScratchBuffer();
+   EpgDbQueue_Clear(pBlockQueue);
 }
 
+
+// ---------------------------------------------------------------------------
+// Free resources
+//
+void EpgStreamClear( void )
+{
+   EpgDbQueue_Clear(pBlockQueue);
+}
 
 // ---------------------------------------------------------------------------
 //                              E P G   S C A N

@@ -1,5 +1,5 @@
 /*
- *  Nextview EPG GUI: Database statistics and main window status line
+ *  Network codes and name tables
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
@@ -16,18 +16,15 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: statswin.h,v 1.13 2002/01/26 15:22:04 tom Exp tom $
+ *  $Id: cni_tables.h,v 1.4 2002/01/13 18:46:04 tom Exp tom $
  */
 
-#ifndef __STATSWIN_H
-#define __STATSWIN_H
+#ifndef __CNI_TABLES_H
+#define __CNI_TABLES_H
 
+const char * CniGetDescription( uint cni, const char ** ppCountry );
+uint CniConvertP8301ToVps( uint cni );
+uint CniConvertPdcToVps( uint cni );
+bool CniIsKnownProvider( uint cni );
 
-// Initialization - Interface to main module
-void StatsWin_Create( void );
-
-// Interface to ui event distribution
-void StatsWin_StatsUpdate( int target );
-
-
-#endif  // __STATSWIN_H
+#endif  //__CNI_TABLES_H

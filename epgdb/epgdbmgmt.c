@@ -21,10 +21,11 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbmgmt.c,v 1.35 2001/09/02 16:21:40 tom Exp tom $
+ *  $Id: epgdbmgmt.c,v 1.43 2002/02/16 11:35:00 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
+#define DEBUG_EPGDBMGMT_CONSISTANCY OFF
 #define DPRINTF_OFF
 
 #include <string.h>
@@ -35,10 +36,11 @@
 
 #include "epgdb/epgblock.h"
 #include "epgui/pilistbox.h"
-#include "epgui/statswin.h"
-#include "epgdb/epgdbmerge.h"
+#include "epgdb/epgqueue.h"
+#include "epgdb/epgtscqueue.h"
 #include "epgdb/epgdbmgmt.h"
 #include "epgctl/epgctxmerge.h"
+#include "epgctl/epgacqsrv.h"
 
 
 // internal shortcuts
@@ -47,6 +49,12 @@ typedef const EPGDB_CONTEXT *CPDBC;
 
 static void EpgDbCheckDefectPiBlocknos( PDBC dbc );
 static void EpgDbRemoveAllDefectPi( PDBC dbc, uchar version );
+
+#if DEBUG_EPGDBMGMT_CONSISTANCY == ON
+#define EpgDbMgmtCheckChains(DBC)  EpgDbCheckChains(DBC)
+#else
+#define EpgDbMgmtCheckChains(DBC)  TRUE
+#endif
 
 // ---------------------------------------------------------------------------
 // Create and initialize a database context
@@ -63,10 +71,13 @@ EPGDB_CONTEXT * EpgDbCreate( void )
 
 // ---------------------------------------------------------------------------
 // Frees all blocks in a database
+// - if keepAiOi if TRUE the context struct, AI and OI block are not freed.
+//   used when a database is stripped down to a "peek"
 //
-void EpgDbDestroy( PDBC dbc )
+void EpgDbDestroy( PDBC dbc, bool keepAiOi )
 {
    EPGDB_BLOCK *pNext, *pWalk;
+   EPGDB_BLOCK *pOiBlock;
    uchar type;
 
    if ( dbc->lockLevel == 0 )
@@ -92,6 +103,14 @@ void EpgDbDestroy( PDBC dbc )
       }
       dbc->pObsoletePi = NULL;
 
+      // save OI block #0
+      if ( keepAiOi &&
+           (dbc->pFirstGenericBlock[BLOCK_TYPE_OI] != NULL) &&
+           (dbc->pFirstGenericBlock[BLOCK_TYPE_OI]->blk.oi.block_no == 0) )
+         pOiBlock = dbc->pFirstGenericBlock[BLOCK_TYPE_OI];
+      else
+         pOiBlock = NULL;
+
       // free all types of generic blocks
       for (type=0; type < BLOCK_TYPE_GENERIC_COUNT; type++)
       {
@@ -99,21 +118,36 @@ void EpgDbDestroy( PDBC dbc )
          while (pWalk != NULL)
          {
             pNext = pWalk->pNextBlock;
-            xfree(pWalk);
+            if (pWalk != pOiBlock)
+               xfree(pWalk);
             pWalk = pNext;
          }
          dbc->pFirstGenericBlock[type] = NULL;
       }
 
-      // free AI
-      if (dbc->pAiBlock != NULL)
+      if (keepAiOi == FALSE)
       {
-         xfree(dbc->pAiBlock);
-         dbc->pAiBlock = NULL;
-      }
+         // free AI
+         if (dbc->pAiBlock != NULL)
+         {
+            xfree(dbc->pAiBlock);
+            dbc->pAiBlock = NULL;
+         }
 
-      // free the database context
-      xfree(dbc);
+         // free the database context
+         xfree(dbc);
+      }
+      else
+      {
+         if (pOiBlock != NULL)
+         {
+            pOiBlock->pNextBlock = NULL;
+            dbc->pFirstGenericBlock[BLOCK_TYPE_OI] = pOiBlock;
+         }
+         // reset remaining block pointers
+         memset(dbc->pFirstNetwopPi, 0, sizeof(dbc->pFirstNetwopPi));
+         assert(EpgDbMgmtCheckChains(dbc));
+      }
    }
    else
       debug0("EpgDb-Destroy: cannot destroy locked db");
@@ -146,6 +180,7 @@ bool EpgDbCheckChains( CPDBC dbc )
          blocks += 1;
          netwop = pWalk->blk.pi.netwop_no;
          assert(netwop < MAX_NETWOP_COUNT);
+         assert(pWalk->type == BLOCK_TYPE_PI);
          assert(pWalk->blk.pi.start_time < pWalk->blk.pi.stop_time);
          pPrev = pPrevNetwop[netwop];
          assert(pWalk->pPrevNetwopBlock == pPrev);
@@ -202,6 +237,7 @@ bool EpgDbCheckChains( CPDBC dbc )
    pWalk = dbc->pObsoletePi;
    while (pWalk != NULL)
    {
+      assert(pWalk->type == BLOCK_TYPE_PI);
       assert(pWalk->version == ((pWalk->stream == 0) ? dbc->pAiBlock->blk.ai.version : dbc->pAiBlock->blk.ai.version_swo));
       pWalk = pWalk->pNextBlock;
    }
@@ -209,6 +245,7 @@ bool EpgDbCheckChains( CPDBC dbc )
    // check AI
    if (dbc->pAiBlock != NULL)
    {
+      assert(dbc->pAiBlock->type == BLOCK_TYPE_AI);
       assert((dbc->pAiBlock->pNextBlock == NULL) && (dbc->pAiBlock->pPrevBlock == NULL));
    }
 
@@ -218,6 +255,7 @@ bool EpgDbCheckChains( CPDBC dbc )
       pWalk = dbc->pFirstGenericBlock[type];
       while (pWalk != NULL)
       {
+         assert(pWalk->type == type);
          pPrev = pWalk;
          pWalk = pWalk->pNextBlock;
          if (pWalk != NULL)
@@ -256,12 +294,21 @@ static bool EpgDbCompareParityErrorCount( EPGDB_BLOCK * pOldBlock, EPGDB_BLOCK *
    {
       if (pNewBlock->parityErrCnt > pOldBlock->parityErrCnt)
       {  // refuse block if it has more errors than the already available copy
-         debug3("PARITY refuse block type=%d: error counts new=%d old=%d", pNewBlock->type, pNewBlock->parityErrCnt, pOldBlock->parityErrCnt);
+         dprintf3("PARITY refuse block type=%d: error counts new=%d old=%d\n", pNewBlock->type, pNewBlock->parityErrCnt, pOldBlock->parityErrCnt);
+
+         pOldBlock->acqTimestamp = pNewBlock->acqTimestamp;
+         pOldBlock->acqRepCount += 1;
          result = FALSE;
       }
       else
-      { // count the number of times this block was received
-         pNewBlock->acqRepCount = pOldBlock->acqRepCount + 1;
+      {  // new block has equal or less errors -> accept it
+         // count the number of times this block was received
+         pNewBlock->acqRepCount  = pOldBlock->acqRepCount + 1;
+
+         if (pOldBlock->parityErrCnt == 0)
+         {  // keep the update timestamp of the old block, since the content is unchanged
+            pNewBlock->updTimestamp = pOldBlock->updTimestamp;
+         }
       }
    }
    return result;
@@ -324,7 +371,7 @@ static void EpgDbRemoveObsoleteNetwops( PDBC dbc, uchar netwopCount, uchar filte
       }
    }
 
-   assert(EpgDbCheckChains(dbc));
+   assert(EpgDbMgmtCheckChains(dbc));
 
    PiListBox_DbRecount(dbc);
 }
@@ -458,7 +505,7 @@ static void EpgDbRemoveObsoleteGenericBlocks( PDBC dbc )
                break;
          }
       }
-      assert(EpgDbCheckChains(dbc));
+      assert(EpgDbMgmtCheckChains(dbc));
    }
    else
       debug0("EpgDb-RemoveObsoleteGenericBlocks: no AI block");
@@ -475,20 +522,37 @@ static bool EpgDbAddAiBlock( PDBC dbc, EPGDB_BLOCK * pBlock )
    bool result;
 
    pOldAiBlock = dbc->pAiBlock;
+   result = TRUE;
 
    if ( (pOldAiBlock != NULL) &&
-        (pOldAiBlock->parityErrCnt < pBlock->parityErrCnt) &&
         (pOldAiBlock->origBlkLen == pBlock->origBlkLen) &&
         (pOldAiBlock->origChkSum == pBlock->origChkSum) &&
         (memcmp(&pOldAiBlock->blk.ai, &pBlock->blk.ai, sizeof(AI_BLOCK)) == 0) &&
         (memcmp(AI_GET_NETWOPS(&pOldAiBlock->blk.ai), AI_GET_NETWOPS(&pBlock->blk.ai),
                 pBlock->blk.ai.netwopCount * sizeof(AI_NETWOP)) == 0) )
    {
-      // refuse block if it has more errors than the already available copy
-      debug2("PARITY refuse AI block: error counts new=%d old=%d", pBlock->parityErrCnt, pOldAiBlock->parityErrCnt);
-      result = FALSE;
+      if (pBlock->parityErrCnt > pOldAiBlock->parityErrCnt)
+      {
+         // refuse block if it has more errors than the already available copy
+         dprintf2("PARITY refuse AI block: error counts new=%d old=%d\n", pBlock->parityErrCnt, pOldAiBlock->parityErrCnt);
+
+         pOldAiBlock->acqTimestamp = pBlock->acqTimestamp;
+         pOldAiBlock->acqRepCount += 1;
+         result = FALSE;
+      }
+      else
+      {  // new block has equal or less errors -> accept it
+         // count the number of times this block was received
+         pBlock->acqRepCount  = pOldAiBlock->acqRepCount + 1;
+
+         if (pOldAiBlock->parityErrCnt == 0)
+         {  // keep the update timestamp of the old block, since the content is unchanged
+            pBlock->updTimestamp = pOldAiBlock->updTimestamp;
+         }
+      }
    }
-   else
+
+   if (result != FALSE)
    {
       dbc->pAiBlock = pBlock;
 
@@ -526,8 +590,7 @@ static bool EpgDbAddAiBlock( PDBC dbc, EPGDB_BLOCK * pBlock )
          xfree(pOldAiBlock);
       }
 
-      assert(EpgDbCheckChains(dbc));
-      result = TRUE;
+      assert(EpgDbMgmtCheckChains(dbc));
    }
 
    return result;
@@ -584,7 +647,7 @@ static bool EpgDbGenericBlockNoValid( PDBC dbc, EPGDB_BLOCK * pBlock, BLOCK_TYPE
             accept = FALSE;;
             break;
       }
-      ifdebug3(!accept, "REFUSE generic type=%d blockno=%d (netwop=%d)\n", type, block_no, pBlock->blk.all.netwop_no);
+      ifdebug3(!accept, "REFUSE generic type=%d blockno=%d (netwop=%d)", type, block_no, pBlock->blk.all.netwop_no);
    }
    else
    {
@@ -603,7 +666,7 @@ static bool EpgDbAddGenericBlock( PDBC dbc, EPGDB_BLOCK * pBlock )
 {
    EPGDB_BLOCK *pWalk, *pPrev;
    uint  block_no;
-   bool  result;
+   bool  added = FALSE;
 
    if ( EpgDbGenericBlockNoValid(dbc, pBlock, pBlock->type) )
    {
@@ -614,6 +677,7 @@ static bool EpgDbAddGenericBlock( PDBC dbc, EPGDB_BLOCK * pBlock )
          dprintf3("ADD first GENERIC type=%d ptr=%lx: blockno=%d\n", pBlock->type, (ulong)pBlock, block_no);
          pBlock->pNextBlock = NULL;
          dbc->pFirstGenericBlock[pBlock->type] = pBlock;
+         added = TRUE;
       }
       else
       {
@@ -640,9 +704,8 @@ static bool EpgDbAddGenericBlock( PDBC dbc, EPGDB_BLOCK * pBlock )
 
                // free replaced block
                xfree(pWalk);
+               added = TRUE;
             }
-            else
-               xfree(pBlock);
          }
          else if (pPrev == NULL)
          {  // insert the block at the start
@@ -650,22 +713,21 @@ static bool EpgDbAddGenericBlock( PDBC dbc, EPGDB_BLOCK * pBlock )
             dprintf3("ADD GENERIC type=%d ptr=%lx: blockno=%d\n", pBlock->type, (ulong)pBlock, block_no);
             pBlock->pNextBlock = dbc->pFirstGenericBlock[pBlock->type];
             dbc->pFirstGenericBlock[pBlock->type] = pBlock;
+            added = TRUE;
          }
          else
          {  // insert or append
             dprintf3("ADD GENERIC type=%d ptr=%lx: blockno=%d\n", pBlock->type, (ulong)pBlock, block_no);
             pBlock->pNextBlock = pPrev->pNextBlock;
             pPrev->pNextBlock = pBlock;
+            added = TRUE;
          }
       }
-      result = TRUE;
 
-      assert(EpgDbCheckChains(dbc));
+      assert(EpgDbMgmtCheckChains(dbc));
    }
-   else
-      result = FALSE;
 
-   return result;
+   return added;
 }
 
 // ---------------------------------------------------------------------------
@@ -1328,7 +1390,7 @@ static bool EpgDbAddPiBlock( PDBC dbc, EPGDB_BLOCK *pBlock )
       added = FALSE;
    }
 
-   assert(EpgDbCheckChains(dbc));
+   assert(EpgDbMgmtCheckChains(dbc));
 
    return added;
 }
@@ -1336,7 +1398,7 @@ static bool EpgDbAddPiBlock( PDBC dbc, EPGDB_BLOCK *pBlock )
 // ---------------------------------------------------------------------------
 // Add or replace a block in the database
 //
-bool EpgDbAddBlock( PDBC dbc, EPGDB_BLOCK * pBlock )
+static bool EpgDbAddBlock( PDBC dbc, EPGDB_PI_TSC * tsc, EPGDB_BLOCK * pBlock )
 {
    bool result = FALSE;
 
@@ -1352,17 +1414,17 @@ bool EpgDbAddBlock( PDBC dbc, EPGDB_BLOCK * pBlock )
          switch (pBlock->type)
          {
             case BLOCK_TYPE_BI:
-               SHOULD_NOT_BE_REACHED;
+               fatal0("EpgDb-AddBlock: refusing BI block");
                result = FALSE;
                break;
+
             case BLOCK_TYPE_AI:
                pBlock->version = pBlock->blk.ai.version;
                result = EpgDbAddAiBlock(dbc, pBlock);
                // further processing is independent of result
-               dbc->lastAiUpdate = time(NULL);
                dbc->modified = TRUE;
-               StatsWin_NewAi(dbc);
                break;
+
             case BLOCK_TYPE_NI:
             case BLOCK_TYPE_OI:
             case BLOCK_TYPE_MI:
@@ -1370,25 +1432,108 @@ bool EpgDbAddBlock( PDBC dbc, EPGDB_BLOCK * pBlock )
             case BLOCK_TYPE_TI:
                result = EpgDbAddGenericBlock(dbc, pBlock);
                break;
+
             case BLOCK_TYPE_PI:
                result = EpgDbAddPiBlock(dbc, pBlock);
-               if (result)
-                  StatsWin_NewPi(dbc, &pBlock->blk.pi, pBlock->stream);
+               if (result && (tsc != NULL))
+                  EpgTscQueue_AddPi(tsc, dbc, &pBlock->blk.pi, pBlock->stream);
                break;
+
             default:
-               SHOULD_NOT_BE_REACHED;
+               fatal1("EpgDb-AddBlock: illegal block type %d", pBlock->type);
                break;
          }
 
          if (result)
-            dbc->modified = TRUE;
+         {
+             dbc->modified = TRUE;
+             #ifdef USE_DAEMON
+             EpgAcqServer_AddBlock(dbc, pBlock);
+             #endif
+         }
       }
       else
-         debug0("EpgDb-AddBlock: db locked");
+         fatal0("EpgDb-AddBlock: db locked");
    }
    else
-      debug0("EpgDb-AddBlock: illegal NULL ptr param");
+      fatal0("EpgDb-AddBlock: illegal NULL ptr param");
 
    return result;
+}
+
+// ---------------------------------------------------------------------------
+// Process the first block in the queue of the given type
+// - this is used during acquisition startup while waiting for the first AI block
+// - also used to pick OI block #0 during EPG scan
+// - passing pointer to database context pointer, b/c the context pointer
+//   may change inside the AI callback (e.g. change of provider)
+//
+void EpgDbProcessQueueByType( EPGDB_CONTEXT * const * pdbc, EPGDB_QUEUE * pQueue, BLOCK_TYPE type, const EPGDB_ADD_CB * pCb )
+{
+   EPGDB_BLOCK * pBlock;
+
+   pBlock = EpgDbQueue_GetByType(pQueue, type);
+   if (pBlock != NULL)
+   {
+      if (type == BLOCK_TYPE_BI)
+      {
+         dprintf1("EpgDbQueue-ProcessBlocks: Offer BI block to acq ctl (0x%lx)\n", (long)pBlock);
+         pCb->pBiCallback(&pBlock->blk.bi);
+         xfree(pBlock);
+      }
+      else if (type == BLOCK_TYPE_AI)
+      {
+         dprintf2("EpgDbQueue-ProcessBlocks: Offer AI block 0x%04X to acq ctl (0x%lx)\n", AI_GET_CNI(&pBlock->blk.ai), (long)pBlock);
+         if ( (pCb->pAiCallback(&pBlock->blk.ai) == FALSE) || 
+              (EpgDbAddBlock(*pdbc, NULL, pBlock) == FALSE) )
+         {  // block was not accepted
+            xfree(pBlock);
+         }
+      }
+      else
+      {
+         if ( EpgDbAddBlock(*pdbc, NULL, pBlock) == FALSE )
+         {  // block was not accepted
+            xfree(pBlock);
+         }
+      }
+   }
+}
+
+// ---------------------------------------------------------------------------
+// Process blocks in the queue
+// - passing pointer to database context pointer, b/c the context pointer
+//   may change inside the AI callback (e.g. change of provider)
+//
+void EpgDbProcessQueue( EPGDB_CONTEXT * const * pdbc, EPGDB_QUEUE * pQueue,
+                        EPGDB_PI_TSC * tsc, const EPGDB_ADD_CB * pCb )
+{
+   EPGDB_BLOCK * pBlock;
+
+   // note: the acq might get switched off by the callbacks inside the loop,
+   // but we don't need to check this since then the buffer is cleared
+   while ((pBlock = EpgDbQueue_Get(pQueue)) != NULL)
+   {
+      if (pBlock->type == BLOCK_TYPE_BI)
+      {  // the Bi block never is added to the db, only evaluated by acq ctl
+         pCb->pBiCallback(&pBlock->blk.bi);
+         xfree(pBlock);
+      }
+      else if (pBlock->type == BLOCK_TYPE_AI)
+      {
+         if ( (pCb->pAiCallback(&pBlock->blk.ai) == FALSE) || 
+              (EpgDbAddBlock(*pdbc, tsc, pBlock) == FALSE) )
+         {  // block was not accepted
+            xfree(pBlock);
+         }
+      }
+      else
+      {
+         if ( EpgDbAddBlock(*pdbc, tsc, pBlock) == FALSE )
+         {  // block was not accepted
+            xfree(pBlock);
+         }
+      }
+   }
 }
 

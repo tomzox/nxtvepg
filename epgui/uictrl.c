@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: uictrl.c,v 1.13 2001/09/12 19:14:47 tom Exp tom $
+ *  $Id: uictrl.c,v 1.23 2002/02/28 19:22:16 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -40,13 +40,18 @@
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
 #include "epgdb/epgdbsav.h"
+#include "epgctl/epgctxmerge.h"
 #include "epgctl/epgacqctl.h"
 #include "epgctl/epgscan.h"
+#include "epgctl/epgacqclnt.h"
 #include "epgui/epgmain.h"
 #include "epgui/pifilter.h"
 #include "epgui/pilistbox.h"
 #include "epgui/uictrl.h"
+#include "epgui/menucmd.h"
 #include "epgui/statswin.h"
+#include "epgui/timescale.h"
+#include "epgui/xawtv.h"
 #include "epgctl/epgctxctl.h"
 
 
@@ -55,11 +60,120 @@ typedef struct
    uint                     cni;
    EPGDB_RELOAD_RESULT      dberr;
    CONTEXT_RELOAD_ERR_HAND  errHand;
+   bool                     isNewDb;
 } MSG_RELOAD_ERR;
 
 
 static bool uiControlInitialized = FALSE;
 
+
+// ---------------------------------------------------------------------------
+// Determine state of UI database and acquisition
+// - this is used to display a helpful message in the PI listbox as long as
+//   the database is empty
+//
+static EPGDB_STATE UiControl_GetDbState( void )
+{
+   EPGACQ_DESCR acqState;
+   EPGDB_STATE  dbState;
+   uint  uiCni;
+   bool  acqWorksOnUi;
+
+   uiCni = EpgDbContextGetCni(pUiDbContext);
+   EpgAcqCtl_DescribeAcqState(&acqState);
+
+   if (uiCni == 0)
+   {  // no AI block in current UI database
+      if (acqState.state == ACQDESCR_SCAN)
+      {
+         dbState = EPGDB_WAIT_SCAN;
+      }
+      else if (EpgContextCtl_GetProvCount() == 0)
+      {
+         if ( (acqState.state != ACQDESCR_DISABLED) &&
+              (acqState.mode == ACQMODE_FORCED_PASSIVE) &&
+              (acqState.passiveReason == ACQPASSIVE_NO_TUNER) )
+            dbState = EPGDB_PROV_WAIT;
+         else
+            dbState = EPGDB_PROV_SCAN;
+      }
+      else
+         dbState = EPGDB_PROV_SEL;
+   }
+   else
+   {  // AI present, but no PI in database
+
+      // check if acquisition is working for the browser database
+      if ( EpgDbContextIsMerged(pUiDbContext) )
+         acqWorksOnUi = EpgContextMergeCheckForCni(pUiDbContext, acqState.dbCni);
+      else
+         acqWorksOnUi = (acqState.dbCni == uiCni);
+
+      if (acqState.state == ACQDESCR_NET_CONNECT)
+      {  // in network acq mode: no stats available yet
+         dbState = EPGDB_ACQ_WAIT_DAEMON;
+      }
+      else if (acqState.state == ACQDESCR_DISABLED)
+      {
+         dbState = EPGDB_EMPTY;
+      }
+      else if (acqState.state == ACQDESCR_SCAN)
+      {
+         dbState = EPGDB_WAIT_SCAN;
+      }
+      else if ((acqState.mode == ACQMODE_PASSIVE) || (acqState.mode == ACQMODE_EXTERNAL))
+      {
+         if ((acqState.state == ACQDESCR_RUNNING) && acqWorksOnUi)
+         {  // note: this state should actually never be reached, because once acq has reached
+            // "running" state an AI has been received and usually some PI too, so the UI db
+            // would no longer be empty
+            dbState = EPGDB_ACQ_WAIT;
+         }
+         else
+            dbState = EPGDB_ACQ_PASSIVE;
+      }
+      else if (acqState.mode == ACQMODE_FORCED_PASSIVE)
+      {
+         // translate forced-passive reason to db state
+         switch (acqState.passiveReason)
+         {
+            case ACQPASSIVE_NO_TUNER:
+               dbState = EPGDB_ACQ_NO_TUNER;
+               break;
+            case ACQPASSIVE_NO_FREQ:
+               dbState = EPGDB_ACQ_NO_FREQ;
+               break;
+            case ACQPASSIVE_NO_DB:
+               dbState = EPGDB_ACQ_PASSIVE;
+               break;
+            case ACQPASSIVE_ACCESS_DEVICE:
+               dbState = EPGDB_ACQ_ACCESS_DEVICE;
+               break;
+            default:
+               fatal1("EpgAcqCtl-GetDbState: illegal state %d", acqState.passiveReason);
+               dbState = EPGDB_ACQ_PASSIVE;
+               break;
+         }
+      }
+      else if ( (ACQMODE_IS_CYCLIC(acqState.mode) == FALSE) || acqWorksOnUi )
+      {  // acq is running for the same provider as the UI
+         dbState = EPGDB_ACQ_WAIT;
+      }
+      else if (acqState.isNetAcq)
+      {  // acq not working for ui db AND in (non-follow-ui) network acq mode
+         // (note: if the ui db is empty but somewhere in the acq CNI list, it's automatically
+         // moved to the front during the provider change - however the acq daemon does not
+         // care about the order of requested CNIs unless in follow-ui mode)
+         dbState = EPGDB_ACQ_WAIT_DAEMON;
+      }
+      else
+      {  // acq not working for ui db AND the ui db is not among the acq CNIs
+         dbState = EPGDB_ACQ_OTHER_PROV;
+      }
+   }
+
+   return dbState;
+}
 
 // ---------------------------------------------------------------------------
 // Determine state of UI database and acquisition
@@ -80,7 +194,7 @@ void UiControl_CheckDbState( void )
       pAiBlock = EpgDbGetAi(pUiDbContext);
       if (pAiBlock == NULL)
       {  // no AI block in current database
-         state = EpgAcqCtl_GetDbState(0);
+         state = UiControl_GetDbState();
       }
       else
       {  // provider present -> check for PI
@@ -92,7 +206,7 @@ void UiControl_CheckDbState( void )
          pPiBlock = EpgDbSearchFirstPi(pUiDbContext, pPreFilterContext);
          if (pPiBlock == NULL)
          {  // no PI in database (probably all expired)
-            state = EpgAcqCtl_GetDbState(EpgDbContextGetCni(pUiDbContext));
+            state = UiControl_GetDbState();
          }
          else
          {
@@ -129,7 +243,7 @@ void UiControl_CheckDbState( void )
 //
 void UiControl_AiStateChange( ClientData clientData )
 {
-   bool msgFromAcq = (bool) ((int) clientData);
+   uint target = (uint) clientData;
    const AI_BLOCK *pAiBlock;
 
    if ( (EpgDbContextGetCni(pUiDbContext) == 0) &&
@@ -139,14 +253,17 @@ void UiControl_AiStateChange( ClientData clientData )
       dprintf1("UiControl-AiStateChange: browser db empty, switch to acq db 0x%04X\n", EpgDbContextGetCni(pAcqDbContext));
       // switch browser to acq db
       EpgContextCtl_Close(pUiDbContext);
-      pUiDbContext = EpgContextCtl_Open(EpgDbContextGetCni(pAcqDbContext), CTX_RELOAD_ERR_ANY);
+      pUiDbContext = EpgContextCtl_Open(EpgDbContextGetCni(pAcqDbContext), CTX_FAIL_RET_DUMMY, CTX_RELOAD_ERR_ANY);
+
+      // update acq CNI list in case follow-ui acq mode is selected
+      SetAcquisitionMode();
       // display the data from the new db
       PiListBox_Reset();
    }
 
    // check if the message relates to the browser db
    if ( (pUiDbContext != NULL) &&
-        ((msgFromAcq == FALSE) || (pAcqDbContext == pUiDbContext)) )
+        ((target == DB_TARGET_UI) || (pAcqDbContext == pUiDbContext)) )
    {
       EpgDbLockDatabase(pUiDbContext, TRUE);
       pAiBlock = EpgDbGetAi(pUiDbContext);
@@ -160,38 +277,40 @@ void UiControl_AiStateChange( ClientData clientData )
          PiFilter_UpdateNetwopList();
       }
       else
-      {  // db now empty -> reset window title
+      {  // no AI block in db -> reset window title to empty
          sprintf(comm, "wm title . {Nextview EPG}\n");
          eval_check(interp, comm);
       }
       EpgDbLockDatabase(pUiDbContext, FALSE);
+   }
 
-      // if db is now empty, display help message
-      UiControl_CheckDbState();
-      // update the info in the status line below the browser window
-      StatsWin_UpdateDbStatusLine(NULL);
+   // if db is empty, display or update the help message
+   UiControl_CheckDbState();
+
+   if (target == DB_TARGET_UI)
+   {  // update main window status line and other db related output
+      StatsWin_StatsUpdate(DB_TARGET_UI);
+      TimeScale_ProvChange(DB_TARGET_UI);
    }
 }
 
 // ----------------------------------------------------------------------------
-// Accept message from acquisition control about initial AI or AI version change
-// - the message must not be handled right away, since it's sent from the
-//   AI callback, when the db is not in a consistent state.
-//
-void UiControlMsg_AiStateChange( void )
-{
-   if (uiControlInitialized)
-      AddMainIdleEvent( UiControl_AiStateChange, (ClientData) ((int)TRUE), FALSE );
-}
-
-// ----------------------------------------------------------------------------
 // Add or update an EPG provider channel frequency in the rc/ini file
-// - Called by the AI callback
+// - called by acq control when the first AI is received after a provider change
 //
 void UiControlMsg_NewProvFreq( uint cni, ulong freq )
 {
-   sprintf(comm, "UpdateProvFrequency 0x%04X %ld\n", cni, freq);
+   sprintf(comm, "UpdateProvFrequency {0x%04X %ld}\n", cni, freq);
    eval_check(interp, comm);
+}
+
+// ----------------------------------------------------------------------------
+// Query the frequency for the given provider stored in the rc/ini file
+// - used by acq control upon provider changes
+//
+ulong UiControlMsg_QueryProvFreq( uint cni )
+{
+   return GetProvFreqForCni(cni);
 }
 
 // ----------------------------------------------------------------------------
@@ -247,7 +366,7 @@ void UiControl_ReloadError( ClientData clientData )
       switch (pMsg->errHand)
       {
          case CTX_RELOAD_ERR_ANY:
-            if (pMsg->dberr != EPGDB_RELOAD_EXIST)
+            if (pMsg->isNewDb && (pMsg->dberr != EPGDB_RELOAD_EXIST))
             {
                sprintf(comm2, "tk_messageBox -type ok -icon warning -message {"
                                 "Found a database (provider %X) which failed to be loaded because %s. %s"
@@ -295,7 +414,7 @@ void UiControl_ReloadError( ClientData clientData )
 // ----------------------------------------------------------------------------
 // Accept message from context control about db reload error
 //
-void UiControlMsg_ReloadError( uint cni, EPGDB_RELOAD_RESULT dberr, CONTEXT_RELOAD_ERR_HAND errHand )
+void UiControlMsg_ReloadError( uint cni, EPGDB_RELOAD_RESULT dberr, CONTEXT_RELOAD_ERR_HAND errHand, bool isNewDb )
 {
    uchar * pTmpStr, * pSavedResult;
    MSG_RELOAD_ERR * pMsg;
@@ -308,6 +427,7 @@ void UiControlMsg_ReloadError( uint cni, EPGDB_RELOAD_RESULT dberr, CONTEXT_RELO
          pMsg->cni     = cni;
          pMsg->dberr   = dberr;
          pMsg->errHand = errHand;
+         pMsg->isNewDb = isNewDb;
 
          if (errHand == CTX_RELOAD_ERR_REQ)
          {  // display the message immediately (as reply to user interaction)
@@ -343,8 +463,12 @@ void UiControlMsg_ReloadError( uint cni, EPGDB_RELOAD_RESULT dberr, CONTEXT_RELO
          }
       }
       else
-      {
-         if ( (errHand != CTX_RELOAD_ERR_ANY) || (dberr != EPGDB_RELOAD_EXIST) )
+      {  // not a result of user interaction
+
+         // non-GUI, non-acq background errors are reported only
+         // at the first access and if it's not just a missing db
+         if ( (errHand != CTX_RELOAD_ERR_ANY) ||
+              ((isNewDb == FALSE) && (dberr != EPGDB_RELOAD_EXIST)) )
          {
             fprintf(stderr, "nxtvepg: warning: failed to load database 0x%04X\n", cni);
          }
@@ -382,6 +506,39 @@ void UiControlMsg_MissingTunerFreq( uint cni )
 }
 
 // ----------------------------------------------------------------------------
+// Warn the user about network connection error
+//
+static void UiControl_NetAcqError( ClientData clientData )
+{
+#ifdef USE_DAEMON
+   EPGDBSRV_DESCR netState;
+   char           * comm2;
+
+   EpgAcqClient_DescribeNetState(&netState);
+   if (netState.cause != NULL)
+   {
+      comm2 = xmalloc(2048);
+      sprintf(comm2, "tk_messageBox -type ok -icon warning -parent . "
+                     "-message {An error occurred in the network connection to the acquisition "
+                               "server: %s."
+                               "}\n", netState.cause);
+      eval_check(interp, comm2);
+      xfree(comm2);
+   }
+#endif
+}
+
+// ----------------------------------------------------------------------------
+// Accept message from acq control about network connection error
+// - only used on client-side, hence no output method for non-GUI mode needed
+//
+void UiControlMsg_NetAcqError( void )
+{
+   if (uiControlInitialized)
+      AddMainIdleEvent(UiControl_NetAcqError, NULL, TRUE);
+}
+
+// ----------------------------------------------------------------------------
 // Warn the user about acquisition mode error
 //
 static void UiControl_AcqPassive( ClientData clientData )
@@ -410,6 +567,105 @@ void UiControlMsg_AcqPassive( void )
       AddMainIdleEvent(UiControl_AcqPassive, (ClientData) NULL, TRUE);
    else
       fprintf(stderr, "nxtvepg: fatal: invalid acquisition mode for the selected input source\n");
+}
+
+// ----------------------------------------------------------------------------
+// Distribute acquisition events to GUI modules
+//
+void UiControlMsg_AcqEvent( ACQ_EVENT acqEvent )
+{
+   if (uiControlInitialized)
+   {
+      switch (acqEvent)
+      {
+         case ACQ_EVENT_PROV_CHANGE:
+            TimeScale_ProvChange(DB_TARGET_ACQ);
+            StatsWin_StatsUpdate(DB_TARGET_ACQ);
+            AddMainIdleEvent(UiControl_AiStateChange, (ClientData) DB_TARGET_ACQ, FALSE);
+            break;
+
+         case ACQ_EVENT_AI_VERSION_CHANGE:
+            TimeScale_VersionChange();
+            StatsWin_StatsUpdate(DB_TARGET_ACQ);
+            AddMainIdleEvent(UiControl_AiStateChange, (ClientData) DB_TARGET_ACQ, FALSE);
+            break;
+
+         case ACQ_EVENT_AI_PI_RANGE_CHANGE:
+            TimeScale_VersionChange();
+            StatsWin_StatsUpdate(DB_TARGET_ACQ);
+            break;
+
+         case ACQ_EVENT_STATS_UPDATE:
+            StatsWin_StatsUpdate(DB_TARGET_ACQ);
+            TimeScale_AcqStatsUpdate();
+            break;
+
+         case ACQ_EVENT_PI_ADDED:
+            TimeScale_AcqPiAdded();
+            break;
+
+         case ACQ_EVENT_PI_MERGED:
+            TimeScale_AcqPiMerged();
+            break;
+
+         case ACQ_EVENT_VPS_PDC:
+            StatsWin_StatsUpdate(DB_TARGET_ACQ);
+            #ifndef WIN32
+            AddMainIdleEvent(Xawtv_PollVpsPil, NULL, TRUE);
+            #endif
+            break;
+      }
+   }
+}
+
+// ----------------------------------------------------------------------------
+// Acq input queue overflow
+// - a very large number of PI blocks in the in queue
+// - if the acq db is identical to the ui db, the direct connection must
+//   be lifted or the GUI will hang
+//
+bool UiControlMsg_AcqQueueOverflow( bool prepare )
+{
+   bool acqWorksOnUi = FALSE;
+
+   // XXX commented out the whole function: seems this not required
+   // XXX performance problems only arise while epgdbmgmt and pilistbox consistancy checks are enabled
+#if 0
+   uint acqCni;
+
+   if (prepare)
+   {
+      acqCni = EpgDbContextGetCni(pAcqDbContext);
+      if (acqCni != 0)
+      {
+         debug0("UiControlMsg-AcqQueueOverflow: locking acq -> ui connection");
+         // check if acquisition is working for the browser database
+         if ( EpgDbContextIsMerged(pUiDbContext) )
+            acqWorksOnUi = EpgContextMergeCheckForCni(pUiDbContext, acqCni);
+         else
+            acqWorksOnUi = (acqCni == EpgDbContextGetCni(pUiDbContext));
+      }
+      else
+         acqWorksOnUi = TRUE;
+
+      if (acqWorksOnUi)
+      {
+         if (EpgDbContextIsMerged(pUiDbContext))
+            EpgContextMergeLockInsert(pUiDbContext, TRUE);
+         PiListBox_Lock(TRUE);
+      }
+   }
+   else
+   {
+      if (EpgDbContextIsMerged(pUiDbContext))
+      {
+         eval_check(interp, "C_ProvMerge_Start");
+      }
+      PiListBox_Lock(FALSE);
+   }
+#endif
+
+   return acqWorksOnUi;
 }
 
 // ----------------------------------------------------------------------------

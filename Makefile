@@ -24,7 +24,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile,v 1.34 2001/08/25 12:46:29 tom Exp tom $
+#  $Id: Makefile,v 1.40 2002/03/02 12:52:01 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -53,27 +53,35 @@ INCS   += -I. -I/usr/X11R6/include
 DEFS   += -DTK_LIBRARY_PATH=\"/usr/lib/tk8.3\"
 DEFS   += -DTCL_LIBRARY_PATH=\"/usr/lib/tcl8.3\"
 
+# enable use of multi-threading
+DEFS   += -DUSE_THREADS
+LDLIBS += -lpthread
+
+# enable use of daemon and client/server connection
+DEFS   += -DUSE_DAEMON
+
 # path to the directory where the provider database files are kept
 DB_DIR  = /usr/tmp/nxtvdb
 DEFS   += -DEPG_DB_DIR=\"$(DB_DIR)\"
 INST_DB_DIR = $(ROOT)$(DB_DIR)
 
-#WARN    = -Wall -Wpointer-arith -Wnested-externs \
-#          -Werror -Wstrict-prototypes -Wmissing-prototypes
-WARN    = -Wall
+WARN    = -Wall -Wnested-externs -Wstrict-prototypes -Wmissing-prototypes
+#WARN  += -Wpointer-arith -Werror
 CC      = gcc
-CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -O3
+CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -O6
 
 # ----- don't change anything below ------------------------------------------
 
 CSRC    = epgvbi/vbidecode epgvbi/tvchan epgvbi/btdrv4linux epgvbi/hamming \
+          epgvbi/cni_tables \
           epgctl/debug epgctl/epgacqctl epgctl/epgscan epgctl/epgctxctl \
-          epgctl/epgctxmerge \
+          epgctl/epgctxmerge epgctl/epgacqclnt epgctl/epgacqsrv \
           epgdb/epgdbacq epgdb/epgstream epgdb/epgdbmerge epgdb/epgdbsav \
           epgdb/epgdbmgmt epgdb/epgdbif epgdb/epgdbfil epgdb/epgblock \
+          epgdb/epgnetio epgdb/epgqueue epgdb/epgtscqueue \
           epgui/uictrl epgui/pilistbox epgui/pioutput epgui/pifilter \
-          epgui/statswin epgui/pdc_themes epgui/menucmd epgui/epgtxtdump \
-          epgui/epgmain epgui/xawtv
+          epgui/statswin epgui/timescale epgui/pdc_themes epgui/menucmd \
+          epgui/epgmain epgui/xawtv epgui/epgtxtdump
 CGEN    = epgui/epgui epgui/help
 
 SRCS    = $(addsuffix .c, $(CSRC)) $(addsuffix .c, $(CGEN))

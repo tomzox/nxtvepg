@@ -12,11 +12,18 @@
  *  GNU General Public License for more details.
  *
  *
- *  Description: see below.
+ *  Description: see also according C source file.
+ *
+ *    Provides macros for debug output and to throw exceptions upon
+ *    serious errors. Debug output can be switched on and off for each
+ *    source module by DPRINTF_OFF which must be defined before including
+ *    this header file.  Other debug options can be controlled centrally
+ *    in mytypes.h.  For general releases all debug options should be
+ *    switched off.
  *
  *  Author: Tom Zoerner
  *
- *  $Id: debug.h,v 1.9 2001/05/06 17:30:35 tom Exp tom $
+ *  $Id: debug.h,v 1.11 2002/01/04 16:57:50 tom Exp tom $
  */
 
 #ifndef __DEBUG_H
@@ -32,39 +39,77 @@
 #endif
 
 #if DEBUG_SWITCH == ON
+
 // assert() declares preconditions, e.g. for function arguments
 // if the conditions are not met by the actual parameters, execution is halted
-#define assert(X) {if(!(X)) {sprintf(debugStr,"assertion (" #X ") failed in %s, line %d\n",__FILE__,__LINE__);DebugLogLine(TRUE);}}
+#define assert(X) do{if(!(X)){sprintf(debugStr,"assertion (" #X ") failed in %s, line %d\n",__FILE__,__LINE__);DebugLogLine(TRUE);}}while(0)
+
 // same as above, but with a constant negative result
-#define SHOULD_NOT_BE_REACHED {sprintf(debugStr,"branch should not have been reached in %s, line %d\n",__FILE__,__LINE__);DebugLogLine(TRUE);}
+// this macro is obsolete: fatal0() should be used instead, which allows to print an explanation
+#define SHOULD_NOT_BE_REACHED do{sprintf(debugStr,"branch should not have been reached in %s, line %d\n",__FILE__,__LINE__);DebugLogLine(TRUE);}while(0)
+
 #else
 #define assert(X)
 #define SHOULD_NOT_BE_REACHED
 #endif
 
+// Note:
+// the "do{...}while(0)" wrapper has the advantage that the macro consistantly
+// behaves like a function call, e.g. in an if/else construct and regarding ";"
+// following the macro call.
+
 // report error conditions to stdout and the log file
+// mainly intended for else branches after error checks,
+// e.g. if (pointer != NULL) { /* do some work */ } else debug0("oops: NULL pointer!")
+// note: this macro automatically appends filename, line number and newline after the message
 #if DEBUG_SWITCH == ON
-#define debug0(S)               {sprintf(debugStr,S " in %s, line %d\n",__FILE__,__LINE__);DebugLogLine(FALSE);}
-#define debug1(S,A)             {sprintf(debugStr,S " in %s, line %d\n",(A),__FILE__,__LINE__);DebugLogLine(FALSE);}
-#define debug2(S,A,B)           {sprintf(debugStr,S " in %s, line %d\n",(A),(B),__FILE__,__LINE__);DebugLogLine(FALSE);}
-#define debug3(S,A,B,C)         {sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),__FILE__,__LINE__);DebugLogLine(FALSE);}
-#define debug4(S,A,B,C,D)       {sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),__FILE__,__LINE__);DebugLogLine(FALSE);}
-#define debug5(S,A,B,C,D,E)     {sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),__FILE__,__LINE__);DebugLogLine(FALSE);}
-#define debug6(S,A,B,C,D,E,F)   {sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),(F),__FILE__,__LINE__);DebugLogLine(FALSE);}
-#define debug7(S,A,B,C,D,E,F,G) {sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),(F),(G),__FILE__,__LINE__);DebugLogLine(FALSE);}
-#define debug8(S,A,B,C,D,E,F,G,H) {sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),(F),(G),(H),__FILE__,__LINE__);DebugLogLine(FALSE);}
-#define debug9(S,A,B,C,D,E,F,G,H,I) {sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),(F),(G),(H),(I),__FILE__,__LINE__);DebugLogLine(FALSE);}
-#define debug10(S,A,B,C,D,E,F,G,H,I,J) {sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),(F),(G),(H),(I),(J),__FILE__,__LINE__);DebugLogLine(FALSE);}
-#define debug11(S,A,B,C,D,E,F,G,H,I,J,K) {sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),(F),(G),(H),(I),(J),(K),__FILE__,__LINE__);DebugLogLine(FALSE);}
-#define ifdebug0(I,S)           if(I){sprintf(debugStr,S " in %s, line %d\n",__FILE__,__LINE__);DebugLogLine(FALSE);}
-#define ifdebug1(I,S,A)         if(I){sprintf(debugStr,S " in %s, line %d\n",(A),__FILE__,__LINE__);DebugLogLine(FALSE);}
-#define ifdebug2(I,S,A,B)       if(I){sprintf(debugStr,S " in %s, line %d\n",(A),(B),__FILE__,__LINE__);DebugLogLine(FALSE);}
-#define ifdebug3(I,S,A,B,C)     if(I){sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),__FILE__,__LINE__);DebugLogLine(FALSE);}
-#define ifdebug4(I,S,A,B,C,D)   if(I){sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),__FILE__,__LINE__);DebugLogLine(FALSE);}
-#define ifdebug5(I,S,A,B,C,D,E) if(I){sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),__FILE__,__LINE__);DebugLogLine(FALSE);}
-#define ifdebug6(I,S,A,B,C,D,E,F)   if(I){sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),(F),__FILE__,__LINE__);DebugLogLine(FALSE);}
-#define ifdebug7(I,S,A,B,C,D,E,F,G) if(I){sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),(F),(G),__FILE__,__LINE__);DebugLogLine(FALSE);}
+#define debug0(S)               do{sprintf(debugStr,S " in %s, line %d\n",__FILE__,__LINE__);DebugLogLine(FALSE);}while(0)
+#define debug1(S,A)             do{sprintf(debugStr,S " in %s, line %d\n",(A),__FILE__,__LINE__);DebugLogLine(FALSE);}while(0)
+#define debug2(S,A,B)           do{sprintf(debugStr,S " in %s, line %d\n",(A),(B),__FILE__,__LINE__);DebugLogLine(FALSE);}while(0)
+#define debug3(S,A,B,C)         do{sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),__FILE__,__LINE__);DebugLogLine(FALSE);}while(0)
+#define debug4(S,A,B,C,D)       do{sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),__FILE__,__LINE__);DebugLogLine(FALSE);}while(0)
+#define debug5(S,A,B,C,D,E)     do{sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),__FILE__,__LINE__);DebugLogLine(FALSE);}while(0)
+#define debug6(S,A,B,C,D,E,F)   do{sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),(F),__FILE__,__LINE__);DebugLogLine(FALSE);}while(0)
+#define debug7(S,A,B,C,D,E,F,G) do{sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),(F),(G),__FILE__,__LINE__);DebugLogLine(FALSE);}while(0)
+#define debug8(S,A,B,C,D,E,F,G,H) do{sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),(F),(G),(H),__FILE__,__LINE__);DebugLogLine(FALSE);}while(0)
+#define debug9(S,A,B,C,D,E,F,G,H,I) do{sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),(F),(G),(H),(I),__FILE__,__LINE__);DebugLogLine(FALSE);}while(0)
+#define debug10(S,A,B,C,D,E,F,G,H,I,J) do{sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),(F),(G),(H),(I),(J),__FILE__,__LINE__);DebugLogLine(FALSE);}while(0)
+#define debug11(S,A,B,C,D,E,F,G,H,I,J,K) do{sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),(F),(G),(H),(I),(J),(K),__FILE__,__LINE__);DebugLogLine(FALSE);}while(0)
+
+// same as above, but with an internal precondition,
+// e.g. ifdebug0(result==FALSE, "function failed")
+#define ifdebug0(COND,S)           do{if(COND){sprintf(debugStr,S " in %s, line %d\n",__FILE__,__LINE__);DebugLogLine(FALSE);}}while(0)
+#define ifdebug1(COND,S,A)         do{if(COND){sprintf(debugStr,S " in %s, line %d\n",(A),__FILE__,__LINE__);DebugLogLine(FALSE);}}while(0)
+#define ifdebug2(COND,S,A,B)       do{if(COND){sprintf(debugStr,S " in %s, line %d\n",(A),(B),__FILE__,__LINE__);DebugLogLine(FALSE);}}while(0)
+#define ifdebug3(COND,S,A,B,C)     do{if(COND){sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),__FILE__,__LINE__);DebugLogLine(FALSE);}}while(0)
+#define ifdebug4(COND,S,A,B,C,D)   do{if(COND){sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),__FILE__,__LINE__);DebugLogLine(FALSE);}}while(0)
+#define ifdebug5(COND,S,A,B,C,D,E) do{if(COND){sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),__FILE__,__LINE__);DebugLogLine(FALSE);}}while(0)
+#define ifdebug6(COND,S,A,B,C,D,E,F)   do{if(COND){sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),(F),__FILE__,__LINE__);DebugLogLine(FALSE);}}while(0)
+#define ifdebug7(COND,S,A,B,C,D,E,F,G) do{if(COND){sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),(F),(G),__FILE__,__LINE__);DebugLogLine(FALSE);}}while(0)
+#define ifdebug8(COND,S,A,B,C,D,E,F,G,H) do{if(COND){sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),(F),(G),(H),__FILE__,__LINE__);DebugLogLine(FALSE);}}while(0)
+#define ifdebug9(COND,S,A,B,C,D,E,F,G,H,I) do{if(COND){sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),(F),(G),(H),(I),__FILE__,__LINE__);DebugLogLine(FALSE);}}while(0)
+
+// same as the debugX macros, but execution is halted and a core dumped after printing the message
+// should be used for severe errors
+// e.g. for default branches in switch(enum):
+//    switch (my_enum_value) {
+//       case ENUM_0: /* ... */ break;
+//       default:     fatal1("illegal value for enum %d", my_enum_value); break;
+//    }
+#define fatal0(S)               do{sprintf(debugStr,S " in %s, line %d\n",__FILE__,__LINE__);DebugLogLine(TRUE);}while(0)
+#define fatal1(S,A)             do{sprintf(debugStr,S " in %s, line %d\n",(A),__FILE__,__LINE__);DebugLogLine(TRUE);}while(0)
+#define fatal2(S,A,B)           do{sprintf(debugStr,S " in %s, line %d\n",(A),(B),__FILE__,__LINE__);DebugLogLine(TRUE);}while(0)
+#define fatal3(S,A,B,C)         do{sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),__FILE__,__LINE__);DebugLogLine(TRUE);}while(0)
+#define fatal4(S,A,B,C,D)       do{sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),__FILE__,__LINE__);DebugLogLine(TRUE);}while(0)
+#define fatal5(S,A,B,C,D,E)     do{sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),__FILE__,__LINE__);DebugLogLine(TRUE);}while(0)
+#define fatal6(S,A,B,C,D,E,F)   do{sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),(F),__FILE__,__LINE__);DebugLogLine(TRUE);}while(0)
+#define fatal7(S,A,B,C,D,E,F,G)  do{sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),(F),(G),__FILE__,__LINE__);DebugLogLine(TRUE);}while(0)
+#define fatal8(S,A,B,C,D,E,F,G,H)  do{sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),(F),(G),(H),__FILE__,__LINE__);DebugLogLine(TRUE);}while(0)
+#define fatal9(S,A,B,C,D,E,F,G,H,I)  do{sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),(F),(G),(H),(I),__FILE__,__LINE__);DebugLogLine(TRUE);}while(0)
+
+// wrapper for debug statements
 #define DBGONLY(X)              X
+
 #else  // DEBUG_SWITCH == OFF
 #define debug0(S)
 #define debug1(S,A)
@@ -74,30 +119,47 @@
 #define debug5(S,A,B,C,D,E)
 #define debug6(S,A,B,C,D,E,F)
 #define debug7(S,A,B,C,D,E,F,G)
+#define debug8(S,A,B,C,D,E,F,G,H)
+#define debug9(S,A,B,C,D,E,F,G,H,I)
+#define debug10(S,A,B,C,D,E,F,G,H,I,J)
 #define debug11(S,A,B,C,D,E,F,G,H,I,J,K)
-#define ifdebug0(I,S)
-#define ifdebug1(I,S,A)
-#define ifdebug2(I,S,A,B)
-#define ifdebug3(I,S,A,B,C)
-#define ifdebug4(I,S,A,B,C,D)
-#define ifdebug5(I,S,A,B,C,D,E)
-#define ifdebug6(I,S,A,B,C,D,E,F)
-#define ifdebug7(I,S,A,B,C,D,E,F,G)
+#define ifdebug0(COND,S)
+#define ifdebug1(COND,S,A)
+#define ifdebug2(COND,S,A,B)
+#define ifdebug3(COND,S,A,B,C)
+#define ifdebug4(COND,S,A,B,C,D)
+#define ifdebug5(COND,S,A,B,C,D,E)
+#define ifdebug6(COND,S,A,B,C,D,E,F)
+#define ifdebug7(COND,S,A,B,C,D,E,F,G)
+#define ifdebug8(COND,S,A,B,C,D,E,F,G,H)
+#define ifdebug9(COND,S,A,B,C,D,E,F,G,H,I)
+#define fatal0(S)
+#define fatal1(S,A)
+#define fatal2(S,A,B)
+#define fatal3(S,A,B,C)
+#define fatal4(S,A,B,C,D)
+#define fatal5(S,A,B,C,D,E)
+#define fatal6(S,A,B,C,D,E,F)
+#define fatal7(S,A,B,C,D,E,F,G)
+#define fatal8(S,A,B,C,D,E,F,G,H)
+#define fatal9(S,A,B,C,D,E,F,G,H,I)
 #define DBGONLY(X)
 #endif
 
 
 // report status messages
+// this is a simple printf() but with the advantage that it can be easily disabled
 #if !defined(DPRINTF_OFF) && (DEBUG_SWITCH == ON)
-#define dprintf0(S) {printf(S);}
-#define dprintf1(S,A) {printf(S,A);}
-#define dprintf2(S,A,B) {printf(S,A,B);}
-#define dprintf3(S,A,B,C) {printf(S,A,B,C);}
-#define dprintf4(S,A,B,C,D) {printf(S,A,B,C,D);}
-#define dprintf5(S,A,B,C,D,E) {printf(S,A,B,C,D,E);}
-#define dprintf6(S,A,B,C,D,E,F) {printf(S,A,B,C,D,E,F);}
-#define dprintf7(S,A,B,C,D,E,F,G) {printf(S,A,B,C,D,E,F,G);}
-#define dprintf8(S,A,B,C,D,E,F,G,H) {printf(S,A,B,C,D,E,F,G,H);}
+#define dprintf0(S) printf(S)
+#define dprintf1(S,A) printf(S,A)
+#define dprintf2(S,A,B) printf(S,A,B)
+#define dprintf3(S,A,B,C) printf(S,A,B,C)
+#define dprintf4(S,A,B,C,D) printf(S,A,B,C,D)
+#define dprintf5(S,A,B,C,D,E) printf(S,A,B,C,D,E)
+#define dprintf6(S,A,B,C,D,E,F) printf(S,A,B,C,D,E,F)
+#define dprintf7(S,A,B,C,D,E,F,G) printf(S,A,B,C,D,E,F,G)
+#define dprintf8(S,A,B,C,D,E,F,G,H) printf(S,A,B,C,D,E,F,G,H)
+#define dprintf9(S,A,B,C,D,E,F,G,H,I) printf(S,A,B,C,D,E,F,G,H,I)
 #else  //DPRINTF_OFF
 #define dprintf0(S)
 #define dprintf1(S,A)
@@ -108,6 +170,7 @@
 #define dprintf6(S,A,B,C,D,E,F)
 #define dprintf7(S,A,B,C,D,E,F,G)
 #define dprintf8(S,A,B,C,D,E,F,G,H)
+#define dprintf9(S,A,B,C,D,E,F,G,H,I)
 #endif //DPRINTF_OFF
 
 

@@ -14,21 +14,25 @@
  *
  *  Description:
  *
- *    This module is the center of the acquisition process. It
- *    contains the interface between the slave and control processes,
- *    i.e. there are two execution threads running here. The slave
- *    puts all teletext packets of a given page into a ring buffer.
- *    Additionally it decodes MIP and channel identification codes.
- *    This data is passed via shared memory to the master. The master
- *    takes the packets from the ring buffer and hands them to the
- *    streams module for assembly to Nextview blocks. The interface
- *    to the higher level acquisition control consists of functions
+ *    This module contains the interface between the slave and control
+ *    processes (or threads), i.e. there are two execution threads running
+ *    in here:
+ *
+ *    The acquisition slave process/thread puts all teletext packets of a
+ *    given page (e.g. default page 1DF) into a ring buffer. Additionally
+ *    Magazine Inventory Pages (MIP) and channel identification codes (VPS,
+ *    PDC, Packet 8/30/1) are decoded. This data is passed via shared memory
+ *    to the master.
+ *
+ *    The master process/thread extracts the packets from the ring buffer and
+ *    hands them to the streams module for assembly to Nextview blocks. The
+ *    interface to the higher level acquisition control consists of functions
  *    to start and stop acquisition, get statistics values and detect
  *    channel changes.
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbacq.c,v 1.31 2001/09/02 16:12:39 tom Exp tom $
+ *  $Id: epgdbacq.c,v 1.35 2002/01/13 18:46:36 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -39,10 +43,12 @@
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
+#include "epgvbi/cni_tables.h"
 #include "epgvbi/hamming.h"
 #include "epgvbi/btdrv.h"
 #include "epgdb/epgblock.h"
 #include "epgdb/epgdbmgmt.h"
+#include "epgdb/epgqueue.h"
 #include "epgdb/epgdbacq.h"
 #include "epgdb/epgstream.h"
 
@@ -55,15 +61,17 @@
 #define HEADER_CHECK_LEN_STR    "12"   // for debug output
 #define HEADER_CHECK_MAX_ERRORS   2
 
-static uint        epgAppId;
-static uint        epgPageNo;
-static bool        isEpgPage;
-static bool        bEpgDbAcqEnabled;
-static bool        bScratchAcqMode;
-static bool        bHeaderCheckInit;
-static bool        bNewChannel;
-static uchar       lastPageHeader[HEADER_CHECK_LEN];
-static const EPGDB_ACQ_CB * pEpgDbAcqCb;
+typedef struct
+{
+   uint          epgPageNo;
+   bool          isEpgPage;
+   bool          bEpgDbAcqEnabled;
+   bool          bHeaderCheckInit;
+   bool          bNewChannel;
+   uchar         lastPageHeader[HEADER_CHECK_LEN];
+} EPGDBACQ_STATE;
+
+static EPGDBACQ_STATE dbAcqState;
 
 
 // ----------------------------------------------------------------------------
@@ -71,8 +79,7 @@ static const EPGDB_ACQ_CB * pEpgDbAcqCb;
 //
 void EpgDbAcqInit( void )
 {
-   bEpgDbAcqEnabled = FALSE;
-   pEpgDbAcqCb = NULL;
+   dbAcqState.bEpgDbAcqEnabled = FALSE;
 
    pVbiBuf->writer_idx = 0;
    pVbiBuf->reader_idx = 0;
@@ -82,21 +89,22 @@ void EpgDbAcqInit( void )
 // ----------------------------------------------------------------------------
 // Start the acquisition
 //
-void EpgDbAcqStart( EPGDB_CONTEXT *dbc, uint pageNo, uint appId )
+void EpgDbAcqStart( EPGDB_CONTEXT *dbc, EPGDB_QUEUE * pQueue, uint pageNo, uint appId )
 {
+   uint epgAppId;
    bool bWaitForBiAi;
 
-   if (bEpgDbAcqEnabled == FALSE)
+   if (dbAcqState.bEpgDbAcqEnabled == FALSE)
    {
-      isEpgPage = FALSE;
-      bHeaderCheckInit = FALSE;
+      dbAcqState.isEpgPage = FALSE;
+      dbAcqState.bHeaderCheckInit = FALSE;
 
       if (pageNo != EPG_ILLEGAL_PAGENO)
-         epgPageNo = dbc->pageNo = pageNo;
+         dbAcqState.epgPageNo = dbc->pageNo = pageNo;
       else if ((dbc->pageNo != EPG_ILLEGAL_PAGENO) && VALID_EPG_PAGENO(dbc->pageNo))
-         epgPageNo = dbc->pageNo;
+         dbAcqState.epgPageNo = dbc->pageNo;
       else
-         epgPageNo = dbc->pageNo = EPG_DEFAULT_PAGENO;
+         dbAcqState.epgPageNo = dbc->pageNo = EPG_DEFAULT_PAGENO;
 
       if (appId != EPG_ILLEGAL_APPID)
          epgAppId = appId;
@@ -109,10 +117,10 @@ void EpgDbAcqStart( EPGDB_CONTEXT *dbc, uint pageNo, uint appId )
       // (must not modify the writer index, which belongs to another process/thread)
       pVbiBuf->reader_idx = pVbiBuf->writer_idx;
       pVbiBuf->frameSeqNo = 0;  // XXX not MT-safe
-      bNewChannel = TRUE;
+      dbAcqState.bNewChannel = TRUE;
       // pass the configuration variables to the ttx process via IPC
       // and reset the ttx decoder state
-      pVbiBuf->epgPageNo = epgPageNo;
+      pVbiBuf->epgPageNo = dbAcqState.epgPageNo;
       pVbiBuf->mipPageNo = 0;
       pVbiBuf->dataPageCount = 0;
       pVbiBuf->isEpgPage = FALSE;
@@ -129,21 +137,21 @@ void EpgDbAcqStart( EPGDB_CONTEXT *dbc, uint pageNo, uint appId )
       pVbiBuf->epgPagCount = 0;
 
       if (dbc->pAiBlock != NULL)
-      {  // known provider -> enabled scratch mode until AI CNI is verified
-         bWaitForBiAi = FALSE;
+      {  // provider already known
          // set up a list of alphabets for string decoding
          EpgBlockSetAlphabets(&dbc->pAiBlock->blk.ai);
+         // since alphabets are known PI can be collected right from the start
+         bWaitForBiAi = FALSE;
       }
       else
-      {  // unknown provider -> wait for AI
+      {  // unknown provider -> wait for AI before allowing PI
          bWaitForBiAi = TRUE;
       }
 
       // initialize the state of the streams decoder
-      EpgStreamInit(bWaitForBiAi, epgAppId);
+      EpgStreamInit(pQueue, bWaitForBiAi, epgAppId);
 
-      bScratchAcqMode = TRUE;
-      bEpgDbAcqEnabled = TRUE;
+      dbAcqState.bEpgDbAcqEnabled = TRUE;
    }
    else
       debug0("EpgDbAcq-Start: already running");
@@ -155,15 +163,14 @@ void EpgDbAcqStart( EPGDB_CONTEXT *dbc, uint pageNo, uint appId )
 //
 void EpgDbAcqStop( void )
 {
-   if (bEpgDbAcqEnabled)
+   if (dbAcqState.bEpgDbAcqEnabled)
    {
       // inform writer process/thread
       pVbiBuf->isEnabled = FALSE;
 
-      // remove unused blocks from scratch buffer in stream decoder
-      EpgStreamClearScratchBuffer();
+      EpgStreamClear();
 
-      bEpgDbAcqEnabled = FALSE;
+      dbAcqState.bEpgDbAcqEnabled = FALSE;
    }
    else
       debug0("EpgDbAcq-Stop: already stopped");
@@ -173,17 +180,17 @@ void EpgDbAcqStop( void )
 // Stop and Re-Start the acquisition
 // - called after change of channel or internal parameters
 //
-void EpgDbAcqReset( EPGDB_CONTEXT *dbc, uint pageNo, uint appId )
+void EpgDbAcqReset( EPGDB_CONTEXT *dbc, EPGDB_QUEUE * pQueue, uint pageNo, uint appId )
 {
-   if (bEpgDbAcqEnabled)
+   if (dbAcqState.bEpgDbAcqEnabled)
    {
       // discard remaining blocks in the scratch buffer
-      EpgStreamClearScratchBuffer();
+      EpgStreamClear();
 
       // set acq state to OFF internally only to satisfy start-acq function
-      bEpgDbAcqEnabled = FALSE;
+      dbAcqState.bEpgDbAcqEnabled = FALSE;
 
-      EpgDbAcqStart(dbc, pageNo, appId);
+      EpgDbAcqStart(dbc, pQueue, pageNo, appId);
    }
    else
       debug0("EpgDbAcq-Reset: acq not enabled");
@@ -194,7 +201,7 @@ void EpgDbAcqReset( EPGDB_CONTEXT *dbc, uint pageNo, uint appId )
 //
 void EpgDbAcqInitScan( void )
 {
-   if (bEpgDbAcqEnabled)
+   if (dbAcqState.bEpgDbAcqEnabled)
    {
       EpgStreamSyntaxScanInit();
 
@@ -216,109 +223,11 @@ void EpgDbAcqInitScan( void )
 }
 
 // ---------------------------------------------------------------------------
-// Set callback functions
-//
-void EpgDbAcqSetCallbacks( const EPGDB_ACQ_CB * pCb )
-{
-   pEpgDbAcqCb = pCb;
-}
-
-// ---------------------------------------------------------------------------
-// Table to convert NI codes to VPS
-// - directly lifted from ETSI technical report: TR 101 231 V1.4/Aug.2000
-// - these networks have both a VPS identification code and a (different)
-//   NI (packet 8/30/1) code. Unfortunately in Nextview only the bare values
-//   are transmitted without information about which table they are from.
-// - to avoid dealing with multiple CNIs per network in the upper layers
-//   all codes are converted to VPS when possible. This conforms to the
-//   current practice of Nextview providers.
-//
-typedef struct
-{
-   uint  cni;
-   uint  cni_equiv;
-} CNI_TABLE_ENTRY;
-
-static const CNI_TABLE_ENTRY niVpsTable[] =
-{
-   {0x4101, 0x04c1},  // DRS (Switzerland)
-   {0x4102, 0x04c2},  // TSR
-   {0x4103, 0x04c3},  // TSI
-   {0x4107, 0x04c7},  // SRG
-   {0x4108, 0x04c8},  // SSR
-   {0x4109, 0x04c9},  // SSI
-   {0x4901, 0x0dc1},  // ARD
-   {0x4902, 0x0dc2},  // ZDF
-   {0x490a, 0x0d85},  // Arte Germany
-   {0x490c, 0x0d8e},  // VOX
-   {0x4918, 0x0dc8},  // Phoenix
-   {0x5c49, 0x0d7d},  // QVC Germany
-};
-#define CNI_TABLE_COUNT (sizeof(niVpsTable) / sizeof(CNI_TABLE_ENTRY))
-
-// ---------------------------------------------------------------------------
-// Convert Packet 8/30/1 CNI to VPS value
-// - performs a binary search over the sorted NI table
-// - note: indices require signed int b/c idx 0 is allowed
-//
-static uint ConvertP8301Ni( uint ni )
-{
-   sint minIdx, maxIdx, binIdx;
-
-   minIdx = 0;
-   maxIdx = CNI_TABLE_COUNT - 1;
-
-   do
-   {
-      binIdx = (uint)(minIdx + maxIdx) / 2;
-      if (niVpsTable[binIdx].cni > ni)
-      {
-         maxIdx = binIdx - 1;
-      }
-      else if (niVpsTable[binIdx].cni < ni)
-      {
-         minIdx = binIdx + 1;
-      }
-      else
-      {
-         return niVpsTable[binIdx].cni_equiv;
-      }
-   } while (maxIdx >= minIdx);
-
-   // not found -> use raw value
-   return ni;
-}
-
-// ---------------------------------------------------------------------------
-// Convert Packet 8/30/2 CNI to VPS
-// - PDC is equivalent to VPS, except that is uses 16 bit and VPS only 12
-//   (note: later versions of the VPS standard allow 16 bit too, but currently
-//   no networks use this possibility, so the upper 4 bits are always 0)
-// - currently all Nextview providers use 12 bit VPS codes for networks which
-//   transmit VPS, so it's the easiest solution to convert to 12bit VPS.
-//
-static uint ConvertPdcCni( uint cni )
-{
-   switch (cni >> 8)
-   {
-      case 0x1d:  // country code for Germany
-      case 0x24:  // country code for Switzerland
-         // discard the upper 4 bits of the country code
-         cni &= 0x0fff;
-         break;
-
-      default:
-         break;
-   }
-   return cni;
-}
-
-// ---------------------------------------------------------------------------
 // Reset VPS, PDC and Packet 8/30/1 acquisition
 //
 void EpgDbAcqResetVpsPdc( void )
 {
-   if (bEpgDbAcqEnabled)
+   if (dbAcqState.bEpgDbAcqEnabled)
    {
       // reset result variables
       // XXX not MT-safe!
@@ -339,31 +248,33 @@ void EpgDbAcqResetVpsPdc( void )
 void EpgDbAcqGetScanResults( uint *pCni, bool *pNiWait, uint *pDataPageCnt )
 {
    CNI_TYPE type;
+   uint     cni     = 0;
+   bool     niWait  = FALSE;
 
-   if ((pCni != NULL) && (pNiWait != NULL))
+   cni = 0;
+   niWait = FALSE;
+
+   // search for any available source
+   for (type=0; type < CNI_TYPE_COUNT; type++)
    {
-      *pCni = 0;
-      *pNiWait = FALSE;
-
-      // search for any available source
-      for (type=0; type < CNI_TYPE_COUNT; type++)
-      {
-         if (pVbiBuf->cnis[type].haveCni)
-         {  // have a verified CNI -> return it
-            *pCni = pVbiBuf->cnis[type].outCni;
-            break;
-         }
-         else if (pVbiBuf->cnis[type].cniRepCount > 0)
-         {  // received at least one VPS or P8/30 packet -> wait for repetition
-            *pNiWait = TRUE;
-         }
+      if (pVbiBuf->cnis[type].haveCni)
+      {  // have a verified CNI -> return it
+         cni = pVbiBuf->cnis[type].outCni;
+         break;
+      }
+      else if (pVbiBuf->cnis[type].cniRepCount > 0)
+      {  // received at least one VPS or P8/30 packet -> wait for repetition
+         niWait = TRUE;
       }
    }
 
+   if (pCni != NULL)
+      *pCni = cni;
+   if (pNiWait != NULL)
+      *pNiWait = niWait;
+
    if (pDataPageCnt != NULL)
-   {
       *pDataPageCnt = pVbiBuf->dataPageCount;
-   }
 }
 
 // ---------------------------------------------------------------------------
@@ -408,7 +319,7 @@ bool EpgDbAcqGetCniAndPil( uint * pCni, uint *pPil )
 
       // Reset all result values (but not the entire state machine,
       // i.e. repetition counters stay at 2 so that any newly received
-      // CNI will immediately make a an result available again)
+      // CNI will immediately make an result available again)
       for (type=0; type < CNI_TYPE_COUNT; type++)
       {
          pVbiBuf->cnis[type].haveCni = FALSE;
@@ -484,6 +395,7 @@ static void EpgDbAcqAddCni( CNI_TYPE type, uint cni, uint pil )
 // Decode an incoming MIP packet
 // - note that this runs inside of the ttx sub-thread
 // - if an EPG id is found, it is passed to the acq control via shared memory
+// - only table cells which refer to pages allowed for Nextview are decoded
 //
 static void EpgDbAcqMipPacket( uchar magNo, uchar pkgNo, const uchar *data )
 {
@@ -636,7 +548,7 @@ static void EpgDbAcqGetP830Cni( const char * data )
                       EpgDbAcqReverseBitOrder(data[8]);
          if ((cni != 0) && (cni != 0xffff))
          {
-            cni = ConvertP8301Ni(cni);
+            cni = CniConvertP8301ToVps(cni);
             EpgDbAcqAddCni(CNI_TYPE_NI, cni, INVALID_VPS_PIL);
          }
       }
@@ -654,7 +566,7 @@ static void EpgDbAcqGetP830Cni( const char * data )
                hour   = (data[3] >> 3) | data[4];
                minute = data[5] | (data[6] & 3);
 
-               cni = ConvertPdcCni(cni);
+               cni = CniConvertPdcToVps(cni);
                pil = EpgDbAcqAssemblePil(mday, month, hour, minute);
                EpgDbAcqAddCni(CNI_TYPE_PDC, cni, pil);
             }
@@ -688,13 +600,13 @@ static bool EpgDbAcqDoPageHeaderCheck( const uchar * curPageHeader )
    schar dec;
    bool  result = TRUE;
 
-   if (bHeaderCheckInit)
+   if (dbAcqState.bHeaderCheckInit)
    {
       err = 0;
       for (i=0; i < HEADER_CHECK_LEN; i++)
       {
          dec = (schar)parityTab[curPageHeader[i]];
-         if ( (dec >= 0) && (dec != lastPageHeader[i]) )
+         if ( (dec >= 0) && (dec != dbAcqState.lastPageHeader[i]) )
          {  // Abweichung gefunden
             err += 1;
          }
@@ -702,7 +614,7 @@ static bool EpgDbAcqDoPageHeaderCheck( const uchar * curPageHeader )
 
       if (err > HEADER_CHECK_MAX_ERRORS)
       {
-         debug2("EpgDbAcq-DoPageHeaderCheck: %d diffs from header \"%" HEADER_CHECK_LEN_STR "s\" - stop acq", err, lastPageHeader);
+         debug2("EpgDbAcq-DoPageHeaderCheck: %d diffs from header \"%" HEADER_CHECK_LEN_STR "s\" - stop acq", err, dbAcqState.lastPageHeader);
          result = FALSE;
       }
    }
@@ -713,7 +625,7 @@ static bool EpgDbAcqDoPageHeaderCheck( const uchar * curPageHeader )
          dec = (schar)parityTab[ curPageHeader[i] ];
          if (dec >= 0)
          {
-            lastPageHeader[i] = dec;
+            dbAcqState.lastPageHeader[i] = dec;
          }
          else
             break;
@@ -722,8 +634,8 @@ static bool EpgDbAcqDoPageHeaderCheck( const uchar * curPageHeader )
       // erst OK wenn fehlerfrei abgespeichert
       if (i >= HEADER_CHECK_LEN)
       {
-         dprintf1("EpgDbAcq-DoPageHeaderCheck: found header \"%" HEADER_CHECK_LEN_STR "s\"\n", lastPageHeader);
-         bHeaderCheckInit = TRUE;
+         dprintf1("EpgDbAcq-DoPageHeaderCheck: found header \"%" HEADER_CHECK_LEN_STR "s\"\n", dbAcqState.lastPageHeader);
+         dbAcqState.bHeaderCheckInit = TRUE;
       }
    }
 
@@ -741,22 +653,22 @@ static bool EpgDbAcqDoPageHeaderCheck( const uchar * curPageHeader )
 //
 
 // ---------------------------------------------------------------------------
-// Retrieve and process all available packets from VBI buffer
-// - passing pointer to database context pointer, b/c the context pointer
-//   may change inside the AI callback (e.g. change of provider)
+// Retrieve all available packets from VBI buffer and convert them to EPG blocks
 // - at this point the EPG database process/thread takes the data from the
 //   teletext acquisition process
+// - returns FALSE when an uncontrolled channel change was detected; the caller
+//   then should reset the acquisition
 //
-void EpgDbAcqProcessPackets( EPGDB_CONTEXT * const * pdbc )
+bool EpgDbAcqProcessPackets( void )
 {
-   EPGDB_BLOCK *pBlock;
    VBI_LINE *vbl;
+   bool channelChange = TRUE;
 
-   if (bEpgDbAcqEnabled && (bNewChannel == FALSE))
+   if (dbAcqState.bEpgDbAcqEnabled && (dbAcqState.bNewChannel == FALSE))
    {
       assert((pVbiBuf->reader_idx <= EPGACQ_BUF_COUNT) && (pVbiBuf->writer_idx <= EPGACQ_BUF_COUNT));
 
-      while ((pVbiBuf->reader_idx != pVbiBuf->writer_idx) && bEpgDbAcqEnabled)
+      while (pVbiBuf->reader_idx != pVbiBuf->writer_idx)
       {
          vbl = &pVbiBuf->line[pVbiBuf->reader_idx];
          //dprintf4("Process idx=%d: pkg=%d pg=%03X.%04X\n", pVbiBuf->reader_idx, vbl->pkgno, vbl->pageno, vbl->sub);
@@ -764,102 +676,50 @@ void EpgDbAcqProcessPackets( EPGDB_CONTEXT * const * pdbc )
          {
             // have to check page number again for the case of a page number change, in which
             // the separate teletext thread would finish its current page with the wrong number
-            if (vbl->pageno == epgPageNo)
+            if (vbl->pageno == dbAcqState.epgPageNo)
             {
                if ( EpgDbAcqDoPageHeaderCheck(vbl->data + 13 - 5) == FALSE )
                {
-                  bHeaderCheckInit = FALSE;
-                  pEpgDbAcqCb->pChannelChange(TRUE);
-                  // must exit loop b/c reader_idx might be changed by AcqReset!
+                  dbAcqState.bHeaderCheckInit = FALSE;
+                  // abort processing remaining data
+                  channelChange = FALSE;
                   break;
                }
                else
-                  isEpgPage = EpgStreamNewPage(vbl->sub);
+                  dbAcqState.isEpgPage = EpgStreamNewPage(vbl->sub);
             }
             else
-               isEpgPage = FALSE;
+               dbAcqState.isEpgPage = FALSE;
          }
-         else if (isEpgPage)
+         else if (dbAcqState.isEpgPage)
          {
             EpgStreamDecodePacket(vbl->pkgno, vbl->data);
          }
          pVbiBuf->reader_idx = (pVbiBuf->reader_idx + 1) % EPGACQ_BUF_COUNT;
       }
-
-      if ( bEpgDbAcqEnabled && bScratchAcqMode )
-      {
-         pBlock = EpgStreamGetBlockByType(BLOCK_TYPE_BI);
-         if (pBlock != NULL)
-         {
-            dprintf1("EpgDbAcq-ProcessPackets: Offer BI block to acq ctl (0x%lx)\n", (long)pBlock);
-            pEpgDbAcqCb->pBiCallback(&pBlock->blk.bi);
-            xfree(pBlock);
-         }
-
-         pBlock = EpgStreamGetBlockByType(BLOCK_TYPE_AI);
-         if (pBlock != NULL)
-         {
-            dprintf2("EpgDbAcq-ProcessPackets: Offer AI block 0x%04X to acq ctl (0x%lx)\n", AI_GET_CNI(&pBlock->blk.ai), (long)pBlock);
-            if (pEpgDbAcqCb->pAiCallback(&pBlock->blk.ai))
-            {  // AI has been accepted -> start full acquisition
-               if (EpgDbAddBlock(*pdbc, pBlock) == FALSE)
-                  xfree(pBlock);
-               bScratchAcqMode = FALSE;
-               EpgStreamEnableAllTypes();
-            }
-            else
-               xfree(pBlock);
-         }
-      }
-
-      if ( bEpgDbAcqEnabled && !bScratchAcqMode )
-      {
-         // note: the acq might get switched off by the callbacks inside the loop,
-         // but we don't need to check this since then the buffer is cleared
-         while ((pBlock = EpgStreamGetNextBlock()) != NULL)
-         {
-            if (pBlock->type == BLOCK_TYPE_BI)
-            {  // the Bi block never is added to the db, only evaluated by acq ctl
-               pEpgDbAcqCb->pBiCallback(&pBlock->blk.bi);
-               xfree(pBlock);
-            }
-            else if (pBlock->type == BLOCK_TYPE_AI)
-            {
-               if ( (pEpgDbAcqCb->pAiCallback(&pBlock->blk.ai) == FALSE) || 
-                    (EpgDbAddBlock(*pdbc, pBlock) == FALSE) )
-               {  // block was not accepted
-                  xfree(pBlock);
-               }
-            }
-            else
-            {
-               if ( EpgDbAddBlock(*pdbc, pBlock) == FALSE )
-               {  // block was not accepted
-                  xfree(pBlock);
-               }
-            }
-         }
-      }
    }
+   return channelChange;
 }
 
 // ---------------------------------------------------------------------------
 // Check if there are packets in the buffer
 //
-bool EpgDbAcqCheckForPackets( void )
+bool EpgDbAcqCheckForPackets( bool * pStopped )
 {
+   bool stopped = FALSE;
    bool result = FALSE;
 
-   if (bEpgDbAcqEnabled)
+   if (dbAcqState.bEpgDbAcqEnabled)
    {
-      if (bNewChannel == FALSE)
+      if (dbAcqState.bNewChannel == FALSE)
       {
          result = (pVbiBuf->reader_idx != pVbiBuf->writer_idx);
 
          if ((result == FALSE) && (pVbiBuf->isEnabled == FALSE))
          {  // vbi slave has stopped acquisition -> inform master control
             debug0("EpgDbAcq-CheckForPackets: slave process has disabled acq");
-            pEpgDbAcqCb->pStopped();
+            stopped = TRUE;
+            result = FALSE;
          }
       }
       else
@@ -868,15 +728,19 @@ bool EpgDbAcqCheckForPackets( void )
          {  // the slave has started for the new channel
             // discard old data in the buffer
             pVbiBuf->reader_idx = pVbiBuf->start_writer_idx;
-            bNewChannel = FALSE;
+            dbAcqState.bNewChannel = FALSE;
          }
          if (pVbiBuf->isEnabled == FALSE)
          {  // must inform master the acq has stopped, or acq will lock up in waiting for channel change completion
             debug0("EpgDbAcq-CheckForPackets: slave process has disabled acq while waiting for new channel");
-            pEpgDbAcqCb->pStopped();
+            stopped = TRUE;
+            result = FALSE;
          }
       }
    }
+
+   if (pStopped != NULL)
+      *pStopped = stopped;
 
    return result;
 }
@@ -927,11 +791,11 @@ static void EpgDbAcqBufferAdd( uint pageNo, uint sub, uchar pkgno, const uchar *
 //
 void EpgDbAcqNotifyChannelChange( void )
 {
-   if (bEpgDbAcqEnabled)
+   if (dbAcqState.bEpgDbAcqEnabled)
    {
       pVbiBuf->frameSeqNo = 0;  // XXX not MT-safe
-      bNewChannel = TRUE;
-      bHeaderCheckInit = FALSE;
+      dbAcqState.bNewChannel = TRUE;
+      dbAcqState.bHeaderCheckInit = FALSE;
 
       pVbiBuf->isEpgPage = FALSE;
       pVbiBuf->isMipPage = 0;

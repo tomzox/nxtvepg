@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pifilter.c,v 1.51 2001/08/31 16:59:39 tom Exp tom $
+ *  $Id: pifilter.c,v 1.52 2001/12/08 17:50:55 tom Exp tom $
  */
 
 #define __PIFILTER_C
@@ -1045,7 +1045,7 @@ static int CreateNi( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] 
    const char * const pUsage = "Usage: C_CreateNi <menu-path>";
    const NI_BLOCK *pNiBlock;
    const EVENT_ATTRIB *pEv;
-   uchar *evName;
+   const char *evName;
    char *p, subname[100];
    int blockno, i;
    int result;

@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgmain.c,v 1.67 2001/09/12 19:14:03 tom Exp tom $
+ *  $Id: epgmain.c,v 1.79 2002/01/31 20:35:07 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -30,6 +30,7 @@
 #ifndef WIN32
 #include <unistd.h>
 #include <sys/param.h>
+#include <sys/time.h>
 #include <pwd.h>
 #include <signal.h>
 #else
@@ -59,15 +60,17 @@
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
 #include "epgdb/epgdbmgmt.h"
-#include "epgdb/epgdbmerge.h"
-#include "epgdb/epgdbacq.h"
 #include "epgdb/epgdbsav.h"
+#include "epgdb/epgnetio.h"
 #include "epgctl/epgacqctl.h"
 #include "epgctl/epgscan.h"
+#include "epgctl/epgacqsrv.h"
+#include "epgctl/epgacqclnt.h"
 #include "epgui/uictrl.h"
 #include "epgctl/epgctxctl.h"
 #include "epgui/uictrl.h"
 #include "epgui/statswin.h"
+#include "epgui/timescale.h"
 #include "epgui/menucmd.h"
 #include "epgui/pilistbox.h"
 #include "epgui/pioutput.h"
@@ -105,19 +108,24 @@ char comm[1000];             // Command buffer
 
 // command line options
 #ifdef WIN32
-static const char *rcfile = "nxtvepg.ini";
-static const char *dbdir  = ".";
+static const char * const defaultRcFile = "nxtvepg.ini";
+static const char * const defaultDbDir  = ".";
 #else
-static const char *rcfile = "~/.nxtvepgrc";
-static const char *dbdir  = EPG_DB_DIR;
+static const char * defaultRcFile = "~/.nxtvepgrc";
+static const char * defaultDbDir  = EPG_DB_DIR;
 #endif
+static const char * rcfile = NULL;
+static const char * dbdir  = NULL;
 static int  videoCardIndex = -1;
 static bool disableAcq = FALSE;
 static bool optDaemonMode = FALSE;
+static bool optNoDetach   = FALSE;
 static bool optAcqPassive = FALSE;
 static bool startIconified = FALSE;
 static uint startUiCni = 0;
 static const char *pDemoDatabase = NULL;
+static const char *pOptArgv0 = NULL;
+static int  optGuiPipe = -1;
 
 // Global variable: if TRUE, will exit on the next iteration of the main loop
 Tcl_AsyncHandler exitHandler = NULL;
@@ -228,6 +236,42 @@ void AddMainIdleEvent( Tcl_IdleProc *IdleProc, ClientData clientData, bool uniqu
 }
 
 // ---------------------------------------------------------------------------
+// Remove a main idle event from the queue
+// - the event is identified by the function pointer; if parameter matchData
+//   is TRUE the given clientData must also be equal to the event's argument.
+//
+bool RemoveMainIdleEvent( Tcl_IdleProc * IdleProc, ClientData clientData, bool matchData )
+{
+   MAIN_IDLE_EVENT  * pWalk;
+   MAIN_IDLE_EVENT  * pLast;
+   bool  found;
+
+   pWalk = pMainIdleEventQueue;
+   pLast = NULL;
+   found = FALSE;
+
+   while (pWalk != NULL)
+   {
+      if (pWalk->IdleProc == IdleProc)
+      {
+         if ((matchData == FALSE) || (pWalk->clientData == clientData))
+         {
+            if (pLast != NULL)
+               pMainIdleEventQueue = pWalk->pNext;
+            else
+               pLast->pNext = pWalk->pNext;
+            xfree(pWalk);
+            found = TRUE;
+            break;
+         }
+      }
+      pLast = pWalk;
+      pWalk = pWalk->pNext;
+   }
+   return found;
+}
+
+// ---------------------------------------------------------------------------
 // Schedeule the first main idle event from the FIFO queue
 //
 static void ProcessMainIdleEvent( void )
@@ -242,6 +286,14 @@ static void ProcessMainIdleEvent( void )
       pEvent->IdleProc(pEvent->clientData);
       xfree(pEvent);
    }
+}
+
+// ---------------------------------------------------------------------------
+// Query if the program was started in demo mode
+//
+bool IsDemoMode( void )
+{
+   return (pDemoDatabase != NULL);
 }
 
 // ---------------------------------------------------------------------------
@@ -269,12 +321,18 @@ static void DiscardAllMainIdleEvents( void )
 #endif
 
 // ---------------------------------------------------------------------------
+// Process acquisition EPG block queue
+//
+static void MainEventHandler_ProcessBlocks( ClientData clientData )
+{
+   EpgAcqCtl_ProcessBlocks();
+}
+
+// ---------------------------------------------------------------------------
 // Regular event, called every second
 //
-static void ClockSecEvent( ClientData clientData )
+static void MainEventHandler_ProcessScanPackets( ClientData clientData )
 {
-   // process teletext packets in the ring buffer
-   EpgAcqCtl_ProcessPackets();
    EpgScan_ProcessPackets();
 }
 
@@ -285,9 +343,6 @@ static void ClockMinEvent( ClientData clientData )
 {
    // remove expired PI from the listing
    PiFilter_Expire();
-
-   // update expiration statistics
-   AddMainIdleEvent(StatsWin_UpdateDbStatsWin, (ClientData) DB_TARGET_UI, FALSE);
 
    // check upon acquisition progress
    EpgAcqCtl_Idle();
@@ -301,8 +356,8 @@ static void EventHandler_TimerDbSetDateTime( ClientData clientData )
    // not executed until all current events are processed
    AddMainIdleEvent(ClockMinEvent, NULL, TRUE);
 
-   // update status line, e.g. to update db age or acq state
-   AddMainIdleEvent(StatsWin_UpdateDbStatusLine, NULL, TRUE);
+   // update expiration statistics in status line and db stats popup
+   StatsWin_StatsUpdate(DB_TARGET_UI);
 
    expirationHandler = Tcl_CreateTimerHandler(1000 * (60 - time(NULL) % 60), EventHandler_TimerDbSetDateTime, NULL);
 }
@@ -321,8 +376,16 @@ static void EventHandler_UpdateClock( ClientData clientData )
       strftime(comm, sizeof(comm) - 1, ".all.shortcuts.clock configure -text {%a %H:%M:%S}\n", localtime(&now));
       eval_check(interp, comm);
 
-      // next time when idle, set flag to process second related events in main loop
-      AddMainIdleEvent(ClockSecEvent, NULL, TRUE);
+      if (EpgScan_IsActive() == FALSE)
+      {
+         // process VBI packets in the ring buffer
+         if (EpgAcqCtl_ProcessPackets())
+         {  // next time when idle, insert new blocks into the database
+            AddMainIdleEvent(MainEventHandler_ProcessBlocks, NULL, TRUE);
+         }
+      }
+      else
+         AddMainIdleEvent(MainEventHandler_ProcessScanPackets, NULL, TRUE);
 
       clockHandler = Tcl_CreateTimerHandler(1000, EventHandler_UpdateClock, NULL);
    }
@@ -336,26 +399,334 @@ static void EventHandler_UpdateClock( ClientData clientData )
 #ifndef WIN32
 static void EventHandler_TimerVPSPolling( ClientData clientData )
 {
-   AddMainIdleEvent(Xawtv_PollVpsPil, NULL, TRUE);
+   EpgAcqCtl_ProcessVps();
 
    vpsPollingHandler = Tcl_CreateTimerHandler(200, EventHandler_TimerVPSPolling, NULL);
 }
 #endif
 
 // ---------------------------------------------------------------------------
-// Invoked from main loop after SIGHUP to start acquisition
+// Invoked from main loop after SIGHUP
+// - toggles acquisition on/off
+// - the mode (i.e. local vs. daemon) is the last one used manually
 //
 #ifndef WIN32
-static void EventHandler_StartAcq( ClientData clientData )
+static void EventHandler_SigHup( ClientData clientData )
 {
-   eval_check(interp, "C_ToggleAcq 1\n");
+   if (pAcqDbContext == NULL)
+   {  // acq currently not running -> start
+      AutoStartAcq(interp);
+   }
+   else
+   {  // acq currently running -> stop it or disconnect from server
+      EpgAcqCtl_Stop();
+   }
 }
 #endif
 
 // ---------------------------------------------------------------------------
+// Handle client connection to EPG acquisition daemon
+// - when the client is in network acquisition mode, it installs this handler
+//   which is called whenever there is incoming data (or ready for writing under
+//   certain circumstances)
+// - note: in contrary to direct acquisition from the TV card we do not fork a
+//   separate process, because there are no real-time constraints in this case.
+// - incoming EPG blocks are put in a queue and picked up every second just like
+//   in the other acquisition modes.
+// - important: the handler must be deleted when the connection is closed, else
+//   the Tcl/Tk event handling will hang up.
+//
+#ifdef USE_DAEMON
+static int  networkFileHandle = -1;
+static void EventHandler_Network( ClientData clientData, int mask );
+
+// create, update or delete the handler with params returned from the epgacqclnt module
+// may also be invoked as callback from the epgacqclnt module, e.g. when acq is stopped
+static void EventHandler_NetworkUpdate( EPGACQ_EVHAND * pAcqEv )
+{
+   int mask;
+
+   // remove the old handler if neccessary
+   if ((pAcqEv->fd != networkFileHandle) && (networkFileHandle != -1))
+   {
+      Tcl_DeleteFileHandler(networkFileHandle);
+      networkFileHandle = -1;
+   }
+
+   // create the event handler or update event mask
+   if (pAcqEv->fd != -1)
+   {
+      // EPG blocks or other messages pending -> schedule handler
+      if (pAcqEv->processQueue)
+         AddMainIdleEvent(MainEventHandler_ProcessBlocks, NULL, TRUE);
+
+      mask = 0;
+      if (pAcqEv->blockOnRead)
+         mask |= TCL_READABLE;
+      if (pAcqEv->blockOnWrite)
+         mask |= TCL_WRITABLE;
+
+      Tcl_CreateFileHandler(pAcqEv->fd, mask, EventHandler_Network, (ClientData) pAcqEv->fd);
+      networkFileHandle = pAcqEv->fd;
+   }
+}
+
+// the actual callback
+static void EventHandler_Network( ClientData clientData, int mask )
+{
+   EPGACQ_EVHAND acqEv;
+   
+   // invoke the handler
+   acqEv.blockOnRead    = (mask & TCL_READABLE) != 0;
+   acqEv.blockOnWrite   = (mask & TCL_WRITABLE) != 0;
+   acqEv.processQueue   = FALSE;
+   EpgAcqClient_HandleSocket(&acqEv);
+
+   EventHandler_NetworkUpdate(&acqEv);
+}
+
+// ---------------------------------------------------------------------------
+// Daemon main loop
+//
+static void DaemonMainLoop( void )
+{
+   struct timeval tvIdle;
+   struct timeval tvAcq;
+   struct timeval tvXawtv;
+   struct timeval tv;
+   fd_set  rd, wr;
+   uint    max;
+
+   gettimeofday(&tvAcq, NULL);
+   tvIdle = tvAcq;
+   tvXawtv = tvAcq;
+
+   while ((should_exit == FALSE) && (pAcqDbContext != NULL))
+   {
+      gettimeofday(&tv, NULL);
+      if (timercmp(&tv, &tvAcq, >))
+      {  // read VBI device and add blocks to db
+         if (EpgAcqCtl_ProcessPackets())
+            EpgAcqCtl_ProcessBlocks();
+         tvAcq = tv;
+         tvAcq.tv_sec += 1;
+      }
+      if (timercmp(&tv, &tvIdle, >))
+      {  // handle acquisition timeouts
+         EpgAcqCtl_Idle();
+         tvIdle = tv;
+         tvIdle.tv_sec += 20;
+      }
+      if (timercmp(&tv, &tvXawtv, >))
+      {  // handle VPS/PDC forwarding
+         EpgAcqCtl_ProcessVps();
+         tvXawtv = tv;
+         tvXawtv.tv_usec += 200000L;
+         if (tvXawtv.tv_usec > 1000000L)
+         {
+            tvXawtv.tv_sec  += 1L;
+            tvXawtv.tv_usec -= 1000000L;
+         }
+      }
+
+      FD_ZERO(&rd);
+      FD_ZERO(&wr);
+      max = EpgAcqServer_GetFdSet(&rd, &wr);
+
+      // wait for any event, but max. 250 ms
+      tv.tv_sec  = 0;
+      tv.tv_usec = 250000L;
+
+      if (select(((max > 0) ? (max + 1) : 0), &rd, &wr, NULL, &tv) != -1)
+      {  // forward new blocks to network clients, handle incoming messages
+         EpgAcqServer_HandleSockets(&rd, &wr);
+      }
+      else
+      {
+         if (errno != EINTR)
+         {  // select syscall failed
+            debug2("Daemon-MainLoop: select with max. fd %d: %s", max, strerror(errno));
+            sleep(1);
+         }
+      }
+   }
+}
+
+// ---------------------------------------------------------------------------
+// Background-wait for the daemon to be ready to accept client connection
+//
+static void EventHandler_DaemonStart( ClientData clientData, int mask )
+{
+   int fd = (int) clientData;
+   int execErrno;
+   ssize_t res;
+   char    buf[10];
+
+   if (mask & TCL_READABLE)
+   {
+      res = read(fd, buf, sizeof(buf));
+      if (res > 0)
+      {  // daemon did send reply
+         Tcl_DeleteFileHandler(fd);
+         close(fd);
+
+         if (strcmp(buf, "OK") == 0)
+         {  // daemon successfuly started -> connect via socket
+            if (EpgAcqCtl_Start() == FALSE)
+            {
+               UiControlMsg_NetAcqError();
+            }
+         }
+         else
+         {
+            if (sscanf(buf, "ERR=%d", &execErrno) != 1)
+               execErrno = 0;
+            if (execErrno == ENOENT)
+            {  // most probably exec error: file not found
+               sprintf(comm, "tk_messageBox -type ok -icon error "
+                             "-message {nxtvepg executable not found. Make sure the program file is in your $PATH.}");
+            }
+            else
+            {  // any other errors: print system error message
+               sprintf(comm, "tk_messageBox -type ok -icon error "
+                             "-message {Failed to execute the daemon process: %s.}",
+                             (execErrno ? strerror(execErrno) : "communication error"));
+            }
+            eval_check(interp, comm);
+         }
+      }
+      else if (res <= 0)
+      {  // daemon died
+         Tcl_DeleteFileHandler(fd);
+         close(fd);
+         // inform the user
+         eval_check(interp, "tk_messageBox -type ok -icon error "
+                            "-message {The daemon failed to start. Check the daemon log file for the cause.}");
+         Tcl_ResetResult(interp);
+      }
+      // else: keep waiting
+   }
+}
+
+// ---------------------------------------------------------------------------
+// Start the daemon process from the GUI
+//
+bool EpgMain_StartDaemon( void )
+{
+   char  * daemonArgv[10];
+   int     daemonArgc;
+   char    fd_buf[10];
+   int     pipe_fd[2];
+   pid_t   pid;
+   bool    result = FALSE;
+
+   if (pipe(pipe_fd) == 0)
+   {
+      sprintf(fd_buf, "%d", pipe_fd[1]);
+
+      daemonArgc = 0;
+      daemonArgv[daemonArgc++] = "nxtvepg";
+      daemonArgv[daemonArgc++] = "-daemon";
+      if (strcmp(defaultRcFile, rcfile) != 0)
+      {
+         daemonArgv[daemonArgc++] = "-rcfile";
+         daemonArgv[daemonArgc++] = (char *) rcfile;
+      }
+      if (strcmp(defaultDbDir, dbdir) != 0)
+      {
+         daemonArgv[daemonArgc++] = "-dbdir";
+         daemonArgv[daemonArgc++] = (char *) dbdir;
+      }
+      daemonArgv[daemonArgc++] = "-guipipe";
+      daemonArgv[daemonArgc++] = fd_buf;
+      daemonArgv[daemonArgc++] = NULL;
+
+      pid = fork();
+      switch (pid)
+      {
+         case 0:   // child
+            close(pipe_fd[0]);
+
+            if (pOptArgv0 != NULL)
+               execv(pOptArgv0, daemonArgv);
+            execvp("nxtvepg", daemonArgv);
+
+            fprintf(stderr, "Failed to execute the daemon: %s\n", strerror(errno));
+            // pass error to GUI
+            sprintf(fd_buf, "ERR=%d\n", errno);
+            write(pipe_fd[1], fd_buf, strlen(fd_buf) + 1);
+            close(pipe_fd[1]);
+            exit(1);
+            // never reached
+            break;
+
+         case -1:  // error during fork
+            fprintf(stderr, "Failed to fork for daemon: %s\n", strerror(errno));
+            break;
+
+         default:  // parent
+            close(pipe_fd[1]);
+            // wait for the daemon to start up (it will write to the pipe when it's done)
+            Tcl_CreateFileHandler(pipe_fd[0], TCL_READABLE, EventHandler_DaemonStart, (ClientData) pipe_fd[0]);
+            result = TRUE;
+            break;
+      }
+   }
+   else
+      fprintf(stderr, "Failed to create pipe to communicate with daemon: %s\n", strerror(errno));
+
+   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Terminate the daemon by sending a signal
+// - the pid is obtained from the pid file (usually /tmp/.vbi_pid#)
+// - the function doesn't return until the process is gone
+//
+bool EpgMain_StopDaemon( void )
+{
+   bool result = FALSE;
+   #ifndef WIN32
+   struct timeval tv;
+   uint idx;
+   int  pid;
+
+   pid = BtDriver_GetDeviceOwnerPid();
+   if (pid != -1)
+   {
+      if (kill(pid, SIGTERM) == 0)
+      {
+         // wait until the daemon process is gone
+         for (idx=0; idx < 5; idx++)
+         {
+            // terminate loop if the process is gone
+            if (kill(pid, 0) != 0)
+            {
+               result = TRUE;
+               break;
+            }
+
+            tv.tv_sec  = 0;
+            tv.tv_usec = 50 * 1000L;
+            select(0, NULL, NULL, NULL, &tv);
+         }
+         ifdebug1(result==FALSE, "EpgMain-StopDaemon: VBI user pid %d still alive after signal TERM", pid);
+      }
+      else
+         debug1("EpgMain-StopDaemon: could not signal VBI user pid %d", pid);
+   }
+   else
+      debug0("EpgMain-StopDaemon: could not determine pid of VBI user");
+
+   #endif
+   return result;
+}
+#endif  // USE_DAEMON
+
+// ---------------------------------------------------------------------------
 // called by interrupt handlers when the application should exit
 //
-static int AsyncHandler_AppTerminate( ClientData clientData, Tcl_Interp *interp, int code)
+static int AsyncHandler_AppTerminate( ClientData clientData, Tcl_Interp *interp, int code )
 {
    // do nothing - the only purpose was to wake up the event handler,
    // so that we can leave the main loop after this NOP was processed
@@ -368,23 +739,33 @@ static int AsyncHandler_AppTerminate( ClientData clientData, Tcl_Interp *interp,
 #ifndef WIN32
 static void signal_handler( int sigval )
 {
-   if (sigval == SIGHUP)
-   {  // schedule restart of acquisition
-      AddMainIdleEvent(EventHandler_StartAcq, NULL, TRUE);
+   char str_buf[10];
+
+   if ((sigval == SIGHUP) && (optDaemonMode == FALSE))
+   {  // toggle acquisition on/off (unless in daemon mode)
+      AddMainIdleEvent(EventHandler_SigHup, NULL, TRUE);
    }
    else
    {
-      if (sigval != SIGINT)
+      if (optDaemonMode)
       {
-         fprintf(stderr, "nxtvepg caught deadly signal %d\n", sigval);
+         sprintf(str_buf, "%d", sigval);
+         EpgNetIo_Logger(LOG_NOTICE, -1, "terminated by signal ", str_buf, NULL);
+      }
+      else
+      {
+         if (sigval != SIGINT)
+            fprintf(stderr, "nxtvepg caught deadly signal %d\n", sigval);
+
+         if (exitHandler != NULL)
+         {  // trigger an event, so that the Tcl/Tk event handler immediately wakes up
+            Tcl_AsyncMark(exitHandler);
+         }
       }
       // flush debug output
       DBGONLY(fflush(stdout); fflush(stderr));
 
-      if (exitHandler != NULL)
-      {  // trigger an event, so that the Tcl/Tk event handler immediately wakes up
-         Tcl_AsyncMark(exitHandler);
-      }
+      // this flag breaks the main loop
       should_exit = TRUE;
    }
 
@@ -608,7 +989,7 @@ static void Usage( const char *argv0, const char *argvn, const char * reason )
 #else
    sprintf(comm, "%s: %s: %s\n"
 #endif
-                   "Usage:\n"
+                   "Usage: %s [options] [database]\n"
                    "       -help       \t\t: this message\n"
                    #ifndef WIN32
                    "       -display <display>  \t: X11 display\n"
@@ -620,12 +1001,13 @@ static void Usage( const char *argv0, const char *argvn, const char * reason )
                    "       -card <digit>       \t: index of TV card for acq (starting at 0)\n"
                    "       -provider <cni>     \t: network id of EPG provider (hex)\n"
                    "       -noacq              \t: disable acquisition\n"
-                   #ifndef WIN32
+                   #ifdef USE_DAEMON
                    "       -daemon             \t: no GUI; acquisition only\n"
+                   "       -nodetach           \t: daemon stays in the foreground\n"
                    "       -acqpassive         \t: force daemon to passive acquisition mode\n"
                    #endif
                    "       -demo <db-file>     \t: load database in demo mode\n",
-                   argv0, reason, argvn);
+                   argv0, reason, argvn, argv0);
 #if 0
    /*balance brackets for syntax highlighting*/  )
 #endif
@@ -644,6 +1026,9 @@ static void ParseArgv( int argc, char * argv[] )
    struct stat st;
    int argIdx = 1;
 
+   rcfile = defaultRcFile;
+   dbdir  = defaultDbDir;
+
    while (argIdx < argc)
    {
       if (argv[argIdx][0] == '-')
@@ -659,10 +1044,15 @@ static void ParseArgv( int argc, char * argv[] )
             disableAcq = TRUE;
             argIdx += 1;
          }
-         #ifndef WIN32
+         #ifdef USE_DAEMON
          else if (!strcmp(argv[argIdx], "-daemon"))
          {  // suppress GUI
             optDaemonMode = TRUE;
+            argIdx += 1;
+         }
+         else if (!strcmp(argv[argIdx], "-nodetach"))
+         {  // daemon stays in the foreground
+            optNoDetach = TRUE;
             argIdx += 1;
          }
          else if (!strcmp(argv[argIdx], "-acqpassive"))
@@ -670,14 +1060,19 @@ static void ParseArgv( int argc, char * argv[] )
             optAcqPassive = TRUE;
             argIdx += 1;
          }
+         #else
+         else if ( !strcmp(argv[argIdx], "-daemon") ||
+                   !strcmp(argv[argIdx], "-nodetach") ||
+                   !strcmp(argv[argIdx], "-acqpassive") )
+         {
+            Usage(argv[0], argv[argIdx], "unsupported option");
+         }
          #endif
          else if (!strcmp(argv[argIdx], "-rcfile"))
          {
             if (argIdx + 1 < argc)
-            {  // read file name of rc/ini file: warn if file does not exist
+            {  // read file name of rc/ini file
                rcfile = argv[argIdx + 1];
-               if (stat(rcfile, &st))
-                  perror("Warning -rcfile");
                argIdx += 2;
             }
             else
@@ -751,6 +1146,17 @@ static void ParseArgv( int argc, char * argv[] )
             if (argIdx + 1 >= argc)
                Usage(argv[0], argv[argIdx], "missing argument after");
             argIdx += 2;
+         }
+         else if ( !strcmp(argv[argIdx], "-guipipe") )
+         {  // undocumented option (internal use only): pass fd of pipe to GUI for daemon start
+            if (argIdx + 1 < argc)
+            {  // read decimal fd (silently ignore errors)
+               char *pe;
+               optGuiPipe = strtol(argv[argIdx + 1], &pe, 16);
+               if (pe != (argv[argIdx + 1] + strlen(argv[argIdx + 1])))
+                  optGuiPipe = -1;
+               argIdx += 2;
+            }
          }
          else
             Usage(argv[0], argv[argIdx], "unknown option");
@@ -910,6 +1316,9 @@ int main( int argc, char *argv[] )
    signal(SIGINT, signal_handler);
    signal(SIGTERM, signal_handler);
    signal(SIGHUP, signal_handler);
+   // ignore signal CHLD because we don't care about our children (e.g. auto-started daemon)
+   // this is overridden by the BT driver in non-threaded mode (to catch death of the acq slave)
+   signal(SIGCHLD, SIG_IGN);
    #else
    // set up callback to catch shutdown messages (requires tk83.dll patch!)
    Tk_RegisterMainDestructionHandler(WinApiDestructionHandler);
@@ -922,18 +1331,24 @@ int main( int argc, char *argv[] )
    SetArgv(&argc, &argv);
    #endif
    ParseArgv(argc, argv);
+   pOptArgv0 = argv[0];
 
-   #ifndef WIN32
+   #ifdef USE_DAEMON
    if (optDaemonMode)
    {  // deamon mode -> detach from tty
-      if (fork() > 0)
-         exit(0);
-      close(0);
-      #ifndef DEBUG_SWITCH
-      close(1);
-      close(2);
-      #endif
-      setsid();
+      if (optNoDetach == FALSE)
+      {
+         if (fork() > 0)
+            exit(0);
+         close(0);
+         #if DEBUG_SWITCH == OFF
+         close(1);
+         close(2);
+         #endif
+         setsid();
+      }
+      EpgAcqServer_Init(optNoDetach);
+      EpgAcqCtl_InitDaemon();
    }
    #endif
 
@@ -942,6 +1357,8 @@ int main( int argc, char *argv[] )
    {  // failed to create dir: message was already issued, so just exit
       exit(-1);
    }
+   // scan the database directory
+   EpgContextCtl_InitCache();
 
    // UNIX must fork the VBI slave before GUI startup or the slave will inherit all X11 file handles
    BtDriver_Init();
@@ -952,7 +1369,7 @@ int main( int argc, char *argv[] )
    exitHandler = Tcl_AsyncCreate(AsyncHandler_AppTerminate, NULL);
 
    // load the user configuration from the rc/ini file
-   sprintf(comm, "LoadRcFile {%s}\n", rcfile);
+   sprintf(comm, "LoadRcFile {%s} %d", rcfile, (strcmp(defaultRcFile, rcfile) == 0));
    eval_check(interp, comm);
 
    // pass TV card hardware parameters to the driver
@@ -961,11 +1378,10 @@ int main( int argc, char *argv[] )
    if (optDaemonMode == FALSE)
    {
       UiControl_Init();
-      SetAcquisitionMode();
 
       if (pDemoDatabase != NULL)
       {  // demo mode -> open the db given by -demo cmd line arg
-         pUiDbContext = EpgContextCtl_Open(0x00f1, CTX_RELOAD_ERR_DEMO);  //dummy CNI
+         pUiDbContext = EpgContextCtl_OpenDemo();
          if (EpgDbContextGetCni(pUiDbContext) == 0)
          {
             pDemoDatabase = NULL;
@@ -980,9 +1396,15 @@ int main( int argc, char *argv[] )
       {  // open the database given by -prov or the last one used
          OpenInitialDb(startUiCni);
       }
+      #ifdef USE_DAEMON
+      EpgAcqClient_Init(&EventHandler_NetworkUpdate);
+      SetNetAcqParams(interp, FALSE);
+      #endif
+      SetAcquisitionMode();
 
       // initialize the GUI control modules
-      StatsWin_Create(pDemoDatabase != NULL);
+      StatsWin_Create();
+      TimeScale_Create();
       PiFilter_Create();
       PiOutput_Create();
       PiListBox_Create();
@@ -993,6 +1415,8 @@ int main( int argc, char *argv[] )
 
       // draw the clock and update it every second afterwords
       EventHandler_UpdateClock(NULL);
+      // init main window title, PI listbox state and status line
+      UiControl_AiStateChange(DB_TARGET_UI);
 
       // wait until window is open and everthing displayed
       while ( (Tk_GetNumMainWindows() > 0) &&
@@ -1006,9 +1430,8 @@ int main( int argc, char *argv[] )
 
       if (disableAcq == FALSE)
       {
-         EpgAcqCtl_Start();
+         AutoStartAcq(interp);
       }
-      UiControl_AiStateChange(NULL);
 
       if (Tk_GetNumMainWindows() > 0)
       {
@@ -1057,20 +1480,35 @@ int main( int argc, char *argv[] )
       else
          debug0("could not open the main window - exiting.");
    }
+   #ifdef USE_DAEMON
    else
-   {
-      // Daemon mode: acq only
-      if ( SetDaemonAcquisitionMode(startUiCni, optAcqPassive) &&
-           EpgAcqCtl_Start() )
+   {  // Daemon mode: no GUI - just do acq and handle requests from GUI via sockets
+
+      // pass configurable parameters to the network server (e.g. enable logging)
+      SetNetAcqParams(interp, TRUE);
+
+      if (SetDaemonAcquisitionMode(startUiCni, optAcqPassive))
       {
-         while ((should_exit == FALSE) && (pAcqDbContext != NULL))
+         if (EpgAcqCtl_Start())
          {
-            EpgAcqCtl_ProcessPackets();
-            EpgAcqCtl_Idle();
-            sleep(1);
+            // start listening for client connections (at least on the named socket in /tmp)
+            if (EpgAcqServer_Listen())
+            {
+               if (optGuiPipe != -1)
+               {
+                  write(optGuiPipe, "OK", 3);
+                  close(optGuiPipe);
+               }
+
+               DaemonMainLoop();
+            }
          }
+         else
+            EpgNetIo_Logger(LOG_ERR, -1, "failed to start acquisition", NULL);
       }
+      EpgAcqServer_Destroy();
    }
+   #endif
 
    #if defined(WIN32) && !defined(__MINGW32__)
    }
@@ -1097,10 +1535,14 @@ int main( int argc, char *argv[] )
       #ifndef WIN32
       Xawtv_Destroy();
       #endif
+      #ifdef USE_DAEMON
+      EpgAcqClient_Destroy();
+      #endif
    }
 
    #if CHK_MALLOC == ON
    DiscardAllMainIdleEvents();
+   EpgContextCtl_ClearCache();
    #ifdef WIN32
    xfree(argv);
    #endif

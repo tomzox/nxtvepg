@@ -23,7 +23,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbfil.c,v 1.28 2001/08/31 16:47:31 tom Exp tom $
+ *  $Id: epgdbfil.c,v 1.31 2002/01/06 19:03:04 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -78,7 +78,7 @@ FILTER_CONTEXT * EpgDbFilterCopyContext( const FILTER_CONTEXT * fc )
    }
    else
    {
-      debug0("EpgDbFilter-CopyContext: illegal NULL ptr param");
+      fatal0("EpgDbFilter-CopyContext: illegal NULL ptr param");
       newfc = NULL;
    }
 
@@ -95,7 +95,7 @@ void EpgDbFilterDestroyContext( FILTER_CONTEXT * fc )
       xfree(fc);
    }
    else
-      debug0("EpgDbFilter-DestroyContext: illegal NULL ptr param");
+      fatal0("EpgDbFilter-DestroyContext: illegal NULL ptr param");
 }
 
 // ---------------------------------------------------------------------------
@@ -162,7 +162,7 @@ void EpgDbFilterSetSeries( FILTER_CONTEXT *fc, uchar netwop, uchar series, bool 
       fc->seriesFilterMatrix[netwop][series - 0x80] = enable;
    }
    else
-      debug2("EpgDbFilter-SetSeries: illegal parameters: net=%d, series=%d", netwop, series);
+      fatal2("EpgDbFilter-SetSeries: illegal parameters: net=%d, series=%d", netwop, series);
 }
 
 // ---------------------------------------------------------------------------
@@ -254,7 +254,7 @@ void EpgDbFilterSetFeatureFlags( FILTER_CONTEXT *fc, uchar index, uint flags, ui
       fc->featureFilterMaskField[index] = mask;
    }
    else
-      debug1("EpgDbFilter-SetFeatureFlags: illegal index %d", index);
+      fatal1("EpgDbFilter-SetFeatureFlags: illegal index %d", index);
 }
 
 // ---------------------------------------------------------------------------
@@ -267,7 +267,7 @@ void EpgDbFilterSetNoFeatures( FILTER_CONTEXT *fc, uchar noFeatures )
       fc->featureFilterCount = noFeatures;
    }
    else
-      debug1("EpgDbFilter-SetNoFeatures: illegal count %d", noFeatures);
+      fatal1("EpgDbFilter-SetNoFeatures: illegal count %d", noFeatures);
 }
 
 // ---------------------------------------------------------------------------
@@ -336,7 +336,7 @@ void EpgDbFilterSetLangDescr( CPDBC dbc, FILTER_CONTEXT *fc, const uchar *lg )
       }
    }
    else
-      debug0("EpgDbFilter-SetLangDescr: DB not locked");
+      fatal0("EpgDbFilter-SetLangDescr: DB not locked");
 }
 
 // ---------------------------------------------------------------------------
@@ -394,7 +394,7 @@ void EpgDbFilterSetSubtDescr( CPDBC dbc, FILTER_CONTEXT *fc, const uchar *lg )
       }
    }
    else
-      debug0("EpgDbFilter-SetSubtDescr: DB not locked");
+      fatal0("EpgDbFilter-SetSubtDescr: DB not locked");
 }
 
 // ---------------------------------------------------------------------------
@@ -415,7 +415,7 @@ void EpgDbFilterSetNetwop( FILTER_CONTEXT *fc, uchar netwopNo )
       fc->netwopFilterField[netwopNo] = TRUE;
    }
    else
-      debug1("EpgDbFilter-SetNetwop: illegal netwop idx %d", netwopNo);
+      fatal1("EpgDbFilter-SetNetwop: illegal netwop idx %d", netwopNo);
 }
 
 // ---------------------------------------------------------------------------
@@ -444,7 +444,7 @@ void EpgDbFilterSetNetwopPreFilter( FILTER_CONTEXT *fc, uchar netwopNo )
       fc->netwopPreFilterField[netwopNo] = FALSE;
    }
    else
-      debug1("EpgDbFilter-SetNetwopPreFilter: illegal netwop idx %d", netwopNo);
+      fatal1("EpgDbFilter-SetNetwopPreFilter: illegal netwop idx %d", netwopNo);
 }
 
 // ---------------------------------------------------------------------------
@@ -518,7 +518,7 @@ void EpgDbFilterSetSubStr( FILTER_CONTEXT *fc, const uchar *pStr, bool matchCase
       }
    }
    else
-      debug0("EpgDbFilter-SetSubStr: illegal NULL param");
+      fatal0("EpgDbFilter-SetSubStr: illegal NULL param");
 }
 
 // ---------------------------------------------------------------------------
@@ -734,6 +734,10 @@ void EpgDbFilterApplyNi( CPDBC dbc, FILTER_CONTEXT *fc, NI_FILTER_STATE *pNiStat
          EpgDbFilterSetSubtDescr(dbc, fc, lg);
          fc->enabledFilters |= FILTER_SUBTITLES;
          break;
+
+      default:
+         debug1("EpgDbFilterApplyNi: unknown attrib kind %d", kind);
+         break;
    }
 }
 
@@ -856,7 +860,7 @@ bool EpgDbFilterMatches( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT *fc, con
 
       if (fc->enabledFilters & FILTER_PROGIDX)
       {
-         uint progNo = EpgDbGetProgIdx(dbc, pPi->block_no, pPi->netwop_no);
+         uint progNo = EpgDbGetProgIdx(dbc, pPi);
          if ((progNo < fc->firstProgIdx) || (progNo > fc->lastProgIdx))
             goto failed;
       }
@@ -992,7 +996,7 @@ bool EpgDbFilterMatches( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT *fc, con
       return TRUE;
    }
    else
-      debug0("EpgDbFilter-Matches: illegal NULL ptr param");
+      fatal0("EpgDbFilter-Matches: illegal NULL ptr param");
 
 failed:
    return FALSE;

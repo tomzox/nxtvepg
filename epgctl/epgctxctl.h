@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgctxctl.h,v 1.6 2001/05/19 14:31:54 tom Exp tom $
+ *  $Id: epgctxctl.h,v 1.13 2002/01/05 19:36:31 tom Exp tom $
  */
 
 #ifndef __EPGCTXCTL_H
@@ -24,12 +24,36 @@
 
 
 // ---------------------------------------------------------------------------
+// Declaration of modes for handling database open failure
+//
+typedef enum
+{
+   CTX_FAIL_RET_NULL,       // return NULL pointer upon error
+   CTX_FAIL_RET_DUMMY,      // return dummy context (empty db, not for acq)
+   CTX_FAIL_RET_CREATE,     // create new, empty db with given CNI, for acq
+} CTX_FAIL_RET_MODE;
+
+// ---------------------------------------------------------------------------
 // Declaration of service interface functions
 //
-EPGDB_CONTEXT * EpgContextCtl_Open( uint cni, int errHandling );
-EPGDB_CONTEXT * EpgContextCtl_CreateNew( void );
+EPGDB_CONTEXT * EpgContextCtl_Peek( uint cni, int failMsgMode );
+EPGDB_CONTEXT * EpgContextCtl_Open( uint cni, CTX_FAIL_RET_MODE failRetMode, int failMsgMode );
+EPGDB_CONTEXT * EpgContextCtl_OpenAny( int failMsgMode );
+EPGDB_CONTEXT * EpgContextCtl_OpenDummy( void );
+EPGDB_CONTEXT * EpgContextCtl_OpenDemo( void );
 void EpgContextCtl_Close( EPGDB_CONTEXT * pContext );
+void EpgContextCtl_ClosePeek( EPGDB_CONTEXT * pDbContext );
+
+uint EpgContextCtl_GetProvCount( void );
+const uint * EpgContextCtl_GetProvList( uint * pCount );
+uint EpgContextCtl_GetFreqList( uint ** ppProvList, ulong ** ppFreqList );
+time_t EpgContextCtl_GetAiUpdateTime( uint cni );
+
 bool EpgContextCtl_UpdateFreq( uint cni, ulong freq );
+void EpgContextCtl_LockDump( bool enable );
+
+void EpgContextCtl_InitCache( void );
+void EpgContextCtl_ClearCache( void );
 
 
 #endif  // __EPGCTXCTL_H

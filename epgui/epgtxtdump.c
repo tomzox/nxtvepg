@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgtxtdump.c,v 1.17 2001/06/02 18:38:34 tom Exp tom $
+ *  $Id: epgtxtdump.c,v 1.22 2002/01/02 17:07:28 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -125,7 +125,7 @@ static uchar * GetPiPilStr( ulong pil )
 
 static void EpgTxtDumpPi( FILE *fp, const PI_BLOCK * pPi, uchar stream, uchar version, const AI_BLOCK * pAi )
 {
-   uchar start_str[20], stop_str[20];
+   uchar start_str[40], stop_str[20];
    uchar netname[NETNAME_LENGTH+1];
    uchar *pStrSoundFormat;
    struct tm *pStart, *pStop;
@@ -134,13 +134,13 @@ static void EpgTxtDumpPi( FILE *fp, const PI_BLOCK * pPi, uchar stream, uchar ve
    {
       pStart = localtime(&pPi->start_time);
       if (pStart != NULL)
-         strftime(start_str, 19, "%a %H:%M", pStart);
+         strftime(start_str, sizeof(start_str), "%a %d.%m.%Y %H:%M", pStart);
       else
          strcpy(start_str, "??");
 
       pStop  = localtime(&pPi->stop_time);
       if (pStop != NULL)
-         strftime(stop_str, 19, "%H:%M", pStop);
+         strftime(stop_str, sizeof(stop_str), "%H:%M", pStop);
       else
          strcpy(stop_str, "??");
 
@@ -196,6 +196,8 @@ static void EpgTxtDumpPi( FILE *fp, const PI_BLOCK * pPi, uchar stream, uchar ve
          fprintf(fp, "     SHORT %s\n", PI_GET_SHORT_INFO(pPi));
       if (PI_HAS_LONG_INFO(pPi))
          fprintf(fp, "     LONG %s\n", PI_GET_LONG_INFO(pPi));
+      if (pPi->background_reuse)
+         fprintf(fp, "     SHORT/LONG: REUSE block %d\n", pPi->background_ref);
    }
 }
 
@@ -213,19 +215,18 @@ static void EpgTxtDumpAi( FILE *fp, const AI_BLOCK * pAi, uchar stream )
                   AI_GET_SERVICENAME(pAi), pAi->version, pAi->version_swo,
                   pAi->netwopCount, pAi->thisNetwop);
 
-      fprintf(fp, "    #NI=%d #OI=%d #MI=%d  SWO: #NI=%d #OI=%d #MI=%d\n",
+      fprintf(fp, "    stream 1: #NI=%d #OI=%d #MI=%d  stream 2: #NI=%d #OI=%d #MI=%d\n",
                   pAi->niCount, pAi->oiCount, pAi->miCount,
                   pAi->niCountSwo, pAi->oiCountSwo, pAi->miCountSwo);
 
       blockSum1 = blockSum2 = 0;
       for (i=0; i<pAi->netwopCount; i++)
       {
-         AI_NETWOP *pNetwop = &AI_GET_NETWOPS(pAi)[i];
-         fprintf(fp, "    %2d: %04x,%d,%d,%d,%x,%04x-%04x-%04x,%03x  %s\n",
+         const AI_NETWOP *pNetwop = &AI_GET_NETWOPS(pAi)[i];
+         fprintf(fp, "    %2d: CNI=%04x,LTO=%d,days=%d,lang=%x,blocks %04x-%04x-%04x,addi=%03x  %s\n",
                      i, pNetwop->cni,
                      pNetwop->lto,
                      pNetwop->dayCount,
-                     pNetwop->nameLen,
                      pNetwop->alphabet,
                      pNetwop->startNo,
                      pNetwop->stopNo,
@@ -236,7 +237,7 @@ static void EpgTxtDumpAi( FILE *fp, const AI_BLOCK * pAi, uchar stream )
          blockSum1 += EpgDbGetPiBlockCount(pNetwop->startNo, pNetwop->stopNo);
          blockSum2 += EpgDbGetPiBlockCount(pNetwop->startNo, pNetwop->stopNoSwo);
       }
-      fprintf(fp, "    #blocks=%ld / %ld swo\n", blockSum1, blockSum2);
+      fprintf(fp, "    #PI blocks total: %ld (%ld stream 1 only)\n", blockSum2, blockSum1);
    }
 }
 
@@ -334,6 +335,8 @@ static void EpgTxtDumpNi( FILE *fp, const NI_BLOCK * pNi, uchar stream )
                         sprintf(pAts+off, "Theme class #%d=%02x", pEv[i].unit[j].kind - EV_ATTRIB_KIND_THEME, (uint)pEv[i].unit[j].data);
                      else if ((pEv[i].unit[j].kind >= EV_ATTRIB_KIND_SORTCRIT) && (pEv[i].unit[j].kind <= (EV_ATTRIB_KIND_SORTCRIT + 7)))
                         sprintf(pAts+off, "Sortcrit class #%d=%02x", pEv[i].unit[j].kind - EV_ATTRIB_KIND_SORTCRIT, (uint)pEv[i].unit[j].data);
+                     else
+                        debug3("EpgTxtDumpNi: unknown kind %d in attrib %d of event %d", pEv[i].unit[j].kind, j, i);
                      break;
                }
                if (j+1 < pEv[i].no_attribs)

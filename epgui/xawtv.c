@@ -36,7 +36,7 @@
  *
  *     Additional code and adaptions to nxtvepg by Tom Zoerner
  *
- *  $Id: xawtv.c,v 1.16 2001/11/01 20:07:16 tom Exp tom $
+ *  $Id: xawtv.c,v 1.18 2002/01/16 20:28:20 tom Exp tom $
  */
 
 #ifdef WIN32
@@ -115,6 +115,7 @@ static XAWTVCF xawtvcf = {1, 1, 1, POP_EXT, 7};
 // forward declaration
 static void Xawtv_StationSelected( ClientData clientData );
 static bool Xawtv_QueryRemoteStation( Window wid, char * pBuffer, int bufLen );
+static void Xawtv_PopDownNowNext( ClientData clientData );
 
 // ----------------------------------------------------------------------------
 // define struct to hold state of CNI & PIL supervision
@@ -497,6 +498,17 @@ static int Xawtv_EventNotification( ClientData clientData, XEvent *eventPtr )
       XSelectInput(eventPtr->xdestroywindow.display, root_wid, SubstructureNotifyMask);
       // have the acq control update it's device state
       EpgAcqCtl_CheckDeviceAccess();
+      // destroy the nxtvepg-controlled xawtv popup window
+      if (xawtvcf.popType == POP_EXT)
+         AddMainIdleEvent(Xawtv_PopDownNowNext, NULL, TRUE);
+      result = TRUE;
+   }
+   else if ( (eventPtr->type == UnmapNotify) &&
+             (eventPtr->xunmap.window == xawtv_wid) && (xawtv_wid != None) )
+   {
+      dprintf1("UnmapNotify event from window 0x%X\n", (int)eventPtr->xunmap.window);
+      if (xawtvcf.popType == POP_EXT)
+         AddMainIdleEvent(Xawtv_PopDownNowNext, NULL, TRUE);
       result = TRUE;
    }
    return result;
@@ -622,6 +634,9 @@ static void Xawtv_Popup( float rperc, const char *rtime, const char * ptitle )
             sprintf(comm, "Create_XawtvPopup %d %d %d %d %f {%s} {%s}\n",
                           wat.x, wat.y, wat.width, wat.height, rperc, rtime, ptitle);
             eval_check(interp, comm);
+
+            // make sure there's no popdown event scheduled
+            RemoveMainIdleEvent(Xawtv_PopDownNowNext, NULL, FALSE);
          }
 
          // remove the dummy error handler
@@ -1076,33 +1091,37 @@ static void Xawtv_FollowTvNetwork( void )
 
 // ----------------------------------------------------------------------------
 // Poll VPS/PDC for channel changes
-// - called every 250 ms from main event loop
-// - if CNI or PIL changes, the user configured action is launched
+// - invoked (indirectly) by acq ctl when a new CNI or PIL is available
+// - if CNI or PIL changed, the user configured action is launched
 //
 void Xawtv_PollVpsPil( ClientData clientData )
 {
+   const EPGDB_ACQ_VPS_PDC * pVpsPdc;
    EPGACQ_DESCR acqState;
-   uint newCni, newPil;
 
    if ((xawtvcf.follow || xawtvcf.doPop) && (followTvState.stationPoll == 0))
    {
-      if (EpgDbAcqGetCniAndPil(&newCni, &newPil))
+      pVpsPdc = EpgAcqCtl_GetVpsPdc();
+      if (pVpsPdc != NULL)
       {
-         if ( (followTvState.cni != newCni) ||
-              ((newPil != followTvState.pil) && VPS_PIL_IS_VALID(newPil)) )
+         if ( (followTvState.cni != pVpsPdc->cni) ||
+              ((pVpsPdc->pil != followTvState.pil) && VPS_PIL_IS_VALID(pVpsPdc->pil)) )
          {
-            followTvState.pil = newPil;
-            followTvState.cni = newCni;
-            dprintf5("Xawtv_PollVpsPil: %02d.%02d. %02d:%02d (0x%04X)\n", (newPil >> 15) & 0x1F, (newPil >> 11) & 0x0F, (newPil >>  6) & 0x1F, (newPil      ) & 0x3F, newCni );
+            followTvState.pil = pVpsPdc->pil;
+            followTvState.cni = pVpsPdc->cni;
+            dprintf5("Xawtv_PollVpsPil: %02d.%02d. %02d:%02d (0x%04X)\n", (pVpsPdc->pil >> 15) & 0x1F, (pVpsPdc->pil >> 11) & 0x0F, (pVpsPdc->pil >>  6) & 0x1F, (pVpsPdc->pil      ) & 0x3F, pVpsPdc->cni);
 
-            // ignore the PIL change if the acquisition is running in active mode
-            // because it then must be using a different tuner card
             EpgAcqCtl_DescribeAcqState(&acqState);
-            if ( (acqState.state == ACQDESCR_DISABLED) ||
-                 (acqState.mode == ACQMODE_PASSIVE) ||
-                 ((acqState.mode == ACQMODE_FORCED_PASSIVE) && (acqState.passiveReason == ACQPASSIVE_ACCESS_DEVICE)) )
+            // ignore channel changes on a server running on a different host
+            if ((acqState.isNetAcq == FALSE) || acqState.isLocalServer)
             {
-               Xawtv_FollowTvNetwork();
+               // ignore the PIL change if the acquisition is running in active m
+               // because it then must be using a different tuner card
+               if ( (acqState.mode == ACQMODE_PASSIVE) ||
+                    ((acqState.mode == ACQMODE_FORCED_PASSIVE) && (acqState.passiveReason == ACQPASSIVE_ACCESS_DEVICE)) )
+               {
+                  Xawtv_FollowTvNetwork();
+               }
             }
          }
       }
@@ -1124,23 +1143,24 @@ static void Xawtv_FollowTvHandler( ClientData clientData )
 //
 static void Xawtv_StationTimer( ClientData clientData )
 {
-   uint newCni, newPil;
+   const EPGDB_ACQ_VPS_PDC * pVpsPdc;
    bool keepWaiting = FALSE;
 
    pollVpsEvent = NULL;
    assert(followTvState.stationPoll > 0);
 
-   if (EpgDbAcqGetCniAndPil(&newCni, &newPil))
+   pVpsPdc = EpgAcqCtl_GetVpsPdc();
+   if ((pVpsPdc != NULL) && (pVpsPdc->cni != 0))
    {  // VPS data received - check if it's the expected CNI
-      if ((newCni == followTvState.stationCni) || (followTvState.stationPoll >= 360))
+      if ((pVpsPdc->cni == followTvState.stationCni) || (followTvState.stationPoll >= 360))
       {
-         followTvState.cni = newCni;
-         followTvState.pil = newPil;
-         dprintf7("Xawtv-StationPollVpsPil: after %d ms: 0x%04X: PIL: %02d.%02d. %02d:%02d (0x%04X)\n", followTvState.stationPoll, newCni, (newPil >> 15) & 0x1F, (newPil >> 11) & 0x0F, (newPil >>  6) & 0x1F, (newPil      ) & 0x3F, newCni );
+         followTvState.cni = pVpsPdc->cni;
+         followTvState.pil = pVpsPdc->pil;
+         dprintf7("Xawtv-StationPollVpsPil: after %d ms: 0x%04X: PIL: %02d.%02d. %02d:%02d (0x%04X)\n", followTvState.stationPoll, pVpsPdc->cni, (pVpsPdc->pil >> 15) & 0x1F, (pVpsPdc->pil >> 11) & 0x0F, (pVpsPdc->pil >>  6) & 0x1F, (pVpsPdc->pil      ) & 0x3F, pVpsPdc->cni );
       }
       else
       {  // not the expected CNI -> keep waiting
-         dprintf7("Xawtv-StationPollVpsPil: Waiting for 0x%04X, got 0x%04X: PIL: %02d.%02d. %02d:%02d (0x%04X)\n", followTvState.stationCni, newCni, (newPil >> 15) & 0x1F, (newPil >> 11) & 0x0F, (newPil >>  6) & 0x1F, (newPil      ) & 0x3F, newCni );
+         dprintf7("Xawtv-StationPollVpsPil: Waiting for 0x%04X, got 0x%04X: PIL: %02d.%02d. %02d:%02d (0x%04X)\n", followTvState.stationCni, pVpsPdc->cni, (pVpsPdc->pil >> 15) & 0x1F, (pVpsPdc->pil >> 11) & 0x0F, (pVpsPdc->pil >>  6) & 0x1F, (pVpsPdc->pil      ) & 0x3F, pVpsPdc->cni );
          keepWaiting = TRUE;
       }
    }
@@ -1203,6 +1223,7 @@ static void Xawtv_StationSelected( ClientData clientData )
 
             EpgAcqCtl_DescribeAcqState(&acqState);
             if ( (acqState.state != ACQDESCR_DISABLED) &&
+                 ((acqState.isNetAcq == FALSE) || acqState.isLocalServer) &&
                  ( (acqState.mode == ACQMODE_PASSIVE) ||
                    ((acqState.mode == ACQMODE_FORCED_PASSIVE) && (acqState.passiveReason == ACQPASSIVE_ACCESS_DEVICE))) &&
                  ( (followTvState.cni != cni) ||
@@ -1212,8 +1233,8 @@ static void Xawtv_StationSelected( ClientData clientData )
                followTvState.stationCni = cni;
                followTvState.stationPoll = 120;
 
-               // clear old VPS results, just like after a chanel change
-               EpgDbAcqResetVpsPdc();
+               // clear old VPS results, just like after a channel change
+               EpgAcqCtl_ResetVpsPdc();
                pollVpsEvent = Tcl_CreateTimerHandler(120, Xawtv_StationTimer, NULL);
             }
             else
@@ -1231,6 +1252,8 @@ static void Xawtv_StationSelected( ClientData clientData )
             // note that multi-network station may be identified via VPS shortly after
             dprintf1("Xawtv-StationSelected: unknown station: %s\n", station);
             Xawtv_PopDownNowNext(NULL);
+
+            EpgAcqCtl_ResetVpsPdc();
          }
       }
       else
@@ -1442,7 +1465,7 @@ void Xawtv_Init( void )
          }
 
          // insert entry in the "Configure" menu to open the Xawtv configuration dialog
-         eval_check(interp, ".menubar.config insert 6 command -label \"Xawtv connection...\" -command XawtvConfigPopup\n");
+         eval_check(interp, ".menubar.config insert 7 command -label \"Xawtv connection...\" -command XawtvConfigPopup\n");
       }
       dprintf0("Xawtv-Init: done.\n");
    }

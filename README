@@ -7,10 +7,10 @@ browse TV programme listings for most of the major networks in Germany,
 Austria, France and Switzerland.
 
 Currently Nextview EPG is transmitted by:
-- in Germany and Austria: Pro7, 3Sat, RTL-II.
-- in Switzerland: EuroNews, SF1, TSR1.
-- in France: Canal+, M6, TV5.
-- in Turkey: TRT (as of June/2001 still a test transmission)
+- in Germany and Austria: Kabel1, Pro7, 3Sat, RTL-II.
+- in Switzerland: SF1, TSR1, TSI1, EuroNews.
+- in France: Canal+, M6.
+- in Turkey: TRT.
 
 If you don't receive any of those, then this software unfortunately is
 almost useless to you, except for a demo mode. For more details please
@@ -44,8 +44,7 @@ NetBSD software requirements:
   available from http://www.scriptics.com/
 
 Windows software requirements:
-- Windows NT, Windows 95 and ME. Other variants may work too but are yet
-  untested.
+- Windows NT, Windows 95 and ME. (Windows 2000 is not supported.)
 - On Windows NT: you need to be in the Admininstrator group.
 - WinDriver version 4.00 or later, available from http://www.krftech.com/
   This is *not* freeware, however there's a free 30 days evaluation version.
@@ -71,8 +70,8 @@ Windows software requirements:
      limitations as with the MusicPlay driver.)
 
 If you want to compile for Windows you also need:
-- Cygwin GNU make and gcc compiler, see http://www.cygwin.org/
-  plus the mingw32 header files
+- Cygwin GNU make and gcc compiler, see http://www.cygwin.com/
+  including the mingw32 header files ("Minimalistic GNU for Windows")
 - Tcl/Tk 8.3.2, available from http://www.scriptics.com/
   (I've patched the tk83.dll twice: (1) to catch shutdown messages and (2) to
   disable use of the Windows MessageBox() in tk_messageBox because it crashed

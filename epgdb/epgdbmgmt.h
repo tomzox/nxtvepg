@@ -16,11 +16,18 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbmgmt.h,v 1.14 2001/05/19 14:27:15 tom Exp tom $
+ *  $Id: epgdbmgmt.h,v 1.17 2002/01/02 17:04:31 tom Exp tom $
  */
 
 #ifndef __EPGDBMGMT_H
 #define __EPGDBMGMT_H
+
+
+typedef struct 
+{
+   bool (* pAiCallback)( const AI_BLOCK *pNewAi );
+   bool (* pBiCallback)( const BI_BLOCK *pNewBi );
+} EPGDB_ADD_CB;
 
 
 // ----------------------------------------------------------------------------
@@ -41,9 +48,13 @@ void EpgDbReplacePi( EPGDB_CONTEXT * dbc, EPGDB_BLOCK * pObsolete, EPGDB_BLOCK *
 // - the block structures are defined in EpgBlock.h
 //
 EPGDB_CONTEXT * EpgDbCreate( void );
-void EpgDbDestroy( EPGDB_CONTEXT * dbc );
+void EpgDbDestroy( EPGDB_CONTEXT * dbc, bool keepAiOi );
 
-bool EpgDbAddBlock( EPGDB_CONTEXT * dbc, EPGDB_BLOCK * pBlock );
+void EpgDbProcessQueueByType( EPGDB_CONTEXT * const * pdbc, EPGDB_QUEUE * pQueue, BLOCK_TYPE type, const EPGDB_ADD_CB * pCb );
+#ifdef __EPGTSCQUEUE_H
+void EpgDbProcessQueue( EPGDB_CONTEXT * const * pdbc, EPGDB_QUEUE * pQueue,
+                        EPGDB_PI_TSC * tsc, const EPGDB_ADD_CB * pCb );
+#endif
 
 
 #endif  // __EPGDBMGMT_H

@@ -25,7 +25,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgblock.h,v 1.29 2001/08/31 16:45:38 tom Exp tom $
+ *  $Id: epgblock.h,v 1.38 2002/02/13 21:00:12 tom Exp tom $
  */
 
 #ifndef __EPGBLOCK_H
@@ -55,46 +55,43 @@ typedef struct {
 //    AI Block
 // ---------------------------------------------------------------------------
 
-typedef uint CNI_VAL;
-
 typedef struct
 {
-   CNI_VAL cni;
-   uint startNo;
-   uint stopNo;
-   uint stopNoSwo;
-   uint addInfo;
-   signed char lto;
-   uchar dayCount;
-   uchar alphabet;
-   uchar nameLen;
+   ushort  cni;
+   ushort  startNo;
+   ushort  stopNo;
+   ushort  stopNoSwo;
+   ushort  addInfo;
+   schar   lto;
+   uchar   dayCount;
+   uchar   alphabet;
+   uchar   reserved_1;
 
-   uint off_name;
+   ushort  off_name;
 } AI_NETWOP;
 
 typedef struct
 {
-   uchar version;
-   uchar version_swo;
-   uchar netwopCount;
-   uchar thisNetwop;
-   uchar serviceNameLen;
-   uint  niCount;
-   uint  oiCount;
-   uint  miCount;
-   uint  niCountSwo;
-   uint  oiCountSwo;
-   uint  miCountSwo;
+   uchar   version;
+   uchar   version_swo;
+   uchar   netwopCount;
+   uchar   thisNetwop;
+   ushort  niCount;
+   ushort  oiCount;
+   ushort  miCount;
+   ushort  niCountSwo;
+   ushort  oiCountSwo;
+   ushort  miCountSwo;
 
-   uint off_serviceNameStr;
-   uint off_netwops;
+   ushort  off_serviceNameStr;
+   ushort  off_netwops;
 } AI_BLOCK;
 
-#define AI_GET_NETWOPS(X)       ((AI_NETWOP *)((uchar *)(X)+(X)->off_netwops))
-#define AI_GET_NETWOP_N(X,N)    (&((AI_NETWOP *)((uchar *)(X)+(X)->off_netwops))[N])
-#define AI_GET_SERVICENAME(X)   ((uchar *)(X)+(X)->off_serviceNameStr)
-#define AI_GET_STR_BY_OFF(X,O)  ((uchar *)(X)+(O))
-#define AI_GET_NETWOP_NAME(X,N) ((uchar *)(X)+AI_GET_NETWOPS(X)[N].off_name)
+#define AI_GET_NETWOPS(X)       ((const AI_NETWOP *)((uchar *)(X)+(X)->off_netwops))
+#define AI_GET_NETWOP_N(X,N)    (&((const AI_NETWOP *)((uchar *)(X)+(X)->off_netwops))[N])
+#define AI_GET_SERVICENAME(X)   ((const uchar *)(X)+(X)->off_serviceNameStr)
+#define AI_GET_STR_BY_OFF(X,O)  ((const uchar *)(X)+(O))
+#define AI_GET_NETWOP_NAME(X,N) ((const uchar *)(X)+AI_GET_NETWOPS(X)[N].off_name)
 #define AI_GET_CNI(X)           (AI_GET_NETWOP_N(X,(X)->thisNetwop)->cni)
 
 // ---------------------------------------------------------------------------
@@ -171,18 +168,20 @@ typedef struct {
 #define PI_MAX_THEME_COUNT      7
 #define PI_MAX_SORTCRIT_COUNT   7
 
-typedef struct {
-  uint   block_no;
+typedef struct
+{
+  ushort block_no;
   uchar  netwop_no;
-  uint   feature_flags;
+  bool   block_no_in_ai;
   time_t start_time;
   time_t stop_time;
   uint   pil;
+  uint   series_code;
+  ushort feature_flags;
+  ushort background_ref;
   uchar  parental_rating;
   uchar  editorial_rating;
-  uint   background_ref;
   uchar  background_reuse;
-  uchar  long_info_type;
 
   uchar  no_themes;
   uchar  no_sortcrit;
@@ -190,19 +189,19 @@ typedef struct {
   uchar  themes[PI_MAX_THEME_COUNT];
   uchar  sortcrits[PI_MAX_SORTCRIT_COUNT];
 
-  uint   off_title;
-  uint   off_short_info;
-  uint   off_long_info;
-  uint   off_descriptors;
+  ushort off_title;
+  ushort off_short_info;
+  ushort off_long_info;
+  ushort off_descriptors;
 } PI_BLOCK;
 
-#define PI_GET_TITLE(X)        ((uchar*)(X)+((X)->off_title))
+#define PI_GET_TITLE(X)        ((const uchar*)(X)+((X)->off_title))
 #define PI_HAS_SHORT_INFO(X)   ((bool)((X)->off_short_info != 0))
-#define PI_GET_SHORT_INFO(X)   ((uchar*)(X)+((X)->off_short_info))
+#define PI_GET_SHORT_INFO(X)   ((const uchar*)(X)+((X)->off_short_info))
 #define PI_HAS_LONG_INFO(X)    ((bool)((X)->off_long_info != 0))
-#define PI_GET_LONG_INFO(X)    ((uchar*)(X)+((X)->off_long_info))
-#define PI_GET_STR_BY_OFF(X,O) ((uchar *)(X)+(O))
-#define PI_GET_DESCRIPTORS(X)  ((DESCRIPTOR*)((uchar*)(X)+((X)->off_descriptors)))
+#define PI_GET_LONG_INFO(X)    ((const uchar*)(X)+((X)->off_long_info))
+#define PI_GET_STR_BY_OFF(X,O) ((const uchar*)(X)+(O))
+#define PI_GET_DESCRIPTORS(X)  ((const DESCRIPTOR*)((uchar*)(X)+((X)->off_descriptors)))
 
 
 // ---------------------------------------------------------------------------
@@ -257,36 +256,37 @@ typedef struct
 #define NEXT_TYPE_NI  1
 #define NEXT_TYPE_OI  2
 
+#define NI_MAX_EVENT_COUNT   15
+#define NI_MAX_ATTRIB_COUNT  15
+
 typedef struct
 {
-   uint  next_id;
-   uchar next_type;
-   uchar no_attribs;
-   uint  off_evstr;
-   EV_ATTRIB_DATA unit[7];
+   ushort  next_id;
+   uchar   next_type;
+   uchar   no_attribs;
+   ushort  off_evstr;
+   EV_ATTRIB_DATA unit[NI_MAX_ATTRIB_COUNT];
 } EVENT_ATTRIB;
 
-#define NI_MAX_EVENT_COUNT   16
-
 typedef struct
 {
-   uint  block_no;
-   uchar header_size;
-   uchar msg_size;
-   uchar no_events;
-   uchar no_descriptors;
-   uint  msg_attrib;
+   ushort  block_no;
+   uchar   header_size;
+   uchar   msg_size;
+   uchar   no_events;
+   uchar   no_descriptors;
+   ushort  msg_attrib;
 
-   uint  off_events;
-   uint  off_header;
-   uint  off_descriptors;
+   ushort  off_events;
+   ushort  off_header;
+   ushort  off_descriptors;
 } NI_BLOCK;
 
-#define NI_GET_HEADER(X)       ((uchar*)(X)+((X)->off_header))
+#define NI_GET_HEADER(X)       ((const uchar*)(X)+((X)->off_header))
 #define NI_HAS_HEADER(X)       ((bool)(((X)->off_header) != 0))
-#define NI_GET_EVENTS(X)       ((EVENT_ATTRIB*)((uchar*)(X)+((X)->off_events)))
-#define NI_GET_EVENT_STR(X,Y)  ((uchar*)(X)+((Y)->off_evstr))
-#define NI_GET_DESCRIPTORS(X)  ((DESCRIPTOR*)((uchar*)(X)+((X)->off_descriptors)))
+#define NI_GET_EVENTS(X)       ((const EVENT_ATTRIB*)((uchar*)(X)+((X)->off_events)))
+#define NI_GET_EVENT_STR(X,Y)  ((const uchar*)(X)+((Y)->off_evstr))
+#define NI_GET_DESCRIPTORS(X)  ((const DESCRIPTOR*)((uchar*)(X)+((X)->off_descriptors)))
 
 // ---------------------------------------------------------------------------
 //    MI Block
@@ -303,16 +303,16 @@ typedef struct
 
 typedef struct
 {
-   uint  block_no;
-   uchar no_descriptors;
+   ushort  block_no;
+   uchar   no_descriptors;
 
-   uint  off_message;
-   uint  off_descriptors;
+   ushort  off_message;
+   ushort  off_descriptors;
 } MI_BLOCK;
 
-#define MI_GET_MESSAGE(X)      ((uchar*)(X)+((X)->off_message))
+#define MI_GET_MESSAGE(X)      ((const uchar*)(X)+((X)->off_message))
 #define MI_HAS_MESSAGE(X)      ((bool)((X)->off_message != 0))
-#define MI_GET_DESCRIPTORS(X)  ((DESCRIPTOR*)((uchar*)(X)+((X)->off_descriptors)))
+#define MI_GET_DESCRIPTORS(X)  ((const DESCRIPTOR*)((uchar*)(X)+((X)->off_descriptors)))
 
 
 // ---------------------------------------------------------------------------
@@ -336,22 +336,22 @@ typedef struct
 
 typedef struct
 {
-   uint  block_no;
-   uchar msg_attrib;
-   uchar header_size;
-   uchar msg_size;
-   uchar no_descriptors;
+   ushort  block_no;
+   uchar   msg_attrib;
+   uchar   header_size;
+   uchar   msg_size;
+   uchar   no_descriptors;
 
-   uint  off_header;
-   uint  off_message;
-   uint  off_descriptors;
+   ushort  off_header;
+   ushort  off_message;
+   ushort  off_descriptors;
 } OI_BLOCK;
 
-#define OI_GET_HEADER(X)       ((uchar*)(X)+((X)->off_header))
+#define OI_GET_HEADER(X)       ((const uchar*)(X)+((X)->off_header))
 #define OI_HAS_HEADER(X)       ((bool)((X)->off_header != 0))
-#define OI_GET_MESSAGE(X)      ((uchar*)(X)+((X)->off_message))
+#define OI_GET_MESSAGE(X)      ((const uchar*)(X)+((X)->off_message))
 #define OI_HAS_MESSAGE(X)      ((bool)((X)->off_message != 0))
-#define OI_GET_DESCRIPTORS(X)  ((DESCRIPTOR*)((uchar*)(X)+((X)->off_descriptors)))
+#define OI_GET_DESCRIPTORS(X)  ((const DESCRIPTOR*)((uchar*)(X)+((X)->off_descriptors)))
 
 
 // ---------------------------------------------------------------------------
@@ -370,14 +370,14 @@ typedef struct
 
 typedef struct
 {
-   uint  block_no;
-   uchar netwop_no;
-   uchar desc_no;
+   ushort  block_no;
+   uchar   netwop_no;
+   uchar   desc_no;
 
-   uint  off_desc;
+   ushort  off_desc;
 } LI_BLOCK;
 
-#define LI_GET_DESC(X)       ((LI_DESC*)((uchar*)(X)+((X)->off_desc)))
+#define LI_GET_DESC(X)       ((const LI_DESC*)((uchar*)(X)+((X)->off_desc)))
 
 // ---------------------------------------------------------------------------
 //    TI Block
@@ -388,9 +388,9 @@ typedef struct
 
 typedef struct
 {
-   uchar lang[3];
-   uint  page;
-   uint  subpage;
+   uchar   lang[3];
+   ushort  page;
+   ushort  subpage;
 } TI_SUBT;
 
 typedef struct
@@ -402,14 +402,14 @@ typedef struct
 
 typedef struct
 {
-   uint  block_no;
-   uchar netwop_no;
-   uchar desc_no;
+   ushort  block_no;
+   uchar   netwop_no;
+   uchar   desc_no;
 
-   uint  off_desc;
+   ushort  off_desc;
 } TI_BLOCK;
 
-#define TI_GET_DESC(X)       ((TI_DESC*)((uchar*)(X)+((X)->off_desc)))
+#define TI_GET_DESC(X)       ((const TI_DESC*)((uchar*)(X)+((X)->off_desc)))
 
 // ----------------------------------------------------------------------------
 // EPG block types (internal redefinition; ordering is relevant!)
@@ -434,9 +434,9 @@ typedef enum
 
 typedef struct
 {
-   uint       block_no;
+   ushort     block_no;
    uchar      netwop_no;
-   // Rest des Blocks folgt hier
+   // more data following here, depending on the actual block type
 } GENERIC_BLK;
 
 typedef union
@@ -454,22 +454,23 @@ typedef union
 
 typedef struct EPGDB_BLOCK_STRUCT
 {
-   struct EPGDB_BLOCK_STRUCT *pNextBlock;        // naechster Block in Verkettung nach Startzeit
-   struct EPGDB_BLOCK_STRUCT *pPrevBlock;        // vorheriger Block in Verkettung nach Startzeit
-   struct EPGDB_BLOCK_STRUCT *pNextNetwopBlock;  // naechster Block desselben Netwops
-   struct EPGDB_BLOCK_STRUCT *pPrevNetwopBlock;  // vorheriger Block desselben Netwops
-   uint         size;               // tatsaechliche Groesse der Union
-   uchar        version;            // AI-Version zum Zeitpkt. der Acq.
-   uchar        stream;             // Stream aus dem Block akquiriert wurde
-   uchar        mergeCount;         // count of databases from which this block was merged
-   uchar        origChkSum;
-   ushort       origBlkLen;
+   struct EPGDB_BLOCK_STRUCT *pNextBlock;        // next block in order of start time
+   struct EPGDB_BLOCK_STRUCT *pPrevBlock;        // previous block in order of start time
+   struct EPGDB_BLOCK_STRUCT *pNextNetwopBlock;  // next block of the same network in order of start time
+   struct EPGDB_BLOCK_STRUCT *pPrevNetwopBlock;  // previous block of the same network in order of start time
+   uint         size;               // actual size of the union; may be greater than it's sizeof()
+   uchar        version;            // AI version at the time of acquisition of this block
+   uchar        stream;             // stream in which the block was received
+   uchar        origChkSum;         // check sum over 708 encoded block
+   uchar        reserved_1;
+   ushort       origBlkLen;         // length of 708 encoded block
    ushort       parityErrCnt;       // parity error count for string segment
-   time_t       acqTimestamp;       // time when the block was added to the database
-   uint         acqRepCount;        // reception count with same version and size
+   time_t       updTimestamp;       // time when the block content changed last
+   time_t       acqTimestamp;       // time when the block was received last
+   ushort       acqRepCount;        // reception count with same version and size
    BLOCK_TYPE   type;
 
-   const EPGDB_BLOCK_UNION   blk;   // die eigentlichen Daten
+   const EPGDB_BLOCK_UNION   blk;   // the actual data
 } EPGDB_BLOCK;
 
 #define BLK_UNION_OFF    (sizeof(EPGDB_BLOCK) - sizeof(EPGDB_BLOCK_UNION))
@@ -477,14 +478,11 @@ typedef struct EPGDB_BLOCK_STRUCT
 // ----------------------------------------------------------------------------
 // declaration of database context, which keeps lists of all blocks
 //
+
 typedef struct EPGDB_CONTEXT_STRUCT
 {
-   struct EPGDB_CONTEXT_STRUCT *pNext;
-
-   uint   refCount;                 // context reference counter
-   uint   lockLevel;                // number of locks on this context
-   bool   modified;                 // modified by acquisition
-   time_t lastAiUpdate;             // timestamp of last AI reception
+   uint   lockLevel;                // number of database locks on this context
+   bool   modified;                 // if TRUE, db was modified by acquisition
 
    bool   merged;                   // Flag for merged db
    void   *pMergeContext;           // Pointer to merge parameters
@@ -512,6 +510,17 @@ typedef struct
    double avgAcqRepCount;
 } EPGDB_BLOCK_COUNT;
 
+
+// ----------------------------------------------------------------------------
+// Declaration of queue for acquisition
+//
+typedef struct
+{
+   uint            blockCount;
+   EPGDB_BLOCK   * pFirstBlock;
+   EPGDB_BLOCK   * pLastBlock;
+} EPGDB_QUEUE;
+
 // ----------------------------------------------------------------------------
 // Declaration of service interface functions
 //
@@ -524,6 +533,8 @@ EPGDB_BLOCK * EpgBlockConvertLi(const uchar *pCtrl, uint ctrlLen, uint strLen);
 EPGDB_BLOCK * EpgBlockConvertTi(const uchar *pCtrl, uint ctrlLen, uint strLen);
 EPGDB_BLOCK * EpgBlockConvertBi(const uchar *pCtrl, uint ctrlLen);
 EPGDB_BLOCK * EpgBlockCreate( uchar type, uint size );
+
+bool EpgBlockCheckConsistancy( EPGDB_BLOCK * pBlock );
 
 uint EpgBlockBcdToMoD( uint BCD );
 void EpgBlockSetAlphabets( const AI_BLOCK *pAiBlock );

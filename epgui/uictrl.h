@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: uictrl.h,v 1.6 2001/09/12 18:48:27 tom Exp tom $
+ *  $Id: uictrl.h,v 1.12 2002/01/16 20:24:23 tom Exp tom $
  */
 
 #ifndef __UICTRL_H
@@ -33,6 +33,24 @@ typedef enum
    CTX_RELOAD_ERR_DEMO         // demo database
 } CONTEXT_RELOAD_ERR_HAND;
 
+enum
+{
+   DB_TARGET_UI   = 0,
+   DB_TARGET_ACQ  = 1,
+   DB_TARGET_BOTH = 2
+};
+
+typedef enum
+{
+   ACQ_EVENT_PROV_CHANGE,
+   ACQ_EVENT_AI_VERSION_CHANGE,
+   ACQ_EVENT_AI_PI_RANGE_CHANGE,
+   ACQ_EVENT_STATS_UPDATE,
+   ACQ_EVENT_PI_ADDED,
+   ACQ_EVENT_PI_MERGED,
+   ACQ_EVENT_VPS_PDC,
+} ACQ_EVENT;
+
 // ---------------------------------------------------------------------------
 // Interface to other GUI modules
 #ifdef _TCL
@@ -42,14 +60,17 @@ void UiControl_ReloadError( ClientData clientData );
 #endif
 
 // Interface to acquisition control
-void UiControlMsg_AiStateChange( void );
+void UiControlMsg_AcqEvent( ACQ_EVENT acqEvent );
+bool UiControlMsg_AcqQueueOverflow( bool prepare );
 void UiControlMsg_MissingTunerFreq( uint cni );
 void UiControlMsg_AcqPassive( void );
+void UiControlMsg_NetAcqError( void );
 void UiControlMsg_NewProvFreq( uint cni, ulong freq );
+ulong UiControlMsg_QueryProvFreq( uint cni );
 
 // Interface to context control
 #ifdef __EPGDBSAV_H
-void UiControlMsg_ReloadError( uint cni, EPGDB_RELOAD_RESULT dberr, CONTEXT_RELOAD_ERR_HAND errHand );
+void UiControlMsg_ReloadError( uint cni, EPGDB_RELOAD_RESULT dberr, CONTEXT_RELOAD_ERR_HAND errHand, bool isNewDb );
 #endif
 
 void UiControl_Init( void );

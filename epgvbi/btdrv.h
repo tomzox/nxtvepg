@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: btdrv.h,v 1.11 2001/05/06 14:26:51 tom Exp tom $
+ *  $Id: btdrv.h,v 1.12 2002/01/26 15:16:35 tom Exp tom $
  */
 
 #ifndef __BTDRV_H
@@ -158,6 +158,7 @@ bool BtDriver_SetInputSource( int inputIdx, bool keepOpen, bool * pIsTuner );
 
 #ifndef WIN32
 void BtDriver_CheckParent( void );
+int BtDriver_GetDeviceOwnerPid( void );
 #endif
 bool BtDriver_CheckDevice( void );
 void BtDriver_CloseDevice( void );

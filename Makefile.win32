@@ -21,22 +21,30 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile.win32,v 1.11 2001/08/25 12:47:10 tom Exp tom $
+#  $Id: Makefile.win32,v 1.14 2002/02/16 18:42:31 tom Exp tom $
 #
 
 # if you have perl set the path here, else just leave it alone
 PERL    = /usr/bin/perl
 
-LDLIBS = -L//D/gnu/tcl/lib -ltk83 -ltcl83
+# path to the non-Cygwin Tcl/Tk package
+TCLDIR  = /cygdrive/d/gnu/tcl
+
+LDLIBS = -L$(TCLDIR)/lib -ltk83 -ltcl83
 #LDLIBS  = -L. -ltcl83 -ltk83
 
-INCS   += -ID:/gnu/Tcl/include
-INCS   += -I. -ID:/cygwin/usr/include/mingw
+INCS   += -I$(TCLDIR)/include
+INCS   += -I. -I/usr/include/mingw32
 
 # define this if you don't want to load external Tcl/Tk init scripts
 DEFS   += -DUSE_PRECOMPILED_TCL_LIBS
 # define this if you have patched nxtvepg.ico into the tk DLL
 DEFS   += -DICON_PATCHED_INTO_DLL
+# enable use of multi-threading (UNIX only)
+#DEFS   += -DUSE_THREADS
+# enable use of daemon and client/server connection (UNIX only)
+#DEFS   += -DUSE_DAEMON
+
 
 DEFS   += -DWIN32
 
@@ -45,19 +53,22 @@ WARN    = -Wall -Wpointer-arith -Wnested-externs \
 #         -Wstrict-prototypes
 #         -Werror
 CC      = gcc
-CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -g -O -mno-cygwin
+CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -O6 -mno-cygwin
 LDFLAGS = -mwindows -mno-cygwin -Wl,--subsystem,windows
 
 # ----- don't change anything below ------------------------------------------
 
 MODS    = epgvbi/vbidecode epgvbi/tvchan epgvbi/btdrv4win epgvbi/hamming \
+          epgvbi/cni_tables \
           epgctl/debug epgctl/epgacqctl epgctl/epgscan epgctl/epgctxctl \
           epgctl/epgctxmerge \
           epgdb/epgdbacq epgdb/epgstream epgdb/epgdbmerge epgdb/epgdbsav \
           epgdb/epgdbmgmt epgdb/epgdbif epgdb/epgdbfil epgdb/epgblock \
+          epgdb/epgqueue epgdb/epgtscqueue \
           epgui/uictrl epgui/pilistbox epgui/pioutput epgui/pifilter \
-          epgui/epgui epgui/help epgui/statswin epgui/pdc_themes \
-          epgui/menucmd epgui/epgtxtdump epgui/epgmain epgui/tcl_libs
+          epgui/epgui epgui/help epgui/statswin epgui/timescale \
+          epgui/pdc_themes epgui/menucmd epgui/epgtxtdump epgui/epgmain \
+          epgui/tcl_libs
 
 SRCS    = $(addsuffix .c, $(MODS))
 OBJS    = $(addsuffix .o, $(MODS)) epgui/tkwinico.res.o

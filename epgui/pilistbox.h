@@ -16,12 +16,32 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pilistbox.h,v 1.11 2001/06/16 14:58:08 tom Exp tom $
+ *  $Id: pilistbox.h,v 1.14 2002/02/28 19:19:13 tom Exp tom $
  */
 
 #ifndef __PILISTBOX_H
 #define __PILISTBOX_H
 
+
+// describing the state of the ui db
+typedef enum
+{
+   EPGDB_NOT_INIT,
+   EPGDB_WAIT_SCAN,
+   EPGDB_PROV_SCAN,
+   EPGDB_PROV_WAIT,
+   EPGDB_PROV_SEL,
+   EPGDB_ACQ_NO_FREQ,
+   EPGDB_ACQ_NO_TUNER,
+   EPGDB_ACQ_ACCESS_DEVICE,
+   EPGDB_ACQ_PASSIVE,
+   EPGDB_ACQ_WAIT,
+   EPGDB_ACQ_WAIT_DAEMON,
+   EPGDB_ACQ_OTHER_PROV,
+   EPGDB_EMPTY,
+   EPGDB_PREFILTERED_EMPTY,
+   EPGDB_OK
+} EPGDB_STATE;
 
 // Initialization - Interface to main module
 void PiListBox_Create( void );
@@ -45,5 +65,6 @@ void PiListBox_DbRemoved( const EPGDB_CONTEXT *usedDbc, const PI_BLOCK *pPiBlock
 void PiListBox_DbRecount( const EPGDB_CONTEXT *usedDbc );
 void PiListBox_UpdateNowItems( void );
 void PiListBox_GotoPi( const PI_BLOCK * pPiBlock );
+void PiListBox_Lock( bool lock );
 
 #endif  // __PILISTBOX_H

@@ -24,7 +24,7 @@
 #
 #  Author: Tom Zoerner
 #
-# $Id: nxtvepg.pod,v 1.53 2001/09/16 10:47:19 tom Exp tom $
+# $Id: nxtvepg.pod,v 1.58 2002/02/25 20:17:42 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME
@@ -80,11 +80,15 @@ In Germany and Austria: Pro7, 3Sat, RTL-II.
 
 =item *
 
-In Switzerland: EuroNews, TSR1 and others.
+In Switzerland: DRS1, TSR1, TSI1, EuroNews.
 
 =item *
 
 In France: Canal+, M6, TV5.
+
+=item *
+
+In Turkey: TRT-1
 
 =back
 
@@ -117,7 +121,7 @@ Start with the main window iconified (i.e. minimized).
 =item B<-rcfile> I<path>
 
 Specify an alternate configuration file.
-Default: on UNIX ~/.nxtvepgrc,
+Default: on UNIX $HOME/.nxtvepgrc,
 on Windows nxtvepg.ini in the current directory.
 
 =item B<-dbdir> I<directory>
@@ -127,6 +131,10 @@ Default: On UNIX /usr/tmp/nxtvdb, on Windows the current directory.
 Note that the database management is not equipped for concurrent writing,
 so if you have more than one TV tuner card in your system or network,
 relocate the directory into the users' homes.
+
+If you're using an acquisition daemon, the browser must be configured
+to use the same directory as the daemon.  If the daemon is running on
+a different host, you need to mount the remote directory, e.g. via NFS.
 
 =item B<-card> I<index>
 
@@ -156,17 +164,38 @@ for this provider only (note the difference to non-daemon mode, where that
 option selects the browser database). The -daemon option cannot be combined
 with the -noacq or -demo options.
 
-The only way to stop the process in this mode is to send it a signal, i.e.
-kill it with SIGTERM. This can simply be done with:
+The daemon always creates a named socket in the I</tmp> directory plus
+optionally a TCP/IP socket to allow connects by browser processes. While
+connected, the browser receives updates for opened Nextview databases and
+reports about the acquisition progress; if left unconnected, the browser
+listing might be incomplete or outdated.
 
-   kill `cat /tmp/.vbi0.pid`
+It's important to note that the browser B<must use> the same I<-dbdir>
+directory, because the daemon forwards only deltas to the database files
+stored in that directory. For more details see the I<Client/Server> dialog
+described in L<"CONFIGURATION">.
 
-Note that it is not advisable to run the daemon while the GUI is in use,
-because incoming data will not be forwarded from the daemon to the GUI
-process (such a feature may be added in the future).  If you plan on using
-the daemon on a regular basis, put a little wrapper script around nxtvepg
-that automatically terminates the daemon when the GUI is started and
-restarts it afterwards.
+Warning: for security reasons it's depreciated to run the daemon with root
+privileges, because nxtvepg has not been reviewed yet for possible exploits.
+If you want to start the daemon already during system startup, you should
+use su(1). Also note that you'll probably need to specify -rcfile because
+the $HOME environment variable  might not be (correctly) defined.  Example:
+
+   su nobody -c "/usr/local/bin/nxtvepg -daemon \
+                 -rcfile /usr/local/etc/nxtvepgrc"
+
+The only way to stop the daemon is to send it a signal, i.e. kill it with
+SIGTERM. For more details see L<"CONTROL"> and L<"FILES">.
+
+
+=item B<-nodetach>
+
+In daemon mode this option prevents the process actually making itself a
+daemon, i.e. it doesn't fork and stays connected to the terminal. Also
+all log messages starting with level
+.I warning
+are sent to standard error out (e.g. configuration errors that lead to
+an immediate exit).  This mode is intended for debugging purposes only.
 
 =item B<-acqpassive>
 
@@ -510,12 +539,15 @@ which visualize for each TV network the time ranges which are covered
 with TV programme data. The third one are the database statistics popup
 windows which offer technical details about the database, e.g. which
 percentage of entries is already loaded etc., both in textual form and
-as a pie chart.
+as charts.
 
 The latter two windows are available separately for the browser and
-acquisition databases. (By default these are identical, but you can configure
-background acquisition on multiple databases, see L<"ACQUISITION MODES">).
+acquisition databases. (By default both are the same databases, but you
+can configure background acquisition on multiple databases,
+see L<"ACQUISITION MODES">).
 All types of statistics are regularily updated while acquisition is running.
+While connected to an acquisition daemon, all statistics output refers to
+the acquisition running in the daemon.
 
 
 =head2 Status line
@@ -523,7 +555,7 @@ All types of statistics are regularily updated while acquisition is running.
 The status line separately summarizes the state of the browser database
 (unless it's a merged database) and the acquisition process. Since there's
 not much room only the most relevant information is included there, i.e.
-kind of information presented depends on the current state.
+the kind of information presented depends on the current state.
 
 
 For the browser database you'll normally just see the name of the
@@ -564,18 +596,21 @@ running in parallel. See L<"ACQUISITION MODES"> for details.
 
 You can monitor the progress of acquisition with the timescale windows
 which can be opened from the Control menu. There's one window for
-the browser database, and one for the acquisition database.
+the browser database, and one for the acquisition database. The
+acquisition window is updated whenenever new EPG blocks are received.
 
-The timescale windows have one scale for each
-network covered by the selected provider. Each scale covers the
-next 5 days, starting with the current time. Ranges that are covered
-by programmes in the database are marked in red or blue, uncovered
-ranges are left black.
+The timescale windows have one scale for each network covered by the
+selected provider. Each scale covers 5 days, beginning with the start time
+of the first TV programme in the database. Depending on how long ago
+the database was updated, the dates may be partly or entirely in the past.
+The exact dates are printed in the date scale at top of the window.
 
+Ranges that are covered by programmes of the respective network in the
+database are marked in shades of red or blue, uncovered ranges are left black.
 The different colors reflect the I<stream> in which the data was received,
-or an error status. Stream numbers are directly connected with the cycle
-phases mentioned in L<"ACQUISITION MODES">; besides this the difference
-is not relevant during normal operation.
+or an error status; the shades age and version. Stream numbers are directly
+connected with the cycle phases mentioned in L<"ACQUISITION MODES">; besides
+this the difference is not relevant during normal operation.
 
 =over 4
 
@@ -587,13 +622,21 @@ PI blocks received in stream 1, i.e. cycle phase 'Near'.
 
 PI blocks received in stream 2, i.e. cycle phase 'All'.
 
-=item I<shaded red or blue:>
+=item I<dark red or blue:>
 
 PI blocks from an earlier database version.
 
+=item I<orange:>
+
+expired PI blocks from stream 1.
+
+=item I<cyan:>
+
+expired PI blocks from stream 2.
+
 =item I<yellow:>
 
-expired or invalid PI blocks (overlapping or zero run-time,
+invalid PI blocks (overlapping or zero run-time,
 block number not in the range given in inventory, etc.)
 
 =item I<gray:>
@@ -609,12 +652,11 @@ time range which is not covered by the provider.
 =back
 
 In front of the scales there are 5 separate boxes, which refer to the
-first 5 programmes (PI blocks) in the inventory (AI block). Please note
-that in contrary to the timescales these boxes do not start with the
-currently running programmes. They have two purposes: firstly, during
-acquisition you can see when the 'Now' cycle phase is complete; secondly
-you can check if the data from the Now cycle is expired (marked yellow).
-If all 5 are yellow, it's time to update the database.
+first 5 programmes (PI blocks) in the inventory (AI block).  They have
+two purposes: firstly, during acquisition you can see when the 'Now'
+cycle phase is complete; secondly you can check if the data from the
+Now cycle is expired (marked orange).  If all 5 are orange, it's time
+to update the database.
 
 
 =head2 Database statistics popup windows
@@ -703,6 +745,8 @@ are included in the database dump from the I<Control> menu.
 =item I<Acq. runtime:>
 
 How long the acquisition has been continuously running for this database.
+This timer is reset upon provider or database version changes or when an
+external channel change is detected.
 
 =item I<Channel VPS/PDC:>
 
@@ -710,6 +754,13 @@ The VPS/PDC code that has last been received on the currently tuned channel.
 Usually this will be the same as the provider CNI given in the database
 statistics, but you might see different values here when you manually tune
 in a different channel with an external application.
+
+If a valid VPS/PDC code (Programme Identification Label, PIL) was received
+together with the CNI it is appended after the CNI in decoded format
+(i.e. DD.MM HH:MM with day, month, hour and minute).  Note: the VPS/PDC
+codes are used to uniquely identify the current programme on a given
+network.  You can display the codes for all programmes in the database
+if you enable them in the I<Column selection> dialog (see L<"CONFIGURATION">).
 
 =item I<TTX data rate:>
 
@@ -724,10 +775,14 @@ page which transmits Nextview are counted.
 =item I<EPG page rate:>
 
 The per second average of received teletext pages with carry Nextview data.
+Many provider transmit one page per second during the day and up to
+1.5 or 2 pages per second during the night.
 
 =item I<AI recv. count:>
 
-The number of AI blocks received since acquisition start.
+The number of AI blocks received since acquisition start.  As long as this
+counter remains at zero, no data is added to the database (because the
+AI block is mandatory to identify the provider.)
 
 =item I<AI min/avg/max:>
 
@@ -739,8 +794,10 @@ AI block must be awaited.
 
 =item I<PI rx repetition:>
 
-The average how often each block in the AI was received since start of the
-acquisition.  Divided in Now, stream 1 and stream 2.
+The average of the number of times each block in the AI was received
+since start of the acquisition.  Divided in Now, stream 1 and stream 2.
+This value is used by acquisition control in the termination criterium
+for acquisition phases, if the acquisition mode is cyclic.
 
 =item I<Acq mode:>
 
@@ -750,6 +807,12 @@ if nxtvepg failed to switch the channel.
 =item I<Network variance:>
 
 The variance of block coverage across all networks.
+This value is used by acquisition control in the termination criterium
+for acquisition phases, if the acquisition mode is cyclic.
+It's calculated by separately counting the number of blocks in the
+database for each network; then for each network calculating the
+percentage of available blocks in regard to expected blocks; then
+calculating the average and finally variance of these percentages.
 
 =back
 
@@ -764,7 +827,7 @@ timescale windows.
 If you compare databases of different Nextview providers, you will
 often find that each has one or more nice features, or covers networks,
 that the others lack. Instead of changing back and forth between
-several providers all the time, database merging enables to select and
+several providers all the time, database merging allows to select and
 combine features or networks from several original databases into one
 newly created database.
 
@@ -908,17 +971,33 @@ I<now> (range 0-0),
 I<next> (range 1-1) and
 I<now or next> (range 0-1).
 
+For merged databases only indices 0 and 1 are supported.
+
 
 =item B<Networks>
 
-Restrict the listing to programmes of the given networks. Note that the
-order and selection of networks can be configured (see L<"CONFIGURATION">).
+Restrict the listing to programmes of one or more given networks.
+The filter is disabled when all checkbuttons are deactivated.
+
+You can also permanently add an equivalent network filter menu to
+the main window by enabling I<Show networks> at the end of the
+L<"CONFIGURATION"> menu. Note that selection, order and names of
+networks are all configurable.
 
 
 =item B<Text search>
 
-Restrict the listing to programmes who's title or description contain
-the given text.
+Restrict the listing to programmes who's title or description (or either
+if both options are enabled) contain the given text.  If you enable
+I<match complete text> an exact match will be required, i.e. a search for
+"heute" will not match on "heute journal" (this option is intended for
+title-only searches, as started from the context menu). If you enable
+I<match case> character case is relevant in comparisons, i.e. a search
+for "heute" will not match on title "Heute Abend".
+
+The last used options are remembered in your personal configuration file.
+A history of the last searches, including options, are also stored and
+available in the "Title" drop-down menu in the main browser window.
 
 
 =item B<Start Time>
@@ -930,6 +1009,11 @@ the interval start is fixed to the actual time when the filter is
 applied and the value given as stop time is interpreted as duration, i.e.
 it's added to the interval start. If you enable I<Stop at end of day>
 the interval end is fixed to 23:59 of the same day.
+
+Note that the main intention of this filter is to support time
+restrictions in the provider's navigation menus (see L<"NAVIGATE">).
+For manual navigation there are more practical alternatives, e.g.
+the scrollbar and drop-down menus in the main browser window.
 
 
 =item B<Sorting Criterions>
@@ -1060,18 +1144,50 @@ Summary of commands available from the Control menu:
 
 =item B<Enable acquisition>
 
-Toggles acquisition on or off. Switching off allows other applications
-(e.g. a teletext decoder) to use the TV card while you browse the database.
-If you have more than one card, it's always possible to use one for
-watching TV and the other for loading data.
+Toggles acquisition on or off.  When you start the browser, acquisition
+is automatically enabled (although failure to do so is silently ignored).
+Switching off acquisition allows other applications (e.g. a teletext
+decoder) to use the TV card while you browse the database, if you have
+only one TV card.
 
 UNIX: When acquisition is switched off, the I</dev/vbi> device is freed.
-Acquisition can also been switched on and off automatically by sending the
-process the signal HUP. Note: the signal must be sent to the acquisition
-slave process, the pid of which is stored in F</tmp/.vbi.pid> while the
-device is in use.
+Acquisition can also been switched on and off automatically (i.e. from a
+shell script) by sending signal HUP (e.g. with the kill(1) command) to
+any of the nxtvepg processes or threads.  If you're using a daemon for
+acquisition (see the next command) you have to send the signal to one of
+the daemon processes/threads.  To simplify this, the pid of the process
+which needs to be signalled is stored in F</tmp/.vbi.pid> while the device
+is in use.
 
-Windows: When acquisition is switched off, the driver is unloaded.
+Windows: When acquisition is switched off, the driver is unloaded so
+that other programs can access the TV card.  Note that most Windows
+driver implementations do not allow for more than one TV card in the PC.
+
+
+=item B<Connect to acq. daemon>
+
+UNIX only:
+Connect to or disconnect from an acquisition daemon, running in the
+background on the same host, or somewhere else in the network.  The
+address of the daemon and other parameters are configured in the
+I<Client/Server> menu (see L<"CONFIGURATION">). By default the daemon
+is started on the local host.  The main advantage of using the daemon
+is that you can keep running acquisition permanently in the background,
+even if you terminate the browser, or even the X11 server (i.e. the
+windowing system).
+
+If you attempt to connect, but no daemon is running, you'll be offered
+the option to automatically start the daemon and retry the connect,
+provided you have configured server hostname I<localhost>.
+The daemon will be started with the same database directory and rcfile
+as the browser.
+
+Note that disconnecting from the daemon or terminating the browser does
+not stop the acquisition and hence does not free the device.  If that's
+what you want, choose the I<Enable acquisition> command instead, which
+sends the TERM signal to the daemon, i.e. it terminates the process.
+Of course this option only is available if your daemon is running on the
+same host and with the same user id as the browser process.
 
 
 =item B<Dump stream>
@@ -1083,6 +1199,10 @@ you'll find any block that could be decoded without hamming errors,
 even before an inventory block (AI) has been received. This may help
 if you have very bad reception, because it may take a long time
 until a error-free copy of the usually large AI block is received.
+
+When connected to a acquisition daemon, blocks are only dumped if
+they are new to the database or their content changed (because only
+those are forwarded by the daemon to the client.)
 
 
 =item B<Dump raw database>
@@ -1257,6 +1377,117 @@ TV tuner as input. If you live in France, select the French
 frequency table to be used for the EPG scan.
 If you have more than one TV tuner card, you can also choose which
 one to use, just like with the B<-card> command line option.
+
+
+=item B<Client/Server...>
+
+Opens a dialog that allows to configure the connection between acquisition
+daemon (called "server" here) and GUI.  The connection allows to forward
+all newly acquired EPG data from the daemon to the GUI and to monitor the
+daemon's acquisition progress.
+
+The dialog contains settings of which some refer to the server-side only,
+some to the client-side only and some to both server and client.  To avoid
+confusion, there are three radio buttons at the top of the dialog which
+allow to grey out items that do not refer to the client or server
+respectively.
+
+=over 8
+
+=item I<Enable remote control>
+
+By enabling remote-control you can stop acquisition, change acquisition
+mode, TV card parameters or any parameters configured by this dialog
+in a running daemon via the network connection.
+
+=item I<Enable TCP/IP>
+
+By enabling connections via the TCP/IP network protocol, you allow
+connections from remote hosts.  Since there's currently no access
+control in nxtvepg, these hosts can be anywhere in your network,
+or anywhere in the world if you're connected to the Internet. If
+you don't have a firewall which prevents incoming connections of
+untrusted hosts, this mode is highly depreciated, because nxtvepg
+is not in any way secured against malicious client connections.
+
+=item I<Server hostname>
+
+Client-side only: this setting identifies the host on which the daemon
+is running. You can enter either a hostname in "dot.com" format or
+an IP address in "127.0.0.1" format.  If you set it to I<localhost> the
+connection is automatically established via UNIX domain sockets (i.e.
+pipes), which is more efficient than TCP/IP.  You can still use TCP/IP
+locally if you set it to the name of your local host, as returned
+by hostname(1).
+
+=item I<Server TCP port>
+
+If TCP/IP is enabled, this setting tells server and client which port
+to use. You can enter an arbitrary number between 1024 and 65535 here,
+but you have to make sure no other server is using the same port.
+Make sure you configure the same port number for client and server.
+The default is 7658.
+
+=item I<Bind IP address>
+
+If TCP/IP is enabled and your server host has more than one IP address,
+you can select here on which one to listen for incoming connections.
+Make sure you use the same IP address as server hostname on client-side,
+or a hostname that resolves to that IP address.  This setting is optional;
+if you leave the field blank (default) the server will bind to all
+IP addresses.
+
+Note: on systems that support it, TCP/IP sockets are created in the
+IPv6 domain (I<PF_INET6>) by default.  On some systems (e.g. NetBSD)
+you cannot connect via IPv4 to an IPv6 server and vice versa, i.e. you
+need to use the same domain on both ends.  If your client only supports
+IPv4, you can force your server to create an IPv4 socket by binding to
+an IPv4 address.  If you fail to connect to a local IPv6 server via
+the IPv4 loopback address 127.0.0.1, use the IPv6 equivalent "::1".
+
+=item I<Max. connections>
+
+This setting limits the number of client connections the server will
+allow.  Once the limit is reached the server will stop listening for
+new connections.
+
+=item I<Log filename>
+
+If you enable log generation by the following option, you can choose
+here where the log will go. Make sure the file is writable to the uid
+under which the daemon process is running.  The file opened and closed
+for each appended log line (usually there's very low traffic into that
+file) so you can operate on it (e.g. truncate it) without restarting
+the daemon.
+
+=item I<File min. log level>
+
+Here you can choose if log information should be written to a file.
+If you run nxtvepg with TCP/IP disabled, you don't need to use logging;
+but if you allow remote connections you should keep log files at
+"info" level to be able to check which hosts connect to your server.
+
+The following settings are available: "no logging" disables logging;
+"error" enables logging of internal errors that lead to an immediate
+exit of the daemon; "warning" additionally enables logging of
+unexpected events, i.e. internal errors which do not lead to exit;
+"notice" additionally enables logging of server status changes,
+i.e. startup and shutdown; "info" additionally enables logging of
+connection establishment or shutdown. 
+
+=item I<Syslog min. level>
+
+Here you can enable or disable logging to syslog. See I<syslogd(8)>
+and I<syslog.conf(5)> for details about the syslog facility. The log
+levels you can choose here are the same as described in the previous
+paragraph for logging to files.
+
+=back
+
+Note that while network mode is enabled configuration of acquisition
+mode and TV card input has no effect and no EPG scan is possible.
+If you use the same rc/ini file for daemon and GUI the changed settings
+will however be used by the daemon upon the next start.
 
 
 =item B<Xawtv connection...>
@@ -1508,7 +1739,7 @@ Toggle visibility of the browser listbox column header menu bar.
 
 =over 4
 
-=item B<~/.nxtvepgrc>
+=item B<$HOME/.nxtvepgrc>
 
 Configuration file where all personal settings are stored. Per default
 this is created in your home directory, but a different path and file
@@ -1547,9 +1778,31 @@ of the browser window, as I<forced passive> acquisition mode).
 =item B</tmp/.vbi0.pid>, B</tmp/.vbi1.pid>, etc.
 
 This file contains the process id of the Nextview decoder (or the
-acquisition slave process) whenever a vbi device is kept open. The
-process can be forced to free the device by sending it signal SIGHUP,
-e.g. from a wrapper script around a teletext decoder.
+acquisition slave process unless threading is used) whenever a vbi device
+is kept open. The process can be forced to free the device by sending
+it signal SIGHUP, e.g. from a wrapper script around a teletext decoder.
+An example which works with sh, bash or tcsh:
+
+   kill -HUP `cat /tmp/.vbi0.pid`
+
+Note that the daemon is not kept alive when acquisition is disabled,
+so that sending HUP equals sending TERM.  You can restart acquisition
+by starting a new daemon.  The browser attempts to reconnect every
+10 seconds when the connection was broken, but you can also trigger
+an immediate reconnect be signalling it a HUP.
+
+To restart acquisition in non-daemon mode, signal again with HUP,
+either to the acquisition slave process or the browser process.
+
+
+=item B</tmp/nxtvepg.0>
+
+This non-regular file (socket) is created by the daemon to allow
+local client connections via UNIX domain sockets.  The same socket
+can be used for more than one client connection.  It's deleted when
+the daemon terminates (unless the daemon crashes or receives an
+uncatchable signal like KILL).
+
 
 =item B<$HOME/.xawtv>, etc.
 
@@ -1623,7 +1876,8 @@ Tom Zoerner, Erlangen, Germany.
 
 Email: tomzo (at) nefkom (dot) net
 
-Many thanks to Mario Kemper for the NetBSD port and beta testing;
+Many thanks to Jan Schuster for beta testing starting with 0.7.0;
+to Mario Kemper for the NetBSD port and early beta testing;
 to "Mario's brother" for beta testing the Windows port;
 to Gerd Knorr for xawtv;
 to Ralph Metzler for his teletext decoder;

@@ -5389,3 +5389,1865 @@ www/index.html [rev:1.32, 2001-11-07T19:36:12]:
 www/changelog.html [rev:1.22, 2001-11-07T19:38:12]:
 - update for release 0.6.4
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_6_4 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+epgdb/epgnetio.c [rev:1.1, 2001-11-01T10:44:15]:
+- Initial revision
+epgdb/epgnetio.h [rev:1.1, 2001-11-01T10:44:17]:
+- Initial revision
+epgdb/epgnetio.c [rev:1.2, 2001-11-07T19:54:16]:
+- added "set" functions for GUI
+- added logging for client & server
+- server listens both on TCP/IP and pipe
+- fixed DUMP: skip if CNI = 0
+- added EpgDbServer_SetProvider()
+epgdb/epgnetio.h [rev:1.2, 2001-11-07T19:54:42]:
+- added "set" functions for GUI
+- increased protocol compat version from 0.6.4 to 0.7.0
+epgdb/epgqueue.c [rev:1.1, 2001-11-17T22:19:29]:
+- Initial revision
+epgdb/epgqueue.h [rev:1.1, 2001-11-17T22:19:31]:
+- Initial revision
+epgdb/epgqueue.c [rev:1.2, 2001-11-18T19:32:09]:
+- Added EpgDbQueue_Peek() for epgdbsrv.c
+- Fixed typo in func name EpgDbQueue_GeBlockCount()
+- Made EpgDbQueue_Get() global for epgdbsrv.c
+epgdb/epgqueue.h [rev:1.2, 2001-11-18T19:33:39]:
+- Added EpgDbQueue_Peek() for epgdbsrv.c
+- Fixed typo in func name EpgDbQueue_GeBlockCount()
+- Made EpgDbQueue_Get() global for epgdbsrv.c
+epgctl/epgctxctl.c [rev:1.9, 2001-11-18T20:04:44]:
+- Implemented cache for "database peeks"
+- when a db is closed by the last used it's "stripped down" to a peek
+    i.e. all locks are freed except AI and OI#0 and the context struct
+- if a db is open at the time someone want to "peek" into it,
+    the full context is returned transparently
+- upper layers must not use EpgDbPeek() directly anymore
+epgctl/epgctxctl.h [rev:1.7, 2001-11-18T20:04:44]:
+- Implemented cache for "database peeks"
+- when a db is closed by the last used it's "stripped down" to a peek
+    i.e. all locks are freed except AI and OI#0 and the context struct
+- if a db is open at the time someone want to "peek" into it,
+    the full context is returned transparently
+- upper layers must not use EpgDbPeek() directly anymore
+epgdb/epgblock.h [rev:1.30, 2001-11-24T20:16:46]:
+- added elems to struct EPGDB_CONTEXT for use as peek: bool isPeek, stalePeek
+- added struct EPGDB_QUEUE
+epgdb/epgdbacq.c [epgvbi/ttxdecode.c, rev:1.33, 2001-11-24T20:28:41]:
+- Use new epgdb/epgqueue module for EPG blocks
+- queues replace scratch buffer in epgstream module
+- added EPGDB_QUEUE pointer to start and reset functions
+    pass the pointer to streams init func
+- moved EpgDbAcqSetCallbacks, EpgDbAcqProcessBlocks to epgdbmgmt module
+- EpgDbAcqCheckForPackets: added result bool * pStopped
+- EpgDbAcqProcessPackets: returns FALSE upon channel changes
+- moved all static variables into new struct EPGDBACQ_STATE
+epgdb/epgdbacq.h [epgvbi/ttxdecode.h, rev:1.16, 2001-11-24T20:28:41]:
+- Use new epgdb/epgqueue module for EPG blocks
+- queues replace scratch buffer in epgstream module
+- added EPGDB_QUEUE pointer to start and reset functions
+    pass the pointer to streams init func
+- moved EpgDbAcqSetCallbacks, EpgDbAcqProcessBlocks to epgdbmgmt module
+- EpgDbAcqCheckForPackets: added result bool * pStopped
+- EpgDbAcqProcessPackets: returns FALSE upon channel changes
+- moved all static variables into new struct EPGDBACQ_STATE
+epgdb/epgdbmgmt.c [rev:1.36, 2001-11-24T20:38:23]:
+- Added option bool keepAiOi to EpgDbDestroy()
+- used by peek cache in epgctl/epgctxctl module
+- frees all blocks except AI, OI#0 and the context struct
+- Added queue handling
+- EpgDbAddBlock() now static
+- added EpgDbProcessQueueByType() and EpgDbProcessQueue()
+- Added forward of added blocks to epgdbsrv module in EpgDbAddBlock()
+- Lowered PARITY output from debug to dprintf
+epgdb/epgdbmgmt.h [rev:1.15, 2001-11-24T20:39:23]:
+- Added option bool keepAiOi to EpgDbDestroy()
+- used by peek cache in epgctl/epgctxctl module
+- frees all blocks except AI, OI#0 and the context struct
+- Added queue handling
+- EpgDbAddBlock() declaration removed: now static
+- added EpgDbProcessQueueByType() and EpgDbProcessQueue()
+epgdb/epgdbsav.c [rev:1.41, 2001-11-24T20:46:15]:
+- Use normal context struct for peek
+- change EpgDbPeek() to EPGDB_CONTEXT
+- removed EpgDbPeekDestroy()
+- removed EPGDBSAV_PEEK from header file
+epgdb/epgdbsav.h [rev:1.27, 2001-11-24T20:46:15]:
+- Use normal context struct for peek
+- change EpgDbPeek() to EPGDB_CONTEXT
+- removed EpgDbPeekDestroy()
+- removed EPGDBSAV_PEEK from header file
+epgdb/epgqueue.c [rev:1.3, 2001-11-24T20:48:58]:
+- Moved queue processing to epgdb/epgdbmgmt.c
+- removed EpgDbQueue_ProcessAiBi(), EpgDbQueue_ProcessBlocks()
+- made EpgDbQueue_GetByType() global
+- moved EPGDB_QUEUE_CB to epgdb/epgblock.h
+epgdb/epgqueue.h [rev:1.3, 2001-11-24T20:48:58]:
+- Moved queue processing to epgdb/epgdbmgmt.c
+- removed EpgDbQueue_ProcessAiBi(), EpgDbQueue_ProcessBlocks()
+- made EpgDbQueue_GetByType() global
+- moved EPGDB_QUEUE_CB to epgdb/epgblock.h
+epgdb/epgstream.c [rev:1.16, 2001-11-24T20:54:22]:
+- Replaced scratch buffer with new epgdb/epgqueue module
+- removed EpgStreamAddBlockToScratch(), EpgStreamClearScratchBuffer()
+    removed EpgStreamGetBlockByType(), EpgStreamGetNextBlock()
+- EpgStreamInit(): added pointer to EPGDB_QUEUE
+- added EpgStreamClear()
+- Removed EpgStreamEnableAllTypes()
+- this is now done automatically upon reception of first AI block
+epgdb/epgstream.h [rev:1.12, 2001-11-24T20:54:22]:
+- Replaced scratch buffer with new epgdb/epgqueue module
+- removed EpgStreamAddBlockToScratch(), EpgStreamClearScratchBuffer()
+    removed EpgStreamGetBlockByType(), EpgStreamGetNextBlock()
+- EpgStreamInit(): added pointer to EPGDB_QUEUE
+- added EpgStreamClear()
+- Removed EpgStreamEnableAllTypes()
+- this is now done automatically upon reception of first AI block
+epgdb/epgnetio.c [rev:1.3, 2001-11-24T21:07:22]:
+- Replaced queue handling with new module epgdb/epgqueue
+- removed queue handling funcs: EpgDbServer_QueueFree(),
+    EpgDbServer_QueueAppend()
+- added param EPGDB_QUEUE to StartAcq
+- renamed bool bScratchAcqMode to waitForAi
+- moved EpgDbClient_ProcessBlocks() to epgdb/epgdbmgmt.c
+    merged with equivalent func from epgdbacq.c
+- Fixed handling of STATS_IND:
+- must be queued and processed AFTER all EPG blocks
+- added pNetStats to clientState
+- added new funcs EpgDbClient_GetNetStats(), EpgDbClient_FreeNetStats()
+epgdb/epgnetio.h [rev:1.3, 2001-11-24T21:08:33]:
+- Replaced queue handling with new module epgdb/epgqueue
+- added param EPGDB_QUEUE to EpgDbClient_StartAcq()
+- moved EpgDbClient_ProcessBlocks() to epgdb/epgdbmgmt.c
+    merged with equivalent func from epgdbacq.c
+- removed pAiCallback and pStatsUpdate from callback struct
+- Fixed handling of STATS_IND:
+- must be queued and processed AFTER all EPG blocks
+- added pNetStats to clientState
+- added new funcs EpgDbClient_GetNetStats(), EpgDbClient_FreeNetStats()
+epgctl/epgctxctl.c [rev:1.10, 2001-11-24T21:16:12]:
+- Added possibility to lock automatic dumps upon context close
+- used by acq ctl module when in network acq mode
+- new func EpgContextCtl_LockDump() to toggle lock on/off
+- new static bool contextLockDump, checked in context close func
+epgctl/epgctxctl.h [rev:1.8, 2001-11-24T21:16:39]:
+- Added possibility to lock automatic dumps upon context close
+- used by acq ctl module when in network acq mode
+- new func EpgContextCtl_LockDump() to toggle lock on/off
+epgctl/epgscan.c [rev:1.15, 2001-11-24T21:43:16]:
+- Use new epgdb/epgqueue module for EPG block queue
+- added EPGDB_QUEUE to scanCtl struct
+- pass queue pointer to EpgDbAcqStart and Reset funcs
+- use new func EpgDbAcqProcessQueue() in epgdbmgmt.c
+- Removed EpgScan_ChannelChange():
+- obsolete: EpgDbAcqProcessPackets() now returns FALSE upon channel changes
+- Implemented peek cache in epgctxctl
+- EPGDB_PEEK struct obsolete, replaced by context
+- use EpgContextCtl_Peek() instead of EpgDbPeek()
+- Moved provider handling from EpgScan_EvHandler() into EpgScan_AiCallback()
+- this get rid of the additional peek in EvHandler, which was required
+    to check if the provider is new; this check was no longer possible
+    this way because of the peek cache
+epgvbi/btdrv4linux.c [rev:1.18, 2001-11-24T22:01:32]:
+- removed #define USE_THREADS: moved into Makefile
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.137, 2001-11-29T19:11:10]:
+- bugfix proc NetAcqConfigQuit: check for logfilename >=0 repl. by >0
+epgui/epgmain.c [rev:1.69, 2001-11-29T19:51:10]:
+- Implemented network acquisition mode (forward EPG blocks from daemon to GUI)
+- added event handler for network socket
+- added new option "-nodetach"
+- replaced switch WIN32 by USE_DAEMON for references to epgdbsrv
+- added EpgDbServer_Init(), SetNetAcqParams(interp, TRUE, FALSE),
+    EpgDbClient_Init(), EpgDbClient_Destroy()
+- Split off EpgAcqCtl_ProcessBlocks() from EpgAcqCtl_ProcessPackets()
+- TTX packets can be processed right in EventHandler_UpdateClock()
+- only EpgDbAdd must be done as MainIdleEvent if packets received
+- Call EpgContextCtl_ClearCache() during shutdown
+epgui/menucmd.c [rev:1.52, 2001-11-29T19:51:22]:
+- replaced calls to EpgAcqCtl_UiProvChange() with SetAcquisitionMode(): acqctl
+    no longer polls GUI for CNI list -> must be passed via EpgAcqCtl_SelectMode
+- implemented cache for peeks in epgctxctl.c
+    + struct EPGDB_PEEK replaced by EPGDB_CONTEXT
+    + use EpgContextCtl_Peek() instead of EpgDbPeek()
+- changed SetAcquisitionMode():
+    + for follow-ui pass list of CNIs
+    + added support for network acq: equiv follow-ui
+    + return value now void
+- SetDaemonAcquisitionMode() params change:
+    + replaced startUiCni with cmdlCniCount, pCmdlCniList: for dbsrv
+    + added followUi
+- added new func SetNetAcqParams(): for netacq config dialog
+epgui/menucmd.h [rev:1.11, 2001-11-29T19:51:28]:
+- changed SetAcquisitionMode(): return value now void
+- SetDaemonAcquisitionMode() params change:
+    + replaced startUiCni with cmdlCniCount, pCmdlCniList: for dbsrv
+    + added followUi
+- added new func SetNetAcqParams(): for netacq config dialog
+epgui/statswin.c [rev:1.42, 2001-11-29T19:51:35]:
+- Implemented statistics output for netacq mode (remote daemon acquisition)
+- General changes:
+- use new struct EPGDB_ACQ_PROV_INFO: info from AI block in remote database
+    filled by EpgAcqCtl_GetStatistics(); required if db not open locally
+- moved EpgDbAcqGetScanResult() to EpgAcqCtl_GetVpsCni()
+- struct EPGDB_STATS: internal changes (split in sub-structs)
+- StatsWin_UpdateDbStatsWin:
+- added network connection state to output
+- improved output for follow-merged mode: list count of CNIs in list
+- StatsWin_UpdateDbStatusLine:
+- print network connection error state
+- added prov name to improved ACQDESCR_NO_RECEPTION and _STALLED
+- StatsWin_ToggleDbStats:
+- removed call to EpgDbAcqResetVpsPdc(): obsolete, VPS isn't disabled in this
+    function anymore anyways
+- added new func StatsWin_StatsUpdate()
+- only used during remote acq for non-forwarded providers
+epgui/statswin.h [rev:1.10, 2001-11-29T19:51:43]:
+- added new func StatsWin_StatsUpdate()
+- only used during remote acq for non-forwarded providers
+epgui/uictrl.c [rev:1.14, 2001-11-29T19:51:55]:
+- added new func UiControlMsg_NetAcqError()
+- from acq control upon network connection error
+epgui/uictrl.h [rev:1.7, 2001-11-29T19:52:00]:
+- added new func UiControlMsg_NetAcqError()
+- from acq control upon network connection error
+epgctl/epgacqctl.c [rev:1.51, 2001-11-29T19:53:45]:
+- implemented new acq mode: ACQMODE_NETWORK
+    + changed _Start, _Stop, _UpdateProvider, _AdvanceCyclePhase,
+      _SelectMode, _AiCallback, _Idle, _ProcessPackets
+    + added EpgAcqCtl_FwdCallback(): prov change trigger from epgdbsrv
+    + call EpgDbServer_SetProvider() after all acq db provider changes
+    + added EpgAcqCtl_Stopped() as callback
+    + skip ACQSTATE_WAIT_BI in netacq mode: map BI to AI state in AI callback
+    + moved EpgAcqCtl_GetVpsCni() here from epgdbacq.c
+- 
+- display remote acq stats
+    + added EpgAcqCtl_GetNetStats() and EpgAcqCtl_NetStatsUpdate()
+    + EpgAcqCtl_GetStatistics() returns also provider name
+      in netacq mode this is the remote db info; db may not be open locally
+    + EpgAcqCtl_DescribeAcqState() returns netacq stats
+    + struct EPGDB_STATS split in sub-structs
+    + added element isRemote to struct EPGACQ_DESCR
+    + added module global vars to hold netacq stats:
+      acqNetDescr, acqNetProvInfo, acqNetVpsCni
+- 
+- EpgDbAcqCheckForPackets() and hence EpgAcqCtl_ProcessPackets() split:
+    1. EpgAcqCtl_ProcessPackets(): VBI line processor: TTX pkgs -> blocks in queue
+    2. EpgAcqCtl_ProcessBlocks(): Queue processor, inserts blocks in db
+    + only 2. must be called from main loop idle handler
+    + queue processor moved from epgdbacq.c to epgdbmgmt.c
+    + added generic epgdb/epgqueue.c module & new type EPGDB_QUEUE in epgblock.h
+    + added static EPGDB_QUEUE acqDbQueue: param to EpgDbAcqStart and Reset()
+    + ChannelChange and Stop callbacks obsolete: info now returned directly
+      by EpgDbAcqCheckForPackets()
+- 
+- fix for acq in daemon mode: added chanChangeTime to struct acqCtl:
+    needed when EpgAcqCtl_Idle() is called very often
+- removed EpgAcqCtl_UiProvChange(): polling of GUI db is obsolete
+    now the CNI list must be passed via SelectMode
+- EpgAcqCtl_SelectMode() checks if params have changed; if not, do nothing
+epgctl/epgacqctl.h [rev:1.31, 2001-11-29T19:53:54]:
+- Implemented network acq mode:
+- added ACQMODE_NETWORK to struct EPGACQ_MODE
+- added macros ACQMODE_IS_PASSIVE() and ACQMODE_IS_FOLLOW()
+- added element isRemote to struct EPGACQ_DESCR
+- split EPGDB_STATS to allow reuse in new struct EPGDB_STATS_UPD
+- added new struct EPGDB_ACQ_PROV_INFO
+- added declarations for new functions: EpgAcqCtl_ProcessBlocks,
+    EpgAcqCtl_AddBlocks, EpgAcqCtl_GetNetStats, EpgAcqCtl_GetVpsCni
+Makefile [rev:1.36, 2001-11-29T19:55:02]:
+- added compiler switches to DEFS: USE_THREADS, USE_DAEMON
+- added module epgdb/epgqueue
+Makefile.win32 [rev:1.12, 2001-11-29T19:57:00]:
+- added compiler switches to DEFS: USE_THREADS, USE_DAEMON
+- added module epgdb/epgqueue
+epgdb/epgnetio.c [rev:1.4, 2001-11-29T20:31:49]:
+- Added call to EpgTxtDump_Block() for all incoming EPG blocks.
+nxtvepg.pod [rev:1.54, 2001-11-29T20:36:00]:
+- updated description of option -daemon: warn about running as root,
+    note about use of -rcfile, recomment use of netacq mode
+- added option -nodetach
+- added config dialog "Client/Server..." for netacq mode
+- replaced "~" with $HOME in rc file path
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.138, 2001-12-01T15:18:40]:
+- added support for wheelmouse in main window
+- submitted by Serge Koenigsmann <skoe@gmx.net>
+epgdb/epgstream.c [rev:1.17, 2001-12-01T15:51:45]:
+- translated remaining German comments to English.
+epgvbi/cni_tables.c [rev:1.1, 2001-12-02T20:12:41]:
+- Initial revision
+epgvbi/cni_tables.h [rev:1.1, 2001-12-02T20:12:45]:
+- Initial revision
+epgdb/epgnetio.c [rev:1.5, 2001-12-02T20:40:41]:
+- Split off new func EpgDbServer_GetFdSet() from _HandleSockets():
+- select() called moved up into the main loop
+- GetFdSet now fetched the bit vector for the select;
+    after the select _HandleSockets() is called
+- this allows to serve multiple servers in parallel (e.g. HTTP server)
+epgdb/epgnetio.h [rev:1.4, 2001-12-02T20:40:41]:
+- Split off new func EpgDbServer_GetFdSet() from _HandleSockets():
+- select() called moved up into the main loop
+- GetFdSet now fetched the bit vector for the select;
+    after the select _HandleSockets() is called
+- this allows to serve multiple servers in parallel (e.g. HTTP server)
+epgvbi/cni_tables.c [rev:1.2, 2001-12-02T20:50:26]:
+- Added Turkish CNIs from TRT-1 AI block
+- Added CNN-Int
+epgui/epgmain.c [rev:1.70, 2001-12-02T20:51:34]:
+- Changed daemon main loop:
+- pulled select() call up into main loop
+- Split off new func EpgDbServer_GetFdSet() from _HandleSockets()
+- this allows to serve multiple servers in parallel (e.g. HTTP server)
+epgui/epgtxtdump.c [epgui/dumpraw.c, rev:1.18, 2001-12-02T20:52:32]:
+- PI dump: added start date to output (was only day of week)
+epgui/menucmd.c [rev:1.53, 2001-12-02T20:54:40]:
+- Added new Tcl proc C_GetCniDescription
+- Return descriptive text for a given 16-bit network code
+- used for network name config dialog; maybe netsel dialog too in the future
+- implemented by new func MenuCmd_GetCniDescription
+- based on new module cni_tables.c, interface CniGetDescription()
+epgui/pdc_themes.c [rev:1.6, 2001-12-02T20:56:20]:
+- removed obsolete & unused #define __PDC_THEMES_C
+epgvbi/cni_tables.c [rev:1.3, 2001-12-04T19:06:19]:
+- added many networks from latest version of TR 101 231
+epgvbi/cni_tables.c [rev:1.4, 2001-12-04T19:50:44]:
+- merged VPS with PDC table
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.139, 2001-12-04T20:10:57]:
+- SelBoxCreate: added scroll bars to netwop selection dialog if > 27 lines
+- Network name config dialog: added "official network description"
+    based on new module cni_tables.c
+- timescales: added scale with dates and marker for "now" at top of window
+    new proc TimeScale_DrawDateScale
+- timescales: added callback for Button-1-Press: filter PI listbox & goto time
+    new proc TimeScale_GotoTime
+epgui/statswin.c [rev:1.43, 2001-12-04T20:11:06]:
+- timescales: display expired PI: changed startTime to first PI in db
+    instead of current time
+- added func StatsWin_TimeScaleGetTime() for timescales popup window:
+    translates pixel-offset to start time
+- added func StatsWin_UpdateTimescaleDateScale() for timescales popup:
+    added scale with dates and marker for "now" at top of window
+- new colors for expired PI in timescales
+- new macros TSC_WIDTH_IN_PIXELS, TSC_WIDTH_IN_SECS, NOW_NEXT_BLOCK_COUNT
+epgui/xawtv.c [rev:1.17, 2001-12-04T20:13:14]:
+- popup (POP_EXT) is immediately removed when xawtv is terminated or iconified
+Makefile [rev:1.37, 2001-12-04T20:25:00]:
+- added new module cni_tables
+www/changelog.html [rev:1.23, 2001-12-06T18:50:13]:
+- updated 0.7.0 section with more changes (still unreleased 0.7.0a1)
+epgdb/epgblock.h [rev:1.31, 2001-12-06T20:20:50]:
+- translated remaining German comments to English.
+epgui/epgmain.c [rev:1.71, 2001-12-07T20:26:02]:
+- improved "usage" output:
+- added cmd line syntag after "Usage:" line
+- WIN32: for -daemon et.al. say "unsupported" instead of "unknown"
+epgctl/epgacqctl.h [rev:1.32, 2001-12-07T23:32:40]:
+- Removed obsolete func EpgAcqCtl_AddBlocks()
+epgdb/epgblock.h [rev:1.32, 2001-12-08T17:26:17]:
+- severe bug fix: struct EVENT_ATTRIB: fixed-len array EV_ATTRIB_DATA unit
+- array was too short: only 7, but 16 are possible (4 bits in Nextview stream)
+- use new macro NI_MAX_ATTRIB_COUNT
+--> this fix makes the db format backwards incompatible!
+- made pointers const in all GET() macros, e.g. PI_GET_TITLE()
+epgdb/epgdbfil.c [rev:1.29, 2001-12-08T17:32:32]:
+- EpgDbFilterApplyNi: added debug output for unknown NI event attrib kinds
+epgdb/epgblock.c [rev:1.39, 2001-12-08T17:35:09]:
+- Adapted for change in epgblock.h:
+- pointers in all GET() macros (e.g. PI_GET_TITLE()) now are const
+-> added casts to non-const (char*) or (void*)
+     where these macros are used to write into newly allocated blocks
+epgdb/epgdbmerge.c [rev:1.18, 2001-12-08T17:41:43]:
+- Adapted for change in epgblock.h:
+- pointers in all GET() macros (e.g. PI_GET_TITLE()) now are const
+-> corrected some variable declarations: added const *
+-> added casts to non-const (char*) or (void*)
+     where these macros are used to write into newly allocated blocks
+epgui/epgtxtdump.c [epgui/dumpraw.c, rev:1.19, 2001-12-08T17:44:25]:
+- Adapted for change in epgblock.h:
+- pointers in all GET() macros (e.g. PI_GET_TITLE()) now are const
+-> corrected variable declaration: added const *
+- EpgTxtDumpNi: added debug output for unkown NI event attrib kinds
+epgui/pioutput.c [rev:1.10, 2001-12-08T17:50:02]:
+- Adapted for change in epgblock.h:
+- pointers in all GET() macros (e.g. PI_GET_TITLE()) now are const
+-> corrected variable declaration: added const *
+epgui/menucmd.c [rev:1.54, 2001-12-08T17:50:16]:
+- Adapted for change in epgblock.h:
+- pointers in all GET() macros (e.g. PI_GET_TITLE()) now are const
+-> added cast to (char*) for arg to Tcl_SetVar2
+epgui/pifilter.c [rev:1.52, 2001-12-08T17:50:55]:
+- Adapted for change in epgblock.h:
+- pointers in all GET() macros (e.g. PI_GET_TITLE()) now are const
+-> corrected variable declaration: added const *
+epgdb/epgdbsav.h [rev:1.28, 2001-12-08T19:30:28]:
+- changed DUMP_COMPAT from 0.4.3 to 0.7.0
+- due to bug fix in epgblock.h struct EVENT_ATTRIB
+epgdb/epgqueue.c [rev:1.4, 2001-12-08T19:37:06]:
+- removed 3 superfluous include files
+epgdb/epgblock.h [rev:1.33, 2001-12-09T10:43:33]:
+- Added EpgBlockCheckConsistancy()
+epgvbi/btdrv4linux.c [rev:1.19, 2001-12-09T11:31:01]:
+- bugfix BtDriver_SignalDeathOfChild()
+- GUI process hang in wait when acq slave was delivered a STOP signal
+- use WNOHANG option
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.140, 2001-12-10T20:45:26]:
+- proc TimeScale_Open: in update of already open timescale popup, delete
+    all obsolete scales in one destroy; might solve trouble with wm bugs
+- added UpdateMergedProvSelection to update provider preference list
+    after merge -> set merged CNIs to the top of the list
+epgui/menucmd.c [rev:1.55, 2001-12-10T20:46:21]:
+- ProvMerge_Start: call new Tcl proc UpdateMergedProvSelection
+- with list of merged CNIs -> put them at top of the prov. preference list
+epgdb/epgblock.h [rev:1.34, 2001-12-11T20:56:48]:
+- reduced NI_MAX_EVENT_COUNT from 16 to 15 (valid range is 0..15)
+- replaced type CNI_VAL for cni in AI with uint
+    because this type was used nowhere else
+- replaced uint with ushort in EPG blocks whereever possible
+- removed obsolete element long_info_type from PI block
+- added ulong series_code and bool block_no_in_ai to PI block
+- removed mergeCount from EPG block union (unused)
+- added new element time_t updTimestamp to EPG block union
+epgvbi/cni_tables.c [rev:1.5, 2001-12-12T21:45:30]:
+- added missing country codes
+- plus a few corrections
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.141, 2001-12-14T20:26:26]:
+- Made several filter & config dialog windows resizable:
+- substr, sortcrit, provwin, epgscan, netsel, netname, ctxmencf.
+- Resize support added to proc SelBoxCreate.
+epgui/epgtxtdump.c [epgui/dumpraw.c, rev:1.20, 2001-12-14T20:46:28]:
+- EpgTxtDumpPi(): added output of pPi->background_reuse & ..._ref
+epgui/statswin.c [rev:1.44, 2001-12-14T20:56:56]:
+- bugfix StatsWin_UpdateDbStatusLine():
+- suppress acq phase output whilst in network error state
+epgdb/epgblock.c [rev:1.40, 2001-12-14T21:02:36]:
+- EpgBlockCreate(): added initialisation of updTimestamp
+- EpgBlockConvertPi(): added initialisation of block_no_in_ai, series_code;
+    removed long_info_type
+- added consistancy check functions for all block types
+    AI and PI check funcs moved here from epgdbsav.c, but completely reworked
+- added new func EpgBlockCheckConsistancy() as interface to block checks
+    used by epgdbsav (reload from file) and epgdbsrv (network acq)
+epgdb/epgblock.h [rev:1.35, 2001-12-14T21:09:22]:
+- bugfix PI_BLOCK: pil was short, but needs 20 bits -> made to uint; reordered
+epgdb/epgdbsav.c [rev:1.42, 2001-12-14T21:21:07]:
+- moved AI and PI consistancy check funcs to epgblock.c
+    now one interface for all types: EpgBlockCheckConsistancy()
+    returns bool instead of EPGDB_RELOAD_RESULT -> result handling adapted
+- EpgDbReloadAddGenericBlock(), EpgDbPeekOi(): added calls to consistancy check
+- slight change in checks: errors in block ranges no longer lead to abort
+epgdb/epgnetio.h [rev:1.5, 2001-12-14T21:21:39]:
+- added #ifndef WIN32 around func decls with fd_set params
+epgdb/epgdbmerge.c [rev:1.19, 2001-12-14T21:22:29]:
+- EpgDbMergePiBlocks(): removed obsolete elems long_info_type, mergeCount
+- from the generated block (removed in epgblock.h)
+epgdb/epgblock.h [rev:1.36, 2001-12-19T13:29:16]:
+- changed struct EPGDB_CONTEXT:
+- removed elements pNextpNext, refCount, isPeek, stalePeek
+- moved into new wrapper struct, which is internal to epgctxctl.c
+epgdb/epgdbif.c [rev:1.36, 2001-12-19T13:29:28]:
+- replaced many debugx() calls with the new macro fatalx()
+-> aborts on serious errors, e.g. DB not locked
+epgdb/epgqueue.c [rev:1.5, 2001-12-19T14:01:05]:
+- EpgDbQueue_GetByType:
+- fixed type of param type from uchar to BLOCK_TYPE
+- for generic blocks, only return block_no #0
+epgdb/epgqueue.h [rev:1.4, 2001-12-19T14:01:12]:
+- EpgDbQueue_GetByType: fixed type of param type from uchar to BLOCK_TYPE
+epgdb/epgdbsav.c [rev:1.43, 2001-12-19T14:01:25]:
+- EpgDbReloadScan(): now returns one list with all CNIs, instead of one by one
+- removed parameter "int nextIndex"; special "best" for -1 also obsolete
+- result is new struct EPGDB_SCAN_BUF, dynamically allocated;
+    contains CNI and file modification time for each database
+    (mtime needed by the caller to find the newest db)
+- added new helper func EpgDbReloadScanAddCni()
+epgdb/epgdbsav.h [rev:1.29, 2001-12-19T14:01:27]:
+- EpgDbReloadScan(): now returns one list with all CNIs, instead of one by one
+- removed parameter int nextIndex
+- added new struct EPGDB_SCAN_BUF: list of CNI and mtime for each db
+epgctl/debug.h [rev:1.10, 2001-12-19T14:40:42]:
+- added do{}while(0) around all macros which use brackets {} or if
+    specifically: assert, SHOULD_NOT_BE_REACHED, debugX, ifdebugX
+- added new macro series fatalX: combines debugX and SHOULD_NOT_BE_REACHED
+- noted that SHOULD_NOT_BE_REACHED is now obsolete
+- added a few missing dummy macros, e.g. debug8, debug9, ...
+- added comments and usage examples
+www/index-de.html [rev:1.21, 2001-12-19T15:36:05]:
+- added note that Windows 2000 is not supported
+www/index.html [rev:1.33, 2001-12-19T15:36:05]:
+- added note that Windows 2000 is not supported
+epgui/epgmain.c [rev:1.72, 2001-12-19T20:15:53]:
+- Adapted for changes in epgctxctl.c (extended caching)
+- added call to EpgContextCtl_InitCache() during startup
+- replaced open for demo db with new func EpgContextCtl_OpenDemo()
+epgui/menucmd.c [rev:1.56, 2001-12-19T20:16:00]:
+- Adapted for changes in epgctxctl.c (extended caching)
+- removed include epgdbsav.h (all calls now go through epgctxctl)
+- additional arg to EpgContextCtl_Open(): open failure handling mode
+- MenuCmd_ChangeProvider(): do not change db if open failes
+    (previously an empty db would have opened)
+- MenuCmd_GetProvCnisAndNames(): replaced loop with calls to EpgDbReloadScan()
+    with new func EpgContextCtl_GetProvList() which retrieves the complete list
+- ProvMerge_Start(): changed to keep previous db if merge fails
+- OpenInitialDb(): adapted for changed semantics of EpgContextCtl_Open()
+    use failure handling mode CTX_FAIL_RET_NULL to spare close after failure;
+    use new func EpgContextCtl_OpenAny() if no known CNIs left
+epgui/uictrl.c [rev:1.15, 2001-12-19T20:16:07]:
+- Adapted for changes in epgctxctl.c (extended caching)
+- additional arg to EpgContextCtl_Open(): open failure handling mode
+epgctl/epgctxmerge.c [rev:1.5, 2001-12-19T20:46:45]:
+- EpgDbMergeOpenDatabases(): adapted for changes in epgctxctl.c
+    additional arg to EpgContextCtl_Open(): CTX_FAIL_RET_NULL
+- EpgContextMergeGetCnis(): removed unnecessary reference to pUiDbContext;
+    use parameter dbc instead
+- EpgDbMergeOpenAcqContext(): removed unused parameter dbc
+epgctl/epgscan.c [rev:1.16, 2001-12-19T20:59:24]:
+- EpgScan_EvHandler(): added output of network names during scan (cni_tables.h)
+- adapted for changes in epgctxctl.c (extended caching)
+    + additional arg to calls of EpgContextCtl_Open(): failure handling mode
+    + use empty dummy context until an AI block is found; then a new context
+      must be created, even if a db with the given CNI does not exist yet
+- bugfix EpgDbProcessQueueByType(): must give address of context pointer
+- EpgScan_ProcessPackets(): added insertion of OI#0 to db, if available
+- bugfix EpgScan_Start():
+    - was: core dump upon device access errors and restart of acq
+    - moved closing of pAcqDbContext into EpgAcqCtl_Suspend()
+    - call EpgAcqCtl_Suspend() earlier to avoid complex checks if it needs to be
+      un-suspended upon errors
+epgctl/epgctxctl.c [rev:1.11, 2001-12-19T21:12:44]:
+- Extended caching (BIG change, almost equals a total rewrite)
+- use an internal wrapper struct to chain all contexts
+- do initial dbdir scan and keep info about all found db files (CTX_CACHE_STAT)
+    added new func EpgContextCtl_InitCache(): to be called at startup
+    added new funcs EpgContextCtl_GetProvList(), EpgContextCtl_GetProvCount()
+- keep info about failed opens (CTX_CACHE_ERROR)
+- use pContextDummy for all empty databases (CTX_CACHE_DUMMY)
+- added arg CTX_FAIL_RET_MODE to EpgContextCtl_Open()
+- EpgContextCtl_Open(): split off new funcs to handle special cases
+    EpgContextCtl_OpenAny(), _OpenDemo(), _OpenDummy()
+- added consistancy check function
+epgctl/epgctxctl.h [rev:1.9, 2001-12-19T21:12:51]:
+- Extended caching (BIG change, almost equals a total rewrite)
+- do initial dbdir scan and keep info about all found db files (CTX_CACHE_STAT)
+    added new func EpgContextCtl_InitCache(): to be called at startup
+    added new funcs EpgContextCtl_GetProvList(), EpgContextCtl_GetProvCount()
+- added arg CTX_FAIL_RET_MODE to EpgContextCtl_Open()
+- EpgContextCtl_Open(): split off new funcs to handle special cases
+    EpgContextCtl_OpenAny(), _OpenDemo(), _OpenDummy()
+- removed obsolete EpgContextCtl_CreateNew()
+epgctl/epgacqctl.c [rev:1.52, 2001-12-19T21:27:08]:
+- bugfix EpgAcqCtl_NetStatsUpdate():
+    call EpgAcqCtl_FwdCallback() only if cni != 0
+- EpgAcqCtl_FwdCallback:
+    + bugfix: must go back to state ACQSTATE_WAIT_AI after provider change
+    + added check for cni != 0
+- EpgAcqCtl_AiCallback():
+    + added check for CNI != 0
+    + improvd handling of tuner frequency updates
+    + fixed handling of pOldAi in case the previous db was empty
+      added an additional call to EpgDbGetAi() after the db switch
+- EpgAcqCtl_Suspend(): close context here; moved here from epgscan.c
+- adapted for changes in epgctxctl.c
+    + use OpenDummy instead of OpenAny if no acq db is selected initially
+    + additional arg to EpgContextCtl_Open(): failure handling mode
+- EpgAcqCtl_GetDbState():
+    use EpgContextCtl_GetProvCount() instead of EpgDbReloadScan()
+- EpgAcqCtl_ChannelChange(): adapted comparison with pUiDbContext CNI
+- bugfix EpgDbProcessQueueByType(): must pass address of context pointer
+epgdb/epgdbfil.c [rev:1.30, 2001-12-20T12:45:59]:
+- replaced debugX() with fatalX() macro for serious errors (like NULL ptr params)
+epgdb/epgdbmgmt.c [rev:1.37, 2001-12-20T13:20:17]:
+- bugfix EpgDbDestroy (forgot to undo debug code):
+    OI was removed despite keepAiOi mode
+- bugfix EpgDbProcessQueueByType(): must get pointer to ctx pointer
+    because here too the provider might change in the AI callback
+- EpgDbCompareParityErrorCount() and EpgDbAddAiBlock():
+    added handling of updTimestamp
+    fixed handling of acqRepCount and acqTimeStamp
+epgdb/epgdbmgmt.h [rev:1.16, 2001-12-20T13:20:23]:
+- bugfix EpgDbProcessQueueByType(): must get pointer to ctx pointer
+- because here too the provider might change in the AI callback
+epgdb/epgnetio.c [rev:1.6, 2001-12-20T13:31:45]:
+- EpgDbServer_CheckMsg(): added consistancy check for incoming EPG blocks
+- protocol fixe: MSG_STRUCT_FORWARD_CNF: added CNI list from req
+    EpgDbServer_TakeMessage(): copy CNI list from FWD_REQ into FWD_CNF message
+    EpgDbClient_TakeMessage(): wait for a FWD_CNF that matches the last FWD_REQ
+- EpgDbServer_AddBlock(): do not forward blocks with updTime != acqTime
+    i.e. skip blocks which were already in the db
+- EpgDbClient_ChangeProviders():
+    compare new CNI list with previous: do nothing if not changed
+epgdb/epgnetio.c [rev:1.7, 2001-12-20T21:18:47]:
+- bugfix EpgDbServer_TakeMessage:
+- when sending FWD_CNF from within DUMP_REQ, the CNI list was not included
+- EpgDbServer_CheckMsg(): added check for cniCount in FWD_CNF
+- bugfix EpgDbClient_TakeMessage():
+- pMsg=NULL must not be set when block rejected due to waitForAi==TRUE
+epgdb/epgstream.c [rev:1.18, 2001-12-21T20:06:07]:
+- EpgStreamDecodePacket(): split off new func EpgStreamAddData()
+-> much, much more readable
+- also moved declaration of internal types here from header file.
+epgdb/epgstream.h [rev:1.13, 2001-12-21T20:09:13]:
+- moved declarations of internal types into .c file
+epgdb/epgnetio.c [rev:1.8, 2001-12-22T16:08:18]:
+- Optimized I/O performance (mainly for the DUMP)
+- split message head from body
+- struct EPGDBSRV_IO: added boolean flag freeWriteBuf
+    so that not all messages need to be malloced and freed
+- removed EpgDbClient_FreeNetStats(): obsolete since the upper layer
+    now gets a pointer to the msg body which it can free by itself
+- EpgDbServer_DumpEpgBlock()
+- loops until write on sockets would block
+- use updTimestamp instead of acqTimestamp -> much less blocks get dumped
+epgdb/epgnetio.h [rev:1.6, 2001-12-22T16:08:28]:
+- removed EpgDbClient_FreeNetStats(): obsolete
+epgdb/epgdbif.c [rev:1.37, 2001-12-22T16:08:36]:
+- replaced some more debugX() macros with fatalX()
+epgctl/epgacqctl.c [rev:1.53, 2001-12-22T16:12:05]:
+- replaced call to EpgDbClient_FreeNetStats() with xfree()
+- because EpgDbClient_GetNetStats() now returns a freeable pointer
+epgui/statswin.c [rev:1.45, 2001-12-22T16:25:43]:
+- bugfix StatsWin_UpdateTimescaleDateScale()
+- timer scaleUpdateHandler was never created
+- timer scaleUpdateHandler was missing factor 1000
+epgvbi/cni_tables.c [rev:1.6, 2001-12-22T16:29:00]:
+- renamed TF1 to "France 1 (TF1)"
+- added obsolete BBC codes, because they are still in use
+epgui/epgmain.c [rev:1.73, 2001-12-22T16:31:09]:
+- daemon main loop: removed boolean enableNet
+- the daemon now always listens on its sickets
+- client/server on/of switch now only is used by the GUI
+epgdb/epgdbmgmt.c [rev:1.38, 2001-12-25T19:43:24]:
+- EpgDbCompareParityErrorCount() and EpgDbAddAiBlock():
+    do not keep updTimestamp of the old block if parity errors have been removed
+- bugfix EpgDbAddGenericBlock(): must not free block if rejected
+    because of parity errors; instead return FALSE
+- EpgDbCheckChains(): added checks for block types
+epgdb/epgblock.c [rev:1.41, 2001-12-25T19:43:34]:
+- EpgBlockConvertAi(): removed unused elems serviceNameLen and pNetwop->nameLen
+epgdb/epgblock.h [rev:1.37, 2001-12-25T19:43:40]:
+- struct AI_BLOCK: removed unused elem serviceNameLen
+- struct AI_NETWOP: removed unused pNetwop->nameLen
+    replaced with reserved_1, which is set to 0 to allow use of memcmp()
+epgdb/epgnetio.c [rev:1.9, 2001-12-25T19:43:49]:
+- Client now always gets AI and OI#0, regardless if requested
+- always dump AI and OI#0, even for non-requested providers
+- the same stats messages are sent for all providers;
+    introduced new separation: minimal and regular (init/update)
+- added message MSG_TYPE_STATS_REQ: payload statsReqBits
+- removed enum values SRV_FWD_STATS_INITIAL_AI, _UPD_AI
+    added enum value _UPD_NO_AI
+- added new func EpgDbClient_SetAcqStatsMode(): sends STATS_REQ clnt -> srv
+- struct EPGDBSRV_STATE: added elem enableAllBlocks
+    caching if the current acq provider is one of those requested by the client
+- EpgDbServer_AddBlock(): split loop, i.e. block queuing from stats indication
+epgdb/epgnetio.h [rev:1.7, 2001-12-25T19:43:58]:
+- added new func EpgDbClient_SetAcqStatsMode(): sends STATS_REQ clnt -> srv
+- pGetStats callback: added arg bool aiFollows and
+    replaced withSums with statsReqBits
+epgdb/epgdbmerge.c [rev:1.20, 2001-12-25T19:49:27]:
+- fixed EpgDbMergeAiBlocks() netwop table merge:
+- the merged netwop table could contain uninitialized entries, if the user
+    network selection contained networks that were included in none of the
+    merged databases (e.g. remains of a previous merge with different providers)
+- now unavailable CNIs are removed from the list
+    for the "initial" mode without user-configured list, a separate loop is
+    used to generate a netwop table with all CNIs from all providers
+- XXX TODO: do not modify passed list; use internal array instead
+- also: removed unused AI_BLOCK elems serviceNameLen and pNetwop->nameLen
+epgctl/epgacqctl.c [rev:1.54, 2001-12-25T22:44:37]:
+- Reworked handling of statistics and unrequested providers in network acq mode:
+- EpgAcqCtl_FwdCallback(): unrequested dbs are now opened as "peek"
+    + the server forwards AI and OI#0 for these providers too
+    + this makes struct EPGDB_ACQ_PROV_INFO and acqNetProvInfo obsolete
+      removed ptr param from EpgAcqCtl_GetAcqStats()
+    + also removed EpgAcqCtl_FillProvInfo()
+- no difference in stats handling for unrequested providers anymore
+    changed enum EPGDB_STATS_UPD_TYPE and struct EPGDB_STATS_UPD
+    changed EpgAcqCtl_GetNetStats() and EpgAcqCtl_NetStatsUpdate()
+- added elem bool initial_ai to stats message: is FALSE same UI related
+    actions as after AI are triggered
+- by default only "minimal" stats are sent; more only if stats window is open
+    added new func EpgAcqCtl_EnableAcqStats()
+- Other changes:
+- removed EpgAcqCtl_GetDbState(): moved into uictrl.c
+- fixed: EpgAcqCtl_AiCallback(): must not use EpgDbContextGetCni() for new
+    providers because no AI is in the db yet
+epgctl/epgacqctl.h [rev:1.33, 2001-12-25T22:44:43]:
+- Reworked handling of statistics and unrequested providers in network acq mode:
+- changed args to EpgAcqCtl_GetNetStats() and EpgAcqCtl_NetStatsUpdate()
+- removed struct EPGDB_ACQ_PROV_INFO
+- changed enum EPGDB_STATS_UPD_TYPE and struct EPGDB_STATS_UPD
+- added new func EpgAcqCtl_EnableAcqStats()
+- Other changes:
+- removed EpgAcqCtl_GetDbState(): moved into uictrl.c
+- removed enum EPGDB_STATE: moved to pilistbox.h
+epgctl/epgctxctl.c [rev:1.12, 2001-12-25T22:44:54]:
+- Fixed PEEK to OPEN upgrade
+- because acq now holds peek open for long time
+- bugfix EpgContextCtl_Load(): do not reset refCount if peek is still open
+- there are no unconnected DB contexts anymore
+- EpgContextCtl_Load(): merge peek with full db if refCount > 0
+- Handling of unknown CNIsin open and peek funcs:
+- create new error context instead of generating a "missing db" error
+    added new func EpgContextCtl_AddStat()
+- added flag bool isNewDb to UiControlMsg_ReloadError()
+    suppress "missing db" errors from 2nd
+- Added currently unused draft for EpgContextCtl_Load()
+epgctl/epgctxctl.h [rev:1.10, 2001-12-25T22:44:59]:
+- open and peek funcs: renamed arg errHandling to failMsgMode
+epgui/uictrl.c [rev:1.16, 2001-12-26T13:39:27]:
+- Design fix: Moved part of EpgAcqCtl_GetDbState() here
+- new func UiControl_GetDbState contains query part of the old func
+- acq cni table modification part was moved to SetAcquisitionMode()
+    i.e. it's done already during enabling acq or provider change etc.
+    and not afterwards during PI listbox reset
+- Added param bool isNewDb to UiControlMsg_ReloadError()
+- display "missing db" error only once, i.e. suppressed when isNewDb==FALSE
+- also added param to internal struct MSG_RELOAD_ERR
+epgui/uictrl.h [rev:1.8, 2001-12-26T13:39:32]:
+- Added param bool isNewDb to UiControlMsg_ReloadError()
+- display "missing db" error only once, i.e. suppressed when isNewDb==FALSE
+epgui/statswin.c [rev:1.46, 2001-12-26T13:40:08]:
+- Changed network mode handling of unrequested acq dbs:
+- now the acqctl module opens at least a "peek" for any acq db
+- hence all special handling of network mode is obsolete
+    struct EPGDB_ACQ_PROV_INFO is obsolete
+- Split EpgAcqCtl_GetStatistics():
+- new func EpgAcqCtl_GetDbStats returns only db percentages
+- new func EpgAcqCtl_GetAcqStats() returns complete acq stats incl. history
+    (acq stats are only required with the acq stats popup window)
+- mode full stats must first be enabled upon opening the stats window
+    TODO: disable stats forward when popup is closed
+- Made acq stats histogram handling more stable
+- new function StatsWin_UpdateHist
+    used for initial display in StatsWin_ToggleDbStats()
+    and updates in StatsWin_UpdateDbStatsWin()
+- new elem lastHistReset in struct dbStatsWinState
+epgui/pilistbox.h [rev:1.12, 2001-12-26T13:40:21]:
+- moved enum EPGDB_STATE here from epgacqctl.h
+- because the function EpgAcqCtl_GetDbState() was removed from there
+- GetDbState functionality is now located in uictrl.c
+epgui/menucmd.c [rev:1.57, 2001-12-26T13:40:29]:
+- Design fix: Moved code here from epgacqctl.c EpgAcqCtl_GetDbState()
+- function was split; the query part moved to uictrl.c
+- the acq mode adaption was moved here: new func SortAcqCniList()
+    special case of handling empty browser db in manual acq mode
+- called from SetAcquisitionMode()
+- EPG scan: analystic output improved
+- MenuCmd_StartEpgScan(): added param bool isOptionXawtv
+    in call to EpgScan_Start()
+epgdb/epgnetio.c [rev:1.10, 2001-12-26T14:19:37]:
+- bugfix EpgDbServer_GetFdSet(): when a write was pending, ongoing reads
+    were disabled in select()
+- bugix EpgDbServer_AddBlock(): do not send STAT_INDs to clients which
+    are not yet in FORWARD state
+- fixed I/O blocking handling in EpgDbClient_HandleSocket()
+- fixed EpgDbClient_ChangeProviders() and EpgDbClient_SetAcqStatsMode():
+    must invoke pCbUpdateEvHandler() after EpgDbServer_HandleIO()
+    to update select() fd_set
+- additional clean-up in EpgDbServer_HandleIO()
+epgui/epgtxtdump.c [epgui/dumpraw.c, rev:1.21, 2001-12-26T14:34:15]:
+- EpgTxtDumpAi():
+- removed output of obsolete AI_BLOCK elem pNetwop->nameLen
+- added labels to each cell in netwop "table", e.g. "CNI=", "lang=" etc.
+- made PI total block sum output more clear
+epgvbi/cni_tables.c [rev:1.7, 2001-12-26T15:36:49]:
+- added new func CniIsKnownProvider()
+- Check if the given CNI belongs to a known Nextview provider
+- uses new table cni_prov_table
+- functionality moved here from epgscan.c
+epgctl/epgscan.c [rev:1.17, 2001-12-26T15:41:50]:
+- print network labels for all identified channels
+- EpgScan_EvHandler(): moved provider table to cni_tables.c
+    use new function CniIsKnownProvider() to query the table
+- added param bool scanCtl.useXawtv to EpgScan_Start():
+    + skip video signal test
+    + warn when no CNI is found on a channel
+- added new state variable scanCtl.newProvCount: count new providers
+    used for summary after scan finished
+- added new state variable scanCtl.foundBi: used for diagnostic output
+    when no AI block is found
+- replaced message "Found ETS-708 syntax" with "Found some kind of data
+    transmission"; also made clear which channel it refers to by adding channel
+    number if no CNI available yet
+epgctl/epgscan.h [rev:1.7, 2001-12-26T15:41:57]:
+- EpgScan_Start(): added param bool scanCtl.useXawtv
+epgctl/epgacqctl.c [rev:1.55, 2001-12-26T17:24:02]:
+- EpgAcqCtl_StatisticsReset(): always clear acqNetDescr and acqNetVpsCni
+- EpgAcqCtl_NetStatsUpdate(): when msg EPGDB_STATS_UPD_TYPE_MINIMAL
+    is received, clear non-transmitted data (in case stats fwd mode was
+    downgraded)
+epgdb/epgnetio.c [rev:1.11, 2001-12-26T17:27:09]:
+- fix EpgDbServer_TakeMessage() for STATS_REQ:
+    only set doTtxStats to SRV_FWD_STATS_INITIAL when in FORWARD state
+- EpgDbClient_SetAcqStatsMode(): only send STATS_REQ msg if param changed
+epgvbi/cni_tables.h [rev:1.2, 2001-12-26T17:28:09]:
+- added declaration for new func CniIsKnownProvider()
+- functionality moved here from epgscan.c
+epgui/statswin.c [rev:1.47, 2001-12-26T17:33:40]:
+- bugfix StatsWin_UpdateDbStatusLine(): acq provider name was not set until
+    acq state was RUNNING -> moved AI query to different place
+- StatsWin_ToggleTimescale(): disable extended stats reports (network acq)
+    when the last stats popup is closed
+- also fix: set open state to FALSE before destroying the window to avoid
+    recursion; removed bind <Destroy> {} because it did not work.
+epgctl/epgacqctl.c [rev:1.56, 2001-12-28T12:21:36]:
+- Adapted for change in epgctxctl: separate close function for peeks
+- added global bool acqContextIsPeek to remember how acq db was opened
+- added new function EpgAcqCtl_CloseDb() which automatically chooses
+    the right close function, depending on acqContextIsPeek
+- set acqContextIsPeek before all context open and peek calls
+- Fixed EpgAcqCtl_SelectMode()
+- for change between netacq and normal acq while acq is enabled
+- acq always was stopped and never enabled again
+epgctl/epgctxctl.c [rev:1.13, 2001-12-28T12:23:21]:
+- Changed struct CTX_CACHE:
+- different reference counters for peek and open requests
+    replaced refCount with peekRefCount and openRefCount
+- EpgContextCtl_Close() renamed static EpgContextCtl_CloseInt()
+- added new wrapper funcs: EpgContextCtl_Close(), EpgContextCtl_ClosePeek()
+epgctl/epgctxctl.h [rev:1.11, 2001-12-28T12:23:26]:
+- Added declaration for new func EpgContextCtl_ClosePeek()
+epgui/uictrl.c [rev:1.17, 2001-12-28T12:30:24]:
+- fixed UiControl_GetDbState()
+- check if acq works for the UI db failed for merged db
+- added loop to search if acq db is one of the merged dbs
+epgui/menucmd.c [rev:1.58, 2001-12-28T12:33:26]:
+- Adapted for change in epgctxctl: separate close function for peeks
+- replaced EpgContextCtl_Close() with EpgContextCtl_ClosePeek()
+    in all functions that open peeks
+epgui/menucmd.c [rev:1.59, 2001-12-28T13:07:19]:
+- Improved EPG scan:
+- in refresh mode EpgScan_Start() additionally gets list of provider CNIs
+- GetProvFreqTab() changed to return two lists, i.e. the complete content
+    of Tcl variable prov_freqs
+- EpgScan_Start() additional result value EPGSCAN_INTERNAL
+- MenuCmd_EpgScanHandler(): do not beep is scan is aborted
+    i.e. if it's stopped outside the handler
+pod2help.pl [rev:1.13, 2002-01-01T20:47:18]:
+- fixed "generated by" header generation
+- used $ARGV[0] and $ARGV[1], but meant $0 and $ARGV[0]
+epgui/timescale.c [rev:1.1, 2002-01-02T14:03:39]:
+- Initial revision
+epgui/timescale.h [rev:1.1, 2002-01-02T14:07:03]:
+- Initial revision
+epgvbi/cni_tables.c [rev:1.8, 2002-01-02T17:03:23]:
+- moved module from epgui to epgvbi directory
+- added new function CniConvertP8301ToVps():
+    replaces obsolete ConvertP8301Ni() in epgdbacq.c
+epgvbi/cni_tables.h [rev:1.3, 2002-01-02T17:03:32]:
+- added declaration for new function CniConvertP8301ToVps()
+- replaces obsolete ConvertP8301Ni() in epgdbacq.c
+epgdb/epgdbacq.c [epgvbi/ttxdecode.c, rev:1.34, 2002-01-02T17:03:46]:
+- removed ConvertP8301Ni() and table niVpsTable
+- replaced by new func CniConvertP8301ToVps() in cni_tables.c
+epgdb/epgdbif.c [rev:1.38, 2002-01-02T17:03:55]:
+- changed params to EpgDbGetStreamByBlockNo(): use EPGDB_BLOCK* instead
+    netwop and block_no: only used internally by epgdb modules now
+- EpgDbGetStat(): added workaround for bug in TARA Nextview encoder_
+    blocks are assigned to stream 2 in AI, but transmitted in stream 1 anyways
+- EpgDbGetPiBlockIndex(): return type changed from ulong to uint
+epgdb/epgdbif.h [rev:1.22, 2002-01-02T17:04:01]:
+- changed params to EpgDbGetStreamByBlockNo(): use EPGDB_BLOCK* instead
+    netwop and block_no: only used internally by epgdb modules now
+- EpgDbGetPiBlockIndex(): return type changed from ulong to uint
+epgdb/epgdbmerge.c [rev:1.21, 2002-01-02T17:04:12]:
+- Implemented support for PI timescale forwarding
+- in EpgDbMergeInsertPi(): instead of directly calling a function at
+    GUI level (former StatsWin_NewPi()) blocks are added to a queue
+    by EpgTscQueue_AddPi()
+epgdb/epgdbmerge.h [rev:1.8, 2002-01-02T17:04:19]:
+- Implemented support for PI timescale forwarding:
+- struct EPGDB_MERGE_CONTEXT: added new elems tscQueue and tscEnable
+epgdb/epgdbmgmt.c [rev:1.39, 2002-01-02T17:04:26]:
+- Implemented support for PI timescale forwarding:
+- instead of directly calling a function at GUI level (former StatsWin_NewPi())
+    blocks are added to a queue by EpgTscQueue_AddPi()
+- pass pointer to timescale queue through EpgDbProcessQueue()
+    and EpgDbAddBlock()
+- pass dbc pointer into EpgDbServer_AddBlock(): req. for EpgTscQueue_AddPi()
+- Removed call to StatsWin_NewAi() - triggered by AI callback now
+- Replaced debugX macros with fatalX where appropriate
+epgdb/epgdbmgmt.h [rev:1.17, 2002-01-02T17:04:31]:
+- Implemented support for PI timescale forwarding:
+- instead of directly calling a function at GUI level (former StatsWin_NewPi())
+    blocks are added to a queue by EpgTscQueue_AddPi()
+- pass pointer to timescale queue through EpgDbProcessQueue()
+epgdb/epgtscqueue.c [rev:1.1, 2002-01-02T17:04:38]:
+- Initial revision
+epgdb/epgtscqueue.h [rev:1.1, 2002-01-02T17:04:40]:
+- Initial revision
+epgdb/epgnetio.c [rev:1.12, 2002-01-02T17:05:09]:
+- Implemented support for PI timescale forwarding
+- added message MSG_TYPE_TSC_IND
+- added timescale queues to server-side and client-side state structs
+- added aiVersionChange to server-side struct
+- added new func EpgDbServer_WriteTscQueue()
+- call EpgTscQueue_AddPi() during dump and in _AddBlock()
+- statsReqBits are now processed in this module: added STATS_REQ_BITS_HIST etc.
+    EpgDbServer_TakeMessage: handle TSC bits in MSG_TYPE_STATS_REQ statsReqBits
+- Optimized EPG block forwarding EpgDbServer_WriteEpgBlock()
+- stuff the socket until short write
+- Bugfix EpgDbServer_DumpEpgBlock() for enableAllBlocks == FALSE
+- if OI#0 is not newer than updTimestamp, stop dump
+- Fixed Acq provider change handling:
+- EpgDbServer_SetProvider(): go into new state SRV_STATE_PROV_CHANGE;
+- when in EpgDbServer_HandleSockets and queues are empty: send FWD_IND
+    go back into WAIT_DUMP_REQ state
+- renamed MSG_TYPE_FORWARD_CNF to MSG_TYPE_FORWARD_IND
+- EpgDbClient_TakeMessage(): fwd_ind can now arrive in all states >= wait_fwd
+- Improved client-side UI provider change:
+- stay in FORWARD state
+- added bool sendFwdInd to message MSG_TYPE_FORWARD_REQ
+    to tell the server if client expects MSG_TYPE_FORWARD_IND
+- EpgDbServer_TakeMessage: FWD_REQ handling split up depending on
+    state and sendFwdInd
+- Removed pErrorInd callback from client callback struct EPGDB_NET_CLNT_CB:
+- errors are now reported through polling, same as with regular acq
+- added arg bool * pStopped to EpgDbClient_CheckForBlocks()
+- new state CLNT_STATE_ERROR: until error is reported
+epgdb/epgnetio.h [rev:1.8, 2002-01-02T17:05:18]:
+- Implemented support for PI timescale forwarding
+- removed pErrorInd callback from client callback struct EPGDB_NET_CLNT_CB:
+    errors are now reported through polling, same as with regular acq
+    added arg bool * pStopped to EpgDbClient_CheckForBlocks()
+- added new func EpgDbClient_SetAcqTscMode(): en-/disable timescale forwarding
+    changed arg type of EpgDbClient_SetAcqStatsMode()
+- added EPGDB_CONTEXT arg to EpgDbServer_AddBlock()
+    to be passed to EpgTscQueue_AddPi()
+- added timescale queue pointer arg to EpgDbClient_StartAcq()
+epgctl/epgacqctl.c [rev:1.57, 2002-01-02T17:05:35]:
+- Implemented support for PI timescale forwarding in network acq mode
+- added new global vars: acqTsc and acqTscEnabled
+- added new func EpgAcqCtl_EnableTimescales() and EpgAcqCtl_GetTimescaleQueue()
+- EpgAcqCtl_ProcessBlocks() pass timescale queue pointer to queue processor
+    and trigger GUI if PI added
+- Removed pErrorInd callback from client callback struct EPGDB_NET_CLNT_CB:
+- errors are now reported through polling, same as with regular acq
+- added arg bool * pStopped to EpgDbClient_CheckForBlocks()
+- Fixed network mode acq provider changes:
+- db switch is done in AI callback, same as with normal acq modes
+    never switch db in EpgAcqCtl_FwdCallback(), just peek for mtime
+- removed call of EpgAcqCtl_FwdCallback from EpgAcqCtl_NetStatsUpdate()
+- Improved client-side UI provider change:
+- EpgAcqCtl_SelectMode(): do not close old acq db
+    because in most cases the acq db will not change
+- Cleaned up AI callback: if old db is empty
+- Cleaned up triggers for GUI
+- replaced all calls to StatsWin_*() functions with new UiControlMsg_AcqEvent()
+- always send PROV_CHANGE trigger at acq start
+- EpgAcqCtl_ChannelChange(): do not trigger if changeDb == FALSE
+epgctl/epgacqctl.h [rev:1.34, 2002-01-02T17:05:43]:
+- Implemented support for PI timescale forwarding
+- added new func EpgAcqCtl_EnableTimescales() and EpgAcqCtl_GetTimescaleQueue()
+- Cleaned up triggers for GUI
+- removed DB_TARGET_UI and DB_TARGET_ACQ: moved to uictrl.h
+epgctl/epgctxctl.c [rev:1.14, 2002-01-02T17:05:50]:
+- bugfix EpgContextCtl_OpenDemo(): negated condition
+- lead to core dump if demo db did not exist
+epgctl/epgctxmerge.c [rev:1.6, 2002-01-02T17:06:24]:
+- Implemented support for PI timescale forwarding in network acq mode
+- changed handling of timescales: instead of directly calling a function
+    at GUI level (former StatsWin_NewPi()) in EpgDbMergeInsertPi(),
+    blocks are added to a queue by EpgTscQueue_AddPi()
+- EpgContextMergeInsertPi() triggers GUI to process the queue
+- struct EPGDB_MERGE_CONTEXT has new elems tscQueue and tscEnable:
+    initialize queue in EpgContextMerge(); clear in EpgContextMergeDestroy()
+- added new funcs EpgContextMergeEnableTimescale() and
+    EpgContextMergeGetTimescaleQueue()
+- Added new helper func EpgContextMergeCheckForCni()
+- Checks if the given CNI is one of the merged providers
+- Removed call to StatsWin_ProvChange()
+- is now instead triggered by epgacqctl.c
+epgctl/epgctxmerge.h [rev:1.4, 2002-01-02T17:06:43]:
+- Implemented support for PI timescale forwarding in network acq mode
+- added new funcs EpgContextMergeEnableTimescale() and
+    EpgContextMergeGetTimescaleQueue()
+- Added new helper func EpgContextMergeCheckForCni()
+- Checks if the given CNI is one of the merged providers
+- Wrapped some declarations with __EPGDBMERGE_H
+-> removed include epgdbmerge.h from higher layer funcs
+epgctl/epgscan.c [rev:1.18, 2002-01-02T17:06:54]:
+- Improved diagnostic output in refresh mode:
+- in refresh mode EpgScan_Start() additionally gets list of provider CNIs
+- added elems badProvCount and provCniTab to scanCtl
+- fix: refresh flag was abused to determine if provFreqTab was available;
+    use (scanCtl.provFreqCount > 0) instead
+- EpgScan_Start() additional result value EPGSCAN_INTERNAL for param errors
+- added summary output in refresh mode
+- in refresh or xawtv mode: warn if no CNI is found on a channel
+- EpgScan_EvHandler(): open db instead of peek to check for errors
+epgctl/epgscan.h [rev:1.8, 2002-01-02T17:07:00]:
+- Improved diagnostic output in refresh mode:
+- in refresh mode EpgScan_Start() additionally gets list of provider CNIs
+epgui/epgmain.c [rev:1.74, 2002-01-02T17:07:20]:
+- added initialization for new GUI module tunescale.c
+epgui/epgtxtdump.c [epgui/dumpraw.c, rev:1.22, 2002-01-02T17:07:28]:
+- bugfix EpgTxtDumpPi(): strftime len parameter too small
+epgui/menucmd.c [rev:1.60, 2002-01-02T17:07:38]:
+- removed calls to StatsWin_NewAi(): called by epgacqctl.c now
+- added calls to TimeScale_ProvChange() after StatsWin_ProvChange()
+- MenuCmd_StartEpgScan(): call MenuCmd_StartEpgScan()
+epgui/pioutput.c [rev:1.11, 2002-01-02T17:07:47]:
+- fixed length param in calls to strftime():
+- use sizeof() for string instead of constant
+epgui/statswin.c [rev:1.48, 2002-01-02T17:07:56]:
+- Moved all timescale related functions into new module timescale.c
+- acq trigger funcs: removed timescale handling
+    equivalent funcs exists in the timescale.c module
+- StatsWin_UpdateDbStatsWin()
+- do not install update timer for AI count < 2 in network mode
+- Replaced description in module header
+epgui/statswin.h [rev:1.11, 2002-01-02T17:08:03]:
+- Moved all timescale related functions into new module timescale.c
+- removed funcs StatsWin_NewPi(), StatsWin_NewAi()
+- renamed StatsWin_StatsUpdate() to StatsWin_AcqStatsUpdate()
+epgui/timescale.c [rev:1.2, 2002-01-02T17:08:28]:
+- Implemented support for PI timescale forwarding in network acq mode
+- now based on timescale queue in new epgtscqueue.c module
+    instead of direct function calls from epgdb -> almost complete rewrite!
+- most functionality of TimeScale_Load() and TimeScale_AddPi() moved into
+    epgtscqueue module: EpgTscQueue_AddAll() and EpgTscQueue_AddPi()
+- removed function TimeScale_AddPi()
+    added trigger funcs TimeScale_AcqPiAdded(), TimeScale_AcqPiMerged()
+- replaced TimeScale_NewAi() with TimeScale_AcqStatsUpdate()
+- added new element bool locked to state struct: scale is locked immediately
+    upon trigger for prov change or AI version change for PI additions
+- Use new Tcl proc TimeScale_ShiftRight in TimeScale_DisplayPi():
+- when a new PI is found which starts earlier than the scale base time
+epgui/timescale.h [rev:1.2, 2002-01-02T17:08:31]:
+- Implemented support for PI timescale forwarding in network acq mode
+- now based on timescale queue in new epgtscqueue.c module
+    instead of direct function calls from epgdb
+- removed function TimeScale_AddPi()
+    added trigger funcs TimeScale_AcqPiAdded(), TimeScale_AcqPiMerged()
+- replaced TimeScale_NewAi() with TimeScale_AcqStatsUpdate()
+epgui/uictrl.c [rev:1.18, 2002-01-02T17:08:41]:
+- Cleaned up GUI triggers by epgacqctl: added new func UiControlMsg_AcqEvent()
+    calls other GUI funcs as needed
+- UiControl_GetDbState(): use new helper func EpgContextMergeCheckForCni()
+    instead of looping of the merged provider list
+epgui/uictrl.h [rev:1.9, 2002-01-02T17:08:44]:
+- Cleaned up GUI triggers by epgacqctl: added new func UiControlMsg_AcqEvent()
+    added new typedef ACQ_EVENT for the arg to that func
+- added enum DB_TARGET_UI, DB_TARGET_ACQ: moved here from epgacqctl.h
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.142, 2002-01-02T17:12:22]:
+- bugfix proc TimeScale_Open: replaced "list" with "concat"
+- timescales: use grid packer instead of pack
+- changed prefix of timescale related C procedures from C_StatsWin_*
+    to C_TimeScale_*
+- added new proc TimeScale_ShiftRight: shift all canvas content to the right
+- enlarged EPG scan message output window (added channel name output)
+epgdb/epgdbmerge.c [rev:1.22, 2002-01-02T21:26:03]:
+- Removed obsolete include of epgui/statswin.h
+epgdb/epgdbmgmt.c [rev:1.40, 2002-01-02T21:26:03]:
+- Removed obsolete include of epgui/statswin.h
+epgdb/epgnetio.c [rev:1.13, 2002-01-02T21:26:29]:
+- fixed order of includes
+epgdb/epgdbmerge.c [rev:1.23, 2002-01-03T15:36:40]:
+- fix EpgDbMergeInsertPi: only add to timescale queue if enabled
+epgdb/epgnetio.c [rev:1.14, 2002-01-03T15:37:34]:
+- EpgDbClient_CheckForBlocks: return FALSE until dump is finished
+epgui/epgmain.c [rev:1.75, 2002-01-03T20:34:23]:
+- main/startup: moved call to UiControl_AiStateChange() upwards,
+    to a point before the window is displayed to avoid flickering.
+- replaced calls to StatsWin_UpdateDbStatsWin() and StatsWin_UpdateDbStatusLine
+    with StatsWin_StatsUpdate(): the single new if func to statswin.c
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.143, 2002-01-03T20:34:32]:
+- changed wheel mouse bindings: always scroll by +/- 1 page
+- added wheel mouse bindings for help window (as suggested by Jan)
+- added new proc IsNetAcqMode: when in network acquisition mode, display
+    warning in config dialogs for acquisition mode and TV-card
+- split off new proc EpgScan_Start from proc PopupEpgScan
+epgui/menucmd.c [rev:1.61, 2002-01-03T20:34:39]:
+- removed includes statswin.h and timescale.h
+- moved triggers for stats updates during provider change and merge start
+    into UiControl_AiStateChange()
+epgui/pilistbox.c [rev:1.63, 2002-01-03T20:34:44]:
+- added new func PiListBox_Lock():
+    Lock/Unlock the direct link between listbox and acquisition
+- added new elem bool pibox_lock to state struct
+- removed obsolete includes
+epgui/pilistbox.h [rev:1.13, 2002-01-03T20:34:50]:
+- added declaration for new func PiListBox_Lock()
+epgui/statswin.c [rev:1.49, 2002-01-03T20:34:59]:
+- Cleaned up interface -> only 1 global func now: StatsWin_StatsUpdate()
+- removed StatsWin_ProvChange(): no special handling for provider changes
+    required by this module, i.e. use normal stats update instead
+- renamed StatsWin_AcqStatsUpdate() to StatsWin_StatsUpdate()
+    and added target argument
+- made StatsWin_UpdateDbStatusLine() static
+epgui/statswin.h [rev:1.12, 2002-01-03T20:35:05]:
+- Cleaned up interface -> only 1 global func now: StatsWin_StatsUpdate()
+- renamed StatsWin_AcqStatsUpdate() to StatsWin_StatsUpdate()
+    and added target argument
+- removed all other funcs except _Create
+epgui/timescale.c [rev:1.3, 2002-01-03T20:35:14]:
+- bugfix TimeScale_ProcessMergeQueue():
+- passed wrong CNI to EpgTscQueue_SetProvCni
+- queue never was processed
+epgui/uictrl.c [rev:1.19, 2002-01-03T20:35:21]:
+- Improved UiControl_AiStateChange:
+- when ui is empty and takes over to acq provider, call SetAcquisitionMode()
+    to update acq status
+- included calls to trigger statswin and timescale updates
+- UiControlMsg_AcqEvent
+- added acq event ACQ_EVENT_AI_PI_RANGE_CHANGE
+- renamed StatsWin_AcqStatsUpdate() to StatsWin_StatsUpdate()
+- added call to UiControl_AiStateChange() in PROV_CHANGE and VERSION_CHANGE
+    removed UiControlMsg_AiStateChange()
+- Added new func UiControlMsg_AcqQueueOverflow()
+- Acq input queue "overflow", i.e. very large number of blocks pending
+epgui/uictrl.h [rev:1.10, 2002-01-03T20:35:24]:
+- added acq event ACQ_EVENT_AI_PI_RANGE_CHANGE
+- added new func UiControlMsg_AcqQueueOverflow()
+- removed UiControlMsg_AiStateChange(): no longer called directly by acq ctl
+epgctl/epgacqctl.c [rev:1.58, 2002-01-03T20:55:38]:
+- huge bugfix in EpgAcqCtl_ProcessBlocks() and AI callback in netacq mode:
+    must no go back to WAIT_AI when AI block with different CNI is found;
+    must not search ahead for AI block in acqDbQueue
+- EpgAcqCtl_ProcessBlocks(): use new func UiControlMsg_AcqQueueOverflow()
+    to lock direct connection to PI listbox when >100 blocks in queue
+    added macro EPG_QUEUE_OVERFLOW_LEN = 100
+- added new func as net acq client callback EpgAcqCtl_NetStatsOverflow()
+    informs the client if an unprocessed stats msg is about to be deleted
+    preserved incremental history info
+- EpgAcqCtl_NetStatsUpdate(): included call to EpgDbClient_GetNetStats()
+    also prepared to work as loop (could fetch more than one net stats msg)
+- removed calls to UiControlMsg_AiStateChange(); now handled by acq events;
+    split off new event ACQ_EVENT_AI_PI_RANGE_CHANGE from VERSION_CHANGE
+epgdb/epgnetio.c [rev:1.15, 2002-01-03T20:56:01]:
+- increased SRV_STALLED_STATS_INTV from 13 to 15 for TRT1
+- added new client callback pStatsOverflow: called when STATS msg is discarded
+    because of queue overflow
+epgdb/epgnetio.h [rev:1.9, 2002-01-03T20:56:08]:
+- struct EPGDB_NET_CLNT_CB:
+- added new client callback pStatsOverflow: called when STATS msg is discarded
+Makefile [rev:1.38, 2002-01-03T21:00:31]:
+- added 2 new files: epgdb/epgtscqueue, epgui/timescale
+- moved cni_tables from epgui tp epgvbi directory
+Makefile.win32 [rev:1.13, 2002-01-03T21:01:13]:
+- added 2 new files: epgdb/epgtscqueue, epgui/timescale
+- moved cni_tables from epgui tp epgvbi directory
+epgctl/debug.h [rev:1.11, 2002-01-04T16:57:50]:
+- fix ifdebug macros for non-debugging mode:
+- duplicate arg "I" replaced with "COND" in ifdebug0 - ifdebug9
+epgdb/epgqueue.c [rev:1.6, 2002-01-04T18:13:09]:
+- bugfix EpgDbQueue_GetBlockCount(): result variable was bool instead of uint
+- put #if DEBUG_SWITCH == ON around consistancy check function
+epgdb/epgtscqueue.c [rev:1.2, 2002-01-04T18:13:53]:
+- put #if DEBUG_SWITCH == ON around consistancy check function
+epgdb/epgnetio.c [rev:1.16, 2002-01-05T17:31:12]:
+- EpgDbClient_HandleSocket(): performance optimization:
+    don't stop after one message complete; loop until socket blocks,
+    or a maximum message count is reached (CLNT_MAX_MSG_LOOP_COUNT)
+- struct EPGACQ_EVHAND: added new elem processQueue
+    used to trigger EPG block queue processing in epgacqctl
+    the queue is no longer polled by a timer! (in network acq mode)
+- renamed EpgDbClient_CheckForBlocks() into EpgDbClient_CheckTimeouts()
+    removed query result; only handles timeouts
+- bugfix EpgDbClient_DescribeNetState(): state CLNT_STATE_ERROR was missing
+- server-side: fixed handling of msg MSG_TYPE_FORWARD_REQ:
+    must initiate dump if enable mode switches from off to on
+epgdb/epgnetio.h [rev:1.10, 2002-01-05T17:31:18]:
+- struct EPGACQ_EVHAND: added new elem processQueue
+    used to trigger EPG block queue processing in epgacqctl
+- renamed EpgDbClient_CheckForBlocks() into EpgDbClient_CheckTimeouts()
+    removed query result; only handles timeouts
+epgctl/epgacqctl.c [rev:1.59, 2002-01-05T17:31:51]:
+- added new func EpgAcqCtl_SwitchDb()
+    switched acq db for AI callback and SelectMode:
+    in network mode it the acquisition database is only opened as "peek"
+    if the acq db is not in the GUI provider list; when the GUI list is
+    updated it may be required to up-/downgrade the db
+- forward callback: use new func EpgContextCtl_GetAiUpdateTime()
+- forward callback: upon first fwd ind message, trigger stats update
+    to switch from "loading db" to a regular state
+- EpgAcqCtl_ProcessPackets(): always returns FALS in network mode now
+    EPG block queue processing is triggered by the epgdbsrv.c socket handler
+    the queue is no longer polled by a timer! (in network acq mode)
+- renamed EpgDbClient_CheckForBlocks() into EpgDbClient_CheckTimeouts()
+- EpgAcqCtl_ProcessBlocks(): queue overflow handling: disable overflow
+    handling if the UI handler returns FALSE (i.e. if acq works not for ui db)
+epgctl/epgacqctl.h [rev:1.35, 2002-01-05T17:31:57]:
+- enum ACQDESCR_STATE: added new state ACQDESCR_NET_CONNECT = 0
+    used to identify uninitialized description struct: in network mode,
+    before the first msg was received
+epgui/epgmain.c [rev:1.76, 2002-01-05T17:32:22]:
+- separated regular and scan EPG block queue processing timer handler
+    i.e. split off new funcs MainEventHandler_ProcessBlocks() and
+    MainEventHandler_ProcessScanPackets() from obsolete ClockSecEvent()
+- in network acq mode, the client does no longer poll for blocks;
+    the second timer is still executed, but only chekc for timeouts;
+    queue processing is now triggered by new elem processQueue in EPGACQ_EVHAND
+    in EventHandler_NetworkUpdate()
+epgui/statswin.c [rev:1.50, 2002-01-05T17:32:26]:
+- StatsWin_UpdateDbStatusLine(): improved handling of network error states
+- if state == NETDESCR_RUNNING but no acq state available yet (new acq state
+    ACQDESCR_NET_CONNECT), report same as NETDESCR_LOADING
+- use state ACQDESCR_NET_CONNECT to cleanly suppress additional output
+epgctl/epgctxctl.c [rev:1.15, 2002-01-05T17:34:14]:
+- added new func EpgContextCtl_GetAiUpdateTime() for eogacqctl.c
+    forward indication callback
+- fixed compiler switches around consistancy check
+epgctl/epgctxctl.h [rev:1.12, 2002-01-05T17:34:20]:
+- added new func EpgContextCtl_GetAiUpdateTime() for eogacqctl.c
+    forward indication callback
+epgctl/epgctxctl.c [rev:1.16, 2002-01-05T19:36:17]:
+- Added new func EpgContextCtl_GetFreqList()
+- Get list of available providers and their tuner frequencies
+epgctl/epgctxctl.h [rev:1.13, 2002-01-05T19:36:31]:
+- added declaration for new func EpgContextCtl_GetFreqList()
+epgdb/epgdbsav.c [rev:1.44, 2002-01-05T19:36:45]:
+- aded new func EpgReadAiUpdateTime()
+- added new func EpgDbReadFreqFromDefective()
+epgdb/epgdbsav.h [rev:1.30, 2002-01-05T19:36:51]:
+- added declarations for 2 new funcs:
+- EpgReadAiUpdateTime() and EpgDbReadFreqFromDefective()
+epgui/menucmd.c [rev:1.62, 2002-01-05T19:37:20]:
+- menucmd.c
+- added new func MenuCmd_LoadProvFreqsFromDbs
+    Fetch the list of provider frequencies from all available databases
+    as Tcl operator C_LoadProvFreqsFromDbs
+- cleaned up GetProvFreqTab: report errors via debugX macros, not Tcl errors
+    return freq count as result; 0 upon errors
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.144, 2002-01-05T19:37:30]:
+- proc PopupEpgScan: call new operator C_LoadProvFreqsFromDbs
+    and insert list ro prov_freqs
+- improved proc UpdateProvFrequency: accept list with multiple CNIs/freqs
+nxtvepg.pod [rev:1.55, 2002-01-06T18:57:17]:
+- added DRS1, TSI1 and TRT1 to provider list.
+- statistics: changed start time of timescales from "now" to "first PI"
+    described new colors for expired PI.
+- configuration, sub-section Client/Server: described all config options.
+- files: added daemon socket /tmp/nxtvepg.0
+- filter section:
+    + index filters: merged database support only 0 and 1
+    + start time filter: added note that it's depreciated for manual use;
+    + network filter: added note abuot "show networks", and network name config
+    + text search: described "match complete text" and "match case" options
+- authors: added thanx to Jan Schuster
+epgdb/epgdbfil.c [rev:1.31, 2002-01-06T19:03:04]:
+- adapted for changed args in EpgDbGetProgIdx:
+- PI ptr instead discrete block and netwop indices
+epgdb/epgdbif.c [rev:1.39, 2002-01-06T19:03:13]:
+- fixed EpgDbGetProgIdx for merged db:
+- for merged db: return index 0 if PI is running NOW
+    return 1 if it's directly following the NOW; return invalid else
+    --> only Now and Next are supported!
+- changed args: PI ptr instead discrete block and netwop indices
+epgdb/epgdbif.h [rev:1.23, 2002-01-06T19:03:26]:
+- fixed EpgDbGetProgIdx for merged db:
+- changed args: PI ptr instead discrete block and netwop indices
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.145, 2002-01-06T19:19:33]:
+- TimeScales: added "acq tails"
+- new proc TimeScale_AddTail: similar proc TimeScale_AddRange,
+    but the markers are faded upon subsequent additions and removed
+    once they've reached a certain threshhold
+- new proc TimeScale_ClearTail to clear markers when acq switches away
+    from ui db
+- new global array tsc_tail; reset during create
+- renamed TimeScale_Create to TimeScale_CreateCanvas, because there's an
+    equally named C function in timescale.c - potential for confusion
+- changed params for proc TimeScale_AddRange
+    canvas widget name is now assembled internally
+epgui/timescale.c [rev:1.4, 2002-01-06T19:19:42]:
+- implemented "acquisition tails"
+- added new elems to state struct: filled, isForAcq
+- TimeScale_DisplayPi(): added invocation of Tcl proc TimeScale_AddTail
+    for non-defective, curent PI
+- fixed provider change handling:
+- (just to avoid potential problems; no crashes actually occured)
+- nothing is done directly in the callback anymore
+- moved call to TimeScale_RequestAcq() and TimeScale_HighlightNetwop()
+    into TimeScale_ProcessAcqQueue() --> avoid recursion back into epgacqctl
+- had to move func TimeScale_RequestAcq() to avoid fwd. ref.
+epgui/menucmd.c [rev:1.63, 2002-01-06T19:20:02]:
+- added new func GetProvFreqForCni() for acq control (accessed via uictrl.c):
+- Fetch the frequency for the given provider from the prov_freqs Tcl variable
+epgui/menucmd.h [rev:1.12, 2002-01-06T19:20:02]:
+- added new func GetProvFreqForCni() for acq control (accessed via uictrl.c):
+- Fetch the frequency for the given provider from the prov_freqs Tcl variable
+epgui/uictrl.c [rev:1.20, 2002-01-06T19:20:10]:
+- UiControl_GetDbState(): handle new acq state ACQDESCR_NET_CONNECT
+- UiControlMsg_AcqQueueOverflow():
+    + check if acq is working for ui db if not return FALSE
+    + commented out the whole function; seems this not required;
+      performance problems only arise while epgdbmgmt and pilistbox
+      consistancy checks are enabled
+- added new func UiControlMsg_QueryProvFreq() for epgacqctl:
+    only calls new func GetProvFreqForCni() in menucmd.c
+epgui/uictrl.h [rev:1.11, 2002-01-06T19:20:16]:
+- changed result type of UiControlMsg_AcqQueueOverflow() from void to bool
+- added new func UiControlMsg_QueryProvFreq()
+epgctl/epgacqctl.c [rev:1.60, 2002-01-06T19:25:38]:
+- Changed EpgAcqCtl_UpdateProvider()
+- now retrieves provider channel frequency from rc/ini file
+- based on new function UiControlMsg_QueryProvFreq()
+- errors are only reported if a frequency is neither in rc nor in the db
+- EpgAcqCtl_UpdateProvider() no longer used in network acq mode
+    directly use EpgContextCtl_OpenDummy() instead in acq start
+epgvbi/cni_tables.c [rev:1.9, 2002-01-13T18:45:38]:
+- Added new function CniConvertPdcToVps(): moved here from epgdbacq.c
+epgvbi/cni_tables.h [rev:1.4, 2002-01-13T18:46:04]:
+- Added new function CniConvertPdcToVps(): moved here from epgdbacq.c
+epgdb/epgdbacq.c [epgvbi/ttxdecode.c, rev:1.35, 2002-01-13T18:46:36]:
+- Removed function ConvertPdcCni(): moved to epgvbi/cni_tables.c
+- renamed to CniConvertPdcToVps()
+epgdb/epgnetio.c [rev:1.17, 2002-01-16T20:13:21]:
+- Added support for VPS forwarding
+- new statsReqBits in STATS_REQ message: STATS_REQ_BITS_VPS_PDC_REQ, ..._UPD
+- new message MSG_TYPE_VPS_PDC_IND (server -> client)
+- added flag doVpsPdc to struct EPGDBSRV_STATE
+- new interface: EpgDbServer_SetVpsPdc(), EpgDbClient_SetVpsPdcMode()
+- new client callbacks: pGetVpsPdc, pResetVpsPdc
+- new server callback: pVpsPdcCallback
+- Split off server callback init from EpgDbServer_Init()
+- new func EpgDbServer_SetCallbacks(), called by epgacqctl.c
+- Also:
+- use memset to initialize struct EPGACQ_EVHAND in client I/O
+    instead of setting every single element
+- new func EpgDbClient_IsLocalServer()
+epgdb/epgnetio.h [rev:1.11, 2002-01-16T20:13:30]:
+- Added support for VPS forwarding
+- new client callbacks: pGetVpsPdc, pResetVpsPdc
+- new server callback: pVpsPdcCallback
+- new interface funcs: EpgDbServer_SetCallbacks(),
+    EpgDbServer_SetVpsPdc(), EpgDbClient_SetVpsPdcMode()
+- unrelated:
+- new func EpgDbClient_IsLocalServer()
+epgctl/epgacqctl.c [rev:1.61, 2002-01-16T20:17:13]:
+- Added support for VPS forwarding
+- moved VPS/PDC from uint acqNetVpsCni into EPGDB_STATS; new EPGDB_ACQ_VPS_PDC
+- new callback funcs: EpgAcqCtl_GetNetVpsPdc(), EpgAcqCtl_ResetNetVpsPdc()
+- struct EPGDB_STATS_UPD: moved VPS/PDC
+- added EpgAcqCtl_ProcessVps(): non net-acq mode: poll VPS/PDC
+- added GUI if funcs: EpgAcqCtl_GetVpsCni(), EpgAcqCtl_ResetVpsPdc()
+- Moved epgdbsrv.c callback initialization here from epgmain.c
+- added struct acqCtlSrvCb
+- Added EpgAcqCtl_UpdateNetProvList()
+- moved here from main function
+- Removed EpgAcqCtl_Toggle():
+- GUI uses start and stop instead
+- Added EpgAcqCtl_InitDaemon():
+- set epgdbsrv.c callbacks
+- EpgAcqCtl_DescribeAcqState(): struct EPGACQ_DESCR:
+    renamed isRemote to isNetAcq; added isLocalServer
+epgctl/epgacqctl.h [rev:1.36, 2002-01-16T20:17:20]:
+- Added support for VPS forwarding
+- moved VPS/PDC from uint acqNetVpsCni into EPGDB_STATS; new EPGDB_ACQ_VPS_PDC
+- added EpgAcqCtl_ProcessVps(): non net-acq mode: poll VPS/PDC
+- added GUI interface funcs: EpgAcqCtl_GetVpsCni(), EpgAcqCtl_ResetVpsPdc()
+- Removed EpgAcqCtl_Toggle(): GUI uses start and stop instead
+- Added EpgAcqCtl_InitDaemon(): init daemon callbacks
+epgui/epgmain.c [rev:1.77, 2002-01-16T20:22:32]:
+- added new func RemoveMainIdleEvent()
+- EventHandler_TimerVPSPolling(): removed call to Xawtv_PollVpsPil():
+    now done by epgacqctl.c via UiControlMsg_AcqEvent();
+    added EpgAcqCtl_ProcessVps()
+- added new func DaemonMainLoop(), split off from main()
+    use gettimeofday() to schedule EPG block acq, acq idle & vps in correct freq.
+- removed epgdbsrv.c server callback struct acqCtlSrvCb: moved to epgacqctl.c
+    initialized by new func EpgAcqCtl_InitDaemon()
+- removed EpgMain_UpdateNetProvList(): moved into epgacqctl.c
+    -> removed params from SetDaemonAcquisitionMode()
+epgui/epgmain.h [rev:1.17, 2002-01-16T20:22:39]:
+- added new func RemoveMainIdleEvent()
+epgui/statswin.c [rev:1.51, 2002-01-16T20:24:03]:
+- added PIL to stats output
+- adapted to changed EpgAcqCtl_GetVpsCni() params & result
+- struct EPGACQ_DESCR changed:
+    renamed isRemote to isNetAcq; added isLocalServer
+epgui/uictrl.c [rev:1.21, 2002-01-16T20:24:18]:
+- UiControlMsg_AcqEvent()
+- added new event ACQ_EVENT_VPS_PDC
+- added check for uiControlInitialized
+epgui/uictrl.h [rev:1.12, 2002-01-16T20:24:23]:
+- enum ACQ_EVENT: added new event ACQ_EVENT_VPS_PDC
+epgui/xawtv.c [rev:1.18, 2002-01-16T20:28:20]:
+- Added support for VPS/PDC acq in network acq mode:
+- Xawtv_PollVpsPil(): changed to use new func EpgAcqCtl_GetVpsPdc()
+    no longer polling: instead triggered by epgactctl upon changes
+- for channel changes, use EpgAcqCtl_ResetVpsPdc() instead EpgDbAcqResetVpsPdc()
+- same in Xawtv_StationTimer()
+- Also:
+- Xawtv_Init(): moved xawtv cfg dialog from pos 6 to 7 (added netacqcf)
+- Xawtv_Popup(): call RemoveMainIdleEvent(Xawtv_PopDownNowNext)
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.146, 2002-01-16T20:39:05]:
+- added Control menu entry: "Connect to acq. daemon"
+    status variable menuStatusDaemon
+- changed netacqcf: removed enable; added remctl
+- proc PopupNetAcqConfig:
+    + changed from pack to grid
+    + made resizable
+    + added radios to switch view, callback new proc NetAcqChangeView
+- UpdateRcFile/LoadRcFile: added netacq_enable
+epgui/menucmd.c [rev:1.64, 2002-01-16T20:39:15]:
+- Added Control menu entry: "Connect to acq. daemon"
+- MenuCmd_SetControlMenuStates(): changed to use EPGACQ_DESCR
+- MenuCmd_ToggleAcq(): added daemon handling
+- added new func IsRemoteAcqEnabled(): uses Tcl var netacq_enable
+- SetNetAcqParams(): removed arg onlyQuery; now realized via IsRemoteAcqEnabled
+    added new netacqcf elem: remctl: XXX not yet handled
+- MenuCmd_UpdateNetAcqConfig(): removed call to SetAcquisitionMode()
+    because enable/disabled moved into Control menu
+- Daemon follow-ui handling
+- SetDaemonAcquisitionMode(): removed prov list;
+    prov list callback from from main into epgacqctl
+epgui/menucmd.h [rev:1.13, 2002-01-16T20:39:20]:
+- Added Control menu entry: "Connect to acq. daemon"
+- added new func IsRemoteAcqEnabled(): uses Tcl var netacq_enable
+- SetNetAcqParams(): removed arg onlyQuery; now realized via IsRemoteAcqEnabled
+- Daemon follow-ui handling
+- SetDaemonAcquisitionMode(): removed prov list param
+epgdb/epgnetio.c [rev:1.18, 2002-01-18T18:09:20]:
+- made compilable for WIN32
+    still TODO: non-blocking; syslog; getpid; efficient protofam for localhost
+- replacement for getaddrinfo for hosts w/o it
+- fixed EpgDbServer_NewConnection() error handling
+- replaced getnameinfo() with gethostbyaddr() b/c not all hosts have it
+- removed redundant sock_fd from CLNT_CTL_STRUCT
+    bugfix EpgDbServer_Logger: used uninit. sock_fd; use io.sock_fd instead
+- removed peer, peerhost and peerserv from CLNT_CTL_STRUCT: unused
+- enable do_logtty if DPRINTF_OFF is disabled -> removed redundant debug output
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.147, 2002-01-18T18:09:59]:
+- fixes:
+- save new cf option "remctl" in netacqcf
+- removed debugging puts
+epgctl/epgctxctl.c [rev:1.17, 2002-01-19T19:08:35]:
+- bugfix EpgContextCtl_OpenDemo():
+- demo db was not linked into the cache list
+epgvbi/btdrv4linux.c [rev:1.20, 2002-01-26T15:16:04]:
+- new func BtDriver_GetDeviceOwnerPid()
+    Obtain the PID of the process which holds the VBI device
+- fix BtDriver_SignalDeathOfChild(): ignore pid 0 as wait() retval
+    added debug output
+- BtDriver_Main(): signal master process when acq slave dies
+epgvbi/btdrv.h [rev:1.12, 2002-01-26T15:16:35]:
+- new func BtDriver_GetDeviceOwnerPid()
+epgvbi/btdrv4dummy.c [rev:1.5, 2002-01-26T15:18:01]:
+- new func BtDriver_GetDeviceOwnerPid()
+epgvbi/cni_tables.c [rev:1.10, 2002-01-26T15:18:15]:
+- provider table
+- added Kabel1 (FAST iPG)
+- commented out TV5: ceased transmission since 2 months
+epgdb/epgtscqueue.c [rev:1.3, 2002-01-26T15:18:48]:
+- bugfix EpgTscQueue_AddAll(): added NULL ptr check for pFirst
+epgdb/epgnetio.c [rev:1.19, 2002-01-26T15:18:57]:
+- EpgDbServer_Logger()
+    + made global: used to report errors during startup
+    + replaced param EPGDBSRV_STATE * req with int fd, b/c struct is not global
+    + fix: changed >= LOG_WARNING to <=: higher prios have lower value
+- EpgDbServer_CheckConnect(): made global: for toggle acq
+- EpgDbServer_ListenSocket(): fix: set socket permissions to 0666 after bind
+- EpgDbServer_Listen(): added log output
+epgdb/epgnetio.h [rev:1.12, 2002-01-26T15:19:03]:
+- added EpgDbServer_Logger() and EpgDbServer_CheckConnect()
+- consequently added LOG_ERR enum
+epgui/epgmain.c [rev:1.78, 2002-01-26T15:20:05]:
+- added new query func IsDemoMode()
+    removed param (pDemoDatabase != NULL) from StatsWin_Create
+- adapted EventHandler_StartAcq(): for changed params to C_ToggleAcq
+    + renamed to EventHandler_SigHup()
+    + use new func AutoStartAcq(): starts either in local or remote acq mode
+- added new global funcs EpgMain_StartDaemon() and EpgMain_StopDaemon()
+- fixed signal_handler: do not toggle acq in daemon, always terminate
+- ParseArgv():
+    -rcfile: removed stat() check: moved into proc LoadRcFile
+    -guipipe <fd> added; added global optGuiPipe
+- main():
+    + added signal(SIGCHLD, SIG_IGN);
+    + changed daemon startup: added log output when acq start fails
+epgui/epgmain.h [rev:1.18, 2002-01-26T15:20:12]:
+- added new funcs EpgMain_StartDaemon(), EpgMain_StopDaemon(), IsDemoMode()
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.148, 2002-01-26T15:20:20]:
+- added new entry to Control menu: "Connect to acq. daemon"
+- proc CreateDemoModePseudoMenu: disable Client/Server menu
+- initialize global variable set acq_mode "follow-ui"
+    removed exist chancks for acq_mode in proc PopupAcqMode
+- proc LoadRcFile: added warning output to stderr if rcfile open error
+- added new entry to Control menu: "Connect to acq. daemon"
+- proc CreateDemoModePseudoMenu: disable Client/Server menu
+- initialize global variable set acq_mode "follow-ui"
+    removed exist chancks for acq_mode in proc PopupAcqMode
+- proc LoadRcFile: added warning output to stderr if rcfile open error
+epgui/menucmd.c [rev:1.65, 2002-01-26T15:21:24]:
+- MenuCmd_SetControlMenuStates: do nothing if in demo mode
+- added new func AutoStartAcq(): start acq in auto-detected mode
+- MenuCmd_ToggleAcq():
+    + split off new static funcs MenuCmd_StartLocalAcq() and
+      MenuCmd_StartRemoteAcq()
+    + offer to start daemon if not running yet: use new func EpgMain_StartDaemon
+    + kill daemon: use new func EpgMain_StopDaemon
+- new func ProvMerge_UpdateProvSelectionList():
+    + Update provider selection preference list for the merged database
+    + split off from ProvMerge_Start()
+    + used by OpenInitialDb()
+- SetDaemonAcquisitionMode():
+    + bugfix: added check for cniCount==0
+    + added output to syslog for config errors
+epgui/menucmd.h [rev:1.14, 2002-01-26T15:21:30]:
+- added new func AutoStartAcq(): start acq in auto-detected mode
+epgui/pioutput.c [rev:1.12, 2002-01-26T15:21:43]:
+- PiOutput_ExecUserCmd(): removed signal(SIGCHLD, SIG_IGN)
+- this is already done in main() now
+epgui/statswin.c [rev:1.52, 2002-01-26T15:21:58]:
+- StatsWin_Create(): removed arg bool isDemoMode
+- removed global var isStatsDemoMode
+epgui/statswin.h [rev:1.13, 2002-01-26T15:22:04]:
+- StatsWin_Create(): removed arg bool isDemoMode
+README [rev:1.19, 2002-01-26T15:22:44]:
+- updated provider list: added Kabel1, TSI1; removed TV5.
+nxtvepg.pod [rev:1.56, 2002-01-26T15:24:29]:
+- added desc. for new Control menu entry "Connect to acq. daemon"
+- added desc. for new netacq option "Enable remote control"
+    also: changed netacqcf list items from B<> to I<> style
+- chapter STATISTICS: improved description of acq stats
+- chapter FILES: more desc for vbi.pid file
+epgdb/epgnetio.c [rev:1.20, 2002-01-27T12:03:26]:
+- First step of preparations to vertically split the module:
+- removed references to "req" and "srvState" from server IO functions
+- split off new sub-func EpgDbServer_CloseIO() for both srv and clnt close
+- combined STATS and VPS IND write funcs into EpgDbServer_WriteAllocMsg()
+    callbacks are invoked by caller
+- split dump func into two: separated full dump and AiOi dump
+- split EpgDbServer_AddConnection() off from EpgDbServer_AcceptConnection(),
+    renamed from EpgDbServer_NewConnection()
+epgdb/epgnetio.c [rev:1.21, 2002-01-27T19:59:05]:
+- added new enum EPGDBSRV_CLNT_TYPE to connection req
+    (this allows for other types of clients to be handled by the server on the
+    same port, i.e. xawtv VPS requests; currently only BROWSER is omplemented)
+- moved statsReqBits from con req into fwd req
+    because it's useful only for BROWSER client type
+epgdb/epgdbmerge.c [rev:1.24, 2002-01-31T20:28:19]:
+- Skip expired PI during merge
+- in EpgDbMergeAllPiBlocks()
+- in EpgDbMergeInsertPi()
+epgdb/epgdbmgmt.c [rev:1.41, 2002-01-31T20:28:36]:
+- Split epgdbsrv.c into 3 parts
+-> EpgDbServer_AddBlock() renamed to EpgAcqServer_AddBlock()
+     moved into epgctl/epgacqsrv.c
+epgdb/epgnetio.c [rev:1.22, 2002-01-31T20:29:31]:
+- Split epgdbsrv.c into 3 parts
+- this module keeps only lower-level I/O handling
+- split off protocol handling, separated into server and client side
+    epgacqsrv.c and epgacqclnt.c
+- renamed the module from epgdbsrv.c into epgnetio.c
+epgdb/epgnetio.h [rev:1.13, 2002-01-31T20:30:57]:
+- Split epgdbsrv.c into 3 parts
+- this module keeps only lower-level I/O handling
+- split off protocol handling, separated into server and client side
+    epgacqsrv.c and epgacqclnt.c
+- renamed the module from epgdbsrv.c into epgnetio.c
+epgctl/epgacqctl.c [rev:1.62, 2002-01-31T20:32:53]:
+- Split epgdbsrv.c into 3 parts
+- renamed epgdbsrv.c into epgnetio.c; split off new modules
+    epgacqsrv.c and epgacqclnt.c  -> adapted function prefixes
+- fix EpgAcqCtl_NetStatsOverflow():
+- EPGDB_STATS_UPD_TYPE_INITIAL must not be dropped
+- this is a temporary fix only
+epgctl/epgacqsrv.c [rev:1.1, 2002-01-31T20:34:43]:
+- Initial revision
+epgctl/epgacqsrv.h [rev:1.1, 2002-01-31T20:34:44]:
+- Initial revision
+epgctl/epgacqclnt.c [rev:1.1, 2002-01-31T20:34:47]:
+- Initial revision
+epgctl/epgacqclnt.h [rev:1.1, 2002-01-31T20:34:49]:
+- Initial revision
+epgui/epgmain.c [rev:1.79, 2002-01-31T20:35:07]:
+- Split epgdbsrv.c into 3 parts
+- renamed epgdbsrv.c into epgnetio.c; split off new modules
+    epgacqsrv.c and epgacqclnt.c  -> adapted function prefixes
+- added new includes epgacqsrv.h and epgacqclnt.h
+epgui/menucmd.c [rev:1.66, 2002-01-31T20:37:32]:
+- Split epgdbsrv.c into 3 parts
+- renamed epgdbsrv.c into epgnetio.c; split off new modules
+    epgacqsrv.c and epgacqclnt.c  -> adapted function prefixes
+- added new includes epgacqsrv.h and epgacqclnt.h
+epgui/statswin.c [rev:1.53, 2002-01-31T20:37:58]:
+- Split epgdbsrv.c into 3 parts
+-> adapted function prefixes: EpgDbClient -> EpgAcqClient
+-> changed include epgdb/epgdbsrv.h into epgctl/epgacqclnt.h
+epgui/uictrl.c [rev:1.22, 2002-01-31T20:38:55]:
+- Split epgdbsrv.c into 3 parts
+-> adapted function prefixes: EpgDbClient -> EpgAcqClient
+-> changed include epgdb/epgdbsrv.h into epgctl/epgacqclnt.h
+epgctl/epgacqclnt.c [rev:1.2, 2002-02-03T10:58:35]:
+- Moved statistics reports handling here from epgacqctl.c
+- added pNext pointer to stats msg struct -> keep queue of stats
+    new func EpgAcqClient_FreeStats()
+- removed obsolete callback struct EPGDB_NET_CLNT_CB pCb from clientState
+- put vps_pdc_ind and stats_ind into msg union
+- check stats_ind and vps_pdc_ind in EpgAcqClient_CheckMsg()
+- moved content of callback pCb->pFwdCallback into TakeMessage
+- call EpgAcqCtl_AddNetVpsPdc() instead of pCb->pVpsPdcCallback
+- pass ptr to acqctl internal stats struct to EpgAcqClient_GetNetStats()
+    decode union here; loop over stats report queue
+epgctl/epgacqclnt.h [rev:1.2, 2002-02-03T10:58:44]:
+- Moved statistics reports handling here from epgacqctl.c
+- removed obsolete struct EPGDB_NET_CLNT_CB
+- removed obsolete pCb param from StartAcq
+- pass ptr to acqctl internal stats struct to EpgAcqClient_GetNetStats()
+epgctl/epgacqsrv.c [rev:1.2, 2002-02-03T10:58:52]:
+- Moved stats report handling here from epgacqctl.c
+- added new func EpgAcqServer_BuildStatsMsg(); replaces pCb->pGetStats
+- added new func EpgAcqServer_BuildVpsPdcMsg(); replaces pCb->pGetVpsPdc
+- Replaced callbacks with direct function calls
+- call EpgAcqCtl_UpdateNetProvList() instead of pCb->pProvChange
+- call EpgAcqCtl_ProcessVps() instead of pCb->pGetVpsPdc
+- removed obsolete EpgAcqServer_SetCallbacks()
+- Added EPGDB_CONTEXT param to EpgNetIo_DumpAllBlocks()
+epgctl/epgacqsrv.h [rev:1.2, 2002-02-03T10:59:00]:
+- Moved stats report handling to epgacqsrv.c from epgacqctl.c
+- moved EPGDB_STATS_UPD from epgacqctl.h here; renamed MSG_STRUCT_STATS_IND
+- added ptr pNext to struct to support queueing stats reports
+- added msg struct MSG_STRUCT_VPS_PDC_IND to enclose EPGDB_ACQ_VPS_PDC
+- removed obsolete EPGDB_NET_SRV_CB
+epgctl/epgacqctl.c [rev:1.63, 2002-02-03T10:59:19]:
+- Client-side: Moved statistics reports handling to epgacqclnt.c
+- removed obsolete callback struct EPGDB_NET_CLNT_CB epgNetCb
+- EpgAcqCtl_NetStatsUpdate(): all report andling moved to acqclnt
+- removed obsolete EpgAcqCtl_NetStatsOverflow()
+- moved EpgAcqCtl_GetNetStats(), EpgAcqCtl_VpsPdcCallback() and
+    EpgAcqCtl_ResetNetVpsPdc() to acqclnt
+- Server-side: Replaced callbacks with direct function calls
+- removed obsolete callback struct EPGDB_NET_SRV_CB acqCtlSrvCb
+- moved EpgAcqCtl_FwdCallback() into epgacqsrv.c
+epgctl/epgacqctl.h [rev:1.37, 2002-02-03T10:59:25]:
+- moved struct EPGDB_STATS_UPD to epgacqsrv.h
+- added interface funcs to epgacqsrv and clnt (former callbacks)
+    EpgAcqCtl_AddNetVpsPdc(), EpgAcqCtl_UpdateNetProvList()
+epgdb/epgnetio.c [rev:1.23, 2002-02-03T10:59:44]:
+- removed unneeded includes
+- removed reference to pAcqDbContext in EpgNetIo_DumpAllBlocks() and
+    EpgNetIo_DumpAiOi(): added dbc ptr as parameter instead
+epgdb/epgnetio.h [rev:1.14, 2002-02-03T10:59:51]:
+- added param dbc to EpgNetIo_DumpAllBlocks() and EpgNetIo_DumpAiOi()
+- replacing the direct reference to pAcqDbContext
+- added param dbc to EpgNetIo_DumpAllBlocks() and EpgNetIo_DumpAiOi()
+- replacing the direct reference to pAcqDbContext
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.149, 2002-02-03T19:19:23]:
+- bugfix proc ProvMerge_Reset:
+- redisplay config popup: else param array selist is undefined
+- fix ShortcutPrettyPrint:
+- string "$class: ... $" confused ident command when run on the executable
+- put "class" variable name in {}
+epgui/pioutput.c [rev:1.13, 2002-02-03T19:27:37]:
+- fixed PI listbox theme handling for new provider "Kabel 1":
+- improved PiOutput_PrintColumnItem(), case PIBOX_COL_THEME:
+- if no theme filter is active, do not simply use theme #0
+- instead search for the minimal valid PDC code in the theme list
+epgdb/epgblock.h [rev:1.38, 2002-02-13T21:00:12]:
+- Removed element time_t lastAiUpdate from struct EPGDB_CONTEXT
+epgdb/epgdbif.c [rev:1.40, 2002-02-13T21:00:20]:
+- added 2 new funcs: EpgDbGetAiUpdateTime(), EpgDbSetAiUpdateTime()
+- because lastAiUpdate was removed from struct EPGDB_CONTEXT
+- now the time is determined by the acq timestamp of the AI block
+epgdb/epgdbif.h [rev:1.24, 2002-02-13T21:00:26]:
+- added decl for 2 new funcs: EpgDbGetAiUpdateTime(), EpgDbSetAiUpdateTime()
+epgdb/epgdbmgmt.c [rev:1.42, 2002-02-13T21:01:18]:
+- removed update of elem lastAiUpdate: removed from struct EPGDB_CONTEXT
+epgdb/epgdbsav.c [rev:1.45, 2002-02-13T21:02:28]:
+- removed elem lastAiUpdate from struct EPGDB_CONTEXT
+- it's still in the dump header though
+epgdb/epgnetio.c [rev:1.24, 2002-02-13T21:02:40]:
+- EpgNetIo_DumpAiOi(): removed check of acq timestamp for OI#0
+    because it's used for the current acq db only where we have no dump base time
+- EpgNetIo_DumpAllBlocks(): removed an assertion
+epgdb/epgnetio.h [rev:1.15, 2002-02-13T21:02:50]:
+- Changed client/server protocol:
+- added msg MSG_TYPE_FORWARD_CNF, MSG_TYPE_DUMP_IND
+- removed msg MSG_TYPE_DUMP_REQ, MSG_TYPE_DUMP_CNF
+epgdb/epgtscqueue.c [rev:1.4, 2002-02-13T21:02:56]:
+- added 2 new funcs:
+- EpgTscQueue_IsIncremental(): required to en-/disable acq tails
+    (in timescale popup)
+- EpgTscQueue_ClearUnprocessed(): bugfix!  Before the complete queue
+    was cleared, hence data was lost (e.g. after provider switch when
+    both scales were open)
+- removed elem lastAiUpdate from struct EPGDB_CONTEXT
+- use new func EpgDbGetAiUpdateTime() instead (uses acq time of AI block)
+epgdb/epgtscqueue.h [rev:1.2, 2002-02-13T21:03:04]:
+- added decls for 2 new funcs:
+- EpgTscQueue_IsIncremental(): required to en-/disable acq tails
+    (in timescale popup)
+- EpgTscQueue_ClearUnprocessed(): bugfix!  Before the complete queue
+    was cleared, hence data was lost (e.g. after provider switch when
+    both scales were open)
+epgctl/epgacqclnt.c [rev:1.3, 2002-02-13T21:03:25]:
+- Changed client/server protocol (MAJOR change)
+- added msg MSG_TYPE_FORWARD_CNF: immediate reply to FORWARD_REQ
+    fwd_req now includes dump start times for all dbs
+- MSG_TYPE_FORWARD_IND is now sent when all dumps are complete
+- added msg MSG_TYPE_DUMP_IND (currently unused though),
+    removed msg MSG_TYPE_DUMP_REQ, MSG_TYPE_DUMP_CNF
+    dumps are now started automatically, i.e. without handshake
+- renamed state CLNT_STATE_WAIT_FWD_IND to CLNT_STATE_WAIT_FWD_CNF
+epgctl/epgacqsrv.c [rev:1.3, 2002-02-13T21:03:34]:
+- Changed client/server protocol (MAJOR change)
+- added msg MSG_TYPE_FORWARD_CNF, MSG_TYPE_DUMP_IND
+- removed msg MSG_TYPE_DUMP_REQ, MSG_TYPE_DUMP_CNF
+- removed state SRV_STATE_WAIT_DUMP_REQ
+    obsolete, because dbs are dumped without asking now
+- split former req state SRV_STATE_DUMP into 2 parts:
+    SRV_STATE_DUMP_REQUESTED: dump all req. prov. dbs: EpgAcqServer_DumpReqDb()
+    SRV_STATE_DUMP_ACQ: dump AI and OI#0 of current acq db
+- removed SRV_STATE_PROV_CHANGE
+- renamed acq stats enum from SRV_FWD_STATS_STATE to SRV_STATS_STATE
+- TakeMessage FWD_REQ: handled identically for all req states
+- new func EpgAcqServer_DumpReqDb(): dumps ALL requested providers
+    new helper funcs EpgAcqServer_DumpReqInit(), EpgAcqServer_EnableBlockFwd()
+- added acq context to req struct
+- Bugfix: moved srvMsg into request struct. required for >1 clients!
+epgctl/epgacqsrv.h [rev:1.3, 2002-02-13T21:03:41]:
+- Changed client/server protocol (MAJOR change)
+- added dumpStartTimes array to fwd_req
+- removed msg struct MSG_STRUCT_DUMP_REQ
+- added msg struct MSG_STRUCT_DUMP_IND
+- struct MSG_STRUCT_STATS_IND
+- added lastAiTime to minimal struct
+- added nowNextMaxAcqRepCount to update struct
+epgctl/epgacqctl.c [rev:1.64, 2002-02-13T21:03:55]:
+- bugfix EpgAcqCtl_UpdateNetProvList()
+- change daemon prov list for ACQMODE_FOLLOW_MERGED too
+- removed elem lastAiUpdate from struct EPGDB_CONTEXT
+- use new func EpgDbGetAiUpdateTime() instead (uses acq time of AI block)
+epgctl/epgctxctl.c [rev:1.18, 2002-02-13T21:04:05]:
+- removed elem lastAiUpdate from struct EPGDB_CONTEXT
+- use new func EpgDbGetAiUpdateTime() instead (uses acq time of AI block)
+- Changed semantics of EpgContextCtl_GetAiUpdateTime()
+- for peeks return cached AI update time; do not stat the file
+epgui/statswin.c [rev:1.54, 2002-02-13T21:04:17]:
+- removed elem lastAiUpdate from struct EPGDB_CONTEXT
+- use new func EpgDbGetAiUpdateTime() instead (uses acq time of AI block)
+Makefile [rev:1.39, 2002-02-13T21:04:45]:
+- split epgdb/epgdbsrv into 3 parts:
+- epgdb/epgnetio, epgctl/epgacqclnt, epgctl/epgacqsrv
+nxtvepg.pod [rev:1.57, 2002-02-13T21:04:58]:
+- dump stream: added note: in netacq mode dump only changed blocks
+epgdb/epgqueue.c [rev:1.7, 2002-02-16T11:18:42]:
+- Use separate switch DEBUG_EPGQUEUE_CONSISTANCY to disable consistancy check
+- DEBUG_GLOBAL_SWITCH should remain enabled for NULL ptr checks
+epgdb/epgdbmgmt.c [rev:1.43, 2002-02-16T11:35:00]:
+- Use separate switch DEBUG_EPGDBMGMT_CONSISTANCY to disable consistancy check
+- DEBUG_GLOBAL_SWITCH should remain enabled for NULL ptr checks etc.
+epgui/timescale.c [rev:1.5, 2002-02-16T11:40:40]:
+- bugfix: use EpgTscQueue_ClearUnprocessed() instead of EpgTscQueue_Clear()
+- Before, the complete queue was cleared, hence data was lost (e.g. after
+    provider switch when both scales were open)
+- bugfix: use EpgTscQueue_IsIncremental()to en-/disable acq tails
+epgui/pilistbox.c [rev:1.64, 2002-02-16T13:17:35]:
+- Use separate switch DEBUG_PILISTBOX_CONSISTANCY to disable consistancy check;
+- DEBUG_GLOBAL_SWITCH should remain enabled for NULL ptr checks etc.
+epgctl/epgctxmerge.c [rev:1.7, 2002-02-16T17:12:54]:
+- removed update of elem lastAiUpdate: removed from struct EPGDB_CONTEXT
+epgctl/epgacqclnt.c [rev:1.4, 2002-02-16T17:19:29]:
+- fix EpgAcqClient_GetNetStats() for type UPDATE:
+- use lastest (acq stats) hist record to fill possible gaps
+- i.e. loop from lastIdx+1 ... curHistIdx
+epgctl/epgacqsrv.c [rev:1.4, 2002-02-16T17:20:11]:
+- slight fixes in doTtxStats handling
+epgui/statswin.c [rev:1.55, 2002-02-16T17:21:04]:
+- fix StatsWin_UpdateDbStatsWin()
+- check if acq start time is zero -> print zero duration
+- this fixes the output for all-zero stats structs
+epgui/statswin.c [rev:1.56, 2002-02-16T17:53:01]:
+- fix StatsWin_UpdateDbStatusLine()
+- handle pAi==NULL in state RUNNING (internal error case)
+epgvbi/btdrv4linux.c [rev:1.21, 2002-02-16T18:29:51]:
+- bugfix BtDriver_Main()
+- after loop exit, when in USE_THREAD mode:
+- must not send SIGHUP to itself to signal acq stop or acq will restart
+Makefile.win32 [rev:1.14, 2002-02-16T18:42:31]:
+- split off new variable TCLDIR to speed up path adaptions
+epgdb/epgnetio.c [rev:1.25, 2002-02-17T21:09:00]:
+- Adapted for NetBSD by Mario Kemper
+- define HAVE_GETADDRINFO for __NetBSD__
+- added new func getaddrinfo_pf_unix()
+- Fixed IPv6 support in EpgNetIo_AcceptConnection()
+- handle connections of type AF_INET6: use getnameinfo
+nxtvepg.pod [rev:1.58, 2002-02-25T20:17:42]:
+- client/server config dialog:
+- added note about IPv6 and IPv4 esp. on NetBSD
+- after email exchange with Mario Kemper id=3C701E87.37FB39FC
+epgctl/epgacqctl.c [rev:1.65, 2002-02-28T19:09:03]:
+- EpgAcqCtl_GetProvider():
+- check for cniCount == 0 when accessing CNI array
+- EpgAcqCtl_UpdateProvider():
+- do UiControlMsg_QueryProvFreq() first before using db internal freq
+    even if db already open -> same prios for all
+- EpgAcqCtl_AiCallback(): skip freq update if in network mode
+- EpgAcqCtl_Stopped(): added assertion
+epgctl/epgacqsrv.c [rev:1.5, 2002-02-28T19:11:09]:
+- bugfix protocol in EpgAcqServer_EnableBlockFwd()
+- do not auto-enable first foud CNI if client requests zero CNIs
+- because this is too hard to handle on client-side
+- bugfix EpgAcqServer_HandleSockets()
+- added EpgAcqServer_Close() upone client connection timeout
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.150, 2002-02-28T19:11:34]:
+- improved 2 comments :)
+epgui/menucmd.c [rev:1.67, 2002-02-28T19:15:58]:
+- SetDaemonAcquisitionMode() improved:
+- in follow-ui mode, if no CNI is found in rc/ini file
+- pass list of all known CNIs to acqctl, even 0; do not abort with error msg!
+- this is very usefule for the first start after the initial scan
+- when the user never has selected a provider but still can use the acq daemon
+epgui/pilistbox.c [rev:1.65, 2002-02-28T19:17:55]:
+- PiListBox_UpdateState(): new msg EPGDB_ACQ_WAIT_DAEMON
+- for network acq mode only: not known if one of the ui cnis i part of
+    the acq cni list
+epgui/pilistbox.h [rev:1.14, 2002-02-28T19:19:13]:
+- EPGDB_STATE enum: added new member EPGDB_ACQ_WAIT_DAEMON
+epgui/uictrl.c [rev:1.23, 2002-02-28T19:22:16]:
+- UiControl_GetDbState(): new pilistbox msg EPGDB_ACQ_WAIT_DAEMON
+- for network acq mode only
+- not known on which cnis the daemon works
+- UiControl_AiStateChange():
+- always call UiControl_GetDbState(), even for Acq AI, because pilistbox msg
+    may change (at least EPGDB_ACQ_WAIT_DAEMON <-> EPGDB_ACQ_WAIT)
+- UiControlMsg_AcqEvent()
+- removed redundant uiControlInitialized checks
+Makefile [rev:1.40, 2002-03-02T12:52:01]:
+- removed -lpthread from LDLIBS
+- only added if USE_THREADS
+README [rev:1.20, 2002-03-02T12:52:27]:
+- added hint that Windows 2000 is not supported
+- corrected URL to cygwin.com
+nxtvepg.spec [rev:1.2, 2002-03-02T12:53:08]:
+- changed version to 0.7.0
+epgctl/epgversion.h [rev:1.19, 2002-03-02T12:54:09]:
+- set to version 0.7.0
+CHANGES.version [rev:1.8, 2002-03-02T12:54:27]:
+- added USE_THREADS
+TODO [rev:1.15, 2002-03-02T14:43:37]:
+- updated for release 0.7.0
+CHANGES [rev:1.20, 2002-03-02T14:43:46]:
+- updated for release 0.7.0
+epgdb/epgnetio.c [rev:1.26, 2002-03-02T14:48:15]:
+- separate func EpgNetIo_GetLocalSocketAddr() fpr PF_LOCAL sockets
+- formerly getaddrinfo was used, but this is not sufficiently portable
+    was already used for NetBSD
+- use malloc instead of xmalloc in getaddrinfo, for freeaddrinfo
+www/index-de.html [rev:1.22, 2002-03-02T15:39:22]:
+- updated for release 0.7.0
+www/index.html [rev:1.34, 2002-03-02T15:39:22]:
+- updated for release 0.7.0
+www/changelog.html [rev:1.24, 2002-03-02T15:39:48]:
+- updated for release 0.7.0
+www/man.html [rev:1.13, 2002-03-02T15:39:48]:
+- updated for release 0.7.0
+www/provnets.html [rev:1.11, 2002-03-02T15:40:33]:
+- added new German provider Kabel-1 (tvtv)
+- added note to TV5: dead provider
+www/tripod-src-index.html [rev:1.1, 2002-03-02T18:29:27]:
+- Initial revision
+www/tripod-src-index.html [rev:1.2, 2002-03-03T19:17:55]:
+- fixes copy&paste error in file names for 0.6.0 and 0.6.1
+www/changelog.html [rev:1.25, 2002-03-07T21:40:17]:
+- started list for 0.7.1 (yet unreleased)
+- first entry: daemon remote control
+www/index.html [rev:1.35, 2002-03-08T21:25:14]:
+- removed link to "currently in development"
+- added year 2002 to copyright
+www/index-de.html [rev:1.23, 2002-03-08T21:26:13]:
+- fixed year of release of 0.7.0 (email by Christian Hoenig)
+- added year 2002 to copyright
+www/index-de.html [rev:1.24, 2002-03-10T14:58:56]:
+- Release date of 0.7.0 was still wrong (2.3. instead 3.2.)
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_7_0 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

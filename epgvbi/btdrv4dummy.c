@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: btdrv4dummy.c,v 1.4 2001/11/01 11:10:44 tom Exp tom $
+ *  $Id: btdrv4dummy.c,v 1.5 2002/01/26 15:18:01 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -93,6 +93,11 @@ void BtDriver_CloseDevice( void )
 bool BtDriver_CheckDevice( void )
 {
    return FALSE;
+}
+
+int BtDriver_GetDeviceOwnerPid( void )
+{
+   return -1;
 }
 
 // ---------------------------------------------------------------------------

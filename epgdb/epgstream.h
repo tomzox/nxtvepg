@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgstream.h,v 1.11 2001/02/25 16:00:45 tom Exp tom $
+ *  $Id: epgstream.h,v 1.13 2001/12/21 20:09:13 tom Exp tom $
  */
 
 #ifndef __EPGSTREAM_H
@@ -50,46 +50,12 @@ enum
 };
 
 // ----------------------------------------------------------------------------
-// declaration of private decoder status
-//
-// max block len (12 bits) - see ETS 300 708
-// note that this does not include the 4 header bytes with length and appId
-#define NXTV_BLOCK_MAXLEN 2048
-
-typedef struct
-{
-   uchar ci, pkgCount, lastPkg;
-   uchar appID;
-   uint  blockLen, recvLen;
-   bool  haveBlock;
-   uint  haveHeader;
-   uchar headerFragment[3];
-   uchar blockBuf[NXTV_BLOCK_MAXLEN + 4];
-} NXTV_STREAM;
-
-// max. number of pages that are allowed for EPG transmission: mFd & mdF: m[0..7],d[0..9]
-#define NXTV_VALID_PAGE_PER_MAG (1 + 10 + 10)
-#define NXTV_VALID_PAGE_COUNT   (8 * NXTV_VALID_PAGE_PER_MAG)
-
-typedef struct
-{
-   uchar pkgCount;
-   uchar lastPkg;
-   uchar okCount;
-} PAGE_SCAN_STATE;
-
-
-// ----------------------------------------------------------------------------
 // Declaration of service interface functions
 //
-void EpgStreamInit( bool bWaitForAiBi, uint appId );
-void EpgStreamEnableAllTypes( void );
+void EpgStreamInit( EPGDB_QUEUE *pDbQueue, bool bWaitForBiAi, uint appId );
+void EpgStreamClear( void );
 bool EpgStreamNewPage( uint sub );
 void EpgStreamDecodePacket( uchar packNo, const uchar * dat );
-
-EPGDB_BLOCK * EpgStreamGetNextBlock( void );
-EPGDB_BLOCK * EpgStreamGetBlockByType( uchar type );
-void          EpgStreamClearScratchBuffer( void );
 
 void EpgStreamSyntaxScanInit( void );
 void EpgStreamSyntaxScanHeader( uint page, uint sub );
