@@ -21,7 +21,7 @@
 #
 #  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
 #
-#  $Id: epgui.tcl,v 1.37 2000/10/29 00:37:33 tom Exp tom $
+#  $Id: epgui.tcl,v 1.37.1.1 2000/11/07 20:54:56 tom Exp $
 #
 
 frame     .all -relief flat -borderwidth 0
@@ -1567,11 +1567,11 @@ proc CreateAbout {} {
       pack .about.name -side top -pady 8
       label .about.logo -bitmap nxtv_logo
       pack .about.logo -side top -pady 8
-      label .about.version -text "v0.3.1"
+      label .about.version -text "v0.3.3"
       pack .about.version -side top
       label .about.copyr1 -text "Copyright © 1999, 2000 by Tom Zörner"
       label .about.copyr2 -text "Tom.Zoerner@informatik.uni-erlangen.de"
-      label .about.copyr3 -text "ftp://ftp.informatik.uni-erlangen.de/local/cip/tnzoerne/nxtvepg/" -font {courier -12 normal} -foreground blue
+      label .about.copyr3 -text "http://nxtvepg.tripod.com/" -font {courier -12 normal} -foreground blue
       pack .about.copyr1 .about.copyr2 -side top
       pack .about.copyr3 -side top -padx 10 -pady 10
       message .about.m -text {

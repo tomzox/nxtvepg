@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: pifilter.c,v 1.25 2000/10/28 23:13:11 tom Exp tom $
+ *  $Id: pifilter.c,v 1.26 2000/10/31 19:34:14 tom Exp tom $
  */
 
 #define __PIFILTER_C
@@ -1322,10 +1322,10 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, char
             {
                for (idx=0; idx <= 128; idx++)
                {
-                  if (pPiFilterContext->themeFilterField[idx] != 0)
+                  if ( ((pPiFilterContext->themeFilterField[idx] & pPiFilterContext->usedThemeClasses) != 0) &&
+                       (pdc_themes[idx] != NULL) )
                   {
-                     sprintf(comm, "%s add command -label {Undo themes filter %s} -command {",
-                             argv[1], ((pdc_themes[idx] == NULL) ? "" : (char *)pdc_themes[idx]));
+                     sprintf(comm, "%s add command -label {Undo themes filter %s} -command {", argv[1], (char *)pdc_themes[idx]);
                      for (class=0; class < THEME_CLASS_COUNT; class++)
                      {
                         // only offer to undo this theme if it is in exactly one class
@@ -1338,7 +1338,7 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, char
                   }
                }
             }
-               entryCount += 1;
+            entryCount += 1;
          }
 
          // undo sorting criteria filters

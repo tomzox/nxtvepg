@@ -15,7 +15,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgdbsav.h,v 1.10 2000/10/12 18:25:36 tom Exp tom $
+ *  $Id: epgdbsav.h,v 1.10.1.1 2000/11/07 20:59:28 tom Exp $
  */
 
 #ifndef __EPGDBSAV_H
@@ -28,7 +28,7 @@
 #define MAGIC_STR      "NEXTVIEW-DB by TOMZO\n"
 #define MAGIC_STR_LEN  20
 
-#define DUMP_VERSION   0x00000301 // current version 0.3.1
+#define DUMP_VERSION   0x00000303 // current version 0.3.3
 #define DUMP_COMPAT    0x0000010a // last compatible version
 
 #ifdef WIN32

@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgblock.c,v 1.22 2000/10/15 18:52:49 tom Exp tom $
+ *  $Id: epgblock.c,v 1.23 2000/11/01 09:28:25 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -378,12 +378,14 @@ static uchar GetG0Char(uchar val, uchar alphabeth)
 // Apply escape sequence to a string
 // - only language-specific escapes and newlines are evaluated
 // - at the same time white space is compressed
+// - newline (explicit and implicit) is replaced by blank;
+//   line breaks are inserted at time of output, depending on window width
 //
 static uchar * ApplyEscapes(const uchar *pText, uint textLen, const uchar *pEscapes, uchar escCount, uchar netwop)
 {
    uchar *pout, *po;
    uint  data, escIdx, nextEsc;
-   uint  i, linePos;
+   uint  i, linePos, strLen;
    bool  lastWhite;
    uchar alphabet;
 
@@ -393,7 +395,10 @@ static uchar * ApplyEscapes(const uchar *pText, uint textLen, const uchar *pEsca
    else
       alphabet = providerAlphabet;
 
-   pout = (uchar *) xmalloc(textLen + 1 + (textLen + 39) / 40);
+   // string length may grow due to newline escapes -> reserve some estimated extra space
+   strLen = textLen + escCount + 20;
+
+   pout = (uchar *) xmalloc(strLen + 1);
    if (pout != NULL)
    {
       po = pout;
@@ -405,7 +410,7 @@ static uchar * ApplyEscapes(const uchar *pText, uint textLen, const uchar *pEsca
       else
          nextEsc = 0xffff;
 
-      for (i=0; i<textLen; i++)
+      for (i=0; i<textLen && strLen>0; i++)
       {
          if (pText[i] < 0x20)
             *po = ' ';
@@ -436,8 +441,17 @@ static uchar * ApplyEscapes(const uchar *pText, uint textLen, const uchar *pEsca
                   // the newline is inserted in front of the current character
                   if (!lastWhite)
                   {
-                     po[1] = *po;
-                     *po++ = ' ';
+                     if (strLen > 1)
+                     {
+                        po[1] = *po;
+                        *po++ = ' ';
+                        strLen -= 1;
+                     }
+                     else
+                     {
+                        debug0("Apply-Escapes: output string length exceeded");
+                        *po = ' ';
+                     }
                   }
                   lastWhite = TRUE;
                   linePos = 0;
@@ -485,12 +499,16 @@ static uchar * ApplyEscapes(const uchar *pText, uint textLen, const uchar *pEsca
          if (*po == ' ')
          {
             if (!lastWhite)
+            {
                po++;
+               strLen -= 1;
+            }
             lastWhite = TRUE;
          }
          else
          {
             po++;
+            strLen -= 1;
             lastWhite = FALSE;
          }
          linePos += 1;
@@ -498,7 +516,15 @@ static uchar * ApplyEscapes(const uchar *pText, uint textLen, const uchar *pEsca
          if (linePos == 40)
          {  // add blank after last character of line
             if (lastWhite == FALSE)
-               *(po++) = ' ';
+            {
+               if (strLen > 0)
+               {
+                  *(po++) = ' ';
+                  strLen -= 1;
+               }
+               else
+                  debug0("Apply-Escapes: output string length exceeded");
+            }
             lastWhite = TRUE;
             linePos = 0;
          }
