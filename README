@@ -1,6 +1,6 @@
 Hi there,
 
-in this software package you find a decoder for Nextview - an Electronic
+In this software package you find a decoder for Nextview - an Electronic
 TV Programme Guide for the analog domain (as opposed to the various digital
 EPGs that come with most digital broadcasts). It allows you to decode and
 browse TV programme listings for most of the major networks in Germany,
@@ -9,7 +9,7 @@ Austria, France and Switzerland.
 Currently Nextview EPG is transmitted by:
 - in Germany and Austria: Kabel1, 3Sat, RTL-II.
 - in Switzerland: SF1, TSR1, TSI1, EuroNews.
-- in France: Canal+, M6, TV5.
+- in France: Canal+, TV5, EuroNews.
 - in Turkey: TRT.
 
 If you don't receive any of those, then this software unfortunately is
@@ -26,16 +26,21 @@ distribution will be kindly tolerated.
 System requirements:
 
 Hardware requirements are a PC or workstation with a 90 MHz Intel Pentium
-or equivalently (or more) powerful CPU, and a TV tuner card based on the
-Booktree chip Bt848 or Bt878. Almost all TV cards nowadays except the
-ATI "TV Wonder" and some cheap cards sold by Aldi (e.g. Tevion MD9717)
-are built around one of the Booktree chips.
+or equivalently (or more) powerful CPU, and a TV tuner card (analog, i.e.
+not DVB).  The Windows version supports all TV cards based either on the
+capture chips Brooktree Fusion Bt878/Bt848 or Philips SAA7134 (Support for
+Conexant CX23881 is currently under construction).  The Linux version
+supports all cards for which a "video4linux" compatible driver exists
+(e.g. bttv or saa7134, including even USB TV boxes).  The NetBSD and FreeBSD
+versions support all cards which are supported by the bktr driver.
 
 Linux software requirements:
-- kernel >= 2.0.35 (upgrade to 2.2.x highly recommended for bttv users!)
-- bttv driver (video4linux), version >= 0.7.35 recommended
+- kernel >= 2.0.35 (upgrade to 2.2.x highly recommended for bttv users)
+- video4linux and bttv drivers, bttv version >= 0.7.35 recommended;
+  (note: SAA7134 support requires at least kernel 2.4.20 plus some v4l2
+  patches, see http://www.bytesex.org/)
 - GNU C Compiler, unless you got nxtvepg in a precompiled RPM archive
-- Tcl/Tk version 8.0 or later (8.3 recommended)
+- Tcl/Tk version 8.0 or later (8.3 recommended; 8.4. depreciated)
   available from http://www.scriptics.com/
 
 NetBSD software requirements:
@@ -47,22 +52,12 @@ NetBSD software requirements:
 
 Windows software requirements:
 - Nothing actually: nxtvepg is shipped with all the required components.
+- Exception for Windows 95: the winsock2 DLL is required (ws2_32.dll, for
+  the daemon feature) which - in contrary to newer Windows versions - was
+  not included with this OS.
 - Supported OS: Windows NT, Windows 2000, Windows XP, Windows 95/98/ME.
-- On Windows NT and 2000: you need to be in the Admininstrator group.
-
-If you want to compile for Windows you also need:
-- Cygwin GNU make and gcc compiler, see http://www.cygwin.com/
-  including the mingw ("Minimalistic GNU for Windows") and win32 header files
-- Tcl/Tk 8.3.2, available from http://www.scriptics.com/
-  (I've patched the tk83.dll twice: (1) to catch shutdown messages and (2) to
-  disable use of the Windows MessageBox() in tk_messageBox because it crashed
-  the program. Hence I recommend to keep using the DLL that comes with nxtvepg,
-  or apply the patches described in README.tcl83 to the tk8.3.2 sources)
-- Perl 5 to generate the help menus from the documentation in POD format
-  (not essential unless you want to modify the help menus)
-- If you want to compile the driver you also need the Microsoft Visual C++
-  compiler and a Device Driver Development Kit. Driver sources are available
-  at http://www.dscaler.org/
+- On Windows NT and Windows 2000 you need to run nxtvepg under an account
+  with special privileges (you must be allowed to install and start a service)
 
 
 UNIX installation procedure (when compiling from source):
@@ -73,9 +68,10 @@ UNIX installation procedure (when compiling from source):
 - make
   if compilation fails, check the type definitions in epgctl/mytypes.h first.
   Required types are: schar, uchar, sint, uint, slong, ulong.
-- If you compile on a non-supported operating system or if you don't have
-  bttv, then compile epgvbi/btdrv4dummy instead of btdrv4linux (then you
-  can use network acquisition mode to receive data from a supported platform)
+- If you compile on a non-supported operating system or if you don't have a
+  TV card or a supported driver, then compile epgvbi/btdrv4dummy instead of
+  btdrv4linux (you still can use network acquisition mode to receive data
+  from a supported platform)
 - make install
 - Invoke the application and start a provider scan from the Configure menu.
   Further details can be found in the man page or help menu, section
@@ -92,30 +88,69 @@ Windows installation procedure:
 
 - Unpack the zip file into an empty directory.
 
+- Make sure you've stopped your TV viewing application and any other
+  video applications.  (You always need to do this before you start
+  nxtvepg, because only one application may use the TV card at the
+  same time.  Should you accidentially start a 2nd one, terminate both
+  before you continue to use either of them)
+
 - Invoke the executable nxtvepg.exe
-  If there are any warning or error message popups from the Bt8x8
+  If there are any warning or error popup messages from the TV card
   driver, please refer to the list below.
 
 - Set up the driver in the "TV card input" menu.  There's extensive
   help available in the documentation, sections "Getting Started" and
   "Configuration: TV card input"
 
-- Start an EPG scan. If the scan just runs through without finding
-  any network IDs, check your TV card settings, particularily "PLL init"
-  (or check your antenna cable) and try again. If the scan still fails,
-  there are two other possibilities for Nextview reception:
+- Start an EPG scan. If the scan just runs through without finding any
+  network IDs, check your TV card settings (after checking your antenna
+  cable) and try again.  If the scan still fails, there are two other
+  possibilities for Nextview reception:
   1: Set acquisition mode "external". Then stop acquisition and tune in a
   provider channel with a separate application, e.g. a TV viewer. Then quit
   the other application again and start acquisition. See 'Getting Started'
   and the help for the acquisition mode dialog for more information.
   2: Alternatively you can try an external input, i.e. supply a provider's
-  TV channel via the Composite inputs, e.g. from your VCR.  In rare cases
-  the descriptions of input sources in the TV card popup may be wrong, so
-  try all inputs, e.g.  "Composite 2" even if you connected the cable to #1.
+  TV channel via the Composite inputs, e.g. from your VCR.
+  Note: if the scans fails to identify a subset of channels (i.e. "no CNI
+  received" for a number of consecutive channels) you may have selected a
+  wrong tuner type. But also note that not all channels do send CNI data
+  (most notably MTV and local TV channels.)
 
-Explanation of Windows Bt8x8 driver error messages:
 
-- "Failed to load the Bt8x8 driver. (...)"
+Compilation procedure for Windows
+
+- Note this is NOT required for regular users, only if you want to
+  change the software!
+- The source package as provided in the release distributions does not
+  contain the Tcl/Tk libraries (DLLs).  You can simply copy those from
+  the Windows binary package into the source root directory.  You could
+  also use the original DLLs as available from http://www.scriptics.com/,
+  but you'd miss a few patches (see README.tcl*; patches were made
+  (1) to catch shutdown messages (2) to disable use of the Windows
+  MessageBox() in tk_messageBox because it crashed the program and
+  (3) to insert the nxtvepg icon).  Note that prior to nxtvepg-2.5.0
+  the sources also lacked the tcl/tk script libraries; these are
+  available on request.
+- Fastest way is to cross-compile for Windows under Linux.  You need to
+  install "gcc-win" RPM package and then type "make -f Makefile.win"
+- Alternatively you can install GNU/Cygwin on your Windows host, see
+  http://www.cygwin.com/  Most important are packages for make, gcc,
+  mingw ("Minimalistic GNU for Windows") and win32 header files.  After
+  installing Cygwin, start a shell, cd to the nxtvepg directory and type
+  "make".  If you're not using NT or W2K you may have to adapt the OS
+  detection code in Makefile and/or Makefile.win, i.e.
+  "ifeq ($(OS),Windows_NT)"
+- To generate the help menus from the documentation in POD format you
+  need Perl5 (not essential unless you want to modify the help menus)
+  from http://www.perl.org/ or as Cygwin package
+- If you want to compile the driver you should refer to the DScaler
+  documentation at http://www.dscaler.org/
+
+
+Explanation of Windows TV card driver error messages:
+
+- "Failed to load the TV card driver. (...)"
   This message can unfortunately have many causes. For the most probable
   causes an explanation is appended to the message.  The following hints
   may help you:
@@ -137,63 +172,76 @@ Explanation of Windows Bt8x8 driver error messages:
   (also called "main user").
 
   3. You're using driver files of a wrong version.  You must use the version
-  that comes with nxtvepg.  nxtvepg attempts to automatically upgrade the
-  driver to the required version, but that may fail if the service cannot be
-  stopped or permissions don't allow to remove the service.
+  that comes with nxtvepg or a newer version.  nxtvepg attempts to upgrade
+  the driver automatically to the required version, but that may fail if the
+  service cannot be stopped (e.g. other application still using it) or
+  permissions don't allow to remove the service.
 
-  4. You're starting nxtvepg from a network drive, however the driver
-  cannot be installed on a remote drive.  Please move the nxtvepg
-  directory onto a local drive (e.g. C:)
+  Note: to force windows to use the new driver version which comes with
+  nxtvepg, you can remove or rename all other files named dsdrv4.sys
+  and dsdrv4.vxd on your harddisk.  Because usually Windows does not use
+  the drivers in the current directory if a driver path was previously
+  stored in the registry (e.g. during installation of another application
+  which is based in dsdrv4)
+
+  4. You're starting nxtvepg from a network drive:  this is not allowed
+  for reasons of stability.  Move the nxtvepg directory onto a local
+  drive (e.g. C:)
 
   5. The "DSdrv4" service entry in the registry may be messed up.
   You can remove all keys that match "dsdrv4". Note:  you should delete
   not only those in the CurrentControlSet, but those in all control sets.
-
-  6. Another application using version 4.00 of the DScaler driver may
-  already be runing.  Early versions of the driver could be used only by
-  one application at the same time, even if you had more than one TV card.
-  For compatibility reasons nxtvepg does not insist on the latest driver.
-  Note: to force windows to use the new driver version which comes with
-  nxtvepg, you should remove or rename all other files names dsdrv4.sys
-  and dsdrv4.vxd on your harddisk, because windows does not use the drivers
-  in the current directory but instead a path that was recoded in the
-  registry during service installation.
+  Only required in exceptional cases.
 
   If none of these seem to be the cause, you can enable logging to a
   file in the "TV card input" dialog in the Configure menu.  The log
-  file "dsdrv.log" is created in the nxtvepg home directory.  If you
+  file "dsdrv.log" is created in the nxtvepg working directory.  If you
   don't get the driver to work, feel free to mail the log file and
-  a dump of the dsdrv4 service registry entry to me.
+  a dump of the dsdrv4 service registry entry (using "regedit") to me.
 
-- "Bt8x8 card #%d not found (found %d cards)"
+- "No supported capture cards found on PCI bus"
+  Nxtvepg scans the PCI bus for devices with certain vendor and device
+  codes which are specific to every video capture chip.  If your TV card
+  is not detected, this means it's either not connected to the PCI bus
+  or it's using an unsupported chip version.  If your card is supported
+  by another freeware app, you can mail me and I'll see if I can support
+  it in nxtvepg, too.
+
+- "Capture card #%d not found (found %d cards)"
   If there's at least one card found, lower the card index below the
   number of available cards, i.e. if you have two cards, specify index
   0 or 1. The card index can be given either on the command line with
   the -card option or in the "TV card input" configuration dialog.
 
-- "PCI-Card #x (with Bt8xx chip) cannot be locked!",
+- "Capture card #x (with <X> chip) cannot be locked!",
   There may be a different application already using the TV card. On
   M$ Windows you cannot run, e.g. a TV application in parallel to
   nxtvepg (unless the TV app supports interaction with nxtvepg) or
   teletext decoders (if you have only one TV card).
 
-- "Warning: no tuner found on Bt8x8 I2C bus"
-  No tuner was found during the I2C bus scan. This failure does not
-  depend on any configuration option, so you're simply out of luck.
-  If you know an open-source software that supports your hardware, let
-  me know and I'll try to support it in nxtvepg, too. In the meanwhile
-  you only can use the "Passive" acquisition mode, i.e. you have to
-  set up input source and channel with a different application before
-  starting nxtvepg.
+- "Warning: no tuner found on TV card I2C bus"
+  No tuner was found during the I2C bus scan.  Currently nxtvepg supports
+  only generic tuner chips.  Some cards (e.g. from Pinnacle) have very
+  exotic tuners which need special care.  Currently you can only use these
+  by selection "external" acquisition mode and using a TV app to tune the
+  channel (make sure to terminate the TV app before you start nxtvepg)
 
-- "Risc Memory (83 KB Contiguous) not Allocated",
+- "Failed to allocate RISC code memory",
+  "Failed to allocate DMA page table memory" or
   "VBI Memory for DMA not Allocated". These mesages mean that the kernel
   could not allocate RAM for data transfers from the TV card. Reboot and
   try again, this should normally not happen because the amount of memory
-  which is allocated is relatively small.
+  which is allocated is relatively small (in comparison to the amount a
+  TV application would require to transfer image data.)
+
+- "Capturing is already enabled in the TV card"
+  Only one video application may use the TV card at the same time. nxtvepg
+  will refuse to start acquisition if capturing is already enabled to
+  prevent interfering with an on-going DMA transfer and possibly crashing
+  your system.
 
 Before you mail me, please try to get DScaler to work (www.dscaler.org)
-My Windows Bt8x8 driver handling is heavily based upon that software.
+nxtvepg's Win32 driver handling is heavily based upon that software.
 Since I'm not a M$ Windows software developer my understanding of Windows
 specific problems is rather limited.
 
@@ -207,7 +255,7 @@ problem. At least include names and version numbers of your operating system,
 nxtvepg, possibly the bttv driver and any other software that may be
 involved. If it looks like a hardware related problem (e.g. acquisition
 does not work at all) also include the exact name of you TV card hardware.
-If MultiDec works with the same hardware, mail me the version number and
+If DScaler or K!TV work with the same hardware, mail me the version number and
 describe your hardware configuration settings. If there is an error message,
 quote the message in full length and exactly as printed, even if you do not
 understand its relevance.

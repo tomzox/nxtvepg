@@ -33,7 +33,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: statswin.c,v 1.62 2002/09/28 18:15:56 tom Exp tom $
+ *  $Id: statswin.c,v 1.63 2003/02/08 14:37:01 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -56,6 +56,7 @@
 #include "epgctl/epgscan.h"
 #include "epgctl/epgctxmerge.h"
 #include "epgctl/epgacqclnt.h"
+#include "epgui/menucmd.h"
 #include "epgui/epgmain.h"
 #include "epgui/uictrl.h"
 #include "epgui/statswin.h"
@@ -407,6 +408,13 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
                else
                {
                   strcat(comm, "Acq mode:         forced passive\n");
+                  #ifdef WIN32
+                  if (MenuCmd_CheckTvCardConfig() == FALSE)
+                  {
+                     strcat(comm,    "Passive reason:   TV card not configured");
+                  }
+                  else
+                  #endif
                   switch (acqState.passiveReason)
                   {
                      case ACQPASSIVE_NO_TUNER:
@@ -595,7 +603,7 @@ static void StatsWin_UpdateDbStatusLine( ClientData clientData )
       else
          strcat(comm, " 100% complete");
 
-      // warn about age of database if more than on hour
+      // warn about age of database if more than one hour old
       dbAge = (time(NULL) - EpgDbGetAiUpdateTime(pUiDbContext)) / 60;
       if (dbAge >= 24*60)
       {
@@ -717,6 +725,13 @@ static void StatsWin_UpdateDbStatusLine( ClientData clientData )
             strcat(comm, "Acquisition is waiting for reception");
          break;
       case ACQDESCR_NO_RECEPTION:
+         #ifdef WIN32
+         if (MenuCmd_CheckTvCardConfig() == FALSE)
+         {
+            strcat(comm, "Acquisition: TV card not configured");
+         }
+         else
+         #endif
          if ( (acqState.dbCni == acqState.cycleCni) && (acqState.dbCni != 0) &&
               (acqState.mode != ACQMODE_FORCED_PASSIVE) &&
               (acqState.mode != ACQMODE_PASSIVE) &&

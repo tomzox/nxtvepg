@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_xawtvcf.tcl,v 1.4 2002/12/08 19:59:00 tom Exp tom $
+#  $Id: dlg_xawtvcf.tcl,v 1.5 2003/02/26 21:59:20 tom Exp tom $
 #
 set xawtvcf_popup 0
 
@@ -107,7 +107,7 @@ proc XawtvConfigPopup {} {
          pack .xawtvcf.all.lab_poptype -side top -anchor w -pady 5
          frame .xawtvcf.all.poptype -borderwidth 2 -relief ridge
          radiobutton .xawtvcf.all.poptype.t0 -text "Separate popup" -variable xawtv_tmpcf(poptype) -value 0 -command XawtvConfigPopupSelected
-         radiobutton .xawtvcf.all.poptype.t1 -text "Video overlay (subtitles)" -variable xawtv_tmpcf(poptype) -value 1 -command XawtvConfigPopupSelected
+         radiobutton .xawtvcf.all.poptype.t1 -text "Video overlay" -variable xawtv_tmpcf(poptype) -value 1 -command XawtvConfigPopupSelected
          radiobutton .xawtvcf.all.poptype.t2 -text "Video overlay, 2 lines" -variable xawtv_tmpcf(poptype) -value 2 -command XawtvConfigPopupSelected
          radiobutton .xawtvcf.all.poptype.t3 -text "Xawtv window title" -variable xawtv_tmpcf(poptype) -value 3 -command XawtvConfigPopupSelected
          pack .xawtvcf.all.poptype.t0 .xawtvcf.all.poptype.t1 .xawtvcf.all.poptype.t2 .xawtvcf.all.poptype.t3 -side top -anchor w

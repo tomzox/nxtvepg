@@ -23,7 +23,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbfil.c,v 1.38 2002/10/27 18:48:36 tom Exp tom $
+ *  $Id: epgdbfil.c,v 1.42 2003/03/19 16:17:12 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -42,6 +42,14 @@
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
 
+
+// type definition for netwop match cache
+typedef enum
+{
+   NETWOP_MATCH_OK,
+   NETWOP_MATCH_FAIL,
+   NETWOP_MATCH_FAIL_PRE
+} NETWOP_MATCH;
 
 //internal shortcuts
 typedef const EPGDB_CONTEXT * CPDBC;
@@ -76,6 +84,27 @@ FILTER_CONTEXT * EpgDbFilterCopyContext( const FILTER_CONTEXT * fc )
    {
       newfc = (FILTER_CONTEXT *) xmalloc(sizeof(*fc));
       memcpy(newfc, fc, sizeof(*fc));
+
+      // copy sub-string chain
+      if (fc->pSubStrCtx != NULL)
+      {
+         EPGDB_FILT_SUBSTR * pSrcWalk, ** ppDestWalk;
+         uint  size;
+
+         pSrcWalk  = fc->pSubStrCtx;
+         ppDestWalk = &newfc->pSubStrCtx;
+         while (pSrcWalk != NULL)
+         {
+            size = sizeof(EPGDB_FILT_SUBSTR) + strlen(pSrcWalk->str);
+            *ppDestWalk = xmalloc(size);
+            memcpy(*ppDestWalk, pSrcWalk, size);
+
+            pSrcWalk = pSrcWalk->pNext;
+            ppDestWalk = &(*ppDestWalk)->pNext;
+         }
+      }
+      else
+         newfc->pSubStrCtx = NULL;
    }
    else
    {
@@ -89,14 +118,116 @@ FILTER_CONTEXT * EpgDbFilterCopyContext( const FILTER_CONTEXT * fc )
 // ---------------------------------------------------------------------------
 // Destroy a filter context: free memory
 //
+static void EpgDbFilterDestroySubstrContext( FILTER_CONTEXT * fc )
+{
+   EPGDB_FILT_SUBSTR * pWalk;
+   EPGDB_FILT_SUBSTR * pNext;
+
+   pWalk = fc->pSubStrCtx;
+   while (pWalk != NULL)
+   {
+      pNext = pWalk->pNext;
+      xfree(pWalk);
+      pWalk = pNext;
+   }
+   fc->pSubStrCtx = NULL;
+}
+
+// ---------------------------------------------------------------------------
+// Destroy a filter context: free memory
+//
 void EpgDbFilterDestroyContext( FILTER_CONTEXT * fc )
 {
    if (fc != NULL)
    {
+      EpgDbFilterDestroySubstrContext(fc);
       xfree(fc);
    }
    else
       fatal0("EpgDbFilter-DestroyContext: illegal NULL ptr param");
+}
+
+// ---------------------------------------------------------------------------
+// Update netwop match cache
+// - fill a table with a boolean for every network index which tells the match
+//   function if a given network matches the current filter settings
+// - network matches depend on the network pre-filter, network filter if
+//   enabled and possibly network filter inversion if enabled; the cache must
+//   be invalidated if any of those parameters change
+// - note: the cache does not include the NETWOP_PRE2 filter because that one
+//   is a separate layer which is not affected by inversion and is intended to
+//   be used by the GUI to limit network matches to a sub-set of networks
+//
+static void EpgDbFilterUpdateNetwopCache( FILTER_CONTEXT *fc )
+{
+   NETWOP_MATCH  matchCode;
+   bool  fail, invert;
+   uchar netwop;
+
+   invert = ((fc->invertedFilters & FILTER_NETWOP) != FALSE);
+
+   for (netwop = 0; netwop < MAX_NETWOP_COUNT; netwop++)
+   {
+      if (fc->enabledFilters & FILTER_NETWOP)
+      {
+         fail = (fc->netwopFilterField[netwop] == FALSE);
+
+         if (fail ^ invert)
+         {
+            // if the network is also excluded by pre-filter, it's excluded from global inversion
+            if ( (fc->enabledFilters & FILTER_NETWOP_PRE) &&
+                 (fc->netwopPreFilter1[netwop] == FALSE) )
+               matchCode = NETWOP_MATCH_FAIL_PRE;
+            else
+               matchCode = NETWOP_MATCH_FAIL;
+         }
+         else
+         {
+            // do not include pre-filtered netwops with inverted network selection
+            if ( invert && (fc->enabledFilters & FILTER_NETWOP_PRE) &&
+                 (fc->netwopPreFilter1[netwop] == FALSE) )
+               matchCode = NETWOP_MATCH_FAIL_PRE;
+            else
+               matchCode = NETWOP_MATCH_OK;
+         }
+      }
+      else if (fc->enabledFilters & FILTER_NETWOP_PRE)
+      {  // netwop pre-filter is only activated when netwop is unused
+         // this way also netwops outside of the prefilter can be explicitly requested, e.g. by a NI menu
+         if (fc->netwopPreFilter1[netwop] == FALSE)
+            matchCode = NETWOP_MATCH_FAIL_PRE;
+         else
+            matchCode = NETWOP_MATCH_OK;
+      }
+      else
+         matchCode = NETWOP_MATCH_OK;
+
+      // code 0: match; 1: fail (0 and 1 may be inverted later); 2: pre-filtered
+      fc->netwopCache[netwop] = matchCode;
+   }
+
+   fc->netwopCacheUpdated = TRUE;
+}
+
+// ---------------------------------------------------------------------------
+// Query which netwops are filtered out after combining & inverting
+// - intended to be used by the GUI to determine the NETWOP_PRE2 filter as a
+//   sub-set of the full set of matching netwops
+//
+void EpgDbFilterGetNetwopFilter( FILTER_CONTEXT *fc, uchar * pNetFilter, uint count )
+{
+   uint  idx;
+
+   if (fc->netwopCacheUpdated == FALSE)
+   {
+      EpgDbFilterUpdateNetwopCache(fc);
+   }
+
+   for (idx=0; idx < count; idx++)
+   {
+      pNetFilter[idx] =  (fc->netwopCache[idx] == NETWOP_MATCH_OK) ||
+                        ((fc->netwopCache[idx] == NETWOP_MATCH_FAIL) && (fc->enabledFilters & FILTER_INVERT));
+   }
 }
 
 // ---------------------------------------------------------------------------
@@ -403,7 +534,9 @@ void EpgDbFilterSetSubtDescr( CPDBC dbc, FILTER_CONTEXT *fc, const uchar *lg )
 //
 void EpgDbFilterInitNetwop( FILTER_CONTEXT *fc )
 {
-   memset(fc->netwopFilterField, 0, sizeof(fc->netwopFilterField));
+   memset(fc->netwopFilterField, FALSE, sizeof(fc->netwopFilterField));
+
+   fc->netwopCacheUpdated = FALSE;
 }
 
 // ---------------------------------------------------------------------------
@@ -414,6 +547,8 @@ void EpgDbFilterSetNetwop( FILTER_CONTEXT *fc, uchar netwopNo )
    if (netwopNo < MAX_NETWOP_COUNT)
    {
       fc->netwopFilterField[netwopNo] = TRUE;
+
+      fc->netwopCacheUpdated = FALSE;
    }
    else
       fatal1("EpgDbFilter-SetNetwop: illegal netwop idx %d", netwopNo);
@@ -423,7 +558,7 @@ void EpgDbFilterSetNetwop( FILTER_CONTEXT *fc, uchar netwopNo )
 // Reset network pre-filter -> all networks enabled
 // - The netwop pre-filter basically works exactly like the netwop filter.
 //   However having a separate list that is automatically used when the
-//   netwop filter is unised greatly simplifies the handling.
+//   netwop filter is unused greatly simplifies the handling.
 // - The netwop pre-filter is only activated when the normal one is unused
 //   to allow netwops outside of the prefilter to be explicitly requested,
 //   e.g. by a NI menu.
@@ -432,7 +567,9 @@ void EpgDbFilterSetNetwop( FILTER_CONTEXT *fc, uchar netwopNo )
 //
 void EpgDbFilterInitNetwopPreFilter( FILTER_CONTEXT *fc )
 {
-   memset(fc->netwopPreFilterField, TRUE, sizeof(fc->netwopPreFilterField));
+   memset(fc->netwopPreFilter1, TRUE, sizeof(fc->netwopPreFilter1));
+
+   fc->netwopCacheUpdated = FALSE;
 }
 
 // ---------------------------------------------------------------------------
@@ -442,10 +579,36 @@ void EpgDbFilterSetNetwopPreFilter( FILTER_CONTEXT *fc, uchar netwopNo )
 {
    if (netwopNo < MAX_NETWOP_COUNT)
    {
-      fc->netwopPreFilterField[netwopNo] = FALSE;
+      fc->netwopPreFilter1[netwopNo] = FALSE;
+
+      fc->netwopCacheUpdated = FALSE;
    }
    else
       fatal1("EpgDbFilter-SetNetwopPreFilter: illegal netwop idx %d", netwopNo);
+}
+
+// ---------------------------------------------------------------------------
+// Init higher-level netwop pre-filter (pre-filter #2)
+// - intended to be used by the GUI to limit network matches to a sub-set of networks
+// - note: this filter is NOT included with the network match cache
+//
+void EpgDbFilterInitNetwopPreFilter2( FILTER_CONTEXT *fc )
+{
+   memset(fc->netwopPreFilter2, FALSE, sizeof(fc->netwopPreFilter2));
+}
+
+// ---------------------------------------------------------------------------
+// Disable one network in the network pre-filter #2 array
+// - see comments at the init function above
+//
+void EpgDbFilterSetNetwopPreFilter2( FILTER_CONTEXT *fc, uchar netwopNo )
+{
+   if (netwopNo < MAX_NETWOP_COUNT)
+   {
+      fc->netwopPreFilter2[netwopNo] = TRUE;
+   }
+   else
+      fatal1("EpgDbFilter-SetNetwopPreFilter2: illegal netwop idx %d", netwopNo);
 }
 
 // ---------------------------------------------------------------------------
@@ -541,20 +704,27 @@ void EpgDbFilterSetVpsPdcMode( FILTER_CONTEXT *fc, uint mode )
                                      //"ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞß"
 const uchar latin1LowerCaseTable[32] = "àáâãäåæçèéêëìíîïðñòóôõö×øùúûüýþß";
 
-void EpgDbFilterSetSubStr( FILTER_CONTEXT *fc, const uchar *pStr, bool matchCase, bool matchFull )
+void EpgDbFilterSetSubStr( FILTER_CONTEXT *fc, const uchar *pStr,
+                           bool scopeTitle, bool scopeDesc, bool matchCase, bool matchFull )
 {
+   EPGDB_FILT_SUBSTR * pSubStrCtx;
    uchar *p, c;
+
+   assert(scopeTitle || scopeDesc);
 
    if (pStr != NULL)
    {
-      strncpy(fc->subStrFilter, pStr, SUBSTR_FILTER_MAXLEN);
-      fc->subStrFilter[SUBSTR_FILTER_MAXLEN] = 0;
-      fc->strMatchCase = matchCase;
-      fc->strMatchFull = matchFull;
+      pSubStrCtx = xmalloc(sizeof(EPGDB_FILT_SUBSTR) + strlen(pStr) + 100);
+
+      pSubStrCtx->scopeTitle   = scopeTitle;
+      pSubStrCtx->scopeDesc    = scopeDesc;
+      pSubStrCtx->strMatchCase = matchCase;
+      pSubStrCtx->strMatchFull = matchFull;
+      strcpy(pSubStrCtx->str, pStr);
 
       if (matchCase == FALSE)
       {  // convert search string to all lowercase
-         p = fc->subStrFilter;
+         p = pSubStrCtx->str;
          while ((c = *p) != 0)
          {
             if ((c <= 'Z') && (c >= 'A'))
@@ -565,6 +735,10 @@ void EpgDbFilterSetSubStr( FILTER_CONTEXT *fc, const uchar *pStr, bool matchCase
                *(p++) = c;
          }
       }
+
+      // link the new context at the head of the substring context chain
+      pSubStrCtx->pNext = fc->pSubStrCtx;
+      fc->pSubStrCtx = pSubStrCtx;
    }
    else
       fatal0("EpgDbFilter-SetSubStr: illegal NULL param");
@@ -580,9 +754,9 @@ static char * strstri( const char *haystack, const char *needle )
    register const uchar *src;
    register uchar c, *dst;
    register int  len;
-   uchar copy[1030];
+   uchar copy[2048+4];
 
-   len = 1024;
+   len = 2048;
    dst = copy;
    src = haystack;
    while ( ((c = *(src++)) != 0) && len )
@@ -605,15 +779,15 @@ static char * strstri( const char *haystack, const char *needle )
 // - parameter #1: ignore case
 // - parameter #2: exact => search string must match start and end of text
 //
-static bool xstrcmp( const FILTER_CONTEXT *fc, const char * str )
+static bool xstrcmp( const EPGDB_FILT_SUBSTR *ssc, const char * str )
 {
-   if (fc->strMatchFull == FALSE)
+   if (ssc->strMatchFull == FALSE)
    {
-      return ((fc->strMatchCase ? strstr : strstri)(str, fc->subStrFilter) != NULL);
+      return ((ssc->strMatchCase ? strstr : strstri)(str, ssc->str) != NULL);
    }
    else
    {
-      return ((fc->strMatchCase ? strcmp : strcasecmp)(str, fc->subStrFilter) == 0);
+      return ((ssc->strMatchCase ? strcmp : strcasecmp)(str, ssc->str) == 0);
    }
 }
 
@@ -623,6 +797,13 @@ static bool xstrcmp( const FILTER_CONTEXT *fc, const char * str )
 void EpgDbFilterEnable( FILTER_CONTEXT *fc, uint searchFilter )
 {
    assert((searchFilter & ~FILTER_ALL) == 0);
+   assert(((searchFilter & FILTER_SUBSTR) == 0) || (fc->pSubStrCtx != NULL));
+
+   if ( (fc->enabledFilters ^ (fc->enabledFilters | searchFilter)) & ((FILTER_NETWOP_PRE | FILTER_NETWOP)) )
+   {
+      fc->netwopCacheUpdated = FALSE;
+   }
+
    fc->enabledFilters |= searchFilter;
 }
 
@@ -633,9 +814,9 @@ void EpgDbFilterDisable( FILTER_CONTEXT *fc, uint searchFilter )
 {
    assert((searchFilter & ~FILTER_ALL) == 0);
 
-   if ((searchFilter & FILTER_THEMES) != 0)
+   if ((searchFilter & FILTER_SUBSTR) != 0)
    {
-      fc->usedThemeClasses = 0;
+      EpgDbFilterDestroySubstrContext(fc);
    }
    if ((searchFilter & FILTER_SORTCRIT) != 0)
    {
@@ -645,15 +826,29 @@ void EpgDbFilterDisable( FILTER_CONTEXT *fc, uint searchFilter )
    {
       fc->featureFilterCount = 0;
    }
+   if ( (fc->enabledFilters ^ (fc->enabledFilters & searchFilter)) & ((FILTER_NETWOP_PRE | FILTER_NETWOP)) )
+   {
+      fc->netwopCacheUpdated = FALSE;
+   }
 
    fc->enabledFilters &= ~ searchFilter;
+
 }
 
 // ----------------------------------------------------------------------------
-// Invert the result of goven filters
+// Invert the result of given filter types when matching against PI
+// - note: for global inversion of the combined filtering result there is a
+//   separate filter type which is enabled via the regular filter type enable func
 //
 void EpgDbFilterInvert( FILTER_CONTEXT *fc, uint mask, uchar themeClass, uchar sortCritClass )
 {
+   assert((mask & (FILTER_PERM | FILTER_INVERT)) == 0);  // inverting these is not supported
+
+   if (((fc->invertedFilters ^ mask) & FILTER_NETWOP) != 0)
+   {
+      fc->netwopCacheUpdated = FALSE;
+   }
+
    fc->invertedFilters         = mask;
    fc->invertedThemeClasses    = themeClass;
    fc->invertedSortCritClasses = sortCritClass;
@@ -668,6 +863,8 @@ void EpgDbFilterInitNi( FILTER_CONTEXT *fc, NI_FILTER_STATE *pNiState )
 
    // reset all filter settings except pre-filters
    fc->enabledFilters &= FILTER_PERM;
+
+   fc->netwopCacheUpdated = FALSE;
 }
 
 // ----------------------------------------------------------------------------
@@ -702,6 +899,7 @@ void EpgDbFilterApplyNi( CPDBC dbc, FILTER_CONTEXT *fc, NI_FILTER_STATE *pNiStat
          if ((fc->enabledFilters & FILTER_NETWOP) == FALSE)
             EpgDbFilterInitNetwop(fc);
          fc->netwopFilterField[data & 0xff] = TRUE;
+         fc->netwopCacheUpdated = FALSE;
          fc->enabledFilters |= FILTER_NETWOP;
          break;
 
@@ -873,41 +1071,45 @@ void EpgDbFilterFinishNi( FILTER_CONTEXT *fc, NI_FILTER_STATE *pNiState )
 // Checks if the given PI block matches the settings in the given context
 // - using goto to end of procedure upon first failed match for performance reasons
 //
-bool EpgDbFilterMatches( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT *fc, const PI_BLOCK * pPi )
+bool EpgDbFilterMatches( const EPGDB_CONTEXT *dbc, FILTER_CONTEXT *fc, const PI_BLOCK * pPi )
 {
    uchar class;
    uint  index;
    bool  fail, invert;
+   bool  fail_buf;
    bool  skipThemes = FALSE;
+   bool  skipSubstr = FALSE;
    bool  orSeriesThemes = FALSE;
+   bool  orSeriesSubstr = FALSE;
    
    if ((fc != NULL) && (pPi != NULL))
    {
-      if (fc->enabledFilters & FILTER_NETWOP)
+      // variable to temporarily keep track of failed matches, because matches
+      // cannot be aborted with "goto failed" until all possible "failed_pre"
+      // matches are through
+      fail_buf = FALSE;
+
+      if (fc->enabledFilters & FILTER_NETWOP_PRE2)
       {
-         fail   = (fc->netwopFilterField[pPi->netwop_no] == FALSE);
-
-         invert = ((fc->invertedFilters & FILTER_NETWOP) != FALSE);
-         if (fail ^ invert)
-         {
-            // if the network is also excluded by pre-filter, it's excluded from global inversion
-            if ( (fc->enabledFilters & FILTER_NETWOP_PRE) &&
-                 (fc->netwopPreFilterField[pPi->netwop_no] == FALSE) )
-               goto failed_pre;
-            else
-               goto failed;
-         }
-
-         // do not include pre-filtered netwops with inverted network selection
-         if ( invert && (fc->enabledFilters & FILTER_NETWOP_PRE) &&
-              (fc->netwopPreFilterField[pPi->netwop_no] == FALSE) )
+         if (fc->netwopPreFilter2[pPi->netwop_no] == FALSE)
             goto failed_pre;
       }
-      else if (fc->enabledFilters & FILTER_NETWOP_PRE)
-      {  // netwop pre-filter is only activated when netwop is unused
-         // this way also netwops outside of the prefilter can be explicitly requested, e.g. by a NI menu
-         if (fc->netwopPreFilterField[pPi->netwop_no] == FALSE)
-            goto failed_pre;
+
+      if (fc->enabledFilters & (FILTER_NETWOP | FILTER_NETWOP_PRE))
+      {
+         if (fc->netwopCacheUpdated == FALSE)
+         {  // network match cache needs to be initialized (e.g. after parameter change)
+            EpgDbFilterUpdateNetwopCache(fc);
+         }
+
+         // query the cache for the match result
+         if (fc->netwopCache[pPi->netwop_no] != NETWOP_MATCH_OK)
+         {
+            if (fc->netwopCache[pPi->netwop_no] == NETWOP_MATCH_FAIL)
+               fail_buf = TRUE;
+            else
+               goto failed_pre;
+         }
       }
 
       if (fc->enabledFilters & FILTER_AIR_TIMES)
@@ -1005,7 +1207,7 @@ bool EpgDbFilterMatches( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT *fc, con
 
          invert = ((fc->invertedFilters & FILTER_DURATION) != FALSE);
          if (fail ^ invert)
-            goto failed;
+            fail_buf = TRUE;
       }
 
       if (fc->enabledFilters & FILTER_PAR_RAT)
@@ -1016,7 +1218,7 @@ bool EpgDbFilterMatches( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT *fc, con
 
             invert = ((fc->invertedFilters & FILTER_PAR_RAT) != FALSE);
             if (fail ^ invert)
-               goto failed;
+               fail_buf = TRUE;
          }
          else
          {  // do not include unrated programmes via global inversion
@@ -1026,12 +1228,23 @@ bool EpgDbFilterMatches( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT *fc, con
 
       if (fc->enabledFilters & FILTER_EDIT_RAT)
       {
-         fail   = (pPi->editorial_rating < fc->editorialRating);
+         if (pPi->editorial_rating != 0)
+         {
+            fail   = (pPi->editorial_rating < fc->editorialRating);
 
-         invert = ((fc->invertedFilters & FILTER_EDIT_RAT) != FALSE);
-         if (fail ^ invert)
-            goto failed;
+            invert = ((fc->invertedFilters & FILTER_EDIT_RAT) != FALSE);
+            if (fail ^ invert)
+               fail_buf = TRUE;
+         }
+         else
+         {  // do not include unrated programmes via global inversion
+            goto failed_pre;
+         }
       }
+
+      // after the last "failed_pre" we can abort if one of the above matches failed
+      if (fail_buf)
+         goto failed;
 
       if (fc->enabledFilters & FILTER_PROGIDX)
       {
@@ -1064,6 +1277,13 @@ bool EpgDbFilterMatches( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT *fc, con
          orSeriesThemes = TRUE;
       }
 
+      if ( ((fc->enabledFilters & (FILTER_SERIES | FILTER_SUBSTR)) == (FILTER_SERIES | FILTER_SUBSTR)) &&
+           (((fc->invertedFilters & (FILTER_SERIES | FILTER_SUBSTR)) == 0) ||
+            ((fc->invertedFilters & (FILTER_SERIES | FILTER_SUBSTR)) == (FILTER_SERIES | FILTER_SUBSTR)) ) )
+      {  // both themes and series filters are used -> logical OR (unless only one of theme is inverted)
+         orSeriesSubstr = TRUE;
+      }
+
       if (fc->enabledFilters & FILTER_SERIES)
       {
          fail = TRUE;
@@ -1084,8 +1304,9 @@ bool EpgDbFilterMatches( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT *fc, con
          if (fail == FALSE)
          {  // series matched -> skip themes filter (unless asymetrical inversion)
             skipThemes = orSeriesThemes;
+            skipSubstr = orSeriesSubstr;
          }
-         else if (orSeriesThemes == FALSE)
+         else if ((orSeriesThemes == FALSE) && (orSeriesSubstr == FALSE))
          {  // series did not match -> failed only, if logical AND between themes and series
             goto failed;
          }
@@ -1183,28 +1404,36 @@ bool EpgDbFilterMatches( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT *fc, con
             goto failed;
       }
 
-      if ((fc->enabledFilters & (FILTER_SUBSTR_TITLE|FILTER_SUBSTR_DESCR)) == (FILTER_SUBSTR_TITLE|FILTER_SUBSTR_DESCR))
+      if ((fc->enabledFilters & FILTER_SUBSTR) && (skipSubstr == FALSE))
       {
-         fail = ( (!xstrcmp(fc, PI_GET_TITLE(pPi))) &&
-                  (!PI_HAS_SHORT_INFO(pPi) || !xstrcmp(fc, PI_GET_SHORT_INFO(pPi))) &&
-                  (!PI_HAS_LONG_INFO(pPi) || !xstrcmp(fc, PI_GET_LONG_INFO(pPi))) );
+         EPGDB_FILT_SUBSTR * pSubStrCtx;
 
-         invert = ((fc->invertedFilters & (FILTER_SUBSTR_TITLE|FILTER_SUBSTR_DESCR)) != FALSE);
-         if (fail ^ invert)
-            goto failed;
-      }
-      else if (fc->enabledFilters & FILTER_SUBSTR_TITLE)
-      {
-         fail   = (!xstrcmp(fc, PI_GET_TITLE(pPi)));
-         invert = ((fc->invertedFilters & FILTER_SUBSTR_TITLE) != FALSE);
-         if (fail ^ invert)
-            goto failed;
-      }
-      else if (fc->enabledFilters & FILTER_SUBSTR_DESCR)
-      {
-         fail   = ( (!PI_HAS_SHORT_INFO(pPi) || !xstrcmp(fc, PI_GET_SHORT_INFO(pPi))) &&
-                    (!PI_HAS_SHORT_INFO(pPi) || !xstrcmp(fc, PI_GET_LONG_INFO(pPi))) );
-         invert = ((fc->invertedFilters & FILTER_SUBSTR_DESCR) != FALSE);
+         pSubStrCtx = fc->pSubStrCtx;
+         fail = TRUE;
+         // OR across all substring text matches
+         while (pSubStrCtx != NULL)
+         {
+            if (pSubStrCtx->scopeTitle)
+            {
+               if (xstrcmp(pSubStrCtx, PI_GET_TITLE(pPi)))
+               {
+                  fail = FALSE;
+                  break;
+               }
+            }
+            if (pSubStrCtx->scopeDesc)
+            {
+               if ( (PI_HAS_SHORT_INFO(pPi) && xstrcmp(pSubStrCtx, PI_GET_SHORT_INFO(pPi))) ||
+                    (PI_HAS_LONG_INFO(pPi) && xstrcmp(pSubStrCtx, PI_GET_LONG_INFO(pPi))) )
+               {
+                  fail = FALSE;
+                  break;
+               }
+            }
+            pSubStrCtx = pSubStrCtx->pNext;
+         }
+
+         invert = ((fc->invertedFilters & FILTER_SUBSTR) != FALSE);
          if (fail ^ invert)
             goto failed;
       }

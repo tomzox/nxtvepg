@@ -1,13 +1,13 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: changelog.html,v 1.43 2002/12/08 21:25:53 tom Exp $ -->
+<!-- $Id: changelog.html,v 1.44 2003/03/22 18:29:05 tom Exp $ -->
 <HEAD>
 <TITLE>Nextview EPG Decoder Change-Log</TITLE>
-<META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
+<META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
 <META name="language" content="en">
 <META name="author" content="Tom Zoerner">
 <META name="copyright" content="Tom Zoerner">
-<META name="keywords" lang="en" content="Bt848, video capture, capture, browser, Pro7, RTL2, 3Sat, Canal+, EuroNews, nexTView, EPG, nxtvepg, teletext, Bt878, Booktree, electronic program guide, TV-Guide, Premiere, TV program listing, TV schedule, Nextview decoder, Linux, software download, bttv, video4linux, VBI, vertical blanking interval, multimedia, data service, subscription free, TV tuner card">
+<META name="keywords" lang="en" content="Bt848, video capture, capture, browser, Pro7, RTL2, 3Sat, Canal+, EuroNews, nexTView, EPG, nxtvepg, teletext, Bt878, Brooktree, electronic program guide, TV-Guide, Premiere, TV program listing, TV schedule, Nextview decoder, Linux, software download, bttv, video4linux, VBI, vertical blanking interval, multimedia, data service, subscription free, TV tuner card">
 <META name="description" content="History of releases and changes inbetween for the nxtvepg decoder software">
 <META name="robots" content="index, follow">
 <META name="revisit-after" content="01 month">
@@ -15,7 +15,7 @@
 <LINK rel="shortcut icon" type="image/x-icon" href="nxtvepg.ico">
 <LINK rel="top" href="//nxtvepg.sourceforge.net/" title="nexTView EPG Dekoder Homepage">
 </HEAD>
-<BODY BGCOLOR=#f8f8f8>
+<BODY BGCOLOR="#f8f8f8">
 
 <H1>Nextview EPG Decoder Change-Log</H1>
 
@@ -26,27 +26,91 @@ nexTView EPG decoder software.
 <BR>
 It also contains information about the next release and is regularily
 updated while work is in progress and new bugs are fixed or features added.
+For more details on work in progress please refer to
+<A HREF="http://sourceforge.net/mailarchive/forum.php?forum_id=14102">mailing list archives</A>.
 </P>
 
-<!---
-<H2>From x.x.x to y.y.y (yet unreleased)</H2>
+
+<H2><A NAME="release_2_5_0">From 2.4.2 to 2.5.0 (March/22/2003)</A></H2>
 <P>
-This feature was planned for 0.7.1 but was postponed in favor of
-improvements for the M$ Windows platform (see changelog for 0.7.1):
+This release contains two independent new main features:
 </P>
 <UL>
-<LI>Added Remote control for the acquisition daemon, to allow changing the
-  daemon's acquisition mode, TV card and network parameters via the client GUI
-  (there's already an <I>"Enable remote control"</I> option in the Client/Server
-  configuration dialog in version 0.7.0, but it's not doing anything yet,
-  in case you haven't noticed :-)
+<LI>An alternate TV schedule presentation layout with separate columns for
+  each TV network, similar to the layout principles used by paper based
+  TV magazines.  See a comparison of screenshots of the
+  <A HREF="screenshot-grid1.png">alternate</A> and
+  <A HREF="screenshot-grid2.png">regular</A> layouts.
+<LI>For the Windows version, support for new TV cards with the Philips SAA7134
+  and Conexant CX23881 chips and a new TV card configuration dialog with card
+  and tuner auto-detection.
 </UL>
--->
+<P>In detail:</P>
+<UL>
+<LI>Added an alternate layout for GUI: programmes are still sorted by start
+  time, but presented in separate columns for each network.  Schedules of
+  different networks are aligned, so that programmes which run at the same
+  time are approximately at the same height.  The new layout also supports
+  user-defined presentation, i.e. free selection of all attributes which
+  are printed for each programme, possibly depending on filter shortcuts
+  (for example you can print more details for movies), plus marking selected
+  programmes by use of colors and icons.
+<LI>Added support for Philips SAA7134 capture chip on Linux and M$ Windows.
+  This chip is used in Tevion MD9717, Medion 5044, Terratec Cinergy 400,
+  Typhoon TV+Radio 90031, LifeView FlyVIDEO3000 &amp; 2000 and more.
+  Note: for Linux driver version saa7134-0.2.6 or newer is required.
+  (Thanks to <A HREF="http://bytesex.org/">Gerd Knorr</A> and
+  <A HREF="http://www.suse.de">SuSE</A> labs for the Linux saa7134 driver and to
+  the <A HREF="http://www.dscaler.org">DScaler team</A> for their SAA7134 support
+  on M$ Windows - the driver in nxtvepg is effectively a stripped-down version
+  of the DScaler driver, with some extensions to allow VBI-only acquisition)
+<LI>Also added support for Conexant CX23881 on M$ Windows (Linux driver for
+  this chip is currently in development and should automatically work with
+  nxtvepg.)  This Chip is used in Hauppauge WinTV Go and PCI-FM (model 718)
+  cards since September 2002.  (Driver code was derived from DScaler, too)
+<LI>Windows: Redesigned TV card configuration dialog to include lists of known
+  cards and auto-detection (for cards which support it).  This finally allows
+  to support cards with "special" hardware configurations, e.g. from  Pinnacle.
+  For convenience the dialog can be accessed from the EPG provider scan dialog.
+  Also updated Bt8x8 I2C bus code and improved support for tuner MT2032.
+<LI>Windows: Added ACPI handling to prevent "freeze" with the
+  <A HREF="http://btwincap.sourceforge.net/">btwincap driver</A>
+<LI>UNIX xawtv: implemented "overlay" EPG popup based on nxtvepg controlled
+  window (no longer uses "vtx" removed command, which was removed in xawtv-3.7x)
+  The colors can be configured via the new resources xawtv_overlay_fg and
+  xawtv_overlay_bg (see manual for details)
+<LI>UNIX: the <I>Nxtvepg</I> app-defaults file is now loaded during startup
+  because some user's didn't realize they should have copied modified entries
+  into their $HOME/.Xdefaults
+<LI>Fixed bug in description text redundancy removal from 2.4.2: texts with
+  less than 30 characters length were not removed. Thanks to Thierry for
+  pointing this out.  Also fixed a bug which caused text truncation.
+<LI>Fixed bug in text decoder which caused some national characters to be
+  displayed falsely, e.g. "D'ECONSEILL'" instead of "DÉCONSEILLÉ".
+<LI>Fixed bug in "global invert" filter matching (depending on which filter
+  types were inverted, expired programmes could have shown up in the listing)
+<LI>added possibility to combine several text searches (logical OR)
+<LI>added fixes for FreeBSD and NetBSD provided by Simon Barner
+<LI>added Linux "devfs" compatibility, i.e. find /dev/v4l/vbi
+<LI>added Makefile fixes provided by Debian maintainer Gerd Knorr
+<LI>fixed SEGV during build on IA64 due to missing include in tcl2c tool
+  (reported to Debian bug tracking by Bdale Garbee)
+</UL>
+
+<P>
+Note that this version has many changes in the rc/ini file format.  Your
+previous rc/ini file will be automatically converted and can then no longer
+be loaded into older nxtvepg versions.
+</P><P>
+Windows users should also note that this release comes with a new version
+of the DScaler TV card driver (files dsdrv4.sys and dsdrv4.vxd).  This
+driver version is backwards compatible, i.e. it will work with applications
+which expect an older version, unless these applications don't allow newer
+driver version numbers.
+</P>
 
 
-<A NAME="release_2_4_2">
-<H2>From 2.4.1 to 2.4.2 (December/8/2002)</H2>
-</A>
+<H2><A NAME="release_2_4_2">From 2.4.1 to 2.4.2 (December/8/2002)</A></H2>
 <P>This release fixes the following problems:</P>
 <UL>
 <LI>Windows: Fixed Tuner parameters for "Philips SECAM/PAL-BG";
@@ -69,9 +133,7 @@ improvements for the M$ Windows platform (see changelog for 0.7.1):
 </UL>
 
 
-<A NAME="release_2_4_1">
-<H2>From 2.4.0 to 2.4.1 (December/1/2002)</H2>
-</A>
+<H2><A NAME="release_2_4_1">From 2.4.0 to 2.4.1 (December/1/2002)</A></H2>
 <P>This release fixes the following problems:</P>
 <UL>
 <LI>In generated HTML files the ".png" extension was missing in references to
@@ -103,9 +165,7 @@ improvements for the M$ Windows platform (see changelog for 0.7.1):
 </UL>
 
 
-<A NAME="release_2_4_0">
-<H2>From 2.3.1 to 2.4.0 (November/19/2002)</H2>
-</A>
+<H2><A NAME="release_2_4_0">From 2.3.1 to 2.4.0 (November/19/2002)</A></H2>
 <P>
 This release contains the following new features and improvements:
 </P>
@@ -172,14 +232,12 @@ This release contains the following new features and improvements:
 <LI>Internal changes: split Tcl/Tk script for GUI into modules (the daemon only
   loads the script which manages the rcfile - saves apx. 400 kB RAM)
 </UL>
-
+<P>
 Thanks to everyone who provided feedback and suggestions, especially to
 Thierry Ménétrier.
+</P>
 
-
-<A NAME="release_2_3_1">
-<H2>From 2.3.0 to 2.3.1 (October/13/2002)</H2>
-</A>
+<H2><A NAME="release_2_3_1">From 2.3.0 to 2.3.1 (October/13/2002)</A></H2>
 <P>
 This release fixes the following problems:
 </P>
@@ -202,12 +260,13 @@ This release fixes the following problems:
   now there's a workaround that lets the driver "try harder" to grant this
   right to everyone.
 </UL>
-
+<P>
 Also note that the nxtvepg Internet homepage has moved from tripod.com to
 http://nxtvepg.sourceforge.net/ because the old site no longer could handle
 the traffic. Many thanks to the sourceforge.net team for accepting the project
 and to Thomas Schlebusch and Peter Schumacher for providing temporary mirrors
 during the transition period.
+</P>
 
 
 <H2>From 2.2.1 to 2.3.0 (September/17/2002)</H2>
@@ -453,9 +512,10 @@ This release contains the following new features and fixes:
 <LI>Fixed a bug in the decoder for language and sub-title information blocks
   (currently only broadcasted in France by M6 and Canal+).
 </UL>
-
+<P>
 Please note that Windows TV interaction support is intentionally disabled
 in this release, because the interface is not yet finalized.
+</P>
 
 
 <H2>From 0.6.4 to 0.7.0 (March/02/2002)</H2>
@@ -468,7 +528,7 @@ start an EPG scan with the option "Refresh only" (this checkbox is
 located below the EPG scan message window)
 </P><P>
 This release contains the following new features:
-</P><P>
+</P>
 <UL>
 <LI>Added a network connection between the acquisition daemon and the GUI.
   While connected, the browser receives updates for opened Nextview databases
@@ -640,7 +700,7 @@ This release contains the following new features:
 <H2>From 0.5.1 to 0.5.2 (June/14/2001)</H2>
 <P>
 This release contains two bugfixes:
-</P><P>
+</P>
 <UL>
 <LI>Bugfix programme listbox: the network filter did not follow xawtv channel
   changes. Thanks to Werner Renhardt (werner at kangaroo.at)
@@ -648,7 +708,7 @@ This release contains two bugfixes:
   were not counted for acquisition statistics, hence sometimes the acquisition engine
   did not detect when the database was complete and did not move on to the
   next provider.
-</UL></P>
+</UL>
 
 <H2>From 0.5.0 to 0.5.1 (June/5/2001)</H2>
 <P>
@@ -661,7 +721,7 @@ See the <A HREF="man.html#CONFIGURATION">manual page</A>, sections
 <I>Xawtv connection</I> and <I>Network names</I>, for details
 or see this <A HREF="screenshot-xawtv.jpg">xawtv screenshot</A> to see
 the title popup in action.
-</P><P>
+</P>
 <UL>
 <LI>Monitor the <TT>_XAWTV_STATION</TT> property on the xawtv window and VPS/PDC
   (during EPG acquisition) to detect channel changes (new source module
@@ -692,7 +752,7 @@ the title popup in action.
   entry, which slowed down the scan on several channels.
 <LI>changed Makefile.win32 to use gcc/mingw32 for compilation. The supplied
   Tcl/Tk libraries are compiled with gcc too (on NT using cygwin)
-</UL></P>
+</UL>
 
 <H2>From 0.4.5 to 0.5.0 (Apr/21/2001)</H2>
 <UL>
@@ -783,9 +843,10 @@ Mario Kemper, who's also my valued beta tester) and to Micro$oft Windows
 (thanks to "Es/presso", from whose Multi-Dec the driver was derived)
 </P>
 </DL>
-
+<P>
 For a detailed description of these new features please refer to the
 <A HREF="man.html">Manual</A>.
+</P>
 
 <P><HR><P>
 <H3>History of additions and bug fixes inbetween previous releases</H3>

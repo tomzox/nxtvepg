@@ -23,7 +23,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: tvsim_gui.tcl,v 1.6 2002/12/08 19:32:04 tom Exp tom $
+#  $Id: tvsim_gui.tcl,v 1.7 2003/02/08 14:28:42 tom Exp tom $
 #
 
 set program_title {}
@@ -212,7 +212,7 @@ ConnectEpg 0
 
 # read channel table from TV app ini file during startup
 proc LoadChanTable {} {
-   global hwcfg
+   global tvcardcf hwcf_cardidx
    global chan_table
 
    # clear the listbox
@@ -229,13 +229,13 @@ proc LoadChanTable {} {
       .chan.cl selection set 0
       TuneChan
 
-      if {![info exists hwcfg] || (([lindex $hwcfg 0] == 0) && ([lindex $hwcfg 1] == 0))} {
+      if {![info exists tvcardcf($hwcf_cardidx)] } {
          # tuner type has not been configured yet -> abort
          append msg \
-            "No TV tuner has been configured!  Please do configure your " \
-            "TV card's tuner and PLL type in the 'TV card input' dialog " \
-            "of the Configure menu in nxtvepg and make sure to use the " \
-            "same INI file here."
+            "You haven't configured the selected TV card. "
+            "Please do configure your TV card type and parameters " \
+            "in the 'TV card input' dialog of the Configure menu " \
+            "in nxtvepg and make sure to use the same INI file here."
          tk_messageBox -type ok -icon info -message $msg
       }
 
@@ -259,8 +259,8 @@ proc UpdateTvappName {} {
 ##  --------------------------------------------------------------------------
 ##  INI file handling
 ##
-proc LoadRcFile {filename} {
-   global hwcfg
+proc Tvsim_LoadRcFile {filename} {
+   global tvcardcf hwcf_cardidx hwcf_input hwcf_acq_prio
    global wintvapp_path wintvapp_idx
 
    set error 0

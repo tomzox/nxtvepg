@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbfil.h,v 1.23 2002/10/27 18:48:42 tom Exp tom $
+ *  $Id: epgdbfil.h,v 1.26 2003/03/14 18:53:53 tom Exp tom $
  */
 
 #ifndef __EPGDBFIL_H
@@ -28,28 +28,30 @@
 
 #define FILTER_EXPIRE_TIME   0x0001
 #define FILTER_NETWOP_PRE    0x0002
-#define FILTER_AIR_TIMES    0x10000
+#define FILTER_NETWOP_PRE2 0x100000
+#define FILTER_AIR_TIMES   0x010000
 #define FILTER_NETWOP        0x0004
 #define FILTER_THEMES        0x0008
 #define FILTER_SORTCRIT      0x0010
 #define FILTER_SERIES        0x0020
-#define FILTER_SUBSTR_TITLE  0x0040
-#define FILTER_SUBSTR_DESCR  0x0080
+#define FILTER_SUBSTR        0x0040
+//free                       0x0080
 #define FILTER_PROGIDX       0x0100
 #define FILTER_TIME_ONCE     0x0200
 #define FILTER_TIME_DAILY    0x0400
-#define FILTER_DURATION     0x20000
+#define FILTER_DURATION    0x020000
 #define FILTER_PAR_RAT       0x0800
 #define FILTER_EDIT_RAT      0x1000
 #define FILTER_FEATURES      0x2000
 #define FILTER_LANGUAGES     0x4000
 #define FILTER_SUBTITLES     0x8000
-#define FILTER_VPS_PDC      0x40000
-#define FILTER_INVERT       0x80000
+#define FILTER_VPS_PDC     0x040000
+#define FILTER_INVERT      0x080000
 // sum of all filter bitmasks
-#define FILTER_ALL          0xFFFFF
+#define FILTER_ALL         0x1FFFFF
 // sum of permanent "pre"-filters
-#define FILTER_PERM          (FILTER_EXPIRE_TIME | FILTER_NETWOP_PRE | FILTER_AIR_TIMES)
+#define FILTER_PERM          (FILTER_EXPIRE_TIME | FILTER_AIR_TIMES | \
+                              FILTER_NETWOP_PRE | FILTER_NETWOP_PRE2)
 
 #define FEATURES_ALL         0x01FF
 
@@ -73,13 +75,27 @@ typedef struct
 } NI_FILTER_STATE;
 
 // ----------------------------------------------------------------------------
+// search context for substring filter - can be linked list for ORed searches
+
+typedef struct EPGDB_FILT_SUBSTR_struct
+{
+   struct EPGDB_FILT_SUBSTR_struct * pNext;
+
+   bool   scopeTitle;
+   bool   scopeDesc;
+   bool   strMatchCase;
+   bool   strMatchFull;
+
+   uchar  str[1];
+} EPGDB_FILT_SUBSTR;
+
+// ----------------------------------------------------------------------------
 // definition of filter context structure
 //
 #define LI_DESCR_BUFFER_SIZE   (LI_MAX_DESC_COUNT/8)
 #define TI_DESCR_BUFFER_SIZE   (TI_MAX_DESC_COUNT/8)
 #define THEME_CLASS_COUNT       8
 #define FEATURE_CLASS_COUNT     6
-#define SUBSTR_FILTER_MAXLEN   40
 
 typedef struct
 {
@@ -91,8 +107,11 @@ typedef struct
    time_t timeBegin, timeEnd;
    uint   duration_min;
    uint   duration_max;
-   uchar  netwopFilterField[MAX_NETWOP_COUNT];
-   uchar  netwopPreFilterField[MAX_NETWOP_COUNT];
+   bool   netwopCacheUpdated;
+   bool   netwopCache[MAX_NETWOP_COUNT];
+   bool   netwopFilterField[MAX_NETWOP_COUNT];
+   bool   netwopPreFilter1[MAX_NETWOP_COUNT];
+   bool   netwopPreFilter2[MAX_NETWOP_COUNT];
    uint   netwopAirTimeStart[MAX_NETWOP_COUNT];
    uint   netwopAirTimeStop[MAX_NETWOP_COUNT];
    uchar  themeFilterField[256];
@@ -109,11 +128,12 @@ typedef struct
    uchar  featureFilterCount;
    uchar  langDescrTable[MAX_NETWOP_COUNT][LI_DESCR_BUFFER_SIZE];
    uchar  subtDescrTable[MAX_NETWOP_COUNT][TI_DESCR_BUFFER_SIZE];
-   uchar  subStrFilter[SUBSTR_FILTER_MAXLEN+1];
-   bool   strMatchCase, strMatchFull;
    uint   vps_pdc_mode;
+   EPGDB_FILT_SUBSTR * pSubStrCtx;
 } FILTER_CONTEXT;
 
+
+#define EpgDbFilterGetExpireTime(FC) ((FC)->expireTime)
 
 // ----------------------------------------------------------------------------
 // global function declarations
@@ -130,6 +150,8 @@ void   EpgDbFilterInitNetwop( FILTER_CONTEXT *fc );
 void   EpgDbFilterSetNetwop( FILTER_CONTEXT *fc, uchar netwopNo );
 void   EpgDbFilterInitNetwopPreFilter( FILTER_CONTEXT *fc );
 void   EpgDbFilterSetNetwopPreFilter( FILTER_CONTEXT *fc, uchar netwopNo );
+void   EpgDbFilterInitNetwopPreFilter2( FILTER_CONTEXT *fc );
+void   EpgDbFilterSetNetwopPreFilter2( FILTER_CONTEXT *fc, uchar netwopNo );
 void   EpgDbFilterInitAirTimesFilter( FILTER_CONTEXT *fc );
 void   EpgDbFilterSetAirTimesFilter( FILTER_CONTEXT *fc, uchar netwopNo, uint startMoD, uint stopMoD );
 void   EpgDbFilterSetExpireTime( FILTER_CONTEXT *fc, ulong newExpireTime );
@@ -153,13 +175,16 @@ void   EpgDbFilterInitSubtDescr( FILTER_CONTEXT *fc );
 void   EpgDbFilterSetSubtDescr( const EPGDB_CONTEXT *dbc, FILTER_CONTEXT *fc, const uchar *lg );
 void   EpgDbFilterSetProgIdx( FILTER_CONTEXT *fc, uchar firstProgIdx, uchar lastProgIdx );
 void   EpgDbFilterSetVpsPdcMode( FILTER_CONTEXT *fc, uint mode );
-void   EpgDbFilterSetSubStr( FILTER_CONTEXT *fc, const uchar *pStr, bool matchCase, bool matchFull );
+void   EpgDbFilterSetSubStr( FILTER_CONTEXT *fc, const uchar *pStr,
+                             bool scopeTitle, bool scopeDesc, bool matchCase, bool matchFull );
 
 void   EpgDbFilterInitNi( FILTER_CONTEXT *fc, NI_FILTER_STATE *pNiState );
 void   EpgDbFilterApplyNi( const EPGDB_CONTEXT *dbc, FILTER_CONTEXT *fc, NI_FILTER_STATE *pNiState, uchar kind, ulong data );
 void   EpgDbFilterFinishNi( FILTER_CONTEXT *fc, NI_FILTER_STATE *pNiState );
 
-bool   EpgDbFilterMatches( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT *fc, const PI_BLOCK * pi );
+bool   EpgDbFilterMatches( const EPGDB_CONTEXT *dbc, FILTER_CONTEXT *fc, const PI_BLOCK * pi );
+
+void EpgDbFilterGetNetwopFilter( FILTER_CONTEXT *fc, uchar * pNetFilter, uint count );
 
 
 #endif  // __EPGDBFIL_H

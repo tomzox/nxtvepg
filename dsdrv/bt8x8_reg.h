@@ -1,5 +1,5 @@
 /*
- *  VBI capture driver for the Booktree 848/878/879 family
+ *  Brooktree Bt8x8 PCI register definitions
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
@@ -12,15 +12,22 @@
  *  GNU General Public License for more details.
  *
  *
- *  Description: see according C source file.
+ *  Description:
+ *
+ *    This header file contains definitions that allow symbolic access to
+ *    Bt8x8 PCI registers: there are defines for register addresses and
+ *    bit positions or masks inside the registers.
+ *
  *
  *  Author: Tom Zoerner
  *
- *  $Id: bt848.h,v 1.9 2002/11/26 19:13:48 tom Exp tom $
+ *  DScaler #Id: Bt848_Defines.h,v 1.19 2002/09/12 21:56:26 ittarnavsky Exp #
+ *
+ *  $Id: bt8x8_reg.h,v 1.14 2003/02/22 19:11:59 tom Exp tom $
  */
 
-#ifndef __BT848_H
-#define __BT848_H
+#ifndef __BT8X8_REG_H
+#define __BT8X8_REG_H
 
 // ---------------------------------------------------------------------------
 // Brooktree 848 registers
@@ -328,18 +335,5 @@
 #define BT848_RISC_WRITE1S23   (0x0b<<28)
 
 
-// ---------------------------------------------------------------------------
-// forward declarations for Dscaler interface functions
-//
-
-// General read/write function
-#define BT8X8_ReadByte(dwOffset)                memoryReadBYTE(dwOffset)
-#define BT8X8_ReadWord(dwOffset)                memoryReadWORD(dwOffset)
-#define BT8X8_ReadDword(dwOffset)               memoryReadDWORD(dwOffset)
-#define BT8X8_WriteByte(dwOffset,data)          memoryWriteBYTE(dwOffset, data)
-#define BT8X8_WriteWord(dwOffset,data)          memoryWriteWORD(dwOffset, data)
-#define BT8X8_WriteDword(dwOffset,data)         memoryWriteDWORD(dwOffset, data)
-
-
-#endif  // __BT848_H
+#endif  // __BT8X8_REG_H
 

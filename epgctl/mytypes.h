@@ -19,7 +19,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: mytypes.h,v 1.18 2002/10/19 17:42:22 tom Exp tom $
+ *  $Id: mytypes.h,v 1.19 2003/01/11 19:41:31 tom Exp tom $
  */
 
 #ifndef __MYTYPES_H
@@ -49,6 +49,7 @@ typedef unsigned char  bool;     // >=1 bit unsigned
 typedef   signed char  schar;    // 8 bit signed
 typedef unsigned char  uchar;    // 8 bit unsigned
 typedef   signed int   sint;     // >=32 bit signed
+typedef   signed short sshort;   // >=16 bit signed
 #ifdef WIN32
 typedef unsigned short ushort;   // >=16 bit unsigned
 typedef unsigned int   uint;     // >=32 bit unsigned

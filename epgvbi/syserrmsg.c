@@ -20,7 +20,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: syserrmsg.c,v 1.1 2002/11/10 19:49:30 tom Exp tom $
+ *  $Id: syserrmsg.c,v 1.2 2003/03/22 14:44:25 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGVBI
@@ -28,6 +28,7 @@
 
 #ifdef WIN32
 #include <windows.h>
+#include <winsock2.h>
 #endif
 #include <stdlib.h>
 #include <stdio.h>
@@ -40,6 +41,39 @@
 #include "epgctl/debug.h"
 #include "epgvbi/syserrmsg.h"
 
+
+// ----------------------------------------------------------------------------
+// WIN32: Generate a human readable error message from an error code
+//
+#ifdef WIN32
+static void SystemErrorMessage_WinStrError( DWORD errCode, uchar * pBuf, uint maxLen )
+{
+   // first try the regular message generator
+   if (FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, errCode, LANG_USER_DEFAULT,
+                     pBuf, maxLen, NULL) == 0)
+   {
+      // winsock error codes are not supported -> process them "manually"
+      switch (errCode)
+      {
+         case WSAENETDOWN:       strcpy(pBuf, "Network down"); break;
+         case WSAENETUNREACH:    strcpy(pBuf, "Network unreachable"); break;
+         case WSAENETRESET:
+         case WSAECONNABORTED:
+         case WSAECONNRESET:     strcpy(pBuf, "Connection aborted"); break;
+         case WSAECONNREFUSED:   strcpy(pBuf, "Connection refused (daemon not running?)"); break;
+         case WSAEHOSTDOWN:      strcpy(pBuf, "Host is down"); break;
+         case WSAEHOSTUNREACH:   strcpy(pBuf, "Host unreachable"); break;
+         case WSAHOST_NOT_FOUND: strcpy(pBuf, "Host not found"); break;
+         default:
+            if (errCode >= WSABASEERR)
+               sprintf(pBuf, "WinSock error #%ld", errCode);
+            else
+               sprintf(pBuf, "System error #%ld", errCode);
+            break;
+      }
+   }
+}
+#endif
 
 // ----------------------------------------------------------------------------
 // Save text describing network error cause
@@ -76,7 +110,7 @@ void SystemErrorMessage_Set( char ** ppErrorText, int errCode, const char * pTex
          #ifndef WIN32
          sysErrStr = strerror(errCode);
          #else
-         FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, errCode, LANG_USER_DEFAULT, sysErrStr, sizeof(sysErrStr) - 1, NULL);
+         SystemErrorMessage_WinStrError(errCode, sysErrStr, sizeof(sysErrStr) - 1);
          #endif
          sumlen += strlen(sysErrStr);
       }

@@ -16,12 +16,21 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbif.h,v 1.25 2002/03/29 17:27:17 tom Exp tom $
+ *  $Id: epgdbif.h,v 1.29 2003/02/27 18:43:07 tom Exp tom $
  */
 
 #ifndef __EPGDBIF_H
 #define __EPGDBIF_H
 
+
+// ----------------------------------------------------------------------------
+// Types
+//
+typedef enum
+{
+   STARTING_AT,
+   RUNNING_AT
+} EPGDB_TIME_SEARCH_MODE;
 
 // ----------------------------------------------------------------------------
 // Declaration of service interface functions
@@ -43,12 +52,17 @@ const PI_BLOCK * EpgDbSearchPiByPil( const EPGDB_CONTEXT * dbc, uchar netwop_no,
 
 #ifdef __EPGDBFIL_H
 const PI_BLOCK * EpgDbSearchPi( const EPGDB_CONTEXT * dbc, time_t start_time, uchar netwop_no );
-const PI_BLOCK * EpgDbSearchFirstPi( const EPGDB_CONTEXT * dbc, const FILTER_CONTEXT *fc );
-const PI_BLOCK * EpgDbSearchLastPi( const EPGDB_CONTEXT * dbc, const FILTER_CONTEXT *fc );
-const PI_BLOCK * EpgDbSearchNextPi( const EPGDB_CONTEXT * dbc, const FILTER_CONTEXT *fc, const PI_BLOCK * pPiBlock );
-const PI_BLOCK * EpgDbSearchPrevPi( const EPGDB_CONTEXT * dbc, const FILTER_CONTEXT *fc, const PI_BLOCK * pPiBlock );
+const PI_BLOCK * EpgDbSearchFirstPiAfter( const EPGDB_CONTEXT * dbc, time_t min_time, EPGDB_TIME_SEARCH_MODE startOrStop, FILTER_CONTEXT *fc );
+const PI_BLOCK * EpgDbSearchFirstPiBefore( const EPGDB_CONTEXT * dbc, time_t start_time, EPGDB_TIME_SEARCH_MODE startOrStop, FILTER_CONTEXT *fc );
+const PI_BLOCK * EpgDbSearchFirstPi( const EPGDB_CONTEXT * dbc, FILTER_CONTEXT *fc );
+const PI_BLOCK * EpgDbSearchLastPi( const EPGDB_CONTEXT * dbc, FILTER_CONTEXT *fc );
+const PI_BLOCK * EpgDbSearchNextPi( const EPGDB_CONTEXT * dbc, FILTER_CONTEXT *fc, const PI_BLOCK * pPiBlock );
+const PI_BLOCK * EpgDbSearchPrevPi( const EPGDB_CONTEXT * dbc, FILTER_CONTEXT *fc, const PI_BLOCK * pPiBlock );
+uint EpgDbCountPi( const EPGDB_CONTEXT * dbc, FILTER_CONTEXT *fc, const PI_BLOCK * pPiBlock );
+uint EpgDbCountPrevPi( const EPGDB_CONTEXT * dbc, FILTER_CONTEXT *fc, const PI_BLOCK * pPiBlock );
 #endif
 
+bool  EpgDbGetVpsTimestamp( struct tm * pVpsTime, uint pil, time_t startTime );
 uint  EpgDbGetProgIdx( const EPGDB_CONTEXT * dbc, const PI_BLOCK * pPiBlock );
 uchar EpgDbGetStream( const void * pBlock );
 uchar EpgDbGetVersion( const void * pBlock );
@@ -58,7 +72,9 @@ uchar EpgDbGetStreamByBlockNo( const EPGDB_CONTEXT * dbc, const EPGDB_BLOCK * pB
 uint  EpgDbContextGetCni( const EPGDB_CONTEXT * dbc );
 bool  EpgDbContextIsMerged( const EPGDB_CONTEXT * dbc );
 time_t EpgDbGetAiUpdateTime( const EPGDB_CONTEXT * dbc );
+time_t EpgDbGetPiUpdateTime( const PI_BLOCK * pPiBlock );
 void EpgDbSetAiUpdateTime( const EPGDB_CONTEXT * dbc, time_t acqTimestamp );
+void EpgDbSetPiAcqCallback( EPGDB_CONTEXT * dbc, EPGDB_PI_ACQ_CB * pCb );
 
 bool  EpgDbGetStat( const EPGDB_CONTEXT * dbc, EPGDB_BLOCK_COUNT * pCount, time_t * acqMinTime, uint maxNowRepCount );
 void  EpgDbResetAcqRepCounters( EPGDB_CONTEXT * dbc );

@@ -23,7 +23,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: debug.h,v 1.15 2002/09/17 15:22:12 tom Exp tom $
+ *  $Id: debug.h,v 1.17 2003/02/27 18:44:21 tom Exp tom $
  */
 
 #ifndef __DEBUG_H
@@ -207,13 +207,13 @@ void chk_memleakage( void );
 #define xmalloc(SIZE)  chk_malloc((SIZE),__FILE__,__LINE__)
 #define xfree(PTR)     chk_free(PTR)
 #else
-#include <malloc.h>
+#include <stdlib.h>
 void * xmalloc( size_t size );
 #define xfree(PTR)     free(PTR)
 #endif
 
 
-#ifdef _TK
+#ifdef _TCL
 // Tcl/Tk script failure debugging
 #if DEBUG_SWITCH == ON
 #if DEBUG_SWITCH_TCL_BGERR == ON

@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: menucmd.c,v 1.93 2002/11/17 18:21:59 tom Exp $
+ *  $Id: menucmd.c,v 1.100 2003/02/26 21:54:58 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -49,10 +49,7 @@
 #include "epgctl/epgscan.h"
 #include "epgctl/epgctxmerge.h"
 #include "epgui/epgmain.h"
-#include "epgui/epgtxtdump.h"
-#include "epgui/epgtabdump.h"
-#include "epgui/pilistbox.h"
-#include "epgui/pioutput.h"
+#include "epgui/pibox.h"
 #include "epgui/pifilter.h"
 #include "epgui/pdc_themes.h"
 #include "epgui/menucmd.h"
@@ -97,6 +94,9 @@ static int MenuCmd_SetControlMenuStates( ClientData ttp, Tcl_Interp *interp, int
                     ((uiCni != 0) ? "normal" : "disabled"));
       eval_check(interp, comm);
       sprintf(comm, ".menubar.ctrl entryconfigure \"Export as text...\" -state %s\n",
+                    ((uiCni != 0) ? "normal" : "disabled"));
+      eval_check(interp, comm);
+      sprintf(comm, ".menubar.ctrl entryconfigure \"Export as XMLTV...\" -state %s\n",
                     ((uiCni != 0) ? "normal" : "disabled"));
       eval_check(interp, comm);
       sprintf(comm, ".menubar.ctrl entryconfigure \"Export as HTML...\" -state %s\n",
@@ -149,33 +149,6 @@ static int MenuCmd_SetControlMenuStates( ClientData ttp, Tcl_Interp *interp, int
    }
    else
       result = TCL_OK;
-
-   return result;
-}
-
-// ----------------------------------------------------------------------------
-// Toggle dump of incoming PI
-//
-static int MenuCmd_ToggleDumpStream( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
-{
-   const char * const pUsage = "Usage: C_ToggleDumpStream <boolean>";
-   int value;
-   int result;
-
-   if (objc != 2)
-   {  // parameter count is invalid
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR;
-   }
-   else if (Tcl_GetBooleanFromObj(interp, objv[1], &value))
-   {  // string parameter is not a decimal integer
-      result = TCL_ERROR;
-   }
-   else
-   {
-      EpgTxtDump_Toggle();
-      result = TCL_OK;
-   }
 
    return result;
 }
@@ -280,7 +253,9 @@ void MenuCmd_AcqStatsUpdate( void )
 //
 static void MenuCmd_StartLocalAcq( Tcl_Interp * interp )
 {
+   #ifndef WIN32
    const char * pErrStr;
+   #endif
    bool wasNetAcq;
 
    // save previous acq mode to detect mode changes
@@ -554,134 +529,6 @@ static int MenuCmd_IsNetAcqActive( ClientData ttp, Tcl_Interp *interp, int objc,
 }
 
 // ----------------------------------------------------------------------------
-// Dump the complete database
-//
-static int MenuCmd_DumpRawDatabase( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
-{
-   const char * const pUsage = "Usage: C_DumpRawDatabase <file-name> <pi=0/1> <xi=0/1> <ai=0/1>"
-                                                 " <ni=0/1> <oi=0/1> <mi=0/1> <li=0/1> <ti=0/1>";
-   int do_pi, do_xi, do_ai, do_ni, do_oi, do_mi, do_li, do_ti;
-   const char * pFileName;
-   Tcl_DString ds;
-   FILE *fp;
-   int result;
-
-   if (objc != 1+1+8)
-   {  // parameter count is invalid
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR;
-   }
-   else if ( (pFileName = Tcl_GetString(objv[1])) == NULL )
-   {  // internal error: can not get filename string
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR;
-   }
-   else if ( (Tcl_GetBooleanFromObj(interp, objv[2], &do_pi) != TCL_OK) || 
-             (Tcl_GetBooleanFromObj(interp, objv[3], &do_xi) != TCL_OK) || 
-             (Tcl_GetBooleanFromObj(interp, objv[4], &do_ai) != TCL_OK) || 
-             (Tcl_GetBooleanFromObj(interp, objv[5], &do_ni) != TCL_OK) || 
-             (Tcl_GetBooleanFromObj(interp, objv[6], &do_oi) != TCL_OK) || 
-             (Tcl_GetBooleanFromObj(interp, objv[7], &do_mi) != TCL_OK) || 
-             (Tcl_GetBooleanFromObj(interp, objv[8], &do_li) != TCL_OK) || 
-             (Tcl_GetBooleanFromObj(interp, objv[9], &do_ti) != TCL_OK) )
-   {  // one of the params is not boolean; error msg is already set
-      result = TCL_ERROR;
-   }
-   else
-   {
-      if (Tcl_GetCharLength(objv[1]) > 0)
-      {
-         pFileName = Tcl_UtfToExternalDString(NULL, pFileName, -1, &ds);
-         fp = fopen(pFileName, "w");
-         if (fp == NULL)
-         {  // access, create or truncate failed -> inform the user
-            sprintf(comm, "tk_messageBox -type ok -icon error -parent .dumpdb -message \"Failed to open file '%s' for writing: %s\"",
-                          Tcl_GetString(objv[1]), strerror(errno));
-            eval_check(interp, comm);
-            Tcl_ResetResult(interp);
-         }
-         Tcl_DStringFree(&ds);
-      }
-      else
-         fp = stdout;
-
-      if (fp != NULL)
-      {
-         EpgTxtDump_Database(pUiDbContext, fp, (bool)do_pi, (bool)do_xi, (bool)do_ai, (bool)do_ni,
-                                               (bool)do_oi, (bool)do_mi, (bool)do_li, (bool)do_ti);
-         if (fp != stdout)
-            fclose(fp);
-      }
-      result = TCL_OK;
-   }
-
-   return result;
-}
-
-// ----------------------------------------------------------------------------
-// Dump the database in TAB-separated format
-//
-static int MenuCmd_DumpTabsDatabase( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
-{
-   const char * const pUsage = "Usage: C_DumpTabsDatabase <file-name> <type>";
-   EPGTAB_DUMP_MODE mode;
-   const char * pFileName;
-   Tcl_DString ds;
-   FILE *fp;
-   int result;
-
-   if (objc != 1+2)
-   {  // parameter count is invalid
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR;
-   }
-   else if ( (pFileName = Tcl_GetString(objv[1])) == NULL )
-   {  // internal error: can not get filename string
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR;
-   }
-   else
-   {
-      mode = EpgTabDump_GetMode(Tcl_GetString(objv[2]));
-      if (mode != EPGTAB_DUMP_NONE)
-      {
-         if (Tcl_GetCharLength(objv[1]) > 0)
-         {
-            pFileName = Tcl_UtfToExternalDString(NULL, pFileName, -1, &ds);
-            fp = fopen(pFileName, "w");
-            if (fp != NULL)
-            {  // file created successfully -> start dump
-               EpgTabDump_Database(pUiDbContext, fp, mode);
-
-               fclose(fp);
-            }
-            else
-            {  // access, create or truncate failed -> inform the user
-               sprintf(comm, "tk_messageBox -type ok -icon error -parent .dumptabs -message \"Failed to open file '%s' for writing: %s\"",
-                             Tcl_GetString(objv[1]), strerror(errno));
-               eval_check(interp, comm);
-               Tcl_ResetResult(interp);
-            }
-            Tcl_DStringFree(&ds);
-         }
-         else
-         {  // no file name given -> dump to stdout
-            EpgTabDump_Database(pUiDbContext, stdout, mode);
-         }
-
-         result = TCL_OK;
-      }
-      else
-      {  // unsupported mode (internal error, since the GUI should use radio buttons)
-         Tcl_SetResult(interp, "C_DumpTabsDatabase: illegal type keyword", TCL_STATIC);
-         result = TCL_ERROR;
-      }
-   }
-
-   return result;
-}
-
-// ----------------------------------------------------------------------------
 // Set user configured language of PDC themes
 // - called during startup and manual config change, and due to automatic language
 //   selection mode also after provider switch and AI version change
@@ -778,7 +625,7 @@ static int MenuCmd_ChangeProvider( ClientData ttp, Tcl_Interp *interp, int objc,
             UiControl_AiStateChange(DB_TARGET_UI);
             eval_check(interp, "ResetFilterState");
 
-            PiListBox_Reset();
+            PiBox_Reset();
 
             // put the new CNI at the front of the selection order and update the config file
             sprintf(comm, "UpdateProvSelection 0x%04X\n", cni);
@@ -1365,7 +1212,7 @@ static int ProvMerge_Start( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Ob
          UiControl_AiStateChange(DB_TARGET_UI);
          eval_check(interp, "ResetFilterState");
 
-         PiListBox_Reset();
+         PiBox_Reset();
 
          // put the fake "Merge" CNI plus the CNIs of all merged providers
          // at the front of the provider selection order
@@ -2061,12 +1908,12 @@ static void MenuCmd_AddEpgScanMsg( const char * pMsg, bool bold )
 //
 static int MenuCmd_StartEpgScan( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
-   const char * const pUsage = "Usage: C_StartEpgScan <input source> <slow=0/1> <refresh=0/1> <xawtv=0/1>";
+   const char * const pUsage = "Usage: C_StartEpgScan <input source> <slow=0/1> <refresh=0/1> <ftable>";
    EPGSCAN_START_RESULT scanResult;
    uint  *freqTab;
    uint  *cniTab;
    int freqCount;
-   int inputSource, isOptionSlow, isOptionRefresh, isOptionXawtv;
+   int inputSource, isOptionSlow, isOptionRefresh, ftableIdx;
    uint rescheduleMs;
    int result;
 
@@ -2080,7 +1927,7 @@ static int MenuCmd_StartEpgScan( ClientData ttp, Tcl_Interp *interp, int objc, T
       if ( (Tcl_GetIntFromObj(interp, objv[1], &inputSource) == TCL_OK) &&
            (Tcl_GetIntFromObj(interp, objv[2], &isOptionSlow) == TCL_OK) &&
            (Tcl_GetIntFromObj(interp, objv[3], &isOptionRefresh) == TCL_OK) &&
-           (Tcl_GetIntFromObj(interp, objv[4], &isOptionXawtv) == TCL_OK) )
+           (Tcl_GetIntFromObj(interp, objv[4], &ftableIdx) == TCL_OK) )
       {
          freqCount = 0;
          freqTab = NULL;
@@ -2096,7 +1943,7 @@ static int MenuCmd_StartEpgScan( ClientData ttp, Tcl_Interp *interp, int objc, T
                return TCL_OK;
             }
          }
-         else if (isOptionXawtv)
+         else if (ftableIdx == 0)
          {  // in this mode only channels which are defined in the .xawtv file are visited
             if (
                  #ifndef WIN32
@@ -2109,12 +1956,16 @@ static int MenuCmd_StartEpgScan( ClientData ttp, Tcl_Interp *interp, int objc, T
                return TCL_OK;
             }
          }
+         else
+         {  // pass the frequency table selection to the TV-channel module
+            TvChannels_SelectFreqTable(ftableIdx - 1);
+         }
 
          // clear message window
          sprintf(comm, ".epgscan.all.fmsg.msg delete 1.0 end\n");
          eval_check(interp, comm);
 
-         scanResult = EpgScan_Start(inputSource, isOptionSlow, isOptionXawtv, isOptionRefresh,
+         scanResult = EpgScan_Start(inputSource, isOptionSlow, (ftableIdx == 0), isOptionRefresh,
                                     cniTab, freqTab, freqCount, &rescheduleMs,
                                     &MenuCmd_AddEpgScanMsg, &MenuCmd_AddProvDelButton);
          switch (scanResult)
@@ -2295,24 +2146,26 @@ static int MenuCmd_GetTunerList( ClientData ttp, Tcl_Interp *interp, int objc, T
 }
 
 // ----------------------------------------------------------------------------
-// Get list of all TV card names
+// Get list of configured TV cards
 //
-static int MenuCmd_GetTvCardList( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+static int MenuCmd_GetTvCards( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
-   const char * const pUsage = "Usage: C_HwCfgGetTvCardList";
+   const char * const pUsage = "Usage: C_HwCfgGetTvCards <show-drv-err=0/1>";
    const char * pName;
    Tcl_Obj * pResultList;
    uint idx;
+   int  showDrvErr;
    int  result;
 
-   if (objc != 1)
-   {  // parameter count is invalid
+   if ( (objc != 2) ||
+        (Tcl_GetBooleanFromObj(interp, objv[1], &showDrvErr) != TCL_OK) )
+   {  // parameter count is invalid or parser failed
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
    }
    else
    {
-      #ifdef __NetBSD__
+      #if defined(__NetBSD__) || defined(__FreeBSD__)
       // On NetBSD BtDriver_GetCardName fetches its data from a struct which is filled here
       BtDriver_ScanDevices(TRUE);
       #endif
@@ -2321,9 +2174,40 @@ static int MenuCmd_GetTvCardList( ClientData ttp, Tcl_Interp *interp, int objc, 
       idx = 0;
       do
       {
+#ifndef WIN32
          pName = BtDriver_GetCardName(idx);
          if (pName != NULL)
             Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(pName, -1));
+#else
+         Tcl_Obj  * pCardCfList;
+         Tcl_Obj ** pCardCfObjv;
+         char       idx_str[10];
+         int        llen;
+         uint       cardType;
+         uint       chipType;
+
+         // get card type from tvcardcf array
+         sprintf(idx_str, "%d", idx);
+         pCardCfList = Tcl_GetVar2Ex(interp, "tvcardcf", idx_str, TCL_GLOBAL_ONLY);
+         if ( (pCardCfList != NULL) &&
+              (Tcl_ListObjGetElements(interp, pCardCfList, &llen, &pCardCfObjv) == TCL_OK) &&
+              (llen == 4) &&
+              (Tcl_GetIntFromObj(interp, pCardCfObjv[0], &chipType) == TCL_OK) &&
+              (Tcl_GetIntFromObj(interp, pCardCfObjv[1], &cardType) == TCL_OK) )
+            ;  // ok - do nothing
+         else
+         {
+            cardType = 0;
+            chipType = 0;
+         }
+
+         pName = NULL;
+         if ((BtDriver_EnumCards(idx, cardType, &chipType, &pName, showDrvErr) == FALSE) || (pName == NULL))
+            break;
+
+         Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewIntObj(chipType));
+         Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(pName, -1));
+#endif
 
          idx += 1;
       }
@@ -2336,15 +2220,57 @@ static int MenuCmd_GetTvCardList( ClientData ttp, Tcl_Interp *interp, int objc, 
 }
 
 // ----------------------------------------------------------------------------
-// Get list of all input types
+// Get list of all TV card names
 //
-static int MenuCmd_GetInputList( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+static int MenuCmd_QueryCardParams( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
-   const char * const pUsage = "Usage: C_GetInputList <card index>";
+#ifdef WIN32
+   const char * const pUsage = "Usage: C_HwCfgQueryCardParams <card-idx> <card-type>";
+   Tcl_Obj * pResultList;
+   sint tuner, pll;
+   int  cardIndex;
+   int  cardType;
+   int  result;
+
+   if ( (objc != 3) ||
+        (Tcl_GetIntFromObj(interp, objv[1], &cardIndex) != TCL_OK) ||
+        (Tcl_GetIntFromObj(interp, objv[2], &cardType) != TCL_OK) )
+   {  // parameter count is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else
+   {
+      if (BtDriver_QueryCardParams(cardIndex, &cardType, &tuner, &pll))
+      {
+         pResultList = Tcl_NewListObj(0, NULL);
+
+         Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewIntObj(cardType));
+         Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewIntObj(tuner));
+         Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewIntObj(pll));
+
+         Tcl_SetObjResult(interp, pResultList);
+      }
+      result = TCL_OK;
+   }
+   return result;
+#else
+   return TCL_OK;
+#endif
+}
+
+// ----------------------------------------------------------------------------
+// Get list of all TV card names
+//
+static int MenuCmd_GetTvCardList( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+{
+   const char * const pUsage = "Usage: C_HwCfgGetTvCardList <card-idx>";
+#ifdef WIN32
    const char * pName;
    Tcl_Obj * pResultList;
-   int  cardIndex;
    uint idx;
+#endif
+   int  cardIndex;
    int  result;
 
    if ( (objc != 2) || (Tcl_GetIntFromObj(interp, objv[1], &cardIndex) != TCL_OK) )
@@ -2354,23 +2280,91 @@ static int MenuCmd_GetInputList( ClientData ttp, Tcl_Interp *interp, int objc, T
    }
    else
    {
+#ifdef WIN32
       pResultList = Tcl_NewListObj(0, NULL);
       idx = 0;
+      do
+      {
+         pName = BtDriver_GetCardNameFromList(cardIndex, idx);
+         if (pName != NULL)
+            Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(pName, -1));
+
+         idx += 1;
+      }
+      while (pName != NULL);
+
+      Tcl_SetObjResult(interp, pResultList);
+#endif
+      result = TCL_OK;
+   }
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Get list of all input types
+//
+static int MenuCmd_GetInputList( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+{
+   const char * const pUsage = "Usage: C_HwCfgGetInputList <card index> <card type>";
+   const char * pName;
+   Tcl_Obj * pResultList;
+   int  cardIndex;
+   int  cardType;
+   uint inputIdx;
+   int  result;
+
+   if ( (objc != 3) ||
+        (Tcl_GetIntFromObj(interp, objv[1], &cardIndex) != TCL_OK) ||
+        (Tcl_GetIntFromObj(interp, objv[2], &cardType) != TCL_OK) )
+   {  // parameter count is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else
+   {
+      pResultList = Tcl_NewListObj(0, NULL);
+      inputIdx = 0;
       while (1)
       {
-         pName = BtDriver_GetInputName(cardIndex, idx);
+         pName = BtDriver_GetInputName(cardIndex, cardType, inputIdx);
 
          if (pName != NULL)
             Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(pName, -1));
          else
             break;
-         idx += 1;
+         inputIdx += 1;
       }
 
       Tcl_SetObjResult(interp, pResultList);
       result = TCL_OK;
    }
    return result;
+}
+
+// ----------------------------------------------------------------------------
+// Helper func: read integer from global Tcl var
+//
+static int MenuCmd_ReadTclInt( CONST84 char * pName, int fallbackVal )
+{
+   Tcl_Obj  * pVarObj;
+   int  value;
+
+   if (pName != NULL)
+   {
+      pVarObj = Tcl_GetVar2Ex(interp, pName, NULL, TCL_GLOBAL_ONLY);
+      if ( (pVarObj == NULL) ||
+           (Tcl_GetIntFromObj(interp, pVarObj, &value) != TCL_OK) )
+      {
+         debug3("MenuCmd-ReadTclInt: cannot read Tcl var %s (%s) - use default val %d", pName, ((pVarObj != NULL) ? Tcl_GetString(pVarObj) : "*undef*"), fallbackVal);
+         value = fallbackVal;
+      }
+   }
+   else
+   {
+      fatal0("MenuCmd-ReadTclInt: illegal NULL ptr param");
+      value = fallbackVal;
+   }
+   return value;
 }
 
 // ----------------------------------------------------------------------------
@@ -2381,74 +2375,58 @@ static int MenuCmd_GetInputList( ClientData ttp, Tcl_Interp *interp, int objc, T
 //
 int SetHardwareConfig( Tcl_Interp *interp, int newCardIndex )
 {
-   CONST84 char ** pParamsArgv;
-   CONST84 char    * pTmpStr;
-   int idxCount, input, tuner, pll, prio, cardidx, ftable;
    #ifdef WIN32
-   int dsdrvLog;
+   Tcl_Obj  * pCardCfList;
+   Tcl_Obj ** pCardCfObjv;
+   char       idx_str[10];
+   int        llen;
    #endif
-   int result;
+   int  cardIdx, input, prio;
+   int  chipType, cardType, tuner, pll;
 
-   pTmpStr = Tcl_GetVar(interp, "hwcfg", TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG);
-   if (pTmpStr == NULL)
-      pTmpStr = Tcl_GetVar(interp, "hwcfg_default", TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG);
-   if (pTmpStr != NULL)
+   cardIdx = MenuCmd_ReadTclInt("hwcf_cardidx", 0);
+   input   = MenuCmd_ReadTclInt("hwcf_input", 0);
+   prio    = MenuCmd_ReadTclInt("hwcf_acq_prio", 0);
+
+   if ((newCardIndex >= 0) && (newCardIndex != cardIdx))
    {
-      result = Tcl_SplitList(interp, pTmpStr, &idxCount, &pParamsArgv);
-      if (result == TCL_OK)
-      {
-         if (idxCount == 6)
-         {
-            if ( (Tcl_GetInt(interp, pParamsArgv[0], &input) == TCL_OK) &&
-                 (Tcl_GetInt(interp, pParamsArgv[1], &tuner) == TCL_OK) &&
-                 (Tcl_GetInt(interp, pParamsArgv[2], &pll) == TCL_OK) &&
-                 (Tcl_GetInt(interp, pParamsArgv[3], &prio) == TCL_OK) &&
-                 (Tcl_GetInt(interp, pParamsArgv[4], &cardidx) == TCL_OK) &&
-                 (Tcl_GetInt(interp, pParamsArgv[5], &ftable) == TCL_OK) )
-            {
-               if ((newCardIndex >= 0) && (newCardIndex != cardidx))
-               {
-                  cardidx = newCardIndex;
-                  sprintf(comm, "HardwareConfigUpdateCardIdx %d\n", cardidx);
-                  eval_check(interp, comm);
-               }
+      // different card idx passed via command line -> use that & save in rc file
+      cardIdx = newCardIndex;
 
-               #ifdef WIN32
-               pTmpStr = Tcl_GetVar(interp, "hwcf_dsdrv_log", TCL_GLOBAL_ONLY);
-               if (pTmpStr != NULL)
-               {
-                  if (Tcl_GetInt(interp, pTmpStr, &dsdrvLog) == TCL_OK)
-                     HwDrv_SetLogging(dsdrvLog);
-                  else
-                     debug1("Set-HardwareConfig: could not parse Tcl var dsdrvLog='%s'", pTmpStr);
-               }
-               #endif
+      sprintf(comm, "UpdateRcFile");
+      eval_check(interp, comm);
+   }
 
-               // pass the frequency table selection to the TV-channel module
-               TvChannels_SelectFreqTable(ftable);
-               // pass the hardware config params to the driver
-               if (BtDriver_Configure(cardidx, tuner, pll, prio))
-               {
-                  // pass the input selection to acquisition control
-                  EpgAcqCtl_SetInputSource(input);
-               }
-               else
-                  EpgAcqCtl_Stop();
-            }
-            else
-               result = TCL_ERROR;
-         }
-         else
-         {
-            Tcl_SetResult(interp, "SetHardwareConfig: must get 6 params", TCL_STATIC);
-            result = TCL_ERROR;
-         }
-      }
+   #ifdef WIN32
+   HwDrv_SetLogging(MenuCmd_ReadTclInt("hwcf_dsdrv_log", 0));
+
+   // retrieve card specific parameters
+   sprintf(idx_str, "%d", cardIdx);
+   pCardCfList = Tcl_GetVar2Ex(interp, "tvcardcf", idx_str, TCL_GLOBAL_ONLY);
+   if ( (pCardCfList != NULL) &&
+        (Tcl_ListObjGetElements(interp, pCardCfList, &llen, &pCardCfObjv) == TCL_OK) &&
+        (llen == 4) &&
+        (Tcl_GetIntFromObj(interp, pCardCfObjv[0], &chipType) == TCL_OK) &&
+        (Tcl_GetIntFromObj(interp, pCardCfObjv[1], &cardType) == TCL_OK) &&
+        (Tcl_GetIntFromObj(interp, pCardCfObjv[2], &tuner) == TCL_OK) &&
+        (Tcl_GetIntFromObj(interp, pCardCfObjv[3], &pll) == TCL_OK) )
+      ;
+   else
+   #endif
+   {
+      chipType = cardType = tuner = pll = 0;
+   }
+
+   // pass the hardware config params to the driver
+   if (BtDriver_Configure(cardIdx, prio, chipType, cardType, tuner, pll))
+   {
+      // pass the input selection to acquisition control
+      EpgAcqCtl_SetInputSource(input);
    }
    else
-      result = TCL_ERROR;
+      EpgAcqCtl_Stop();
 
-   return result;
+   return TCL_OK;
 }
 
 // ----------------------------------------------------------------------------
@@ -2474,6 +2452,40 @@ static int MenuCmd_UpdateHardwareConfig( ClientData ttp, Tcl_Interp *interp, int
    }
    return result;
 }
+
+// ----------------------------------------------------------------------------
+// Check if the selected TV card is configured properly
+//
+#ifdef WIN32
+bool MenuCmd_CheckTvCardConfig( void )
+{
+   Tcl_Obj  * pCardCfList;
+   Tcl_Obj ** pCardCfObjv;
+   char       idx_str[10];
+   int        llen;
+   int  cardIdx, input;
+   int  chipType, cardType, tuner, pll;
+   bool result = FALSE;
+
+   cardIdx = MenuCmd_ReadTclInt("hwcf_cardidx", 0);
+   input   = MenuCmd_ReadTclInt("hwcf_input", 0);
+
+   sprintf(idx_str, "%d", cardIdx);
+   pCardCfList = Tcl_GetVar2Ex(interp, "tvcardcf", idx_str, TCL_GLOBAL_ONLY);
+   if ( (pCardCfList != NULL) &&
+        (Tcl_ListObjGetElements(interp, pCardCfList, &llen, &pCardCfObjv) == TCL_OK) &&
+        (llen == 4) &&
+        (Tcl_GetIntFromObj(interp, pCardCfObjv[0], &chipType) == TCL_OK) &&
+        (Tcl_GetIntFromObj(interp, pCardCfObjv[1], &cardType) == TCL_OK) &&
+        (Tcl_GetIntFromObj(interp, pCardCfObjv[2], &tuner) == TCL_OK) &&
+        (Tcl_GetIntFromObj(interp, pCardCfObjv[3], &pll) == TCL_OK) )
+   {
+      result = ((cardType > 0) && (tuner > 0));
+   }
+
+   return result;
+}
+#endif
 
 // ----------------------------------------------------------------------------
 // Return TRUE if the client is in network acq mode
@@ -2672,9 +2684,6 @@ void MenuCmd_Init( bool isDemoMode )
    {  // Create callback functions
       Tcl_CreateObjCommand(interp, "C_ToggleAcq", MenuCmd_ToggleAcq, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_IsNetAcqActive", MenuCmd_IsNetAcqActive, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_ToggleDumpStream", MenuCmd_ToggleDumpStream, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_DumpRawDatabase", MenuCmd_DumpRawDatabase, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_DumpTabsDatabase", MenuCmd_DumpTabsDatabase, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_SetControlMenuStates", MenuCmd_SetControlMenuStates, (ClientData) NULL, NULL);
 
       Tcl_CreateObjCommand(interp, "C_ChangeProvider", MenuCmd_ChangeProvider, (ClientData) NULL, NULL);
@@ -2694,9 +2703,11 @@ void MenuCmd_Init( bool isDemoMode )
       Tcl_CreateObjCommand(interp, "C_LoadProvFreqsFromDbs", MenuCmd_LoadProvFreqsFromDbs, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_RemoveProviderDatabase", RemoveProviderDatabase, (ClientData) NULL, NULL);
 
+      Tcl_CreateObjCommand(interp, "C_HwCfgGetTvCards", MenuCmd_GetTvCards, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_HwCfgGetTvCardList", MenuCmd_GetTvCardList, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_HwCfgGetInputList", MenuCmd_GetInputList, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_HwCfgGetTunerList", MenuCmd_GetTunerList, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_HwCfgQueryCardParams", MenuCmd_QueryCardParams, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_UpdateHardwareConfig", MenuCmd_UpdateHardwareConfig, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_UpdateNetAcqConfig", MenuCmd_UpdateNetAcqConfig, (ClientData) NULL, NULL);
 

@@ -17,7 +17,7 @@
 // Extracted from Dscaler 
 // Copyright (c) 2000 John Adcock.  All rights reserved.
 /////////////////////////////////////////////////////////////////////////////
-// nxtvepg $Id: dsdrvlib.h,v 1.5 2002/05/10 00:16:37 tom Exp tom $
+// nxtvepg $Id: dsdrvlib.h,v 1.9 2003/02/22 14:58:05 tom Exp tom $
 /////////////////////////////////////////////////////////////////////////////
 
 #ifndef DSDRV43_HELPER
@@ -41,22 +41,38 @@ extern "C" {
 
 DWORD LoadDriver( void );
 void UnloadDriver( void );
+const char * GetDriverErrorMsg( DWORD loadError );
 
 DWORD DoesThisPCICardExist(DWORD dwVendorID, DWORD dwDeviceID, DWORD dwCardIndex,
                            DWORD * pdwSubSystemId, DWORD * pdwBusNumber, DWORD * pdwSlotNumber);
 DWORD pciGetHardwareResources(DWORD   dwVendorID,
                               DWORD   dwDeviceID,
-                              DWORD   dwCardIndex);
+                              DWORD   dwCardIndex,
+                              BOOL    supportsAcpi);
 
-DWORD memoryAlloc(DWORD  dwLength, DWORD  dwFlags, PMemStruct* ppMemStruct);
-DWORD memoryFree(PMemStruct pMemStruct);
+void WriteByte(DWORD Offset, BYTE Data);
+void WriteWord(DWORD Offset, WORD Data);
+void WriteDword(DWORD Offset, DWORD Data);
+BYTE ReadByte(DWORD Offset);
+WORD ReadWord(DWORD Offset);
+DWORD ReadDword(DWORD Offset);
 
-void memoryWriteDWORD(DWORD dwAddress, DWORD dwValue);
-DWORD memoryReadDWORD(DWORD dwAddress);
-void memoryWriteWORD(DWORD dwAddress, WORD wValue);
-WORD memoryReadWORD(DWORD dwAddress);
-void memoryWriteBYTE(DWORD dwAddress, BYTE ucValue);
-BYTE memoryReadBYTE(DWORD dwAddress);
+void MaskDataByte(DWORD Offset, BYTE Data, BYTE Mask);
+void MaskDataWord(DWORD Offset, WORD Data, WORD Mask);
+void MaskDataDword(DWORD Offset, DWORD Data, DWORD Mask);
+void AndDataByte(DWORD Offset, BYTE Data);
+void AndDataWord (DWORD Offset, WORD Data);
+void AndDataDword (DWORD Offset, DWORD Data);
+void OrDataByte(DWORD Offset, BYTE Data);
+void OrDataWord (DWORD Offset, WORD Data);
+void OrDataDword (DWORD Offset, DWORD Data);
+
+void HwPci_InitStateBuf( void );
+void HwPci_RestoreState( void );
+void ManageDword(DWORD Offset);
+void ManageWord(DWORD Offset);
+void ManageByte(DWORD Offset);
+
 
 #ifdef __cplusplus
 }

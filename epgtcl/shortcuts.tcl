@@ -19,7 +19,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: shortcuts.tcl,v 1.7 2002/11/23 18:29:04 tom Exp tom $
+#  $Id: shortcuts.tcl,v 1.11 2003/03/19 16:19:16 tom Exp tom $
 #
 set fsc_name_idx 0
 set fsc_mask_idx 1
@@ -64,7 +64,7 @@ proc PreloadShortcuts {} {
       set shortcuts(8)  {Musique themes {theme_class1 96} {} merge 0}
       set shortcuts(9)  {Religion themes {theme_class1 112} {} merge 0}
       set shortcuts(10) {Variétés themes {theme_class1 50} {} merge 0}
-      set shortcuts(11) {Météo substr {substr {1 0 0 0 Météo}} {} merge 0}
+      set shortcuts(11) {Météo substr {substr {{1 0 0 0 Météo}}} {} merge 0}
       set shortcuts(12) {{12 ans et +} parental {parental 5} parental merge 0}
       set shortcuts(13) {{16 ans et +} parental {parental 7} parental merge 0}
       set shortcuts(14) {{45 minutes et +} dursel {dursel {45 1435}} {} merge 0}
@@ -116,7 +116,7 @@ proc CheckShortcutDeselection {} {
    global series_sel
    global feature_class_count feature_class_mask feature_class_value
    global progidx_first progidx_last filter_progidx
-   global substr_pattern substr_grep_title substr_grep_descr substr_match_case substr_match_full
+   global substr_stack
    global timsel_enabled timsel_start timsel_stop timsel_date
    global timsel_relative timsel_absstop timsel_nodate
    global dursel_min dursel_max
@@ -236,11 +236,20 @@ proc CheckShortcutDeselection {} {
                set undo [expr $vpspdc_filt != [lindex $valist 0]]
             }
             substr {
-               set undo [expr ($substr_grep_title != [lindex $valist 0]) || \
-                              ($substr_grep_descr != [lindex $valist 1]) || \
-                              ($substr_match_case != [lindex $valist 2]) || \
-                              ($substr_match_full != [lindex $valist 3]) || \
-                              ([string compare $substr_pattern [lindex $valist 4]] != 0) ]
+               # check if all substr param sets are still active, i.e. on the stack
+               foreach parlist $valist {
+                  set found 0
+                  foreach stit $substr_stack {
+                     if {$parlist == $stit} {
+                        set found 1
+                        break
+                     }
+                  }
+                  if {$found == 0} {
+                     set undo 1
+                     break
+                  }
+               }
             }
          }
          if $undo break
@@ -318,12 +327,7 @@ proc SelectSingleShortcut {sc_tag} {
             C_SelectEditorialRating $valist
          }
          substr {
-            set substr_grep_title  [lindex $valist 0]
-            set substr_grep_descr  [lindex $valist 1]
-            set substr_match_case  [lindex $valist 2]
-            set substr_match_full  [lindex $valist 3]
-            set substr_pattern     [lindex $valist 4]
-            C_SelectSubStr $substr_grep_title $substr_grep_descr $substr_match_case $substr_match_full $substr_pattern
+            C_SelectSubStr $valist
          }
          progidx {
             set progidx_first [lindex $valist 0]
@@ -337,7 +341,8 @@ proc SelectSingleShortcut {sc_tag} {
             set timsel_stop     [lindex $valist 3]
             set timsel_date     [lindex $valist 4]
             set timsel_nodate   [expr $timsel_date < 0]
-            C_SelectStartTime $timsel_relative $timsel_absstop $timsel_nodate $timsel_start $timsel_stop $timsel_date
+            C_SelectStartTime $timsel_relative $timsel_absstop $timsel_nodate \
+                              $timsel_start $timsel_stop $timsel_date
          }
          dursel {
             set dursel_min [lindex $valist 0]
@@ -383,7 +388,8 @@ proc SelectShortcuts {sc_tag_list shortcuts_arr} {
    global series_sel
    global feature_class_count feature_class_mask feature_class_value
    global progidx_first progidx_last filter_progidx
-   global substr_pattern substr_grep_title substr_grep_descr substr_match_case substr_match_full
+   global substr_stack substr_pattern substr_grep_title substr_grep_descr
+   global substr_match_case substr_match_full
    global timsel_enabled timsel_start timsel_stop timsel_date
    global timsel_relative timsel_absstop timsel_nodate
    global dursel_min dursel_max dursel_minstr dursel_maxstr
@@ -479,8 +485,9 @@ proc SelectShortcuts {sc_tag_list shortcuts_arr} {
                   C_SelectEditorialRating 0
                }
                substr {
+                  set substr_stack {}
                   set substr_pattern {}
-                  C_SelectSubStr 0 0 0 0 {}
+                  C_SelectSubStr {}
                }
                progidx {
                   set filter_progidx 0
@@ -566,12 +573,27 @@ proc SelectShortcuts {sc_tag_list shortcuts_arr} {
                }
             }
             substr {
-               set substr_grep_title  [lindex $valist 0]
-               set substr_grep_descr  [lindex $valist 1]
-               set substr_match_case  [lindex $valist 2]
-               set substr_match_full  [lindex $valist 3]
-               set substr_pattern     [lindex $valist 4]
-               C_SelectSubStr $substr_grep_title $substr_grep_descr $substr_match_case $substr_match_full $substr_pattern
+               foreach parlist $valist {
+                  set substr_pattern     [lindex $parlist 0]
+                  set substr_grep_title  [lindex $parlist 1]
+                  set substr_grep_descr  [lindex $parlist 2]
+                  set substr_match_case  [lindex $parlist 3]
+                  set substr_match_full  [lindex $parlist 4]
+
+                  # remove identical items from the substr stack
+                  set idx 0
+                  foreach item $substr_stack {
+                     if {$item == $parlist} {
+                        set substr_stack [lreplace $substr_stack $idx $idx]
+                        break
+                     }
+                     incr idx
+                  }
+
+                  # push set onto the substr stack; new stack is applied at the end
+                  set substr_stack [linsert $substr_stack 0 $parlist]
+                  set upd_substr 1
+               }
             }
             progidx {
                if {($progidx_first > [lindex $valist 0]) || ($filter_progidx == 0)} {
@@ -591,7 +613,8 @@ proc SelectShortcuts {sc_tag_list shortcuts_arr} {
                set timsel_stop     [lindex $valist 3]
                set timsel_date     [lindex $valist 4]
                set timsel_nodate   [expr $timsel_date < 0]
-               C_SelectStartTime $timsel_relative $timsel_absstop $timsel_nodate $timsel_start $timsel_stop $timsel_date
+               C_SelectStartTime $timsel_relative $timsel_absstop $timsel_nodate \
+                                 $timsel_start $timsel_stop $timsel_date
             }
             dursel {
                if {$dursel_max == 0} {
@@ -722,15 +745,26 @@ proc SelectShortcuts {sc_tag_list shortcuts_arr} {
       }
    }
 
+   # update the sub-string text filter
+   if [info exists upd_substr] {
+      C_SelectSubStr $substr_stack
+   }
+
    # update the duration filter dialog
    set dursel_minstr [Motd2HHMM $dursel_min]
    set dursel_maxstr [Motd2HHMM $dursel_max]
 
    # update the invert state
-   InvertFilter
+   set all {}
+   foreach {key val} [array get filter_invert] {
+      if $val {
+         lappend all $key
+      }
+   }
+   C_InvertFilter $all
 
    # finally display the PI selected by the new filter setting
-   C_RefreshPiListbox
+   C_PiBox_Refresh
 }
 
 ##
@@ -852,7 +886,7 @@ proc DescribeCurrentFilter {} {
    global sortcrit_class sortcrit_class_sel
    global series_sel
    global feature_class_count current_feature_class
-   global substr_grep_title substr_grep_descr substr_match_case substr_match_full substr_pattern
+   global substr_stack
    global filter_progidx progidx_first progidx_last
    global timsel_enabled timsel_start timsel_stop timsel_date
    global timsel_relative timsel_absstop timsel_nodate
@@ -910,8 +944,8 @@ proc DescribeCurrentFilter {} {
    }
 
    # dump text substring filter state
-   if {[string length $substr_pattern] > 0} {
-      lappend all "substr" [list $substr_grep_title $substr_grep_descr $substr_match_case $substr_match_full $substr_pattern]
+   if {[llength $substr_stack] > 0} {
+      lappend all "substr" $substr_stack
       lappend mask substr
    }
 
@@ -1173,24 +1207,26 @@ proc ShortcutPrettyPrint {filter inv_list} {
             }
          }
          substr {
-            set grep_title [lindex $valist 0]
-            set grep_descr [lindex $valist 1]
-            if {$grep_title && !$grep_descr} {
-               append out "${not}Title"
-            } elseif {!$grep_title && $grep_descr} {
-               append out "${not}Description"
-            } else {
-               append out "${not}Title or Description"
+            foreach parlist $valist {
+               set grep_title [lindex $parlist 1]
+               set grep_descr [lindex $parlist 2]
+               if {$grep_title && !$grep_descr} {
+                  append out "${not}Title"
+               } elseif {!$grep_title && $grep_descr} {
+                  append out "${not}Description"
+               } else {
+                  append out "${not}Title or Description"
+               }
+               append out " containing '[lindex $parlist 0]'"
+               if {[lindex $parlist 3] && [lindex $parlist 4]} {
+                  append out " (match case & complete)"
+               } elseif [lindex $parlist 3] {
+                  append out " (match case)"
+               } elseif [lindex $parlist 4] {
+                  append out " (match complete)"
+               }
+               append out "\n"
             }
-            append out " containing '[lindex $valist 4]'"
-            if {[lindex $valist 2] && [lindex $valist 3]} {
-               append out " (match case & complete)"
-            } elseif [lindex $valist 2] {
-               append out " (match case)"
-            } elseif [lindex $valist 3] {
-               append out " (match complete)"
-            }
-            append out "\n"
          }
       }
    }

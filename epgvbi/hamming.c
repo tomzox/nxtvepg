@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: hamming.c,v 1.8 2002/05/12 20:19:13 tom Exp $
+ *  $Id: hamming.c,v 1.9 2003/03/19 16:18:24 tom Exp tom $
  */
 
 #define __HAMMING_C
@@ -139,7 +139,7 @@ ushort UnHamParityArray( const uchar *pin, uchar *pout, uint byteCount )
       }
       else
       {
-         *(pout++) = ' ';
+         *(pout++) = 0xA0;  // Latin-1 space character
          errCount += 1;
       }
    }

@@ -21,7 +21,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgacqclnt.c,v 1.9 2002/11/17 18:19:20 tom Exp $
+ *  $Id: epgacqclnt.c,v 1.10 2003/03/14 12:33:58 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -44,7 +44,7 @@
 #include "epgdb/epgtscqueue.h"
 #include "epgdb/epgnetio.h"
 #include "epgui/epgmain.h"
-#include "epgui/epgtxtdump.h"
+#include "epgui/dumpraw.h"
 #include "epgui/uictrl.h"
 #include "epgctl/epgacqctl.h"
 #include "epgctl/epgctxctl.h"
@@ -579,7 +579,7 @@ static bool EpgAcqClient_TakeMessage( EPGACQ_EVHAND * pAcqEv, EPGDBSRV_MSG_BODY 
             pNewBlock->pPrevNetwopBlock = NULL;
 
             // offer the block to the ASCII dump module
-            EpgTxtDump_Block(&pNewBlock->blk, pNewBlock->type, pNewBlock->stream);
+            EpgDumpRaw_IncomingBlock(&pNewBlock->blk, pNewBlock->type, pNewBlock->stream);
             // append the block to the end of the input queue
             EpgDbQueue_Add(clientState.pDbQueue, pNewBlock);
             // must not free the message because it's added to the EPG block queue

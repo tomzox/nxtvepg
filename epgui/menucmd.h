@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: menucmd.h,v 1.19 2002/08/11 19:52:25 tom Exp tom $
+ *  $Id: menucmd.h,v 1.20 2003/02/08 14:35:48 tom Exp tom $
  */
 
 #ifndef __MENUCMD_H
@@ -48,6 +48,9 @@ void AutoStartAcq( Tcl_Interp * interp );
 void MenuCmd_AcqStatsUpdate( void );
 uint GetProvFreqForCni( uint provCni );
 EPGDB_CONTEXT * MenuCmd_MergeDatabases( void );
+#ifdef WIN32
+bool MenuCmd_CheckTvCardConfig( void );
+#endif
 
 
 #endif  // __MENUCMD_H
