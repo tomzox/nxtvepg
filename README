@@ -136,7 +136,11 @@ Explanation of Windows Bt8x8 driver error messages:
   4. You're using driver files of a wrong version.  You must use the
   version that comes with nxtvepg.
 
-  5. The "DSdrv4" service entry in the registry may be messed up.
+  5. You're starting nxtvepg from a network drive, however the driver
+  cannot be installed on a remote drive.  Please move the nxtvepg
+  directory onto a local drive (e.g. C:)
+
+  6. The "DSdrv4" service entry in the registry may be messed up.
   You can remove all keys that match "dsdrv". Note:  you should delete
   not only those in the CurrentControlSet, but those in all control sets.
 

@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgnetio.h,v 1.17 2002/05/19 21:44:19 tom Exp $
+ *  $Id: epgnetio.h,v 1.18 2002/05/30 14:00:13 tom Exp $
  */
 
 #ifndef __EPGNETIO_H
@@ -132,6 +132,8 @@ int  EpgNetIo_AcceptConnection( int listen_fd );
 bool EpgNetIo_CheckConnect( void );
 int  EpgNetIo_ConnectToServer( bool use_tcp_ip, const char * pSrvHost, const char * pSrvPort, char ** ppErrorText );
 bool EpgNetIo_FinishConnect( int sock_fd, char ** ppErrorText );
+bool EpgNetIo_Init( char ** ppErrorText );
+void EpgNetIo_Destroy( void );
 
 
 #endif  // __EPGNETIO_H

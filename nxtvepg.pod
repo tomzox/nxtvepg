@@ -24,7 +24,7 @@
 #
 #  Author: Tom Zoerner
 #
-# $Id: nxtvepg.pod,v 1.67 2002/05/20 15:09:15 tom Exp tom $
+# $Id: nxtvepg.pod,v 1.68 2002/05/30 13:56:57 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME
@@ -1679,8 +1679,9 @@ connection establishment or shutdown.
 
 =item I<Syslog min. level>
 
-Here you can enable or disable logging to UNIX syslog and Windows NT
-application event logging (application name is I<nxtvepg daemon>).
+Here you can enable or disable logging to UNIX syslog and Windows
+application event logging (application name is I<nxtvepg daemon>;
+this feature is not supported by Windows 95).
 See UNIX man pages I<syslogd(8)> and I<syslog.conf(5)> or the Windows
 event log help for details about the syslog facility. The log levels
 you can choose here are the same as described in the previous paragraph

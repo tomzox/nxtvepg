@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: index.html,v 1.39 2002/05/20 20:24:20 tom Exp $ -->
+<!-- $Id: index.html,v 1.40 2002/05/31 19:43:40 tom Exp $ -->
 <HEAD>
 <TITLE>nexTView EPG Decoder Software Download Page</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
@@ -45,6 +45,8 @@
 
 <P class="navhead"><B>News</B>
 <P class="navsect">
+May/30/2002: release 0.7.3 aka 2.1.1</P>
+<HR width=70%><P class="navsect">
 May/20/2002: release 0.7.2 aka 2.1.0</P>
 <HR width=70%><P class="navsect">
 May/05/2002: release 0.7.1 aka 2.0.0</P>
@@ -149,6 +151,8 @@ ATI "TV Wonder" are built around one of the Booktree chips.)
 <DL>
 <LI><B><FONT COLOR="red">New:</FONT></B>
 No additional software is required: nxtvepg is shipped with all the required components.
+<LI>Exception for Windows 95: the winsock2 DLL is required (ws2_32.dll, for the daemon
+feature) which - in contrary to newer Windows versions - was not included with this OS.
 <LI><B><FONT COLOR="red">New:</FONT></B>
 All Windows versions starting with Windows 95 are supported.
 <LI>Note: On Windows NT and Windows 2000 you need to run nxtvepg under an
@@ -159,14 +163,14 @@ account with special privileges (you must be allowed to install &amp; start a se
 <H2>Download</H2>
 </A>
 <P>
-The latest stable release is version 0.7.2 aka 2.1.0 (released May/20/2002).
-<STRONG>New in this release:</STRONG>
+The latest stable release is version 0.7.3 aka 2.1.1 (released May/30/2002).
+<STRONG>Notable changes:</STRONG>
 in the Windows version 2.1.0 several new features have been added (such as
 <A HREF="tvsim.html#interaction features">TV application interaction</A>,
 <A HREF="man.html#hide on minimize">system tray icon when the main window is minimized</A>
 and <A HREF="man.html#item_%2Ddaemon">"-daemon" acquisition mode</A>),
-in the UNIX and platform independent parts several bugs were fixed, hence an
-upgrade is highly recommended.
+in the UNIX and platform independent parts several bugs were fixed.
+Version 0.7.3 includes some more fixes and improvements.
 </P><P>
 For a detailed history of new features and fixes in previous releases
 refer to the <A HREF="changelog.html">Change-Log</A>.
@@ -180,11 +184,11 @@ see the <A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/">source directory<
 </A>
 <P>
 Download the latest source distribution for Linux and NetBSD:
-<A HREF=http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-0.7.2.tar.gz>nxtvepg-0.7.2.tar.gz</A>
-(631 kB)
+<A HREF=http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-0.7.3.tar.gz>nxtvepg-0.7.3.tar.gz</A>
+(635 kB)
 </P><P>
 You can build a RPM package from the source tarball simply by running
-<KBD>rpm -ta nxtvepg-0.7.2.tar.gz</KBD> and install it as usual with
+<KBD>rpm -ta nxtvepg-0.7.3.tar.gz</KBD> and install it as usual with
 <KBD>rpm -i</KBD>.  You can also donwload directly installable packages
 (not necessarily the latest version)
 for Linux at <A HREF="http://rpmfind.net/linux/rpm2html/search.php?query=nxtvepg">rpmfind.net</A>
@@ -196,12 +200,12 @@ and for NetBSD at <A HREF="ftp://ftp.netbsd.org/pub/NetBSD/packages/pkgsrc/misc/
 </A>
 <P>
 Windows executable:
-<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-2.1.0-win.zip">nxtvepg-2.1.0-win.zip</A>
-(1005 kB, including driver files)
+<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-2.1.1-win.zip">nxtvepg-2.1.1-win.zip</A>
+(1007 kB)
 </P><P>
 Demo application for TV application interaction
-<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-2.1.0-tvsim.zip">nxtvepg-2.1.0-tvsim.zip</A>
-(233 kB)<BR>
+<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-2.1.1-tvsim.zip">nxtvepg-2.1.1-tvsim.zip</A>
+(234 kB)<BR>
 (see <A HREF="tvsim.html">tvsim</A>,
 <A HREF="vbirec.html">vbirec</A> or
 <A HREF="vbiplay.html">vbiplay</A> manuals, or
@@ -236,7 +240,7 @@ please do not redistribute.
 
 <H2>Copyright</H2>
 <P>
-&copy; Copyright 1999, 2000, 2001, 2002 by Tom Zoerner (and others).
+&copy; Copyright 1999, 2000, 2001, 2002 by Th. <I>"Tom"</I> Zoerner (and others).
 All rights reserved.
 </P><P>
 The author of this site's software is not a member of the

@@ -26,7 +26,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: vbirec_main.c,v 1.9 2002/05/19 17:19:17 tom Exp tom $
+ *  $Id: vbirec_main.c,v 1.10 2002/05/30 14:11:33 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_TVSIM
@@ -85,6 +85,7 @@ typedef struct
 {
    uint   cni;
    uint   pil;
+   uchar  text[PDC_TEXT_LEN + 1];
 } CNIPIL;
 
 typedef struct
@@ -403,20 +404,23 @@ static void VbiRec_CbAttachTv( bool enable, bool acqEnabled )
 }
 
 // ---------------------------------------------------------------------------
-// Update a CNI/PIL dna network variable
+// Update a CNI/PIL/text and network variable
 //
 static void UpdateCni( volatile CNI_ACQ_STATE * pNew, CNIPIL * pOld, char * pVar )
 {
-   if ( (pOld->cni != (pNew->haveCni ? pNew->outCni : 0)) ||
-        (pOld->pil != (pNew->havePil ? pNew->outPil : 0)) )
+   if ( (pNew->haveCni) &&
+        ( (pOld->cni != pNew->haveCni) ||
+          (pOld->pil != (pNew->havePil ? pNew->outPil : INVALID_VPS_PIL)) ))
    {
-      pOld->cni = (pNew->haveCni ? pNew->outCni : 0);
+      // CNI and/or PIL has changed -> copy the new values
+      pOld->cni = pNew->outCni;
       pOld->pil = (pNew->havePil ? pNew->outPil : INVALID_VPS_PIL);
+      pOld->text[0] = 0;
 
       if (pOld->cni != 0)
       {
          if ( VPS_PIL_IS_VALID(pOld->pil) )
-         {
+         {  // both CNI and PIL are available
             sprintf(comm, "%04X, %02d.%02d. %02d:%02d",
                              pOld->cni,
                              (pOld->pil >> 15) & 0x1F, (pOld->pil >> 11) & 0x0F,
@@ -432,6 +436,17 @@ static void UpdateCni( volatile CNI_ACQ_STATE * pNew, CNIPIL * pOld, char * pVar
       else
          strcpy(comm, "---");
 
+      Tcl_SetVar(interp, pVar, comm, TCL_GLOBAL_ONLY);
+   }
+
+   if ( (pNew->haveText) && (pOld->cni == 0) &&
+        (strncmp(pOld->text, (char *) pNew->outText, PDC_TEXT_LEN) != 0) )
+   {  // no CNI, but "status display" text is available
+      strncpy(pOld->text, (char *) pNew->outText, sizeof(pOld->text));
+      pNew->haveText = FALSE;
+
+      // display the text instead of CNI value, but place it inside ""
+      sprintf(comm, "\"%s\"", pOld->text);
       Tcl_SetVar(interp, pVar, comm, TCL_GLOBAL_ONLY);
    }
 }

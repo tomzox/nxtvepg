@@ -15,7 +15,7 @@
 //  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 //  GNU General Public License for more details
 /////////////////////////////////////////////////////////////////////////////
-// nxtvepg $Id: hwdrv.c,v 1.3 2002/05/10 00:16:48 tom Exp tom $
+// nxtvepg $Id: hwdrv.c,v 1.4 2002/05/30 13:55:44 tom Exp tom $
 //////////////////////////////////////////////////////////////////////////////
 
 #define WIN32_LEAN_AND_MEAN
@@ -94,10 +94,10 @@ DWORD HwDrv_LoadDriver( void )
                 {
                     LOG(1,"(NT driver) Service does not exist: trying to install it...");
 
-                    if(!HwDrv_InstallNTDriver())
+                    loadError = HwDrv_InstallNTDriver();
+                    if (loadError != HWDRV_LOAD_SUCCESS)
                     {
                         LOG(1,"Failed to install NT driver. Giving up.");
-                        loadError = HWDRV_LOAD_INSTALL;
                         bError = TRUE;
                     }
                 }
@@ -272,11 +272,12 @@ void HwDrv_UnloadDriver( void )
 }
 
 // On success m_hService will contain the handle to the service.
-BOOL HwDrv_InstallNTDriver( void )
+DWORD HwDrv_InstallNTDriver( void )
 {
     LPSTR       pszName;
     char        szDriverPath[MAX_PATH];
     SC_HANDLE   hSCManager = NULL;
+    DWORD       loadError = HWDRV_LOAD_SUCCESS;
     BOOL        bError = FALSE;
 
     LOG(1, "Attempting to install NT driver.");
@@ -303,7 +304,17 @@ BOOL HwDrv_InstallNTDriver( void )
         {
             *pszName-- = 0;
         }
-        
+
+        if(GetDriveType(szDriverPath) == DRIVE_REMOTE)
+        {
+            LOG(1, "InstallNTDriver: cannot install on remote drive: %s", szDriverPath);
+            loadError = HWDRV_LOAD_REMOTE_DRIVE;
+            bError = TRUE;
+        }
+    }
+
+    if(!bError)
+    {
         strcat(szDriverPath, NTDriverName);
         strcat(szDriverPath, ".sys");       
         
@@ -318,6 +329,9 @@ BOOL HwDrv_InstallNTDriver( void )
     
     if(!bError)
     {
+        // Make sure no spaces exist in the path since CreateService() does not like spaces.
+        GetShortPathName(szDriverPath, szDriverPath, MAX_PATH);
+
         LOG(2,"InstallNTDriver: Creating the service %s (kernel driver, manual start)",szDriverPath);
         m_hService = CreateService(
             hSCManager,            // SCManager database
@@ -418,12 +432,15 @@ BOOL HwDrv_InstallNTDriver( void )
     {
         LOG(1, "(NT driver) Failed to install driver.");
         HwDrv_UnloadDriver();
-        return FALSE;
+
+        if (loadError == HWDRV_LOAD_SUCCESS)
+           loadError = HWDRV_LOAD_INSTALL;
+        return loadError;
     }
     else
     {
         LOG(1, "(NT driver) Install complete.");
-        return TRUE;
+        return HWDRV_LOAD_SUCCESS;
     }
 }
 

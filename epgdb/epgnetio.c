@@ -22,7 +22,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgnetio.c,v 1.29 2002/05/19 21:42:40 tom Exp tom $
+ *  $Id: epgnetio.c,v 1.30 2002/05/30 14:00:01 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -41,8 +41,10 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <time.h>
+#include <signal.h>
 #include <sys/stat.h>
 #ifndef WIN32
+#include <sys/signal.h>
 #include <sys/utsname.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -1578,6 +1580,48 @@ bool EpgNetIo_FinishConnect( int sock_fd, char ** ppErrorText )
 #endif
 
    return result;
+}
+
+// ----------------------------------------------------------------------------
+// Initialize the module
+//
+bool EpgNetIo_Init( char ** ppErrorText )
+{
+#ifndef WIN32
+   struct sigaction  act;
+
+   // setup signal handler
+   memset(&act, 0, sizeof(act));
+   sigemptyset(&act.sa_mask);
+   act.sa_handler = SIG_IGN;
+   sigaction(SIGPIPE, &act, NULL);
+   return TRUE;
+
+#else // WIN32
+   WSADATA stWSAData;
+   bool   result;
+
+   result = (WSAStartup(0x202, &stWSAData) == 0);
+   if (result == FALSE)
+   {
+      if (ppErrorText == NULL)
+         EpgNetIo_Logger(LOG_ERR, -1, sockErrno, "winsock2 DLL init failed: ", NULL);
+      else
+         EpgNetIo_SetErrorText(ppErrorText, sockErrno, "Failed to initialize winsock2 DLL: ", NULL);
+   }
+
+   return result;
+#endif
+}
+
+// ----------------------------------------------------------------------------
+// Free module resources
+//
+void EpgNetIo_Destroy( void )
+{
+#ifdef WIN32
+   WSACleanup();
+#endif
 }
 
 #endif  // USE_DAEMON

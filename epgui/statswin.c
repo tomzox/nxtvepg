@@ -33,7 +33,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: statswin.c,v 1.59 2002/05/10 14:58:43 tom Exp tom $
+ *  $Id: statswin.c,v 1.60 2002/05/30 14:08:23 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -121,6 +121,11 @@ static void StatsWin_UpdateHist( int target )
          dbStatsWinState[target].lastHistPos = sv->histIdx;
       }
    }
+   else
+   {  // acq not running -> clear history
+      sprintf(comm, "DbStatsWin_ClearHistory %s\n", dbswn[target]);
+      eval_check(interp, comm);
+   }
 }
 
 // ----------------------------------------------------------------------------
@@ -137,6 +142,7 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
    EPGDB_BLOCK_COUNT myCount[2];
    EPGDB_CONTEXT * dbc;
    EPGACQ_DESCR acqState;
+   EPGDB_STATS mySv;
    const EPGDB_ACQ_VPS_PDC * pAcqVpsPdc;
    const EPGDB_STATS *sv;
    const AI_BLOCK *pAi;
@@ -158,7 +164,7 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
    else
       dbc = NULL;
 
-   if ((dbc != NULL) && dbStatsWinState[target].open)
+   if (dbStatsWinState[target].open)
    {
       dprintf1("StatsWin-UpdateDbStatsWin: for %s\n", ((target == DB_TARGET_UI) ? "ui" : "acq"));
 
@@ -170,34 +176,39 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
          count = NULL;
       if (count == NULL)
       {  // acq not running for this database -> display db stats only
-         memset(acqMinTime, 0, sizeof(acqMinTime));
-         EpgDbGetStat(dbc, myCount, acqMinTime, 0);
+         memset(myCount, 0, sizeof(myCount));
+         if (dbc != NULL)
+         {
+            memset(acqMinTime, 0, sizeof(acqMinTime));
+            EpgDbGetStat(dbc, myCount, acqMinTime, 0);
+         }
          count = myCount;
       }
 
       if (EpgDbContextIsMerged(dbc) == FALSE)
       {
-         // get provider's network name and db version from AI block
-         EpgDbLockDatabase(dbc, TRUE);
-         pAi = EpgDbGetAi(dbc);
-         if (pAi != NULL)
-         {
-            strncpy(netname, AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop), sizeof(netname) - 1);
-            netname[sizeof(netname) - 1] = 0;
-            lastAiUpdate = EpgDbGetAiUpdateTime(dbc);
-            strftime(datestr, 25, "%H:%M:%S %a %d.%m.", localtime(&lastAiUpdate));
-            version = pAi->version;
-            versionSwo = pAi->version_swo;
-            cni = AI_GET_CNI(pAi);
+         // default values if database is empty
+         strcpy(netname, "none yet");
+         strcpy(datestr, "none yet");
+         version = versionSwo = 0;
+         cni = 0;
+
+         if (dbc != NULL)
+         {  // get provider's network name and db version from AI block
+            EpgDbLockDatabase(dbc, TRUE);
+            pAi = EpgDbGetAi(dbc);
+            if (pAi != NULL)
+            {
+               strncpy(netname, AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop), sizeof(netname) - 1);
+               netname[sizeof(netname) - 1] = 0;
+               lastAiUpdate = EpgDbGetAiUpdateTime(dbc);
+               strftime(datestr, 25, "%H:%M:%S %a %d.%m.", localtime(&lastAiUpdate));
+               version = pAi->version;
+               versionSwo = pAi->version_swo;
+               cni = AI_GET_CNI(pAi);
+            }
+            EpgDbLockDatabase(dbc, FALSE);
          }
-         else
-         {  // no provider found yet
-            strcpy(netname, "none yet");
-            strcpy(datestr, "none yet");
-            version = versionSwo = 0;
-            cni = 0;
-         }
-         EpgDbLockDatabase(dbc, FALSE);
 
          total            = count[0].ai + count[1].ai;
          obsolete         = count[0].expired + count[0].defective +
@@ -276,9 +287,17 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
          eval_check(interp, comm);
       }
 
-      if ( ((target == DB_TARGET_ACQ) || (pAcqDbContext == pUiDbContext)) &&
-           ((sv = EpgAcqCtl_GetAcqStats()) != NULL) )
+
+      //  Acquisition status
+
+      if ((target == DB_TARGET_ACQ) || (pAcqDbContext == pUiDbContext))
       {
+         sv = EpgAcqCtl_GetAcqStats();
+         if (sv == NULL)
+         {
+            memset(&mySv, 0, sizeof(mySv));
+            sv = &mySv;
+         }
          if (dbStatsWinState[target].isForAcq == FALSE)
          {
             sprintf(comm, "pack %s.acq -side top -anchor nw -fill both -after %s.browser\n",
@@ -287,6 +306,7 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
             dbStatsWinState[target].isForAcq = TRUE;
          }
 
+         // display graphical database fill percentage histogramm
          StatsWin_UpdateHist(target);
 
          EpgAcqCtl_DescribeAcqState(&acqState);
@@ -380,23 +400,30 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
                strcat(comm, "Acq mode:         external\n");
                break;
             case ACQMODE_FORCED_PASSIVE:
-               strcat(comm, "Acq mode:         forced passive\n");
-               switch (acqState.passiveReason)
+               if (acqState.state == ACQDESCR_DISABLED)
                {
-                  case ACQPASSIVE_NO_TUNER:
-                     strcat(comm, "Passive reason:   input source is not a tuner\n");
-                     break;
-                  case ACQPASSIVE_NO_FREQ:
-                     strcat(comm, "Passive reason:   frequency unknown\n");
-                     break;
-                  case ACQPASSIVE_NO_DB:
-                     strcat(comm, "Passive reason:   database missing\n");
-                     break;
-                  case ACQPASSIVE_ACCESS_DEVICE:
-                     strcat(comm, "Passive reason:   video device busy\n");
-                     break;
-                  default:
-                     break;
+                  strcat(comm, "Acq mode:         disabled\n");
+               }
+               else
+               {
+                  strcat(comm, "Acq mode:         forced passive\n");
+                  switch (acqState.passiveReason)
+                  {
+                     case ACQPASSIVE_NO_TUNER:
+                        strcat(comm, "Passive reason:   input source is not a tuner\n");
+                        break;
+                     case ACQPASSIVE_NO_FREQ:
+                        strcat(comm, "Passive reason:   frequency unknown\n");
+                        break;
+                     case ACQPASSIVE_NO_DB:
+                        strcat(comm, "Passive reason:   database missing\n");
+                        break;
+                     case ACQPASSIVE_ACCESS_DEVICE:
+                        strcat(comm, "Passive reason:   video device busy\n");
+                        break;
+                     default:
+                        break;
+                  }
                }
                break;
 
@@ -452,7 +479,7 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
          if (dbStatsWinState[target].updateHandler != NULL)
             Tcl_DeleteTimerHandler(dbStatsWinState[target].updateHandler);
          // set up a timer to re-display the stats in case there's no EPG reception
-         if (acqState.isNetAcq == FALSE)
+         if ((acqState.state != ACQDESCR_DISABLED) && (acqState.isNetAcq == FALSE))
             dbStatsWinState[target].updateHandler =
                Tcl_CreateTimerHandler(((sv->ai.aiCount < 2) ? 2*1000 : 15*1000), StatsWin_UpdateDbStatsWinTimeout, (ClientData)target);
       }

@@ -34,7 +34,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgscan.c,v 1.26 2002/05/14 19:02:16 tom Exp tom $
+ *  $Id: epgscan.c,v 1.27 2002/05/30 14:01:13 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -88,7 +88,7 @@ typedef struct
    EPGDB_CONTEXT  * pDbContext;       // database context for BI/AI search and reload
    EPGDB_QUEUE      dbQueue;          // queue for incoming EPG blocks
    bool             foundBi;          // TRUE when BI found on current channel
-   void          (* MsgCallback)( const char * pMsg );
+   EPGSCAN_MSGCB  * MsgCallback;      // callback function to print messages
 } EPGSCANCTL_STATE;
 
 static EPGSCANCTL_STATE scanCtl = {SCAN_STATE_OFF};
@@ -159,14 +159,14 @@ static bool EpgScan_AiCallback( const AI_BLOCK *pNewAi )
          if (EpgDbContextGetCni(scanCtl.pDbContext) == 0)
          {  // new provider -> nothing to do here, just add the AI and keep all params
             sprintf(msgbuf, "Found %sprovider: %s", (scanCtl.doRefresh ? "" : "new "), AI_GET_NETWOP_NAME(pNewAi, pNewAi->thisNetwop));
-            scanCtl.MsgCallback(msgbuf);
+            scanCtl.MsgCallback(msgbuf, TRUE);
             // count the number of newly found providers
             scanCtl.newProvCount += 1;
          }
          else
          {
             sprintf(msgbuf, "Provider already available: %s", AI_GET_NETWOP_NAME(pNewAi, pNewAi->thisNetwop));
-            scanCtl.MsgCallback(msgbuf);
+            scanCtl.MsgCallback(msgbuf, TRUE);
          }
 
          // update parameters with the new ones, if neccessary
@@ -180,7 +180,7 @@ static bool EpgScan_AiCallback( const AI_BLOCK *pNewAi )
 
             if (EpgDbContextGetCni(scanCtl.pDbContext) != 0)
             {
-               scanCtl.MsgCallback("storing provider's tuner frequency");
+               scanCtl.MsgCallback("storing provider's tuner frequency", TRUE);
                EpgContextCtl_UpdateFreq(AI_GET_CNI(pNewAi), scanCtl.pDbContext->tunerFreq);
             }
 
@@ -249,7 +249,7 @@ uint EpgScan_EvHandler( void )
    const AI_BLOCK * pAi;
    const char * pName, * pCountry;
    time_t now = time(NULL);
-   uchar chanName[10], msgbuf[300];
+   uchar chanName[10], msgbuf[300], dispText[PDC_TEXT_LEN + 1];
    uint  freq;
    uint32_t ttxPkgCount, vbiLineCount, epgPkgCount, epgPageCount;
    uint cni, dataPageCnt;
@@ -266,6 +266,7 @@ uint EpgScan_EvHandler( void )
    if ( stopped || (scanCtl.pDbContext == NULL) )
       EpgScan_Stop();
 
+   dispText[0] = 0;
    rescheduleMs = 0;
    if (scanCtl.state != SCAN_STATE_OFF)
    {
@@ -299,7 +300,7 @@ uint EpgScan_EvHandler( void )
             if ((pageNo != EPG_ILLEGAL_PAGENO) && (pageNo != scanCtl.pDbContext->pageNo))
             {  // found a different page number in MIP
                dprintf2("EpgScan-ProcessPackets: non-default MIP page no for EPG: %03X (was %03X) -> restart acq\n", pageNo, scanCtl.pDbContext->pageNo);
-               scanCtl.MsgCallback("Found non-default EPG ttx page in MIP - restarting");
+               scanCtl.MsgCallback("Found non-default EPG ttx page in MIP - restarting", TRUE);
 
                scanCtl.pDbContext->pageNo = pageNo;
                EpgStreamClear();
@@ -334,7 +335,7 @@ uint EpgScan_EvHandler( void )
             EpgDbLockDatabase(scanCtl.pDbContext, FALSE);
          }
 
-         TtxDecode_GetScanResults(&cni, &niWait, &dataPageCnt);
+         TtxDecode_GetScanResults(&cni, &niWait, &dataPageCnt, dispText, sizeof(dispText));
 
          if ((cni != 0) && ((scanCtl.state <= SCAN_STATE_WAIT_NI) || (scanCtl.state == SCAN_STATE_WAIT_NI_OR_EPG)))
          {
@@ -346,11 +347,18 @@ uint EpgScan_EvHandler( void )
                TvChannels_GetName(scanCtl.channel, chanName, sizeof(chanName));
             else
                sprintf(chanName, "#%d", scanCtl.channel);
-            // append country if available
-            sprintf(msgbuf, "Channel %s: CNI 0x%04X %s", chanName, cni, ((pName != NULL) ? pName : ""));
-            if ((pCountry != NULL) && (strstr(pName, pCountry) == NULL))
-               sprintf(msgbuf + strlen(msgbuf), " (%s)", pCountry);
-            scanCtl.MsgCallback(msgbuf);
+            if (pName != NULL)
+            {
+               sprintf(msgbuf, "Channel %s: CNI 0x%04X %s", chanName, cni, pName);
+               // append country if available
+               if ((pCountry != NULL) && (strstr(pName, pCountry) == NULL))
+                  sprintf(msgbuf + strlen(msgbuf), " (%s)", pCountry);
+            }
+            else if (dispText[0] != 0)
+               sprintf(msgbuf, "Channel %s: CNI 0x%04X \"%s\"", chanName, cni, dispText);
+            else
+               sprintf(msgbuf, "Channel %s: CNI 0x%04X", chanName, cni);
+            scanCtl.MsgCallback(msgbuf, FALSE);
 
             // check if there's already a database for this provider
             // note: must do a complete open, not only a peek, to make sure the db is intact
@@ -363,14 +371,14 @@ uint EpgScan_EvHandler( void )
                {
                   sprintf(msgbuf, "Provider '%s' is already known - skipping.",
                                   AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop));
-                  scanCtl.MsgCallback(msgbuf);
+                  scanCtl.MsgCallback(msgbuf, TRUE);
                   // in refresh mode count this provider as done (used in the summary)
                   if (scanCtl.doRefresh)
                      scanCtl.newProvCount += 1;
                }
                if (pDbContext->tunerFreq != scanCtl.pDbContext->tunerFreq)
                {
-                  scanCtl.MsgCallback("storing provider's tuner frequency");
+                  scanCtl.MsgCallback("storing provider's tuner frequency", TRUE);
                   EpgContextCtl_UpdateFreq(cni, scanCtl.pDbContext->tunerFreq);
                }
                UiControlMsg_NewProvFreq(cni, scanCtl.pDbContext->tunerFreq);
@@ -386,7 +394,7 @@ uint EpgScan_EvHandler( void )
                {
                   // known provider -> wait for BI/AI
                   if (scanCtl.state <= SCAN_STATE_WAIT_NI)
-                     scanCtl.MsgCallback("checking for EPG transmission...");
+                     scanCtl.MsgCallback("checking for EPG transmission...", FALSE);
                   scanCtl.state = SCAN_STATE_WAIT_EPG;
                }
                else
@@ -410,8 +418,8 @@ uint EpgScan_EvHandler( void )
             {  // CNI already reported to the user -> just print the reason we start waiting
                sprintf(msgbuf, "Found some kind of data transmission on %d TTX page%s", dataPageCnt, ((dataPageCnt == 1) ? "" : "s"));
             }
-            scanCtl.MsgCallback(msgbuf);
-            scanCtl.MsgCallback("checking for EPG transmission...");
+            scanCtl.MsgCallback(msgbuf, FALSE);
+            scanCtl.MsgCallback("checking for EPG transmission...", FALSE);
 
             if (scanCtl.state <= SCAN_STATE_WAIT_NI)
                scanCtl.state = SCAN_STATE_WAIT_NI_OR_EPG;
@@ -452,13 +460,13 @@ uint EpgScan_EvHandler( void )
             if (scanCtl.foundBi)
             {
                if (EpgDbQueue_GetBlockCount(&scanCtl.dbQueue) > 0)
-                  scanCtl.MsgCallback("Nextview transmission found, but no application info received");
+                  scanCtl.MsgCallback("Nextview transmission found, but no application info received", TRUE);
                else if (scanCtl.foundBi)
-                  scanCtl.MsgCallback("Nextview announced in \"Bundle Inventory\", but no data received");
-               scanCtl.MsgCallback("Giving up, try again later.");
+                  scanCtl.MsgCallback("Nextview announced in \"Bundle Inventory\", but no data received", TRUE);
+               scanCtl.MsgCallback("Giving up, try again later.", TRUE);
             }
             else
-               scanCtl.MsgCallback("No EPG transmission found on this channel - giving up.");
+               scanCtl.MsgCallback("No EPG transmission found on this channel - giving up.", TRUE);
          }
          else if ( (scanCtl.useXawtv || scanCtl.doRefresh) &&
                    (scanCtl.state <= SCAN_STATE_WAIT_NI) )
@@ -467,8 +475,11 @@ uint EpgScan_EvHandler( void )
                TvChannels_GetName(scanCtl.channel, chanName, sizeof(chanName));
             else
                sprintf(chanName, "#%d", scanCtl.channel);
-            sprintf(msgbuf, "Channel %s: no CNI received - skipping", chanName);
-            scanCtl.MsgCallback(msgbuf);
+            if (dispText[0] != 0)
+               sprintf(msgbuf, "Channel %s: CNI 0x0000 \"%s\"", chanName, dispText);
+            else
+               sprintf(msgbuf, "Channel %s: no CNI received - skipping", chanName);
+            scanCtl.MsgCallback(msgbuf, FALSE);
          }
 
          if (scanCtl.doRefresh && (scanCtl.state != SCAN_STATE_DONE))
@@ -493,7 +504,7 @@ uint EpgScan_EvHandler( void )
                sprintf(msgbuf, "Defective database 0x%04X remains to be repaired.", scanCtl.provCniTab[scanCtl.channel - 1]);
                scanCtl.badProvCount += 1;
             }
-            scanCtl.MsgCallback(msgbuf);
+            scanCtl.MsgCallback(msgbuf, TRUE);
          }
 
          if ( EpgScan_NextChannel(&freq) )
@@ -524,38 +535,38 @@ uint EpgScan_EvHandler( void )
             else
             {
                EpgScan_Stop();
-               scanCtl.MsgCallback("channel change failed - abort.");
+               scanCtl.MsgCallback("channel change failed - abort.", TRUE);
             }
          }
          else
          {
             dprintf0("EPG scan finished\n");
             EpgScan_Stop();
-            scanCtl.MsgCallback("EPG scan finished.");
+            scanCtl.MsgCallback("EPG scan finished.", FALSE);
             if (scanCtl.signalFound == 0)
             {
                scanCtl.MsgCallback("No signal found on any channels!\n"
                                    "Please check your settings in the\n"
                                    "TV card input popup (Configure menu)\n"
-                                   "or check your antenna cable.");
+                                   "or check your antenna cable.", FALSE);
             }
             else if (scanCtl.doRefresh == FALSE)
             {
                if (scanCtl.newProvCount > 0)
                {
                   sprintf(msgbuf, "Found %d new Nextview provider%s.", scanCtl.newProvCount, ((scanCtl.newProvCount == 1) ? "" : "s"));
-                  scanCtl.MsgCallback(msgbuf);
+                  scanCtl.MsgCallback(msgbuf, FALSE);
                }
                else
                {
                   if (EpgContextCtl_GetProvCount() > 0)
-                     scanCtl.MsgCallback("\nSorry, no new providers found.");
+                     scanCtl.MsgCallback("\nSorry, no new providers found.", FALSE);
                   else
-                     scanCtl.MsgCallback("\nSorry, no providers found.");
+                     scanCtl.MsgCallback("\nSorry, no providers found.", FALSE);
 
                   scanCtl.MsgCallback("Please try again at a different time of day, as not all\n"
                                       "providers transmit at all hours (due to channel sharing\n"
-                                      "or technical difficulties). Press \"Help\" for more info.");
+                                      "or technical difficulties). Press \"Help\" for more info.", FALSE);
                }
             }
             else
@@ -567,9 +578,9 @@ uint EpgScan_EvHandler( void )
                                scanCtl.newProvCount, ((scanCtl.newProvCount == 1) ? "" : "s"),
                                scanCtl.provFreqCount - scanCtl.newProvCount, ((scanCtl.provFreqCount - scanCtl.newProvCount == 1) ? "" : "s"),
                                scanCtl.badProvCount, ((scanCtl.badProvCount == 1) ? "is" : "are"));
-               scanCtl.MsgCallback(msgbuf);
+               scanCtl.MsgCallback(msgbuf, FALSE);
                if (scanCtl.badProvCount > 0)
-                  scanCtl.MsgCallback("\nPlease remove remaining defective databases manually.");
+                  scanCtl.MsgCallback("\nPlease remove remaining defective databases manually.", FALSE);
             }
          }
       }
@@ -604,7 +615,7 @@ uint EpgScan_EvHandler( void )
 //
 EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv, bool doRefresh,
                                     uint * cniTab, uint *freqTab, uint freqCount,
-                                    uint * pRescheduleMs, void (* MsgCallback)(const char * pMsg) )
+                                    uint * pRescheduleMs, EPGSCAN_MSGCB * pMsgCallback )
 {
    uint  freq;
    bool  isTuner;
@@ -619,7 +630,7 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv,
    scanCtl.provFreqCount = freqCount;
    scanCtl.provFreqTab   = freqTab;
    scanCtl.provCniTab    = cniTab;
-   scanCtl.MsgCallback   = MsgCallback;
+   scanCtl.MsgCallback   = pMsgCallback;
    scanCtl.pDbContext    = NULL;
    result = EPGSCAN_OK;
 
@@ -627,10 +638,10 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv,
 
    if ( ((useXawtv || doRefresh) && ((freqTab == NULL) || (freqCount == 0))) ||
         (doRefresh && (cniTab == NULL)) ||
-        (MsgCallback == NULL) ||
+        (pMsgCallback == NULL) ||
         (pRescheduleMs == NULL) )
    {
-      fatal7("EpgScan-Start: illegal NULL ptr param (doRefresh=%d, useXawtv=%d): freqCount=%d, cniTab=%ld, freqTab=%ld, msgCb=%ld, resched=%ld", doRefresh, useXawtv, freqCount, (long)cniTab, (long)freqTab, (long)MsgCallback, (long)pRescheduleMs);
+      fatal7("EpgScan-Start: illegal NULL ptr param (doRefresh=%d, useXawtv=%d): freqCount=%d, cniTab=%ld, freqTab=%ld, msgCb=%ld, resched=%ld", doRefresh, useXawtv, freqCount, (long)cniTab, (long)freqTab, (long)pMsgCallback, (long)pRescheduleMs);
       result = EPGSCAN_INTERNAL;
    }
    else
@@ -682,7 +693,7 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv,
                }
                else
                   sprintf(msgbuf, "Starting scan on %d known channels", scanCtl.provFreqCount);
-               scanCtl.MsgCallback(msgbuf);
+               scanCtl.MsgCallback(msgbuf, FALSE);
             }
             else
                result = EPGSCAN_ACCESS_DEV_VIDEO;

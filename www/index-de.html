@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="de">
-<!-- $Id: index-de.html,v 1.28 2002/05/20 20:24:20 tom Exp $ -->
+<!-- $Id: index-de.html,v 1.29 2002/05/31 19:43:40 tom Exp $ -->
 <HEAD>
 <TITLE>nexTView EPG Dekoder Software Download</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
@@ -45,6 +45,8 @@
 
 <P class="navhead"><B>News</B>
 <P class="navsect">
+30.5.2002: release 0.7.3 aka 2.1.1</P>
+<HR width=70%><P class="navsect">
 20.5.2002: release 0.7.2 aka 2.1.0</P>
 <HR width=70%><P class="navsect">
 5.5.2002: release 0.7.1 aka 2.0.0</P>
@@ -154,6 +156,9 @@ und eine TV-Karte mit dem Booktree Chip Bt848 oder Bt878.
 <LI><B><FONT COLOR="red">Neu:</FONT></B>
 nxtvepg benötigt keine zusätzliche Software, d.h. alle für den Decoder
 benötigte Software ist in der Distribution enthalten.
+<LI>Ausnahme Windows-95: es wird die winsock2 DLL benötigt (ws2_32.dll,
+für das daemon feature), die im Gegensatz zu neueren Windows Versionen
+noch nicht in der Windows 95 Basisinstallation enthalten war.
 <LI><B><FONT COLOR="red">Neu:</FONT></B>
 Es werden alle Windows Versionen ab Windows 95 unterstützt.
 <LI>Auf Windows-NT und Windows 2000 ist ein priviligierter Account erforderlich
@@ -164,14 +169,14 @@ Es werden alle Windows Versionen ab Windows 95 unterstützt.
 <H2>Download</H2>
 </A>
 <P>
-Die neueste stabile Distribution ist Version 0.7.2 aka 2.1.0 vom 20.5.2002.
-<STRONG>Neu in dieser Version: </STRONG>
-in der Windows Version 2.1.0 sind eine Reihe neuer Features hinzugekommen
+Die neueste stabile Distribution ist Version 0.7.3 aka 2.1.1 vom 30.5.2002.
+<STRONG>Neu in Version 0.7.2 aka 2.1.0: </STRONG>
+neue Features in der Windows Version
 (<A HREF="tvsim.html#interaction features">Interaktion mit TV Applikationen</A>,
 <A HREF="man.html#hide on minimize">Icon im system tray wenn das Fenster "minimized" wird</A>
 und <A HREF="man.html#item_%2Ddaemon">-daemon" Modus</A>),
-in der UNIX Version 0.7.2 bzw. im plattformunabhängigen Teil wurden eine Reihe
-Bugs behoben - ein upgrade ist deshalb dringend empfohlen.
+und Bugfixes in der UNIX Version 0.7.2 bzw. im plattformunabhängigen Teil.
+Version 0.7.3 aka 2.1.1 umfaßt weitere kleinere Verbesserungen.
 </P><P>
 Mehr Details und alle früheren Änderungen sind im
 <A HREF="changelog.html">Change-Log</A> dokumentiert. Falls mit der Software
@@ -184,11 +189,11 @@ Probleme auftauchen, bitte melden. Ältere Distributionen befinden sich noch im
 <H3>Source Distribution</H3>
 </A>
 Download der aktuellen Source Distribution für Linux und NetBSD:
-<A HREF=http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-0.7.2.tar.gz>nxtvepg-0.7.2.tar.gz</A>
-(631 kB)
+<A HREF=http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-0.7.3.tar.gz>nxtvepg-0.7.3.tar.gz</A>
+(635 kB)
 </P><P>
 Aus dem source tarball läßt sich auch ein RPM package bauen mit dem
-Kommando: <KBD>rpm -ta nxtvepg-0.7.2.tar.gz</KBD>. Das erzeugte package
+Kommando: <KBD>rpm -ta nxtvepg-0.7.3.tar.gz</KBD>. Das erzeugte package
 kann dann wie üblich mit <KBD>rpm -i</KBD> installiert werden. Alternativ
 sind auch fertige packages verfügbar (jedoch nicht notwendigerweise
 immer die neueste Version):
@@ -201,12 +206,12 @@ und für NetBSD von <A HREF="ftp://ftp.netbsd.org/pub/NetBSD/packages/pkgsrc/misc
 </A>
 <P>
 Windows executable:
-<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-2.1.0-win.zip">nxtvepg-2.1.0-win.zip</A>
-(1005 kB, diesmal inklusive Treiber)
+<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-2.1.1-win.zip">nxtvepg-2.1.1-win.zip</A>
+(1007 kB)
 </P><P>
 Demo für Interaktion mit TV Applikationen:
-<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-2.1.0-tvsim.zip">nxtvepg-2.1.0-tvsim.zip</A>
-(233 kB)<BR>
+<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-2.1.1-tvsim.zip">nxtvepg-2.1.1-tvsim.zip</A>
+(234 kB)<BR>
 (siehe auch <A HREF="tvsim.html">tvsim</A>,
 <A HREF="vbirec.html">vbirec</A> oder
 <A HREF="vbiplay.html">vbiplay</A> manuals, oder
@@ -238,7 +243,7 @@ deshalb bitte nicht weiterverbreiten.
 
 <H2>Copyright</H2>
 <P>
-&copy; Copyright 1999, 2000, 2001, 2002 Tom Z&ouml;rner (und andere).
+&copy; Copyright 1999, 2000, 2001, 2002 Th. <I>"Tom"</I> Z&ouml;rner (und andere).
 Alle Rechte vorbehalten.
 </P><P>
 Der Autor dieser Software ist kein Mitglied der

@@ -20,7 +20,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgacqsrv.c,v 1.9 2002/05/19 21:52:08 tom Exp $
+ *  $Id: epgacqsrv.c,v 1.10 2002/05/30 14:07:02 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -30,7 +30,6 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <signal.h>
 #include <time.h>
 
 #include "epgctl/mytypes.h"
@@ -923,9 +922,7 @@ void EpgAcqServer_Destroy( void )
    EpgAcqServer_SetAddress(FALSE, NULL, NULL);
    EpgNetIo_SetLogging(0, 0, NULL);
 
-   #ifdef WIN32
-   WSACleanup();
-   #endif
+   EpgNetIo_Destroy();
 }
 
 // ----------------------------------------------------------------------------
@@ -933,20 +930,7 @@ void EpgAcqServer_Destroy( void )
 //
 void EpgAcqServer_Init( bool have_tty )
 {
-   #ifndef WIN32
-   struct sigaction   act;
-
-   // setup signal handler to ignore SIGPIPE from socket I/O
-   memset(&act, 0, sizeof(act));
-   sigemptyset(&act.sa_mask);
-   act.sa_handler = SIG_IGN;
-   sigaction(SIGPIPE, &act, NULL);
-
-   #else // WIN32
-   WSADATA stWSAData;
-
-   WSAStartup(0x202, &stWSAData);
-   #endif
+   EpgNetIo_Init(NULL);
 
    // initialize state struct
    memset(&srvState, 0, sizeof(srvState));

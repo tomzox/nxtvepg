@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgmain.c,v 1.88 2002/05/20 18:52:11 tom Exp tom $
+ *  $Id: epgmain.c,v 1.89 2002/05/30 14:08:57 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -1057,7 +1057,7 @@ static void EventHandler_DaemonStart( ClientData clientData, int mask )
          close(fd);
          // inform the user
          eval_check(interp, "tk_messageBox -type ok -icon error "
-                            "-message {The daemon failed to start. Check the daemon log file for the cause.}");
+                            "-message {The daemon failed to start. Check syslog or the daemon log file for the cause.}");
          Tcl_ResetResult(interp);
       }
       // else: keep waiting

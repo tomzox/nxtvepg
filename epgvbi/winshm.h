@@ -19,7 +19,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: winshm.h,v 1.6 2002/05/20 15:57:30 tom Exp tom $
+ *  $Id: winshm.h,v 1.7 2002/05/30 13:58:01 tom Exp tom $
  */
 
 #ifndef __WINSHM_H
@@ -101,7 +101,7 @@ typedef struct
 #define TVAPP_FEAT_CMD_MUTE   0x0020  // allows audio mute by EPG app
 #define TVAPP_FEAT_ALL_000701 (TVAPP_FEAT_TTX_FWD|TVAPP_FEAT_VPS_FWD|TVAPP_FEAT_TUNER|TVAPP_FEAT_REQ_CNAME|TVAPP_FEAT_CMD_TUNE|TVAPP_FEAT_CMD_MUTE)
 
-#define EPG_SHM_VERSION       0xFF020100  // protocol version id
+#define EPG_SHM_VERSION       0xFF020101  // protocol version id
 #define EPG_SHM_VERSION_MAJOR(V)   (((V) >> 16) & 0xFF)
 #define EPG_SHM_VERSION_MINOR(V)   (((V) >>  8) & 0xFF)
 #define EPG_SHM_VERSION_PATLEV(V)  (((V)      ) & 0xFF)

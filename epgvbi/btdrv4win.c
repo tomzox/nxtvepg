@@ -46,7 +46,7 @@
  *    WinDriver replaced with DSdrv (DScaler driver)
  *      March 2002 by E-Nek (e-nek@netcourrier.com)
  *
- *  $Id: btdrv4win.c,v 1.22 2002/05/11 15:42:50 tom Exp tom $
+ *  $Id: btdrv4win.c,v 1.23 2002/05/30 13:57:22 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -1461,6 +1461,10 @@ static bool BtDriver_Load( void )
          case HWDRV_LOAD_CREATE:
             errmsg = "Failed to load the Bt8x8 driver: Another application may\n"
                      "already be using the driver. See README.txt for more info.\n";
+            break;
+         case HWDRV_LOAD_REMOTE_DRIVE:
+            errmsg = "Failed to load the Bt8x8 driver: Cannot install the driver\n"
+                     "on a network drive. See README.txt for more info.\n";
             break;
          case HWDRV_LOAD_VERSION:
             errmsg = "Failed to load the Bt8x8 driver: it's is an incompatible\n"

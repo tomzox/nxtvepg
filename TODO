@@ -18,6 +18,7 @@ optional:
 win32 port:
 - install daemon as a service, possibly with helper app. in the systray
   to check acquisition status.
+- load winsock DLL dynamically or provide dummy DLL for Win95
 
 Bugs reported by Jan:
 - sometimes falsely detected "forced passive" after acq cycle advance
@@ -33,6 +34,8 @@ nxtvepg xawtv.c:
 - Tune-TV: offer to start xawtv if not running
   may not work if xawtv requires command line options
 - VPS empty/pause codes display
+- if no PIL available, check if packet 8/30/x display status text
+  is available and match against EPG db titles
 
 WIN32 port fixes:
 - Bt8x8 driver: make video input matrix configurable

@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: changelog.html,v 1.30 2002/05/20 20:25:01 tom Exp $ -->
+<!-- $Id: changelog.html,v 1.31 2002/05/31 19:41:26 tom Exp $ -->
 <HEAD>
 <TITLE>Nextview EPG Decoder Change-Log</TITLE>
 <LINK href="nxtvepg.css" rel=stylesheet type=text/css>
@@ -42,6 +42,29 @@ improvements for the M$ Windows platform (see changelog for 0.7.1):
   in case you haven't noticed :-)
 </UL>
 -->
+
+<H2>From 0.7.2 to 0.7.3 aka 2.1.1 (May/30/2002)</H2>
+<P>
+This release contains one notable bugfix (at least for French users)
+and a few minor feature improvements:
+</P>
+<UL>
+<LI>Bugfix in PDC decoding: didn't work at all before (this affects the EPG scan
+  and TV app interaction). Thanks to e-nek for helping to debug this problem
+<LI>Added PDC and P8/30/1 "status display" text decoding; currently used only
+  during EPG scan for networks without CNI -&gt; e.g. MTV and some local
+  TV channels are now identified, too
+<LI>Main window can be scrolled by dragging the mouse outside the window
+<LI>Acquisition database window can be opened before acq enabled
+<LI>Important EPG scan messages now marked by use of bold font
+<LI>Windows-95 compatibility: resolved two missing symbols
+<LI>Windows Bt8x8 driver: added new error checks for driver installation
+</UL>
+<P>
+Note: unless I find any more severe bugs that warrant a bugfix release, this
+will be the last release with a "0." version number.  Starting with the next
+version UNIX and Windows will use the same version number, i.e. 2.x.x
+</P>
 
 <H2>From 0.7.1 to 0.7.2 aka 2.1.0 (May/20/2002)</H2>
 <P>
@@ -92,10 +115,6 @@ This release contains the following new features and fixes:
   the browser database timescales were sometimes not enabled or disabled
   when acquisition was en-/disabled or moved from/to the browser database.
 </UL>
-
-Note: unless I find any more severe bugs that warrant a bugfix release, this
-will be the last release with a "0." version number.  Starting with the next
-version UNIX and Windows will use the same version number, i.e. 2.x.x
 
 
 <H2>From 0.7.0 to 0.7.1 aka 2.0.0 (May/05/2002)</H2>

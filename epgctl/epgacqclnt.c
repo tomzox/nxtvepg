@@ -21,7 +21,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgacqclnt.c,v 1.7 2002/05/19 21:48:48 tom Exp $
+ *  $Id: epgacqclnt.c,v 1.8 2002/05/30 14:03:47 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -31,11 +31,7 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <signal.h>
 #include <time.h>
-#ifndef WIN32
-#include <sys/signal.h>
-#endif
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
@@ -1396,20 +1392,7 @@ bool EpgAcqClient_SetAddress( const char * pHostName, const char * pPort )
 //
 void EpgAcqClient_Init( void (* pCbUpdateEvHandler) ( EPGACQ_EVHAND * pAcqEv ) )
 {
-   #ifndef WIN32
-   struct sigaction  act;
-
-   // setup signal handler
-   memset(&act, 0, sizeof(act));
-   sigemptyset(&act.sa_mask);
-   act.sa_handler = SIG_IGN;
-   sigaction(SIGPIPE, &act, NULL);
-
-   #else // WIN32
-   WSADATA stWSAData;
-
-   WSAStartup(0x202, &stWSAData);
-   #endif
+   EpgNetIo_Init(&clientState.pErrorText);
 
    // initialize client state
    memset(&clientState, 0, sizeof(clientState));
@@ -1431,6 +1414,8 @@ void EpgAcqClient_Destroy( void )
    // free the memory allocated for the config strings and error text
    EpgAcqClient_SetAddress(NULL, NULL);
    EpgNetIo_SetErrorText(&clientState.pErrorText, 0, NULL);
+
+   EpgNetIo_Destroy();
 }
 
 #endif  // USE_DAEMON

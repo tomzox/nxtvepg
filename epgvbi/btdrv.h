@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: btdrv.h,v 1.21 2002/05/14 18:37:08 tom Exp tom $
+ *  $Id: btdrv.h,v 1.22 2002/05/30 13:57:36 tom Exp tom $
  */
 
 #ifndef __BTDRV_H
@@ -97,6 +97,8 @@ typedef enum
    INVALID_CNI_TYPE = CNI_TYPE_COUNT
 } CNI_TYPE;
 
+#define PDC_TEXT_LEN   20       // max. length of status display text without terminating zero
+
 typedef struct
 {
    uint8_t   haveCni;           // CNI available
@@ -104,10 +106,15 @@ typedef struct
    uint32_t  outCni;            // latest confirmed CNI - reset when fetched
    uint32_t  outPil;            // latest confirmed PIL - reset when fetched
 
-   uint32_t  lastCni;           // last recevied CNI - copied to outCni after X repetitions
+   uint32_t  lastCni;           // last received CNI - copied to outCni after X repetitions
    uint32_t  cniRepCount;       // reception counter - reset upon CNI change
    uint32_t  lastPil;           // last received PIL - copied to outPil after X repetitions
    uint32_t  pilRepCount;       // reception counter - reset upon PIL change
+
+   uint8_t   haveText;
+   uint8_t   outText[PDC_TEXT_LEN+1];     // status display (e.g. channel name and program title)
+   uint8_t   lastChar[PDC_TEXT_LEN];      // last received characters
+   uint8_t   charRepCount[PDC_TEXT_LEN];  // reception counter for each character
 } CNI_ACQ_STATE;
 
 // ---------------------------------------------------------------------------

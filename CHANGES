@@ -4,6 +4,20 @@ changes or additions.
 
 Before you submit any feature requests, please read the TODO file.
 
+
+from 0.7.2 to 0.7.3 aka 2.1.1 (2002-May-30)
+
+- bugfix PDC decoding: didn't work at all before (this affects the EPG scan
+  and TV app interaction). Thanks to e-nek for helping to debug this problem.
+- added PDC and P8/30/1 "status display" text decoding; currently used only
+  during EPG scan for networks without CNI -> e.g. MTV is now identified
+- main window can be scrolled by dragging the mouse outside the window
+- acquisition database window can be opened before acq enabled
+- important EPG scan messages now marked by use of bold font
+- Windows-95 compatibility: resolved two missing symbols
+- Windows Bt8x8 driver: added new error checks for driver installation
+
+
 from 0.7.1 to 0.7.2 aka 2.1.0 (2002-May-20)
 
 - Windows: Enabled TV application interaction feature and added documentation
@@ -48,6 +62,7 @@ from 0.7.1 to 0.7.2 aka 2.1.0 (2002-May-20)
 - bugfixes in timescales: network highlighting and "acquisition tails" for
   the browser database timescales were sometimes not enabled or disabled
   when acquisition was en-/disabled or moved from/to the browser database.
+
 
 from 0.7.0 to 0.7.1 aka 2.0.0 (2002-May-05)
 

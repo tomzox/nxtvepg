@@ -32,7 +32,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: ttxdecode.c,v 1.47 2002/05/14 18:37:21 tom Exp tom $
+ *  $Id: ttxdecode.c,v 1.49 2002/05/30 13:57:45 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -110,9 +110,11 @@ void TtxDecode_StopAcq( void )
 // - result values are not invalidized, b/c the caller will change the
 //   channel after a value was read anyways
 //
-void TtxDecode_GetScanResults( uint *pCni, bool *pNiWait, uint *pDataPageCnt )
+void TtxDecode_GetScanResults( uint *pCni, bool *pNiWait, uint *pDataPageCnt, uchar *pDispText, uint textMaxLen )
 {
    CNI_TYPE type;
+   const uchar * p;
+   uint     idx;
    uint     cni;
    uint     pageCnt;
    bool     niWait  = FALSE;
@@ -120,6 +122,9 @@ void TtxDecode_GetScanResults( uint *pCni, bool *pNiWait, uint *pDataPageCnt )
    cni     = 0;
    pageCnt = 0;
    niWait  = FALSE;
+
+   if (textMaxLen > PDC_TEXT_LEN + 1)
+      textMaxLen = PDC_TEXT_LEN + 1;
 
    // check if initialization for the current channel is complete
    if (pVbiBuf->chanChangeReq == pVbiBuf->chanChangeCnf)
@@ -137,7 +142,36 @@ void TtxDecode_GetScanResults( uint *pCni, bool *pNiWait, uint *pDataPageCnt )
             niWait = TRUE;
          }
       }
+
       pageCnt = pVbiBuf->dataPageCount;
+
+      if (pDispText != NULL)
+      {
+         pDispText[0] = 0;
+         for (type=0; type < CNI_TYPE_COUNT; type++)
+         {
+            if (pVbiBuf->cnis[type].haveText)
+            {
+               // skip spaces from beginning of string
+               p = (const char *) pVbiBuf->cnis[type].outText;
+               for (idx=textMaxLen; idx > 0; idx--, p++)
+                  if (*p != ' ')
+                     break;
+               // skip spaces at end of string
+               while ((idx > 1) && (p[idx - 2] <= ' '))
+                  idx -= 1;
+               if (idx > 1)
+               {  // copy the trimmed string into the output array
+                  memcpy(pDispText, p, idx - 1);
+                  pDispText[idx - 1] = 0;
+               }
+            }
+            else if (pVbiBuf->cnis[type].charRepCount[0] > 0)
+            {
+               niWait = TRUE;
+            }
+         }
+      }
    }
 
    if (pCni != NULL)
@@ -268,8 +302,63 @@ static void TtxDecode_AddCni( CNI_TYPE type, uint cni, uint pil )
          }
       }
       else
-         debug1("TtxDecode-AddCni: invalid type %d\n", type);
+         fatal1("TtxDecode-AddCni: invalid type %d\n", type);
    }
+}
+
+// ---------------------------------------------------------------------------
+// Save status display text
+//
+static void TtxDecode_AddText( CNI_TYPE type, const uchar * data )
+{
+   volatile CNI_ACQ_STATE  * pState;
+   schar c1;
+   uint  minRepCount;
+   uint  idx;
+
+   if (data != NULL)
+   {
+      if (type < CNI_TYPE_COUNT)
+      {
+         pState = pVbiBuf->cnis + type;
+         minRepCount = 3;
+
+         for (idx=0; idx < PDC_TEXT_LEN; idx++)
+         {
+            // ignore characters with parity decoding errors
+            c1 = (schar)parityTab[*(data++)];
+            if (c1 >= 0)
+            {
+               if (pState->lastChar[idx] != c1)
+               {  // character changed -> reset repetition counter
+                  pState->lastChar[idx] = c1;
+                  pState->charRepCount[idx] = 0;
+               }
+               else
+                  pState->charRepCount[idx] += 1;
+            }
+
+            if (pState->charRepCount[idx] < minRepCount)
+               minRepCount = pState->charRepCount[idx];
+         }
+
+         if (minRepCount >= 3)
+         {  // all characters are received often enough -> copy string into output field
+            if ( (pState->haveText == FALSE) ||
+                 (memcmp((char *) pState->outText, (char *) pState->lastChar, PDC_TEXT_LEN) != 0) )
+            {
+               pState->haveText = FALSE;
+               memcpy((char *) pState->outText, (char *) pState->lastChar, PDC_TEXT_LEN);
+               pState->outText[PDC_TEXT_LEN] = 0;
+               pState->haveText = TRUE;
+            }
+         }
+      }
+      else
+         fatal1("TtxDecode-AddText: invalid type %d\n", type);
+   }
+   else
+      fatal0("TtxDecode-AddText: illegal NULL ptr param");
 }
 
 // ---------------------------------------------------------------------------
@@ -430,12 +519,15 @@ static uchar TtxDecode_ReverseBitOrder( uchar b )
 static void TtxDecode_GetP830Cni( const uchar * data )
 {
    uchar pdcbuf[10];
-   schar dc;
-   uint mday, month, hour, minute;
-   uint cni, pil;
+   schar dc, c1;
+   uint  mday, month, hour, minute;
+   uint  cni, pil;
+   uint  idx;
 
    if ( UnHam84Nibble(data, &dc) )
    {
+      dc >>= 1;
+
       if (dc == 0)
       {  // this is a packet 8/30/1
          cni = ((uint)TtxDecode_ReverseBitOrder(data[7]) << 8) |
@@ -445,27 +537,43 @@ static void TtxDecode_GetP830Cni( const uchar * data )
             cni = CniConvertP8301ToVps(cni);
             TtxDecode_AddCni(CNI_TYPE_NI, cni, INVALID_VPS_PIL);
          }
+         TtxDecode_AddText(CNI_TYPE_NI, data + 20);
       }
-      else if (dc == 4)
+      else if (dc == 1)
       {  // this is a packet 8/30/2 (PDC)
-         memcpy(pdcbuf, data + 9, 9);
-         if (UnHam84Array(pdcbuf, 9))
+         for (idx=0; idx < 9; idx++)
          {
-            cni = (data[0] << 12) | ((data[6] & 3) << 10) | ((data[7] & 0xc) << 6) |
-                  ((data[1] & 0xc) << 4) | ((data[7] & 0x3) << 4) | (data[8] & 0xf);
+            if ((c1 = (schar) unhamtab[data[9 + idx]]) >= 0)
+            {  // CNI and PIL are transmitted MSB first -> must reverse bit order of all nibbles
+               pdcbuf[idx] = reverse4Bits[(uint) c1];
+            }
+            else  // decoding error -> abort
+               break;
+         }
+
+         if (idx >= 9)
+         {  // no hamming decoding errors
+            // decode CNI and PIL as specified in ETS 231, chapter 8.2.1
+
+            cni = (pdcbuf[0] << 12) | ((pdcbuf[6] & 0x3) << 10) | ((pdcbuf[7] & 0xc) << 6) |
+                  ((pdcbuf[1] & 0xc) << 4) | ((pdcbuf[7] & 0x3) << 4) | (pdcbuf[8] & 0xf);
+
             if ((cni != 0) && (cni != 0xffff))
             {
-               mday   = (data[1] >> 2) | ((data[2] & 7) << 3);
-               month  = (data[2] >> 3) | ((data[3] & 7) << 1);
-               hour   = (data[3] >> 3) | data[4];
-               minute = data[5] | (data[6] & 3);
+               mday   = ((pdcbuf[1] & 0x3) << 3) | ((pdcbuf[2] & 0xe) >> 1);
+               month  = ((pdcbuf[2] & 0x1) << 3) | ((pdcbuf[3] & 0xe) >> 1);
+               hour   = ((pdcbuf[3] & 0x1) << 4) | pdcbuf[4];
+               minute = (pdcbuf[5] << 2) | ((pdcbuf[6] & 0xc) >> 2);
 
                cni = CniConvertPdcToVps(cni);
                pil = TtxDecode_AssemblePil(mday, month, hour, minute);
                TtxDecode_AddCni(CNI_TYPE_PDC, cni, pil);
             }
          }
+         TtxDecode_AddText(CNI_TYPE_PDC, data + 20);
       }
+      else
+         debug1("TtxDecode-GetP830Cni: unknown DC %d - discarding packet", dc);
    }
 }
 

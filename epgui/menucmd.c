@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: menucmd.c,v 1.78 2002/05/20 18:52:02 tom Exp tom $
+ *  $Id: menucmd.c,v 1.79 2002/05/30 14:09:43 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -105,16 +105,6 @@ static int MenuCmd_SetControlMenuStates(ClientData ttp, Tcl_Interp *interp, int 
       // enable "acq timescales" only if acq running on different db than ui
       sprintf(comm, ".menubar.ctrl entryconfigure \"View acq timescales...\" -state %s\n",
                     ((acqState.dbCni != 0) ? "normal" : "disabled"));
-      eval_check(interp, comm);
-
-      // enable "db stats" only if UI db has AI block
-      sprintf(comm, ".menubar.ctrl entryconfigure \"View statistics...\" -state %s\n",
-                    ((uiCni != 0) ? "normal" : "disabled"));
-      eval_check(interp, comm);
-
-      // enable "acq stats" only if acq running
-      sprintf(comm, ".menubar.ctrl entryconfigure \"View acq statistics...\" -state %s\n",
-                    ((pAcqDbContext != 0) ? "normal" : "disabled"));
       eval_check(interp, comm);
 
       // check button of "Enable Acq" if acq is running
@@ -1841,13 +1831,13 @@ static uint GetProvFreqTab( uint ** ppFreqTab, uint ** ppCniTab )
 // ----------------------------------------------------------------------------
 // Append a line to the EPG scan messages
 //
-static void MenuCmd_AddEpgScanMsg( const char * pMsg )
+static void MenuCmd_AddEpgScanMsg( const char * pMsg, bool bold )
 {
-   if (Tcl_VarEval(interp, ".epgscan.all.fmsg.msg insert end {", pMsg, "\n}\n"
-                           ".epgscan.all.fmsg.msg see {end linestart - 2 lines}\n",
+   if (Tcl_VarEval(interp, ".epgscan.all.fmsg.msg insert end {", pMsg, "\n}", (bold ? " bold" : ""),
+                           "\n.epgscan.all.fmsg.msg see {end linestart - 2 lines}\n",
                            NULL
                   ) != TCL_OK)
-      debug0("MenuCmd_AddEpgScanMsg: Tcl/Tk cmd failed");
+      debug0("MenuCmd-AddEpgScanMsg: Tcl/Tk cmd failed");
 }
 
 // ----------------------------------------------------------------------------

@@ -21,7 +21,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: epgui.tcl,v 1.163 2002/05/20 18:51:51 tom Exp tom $
+#  $Id: epgui.tcl,v 1.164 2002/05/30 14:08:49 tom Exp tom $
 #
 
 set is_unix [expr [string compare $tcl_platform(platform) "unix"] == 0]
@@ -98,6 +98,7 @@ proc CreateMainWindow {} {
                                -insertofftime 0
    bindtags  .all.pi.list.text {.all.pi.list.text . all}
    bind      .all.pi.list.text <Button-1> {SelectPi %x %y}
+   bind      .all.pi.list.text <ButtonRelease-1> {SelectPiRelease}
    bind      .all.pi.list.text <Double-Button-1> {C_PopupPi %x %y}
    bind      .all.pi.list.text <Button-3> {CreateContextMenu %x %y}
    bind      .all.pi.list.text <Button-4> {C_PiListBox_Scroll scroll -5 units}
@@ -1174,6 +1175,7 @@ proc GetSelectedItem {xcoo ycoo} {
 ##  Callback for selection of a program item
 ##
 proc SelectPi {xcoo ycoo} {
+
    # first unpost the context menu
    global dynmenu_posted
    if {[info exists dynmenu_posted(.contextmenu)] && ($dynmenu_posted(.contextmenu) > 0)} {
@@ -1185,16 +1187,94 @@ proc SelectPi {xcoo ycoo} {
 
    # binding for motion event to follow the mouse with the selection
    bind .all.pi.list.text <Motion> {SelectPiMotion %s %x %y}
+   UpdatePiMotionScrollTimer 0
 }
 
-# callback for Motion event in the PI listbox while the first button is pressed
+##  ---------------------------------------------------------------------------
+##  Callback for Motion event in the PI listbox while mouse button #1 is pressed
+##  - this callback is only installed while the left mouse button is pressed
+##  - follow the mouse with the cursor, i.e. select the line under the cursor
+##
 proc SelectPiMotion {state xcoo ycoo} {
    if {$state & 0x100} {
-      # mouse position has changed -> check if new item is selected
-      C_PiListBox_SelectItem [GetSelectedItem $xcoo $ycoo]
+      # mouse position has changed -> get the index of the selected text line
+      scan [.all.pi.list.text index "@$xcoo,$ycoo"] "%d.%d" line_idx char
+      # move the cursor onto the selected line
+      C_PiListBox_SelectItem [expr $line_idx - 1]
+
+      # check if the cursor is outside the window (or below the last line of a partially filled window)
+      # get coordinates of the selected line: x, y, width, height, baseline
+      set tmp [.all.pi.list.text dlineinfo "@$xcoo,$ycoo"]
+      set line_h  [lindex $tmp 3]
+      set line_y1 [lindex $tmp 1]
+      set line_y2 [expr $line_y1 + $line_h]
+
+      if {$ycoo < $line_y1 - $line_h} {
+         # mouse pointer is above the line: calculate how far away in units of line height (negative)
+         set step_size [expr ($ycoo - $line_y1) / $line_h]
+         if {$step_size < -5} {set step_size -5}
+      } elseif {$ycoo > $line_y2 + $line_h} {
+         # mouse pointer is below the line
+         set step_size [expr ($ycoo - $line_y2) / $line_h]
+         if {$step_size > 5} {set step_size 5}
+      } else {
+         # mouse inside the line boundaries (or less then a line height outside)
+         # -> remove autoscroll timer
+         set step_size 0
+      }
+      UpdatePiMotionScrollTimer $step_size
+   }
+}
+
+# callback for button release -> remove the motion binding
+proc SelectPiRelease {} {
+
+   bind .all.pi.list.text <Motion> {}
+
+   # remove autoscroll timer
+   UpdatePiMotionScrollTimer 0
+}
+
+set pilist_autoscroll_step 0
+
+# called after mouse movements: update scrolling speed or remove timer event
+proc UpdatePiMotionScrollTimer {step_size} {
+   global pilist_autoscroll_step pilist_autoscroll_id
+
+   if {$pilist_autoscroll_step != $step_size} {
+
+      set pilist_autoscroll_step $step_size
+
+      # remove previous autoscroll timer
+      if {[info exists pilist_autoscroll_id]} {
+         after cancel $pilist_autoscroll_id
+         unset pilist_autoscroll_id
+      }
+
+      # install timer & execute motion for the 1st time
+      PiMotionScrollTimer
+   }
+}
+
+# timer event: auto-scroll main window by one line
+proc PiMotionScrollTimer {} {
+   global pilist_autoscroll_step pilist_autoscroll_id
+
+   # calculate scrolling speed = delay between line scrolling
+   set ms [expr 600 - abs($pilist_autoscroll_step) * 100]
+
+   if {$pilist_autoscroll_step < 0} {
+      C_PiListBox_CursorUp
+
+      set pilist_autoscroll_id [after $ms PiMotionScrollTimer]
+   } elseif {$pilist_autoscroll_step > 0} {
+      C_PiListBox_CursorDown
+
+      set pilist_autoscroll_id [after $ms PiMotionScrollTimer]
    } else {
-      # button no longer pressed -> remove the motion binding
-      bind .all.pi.list.text <Motion> {}
+      if {[info exists pilist_autoscroll_id]} {
+         unset pilist_autoscroll_id
+      }
    }
 }
 
@@ -2684,7 +2764,7 @@ set epgscan_opt_refresh 0
 set epgscan_opt_xawtv 1
 
 proc PopupEpgScan {} {
-   global hwcfg hwcfg_default is_unix env
+   global hwcfg hwcfg_default is_unix env font_bold
    global prov_freqs
    global tvapp_name
    global epgscan_popup
@@ -2732,6 +2812,7 @@ proc PopupEpgScan {} {
       frame .epgscan.all.fmsg
       text .epgscan.all.fmsg.msg -width 60 -height 20 -yscrollcommand {.epgscan.all.fmsg.sb set} -wrap none
       pack .epgscan.all.fmsg.msg -side left -expand 1 -fill both
+      .epgscan.all.fmsg.msg tag configure bold -font $font_bold
       scrollbar .epgscan.all.fmsg.sb -orient vertical -command {.epgscan.all.fmsg.msg yview}
       pack .epgscan.all.fmsg.sb -side left -fill y
       pack .epgscan.all.fmsg -side top -padx 10 -fill both -expand 1
@@ -5307,6 +5388,8 @@ proc PopupNetAcqConfig {} {
 
       bind .netacqcf.cmd <Destroy> {+ set netacqcf_popup 0}
 
+      NetAcqChangeView
+
       wm resizable .netacqcf 1 0
       update
       wm minsize .netacqcf [winfo reqwidth .netacqcf] [winfo reqheight .netacqcf]
@@ -5366,6 +5449,7 @@ proc NetAcqConfigQuit {do_save} {
 
 # callback for "View" radio buttons
 proc NetAcqChangeView {} {
+   global is_unix tcl_platform
    global netacqcf_view
 
    set view_dst [list \
@@ -5398,7 +5482,14 @@ proc NetAcqChangeView {} {
       set mask 3
    }
 
+   set enable_syslog [expr $is_unix || ([string compare $tcl_platform(os) "Windows 95"] != 0)]
+
    foreach {widg val} $view_dst {
+      # disable syslog settings on platforms that don't support it
+      if {!$enable_syslog && [string match "*syslev*" $widg]} {
+         set val 0
+      }
+
       if {$val & $mask} {
          $widg configure -state normal
       } else {

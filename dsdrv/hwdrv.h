@@ -15,7 +15,7 @@
 //  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 //  GNU General Public License for more details
 /////////////////////////////////////////////////////////////////////////////
-// nxtvepg $Id: hwdrv.h,v 1.3 2002/05/10 00:16:50 tom Exp tom $
+// nxtvepg $Id: hwdrv.h,v 1.4 2002/05/30 13:56:22 tom Exp tom $
 /////////////////////////////////////////////////////////////////////////////
 
 #ifndef __HARDWAREDRIVER_H___
@@ -28,7 +28,7 @@
 */
 
 BOOL HwDrv_UnInstallNTDriver( void );
-BOOL HwDrv_InstallNTDriver( void );
+DWORD HwDrv_InstallNTDriver( void );
 void HwDrv_Create( void );  // CHardwareDriver( void );
 void HwDrv_Destroy( void );  //~CHardwareDriver( void );
 
@@ -40,6 +40,7 @@ enum
    HWDRV_LOAD_START,
    HWDRV_LOAD_MISSING,
    HWDRV_LOAD_INSTALL,
+   HWDRV_LOAD_REMOTE_DRIVE,
    HWDRV_LOAD_CREATE,
    HWDRV_LOAD_VERSION
 };

@@ -8898,3 +8898,137 @@ CHANGES [rev:1.22, 2002-05-20T20:29:28]:
 TODO [rev:1.17, 2002-05-20T20:29:28]:
 - updated for release 0.7.2
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_7_2 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+epgvbi/ttxdecode.c [rev:1.48, 2002-05-27T20:02:26]:
+- bugfix PDC decoder:
+- TtxDecode_GetP830Cni() did not work at all!
+- designation code for PDC is 1<<1 (NOT 100b - transmitted LSB first)
+- CNI and PIL are transmitted MSB first (in contrary to all other P8/30/x data)
+    -> must reverse all bits
+    -> must invert all masks & shifts when assembling values
+dsdrv/hwdrv.c [rev:1.1.1.1, 2002-05-28T19:05:11]:
+- r1.12: Uninstall the driver if the driver location in the registry is incorrect.
+- r1.11: Corrected detection of network drives.
+         Use short file name for driver passed to CreateService().
+- r1.10: Implemented debug log level 0 (for critical errors).
+- r1.9:  Show an error message if driver installation from a network drive is attempted.
+epgvbi/hamming.h [rev:1.8, 2002-05-28T20:02:09]:
+- Added table to reverse order of bits in one "nibble"
+- const uchar reverse4Bits[16]
+epgvbi/cni_tables.c [rev:1.16, 2002-05-28T20:02:16]:
+- corrected NI codes for Phoenix & HR3
+- CniConvertPdcToVps(): Allow for PDC codes with 0xF in the high nibble
+- added date when Pro7 deceased (Apr/14/2002)
+dsdrv/hwdrv.c [rev:1.4, 2002-05-30T13:55:44]:
+- merged in changes from original dsdrv: version 1.1.1.1
+- HwDrv_InstallNTDriver:
+- new error message HWDRV_LOAD_REMOTE_DRIVE
+- convert driver path to short path name
+dsdrv/hwdrv.h [rev:1.4, 2002-05-30T13:56:22]:
+- merged in changes from original dsdrv: version 1.1.1.1
+- added new error result HWDRV_LOAD_REMOTE_DRIVE for HwDrv_InstallNTDriver()
+README [rev:1.26, 2002-05-30T13:56:38]:
+- WIN32 installation:
+- added message for new dsdrv error result code HWDRV_LOAD_REMOTE_DRIVE
+nxtvepg.pod [rev:1.68, 2002-05-30T13:56:57]:
+- Client/Server config dialog:
+- added note that syslog is not supported on Windows 95
+epgvbi/btdrv4win.c [rev:1.23, 2002-05-30T13:57:22]:
+- added message for new dsdrv error result code HWDRV_LOAD_REMOTE_DRIVE
+epgvbi/btdrv.h [rev:1.22, 2002-05-30T13:57:36]:
+- struct CNI_ACQ_STATE: added status display text state
+- currently only used for PDC and P8/30/1
+epgvbi/ttxdecode.c [rev:1.49, 2002-05-30T13:57:45]:
+- Implemented status display text decoding in PDC and P8/30/1
+- new func TtxDecode_AddText(): used in VPS and PDC decoders
+- additional return value ptr in TtxDecode_GetScanResults()
+epgvbi/ttxdecode.h [rev:1.26, 2002-05-30T13:57:51]:
+- Implemented status display text decoding in PDC and P8/30/1
+- additional return value ptr in TtxDecode_GetScanResults()
+epgvbi/winshm.h [rev:1.7, 2002-05-30T13:58:01]:
+- set SHM compat version to 2.1.1 due to changes in VBI buffer
+epgdb/epgnetio.c [rev:1.30, 2002-05-30T14:00:01]:
+- Added startup/shutdown functions
+- functionality moved here from one level up, i.e. epgctl/
+- EpgNetIo_Init(): UNIX: set up signal mask; WIN32: init winsock DLL
+- EpgNetIo_Destroy(): WIN32: shut down DLL
+epgdb/epgnetio.h [rev:1.18, 2002-05-30T14:00:13]:
+- added decls for new funcs EpgNetIo_Init() and EpgNetIo_Destroy()
+epgctl/epgscan.c [rev:1.27, 2002-05-30T14:01:13]:
+- added param bool bold to message callback function
+    TRUE for important messages
+- use new type EPGSCAN_MSGCB for message callback function
+- use P8/30/1 and /2 status display text when no CNI is available
+    new return param in TtxDecode_GetScanResults()
+epgctl/epgscan.h [rev:1.11, 2002-05-30T14:01:28]:
+- added new type EPGSCAN_MSGCB for message callback function
+- EpgScan_Start(): use new type EPGSCAN_MSGCB for message callback function
+epgctl/epgacqclnt.c [rev:1.8, 2002-05-30T14:03:47]:
+- EpgAcqClient_Init(): moved initialization into epgdb/epgnetio.h
+- use new functions EpgNetIo_Init(), EpgNetIo_Destroy()
+    WIN32: DLL shutdown was missing before
+- same funcs now used by client and server
+- removed signal.h includes
+epgctl/epgacqsrv.c [rev:1.10, 2002-05-30T14:07:02]:
+- EpgAcqServer_Init(): moved initialization into epgdb/epgnetio.h
+- use new functions EpgNetIo_Init(), EpgNetIo_Destroy()
+- same funcs now used by client and server
+- removed signal.h includes
+epgui/statswin.c [rev:1.60, 2002-05-30T14:08:23]:
+- database statistics windows can be opened even if db is empty or context NULL
+- i.e. acq stats window can be opened before acq enabled
+- StatsWin_UpdateDbStatsWin(): removed pre-condition dbc == NULL
+- added handling of missing AI block and acq state DISABLED
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.164, 2002-05-30T14:08:49]:
+- main window can be scrolled by dragging the mouse outside the window
+    + proc SelectPiMotion: check if mouse is outside of the main window
+    + added new procs UpdatePiMotionScrollTimer, PiMotionScrollTimer
+    + added new main window binding ButtonRelease-1: new proc SelectPiRelease
+- proc PopupEpgScan: added tag named "bold" for message output text
+- proc NetAcqChangeView: disabled syslog settings on Windows 95
+epgui/epgmain.c [rev:1.89, 2002-05-30T14:08:57]:
+- improved daemon start failure msg:
+- "check *syslog or* daemon log file
+epgui/menucmd.c [rev:1.79, 2002-05-30T14:09:43]:
+- database statistics windows can be opened even if db is empty or context NULL
+- i.e. acq stats window can be opened before acq enabled
+- MenuCmd_SetControlMenuStates(): removed state setting for
+    "View [acq] statistics" menu entries
+- important EPG scan messages marked by bold font
+- additional param "bool bold" to MenuCmd_AddEpgScanMsg()
+- add tag "bold" during insertions into text widget
+- note: func decl must match new type EPGSCAN_MSGCB in epgscan.h
+tvsim/tvsim_version.h [rev:1.2, 2002-05-30T14:11:12]:
+- changed version from 1.8 to 1.9 due to change of SHM compat version
+tvsim/vbirec.pod [rev:1.4, 2002-05-30T14:11:23]:
+- added description of PDC and P8/30/1 status display text output
+- added hints in which countries which CNI format is used
+tvsim/vbirec_main.c [rev:1.10, 2002-05-30T14:11:33]:
+- implemented status display text decoding in PDC and P8/30/1
+- only update CNI/PIL output when haveCni/havePil flags are set;
+    this prohibits flashing for less frequently updated valued, e.g. P8/30/1
+epgctl/epgversion.h [rev:1.22, 2002-05-30T14:47:46]:
+- set to version 0.7.3 aka 2.1.1
+CHANGES [rev:1.23, 2002-05-31T19:38:29]:
+- updated for release 0.7.3
+TODO [rev:1.18, 2002-05-31T19:38:29]:
+- updated for release 0.7.3
+nxtvepg.spec [rev:1.5, 2002-05-31T19:38:57]:
+- set version to 0.7.3
+www/changelog.html [rev:1.31, 2002-05-31T19:41:26]:
+- Updated for release 0.7.3
+www/index-de.html [rev:1.29, 2002-05-31T19:43:40]:
+- Updated for release 0.7.3
+- added note that winsock2 is required for Windows 95
+- replaced real name with Th. in Copyright message (avoid google)
+www/index.html [rev:1.40, 2002-05-31T19:43:40]:
+- Updated for release 0.7.3
+- added note that winsock2 is required for Windows 95
+- replaced real name with Th. in Copyright message (avoid google)
+www/man.html [rev:1.16, 2002-05-31T19:44:13]:
+- updated for release 0.7.3
+www/nefkom-src-index.html [rev:1.5, 2002-05-31T19:44:37]:
+- removed 1.14-win to free disk space
+- added new release 0.7.3 and 2.1.1-win, 2.1.1-tvsim
+www/tripod-src-index.html [rev:1.6, 2002-05-31T19:45:41]:
+- added new release 0.7.3 and 2.1.1-win, 2.1.1-tvsim
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_7_3 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

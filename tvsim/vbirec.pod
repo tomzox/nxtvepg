@@ -24,7 +24,7 @@
 #
 #  Author: Tom Zoerner
 #
-# $Id: vbirec.pod,v 1.3 2002/05/20 15:55:01 tom Exp tom $
+# $Id: vbirec.pod,v 1.4 2002/05/30 14:11:23 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME
@@ -82,15 +82,22 @@ since the last channel change.
 =item B<VPS CNI and PIL>
 
 The last received and confirmed VPS network and program identifiers.
+VPS is only used by German, Austrian and Swiss networks.
 
 =item B<PDC CNI and PIL>
 
 The last received and confirmed PDC (teletext packet 8/30/2) network
-and program identifiers.
+and program identifiers.  If the network transmits only a network
+identifier value of zero, but does include a status display text
+(which usually contains channel name and sometimes also the title
+of the current programme) it's displayed here instead.
+VPS is mainly used by British and French networks.
 
 =item B<Packet 8/30/1>
 
-The last received and confirmed packet 8/30/2 network identifiers.
+The last received and confirmed packet 8/30/1 network identifier.
+If the network transmits only a network identifier value of zero
+but does include a status display text it's displayed here instead.
 
 =item B<EPG teletext page no>
 

@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: cni_tables.c,v 1.15 2002/05/12 20:20:31 tom Exp tom $
+ *  $Id: cni_tables.c,v 1.16 2002/05/28 20:02:16 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -198,14 +198,14 @@ static const CNI_PDC_DESC cni_pdc_desc_table[] =
    {0x1DC1, 0x4901, "ARD: Erstes Deutsches Fernsehen"},
    {0x1DC2, 0x4902, "ZDF: Zweites Deutsches Fernsehen"},
    {0x1DC7, 0x49C7, "3sat (ARD/ZDF/ORF/SRG common programme)"},
-   {0x1DC8, 0x4908, "Phoenix: Ereignis und Dokumentationskanal (ARD/ZDF)"},
+   {0x1DC8, 0x4918, "Phoenix: Ereignis und Dokumentationskanal (ARD/ZDF)"},
    {0x1DC9, 0x49C9, "Kinderkanal (ARD/ZDF)"},
    {0x1DCA, 0x0000, "BR-1: Regionalprogramm"},
    {0x1DCB, 0x49CB, "BR-3: Bayerischer Rundfunk"},
    {0x1DCC, 0x0000, "BR-3: Süd"},
    {0x1DCD, 0x0000, "BR-3: Nord"},
    {0x1DCE, 0x0000, "HR-1: Regionalprogramm"},
-   {0x1DCF, 0x49FF, "HR-3: Hessischer Rundfunk"},
+   {0x1DCF, 0x4915, "HR-3: Hessischer Rundfunk"},
    {0x1DD0, 0x0000, "NDR-1: Landesprogramm dreiländerweit"},
    {0x1DD1, 0x0000, "NDR-1: Landesprogramm Hamburg"},
    {0x1DD2, 0x0000, "NDR-1: Landesprogramm Niedersachsen"},
@@ -654,8 +654,11 @@ uint CniConvertPdcToVps( uint cni )
    switch (cni >> 8)
    {
       case 0x1D:  // country code for Germany
+      case 0xFD:
       case 0x1A:  // country code for Autria
+      case 0xFA:
       case 0x24:  // country code for Switzerland
+      case 0xF4:
          // discard the upper 4 bits of the country code
          cni &= 0x0fff;
          break;
@@ -675,7 +678,7 @@ static const uint cni_prov_table[] =
    0x1D8F,
    0x0D92,  // Kabel1 (Germany)
    0x1D92,
-   //0x0D94,  // PRO7 (Germany)
+   //0x0D94,  // PRO7 (Germany) - deceased Apr/14/2002
    //0x1D94,
    0x0DC7,  // 3SAT (Germany)
    0x1DC7,
