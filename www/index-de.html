@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="de">
-<!-- $Id: index-de.html,v 1.9 2001/04/21 14:38:59 tom Exp $ -->
+<!-- $Id: index-de.html,v 1.13 2001/06/05 20:46:39 tom Exp $ -->
 <HEAD>
 <TITLE>nexTView EPG Dekoder Software Download</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
@@ -33,6 +33,7 @@
 <A HREF="screenshot-linux.gif">Bild 1</A><BR>
 <A HREF="screenshot-win.gif">Bild 2</A><BR>
 <A HREF="screenshot-series.gif">Bild 3</A><BR>
+<A HREF="screenshot-xawtv.jpg">Bild 4</A> <FONT COLOR="red">(Neu!)</FONT><BR>
 
 <P class="navhead"><A HREF="#download"><B>Download</B></A><BR>
 <P class="navsect">
@@ -44,6 +45,10 @@
 
 <P class="navhead"><B>News</B>
 <P class="navsect">
+5.6.2001: release 0.5.1</P>
+<HR width=70%><P class="navsect">
+Mai 2001: <A HREF="provnets.html">TRT: neuer Nextview EPG Anbieter</A></P>
+<HR width=70%><P class="navsect">
 21.4.2001: release 0.5.0</P>
 <HR width=70%><P class="navsect">
 1.4.2001: bugfix release 0.4.5</P>
@@ -90,6 +95,7 @@ Momentan wird nexTView auf den folgenden Sendern ausgestrahlt:
 <LI>in Frankreich: Canal+, M6, TV5.
 </DL>
 <P>
+Nährere Details finden sich in der <A HREF="provnets.html">Anbietertabelle</A>.
 Sollten Sie keinen der genannten Sender empfangen, können Sie mit dieser
 Software mit Ausnahme des Demo-Modus leider nichts anfangen. Mehr Infos dazu
 und zu allen weiteren Sofware-Features in der
@@ -143,23 +149,26 @@ für die TV-Tuner-Karte beim Programmstart zu laden)
 <A NAME="download">
 <H2>Download</H2>
 </A>
-Die neueste Distribution 0.5.0 (Unix) bzw. 1.6-win (Windows) wurde am 21.4.2001
-veröffentlicht. Sie beinhaltet eine Reiher neuer Features in der Benutzeroberfläche,
-wie z.B. die Möglichkeit die Fenstergröße frei einzustellen, Fernsteuerung der
-TV-Applikation <I>xawtv</I> (UNIX) und eine vereinfachte Bedienung der Filter
-Shortcuts. Ein Update von älteren Versionen wird wärmstens empfohlen.
-Eine Zusammenfassung aller bugfixes als auch der seit Version 0.4.5 hinzugekommenen
-Features befindet sich im <A HREF="changelog.html">Change-Log</A>. Falls mit der
+<P>
+Die neueste Distribution 0.5.1 (Unix) bzw. 1.7-win (Windows) vom 5. Juni 2001
+schließt den Kreis in der Anbindung an <I>xawtv</I> (UNIX TV Programm): Nun kann
+nicht nur das TV-Programm direkt aus der Programmübersicht heraus umgeschalten
+werden, sondern nxtvepg folgt auch Programmwechseln durch xawtv mit dem Cursor in
+der Übersicht. Der Titel der gerade laufenden Sendung wird außerdem in einem
+kleinen <A HREF="screenshot-xawtv.jpg">Popup unterhalb xawtv</A> eingeblendet.
+</P><P>
+Eine Zusammenfassung aller seit Version 0.5.0 hinzugekommenen Features und
+bugfixes befindet sich im <A HREF="changelog.html">Change-Log</A>. Falls mit der
 Software Probleme auftauchen, bitte melden. Ältere Distributionen befinden sich noch im
 <A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/">Source Verzeichnis</A>
-(US-Mirror: <A HREF="http://nxtvepg.tripod.com/src/">http://nxtvepg.tripod.com/src/</A>)
-
+(<A HREF="http://nxtvepg.tripod.com/src/">US Mirror</A>)
+</P>
 
 <A NAME="download_unix">
 <H3>Source Distribution</H3>
 </A>
 Download der aktuellen Source Distribution für Linux und NetBSD:
-<A HREF=http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-0.5.0.tar.gz>nxtvepg-0.5.0.tar.gz</A> (303 kB)
+<A HREF=http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-0.5.1.tar.gz>nxtvepg-0.5.1.tar.gz</A> (330 kB)
 <P>
 Die Software is auch als package verfügbar (jedoch nicht notwendigerweise
 immer die neueste Version):
@@ -169,7 +178,10 @@ und für NetBSD von <A HREF="ftp://ftp.netbsd.org/pub/NetBSD/packages/pkgsrc/misc
 <A NAME="download_windows">
 <H3>Binärdistribution für M$ Windows</H3>
 </A>
-<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-1.6-win.zip">nxtvepg-1.6-win.zip</A> (862 kB)
+Die Windows Version wurde auf einen neuen Compiler umgestellt (gcc-mingw32).
+Falls Probleme auftauchen, bitte melden.
+<P>
+<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-1.7-win.zip">nxtvepg-1.7-win.zip</A> (905 kB)
 <P>
 Bitte beachten daß ein weiterer Treiber benötigt wird, der nicht in diesem
 Paket enthalten ist und separat heruntergeladen werden muß. In manchen Fällen
@@ -191,7 +203,7 @@ Das Urheberrecht am Inhalt dieser Datenbank liegt bei Swiss Tele text,
 deshalb bitte nicht weiterverbreiten.
 
 <H2>Copyright</H2>
-&copy; Copyright 1999, 2000, 2001 Thorsten <I>"Tom"</I> Z&ouml;rner (und andere).
+&copy; Copyright 1999, 2000, 2001 Tom Z&ouml;rner (und andere).
 Alle Rechte vorbehalten.
 <P>
 Der Autor dieser Software ist kein Mitglied der

@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: menucmd.c,v 1.44 2001/04/19 20:47:22 tom Exp tom $
+ *  $Id: menucmd.c,v 1.45 2001/05/06 17:45:34 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -52,6 +52,7 @@
 #include "epgui/statswin.h"
 #include "epgui/menucmd.h"
 #include "epgui/uictrl.h"
+#include "epgui/xawtv.h"
 #include "epgctl/epgctxctl.h"
 #include "epgvbi/vbidecode.h"
 #include "epgvbi/tvchan.h"
@@ -873,88 +874,6 @@ static int UpdateAcquisitionMode(ClientData ttp, Tcl_Interp *interp, int argc, c
 }
 
 // ----------------------------------------------------------------------------
-// Extract all channels from $HOME/.xawtv
-//
-#define CHAN_CLUSTER_SIZE  50
-static int XawtvGetFreqTab( ulong ** pFreqTab, uint * pCount )
-{
-   ulong *freqTab;
-   int freqCount, freqTabLen;
-   char * pHome, * pPath;
-   char line[256], tag[64], value[192];
-   ulong freq;
-   FILE * fp;
-   int result = TCL_ERROR;
-
-   pHome = getenv("HOME");
-   if (pHome != NULL)
-   {
-      pPath = xmalloc(strlen(pHome) + 7 + 1);
-      strcpy(pPath, pHome);
-      strcat(pPath, "/.xawtv");
-
-      fp = fopen(pPath, "r");
-      if (fp != NULL)
-      {
-         freqTabLen  = CHAN_CLUSTER_SIZE;
-         freqTab     = xmalloc(freqTabLen * sizeof(ulong));
-         freqCount   = 0;
-
-         // read all lines of the file (ignoring section structure)
-         while (fgets(line, 255, fp) != NULL)
-         {
-            // search for channel assignment lines, e.g. " channel = SE15"
-            if (sscanf(line," %63[^= ] = %191[^\n]", tag, value) == 2)
-            {
-               if (strcmp(tag, "channel") == 0)
-               {
-                  // convert channel name to frequency and append it to the list
-                  freq = TvChannels_NameToFreq(value);
-                  if (freq != 0)
-                  {
-                     if (freqCount == freqTabLen)
-                     {  // table is full -> allocate and copy
-                        ulong * oldFreqTab = freqTab;
-                        freqTab = xmalloc((freqTabLen + CHAN_CLUSTER_SIZE) * sizeof(ulong));
-                        memcpy(freqTab, oldFreqTab, freqTabLen * sizeof(ulong));
-                        freqTabLen += CHAN_CLUSTER_SIZE;
-                        xfree(oldFreqTab);
-                     }
-                     dprintf2("CHANNEL \"%s\" -> FREQ %f\n", value, (double)freq/16.0);
-                     freqTab[freqCount] = freq;
-                     freqCount += 1;
-                  }
-                  else
-                     debug1("Xawtv-GetFreqTab: parse error channel value \"%s\"", value);
-               }
-            }
-         }
-         fclose(fp);
-
-         if (freqCount == 0)
-         {  // no channel assignments found in the file -> warn the user and abort
-            sprintf(comm, "tk_messageBox -type ok -icon error -message {No channel assignments found in '%s'\nPlease disable option 'Use .xawtv'}\n", pPath);
-            eval_check(interp, comm);
-
-            xfree(pFreqTab);
-            pFreqTab = NULL;
-         }
-
-         *pFreqTab = freqTab;
-         *pCount = freqCount;
-         result = TCL_OK;
-      }
-      else
-      {
-         sprintf(comm, "tk_messageBox -type ok -icon error -message {Could not open file '%s'\nMake the file readable or disable option 'Use .xawtv'}\n", pPath);
-         eval_check(interp, comm);
-      }
-      xfree(pPath);
-   }
-   return result;
-}
-
-// ----------------------------------------------------------------------------
 // Fetch the list of provider frequencies from the global Tcl variable
 // - the list contains pairs of CNI and frequency
 //
@@ -1061,7 +980,7 @@ static int MenuCmd_StartEpgScan(ClientData ttp, Tcl_Interp *interp, int argc, ch
          #ifndef WIN32
          else if (isOptionXawtv)
          {
-            if ( (XawtvGetFreqTab(&freqTab, &freqCount) != TCL_OK) ||
+            if ( (Xawtv_GetFreqTab(&freqTab, &freqCount) != TCL_OK) ||
                  (freqTab == NULL) || (freqCount == 0) )
             {  // message-box with explanation was already displayed
                return TCL_OK;
@@ -1446,5 +1365,7 @@ void MenuCmd_Init( bool isDemoMode )
          eval_check(interp, comm);
       }
    }
+   else
+      debug0("MenuCmd-Init: commands were already created");
 }
 

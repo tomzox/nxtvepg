@@ -26,7 +26,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: vbidecode.c,v 1.26 2001/04/03 18:48:43 tom Exp tom $
+ *  $Id: vbidecode.c,v 1.27 2001/05/06 14:32:27 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -223,18 +223,11 @@ void VbiDecodeLine(const uchar * lbuf, int line, bool doVps)
             }
             if (j < 8)
                break;  // was error
-
          }
 
          if (i > 14)
          {
-            uint cni = ((data[13] & 0x3) << 10) | ((data[14] & 0xc0) << 2) |
-            ((data[11] & 0xc0)) | (data[14] & 0x3f);
-            if ((cni != 0) && ((cni & 0xfff) != 0xfff))
-            {
-               EpgDbAcqAddVpsCode(cni);
-            }
-            //printf("VPS line %d: CNI=0x%04x\n", line, cni);
+            EpgDbAcqAddVpsData(data);
          }
       }
       //else

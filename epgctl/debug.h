@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: debug.h,v 1.8 2001/02/25 16:03:08 tom Exp tom $
+ *  $Id: debug.h,v 1.9 2001/05/06 17:30:35 tom Exp tom $
  */
 
 #ifndef __DEBUG_H
@@ -52,6 +52,10 @@
 #define debug5(S,A,B,C,D,E)     {sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),__FILE__,__LINE__);DebugLogLine(FALSE);}
 #define debug6(S,A,B,C,D,E,F)   {sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),(F),__FILE__,__LINE__);DebugLogLine(FALSE);}
 #define debug7(S,A,B,C,D,E,F,G) {sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),(F),(G),__FILE__,__LINE__);DebugLogLine(FALSE);}
+#define debug8(S,A,B,C,D,E,F,G,H) {sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),(F),(G),(H),__FILE__,__LINE__);DebugLogLine(FALSE);}
+#define debug9(S,A,B,C,D,E,F,G,H,I) {sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),(F),(G),(H),(I),__FILE__,__LINE__);DebugLogLine(FALSE);}
+#define debug10(S,A,B,C,D,E,F,G,H,I,J) {sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),(F),(G),(H),(I),(J),__FILE__,__LINE__);DebugLogLine(FALSE);}
+#define debug11(S,A,B,C,D,E,F,G,H,I,J,K) {sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),(F),(G),(H),(I),(J),(K),__FILE__,__LINE__);DebugLogLine(FALSE);}
 #define ifdebug0(I,S)           if(I){sprintf(debugStr,S " in %s, line %d\n",__FILE__,__LINE__);DebugLogLine(FALSE);}
 #define ifdebug1(I,S,A)         if(I){sprintf(debugStr,S " in %s, line %d\n",(A),__FILE__,__LINE__);DebugLogLine(FALSE);}
 #define ifdebug2(I,S,A,B)       if(I){sprintf(debugStr,S " in %s, line %d\n",(A),(B),__FILE__,__LINE__);DebugLogLine(FALSE);}
@@ -70,6 +74,7 @@
 #define debug5(S,A,B,C,D,E)
 #define debug6(S,A,B,C,D,E,F)
 #define debug7(S,A,B,C,D,E,F,G)
+#define debug11(S,A,B,C,D,E,F,G,H,I,J,K)
 #define ifdebug0(I,S)
 #define ifdebug1(I,S,A)
 #define ifdebug2(I,S,A,B)

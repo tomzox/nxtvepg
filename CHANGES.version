@@ -1,4 +1,4 @@
-## $Id: CHANGES.version,v 1.5 2001/02/14 21:10:52 tom Exp $ ##
+## $Id: CHANGES.version,v 1.6 2001/05/19 15:16:15 tom Exp $ ##
 
 Steps to prepare new distribution:
 
@@ -8,7 +8,7 @@ update web pages:
 
 version no contained in:
 - epgctl/epgversion.h
-- nxtvepg.1x
+- nxtvepg.1
 
 RCS
 - check in all files, including TODO & CHANGES

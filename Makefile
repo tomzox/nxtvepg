@@ -24,7 +24,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile,v 1.24 2001/04/14 16:28:49 tom Exp tom $
+#  $Id: Makefile,v 1.31 2001/06/04 19:24:03 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -39,7 +39,7 @@ MANDIR  = $(IROOT)/man/man1
 # if you have perl set the path here, else just leave it alone
 PERL    = /usr/bin/perl
 
-LDLIBS  = -ltk8.3 -ltcl8.3 -L/usr/X11R6/lib -lX11 -lm -ldl
+LDLIBS  = -ltk8.3 -ltcl8.3 -L/usr/X11R6/lib -lX11 -lXmu -lm -ldl
 # use static libraries for debugging only
 #LDLIBS  = dbglib/libtk8.3.a dbglib/libtcl8.3.a -lX11 -lm -ldl -L/usr/X11R6/lib
 
@@ -51,37 +51,41 @@ INCS   += -I. -I/usr/X11R6/include
 DEFS   += -DTK_LIBRARY_PATH=\"/usr/lib/tk8.3\"
 DEFS   += -DTCL_LIBRARY_PATH=\"/usr/lib/tcl8.3\"
 
+# path to the directory where the provider database files are kept
+DEFS   += -DEPG_DB_DIR=\"/usr/tmp/nxtvdb\"
 
 #WARN    = -Wall -Wpointer-arith -Wnested-externs \
 #          -Werror -Wstrict-prototypes -Wmissing-prototypes
 WARN    = -Wall
 CC      = gcc
-CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -O
+CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -O2
 
 # ----- don't change anything below ------------------------------------------
 
-MODS    = epgvbi/vbidecode epgvbi/tvchan epgvbi/btdrv4linux epgvbi/hamming \
+CSRC    = epgvbi/vbidecode epgvbi/tvchan epgvbi/btdrv4linux epgvbi/hamming \
           epgctl/debug epgctl/epgacqctl epgctl/epgscan epgctl/epgctxctl \
           epgctl/epgctxmerge \
           epgdb/epgdbacq epgdb/epgstream epgdb/epgdbmerge epgdb/epgdbsav \
           epgdb/epgdbmgmt epgdb/epgdbif epgdb/epgdbfil epgdb/epgblock \
-          epgui/uictrl epgui/pilistbox epgui/pifilter epgui/epgui epgui/help \
-          epgui/statswin epgui/pdc_themes epgui/menucmd epgui/epgtxtdump \
-          epgui/epgmain
+          epgui/uictrl epgui/pilistbox epgui/pifilter epgui/statswin \
+          epgui/pdc_themes epgui/menucmd epgui/epgtxtdump epgui/epgmain \
+          epgui/xawtv
+CGEN    = epgui/epgui epgui/help
 
-SRCS    = $(addsuffix .c, $(MODS))
-OBJS    = $(addsuffix .o, $(MODS))
+SRCS    = $(addsuffix .c, $(CSRC)) $(addsuffix .c, $(CGEN))
+OBJS    = $(addsuffix .o, $(CSRC)) $(addsuffix .o, $(CGEN))
 
-all: nxtvepg
+all: nxtvepg nxtvepg.1
 
 nxtvepg: $(OBJS)
 	$(CC) $(CFLAGS) $(INCS) $(LDFLAGS) -o nxtvepg $(OBJS) $(LDLIBS)
 
-install: nxtvepg nxtvepg.1x
+install: nxtvepg nxtvepg.1
 	test -d $(BINDIR) || mkdirhier $(BINDIR)
 	test -d $(MANDIR) || mkdirhier $(MANDIR)
 	install -c -m 0755 nxtvepg     $(BINDIR)
-	install -c -m 0644 nxtvepg.1x  $(MANDIR)
+	install -c -m 0644 nxtvepg.1   $(MANDIR)
+	rm -f $(MANDIR)/nxtvepg.1x
 
 ##%.o: %.c
 ##	$(CC) $(CFLAGS) -c *.c -o *.o
@@ -95,22 +99,22 @@ epgui/epgui.c: epgui/epgui.tcl tcl2c
 epgui/help.c: epgui/help.tcl tcl2c
 	egrep -v '^ *#' epgui/help.tcl | ./tcl2c help_tcl_script > epgui/help.c
 
-nxtvepg.1x man.html epgui/help.tcl: nxtvepg.pod pod2help.pl
+nxtvepg.1 man.html epgui/help.tcl: nxtvepg.pod pod2help.pl
 	@if test -x $(PERL); then \
 	  EPG_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*EPG_VERSION_STR' epgctl/epgversion.h | head -1 | cut -d\" -f2`; \
 	  echo "./pod2help.pl nxtvepg.pod > epgui/help.tcl"; \
 	  ./pod2help.pl nxtvepg.pod > epgui/help.tcl; \
-	  echo "pod2man nxtvepg.pod > nxtvepg.1x"; \
-	  pod2man -date " " -center "Nextview EPG Decoder" -section "1x" \
+	  echo "pod2man nxtvepg.pod > nxtvepg.1"; \
+	  pod2man -date " " -center "Nextview EPG Decoder" -section "1" \
 	          -release "nxtvepg "$$EPG_VERSION_STR" (C) 1999-2001 Tom Zoerner" \
-	     nxtvepg.pod > nxtvepg.1x; \
+	     nxtvepg.pod > nxtvepg.1; \
 	  echo "pod2html nxtvepg.pod > man.html"; \
 	  pod2html nxtvepg.pod > man.html; \
 	  rm -f pod2html-{dircache,itemcache}; \
 	elif test -f epgui/help.tcl; then \
 	  touch epgui/help.tcl; \
 	else \
-	  echo "ERROR: cannot generate epgui/help.tcl or nxtvepg.1x without Perl"; \
+	  echo "ERROR: cannot generate epgui/help.tcl or nxtvepg.1 without Perl"; \
 	  false; \
 	fi
 
@@ -119,11 +123,16 @@ clean:
 	-rm -f epgui/epgui.c epgui/help.c
 
 depend:
-	-rm -f Makefile.dep
-	makedepend $(INCS) -f Makefile.dep $(SRCS)
+	-:>Makefile.dep
+	DIRLIST=`(for cmod in $(CSRC); do echo $$cmod; done) | cut -d/ -f1 | sort -u`; \
+	for dir in $$DIRLIST; do \
+	  CLIST=`(for src in $(addsuffix .c, $(CSRC)); do echo $$src; done) | grep $$dir/`; \
+	  gcc -MM $(INCS) $(DEFS) $$CLIST | \
+	  sed -e 's#^.*\.o#'$$dir/'&#g' >> Makefile.dep; \
+	done
 
 bak:
-	cd .. && tar cf pc.tar pc -X pc/tar-ex && gzip -f -9 pc.tar
+	cd .. && tar cf pc.tar pc -X pc/tar-ex && bzip2 -f -9 pc.tar
 	cd .. && tar cf /c/nxtvepg/pc.tar pc -X pc/tar-ex-win
 
 include Makefile.dep

@@ -36,7 +36,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgctxmerge.c,v 1.1 2001/04/04 18:34:25 tom Exp tom $
+ *  $Id: epgctxmerge.c,v 1.3 2001/05/19 14:32:06 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -60,6 +60,7 @@
 
 // internal shortcut
 typedef EPGDB_CONTEXT *PDBC;
+typedef const EPGDB_CONTEXT *CPDBC;
 
 
 // ---------------------------------------------------------------------------
@@ -156,7 +157,7 @@ bool EpgContextMergeGetCnis( const EPGDB_CONTEXT * dbc, uint * pCniCount, uint *
 // - Note: if there's more than one acq process this will get VERY inefficient
 //   particularily if one of the acq processes works on a db that's not merged
 //
-static bool EpgDbMergeOpenAcqContext( PDBC dbc, uint cni )
+static bool EpgDbMergeOpenAcqContext( CPDBC dbc, uint cni )
 {
    EPGDB_MERGE_CONTEXT * dbmc;
    uint dbIdx;
@@ -207,7 +208,7 @@ static bool EpgDbMergeOpenAcqContext( PDBC dbc, uint cni )
 // Insert a PI block into the merged db
 // - called after the block was inserted to its provider's database
 // 
-void EpgContextMergeInsertPi( PDBC pAcqContext, EPGDB_BLOCK * pNewBlock )
+void EpgContextMergeInsertPi( CPDBC pAcqContext, EPGDB_BLOCK * pNewBlock )
 {
    if (EpgDbMergeOpenAcqContext(pAcqContext, AI_GET_CNI(&pAcqContext->pAiBlock->blk.ai)))
    {
@@ -218,12 +219,20 @@ void EpgContextMergeInsertPi( PDBC pAcqContext, EPGDB_BLOCK * pNewBlock )
 }
 
 // ---------------------------------------------------------------------------
+// Remove blocks that fall outside the valid AI range
+//
+void EpgContextMergeAiCheckBlockRange( CPDBC pAcqContext )
+{
+   // XXX TODO
+}
+
+// ---------------------------------------------------------------------------
 // Update AI block when an AI in one of the dbs has changed
 // - Only called after change of version number in one of the blocks.
 //   More frequent updates are not required because changes of blockno range
 //   are not of any interest for the merged database.
 //
-void EpgContextMergeAiUpdate( PDBC pAcqContext, EPGDB_BLOCK * pAiBlock )
+void EpgContextMergeAiUpdate( CPDBC pAcqContext, EPGDB_BLOCK * pAiBlock )
 {
    AI_BLOCK *pAi;
    uchar old_version, old_version_swo;

@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbacq.h,v 1.12 2001/02/25 16:00:45 tom Exp tom $
+ *  $Id: epgdbacq.h,v 1.13 2001/05/06 17:26:37 tom Exp tom $
  */
 
 #ifndef __EPGDBACQ_H
@@ -31,6 +31,20 @@
 #define EPG_ILLEGAL_PAGENO  0
 #define VALID_EPG_PAGENO(X) ((((X)>>8)<8) && ((((X)&0xF0)>=0xA0) || (((X)&0x0F)>=0x0A)))
 
+// ---------------------------------------------------------------------------
+// VPS system codes, as defined in "VPS Richtlinie 8R2" from August 1995
+//
+// system code -> this network does not support PIL labeling (may be temporary)
+#define VPS_PIL_CODE_SYSTEM ((0 << 15) | (15 << 11) | (31 << 6) | 63)
+// empty code -> the current broadcast is just a filler and not worth recording
+#define VPS_PIL_CODE_EMPTY  ((0 << 15) | (15 << 11) | (30 << 6) | 63)
+// pause code -> the previous transmission is paused and will be continued later
+#define VPS_PIL_CODE_PAUSE  ((0 << 15) | (15 << 11) | (29 << 6) | 63)
+// macro to check if the PIL is not a control code
+#define VPS_PIL_IS_VALID(PIL) ((((PIL) >> 6) & 0x1f) < 24)
+
+#define INVALID_VPS_PIL     VPS_PIL_CODE_SYSTEM
+
 
 // ---------------------------------------------------------------------------
 // Declaration of the service interface functions
@@ -42,17 +56,19 @@ void EpgDbAcqStart( EPGDB_CONTEXT *dbc, uint pageNo, uint appId );
 void EpgDbAcqStop( void );
 void EpgDbAcqReset( EPGDB_CONTEXT *dbc, uint pageNo, uint appId );
 void EpgDbAcqInitScan( void );
+void EpgDbAcqNotifyChannelChange( void );
 void EpgDbAcqGetScanResults( uint *pCni, bool *pNiWait, uint *pDataPageCnt );
 uint EpgDbAcqGetMipPageNo( void );
 void EpgDbAcqGetStatistics( ulong *pTtxPkgCount, ulong *pEpgPkgCount, ulong *pEpgPagCount );
-void EpgDbAcqEnableVpsPdc( bool enable );
+void EpgDbAcqResetVpsPdc( void );
+bool EpgDbAcqGetCniAndPil( uint * pCni, uint *pPil );
 
 // interface to the teletext packet decoder
 bool EpgDbAcqAddPacket( uint pageNo, uint sub, uchar pkgno, const uchar * data );
-void EpgDbAcqAddVpsCode( uint cni );
+void EpgDbAcqAddVpsData( const char * data );
 void EpgDbAcqLostFrame( void );
 
-// interface to the main event control - should be called every 40 ms in average
+// interface to the main event control - should be called every 1-2 secs in average
 void EpgDbAcqProcessPackets( EPGDB_CONTEXT * const * pdbc );
 bool EpgDbAcqCheckForPackets( void );
 

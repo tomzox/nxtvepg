@@ -15,13 +15,13 @@
  *  Description:
  *
  *    Implements a database with all types of Nextview structures
- *    sorted by start time or block number respectively. This module
+ *    sorted by block number, start time and/or network. This module
  *    contains only functions that modify the database; queries are
  *    implemented in the epgdbif.c module.
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbmgmt.c,v 1.29 2001/04/04 18:25:04 tom Exp tom $
+ *  $Id: epgdbmgmt.c,v 1.33 2001/05/19 14:27:15 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -47,7 +47,6 @@ typedef const EPGDB_CONTEXT *CPDBC;
 
 static void EpgDbCheckDefectPiBlocknos( PDBC dbc );
 static void EpgDbRemoveAllDefectPi( PDBC dbc, uchar version );
-static bool EpgDbAddDefectPi( EPGDB_CONTEXT * dbc, EPGDB_BLOCK *pBlock );
 
 // ---------------------------------------------------------------------------
 // Create and initialize a database context
@@ -121,77 +120,6 @@ void EpgDbDestroy( PDBC dbc )
 }
 
 // ---------------------------------------------------------------------------
-// Remove expired PI blocks from the database
-//  - should be called exery minute, or SearchFirst will not work,
-//    i.e. return expired PI blocks
-//
-bool EpgDbExpire( PDBC dbc )
-{
-   EPGDB_BLOCK *pPrev, *pBlock, *pNext;
-   time_t now;
-   bool expired = FALSE;
-
-   if ( dbc->lockLevel == 0 )
-   {
-      now = time(NULL);
-      pBlock = dbc->pFirstPi;
-      // Schleife ueber alle NOW Bloecke
-      while ( (pBlock != NULL) && (pBlock->blk.pi.start_time < now) )
-      {
-         if (pBlock->blk.pi.stop_time <= now)
-         {  // Sendung abgelaufen -> aus allen 3 Ketten aushaengen
-
-            dprintf4("EXPIRED pi ptr=%lx: netwop=%d, blockno=%d start=%ld\n", (ulong)pBlock, pBlock->blk.pi.netwop_no, pBlock->blk.pi.block_no, pBlock->blk.pi.start_time);
-            expired = TRUE;
-
-            // GUI benachrichtigen
-            PiListBox_DbRemoved(dbc, &pBlock->blk.pi);
-
-            // Aus Verkettung nach Startzeit aushaengen
-            pPrev = pBlock->pPrevBlock;
-            pNext = pBlock->pNextBlock;
-            if (pPrev != NULL)
-               pPrev->pNextBlock = pNext;
-            else
-               dbc->pFirstPi = pNext;
-
-            if (pNext != NULL)
-               pNext->pPrevBlock = pPrev;
-            else
-               dbc->pLastPi = pPrev;
-
-            // Aus Verkettung nach (Startzeit und) NetwopNo aushaengen
-            // es kann keine Bloecke desselben Netwops vor dem zu loeschenden
-            // geben, da nach Startzeit sortiert und Ueberlappungen verhindert,
-            // fuer alle n: startzeit[n] >= stopzeit[n-1]
-            assert(dbc->pFirstNetwopPi[pBlock->blk.pi.netwop_no] == pBlock);
-            dbc->pFirstNetwopPi[pBlock->blk.pi.netwop_no] = pBlock->pNextNetwopBlock;
-            if (pBlock->pNextNetwopBlock != NULL)
-               pBlock->pNextNetwopBlock->pPrevNetwopBlock = NULL;
-
-            // obsoleten Block in separate Liste obsoleter & defekter PI einfuegen
-            if (EpgDbAddDefectPi(dbc, pBlock) == FALSE)
-               xfree(pBlock);
-            pBlock = pNext;
-         }
-         else
-         {  // Sendung noch nicht abgelaufen -> naechste pruefen
-            pBlock = pBlock->pNextBlock;
-         }
-      }
-
-      // Pruefen ob Block-/SegmentVerkettung noch intakt
-      assert(EpgDbCheckChains(dbc));
-      PiListBox_UpdateNowItems(dbc);
-      PiListBox_DbRecount(dbc);
-   }
-   else
-      debug0("DB-SetDateTime: DB is locked");
-
-   return expired;
-}
-
-// ---------------------------------------------------------------------------
 // DEBUG ONLY: check pointer chains
 //
 #if DEBUG_GLOBAL_SWITCH == ON
@@ -262,7 +190,7 @@ bool EpgDbCheckChains( CPDBC dbc )
       assert(blocks == 0);
    }
    else
-   {  // keine PI in der DB -> alle Pointer muessen invalid sein
+   {  // no PI in the DB -> all netwop pointers must be invalid
       assert(dbc->pLastPi == NULL);
       for (netwop=0; netwop < MAX_NETWOP_COUNT; netwop++)
       {
@@ -284,7 +212,7 @@ bool EpgDbCheckChains( CPDBC dbc )
       assert((dbc->pAiBlock->pNextBlock == NULL) && (dbc->pAiBlock->pPrevBlock == NULL));
    }
 
-   // Generic Bloecke pruefen
+   // check generic block chains
    for (type=0; type < BLOCK_TYPE_GENERIC_COUNT; type++)
    {
       pWalk = dbc->pFirstGenericBlock[type];
@@ -340,12 +268,12 @@ static bool EpgDbCompareParityErrorCount( EPGDB_BLOCK * pOldBlock, EPGDB_BLOCK *
 }
 
 // ---------------------------------------------------------------------------
-// Entfernt alle PI-Bloecke obsoleter netwops aus der DB
-//  - soll ein bestimmtes Netwop geloescht werden (z.B. auf Benutzerwunsch),
-//    muss im Filter am selben Index TRUE eingetragen werden
-//  - netwop-count als Parameter und nicht aus AI Block in DB, damit die
-//    Fkt. benutzt werden kann bevor der neue AI in DB aufgenommen
-//    (z.B. Aufruf aus AI Callback)
+// Removes obsolete PI or complete networks from the database
+// - if a specific network is to be deleted (usually after a change of the AI
+//   CNI table) the according entry in the filter array must be set to TRUE
+// - netwop count is a parameter and not taken from the AI so that the function
+//   can be used before the new AI is inserted into the DB (e.g. from inside
+//   an AI callback function)
 //
 static void EpgDbRemoveObsoleteNetwops( PDBC dbc, uchar netwopCount, uchar filter[MAX_NETWOP_COUNT] )
 {
@@ -361,13 +289,13 @@ static void EpgDbRemoveObsoleteNetwops( PDBC dbc, uchar netwopCount, uchar filte
            (EpgDbPiBlockNoValid(dbc, pWalk->blk.pi.block_no, netwop) == FALSE) )
       {
          dprintf3("free obsolete PI ptr=%lx, netwop=%d >= %d or filtered\n", (ulong)pWalk, pWalk->blk.pi.netwop_no, netwopCount);
-         // GUI benachrichtigen
+         // notify the GUI
          PiListBox_DbRemoved(dbc, &pWalk->blk.pi);
 
          pPrev = pWalk->pPrevBlock;
          pNext = pWalk->pNextBlock;
 
-         // aus Startzeit-Verzeigerung aushaengen
+         // remove from start time pointer chain
          if (pPrev != NULL)
             pPrev->pNextBlock = pNext;
          else
@@ -378,7 +306,7 @@ static void EpgDbRemoveObsoleteNetwops( PDBC dbc, uchar netwopCount, uchar filte
          else
             dbc->pLastPi = pPrev;
 
-         // aus Netwop-Verzeigerung aushaengen
+         // remove from network pointer chain
          if (pWalk->pPrevNetwopBlock != NULL)
             pWalk->pPrevNetwopBlock->pNextNetwopBlock = pWalk->pNextNetwopBlock;
          else
@@ -434,11 +362,11 @@ static void EpgDbFilterIncompatiblePi( PDBC dbc, const AI_BLOCK *pOldAi, const A
 }
 
 // ---------------------------------------------------------------------------
-// Best. Max.anzahl an Bloecken eines Generic-Type laut AI
-//  - daraus leitet sich direkt die gueltige range ab: [0 .. count[
-//  - Ausnahme 1: NI-Block-Numerierung startet bei #1
-//                (NI Block #0 wird aber auch akzeptiert)
-//  - Ausnahme 2: TI,LI-Block #0x8000 erlaubt - muss vom Aufrufer beachet werden!
+// Evaluate the max.no. of blocks of a given generic block type according to AI
+// - the maximum number is directly related to the valid range: [0 .. count[
+// - Exception #1: NI blocks start with #1
+//   (NI block 0 is accepted too however)
+// - Exception #2: TI, LI also allow 0x8000 - have to be dealt with by the caller!
 //
 uint EpgDbGetGenericMaxCount( CPDBC dbc, BLOCK_TYPE type )
 {
@@ -450,7 +378,7 @@ uint EpgDbGetGenericMaxCount( CPDBC dbc, BLOCK_TYPE type )
       {
          case BLOCK_TYPE_NI:
             count = dbc->pAiBlock->blk.ai.niCount + dbc->pAiBlock->blk.ai.niCountSwo;
-            // Blocknumerierung von NI-Bloecken startet bei #1
+            // NI block numbers start with 1
             count += 1;
             break;
          case BLOCK_TYPE_OI:
@@ -461,8 +389,8 @@ uint EpgDbGetGenericMaxCount( CPDBC dbc, BLOCK_TYPE type )
             break;
          case BLOCK_TYPE_LI:
          case BLOCK_TYPE_TI:
-            // LI,TI: nur Bloecke 0x0000 und 0x8000 akzeptiert
-            // Blocknummer 0x0000 wird durch netwop_no ersetzt
+            // LI, TI: only block numbers 0x0000 and 0x8000 are acceptable
+            // block number 0x0000 is replaced by the network number as simplification
             count = dbc->pAiBlock->blk.ai.netwopCount;
             break;
          default:
@@ -481,8 +409,8 @@ uint EpgDbGetGenericMaxCount( CPDBC dbc, BLOCK_TYPE type )
 }
 
 // ---------------------------------------------------------------------------
-// Loescht Generic Bloecke, die laut AI obsolet sind
-//  - sollte immer aufgerufen werden, wenn sich AI-Version aendert
+// Removed generic blocks which are obsolete according to AI
+// - should be called after every AI update
 //
 static void EpgDbRemoveObsoleteGenericBlocks( PDBC dbc )
 {
@@ -509,8 +437,8 @@ static void EpgDbRemoveObsoleteGenericBlocks( PDBC dbc )
                break;
          }
 
-         // ab diesem Block alle folgenden loeschen, da aufsteigend nach Blockno sortiert
-         // Ausnahme: Block 0x8000 bei LI und TI
+         // starting with this block delete all following, since they are sorted by block number
+         // exception: block number 0x8000 for LI and TI
          while (pWalk != NULL)
          {
             if ( (pWalk->blk.all.block_no != 0x8000) ||
@@ -537,7 +465,7 @@ static void EpgDbRemoveObsoleteGenericBlocks( PDBC dbc )
 }
 
 // ---------------------------------------------------------------------------
-// AI-Block hinzufuegen
+// Add a newly acquired AI block into the database
 //
 static bool EpgDbAddAiBlock( PDBC dbc, EPGDB_BLOCK * pBlock )
 {
@@ -574,6 +502,8 @@ static bool EpgDbAddAiBlock( PDBC dbc, EPGDB_BLOCK * pBlock )
                debug5("EpgDb-AddAiBlock: PI block range changed: net=%d %d-%d -> %d-%d", netwop, pOldNets[netwop].startNo, pOldNets[netwop].stopNoSwo, pNewNets[netwop].startNo, pNewNets[netwop].stopNoSwo);
                EpgDbFilterIncompatiblePi(dbc, &pOldAiBlock->blk.ai, &dbc->pAiBlock->blk.ai);
                EpgDbCheckDefectPiBlocknos(dbc);
+
+               EpgContextMergeAiCheckBlockRange(dbc);
                break;
             }
          }
@@ -589,8 +519,8 @@ static bool EpgDbAddAiBlock( PDBC dbc, EPGDB_BLOCK * pBlock )
 }
 
 // ---------------------------------------------------------------------------
-// Pruefe ob Blocknummer im gueltigen Bereich liegt
-//  - Achtung: Blocknummer von TI,LI Bloecken wird modifiziert!
+// Check if a given block number is in the valid range
+// - Note: block numbers of TI and LI blocks are modified in the db!
 //
 static bool EpgDbGenericBlockNoValid( PDBC dbc, EPGDB_BLOCK * pBlock, BLOCK_TYPE type )
 {
@@ -603,7 +533,7 @@ static bool EpgDbGenericBlockNoValid( PDBC dbc, EPGDB_BLOCK * pBlock, BLOCK_TYPE
       switch ( type )
       {
          case BLOCK_TYPE_NI:
-            // Blocknumerierung von NI-Bloecken startet bei #1, deshalb <=
+            // block numbers of NI blocks start with 1, hence <=
             accept = (block_no <= (dbc->pAiBlock->blk.ai.niCount + dbc->pAiBlock->blk.ai.niCountSwo));
             break;
 
@@ -617,10 +547,10 @@ static bool EpgDbGenericBlockNoValid( PDBC dbc, EPGDB_BLOCK * pBlock, BLOCK_TYPE
 
          case BLOCK_TYPE_LI:
          case BLOCK_TYPE_TI:
-            // LI,TI: nur Bloecke 0x0000 und 0x8000 akzeptiert
-            // Blocknummer 0x0000 wird durch netwop_no ersetzt
+            // LI,TI: only block numbers 0x0000 and 0x8000 are acceptable
+            // block number 0x0000 is replaced by network number
             if ( (block_no == 0x0000) && (pBlock->blk.all.netwop_no < MAX_NETWOP_COUNT) )
-            {  // max. ein LI/TI-Block per Netwop, BlockNo immer #0
+            {  // at max one LI/TI block per network, with block number 0
                GENERIC_BLK *pBlk = (GENERIC_BLK *) &pBlock->blk.all;  // remove const from pointer
                pBlk->block_no = block_no = pBlock->blk.all.netwop_no;
                accept = TRUE;
@@ -651,8 +581,8 @@ static bool EpgDbGenericBlockNoValid( PDBC dbc, EPGDB_BLOCK * pBlock, BLOCK_TYPE
 }
 
 // ---------------------------------------------------------------------------
-// Generic-Block in chain einfuegen
-//  - Bloecke sind aufsteigend sortiert nach Blocknummer
+// Add a newly acquired block of one of the generic types into the database
+// - blocks will be sorted by increasing block number
 //
 static bool EpgDbAddGenericBlock( PDBC dbc, EPGDB_BLOCK * pBlock )
 {
@@ -665,7 +595,7 @@ static bool EpgDbAddGenericBlock( PDBC dbc, EPGDB_BLOCK * pBlock )
       block_no = pBlock->blk.all.block_no;
 
       if (dbc->pFirstGenericBlock[pBlock->type] == NULL)
-      {  // allererster Block dieses Typs
+      {  // very first block of this type in the db
          dprintf3("ADD first GENERIC type=%d ptr=%lx: blockno=%d\n", pBlock->type, (ulong)pBlock, block_no);
          pBlock->pNextBlock = NULL;
          dbc->pFirstGenericBlock[pBlock->type] = pBlock;
@@ -682,7 +612,7 @@ static bool EpgDbAddGenericBlock( PDBC dbc, EPGDB_BLOCK * pBlock )
          }
 
          if ( (pWalk != NULL) && (pWalk->blk.all.block_no == block_no) )
-         {  // Block schon vorhanden -> ersetzen
+         {  // block already in the db -> replace
             dprintf3("REPLACE GENERIC type=%d ptr=%lx: blockno=%d\n", pBlock->type, (ulong)pBlock, block_no);
 
             if ( EpgDbCompareParityErrorCount(pWalk, pBlock) )
@@ -700,14 +630,14 @@ static bool EpgDbAddGenericBlock( PDBC dbc, EPGDB_BLOCK * pBlock )
                xfree(pBlock);
          }
          else if (pPrev == NULL)
-         {  // Block ganz am Anfang einfuegen
-            assert(pWalk != NULL);  // oben abgefangen (min. 1 Block in DB)
+         {  // insert the block at the start
+            assert(pWalk != NULL);  // there must be at least one other block
             dprintf3("ADD GENERIC type=%d ptr=%lx: blockno=%d\n", pBlock->type, (ulong)pBlock, block_no);
             pBlock->pNextBlock = dbc->pFirstGenericBlock[pBlock->type];
             dbc->pFirstGenericBlock[pBlock->type] = pBlock;
          }
          else
-         {  // Block in Mitte oder am Ende einfuegen
+         {  // insert or append
             dprintf3("ADD GENERIC type=%d ptr=%lx: blockno=%d\n", pBlock->type, (ulong)pBlock, block_no);
             pBlock->pNextBlock = pPrev->pNextBlock;
             pPrev->pNextBlock = pBlock;
@@ -724,22 +654,17 @@ static bool EpgDbAddGenericBlock( PDBC dbc, EPGDB_BLOCK * pBlock )
 }
 
 // ---------------------------------------------------------------------------
-// PI-Block aus Verkettung aushaengen
-//  - Zeiger auf den vorhergehenden Block in der Netwop-Verkettung muss
-//    als Parameter uebergeben werden, da innerhalb des Netwops keine
-//    Rueckwaertsverkettung vorhanden ist, d.h. nach dem Block muesse
-//    sonst ab pFirstNetwopPi gesucht werden.
-//  - der Speicher wird nicht freigegeben, dies muss vom Aufrufer
-//    erledigt werden
+// Remove a PI block from its start time and network pointer chains
+// - the block's memory is not freed - this has to be done by the caller!
 //
 void EpgDbPiRemove( PDBC dbc, EPGDB_BLOCK * pObsolete )
 {
    EPGDB_BLOCK *pPrev, *pNext;
 
-   // GUI benachrichtigen
+   // notify the GUI
    PiListBox_DbRemoved(dbc, &pObsolete->blk.pi);
 
-   // aus Netwop-Verkettung aushaengen
+   // remove from network pointer chain
    pNext = pObsolete->pNextNetwopBlock;
    pPrev = pObsolete->pPrevNetwopBlock;
    if (pPrev != NULL)
@@ -756,7 +681,7 @@ void EpgDbPiRemove( PDBC dbc, EPGDB_BLOCK * pObsolete )
       pNext->pPrevNetwopBlock = pPrev;
    }
 
-   // aus Startzeit-Verkettung aushaengen
+   // remove from start time pointer chain
    pPrev = pObsolete->pPrevBlock;
    pNext = pObsolete->pNextBlock;
    if (pPrev != NULL)
@@ -784,10 +709,10 @@ void EpgDbReplacePi( PDBC dbc, EPGDB_BLOCK * pObsolete, EPGDB_BLOCK * pBlock )
    EPGDB_BLOCK *pPrev, *pNext;
    bool uiUpdated;
 
-   // GUI benachrichtigen
+   // notify the GUI
    uiUpdated = PiListBox_DbPreUpdate(dbc, &pObsolete->blk.pi, &pBlock->blk.pi);
 
-   // in Netwop-Verzeigerung einhaengen
+   // insert into the network pointer chain
    pPrev = pObsolete->pPrevNetwopBlock;
    pNext = pObsolete->pNextNetwopBlock;
    pBlock->pNextNetwopBlock = pNext;
@@ -799,7 +724,7 @@ void EpgDbReplacePi( PDBC dbc, EPGDB_BLOCK * pObsolete, EPGDB_BLOCK * pBlock )
    if (pNext != NULL)
       pNext->pPrevNetwopBlock = pBlock;
 
-   // in Startzeit-Verzeigerung einhaengen
+   // insert into the start time pointer chain
    pPrev = pObsolete->pPrevBlock;
    pNext = pObsolete->pNextBlock;
    dprintf4("replace pi        ptr=%lx: netwop=%d, blockno=%d, start=%ld\n", (ulong)pObsolete, pObsolete->blk.pi.netwop_no, pObsolete->blk.pi.block_no, pObsolete->blk.pi.start_time);
@@ -816,11 +741,11 @@ void EpgDbReplacePi( PDBC dbc, EPGDB_BLOCK * pObsolete, EPGDB_BLOCK * pBlock )
    else
       dbc->pLastPi = pBlock;
 
-   // GUI benachrichtigen
+   // notify the GUI
    if (uiUpdated == FALSE)
       PiListBox_DbPostUpdate(dbc, &pObsolete->blk.pi, &pBlock->blk.pi);
 
-   // alten Block freigeben
+   // remove the obsolete block
    xfree(pObsolete);
 }
 
@@ -832,7 +757,7 @@ void EpgDbLinkPi( PDBC dbc, EPGDB_BLOCK * pBlock, EPGDB_BLOCK * pPrev, EPGDB_BLO
    EPGDB_BLOCK *pWalk;
    uchar netwop = pBlock->blk.pi.netwop_no;
 
-   // Einfuegepunkt muss zw. dem letzten und akt. gef. des netwops liegen
+   // Insertion point must lie between the previous and given PI of the given network
    if (pPrev != NULL)
    {
       pWalk = pPrev;
@@ -848,9 +773,9 @@ void EpgDbLinkPi( PDBC dbc, EPGDB_BLOCK * pBlock, EPGDB_BLOCK * pPrev, EPGDB_BLO
       pWalk = pWalk->pNextBlock;
    }
    assert((pNext == NULL) || (pWalk != NULL));
-   // exakten Einfuegepunkt bestimmt: vor pWalk
+   // determined the exact insertion point: just before walk
 
-   // in Netwop-Verzeigerung einhaengen
+   // insert into the network pointer chain
    if (pPrev == NULL)
    {
       pBlock->pNextNetwopBlock = dbc->pFirstNetwopPi[netwop];
@@ -865,14 +790,14 @@ void EpgDbLinkPi( PDBC dbc, EPGDB_BLOCK * pBlock, EPGDB_BLOCK * pPrev, EPGDB_BLO
       pNext->pPrevNetwopBlock = pBlock;
    pBlock->pPrevNetwopBlock = pPrev;
 
-   // in Startzeit-Verzeigerung einhaengen
+   // insert into the start time pointer chain
    if (pWalk != NULL)
    {
       pPrev = pWalk->pPrevBlock;
       pNext = pWalk;
    }
    else
-   {  // als allerletztes Element (aller netwops) anhaengen
+   {  // append as very last element (of all netwops)
       pPrev = dbc->pLastPi;
       pNext = NULL;
    }
@@ -889,7 +814,7 @@ void EpgDbLinkPi( PDBC dbc, EPGDB_BLOCK * pBlock, EPGDB_BLOCK * pPrev, EPGDB_BLO
    else
       dbc->pLastPi = pBlock;
 
-   // GUI benachrichtigen
+   // notify the GUI
    PiListBox_DbInserted(dbc, &pBlock->blk.pi);
 }
 
@@ -948,7 +873,7 @@ bool EpgDbPiBlockNoValid( CPDBC dbc, uint block_no, uchar netwop )
 //    see EpgDb-PiBlockNoValid()
 //  - have to handle two cases, e.g. 0x0600-0x0700 or 0xFF00-0x0100
 //    in the second case we have to deal with two separate ranges:
-//    0xFF00-0xFFFF und 0x0000-0x100
+//    0xFF00-0xFFFF and 0x0000-0x100
 //
 bool EpgDbPiCmpBlockNoGt( CPDBC dbc, uint no1, uint no2, uchar netwop )
 {
@@ -1135,46 +1060,48 @@ static bool EpgDbAddDefectPi( PDBC dbc, EPGDB_BLOCK *pBlock )
 }
 
 // ----------------------------------------------------------------------------
-// Grundprinzipien der Konfliktbereinigung:
-// - akt. AI-Version hat Prioritaet
-// - Blocknummer hat Prioritaet ueber Startzeit
-// - geringere Blocknummern haben Prioritaet
-// - fruehere Startzeit hat Prioritaet, d.h. bei Ueberlappung werden
-//   die folgenden Bloecke geloescht
-//
-// Die Pruefungen fallen in zwei Klassen:
-// - Nicht Einfuegen falls Ueberlappung mit Bloecken hoeherer Prioritaet
-// - Sonst ueberlappende Bloecke vor und nach der Einfuegestelle loeschen
-//   Loeschung erfolgt vor dem Einfuegen, damit DB immer konsistent bleibt
-//
-// Fehlermoeglichkeiten bzgl. Blockno (impliziert Startzeit):
-// - Blockno dahinter ist kleiner -> Block nicht einfuegen
-// - Blockno davor ist groesser -> Bloecke davor loeschen
-// Fehlermoeglichkeiten bzgl. Stoppzeit:
-// - Ueberlappung mit Block davor und BlockNo davor kleiner -> nicht einfuegen
-// - Ueberlappung mit Block dahinter und blockno dahinter groesser) -> Block dahinter loeschen
+// Principles of PI block conflict handling:
+// - conflicts can occur because PI are sorted by two unrelated criteria
+// - order of priorities:
+//   1. blocks of previous AI versions are removed upon conflicts
+//   2. block number order is more important than start times
+//   3. blocks with earlier start time have priority over later ones
+// - checks are performed in two steps:
+//   1. don't insert blocks if they overlap existing ones
+//   2. after insertion, remove overlapping blocks before and after the
+//      point of insertion to ensure that the db remains consistant.
+// - possible conflics in block numbering (inplies start time) after the
+//   point of insertion has been searched for by starting time:
+//   1. following block's number is smaller -> don't insert block
+//   2. previous block's number is greater -> delete previous block(s)
+// - possible conflicts in stop time:
+//   1. overlapping running time with previous block and previous block no
+//      is smaller -> don't insert
+//   2. overlapping running time with following block and next blockno
+//      is larger -> remove following block(s)
 // ----------------------------------------------------------------------------
 
 // ----------------------------------------------------------------------------
-// Pruefe ob PI-Block in Netwop-Sequenz eingefuegt werden kann
-//   Fehlermoeglichkeiten bzgl. Blockno (impliziert Startzeit):
-//   - Blockno dahinter ist kleiner -> Block nicht einfuegen
-//   Fehlermoeglichkeiten bzgl. Stoppzeit:
-//   - Ueberlappung mit Block davor und BlockNo davor kleiner -> nicht einfuegen
+// Check if the given PI Block can be inserted into the network sequence here
+// - possible conflicts respective to block numbers (imply start time)
+//   1. latter block's number is smaller -> don't insert block
+// - possible conflicts in stop time:
+//   1. overlapping running time with previous block and previous block no
+//      is smaller -> don't insert
 //
 static bool EpgDbPiCheckBlockSequence( PDBC dbc, EPGDB_BLOCK *pPrev, EPGDB_BLOCK *pBlock, EPGDB_BLOCK *pNext )
 {
    bool  result;
 
-   // PI muessen in DB aufsteigend sortiert verkettet sein
+   // PI are assumed to be sorted by increasing start time
    assert((pPrev == NULL) || (pPrev->blk.pi.start_time < pBlock->blk.pi.start_time));
    assert((pNext == NULL) || (pBlock->blk.pi.start_time <= pNext->blk.pi.start_time));
 
    if ( (pNext != NULL) &&
         (pBlock->version == pNext->version) &&
         EpgDbPiCmpBlockNoGt(dbc, pBlock->blk.pi.block_no, pNext->blk.pi.block_no, pBlock->blk.pi.netwop_no) )
-   {  // BlockNo ist groesser als die des folgenden Blocks -> nicht einfuegen
-      // (Grund: Startzeit ist kleiner oder gleich, deshalb Einfuegepunkt davor)
+   {  // block number is larger than that of the previous block -> don't insert
+      // (reason: start time is smaller or equal, hence insertion point lies ahead of them)
       dprintf2("+++++++ REFUSE: next blockno lower: %d > %d\n", pBlock->blk.pi.block_no, pNext->blk.pi.block_no);
       result = FALSE;
    }
@@ -1183,7 +1110,7 @@ static bool EpgDbPiCheckBlockSequence( PDBC dbc, EPGDB_BLOCK *pPrev, EPGDB_BLOCK
         (pPrev->blk.pi.stop_time > pBlock->blk.pi.start_time) &&
         (pBlock->version == pPrev->version) &&
         EpgDbPiCmpBlockNoGt(dbc, pBlock->blk.pi.block_no, pPrev->blk.pi.block_no, pBlock->blk.pi.netwop_no) )
-   {  // Startzeit ueberlappt mit vorherigem Block -> nicht einfuegen
+   {  // start time overlaps with running time of previous block -> don't insert
       dprintf0("+++++++ REFUSE: invalid starttime: prev overlap\n");
       result = FALSE;
    }
@@ -1194,14 +1121,13 @@ static bool EpgDbPiCheckBlockSequence( PDBC dbc, EPGDB_BLOCK *pPrev, EPGDB_BLOCK
 }
 
 // ---------------------------------------------------------------------------
-// Loesche PI mit denen der neue Block in Nr. oder Laufzeit ueberlappen wuerde
-//   Fehlermoeglichkeiten bzgl. Blockno (impliziert Startzeit):
-//   - Blockno danach ist gleich -> Block danach loeschen
-//   - Blockno davor ist groesser oder gleich -> Bloecke davor loeschen
-//   - Blockno dahinter ist kleiner -> Block nicht einfuegen
-//   Fehlermoeglichkeiten bzgl. Stoppzeit:
-//   - Ueberlappung mit Block dahinter (und blockno dahinter groesser) -> Block dahinter loeschen
-//   - Ueberlappung mit Block davor und BlockNo davor kleiner -> nicht einfuegen
+// Delete blocks which overlap a newly inserted PI in block number or time
+// - possible conflicts respective to block numbers (imply start time)
+//   1. following block's number is equal -> delete following block
+//   2. previous block's number is greater or equal -> delete previous block(s)
+// - possible conflicts in stop time:
+//   1. overlapping running time with following block (and next blockno
+//      is larger) -> remove following block(s)
 //
 static void EpgDbPiResolveConflicts( PDBC dbc, EPGDB_BLOCK *pBlock, EPGDB_BLOCK **pPrev, EPGDB_BLOCK **pNext )
 {
@@ -1212,18 +1138,19 @@ static void EpgDbPiResolveConflicts( PDBC dbc, EPGDB_BLOCK *pBlock, EPGDB_BLOCK 
    while ( (pWalk != NULL) &&
            ( (pWalk->blk.pi.stop_time > pBlock->blk.pi.start_time) ||
              !EpgDbPiCmpBlockNoGt(dbc, pBlock->blk.pi.block_no, pWalk->blk.pi.block_no, netwop) ))
-   {  // Blocknummer ist kleiner oder gleich dem vorherigem Block -> vorherigen loeschen
+   {  // block number is smaller or equal to the previous -> delete previous block
       dprintf6("+++++++ DELETE: ptr=%lx prev=%lx blockno=%d >= %d or start=%ld > %ld\n", (ulong)pBlock, (ulong)pWalk, pWalk->blk.pi.block_no, pBlock->blk.pi.block_no, pWalk->blk.pi.start_time, pBlock->blk.pi.start_time);
       *pPrev = pWalk->pPrevNetwopBlock;
       EpgDbPiRemove(dbc, pWalk);
-      // Block in defekt-Liste umhaengen oder freigeben
+      // add the block to the defective list or free it
       if (EpgDbAddDefectPi(dbc, pWalk) == FALSE)
          xfree(pWalk);
       pWalk = *pPrev;
    }
 
-   // Stoppzeit ueberlappt mit nachfolgendem Block od. BlockNo groesser -> folgende Bloecke loeschen
-   // Schleife ab pBlock: alle mit start < stopp loeschen
+   // stop time falls into the running time of the following block
+   // -> remove the following block(s)
+   // -> loop starting with pBlock: while start time < stop time of inserted block
    pWalk = *pNext;
    while( (pWalk != NULL) &&
           ( (pBlock->blk.pi.stop_time > pWalk->blk.pi.start_time) ||
@@ -1232,7 +1159,7 @@ static void EpgDbPiResolveConflicts( PDBC dbc, EPGDB_BLOCK *pBlock, EPGDB_BLOCK 
       dprintf6("+++++++ DELETE: ptr=%lx next=%lx overlapped: blockno=%d<=%d, start=%ld < stop %ld\n", (ulong)pBlock, (ulong)pWalk, pWalk->blk.pi.block_no, pBlock->blk.pi.block_no, pWalk->blk.pi.start_time, pBlock->blk.pi.stop_time);
       *pNext = pWalk->pNextNetwopBlock;
       EpgDbPiRemove(dbc, pWalk);
-      // Block in defekt-Liste umhaengen oder freigeben
+      // add the block to the defective list or free it
       if (EpgDbAddDefectPi(dbc, pWalk) == FALSE)
          xfree(pWalk);
       pWalk = *pNext;
@@ -1240,110 +1167,111 @@ static void EpgDbPiResolveConflicts( PDBC dbc, EPGDB_BLOCK *pBlock, EPGDB_BLOCK 
 }
 
 // ----------------------------------------------------------------------------
-// PI-Block in PI-Chain einfuegen
-//  - 4-fach Verkettung:
-//    +  vor- und rueckwaerts nach Startzeit ueber alle PI Bloecke
-//    +  vor- und rueckwaerts nach Startzeit per Network
+// - Each PI is linked with its neighbours by 4 pointers:
+//   + to previous and next block in order of start time
+//     note: if start time is equal, network index is compared
+//   + for each network: to previous and next block of the same network
+//     in or order of start time (there can be only one block with the same
+//     start time for each network - this is enforced during insertion)
 //
-static bool EpgDbInsertPiBlock( PDBC dbc, EPGDB_BLOCK * pBlock )
-{
-   EPGDB_BLOCK *pWalk, *pPrev;
-   uchar netwop;
-   bool result;
-
-   netwop = pBlock->blk.pi.netwop_no;
-   dprintf4("ADD PI ptr=%lx: netwop=%d, blockno=%d, start=%ld\n", (ulong)pBlock, netwop, pBlock->blk.pi.block_no, pBlock->blk.pi.start_time);
-
-   // Suche nach Einfuegestelle in sortierter Liste des entspr. Netwops
-   pWalk = dbc->pFirstNetwopPi[netwop];
-   pPrev = NULL;
-
-   while ( (pWalk != NULL) &&
-           (pWalk->blk.pi.start_time < pBlock->blk.pi.start_time) )
-   {
-      pPrev = pWalk;
-      pWalk = pWalk->pNextNetwopBlock;
-   }
-
-   if ( (pWalk != NULL) &&
-        (pWalk->blk.pi.block_no == pBlock->blk.pi.block_no) &&
-        (pWalk->blk.pi.start_time == pBlock->blk.pi.start_time) &&
-        (pWalk->blk.pi.stop_time == pBlock->blk.pi.stop_time) )
-   {  // derselbe PI-Block (alle Ordnungskriterien unveraendert) -> ersetzen
-
-      if ( EpgDbCompareParityErrorCount(pWalk, pBlock) )
-      {
-         EpgDbReplacePi(dbc, pWalk, pBlock);
-         // offer the block to the merged db
-         EpgContextMergeInsertPi(dbc, pBlock);
-      }
-      else
-         xfree(pBlock);
-
-      result = TRUE;
-   }
-   else if (EpgDbPiCheckBlockSequence(dbc, pPrev, pBlock, pWalk))
-   {  // BlockNo und Startzeit OK
-
-      // Ueberlappungen beseitigen
-      EpgDbPiResolveConflicts(dbc, pBlock, &pPrev, &pWalk);
-      assert((pPrev == NULL) || (pPrev->pNextNetwopBlock == pWalk));
-      assert((pWalk == NULL) || (pWalk->pPrevNetwopBlock == pPrev));
-
-      EpgDbLinkPi(dbc, pBlock, pPrev, pWalk);
-
-      // offer the block to the merged db
-      EpgContextMergeInsertPi(dbc, pBlock);
-
-      result = TRUE;
-   }
-   else
-   {  // Block nicht einfuegen
-      result = FALSE;
-   }
-
-   // falls Bloecke entfernt, scrollbar-pos im GUI neu bestimmen
-   PiListBox_DbRecount(dbc);
-
-   return result;
-}
 
 // ---------------------------------------------------------------------------
 // Add a PI block to the database
+// - returns FALSE if not added -> the caller must free the block then
 // - if the block is in the valid netwop and blockno ranges, but cannot be
-//   added because it's expired or overlapping, add it to a separate list
-//   of obsolete PI blocks (so that we know when we have captured 100%)
+//   added because it's overlapping, add it to a separate list of defective
+//   PI blocks (so that we know when we have captured 100%)
 // - since there are two separate lists with PI, after each addition it
 //   must be checked that the block is not in the other list too (older
 //   version, or after a transmission error)
 //   Doing this is actually a disadvantage for the user, because we are
 //   removing correct information upon reception of a defect block, however
-//   it's needed to maintain consistancy.
+//   it's required to maintain consistancy.
 // - XXX TODO try to repair PI with start=stop time: set duration to
 //   one minute if start time of following block allows it
 //
 static bool EpgDbAddPiBlock( PDBC dbc, EPGDB_BLOCK *pBlock )
 {
-   bool result;
+   EPGDB_BLOCK *pWalk, *pPrev;
+   uchar netwop;
+   bool added, defective;
 
    if ( EpgDbPiBlockNoValid(dbc, pBlock->blk.pi.block_no, pBlock->blk.pi.netwop_no) )
    {
-      if ( (pBlock->blk.pi.start_time != pBlock->blk.pi.stop_time) &&
-           (pBlock->blk.pi.stop_time > time(NULL)) )
-      {  // running time has not yet expired
-         result = EpgDbInsertPiBlock(dbc, pBlock);
+      if (pBlock->blk.pi.start_time != pBlock->blk.pi.stop_time)
+      {
+         defective = FALSE;
+         netwop = pBlock->blk.pi.netwop_no;
+         dprintf4("ADD PI ptr=%lx: netwop=%d, blockno=%d, start=%ld\n", (ulong)pBlock, netwop, pBlock->blk.pi.block_no, pBlock->blk.pi.start_time);
+
+         // search inside network chain for insertion point
+         pWalk = dbc->pFirstNetwopPi[netwop];
+         pPrev = NULL;
+
+         while ( (pWalk != NULL) &&
+                 (pWalk->blk.pi.start_time < pBlock->blk.pi.start_time) )
+         {
+            pPrev = pWalk;
+            pWalk = pWalk->pNextNetwopBlock;
+         }
+
+         if ( (pWalk != NULL) &&
+              (pWalk->blk.pi.block_no == pBlock->blk.pi.block_no) &&
+              (pWalk->blk.pi.start_time == pBlock->blk.pi.start_time) &&
+              (pWalk->blk.pi.stop_time == pBlock->blk.pi.stop_time) )
+         {  // found equivalent block (all sorting criteria identical)
+            // -> simply replace, i.e. no checks for overlap etc. required
+
+            if ( EpgDbCompareParityErrorCount(pWalk, pBlock) )
+            {
+               EpgDbReplacePi(dbc, pWalk, pBlock);
+               // offer the block to the merged db
+               EpgContextMergeInsertPi(dbc, pBlock);
+               added = TRUE;
+            }
+            else
+            {  // block is NOT defective, but still it's not added to the db
+               added = FALSE;
+            }
+         }
+         else if (EpgDbPiCheckBlockSequence(dbc, pPrev, pBlock, pWalk))
+         {  // block number and start time don't conflict with blocks of higher priority
+
+            // remove conflicting (i.e. overlapping) blocks of lesser priority
+            EpgDbPiResolveConflicts(dbc, pBlock, &pPrev, &pWalk);
+            assert((pPrev == NULL) || (pPrev->pNextNetwopBlock == pWalk));
+            assert((pWalk == NULL) || (pWalk->pPrevNetwopBlock == pPrev));
+
+            EpgDbLinkPi(dbc, pBlock, pPrev, pWalk);
+
+            // offer the block to the merged db
+            EpgContextMergeInsertPi(dbc, pBlock);
+
+            added = TRUE;
+         }
+         else
+         {  // do not insert the block
+            defective = TRUE;
+            added = FALSE;
+         }
+
+         // notify the GUI that insertion and implied removals are done
+         // (the GUI may have to count PI to calculate scrollbar positions)
+         PiListBox_DbRecount(dbc);
       }
       else
-      {  // expired or invalid duration
+      {  // invalid duration
          dprintf5("EXPIRED pi ptr=%lx: netwop=%d, blockno=%d start=%ld stop=%ld\n", (ulong)pBlock, pBlock->blk.pi.netwop_no, pBlock->blk.pi.block_no, pBlock->blk.pi.start_time, pBlock->blk.pi.stop_time);
-         result = FALSE;
+         defective = TRUE;
+         added = FALSE;
       }
 
-      // ensure that the same netwop/block is not in the other list
-      if (result == FALSE)
-      {  // block could not be added to the PI database -> add to list of obsolete PI
-         result = EpgDbAddDefectPi(dbc, pBlock);
-         if (result)
+      if (defective)
+      {  // block conflicts with PI database -> add to list of defective PI
+         assert(added == FALSE);
+
+         added = EpgDbAddDefectPi(dbc, pBlock);
+         if (added)
          {  // block is now in defect list -> remove from PI list, if present
             EPGDB_BLOCK *pWalk;
             uint block_no = pBlock->blk.pi.block_no;
@@ -1370,12 +1298,12 @@ static bool EpgDbAddPiBlock( PDBC dbc, EPGDB_BLOCK *pBlock )
    else
    {  // invalid netwop or not in valid block number range -> refuse block
       dprintf5("INVALID pi ptr=%lx: netwop=%d, blockno=%d start=%ld stop=%ld\n", (ulong)pBlock, pBlock->blk.pi.netwop_no, pBlock->blk.pi.block_no, pBlock->blk.pi.start_time, pBlock->blk.pi.stop_time);
-      result = FALSE;
+      added = FALSE;
    }
 
    assert(EpgDbCheckChains(dbc));
 
-   return result;
+   return added;
 }
 
 // ---------------------------------------------------------------------------

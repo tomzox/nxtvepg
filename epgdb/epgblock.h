@@ -25,7 +25,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgblock.h,v 1.26 2001/04/03 18:51:48 tom Exp tom $
+ *  $Id: epgblock.h,v 1.28 2001/05/19 14:21:57 tom Exp tom $
  */
 
 #ifndef __EPGBLOCK_H
@@ -481,17 +481,17 @@ typedef struct EPGDB_CONTEXT_STRUCT
 {
    struct EPGDB_CONTEXT_STRUCT *pNext;
 
-   uint   refCount;
-   uint   lockLevel;
-   bool   modified;
-   time_t lastAiUpdate;
+   uint   refCount;                 // context reference counter
+   uint   lockLevel;                // number of locks on this context
+   bool   modified;                 // modified by acquisition
+   time_t lastAiUpdate;             // timestamp of last AI reception
 
-   bool   merged;
-   void   *pMergeContext;
+   bool   merged;                   // Flag for merged db
+   void   *pMergeContext;           // Pointer to merge parameters
 
-   uint   pageNo;
-   ulong  tunerFreq;
-   uint   appId;
+   uint   pageNo;                   // Teletext page for acq
+   ulong  tunerFreq;                // Frequency for acq
+   uint   appId;                    // BI block ID
 
    EPGDB_BLOCK *pAiBlock;
    EPGDB_BLOCK *pFirstPi, *pLastPi;

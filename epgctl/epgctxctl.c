@@ -26,11 +26,13 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgctxctl.c,v 1.5 2001/04/03 19:47:01 tom Exp tom $
+ *  $Id: epgctxctl.c,v 1.8 2001/06/04 19:01:27 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
 #define DPRINTF_OFF
+
+#include <time.h>
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
@@ -69,7 +71,12 @@ static EPGDB_CONTEXT * EpgContextCtl_SearchCni( uint cni )
 }
 
 // ---------------------------------------------------------------------------
-// Return any context that's not merged
+// Return reusable context
+// - for clients which don't care about the CNI
+// - ignore merged database; handled specially
+// - empty databases are ignored too, they must not be used by more than
+//   one client at the same time (esp. for acq since the CNI may change
+//   once an EPG transmission is encountered.)
 //
 static EPGDB_CONTEXT * EpgContextCtl_GetAny( void )
 {
@@ -78,8 +85,11 @@ static EPGDB_CONTEXT * EpgContextCtl_GetAny( void )
    pContext = pContextList;
    while (pContext != NULL)
    {
-      if (EpgDbContextIsMerged(pContext) == FALSE)
+      if ( (EpgDbContextIsMerged(pContext) == FALSE) &&
+           (pContext->pAiBlock != NULL) && (AI_GET_CNI(&pContext->pAiBlock->blk.ai) != 0) )
+      {
          break;
+      }
       pContext = pContext->pNext;
    }
    return pContext;
@@ -171,6 +181,7 @@ EPGDB_CONTEXT * EpgContextCtl_Open( uint cni, int errHand )
          pContext->refCount += 1;
       }
    }
+   dprintf4("EpgContextCtl-Open: req CNI 0x%04X: opened db 0x%04X (0x%lx): ref count %d\n", cni, ((pContext->pAiBlock != NULL) ? AI_GET_CNI(&pContext->pAiBlock->blk.ai) : 0), (long)pContext, pContext->refCount);
 
    // send a messaage to the user interface
    if (dberr != EPGDB_RELOAD_OK)
@@ -200,6 +211,7 @@ EPGDB_CONTEXT * EpgContextCtl_CreateNew( void )
    pContext->pNext = pContextList;
    pContextList = pContext;
 
+   dprintf1("EpgContextCtl-CreateNew: created empty db (%lx)\n", (long)pContext);
    return pContext;
 }
 
@@ -248,6 +260,7 @@ void EpgContextCtl_Close( EPGDB_CONTEXT * pContext )
 
          if (pWalk != NULL)
          {
+            dprintf4("EpgContextCtl-Close: close db 0x%04X (%lx): ref count was %d, modified: %d\n", ((pContext->pAiBlock != NULL) ? AI_GET_CNI(&pContext->pAiBlock->blk.ai) : 0), (long)pContext, pContext->refCount, pContext->modified);
             if (pContext->refCount <= 1)
             {
                assert(pContext->refCount > 0);
@@ -283,36 +296,6 @@ void EpgContextCtl_Close( EPGDB_CONTEXT * pContext )
 }
 
 // ---------------------------------------------------------------------------
-// Remove expired PI from all db contexts
-// - should be called every minute, as close as possible after sec 0
-// - must be called when all dbs are unlocked, e.g. from main loop
-//
-bool EpgContextCtl_Expire( void )
-{
-   EPGDB_CONTEXT * pContext;
-   bool expired;
-
-   pContext = pContextList;
-   expired = FALSE;
-   while (pContext != NULL)
-   {
-      assert(EpgDbIsLocked(pContext) == FALSE);
-
-      expired |= EpgDbExpire(pContext);
-
-      pContext = pContext->pNext;
-   }
-
-   // handle merged db separately since it's not in the list
-   if (EpgDbContextIsMerged(pUiDbContext))
-   {
-      EpgDbExpire(pUiDbContext);
-   }
-
-   return expired;
-}
-
-// ---------------------------------------------------------------------------
 // Update tuner frequency for a database
 //
 bool EpgContextCtl_UpdateFreq( uint cni, ulong freq )
@@ -323,6 +306,7 @@ bool EpgContextCtl_UpdateFreq( uint cni, ulong freq )
    pContext = EpgContextCtl_SearchCni(cni);
    if (pContext != NULL)
    {  // db is opened -> just set the frequency there
+      dprintf3("EpgContextCtl-UpdateFreq: update freq for opened db 0x%04X: %lu -> %lu\n", cni, pContext->tunerFreq, freq);
       pContext->tunerFreq = freq;
       // set the flag that the db needs to be saved
       pContext->modified = TRUE;
@@ -330,6 +314,7 @@ bool EpgContextCtl_UpdateFreq( uint cni, ulong freq )
    }
    else
    {  // db is not opened -> write the frequency into the file header
+      dprintf2("EpgContextCtl-UpdateFreq: update freq for non-open db 0x%04X: %lu\n", cni, freq);
       result = EpgDbDumpUpdateHeader(cni, freq);
    }
    return result;

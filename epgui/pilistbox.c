@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pilistbox.c,v 1.51 2001/04/17 19:55:35 tom Exp tom $
+ *  $Id: pilistbox.c,v 1.56 2001/05/27 18:22:52 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -389,6 +389,7 @@ static void PiListBox_InsertItem( const PI_BLOCK *pPiBlock, int pos )
    const AI_BLOCK *pAiBlock;
    struct tm ttm;
    uint idx, off;
+   time_t now;
 
    memcpy(&ttm, localtime(&pPiBlock->start_time), sizeof(struct tm));
    idx = 0;
@@ -588,7 +589,9 @@ static void PiListBox_InsertItem( const PI_BLOCK *pPiBlock, int pos )
    if (idx > 0)
       off -= 1;
 
-   sprintf(comm + off, "\n} %s\n", (pPiBlock->start_time <= time(NULL)) ? "now" : "then");
+   now = time(NULL);
+   sprintf(comm + off, "\n} %s\n", (pPiBlock->stop_time <= now) ? "past" :
+                                   ((pPiBlock->start_time <= now) ? "now" : "then"));
    eval_check(interp, comm);
 }
 
@@ -833,14 +836,23 @@ static uint PiListBox_SeparateMergedInfo( const PI_BLOCK * pPiBlock, uchar ** in
 // ----------------------------------------------------------------------------
 // Display short and long info for currently selected item
 //
-static void PiListBox_UpdateInfoText( void )
+static void PiListBox_UpdateInfoText( bool keepView )
 {  
    const AI_BLOCK *pAiBlock;
    const PI_BLOCK *pPiBlock;
    const uchar *pCfNetname;
    uchar date_str[20], start_str[20], stop_str[20], cni_str[7];
+   uchar view_buf[20];
    int len, idx, theme, themeCat;
    
+   if (keepView)
+   {  // remember the viewable fraction of the text
+      sprintf(comm, "lindex [.all.pi.info.text yview] 0\n");
+      eval_check(interp, comm);
+      strncpy(view_buf, interp->result, 20-1);
+      view_buf[20-1] = 0;
+   }
+
    sprintf(comm, ".all.pi.info.text configure -state normal\n"
                  ".all.pi.info.text delete 1.0 end\n");
    eval_check(interp, comm);
@@ -1035,6 +1047,12 @@ static void PiListBox_UpdateInfoText( void )
 
    sprintf(comm, ".all.pi.info.text configure -state disabled\n");
    eval_check(interp, comm);
+
+   if (keepView)
+   {  // set the view back to its previous position
+      sprintf(comm, ".all.pi.info.text yview moveto %s\n", view_buf);
+      eval_check(interp, comm);
+   }
 }
 
 // ----------------------------------------------------------------------------
@@ -1054,18 +1072,20 @@ static void PiListBox_AdjustScrollBar( void )
 //
 static void PiListBox_ShowCursor( void )
 {
-   if (pibox_list[pibox_curpos].start_time <= time(NULL))
-   {
-      sprintf(comm, ".all.pi.list.text tag configure sel -background $cursor_bg_now\n"
-                    ".all.pi.list.text tag add sel %d.0 %d.0\n",
-                    pibox_curpos + 1, pibox_curpos + 2);
-   }
+   time_t now = time(NULL);
+   const char * pColor;
+
+   //if (pibox_list[pibox_curpos].stop_time <= now)
+   //   pColor = "cursor_bg_past";
+   //else
+   if (pibox_list[pibox_curpos].start_time <= now)
+      pColor = "cursor_bg_now";
    else
-   {
-      sprintf(comm, ".all.pi.list.text tag configure sel -background $cursor_bg\n"
-                    ".all.pi.list.text tag add sel %d.0 %d.0\n",
-                    pibox_curpos + 1, pibox_curpos + 2);
-   }
+      pColor = "cursor_bg";
+
+   sprintf(comm, ".all.pi.list.text tag configure sel -background $%s\n"
+                 ".all.pi.list.text tag add sel %d.0 %d.0\n",
+                 pColor, pibox_curpos + 1, pibox_curpos + 2);
    eval_global(interp, comm);
 }
 
@@ -1115,7 +1135,7 @@ void PiListBox_Reset( void )
       PiListBox_ShowCursor();
 
       // display short and long info
-      PiListBox_UpdateInfoText();
+      PiListBox_UpdateInfoText(FALSE);
    }
    else
       pibox_curpos = PIBOX_INVALID_CURPOS;
@@ -1133,6 +1153,7 @@ void PiListBox_Reset( void )
 void PiListBox_Refresh( void )
 {
    const PI_BLOCK *pPiBlock, *pPrev, *pNext;
+   uchar last_netwop;
    ulong min_time;
    int i;
 
@@ -1146,23 +1167,27 @@ void PiListBox_Refresh( void )
    }
    else
    {
-      sprintf(comm, ".all.pi.list.text delete 1.0 end\n"
-                    ".all.pi.info.text configure -state normal\n"
-                    ".all.pi.info.text delete 1.0 end\n"
-                    ".all.pi.info.text configure -state disabled\n");
+      sprintf(comm, ".all.pi.list.text delete 1.0 end\n");
       eval_check(interp, comm);
 
-      EpgDbLockDatabase(dbc, TRUE);
-      // XXX TODO: better check first if exact match on netwop&block is possible
-      min_time = pibox_list[pibox_curpos].start_time;
+      min_time    = pibox_list[pibox_curpos].start_time;
+      last_netwop = pibox_list[pibox_curpos].netwop_no;
       pibox_resync = FALSE;
       pibox_off = 0;
+
+      EpgDbLockDatabase(dbc, TRUE);
       pPiBlock = EpgDbSearchFirstPi(dbc, pPiFilterContext);
       if (pPiBlock != NULL)
       {
-         while ( (pPiBlock->start_time < min_time) &&
-                 ((pNext = EpgDbSearchNextPi(dbc, pPiFilterContext, pPiBlock)) != NULL) )
+         while ( (pPiBlock->start_time < min_time) ||
+                 ((pPiBlock->start_time == min_time) && (pPiBlock->netwop_no < last_netwop)) )
          {
+            pNext = EpgDbSearchNextPi(dbc, pPiFilterContext, pPiBlock);
+            if ( (pNext == NULL) ||
+                 (pNext->start_time > min_time) ||
+                 ((pNext->start_time == min_time) && (pNext->netwop_no > last_netwop)) )
+               break;
+
             pPiBlock = pNext;
             pibox_off += 1;
          }
@@ -1223,13 +1248,24 @@ void PiListBox_Refresh( void )
          PiListBox_ShowCursor();
 
          // display short and long info
-         PiListBox_UpdateInfoText();
+         if ( (min_time    == pibox_list[pibox_curpos].start_time) &&
+              (last_netwop == pibox_list[pibox_curpos].netwop_no) )
+         {  // still the same PI under the cursor -> keep the short-info view unchanged
+            PiListBox_UpdateInfoText(TRUE);
+         }
+         else
+            PiListBox_UpdateInfoText(FALSE);
       }
       else
       {
          pibox_curpos = PIBOX_INVALID_CURPOS;
          pibox_count = 0;
          pibox_max = 0;
+         // clear the short-info window
+         sprintf(comm, ".all.pi.info.text configure -state normal\n"
+                       ".all.pi.info.text delete 1.0 end\n"
+                       ".all.pi.info.text configure -state disabled\n");
+         eval_check(interp, comm);
       }
 
       EpgDbLockDatabase(dbc, FALSE);
@@ -1318,7 +1354,7 @@ static int PiListBox_Scroll( ClientData ttp, Tcl_Interp *interp, int argc, char 
 	    PiListBox_ShowCursor();
 
 	    // display short and long info
-	    PiListBox_UpdateInfoText();
+	    PiListBox_UpdateInfoText(FALSE);
 	 }
 	 else
 	 {
@@ -1402,7 +1438,7 @@ static int PiListBox_Scroll( ClientData ttp, Tcl_Interp *interp, int argc, char 
                   pibox_curpos = pibox_height - 1;
                }
                PiListBox_ShowCursor();
-               PiListBox_UpdateInfoText();
+               PiListBox_UpdateInfoText(FALSE);
 
                // inform the vertical scrollbar about the start offset and viewable fraction
                PiListBox_AdjustScrollBar();
@@ -1413,7 +1449,7 @@ static int PiListBox_Scroll( ClientData ttp, Tcl_Interp *interp, int argc, char 
                eval_check(interp, comm);
                pibox_curpos = pibox_count - 1;
                PiListBox_ShowCursor();
-               PiListBox_UpdateInfoText();
+               PiListBox_UpdateInfoText(FALSE);
             }
 
 	    EpgDbLockDatabase(dbc, FALSE);
@@ -1476,7 +1512,7 @@ static int PiListBox_Scroll( ClientData ttp, Tcl_Interp *interp, int argc, char 
 		     pibox_curpos = 0;
 		  }
 		  PiListBox_ShowCursor();
-		  PiListBox_UpdateInfoText();
+		  PiListBox_UpdateInfoText(FALSE);
 
 		  // inform the vertical scrollbar about the start offset and viewable fraction
 		  PiListBox_AdjustScrollBar();
@@ -1487,7 +1523,7 @@ static int PiListBox_Scroll( ClientData ttp, Tcl_Interp *interp, int argc, char 
 		  eval_check(interp, comm);
 		  pibox_curpos = 0;
 		  PiListBox_ShowCursor();
-		  PiListBox_UpdateInfoText();
+		  PiListBox_UpdateInfoText(FALSE);
 	       }
 	    }
 	    else
@@ -1525,7 +1561,7 @@ static int PiListBox_Scroll( ClientData ttp, Tcl_Interp *interp, int argc, char 
 		  }
 		  else
 		     pibox_curpos -= 1;
-		  PiListBox_UpdateInfoText();
+		  PiListBox_UpdateInfoText(FALSE);
 
 		  // adjust the vertical scrollbar
 		  PiListBox_AdjustScrollBar();
@@ -1562,7 +1598,7 @@ static int PiListBox_Scroll( ClientData ttp, Tcl_Interp *interp, int argc, char 
 		  }
 		  else
 		     pibox_curpos += 1;
-		  PiListBox_UpdateInfoText();
+		  PiListBox_UpdateInfoText(FALSE);
 
 		  // inform the vertical scrollbar about the start offset and viewable fraction
 		  PiListBox_AdjustScrollBar();
@@ -1597,7 +1633,7 @@ static int PiListBox_CursorDown( ClientData ttp, Tcl_Interp *interp, int argc, c
 	    eval_check(interp, comm);
 	    pibox_curpos += 1;
 	    PiListBox_ShowCursor();
-            PiListBox_UpdateInfoText();
+            PiListBox_UpdateInfoText(FALSE);
 	 }
       }
       else if (pibox_curpos < pibox_count-1)
@@ -1606,7 +1642,7 @@ static int PiListBox_CursorDown( ClientData ttp, Tcl_Interp *interp, int argc, c
 	 eval_check(interp, comm);
 	 pibox_curpos += 1;
 	 PiListBox_ShowCursor();
-	 PiListBox_UpdateInfoText();
+	 PiListBox_UpdateInfoText(FALSE);
       }
       assert(PiListBox_ConsistancyCheck());
    }
@@ -1630,7 +1666,7 @@ static int PiListBox_CursorUp( ClientData ttp, Tcl_Interp *interp, int argc, cha
 	    eval_check(interp, comm);
 	    pibox_curpos = 0;
 	    PiListBox_ShowCursor();
-            PiListBox_UpdateInfoText();
+            PiListBox_UpdateInfoText(FALSE);
 	 }
       }
       else
@@ -1639,7 +1675,7 @@ static int PiListBox_CursorUp( ClientData ttp, Tcl_Interp *interp, int argc, cha
 	 eval_check(interp, comm);
 	 pibox_curpos -= 1;
 	 PiListBox_ShowCursor();
-	 PiListBox_UpdateInfoText();
+	 PiListBox_UpdateInfoText(FALSE);
       }
       assert(PiListBox_ConsistancyCheck());
    }
@@ -1772,7 +1808,7 @@ static int PiListBox_GotoTime( ClientData ttp, Tcl_Interp *interp, int argc, cha
          PiListBox_ShowCursor();
 
          // display short and long info
-         PiListBox_UpdateInfoText();
+         PiListBox_UpdateInfoText(FALSE);
       }
       else
          pibox_curpos = PIBOX_INVALID_CURPOS;
@@ -1784,6 +1820,106 @@ static int PiListBox_GotoTime( ClientData ttp, Tcl_Interp *interp, int argc, cha
       PiListBox_AdjustScrollBar();
    }
    return TCL_OK; 
+}
+
+// ----------------------------------------------------------------------------
+// Jump to the given program title
+// - if the item is already visible, just place the cursor on it
+// - if the item is not in the visible area, the window is scrolled
+//   however scroll as little as possible (in contrary to the above GotoTime)
+// - XXX currently no expired PI can be displayed (e.g. for VPS)
+// - if netwop filtering is enabled, it's switched to the new PI's network
+//
+void PiListBox_GotoPi( const PI_BLOCK * pPiBlock )
+{
+   FILTER_CONTEXT *fc;
+   time_t now;
+   int idx;
+   bool doRefresh;
+   
+   if (pibox_state == PIBOX_LIST)
+   {
+      now = time(NULL);
+      doRefresh = FALSE;
+
+      if ((pPiFilterContext->enabledFilters & ~FILTER_NETWOP_PRE) == FILTER_NETWOP)
+      {  // network filter is enabled -> switch to the new network
+         // but check before if the item will be visible with the new filter setting
+         fc = EpgDbFilterCopyContext(pPiFilterContext);
+         EpgDbFilterDisable(fc, FILTER_NETWOP | FILTER_NETWOP_PRE);
+         if (EpgDbFilterMatches(dbc, fc, pPiBlock))
+         {
+            sprintf(comm, "ResetNetwops; SelectNetwopByIdx %d 1\n", pPiBlock->netwop_no);
+            eval_check(interp, comm);
+            // must refresh to display PI according to the new filter setting
+            doRefresh = TRUE;
+         }
+         EpgDbFilterDestroyContext(fc);
+      }
+
+      // check if the given PI matches the current filter criteria
+      if ( (pibox_count > 0) &&
+           EpgDbFilterMatches(dbc, pPiFilterContext, pPiBlock) )
+      {
+         if ( (pPiBlock->start_time < pibox_list[0].start_time) ||
+              ((pPiBlock->start_time == pibox_list[0].start_time) && (pPiBlock->netwop_no < pibox_list[0].netwop_no)) )
+         {  // PI lies before the visible area
+            // ugly hack: overwrite the first item with where we want to jump to
+            //            then set the cursor on if and force a refresh
+            //            the refresh will fill the window around the cursor with the correct items
+            pibox_list[0].start_time = pPiBlock->start_time;
+            pibox_list[0].netwop_no  = pPiBlock->netwop_no;
+            pibox_curpos = 0;
+            PiListBox_Refresh();
+            doRefresh = FALSE;
+         }
+         else
+         if ( (pPiBlock->start_time > pibox_list[pibox_count - 1].start_time) ||
+              ((pPiBlock->start_time == pibox_list[pibox_count - 1].start_time) && (pPiBlock->netwop_no > pibox_list[pibox_count - 1].netwop_no)) )
+         {  // PI lies behind the visible area
+            // ugly hack: overwrite the last item with where we want to jump to
+            pibox_list[pibox_count - 1].start_time = pPiBlock->start_time;
+            pibox_list[pibox_count - 1].netwop_no  = pPiBlock->netwop_no;
+            pibox_curpos = pibox_count - 1;
+            PiListBox_Refresh();
+            doRefresh = FALSE;
+         }
+         else
+         {  // PI falls into the visible area
+            // search the exact position
+            for (idx=0; idx < pibox_count; idx++)
+            {
+               if ( (pibox_list[idx].netwop_no == pPiBlock->netwop_no) &&
+                    (pibox_list[idx].start_time == pPiBlock->start_time) )
+               {
+                  break;
+               }
+            }
+            if (idx < pibox_count)
+            {  // found NOW item in the current listing -> just set the cursor there
+               sprintf(comm, ".all.pi.list.text tag remove sel %d.0 %d.0\n", pibox_curpos + 1, pibox_curpos + 2);
+               eval_check(interp, comm);
+
+               pibox_curpos = idx;
+
+               // skip GUI redraw if complete refresh follows
+               if (doRefresh == FALSE)
+               {
+                  PiListBox_ShowCursor();
+                  PiListBox_UpdateInfoText(FALSE);
+               }
+            }
+            else
+               assert(doRefresh);  // not listed although it matches filters and is in the visible area!?
+         }
+      }
+
+      // rebuild PI list around new cursor position now if filter was changed
+      if (doRefresh)
+         PiListBox_Refresh();
+
+      assert(PiListBox_ConsistancyCheck());
+   }
 }
 
 // ----------------------------------------------------------------------------
@@ -1804,7 +1940,7 @@ static int PiListBox_SelectItem( ClientData ttp, Tcl_Interp *interp, int argc, c
 	 PiListBox_ShowCursor();
 
 	 // display short and long info
-	 PiListBox_UpdateInfoText();
+	 PiListBox_UpdateInfoText(FALSE);
       }
    }
 
@@ -1837,7 +1973,8 @@ void PiListBox_DbInserted( const EPGDB_CONTEXT *usedDbc, const PI_BLOCK *pPiBloc
    }
 
    EpgDbLockDatabase(dbc, TRUE);
-   if ((pibox_state == PIBOX_LIST) && EpgDbFilterMatches(dbc, pPiFilterContext, pPiBlock))
+   if ( (pibox_state == PIBOX_LIST) &&
+        EpgDbFilterMatches(dbc, pPiFilterContext, pPiBlock) )
    {
       if ((pibox_count >= pibox_height) &&
 	  ((pibox_off > 0) || (pibox_curpos > 0)) &&
@@ -1884,7 +2021,7 @@ void PiListBox_DbInserted( const EPGDB_CONTEXT *usedDbc, const PI_BLOCK *pPiBloc
 	       sprintf(comm, ".all.pi.list.text tag remove sel 2.0 3.0\n");
 	       eval_check(interp, comm);
 	       PiListBox_ShowCursor();
-	       PiListBox_UpdateInfoText();
+	       PiListBox_UpdateInfoText(FALSE);
 	       PiListBox_AdjustScrollBar();
                assert(PiListBox_ConsistancyCheck());
 	    }
@@ -2020,7 +2157,8 @@ void PiListBox_DbPostUpdate( const EPGDB_CONTEXT *usedDbc, const PI_BLOCK *pObso
                if (pos == pibox_curpos)
                {
                   PiListBox_ShowCursor();
-                  PiListBox_UpdateInfoText();
+                  // update the short-info (but keep the scrollbar position)
+                  PiListBox_UpdateInfoText(TRUE);
                }
                assert(PiListBox_ConsistancyCheck());
             }
@@ -2135,7 +2273,7 @@ void PiListBox_DbRemoved( const EPGDB_CONTEXT *usedDbc, const PI_BLOCK *pPiBlock
 	    if (pos == pibox_curpos)
 	    {
 	       PiListBox_ShowCursor();
-	       PiListBox_UpdateInfoText();
+	       PiListBox_UpdateInfoText(FALSE);
 	    }
 	    else if (pos < pibox_curpos)
 	    {
@@ -2211,35 +2349,52 @@ void PiListBox_DbRecount( const EPGDB_CONTEXT *usedDbc )
 }
 
 // ----------------------------------------------------------------------------
-// check if any items need to be markes as NOW, i.e. currently running
+// Check if any items are expired or started running
+// - currently simply does a refresh (resync with the db to remove expired PI)
+// - could be improved by checking if any PI have expired. If not, only new
+//   NOW PI would have to be marked
 //
-void PiListBox_UpdateNowItems( const EPGDB_CONTEXT *usedDbc )
+void PiListBox_UpdateNowItems( void )
 {
+   #if 0
    ulong now;
    uint  pos;
+   bool refresh;
+   #endif
 
-   if ((pibox_state == PIBOX_LIST) && (usedDbc == dbc))
+   if (pibox_state == PIBOX_LIST)
    {
+      #if 0
       if (pPiFilterContext->enabledFilters & FILTER_PROGIDX)
       {  // prog-no filter -> set flag so that listbox is resync'ed with db
          pibox_resync = TRUE;
       }
 
+      refresh = TRUE; //XXX TODO
       now = time(NULL);
 
       for (pos=0; pos < pibox_count; pos++)
       {
+         //XXX TODO: stop_time is not saved, so we have to search the DB
+	 //if (pibox_list[pos].stop_time <= now)
+            //refresh = TRUE;
 	 if (pibox_list[pos].start_time > now)
 	    break;
       }
 
-      if (pos > 0)
+      if (refresh)
+      {
+         #endif
+         PiListBox_Refresh();
+         #if 0
+      }
+      else if (pos > 0)
       {
 	 sprintf(comm, ".all.pi.list.text tag ranges now\n");
 	 if (eval_check(interp, comm) == TCL_OK)
 	 {
 	    sprintf(comm, "1.0 %d.0", pos + 1);
-	    if(strcmp(interp->result, comm) != 0)
+	    if (strcmp(interp->result, comm) != 0)
 	    {
 	       dprintf2("updating now items: was (%s), now (%s)\n", interp->result, comm);
 	       sprintf(comm, ".all.pi.list.text tag remove now 1.0 end\n"
@@ -2251,7 +2406,9 @@ void PiListBox_UpdateNowItems( const EPGDB_CONTEXT *usedDbc )
 	       PiListBox_ShowCursor();
 	    }
 	 }
+         PiListBox_DbRecount(dbc);
       }
+      #endif
    }
 }
 

@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: statswin.c,v 1.34 2001/04/19 20:48:44 tom Exp tom $
+ *  $Id: statswin.c,v 1.35 2001/05/06 17:49:00 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -391,7 +391,7 @@ void StatsWin_UpdateDbStatsWin( ClientData clientData )
          EpgAcqCtl_DescribeAcqState(&acqState);
 
          EpgDbAcqGetScanResults(&cni, &waitNi, &foo);
-         EpgDbAcqEnableVpsPdc(TRUE);
+         EpgDbAcqResetVpsPdc();
 
          duration = now - sv->acqStartTime;
          if (duration == 0)
@@ -1267,7 +1267,7 @@ static int StatsWin_ToggleDbStats( ClientData ttp, Tcl_Interp *interp, int argc,
                      dbStatsWinState[target].lastHistPos = sv->histIdx - 1;
                   }
                }
-               EpgDbAcqEnableVpsPdc(TRUE);
+               EpgDbAcqResetVpsPdc();
             }
 
             // display initial summary
@@ -1287,7 +1287,7 @@ static int StatsWin_ToggleDbStats( ClientData ttp, Tcl_Interp *interp, int argc,
                     ((target == DB_TARGET_ACQ) && ((dbStatsWinState[DB_TARGET_UI].open == FALSE) ||
                                                    (dbStatsWinState[DB_TARGET_UI].isForAcq == FALSE))) )
                {
-                  EpgDbAcqEnableVpsPdc(FALSE);
+                  EpgDbAcqResetVpsPdc();
                }
             }
          }

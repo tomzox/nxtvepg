@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqctl.h,v 1.26 2001/04/19 20:41:55 tom Exp tom $
+ *  $Id: epgacqctl.h,v 1.27 2001/05/31 17:08:07 tom Exp tom $
  */
 
 #ifndef __EPGACQCTL_H
@@ -189,6 +189,7 @@ int  EpgAcqCtl_Toggle( int newState );
 bool EpgAcqCtl_SelectMode( EPGACQ_MODE newAcqMode, uint cniCount, const uint * pCniTab );
 bool EpgAcqCtl_SetInputSource( uint inputIdx );
 bool EpgAcqCtl_UiProvChange( void );
+bool EpgAcqCtl_CheckDeviceAccess( void );
 EPGDB_STATE EpgAcqCtl_GetDbState( uint cni );
 void EpgAcqCtl_DescribeAcqState( EPGACQ_DESCR * pAcqState );
 void EpgAcqCtl_ToggleAcqForScan( bool enable );

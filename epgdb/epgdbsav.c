@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbsav.c,v 1.35 2001/04/04 18:28:36 tom Exp tom $
+ *  $Id: epgdbsav.c,v 1.39 2001/05/19 14:27:48 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -38,6 +38,7 @@
 #include <stdlib.h>
 #include <io.h>
 #include <direct.h>
+#include <ctype.h>
 #endif
 #include <stdio.h>
 #include <errno.h>
@@ -341,7 +342,7 @@ static EPGDB_RELOAD_RESULT EpgDbReloadAddGenericBlock( PDBC dbc, EPGDB_BLOCK *pB
            ((block_no == 0x8000) && ((pBlock->type == BLOCK_TYPE_LI) || (pBlock->type == BLOCK_TYPE_TI))) )
       {
          if (dbc->pFirstGenericBlock[pBlock->type] == NULL)
-         {  // allererster Block dieses Typs
+         {  // no block of this type in the database yet
             //dprintf3("RELOAD first GENERIC type=%d ptr=%lx: blockno=%d\n", type, (ulong)pBlock, block_no);
             pBlock->pNextBlock = NULL;
             dbc->pFirstGenericBlock[pBlock->type] = pBlock;
@@ -354,7 +355,7 @@ static EPGDB_RELOAD_RESULT EpgDbReloadAddGenericBlock( PDBC dbc, EPGDB_BLOCK *pB
             assert(pPrev != NULL);
 
             if ( pPrev->blk.all.block_no < block_no)
-            {  // Block passt in Sortierung -> ersetzen
+            {  // blocks are still sorted by increasing block numbers -> append the block
                //dprintf3("RELOAD GENERIC type=%d ptr=%lx: blockno=%d\n", type, (ulong)pBlock, block_no);
                pBlock->pNextBlock = NULL;
                pPrev->pNextBlock = pBlock;
@@ -362,7 +363,7 @@ static EPGDB_RELOAD_RESULT EpgDbReloadAddGenericBlock( PDBC dbc, EPGDB_BLOCK *pB
                result = EPGDB_RELOAD_OK;
             }
             else
-            {  // Blocknummer nicht groesser als die des letzten Blocks
+            {  // unexpected block number - refuse (should never happen, since blocks are dumped sorted)
                debug3("EpgDbReload-AddGenericBlock: prov=0x%04X: blockno=%d <= pPrev %d", AI_GET_CNI(&dbc->pAiBlock->blk.ai), block_no, pPrev->blk.all.block_no);
                xfree(pBlock);
             }
@@ -478,7 +479,6 @@ static EPGDB_RELOAD_RESULT EpgDbReloadAddPiBlock( PDBC dbc, EPGDB_BLOCK * pBlock
 {
    EPGDB_BLOCK *pPrev;
    uchar netwop;
-   time_t now;
    EPGDB_RELOAD_RESULT result;
    
    result = EpgDbReloadCheckPiBlock(pBlock);
@@ -487,18 +487,13 @@ static EPGDB_RELOAD_RESULT EpgDbReloadAddPiBlock( PDBC dbc, EPGDB_BLOCK * pBlock
       netwop = pBlock->blk.pi.netwop_no;
       if ( EpgDbPiBlockNoValid(dbc, pBlock->blk.pi.block_no, netwop) )
       {
-         now = time(NULL);
-
-         //if ( pBlock->blk.pi.start_time >= now + 28*60*60 ) xfree(pBlock); else
-         if ( (pBlock->blk.pi.start_time < pBlock->blk.pi.stop_time) &&
-              (pBlock->blk.pi.stop_time > now) )
-         {  // Sendung noch nicht abgelaufen
-
+         if (pBlock->blk.pi.start_time < pBlock->blk.pi.stop_time)
+         {
             //dprintf4("RELOAD PI ptr=%lx: netwop=%d, blockno=%d, start=%ld\n", (ulong)pBlock, netwop, pBlock->blk.pi.block_no, pBlock->blk.pi.start_time);
             pBlock->acqRepCount = 0;
 
             if (dbc->pFirstPi == NULL)
-            {  // allererstes Element
+            {  // there's no PI yet in the database -> just link with head pointers
                assert(dbc->pLastPi == NULL);
                assert(dbc->pFirstNetwopPi[netwop] == NULL);
                pBlock->pNextNetwopBlock = NULL;
@@ -518,9 +513,9 @@ static EPGDB_RELOAD_RESULT EpgDbReloadAddPiBlock( PDBC dbc, EPGDB_BLOCK * pBlock
                  ( ((pPrev = pPrevNetwop[netwop]) == NULL) ||
                    ( EpgDbPiCmpBlockNoGt(dbc, pBlock->blk.pi.block_no, pPrev->blk.pi.block_no, netwop) &&
                      (pBlock->blk.pi.start_time >= pPrev->blk.pi.stop_time) )))
-            {  // hinten anhaengen
+            {  // append the block after the last reloaded one
 
-               // Netwop-Verzeigerung
+               // append to network pointer chain
                if (dbc->pFirstNetwopPi[netwop] == NULL)
                {
                   dbc->pFirstNetwopPi[netwop] = pBlock;
@@ -534,7 +529,7 @@ static EPGDB_RELOAD_RESULT EpgDbReloadAddPiBlock( PDBC dbc, EPGDB_BLOCK * pBlock
                pBlock->pNextNetwopBlock = NULL;
                pPrevNetwop[netwop] = pBlock;
 
-               // in Startzeit-Verzeigerung einhaengen
+               // append to start time pointer chain
                pBlock->pPrevBlock = dbc->pLastPi;
                pBlock->pNextBlock = NULL;
                dbc->pLastPi->pNextBlock = pBlock;
@@ -542,7 +537,7 @@ static EPGDB_RELOAD_RESULT EpgDbReloadAddPiBlock( PDBC dbc, EPGDB_BLOCK * pBlock
                result = EPGDB_RELOAD_OK;
             }
             else
-            {  // Startzeit und BlockNo nicht groesser als die des letzten Blocks -> ignorieren
+            {  // unexpected block number or start time -> refuse the block (should never happen)
                debug4("EpgDbReload-AddPiBlock: PI not consecutive: prov=0x%04X: netwop=%02d block_no=%d start=%ld", AI_GET_CNI(&dbc->pAiBlock->blk.ai), netwop, pBlock->blk.pi.block_no, pBlock->blk.pi.start_time);
                xfree(pBlock);
             }
@@ -550,7 +545,7 @@ static EPGDB_RELOAD_RESULT EpgDbReloadAddPiBlock( PDBC dbc, EPGDB_BLOCK * pBlock
             //assert(EpgDbCheckChains());
          }
          else
-         {  // Sendung bereits abgelaufen -> PI nicht aufnehmen
+         {  // defective stop time value, PI cannot be added to regular list
             //dprintf3("EXPIRED pi netwop=%d, blockno=%d start=%ld\n", pBlock->blk.pi.netwop_no, pBlock->blk.pi.block_no, pBlock->blk.pi.start_time);
             result = EpgDbReloadAddDefectPiBlock(dbc, pBlock);
          }

@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbif.c,v 1.23 2001/02/25 16:00:45 tom Exp tom $
+ *  $Id: epgdbif.c,v 1.27 2001/05/19 14:25:56 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -149,12 +149,12 @@ static const EPGDB_BLOCK * EpgDbSearchGenericBlock( CPDBC dbc, BLOCK_TYPE type, 
          {
             if (pBlock->blk.all.block_no == block_no)
             {
-               // gefunden -> Rueckgabe der Adresse
+               // found -> return the address
                return pBlock;
             }
             pBlock = pBlock->pNextBlock;
          }
-         // nicht gefunden
+         // not found
       }
       else
          debug1("EpgDb-Search-GenericBlock: illegal type %d", type);
@@ -368,6 +368,7 @@ const PI_BLOCK * EpgDbSearchPi( CPDBC dbc, const FILTER_CONTEXT *fc, time_t star
             {
                return &pBlock->blk.pi;
             }
+            break;
          }
          pBlock = pBlock->pNextNetwopBlock;
       }
@@ -503,6 +504,36 @@ const PI_BLOCK * EpgDbSearchPrevPi( CPDBC dbc, const FILTER_CONTEXT *fc, const P
 }
 
 // ---------------------------------------------------------------------------
+// Search for the PI block with the given PIL
+// - also search through the obsolete blocks, because the planned program
+//   stop time might already have elapsed when the program is still running
+//
+const PI_BLOCK * EpgDbSearchPiByPil( CPDBC dbc, uchar netwop_no, uint pil )
+{
+   const EPGDB_BLOCK * pBlock;
+
+   assert(netwop_no < MAX_NETWOP_COUNT);
+
+   if ( EpgDbIsLocked(dbc) )
+   {
+      pBlock = dbc->pFirstNetwopPi[netwop_no];
+      while (pBlock != NULL)
+      {
+         if (pBlock->blk.pi.pil == pil)
+         {
+            assert(pBlock->blk.pi.netwop_no == netwop_no);
+            return &pBlock->blk.pi;
+         }
+         pBlock = pBlock->pNextNetwopBlock;
+      }
+   }
+   else
+      debug0("EpgDb-SearchPiByPil: DB not locked");
+
+   return NULL;
+}
+
+// ---------------------------------------------------------------------------
 // Get the index of a PI in his netwop's chain
 // - The index of a netwop's first PI is 0, or 1, if it's start time lies in
 //   the future. This is required by the spec of the Nextview prog-no filter.
@@ -604,13 +635,14 @@ bool EpgDbGetStat( CPDBC dbc, EPGDB_BLOCK_COUNT * pCount, time_t acqMinTime )
    ulong count1, count2;
    uchar version1, version2;
    double avgPercentage1, avgPercentage2, variance1, variance2;
-   uchar netwop;
    time_t now;
+   uchar netwop;
    bool result;
 
    memset(pCount, 0, 2 * sizeof(EPGDB_BLOCK_COUNT));
    memset(blockCount1, 0, sizeof(blockCount1));
    memset(blockCount2, 0, sizeof(blockCount2));
+   now = time(NULL);
 
    if (dbc->pAiBlock != NULL)
    {
@@ -627,29 +659,39 @@ bool EpgDbGetStat( CPDBC dbc, EPGDB_BLOCK_COUNT * pCount, time_t acqMinTime )
          // or the block counts will be inconsistent with the AI counts!
          if (EpgDbPiCmpBlockNoGt(dbc, pBlock->blk.pi.block_no, pNetwops[pBlock->blk.pi.netwop_no].stopNo, pBlock->blk.pi.netwop_no) == FALSE)
          {
-            pCount[0].allVersions += 1;
-            if (pBlock->version == version1)
+            if (pBlock->blk.pi.stop_time > now)
             {
-               pCount[0].curVersion += 1;
-               if (pBlock->acqTimestamp >= acqMinTime)
+               pCount[0].allVersions += 1;
+               if (pBlock->version == version1)
                {
-                  pCount[0].sinceAcq += 1;
-                  blockCount1[pBlock->blk.pi.netwop_no] += 1;
+                  pCount[0].curVersion += 1;
+                  if (pBlock->acqTimestamp >= acqMinTime)
+                  {
+                     pCount[0].sinceAcq += 1;
+                     blockCount1[pBlock->blk.pi.netwop_no] += 1;
+                  }
                }
             }
+            else
+               pCount[0].expired += 1;
          }
          else
          {
-            pCount[1].allVersions += 1;
-            if (pBlock->version == version2)
+            if (pBlock->blk.pi.stop_time > now)
             {
-               pCount[1].curVersion += 1;
-               if (pBlock->acqTimestamp >= acqMinTime)
+               pCount[1].allVersions += 1;
+               if (pBlock->version == version2)
                {
-                  pCount[1].sinceAcq += 1;
-                  blockCount2[pBlock->blk.pi.netwop_no] += 1;
+                  pCount[1].curVersion += 1;
+                  if (pBlock->acqTimestamp >= acqMinTime)
+                  {
+                     pCount[1].sinceAcq += 1;
+                     blockCount2[pBlock->blk.pi.netwop_no] += 1;
+                  }
                }
             }
+            else
+               pCount[1].expired += 1;
          }
 
          pBlock = pBlock->pNextBlock;
@@ -657,7 +699,6 @@ bool EpgDbGetStat( CPDBC dbc, EPGDB_BLOCK_COUNT * pCount, time_t acqMinTime )
 
       // count number of expired/defect blocks
       // - no version comparison required, since these are discarded when AI version changes
-      now = time(NULL);
       pBlock = dbc->pObsoletePi;
       while (pBlock != NULL)
       {

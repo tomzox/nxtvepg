@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgctxmerge.h,v 1.1 2001/04/04 18:34:52 tom Exp tom $
+ *  $Id: epgctxmerge.h,v 1.2 2001/04/29 08:45:24 tom Exp tom $
  */
 
 #ifndef __EPGCTXMERGE_H
@@ -27,10 +27,11 @@
 // Declaration of interface functions
 //
 EPGDB_CONTEXT * EpgContextMerge( uint dbCount, const uint * pCni, MERGE_ATTRIB_VECTOR_PTR pMax );
-void EpgContextMergeInsertPi( EPGDB_CONTEXT * pAcqContext, EPGDB_BLOCK * pNewBlock );
-void EpgContextMergeAiUpdate( EPGDB_CONTEXT * pAcqContext, EPGDB_BLOCK * pAiBlock );
+void EpgContextMergeInsertPi( const EPGDB_CONTEXT * pAcqContext, EPGDB_BLOCK * pNewBlock );
+void EpgContextMergeAiUpdate( const EPGDB_CONTEXT * pAcqContext, EPGDB_BLOCK * pAiBlock );
 void EpgContextMergeDestroy( void * pMergeContextPtr );
 bool EpgContextMergeGetCnis( const EPGDB_CONTEXT * dbc, uint * pCniCount, uint *pCniTab );
+void EpgContextMergeAiCheckBlockRange( const EPGDB_CONTEXT * pAcqContext );
 
 
 #endif  // __EPGCTXMERGE_H

@@ -23,7 +23,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbfil.c,v 1.25 2001/04/03 18:59:10 tom Exp tom $
+ *  $Id: epgdbfil.c,v 1.26 2001/05/19 14:23:39 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -448,6 +448,16 @@ void EpgDbFilterSetNetwopPreFilter( FILTER_CONTEXT *fc, uchar netwopNo )
 }
 
 // ---------------------------------------------------------------------------
+// Set expire time border, i.e. min value for stop time
+// - usually this will be set to the current time every full minute
+//   so that expired programmes automatically disappear from the PI listing
+//
+void EpgDbFilterSetExpireTime( FILTER_CONTEXT *fc, ulong newExpireTime )
+{
+   fc->expireTime = newExpireTime;
+}
+
+// ---------------------------------------------------------------------------
 // Set min value for start time filter
 //
 void EpgDbFilterSetDateTimeBegin( FILTER_CONTEXT *fc, ulong newTimeBegin )
@@ -793,6 +803,12 @@ bool EpgDbFilterMatches( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT *fc, con
       {  // netwop pre-filter is only activated when netwop is unused
          // this way also netwops outside of the prefilter can be explicitly requested, e.g. by a NI menu
          if (fc->netwopPreFilterField[pPi->netwop_no] == FALSE)
+            goto failed;
+      }
+
+      if (fc->enabledFilters & FILTER_EXPIRE_TIME)
+      {
+         if (pPi->stop_time <= fc->expireTime)
             goto failed;
       }
 

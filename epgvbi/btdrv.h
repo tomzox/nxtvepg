@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: btdrv.h,v 1.10 2001/02/25 15:59:43 tom Exp tom $
+ *  $Id: btdrv.h,v 1.11 2001/05/06 14:26:51 tom Exp tom $
  */
 
 #ifndef __BTDRV_H
@@ -72,9 +72,34 @@ typedef struct
 } VBI_LINE;
 
 // ---------------------------------------------------------------------------
+
+typedef enum
+{
+   CNI_TYPE_VPS,          // VPS line 16, used in DE, AU, CH and CZ only
+   CNI_TYPE_PDC,          // Packet 8/30/2, used in GB only
+   CNI_TYPE_NI,           // Packet 8/30/1, used mainly in F
+   CNI_TYPE_COUNT,
+   INVALID_CNI_TYPE = CNI_TYPE_COUNT
+} CNI_TYPE;
+
+typedef struct
+{
+   bool    haveCni;       // CNI available
+   bool    havePil;       // PIL available
+   uint    outCni;        // latest confirmed CNI - reset when fetched
+   uint    outPil;        // latest confirmed PIL - reset when fetched
+
+   uint    lastCni;       // last recevied CNI - copied to outCni after X repetitions
+   uint    cniRepCount;   // reception counter - reset upon CNI change
+   uint    lastPil;       // last received PIL - copied to outPil after X repetitions
+   uint    pilRepCount;   // reception counter - reset upon PIL change
+} CNI_ACQ_STATE;
+
+// ---------------------------------------------------------------------------
 // Structure which is put into the allocated shared memory
 // - used to pass parameters and commands between master and acq slave
 // - ring buffer for EPG packets
+// - buffer for VPS/PDC CNI
 //
 typedef struct
 {
@@ -87,13 +112,12 @@ typedef struct
 
    uint       mipPageNo;
    uint       dataPageCount;
-   uint       vpsCni;
-   uint       pdcCni;
-   uint       ni;
-   uchar      niRepCnt;
+
+   CNI_ACQ_STATE cnis[CNI_TYPE_COUNT];
 
    uint       writer_idx;
    uint       reader_idx;
+   uint       start_writer_idx;
    VBI_LINE   line[EPGACQ_BUF_COUNT];
    u32        frameSeqNo;
 

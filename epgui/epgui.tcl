@@ -21,7 +21,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: epgui.tcl,v 1.95 2001/04/19 20:46:24 tom Exp tom $
+#  $Id: epgui.tcl,v 1.114 2001/06/05 20:00:40 tom Exp tom $
 #
 
 set is_unix [expr [string compare $tcl_platform(platform) "unix"] == 0]
@@ -30,20 +30,7 @@ frame     .all -relief flat -borderwidth 0
 frame     .all.shortcuts -borderwidth 2
 label     .all.shortcuts.clock -borderwidth 1 -text {}
 pack      .all.shortcuts.clock -fill x -pady 5
-if {$is_unix  && [info exists env(HOME)] && [file isfile "$env(HOME)/.xawtv"]} {
-   button .all.shortcuts.tune -text "Tune TV" -relief ridge -command TuneTV
-   bind   .all.shortcuts.tune <Button-3> {TuneTvPopupMenu 1 %x %y}
-   pack   .all.shortcuts.tune -side top -fill x
 
-   menu .tunetvcfg -tearoff 0
-   .tunetvcfg add command -label "Start Capturing" -command {TuneTVSendCmd {capture on}}
-   .tunetvcfg add command -label "Stop Capturing" -command {TuneTVSendCmd {capture off}}
-   .tunetvcfg add command -label "Toggle mute" -command {TuneTVSendCmd {volume mute}}
-   .tunetvcfg add separator
-   .tunetvcfg add command -label "Toggle TV station" -command {TuneTVSendCmd {setstation back}}
-   .tunetvcfg add command -label "Next TV station" -command {TuneTVSendCmd {setstation next}}
-   .tunetvcfg add command -label "Previous TV station" -command {TuneTVSendCmd {setstation prev}}
-}
 button    .all.shortcuts.reset -text "Reset" -relief ridge -command {ResetFilterState; C_ResetFilter all; C_ResetPiListbox}
 pack      .all.shortcuts.reset -side top -fill x
 
@@ -55,7 +42,7 @@ pack      .all.shortcuts -anchor nw -side left
 
 frame     .all.netwops
 listbox   .all.netwops.list -exportselection false -height 25 -width 0 -selectmode extended -relief ridge -cursor top_left_arrow
-.all.netwops.list insert end alle
+.all.netwops.list insert end "-all-"
 .all.netwops.list selection set 0
 bind      .all.netwops.list <ButtonRelease-1> {+ SelectNetwop}
 bind      .all.netwops.list <space> {+ SelectNetwop}
@@ -64,16 +51,18 @@ pack      .all.netwops -side left -anchor n -pady 2 -padx 2
 
 if {$is_unix} {
    set font_pt_size  12
-   set cursor_bg     #c3c3c3
-   set cursor_bg_now #b8b8df
+   set cursor_bg      #c3c3c3
+   set cursor_bg_now  #b8b8df
+   set cursor_bg_past #dfb8b8
 } else {
    if {$tcl_version >= 8.3} {
       set font_pt_size  12
    } else {
       set font_pt_size  15
    }
-   set cursor_bg     #e2e2e2
-   set cursor_bg_now #d8d8ff
+   set cursor_bg      #e2e2e2
+   set cursor_bg_now  #d8d8ff
+   set cursor_bg_past #ffd8d8
 }
 set textfont        [list helvetica [expr   0 - $font_pt_size] normal]
 set font_small      [list helvetica [expr   2 - $font_pt_size] normal]
@@ -104,7 +93,7 @@ text      .all.pi.list.text -width 50 -height 25 -wrap none \
 bindtags  .all.pi.list.text {.all.pi.list.text . all}
 bind      .all.pi.list.text <Button-1> {SelectPi %x %y}
 bind      .all.pi.list.text <Double-Button-1> {C_PiListBox_PopupPi %x %y}
-bind      .all.pi.list.text <Button-3> {SelectPi %x %y; CreateContextMenu %x %y}
+bind      .all.pi.list.text <Button-3> {CreateContextMenu %x %y}
 bind      .all.pi.list.text <Up>    {C_PiListBox_CursorUp}
 bind      .all.pi.list.text <Down>  {C_PiListBox_CursorDown}
 bind      .all.pi.list.text <Prior> {C_PiListBox_Scroll scroll -1 pages}
@@ -114,11 +103,13 @@ bind      .all.pi.list.text <End>   {C_PiListBox_Scroll moveto 1.0; C_PiListBox_
 bind      .all.pi.list.text <Enter> {focus %W}
 .all.pi.list.text tag configure sel -foreground black -relief raised -borderwidth 1
 .all.pi.list.text tag configure now -background #c9c9df
+.all.pi.list.text tag configure past -background #dfc9c9
 .all.pi.list.text tag lower now
+.all.pi.list.text tag lower past
 pack      .all.pi.list.text -side left -fill x -expand 1
 pack      .all.pi.list -side top -fill x
 
-button    .all.pi.panner -bitmap bitmap_pan_updown -cursor top_left_arrow
+button    .all.pi.panner -bitmap bitmap_pan_updown -cursor top_left_arrow -takefocus 0
 bind      .all.pi.panner <ButtonPress-1> {+ PanningControl 1}
 bind      .all.pi.panner <ButtonRelease-1> {+ PanningControl 0}
 pack      .all.pi.panner -side top -anchor e
@@ -398,6 +389,104 @@ proc GenerateFilterMenues {tcc fcc} {
       .menubar.filter.features.featureclass add radio -label $index -command {SelectFeatureClass $current_feature_class} -variable current_feature_class -value $index
    }
 
+}
+
+##  ---------------------------------------------------------------------------
+##  Create the button for xawtv control and it's popup menu
+##
+proc CreateTuneTvButton {} {
+   global is_unix
+
+   if {$is_unix} {
+      if {[string length [info commands .all.shortcuts.tune]] == 0} {
+         button .all.shortcuts.tune -text "Tune TV" -relief ridge -command TuneTV
+         bind   .all.shortcuts.tune <Button-3> {TuneTvPopupMenu 1 %x %y}
+
+         menu .tunetvcfg -tearoff 0
+         .tunetvcfg add command -label "Start Capturing" -command {C_Xawtv_SendCmd capture on}
+         .tunetvcfg add command -label "Stop Capturing" -command {C_Xawtv_SendCmd capture off}
+         .tunetvcfg add command -label "Toggle mute" -command {C_Xawtv_SendCmd volume mute}
+         .tunetvcfg add separator
+         .tunetvcfg add command -label "Toggle TV station" -command {C_Xawtv_SendCmd setstation back}
+         .tunetvcfg add command -label "Next TV station" -command {C_Xawtv_SendCmd setstation next}
+         .tunetvcfg add command -label "Previous TV station" -command {C_Xawtv_SendCmd setstation prev}
+      }
+
+      if {[lsearch -exact [pack slaves .all.shortcuts] .all.shortcuts.tune] == -1} {
+         pack .all.shortcuts.tune -side top -fill x -before .all.shortcuts.reset
+      }
+   }
+}
+
+proc RemoveTuneTvButton {} {
+   if {[lsearch -exact [pack slaves .all.shortcuts] .all.shortcuts.tune] >= 0} {
+      pack forget .all.shortcuts.tune
+   }
+}
+
+##  ---------------------------------------------------------------------------
+##  Create a popup menu below the xawtv window
+##  - params #1-#4 are the coordinates and dimensions of the xawtv window
+##  - params #5-#7 are the info to be displayed in the popup
+##
+proc Create_XawtvPopup {xcoo ycoo width height rperc rtime ptitle} {
+   global font_pl2_bold
+
+   set ww1 [font measure $font_pl2_bold $rtime]
+   set ww2 [font measure $font_pl2_bold $ptitle]
+   set ww [expr ($ww1 >= $ww2) ? $ww1 : $ww2]
+   set wh [expr 2 * [font metrics $font_pl2_bold -linespace] + 3 + 4+4]
+
+   if {[string length [info commands .xawtv_epg]] == 0} {
+      toplevel .xawtv_epg -class InputOutput
+      wm overrideredirect .xawtv_epg 1
+      wm withdraw .xawtv_epg
+
+      frame .xawtv_epg.f -borderwidth 2 -relief raised
+      frame .xawtv_epg.f.rperc -borderwidth 1 -relief sunken -height 5 -width $ww
+      pack propagate .xawtv_epg.f.rperc 0
+      frame .xawtv_epg.f.rperc.bar -background blue -height 5 -width [expr int($ww * $rperc)]
+      pack propagate .xawtv_epg.f.rperc.bar 0
+      pack .xawtv_epg.f.rperc.bar -anchor w -side left -fill y -expand 1
+
+      label .xawtv_epg.f.lines -text "$rtime\n$ptitle" -font $font_pl2_bold
+      pack .xawtv_epg.f.rperc -side top -fill x -expand 1 -padx 5 -pady 4
+      pack .xawtv_epg.f.lines -side top -padx 5
+      pack .xawtv_epg.f
+
+   } else {
+      wm withdraw .xawtv_epg
+
+      .xawtv_epg.f.rperc configure -width $ww
+      .xawtv_epg.f.rperc.bar configure -width [expr int($ww * $rperc)]
+      .xawtv_epg.f.lines configure -text "$rtime\n$ptitle"
+   }
+
+   # add X-padding and border width
+   set ww [expr $ww + 5 + 5 + 2 + 2]
+
+   # compute X-position: center
+   set wxcoo [expr $xcoo + ($width - $ww) / 2]
+   if {$wxcoo < 0} {
+      set wxcoo 0
+   } elseif {$wxcoo + $ww > [winfo screenwidth .xawtv_epg]} {
+      set wxcoo [expr [winfo screenwidth .xawtv_epg] - $ww]
+      if {$wxcoo < 0} {set wxcoo 0}
+   }
+
+   # compute Y-position: below the xawtv window; above if too low
+   set wycoo [expr $ycoo + $height + 10]
+   if {$wycoo + $wh > [winfo screenheight .xawtv_epg]} {
+      set wycoo [expr $ycoo - 20 - $wh]
+      if {$wycoo < 0} {set wycoo 0}
+   }
+
+   # must build the popup before the geometry request or it will flicker
+   update
+
+   wm geometry .xawtv_epg "+$wxcoo+$wycoo"
+   wm deiconify .xawtv_epg
+   raise .xawtv_epg
 }
 
 ##  ---------------------------------------------------------------------------
@@ -735,15 +824,20 @@ proc SelectNetwopMenu {netidx} {
 ##  Select network in context menu
 ##  - the parameter is the network index in the AI block
 ##
-proc SelectNetwopByIdx {netwop} {
+proc SelectNetwopByIdx {netwop is_on} {
    global netwop_map netselmenu
 
    # search to which menu index this network was mapped
    foreach {idx val} [array get netwop_map] {
       if {$val == $netwop} {
          # simulate a click into the netwop listbox
-         .all.netwops.list selection clear 0
-         .all.netwops.list selection set [expr $idx + 1]
+         if $is_on {
+            .all.netwops.list selection clear 0
+            .all.netwops.list selection set [expr $idx + 1]
+         } else {
+            # deselect the netwop
+            .all.netwops.list selection clear [expr $idx + 1]
+         }
          SelectNetwop
          return
       }
@@ -752,7 +846,17 @@ proc SelectNetwopByIdx {netwop} {
    # not found in the netwop menus (not part of user network selection)
    # -> just set the filter & deselect the "All netwops" entry
    .all.netwops.list selection clear 0
-   C_SelectNetwops $netwop
+   if $is_on {
+      C_SelectNetwops $netwop
+   } else {
+      set temp [C_GetNetwopFilterList]
+      set idx [lsearch -exact $temp $netwop]
+      if {$idx >= 0} {
+         C_SelectNetwops $netwop
+      } else {
+         C_SelectNetwops [concat [lrange $temp 0 [expr $idx - 1]] [lrange $temp [expr $idx + 1] end]]
+      }
+   }
    C_RefreshPiListbox
 }
 
@@ -998,6 +1102,20 @@ proc SelectPi {xcoo ycoo} {
    }
 
    C_PiListBox_SelectItem [GetSelectedItem $xcoo $ycoo]
+
+   # binding for motion event to follow the mouse with the selection
+   bind .all.pi.list.text <Motion> {SelectPiMotion %s %x %y}
+}
+
+# callback for Motion event in the PI listbox while the first button is pressed
+proc SelectPiMotion {state xcoo ycoo} {
+   if {$state != 0} {
+      # mouse position has changed -> check if new item is selected
+      C_PiListBox_SelectItem [GetSelectedItem $xcoo $ycoo]
+   } else {
+      # button no longer pressed -> remove the motion binding
+      bind .all.pi.list.text <Motion> {}
+   }
 }
 
 ##  ---------------------------------------------------------------------------
@@ -1383,19 +1501,37 @@ proc ShortInfoResized {} {
 ##  --------------------------------------------------------------------------
 ##  Tune the station of the currently selected programme
 ##  - callback command of the "Tune TV" button in the main window
+##  - pops up a warning if network names have not been sync'ed with xawtv yet.
+##    this popup is shown just once after each program start.
 ##
 proc TuneTV {} {
+   global tunetv_msg_nocfg
    global cfnetnames
+
+   # warn if network names have not been sync'ed with xawtv yet
+   if {![array exists cfnetnames] && ![info exists tunetv_msg_nocfg]} {
+      set tunetv_msg_nocfg 1
+
+      set answer [tk_messageBox -type okcancel -default ok -icon info \
+                     -message "Please synchronize the nextwork names with xawtv in the Network Name Configuration dialog. You need to do this just once."]
+      if {[string compare $answer "ok"] == 0} {
+         # invoke the network name configuration dialog
+         NetworkNamingPopup
+         return
+      }
+   }
 
    # retrieve the name of the network of the currently selected PI
    set selnet [C_PiListBox_GetSelectedNetwop]
    if {[llength $selnet] > 0} {
       set cni [lindex $selnet 0]
-      set name [lindex $selnet 1]
+      # use user-configured network name OR provider name from AI
       if [info exists cfnetnames($cni)] {
          set name $cfnetnames($cni)
-         TuneTVSendCmd [list "setstation" $name]
+      } else {
+         set name [lindex $selnet 1]
       }
+      C_Xawtv_SendCmd "setstation" $name
    }
 }
 
@@ -1405,14 +1541,6 @@ proc TuneTvPopupMenu {state xcoo ycoo} {
    set ycoo [expr $ycoo + [winfo rooty .all.shortcuts.tune]]
 
    tk_popup .tunetvcfg $xcoo $ycoo 0
-}
-
-# send a command to xawtv
-# catch handles exceptions, usually 'command is not found' or 'xawtv not running'
-proc TuneTVSendCmd {cmdlist} {
-   if [catch [concat exec "xawtv-remote" $cmdlist] retval] {
-      tk_messageBox -type ok -icon error -message "xawtv-remote failed: $retval"
-   }
 }
 
 ##  --------------------------------------------------------------------------
@@ -1933,7 +2061,7 @@ proc PopupDumpDatabase {} {
       frame .dumpdb.all.opt
       frame .dumpdb.all.opt.one
       checkbutton .dumpdb.all.opt.one.pi -text "Programme Info" -variable dumpdb_pi
-      checkbutton .dumpdb.all.opt.one.xi -text "Expired PI" -variable dumpdb_xi
+      checkbutton .dumpdb.all.opt.one.xi -text "Defective PI" -variable dumpdb_xi
       checkbutton .dumpdb.all.opt.one.ai -text "Application Info" -variable dumpdb_ai
       checkbutton .dumpdb.all.opt.one.ni -text "Navigation Info" -variable dumpdb_ni
       pack .dumpdb.all.opt.one.pi -side top -anchor nw
@@ -2094,7 +2222,7 @@ proc CreateAbout {} {
       #label .about.tcl_version -text " Tcl/Tk version $tcl_patchLevel"
       #pack .about.tcl_version -side top
 
-      label .about.copyr1 -text "Copyright © 1999, 2000, 2001 by Thorsten \"Tom\" Zörner"
+      label .about.copyr1 -text "Copyright © 1999, 2000, 2001 by Tom Zörner"
       label .about.copyr2 -text "tomzo@nefkom.net"
       label .about.copyr3 -text "http://nxtvepg.tripod.com/" -font $font_fixed -foreground blue
       pack .about.copyr1 .about.copyr2 -side top
@@ -2322,7 +2450,7 @@ proc PopupEpgScan {} {
       if {$is_unix} {
          checkbutton .epgscan.all.opt.xawtv -text "Use .xawtv" -variable epgscan_opt_xawtv
          pack .epgscan.all.opt.xawtv -side left -padx 5
-         if {![info exists env(HOME)] || ![file isfile "$env(HOME)/.xawtv"]} {
+         if {![C_Xawtv_Enabled]} {
             set epgscan_opt_xawtv 0
             .epgscan.all.opt.xawtv configure -state disabled
          }
@@ -2371,7 +2499,7 @@ proc EpgScanButtonControl {is_start} {
          if {[llength $prov_freqs] > 0} {
             .epgscan.all.opt.refresh configure -state normal
          }
-         if {$is_unix && [info exists env(HOME)] && [file isfile $env(HOME)/.xawtv]} {
+         if {$is_unix && [C_Xawtv_Enabled]} {
             .epgscan.all.opt.xawtv configure -state normal
          }
       }
@@ -2772,7 +2900,7 @@ set netname_popup 0
 
 proc NetworkNamingPopup {} {
    global cfnetnames prov_selection cfnetwops
-   global netname_ailist netname_names netname_idx netname_xawtv
+   global netname_ailist netname_names netname_idx netname_xawtv netname_automatch
    global netname_prov_cnis netname_prov_names netname_provnets
    global netname_entry
    global netname_popup font_fixed is_unix
@@ -2841,7 +2969,7 @@ proc NetworkNamingPopup {} {
 
       # build array with all names from .xawtv rc file
       if $is_unix {
-         set xawtv_list [ReadXawtvNetworkNames]
+         set xawtv_list [C_Xawtv_GetStationNames]
          foreach name $xawtv_list {
             set netname_xawtv($name) $name
             regsub -all -- {[^a-zA-Z0-9]*} $name {} tmp
@@ -2852,19 +2980,24 @@ proc NetworkNamingPopup {} {
       }
 
       # copy or build an array with the currently configured network names
+      set netname_automatch {}
+      set xawtv_auto_match 0
       foreach cni $netname_ailist {
          if [info exists cfnetnames($cni)] {
             set netname_names($cni) $cfnetnames($cni)
          } else {
             # no name yet defined -> search best among all providers
+            lappend netname_automatch $cni
             foreach prov $netname_prov_cnis {
                if [info exists netname_provnets($prov,$cni)] {
                   regsub -all -- {[^a-zA-Z0-9]*} $netname_provnets($prov,$cni) {} name
                   set name [string tolower $name]
                   if [info exists netname_xawtv($netname_provnets($prov,$cni))] {
+                     incr xawtv_auto_match
                      set netname_names($cni) $netname_xawtv($netname_provnets($prov,$cni))
                      break
                   } elseif [info exists netname_xawtv($name)] {
+                     incr xawtv_auto_match
                      set netname_names($cni) $netname_xawtv($name)
                      break
                   } elseif {![info exists netname_names($cni)]} {
@@ -2893,24 +3026,39 @@ proc NetworkNamingPopup {} {
 
       ## second column: info and commands for the selected network
       frame .netname.cmd
+      # first row: entry field
       entry .netname.cmd.myname -textvariable netname_entry -font $font_fixed
       pack .netname.cmd.myname -side top -anchor nw -fill x
+      trace variable netname_entry w NetworkNameEdited
 
+      # second row: xawtv selection
       if $is_unix {
          frame .netname.cmd.fx
          label .netname.cmd.fx.lab -text "In .xawtv:  "
          pack .netname.cmd.fx.lab -side left -anchor w
-         menubutton .netname.cmd.fx.mb -text "" -menu .netname.cmd.fx.mb.men -takefocus 1 \
-                                       -relief raised -borderwidth 2 -width 12
+         menubutton .netname.cmd.fx.mb -menu .netname.cmd.fx.mb.men -takefocus 1 \
+                                       -relief raised -borderwidth 2
          if [array exists netname_xawtv] {
             menu .netname.cmd.fx.mb.men -tearoff 0
          } else {
-            .netname.cmd.fx.mb configure -state disabled
+            .netname.cmd.fx.mb configure -state disabled -text "none"
          }
-         pack .netname.cmd.fx.mb -side left -anchor e
-         pack .netname.cmd.fx -side top -fill x -pady 10
+         pack .netname.cmd.fx.mb -side right -anchor e
+         pack .netname.cmd.fx -side top -fill x -pady 5
+
+         # third row: closest match
+         frame .netname.cmd.fm
+         label .netname.cmd.fm.lab -text "Closest match: "
+         pack .netname.cmd.fm.lab -side left -anchor w
+         button .netname.cmd.fm.match -command NetworkNameUseMatch
+         pack .netname.cmd.fm.match -side left -anchor e -fill x -expand 1
+         pack .netname.cmd.fm -side top -fill x -pady 5
+         if {![array exists netname_xawtv]} {
+            .netname.cmd.fm.match configure -state disabled -text "none"
+         }
       }
 
+      # fourth row: provider name selection
       label .netname.cmd.lprovnams -text "Names used by providers:"
       pack .netname.cmd.lprovnams -side top -anchor nw -pady 10
       listbox .netname.cmd.provnams -exportselection false -height [llength $netname_prov_cnis] -width 0 -selectmode single
@@ -2918,6 +3066,7 @@ proc NetworkNamingPopup {} {
       bind .netname.cmd.provnams <ButtonPress-1> [list + after idle NetworkNameProvSelection]
       bind .netname.cmd.provnams <space>         [list + after idle NetworkNameProvSelection]
 
+      # bottom row: command buttons
       button .netname.cmd.save -text "Save" -width 7 -command NetworkNamesSave
       button .netname.cmd.abort -text "Abort" -width 7 -command NetworkNamesAbort
       button .netname.cmd.help -text "Help" -width 7 -command {PopupHelp $helpIndex(Configuration) "Network names"}
@@ -2928,19 +3077,50 @@ proc NetworkNamingPopup {} {
       bind .netname.cmd <Destroy> {+ set netname_popup 0}
       focus .netname.cmd.myname
 
-      foreach name $xawtv_list {
-         .netname.cmd.fx.mb.men add command -label $name -command [list NetworkNameXawtvSelection $name]
+      if {$is_unix && [array exists netname_xawtv]} {
+         # insert xawtv station names to popup menu & measure max. name width
+         set mbfont [.netname.cmd.fx.mb cget -font]
+         set mbwidth 0
+         foreach name $xawtv_list {
+            .netname.cmd.fx.mb.men add command -label $name -command [list NetworkNameXawtvSelection $name]
+            set mbwidthc [font measure $mbfont $name]
+            if {$mbwidthc > $mbwidth} {set mbwidth $mbwidthc}
+         }
+         # set width of xawtv menu buttons to max. width of all station names
+         # convert pixel width to character count
+         set mbwidth [expr 1 + $mbwidth / [font measure $mbfont "0"]]
+         .netname.cmd.fx.mb configure -width [expr $mbwidth + 2]
+         .netname.cmd.fm.match configure -width $mbwidth
       }
 
+      # insert network names from all providers into listbox on the left
       foreach cni $netname_ailist {
          .netname.list.ailist insert end $netname_names($cni)
-         if {[array exists netname_xawtv] && ![info exists netname_xawtv($netname_names($cni))]} {
+         if {![NetworkNameIsInXawtv $netname_names($cni)]} {
             .netname.list.ailist itemconfigure end -foreground red -selectforeground red
          }
       }
+      # set the cursor onto the first network in the listbox
       set netname_idx -1
       .netname.list.ailist selection set 0
       NetworkNameSelection
+
+      # notify the user if names have been automatically modified
+      if [array exists netname_xawtv] {
+         set automatch_count $xawtv_auto_match
+      } else {
+         set automatch_count [llength $netname_automatch]
+      }
+      if {$automatch_count > 0} {
+         if {$automatch_count > 1} {
+            set plural "s of $automatch_count new networks have"
+         } else {
+            set plural " of one new network has"
+         }
+         update
+         tk_messageBox -type ok -icon info -parent .netname \
+            -message "The name$plural been automatically selected among the names in the available provider databases. Leave the dialog with 'Save' to keep the new list."
+      }
 
    } else {
       raise .netname
@@ -2949,31 +3129,78 @@ proc NetworkNamingPopup {} {
 
 # Save changed name for the currently selected network
 proc NetworkNameSaveEntry {} {
-   global netname_ailist netname_names netname_idx netname_xawtv
+   global netname_ailist netname_names netname_idx netname_automatch
    global netname_entry
 
    if {$netname_idx != -1} {
       set cni [lindex $netname_ailist $netname_idx]
 
-      # save the selected name
-      set netname_names($cni) $netname_entry
+      if {[string compare $netname_names($cni) $netname_entry] != 0} {
 
-      # update the network names listbox
-      set sel [.netname.list.ailist curselection]
-      .netname.list.ailist delete $netname_idx
-      .netname.list.ailist insert $netname_idx $netname_names($cni)
-      .netname.list.ailist selection set $sel
-      if {[array exists netname_xawtv] && ![info exists netname_xawtv($netname_entry)]} {
-         .netname.list.ailist itemconfigure $netname_idx -foreground red -selectforeground red
+         # save the selected name
+         set netname_names($cni) $netname_entry
+
+         # update the network names listbox
+         set sel [.netname.list.ailist curselection]
+         .netname.list.ailist delete $netname_idx
+         .netname.list.ailist insert $netname_idx $netname_names($cni)
+         .netname.list.ailist selection set $sel
+         if {![NetworkNameIsInXawtv $netname_names($cni)]} {
+            .netname.list.ailist itemconfigure $netname_idx -foreground red -selectforeground red
+         }
+
+         # check if the same network was previously auto-matched
+         set sel [lsearch -exact $netname_automatch $cni]
+         if {$sel != -1} {
+            # remove the CNI from the auto list
+            set netname_automatch [concat [lrange $netname_automatch 0 [expr $sel - 1]] \
+                                          [lrange $netname_automatch [expr $sel + 1] end]]
+         }
       }
    }
+}
+
+# callback (variable trace) for change in the entry field
+proc NetworkNameEdited {trname trops trcmd} {
+   global netname_entry netname_ailist netname_idx netname_names netname_xawtv
+   global is_unix
+
+   if { $is_unix && [array exists netname_xawtv]} {
+
+      if {$netname_idx != -1} {
+         set cni [lindex $netname_ailist $netname_idx]
+
+         regsub -all -- {[^a-zA-Z0-9]*} $netname_entry {} name
+         set name [string tolower $name]
+
+         if {[info exists netname_xawtv($netname_entry)]} {
+            .netname.cmd.fm.match configure -text $netname_xawtv($netname_entry)
+            if {[string compare $netname_xawtv($netname_entry) $netname_entry] == 0} {
+               .netname.cmd.fm.match configure -foreground black -activeforeground black
+            } else {
+               .netname.cmd.fm.match configure -foreground red -activeforeground red
+            }
+         } elseif {[info exists netname_xawtv($name)]} {
+            .netname.cmd.fm.match configure -foreground red -activeforeground red -text $netname_xawtv($name)
+         } else {
+            .netname.cmd.fm.match configure -foreground red -activeforeground red -text "none"
+         }
+      }
+   }
+}
+
+# callback for "closest match" button
+proc NetworkNameUseMatch {} {
+   global netname_entry
+
+   set netname_entry [.netname.cmd.fm.match cget -text]
 }
 
 # callback for selection of a network in the ailist
 # -> requires update of the information displayed on the right
 proc NetworkNameSelection {} {
    global netname_ailist netname_names netname_idx netname_xawtv
-   global netname_prov_cnis netname_prov_names netname_provnets
+   global netname_prov_cnis netname_prov_names netname_provnets netname_provlist
    global netname_entry
    global is_unix
 
@@ -2989,18 +3216,23 @@ proc NetworkNameSelection {} {
       set netname_entry $netname_names($cni)
 
       # display the matched name in the .xawtv file
-      if $is_unix {
+      if {$is_unix && [array exists netname_xawtv]} {
          if {[info exists netname_xawtv($netname_names($cni))]} {
             .netname.cmd.fx.mb configure -text $netname_xawtv($netname_names($cni))
+            .netname.cmd.fm.match configure -text "$netname_xawtv($netname_names($cni))" -foreground black
          } else {
-            .netname.cmd.fx.mb configure -text "unknown"
+            .netname.cmd.fx.mb configure -text "select"
+            .netname.cmd.fm.match configure -text "none" -foreground red
          }
       }
 
       # rebuild the list of provider's network names
+      set netname_provlist {}
       .netname.cmd.provnams delete 0 end
       foreach prov $netname_prov_cnis {
          if [info exists netname_provnets($prov,$cni)] {
+            # the netname_provlist keeps track which providers are listed in the box
+            lappend netname_provlist $prov
             .netname.cmd.provnams insert end "\[$netname_prov_names($prov)\]  $netname_provnets($prov,$cni)"
          }
       }
@@ -3009,21 +3241,21 @@ proc NetworkNameSelection {} {
 
 # callback for selection of a name in the provider listbox
 proc NetworkNameProvSelection {} {
-   global netname_ailist netname_names netname_idx netname_xawtv
-   global netname_prov_cnis netname_prov_names netname_provnets
+   global netname_ailist netname_names netname_idx
+   global netname_prov_cnis netname_prov_names netname_provnets netname_provlist
    global netname_entry
 
    set cni [lindex $netname_ailist $netname_idx]
    set sel [.netname.cmd.provnams curselection]
-   if {([string length $sel] > 0) && ($sel < [llength $netname_prov_cnis])} {
-      set prov [lindex $netname_prov_cnis $sel]
+   if {([string length $sel] > 0) && ($sel < [llength $netname_provlist])} {
+      set prov [lindex $netname_provlist $sel]
 
       if [info exists netname_provnets($prov,$cni)] {
          set netname_entry $netname_provnets($prov,$cni)
          .netname.list.ailist delete $netname_idx
          .netname.list.ailist insert $netname_idx $netname_entry
          .netname.list.ailist selection set $netname_idx
-         if {[array exists netname_xawtv] && ![info exists netname_xawtv($netname_entry)]} {
+         if {![NetworkNameIsInXawtv $netname_names($cni)]} {
             .netname.list.ailist itemconfigure $netname_idx -foreground red -selectforeground red
          }
       }
@@ -3046,13 +3278,22 @@ proc NetworkNameXawtvSelection {name} {
 
 # "Save" command button
 proc NetworkNamesSave {} {
-   global cfnetnames netname_names
+   global netname_ailist netname_names netname_idx netname_xawtv netname_automatch
+   global netname_prov_cnis netname_prov_names netname_provnets netname_provlist
+   global netname_entry
+   global cfnetnames
 
    # save name of the currently selected network, if changed
    NetworkNameSaveEntry
 
-   # save new name list to the rc/ini dile
+   # save names to the rc/ini file
    array unset cfnetnames
+   foreach cni $netname_automatch {
+      # do not save failed auto-matches - a new provider's name for the CNI might match
+      if {![NetworkNameIsInXawtv $netname_names($cni)]} {
+         array unset netname_names $cni
+      }
+   }
    array set cfnetnames [array get netname_names]
    UpdateRcFile
 
@@ -3066,8 +3307,8 @@ proc NetworkNamesSave {} {
    destroy .netname
 
    # free memory
-   foreach var {netname_ailist netname_names netname_idx netname_xawtv
-                netname_prov_cnis netname_prov_names netname_provnets
+   foreach var {netname_ailist netname_names netname_idx netname_xawtv netname_automatch
+                netname_prov_cnis netname_prov_names netname_provnets netname_provlist
                 netname_entry} {
       if [info exists $var] {unset $var}
    }
@@ -3075,6 +3316,7 @@ proc NetworkNamesSave {} {
 
 # "Abort" command button
 proc NetworkNamesAbort {} {
+   global netname_automatch
    global cfnetnames netname_names
 
    # save name of the currently selected network, if changed
@@ -3084,15 +3326,14 @@ proc NetworkNamesAbort {} {
    if [array exists cfnetnames] {
       # check if any names have changed (or if there are new CNIs)
       foreach cni [array names netname_names] {
-         if {![info exists cfnetnames($cni)] || ([string compare $cfnetnames($cni) $netname_names($cni)] != 0)} {
-            set changed 1
-            break
+         # ignore automatic name config
+         if {[lsearch -exact $netname_automatch $cni] == -1} {
+            if {![info exists cfnetnames($cni)] || ([string compare $cfnetnames($cni) $netname_names($cni)] != 0)} {
+               set changed 1
+               break
+            }
          }
       }
-   } else {
-      # no config exists yet (popup called for the first time)
-      # cannot determine if the user touched anything -> must ask
-      set changed 1
    }
 
    if $changed {
@@ -3100,35 +3341,48 @@ proc NetworkNamesAbort {} {
       if {[string compare $answer cancel] == 0} {
          return
       }
+   } elseif {([llength $netname_automatch] > 0) || ![array exists cfnetnames]} {
+      # failed auto-matches would not have been saved
+      set auto 0
+      foreach cni $netname_automatch {
+         if [NetworkNameIsInXawtv $netname_names($cni)] {
+            # there's at least one auto-matched name that would get saved
+            set auto 1
+            break
+         }
+      }
+      if $auto {
+         set answer [tk_messageBox -type okcancel -icon warning -parent .netname -message "Network names have been configured automatically. Really discard them?"]
+         if {[string compare $answer cancel] == 0} {
+            return
+         }
+      }
    }
 
    # close the popup window
    destroy .netname
 }
 
+# check if a user-define or auto-matched name is equivalent to .xawtv
+proc NetworkNameIsInXawtv {name} {
+   global netname_xawtv netname_names
 
-# return all channel names defined in .xawtv
-proc ReadXawtvNetworkNames {} {
-   set xawtv_names {}
-   if {[catch {set rcfile [open "~/.xawtv" "r"]} errmsg] == 0} {
-      while {[gets $rcfile line] >= 0} {
-         if {[scan $line {[%99[^]]]} section] == 1} {
-            if {[string compare $section "global"] && [string compare $section "defaults"]} {
-               lappend xawtv_names $section
-            }
+   if [array exists netname_xawtv] {
+      set result 0
+      # check if the exact or similar (non-alphanums removed) name is known in xawtv
+      if [info exists netname_xawtv($name)] {
+         # check if the name in xawtv is exactly the same
+         if {[string compare $name $netname_xawtv($name)] == 0} {
+            set result 1
          }
       }
-      close $rcfile
-
-      if {[llength $xawtv_names] == 0} {
-         tk_messageBox -type ok -icon error -message "No channel names found in .xawtv! Expecting one name per line in the format: [name] (including brackets)"
-      }
+   } else {
+      # no .xawtv found -> no checking
+      set result 1
    }
-   #elseif $must_exist {
-   #   tk_messageBox -type ok -icon error -message "Failed to read \$HOME/.xawtv: $errmsg"
-   #}
-   return $xawtv_names
+   return $result
 }
+
 
 ##  --------------------------------------------------------------------------
 ##  Replace provider-supplied network names with user-configured names
@@ -3275,6 +3529,7 @@ proc ApplySelectedColumnList {mode} {
    }
 
    # configure tab-stobs in text widget
+   .all.pi.list.text tag configure past -tab $tabs
    .all.pi.list.text tag configure now -tab $tabs
    .all.pi.list.text tag configure then -tab $tabs
 
@@ -3322,7 +3577,6 @@ proc FilterMenuAdd_Networks {widget} {
    global cfnetwops netselmenu
 
    $widget add command -label "All networks" -command {ResetNetwops; SelectNetwop}
-   $widget add separator
 
    # fetch CNI list from AI block in database
    # as a side effect this function stores all netwop names into the array netsel_names
@@ -3336,6 +3590,15 @@ proc FilterMenuAdd_Networks {widget} {
       set netsel_selist $netsel_ailist
    }
 
+   # Add currently selected network as command button (unless it is already filtered)
+   set cni [lindex [C_PiListBox_GetSelectedNetwop] 0]
+   set nlidx [lsearch -exact $netsel_selist $cni]
+   if {($nlidx != -1) && (![info exists netselmenu($nlidx)] || ($netselmenu($nlidx) == 0))} {
+      $widget add command -label "Only $netsel_names($cni)" -command "ResetNetwops; set netselmenu($nlidx) 1; SelectNetwopMenu $nlidx"
+   }
+
+   # Add all networks as radio buttons
+   $widget add separator
    set nlidx 0
    foreach cni $netsel_selist {
       $widget add checkbutton -label $netsel_names($cni) -variable netselmenu($nlidx) -command [list SelectNetwopMenu $nlidx]
@@ -3349,7 +3612,9 @@ proc FilterMenuAdd_Title {widget} {
    global substr_history
 
    $widget add command -label "Text search..." -command SubStrPopup
-   $widget add command -label "Undo text search" -command {set substr_pattern {}; SubstrUpdateFilter}
+   if {[string length $substr_pattern] > 0} {
+      $widget add command -label "Undo text search" -command {set substr_pattern {}; SubstrUpdateFilter}
+   }
 
    # append the series menu (same as from the filter menu)
    $widget add cascade -label "Series" -menu ${widget}.series
@@ -3363,6 +3628,8 @@ proc FilterMenuAdd_Title {widget} {
       foreach item $substr_history {
          $widget add command -label [lindex $item 3] -command [concat SubstrSetFilter $item]
       }
+      $widget add separator
+      $widget add command -label "Clear search history" -command {set substr_history {}}
    }
 }
 
@@ -3608,6 +3875,12 @@ proc SortProvList {ailist} {
          set sortProvListArr($cni) $idx
          incr idx
       }
+      foreach cni $ailist {
+         if {![info exists sortProvListArr($cni)]} {
+            set sortProvListArr($cni) $idx
+            incr idx
+         }
+      }
       set result [lsort -command SortProvList_cmd $ailist]
       unset sortProvListArr
    } else {
@@ -3780,7 +4053,7 @@ proc PiListBox_PrintHelpHeader {text} {
    .all.pi.list.text insert end "Nextview EPG\n" bold24Tag
    .all.pi.list.text insert end "An Electronic TV Programme Guide for Your PC\n" bold16Tag
    .all.pi.list.text window create end -window .all.pi.list.text.nxtvlogo
-   .all.pi.list.text insert end "\n\nCopyright © 1999, 2000, 2001 by Thorsten \"Tom\" Zörner\n" bold12Tag
+   .all.pi.list.text insert end "\n\nCopyright © 1999, 2000, 2001 by Tom Zörner\n" bold12Tag
    .all.pi.list.text insert end "tomzo@nefkom.net\n\n" bold12Tag
    .all.pi.list.text tag add centerTag 1.0 {end - 1 lines}
    .all.pi.list.text insert end "This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License Version 2 as published by the Free Software Foundation. This program is distributed in the hope that it will be useful, but without any warranty. See the GPL2 for more details.\n\n" wrapTag
@@ -4106,6 +4379,112 @@ proc ApplyTimeZone {} {
    set tzcfg [list $tz_auto_sel $tz_lto_sel $tz_daylight_sel]
 
    destroy .timezone
+}
+
+##  --------------------------------------------------------------------------
+##  Creates the Xawtv popup configuration dialog
+##
+set xawtvcf_popup 0
+
+# option defaults
+set xawtvcf {tunetv 1 follow 1 dopop 1 poptype 0 duration 7}
+
+proc XawtvConfigPopup {} {
+   global xawtvcf_popup
+   global xawtvcf xawtv_tmpcf
+
+   if {$xawtvcf_popup == 0} {
+      CreateTransientPopup .xawtvcf "Xawtv Connection Configuration"
+      set xawtvcf_popup 1
+
+      # load configuration into temporary array
+      foreach {opt val} $xawtvcf {
+         set xawtv_tmpcf($opt) $val
+      }
+
+      frame .xawtvcf.all
+      label .xawtvcf.all.lab_main -text "En-/Disable Xawtv connection features:"
+      pack .xawtvcf.all.lab_main -side top -anchor w -pady 5
+      checkbutton .xawtvcf.all.tunetv -text "Tune-TV button" -variable xawtv_tmpcf(tunetv)
+      pack .xawtvcf.all.tunetv -side top -anchor w
+      checkbutton .xawtvcf.all.follow -text "Cursor follows channel changes" -variable xawtv_tmpcf(follow)
+      pack .xawtvcf.all.follow -side top -anchor w
+      checkbutton .xawtvcf.all.dopop -text "Display EPG info in xawtv" \
+                                     -variable xawtv_tmpcf(dopop) -command XawtvConfigSelected
+      pack .xawtvcf.all.dopop -side top -anchor w
+
+      label .xawtvcf.all.lab_poptype -text "How to display EPG info:"
+      pack .xawtvcf.all.lab_poptype -side top -anchor w -pady 5
+      frame .xawtvcf.all.poptype -borderwidth 2 -relief ridge
+      radiobutton .xawtvcf.all.poptype.t0 -text "Separate popup" -variable xawtv_tmpcf(poptype) -value 0 -command XawtvConfigSelected
+      radiobutton .xawtvcf.all.poptype.t1 -text "Video overlay (subtitles)" -variable xawtv_tmpcf(poptype) -value 1 -command XawtvConfigSelected
+      radiobutton .xawtvcf.all.poptype.t2 -text "Video overlay, 2 lines" -variable xawtv_tmpcf(poptype) -value 2 -command XawtvConfigSelected
+      radiobutton .xawtvcf.all.poptype.t3 -text "Xawtv window title" -variable xawtv_tmpcf(poptype) -value 3 -command XawtvConfigSelected
+      pack .xawtvcf.all.poptype.t0 .xawtvcf.all.poptype.t1 .xawtvcf.all.poptype.t2 .xawtvcf.all.poptype.t3 -side top -anchor w
+      pack .xawtvcf.all.poptype -side top -anchor w -fill x
+
+      frame .xawtvcf.all.duration
+      scale .xawtvcf.all.duration.s -from 0 -to 60 -orient horizontal -label "Popup duration \[seconds\]" \
+                                -variable xawtv_tmpcf(duration)
+      pack .xawtvcf.all.duration.s -side left -fill x -expand 1
+      pack .xawtvcf.all.duration -side top -fill x -expand 1 -pady 5
+      pack .xawtvcf.all -side top -padx 10 -pady 10
+
+      frame .xawtvcf.cmd
+      button .xawtvcf.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Configuration) "Xawtv connection"}
+      button .xawtvcf.cmd.abort -text "Abort" -width 5 -command {array unset xawtv_tmpcf; destroy .xawtvcf}
+      button .xawtvcf.cmd.save -text "Ok" -width 5 -command {XawtvConfigSave; destroy .xawtvcf}
+      pack .xawtvcf.cmd.help .xawtvcf.cmd.abort .xawtvcf.cmd.save -side left -padx 10
+      pack .xawtvcf.cmd -side top -pady 5
+
+      # set widget states according to initial option settings
+      XawtvConfigSelected
+
+      bind .xawtvcf.cmd <Destroy> {+ set xawtvcf_popup 0}
+   } else {
+      raise .xawtvcf
+   }
+}
+
+# callback for changes in popup options: adjust state of depending widgets
+proc XawtvConfigSelected {} {
+   global xawtv_tmpcf
+
+   if $xawtv_tmpcf(dopop) {
+      set state "normal"
+   } else {
+      set state "disabled"
+   }
+   .xawtvcf.all.poptype.t0 configure -state $state
+   .xawtvcf.all.poptype.t1 configure -state $state
+   .xawtvcf.all.poptype.t2 configure -state $state
+   .xawtvcf.all.poptype.t3 configure -state $state
+
+   if {$xawtv_tmpcf(dopop) && ($xawtv_tmpcf(poptype) != 2)} {
+      set state "normal"
+      set fg black
+   } else {
+      set state "disabled"
+      set fg [.xawtvcf.all.lab_main cget -disabledforeground]
+   }
+   .xawtvcf.all.duration.s configure -state $state -foreground $fg
+}
+
+# callback for OK button: save config into variables
+proc XawtvConfigSave {} {
+   global xawtvcf xawtv_tmpcf
+
+   set xawtvcf [list "tunetv" $xawtv_tmpcf(tunetv) \
+                     "follow" $xawtv_tmpcf(follow) \
+                     "dopop" $xawtv_tmpcf(dopop) \
+                     "poptype" $xawtv_tmpcf(poptype) \
+                     "duration" $xawtv_tmpcf(duration)]
+   array unset xawtv_tmpcf
+
+   # save options
+   UpdateRcFile
+   # load config vars into the C module
+   C_Xawtv_InitConfig
 }
 
 
@@ -5617,6 +5996,7 @@ proc LoadRcFile {filename} {
    global hwcfg
    global pibox_height pilistbox_cols shortinfo_height
    global substr_history
+   global xawtvcf
    global EPG_VERSION_NO
    global myrcfile
 
@@ -5686,6 +6066,7 @@ proc UpdateRcFile {} {
    global hwcfg
    global pibox_height pilistbox_cols shortinfo_height
    global substr_history
+   global xawtvcf
    global EPG_VERSION EPG_VERSION_NO
    global myrcfile
 
@@ -5742,6 +6123,8 @@ proc UpdateRcFile {} {
       if {[info exists acq_mode_cnis]} {puts $rcfile [list set acq_mode_cnis $acq_mode_cnis]}
 
       if {[info exists hwcfg]} {puts $rcfile [list set hwcfg $hwcfg]}
+
+      puts $rcfile [list set xawtvcf $xawtvcf]
 
       if {[info exists substr_history]} {puts $rcfile [list set substr_history $substr_history]}
 

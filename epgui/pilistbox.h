@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pilistbox.h,v 1.8 2001/02/25 16:03:47 tom Exp tom $
+ *  $Id: pilistbox.h,v 1.10 2001/05/12 18:34:51 tom Exp tom $
  */
 
 #ifndef __PILISTBOX_H
@@ -67,6 +67,7 @@ bool PiListBox_DbPreUpdate( const EPGDB_CONTEXT *usedDbc, const PI_BLOCK *pObsol
 void PiListBox_DbPostUpdate( const EPGDB_CONTEXT *usedDbc, const PI_BLOCK *pObsolete, const PI_BLOCK *pPiBlock );
 void PiListBox_DbRemoved( const EPGDB_CONTEXT *usedDbc, const PI_BLOCK *pPiBlock );
 void PiListBox_DbRecount( const EPGDB_CONTEXT *usedDbc );
-void PiListBox_UpdateNowItems( const EPGDB_CONTEXT *usedDbc );
+void PiListBox_UpdateNowItems( void );
+void PiListBox_GotoPi( const PI_BLOCK * pPiBlock );
 
 #endif  // __PILISTBOX_H

@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: index.html,v 1.20 2001/04/21 14:38:59 tom Exp $ -->
+<!-- $Id: index.html,v 1.25 2001/06/06 16:27:46 tom Exp $ -->
 <HEAD>
 <TITLE>nexTView EPG Decoder Software Download Page</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
@@ -33,6 +33,7 @@
 <A HREF="screenshot-linux.gif">Screenshot 1</A><BR>
 <A HREF="screenshot-win.gif">Screenshot 2</A><BR>
 <A HREF="screenshot-series.gif">Screenshot 3</A><BR>
+<A HREF="screenshot-xawtv.jpg">Screenshot 4</A> <FONT COLOR="red">(New!)</FONT><BR>
 
 <P class="navhead"><A HREF="#download"><B>Download</B></A><BR>
 <P class="navsect">
@@ -44,6 +45,10 @@
 
 <P class="navhead"><B>News</B>
 <P class="navsect">
+Jun/5/2001: release 0.5.1</P>
+<HR width=70%><P class="navsect">
+May/2001: <A HREF="provnets.html">TRT launches Nextview EPG service</A></P>
+<HR width=70%><P class="navsect">
 Apr/21/2001: release 0.5.0</P>
 <HR width=70%><P class="navsect">
 Apr/1/2001: bugfix release 0.4.5</P>
@@ -89,6 +94,7 @@ Currently nexTView EPG is transmitted by the following TV stations:
 <LI>in France: Canal+, M6, TV5.
 </DL>
 <P>
+For more details see the <A HREF="provnets.html">provider table</A>.
 If you don't receive any of these, then unfortunately this software is
 useless to you, except for a demo mode. For detailed information please
 refer to the <A HREF="man.html">nxtvepg manual page</A>.
@@ -139,21 +145,26 @@ TV tuner card.
 <A NAME="download">
 <H2>Download</H2>
 </A>
-This distribution was released Apr/21/2001 and comprises a number of new
-features, such as the possibility to resize the main window, remote-control
-for <A HREF="http://www.strusel007.de/linux/xawtv/">xawtv</A> (UNIX TV application)
-and simpler handling of filter shortcuts.  An update from earlier versions is highly
-recommended.  For a detailed history of new features and fixes
+<P>
+Release 0.5.1 (released June/5/2001) completes the integration of nxtvepg with
+the <I>xawtv</I> TV application (UNIX only). Now you can not only switch the
+TV channel from inside nxtvepg's TV listings, but also zap through the channels
+with xawtv and nxtvepg's description will follow the currently tuned channel.
+The program's title and running times will also be sent back to xawtv in a
+<A HREF="screenshot-xawtv.jpg">popup window</A>.
+</P><P>
+For a detailed history of new features and fixes
 refer to the <A HREF="changelog.html">Change-Log</A>. If there are
 any problems with this new release, please let me know. For previous releases,
 see the <A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/">source directory</A>
-(US mirror: <A HREF="http://nxtvepg.tripod.com/src/">http://nxtvepg.tripod.com/src/</A>)
+(<A HREF="http://nxtvepg.tripod.com/src/">US mirror</A>)
+</P>
 
 <A NAME="download_unix">
 <H3>Source distribution</H3>
 </A>
 Download the latest source distribution for Linux and NetBSD:
-<A HREF=http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-0.5.0.tar.gz>nxtvepg-0.5.0.tar.gz</A> (303 kB)
+<A HREF=http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-0.5.1.tar.gz>nxtvepg-0.5.1.tar.gz</A> (330 kB)
 <P>
 The software is also available as packages (not necessarily the latest version):
 for Linux at <A HREF="http://rpmfind.net/linux/rpm2html/search.php?query=nxtvepg">rpmfind.net</A>
@@ -162,8 +173,9 @@ and for NetBSD at <A HREF="ftp://ftp.netbsd.org/pub/NetBSD/packages/pkgsrc/misc/
 <A NAME="download_windows">
 <H3>Binary distribution for M$ Windows</H3>
 </A>
-<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-1.6-win.zip">nxtvepg-1.6-win.zip</A> (862 kB)
 <P>
+<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-1.7-win.zip">nxtvepg-1.7-win.zip</A> (905 kB)
+</P><P>
 Note that you need an additional driver that is not included in this
 package. You may be able to use the driver from other TV applications.
 For detailed instructions see README.txt inside the zip file.
@@ -187,7 +199,7 @@ please do not redistribute.
 
 
 <H2>Copyright</H2>
-&copy; Copyright 1999, 2000, 2001 by Thorsten <I>"Tom"</I> Z&ouml;rner (and others).
+&copy; Copyright 1999, 2000, 2001 by Tom Zoerner (and others).
 All rights reserved.
 <P>
 The author of this site's software is not a member of the

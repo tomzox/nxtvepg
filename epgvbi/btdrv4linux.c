@@ -43,7 +43,7 @@
  *    Linux:  Tom Zoerner
  *    NetBSD: Mario Kemper <magick@bundy.zhadum.de>
  *
- *  $Id: btdrv4linux.c,v 1.13 2001/02/25 15:59:43 tom Exp tom $
+ *  $Id: btdrv4linux.c,v 1.14 2001/05/06 14:29:35 tom Exp tom $
  */
 
 #if !defined(linux) && !defined(__NetBSD__)
@@ -864,10 +864,12 @@ static void BtDriver_DecodeFrame( void )
       {  // report mising frame to the teletext decoder
          VbiDecodeLostFrame();
       }
+      #else
+      u32 seqno = 1;
+      #endif
 
       // skip the first frame, since it could contain data from the previous channel
       if (pVbiBuf->frameSeqNo > 0)
-      #endif
       {
          pData = rawbuf;
          for (line=0; line < stat/VBI_BPL; line++)
@@ -877,9 +879,12 @@ static void BtDriver_DecodeFrame( void )
             //printf("%02d: %08lx\n", line, *((ulong*)pData-4));  /* frame counter */
          }
       }
-      #ifndef __NetBSD__
+      else
+      {  // record which is the first valid line after the channel change
+         // the reader index will be set here by the master process/thread
+         pVbiBuf->start_writer_idx = pVbiBuf->writer_idx;
+      }
       pVbiBuf->frameSeqNo = seqno;
-      #endif
    }
    else if ((stat < 0) && (errno != EINTR) && (errno != EAGAIN))
    {

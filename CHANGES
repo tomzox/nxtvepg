@@ -4,6 +4,37 @@ changes or additions.
 
 Before you submit any feature requests, please read the TODO file.
 
+from 0.5.0 to 0.5.1 (June 2001)
+- monitor the _XAWTV_STATION property on the xawtv window and VPS/PDC (during
+  EPG acquisition) to detect channel changes (new source module epgui/xawtv.c;
+  communication with xawtv is now done directly via X11 calls, and no longer
+  uses the xawtv-remote utility)
+- after a channel change, optionally set the programme listing's cursor on
+  the programme currently running on this channel and/or display the programme
+  title and running time information inside xawtv, either in a popup, as
+  overlay (requires xfree4 and the XVideo extension) or window title message.
+- improved handling of the network name configuration dialog by addition of
+  a "Closest match in xawtv" button.
+- fix: during refresh, the cursor now remains on the same start time and network
+- fix: short info text view is no longer set to line 1.0 during every update
+- fix: possible crash due to reference to freed memory when acq timescale
+  popup was open & bad reception (block discarded due to parity errors)
+- fix: in cyclic or follow-ui acquisition modes when acquisition was forced
+  passive on a non-provider channel (e.g. by a busy video device) acq control
+  did not automatically switch to active when the device was freed.
+- fix: network name configuration: name selection from the provider listbox
+  was handled incorrectly for networks which were not covered by all providers,
+  so that another than the selected name was actually used.
+- added support for multi-network channel names (e.g. [Arte / Kinderkanal])
+  to network name configuration: split xawtv station names around '/' and
+  use all resulting segments for matching with Nextview network names.
+- added support for Turkish charset in national option table; 6 characters
+  which are not in latin-1 are replaced by their ASCII counterparts.
+- fixed two memory leaks in the EPG scan and wrong handling of the EPG MIP
+  entry, which slowed down the scan on several channels.
+- changed Makefile.win32 to use gcc/mingw32 for compilation. The supplied
+  Tcl/Tk libraries are compiled with gcc too (on NT using cygwin)
+
 from 0.4.5 to 0.5.0 (Apr. 2001)
 - main window is now vertically resizable. The proportions of program listbox
   and info text can be adjusted with a "panning" button (slider)

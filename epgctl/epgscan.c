@@ -34,7 +34,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgscan.c,v 1.11 2001/04/03 19:16:12 tom Exp tom $
+ *  $Id: epgscan.c,v 1.13 2001/06/04 17:35:47 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -195,7 +195,7 @@ uint EpgScan_EvHandler( void )
          }
          if ((cni != 0) && ((scanCtl.state <= SCAN_STATE_WAIT_NI) || (scanCtl.state == SCAN_STATE_WAIT_NI_OR_EPG)))
          {
-            dprintf2("Found CNI 0x%04X on channel %d\n", cni, scanCtl.channel);
+            dprintf2("Found VPS/PDC/NI 0x%04X on channel %d\n", cni, scanCtl.channel);
             if (scanCtl.doRefresh == FALSE)
                TvChannels_GetName(scanCtl.channel, chanName, 10);
             else
@@ -235,6 +235,7 @@ uint EpgScan_EvHandler( void )
                   case 0x2FE5:  // TV5 (France)
                   case 0xF500:
                   case 0x2F06:  // M6 (France)
+                  case 0x9001:  // TRT-1 (Turkey)
                      // known provider -> wait for BI/AI
                      if (scanCtl.state <= SCAN_STATE_WAIT_NI)
                         scanCtl.MsgCallback("checking for EPG transmission...");
@@ -290,17 +291,19 @@ uint EpgScan_EvHandler( void )
       {  // max wait exceeded -> next channel
          if ( EpgScan_NextChannel(&freq) )
          {
+            EpgDbAcqNotifyChannelChange();
             if ( BtDriver_TuneChannel(freq, TRUE) )
             {
-               EpgDbAcqReset(pAcqDbContext, EPG_ILLEGAL_PAGENO, EPG_ILLEGAL_APPID);
-               EpgDbAcqInitScan();
-
                // automatically dump db if provider was found, then free resources
                assert((pAcqDbContext->pAiBlock == NULL) || (pAcqDbContext->tunerFreq != 0));
                EpgContextCtl_Close(pAcqDbContext);
 
                pAcqDbContext = EpgContextCtl_CreateNew();
                pAcqDbContext->tunerFreq = freq;
+
+               // Note: Reset initializes the app-ID and ttx page no, hence it must be called after the db switch
+               EpgDbAcqReset(pAcqDbContext, EPG_ILLEGAL_PAGENO, EPG_ILLEGAL_APPID);
+               EpgDbAcqInitScan();
 
                dprintf1("RESET channel %d\n", scanCtl.channel);
                scanCtl.startTime = now;
@@ -317,6 +320,7 @@ uint EpgScan_EvHandler( void )
          }
          else
          {
+            dprintf0("EPG scan finished\n");
             EpgScan_Stop();
             scanCtl.MsgCallback("EPG scan finished.");
             if (scanCtl.signalFound == 0)
@@ -387,6 +391,7 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool doRefresh
 
    if (result == EPGSCAN_OK)
    {
+      EpgDbAcqNotifyChannelChange();
       if ( BtDriver_SetInputSource(inputSource, TRUE, &isTuner) )
       {
          if (isTuner)

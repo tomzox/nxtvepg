@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbif.h,v 1.17 2001/02/25 16:00:45 tom Exp tom $
+ *  $Id: epgdbif.h,v 1.18 2001/04/28 09:16:40 tom Exp tom $
  */
 
 #ifndef __EPGDBIF_H
@@ -39,6 +39,7 @@ const TI_BLOCK * EpgDbGetTi( const EPGDB_CONTEXT * dbc, uint block_no, uchar net
 const PI_BLOCK * EpgDbGetFirstObsoletePi( const EPGDB_CONTEXT * dbc );
 const PI_BLOCK * EpgDbGetNextObsoletePi( const EPGDB_CONTEXT * dbc, const PI_BLOCK * pPiBlock );
 const PI_BLOCK * EpgDbSearchObsoletePi( const EPGDB_CONTEXT * dbc, uchar netwop_no, time_t start_time, time_t stop_time );
+const PI_BLOCK * EpgDbSearchPiByPil( const EPGDB_CONTEXT * dbc, uchar netwop_no, uint pil );
 
 #ifdef __EPGDBFIL_H
 const PI_BLOCK * EpgDbSearchPi( const EPGDB_CONTEXT * dbc, const FILTER_CONTEXT *fc, time_t start_time, uchar netwop_no );

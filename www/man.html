@@ -17,7 +17,7 @@
 <P><HR><P>
 <H1>Nextview EPG Decoder Documentation</H1>
 
-This is the manual page for release 0.5.0 of
+This is the manual page for release 0.5.1 of
 <A HREF="http://nxtvepg.tripod.com/">nxtvepg</A>.
 
 <!-- INDEX BEGIN -->
@@ -62,25 +62,6 @@ This is the manual page for release 0.5.0 of
 nxtvepg - Decoder, Browser and Analyzer for the Nextview Electronic
 Programme Guide
 
-<TITLE>Nextview EPG Decoder Documentation</TITLE>
-<LINK href="nxtvepg.css" rel=stylesheet type=text/css>
-<META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
-<META name="language" content="en">
-<META name="author" content="Tom Zoerner">
-<META name="copyright" content="Tom Zoerner">
-<META name="keywords" content="nexTView,nxtvepg,TV schedule,Linux,software download,bttv,video4linux,VBI,vertical blanking interval,multimedia,data service,subscription free,TV tuner card,Bt848,Booktree,video capture,decoder,browser,EPG,teletext,Bt878,electronic program guide,TV-Guide,TV program listing">
-<META name="description" content="Online Documentation for the nxtvepg software, which offers access to a subscription-free electronic TV program guide. Nextview currently is broadcasted in Germany, Austria, Switzerland, and France and covers the schedules of all major TV networks in these countries.">
-<META name="robots" content="index, follow">
-<META name="revisit-after" content="01 month">
-</HEAD>
-<BODY BGCOLOR=#f8f8f8>
-<P><HR><P>
-<H1>Nextview EPG Decoder Documentation</H1>
-
-<P>
-This is the manual page for the &lt;A
-HREF=``http://nxtvepg.tripod.com/''&gt;nxtvepg&lt;/A&gt; software package.
-
 <P>
 <HR>
 <H1><A NAME="SYNOPSIS">SYNOPSIS</A></H1>
@@ -109,7 +90,9 @@ country.
 <STRONG>nxtvepg</STRONG>
 enables you to obtain free TV programme listings for all of the major
 networks in Germany, Austria, France and Switzerland. Currently Nextview
-EPG is transmitted by the following TV stations:
+EPG is transmitted by the following TV networks (note that each of these
+EPGs cover not only the provider's programme but also that of many other
+networks):
 
 <UL>
 <LI>
@@ -316,9 +299,16 @@ On Unix, the menus can be accessed with the Meta key (usually the ALT key)
 together with one of the underlined characters in the menu buttons.
 
 <P>
-If you're a user of the <EM>xawtv</EM> TV application (UNIX only), you'll find a <EM>Tune TV</EM> button below the clock. When you press it, the network of the currently
-selected programme will be tuned into xawtv. With the right mouse button
-you can also pop up a small menu which offers basic control over xawtv.
+nxtvepg can communicate with the <EM>xawtv</EM> TV application (UNIX only) to provide a connection in both directions:
+Firstly you'll find a
+<EM>Tune-TV</EM> button in the main window below the clock. When you press it, the network
+of the currently selected programme will be tuned into xawtv. With the
+right mouse button you can also pop up a small menu which offers basic
+control over xawtv. Secondly, when you change the channel in xawtv, the
+cursor will automatically jump onto the programme currently running on that
+network. To use these features, you'll have to open the
+<EM>Network name configuration</EM> dialog at least once to synchronize network names with your xawtv station
+names. See <A HREF="#CONFIGURATION">CONFIGURATION</A> for details.
 
 <P>
 At the bottom of the window there is a status line which informs you about
@@ -787,50 +777,68 @@ invoked by the entries in the Navigate menu.
 <HR>
 <H1><A NAME="FILTER_SHORTCUTS">FILTER SHORTCUTS</A></H1>
 <P>
-There's a number of predefined filter options in the box below the clock.
-These shortcuts enable you to invoke filters by a single click of the
-mouse. You can freely add or remove entries from this list.
+There's a number of predefined filter options in the main window below the
+clock. These shortcuts enable you to invoke filters by a single click of
+the mouse. You can freely add or remove entries from this list.
 
 <P>
 When you want to add a shortcut, either choose an entry from the Navigate
 menu or define your own filters via the Filter menu, possibly based on one
 or more already defined shortcuts. When you have found an interesting
-selection, call <EM>Add filter shortcut...</EM>
-from the Filter menu to save the setting. You will get a dialog that
-enables you to change any names or the ordering, or to delete shortcuts. If
-you want to discard all changes, quit the dialog with the <EM>Abort</EM> button. Else, use <EM>Save</EM>.
+selection, call <EM>Add filter shortcut...</EM> from the Filter menu. You'll find a new shortcut appended to the list of
+existing shortcuts. First you'll probably want to enter a description in
+the entry field at the top of the dialog; default is just ``shortcut #xx''.
+When you're done just press <EM>Save</EM>, or <EM>Abort</EM> if you've changed your mind and don't want to add this shortcut after all.
 
 <P>
-The filter mask list in the dialog reflects which types of filters you
-currently have chosen. When you invoke the shortcut from the listbox later,
-all filters of the same type will be cleared (masked out). If you deselect
-the button for that filter type in the filter mask list, then those filters
-will remain untouched.
+You can also change descriptions or ordering of existing shortcuts in this
+dialog. If you want to modify the shortcut list without adding a new one,
+you can also access the dialog from the <EM>Configure</EM> menu.
+
+<P>
+If you want to change the filter settings of an existing shortcut, then
+invoke the shortcut, modify the settings as you need and then use the <EM>Update filter shortcut</EM> dialog in the Filter menu to save the new settings of any existing
+shortcut. You can use the
+<EM>Update & Edit</EM> Button to jump to the filter configuration dialog, e.g. if you want to
+fine-tune the description or ordering.
+
+<P>
+When you deselect a shortcut, either by selecting another shortcut or
+clicking on it a second time with <EM>CTRL</EM> held down, all it's filters will automatically be undone. Hence when you
+have two themes shortcuts, e.g. ``Movies'' and ``Sports'', and select first
+Movies, then Sports, you'll see only sports programmes afterwards. However
+if you had selected theme movies manually, e.g. by the context menu
+explained in the next chapter, the movies filter might remain set, so that
+you'd get all programmes of theme movies OR sports. Since that is usually
+not what one expects, a filter mask has been introduced to the shortcut
+setting.
+
+<P>
+The filter mask is defined in the shortcuts dialog with a checkbutton for
+each filter type. By default, the mask is enabled for every filter type
+you've included in the shortcut filter setting. When you invoke the
+shortcut from the main window later, all filters of the given types will be
+cleared (masked out) before the shortcut filters are added. To return to
+the above example: if the ``Sports'' shortcut is defined with a themes
+mask, the manually set movies filter would be cleared before the theme
+filter is set to sports.
 
 <P>
 The masking can also be enabled when no filter of that type has been
 chosen. This can be used to define <EM>undo</EM> shortcuts. E.g. choose the mask 'Themes' if you want a shortcut that allows
-to clear all theme-related filters at once.
+to clear all theme-related filters at once. Or enabled all masks for a <EM>Reset</EM>
+button (the only difference to the pre-defined Reset button would be that
+the cursor does not jump to the first Now programme.)
 
 <P>
-You can combine several shortcuts by pressing the <EM>CTRL</EM> or <EM>SHIFT</EM>
-keys on your keyboard when selecting - just as you know it from other
+You can invoke several shortcuts in parallel by pressing the <EM>CTRL</EM>
+or <EM>SHIFT</EM> keys when selecting in the listbox - just as you know it from other
 applications. However the behavior of the combined shortcuts is slightly
-subtle and might not match your expectations in all cases. That's because
-the shortcuts are not cleanly separated when processed. Instead all filters
-are thrown together and then processed as if they belonged all to one
-shortcut in the way described in <A HREF="#FILTERING">FILTERING</A>. This might change in the future if someone convices me there's a real
+subtle and might not always match your expectations. That's because the
+shortcuts are not cleanly separated when processed. Instead all filters of
+all selected shortcuts are thrown together and then processed as if they
+belonged all to one shortcut in the way described in <A HREF="#FILTERING">FILTERING</A>. This might change in the future if someone convices me there's a real
 need to.
-
-<P>
-If you want to modify the shortcut list without adding a new one, you can
-also access the dialog from the <EM>Configure</EM> menu.
-
-<P>
-If you want to change the filter settings of a shortcut, you can do this
-only indirectly: first invoke the shortcut, then modify the settings as you
-need; then add it as a new shortcut and at the same time delete the old
-version.
 
 <P>
 <HR>
@@ -962,7 +970,7 @@ driver &lt;= 0.7.50). See also <A HREF="#GETTING_STARTED">GETTING STARTED</A>.
 <P>
 Check the <EM>Slow</EM> button if you have bad reception on some channels. In slow mode the scanner
 will wait at least for 2 seconds on each channel for a VPS or PDC
-identification or en EPG package. Else channels without a stable video
+identification or an EPG package. Else channels without a stable video
 signal and without any teletext packets will be skipped after 150 ms.
 
 <P>
@@ -994,6 +1002,66 @@ firstly you may choose which video input source to use. See <A HREF="#DATA_ACQUI
 France, select the French frequency table to be used for the EPG scan. If
 you have more than one TV tuner card, you can also choose which one to use,
 just like with the <STRONG>-card</STRONG> command line option.
+
+<DT><STRONG><A NAME="item_Xawtv">Xawtv connection...</A></STRONG><DD>
+<P>
+Opens a dialog that allows to configure the interaction between the
+<EM>xawtv</EM> TV application and nxtvepg. This menu entry is available only on UNIX when
+a <EM>.xawtv</EM> configuration file is found in your home. The first three buttons allow to
+switch the interaction features separately on or off. If you want to
+improve startup time, turn them all off; in this case nxtvepg does not need
+to search for the xawtv window (which can take up to several seconds if you
+have many applications running or a slow connection to your X server.) By
+default all three interaction features are enabled.
+
+<P>
+The first button relates to the <EM>Tune TV</EM> button and it's little popup menu (accessed with right mouse button) below
+the clock. If you're not interested in remote-controlling xawtv, switch it
+off.
+
+<P>
+If you leave the <EM>Cursor follows channel changes</EM> option enabled, nxtvepg will monitor xawtv channel changes. Whenever such a
+change is detected, the cursor in the programme listbox will be set onto
+the title currently running on that network. During EPG acquisition VPS/PDC
+is used to exactly determine the current programme (only on networks which
+support VPS/PDC); however if the nominal running time is in the past it's
+currently not possible to display the programme in the listbox. This info
+may however be sent to xawtv (see next option). If you have a network
+filter enabled, it will be switched to the new network so that you'll get a
+complete listing of that network's programmes starting with the currently
+running one. If you have other filters than network enabled and they do not
+cover the current programme on the new network, the cursor or listbox
+content will not change.
+
+<P>
+If you leave the <EM>Display EPG info in xawtv</EM> option enabled, nxtvepg will monitor xawtv channel changes. During EPG
+acquisition VPS/PDC are also monitored to determine newly starting
+programmes. VPS/PDC also allows to detect channel changes on an external
+input source, e.g. a satellite receiver connected via the Composite socket.
+After a change of channel or current programme title, the info about the
+currently running title will be displayed in xawtv. The display format is
+selected by the following radio buttons:
+
+<P>
+With <EM>Separate popup</EM> nxtvepg will generate a small popup window and put it right beneath the
+xawtv window. The blue area in the small bar on top represents how much of
+the (nominal) running time lies in the past. With <EM>Video overlay</EM> the info will be handed to xawtv and displayed as subtitles (please note
+that this option only works properly with XFree86 version 4 and the XVideo
+extension). If you prefer a proportional font add the following line to <EM>~/.Xdefaults</EM>:
+
+<P>
+<PRE>  xawtv.vtx.label.font: -*-helvetica-bold-r-*--14-*-*-*-*-*-iso8859-*
+</PRE>
+<P>
+and execute <EM>xrdb -load ~/.Xdefaults</EM> afterwards. Note that this will affect subtitles too. Future versions of
+xawtv will hopefully allow for dynamic font selection.
+<EM>Video overlay, 2 lines</EM> is the same except that it writes running time and title in separate lines
+and additionally contains the percentage of expired running time. (Not
+recommended with xawtv versions older than 3.48 as there was a bug in
+displaying lines of different width.) With <EM>Xawtv window title</EM> the info will be sent to xawtv and displayed in the window title. Except
+for this last option, you can configure the desired display duration with
+the slider at the bottom of the dialog. A duration of zero means the
+display will never be removed.
 
 <DT><STRONG>Select columns...</STRONG><DD>
 <P>
@@ -1028,12 +1096,11 @@ menu.
 <DT><STRONG><A NAME="item_Network">Network names...</A></STRONG><DD>
 <P>
 Open the network names configuration dialog. It's main purpose is to
-synchronize the network names with <EM>xawtv</EM> (UNIX TV application), i.e. the <EM>.xawtv</EM> configuration file. This is required because <EM>xawtv-remote</EM>
-gets the network name as parameter when you press the <EM>"Tune TV"</EM>
-button. If this name does not match exactly a name in <EM>.xawtv</EM>, xawtv will not be able to switch to the requested channel. For many
-channels there will be no need to change anything, but for some there exist
-many different variants, e.g. in Germany ``Super RTL'' vs. ``S-RTL'' or
-``KiKa'' vs. ``Kinderkanal''.
+synchronize the network names with <EM>xawtv</EM> (UNIX TV application), i.e. the <EM>~/.xawtv</EM> configuration file. This is required because the network name is used in
+communication with <EM>xawtv</EM> for the <EM>"Tune TV"</EM> remote control, and as well for channel change notifications. For many
+networks there will be no need to change anything, but for some there exist
+different variants, e.g. in Germany ``Super RTL'' vs. ``S-RTL'' or ``KiKa''
+vs. ``Kinderkanal''.
 
 <P>
 Another use of this dialog is to make network naming consistent across all
@@ -1043,14 +1110,27 @@ and all filter menus, independently of the provider.
 <P>
 On the left side of the window you'll find a list of all networks of all
 known Nextview providers. The names used here are the ones you configured
-before, or if you haven't done so, the name that matches
-<EM>.xawtv</EM> best. Unmatched names are marked red. On the right side, you're offered
-three ways to change the name: topmost is a simple entry field where you
-can type in an arbitrary name. Below is a popup menu which contains all
-network names defined in <EM>.xawtv</EM>. Below is a listbox with the original names used in the various databases.
-When you select a name from the menu or the listbox, it will be copied into
-the entry field and the network name list on the left. If you want to save
-the changed list, leave the dialog with <EM>Save</EM>, else use <EM>Abort</EM>.
+before, or if you haven't done so, the names that match the station names
+in <EM>.xawtv</EM> best; unmatched names are marked red. If that file does not exist, the name
+is taken from the first database which covers this network, in order of
+your provider selection history.
+
+<P>
+On the right side, you're offered four ways to change the name: topmost is
+a simple entry field where you can type in an arbitrary name. Below is a
+popup menu which contains all network names defined in <EM>.xawtv</EM>. Below is a button which contains the one name in <EM>.xawtv</EM> which resembles the current string in the entry field most, or <EM>none</EM>. It's marked red until it's identical to the entry field. You can copy the
+name to the entry field by clicking the button. Below is a listbox with the
+original names used in the various provider databases. When you select a
+name from the menu or the listbox, it will be copied into the entry field
+and the network name list on the left. If you want to save the changed
+list, leave the dialog with <EM>Save</EM>, else use <EM>Abort</EM>.
+
+<P>
+Note: if you receive channels that carry multiple networks, e.g. in Germany
+``Arte / Kinderkanal'', it's recommended to include all networks' names in
+the xawtv network name, separated by a slash. The slash is recognized as
+separator by nxtvepg (and hopefully future versions of xawtv) and all
+resulting segments can be used as network names.
 
 <DT><STRONG><A NAME="item_Filter">Filter shortcuts...</A></STRONG><DD>
 <P>
@@ -1186,23 +1266,23 @@ instructions on which information must be included in a bug report.
 <HR>
 <H1><A NAME="AUTHOR">AUTHOR</A></H1>
 <P>
-Thorsten ``Tom'' Zoerner, Erlangen, Germany.
+Tom Zoerner, Erlangen, Germany.
 
 <P>
 Email: tomzo (at) nefkom (dot) net
 
 <P>
 Many thanks to Mario Kemper for the NetBSD port and beta testing; to
-``Mario's brother'' for beta testing the Windows port; to Ralph Metzler for
-his teletext decoder; to Edgar Toernig for the Latin-1 conversion tables in
-alevt; and last but not least to the authors of bttv and v4l for their
-excellent work.
+``Mario's brother'' for beta testing the Windows port; to Gerd Knorr for
+xawtv; to Ralph Metzler for his teletext decoder; to Edgar Toernig for the
+Latin-1 conversion tables in alevt; and last but not least to the authors
+of bttv and v4l for their excellent work.
 
 <P>
 <HR>
 <H1><A NAME="COPYRIGHT">COPYRIGHT</A></H1>
 <P>
-Copyright (C) 1999, 2000, 2001 by Thorsten Zoerner.
+Copyright (C) 1999, 2000, 2001 by Tom Zoerner.
 
 <P>
 This program is free software; you can redistribute it and/or modify it

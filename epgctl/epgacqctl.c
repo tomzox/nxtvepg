@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqctl.c,v 1.41 2001/04/19 20:41:55 tom Exp tom $
+ *  $Id: epgacqctl.c,v 1.46 2001/06/04 18:57:53 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -295,7 +295,8 @@ void EpgAcqCtl_ToggleAcqForScan( bool enable )
 }
 
 // ---------------------------------------------------------------------------
-// Set input source and tuner frequency for a provider and check the result
+// Set input source and tuner frequency for a provider
+// - errors are reported to the user interface
 //
 static bool EpgAcqCtl_TuneProvider( ulong freq, uint cni )
 {
@@ -415,7 +416,10 @@ static bool EpgAcqCtl_UpdateProvider( bool changeDb )
    ulong freq = 0;
    uint cni;
    bool warnInputError;
+   bool dbChanged, inputChanged, dbInitial;
    bool result = TRUE;
+
+   dbChanged = inputChanged = dbInitial = FALSE;
 
    // determine current CNI depending on acq mode and index
    cni = EpgAcqCtl_GetProvider();
@@ -423,6 +427,7 @@ static bool EpgAcqCtl_UpdateProvider( bool changeDb )
    // for acq start: open the requested db (or any database for passive mode)
    if (pAcqDbContext == NULL)
    {
+      dbInitial = TRUE;
       pAcqDbContext = EpgContextCtl_Open(cni, CTX_RELOAD_ERR_ACQ);
       cni = EpgDbContextGetCni(pAcqDbContext);
    }
@@ -445,15 +450,9 @@ static bool EpgAcqCtl_UpdateProvider( bool changeDb )
       {  // switch to the new database
          EpgContextCtl_Close(pAcqDbContext);
          pAcqDbContext = EpgContextCtl_Open(cni, CTX_RELOAD_ERR_ACQ);
+         dbChanged = TRUE;
          if (EpgDbContextGetCni(pAcqDbContext) == cni)
             warnInputError = TRUE;
-         // notify the statistics GUI module
-         StatsWin_ProvChange(DB_TARGET_ACQ);
-         if (acqCtl.state != ACQSTATE_OFF)
-         {  // reset acquisition
-            EpgAcqCtl_ChannelChange(FALSE);
-            EpgAcqCtl_StatisticsUpdate();
-         }
          // reset acquisition repetition counters for all PI
          if (ACQMODE_IS_CYCLIC(acqCtl.mode) && (acqCtl.cyclePhase == ACQMODE_PHASE_NOWNEXT))
          {
@@ -482,6 +481,7 @@ static bool EpgAcqCtl_UpdateProvider( bool changeDb )
            ((acqCtl.mode != ACQMODE_FORCED_PASSIVE) || (acqCtl.passiveReason != ACQPASSIVE_NO_TUNER)) )
       {
          result = EpgAcqCtl_TuneProvider(freq, (warnInputError ? cni: 0));
+         inputChanged = ((acqCtl.mode != ACQMODE_FORCED_PASSIVE) || (acqCtl.passiveReason != ACQPASSIVE_ACCESS_DEVICE));
       }
    }
    else
@@ -489,7 +489,21 @@ static bool EpgAcqCtl_UpdateProvider( bool changeDb )
       if (acqCtl.mode != ACQMODE_PASSIVE)
       {
          result = EpgAcqCtl_TuneProvider(0L, 0);
+         inputChanged = ((acqCtl.mode != ACQMODE_FORCED_PASSIVE) || (acqCtl.passiveReason != ACQPASSIVE_ACCESS_DEVICE));
       }
+   }
+
+   if ((dbChanged || inputChanged) && !dbInitial)
+   {  // acq database and/or input channel/frequency have been changed
+      // -> it's MANDATORY to reset all acq state machines or data from
+      //    a wrong provider might be added to the database
+      if (acqCtl.state != ACQSTATE_OFF)
+      {  // reset acquisition: check AI of next AI block
+         EpgAcqCtl_ChannelChange(FALSE);
+         EpgAcqCtl_StatisticsUpdate();
+      }
+      else
+         StatsWin_ProvChange(DB_TARGET_ACQ);
    }
 
    return result;
@@ -502,7 +516,8 @@ static bool EpgAcqCtl_UpdateProvider( bool changeDb )
 //
 static void EpgAcqCtl_InitCycle( void )
 {
-   // for merged db follow-ui mode is replaced by cycle across all merged providers
+   // for a merged db, the mode "follow-ui" is replaced by "follow-merged"
+   // i.e. cycle across all merged providers
    if ( (acqCtl.mode == ACQMODE_FOLLOW_UI) &&
         EpgDbContextIsMerged(pUiDbContext) )
    {
@@ -535,7 +550,6 @@ static void EpgAcqCtl_InitCycle( void )
       case ACQMODE_FORCED_PASSIVE:
       default:
          acqCtl.cyclePhase = ACQMODE_PHASE_STREAM2;
-         break;
          break;
    }
 
@@ -657,8 +671,10 @@ static void EpgAcqCtl_AdvanceCyclePhase( bool forceAdvance )
                   break;
                case ACQMODE_FOLLOW_MERGED:
                case ACQMODE_CYCLIC_2:
-               default:
                   assert(acqCtl.cyclePhase == ACQMODE_PHASE_STREAM2);
+                  break;
+               case ACQMODE_FORCED_PASSIVE:
+               default:
                   break;
             }
             dprintf1("EpgAcqCtl: advance to phase #%d\n", acqCtl.cyclePhase);
@@ -700,6 +716,28 @@ bool EpgAcqCtl_UiProvChange( void )
 }
 
 // ---------------------------------------------------------------------------
+// Check the tuner device status
+// - tune the frequency of the current provider once again
+// - this is called by the GUI when start of a TV application is detected.
+//   it's used to quickly update the forced-passive state.
+//
+bool EpgAcqCtl_CheckDeviceAccess( void )
+{
+   bool result;
+
+   if ( (acqCtl.state != ACQSTATE_OFF) && (acqCtl.mode != ACQMODE_PASSIVE) &&
+        (EpgScan_IsActive() == FALSE) )
+   {
+      result = EpgAcqCtl_UpdateProvider(FALSE);
+      dprintf1("EpgAcqCtl-CheckDeviceAccess: device is now %s\n", result ? "free" : "busy");
+   }
+   else
+      result = FALSE;
+
+   return result;
+}
+
+// ---------------------------------------------------------------------------
 // Select acquisition mode and provider
 //
 bool EpgAcqCtl_SelectMode( EPGACQ_MODE newAcqMode, uint cniCount, const uint * pCniTab )
@@ -715,7 +753,7 @@ bool EpgAcqCtl_SelectMode( EPGACQ_MODE newAcqMode, uint cniCount, const uint * p
    }
    else if (ACQMODE_IS_CYCLIC(newAcqMode))
    {  // error case, should not be reached
-      debug2("EpgAcqCtl-SelectMode: cyclic mode without provider list (count=%d,ptr=%lx) -> using follow-ui", cniCount, (ulong)pCniTab);
+      debug2("EpgAcqCtl-SelectMode: cyclic mode without provider list (count=%d,ptr=0x%lx) -> using follow-ui", cniCount, (ulong)pCniTab);
       newAcqMode = ACQMODE_FOLLOW_UI;
    }
 
@@ -881,7 +919,7 @@ EPGDB_STATE EpgAcqCtl_GetDbState( uint cni )
                               foundIdx = idx;
                      if (foundIdx != -1)
                      {  // one of the merged db is on the acq list -> try to switch
-                        dprintf2("EpgAcqCtl-GetDbState: tuning provider 0x%04X, cycle idx %d\n", cni, idx);
+                        dprintf2("EpgAcqCtl-GetDbState: tuning provider 0x%04X, cycle idx %d\n", cni, foundIdx);
                         acqCtl.cycleIdx = foundIdx;
                         EpgAcqCtl_UpdateProvider(TRUE);
 
@@ -968,12 +1006,13 @@ bool EpgAcqCtl_AiCallback( const AI_BLOCK *pNewAi )
 
    if (acqCtl.state == ACQSTATE_WAIT_BI)
    {
+      dprintf2("EpgCtl: AI rejected in state WAIT-BI: CNI=0x%04X db-CNI=0x%04X\n", AI_GET_CNI(pNewAi), ((pAcqDbContext->pAiBlock != NULL) ? AI_GET_CNI(&pAcqDbContext->pAiBlock->blk.ai) : 0));
       accept = FALSE;
    }
    else if ((acqCtl.state == ACQSTATE_WAIT_AI) || (acqCtl.state == ACQSTATE_RUNNING))
    {
       DBGONLY(if (acqCtl.state == ACQSTATE_WAIT_AI))
-         dprintf3("EpgCtl: AI found, CNI=%X version %d/%d\n", AI_GET_CNI(pNewAi), pNewAi->version, pNewAi->version_swo);
+         dprintf3("EpgCtl: AI found, CNI=0x%04X version %d/%d\n", AI_GET_CNI(pNewAi), pNewAi->version, pNewAi->version_swo);
       EpgDbLockDatabase(pAcqDbContext, TRUE);
       pOldAi = EpgDbGetAi(pAcqDbContext);
 
@@ -984,6 +1023,7 @@ bool EpgAcqCtl_AiCallback( const AI_BLOCK *pNewAi )
          oldTunerFreq = pAcqDbContext->tunerFreq;
          EpgContextCtl_Close(pAcqDbContext);
          pAcqDbContext = EpgContextCtl_Open(AI_GET_CNI(pNewAi), (EpgScan_IsActive() ? CTX_RELOAD_ERR_NONE : CTX_RELOAD_ERR_ANY));
+         dprintf2("EpgAcqCtl: empty acq db, AI found: CNI 0x%04X (%s)\n", AI_GET_CNI(pNewAi), ((pAcqDbContext->pAiBlock == NULL) ? "new" : "reload ok"));
 
          if ((pAcqDbContext->tunerFreq != oldTunerFreq) && (oldTunerFreq != 0))
          {
@@ -1075,6 +1115,7 @@ bool EpgAcqCtl_AiCallback( const AI_BLOCK *pNewAi )
    else
    {  // should be reached only during epg scan -> discard block
       assert(EpgScan_IsActive());
+      dprintf1("EpgAcqCtl: during scan, new AI 0x%04X\n", AI_GET_CNI(pNewAi));
    }
 
    return accept;
@@ -1136,8 +1177,11 @@ bool EpgAcqCtl_BiCallback( const BI_BLOCK *pNewBi )
 //
 void EpgAcqCtl_ChannelChange( bool changeDb )
 {
-   if (acqCtl.state != ACQSTATE_OFF)
+   assert(EpgScan_IsActive() == FALSE);  // EPG scan already does a reset before every channel change
+
+   if ((acqCtl.state != ACQSTATE_OFF) && (EpgScan_IsActive() == FALSE))
    {
+      dprintf4("EpgAcqCtl-ChannelChange: reset acq for db 0x%04X (0x%lx) modified=%d changedb=%d\n", ((pAcqDbContext->pAiBlock != NULL) ? AI_GET_CNI(&pAcqDbContext->pAiBlock->blk.ai) : 0), (long)pAcqDbContext, pAcqDbContext->modified, changeDb);
       if ( changeDb &&
            (pAcqDbContext != pUiDbContext) && (pUiDbContext != NULL) &&
            (EpgDbContextIsMerged(pUiDbContext) == FALSE) )
@@ -1165,7 +1209,7 @@ void EpgAcqCtl_Idle( void )
 
    if ( (acqCtl.state != ACQSTATE_OFF) && (EpgScan_IsActive() == FALSE))
    {
-      // preriodic db dump
+      // periodic db dump
       if (acqCtl.state == ACQSTATE_RUNNING)
       {
          if (pAcqDbContext->modified)
@@ -1183,18 +1227,23 @@ void EpgAcqCtl_Idle( void )
          }
       }
 
-      // acq running, but no reception -> wait for timeout, then reset acq
+      // if acq running, but no reception -> wait for timeout, then reset acq
       if (now >= acqCtl.dumpTime + EPGACQCTL_MODIF_INTV)
       {
          dprintf1("EpgAcqCtl-Idle: no reception from provider 0x%04X - reset acq\n", EpgDbContextGetCni(pAcqDbContext));
-         if (ACQMODE_IS_CYCLIC(acqCtl.mode) == FALSE)
+         // use user-configured mode, because the actual mode might be forced-passive
+         if (ACQMODE_IS_CYCLIC(acqCtl.userMode))
+         {  // no reception -> advance cycle
+            EpgAcqCtl_AdvanceCyclePhase(TRUE);
+         }
+         else if (acqCtl.userMode == ACQMODE_FOLLOW_UI)
+         {
+            EpgAcqCtl_UpdateProvider(FALSE);
+         }
+         else
          {
             EpgAcqCtl_ChannelChange(TRUE);
             EpgAcqCtl_StatisticsUpdate();
-         }
-         else
-         {  // no reception -> advance cycle
-            EpgAcqCtl_AdvanceCyclePhase(TRUE);
          }
       }
       assert(acqStatsUpdate == FALSE);
@@ -1243,7 +1292,7 @@ void EpgAcqCtl_ProcessPackets( void )
       pageNo = EpgDbAcqGetMipPageNo();
       if ( (pageNo != EPG_ILLEGAL_PAGENO) && (pageNo != pAcqDbContext->pageNo))
       {  // found a different page number in MIP
-         dprintf1("EpgAcqCtl-Idle: non-default MIP page no for EPG %x -> restart acq\n", pageNo);
+         dprintf2("EpgAcqCtl-Idle: non-default MIP page no for EPG: %03X (was %03X) -> restart acq\n", pageNo, pAcqDbContext->pageNo);
 
          // XXX the pageno should not be saved before RUNNING since this might be the wrong db
          pAcqDbContext->pageNo = pageNo;

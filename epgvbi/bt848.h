@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: bt848.h,v 1.4 2001/02/26 21:39:41 tom Exp tom $
+ *  $Id: bt848.h,v 1.5 2001/05/13 16:40:09 tom Exp tom $
  */
 
 #ifndef __BT848_H
@@ -424,7 +424,7 @@ typedef enum
    BT8X8_OPEN_RESULT_ELEMS,
    BT8X8_OPEN_RESULT_MALLOC,
    BT8X8_OPEN_RESULT_VERSION,
-};
+} BT8X8_OPEN_RESULT;
 
 // ids for identification of Booktree chips on the PCI bus
 #define PCI_VENDOR_ID_BROOKTREE 0x109e
@@ -493,7 +493,7 @@ typedef enum
 // ---------------------------------------------------------------------------
 // forward declarations for WinDriver interface functions
 //
-static int BT8X8_Open (BT8X8_HANDLE *phBT8X8);
+static BT8X8_OPEN_RESULT BT8X8_Open (BT8X8_HANDLE *phBT8X8);
 static void BT8X8_Close(BT8X8_HANDLE hBT8X8);
 //static DWORD BT8X8_CountCards (DWORD dwVendorID, DWORD dwDeviceID);
 static BOOL BT8X8_IsAddrSpaceActive(BT8X8_HANDLE hBT8X8, BT8X8_ADDR addrSpace);
@@ -507,12 +507,11 @@ static void BT8X8_WriteByte (BT8X8_HANDLE hBT8X8, BT8X8_ADDR addrSpace, DWORD dw
 static void BT8X8_WriteWord (BT8X8_HANDLE hBT8X8, BT8X8_ADDR addrSpace, DWORD dwOffset, WORD data);
 static void BT8X8_WriteDword (BT8X8_HANDLE hBT8X8, BT8X8_ADDR addrSpace, DWORD dwOffset, DWORD data);
 // handle interrupts
-static void WINAPI BT8X8_IntHandlerRoutine(BT8X8_HANDLE hBT8X8, BT8X8_INT_RESULT *intResult);
 static BOOL BT8X8_IntIsEnabled (BT8X8_HANDLE hBT8X8);
 static BOOL BT8X8_IntEnable (BT8X8_HANDLE hBT8X8, BT8X8_INT_HANDLER funcIntHandler);
 static void BT8X8_IntDisable (BT8X8_HANDLE hBT8X8);
 // access to PCI configuration registers
-static void BT8X8_WritePCIReg(BT8X8_HANDLE hBT8X8, DWORD dwReg, DWORD dwData);
+//static void BT8X8_WritePCIReg(BT8X8_HANDLE hBT8X8, DWORD dwReg, DWORD dwData);
 static DWORD BT8X8_ReadPCIReg(BT8X8_HANDLE hBT8X8, DWORD dwReg);
 static BOOL BT8X8_DetectCardElements(BT8X8_HANDLE hBT8X8);
 

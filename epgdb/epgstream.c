@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgstream.c,v 1.14 2001/04/04 18:31:45 tom Exp tom $
+ *  $Id: epgstream.c,v 1.15 2001/06/04 17:19:29 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -43,7 +43,7 @@
 
 static NXTV_STREAM streamData[2];
 static uchar       streamOfPage;
-static EPGDB_BLOCK * pScratchBuffer;
+static EPGDB_BLOCK * pScratchBuffer = NULL;
 static uint        epgStreamAppId;
 static bool        enableAllTypes;
 
@@ -61,8 +61,6 @@ static void EpgStreamAddBlockToScratch( EPGDB_BLOCK *pBlock )
 
    if (pBlock != NULL)
    {
-      dprintf2("SCRATCH ADD type=%d ptr=%lx\n", pBlock->type, (ulong)pBlock);
-
       if (pScratchBuffer != NULL)
       {
          pWalk = pScratchBuffer;
@@ -196,10 +194,14 @@ static void EpgStreamConvertBlock( const uchar *pBuffer, uint blockLen, uchar st
 
       if (enableAllTypes || (type <= EPGDBACQ_TYPE_AI))
       {
+         dprintf2("SCRATCH ADD type=%d (0x%lx)\n", pBlock->type, (ulong)pBlock);
          EpgStreamAddBlockToScratch(pBlock);
       }
       else
+      {
+         dprintf2("SCRATCH REJECT type=%d (0x%lx)\n", pBlock->type, (ulong)pBlock);
          xfree(pBlock);
+      }
    }
    else
       EpgTxtDump_UnknownBlock(type, blockLen, stream);
@@ -556,9 +558,12 @@ void EpgStreamInit( bool bWaitForBiAi, uint appId )
 {
    memset(&streamData, 0, sizeof(streamData));
    streamOfPage = NXTV_NO_STREAM;
-   pScratchBuffer = NULL;
    epgStreamAppId = appId;
    enableAllTypes = !bWaitForBiAi;
+
+   // note: intentionally using clear func instead of overwriting the pointer with NULL
+   // (simplifies upper layers' state machines: start acq may be called while acq is already running)
+   EpgStreamClearScratchBuffer();
 }
 
 

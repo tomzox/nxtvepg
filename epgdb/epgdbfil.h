@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbfil.h,v 1.15 2001/02/25 16:00:45 tom Exp tom $
+ *  $Id: epgdbfil.h,v 1.16 2001/05/19 14:24:05 tom Exp tom $
  */
 
 #ifndef __EPGDBFIL_H
@@ -26,23 +26,26 @@
 // ----------------------------------------------------------------------------
 // global definitions of filter setting parameters
 
-#define FILTER_NETWOP_PRE    0x0001
-#define FILTER_NETWOP        0x0002
-#define FILTER_THEMES        0x0004
-#define FILTER_SORTCRIT      0x0008
-#define FILTER_SERIES        0x0010
-#define FILTER_SUBSTR_TITLE  0x0020
-#define FILTER_SUBSTR_DESCR  0x0040
-#define FILTER_PROGIDX       0x0080
-#define FILTER_TIME_BEG      0x0100
-#define FILTER_TIME_END      0x0200
-#define FILTER_PAR_RAT       0x0400
-#define FILTER_EDIT_RAT      0x0800
-#define FILTER_FEATURES      0x1000
-#define FILTER_LANGUAGES     0x2000
-#define FILTER_SUBTITLES     0x4000
+#define FILTER_EXPIRE_TIME   0x0001
+#define FILTER_NETWOP_PRE    0x0002
+#define FILTER_NETWOP        0x0004
+#define FILTER_THEMES        0x0008
+#define FILTER_SORTCRIT      0x0010
+#define FILTER_SERIES        0x0020
+#define FILTER_SUBSTR_TITLE  0x0040
+#define FILTER_SUBSTR_DESCR  0x0080
+#define FILTER_PROGIDX       0x0100
+#define FILTER_TIME_BEG      0x0200
+#define FILTER_TIME_END      0x0400
+#define FILTER_PAR_RAT       0x0800
+#define FILTER_EDIT_RAT      0x1000
+#define FILTER_FEATURES      0x2000
+#define FILTER_LANGUAGES     0x4000
+#define FILTER_SUBTITLES     0x8000
 // sum of all filter bitmasks
-#define FILTER_ALL           0x7FFF
+#define FILTER_ALL           0xFFFF
+// sum of permanent "pre"-filters
+#define FILTER_PERM          (FILTER_EXPIRE_TIME | FILTER_NETWOP_PRE)
 
 #define FEATURES_ALL         0x01FF
 
@@ -79,6 +82,7 @@ typedef struct
    uint   enabledFilters;
 
    uchar  firstProgIdx, lastProgIdx;
+   time_t expireTime;
    time_t timeBegin, timeEnd;
    uchar  netwopFilterField[MAX_NETWOP_COUNT];
    uchar  netwopPreFilterField[MAX_NETWOP_COUNT];
@@ -113,6 +117,7 @@ void   EpgDbFilterInitNetwop( FILTER_CONTEXT *fc );
 void   EpgDbFilterSetNetwop( FILTER_CONTEXT *fc, uchar netwopNo );
 void   EpgDbFilterInitNetwopPreFilter( FILTER_CONTEXT *fc );
 void   EpgDbFilterSetNetwopPreFilter( FILTER_CONTEXT *fc, uchar netwopNo );
+void   EpgDbFilterSetExpireTime( FILTER_CONTEXT *fc, ulong newExpireTime );
 void   EpgDbFilterSetDateTimeBegin( FILTER_CONTEXT *fc, ulong newTimeBegin );
 void   EpgDbFilterSetDateTimeEnd( FILTER_CONTEXT *fc, ulong newTimeEnd );
 uchar  EpgDbFilterInitThemes( FILTER_CONTEXT *fc, uchar themeClassBitField );

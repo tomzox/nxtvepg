@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: uictrl.c,v 1.11 2001/04/19 20:51:34 tom Exp tom $
+ *  $Id: uictrl.c,v 1.12 2001/05/19 15:04:08 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -69,6 +69,7 @@ void UiControl_CheckDbState( void )
    const AI_BLOCK *pAiBlock;
    const PI_BLOCK *pPiBlock;
    EPGDB_STATE state;
+   int filterMask;
 
    if (pUiDbContext != NULL)
    {
@@ -80,15 +81,22 @@ void UiControl_CheckDbState( void )
       }
       else
       {  // provider present -> check for PI
-         pPiBlock = EpgDbSearchFirstPi(pUiDbContext, NULL);
+         pPreFilterContext = EpgDbFilterCopyContext(pPiFilterContext);
+         filterMask = pPreFilterContext->enabledFilters;
+         // disable all filters except the expire time
+         EpgDbFilterDisable(pPreFilterContext, FILTER_ALL & ~FILTER_EXPIRE_TIME);
+
+         pPiBlock = EpgDbSearchFirstPi(pUiDbContext, pPreFilterContext);
          if (pPiBlock == NULL)
          {  // no PI in database (probably all expired)
             state = EpgAcqCtl_GetDbState(EpgDbContextGetCni(pUiDbContext));
          }
          else
          {
-            pPreFilterContext = EpgDbFilterCopyContext(pPiFilterContext);
-            EpgDbFilterDisable(pPreFilterContext, FILTER_ALL & ~FILTER_NETWOP_PRE);
+            if (filterMask & FILTER_NETWOP_PRE)
+            {  // re-enable the network pre-filter
+               EpgDbFilterEnable(pPreFilterContext, FILTER_NETWOP_PRE);
+            }
 
             pPiBlock = EpgDbSearchFirstPi(pUiDbContext, pPreFilterContext);
             if (pPiBlock == NULL)
@@ -99,8 +107,8 @@ void UiControl_CheckDbState( void )
             {  // everything is ok
                state = EPGDB_OK;
             }
-            EpgDbFilterDestroyContext(pPreFilterContext);
          }
+         EpgDbFilterDestroyContext(pPreFilterContext);
       }
       EpgDbLockDatabase(pUiDbContext, FALSE);
    }

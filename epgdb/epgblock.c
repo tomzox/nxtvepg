@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgblock.c,v 1.34 2001/04/03 18:51:14 tom Exp tom $
+ *  $Id: epgblock.c,v 1.36 2001/06/04 17:14:20 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -81,6 +81,7 @@ EPGDB_BLOCK * EpgBlockCreate( uchar type, uint size )
    time(&pBlock->acqTimestamp);
    pBlock->acqRepCount = 1;
 
+   dprintf2("EpgBlock-Create: created block type=%d, (0x%lx)\n", type, (long)pBlock);
    return pBlock;
 }
 
@@ -256,7 +257,7 @@ static void SetStartAndStopTime(uint bcdStart, uint julian, uint bcdStop, time_t
 //   National Option Set Selection", table 33.
 // - XXX no support for non-latin-1 fonts yet
 //
-static const uchar natOptChars[8][16] =
+static const uchar natOptChars[][16] =
 {
     // for latin-1 font
     // English (100%)
@@ -274,8 +275,41 @@ static const uchar natOptChars[8][16] =
     // Czech/Slovak (60%)
     { '#', 'u', 'c', 't', 'z', 'ý', 'í', 'r', 'é', 'á', 'e', 'ú', 's' },
     // reserved (English mapping)
+    { '£', '$', '@', '«', '½', '»', '¬', '#', '­', '¼', '¦', '¾', '÷' },
+    // Polish (6%: all but '#' missing)
+    { '#', 'n', 'a', 'Z', 'S', 'L', 'c', 'o', 'e', 'z', 's', 'l', 'z' },
+    // German (100%)
+    { '#', '$', '§', 'Ä', 'Ö', 'Ü', '^', '_', '°', 'ä', 'ö', 'ü', 'ß' },
+    // Swedish/Finnish/Hungarian (100%)
+    { '#', '¤', 'É', 'Ä', 'Ö', 'Å', 'Ü', '_', 'é', 'ä', 'ö', 'å', 'ü' },
+    // Italian (100%)
+    { '£', '$', 'é', '°', 'ç', '»', '¬', '#', 'ù', 'à', 'ò', 'è', 'ì' },
+    // French (100%)
+    { 'é', 'ï', 'à', 'ë', 'ê', 'ù', 'î', '#', 'è', 'â', 'ô', 'û', 'ç' },
+    // reserved (English mapping)
+    { '£', '$', '@', '«', '½', '»', '¬', '#', '­', '¼', '¦', '¾', '÷' },
+    // Czech/Slovak 
+    { '#', 'u', 'c', 't', 'z', 'ý', 'í', 'r', 'é', 'á', 'e', 'ú', 's' },
+    // reserved (English mapping)
+    { '£', '$', '@', '«', '½', '»', '¬', '#', '­', '¼', '¦', '¾', '÷' },
+    // English 
+    { '£', '$', '@', '«', '½', '»', '¬', '#', '­', '¼', '¦', '¾', '÷' },
+    // German
+    { '#', '$', '§', 'Ä', 'Ö', 'Ü', '^', '_', '°', 'ä', 'ö', 'ü', 'ß' },
+    // Swedish/Finnish/Hungarian (100%)
+    { '#', '¤', 'É', 'Ä', 'Ö', 'Å', 'Ü', '_', 'é', 'ä', 'ö', 'å', 'ü' },
+    // Italian (100%)
+    { '£', '$', 'é', '°', 'ç', '»', '¬', '#', 'ù', 'à', 'ò', 'è', 'ì' },
+    // French (100%)
+    { 'é', 'ï', 'à', 'ë', 'ê', 'ù', 'î', '#', 'è', 'â', 'ô', 'û', 'ç' },
+    // Portuguese/Spanish (100%)
+    { 'ç', '$', '¡', 'á', 'é', 'í', 'ó', 'ú', '¿', 'ü', 'ñ', 'è', 'à' },
+    // Turkish (50%: 7 missing)
+    { '#', 'g', 'I', 'S', 'Ö', 'Ç', 'Ü', 'G', 'i', 's', 'ö', 'ç', 'ü' },
+    // reserved (English mapping)
     { '£', '$', '@', '«', '½', '»', '¬', '#', '­', '¼', '¦', '¾', '÷' }
 };
+#define NATOPT_ALPHA_COUNT (sizeof(natOptChars) / 16)
 
 /*
     // for latin-2 font
@@ -403,7 +437,10 @@ static uchar GetG0Char(uchar val, uchar alphabeth)
 
    if ( (val < 0x80) && (nationalOptionsMatrix[val] >= 0) )
    {
-      result = natOptChars[alphabeth][ (uchar) nationalOptionsMatrix[val] ];
+      if (alphabeth < NATOPT_ALPHA_COUNT)
+         result = natOptChars[alphabeth][ (uchar) nationalOptionsMatrix[val] ];
+      else
+         result = ' ';
    }
    else
       result = val;

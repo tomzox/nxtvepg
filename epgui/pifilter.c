@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pifilter.c,v 1.44 2001/04/15 20:39:08 tom Exp tom $
+ *  $Id: pifilter.c,v 1.46 2001/05/19 14:42:31 tom Exp tom $
  */
 
 #define __PIFILTER_C
@@ -501,7 +501,7 @@ static int PiFilter_Reset( ClientData ttp, Tcl_Interp *interp, int argc, char *a
          if (*p == 0)
             break;
 
-              if (!strncmp(p, "all", 3))       mask |= FILTER_ALL & ~FILTER_NETWOP_PRE;
+              if (!strncmp(p, "all", 3))       mask |= FILTER_ALL & ~FILTER_PERM;
          else if (!strncmp(p, "netwops", 7))   mask |= FILTER_NETWOP;
          else if (!strncmp(p, "themes", 6))    mask |= FILTER_THEMES;
          else if (!strncmp(p, "sortcrits", 9)) mask |= FILTER_SORTCRIT;
@@ -1159,7 +1159,7 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, char
    const AI_BLOCK * pAiBlock;
    const PI_BLOCK * pPiBlock;
    int idx, entryCount;
-   uchar theme, themeCat;
+   uchar theme, themeCat, netwop;
    int result;
 
    if (argc != 2) 
@@ -1191,9 +1191,31 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, char
          // undo netwop filter
          if (pPiFilterContext->enabledFilters & FILTER_NETWOP)
          {
-            sprintf(comm, "%s add command -label {Undo network filter} -command {C_SelectNetwops {}; ResetNetwops; C_RefreshPiListbox; CheckShortcutDeselection}\n", argv[1]);
-            eval_check(interp, comm);
-            entryCount += 1;
+            // check if more than one network is currently selected
+            idx = 0;
+            for (netwop=0; netwop < pAiBlock->netwopCount; netwop++)
+               if ( (pPiFilterContext->netwopFilterField[netwop]) &&
+                    (netwop != pPiBlock->netwop_no) )
+                  idx += 1;
+            if (idx > 1)
+            {  // more than one network -> offer to remove only the selected one
+               sprintf(comm, "%s add command -label {Remove network %s} -command {SelectNetwopByIdx %d 0}\n",
+                             argv[1], AI_GET_NETWOP_NAME(pAiBlock, pPiBlock->netwop_no), pPiBlock->netwop_no);
+               eval_check(interp, comm);
+
+               // offer to remove all network filters
+               sprintf(comm, "%s add command -label {Undo all network filters} -command {C_SelectNetwops {}; ResetNetwops; C_RefreshPiListbox; CheckShortcutDeselection}\n", argv[1]);
+               eval_check(interp, comm);
+
+               // increase count only by one, since both entries have the same type
+               entryCount += 1;
+            }
+            else
+            {  // just one network selected -> offer to remove it
+               sprintf(comm, "%s add command -label {Undo network filter} -command {C_SelectNetwops {}; ResetNetwops; C_RefreshPiListbox; CheckShortcutDeselection}\n", argv[1]);
+               eval_check(interp, comm);
+               entryCount += 1;
+            }
          }
 
          // undo editorial rating
@@ -1508,10 +1530,23 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, char
 
             // netwop filter
             if ( (pPiFilterContext->enabledFilters & FILTER_NETWOP) == FALSE )
-            {
-               sprintf(comm, "%s add command -label {Filter network %s} -command {SelectNetwopByIdx %d}\n",
+            {  // no network filter yet -> offer to filter for the currently selected
+               sprintf(comm, "%s add command -label {Filter network %s} -command {SelectNetwopByIdx %d 1}\n",
                              argv[1], AI_GET_NETWOP_NAME(pAiBlock, pPiBlock->netwop_no), pPiBlock->netwop_no);
                eval_check(interp, comm);
+            }
+            else
+            {  // check if there's more than one network selected -> offer to reduce filtering to one
+               for (netwop=0; netwop < pAiBlock->netwopCount; netwop++)
+                  if ( (pPiFilterContext->netwopFilterField[netwop]) &&
+                       (netwop != pPiBlock->netwop_no) )
+                     break;
+               if (netwop < pAiBlock->netwopCount)
+               {
+                  sprintf(comm, "%s add command -label {Filter only network %s} -command {ResetNetwops; SelectNetwopByIdx %d 1}\n",
+                                argv[1], AI_GET_NETWOP_NAME(pAiBlock, pPiBlock->netwop_no), pPiBlock->netwop_no);
+                  eval_check(interp, comm);
+               }
             }
          }
       }
@@ -1520,6 +1555,24 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, char
       result = TCL_OK; 
    }
    return result;
+}
+
+// ---------------------------------------------------------------------------
+// Suppress expired PI blocks in the listbox
+// - a PI is considered expired, when it's stop time is less or equal the
+//   expire time, which is set here every minute. We must not use the current
+//   time, because then PI do expire asynchronously with the GUI, so that
+//   the tight sync between PI listbox and DB would break.
+// - must be called exery minute, or SearchFirst will not work,
+//   i.e. return expired PI blocks
+// - returns TRUE if any blocks are newly expired
+//
+void PiFilter_Expire( void )
+{
+   EpgDbFilterSetExpireTime(pPiFilterContext, time(NULL));
+
+   // refresh the listbox to remove expired PI
+   PiListBox_UpdateNowItems();
 }
 
 // ----------------------------------------------------------------------------
@@ -1566,6 +1619,9 @@ void PiFilter_Create( void )
 
    // create and initialize the filter context
    pPiFilterContext = EpgDbFilterCreateContext();
+   // initialize the expire time filter
+   EpgDbFilterSetExpireTime(pPiFilterContext, time(NULL));
+   EpgDbFilterEnable(pPiFilterContext, FILTER_EXPIRE_TIME);
 }
 
 // ----------------------------------------------------------------------------

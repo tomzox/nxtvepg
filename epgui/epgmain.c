@@ -21,10 +21,10 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgmain.c,v 1.57 2001/04/20 19:25:18 tom Exp tom $
+ *  $Id: epgmain.c,v 1.63 2001/05/19 14:34:26 tom Exp tom $
  */
 
-#define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
+#define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
 #define DPRINTF_OFF
 
 #ifndef WIN32
@@ -70,6 +70,8 @@
 #include "epgui/menucmd.h"
 #include "epgui/pilistbox.h"
 #include "epgui/pifilter.h"
+#include "epgui/xawtv.h"
+
 #include "epgui/nxtv_logo.xbm"
 #include "epgui/ptr_up.xbm"
 #include "epgui/ptr_down.xbm"
@@ -104,7 +106,7 @@ static const char *rcfile = "nxtvepg.ini";
 static const char *dbdir  = ".";
 #else
 static const char *rcfile = "~/.nxtvepgrc";
-static const char *dbdir  = "/usr/tmp/nxtvdb";
+static const char *dbdir  = EPG_DB_DIR;
 #endif
 static int  videoCardIndex = -1;
 static bool disableAcq = FALSE;
@@ -116,6 +118,7 @@ static const char *pDemoDatabase = NULL;
 Tcl_AsyncHandler exitHandler = NULL;
 Tcl_TimerToken clockHandler = NULL;
 Tcl_TimerToken expirationHandler = NULL;
+Tcl_TimerToken vpsPollingHandler = NULL;
 int should_exit;
 
 // queue for events called from the main loop when Tcl is idle
@@ -274,12 +277,11 @@ static void ClockSecEvent( ClientData clientData )
 //
 static void ClockMinEvent( ClientData clientData )
 {
-   // remove expired PI from all databases
-   if (EpgContextCtl_Expire())
-   {  // db was changed -> update statistics
-      AddMainIdleEvent(StatsWin_UpdateDbStatsWin, (ClientData) DB_TARGET_UI, FALSE);
-   }
+   // remove expired PI from the listing
+   PiFilter_Expire();
 
+   // update expiration statistics
+   AddMainIdleEvent(StatsWin_UpdateDbStatsWin, (ClientData) DB_TARGET_UI, FALSE);
 
    // check upon acquisition progress
    EpgAcqCtl_Idle();
@@ -321,6 +323,18 @@ static void EventHandler_UpdateClock( ClientData clientData )
    else
       clockHandler = NULL;
 }
+
+// ---------------------------------------------------------------------------
+// called every 200 milliseconds (every 5 frames)
+// 
+#ifndef WIN32
+static void EventHandler_TimerVPSPolling( ClientData clientData )
+{
+   AddMainIdleEvent(Xawtv_PollVpsPil, NULL, TRUE);
+
+   vpsPollingHandler = Tcl_CreateTimerHandler(200, EventHandler_TimerVPSPolling, NULL);
+}
+#endif
 
 // ---------------------------------------------------------------------------
 // called by interrupt handlers when the application should exit
@@ -372,6 +386,19 @@ static void WinApiDestructionHandler( ClientData clientData)
    // exit the application
    ExitProcess(0);
 }
+
+#ifdef __MINGW32__
+static LONG WINAPI WinApiExceptionHandler(struct _EXCEPTION_POINTERS *exc_info)
+{
+   //debug1("FATAL exception caught: %d", GetExceptionCode());
+   debug0("FATAL exception caught");
+   // skip EpgAcqCtl_Stop() because it tries to dump the db - do as little as possible here
+   BtDriver_Exit();
+   ExitProcess(-1);
+   // dummy return
+   return EXCEPTION_EXECUTE_HANDLER;
+}
+#endif
 
 // Declare the new callback registration function
 // this function is patched into the tk83.dll and hence not listed in the standard header files
@@ -817,7 +844,11 @@ int main( int argc, char *argv[] )
    // set up callback to catch shutdown messages (requires tk83.dll patch!)
    Tk_RegisterMainDestructionHandler(WinApiDestructionHandler);
    // set up an handler to catch fatal exceptions
+   #ifndef __MINGW32__
    __try {
+   #else
+   SetUnhandledExceptionFilter(WinApiExceptionHandler);
+   #endif
    SetArgv(&argc, &argv);
    #endif
    ParseArgv(argc, argv);
@@ -867,6 +898,9 @@ int main( int argc, char *argv[] )
    PiFilter_Create();
    PiListBox_Create();
    MenuCmd_Init(pDemoDatabase != NULL);
+   #ifndef WIN32
+   Xawtv_Init();
+   #endif
 
    // draw the clock and update it every second afterwords
    EventHandler_UpdateClock(NULL);
@@ -891,6 +925,10 @@ int main( int argc, char *argv[] )
    {
       // remove expired items from database and listbox every minute
       expirationHandler = Tcl_CreateTimerHandler(1000 * (60 - time(NULL) % 60), EventHandler_TimerDbSetDateTime, NULL);
+      #ifndef WIN32
+      // poll VPS PIL to follow channel changes made by an external TV app
+      vpsPollingHandler = Tcl_CreateTimerHandler(200, EventHandler_TimerVPSPolling, NULL);
+      #endif
 
       while (Tk_GetNumMainWindows() > 0)
       {
@@ -919,6 +957,8 @@ int main( int argc, char *argv[] )
             Tcl_DeleteTimerHandler(clockHandler);
          if (expirationHandler != NULL)
             Tcl_DeleteTimerHandler(expirationHandler);
+         if (vpsPollingHandler != NULL)
+            Tcl_DeleteTimerHandler(vpsPollingHandler);
          Tcl_AsyncDelete(exitHandler);
          // execute pending updates and close main window
          sprintf(comm, "update; destroy .");
@@ -928,7 +968,7 @@ int main( int argc, char *argv[] )
    else
       debug0("could not open the main window - exiting.");
 
-   #ifdef WIN32
+   #if defined(WIN32) && !defined(__MINGW32__)
    }
    __except (EXCEPTION_EXECUTE_HANDLER)
    {  // caught a fatal exception -> stop the driver to prevent system crash ("blue screen")
@@ -945,6 +985,9 @@ int main( int argc, char *argv[] )
    pUiDbContext = NULL;
    PiFilter_Destroy();
    PiListBox_Destroy();
+   #ifndef WIN32
+   Xawtv_Destroy();
+   #endif
 
    #if CHK_MALLOC == ON
    DiscardAllMainIdleEvents();

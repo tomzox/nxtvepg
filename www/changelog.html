@@ -21,6 +21,50 @@ This document contains a list of all changes between releases
 of the <A HREF="http://nxtvepg.tripod.com">nxtvepg</A>
 nexTView EPG decoder software.
 
+<H2>From 0.5.0 to 0.5.1 (June/5/2001)</H2>
+<P>
+This release concludes the connection of nxtvepg with
+the <I>xawtv</I> TV application (UNIX only). Now you can not only switch the
+TV channel from inside nxtvepg's TV listings, but also zap through the channels
+with xawtv and nxtvepg's description will follow the currently tuned channel.
+The program's title and running times will also be sent back to xawtv.
+See the <A HREF="man.html#CONFIGURATION">manual page</A>, sections
+<I>Xawtv connection</I> and <I>Network names</I>, for details
+or see this <A HREF="screenshot-xawtv.jpg">xawtv screenshot</A> to see
+the title popup in action.
+</P><P>
+<UL>
+<LI>Monitor the <TT>_XAWTV_STATION</TT> property on the xawtv window and VPS/PDC
+  (during EPG acquisition) to detect channel changes (new source module
+  <TT>epgui/xawtv.c</TT>; communication with xawtv is now done directly via X11
+  calls, and no longer uses the <TT>xawtv-remote</TT> utility)
+<LI>After a channel change, optionally set the programme listing's cursor on
+  the programme currently running on this channel and/or display the programme
+  title and running time information inside xawtv, either in a popup, as
+  overlay (requires xfree4 and the XVideo extension) or window title message.
+<LI>Improved handling of the network name configuration dialog by addition of
+  a "Closest match" (in the .xawtv station name list) button.
+<LI>fix: during refresh, the cursor now remains on the same start time and network
+<LI>fix: short info text view is no longer set to line 1.0 during every update
+<LI>fix: possible crash due to reference to freed memory when acq timescale
+  popup was open &amp; bad reception (block discarded due to parity errors)
+<LI>fix: in cyclic or follow-ui acquisition modes when acquisition was forced
+  passive on a non-provider channel, e.g. by a busy video device, acq control
+  did not automatically switch to active when the device was freed.
+<LI>fix: network name configuration: name selection from the provider listbox
+  was handled incorrectly for networks which were not covered by all providers,
+  so that another than the selected name was actually used.
+<LI>Added support for multi-network channel names (e.g. Arte / Kinderkanal)
+  to network name configuration: split xawtv station names around '/' and
+  use all resulting segments for matching with Nextview network names.
+<LI>Added support for Turkish charset in national option table; 6 characters
+  which are not in latin-1 are replaced by their ASCII counterparts.
+<LI>Fixed two memory leaks in the EPG scan and wrong handling of the EPG MIP
+  entry, which slowed down the scan on several channels.
+<LI>changed Makefile.win32 to use gcc/mingw32 for compilation. The supplied
+  Tcl/Tk libraries are compiled with gcc too (on NT using cygwin)
+</UL></P>
+
 <H2>From 0.4.5 to 0.5.0 (Apr/21/2001)</H2>
 <UL>
 <LI>The main window is now vertically resizable. The proportions of the program listbox

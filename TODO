@@ -5,8 +5,24 @@ boost any item's priority, find more points that need to be fixed or if
 you have ideas for additional features.
 
 
+xawtv patches (Gerd Knorr)
+- vtx: ESC codes for proportional font and possibly centering
+- vtx: remove subtitles upon channel changes
+- handle input source change as channel change, e.g. update property
+- split multi-network station names prior to comparison in setstation_handler
+
+nxtvepg xawtv.c:
+- move xawtv description from configuration sections to separate chapter
+- Netname Config Dialog: warn if Tune-TV if name is unknown
+- allow obsolete PI in the browser window (for VPS)
+- Tune-TV: offer to start xawtv if not running
+  may not work if xawtv requires command line options
+- VPS empty/pause codes display
+- multi-network channel name splitting in property event handling
+  NO - leads to annoying false guesses
+
 acq mode ctl. & cyclic acq fixes:
-- documentation for new browser status line and 2 stats wins
+- documentation for browser status line and 2 stats wins
 - acq timebase for cycle stats in EpgDbGetStat()
 - 2nd stage after dbs are (almost) complete: concentrate on reaching
   100%, then sleep and just wake up to check AI, e.g. every 5 minutes
@@ -29,9 +45,10 @@ merged database fixes:
   break up into substrings at any non-alnum except space
 
 other required fixes:
+- fix: programmes that lie past a daylight saving time border are assigned
+  a wrong start time on Linux (Linux lacks tm_isdst in struct tm)
 - fix: obsolete series codes can not be deleted, because only series which
   have an instance in the db are listed in the series menu
-- short info text view is set to line 1.0 during every update
 - allow to set input source via /dev/vbi (bttv version >= 0.7.5x)
 - cmd line option "predatory": in this mode the tuner is set via /dev/vbi
   regardless of other /dev/video users
@@ -46,13 +63,15 @@ other required fixes:
 - debugging: make serious debugX events fatal (developers only)
 
 possible new features: (in order of decreasing priority)
+- bookmarks with multiple priority levels and reminders for bookmarks above
+  an adjustable priority level (raise popup or dispatch external app.)
 - series management based on titles only, across all networks
-- Help in German
-- Use GTK or Tix library to improve GUI
+- use GTK+ or Tix library to improve GUI
+- allow multiple acquisition and GUI clients, possibly on different hosts
+- export database content to mysql server
+- help texts in German
 - add hyperlinks in the online help menus for all cross-references
-- TV channel switching for NOW programmes
-- timezone popup (GUI already implemented)
-- timer programming and invocation or external dispatch
+- timezone dialog (GUI already implemented)
 - wish list: maintain list of search filters that are applied each time new
   data has been acquired; notify the user when a matching programme is found
   for the first time. This can be used for a list of favourite movies or actors

@@ -4063,3 +4063,588 @@ Makefile [rev:1.25, 2001-04-21T14:47:39]:
 CHANGES [rev:1.12, 2001-04-21T14:48:07]:
 - updated for release 0.5.0
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_5_0 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+nxtvepg.pod [rev:1.38, 2001-04-27T10:44:59]:
+- rewrote FILTER SHORTCUTS chapter
+- added description of "Update Filter shortcut" dialog
+epgdb/epgdbif.c [rev:1.24, 2001-04-28T09:16:09]:
+- Added EpgDbSearchPiByPil() for xawtv remote EPG popup.
+epgdb/epgdbif.h [rev:1.18, 2001-04-28T09:16:40]:
+- Added EpgDbSearchPiByPil() for xawtv remote EPG popup.
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.96, 2001-04-28T16:35:59]:
+- Added -takefocus 0 to panning button in main window.
+epgdb/epgblock.h [rev:1.27, 2001-04-29T08:29:30]:
+- added time_t expireTime to EPGDB_CONTEXT
+- required because expired PI are now kept in the database
+- expiration is not decided via system time directly, because then
+    PI would expire asynchronously to the GUI.
+- this addition is temporary, until the sync between GUI and DB
+    is implemented via refresh only (instead of insert/remove/update)
+- also added comments to the context vars
+epgdb/epgdbif.c [rev:1.25, 2001-04-29T08:32:06]:
+- all PI access funcs now check dbc->expireTime
+- required because expired PI are now kept in the database
+- EpgDbSearchPiByPil() no longer has to search through obsolete PI list
+- EpgDbGetStat() checks in regular PI list for expired PI too
+- and uses dbc->expireTime instead of time() as borderline
+epgdb/epgdbmgmt.c [rev:1.30, 2001-04-29T08:34:49]:
+- Expired PI are now kept in the database
+- Removed check for stop_time > now during PI insertion
+- EpgDbExpire() no longer removes any blocks, it just saves the
+    given time to dbc->expireTime
+- AI block range checks must be done now in merged db too
+epgdb/epgdbmgmt.h [rev:1.13, 2001-04-29T08:39:03]:
+- EpgDbExpire() got an additional parameter: time_t newExpireTime
+- required because expired PI are now kept in the database
+- expiration is not decided via system time directly, because then
+    PI would expire asynchronously to the GUI.
+epgdb/epgdbsav.c [rev:1.36, 2001-04-29T08:39:57]:
+- Expired PI are now kept in the database
+- Removed check for stop_time > now during PI insertion
+- Initialize dbc->expireTime with the current time
+epgctl/epgctxctl.c [rev:1.6, 2001-04-29T08:41:02]:
+- EpgContextCtl_Expire() adapted to new PI expiration handling
+- expired PI are now kept in the database
+- expiration borderline is a timestamp in the context: dbc->expireTime
+- expiration is not decided via system time directly, because then
+    PI would expire asynchronously to the GUI.
+epgctl/epgctxmerge.c [rev:1.2, 2001-04-29T08:43:17]:
+- Initialize dbc->expireTime with the current time
+- Added EpgContextMergeAiCheckBlockRange()
+- empty function body, still TODO
+- AI block range checks must be done to remove expired PI
+- Added const to params in 2 funcs: InsertPi, AiUpdate
+epgctl/epgctxmerge.h [rev:1.2, 2001-04-29T08:45:24]:
+- Added EpgContextMergeAiCheckBlockRange()
+- Added const to params in 2 funcs: InsertPi, AiUpdate
+epgui/epgmain.c [rev:1.58, 2001-04-29T09:09:49]:
+- ClockMinEvent() adapted to new PI expiration handling
+- expired PI are now kept in the database
+- PiListBox_UpdateNowItems() must be called directly from here
+    because no callbacks are triggered in the db expire anymore
+epgui/pilistbox.c [rev:1.52, 2001-04-29T09:26:50]:
+- PiListBox_UpdateNowItems() adapted to new expiration handling
+- expired PI are now kept in the database
+- UpdateNowItems() must handle removal of expired PI now, since
+    the removal callbacks are not invoked for expired PI
+- currently UpdateNowItems() just does a refresh, but this could
+    be improved by checking if a refresh is neccessary, i.e. if PI expired
+- Optimizations:
+- refresh now attempts to remain on the same network, if there are
+    several programmes with the same starting time
+- PiListBox_UpdateInfoText() has new parameter bool keepView
+    which instructs to display the same viewable fraction as before the update
+    Parameter is set to TRUE during refresh (unless the selected PI
+    no longer exists) and DbPostUpdate(), i.e. acq replacement
+epgui/pilistbox.h [rev:1.9, 2001-04-29T09:34:03]:
+- PiListBox_UpdateNowItems() removed param dbc
+- is no longer invoked as callback from DB
+- instead called from timer handler in main right after DB expiration
+Makefile [rev:1.26, 2001-04-30T12:55:32]:
+- added epgui/xawtv and library -lXmu
+Makefile [rev:1.27, 2001-05-02T19:20:52]:
+- switched from makedepend to gcc -MM
+- because makedepend couldn't cope with // comments
+epgdb/epgdbmgmt.c [rev:1.31, 2001-05-03T19:26:06]:
+- translated all comments from German to English
+- improved explanations of PI sorting and priorities
+epgdb/epgdbif.c [rev:1.26, 2001-05-03T19:29:25]:
+- translated two lines of comment from German to English
+epgdb/epgdbsav.c [rev:1.37, 2001-05-03T19:36:51]:
+- translated German comments to English
+epgui/epgmain.c [rev:1.59, 2001-05-05T19:21:43]:
+- added 200ms timer for VPS polling
+- added initialization of xawtv module
+Makefile [rev:1.28, 2001-05-05T19:49:45]:
+- adaptions for NetBSD compatibility
+- renamed manpage extension from .1x to .1
+- added -DEPG_DB_DIR for flexible configuration of database directory
+epgui/epgmain.c [rev:1.60, 2001-05-05T19:57:15]:
+- use preprocessor macro EPG_DB_DIR for definition of database dir
+- macro will be defined per -D cc option from Makefile
+epgvbi/btdrv.h [rev:1.11, 2001-05-06T14:26:51]:
+- added new elements to EPGACQ_BUF
+- CNI_ACQ_STATE: decoder state machine for VPS, PDC, NI
+- start_writer_idx: restart idx after channel change
+    written by slave when frameSeqNo increased from 0
+    is used to synchronize channel change, i.e. skip data from old channel
+epgvbi/btdrv4linux.c [rev:1.14, 2001-05-06T14:29:35]:
+- BtDriver_DecodeFrame provides data from synchronized channel changes
+- copy current ring buffer idx to pVbiBuf->start_writer_idx when
+    frameSeqNo is 0 -> this tells the master where the data from the new
+    channel starts
+- for NetBSD set frameSeqNo to 1 starting with the first frame
+epgvbi/vbidecode.c [rev:1.27, 2001-05-06T14:32:27]:
+- VbiDecodeLine: moved bitfield decoder into subfunction
+- now calls EpgDbAcqAddVpsData(data) instead of EpgDbAcqAddVpsCode(cni)
+- reason is that PIL decoding has been added
+Makefile [rev:1.29, 2001-05-06T14:59:51]:
+- bugfix depend rule: used extension .obj instead of .o
+epgdb/epgdbacq.c [epgvbi/ttxdecode.c, rev:1.27, 2001-05-06T17:25:30]:
+- Synchronize channel changes with slave
+- added new function EpgDbAcqNotifyChannelChange()
+    called when acq state machine switches the channel
+- new bit bNewChannel: set until slave received first frame of new channel
+- new pVbiBuf->start_writer_idx: writer idx at the time of first frame
+- all data is discarded until bNewChannel is cleared
+- Added PIL decoding
+- new state machine for CNI and PIL: added struct CNI_ACQ_STATE in pVbiBuf
+    implemented in EpgDbAcqAddCni() for all CNI types
+- PDC and NI CNIs are converted to equivalent VPS or PDC where available
+- renamed EpgDbAcqAddVpsCode() to EpgDbAcqAddVpsData()
+    is now passed the undecoded VPS data line instead of CNI value
+- added EpgDbAcqGetCniAndPil() as interface for upper layers
+- VPS decoding is now always enabled during acquisition
+- because it's used to detect channel changes in a TV application
+- renamed EpgDbAcqEnableVpsPdc() to EpgDbAcqResetVpsPdc()
+epgdb/epgdbacq.h [epgvbi/ttxdecode.h, rev:1.13, 2001-05-06T17:26:37]:
+- Added definitions of VPS system codes
+- added new function EpgDbAcqNotifyChannelChange()
+- renamed EpgDbAcqEnableVpsPdc() to EpgDbAcqResetVpsPdc()
+- added EpgDbAcqGetCniAndPil() as interface for upper layers
+- renamed EpgDbAcqAddVpsCode() to EpgDbAcqAddVpsData()
+epgctl/debug.h [rev:1.9, 2001-05-06T17:30:35]:
+- added debug macros debug8() ... debug11()
+epgctl/epgacqctl.c [rev:1.42, 2001-05-06T17:31:07]:
+- EpgAcqCtl_TuneProvider(): call EpgDbAcqNotifyChannelChange()
+epgctl/epgscan.c [rev:1.12, 2001-05-06T17:31:21]:
+- Added call to EpgDbAcqNotifyChannelChange() prior to channel changes
+- this clears all acquisition buffers, esp. CNI values
+    and disables acquisition until the first frame of the new channel
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.97, 2001-05-06T17:45:09]:
+- Moved all Xawtv related functionality into xawtv.c
+- renamed TuneTVSendCmd to C_Xawtv_SendCmd
+- renamed ReadXawtvNetworkNames to C_Xawtv_GetStationNames
+- Button 3 no longer selects the PI under the cursor
+- Mouse can be dragged in PI listbox to change selection (with Button-1)
+- SelectNetwopByIdx allows to de-select a network filter
+- added parameter $is_on
+- used in context menu when more than one network is selected
+- Made column menus context sensitive (i.e. depending on selected PI)
+- added shortcut to filter for selected network
+- display "cleat text search" only if text filter is enabled
+- added "clear history" command below text search history
+epgui/menucmd.c [rev:1.45, 2001-05-06T17:45:34]:
+- moved XawtvGetFreqTab() into new module epgui/xawtv.c
+epgui/pifilter.c [rev:1.45, 2001-05-06T17:47:38]:
+- improved context menu for multiple network selection
+- offer to undo a single network if more than one is filtered for
+- offer to filter for only one out of the ones currently filtered for
+epgui/statswin.c [rev:1.35, 2001-05-06T17:49:00]:
+- CNI acquisition is now running permanently during acquisition
+- no longer required to turn on/off VPS acquisition
+- renamed EpgDbAcqEnableVpsPdc() to EpgDbAcqResetVpsPdc()
+epgui/xawtv.c [rev:1.1, 2001-05-06T17:50:12]:
+- Initial revision
+epgui/xawtv.h [rev:1.1, 2001-05-06T17:50:14]:
+- Initial revision
+www/index.html [rev:1.21, 2001-05-06T19:57:10]:
+- Added link to provider table.
+- Removed umlaut "ö" from my name.
+- Refer to xawtv as Linux TV app. instead of UNIX.
+www/index-de.html [rev:1.10, 2001-05-06T19:58:04]:
+- Added link to provider table.
+- Refer to xawtv as Linux TV app. instead of UNIX.
+www/provnets.html [rev:1.1, 2001-05-06T19:58:40]:
+- Initial revision
+epgui/pilistbox.c [rev:1.53, 2001-05-07T20:48:23]:
+- bugfix _DbInsert:
+- must only insert PI if it's not expired
+- the db does contain expired PI since a few updates ago, so we have to check manually!
+epgui/xawtv.c [rev:1.2, 2001-05-12T12:14:43]:
+- bugfix C_Xawtv_SendCmd: warning never popped up due to comparison error
+epgctl/epgacqctl.c [rev:1.43, 2001-05-12T17:05:18]:
+- bugfix EpgAcqCtl_Idle
+- acq did not switch back to active mode from forced-passive
+    when the current channel did not have EPG reception
+- reason: used eff. acq mode instead or orig. userMode
+    hence the mode was not detected as active
+- also: only cyclic mode was considered, no follow-ui
+epgdb/epgdbmgmt.c [rev:1.32, 2001-05-12T17:46:02]:
+- bugfix EpgDbInsertPiBlock()
+- returned TRUE although the block was not added to the db
+- consequence: block was still referred to although the memory was freed
+- the cause was that a bool result was not enough any more: there is an
+    additional 3rd result: not added but not defective (parity errors)
+- solution: moved code from EpgDbInsertPiBlock() into calling function
+    EpgDbAddPiBlock() and work with two bools: added, defective
+    instead of single result
+epgui/pilistbox.c [rev:1.54, 2001-05-12T18:34:27]:
+- added PiListBox_GotoPi() for xawtv
+epgui/pilistbox.h [rev:1.10, 2001-05-12T18:34:51]:
+- added PiListBox_GotoPi() for xawtv
+epgui/epgmain.c [rev:1.61, 2001-05-13T16:23:38]:
+- renamed UiControl_PollVpsPil to Xawtv_PollVpsPil
+epgui/xawtv.c [rev:1.3, 2001-05-13T16:26:40]:
+- Added VPS polling state machine
+- which was originally planned for uictrl.c
+- added Xawtv_PollVpsPil, Xawtv_StationSelected, Xawtv_FollowTVNetwork,
+    Xawtv_NowNext
+- made several funcs static only: Xawtv_SendCmd, Xawtv_QueryRemoteStation
+epgui/xawtv.h [rev:1.2, 2001-05-13T16:28:29]:
+- made funcs static only: Xawtv_SendCmd, Xawtv_QueryRemoteStation
+- added Xawtv_PollVpsPil (moved here from uictrl.c - where it never was
+    checked in)
+epgvbi/btdrv4win.c [rev:1.14, 2001-05-13T16:34:09]:
+- BtDriver_VbiThread: adapted for synchronized channel change
+- special handling if pVbiBuf->frameSeqNo is 0
+    + skip one frame (might contain data from old channel)
+    + remember start index for new channel in pVbiBuf->start_writer_idx
+- simply set pVbiBuf->frameSeqNo to 1 for now
+    note: frame sequence counter could easily be implemented
+epgvbi/btdrv4win.c [rev:1.15, 2001-05-13T16:39:34]:
+- cleaned up syntax glitches with help of gcc
+- commented out unused functions
+epgvbi/bt848.h [dsdrv/bt8x8_reg.h, rev:1.5, 2001-05-13T16:40:09]:
+- cleaned up syntax glitches with help of gcc
+- commented out unused functions
+epgvbi/windrvr.h [rev:1.3, 2001-05-13T16:41:16]:
+- removed redeclarations of BYTE and WORD because gcc choked on them
+epgdb/epgdbsav.c [rev:1.38, 2001-05-15T19:47:07]:
+- Win32: added #include ctype.h for toupper()
+epgctl/epgacqctl.c [rev:1.44, 2001-05-15T19:48:50]:
+- fixed assertion in EpgAcqCtl_AdvanceCyclePhase()
+- while in forced-passive mode, any cycle state is plausible
+    e.g. even Now&Next, because the userMode might be e.g. cycle02
+epgui/xawtv.c [rev:1.4, 2001-05-16T18:50:08]:
+- Added timer to wait for VPS after PropertyNotify on _XAWTV_STATION
+epgui/epgmain.c [rev:1.62, 2001-05-18T19:41:52]:
+- ported to gcc/mingw32:
+- gcc has no __try {} __except {}
+- use SetUnhandledExceptionFilter() instead
+Makefile [rev:1.30, 2001-05-18T19:56:40]:
+- bak archive has grown > 1.4MB
+--> switch to bzip2, now down to about 1MB again
+Makefile.win32 [rev:1.8, 2001-05-18T19:59:46]:
+- switched to gcc/mingw32
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.98, 2001-05-19T10:45:48]:
+- removed destroy callback from main
+- C_Xawtv_Disconnect is no longer needed since we're notified of
+    xawtv destruction via an X event
+epgui/xawtv.c [rev:1.5, 2001-05-19T10:47:28]:
+- rewrote the xawtv -> nxtvepg connection handling
+- xawtv no longer notifies us via property of channel changes
+- also we do no longer pass our window id to xawtv ("connect" command)
+- instead X events are installed to be notified of property changes
+    or window destruction directly on the xawtv window
+- if xawtv is not opened, an event is installed on the X root window
+    and every created window is checked if it's xawtv
+README [rev:1.16, 2001-05-19T11:27:59]:
+- removed MSVC from windows compile requirements - use gcc/mingw32 instead
+epgdb/epgblock.h [rev:1.28, 2001-05-19T14:21:57]:
+- EPGDB_CONTEXT: removed expireTime: now implemented in filter context
+epgdb/epgdbfil.c [rev:1.26, 2001-05-19T14:23:39]:
+- added EpgDbFilterSetExpireTime()
+- added handling of FILTER_EXPIRE_TIME in match function
+epgdb/epgdbfil.h [rev:1.16, 2001-05-19T14:24:05]:
+- added FILTER_EXPIRE_TIME
+- added FILTER_PERM = EXPIRE_TIME + NETWOP_PRE
+- added expireTime to filter context
+- added EpgDbFilterSetExpireTime()
+epgdb/epgdbif.c [rev:1.27, 2001-05-19T14:25:56]:
+- expire time now implemented in filter context instead of db
+- removed check of expire time from PI search functions
+- use current time for stats function
+epgdb/epgdbmgmt.c [rev:1.33, 2001-05-19T14:27:15]:
+- removed obsolete EpgDbExpire(): now implemented as search filter
+epgdb/epgdbmgmt.h [rev:1.14, 2001-05-19T14:27:15]:
+- removed obsolete EpgDbExpire(): now implemented as search filter
+epgdb/epgdbsav.c [rev:1.39, 2001-05-19T14:27:48]:
+- removed initialization of dbc->expireTime
+- expire time has moved from db context to filter context
+epgctl/epgctxctl.c [rev:1.7, 2001-05-19T14:31:00]:
+- removed obsolete EpgContextCtl_Expire(): now implemented as search filter
+epgctl/epgctxctl.h [rev:1.6, 2001-05-19T14:31:54]:
+- removed obsolete EpgContextCtl_Expire(): now implemented as search filter
+epgctl/epgctxmerge.c [rev:1.3, 2001-05-19T14:32:06]:
+- removed initialization of dbc->expireTime
+- expire time has moved from db context to filter context
+epgui/epgmain.c [rev:1.63, 2001-05-19T14:34:26]:
+- changed handling of PI expiration
+- expire time has moved from db context to filter context
+- call PiFilter_Expire instead of EpgContextCtl_Expire
+- PiListBox_UpdateNowItems moved into PiFilter_Expire
+- Xawtv_Init called earlier - now right after PiFilter and Listbox
+- must be called before the window is mapped
+    because the TV-Tune button is inserted there
+epgui/pifilter.c [rev:1.46, 2001-05-19T14:42:31]:
+- changed handling of PI expiration: now implemented as search filter
+- set FILTER_EXPIRE_TIME in init func
+- ­ added PiFilter_Expire, called every minute to update expire filter
+- PiFilter_Reset: added expire time as exception to "all"
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.99, 2001-05-19T14:52:48]:
+- use a C procedure for detection if .xawtv rc file is present
+- replace all file isfile "$env(HOME)/.xawtv with C_Xawtv_Enabled
+- moved creation of button into proc CreateTuneTvButton
+    because info if .xawtv exists is not available at compile time yet
+epgui/pilistbox.c [rev:1.55, 2001-05-19T14:57:20]:
+- changed handling of PI expiration: now implemented as search filter
+- removed special checking of expire time in several funcs,
+    because it's already done in EpgDbFilterMatches() now
+epgui/pifilter.h [rev:1.7, 2001-05-19T14:58:25]:
+- added PiFilter_Expire() decl.
+epgui/uictrl.c [rev:1.12, 2001-05-19T15:04:08]:
+- UiControl_CheckDbState: adapt PI search for new expire time handling
+- except of search with NULL filter, set expire-time filter
+epgui/xawtv.c [rev:1.6, 2001-05-19T15:06:50]:
+- added Xawtv_Check() and Xawtv_Enabled()
+- used to check if xawtv module is enabled, from C and Tcl
+- initialize the module only if .xawtv found
+- adapted Xawtv_FollowTVNetwork() PI search to new expire time handling
+- add expire time filter with current time to search for current PI
+CHANGES.version [rev:1.6, 2001-05-19T15:16:15]:
+- renamed nxtvepg.1x to nxtvepg.1
+www/index-de.html [rev:1.11, 2001-05-19T19:31:38]:
+- recompiled 1.6-win with gcc -> renamed zip to 1.6-win-gcc
+www/index.html [rev:1.22, 2001-05-19T19:31:38]:
+- recompiled 1.6-win with gcc -> renamed zip to 1.6-win-gcc
+Makefile.win32 [rev:1.9, 2001-05-19T19:42:03]:
+- added compilation of tkwinico.rc
+- added existance check to epgui/tcl_libs.c generation
+- renamed nxtvepg.1x to nxtvepg.1
+- fixed zip target
+www/provnets.html [rev:1.2, 2001-05-19T19:44:50]:
+- removed Switzerland from Pro7
+- movied TV down to other french providers
+- added France to SF1
+www/man.html [rev:1.7, 2001-05-19T19:46:57]:
+- fix: removed <HEAD> section from in the midst of the file
+nxtvepg.pod [rev:1.39, 2001-05-19T19:53:16]:
+- removed a blank line inbetween =for html section
+- this line appeared in the nroff output too
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.100, 2001-05-19T20:42:34]:
+- renamed German "alle" to English "-all-" in network filter bar
+- reported by Hampa Hug <hhug@student.ethz.ch>
+epgui/xawtv.c [rev:1.7, 2001-05-19T21:38:13]:
+- Xawtv_StationSelected: moved name->CNI conversion into new func Xawtv_StationNametoCni()
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.101, 2001-05-24T19:37:55]:
+- added proc Create_XawtvPopup
+epgui/xawtv.c [rev:1.8, 2001-05-25T16:18:19]:
+- fixed VPS polling after property event: now wait 3 * 120 ms
+- added alternative way to generate the Xawtv popup: a toplevel generated
+    by nxtvepg, next to the xawtv window. Added Xawtv_Popup(),
+    Xawtv_PopDownNowNext() and Xawtv_QueryParent()
+- moved property dprintf into new func DebugDumpProperty()
+- moved Xawtv_X11ErrorHandler() upwards in the file
+- split off Xawtv_QueryClass() from Xawtv_QueryRemoteStation()
+- remove TVTWM support from Xawtv_FindWindow()
+www/provnets.html [rev:1.3, 2001-05-25T18:11:35]:
+- Added new provider: TRT
+- including explanations about problems during testing phase
+- corrected VALIGN for M6 and Canal+
+www/index-de.html [rev:1.12, 2001-05-25T18:35:19]:
+- added news about TRT: new Nextview EPG provider
+www/index.html [rev:1.23, 2001-05-25T18:35:19]:
+- added news about TRT: new Nextview EPG provider
+www/changelog.html [rev:1.7, 2001-05-25T18:36:37]:
+- added preview of changes in 0.5.1
+epgdb/epgblock.c [rev:1.35, 2001-05-25T19:39:07]:
+- bugfix: index was not checked when accessing natOptChars table
+- natOptChars: added support for Turkish chars
+- 6 Latin-5 specials replaced by their ASCII counterparts
+www/provnets.html [rev:1.4, 2001-05-25T19:51:07]:
+- fixed note about TRT: their charset is ok, but it's not supported in nxtvepg
+www/changelog.html [rev:1.8, 2001-05-25T19:56:42]:
+- added item for 0.5.1: support for Turkish charset
+www/provnets.html [rev:1.5, 2001-05-25T20:01:46]:
+- added content-provider info for M6 and Canal+: Swiss Teletext
+- info obtained from TARA-Systems website
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.102, 2001-05-26T18:56:27]:
+- added xawtv configuration dialog: proc XawtvConfigPopup
+- added $xawtvcf to rc/ini file (paired list: keyword/value)
+- CreateTuneTvButton can now be called repeatedly (checks if button exists)
+    added proc RemoveTuneTvButton to remove button upon user request
+epgui/xawtv.c [rev:1.9, 2001-05-26T19:06:14]:
+- added user configuration dialog: stores options in Tcl global $xawtvcf
+    which is copied into new struct XAWTVCF: global var xawtvcf
+- now 3 types of xawtv EPG display can be used (popup, vtx, message)
+    also popup duration is configurable
+    all main features can be switched off
+- added functions Xawtv_InitConfig() and Xawtv_ReadConfig() to process cfg
+    called during startup and after "Ok" in config dialog
+    most of the functionality (e.g. FindWindow) moved here from module init func
+- also:
+- removed obsolete param bool checkClass from Xawtv_QueryRemoteStation
+- xawtv command "epg" discarded; use "vtx" instead (EPG refused by Gerd Knorr)
+    the former "epg" popup is now implemented inside nxtvepg as poptype POP_EXT
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.103, 2001-05-27T09:22:59]:
+- network name selection
+- bugfix: added netname_provlist to keep track which providers are listed
+    in the box; before the wrong prov might have been used when selecting a
+    network name from the prov listbox
+- fix save func: arrays were not declared global, hence never freed
+- added Help text reference for XawtvConfig popup
+epgui/xawtv.c [rev:1.10, 2001-05-27T09:43:19]:
+- Xawtv_GetStationNames: added support for multi-network channel names
+- names are split around separator char '/'
+- the original name plus all splitted segments are added to the output list
+nxtvepg.pod [rev:1.40, 2001-05-27T09:59:53]:
+- added description for Xawtv connection config dialog
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.104, 2001-05-27T11:49:42]:
+- xawtv config dialog: allow popup duration 0 ("forever")
+epgui/xawtv.c [rev:1.11, 2001-05-27T11:50:37]:
+- allow popup duration 0: forever
+- check popType in ReadConfig: error message if > POP_COUNT
+- split off new func Xawtv_SearchCurrentPi() from Xawtv_FollowTVNetwork()
+    to enhance structuring; renamed ..TV.. to Xawtv_FollowTvNetwork()
+nxtvepg.pod [rev:1.41, 2001-05-27T17:43:20]:
+- added credits for Gerd Knorr
+- added note to intro that EPG does not only cover the provider's programme
+- xawtv config: special meaning of popup duration 0
+- netname config: multi-network channel names separator '/'
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.105, 2001-05-27T18:21:58]:
+- prepared listbox to allow expired PI
+- define tag "past", color $cursor_bg_past
+- set tabs on new tag "past"
+epgui/pilistbox.c [rev:1.56, 2001-05-27T18:22:52]:
+- prepared listbox to allow expired PI
+- assign tag "past" to expired PI (-> color red)
+- prepare to change cursor color to red for expired PI
+    XXX TODO: cannot detect expired PI there because stop time is not available!
+epgui/xawtv.c [rev:1.12, 2001-05-29T17:55:05]:
+- added popType VTX2: VTX now only 1 line high, VTX2 two
+    reason is the bug in xawtv < 3.48 (bg in shorter line not cleared)
+- use XGetWindowAttributes() instead of XGetGeometry()
+    suppress popup while window is invisible
+- fixed FindWindow: do{} retry did not work
+- fix PollVps: ignore change to invalid PIL (when CNI identical)
+    this must be done to avoid flickering of the popup on chn w/ bad recept.
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.106, 2001-05-29T17:59:22]:
+- split xawtv popup type "video overlay" into two separate modes
+- reason is the bug in xawtv < 3.48 (bg in shorter line not cleared)
+nxtvepg.pod [rev:1.42, 2001-05-29T18:01:21]:
+- split xawtv popup type "video overlay" into two separate modes
+    reason is the bug in xawtv < 3.48 (bg in shorter line not cleared)
+- added hint how to change xawtv vtx font (~/.Xdefaults)
+epgui/xawtv.c [rev:1.13, 2001-05-31T16:59:25]:
+- added lastCni & startTime to followTvState
+    to suppress repeated popups
+- added EpgAcqCtl_CheckDeviceAccess() after start & stop of xawtv
+- removed params from Xawtv_FollowTvNetwork(): accesses now followTvState
+- Xawtv_FollowTvNetwork(): negated acq ctl expr. to simplify it
+- fix: check mode before passiveMode; check for passive mode
+epgctl/epgacqctl.c [rev:1.45, 2001-05-31T17:07:52]:
+- added EpgAcqCtl_CheckDeviceAccess()
+epgctl/epgacqctl.h [rev:1.27, 2001-05-31T17:08:07]:
+- added EpgAcqCtl_CheckDeviceAccess()
+epgui/xawtv.c [rev:1.14, 2001-05-31T17:36:51]:
+- bugfix: Xawtv_FindWindow() result was assigned to xawtv_wid
+- returns bool now though
+epgui/xawtv.c [rev:1.15, 2001-05-31T17:58:50]:
+- removed Tcl "update" from init func - obsolete
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.107, 2001-05-31T18:24:44]:
+- bugfix proc TuneTV: did not work until netname config was called once
+epgdb/epgdbacq.c [epgvbi/ttxdecode.c, rev:1.28, 2001-05-31T18:52:34]:
+- bugfix: dataPageCount was not cleared at init or channel change
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.108, 2001-06-02T12:39:03]:
+- Netname Configuration:
+- new separate confirmation popup for abort if only changes are auto-matches
+- do not save auto-matched names which are not in xawtv (i.e. colored red)
+- mark names that match only "compressed" .xawtv station names red too
+- also:
+- bugfix xawtvcf popup: XawtvConfigSelected: poptype.t3 state was not set
+epgui/epgtxtdump.c [epgui/dumpraw.c, rev:1.17, 2001-06-02T18:38:34]:
+- EpgTxtDump_Database:
+- renamed expired/obsolete to defective PI (expired are in normal list now)
+- use proper interface funcs to access defective PI blocks:
+    EpgDbGetFirstObsoletePi() instead of access to pDbContext->pObsoletePi
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.109, 2001-06-02T18:41:38]:
+- fool-proofed network naming handling:
+- display popup when Tune-TV is used and no names configured yet
+- added "Closest match" button to dialog
+- added trace to entry field var; after each modification check if the
+    name now equals one in .xawtv; signal result via black/red colors
+- also:
+- dump db dialog: renamed "expired" to "defective" PI
+    since expired PI are now covered by the normal PI option (again)
+nxtvepg.pod [rev:1.43, 2001-06-02T18:46:15]:
+- modified network name config dialog description:
+- intro: mentiaon that names are used both for Tune-TV and channel changes
+- added "Closest match" button below xawtv name list
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.110, 2001-06-02T19:32:40]:
+- fix last check-in: proc TuneTV
+- cancel button in msgbox was not handled at all
+- show popup just once after each program start
+- added comments
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.111, 2001-06-03T10:12:16]:
+- fixed netname dialog for users without .xawtv: disabled match button
+- maded match button and xawtv menubutton same width
+    max width of all xawtv station names
+nxtvepg.pod [rev:1.44, 2001-06-03T10:13:26]:
+- netname config dialog: add note about matching without .xawtv file
+www/provnets.html [rev:1.6, 2001-06-04T09:37:43]:
+- update note about TRT:
+- are now using correct CNIs for Turkish networks; others still invalid
+- national options chars now decoded correctly by nxtvepg (release 0.5.1)
+epgdb/epgblock.c [rev:1.36, 2001-06-04T17:14:20]:
+- added debug printf to CreateBlock func
+epgdb/epgdbacq.c [epgvbi/ttxdecode.c, rev:1.29, 2001-06-04T17:15:24]:
+- fixed memory leak in EpgDbAcqProcessPackets()
+- AI block was not freed when rejected by callback
+epgdb/epgstream.c [rev:1.15, 2001-06-04T17:19:29]:
+- changed handling of scratch buffer inStreamInit:
+- do not overwrite scratch pointer with 0
+- may still have entries, if acq was not stopped (e.g. after EPG scan)
+- scratch buffer ptr is now initialized with NULL
+epgctl/epgscan.c [rev:1.13, 2001-06-04T17:35:47]:
+- EpgScan_EvHandler: fixed change to new provider channel:
+    acq must be resetted *after* the new empty db has been created,
+    since default values are written to the context during acq reset
+- added TRT-1 to list of known providers
+- added/enhanced some debug printfs
+epgctl/epgacqctl.c [rev:1.46, 2001-06-04T18:57:53]:
+- Removed call to EpgDbAcqNotifyChannelChange() from EpgAcqCtl_TuneProvider()
+    Instead call EpgAcqCtl_ChannelChange() in EpgAcqCtl_UpdateProvider()
+    whenever input source or acq database change.
+    This is a bugfix! before data could be added to the wrong db since state
+    was not resetted to WAIT_BI after frequency change.
+- added check for EpgScan_IsActive() in EpgAcqCtl_CheckDeviceAccess()
+    and EpgAcqCtl_ChannelChange()
+- added/enhanced debug statements
+epgctl/epgctxctl.c [rev:1.8, 2001-06-04T19:01:27]:
+- changed semantics of EpgContextCtl_GetAny():
+- ignore empty contexts (no AI block) during search
+- acq and ui should use separate dbs while both are empty
+- also added debug printf statements
+Makefile [rev:1.31, 2001-06-04T19:24:03]:
+- added command to install rule to remove old .1x manpage
+README [rev:1.17, 2001-06-04T19:37:56]:
+- Windows sys.req.: exchanged radio@mp3 and MultiDec in driver source
+- list, since radio@mp3 was reported to make problems.
+README [rev:1.18, 2001-06-04T19:44:11]:
+- added TRT to list of providers
+- fixed list for Switzerland with respect to www/provnets.html
+nxtvepg.pod [rev:1.45, 2001-06-05T19:01:51]:
+- Basic Browsing: rewrote paragraph about xawtv connection
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.112, 2001-06-05T19:02:21]:
+- network name config dialog:
+- added popup at dialog start to notify about number of automatically matched networks
+epgctl/epgversion.h [rev:1.12, 2001-06-05T19:04:37]:
+- set to version 0.5.1
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.113, 2001-06-05T19:26:01]:
+- fixed proc SortProvList:
+- providers that were not yet in $prov_selection were assigned
+    an undefined position
+- added additional loop to assign them sort indices at the end of the list
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.114, 2001-06-05T20:00:40]:
+- fix netname cf dlg for win32: access .netname.cmd.fx.mb cget -font only for UNIX
+www/changelog.html [rev:1.9, 2001-06-05T20:46:39]:
+- update for release 0.5.1
+www/index-de.html [rev:1.13, 2001-06-05T20:46:39]:
+- update for release 0.5.1
+www/index.html [rev:1.24, 2001-06-05T20:46:39]:
+- update for release 0.5.1
+www/provnets.html [rev:1.7, 2001-06-05T20:47:03]:
+- added note for TRT-int: identifies itself as TRT1
+www/man.html [rev:1.8, 2001-06-05T20:52:17]:
+- update for release 0.5.1
+CHANGES [rev:1.13, 2001-06-05T20:58:56]:
+- updated for release 0.5.1
+TODO [rev:1.12, 2001-06-05T20:59:12]:
+- updated for release 0.5.1
+www/index.html [rev:1.25, 2001-06-06T16:27:46]:
+- corrected English.
+www/provnets.html [rev:1.8, 2001-06-06T16:27:59]:
+- removed one obsolete verb from TRT note.
+www/changelog.html [rev:1.10, 2001-06-06T16:28:55]:
+- corrected English.
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_5_1 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

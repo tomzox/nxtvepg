@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbmgmt.h,v 1.12 2001/02/25 16:00:45 tom Exp tom $
+ *  $Id: epgdbmgmt.h,v 1.14 2001/05/19 14:27:15 tom Exp tom $
  */
 
 #ifndef __EPGDBMGMT_H
@@ -42,8 +42,6 @@ void EpgDbReplacePi( EPGDB_CONTEXT * dbc, EPGDB_BLOCK * pObsolete, EPGDB_BLOCK *
 //
 EPGDB_CONTEXT * EpgDbCreate( void );
 void EpgDbDestroy( EPGDB_CONTEXT * dbc );
-
-bool EpgDbExpire( EPGDB_CONTEXT * dbc );
 
 bool EpgDbAddBlock( EPGDB_CONTEXT * dbc, EPGDB_BLOCK * pBlock );
 

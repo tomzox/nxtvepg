@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgtxtdump.c,v 1.16 2001/04/04 18:46:42 tom Exp tom $
+ *  $Id: epgtxtdump.c,v 1.17 2001/06/02 18:38:34 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -602,14 +602,14 @@ void EpgTxtDump_Database( EPGDB_CONTEXT *pDbContext, FILE *fp,
          }
       }
 
-      // Dump expired/obsolete programme information blocks
+      // Dump defective programme information blocks
       if (do_xi)
       {
-         EPGDB_BLOCK *pWalk = pDbContext->pObsoletePi;
-         while (pWalk != NULL)
+         pPi = EpgDbGetFirstObsoletePi(pDbContext);
+         while (pPi != NULL)
          {
-            EpgTxtDumpPi(fp, &pWalk->blk.pi, pWalk->stream, pWalk->version, pAi);
-            pWalk = pWalk->pNextBlock;
+            EpgTxtDumpPi(fp, pPi, EpgDbGetStream(pPi), EpgDbGetVersion(pPi), pAi);
+            pPi = EpgDbGetNextObsoletePi(pDbContext, pPi);
          }
       }
    }

@@ -1,5 +1,5 @@
 /*
- *  Nextview GUI: PI search filter control
+ *  Nextview decoder: xawtv remote control module
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
@@ -16,24 +16,22 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pifilter.h,v 1.7 2001/05/19 14:58:25 tom Exp tom $
+ *  $Id: xawtv.h,v 1.2 2001/05/13 16:28:29 tom Exp tom $
  */
 
-#ifndef __PIFILTER_H
-#define __PIFILTER_H
+#ifndef __XAWTV_H
+#define __XAWTV_H
 
 
-#ifndef __PIFILTER_C
-// search context for pi listbox
-extern const FILTER_CONTEXT *pPiFilterContext;
-#endif
+// Interface to GUI
+int  Xawtv_GetFreqTab( ulong ** pFreqTab, uint * pCount );
 
-// Initialization and destruction - Interface to the EPG main module
-void PiFilter_Create( void );
-void PiFilter_Destroy( void );
+// Interface to main event handler
+void Xawtv_PollVpsPil( ClientData clientData );
 
-// Interface to ui control module
-void PiFilter_UpdateNetwopList( void );
-void PiFilter_Expire( void );
+// Initialisation
+void Xawtv_Init( void );
+void Xawtv_Destroy( void );
 
-#endif  // __PIFILTER_H
+
+#endif  // __XAWTV_H

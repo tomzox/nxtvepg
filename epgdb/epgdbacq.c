@@ -18,7 +18,7 @@
  *    contains the interface between the slave and control processes,
  *    i.e. there are two execution threads running here. The slave
  *    puts all teletext packets of a given page into a ring buffer.
- *    Additionally it decodes MIP, and during scan also packet 8/30.
+ *    Additionally it decodes MIP and channel identification codes.
  *    This data is passed via shared memory to the master. The master
  *    takes the packets from the ring buffer and hands them to the
  *    streams module for assembly to Nextview blocks. The interface
@@ -28,7 +28,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbacq.c,v 1.26 2001/04/03 18:52:11 tom Exp tom $
+ *  $Id: epgdbacq.c,v 1.29 2001/06/04 17:15:24 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -40,11 +40,11 @@
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
 #include "epgvbi/hamming.h"
+#include "epgvbi/btdrv.h"
 #include "epgdb/epgblock.h"
 #include "epgdb/epgdbmgmt.h"
 #include "epgdb/epgdbacq.h"
 #include "epgdb/epgstream.h"
-#include "epgvbi/btdrv.h"
 #include "epgctl/epgacqctl.h"
 
 
@@ -62,6 +62,7 @@ static bool        isEpgPage;
 static bool        bEpgDbAcqEnabled;
 static bool        bScratchAcqMode;
 static bool        bHeaderCheckInit;
+static bool        bNewChannel;
 static uchar       lastPageHeader[HEADER_CHECK_LEN];
 
 
@@ -106,14 +107,20 @@ void EpgDbAcqStart( EPGDB_CONTEXT *dbc, uint pageNo, uint appId )
       // clear the ring buffer
       // (must not modify the writer index, which belongs to another process/thread)
       pVbiBuf->reader_idx = pVbiBuf->writer_idx;
+      pVbiBuf->frameSeqNo = 0;  // XXX not MT-safe
+      bNewChannel = TRUE;
       // pass the configuration variables to the ttx process via IPC
       // and reset the ttx decoder state
       pVbiBuf->epgPageNo = epgPageNo;
       pVbiBuf->mipPageNo = 0;
+      pVbiBuf->dataPageCount = 0;
       pVbiBuf->isEpgPage = FALSE;
       pVbiBuf->isMipPage = 0;
       pVbiBuf->isEpgScan = FALSE;
-      pVbiBuf->doVpsPdc  = FALSE;
+      // reset CNI state machine
+      memset(pVbiBuf->cnis, 0, sizeof(pVbiBuf->cnis));
+      pVbiBuf->doVpsPdc  = TRUE;
+      // enable acquisition in the slave process/thread
       pVbiBuf->isEnabled = TRUE;
       // reset statistics variables
       pVbiBuf->ttxPkgCount = 0;
@@ -191,11 +198,8 @@ void EpgDbAcqInitScan( void )
       EpgStreamSyntaxScanInit();
 
       // reset result variables
-      pVbiBuf->vpsCni = 0;
-      pVbiBuf->pdcCni = 0;
-      pVbiBuf->ni = 0;
-      pVbiBuf->niRepCnt = 0;
-      pVbiBuf->dataPageCount = 0;
+      // XXX not MT-safe!
+      memset(pVbiBuf->cnis, 0, sizeof(pVbiBuf->cnis));
       // reset statistics variables
       pVbiBuf->ttxPkgCount = 0;
       pVbiBuf->epgPkgCount = 0;
@@ -211,50 +215,260 @@ void EpgDbAcqInitScan( void )
 }
 
 // ---------------------------------------------------------------------------
-// En-/Disable VPS and Packet 8/30/x acquisition
+// Table to convert NI codes to VPS
+// - directly lifted from ETSI technical report: TR 101 231 V1.4/Aug.2000
+// - these networks have both a VPS identification code and a (different)
+//   NI (packet 8/30/1) code. Unfortunately in Nextview only the bare values
+//   are transmitted without information about which table they are from.
+// - to avoid dealing with multiple CNIs per network in the upper layers
+//   all codes are converted to VPS when possible. This conforms to the
+//   current practice of Nextview providers.
 //
-void EpgDbAcqEnableVpsPdc( bool enable )
+typedef struct
+{
+   uint  cni;
+   uint  cni_equiv;
+} CNI_TABLE_ENTRY;
+
+static const CNI_TABLE_ENTRY niVpsTable[] =
+{
+   {0x4101, 0x04c1},  // DRS (Switzerland)
+   {0x4102, 0x04c2},  // TSR
+   {0x4103, 0x04c3},  // TSI
+   {0x4107, 0x04c7},  // SRG
+   {0x4108, 0x04c8},  // SSR
+   {0x4109, 0x04c9},  // SSI
+   {0x4901, 0x0dc1},  // ARD
+   {0x4902, 0x0dc2},  // ZDF
+   {0x490a, 0x0d85},  // Arte Germany
+   {0x490c, 0x0d8e},  // VOX
+   {0x4918, 0x0dc8},  // Phoenix
+   {0x5c49, 0x0d7d},  // QVC Germany
+};
+#define CNI_TABLE_COUNT (sizeof(niVpsTable) / sizeof(CNI_TABLE_ENTRY))
+
+// ---------------------------------------------------------------------------
+// Convert Packet 8/30/1 CNI to VPS value
+// - performs a binary search over the sorted NI table
+// - note: indices require signed int b/c idx 0 is allowed
+//
+static uint ConvertP8301Ni( uint ni )
+{
+   sint minIdx, maxIdx, binIdx;
+
+   minIdx = 0;
+   maxIdx = CNI_TABLE_COUNT - 1;
+
+   do
+   {
+      binIdx = (uint)(minIdx + maxIdx) / 2;
+      if (niVpsTable[binIdx].cni > ni)
+      {
+         maxIdx = binIdx - 1;
+      }
+      else if (niVpsTable[binIdx].cni < ni)
+      {
+         minIdx = binIdx + 1;
+      }
+      else
+      {
+         return niVpsTable[binIdx].cni_equiv;
+      }
+   } while (maxIdx >= minIdx);
+
+   // not found -> use raw value
+   return ni;
+}
+
+// ---------------------------------------------------------------------------
+// Convert Packet 8/30/2 CNI to VPS
+// - PDC is equivalent to VPS, except that is uses 16 bit and VPS only 12
+//   (note: later versions of the VPS standard allow 16 bit too, but currently
+//   no networks use this possibility, so the upper 4 bits are always 0)
+// - currently all Nextview providers use 12 bit VPS codes for networks which
+//   transmit VPS, so it's the easiest solution to convert to 12bit VPS.
+//
+static uint ConvertPdcCni( uint cni )
+{
+   switch (cni >> 8)
+   {
+      case 0x1d:  // country code for Germany
+      case 0x24:  // country code for Switzerland
+         // discard the upper 4 bits of the country code
+         cni &= 0x0fff;
+         break;
+
+      default:
+         break;
+   }
+   return cni;
+}
+
+// ---------------------------------------------------------------------------
+// Reset VPS, PDC and Packet 8/30/1 acquisition
+//
+void EpgDbAcqResetVpsPdc( void )
 {
    if (bEpgDbAcqEnabled)
    {
       // reset result variables
-      pVbiBuf->vpsCni = 0;
-      pVbiBuf->pdcCni = 0;
-      pVbiBuf->ni = 0;
-      pVbiBuf->niRepCnt = 0;
+      // XXX not MT-safe!
+      memset(pVbiBuf->cnis, 0, sizeof(pVbiBuf->cnis));
 
-      // en-/disable VPS and PDC acquisition
-      pVbiBuf->doVpsPdc = enable;
+      // enable VPS and PDC acquisition
+      pVbiBuf->doVpsPdc = TRUE;
    }
    else
-      debug0("EpgDbAcq-EnableVpsPdc: acq not enabled");
+      debug0("EpgDbAcq-ResetVpsPdc: acq not enabled");
 }
 
 // ---------------------------------------------------------------------------
 // Return CNIs and number of data pages found
+// - result values are not invalidized, b/c the caller will change the
+//   channel after a value was read anyways
 //
 void EpgDbAcqGetScanResults( uint *pCni, bool *pNiWait, uint *pDataPageCnt )
 {
-   *pCni = 0;
-   *pNiWait = 0;
+   CNI_TYPE type;
 
-   if (pVbiBuf->vpsCni != 0)
+   if ((pCni != NULL) && (pNiWait != NULL))
    {
-      *pCni = pVbiBuf->vpsCni;
+      *pCni = 0;
+      *pNiWait = FALSE;
+
+      // search for any available source
+      for (type=0; type < CNI_TYPE_COUNT; type++)
+      {
+         if (pVbiBuf->cnis[type].haveCni)
+         {  // have a verified CNI -> return it
+            *pCni = pVbiBuf->cnis[type].outCni;
+            break;
+         }
+         else if (pVbiBuf->cnis[type].cniRepCount > 0)
+         {  // received at least one VPS or P8/30 packet -> wait for repetition
+            *pNiWait = TRUE;
+         }
+      }
    }
-   else if (pVbiBuf->pdcCni != 0)
+
+   if (pDataPageCnt != NULL)
    {
-      *pCni = pVbiBuf->pdcCni;
+      *pDataPageCnt = pVbiBuf->dataPageCount;
    }
-   else if (pVbiBuf->ni != 0)
+}
+
+// ---------------------------------------------------------------------------
+// Return captured and verified CNI and PIL information
+// - deletes the information after the query - this ensures that only valid
+//   information is returned even after a channel change to a channel w/o CNI
+// - CNI can be transmitted in 3 ways: VPS, PDC, NI. This function returns
+//   values from the "best" available source (speed, reliability).
+// - Note: for channels which have different IDs in VPS and PDC or NI, the
+//   CNI value is converted to VPS or PDC respectively so that the caller
+//   needs not care how the CNI was obtained.
+//
+bool EpgDbAcqGetCniAndPil( uint * pCni, uint *pPil )
+{
+   CNI_TYPE type;
+   bool result = FALSE;
+
+   if (pVbiBuf != NULL)
    {
-      if (pVbiBuf->niRepCnt > 2)
-         *pCni = pVbiBuf->ni;
+      // search for the best available source
+      for (type=0; type < CNI_TYPE_COUNT; type++)
+      {
+         if (pVbiBuf->cnis[type].haveCni)
+         {
+            if (pCni != NULL)
+               *pCni = pVbiBuf->cnis[type].outCni;
+
+            if (pPil != NULL)
+            {
+               if (pVbiBuf->cnis[type].havePil)
+               {
+                  *pPil = pVbiBuf->cnis[type].outPil;
+                  pVbiBuf->cnis[type].havePil = FALSE;
+               }
+               else
+                  *pPil = INVALID_VPS_PIL;
+            }
+            result = TRUE;
+            break;
+         }
+      }
+
+      // Reset all result values (but not the entire state machine,
+      // i.e. repetition counters stay at 2 so that any newly received
+      // CNI will immediately make a an result available again)
+      for (type=0; type < CNI_TYPE_COUNT; type++)
+      {
+         pVbiBuf->cnis[type].haveCni = FALSE;
+      }
+   }
+   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Save CNI and PIL from the VBI process/thread
+//
+static void EpgDbAcqAddCni( CNI_TYPE type, uint cni, uint pil )
+{
+   if (pVbiBuf != NULL)
+   {
+      if (type < CNI_TYPE_COUNT)
+      {
+         if ((cni != 0) && (cni != 0xffff) && (cni != 0x0fff))
+         {
+            if ( (pVbiBuf->cnis[type].cniRepCount > 0) &&
+                 (pVbiBuf->cnis[type].lastCni != cni) )
+            {  // comparison failure -> reset repetition counter
+               debug3("EpgDbAcq-AddCni: %s CNI error: last %04X != %04X", ((type == CNI_TYPE_VPS) ? "VPS" : ((type == CNI_TYPE_PDC) ? "PDC" : "NI")), pVbiBuf->cnis[type].lastCni, cni);
+               pVbiBuf->cnis[type].cniRepCount = 0;
+            }
+            pVbiBuf->cnis[type].lastCni = cni;
+            pVbiBuf->cnis[type].cniRepCount += 1;
+
+            if (pVbiBuf->cnis[type].cniRepCount > 2)
+            {  // the same CNI value received 3 times -> make it available as result
+
+               if (pVbiBuf->cnis[type].havePil && (pVbiBuf->cnis[type].outCni != cni))
+               {  // CNI result value changed -> remove PIL
+                  pVbiBuf->cnis[type].havePil = FALSE;
+               }
+               pVbiBuf->cnis[type].outCni = cni;
+               // set flag that CNI is available, but only if not already set to avoid concurrency problems
+               if (pVbiBuf->cnis[type].haveCni == FALSE)
+                  pVbiBuf->cnis[type].haveCni = TRUE;
+            }
+
+            if (pil != INVALID_VPS_PIL)
+            {
+               if ( (pVbiBuf->cnis[type].pilRepCount > 0) &&
+                    (pVbiBuf->cnis[type].lastPil != pil) )
+               {  // comparison failure -> reset repetition counter
+                  debug11("EpgDbAcq-AddCni: %s PIL error: last %02d.%02d. %02d:%02d (0x%04X) != %02d.%02d. %02d:%02d (0x%04X)", ((type == CNI_TYPE_VPS) ? "VPS" : ((type == CNI_TYPE_PDC) ? "PDC" : "NI")), (pVbiBuf->cnis[type].lastPil >> 15) & 0x1F, (pVbiBuf->cnis[type].lastPil >> 11) & 0x0F, (pVbiBuf->cnis[type].lastPil >> 6) & 0x1F, pVbiBuf->cnis[type].lastPil & 0x3F, pVbiBuf->cnis[type].lastPil, (pil >> 15) & 0x1F, (pil >> 11) & 0x0F, (pil >> 6) & 0x1F, pil & 0x3F, pil);
+                  pVbiBuf->cnis[type].pilRepCount = 0;
+               }
+               pVbiBuf->cnis[type].lastPil = pil;
+               pVbiBuf->cnis[type].pilRepCount += 1;
+
+               if (pVbiBuf->cnis[type].pilRepCount > 2)
+               {
+                  // don't save as result if CNI is unknown or does not match the last CNI
+                  if (pVbiBuf->cnis[type].haveCni && (pVbiBuf->cnis[type].outCni == cni))
+                  {
+                     pVbiBuf->cnis[type].outPil = pil;
+                     // set flag that PIL is available, but only if not already set to avoid concurrency problems
+                     if (pVbiBuf->cnis[type].havePil == FALSE)
+                        pVbiBuf->cnis[type].havePil = TRUE;
+                  }
+               }
+            }
+         }
+      }
       else
-         *pNiWait = (pVbiBuf->niRepCnt < 2);
+         debug1("EpgDbAcq-AddCni: invalid type %d\n", type);
    }
-
-   *pDataPageCnt = pVbiBuf->dataPageCount;
 }
 
 // ---------------------------------------------------------------------------
@@ -312,6 +526,65 @@ uint EpgDbAcqGetMipPageNo( void )
 }
 
 // ---------------------------------------------------------------------------
+// Assemble PIL components to nextview format
+// - invalid dates or times are replaced by VPS error code ("system code")
+//   except for the 2 defined VPS special codes: pause and empty
+//
+static uint EpgDbAcqAssemblePil( uint mday, uint month, uint hour, uint minute )
+{
+   uint pil;
+
+   if ( (mday != 0) && (month >= 1) && (month <= 12) &&
+        (hour < 24) && (minute < 60) )
+   {  // valid PIL value
+      pil = (mday << 15) | (month << 11) | (hour << 6) | minute;
+   }
+   else if ((mday == 0) && (month == 15) && (hour >= 29) && (minute == 63))
+   {  // valid VPS control code
+      pil = (0 << 15) | (15 << 11) | (hour << 6) | 63;
+   }
+   else
+   {  // invalid code -> replace with system code
+      pil = (0 << 15) | (15 << 11) | (31 << 6) | 63;
+   }
+   return pil;
+}
+
+// ---------------------------------------------------------------------------
+// Decode a VPS data line
+// - bit fields are defined in "VPS Richtlinie 8R2" from August 1995
+// - called by the VBI decoder for every received VPS line
+//
+void EpgDbAcqAddVpsData( const char * data )
+{
+   uint mday, month, hour, minute;
+   uint cni, pil;
+
+   cni = ((data[13] & 0x3) << 10) | ((data[14] & 0xc0) << 2) |
+         ((data[11] & 0xc0)) | (data[14] & 0x3f);
+
+   if ((cni != 0) && (cni != 0xfff))
+   {
+      if (cni == 0xDC3)
+      {  // special case: "ARD/ZDF Gemeinsames Vormittagsprogramm"
+         cni = (data[5] & 0x20) ? 0xDC1 : 0xDC2;
+      }
+
+      // decode VPS PIL
+      mday   =  (data[11] & 0x3e) >> 1;
+      month  = ((data[12] & 0xe0) >> 5) | ((data[11] & 1) << 3);
+      hour   =  (data[12] & 0x1f);
+      minute =  (data[13] >> 2);
+
+      // check the date and time and assemble them to a PIL
+      pil = EpgDbAcqAssemblePil(mday, month, hour, minute);
+
+      // pass the CNI and PIL into the VPS state machine
+      EpgDbAcqAddCni(CNI_TYPE_VPS, cni, pil);
+   }
+}
+
+// ---------------------------------------------------------------------------
 // reverse bit order in one byte
 //
 static uchar EpgDbAcqReverseBitOrder( uchar b )
@@ -333,13 +606,18 @@ static uchar EpgDbAcqReverseBitOrder( uchar b )
 }
 
 // ---------------------------------------------------------------------------
-// Parse packet 8/30 /1 and /2 for CNI
+// Parse packet 8/30 /1 and /2 for CNI and PIL
+// - CNI values received here are converted to VPS CNI values, if the network
+//   has a VPS code too. This avoids that the upper layers have to deal with
+//   multiple CNIs per network; currently all Nextview providers use VPS codes
+//   when available.
 //
 static void EpgDbAcqGetP830Cni( const char * data )
 {
    uchar pdcbuf[10];
    schar dc;
-   uint cni;
+   uint mday, month, hour, minute;
+   uint cni, pil;
 
    if ( UnHam84Nibble(data, &dc) )
    {
@@ -349,14 +627,8 @@ static void EpgDbAcqGetP830Cni( const char * data )
                       EpgDbAcqReverseBitOrder(data[8]);
          if ((cni != 0) && (cni != 0xffff))
          {
-            // CNI is not parity protected, so we have to receive and compare it several times
-            if ( (pVbiBuf->niRepCnt > 0) && (pVbiBuf->ni != cni))
-            {  // comparison failure -> restart
-               debug2("EpgDbAcqGetP830Cni: pkg 8/30/1 CNI error: %04X != %04X", pVbiBuf->ni, cni);
-               pVbiBuf->niRepCnt = 0;
-            }
-            pVbiBuf->ni = cni;
-            pVbiBuf->niRepCnt += 1;
+            cni = ConvertP8301Ni(cni);
+            EpgDbAcqAddCni(CNI_TYPE_NI, cni, INVALID_VPS_PIL);
          }
       }
       else if (dc == 4)
@@ -368,21 +640,17 @@ static void EpgDbAcqGetP830Cni( const char * data )
                   ((data[1] & 0xc) << 4) | ((data[7] & 0x3) << 4) | (data[8] & 0xf);
             if ((cni != 0) && (cni != 0xffff))
             {
-               pVbiBuf->pdcCni = cni;
+               mday   = (data[1] >> 2) | ((data[2] & 7) << 3);
+               month  = (data[2] >> 3) | ((data[3] & 7) << 1);
+               hour   = (data[3] >> 3) | data[4];
+               minute = data[5] | (data[6] & 3);
+
+               cni = ConvertPdcCni(cni);
+               pil = EpgDbAcqAssemblePil(mday, month, hour, minute);
+               EpgDbAcqAddCni(CNI_TYPE_PDC, cni, pil);
             }
          }
       }
-   }
-}
-
-// ---------------------------------------------------------------------------
-// Save an VPS code from the VBI process/thread
-//
-void EpgDbAcqAddVpsCode( uint cni )
-{
-   if (pVbiBuf != NULL)
-   {
-      pVbiBuf->vpsCni = cni;
    }
 }
 
@@ -475,7 +743,7 @@ void EpgDbAcqProcessPackets( EPGDB_CONTEXT * const * pdbc )
    EPGDB_BLOCK *pBlock;
    VBI_LINE *vbl;
 
-   if (bEpgDbAcqEnabled)
+   if (bEpgDbAcqEnabled && (bNewChannel == FALSE))
    {
       assert((pVbiBuf->reader_idx <= EPGACQ_BUF_COUNT) && (pVbiBuf->writer_idx <= EPGACQ_BUF_COUNT));
 
@@ -514,6 +782,7 @@ void EpgDbAcqProcessPackets( EPGDB_CONTEXT * const * pdbc )
          pBlock = EpgStreamGetBlockByType(BLOCK_TYPE_BI);
          if (pBlock != NULL)
          {
+            dprintf1("EpgDbAcq-ProcessPackets: Offer BI block to acq ctl (0x%lx)\n", (long)pBlock);
             EpgAcqCtl_BiCallback(&pBlock->blk.bi);
             xfree(pBlock);
          }
@@ -521,6 +790,7 @@ void EpgDbAcqProcessPackets( EPGDB_CONTEXT * const * pdbc )
          pBlock = EpgStreamGetBlockByType(BLOCK_TYPE_AI);
          if (pBlock != NULL)
          {
+            dprintf2("EpgDbAcq-ProcessPackets: Offer AI block 0x%04X to acq ctl (0x%lx)\n", AI_GET_CNI(&pBlock->blk.ai), (long)pBlock);
             if (EpgAcqCtl_AiCallback(&pBlock->blk.ai))
             {  // AI has been accepted -> start full acquisition
                if ( EpgDbAddBlock(*pdbc, pBlock) )
@@ -531,6 +801,8 @@ void EpgDbAcqProcessPackets( EPGDB_CONTEXT * const * pdbc )
                else
                   xfree(pBlock);
             }
+            else
+               xfree(pBlock);
          }
       }
 
@@ -574,12 +846,24 @@ bool EpgDbAcqCheckForPackets( void )
 
    if (bEpgDbAcqEnabled)
    {
-      result = (pVbiBuf->reader_idx != pVbiBuf->writer_idx);
-
-      if ((result == FALSE) && (pVbiBuf->isEnabled == FALSE))
-      {  // vbi slave has stopped acquisition -> inform master control
-         EpgAcqCtl_Stop();
+      if (bNewChannel && (pVbiBuf->frameSeqNo != 0))
+      {  // the slave has started for the new channel
+         // discard old data in the buffer
+         pVbiBuf->reader_idx = pVbiBuf->start_writer_idx;
+         bNewChannel = FALSE;
       }
+
+      if (bNewChannel == FALSE)
+      {
+         result = (pVbiBuf->reader_idx != pVbiBuf->writer_idx);
+
+         if ((result == FALSE) && (pVbiBuf->isEnabled == FALSE))
+         {  // vbi slave has stopped acquisition -> inform master control
+            EpgAcqCtl_Stop();
+         }
+      }
+      else
+         result = FALSE;
    }
    else
       result = FALSE;
@@ -618,6 +902,33 @@ static void EpgDbAcqBufferAdd( uint pageNo, uint sub, uchar pkgno, const uchar *
          #endif
       }
       overflow += 1;
+   }
+}
+
+// ---------------------------------------------------------------------------
+// Notification of synchronous channel change
+// - this function must be called by acq before a new frequency is tuned.
+//   it is not meant for uncontrolled external channel changes.
+// - the ring buffer is no longer read, until the slave has read at least
+//   two new frames (the first frame after a channel change is skipped
+//   since it might contain data from the previous channel)
+// - the slave records the index where he restarted for the new channel.
+//   this index is copied to the reader in the master
+//
+void EpgDbAcqNotifyChannelChange( void )
+{
+   if (bEpgDbAcqEnabled)
+   {
+      pVbiBuf->frameSeqNo = 0;  // XXX not MT-safe
+      bNewChannel = TRUE;
+      bHeaderCheckInit = FALSE;
+
+      pVbiBuf->isEpgPage = FALSE;
+      pVbiBuf->isMipPage = 0;
+      pVbiBuf->mipPageNo = 0;
+      pVbiBuf->dataPageCount = 0;
+
+      EpgDbAcqResetVpsPdc();
    }
 }
 
