@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgmain.c,v 1.137 2004/08/29 21:49:04 tom Exp tom $
+ *  $Id: epgmain.c,v 1.138 2004/09/05 18:24:26 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -2308,7 +2308,7 @@ static void Usage( const char *argv0, const char *argvn, const char * reason )
                    #endif
                    #endif
                    "       -dump pi|ai|pdc|xml     \t: dump database\n"
-                   "       -clock              \t: set system clock\n"
+                   "       -clock set|print    \t: set system clock\n"
                    "       -demo <db-file>     \t: load database in demo mode\n",
                    argv0, reason, argvn, argv0);
 #if 0

@@ -16955,3 +16955,53 @@ www/links.html [rev:1.10, 2004-08-31T20:50:55]:
 - moved "tvtime" into section for apps which support interaction
 - removed "new" tag from nxtvepg2web
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_7_2 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+epgctl/epgversion.h [rev:1.58, 2004-09-04T21:22:16]:
+- set version to 2.7.3
+epgui/epgmain.c [rev:1.138, 2004-09-05T18:24:26]:
+- fixed help output for -clock
+epgvbi/btdrv.h [rev:1.43, 2004-09-05T18:29:46]:
+- Moved newly added struct TIME_ACQ_STATE to the end of shared memory
+- i.e. space is taken from "reserved" array
+- else backwards compatibility to winshm clients is lost
+epgvbi/ttxdecode.c [rev:1.59, 2004-09-05T18:32:09]:
+- Adapted for change in btdrv.h:
+- moved time acq data into separate struct in VBI shared memory
+CHANGES [rev:1.43, 2004-09-05T18:41:11]:
+- updated for release 2.7.3
+www/WDMpre-releases.html [rev:1.7, 2004-09-05T19:43:40]:
+- updated for 2.7.3
+www/changelog-2.6.0pre.html [rev:1.8, 2004-09-05T19:43:40]:
+- updated for 2.7.3
+www/changelog-2.7.0pre.html [rev:1.4, 2004-09-05T19:43:40]:
+- updated for 2.7.3
+www/changelog.html [rev:1.58, 2004-09-05T19:43:40]:
+- updated for 2.7.3
+www/download-de.html [rev:1.14, 2004-09-05T19:43:40]:
+- updated for 2.7.3
+www/download.html [rev:1.14, 2004-09-05T19:43:40]:
+- updated for 2.7.3
+www/faq.html [rev:1.10, 2004-09-05T19:43:40]:
+- updated for 2.7.3
+www/help-wanted.html [rev:1.12, 2004-09-05T19:43:40]:
+- updated for 2.7.3
+www/index-de.html [rev:1.73, 2004-09-05T19:43:40]:
+- updated for 2.7.3
+www/index-fr.html [rev:1.7, 2004-09-05T19:43:40]:
+- updated for 2.7.3
+www/index.html [rev:1.85, 2004-09-05T19:43:40]:
+- updated for 2.7.3
+www/intro-de.html [rev:1.9, 2004-09-05T19:43:40]:
+- updated for 2.7.3
+www/intro.html [rev:1.9, 2004-09-05T19:43:40]:
+- updated for 2.7.3
+www/links.html [rev:1.11, 2004-09-05T19:43:40]:
+- updated for 2.7.3
+www/man.html [rev:1.36, 2004-09-05T19:43:40]:
+- updated for 2.7.3
+www/pre-releases.html [rev:1.48, 2004-09-05T19:43:40]:
+- updated for 2.7.3
+www/provnets.html [rev:1.35, 2004-09-05T19:43:40]:
+- updated for 2.7.3
+www/tvsim-faq.html [rev:1.11, 2004-09-05T19:43:40]:
+- updated for 2.7.3
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_7_3 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

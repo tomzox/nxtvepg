@@ -37,7 +37,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: btdrv.h,v 1.42 2004/08/29 21:47:28 tom Exp tom $
+ *  $Id: btdrv.h,v 1.43 2004/09/05 18:29:46 tom Exp tom $
  */
 
 #ifndef __BTDRV_H
@@ -173,18 +173,23 @@ typedef struct
    uint32_t  lastPil;           // last received PIL - copied to outPil after X repetitions
    uint32_t  pilRepCount;       // reception counter - reset upon PIL change
 
-   uint8_t   haveTime;
-   uint8_t   timeRepCount;
-   int32_t   lto;
-   int32_t   lastLto;
-   uint32_t  timeVal;
-   uint32_t  lastTimeVal;
-
    uint8_t   haveText;
    uint8_t   outText[PDC_TEXT_LEN+1];     // status display (e.g. channel name and program title)
    uint8_t   lastChar[PDC_TEXT_LEN];      // last received characters
    uint8_t   charRepCount[PDC_TEXT_LEN];  // reception counter for each character
 } CNI_ACQ_STATE;
+
+typedef struct
+{
+   uint8_t   haveTime;
+   uint8_t   timeRepCount;
+   uint8_t   reserved[2];
+   int32_t   lto;
+   int32_t   lastLto;
+   uint32_t  timeVal;
+   uint32_t  lastTimeVal;
+} TIME_ACQ_STATE;
+
 
 // ---------------------------------------------------------------------------
 // Structure which is put into shared memory
@@ -220,6 +225,8 @@ typedef struct
 
    TTX_DEC_STATS  ttxStats;     // Out: teletext decoder statistics
 
+   TIME_ACQ_STATE ttxTime;      // Out: teletext time
+
    #ifndef WIN32
    pid_t     vbiPid;
    pid_t     epgPid;
@@ -253,7 +260,8 @@ typedef struct
    int       chnPrio;
    #else  // WIN32
    uint32_t  slicerType;
-   uchar     reserved3[128 - sizeof(uint32_t)];    // reserved for future additions; set to 0
+                                // reserved for future additions; set to 0
+   uchar     reserved3[128 - sizeof(uint32_t) - sizeof(TIME_ACQ_STATE)];
    #endif
 } EPGACQ_BUF;
 

@@ -32,7 +32,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: ttxdecode.c,v 1.58 2004/08/29 21:47:37 tom Exp tom $
+ *  $Id: ttxdecode.c,v 1.59 2004/09/05 18:32:09 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -383,11 +383,11 @@ static void TtxDecode_AddText( CNI_TYPE type, const uchar * data )
 //
 static void TtxDecode_AddTime( CNI_TYPE type, uint timeVal, sint lto )
 {
-   volatile CNI_ACQ_STATE  * pState;
+   volatile TIME_ACQ_STATE * pState;
 
    if (type < CNI_TYPE_COUNT)
    {
-      pState = pVbiBuf->cnis + type;
+      pState = &pVbiBuf->ttxTime;
 
       if ( (pState->lastLto != lto) ||
            (timeVal - pState->lastTimeVal > 2) ||
@@ -408,6 +408,8 @@ static void TtxDecode_AddTime( CNI_TYPE type, uint timeVal, sint lto )
          pState->haveTime = TRUE;
       }
    }
+   else
+      fatal1("TtxDecode-AddText: invalid type %d\n", type);
 }
 
 // ---------------------------------------------------------------------------
@@ -416,12 +418,13 @@ static void TtxDecode_AddTime( CNI_TYPE type, uint timeVal, sint lto )
 //
 uint TtxDecode_GetDateTime( sint * pLto )
 {
-   volatile CNI_ACQ_STATE  * pState;
+   volatile TIME_ACQ_STATE * pState;
    uint result = 0;
 
-   if (pVbiBuf->cnis[CNI_TYPE_NI].haveTime)
+   pState = &pVbiBuf->ttxTime;
+
+   if (pState->haveTime)
    {
-      pState = pVbiBuf->cnis + CNI_TYPE_NI;
 
       if (pLto != NULL)
          *pLto = pState->lto;
