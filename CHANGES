@@ -4,8 +4,52 @@ changes or additions.
 
 Before you submit any feature requests, please read the TODO file.
 
+from 0.7.1 to 0.7.2 aka 2.1.0 (2002-May-20)
 
-from 0.7.0 to 0.7.1 (2002-May-05)
+- Windows: Enabled TV application interaction feature and added documentation
+  for the demo and debugging tools tvsim, vbirec and vbiplay.
+- Windows: Added option "Hide on minimize", i.e. when the main window is
+  minimized, it's removed from the taskbar and an icon is installed in the
+  system tray with a small popup menu.
+- Windows TV app. interaction: VPS/PDC is now evaluated if EPG acquisition
+  is disabled (or -in the future- if EPG acq. uses a different TV card)
+- Windows TV card input dialog: warn if TV app. was changed but config not
+  loaded; same for TV app. interaction dialog if "Test" button was not used.
+- Windows Bt8x8 driver DSdrv: improved robustness by attempting uninstall
+  and re-install of the service if driver start fails (with certain types
+  of errors)
+- Windows TV card input dialog: list only as many TV cards as are available
+  (do a scan of all TV cards upon first Bt8x8 driver start; requires that
+  the driver was started at least once since program start)
+- Windows daemon port finished: option -daemon is now available (note that
+  the daemon currently does not support TV app interaction)
+
+- bugfix EPG scan (Linux only): after an EPG scan acquisition could not be
+  enabled because the VBI device was allegedly busy. The cause was that an
+  acquisition thread kept running after the EPG scan.
+- the wheel mouse now scrolls only 5 lines instead of 1 page and the cursor
+  remains on the previously selected item.
+- improved automatic mode selection for internal/remote acquisition during
+  startup: wait until an connection is completely established until changing
+  the default mode to remote acq in the rc/ini file (esp. when connecting
+  via TCP/IP)
+- EPG scan is no longer prevented with "cannot start scan while in
+  client/server mode" unless currently connected to an acq daemon.
+- EPG scan: reset 45-seconds timer when EPG is found to be transmitted on a
+  non-default teletext page nunmber. This should fix the problem that Canal+
+  is reliably detected only when in "slow" mode.
+- removed the last remaints of long integer usage to improve 64-bit CPU
+  compatibility.
+- bugfix: crash when there was an .xawtv file with zero channel definitions
+- bugfix: the EPG scan was not stopped when the program was terminated by a
+  signal or logging out, causing a crash.
+- bugfix: crashed with SEGV when the acq timescales were open when the EPG
+  scan was started
+- bugfixes in timescales: network highlighting and "acquisition tails" for
+  the browser database timescales were sometimes not enabled or disabled
+  when acquisition was en-/disabled or moved from/to the browser database.
+
+from 0.7.0 to 0.7.1 aka 2.0.0 (2002-May-05)
 
 - Windows: exchanged the driver with the free (GPL'ed) DSdrv, a driver
   developed in the DScaler project (see http://dscaler.org).  This

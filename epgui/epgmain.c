@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgmain.c,v 1.82 2002/04/29 20:31:50 tom Exp tom $
+ *  $Id: epgmain.c,v 1.88 2002/05/20 18:52:11 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -106,6 +106,7 @@ char epg_rcs_id_str[] = EPG_VERSION_RCS_ID;
 extern char epgui_tcl_script[];
 extern char help_tcl_script[];
 extern char tcl_init_scripts[];
+extern char tk_init_scripts[];
 
 Tcl_Interp *interp;          // Interpreter for application
 char comm[1000];             // Command buffer
@@ -123,7 +124,9 @@ static const char * dbdir  = NULL;
 static int  videoCardIndex = -1;
 static bool disableAcq = FALSE;
 static bool optDaemonMode = FALSE;
+#ifdef USE_DAEMON
 static bool optNoDetach   = FALSE;
+#endif
 static bool optAcqPassive = FALSE;
 static bool startIconified = FALSE;
 static uint startUiCni = 0;
@@ -131,11 +134,15 @@ static const char *pDemoDatabase = NULL;
 static const char *pOptArgv0 = NULL;
 static int  optGuiPipe = -1;
 
-// Global variable: if TRUE, will exit on the next iteration of the main loop
-Tcl_AsyncHandler exitHandler = NULL;
-Tcl_TimerToken clockHandler = NULL;
-Tcl_TimerToken expirationHandler = NULL;
-int should_exit;
+// handling of global timer events & signals
+static bool should_exit;
+static Tcl_AsyncHandler exitHandler = NULL;
+static Tcl_TimerToken clockHandler = NULL;
+static Tcl_TimerToken expirationHandler = NULL;
+
+#ifdef WIN32
+static HINSTANCE  hMainInstance;  // copy of win32 instance handle
+#endif
 
 // queue for events called from the main loop when Tcl is idle
 typedef struct MAIN_IDLE_EVENT_STRUCT
@@ -145,7 +152,7 @@ typedef struct MAIN_IDLE_EVENT_STRUCT
    ClientData                    clientData;
 } MAIN_IDLE_EVENT;
 
-MAIN_IDLE_EVENT * pMainIdleEventQueue = NULL;
+static MAIN_IDLE_EVENT * pMainIdleEventQueue = NULL;
 
 EPGDB_CONTEXT * pUiDbContext;
 
@@ -332,14 +339,6 @@ static void MainEventHandler_ProcessBlocks( ClientData clientData )
 }
 
 // ---------------------------------------------------------------------------
-// Regular event, called every second
-//
-static void MainEventHandler_ProcessScanPackets( ClientData clientData )
-{
-   EpgScan_ProcessPackets();
-}
-
-// ---------------------------------------------------------------------------
 // Regular event, called every minute
 //
 static void ClockMinEvent( ClientData clientData )
@@ -387,8 +386,6 @@ static void EventHandler_UpdateClock( ClientData clientData )
             AddMainIdleEvent(MainEventHandler_ProcessBlocks, NULL, TRUE);
          }
       }
-      else
-         AddMainIdleEvent(MainEventHandler_ProcessScanPackets, NULL, TRUE);
 
       clockHandler = Tcl_CreateTimerHandler(1000, EventHandler_UpdateClock, NULL);
    }
@@ -417,25 +414,269 @@ static void EventHandler_SigHup( ClientData clientData )
 
 // ---------------------------------------------------------------------------
 // Handle client connection to EPG acquisition daemon
-// - when the client is in network acquisition mode, it installs this handler
+// - when the client is in network acquisition mode, it installs an event handler
 //   which is called whenever there is incoming data (or ready for writing under
 //   certain circumstances)
+// - On UNIX a Tcl file handler is used; events are then triggered by the Tcl
+//   event loop. On Windows Tcl does not dupport file handlers, so they are
+//   implemented by use of a separate thread which uses native Winsock2.dll calls
+//   to block on socket events.
 // - note: in contrary to direct acquisition from the TV card we do not fork a
 //   separate process, because there are no real-time constraints in this case.
 // - incoming EPG blocks are put in a queue and picked up every second just like
 //   in the other acquisition modes.
-// - important: the handler must be deleted when the connection is closed, else
-//   the Tcl/Tk event handling will hang up.
+// - important: the Tcl file handler must be deleted when the socket is closed,
+//   else the Tcl/Tk event handling will hang up.
 //
 #ifdef USE_DAEMON
 static int  networkFileHandle = -1;
-static void EventHandler_Network( ClientData clientData, int mask );
+static void EventHandler_NetworkUpdate( EPGACQ_EVHAND * pAcqEv );
+
 #ifdef WIN32
-Tcl_Channel networkChannel = NULL;
+static Tcl_AsyncHandler asyncSocketHandler = NULL;
+static WSAEVENT  socketEventHandle = WSA_INVALID_EVENT;
+static HANDLE    socketBlockHandle = NULL;
+static int       socketEventMask = 0;
+static HANDLE    socketThreadHandle = NULL;
+static BOOL      stopSocketThread;
+
+// ----------------------------------------------------------------------------
+// Handle events on the network acq client socket
+// - executed inside the main thread, but triggered by the winsock event thread
+//
+static void WinSocket_IdleHandler( ClientData clientData )
+{
+   WSANETWORKEVENTS  ev;
+   EPGACQ_EVHAND acqEv;
+
+   if (socketEventHandle != WSA_INVALID_EVENT)
+   {
+      // get bitfield of events that occurred since the last call
+      if (WSAEnumNetworkEvents(networkFileHandle, socketEventHandle, &ev) == 0)
+      {
+         acqEv.errCode = ERROR_SUCCESS;
+         memset(&acqEv, 0, sizeof(acqEv));
+
+         // translate windows event codes to internal format
+         // - the order is relevent for priority of error codes: using only the first error code found
+         if (ev.lNetworkEvents & FD_CONNECT)
+         {  // connect completed
+            acqEv.blockOnWrite = TRUE;
+            acqEv.errCode = ev.iErrorCode[FD_CONNECT_BIT];
+         }
+         if (ev.lNetworkEvents & FD_CLOSE)
+         {  // connection was terminated
+            acqEv.blockOnRead = TRUE;
+            if (acqEv.errCode == ERROR_SUCCESS)
+               acqEv.errCode = ev.iErrorCode[FD_CLOSE_BIT];
+         }
+         if (ev.lNetworkEvents & FD_READ)
+         {  // incoming data available
+            acqEv.blockOnRead = TRUE;
+            if (acqEv.errCode == ERROR_SUCCESS)
+               acqEv.errCode = ev.iErrorCode[FD_READ_BIT];
+         }
+         if (ev.lNetworkEvents & FD_WRITE)
+         {  // output buffer space available
+            acqEv.blockOnWrite = TRUE;
+            if (acqEv.errCode == ERROR_SUCCESS)
+               acqEv.errCode = ev.iErrorCode[FD_WRITE_BIT];
+         }
+         dprintf3("Socket-IdleHandler: fd %d got event 0x%lX errCode=%d\n", networkFileHandle, ev.lNetworkEvents, acqEv.errCode);
+
+         // process the event (i.e. read data or close the connection upon errors etc.)
+         EpgAcqClient_HandleSocket(&acqEv);
+         // update the event mask if neccessary & unblock the event handler thread
+         EventHandler_NetworkUpdate(&acqEv);
+      }
+      else
+         debug1("WSAEnumNetworkEvents: %d", WSAGetLastError());
+   }
+}
+
+// ----------------------------------------------------------------------------
+// 2nd stage of socket event handling: delay handling until GUI is idle
+//
+static int WinSocket_AsyncThreadHandler( ClientData clientData, Tcl_Interp *interp, int code )
+{
+   AddMainIdleEvent(WinSocket_IdleHandler, NULL, TRUE);
+
+   return code;
+}
+
+// ----------------------------------------------------------------------------
+// Windows Socket thread: waits for events
+// - using two event handles:
+//   +  the first is a standard winsock2 event, i.e. it's not automatically reset
+//      when the thread unblocks; it's reset when the main thread has fetched the
+//      event bitfield with WSAEnumNetworkEvents()
+//   +  the second event handle is used to block the thread until the main thread
+//      has processed the events of the last trigger; this prevents a busy loop
+//      starting with a socket event until the main thread has fetched the events.
+//
+static DWORD WINAPI WinSocket_EventThread( LPVOID dummy )
+{
+   HANDLE  sh[2];
+
+   for (;;)
+   {
+      sh[0] = socketBlockHandle;
+      sh[1] = socketEventHandle;
+
+      // block infinitly until BOTH event handles are signaled
+      if (WSAWaitForMultipleEvents(2, sh, TRUE, WSA_INFINITE, FALSE) != WSA_WAIT_FAILED)
+      {
+         if ((stopSocketThread == FALSE) && (asyncSocketHandler != NULL))
+         {
+            dprintf0("WinSocket-EventThread: trigger main thread\n");
+            Tcl_AsyncMark(asyncSocketHandler);
+         }
+         else
+            break;
+      }
+      else
+      {
+         debug1("WinSocket-EventThread: WSAWaitForMultipleEvents: %d", WSAGetLastError());
+         break;
+      }
+   }
+   return 0;
+}
+
+// ----------------------------------------------------------------------------
+// Create socket handler or update event mask
+//
+static void WinSocket_CreateHandler( int sock_fd, int tclMask )
+{
+   DWORD threadID;
+   int   mask;
+
+   if (socketEventHandle == WSA_INVALID_EVENT)
+   {
+      socketEventHandle = WSACreateEvent();
+      if (socketEventHandle != WSA_INVALID_EVENT)
+      {
+         socketBlockHandle = CreateEvent(NULL, FALSE, FALSE, NULL);
+         if (socketBlockHandle != NULL)
+         {
+            socketEventMask = 0;
+            stopSocketThread = FALSE;
+            socketThreadHandle = CreateThread(NULL, 0, WinSocket_EventThread, NULL, 0, &threadID);
+            if (socketThreadHandle != NULL)
+            {  // success -> create Tcl event trigger
+               asyncSocketHandler = Tcl_AsyncCreate(WinSocket_AsyncThreadHandler, NULL);
+            }
+            else
+            {  // failed to create thread -> destroy socket event handle again
+               debug1("CreateThread: %ld", GetLastError());
+               WSACloseEvent(socketEventHandle);
+               socketEventHandle = WSA_INVALID_EVENT;
+            }
+         }
+         else
+         {
+            debug1("CreateEvent: %ld", GetLastError());
+            WSACloseEvent(socketEventHandle);
+            socketEventHandle = WSA_INVALID_EVENT;
+         }
+      }
+      else
+         debug1("WSACreateEvent: %d", WSAGetLastError());
+   }
+
+   // set the event mask
+   if (socketEventHandle != WSA_INVALID_EVENT)
+   {
+      mask = FD_CLOSE;
+      if (tclMask & TCL_EXCEPTION)
+         mask |= FD_CONNECT;
+      if (tclMask & TCL_READABLE)
+         mask |= FD_READ;
+      if (tclMask & TCL_WRITABLE)
+         mask |= FD_WRITE;
+
+      // check if the mask needs to be updated
+      if (mask != socketEventMask)
+      {
+         dprintf3("CreateFileHandler: fd %d, mask=0x%X (was 0x%X)\n", sock_fd, mask, socketEventMask);
+         if (WSAEventSelect(sock_fd, socketEventHandle, mask) == 0)
+         {  // ok
+            socketEventMask = mask;
+         }
+         else
+            debug1("WSAEventSelect: %d", WSAGetLastError());
+      }
+
+      // unblock the socket thread
+      if (SetEvent(socketBlockHandle) == 0)
+         debug1("SetEvent: %ld", GetLastError());
+   }
+}
+
+// ----------------------------------------------------------------------------
+// Destroy the socket handler thread & free resources
+//
+static void WinSocket_DeleteFileHandler( int sock_fd )
+{
+   // terminate the thread: manually signal both of it's blocking events
+   stopSocketThread = TRUE;
+   if ( (socketEventHandle != WSA_INVALID_EVENT) &&
+        (WSASetEvent(socketEventHandle)) )
+   {
+      if ((socketBlockHandle != NULL) && (SetEvent(socketBlockHandle) == 0))
+         debug1("SetEvent: %ld", GetLastError());
+
+      WaitForSingleObject(socketThreadHandle, 6000);
+      CloseHandle(socketThreadHandle);
+      socketThreadHandle = NULL;
+   }
+
+   // close the event handle
+   if (socketEventHandle != WSA_INVALID_EVENT)
+   {
+      if (WSACloseEvent(socketEventHandle) == FALSE)
+         debug1("WSACloseEvent: %d", WSAGetLastError());
+      socketEventHandle = WSA_INVALID_EVENT;
+   }
+
+   if (socketBlockHandle != NULL)
+   {
+      CloseHandle(socketBlockHandle);
+      socketBlockHandle = NULL;
+   }
+
+   // remove the async. event source (even if already marked)
+   if (asyncSocketHandler != NULL)
+   {
+      Tcl_AsyncDelete(asyncSocketHandler);
+      asyncSocketHandler = NULL;
+   }
+}
+#endif  // WIN32
+
+// ---------------------------------------------------------------------------
+// UNIX callback for events on the client netacq socket
+//
+#ifndef WIN32
+static void EventHandler_Network( ClientData clientData, int mask )
+{
+   EPGACQ_EVHAND acqEv;
+   
+   // invoke the handler
+   acqEv.blockOnRead    = (mask & TCL_READABLE) != 0;
+   acqEv.blockOnWrite   = (mask & TCL_WRITABLE) != 0;
+   acqEv.processQueue   = FALSE;
+   EpgAcqClient_HandleSocket(&acqEv);
+
+   // update the event mask if neccessary
+   EventHandler_NetworkUpdate(&acqEv);
+}
 #endif
 
-// create, update or delete the handler with params returned from the epgacqclnt module
-// may also be invoked as callback from the epgacqclnt module, e.g. when acq is stopped
+// ---------------------------------------------------------------------------
+// Create, update or delete the handler with params returned from the epgacqclnt module
+// - may also be invoked as callback from the epgacqclnt module, e.g. when acq is stopped
+//
 static void EventHandler_NetworkUpdate( EPGACQ_EVHAND * pAcqEv )
 {
    int mask;
@@ -446,9 +687,7 @@ static void EventHandler_NetworkUpdate( EPGACQ_EVHAND * pAcqEv )
       #ifndef WIN32
       Tcl_DeleteFileHandler(networkFileHandle);
       #else
-      Tcl_DeleteChannelHandler(networkChannel, EventHandler_Network, (ClientData) networkFileHandle);
-      Tcl_UnregisterChannel(NULL, networkChannel);
-      networkChannel = NULL;
+      WinSocket_DeleteFileHandler(networkFileHandle);
       #endif
       networkFileHandle = -1;
    }
@@ -460,6 +699,8 @@ static void EventHandler_NetworkUpdate( EPGACQ_EVHAND * pAcqEv )
       if (pAcqEv->processQueue)
          AddMainIdleEvent(MainEventHandler_ProcessBlocks, NULL, TRUE);
 
+      networkFileHandle = pAcqEv->fd;
+
       mask = 0;
       if (pAcqEv->blockOnRead)
          mask |= TCL_READABLE;
@@ -469,35 +710,158 @@ static void EventHandler_NetworkUpdate( EPGACQ_EVHAND * pAcqEv )
       #ifndef WIN32
       Tcl_CreateFileHandler(pAcqEv->fd, mask, EventHandler_Network, (ClientData) pAcqEv->fd);
       #else
-      if (networkChannel == NULL)
-      {
-         networkChannel = Tcl_MakeTcpClientChannel((ClientData) pAcqEv->fd);
-         if (networkChannel != NULL)
-         {
-            Tcl_RegisterChannel(NULL, networkChannel);
-            Tcl_SetChannelOption(NULL, networkChannel, "-buffering", "none");
-         }
-      }
-      if (networkChannel != NULL)
-         Tcl_CreateChannelHandler(networkChannel, mask, EventHandler_Network, (ClientData) pAcqEv->fd);
+      if (pAcqEv->blockOnConnect)
+         mask |= TCL_EXCEPTION;
+      WinSocket_CreateHandler(pAcqEv->fd, mask);
       #endif
-      networkFileHandle = pAcqEv->fd;
    }
 }
 
-// the actual callback
-static void EventHandler_Network( ClientData clientData, int mask )
-{
-   EPGACQ_EVHAND acqEv;
-   
-   // invoke the handler
-   acqEv.blockOnRead    = (mask & TCL_READABLE) != 0;
-   acqEv.blockOnWrite   = (mask & TCL_WRITABLE) != 0;
-   acqEv.processQueue   = FALSE;
-   EpgAcqClient_HandleSocket(&acqEv);
+// ---------------------------------------------------------------------------
+// WIN32 daemon: maintain an invisible Window to catch shutdown messages
+// - on win32 the only way to terminate the daemon is by sending a command to this
+//   window (the daemon MUST NOT be terminated via the task manager, because
+//   this would not allow it to shut down the driver, hence Windows would crash)
+// - the existance of the window is also used to detect if the daemon is running
+//   by the GUI client
+//
+#ifdef WIN32
+static const char * const daemonWndClassname = "nxtvepg_daemon";
+static HWND      hDaemonWnd = NULL;
+static HANDLE    daemonWinThreadHandle = NULL;
 
-   EventHandler_NetworkUpdate(&acqEv);
+// ---------------------------------------------------------------------------
+// Message handler for the daemon's invisible window
+// - only "destructive" events are caught
+//
+static LRESULT CALLBACK DaemonControlWindowMsgCb( HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam )
+{
+   LRESULT result = 0;
+
+   switch (message)
+   {
+      case WM_QUERYENDSESSION:
+         result = TRUE;
+         // fall-through
+      case WM_ENDSESSION:
+      case WM_DESTROY:
+      case WM_CLOSE:
+         // terminate the daemon main loop
+         if (should_exit == FALSE)
+         {
+            debug1("DaemonControlWindow-MsgCb: received message %d - shutting down", message);
+            should_exit = TRUE;
+            // give the daemon main loop time to process the flag
+            Sleep(250);
+         }
+         // quit the window message loop
+         PostQuitMessage(0);
+         return result;
+   }
+   return DefWindowProc(hwnd, message, wParam, lParam);
 }
+
+// ----------------------------------------------------------------------------
+// Daemon window message handler thread
+// - first creates an invisible window, the triggers the waiting caller thread,
+//   then enters the message loop
+// - the thread finishes when the QUIT message is posted by the msg handler cb
+//
+static DWORD WINAPI DaemonControlWindowThread( LPVOID argEvHandle )
+{
+   WNDCLASSEX  wc;
+   MSG         msg;
+
+   memset(&wc, 0, sizeof(wc));
+   wc.cbSize        = sizeof(WNDCLASSEX);
+   wc.lpfnWndProc   = DaemonControlWindowMsgCb;
+   wc.hInstance     = hMainInstance;
+   wc.lpszClassName = daemonWndClassname;
+   RegisterClassEx(&wc);
+
+   // Create an invisible window
+   hDaemonWnd = CreateWindowEx(0, daemonWndClassname, daemonWndClassname, WS_POPUP, CW_USEDEFAULT,
+                               0, CW_USEDEFAULT, 0, NULL, NULL, hMainInstance, NULL);
+
+   if (hDaemonWnd != NULL)
+   {
+      dprintf0("DaemonControlWindow-Thread: created control window\n");
+
+      // notify the main thread that initialization is complete
+      if (argEvHandle != NULL)
+         if (SetEvent((HANDLE)argEvHandle) == 0)
+            debug1("DaemonControlWindow-Thread: SetEvent: %ld", GetLastError());
+      // the event handle is closed by the main thread and must not be used again
+      argEvHandle = NULL;
+
+      while (GetMessage(&msg, hDaemonWnd, 0, 0))
+      {
+         TranslateMessage(&msg);
+         DispatchMessage(&msg);
+      }
+
+      // QUIT message received -> destroy the window
+      DestroyWindow(hDaemonWnd);
+      hDaemonWnd = NULL;
+   }
+   else
+   {
+      debug1("DaemonControlWindow-Thread: CreateWindowEx: %ld", GetLastError());
+      SetEvent((HANDLE)argEvHandle);
+   }
+
+   return 0;  // dummy
+}
+
+// ---------------------------------------------------------------------------
+// Create the daemon control window and the message hander task
+//
+static bool DaemonControlWindowCreate( void )
+{
+   DWORD   threadID;
+   HANDLE  evHandle;
+   bool    result = FALSE;
+
+   // open a temporary event handle that's passed to the thread to tell us when it's ready
+   evHandle = CreateEvent(NULL, FALSE, FALSE, NULL);
+   if (evHandle != NULL)
+   {
+      daemonWinThreadHandle = CreateThread(NULL, 0, DaemonControlWindowThread, evHandle, 0, &threadID);
+      if (daemonWinThreadHandle != NULL)
+      {
+         // wait until the window is created, because if the daemon was started by the
+         // GUI, it checks for the existance of the window - so we must be sure it exists
+         // before we trigger the GUI that we're ready
+         if (WaitForSingleObject(evHandle, 2 * 1000) == WAIT_FAILED)
+            debug1("DaemonControlWindow-Create: WaitForSingleObject: %ld", GetLastError());
+
+         result = TRUE;
+      }
+      else
+         debug1("DaemonControlWindow-Create: cannot start thread: %ld", GetLastError());
+
+      CloseHandle(evHandle);
+   }
+   else
+      debug1("DaemonControlWindow-Create: CreateEvent: %ld", GetLastError());
+
+   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Destroy the daemon control window and stop the message handler task
+//
+static void DaemonControlWindowDestroy( void )
+{
+   if ((daemonWinThreadHandle != NULL) && (hDaemonWnd != NULL))
+   {
+      PostMessage(hDaemonWnd, WM_CLOSE, 0, 0);
+      WaitForSingleObject(daemonWinThreadHandle, 2000);
+      CloseHandle(daemonWinThreadHandle);
+      daemonWinThreadHandle = NULL;
+   }
+}
+#endif  // WIN32
 
 // ---------------------------------------------------------------------------
 // Compatibility definitions for millisecond timer handling
@@ -535,6 +899,7 @@ static void DaemonMainLoop( void )
    struct timeval tv;
    fd_set  rd, wr;
    uint    max;
+   sint    selSockCnt;
 
    gettimeofday(&tvAcq, NULL);
    tvIdle = tvAcq;
@@ -571,18 +936,22 @@ static void DaemonMainLoop( void )
       tv.tv_sec  = 0;
       tv.tv_usec = 250000L;
 
-      if (select(((max > 0) ? (max + 1) : 0), &rd, &wr, NULL, &tv) != -1)
-      {  // forward new blocks to network clients, handle incoming messages
+      selSockCnt = select(((max > 0) ? (max + 1) : 0), &rd, &wr, NULL, &tv);
+      if (selSockCnt != -1)
+      {  // forward new blocks to network clients, handle incoming messages, check for timeouts
+         DBGONLY( if (selSockCnt > 0) )
+            dprintf1("Daemon-MainLoop: select: events on %d sockets\n", selSockCnt);
          EpgAcqServer_HandleSockets(&rd, &wr);
       }
       else
       {
          if (errno != EINTR)
          {  // select syscall failed
-            debug2("Daemon-MainLoop: select with max. fd %d: %s", max, strerror(errno));
             #ifndef WIN32
+            debug2("Daemon-MainLoop: select with max. fd %d: %s", max, strerror(errno));
             sleep(1);
             #else
+            debug2("Daemon-MainLoop: select with max. fd %d: %d", max, WSAGetLastError());
             Sleep(1000);
             #endif
          }
@@ -591,9 +960,57 @@ static void DaemonMainLoop( void )
 }
 
 // ---------------------------------------------------------------------------
-// Background-wait for the daemon to be ready to accept client connection
+// Notify the GUI that the daemon is ready
+// - on WIN32 it's also used to notify the GUI that the acq start failed
 //
+static void DaemonTriggerGui( void )
+{
+   #ifdef WIN32
+   HANDLE  parentEvHd;
+   uchar   id_buf[20];
+   #endif
+
+   if (optGuiPipe != -1)
+   {
+      #ifndef WIN32
+      // the cmd line param contains the file handle of the pipe between daemon and GUI
+      write(optGuiPipe, "OK", 3);
+      close(optGuiPipe);
+
+      #else  // WIN32
+      // the cmd line param contains the ID of the parent process
+      dprintf1("Daemon-TriggerGui: triggering GUI process ID %d\n", optGuiPipe);
+      sprintf(id_buf, "nxtvepg_gui_%d", optGuiPipe);
+      parentEvHd = CreateEvent(NULL, FALSE, FALSE, id_buf);
+      if (parentEvHd != NULL)
+      {
+         ifdebug1((GetLastError() != ERROR_ALREADY_EXISTS), "Daemon-TriggerGui: parent id %d has closed event handle", optGuiPipe);
+
+         if (SetEvent(parentEvHd) == 0)
+            debug1("Daemon-TriggerGui: SetEvent: %ld", GetLastError());
+
+         CloseHandle(parentEvHd);
+      }
+      else
+         debug2("Daemon-TriggerGui: CreateEvent \"%s\": %ld", id_buf, GetLastError());
+
+      #endif
+
+      optGuiPipe = -1;
+   }
+}
+
 #ifndef WIN32
+// ---------------------------------------------------------------------------
+// Background-wait for the daemon to be ready to accept client connection
+// - implemented differently for UNIX and WIN32
+//   + on UNIX there's a pipe between GUI and the daemon during the startup;
+//     the filehandle of the unnamed pipe is passed via an undocumented option;
+//     the GUI waits until the pipe becomes readable
+//   + on Win32 a pipe solution would have been too much effort; instead a
+//     named event handle is created on which a temporary thread blocks;
+//     when the event is signaled the main thread is triggered
+//
 static void EventHandler_DaemonStart( ClientData clientData, int mask )
 {
    int fd = (int) clientData;
@@ -646,25 +1063,21 @@ static void EventHandler_DaemonStart( ClientData clientData, int mask )
       // else: keep waiting
    }
 }
-#endif
 
 // ---------------------------------------------------------------------------
-// Start the daemon process from the GUI
+// UNIX: Start the daemon process from the GUI
 //
 bool EpgMain_StartDaemon( void )
 {
-#ifndef WIN32
-   char  * daemonArgv[10];
-   int     daemonArgc;
-   char    fd_buf[10];
    int     pipe_fd[2];
    pid_t   pid;
+   char  * daemonArgv[10];
+   int     daemonArgc;
+   char    fd_buf[20];
    bool    result = FALSE;
 
    if (pipe(pipe_fd) == 0)
    {
-      sprintf(fd_buf, "%d", pipe_fd[1]);
-
       daemonArgc = 0;
       daemonArgv[daemonArgc++] = "nxtvepg";
       daemonArgv[daemonArgc++] = "-daemon";
@@ -680,8 +1093,9 @@ bool EpgMain_StartDaemon( void )
       }
       daemonArgv[daemonArgc++] = "-guipipe";
       daemonArgv[daemonArgc++] = fd_buf;
-      daemonArgv[daemonArgc++] = NULL;
+      daemonArgv[daemonArgc] = NULL;
 
+      sprintf(fd_buf, "%d", pipe_fd[1]);
       pid = fork();
       switch (pid)
       {
@@ -717,20 +1131,16 @@ bool EpgMain_StartDaemon( void )
       fprintf(stderr, "Failed to create pipe to communicate with daemon: %s\n", strerror(errno));
 
    return result;
-#else
-   return FALSE;
-#endif
 }
 
 // ---------------------------------------------------------------------------
-// Terminate the daemon by sending a signal
+// UNIX: Terminate the daemon by sending a signal
 // - the pid is obtained from the pid file (usually /tmp/.vbi_pid#)
 // - the function doesn't return until the process is gone
 //
 bool EpgMain_StopDaemon( void )
 {
    bool result = FALSE;
-   #ifndef WIN32
    struct timeval tv;
    uint idx;
    int  pid;
@@ -762,9 +1172,247 @@ bool EpgMain_StopDaemon( void )
    else
       debug0("EpgMain-StopDaemon: could not determine pid of VBI user");
 
-   #endif
    return result;
 }
+
+#else  // WIN32
+
+static Tcl_AsyncHandler daemonStartWaitHandler = NULL;
+static Tcl_TimerToken   daemonStartWaitTimer   = NULL;
+static HANDLE           daemonStartWaitThread  = NULL;
+static HANDLE           daemonStartWaitEvent   = NULL;
+
+// ---------------------------------------------------------------------------
+// Check for timout in waiting for response from daemon
+//
+static void DaemonStartWaitTimerHandler( ClientData clientData )
+{
+   if ( (daemonStartWaitThread != NULL) &&
+        (daemonStartWaitEvent != NULL) )
+   {
+      debug0("DaemonStartWait-TimerHandler: timeout waiting for daemon event");
+
+      // thread is still alive -> wake it up by manually signaling the thread's blocking event
+      // note: this also invokes the regular async trigger handler function below
+      if (SetEvent(daemonStartWaitEvent) != 0)
+      {
+         // wait for the thread to terminate
+         if (WaitForSingleObject(daemonStartWaitThread, 3000) == WAIT_FAILED)
+            debug1("DaemonStartWait-TimerHandler: WaitForSingleObject: %ld", GetLastError());
+      }
+      else
+         debug1("DaemonStartWait-TimerHandler: SetEvent: %ld", GetLastError());
+   }
+}
+
+// ---------------------------------------------------------------------------
+// Start acq after the daemon is started & initialized
+// - triggered by the daemon via a named event
+//
+static void EventHandler_DaemonStartWait( ClientData clientData )
+{
+   dprintf0("EventHandler-DaemonStartWait: received trigger from daemon\n");
+
+   // #1: free resources
+
+   if (daemonStartWaitTimer != NULL)
+   {  // remove the timeout handler, else it could interfere with subsequent start attempts
+      Tcl_DeleteTimerHandler(daemonStartWaitTimer);
+      daemonStartWaitTimer = NULL;
+   }
+
+   if (daemonStartWaitHandler != NULL)
+   {
+      Tcl_AsyncDelete(daemonStartWaitHandler);
+      daemonStartWaitHandler = NULL;
+   }
+
+   CloseHandle(daemonStartWaitThread);
+   daemonStartWaitThread = NULL;
+
+   CloseHandle(daemonStartWaitEvent);
+   daemonStartWaitEvent = NULL;
+
+   // #2: check the result of the daemon start operation
+
+   if ( EpgMain_CheckDaemon() )
+   {  // daemon successfuly started -> connect via socket
+      if ( EpgAcqCtl_Start() == FALSE )
+      {
+         UiControlMsg_NetAcqError();
+      }
+   }
+   else
+   {  // inform the user about the failure
+      eval_check(interp, "tk_messageBox -type ok -icon error "
+                         "-message {The daemon failed to start. Check the daemon log file for the cause.}");
+      Tcl_ResetResult(interp);
+   }
+}
+
+// ---------------------------------------------------------------------------
+// Triggered by the daemon start event thread
+// - here only an event is inserted into the main event handler
+//
+static int AsyncHandler_DaemonStartWait( ClientData clientData, Tcl_Interp *interp, int code )
+{
+   AddMainIdleEvent(EventHandler_DaemonStartWait, NULL, TRUE);
+
+   return code;
+}
+
+// ---------------------------------------------------------------------------
+// Win32 thread to wait for an event trigger from the daemon after it's started acq
+//
+static DWORD WINAPI DaemonStartWaitThread( LPVOID dummy )
+{
+   if (WaitForSingleObject(daemonStartWaitEvent, INFINITE) != WAIT_FAILED)
+   {
+      if (daemonStartWaitHandler != NULL)
+      {  // trigger an event, so that the Tcl/Tk event handler immediately wakes up
+         Tcl_AsyncMark(daemonStartWaitHandler);
+      }
+   }
+   else
+      debug1("Daemon-WaitThread: WaitForSingleObject %ld", GetLastError());
+
+   return 0;
+}
+
+// ---------------------------------------------------------------------------
+// WIN32: Start the daemon process from the GUI
+//
+bool EpgMain_StartDaemon( void )
+{
+   STARTUPINFO  startup;
+   PROCESS_INFORMATION proc_info;
+   const uchar * pErrMsg;
+   DWORD   errCode;
+   DWORD   threadID;
+   uchar   id_buf[20];
+   uchar * pCmdLineStr;
+   bool    result = FALSE;
+
+   pCmdLineStr = xmalloc(100 + strlen(rcfile) + strlen(dbdir));
+   sprintf(pCmdLineStr, "nxtvepg.exe -daemon -guipipe %ld", GetCurrentProcessId());
+   pErrMsg = NULL;
+   errCode = 0;
+
+   if (strcmp(defaultRcFile, rcfile) != 0)
+   {
+      sprintf(pCmdLineStr + strlen(pCmdLineStr), " -rcfile \"%s\"", (char *) rcfile);
+   }
+   if (strcmp(defaultDbDir, dbdir) != 0)
+   {
+      sprintf(pCmdLineStr + strlen(pCmdLineStr), " -dbdir \"%s\"", (char *) dbdir);
+   }
+   dprintf1("EpgMain-StartDaemon: daemon command line: %s\n", pCmdLineStr);
+
+   // create a named event handle that's signalled by the daemon when it's ready
+   sprintf(id_buf, "nxtvepg_gui_%ld", GetCurrentProcessId());
+   daemonStartWaitEvent = CreateEvent(NULL, FALSE, FALSE, id_buf);
+   if (daemonStartWaitEvent != NULL)
+   {
+      memset(&proc_info, 0, sizeof(proc_info));
+      memset(&startup, 0, sizeof(startup));
+      startup.cb = sizeof(STARTUPINFO);
+
+      // start the daemon process in the background
+      if (CreateProcess(NULL, pCmdLineStr, NULL, NULL, FALSE,
+                        CREATE_NO_WINDOW, NULL, ".", &startup, &proc_info))
+      {
+         CloseHandle(proc_info.hProcess);
+         CloseHandle(proc_info.hThread);
+
+         if (daemonStartWaitHandler == NULL)
+            daemonStartWaitHandler = Tcl_AsyncCreate(AsyncHandler_DaemonStartWait, NULL);
+         // start a thread that waits for the event handle to be signaled by the daemon
+         daemonStartWaitThread = CreateThread(NULL, 0, DaemonStartWaitThread, NULL, 0, &threadID);
+         if (daemonStartWaitThread != NULL)
+         {
+            // create a timer to limit the maximum wait time in the thread
+            daemonStartWaitTimer = Tcl_CreateTimerHandler(7 * 1000, DaemonStartWaitTimerHandler, NULL);
+
+            result = TRUE;
+         }
+         else
+         {  // failed to create thread
+            errCode = GetLastError();
+            pErrMsg = "Failed to set up communication with the daemon - cannot determine it's status: failed to start thread";
+            debug1("Daemon-WaitThread: CreateThread: %ld", errCode);
+         }
+      }
+      else
+      {  // failed to start the daemon process
+         errCode = GetLastError();
+         pErrMsg = "Failed to start nxtvepg.exe";
+         debug1("Daemon-WaitThread: CreateProcess: %ld", errCode);
+      }
+
+      if (result == FALSE)
+      {  // close the previously created event handle upon failure
+         CloseHandle(daemonStartWaitEvent);
+         daemonStartWaitEvent = NULL;
+      }
+   }
+   else
+   {  // failed to create named event handle
+      errCode = GetLastError();
+      pErrMsg = "Failed to set up communication with the daemon - cannot start daemon: failed to create event handle";
+      debug2("Daemon-WaitThread: CreateEvent \"%s\": %ld", id_buf, errCode);
+   }
+
+   if ((result == FALSE) && (pErrMsg != NULL))
+   {
+      sprintf(comm, "tk_messageBox -type ok -icon error -message {%s: ", pErrMsg);
+      // append system error message to the message box output
+      FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, errCode, LANG_USER_DEFAULT,
+                    comm + strlen(comm), sizeof(comm) - strlen(comm) - 2, NULL);
+      strcat(comm, "}");
+      eval_check(interp, comm);
+      Tcl_ResetResult(interp);
+   }
+
+   xfree(pCmdLineStr);
+
+   return result;
+}
+
+// ---------------------------------------------------------------------------
+// WIN32: Terminate the daemon by sending a message to the daemon's invisible window
+//
+bool EpgMain_StopDaemon( void )
+{
+   bool  result = FALSE;
+   uint  idx;
+   HWND  hWnd;
+
+   hWnd = FindWindow(daemonWndClassname, NULL);
+   if (hWnd != NULL)
+   {  // send message to the daemon
+      PostMessage(hWnd, WM_CLOSE, 0, 0);
+
+      // poll until the daemon is gone (XXX should find something to block on)
+      for (idx=0; idx < 6; idx++)
+      {
+         Sleep(250);
+         if (FindWindow(daemonWndClassname, NULL) == NULL)
+            break;
+      }
+      result = TRUE;
+   }
+   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Windows only: check if the daemon is running
+//
+bool EpgMain_CheckDaemon( void )
+{
+   return (FindWindow(daemonWndClassname, NULL) != NULL);
+}
+
+#endif  // WIN32
 #endif  // USE_DAEMON
 
 // ---------------------------------------------------------------------------
@@ -794,7 +1442,7 @@ static void signal_handler( int sigval )
       if (optDaemonMode)
       {
          sprintf(str_buf, "%d", sigval);
-         EpgNetIo_Logger(LOG_NOTICE, -1, "terminated by signal ", str_buf, NULL);
+         EpgNetIo_Logger(LOG_NOTICE, -1, 0, "terminated by signal ", str_buf, NULL);
       }
       else
       {
@@ -829,6 +1477,7 @@ static void WinApiDestructionHandler( ClientData clientData)
    debug0("received destroy event");
 
    // properly shut down the acquisition
+   EpgScan_Stop();
    EpgAcqCtl_Stop();
    WintvSharedMem_Exit();
    BtDriver_Exit();
@@ -882,6 +1531,264 @@ static void SetWindowsIcon( HINSTANCE hInstance )
    }
 }
 #endif  // ICON_PATCHED_INTO_DLL
+
+// ----------------------------------------------------------------------------
+// Systray state
+//
+#ifdef WIN32
+
+#define UWM_SYSTRAY (WM_USER + 1) // Sent to us by the systray
+static Tcl_AsyncHandler asyncSystrayHandler = NULL;
+static HWND       hSystrayWnd = NULL;
+static HANDLE     systrayThreadHandle;
+static BOOL       stopSystrayThread;
+static BOOL       systrayDoubleClick;
+static POINT      pt;
+
+// forward function declaration
+static bool WinSystrayIcon( bool enable );
+
+// ----------------------------------------------------------------------------
+// Handle systray events
+// - executed inside the main thread, but triggered by the msg receptor thread
+//
+static void Systray_IdleHandler( ClientData clientData )
+{
+   if (systrayDoubleClick == FALSE)
+   {  // right mouse button click -> display popup menu
+      sprintf(comm, "tk_popup .systray %ld %ld 0", pt.x, pt.y);
+      eval_check(interp, comm);
+   }
+   else
+   {  // double click -> open the main window
+      WinSystrayIcon(FALSE);
+      eval_check(interp, "wm deiconify .");
+   }
+}
+
+// ----------------------------------------------------------------------------
+// 2nd stage of systray event handling: delay handling until GUI is idle
+//
+static int Systray_AsyncThreadHandler( ClientData clientData, Tcl_Interp *interp, int code )
+{
+   AddMainIdleEvent(Systray_IdleHandler, NULL, TRUE);
+
+   return code;
+}
+
+// ---------------------------------------------------------------------------
+// Message handler for systray icon
+// - executed inside the separate systray thread
+//
+static LRESULT CALLBACK WinSystrayWndMsgCb( HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam )
+{
+   NOTIFYICONDATA nid;
+
+   switch (message)
+   {
+      case WM_DESTROY:
+         // notification by the main thread to remove the systray icon
+         nid.cbSize  = sizeof(NOTIFYICONDATA);
+         nid.hWnd    = hwnd;
+         nid.uID     = 1;
+         nid.uFlags  = NIF_TIP;
+         Shell_NotifyIcon(NIM_DELETE, &nid);
+         // quit the window message loop
+         PostQuitMessage(0);
+         return TRUE;
+
+      case WM_QUIT:
+         stopSystrayThread = TRUE;
+         return TRUE;
+
+      case UWM_SYSTRAY:
+         // notification of mouse activity over the systray icon
+         switch (lParam)
+         {
+            case WM_RBUTTONUP:
+               GetCursorPos(&pt);
+               systrayDoubleClick = FALSE;
+               if (asyncSystrayHandler != NULL)
+               {
+                  Tcl_AsyncMark(asyncSystrayHandler);
+               }
+               break;
+
+            case WM_LBUTTONDBLCLK:
+               systrayDoubleClick = TRUE;
+               if (asyncSystrayHandler != NULL)
+               {
+                  Tcl_AsyncMark(asyncSystrayHandler);
+               }
+               break;
+         }
+         return TRUE; // I don't think that it matters what you return.
+   }
+   return DefWindowProc(hwnd, message, wParam, lParam);
+}
+
+// ---------------------------------------------------------------------------
+// Systray thread: create systray icon and enter message loop
+// - The systray code is based on tray42.zip by Michael Smith
+//   <aa529@chebucto.ns.ca>, 5 Aug 1997
+//   Copyright 1997 Michael T. Smith / R.A.M. Technology.
+//
+static DWORD WINAPI WinSystrayThread( LPVOID argEvHandle )
+{
+   WNDCLASSEX wc;
+   MSG msg;
+   NOTIFYICONDATA nid;
+   const char * const classname = "nxtvepg_systray_class";
+
+   // Create a window class for the window that receives systray notifications
+   wc.cbSize        = sizeof(WNDCLASSEX);
+   wc.style         = 0;
+   wc.lpfnWndProc   = WinSystrayWndMsgCb;
+   wc.cbClsExtra    = wc.cbWndExtra = 0;
+   wc.hInstance     = hMainInstance;
+   wc.hIcon         = LoadIcon(hMainInstance, "NXTVEPG_ICON");
+   if (wc.hIcon == NULL)
+      debug1("WinSystrayThread: LoadIcon: %ld", GetLastError());
+   wc.hCursor       = LoadCursor(NULL, IDC_ARROW);
+   wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+   wc.lpszMenuName  = NULL;
+   wc.lpszClassName = classname;
+   wc.hIconSm       = LoadImage(hMainInstance, "NXTVEPG_ICON", IMAGE_ICON,
+                                GetSystemMetrics(SM_CXSMICON),
+                                GetSystemMetrics(SM_CYSMICON), 0);
+   RegisterClassEx(&wc);
+
+   // Create window. Note that WS_VISIBLE is not used, and window is never shown
+   hSystrayWnd = CreateWindowEx(0, classname, classname, WS_POPUP, CW_USEDEFAULT, 0,
+                                CW_USEDEFAULT, 0, NULL, NULL, hMainInstance, NULL);
+
+   if (hSystrayWnd != NULL)
+   {
+      // Fill out NOTIFYICONDATA structure
+      nid.cbSize  = sizeof(NOTIFYICONDATA); // size
+      nid.hWnd    = hSystrayWnd; // window to receive notifications
+      nid.uID     = 1;     // application-defined ID for icon (can be any UINT value)
+      nid.uFlags  = NIF_MESSAGE |  // nid.uCallbackMessage is valid, use it
+                    NIF_ICON |     // nid.hIcon is valid, use it
+                    NIF_TIP;       // nid.szTip is valid, use it
+      nid.uCallbackMessage = UWM_SYSTRAY; // message sent to nid.hWnd
+      nid.hIcon   = LoadImage(hMainInstance, "NXTVEPG_ICON", IMAGE_ICON,
+                              GetSystemMetrics(SM_CXSMICON),
+                              GetSystemMetrics(SM_CYSMICON), 0); // 16x16 icon
+      // szTip is the ToolTip text (64 byte array including NULL)
+      strcpy(nid.szTip, "nexTView");
+
+      // NIM_ADD: Add icon; NIM_DELETE: Remove icon; NIM_MODIFY: modify icon
+      Shell_NotifyIcon(NIM_ADD, &nid);
+
+      // inform the main thread that we're done with initialization
+      if (SetEvent((HANDLE) argEvHandle) == 0)
+         debug1("WinSystrayThread: Setevent: %ld", GetLastError());
+
+      while ((stopSystrayThread == FALSE) && GetMessage(&msg, hSystrayWnd, 0, 0))
+      {
+         TranslateMessage(&msg);
+         DispatchMessage(&msg);
+      }
+
+      DestroyWindow(hSystrayWnd);
+      hSystrayWnd = NULL;
+   }
+   else
+   {
+      debug1("WinSystrayThread: CreateWindowEx: %ld", GetLastError());
+      if (SetEvent((HANDLE) argEvHandle) == 0)
+         debug1("WinSystrayThread: Setevent: %ld", GetLastError());
+   }
+
+   return 0;  // dummy
+}
+
+// ----------------------------------------------------------------------------
+// Show or hide the systray icon
+// - showing the systray icon required creating a thread that receives asynchronous
+//   events on the icon, i.e. mostly mouse button events
+//
+static bool WinSystrayIcon( bool enable )
+{
+   DWORD   threadID;
+   HANDLE  evHandle;
+
+   if (enable)
+   {
+      if (systrayThreadHandle == NULL)
+      {
+         // create an asynchronous event source that allows to wait until the thread is ready
+         asyncSystrayHandler = Tcl_AsyncCreate(Systray_AsyncThreadHandler, NULL);
+
+         evHandle = CreateEvent(NULL, FALSE, FALSE, NULL);
+         if (evHandle != NULL)
+         {
+            stopSystrayThread = FALSE;
+            systrayThreadHandle = CreateThread(NULL, 0, WinSystrayThread, evHandle, 0, &threadID);
+            if (systrayThreadHandle != NULL)
+            {
+               // wait until the systray thread is initialized
+               WaitForSingleObject(evHandle, 10 * 1000);
+            }
+            else
+               debug1("WinSystrayIcon: CreateThread: %ld", GetLastError());
+
+            CloseHandle(evHandle);
+         }
+         else
+            debug1("WinSystrayIcon: failed to create event: %ld", GetLastError());
+      }
+   }
+   else
+   {
+      // remove the systray icon
+      if (systrayThreadHandle != NULL)
+      {
+         PostMessage(hSystrayWnd, WM_DESTROY, 0, 0);
+         WaitForSingleObject(systrayThreadHandle, 2000);
+         CloseHandle(systrayThreadHandle);
+         systrayThreadHandle = NULL;
+      }
+      // remove the async. event source (even if already marked)
+      if (asyncSystrayHandler != NULL)
+      {
+         Tcl_AsyncDelete(asyncSystrayHandler);
+         asyncSystrayHandler = NULL;
+      }
+   }
+   return (hSystrayWnd != NULL);
+}
+
+// ----------------------------------------------------------------------------
+// Tcl callback procedure: Create or destroy icon in system tray
+//
+static int TclCbWinSystrayIcon( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+{
+   const char * const pUsage = "Usage: C_SystrayIcon <boolean>";
+   bool withdraw;
+   int  enable;
+   int  result;
+
+   if (argc != 2)
+   {  // parameter count is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else if (Tcl_GetBoolean(interp, argv[1], &enable))
+   {  // wrong parameter format
+      result = TCL_ERROR;
+   }
+   else
+   {
+      withdraw = WinSystrayIcon(enable) && enable;
+
+      Tcl_SetResult(interp, (withdraw ? "1" : "0"), TCL_STATIC);
+      result = TCL_OK;
+   }
+   return result;
+}
+#endif
 
 /*
  *-------------------------------------------------------------------------
@@ -1097,8 +2004,12 @@ static void ParseArgv( int argc, char * argv[] )
          }
          else if (!strcmp(argv[argIdx], "-nodetach"))
          {  // daemon stays in the foreground
+            #ifndef WIN32
             optNoDetach = TRUE;
             argIdx += 1;
+            #else
+            Usage(argv[0], argv[argIdx], "unsupported option");
+            #endif
          }
          else if (!strcmp(argv[argIdx], "-acqpassive"))
          {  // set passive acquisition mode (not saved to rc/ini file)
@@ -1197,7 +2108,7 @@ static void ParseArgv( int argc, char * argv[] )
             if (argIdx + 1 < argc)
             {  // read decimal fd (silently ignore errors)
                char *pe;
-               optGuiPipe = strtol(argv[argIdx + 1], &pe, 16);
+               optGuiPipe = strtol(argv[argIdx + 1], &pe, 0);
                if (pe != (argv[argIdx + 1] + strlen(argv[argIdx + 1])))
                   optGuiPipe = -1;
                argIdx += 2;
@@ -1294,6 +2205,13 @@ static int ui_init( int argc, char **argv )
    {
       debug1("tcl_init_scripts error: %s\n", interp->result);
    }
+   if (optDaemonMode == FALSE)
+   {
+      if (Tcl_VarEval(interp, tk_init_scripts, NULL) != TCL_OK)
+      {
+         debug1("tk_init_scripts error: %s\n", interp->result);
+      }
+   }
    #endif
 
    #if (DEBUG_SWITCH_TCL_BGERR != ON)
@@ -1314,15 +2232,15 @@ static int ui_init( int argc, char **argv )
       Tk_DefineBitmap(interp, Tk_GetUid("bitmap_qmark"), qmark_bits, qmark_width, qmark_height);
       Tk_DefineBitmap(interp, Tk_GetUid("nxtv_logo"), nxtv_logo_bits, nxtv_logo_width, nxtv_logo_height);
 
+      #ifdef WIN32
+      Tcl_CreateCommand(interp, "C_SystrayIcon", TclCbWinSystrayIcon, (ClientData) NULL, NULL);
+      #endif
+
       sprintf(comm, "wm title . {Nextview EPG Decoder}\n"
                     "wm resizable . 0 1\n"
                     "wm iconbitmap . nxtv_logo\n"
                     "wm iconname . {Nextview EPG}\n");
       eval_check(interp, comm);
-
-      if (startIconified)
-         eval_check(interp, "wm iconify .");
-
    }
    eval_check(interp, epgui_tcl_script);
 
@@ -1365,6 +2283,7 @@ int main( int argc, char *argv[] )
    // this is overridden by the BT driver in non-threaded mode (to catch death of the acq slave)
    signal(SIGCHLD, SIG_IGN);
    #else
+   hMainInstance = hInstance;
    // set up callback to catch shutdown messages (requires tk83.dll patch!)
    Tk_RegisterMainDestructionHandler(WinApiDestructionHandler);
    // set up an handler to catch fatal exceptions
@@ -1427,6 +2346,11 @@ int main( int argc, char *argv[] )
 
    if (optDaemonMode == FALSE)
    {
+      // note: iconification must be done after RC/INI file load
+      // because "hide on minimize" option state must be known and the <Unmap> event bound
+      if (startIconified)
+         eval_check(interp, "wm iconify .");
+
       UiControl_Init();
 
       if (pDemoDatabase != NULL)
@@ -1450,7 +2374,7 @@ int main( int argc, char *argv[] )
       EpgAcqClient_Init(&EventHandler_NetworkUpdate);
       SetNetAcqParams(interp, FALSE);
       #endif
-      SetAcquisitionMode();
+      SetAcquisitionMode(NETACQ_DEFAULT);
 
       // initialize the GUI control modules
       StatsWin_Create();
@@ -1515,10 +2439,17 @@ int main( int argc, char *argv[] )
          {
             // remove handlers to prevent invokation after death of main window
             if (clockHandler != NULL)
+            {
                Tcl_DeleteTimerHandler(clockHandler);
+               clockHandler = NULL;
+            }
             if (expirationHandler != NULL)
+            {
                Tcl_DeleteTimerHandler(expirationHandler);
+               expirationHandler = NULL;
+            }
             Tcl_AsyncDelete(exitHandler);
+            exitHandler = NULL;
             // execute pending updates and close main window
             sprintf(comm, "update; destroy .");
             eval_check(interp, comm);
@@ -1541,17 +2472,17 @@ int main( int argc, char *argv[] )
             // start listening for client connections (at least on the named socket in /tmp)
             if (EpgAcqServer_Listen())
             {
-               if (optGuiPipe != -1)
-               {
-                  write(optGuiPipe, "OK", 3);
-                  close(optGuiPipe);
-               }
+               #ifdef WIN32
+               DaemonControlWindowCreate();
+               #endif
+               // if the daemon was started by the GUI, notify it that the daemon is ready
+               DaemonTriggerGui();
 
                DaemonMainLoop();
             }
          }
          else
-            EpgNetIo_Logger(LOG_ERR, -1, "failed to start acquisition", NULL);
+            EpgNetIo_Logger(LOG_ERR, -1, 0, "failed to start acquisition", NULL);
       }
       EpgAcqServer_Destroy();
    }
@@ -1568,6 +2499,7 @@ int main( int argc, char *argv[] )
    }
    #endif
 
+   EpgScan_Stop();
    EpgAcqCtl_Stop();
    #ifdef WIN32
    WintvSharedMem_Exit();
@@ -1587,11 +2519,20 @@ int main( int argc, char *argv[] )
       #else
       Wintv_Destroy();
       WintvCfg_Destroy();
+      WinSystrayIcon(FALSE);
       #endif
       #ifdef USE_DAEMON
       EpgAcqClient_Destroy();
       #endif
    }
+   #ifdef WIN32
+   else
+   {  // notify the GUI in case we haven't done so before
+      DaemonTriggerGui();
+      // remove the window now to indicate the driver is down and the TV card free
+      DaemonControlWindowDestroy();
+   }
+   #endif
 
    #if CHK_MALLOC == ON
    DiscardAllMainIdleEvents();

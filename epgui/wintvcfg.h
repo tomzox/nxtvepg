@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: wintvcfg.h,v 1.2 2002/05/01 12:23:43 tom Exp tom $
+ *  $Id: wintvcfg.h,v 1.3 2002/05/11 15:52:12 tom Exp tom $
  */
 
 #ifndef __WINTVCFG_H
@@ -24,7 +24,7 @@
 
 
 // Interface to GUI
-bool WintvCfg_GetFreqTab( Tcl_Interp * interp, ulong ** pFreqTab, uint * pCount );
+bool WintvCfg_GetFreqTab( Tcl_Interp * interp, uint ** pFreqTab, uint * pCount );
 bool WintvCfg_IsEnabled( void );
 
 // Initialisation

@@ -24,7 +24,7 @@
 #
 #  Author: Tom Zoerner
 #
-# $Id: nxtvepg.pod,v 1.61 2002/05/05 20:33:46 tom Exp tom $
+# $Id: nxtvepg.pod,v 1.67 2002/05/20 15:09:15 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME
@@ -118,6 +118,11 @@ The size of the window cannot be changed.
 
 Start with the main window iconified (i.e. minimized).
 
+For M$ Windows users this option may be esp. helpful when nxtvepg is
+started from inside the I<Auto start> group and I<Hide on minimize> is
+enabled: nxtvepg then will start almost invisibly in the background,
+only with an icon in the system tray of the task bar.
+
 =item B<-rcfile> I<path>
 
 Specify an alternate configuration file.
@@ -156,16 +161,17 @@ The acquisition can still be started later from the Control menu.
 
 =item B<-daemon>
 
-Start without the graphical user interface (UNIX only). The process will
-detach from the terminal and perform background acquisition. If no other
+Start without the graphical user interface. The process will detach
+from the terminal (i.e. create an invisible window on M$ Windows) and
+perform background acquisition. If no other
 options are given the same provider and acquisition mode as configured with
 the GUI will be used. If the -provider option is given acquisition will work
 for this provider only (note the difference to non-daemon mode, where that
 option selects the browser database). The -daemon option cannot be combined
 with the -noacq or -demo options.
 
-The daemon always creates a named socket in the I</tmp> directory plus
-optionally a TCP/IP socket to allow connects by browser processes. While
+The daemon always creates a named socket in the I</tmp> directory (UNIX only)
+plus optionally a TCP/IP socket to allow connects by browser processes. While
 connected, the browser receives updates for opened Nextview databases and
 reports about the acquisition progress; if left unconnected, the browser
 listing might be incomplete or outdated.
@@ -175,6 +181,7 @@ directory, because the daemon forwards only deltas to the database files
 stored in that directory. For more details see
 L<"CONFIGURATION: Client/Server">.
 
+UNIX
 Warning: for security reasons it's depreciated to run the daemon with root
 privileges, because nxtvepg has not been reviewed yet for possible exploits.
 If you want to start the daemon already during system startup, you should
@@ -190,6 +197,7 @@ SIGTERM. For more details see L<"CONTROL"> and L<"FILES">.
 
 =item B<-nodetach>
 
+UNIX only:
 In daemon mode this option prevents the process actually making itself a
 daemon, i.e. it doesn't fork and stays connected to the terminal. Also
 all log messages starting with level
@@ -960,7 +968,7 @@ several providers all the time, database merging allows to select and
 combine features or networks from several original databases into one
 newly created database.
 
-When you select the B<Merge providers...> entry from the B<Configure>
+When you select the B<Merge providers> entry from the B<Configure>
 menu, you will get a dialog with two listboxes: the left one contains
 a list of all currently available databases. The right one is the list
 of databases you want to merge. You can add, delete or reorder the
@@ -1015,6 +1023,10 @@ chapters.
 
 Any filter selection can always be undone by the
 I<Reset> menu entry or the reset button in the main window.
+
+On Windows this menu is en entry inside of the I<Filter> menu for technical
+reasons (the concept of danamically created menu hierarchies seems to be
+foreign to Windows, so a popup menu has to be used for the Navigate menu).
 
 
 
@@ -1179,7 +1191,7 @@ of the mouse. You can freely add or remove entries from this list.
 When you want to add a shortcut, either choose an entry from the
 Navigate menu or define your own filters via the Filter menu, possibly
 based on one or more already defined shortcuts. When you have found an
-interesting selection, call I<Add filter shortcut...> from the Filter
+interesting selection, call I<Add filter shortcut> from the Filter
 menu. You'll find a new shortcut appended to the list of existing
 shortcuts. First you'll probably want to enter a description in the
 entry field at the top of the dialog; default is just "shortcut #xx".
@@ -1295,7 +1307,6 @@ driver implementations do not allow for more than one TV card in the PC.
 
 =item B<Connect to acq. daemon>
 
-UNIX only:
 Connect to or disconnect from an acquisition daemon, running in the
 background on the same host, or somewhere else in the network.  The
 address of the daemon and other parameters are configured in the
@@ -1303,8 +1314,9 @@ I<Client/Server> menu (see L<"CONFIGURATION: Client/Server">).
 By default the daemon
 is started on the local host.  The main advantage of using the daemon
 is that you can keep running acquisition permanently in the background,
-even if you terminate the browser, or even the X11 server (i.e. the
-windowing system).
+even if you terminate the browser, or on UNIX even the X11 server (i.e.
+the windowing system). On M$ Windows the daemon is terminated when you
+log off.
 
 If you attempt to connect, but no daemon is running, you'll be offered
 the option to automatically start the daemon and retry the connect,
@@ -1315,9 +1327,9 @@ as the browser.
 Note that disconnecting from the daemon or terminating the browser does
 not stop the acquisition and hence does not free the device.  If that's
 what you want, choose the I<Enable acquisition> command instead, which
-sends the TERM signal to the daemon, i.e. it terminates the process.
-Of course this option only is available if your daemon is running on the
-same host and with the same user id as the browser process.
+terminates the daemon.  Of course this option only is available if your
+daemon is running on the same host and with the same user id as the
+browser process.
 
 
 =item B<Dump stream>
@@ -1435,9 +1447,7 @@ Close all windows and terminate the application.
 Summary of commands available from the Configure menu:
 
 
-=over 4
-
-=item B<Select provider...>
+=head2 Select provider
 
 Open the provider selection dialog.  This dialog lists all TV channels
 from which Nextview data can be received.  When you select a channel
@@ -1448,19 +1458,19 @@ loaded into the browser.  The according TV channel will also be tuned
 to update the database, if you have selected "Follow-UI" acquisition mode.
 
 
-=item B<Merge providers...>
+=head2 Merge providers
 
 Open a dialog that allows to merge several databases into one.
 See L<"MERGED DATABASES"> for details.
 
 
-=item B<Acquisition mode...>
+=head2 Acquisition mode
 
 Open a dialog that allows to control the background acquisition process.
 See L<"ACQUISITION MODES"> for more details.
 
 
-=item B<Provider scan...>
+=head2 Provider scan
 
 Open a dialog that allows to start a scan across all TV channels for
 Nextview transmissions.  You should perform this search at least once,
@@ -1513,7 +1523,7 @@ the scan until they are found, e.g. at different times of the day.
 If you find new providers not listed on the web site, please let me know.
 
 
-=item B<TV card input...>
+=head2 TV card input
 
 Open a dialog where the driver for the TV card can be configured.
 This dialog looks very different on Windows and UNIX platforms,
@@ -1567,7 +1577,7 @@ you have to enable the acquisition via the Control menu and not be
 restarting nxtvepg.
 
 
-=item B<Client/Server...>
+=head2 Client/Server
 
 Opens a dialog that allows to configure the connection between acquisition
 daemon (called "server" here) and GUI.  The connection allows to forward
@@ -1584,6 +1594,7 @@ respectively.
 
 =item I<Enable remote control>
 
+Note: this feature is not yet implemented.
 By enabling remote-control you can stop acquisition, change acquisition
 mode, TV card parameters or any parameters configured by this dialog
 in a running daemon via the network connection.
@@ -1597,6 +1608,9 @@ or anywhere in the world if you're connected to the Internet. If
 you don't have a firewall which prevents incoming connections of
 untrusted hosts, this mode is highly depreciated, because nxtvepg
 is not in any way secured against malicious client connections.
+
+Note: on Windows currently only TCP/IP is supported, i.e. you have
+to enable this option if you want to start the daemon.
 
 =item I<Server hostname>
 
@@ -1665,10 +1679,12 @@ connection establishment or shutdown.
 
 =item I<Syslog min. level>
 
-Here you can enable or disable logging to syslog. See I<syslogd(8)>
-and I<syslog.conf(5)> for details about the syslog facility. The log
-levels you can choose here are the same as described in the previous
-paragraph for logging to files.
+Here you can enable or disable logging to UNIX syslog and Windows NT
+application event logging (application name is I<nxtvepg daemon>).
+See UNIX man pages I<syslogd(8)> and I<syslog.conf(5)> or the Windows
+event log help for details about the syslog facility. The log levels
+you can choose here are the same as described in the previous paragraph
+for logging to files.
 
 =back
 
@@ -1678,7 +1694,7 @@ If you use the same rc/ini file for daemon and GUI the changed settings
 will however be used by the daemon upon the next start.
 
 
-=item B<TV application interaction...>
+=head2 TV application interaction
 
 Opens a dialog that allows to configure the interaction between a
 TV application and nxtvepg.  On UNIX this menu entry is available
@@ -1688,31 +1704,39 @@ and path here if you're using one of the supported applications; this
 is a recommended step during the initial installation, as described
 in L<"GETTING STARTED">.
 
-Windows only: the I<General enable> option allows to disable or
+The first four (only three on UNIX) options allow to 
+switch interaction features on or off. If you want to improve startup
+time on UNIX, turn them all off; in this case nxtvepg does not need to
+search for the I<xawtv> toplevel window (which can take up to several
+seconds if you have many applications running or a slow connection to
+your X server.) By default all interaction features are enabled.
+
+=over 4
+
+=item I<General enable>
+
+Windows only: the option allows to disable or
 re-enable the allocation of communication resources, and implicitly
 to switch off or on all interaction features. While disabled, nxtvepg
 will be invisible for the TV application.  The use of this option is
 depreciated, as nxtvepg won't automatically free the driver when the
-TV is started, and nxtvepg will fail to start acquisition when a
-TV appliaction is running.  Use this option only if you suspect
+TV application is started, and nxtvepg will fail to start acquisition
+when a TV appliaction is running.  Use this option only if you suspect
 compatibility problems between the TV app and nxtvepg, e.g.  if one
 application hangs or crashes during startup if the other is already
 running (I'm not saying such behavior is to be expected, but it's
 better to be prepared for everything)
 
-The next three buttons (the first three on UNIX) allow to separately
-switch the interaction features on or off. If you want to improve startup
-time on UNIX, turn them all off; in this case nxtvepg does not need to
-search for the I<xawtv> toplevel window (which can take up to several
-seconds if you have many applications running or a slow connection to
-your X server.) By default all three interaction features are enabled.
+=item I<Tune TV button>
 
-The I<Tune TV button> option allos to hide or show the equally named button
+This option allos to hide or show the equally named button
 and it's little popup menu (accessed with right mouse button) below the
 clock in the nxtvepg main window.  If you're not interested in
 remote-controlling the TV application, switch it off.
 
-If you leave the I<Cursor follows channel changes> option enabled,
+=item I<Cursor follows channel changes>
+
+While this option is enabled,
 nxtvepg will monitor TV channel changes. Whenever such a change is
 detected, the cursor in the programme listbox will be set onto the
 title currently running on that network. During EPG acquisition VPS/PDC
@@ -1729,7 +1753,9 @@ remain unchanged. If the current programme on the new network does not
 match this filter setting, then neither cursor nor listbox content will
 be changed.
 
-If you leave the I<Display EPG info in TV app> option enabled,
+=item I<Display EPG info in TV app>
+
+While this option is enabled,
 nxtvepg will monitor TV channel changes. During EPG acquisition
 VPS/PDC are also monitored to determine newly starting programmes.
 VPS/PDC also allows to detect channel changes on an external input
@@ -1763,6 +1789,7 @@ in the window title. Except for this last option, you can configure the
 desired display duration with the slider at the bottom of the dialog.
 A duration of zero means the display will never be removed.
 
+=back
 
 Windows only: in the middle of the dialog there's one line that
 indicates the current TV application connection status.  It contains
@@ -1778,7 +1805,7 @@ the type and path of your preferred TV application.  This information
 is used to access the TV app's channel table (i.e. TV tuner frequencies
 and station names) during an EPG provider scan
 (see L<"CONFIGURATION: Provider scan">) and in the network name
-configuration dialog (see L<"CONFIGURATION: Network names...">).
+configuration dialog (see L<"CONFIGURATION: Network names">).
 After you've changed the setting, you can press the I<Test> button to
 check if nxtvepg can parse the channel table correctly. It will complain
 if it fails to open the file or registry key and if no channels are found.
@@ -1805,7 +1832,7 @@ In most cases you'll use the same TV app for both purposes, but you
 don't have to.
 
 
-=item B<Select columns...>
+=head2 Select columns
 
 Open the browser listbox column configuration dialog. It allows to
 select which attributes are displayed for the listed programmes. In the
@@ -1818,7 +1845,7 @@ to refresh the browser listbox with the new column selection and save the
 new configuration to the config file.
 
 
-=item B<Select networks...>
+=head2 Select networks
 
 Open the network selection dialog. It allows to permanently suppress
 TV networks in a provider's listing, e.g. if you can not receive the
@@ -1837,7 +1864,7 @@ order for all providers, you can simply copy your selection with the I<copy>
 menu.
 
 
-=item B<Network names...>
+=head2 Network names
 
 Open the network names configuration dialog. It's main purpose is to
 synchronize the network names between nxtvepg and your TV application.
@@ -1884,7 +1911,7 @@ separated by a slash.  The slash is recognized as separator by nxtvepg
 and all resulting segments can be used as network names.
 
 
-=item B<Context menu...>
+=head2 Context menu
 
 Open the context menu configuration dialog which allows to add references
 to external commands to the context popup menu. (See also L<"CONTEXT MENU">.)
@@ -1956,7 +1983,7 @@ could for example result in
 to be passed to the Bourne Shell.
 
 
-=item B<Filter shortcuts...>
+=head2 Filter shortcuts
 
 Open the filter shortcut dialog to rename, reorder or delete shortcuts. 
 You have to press the I<Update> button to save any changes for a shortcut
@@ -1964,27 +1991,36 @@ and then close the dialog with I<Save>.
 See L<"FILTER SHORTCUTS"> for more details.
 
 
-=item B<Show shortcuts>
+=head2 Show shortcuts
 
 Toggle visibility of the shortcut listbox.
 
 
-=item B<Show networks>
+=head2 Show networks
 
 Toggle visibility of the network filter listbox.
 
 
-=item B<Show status line>
+=head2 Show status line
 
 Toggle visibility of the status line at the bottom of the browser window.
 
 
-=item B<Show column headers>
+=head2 Show column headers
 
 Toggle visibility of the browser listbox column header menu bar.
 
 
-=back
+=head2 Hide on minimize
+
+Windows only:
+When this option is enabled, the main window's entry in the task bar
+is removed when it's minimized or when the program is started with
+the I<-iconic> command line switch.  Instead an icon is added to the
+system tray in the task bar.  A double-click on the tray icon deiconifies
+the main window.  A click with the right mouse button opens a little
+popup menu.  The entries in this menu have the same meaning as the
+equally named ones in the control menu (see L<"CONTROL">).
 
 
 
@@ -2076,9 +2112,9 @@ dialog.
 
 =item B<nxtvepg.ini>
 
-Configuration file where all personal settings are stored. By default
-this is created in the working directory, but a different path and file
-name can be specified with the B<-rcfile> option.
+Configuration file where all configuration and personal preference settings
+are stored. By default this is created in the working directory, but a
+different path and file name can be specified with the B<-rcfile> option.
 
 
 =item B<nxtv####.epg>
@@ -2088,6 +2124,16 @@ or the one given with the B<-dbdir> command line option.
 The last 4 digits of the file base names are the hexadecimal CNI (Country
 and Network Identifier) of the provider.  You must not change the name
 of this file, or nxtvepg will refuse to load the database.
+
+=item B<vbi_map.dat>
+
+This hidden file is used to set up shared memory to allow information
+exchange between nxtvepg and an attached TV application.  It's
+automatically removed when nxtvepg terminates and should never be
+accessed (i.e. being written to or removed) by external applications.
+The file is not created when TV app. interaction is disabled (see
+L<"CONFIGURATION: TV application interaction">).
+
 
 =back
 
@@ -2104,18 +2150,15 @@ out the catalogues of Grundig, Loewe, Metz, Sony, Philips, Thompson or
 Telefunken. However be aware that not all models do support the same
 set of Nextview features.
 
-
-
 =head1 KNOWN BUGS
 
 Under Windows there's a risk of system crash ("blue screen") when the
-application is terminated by force, e.g. with TerminateProcess(). This
-cannot be changed because in this case there's no chance to stop the
-driver and disable the interrupt. In normal operation this should be
-very unlikely though, since all software exceptions (e.g. page faults)
-and shutdown messages are caught and the driver then stopped before
-the exit.
-
+application is terminated by force, e.g. via the task manager. This
+is unavoidable because in this case there's no chance to stop the
+driver and hence the TV card continues to capure data into RAM.
+In normal operation this should be very unlikely because all software
+exceptions (e.g. page faults) and shutdown messages are caught and the
+driver then stopped before the exit.
 
 =head1 REPORTING BUGS
 
@@ -2141,7 +2184,9 @@ to "Mario's brother" for beta testing the Windows port;
 to Gerd Knorr for xawtv;
 to Ralph Metzler for his teletext decoder;
 to Edgar Toernig for the Latin-1 conversion tables in alevt;
-and last but not least to the authors of bttv and v4l for their excellent work.
+and last but not least to the authors of bttv and v4l for their excellent work,
+and the authors of the Cygwin GNU and XFree86 port, without which nxtvepg
+would never have been ported to M$ Windows.
 
 =head1 COPYRIGHT
 

@@ -43,7 +43,7 @@
  *    Linux:  Tom Zoerner
  *    NetBSD: Mario Kemper <magick@bundy.zhadum.de>
  *
- *  $Id: btdrv4linux.c,v 1.26 2002/05/04 18:31:27 tom Exp tom $
+ *  $Id: btdrv4linux.c,v 1.29 2002/05/14 18:37:15 tom Exp tom $
  */
 
 #if !defined(linux) && !defined(__NetBSD__)
@@ -455,10 +455,11 @@ bool BtDriver_SetInputSource( int inputIdx, bool keepOpen, bool * pIsTuner )
 // ---------------------------------------------------------------------------
 // Tune a given frequency
 //
-bool BtDriver_TuneChannel( ulong freq, bool keepOpen )
+bool BtDriver_TuneChannel( uint freq, bool keepOpen )
 {
 #ifndef __NetBSD__
    char devName[DEV_MAX_NAME_LEN];
+   ulong lfreq;
    bool result = FALSE;
 
    if (video_fd == -1)
@@ -470,6 +471,7 @@ bool BtDriver_TuneChannel( ulong freq, bool keepOpen )
    if (video_fd != -1)
    {
       // Set the tuner frequency
+      lfreq = freq;
       if(ioctl(video_fd, VIDIOCSFREQ, &freq) == 0)
       {
          //printf("Vbi-TuneChannel: set to %.2f\n", (double)freq/16);
@@ -487,6 +489,7 @@ bool BtDriver_TuneChannel( ulong freq, bool keepOpen )
    }
 #else // __NetBSD__
    char devName[DEV_MAX_NAME_LEN];
+   ulong lfreq;
    bool result = FALSE;
 
    if (tuner_fd == -1)
@@ -500,6 +503,7 @@ bool BtDriver_TuneChannel( ulong freq, bool keepOpen )
    if (tuner_fd != -1)
    {
       // Set the tuner frequency
+      lfreq = freq;
       if(ioctl(tuner_fd, VIDIOCSFREQ, &freq) == 0)
       {
          //printf("Vbi-TuneChannel: set to %.2f\n", (double)freq/16);
@@ -526,15 +530,15 @@ bool BtDriver_TuneChannel( ulong freq, bool keepOpen )
 //   passed to the slave via IPC.
 // - returns 0 in case of error
 //
-ulong BtDriver_QueryChannel( void )
+uint BtDriver_QueryChannel( void )
 {
-   ulong freq = 0L;
 #ifndef __NetBSD__
    struct timeval tv;
+   uint freq = 0;
 
    if ((pVbiBuf != NULL) && (pVbiBuf->vbiPid != -1))
    {
-      pVbiBuf->vbiQueryFreq = 0L;
+      pVbiBuf->vbiQueryFreq = 0;
       pVbiBuf->doQueryFreq = TRUE;
       recvWakeUpSig = FALSE;
       #ifdef USE_THREADS
@@ -553,8 +557,11 @@ ulong BtDriver_QueryChannel( void )
       }
       pVbiBuf->doQueryFreq = FALSE;
    }
+   return freq;
+
 #else  // __NetBSD__
    char devName[DEV_MAX_NAME_LEN];
+   ulong lfreq = 0L;
 
    if (tuner_fd == -1)
    {
@@ -564,9 +571,9 @@ ulong BtDriver_QueryChannel( void )
    }
    if (tuner_fd != -1)
    {
-      if (ioctl(tuner_fd, VIDIOCGFREQ, &freq) == 0)
+      if (ioctl(tuner_fd, VIDIOCGFREQ, &lfreq) == 0)
       {
-         dprintf1("BtDriver-BtDriver_QueryChannel: got %.2f\n", (double)freq/16);
+         dprintf1("BtDriver-QueryChannel: got %.2f\n", (double)lfreq/16);
       }
       else
          perror("VIDIOCGFREQ");
@@ -574,9 +581,9 @@ ulong BtDriver_QueryChannel( void )
       dprintf1("BtDriver-QueryChannel: closing video device, fd=%d\n", tuner_fd);
       BtDriver_CloseDevice();
    }
-#endif
 
-   return freq;
+   return (uint) lfreq;
+#endif
 }
 
 // ---------------------------------------------------------------------------
@@ -905,22 +912,32 @@ bool BtDriver_StartAcq( void )
 #ifdef USE_THREADS
    sigset_t sigmask;
 
-   pthread_mutex_lock(&vbi_start_mutex);
-   pVbiBuf->hasFailed = FALSE;
-   if (pthread_create(&vbi_thread_id, NULL, BtDriver_Main, NULL) == 0)
+   if ((pVbiBuf != NULL) && (pVbiBuf->vbiPid == -1))
    {
-      sigemptyset(&sigmask);
-      sigaddset(&sigmask, SIGUSR1);
-      pthread_sigmask(SIG_BLOCK, &sigmask, NULL);
+      dprintf0("BtDriver-StartAcq: starting thread\n");
 
-      // wait for the slave to report the initialization result
-      pthread_cond_wait(&vbi_start_cond, &vbi_start_mutex);
-      pthread_mutex_unlock(&vbi_start_mutex);
+      pthread_mutex_lock(&vbi_start_mutex);
+      pVbiBuf->hasFailed = FALSE;
+      if (pthread_create(&vbi_thread_id, NULL, BtDriver_Main, NULL) == 0)
+      {
+         sigemptyset(&sigmask);
+         sigaddset(&sigmask, SIGUSR1);
+         pthread_sigmask(SIG_BLOCK, &sigmask, NULL);
 
-      result = (pVbiBuf->hasFailed == FALSE);
+         // wait for the slave to report the initialization result
+         pthread_cond_wait(&vbi_start_cond, &vbi_start_mutex);
+         pthread_mutex_unlock(&vbi_start_mutex);
+
+         result = (pVbiBuf->hasFailed == FALSE);
+      }
+      else
+         perror("pthread_create");
    }
    else
-      perror("pthread_create");
+   {
+      debug0("BtDriver-StartAcq: acq already running");
+      result = TRUE;
+   }
 
 #else
    struct timeval tv;
@@ -956,11 +973,15 @@ void BtDriver_StopAcq( void )
 #ifdef USE_THREADS
    if (pVbiBuf->vbiPid != -1)
    {
+      dprintf0("BtDriver-StopAcq: killing thread\n");
+
       acqShouldExit = TRUE;
       pthread_kill(vbi_thread_id, SIGUSR1);
       if (pthread_join(vbi_thread_id, NULL) != 0)
          perror("pthread_join");
    }
+   else
+      debug0("BtDriver-StopAcq: acq not running");
 
 #else
    if (pVbiBuf != NULL)
@@ -1020,26 +1041,31 @@ void BtDriver_Exit( void )
 #endif
 }
 
-// ---------------------------------------------------------------------------
-// Die if the parent is no longer alive
-// - called upon VBI ring buffer overlow
-//
-void BtDriver_CheckParent( void )
-{
 #ifndef USE_THREADS
-   if (pVbiBuf != NULL)
+// ---------------------------------------------------------------------------
+// Terminate acq main loop if the parent is no longer alive
+// - not required for threaded mode since we only care for program crashes,
+//   i.e. if the main thread dies, the acq thread dies too
+//
+static void BtDriver_CheckParent( void )
+{
+   if ((pVbiBuf != NULL) && (isVbiProcess == TRUE))
    {
-      if ((isVbiProcess == TRUE) && (pVbiBuf->epgPid != -1))
+      if (pVbiBuf->epgPid != -1)
       {
          if ((kill(pVbiBuf->epgPid, 0) == -1) && (errno == ESRCH))
          {  // process no longer exists -> kill acquisition
             debug1("parent is dead - terminate acq pid %d", pVbiBuf->vbiPid);
             acqShouldExit = TRUE;
          }
+         else
+            dprintf0("BtDriver-CheckParent: parent is alive\n");
       }
+      else
+         acqShouldExit = TRUE;
    }
-#endif
 }
+#endif
 
 // ---------------------------------------------------------------------------
 // Determine the size of the VBI buffer
@@ -1233,6 +1259,8 @@ static void * BtDriver_Main( void * foo )
    sigset_t sigmask;
    #else
    struct timeval tv;
+   uint parentCheckCounter;
+   uint lastReaderIdx;
    #endif
 
    pVbiBuf->vbiPid = getpid();
@@ -1262,9 +1290,11 @@ static void * BtDriver_Main( void * foo )
    #else
    // notify parent that child is ready
    kill(pVbiBuf->epgPid, SIGUSR1);
+   parentCheckCounter = 0;
+   lastReaderIdx = pVbiBuf->reader_idx;;
    #endif
 
-   while ((pVbiBuf != NULL) && (acqShouldExit == FALSE))
+   while (acqShouldExit == FALSE)
    {
       if ( (pVbiBuf->hasFailed == FALSE)
            #ifndef USE_THREADS
@@ -1285,9 +1315,26 @@ static void * BtDriver_Main( void * foo )
          {  // acq was switched on -> open device
             BtDriver_OpenVbi();
          }
-         else if (pVbiBuf->isEnabled)
-         {  // device is open and acq enabled -> capture the VBI lines of this frame
+         else
+         {  // device is open -> capture the VBI lines of this frame
             BtDriver_DecodeFrame();
+
+            #ifndef USE_THREADS
+            // if acq is stalled or the reader is not processing its data anymore
+            // check every 15 secs if the master process is still alive
+            if (lastReaderIdx == pVbiBuf->reader_idx)
+            {
+               parentCheckCounter += 1;
+               if (parentCheckCounter > 15 * 25)
+               {
+                  BtDriver_CheckParent();
+                  parentCheckCounter = 0;
+               }
+            }
+            else
+               parentCheckCounter = 0;
+            lastReaderIdx = pVbiBuf->reader_idx;;
+            #endif
          }
       }
       else
@@ -1309,9 +1356,11 @@ static void * BtDriver_Main( void * foo )
 
       if (pVbiBuf->doQueryFreq && (vbi_fdin != -1))
       {
-         if (ioctl(vbi_fdin, VIDIOCGFREQ, &pVbiBuf->vbiQueryFreq) == 0)
+         ulong lfreq;
+         if (ioctl(vbi_fdin, VIDIOCGFREQ, &lfreq) == 0)
          {
-            dprintf1("BtDriver-Main: QueryChannel got %.2f MHz\n", (double)pVbiBuf->vbiQueryFreq/16);
+            dprintf1("BtDriver-Main: QueryChannel got %.2f MHz\n", (double)lfreq/16);
+            pVbiBuf->vbiQueryFreq = lfreq;
          }
          else
             perror("VIDIOCGFREQ");
@@ -1323,14 +1372,17 @@ static void * BtDriver_Main( void * foo )
 
    BtDriver_CloseVbi();
 
+   pVbiBuf->hasFailed = TRUE;
+
+   #ifdef USE_THREADS
+   pVbiBuf->vbiPid = -1;
+   #else
    if (pVbiBuf->isEnabled)
    {  // notify the parent that acq has stopped (e.g. after SIGTERM)
-      pVbiBuf->hasFailed = TRUE;
-      #ifndef USE_THREADS
       dprintf1("BtDriver-Main: acq slave exiting - signalling parent %d\n", pVbiBuf->epgPid);
       kill(pVbiBuf->epgPid, SIGHUP);
-      #endif
    }
+   #endif
 
    return NULL;
 }

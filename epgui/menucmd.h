@@ -16,23 +16,36 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: menucmd.h,v 1.14 2002/01/26 15:21:30 tom Exp tom $
+ *  $Id: menucmd.h,v 1.17 2002/05/19 21:59:51 tom Exp tom $
  */
 
 #ifndef __MENUCMD_H
 #define __MENUCMD_H
 
 
+// enum parameter to Set-Acquisition-Mode
+typedef enum
+{
+   NETACQ_DEFAULT,   // set netacq mode if netacq_enable == TRUE
+   NETACQ_INVERT,    // set inverse of netacq_enable
+   NETACQ_YES,       // enable network mode
+   NETACQ_NO,        // disable network mode
+   NETACQ_KEEP       // keep currently active mode if acq running; else netacq_enable
+} NETACQ_SET_MODE;
+
+// ---------------------------------------------------------------------------
+// Interface to main control module und UI control module
+//
 void MenuCmd_Init( bool isDemoMode );
 void OpenInitialDb( uint startUiCni );
 
-void SetAcquisitionMode( void );
+void SetAcquisitionMode( NETACQ_SET_MODE netAcqSetMode );
 bool SetDaemonAcquisitionMode( uint cmdLineCni, bool forcePassive );
 int  SetHardwareConfig( Tcl_Interp *interp, int cardIndex );
 void SetNetAcqParams( Tcl_Interp * interp, bool isServer );
-bool IsRemoteAcqEnabled( Tcl_Interp * interp );
 void AutoStartAcq( Tcl_Interp * interp );
-ulong GetProvFreqForCni( uint provCni );
+void MenuCmd_AcqStatsUpdate( void );
+uint GetProvFreqForCni( uint provCni );
 
 
 #endif  // __MENUCMD_H

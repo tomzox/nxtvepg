@@ -21,7 +21,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile.win32,v 1.18 2002/05/05 20:32:07 tom Exp tom $
+#  $Id: Makefile.win32,v 1.24 2002/05/20 18:55:44 tom Exp tom $
 #
 
 # if you have perl set the path here, else just leave it alone
@@ -30,7 +30,7 @@ PERL    = /usr/bin/perl
 # path to the non-Cygwin Tcl/Tk package
 TCLDIR  = /cygdrive/d/gnu/tcl
 
-LDLIBS = -L$(TCLDIR)/lib -ltk83 -ltcl83 -lws2_32
+LDLIBS = -L$(TCLDIR)/lib -ltk83 -ltcl83 -lws2_32 -Ldsdrv -ldsdrv
 #LDLIBS  = -L. -ltcl83 -ltk83
 
 INCS   += -I$(TCLDIR)/include
@@ -43,68 +43,71 @@ DEFS   += -DICON_PATCHED_INTO_DLL
 # enable use of multi-threading (UNIX only)
 #DEFS   += -DUSE_THREADS
 # enable use of daemon and client/server connection (UNIX only)
-#DEFS   += -DUSE_DAEMON
+DEFS   += -DUSE_DAEMON
+# testing TV app interaction on a host without a TV card
 #DEFS   += -DWITHOUT_TVCARD
 
 DEFS   += -DWIN32
 
-WARN    = -Wall -Wpointer-arith -Wnested-externs \
-          -Wmissing-prototypes
-#         -Wstrict-prototypes
-#         -Werror
+WARN    = -Wall -Wpointer-arith -Wnested-externs -Wmissing-prototypes
+#WARN  += -Wstrict-prototypes -Werror
 CC      = gcc
-CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -O2 -mno-cygwin
+CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -g -O -mno-cygwin
 LDFLAGS = -mwindows -mno-cygwin -Wl,--subsystem,windows
 
 # ----- don't change anything below ------------------------------------------
 
-MODS    = epgvbi/btdrv4win epgvbi/vbidecode epgvbi/hamming \
+MODS    = epgvbi/btdrv4win epgvbi/vbidecode epgvbi/ttxdecode epgvbi/hamming \
           epgvbi/tvchan epgvbi/cni_tables epgvbi/winshmsrv \
-          dsdrv/dsdrv34 dsdrv/hwdrv dsdrv/hwpci dsdrv/debuglog \
           epgctl/debug epgctl/epgacqctl epgctl/epgscan epgctl/epgctxctl \
           epgctl/epgctxmerge epgctl/epgacqsrv epgctl/epgacqclnt \
-          epgdb/epgdbacq epgdb/epgstream epgdb/epgdbmerge epgdb/epgdbsav \
+          epgdb/epgstream epgdb/epgdbmerge epgdb/epgdbsav \
           epgdb/epgdbmgmt epgdb/epgdbif epgdb/epgdbfil epgdb/epgblock \
           epgdb/epgqueue epgdb/epgtscqueue epgdb/epgnetio \
           epgui/uictrl epgui/pilistbox epgui/pioutput epgui/pifilter \
           epgui/epgui epgui/help epgui/statswin epgui/timescale \
           epgui/pdc_themes epgui/menucmd epgui/epgtxtdump epgui/epgmain \
-          epgui/wintv epgui/wintvcfg epgui/tcl_libs
+          epgui/wintv epgui/wintvcfg epgui/tcl_libs epgui/tk_libs
 
-SIM_MODS      = tvsim/tvsim_main tvsim/winshmclnt tvsim/tvsim_gui
-SIM_MODS2     = epgvbi/btdrv4win epgvbi/vbidecode epgvbi/hamming epgvbi/cni_tables \
-                dsdrv/dsdrv34 dsdrv/hwdrv dsdrv/hwpci dsdrv/debuglog \
-                epgdb/epgdbacq epgctl/debug epgui/pdc_themes epgui/wintvcfg \
-                epgui/tcl_libs
+DSDRV_MODS    = dsdrv/dsdrv34 dsdrv/hwdrv dsdrv/hwpci dsdrv/debuglog
+TVSIM_MODS    = tvsim/tvsim_main tvsim/winshmclnt tvsim/tvsim_gui
+TVSIM_MODS2   = epgvbi/btdrv4win epgvbi/vbidecode epgvbi/hamming epgvbi/cni_tables \
+                epgvbi/ttxdecode epgctl/debug epgui/pdc_themes epgui/wintvcfg \
+                epgui/tcl_libs epgui/tk_libs
 VBIREC_MODS   = tvsim/vbirec_main tvsim/vbirec_gui
 VBIREC_MODS2  = epgvbi/winshmsrv epgvbi/cni_tables epgvbi/hamming \
-                epgctl/debug epgui/tcl_libs
+                epgctl/debug epgui/tcl_libs epgui/tk_libs
 VBIPLAY_MODS  = tvsim/vbiplay
 VBIPLAY_MODS2 = tvsim/winshmclnt epgctl/debug
 
 SRCS          = $(addsuffix .c, $(MODS))
 OBJS          = $(addsuffix .o, $(MODS)) epgui/tkwinico.res.o
-SIM_SRCS      = $(addsuffix .c, $(SIM_MODS))
-SIM_OBJS      = $(addsuffix .o, $(SIM_MODS))  $(addsuffix .o, $(SIM_MODS2))
+DSDRV_SRCS    = $(addsuffix .c, $(DSDRV_MODS))
+DSDRV_OBJS    = $(addsuffix .o, $(DSDRV_MODS))
+TVSIM_SRCS    = $(addsuffix .c, $(TVSIM_MODS))
+TVSIM_OBJS    = $(addsuffix .o, $(TVSIM_MODS))  $(addsuffix .o, $(TVSIM_MODS2))
 VBIREC_SRCS   = $(addsuffix .c, $(VBIREC_MODS))
 VBIREC_OBJS   = $(addsuffix .o, $(VBIREC_MODS))  $(addsuffix .o, $(VBIREC_MODS2))
 VBIPLAY_SRCS  = $(addsuffix .c, $(VBIREC_MODS))
 VBIPLAY_OBJS  = $(addsuffix .o, $(VBIPLAY_MODS))  $(addsuffix .o, $(VBIPLAY_MODS2))
 
-all: nxtvepg.exe tvsim.exe vbirec.exe vbiplay.exe
+all: nxtvepg.exe tvsim.exe vbirec.exe vbiplay.exe manuals
 .PHONY: all
 
-nxtvepg.exe: $(OBJS)
+nxtvepg.exe: $(OBJS) dsdrv/libdsdrv.a
 	$(CC) $(LDFLAGS) $(OBJS) $(LDLIBS) -o nxtvepg.exe
 
-tvsim.exe: $(SIM_OBJS)
-	$(CC) $(LDFLAGS) $(SIM_OBJS) $(LDLIBS) -o tvsim.exe
+tvsim.exe: $(TVSIM_OBJS) dsdrv/libdsdrv.a
+	$(CC) $(LDFLAGS) $(TVSIM_OBJS) $(LDLIBS) -o tvsim.exe
 
 vbirec.exe: $(VBIREC_OBJS)
 	$(CC) $(LDFLAGS) $(VBIREC_OBJS) $(LDLIBS) -o vbirec.exe
 
 vbiplay.exe: $(VBIPLAY_OBJS)
 	$(CC) $(LDFLAGS) $(VBIPLAY_OBJS) $(LDLIBS) -o vbiplay.exe
+
+dsdrv/libdsdrv.a: $(DSDRV_OBJS)
+	$(AR) r dsdrv/libdsdrv.a $(DSDRV_OBJS)
 
 ##%.o: %.c
 ##	$(CC) $(CFLAGS) -c *.c -o *.o
@@ -125,10 +128,18 @@ epgui/help.c: epgui/help.tcl tcl2c.exe
 	egrep -v '^ *#' epgui/help.tcl | ./tcl2c.exe help_tcl_script > epgui/help.c
 
 epgui/tcl_libs.c: tcl2c.exe
-	if test -d tcl8.3.2 -a -d tk8.3.2; then \
-	  cat tcl8.3.2/* tk8.3.2/* | ./tcl2c.exe tcl_init_scripts > epgui/tcl_libs.c; \
+	if test -d tcl8.3.2; then \
+	  cat tcl8.3.2/* | ./tcl2c.exe tcl_init_scripts > epgui/tcl_libs.c; \
 	else \
-	  echo "Tcl and/or Tk init scripts not found - abort."; \
+	  echo "Tcl init scripts not found - abort."; \
+	  false; \
+	fi
+
+epgui/tk_libs.c: tcl2c.exe
+	if test -d tk8.3.2; then \
+	  cat tk8.3.2/* | ./tcl2c.exe tk_init_scripts > epgui/tk_libs.c; \
+	else \
+	  echo "Tk init scripts not found - abort."; \
 	  false; \
 	fi
 
@@ -137,15 +148,15 @@ epgui/tkwinico.res.o: epgui/tkwinico.rc
 
 nxtvepg.1 manual.html epgui/help.tcl: nxtvepg.pod pod2help.pl
 	@if test -x $(PERL); then \
-	  EPG_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*EPG_VERSION_STR' epgctl/epgversion.h | head -1 | cut -d\" -f2`; \
-	  echo "./pod2help.pl nxtvepg.pod > epgui/help.tcl"; \
-	  ./pod2help.pl nxtvepg.pod > epgui/help.tcl; \
+	  EPG_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*EPG_VERSION_STR' epgctl/epgversion.h | head -2 | tail -1 | cut -d\" -f2`; \
+	  echo "$(PERL) pod2help.pl nxtvepg.pod > epgui/help.tcl"; \
+	  $(PERL) pod2help.pl nxtvepg.pod > epgui/help.tcl; \
 	  echo "pod2man nxtvepg.pod > nxtvepg.1"; \
 	  pod2man -date " " -center "Nextview EPG Decoder" -section "1" \
 	          -release "nxtvepg "$$EPG_VERSION_STR" (C) 1999-2002 Tom Zoerner" \
-	     nxtvepg.pod > nxtvepg.1; \
+	          nxtvepg.pod > nxtvepg.1; \
 	  echo "pod2html nxtvepg.pod > manual.html"; \
-	  pod2html nxtvepg.pod > manual.html; \
+	  pod2html nxtvepg.pod | $(PERL) -p -e 's/HREF="#[^:]+: +/HREF="#/g;' > manual.html; \
 	  rm -f pod2htm?.x~~ pod2html-{dircache,itemcache}; \
 	elif test -f epgui/help.tcl; then \
 	  touch epgui/help.tcl; \
@@ -160,28 +171,61 @@ tvsim/tvsim.1 tvsim/tvsim.html: tvsim/tvsim.pod
 	  echo "pod2man tvsim/tvsim.pod > tvsim/tvsim.1"; \
 	  pod2man -date " " -center "TV app interaction simulator" -section "1" \
 	          -release "tvsim "$$TVSIM_VERSION_STR" (C) 2002 Tom Zoerner" \
-	     tvsim/tvsim.pod > tvsim/tvsim.1; \
+	          tvsim/tvsim.pod > tvsim/tvsim.1; \
 	  echo "pod2html tvsim/tvsim.pod > tvsim/tvsim.html"; \
-	  pod2html tvsim/tvsim.pod > tvsim/tvsim.html; \
+	  pod2html tvsim/tvsim.pod | $(PERL) -p -e 's/HREF="#[^:]+: +/HREF="#/g;' > tvsim/tvsim.html; \
 	  rm -f pod2htm?.x~~ pod2html-{dircache,itemcache}; \
 	else \
 	  echo "ERROR: cannot generate tvsim HTML or nroff manuals without Perl"; \
 	  false; \
 	fi
 
+tvsim/vbirec.1 tvsim/vbirec.html: tvsim/vbirec.pod
+	@if test -x $(PERL); then \
+	  TVSIM_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*TVSIM_VERSION_STR' tvsim/tvsim_main.c | head -1 | cut -d\" -f2`; \
+	  echo "pod2man tvsim/vbirec.pod > tvsim/vbirec.1"; \
+	  pod2man -date " " -center "VBI recorder" -section "1" \
+	          -release "vbirec (C) 2002 Tom Zoerner" \
+	          tvsim/vbirec.pod > tvsim/vbirec.1; \
+	  echo "pod2html tvsim/vbirec.pod > tvsim/vbirec.html"; \
+	  pod2html tvsim/vbirec.pod | $(PERL) -p -e 's/HREF="#[^:]+: +/HREF="#/g;' > tvsim/vbirec.html; \
+	  rm -f pod2htm?.x~~ pod2html-{dircache,itemcache}; \
+	else \
+	  echo "ERROR: cannot generate vbirec HTML or nroff manuals without Perl"; \
+	  false; \
+	fi
+
+tvsim/vbiplay.1 tvsim/vbiplay.html: tvsim/vbiplay.pod
+	@if test -x $(PERL); then \
+	  TVSIM_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*TVSIM_VERSION_STR' tvsim/tvsim_main.c | head -1 | cut -d\" -f2`; \
+	  echo "pod2man tvsim/vbiplay.pod > tvsim/vbiplay.1"; \
+	  pod2man -date " " -center "VBI playback tool" -section "1" \
+	          -release "vbiplay (C) 2002 Tom Zoerner" \
+	          tvsim/vbiplay.pod > tvsim/vbiplay.1; \
+	  echo "pod2html tvsim/vbiplay.pod > tvsim/vbiplay.html"; \
+	  pod2html tvsim/vbiplay.pod | $(PERL) -p -e 's/HREF="#[^:]+: +/HREF="#/g;' > tvsim/vbiplay.html; \
+	  rm -f pod2htm?.x~~ pod2html-{dircache,itemcache}; \
+	else \
+	  echo "ERROR: cannot generate vbiplay HTML or nroff manuals without Perl"; \
+	  false; \
+	fi
+
+.PHONY: manuals
+manuals: tvsim/tvsim.html tvsim/vbirec.html tvsim/vbiplay.html
+
 .PHONY: clean depend zip
 clean:
-	-rm -f *.o epg*/*.o tvsim/*.o dsdrv/*.o core a.exe tcl2c.exe
+	-rm -f *.o epg*/*.o tvsim/*.o dsdrv/*.o dsdrv/libdsdrv.a core a.exe tcl2c.exe
 	-rm -f nxtvepg.exe tvsim.exe vbirec.exe vbiplay.exe
-	-rm -f epgui/epgui.c epgui/help.c epgui/tcl_libs.c
+	-rm -f epgui/epgui.c epgui/help.c epgui/tcl_libs.c epgui/tk_libs.c
 	-rm -f tvsim/tvsim_gui.c tvsim/vbirec_gui.c
 	-rm -f epgui/tkwinico.res
 
 depend:
 	-:>Makefile.depwin
-	DIRLIST=`(for cmod in $(SRCS) $(SIM_SRCS) $(VBIREC_SRCS) $(VBIPLAY_SRCS); do echo $$cmod; done) | cut -d/ -f1 | sort -u`; \
+	DIRLIST=`(for cmod in $(SRCS) $(DSDRV_SRCS) $(TVSIM_SRCS) $(VBIREC_SRCS) $(VBIPLAY_SRCS); do echo $$cmod; done) | cut -d/ -f1 | sort -u`; \
 	for dir in $$DIRLIST; do \
-	  CLIST=`(for src in $(SRCS) $(SIM_SRCS) $(VBIREC_SRCS); do echo $$src; done) | grep $$dir/`; \
+	  CLIST=`(for src in $(SRCS) $(DSDRV_SRCS) $(TVSIM_SRCS) $(VBIREC_SRCS); do echo $$src; done) | grep $$dir/`; \
 	  gcc -MM $(INCS) $(DEFS) $$CLIST | \
 	  sed -e 's#^.*\.o#'$$dir/'&#g' >> Makefile.depwin; \
 	done
@@ -191,13 +235,21 @@ zip:
 	ARCHIVE=nxtvepg-$${EPG_VERSION_STR}.zip; \
 	rm -f $$ARCHIVE; \
         strip nxtvepg.exe; \
-	zip $$ARCHIVE nxtvepg.exe tcl83.dll tk83.dll nxtvepg.ico; \
+	zip $$ARCHIVE nxtvepg.exe tcl83.dll tk83.dll dsdrv4.sys dsdrv4.vxd nxtvepg.ico; \
 	zip $$ARCHIVE -l manual.html; \
 	for v in TODO README CHANGES COPYRIGHT; do \
 	   mv $$v $${v}.txt; \
 	   zip -l $$ARCHIVE $${v}.txt; \
 	   mv $${v}.txt $$v; \
-	done
+	done; \
+	ARCHIVE=nxtvepg-$${EPG_VERSION_STR}-tvsim.zip; \
+	rm -f $$ARCHIVE; \
+        strip tvsim.exe vbirec.exe vbiplay.exe; \
+	zip $$ARCHIVE tvsim.exe vbirec.exe vbiplay.exe; \
+	cd tvsim && zip ../$$ARCHIVE -l tvsim.html vbirec.html vbiplay.html && cd ..; \
+        mv COPYRIGHT COPYRIGHT2.txt; \
+	zip -l $$ARCHIVE COPYRIGHT2.txt; \
+	mv COPYRIGHT2.txt COPYRIGHT
 
 bak:
 	cd .. && tar cf /e/winpc.tar pc -X pc/tar-ex-win

@@ -76,10 +76,10 @@ CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -g -O2
 # ----- don't change anything below ------------------------------------------
 
 CSRC    = epgvbi/vbidecode epgvbi/tvchan epgvbi/btdrv4dummy epgvbi/hamming \
-          epgvbi/cni_tables \
+          epgvbi/ttxdecode epgvbi/cni_tables \
           epgctl/debug epgctl/epgacqctl epgctl/epgscan epgctl/epgctxctl \
           epgctl/epgctxmerge epgctl/epgacqclnt epgctl/epgacqsrv \
-          epgdb/epgdbacq epgdb/epgstream epgdb/epgdbmerge epgdb/epgdbsav \
+          epgdb/epgstream epgdb/epgdbmerge epgdb/epgdbsav \
           epgdb/epgdbmgmt epgdb/epgdbif epgdb/epgdbfil epgdb/epgblock \
           epgdb/epgnetio epgdb/epgqueue epgdb/epgtscqueue \
           epgui/uictrl epgui/pilistbox epgui/pioutput epgui/pifilter \
@@ -119,8 +119,8 @@ epgui/help.c: epgui/help.tcl tcl2c
 nxtvepg.1 man.html epgui/help.tcl: nxtvepg.pod pod2help.pl
 	@if test -x $(PERL); then \
 	  EPG_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*EPG_VERSION_STR' epgctl/epgversion.h | head -1 | cut -d\" -f2`; \
-	  echo "./pod2help.pl nxtvepg.pod > epgui/help.tcl"; \
-	  ./pod2help.pl nxtvepg.pod > epgui/help.tcl; \
+	  echo "$(PERL) pod2help.pl nxtvepg.pod > epgui/help.tcl"; \
+	  $(PERL) pod2help.pl nxtvepg.pod > epgui/help.tcl; \
 	  echo "pod2man nxtvepg.pod > nxtvepg.1"; \
 	  pod2man -date " " -center "Nextview EPG Decoder" -section "1" \
 	          -release "nxtvepg "$$EPG_VERSION_STR" (C) 1999-2001 Tom Zoerner" \

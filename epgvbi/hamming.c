@@ -18,12 +18,12 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: hamming.c,v 1.7 2001/02/25 15:59:43 tom Exp tom $
+ *  $Id: hamming.c,v 1.8 2002/05/12 20:19:13 tom Exp tom $
  */
 
 #define __HAMMING_C
 
-#define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
+#define DEBUG_SWITCH DEBUG_SWITCH_VBI
 #define DPRINTF_OFF
 
 #include "epgctl/mytypes.h"

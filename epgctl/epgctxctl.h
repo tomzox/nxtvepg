@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgctxctl.h,v 1.13 2002/01/05 19:36:31 tom Exp tom $
+ *  $Id: epgctxctl.h,v 1.14 2002/05/11 15:44:51 tom Exp tom $
  */
 
 #ifndef __EPGCTXCTL_H
@@ -46,10 +46,10 @@ void EpgContextCtl_ClosePeek( EPGDB_CONTEXT * pDbContext );
 
 uint EpgContextCtl_GetProvCount( void );
 const uint * EpgContextCtl_GetProvList( uint * pCount );
-uint EpgContextCtl_GetFreqList( uint ** ppProvList, ulong ** ppFreqList );
+uint EpgContextCtl_GetFreqList( uint ** ppProvList, uint ** ppFreqList );
 time_t EpgContextCtl_GetAiUpdateTime( uint cni );
 
-bool EpgContextCtl_UpdateFreq( uint cni, ulong freq );
+bool EpgContextCtl_UpdateFreq( uint cni, uint freq );
 void EpgContextCtl_LockDump( bool enable );
 
 void EpgContextCtl_InitCache( void );

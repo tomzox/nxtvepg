@@ -21,10 +21,10 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: cni_tables.c,v 1.14 2002/05/04 18:21:29 tom Exp tom $
+ *  $Id: cni_tables.c,v 1.15 2002/05/12 20:20:31 tom Exp tom $
  */
 
-#define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
+#define DEBUG_SWITCH DEBUG_SWITCH_VBI
 #define DPRINTF_OFF
 
 #include "epgctl/mytypes.h"
@@ -132,11 +132,11 @@ static const CNI_PDC_DESC cni_pdc_desc_table[] =
    {0x1D43, 0x4943, "EXTRA"},
    {0x1D44, 0x4944, "BR-Alpha: Bildungskanal des Bayerischen Rundfunks"},
    {0x1D7A, 0x0000, "n24"},
+   {0x1D7B, 0x0000, "Tele-5"},
    {0x1D7C, 0x0000, "ONYX-TV"},
    {0x1D7D, 0x5C49, "QVC-Teleshopping"},
    {0x1D7E, 0x0000, "Nickelodeon"},
    {0x1D7F, 0x49BF, "Home Shopping Europe"},
-   {0x1D80, 0x0000, "Tele-5"},
    {0x1D81, 0x0000, "ORB-1: Regionalprogramm"},
    {0x1D82, 0x4982, "ORB-3: Ostdeutscher Rundfunk Brandenburg"},
    {0x1D85, 0x490A, "Arte"},

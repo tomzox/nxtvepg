@@ -15,12 +15,14 @@
 //  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 //  GNU General Public License for more details
 /////////////////////////////////////////////////////////////////////////////
-// nxtvepg $Id: hwdrv.h,v 1.1 2002/05/04 18:39:12 tom Exp tom $
+// nxtvepg $Id: hwdrv.h,v 1.3 2002/05/10 00:16:50 tom Exp tom $
 /////////////////////////////////////////////////////////////////////////////
 
 #ifndef __HARDWAREDRIVER_H___
 #define __HARDWAREDRIVER_H___
 
+
+#define NT_DRIVER_NAME "DSDrv4"
 
 /** Allows access to the DSDrv4 driver
 */
@@ -60,12 +62,8 @@ DWORD HwDrv_SendCommand(
                DWORD dwInputLength
             );
 
-BOOL HwDrv_DoesThisPCICardExist(
-                        WORD VendorID, 
-                        WORD DeviceID, 
-                        int DeviceIndex, 
-                        DWORD *SubSystemId
-                     );
+BOOL HwDrv_DoesThisPCICardExist(WORD VendorID, WORD DeviceID, int DeviceIndex,
+                                DWORD * pdwSubSystemId, DWORD * pdwBusNumber, DWORD * pdwSlotNumber);
 
 
 #endif

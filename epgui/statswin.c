@@ -33,7 +33,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: statswin.c,v 1.58 2002/04/29 20:32:15 tom Exp tom $
+ *  $Id: statswin.c,v 1.59 2002/05/10 14:58:43 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -47,8 +47,9 @@
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
+
+#include "epgvbi/ttxdecode.h"
 #include "epgdb/epgblock.h"
-#include "epgdb/epgdbacq.h"
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
 #include "epgctl/epgacqctl.h"

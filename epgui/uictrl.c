@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: uictrl.c,v 1.25 2002/04/29 20:33:29 tom Exp $
+ *  $Id: uictrl.c,v 1.28 2002/05/19 22:01:05 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -43,6 +43,7 @@
 #include "epgctl/epgctxmerge.h"
 #include "epgctl/epgacqctl.h"
 #include "epgctl/epgscan.h"
+#include "epgctl/epgacqsrv.h"
 #include "epgctl/epgacqclnt.h"
 #include "epgui/epgmain.h"
 #include "epgui/pifilter.h"
@@ -260,7 +261,7 @@ void UiControl_AiStateChange( ClientData clientData )
       pUiDbContext = EpgContextCtl_Open(EpgDbContextGetCni(pAcqDbContext), CTX_FAIL_RET_DUMMY, CTX_RELOAD_ERR_ANY);
 
       // update acq CNI list in case follow-ui acq mode is selected
-      SetAcquisitionMode();
+      SetAcquisitionMode(NETACQ_KEEP);
       // display the data from the new db
       PiListBox_Reset();
    }
@@ -302,9 +303,9 @@ void UiControl_AiStateChange( ClientData clientData )
 // Add or update an EPG provider channel frequency in the rc/ini file
 // - called by acq control when the first AI is received after a provider change
 //
-void UiControlMsg_NewProvFreq( uint cni, ulong freq )
+void UiControlMsg_NewProvFreq( uint cni, uint freq )
 {
-   sprintf(comm, "UpdateProvFrequency {0x%04X %ld}\n", cni, freq);
+   sprintf(comm, "UpdateProvFrequency {0x%04X %d}\n", cni, freq);
    eval_check(interp, comm);
 }
 
@@ -312,7 +313,7 @@ void UiControlMsg_NewProvFreq( uint cni, ulong freq )
 // Query the frequency for the given provider stored in the rc/ini file
 // - used by acq control upon provider changes
 //
-ulong UiControlMsg_QueryProvFreq( uint cni )
+uint UiControlMsg_QueryProvFreq( uint cni )
 {
    return GetProvFreqForCni(cni);
 }
@@ -524,7 +525,7 @@ static void UiControl_NetAcqError( ClientData clientData )
       comm2 = xmalloc(2048);
       sprintf(comm2, "tk_messageBox -type ok -icon warning -parent . "
                      "-message {An error occurred in the network connection to the acquisition "
-                               "server: %s."
+                               "server: %s"
                                "}\n", netState.cause);
       eval_check(interp, comm2);
       xfree(comm2);
@@ -602,6 +603,7 @@ void UiControlMsg_AcqEvent( ACQ_EVENT acqEvent )
          case ACQ_EVENT_STATS_UPDATE:
             StatsWin_StatsUpdate(DB_TARGET_ACQ);
             TimeScale_AcqStatsUpdate();
+            MenuCmd_AcqStatsUpdate();
             break;
 
          case ACQ_EVENT_PI_ADDED:

@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: btdrv4dummy.c,v 1.8 2002/04/29 19:03:14 tom Exp tom $
+ *  $Id: btdrv4dummy.c,v 1.9 2002/05/11 15:42:50 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -62,12 +62,12 @@ bool BtDriver_IsVideoPresent( void )
    return FALSE;
 }
 
-bool BtDriver_TuneChannel( ulong freq, bool keepOpen )
+bool BtDriver_TuneChannel( uint freq, bool keepOpen )
 {
    return FALSE;
 }
 
-ulong BtDriver_QueryChannel( void )
+uint BtDriver_QueryChannel( void )
 {
    return 0;
 }

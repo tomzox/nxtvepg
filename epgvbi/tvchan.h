@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: tvchan.h,v 1.5 2002/04/29 19:03:37 tom Exp tom $
+ *  $Id: tvchan.h,v 1.6 2002/05/11 15:42:50 tom Exp tom $
  */
 
 #ifndef __TVCHAN_H
@@ -26,11 +26,11 @@
 // ---------------------------------------------------------------------------
 // declaration of service interface functions
 //
-bool TvChannels_GetNext( uint *pChan, ulong *pFreq );
+bool TvChannels_GetNext( uint *pChan, uint *pFreq );
 int  TvChannels_GetCount( void );
 void TvChannels_GetName( uint channel, uchar * pName, uint maxNameLen );
 void TvChannels_SelectFreqTable( uint tableIdx );
-ulong TvChannels_NameToFreq( const char * pName );
+uint TvChannels_NameToFreq( const char * pName );
 
 
 #endif  // __TVCHAN_H

@@ -24,7 +24,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile,v 1.41 2002/05/05 20:30:58 tom Exp tom $
+#  $Id: Makefile,v 1.44 2002/05/20 15:52:44 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -72,11 +72,11 @@ CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -O2
 
 # ----- don't change anything below ------------------------------------------
 
-CSRC    = epgvbi/btdrv4linux epgvbi/vbidecode epgvbi/hamming \
+CSRC    = epgvbi/btdrv4linux epgvbi/vbidecode epgvbi/ttxdecode epgvbi/hamming \
           epgvbi/tvchan epgvbi/cni_tables \
           epgctl/debug epgctl/epgacqctl epgctl/epgscan epgctl/epgctxctl \
           epgctl/epgctxmerge epgctl/epgacqclnt epgctl/epgacqsrv \
-          epgdb/epgdbacq epgdb/epgstream epgdb/epgdbmerge epgdb/epgdbsav \
+          epgdb/epgstream epgdb/epgdbmerge epgdb/epgdbsav \
           epgdb/epgdbmgmt epgdb/epgdbif epgdb/epgdbfil epgdb/epgblock \
           epgdb/epgnetio epgdb/epgqueue epgdb/epgtscqueue \
           epgui/uictrl epgui/pilistbox epgui/pioutput epgui/pifilter \
@@ -91,7 +91,7 @@ all: nxtvepg nxtvepg.1
 .PHONY: all
 
 nxtvepg: $(OBJS)
-	$(CC) $(CFLAGS) $(INCS) $(LDFLAGS) -o nxtvepg $(OBJS) $(LDLIBS)
+	$(CC) $(LDFLAGS) -o nxtvepg $(OBJS) $(LDLIBS)
 
 install: nxtvepg nxtvepg.1
 	test -d $(bindir) || mkdirhier $(bindir)
@@ -117,14 +117,14 @@ epgui/help.c: epgui/help.tcl tcl2c
 nxtvepg.1 manual.html epgui/help.tcl: nxtvepg.pod pod2help.pl
 	@if test -x $(PERL); then \
 	  EPG_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*EPG_VERSION_STR' epgctl/epgversion.h | head -1 | cut -d\" -f2`; \
-	  echo "./pod2help.pl nxtvepg.pod > epgui/help.tcl"; \
-	  ./pod2help.pl nxtvepg.pod > epgui/help.tcl; \
+	  echo "$(PERL) pod2help.pl nxtvepg.pod > epgui/help.tcl"; \
+	  $(PERL) pod2help.pl nxtvepg.pod > epgui/help.tcl; \
 	  echo "pod2man nxtvepg.pod > nxtvepg.1"; \
 	  pod2man -date " " -center "Nextview EPG Decoder" -section "1" \
 	          -release "nxtvepg "$$EPG_VERSION_STR" (C) 1999-2002 Tom Zoerner" \
 	     nxtvepg.pod > nxtvepg.1; \
 	  echo "pod2html nxtvepg.pod > manual.html"; \
-	  pod2html nxtvepg.pod > manual.html; \
+	  pod2html nxtvepg.pod | $(PERL) -p -e 's/HREF="#[^:]+: +/HREF="#/g;' > manual.html; \
 	  rm -f pod2htm?.x~~ pod2html-{dircache,itemcache}; \
 	elif test -f epgui/help.tcl; then \
 	  touch epgui/help.tcl; \

@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgstream.c,v 1.19 2002/05/01 17:51:53 tom Exp tom $
+ *  $Id: epgstream.c,v 1.21 2002/05/10 18:01:18 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -31,6 +31,9 @@
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
+
+#include "epgvbi/btdrv.h"
+#include "epgvbi/ttxdecode.h"
 #include "epgvbi/hamming.h"
 #include "epgdb/epgblock.h"
 #include "epgui/epgtxtdump.h"
@@ -59,17 +62,20 @@ typedef struct
    uchar   blockBuf[NXTV_BLOCK_MAXLEN + 4];
 } NXTV_STREAM;
 
-// max. number of pages that are allowed for EPG transmission: mFd & mdF: m[0..7],d[0..9]
-#define NXTV_VALID_PAGE_PER_MAG (1 + 10 + 10)
-#define NXTV_VALID_PAGE_COUNT   (8 * NXTV_VALID_PAGE_PER_MAG)
+// ---------------------------------------------------------------------------
+// struct that holds the state of the ttx decoder in the master process
+//
+#define HEADER_CHECK_LEN         12
+#define HEADER_CHECK_LEN_STR    "12"   // for debug output
+#define HEADER_CHECK_MAX_ERRORS   2
 
-typedef struct
+static struct
 {
-   uchar   pkgCount;
-   uchar   lastPkg;
-   uchar   okCount;
-} PAGE_SCAN_STATE;
-
+   uint     epgPageNo;
+   bool     isEpgPage;
+   bool     bHeaderCheckInit;
+   uchar    lastPageHeader[HEADER_CHECK_LEN];
+} ttxState;
 
 // ----------------------------------------------------------------------------
 // local variables
@@ -79,9 +85,6 @@ static uchar       streamOfPage;
 static EPGDB_QUEUE * pBlockQueue = NULL;
 static uint        epgStreamAppId;
 static bool        enableAllTypes;
-
-static PAGE_SCAN_STATE scanState[NXTV_VALID_PAGE_COUNT];
-static int             lastMagIdx[8];
 
 
 // ----------------------------------------------------------------------------
@@ -332,7 +335,7 @@ static uint EpgStreamAddData( const uchar * dat, uint restLine, bool isNewBlock 
 // - the function uses two separate internal states the two streams
 // - a single teletext packet can produce several blocks
 //
-void EpgStreamDecodePacket( uchar packNo, const uchar * dat )
+static void EpgStreamDecodePacket( uchar packNo, const uchar * dat )
 {
    NXTV_STREAM * const psd = &streamData[streamOfPage];
    schar c1;
@@ -399,7 +402,7 @@ void EpgStreamDecodePacket( uchar packNo, const uchar * dat )
 // - returns TRUE if this is an EPG page, i.e. if the rest of the packets
 //   should be passed into the decoder
 //
-bool EpgStreamNewPage( uint sub )
+static bool EpgStreamNewPage( uint sub )
 {
    uchar newCi, newPkgCount, firstPkg;
    bool  result = FALSE;
@@ -465,9 +468,124 @@ bool EpgStreamNewPage( uint sub )
 }
 
 // ---------------------------------------------------------------------------
+// Check the page-header of the current page
+// - the acquisition control should immediately stop insertion of acquired
+//   blocks, until a new instance of an AI block has been received and
+//   its CNI evaluated
+// - the page header comparison fails if more than 3 characters are
+//   different; we need some tolerance here, sonce the page header
+//   is only parity protected
+//
+static bool EpgStreamPageHeaderCheck( const uchar * curPageHeader )
+{
+   uint  i, err;
+   schar dec;
+   bool  result = TRUE;
+
+   if (ttxState.bHeaderCheckInit)
+   {
+      err = 0;
+      for (i=0; i < HEADER_CHECK_LEN; i++)
+      {
+         dec = (schar)parityTab[curPageHeader[i]];
+         if ( (dec >= 0) && (dec != ttxState.lastPageHeader[i]) )
+         {  // Abweichung gefunden
+            err += 1;
+         }
+      }
+
+      if (err > HEADER_CHECK_MAX_ERRORS)
+      {
+         debug2("EpgStream-PageHeaderCheck: %d diffs from header \"%" HEADER_CHECK_LEN_STR "s\" - stop acq", err, ttxState.lastPageHeader);
+         result = FALSE;
+      }
+   }
+   else
+   {  // erster Aufruf -> Parity dekodieren; falls fehlerfrei abspeichern
+      for (i=0; i < HEADER_CHECK_LEN; i++)
+      {
+         dec = (schar)parityTab[ curPageHeader[i] ];
+         if (dec >= 0)
+         {
+            ttxState.lastPageHeader[i] = dec;
+         }
+         else
+            break;
+      }
+
+      // erst OK wenn fehlerfrei abgespeichert
+      if (i >= HEADER_CHECK_LEN)
+      {
+         dprintf1("EpgStream-PageHeaderCheck: found header \"%" HEADER_CHECK_LEN_STR "s\"\n", ttxState.lastPageHeader);
+         ttxState.bHeaderCheckInit = TRUE;
+      }
+   }
+
+   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Retrieve all available packets from VBI buffer and convert them to EPG blocks
+// - at this point the EPG database process/thread takes the data from the
+//   teletext acquisition process
+// - returns FALSE when an uncontrolled channel change was detected; the caller
+//   then should reset the acquisition
+//
+bool EpgStreamProcessPackets( void )
+{
+   const VBI_LINE * pVbl;
+   bool freePrevPkg   = FALSE;
+   bool channelChange = TRUE;
+
+   if ( (pVbiBuf != NULL) &&
+        (pVbiBuf->chanChangeReq == pVbiBuf->chanChangeCnf) )
+   {
+      // fetch the oldest packet from the teletext ring buffer
+      while ( (pVbl = TtxDecode_GetPacket(freePrevPkg)) != NULL )
+      {
+         freePrevPkg = TRUE;
+
+         //dprintf4("Process idx=%d: pkg=%d pg=%03X.%04X\n", pVbiBuf->reader_idx, pVbl->pkgno, pVbl->pageno, pVbl->sub);
+         if (pVbl->pkgno == 0)
+         {
+            // have to check page number again for the case of a page number change, in which
+            // the separate teletext thread would finish its current page with the wrong number
+            if (pVbl->pageno == ttxState.epgPageNo)
+            {
+               if ( EpgStreamPageHeaderCheck(pVbl->data + 13 - 5) == FALSE )
+               {
+                  ttxState.bHeaderCheckInit = FALSE;
+                  // abort processing remaining data
+                  channelChange = FALSE;
+                  break;
+               }
+               else
+                  ttxState.isEpgPage = EpgStreamNewPage(pVbl->sub);
+            }
+            else
+            {  // found an unexpected ttx page in the buffer
+               debug1("EpgStream-ProcessPackets: found non-EPG page %03X", pVbl->pageno);
+               ttxState.isEpgPage = FALSE;
+            }
+         }
+         else
+         {
+            if (ttxState.isEpgPage)
+            {
+               EpgStreamDecodePacket(pVbl->pkgno, pVbl->data);
+            }
+            else
+               debug1("EpgStream-ProcessPackets: discarding pkg %d on non-EPG page", pVbl->pkgno);
+         }
+      }
+   }
+   return channelChange;
+}
+
+// ---------------------------------------------------------------------------
 // Initialize the internal decoder state
 //
-void EpgStreamInit( EPGDB_QUEUE *pDbQueue, bool bWaitForBiAi, uint appId )
+void EpgStreamInit( EPGDB_QUEUE *pDbQueue, bool bWaitForBiAi, uint appId, uint pageNo )
 {
    memset(&streamData, 0, sizeof(streamData));
    streamOfPage   = NXTV_NO_STREAM;
@@ -475,11 +593,15 @@ void EpgStreamInit( EPGDB_QUEUE *pDbQueue, bool bWaitForBiAi, uint appId )
    enableAllTypes = !bWaitForBiAi;
    pBlockQueue    = pDbQueue;
 
+   // initialize the decoder state in the master process
+   ttxState.epgPageNo = pageNo;
+   ttxState.isEpgPage = FALSE;
+   ttxState.bHeaderCheckInit = FALSE;
+
    // note: intentionally using clear func instead of overwriting the pointer with NULL
    // (simplifies upper layers' state machines: start acq may be called while acq is already running)
    EpgDbQueue_Clear(pBlockQueue);
 }
-
 
 // ---------------------------------------------------------------------------
 // Free resources
@@ -487,129 +609,5 @@ void EpgStreamInit( EPGDB_QUEUE *pDbQueue, bool bWaitForBiAi, uint appId )
 void EpgStreamClear( void )
 {
    EpgDbQueue_Clear(pBlockQueue);
-}
-
-// ---------------------------------------------------------------------------
-//                              E P G   S C A N
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
-// Initialize state of EPG syntax scan
-//
-void EpgStreamSyntaxScanInit( void )
-{
-   // set all indices to -1
-   memset(lastMagIdx, 0xff, sizeof(lastMagIdx));
-   // set all ok counters to 0
-   memset(scanState, 0, sizeof(scanState));
-}
-
-// ---------------------------------------------------------------------------
-// Scan EPG page header syntax
-// - checks if page number is suggested EPG page number 0x1DF, mdF or mFd
-//   (where <m> stands for magazine number, <d> for 0..9 and F for 0x0F)
-//   and stream number in page subcode is 0 or 1.
-//
-void EpgStreamSyntaxScanHeader( uint page, uint sub )
-{
-   uint d1, d2;
-   int idx;
-
-   if ( ((sub & 0xf00) >> 8) < 2 )
-   {
-      // Compute an index into the page state array for a potential EPG page
-      d1 = page & 0x0f;
-      d2 = (page >> 4) & 0x0f;
-
-      if ((page & 0xff) == 0xdf)
-         idx = 0;
-      else if ( (d1 == 0xf) && (d2 < 0xa) )
-         idx = 1 + d2;
-      else if ( (d2 == 0xf) && (d1 < 0xa) )
-         idx = 11 + d1;
-      else
-         idx = -1;
-
-      if (idx >= 0)
-      {
-         idx += ((page >> 8) & 0x07) * NXTV_VALID_PAGE_PER_MAG;
-         dprintf2("EpgStream-ScanPageHeader: found possible EPG page %03X, idx=%d\n", page, idx);
-
-         scanState[idx].pkgCount = ((sub & 0x3000) >> (12-3)) | ((sub & 0x70) >> 4);
-         scanState[idx].lastPkg = 0;
-      }
-   }
-   else
-   {  // invalid stream number
-      idx = -1;
-   }
-
-   lastMagIdx[(page >> 8) & 0x07] = idx;
-}
-
-// ---------------------------------------------------------------------------
-// Scan EPG data packet syntax
-// - this is done in a very limited and simple way: only BP and BS are
-//   checked, plus SH for hamming errors
-// - a page is considered ok if at least two third of the packets are
-//   syntactically correct
-//
-bool EpgStreamSyntaxScanPacket( uchar mag, uchar packNo, const uchar * dat )
-{
-   PAGE_SCAN_STATE *psc;
-   schar bs, bp, c1, c2, c3, c4;
-   bool result = FALSE;
-
-   if ((mag < 8) && (lastMagIdx[mag] >= 0))
-   {
-      psc = &scanState[lastMagIdx[mag]];
-      if (packNo > psc->lastPkg)
-      {
-         if (packNo <= psc->pkgCount)
-         {
-            if ( UnHam84Nibble(dat, &bp) )
-            {
-               if (bp < 0x0c)
-               {
-                  bp = 1 + 3 * bp;
-
-                  if ( UnHam84Nibble(dat + bp, &bs) && (bs == 0x0c) &&
-                       UnHam84Nibble(dat + bp + 1, &c1) &&
-                       UnHam84Nibble(dat + bp + 2, &c2) &&
-                       UnHam84Nibble(dat + bp + 3, &c3) &&
-                       UnHam84Nibble(dat + bp + 4, &c4) )
-                  {
-                     psc->okCount++;
-                  }
-               }
-               else if (bp == 0x0c)
-               {
-                  bp = 1 + 3 * bp;
-
-                  if ( UnHam84Nibble(dat + bp, &bs) && (bs == 0x0c) &&
-                       UnHam84Nibble(dat + bp + 1, &c1) &&
-                       UnHam84Nibble(dat + bp + 2, &c2) )
-                  {
-                     psc->okCount++;
-                  }
-               }
-               else if (bp == 0x0d)
-               {
-                  psc->okCount++;
-               }
-
-               if (psc->okCount >= 16)
-               {  // this page has had enough syntactically correct packages
-                  dprintf2("EpgStream-ScanPacketSyntax: syntax ok: mag=%d, idx=%d\n", mag, lastMagIdx[mag]);
-                  lastMagIdx[mag] = -1;
-                  result = TRUE;
-               }
-            }
-         }
-      }
-      else
-         lastMagIdx[mag] = -1;
-   }
-   return result;
 }
 

@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: winshmclnt.h,v 1.1 2002/04/29 18:38:11 tom Exp tom $
+ *  $Id: winshmclnt.h,v 1.4 2002/05/19 17:19:34 tom Exp tom $
  */
 
 #ifndef __WINSHMCLNT_H
@@ -24,32 +24,51 @@
 
 
 // ---------------------------------------------------------------------------
-// Structure which holds callback function addresses and initial parameters
+// Definition of event codes that are returned by GetEpgEvent
+//
+typedef enum
+{
+   SHM_EVENT_NONE,
+   SHM_EVENT_ATTACH,
+   SHM_EVENT_DETACH,
+   SHM_EVENT_ATTACH_ERROR,
+   SHM_EVENT_PROG_INFO,
+   SHM_EVENT_CMD_ARGV,
+   SHM_EVENT_INP_FREQ
+
+} WINSHMCLNT_EVENT;
+
+// ---------------------------------------------------------------------------
+// Structure which holds initial parameters
 //
 typedef struct
 {
    const char * pAppName;
+   const char * tvAppPath;
+   TVAPP_NAME   tvAppType;
    uint         tvFeatures;
 
-   void (* pCbEpgEvent)( void );
-   void (* pCbUpdateProgInfo)( const char * pTitle, time_t start, time_t stop, uchar themeCount, const uchar * pThemes );
-   void (* pCbHandleEpgCmd)( uint argc, const char * pArgStr );
-   void (* pCbReqTuner)( uint inputSrc, uint freq );
-   void (* pCbAttach)( bool attach );
+   void      (* pCbEpgEvent)( void );
 
 } WINSHMCLNT_TVAPP_INFO;
 
 // ---------------------------------------------------------------------------
 // declaration of service interface functions
 //
+bool WinSharedMemClient_GetProgInfo( time_t * pStart, time_t * pStop,
+                                     uchar * pThemes, uint * pThemeCount,
+                                     uchar * pTitle, uint maxTitleLen );
+bool WinSharedMemClient_GetCmdArgv( uint * pArgc, char * pCmdBuf, uint cmdMaxLen );
+bool WinSharedMemClient_GetInpFreq( uint * pInputSrc, uint * pFreq );
+const uchar * WinSharedMemClient_GetErrorMsg( void );
+WINSHMCLNT_EVENT WinSharedMemClient_GetEpgEvent( void );
+
 bool WinSharedMemClient_GrantTuner( bool doGrant );
 bool WinSharedMemClient_SetStation( const char * pChanName, uint cni, uint inputSrc, uint freq );
 bool WinSharedMemClient_SetInputFreq( uint inputSrc, uint freq );
 void WinSharedMemClient_HandleEpgEvent( void );
-bool WinSharedMemClient_Init( const WINSHMCLNT_TVAPP_INFO * pInitInfo );
+bool WinSharedMemClient_Init( const WINSHMCLNT_TVAPP_INFO * pInitInfo, WINSHMCLNT_EVENT * pEvent );
 void WinSharedMemClient_Exit( void );
 
 
 #endif  // __WINSHMCLNT_H
-
-

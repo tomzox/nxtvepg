@@ -36,7 +36,7 @@
  *
  *     Additional code and adaptions to nxtvepg by Tom Zoerner
  *
- *  $Id: xawtv.c,v 1.20 2002/05/01 12:23:50 tom Exp tom $
+ *  $Id: xawtv.c,v 1.22 2002/05/11 15:52:12 tom Exp tom $
  */
 
 #ifdef WIN32
@@ -66,8 +66,8 @@
 #include "epgctl/debug.h"
 #include "epgvbi/tvchan.h"
 #include "epgvbi/btdrv.h"
+#include "epgvbi/ttxdecode.h"
 #include "epgdb/epgblock.h"
-#include "epgdb/epgdbacq.h"
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
 #include "epgctl/epgacqctl.h"
@@ -208,12 +208,12 @@ static FILE * Xawtv_OpenRcFile( void )
 // ----------------------------------------------------------------------------
 // Extract all channels from $HOME/.xawtv
 //
-bool Xawtv_GetFreqTab( Tcl_Interp * interp, ulong ** pFreqTab, uint * pCount )
+bool Xawtv_GetFreqTab( Tcl_Interp * interp, uint ** ppFreqTab, uint * pCount )
 {
-   ulong *freqTab;
+   uint *freqTab;
    int freqCount, freqTabLen;
    char line[256], tag[64], value[192];
-   ulong freq;
+   uint freq;
    FILE * fp;
    bool result = FALSE;
 
@@ -221,7 +221,7 @@ bool Xawtv_GetFreqTab( Tcl_Interp * interp, ulong ** pFreqTab, uint * pCount )
    if (fp != NULL)
    {
       freqTabLen  = CHAN_CLUSTER_SIZE;
-      freqTab     = xmalloc(freqTabLen * sizeof(ulong));
+      freqTab     = xmalloc(freqTabLen * sizeof(*freqTab));
       freqCount   = 0;
 
       // read all lines of the file (ignoring section structure)
@@ -238,9 +238,9 @@ bool Xawtv_GetFreqTab( Tcl_Interp * interp, ulong ** pFreqTab, uint * pCount )
                {
                   if (freqCount == freqTabLen)
                   {  // table is full -> allocate and copy
-                     ulong * oldFreqTab = freqTab;
-                     freqTab = xmalloc((freqTabLen + CHAN_CLUSTER_SIZE) * sizeof(ulong));
-                     memcpy(freqTab, oldFreqTab, freqTabLen * sizeof(ulong));
+                     uint * oldFreqTab = freqTab;
+                     freqTab = xmalloc((freqTabLen + CHAN_CLUSTER_SIZE) * sizeof(*freqTab));
+                     memcpy(freqTab, oldFreqTab, freqTabLen * sizeof(*freqTab));
                      freqTabLen += CHAN_CLUSTER_SIZE;
                      xfree(oldFreqTab);
                   }
@@ -260,11 +260,11 @@ bool Xawtv_GetFreqTab( Tcl_Interp * interp, ulong ** pFreqTab, uint * pCount )
          sprintf(comm, "tk_messageBox -type ok -icon error -message {No channel assignments found in ~/.xawtv\nPlease disable option 'Use .xawtv'}\n");
          eval_check(interp, comm);
 
-         xfree(pFreqTab);
-         pFreqTab = NULL;
+         xfree(freqTab);
+         freqTab = NULL;
       }
 
-      *pFreqTab = freqTab;
+      *ppFreqTab = freqTab;
       *pCount = freqCount;
       result = TRUE;
    }

@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: menucmd.c,v 1.72 2002/05/05 20:51:38 tom Exp $
+ *  $Id: menucmd.c,v 1.78 2002/05/20 18:52:02 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -67,6 +67,7 @@
 
 
 static void MenuCmd_EpgScanHandler( ClientData clientData );
+static bool IsRemoteAcqDefault( Tcl_Interp * interp );
 
 // ----------------------------------------------------------------------------
 // Set the states of the entries in Control menu
@@ -142,8 +143,10 @@ static int MenuCmd_SetControlMenuStates(ClientData ttp, Tcl_Interp *interp, int 
       eval_check(interp, comm);
       #else
       // no daemon -> always disable the option
-      sprintf(comm, ".menubar.ctrl entryconfigure \"Connect to acq. daemon\" -state disabled\n");
-      eval_check(interp, comm);
+      eval_check(interp, ".menubar.ctrl entryconfigure \"Connect to acq. daemon\" -state disabled\n");
+      #ifdef WIN32
+      eval_check(interp, ".systray      entryconfigure \"Connect to acq. daemon\" -state disabled\n");
+      #endif
       #endif
 
       result = TCL_OK;
@@ -185,32 +188,95 @@ static int MenuCmd_ToggleDumpStream(ClientData ttp, Tcl_Interp *interp, int argc
 // Start acquisition in auto-detected mode
 // - used at start-up and when signal HUP is received
 // - starts acq in the last manually chosen mode; if that fails the other is tried
+// - auto-detection is enabled for daemons running on localhost only (i.e. acq from
+//   the same TV card hardware) because anything else seems unplausible
+//
+// - Explanation of usage of $netacq_enable
+//   +  netacq_enable contains the default mode for auto-start (i.e. next program start)
+//   +  netacq_enable is updated when
+//      1. the user manually changes the mode and acq doesn't fail right away,
+//         (i.e. due to device busy)
+//      2. when auto-start fails for the default and is successfully started for
+//         the inverted mode.  In this case the update of netacq_enable is delayed
+//         until an AI block is captured or the network server has been successfully
+//         connected (i.e. compatible version etc.): See MenuCmd-AcqStatsUpdate()
+//   + it should be noted that due to the "auto-inversion" acq may run with a different
+//     mode than indicated by netacq_enable, hence that variable must not be used to
+//     query the currently active mode; see also MenuCmd-IsNetAcqActive()
 //
 void AutoStartAcq( Tcl_Interp * interp )
 {
-   char  str_buf[10];
-   bool  isNetAcq;
-
+   #ifndef WIN32
+   SetAcquisitionMode(NETACQ_DEFAULT);
    if (EpgAcqCtl_Start() == FALSE)
    {
-      // save previous acq mode to detect mode changes
-      isNetAcq = IsRemoteAcqEnabled(interp);
+      #ifdef USE_DAEMON
+      if (EpgAcqClient_IsLocalServer())
+      {
+         // invert the network acq mode and try again
+         SetAcquisitionMode(NETACQ_INVERT);
 
-      sprintf(str_buf, "%d", !isNetAcq);
-      Tcl_SetVar(interp, "netacq_enable", str_buf, TCL_GLOBAL_ONLY);
-      SetAcquisitionMode();
-
-      if (EpgAcqCtl_Start())
-      {  // ok -> update the rc/ini file
-         eval_check(interp, "UpdateRcFile");
+         EpgAcqCtl_Start();
       }
-      else
-      {  // failed
-         sprintf(str_buf, "%d", isNetAcq);
-         Tcl_SetVar(interp, "netacq_enable", str_buf, TCL_GLOBAL_ONLY);
-         SetAcquisitionMode();
-      }
+      #endif  // USE_DAEMON
    }
+   #else  // WIN32
+
+   #ifdef USE_DAEMON
+   if (EpgAcqClient_IsLocalServer())
+   {
+      if (EpgMain_CheckDaemon() == FALSE)
+         SetAcquisitionMode(NETACQ_NO);
+      else
+         SetAcquisitionMode(NETACQ_YES);
+   }
+   else
+   #endif
+      SetAcquisitionMode(NETACQ_DEFAULT);
+
+   EpgAcqCtl_Start();
+   #endif
+}
+
+// ----------------------------------------------------------------------------
+// Notification of successful acquisition start
+// - after auto-start has failed for the default mode, and acq restarted with the
+//   inverted mode, this function updates netacq_enable with the current mode
+//
+void MenuCmd_AcqStatsUpdate( void )
+{
+#ifdef USE_DAEMON
+   EPGACQ_DESCR    acqState;
+   EPGDBSRV_DESCR  netState;
+   bool            doNetAcq;
+
+   // get the default acq mode setting from Tcl
+   doNetAcq = IsRemoteAcqDefault(interp);
+
+   // get the current acq mode
+   EpgAcqCtl_DescribeAcqState(&acqState);
+
+   // check if acq is running & mode differs from default mode
+   if ( (doNetAcq == FALSE) && (acqState.isNetAcq) &&
+        EpgAcqClient_DescribeNetState(&netState) &&
+        (netState.state >= NETDESCR_LOADING) )
+   {
+      // default is still local, but acq is running remote -> update
+      dprintf0("MenuCmd-AcqStatsUpdate: setting default netacq mode to 1\n");
+
+      Tcl_SetVar(interp, "netacq_enable", "1", TCL_GLOBAL_ONLY);
+      eval_check(interp, "UpdateRcFile");
+   }
+   else if ( (doNetAcq) && (acqState.isNetAcq == FALSE) &&
+             (acqState.state >= ACQDESCR_STARTING) )
+   {
+      // default is still remote, but acq is running locally -> update
+      dprintf0("MenuCmd-AcqStatsUpdate: setting default netacq mode to 0\n");
+
+      Tcl_SetVar(interp, "netacq_enable", "0", TCL_GLOBAL_ONLY);
+      eval_check(interp, "UpdateRcFile");
+   }
+#endif
 }
 
 // ----------------------------------------------------------------------------
@@ -221,10 +287,10 @@ static void MenuCmd_StartLocalAcq( Tcl_Interp * interp )
    bool wasNetAcq;
 
    // save previous acq mode to detect mode changes
-   wasNetAcq = IsRemoteAcqEnabled(interp);
+   wasNetAcq = IsRemoteAcqDefault(interp);
 
    Tcl_SetVar(interp, "netacq_enable", "0", TCL_GLOBAL_ONLY);
-   SetAcquisitionMode();
+   SetAcquisitionMode(NETACQ_DEFAULT);
 
    if (EpgAcqCtl_Start())
    {
@@ -235,9 +301,13 @@ static void MenuCmd_StartLocalAcq( Tcl_Interp * interp )
    else
    {
       #ifdef USE_DAEMON
+      #ifndef WIN32
       if (EpgNetIo_CheckConnect())
+      #else
+      if (EpgAcqClient_IsLocalServer() && EpgMain_CheckDaemon())
+      #endif
       {  // daemon is running locally, probably on the same device
-         // XXX actually we'd have to check if the daemon uses the same card
+         // XXX UNIX: actually we'd have to check if the daemon uses the same card
          strcpy(comm, "tk_messageBox -type okcancel -icon error "
                       "-message {Failed to start acquisition: the daemon seems to be running. "
                                 "Do you want to stop the daemon now?}\n");
@@ -288,13 +358,35 @@ static void MenuCmd_StartRemoteAcq( Tcl_Interp * interp )
 #ifdef USE_DAEMON
    bool wasNetAcq;
 
+   #ifdef WIN32
+   // XXX warning message if TCP/IP is disabled because currently we support only TCP/IP on WIN32
+   strcpy(comm, "set tmp [lsearch $netacqcf do_tcp_ip]\n"
+                "if {$tmp != -1} {set tmp [lindex $netacqcf [expr $tmp + 1]]}\n"
+                "if {$tmp == 0} {\n"
+                "   tk_messageBox -type ok -icon error "
+                "      -message {Currently only the TCP/IP protocol is supported for Windows, "
+                                "but is disabled by default for security reasons. Please see "
+                                "the Help section on Configuration, chapter Client/Server "
+                                "for details.}\n"
+                "}\n"
+                "set tmp");  // use set command to generate result value
+   eval_check(interp, comm);
+   if (strcmp(interp->result, "0") == 0)
+      return;
+   #endif
+
    // save previous acq mode to detect mode changes
-   wasNetAcq = IsRemoteAcqEnabled(interp);
+   wasNetAcq = IsRemoteAcqDefault(interp);
 
    Tcl_SetVar(interp, "netacq_enable", "1", TCL_GLOBAL_ONLY);
-   SetAcquisitionMode();
+   SetAcquisitionMode(NETACQ_DEFAULT);
 
+   #ifndef WIN32
    if (EpgAcqCtl_Start())
+   #else
+   if ( (!EpgAcqClient_IsLocalServer() || EpgMain_CheckDaemon()) &&
+        (EpgAcqCtl_Start()) )
+   #endif
    {
       // if acq mode changed, update the rc/ini file
       if (wasNetAcq == FALSE)
@@ -306,14 +398,15 @@ static void MenuCmd_StartRemoteAcq( Tcl_Interp * interp )
       if (EpgAcqClient_IsLocalServer())
       {
          strcpy(comm, "tk_messageBox -type okcancel -icon error "
-                      "-message {The daemon seems not to be running (connect failed). "
-                                "Do you want to start the daemon now?}\n");
+                      "-message {The daemon seems not to be running. "
+                                "Do you want to start it now?}\n");
          eval_check(interp, comm);
          if (strcmp(interp->result, "ok") == 0)
          {
             // if acq mode changed, update the rc/ini file
             if (wasNetAcq == FALSE)
                eval_check(interp, "UpdateRcFile");
+            wasNetAcq = TRUE;
 
             EpgMain_StartDaemon();
          }
@@ -405,6 +498,57 @@ static int MenuCmd_ToggleAcq(ClientData ttp, Tcl_Interp *interp, int argc, char 
 }
 
 // ----------------------------------------------------------------------------
+// Query if acq is currently enabled and in remote acq mode
+//
+static int MenuCmd_IsNetAcqActive(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+{
+   const char * const pUsage = "Usage: C_IsNetAcqActive {clear_errors|default}";
+   #ifdef USE_DAEMON
+   EPGACQ_DESCR acqState;
+   #endif
+   bool isActive;
+   int  result;
+
+   if (argc != 2)
+   {  // parameter count is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else 
+   {
+      #ifdef USE_DAEMON
+      EpgAcqCtl_DescribeAcqState(&acqState);
+      isActive = acqState.isNetAcq;
+
+      if (strcmp(argv[1], "clear_errors") == 0)
+      {
+         // stop acq if network acquisition is in error state
+         if ( (acqState.isNetAcq) && (acqState.state == ACQDESCR_DISABLED) )
+         {
+            EpgAcqCtl_Stop();
+
+            isActive = FALSE;
+         }
+      }
+      else
+      {  // passive mode: also return TRUE if default is network acq
+         isActive |= IsRemoteAcqDefault(interp);
+      }
+      #else
+      isActive = FALSE;
+      #endif
+
+      // netacq is TRUE if and only if acq is enabled in netacq mode so we need not check the general
+      // acq state (actually we must not check for DISABLED because that's set after network errors)
+
+      Tcl_SetResult(interp, (isActive ? "1" : "0"), TCL_STATIC);
+
+      result = TCL_OK;
+   }
+   return result;
+}
+
+// ----------------------------------------------------------------------------
 // Dump the complete database
 //
 static int MenuCmd_DumpDatabase(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
@@ -490,7 +634,7 @@ static int MenuCmd_ChangeProvider(ClientData ttp, Tcl_Interp *interp, int argc, 
             pUiDbContext = pDbContext;
 
             // in case follow-ui acq mode is used, change the acq db too
-            SetAcquisitionMode();
+            SetAcquisitionMode(NETACQ_KEEP);
 
             UiControl_AiStateChange(DB_TARGET_UI);
             eval_check(interp, "C_ResetFilter all; ResetFilterState");
@@ -1050,7 +1194,7 @@ static int ProvMerge_Start(ClientData ttp, Tcl_Interp *interp, int argc, char *a
             EpgContextCtl_Close(pUiDbContext);
             pUiDbContext = pDbContext;
 
-            SetAcquisitionMode();
+            SetAcquisitionMode(NETACQ_KEEP);
 
             UiControl_AiStateChange(DB_TARGET_UI);
             eval_check(interp, "C_ResetFilter all; ResetFilterState");
@@ -1310,7 +1454,7 @@ static void SortAcqCniList( uint cniCount, uint * cniTab )
 
          if ((startIdx > 0) && (startIdx < cniCount))
          {  // move the UI CNI to the front of the list
-            dprintf2("SortAcqCniList: moving provider 0x%04X from idx %d to 0\n", cni, startIdx);
+            dprintf2("SortAcqCniList: moving provider 0x%04X from idx %d to 0\n", cniTab[startIdx], startIdx);
             uiCni = cniTab[startIdx];
             for (idx=1; idx <= startIdx; idx++)
                cniTab[idx] = cniTab[idx - 1];
@@ -1332,10 +1476,14 @@ static void SortAcqCniList( uint cniCount, uint * cniTab )
 //   in the display should be forwarded from the server
 // - if no valid config is found, the default mode is used: Follow-UI
 //
-void SetAcquisitionMode( void )
+void SetAcquisitionMode( NETACQ_SET_MODE netAcqSetMode )
 {
-   uint cniCount, cniTab[MAX_MERGED_DB_COUNT];
-   EPGACQ_MODE mode;
+   uint         cniCount;
+   uint         cniTab[MAX_MERGED_DB_COUNT];
+   bool         isNetAcqDefault;
+   bool         doNetAcq;
+   EPGACQ_DESCR acqState;
+   EPGACQ_MODE  mode;
 
    mode = GetAcquisitionModeParams(&cniCount, cniTab);
    if (mode >= ACQMODE_COUNT)
@@ -1344,8 +1492,37 @@ void SetAcquisitionMode( void )
       cniCount = 0;
    }
 
-   // check if network client mode is enabled -> if yes, override acq mode
-   if (IsRemoteAcqEnabled(interp))
+   // check if network client mode is enabled
+   isNetAcqDefault = IsRemoteAcqDefault(interp);
+   switch (netAcqSetMode)
+   {
+      case NETACQ_DEFAULT:
+         doNetAcq = isNetAcqDefault;
+         break;
+      case NETACQ_INVERT:
+         doNetAcq = ! isNetAcqDefault;
+         break;
+      case NETACQ_KEEP:
+         EpgAcqCtl_DescribeAcqState(&acqState);
+         if (acqState.isNetAcq)
+            doNetAcq = TRUE;
+         else if (acqState.state == ACQDESCR_DISABLED)
+            doNetAcq = isNetAcqDefault;
+         else
+            doNetAcq = FALSE;
+         break;
+      case NETACQ_YES:
+         doNetAcq = TRUE;
+         break;
+      case NETACQ_NO:
+         doNetAcq = FALSE;
+         break;
+      default:
+         debug1("SetAcquisitionMode: illegal net acq set mode %d", netAcqSetMode);
+         doNetAcq = isNetAcqDefault;
+         break;
+   }
+   if (doNetAcq)
       mode = ACQMODE_NETWORK;
 
    if ((mode == ACQMODE_FOLLOW_UI) || (mode == ACQMODE_NETWORK))
@@ -1435,7 +1612,7 @@ bool SetDaemonAcquisitionMode( uint cmdLineCni, bool forcePassive )
          }
       }
       else if (mode >= ACQMODE_COUNT)
-         EpgNetIo_Logger(LOG_ERR, -1, "acqmode parameters error", NULL);
+         EpgNetIo_Logger(LOG_ERR, -1, 0, "acqmode parameters error", NULL);
    }
 
    if (mode < ACQMODE_COUNT)
@@ -1445,7 +1622,7 @@ bool SetDaemonAcquisitionMode( uint cmdLineCni, bool forcePassive )
          MERGE_ATTRIB_MATRIX max;
          if (ProvMerge_ParseConfigString(interp, &cniCount, cniTab, &max[0]) != TCL_OK)
          {
-            EpgNetIo_Logger(LOG_ERR, -1, "no network list found for merged database", NULL);
+            EpgNetIo_Logger(LOG_ERR, -1, 0, "no network list found for merged database", NULL);
             mode = ACQMODE_COUNT;
          }
       }
@@ -1481,7 +1658,7 @@ static int MenuCmd_UpdateAcquisitionMode(ClientData ttp, Tcl_Interp *interp, int
    }
    else
    {
-      SetAcquisitionMode();
+      SetAcquisitionMode(NETACQ_KEEP);
 
       // update help message in listbox if database is empty
       UiControl_CheckDbState();
@@ -1502,7 +1679,7 @@ static int MenuCmd_UpdateAcquisitionMode(ClientData ttp, Tcl_Interp *interp, int
 static int MenuCmd_LoadProvFreqsFromDbs(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
 {
    const char * const pUsage = "Usage: C_LoadProvFreqsFromDbs";
-   ulong * pDbFreqTab;
+   uint  * pDbFreqTab;
    uint  * pDbCniTab;
    uint    dbCount;
    uint    idx;
@@ -1527,7 +1704,7 @@ static int MenuCmd_LoadProvFreqsFromDbs(ClientData ttp, Tcl_Interp *interp, int 
          sprintf(strbuf, "0x%04X", pDbCniTab[idx]);
          Tcl_AppendElement(interp, strbuf);
 
-         sprintf(strbuf, "%ld", pDbFreqTab[idx]);
+         sprintf(strbuf, "%d", pDbFreqTab[idx]);
          Tcl_AppendElement(interp, strbuf);
       }
 
@@ -1548,13 +1725,13 @@ static int MenuCmd_LoadProvFreqsFromDbs(ClientData ttp, Tcl_Interp *interp, int 
 // - used by acquisition, e.g. if the freq. cannot be read from the database
 // - returns 0 if no frquency is available for the given provider
 //
-ulong GetProvFreqForCni( uint provCni )
+uint GetProvFreqForCni( uint provCni )
 {
    const char *pTmpStr;
    char **pCniFreqArgv;
    int   cni, freq;
    int   idx, freqCount;
-   ulong provFreq;
+   uint  provFreq;
 
    provFreq = 0;
 
@@ -1599,11 +1776,11 @@ ulong GetProvFreqForCni( uint provCni )
 //   is identical, hence there is only one count result
 // - returns if no frequencies are available or the list was not parsable
 //
-static uint GetProvFreqTab( ulong ** pFreqTab, uint ** pCniTab )
+static uint GetProvFreqTab( uint ** ppFreqTab, uint ** ppCniTab )
 {
    const char *pTmpStr;
    char **pCniFreqArgv;
-   ulong *freqTab;
+   uint  *freqTab;
    uint  *cniTab;
    uint  freqIdx;
    int   cni, freq;
@@ -1622,7 +1799,7 @@ static uint GetProvFreqTab( ulong ** pFreqTab, uint ** pCniTab )
       {
          if (freqCount > 0)
          {
-            freqTab = xmalloc((freqCount / 2) * sizeof(ulong));
+            freqTab = xmalloc((freqCount / 2) * sizeof(uint));
             cniTab  = xmalloc((freqCount / 2) * sizeof(uint));
 
             // retrieve CNI and frequency from the list pairwise
@@ -1631,7 +1808,7 @@ static uint GetProvFreqTab( ulong ** pFreqTab, uint ** pCniTab )
                if ( (Tcl_GetInt(interp, pCniFreqArgv[idx], &cni) == TCL_OK) &&
                     (Tcl_GetInt(interp, pCniFreqArgv[idx + 1], &freq) == TCL_OK) )
                {
-                  freqTab[freqIdx] = (ulong) freq;
+                  freqTab[freqIdx] = (uint) freq;
                   cniTab[freqIdx] = (uint) cni;
                   freqIdx += 1;
                }
@@ -1655,8 +1832,8 @@ static uint GetProvFreqTab( ulong ** pFreqTab, uint ** pCniTab )
    else
       debug0("GetProvFreqTab: Tcl variable prov_freqs not defined");
 
-   *pFreqTab = freqTab;
-   *pCniTab  = cniTab;
+   *ppFreqTab = freqTab;
+   *ppCniTab  = cniTab;
 
    return freqIdx;
 }
@@ -1681,7 +1858,7 @@ static int MenuCmd_StartEpgScan(ClientData ttp, Tcl_Interp *interp, int argc, ch
 {
    const char * const pUsage = "Usage: C_StartEpgScan <input source> <slow=0/1> <refresh=0/1> <xawtv=0/1>";
    EPGSCAN_START_RESULT scanResult;
-   ulong *freqTab;
+   uint  *freqTab;
    uint  *cniTab;
    int freqCount;
    int inputSource, isOptionSlow, isOptionRefresh, isOptionXawtv;
@@ -2081,7 +2258,7 @@ static int MenuCmd_UpdateHardwareConfig(ClientData ttp, Tcl_Interp *interp, int 
 // ----------------------------------------------------------------------------
 // Return TRUE if the client is in network acq mode
 //
-bool IsRemoteAcqEnabled( Tcl_Interp * interp )
+static bool IsRemoteAcqDefault( Tcl_Interp * interp )
 {
    char * pTmpStr;
    int    is_enabled;
@@ -2114,10 +2291,10 @@ void SetNetAcqParams( Tcl_Interp * interp, bool isServer )
    const char * pTmpStr;
    int  cfArgc, cf_idx;
    char *pHostName, *pPort, *pIpStr, *pLogfileName;
-   int  enable, do_tcp_ip, max_conn, fileloglev, sysloglev, remote_ctl;
+   int  do_tcp_ip, max_conn, fileloglev, sysloglev, remote_ctl;
 
    // initialize the config variables
-   enable = max_conn = fileloglev = sysloglev = 0;
+   max_conn = fileloglev = sysloglev = 0;
    pHostName = pPort = pIpStr = pLogfileName = NULL;
 
    pTmpStr = Tcl_GetVar(interp, "netacqcf", TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG);
@@ -2259,6 +2436,7 @@ void MenuCmd_Init( bool isDemoMode )
    if (Tcl_GetCommandInfo(interp, "C_ToggleAcq", &cmdInfo) == 0)
    {  // Create callback functions
       Tcl_CreateCommand(interp, "C_ToggleAcq", MenuCmd_ToggleAcq, (ClientData) NULL, NULL);
+      Tcl_CreateCommand(interp, "C_IsNetAcqActive", MenuCmd_IsNetAcqActive, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_ToggleDumpStream", MenuCmd_ToggleDumpStream, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_DumpDatabase", MenuCmd_DumpDatabase, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_SetControlMenuStates", MenuCmd_SetControlMenuStates, (ClientData) NULL, NULL);

@@ -1,0 +1,210 @@
+# ---------------------------------------------------------------------------
+#
+#  VBI recorder documentation
+#
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License Version 2 as
+#  published by the Free Software Foundation. You find a copy of this
+#  license in the file COPYRIGHT in the root directory of this release.
+#
+#  THIS PROGRAM IS DISTRIBUTED IN THE HOPE THAT IT WILL BE USEFUL,
+#  BUT WITHOUT ANY WARRANTY; WITHOUT EVEN THE IMPLIED WARRANTY OF
+#  MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#
+#  Description:
+#
+#    User's documentation in Perl "POD" format. The content is
+#    converted into various other formats by use of different scripts:
+#    UNIX manpage by pod2man; HTML web page by pod2html (needs manual
+#    adjustments) and the online help by a self-made script. The releases
+#    should contain the converted files, so that the user is not forced
+#    to install Perl.
+#
+#  Author: Tom Zoerner
+#
+# $Id: vbirec.pod,v 1.3 2002/05/20 15:55:01 tom Exp tom $
+# ---------------------------------------------------------------------------
+
+=head1 NAME
+
+vbirec - TV application interaction monitor and EPG recorder
+
+
+=head1 SYNOPSIS
+
+B<vbirec>
+
+
+=head1 DESCRIPTION
+
+B<vbirec> is a tool that helps in debugging TV application's interaction
+with nxtvepg.  B<vbirec> takes the place of nxtvepg in the communication.
+It monitors the shared memory which is used for communication with the
+TV app. and displays all TV app controlled values in it's main window.
+
+
+=head1 MONITORING VBI RECEPTION
+
+The following shared memory elements are displayed
+and updated every 500 milleseconds:
+
+=over 4
+
+=item B<TTX pkg count>
+
+The total number of teletext packets the TV app. has received since the
+last channel change.
+
+=item B<TTX pkg per frame avg.>
+
+A running average of the number of VBI lines containing teletext packets
+per video frame.
+
+=item B<VPS lines count>
+
+The total number of VPS lines the TV app. has received since the
+last channel change.  For networks that transmit VPS there should
+be one VPS line in each frame.
+
+=item B<EPG page count>
+
+The number or EPG pages since the last channel change, i.e. the number
+of teletext packets with packet address zero on the designated EPG
+teletext page.
+
+=item B<EPG packet count>
+
+The total number or teletext packets on the designated EPG teletext page
+since the last channel change.
+
+=item B<VPS CNI and PIL>
+
+The last received and confirmed VPS network and program identifiers.
+
+=item B<PDC CNI and PIL>
+
+The last received and confirmed PDC (teletext packet 8/30/2) network
+and program identifiers.
+
+=item B<Packet 8/30/1>
+
+The last received and confirmed packet 8/30/2 network identifiers.
+
+=item B<EPG teletext page no>
+
+The teletext page number on which EPG is tranmitted according to the
+provider.  Note: the default page is 0x1DF; other page numbers can be
+specified in the teletext magazine inventory page of each magazine.
+
+=item B<Teletext header>
+
+The text part of the last received teletext packet with address 0.
+Usually the text contains the teletext page number, network name,
+clock and date.  This element is provided here mainly to allow detecting
+which TV network was tuned by the TV application.
+
+=item B<Network by VPS/PDC/NI>
+
+A human readable network identification derived from the VPS, PDC or
+P8/30/2 CNI codes (in this order, if several alternatives are available).
+
+=back 4
+
+
+=head1 MONITORING TV APP CONTROLS
+
+The following shared memory elements are displayed
+and updated whenever updates are signalled by the TV application:
+
+=over 4
+
+=item B<TV app. channel name>
+
+The TV application's station name for the currently tuned channel.
+This element should be updated after ever channel change.
+
+=item B<TV app. channel CNI>
+
+The TV application's numerical network identifier for the currenlty
+tuned channel.  If unavailable it should be set to zero.
+
+=item B<TV app. input source>
+
+The TV application's current video input source (0=TV tuner, 1=composite,
+2=S-Video or Composite #2).
+
+=item B<TV app. tuner freq.>
+
+The current TV tuner frequency from which VBI data is forwarded. This
+value must be updated after every channel change.
+
+=item B<TV app. grants tuner>
+
+Boolean flag that indicates if the TV application currently honors
+the EPG application's input source and tuner frequency requests.
+The TV application should grant the tuner when video capturing is
+disabled of the TV window minimized or completely obscured by other
+windows.
+
+=back 4
+
+
+=head1 EPG RECORDING
+
+Packets received on the designated EPG teletext page can be stored
+into a file for later playback by B<vbiplay>.  The intended use is
+to allow me debugging decoding errors, e.g. for providers that I
+cannot receive at my location.
+
+The name of the output file is specified by the entry field at the
+bottom of the window.  The file is created as soon as recording is
+enabled by checking the I<Enable teletext recorder> button.
+
+
+=head1 FILES
+
+=over 4
+
+=item B<ttx.dat>
+
+Default output file name for recorded teletext packets.
+
+=item B<vbi_map.dat>
+
+This hidden file is used to set up shared memory to allow information
+exchange between vbirec and an attached TV application.  It's
+automatically removed when vbirec terminates and should never be
+accessed (i.e. being written to or removed) by external applications.
+
+=back
+
+
+=head1 SEE ALSO
+
+See also the manuals for B<nxtvepg>, B<tvsim> and B<vbiplay>.
+
+
+=head1 AUTHOR
+
+Tom Zoerner, Erlangen, Germany.
+
+Email: tomzo (at) nefkom (dot) net
+
+
+=head1 COPYRIGHT
+
+Copyright (C) 2002 by Tom Zoerner.
+All rights reserved.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License Version 2 as
+published by the Free Software Foundation, e.g. at
+http://www.fsf.org/
+
+This program is distributed in the hope that it will be useful, but
+B<WITHOUT ANY WARRANTY>; without even the implied warranty of
+merchantability or fitness for a particular purpose. See the
+file F<COPYRIGHT> for more details.
+

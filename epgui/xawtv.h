@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: xawtv.h,v 1.4 2002/05/01 12:23:50 tom Exp tom $
+ *  $Id: xawtv.h,v 1.5 2002/05/11 15:52:12 tom Exp tom $
  */
 
 #ifndef __XAWTV_H
@@ -24,7 +24,7 @@
 
 
 // Interface to GUI
-bool Xawtv_GetFreqTab( Tcl_Interp * interp, ulong ** pFreqTab, uint * pCount );
+bool Xawtv_GetFreqTab( Tcl_Interp * interp, uint ** ppFreqTab, uint * pCount );
 
 // Initialisation
 void Xawtv_Init( void );

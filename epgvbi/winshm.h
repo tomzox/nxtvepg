@@ -19,18 +19,20 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: winshm.h,v 1.2 2002/05/04 18:21:39 tom Exp tom $
+ *  $Id: winshm.h,v 1.6 2002/05/20 15:57:30 tom Exp tom $
  */
 
 #ifndef __WINSHM_H
 #define __WINSHM_H
+
 
 // ---------------------------------------------------------------------------
 // Structure for communication with TV application
 // - the prefix "tv" notes that this variable is written by the TV app.
 //   the prefix "epg" notes that this variable is written by the EPG app.
 //
-#define TVAPP_NAME_MAX_LEN  32   // max. TV app name string length (including terminating zero)
+#define TVAPP_NAME_MAX_LEN  64   // max. TV app name string length (including terminating zero)
+#define TVAPP_PATH_MAX_LEN 511   // max. TV app path string length (including 0)
 #define CHAN_NAME_MAX_LEN   64   // max. channel name string length (including 0)
 #define EPG_TITLE_MAX_LEN   44   // max. program title length (including 0)
 #define EPG_CMD_MAX_LEN    256   // max. command length
@@ -38,8 +40,11 @@
 typedef struct
 {
    uint32_t  epgShmVersion;   // version number of SHM protocol
+   uint32_t  epgShmSize;      // size of mapped shared memory
    uint32_t  tvFeatures;      // bit field with features supported by TV app
    uint8_t   tvAppName[TVAPP_NAME_MAX_LEN];  // TV application name and version string
+   uint8_t   tvAppPath[TVAPP_PATH_MAX_LEN];  // TV application directory (INI & channel table)
+   uint8_t   tvAppType;       // TV application type (see enum below; req. for INI parsing)
 
    uint8_t   tvAppAlive;      // TRUE while TV application is alive & attached to SHM
    uint8_t   epgAppAlive;     // TRUE while EPG application is alive
@@ -47,7 +52,7 @@ typedef struct
    uint8_t   epgHasDriver;    // EPG app is attached to driver
    uint8_t   epgTvCardIdx;    // index of card currently in use by EPG app; 0xff if none
    uint8_t   tvReqTvCard;     // TV app requires the card with index given by the next element
-   uint8_t   tvCardIdx;       // index of card required by TV app requests; 0xff if none; 0xfe if all
+   uint8_t   tvCardIdx;       // index of card required by TV app requests; 0xff if all
 
    uint8_t   tvGrantTuner;    // TV app sets tuner to EPG requested frequency
    uint8_t   reserved1;       // unused; set to 0
@@ -96,6 +101,27 @@ typedef struct
 #define TVAPP_FEAT_CMD_MUTE   0x0020  // allows audio mute by EPG app
 #define TVAPP_FEAT_ALL_000701 (TVAPP_FEAT_TTX_FWD|TVAPP_FEAT_VPS_FWD|TVAPP_FEAT_TUNER|TVAPP_FEAT_REQ_CNAME|TVAPP_FEAT_CMD_TUNE|TVAPP_FEAT_CMD_MUTE)
 
-#define EPG_SHM_VERSION   0xFF020000  // protocol version id
+#define EPG_SHM_VERSION       0xFF020100  // protocol version id
+#define EPG_SHM_VERSION_MAJOR(V)   (((V) >> 16) & 0xFF)
+#define EPG_SHM_VERSION_MINOR(V)   (((V) >>  8) & 0xFF)
+#define EPG_SHM_VERSION_PATLEV(V)  (((V)      ) & 0xFF)
+
+// List of TV apps for which INI file and channel table loading is supported
+// - not all of these neccessarily do support EPG interaction too
+// - when a TV app's format of INI or channel table changes, a new identifier must
+//   be assigned and nxtvepg must be extended to parse the new format; until a new
+//   ID has been assigned, TVAPP_NONE must be used.
+//
+typedef enum
+{
+   TVAPP_NONE,
+   TVAPP_DSCALER,
+   TVAPP_KTV,
+   TVAPP_MULTIDEC,
+   TVAPP_MORETV,
+   TVAPP_FREETV,
+   TVAPP_COUNT
+} TVAPP_NAME;
+
 
 #endif  // __WINSHM_H

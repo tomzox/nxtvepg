@@ -17,7 +17,7 @@
 // PCICard.cpp, HardwareDriver.cpp, HardwareMemory is from Dscaler
 // Copyright (c) 2001 John Adcock.  All rights reserved.
 /////////////////////////////////////////////////////////////////////////////
-// nxtvepg $Id: dsdrv34.c,v 1.1 2002/05/04 18:39:12 tom Exp tom $
+// nxtvepg $Id: dsdrv34.c,v 1.3 2002/05/10 00:16:30 tom Exp tom $
 /////////////////////////////////////////////////////////////////////////////
 
 // What's this ?
@@ -50,9 +50,13 @@
 #include <malloc.h>
 #include <winsvc.h>
 
+#include <io.h>
+#include <fcntl.h>
+
 #include "dsdrv/dsdrv.h"
 #include "dsdrv/hwpci.h"
 #include "dsdrv/hwdrv.h"
+#include "dsdrv/debuglog.h"
 #include "dsdrv/dsdrvlib.h"
 
 
@@ -60,6 +64,48 @@
 BOOL  Pcicard = FALSE;
 BOOL  HardwareDriver = FALSE;
 BOOL  CardOpened = FALSE;     // BT Card has been opened ?
+
+#define SERVICE_KEY "SYSTEM\\CurrentControlSet\\Services\\"
+
+static BOOL CheckDriverImagePath( void )
+{
+   HKEY  hKey;
+   DWORD dwSize, dwType;
+   char  name_buf[512];
+   BOOL  result = FALSE;
+
+   if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, SERVICE_KEY NT_DRIVER_NAME, 0, KEY_READ, &hKey) == ERROR_SUCCESS)
+   {
+      dwSize = sizeof(name_buf) - 1;
+      if (RegQueryValueEx(hKey, "ImagePath", 0, &dwType, name_buf, &dwSize) == ERROR_SUCCESS)
+      {
+         if (dwType == REG_EXPAND_SZ)
+         {
+            name_buf[dwSize] = 0;
+
+            LOG(1,"CheckDriverImagePath: registered " NT_DRIVER_NAME " ImagePath='%s'", name_buf);
+
+            if (strncmp(name_buf, "\\??\\", 4) == 0)
+            {
+               if (access(name_buf + 4, O_RDONLY) == 0)
+               {
+                  result = TRUE;
+               }
+            }
+         }
+         else
+            LOG(1,"CheckDriverImagePath: service registry key has unexpected type %d", dwType);
+      }
+      else
+         LOG(1,"CheckDriverImagePath: ImagePath key value not found", name_buf);
+
+      RegCloseKey(hKey);
+   }
+   else
+      LOG(1,"CheckDriverImagePath: key " SERVICE_KEY NT_DRIVER_NAME " not found", name_buf);
+
+   return result;
+}
 
 
 
@@ -72,12 +118,35 @@ DWORD LoadDriver( void )
 
     result = HwDrv_LoadDriver();
 
+    if (result != HWDRV_LOAD_SUCCESS)
+    {
+        if ( (result == HWDRV_LOAD_MISSING) ||
+             (result == HWDRV_LOAD_START) ||
+             (result == HWDRV_LOAD_INSTALL) ||
+             (result == HWDRV_LOAD_VERSION) )
+        {
+            // write current ImagePath to the log output
+            CheckDriverImagePath();
+
+            LOG(1,"Attempting Bt8x8 driver recovery: uninstalling & installing driver");
+            HwDrv_UnInstallNTDriver();
+            HwDrv_Destroy();
+
+            HwDrv_Create();
+            HwDrv_InstallNTDriver();
+            CheckDriverImagePath();
+
+            // now try once more to start the driver
+            result = HwDrv_LoadDriver();
+        }
+    }
+
     if (result == HWDRV_LOAD_SUCCESS)
     {
-       HardwareDriver = TRUE;
-       //Pcicard = new CPCICard(HardwareDriver);
-       HwPci_Create();
-       Pcicard = TRUE;
+        HardwareDriver = TRUE;
+        //Pcicard = new CPCICard(HardwareDriver);
+        HwPci_Create();
+        Pcicard = TRUE;
     }
     else
     {
@@ -105,52 +174,17 @@ void UnloadDriver( void )
     HardwareDriver = FALSE;
 }
 
-#if 0
 
-// It seems to be safe to call InstallNTDriver and quit immediately
-// your application.
-// The next launch will give you a clean driver.
-DWORD InstallNTDriver()
-{
-BOOL ret;
-
-    HardwareDriver = new CHardwareDriver();
-    if (HardwareDriver == NULL)
-        return 1;
-
-    ret = HardwareDriver->InstallNTDriver();
-    delete HardwareDriver;
-
-    return (ret ? ERROR_SUCCESS: 2);
-}
-
-
-DWORD UnInstallNTDriver()
-{
-BOOL ret;
-
-    HardwareDriver = new CHardwareDriver();
-    if (HardwareDriver == NULL)
-        return 1;
-
-    ret = HardwareDriver->UnInstallNTDriver();
-    delete HardwareDriver;
-
-    return (ret ? ERROR_SUCCESS: 2);
-}
-
-#endif
-
-
-DWORD DoesThisPCICardExist(DWORD dwVendorID, DWORD dwDeviceID, DWORD dwCardIndex)
+DWORD DoesThisPCICardExist(DWORD dwVendorID, DWORD dwDeviceID, DWORD dwCardIndex,
+                           DWORD * pdwSubSystemId, DWORD * pdwBusNumber, DWORD * pdwSlotNumber)
 {
     BOOL ret;
-    DWORD dwSubSystemId;
 
     if ( !HardwareDriver || !Pcicard )
         return 1;
 
-    ret = HwDrv_DoesThisPCICardExist( dwVendorID, dwDeviceID, dwCardIndex, &dwSubSystemId);
+    ret = HwDrv_DoesThisPCICardExist( dwVendorID, dwDeviceID, dwCardIndex,
+                                      pdwSubSystemId, pdwBusNumber, pdwSlotNumber );
     if ( !ret )
         return 2;
 
@@ -163,18 +197,14 @@ DWORD DoesThisPCICardExist(DWORD dwVendorID, DWORD dwDeviceID, DWORD dwCardIndex
 // New parameter : dwCardIndex
 DWORD pciGetHardwareResources(DWORD   dwVendorID,
                                       DWORD   dwDeviceID,
-                                      DWORD   dwCardIndex,
-                                      PDWORD  pdwMemoryAddress,
-                                      PDWORD  pdwMemoryLength,
-                                      PDWORD  pdwSubSystemId)
+                                      DWORD   dwCardIndex )
 {
     BOOL ret;
-    DWORD dwSubSystemId;
 
     if ( !HardwareDriver || !Pcicard )
         return 1;
 
-    ret = HwDrv_DoesThisPCICardExist( dwVendorID, dwDeviceID, dwCardIndex, &dwSubSystemId);
+    ret = HwDrv_DoesThisPCICardExist( dwVendorID, dwDeviceID, dwCardIndex, NULL, NULL, NULL);
     if ( !ret )
         return 2;
 
@@ -182,9 +212,9 @@ DWORD pciGetHardwareResources(DWORD   dwVendorID,
     if ( !ret )
         return 3;
 
-    *pdwSubSystemId  = HwPci_GetSubSystemId();
-    *pdwMemoryLength = HwPci_GetMemoryLength();
-    *pdwSubSystemId  = HwPci_GetMemoryAddress();
+    //*pdwSubSystemId  = HwPci_GetSubSystemId();
+    //*pdwMemoryLength = HwPci_GetMemoryLength();
+    //*pdwSubSystemId  = HwPci_GetMemoryAddress();
     CardOpened = TRUE;
 
     return ERROR_SUCCESS;

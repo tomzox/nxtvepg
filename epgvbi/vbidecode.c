@@ -26,7 +26,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: vbidecode.c,v 1.29 2002/05/01 18:03:02 tom Exp tom $
+ *  $Id: vbidecode.c,v 1.30 2002/05/10 14:59:31 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -35,7 +35,7 @@
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
 #include "epgdb/epgblock.h"
-#include "epgdb/epgdbacq.h"
+#include "epgvbi/ttxdecode.h"
 #include "epgvbi/hamming.h"
 #include "epgvbi/vbidecode.h"
 
@@ -55,7 +55,7 @@
 //
 bool VbiDecodeStartNewFrame( uint frameSeqNo )
 {
-   return EpgDbAcqNewVbiFrame(frameSeqNo);
+   return TtxDecode_NewVbiFrame(frameSeqNo);
 }
 
 // ---------------------------------------------------------------------------
@@ -150,7 +150,7 @@ void VbiDecodeLine(const uchar * lbuf, int line, bool doVps)
                case 0x27:
                   for (i = 3; i < 45; i++)
                      data[i] = vtscan(lbuf, &spos, off);
-                  EpgDbAcqAddPacket(data + 3);
+                  TtxDecode_AddPacket(data + 3);
                   break;
                default:
                   //printf("****** line=%d  [2]=%x != 0x27 && 0xd8\n", line, data[2]);
@@ -188,7 +188,7 @@ void VbiDecodeLine(const uchar * lbuf, int line, bool doVps)
 
          if (i > 14)
          {
-            EpgDbAcqAddVpsData(data);
+            TtxDecode_AddVpsData(data);
          }
       }
       //else

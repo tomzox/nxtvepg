@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: btdrv.h,v 1.18 2002/05/04 18:21:05 tom Exp tom $
+ *  $Id: btdrv.h,v 1.21 2002/05/14 18:37:08 tom Exp tom $
  */
 
 #ifndef __BTDRV_H
@@ -77,8 +77,10 @@ typedef struct
 typedef struct
 {
    uint32_t  frameCount;        // number of VBI frames received
+   uint32_t  vpsLineCount;      // number of VPS lines received
    uint32_t  ttxPkgCount;       // number of ttx packets received
    uint32_t  ttxPkgDrop;        // number of ttx packets dropped b/c Hamming errors
+   uint32_t  ttxPkgRate;        // number of ttx packets per frame: running average (.16 bit fix-point)
    uint32_t  epgPkgCount;       // number of EPG ttx packets received
    uint32_t  epgPagCount;       // number of EPG ttx pages received
 } TTX_DEC_STATS;
@@ -150,7 +152,7 @@ typedef struct
    #endif
 
    bool      doQueryFreq;
-   ulong     vbiQueryFreq;
+   uint      vbiQueryFreq;
 
    uchar     cardIndex;
    # ifdef __NetBSD__
@@ -174,12 +176,11 @@ void BtDriver_Exit( void );
 bool BtDriver_StartAcq( void );
 void BtDriver_StopAcq( void );
 bool BtDriver_IsVideoPresent( void );
-bool BtDriver_TuneChannel( ulong freq, bool keepOpen );
-ulong BtDriver_QueryChannel( void );
+bool BtDriver_TuneChannel( uint freq, bool keepOpen );
+uint BtDriver_QueryChannel( void );
 bool BtDriver_SetInputSource( int inputIdx, bool keepOpen, bool * pIsTuner );
 
 #ifndef WIN32
-void BtDriver_CheckParent( void );
 int BtDriver_GetDeviceOwnerPid( void );
 #else
 bool BtDriver_Restart( void );

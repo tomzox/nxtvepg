@@ -31,7 +31,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgctxctl.c,v 1.19 2002/03/22 21:13:56 tom Exp tom $
+ *  $Id: epgctxctl.c,v 1.20 2002/05/11 15:44:51 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -854,7 +854,7 @@ time_t EpgContextCtl_GetAiUpdateTime( uint cni )
 // - used by EPG scan for already known providers (the provider might have been
 //   found in passive mode when the channel freq. could not be determined)
 //
-bool EpgContextCtl_UpdateFreq( uint cni, ulong freq )
+bool EpgContextCtl_UpdateFreq( uint cni, uint freq )
 {
    CTX_CACHE * pContext;
    bool result;
@@ -864,7 +864,7 @@ bool EpgContextCtl_UpdateFreq( uint cni, ulong freq )
    pContext = EpgContextCtl_SearchCni(cni);
    if ((pContext != NULL) && (pContext->state == CTX_CACHE_OPEN))
    {  // db is open -> just set the frequency there
-      dprintf3("EpgContextCtl-UpdateFreq: update freq for opened db 0x%04X: %lu -> %lu\n", cni, pContext->pDbContext->tunerFreq, freq);
+      dprintf3("EpgContextCtl-UpdateFreq: update freq for opened db 0x%04X: %u -> %u\n", cni, pContext->pDbContext->tunerFreq, freq);
 
       // set the flag that the db needs to be saved
       if (pContext->pDbContext->tunerFreq != freq)
@@ -875,7 +875,7 @@ bool EpgContextCtl_UpdateFreq( uint cni, ulong freq )
    }
    else
    {  // db is not open -> write the frequency into the file header
-      debug2("EpgContextCtl-UpdateFreq: update freq for non-open db 0x%04X: %lu", cni, freq);
+      debug2("EpgContextCtl-UpdateFreq: update freq for non-open db 0x%04X: %u", cni, freq);
       result = EpgDbDumpUpdateHeader(cni, freq);
    }
    return result;
@@ -956,11 +956,11 @@ const uint * EpgContextCtl_GetProvList( uint * pCount )
 // - for databases which are not cached because they are defective or have and
 //   incompatible version, the tuner frequency is read from the header
 //
-uint EpgContextCtl_GetFreqList( uint ** ppProvList, ulong ** ppFreqList )
+uint EpgContextCtl_GetFreqList( uint ** ppProvList, uint ** ppFreqList )
 {
    CTX_CACHE * pContext;
    uint maxCount, idx;
-   ulong freq;
+   uint freq;
 
    // determine the number of providers, including "error" contexts
    maxCount = 0;

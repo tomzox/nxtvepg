@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="de">
-<!-- $Id: index-de.html,v 1.27 2002/05/06 11:22:39 tom Exp $ -->
+<!-- $Id: index-de.html,v 1.28 2002/05/20 20:24:20 tom Exp $ -->
 <HEAD>
 <TITLE>nexTView EPG Dekoder Software Download</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
@@ -45,6 +45,8 @@
 
 <P class="navhead"><B>News</B>
 <P class="navsect">
+20.5.2002: release 0.7.2 aka 2.1.0</P>
+<HR width=70%><P class="navsect">
 5.5.2002: release 0.7.1 aka 2.0.0</P>
 <HR width=70%><P class="navsect">
 2.3.2002: release 0.7.0</P>
@@ -58,27 +60,7 @@ Oktober 2001: nxtvepg in
 <A HREF="http://www.suse.de/de/products/suse_linux/i386/index.html">SuSE Linux 7.3</A>
 aufgenommen.
 <HR width=70%><P class="navsect">
-16.9.2001: release 0.6.3</P>
-<HR width=70%><P class="navsect">
-7.9.2001: release 0.6.2</P>
-<HR width=70%><P class="navsect">
-30.8.2001: bugfix release 0.6.1</P>
-<HR width=70%><P class="navsect">
-25.8.2001: release 0.6.0</P>
-<HR width=70%><P class="navsect">
-14.6.2001: bugfix release 0.5.2</P>
-<HR width=70%><P class="navsect">
-5.6.2001:<BR>release 0.5.1</P>
-<HR width=70%><P class="navsect">
 Mai 2001: <A HREF="provnets.html">TRT: neuer Nextview EPG Anbieter</A></P>
-<HR width=70%><P class="navsect">
-21.4.2001: release 0.5.0</P>
-<HR width=70%><P class="navsect">
-1.4.2001: bugfix release 0.4.5</P>
-<HR width=70%><P class="navsect">
-27.2.2001:<BR>release 0.4.4</P>
-<HR width=70%><P class="navsect">
-15.2.2001:<BR>release 0.4.3</P>
 </td>
 <td valign="top" class="main" width="85%">
 
@@ -169,24 +151,27 @@ und eine TV-Karte mit dem Booktree Chip Bt848 oder Bt878.
 
 <H3>Windows Softwareanforderungen</H3>
 <DL>
-<LI>nxtvepg benötigt keine zusätzliche Software, d.h. alle für den Decoder
+<LI><B><FONT COLOR="red">Neu:</FONT></B>
+nxtvepg benötigt keine zusätzliche Software, d.h. alle für den Decoder
 benötigte Software ist in der Distribution enthalten.
-<LI>Es werden alle Windows Versionen ab Windows 95 unterstützt.
-<LI>Auf Windows-NT und Windows 2000 ist ein priviligierter Account
-erforderlich (z.B. Administrator) um den Treiber für die TV Karte zu starten.
+<LI><B><FONT COLOR="red">Neu:</FONT></B>
+Es werden alle Windows Versionen ab Windows 95 unterstützt.
+<LI>Auf Windows-NT und Windows 2000 ist ein priviligierter Account erforderlich
+(z.B. Administrator) um den Treiber für die TV Karte zu installieren und starten.
 </DL>
 
 <A NAME="download">
 <H2>Download</H2>
 </A>
 <P>
-Die neueste stabile Distribution ist Version 0.7.1 aka 2.0.0 vom 5.5.2002.
+Die neueste stabile Distribution ist Version 0.7.2 aka 2.1.0 vom 20.5.2002.
 <STRONG>Neu in dieser Version: </STRONG>
-der Schwerpunkt lag in der Verbesserung der Unterstützung der Windows Plattform:
-nxtvepg benutzt jetzt den <A HREF=http://dscaler.org">DScaler</A>
-Treiber um die TV Karte anzusteuern.  Es wird kein separater Treiber
-mehr benötigt!
-Darüberhinaus gab es mehrere fixes für Big-Endian und 64-Bit CPUs.
+in der Windows Version 2.1.0 sind eine Reihe neuer Features hinzugekommen
+(<A HREF="tvsim.html#interaction features">Interaktion mit TV Applikationen</A>,
+<A HREF="man.html#hide on minimize">Icon im system tray wenn das Fenster "minimized" wird</A>
+und <A HREF="man.html#item_%2Ddaemon">-daemon" Modus</A>),
+in der UNIX Version 0.7.2 bzw. im plattformunabhängigen Teil wurden eine Reihe
+Bugs behoben - ein upgrade ist deshalb dringend empfohlen.
 </P><P>
 Mehr Details und alle früheren Änderungen sind im
 <A HREF="changelog.html">Change-Log</A> dokumentiert. Falls mit der Software
@@ -199,11 +184,11 @@ Probleme auftauchen, bitte melden. Ältere Distributionen befinden sich noch im
 <H3>Source Distribution</H3>
 </A>
 Download der aktuellen Source Distribution für Linux und NetBSD:
-<A HREF=http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-0.7.1.tar.gz>nxtvepg-0.7.1.tar.gz</A>
-(601 kB)
+<A HREF=http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-0.7.2.tar.gz>nxtvepg-0.7.2.tar.gz</A>
+(631 kB)
 </P><P>
 Aus dem source tarball läßt sich auch ein RPM package bauen mit dem
-Kommando: <KBD>rpm -ta nxtvepg-0.7.1.tar.gz</KBD>. Das erzeugte package
+Kommando: <KBD>rpm -ta nxtvepg-0.7.2.tar.gz</KBD>. Das erzeugte package
 kann dann wie üblich mit <KBD>rpm -i</KBD> installiert werden. Alternativ
 sind auch fertige packages verfügbar (jedoch nicht notwendigerweise
 immer die neueste Version):
@@ -216,15 +201,21 @@ und für NetBSD von <A HREF="ftp://ftp.netbsd.org/pub/NetBSD/packages/pkgsrc/misc
 </A>
 <P>
 Windows executable:
-<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-2.0.0-win.zip">nxtvepg-2.0.0-win.zip</A>
-(977 kB)
+<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-2.1.0-win.zip">nxtvepg-2.1.0-win.zip</A>
+(1005 kB, diesmal inklusive Treiber)
 </P><P>
-DScaler BT8x8 driver:
-<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-2.0.0-drv.zip">nxtvepg-2.0.0-drv.zip</A>
-(9 kB)
+Demo für Interaktion mit TV Applikationen:
+<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-2.1.0-tvsim.zip">nxtvepg-2.1.0-tvsim.zip</A>
+(233 kB)<BR>
+(siehe auch <A HREF="tvsim.html">tvsim</A>,
+<A HREF="vbirec.html">vbirec</A> oder
+<A HREF="vbiplay.html">vbiplay</A> manuals, oder
+<A HREF="screenshot-tvsim.gif">tvsim &amp; nxtvepg</A> und
+<A HREF="screenshot-vbirec.gif">tvsim &amp; vbirec screenshot</A>)
 </P><P>
-Die ZIP Archive müssen lediglich in ein leeres Verzeichnis entpackt werden,
-dann kann nxtvepg.exe direkt gestartet werden.  Eine Beschreibung der
+Das nxtvepg ZIP Archiv muß lediglich in ein leeres Verzeichnis entpackt werden,
+dann kann nxtvepg.exe direkt gestartet werden. Das tvsim ZIP file kann optional
+danach in dasselbe Verzeichnis entpackt werden. Eine Beschreibung der
 initialen Konfiguration findet sich im Hilfe Menü bzw. in der HTML
 Benutzeranleitung, Abschnitt <A HREF="man.html#getting started">Getting Started</A>
 (nur in englisch verfügbar).

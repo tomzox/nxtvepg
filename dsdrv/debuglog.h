@@ -15,7 +15,7 @@
 //  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 //  GNU General Public License for more details
 /////////////////////////////////////////////////////////////////////////////
-// nxtvepg $Id: debuglog.h,v 1.1 2002/05/04 18:39:12 tom Exp tom $
+// nxtvepg $Id: debuglog.h,v 1.2 2002/05/06 11:42:58 tom Exp tom $
 /////////////////////////////////////////////////////////////////////////////
 
 #ifndef __DEBUGLOG_H__

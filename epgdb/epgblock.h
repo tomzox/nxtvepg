@@ -25,7 +25,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgblock.h,v 1.41 2002/05/02 16:51:27 tom Exp tom $
+ *  $Id: epgblock.h,v 1.42 2002/05/11 15:43:36 tom Exp tom $
  */
 
 #ifndef __EPGBLOCK_H
@@ -488,7 +488,7 @@ typedef struct EPGDB_CONTEXT_STRUCT
    void   *pMergeContext;           // Pointer to merge parameters
 
    uint   pageNo;                   // Teletext page for acq
-   ulong  tunerFreq;                // Frequency for acq
+   uint   tunerFreq;                // Frequency for acq
    uint   appId;                    // BI block ID
 
    EPGDB_BLOCK *pAiBlock;

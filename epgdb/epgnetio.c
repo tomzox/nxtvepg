@@ -22,7 +22,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgnetio.c,v 1.28 2002/04/29 19:27:15 tom Exp tom $
+ *  $Id: epgnetio.c,v 1.29 2002/05/19 21:42:40 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -68,6 +68,11 @@
 
 #ifndef WIN32
 #define closesocket(FD)  close(FD)
+#define sockErrno        errno
+#define sockStrError(X)  strerror(X)
+#else
+#define sockErrno        WSAGetLastError()
+#define sockStrError(X)  WinSocketStrError(X)
 #endif
 
 
@@ -93,36 +98,48 @@ static EPGNETIO_LOGCF epgNetIoLogCf =
 #define SRV_LISTEN_BACKLOG_LEN  10
 #define SRV_CLNT_SOCK_PATH      "/tmp/nxtvepg.0"
 
-// ---------------------------------------------------------------------------
-// Open messagebox with system error string (e.g. "invalid path")
-//
+// settings & variables for WIN NT event log
 #ifdef WIN32
-static void GetWindowsSocketErrorMsg( uchar * pCause, DWORD code )
-{
-   uchar * pMsg;
+#define EVLOG_APPNAME     "nxtvepg daemon"
+#define EVLOG_REGKEY_NAME "SYSTEM\\CurrentControlSet\\Services\\EventLog\\Application\\" EVLOG_APPNAME
+#define EVLOG_MSGFILE     "%SystemRoot%\\System32\\netmsg.dll"
+#define EVLOG_ERRNO       3299
+static const uchar * const pEvlogMsgFile = EVLOG_MSGFILE;
+static HANDLE hEventSource = NULL;
+#endif
 
-   pMsg = xmalloc(strlen(pCause) + 300);
-   strcpy(pMsg, pCause);
-   strcat(pMsg, ": ");
+// ---------------------------------------------------------------------------
+// Return socket system error string
+//
+#if defined(WIN32) && (DEBUG_SWITCH == ON)
+static const char * WinSocketStrError( DWORD errCode )
+{
+   static uchar msg[300];
 
    // translate the error code into a human readable text
-   FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, code, LANG_USER_DEFAULT,
-                 pMsg + strlen(pMsg), 300 - strlen(pMsg) - 1, NULL);
+   if (FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, errCode, LANG_USER_DEFAULT,
+                     msg, strlen(msg) - 1, NULL) == 0)
+   {
+      debug1("WinSocketStrError: FormatMessage failed for errCode %ld", errCode);
+      sprintf(msg, "System error #%ld", errCode);
+   }
 
-   // open a small dialog window with the error message and an OK button
-   MessageBox(NULL, pMsg, "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
-
-   xfree(pMsg);
+   return msg;
 }
-#endif
+#endif  // WIN32 && DEBUG_SWITCH==ON
 
 // ----------------------------------------------------------------------------
 // Save text describing network error cause
 // - argument list has to be terminated with NULL pointer
 // - to be displayed by the GUI to help the user fixing the problem
 //
-void EpgNetIo_SetErrorText( char ** ppErrorText, const char * pText, ... )
+void EpgNetIo_SetErrorText( char ** ppErrorText, int errCode, const char * pText, ... )
 {
+   #ifndef WIN32
+   uchar * sysErrStr = NULL;  // init to avoid compiler warning
+   #else
+   uchar   sysErrStr[160];
+   #endif
    va_list argl;
    const char *argv[20];
    uint argc, sumlen, off, idx;
@@ -140,6 +157,16 @@ void EpgNetIo_SetErrorText( char ** ppErrorText, const char * pText, ... )
       argc    = 1;
       argv[0] = pText;
       sumlen  = strlen(pText);
+
+      if (errCode != 0)
+      {
+         #ifndef WIN32
+         sysErrStr = strerror(errCode);
+         #else
+         FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, errCode, LANG_USER_DEFAULT, sysErrStr, sizeof(sysErrStr) - 1, NULL);
+         #endif
+         sumlen += strlen(sysErrStr);
+      }
 
       va_start(argl, pText);
       while (argc < 20 - 1)
@@ -165,18 +192,54 @@ void EpgNetIo_SetErrorText( char ** ppErrorText, const char * pText, ... )
             strcpy(*ppErrorText + off, argv[idx]);
             off += strlen(argv[idx]);
          }
+
+         if (errCode != 0)
+         {
+            strcpy(*ppErrorText + off, sysErrStr);
+            //off += strlen(sysErrStr);
+         }
       }
    }
 }
 
+#ifdef WIN32
+// ----------------------------------------------------------------------------
+// WIN NT syslog output
+//
+static void EpgNetIo_Win32SyslogOpen( void )
+{
+   DWORD  evMask;
+   HKEY   hKey;
+
+   if (hEventSource == NULL)
+   {
+      if (RegCreateKey(HKEY_LOCAL_MACHINE, EVLOG_REGKEY_NAME, &hKey) == 0)
+      {
+         RegSetValueEx(hKey, "EventMessageFile", 0, REG_EXPAND_SZ, (LPBYTE) pEvlogMsgFile, strlen(pEvlogMsgFile) + 1);
+
+         evMask = EVENTLOG_ERROR_TYPE | EVENTLOG_WARNING_TYPE | EVENTLOG_INFORMATION_TYPE;
+
+         RegSetValueEx(hKey, "TypesSupported", 0, REG_DWORD, (LPBYTE) &evMask, sizeof(evMask));
+         RegCloseKey(hKey);
+      }
+
+      hEventSource = RegisterEventSource(NULL, EVLOG_APPNAME);
+   }
+}
+#endif
+
 // ----------------------------------------------------------------------------
 // Append entry to logfile
 //
-void EpgNetIo_Logger( int level, int clnt_fd, const char * pText, ... )
+void EpgNetIo_Logger( int level, int clnt_fd, int errCode, const char * pText, ... )
 {
+   #ifdef WIN32
+   uchar   sysErrStr[160];
+   uint    evType;
+   #endif
    va_list argl;
    char timestamp[32], fdstr[20];
-   const char *argv[5];
+   const char *argv[10];
    uint argc, idx;
    sint fd;
    time_t now = time(NULL);
@@ -201,6 +264,7 @@ void EpgNetIo_Logger( int level, int clnt_fd, const char * pText, ... )
          fprintf(stderr, "nxtvepg: ");
 
       argc = 0;
+      memset(argv, 0, sizeof(argv));
       // add pointer to file descriptor (for client requests) or pid (for general infos)
       if (clnt_fd != -1)
          sprintf(fdstr, "fd %d: ", clnt_fd);
@@ -209,8 +273,7 @@ void EpgNetIo_Logger( int level, int clnt_fd, const char * pText, ... )
          #ifndef WIN32
          sprintf(fdstr, "pid %d: ", (int)getpid());
          #else
-         // XXX TODO: check how to query pid on windows
-         strcpy(fdstr, "daemon: ");
+         sprintf(fdstr, "pid %ld: ", GetCurrentProcessId());
          #endif
       }
       argv[argc++] = fdstr;
@@ -225,6 +288,17 @@ void EpgNetIo_Logger( int level, int clnt_fd, const char * pText, ... )
          argv[argc++] = pText;
       }
       va_end(argl);
+
+      // add system error message
+      if (errCode != 0)
+      {
+         #ifndef WIN32
+         argv[argc++] = strerror(errCode);
+         #else
+         FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, errCode, LANG_USER_DEFAULT, sysErrStr, sizeof(sysErrStr) - 1, NULL);
+         argv[argc++] = sysErrStr;
+         #endif
+      }
 
       // print the strings to the file and/or stderr
       for (idx=0; idx < argc; idx++)
@@ -247,10 +321,10 @@ void EpgNetIo_Logger( int level, int clnt_fd, const char * pText, ... )
          fflush(stderr);
       }
 
-      #ifndef WIN32
       // syslog output
       if (level <= epgNetIoLogCf.sysloglev)
       {
+         #ifndef WIN32
          switch (argc)
          {
             case 1: syslog(level, "%s", argv[0]); break;
@@ -258,8 +332,19 @@ void EpgNetIo_Logger( int level, int clnt_fd, const char * pText, ... )
             case 3: syslog(level, "%s%s%s", argv[0], argv[1],argv[2]); break;
             case 4: syslog(level, "%s%s%s%s", argv[0], argv[1],argv[2],argv[3]); break;
          }
+         #else
+         if (hEventSource != NULL)
+         {
+            if (level <= LOG_ERR)
+               evType = EVENTLOG_ERROR_TYPE;
+            else if (level <= LOG_WARNING)
+               evType = EVENTLOG_WARNING_TYPE;
+            else
+               evType = EVENTLOG_INFORMATION_TYPE;
+            ReportEvent(hEventSource, evType, 0, EVLOG_ERRNO, NULL, 9, 0, argv, NULL);
+         }
+         #endif
       }
-      #endif
    }
 }
 
@@ -290,16 +375,20 @@ void EpgNetIo_SetLogging( int sysloglev, int fileloglev, const char * pLogfileNa
    else
       epgNetIoLogCf.fileloglev = -1;
 
-   #ifndef WIN32
    if (sysloglev && !epgNetIoLogCf.sysloglev)
    {
+      #ifndef WIN32
       openlog("nxtvepg", LOG_PID, LOG_DAEMON);
+      #else
+      EpgNetIo_Win32SyslogOpen();
+      #endif
    }
    else if (!sysloglev && epgNetIoLogCf.sysloglev)
    {
+      #ifndef WIN32
       closelog();
+      #endif
    }
-   #endif
 
    // convert GUI log-level setting to syslog enum value
    epgNetIoLogCf.sysloglev = ((sysloglev > 0) ? (sysloglev + LOG_ERR) : -1);
@@ -392,10 +481,14 @@ bool EpgNetIo_HandleIO( EPGNETIO_STATE * pIO, bool * pBlocked, bool closeOnZeroR
       else if ((WSAGetLastError() != WSAEWOULDBLOCK))
       #endif
       {  // network error -> close the connection
-         debug2("EpgNetIo-HandleIO: write error on fd %d: %s", pIO->sock_fd, strerror(errno));
+         debug2("EpgNetIo-HandleIO: write error on fd %d: %s", pIO->sock_fd, sockStrError(sockErrno));
          result = FALSE;
       }
+      #ifndef WIN32
       else if (errno == EAGAIN)
+      #else
+      else if (WSAGetLastError() == WSAEWOULDBLOCK)
+      #endif
          *pBlocked = TRUE;
    }
    else if (pIO->waitRead || (pIO->readLen > 0))
@@ -470,14 +563,14 @@ bool EpgNetIo_HandleIO( EPGNETIO_STATE * pIO, bool * pBlocked, bool closeOnZeroR
          else if ((len < 0) && (WSAGetLastError() != WSAEWOULDBLOCK))
          #endif
          {  // network error -> close the connection
-            #ifndef WIN32
-            debug3("EpgNetIo-HandleIO: read error on fd %d: len=%d, %s", pIO->sock_fd, len, strerror(errno));
-            #else
-            GetWindowsSocketErrorMsg("socket read error", WSAGetLastError());
-            #endif
+            debug3("EpgNetIo-HandleIO: read error on fd %d: len=%d, %s", pIO->sock_fd, len, sockStrError(sockErrno));
             result = FALSE;
          }
+         #ifndef WIN32
          else if (errno == EAGAIN)
+         #else
+         else if (WSAGetLastError() == WSAEWOULDBLOCK)
+         #endif
             *pBlocked = TRUE;
       }
    }
@@ -1105,11 +1198,11 @@ int EpgNetIo_ListenSocket( bool is_tcp_ip, const char * listen_ip, const char * 
          sock_fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
          if (sock_fd == -1)
          {
-            EpgNetIo_Logger(LOG_ERR, -1, "socket create failed: ", strerror(errno), NULL);
+            EpgNetIo_Logger(LOG_ERR, -1, sockErrno, "socket create failed: ", NULL);
          }
       }
       else
-         EpgNetIo_Logger(LOG_ERR, -1, "Invalid hostname or service/port: ", gai_strerror(rc), NULL);
+         EpgNetIo_Logger(LOG_ERR, -1, 0, "Invalid hostname or service/port: ", gai_strerror(rc), NULL);
    }
 
    if (sock_fd != -1)
@@ -1133,7 +1226,7 @@ int EpgNetIo_ListenSocket( bool is_tcp_ip, const char * listen_ip, const char * 
                // set socket permissions: r/w allowed to everyone
                if ( (is_tcp_ip == FALSE) &&
                     (chmod(SRV_CLNT_SOCK_PATH, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH) != 0) )
-                  EpgNetIo_Logger(LOG_WARNING, -1, "chmod failed for named socket: ", strerror(errno), NULL);
+                  EpgNetIo_Logger(LOG_WARNING, -1, errno, "chmod failed for named socket: ", NULL);
                #endif
 
                // enable listening for new connections
@@ -1143,19 +1236,19 @@ int EpgNetIo_ListenSocket( bool is_tcp_ip, const char * listen_ip, const char * 
                }
                else
                {
-                  EpgNetIo_Logger(LOG_ERR, -1, "socket listen failed: ", strerror(errno), NULL);
+                  EpgNetIo_Logger(LOG_ERR, -1, sockErrno, "socket listen failed: ", NULL);
                   if (is_tcp_ip)
                      unlink(SRV_CLNT_SOCK_PATH);
                }
             }
             else
-               EpgNetIo_Logger(LOG_ERR, -1, "socket bind failed: ", strerror(errno), NULL);
+               EpgNetIo_Logger(LOG_ERR, -1, sockErrno, "socket bind failed: ", NULL);
          }
          else
-            EpgNetIo_Logger(LOG_ERR, -1, "failed to set socket non-blocking: ", strerror(errno), NULL);
+            EpgNetIo_Logger(LOG_ERR, -1, sockErrno, "failed to set socket non-blocking: ", NULL);
       }
       else
-         EpgNetIo_Logger(LOG_ERR, -1, "socket setsockopt(SOL_SOCKET=SO_REUSEADDR) failed: ", strerror(errno), NULL);
+         EpgNetIo_Logger(LOG_ERR, -1, sockErrno, "socket setsockopt(SOL_SOCKET=SO_REUSEADDR) failed: ", NULL);
    }
 
    if (res != NULL)
@@ -1190,7 +1283,9 @@ void EpgNetIo_StopListen( bool is_tcp_ip, int sock_fd )
 //
 int EpgNetIo_AcceptConnection( int listen_fd )
 {
+   #ifndef WIN32
    struct hostent * hent;
+   #endif
    char  hname_buf[129];
    uint  length, maxLength;
    struct {  // allocate enough room for all possible types of socket address structs
@@ -1215,6 +1310,7 @@ int EpgNetIo_AcceptConnection( int listen_fd )
          {
             if (peerAddr.sa.sa_family == AF_INET)
             {
+               #ifndef WIN32  // XXX WIN32 is useless due to 5 secs timeout on 127.0.0.1
                hent = gethostbyaddr((void *) &peerAddr.sa, maxLength, AF_INET);
                if (hent != NULL)
                {
@@ -1222,9 +1318,10 @@ int EpgNetIo_AcceptConnection( int listen_fd )
                   hname_buf[sizeof(hname_buf) - 1] = 0;
                }
                else
+               #endif
                   sprintf(hname_buf, "%s, port %d", inet_ntoa(((struct sockaddr_in *) &peerAddr.sa)->sin_addr), ((struct sockaddr_in *) &peerAddr.sa)->sin_port);
 
-               EpgNetIo_Logger(LOG_INFO, sock_fd, "new connection from ", hname_buf, NULL);
+               EpgNetIo_Logger(LOG_INFO, sock_fd, 0, "new connection from ", hname_buf, NULL);
                result = TRUE;
             }
             #ifdef HAVE_GETADDRINFO
@@ -1232,43 +1329,43 @@ int EpgNetIo_AcceptConnection( int listen_fd )
             {
                if (getnameinfo(&peerAddr.sa, length, hname_buf, sizeof(hname_buf) - 1, NULL, 0, 0) == 0)
                {  // address could be resolved to hostname
-                  EpgNetIo_Logger(LOG_INFO, sock_fd, "new connection from ", hname_buf, NULL);
+                  EpgNetIo_Logger(LOG_INFO, sock_fd, 0, "new connection from ", hname_buf, NULL);
                   result = TRUE;
                }
                else if (getnameinfo(&peerAddr.sa, length, hname_buf, sizeof(hname_buf) - 1, NULL, 0,
                                     NI_NUMERICHOST | NI_NUMERICSERV) == 0)
                {  // resolver failed - but numeric conversion was successful
                   debug1("EpgNetIo-AcceptConnection: IPv6 resolver failed for %s", hname_buf);
-                  EpgNetIo_Logger(LOG_INFO, sock_fd, "new connection from ", hname_buf, NULL);
+                  EpgNetIo_Logger(LOG_INFO, sock_fd, 0, "new connection from ", hname_buf, NULL);
                   result = TRUE;
                }
                else
                {  // neither name looup nor numeric name output succeeded -> fatal error
-                  EpgNetIo_Logger(LOG_INFO, sock_fd, "new connection: failed to get IPv6 peer name or IP-addr: ", strerror(errno), NULL);
+                  EpgNetIo_Logger(LOG_INFO, sock_fd, sockErrno, "new connection: failed to get IPv6 peer name or IP-addr: ", NULL);
                   result = FALSE;
                }
             }
             #endif
             else if (peerAddr.sa.sa_family == AF_UNIX)
             {
-               EpgNetIo_Logger(LOG_INFO, sock_fd, "new connection from localhost via named socket", NULL);
+               EpgNetIo_Logger(LOG_INFO, sock_fd, 0, "new connection from localhost via named socket", NULL);
                result = TRUE;
             }
             else
             {  // neither INET nor named socket -> internal error
                sprintf(hname_buf, "%d", peerAddr.sa.sa_family);
-               EpgNetIo_Logger(LOG_WARNING, -1, "new connection via unexpected protocol family ", hname_buf, NULL);
+               EpgNetIo_Logger(LOG_WARNING, -1, 0, "new connection via unexpected protocol family ", hname_buf, NULL);
             }
          }
          else
          {  // fcntl failed: OS error (should never happen)
-            EpgNetIo_Logger(LOG_WARNING, -1, "new connection: failed to set socket to non-blocking: ", strerror(errno), NULL);
+            EpgNetIo_Logger(LOG_WARNING, -1, sockErrno, "new connection: failed to set socket to non-blocking: ", NULL);
          }
       }
       else
       {  // socket address buffer too small: internal error
          sprintf(hname_buf, "need %d, have %d", length, maxLength);
-         EpgNetIo_Logger(LOG_WARNING, -1, "new connection: saddr buffer too small: ", hname_buf, NULL);
+         EpgNetIo_Logger(LOG_WARNING, -1, 0, "new connection: saddr buffer too small: ", hname_buf, NULL);
       }
 
       if (result == FALSE)
@@ -1279,8 +1376,12 @@ int EpgNetIo_AcceptConnection( int listen_fd )
    }
    else
    {  // connect accept failed: remote host may already have closed again
-      if (errno != EAGAIN)
-         EpgNetIo_Logger(LOG_INFO, -1, "accept failed: ", strerror(errno), NULL);
+      #ifndef WIN32
+      if (errno == EAGAIN)
+      #else
+      if (WSAGetLastError() == WSAEWOULDBLOCK)
+      #endif
+         EpgNetIo_Logger(LOG_INFO, -1, sockErrno, "accept failed: ", NULL);
    }
 
    return sock_fd;
@@ -1381,14 +1482,14 @@ int EpgNetIo_ConnectToServer( bool use_tcp_ip, const char * pSrvHost, const char
          sock_fd = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
          if (sock_fd == -1)
          {
-            debug1("socket (ipv4): %s", strerror(errno));
-            EpgNetIo_SetErrorText(ppErrorText, "Cannot create network socket: ", strerror(errno), NULL);
+            debug1("socket (ipv4): %s", sockStrError(sockErrno));
+            EpgNetIo_SetErrorText(ppErrorText, sockErrno, "Cannot create network socket: ", NULL);
          }
       }
       else
       {
          debug1("getaddrinfo (ipv4): %s", gai_strerror(rc));
-         EpgNetIo_SetErrorText(ppErrorText, "Invalid hostname or service/port: ", gai_strerror(rc), NULL);
+         EpgNetIo_SetErrorText(ppErrorText, 0, "Invalid hostname or service/port: ", gai_strerror(rc), NULL);
       }
    }
 
@@ -1414,24 +1515,19 @@ int EpgNetIo_ConnectToServer( bool use_tcp_ip, const char * pSrvHost, const char
          }
          else
          {
-            #ifndef WIN32
-            debug1("connect: %s", strerror(errno));
-            #else
-            //debug1("connect: %d", WSAGetLastError());
-            GetWindowsSocketErrorMsg("connect to daemon", WSAGetLastError());
-            #endif
+            debug1("connect: %s", sockStrError(sockErrno));
             if (use_tcp_ip)
-               EpgNetIo_SetErrorText(ppErrorText, "Server not running or not reachable: connect via TCP/IP failed: ", strerror(errno), NULL);
+               EpgNetIo_SetErrorText(ppErrorText, sockErrno, "Server not running or not reachable: connect via TCP/IP failed: ", NULL);
             else
-               EpgNetIo_SetErrorText(ppErrorText, "Server not running: connect via " SRV_CLNT_SOCK_PATH " failed: ", strerror(errno), NULL);
+               EpgNetIo_SetErrorText(ppErrorText, sockErrno, "Server not running: connect via " SRV_CLNT_SOCK_PATH " failed: ", NULL);
             closesocket(sock_fd);
             sock_fd = -1;
          }
       }
       else
       {
-         debug1("fcntl (F_SETFL=O_NONBLOCK): %s", strerror(errno));
-         EpgNetIo_SetErrorText(ppErrorText, "Failed to set socket non-blocking: ", strerror(errno), NULL);
+         debug1("fcntl (F_SETFL=O_NONBLOCK): %s", sockStrError(sockErrno));
+         EpgNetIo_SetErrorText(ppErrorText, sockErrno, "Failed to set socket non-blocking: ", NULL);
          closesocket(sock_fd);
          sock_fd = -1;
       }
@@ -1465,30 +1561,20 @@ bool EpgNetIo_FinishConnect( int sock_fd, char ** ppErrorText )
       }
       else
       {  // failed to establish a connection to the server
-         debug1("EpgNetIo-FinishConnect: connect failed: %s", strerror(sockerr));
-         EpgNetIo_SetErrorText(ppErrorText, "Connect failed: ", strerror(sockerr), NULL);
+         debug1("EpgNetIo-FinishConnect: connect failed: %s", sockStrError(sockerr));
+         EpgNetIo_SetErrorText(ppErrorText, sockerr, "Connect failed: ", NULL);
       }
    }
    else
    {
-      debug1("EpgNetIo-FinishConnect: getsockopt: %s", strerror(errno));
-      EpgNetIo_SetErrorText(ppErrorText, "Failed to query socket connect result: ", strerror(errno), NULL);
+      debug1("EpgNetIo-FinishConnect: getsockopt: %s", sockStrError(sockErrno));
+      EpgNetIo_SetErrorText(ppErrorText, sockErrno, "Failed to query socket connect result: ", NULL);
    }
 
 #else  // WIN32
-
-#if 0
-   if (exception)
-   {  // on Win32 connect errors are reported as exception event by select()
-      EpgNetIo_SetErrorText(ppErrorText, "Connect failed", NULL);
-      result = FALSE;
-   }
-   else
-#endif
-   {  // on Windows the socket becomes writable if - and only if - the connect succeeded
-      dprintf0("EpgNetIo-FinishConnect: connect succeeded\n");
-      result = TRUE;
-   }
+   // on Windows the socket becomes writable if - and only if - the connect succeeded
+   dprintf0("EpgNetIo-FinishConnect: connect succeeded\n");
+   result = TRUE;
 #endif
 
    return result;

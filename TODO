@@ -5,10 +5,6 @@ boost any item's priority, find more points that need to be fixed or if
 you have ideas for additional features.
 
 daemon:
-- auto-enable for daemon mode is set too soon when connected via TCP/IP;
-  must wait until connect finished in the background
-- "cannot start scan while in client/server mode"
-  even while not connected
 - make concurrent updates of shared rc file safe (e.g. daemon writes provider freq)
   or use a different rc for acq parameters; currently data can be lost!
 - when dump is aborted, keep the old modification time on client-side
@@ -16,27 +12,17 @@ daemon:
 - limit queue max length on server side (e.g. when bandwidth too low
   or client hangs)
 - client-side db mgmt during dump state: lock merge & PI listbox?
-options:
+optional:
 - cmdline option -nodbdir: suck the complete db through the pipe
 - avoid copying each forwarded EPG block for each client
-
-misc:
-- epgdbmerge.c: AI merge: design fixes (don't modify caller's CNI array)
-- advance ranges of expired PI in timescale popup every minute
-- epgblock.h: make use of latest additions
-- merge db: remove expired PI from db every minute
-- netwop name config: counts names to "automatic selection"
-  even if there was just one provider (or just one with that netwop)
-  note: no xawtv sync is done, so it must only appear if there's more than one provider
-- Canal+ only found in EPG scan when in slow mode
-- remove ulong in frequencies
+win32 port:
+- install daemon as a service, possibly with helper app. in the systray
+  to check acquisition status.
 
 Bugs reported by Jan:
 - sometimes falsely detected "forced passive" after acq cycle advance
-- wheel mouse: scroll less than 1 page; keep Cursor on the same item
 
 xawtv patches (Gerd Knorr)
-- vtx: ESC codes for proportional font and possibly centering
 - vtx: remove subtitles upon channel changes
 - handle input source change as channel change, e.g. update property
 - split multi-network station names prior to comparison in setstation_handler
@@ -49,26 +35,16 @@ nxtvepg xawtv.c:
 - VPS empty/pause codes display
 
 WIN32 port fixes:
-- TV card input dialog: warn if TV app changed but config not loaded
-- read VPS/PDC from TV app even if acq is OFF or uses different card
-  + use "is connected" instead of "acq passive" to decide if wait for VPS
-  + btdrv4win: do not check isEnabled; always do VBI acq for VPS/PDC!
-- prevent EPG scan while TV app connected OR adapt video signal detection
-  and add EPG syntax scanner into TV app
-- improve TTX stats: 1. running average of ttx pkg data rate 2. error
-  stats to estimate reception quality
-- option "hide on minimize": add task bar icon
-- Bt8x8: make video input matrix configurable
+- Bt8x8 driver: make video input matrix configurable
 - dump stream feature: must use window or file instead of stdout
-- need to debug source of crash in MessageBox()
-- better workaround for dynamic menus needed
+  note: output to stdout works when started inside a GNU/Cygwin bash
+- need to debug source of main window crash in Windows MessageBox()
+- better workaround for dynamic menus (e.g. "Navigate" filer menu) needed
+- fill context menu config dialog with useful examples for Windows;
+  do not use DOS shell to start applications
 
 open points dsdrv:
 - must be able to load driver multiply in different apps
-- need portable card IDs, i.e. PCI slot, so to allow comm. between apps.
-     m_SubSystemId = 0x13eb0070
-     m_BusNumber = 0
-     m_SlotNumber = 18
 
 merged database fixes:
 - fine control for provider merge
@@ -79,7 +55,16 @@ merged database fixes:
   break up into substrings at any non-alnum except space
 
 other required fixes:
-- btdrv4linux: thread mode: signla HUP to slave thread is lost
+- epgdbmerge.c: AI merge: design fixes (don't modify caller's CNI array)
+- advance ranges of expired PI in timescale popup every minute
+- epgblock.h: make use of latest additions to PI: series_code, block_no_in_ai
+- TI & LI (subtitle and language information blocks): implement output methods
+  and search filters
+- merge db: remove expired PI from db every minute
+- netwop name config: counts names to "automatic selection"
+  even if there was just one provider (or just one with that netwop)
+  note: no xawtv sync is done, so it must only appear if there's more than one provider
+- btdrv4linux: thread mode: signal HUP to slave thread is ignored
 - during very bad reception acq restarts every 2-4 secs
   due to ttx page header decoding error (falsely detected channel change)
 - AdvanceCyclePhase: limit number of tries to update provider (first "if")
@@ -87,7 +72,7 @@ other required fixes:
 - improve streams decoder hamming error handling: assemble AI block
   from multiple instances if neccessary
 - add decoding error statistics to epgdbacq (e.g. # of dropped blocks)
-- external mode & tuner input source -> nonsense as status output
+- fix: external mode & tuner input source -> nonsense as status output
 - fix: obsolete series codes can not be deleted, because only series which
   have an instance in the db are listed in the series menu
 - fix: series filter uses netwop index; in a merged db when the netwop
@@ -106,7 +91,6 @@ other required fixes:
   + check parent every 30 sec, also when no ttx reception
 
 possible new features: (in order of decreasing priority)
-- wheel mouse: make scroll speed configurable
 - network selection: allow to specify time windows, e.g. for ARTE 19:00-06:00
 - additional dump format: as text with TABS as separators
 - bookmarks with multiple priority levels and reminders for bookmarks above
@@ -116,9 +100,8 @@ possible new features: (in order of decreasing priority)
 - allow multiple acquisition and GUI clients, possibly on different hosts
 - export database content via HTTP
 - export database content to mysql server
-- help texts in German
+- dialogs, menus and help texts in German and French
 - add hyperlinks in the online help menus for all cross-references
-- timezone dialog (GUI already implemented)
 - wish list: maintain list of search filters that are applied each time new
   data has been acquired; notify the user when a matching programme is found
   for the first time. This can be used for a list of favourite movies or actors
@@ -128,5 +111,4 @@ possible new features: (in order of decreasing priority)
 - provider selection: display db age & fill percentage
   save stats and start time of 1st PI in db header
 - navigation: disable leafs with zero PI / display number of matches
-- multiple VBI devices (locally or in network)
 

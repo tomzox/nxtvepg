@@ -26,10 +26,10 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: vbirec_main.c,v 1.3 2002/05/04 18:22:50 tom Exp tom $
+ *  $Id: vbirec_main.c,v 1.9 2002/05/19 17:19:17 tom Exp tom $
  */
 
-#define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
+#define DEBUG_SWITCH DEBUG_SWITCH_TVSIM
 //#define DPRINTF_OFF
 
 #include <windows.h>
@@ -47,12 +47,13 @@
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
 #include "epgvbi/btdrv.h"
+#include "epgvbi/ttxdecode.h"
 #include "epgvbi/winshm.h"
 #include "epgvbi/winshmsrv.h"
 #include "epgvbi/cni_tables.h"
 #include "epgvbi/hamming.h"
 #include "epgdb/epgblock.h"
-#include "epgdb/epgdbacq.h"
+#include "tvsim/tvsim_version.h"
 
 
 #ifndef USE_PRECOMPILED_TCL_LIBS
@@ -64,8 +65,11 @@
 # define TK_LIBRARY_PATH   "."
 #endif
 
+char tvsim_rcs_id_str[] = TVSIM_VERSION_RCS_ID;
+
 extern char gui_tcl_script[];
 extern char tcl_init_scripts[];
+extern char tk_init_scripts[];
 
 Tcl_Interp *interp;          // Interpreter for application
 char comm[1000];             // Command buffer
@@ -344,8 +348,13 @@ static void VbiRec_CbStationSelected( void )
    // really dirty hack to get the pointer to shared memory from the VBI buffer address
    pTvShm = (TVAPP_COMM *)((uchar *)pVbiBuf - (uchar *)&((TVAPP_COMM *)0)->vbiBuf);
 
-   sprintf(comm, "0x%04x", pTvShm->tvChanCni);
-   Tcl_SetVar(interp, "tvChanCni", comm, TCL_GLOBAL_ONLY);
+   if (pTvShm->tvChanCni != 0)
+   {
+      sprintf(comm, "0x%04x", pTvShm->tvChanCni);
+      Tcl_SetVar(interp, "tvChanCni", comm, TCL_GLOBAL_ONLY);
+   }
+   else
+      Tcl_SetVar(interp, "tvChanCni", "---", TCL_GLOBAL_ONLY);
 
    if (pTvShm->tvCurInput != EPG_REQ_INPUT_NONE)
    {
@@ -376,6 +385,9 @@ static void VbiRec_CbTunerGrant( bool enable )
    Tcl_SetVar(interp, "tvGrantTuner", (enable ? "yes" : "no"), TCL_GLOBAL_ONLY);
 }
 
+// ----------------------------------------------------------------------------
+// TV application attached or detached
+//
 static void VbiRec_CbAttachTv( bool enable, bool acqEnabled )
 {
    char  tvAppName[100];
@@ -529,11 +541,19 @@ static void SecTimerEvent( ClientData clientData )
          Tcl_SetVar(interp, "ttx_pkg", comm, TCL_GLOBAL_ONLY);
          ttxStats.ttxPkgCount = pVbiBuf->ttxStats.ttxPkgCount;
       }
-      if (ttxStats.ttxPkgDrop != pVbiBuf->ttxStats.ttxPkgDrop)
+      if (ttxStats.ttxPkgRate != pVbiBuf->ttxStats.ttxPkgRate)
       {
-         sprintf(comm, "%d", pVbiBuf->ttxStats.ttxPkgDrop);
-         Tcl_SetVar(interp, "ttx_drop", comm, TCL_GLOBAL_ONLY);
-         ttxStats.ttxPkgDrop = pVbiBuf->ttxStats.ttxPkgDrop;
+         sprintf(comm, "%.1f (%.0f baud)",
+                       (double)pVbiBuf->ttxStats.ttxPkgRate / (1 << TTX_PKG_RATE_FIXP),
+                       (double)pVbiBuf->ttxStats.ttxPkgRate / (1 << TTX_PKG_RATE_FIXP) * 42 * 8 * 25);
+         Tcl_SetVar(interp, "ttx_rate", comm, TCL_GLOBAL_ONLY);
+         ttxStats.ttxPkgRate = pVbiBuf->ttxStats.ttxPkgRate;
+      }
+      if (ttxStats.vpsLineCount != pVbiBuf->ttxStats.vpsLineCount)
+      {
+         sprintf(comm, "%d", pVbiBuf->ttxStats.vpsLineCount);
+         Tcl_SetVar(interp, "vps_cnt", comm, TCL_GLOBAL_ONLY);
+         ttxStats.vpsLineCount = pVbiBuf->ttxStats.vpsLineCount;
       }
       if (ttxStats.epgPkgCount != pVbiBuf->ttxStats.epgPkgCount)
       {
@@ -612,6 +632,8 @@ bool BtDriver_GetState( bool * pEnabled, bool * pHasDriver, uint * pCardIdx )
       *pEnabled = FALSE;
    return TRUE;
 }
+bool TtxDecode_GetCniAndPil( uint * pCni, uint *pPil, volatile EPGACQ_BUF *pThisVbiBuf ) { return FALSE; }
+void TtxDecode_NotifyChannelChange( volatile EPGACQ_BUF * pThisVbiBuf ) {}
 
 // ----------------------------------------------------------------------------
 // Struct with callback functions for shared memory server module
@@ -653,6 +675,7 @@ static int ui_init( int argc, char **argv )
    Tcl_SetVar(interp, "tcl_library", TCL_LIBRARY_PATH, TCL_GLOBAL_ONLY);
    Tcl_SetVar(interp, "tk_library", TK_LIBRARY_PATH, TCL_GLOBAL_ONLY);
    Tcl_SetVar(interp, "tcl_interactive", "0", TCL_GLOBAL_ONLY);
+   Tcl_SetVar(interp, "TVSIM_VERSION", TVSIM_VERSION_STR, TCL_GLOBAL_ONLY);
 
    Tcl_Init(interp);
    if (Tk_Init(interp) != TCL_OK)
@@ -666,6 +689,11 @@ static int ui_init( int argc, char **argv )
    #ifdef USE_PRECOMPILED_TCL_LIBS
    if (Tcl_VarEval(interp, tcl_init_scripts, NULL) != TCL_OK)
    {
+      debug1("tcl_init_scripts error: %s\n", interp->result);
+   }
+   if (Tcl_VarEval(interp, tk_init_scripts, NULL) != TCL_OK)
+   {
+      debug1("tk_init_scripts error: %s\n", interp->result);
    }
    #endif
 
@@ -732,19 +760,18 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
             pVbiBuf->isEnabled = TRUE;
             pVbiBuf->doVpsPdc = TRUE;
 
-            VbiRec_CbAttachTv(FALSE, FALSE);
             VbiRec_CbStationSelected();
 
             // trigger second event for the first time to install the timer
             SecTimerEvent(NULL);
 
+            // set window title & disable resizing
+            eval_check(interp, "wm title . {VBI recorder " TVSIM_VERSION_STR "}\nwm resizable . 0 0\n");
+
             // wait until window is open and everything displayed
             while ( (Tk_GetNumMainWindows() > 0) &&
                     Tcl_DoOneEvent(TCL_ALL_EVENTS | TCL_DONT_WAIT) )
                ;
-
-            // change window title - cannot be set before the window is mapped
-            eval_check(interp, "wm title . {VBI recorder}\nwm resizable . 0 0\n");
 
             // process GUI events & callbacks until the main window is closed
             while (Tk_GetNumMainWindows() > 0)
@@ -761,7 +788,22 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
          }
       }
       else
-         debug0("Fatal: failed to set up shared memory - bailing out");
+      {
+         const char * pShmErrMsg;
+         char * pErrBuf;
+
+         pShmErrMsg = WinSharedMem_GetErrorMsg();
+         if (pShmErrMsg != NULL)
+         {
+            pErrBuf = xmalloc(strlen(pShmErrMsg) + 100);
+
+            sprintf(pErrBuf, "tk_messageBox -type ok -icon error -message {%s}", pShmErrMsg);
+            eval_check(interp, pErrBuf);
+
+            xfree((void *) pErrBuf);
+            xfree((void *) pShmErrMsg);
+         }
+      }
 
       #if defined(WIN32) && !defined(__MINGW32__)
       }

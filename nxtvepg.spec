@@ -1,5 +1,5 @@
 %define    prefix    /usr/local
-%define    version   0.7.1
+%define    version   0.7.2
 
 Summary:   nexTView EPG decoder and browser
 Name:      nxtvepg

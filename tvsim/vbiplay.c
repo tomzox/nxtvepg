@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: vbiplay.c,v 1.3 2002/05/04 18:22:39 tom Exp tom $
+ *  $Id: vbiplay.c,v 1.5 2002/05/19 17:19:10 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_TVSIM
@@ -44,20 +44,6 @@ volatile EPGACQ_BUF * pVbiBuf;
 static HANDLE playEventHandle;
 static CRITICAL_SECTION m_cCrit;
 
-
-// ---------------------------------------------------------------------------
-// Trigger function for shared memory events
-// - called whenever the connected EPG application changed a value in shared mem
-// - this function is executed in a separated thread (which is used to wait for
-//   EPG events) hence a semaphore is used to synchronize with the main loop
-//
-static void EpgEvent( void )
-{
-   EnterCriticalSection (&m_cCrit);
-   WinSharedMemClient_HandleEpgEvent();
-   LeaveCriticalSection (&m_cCrit);
-}
-
 // ---------------------------------------------------------------------------
 // Callback for shared memory handler: invoked when EPG app attaches or detaches
 // - when a EPG application attaches, playback is started
@@ -73,19 +59,87 @@ static void EpgAttach( bool attach )
 }
 
 // ---------------------------------------------------------------------------
+// Callback for shared memory handler: invoked when EPG attach fails
+// - when a EPG application attaches, playback is started
+//
+static void EpgError( void )
+{
+   const uchar * pErrMsg;
+
+   pErrMsg = WinSharedMemClient_GetErrorMsg();
+   fprintf(stderr, "%s", ((pErrMsg != NULL) ? (char*)pErrMsg : "EPG client init failed"));
+
+   if (pErrMsg != NULL)
+      xfree((void *) pErrMsg);
+}
+
+// ---------------------------------------------------------------------------
+// Trigger function for shared memory events
+// - called whenever the connected EPG application changed a value in shared mem
+// - this function is executed in a separated thread (which is used to wait for
+//   EPG events) hence a semaphore is used to synchronize with the main loop
+//
+static void EpgEvent( void )
+{
+   WINSHMCLNT_EVENT curEvent;
+   bool  shouldExit;
+
+   EnterCriticalSection (&m_cCrit);
+   shouldExit = FALSE;
+   do
+   {
+      curEvent = WinSharedMemClient_GetEpgEvent();
+      switch (curEvent)
+      {
+         case SHM_EVENT_ATTACH:
+            EpgAttach(TRUE);
+            break;
+
+         case SHM_EVENT_DETACH:
+            EpgAttach(FALSE);
+            break;
+
+         case SHM_EVENT_ATTACH_ERROR:
+            EpgError();
+            shouldExit = TRUE;
+            break;
+
+         case SHM_EVENT_PROG_INFO:
+            // ignored
+            break;
+
+         case SHM_EVENT_CMD_ARGV:
+            // ignored
+            break;
+
+         case SHM_EVENT_INP_FREQ:
+            // ignored
+            break;
+
+         case SHM_EVENT_NONE:
+            shouldExit = TRUE;
+            break;
+
+         default:
+            debug1("TvSimu-IdleHandler: unknown EPG event %d - ignored", curEvent);
+      }
+   }
+   while (shouldExit == FALSE);
+   LeaveCriticalSection (&m_cCrit);
+}
+
+// ---------------------------------------------------------------------------
 // structure which is passed to the shm client init function
 // - only the trigger and attach callbacks are used by this app
 //
 static const WINSHMCLNT_TVAPP_INFO tvSimuInfo =
 {
    "VBI playback",
+   "",
+   TVAPP_NONE,
    TVAPP_FEAT_TTX_FWD,
 
    EpgEvent,
-   NULL,
-   NULL,
-   NULL,
-   EpgAttach
 };
 
 // ---------------------------------------------------------------------------
@@ -163,6 +217,7 @@ static void PlaybackVbi( int fdTtxFile )
 //
 int main( int argc, char ** argv )
 {
+   WINSHMCLNT_EVENT attachEvent;
    int  fdTtxFile;
 
    InitializeCriticalSection (&m_cCrit);
@@ -174,13 +229,26 @@ int main( int argc, char ** argv )
       if (playEventHandle != NULL)
       {
          pVbiBuf = NULL;
-         if (WinSharedMemClient_Init(&tvSimuInfo))
+         if (WinSharedMemClient_Init(&tvSimuInfo, &attachEvent))
          {
-            // enter the event loop
-            PlaybackVbi(fdTtxFile);
+            if (attachEvent != SHM_EVENT_ATTACH_ERROR)
+            {
+               // report attach failures during initialization
+               if (attachEvent == SHM_EVENT_ATTACH)
+                  EpgAttach(TRUE);
 
-            // done -> detach from shared memory
-            WinSharedMemClient_Exit();
+               // enter the event loop
+               PlaybackVbi(fdTtxFile);
+
+               // done -> detach from shared memory
+               WinSharedMemClient_Exit();
+            }
+            else
+               EpgError();
+         }
+         else
+         {
+            EpgError();
          }
          CloseHandle(playEventHandle);
       }

@@ -36,10 +36,10 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgctxmerge.c,v 1.8 2002/04/29 18:14:22 tom Exp tom $
+ *  $Id: epgctxmerge.c,v 1.9 2002/05/12 20:23:31 tom Exp tom $
  */
 
-#define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
+#define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
 #define DPRINTF_OFF
 
 #include <time.h>

@@ -28,7 +28,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: tvchan.c,v 1.6 2001/04/17 19:58:09 tom Exp tom $
+ *  $Id: tvchan.c,v 1.7 2002/05/11 15:42:50 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -97,24 +97,24 @@ static uint freqTabIdx = 0;
 // ---------------------------------------------------------------------------
 // Converts channel name back to frequency
 //
-ulong TvChannels_NameToFreq( const char * pName )
+uint TvChannels_NameToFreq( const char * pName )
 {
    const FREQ_TABLE *ft;
    char * pEnd;
-   ulong channel;
+   uint  channel;
 
    ft = freqTableList[freqTabIdx];
    while (ft->firstChannel > 0)
    {
       if ((*ft->prefix == 0) || (strncmp(pName, ft->prefix, strlen(ft->prefix)) == 0))
       {
-         channel = strtol(pName + strlen(ft->prefix), &pEnd, 10);
+         channel = (uint) strtol(pName + strlen(ft->prefix), &pEnd, 10);
          if (*pEnd == 0)
          {
             channel += ft->idxOffset;
             if ((channel >= ft->firstChannel) && (channel <= ft->lastChannel))
             {
-               return (ulong)(16.0 * (ft->freqStart + ft->freqOffset * (channel - ft->firstChannel)));
+               return (uint)(16.0 * (ft->freqStart + ft->freqOffset * (channel - ft->firstChannel)));
             }
          }
       }
@@ -175,7 +175,7 @@ int TvChannels_GetCount( void )
 // ---------------------------------------------------------------------------
 // Get the next channel and frequency from the table
 //
-bool TvChannels_GetNext( uint *pChan, ulong *pFreq )
+bool TvChannels_GetNext( uint *pChan, uint *pFreq )
 {
    const FREQ_TABLE *ft;
 
@@ -197,7 +197,7 @@ bool TvChannels_GetNext( uint *pChan, ulong *pFreq )
             *pChan = ft->firstChannel;
 
          // get the frequency of this channel
-         *pFreq = (ulong) (16.0 * (ft->freqStart + (*pChan - ft->firstChannel) * ft->freqOffset));
+         *pFreq = (uint) (16.0 * (ft->freqStart + (*pChan - ft->firstChannel) * ft->freqOffset));
          break;
       }
       ft += 1;

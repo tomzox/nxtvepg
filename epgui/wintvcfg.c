@@ -29,7 +29,7 @@
  *    so their respective copyright applies too. Please see the notes in
  *    functions headers below.
  *
- *  $Id: wintvcfg.c,v 1.3 2002/05/04 18:20:20 tom Exp tom $
+ *  $Id: wintvcfg.c,v 1.5 2002/05/19 22:01:49 tom Exp tom $
  */
 
 #ifndef WIN32
@@ -53,6 +53,7 @@
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
 #include "epgvbi/btdrv.h"
+#include "epgvbi/winshm.h"
 #include "epgdb/epgblock.h"
 #include "epgui/epgmain.h"
 #include "epgui/wintvcfg.h"
@@ -63,20 +64,8 @@
 static bool doChanTabFilter;
 
 // ----------------------------------------------------------------------------
-// Identifiers for supported TV applications
-// - plus file names of their INI and channel table files
+// File names to load config files of supported TV applications
 //
-typedef enum
-{
-   TVAPP_NONE,
-   TVAPP_DSCALER,
-   TVAPP_KTV,
-   TVAPP_MULTIDEC,
-   TVAPP_MORETV,
-   TVAPP_FREETV,
-   TVAPP_COUNT
-} TVAPP_NAME;
-
 #define INI_FILE_DSCALER         "DScaler.ini"
 #define INI_FILE_KTV             "k!tv-xp.ini"
 #define INI_FILE_MULTIDEC        "Multidec.ini"
@@ -99,7 +88,7 @@ typedef enum
 
 typedef struct
 {
-   ulong   * pFreqTab;
+   uint    * pFreqTab;
    uint      maxCount;
    uint      fillCount;
 } DYN_FREQ_BUF;
@@ -172,9 +161,9 @@ static char * WintvCfg_GetPath( const char * pBase, const char * pFileName )
 // Helper func to append frequency values to a growing list
 // - the list grows automatically when required
 //
-static void WintvCfg_AddFreqToBuf( DYN_FREQ_BUF * pFreqBuf, ulong freq )
+static void WintvCfg_AddFreqToBuf( DYN_FREQ_BUF * pFreqBuf, uint freq )
 {
-   ulong * pOldFreqTab;
+   uint * pOldFreqTab;
 
    assert(pFreqBuf->fillCount <= pFreqBuf->maxCount);
 
@@ -185,11 +174,11 @@ static void WintvCfg_AddFreqToBuf( DYN_FREQ_BUF * pFreqBuf, ulong freq )
       {
          pOldFreqTab = pFreqBuf->pFreqTab;
          pFreqBuf->maxCount += CHAN_CLUSTER_SIZE;
-         pFreqBuf->pFreqTab = xmalloc(pFreqBuf->maxCount * sizeof(ulong));
+         pFreqBuf->pFreqTab = xmalloc(pFreqBuf->maxCount * sizeof(uint));
 
          if (pOldFreqTab != NULL)
          {
-            memcpy(pFreqBuf->pFreqTab, pOldFreqTab, pFreqBuf->fillCount * sizeof(ulong));
+            memcpy(pFreqBuf->pFreqTab, pOldFreqTab, pFreqBuf->fillCount * sizeof(uint));
             xfree(pOldFreqTab);
          }
       }
@@ -722,7 +711,7 @@ static void WintvCfg_GetKtvStationNames( Tcl_Interp * interp, const char * pTvap
 static bool WintvCfg_GetDscalerFreqTab( Tcl_Interp * interp, DYN_FREQ_BUF * pFreqBuf, const char * pTvappPath )
 {
    char sbuf[256];
-   ulong  freq;
+   uint   freq;
    char * pPath;
    FILE * fp;
    char * eol_ptr;
@@ -749,7 +738,7 @@ static bool WintvCfg_GetDscalerFreqTab( Tcl_Interp * interp, DYN_FREQ_BUF * pFre
             // cope with old style frequencies
             if (strnicmp(sbuf, "Freq:", 5) == 0)
             {
-               freq = atol(sbuf + 5);
+               freq = (uint) atol(sbuf + 5);
                freq = (freq * 16) / 1000;  // MulDiv WTF!?
                WintvCfg_AddFreqToBuf(pFreqBuf, freq);
             }
@@ -1458,7 +1447,7 @@ static int WintvCfg_GetStationNames( ClientData ttp, Tcl_Interp * interp, int ar
 // ----------------------------------------------------------------------------
 // Extract all tuner frequencies from th TV app's channel table
 //
-bool WintvCfg_GetFreqTab( Tcl_Interp * interp, ulong ** pFreqTab, uint * pCount )
+bool WintvCfg_GetFreqTab( Tcl_Interp * interp, uint ** ppFreqTab, uint * pCount )
 {
    DYN_FREQ_BUF freqBuf;
    uchar * pTvAppPath;
@@ -1488,8 +1477,8 @@ bool WintvCfg_GetFreqTab( Tcl_Interp * interp, ulong ** pFreqTab, uint * pCount 
                freqBuf.pFreqTab = NULL;
             }
 
-            *pFreqTab = freqBuf.pFreqTab;
-            *pCount   = freqBuf.fillCount;
+            *ppFreqTab = freqBuf.pFreqTab;
+            *pCount    = freqBuf.fillCount;
             result = TRUE;
          }
          // else: file open failed -> user already informed

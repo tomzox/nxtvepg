@@ -46,7 +46,7 @@
  *    WinDriver replaced with DSdrv (DScaler driver)
  *      March 2002 by E-Nek (e-nek@netcourrier.com)
  *
- *  $Id: btdrv4win.c,v 1.20 2002/05/04 18:21:22 tom Exp tom $
+ *  $Id: btdrv4win.c,v 1.22 2002/05/11 15:42:50 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -215,6 +215,20 @@ static const TBT848Chip BT848Chips[] =
    { 0x109e, 0x0351, "BT849" }
 };
 #define TV_CHIP_COUNT (sizeof(BT848Chips) / sizeof(BT848Chips[0]))
+
+typedef struct
+{
+   uint  chipIdx;
+   uint  chipCardIdx;
+   DWORD dwSubSystemID;
+   DWORD dwBusNumber;
+   DWORD dwSlotNumber;
+} TVCARD_ID;
+
+#define MAX_CARD_COUNT  4
+#define CARD_COUNT_UNINITIALIZED  (MAX_CARD_COUNT + 1)
+static TVCARD_ID btCardList[MAX_CARD_COUNT];
+static uint      btCardCount;
 
 #define INVALID_INPUT_SOURCE  4
 
@@ -737,7 +751,29 @@ const char * BtDriver_GetInputName( uint cardIdx, uint inputIdx )
 //
 const char * BtDriver_GetCardName( uint cardIdx )
 {
-   return NULL;
+   #define MAX_CARD_NAME_LEN 32
+   static char name[MAX_CARD_NAME_LEN + 1];
+   const char * result = NULL;
+   uint chipIdx;
+
+   if (btCardCount == CARD_COUNT_UNINITIALIZED)
+   {  // no PCI scan done yet -> return numerical indices for the max. number of cards
+      if (cardIdx < MAX_CARD_COUNT)
+      {
+         sprintf(name, "%d", cardIdx);
+         result = name;
+      }
+   }
+   else
+   {
+      if (cardIdx < btCardCount)
+      {
+         chipIdx = btCardList[cardIdx].chipIdx;
+         sprintf(name, "%d (%s)", cardIdx, BT848Chips[chipIdx].szName);
+         result = name;
+      }
+   }
+   return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -750,6 +786,11 @@ bool BtDriver_IsVideoPresent( void )
    if (btDrvLoaded)
    {
       result = ((BT8X8_ReadByte (BT848_DSTATUS) & (BT848_DSTATUS_PRES | BT848_DSTATUS_HLOC)) == (BT848_DSTATUS_PRES | BT848_DSTATUS_HLOC)) ? TRUE : FALSE;
+   }
+   else if (shmSlaveMode)
+   {  // this operation is currently not supported by the TV app interaction protocol
+      // but it's not really needed since normally we'll be using the TV app channel table for a scan
+      result = TRUE;
    }
    else
       result = FALSE;
@@ -1251,58 +1292,73 @@ static void BT8X8_Close( void )
 }
 
 // ---------------------------------------------------------------------------
-// Open the driver device and allocate I/O resources
+// Generate a list of available cards
 //
-static BOOL BT8X8_Open( void )
+static void BT8X8_CountCards( void )
 {
-   DWORD dwPhysicalAddress;
-   DWORD dwMemoryLength;
-   DWORD dwSubSystemID;
-   char msgbuf[200];
-   int  ret;
-   int  chipIdx, cardIdx;
-   int  foundCount, prevFoundCount;
-   BOOL result = FALSE;
+   uint  chipIdx, cardIdx;
 
-   foundCount = 0;
-   for (chipIdx=0; chipIdx < TV_CHIP_COUNT; chipIdx++)
+   // if the scan was already done skip it
+   if (btCardCount == CARD_COUNT_UNINITIALIZED)
    {
-      ret = pciGetHardwareResources(BT848Chips[chipIdx].VendorId, BT848Chips[chipIdx].DeviceId,
-                                    btCfg.cardIdx - foundCount,
-                                    &dwPhysicalAddress, &dwMemoryLength, &dwSubSystemID);
-
-      if (ret == ERROR_SUCCESS)
-      {  // success -> done.
-         result = TRUE;
-         break;
-      }
-      else if (ret == 3)
-      {  // card found, but failed to open -> abort
-         sprintf(msgbuf, "PCI-Card #%d (with %s chip) cannot be locked!", foundCount, BT848Chips[chipIdx].szName);
-         MessageBox(NULL, msgbuf, "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
-         break;
-      }
-      else
-      {  // card not found -> count available cards of this type
-         prevFoundCount = foundCount;
-         for (cardIdx = prevFoundCount; cardIdx < btCfg.cardIdx; cardIdx++)
+      btCardCount = 0;
+      for (chipIdx=0; (chipIdx < TV_CHIP_COUNT) && (btCardCount < MAX_CARD_COUNT); chipIdx++)
+      {
+         cardIdx = 0;
+         while (btCardCount < MAX_CARD_COUNT)
          {
-            if (DoesThisPCICardExist(BT848Chips[chipIdx].VendorId, BT848Chips[chipIdx].DeviceId, cardIdx - prevFoundCount) == ERROR_SUCCESS)
+            if (DoesThisPCICardExist(BT848Chips[chipIdx].VendorId, BT848Chips[chipIdx].DeviceId,
+                                     cardIdx,
+                                     &btCardList[btCardCount].dwSubSystemID,
+                                     &btCardList[btCardCount].dwBusNumber,
+                                     &btCardList[btCardCount].dwSlotNumber) == ERROR_SUCCESS)
             {
-               dprintf1("PCI scan: found Booktree chip %s\n", BT848Chips[chipIdx].szName);
-               foundCount += 1;
+               dprintf4("PCI scan: found Booktree chip %s, ID=%lx, bus=%ld, slot=%ld\n", BT848Chips[chipIdx].szName, btCardList[btCardCount].dwSubSystemID, btCardList[btCardCount].dwBusNumber, btCardList[btCardCount].dwSlotNumber);
+               btCardList[btCardCount].chipIdx     = chipIdx;
+               btCardList[btCardCount].chipCardIdx = cardIdx;
+               btCardCount += 1;
             }
             else
             {  // no more cards with this chip -> next chip (outer loop)
                break;
             }
+            cardIdx += 1;
          }
       }
+      dprintf1("BT8X8-CountCards: found %d cards", btCardCount);
    }
+}
 
-   if ((result == FALSE) && (chipIdx >= TV_CHIP_COUNT))
+// ---------------------------------------------------------------------------
+// Open the driver device and allocate I/O resources
+//
+static BOOL BT8X8_Open( void )
+{
+   char msgbuf[200];
+   int  ret;
+   int  chipIdx, chipCardIdx;
+   BOOL result = FALSE;
+
+   if (btCfg.cardIdx < btCardCount)
    {
-      sprintf(msgbuf, "PCI-Card #%d not found! (Found %d cards)", btCfg.cardIdx, foundCount);
+      chipIdx     = btCardList[btCfg.cardIdx].chipIdx;
+      chipCardIdx = btCardList[btCfg.cardIdx].chipCardIdx;
+
+      ret = pciGetHardwareResources(BT848Chips[chipIdx].VendorId, BT848Chips[chipIdx].DeviceId, chipCardIdx);
+
+      if (ret == ERROR_SUCCESS)
+      {
+         result = TRUE;
+      }
+      else if (ret == 3)
+      {  // card found, but failed to open -> abort
+         sprintf(msgbuf, "PCI-Card #%d (with %s chip) cannot be locked!", btCfg.cardIdx, BT848Chips[chipIdx].szName);
+         MessageBox(NULL, msgbuf, "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+      }
+   }
+   else
+   {
+      sprintf(msgbuf, "Bt8x8 TV card #%d not found! (Found %d Bt8x8 TV cards on PCI bus)", btCfg.cardIdx, btCardCount);
       MessageBox(NULL, msgbuf, "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
    }
 
@@ -1340,6 +1396,8 @@ static bool BtDriver_Load( void )
    loadError = LoadDriver();
    if (loadError == HWDRV_LOAD_SUCCESS)
    {
+      BT8X8_CountCards();
+
       result = BT8X8_Open();
       if (result != FALSE)
       {
@@ -1502,12 +1560,12 @@ bool BtDriver_Configure( int cardIndex, int tunerType, int pllType, int prio )
 // Change the tuner frequency
 // - makes only sense if TV tuner is input source
 //
-bool BtDriver_TuneChannel( ulong freq, bool keepOpen )
+bool BtDriver_TuneChannel( uint freq, bool keepOpen )
 {
    bool result = FALSE;
 
    // remember frequency for later
-   btCfg.tunerFreq = (uint) freq;
+   btCfg.tunerFreq = freq;
 
    if (shmSlaveMode == FALSE)
    {
@@ -1531,9 +1589,9 @@ bool BtDriver_TuneChannel( ulong freq, bool keepOpen )
 // ----------------------------------------------------------------------------
 // Get the current tuner frequency
 //
-ulong BtDriver_QueryChannel( void )
+uint BtDriver_QueryChannel( void )
 {
-   ulong freq = 0;
+   uint freq = 0;
 
    if (shmSlaveMode == FALSE)
    {
@@ -1685,10 +1743,11 @@ bool BtDriver_StartAcq( void )
    DWORD LinkThreadID;
    bool result = FALSE;
 
-   shmSlaveMode = (WintvSharedMem_ReqTvCardIdx(btCfg.cardIdx) == FALSE);
-   if (shmSlaveMode == FALSE)
+   if ( (shmSlaveMode == FALSE) && (btDrvLoaded == FALSE) )
    {
-      if (btDrvLoaded == FALSE)
+      // check if the configured card is currently free
+      shmSlaveMode = (WintvSharedMem_ReqTvCardIdx(btCfg.cardIdx) == FALSE);
+      if (shmSlaveMode == FALSE)
       {
          if (BtDriver_Load())
          {
@@ -1700,34 +1759,37 @@ bool BtDriver_StartAcq( void )
                result = TRUE;
             }
             else
+            {
+               debug1("BtDriver-StartAcq: failed to create VBI thread: %ld", GetLastError());
                UnloadDriver();
+            }
 #else
             result = TRUE;
 #endif
          }
+
+         if (result == FALSE)
+            WintvSharedMem_FreeTvCard();
       }
       else
-      {  // driver already loaded - should never happen
-         debug0("BtDriver-StartAcq: driver already loaded");
-         result = TRUE;
-      }
+      {  // TV card is already used by TV app -> slave mode
+         dprintf0("BtDriver-StartAcq: starting in slave mode");
 
-      if (result == FALSE)
-         WintvSharedMem_FreeTvCard();
+         assert(pVbiBuf == &vbiBuf);
+         pVbiBuf = WintvSharedMem_GetVbiBuf();
+         if (pVbiBuf != NULL)
+         {
+            memcpy((char *)pVbiBuf, &vbiBuf, sizeof(*pVbiBuf));
+            result = TRUE;
+         }
+         else
+            WintvSharedMem_FreeTvCard();
+      }
    }
    else
-   {  // TV card is already used by TV app -> slave mode
-      dprintf0("BtDriver-StartAcq: starting in slave mode");
-
-      assert(pVbiBuf == &vbiBuf);
-      pVbiBuf = WintvSharedMem_GetVbiBuf();
-      if (pVbiBuf != NULL)
-      {
-         memcpy((char *)pVbiBuf, &vbiBuf, sizeof(*pVbiBuf));
-         result = TRUE;
-      }
-      else
-         WintvSharedMem_FreeTvCard();
+   {  // acq already active - should never happen
+      debug0("BtDriver-StartAcq: driver already loaded");
+      result = TRUE;
    }
 
    return result;
@@ -1794,6 +1856,7 @@ bool BtDriver_Init( void )
    memset(&btCfg, 0, sizeof(btCfg));
    btCfg.tunerType = TUNER_NONE;
    btCfg.inputSrc  = INVALID_INPUT_SOURCE;
+   btCardCount = CARD_COUNT_UNINITIALIZED;
 
    return TRUE;
 }

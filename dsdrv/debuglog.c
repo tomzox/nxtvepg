@@ -13,7 +13,7 @@
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 //    GNU General Public License for more details
 /////////////////////////////////////////////////////////////////////////////
-// nxtvepg $Id: debuglog.c,v 1.1 2002/05/04 18:39:12 tom Exp tom $
+// nxtvepg $Id: debuglog.c,v 1.2 2002/05/06 11:42:05 tom Exp tom $
 /////////////////////////////////////////////////////////////////////////////
 
 #define DEBUG_SWITCH DEBUG_SWITCH_DSDRV

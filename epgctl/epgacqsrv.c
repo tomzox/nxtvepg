@@ -20,7 +20,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgacqsrv.c,v 1.8 2002/05/04 18:52:38 tom Exp $
+ *  $Id: epgacqsrv.c,v 1.9 2002/05/19 21:52:08 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -364,7 +364,7 @@ static void EpgAcqServer_EnableBlockFwd( EPGDBSRV_STATE * req )
 static void EpgAcqServer_Close( EPGDBSRV_STATE * req, bool closeAll )
 {
    dprintf1("EpgAcqServer-Close: fd %d\n", req->io.sock_fd);
-   EpgNetIo_Logger(LOG_INFO, req->io.sock_fd, "closing connection", NULL);
+   EpgNetIo_Logger(LOG_INFO, req->io.sock_fd, 0, "closing connection", NULL);
 
    EpgNetIo_CloseIO(&req->io);
 
@@ -392,6 +392,8 @@ static void EpgAcqServer_AddConnection( int listen_fd )
    sock_fd = EpgNetIo_AcceptConnection(listen_fd);
    if (sock_fd != -1)
    {
+      dprintf1("EpgAcqServer-AddConnection: fd %d\n", sock_fd);
+
       req = xmalloc(sizeof(EPGDBSRV_STATE));
       memset(req, 0, sizeof(EPGDBSRV_STATE));
 
@@ -910,7 +912,7 @@ void EpgAcqServer_Destroy( void )
    if (srvState.pipe_fd != -1)
    {
       EpgNetIo_StopListen(FALSE, srvState.pipe_fd);
-      EpgNetIo_Logger(LOG_NOTICE, -1, "shutting down", NULL);
+      EpgNetIo_Logger(LOG_NOTICE, -1, 0, "shutting down", NULL);
    }
    if (srvState.tcp_ip_fd != -1)
    {
@@ -976,19 +978,23 @@ bool EpgAcqServer_Listen( void )
             srvState.tcp_ip_fd = EpgNetIo_ListenSocket(TRUE, srvState.listen_ip, srvState.listen_port);
             if (srvState.tcp_ip_fd != -1)
             {
-               EpgNetIo_Logger(LOG_NOTICE, -1, "started listening on local and TCP/IP socket", NULL);
+               EpgNetIo_Logger(LOG_NOTICE, -1, 0, "started listening on local and TCP/IP socket", NULL);
                result = TRUE;
             }
          }
          else
          {  // no TCP/IP socket requested
-            EpgNetIo_Logger(LOG_NOTICE, -1, "started listening on local socket", NULL);
+            #ifndef WIN32
+            EpgNetIo_Logger(LOG_NOTICE, -1, 0, "started listening on local socket", NULL);
             result = TRUE;
+            #else
+            EpgNetIo_Logger(LOG_ERR, -1, 0, "TCP/IP not enabled - only TCP/IP supported for Win32", NULL);
+            #endif
          }
       }
    }
    else
-      EpgNetIo_Logger(LOG_ERR, -1, "a nxtvepg daemon is already running", NULL);
+      EpgNetIo_Logger(LOG_ERR, -1, 0, "a nxtvepg daemon is already running", NULL);
 
    return result;
 }

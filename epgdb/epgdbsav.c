@@ -29,7 +29,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbsav.c,v 1.46 2002/03/29 17:31:21 tom Exp tom $
+ *  $Id: epgdbsav.c,v 1.47 2002/05/11 15:43:36 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -1202,7 +1202,7 @@ void EpgDbDumpGetDirAndCniFromArg( char * pArg, const char ** ppDirPath, uint * 
 // ---------------------------------------------------------------------------
 // Update the tuner frequency in the dump file header
 //
-bool EpgDbDumpUpdateHeader( uint cni, ulong freq )
+bool EpgDbDumpUpdateHeader( uint cni, uint freq )
 {
    EPGDBSAV_HEADER head;
    size_t   size;
@@ -1314,13 +1314,13 @@ time_t EpgReadAiUpdateTime( uint cni )
 // ---------------------------------------------------------------------------
 // Reads tuner frequency from a database header, even for incompatible db versions
 //
-ulong EpgDbReadFreqFromDefective( uint cni )
+uint EpgDbReadFreqFromDefective( uint cni )
 {
    EPGDBSAV_HEADER head;
    size_t  size;
    uchar * pFilename;
    int     fd;
-   ulong   tunerFreq = 0L;
+   uint    tunerFreq = 0;
 
    pFilename = xmalloc(strlen(epgDbDirPath) + 1 + DUMP_NAME_MAX);
    sprintf(pFilename, "%s/" DUMP_NAME_FMT, epgDbDirPath, cni);

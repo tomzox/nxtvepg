@@ -7,7 +7,7 @@ browse TV programme listings for most of the major networks in Germany,
 Austria, France and Switzerland.
 
 Currently Nextview EPG is transmitted by:
-- in Germany and Austria: Kabel1, Pro7, 3Sat, RTL-II.
+- in Germany and Austria: Kabel1, 3Sat, RTL-II.
 - in Switzerland: SF1, TSR1, TSI1, EuroNews.
 - in France: Canal+, M6.
 - in Turkey: TRT.
@@ -59,9 +59,9 @@ If you want to compile for Windows you also need:
   or apply the patches described in README.tcl83 to the tk8.3.2 sources)
 - Perl 5 to generate the help menus from the documentation in POD format
   (not essential unless you want to modify the help menus)
-- If you want to compile the driver and the interface library dsdrv.dll
-  you also need the Microsoft Visual C++ compiler and the Device Driver
-  Development Kit. Driver sources are available at http://www.dscaler.org/
+- If you want to compile the driver you also need the Microsoft Visual C++
+  compiler and a Device Driver Development Kit. Driver sources are available
+  at http://www.dscaler.org/
 
 
 UNIX installation procedure (when compiling from source):

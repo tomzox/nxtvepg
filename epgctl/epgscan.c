@@ -34,7 +34,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgscan.c,v 1.20 2002/05/04 18:17:01 tom Exp tom $
+ *  $Id: epgscan.c,v 1.26 2002/05/14 19:02:16 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -46,21 +46,21 @@
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
 
+#include "epgvbi/cni_tables.h"
+#include "epgvbi/vbidecode.h"
+#include "epgvbi/tvchan.h"
+#include "epgvbi/btdrv.h"
+#include "epgvbi/ttxdecode.h"
 #include "epgdb/epgblock.h"
 #include "epgdb/epgdbif.h"
 #include "epgdb/epgdbsav.h"
 #include "epgdb/epgstream.h"
 #include "epgdb/epgqueue.h"
-#include "epgdb/epgdbacq.h"
 #include "epgdb/epgdbmgmt.h"
 
 #include "epgui/uictrl.h"
 #include "epgctl/epgctxctl.h"
 #include "epgctl/epgacqctl.h"
-#include "epgvbi/cni_tables.h"
-#include "epgvbi/vbidecode.h"
-#include "epgvbi/tvchan.h"
-#include "epgvbi/btdrv.h"
 
 #include "epgctl/epgscan.h"
 
@@ -78,11 +78,12 @@ typedef struct
    uint             newProvCount;     // number of providers found
    uint             badProvCount;     // number of defective providers found (refresh mode)
    time_t           startTime;        // start of acq for the current channel
+   uint             extraWait;        // extra seconds to wait until timeout
    bool             doSlow;           // user option: do not skip channels w/o reception
    bool             doRefresh;        // user option: check already known providers only
    bool             useXawtv;         // user option: work on predefined channel list
    uint             provFreqCount;    // number of known frequencies (xawtv and refresh mode)
-   ulong          * provFreqTab;      // list of known frequencies (xawtv and refresh mode)
+   uint           * provFreqTab;      // list of known frequencies (xawtv and refresh mode)
    uint           * provCniTab;       // list of known provider CNIs (refresh mode)
    EPGDB_CONTEXT  * pDbContext;       // database context for BI/AI search and reload
    EPGDB_QUEUE      dbQueue;          // queue for incoming EPG blocks
@@ -103,7 +104,7 @@ static const EPGDB_ADD_CB epgScanCb =
 // ----------------------------------------------------------------------------
 // Tune the next channel
 //
-static bool EpgScan_NextChannel( ulong * pFreq )
+static bool EpgScan_NextChannel( uint * pFreq )
 {
    bool result = FALSE;
 
@@ -134,7 +135,7 @@ static bool EpgScan_NextChannel( ulong * pFreq )
 static bool EpgScan_AiCallback( const AI_BLOCK *pNewAi )
 {
    const AI_BLOCK *pOldAi;
-   ulong oldTunerFreq;
+   uint oldTunerFreq;
    uint oldAppId;
    uchar msgbuf[80];
    bool accept = FALSE;
@@ -226,7 +227,8 @@ static bool EpgScan_BiCallback( const BI_BLOCK *pNewBi )
             if (scanCtl.pDbContext->appId != pNewBi->app_id)
             {  // not the default id
                dprintf2("EpgCtl: app-ID changed from %d to %d\n", scanCtl.pDbContext->appId, scanCtl.pDbContext->appId);
-               EpgDbAcqReset(scanCtl.pDbContext, &scanCtl.dbQueue, EPG_ILLEGAL_PAGENO, pNewBi->app_id);
+               EpgStreamClear();
+               EpgStreamInit(&scanCtl.dbQueue, TRUE, pNewBi->app_id, scanCtl.pDbContext->pageNo);
             }
          }
          else
@@ -239,55 +241,6 @@ static bool EpgScan_BiCallback( const BI_BLOCK *pNewBi )
 }
 
 // ----------------------------------------------------------------------------
-// Process all available lines from VBI and check for BI and AI blocks
-// 
-void EpgScan_ProcessPackets( void )
-{
-   bool stopped;
-   uint pageNo;
-
-   if (scanCtl.pDbContext != NULL)
-   {
-      // the check function must be called even if EPG acq is not yet enabled
-      // because it also handles channel changes and watches over the slave's life
-      if (EpgDbAcqCheckForPackets(&stopped))
-      {
-         if (scanCtl.state >= SCAN_STATE_WAIT_EPG)
-         {
-            if (EpgDbAcqProcessPackets() == FALSE)
-            {
-               // Notification from acquisition about channel change: should not be reached, because
-               // the video and vbi devices are kepty busy, so no external channel changes can occur
-               fatal0("EpgScan-ProcessPackets: uncontrolled channel change detected");
-            }
-            EpgDbProcessQueueByType(&scanCtl.pDbContext, &scanCtl.dbQueue, BLOCK_TYPE_BI, &epgScanCb);
-            EpgDbProcessQueueByType(&scanCtl.pDbContext, &scanCtl.dbQueue, BLOCK_TYPE_AI, &epgScanCb);
-
-            // accept OI block #0 because its message is displayed in the prov selection dialog
-            if (EpgDbContextGetCni(scanCtl.pDbContext) != 0)
-               EpgDbProcessQueueByType(&scanCtl.pDbContext, &scanCtl.dbQueue, BLOCK_TYPE_OI, &epgScanCb);
-         }
-      }
-
-      if (stopped == FALSE)
-      {
-         pageNo = EpgDbAcqGetMipPageNo();
-         if ((pageNo != EPG_ILLEGAL_PAGENO) && (pageNo != scanCtl.pDbContext->pageNo))
-         {  // found a different page number in MIP
-            dprintf2("EpgScan-ProcessPackets: non-default MIP page no for EPG: %03X (was %03X) -> restart acq\n", pageNo, scanCtl.pDbContext->pageNo);
-
-            scanCtl.pDbContext->pageNo = pageNo;
-            EpgDbAcqReset(scanCtl.pDbContext, &scanCtl.dbQueue, pageNo, EPG_ILLEGAL_APPID);
-         }
-      }
-      else
-      {
-         EpgScan_Stop();
-      }
-   }
-}
-
-// ----------------------------------------------------------------------------
 // EPG scan timer event handler - called every 250ms
 // 
 uint EpgScan_EvHandler( void )
@@ -297,30 +250,37 @@ uint EpgScan_EvHandler( void )
    const char * pName, * pCountry;
    time_t now = time(NULL);
    uchar chanName[10], msgbuf[300];
-   ulong freq;
-   uint32_t ttxPkgCount, epgPkgCount, epgPageCount;
+   uint  freq;
+   uint32_t ttxPkgCount, vbiLineCount, epgPkgCount, epgPageCount;
    uint cni, dataPageCnt;
+   uint pageNo;
    time_t delay;
    uint rescheduleMs;
    bool niWait;
+   bool stopped;
+
+   // Process all available lines from VBI and check for BI and AI blocks
+   // (note: the check function must be called even if EPG acq is not yet enabled
+   // because it also handles channel changes and watches over the slave's life)
+   TtxDecode_CheckForPackets(&stopped);
+   if ( stopped || (scanCtl.pDbContext == NULL) )
+      EpgScan_Stop();
 
    rescheduleMs = 0;
    if (scanCtl.state != SCAN_STATE_OFF)
    {
       if (scanCtl.state == SCAN_STATE_RESET)
       {  // reset state again 50ms after channel change
-         // make sure all data of the previous channel is removed from the ring buffer
-         EpgDbAcqInitScan();
          scanCtl.state = SCAN_STATE_WAIT_SIGNAL;
          dprintf1("WAIT_SIGNAL channel %d\n", scanCtl.channel);
       }
       else if (scanCtl.state == SCAN_STATE_WAIT_SIGNAL)
       {  // skip this channel if there's no stable signal
-         EpgDbAcqGetStatistics(&ttxPkgCount, &epgPkgCount, &epgPageCount);
+         TtxDecode_GetStatistics(&ttxPkgCount, &vbiLineCount, &epgPkgCount, &epgPageCount);
          if ( scanCtl.doSlow || scanCtl.useXawtv || scanCtl.doRefresh ||
-              BtDriver_IsVideoPresent() || (ttxPkgCount > 0) )
+              BtDriver_IsVideoPresent() || (ttxPkgCount > 0) || (vbiLineCount > 0) )
          {
-            dprintf2("WAIT for data on channel %d (%ld ttx pkgs)\n", scanCtl.channel, ttxPkgCount);
+            dprintf2("WAIT for data on channel %d (%d ttx pkgs)\n", scanCtl.channel, ttxPkgCount);
             if (BtDriver_IsVideoPresent())
                scanCtl.signalFound += 1;
             scanCtl.state = SCAN_STATE_WAIT_ANY;
@@ -333,10 +293,36 @@ uint EpgScan_EvHandler( void )
       }
       else
       {
-         EpgDbAcqGetScanResults(&cni, &niWait, &dataPageCnt);
-
          if (scanCtl.state == SCAN_STATE_WAIT_EPG)
          {
+            pageNo = TtxDecode_GetMipPageNo();
+            if ((pageNo != EPG_ILLEGAL_PAGENO) && (pageNo != scanCtl.pDbContext->pageNo))
+            {  // found a different page number in MIP
+               dprintf2("EpgScan-ProcessPackets: non-default MIP page no for EPG: %03X (was %03X) -> restart acq\n", pageNo, scanCtl.pDbContext->pageNo);
+               scanCtl.MsgCallback("Found non-default EPG ttx page in MIP - restarting");
+
+               scanCtl.pDbContext->pageNo = pageNo;
+               EpgStreamClear();
+               EpgStreamInit(&scanCtl.dbQueue, TRUE, EPG_DEFAULT_APPID, pageNo);
+               TtxDecode_StartEpgAcq(pageNo, TRUE);
+
+               // set effective start time to "now"
+               scanCtl.extraWait = now - scanCtl.startTime;
+            }
+
+            if (EpgStreamProcessPackets() == FALSE)
+            {
+               // Notification from acquisition about channel change: should not be reached, because
+               // the video and vbi devices are kepty busy, so no external channel changes can occur
+               fatal0("EpgScan-ProcessPackets: uncontrolled channel change detected");
+            }
+            EpgDbProcessQueueByType(&scanCtl.pDbContext, &scanCtl.dbQueue, BLOCK_TYPE_BI, &epgScanCb);
+            EpgDbProcessQueueByType(&scanCtl.pDbContext, &scanCtl.dbQueue, BLOCK_TYPE_AI, &epgScanCb);
+
+            // accept OI block #0 because its message is displayed in the prov selection dialog
+            if (EpgDbContextGetCni(scanCtl.pDbContext) != 0)
+               EpgDbProcessQueueByType(&scanCtl.pDbContext, &scanCtl.dbQueue, BLOCK_TYPE_OI, &epgScanCb);
+
             EpgDbLockDatabase(scanCtl.pDbContext, TRUE);
             pAi = EpgDbGetAi(scanCtl.pDbContext);
             if (pAi != NULL)
@@ -347,6 +333,9 @@ uint EpgScan_EvHandler( void )
             }
             EpgDbLockDatabase(scanCtl.pDbContext, FALSE);
          }
+
+         TtxDecode_GetScanResults(&cni, &niWait, &dataPageCnt);
+
          if ((cni != 0) && ((scanCtl.state <= SCAN_STATE_WAIT_NI) || (scanCtl.state == SCAN_STATE_WAIT_NI_OR_EPG)))
          {
             dprintf2("Found VPS/PDC/NI 0x%04X on channel %d\n", cni, scanCtl.channel);
@@ -441,7 +430,7 @@ uint EpgScan_EvHandler( void )
       {
          case SCAN_STATE_WAIT_SIGNAL:    delay =  2; break;
          case SCAN_STATE_WAIT_ANY:       delay =  2; break;
-         case SCAN_STATE_WAIT_NI:        delay =  4; break;
+         case SCAN_STATE_WAIT_NI:        delay =  6; break;
          case SCAN_STATE_WAIT_DATA:      delay =  2; break;
          case SCAN_STATE_WAIT_NI_OR_EPG: delay = 45; break;
          case SCAN_STATE_WAIT_EPG:       delay = 45; break;
@@ -452,7 +441,8 @@ uint EpgScan_EvHandler( void )
       if (scanCtl.doSlow)
          delay *= 2;
 
-      if ( (scanCtl.state == SCAN_STATE_DONE) || ((now - scanCtl.startTime) >= delay) )
+      if ( (scanCtl.state == SCAN_STATE_DONE) ||
+           ((now - scanCtl.startTime - scanCtl.extraWait) >= delay) )
       {  // max wait exceeded -> next channel
 
          // print a message why the search is aborted
@@ -508,7 +498,6 @@ uint EpgScan_EvHandler( void )
 
          if ( EpgScan_NextChannel(&freq) )
          {
-            EpgDbAcqNotifyChannelChange();
             if ( BtDriver_TuneChannel(freq, TRUE) )
             {
                // automatically dump db if provider was found, then free resources
@@ -517,13 +506,16 @@ uint EpgScan_EvHandler( void )
 
                scanCtl.pDbContext = EpgContextCtl_OpenDummy();
                scanCtl.pDbContext->tunerFreq = freq;
+               scanCtl.pDbContext->pageNo    = EPG_DEFAULT_PAGENO;
 
-               // Note: Reset initializes the app-ID and ttx page no, hence it must be called after the db switch
-               EpgDbAcqReset(scanCtl.pDbContext, &scanCtl.dbQueue, EPG_ILLEGAL_PAGENO, EPG_ILLEGAL_APPID);
-               EpgDbAcqInitScan();
+               EpgStreamClear();
+               EpgStreamInit(&scanCtl.dbQueue, TRUE, EPG_DEFAULT_APPID, EPG_DEFAULT_PAGENO);
+
+               TtxDecode_StartEpgAcq(EPG_DEFAULT_PAGENO, TRUE);
 
                dprintf1("RESET channel %d\n", scanCtl.channel);
                scanCtl.startTime = now;
+               scanCtl.extraWait = 0;
                scanCtl.state = SCAN_STATE_RESET;
                scanCtl.foundBi = FALSE;
 
@@ -583,7 +575,7 @@ uint EpgScan_EvHandler( void )
       }
       else
       {  // continue scan on current channel
-         dprintf2("Continue waiting... waited %d of max. %d secs\n", (int)(now - scanCtl.startTime), (int)delay);
+         dprintf2("Continue waiting... waited %d of max. %d secs\n", (int)(now - scanCtl.startTime - scanCtl.extraWait), (int)delay);
          if (scanCtl.state == SCAN_STATE_WAIT_SIGNAL)
             rescheduleMs = 100;
          else
@@ -611,10 +603,10 @@ uint EpgScan_EvHandler( void )
 //   doRefresh: work only on freqs of already known providers
 //
 EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv, bool doRefresh,
-                                    uint * cniTab, ulong *freqTab, uint freqCount,
+                                    uint * cniTab, uint *freqTab, uint freqCount,
                                     uint * pRescheduleMs, void (* MsgCallback)(const char * pMsg) )
 {
-   ulong freq;
+   uint  freq;
    bool  isTuner;
    EPGSCAN_START_RESULT result;
    uchar chanName[10], msgbuf[80];
@@ -646,9 +638,7 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv,
       scanCtl.pDbContext = EpgContextCtl_OpenDummy();
       if (scanCtl.acqWasEnabled == FALSE)
       {
-         EpgDbAcqInit();
          EpgDbQueue_Init(&scanCtl.dbQueue);
-         EpgDbAcqStart(scanCtl.pDbContext, &scanCtl.dbQueue, EPG_ILLEGAL_PAGENO, EPG_ILLEGAL_APPID);
          if (BtDriver_StartAcq() == FALSE)
             result = EPGSCAN_ACCESS_DEV_VBI;
       }
@@ -658,7 +648,6 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv,
 
    if (result == EPGSCAN_OK)
    {
-      EpgDbAcqNotifyChannelChange();
       if ( BtDriver_SetInputSource(inputSource, TRUE, &isTuner) )
       {
          if (isTuner)
@@ -669,13 +658,17 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv,
                  BtDriver_TuneChannel(freq, TRUE) )
             {
                scanCtl.pDbContext->tunerFreq = freq;
+               scanCtl.pDbContext->pageNo    = EPG_DEFAULT_PAGENO;
 
-               EpgDbAcqReset(scanCtl.pDbContext, &scanCtl.dbQueue, EPG_ILLEGAL_PAGENO, EPG_ILLEGAL_APPID);
-               EpgDbAcqInitScan();
+               EpgStreamClear();
+               EpgStreamInit(&scanCtl.dbQueue, TRUE, EPG_DEFAULT_APPID, EPG_DEFAULT_PAGENO);
+
+               TtxDecode_StartEpgAcq(EPG_DEFAULT_PAGENO, TRUE);
 
                dprintf1("RESET channel %d\n", scanCtl.channel);
                scanCtl.state = SCAN_STATE_RESET;
                scanCtl.startTime = time(NULL);
+               scanCtl.extraWait = 0;
                scanCtl.foundBi = FALSE;
                rescheduleMs = 50;
                scanCtl.signalFound = 0;
@@ -716,7 +709,10 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv,
          scanCtl.pDbContext = NULL;
 
          if (scanCtl.acqWasEnabled == FALSE)
-            EpgDbAcqStop();
+         {
+            TtxDecode_StopAcq();
+            EpgStreamClear();
+         }
          else if (pAcqDbContext == NULL)
             EpgAcqCtl_Suspend(FALSE);
       }
@@ -749,8 +745,7 @@ void EpgScan_Stop( void )
 {
    if (scanCtl.state != SCAN_STATE_OFF)
    {
-      // do a reset to clear the db queue
-      EpgDbAcqReset(scanCtl.pDbContext, &scanCtl.dbQueue, EPG_ILLEGAL_PAGENO, EPG_ILLEGAL_APPID);
+      EpgStreamClear();
 
       if (scanCtl.provFreqTab != NULL)
       {
@@ -773,8 +768,9 @@ void EpgScan_Stop( void )
       BtDriver_CloseDevice();
       if (scanCtl.acqWasEnabled == FALSE)
       {
+         TtxDecode_StopAcq();
          BtDriver_StopAcq();
-         EpgDbAcqStop();
+         EpgStreamClear();
       }
       else
          EpgAcqCtl_Suspend(FALSE);

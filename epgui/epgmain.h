@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgmain.h,v 1.18 2002/01/26 15:20:12 tom Exp tom $
+ *  $Id: epgmain.h,v 1.19 2002/05/19 21:56:44 tom Exp tom $
  */
 
 #ifndef __EPGMAIN_H
@@ -39,6 +39,9 @@ bool RemoveMainIdleEvent( Tcl_IdleProc * IdleProc, ClientData clientData, bool m
 
 bool EpgMain_StartDaemon( void );
 bool EpgMain_StopDaemon( void );
+#ifdef WIN32
+bool EpgMain_CheckDaemon( void );
+#endif
 bool IsDemoMode( void );
 #endif  // _TCL
 

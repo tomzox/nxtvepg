@@ -24,7 +24,7 @@
 #
 #  Author: Tom Zoerner
 #
-# $Id: tvsim.pod,v 1.1 2002/05/05 20:29:29 tom Exp tom $
+# $Id: tvsim.pod,v 1.2 2002/05/10 00:17:07 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME
@@ -175,17 +175,20 @@ Your channels should appear in the tvsim channel table.
 
 =item B<nxtvepg.ini>
 
-Configuration file where all configuration settings are stored. By default
-this is created in the working directory, but a different path and file
-name can be specified with the B<-rcfile> option.
+Configuration file from which TV card setup and TV application interaction
+settings are read.  By default it is expected in the working directory,
+but a different path and file name can be specified with the B<-rcfile>
+option.  tvsim never writes to this file;  configuration changes have
+to be made with nxtvepg.
 
 =back
 
 
 =head1 SEE ALSO
 
-Please refer to the B<nxtvepg> manual for information on TV card
-and TV application interaction configuration.
+Please refer to the manual of B<nxtvepg> for information on TV card and
+TV application interaction configuration.  See also the manuals for
+B<vbirec> and B<vbiplay> for further debugging possibilities.
 
 
 =head1 AUTHOR

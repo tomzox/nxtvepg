@@ -1,5 +1,5 @@
 /*
- *  Nextview EPG block decoder
+ *  Decoding of teletext and VPS packets
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
@@ -32,10 +32,10 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbacq.c,v 1.41 2002/05/04 18:17:52 tom Exp tom $
+ *  $Id: ttxdecode.c,v 1.47 2002/05/14 18:37:21 tom Exp tom $
  */
 
-#define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
+#define DEBUG_SWITCH DEBUG_SWITCH_VBI
 #define DPRINTF_OFF
 
 #include <string.h>
@@ -43,32 +43,16 @@
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
+
 #include "epgvbi/cni_tables.h"
 #include "epgvbi/hamming.h"
 #include "epgvbi/btdrv.h"
-#include "epgdb/epgblock.h"
-#include "epgdb/epgqueue.h"
-#include "epgdb/epgdbacq.h"
-#include "epgdb/epgstream.h"
+#include "epgvbi/ttxdecode.h"
 
 
 // ----------------------------------------------------------------------------
-// internal decoder status
+// Internal decoder status
 //
-
-#define HEADER_CHECK_LEN         12
-#define HEADER_CHECK_LEN_STR    "12"   // for debug output
-#define HEADER_CHECK_MAX_ERRORS   2
-
-// struct that holds the state of the master process, i.e. acq control
-static struct
-{
-   uint          epgPageNo;
-   bool          isEpgPage;
-   bool          bEpgDbAcqEnabled;
-   bool          bHeaderCheckInit;
-   uchar         lastPageHeader[HEADER_CHECK_LEN];
-} dbAcqState;
 
 // struct that holds the state of the slave process, i.e. ttx decoder
 static struct
@@ -77,136 +61,48 @@ static struct
    uchar      isMipPage;         // bitfield: current ttx page in magazine M is the MIP page for M=0..7
    uint       frameSeqNo;        // last reported VBI frame sequence number
    bool       skipFrames;        // skip first frames after channel change
+   uint       pkgPerFrame;       // counter to determine teletext data rate (as ttx pkg per frame)
 } acqSlaveState;
 
-// ----------------------------------------------------------------------------
-// Initialize the internal state
-//
-void EpgDbAcqInit( void )
+// max. number of pages that are allowed for EPG transmission: mFd & mdF: m[0..7],d[0..9]
+#define NXTV_VALID_PAGE_PER_MAG (1 + 10 + 10)
+#define NXTV_VALID_PAGE_COUNT   (8 * NXTV_VALID_PAGE_PER_MAG)
+
+typedef struct
 {
-   dbAcqState.bEpgDbAcqEnabled = FALSE;
+   uchar   pkgCount;
+   uchar   lastPkg;
+   uchar   okCount;
+} PAGE_SCAN_STATE;
 
-   pVbiBuf->writer_idx = 0;
-   pVbiBuf->reader_idx = 0;
-   pVbiBuf->isEnabled = FALSE;
-}
+static PAGE_SCAN_STATE scanState[NXTV_VALID_PAGE_COUNT];
+static int             lastMagIdx[8];
 
 // ----------------------------------------------------------------------------
-// Start the acquisition
+// Start EPG acquisition
 //
-void EpgDbAcqStart( EPGDB_CONTEXT *dbc, EPGDB_QUEUE * pQueue, uint pageNo, uint appId )
+void TtxDecode_StartEpgAcq( uint epgPageNo, bool isEpgScan )
 {
-   uint epgAppId;
-   bool bWaitForBiAi;
+   // pass the configuration variables to the ttx process via shared memory
+   pVbiBuf->epgPageNo = epgPageNo;
+   pVbiBuf->isEpgScan = isEpgScan;
+   pVbiBuf->doVpsPdc  = TRUE;
 
-   if (dbAcqState.bEpgDbAcqEnabled == FALSE)
-   {
-      dbAcqState.isEpgPage = FALSE;
-      dbAcqState.bHeaderCheckInit = FALSE;
+   // enable ttx processing in the slave process/thread
+   pVbiBuf->isEnabled = TRUE;
 
-      if (pageNo != EPG_ILLEGAL_PAGENO)
-         dbAcqState.epgPageNo = dbc->pageNo = pageNo;
-      else if ((dbc->pageNo != EPG_ILLEGAL_PAGENO) && VALID_EPG_PAGENO(dbc->pageNo))
-         dbAcqState.epgPageNo = dbc->pageNo;
-      else
-         dbAcqState.epgPageNo = dbc->pageNo = EPG_DEFAULT_PAGENO;
-
-      if (appId != EPG_ILLEGAL_APPID)
-         epgAppId = appId;
-      else if (dbc->appId != EPG_ILLEGAL_APPID)
-         epgAppId = dbc->appId;
-      else
-         epgAppId = EPG_DEFAULT_APPID;
-
-      // skip first VBI frame, reset ttx decoder, then set reader idx to writer idx
-      pVbiBuf->chanChangeReq = pVbiBuf->chanChangeCnf + 2;
-
-      // pass the configuration variables to the ttx process via IPC
-      pVbiBuf->epgPageNo = dbAcqState.epgPageNo;
-      pVbiBuf->isEpgScan = FALSE;
-      pVbiBuf->doVpsPdc  = TRUE;
-
-      // enable acquisition in the slave process/thread
-      pVbiBuf->isEnabled = TRUE;
-
-      if (dbc->pAiBlock != NULL)
-      {  // provider already known
-         // set up a list of alphabets for string decoding
-         EpgBlockSetAlphabets(&dbc->pAiBlock->blk.ai);
-         // since alphabets are known PI can be collected right from the start
-         bWaitForBiAi = FALSE;
-      }
-      else
-      {  // unknown provider -> wait for AI before allowing PI
-         bWaitForBiAi = TRUE;
-      }
-
-      // initialize the state of the streams decoder
-      EpgStreamInit(pQueue, bWaitForBiAi, epgAppId);
-
-      dbAcqState.bEpgDbAcqEnabled = TRUE;
-   }
-   else
-      debug0("EpgDbAcq-Start: already running");
+   // skip first VBI frame, reset ttx decoder, then set reader idx to writer idx
+   pVbiBuf->chanChangeReq = pVbiBuf->chanChangeCnf + 2;
 }
 
 // ----------------------------------------------------------------------------
 // Stop the acquisition
 // - the external process may continue to collect data
 //
-void EpgDbAcqStop( void )
+void TtxDecode_StopAcq( void )
 {
-   if (dbAcqState.bEpgDbAcqEnabled)
-   {
-      // inform writer process/thread
-      pVbiBuf->isEnabled = FALSE;
-
-      EpgStreamClear();
-
-      dbAcqState.bEpgDbAcqEnabled = FALSE;
-   }
-   else
-      debug0("EpgDbAcq-Stop: already stopped");
-}
-
-// ---------------------------------------------------------------------------
-// Stop and Re-Start the acquisition
-// - called after change of channel or internal parameters
-//
-void EpgDbAcqReset( EPGDB_CONTEXT *dbc, EPGDB_QUEUE * pQueue, uint pageNo, uint appId )
-{
-   if (dbAcqState.bEpgDbAcqEnabled)
-   {
-      // discard remaining blocks in the scratch buffer
-      EpgStreamClear();
-
-      // set acq state to OFF internally only to satisfy start-acq function
-      dbAcqState.bEpgDbAcqEnabled = FALSE;
-
-      EpgDbAcqStart(dbc, pQueue, pageNo, appId);
-   }
-   else
-      debug0("EpgDbAcq-Reset: acq not enabled");
-}
-
-// ---------------------------------------------------------------------------
-// Initialize EPG scan upon start-up or after a channel change
-//
-void EpgDbAcqInitScan( void )
-{
-   if (dbAcqState.bEpgDbAcqEnabled)
-   {
-      EpgStreamSyntaxScanInit();
-
-      // reset state machines
-      pVbiBuf->chanChangeReq = pVbiBuf->chanChangeCnf + 2;
-
-      // enable scan mode
-      pVbiBuf->isEpgScan = TRUE;
-      pVbiBuf->doVpsPdc  = TRUE;
-   }
-   else
-      debug0("EpgDbAcq-InitScan: acq not enabled");
+   // inform writer process/thread
+   pVbiBuf->isEnabled = FALSE;
 }
 
 // ---------------------------------------------------------------------------
@@ -214,7 +110,7 @@ void EpgDbAcqInitScan( void )
 // - result values are not invalidized, b/c the caller will change the
 //   channel after a value was read anyways
 //
-void EpgDbAcqGetScanResults( uint *pCni, bool *pNiWait, uint *pDataPageCnt )
+void TtxDecode_GetScanResults( uint *pCni, bool *pNiWait, uint *pDataPageCnt )
 {
    CNI_TYPE type;
    uint     cni;
@@ -262,30 +158,33 @@ void EpgDbAcqGetScanResults( uint *pCni, bool *pNiWait, uint *pDataPageCnt )
 //   CNI value is converted to VPS or PDC respectively so that the caller
 //   needs not care how the CNI was obtained.
 //
-bool EpgDbAcqGetCniAndPil( uint * pCni, uint *pPil )
+bool TtxDecode_GetCniAndPil( uint * pCni, uint *pPil, volatile EPGACQ_BUF *pThisVbiBuf )
 {
    CNI_TYPE type;
    bool result = FALSE;
 
-   if (pVbiBuf != NULL)
+   if (pThisVbiBuf == NULL)
+      pThisVbiBuf = pVbiBuf;
+
+   if (pThisVbiBuf != NULL)
    {
       // check if initialization for the current channel is complete
-      if (pVbiBuf->chanChangeReq == pVbiBuf->chanChangeCnf)
+      if (pThisVbiBuf->chanChangeReq == pThisVbiBuf->chanChangeCnf)
       {
          // search for the best available source
          for (type=0; type < CNI_TYPE_COUNT; type++)
          {
-            if (pVbiBuf->cnis[type].haveCni)
+            if (pThisVbiBuf->cnis[type].haveCni)
             {
                if (pCni != NULL)
-                  *pCni = pVbiBuf->cnis[type].outCni;
+                  *pCni = pThisVbiBuf->cnis[type].outCni;
 
                if (pPil != NULL)
                {
-                  if (pVbiBuf->cnis[type].havePil)
+                  if (pThisVbiBuf->cnis[type].havePil)
                   {
-                     *pPil = pVbiBuf->cnis[type].outPil;
-                     pVbiBuf->cnis[type].havePil = FALSE;
+                     *pPil = pThisVbiBuf->cnis[type].outPil;
+                     pThisVbiBuf->cnis[type].havePil = FALSE;
                   }
                   else
                      *pPil = INVALID_VPS_PIL;
@@ -300,7 +199,7 @@ bool EpgDbAcqGetCniAndPil( uint * pCni, uint *pPil )
          // CNI will immediately make an result available again)
          for (type=0; type < CNI_TYPE_COUNT; type++)
          {
-            pVbiBuf->cnis[type].haveCni = FALSE;
+            pThisVbiBuf->cnis[type].haveCni = FALSE;
          }
       }
    }
@@ -310,7 +209,7 @@ bool EpgDbAcqGetCniAndPil( uint * pCni, uint *pPil )
 // ---------------------------------------------------------------------------
 // Save CNI and PIL from the VBI process/thread
 //
-static void EpgDbAcqAddCni( CNI_TYPE type, uint cni, uint pil )
+static void TtxDecode_AddCni( CNI_TYPE type, uint cni, uint pil )
 {
    if (pVbiBuf != NULL)
    {
@@ -319,12 +218,12 @@ static void EpgDbAcqAddCni( CNI_TYPE type, uint cni, uint pil )
          if ((cni != 0) && (cni != 0xffff) && (cni != 0x0fff))
          {
             DBGONLY( if (pVbiBuf->cnis[type].cniRepCount == 0) )
-               dprintf3("EpgDbAcq-AddCni: new CNI 0x%04X, PIL=%X, type %d\n", cni, pil, type);
+               dprintf3("TtxDecode-AddCni: new CNI 0x%04X, PIL=%X, type %d\n", cni, pil, type);
 
             if ( (pVbiBuf->cnis[type].cniRepCount > 0) &&
                  (pVbiBuf->cnis[type].lastCni != cni) )
             {  // comparison failure -> reset repetition counter
-               debug3("EpgDbAcq-AddCni: %s CNI error: last %04X != %04X", ((type == CNI_TYPE_VPS) ? "VPS" : ((type == CNI_TYPE_PDC) ? "PDC" : "NI")), pVbiBuf->cnis[type].lastCni, cni);
+               debug3("TtxDecode-AddCni: %s CNI error: last %04X != %04X", ((type == CNI_TYPE_VPS) ? "VPS" : ((type == CNI_TYPE_PDC) ? "PDC" : "NI")), pVbiBuf->cnis[type].lastCni, cni);
                pVbiBuf->cnis[type].cniRepCount = 0;
             }
             pVbiBuf->cnis[type].lastCni = cni;
@@ -348,7 +247,7 @@ static void EpgDbAcqAddCni( CNI_TYPE type, uint cni, uint pil )
                if ( (pVbiBuf->cnis[type].pilRepCount > 0) &&
                     (pVbiBuf->cnis[type].lastPil != pil) )
                {  // comparison failure -> reset repetition counter
-                  debug11("EpgDbAcq-AddCni: %s PIL error: last %02d.%02d. %02d:%02d (0x%04X) != %02d.%02d. %02d:%02d (0x%04X)", ((type == CNI_TYPE_VPS) ? "VPS" : ((type == CNI_TYPE_PDC) ? "PDC" : "NI")), (pVbiBuf->cnis[type].lastPil >> 15) & 0x1F, (pVbiBuf->cnis[type].lastPil >> 11) & 0x0F, (pVbiBuf->cnis[type].lastPil >> 6) & 0x1F, pVbiBuf->cnis[type].lastPil & 0x3F, pVbiBuf->cnis[type].lastPil, (pil >> 15) & 0x1F, (pil >> 11) & 0x0F, (pil >> 6) & 0x1F, pil & 0x3F, pil);
+                  debug11("TtxDecode-AddCni: %s PIL error: last %02d.%02d. %02d:%02d (0x%04X) != %02d.%02d. %02d:%02d (0x%04X)", ((type == CNI_TYPE_VPS) ? "VPS" : ((type == CNI_TYPE_PDC) ? "PDC" : "NI")), (pVbiBuf->cnis[type].lastPil >> 15) & 0x1F, (pVbiBuf->cnis[type].lastPil >> 11) & 0x0F, (pVbiBuf->cnis[type].lastPil >> 6) & 0x1F, pVbiBuf->cnis[type].lastPil & 0x3F, pVbiBuf->cnis[type].lastPil, (pil >> 15) & 0x1F, (pil >> 11) & 0x0F, (pil >> 6) & 0x1F, pil & 0x3F, pil);
                   pVbiBuf->cnis[type].pilRepCount = 0;
                }
                pVbiBuf->cnis[type].lastPil = pil;
@@ -369,7 +268,7 @@ static void EpgDbAcqAddCni( CNI_TYPE type, uint cni, uint pil )
          }
       }
       else
-         debug1("EpgDbAcq-AddCni: invalid type %d\n", type);
+         debug1("TtxDecode-AddCni: invalid type %d\n", type);
    }
 }
 
@@ -379,7 +278,7 @@ static void EpgDbAcqAddCni( CNI_TYPE type, uint cni, uint pil )
 // - if an EPG id is found, it is passed to the acq control via shared memory
 // - only table cells which refer to pages allowed for Nextview are decoded
 //
-static void EpgDbAcqMipPacket( uchar magNo, uchar pkgNo, const uchar *data )
+static void TtxDecode_MipPacket( uchar magNo, uchar pkgNo, const uchar *data )
 {
    sint id;
    uint i;
@@ -423,9 +322,15 @@ static void EpgDbAcqMipPacket( uchar magNo, uchar pkgNo, const uchar *data )
 // Obtain EPG page number found in MIP
 // - returns 0 if MIP not received or EPG not listed in MIP
 //
-uint EpgDbAcqGetMipPageNo( void )
+uint TtxDecode_GetMipPageNo( void )
 {
-   return pVbiBuf->mipPageNo;
+   if ( (pVbiBuf != NULL) &&
+        (pVbiBuf->chanChangeReq == pVbiBuf->chanChangeCnf) )
+   {
+      return pVbiBuf->mipPageNo;
+   }
+   else
+      return 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -433,7 +338,7 @@ uint EpgDbAcqGetMipPageNo( void )
 // - invalid dates or times are replaced by VPS error code ("system code")
 //   except for the 2 defined VPS special codes: pause and empty
 //
-static uint EpgDbAcqAssemblePil( uint mday, uint month, uint hour, uint minute )
+static uint TtxDecode_AssemblePil( uint mday, uint month, uint hour, uint minute )
 {
    uint pil;
 
@@ -458,7 +363,7 @@ static uint EpgDbAcqAssemblePil( uint mday, uint month, uint hour, uint minute )
 // - bit fields are defined in "VPS Richtlinie 8R2" from August 1995
 // - called by the VBI decoder for every received VPS line
 //
-void EpgDbAcqAddVpsData( const uchar * data )
+void TtxDecode_AddVpsData( const uchar * data )
 {
    uint mday, month, hour, minute;
    uint cni, pil;
@@ -467,6 +372,8 @@ void EpgDbAcqAddVpsData( const uchar * data )
         (pVbiBuf->chanChangeReq == pVbiBuf->chanChangeCnf) &&
         (acqSlaveState.skipFrames == 0) )
    {
+      pVbiBuf->ttxStats.vpsLineCount += 1;
+
       cni = ((data[13] & 0x3) << 10) | ((data[14] & 0xc0) << 2) |
             ((data[11] & 0xc0)) | (data[14] & 0x3f);
 
@@ -484,10 +391,10 @@ void EpgDbAcqAddVpsData( const uchar * data )
          minute =  (data[13] >> 2);
 
          // check the date and time and assemble them to a PIL
-         pil = EpgDbAcqAssemblePil(mday, month, hour, minute);
+         pil = TtxDecode_AssemblePil(mday, month, hour, minute);
 
          // pass the CNI and PIL into the VPS state machine
-         EpgDbAcqAddCni(CNI_TYPE_VPS, cni, pil);
+         TtxDecode_AddCni(CNI_TYPE_VPS, cni, pil);
       }
    }
 }
@@ -495,7 +402,7 @@ void EpgDbAcqAddVpsData( const uchar * data )
 // ---------------------------------------------------------------------------
 // reverse bit order in one byte
 //
-static uchar EpgDbAcqReverseBitOrder( uchar b )
+static uchar TtxDecode_ReverseBitOrder( uchar b )
 {
    int i;
    uchar result;
@@ -520,7 +427,7 @@ static uchar EpgDbAcqReverseBitOrder( uchar b )
 //   multiple CNIs per network; currently all Nextview providers use VPS codes
 //   when available.
 //
-static void EpgDbAcqGetP830Cni( const uchar * data )
+static void TtxDecode_GetP830Cni( const uchar * data )
 {
    uchar pdcbuf[10];
    schar dc;
@@ -531,12 +438,12 @@ static void EpgDbAcqGetP830Cni( const uchar * data )
    {
       if (dc == 0)
       {  // this is a packet 8/30/1
-         cni = ((uint)EpgDbAcqReverseBitOrder(data[7]) << 8) |
-                      EpgDbAcqReverseBitOrder(data[8]);
+         cni = ((uint)TtxDecode_ReverseBitOrder(data[7]) << 8) |
+                      TtxDecode_ReverseBitOrder(data[8]);
          if ((cni != 0) && (cni != 0xffff))
          {
             cni = CniConvertP8301ToVps(cni);
-            EpgDbAcqAddCni(CNI_TYPE_NI, cni, INVALID_VPS_PIL);
+            TtxDecode_AddCni(CNI_TYPE_NI, cni, INVALID_VPS_PIL);
          }
       }
       else if (dc == 4)
@@ -554,8 +461,8 @@ static void EpgDbAcqGetP830Cni( const uchar * data )
                minute = data[5] | (data[6] & 3);
 
                cni = CniConvertPdcToVps(cni);
-               pil = EpgDbAcqAssemblePil(mday, month, hour, minute);
-               EpgDbAcqAddCni(CNI_TYPE_PDC, cni, pil);
+               pil = TtxDecode_AssemblePil(mday, month, hour, minute);
+               TtxDecode_AddCni(CNI_TYPE_PDC, cni, pil);
             }
          }
       }
@@ -565,7 +472,8 @@ static void EpgDbAcqGetP830Cni( const uchar * data )
 // ---------------------------------------------------------------------------
 // Return statistics collected by slave process/thread during acquisition
 //
-void EpgDbAcqGetStatistics( uint32_t * pTtxPkgCount, uint32_t * pEpgPkgCount, uint32_t * pEpgPagCount )
+void TtxDecode_GetStatistics( uint32_t * pTtxPkgCount, uint32_t * pVbiLineCount,
+                              uint32_t * pEpgPkgCount, uint32_t * pEpgPagCount )
 {
    // check if initialization for the current channel is complete
    if (pVbiBuf->chanChangeReq == pVbiBuf->chanChangeCnf)
@@ -583,59 +491,111 @@ void EpgDbAcqGetStatistics( uint32_t * pTtxPkgCount, uint32_t * pEpgPkgCount, ui
 }
 
 // ---------------------------------------------------------------------------
-// Check the page-header of the current page
-// - the acquisition control should immediately stop insertion of acquired
-//   blocks, until a new instance of an AI block has been received and
-//   its CNI evaluated
-// - the page header comparison fails if more than 3 characters are
-//   different; we need some tolerance here, sonce the page header
-//   is only parity protected
+// Scan EPG page header syntax
+// - checks if page number is suggested EPG page number 0x1DF, mdF or mFd
+//   (where <m> stands for magazine number, <d> for 0..9 and F for 0x0F)
+//   and stream number in page subcode is 0 or 1.
 //
-static bool EpgDbAcqDoPageHeaderCheck( const uchar * curPageHeader )
+static void TtxDecode_EpgScanHeader( uint page, uint sub )
 {
-   uint  i, err;
-   schar dec;
-   bool  result = TRUE;
+   uint d1, d2;
+   int idx;
 
-   if (dbAcqState.bHeaderCheckInit)
+   if ( ((sub & 0xf00) >> 8) < 2 )
    {
-      err = 0;
-      for (i=0; i < HEADER_CHECK_LEN; i++)
-      {
-         dec = (schar)parityTab[curPageHeader[i]];
-         if ( (dec >= 0) && (dec != dbAcqState.lastPageHeader[i]) )
-         {  // Abweichung gefunden
-            err += 1;
-         }
-      }
+      // Compute an index into the page state array for a potential EPG page
+      d1 = page & 0x0f;
+      d2 = (page >> 4) & 0x0f;
 
-      if (err > HEADER_CHECK_MAX_ERRORS)
+      if ((page & 0xff) == 0xdf)
+         idx = 0;
+      else if ( (d1 == 0xf) && (d2 < 0xa) )
+         idx = 1 + d2;
+      else if ( (d2 == 0xf) && (d1 < 0xa) )
+         idx = 11 + d1;
+      else
+         idx = -1;
+
+      if (idx >= 0)
       {
-         debug2("EpgDbAcq-DoPageHeaderCheck: %d diffs from header \"%" HEADER_CHECK_LEN_STR "s\" - stop acq", err, dbAcqState.lastPageHeader);
-         result = FALSE;
+         idx += ((page >> 8) & 0x07) * NXTV_VALID_PAGE_PER_MAG;
+         dprintf2("TtxDecode-EpgScanHeader: found possible EPG page %03X, idx=%d\n", page, idx);
+
+         scanState[idx].pkgCount = ((sub & 0x3000) >> (12-3)) | ((sub & 0x70) >> 4);
+         scanState[idx].lastPkg = 0;
       }
    }
    else
-   {  // erster Aufruf -> Parity dekodieren; falls fehlerfrei abspeichern
-      for (i=0; i < HEADER_CHECK_LEN; i++)
-      {
-         dec = (schar)parityTab[ curPageHeader[i] ];
-         if (dec >= 0)
-         {
-            dbAcqState.lastPageHeader[i] = dec;
-         }
-         else
-            break;
-      }
-
-      // erst OK wenn fehlerfrei abgespeichert
-      if (i >= HEADER_CHECK_LEN)
-      {
-         dprintf1("EpgDbAcq-DoPageHeaderCheck: found header \"%" HEADER_CHECK_LEN_STR "s\"\n", dbAcqState.lastPageHeader);
-         dbAcqState.bHeaderCheckInit = TRUE;
-      }
+   {  // invalid stream number
+      idx = -1;
    }
 
+   lastMagIdx[(page >> 8) & 0x07] = idx;
+}
+
+// ---------------------------------------------------------------------------
+// Scan EPG data packet syntax
+// - this is done in a very limited and simple way: only BP and BS are
+//   checked, plus SH for hamming errors
+// - a page is considered ok if at least two third of the packets are
+//   syntactically correct
+//
+static bool TtxDecode_EpgScanPacket( uchar mag, uchar packNo, const uchar * dat )
+{
+   PAGE_SCAN_STATE *psc;
+   schar bs, bp, c1, c2, c3, c4;
+   bool result = FALSE;
+
+   if ((mag < 8) && (lastMagIdx[mag] >= 0))
+   {
+      psc = &scanState[lastMagIdx[mag]];
+      if (packNo > psc->lastPkg)
+      {
+         if (packNo <= psc->pkgCount)
+         {
+            if ( UnHam84Nibble(dat, &bp) )
+            {
+               if (bp < 0x0c)
+               {
+                  bp = 1 + 3 * bp;
+
+                  if ( UnHam84Nibble(dat + bp, &bs) && (bs == 0x0c) &&
+                       UnHam84Nibble(dat + bp + 1, &c1) &&
+                       UnHam84Nibble(dat + bp + 2, &c2) &&
+                       UnHam84Nibble(dat + bp + 3, &c3) &&
+                       UnHam84Nibble(dat + bp + 4, &c4) )
+                  {
+                     psc->okCount++;
+                  }
+               }
+               else if (bp == 0x0c)
+               {
+                  bp = 1 + 3 * bp;
+
+                  if ( UnHam84Nibble(dat + bp, &bs) && (bs == 0x0c) &&
+                       UnHam84Nibble(dat + bp + 1, &c1) &&
+                       UnHam84Nibble(dat + bp + 2, &c2) )
+                  {
+                     psc->okCount++;
+                  }
+               }
+               else if (bp == 0x0d)
+               {
+                  psc->okCount++;
+               }
+
+               if (psc->okCount >= 16)
+               {  // this page has had enough syntactically correct packages
+                  dprintf2("TtxDecode-EpgScanPacket: syntax ok: mag=%d, idx=%d\n", mag, lastMagIdx[mag]);
+                  lastMagIdx[mag] = -1;
+                  result = TRUE;
+               }
+            }
+         }
+      }
+      else
+         lastMagIdx[mag] = -1;
+   }
    return result;
 }
 
@@ -645,78 +605,51 @@ static bool EpgDbAcqDoPageHeaderCheck( const uchar * curPageHeader )
 //    All icoming EPG packets are stored in a ring buffer to
 //    de-couple the time-critical (real-time!) teletext decoder
 //    from the rest of the database and user-interface handling.
-//    Optimally, the teletext decoder should run in a separate
-//    thread or process (connected by shared memory)
 //
 
 // ---------------------------------------------------------------------------
-// Retrieve all available packets from VBI buffer and convert them to EPG blocks
+// Retrieve the next available teletext packet from the ring buffer
 // - at this point the EPG database process/thread takes the data from the
 //   teletext acquisition process
-// - returns FALSE when an uncontrolled channel change was detected; the caller
-//   then should reset the acquisition
+// - note that the buffer slot is not yet freed in this functions;
+//   that has to be done separately after the packet was processed
 //
-bool EpgDbAcqProcessPackets( void )
+const VBI_LINE * TtxDecode_GetPacket( bool freePrevPkg )
 {
-   VBI_LINE *vbl;
-   bool channelChange = TRUE;
+   const VBI_LINE * pVbl = NULL;
 
-   if ( (dbAcqState.bEpgDbAcqEnabled) &&
+   if ( (pVbiBuf != NULL) &&
         (pVbiBuf->chanChangeReq == pVbiBuf->chanChangeCnf) )
    {
       assert((pVbiBuf->reader_idx <= EPGACQ_BUF_COUNT) && (pVbiBuf->writer_idx <= EPGACQ_BUF_COUNT));
 
-      while (pVbiBuf->reader_idx != pVbiBuf->writer_idx)
+      if ( freePrevPkg )
       {
-         vbl = (VBI_LINE *) &pVbiBuf->line[pVbiBuf->reader_idx];
-         //dprintf4("Process idx=%d: pkg=%d pg=%03X.%04X\n", pVbiBuf->reader_idx, vbl->pkgno, vbl->pageno, vbl->sub);
-         if (vbl->pkgno == 0)
+         if (pVbiBuf->reader_idx != pVbiBuf->writer_idx)
          {
-            // have to check page number again for the case of a page number change, in which
-            // the separate teletext thread would finish its current page with the wrong number
-            if (vbl->pageno == dbAcqState.epgPageNo)
-            {
-               if ( EpgDbAcqDoPageHeaderCheck(vbl->data + 13 - 5) == FALSE )
-               {
-                  dbAcqState.bHeaderCheckInit = FALSE;
-                  // abort processing remaining data
-                  channelChange = FALSE;
-                  break;
-               }
-               else
-                  dbAcqState.isEpgPage = EpgStreamNewPage(vbl->sub);
-            }
-            else
-            {  // found an unexpected ttx page in the buffer
-               debug1("EpgDbAcq-ProcessPackets: found non-EPG page %03X", vbl->pageno);
-               dbAcqState.isEpgPage = FALSE;
-            }
+            pVbiBuf->reader_idx = (pVbiBuf->reader_idx + 1) % EPGACQ_BUF_COUNT;
          }
          else
-         {
-            if (dbAcqState.isEpgPage)
-            {
-               EpgStreamDecodePacket(vbl->pkgno, vbl->data);
-            }
-            else
-               debug1("EpgDbAcq-ProcessPackets: discarding pkg %d on non-EPG page", vbl->pkgno);
-         }
+            fatal0("TtxDecode-FreePacket: buffer is already empty");
+      }
 
-         pVbiBuf->reader_idx = (pVbiBuf->reader_idx + 1) % EPGACQ_BUF_COUNT;
+      if (pVbiBuf->reader_idx != pVbiBuf->writer_idx)
+      {
+         pVbl = (const VBI_LINE *) &pVbiBuf->line[pVbiBuf->reader_idx];
       }
    }
-   return channelChange;
+   return pVbl;
 }
 
 // ---------------------------------------------------------------------------
 // Check if there are packets in the buffer
 //
-bool EpgDbAcqCheckForPackets( bool * pStopped )
+bool TtxDecode_CheckForPackets( bool * pStopped )
 {
    bool stopped = FALSE;
    bool result = FALSE;
 
-   if (dbAcqState.bEpgDbAcqEnabled)
+   if (pVbiBuf != NULL)
    {
       if (pVbiBuf->chanChangeReq == pVbiBuf->chanChangeCnf)
       {
@@ -724,7 +657,7 @@ bool EpgDbAcqCheckForPackets( bool * pStopped )
 
          if ((result == FALSE) && (pVbiBuf->hasFailed))
          {  // vbi slave has stopped acquisition -> inform master control
-            debug0("EpgDbAcq-CheckForPackets: slave process has disabled acq");
+            debug0("TtxDecode-CheckForPackets: slave process has disabled acq");
             stopped = TRUE;
             result = FALSE;
          }
@@ -734,12 +667,14 @@ bool EpgDbAcqCheckForPackets( bool * pStopped )
 
          if (pVbiBuf->hasFailed)
          {  // must inform master the acq has stopped, or acq will lock up in waiting for channel change completion
-            debug0("EpgDbAcq-CheckForPackets: slave process has disabled acq while waiting for new channel");
+            debug0("TtxDecode-CheckForPackets: slave process has disabled acq while waiting for new channel");
             stopped = TRUE;
             result = FALSE;
          }
       }
    }
+   else  // should never happen
+      stopped = TRUE;
 
    if (pStopped != NULL)
       *pStopped = stopped;
@@ -750,9 +685,9 @@ bool EpgDbAcqCheckForPackets( bool * pStopped )
 // ---------------------------------------------------------------------------
 // Append a packet to the VBI buffer
 //
-static void EpgDbAcqBufferAdd( uint pageNo, uint sub, uchar pkgno, const uchar * data )
+static void TtxDecode_BufferAdd( uint pageNo, uint sub, uchar pkgno, const uchar * data )
 {
-   static int overflow = 0;
+   DBGONLY(static int overflow = 0;)
 
    assert((pVbiBuf->reader_idx <= EPGACQ_BUF_COUNT) && (pVbiBuf->writer_idx <= EPGACQ_BUF_COUNT));
 
@@ -766,19 +701,15 @@ static void EpgDbAcqBufferAdd( uint pageNo, uint sub, uchar pkgno, const uchar *
 
       pVbiBuf->writer_idx = (pVbiBuf->writer_idx + 1) % EPGACQ_BUF_COUNT;
 
-      overflow = 0;
+      DBGONLY(overflow = 0;)
    }
+#if DEBUG_SWITCH == ON
    else
    {
-      if ((overflow % EPGACQ_BUF_COUNT) == 0)
-      {
-         debug0("EpgDbAcq-BufferAdd: buffer overflow");
-         #ifndef WIN32
-         BtDriver_CheckParent();
-         #endif
-      }
+      ifdebug0((overflow == 0), "TtxDecode-BufferAdd: VBI buffer overflow");
       overflow += 1;
    }
+#endif
 }
 
 // ---------------------------------------------------------------------------
@@ -791,16 +722,17 @@ static void EpgDbAcqBufferAdd( uint pageNo, uint sub, uchar pkgno, const uchar *
 // - the slave records the index where he restarted for the new channel.
 //   this index is copied to the reader in the master
 //
-void EpgDbAcqNotifyChannelChange( void )
+void TtxDecode_NotifyChannelChange( volatile EPGACQ_BUF * pThisVbiBuf )
 {
-   if (dbAcqState.bEpgDbAcqEnabled)
+   if (pThisVbiBuf == NULL)
    {
-      dbAcqState.isEpgPage        = FALSE;
-      dbAcqState.bHeaderCheckInit = FALSE;
-
       // notify the slave of the channel change
       // this also initiates a state machine reset
       pVbiBuf->chanChangeReq += 1;
+   }
+   else
+   {
+      pThisVbiBuf->chanChangeReq += 1;
    }
 }
 
@@ -820,7 +752,7 @@ void EpgDbAcqNotifyChannelChange( void )
 //      cleared and the state machines must be resetted. Note that the initial
 //      acq startup is handled as a channel change.
 //
-bool EpgDbAcqNewVbiFrame( uint frameSeqNo )
+bool TtxDecode_NewVbiFrame( uint frameSeqNo )
 {
    bool result = TRUE;
 
@@ -828,7 +760,7 @@ bool EpgDbAcqNewVbiFrame( uint frameSeqNo )
    {
       if (pVbiBuf->chanChangeReq != pVbiBuf->chanChangeCnf)
       {  // acq master signaled channel change (e.g. new tuner freq.)
-         dprintf0("EpgDbAcq-NewVbiFrame: channel change - reset state\n");
+         dprintf0("TtxDecode-NewVbiFrame: channel change - reset state\n");
 
          // reset all result values in shared memory
          memset((void *)&pVbiBuf->cnis, 0, sizeof(pVbiBuf->cnis));
@@ -836,6 +768,15 @@ bool EpgDbAcqNewVbiFrame( uint frameSeqNo )
          pVbiBuf->lastHeader.pageno = 0xffff;
          pVbiBuf->mipPageNo     = 0;
          pVbiBuf->dataPageCount = 0;
+
+         // Initialize state of EPG syntax scan
+         if (pVbiBuf->isEpgScan)
+         {
+            // set all indices to -1
+            memset(lastMagIdx, 0xff, sizeof(lastMagIdx));
+            // set all ok counters to 0
+            memset(scanState, 0, sizeof(scanState));
+         }
 
          // discard all data in the teletext packet buffer
          // (note: reader_idx can be written safely b/c the reader is locked until the change is confirmed)
@@ -845,6 +786,7 @@ bool EpgDbAcqNewVbiFrame( uint frameSeqNo )
          // reset internal ttx decoder state
          acqSlaveState.isEpgPage   = FALSE;
          acqSlaveState.isMipPage   = 0;
+         acqSlaveState.pkgPerFrame = 0;
 
          // skip the current and the following frame, since they could contain data from the previous channel
          acqSlaveState.skipFrames  = 2;
@@ -863,17 +805,32 @@ bool EpgDbAcqNewVbiFrame( uint frameSeqNo )
             acqSlaveState.skipFrames -= 1;
          }
          else
+         {
+            // calculate running average of ttx packets per page (16-bit fix point arithmetics)
+            if (pVbiBuf->ttxStats.frameCount > 0)
+            {
+               pVbiBuf->ttxStats.ttxPkgRate  = ( (pVbiBuf->ttxStats.ttxPkgRate * ((1 << TTX_PKG_RATE_FACT) - 1)) +
+                                                 (acqSlaveState.pkgPerFrame << TTX_PKG_RATE_FIXP) +
+                                                 (1 << (TTX_PKG_RATE_FACT - 1))
+                                               ) >> TTX_PKG_RATE_FACT;
+            }
+            else
+            {
+               pVbiBuf->ttxStats.ttxPkgRate  = (acqSlaveState.pkgPerFrame << TTX_PKG_RATE_FIXP);
+            }
             pVbiBuf->ttxStats.frameCount += 1;
+         }
 
          if ((frameSeqNo != acqSlaveState.frameSeqNo + 1) && (frameSeqNo != 0))
          {  // mising frame (0 is special case: no support for seq.no.)
-            debug1("EpgDbAcq-NewVbiFrame: lost vbi frame #%u", acqSlaveState.frameSeqNo + 1);
+            debug1("TtxDecode-NewVbiFrame: lost vbi frame #%u", acqSlaveState.frameSeqNo + 1);
             acqSlaveState.isEpgPage = FALSE;
             acqSlaveState.isMipPage = 0;
          }
       }
 
       acqSlaveState.frameSeqNo = frameSeqNo;
+      acqSlaveState.pkgPerFrame = 0;
    }
 
    return result;
@@ -885,7 +842,7 @@ bool EpgDbAcqNewVbiFrame( uint frameSeqNo )
 //   and hence can not access the state variables of the EPG process/thread
 //   except for the shared buffer
 //
-void EpgDbAcqAddPacket( const uchar * data )
+void TtxDecode_AddPacket( const uchar * data )
 {
    sint  tmp1, tmp2, tmp3;
    uchar mag, pkgno;
@@ -897,6 +854,7 @@ void EpgDbAcqAddPacket( const uchar * data )
         (acqSlaveState.skipFrames == 0) )
    {
       pVbiBuf->ttxStats.ttxPkgCount += 1;
+      acqSlaveState.pkgPerFrame += 1;
 
       if (UnHam84Byte(data, &tmp1))
       {
@@ -915,7 +873,7 @@ void EpgDbAcqAddPacket( const uchar * data )
                if (pageNo == pVbiBuf->epgPageNo)
                {
                   acqSlaveState.isEpgPage = TRUE;
-                  EpgDbAcqBufferAdd(pageNo, sub, 0, data + 2);
+                  TtxDecode_BufferAdd(pageNo, sub, 0, data + 2);
 
                   pVbiBuf->ttxStats.epgPkgCount += 1;
                   pVbiBuf->ttxStats.epgPagCount += 1;
@@ -936,7 +894,7 @@ void EpgDbAcqAddPacket( const uchar * data )
                }
 
                if (pVbiBuf->isEpgScan)
-                  EpgStreamSyntaxScanHeader(pageNo, sub);
+                  TtxDecode_EpgScanHeader(pageNo, sub);
 
                // save the last received page header
                memcpy((char*)pVbiBuf->lastHeader.data, data + 2, 40);
@@ -951,7 +909,7 @@ void EpgDbAcqAddPacket( const uchar * data )
                if ( (acqSlaveState.isEpgPage) &&
                     (mag == (pVbiBuf->epgPageNo >> 8)) )
                {
-                  debug0("EpgDbAcq-AddPacket: closing EPG page after hamming err");
+                  debug0("TtxDecode-AddPacket: closing EPG page after hamming err");
                   acqSlaveState.isEpgPage = FALSE;
                }
                else if (acqSlaveState.isMipPage & (1 << mag) )
@@ -967,21 +925,21 @@ void EpgDbAcqAddPacket( const uchar * data )
                  (mag == (pVbiBuf->epgPageNo >> 8)) &&
                  (pkgno < 26) )
             {  // new EPG packet
-               EpgDbAcqBufferAdd(0, 0, pkgno, data + 2);
+               TtxDecode_BufferAdd(0, 0, pkgno, data + 2);
                pVbiBuf->ttxStats.epgPkgCount += 1;
             }
             else if ( acqSlaveState.isMipPage & (1 << mag) )
             {  // new MIP packet (may be received in parallel for several magazines)
-               EpgDbAcqMipPacket(mag, pkgno, data + 2);
+               TtxDecode_MipPacket(mag, pkgno, data + 2);
             }
             else if (pVbiBuf->doVpsPdc && (pkgno == 30) && (mag == 0))
             {  // packet 8/30/1 is evaluated for CNI during EPG scan
-               EpgDbAcqGetP830Cni(data + 2);
+               TtxDecode_GetP830Cni(data + 2);
             }
             // packets from other magazines (e.g. in parallel mode) and 8/30 have to be ignored
 
             if (pVbiBuf->isEpgScan)
-               if (EpgStreamSyntaxScanPacket(mag, pkgno, data + 2))
+               if (TtxDecode_EpgScanPacket(mag, pkgno, data + 2))
                   pVbiBuf->dataPageCount += 1;
          }
       }

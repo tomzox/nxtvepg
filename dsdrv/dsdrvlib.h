@@ -17,7 +17,7 @@
 // Extracted from Dscaler 
 // Copyright (c) 2000 John Adcock.  All rights reserved.
 /////////////////////////////////////////////////////////////////////////////
-// nxtvepg $Id: dsdrvlib.h,v 1.4 2002/05/05 20:46:25 tom Exp tom $
+// nxtvepg $Id: dsdrvlib.h,v 1.5 2002/05/10 00:16:37 tom Exp tom $
 /////////////////////////////////////////////////////////////////////////////
 
 #ifndef DSDRV43_HELPER
@@ -42,16 +42,11 @@ extern "C" {
 DWORD LoadDriver( void );
 void UnloadDriver( void );
 
-DWORD InstallNTDriver( void );
-DWORD UnInstallNTDriver( void );
-
-DWORD DoesThisPCICardExist(DWORD dwVendorID, DWORD dwDeviceID, DWORD dwCardIndex);
+DWORD DoesThisPCICardExist(DWORD dwVendorID, DWORD dwDeviceID, DWORD dwCardIndex,
+                           DWORD * pdwSubSystemId, DWORD * pdwBusNumber, DWORD * pdwSlotNumber);
 DWORD pciGetHardwareResources(DWORD   dwVendorID,
                               DWORD   dwDeviceID,
-                              DWORD   dwCardIndex,
-                              PDWORD  pdwMemoryAddress,
-                              PDWORD  pdwMemoryLength,
-                              PDWORD  pdwSubSystemId);
+                              DWORD   dwCardIndex);
 
 DWORD memoryAlloc(DWORD  dwLength, DWORD  dwFlags, PMemStruct* ppMemStruct);
 DWORD memoryFree(PMemStruct pMemStruct);

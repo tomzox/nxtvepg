@@ -1,20 +1,22 @@
-## $Id: CHANGES.version,v 1.10 2002/05/06 10:13:07 tom Exp $ ##
+## $Id: CHANGES.version,v 1.13 2002/05/20 18:56:52 tom Exp $ ##
 
 Steps to prepare new distribution:
 
 update web pages:
-- convert man page to nxtvepg.html
+- fix intro section in manual.html and tvsim/*.html
 - link to tar ball in index.html and include CHANGES
 
 version no contained in:
 - nxtvepg.spec
 - epgctl/epgversion.h
+- tvsim/tvsim_version.h
 
 RCS
 - check in all files, including TODO & CHANGES
 - check in epgversion *BEFORE* making the distribution
   the rest afterwards (to correct possible glitches)
 - tag all archives
+- after the release: increment version in epgversion.h
 
 Makefile AND Makefile.win
 - test compile with -g, -O2, -O6

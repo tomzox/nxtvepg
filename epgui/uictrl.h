@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: uictrl.h,v 1.12 2002/01/16 20:24:23 tom Exp $
+ *  $Id: uictrl.h,v 1.13 2002/05/11 15:52:12 tom Exp $
  */
 
 #ifndef __UICTRL_H
@@ -65,8 +65,8 @@ bool UiControlMsg_AcqQueueOverflow( bool prepare );
 void UiControlMsg_MissingTunerFreq( uint cni );
 void UiControlMsg_AcqPassive( void );
 void UiControlMsg_NetAcqError( void );
-void UiControlMsg_NewProvFreq( uint cni, ulong freq );
-ulong UiControlMsg_QueryProvFreq( uint cni );
+void UiControlMsg_NewProvFreq( uint cni, uint freq );
+uint UiControlMsg_QueryProvFreq( uint cni );
 
 // Interface to context control
 #ifdef __EPGDBSAV_H

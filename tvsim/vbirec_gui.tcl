@@ -26,19 +26,20 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: vbirec_gui.tcl,v 1.2 2002/05/02 17:37:35 tom Exp tom $
+#  $Id: vbirec_gui.tcl,v 1.5 2002/05/12 16:41:43 tom Exp tom $
 #
 
 set dumpttx_filename {ttx.dat}
 set dumpttx_enable 0
 
 proc InitGuiVars {} {
-   global ttx_pkg ttx_drop epg_pag epg_pkg
+   global ttx_pkg ttx_rate vps_cnt epg_pag epg_pkg
    global cni_vps cni_pdc cni_p8301 cni_name ttx_pgno ttx_head
    global tvChanName tvChanCni tvCurInput tvCurFreq tvGrantTuner
 
    set ttx_pkg {0}
-   set ttx_drop {0}
+   set ttx_rate {0}
+   set vps_cnt {0}
    set epg_pag {0}
    set epg_pkg {0}
    set cni_vps {---}
@@ -55,6 +56,9 @@ proc InitGuiVars {} {
 }
 InitGuiVars
 
+# set font type and size for message popups
+option add *Dialog.msg.font [list ansi -12 normal] userDefault
+
 # create an image of a folder
 set fileImage [image create photo -data {
 R0lGODlhEAAMAKEAAAD//wAAAPD/gAAAACH5BAEAAAAALAAAAAAQAAwAAAIghINhyycvVFsB
@@ -67,9 +71,13 @@ label     .stats.lab_ttx_pkg -text "TTX pkg count:"
 label     .stats.val_ttx_pkg -textvariable ttx_pkg
 grid      .stats.lab_ttx_pkg .stats.val_ttx_pkg -sticky w -padx 5
 
-label     .stats.lab_ttx_drop -text "TTX pkg dropped:"
-label     .stats.val_ttx_drop -textvariable ttx_drop
-grid      .stats.lab_ttx_drop .stats.val_ttx_drop -sticky w -padx 5
+label     .stats.lab_ttx_rate -text "TTX pkg per frame avg.:"
+label     .stats.val_ttx_rate -textvariable ttx_rate
+grid      .stats.lab_ttx_rate .stats.val_ttx_rate -sticky w -padx 5
+
+label     .stats.lab_vps_cnt -text "VPS lines count:"
+label     .stats.val_vps_cnt -textvariable vps_cnt
+grid      .stats.lab_vps_cnt .stats.val_vps_cnt -sticky w -padx 5
 
 label     .stats.lab_epg_pag -text "EPG page count:"
 label     .stats.val_epg_pag -textvariable epg_pag
@@ -159,8 +167,9 @@ pack      .dumpttx.lab_ena -side top -padx 5 -anchor w
 pack      .dumpttx -side top -fill x
 
 frame     .cmd
+button    .cmd.about -text "About" -width 5 -command CreateAbout
 button    .cmd.quit -text "Quit" -width 5 -command {destroy .}
-pack      .cmd.quit -side left -padx 10
+pack      .cmd.about .cmd.quit -side left -padx 10
 pack      .cmd -side top -padx 5 -pady 10
 
 
@@ -175,4 +184,45 @@ proc ConnectEpg {enable name} {
    }
 }
 ConnectEpg 0 {}
+
+##  --------------------------------------------------------------------------
+##  About window with the obligatory Copyright and License information
+##
+set about_popup 0
+
+proc CreateAbout {} {
+   global TVSIM_VERSION about_popup
+
+   if {$about_popup == 0} {
+      toplevel .about
+      wm title .about "About VBI recoder"
+      wm resizable .about 0 0
+      wm transient .about .
+      set about_popup 1
+
+      label .about.name -text "VBI recoder - vbirec v$TVSIM_VERSION"
+      pack .about.name -side top -pady 8
+
+      label .about.copyr1 -text "Copyright © 2002 by Tom Zörner"
+      label .about.copyr2 -text "tomzo@nefkom.net"
+      label .about.copyr3 -text "http://nxtvepg.tripod.com/" -font {courier -12 normal} -foreground blue
+      pack .about.copyr1 .about.copyr2 -side top
+      pack .about.copyr3 -side top -padx 10 -pady 10
+
+      message .about.m -text {
+For documentation of this software please refer to the HTML document 'vbirec.html' which you should have received together with the software.
+
+This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License Version 2 as published by the Free Software Foundation. You find a copy of this license in the file COPYRIGHT in the root directory of this release.
+
+THIS PROGRAM IS DISTRIBUTED IN THE HOPE THAT IT WILL BE USEFUL, BUT WITHOUT ANY WARRANTY; WITHOUT EVEN THE IMPLIED WARRANTY OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+      }
+      pack .about.m -side top
+      bind .about.m <Destroy> {+ set about_popup 0}
+
+      button .about.dismiss -text "Dismiss" -command {destroy .about}
+      pack .about.dismiss -pady 10
+   } else {
+      raise .about
+   }
+}
 

@@ -21,7 +21,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgacqclnt.c,v 1.6 2002/05/04 18:10:28 tom Exp $
+ *  $Id: epgacqclnt.c,v 1.7 2002/05/19 21:48:48 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -117,14 +117,19 @@ static void EpgAcqClient_ConnectServer( void )
    int  sock_fd;
 
    // clear any old error messages
-   EpgNetIo_SetErrorText(&clientState.pErrorText, NULL);
+   EpgNetIo_SetErrorText(&clientState.pErrorText, 0, NULL);
 
    // check if a server address has been configured
    if ((clientState.pSrvHost != NULL) && (clientState.pSrvPort != NULL))
    {
       // switch automatically to UNIX domain sockets (i.e. pipes) for a local server
       // (note: can be avoided by using 127.0.0.1 as server hostname)
+      #ifndef WIN32
       use_tcp_ip = (EpgAcqClient_IsLocalServer() == FALSE);
+      #else
+      // XXX TODO: use named pipes on windows
+      use_tcp_ip = TRUE;
+      #endif
 
       sock_fd = EpgNetIo_ConnectToServer(use_tcp_ip, clientState.pSrvHost, clientState.pSrvPort, &clientState.pErrorText);
       if (sock_fd != -1)
@@ -141,9 +146,9 @@ static void EpgAcqClient_ConnectServer( void )
    {
       debug0("EpgDbClient-ConnectServer: Hostname or port not configured");
       if (clientState.pSrvHost == NULL)
-         EpgNetIo_SetErrorText(&clientState.pErrorText, "Server hostname not configured", NULL);
+         EpgNetIo_SetErrorText(&clientState.pErrorText, 0, "Server hostname not configured", NULL);
       else if (clientState.pSrvPort == NULL)
-         EpgNetIo_SetErrorText(&clientState.pErrorText, "Server service name (aka port) not configured", NULL);
+         EpgNetIo_SetErrorText(&clientState.pErrorText, 0, "Server service name (aka port) not configured", NULL);
    }
 }
 
@@ -485,7 +490,7 @@ static bool EpgAcqClient_TakeMessage( EPGACQ_EVHAND * pAcqEv, EPGDBSRV_MSG_BODY 
             if ( (pMsg->con_cnf.blockCompatVersion != DUMP_COMPAT) ||
                  (pMsg->con_cnf.protocolCompatVersion != PROTOCOL_COMPAT) )
             {
-               EpgNetIo_SetErrorText(&clientState.pErrorText, "Incompatible server version", NULL);
+               EpgNetIo_SetErrorText(&clientState.pErrorText, 0, "Incompatible server version", NULL);
             }
             else
             {  // version ok -> request block forwarding
@@ -666,7 +671,7 @@ static bool EpgAcqClient_TakeMessage( EPGACQ_EVHAND * pAcqEv, EPGDBSRV_MSG_BODY 
    if ((result == FALSE) && (clientState.pErrorText == NULL))
    {
       debug3("EpgDbClient-TakeMessage: message type %d (len %d) not expected in state %d", clientState.io.readHeader.type, clientState.io.readHeader.len, clientState.state);
-      EpgNetIo_SetErrorText(&clientState.pErrorText, "Protocol error (unecpected message)", NULL);
+      EpgNetIo_SetErrorText(&clientState.pErrorText, 0, "Protocol error (unecpected message)", NULL);
    }
    if (pMsg != NULL)
       xfree(pMsg);
@@ -730,6 +735,17 @@ void EpgAcqClient_HandleSocket( EPGACQ_EVHAND * pAcqEv )
    readable = pAcqEv->blockOnRead;
    read2ndMsg = TRUE;
    loopCount  = 0;
+
+   #ifdef WIN32
+   if (pAcqEv->errCode != ERROR_SUCCESS)
+   {
+      debug1("EpgAcqClient-HandleSocket: aborting due to select err code %d", pAcqEv->errCode);
+      EpgNetIo_SetErrorText(&clientState.pErrorText, pAcqEv->errCode,
+                            ((clientState.state == CLNT_STATE_WAIT_CONNECT) ? "Connect failed: " : "I/O error: "), NULL);
+      EpgAcqClient_Close(FALSE);
+   }
+   pAcqEv->blockOnConnect = TRUE;
+   #endif
 
    if (clientState.state == CLNT_STATE_WAIT_CONNECT)
    {
@@ -824,7 +840,7 @@ void EpgAcqClient_HandleSocket( EPGACQ_EVHAND * pAcqEv )
          }
          else
          {  // I/O error; note: acq is not stopped, instead try to reconnect periodically
-            EpgNetIo_SetErrorText(&clientState.pErrorText, "Lost connection (I/O error)", NULL);
+            EpgNetIo_SetErrorText(&clientState.pErrorText, 0, "Lost connection (I/O error)", NULL);
             EpgAcqClient_Close(FALSE);
          }
          readable = FALSE;
@@ -880,6 +896,7 @@ bool EpgAcqClient_StartAcq( uint * pCniTab, uint cniCount,
          memset(&acqEv, 0, sizeof(acqEv));
          acqEv.fd             = clientState.io.sock_fd;
          acqEv.blockOnWrite   = TRUE;
+         acqEv.blockOnConnect = TRUE;
          clientState.pCbUpdateEvHandler(&acqEv);
       }
       else
@@ -961,7 +978,7 @@ bool EpgAcqClient_ChangeProviders( const uint * pCniTab, uint cniCount )
                }
                else
                {
-                  EpgNetIo_SetErrorText(&clientState.pErrorText, "Lost connection (I/O error)", NULL);
+                  EpgNetIo_SetErrorText(&clientState.pErrorText, 0, "Lost connection (I/O error)", NULL);
                   EpgAcqClient_Close(TRUE);
                }
             }
@@ -1014,7 +1031,7 @@ static bool EpgAcqClient_UpdateAcqStatsMode( uint statsReqBits )
             }
             else
             {
-               EpgNetIo_SetErrorText(&clientState.pErrorText, "Lost connection (I/O error)", NULL);
+               EpgNetIo_SetErrorText(&clientState.pErrorText, 0, "Lost connection (I/O error)", NULL);
                EpgAcqClient_Close(TRUE);
             }
 
@@ -1122,7 +1139,7 @@ bool EpgAcqClient_CheckTimeouts( void )
           (clientState.state == CLNT_STATE_WAIT_FWD_CNF) ))
    {
       debug0("EpgDbClient-CheckForBlocks: network timeout");
-      EpgNetIo_SetErrorText(&clientState.pErrorText, "Lost connection (I/O timeout)", NULL);
+      EpgNetIo_SetErrorText(&clientState.pErrorText, 0, "Lost connection (I/O timeout)", NULL);
       EpgAcqClient_Close(TRUE);
    }
    else if ( (clientState.state == CLNT_STATE_RETRY) &&
@@ -1136,8 +1153,9 @@ bool EpgAcqClient_CheckTimeouts( void )
          clientState.state  = CLNT_STATE_WAIT_CONNECT;
 
          memset(&acqEv, 0, sizeof(acqEv));
-         acqEv.fd            = clientState.io.sock_fd;
-         acqEv.blockOnWrite  = TRUE;
+         acqEv.fd             = clientState.io.sock_fd;
+         acqEv.blockOnWrite   = TRUE;
+         acqEv.blockOnConnect = TRUE;
          clientState.pCbUpdateEvHandler(&acqEv);
       }
       else
@@ -1298,16 +1316,10 @@ bool EpgAcqClient_DescribeNetState( EPGDBSRV_DESCR * pNetState )
 //
 bool EpgAcqClient_IsLocalServer( void )
 {
-   // XXX TODO: check for efficient local transport on windows
-   #ifndef WIN32
    if (clientState.pSrvHost != NULL)
       return (strcmp(clientState.pSrvHost, "localhost") == 0);
    else
       return FALSE;
-
-   #else
-   return FALSE;
-   #endif
 }
 
 // ----------------------------------------------------------------------------
@@ -1418,7 +1430,7 @@ void EpgAcqClient_Destroy( void )
 
    // free the memory allocated for the config strings and error text
    EpgAcqClient_SetAddress(NULL, NULL);
-   EpgNetIo_SetErrorText(&clientState.pErrorText, NULL);
+   EpgNetIo_SetErrorText(&clientState.pErrorText, 0, NULL);
 }
 
 #endif  // USE_DAEMON

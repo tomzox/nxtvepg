@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: wintv.c,v 1.4 2002/05/05 20:52:38 tom Exp tom $
+ *  $Id: wintv.c,v 1.7 2002/05/11 15:52:53 tom Exp tom $
  */
 
 #ifndef WIN32
@@ -45,9 +45,9 @@
 #include "epgctl/debug.h"
 #include "epgvbi/tvchan.h"
 #include "epgvbi/btdrv.h"
+#include "epgvbi/ttxdecode.h"
 #include "epgvbi/winshmsrv.h"
 #include "epgdb/epgblock.h"
-#include "epgdb/epgdbacq.h"
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
 #include "epgctl/epgacqctl.h"
@@ -289,40 +289,28 @@ static void Wintv_FollowTvNetwork( void )
 
 // ----------------------------------------------------------------------------
 // Poll VPS/PDC for channel changes
-// - invoked (indirectly) by acq ctl when a new CNI or PIL is available
-// - if CNI or PIL changed, the user configured action is launched
+// - invoked by a timer every 200 ms
+// - if CNI or PIL changed, EPG info for the channel is sent to the TV app
 //
 static void Wintv_PollVpsPil( ClientData clientData )
 {
-   const EPGDB_ACQ_VPS_PDC * pVpsPdc;
-   EPGACQ_DESCR acqState;
+   uint  cni;
+   uint  pil;
 
    pollVpsEvent = NULL;
 
    if ((wintvcf.follow || wintvcf.doPop) && (followTvState.stationPoll == 0))
    {
-      pVpsPdc = EpgAcqCtl_GetVpsPdc(VPSPDC_REQ_TVAPP);
-      if (pVpsPdc != NULL)
+      if (WintvSharedMem_GetCniAndPil(&cni, &pil))
       {
-         if ( (followTvState.cni != pVpsPdc->cni) ||
-              ((pVpsPdc->pil != followTvState.pil) && VPS_PIL_IS_VALID(pVpsPdc->pil)) )
+         if ( (followTvState.cni != cni) ||
+              ((pil != followTvState.pil) && VPS_PIL_IS_VALID(pil)) )
          {
-            followTvState.pil = pVpsPdc->pil;
-            followTvState.cni = pVpsPdc->cni;
-            dprintf5("Wintv-PollVpsPil: %02d.%02d. %02d:%02d (0x%04X)\n", (pVpsPdc->pil >> 15) & 0x1F, (pVpsPdc->pil >> 11) & 0x0F, (pVpsPdc->pil >>  6) & 0x1F, (pVpsPdc->pil      ) & 0x3F, pVpsPdc->cni);
+            followTvState.pil = pil;
+            followTvState.cni = cni;
+            dprintf5("Wintv-PollVpsPil: %02d.%02d. %02d:%02d (0x%04X)\n", (pil >> 15) & 0x1F, (pil >> 11) & 0x0F, (pil >>  6) & 0x1F, (pil      ) & 0x3F, cni);
 
-            EpgAcqCtl_DescribeAcqState(&acqState);
-            // ignore channel changes on a server running on a different host
-            if ((acqState.isNetAcq == FALSE) || acqState.isLocalServer)
-            {
-               // ignore the PIL change if the acquisition is running in active m
-               // because it then must be using a different tuner card
-               if ( (acqState.mode == ACQMODE_PASSIVE) ||
-                    ((acqState.mode == ACQMODE_FORCED_PASSIVE) && (acqState.passiveReason == ACQPASSIVE_ACCESS_DEVICE)) )
-               {
-                  Wintv_FollowTvNetwork();
-               }
-            }
+            Wintv_FollowTvNetwork();
          }
       }
    }
@@ -344,24 +332,24 @@ static void Wintv_FollowTvHandler( ClientData clientData )
 //
 static void Wintv_StationTimer( ClientData clientData )
 {
-   const EPGDB_ACQ_VPS_PDC * pVpsPdc;
    bool keepWaiting = FALSE;
+   uint  cni;
+   uint  pil;
 
    pollVpsEvent = NULL;
    assert(followTvState.stationPoll > 0);
 
-   pVpsPdc = EpgAcqCtl_GetVpsPdc(VPSPDC_REQ_TVAPP);
-   if ((pVpsPdc != NULL) && (pVpsPdc->cni != 0))
+   if (WintvSharedMem_GetCniAndPil(&cni, &pil) && (cni != 0))
    {  // VPS data received - check if it's the expected CNI
-      if ((pVpsPdc->cni == followTvState.stationCni) || (followTvState.stationPoll >= 360))
+      if ((cni == followTvState.stationCni) || (followTvState.stationPoll >= 360))
       {
-         followTvState.cni = pVpsPdc->cni;
-         followTvState.pil = pVpsPdc->pil;
-         dprintf7("Wintv-StationPollVpsPil: after %d ms: 0x%04X: PIL: %02d.%02d. %02d:%02d (0x%04X)\n", followTvState.stationPoll, pVpsPdc->cni, (pVpsPdc->pil >> 15) & 0x1F, (pVpsPdc->pil >> 11) & 0x0F, (pVpsPdc->pil >>  6) & 0x1F, (pVpsPdc->pil      ) & 0x3F, pVpsPdc->cni );
+         followTvState.cni = cni;
+         followTvState.pil = pil;
+         dprintf7("Wintv-StationPollVpsPil: after %d ms: 0x%04X: PIL: %02d.%02d. %02d:%02d (0x%04X)\n", followTvState.stationPoll, cni, (pil >> 15) & 0x1F, (pil >> 11) & 0x0F, (pil >>  6) & 0x1F, (pil      ) & 0x3F, cni );
       }
       else
       {  // not the expected CNI -> keep waiting
-         dprintf7("Wintv-StationPollVpsPil: Waiting for 0x%04X, got 0x%04X: PIL: %02d.%02d. %02d:%02d (0x%04X)\n", followTvState.stationCni, pVpsPdc->cni, (pVpsPdc->pil >> 15) & 0x1F, (pVpsPdc->pil >> 11) & 0x0F, (pVpsPdc->pil >>  6) & 0x1F, (pVpsPdc->pil      ) & 0x3F, pVpsPdc->cni );
+         dprintf7("Wintv-StationPollVpsPil: Waiting for 0x%04X, got 0x%04X: PIL: %02d.%02d. %02d:%02d (0x%04X)\n", followTvState.stationCni, cni, (pil >> 15) & 0x1F, (pil >> 11) & 0x0F, (pil >>  6) & 0x1F, (pil      ) & 0x3F, cni );
          keepWaiting = TRUE;
       }
    }
@@ -396,15 +384,14 @@ static void Wintv_StationTimer( ClientData clientData )
 //
 static void Wintv_StationSelected( void )
 {
-   EPGACQ_DESCR acqState;
    char station[50];
    uint cni;
 
-   // query which station was selected
+   // query name of the selected TV station
    if ( WintvSharedMem_QueryChanName(station, sizeof(station), &followTvState.chanQueryIdx) )
    {
       if (pollVpsEvent != NULL)
-      {
+      {  // remove the regular polling timer - we'll install one with a higher frequency later
          Tcl_DeleteTimerHandler(pollVpsEvent);
          pollVpsEvent = NULL;
          followTvState.stationPoll = 0;
@@ -417,38 +404,23 @@ static void Wintv_StationSelected( void )
       cni = Wintv_StationNametoCni(station);
       if (cni != 0)
       {
-         EpgAcqCtl_DescribeAcqState(&acqState);
-         if ( (acqState.state != ACQDESCR_DISABLED) &&
-              ((acqState.isNetAcq == FALSE) || acqState.isLocalServer) &&
-              ( (acqState.mode == ACQMODE_PASSIVE) ||
-                ((acqState.mode == ACQMODE_FORCED_PASSIVE) && (acqState.passiveReason == ACQPASSIVE_ACCESS_DEVICE))) &&
-              ( (followTvState.cni != cni) ||
-                (followTvState.pil == INVALID_VPS_PIL) ) )
-         {  // acq running -> wait for VPS/PDC to determine PIL (and confirm CNI)
-            dprintf1("Wintv-StationSelected: delay EPG info for 0x%04X\n", cni);
-            followTvState.stationCni = cni;
-            followTvState.stationPoll = 120;
+         // wait for VPS/PDC to determine PIL (and confirm CNI)
+         dprintf1("Wintv-StationSelected: delay EPG info for 0x%04X\n", cni);
+         followTvState.stationCni = cni;
+         followTvState.stationPoll = 120;
 
-            // clear old VPS results, just like after a channel change
-            EpgAcqCtl_ResetVpsPdc();
-            pollVpsEvent = Tcl_CreateTimerHandler(120, Wintv_StationTimer, NULL);
-         }
-         else
-         {
-            // acq not running or running on a different TV card -> don't wait for VPS
-            dprintf1("Wintv-StationSelected: popup EPG info for 0x%04X\n", cni);
-            if (followTvState.cni != cni)
-               followTvState.pil = INVALID_VPS_PIL;
-            followTvState.cni = cni;
-            Wintv_FollowTvNetwork();
-         }
+         // clear old VPS results, just like after a channel change
+         // XXX TODO check if acq is using the same TV card
+         EpgAcqCtl_ResetVpsPdc();
+         pollVpsEvent = Tcl_CreateTimerHandler(120, Wintv_StationTimer, NULL);
       }
       else
-      {  // unknown CNI -> remove existing popup
+      {  // unknown station name -> remove existing popup
          // note that multi-network station may be identified via VPS shortly after
          dprintf1("Wintv-StationSelected: unknown station: \"%s\"\n", station);
          WintvSharedMem_SetEpgInfo(0, 0, "", 0, NULL, followTvState.chanQueryIdx);
 
+         // XXX TODO check if acq is using the same TV card
          EpgAcqCtl_ResetVpsPdc();
       }
    }
@@ -464,9 +436,12 @@ static int Wintv_QueryTvapp( ClientData ttp, Tcl_Interp *interp, int argc, char 
 {
    char  tvAppName[100];
 
-   if (WintvSharedMem_IsConnected(tvAppName, sizeof(tvAppName), NULL))
+   if (wintvcf.shmEnable)
    {
-      Tcl_SetResult(interp, tvAppName, TCL_VOLATILE);
+      if (WintvSharedMem_IsConnected(tvAppName, sizeof(tvAppName), NULL))
+      {
+         Tcl_SetResult(interp, tvAppName, TCL_VOLATILE);
+      }
    }
 
    return TCL_OK;
@@ -548,6 +523,8 @@ static int Wintv_ReadConfig( Tcl_Interp *interp, WINTVCF *pNewWintvcf )
 //
 static int Wintv_InitConfig( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
 {
+   const char * pShmErrMsg;
+   char * pErrBuf;
    WINTVCF newWintvCf;
    bool acqEnabled;
    int result;
@@ -565,11 +542,21 @@ static int Wintv_InitConfig( ClientData ttp, Tcl_Interp *interp, int argc, char 
       wintvcf = newWintvCf;
    }
 
-   #if 0  // disabled for release 2.0.0
    if (WintvSharedMem_StartStop(wintvcf.shmEnable, &acqEnabled) == FALSE)
-   #endif
    {  // failed to enable the shared memory server
       wintvcf.shmEnable = FALSE;
+
+      pShmErrMsg = WinSharedMem_GetErrorMsg();
+      if (pShmErrMsg != NULL)
+      {
+         pErrBuf = xmalloc(strlen(pShmErrMsg) + 100);
+
+         sprintf(pErrBuf, "tk_messageBox -type ok -icon error -message {%s}", pShmErrMsg);
+         eval_check(interp, pErrBuf);
+
+         xfree((void *) pErrBuf);
+         xfree((void *) pShmErrMsg);
+      }
    }
    // switch off acquisition (if enabled) if the switch failed
    if (acqEnabled == FALSE)

@@ -44,6 +44,9 @@ This message applies to all files within this release:
        Multidec: Copyright (c) 2000 echter_espresso@hotmail.com
        Xawtv: Copyright Gerd Knorr (kraxel@bytesex.org)
 
+    Windows systray handling (taken from tray42.zip)
+       Copyright 1997 Michael T. Smith / R.A.M. Technology.
+
     Tcl/Tk library:
        For Copright information please see http://dev.scriptics.com/
 

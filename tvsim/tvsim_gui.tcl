@@ -23,7 +23,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: tvsim_gui.tcl,v 1.3 2002/05/04 18:22:28 tom Exp tom $
+#  $Id: tvsim_gui.tcl,v 1.4 2002/05/10 00:17:16 tom Exp tom $
 #
 
 set program_title {}
@@ -68,8 +68,9 @@ bindtags  .connect {.connect .}
 
 # create command buttons at the bottom of the window
 frame     .cmd
+button    .cmd.about -text "About" -width 5 -command CreateAbout
 button    .cmd.quit -text "Quit" -width 5 -command {destroy .}
-pack      .cmd.quit -side left -padx 10
+pack      .cmd.about .cmd.quit -side left -padx 10
 pack      .cmd -side top -padx 5 -pady 10
 
 
@@ -276,6 +277,47 @@ proc LoadRcFile {filename} {
          "\nYou can copy the nxtvepg.ini file into the tvsim directory, " \
          "or specify it's location on the command line after -rcfile"
       tk_messageBox -type ok -default ok -icon error -message $msg
+   }
+}
+
+##  --------------------------------------------------------------------------
+##  About window with the obligatory Copyright and License information
+##
+set about_popup 0
+
+proc CreateAbout {} {
+   global TVSIM_VERSION about_popup
+
+   if {$about_popup == 0} {
+      toplevel .about
+      wm title .about "About TV app. simulator"
+      wm resizable .about 0 0
+      wm transient .about .
+      set about_popup 1
+
+      label .about.name -text "TV application interaction simulator - tvsim v$TVSIM_VERSION"
+      pack .about.name -side top -pady 8
+
+      label .about.copyr1 -text "Copyright © 2002 by Tom Zörner"
+      label .about.copyr2 -text "tomzo@nefkom.net"
+      label .about.copyr3 -text "http://nxtvepg.tripod.com/" -font {courier -12 normal} -foreground blue
+      pack .about.copyr1 .about.copyr2 -side top
+      pack .about.copyr3 -side top -padx 10 -pady 10
+
+      message .about.m -text {
+For documentation of this software please refer to the HTML document 'tvsim.html' which you should have received together with the software.
+
+This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License Version 2 as published by the Free Software Foundation. You find a copy of this license in the file COPYRIGHT in the root directory of this release.
+
+THIS PROGRAM IS DISTRIBUTED IN THE HOPE THAT IT WILL BE USEFUL, BUT WITHOUT ANY WARRANTY; WITHOUT EVEN THE IMPLIED WARRANTY OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
+      }
+      pack .about.m -side top
+      bind .about.m <Destroy> {+ set about_popup 0}
+
+      button .about.dismiss -text "Dismiss" -command {destroy .about}
+      pack .about.dismiss -pady 10
+   } else {
+      raise .about
    }
 }
 

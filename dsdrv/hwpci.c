@@ -15,7 +15,7 @@
 //  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 //  GNU General Public License for more details
 /////////////////////////////////////////////////////////////////////////////
-// nxtvepg $Id: hwpci.c,v 1.1 2002/05/04 18:39:12 tom Exp tom $
+// nxtvepg $Id: hwpci.c,v 1.2 2002/05/06 11:47:22 tom Exp tom $
 //////////////////////////////////////////////////////////////////////////////
 
 #define WIN32_LEAN_AND_MEAN     // Exclude rarely-used stuff from Windows headers

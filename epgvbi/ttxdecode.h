@@ -1,5 +1,5 @@
 /*
- *  Nextview EPG block database
+ *  Decoding of teletext and VPS packets
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
@@ -16,11 +16,11 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbacq.h,v 1.20 2002/05/01 18:12:54 tom Exp tom $
+ *  $Id: ttxdecode.h,v 1.25 2002/05/14 18:37:31 tom Exp tom $
  */
 
-#ifndef __EPGDBACQ_H
-#define __EPGDBACQ_H
+#ifndef __TTXDECODE_H
+#define __TTXDECODE_H
 
 // ---------------------------------------------------------------------------
 // Global definitions
@@ -30,6 +30,10 @@
 #define EPG_DEFAULT_PAGENO  0x1DF
 #define EPG_ILLEGAL_PAGENO  0
 #define VALID_EPG_PAGENO(X) ((((X)>>8)<8) && ((((X)&0xF0)>=0xA0) || (((X)&0x0F)>=0x0A)))
+
+// constants for calculation of ttx pkg/page running average
+#define TTX_PKG_RATE_FIXP   16   // number of binary digits in fix point arithmetic
+#define TTX_PKG_RATE_FACT   4    // ln2 of forgetting factor, i.e. new values count as 1/(2^FACT)
 
 // ---------------------------------------------------------------------------
 // VPS system codes, as defined in "VPS Richtlinie 8R2" from August 1995
@@ -50,26 +54,24 @@
 // Declaration of the service interface functions
 //
 
-// interface to the EPG acquisition control module
-void EpgDbAcqInit( void );
-void EpgDbAcqStart( EPGDB_CONTEXT *dbc, EPGDB_QUEUE * pQueue, uint pageNo, uint appId );
-void EpgDbAcqStop( void );
-void EpgDbAcqReset( EPGDB_CONTEXT *dbc, EPGDB_QUEUE * pQueue, uint pageNo, uint appId );
-void EpgDbAcqInitScan( void );
-void EpgDbAcqNotifyChannelChange( void );
-void EpgDbAcqGetScanResults( uint *pCni, bool *pNiWait, uint *pDataPageCnt );
-uint EpgDbAcqGetMipPageNo( void );
-void EpgDbAcqGetStatistics( uint32_t * pTtxPkgCount, uint32_t * pEpgPkgCount, uint32_t * pEpgPagCount );
-bool EpgDbAcqGetCniAndPil( uint * pCni, uint *pPil );
+// interface to the EPG acquisition control module and EPG scan
+void TtxDecode_StartEpgAcq( uint epgPageNo, bool isEpgScan );
+void TtxDecode_StopAcq( void );
+void TtxDecode_InitScan( void );
+void TtxDecode_GetScanResults( uint *pCni, bool *pNiWait, uint *pDataPageCnt );
+uint TtxDecode_GetMipPageNo( void );
+void TtxDecode_GetStatistics( uint32_t * pTtxPkgCount, uint32_t * pVbiLineCount,
+                              uint32_t * pEpgPkgCount, uint32_t * pEpgPagCount );
+bool TtxDecode_CheckForPackets( bool * pStopped );
+#ifdef __BTDRV_H
+const VBI_LINE * TtxDecode_GetPacket( bool freePrevPkg );
+bool TtxDecode_GetCniAndPil( uint * pCni, uint * pPil, volatile EPGACQ_BUF * pThisVbiBuf );
+void TtxDecode_NotifyChannelChange( volatile EPGACQ_BUF * pThisVbiBuf );
+#endif
 
 // interface to the teletext packet decoder
-void EpgDbAcqAddPacket( const uchar * data );
-void EpgDbAcqAddVpsData( const uchar * data );
-bool EpgDbAcqNewVbiFrame( uint frameSeqNo );
+void TtxDecode_AddPacket( const uchar * data );
+void TtxDecode_AddVpsData( const uchar * data );
+bool TtxDecode_NewVbiFrame( uint frameSeqNo );
 
-// interface to the main event control - should be called every 1-2 secs in average
-bool EpgDbAcqProcessPackets( void );
-bool EpgDbAcqCheckForPackets( bool * pStopped );
-
-
-#endif  // __EPGDBACQ_H
+#endif  // __TTXDECODE_H

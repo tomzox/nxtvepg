@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pifilter.c,v 1.53 2002/03/22 21:12:18 tom Exp tom $
+ *  $Id: pifilter.c,v 1.54 2002/05/12 16:53:20 tom Exp tom $
  */
 
 #define __PIFILTER_C
@@ -1038,6 +1038,33 @@ static void UpdateFilterContextMenuState( const NI_FILTER_STATE * pNiState )
 }
 
 // ----------------------------------------------------------------------------
+// Check if any NI are in the database
+//
+static int IsNavigateMenuEmpty( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+{
+   const char * const pUsage = "Usage: C_IsNavigateMenuEmpty";
+   bool isEmpty;
+   int  result;
+
+   if (argc != 1)
+   {  // wrong # of args for this TCL cmd -> display error msg
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR; 
+   }  
+   else
+   {
+      EpgDbLockDatabase(dbc, TRUE);
+      isEmpty = (EpgDbGetNi(dbc, 1) == NULL);
+      EpgDbLockDatabase(dbc, FALSE);
+
+      Tcl_SetResult(interp, isEmpty ? "1" : "0", TCL_STATIC);
+      result = TCL_OK; 
+   }
+
+   return result;
+}
+
+// ----------------------------------------------------------------------------
 // Create navigation menu
 //
 static int CreateNi( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
@@ -1173,7 +1200,7 @@ static int SelectNi( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] 
             }
          }
          else
-            debug3("Select-Ni: invalid blockno=%d or index=%d/%d", blockno, index, pNiBlock->no_events);
+            debug3("Select-Ni: invalid blockno=%d or index=%d/%d", blockno, index, ((pNiBlock != NULL) ? pNiBlock->no_events : 0));
 
          if (*n == 0)
             break;
@@ -1729,6 +1756,7 @@ void PiFilter_Create( void )
       Tcl_CreateCommand(interp, "C_GetPdcString", GetPdcString, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_GetNetwopsWithSeries", GetNetwopsWithSeries, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_GetNetwopSeriesList", GetNetwopSeriesList, (ClientData) NULL, NULL);
+      Tcl_CreateCommand(interp, "C_IsNavigateMenuEmpty", IsNavigateMenuEmpty, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_CreateNi", CreateNi, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_SelectNi", SelectNi, (ClientData) NULL, NULL);
 

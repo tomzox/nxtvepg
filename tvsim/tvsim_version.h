@@ -1,5 +1,5 @@
 /*
- *  Software version of the Nextview decoder
+ *  Software version of the TV application interaction debugging tools
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
@@ -18,31 +18,25 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgversion.h,v 1.21 2002/05/20 18:41:06 tom Exp tom $
+ *  $Id: tvsim_version.h,v 1.1 2002/05/08 20:28:48 tom Exp tom $
  */
 
+#ifndef __TVSIM_VERSION_H
+#define __TVSIM_VERSION_H
 
-#ifndef __EPGVERSION_H
-#define __EPGVERSION_H
 
+#define TVSIM_VERSION_MAJOR   1   // major revision
+#define TVSIM_VERSION_MINOR   8   // minor revision
 
-#define EPG_VERSION_MAJOR   0   // major revision
-#define EPG_VERSION_MINOR   7   // minor revision
-#define EPG_VERSION_PL      2   // bugfix revision / patch level
-
-#ifndef WIN32
-#define EPG_VERSION_STR     "0.7.2"
-#else
-#define EPG_VERSION_STR     "2.1.0-win"
-#endif
+#define TVSIM_VERSION_STR     "1.8"
 
 
 // RCS id to be included to the object code for ident(1)
-#define EPG_VERSION_RCS_ID  "$Id: epgversion.h,v 1.21 2002/05/20 18:41:06 tom Exp tom $" "$Compiledate: " __DATE__ " " __TIME__" $";
+#define TVSIM_VERSION_RCS_ID  "$Id: tvsim_version.h,v 1.1 2002/05/08 20:28:48 tom Exp tom $" "$Compiledate: " __DATE__ " " __TIME__" $";
 
 // version in integer format for internal purposes
-#define EPG_VERSION_TO_INT(MAJ,MIN,PL) (((MAJ)<<16) | ((MIN)<<8) | (PL))
-#define EPG_VERSION_NO      EPG_VERSION_TO_INT(EPG_VERSION_MAJOR, EPG_VERSION_MINOR, EPG_VERSION_PL)
+#define TVSIM_VERSION_TO_INT(MAJ,MIN) (((MAJ)<<8) | (MIN))
+#define TVSIM_VERSION_NO      EPG_VERSION_TO_INT(TVSIM_VERSION_MAJOR, TVSIM_VERSION_MINOR)
 
 
-#endif  // __EPGVERSION_H
+#endif  // __TVSIM_VERSION_H

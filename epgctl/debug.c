@@ -22,7 +22,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: debug.c,v 1.12 2002/04/06 15:34:46 tom Exp tom $
+ *  $Id: debug.c,v 1.13 2002/05/19 21:45:22 tom Exp tom $
  */
 
 #define __DEBUG_C
@@ -106,6 +106,7 @@ char debugStr[DEBUGSTR_LEN];
 //
 void DebugLogLine( bool doHalt )
 {
+   static bool debugStrInitialized = FALSE;
    char *ct;
    sint fd;
 
@@ -137,6 +138,17 @@ void DebugLogLine( bool doHalt )
       #endif
    }
    #endif
+
+   // write a little marker at the end of the debug string and check if it's ever overwritten
+   if (debugStrInitialized == FALSE)
+   {
+      debugStr[DEBUGSTR_LEN - 1] = 'õ';
+   }
+   else if (debugStr[DEBUGSTR_LEN - 1] != 'õ')
+   {
+      debugStrInitialized = FALSE;
+      fatal0("DebugLogLine: exceeded debug str max length");  // note: recursive call!
+   }
 }
 
 // ---------------------------------------------------------------------------

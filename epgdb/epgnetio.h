@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgnetio.h,v 1.16 2002/03/29 17:33:26 tom Exp $
+ *  $Id: epgnetio.h,v 1.17 2002/05/19 21:44:19 tom Exp $
  */
 
 #ifndef __EPGNETIO_H
@@ -110,9 +110,9 @@ typedef struct
 //   uses an I/O file handler (to block on read/write) which is invoked by
 //   the main event handler.
 //
-void EpgNetIo_SetErrorText( char ** ppErrorText, const char * pText, ... );
+void EpgNetIo_SetErrorText( char ** ppErrorText, int errCode, const char * pText, ... );
 void EpgNetIo_SetLogging( int fileloglev, int sysloglev, const char * pLogfileName );
-void EpgNetIo_Logger( int level, int clnt_fd, const char * pText, ... );
+void EpgNetIo_Logger( int level, int clnt_fd, int errCode, const char * pText, ... );
 
 bool EpgNetIo_IsIdle( EPGNETIO_STATE * pIO );
 bool EpgNetIo_CheckTimeout( EPGNETIO_STATE * pIO, time_t now );

@@ -21,7 +21,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: epgui.tcl,v 1.156 2002/05/05 20:50:17 tom Exp tom $
+#  $Id: epgui.tcl,v 1.163 2002/05/20 18:51:51 tom Exp tom $
 #
 
 set is_unix [expr [string compare $tcl_platform(platform) "unix"] == 0]
@@ -100,8 +100,8 @@ proc CreateMainWindow {} {
    bind      .all.pi.list.text <Button-1> {SelectPi %x %y}
    bind      .all.pi.list.text <Double-Button-1> {C_PopupPi %x %y}
    bind      .all.pi.list.text <Button-3> {CreateContextMenu %x %y}
-   bind      .all.pi.list.text <Button-4> {C_PiListBox_Scroll scroll -1 pages}
-   bind      .all.pi.list.text <Button-5> {C_PiListBox_Scroll scroll 1 pages}
+   bind      .all.pi.list.text <Button-4> {C_PiListBox_Scroll scroll -5 units}
+   bind      .all.pi.list.text <Button-5> {C_PiListBox_Scroll scroll 5 units}
    bind      .all.pi.list.text <Up>    {C_PiListBox_CursorUp}
    bind      .all.pi.list.text <Down>  {C_PiListBox_CursorDown}
    bind      .all.pi.list.text <Prior> {C_PiListBox_Scroll scroll -1 pages}
@@ -225,6 +225,9 @@ proc CreateMenubar {} {
    .menubar.config add checkbutton -label "Show networks" -command ToggleNetwopListbox -variable showNetwopListbox
    .menubar.config add checkbutton -label "Show status line" -command ToggleStatusLine -variable showStatusLine
    .menubar.config add checkbutton -label "Show column headers" -command ToggleColumnHeader -variable showColumnHeader
+   if {!$is_unix} {
+      .menubar.config add checkbutton -label "Hide on minimize" -command ToggleHideOnMinimize -variable hideOnMinimize
+   }
    # Reminder menu
    #menu .menubar.timer -tearoff 0
    #.menubar.timer add command -label "Add selected title" -state disabled
@@ -257,6 +260,7 @@ proc CreateMenubar {} {
    .menubar.filter add command -label "Update filter shortcut..." -command UpdateFilterShortcut
    if {!$is_unix} {
       .menubar.filter add command -label "Navigate" -command {PostSeparateMenu .menubar.filter.ni_1 C_CreateNi}
+      .menubar.filter configure -postcommand {.menubar.filter entryconfigure "Navigate" -state [if [C_IsNavigateMenuEmpty] {set tmp "disabled"} else {set tmp "normal"}]}
    }
    .menubar.filter add command -label "Reset" -command {ResetFilterState; C_ResetFilter all; C_ResetPiListbox}
 
@@ -326,6 +330,15 @@ proc CreateMenubar {} {
 
    # Context Menu
    menu .contextmenu -tearoff 0 -postcommand {PostDynamicMenu .contextmenu C_CreateContextMenu}
+
+   # System tray popup menu (only used if "hide on minimize" is enabled)
+   menu .systray -tearoff 0 -postcommand C_SetControlMenuStates
+   .systray add command -label "Show window" -command {wm deiconify .; C_SystrayIcon 0}
+   .systray add separator
+   .systray add checkbutton -label "Enable acquisition" -variable menuStatusStartAcq -command {C_ToggleAcq $menuStatusStartAcq $menuStatusDaemon}
+   .systray add checkbutton -label "Connect to acq. daemon" -variable menuStatusDaemon -command {C_ToggleAcq $menuStatusStartAcq $menuStatusDaemon}
+   .systray add separator
+   .systray add command -label "Quit" -command {destroy .}
 }
 
 proc FilterMenuAdd_Themes {widget} {
@@ -512,6 +525,7 @@ set showNetwopListbox 0
 set showShortcutListbox 1
 set showStatusLine 1
 set showColumnHeader 1
+set hideOnMinimize 1
 
 proc ToggleNetwopListbox {} {
    global showNetwopListbox
@@ -567,6 +581,19 @@ proc ToggleColumnHeader {} {
 
    ApplySelectedColumnList initial
    UpdateRcFile
+}
+
+proc ToggleHideOnMinimize {} {
+   global hideOnMinimize
+   global is_unix
+
+   if {!$is_unix} {
+      if $hideOnMinimize {
+         bind . <Unmap> {if {([string compare %W "."] == 0) && [C_SystrayIcon 1]} {wm withdraw .}}
+      } else {
+         bind . <Unmap> {}
+      }
+   }
 }
 
 ##  ---------------------------------------------------------------------------
@@ -1194,10 +1221,10 @@ proc PostSeparateMenu {wmenu func} {
    set ycoo [expr [winfo rooty .all.pi.list.text] - 5]
 
    if {[string length [info commands $wmenu]] == 0} {
-      menu $wmenu -postcommand [list PostDynamicMenu $wmenu $func] -tearoff 0
+      menu $wmenu -postcommand [list PostDynamicMenu $wmenu $func] -tearoff 1
    }
 
-   $wmenu post $xcoo $ycoo
+   tk_popup $wmenu $xcoo $ycoo 1
 }
 
 ##  ---------------------------------------------------------------------------
@@ -2382,8 +2409,8 @@ proc PopupHelp {index {subheading {}}} {
       bind   .help.disp.text <End>   {.help.disp.text yview moveto 1.0}
       bind   .help.disp.text <Enter> {focus %W}
       # allow to scroll the text with a wheel mouse
-      bind   .help.disp.text <Button-4> {.help.disp.text yview scroll -1 pages}
-      bind   .help.disp.text <Button-5> {.help.disp.text yview scroll 1 pages}
+      bind   .help.disp.text <Button-4> {.help.disp.text yview scroll -3 units}
+      bind   .help.disp.text <Button-5> {.help.disp.text yview scroll 3 units}
 
    } else {
       # when the popup is already open, just exchange the text
@@ -2664,13 +2691,11 @@ proc PopupEpgScan {} {
    global epgscan_opt_slow epgscan_opt_refresh epgscan_opt_xawtv
 
    if {$epgscan_popup == 0} {
-      if {$is_unix} {
-         if [IsNetAcqMode] {
-            # acquisition is not running local -> abort
-            tk_messageBox -type ok -icon info -message "EPG scan cannot be started while in client/server mode."
-            return
-         }
-      } else {
+      if [C_IsNetAcqActive clear_errors] {
+         # acquisition is not running local -> abort
+         tk_messageBox -type ok -icon info -message "EPG scan cannot be started while in client/server mode."
+         return
+      } elseif {!$is_unix} {
          if {![info exists hwcfg] || (([lindex $hwcfg 0] == 0) && ([lindex $hwcfg 1] == 0))} {
             # tuner type has not been configured yet -> abort
             tk_messageBox -type ok -icon info -message "Before you start the scan, please do configure your card's tuner type in the 'TV card input' sub-menu of the Configure menu.\nIf no channels are found during the scan, try to enable the tuner PLL initialization in that menu."
@@ -2749,7 +2774,7 @@ proc EpgScan_Start {} {
    global hwcfg hwcfg_default
    global is_unix
 
-   if {$is_unix && [IsNetAcqMode]} {
+   if {[C_IsNetAcqActive clear_errors]} {
       # acquisition is not running local -> abort
       tk_messageBox -type ok -icon info -message "EPG scan cannot be started while in client/server mode."
       return
@@ -3539,10 +3564,8 @@ proc NetworkNameSelection {} {
       if {[array exists netname_xawtv]} {
          if {[info exists netname_xawtv($netname_names($cni))]} {
             .netname.cmd.fx.mb configure -text $netname_xawtv($netname_names($cni))
-            .netname.cmd.fm.match configure -text "$netname_xawtv($netname_names($cni))" -foreground black
          } else {
             .netname.cmd.fx.mb configure -text "select"
-            .netname.cmd.fm.match configure -text "none" -foreground red
          }
       }
 
@@ -4247,11 +4270,11 @@ proc PopupAcqMode {} {
    global acqmode_ailist acqmode_selist acqmode_names
    global acqmode_sel
    global acq_mode acq_mode_cnis
-   global is_unix
+   global is_unix netacq_enable
 
    if {$acqmode_popup == 0} {
 
-      if {$is_unix && [IsNetAcqMode]} {
+      if {[C_IsNetAcqActive default]} {
          # warn that params do not affect acquisition running remotely
          set answer [tk_messageBox -type okcancel -icon info -message "Please note that this dialog does not update acquisition parameters on server side."]
          if {[string compare $answer "ok"] != 0} {
@@ -4412,17 +4435,18 @@ set hwcfg_tvapp_idx 0
 set hwcfg_tvapp_path {}
 
 proc PopupHardwareConfig {} {
-   global is_unix fileImage
+   global is_unix netacq_enable fileImage
    global hwcfg_input_sel
    global hwcfg_tuner_sel hwcfg_tuner_list hwcfg_card_list
    global hwcfg_pll_sel hwcfg_prio_sel hwcfg_cardidx_sel hwcfg_ftable_sel
    global hwcfg_popup hwcfg hwcfg_default
    global hwcfg_tmp_tvapp_list hwcfg_tmp_tvapp_idx hwcfg_tmp_tvapp_path
+   global hwcfg_chk_tvapp_idx hwcfg_chk_tvapp_path
    global hwcfg_tvapp_path hwcfg_tvapp_idx
    global hwcf_dsdrv_log
 
    if {$hwcfg_popup == 0} {
-      if {$is_unix && [IsNetAcqMode]} {
+      if {[C_IsNetAcqActive default]} {
          # warn that params do not affect acquisition running remotely
          set answer [tk_messageBox -type okcancel -icon info -message "Please note that this dialog does not update acquisition parameters on server side."]
          if {[string compare $answer "ok"] != 0} {
@@ -4449,6 +4473,8 @@ proc PopupHardwareConfig {} {
          set hwcfg_tmp_tvapp_path $hwcfg_tvapp_path
          set hwcfg_tmp_tvapp_idx $hwcfg_tvapp_idx
          set hwcfg_tmp_tvapp_list [C_Tvapp_GetTvappList]
+         set hwcfg_chk_tvapp_idx $hwcfg_tvapp_idx
+         set hwcfg_chk_tvapp_path $hwcfg_tvapp_path
 
          # create TV app selection popdown menu and "Load config" command button
          frame .hwcfg.opt1 -borderwidth 1 -relief raised
@@ -4471,7 +4497,7 @@ proc PopupHardwareConfig {} {
             incr idx
          }
          pack   .hwcfg.opt1.apptype.mb -side left -padx 10 -fill x -expand 1
-         button .hwcfg.opt1.apptype.load -text "Load config" -command {C_Tvapp_LoadHwConfig $hwcfg_tmp_tvapp_idx $hwcfg_tmp_tvapp_path}
+         button .hwcfg.opt1.apptype.load -text "Load config" -command HardwareConfigLoadFromTvapp
          pack   .hwcfg.opt1.apptype.load -side right -padx 10 -fill x -expand 1
          pack   .hwcfg.opt1.apptype -side top -pady 5 -fill x
 
@@ -4538,11 +4564,12 @@ proc PopupHardwareConfig {} {
          frame .hwcfg.opt3.card
          label .hwcfg.opt3.card.label -text "TV card: "
          pack .hwcfg.opt3.card.label -side left -padx 10
-         radiobutton .hwcfg.opt3.card.idx0 -text "0" -variable hwcfg_cardidx_sel -value 0 -command HardwareConfigCard
-         radiobutton .hwcfg.opt3.card.idx1 -text "1" -variable hwcfg_cardidx_sel -value 1 -command HardwareConfigCard
-         radiobutton .hwcfg.opt3.card.idx2 -text "2" -variable hwcfg_cardidx_sel -value 2 -command HardwareConfigCard
-         radiobutton .hwcfg.opt3.card.idx3 -text "3" -variable hwcfg_cardidx_sel -value 3 -command HardwareConfigCard
-         pack .hwcfg.opt3.card.idx0 .hwcfg.opt3.card.idx1 .hwcfg.opt3.card.idx2 .hwcfg.opt3.card.idx3 -side left
+         set idx 0
+         foreach name $hwcfg_card_list {
+            radiobutton .hwcfg.opt3.card.idx$idx -text $name -variable hwcfg_cardidx_sel -value $idx -command HardwareConfigCard
+            pack .hwcfg.opt3.card.idx$idx -side left
+            incr idx
+         }
          pack .hwcfg.opt3.card -side top -anchor w -pady 5
 
          # create checkbuttons to select acquisition priority
@@ -4656,11 +4683,23 @@ proc HardwareConfigQuit {} {
    global hwcfg_pll_sel hwcfg_prio_sel hwcfg_cardidx_sel hwcfg_ftable_sel
    global hwcfg hwcfg_default
    global hwcfg_tmp_tvapp_idx hwcfg_tmp_tvapp_path hwcfg_tmp_tvapp_list
+   global hwcfg_chk_tvapp_idx hwcfg_chk_tvapp_path
    global hwcfg_tvapp_path hwcfg_tvapp_idx
    global wintvapp_idx wintvapp_path
 
    if { !$is_unix && ($hwcfg_input_sel == 0) && ($hwcfg_tuner_sel == 0) } {
-      set answer [tk_messageBox -type okcancel -default cancel -icon warning -parent .hwcfg -message "You haven't selected a tuner - acquisition will not be possible!"]
+      set answer [tk_messageBox -type okcancel -default cancel -icon warning -parent .hwcfg \
+                     -message "You haven't selected a tuner - acquisition will not be possible!"]
+   } elseif { !$is_unix && ($hwcfg_tmp_tvapp_idx != 0) && \
+              ($hwcfg_tmp_tvapp_idx != $hwcfg_tvapp_idx) && \
+              ($hwcfg_tmp_tvapp_idx != $hwcfg_chk_tvapp_idx)} {
+      set answer [tk_messageBox -type okcancel -default cancel -icon warning -parent .hwcfg \
+                     -message "You have selected a TV app. but not loaded it's TV card configuration. This setting will have no effect!"]
+   } elseif { !$is_unix && ($hwcfg_tmp_tvapp_idx != 0) && \
+              ([string compare $hwcfg_tmp_tvapp_path $hwcfg_tvapp_path] != 0) && \
+              ([string compare $hwcfg_tmp_tvapp_path $hwcfg_chk_tvapp_path] != 0)} {
+      set answer [tk_messageBox -type okcancel -default cancel -icon warning -parent .hwcfg \
+                     -message "You have changed the TV app. path but not loaded the TV card configuration. This setting will have no effect!"]
    } else {
       set answer "ok"
    }
@@ -4684,6 +4723,19 @@ proc HardwareConfigQuit {} {
       C_UpdateHardwareConfig
       destroy .hwcfg
    }
+}
+
+# callback for "Load Config" button
+proc HardwareConfigLoadFromTvapp {} {
+   global hwcfg_tmp_tvapp_idx hwcfg_tmp_tvapp_path
+   global hwcfg_chk_tvapp_idx hwcfg_chk_tvapp_path
+
+   # remember which config was loaded/tested
+   set hwcfg_chk_tvapp_idx $hwcfg_tmp_tvapp_idx
+   set hwcfg_chk_tvapp_path $hwcfg_tmp_tvapp_path
+
+   # note: enclose cmd in list to avoid that zero-length params vanish due to concat
+   uplevel #0 [list C_Tvapp_LoadHwConfig $hwcfg_tmp_tvapp_idx $hwcfg_tmp_tvapp_path]
 }
 
 # callback for TV application type popup: disable or enable path entry field
@@ -4923,6 +4975,8 @@ proc XawtvConfigPopup {} {
          set xawtv_tmpcf(tvapp_idx) $wintvapp_idx
          set xawtv_tmpcf(tvapp_path) $wintvapp_path
          set xawtv_tmp_tvapp_list [C_Tvapp_GetTvappList]
+         set xawtv_tmpcf(chk_tvapp_idx) $wintvapp_idx
+         set xawtv_tmpcf(chk_tvapp_path) $wintvapp_path
 
          # create TV app selection popdown menu and "Test" command button
          frame  .xawtvcf.tvapp -borderwidth 1 -relief raised
@@ -4946,7 +5000,10 @@ proc XawtvConfigPopup {} {
          }
          pack   .xawtvcf.tvapp.apptype.mb -side left -padx 10 -fill x -expand 1
 
-         button .xawtvcf.tvapp.apptype.load -text "Test" -command {C_Tvapp_TestChanTab $xawtv_tmpcf(tvapp_idx) $xawtv_tmpcf(tvapp_path)}
+         button .xawtvcf.tvapp.apptype.load -text "Test" \
+                   -command {C_Tvapp_TestChanTab $xawtv_tmpcf(tvapp_idx) $xawtv_tmpcf(tvapp_path); \
+                             set xawtv_tmpcf(chk_tvapp_idx) $xawtv_tmpcf(tvapp_idx); \
+                             set xawtv_tmpcf(chk_tvapp_path) $xawtv_tmpcf(tvapp_path)}
          pack   .xawtvcf.tvapp.apptype.load -side right -padx 10 -fill x -expand 1
          pack   .xawtvcf.tvapp.apptype -side top -fill x
 
@@ -4980,7 +5037,7 @@ proc XawtvConfigPopup {} {
       frame .xawtvcf.cmd
       button .xawtvcf.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Configuration) "TV application interaction"}
       button .xawtvcf.cmd.abort -text "Abort" -width 5 -command {array unset xawtv_tmpcf; destroy .xawtvcf}
-      button .xawtvcf.cmd.save -text "Ok" -width 5 -command {XawtvConfigSave; destroy .xawtvcf}
+      button .xawtvcf.cmd.save -text "Ok" -width 5 -command XawtvConfigSave
       pack .xawtvcf.cmd.help .xawtvcf.cmd.abort .xawtvcf.cmd.save -side left -padx 10
       pack .xawtvcf.cmd -side top -pady 10
 
@@ -5041,12 +5098,6 @@ proc XawtvConfigGeneralEnable {} {
       set state "disabled"
    }
 
-   # XXX patch for release 2.0.0: TV app interaction is disabled for the regular release
-   set xawtv_tmpcf(shm_disabled) 0
-   .xawtvcf.all.shm configure -state disabled -variable xawtv_tmpcf(shm_disabled)
-   set state "disabled"
-   # XXX patch end
-
    .xawtvcf.all.tunetv configure -state $state
    .xawtvcf.all.follow configure -state $state
    .xawtvcf.all.dopop configure -state $state
@@ -5079,6 +5130,21 @@ proc XawtvConfigSave {} {
    global wintvapp_idx wintvapp_path xawtv_tmp_tvapp_list
    global is_unix
 
+   if {!$is_unix && ($xawtv_tmpcf(tvapp_idx) != 0)} {
+      if {($xawtv_tmpcf(tvapp_idx) != $wintvapp_idx) && \
+          ($xawtv_tmpcf(tvapp_idx) != $xawtv_tmpcf(chk_tvapp_idx))} {
+         set answer [tk_messageBox -type okcancel -default cancel -icon warning -parent .xawtvcf \
+                        -message "You have selected a TV app. but not tested if it's channel table can be loaded!"]
+      } elseif {([string compare $xawtv_tmpcf(tvapp_path) $wintvapp_path] != 0) && \
+                ([string compare $xawtv_tmpcf(tvapp_path) $xawtv_tmpcf(chk_tvapp_path)] != 0)} {
+         set answer [tk_messageBox -type okcancel -default cancel -icon warning -parent .xawtvcf \
+                        -message "You have changed the TV app. path but not tested if the channel table can be loaded!"]
+      } else {
+         set answer "ok"
+      }
+      if {[string compare $answer "cancel"] == 0} return
+   }
+
    if $is_unix {
       set xawtvcf [list "tunetv" $xawtv_tmpcf(tunetv) \
                         "follow" $xawtv_tmpcf(follow) \
@@ -5102,6 +5168,9 @@ proc XawtvConfigSave {} {
    C_Tvapp_InitConfig
    # update the TV app name
    UpdateTvappName
+
+   # close the dialog window
+   destroy .xawtvcf
 }
 
 # store the TV app name which is used in various dialogs
@@ -5357,13 +5426,6 @@ proc NetAcqCreateLogLevMenu {wmen logtype} {
       $wmen.men add radiobutton -label $name -variable netacqcf_tmpcf($logtype) -value $idx -command $cmd
       incr idx
    }
-}
-
-# check if acquisition runs in remote mode
-proc IsNetAcqMode {} {
-   global netacq_enable
-
-   return $netacq_enable
 }
 
 ##  --------------------------------------------------------------------------
@@ -7502,7 +7564,7 @@ proc LoadRcFile {filename isDefault} {
    global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_logi_idx fsc_tag_idx
    global shortcuts shortcut_count
    global prov_selection prov_freqs cfnetwops cfnetnames
-   global showNetwopListbox showShortcutListbox showStatusLine showColumnHeader
+   global showNetwopListbox showShortcutListbox showStatusLine showColumnHeader hideOnMinimize
    global prov_merge_cnis prov_merge_cf
    global acq_mode acq_mode_cnis netacq_enable
    global pibox_height pilistbox_cols shortinfo_height
@@ -7570,6 +7632,7 @@ proc LoadRcFile {filename isDefault} {
    if {$showShortcutListbox == 0} {pack forget .all.shortcuts}
    if {$showNetwopListbox == 0} {pack forget .all.netwops}
    if {$showStatusLine == 0} {pack forget .all.statusline}
+   if {$hideOnMinimize != 0} {ToggleHideOnMinimize}
 
    # create the column headers above the PI browser text widget
    ApplySelectedColumnList initial
@@ -7605,7 +7668,7 @@ proc LoadRcFile {filename isDefault} {
 proc UpdateRcFile {} {
    global shortcuts shortcut_count
    global prov_selection prov_freqs cfnetwops cfnetnames
-   global showNetwopListbox showShortcutListbox showStatusLine showColumnHeader
+   global showNetwopListbox showShortcutListbox showStatusLine showColumnHeader hideOnMinimize
    global prov_merge_cnis prov_merge_cf
    global acq_mode acq_mode_cnis netacq_enable
    global pibox_height pilistbox_cols shortinfo_height
@@ -7657,6 +7720,7 @@ proc UpdateRcFile {} {
       puts $rcfile [list set showShortcutListbox $showShortcutListbox]
       puts $rcfile [list set showStatusLine $showStatusLine]
       puts $rcfile [list set showColumnHeader $showColumnHeader]
+      puts $rcfile [list set hideOnMinimize $hideOnMinimize]
 
       # dump provider database merge CNIs and configuration
       if {[info exists prov_merge_cnis]} {puts $rcfile [list set prov_merge_cnis $prov_merge_cnis]}

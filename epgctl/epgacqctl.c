@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqctl.c,v 1.68 2002/05/04 18:17:26 tom Exp tom $
+ *  $Id: epgacqctl.c,v 1.73 2002/05/19 21:54:33 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -33,21 +33,22 @@
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
 
+#include "epgvbi/btdrv.h"
+#include "epgvbi/ttxdecode.h"
 #include "epgdb/epgblock.h"
 #include "epgdb/epgdbif.h"
+#include "epgdb/epgstream.h"
 #include "epgdb/epgqueue.h"
 #include "epgdb/epgtscqueue.h"
 #include "epgdb/epgdbsav.h"
 #include "epgdb/epgdbmgmt.h"
 #include "epgdb/epgdbmerge.h"
-#include "epgdb/epgdbacq.h"
 
 #include "epgui/uictrl.h"
 #include "epgui/epgmain.h"
 #include "epgctl/epgctxmerge.h"
 #include "epgctl/epgctxctl.h"
 #include "epgctl/epgscan.h"
-#include "epgvbi/btdrv.h"
 #include "epgctl/epgacqctl.h"
 #include "epgctl/epgacqsrv.h"
 #include "epgctl/epgacqclnt.h"
@@ -247,6 +248,7 @@ const EPGDB_BLOCK_COUNT * EpgAcqCtl_GetDbStats( void )
 const EPGDB_STATS * EpgAcqCtl_GetAcqStats( void )
 {
    const EPGDB_STATS   * pAcqStats;
+   uint32_t  vbiLineCount;  // dummy
 
    if (acqCtl.state != ACQSTATE_OFF)
    {
@@ -254,7 +256,8 @@ const EPGDB_STATS * EpgAcqCtl_GetAcqStats( void )
 
       if (acqCtl.mode != ACQMODE_NETWORK)
       {  // retrieve additional data from TTX packet decoder
-         EpgDbAcqGetStatistics(&acqStats.ttx.ttxPkgCount, &acqStats.ttx.epgPkgCount, &acqStats.ttx.epgPagCount);
+         TtxDecode_GetStatistics(&acqStats.ttx.ttxPkgCount, &vbiLineCount,
+                                 &acqStats.ttx.epgPkgCount, &acqStats.ttx.epgPagCount);
       }
 
       pAcqStats = &acqStats;
@@ -430,6 +433,68 @@ void EpgAcqCtl_ResetVpsPdc( void )
 }
 
 // ---------------------------------------------------------------------------
+// Start teletext decoding and initialize the EPG stream decoder
+//
+static void EpgAcqCtl_TtxStart( EPGDB_CONTEXT *dbc, EPGDB_QUEUE * pQueue, uint pageNo, uint appId )
+{
+   uint epgPageNo;
+   uint epgAppId;
+   bool bWaitForBiAi;
+
+   if (pageNo != EPG_ILLEGAL_PAGENO)
+      epgPageNo = dbc->pageNo = pageNo;
+   else if ((dbc->pageNo != EPG_ILLEGAL_PAGENO) && VALID_EPG_PAGENO(dbc->pageNo))
+      epgPageNo = dbc->pageNo;
+   else
+      epgPageNo = dbc->pageNo = EPG_DEFAULT_PAGENO;
+
+   if (appId != EPG_ILLEGAL_APPID)
+      epgAppId = appId;
+   else if (dbc->appId != EPG_ILLEGAL_APPID)
+      epgAppId = dbc->appId;
+   else
+      epgAppId = EPG_DEFAULT_APPID;
+
+   if (dbc->pAiBlock != NULL)
+   {  // provider already known
+      // set up a list of alphabets for string decoding
+      EpgBlockSetAlphabets(&dbc->pAiBlock->blk.ai);
+      // since alphabets are known PI can be collected right from the start
+      bWaitForBiAi = FALSE;
+   }
+   else
+   {  // unknown provider -> wait for AI before allowing PI
+      bWaitForBiAi = TRUE;
+   }
+
+   // initialize the state of the streams decoder
+   EpgStreamInit(pQueue, bWaitForBiAi, epgAppId, epgPageNo);
+
+   TtxDecode_StartEpgAcq(epgPageNo, FALSE);
+}
+
+// ---------------------------------------------------------------------------
+// Stop teletext decoding and clear the EPG stream and its queue
+//
+static void EpgAcqCtl_TtxStop( void )
+{
+   TtxDecode_StopAcq();
+   EpgStreamClear();
+}
+
+// ---------------------------------------------------------------------------
+// Stop and Re-Start teletext acquisition
+// - called after change of channel or internal parameters
+//
+static void EpgAcqCtl_TtxReset( EPGDB_CONTEXT *dbc, EPGDB_QUEUE * pQueue, uint pageNo, uint appId )
+{
+   // discard remaining blocks in the scratch buffer
+   EpgStreamClear();
+
+   EpgAcqCtl_TtxStart(dbc, pQueue, pageNo, appId);
+}
+
+// ---------------------------------------------------------------------------
 // Close the acq database
 // - automatically chooses the right close function for the acq database
 //   depending on how it was opened, i.e. as peek or fully
@@ -551,7 +616,6 @@ bool EpgAcqCtl_Start( void )
       else
       {
          // initialize teletext decoder
-         EpgDbAcqInit();
          EpgDbQueue_Init(&acqDbQueue);
          EpgTscQueue_Init(&acqTsc);
 
@@ -562,7 +626,7 @@ bool EpgAcqCtl_Start( void )
          {
             // set input source and tuner frequency (also detect if device is busy)
             EpgAcqCtl_UpdateProvider(FALSE);
-            EpgDbAcqStart(pAcqDbContext, &acqDbQueue, EPG_ILLEGAL_PAGENO, EPG_ILLEGAL_APPID);
+            EpgAcqCtl_TtxStart(pAcqDbContext, &acqDbQueue, EPG_ILLEGAL_PAGENO, EPG_ILLEGAL_APPID);
             result = TRUE;
          }
       }
@@ -616,7 +680,7 @@ void EpgAcqCtl_Stop( void )
       else
       {
          BtDriver_StopAcq();
-         EpgDbAcqStop();
+         EpgAcqCtl_TtxStop();
          EpgTscQueue_Clear(&acqTsc);
       }
 
@@ -659,7 +723,7 @@ void EpgAcqCtl_InitDaemon( void )
 // Set input source and tuner frequency for a provider
 // - errors are reported to the user interface
 //
-static bool EpgAcqCtl_TuneProvider( ulong freq, uint cni )
+static bool EpgAcqCtl_TuneProvider( uint freq, uint cni )
 {
    bool isTuner;
    bool result = FALSE;
@@ -773,7 +837,7 @@ static uint EpgAcqCtl_GetProvider( void )
 static bool EpgAcqCtl_UpdateProvider( bool changeDb )
 {
    EPGDB_CONTEXT * pPeek;
-   ulong freq = 0;
+   uint freq = 0;
    uint cni;
    bool warnInputError;
    bool dbChanged, inputChanged, dbInitial;
@@ -787,7 +851,7 @@ static bool EpgAcqCtl_UpdateProvider( bool changeDb )
       // determine current CNI depending on acq mode and index
       cni = EpgAcqCtl_GetProvider();
 
-      // for acq start: open the requested db (or any database for passive mode)
+      // for acq start: open the requested db (or empty database for passive or network mode)
       if (pAcqDbContext == NULL)
       {
          dbInitial = TRUE;
@@ -1279,11 +1343,13 @@ void EpgAcqCtl_DescribeAcqState( EPGACQ_DESCR * pAcqState )
 //
 static bool EpgAcqCtl_AiCallback( const AI_BLOCK *pNewAi )
 {
+   EPGACQ_STATE   oldState;
    const AI_BLOCK *pOldAi;
-   ulong oldTunerFreq;
+   uint ai_cni;
    bool accept = FALSE;
 
    assert(EpgScan_IsActive() == FALSE);  // EPG scan uses a separate callback
+   oldState = acqCtl.state;
 
    if (AI_GET_CNI(pNewAi) == 0)
    {
@@ -1301,75 +1367,51 @@ static bool EpgAcqCtl_AiCallback( const AI_BLOCK *pNewAi )
          dprintf3("EpgCtl: AI found, CNI=0x%04X version %d/%d\n", AI_GET_CNI(pNewAi), pNewAi->version, pNewAi->version_swo);
       EpgDbLockDatabase(pAcqDbContext, TRUE);
       pOldAi = EpgDbGetAi(pAcqDbContext);
+      ai_cni = AI_GET_CNI(pNewAi);
 
       if (pOldAi == NULL)
       {  // the current db is empty
-         oldTunerFreq = pAcqDbContext->tunerFreq;
          EpgDbLockDatabase(pAcqDbContext, FALSE);
 
-         EpgAcqCtl_SwitchDb(AI_GET_CNI(pNewAi));
-         dprintf2("EpgAcqCtl: empty acq db, AI found: CNI 0x%04X (%s)\n", AI_GET_CNI(pNewAi), ((pAcqDbContext->pAiBlock == NULL) ? "new" : "reload ok"));
+         // this is just like a provider change...
+
+         EpgAcqCtl_SwitchDb(ai_cni);
+         dprintf2("EpgAcqCtl: empty acq db, AI found: CNI 0x%04X (%s)\n", ai_cni, ((EpgDbContextGetCni(pAcqDbContext) == 0) ? "new" : "reload ok"));
 
          #ifdef USE_DAEMON
          // inform server module about the current provider
-         EpgAcqServer_SetProvider(AI_GET_CNI(pNewAi));
+         EpgAcqServer_SetProvider(ai_cni);
          #endif
 
-         EpgDbLockDatabase(pAcqDbContext, TRUE);
-         // if this is not a new db, handle it like a provider change below
-         pOldAi = EpgDbGetAi(pAcqDbContext);
-         if (pOldAi == NULL)
+         // store the tuner frequency if none is known yet
+         if ( (pAcqDbContext->tunerFreq == 0) && (acqCtl.mode != ACQMODE_NETWORK) )
          {
-            if (acqCtl.mode != ACQMODE_NETWORK)
-            {
-               if (oldTunerFreq != 0)
-               {
-                  dprintf1("EpgAcqCtl: setting tuner freq: %.2f\n", (double)oldTunerFreq/16);
-                  pAcqDbContext->tunerFreq = oldTunerFreq;
-               }
-               else
-               {  // freq for db unknown -> try to obtain it from the driver
-                  pAcqDbContext->tunerFreq = BtDriver_QueryChannel();
-                  debug2("EpgAcqCtl: setting current tuner frequency %.2f for CNI 0x%04X", (double)pAcqDbContext->tunerFreq/16, AI_GET_CNI(pNewAi));
-               }
-
-               if (pAcqDbContext->tunerFreq != 0)
-               {  // store the provider channel frequency in the rc/ini file
-                  UiControlMsg_NewProvFreq(AI_GET_CNI(pNewAi), pAcqDbContext->tunerFreq);
-               }
+            // try to obtain the frequency from the driver (not supported by all drivers)
+            pAcqDbContext->tunerFreq = BtDriver_QueryChannel();
+            if (pAcqDbContext->tunerFreq != 0)
+            {  // store the provider channel frequency in the rc/ini file
+               debug2("EpgAcqCtl: setting current tuner frequency %.2f for CNI 0x%04X", (double)pAcqDbContext->tunerFreq/16, ai_cni);
+               UiControlMsg_NewProvFreq(ai_cni, pAcqDbContext->tunerFreq);
             }
+         }
 
-            // update the ui netwop list if neccessary
-            UiControlMsg_AcqEvent(ACQ_EVENT_PROV_CHANGE);
-
-            acqCtl.state = ACQSTATE_RUNNING;
-            EpgAcqCtl_StatisticsReset();
-
-            // new provider -> dump asap
+         // new provider -> dump asap
+         if (EpgDbContextGetCni(pAcqDbContext) == 0)
             acqCtl.dumpTime = 0;
 
-            accept = TRUE;
-         }
-      }
+         acqCtl.state = ACQSTATE_RUNNING;
+         acqStatsUpdate = TRUE;
 
-      if (pOldAi != NULL)
-      {
+         // update the ui netwop list and acq stats output if neccessary
+         UiControlMsg_AcqEvent(ACQ_EVENT_PROV_CHANGE);
+
+         accept = TRUE;
+      }
+      else
+      {  // already an AI in the database
+
          if (AI_GET_CNI(pOldAi) == AI_GET_CNI(pNewAi))
          {
-            if ( (acqCtl.state == ACQSTATE_WAIT_AI) &&
-                 (acqCtl.mode != ACQMODE_NETWORK) )
-            {
-               if (pAcqDbContext->tunerFreq == 0)
-               {  // freq for db unknown -> try to obtain it from the driver
-                  pAcqDbContext->tunerFreq = BtDriver_QueryChannel();
-                  debug2("EpgAcqCtl: setting current tuner frequency %.2f for CNI 0x%04X", (double)pAcqDbContext->tunerFreq/16, AI_GET_CNI(pNewAi));
-               }
-               else
-               {  // store the provider channel frequency in the rc/ini file
-                  UiControlMsg_NewProvFreq(AI_GET_CNI(pNewAi), pAcqDbContext->tunerFreq);
-               }
-            }
-
             if ( (pOldAi->version != pNewAi->version) ||
                  (pOldAi->version_swo != pNewAi->version_swo) )
             {
@@ -1406,6 +1448,7 @@ static bool EpgAcqCtl_AiCallback( const AI_BLOCK *pNewAi )
                if (netwop >= pNewAi->netwopCount)
                   UiControlMsg_AcqEvent(ACQ_EVENT_STATS_UPDATE);
             }
+            EpgDbLockDatabase(pAcqDbContext, FALSE);
 
             acqStatsUpdate = TRUE;
             acqCtl.state = ACQSTATE_RUNNING;
@@ -1413,17 +1456,17 @@ static bool EpgAcqCtl_AiCallback( const AI_BLOCK *pNewAi )
          }
          else
          {  // wrong provider -> switch acq database
-            dprintf2("EpgAcqCtl: switching acq db from %04X to %04X\n", AI_GET_CNI(pOldAi), AI_GET_CNI(pNewAi));
+            dprintf2("EpgAcqCtl: switching acq db from %04X to %04X\n", AI_GET_CNI(pOldAi), ai_cni);
             EpgDbLockDatabase(pAcqDbContext, FALSE);
 
-            EpgAcqCtl_SwitchDb(AI_GET_CNI(pNewAi));
+            EpgAcqCtl_SwitchDb(ai_cni);
 
             if (acqCtl.mode != ACQMODE_NETWORK)
             {
                if (acqCtl.state == ACQSTATE_RUNNING)
                {  // should normally not happen, because channel changes are detected by TTX page header supervision
-                  debug2("EpgAcqCtl: unexpected prov change AI CNI=%04X -> %04X - resetting EPG Acq", AI_GET_CNI(pOldAi), AI_GET_CNI(pNewAi));
-                  EpgDbAcqReset(pAcqDbContext, &acqDbQueue, EPG_ILLEGAL_PAGENO, EPG_ILLEGAL_APPID);
+                  debug1("EpgAcqCtl: unexpected prov change to CNI %04X - resetting EPG Acq", ai_cni);
+                  EpgAcqCtl_TtxReset(pAcqDbContext, &acqDbQueue, EPG_ILLEGAL_PAGENO, EPG_ILLEGAL_APPID);
 
                   // if db is new, dump asap
                   if (EpgDbContextGetCni(pAcqDbContext) == 0)
@@ -1439,7 +1482,7 @@ static bool EpgAcqCtl_AiCallback( const AI_BLOCK *pNewAi )
 
             #ifdef USE_DAEMON
             // inform server module about the current provider
-            EpgAcqServer_SetProvider(AI_GET_CNI(pNewAi));
+            EpgAcqServer_SetProvider(ai_cni);
             #endif
 
             if (acqCtl.state != ACQSTATE_RUNNING)
@@ -1448,16 +1491,32 @@ static bool EpgAcqCtl_AiCallback( const AI_BLOCK *pNewAi )
                acqStatsUpdate = TRUE;
             UiControlMsg_AcqEvent(ACQ_EVENT_PROV_CHANGE);
 
-            EpgDbLockDatabase(pAcqDbContext, TRUE);
             accept = TRUE;
          }
-      }
 
-      EpgDbLockDatabase(pAcqDbContext, FALSE);
+         // Store the TV tuner frequency if none is known yet
+         // (Note: the tuner frequency in the db is never overwritten because we can
+         // not be 100% sure that we know the current TV tuner freq here, esp. if it's
+         // coming from a remote TV application; only the EPG scan updates the freq.)
+         if ( (pAcqDbContext->tunerFreq == 0) &&
+              (oldState == ACQSTATE_WAIT_AI) && (accept) &&
+              (acqCtl.state == ACQSTATE_RUNNING) &&
+              (acqCtl.mode != ACQMODE_NETWORK) )
+         {
+            // try to obtain the frequency from the driver (not supported by all drivers)
+            pAcqDbContext->tunerFreq = BtDriver_QueryChannel();
+            if (pAcqDbContext->tunerFreq != 0)
+            {  // store the provider channel frequency in the rc/ini file
+               debug2("EpgAcqCtl: setting current tuner frequency %.2f for CNI 0x%04X", (double)pAcqDbContext->tunerFreq/16, ai_cni);
+               UiControlMsg_NewProvFreq(ai_cni, pAcqDbContext->tunerFreq);
+            }
+         }
+      }
    }
    else
       assert(acqCtl.state != ACQSTATE_OFF);
 
+   assert(EpgDbIsLocked(pAcqDbContext) == FALSE);
    return accept;
 }
 
@@ -1483,7 +1542,8 @@ static bool EpgAcqCtl_BiCallback( const BI_BLOCK *pNewBi )
          if (pAcqDbContext->appId != pNewBi->app_id)
          {  // not the default id
             dprintf2("EpgCtl: app-ID changed from %d to %d\n", pAcqDbContext->appId, pAcqDbContext->appId);
-            EpgDbAcqReset(pAcqDbContext, &acqDbQueue, EPG_ILLEGAL_PAGENO, pNewBi->app_id);
+            EpgStreamClear();
+            EpgStreamInit(&acqDbQueue, TRUE, pNewBi->app_id, pAcqDbContext->pageNo);
          }
       }
       else
@@ -1591,7 +1651,7 @@ static void EpgAcqCtl_ChannelChange( bool changeDb )
             UiControlMsg_AcqEvent(ACQ_EVENT_STATS_UPDATE);
       }
 
-      EpgDbAcqReset(pAcqDbContext, &acqDbQueue, EPG_ILLEGAL_PAGENO, EPG_ILLEGAL_APPID);
+      EpgAcqCtl_TtxReset(pAcqDbContext, &acqDbQueue, EPG_ILLEGAL_PAGENO, EPG_ILLEGAL_APPID);
       acqCtl.state = ACQSTATE_WAIT_BI;
       EpgAcqCtl_StatisticsReset();
    }
@@ -1612,7 +1672,7 @@ bool EpgAcqCtl_ProcessVps( void )
    if ( (acqCtl.state != ACQSTATE_OFF) && (EpgScan_IsActive() == FALSE) &&
         (acqCtl.mode != ACQMODE_NETWORK) )
    {
-      if (EpgDbAcqGetCniAndPil(&newCni, &newPil))
+      if (TtxDecode_GetCniAndPil(&newCni, &newPil, NULL))
       {
          if ( (acqStats.vpsPdc.cni != newCni) ||
               ((newPil != acqStats.vpsPdc.pil) && VPS_PIL_IS_VALID(newPil)) )
@@ -1710,9 +1770,9 @@ bool EpgAcqCtl_ProcessPackets( void )
       if (acqCtl.mode != ACQMODE_NETWORK)
       {
          // check if new data is available in the VBI ringbuffer
-         if (EpgDbAcqCheckForPackets(&stopped))
+         if (TtxDecode_CheckForPackets(&stopped))
          {  // assemble VBI lines, i.e. TTX packets to EPG blocks and put them in the queue
-            if (EpgDbAcqProcessPackets() == FALSE)
+            if (EpgStreamProcessPackets() == FALSE)
             {  // channel change detected -> restart acq for the current provider
                dprintf0("EpgAcqCtl: uncontrolled channel change detected\n");
                EpgAcqCtl_ChannelChange(TRUE);
@@ -1724,14 +1784,14 @@ bool EpgAcqCtl_ProcessPackets( void )
          if (stopped == FALSE)
          {
             // check the MIP if EPG is transmitted on a different page
-            pageNo = EpgDbAcqGetMipPageNo();
+            pageNo = TtxDecode_GetMipPageNo();
             if ((pageNo != EPG_ILLEGAL_PAGENO) && (pageNo != pAcqDbContext->pageNo))
             {  // found a different page number in MIP
                dprintf2("EpgAcqCtl: non-default MIP page no for EPG: %03X (was %03X) -> restart acq\n", pageNo, pAcqDbContext->pageNo);
 
                // XXX the pageno should not be saved before RUNNING since this might be the wrong db
                pAcqDbContext->pageNo = pageNo;
-               EpgDbAcqReset(pAcqDbContext, &acqDbQueue, pageNo, EPG_ILLEGAL_APPID);
+               EpgAcqCtl_TtxReset(pAcqDbContext, &acqDbQueue, pageNo, EPG_ILLEGAL_APPID);
             }
          }
          else

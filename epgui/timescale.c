@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: timescale.c,v 1.5 2002/02/16 11:40:40 tom Exp tom $
+ *  $Id: timescale.c,v 1.7 2002/05/14 19:22:12 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -127,7 +127,13 @@ static void TimeScale_UpdateStatusLine( ClientData dummy )
       {
          dbc = ((target == DB_TARGET_UI) ? pUiDbContext : pAcqDbContext);
 
-         if (EpgDbContextIsMerged(dbc) == FALSE)
+         if (EpgDbContextGetCni(dbc) == 0)
+         {  // context no longer exists (e.g. acq stopped) -> close the popup
+            // note: the destroy callback will be invoked and update the status variables
+            sprintf(comm, "destroy %s", tscn[target]);
+            eval_check(interp, comm);
+         }
+         else if (EpgDbContextIsMerged(dbc) == FALSE)
          {
             EpgDbLockDatabase(dbc, TRUE);
             pAi = EpgDbGetAi(dbc);
@@ -665,6 +671,11 @@ static void TimeScale_ProcessAcqQueue( ClientData dummy )
                // update connection between timescale windows and acq
                TimeScale_RequestAcq();
             }
+            else if ( (tscaleState[DB_TARGET_UI].isForAcq == FALSE) &&
+                      (pUiDbContext == pAcqDbContext) )
+            {  // UI db is now identical with acq db
+               TimeScale_RequestAcq();
+            }
          }
       }
       else if (tscaleState[DB_TARGET_ACQ].open)
@@ -687,6 +698,20 @@ static void TimeScale_ProcessAcqQueue( ClientData dummy )
          // discard all remaining data
          EpgTscQueue_Clear(ptsc);
       }
+   }
+   else if ( (tscaleState[DB_TARGET_UI].open) &&
+             (tscaleState[DB_TARGET_UI].locked == FALSE) &&
+             (tscaleState[DB_TARGET_UI].isForAcq) )
+   {  // acq has been switched OFF but UI scale is still connected with acq
+
+      // remove netwop highlighting
+      TimeScale_HighlightNetwop(DB_TARGET_UI, 0xff, 0xff);
+      // remove acq tail markers
+      sprintf(comm, "TimeScale_ClearTail %s\n", tscn[DB_TARGET_UI]);
+      eval_check(interp, comm);
+
+      // update connection between timescale windows and acq
+      TimeScale_RequestAcq();
    }
 }
 
@@ -899,10 +924,9 @@ void TimeScale_ProvChange( int target )
       // if a network in the inactive UI window is still marked, unmark it
       if ((target != DB_TARGET_UI) && tscaleState[DB_TARGET_UI].open)
       {
-         // trigger processing one more time to have netwop markers removed
-         // the acq request state is update them only; NOT done here to avoid recursive call to acq ctl
-         if (tscaleState[target].isForAcq)
-            AddMainIdleEvent(TimeScale_ProcessAcqQueue, NULL, TRUE);
+         // trigger acq queue processing to have netwop markers enabled or removed
+         // the acq request state is update then only; NOT done here to avoid recursive call to acq ctl
+         AddMainIdleEvent(TimeScale_ProcessAcqQueue, NULL, TRUE);
       }
    }
    else

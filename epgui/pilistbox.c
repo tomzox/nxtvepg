@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pilistbox.c,v 1.66 2002/04/20 17:16:20 tom Exp tom $
+ *  $Id: pilistbox.c,v 1.68 2002/05/19 22:00:07 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -854,12 +854,6 @@ static int PiListBox_Scroll( ClientData ttp, Tcl_Interp *interp, int argc, char 
 
             if (new_count > 0)
             {
-               // remove cursor, if on one of the remaining items
-               if (pibox_curpos >= new_count)
-               {
-                  sprintf(comm, ".all.pi.list.text tag remove cur %d.0 %d.0\n", pibox_curpos + 1, pibox_curpos + 2);
-                  eval_check(interp, comm);
-               }
                // remove old text
                sprintf(comm, ".all.pi.list.text delete 1.0 %d.0\n", new_count + 1);
                eval_check(interp, comm);
@@ -875,15 +869,14 @@ static int PiListBox_Scroll( ClientData ttp, Tcl_Interp *interp, int argc, char 
                pibox_off += new_count;
 
                if (new_count > pibox_curpos)
-               {  // cursor moves downwards by number of items in widget
-                  // i.e. during a full page scroll it stays at the same position
-                  pibox_curpos = pibox_curpos + pibox_height - new_count;
+               {  // selected item scrolled away (i.e. enough items to scroll one page)
+                  // -> don't change cursor position
+                  PiListBox_ShowCursor();
                }
                else
-               {  // end of listing reached -> set cursor onto the last item
-                  pibox_curpos = pibox_height - 1;
+               {  // selected item still visible -> keep cursor on it
+                  pibox_curpos -= new_count;
                }
-               PiListBox_ShowCursor();
                PiListBox_UpdateInfoText(FALSE);
 
                // inform the vertical scrollbar about the start offset and viewable fraction
@@ -925,14 +918,6 @@ static int PiListBox_Scroll( ClientData ttp, Tcl_Interp *interp, int argc, char 
 
 	       if (new_count > 0)
 	       {
-		  // remove cursor, if on one of the remaining items
-		  if ((pibox_curpos < pibox_height - new_count) && (pibox_curpos >= 0))
-		  {
-		     sprintf(comm, ".all.pi.list.text tag remove cur %d.0 %d.0\n", pibox_curpos + 1, pibox_curpos + 2);
-		     eval_check(interp, comm);
-		  }
-		  else
-		     i=0; //breakpoint
 		  // remove old text at the bottom of the widget
 		  sprintf(comm, ".all.pi.list.text delete %d.0 %d.0\n", pibox_height - new_count + 1, pibox_height + 1);
 		  eval_check(interp, comm);
@@ -948,16 +933,15 @@ static int PiListBox_Scroll( ClientData ttp, Tcl_Interp *interp, int argc, char 
 		  }
 		  pibox_off -= new_count;
 
-		  if (new_count >= pibox_height - pibox_curpos)
-		  {  // cursor moves upwards by number of items in widget
-		     // i.e. during a full page scroll it stays at the same position
-		     pibox_curpos = new_count + pibox_curpos - pibox_height;
+		  if (pibox_curpos + new_count >= pibox_height)
+		  {  // selected item scrolled away (i.e. enough items to scroll one page)
+                     // -> don't change cursor position
+                     PiListBox_ShowCursor();
 		  }
 		  else
-		  {  // start of listing reached -> set cursor onto the first item
-		     pibox_curpos = 0;
+		  {  // selected item still visible -> keep cursor on it
+		     pibox_curpos += new_count;
 		  }
-		  PiListBox_ShowCursor();
 		  PiListBox_UpdateInfoText(FALSE);
 
 		  // inform the vertical scrollbar about the start offset and viewable fraction
@@ -979,16 +963,17 @@ static int PiListBox_Scroll( ClientData ttp, Tcl_Interp *interp, int argc, char 
 	 }
 	 xfree((void*)pNewPiBlock);
       }
-      else if (!strcmp(argv[3], "units"))
+      else if (!strncmp(argv[3], "unit", 4))
       {
 	 if ((delta > 0) && (pibox_count >= pibox_height))
 	 {
-	    //  ----  Scroll one item down  ----
+	    //  ----  Scroll one or more items down  ----
 
 	    EpgDbLockDatabase(dbc, TRUE);
 	    pPiBlock = EpgDbSearchPi(dbc, pibox_list[pibox_count-1].start_time, pibox_list[pibox_count-1].netwop_no);
-	    if (pPiBlock != NULL)
-	    {
+            ifdebug2((pPiBlock==NULL), "PiListBox-Scroll: last listed block start=%ld netwop=%d not found\n", pibox_list[pibox_count-1].start_time, pibox_list[pibox_count-1].netwop_no);
+            while ((pPiBlock != NULL) && (delta-- > 0))
+            {
 	       pPiBlock = EpgDbSearchNextPi(dbc, pPiFilterContext, pPiBlock);
 	       if (pPiBlock != NULL)
 	       {
@@ -1013,18 +998,17 @@ static int PiListBox_Scroll( ClientData ttp, Tcl_Interp *interp, int argc, char 
 		  PiListBox_AdjustScrollBar();
 	       }
 	    }
-	    else
-	       debug2("PiListBox-Scroll: last listed block start=%ld netwop=%d not found\n", pibox_list[pibox_count-1].start_time, pibox_list[pibox_count-1].netwop_no);
 	    EpgDbLockDatabase(dbc, FALSE);
             assert(PiListBox_ConsistancyCheck());
 	 }
-	 else if (pibox_count >= pibox_height)
+	 else if ((delta < 0) && (pibox_count >= pibox_height))
 	 {
-	    //  ----  Scroll one item up  ----
+	    //  ----  Scroll one or more items up  ----
 
 	    EpgDbLockDatabase(dbc, TRUE);
 	    pPiBlock = EpgDbSearchPi(dbc, pibox_list[0].start_time, pibox_list[0].netwop_no);
-	    if (pPiBlock != NULL)
+            ifdebug2((pPiBlock==NULL), "PiListBox-Scroll: first listed block start=%ld netwop=%d not found\n", pibox_list[0].start_time, pibox_list[0].netwop_no);
+	    while ((pPiBlock != NULL) && (delta++ < 0))
 	    {
 	       pPiBlock = EpgDbSearchPrevPi(dbc, pPiFilterContext, pPiBlock);
 	       if (pPiBlock != NULL)
@@ -1050,8 +1034,6 @@ static int PiListBox_Scroll( ClientData ttp, Tcl_Interp *interp, int argc, char 
 		  PiListBox_AdjustScrollBar();
 	       }
 	    }
-	    else
-	       debug2("PiListBox-Scroll: first listed block start=%ld netwop=%d not found\n", pibox_list[0].start_time, pibox_list[0].netwop_no);
 	    EpgDbLockDatabase(dbc, FALSE);
             assert(PiListBox_ConsistancyCheck());
 	 }

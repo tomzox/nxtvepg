@@ -8114,3 +8114,787 @@ www/tripod-src-index.html [rev:1.4, 2002-05-06T11:25:38]:
 - I forgot to include the drivers with nxtvepg-2.0.0-win.zip
     Thanks to terrae@gmx.net for pointing this out.
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_7_1 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+Makefile.win32 [rev:1.19, 2002-05-06T11:31:53]:
+- added DScaler drivers to the release ZIP file: dsdrv4.sys dsdrv4.vxd
+dsdrv/debuglog.c [rev:1.1, 2002-05-06T11:39:50]:
+- Initial revision
+dsdrv/debuglog.h [rev:1.1, 2002-05-06T11:39:50]:
+- Initial revision
+dsdrv/dsdrv34.c [rev:1.1, 2002-05-06T11:39:50]:
+- Initial revision
+dsdrv/hwdrv.c [rev:1.1, 2002-05-06T11:39:50]:
+- branches:  1.1.1;
+- Initial revision
+dsdrv/hwdrv.h [rev:1.1, 2002-05-06T11:39:50]:
+- Initial revision
+dsdrv/hwpci.c [rev:1.1, 2002-05-06T11:39:50]:
+- branches:  1.1.1;
+- Initial revision
+dsdrv/hwpci.h [rev:1.1, 2002-05-06T11:39:50]:
+- Initial revision
+dsdrv/debuglog.c [rev:1.2, 2002-05-06T11:42:05]:
+- converted from C++ to C
+- added new func HwDrv_SetLogging(): sets global var bDsdrvLogEnabled
+- LOG() now writes output to file if bDsdrvLogEnabled == TRUE
+dsdrv/debuglog.h [rev:1.2, 2002-05-06T11:42:58]:
+- converted from C++ to C
+- added new func HwDrv_SetLogging(): sets global var bDsdrvLogEnabled
+dsdrv/dsdrv34.c [rev:1.2, 2002-05-06T11:43:23]:
+- converted from C++ to C
+- removed DllMain and WINAPI decls: now linked into nxtvepg statically
+dsdrv/hwdrv.c [rev:1.2, 2002-05-06T11:44:39]:
+- converted from C++ to C
+- changed result of HwDrv_LoadDriver() from BOOL to DWORD
+    now returns error codes that tell what went wrong
+- added LOG output of level 2, i.e. made module more verbose
+    (LOG(2) is written to a file if HwDrv_SetLogging(TRUE)
+dsdrv/hwdrv.h [rev:1.2, 2002-05-06T11:46:40]:
+- converted from C++ to C
+- moved private class decls into C file
+- added enum with LoadDriver error return codes
+dsdrv/hwpci.c [rev:1.2, 2002-05-06T11:47:22]:
+- converted from C++ to C
+dsdrv/hwpci.h [rev:1.2, 2002-05-06T11:47:56]:
+- converted from C++ to C
+- moved private class decls into C file
+README [rev:1.24, 2002-05-06T12:03:53]:
+- removed Pro7 from provider list
+CHANGES.version [rev:1.11, 2002-05-06T12:06:19]:
+- added note: "after the release: increment version in epgversion.h"
+tvsim/winshmclnt.c [rev:1.4, 2002-05-08T10:46:34]:
+- declared pTvShm volatile
+- added new func WinSharedMemClient_SetErrorText()
+    copied from epgnetio.c
+- added new global func WinSharedMemClient_GetErrorMsg()
+- generate error messages in init and attach funcs
+- added check for epgShmSize (in addition to version check)
+    uses new helper func WinSharedMemClient_VersionErrorMsg()
+- WinSharedMemClient_Init(): changed init order: create thread before attach
+- WinSharedMemClient_HandleEpgEvent(): added checks for (pTvShm != NULL)
+    after each callback, b/c the func could be called recursively
+    (this happens esp. in the new bg error callback when the GUI enters the
+    idle loop recursively to wait for the user to press OK in the popup)
+- WinSharedMemClient_HandleEpgEvent: new callback pTvAppInfo->pCbBgError()
+    when attach fails
+- NOTE:
+- This is an intermediate check-in only; there was a redesign of the
+- event handling immediately after this version.
+tvsim/winshmclnt.h [rev:1.2, 2002-05-08T10:48:31]:
+- struct WINSHMCLNT_TVAPP_INFO: added new callback pTvAppInfo->pCbBgError():
+    invoked in WinSharedMemClient_HandleEpgEvent() when attach fails
+- added decl for new func WinSharedMemClient_GetErrorMsg()
+- NOTE:
+- This is an intermediate check-in only; there was a redesign of the
+- event handling immediately after this version.
+tvsim/winshmclnt.c [rev:1.5, 2002-05-08T11:19:42]:
+- Redesign of event handling in WinSharedMemClient_HandleEpgEvent():
+- renamed into WinSharedMemClient_GetEpgEvent()
+- this function no longer invokes callbacks; instead it returns identifiers
+    from new enum WINSHMCLNT_EVENT; at most one event per call is processed;
+    must be incoked repeatedly until NONE is returned
+- moved shared memory content handling out of WinSharedMemClient_GetEpgEvent()
+    into new global funcs, which are incoked from event handlers one level up:
+    WinSharedMemClient_GetInpFreq(), WinSharedMemClient_GetCmdArgv(),
+    WinSharedMemClient_GetProgInfo()
+- WinSharedMemClient_Init(): now returns attach event identifier
+    instead of invoking the attach callback
+- WinSharedMemClient_EventThread(): set new module global var epgTriggerReceived
+    required due to repeated polling of WinSharedMemClient_GetEpgEvent():
+    attaches should be attempted only once per trigger
+- Also:
+- declared StopMsgThread volatile
+- added new module global var epgTriggerReceived
+- WinSharedMemClient_VersionErrorMsg(): exchanged order of size and version
+    comparisons: version must be checked first (because a size change is
+    implied in a version change)
+- WinSharedMemClient_VersionErrorMsg(): use new macros EPG_SHM_VERSION_MAJOR()
+    etc. to print version in human readable form
+tvsim/winshmclnt.h [rev:1.3, 2002-05-08T11:19:46]:
+- Redesign of event handling in WinSharedMemClient_HandleEpgEvent():
+- renamed into WinSharedMemClient_GetEpgEvent()
+- WinSharedMemClient_Init(): now returns attach event identifier
+    instead of invoking the attach callback
+- added decls for new event helper query funcs:
+    WinSharedMemClient_GetInpFreq(), WinSharedMemClient_GetCmdArgv(),
+    WinSharedMemClient_GetProgInfo()
+- struct WINSHMCLNT_TVAPP_INFO: removed all callbacks except pCbEpgEvent()
+- added new enum WINSHMCLNT_EVENT
+tvsim/tvsim_main.c [rev:1.4, 2002-05-08T11:19:57]:
+- Redesign of event handling in WinSharedMemClient_HandleEpgEvent():
+- changed TvSimu_IdleHandler(): now polls WinSharedMemClient_HandleEpgEvent()
+    until it returns event id NONE; calls handler func from switch in loop
+- moved TvSimu_IdleHandler() below the handlers in the file to avoid fwd refs
+- changed all event handlers (former callbacks) to query shm for new params
+    instead of passing params down into the handler as actual parameters
+    TvSimuMsg_UpdateProgInfo(), TvSimuMsg_HandleEpgCmd(), TvSimuMsg_ReqTuner(),
+- added new handler TvSimuMsg_BackgroundError() for attach failures
+- TclCb_GrantTuner(): must invoke TvSimuMsg_ReqTuner() when grant enabled;
+    this was formerly done via callback by WinSharedMemClient_GrantTuner()
+- struct WINSHMCLNT_TVAPP_INFO: removed all callbacks except pCbEpgEvent()
+- WinMain(): process attach events returned by WinSharedMemClient_Init()
+- WinMain(): moved wm title setting above window mapping to avoid flicker
+    bugfix: moved -iconic handling before window mapping too
+- WinMain(): added check for memory leaks
+tvsim/vbiplay.c [rev:1.4, 2002-05-08T11:20:12]:
+- Redesign of event handling in WinSharedMemClient_HandleEpgEvent():
+- changed EpgEvent() func: now polls WinSharedMemClient_HandleEpgEvent()
+    until it returns event id NONE; calls handler func from switch in loop
+- added new event handler EpgError(): print msg to stderr
+- struct WINSHMCLNT_TVAPP_INFO: removed all callbacks except pCbEpgEvent()
+- main: process attach events returned by WinSharedMemClient_Init()
+    abort if attach fails
+tvsim/vbirec_main.c [rev:1.4, 2002-05-08T11:25:01]:
+- display tvChanCni as "---" if zero
+- bugfix WinMain(): removed call to VbiRec_CbAttachTv(FALSE, FALSE)
+- WinMain(): moved wm title setting above window mapping to avoid flicker
+tvsim/vbirec_gui.tcl [rev:1.3, 2002-05-08T11:25:14]:
+- added default font size and type for tk_messageBox
+    because the Tk internal default font is huge
+epgvbi/winshmsrv.c [rev:1.4, 2002-05-08T11:42:50]:
+- WintvSharedMem_Enable(): added epgShmSize to struct TVAPP_COMM:
+    size of mapped shared memory, used for error detection on client side
+- WintvSharedMem_Enable(): moved thread creation above attach
+epgvbi/winshm.h [rev:1.3, 2002-05-08T11:42:56]:
+- struct TVAPP_COMM: added new elem epgShmSize: size of mapped shared memory
+    used for error detection on client side
+- changed shm version from 0xFF020000 to 0xFF020001 due to elem addition
+- added new macros EPG_SHM_VERSION_MAJOR() for version output in err messages
+epgctl/mytypes.h [rev:1.15, 2002-05-08T11:45:17]:
+- improved explanation of exact-width types
+- added exact-width type decls for Microsoft Visual C compiler
+epgui/menucmd.c [rev:1.73, 2002-05-08T11:57:50]:
+- MenuCmd_SetControlMenuStates(): #ifndef USE_DAEMON
+    disable "Connect to acq. daemon" entry in systray menu too
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.157, 2002-05-08T11:58:16]:
+- removed restrictions from 2.0.0 release, i.e. "General disable" of TV app.
+- implemented "hide on minimize" option in Configuration menu
+    added new proc ToggleHideOnMinimize as callback for menu entry
+    added new popup menu for systray icon
+    added new var hideOnMinimize to rc/ini file
+epgui/epgmain.c [rev:1.83, 2002-05-08T11:58:24]:
+- WIN32: Implemented systray icon (optional): several new funcs
+- ui_init(): create new Tcl callback proc TclCbWinSystrayIcon()
+- WinMain(): copy hInstance into module global var hMainInstance
+- WinMain(): moved -iconic handling down: must be done after RC/INI file load
+    because "hide on minimize" option state must be known and <Unmap> event bound
+- WinMain(): call WinSystrayIcon(FALSE) during shutdown
+Makefile.win32 [rev:1.20, 2002-05-08T12:02:36]:
+- added rule for vbirec.1: copied from tvsim.1
+- added PHONY compile target "manuals" for tvsim.1 and vbirec.1
+- rule nxtvepg.1: use first EPG_VERSION_STR str from epgversion.h
+    there's now only one version in the header file
+nxtvepg.pod [rev:1.62, 2002-05-08T12:09:50]:
+- Added description for the new "Hide on minimize" option (Windows only)
+nxtvepg.pod [rev:1.63, 2002-05-08T18:16:08]:
+- removed "..." after all section headers (esp. CONFIGURATION menu)
+- replaced =item enumaration with =head2 in CONFIGURATION menu
+    because else they'd have to be appended to all hyperlinks (for HTML)
+- note: for HTML a post-processer was added to the Makefile which
+    removes the =head1 prefixes from hyperlinks to =head2 sections
+tvsim/tvsim_version.h [rev:1.1, 2002-05-08T20:28:48]:
+- Initial revision
+tvsim/vbirec.pod [rev:1.1, 2002-05-09T16:31:13]:
+- Initial revision
+tvsim/vbirec.pod [rev:1.2, 2002-05-09T16:31:55]:
+- Added vbi_map.dat to FILES section
+tvsim/vbiplay.pod [rev:1.1, 2002-05-09T16:32:37]:
+- Initial revision
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.158, 2002-05-09T23:43:56]:
+- Fixed netacq_enable handling (see menucmd.c)
+- replaced proc IsNetAcqMode with C_IsNetAcqActive
+- removed $is_unix precondition from C_IsNetAcqActive checks
+Makefile [rev:1.42, 2002-05-10T00:15:35]:
+- added post-processing to pod->HTML conversion to fix hyperlinks to head2,
+    i.e. links in the format "HEAD1: head2" the HEAD1 part is removed now
+- start Perl script as arg to $(PERL) instead of #! inside script
+    because else the #! in the script would have to be changed to $(PERL)
+Makefile.win32 [rev:1.21, 2002-05-10T00:15:43]:
+- added post-processing to pod->HTML conversion to fix hyperlinks to head2,
+    i.e. links in the format "HEAD1: head2" the HEAD1 part is removed now
+- start Perl script as arg to $(PERL) instead of #! inside script
+    because else the #! in the script would have to be changed to $(PERL)
+- added rule for vbiplay.1 and vbiplay.html
+- moved dsdrv binaries into library libdsdrv.a
+- fixed title for vbirec.1 manpage
+nxtvepg.pod [rev:1.64, 2002-05-10T00:15:56]:
+- section CONFIGURE: TV app. interaction: use =item list for the 4 checkbuttons
+- section FILES: added vbi_map.dat
+- section BUGS: replaced "TerminateProcess()" with "task manager"
+CHANGES.version [rev:1.12, 2002-05-10T00:16:05]:
+- added tvsim_version.h
+dsdrv/dsdrv34.c [rev:1.3, 2002-05-10T00:16:30]:
+- added new function CheckDriverImagePath(): print driver ImagePath to log
+- LoadDriver(): if hwdrv reports error, do uninstall, install and try again
+- removed global funcs InstallNTDriver(), UnInstallNTDriver()
+- DoesThisPCICardExist(): added 3 return param pointer to be used to
+    uniquely identify the card on the PCI bus: passed through to
+    HwDrv_DoesThisPCICardExist()
+- pciGetHardwareResources(): removed 3 unused args
+dsdrv/dsdrvlib.h [rev:1.5, 2002-05-10T00:16:37]:
+- removed global funcs InstallNTDriver(), UnInstallNTDriver()
+- DoesThisPCICardExist(): added 3 return param pointer to be used to
+    uniquely identify the card on the PCI bus
+- pciGetHardwareResources(): removed 3 unused args
+dsdrv/hwdrv.c [rev:1.3, 2002-05-10T00:16:48]:
+- moved #define NT_DRIVER_NAME into header file (required by dsdrv34.c)
+- renamed InstallNTDriver() into HwDrv_InstallNTDriver() and made global
+- renamed UnInstallNTDriver() into HwDrv_UnInstallNTDriver() and made global
+- HwDrv_DoesThisPCICardExist(): added 3 return param pointer to be used to
+    uniquely identify the card on the PCI bus
+dsdrv/hwdrv.h [rev:1.3, 2002-05-10T00:16:50]:
+- moved #define NT_DRIVER_NAME here from C file (required by dsdrv34.c)
+- HwDrv_DoesThisPCICardExist(): added 3 return param pointer to be used to
+    uniquely identify the card on the PCI bus
+tvsim/tvsim.pod [rev:1.2, 2002-05-10T00:17:07]:
+- FILES section: improved description of nxtvepg.ini
+- SEE ALSO: added references to vbirec and vbiplay
+tvsim/tvsim_gui.tcl [rev:1.4, 2002-05-10T00:17:16]:
+- added About popup
+tvsim/tvsim_main.c [rev:1.5, 2002-05-10T00:17:24]:
+- moved version definition into "tvsim/tvsim_version.h"
+    export version string to Tcl for About popup
+- added version number to window title
+tvsim/vbirec_gui.tcl [rev:1.4, 2002-05-10T00:17:36]:
+- added About popup
+tvsim/vbirec_main.c [rev:1.5, 2002-05-10T00:17:48]:
+- print error message returned from WintvSharedMem_Init() upon errors
+- include "tvsim/tvsim_version.h"
+    export version string to Tcl for About popup
+- added version number to window title
+- added 2 new dummy funcs which are referenced by winshmsrv.c
+epgvbi/btdrv4win.c [rev:1.21, 2002-05-10T00:19:20]:
+- added new function BT8X8_CountCards(): do PCI scan for cards
+    store results into new list TVCARD_ID btCardList[MAX_CARD_COUNT]
+- BT8X8_Open(): simplified: uses list generated by BT8X8_CountCards()
+- BtDriver_IsVideoPresent(): in slave mode always return TRUE
+- fix StatAcq: check if slave mode is already enabled -> do nothing
+- BtDriver_GetCardName(): if PCI bus has been scanned return
+    list only for # of found cards
+epgvbi/winshmsrv.c [rev:1.5, 2002-05-10T00:19:33]:
+- added new funcs WinSharedMem_SetErrorText(), WinSharedMem_GetErrorMsg()
+    report errors during init
+- WintvSharedMem_Enable(): generate error messages
+- WintvSharedMem_Exit(): free error text in pLastErrorText
+- added new func WintvSharedMem_GetCniAndPil(): retrieves CNI & PIL from TV app.
+    VBI buffer even if EPG Acq is switched OFF or running on different TV card
+- WintvSharedMem_HandleTvCmd(): call EpgDbAcqNotifyChannelChange()
+    upon channel changes
+epgvbi/winshmsrv.h [rev:1.3, 2002-05-10T00:19:39]:
+- added new funcs WinSharedMem_SetErrorText(), WinSharedMem_GetErrorMsg()
+- added new func WintvSharedMem_GetCniAndPil()
+epgvbi/ttxdecode.c [rev:1.42, 2002-05-10T00:20:22]:
+- EpgDbAcqGetCniAndPil(): added arg pThisVbiBuf
+    WIN32: used to read CNIs of connected TV app even if acq is off
+- EpgDbAcqNotifyChannelChange(): same as above
+epgvbi/ttxdecode.h [rev:1.21, 2002-05-10T00:20:22]:
+- EpgDbAcqGetCniAndPil(): added arg pThisVbiBuf
+    WIN32: used to read CNIs of connected TV app even if acq is off
+- EpgDbAcqNotifyChannelChange(): same as above
+epgctl/epgscan.c [rev:1.21, 2002-05-10T00:27:18]:
+- fix: Canal+ was often not found by the scan because it transmits not on 1DF
+    -> reset scan timer when non-default page is found in MIP
+- removed EpgScan_ProcessPackets(): was called from epgmain
+    moved the functionality into the EPG scan handler
+- removed call to EpgDbAcqNotifyChannelChange(): redundant to EPG acq reset
+epgctl/epgscan.h [rev:1.9, 2002-05-10T00:27:25]:
+- removed EpgScan_ProcessPackets()
+    the functionality was moved into the EPG scan handler
+epgui/epgmain.c [rev:1.84, 2002-05-10T00:28:11]:
+- removed call to EpgScan_ProcessPackets
+    obsolete, functionality included into EPG scan handler
+- adapted call to SetAcquisitionMode: added param NETACQ_DEFAULT
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.159, 2002-05-10T00:28:26]:
+- proc PopupHardwareConfig: use $hwcfg_card_list for WIN32 too
+    show only as many TV cards as were detected in the PCI scan
+- proc PopupHardwareConfig: "Load config" button:
+    call new proc HardwareConfigLoadFromTvapp: remember which TV app cf was loaded
+- proc HardwareConfigQuit: warn if tv app cf was changed but not used
+- proc XawtvConfigSave: warn if tv app cf was changed but not used
+epgui/uictrl.c [rev:1.26, 2002-05-10T00:33:44]:
+- UiControl_AiStateChange(): adapted call to SetAcquisitionMode:
+    added param NETACQ_KEEP
+- UiControlMsg_AcqEvent(): case ACQ_EVENT_STATS_UPDATE:
+    added call to new func MenuCmd_AcqStatsUpdate()
+epgui/wintv.c [rev:1.5, 2002-05-10T00:34:56]:
+- Wintv_PollVpsPil(): use WintvSharedMem_GetCniAndPil() instead of
+    EpgAcqCtl_GetVpsPdc(): make sure to use TV app's VBI buf, even if EPG acq OFF
+    also removed check if EPG acq state
+- Wintv_StationTimer(): same as above
+- Wintv_InitConfig(): generate err msg popup if WintvSharedMem_StartStop() fails
+    Also: removed restrictions from release 2.0.0 (general disable)
+epgui/menucmd.h [rev:1.15, 2002-05-10T00:36:23]:
+- removed IsRemoteAcqEnabled(): was not used by other modules
+- added MenuCmd_AcqStatsUpdate(): called by uictrl.c acq event handler
+- SetAcquisitionMode: added formal parameter NETACQ_SET_MODE
+- added new enum NETACQ_SET_MODE
+epgui/menucmd.c [rev:1.74, 2002-05-10T00:37:50]:
+- Fixed netacq_enable handling
+- don't set netacq_enable to 1 until connection to remote server confirmed
+    esp. after auto-start
+- added new func MenuCmd_AcqStatsUpdate(), called after AI update or
+    FWD_CNF message from netacq server: set netacq_enable
+- added new func MenuCmd_IsNetAcqActive = Tcl proc C_IsNetAcqActive
+    query if acq running in netacq mode to display warnings for config popups
+- renamed IsRemoteAcqEnabled() into IsRemoteAcqDefault()
+- SetAcquisitionMode: added formal parameter NETACQ_SET_MODE:
+    controls how netacq mode is derived: from netacq_enable or !netacq_enable
+    or current acq mode
+- SetNetAcqParams(): removed obsolete variable "enable"
+epgctl/epgacqctl.c [rev:1.69, 2002-05-10T11:51:37]:
+- AI callback: Store the TV tuner frequency only if none is known yet
+    (Note: the tuner frequency in the db is never overwritten because we can
+    not be 100% sure that we know the current TV tuner freq here, esp. if it's
+    coming from a remote TV application; only the EPG scan updates the freq.)
+- adapted call to EpgDbAcqGetCniAndPil(): added 3rd param: pThisVbiBuf=NULL
+epgctl/epgacqctl.c [rev:1.70, 2002-05-10T14:58:17]:
+- epgdbacq.c was renamed and moved from epgdb/epgdbacq.c to epgvbi/ttxdecode.c
+- EPG related parts of the start/stop functions were moved here, into new
+    funcs EpgAcqCtl_TtxStart(), EpgAcqCtl_TtxStop(), EpgAcqCtl_TtxReset()
+- funcs EpgDbAcqInit() and EpgDbAcqReset() were removed
+- changed function prefixes "EpgDbAcq" into "TtxDecode_"
+- replaced include "epgdb/epgdbacq.h" with "epgvbi/ttxdecode.h"
+    added include "epgdb/epgstream.h"
+- added module global var TTXDEC_STATE acqTtxState
+epgctl/epgscan.c [rev:1.22, 2002-05-10T14:58:26]:
+- epgdbacq.c was renamed and moved from epgdb/epgdbacq.c to epgvbi/ttxdecode.c
+- EPG related parts of the start/stop functions were moved here, i.e. funcs
+    EpgDbAcqStart() etc. replaced with direct init of ttx and streams decoder
+- changed function prefixes "EpgDbAcq" into "TtxDecode_"
+- added new scanCtl element TTXDEC_STATE ttxState
+epgui/statswin.c [rev:1.59, 2002-05-10T14:58:43]:
+- replaced include "epgdb/epgdbacq.h" with "epgvbi/ttxdecode.h"
+    because this module was renamed and moved (EPG block related parts split off)
+epgui/wintv.c [rev:1.6, 2002-05-10T14:58:43]:
+- replaced include "epgdb/epgdbacq.h" with "epgvbi/ttxdecode.h"
+    because this module was renamed and moved (EPG block related parts split off)
+epgui/xawtv.c [rev:1.21, 2002-05-10T14:58:43]:
+- replaced include "epgdb/epgdbacq.h" with "epgvbi/ttxdecode.h"
+    because this module was renamed and moved (EPG block related parts split off)
+epgvbi/ttxdecode.c [rev:1.43, 2002-05-10T14:59:18]:
+- Renamed and moved module from epgdb/epgdbacq.c to epgvbi/ttxdecode.c
+- the intention is to remove all references to EPG blocks and contexts
+    so that the module can be easier integrated into other (not directly EPG
+    related) applications
+- changed prefix off all functions from "EpgDbAcq" into "TtxDecode_"
+- removed EpgDbAcqInit() and EpgDbAcqReset()
+- moved master internal state struct TTXDEC_STATE into header file
+- split off EPG related parts of former EpgDbAcqStart(), EpgDbAcqStop()
+- EpgDbAcqProcessPackets(), TtxDecode_NotifyChannelChange()
+    added state struct as arg TTXDEC_STATE
+epgvbi/ttxdecode.h [rev:1.22, 2002-05-10T14:59:25]:
+- Renamed and moved module from epgdb/epgdbacq.c to epgvbi/ttxdecode.c
+- moved master internal state struct TTXDEC_STATE here from C file
+- changed prefix off all functions from "EpgDbAcq" into "TtxDecode_"
+- removed EpgDbAcqInit() and EpgDbAcqReset()
+- EpgDbAcqProcessPackets(), TtxDecode_NotifyChannelChange()
+    added state struct as arg TTXDEC_STATE
+epgvbi/vbidecode.c [rev:1.30, 2002-05-10T14:59:31]:
+- replaced include "epgdb/epgdbacq.h" with "epgvbi/ttxdecode.h"
+- changed function prefixes "EpgDbAcq" into "TtxDecode_"
+epgvbi/winshmsrv.c [rev:1.6, 2002-05-10T14:59:42]:
+- replaced include "epgdb/epgdbacq.h" with "epgvbi/ttxdecode.h"
+    removed superfluous include epgblock.h
+- changed function prefixes "EpgDbAcq" into "TtxDecode_"
+tvsim/tvsim_main.c [rev:1.6, 2002-05-10T15:00:07]:
+- replaced include "epgdb/epgdbacq.h" with "epgvbi/ttxdecode.h"
+tvsim/vbirec_main.c [rev:1.6, 2002-05-10T15:00:56]:
+- replaced include "epgdb/epgdbacq.h" with "epgvbi/ttxdecode.h"
+- changed dummy function prefixes "EpgDbAcq" into "TtxDecode_"
+epgdb/epgstream.c [rev:1.20, 2002-05-10T15:36:52]:
+- Moved EPG scan into epgvbi/ttxdecode.c
+- because this code is execuded in the VBI process/thread
+    in contrary to the normal streams decoder
+- removed module global var: PAGE_SCAN_STATE scanState, lastMagIdx
+- removed funcs EpgStreamSyntaxScanHeader(), EpgStreamSyntaxScanPacket(),
+    EpgStreamSyntaxScanInit()
+epgdb/epgstream.h [rev:1.14, 2002-05-10T15:36:59]:
+- Moved EPG scan into epgvbi/ttxdecode.c
+- because this code is execuded in the VBI process/thread
+    in contrary to the normal streams decoder
+- removed func decls EpgStreamSyntaxScanHeader(), EpgStreamSyntaxScanPacket(),
+    EpgStreamSyntaxScanInit()
+epgvbi/ttxdecode.c [rev:1.44, 2002-05-10T15:37:06]:
+- Added EPG scan: moved here from epgdb/epgstream.c
+- added module global var: PAGE_SCAN_STATE scanState, lastMagIdx
+- added funcs TtxDecode_EpgScanHeader(), TtxDecode_EpgScanPacket()
+- TtxDecode_NewVbiFrame(): added init of EPG scan if pVbiBuf->isEpgScan
+epgctl/epgscan.c [rev:1.23, 2002-05-10T16:03:16]:
+- bugfix: must initialize pageno of new contexts before acq. start
+- this was formerly done automatically in EpgDbAcqStart()
+- now it has to be done manually
+epgvbi/winshm.h [rev:1.4, 2002-05-10T17:10:09]:
+- fixed comment for TVAPP_COMM element tvCardIdx
+epgvbi/ttxdecode.c [rev:1.45, 2002-05-10T18:00:30]:
+- Moved ttx packet processing from ttxdecode.c into epgstream.c
+- removed includes epgblock.h and epgstream.h
+- removed funcs TtxDecode_DoPageHeaderCheck(), TtxDecode_ProcessPackets()
+- added new func TtxDecode_GetPacket(): called by epgstream.c
+- removed pTtxState arg from TtxDecode_StartEpgAcq() and
+    TtxDecode_NotifyChannelChange()
+- TtxDecode_StartEpgAcq(): added arg bool isEpgScan
+    removed TtxDecode_InitScan()
+epgvbi/ttxdecode.h [rev:1.23, 2002-05-10T18:00:38]:
+- Moved ttx packet processing from ttxdecode.c into epgstream.c
+- removed decl of struct TTXDEC_STATE: moved to epgstream.h (internal)
+- removed TtxDecode_ProcessPackets(): moved to epgstream.h
+- added new func TtxDecode_GetPacket(): called by epgstream.c
+- TtxDecode_StartEpgAcq(): added arg bool isEpgScan
+    removed TtxDecode_InitScan()
+- removed pTtxState arg from TtxDecode_StartEpgAcq() and
+    TtxDecode_NotifyChannelChange()
+epgctl/epgscan.c [rev:1.24, 2002-05-10T18:00:52]:
+- Moved ttx packet processing from ttxdecode.c into epgstream.c
+- renamed func TtxDecode_ProcessPackets() into EpgStreamProcessPackets()
+- removed var TTXDEC_STATE acqTtxState: state now held inside epgstreams
+- added epgPageNo arg to EpgStreamInit()
+- added isEpgScan=TRUE arg to TtxDecode_StartEpgAcq()
+    removed separate func call TtxDecode_InitScan()
+- removed obsolete call to TtxDecode_NotifyChannelChange()
+epgctl/epgacqctl.c [rev:1.71, 2002-05-10T18:01:12]:
+- Moved ttx packet processing from ttxdecode.c into epgstream.c
+- renamed func TtxDecode_ProcessPackets() into EpgStreamProcessPackets()
+- removed var TTXDEC_STATE acqTtxState: state now held inside epgstreams
+- added epgPageNo arg to EpgStreamInit()
+- added isEpgScan=FALSE arg to TtxDecode_StartEpgAcq()
+epgdb/epgstream.c [rev:1.21, 2002-05-10T18:01:18]:
+- Moved ttx packet processing from ttxdecode.c into epgstream.c
+- added funcs EpgStreamPageHeaderCheck(), EpgStreamProcessPackets()
+- added module global var ttxState
+- made 2 funcs static: EpgStreamDecodePacket(), EpgStreamNewPage()
+- added epgPageNo arg to EpgStreamInit(); init ttxState
+epgdb/epgstream.h [rev:1.15, 2002-05-10T18:01:34]:
+- Moved ttx packet processing from ttxdecode.c into epgstream.c
+- added funcs EpgStreamPageHeaderCheck(), EpgStreamProcessPackets()
+- made 2 funcs static: EpgStreamDecodePacket(), EpgStreamNewPage()
+- added epgPageNo arg to EpgStreamInit()
+epgvbi/btdrv4linux.c [rev:1.27, 2002-05-10T18:04:33]:
+- bugfix: USE_THREAD
+- BtDriver_Start() did not check if acq already running!
+- this happens when the EPG scan is stopped -> 2nd thread created; havoc
+- fix BtDriver_Main(): must set vbiPid to -1 when thread terminates
+    also removed isEnabled condition from VBI processing: checked by ttxdecode
+Makefile [rev:1.43, 2002-05-10T18:07:07]:
+- renamed and moved module epgdb/epgdbacq into epgvbi/ttxdecode
+- removed $(CFLAGS) $(INCS) from linking stage
+Makefile.win32 [rev:1.22, 2002-05-10T18:07:13]:
+- renamed and moved module epgdb/epgdbacq into epgvbi/ttxdecode
+epgui/epgmain.c [rev:1.85, 2002-05-10T18:08:15]:
+- MAJOR bugfix: must not only call EpgAcqCtl_Stop() but also EpgScan_Stop()
+- at shutdown (else: crash when program is terminated by signal during an
+- EPG scan)
+COPYRIGHT [rev:1.5, 2002-05-10T19:58:50]:
+- Added copyright for tray42.zip by Michael T. Smith
+epgui/epgmain.c [rev:1.86, 2002-05-10T20:06:54]:
+- Added copyright for tray42.zip by Michael T. Smith
+epgvbi/btdrv.h [rev:1.19, 2002-05-11T15:42:50]:
+- globally replaced ulong with uint for TV tuner frequencies
+epgvbi/btdrv4dummy.c [rev:1.9, 2002-05-11T15:42:50]:
+- globally replaced ulong with uint for TV tuner frequencies
+epgvbi/btdrv4win.c [rev:1.22, 2002-05-11T15:42:50]:
+- globally replaced ulong with uint for TV tuner frequencies
+epgvbi/tvchan.c [rev:1.7, 2002-05-11T15:42:50]:
+- globally replaced ulong with uint for TV tuner frequencies
+epgvbi/tvchan.h [rev:1.6, 2002-05-11T15:42:50]:
+- globally replaced ulong with uint for TV tuner frequencies
+epgvbi/btdrv4linux.c [rev:1.28, 2002-05-11T15:43:03]:
+- globally replaced ulong with uint for TV tuner frequencies
+- keep ulong for ioctl VIDIOCGFREQ: new var lfreq
+epgdb/epgblock.h [rev:1.42, 2002-05-11T15:43:36]:
+- globally replaced ulong with uint for TV tuner frequencies
+epgdb/epgdbsav.c [rev:1.47, 2002-05-11T15:43:36]:
+- globally replaced ulong with uint for TV tuner frequencies
+epgdb/epgdbsav.h [rev:1.32, 2002-05-11T15:43:36]:
+- globally replaced ulong with uint for TV tuner frequencies
+epgctl/epgacqctl.c [rev:1.72, 2002-05-11T15:44:51]:
+- globally replaced ulong with uint for TV tuner frequencies
+epgctl/epgctxctl.c [rev:1.20, 2002-05-11T15:44:51]:
+- globally replaced ulong with uint for TV tuner frequencies
+epgctl/epgctxctl.h [rev:1.14, 2002-05-11T15:44:51]:
+- globally replaced ulong with uint for TV tuner frequencies
+epgctl/epgscan.c [rev:1.25, 2002-05-11T15:44:51]:
+- globally replaced ulong with uint for TV tuner frequencies
+epgctl/epgscan.h [rev:1.10, 2002-05-11T15:44:51]:
+- globally replaced ulong with uint for TV tuner frequencies
+tvsim/tvsim_main.c [rev:1.7, 2002-05-11T15:45:13]:
+- globally replaced ulong with uint for TV tuner frequencies
+- removed obsolete dummies EpgStream* and EpgBlock*
+epgui/menucmd.c [rev:1.75, 2002-05-11T15:52:12]:
+- globally replaced ulong with uint for TV tuner frequencies
+epgui/menucmd.h [rev:1.16, 2002-05-11T15:52:12]:
+- globally replaced ulong with uint for TV tuner frequencies
+epgui/uictrl.c [rev:1.27, 2002-05-11T15:52:12]:
+- globally replaced ulong with uint for TV tuner frequencies
+epgui/uictrl.h [rev:1.13, 2002-05-11T15:52:12]:
+- globally replaced ulong with uint for TV tuner frequencies
+epgui/wintvcfg.c [rev:1.4, 2002-05-11T15:52:12]:
+- globally replaced ulong with uint for TV tuner frequencies
+epgui/wintvcfg.h [rev:1.3, 2002-05-11T15:52:12]:
+- globally replaced ulong with uint for TV tuner frequencies
+epgui/xawtv.c [rev:1.22, 2002-05-11T15:52:12]:
+- globally replaced ulong with uint for TV tuner frequencies
+epgui/xawtv.h [rev:1.5, 2002-05-11T15:52:12]:
+- globally replaced ulong with uint for TV tuner frequencies
+epgui/wintv.c [rev:1.7, 2002-05-11T15:52:53]:
+- Wintv_StationSelected(): removed unused var. decl. EPGACQ_DESCR acqState
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.160, 2002-05-11T15:55:34]:
+- Changed wheel-mouse binding from +/- 1 page to +/- 5 units in main window
+- in help window scroll by +/-3 lines only
+epgui/pilistbox.c [rev:1.67, 2002-05-11T15:59:50]:
+- PiListBox_Scroll():
+- extended "scroll" %d "unit" to allow other deltas than 1 and -1
+- for wheel-mouse scrolling by 5 lines each
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.161, 2002-05-11T20:20:31]:
+- bugfix network name config dialog:
+- nxtvepg name "SuperRTL" got assigned a "none" in match button
+    although proc NetworkNameEdited did find a match on "Super RTL"
+- removed match button text assignment in proc NetworkNameSelection
+    not needed because the text is set via variable trace automatically
+nxtvepg.pod [rev:1.65, 2002-05-12T16:38:45]:
+- NAVIGATE: added hint that this menu is in the filter menu on WIN32
+tvsim/vbirec_main.c [rev:1.7, 2002-05-12T16:41:37]:
+- Changed VBI stats output:
+- removed elem ttx_drop: was always 0 even during bad reception
+- added ttx_rate, vps_cnt
+tvsim/vbirec_gui.tcl [rev:1.5, 2002-05-12T16:41:43]:
+- Changed VBI stats output:
+- removed elem ttx_drop: was always 0 even during bad reception
+- added ttx_rate, vps_cnt
+epgvbi/ttxdecode.c [rev:1.46, 2002-05-12T16:48:13]:
+- Implemented new statistics for new elements in struct TTX_DEC_STATS:
+- vpsLineCount: number of VPS lines received
+- ttxPkgRate: number of ttx packets per frame: running average
+epgvbi/ttxdecode.h [rev:1.24, 2002-05-12T16:48:20]:
+- Added macros for ttx pkg / frame running average calculation:
+- TTX_PKG_RATE_FIXP, TTX_PKG_RATE_FACT
+epgvbi/btdrv.h [rev:1.20, 2002-05-12T16:48:29]:
+- Added elements to struct TTX_DEC_STATS:
+- vpsLineCount: number of VPS lines received
+- ttxPkgRate: number of ttx packets per frame: running average
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.162, 2002-05-12T16:53:14]:
+- WIN32: disable Navigate menu entry in filter menu if no NI in the database
+    uses new C callback C_IsNavigateMenuEmpty
+- WIN32: proc PostSeparateMenu: use tk_popup, include tearoff
+epgui/pifilter.c [rev:1.54, 2002-05-12T16:53:20]:
+- bugfix SEGV in debug macro in SelectNi(): NULL ptr access
+- added new Tcl proc C_IsNavigateMenuEmpty: WIN32 only: disabled Navigate
+    menu entry in filter menu if no NI in the database
+epgui/timescale.c [rev:1.6, 2002-05-12T17:39:22]:
+- bugfix TimeScale_UpdateStatusLine SEGV:
+- crashed when EPG scan was started while the acq timescale was open
+- missing check if pAcqDbContext == NULL before locking the db
+tvsim/vbirec_main.c [rev:1.8, 2002-05-12T20:10:01]:
+- corrected DEBUG_SWITCH from DEBUG_SWITCH_EPGUI to DEBUG_SWITCH_TVSIM
+epgvbi/hamming.c [rev:1.8, 2002-05-12T20:19:13]:
+- corrected DEBUG_SWITCH from DEBUG_SWITCH_EPGDB to DEBUG_SWITCH_VBI
+epgvbi/cni_tables.c [rev:1.15, 2002-05-12T20:20:31]:
+- changed CNI for German Tele-5 from 0x1D80 to 0x1D7B
+- corrected DEBUG_SWITCH from DEBUG_SWITCH_EPGUI to DEBUG_SWITCH_VBI
+epgctl/epgctxmerge.c [rev:1.9, 2002-05-12T20:23:31]:
+- corrected DEBUG_SWITCH from DEBUG_SWITCH_EPGDB to DEBUG_SWITCH_EPGCTL
+epgvbi/btdrv.h [rev:1.21, 2002-05-14T18:37:08]:
+- Linux: removed decl for BtDriver_CheckParent(): now static
+epgvbi/btdrv4linux.c [rev:1.29, 2002-05-14T18:37:15]:
+- Fixed handling of orphanage (i.e. acq mater process dead) for non-threaded mode:
+- call BtDriver_CheckParent() regularily while acq is enabled too
+    in case that either isEnabled=FALSE or no VBI reception
+- made BtDriver_CheckParent() static: no longer called from TTX decoder
+    upon buffer overflow
+epgvbi/ttxdecode.c [rev:1.47, 2002-05-14T18:37:21]:
+- TtxDecode_GetStatistics(): added pVbiLineCount to return vals
+- TtxDecode_BufferAdd(): removed overflow handling, except for debug output;
+    call to BtDriver_CheckParent() is obsolete: handled internally in btdrv4linux
+- corrected DEBUG_SWITCH from DEBUG_SWITCH_EPGDB to DEBUG_SWITCH_VBI
+epgvbi/ttxdecode.h [rev:1.25, 2002-05-14T18:37:31]:
+- TtxDecode_GetStatistics(): added pVbiLineCount to return vals
+epgctl/epgscan.c [rev:1.26, 2002-05-14T19:02:16]:
+- epgscan.c
+- increased delay in state SCAN_STATE_WAIT_NI from 4 to 6 seconds
+    to increase probability to catch CNI for channels with bad reception
+- TtxDecode_GetStatistics() now additionally returns vbiLineCount
+    state WAIT_SIGNAL: goto WAIT_ANY is VPS line detected
+- added state var extraWait: used for MIP change; no longer reset startTime
+epgui/timescale.c [rev:1.7, 2002-05-14T19:22:12]:
+- Bugfixes in connection of UI timescale with acq:
+- highlighting was not enabled when acq was enabled & acq db == ui db;
+    highlighting was not removed when acq disabled
+- TimeScale_ProvChange(): always do TimeScale_ProcessAcqQueue()
+    when UI timescale is open
+- TimeScale_ProcessAcqQueue():
+    + detect if UI highlighting must be enabled
+    + when acq has been disabled call TimeScale_RequestAcq()
+tvsim/tvsim_main.c [rev:1.8, 2002-05-19T17:19:03]:
+- split Tk init scripts off from Tcl scripts -> added tk_init_scripts[]
+- added TV app path and type to tvSimuInfo
+tvsim/vbiplay.c [rev:1.5, 2002-05-19T17:19:10]:
+- added TV app path and type to tvSimuInfo
+tvsim/vbirec_main.c [rev:1.9, 2002-05-19T17:19:17]:
+- split Tk init scripts off from Tcl scripts -> added tk_init_scripts[]
+tvsim/winshmclnt.c [rev:1.6, 2002-05-19T17:19:24]:
+- WinSharedMemClient_AttachShm(): added initialization of TV app path and type
+    which are new elems in struct TVAPP_COMM
+tvsim/winshmclnt.h [rev:1.4, 2002-05-19T17:19:34]:
+- added 2 new elems to struct WINSHMCLNT_TVAPP_INFO: tvAppPath, tvAppType
+- due to new elems tvAppPath, tvAppType and enum TVAPP_NAME
+epgvbi/winshm.h [rev:1.5, 2002-05-19T17:19:59]:
+- Prepared struct TVAPP_COMM for future additions:
+- increased TVAPP_NAME_MAX_LEN from 32 to 64
+- due to new elems tvAppPath, tvAppType and enum TVAPP_NAME
+epgdb/epgnetio.c [rev:1.29, 2002-05-19T21:42:40]:
+- Finished port to WIN32
+- added macros sockErrno, sockStrError(X) for portable errno handling:
+    use WSAGetLastError() on WIN32 instead of errno
+- added syslog output ("event log"; WINNT only)
+    new func EpgNetIo_Win32SyslogOpen()
+- changed EpgNetIo_SetErrorText() and EpgNetIo_Logger(): get errCode instead
+    of formatted string; errCode handled differently for UNIX and WIN32
+- EpgNetIo_AcceptConnection(): disabled gethostbyaddr() for WIN32
+    because it hangs for 5 secs even on "127.0.0.1"
+- EpgNetIo_FinishConnect(): removed preliminary WIN32 additions
+epgdb/epgnetio.h [rev:1.17, 2002-05-19T21:44:19]:
+- Finished port to WIN32
+- EpgNetIo_SetErrorText(): added arg errCode
+- EpgNetIo_Logger(): added arg errCode
+epgctl/debug.c [rev:1.13, 2002-05-19T21:45:22]:
+- DebugLogLine(): added overflow check for debugStr
+Makefile.win32 [rev:1.23, 2002-05-19T21:45:53]:
+- Makefile.win32
+- enabled USE_DAEMON
+- split Tk init scripts off from Tcl scripts -> new object epgui/tk_libs
+- back to separate EPG_VERSION_STR for 0.7.2
+nxtvepg.pod [rev:1.66, 2002-05-19T21:46:11]:
+- daemon mode now available for Windows too
+epgctl/epgacqclnt.c [rev:1.7, 2002-05-19T21:48:48]:
+- Finished port to WIN32
+- EpgAcqClient_HandleSocket(): abort if pAcqEv->errCode != ERROR_SUCCESS
+- calls to EpgNetIo_SetErrorText() adapted: added errCode, removed strerror()
+- EpgAcqClient_StartAcq(): for Win32 set acqEv.blockOnConnect = TRUE
+- EpgAcqClient_IsLocalServer(): remove exceptions for WIN32
+epgctl/epgacqsrv.c [rev:1.9, 2002-05-19T21:52:08]:
+- Finished port to WIN32:
+- EpgNetIo_Logger(): added arg errCode
+epgctl/epgacqclnt.h [rev:1.3, 2002-05-19T21:53:54]:
+- Finished port to WIN32:
+- struct EPGACQ_EVHAND: added new elems blockOnConnect and errCode
+epgctl/epgacqctl.c [rev:1.73, 2002-05-19T21:54:33]:
+- bugfix AI callback in oldAi==NULL branch: ACQ_EVENT_PROV_CHANGE was not
+    generated upon first AI, i.e. if acq db previously empty
+- adapted call to TtxDecode_GetStatistics(): dummy param &vbiLineCount
+epgui/epgmain.c [rev:1.87, 2002-05-19T21:56:34]:
+- Finished port of network acq to WIN32
+- implemented socket I/O handlers for winsock2: removed use of ChannelHandler
+    new funcs WinSocket_CreateHandler(), WinSocket_DeleteFileHandler() etc.
+- added handling of pAcqEv->blockOnConnect: check for connect failures
+    added errCode to struct EPGACQ_EVHAND
+- added thread and invisible window for daemon:
+    new funcs DaemonControlWindowCreate(), DaemonControlWindowDestroy() etc.
+- ported EpgMain_DaemonStart() and Stop(): separate implementation
+    added WIN32 thread that waits for the daemon to start acq
+- disabled "-nodetach" cmd line option for WIN32
+- calls to EpgNetIo_Logger() adapted: added errCode, removed strerror()
+- split Tk init scripts off from Tcl scripts -> added tk_init_scripts[]
+- Bugfix: -guipipe did parse the number as hex (strtol(...,16))
+epgui/epgmain.h [rev:1.19, 2002-05-19T21:56:44]:
+- added new func EpgMain_CheckDaemon()
+epgui/menucmd.c [rev:1.76, 2002-05-19T21:59:22]:
+- Adapted acq start/stop handling for WIN32 daemon:
+- AutoStartAcq(): first check if daemon is running, then start local or remote
+    i.e. contrary order to Windows
+- bugfix MenuCmd_StartRemoteAcq(): in case daemon has to be started
+    netacq_enable=0 was set again
+- MenuCmd_StartRemoteAcq(): check if daemon is running before acq start attempt
+- added new SetAcquisitionMode enum args: NETACQ_YES, NETACQ_NO
+- calls to EpgNetIo_Logger() adapted: added errCode, removed strerror()
+epgui/menucmd.h [rev:1.17, 2002-05-19T21:59:51]:
+- added new SetAcquisitionMode enum args: NETACQ_YES, NETACQ_NO
+epgui/pilistbox.c [rev:1.68, 2002-05-19T22:00:07]:
+- PiListBox_Scroll("scroll # pages"):
+- changed scrolling semantics to fit scrolling via scroll bar better:
+- if the previously selected element is still visible, the cursor stays on it.
+    before, the cursor was always moved by $pibox_height elems (if possible)
+epgui/uictrl.c [rev:1.28, 2002-05-19T22:01:05]:
+- changed error message: removed ". " from end of network error message
+    so that a trailing "\n" af the message end doesn't look funny
+epgui/wintvcfg.c [rev:1.5, 2002-05-19T22:01:49]:
+- moved enum TVAPP_NAME to winshm.h
+www/pre-releases.html [rev:1.6, 2002-05-20T15:07:18]:
+- added link to style sheet
+- added tvsim etc. documentation
+nxtvepg.pod [rev:1.67, 2002-05-20T15:09:15]:
+- Client/Server config: added not that on WIN32 TCP/IP must be enabled
+epgui/menucmd.c [rev:1.77, 2002-05-20T15:50:11]:
+- MenuCmd_StartRemoteAcq(): added a warning message if TCP/IP is disabled
+    because currently we support only TCP/IP on WIN32
+Makefile [rev:1.44, 2002-05-20T15:52:44]:
+- changed order of gcc warnings in WARN so that release edit is simpler
+tvsim/vbirec.pod [rev:1.3, 2002-05-20T15:55:01]:
+- Updated stats categories
+- replaced "TTX pkg dropped" with "TTX pkg per frame avg."
+- added "VPS lines count"
+epgvbi/winshm.h [rev:1.6, 2002-05-20T15:57:30]:
+- changed EPG_SHM_VERSION from 0xFF020001 to 0xFF020100
+- due to change of version number of nxtvepg release (there have been no
+    changes in the shm layout in this check-in; this is only to use the same
+    version as in the first nxtvepg release with the current layout)
+epgctl/epgversion.h [rev:1.21, 2002-05-20T18:41:06]:
+- set to version 0.7.2 aka 2.1.0
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.163, 2002-05-20T18:51:51]:
+- bugfix proc HardwareConfigLoadFromTvapp:
+- if TV app path was not set yet, a Tcl error occurred
+- must enclose args to uplevel in list, so that {} string doesn't disappear
+epgui/menucmd.c [rev:1.78, 2002-05-20T18:52:02]:
+- fix MenuCmd_StartLocalAcq() for WIN32:
+- must not use EpgNetIo_CheckConnect() to check upon the daemon on WIN32
+- use EpgMain_CheckDaemon() instead
+epgui/epgmain.c [rev:1.88, 2002-05-20T18:52:11]:
+- Several fixes related to WIN32 daemon start/stop handling:
+- DaemonControlWindowCreate(): fixed race condition:
+    wait until the window is created, because if the daemon was started by the
+    GUI, it checks for the existance of the window - so we must be sure it exists
+    before we trigger the GUI that we're ready
+- added an event handle to DaemonControlWindowThread() as arg
+- WinSystrayThread(): optimization: pass event handle as argument to thread
+    instead of using a global variable
+- EpgMain_StopDaemon(): must wait until the daemon is terminated because
+    the caller wants to start acq immediately when the func returns
+- main: moved call to DaemonControlWindowDestroy() to after acq is stopped
+    because the GUI assumes acq is off when the window is gone
+nxtvepg.spec [rev:1.4, 2002-05-20T18:55:24]:
+- set version to set version to 0.7.2
+README [rev:1.25, 2002-05-20T18:55:37]:
+- updated section on win32 compilation: removed obsolete reference to dsdrv.dll
+Makefile.win32 [rev:1.24, 2002-05-20T18:55:44]:
+- zip rule: added creation of tvsim ZIP file
+CHANGES.version [rev:1.13, 2002-05-20T18:56:52]:
+- replaced comment "convert man page to nxtvepg.html" with more up-to-date
+- "fix intro section in manual.html and tvsim/*.html"
+www/nefkom-src-index.html [rev:1.4, 2002-05-20T20:14:48]:
+- removed 0.6.2 and 0.6.3 to free disk space
+- added new release 0.7.2 and 2.1.0-win, 2.1.0-tvsim
+www/tripod-src-index.html [rev:1.5, 2002-05-20T20:15:31]:
+- added new release 0.7.2 and 2.1.0-win, 2.1.0-tvsim
+www/index-de.html [rev:1.28, 2002-05-20T20:24:20]:
+- removed old news items (0.6.3 and older)
+- added red NEW markers before windows sw requirement changes
+- updated for new release 0.7.2 aka 2.1.0-win
+- removed separate package for dsdrv drivers
+- added tvsim package in windows download section
+www/index.html [rev:1.39, 2002-05-20T20:24:20]:
+- removed old news items (0.6.3 and older)
+- added red NEW markers before windows sw requirement changes
+- updated for new release 0.7.2 aka 2.1.0-win
+- removed separate package for dsdrv drivers
+- added tvsim package in windows download section
+www/changelog.html [rev:1.30, 2002-05-20T20:25:01]:
+- Updated for release 0.7.2
+- added note about pending version change to 2.x.x for UNIX
+www/pre-releases.html [rev:1.7, 2002-05-20T20:25:38]:
+- Updated for release 0.7.2: removed all content
+www/man.html [rev:1.15, 2002-05-20T20:26:28]:
+- updated for release 0.7.2
+www/provnets.html [rev:1.14, 2002-05-20T20:26:46]:
+- Specified exact date of death for Pro7: 14.04.2002
+CHANGES [rev:1.22, 2002-05-20T20:29:28]:
+- updated for release 0.7.2
+TODO [rev:1.17, 2002-05-20T20:29:28]:
+- updated for release 0.7.2
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_7_2 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

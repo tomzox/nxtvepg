@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqclnt.h,v 1.2 2002/02/03 10:58:44 tom Exp tom $
+ *  $Id: epgacqclnt.h,v 1.3 2002/05/19 21:53:54 tom Exp tom $
  */
 
 #ifndef __EPGACQCLNT_H
@@ -32,7 +32,11 @@ typedef struct
    int          fd;
    bool         blockOnRead;
    bool         blockOnWrite;
+   bool         blockOnConnect;
    bool         processQueue;
+   #ifdef WIN32
+   int          errCode;
+   #endif
 } EPGACQ_EVHAND;
 
 // ---------------------------------------------------------------------------

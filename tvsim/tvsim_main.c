@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: tvsim_main.c,v 1.3 2002/05/04 18:22:18 tom Exp tom $
+ *  $Id: tvsim_main.c,v 1.8 2002/05/19 17:19:03 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_TVSIM
@@ -42,11 +42,13 @@
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
 #include "epgvbi/btdrv.h"
+#include "epgvbi/winshm.h"
+#include "epgvbi/ttxdecode.h"
 #include "epgdb/epgblock.h"
-#include "epgdb/epgdbacq.h"
 #include "epgui/wintvcfg.h"
 #include "epgui/pdc_themes.h"
 #include "tvsim/winshmclnt.h"
+#include "tvsim/tvsim_version.h"
 
 
 #ifndef USE_PRECOMPILED_TCL_LIBS
@@ -58,13 +60,11 @@
 # define TK_LIBRARY_PATH   "."
 #endif
 
-#define TVSIM_VERSION_STR "1.7"
-
-static char *tvsim_version_str = TVSIM_VERSION_STR;
-char tvsim_rcs_id_str[] = "$Id";
+char tvsim_rcs_id_str[] = TVSIM_VERSION_RCS_ID;
 
 extern char gui_tcl_script[];
 extern char tcl_init_scripts[];
+extern char tk_init_scripts[];
 
 Tcl_Interp *interp;          // Interpreter for application
 char comm[1000];             // Command buffer
@@ -315,7 +315,7 @@ static void ParseArgv( int argc, char * argv[] )
          if (!strcmp(argv[argIdx], "-help"))
          {
             char versbuf[50];
-            sprintf(versbuf, "(version %s)", tvsim_version_str);
+            sprintf(versbuf, "(version %s)", TVSIM_VERSION_STR);
             Usage(argv[0], versbuf, "the following command line options are available");
          }
          else if (!strcmp(argv[argIdx], "-rcfile"))
@@ -432,28 +432,272 @@ bool WintvSharedMem_SetTunerFreq( uint freq ) { return FALSE; }
 uint WintvSharedMem_GetTunerFreq( void ) { return 0; }
 volatile EPGACQ_BUF * WintvSharedMem_GetVbiBuf( void ) { return NULL; }
 
-#include "epgdb/epgblock.h"
-void EpgBlockSetAlphabets( const AI_BLOCK *pAiBlock ) {}
-
-#include "epgdb/epgstream.h"
-void EpgStreamInit( EPGDB_QUEUE *pDbQueue, bool bWaitForBiAi, uint appId ) {}
-void EpgStreamClear( void ) {}
-bool EpgStreamNewPage( uint sub ) { return FALSE; }
-void EpgStreamDecodePacket( uchar packNo, const uchar * dat ) {}
-void EpgStreamSyntaxScanInit( void ) {}
-void EpgStreamSyntaxScanHeader( uint page, uint sub ) {};
-bool EpgStreamSyntaxScanPacket( uchar mag, uchar packNo, const uchar * dat ) { return FALSE; }
+// ----------------------------------------------------------------------------
+// Shm callback: EPG application has started or terminated
+//
+static void TvSimuMsg_Attach( bool attach )
+{
+   // update the connection indicator in the GUI
+   sprintf(comm, "ConnectEpg %d\n", attach);
+   eval_check(interp, comm);
+}
 
 // ----------------------------------------------------------------------------
-// Handle EPG events
+// Shm message handler: Failed to attach to an EPG application
+// - note: this handler will be called every time an attach is attempted and
+//   fails, which might be several times a second if the EPG app with an
+//   incompatible version is generating multiple events
+// - for this reason this handler could supress multiple popups, e.g. by
+//   including a "don't show this error any more" checkbutton
+//
+static void TvSimuMsg_BackgroundError( void )
+{
+   const char * pShmErrMsg;
+   char * pErrBuf;
+
+   pShmErrMsg = WinSharedMemClient_GetErrorMsg();
+   if (pShmErrMsg != NULL)
+   {
+      pErrBuf = xmalloc(strlen(pShmErrMsg) + 100);
+
+      sprintf(pErrBuf, "tk_messageBox -type ok -icon error -message {%s}", pShmErrMsg);
+      eval_check(interp, pErrBuf);
+
+      xfree((void *) pErrBuf);
+      xfree((void *) pShmErrMsg);
+   }
+}
+
+// ----------------------------------------------------------------------------
+// Shm message handler: EPG peer requested a new input source or tuner frequency
+// - this message handler is only invoked if the TV app granted the tuner to EPG before
+//   (but feel free to check again here if the tuner is really free)
+//
+static void TvSimuMsg_ReqTuner( void )
+{
+   uint  inputSrc;
+   uint  freq;
+   bool  isTuner;
+
+   if (WinSharedMemClient_GetInpFreq(&inputSrc, &freq))
+   {
+      // set the TV input source: tuner, composite, S-video, ...
+      BtDriver_SetInputSource(inputSrc, TRUE, &isTuner);
+      if (isTuner)
+      {  // TV tuner is input source -> also set tuner frequency
+         BtDriver_TuneChannel(freq, FALSE);
+      }
+      else
+         BtDriver_CloseDevice();
+
+      // inform EPG app that the frequency has been set (note: this function is a
+      // variant of _SetStation which does not request EPG info for the new channel)
+      WinSharedMemClient_SetInputFreq(inputSrc, freq);
+   }
+}
+
+// ----------------------------------------------------------------------------
+// Shm message handler: EPG peer sent command vector
+// - a command vector is a concatenation of null terminated strings
+//   the number of concatenated strings is passed as first argument
+// - the first string in the vectors holds the command name;
+//   the following ones optional arguments (depending on the command)
+//
+static void TvSimuMsg_HandleEpgCmd( void )
+{
+   uint argc;
+   char argStr[EPG_CMD_MAX_LEN];
+   char * pArg2;
+
+   if (WinSharedMemClient_GetCmdArgv(&argc, argStr, sizeof(argStr)))
+   {
+      if (argc == 2)
+      {
+         // XXX TODO: consistancy checking of argv string (i.e. max length)
+         pArg2 = argStr + strlen(argStr) + 1;
+
+         if (strcmp(argStr, "setstation") == 0)
+         {
+            // check for special modes: prev/next (+/-) and back (toggle)
+            if (strcmp(pArg2, "back") == 0)
+               sprintf(comm, "TuneChanBack\n");
+            else if (strcmp(pArg2, "next") == 0)
+               sprintf(comm, "TuneChanNext\n");
+            else if (strcmp(pArg2, "prev") == 0)
+               sprintf(comm, "TuneChanPrev\n");
+            else
+            {  // not a special mode -> search for the name in the channel table
+
+               // Note: when the search fails, you should do a sub-string search too.
+               // This is required for multi-network channels like "Arte / KiKa".
+               // In nxtvepg these are separate, i.e. the TV app will receive setstation
+               // requests for either "Arte" or "KiKa" - the TV app should allow both and
+               // switch to the channel named "Arte / KiKa".  See gui.tcl for an example
+               // how to implement this.
+
+               sprintf(comm, "TuneChanByName {%s}\n", pArg2);
+            }
+
+            eval_check(interp, comm);
+         }
+         else if (strcmp(argStr, "capture") == 0)
+         {
+            // when capturing is switched off, grant tuner to EPG
+            sprintf(comm, "set grant_tuner %d; GrantTuner\n", (strcmp(pArg2, "off") == 0));
+            eval_check(interp, comm);
+         }
+         else if (strcmp(argStr, "volume") == 0)
+         {
+            // command ignored in simulation because audio is not supported
+         }
+      }
+   }
+}
+
+// ----------------------------------------------------------------------------
+// Timout handler: clear title display max. X msecs after channel change
+// - only to be fail-safe, in case EPG app answers too slowly or not at all
+//
+static void TvSimu_TitleChangeTimer( ClientData clientData )
+{
+   popDownEvent = NULL;
+
+   debug0("TvSimu-TitleChangeTimer: no answer from EPG app - clearing display");
+
+   sprintf(comm, "set program_title {}; set program_times {}; set program_theme {}\n");
+   eval_check(interp, comm);
+}
+
+// ----------------------------------------------------------------------------
+// Shm message handler: EPG peer replied with program title information
+// - display the information in the GUI
+//
+static void TvSimuMsg_UpdateProgInfo( void )
+{
+   uchar  epgProgTitle[EPG_TITLE_MAX_LEN];
+   time_t epgStartTime;
+   time_t epgStopTime;
+   uint   epgPdcThemeCount;
+   uchar  epgPdcThemes[7];
+   const char * pThemeStr;
+   uint   themeIdx;
+   char   str_buf[50];
+
+   if ( WinSharedMemClient_GetProgInfo(&epgStartTime, &epgStopTime,
+                                       epgPdcThemes, &epgPdcThemeCount,
+                                       epgProgTitle, sizeof(epgProgTitle)) )
+   {
+      // remove the pop-down timer (which would clear the EPG display if no answer arrives in time)
+      if (popDownEvent != NULL)
+         Tcl_DeleteTimerHandler(popDownEvent);
+      popDownEvent = NULL;
+
+      if ( (epgProgTitle[0] != 0) && (epgStartTime != epgStopTime) )
+      {
+         // Process start and stop time
+         // (times are given in UNIX format, i.e. seconds since 1.1.1970 0:00am UTC)
+         strftime(str_buf, sizeof(str_buf), "%a %d.%m %H:%M - ", localtime(&epgStartTime));
+         strftime(str_buf + strlen(str_buf), sizeof(str_buf) - strlen(str_buf), "%H:%M", localtime(&epgStopTime));
+
+         // Process PDC theme array: convert theme code to text
+         // Note: up to 7 theme codes can be supplied (e.g. "movie general" plus "comedy")
+         //       you have to decide yourself how to display them; you might use icons for the
+         //       main themes (e.g. movie, news, talk show) and add text for sub-categories.
+         // Use loop to search for the first valid theme code (simplest possible handling)
+         pThemeStr = "";
+         for (themeIdx = 0; themeIdx < epgPdcThemeCount; themeIdx++)
+         {
+            if (epgPdcThemes[themeIdx] >= 128)
+            {  // PDC codes 0x80..0xff identify series (most EPG providers just use 0x80 for
+               // all series, but they could use different codes for every series of a network)
+               pThemeStr = pdc_series;
+               break;
+            }
+            else if (pdc_themes[epgPdcThemes[themeIdx]] != NULL)
+            {  // this is a known PDC series code
+               pThemeStr = pdc_themes[epgPdcThemes[themeIdx]];
+               break;
+            }
+            // else: unknown series code -> keep searching
+         }
+
+         // Finally display program title, start/stop times and theme text
+         // Note: the Tcl variables are bound to the "entry" widget
+         //       by writing to the variables the widget is automatically updated
+         sprintf(comm, "set program_title {%s}; set program_times {%s}; set program_theme {%s}\n", epgProgTitle, str_buf, pThemeStr);
+         eval_check(interp, comm);
+      }
+      else
+      {  // empty string transmitted (EPG has no info for the current channel) -> clear display
+         sprintf(comm, "set program_title {}; set program_times {}; set program_theme {}\n");
+         eval_check(interp, comm);
+      }
+   }
+}
+
+// ----------------------------------------------------------------------------
+// Process events triggered by EPG application
 // - executed inside the main thread, but triggered by the msg receptor thread
-// - the driver invokes callbacks into the tvsim module to trigger GUI action,
-//   e.g. to display incoming program title info
+// - this functions polls shared memory for changes in the EPG controlled
+//   parameters; one such change is reported for each call of GetEpgEvent(),
+//   most important ones first (e.g. attach first)
 //
 static void TvSimu_IdleHandler( ClientData clientData )
 {
-   haveIdleHandler = FALSE;
-   WinSharedMemClient_HandleEpgEvent();
+   WINSHMCLNT_EVENT curEvent;
+   uint  loopCount;
+   bool  shouldExit;
+
+   shouldExit = FALSE;
+   loopCount = 3;
+   do
+   {
+      curEvent = WinSharedMemClient_GetEpgEvent();
+      switch (curEvent)
+      {
+         case SHM_EVENT_ATTACH:
+            TvSimuMsg_Attach(TRUE);
+            break;
+
+         case SHM_EVENT_DETACH:
+            TvSimuMsg_Attach(FALSE);
+            shouldExit = TRUE;
+            break;
+
+         case SHM_EVENT_ATTACH_ERROR:
+            TvSimuMsg_BackgroundError();
+            shouldExit = TRUE;
+            break;
+
+         case SHM_EVENT_PROG_INFO:
+            TvSimuMsg_UpdateProgInfo();
+            break;
+
+         case SHM_EVENT_CMD_ARGV:
+            TvSimuMsg_HandleEpgCmd();
+            break;
+
+         case SHM_EVENT_INP_FREQ:
+            TvSimuMsg_ReqTuner();
+            break;
+
+         case SHM_EVENT_NONE:
+            shouldExit = TRUE;
+            break;
+
+         default:
+            fatal1("TvSimu-IdleHandler: unknown EPG event %d", curEvent);
+            break;
+      }
+      loopCount -= 1;
+   }
+   while ((shouldExit == FALSE) && (loopCount > 0));
+
+   // if not all requests were processed schedule the handler again
+   if (shouldExit == FALSE)
+      Tcl_DoWhenIdle(TvSimu_IdleHandler, NULL);
+   else
+      haveIdleHandler = FALSE;
 }
 
 // ----------------------------------------------------------------------------
@@ -496,173 +740,15 @@ static void TvSimuMsg_EpgEvent( void )
 }
 
 // ----------------------------------------------------------------------------
-// Shm callback: EPG application has started or terminated
-//
-static void TvSimuMsg_Attach( bool attach )
-{
-   // update the connection indicator in the GUI
-   sprintf(comm, "ConnectEpg %d\n", attach);
-   eval_check(interp, comm);
-}
-
-// ----------------------------------------------------------------------------
-// Shm callback: EPG peer requested a new input source or tuner frequency
-// - this callback is only invoked if the TV app granted the tuner to EPG before
-//   (but feel free to check again here if the tuner is really free)
-//
-static void TvSimuMsg_ReqTuner( uint inputSrc, uint freq )
-{
-   bool isTuner;
-
-   // set the TV input source: tuner, composite, S-video, ...
-   BtDriver_SetInputSource(inputSrc, TRUE, &isTuner);
-   if (isTuner)
-   {  // TV tuner is input source -> also set tuner frequency
-      BtDriver_TuneChannel(freq, FALSE);
-   }
-   else
-      BtDriver_CloseDevice();
-
-   // inform EPG app that the frequency has been set (note: this function is a
-   // variant of _SetStation which does not request EPG info for the new channel)
-   WinSharedMemClient_SetInputFreq(inputSrc, freq);
-}
-
-// ----------------------------------------------------------------------------
-// Shm callback: EPG peer sent command vector
-// - a command vector is a concatenation of null terminated strings
-//   the number of concatenated strings is passed as first argument
-// - the first string in the vectors holds the command name;
-//   the following ones optional arguments (depending on the command)
-//
-static void TvSimuMsg_HandleEpgCmd( uint argc, const char * pArgStr )
-{
-   const char * pArg2;
-
-   if (argc == 2)
-   {
-      // XXX TODO: consistancy checking of argv string (i.e. max length)
-      pArg2 = pArgStr + strlen(pArgStr) + 1;
-
-      if (strcmp(pArgStr, "setstation") == 0)
-      {
-         // check for special modes: prev/next (+/-) and back (toggle)
-         if (strcmp(pArg2, "back") == 0)
-            sprintf(comm, "TuneChanBack\n");
-         else if (strcmp(pArg2, "next") == 0)
-            sprintf(comm, "TuneChanNext\n");
-         else if (strcmp(pArg2, "prev") == 0)
-            sprintf(comm, "TuneChanPrev\n");
-         else
-         {  // not a special mode -> search for the name in the channel table
-
-            // Note: when the search fails, you should do a sub-string search too.
-            // This is required for multi-network channels like "Arte / KiKa".
-            // In nxtvepg these are separate, i.e. the TV app will receive setstation
-            // requests for either "Arte" or "KiKa" - the TV app should allow both and
-            // switch to the channel named "Arte / KiKa".  See gui.tcl for an example
-            // how to implement this.
-
-            sprintf(comm, "TuneChanByName {%s}\n", pArg2);
-         }
-
-         eval_check(interp, comm);
-      }
-      else if (strcmp(pArgStr, "capture") == 0)
-      {
-         // when capturing is switched off, grant tuner to EPG
-         sprintf(comm, "set grant_tuner %d; GrantTuner\n", (strcmp(pArg2, "off") == 0));
-         eval_check(interp, comm);
-      }
-      else if (strcmp(pArgStr, "volume") == 0)
-      {
-         // command ignored in simulation because audio is not supported
-      }
-   }
-}
-
-// ----------------------------------------------------------------------------
-// Timout handler: clear title display max. X msecs after channel change
-// - only to be fail-safe, in case EPG app answers to slowly
-//
-static void TvSimu_TitleChangeTimer( ClientData clientData )
-{
-   popDownEvent = NULL;
-
-   sprintf(comm, "set program_title {}; set program_times {}; set program_theme {}\n");
-   eval_check(interp, comm);
-}
-
-// ----------------------------------------------------------------------------
-// EPG peer replied with title information
-// - display the information in the GUI
-//
-static void TvSimuMsg_UpdateProgInfo( const char * pTitle, time_t start, time_t stop, uchar themeCount, const uchar * pThemes )
-{
-   const char * pThemeStr;
-   uint   themeIdx;
-   char   str_buf[50];
-
-   // remove the pop-down timer (which would clear the EPG display if no answer arrives in time)
-   if (popDownEvent != NULL)
-      Tcl_DeleteTimerHandler(popDownEvent);
-   popDownEvent = NULL;
-
-   if ( (pTitle[0] != 0) && (start != stop) )
-   {
-      // Process start and stop time
-      // (times are given in UNIX format, i.e. seconds since 1.1.1970 0:00am UTC)
-      strftime(str_buf, sizeof(str_buf), "%a %d.%m %H:%M - ", localtime(&start));
-      strftime(str_buf + strlen(str_buf), sizeof(str_buf) - strlen(str_buf), "%H:%M", localtime(&stop));
-
-      // Process PDC theme array: convert theme code to text
-      // Note: up to 7 theme codes can be supplied (e.g. "movie general" plus "comedy")
-      //       you have to decide yourself how to display them; you might use icons for the
-      //       main themes (e.g. movie, news, talk show) and add text for sub-categories.
-      // Use loop to search for the first valid theme code (simplest possible handling)
-      pThemeStr = "";
-      for (themeIdx = 0; themeIdx < themeCount; themeIdx++)
-      {
-         if (pThemes[themeIdx] >= 128)
-         {  // PDC codes 0x80..0xff identify series (most EPG providers just use 0x80 for
-            // all series, but they could use different codes for every series of a network)
-            pThemeStr = pdc_series;
-            break;
-         }
-         else if (pdc_themes[pThemes[themeIdx]] != NULL)
-         {  // this is a known PDC series code
-            pThemeStr = pdc_themes[pThemes[themeIdx]];
-            break;
-         }
-         // else: unknown series code -> keep searching
-      }
-
-      // Finally display program title, start/stop times and theme text
-      // Note: the Tcl variables are bound to the "entry" widget
-      //       by writing to the variables the widget is automatically updated
-      sprintf(comm, "set program_title {%s}; set program_times {%s}; set program_theme {%s}\n", pTitle, str_buf, pThemeStr);
-      eval_check(interp, comm);
-   }
-   else
-   {  // empty string transmitted (EPG has no info for the current channel) -> clear display
-      sprintf(comm, "set program_title {}; set program_times {}; set program_theme {}\n");
-      eval_check(interp, comm);
-   }
-}
-
-// ----------------------------------------------------------------------------
 // Structure which is passed to the shm client init function
 //
 static const WINSHMCLNT_TVAPP_INFO tvSimuInfo =
 {
    "TV application simulator " TVSIM_VERSION_STR,
+   "",
+   TVAPP_NONE,
    TVAPP_FEAT_ALL_000701,
-
-   TvSimuMsg_EpgEvent,
-   TvSimuMsg_UpdateProgInfo,
-   TvSimuMsg_HandleEpgCmd,
-   TvSimuMsg_ReqTuner,
-   TvSimuMsg_Attach
+   TvSimuMsg_EpgEvent
 };
 
 // ----------------------------------------------------------------------------
@@ -685,6 +771,10 @@ static int TclCb_GrantTuner( ClientData ttp, Tcl_Interp *interp, int argc, char 
       if (result == TCL_OK)
       {
          WinSharedMemClient_GrantTuner(doGrant);
+
+         // check for an already pending request & execute it
+         if (doGrant)
+            TvSimuMsg_ReqTuner();
       }
    }
    return result;
@@ -696,7 +786,7 @@ static int TclCb_GrantTuner( ClientData ttp, Tcl_Interp *interp, int argc, char 
 static int TclCb_TuneChan( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
 {
    const char * const pUsage = "C_TuneChan <idx> <name>";
-   ulong * pFreqTab;
+   uint  * pFreqTab;
    uint    freqCount;
    int     freqIdx;
    int     result;
@@ -725,6 +815,8 @@ static int TclCb_TuneChan( ClientData ttp, Tcl_Interp *interp, int argc, char *a
                WinSharedMemClient_SetStation(argv[2], 0, 0, pFreqTab[freqIdx]);
 
                // Install a timer handler to clear the title display in case EPG app fails to answer
+               if (popDownEvent != NULL)
+                  Tcl_DeleteTimerHandler(popDownEvent);
                popDownEvent = Tcl_CreateTimerHandler(420, TvSimu_TitleChangeTimer, NULL);
             }
             else
@@ -769,6 +861,7 @@ static int ui_init( int argc, char **argv )
    Tcl_SetVar(interp, "tcl_library", TCL_LIBRARY_PATH, TCL_GLOBAL_ONLY);
    Tcl_SetVar(interp, "tk_library", TK_LIBRARY_PATH, TCL_GLOBAL_ONLY);
    Tcl_SetVar(interp, "tcl_interactive", "0", TCL_GLOBAL_ONLY);
+   Tcl_SetVar(interp, "TVSIM_VERSION", TVSIM_VERSION_STR, TCL_GLOBAL_ONLY);
 
    Tcl_Init(interp);
    if (Tk_Init(interp) != TCL_OK)
@@ -782,6 +875,11 @@ static int ui_init( int argc, char **argv )
    #ifdef USE_PRECOMPILED_TCL_LIBS
    if (Tcl_VarEval(interp, tcl_init_scripts, NULL) != TCL_OK)
    {
+      debug1("tcl_init_scripts error: %s\n", interp->result);
+   }
+   if (Tcl_VarEval(interp, tk_init_scripts, NULL) != TCL_OK)
+   {
+      debug1("tk_init_scripts error: %s\n", interp->result);
    }
    #endif
 
@@ -811,6 +909,7 @@ static int ui_init( int argc, char **argv )
 //
 int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow )
 {
+   WINSHMCLNT_EVENT  attachEvent;
    int argc;
    char ** argv;
 
@@ -824,7 +923,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
    WintvCfg_Init(FALSE);
 
    BtDriver_Init();
-   if (WinSharedMemClient_Init(&tvSimuInfo))
+   if (WinSharedMemClient_Init(&tvSimuInfo, &attachEvent))
    {
       // set up callback to catch shutdown messages (requires tk83.dll patch!)
       Tk_RegisterMainDestructionHandler(WinApiDestructionHandler);
@@ -844,17 +943,25 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 
       if (BtDriver_StartAcq())
       {
+         // set window title
+         eval_check(interp, "wm title . {TV app simulator " TVSIM_VERSION_STR "}\n");
+         if (startIconified)
+            eval_check(interp, "wm iconify .");
+
          // wait until window is open and everything displayed
          while ( (Tk_GetNumMainWindows() > 0) &&
                  Tcl_DoOneEvent(TCL_ALL_EVENTS | TCL_DONT_WAIT) )
             ;
 
-         // change window title - cannot be set before the window is mapped
-         eval_check(interp, "wm title . {TV app simulator}\n");
+         // set window minimum size - cannot be set before the window is mapped
          sprintf(comm, "wm minsize . [winfo reqwidth .] [winfo reqheight .]\n");
          eval_check(interp, comm);
-         if (startIconified)
-            eval_check(interp, "wm iconify .");
+
+         // report attach failures during initialization
+         if (attachEvent == SHM_EVENT_ATTACH)
+            TvSimuMsg_Attach(TRUE);
+         else if (attachEvent == SHM_EVENT_ATTACH_ERROR)
+            TvSimuMsg_BackgroundError();
 
          // process GUI events & callbacks until the main window is closed
          while (Tk_GetNumMainWindows() > 0)
@@ -865,7 +972,13 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
          BtDriver_StopAcq();
       }
       else
+      {
          debug0("Fatal: failed to start acq - quitting now");
+
+         // this might have been the cause for failure, so display the message
+         if (attachEvent == SHM_EVENT_ATTACH_ERROR)
+            TvSimuMsg_BackgroundError();
+      }
 
       #if defined(WIN32) && !defined(__MINGW32__)
       }
@@ -882,9 +995,18 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
       WinSharedMemClient_Exit();
    }
    else
-      debug0("Fatal: failed to set up IPC resources");
+   {  // Fatal: failed to set up IPC resources
+      TvSimuMsg_BackgroundError();
+   }
 
    WintvCfg_Destroy();
+
+   #if CHK_MALLOC == ON
+   xfree(argv);
+   // check for allocated memory that was not freed
+   chk_memleakage();
+   #endif
+
    exit(0);
    return(0);
 }

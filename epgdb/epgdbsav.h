@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbsav.h,v 1.31 2002/03/29 17:31:27 tom Exp tom $
+ *  $Id: epgdbsav.h,v 1.32 2002/05/11 15:43:36 tom Exp tom $
  */
 
 #ifndef __EPGDBSAV_H
@@ -148,8 +148,8 @@ bool EpgDbSavSetupDir( const char * pDirPath, const char * pDemoDb );
 void EpgDbDumpGetDirAndCniFromArg( char * pArg, const char ** ppDirPath, uint * pCni );
 
 EPGDB_CONTEXT * EpgDbPeek( uint cni, EPGDB_RELOAD_RESULT * pResult );
-bool EpgDbDumpUpdateHeader( uint cni, ulong freq );
-ulong EpgDbReadFreqFromDefective( uint cni );
+bool EpgDbDumpUpdateHeader( uint cni, uint freq );
+uint EpgDbReadFreqFromDefective( uint cni );
 time_t EpgReadAiUpdateTime( uint cni );
 
 

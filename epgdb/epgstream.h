@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgstream.h,v 1.13 2001/12/21 20:09:13 tom Exp tom $
+ *  $Id: epgstream.h,v 1.15 2002/05/10 18:01:34 tom Exp tom $
  */
 
 #ifndef __EPGSTREAM_H
@@ -52,14 +52,9 @@ enum
 // ----------------------------------------------------------------------------
 // Declaration of service interface functions
 //
-void EpgStreamInit( EPGDB_QUEUE *pDbQueue, bool bWaitForBiAi, uint appId );
+void EpgStreamInit( EPGDB_QUEUE *pDbQueue, bool bWaitForBiAi, uint appId, uint pageNo );
 void EpgStreamClear( void );
-bool EpgStreamNewPage( uint sub );
-void EpgStreamDecodePacket( uchar packNo, const uchar * dat );
-
-void EpgStreamSyntaxScanInit( void );
-void EpgStreamSyntaxScanHeader( uint page, uint sub );
-bool EpgStreamSyntaxScanPacket( uchar mag, uchar packNo, const uchar * dat );
+bool EpgStreamProcessPackets( void );
 
 
 #endif // __EPGSTREAM_H

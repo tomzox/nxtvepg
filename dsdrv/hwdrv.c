@@ -15,7 +15,7 @@
 //  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 //  GNU General Public License for more details
 /////////////////////////////////////////////////////////////////////////////
-// nxtvepg $Id: hwdrv.c,v 1.1 2002/05/04 18:39:12 tom Exp tom $
+// nxtvepg $Id: hwdrv.c,v 1.3 2002/05/10 00:16:48 tom Exp tom $
 //////////////////////////////////////////////////////////////////////////////
 
 #define WIN32_LEAN_AND_MEAN
@@ -29,17 +29,12 @@
 // define this to force uninstallation of the NT driver on every destruction of the class.
 //#define ALWAYS_UNINSTALL_NTDRIVER
 
-#define NT_DRIVER_NAME "DSDrv4"
 static const LPSTR NTDriverName = NT_DRIVER_NAME;
 
 static BOOL AdjustAccessRights( void );
 static SC_HANDLE   m_hService;
 static HANDLE      m_hFile;
 static BOOL        m_bWindows95;
-
-// fwd decl
-static BOOL InstallNTDriver( void );
-static BOOL UnInstallNTDriver( void );
 
 // the access rights that are needed to just use DScaler (no (un)installation).
 #define DRIVER_ACCESS_RIGHTS (SERVICE_START | SERVICE_STOP)
@@ -63,7 +58,7 @@ void HwDrv_Destroy( void )  //CHardwareDriver::~CHardwareDriver()
 
 #if defined ALWAYS_UNINSTALL_NTDRIVER
     LOG(1,"(NT driver) ALWAYS_UNINSTALL_NTDRIVER");
-    UnInstallNTDriver();
+    HwDrv_UnInstallNTDriver();
 #endif
 }
 
@@ -99,7 +94,7 @@ DWORD HwDrv_LoadDriver( void )
                 {
                     LOG(1,"(NT driver) Service does not exist: trying to install it...");
 
-                    if(!InstallNTDriver())
+                    if(!HwDrv_InstallNTDriver())
                     {
                         LOG(1,"Failed to install NT driver. Giving up.");
                         loadError = HWDRV_LOAD_INSTALL;
@@ -217,7 +212,7 @@ DWORD HwDrv_LoadDriver( void )
 
                 // Maybe another driver from an old DScaler version is still installed. 
                 // Try to uninstall it.
-                UnInstallNTDriver();
+                HwDrv_UnInstallNTDriver();
             }
         }
         else
@@ -277,7 +272,7 @@ void HwDrv_UnloadDriver( void )
 }
 
 // On success m_hService will contain the handle to the service.
-static BOOL InstallNTDriver( void )
+BOOL HwDrv_InstallNTDriver( void )
 {
     LPSTR       pszName;
     char        szDriverPath[MAX_PATH];
@@ -550,7 +545,7 @@ static BOOL AdjustAccessRights( void )
     return !bError;
 }
 
-static BOOL UnInstallNTDriver( void )
+BOOL HwDrv_UnInstallNTDriver( void )
 {
     SC_HANDLE hSCManager = NULL;
     BOOL      bError = FALSE;
@@ -692,8 +687,8 @@ DWORD HwDrv_SendCommand( DWORD dwIOCommand,
     }
 }
 
-BOOL HwDrv_DoesThisPCICardExist(WORD VendorID, WORD DeviceID,
-                                int DeviceIndex, DWORD * SubSystemId)
+BOOL HwDrv_DoesThisPCICardExist(WORD VendorID, WORD DeviceID, int DeviceIndex,
+                                DWORD * pdwSubSystemId, DWORD * pdwBusNumber, DWORD * pdwSlotNumber)
 {
     TDSDrvParam hwParam;
     DWORD dwStatus;
@@ -715,12 +710,13 @@ BOOL HwDrv_DoesThisPCICardExist(WORD VendorID, WORD DeviceID,
 
     if(dwStatus == ERROR_SUCCESS)
     {
-        * SubSystemId = PCICardInfo.dwSubSystemId;
-        return TRUE;
+       if (pdwSubSystemId != NULL)
+          *pdwSubSystemId = PCICardInfo.dwSubSystemId;
+       if (pdwBusNumber != NULL)
+          *pdwBusNumber   = PCICardInfo.dwBusNumber;
+       if (pdwSlotNumber != NULL)
+          *pdwSlotNumber  = PCICardInfo.dwSlotNumber;
     }
-    else
-    {
-        * SubSystemId = 0;
-        return FALSE;
-    }
+
+    return (dwStatus == ERROR_SUCCESS);
 }
