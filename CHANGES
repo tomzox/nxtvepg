@@ -5,6 +5,13 @@ changes or additions.
 Before you submit any feature requests, please read the TODO file.
 
 
+from 0.7.3 to 0.7.4 aka 2.1.2 (2002-June-02)
+
+- bugfix TV application interaction: no EPG information was forwarded to the
+  TV app under certain circumstances (only if the station name was unknown
+  to nxtvepg and the VPS/PDC id was unchanged since the last request)
+
+
 from 0.7.2 to 0.7.3 aka 2.1.1 (2002-May-30)
 
 - bugfix PDC decoding: didn't work at all before (this affects the EPG scan

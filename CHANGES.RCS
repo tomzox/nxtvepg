@@ -9032,3 +9032,38 @@ www/nefkom-src-index.html [rev:1.5, 2002-05-31T19:44:37]:
 www/tripod-src-index.html [rev:1.6, 2002-05-31T19:45:41]:
 - added new release 0.7.3 and 2.1.1-win, 2.1.1-tvsim
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_7_3 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+epgctl/epgversion.h [rev:1.23, 2002-06-02T18:16:56]:
+- set to version 0.7.4 aka 2.1.2-win
+nxtvepg.spec [rev:NONE - missing check-in]:
+- changed version to 0.7.4
+epgui/xawtv.c [rev:1.23, 2002-06-02T19:04:22]:
+- bugfix: no EPG info update was generated in one spacial case:
+- unknown station name, and station was same as for last request
+- fix Xawtv_StationSelected(): use the station timer too for unknown stations
+- Xawtv_StationTimer(): allow station CNI 0: use the first CNI found for reply
+    (instead of waiting for a match to the station CNI)
+- bug was reported by e-nek today
+- equivalent fix applied to wintv.c
+epgui/wintv.c [rev:1.8, 2002-06-02T19:04:44]:
+- bugfix: no EPG info update was generated in one spacial case:
+- unknown station name, and station was same as for last request
+- fix Wintv_StationSelected(): use the station timer too for unknown stations
+- Wintv_StationTimer(): allow station CNI 0: use the first CNI found for reply
+    (instead of waiting for a match to the station CNI)
+- bug was reported by e-nek today
+- equivalent fix applied to xawtv.c
+www/index-de.html [rev:1.30, 2002-06-02T19:36:15]:
+- Updated for release 0.7.4
+www/index.html [rev:1.41, 2002-06-02T19:36:15]:
+- Updated for release 0.7.4
+www/changelog.html [rev:1.32, 2002-06-02T19:36:33]:
+- Updated for release 0.7.4
+www/nefkom-src-index.html [rev:1.6, 2002-06-02T19:38:05]:
+- removed 2.0.0-win to free disk space
+- added new release 0.7.4 and 2.1.2-win (NO -tvsim this time)
+www/tripod-src-index.html [rev:1.7, 2002-06-02T19:38:53]:
+- removed 1.6-win-gcc and 1.7-win to free disk space
+- added new release 0.7.4 and 2.1.2-win (NO -tvsim this time)
+CHANGES [rev:1.24, 2002-06-02T19:39:28]:
+- updated for release 0.7.4
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_7_4 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

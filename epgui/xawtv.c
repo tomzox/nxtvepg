@@ -36,7 +36,7 @@
  *
  *     Additional code and adaptions to nxtvepg by Tom Zoerner
  *
- *  $Id: xawtv.c,v 1.22 2002/05/11 15:52:12 tom Exp tom $
+ *  $Id: xawtv.c,v 1.23 2002/06/02 19:04:22 tom Exp tom $
  */
 
 #ifdef WIN32
@@ -1155,7 +1155,8 @@ static void Xawtv_StationTimer( ClientData clientData )
    pVpsPdc = EpgAcqCtl_GetVpsPdc(VPSPDC_REQ_TVAPP);
    if ((pVpsPdc != NULL) && (pVpsPdc->cni != 0))
    {  // VPS data received - check if it's the expected CNI
-      if ((pVpsPdc->cni == followTvState.stationCni) || (followTvState.stationPoll >= 360))
+      if ( (pVpsPdc->cni == followTvState.stationCni) || (followTvState.stationCni == 0) ||
+           (followTvState.stationPoll >= 360) )
       {
          followTvState.cni = pVpsPdc->cni;
          followTvState.pil = pVpsPdc->pil;
@@ -1219,47 +1220,37 @@ static void Xawtv_StationSelected( ClientData clientData )
 
          // translate the station name to a CNI by searching the network table
          cni = Xawtv_StationNametoCni(station);
-         if (cni != 0)
-         {
-            if (followTvState.newXawtvStarted)
-            {  // have the acq control update it's device state
-               followTvState.newXawtvStarted = FALSE;
-               EpgAcqCtl_CheckDeviceAccess();
-            }
 
-            EpgAcqCtl_DescribeAcqState(&acqState);
-            if ( (acqState.state != ACQDESCR_DISABLED) &&
-                 ((acqState.isNetAcq == FALSE) || acqState.isLocalServer) &&
-                 ( (acqState.mode == ACQMODE_PASSIVE) ||
-                   ((acqState.mode == ACQMODE_FORCED_PASSIVE) && (acqState.passiveReason == ACQPASSIVE_ACCESS_DEVICE))) &&
-                 ( (followTvState.cni != cni) ||
-                   (followTvState.pil == INVALID_VPS_PIL) ) )
-            {  // acq running -> wait for VPS/PDC to determine PIL (and confirm CNI)
-               dprintf1("Xawtv-StationSelected: delay xawtv info for 0x%04X\n", cni);
-               followTvState.stationCni = cni;
-               followTvState.stationPoll = 120;
+         if (followTvState.newXawtvStarted)
+         {  // have the acq control update it's device state
+            followTvState.newXawtvStarted = FALSE;
+            EpgAcqCtl_CheckDeviceAccess();
+         }
 
-               // clear old VPS results, just like after a channel change
-               EpgAcqCtl_ResetVpsPdc();
-               pollVpsEvent = Tcl_CreateTimerHandler(120, Xawtv_StationTimer, NULL);
-            }
-            else
-            {
-               // acq not running or running on a different TV card -> don't wait for VPS
-               dprintf1("Xawtv-StationSelected: popup xawtv info for 0x%04X\n", cni);
-               if (followTvState.cni != cni)
-                  followTvState.pil = INVALID_VPS_PIL;
-               followTvState.cni = cni;
-               Xawtv_FollowTvNetwork();
-            }
+         EpgAcqCtl_DescribeAcqState(&acqState);
+         if ( (acqState.state != ACQDESCR_DISABLED) &&
+              ((acqState.isNetAcq == FALSE) || acqState.isLocalServer) &&
+              ( (acqState.mode == ACQMODE_PASSIVE) ||
+                ((acqState.mode == ACQMODE_FORCED_PASSIVE) && (acqState.passiveReason == ACQPASSIVE_ACCESS_DEVICE))) &&
+              ( (followTvState.cni != cni) ||
+                (followTvState.pil == INVALID_VPS_PIL) ) )
+         {  // acq running -> wait for VPS/PDC to determine PIL (and confirm CNI)
+            dprintf1("Xawtv-StationSelected: delay xawtv info for 0x%04X\n", cni);
+            followTvState.stationCni = cni;
+            followTvState.stationPoll = 120;
+
+            // clear old VPS results, just like after a channel change
+            EpgAcqCtl_ResetVpsPdc();
+            pollVpsEvent = Tcl_CreateTimerHandler(120, Xawtv_StationTimer, NULL);
          }
          else
-         {  // unknown CNI -> remove existing popup
-            // note that multi-network station may be identified via VPS shortly after
-            dprintf1("Xawtv-StationSelected: unknown station: \"%s\"\n", station);
-            Xawtv_PopDownNowNext(NULL);
-
-            EpgAcqCtl_ResetVpsPdc();
+         {
+            // acq not running or running on a different TV card -> don't wait for VPS
+            dprintf1("Xawtv-StationSelected: popup xawtv info for 0x%04X\n", cni);
+            if (followTvState.cni != cni)
+               followTvState.pil = INVALID_VPS_PIL;
+            followTvState.cni = cni;
+            Xawtv_FollowTvNetwork();
          }
       }
       else

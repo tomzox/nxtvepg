@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: wintv.c,v 1.7 2002/05/11 15:52:53 tom Exp tom $
+ *  $Id: wintv.c,v 1.8 2002/06/02 19:04:44 tom Exp tom $
  */
 
 #ifndef WIN32
@@ -341,7 +341,8 @@ static void Wintv_StationTimer( ClientData clientData )
 
    if (WintvSharedMem_GetCniAndPil(&cni, &pil) && (cni != 0))
    {  // VPS data received - check if it's the expected CNI
-      if ((cni == followTvState.stationCni) || (followTvState.stationPoll >= 360))
+      if ( (cni == followTvState.stationCni) || (followTvState.stationCni == 0) ||
+           (followTvState.stationPoll >= 360) )
       {
          followTvState.cni = cni;
          followTvState.pil = pil;
@@ -385,7 +386,6 @@ static void Wintv_StationTimer( ClientData clientData )
 static void Wintv_StationSelected( void )
 {
    char station[50];
-   uint cni;
 
    // query name of the selected TV station
    if ( WintvSharedMem_QueryChanName(station, sizeof(station), &followTvState.chanQueryIdx) )
@@ -401,28 +401,24 @@ static void Wintv_StationSelected( void )
       followTvState.lastCni = 0;
 
       // translate the station name to a CNI by searching the network table
-      cni = Wintv_StationNametoCni(station);
-      if (cni != 0)
+      followTvState.stationCni = Wintv_StationNametoCni(station);
+      if (followTvState.stationCni != 0)
       {
          // wait for VPS/PDC to determine PIL (and confirm CNI)
-         dprintf1("Wintv-StationSelected: delay EPG info for 0x%04X\n", cni);
-         followTvState.stationCni = cni;
-         followTvState.stationPoll = 120;
-
-         // clear old VPS results, just like after a channel change
-         // XXX TODO check if acq is using the same TV card
-         EpgAcqCtl_ResetVpsPdc();
-         pollVpsEvent = Tcl_CreateTimerHandler(120, Wintv_StationTimer, NULL);
+         dprintf2("Wintv-StationSelected: delay EPG info for 0x%04X (\"%s\")\n", followTvState.stationCni, station);
       }
       else
       {  // unknown station name -> remove existing popup
          // note that multi-network station may be identified via VPS shortly after
          dprintf1("Wintv-StationSelected: unknown station: \"%s\"\n", station);
-         WintvSharedMem_SetEpgInfo(0, 0, "", 0, NULL, followTvState.chanQueryIdx);
-
-         // XXX TODO check if acq is using the same TV card
-         EpgAcqCtl_ResetVpsPdc();
       }
+
+      // clear old VPS results, just like after a channel change
+      // XXX TODO check if acq is using the same TV card
+      EpgAcqCtl_ResetVpsPdc();
+
+      followTvState.stationPoll = 120;
+      pollVpsEvent = Tcl_CreateTimerHandler(120, Wintv_StationTimer, NULL);
    }
 
    if (pollVpsEvent == NULL)

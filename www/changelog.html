@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: changelog.html,v 1.31 2002/05/31 19:41:26 tom Exp $ -->
+<!-- $Id: changelog.html,v 1.32 2002/06/02 19:36:33 tom Exp $ -->
 <HEAD>
 <TITLE>Nextview EPG Decoder Change-Log</TITLE>
 <LINK href="nxtvepg.css" rel=stylesheet type=text/css>
@@ -43,6 +43,21 @@ improvements for the M$ Windows platform (see changelog for 0.7.1):
 </UL>
 -->
 
+<H2>From 0.7.3 to 0.7.4 aka 2.1.2 (June/2/2002)</H2>
+<P>
+This release contains one single bugfix:
+</P>
+<UL>
+<LI>Bugfix TV application interaction: no EPG information was forwarded to the
+  TV app under certain circumstances (only if the station name was unknown
+  to nxtvepg and the VPS/PDC id was unchanged since the last request)
+</UL>
+<P>
+Note: unless I find any more severe bugs that warrant a bugfix release, this
+will be the last release with a "0." version number.  Starting with the next
+version UNIX and Windows will use the same version number, i.e. 2.x.x
+</P>
+
 <H2>From 0.7.2 to 0.7.3 aka 2.1.1 (May/30/2002)</H2>
 <P>
 This release contains one notable bugfix (at least for French users)
@@ -60,11 +75,6 @@ and a few minor feature improvements:
 <LI>Windows-95 compatibility: resolved two missing symbols
 <LI>Windows Bt8x8 driver: added new error checks for driver installation
 </UL>
-<P>
-Note: unless I find any more severe bugs that warrant a bugfix release, this
-will be the last release with a "0." version number.  Starting with the next
-version UNIX and Windows will use the same version number, i.e. 2.x.x
-</P>
 
 <H2>From 0.7.1 to 0.7.2 aka 2.1.0 (May/20/2002)</H2>
 <P>
