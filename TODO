@@ -1,3 +1,10 @@
+these new features will be available in version 0.4.x soon:
+- merging of your favorite provider's databases into one
+- cyclic "round-robin" acquisition between multiple providers
+- programming reminders for single titles or complete selections
+check for the new release at http://nxtvepg.tripod.com/
+
+
 fixes:
 - latin-1 chars in substring search do not work with Tcl/Tk 8.3
 - do not tune channel if vbi busy

@@ -1,20 +1,28 @@
 <HTML>
 <BASE HREF="http://nxtvepg.tripod.com/">
-<!-- $Id: index.html,v 1.2 2000/11/07 20:32:30 tom Exp $ -->
+<!-- $Id: index.html,v 1.7 2000/11/16 21:56:08 tom Exp $ -->
 <HEAD>
 <META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
+<META name="Author" content="Tom Zoerner">
+<META name="keywords" lang="en-us" content="nextview, EPG, electronic program guide, TV-Guide, schedule">
+<META name="keywords" lang="de" content="Nextview Dekoder, nexTView, TV-Programm, Fernsehzeitschrift, Fernseher, Fernsehprogramm, TV-Guide">
+<META name="description" content="Nextview EPG Decoder Software for Linux">
+
 <TITLE>Linux Nextview EPG Decoder Download Page</TITLE>
 </HEAD>
 <BODY bgcolor="#EEEEEE" text="#000000">
+<P><HR><P>
 <CENTER>
 <IMG SRC="nxtv_logo.xbm">
-<H1 FONT="+2">Linux Nextview EPG Decoder Download Page</H1>
+<H2>Linux Nextview EPG Decoder Download Page</H2>
 </CENTER>
 In this software package you find a decoder for Nextview - an Electronic
 Programme Guide for the analog domain (as opposed to the various digital EPGs
 that come with most digital broadcasts). It allows you to receive and browse
-TV programme listings for most of the major networks in Germany, France and
-Switzerland (<A HREF="screenshot.gif">screenshot</A>).
+free TV programme listings for most of the major networks in Germany, Austria,
+France and Switzerland. For detailed information please refer to the
+<A HREF="man.html">manual page</A> or this
+<A HREF="screenshot.gif">screenshot</A>.
 <P>
 Currently Nextview EPG is transmitted by the following TV stations:
 <DL>
@@ -23,7 +31,8 @@ Currently Nextview EPG is transmitted by the following TV stations:
 <LI>in France: Canal+, M6, TV5.
 </DL>
 <P>
-If you don't receive any of those, then this software is useless to you.
+If you don't receive any of these, then this software is useless to you
+(except for a demo mode - see below).
 <P>
 The Nextview standard was developed by the major European consumer electronics
 manufacturers under the hood of the
@@ -35,7 +44,9 @@ whatsoever to the ETSI - but he still hopes it's kindly tolerated.
 To compile and use this software, you will need:
 <DL>
 <LI>Pentium class PC with a Bt848 or Bt878 based TV tuner card
-<LI>Linux with kernel &gt;= 2.0.35 and bttv driver (video4linux)
+<LI>Linux with kernel &gt;= 2.0.35 and
+<A HREF="http://www.metzlerbros.de/bttv.html"> bttv driver</A> and
+<A HREF="http://roadrunner.swansea.uk.linux.org/v4l.shtml">video4linux</A>
 <LI>GNU C Compiler
 <LI>Tcl/Tk version 8.0 or later
 (<A HREF="ftp://www.scriptics.com/pub/tcl/">ftp://www.scriptics.com/pub/tcl/</A>)
@@ -45,8 +56,19 @@ As of now, there's no supprt for Micro$oft Windows.
 Please read the file <A HREF="windows.txt">windows</A>
 
 <H3>Download</H3>
-Download the latest source distribution:
+<DL>
+<LI>Download the latest source distribution:
+<A HREF=src/nxtvepg-0.3.4.tar.gz>nxtvepg-0.3.4.tar.gz</A> (160 kB)
+<P>
+<LI>In case of trouble, download the previous distribution:
 <A HREF=src/nxtvepg-0.3.3.tar.gz>nxtvepg-0.3.3.tar.gz</A> (150 kB)
+<P>
+<LI>If you do not receive any of the Nextview providers listed above,
+download the demo database <A HREF=src/nxtvdb-tv5.gz>nxtvdb-tv5.gz</A>
+and load it with the command line arguments <CODE>-demo nxtvdb-tv5</CODE>
+into nxtvepg (the copyright of this data is by <I>Swiss Tele+text</I> - please
+do not redistribute). This option is available as of release 0.3.4.
+</DL>
 
 <H3>Copyright</H3>
 &copy; Copyright 1999, 2000 by Thorsten <I>"Tom"</I> Z&ouml;rner (and others).
@@ -54,14 +76,13 @@ All rights reserved.
 <P>
 This program is free software; you can redistribute it and/or modify
 it under the terms of the
-<A HREF=copyright.txt>GNU General Public License Version 2</A>
-as published by the Free Software Foundation.
+<A HREF="http://www.fsf.org/copyleft/gpl.html">GNU General Public License</A>
+as published by the <A HREF="http://www.fsf.org/">Free Software Foundation.</A>
 This program is distributed in the hope that it will be useful,
 but <B>without any warranty</B>; without even the implied warranty of
 merchantability or fitness for a particular purpose.
 <P>
 <HR>
-Accesses since 08 Sep. 2000:
 <!-- Start of TheCounter.com Code -->
 <SCRIPT TYPE="text/javascript" LANGUAGE="javascript">
 s="na";c="na";j="na";f=""+escape(document.referrer)

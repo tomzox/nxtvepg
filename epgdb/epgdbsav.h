@@ -15,7 +15,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgdbsav.h,v 1.10.1.1 2000/11/07 20:59:28 tom Exp $
+ *  $Id: epgdbsav.h,v 1.10.1.2 2000/11/16 21:18:09 tom Exp $
  */
 
 #ifndef __EPGDBSAV_H
@@ -28,7 +28,7 @@
 #define MAGIC_STR      "NEXTVIEW-DB by TOMZO\n"
 #define MAGIC_STR_LEN  20
 
-#define DUMP_VERSION   0x00000303 // current version 0.3.3
+#define DUMP_VERSION   0x00000304 // current version 0.3.4
 #define DUMP_COMPAT    0x0000010a // last compatible version
 
 #ifdef WIN32
@@ -52,7 +52,9 @@ typedef struct
    uchar   magic[MAGIC_STR_LEN];  // file header
    ulong   dumpVersion;           // version of this software
 
-   ulong   lastPiDate;            // stop time of last PI in db
+   // temp hack for branch 0.3.4: replace lastPiDate with dumpDate for -demo db
+   //ulong   lastPiDate;          // stop time of last PI in db
+   ulong   dumpDate;              // time the db was dumped
    uint    cni;                   // CNI of EPG provider
    uint    pageNo;                // last used ttx page
    ulong   tunerFreq;             // tuner frequency of provider's channel

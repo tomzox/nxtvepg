@@ -1614,3 +1614,44 @@ www/index.html [rev:1.2, 2000-11-07T20:32:30]:
 - improved ETSI disclaimer
 - added counter javascript code
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_3_3 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+nxtvepg.1x [nxtvepg.pod, rev:1.13, 2000-11-16T20:07:30]:
+- added -demo
+www/index.html [rev:1.5, 2000-11-16T20:31:23]:
+- update for release 0.3.4
+- added demo database
+www/index.html [rev:1.6, 2000-11-16T20:33:36]:
+- added German keywords "Nextview Dekoder"
+nxtvepg.1x [nxtvepg.pod, rev:1.14, 2000-11-16T20:38:59]:
+- updated version to 0.3.4
+CHANGES [rev:1.5, 2000-11-16T21:06:23]:
+- release 0.3.4
+epgdb/epgdbsav.h [rev:1.10.1.2, 2000-11-16T21:18:09]:
+- addition of -demo <db> option to release branch 0.3
+- replaced lastPiDate with dumpDate in EPGDBSAV_HEADER
+epgdb/epgdbsav.c [rev:1.16.1.1, 2000-11-16T21:20:00]:
+- addition of -demo <db> option to release branch 0.3
+- replaced lastPiDate with dumpDate in EPGDBSAV_HEADER
+- shift all PI in reloaded db just enough so that none expire
+- db path name is taken from -demo argument
+    other dbs cannot be loaded
+epgctl/epgmain.c [epgui/epgmain.c, rev:1.34.1.1, 2000-11-16T21:24:47]:
+- addition of -demo command line option to release branch 0.3
+- added in Usage(), ParseArgv() and main()
+- in demo mode only the db given behind -demo is loaded
+    -provider arg is ignored, acq is disabled
+epgctl/epgmain.h [epgui/epgmain.h, rev:1.9.1.1, 2000-11-16T21:26:38]:
+- added extern const char * pDemoDatabase for new -demo command line arg
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.37.1.2, 2000-11-16T21:30:12]:
+- addition of -demo mode to release branch 0.3
+- added proc CreateDemoModePseudoMenu
+    Create "Demo-Mode" menu with warning labels and disable some menu cmds
+- called once during start-up when demo mode is enabled
+- update version number from 0.3.3 to 0.3.4
+epgui/menucmd.c [rev:1.13.1.1, 2000-11-16T21:33:07]:
+- addition of -demo mode to release branch 0.3
+- call Tcl proc CreateDemoModePseudoMenu during start-up
+    when demo mode is enabled
+TODO [rev:1.5, 2000-11-16T21:46:28]:
+- release 0.3.4
+- added lookout for version 0.4.0
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_3_4 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<

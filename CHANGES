@@ -5,6 +5,9 @@ changes or additions.
 Before you submit any feature requests, please read the TODO file.
 
 
+from 0.3.3 to 0.3.4 (Nov. 2000)
+- added -demo cmd line option for users without live Nextview reception
+
 from 0.3.2 to 0.3.3 (Oct. 2000)
 - fixed bug in context menu: arbitrary themes could get listed (pifilter.c)
 - fixed possible heap corruption in string conversion (epgblock.c)

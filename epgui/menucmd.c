@@ -17,7 +17,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: menucmd.c,v 1.13 2000/09/27 17:49:50 tom Exp tom $
+ *  $Id: menucmd.c,v 1.13.1.1 2000/11/16 21:33:07 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -503,6 +503,12 @@ void MenuCmd_Init( void )
       sprintf(comm, ".menubar.config entryconfigure 1 -state disabled\n");
       eval_check(interp, comm);
       #endif
+
+      if (pDemoDatabase != NULL)
+      {  // create menu with warning labels and disable some menu commands
+         sprintf(comm, "CreateDemoModePseudoMenu\n");
+         eval_check(interp, comm);
+      }
    }
 }
 

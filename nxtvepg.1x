@@ -19,10 +19,10 @@
 .\"
 .\"  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
 .\"
-.\" $Id: nxtvepg.1x,v 1.11 2000/10/24 16:43:48 tom Exp tom $
+.\" $Id: nxtvepg.1x,v 1.14 2000/11/16 20:38:59 tom Exp tom $
 .\"----------------------------------------------------------------------------
 .na
-.TH nxtvepg 1x "version 0.3.3 (C) 1999,2000 Tom Zoerner" "" "Nextview EPG Decoder"
+.TH nxtvepg 1x "version 0.3.4 (C) 1999,2000 Tom Zoerner" "" "Nextview EPG Decoder"
 .SH NAME
 nxtvepg \- Decoder, Browser and Analyzer for the
 Nextview Electronic Programme Guide
@@ -80,9 +80,17 @@ e.g. -provider d94 for "Pro Sieben". You can find out the provider's CNI
 during a provider scan or from the database file names.
 Default: the last provider selected during the previous session.
 .TP
-.BI \-noacq
+.BI \-noacq \ 
 Start with acquisition disabled.
 The acquisition can still be started later from the Control menu.
+.TP
+.BI \-demo \ path
+Load database given by
+.I path
+and enter demo mode. In this mode all entries of the database are shifted
+into the presence, i.e. just far enough so that none expire. Hence the entries'
+dates and times are not for real and acquisition
+or database reselection is not possible.
 .TP
 .BI \-help
 List of command line options.

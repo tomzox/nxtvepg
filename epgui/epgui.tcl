@@ -21,7 +21,7 @@
 #
 #  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
 #
-#  $Id: epgui.tcl,v 1.37.1.1 2000/11/07 20:54:56 tom Exp $
+#  $Id: epgui.tcl,v 1.37.1.2 2000/11/16 21:30:12 tom Exp $
 #
 
 frame     .all -relief flat -borderwidth 0
@@ -272,6 +272,32 @@ proc GenerateFilterMenues {tcc fcc} {
       .menubar.filter.features.featureclass add radio -label $index -command {SelectFeatureClass $current_feature_class} -variable current_feature_class -value $index
    }
 
+}
+
+##  ---------------------------------------------------------------------------
+##  Create "Demo-Mode" menu with warning labels and disable some menu commands
+##
+proc CreateDemoModePseudoMenu {} {
+
+   # create menu with warning labels
+   .menubar insert last cascade -label "   ** Demo-Mode **" -menu .menubar.demodb -foreground red -activeforeground red
+   menu .menubar.demodb -tearoff 0
+   .menubar.demodb add command -label "Please note:"
+   .menubar.demodb add command -label "- entries' start times are not real!"
+   .menubar.demodb add command -label "- no acquisition possible!"
+   .menubar.demodb add command -label "- no provider selection possible!"
+
+   # acq not possible since start time of all PI in the db were modified during reload
+   .menubar.ctrl entryconfigure "Enable acquisition" -state disabled
+   # since acq is not possible, dump stream not possible either
+   .menubar.ctrl entryconfigure "Dump stream" -state disabled
+
+   # provider change not possible, since -demo db is always reloaded
+   .menubar.config entryconfigure "Select provider*" -state disabled
+   # acq not possible, hence no scan also
+   .menubar.config entryconfigure "Provider scan*" -state disabled
+   # acq not possible, hence no mode change
+   .menubar.config entryconfigure "Acquisition mode*" -state disabled
 }
 
 ##  ---------------------------------------------------------------------------
@@ -1567,9 +1593,9 @@ proc CreateAbout {} {
       pack .about.name -side top -pady 8
       label .about.logo -bitmap nxtv_logo
       pack .about.logo -side top -pady 8
-      label .about.version -text "v0.3.3"
+      label .about.version -text "v0.3.4"
       pack .about.version -side top
-      label .about.copyr1 -text "Copyright © 1999, 2000 by Tom Zörner"
+      label .about.copyr1 -text "Copyright © 1999, 2000 by Thorsten \"Tom\" Zörner"
       label .about.copyr2 -text "Tom.Zoerner@informatik.uni-erlangen.de"
       label .about.copyr3 -text "http://nxtvepg.tripod.com/" -font {courier -12 normal} -foreground blue
       pack .about.copyr1 .about.copyr2 -side top
@@ -1992,7 +2018,7 @@ proc PiListBox_PrintHelpHeader {text} {
    .all.pi.list.text insert end "Nextview EPG\n" bold24Tag
    .all.pi.list.text insert end "An Electronic TV Programme Guide for Your PC\n" bold16Tag
    .all.pi.list.text window create end -window .all.pi.list.text.nxtvlogo
-   .all.pi.list.text insert end "\n\nCopyright © 1999, 2000 by Tom Zörner\n" bold12Tag
+   .all.pi.list.text insert end "\n\nCopyright © 1999, 2000 by Thorsten \"Tom\" Zörner\n" bold12Tag
    .all.pi.list.text insert end "Tom.Zoerner@informatik.uni-erlangen.de\n\n" bold12Tag
    .all.pi.list.text tag add centerTag 1.0 {end - 1 lines}
    .all.pi.list.text insert end "This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License Version 2 as published by the Free Software Foundation. This program is distributed in the hope that it will be useful, but without any warranty. See the GPL2 for more details.\n\n" wrapTag

@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgdbsav.c,v 1.16 2000/10/14 21:57:05 tom Exp tom $
+ *  $Id: epgdbsav.c,v 1.16.1.1 2000/11/16 21:20:00 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -84,10 +84,14 @@ static bool EpgDbDumpHeader( CPDBC dbc, int fd )
       header.pageNo = dbc->pageNo;
       header.tunerFreq = dbc->tunerFreq;
 
+      /*
       if (dbc->pLastPi != NULL)
          header.lastPiDate = dbc->pLastPi->blk.pi.start_time;
       else
          header.lastPiDate = 0;  // db may contain no PI
+      */
+      // temp hack for branch 0.3.4: replace lastPiDate with dumpDate for -demo db
+      header.dumpDate = time(NULL);
 
       rest = sizeof(header);
       p = (uchar *) &header;
@@ -434,22 +438,19 @@ static void EpgDbReloadAddPiBlock( PDBC dbc, EPGDB_BLOCK * pBlock, EPGDB_BLOCK *
 // ---------------------------------------------------------------------------
 // Read and verify the file header
 //
-static bool EpgDbReloadHeader( uint cni, int fd, uint *pPageNo, ulong *pFreq )
+static bool EpgDbReloadHeader( uint cni, int fd, EPGDBSAV_HEADER * pHead )
 {
-   EPGDBSAV_HEADER head;
    size_t size;
    bool result = FALSE;
 
-   size = read(fd, (uchar *)&head, sizeof(head));
-   if (size == sizeof(head))
+   size = read(fd, (uchar *)pHead, sizeof(*pHead));
+   if (size == sizeof(*pHead))
    {
-      if ( (strncmp(head.magic, MAGIC_STR, MAGIC_STR_LEN) == 0) &&
-           (head.dumpVersion <= DUMP_VERSION) &&
-           (head.dumpVersion >= DUMP_COMPAT) &&
-           ((cni == RELOAD_ANY_CNI) || (head.cni == cni)) )
+      if ( (strncmp(pHead->magic, MAGIC_STR, MAGIC_STR_LEN) == 0) &&
+           (pHead->dumpVersion <= DUMP_VERSION) &&
+           (pHead->dumpVersion >= DUMP_COMPAT) &&
+           ((cni == RELOAD_ANY_CNI) || (pHead->cni == cni)) )
       {
-         *pPageNo = head.pageNo;
-         *pFreq   = head.tunerFreq;
          result = TRUE;
       }
    }
@@ -464,6 +465,7 @@ static bool EpgDbReloadHeader( uint cni, int fd, uint *pPageNo, ulong *pFreq )
 //
 bool EpgDbReload( PDBC dbc, uint cni )
 {
+   EPGDBSAV_HEADER head;
    EPGDB_BLOCK *pPrevNetwop[MAX_NETWOP_COUNT];
    EPGDB_BLOCK *pPrevGeneric[BLOCK_TYPE_GENERIC_COUNT];
    EPGDB_BLOCK *pBlock;
@@ -471,6 +473,7 @@ bool EpgDbReload( PDBC dbc, uint cni )
    size_t size;
    int fd;
    uchar * pFilename;
+   ulong piStartOff;
    bool result = FALSE;
 
    if ( EpgDbIsLocked(dbc) == FALSE )
@@ -479,13 +482,36 @@ bool EpgDbReload( PDBC dbc, uint cni )
            (dbc->pBiBlock == NULL) &&
            (dbc->pFirstPi == NULL) )
       {
-         pFilename = xmalloc(strlen(dbdir) + 1 + DUMP_NAME_MAX);
-         sprintf(pFilename, "%s/" DUMP_NAME_FMT, dbdir, cni);
+         if (pDemoDatabase == NULL)
+         {  // append database file name to db directory (from -dbdir argument)
+            pFilename = xmalloc(strlen(dbdir) + 1 + DUMP_NAME_MAX);
+            sprintf(pFilename, "%s/" DUMP_NAME_FMT, dbdir, cni);
+         }
+         else
+         {  // demo mode: database file name is taken from command line argument
+            // CNI function parameter is ignored
+            pFilename = xmalloc(strlen(pDemoDatabase) + 1);
+            strcpy(pFilename, pDemoDatabase);
+            cni = RELOAD_ANY_CNI;
+         }
+
          fd = open(pFilename, O_RDONLY|O_BINARY);
          if (fd >= 0)
          {
-            if (EpgDbReloadHeader(cni, fd, &dbc->pageNo, &dbc->tunerFreq))
+            if (EpgDbReloadHeader(cni, fd, &head))
             {
+               dbc->pageNo      = head.pageNo;
+               dbc->tunerFreq   = head.tunerFreq;
+
+               if (pDemoDatabase != NULL)
+               {  // demo mode: shift all PI in time to the current time and future
+                  piStartOff = time(NULL) - head.dumpDate;
+                  piStartOff -= piStartOff % (60*60L);
+                  //printf("off=%lu = now=%lu - dump (= %lu=%s)\n", piStartOff, time(NULL), head.dumpDate, ctime(&head.dumpDate));
+               }
+               else
+                  piStartOff = 0;
+
                memset(pPrevNetwop, 0, sizeof(pPrevNetwop));
                memset(pPrevGeneric, 0, sizeof(pPrevGeneric));
 
@@ -509,6 +535,8 @@ bool EpgDbReload( PDBC dbc, uint cni )
                               break;
 
                            case BLOCK_TYPE_PI:
+                              ((PI_BLOCK*)&pBlock->blk.pi)->start_time += piStartOff;
+                              ((PI_BLOCK*)&pBlock->blk.pi)->stop_time  += piStartOff;
                               EpgDbReloadAddPiBlock(dbc, pBlock, pPrevNetwop);
                               break;
 
@@ -549,6 +577,7 @@ bool EpgDbReload( PDBC dbc, uint cni )
 //
 const EPGDBSAV_PEEK * EpgDbPeek( uint cni )
 {
+   EPGDBSAV_HEADER head;
    EPGDBSAV_PEEK *pPeek;
    EPGDB_BLOCK *pBlock;
    uchar buffer[BLK_UNION_OFF];
@@ -563,10 +592,12 @@ const EPGDBSAV_PEEK * EpgDbPeek( uint cni )
    if (fd >= 0)
    {
       pPeek = (EPGDBSAV_PEEK *) xmalloc(sizeof(EPGDBSAV_PEEK));
-      if (EpgDbReloadHeader(cni, fd, &pPeek->pageNo, &pPeek->tunerFreq))
+      if (EpgDbReloadHeader(cni, fd, &head))
       {
-         pPeek->pBiBlock = NULL;
-         pPeek->pAiBlock = NULL;
+         pPeek->pageNo    = head.pageNo;
+         pPeek->tunerFreq = head.tunerFreq;
+         pPeek->pBiBlock  = NULL;
+         pPeek->pAiBlock  = NULL;
          while ((size = read(fd, buffer, BLK_UNION_OFF)) == BLK_UNION_OFF)
          {
             pBlock = (EPGDB_BLOCK *) xmalloc(((EPGDB_BLOCK *)buffer)->size + BLK_UNION_OFF);

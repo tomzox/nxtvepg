@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgmain.c,v 1.34 2000/10/15 18:45:57 tom Exp tom $
+ *  $Id: epgmain.c,v 1.34.1.1 2000/11/16 21:24:47 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -87,6 +87,7 @@ static uchar videoCardPostfix = '\0';
 static bool disableAcq = FALSE;
 static bool startIconified = FALSE;
 static uint startUiCni = 0;
+       const char *pDemoDatabase = NULL;
 
 sint lto = 0;
 
@@ -250,9 +251,10 @@ static void Usage( const char *argv0, const char *argvn, const char * reason )
                    "       -iconic              : iconify window\n"
                    "       -rcfile <path>       : path and file name of setup file\n"
                    "       -dbdir <path>        : directory where to store databases\n"
-                   "       -card <digit>        : index of TV card (1-4)\n"
+                   "       -card <digit>        : index of TV card for acq\n"
                    "       -provider <cni>      : network id of EPG provider (hex)\n"
-                   "       -noacq               : disable acquisition\n",
+                   "       -noacq               : disable acquisition\n"
+                   "       -demo <db-file>      : load database in demo mode\n",
                    argv0, reason, argvn);
    exit(1);
 }
@@ -326,6 +328,21 @@ static void ParseArgv( int argc, char * argv[] )
             }
             else
                Usage(argv[0], argv[argIdx], "missing provider cni after");
+         }
+         else if (!strcmp(argv[argIdx], "-demo"))
+         {
+            if (argIdx + 1 < argc)
+            {  // save file name of demo database
+               pDemoDatabase = argv[argIdx + 1];
+               if (stat(pDemoDatabase, &st) != 0)
+               {
+                  perror("demo database");
+                  exit(-1);
+               }
+               argIdx += 2;
+            }
+            else
+               Usage(argv[0], argv[argIdx], "missing database file name after");
          }
          else if ( !strcmp(argv[argIdx], "-iconic") )
          {  // start with iconified main window
@@ -469,24 +486,38 @@ int main( int argc, char *argv[] )
       }
    }
 
-   if (startUiCni == 0)
-   {
-      uint iniCni;
-      if ( (eval_check(interp, "lindex $prov_selection 0") == TCL_OK) &&
-           (sscanf(interp->result, "0x%04X", &iniCni) == 1) )
+   if (pDemoDatabase != NULL)
+   {  // demo mode -> open the db given by -demo cmd line arg
+      if (EpgAcqCtl_OpenDb(DB_TARGET_UI, 0x00f1) == FALSE)  //CNI is dummy
       {
-         startUiCni = iniCni;
-         // update rc/ini file with new CNI order
-         sprintf(comm, "UpdateProvSelection 0x%04X\n", iniCni);
+         sprintf(comm, "tk_messageBox -type ok -icon error "
+                       "-message {Failed to open the demo database - abort}\n");
+         eval_check(interp, comm);
+         exit(0);
+      }
+      disableAcq = TRUE;
+   }
+   else
+   {
+      if (startUiCni == 0)
+      {
+         uint iniCni;
+         if ( (eval_check(interp, "lindex $prov_selection 0") == TCL_OK) &&
+              (sscanf(interp->result, "0x%04X", &iniCni) == 1) )
+         {
+            startUiCni = iniCni;
+            // update rc/ini file with new CNI order
+            sprintf(comm, "UpdateProvSelection 0x%04X\n", iniCni);
+            eval_check(interp, comm);
+         }
+      }
+      if ( (EpgAcqCtl_OpenDb(DB_TARGET_UI, startUiCni) == FALSE) && (startUiCni != 0) )
+      {
+         sprintf(comm, "tk_messageBox -type ok -icon error "
+                       "-message {Failed to open the database of the requested provider 0x%04X. "
+                       "Please use the Configure menu to choose a different one.}\n", startUiCni);
          eval_check(interp, comm);
       }
-   }
-   if ( (EpgAcqCtl_OpenDb(DB_TARGET_UI, startUiCni) == FALSE) && (startUiCni != 0) )
-   {
-      sprintf(comm, "tk_messageBox -type ok -icon error "
-                    "-message {Failed to open the database of the requested provider 0x%04X. "
-                    "Please use the Configure menu to choose a different one.}\n", startUiCni);
-      eval_check(interp, comm);
    }
 
    // initialize the GUI control modules
