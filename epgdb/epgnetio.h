@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgnetio.h,v 1.15 2002/02/13 21:02:50 tom Exp tom $
+ *  $Id: epgnetio.h,v 1.16 2002/03/29 17:33:26 tom Exp $
  */
 
 #ifndef __EPGNETIO_H
@@ -25,7 +25,9 @@
 #include "epgdb/epgtscqueue.h"
 #include "epgdb/epgdbmerge.h"
 
-#define PROTOCOL_COMPAT   EPG_VERSION_TO_INT(0,7,0)
+#define PROTOCOL_COMPAT          EPG_VERSION_TO_INT(0,7,1)
+#define PROTOCOL_ENDIAN_MAGIC    0xAA55
+#define PROTOCOL_WRONG_ENDIAN    (((PROTOCOL_ENDIAN_MAGIC>>8)&0xFF)|((PROTOCOL_ENDIAN_MAGIC&0xFF)<<8))
 
 
 #ifdef WIN32
@@ -43,7 +45,8 @@ typedef int ssize_t;
 #endif
 
 // ----------------------------------------------------------------------------
-// Declaration of the IO state struct
+// Declaration of message IDs and the common header struct
+// - the actual message structs are declared in the upper layers
 
 typedef enum
 {
@@ -63,9 +66,13 @@ typedef enum
 
 typedef struct
 {
-   ushort             len;
-   EPGNETIO_MSG_TYPE  type;
+   uint16_t  len;
+   uint8_t   type;
+   uint8_t   reserved;
 } EPGNETIO_MSG_HEADER;
+
+// ----------------------------------------------------------------------------
+// Declaration of the IO state struct
 
 typedef struct
 {

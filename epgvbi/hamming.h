@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: hamming.h,v 1.6 2001/02/25 15:59:43 tom Exp tom $
+ *  $Id: hamming.h,v 1.7 2002/03/29 16:13:05 tom Exp tom $
  */
 
 #ifndef __HAMMING_H
@@ -117,8 +117,8 @@ EXT const uchar parityTab[256]
 // ----------------------------------------------------------------------------
 // declaration of service interface functions
 //
-#define UnHam84Nibble(P,V) (( *(V) = (schar)unhamtab[(uint)*(P)] ) >= 0 )
-#define UnHam84Byte(P,V)   (( *(V) = ((sint)unhamtab[(uint)*(P)] | ((sint)unhamtab[(uint)*((P)+1)] << 4)) ) >= 0 )
+#define UnHam84Nibble(P,V) (( *(V) = (schar)unhamtab[*((uchar *)(P))] ) >= 0 )
+#define UnHam84Byte(P,V)   (( *(V) = ((sint)unhamtab[*((uchar *)(P))] | ((sint)unhamtab[*(((uchar *)(P))+1)] << 4)) ) >= 0 )
 
 bool UnHam84Array( uchar *pin, uint byteCount );
 ushort UnHamParityArray( const uchar *pin, uchar *pout, uint byteCount );

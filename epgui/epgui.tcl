@@ -21,7 +21,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: epgui.tcl,v 1.150 2002/02/28 19:11:34 tom Exp tom $
+#  $Id: epgui.tcl,v 1.156 2002/05/05 20:50:17 tom Exp tom $
 #
 
 set is_unix [expr [string compare $tcl_platform(platform) "unix"] == 0]
@@ -109,7 +109,7 @@ proc CreateMainWindow {} {
    bind      .all.pi.list.text <Home>  {C_PiListBox_Scroll moveto 0.0; C_PiListBox_SelectItem 0}
    bind      .all.pi.list.text <End>   {C_PiListBox_Scroll moveto 1.0; C_PiListBox_Scroll scroll 1 pages}
    bind      .all.pi.list.text <Enter> {focus %W}
-   .all.pi.list.text tag configure sel -foreground black -relief raised -borderwidth 1
+   .all.pi.list.text tag configure cur -foreground black -relief raised -borderwidth 1
    .all.pi.list.text tag configure now -background #c9c9df
    .all.pi.list.text tag configure past -background #dfc9c9
    .all.pi.list.text tag lower now
@@ -191,10 +191,8 @@ proc CreateMenubar {} {
    # Control menu
    menu .menubar.ctrl -tearoff 0 -postcommand C_SetControlMenuStates
    .menubar.ctrl add checkbutton -label "Enable acquisition" -variable menuStatusStartAcq -command {C_ToggleAcq $menuStatusStartAcq $menuStatusDaemon}
-   if {$is_unix} {
-      .menubar.ctrl add checkbutton -label "Connect to acq. daemon" -variable menuStatusDaemon -command {C_ToggleAcq $menuStatusStartAcq $menuStatusDaemon}
-      .menubar.ctrl add separator
-   }
+   .menubar.ctrl add checkbutton -label "Connect to acq. daemon" -variable menuStatusDaemon -command {C_ToggleAcq $menuStatusStartAcq $menuStatusDaemon}
+   .menubar.ctrl add separator
    .menubar.ctrl add checkbutton -label "Dump stream" -variable menuStatusDumpStream -command {C_ToggleDumpStream $menuStatusDumpStream}
    .menubar.ctrl add command -label "Dump raw database..." -command PopupDumpDatabase
    .menubar.ctrl add command -label "Dump in HTML..." -command PopupDumpHtml
@@ -213,6 +211,7 @@ proc CreateMenubar {} {
    .menubar.config add separator
    .menubar.config add command -label "Provider scan..." -command PopupEpgScan
    .menubar.config add command -label "TV card input..." -command PopupHardwareConfig
+   .menubar.config add command -label "TV app. interaction..." -command XawtvConfigPopup
    .menubar.config add command -label "Client/Server..." -command PopupNetAcqConfig
    #.menubar.config add command -label "Time zone..." -command PopupTimeZone
    .menubar.config add separator
@@ -378,29 +377,27 @@ proc GenerateFilterMenues {tcc fcc} {
 }
 
 ##  ---------------------------------------------------------------------------
-##  Create the button for xawtv control and it's popup menu
+##  Create the button for TV app control and it's popup menu
 ##
 proc CreateTuneTvButton {} {
    global is_unix
 
-   if {$is_unix} {
-      if {[string length [info commands .all.shortcuts.tune]] == 0} {
-         button .all.shortcuts.tune -text "Tune TV" -relief ridge -command TuneTV
-         bind   .all.shortcuts.tune <Button-3> {TuneTvPopupMenu 1 %x %y}
+   if {[string length [info commands .all.shortcuts.tune]] == 0} {
+      button .all.shortcuts.tune -text "Tune TV" -relief ridge -command TuneTV
+      bind   .all.shortcuts.tune <Button-3> {TuneTvPopupMenu 1 %x %y}
 
-         menu .tunetvcfg -tearoff 0
-         .tunetvcfg add command -label "Start Capturing" -command {C_Xawtv_SendCmd capture on}
-         .tunetvcfg add command -label "Stop Capturing" -command {C_Xawtv_SendCmd capture off}
-         .tunetvcfg add command -label "Toggle mute" -command {C_Xawtv_SendCmd volume mute}
-         .tunetvcfg add separator
-         .tunetvcfg add command -label "Toggle TV station" -command {C_Xawtv_SendCmd setstation back}
-         .tunetvcfg add command -label "Next TV station" -command {C_Xawtv_SendCmd setstation next}
-         .tunetvcfg add command -label "Previous TV station" -command {C_Xawtv_SendCmd setstation prev}
-      }
+      menu .tunetvcfg -tearoff 0
+      .tunetvcfg add command -label "Start Capturing" -command {C_Tvapp_SendCmd capture on}
+      .tunetvcfg add command -label "Stop Capturing" -command {C_Tvapp_SendCmd capture off}
+      .tunetvcfg add command -label "Toggle mute" -command {C_Tvapp_SendCmd volume mute}
+      .tunetvcfg add separator
+      .tunetvcfg add command -label "Toggle TV station" -command {C_Tvapp_SendCmd setstation back}
+      .tunetvcfg add command -label "Next TV station" -command {C_Tvapp_SendCmd setstation next}
+      .tunetvcfg add command -label "Previous TV station" -command {C_Tvapp_SendCmd setstation prev}
+   }
 
-      if {[lsearch -exact [pack slaves .all.shortcuts] .all.shortcuts.tune] == -1} {
-         pack .all.shortcuts.tune -side top -fill x -before .all.shortcuts.reset
-      }
+   if {[lsearch -exact [pack slaves .all.shortcuts] .all.shortcuts.tune] == -1} {
+      pack .all.shortcuts.tune -side top -fill x -before .all.shortcuts.reset
    }
 }
 
@@ -1589,19 +1586,20 @@ proc ShortInfoResized {} {
 ##  --------------------------------------------------------------------------
 ##  Tune the station of the currently selected programme
 ##  - callback command of the "Tune TV" button in the main window
-##  - pops up a warning if network names have not been sync'ed with xawtv yet.
+##  - pops up a warning if network names have not been sync'ed with TV app yet.
 ##    this popup is shown just once after each program start.
 ##
 proc TuneTV {} {
+   global tvapp_name
    global tunetv_msg_nocfg
    global cfnetnames
 
-   # warn if network names have not been sync'ed with xawtv yet
+   # warn if network names have not been sync'ed with TV app yet
    if {![array exists cfnetnames] && ![info exists tunetv_msg_nocfg]} {
       set tunetv_msg_nocfg 1
 
       set answer [tk_messageBox -type okcancel -default ok -icon info \
-                     -message "Please synchronize the nextwork names with xawtv in the Network Name Configuration dialog. You need to do this just once."]
+                     -message "Please synchronize the nextwork names with $tvapp_name in the Network Name Configuration dialog. You need to do this just once."]
       if {[string compare $answer "ok"] == 0} {
          # invoke the network name configuration dialog
          NetworkNamingPopup
@@ -1619,7 +1617,7 @@ proc TuneTV {} {
       } else {
          set name [lindex $selnet 1]
       }
-      C_Xawtv_SendCmd "setstation" $name
+      C_Tvapp_SendCmd "setstation" $name
    }
 }
 
@@ -2360,7 +2358,7 @@ proc PopupHelp {index {subheading {}}} {
 
       frame  .help.disp
       text   .help.disp.text -width 60 -wrap word -setgrid true -background #ffd840 \
-                             -font $textfont -spacing3 6 \
+                             -font $textfont -spacing3 6 -cursor arrow \
                              -yscrollcommand {.help.disp.sb set}
       pack   .help.disp.text -side left -fill both -expand 1
       scrollbar .help.disp.sb -orient vertical -command {.help.disp.text yview}
@@ -2372,7 +2370,7 @@ proc PopupHelp {index {subheading {}}} {
       .help.disp.text tag configure bold -font $font_bold
       .help.disp.text tag configure underlined -underline 1
       .help.disp.text tag configure href -underline 1 -foreground blue
-      .help.disp.text tag bind href <Button-1> {FollowHelpHyperlink}
+      .help.disp.text tag bind href <ButtonRelease-1> {FollowHelpHyperlink}
 
       # allow to scroll the text with the cursor keys
       bindtags .help.disp.text {.help.disp.text . all}
@@ -2418,9 +2416,16 @@ proc PopupHelp {index {subheading {}}} {
 
    # bring the given subheading into view
    if {[string length $subheading] != 0} {
-      set subheading [.help.disp.text search -- $subheading 1.0]
-      if {[string length $subheading] != 0} {
-         .help.disp.text see $subheading
+      # search for the string at the beginning of the line only (prevents matches on hyperlinks)
+      append pattern {^} $subheading
+      set idx_match [.help.disp.text search -regexp -- $pattern 1.0]
+      if {[string length $idx_match] != 0} {
+         .help.disp.text see $idx_match
+         # make sure the header is at the top of the page
+         if {[scan [.help.disp.text bbox $idx_match] "%d %d %d %d" x y w h] == 4} {
+            .help.disp.text yview scroll [expr int($y / $h)] units
+            .help.disp.text see $idx_match
+         }
       }
    }
 }
@@ -2437,8 +2442,15 @@ proc FollowHelpHyperlink {} {
    # cut out the text in that range
    set hlink [eval [concat .help.disp.text get $range]]
 
+   # check if the text contains a sub-section specification
+   if {[regexp {(.*): *(.*)} $hlink dummy sect subsect]} {
+      set hlink $sect
+   } else {
+      set subsect {}
+   }
+
    if {[info exists helpIndex($hlink)]} {
-      PopupHelp $helpIndex($hlink)
+      PopupHelp $helpIndex($hlink) $subsect
    }
 }
 
@@ -2460,7 +2472,7 @@ proc CreateAbout {} {
       #label .about.tcl_version -text " Tcl/Tk version $tcl_patchLevel"
       #pack .about.tcl_version -side top
 
-      label .about.copyr1 -text "Copyright © 1999, 2000, 2001 by Tom Zörner"
+      label .about.copyr1 -text "Copyright © 1999, 2000, 2001, 2002 by Tom Zörner"
       label .about.copyr2 -text "tomzo@nefkom.net"
       label .about.copyr3 -text "http://nxtvepg.tripod.com/" -font $font_fixed -foreground blue
       pack .about.copyr1 .about.copyr2 -side top
@@ -2642,11 +2654,12 @@ set epgscan_popup 0
 set epgscan_timeout 2
 set epgscan_opt_slow 0
 set epgscan_opt_refresh 0
-set epgscan_opt_xawtv $is_unix
+set epgscan_opt_xawtv 1
 
 proc PopupEpgScan {} {
    global hwcfg hwcfg_default is_unix env
    global prov_freqs
+   global tvapp_name
    global epgscan_popup
    global epgscan_opt_slow epgscan_opt_refresh epgscan_opt_xawtv
 
@@ -2703,13 +2716,11 @@ proc PopupEpgScan {} {
       checkbutton .epgscan.all.opt.slow -text "Slow" -variable epgscan_opt_slow -command {C_SetEpgScanSpeed $epgscan_opt_slow}
       checkbutton .epgscan.all.opt.refresh -text "Refresh only" -variable epgscan_opt_refresh
       pack .epgscan.all.opt.slow .epgscan.all.opt.refresh -side left -padx 5
-      if {$is_unix} {
-         checkbutton .epgscan.all.opt.xawtv -text "Use .xawtv" -variable epgscan_opt_xawtv
-         pack .epgscan.all.opt.xawtv -side left -padx 5
-         if {![C_Xawtv_Enabled]} {
-            set epgscan_opt_xawtv 0
-            .epgscan.all.opt.xawtv configure -state disabled
-         }
+      checkbutton .epgscan.all.opt.xawtv -text "Use $tvapp_name freq.table" -variable epgscan_opt_xawtv
+      pack .epgscan.all.opt.xawtv -side left -padx 5
+      if {![C_Tvapp_Enabled]} {
+         set epgscan_opt_xawtv 0
+         .epgscan.all.opt.xawtv configure -state disabled
       }
       pack .epgscan.all.opt -side top -padx 10 -pady 5
 
@@ -2765,9 +2776,7 @@ proc EpgScanButtonControl {is_start} {
       .epgscan.cmd.help configure -state disabled
       .epgscan.cmd.dismiss configure -state disabled
       .epgscan.all.opt.refresh configure -state disabled
-      if {$is_unix} {
-         .epgscan.all.opt.xawtv configure -state disabled
-      }
+      .epgscan.all.opt.xawtv configure -state disabled
    } else {
       # check if the popup window still exists
       if {[string length [info commands .epgscan.cmd]] > 0} {
@@ -2782,7 +2791,7 @@ proc EpgScanButtonControl {is_start} {
          if {[llength $prov_freqs] > 0} {
             .epgscan.all.opt.refresh configure -state normal
          }
-         if {$is_unix && [C_Xawtv_Enabled]} {
+         if {[C_Tvapp_Enabled]} {
             .epgscan.all.opt.xawtv configure -state normal
          }
       }
@@ -3209,7 +3218,8 @@ proc NetworkNamingPopup {} {
    global netname_ailist netname_names netname_idx netname_xawtv netname_automatch
    global netname_prov_cnis netname_prov_names netname_provnets
    global netname_entry
-   global netname_popup font_fixed is_unix
+   global netname_popup font_fixed
+   global tvapp_name
 
    if {$netname_popup == 0} {
       set netname_popup 1
@@ -3274,15 +3284,11 @@ proc NetworkNamingPopup {} {
       }
 
       # build array with all names from .xawtv rc file
-      if $is_unix {
-         set xawtv_list [C_Xawtv_GetStationNames]
-         foreach name $xawtv_list {
-            set netname_xawtv($name) $name
-            regsub -all -- {[^a-zA-Z0-9]*} $name {} tmp
-            set netname_xawtv([string tolower $tmp]) $name
-         }
-      } else {
-         set xawtv_list {}
+      set xawtv_list [C_Tvapp_GetStationNames]
+      foreach name $xawtv_list {
+         set netname_xawtv($name) $name
+         regsub -all -- {[^a-zA-Z0-9]*} $name {} tmp
+         set netname_xawtv([string tolower $tmp]) $name
       }
 
       # copy or build an array with the currently configured network names
@@ -3340,30 +3346,28 @@ proc NetworkNamingPopup {} {
       trace variable netname_entry w NetworkNameEdited
 
       # second row: xawtv selection
-      if $is_unix {
-         frame .netname.cmd.fx
-         label .netname.cmd.fx.lab -text "In .xawtv:  "
-         pack .netname.cmd.fx.lab -side left -anchor w
-         menubutton .netname.cmd.fx.mb -menu .netname.cmd.fx.mb.men -takefocus 1 \
-                                       -relief raised -borderwidth 2
-         if [array exists netname_xawtv] {
-            menu .netname.cmd.fx.mb.men -tearoff 0
-         } else {
-            .netname.cmd.fx.mb configure -state disabled -text "none"
-         }
-         pack .netname.cmd.fx.mb -side right -anchor e
-         pack .netname.cmd.fx -side top -fill x -pady 5
+      frame .netname.cmd.fx
+      label .netname.cmd.fx.lab -text "In $tvapp_name:  "
+      pack .netname.cmd.fx.lab -side left -anchor w
+      menubutton .netname.cmd.fx.mb -takefocus 1 -relief raised -borderwidth 2
+      if [array exists netname_xawtv] {
+         menu .netname.cmd.fx.mb.men -tearoff 0
+         .netname.cmd.fx.mb configure -menu .netname.cmd.fx.mb.men
+      } else {
+         .netname.cmd.fx.mb configure -state disabled -text "none"
+      }
+      pack .netname.cmd.fx.mb -side right -anchor e
+      pack .netname.cmd.fx -side top -fill x -pady 5
 
-         # third row: closest match
-         frame .netname.cmd.fm
-         label .netname.cmd.fm.lab -text "Closest match: "
-         pack .netname.cmd.fm.lab -side left -anchor w
-         button .netname.cmd.fm.match -command NetworkNameUseMatch
-         pack .netname.cmd.fm.match -side left -anchor e -fill x -expand 1
-         pack .netname.cmd.fm -side top -fill x -pady 5
-         if {![array exists netname_xawtv]} {
-            .netname.cmd.fm.match configure -state disabled -text "none"
-         }
+      # third row: closest match
+      frame .netname.cmd.fm
+      label .netname.cmd.fm.lab -text "Closest match: "
+      pack .netname.cmd.fm.lab -side left -anchor w
+      button .netname.cmd.fm.match -command NetworkNameUseMatch
+      pack .netname.cmd.fm.match -side left -anchor e -fill x -expand 1
+      pack .netname.cmd.fm -side top -fill x -pady 5
+      if {![array exists netname_xawtv]} {
+         .netname.cmd.fm.match configure -state disabled -text "none"
       }
 
       # fourth row: network description
@@ -3391,7 +3395,7 @@ proc NetworkNamingPopup {} {
       bind .netname.cmd <Destroy> {+ set netname_popup 0}
       focus .netname.cmd.myname
 
-      if {$is_unix && [array exists netname_xawtv]} {
+      if {[array exists netname_xawtv]} {
          # insert xawtv station names to popup menu & measure max. name width
          set mbfont [.netname.cmd.fx.mb cget -font]
          set mbwidth 0
@@ -3481,9 +3485,8 @@ proc NetworkNameSaveEntry {} {
 # callback (variable trace) for change in the entry field
 proc NetworkNameEdited {trname trops trcmd} {
    global netname_entry netname_ailist netname_idx netname_names netname_xawtv
-   global is_unix
 
-   if { $is_unix && [array exists netname_xawtv]} {
+   if {[array exists netname_xawtv]} {
 
       if {$netname_idx != -1} {
          set cni [lindex $netname_ailist $netname_idx]
@@ -3520,7 +3523,6 @@ proc NetworkNameSelection {} {
    global netname_ailist netname_names netname_idx netname_xawtv
    global netname_prov_cnis netname_prov_names netname_provnets netname_provlist
    global netname_entry
-   global is_unix
 
    set sel [.netname.list.ailist curselection]
    if {([string length $sel] > 0) && ($sel < [llength $netname_ailist]) && ($sel != $netname_idx)} {
@@ -3533,8 +3535,8 @@ proc NetworkNameSelection {} {
       set cni [lindex $netname_ailist $netname_idx]
       set netname_entry $netname_names($cni)
 
-      # display the matched name in the .xawtv file
-      if {$is_unix && [array exists netname_xawtv]} {
+      # display the matched name in the TV app's channel table
+      if {[array exists netname_xawtv]} {
          if {[info exists netname_xawtv($netname_names($cni))]} {
             .netname.cmd.fx.mb configure -text $netname_xawtv($netname_names($cni))
             .netname.cmd.fm.match configure -text "$netname_xawtv($netname_names($cni))" -foreground black
@@ -3589,12 +3591,9 @@ proc NetworkNameProvSelection {} {
 # callback for selection of a name in the xawtv menu
 proc NetworkNameXawtvSelection {name} {
    global netname_entry netname_idx
-   global is_unix
 
    set netname_entry $name
-   if $is_unix {
-      .netname.cmd.fx.mb configure -text $name
-   }
+   .netname.cmd.fx.mb configure -text $name
    .netname.list.ailist delete $netname_idx
    .netname.list.ailist insert $netname_idx $netname_entry
    .netname.list.ailist selection set $netname_idx
@@ -3687,13 +3686,13 @@ proc NetworkNamesAbort {} {
    destroy .netname
 }
 
-# check if a user-define or auto-matched name is equivalent to .xawtv
+# check if a user-define or auto-matched name is equivalent to TV app's chhnel table
 proc NetworkNameIsInXawtv {name} {
    global netname_xawtv netname_names
 
    if [array exists netname_xawtv] {
       set result 0
-      # check if the exact or similar (non-alphanums removed) name is known in xawtv
+      # check if the exact or similar (non-alphanums removed) name is known by TV app
       if [info exists netname_xawtv($name)] {
          # check if the name in xawtv is exactly the same
          if {[string compare $name $netname_xawtv($name)] == 0} {
@@ -3701,7 +3700,7 @@ proc NetworkNameIsInXawtv {name} {
          }
       }
    } else {
-      # no .xawtv found -> no checking
+      # no TV app config file found -> no checking
       set result 1
    }
    return $result
@@ -4270,10 +4269,16 @@ proc PopupAcqMode {} {
          set acqmode_names($cni) $name
       }
       set acqmode_ailist [SortProvList $acqmode_ailist]
-      set acqmode_selist $acqmode_ailist
 
       # initialize popup with current settings
       set acqmode_sel $acq_mode
+
+      if {[info exists acq_mode_cnis] && ([llength $acq_mode_cnis] > 0)} {
+         set acqmode_selist $acq_mode_cnis
+         RemoveObsoleteCnisFromList acqmode_selist $acqmode_ailist
+      } else {
+         set acqmode_selist $acqmode_ailist
+      }
 
       # checkbuttons for modes
       frame .acqmode.mode
@@ -4312,7 +4317,6 @@ proc PopupAcqMode {} {
 proc UpdateAcqModePopup {} {
    global acqmode_ailist acqmode_selist acqmode_names
    global acqmode_sel
-   global acq_mode acq_mode_cnis
 
    if {[string compare -length 6 "cyclic" $acqmode_sel] == 0} {
       # manual selection -> add listboxes to allow selection of multiple databases and priority
@@ -4320,12 +4324,6 @@ proc UpdateAcqModePopup {} {
          # listbox does not yet exist
          foreach widget [info commands .acqmode.lb.*] {
             destroy $widget
-         }
-         if {[info exists acq_mode_cnis] && ([llength $acq_mode_cnis] > 0)} {
-            set acqmode_selist $acq_mode_cnis
-            RemoveObsoleteCnisFromList acqmode_selist $acqmode_ailist
-         } else {
-            set acqmode_selist $acqmode_ailist
          }
          SelBoxCreate .acqmode.lb acqmode_ailist acqmode_selist acqmode_names
       }
@@ -4389,7 +4387,7 @@ proc PiListBox_PrintHelpHeader {text} {
    .all.pi.list.text insert end "Nextview EPG\n" bold24Tag
    .all.pi.list.text insert end "An Electronic TV Programme Guide for Your PC\n" bold16Tag
    .all.pi.list.text window create end -window .all.pi.list.text.nxtvlogo
-   .all.pi.list.text insert end "\n\nCopyright © 1999, 2000, 2001 by Tom Zörner\n" bold12Tag
+   .all.pi.list.text insert end "\n\nCopyright © 1999, 2000, 2001, 2002 by Tom Zörner\n" bold12Tag
    .all.pi.list.text insert end "tomzo@nefkom.net\n\n" bold12Tag
    .all.pi.list.text tag add centerTag 1.0 {end - 1 lines}
    .all.pi.list.text insert end "This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License Version 2 as published by the Free Software Foundation. This program is distributed in the hope that it will be useful, but without any warranty. See the GPL2 for more details.\n\n" wrapTag
@@ -4397,8 +4395,9 @@ proc PiListBox_PrintHelpHeader {text} {
    .all.pi.list.text insert end $text {wrapTag redTag}
 }
 
+
 ##  --------------------------------------------------------------------------
-##  TV card hardware configuration popup (Win-32 only)
+##  TV card hardware configuration popup
 ##  - Tuner
 ##  - PLL init 0/1
 ##  - thread priority normal/high/real-time
@@ -4406,14 +4405,21 @@ proc PiListBox_PrintHelpHeader {text} {
 ##  - frequency table index (Western Europe/France)
 ##
 set hwcfg_default {0 0 0 0 0 0}
+set hwcf_dsdrv_log 0
 set hwcfg_popup 0
 
+set hwcfg_tvapp_idx 0
+set hwcfg_tvapp_path {}
+
 proc PopupHardwareConfig {} {
-   global is_unix
+   global is_unix fileImage
    global hwcfg_input_sel
    global hwcfg_tuner_sel hwcfg_tuner_list hwcfg_card_list
    global hwcfg_pll_sel hwcfg_prio_sel hwcfg_cardidx_sel hwcfg_ftable_sel
    global hwcfg_popup hwcfg hwcfg_default
+   global hwcfg_tmp_tvapp_list hwcfg_tmp_tvapp_idx hwcfg_tmp_tvapp_path
+   global hwcfg_tvapp_path hwcfg_tvapp_idx
+   global hwcf_dsdrv_log
 
    if {$hwcfg_popup == 0} {
       if {$is_unix && [IsNetAcqMode]} {
@@ -4439,80 +4445,150 @@ proc PopupHardwareConfig {} {
       set hwcfg_cardidx_sel [lindex $hwcfg 4]
       set hwcfg_ftable_sel [lindex $hwcfg 5]
 
+      if {!$is_unix} {
+         set hwcfg_tmp_tvapp_path $hwcfg_tvapp_path
+         set hwcfg_tmp_tvapp_idx $hwcfg_tvapp_idx
+         set hwcfg_tmp_tvapp_list [C_Tvapp_GetTvappList]
+
+         # create TV app selection popdown menu and "Load config" command button
+         frame .hwcfg.opt1 -borderwidth 1 -relief raised
+         label  .hwcfg.opt1.lab -text "Select a TV application from which the\nTV card configuration can be copied:" -justify left
+         pack   .hwcfg.opt1.lab -side top -anchor w -padx 5
+
+         frame  .hwcfg.opt1.apptype
+         label  .hwcfg.opt1.apptype.lab -text "TV application:"
+         pack   .hwcfg.opt1.apptype.lab -side left -padx 5
+         menubutton .hwcfg.opt1.apptype.mb -text [lindex $hwcfg_tmp_tvapp_list $hwcfg_tmp_tvapp_idx] \
+                         -justify center -relief raised -borderwidth 2 -menu .hwcfg.opt1.apptype.mb.men \
+                         -indicatoron 1
+         menu  .hwcfg.opt1.apptype.mb.men -tearoff 0
+         set cmd {.hwcfg.opt1.apptype.mb configure -text [lindex $hwcfg_tmp_tvapp_list $hwcfg_tmp_tvapp_idx]}
+         set idx 0
+         foreach name $hwcfg_tmp_tvapp_list {
+            .hwcfg.opt1.apptype.mb.men add radiobutton -label $name \
+                         -variable hwcfg_tmp_tvapp_idx -value $idx \
+                         -command HardwareSetTvappCfg
+            incr idx
+         }
+         pack   .hwcfg.opt1.apptype.mb -side left -padx 10 -fill x -expand 1
+         button .hwcfg.opt1.apptype.load -text "Load config" -command {C_Tvapp_LoadHwConfig $hwcfg_tmp_tvapp_idx $hwcfg_tmp_tvapp_path}
+         pack   .hwcfg.opt1.apptype.load -side right -padx 10 -fill x -expand 1
+         pack   .hwcfg.opt1.apptype -side top -pady 5 -fill x
+
+         # create entry field and command button to configure TV app directory
+         frame .hwcfg.opt1.name
+         label .hwcfg.opt1.name.prompt -text "TV app. directory:"
+         pack .hwcfg.opt1.name.prompt -side left
+         entry .hwcfg.opt1.name.filename -textvariable hwcfg_tmp_tvapp_path -font {courier -12 normal} -width 33
+         pack .hwcfg.opt1.name.filename -side left -padx 5
+         bind .hwcfg.opt1.name.filename <Enter> {focus %W}
+         button .hwcfg.opt1.name.dlgbut -image $fileImage -command {
+            set tmp [tk_chooseDirectory -parent .hwcfg \
+                        -initialdir $hwcfg_tmp_tvapp_path \
+                        -mustexist 1]
+            if {[string length $tmp] > 0} {
+               set hwcfg_tmp_tvapp_path $tmp
+            }
+            unset tmp
+         }
+         pack .hwcfg.opt1.name.dlgbut -side left -padx 5
+         pack .hwcfg.opt1.name -side top -padx 5 -pady 5
+         pack .hwcfg.opt1 -side top -anchor w -fill x
+         # set state and text of the entry field and button
+         HardwareSetTvappCfg
+      }
+
+      frame .hwcfg.opt2 -borderwidth [expr ($is_unix ? 0 : 1)] -relief raised
       # create menu to select video input
-      frame .hwcfg.input
-      label .hwcfg.input.curname -text "Video source: "
-      menubutton .hwcfg.input.mb -text "Configure" -menu .hwcfg.input.mb.menu -relief raised -borderwidth 1
-      menu .hwcfg.input.mb.menu -tearoff 0 -postcommand {PostDynamicMenu .hwcfg.input.mb.menu HardwareCreateInputMenu}
-      pack .hwcfg.input.curname -side left -padx 10 -anchor w -expand 1
-      pack .hwcfg.input.mb -side left -padx 10 -anchor e
-      pack .hwcfg.input -side top -pady 10 -anchor w -fill x
+      frame .hwcfg.opt2.input
+      label .hwcfg.opt2.input.curname -text "Video source: "
+      menubutton .hwcfg.opt2.input.mb -text "Configure" -menu .hwcfg.opt2.input.mb.menu -relief raised -borderwidth 1 -indicatoron 1
+      menu .hwcfg.opt2.input.mb.menu -tearoff 0 -postcommand {PostDynamicMenu .hwcfg.opt2.input.mb.menu HardwareCreateInputMenu}
+      pack .hwcfg.opt2.input.curname -side left -padx 10 -anchor w -expand 1
+      pack .hwcfg.opt2.input.mb -side left -padx 10 -anchor e
+      pack .hwcfg.opt2.input -side top -pady 5 -anchor w -fill x
 
       if {!$is_unix} {
          # create menu for tuner selection
-         frame .hwcfg.tuner
-         label .hwcfg.tuner.curname -text "Tuner: [lindex $hwcfg_tuner_list $hwcfg_tuner_sel]"
-         menubutton .hwcfg.tuner.mb -text "Configure" -menu .hwcfg.tuner.mb.menu -relief raised -borderwidth 1
-         menu .hwcfg.tuner.mb.menu -tearoff 0
+         frame .hwcfg.opt2.tuner
+         label .hwcfg.opt2.tuner.curname -text "Tuner: [lindex $hwcfg_tuner_list $hwcfg_tuner_sel]"
+         menubutton .hwcfg.opt2.tuner.mb -text "Configure" -menu .hwcfg.opt2.tuner.mb.menu -relief raised -borderwidth 1 -indicatoron 1
+         menu .hwcfg.opt2.tuner.mb.menu -tearoff 0
          set idx 0
          foreach name $hwcfg_tuner_list {
-            .hwcfg.tuner.mb.menu add radiobutton -variable hwcfg_tuner_sel -value $idx -label $name \
-                                                 -command {.hwcfg.tuner.curname configure -text "Tuner: [lindex $hwcfg_tuner_list $hwcfg_tuner_sel]"}
+            .hwcfg.opt2.tuner.mb.menu add radiobutton -variable hwcfg_tuner_sel -value $idx -label $name \
+                                                 -command {.hwcfg.opt2.tuner.curname configure -text "Tuner: [lindex $hwcfg_tuner_list $hwcfg_tuner_sel]"}
             incr idx
          }
-         pack .hwcfg.tuner.curname -side left -padx 10 -anchor w -expand 1
-         pack .hwcfg.tuner.mb -side left -padx 10 -anchor e
-         pack .hwcfg.tuner -side top -pady 10 -anchor w -fill x
+         pack .hwcfg.opt2.tuner.curname -side left -padx 10 -anchor w -expand 1
+         pack .hwcfg.opt2.tuner.mb -side left -padx 10 -anchor e
+         pack .hwcfg.opt2.tuner -side top -pady 5 -anchor w -fill x
 
          # create radiobuttons to choose PLL initialization
-         frame .hwcfg.pll
-         radiobutton .hwcfg.pll.pll_none -text "No PLL" -variable hwcfg_pll_sel -value 0
-         radiobutton .hwcfg.pll.pll_28 -text "PLL 28 MHz" -variable hwcfg_pll_sel -value 1
-         radiobutton .hwcfg.pll.pll_35 -text "PLL 35 MHz" -variable hwcfg_pll_sel -value 2
-         pack .hwcfg.pll.pll_none .hwcfg.pll.pll_28 .hwcfg.pll.pll_35 -side left
-         pack .hwcfg.pll -side top -padx 10 -anchor w
+         frame .hwcfg.opt2.pll
+         radiobutton .hwcfg.opt2.pll.pll_none -text "No PLL" -variable hwcfg_pll_sel -value 0
+         radiobutton .hwcfg.opt2.pll.pll_28 -text "PLL 28 MHz" -variable hwcfg_pll_sel -value 1
+         radiobutton .hwcfg.opt2.pll.pll_35 -text "PLL 35 MHz" -variable hwcfg_pll_sel -value 2
+         pack .hwcfg.opt2.pll.pll_none .hwcfg.opt2.pll.pll_28 .hwcfg.opt2.pll.pll_35 -side left
+         pack .hwcfg.opt2.pll -side top -padx 10 -anchor w
+         pack .hwcfg.opt2 -side top -fill x
+
+         # create menu or checkbuttons to select TV card
+         frame .hwcfg.opt3 -borderwidth 1 -relief raised
+         frame .hwcfg.opt3.card
+         label .hwcfg.opt3.card.label -text "TV card: "
+         pack .hwcfg.opt3.card.label -side left -padx 10
+         radiobutton .hwcfg.opt3.card.idx0 -text "0" -variable hwcfg_cardidx_sel -value 0 -command HardwareConfigCard
+         radiobutton .hwcfg.opt3.card.idx1 -text "1" -variable hwcfg_cardidx_sel -value 1 -command HardwareConfigCard
+         radiobutton .hwcfg.opt3.card.idx2 -text "2" -variable hwcfg_cardidx_sel -value 2 -command HardwareConfigCard
+         radiobutton .hwcfg.opt3.card.idx3 -text "3" -variable hwcfg_cardidx_sel -value 3 -command HardwareConfigCard
+         pack .hwcfg.opt3.card.idx0 .hwcfg.opt3.card.idx1 .hwcfg.opt3.card.idx2 .hwcfg.opt3.card.idx3 -side left
+         pack .hwcfg.opt3.card -side top -anchor w -pady 5
 
          # create checkbuttons to select acquisition priority
-         frame .hwcfg.prio
-         label .hwcfg.prio.label -text "Priority:"
-         radiobutton .hwcfg.prio.normal -text "normal" -variable hwcfg_prio_sel -value 0
-         radiobutton .hwcfg.prio.high   -text "high" -variable hwcfg_prio_sel -value 1
-         radiobutton .hwcfg.prio.crit   -text "real-time" -variable hwcfg_prio_sel -value 2
-         pack .hwcfg.prio.label -side left -padx 10
-         pack .hwcfg.prio.normal .hwcfg.prio.high .hwcfg.prio.crit -side left
-         pack .hwcfg.prio -side top -anchor w
+         frame .hwcfg.opt3.prio
+         label .hwcfg.opt3.prio.label -text "Priority:"
+         radiobutton .hwcfg.opt3.prio.normal -text "normal" -variable hwcfg_prio_sel -value 0
+         radiobutton .hwcfg.opt3.prio.high   -text "high" -variable hwcfg_prio_sel -value 1
+         radiobutton .hwcfg.opt3.prio.crit   -text "real-time" -variable hwcfg_prio_sel -value 2
+         pack .hwcfg.opt3.prio.label -side left -padx 10
+         pack .hwcfg.opt3.prio.normal .hwcfg.opt3.prio.high .hwcfg.opt3.prio.crit -side left
+         pack .hwcfg.opt3.prio -side top -anchor w
+      } else {
+         pack .hwcfg.opt2 -side top -fill x
+         frame .hwcfg.opt3
       }
 
       # create checkbuttons to select frequency table
-      frame .hwcfg.ftable
-      label .hwcfg.ftable.label -text "Frequency table:"
-      radiobutton .hwcfg.ftable.tab0 -text "Western Europe" -variable hwcfg_ftable_sel -value 0
-      radiobutton .hwcfg.ftable.tab1 -text "France" -variable hwcfg_ftable_sel -value 1
-      pack .hwcfg.ftable.label -side left -padx 10
-      pack .hwcfg.ftable.tab0 .hwcfg.ftable.tab1 -side left
-      pack .hwcfg.ftable -side top -anchor w
+      frame .hwcfg.opt3.ftable
+      label .hwcfg.opt3.ftable.label -text "Frequency table:"
+      radiobutton .hwcfg.opt3.ftable.tab0 -text "Western Europe" -variable hwcfg_ftable_sel -value 0
+      radiobutton .hwcfg.opt3.ftable.tab1 -text "France" -variable hwcfg_ftable_sel -value 1
+      pack .hwcfg.opt3.ftable.label -side left -padx 10
+      pack .hwcfg.opt3.ftable.tab0 .hwcfg.opt3.ftable.tab1 -side left
+      pack .hwcfg.opt3.ftable -side top -anchor w
 
-      # create menu or checkbuttons to select TV card
-      frame .hwcfg.card
-      label .hwcfg.card.label -text "TV card: "
-      pack .hwcfg.card.label -side left -padx 10
-      if {!$is_unix} {
-         radiobutton .hwcfg.card.idx0 -text "0" -variable hwcfg_cardidx_sel -value 0 -command HardwareConfigCard
-         radiobutton .hwcfg.card.idx1 -text "1" -variable hwcfg_cardidx_sel -value 1 -command HardwareConfigCard
-         radiobutton .hwcfg.card.idx2 -text "2" -variable hwcfg_cardidx_sel -value 2 -command HardwareConfigCard
-         radiobutton .hwcfg.card.idx3 -text "3" -variable hwcfg_cardidx_sel -value 3 -command HardwareConfigCard
-         pack .hwcfg.card.idx0 .hwcfg.card.idx1 .hwcfg.card.idx2 .hwcfg.card.idx3 -side left
-      } else {
-         menubutton .hwcfg.card.mb -text "Configure" -menu .hwcfg.card.mb.menu -relief raised -borderwidth 1
-         menu .hwcfg.card.mb.menu -tearoff 0
-         pack .hwcfg.card.mb -side left -padx 10 -anchor e
+      # create menu to select TV card
+      if {$is_unix} {
+         frame .hwcfg.opt3.card
+         label .hwcfg.opt3.card.label -text "TV card: "
+         pack .hwcfg.opt3.card.label -side left -padx 10
+
+         menubutton .hwcfg.opt3.card.mb -text "Configure" -menu .hwcfg.opt3.card.mb.menu -relief raised -borderwidth 1 -indicatoron 1
+         menu .hwcfg.opt3.card.mb.menu -tearoff 0
+         pack .hwcfg.opt3.card.mb -side right -padx 10 -anchor e
          set idx 0
          foreach name $hwcfg_card_list {
-            .hwcfg.card.mb.menu add radiobutton -variable hwcfg_cardidx_sel -value $idx -label $name -command HardwareConfigCard
+            .hwcfg.opt3.card.mb.menu add radiobutton -variable hwcfg_cardidx_sel -value $idx -label $name -command HardwareConfigCard
             incr idx
          }
+         pack .hwcfg.opt3.card -side top -anchor w -pady 5 -fill x
+      } else {
+         # create checkbutton to enable Bt8x8 driver debug logging
+         checkbutton .hwcfg.opt3.dsdrv_log -text "Bt8x8 driver logging into file 'dsdrv.log'" -variable hwcf_dsdrv_log
+         pack .hwcfg.opt3.dsdrv_log -side top -anchor w -padx 10
       }
-      pack .hwcfg.card -side top -anchor w -pady 5
+      pack .hwcfg.opt3 -side top -fill x
 
       # display current card name and input source
       HardwareConfigCard
@@ -4539,7 +4615,7 @@ proc HardwareConfigCard {} {
    set hwcfg_input_list [C_HwCfgGetInputList $hwcfg_cardidx_sel]
 
    if {$is_unix} {
-      .hwcfg.card.label configure -text "TV card: [lindex $hwcfg_card_list $hwcfg_cardidx_sel]"
+      .hwcfg.opt3.card.label configure -text "TV card: [lindex $hwcfg_card_list $hwcfg_cardidx_sel]"
    }
 
    if {$hwcfg_input_sel >= [lindex $hwcfg_input_list $hwcfg_input_sel]} {
@@ -4547,9 +4623,9 @@ proc HardwareConfigCard {} {
    }
 
    if {[llength $hwcfg_input_list] > 0} {
-      .hwcfg.input.curname configure -text "Video source: [lindex $hwcfg_input_list $hwcfg_input_sel]"
+      .hwcfg.opt2.input.curname configure -text "Video source: [lindex $hwcfg_input_list $hwcfg_input_sel]"
    } else {
-      .hwcfg.input.curname configure -text "Video source: #$hwcfg_input_sel (video device busy)"
+      .hwcfg.opt2.input.curname configure -text "Video source: #$hwcfg_input_sel (video device busy)"
    }
 }
 
@@ -4563,13 +4639,13 @@ proc HardwareCreateInputMenu {widget} {
    if {[llength $hwcfg_input_list] > 0} {
       set idx 0
       foreach name $hwcfg_input_list {
-         .hwcfg.input.mb.menu add radiobutton -variable hwcfg_input_sel -value $idx -label $name \
-                                              -command {.hwcfg.input.curname configure -text "Video source: [lindex $hwcfg_input_list $hwcfg_input_sel]"}
+         .hwcfg.opt2.input.mb.menu add radiobutton -variable hwcfg_input_sel -value $idx -label $name \
+                                              -command {.hwcfg.opt2.input.curname configure -text "Video source: [lindex $hwcfg_input_list $hwcfg_input_sel]"}
          incr idx
       }
    } else {
-      .hwcfg.input.mb.menu add command -label "Video device not available:" -state disabled
-      .hwcfg.input.mb.menu add command -label "cannot switch video source" -state disabled
+      .hwcfg.opt2.input.mb.menu add command -label "Video device not available:" -state disabled
+      .hwcfg.opt2.input.mb.menu add command -label "cannot switch video source" -state disabled
    }
 }
 
@@ -4579,6 +4655,9 @@ proc HardwareConfigQuit {} {
    global hwcfg_input_sel hwcfg_tuner_sel
    global hwcfg_pll_sel hwcfg_prio_sel hwcfg_cardidx_sel hwcfg_ftable_sel
    global hwcfg hwcfg_default
+   global hwcfg_tmp_tvapp_idx hwcfg_tmp_tvapp_path hwcfg_tmp_tvapp_list
+   global hwcfg_tvapp_path hwcfg_tvapp_idx
+   global wintvapp_idx wintvapp_path
 
    if { !$is_unix && ($hwcfg_input_sel == 0) && ($hwcfg_tuner_sel == 0) } {
       set answer [tk_messageBox -type okcancel -default cancel -icon warning -parent .hwcfg -message "You haven't selected a tuner - acquisition will not be possible!"]
@@ -4587,12 +4666,41 @@ proc HardwareConfigQuit {} {
    }
 
    if {[string compare $answer "ok"] == 0} {
+      # save config into the global variables
       set hwcfg [list $hwcfg_input_sel $hwcfg_tuner_sel $hwcfg_pll_sel $hwcfg_prio_sel $hwcfg_cardidx_sel $hwcfg_ftable_sel]
+
+      if {!$is_unix} {
+         set hwcfg_tvapp_idx $hwcfg_tmp_tvapp_idx
+         set hwcfg_tvapp_path $hwcfg_tmp_tvapp_path
+         # copy the TV app config for the channel table, if not yet configured
+         if {$wintvapp_idx == 0} {
+            set wintvapp_idx $hwcfg_tmp_tvapp_idx
+            set wintvapp_path $hwcfg_tmp_tvapp_path
+            # update the TV app name which is used in dialogs
+            UpdateTvappName
+         }
+      }
       UpdateRcFile
-
       C_UpdateHardwareConfig
-
       destroy .hwcfg
+   }
+}
+
+# callback for TV application type popup: disable or enable path entry field
+proc HardwareSetTvappCfg {} {
+   global hwcfg_tmp_tvapp_list
+   global hwcfg_tmp_tvapp_idx hwcfg_tmp_tvapp_path
+
+   .hwcfg.opt1.apptype.mb configure -text [lindex $hwcfg_tmp_tvapp_list $hwcfg_tmp_tvapp_idx]
+
+   if {[C_Tvapp_CfgNeedsPath $hwcfg_tmp_tvapp_idx] == 0} {
+      .hwcfg.opt1.name.filename configure -state normal -background #c8c8c8 -textvariable {}
+      .hwcfg.opt1.name.filename delete 0 end
+      .hwcfg.opt1.name.filename configure -state disabled
+      .hwcfg.opt1.name.dlgbut configure -state disabled
+   } else {
+      .hwcfg.opt1.name.filename configure -state normal -background #ffffff -textvariable hwcfg_tmp_tvapp_path
+      .hwcfg.opt1.name.dlgbut configure -state normal
    }
 }
 
@@ -4603,8 +4711,10 @@ proc HardwareConfigUpdateCardIdx {cardidx} {
    if {![info exists hwcfg]} {
       set hwcfg $hwcfg_default
    }
-   set hwcfg [lreplace $hwcfg 4 4 $cardidx]
-   UpdateRcFile
+   if {[lindex $hwcfg 4] != $cardidx} {
+      set hwcfg [lreplace $hwcfg 4 4 $cardidx]
+      UpdateRcFile
+   }
 }
 
 
@@ -4725,6 +4835,7 @@ proc ApplyTimeZone {} {
    destroy .timezone
 }
 
+
 ##  --------------------------------------------------------------------------
 ##  Creates the Xawtv popup configuration dialog
 ##
@@ -4732,57 +4843,146 @@ set xawtvcf_popup 0
 
 # option defaults
 set xawtvcf {tunetv 1 follow 1 dopop 1 poptype 0 duration 7}
+set wintvcf {shm 1 tunetv 1 follow 1 dopop 1}
+set wintvapp_idx 0
+set wintvapp_path {}
+
+# name of TV app which is configured for channel table
+# set generic default here; actual name is set in C module
+set tvapp_name "TV app."
 
 proc XawtvConfigPopup {} {
    global xawtvcf_popup
-   global xawtvcf xawtv_tmpcf
+   global xawtvcf wintvcf xawtv_tmpcf
+   global tvapp_name wintvapp_idx wintvapp_path xawtv_tmp_tvapp_list
+   global is_unix fileImage
 
    if {$xawtvcf_popup == 0} {
-      CreateTransientPopup .xawtvcf "Xawtv Connection Configuration"
+      CreateTransientPopup .xawtvcf "TV Application Interaction Configuration"
       set xawtvcf_popup 1
 
       # load configuration into temporary array
-      foreach {opt val} $xawtvcf {
-         set xawtv_tmpcf($opt) $val
+      if $is_unix {
+         foreach {opt val} $xawtvcf { set xawtv_tmpcf($opt) $val }
+      } else {
+         foreach {opt val} $wintvcf { set xawtv_tmpcf($opt) $val }
       }
 
       frame .xawtvcf.all
-      label .xawtvcf.all.lab_main -text "En-/Disable Xawtv connection features:"
-      pack .xawtvcf.all.lab_main -side top -anchor w -pady 5
+      label .xawtvcf.all.lab_main -text "En-/Disable $tvapp_name interaction features:"
+      pack .xawtvcf.all.lab_main -side top -anchor w -pady 5 -padx 5
+
+      if {!$is_unix} {
+         .xawtvcf.all configure -borderwidth 1 -relief raised
+         checkbutton .xawtvcf.all.shm -text "General enable" -variable xawtv_tmpcf(shm) -command XawtvConfigGeneralEnable
+         pack .xawtvcf.all.shm -side top -anchor w -padx 5
+      }
       checkbutton .xawtvcf.all.tunetv -text "Tune-TV button" -variable xawtv_tmpcf(tunetv)
-      pack .xawtvcf.all.tunetv -side top -anchor w
+      pack .xawtvcf.all.tunetv -side top -anchor w -padx 5
       checkbutton .xawtvcf.all.follow -text "Cursor follows channel changes" -variable xawtv_tmpcf(follow)
-      pack .xawtvcf.all.follow -side top -anchor w
-      checkbutton .xawtvcf.all.dopop -text "Display EPG info in xawtv" \
-                                     -variable xawtv_tmpcf(dopop) -command XawtvConfigSelected
-      pack .xawtvcf.all.dopop -side top -anchor w
+      pack .xawtvcf.all.follow -side top -anchor w -padx 5
+      checkbutton .xawtvcf.all.dopop -text "Display EPG info in TV app." -variable xawtv_tmpcf(dopop)
+      pack .xawtvcf.all.dopop -side top -anchor w -padx 5
 
-      label .xawtvcf.all.lab_poptype -text "How to display EPG info:"
-      pack .xawtvcf.all.lab_poptype -side top -anchor w -pady 5
-      frame .xawtvcf.all.poptype -borderwidth 2 -relief ridge
-      radiobutton .xawtvcf.all.poptype.t0 -text "Separate popup" -variable xawtv_tmpcf(poptype) -value 0 -command XawtvConfigSelected
-      radiobutton .xawtvcf.all.poptype.t1 -text "Video overlay (subtitles)" -variable xawtv_tmpcf(poptype) -value 1 -command XawtvConfigSelected
-      radiobutton .xawtvcf.all.poptype.t2 -text "Video overlay, 2 lines" -variable xawtv_tmpcf(poptype) -value 2 -command XawtvConfigSelected
-      radiobutton .xawtvcf.all.poptype.t3 -text "Xawtv window title" -variable xawtv_tmpcf(poptype) -value 3 -command XawtvConfigSelected
-      pack .xawtvcf.all.poptype.t0 .xawtvcf.all.poptype.t1 .xawtvcf.all.poptype.t2 .xawtvcf.all.poptype.t3 -side top -anchor w
-      pack .xawtvcf.all.poptype -side top -anchor w -fill x
+      if {$is_unix} {
+         .xawtvcf.all.dopop configure -command XawtvConfigPopupSelected
 
-      frame .xawtvcf.all.duration
-      scale .xawtvcf.all.duration.s -from 0 -to 60 -orient horizontal -label "Popup duration \[seconds\]" \
-                                -variable xawtv_tmpcf(duration)
-      pack .xawtvcf.all.duration.s -side left -fill x -expand 1
-      pack .xawtvcf.all.duration -side top -fill x -expand 1 -pady 5
-      pack .xawtvcf.all -side top -padx 10 -pady 10
+         label .xawtvcf.all.lab_poptype -text "How to display EPG info:"
+         pack .xawtvcf.all.lab_poptype -side top -anchor w -pady 5
+         frame .xawtvcf.all.poptype -borderwidth 2 -relief ridge
+         radiobutton .xawtvcf.all.poptype.t0 -text "Separate popup" -variable xawtv_tmpcf(poptype) -value 0 -command XawtvConfigPopupSelected
+         radiobutton .xawtvcf.all.poptype.t1 -text "Video overlay (subtitles)" -variable xawtv_tmpcf(poptype) -value 1 -command XawtvConfigPopupSelected
+         radiobutton .xawtvcf.all.poptype.t2 -text "Video overlay, 2 lines" -variable xawtv_tmpcf(poptype) -value 2 -command XawtvConfigPopupSelected
+         radiobutton .xawtvcf.all.poptype.t3 -text "Xawtv window title" -variable xawtv_tmpcf(poptype) -value 3 -command XawtvConfigPopupSelected
+         pack .xawtvcf.all.poptype.t0 .xawtvcf.all.poptype.t1 .xawtvcf.all.poptype.t2 .xawtvcf.all.poptype.t3 -side top -anchor w
+         pack .xawtvcf.all.poptype -side top -anchor w -fill x
+
+         frame .xawtvcf.all.duration
+         scale .xawtvcf.all.duration.s -from 0 -to 60 -orient horizontal -label "Popup duration \[seconds\]" \
+                                   -variable xawtv_tmpcf(duration)
+         pack .xawtvcf.all.duration.s -side left -fill x -expand 1
+         pack .xawtvcf.all.duration -side top -fill x -expand 1 -pady 5
+         pack .xawtvcf.all -side top -fill x
+
+         # set widget states according to initial option settings
+         XawtvConfigPopupSelected
+      } else {
+         pack .xawtvcf.all -side top -fill x
+
+         frame  .xawtvcf.connect -borderwidth 1 -relief raised
+         checkbutton  .xawtvcf.connect.lab_tvapp -text "" -disabledforeground black
+         bindtags  .xawtvcf.connect.lab_tvapp {.connect .}
+         pack   .xawtvcf.connect.lab_tvapp -side top -anchor w -pady 5 -padx 5
+         pack   .xawtvcf.connect -side top -fill x
+         # display the name of the currently connected TV app, if any
+         XawtvConfigShmAttach
+      }
+
+      if {!$is_unix} {
+         # load TV app config into temporary variables
+         set xawtv_tmpcf(tvapp_idx) $wintvapp_idx
+         set xawtv_tmpcf(tvapp_path) $wintvapp_path
+         set xawtv_tmp_tvapp_list [C_Tvapp_GetTvappList]
+
+         # create TV app selection popdown menu and "Test" command button
+         frame  .xawtvcf.tvapp -borderwidth 1 -relief raised
+         label  .xawtvcf.tvapp.lab -text "Specify from where to load the channel table:" -justify left
+         pack   .xawtvcf.tvapp.lab -side top -anchor w -padx 5 -pady 5
+
+         frame  .xawtvcf.tvapp.apptype
+         label  .xawtvcf.tvapp.apptype.lab -text "TV application:"
+         pack   .xawtvcf.tvapp.apptype.lab -side left -padx 5
+         menubutton .xawtvcf.tvapp.apptype.mb -text [lindex $xawtv_tmp_tvapp_list $xawtv_tmpcf(tvapp_idx)] \
+                         -justify center -relief raised -borderwidth 2 -menu .xawtvcf.tvapp.apptype.mb.men \
+                         -indicatoron 1
+         menu   .xawtvcf.tvapp.apptype.mb.men -tearoff 0
+         set cmd {.xawtvcf.tvapp.apptype.mb configure -text [lindex $xawtv_tmp_tvapp_list $xawtv_tmpcf(tvapp_idx)]}
+         set idx 0
+         foreach name $xawtv_tmp_tvapp_list {
+            .xawtvcf.tvapp.apptype.mb.men add radiobutton -label $name \
+                         -variable xawtv_tmpcf(tvapp_idx) -value $idx \
+                         -command XawtvConfigSetTvapp
+            incr idx
+         }
+         pack   .xawtvcf.tvapp.apptype.mb -side left -padx 10 -fill x -expand 1
+
+         button .xawtvcf.tvapp.apptype.load -text "Test" -command {C_Tvapp_TestChanTab $xawtv_tmpcf(tvapp_idx) $xawtv_tmpcf(tvapp_path)}
+         pack   .xawtvcf.tvapp.apptype.load -side right -padx 10 -fill x -expand 1
+         pack   .xawtvcf.tvapp.apptype -side top -fill x
+
+         # create entry field and command button to configure TV app directory
+         frame  .xawtvcf.tvapp.name
+         label  .xawtvcf.tvapp.name.prompt -text "Path:"
+         pack   .xawtvcf.tvapp.name.prompt -side left -anchor w
+         entry  .xawtvcf.tvapp.name.filename -textvariable xawtv_tmpcf(tvapp_path) -font {courier -12 normal} -width 33
+         pack   .xawtvcf.tvapp.name.filename -side left -padx 5 -fill x -expand 1
+         bind   .xawtvcf.tvapp.name.filename <Enter> {focus %W}
+         button .xawtvcf.tvapp.name.dlgbut -image $fileImage -command {
+            set tmp [tk_chooseDirectory -parent .xawtvcf \
+                        -initialdir $xawtv_tmpcf(tvapp_path) \
+                        -mustexist 1]
+            if {[string length $tmp] > 0} {
+               set xawtv_tmpcf(tvapp_path) $tmp
+            }
+            unset tmp
+         }
+         pack   .xawtvcf.tvapp.name.dlgbut -side left -padx 5
+         pack   .xawtvcf.tvapp.name -side top -padx 5 -pady 5 -anchor w -fill x -expand 1
+         # set state and text of the entry field and button
+         XawtvConfigSetTvapp
+
+         pack   .xawtvcf.tvapp -side top -anchor w -fill x
+
+         # if "general enable" is off, disable the other buttons
+         XawtvConfigGeneralEnable
+      }
 
       frame .xawtvcf.cmd
-      button .xawtvcf.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Configuration) "Xawtv connection"}
+      button .xawtvcf.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Configuration) "TV application interaction"}
       button .xawtvcf.cmd.abort -text "Abort" -width 5 -command {array unset xawtv_tmpcf; destroy .xawtvcf}
       button .xawtvcf.cmd.save -text "Ok" -width 5 -command {XawtvConfigSave; destroy .xawtvcf}
       pack .xawtvcf.cmd.help .xawtvcf.cmd.abort .xawtvcf.cmd.save -side left -padx 10
-      pack .xawtvcf.cmd -side top -pady 5
-
-      # set widget states according to initial option settings
-      XawtvConfigSelected
+      pack .xawtvcf.cmd -side top -pady 10
 
       bind .xawtvcf.cmd <Destroy> {+ set xawtvcf_popup 0}
    } else {
@@ -4791,7 +4991,7 @@ proc XawtvConfigPopup {} {
 }
 
 # callback for changes in popup options: adjust state of depending widgets
-proc XawtvConfigSelected {} {
+proc XawtvConfigPopupSelected {} {
    global xawtv_tmpcf
 
    if $xawtv_tmpcf(dopop) {
@@ -4814,21 +5014,111 @@ proc XawtvConfigSelected {} {
    .xawtvcf.all.duration.s configure -state $state -foreground $fg
 }
 
+# callback for TV application type popup: disable or enable path entry field
+proc XawtvConfigSetTvapp {} {
+   global xawtv_tmpcf xawtv_tmp_tvapp_list
+
+   .xawtvcf.tvapp.apptype.mb configure -text [lindex $xawtv_tmp_tvapp_list $xawtv_tmpcf(tvapp_idx)]
+
+   if {[C_Tvapp_CfgNeedsPath $xawtv_tmpcf(tvapp_idx)] == 0} {
+      .xawtvcf.tvapp.name.filename configure -state normal -background #c8c8c8 -textvariable {}
+      .xawtvcf.tvapp.name.filename delete 0 end
+      .xawtvcf.tvapp.name.filename configure -state disabled
+      .xawtvcf.tvapp.name.dlgbut configure -state disabled
+   } else {
+      .xawtvcf.tvapp.name.filename configure -state normal -background #ffffff -textvariable xawtv_tmpcf(tvapp_path)
+      .xawtvcf.tvapp.name.dlgbut configure -state normal
+   }
+}
+
+# callback for general enable: adjust state of depending widgets
+proc XawtvConfigGeneralEnable {} {
+   global xawtv_tmpcf
+
+   if $xawtv_tmpcf(shm) {
+      set state "normal"
+   } else {
+      set state "disabled"
+   }
+
+   # XXX patch for release 2.0.0: TV app interaction is disabled for the regular release
+   set xawtv_tmpcf(shm_disabled) 0
+   .xawtvcf.all.shm configure -state disabled -variable xawtv_tmpcf(shm_disabled)
+   set state "disabled"
+   # XXX patch end
+
+   .xawtvcf.all.tunetv configure -state $state
+   .xawtvcf.all.follow configure -state $state
+   .xawtvcf.all.dopop configure -state $state
+}
+
+# callback invoked when a TV app attaches or detaches in the background
+proc XawtvConfigShmAttach {} {
+   global is_unix
+
+   if {!$is_unix} {
+      # check if the dialog is currently open
+      if {[string length [info commands .xawtvcf.connect.lab_tvapp]] > 0} {
+         # fetch the attached app's name from shared memory and display it
+         set name [C_Tvapp_QueryTvapp]
+         if {[string length $name] > 0} {
+            .xawtvcf.connect.lab_tvapp configure -text "Connected to: $name" -selectcolor green
+            .xawtvcf.connect.lab_tvapp invoke
+         } else {
+            # no app is currently connected
+            .xawtvcf.connect.lab_tvapp configure -text "Connected to: not connected" -selectcolor red
+            .xawtvcf.connect.lab_tvapp deselect
+         }
+      }
+   }
+}
+
 # callback for OK button: save config into variables
 proc XawtvConfigSave {} {
-   global xawtvcf xawtv_tmpcf
+   global xawtvcf wintvcf xawtv_tmpcf
+   global wintvapp_idx wintvapp_path xawtv_tmp_tvapp_list
+   global is_unix
 
-   set xawtvcf [list "tunetv" $xawtv_tmpcf(tunetv) \
-                     "follow" $xawtv_tmpcf(follow) \
-                     "dopop" $xawtv_tmpcf(dopop) \
-                     "poptype" $xawtv_tmpcf(poptype) \
-                     "duration" $xawtv_tmpcf(duration)]
+   if $is_unix {
+      set xawtvcf [list "tunetv" $xawtv_tmpcf(tunetv) \
+                        "follow" $xawtv_tmpcf(follow) \
+                        "dopop" $xawtv_tmpcf(dopop) \
+                        "poptype" $xawtv_tmpcf(poptype) \
+                        "duration" $xawtv_tmpcf(duration)]
+   } else {
+      set wintvcf [list "shm" $xawtv_tmpcf(shm) \
+                        "tunetv" $xawtv_tmpcf(tunetv) \
+                        "follow" $xawtv_tmpcf(follow) \
+                        "dopop" $xawtv_tmpcf(dopop)]
+      set wintvapp_idx $xawtv_tmpcf(tvapp_idx)
+      set wintvapp_path $xawtv_tmpcf(tvapp_path)
+      unset xawtv_tmp_tvapp_list
+   }
    array unset xawtv_tmpcf
 
    # save options
    UpdateRcFile
    # load config vars into the C module
-   C_Xawtv_InitConfig
+   C_Tvapp_InitConfig
+   # update the TV app name
+   UpdateTvappName
+}
+
+# store the TV app name which is used in various dialogs
+proc UpdateTvappName {} {
+   global tvapp_name
+   global wintvapp_idx
+   global is_unix
+
+   # note: in UNIX there is only one name, and it's set on C level
+   if {!$is_unix} {
+      if {$wintvapp_idx > 0} {
+         set name_list [C_Tvapp_GetTvappList]
+         set tvapp_name [lindex $name_list $wintvapp_idx]
+      } else {
+         set tvapp_name "TV app."
+      }
+   }
 }
 
 
@@ -7216,7 +7506,8 @@ proc LoadRcFile {filename isDefault} {
    global prov_merge_cnis prov_merge_cf
    global acq_mode acq_mode_cnis netacq_enable
    global pibox_height pilistbox_cols shortinfo_height
-   global hwcfg netacqcf xawtvcf ctxmencf
+   global hwcfg netacqcf xawtvcf wintvcf ctxmencf
+   global wintvapp_idx wintvapp_path hwcfg_tvapp_idx hwcfg_tvapp_path
    global substr_history
    global dumpdb_filename
    global dumpdb_pi dumpdb_xi dumpdb_ai dumpdb_ni dumpdb_oi dumpdb_mi dumpdb_li dumpdb_ti
@@ -7234,7 +7525,7 @@ proc LoadRcFile {filename isDefault} {
       while {[gets $rcfile line] >= 0} {
          incr line_no
          if {([catch $line] != 0) && !$error} {
-            tk_messageBox -type ok -default ok -icon error -message "error in rc/ini file, line #$line_no: $line"
+            tk_messageBox -type ok -default ok -icon error -message "Syntax error in rc/ini file, line #$line_no: $line"
             set error 1
          }
       }
@@ -7318,7 +7609,8 @@ proc UpdateRcFile {} {
    global prov_merge_cnis prov_merge_cf
    global acq_mode acq_mode_cnis netacq_enable
    global pibox_height pilistbox_cols shortinfo_height
-   global hwcfg netacqcf xawtvcf ctxmencf
+   global hwcfg netacqcf xawtvcf wintvcf ctxmencf
+   global wintvapp_idx wintvapp_path hwcfg_tvapp_idx hwcfg_tvapp_path
    global substr_history
    global dumpdb_filename
    global dumpdb_pi dumpdb_xi dumpdb_ai dumpdb_ni dumpdb_oi dumpdb_mi dumpdb_li dumpdb_ti
@@ -7381,9 +7673,14 @@ proc UpdateRcFile {} {
       puts $rcfile [list set netacq_enable $netacq_enable]
 
       if {[info exists hwcfg]} {puts $rcfile [list set hwcfg $hwcfg]}
+      puts $rcfile [list set wintvapp_path $wintvapp_path]
+      puts $rcfile [list set wintvapp_idx $wintvapp_idx]
+      puts $rcfile [list set hwcfg_tvapp_path $hwcfg_tvapp_path]
+      puts $rcfile [list set hwcfg_tvapp_idx $hwcfg_tvapp_idx]
 
       puts $rcfile [list set netacqcf $netacqcf]
       puts $rcfile [list set xawtvcf $xawtvcf]
+      puts $rcfile [list set wintvcf $wintvcf]
       puts $rcfile [list set ctxmencf $ctxmencf]
 
       if {[info exists substr_history]} {puts $rcfile [list set substr_history $substr_history]}

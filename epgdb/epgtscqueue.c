@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgtscqueue.c,v 1.4 2002/02/13 21:02:56 tom Exp tom $
+ *  $Id: epgtscqueue.c,v 1.5 2002/03/29 17:34:24 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -506,7 +506,7 @@ const EPGDB_PI_TSC_ELEM * EpgTscQueue_PeekTail( EPGDB_PI_TSC * pQueue, uint prov
 static void EpgTscQueue_AdjustBaseTime( EPGDB_PI_TSC_BUF * pTscBuf, time_t startTime )
 {
    EPGDB_PI_TSC_ELEM  * pTsc;
-   ushort diff;
+   uint   diff;
    uint   idx;
 
    // adjust by more than required to reduce probability of future adjustments

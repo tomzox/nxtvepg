@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: xawtv.h,v 1.2 2001/05/13 16:28:29 tom Exp tom $
+ *  $Id: xawtv.h,v 1.4 2002/05/01 12:23:50 tom Exp tom $
  */
 
 #ifndef __XAWTV_H
@@ -24,10 +24,7 @@
 
 
 // Interface to GUI
-int  Xawtv_GetFreqTab( ulong ** pFreqTab, uint * pCount );
-
-// Interface to main event handler
-void Xawtv_PollVpsPil( ClientData clientData );
+bool Xawtv_GetFreqTab( Tcl_Interp * interp, ulong ** pFreqTab, uint * pCount );
 
 // Initialisation
 void Xawtv_Init( void );

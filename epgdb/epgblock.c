@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgblock.c,v 1.41 2001/12/25 19:43:34 tom Exp tom $
+ *  $Id: epgblock.c,v 1.44 2002/05/02 16:51:19 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -32,6 +32,7 @@
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
 #include "epgdb/epgblock.h"
+#include "epgdb/epgswap.h"
 
 
 static uchar netwopAlphabets[MAX_NETWOP_COUNT];
@@ -592,8 +593,8 @@ static DESCRIPTOR * DecodeDescriptorLoop( const uchar *psd, uchar count, uchar b
                   //pDescriptors[i].eval = (psd[2] >> 2) | ((psd[3] & 0x3f)<<2);
                   break;
             }
+            psd   += (bitOff + 6 + 6 + 8) / 8;  // note: uses previous bitOff; psd must be set before bitOff is modified
             bitOff = (bitOff + 6 + 6 + 8) % 8;
-            psd   += (bitOff + 6 + 6 + 8) / 8;
          }
       }
    }
@@ -832,6 +833,32 @@ static bool EpgBlockCheckPi( EPGDB_BLOCK * pBlock )
 }
 
 // ----------------------------------------------------------------------------
+// Swap all PI block struct elements > 1 byte for non-endian-matching databases
+// - the swap is done in-place
+//
+static bool EpgBlockSwapPi( EPGDB_BLOCK * pBlock )
+{
+   PI_BLOCK * pPi;
+
+   pPi = (PI_BLOCK *) &pBlock->blk.pi;
+
+   swap16(&pPi->block_no);
+   swap32(&pPi->start_time);
+   swap32(&pPi->stop_time);
+   swap32(&pPi->pil);
+   swap32(&pPi->series_code);
+   swap16(&pPi->feature_flags);
+   swap16(&pPi->background_ref);
+
+   swap16(&pPi->off_title);
+   swap16(&pPi->off_short_info);
+   swap16(&pPi->off_long_info);
+   swap16(&pPi->off_descriptors);
+
+   return TRUE;
+}
+
+// ----------------------------------------------------------------------------
 // Convert an AI block
 //
 EPGDB_BLOCK * EpgBlockConvertAi(const uchar *pCtrl, uint ctrlLen, uint strLen)
@@ -1001,6 +1028,50 @@ static bool EpgBlockCheckAi( EPGDB_BLOCK * pBlock )
 }
 
 // ----------------------------------------------------------------------------
+// Swap all AI block struct elements > 1 byte for non-endian-matching databases
+// - called before consistancy check, hence used offsets and counters must be checked
+// - the swap is done in-place
+//
+static bool EpgBlockSwapAi( EPGDB_BLOCK * pBlock )
+{
+   AI_BLOCK  * pAi;
+   AI_NETWOP * pNetwop;
+   uchar netwop;
+   bool  result = FALSE;
+
+   pAi = (AI_BLOCK *) &pBlock->blk.ai;
+
+   swap16(&pAi->niCount);
+   swap16(&pAi->oiCount);
+   swap16(&pAi->miCount);
+   swap16(&pAi->niCountSwo);
+   swap16(&pAi->oiCountSwo);
+   swap16(&pAi->miCountSwo);
+
+   swap16(&pAi->off_serviceNameStr);
+   swap16(&pAi->off_netwops);
+
+   if ( (pAi->off_netwops == sizeof(AI_BLOCK)) &&
+        (pAi->netwopCount > 0) && (pAi->netwopCount <= MAX_NETWOP_COUNT) &&
+        (sizeof(AI_BLOCK) + (pAi->netwopCount * sizeof(AI_NETWOP)) <= pBlock->size) )
+   {
+      pNetwop = (AI_NETWOP *) AI_GET_NETWOPS(pAi);
+      for (netwop=0; netwop < pAi->netwopCount; netwop++, pNetwop++)
+      {
+         swap16(&pNetwop->cni);
+         swap16(&pNetwop->startNo);
+         swap16(&pNetwop->stopNo);
+         swap16(&pNetwop->stopNoSwo);
+         swap16(&pNetwop->addInfo);
+
+         swap16(&pNetwop->off_name);
+      }
+      result = TRUE;
+   }
+   return result;
+}
+
+// ----------------------------------------------------------------------------
 // Convert an OI block
 //
 EPGDB_BLOCK * EpgBlockConvertOi(const uchar *pCtrl, uint ctrlLen, uint strLen)
@@ -1124,6 +1195,25 @@ static bool EpgBlockCheckOi( EPGDB_BLOCK * pBlock )
 }
 
 // ----------------------------------------------------------------------------
+// Swap all OI block struct elements > 1 byte for non-endian-matching databases
+// - the swap is done in-place
+//
+static bool EpgBlockSwapOi( EPGDB_BLOCK * pBlock )
+{
+   OI_BLOCK * pOi;
+
+   pOi = (OI_BLOCK *) &pBlock->blk.oi;
+
+   swap16(&pOi->block_no);
+
+   swap16(&pOi->off_header);
+   swap16(&pOi->off_message);
+   swap16(&pOi->off_descriptors);
+
+   return TRUE;
+}
+
+// ----------------------------------------------------------------------------
 // Convert a NI block
 //
 EPGDB_BLOCK * EpgBlockConvertNi(const uchar *pCtrl, uint ctrlLen, uint strLen)
@@ -1198,7 +1288,7 @@ EPGDB_BLOCK * EpgBlockConvertNi(const uchar *pCtrl, uint ctrlLen, uint strLen)
    // 1st step: sum up the length & compute the offsets of each element from the start
    blockLen = sizeof(NI_BLOCK);
    if (ni.no_events > 0)
-      ni.off_events = blockLen;
+      ni.off_events = ((blockLen + 3) & ~3);  // requires alignment for 32-bit element in struct
    else
       ni.off_events = 0;
    blockLen += ni.no_events * sizeof(EVENT_ATTRIB);
@@ -1320,6 +1410,61 @@ static bool EpgBlockCheckNi( EPGDB_BLOCK * pBlock )
 }
 
 // ----------------------------------------------------------------------------
+// Swap all NI block struct elements > 1 byte for non-endian-matching databases
+// - called before consistancy check, hence used offsets and counters must be checked
+// - the swap is done in-place
+//
+static bool EpgBlockSwapNi( EPGDB_BLOCK * pBlock )
+{
+   NI_BLOCK       * pNi;
+   EVENT_ATTRIB   * pEv;
+   EV_ATTRIB_DATA * pEvUnit;
+   uint  ev_idx;
+   uint  att_idx;
+   bool  result = FALSE;
+
+   pNi = (NI_BLOCK *) &pBlock->blk.ni;
+
+   swap16(&pNi->block_no);
+   swap16(&pNi->msg_attrib);
+
+   swap16(&pNi->off_events);
+   swap16(&pNi->off_header);
+   swap16(&pNi->off_descriptors);
+
+   if (pNi->off_events != 0)
+   {
+      if ( (pNi->no_events <= NI_MAX_EVENT_COUNT) &&
+           (pNi->off_events + (pNi->no_events * sizeof(EVENT_ATTRIB)) <= pBlock->size) )
+      {
+         pEv = (EVENT_ATTRIB *) NI_GET_EVENTS(pNi);
+         result = TRUE;
+
+         for (ev_idx=0; ev_idx < pNi->no_events; ev_idx++, pEv++)
+         {
+            swap16(&pEv->next_id);
+            swap16(&pEv->off_evstr);
+
+            if (pEv->no_attribs <= NI_MAX_ATTRIB_COUNT)
+            {
+               pEvUnit = pEv->unit;
+               for (att_idx=0; att_idx < pEv->no_attribs; att_idx++, pEvUnit++)
+               {
+                  swap32(&pEvUnit->data);
+               }
+            }
+            else
+            {
+               result = FALSE;
+               break;
+            }
+         }
+      }
+   }
+   return result;
+}
+
+// ----------------------------------------------------------------------------
 // Convert a MI block
 //
 EPGDB_BLOCK * EpgBlockConvertMi(const uchar *pCtrl, uint ctrlLen, uint strLen)
@@ -1408,6 +1553,25 @@ static bool EpgBlockCheckMi( EPGDB_BLOCK * pBlock )
 }
 
 // ----------------------------------------------------------------------------
+// Swap all MI block struct elements > 1 byte for non-endian-matching databases
+// - called before consistancy check, hence used offsets and counters must be checked
+// - the swap is done in-place
+//
+static bool EpgBlockSwapMi( EPGDB_BLOCK * pBlock )
+{
+   MI_BLOCK * pMi;
+
+   pMi = (MI_BLOCK *) &pBlock->blk.mi;
+
+   swap16(&pMi->block_no);
+
+   swap16(&pMi->off_message);
+   swap16(&pMi->off_descriptors);
+
+   return TRUE;
+}
+
+// ----------------------------------------------------------------------------
 // Convert a LI block
 //
 EPGDB_BLOCK * EpgBlockConvertLi(const uchar *pCtrl, uint ctrlLen, uint strLen)
@@ -1450,35 +1614,35 @@ EPGDB_BLOCK * EpgBlockConvertLi(const uchar *pCtrl, uint ctrlLen, uint strLen)
             ld[desc].lang_count = psd[1] >> 4;
             break;
       }
+      psd   += (bitOff + 6 + 4) / 8;  // note: uses previous bitOff; psd must be set before bitOff is modified
       bitOff = (bitOff + 6 + 4) % 8;
-      psd   += (bitOff + 6 + 4) / 8;
 
       for (lang=0; lang < ld[desc].lang_count; lang++)
       {
          switch (bitOff)
          {
             case 0:
-               ld[desc].lang[0][lang] = psd[0];
-               ld[desc].lang[1][lang] = psd[1];
-               ld[desc].lang[2][lang] = psd[2];
+               ld[desc].lang[lang][0] = psd[0];
+               ld[desc].lang[lang][1] = psd[1];
+               ld[desc].lang[lang][2] = psd[2];
                break;
 
             case 2:
-               ld[desc].lang[0][lang] = (psd[0] >> 2) | ((psd[1] & 0x03) << 6);
-               ld[desc].lang[1][lang] = (psd[1] >> 2) | ((psd[2] & 0x03) << 6);
-               ld[desc].lang[2][lang] = (psd[2] >> 2) | ((psd[3] & 0x03) << 6);
+               ld[desc].lang[lang][0] = (psd[0] >> 2) | ((psd[1] & 0x03) << 6);
+               ld[desc].lang[lang][1] = (psd[1] >> 2) | ((psd[2] & 0x03) << 6);
+               ld[desc].lang[lang][2] = (psd[2] >> 2) | ((psd[3] & 0x03) << 6);
                break;
 
             case 4:
-               ld[desc].lang[0][lang] = (psd[0] >> 4) | ((psd[1] & 0x0f) << 4);
-               ld[desc].lang[1][lang] = (psd[1] >> 4) | ((psd[2] & 0x0f) << 4);
-               ld[desc].lang[2][lang] = (psd[2] >> 4) | ((psd[3] & 0x0f) << 4);
+               ld[desc].lang[lang][0] = (psd[0] >> 4) | ((psd[1] & 0x0f) << 4);
+               ld[desc].lang[lang][1] = (psd[1] >> 4) | ((psd[2] & 0x0f) << 4);
+               ld[desc].lang[lang][2] = (psd[2] >> 4) | ((psd[3] & 0x0f) << 4);
                break;
 
             case 6:
-               ld[desc].lang[0][lang] = (psd[0] >> 6) | ((psd[1] & 0x3f) << 2);
-               ld[desc].lang[1][lang] = (psd[1] >> 6) | ((psd[2] & 0x3f) << 2);
-               ld[desc].lang[2][lang] = (psd[2] >> 6) | ((psd[3] & 0x3f) << 2);
+               ld[desc].lang[lang][0] = (psd[0] >> 6) | ((psd[1] & 0x3f) << 2);
+               ld[desc].lang[lang][1] = (psd[1] >> 6) | ((psd[2] & 0x3f) << 2);
+               ld[desc].lang[lang][2] = (psd[2] >> 6) | ((psd[3] & 0x3f) << 2);
                break;
          }
          psd += 3;
@@ -1550,6 +1714,23 @@ static bool EpgBlockCheckLi( EPGDB_BLOCK * pBlock )
 }
 
 // ----------------------------------------------------------------------------
+// Swap all LI block struct elements > 1 byte for non-endian-matching databases
+// - called before consistancy check, hence used offsets and counters must be checked
+// - the swap is done in-place
+//
+static bool EpgBlockSwapLi( EPGDB_BLOCK * pBlock )
+{
+   LI_BLOCK * pLi;
+
+   pLi = (LI_BLOCK *) &pBlock->blk.li;
+
+   swap16(&pLi->block_no);
+   swap16(&pLi->off_desc);
+
+   return TRUE;
+}
+
+// ----------------------------------------------------------------------------
 // Convert a TI block
 //
 EPGDB_BLOCK * EpgBlockConvertTi(const uchar *pCtrl, uint ctrlLen, uint strLen)
@@ -1593,8 +1774,8 @@ EPGDB_BLOCK * EpgBlockConvertTi(const uchar *pCtrl, uint ctrlLen, uint strLen)
             std[desc].subt_count = psd[1] >> 4;
             break;
       }
+      psd   += (bitOff + 6 + 4) / 8;  // note: uses previous bitOff; psd must be set before bitOff is modified
       bitOff = (bitOff + 6 + 4) % 8;
-      psd   += (bitOff + 6 + 4) / 8;
 
       for (subt=0; subt < std[desc].subt_count; subt++)
       {
@@ -1639,7 +1820,7 @@ EPGDB_BLOCK * EpgBlockConvertTi(const uchar *pCtrl, uint ctrlLen, uint strLen)
          // decode TTX page reference according to ETS 300 707 chap. 11.3.2
          std[desc].subt[subt].page = (uint)buf[0] | ((uint)(buf[1] & 0x80) << 1) | ((uint)(buf[2] & 0xC0) << 3);
          std[desc].subt[subt].subpage = (uint)(buf[1] & 0x7F) |  ((uint)(buf[2] & 0x3F) << 8);
-         psd += 5;
+         psd += 6;
       }
    }
 
@@ -1704,6 +1885,54 @@ static bool EpgBlockCheckTi( EPGDB_BLOCK * pBlock )
    else
       result = TRUE;
 
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Swap all TI block struct elements > 1 byte for non-endian-matching databases
+// - called before consistancy check, hence used offsets and counters must be checked
+// - the swap is done in-place
+//
+static bool EpgBlockSwapTi( EPGDB_BLOCK * pBlock )
+{
+   TI_BLOCK * pTi;
+   TI_DESC  * pTd;
+   TI_SUBT  * pTs;
+   uint       desc;
+   uint       subt;
+   bool       result = FALSE;
+
+   pTi = (TI_BLOCK *) &pBlock->blk.ti;
+
+   swap16(&pTi->block_no);
+   swap16(&pTi->off_desc);
+
+   if (pTi->desc_no > 0)
+   {
+      if (pTi->off_desc == sizeof(TI_BLOCK))
+      {
+         pTd = (TI_DESC *) TI_GET_DESC(pTi);
+         result = TRUE;
+
+         for (desc=0; desc < pTi->desc_no; desc++, pTd++)
+         {
+            if (pTd->subt_count <= TI_MAX_LANG_COUNT)
+            {
+               pTs = pTd->subt;
+               for (subt = 0; subt < pTd->subt_count; subt++, pTs++)
+               {
+                  swap16(&pTs->page);
+                  swap16(&pTs->subpage);
+               }
+            }
+            else
+            {
+               result = FALSE;
+               break;
+            }
+         }
+      }
+   }
    return result;
 }
 
@@ -1789,6 +2018,66 @@ bool EpgBlockCheckConsistancy( EPGDB_BLOCK * pBlock )
    else
    {
       debug0("EpgBlock-CheckBlock: illegal NULL ptr arg");
+      result = FALSE;
+   }
+
+   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Swap all EPG block struct elements > 1 byte for non-endian-matching databases
+//
+bool EpgBlockSwapEndian( EPGDB_BLOCK * pBlock )
+{
+   bool result;
+
+   if (pBlock != NULL)
+   {
+      swap32(&pBlock->size);
+      swap16(&pBlock->origBlkLen);
+      swap16(&pBlock->parityErrCnt);
+      swap32(&pBlock->updTimestamp);
+      swap32(&pBlock->acqTimestamp);
+      swap16(&pBlock->acqRepCount);
+      swap32(&pBlock->type);
+
+      switch (pBlock->type)
+      {
+         case BLOCK_TYPE_BI:
+            debug0("EpgBlock-SwapEndian: BI block encountered - should never be in the db");
+            result = FALSE;
+            break;
+         case BLOCK_TYPE_AI:
+            result = EpgBlockSwapAi(pBlock);
+            break;
+         case BLOCK_TYPE_NI:
+            result = EpgBlockSwapNi(pBlock);
+            break;
+         case BLOCK_TYPE_OI:
+            result = EpgBlockSwapOi(pBlock);
+            break;
+         case BLOCK_TYPE_MI:
+            result = EpgBlockSwapMi(pBlock);
+            break;
+         case BLOCK_TYPE_LI:
+            result = EpgBlockSwapLi(pBlock);
+            break;
+         case BLOCK_TYPE_TI:
+            result = EpgBlockSwapTi(pBlock);
+            result = TRUE;
+            break;
+         case BLOCK_TYPE_PI:
+            result = EpgBlockSwapPi(pBlock);
+            break;
+         default:
+            debug1("EpgBlock-SwapEndian: illegal block type %d", pBlock->type);
+            result = FALSE;
+            break;
+      }
+   }
+   else
+   {
+      debug0("EpgBlock-SwapEndian: illegal NULL ptr arg");
       result = FALSE;
    }
 

@@ -34,7 +34,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgscan.c,v 1.18 2002/01/02 17:06:54 tom Exp tom $
+ *  $Id: epgscan.c,v 1.20 2002/05/04 18:17:01 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -298,7 +298,7 @@ uint EpgScan_EvHandler( void )
    time_t now = time(NULL);
    uchar chanName[10], msgbuf[300];
    ulong freq;
-   ulong ttxPkgCount, epgPkgCount, epgPageCount;
+   uint32_t ttxPkgCount, epgPkgCount, epgPageCount;
    uint cni, dataPageCnt;
    time_t delay;
    uint rescheduleMs;
@@ -650,7 +650,7 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv,
          EpgDbQueue_Init(&scanCtl.dbQueue);
          EpgDbAcqStart(scanCtl.pDbContext, &scanCtl.dbQueue, EPG_ILLEGAL_PAGENO, EPG_ILLEGAL_APPID);
          if (BtDriver_StartAcq() == FALSE)
-            result = EPGSCAN_ACCESS_DEV_VIDEO;
+            result = EPGSCAN_ACCESS_DEV_VBI;
       }
       else
          EpgAcqCtl_Suspend(TRUE);

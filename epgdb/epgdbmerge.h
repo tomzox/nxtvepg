@@ -16,15 +16,12 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbmerge.h,v 1.8 2002/01/02 17:04:19 tom Exp tom $
+ *  $Id: epgdbmerge.h,v 1.9 2002/04/29 19:26:43 tom Exp tom $
  */
 
 #ifndef __EPGDBMERGE_H
 #define __EPGDBMERGE_H
 
-
-// max number of databases that can be merged into one
-#define MAX_MERGED_DB_COUNT  10
 
 // descriptor type for dbIdx info which is inserted into merged PI blocks
 #define MERGE_DESCR_TYPE     0x3c

@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: btdrv.h,v 1.12 2002/01/26 15:16:35 tom Exp tom $
+ *  $Id: btdrv.h,v 1.18 2002/05/04 18:21:05 tom Exp tom $
  */
 
 #ifndef __BTDRV_H
@@ -54,93 +54,115 @@ struct Card
 };
 #endif  //__NetBSD__
 
-
 // ---------------------------------------------------------------------------
 // number of teletext packets that can be stored in ring buffer
 // - Nextview maximum data rate is 5 pages per second (200ms min distance)
 //   data rate usually is much lower though, around 1-2 pages per sec
-// - room for 1-2 secs should be enought in most cases, i.e. 2*5*24=240
+// - room for 1-2 secs should be enough in most cases, i.e. 2*5*24=240
 #define EPGACQ_BUF_COUNT  512
 
 // ring buffer element, contains one teletext packet
 typedef struct
 {
-   uint    pageno;
-   uint    sub;
-   uchar   pkgno;
-   uchar   data[40];
+   uint16_t  pageno;            // teletext magazine (0..7 << 8) and page number
+   uint16_t  sub;               // teletext sub-page number (BCD encoded)
+   uint8_t   pkgno;             // teletext packet number (0..31)
+   uint8_t   reserved;          // unused; set to 0
+   uint8_t   data[40];          // raw teletext data starting at offset 2 (i.e. after mag/pkgno)
 } VBI_LINE;
 
 // ---------------------------------------------------------------------------
+// Teletext decoding statistics
+//
+typedef struct
+{
+   uint32_t  frameCount;        // number of VBI frames received
+   uint32_t  ttxPkgCount;       // number of ttx packets received
+   uint32_t  ttxPkgDrop;        // number of ttx packets dropped b/c Hamming errors
+   uint32_t  epgPkgCount;       // number of EPG ttx packets received
+   uint32_t  epgPagCount;       // number of EPG ttx pages received
+} TTX_DEC_STATS;
 
+// ---------------------------------------------------------------------------
+// Channel identification (CNI) decoding state
+//
 typedef enum
 {
-   CNI_TYPE_VPS,          // VPS line 16, used in DE, AU, CH and CZ only
-   CNI_TYPE_PDC,          // Packet 8/30/2, used in GB only
-   CNI_TYPE_NI,           // Packet 8/30/1, used mainly in F
+   CNI_TYPE_VPS,                // VPS line 16, used in DE, AU, CH and CZ only
+   CNI_TYPE_PDC,                // Packet 8/30/2, used in GB only
+   CNI_TYPE_NI,                 // Packet 8/30/1, used mainly in F
    CNI_TYPE_COUNT,
    INVALID_CNI_TYPE = CNI_TYPE_COUNT
 } CNI_TYPE;
 
 typedef struct
 {
-   bool    haveCni;       // CNI available
-   bool    havePil;       // PIL available
-   uint    outCni;        // latest confirmed CNI - reset when fetched
-   uint    outPil;        // latest confirmed PIL - reset when fetched
+   uint8_t   haveCni;           // CNI available
+   uint8_t   havePil;           // PIL available
+   uint32_t  outCni;            // latest confirmed CNI - reset when fetched
+   uint32_t  outPil;            // latest confirmed PIL - reset when fetched
 
-   uint    lastCni;       // last recevied CNI - copied to outCni after X repetitions
-   uint    cniRepCount;   // reception counter - reset upon CNI change
-   uint    lastPil;       // last received PIL - copied to outPil after X repetitions
-   uint    pilRepCount;   // reception counter - reset upon PIL change
+   uint32_t  lastCni;           // last recevied CNI - copied to outCni after X repetitions
+   uint32_t  cniRepCount;       // reception counter - reset upon CNI change
+   uint32_t  lastPil;           // last received PIL - copied to outPil after X repetitions
+   uint32_t  pilRepCount;       // reception counter - reset upon PIL change
 } CNI_ACQ_STATE;
 
 // ---------------------------------------------------------------------------
-// Structure which is put into the allocated shared memory
-// - used to pass parameters and commands between master and acq slave
-// - ring buffer for EPG packets
-// - buffer for VPS/PDC CNI
+// Structure which is put into shared memory
+// - used to pass parameters and commands from the master to the acq slave.
+//   Those elements are marked with "In:" in the comments below
+// - used to pass results from the acq slave to the master, e.g. EPG teletext
+//   packets, CNIs and PILs and various statistics.
+//   Those elements are marked with "Out:" in the comments below
 //
 typedef struct
 {
-   bool       isEnabled;
-   bool       isEpgScan;
-   bool       doVpsPdc;
-   bool       isEpgPage;
-   uchar      isMipPage;
-   uint       epgPageNo;
+   uint8_t   isEnabled;         // In:  en-/disable EPG teletext packet forward
+   uint8_t   isEpgScan;         // In:  en-/disable EPG syntax scan an all potential EPG pages
+   uint8_t   doVpsPdc;          // In:  en-/disable VPS/PDC decoder
+   uint8_t   reserved1;         // --:  unused; set to 0
+   uint32_t  epgPageNo;         // In:  EPG teletext page number
 
-   uint       mipPageNo;
-   uint       dataPageCount;
+   uint8_t   hasFailed;         // Out: TRUE when acq was aborted due to error
+   uint8_t   reserved2[3];      // --:  unused; set to 0
+ 
+   uint32_t  chanChangeReq;     // In:  channel change request, i.e. reset of ttx decoder
+   uint32_t  chanChangeCnf;     // Out: channel change execution confirmation
 
-   CNI_ACQ_STATE cnis[CNI_TYPE_COUNT];
+   uint32_t  mipPageNo;         // Out: EPG page no as listed in MIP
+   uint32_t  dataPageCount;     // Out: number of TTX pages with EPG syntax
 
-   uint       writer_idx;
-   uint       reader_idx;
-   uint       start_writer_idx;
-   VBI_LINE   line[EPGACQ_BUF_COUNT];
-   u32        frameSeqNo;
+   CNI_ACQ_STATE cnis[CNI_TYPE_COUNT];  // Out: CNIs and PILs
 
-   ulong      ttxPkgCount;
-   ulong      epgPkgCount;
-   ulong      epgPagCount;
+   uint32_t  writer_idx;        // Out: current writer slot in ring buffer
+   uint32_t  reader_idx;        // In/Out: current reader slot in ring buffer
+   VBI_LINE  line[EPGACQ_BUF_COUNT];  // Out: teletext packets on EPG page
+   VBI_LINE  lastHeader;        // Out: last teletext header (on any page)
+
+   TTX_DEC_STATS  ttxStats;     // Out: teletext decoder statistics
 
    #ifndef WIN32
-   pid_t      vbiPid;
-   pid_t      epgPid;
+   pid_t     vbiPid;
+   pid_t     epgPid;
+   #ifndef USE_THREADS
+   bool      freeDevice;        // In:  TRUE when acq is stopped
+   #endif
 
-   bool       doQueryFreq;
-   ulong      vbiQueryFreq;
+   bool      doQueryFreq;
+   ulong     vbiQueryFreq;
 
-   uchar      cardIndex;
+   uchar     cardIndex;
    # ifdef __NetBSD__
-   uchar      inputIndex;
+   uchar     inputIndex;
    struct Card tv_cards[MAX_CARDS];
    # endif
+   #else
+   uchar     reserved3[128];    // reserved for future additions; set to 0
    #endif
 } EPGACQ_BUF;
 
-extern EPGACQ_BUF *pVbiBuf;
+extern volatile EPGACQ_BUF *pVbiBuf;
 
 // ---------------------------------------------------------------------------
 // declaration of service interface functions
@@ -159,6 +181,8 @@ bool BtDriver_SetInputSource( int inputIdx, bool keepOpen, bool * pIsTuner );
 #ifndef WIN32
 void BtDriver_CheckParent( void );
 int BtDriver_GetDeviceOwnerPid( void );
+#else
+bool BtDriver_Restart( void );
 #endif
 bool BtDriver_CheckDevice( void );
 void BtDriver_CloseDevice( void );
@@ -170,7 +194,13 @@ void BtDriver_ScanDevices( bool isMasterProcess );
 const char * BtDriver_GetCardName( uint cardIdx );
 const char * BtDriver_GetTunerName( uint tunerIdx );
 const char * BtDriver_GetInputName( uint cardIdx, uint inputIdx );
-void BtDriver_Configure( int cardIndex, int tunerType, int pllType, int prio );
+bool BtDriver_Configure( int cardIndex, int tunerType, int pllType, int prio );
+#ifdef WIN32
+uint BtDriver_MatchTunerByParams( uint thresh1, uint thresh2,
+                                  uchar VHF_L, uchar VHF_H, uchar UHF,
+                                  uchar config, ushort IFPCoff );
+bool BtDriver_GetState( bool * pEnabled, bool * pHasDriver, uint * pCardIdx );
+#endif
 
 
 #endif  // __BTDRV_H

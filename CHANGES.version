@@ -1,4 +1,4 @@
-## $Id: CHANGES.version,v 1.8 2002/03/02 12:54:27 tom Exp $ ##
+## $Id: CHANGES.version,v 1.10 2002/05/06 10:13:07 tom Exp $ ##
 
 Steps to prepare new distribution:
 
@@ -9,7 +9,6 @@ update web pages:
 version no contained in:
 - nxtvepg.spec
 - epgctl/epgversion.h
-- nxtvepg.1
 
 RCS
 - check in all files, including TODO & CHANGES
@@ -17,17 +16,16 @@ RCS
   the rest afterwards (to correct possible glitches)
 - tag all archives
 
-Makefile
+Makefile AND Makefile.win
 - test compile with -g, -O2, -O6
 - set CFLAGS optimization to -O6
 - remove -Werr
 - enable USE_THREADS
-- empty Makefile.dep
+- empty Makefile.dep AND Makefile.depwin
 
 adapt epgctl/mytypes.h
 - all debug options from ON to OFF
 
-Windriver
-- remove windrv*.h
-- remove windriver libraries
+remove CHANGES.version
+remove .nroff .gdbinit
 

@@ -24,7 +24,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile,v 1.40 2002/03/02 12:52:01 tom Exp tom $
+#  $Id: Makefile,v 1.41 2002/05/05 20:30:58 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -68,12 +68,12 @@ INST_DB_DIR = $(ROOT)$(DB_DIR)
 WARN    = -Wall -Wnested-externs -Wstrict-prototypes -Wmissing-prototypes
 #WARN  += -Wpointer-arith -Werror
 CC      = gcc
-CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -O6
+CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -O2
 
 # ----- don't change anything below ------------------------------------------
 
-CSRC    = epgvbi/vbidecode epgvbi/tvchan epgvbi/btdrv4linux epgvbi/hamming \
-          epgvbi/cni_tables \
+CSRC    = epgvbi/btdrv4linux epgvbi/vbidecode epgvbi/hamming \
+          epgvbi/tvchan epgvbi/cni_tables \
           epgctl/debug epgctl/epgacqctl epgctl/epgscan epgctl/epgctxctl \
           epgctl/epgctxmerge epgctl/epgacqclnt epgctl/epgacqsrv \
           epgdb/epgdbacq epgdb/epgstream epgdb/epgdbmerge epgdb/epgdbsav \
@@ -88,6 +88,7 @@ SRCS    = $(addsuffix .c, $(CSRC)) $(addsuffix .c, $(CGEN))
 OBJS    = $(addsuffix .o, $(CSRC)) $(addsuffix .o, $(CGEN))
 
 all: nxtvepg nxtvepg.1
+.PHONY: all
 
 nxtvepg: $(OBJS)
 	$(CC) $(CFLAGS) $(INCS) $(LDFLAGS) -o nxtvepg $(OBJS) $(LDLIBS)
@@ -113,18 +114,18 @@ epgui/epgui.c: epgui/epgui.tcl tcl2c
 epgui/help.c: epgui/help.tcl tcl2c
 	egrep -v '^ *#' epgui/help.tcl | ./tcl2c help_tcl_script > epgui/help.c
 
-nxtvepg.1 man.html epgui/help.tcl: nxtvepg.pod pod2help.pl
+nxtvepg.1 manual.html epgui/help.tcl: nxtvepg.pod pod2help.pl
 	@if test -x $(PERL); then \
 	  EPG_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*EPG_VERSION_STR' epgctl/epgversion.h | head -1 | cut -d\" -f2`; \
 	  echo "./pod2help.pl nxtvepg.pod > epgui/help.tcl"; \
 	  ./pod2help.pl nxtvepg.pod > epgui/help.tcl; \
 	  echo "pod2man nxtvepg.pod > nxtvepg.1"; \
 	  pod2man -date " " -center "Nextview EPG Decoder" -section "1" \
-	          -release "nxtvepg "$$EPG_VERSION_STR" (C) 1999-2001 Tom Zoerner" \
+	          -release "nxtvepg "$$EPG_VERSION_STR" (C) 1999-2002 Tom Zoerner" \
 	     nxtvepg.pod > nxtvepg.1; \
-	  echo "pod2html nxtvepg.pod > man.html"; \
-	  pod2html nxtvepg.pod > man.html; \
-	  rm -f pod2html-{dircache,itemcache}; \
+	  echo "pod2html nxtvepg.pod > manual.html"; \
+	  pod2html nxtvepg.pod > manual.html; \
+	  rm -f pod2htm?.x~~ pod2html-{dircache,itemcache}; \
 	elif test -f epgui/help.tcl; then \
 	  touch epgui/help.tcl; \
 	else \
@@ -132,6 +133,7 @@ nxtvepg.1 man.html epgui/help.tcl: nxtvepg.pod pod2help.pl
 	  false; \
 	fi
 
+.PHONY: clean depend bak
 clean:
 	-rm -f *.o epg*/*.o core a.out tcl2c nxtvepg
 	-rm -f epgui/epgui.c epgui/help.c
@@ -146,7 +148,8 @@ depend:
 	done
 
 bak:
-	cd .. && tar cf pc.tar pc -X pc/tar-ex && bzip2 -f -9 pc.tar
+	cd .. && tar cf pc1.tar pc -X pc/tar-ex && bzip2 -f -9 pc1.tar
+	tar cf ../pc2.tar www ATTIC dsdrv* tk8* tcl8* && bzip2 -f -9 ../pc2.tar
 	cd .. && tar cf /e/pc.tar pc -X pc/tar-ex-win
 
 include Makefile.dep

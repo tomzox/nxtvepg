@@ -22,7 +22,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: debug.c,v 1.11 2001/02/25 16:03:08 tom Exp tom $
+ *  $Id: debug.c,v 1.12 2002/04/06 15:34:46 tom Exp tom $
  */
 
 #define __DEBUG_C
@@ -121,7 +121,11 @@ void DebugLogLine( bool doHalt )
    else
       perror("open epg log file debug.out");
 
+   #ifndef WIN32
    printf("%s", debugStr);
+   #else
+   OutputDebugString(debugStr);
+   #endif
 
    #ifdef HALT_ON_FAILED_ASSERTION
    if (doHalt)

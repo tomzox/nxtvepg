@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pilistbox.c,v 1.65 2002/02/28 19:17:55 tom Exp tom $
+ *  $Id: pilistbox.c,v 1.66 2002/04/20 17:16:20 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -146,7 +146,7 @@ static bool PiListBox_ConsistancyCheck( void )
          }
 
          // check cursor position
-         sprintf(comm, ".all.pi.list.text tag ranges sel\n");
+         sprintf(comm, ".all.pi.list.text tag ranges cur\n");
          if (eval_check(interp, comm) == TCL_OK)
          {
             sprintf(comm, "%d.0 %d.0", pibox_curpos + 1, pibox_curpos + 2);
@@ -524,8 +524,8 @@ static void PiListBox_ShowCursor( void )
    else
       pColor = "cursor_bg";
 
-   sprintf(comm, ".all.pi.list.text tag configure sel -background $%s\n"
-                 ".all.pi.list.text tag add sel %d.0 %d.0\n",
+   sprintf(comm, ".all.pi.list.text tag configure cur -background $%s\n"
+                 ".all.pi.list.text tag add cur %d.0 %d.0\n",
                  pColor, pibox_curpos + 1, pibox_curpos + 2);
    eval_global(interp, comm);
 }
@@ -857,7 +857,7 @@ static int PiListBox_Scroll( ClientData ttp, Tcl_Interp *interp, int argc, char 
                // remove cursor, if on one of the remaining items
                if (pibox_curpos >= new_count)
                {
-                  sprintf(comm, ".all.pi.list.text tag remove sel %d.0 %d.0\n", pibox_curpos + 1, pibox_curpos + 2);
+                  sprintf(comm, ".all.pi.list.text tag remove cur %d.0 %d.0\n", pibox_curpos + 1, pibox_curpos + 2);
                   eval_check(interp, comm);
                }
                // remove old text
@@ -891,7 +891,7 @@ static int PiListBox_Scroll( ClientData ttp, Tcl_Interp *interp, int argc, char 
             }
             else if (pibox_curpos < pibox_count - 1)
             {  // no items below -> set cursor to last item
-               sprintf(comm, ".all.pi.list.text tag remove sel %d.0 %d.0\n", pibox_curpos + 1, pibox_curpos + 2);
+               sprintf(comm, ".all.pi.list.text tag remove cur %d.0 %d.0\n", pibox_curpos + 1, pibox_curpos + 2);
                eval_check(interp, comm);
                pibox_curpos = pibox_count - 1;
                PiListBox_ShowCursor();
@@ -928,7 +928,7 @@ static int PiListBox_Scroll( ClientData ttp, Tcl_Interp *interp, int argc, char 
 		  // remove cursor, if on one of the remaining items
 		  if ((pibox_curpos < pibox_height - new_count) && (pibox_curpos >= 0))
 		  {
-		     sprintf(comm, ".all.pi.list.text tag remove sel %d.0 %d.0\n", pibox_curpos + 1, pibox_curpos + 2);
+		     sprintf(comm, ".all.pi.list.text tag remove cur %d.0 %d.0\n", pibox_curpos + 1, pibox_curpos + 2);
 		     eval_check(interp, comm);
 		  }
 		  else
@@ -965,7 +965,7 @@ static int PiListBox_Scroll( ClientData ttp, Tcl_Interp *interp, int argc, char 
 	       }
 	       else if (pibox_curpos > 0)
 	       {  // no items above -> set cursor to first item
-		  sprintf(comm, ".all.pi.list.text tag remove sel %d.0 %d.0\n", pibox_curpos + 1, pibox_curpos + 2);
+		  sprintf(comm, ".all.pi.list.text tag remove cur %d.0 %d.0\n", pibox_curpos + 1, pibox_curpos + 2);
 		  eval_check(interp, comm);
 		  pibox_curpos = 0;
 		  PiListBox_ShowCursor();
@@ -1075,7 +1075,7 @@ static int PiListBox_CursorDown( ClientData ttp, Tcl_Interp *interp, int argc, c
 	 if (pibox_curpos == pibox_height-2)
 	 {
 	    // set cursor one line down, onto last item
-	    sprintf(comm, ".all.pi.list.text tag remove sel %d.0 %d.0\n", pibox_curpos + 1, pibox_curpos + 2);
+	    sprintf(comm, ".all.pi.list.text tag remove cur %d.0 %d.0\n", pibox_curpos + 1, pibox_curpos + 2);
 	    eval_check(interp, comm);
 	    pibox_curpos += 1;
 	    PiListBox_ShowCursor();
@@ -1084,7 +1084,7 @@ static int PiListBox_CursorDown( ClientData ttp, Tcl_Interp *interp, int argc, c
       }
       else if (pibox_curpos < pibox_count-1)
       {  // move cursor one position down (text widget line count starts at 1)
-	 sprintf(comm, ".all.pi.list.text tag remove sel %d.0 %d.0\n", pibox_curpos + 1, pibox_curpos + 2);
+	 sprintf(comm, ".all.pi.list.text tag remove cur %d.0 %d.0\n", pibox_curpos + 1, pibox_curpos + 2);
 	 eval_check(interp, comm);
 	 pibox_curpos += 1;
 	 PiListBox_ShowCursor();
@@ -1108,7 +1108,7 @@ static int PiListBox_CursorUp( ClientData ttp, Tcl_Interp *interp, int argc, cha
 	 if (pibox_curpos == 1)
 	 {
 	    // set cursor one line down, onto last item
-	    sprintf(comm, ".all.pi.list.text tag remove sel %d.0 %d.0\n", pibox_curpos + 1, pibox_curpos + 2);
+	    sprintf(comm, ".all.pi.list.text tag remove cur %d.0 %d.0\n", pibox_curpos + 1, pibox_curpos + 2);
 	    eval_check(interp, comm);
 	    pibox_curpos = 0;
 	    PiListBox_ShowCursor();
@@ -1117,7 +1117,7 @@ static int PiListBox_CursorUp( ClientData ttp, Tcl_Interp *interp, int argc, cha
       }
       else
       {  // move cursor one position up (text widget line count starts at 1)
-	 sprintf(comm, ".all.pi.list.text tag remove sel %d.0 %d.0\n", pibox_curpos + 1, pibox_curpos + 2);
+	 sprintf(comm, ".all.pi.list.text tag remove cur %d.0 %d.0\n", pibox_curpos + 1, pibox_curpos + 2);
 	 eval_check(interp, comm);
 	 pibox_curpos -= 1;
 	 PiListBox_ShowCursor();
@@ -1346,7 +1346,7 @@ void PiListBox_GotoPi( const PI_BLOCK * pPiBlock )
             }
             if (idx < pibox_count)
             {  // found NOW item in the current listing -> just set the cursor there
-               sprintf(comm, ".all.pi.list.text tag remove sel %d.0 %d.0\n", pibox_curpos + 1, pibox_curpos + 2);
+               sprintf(comm, ".all.pi.list.text tag remove cur %d.0 %d.0\n", pibox_curpos + 1, pibox_curpos + 2);
                eval_check(interp, comm);
 
                pibox_curpos = idx;
@@ -1383,7 +1383,7 @@ static int PiListBox_SelectItem( ClientData ttp, Tcl_Interp *interp, int argc, c
       if ((newLine < pibox_count) && (newLine != pibox_curpos))
       {  
          // set cursor to new line (text widget line count starts at 1)
-	 sprintf(comm, ".all.pi.list.text tag remove sel %d.0 %d.0\n", pibox_curpos + 1, pibox_curpos + 2);
+	 sprintf(comm, ".all.pi.list.text tag remove cur %d.0 %d.0\n", pibox_curpos + 1, pibox_curpos + 2);
 	 eval_check(interp, comm);
 	 pibox_curpos = newLine;
 	 PiListBox_ShowCursor();
@@ -1467,7 +1467,7 @@ void PiListBox_DbInserted( const EPGDB_CONTEXT *usedDbc, const PI_BLOCK *pPiBloc
 		  pibox_count += 1;
 	       PiListBox_InsertItem(pPiBlock, 0);
 	       pibox_curpos = 0;  // may have been INVALID
-	       sprintf(comm, ".all.pi.list.text tag remove sel 2.0 3.0\n");
+	       sprintf(comm, ".all.pi.list.text tag remove cur 2.0 3.0\n");
 	       eval_check(interp, comm);
 	       PiListBox_ShowCursor();
 	       PiListBox_UpdateInfoText(FALSE);

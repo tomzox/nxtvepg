@@ -31,7 +31,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgctxctl.c,v 1.18 2002/02/13 21:04:05 tom Exp tom $
+ *  $Id: epgctxctl.c,v 1.19 2002/03/22 21:13:56 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -974,8 +974,8 @@ uint EpgContextCtl_GetFreqList( uint ** ppProvList, ulong ** ppFreqList )
    if (maxCount > 0)
    {
       // allocate memory for the result lists
-      *ppProvList = xmalloc(maxCount * sizeof(uint));
-      *ppFreqList = xmalloc(maxCount * sizeof(uint));
+      *ppProvList = xmalloc(maxCount * sizeof(**ppProvList));
+      *ppFreqList = xmalloc(maxCount * sizeof(**ppFreqList));
 
       // build the lists
       idx = 0;

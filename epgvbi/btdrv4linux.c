@@ -43,7 +43,7 @@
  *    Linux:  Tom Zoerner
  *    NetBSD: Mario Kemper <magick@bundy.zhadum.de>
  *
- *  $Id: btdrv4linux.c,v 1.21 2002/02/16 18:29:51 tom Exp tom $
+ *  $Id: btdrv4linux.c,v 1.26 2002/05/04 18:31:27 tom Exp tom $
  */
 
 #if !defined(linux) && !defined(__NetBSD__)
@@ -113,19 +113,20 @@
 
 #define DEV_MAX_NAME_LEN 32
 
-EPGACQ_BUF *pVbiBuf;
+volatile EPGACQ_BUF *pVbiBuf;
 
 #ifndef USE_THREADS
 // vars used in both processes
 static bool isVbiProcess;
 static int  shmId;
 #else
-static pthread_t  vbi_thread_id;
+static pthread_t        vbi_thread_id;
+static pthread_cond_t   vbi_start_cond;
+static pthread_mutex_t  vbi_start_mutex;
 #endif
 
 // vars used in the acq slave process
 static bool acqShouldExit;
-static bool freeDevice;
 static int vbiCardIndex;
 static int vbi_fdin;
 static int bufSize;
@@ -271,7 +272,7 @@ static void BtDriver_OpenVbi( void )
    if (vbi_fdin == -1)
    {
       debug2("VBI open %s failed: errno=%d", devName, errno);
-      pVbiBuf->isEnabled = FALSE;
+      pVbiBuf->hasFailed = TRUE;
    }
    else
    {  // open successful -> write pid in file
@@ -425,7 +426,7 @@ bool BtDriver_SetInputSource( int inputIdx, bool keepOpen, bool * pIsTuner )
       }
    }
    else
-      debug1("BtDriver-SetInputSource: could not open device %s", devName);
+      debug2("BtDriver-SetInputSource: could not open device %s: %s", devName, strerror(errno));
 
    if (pIsTuner != NULL)
       *pIsTuner = isTuner;
@@ -473,7 +474,6 @@ bool BtDriver_TuneChannel( ulong freq, bool keepOpen )
       {
          //printf("Vbi-TuneChannel: set to %.2f\n", (double)freq/16);
 
-         pVbiBuf->frameSeqNo = 0;
          result = TRUE;
       }
       else
@@ -504,7 +504,6 @@ bool BtDriver_TuneChannel( ulong freq, bool keepOpen )
       {
          //printf("Vbi-TuneChannel: set to %.2f\n", (double)freq/16);
 
-         pVbiBuf->frameSeqNo = 0;
          result = TRUE;
       }
       else
@@ -742,9 +741,25 @@ const char * BtDriver_GetInputName( uint cardIndex, uint inputIdx )
 //   hence these parameters can be ignored in Linux
 // - there isn't any need for priority adaptions, so that's not supported either
 //
-void BtDriver_Configure( int cardIndex, int tunerType, int pll, int prio )
+bool BtDriver_Configure( int cardIndex, int tunerType, int pll, int prio )
 {
+   struct timeval tv;
+   bool wasEnabled;
+
+   wasEnabled = pVbiBuf->isEnabled && !pVbiBuf->hasFailed;
+
+   // pass the new card index to the slave via shared memory
    pVbiBuf->cardIndex = cardIndex;
+
+   if (wasEnabled)
+   {  // wait 30ms for the slave to process the request
+      tv.tv_sec  = 0;
+      tv.tv_usec = 30000L;
+      select(0, NULL, NULL, NULL, &tv);
+   }
+
+   // return FALSE if acq was disabled while processing the request
+   return (!wasEnabled || !pVbiBuf->hasFailed);
 }
 
 #if 0
@@ -788,37 +803,26 @@ static void BtDriver_SignalHandler( int sigval )
 
 // ---------------------------------------------------------------------------
 // Receive wake-up signal or ACK
+// - do nothing
 //
 static void BtDriver_SignalWakeUp( int sigval )
 {
-   // do nothing
    recvWakeUpSig = TRUE;
    signal(sigval, BtDriver_SignalWakeUp);
 }
 
 // ---------------------------------------------------------------------------
 // Receive signal to free or take vbi device
+// - if threads are used, the signal is received by the master thread
 //
 #ifndef USE_THREADS
 static void BtDriver_SignalHangup( int sigval )
 {
    if (pVbiBuf != NULL)
    {
-      if (pVbiBuf->isEnabled)
-      {  // stop acquisition
-
-         if (vbi_fdin != -1)
-         {
-            freeDevice = TRUE;
-         }
-      }
-      else
-      {  // start acquisition
-
-         if (isVbiProcess && (pVbiBuf->epgPid != -1))
-         {  // just pass the signal through to the master process
-            kill(pVbiBuf->epgPid, SIGHUP);
-         }
+      if (isVbiProcess && (pVbiBuf->epgPid != -1))
+      {  // just pass the signal through to the master process
+         kill(pVbiBuf->epgPid, SIGHUP);
       }
    }
    signal(sigval, BtDriver_SignalHangup);
@@ -827,6 +831,7 @@ static void BtDriver_SignalHangup( int sigval )
 
 // ---------------------------------------------------------------------------
 // Check upon the acq slave after being signaled for death of a child
+// - if threads are used, the signal is ignored
 //
 #ifndef USE_THREADS
 static void BtDriver_SignalDeathOfChild( int sigval )
@@ -845,15 +850,15 @@ static void BtDriver_SignalDeathOfChild( int sigval )
          {  // slave died without catching the signal (e.g. SIGKILL)
             debug1("BtDriver-SignalDeathOfChild: acq slave pid %d crashed - disable acq", pid);
             pVbiBuf->vbiPid = -1;
-            pVbiBuf->isEnabled = FALSE;
+            pVbiBuf->hasFailed = TRUE;
          }
-         else if ((pVbiBuf->vbiPid == -1) && pVbiBuf->isEnabled)
+         else if ((pVbiBuf->vbiPid == -1) && (pVbiBuf->hasFailed == FALSE))
          {  // slave caught deadly signal and cleared his pid already
-            debug1("BtDriver-SignalDeathOfChild: acq slave %d terminated - disable acq", pid);
-            pVbiBuf->isEnabled = FALSE;
+            dprintf1("BtDriver-SignalDeathOfChild: acq slave %d terminated - disable acq", pid);
+            pVbiBuf->hasFailed = TRUE;
          }
          else
-            dprintf2("BtDriver-SignalDeathOfChild: pid %d: %s\n", pid, (pVbiBuf->isEnabled ? "not the VBI slave" : "acq already disabled"));
+            dprintf2("BtDriver-SignalDeathOfChild: pid %d: %s\n", pid, ((pVbiBuf->hasFailed == FALSE) ? "not the VBI slave" : "acq already disabled"));
       }
       else
          debug0("BtDriver-SignalDeathOfChild: no VbiBuf allocated");
@@ -892,7 +897,7 @@ static void BtDriver_SignalAlarm( int sigval )
 // ---------------------------------------------------------------------------
 // Wake-up the acq child process to start acquisition
 // - the child signals back after it completed the operation
-// - the status of the operation is in the isEnabled flag
+// - the status of the operation is in the hasFailed flag
 //
 bool BtDriver_StartAcq( void )
 {
@@ -900,13 +905,19 @@ bool BtDriver_StartAcq( void )
 #ifdef USE_THREADS
    sigset_t sigmask;
 
+   pthread_mutex_lock(&vbi_start_mutex);
+   pVbiBuf->hasFailed = FALSE;
    if (pthread_create(&vbi_thread_id, NULL, BtDriver_Main, NULL) == 0)
    {
       sigemptyset(&sigmask);
       sigaddset(&sigmask, SIGUSR1);
       pthread_sigmask(SIG_BLOCK, &sigmask, NULL);
 
-      result = TRUE;
+      // wait for the slave to report the initialization result
+      pthread_cond_wait(&vbi_start_cond, &vbi_start_mutex);
+      pthread_mutex_unlock(&vbi_start_mutex);
+
+      result = (pVbiBuf->hasFailed == FALSE);
    }
    else
       perror("pthread_create");
@@ -916,16 +927,21 @@ bool BtDriver_StartAcq( void )
 
    if ((pVbiBuf != NULL) && (pVbiBuf->vbiPid != -1))
    {
+      pVbiBuf->hasFailed = FALSE;
+      pVbiBuf->freeDevice = FALSE;
       recvWakeUpSig = FALSE;
       if (kill(pVbiBuf->vbiPid, SIGUSR1) != -1)
       {
-         if ((recvWakeUpSig == FALSE) && (pVbiBuf->isEnabled == FALSE))
+         if ((recvWakeUpSig == FALSE) && (pVbiBuf->hasFailed == FALSE))
          {
+            dprintf1("BtDriver-StartAcq: waiting for response from slave pid=%d\n", pVbiBuf->vbiPid);
             tv.tv_sec = 1;
             tv.tv_usec = 0;
             select(0, NULL, NULL, NULL, &tv);
          }
-         result = pVbiBuf->isEnabled;
+         dprintf3("BtDriver-StartAcq: slave pid=%d %s; state=%s\n", pVbiBuf->vbiPid, (recvWakeUpSig ? "replied" : "did not reply"), (pVbiBuf->hasFailed ? "failed" : "ok"));
+         pVbiBuf->freeDevice = pVbiBuf->hasFailed;
+         result = !pVbiBuf->hasFailed;
       }
    }
 #endif
@@ -944,6 +960,17 @@ void BtDriver_StopAcq( void )
       pthread_kill(vbi_thread_id, SIGUSR1);
       if (pthread_join(vbi_thread_id, NULL) != 0)
          perror("pthread_join");
+   }
+
+#else
+   if (pVbiBuf != NULL)
+   {
+      pVbiBuf->freeDevice = TRUE;
+
+      if (pVbiBuf->vbiPid != -1)
+      {  // wake up the child
+         kill(pVbiBuf->vbiPid, SIGUSR1);
+      }
    }
 #endif
 }
@@ -973,7 +1000,7 @@ void BtDriver_Exit( void )
          pVbiBuf->vbiPid = -1;
 
       // detatch and free the shared memory
-      shmdt(pVbiBuf);
+      shmdt((void *) pVbiBuf);
       if (shmctl(shmId, IPC_STAT, &stat) == 0)
       {
          if (stat.shm_nattch == 0)
@@ -987,7 +1014,7 @@ void BtDriver_Exit( void )
 #else  // USE_THREADS
    if (pVbiBuf != NULL)
    {
-      xfree(pVbiBuf);
+      xfree((void *) pVbiBuf);
       pVbiBuf = NULL;
    }
 #endif
@@ -1040,8 +1067,6 @@ static void BtDriver_OpenVbiBuf( void )
    #endif
 
    rawbuf = xmalloc(bufSize);
-
-   pVbiBuf->frameSeqNo = 0;
 }
 
 // ---------------------------------------------------------------------------
@@ -1069,32 +1094,18 @@ static void BtDriver_DecodeFrame( void )
    {
       #ifndef __NetBSD__
       // retrieve frame sequence counter from the end of the buffer
-      u32 seqno = *(u32 *)(rawbuf + stat - 4);
-      if ((seqno != pVbiBuf->frameSeqNo + 1) && (pVbiBuf->frameSeqNo != 0))
-      {  // report mising frame to the teletext decoder
-         VbiDecodeLostFrame();
-      }
+      VbiDecodeStartNewFrame(*(uint32_t *)(rawbuf + stat - 4));
       #else
-      u32 seqno = 1;
+      VbiDecodeStartNewFrame(0);
       #endif
 
-      // skip the first frame, since it could contain data from the previous channel
-      if (pVbiBuf->frameSeqNo > 0)
+      pData = rawbuf;
+      for (line=0; line < stat/VBI_BPL; line++)
       {
-         pData = rawbuf;
-         for (line=0; line < stat/VBI_BPL; line++)
-         {
-            VbiDecodeLine(pData, line, pVbiBuf->doVpsPdc);
-            pData += VBI_BPL;
-            //printf("%02d: %08lx\n", line, *((ulong*)pData-4));  /* frame counter */
-         }
+         VbiDecodeLine(pData, line, pVbiBuf->doVpsPdc);
+         pData += VBI_BPL;
+         //printf("%02d: %08lx\n", line, *((ulong*)pData-4));  /* frame counter */
       }
-      else
-      {  // record which is the first valid line after the channel change
-         // the reader index will be set here by the master process/thread
-         pVbiBuf->start_writer_idx = pVbiBuf->writer_idx;
-      }
-      pVbiBuf->frameSeqNo = seqno;
    }
    else if ((stat < 0) && (errno != EINTR) && (errno != EAGAIN))
    {
@@ -1231,7 +1242,6 @@ static void * BtDriver_Main( void * foo )
    #endif
 
    acqShouldExit = FALSE;
-   freeDevice = FALSE;
    #ifdef USE_THREADS
    sigemptyset(&sigmask);
    sigaddset(&sigmask, SIGHUP);
@@ -1240,14 +1250,27 @@ static void * BtDriver_Main( void * foo )
    sigaddset(&sigmask, SIGUSR1);
    pthread_sigmask(SIG_UNBLOCK, &sigmask, NULL);
    signal(SIGUSR1, BtDriver_SignalWakeUp);
+
+   // open the VBI device and inform the master about the result (via the hasFailed flag)
+   pthread_mutex_lock(&vbi_start_mutex);
+   if (vbi_fdin == -1)
+      BtDriver_OpenVbi();
+   if (pVbiBuf->hasFailed)
+      acqShouldExit = TRUE;
+   pthread_cond_signal(&vbi_start_cond);
+   pthread_mutex_unlock(&vbi_start_mutex);
    #else
    // notify parent that child is ready
    kill(pVbiBuf->epgPid, SIGUSR1);
    #endif
 
-   while (acqShouldExit == FALSE)
+   while ((pVbiBuf != NULL) && (acqShouldExit == FALSE))
    {
-      if (pVbiBuf->isEnabled && (freeDevice == FALSE))
+      if ( (pVbiBuf->hasFailed == FALSE)
+           #ifndef USE_THREADS
+           && (pVbiBuf->freeDevice == FALSE)
+           #endif
+         )
       {
          #ifndef __NetBSD__
          if ((vbiCardIndex != pVbiBuf->cardIndex) && (vbi_fdin != -1))
@@ -1262,28 +1285,24 @@ static void * BtDriver_Main( void * foo )
          {  // acq was switched on -> open device
             BtDriver_OpenVbi();
          }
-         else
-         {  // device is open -> capture the VBI lines of this frame
+         else if (pVbiBuf->isEnabled)
+         {  // device is open and acq enabled -> capture the VBI lines of this frame
             BtDriver_DecodeFrame();
          }
       }
       else
-      {
+      {  // acq was switched off -> close device
          #ifndef USE_THREADS
-         // acq was switched off -> close device
          BtDriver_CloseVbi();
-         if (freeDevice)
-         {  // hang-up signal received -> inform master thread by setting the state to disabled
-            freeDevice = FALSE;
-            pVbiBuf->isEnabled = FALSE;
-         }
 
          // sleep until signal; check parent every 30 secs
          tv.tv_sec = 30;
          tv.tv_usec = 0;
          select(0, NULL, NULL, NULL, &tv);
          BtDriver_CheckParent();
+
          #else
+         // the thread terminates when acq is stopped
          acqShouldExit = TRUE;
          #endif
       }
@@ -1292,7 +1311,7 @@ static void * BtDriver_Main( void * foo )
       {
          if (ioctl(vbi_fdin, VIDIOCGFREQ, &pVbiBuf->vbiQueryFreq) == 0)
          {
-            dprintf1("BtDriver-BtDriver_QueryChannel: got %.2f\n", (double)pVbiBuf->vbiQueryFreq/16);
+            dprintf1("BtDriver-Main: QueryChannel got %.2f MHz\n", (double)pVbiBuf->vbiQueryFreq/16);
          }
          else
             perror("VIDIOCGFREQ");
@@ -1306,8 +1325,9 @@ static void * BtDriver_Main( void * foo )
 
    if (pVbiBuf->isEnabled)
    {  // notify the parent that acq has stopped (e.g. after SIGTERM)
-      pVbiBuf->isEnabled = FALSE;
+      pVbiBuf->hasFailed = TRUE;
       #ifndef USE_THREADS
+      dprintf1("BtDriver-Main: acq slave exiting - signalling parent %d\n", pVbiBuf->epgPid);
       kill(pVbiBuf->epgPid, SIGHUP);
       #endif
    }
@@ -1316,7 +1336,10 @@ static void * BtDriver_Main( void * foo )
 }
 
 // ---------------------------------------------------------------------------
-// Create the VBI slave process - also slave main loop
+// Initialize the module - called once at program start
+// - if processes are used: create shared memory and the VBI slave process
+//   and enter the main loop
+// - if threads are used: just alloc memory and initialize a few variables
 //
 bool BtDriver_Init( void )
 {
@@ -1341,8 +1364,9 @@ bool BtDriver_Init( void )
       return FALSE;
    }
 
-   memset(pVbiBuf, 0, sizeof(EPGACQ_BUF));
+   memset((void *) pVbiBuf, 0, sizeof(EPGACQ_BUF));
    pVbiBuf->epgPid = getpid();
+   pVbiBuf->freeDevice = TRUE;
 
    #ifdef __NetBSD__
    // scan cards and inputs
@@ -1398,13 +1422,16 @@ bool BtDriver_Init( void )
    signal(SIGUSR1, SIG_IGN);
 
    pVbiBuf = xmalloc(sizeof(*pVbiBuf));
-   memset(pVbiBuf, 0, sizeof(EPGACQ_BUF));
+   memset((void *) pVbiBuf, 0, sizeof(EPGACQ_BUF));
 
    pVbiBuf->epgPid = getpid();
    pVbiBuf->vbiPid = -1;
 
    vbi_fdin = -1;
    video_fd = -1;
+
+   pthread_cond_init(&vbi_start_cond, NULL);
+   pthread_mutex_init(&vbi_start_mutex, NULL);
 
    return TRUE;
 #endif  //USE_THREADS

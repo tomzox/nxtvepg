@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbif.h,v 1.24 2002/02/13 21:00:26 tom Exp tom $
+ *  $Id: epgdbif.h,v 1.25 2002/03/29 17:27:17 tom Exp tom $
  */
 
 #ifndef __EPGDBIF_H
@@ -52,7 +52,7 @@ const PI_BLOCK * EpgDbSearchPrevPi( const EPGDB_CONTEXT * dbc, const FILTER_CONT
 uint  EpgDbGetProgIdx( const EPGDB_CONTEXT * dbc, const PI_BLOCK * pPiBlock );
 uchar EpgDbGetStream( const void * pBlock );
 uchar EpgDbGetVersion( const void * pBlock );
-ulong EpgDbGetPiBlockCount( uint startNo, uint stopNo );
+uint  EpgDbGetPiBlockCount( uint startNo, uint stopNo );
 uint  EpgDbGetPiBlockIndex( uint startNo, uint blockNo );
 uchar EpgDbGetStreamByBlockNo( const EPGDB_CONTEXT * dbc, const EPGDB_BLOCK * pBlock );
 uint  EpgDbContextGetCni( const EPGDB_CONTEXT * dbc );

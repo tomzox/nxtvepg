@@ -23,7 +23,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: pod2help.pl,v 1.13 2002/01/01 20:47:18 tom Exp tom $
+#  $Id: pod2help.pl,v 1.14 2002/04/30 09:00:14 tom Exp tom $
 #
 
 require "ctime.pl";
@@ -81,14 +81,16 @@ while(1)
             # save the text of the last chapter into the help text array
             print "set helpTexts($index) {";
 
-            # replace preprocessed format description with pairs of text and tags:
-            # [list "text" underlined] to be inserted into a text widget
+            # replace preprocessed format description with pairs of text and tags
+            # - e.g. [list "text" underlined] to be inserted into a text widget
+            # - note to hyperlinks: sections names are converted to lowercase;
+            #   character ':' is a sub-section separator; see proc PopupHelp
             while ($chapter =~ /([\x00-\xff]*?)##+(([IBTL])#+)?/sg)
             {
                if    ($3 eq "B") { print "{$1} bold "; }
                elsif ($3 eq "I") { print "{$1} underlined "; }
                elsif ($3 eq "T") { print "{$1} title "; }
-               elsif ($3 eq "L") { my $tmp = $1; $tmp =~ s/(.)(.*)/$1\L$2/; print "{$tmp} href "; }
+               elsif ($3 eq "L") { my $tmp = $1; $tmp =~ s/(.)([^:]*)/$1\L$2/; print "{$tmp} href "; }
                elsif ($1 ne "")  { print "{$1} {} "; }
             }
             print "}\n";

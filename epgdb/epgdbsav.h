@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbsav.h,v 1.30 2002/01/05 19:36:51 tom Exp tom $
+ *  $Id: epgdbsav.h,v 1.31 2002/03/29 17:31:27 tom Exp tom $
  */
 
 #ifndef __EPGDBSAV_H
@@ -56,18 +56,18 @@
 
 typedef struct
 {
-   uchar   magic[MAGIC_STR_LEN];  // file header
-   ushort  endianMagic;           // magic to recognize big/little endian
-   ulong   compatVersion;         // version of oldest compatible software
-   ulong   swVersion;             // version of this software
+   uchar     magic[MAGIC_STR_LEN];  // file header
+   uint16_t  endianMagic;         // magic to recognize big/little endian
+   uint32_t  compatVersion;       // version of oldest compatible software
+   uint32_t  swVersion;           // version of this software
 
-   time_t  lastPiDate;            // stop time of last PI in db
-   time_t  firstPiDate;           // start time of first PI in db
-   time_t  lastAiUpdate;          // time when the last AI block was received
-   uint    cni;                   // CNI of EPG provider
-   uint    pageNo;                // last used ttx page
-   ulong   tunerFreq;             // tuner frequency of provider's channel
-   uint    appId;                 // EPG application ID from BI block
+   time_t    lastPiDate;          // stop time of last PI in db
+   time_t    firstPiDate;         // start time of first PI in db
+   time_t    lastAiUpdate;        // time when the last AI block was received
+   uint32_t  cni;                 // CNI of EPG provider
+   uint32_t  pageNo;              // last used ttx page
+   uint32_t  tunerFreq;           // tuner frequency of provider's channel
+   uint32_t  appId;               // EPG application ID from BI block
 
    uchar   reserved[28];          // unused space for future use; set to 0
 } EPGDBSAV_HEADER;

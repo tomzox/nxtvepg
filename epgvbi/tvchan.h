@@ -1,5 +1,5 @@
 /*
- *  VBI capture driver for the Booktree 848/849/878/879 family
+ *  Tuner channel to frequency translation
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: tvchan.h,v 1.4 2001/04/09 20:47:26 tom Exp tom $
+ *  $Id: tvchan.h,v 1.5 2002/04/29 19:03:37 tom Exp tom $
  */
 
 #ifndef __TVCHAN_H

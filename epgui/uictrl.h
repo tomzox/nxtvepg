@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: uictrl.h,v 1.12 2002/01/16 20:24:23 tom Exp tom $
+ *  $Id: uictrl.h,v 1.12 2002/01/16 20:24:23 tom Exp $
  */
 
 #ifndef __UICTRL_H

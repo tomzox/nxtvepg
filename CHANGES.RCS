@@ -7251,3 +7251,866 @@ www/index-de.html [rev:1.23, 2002-03-08T21:26:13]:
 www/index-de.html [rev:1.24, 2002-03-10T14:58:56]:
 - Release date of 0.7.0 was still wrong (2.3. instead 3.2.)
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_7_0 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.151, 2002-03-08T19:15:00]:
+- Added year 2002 to copyright messages.
+www/changelog.html [rev:1.26, 2002-03-10T14:59:27]:
+- Added two points for 0.7.1: big-endian bug-fixes and auto-conversion.
+epgvbi/cni_tables.c [rev:1.11, 2002-03-15T20:35:45]:
+- added 2 Italian networks from EBU TR 231 v03/2002
+www/provnets.html [rev:1.12, 2002-03-17T15:07:42]:
+- Added network lists for M6 and Canal+
+- provided 2002-03-17 by e-nek@netcourrier.com via mail
+epgdb/epgdbacq.c [epgvbi/ttxdecode.c, rev:1.36, 2002-03-17T20:35:45]:
+- fix: changed type of ttx data array from char to uchar
+- in EpgDbAcqAddVpsData() and EpgDbAcqGetP830Cni()
+epgdb/epgdbacq.h [epgvbi/ttxdecode.h, rev:1.17, 2002-03-17T20:35:45]:
+- fix: changed type of ttx data array from char to uchar
+- in EpgDbAcqAddVpsData() and EpgDbAcqGetP830Cni()
+epgui/epgmain.c [rev:1.80, 2002-03-17T20:44:35]:
+- WIN32: enabled EventHandler_TimerVPSPolling()
+- else no VPS is available for WIN32
+epgvbi/cni_tables.c [rev:1.12, 2002-03-20T20:29:26]:
+- removed Pro7 from list of "known" providers
+- added CNI for France 5 (La Cinquieme)
+epgdb/epgblock.c [rev:1.42, 2002-03-22T20:00:11]:
+- bugfix EpgBlockConvertNi():
+- off_events must be 4-byte aligned because it contains long
+- bugfix EpgBlockConvertTi():
+- pointer psd was incremented only 5 in loop; must be 6
+epgui/pioutput.c [rev:1.14, 2002-03-22T21:11:46]:
+- compiler warnings fixed: changed ptr type from char to uchar
+epgui/pifilter.c [rev:1.53, 2002-03-22T21:12:18]:
+- compiler warnings fixed: changed ptr type from char to uchar
+epgui/epgtxtdump.c [epgui/dumpraw.c, rev:1.23, 2002-03-22T21:12:33]:
+- fixed LI and TI dump: missing \n at line ends
+epgctl/epgctxctl.c [rev:1.19, 2002-03-22T21:13:56]:
+- bugfix EpgContextCtl_GetFreqList()
+- memory overwrite on 64-bit CPUs -> SEGV in free()
+- alloc'ed only for uint, but wrote freq as array of longs
+dsdrv/dsdrvlib.h [rev:1.1, 2002-03-24T12:17:36]:
+- Initial revision
+epgvbi/bt848.h [dsdrv/bt8x8_reg.h, rev:1.6, 2002-03-24T12:17:48]:
+- Replaced WinDriver by Dscaler driver "DSdrv"
+- Port done by E-Nek (e-nek@netcourrier.com)
+epgvbi/btdrv4win.c [rev:1.16, 2002-03-24T12:19:07]:
+- Replaced WinDriver by Dscaler driver "DSdrv"
+- Port done by E-Nek (e-nek@netcourrier.com)
+epgvbi/btdrv4dummy.c [rev:1.6, 2002-03-28T21:54:06]:
+- Syntax fixes for WIN32:
+- added #ifdef WIN32 around BtDriver_CheckParent() and
+    BtDriver_GetDeviceOwnerPid()
+- to match the btdrv.h header
+www/pre-releases.html [rev:1.1, 2002-03-29T13:58:53]:
+- Initial revision
+www/nefkom-src-index.html [rev:1.1, 2002-03-29T13:59:07]:
+- Initial revision
+dsdrv/dsdrvlib.h [rev:1.2, 2002-03-29T16:11:57]:
+- upgrade to DSdrv v4 (via email from E-nek 24.2.2002)
+epgvbi/btdrv4win.c [rev:1.17, 2002-03-29T16:12:11]:
+- upgrade to DSdrv v4:
+- changed BT8X8_FindTVCard() to support multiple cards via TvCardIndex
+- added msg when the requested card is not found
+- NOTE: dynamic change of TV card index crashes Windows!
+epgvbi/btdrv.h [rev:1.13, 2002-03-29T16:12:48]:
+- struct EPGACQ_BUF: changed type of frameSeqNo from u32 to uint
+epgvbi/btdrv4linux.c [rev:1.22, 2002-03-29T16:12:55]:
+- struct EPGACQ_BUF: changed type of frameSeqNo from u32 to uint
+epgvbi/hamming.h [rev:1.7, 2002-03-29T16:13:05]:
+- changed macros UnHam84Nibble() and UnHam84Byte()
+- after mail from Helge Kreutzmann 25.03.2002: BUS error on alpha CPU (64-bit)
+- removed (uint) cast; instead cast pointers to (uchar *)
+epgdb/epgblock.h [rev:1.39, 2002-03-29T17:24:11]:
+- Changed all types in EPG blocks to fixed size for 64-bit CPU compatibility
+- replaced ushort with uint16_t, uint with uint32_t, uchar with uint8_t
+- replaced ulong with uint32_t!  long is only used for 32 bit anyway
+- TODO: time_t is still used, also bool
+- still binary compatible with version 0.7.0 (on 32-bit systems only)
+- also changed ulong in EPGDB_BLOCK_COUNT to uint32_t (b/c sent in STATS_IND)
+- Added prototype for new function EpgBlockSwapEndian()
+- Swap all EPG block struct elements > 1 byte for non-endian-matching databases
+epgdb/epgblock.c [rev:1.43, 2002-03-29T17:25:10]:
+- Added new function EpgBlockSwapEndian()
+- Swap all EPG block struct elements > 1 byte for non-endian-matching databases
+- uses local functions for every EPG block type
+- uses new include file epgswap.h with inline functions
+epgdb/epgdbacq.c [epgvbi/ttxdecode.c, rev:1.37, 2002-03-29T17:26:45]:
+- Changed prototype of EpgDbAcqGetStatistics(): replaced ulong with uint32_t
+- because the type was changed in struct EPGDB_BLOCK_COUNT
+epgdb/epgdbacq.h [epgvbi/ttxdecode.h, rev:1.18, 2002-03-29T17:26:45]:
+- Changed prototype of EpgDbAcqGetStatistics(): replaced ulong with uint32_t
+- because the type was changed in struct EPGDB_BLOCK_COUNT
+epgdb/epgdbfil.c [rev:1.32, 2002-03-29T17:26:54]:
+- EpgDbFilterFinishNi(): changed type of cariable now from uint to time_t
+- avoids compiler warning on Sparc
+epgdb/epgdbif.c [rev:1.41, 2002-03-29T17:27:08]:
+- EpgDbGetStat(): changed type of sum variables from ulong to uint32_t
+- ulong is no longer used for 64-bit compatibility
+- changed result type of EpgDbGetPiBlockCount() from ulong to uint
+epgdb/epgdbif.h [rev:1.25, 2002-03-29T17:27:17]:
+- Changed result type of EpgDbGetPiBlockCount() from ulong to uint
+epgdb/epgdbsav.c [rev:1.46, 2002-03-29T17:31:21]:
+- Implemented automatic endian swapping in case of endian mismatch, e.g. Sparc
+- Also changed all types in file header to fixed size for 64-bit CPU compatibility
+- in EpgDbReloadHeader() and other funcs which read the header
+- all EPG blocks are swapped too: new function EpgBlockSwapEndian()
+- also changed all types in file header, e.g. from uint to uint32_t
+epgdb/epgdbsav.h [rev:1.31, 2002-03-29T17:31:27]:
+- Changed all types in file header to fixed size for 64-bit CPU compatibility
+- replaced ushort with uint16_t, uint with uint32_t, uchar with uint8_t
+- replaced ulong with uint32_t!  long is only used for 32 bit anyway
+- TODO: time_t is still used, also bool
+- still binary compatible with version 0.7.0 (on 32-bit systems only)
+epgdb/epgnetio.c [rev:1.27, 2002-03-29T17:32:10]:
+- Ported to WIN32:
+- replaced write/read with send/recv
+- replaced close with closesocket
+- replaced errno with WSAGetLastError()  [not everywhere yet]
+    replaced EAGAIN with WSAEWOULDBLOCK    [TODO: EINTR?]
+- added new function GetWindowsSocketErrorMsg(): to replace strerr() [TODO]
+- replaced setsocketopt() with ioctlsocket()
+- EpgNetIo_FinishConnect(): replaced with constant TRUE: SO_ERROR not available
+    on Windows the socket becomes writable only if the connect succeeded
+    [TODO: add exception to FD mask to catch connect failures]
+- bugfixes:
+- in EpgNetIo_Logger(): epgNetIoLogCf.fileloglev was not used;
+    instead hard-wired "daemon.out"
+- getaddrinfo(): struct sockaddr_in sin_port: must be written through htons()
+- getaddrinfo(): replaced xfree() with free()
+- Avoided a few compiler warnings on Sparc arch:
+- made getaddrinfo(), freeaddrinfo(), gai_strerror() static
+- added #ifdef PF_INET6
+- replaced PF_LOCAL with PF_UNIX
+epgdb/epgnetio.h [rev:1.16, 2002-03-29T17:33:26]:
+- Support for automatic endian swapping in case of endian mismatch
+- changed all types in message header EPGNETIO_MSG_HEADER
+    to fixed size for 64-bit CPU compatibility
+- replaced ushort len with uint16_t;
+    replaced EPGNETIO_MSG_TYPE type with uint8_t
+- changed PROTOCOL_COMPAT from 0.7.0 to 0.7.1
+- added PROTOCOL_ENDIAN_MAGIC, PROTOCOL_WRONG_ENDIAN
+epgdb/epgtscqueue.c [rev:1.5, 2002-03-29T17:34:24]:
+- EpgTscQueue_AdjustBaseTime(): changed type of diff from ushort to uint
+- no particular reason; just by a hunch
+epgdb/epgtscqueue.h [rev:1.3, 2002-03-29T17:34:30]:
+- Changed all types in structs to fixed size for 64-bit CPU compatibility
+- EPGDB_PI_TSC_ELEM, EPGDB_PI_TSC_BUF
+- replaced ushort with uint16_t, uint with uint32_t, uchar with uint8_t
+- TODO: time_t is still used, also bool
+epgctl/epgacqclnt.c [rev:1.5, 2002-03-29T18:49:06]:
+- Implemented automatic endian swapping in case of endian mismatch, e.g. Sparc
+- swapping of all incoming messages is done in EpgAcqClient_CheckMsg()
+- new state element clientState.endianSwap, set by MSG_TYPE_CONNECT_CNF
+- Also changed types in all messages to fixed size for 64-bit CPU compatibility
+- Ported for WIN32:
+- EpgAcqClient_Init(): call WSAStartup()
+epgctl/epgacqsrv.c [rev:1.6, 2002-03-29T18:49:13]:
+- Implemented automatic endian swapping in case of endian mismatch, e.g. Sparc
+- swapping of all incoming messages is done in EpgAcqServer_CheckMsg()
+- new request element endianSwap, set when processing MSG_TYPE_CONNECT_REQ
+- Also changed types in all messages to fixed size for 64-bit CPU compatibility
+- Ported for WIN32:
+- suppress creation of named socket in /tmp
+- not really related but: check for pAcqDbContext==NULL for EpgNetIo_DumpAiOi()
+epgctl/epgacqsrv.h [rev:1.4, 2002-03-29T18:49:20]:
+- Changed types in all messages to fixed size for 64-bit CPU compatibility
+- replaced ushort with uint16_t, uint with uint32_t, uchar with uint8_t
+- replaced ulong with uint32_t!  long is only used for 32 bit anyway
+epgctl/epgscan.c [rev:1.19, 2002-03-29T18:49:33]:
+- EpgScan_EvHandler(): changed type of pkg count vars from ulong to uint32_t
+epgctl/mytypes.h [rev:1.12, 2002-03-29T18:49:39]:
+- Added fixed size integer types for 32 and 64-bit compatibility
+- added #include <stdint.h> for UNIX, <inttypes.h> for WIN32
+- removed obsolete type u32
+epgctl/epgacqctl.h [rev:1.38, 2002-03-29T18:50:40]:
+- Changed types in STATS structs to fixed size for 64-bit CPU compatibility
+- replaced ushort with uint16_t, uint with uint32_t, uchar with uint8_t
+- replaced ulong with uint32_t!  long is only used for 32 bit anyway
+- added filler elements to get the same alignment as on Sparc
+epgui/epgtxtdump.c [epgui/dumpraw.c, rev:1.24, 2002-03-29T19:05:05]:
+- Removed unneccessary use of type long to ease 64-bit CPU compatibility
+- changed type of pil in EPG block from ulong to uint
+- changed type of block count vars from ulong to uint
+epgui/statswin.c [rev:1.57, 2002-03-29T19:06:15]:
+- Removed unneccessary use of type long to ease 64-bit CPU compatibility
+- changed type of block count vars from ulong to uint32_t
+- in StatsWin_UpdateDbStatsWin()
+epgctl/epgacqctl.c [rev:1.66, 2002-03-29T19:18:55]:
+- Removed unneccessary use of type long to ease 64-bit CPU compatibility
+- changed type of block count vars from ulong to uint
+epgui/epgmain.c [rev:1.81, 2002-03-29T19:29:39]:
+- Ported to WIN32:
+- EventHandler_NetworkUpdate(): Tcl_CreateFileHandler() not available on WIN32
+    replaced by Tcl_MakeTcpClientChannel() and Tcl_CreateChannelHandler()
+- replaced gettimeofday() by GetCurrentTime()
+- replaced sleep(sec) with Sleep(msec)
+- disabled EventHandler_DaemonStart() and EpgMain_StartDaemon()
+- disabled -nodetach option in main()
+dsdrv/dsdrvlib.h [rev:1.3, 2002-03-29T22:34:51]:
+- Update from E-nek (in response to my email from today):
+- added DoesThisPCICardExist()
+- added InstallNTDriver() and UnInstallNTDriver()
+- removed obsolete funcs memoryMap() and memoryUnmap()
+www/pre-releases.html [rev:1.2, 2002-03-29T23:25:48]:
+- updated for 1.15pre3-win
+- removed one hint about crashes during TV card changes (solved)
+epgvbi/btdrv.h [rev:1.14, 2002-03-30T14:12:44]:
+- Changed return type of BtDriver_Configure() from void to bool
+epgvbi/btdrv4dummy.c [rev:1.7, 2002-03-30T14:13:08]:
+- Changed return type of BtDriver_Configure() from void to bool
+epgvbi/btdrv4win.c [rev:1.18, 2002-03-30T14:19:33]:
+- New dsdrv.dll from E-nek (in response to my email from today):
+- Optimized BT8X8_FindCard(): merged with BT8X8_Open()
+    use new DLL export DoesThisPCICardExist() to count cards
+- BtDriver_Load(): call LoadDriver(); display msgbox if it fails
+- BtDriver_Unload(): call new DLL export UnloadDriver()
+    to detach from the driver, hence allowing other apps to access the card
+- BtDriver_Configure(): check result of BtDriver_StartAcq():
+    set pVbiBuf->isEnabled = FALSE if it fails to notify acq ctl
+- removed obsolete typedef struct TBT848 and global variable hBT8X8
+- removed obsolete calls to memoryMap() and memoryUnmap()
+    these were also removed from the DLL
+- changed ordering of Bt8x8 chips in array BT848Chips: moved Bt878 to front
+epgctl/debug.c [rev:1.12, 2002-04-06T15:34:46]:
+- WIN32: use OutputDebugString() instead of printf()
+- debug output can be viewed with the DebugView tool from sysinternals
+epgctl/debug.h [rev:1.12, 2002-04-06T15:34:46]:
+- WIN32: use OutputDebugString() instead of printf()
+- debug output can be viewed with the DebugView tool from sysinternals
+epgui/menucmd.c [rev:1.68, 2002-04-20T17:10:57]:
+- SetHardwareConfig: check result of BtDriver_Configure()
+- if it fails, stop acq
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.152, 2002-04-20T17:16:03]:
+- Win32 fix for PI listbox:
+- use new tag "cur" instead of the standard "sel" (selection) tag
+- because the sel tag is removed when the window loses focus,
+    i.e. the cursor position is no longer visible
+- proc HardwareConfigUpdateCardIdx:
+- update rc/ini file only if card idx changed
+- proc PopupAcqMode:
+- moved acqmode_selist initialization here from proc UpdateAcqModePopup
+- just in preparation for remote acq support
+epgui/pilistbox.c [rev:1.66, 2002-04-20T17:16:20]:
+- Win32 fix for PI listbox:
+- use new tag "cur" instead of the standard "sel" (selection) tag
+- because the sel tag is removed when the window loses focus,
+    i.e. the cursor position is no longer visible
+epgvbi/btdrv4linux.c [rev:1.23, 2002-04-20T17:18:05]:
+- BtDriver_Configure(): result changed from void to bool
+- it acq is enabled, waits for 300ms if slave was able to switch cards
+- returns FALSE if not; acq ctl then should stop acq
+epgui/uictrl.c [rev:1.24, 2002-04-29T15:58:27]:
+- fix UiControl_GetDbState():
+- check if acq db != 0 before calling EpgContextMergeCheckForCni()
+epgvbi/cni_tables.c [rev:1.13, 2002-04-29T16:30:12]:
+- bugfix: braught double entries together for QVC,HOT,Arte
+- had separate entries for NI and PDC
+epgctl/epgctxmerge.c [rev:1.8, 2002-04-29T18:14:22]:
+- EpgContextMergeCheckForCni(): fixed prefix in debug statements
+epgui/wintv.h [rev:1.1, 2002-04-29T18:31:58]:
+- Initial revision
+epgui/wintvcfg.h [rev:1.1, 2002-04-29T18:31:58]:
+- Initial revision
+epgvbi/winshm.h [rev:1.1, 2002-04-29T18:32:54]:
+- Initial revision
+epgvbi/winshmsrv.h [rev:1.1, 2002-04-29T18:32:54]:
+- Initial revision
+tvsim/tvsim_gui.tcl [rev:1.1, 2002-04-29T18:38:11]:
+- Initial revision
+tvsim/tvsim_main.c [rev:1.1, 2002-04-29T18:38:11]:
+- Initial revision
+tvsim/vbiplay.c [rev:1.1, 2002-04-29T18:38:11]:
+- Initial revision
+tvsim/vbirec_gui.tcl [rev:1.1, 2002-04-29T18:38:11]:
+- Initial revision
+tvsim/vbirec_main.c [rev:1.1, 2002-04-29T18:38:11]:
+- Initial revision
+tvsim/winshmclnt.c [rev:1.1, 2002-04-29T18:38:11]:
+- Initial revision
+tvsim/winshmclnt.h [rev:1.1, 2002-04-29T18:38:11]:
+- Initial revision
+epgctl/mytypes.h [rev:1.13, 2002-04-29T18:44:55]:
+- added #define DEBUG_SWITCH_TVSIM: for WIN32 TV app interface
+epgvbi/bt848.h [dsdrv/bt8x8_reg.h, rev:1.7, 2002-04-29T19:02:36]:
+- enum TUNER_TYPE:
+    + added 12 new tuners from bttv 0.7.78 tuner.h
+    + added element TUNER_COUNT
+- added #defines for new tuner manufacturers, from bttv too
+epgvbi/btdrv.h [rev:1.15, 2002-04-29T19:02:59]:
+- struct EPGACQ_BUF: revamped channel change handling: the state reset is
+    now done on side of the slave -> removed slave internal vars from the struct
+    (those have been moved into an internal struct in epgdbacq.c)
+    -> removed frameSeqNo, start_writer_idx, isEpgPage, isMipPage
+    -> added chanChangeReq, chanChangeCnf
+- struct EPGACQ_BUF: added comments
+- made pVbiBuf volatile
+- added new WIN32-only funcs: BtDriver_Restart(), BtDriver_GetState(),
+    BtDriver_MatchTunerByParams()
+epgvbi/btdrv4dummy.c [rev:1.8, 2002-04-29T19:03:14]:
+- made pVbiBuf volatile
+epgvbi/btdrv4win.c [rev:1.19, 2002-04-29T19:03:29]:
+- added 12 new tuners from bttv 0.7.78 tuner.c
+- moved internal state vars into new struct btCfg
+- made pVbiBuf volatile
+- renamed some internal state vars, e.g. Initialized -> btDrvLoaded
+- added shmSlaveMode & includes winshm.h, winshmsrv.h
+- added new func BtDriver_MatchTunerByParams() for wintvcfg.c
+- added new funcs BtDriver_GetState(), BtDriver_Restart() for winshmsrv.c
+- added #ifndef WITHOUT_TVCARD to allow driver test w/o TV card
+- moved frameSeqNo handling into epgdbacq.c -> call new function
+    VbiDecodeStartNewFrame(frameSeqNo)
+- added vbiThreadHandle: allows clean shutdown of VBI thread
+epgvbi/tvchan.h [rev:1.5, 2002-04-29T19:03:37]:
+- fixed module description
+epgvbi/vbidecode.c [rev:1.28, 2002-04-29T19:03:43]:
+- replaced VbiDecodeLostFrame() with VbiDecodeStartNewFrame()
+epgvbi/vbidecode.h [rev:1.16, 2002-04-29T19:03:49]:
+- replaced VbiDecodeLostFrame() with VbiDecodeStartNewFrame()
+epgdb/epgblock.h [rev:1.40, 2002-04-29T19:26:22]:
+- moved #define MAX_MERGED_DB_COUNT here from epgdbmerge.h
+- this was required by too many other modules by now
+epgdb/epgdbmerge.h [rev:1.9, 2002-04-29T19:26:43]:
+- moved #define MAX_MERGED_DB_COUNT to epgblock.h
+epgdb/epgdbacq.c [epgvbi/ttxdecode.c, rev:1.38, 2002-04-29T19:26:57]:
+- improved channel change handling: the state reset is now MT safe:
+    vars are reset on side of the slave -> removed slave internal vars from
+    struct EPGACQ_BUF into new internal struct acqSlaveState
+    -> added chanChangeReq, chanChangeCnf
+    -> removed bNewChannel from EPGDBACQ_STATE: check chanChangeCnf instead
+- replaced EpgDbAcqLostFrame() with EpgDbAcqNewVbiFrame():
+    this does the state reset now
+- removed func EpgDbAcqResetVpsPdc(): must not be used because at least
+    the EPG pageno must be reset too upon chan change -> do EPG acq reset
+- made pVbiBuf volatile -> added casts to calls to memset etc.
+epgdb/epgdbacq.h [epgvbi/ttxdecode.h, rev:1.19, 2002-04-29T19:27:01]:
+- removed func EpgDbAcqResetVpsPdc()
+- replaced EpgDbAcqLostFrame() with EpgDbAcqNewVbiFrame()
+epgdb/epgnetio.c [rev:1.28, 2002-04-29T19:27:15]:
+- added compiler switch USE_DAEMON around the whole module code
+    this allows to always keep the module in the makefile
+- moved #include <winsock2.h> to the top: req. b/c conflict with sys/types.h
+- EpgNetIo_FinishConnect(): prepared for WIN32 connect error handling
+epgctl/epgacqctl.c [rev:1.67, 2002-04-29T19:45:54]:
+- EpgAcqCtl_GetVpsPdc(): added param clientId: cache separately
+- EpgAcqCtl_ResetVpsPdc(): replaced EpgDbAcqResetVpsPdc() with
+    EpgAcqCtl_ChannelChange() & EpgAcqCtl_StatisticsUpdate()
+- EpgAcqCtl_Start(): changed order of init function calls:
+    call BtDriver_StartAcq() before EpgAcqCtl_UpdateProvider()
+    -> now the tuner is not changed if the VBI device is busy
+- changed result of EpgAcqCtl_ProcessVps(): return update instead of change
+epgctl/epgacqctl.h [rev:1.39, 2002-04-29T19:46:00]:
+- added new enum VPSPDC_REQ_ID
+- EpgAcqCtl_GetVpsPdc(): added param clientId: cache separately
+epgui/epgmain.c [rev:1.82, 2002-04-29T20:31:50]:
+- removed VPS polling timer: moved into xawtv.c and wintv.c
+- implemented WIN32 TV app interaction
+    + added wintv.h and wintvcfg.h header includes
+    + added calls to WintvSharedMem_Init(), WintvCfg_Init(), Wintv_Init(), ...
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.153, 2002-04-29T20:32:00]:
+- Ported network acq to WIN32
+    + always include "Connect to acq. daemon" in Control menu
+- Implemented WIN32 TV app interaction
+    + changed prefix of Tcl procs from C_Xawtv to C_Tvapp
+    + always include "TV app interaction" into Configure menu
+      moved here from xawtv.c init code
+    + proc CreateTuneTvButton & PopupEpgScan & NetworkNamingPopup:
+      removed $is_unix condition
+    + added new global $tvapp_name: replaces "xawtv" in all output
+    + TV card configuration popup: added "Load config" from TV apps INI files
+    + TV app interaction popup & rc/ini file: new config var: wintvcf
+- PopupHelp
+    + changed cursor to arrow: better for selecting hyperlinks
+    + changed binding for hyperlinks: ButtonRelease instead of Button
+    + proc FollowHelpHyperlink: allow sub-section specification: break up at ":"
+epgui/statswin.c [rev:1.58, 2002-04-29T20:32:15]:
+- StatsWin_UpdateDbStatsWin()
+- added clientId=VPSPDC_REQ_STATSWIN param to EpgAcqCtl_GetVpsPdc()
+- fixed handling of CNI 0 -> display "---"
+- homogenized output: always append \n
+epgui/xawtv.c [rev:1.19, 2002-04-29T20:32:24]:
+- Implemented WIN32 TV app interaction
+    + changed prefix of Tcl procs from C_Xawtv to C_Tvapp
+    + the "TV app interact." menu entry is now always there: just enable/disable
+- changed result type of Xawtv_GetFreqTab() from int (TCL_OK/ERROR) to bool
+- moved VPS/PDC polling here from epgmain.c: uses pollVpsEvent
+    made Xawtv_PollVpsPil() static
+- bugfix Xawtv_FollowTvNetwork():
+    do not remove popup if CNI/PIL is identical to before
+- calls to EpgAcqCtl_GetVpsPdc(): added arg clientId = VPSPDC_REQ_TVAPP
+epgui/xawtv.h [rev:1.3, 2002-04-29T20:32:27]:
+- changed result type of Xawtv_GetFreqTab() from int (TCL_OK/ERROR) to bool
+- removed Xawtv_PollVpsPil(): VPS/PDC polling is now done internally
+epgui/uictrl.c [rev:1.25, 2002-04-29T20:33:29]:
+- UiControlMsg_AcqEvent(): event ACQ_EVENT_VPS_PDC
+- removed call to Xawtv_PollVpsPil()
+- xawtv.c now polls VPS/PDC on its own
+epgui/menucmd.c [rev:1.69, 2002-04-29T20:34:59]:
+- Implemented WIN32 TV app interaction
+-> added WintvCfg_GetFreqTab() during EPG scan
+epgvbi/winshmsrv.c [rev:1.1, 2002-04-30T08:49:09]:
+- Initial revision
+epgui/wintv.c [rev:1.1, 2002-04-30T08:50:06]:
+- Initial revision
+epgui/wintvcfg.c [rev:1.1, 2002-04-30T08:50:06]:
+- Initial revision
+pod2help.pl [rev:1.14, 2002-04-30T09:00:14]:
+- Adapted for hyperlinks with sub-section references:
+- when converting section names to lowercase, stop at the ":" separator
+- e.g. "CONFIGURE: Client/Server" -> "Configure: Client/Server"
+Makefile.win32 [rev:1.15, 2002-04-30T09:23:23]:
+- Ported netacq daemon to WIN32 -> added -lws2_32 to LDLIBS
+- Switched to the DScaler driver -> added dsdrv.a
+- added switch -DWITHOUT_TVCARD (commented out by default)
+- implemented TV application interaction
+    + added winshmsrv, wintv and wintvcfg to source module list
+    + added new compile targets: tvsim.exe, vbirec.exe, vbiplay.exe
+- fixed include path: mingw instead of mingw32
+- fixed extension of tcl2c: .exe was missing
+README [rev:1.21, 2002-04-30T09:55:58]:
+- updated for DScaler driver
+- updated hardware requirements: allow other CPU than Intel too
+nxtvepg.pod [rev:1.59, 2002-04-30T10:05:21]:
+- updated provider list: removed Pro7 and TV5; added Kabel1
+- hyperlinks now can include sub-section references, separated with ':'
+    e.g. "CONFIGURATION: Client/Server"
+- improved "GETTING STARTED": split up in sub-sections
+    added section on TV app interaction
+- TV app interaction now possible for Windows too
+    -> replaced "Xawtv" with the neutral "TV app" everywhere
+www/index.html [rev:1.36, 2002-05-01T10:50:08]:
+- improved HW requirements: not only Pentium PC possible, other CPUs too
+- added note about pending release 0.7.1 with DSdrv
+www/index-de.html [rev:1.25, 2002-05-01T10:51:31]:
+- improved HW requirements: not only Pentium PC possible, other CPUs too
+- added note about pending release 0.7.1 with DSdrv
+www/changelog.html [rev:1.27, 2002-05-01T10:52:20]:
+- moved netacq remote control to 0.7.2
+- added ne release 0.7.1 with: DSdrv & wintv
+README.tcl83 [rev:1.1, 2002-05-01T10:58:06]:
+- Initial revision
+README.tcl83 [rev:1.2, 2002-05-01T10:58:44]:
+- added description of shutdown message patch
+- added (newly introducted) tk_messageBox patch:
+    do not use native WIN32 message box; causes nxtvepg main window to
+    be destroyed (shrunken into oblivion)
+epgvbi/btdrv4linux.c [rev:1.24, 2002-05-01T11:04:24]:
+- made pVbiBuf volatile
+- moved frameSeqNo handling into epgdbacq.c -> call new function
+    VbiDecodeStartNewFrame(frameSeqNo)
+- frameSeqNo is no longer set to 0 upon channel changes; channel change
+    sequence must be triggered by the master when he changes the channel
+epgctl/epgacqsrv.h [rev:1.5, 2002-05-01T11:05:28]:
+- removed obsolete include uictrl.h
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.154, 2002-05-01T12:23:31]:
+- Added 2nd TV application type & path config to TV interaction dialog
+- (that's where people would expect it to be located)
+-> use different sets of config vars for HW cfg and wintv cfg
+- use new globals hwcfg_tvapp_idx and hwcfg_tvapp_path in hwcfg dialog
+    renamed temporary vars to hwcfg_tmp_tvapp_idx etc.
+- added Winwods-only section to .xawtv dialog: TV app idx & path config
+- added hwcfg_tvapp_path, hwcfg_tvapp_idx to rc/ini file
+epgui/wintvcfg.c [rev:1.2, 2002-05-01T12:23:37]:
+- added error messages for open errors in all freq. tab. funcs
+- added arg Tcl_Interp to WintvCfg_GetFreqTab() and internal freq. funcs
+- added new func WinTvCfg_OpenIni() for INI files: error msg on failures
+- removed most "\n" from error messages: because now the Tk internal
+    messagebox is used by tk83.dll instead of the native Win32 one
+- added new Tcl proc: C_Tvapp_TestChanTab for TV interact. config dialog
+- removed channel tab loading from Tcl proc C_Tvapp_LoadConfig
+epgui/wintvcfg.h [rev:1.2, 2002-05-01T12:23:43]:
+- WintvCfg_GetFreqTab(): added arg Tcl_Interp (for Tk error msg box)
+epgui/xawtv.c [rev:1.20, 2002-05-01T12:23:50]:
+- Xawtv_GetFreqTab(): added arg Tcl_Interp (for Tk error msg box)
+epgui/xawtv.h [rev:1.4, 2002-05-01T12:23:50]:
+- Xawtv_GetFreqTab(): added arg Tcl_Interp (for Tk error msg box)
+epgui/menucmd.c [rev:1.70, 2002-05-01T13:11:05]:
+- MenuCmd_SetControlMenuStates(): #ifndef USE_DAEMON:
+    disable menu entry "Connect to acq. daemon"
+- MenuCmd_StartEpgScan(): added arg Tcl_Interp (for Tk error msg box)
+    in calls to WintvCfg_GetFreqTab() and Xawtv_GetFreqTab()
+epgdb/epgstream.c [rev:1.19, 2002-05-01T17:51:53]:
+- EpgStreamDecodePacket(): improved debug output for missing packets
+epgdb/epgdbacq.c [epgvbi/ttxdecode.c, rev:1.39, 2002-05-01T18:02:32]:
+- moved TTX stats in sub-structure of VBI buf: new struct TTX_DEC_STATS
+- added ttxPkgDrop to stats
+- EpgDbAcqProcessPackets(): added debug output if ttx packets are found
+    that do not belong to the current EPG page
+- EpgDbAcqAddPacket(): merged with VbiDecodePacket()
+    packet and page number decoding is now done here
+epgvbi/vbidecode.c [rev:1.29, 2002-05-01T18:03:02]:
+- removed VbiDecodePacket(): functionality merged into EpgDbAcqAddPacket()
+epgvbi/btdrv.h [rev:1.16, 2002-05-01T18:11:46]:
+- changed all elements in EPGACQ_BUF to fixed-length types
+- moved ttx stats into sub-struct: new type TTX_DEC_STATS
+- added new ttx stats elem ttxPkgDrop
+- added 128 reserved bytes at the end of the struct for future extensions
+epgdb/epgdbacq.h [epgvbi/ttxdecode.h, rev:1.20, 2002-05-01T18:12:54]:
+- Changed desclaration of EpgDbAcqAddPacket():
+- function has been merged with VbiDecodePacket()
+- now gets only raw teletext data line as input,
+    does packet and page number decoding by itself
+epgdb/epgblock.c [rev:1.44, 2002-05-02T16:51:19]:
+- bugfix DecodeDescriptorLoop(), EpgBlockConvertLi(), EpgBlockConvertTi()
+- error in bitfield offset calculation: bitOff was modified before
+    it was used to calc. psd increment -> 1 byte was skipped in LI & TI decoding
+- Changed struct LI_DESC:
+- swapped order of 2-dim arrays
+- lang string chars are now adjacent in memory
+-> adapted EpgBlockConvertLi()
+epgdb/epgblock.h [rev:1.41, 2002-05-02T16:51:27]:
+- Changed struct LI_DESC:
+- swapped order of 2-dim arrays
+- lang string chars are now adjacent in memory
+epgdb/epgdbacq.c [epgvbi/ttxdecode.c, rev:1.40, 2002-05-02T16:51:33]:
+- Added elem lastHeader to struct EPGACQ_BUF in pVbiBuf
+- all ttx pkg 0 headers are copied in EpgDbAcqAddPacket()
+- initialized in EpgDbAcqNewVbiFrame()
+epgdb/epgdbfil.c [rev:1.33, 2002-05-02T16:51:40]:
+- EpgDbFilterSetLangDescr(): Changed struct LI_DESC:
+- swapped order of 2-dim arrays
+epgui/epgtxtdump.c [epgui/dumpraw.c, rev:1.25, 2002-05-02T16:59:27]:
+- EpgTxtDumpLi(): Changed struct LI_DESC: swapped order of 2-dim arrays
+epgui/wintv.c [rev:1.2, 2002-05-02T16:59:34]:
+- made Wintv_PollVpsPil() static: only called by local timer
+    (already since timer in epgmain was removed)
+- moved winshmsrv callbacks into new struct WINSHMSRV_CB
+    + made all callback funcs static
+    + call WintvSharedMem_SetCallbacks() in Init
+- Wintv_CbAttachTv(): stop acq, e.g. in case acq restart failed after detach
+epgui/wintv.h [rev:1.2, 2002-05-02T16:59:42]:
+- removed declarations of callback funcs: those are static now
+- removed declaration of Wintv_PollVpsPil: static now
+epgvbi/btdrv.h [rev:1.17, 2002-05-02T17:17:12]:
+- struct VBI_LINE: mage pagno and sub into uint16_t -> saves 7 * 512 Bytes
+- added elem VBI_LINE lastHeader to EPGACQ_BUF: last ttx header of any page
+epgvbi/winshmsrv.c [rev:1.2, 2002-05-02T17:17:19]:
+- removed extern decls for callbacks, because:
+- added new struct * pWinShmSrvCb: holds pointers to GUI callback funcs
+- added new func WintvSharedMem_SetCallbacks()
+- fix WinSharedMem_AttachTvapp() and WinSharedMem_DetachTvapp:
+    must check if drv restart failed for acqEnabled flag which is passed to Cb
+- WintvSharedMem_Enable(): now uses WinSharedMem_AttachTvapp()
+    now the driver may be already running when the func is called
+- WintvSharedMem_StartStop():
+    + for start simply call WintvSharedMem_Enable() now; no need to stop acq
+    + fixed stop: only need to stop acq if in slave mode
+      must call detach callback
+epgvbi/winshmsrv.h [rev:1.2, 2002-05-02T17:17:25]:
+- added new struct WINSHMSRV_CB
+- added decl for new func WintvSharedMem_SetCallbacks()
+tvsim/tvsim_gui.tcl [rev:1.2, 2002-05-02T17:37:01]:
+- added default font for tk_messageBox: ansi -12 normal
+- removed "Config" button & TV card config dialog
+- changed LoadRc: gets file name as param; issue warning if not found
+- removed UpdateRc (the app now uses the nxtvepg.ini)
+- proc LoadChanTable: improved warning if table is empty: added warning
+    if TV card is not configured
+tvsim/tvsim_main.c [rev:1.2, 2002-05-02T17:37:09]:
+- added version string (used for shared memory ID)
+- added command line option handling (from nxtvepg)
+- SetHardwareConfig(): added TV card idx as param (for cmd line option)
+- removed unused func eval_global()
+- removed Tcl procs for HW config dialog (b/c the dialog was removed from GUI)
+- removed TvSimu_InitConfig: no longer required (same reason)
+    during init LoadChanTable is called direct
+- added arg interp to call to WintvCfg_GetFreqTab()
+- LoadRcFile: now gets filename as arg (may be set via cmd line option)
+tvsim/vbiplay.c [rev:1.2, 2002-05-02T17:37:21]:
+- fix: pVbiBuf->mipPageNo must be set to pageno of written EPG pages
+    else the receiver won't read them
+- adapted for change in EPGACQ_BUF: ttx stats were moved into sub-struct
+tvsim/vbirec_gui.tcl [rev:1.2, 2002-05-02T17:37:35]:
+- added new TTX statistic: "TTX pkg dropped:"
+tvsim/vbirec_main.c [rev:1.2, 2002-05-02T17:37:38]:
+- added new TTX statistic: "TTX pkg dropped:"
+- improved UpdateTtxHeader: changed output in TTX header field:
+    use any ttx header, not just from EPG pg.
+    uses new EPGACQ_BUF elem lastHeader; check for parity errors
+- adapted for change in EPGACQ_BUF: ttx stats were moved into sub-struct
+- removed unused func eval_global()
+- put winshmsrv callback func pointers into new struct WINSHMSRV_CB vbiRecCb
+    changed callbacks prefix from Wintv_ into VbiRec_
+- fix UpdateCni: don't output PIL if CNI == 0
+tvsim/winshmclnt.c [rev:1.2, 2002-05-02T17:37:45]:
+- fixed 2 comments
+Makefile.win32 [rev:1.16, 2002-05-02T17:45:35]:
+- VBIREC_MODS2: added hamming module (for ttx header parity check)
+README.tcl83 [rev:1.3, 2002-05-04T18:06:21]:
+- README.tcl83
+- added note that this document also describes the patches
+- I just realized that I probably violated the license some time ago
+    because I didn't publish the modifications I made to the Tk library.
+    This should be resolved now.
+README [rev:1.22, 2002-05-04T18:06:27]:
+- updated win32 dsdrv error message list:
+    now the driver returns more specific error codes
+- added hint that dsdrv logging can be enabled
+- added note about README.tcl83
+Makefile.win32 [rev:1.17, 2002-05-04T18:06:38]:
+- removed dsdrv.dll and dsdrv.a
+- added new subdirectory dsdrv
+- added dsdrv sources to nxtvepg and tvsim targets
+- added ".PHONY" to phony make targets
+- added dsdrv and tvsim dirs to clean rule
+- use separate dependency file for win32 (else make depend can be forgotten
+    with really bad consequences)
+COPYRIGHT [rev:1.4, 2002-05-04T18:06:46]:
+- Added copyrights of included code fragments (esp. bttv and dsdrv)
+nxtvepg.pod [rev:1.60, 2002-05-04T18:06:55]:
+- fixed logic in intro section
+- described TV app configuration in the "TV app. interaction" dialog
+    both in GETTING STARTED and in the CONFIGURE section.
+- added "connection indicator" in xawtvcf dialog
+- added "enable dsdrv loggin" button in hwcfg dialog
+- improved hwcfg: added more explanations
+epgctl/epgacqclnt.c [rev:1.6, 2002-05-04T18:10:28]:
+- enclosed all code with #ifdef USE_DAEMON to allow switching on and off
+    without modifying the Makefile
+- fixed 2 dprintf statements
+epgctl/epgacqsrv.c [rev:1.7, 2002-05-04T18:15:01]:
+- enclosed all code with #ifdef USE_DAEMON to allow switching on and off
+    without modifying the Makefile
+- adapted to interface change in EpgAcqCtl_GetVpsPdc():
+    added client ID arg VPSPDC_REQ_DAEMON
+epgctl/mytypes.h [rev:1.14, 2002-05-04T18:16:57]:
+- added #define DEBUG_SWITCH_DSDRV for new dsdrv subdirectory
+    currently only used by dsdrv/debuglog.c module
+- added/fixed 2 comments
+epgctl/epgscan.c [rev:1.20, 2002-05-04T18:17:01]:
+- improved result code of start:
+- if BtDriver_StartAcq() fails return EPGSCAN_ACCESS_DEV_VBI
+epgctl/epgacqctl.c [rev:1.68, 2002-05-04T18:17:26]:
+- improved EpgAcqCtl_AiCallback():
+- do not reset EPG acq if in state ACQSTATE_WAIT_BI
+- not required b/c channel changes are already detected via ttx header pkg
+epgdb/epgdbacq.c [epgvbi/ttxdecode.c, rev:1.41, 2002-05-04T18:17:52]:
+- btdrv now uses a separate flag for informing about acq failures:
+- pVbiBuf->hasFailed
+- EpgDbAcqNewVbiFrame: added check for pVbiBuf->isEnabled
+- btdrv now always forwards VPS and TTX: epgdbacq has to check enabled flag
+epgui/menucmd.c [rev:1.71, 2002-05-04T18:19:18]:
+- MenuCmd_StartEpgScan(): separate messages for scan start errors
+    EPGSCAN_ACCESS_DEV_VBI and EPGSCAN_ACCESS_DEV_VIDEO
+    also include name of vbi or video devices in error reply
+- SetHardwareConfig: added evaluation of new Tcl var hwcf_dsdrv_log
+    passed through to dsdrv to enable logging
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.155, 2002-05-04T18:19:56]:
+- proc PopupHelp: fixed subheading matches
+    + must search for a match at the beginning of a line to prevent matching
+      on hyperlinks
+    + scroll the text so that the header is at the top of the page (not the mid)
+- added new checkbutton for var hwcf_dsdrv_log in TV input cf dialog
+- moved definition of var tvapp_name to xawtvcf dialog
+    tvapp_name is only set in hwcfg if no TV app was defined before
+- new proc UpdateTvappName to set tvapp_name
+    also called at startup from wintvcfg.c
+- proc XawtvConfigShmAttach: made "Connected to" indicator prettier:
+    use checkbutton with red or green colored background
+- added wintvcf to rc/ini file (was forgotten before)
+epgui/wintv.c [rev:1.3, 2002-05-04T18:20:11]:
+- changed Tcl cb Wintv_QueryTvapp() to return "" if no TV app connected
+    new Tcl proc UpdateTvappName handles the "" result
+epgui/wintvcfg.c [rev:1.3, 2002-05-04T18:20:20]:
+- fix FreeTV INI parser: PLL must be read from different key than chan tab
+    added new key string REG_KEY_FREETV_CHANTAB
+- renamed local func prefixes from Wintv_ to WintvCfg_
+- changed WinTvCfg_UpdatePll(), WinTv_UpdateTuner(), WinTvCfg_UpdateTuner()
+    to return their arg or -1 in error cases (used to build summary msg)
+- fix: WinTvCfg_UpdateTuner(): added missing msg if tuner not mappable
+- added missing -parent .hwcfg in INI file parser messages
+- added new func WintvCfg_IniSummary(): called from all INI parser funcs
+- WintvCfg_LoadHwConfig(): removed the "Config. loaded successful" message
+    since the individual parser funcs now report a summary
+- fix FreeTV: complain that tuner not loadable (always)
+- Init: call Tcl proc UpdateTvappName to set $tvapp_name
+epgvbi/btdrv.h [rev:1.18, 2002-05-04T18:21:05]:
+- struct EPGACQ_BUF: added elem hasFailed: this is used by the acq
+    process/thread to indicate that it stopped; isEnabled is now only written
+    by the master: hence In/Out is now separated
+- struct EPGACQ_BUF: added elem freeDevice for non-threaded mode
+    this is now used to stop acq, instead of isEnabled. This has the BIG
+    advantage that the driver can be started before epgdbacq; this simplifies
+    startup
+epgvbi/btdrv4linux.c [rev:1.25, 2002-05-04T18:21:15]:
+- Changed to allow that btdrv is enabled before epgdbacq
+- this has the advantage that the TV tuner is not changed if vbi open fails
+- isEnabled is no longer used to start/stop the driver
+    instead in process mode: the new elem freeDevice is used
+    in thread mode: the start/stop principle is unchanged
+- failure is no longer reported via isEnabled: use new elem hasFailed
+- thread start no uses a cond & mutex variable to allow the master to
+    wait until the slave has opened the VBI device, or failed to do so
+    fix: Start now returns FALSE is the VBI device could not be opened
+- simplified BtDriver_SignalHangup(): the signal is now always just
+    forwarded to the master process
+epgvbi/btdrv4win.c [rev:1.20, 2002-05-04T18:21:22]:
+- moved include dsdrv.h into new subdir dsdrv
+- SetAcqPriority(): added debug output for SetThreadPriority() result
+- BtDriver_Load(): LoadDriver() now returns error codes
+    -> added switch with messages
+- BtDriver_Configure(): update prio of acq thread if changed
+- BtDriver_VbiThread(): no longer check pVbiBuf->isEnabled
+    VBI lines are always forwarded as long as driver is activated
+    isEnabled no checked inside epgdbacq.c
+- BtDriver_Restart() and BtDriver_Configure():
+    use pVbiBuf->hasFailed instead of isEnabled to report errors
+    explanation see btdrv4linux.c
+epgvbi/cni_tables.c [rev:1.14, 2002-05-04T18:21:29]:
+- added PDC code 0x1D80 for new German channel Tele-5
+epgvbi/winshm.h [rev:1.2, 2002-05-04T18:21:39]:
+- added new defines for EPG and TV mutexes EPG_MUTEX_NAME, EPG_MUTEX_NAME
+    the shared memory mutex was renamed from EPG_MUTEX_NAME into SHM_MUTEX_NAME
+- the new mutexes are used to make sure that only one client & server are
+    active at the same time
+- changed protocol version from 0.7.1 to 2.0.0
+epgvbi/winshmsrv.c [rev:1.3, 2002-05-04T18:21:46]:
+- removed obsolete include "epgvbi/dsdrv.h"
+- added module global var epgMutexHandle: used to make sure that only one
+    winshm server is active at the same time
+- WintvSharedMem_Enable():
+    added abort if EPG_MUTEX_NAME already exists
+    fixed creation of SHM_MUTEX_NAME: create unlocked, then wait
+    cleaned up release of SHM_MUTEX_NAME: use new bool shmMutexOwned
+- WintvSharedMem_Disable(): destroy the new mutex EPG_MUTEX_NAME
+tvsim/tvsim_main.c [rev:1.3, 2002-05-04T18:22:18]:
+- placed compiler switch around unused func DisplaySystemErrorMsg()
+tvsim/tvsim_gui.tcl [rev:1.3, 2002-05-04T18:22:28]:
+- added dummy proc UpdateTvappName for wintvcfg.c
+tvsim/vbiplay.c [rev:1.3, 2002-05-04T18:22:39]:
+- added handling of new EPGACQ_BUF elem lastHeader: copy all pkg 0 into it
+tvsim/vbirec_main.c [rev:1.3, 2002-05-04T18:22:50]:
+- fixed a debug message
+tvsim/winshmclnt.c [rev:1.3, 2002-05-04T18:23:01]:
+- added module global var tvMutexHandle: used to make sure that only one
+    winshm client is active at the same time
+- replaced name EPG_MUTEX_NAME with SHM_MUTEX_NAME
+    (because the first is now used internally by the winshmsrv)
+- WinSharedMemClient_GrantTuner(): fixed func name in debug output
+- catch error results of all syscalls, esp. SetEvent()
+- WinSharedMemClient_Init(): added abort if TV_MUTEX_NAME already exists
+- WinSharedMemClient_Exit()
+    fix: error check for SetEvent was negated: ok is != 0
+    fix: do not wait for the thread if SetEvent failed - might hang
+    destroy the new mutex TV_MUTEX_NAME
+- added comments
+- cleaned up handling of pVbiBuf
+epgvbi/btdrv4linux.c [rev:1.26, 2002-05-04T18:31:27]:
+- improved 2 debug lines
+CHANGES.version [rev:1.9, 2002-05-04T18:49:32]:
+- removed rule for windriver header files and DLLs
+epgctl/epgacqsrv.c [rev:1.8, 2002-05-04T18:52:38]:
+- Added missing include epgui/uictrl.h: needed for EpgContextCtl_Open
+tvsim/tvsim.pod [rev:1.1, 2002-05-05T20:29:29]:
+- Initial revision
+README [rev:1.23, 2002-05-05T20:29:40]:
+- fixed description of required prilileges on Win2K
+- added note about TV app interaction
+Makefile [rev:1.41, 2002-05-05T20:30:58]:
+- added .PHONY targets for all, clen, depend, bak
+- added automatic removal of tmp files during manpage conversion
+- extended copyright for manpage for year 2002
+- split up backup tar file pc.tar to pc1 and pc2
+Makefile.win32 [rev:1.18, 2002-05-05T20:32:07]:
+- changed name of man.html to manual.html
+- added automatic removal of tmp files during manpage conversion
+- extended copyright for manpage for year 2002
+- added processing of tvsim.pod
+nxtvepg.pod [rev:1.61, 2002-05-05T20:33:46]:
+- fixed GETTING STARTED: TV app config
+    introduced a destinction between "passive" and "active" features
+- adapted to change in TV app interaction dialog: the connection
+    status is now displayed in the middle of the file
+dsdrv/dsdrvlib.h [rev:1.4, 2002-05-05T20:46:25]:
+- converted the source file frmo C++ to C and link directly instead of DLL
+- removed WINAPI from func decls
+- renamed the file from dsdrv.h into dsdrvlib.h
+- removed type declarations; include dsdrv.h (from DScaler package) instead
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.156, 2002-05-05T20:50:17]:
+- TV app. interaction popup:
+- moved connection status indicator from the bottom of the dialog window
+    to the middle in a separate frame
+- disabled the "General enable" button for release 2.0.0
+epgui/menucmd.c [rev:1.72, 2002-05-05T20:51:38]:
+- MenuCmd_Init: disabled "Client/Server..." menu entry #ifndef USE_DAEMON
+epgui/wintv.c [rev:1.4, 2002-05-05T20:52:38]:
+- Disabled WintvSharedMem_StartStop() for release 2.0.0
+epgdb/epgswap.h [rev:1.1, 2006-12-22T15:14:02 - LATE CHECK-IN - WRONG DATE]:
+- Initial revision
+epgctl/epgversion.h [rev:1.20, 2002-05-05T20:55:36]:
+- set to version 0.7.1 aka 2.0.0
+www/pre-releases.html [rev:1.3, 2002-05-05T21:04:27]:
+- updated for pre-release 0.7.1b1
+TODO [rev:1.16, 2002-05-06T10:11:41]:
+- updated for release 0.7.1
+CHANGES [rev:1.21, 2002-05-06T10:11:58]:
+- updated for release 0.7.1
+CHANGES.version [rev:1.10, 2002-05-06T10:13:07]:
+- updated for release 0.7.1
+- added -g -O2 changes for Makefile.win
+- removed manual version mod for nxtvepg.1 (done by Makefile since ages)
+- added Makefile.depwin
+- added removal of .nroff .gdbinit
+nxtvepg.spec [rev:1.3, 2002-05-06T10:14:08]:
+- set version to 0.7.1
+www/changelog.html [rev:1.28, 2002-05-06T10:15:27]:
+- updated for release 0.7.1
+- changed Windows paragraph: TV app interaction is only "prepared"
+- added Win tk_messagebox fix
+- added 5 general fixes
+www/pre-releases.html [rev:1.4, 2002-05-06T10:16:39]:
+- updated for release 0.7.1
+- removed beta source tarball and exe
+- added exe package with nxtvepg, tvsim, vbi*
+- added intro
+www/index-de.html [rev:1.26, 2002-05-06T10:17:52]:
+- updated for release 0.7.1
+- removed "New" tag for Kabel1; removed Pro7 from provider list
+- updated software requirements for Windows
+- removed notes about required external driver
+- added note that ZIP file needs to be unpacked into empty dir
+www/index.html [rev:1.37, 2002-05-06T10:17:52]:
+- updated for release 0.7.1
+- removed "New" tag for Kabel1; removed Pro7 from provider list
+- updated software requirements for Windows
+- removed notes about required external driver
+- added note that ZIP file needs to be unpacked into empty dir
+www/man.html [rev:1.14, 2002-05-06T10:19:36]:
+- updated for release 0.7.1
+www/nefkom-src-index.html [rev:1.2, 2002-05-06T10:19:59]:
+- updated for release 0.7.1
+- removed nxtvepg-1.13-win.zip
+- added nxtvepg-0.7.1.tar.gz and nxtvepg-2.0.0-win.zip
+- corrected release date on nxtvepg-1.14-win.zip
+www/tripod-src-index.html [rev:1.3, 2002-05-06T10:22:20]:
+- updated for release 0.7.1
+- added nxtvepg-0.7.1.tar.gz and nxtvepg-2.0.0-win.zip
+www/provnets.html [rev:1.13, 2002-05-06T10:22:56]:
+- removed "New provider" message on top (Kabel1)
+- moved Pro7 and TV5 into separate table with "Former nexTView providers"
+- removed special note about TV5
+www/changelog.html [rev:1.29, 2002-05-06T11:22:19]:
+- added note that TV interaction support is intentionally disabled
+www/index-de.html [rev:1.27, 2002-05-06T11:22:39]:
+- Windows download section:
+- added link to new package nxtvepg-2.0.0-drv.zip
+- I forgot to include the drivers with nxtvepg-2.0.0-win.zip
+    Thanks to terrae@gmx.net for pointing this out.
+www/index.html [rev:1.38, 2002-05-06T11:22:39]:
+- Windows download section:
+- added link to new package nxtvepg-2.0.0-drv.zip
+- I forgot to include the drivers with nxtvepg-2.0.0-win.zip
+    Thanks to terrae@gmx.net for pointing this out.
+www/pre-releases.html [rev:1.5, 2002-05-06T11:24:09]:
+- improved intro:
+- added note that TV app interaction was disabled in the regular release
+    because the interface is not finalized yet
+- added note that debug output can be watched with DebugView
+- added note that there's no docu for vbirec yet
+www/nefkom-src-index.html [rev:1.3, 2002-05-06T11:25:38]:
+- added nxtvepg-2.0.0-drv.zip
+- I forgot to include the drivers with nxtvepg-2.0.0-win.zip
+    Thanks to terrae@gmx.net for pointing this out.
+www/tripod-src-index.html [rev:1.4, 2002-05-06T11:25:38]:
+- added nxtvepg-2.0.0-drv.zip
+- I forgot to include the drivers with nxtvepg-2.0.0-win.zip
+    Thanks to terrae@gmx.net for pointing this out.
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_7_1 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

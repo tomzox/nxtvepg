@@ -20,11 +20,13 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgacqsrv.c,v 1.5 2002/02/28 19:11:09 tom Exp tom $
+ *  $Id: epgacqsrv.c,v 1.8 2002/05/04 18:52:38 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
 #define DPRINTF_OFF
+
+#ifdef USE_DAEMON
 
 #include <stdio.h>
 #include <string.h>
@@ -35,12 +37,14 @@
 #include "epgctl/debug.h"
 #include "epgctl/epgversion.h"
 #include "epgdb/epgblock.h"
+#include "epgdb/epgswap.h"
 #include "epgdb/epgqueue.h"
 #include "epgdb/epgtscqueue.h"
 #include "epgdb/epgdbmgmt.h"
 #include "epgdb/epgdbmerge.h"
 #include "epgdb/epgdbsav.h"
 #include "epgdb/epgnetio.h"
+#include "epgui/uictrl.h"
 #include "epgctl/epgacqctl.h"
 #include "epgctl/epgacqsrv.h"
 
@@ -72,6 +76,7 @@ typedef struct REQUEST_struct
 
    SRV_REQ_STATE   state;
    EPGNETIO_STATE  io;
+   bool            endianSwap;
 
    EPGNETIO_DUMP   dump;
    uint            dumpProvIdx;
@@ -231,7 +236,7 @@ static void EpgAcqServer_BuildVpsPdcMsg( EPGDBSRV_STATE * req )
 {
    const EPGDB_ACQ_VPS_PDC  * pVpsPdc;
 
-   pVpsPdc = EpgAcqCtl_GetVpsPdc();
+   pVpsPdc = EpgAcqCtl_GetVpsPdc(VPSPDC_REQ_DAEMON);
    if (pVpsPdc != NULL)
    {
       dprintf5("EpgAcqServer-BuildVpsPdcMsg: %02d.%02d. %02d:%02d (0x%04X)\n", (pVpsPdc->pil >> 15) & 0x1F, (pVpsPdc->pil >> 11) & 0x0F, (pVpsPdc->pil >>  6) & 0x1F, (pVpsPdc->pil      ) & 0x3F, pVpsPdc->cni);
@@ -404,26 +409,67 @@ static void EpgAcqServer_AddConnection( int listen_fd )
 // ----------------------------------------------------------------------------
 // Checks the size of a message from client to server
 //
-static bool EpgAcqServer_CheckMsg( uint len, EPGNETIO_MSG_HEADER * pHead, EPGDBSRV_MSG_BODY * pBody )
+static bool EpgAcqServer_CheckMsg( uint len, EPGNETIO_MSG_HEADER * pHead, EPGDBSRV_MSG_BODY * pBody, bool * pEndianSwap )
 {
-   bool result;
+   uint idx;
+   bool result = FALSE;
 
    switch (pHead->type)
    {
       case MSG_TYPE_CONNECT_REQ:
-         result = (len == sizeof(EPGNETIO_MSG_HEADER) + sizeof(pBody->con_req)) &&
-                  (memcmp(pBody->con_req.magic, MAGIC_STR, MAGIC_STR_LEN) == 0);
+         if ( (len == sizeof(EPGNETIO_MSG_HEADER) + sizeof(pBody->con_req)) &&
+              (memcmp(pBody->con_req.magic, MAGIC_STR, MAGIC_STR_LEN) == 0) )
+         {
+            if (pBody->con_req.endianMagic == PROTOCOL_ENDIAN_MAGIC)
+            {
+               *pEndianSwap = FALSE;
+               result       = TRUE;
+            }
+            else if (pBody->con_req.endianMagic == PROTOCOL_WRONG_ENDIAN)
+            {
+               *pEndianSwap = TRUE;
+               result       = TRUE;
+            }
+         }
          break;
+
       case MSG_TYPE_FORWARD_REQ:
-         result = (len == sizeof(EPGNETIO_MSG_HEADER) + sizeof(pBody->fwd_req)) &&
-                  (pBody->fwd_req.cniCount <= MAX_MERGED_DB_COUNT);
+         if (len == sizeof(EPGNETIO_MSG_HEADER) + sizeof(pBody->fwd_req))
+         {
+            if (*pEndianSwap)
+            {
+               swap32(&pBody->fwd_req.statsReqBits);
+               swap32(&pBody->fwd_req.cniCount);
+               if (pBody->fwd_req.cniCount <= MAX_MERGED_DB_COUNT)
+               {
+                  for (idx=0; idx < pBody->fwd_req.cniCount; idx++)
+                  {
+                     swap32(&pBody->fwd_req.dumpStartTimes[idx]);
+                     swap32(&pBody->fwd_req.provCnis[idx]);
+                  }
+                  result = TRUE;
+               }
+            }
+            else if (pBody->fwd_req.cniCount <= MAX_MERGED_DB_COUNT)
+            {
+               result = TRUE;
+            }
+         }
          break;
+
       case MSG_TYPE_STATS_REQ:
-         result = (len == sizeof(EPGNETIO_MSG_HEADER) + sizeof(pBody->stats_req));
+         if (len == sizeof(EPGNETIO_MSG_HEADER) + sizeof(pBody->stats_req))
+         {
+            if (*pEndianSwap)
+               swap32(&pBody->stats_req.statsReqBits);
+            result = TRUE;
+         }
          break;
+
       case MSG_TYPE_CLOSE_IND:
          result = (len == sizeof(EPGNETIO_MSG_HEADER));
          break;
+
       case MSG_TYPE_CONNECT_CNF:
       case MSG_TYPE_FORWARD_CNF:
       case MSG_TYPE_FORWARD_IND:
@@ -685,7 +731,7 @@ void EpgAcqServer_HandleSockets( fd_set * rd, fd_set * wr )
             // check for finished read -> process request
             if ( (req->io.readLen != 0) && (req->io.readLen == req->io.readOff) )
             {
-               if (EpgAcqServer_CheckMsg(req->io.readLen, &req->io.readHeader, (EPGDBSRV_MSG_BODY *) req->io.pReadBuf))
+               if (EpgAcqServer_CheckMsg(req->io.readLen, &req->io.readHeader, (EPGDBSRV_MSG_BODY *) req->io.pReadBuf, &req->endianSwap))
                {
                   req->io.readLen  = 0;
 
@@ -699,7 +745,6 @@ void EpgAcqServer_HandleSockets( fd_set * rd, fd_set * wr )
                }
                else
                {  // message has illegal size or content
-                  req->io.pReadBuf = NULL;
                   EpgAcqServer_Close(req, FALSE);
                }
             }
@@ -735,19 +780,26 @@ void EpgAcqServer_HandleSockets( fd_set * rd, fd_set * wr )
          }
          else if (req->state == SRV_STATE_DUMP_ACQ)
          {  // Perform dump of AI and OI#0 of non-requested db
-            if ( (EpgNetIo_DumpAiOi(&req->io, pAcqDbContext, &req->dump) == FALSE) && (req->io.sock_fd != -1) )
+            if (pAcqDbContext != NULL)
             {
-               if ( (req->statsReqBits & STATS_REQ_BITS_TSC_REQ) &&
-                    (req->statsReqBits & STATS_REQ_BITS_TSC_ALL) &&
-                    (req->enableAllBlocks == FALSE) )
-               {  // if this is a non-forwarded provider but acq timescales are open,
-                  // generate full timescale info
-                  EpgTscQueue_AddAll(&req->tscQueue, pAcqDbContext);
-               }
-               req->msgBuf.fwd_ind.cni = srvState.lastFwdCni;
-               EpgNetIo_WriteMsg(&req->io, MSG_TYPE_FORWARD_IND, sizeof(req->msgBuf.fwd_ind), &req->msgBuf.fwd_ind, FALSE);
+               if ( (EpgNetIo_DumpAiOi(&req->io, pAcqDbContext, &req->dump) == FALSE) && (req->io.sock_fd != -1) )
+               {
+                  if ( (req->statsReqBits & STATS_REQ_BITS_TSC_REQ) &&
+                       (req->statsReqBits & STATS_REQ_BITS_TSC_ALL) &&
+                       (req->enableAllBlocks == FALSE) )
+                  {  // if this is a non-forwarded provider but acq timescales are open,
+                     // generate full timescale info
+                     EpgTscQueue_AddAll(&req->tscQueue, pAcqDbContext);
+                  }
+                  req->msgBuf.fwd_ind.cni = srvState.lastFwdCni;
+                  EpgNetIo_WriteMsg(&req->io, MSG_TYPE_FORWARD_IND, sizeof(req->msgBuf.fwd_ind), &req->msgBuf.fwd_ind, FALSE);
 
-               req->state = SRV_STATE_FORWARD;
+                  req->state = SRV_STATE_FORWARD;
+               }
+            }
+            else
+            {  // acquisition has been stopped (can only occur during server shutdown)
+               EpgAcqServer_Close(req, TRUE);
             }
          }
          else if ( (req->doVpsPdc) &&
@@ -911,8 +963,12 @@ bool EpgAcqServer_Listen( void )
    if (EpgNetIo_CheckConnect() == FALSE)
    {
       // create named socket in /tmp for listening to local clients
+      #ifndef WIN32
       srvState.pipe_fd = EpgNetIo_ListenSocket(FALSE, NULL, NULL);
       if (srvState.pipe_fd != -1)
+      #else
+      srvState.pipe_fd = -1;
+      #endif
       {
          if (srvState.do_tcp_ip)
          {
@@ -1151,3 +1207,4 @@ void EpgAcqServer_AddBlock( EPGDB_CONTEXT * dbc, EPGDB_BLOCK * pNewBlock )
    }
 }
 
+#endif  // USE_DAEMON

@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: uictrl.c,v 1.23 2002/02/28 19:22:16 tom Exp tom $
+ *  $Id: uictrl.c,v 1.25 2002/04/29 20:33:29 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -51,7 +51,6 @@
 #include "epgui/menucmd.h"
 #include "epgui/statswin.h"
 #include "epgui/timescale.h"
-#include "epgui/xawtv.h"
 #include "epgctl/epgctxctl.h"
 
 
@@ -104,7 +103,12 @@ static EPGDB_STATE UiControl_GetDbState( void )
    {  // AI present, but no PI in database
 
       // check if acquisition is working for the browser database
-      if ( EpgDbContextIsMerged(pUiDbContext) )
+      if ( (acqState.state == ACQDESCR_NET_CONNECT) ||
+           (acqState.state == ACQDESCR_DISABLED) ||
+           (acqState.state == ACQDESCR_SCAN) ||
+           (acqState.dbCni == 0) )
+         acqWorksOnUi = FALSE;
+      else if ( EpgDbContextIsMerged(pUiDbContext) )
          acqWorksOnUi = EpgContextMergeCheckForCni(pUiDbContext, acqState.dbCni);
       else
          acqWorksOnUi = (acqState.dbCni == uiCni);
@@ -610,9 +614,6 @@ void UiControlMsg_AcqEvent( ACQ_EVENT acqEvent )
 
          case ACQ_EVENT_VPS_PDC:
             StatsWin_StatsUpdate(DB_TARGET_ACQ);
-            #ifndef WIN32
-            AddMainIdleEvent(Xawtv_PollVpsPil, NULL, TRUE);
-            #endif
             break;
       }
    }

@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: bt848.h,v 1.5 2001/05/13 16:40:09 tom Exp tom $
+ *  $Id: bt848.h,v 1.7 2002/04/29 19:02:36 tom Exp tom $
  */
 
 #ifndef __BT848_H
@@ -59,7 +59,7 @@
 #define BT848_PLL_F_HI         0x0F4
 #define BT848_PLL_XCI          0x0F8
 
-#define BT848_TGCTRL           0x084  
+#define BT848_TGCTRL           0x084
 #define BT848_TGCTRL_TGCKI_PLL 0x08
 #define BT848_TGCTRL_TGCKI_NOPLL 0x00
 
@@ -329,111 +329,6 @@
 
 
 // ---------------------------------------------------------------------------
-// WinDriver interface
-
-typedef enum
-{
-    BT8X8_MODE_BYTE   = 0,
-    BT8X8_MODE_WORD   = 1,
-    BT8X8_MODE_DWORD  = 2
-} BT8X8_MODE;
-
-
-typedef enum
-{
-    BT8X8_AD_BAR0 = 0,
-    BT8X8_AD_BAR1 = 1,
-    BT8X8_AD_BAR2 = 2,
-    BT8X8_AD_BAR3 = 3,
-    BT8X8_AD_BAR4 = 4,
-    BT8X8_AD_BAR5 = 5,
-    BT8X8_AD_EPROM = 6,
-    BT8X8_ITEMS = 7
-} BT8X8_ADDR;
-
-typedef struct BT8X8_STRUCT *BT8X8_HANDLE;
-
-
-typedef struct
-{
-    DWORD dwCounter;   // number of interrupts received
-    DWORD dwLost;      // number of interrupts not yet dealt with
-    BOOL fStopped;     // was interrupt disabled during wait
-} BT8X8_INT_RESULT;
-typedef void (WINAPI *BT8X8_INT_HANDLER)( BT8X8_HANDLE hBT8X8, BT8X8_INT_RESULT *intResult);
-
-typedef struct
-{
-    WD_INTERRUPT Int;
-    HANDLE hThread;
-    WD_TRANSFER Trans[3];
-    BT8X8_INT_HANDLER funcIntHandler;
-} BT8X8_INT_INTERRUPT;
-
-typedef struct
-{
-    DWORD index;
-    DWORD dwMask;
-    BOOL  fIsMemory;
-    BOOL  fActive;
-} BT8X8_ADDR_DESC;
-
-typedef struct BT8X8_STRUCT
-{
-    HANDLE hWD;
-    BOOL   fUseInt;
-    BT8X8_INT_INTERRUPT Int;
-    WD_PCI_SLOT pciSlot;
-    BT8X8_ADDR_DESC addrDesc[BT8X8_ITEMS];
-    WD_CARD_REGISTER cardReg;
-} BT8X8_STRUCT;
-
-enum {
-    PCI_IDR  = 0x00,
-    PCI_CR   = 0x04,
-    PCI_SR   = 0x06,
-    PCI_REV  = 0x08,
-    PCI_CCR  = 0x09,
-    PCI_LSR  = 0x0c,
-    PCI_LTR  = 0x0d,
-    PCI_HTR  = 0x0e,
-    PCI_BISTR= 0x0f,
-    PCI_BAR0 = 0x10,
-    PCI_BAR1 = 0x14,
-    PCI_BAR2 = 0x18,
-    PCI_BAR3 = 0x1c,
-    PCI_BAR4 = 0x20,
-    PCI_BAR5 = 0x24,
-    PCI_CIS  = 0x28,
-    PCI_SVID = 0x2c,
-    PCI_SID  = 0x2e,
-    PCI_ERBAR= 0x30,
-    PCI_ILR  = 0x3c,
-    PCI_IPR  = 0x3d,
-    PCI_MGR  = 0x3e,
-    PCI_MLR  = 0x3f
-};
-
-typedef enum
-{
-   BT8X8_OPEN_RESULT_OK,
-   BT8X8_OPEN_RESULT_DRIVER,
-   BT8X8_OPEN_RESULT_CARDIDX,
-   BT8X8_OPEN_RESULT_PCI_SCAN,
-   BT8X8_OPEN_RESULT_REGISTER,
-   BT8X8_OPEN_RESULT_ELEMS,
-   BT8X8_OPEN_RESULT_MALLOC,
-   BT8X8_OPEN_RESULT_VERSION,
-} BT8X8_OPEN_RESULT;
-
-// ids for identification of Booktree chips on the PCI bus
-#define PCI_VENDOR_ID_BROOKTREE 0x109e
-#define PCI_DEVICE_ID_BT848     0x350
-#define PCI_DEVICE_ID_BT849     0x351
-#define PCI_DEVICE_ID_BT878     0x36e
-#define PCI_DEVICE_ID_BT879     0x36f
-
-// ---------------------------------------------------------------------------
 // Declarations for tuner control, copied from bttv tuner driver
 // Copyright (C) 1997 Markus Schroeder (schroedm@uni-duesseldorf.de)
 //
@@ -464,6 +359,19 @@ typedef enum
    TUNER_TEMIC_4046FM5,
    TUNER_PHILIPS_PAL_DK,
    TUNER_PHILIPS_FQ1216ME,
+   TUNER_LG_PAL_I_FM,
+   TUNER_LG_PAL_I,
+   TUNER_LG_NTSC_FM,
+   TUNER_LG_PAL_FM,
+   TUNER_LG_PAL,
+   TUNER_TEMIC_4009FN5_MULTI_PAL_FM,
+   TUNER_SHARP_2U5JF5540_NTSC,
+   TUNER_Samsung_PAL_TCPM9091PD27,
+   TUNER_MT2032,
+   TUNER_TEMIC_4106FH5,
+   TUNER_TEMIC_4012FY5,
+   TUNER_TEMIC_4136FY5,
+   TUNER_COUNT
 } TUNER_TYPE;
 
 #define NOTUNER 0
@@ -472,11 +380,16 @@ typedef enum
 #define NTSC    3
 #define SECAM   4
 
-#define NoTuner 0
-#define Philips 1
-#define TEMIC   2
-#define Sony    3
-#define Alps    4
+#define NoTuner      0
+#define Philips      1
+#define TEMIC        2
+#define Sony         3
+#define Alps         4
+#define LGINNOTEK    5
+#define MICROTUNE    6
+#define SHARP        7
+#define Samsung      8
+#define Microtune    9
 
 #define TEMIC_SET_PAL_I         0x05
 #define TEMIC_SET_PAL_DK        0x09
@@ -487,33 +400,20 @@ typedef enum
 #define PHILIPS_SET_PAL_I       0x01 /* Bit 2 always zero !*/
 #define PHILIPS_SET_PAL_BGDK    0x09
 #define PHILIPS_SET_PAL_L2      0x0a
-#define PHILIPS_SET_PAL_L       0x0b    
+#define PHILIPS_SET_PAL_L       0x0b
 
 
 // ---------------------------------------------------------------------------
-// forward declarations for WinDriver interface functions
+// forward declarations for Dscaler interface functions
 //
-static BT8X8_OPEN_RESULT BT8X8_Open (BT8X8_HANDLE *phBT8X8);
-static void BT8X8_Close(BT8X8_HANDLE hBT8X8);
-//static DWORD BT8X8_CountCards (DWORD dwVendorID, DWORD dwDeviceID);
-static BOOL BT8X8_IsAddrSpaceActive(BT8X8_HANDLE hBT8X8, BT8X8_ADDR addrSpace);
 
 // General read/write function
-static void BT8X8_ReadWriteBlock(BT8X8_HANDLE hBT8X8, BT8X8_ADDR addrSpace, DWORD dwOffset, BOOL fRead, PVOID buf, DWORD dwBytes, BT8X8_MODE mode);
-static BYTE BT8X8_ReadByte (BT8X8_HANDLE hBT8X8, BT8X8_ADDR addrSpace, DWORD dwOffset);
-static WORD BT8X8_ReadWord (BT8X8_HANDLE hBT8X8, BT8X8_ADDR addrSpace, DWORD dwOffset);
-static DWORD BT8X8_ReadDword (BT8X8_HANDLE hBT8X8, BT8X8_ADDR addrSpace, DWORD dwOffset);
-static void BT8X8_WriteByte (BT8X8_HANDLE hBT8X8, BT8X8_ADDR addrSpace, DWORD dwOffset, BYTE data);
-static void BT8X8_WriteWord (BT8X8_HANDLE hBT8X8, BT8X8_ADDR addrSpace, DWORD dwOffset, WORD data);
-static void BT8X8_WriteDword (BT8X8_HANDLE hBT8X8, BT8X8_ADDR addrSpace, DWORD dwOffset, DWORD data);
-// handle interrupts
-static BOOL BT8X8_IntIsEnabled (BT8X8_HANDLE hBT8X8);
-static BOOL BT8X8_IntEnable (BT8X8_HANDLE hBT8X8, BT8X8_INT_HANDLER funcIntHandler);
-static void BT8X8_IntDisable (BT8X8_HANDLE hBT8X8);
-// access to PCI configuration registers
-//static void BT8X8_WritePCIReg(BT8X8_HANDLE hBT8X8, DWORD dwReg, DWORD dwData);
-static DWORD BT8X8_ReadPCIReg(BT8X8_HANDLE hBT8X8, DWORD dwReg);
-static BOOL BT8X8_DetectCardElements(BT8X8_HANDLE hBT8X8);
+#define BT8X8_ReadByte(dwOffset)                memoryReadBYTE(dwOffset)
+#define BT8X8_ReadWord(dwOffset)                memoryReadWORD(dwOffset)
+#define BT8X8_ReadDword(dwOffset)               memoryReadDWORD(dwOffset)
+#define BT8X8_WriteByte(dwOffset,data)          memoryWriteBYTE(dwOffset, data)
+#define BT8X8_WriteWord(dwOffset,data)          memoryWriteWORD(dwOffset, data)
+#define BT8X8_WriteDword(dwOffset,data)         memoryWriteDWORD(dwOffset, data)
 
 
 #endif  // __BT848_H

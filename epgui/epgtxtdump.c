@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgtxtdump.c,v 1.22 2002/01/02 17:07:28 tom Exp tom $
+ *  $Id: epgtxtdump.c,v 1.25 2002/05/02 16:59:27 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -57,7 +57,7 @@ static const char * const pEpgTxtDumpHeader = "Nextview ASCII Dump\n";
 // ----------------------------------------------------------------------------
 // Decode PIL code into date and time of day
 //
-static bool DecodePil(ulong pil, uchar *pHour, uchar *pMinute, uchar *pDay, uchar *pMonth)
+static bool DecodePil(uint pil, uchar *pHour, uchar *pMinute, uchar *pDay, uchar *pMonth)
 {
    uint hour, minute, day, month;
    bool result;
@@ -91,9 +91,9 @@ static bool DecodePil(ulong pil, uchar *pHour, uchar *pMinute, uchar *pDay, ucha
 // ----------------------------------------------------------------------------
 //#define COMPARE_PIL
 #ifdef COMPARE_PIL
-static uchar * GetPiPilStr( ulong pil, PI_BLOCK *pPi )
+static uchar * GetPiPilStr( uint pil, PI_BLOCK *pPi )
 #else
-static uchar * GetPiPilStr( ulong pil )
+static uchar * GetPiPilStr( uint pil )
 #endif
 {
    uchar hour, minute, day, month;
@@ -206,7 +206,7 @@ static void EpgTxtDumpPi( FILE *fp, const PI_BLOCK * pPi, uchar stream, uchar ve
 
 static void EpgTxtDumpAi( FILE *fp, const AI_BLOCK * pAi, uchar stream )
 {
-   ulong blockSum1, blockSum2;
+   uint blockSum1, blockSum2;
    uint i;
 
    if (pAi != NULL)
@@ -237,7 +237,7 @@ static void EpgTxtDumpAi( FILE *fp, const AI_BLOCK * pAi, uchar stream )
          blockSum1 += EpgDbGetPiBlockCount(pNetwop->startNo, pNetwop->stopNo);
          blockSum2 += EpgDbGetPiBlockCount(pNetwop->startNo, pNetwop->stopNoSwo);
       }
-      fprintf(fp, "    #PI blocks total: %ld (%ld stream 1 only)\n", blockSum2, blockSum1);
+      fprintf(fp, "    #PI blocks total: %d (%d stream 1 only)\n", blockSum2, blockSum1);
    }
 }
 
@@ -394,8 +394,10 @@ static void EpgTxtDumpLi( FILE *fp, const LI_BLOCK * pLi, uchar stream )
 
          for (lang=0; lang < pLd[desc].lang_count; lang++)
          {
-            fprintf(fp, "%c%c%c,", pLd[desc].lang[0][lang], pLd[desc].lang[1][lang], pLd[desc].lang[2][lang]);
+            fprintf(fp, "%c%c%c,",
+                        pLd[desc].lang[lang][0], pLd[desc].lang[lang][1], pLd[desc].lang[lang][2]);
          }
+         fprintf(fp, "\n");
       }
    }
 }
@@ -419,8 +421,14 @@ static void EpgTxtDumpTi( FILE *fp, const TI_BLOCK * pTi, uchar stream )
 
          for (subt=0; subt < pStd[desc].subt_count; subt++)
          {
-            fprintf(fp, "%03X.%04X=%c%c%c,", pStd[desc].subt[subt].page, pStd[desc].subt[subt].subpage, pStd[desc].subt[subt].lang[0], pStd[desc].subt[subt].lang[1], pStd[desc].subt[subt].lang[2]);
+            fprintf(fp, "%03X.%04X=%c%c%c,",
+                        pStd[desc].subt[subt].page,
+                        pStd[desc].subt[subt].subpage,
+                        pStd[desc].subt[subt].lang[0],
+                        pStd[desc].subt[subt].lang[1],
+                        pStd[desc].subt[subt].lang[2]);
          }
+         fprintf(fp, "\n");
       }
    }
 }

@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbacq.h,v 1.16 2001/11/24 20:28:41 tom Exp tom $
+ *  $Id: epgdbacq.h,v 1.20 2002/05/01 18:12:54 tom Exp tom $
  */
 
 #ifndef __EPGDBACQ_H
@@ -59,14 +59,13 @@ void EpgDbAcqInitScan( void );
 void EpgDbAcqNotifyChannelChange( void );
 void EpgDbAcqGetScanResults( uint *pCni, bool *pNiWait, uint *pDataPageCnt );
 uint EpgDbAcqGetMipPageNo( void );
-void EpgDbAcqGetStatistics( ulong *pTtxPkgCount, ulong *pEpgPkgCount, ulong *pEpgPagCount );
-void EpgDbAcqResetVpsPdc( void );
+void EpgDbAcqGetStatistics( uint32_t * pTtxPkgCount, uint32_t * pEpgPkgCount, uint32_t * pEpgPagCount );
 bool EpgDbAcqGetCniAndPil( uint * pCni, uint *pPil );
 
 // interface to the teletext packet decoder
-bool EpgDbAcqAddPacket( uint pageNo, uint sub, uchar pkgno, const uchar * data );
-void EpgDbAcqAddVpsData( const char * data );
-void EpgDbAcqLostFrame( void );
+void EpgDbAcqAddPacket( const uchar * data );
+void EpgDbAcqAddVpsData( const uchar * data );
+bool EpgDbAcqNewVbiFrame( uint frameSeqNo );
 
 // interface to the main event control - should be called every 1-2 secs in average
 bool EpgDbAcqProcessPackets( void );

@@ -28,6 +28,14 @@ This is the manual page for the
 	<LI><A HREF="#description">DESCRIPTION</A></LI>
 	<LI><A HREF="#options">OPTIONS</A></LI>
 	<LI><A HREF="#getting started">GETTING STARTED</A></LI>
+	<UL>
+
+		<LI><A HREF="#tv card setup on unix">TV card Setup on UNIX</A></LI>
+		<LI><A HREF="#tv card setup on m$ windows">TV card Setup on M$ Windows</A></LI>
+		<LI><A HREF="#search for epg providers">Search for EPG providers</A></LI>
+		<LI><A HREF="#configuring a tv application">Configuring a TV application</A></LI>
+	</UL>
+
 	<LI><A HREF="#basic browsing">BASIC BROWSING</A></LI>
 	<LI><A HREF="#data acquisition">DATA ACQUISITION</A></LI>
 	<LI><A HREF="#acquisition modes">ACQUISITION MODES</A></LI>
@@ -75,8 +83,8 @@ is an X11 and Win32API application to decode, analyze and browse TV programme
 schedules transmitted on analog TV channels as defined in ETS 300 707:
 ``Protocol for a TV Guide using electronic data transmission'' by the
 European Telecommunications Standards Institute.</P>
-<P>The Nextview standard was developed for use in TV sets, but it can also be
-received and used in a PC - provided you have a Teletext capable TV tuner
+<P>The Nextview standard was developed for use in TV sets, but the data can be
+received and used in a PC, too - provided you have a Teletext capable TV tuner
 card and are lucky enough to have a Nextview content provider in your country.</P>
 <P><STRONG>nxtvepg</STRONG>
 enables you to obtain free TV programme listings for all of the major
@@ -86,13 +94,13 @@ of these EPGs cover not only the provider's programme but also that of
 many other networks):</P>
 <UL>
 <LI>
-In Germany and Austria: Pro7, 3Sat, RTL-II.
+In Germany and Austria: Kabel1, 3Sat, RTL-II.
 <P></P>
 <LI>
-In Switzerland: DRS1, TSR1, TSI1, EuroNews.
+In Switzerland: SF1, TSR1, TSI1, EuroNews.
 <P></P>
 <LI>
-In France: Canal+, M6, TV5.
+In France: Canal+, M6.
 <P></P>
 <LI>
 In Turkey: TRT-1
@@ -172,8 +180,8 @@ reports about the acquisition progress; if left unconnected, the browser
 listing might be incomplete or outdated.</P>
 <P>It's important to note that the browser <STRONG>must use</STRONG> the same <EM>-dbdir</EM>
 directory, because the daemon forwards only deltas to the database files
-stored in that directory. For more details see the <EM>Client/Server</EM> dialog
-described in <A HREF="#configuration">CONFIGURATION</A>.</P>
+stored in that directory. For more details see
+<A HREF="#configuration: client/server">CONFIGURATION: Client/Server</A>.</P>
 <P>Warning: for security reasons it's depreciated to run the daemon with root
 privileges, because nxtvepg has not been reviewed yet for possible exploits.
 If you want to start the daemon already during system startup, you should
@@ -235,43 +243,92 @@ them to the executable in a shortcut definition.</P>
 <P>Before you can start reading in TV programme schedules (called
 <EM>acquisition</EM>
 from here on), you have to do just a few configurations. Which
-ones depends on your setup and will be described in the following.
+ones depends on your setup and will be described in this chapter.
 As long as your browser window contains no data, there's also a
 recommondation how to get to data in the browser window,
-highlighted with a yellow background.</P>
+highlighted by a yellow background.</P>
 <P>This manual describes all features of nxtvepg in detail. You
 do not have to read all of it at once to operate the software.
 However it's recommended to skim at least through <A HREF="#basic browsing">BASIC BROWSING</A>,
 <A HREF="#data acquisition">DATA ACQUISITION</A> and <A HREF="#filtering">FILTERING</A>.</P>
-<P>Windows users first have to configure the driver for their TV card.
-Therefore invoke the 'TV card input' dialog from the Configure menu
-(see <A HREF="#configuration">CONFIGURATION</A>) and specify the type of your tuner. In Germany,
-Austria and Switzerland it should be either Philips PAL or Temic PAL.
-In France it's one of the SECAM types. Then select how your card's <EM>PLL</EM>
-needs to be set up. On most cards it's either <EM>No init</EM> or <EM>28 MHz</EM>.
-If you're not sure about your configuration, start with the topmost and
-then try them one after each other and start an EPG scan inbetween to
-check if the tuner works. If this seems too much work, open your PC
-and read the manufacturer from the metal tuner box on the TV tuner card.</P>
-<P>If you don't have an antenna connected to your PC, you can select an
-external source for video input. If you have problems see <EM>README</EM>
-for more details and a list of error messages from the Windows driver.</P>
+<P>
+<H2><A NAME="tv card setup on unix">TV card Setup on UNIX</A></H2>
 <P>UNIX users just need to check if the correct input source and
-frequency table are selected in the TV card input dialog.</P>
+frequency table are selected; default is to use the TV tuner as
+input source (i.e. the antenna cable) and a German/Austrian/Swiss
+frequency table.  If you live in France or want to use one of the
+external video inputs (e.g. a satellite receiver), open the
+TV card configuration dialog in the Configure menu and change the
+parameters; else you can skip this step.</P>
+<P>
+<H2><A NAME="tv card setup on m$ windows">TV card Setup on M$ Windows</A></H2>
+<P>Windows users first have to configure the driver for their TV card
+in the 'TV card input' dialog from the Configure menu (for more
+in-depth information see also <A HREF="#configuration: tv card input">CONFIGURATION: TV card input</A>).</P>
+<P>The easiest way is to copy the values of your favorite TV application.
+nxtvepg can read the INI files or registry of the following freeware
+programs: DScaler, K!TV, MultiDec, MoreTV, FreeTV. After selecting a
+TV app in the drop-down menu, you need to specify the directory where
+the software is installed in the entry field below (i.e. the directory
+which contains the <EM>.INI</EM> file, except for MoreTV and FreeTV which use
+the central Windows registry to store their parameters); click the folder
+icon on the right to get a browser window for directory selection.</P>
+<P>Finally press the <EM>Load config</EM> button.  If loading succeeds, the three
+parameters in the middle box of the dialog window have been set,
+i.e. input source, tuner type and PLL initialization.  Note that the
+TV application type and directory configured here are also used by the
+EPG scan and the network name dialog to obtain a channel table.</P>
+<P>If nxtvepg cannot load your TV app's configuration, you should open your
+TV app's card configuration dialog and look up the tuner and PLL settings
+used there, and then set them manually in nxtvepg.  Otherwise the only
+way to figure out which tuner your card is using is to open your PC case
+and search for a label on the metal tuner box on the TV card, or try all
+the tuners in nxtvepg's list.</P>
+<P>Some hints for figuring out your settings: if you live in Germany,
+Austria or Switzerland you probably have a PAL tuner, in France it's
+one of the SECAM types. (If you select the wrong tuner, you can have
+either no reception at all or no reception just on a few channels.)
+The correct value for <EM>PLL initialization</EM> with PAL and SECAM cards
+is either <EM>No init</EM> or <EM>28 MHz</EM>. (If you select the wrong value
+you have no reception at all.)</P>
+<P>If you're not sure about your configuration, start with the topmost and
+then try them one after each other and start an EPG scan inbetween to
+check if the tuner works.  If you have one of the TV applications listed
+above make sure to keep the <EM>Use TV app freq.</EM> button enabled; this way
+only well known channels are visited, and you can monitor in the output
+window if there is reception on these channels (however only networks
+which transmit VPS/PDC can be identified with their network name).</P>
+<P>If you don't have an antenna connected to your PC, you can select an
+external source for video input and supply a TV signal via a satellite
+receiver.</P>
+<P>If you have problems see <EM>README</EM> for more details and a
+list of error messages from the Windows driver.</P>
+<P>
+<H2><A NAME="search for epg providers">Search for EPG providers</A></H2>
 <P>In the next step - if you chose to use the TV tuner - run a provider
 scan from the Configure menu.  During the scan all TV channels are
-checked for Nextview transmissions. After the scan has finished,
-open the provider selection dialog from the Configure menu and select
-you favorite one.</P>
-<P>If the provider scan does not find all Nextview provider channels
+checked for Nextview transmissions.</P>
+<P>You can speed up the scan by using a TV application's channel table;
+in this case the scan is limited to TV frequencies defined in the
+TV app's channel table. This mode is enabled with the
+<EM>Use TV app freq. table</EM> checkbutton. It's checked by default if
+you have loaded your TV card parameters from a TV application's INI
+file.  If you want to load the channel table from a different application
+use the <EM>TV app. interaction</EM> dialog described in the next chapter.</P>
+<P>At the end of the scan there's a short summary which tells you how many
+providers have been found.  If there were any, you can close the dialog
+window and open the provider selection dialog from the Configure menu
+and select you favorite one.  Then wait a little while the provider's
+TV channel is tuned and data being loaded.</P>
+<P>If the provider scan does not find any or not all Nextview provider channels
 (possibly due to weak reception - this is a very simple scan that does
-not attempt any fine-tuning) check the <EM>Slow</EM> button and try again.
+not attempt any fine-tuning) enable the <EM>Slow</EM> button and try again.
 If this does not help, you can still add the missing providers manually.
 set the acquisition mode to <EM>external</EM> or <EM>passive</EM> (UNIX only). Then
 use an external application to tune the channel (Windows users have to
 stop acquisition first; then start the TV application; then tune the
-channel; then quit the other application; finally start acquisition again).
-In external mode nxtvepg will not touch the tuner and wait infinitly for
+channel; then quit the other application; finally start acquisition again).</P>
+<P>In external mode nxtvepg will not touch the tuner and wait infinitly for
 Nextview reception on the current channel.  On Windows (and Linux with
 bttv drivers version 0.7.50 and earlier) this method has the disadvantage
 that no frequency will be known for this provider so this procedure has
@@ -288,6 +345,58 @@ programmes that are nearer in the future are available much faster,
 since they are transmitted more often. The currently running and
 directly following programmes of all networks are usually available
 after about 2-3 minutes max.</P>
+<P>
+<H2><A NAME="configuring a tv application">Configuring a TV application</A></H2>
+<P>nxtvepg can cooperate in three ways with TV applications:</P>
+<UL>
+<LI>
+Windows only: loading TV card parameters to simplify the
+initial configuration (already described above).
+<P></P>
+<LI>
+Loading the TV application's channel table: use of the TV tuner frequencies
+can significantly speed up the EPG scan (already mentioned above);
+the channel names are used by the  <EM>Network name</EM> dialog in the
+Configure menu (see <A HREF="#configuration: network names">CONFIGURATION: Network names</A>) to synchronize
+network names between nxtvepg and the TV application.
+<P></P>
+<LI>
+Interaction between nxtvepg and the TV application, to provide you
+with convenience features like an on-screen display of the current
+programme title after channel changes, changing the channel from
+inside nxtvepg with the <EM>TuneTV</EM> button, and background Nextview
+data acquisition while you're watching TV.
+<P></P></UL>
+<P>The first two are passive features, i.e. only nxtvepg needs to be
+adapted to the respective TV applications.  The third one however
+requires cooperation of both sides.  For this reason the number
+of TV applications for which the passive features are supported
+will always be much larger.  On Windows the interaction features
+are still under development and currently only supported by a
+developer's version of K!TV.</P>
+<P>On UNIX only <EM>xawtv</EM> is supported currently.  With xawtv all
+the features listed above are supported.</P>
+<P>On Windows several freeware TV applications are supported for the
+passive features; you must select which one you're using.
+If you've loaded TV card settings from
+a TV app in the <EM>TV card input</EM> dialog, then the TV app type and path
+is already configured.  Else, or if you want to use a different app as
+source for the channel table, open the <EM>TV app. interaction</EM> dialog
+(see also <A HREF="#configuration: tv application interaction">CONFIGURATION: TV application interaction</A>).</P>
+<P>Regarding the third, the active feature:
+You can check if nxtvepg is able to interact with a specific TV application
+by starting both, and then opening the TV application interaction
+dialog in  the Configure menu. In the middle of the dialog window the
+connection status is indicated.  In most cases however unsupported TV
+application will already fail to start with a message like ``TV card
+already in use'' or ``Couldn't load Bt8x8 driver''. Only with cooperating
+TV apps nxtvepg is able to automatically free the card when the TV app
+is started (TV viewing is always given priority over EPG data acquisition.)</P>
+<P>After setting up the TV app type and path, you should open the
+<EM>Network name</EM> configuration dialog to synchronize
+network names between nxtvepg and the TV app.  Even if interaction is not
+possible, it may still be a good idea to have the same network names in
+both applications.  See <A HREF="#configuration: network names">CONFIGURATION: Network names</A> for details.</P>
 <P>
 <HR>
 <H1><A NAME="basic browsing">BASIC BROWSING</A></H1>
@@ -312,28 +421,30 @@ move the keyboard input focus to other widgets, e.g. to the scrollbars
 or the shortcut list. On Unix, the menus can be accessed with the
 Meta key (usually the ALT key) together with one of the underlined
 characters in the menu buttons.</P>
-<P>nxtvepg can communicate with the <EM>xawtv</EM> TV application (UNIX only)
-to provide a connection in both directions: Firstly you'll find a
-<EM>Tune-TV</EM> button in the main window below the clock. When you press it,
-the network of the currently selected programme will be tuned into xawtv.
-With the right mouse button you can also pop up a small menu which offers
-basic control over xawtv. Secondly, when you change the channel in xawtv,
-the cursor will automatically jump onto the programme currently running
-on that network. To use these features, you'll have to open the
-<EM>Network name configuration</EM> dialog at least once to synchronize
-network names with your xawtv station names. See <A HREF="#configuration">CONFIGURATION</A> for
-details.</P>
+<P>nxtvepg can interact with TV applications (e.g. <EM>xawtv</EM> on UNIX;
+requires initial setup, see <A HREF="#getting started">GETTING STARTED</A>) to provide a connection
+in both directions: Firstly you'll find a
+<EM>Tune-TV</EM> button in the main window below the clock. When you press
+it, the network of the currently selected programme will be tuned in the
+TV application.  With the right mouse button you can also pop up a small
+menu which offers basic TV controls. Secondly, when you change the channel
+in the TV application, the cursor in the nxtvepg main window will
+automatically jump onto the programme currently running on that network.
+For more details see <A HREF="#configuration: tv application interaction">CONFIGURATION: TV application interaction</A></P>
 <P>At the bottom of the window there is a status line which informs you
 about the state of the browser database and background acquisition.
 It's basically a very dense summary of the <STRONG>Statistics</STRONG> popups from
 the <STRONG>Control</STRONG> menu and is especially useful to warn you about the
 database age or stalled acquisition.</P>
 <P><EM>Note:</EM>
-For most providers it holds true that descriptions are available only
-(or only in full length) for currently running programmes and those
-whose start time is very close. This time span for full coverage can
-be as short as 2 hours, or 3 titles per network. For details on the
-acquisition process see the following chapter.</P>
+For most providers it holds true that programme content descriptions
+(i.e. the texts in the lower nxtvepg window) are available only for
+currently running programmes and those whose start time is very close.
+This time span for full coverage can be as short as 2 hours, or 3 titles
+per network. As a consequence you should enable data acquisition as
+often as possible; consider running the acquisition daemon permanently
+in the background. For details on the acquisition process see the following
+chapter.</P>
 <P>
 <HR>
 <H1><A NAME="data acquisition">DATA ACQUISITION</A></H1>
@@ -488,7 +599,7 @@ you don't win anything by selecting a mode that contains a Near stage.</P>
 <P>There are currently three ways to obtain information about the state of the
 databases and the acquisition process: the first and most obvious is the
 status line at the bottom of the main window (only if enabled, see
-see <A HREF="#configuration">CONFIGURATION</A>). The second one are the timescale popup windows,
+<A HREF="#configuration">CONFIGURATION</A>). The second one are the timescale popup windows,
 which visualize for each TV network the time ranges which are covered
 with TV programme data. The third one are the database statistics popup
 windows which offer technical details about the database, e.g. which
@@ -682,7 +793,7 @@ together with the CNI it is appended after the CNI in decoded format
 (i.e. DD.MM HH:MM with day, month, hour and minute).  Note: the VPS/PDC
 codes are used to uniquely identify the current programme on a given
 network.  You can display the codes for all programmes in the database
-if you enable them in the <EM>Column selection</EM> dialog (see <A HREF="#configuration">CONFIGURATION</A>).</P>
+if you enable them (see <A HREF="#configuration: select columns">CONFIGURATION: Select columns</A>).</P>
 <P></P>
 <DT><STRONG><A NAME="item_TTX_data_rate%3A"><EM>TTX data rate:</EM></A></STRONG><BR>
 <DD>
@@ -998,9 +1109,9 @@ there is a match, i.e. if there's another programme with the same
 title or series code repectively.</P>
 <P>The optional third part is empty by default, but can be used to invoke
 user-defined external commands on the selected programme. More precisely,
-you can execute any command with parameters of the selected programme
-(like title or start time) on its command line. The user commands and
-can be added via the Configure menu (see <A HREF="#configuration">CONFIGURATION</A>).</P>
+you can execute any command with properties of the selected programme
+(like title or start time) on its command line. The user commands
+can be added via the Configure menu (see <A HREF="#configuration: context menu">CONFIGURATION: Context menu</A>).</P>
 <P>
 <HR>
 <H1><A NAME="control">CONTROL</A></H1>
@@ -1031,7 +1142,8 @@ UNIX only:
 Connect to or disconnect from an acquisition daemon, running in the
 background on the same host, or somewhere else in the network.  The
 address of the daemon and other parameters are configured in the
-<EM>Client/Server</EM> menu (see <A HREF="#configuration">CONFIGURATION</A>). By default the daemon
+<EM>Client/Server</EM> menu (see <A HREF="#configuration: client/server">CONFIGURATION: Client/Server</A>).
+By default the daemon
 is started on the local host.  The main advantage of using the daemon
 is that you can keep running acquisition permanently in the background,
 even if you terminate the browser, or even the X11 server (i.e. the
@@ -1176,38 +1288,89 @@ are required for most acquisition modes, and due to driver limitations
 often not available without a scan (e.g. on Windows or Linux with bttv
 driver &lt;= 0.7.50). See also <A HREF="#getting started">GETTING STARTED</A>.
 <P>Check the <EM>Slow</EM> button if you have bad reception on some channels.
-In slow mode the scanner will wait at least for 2 seconds on each
-channel for a VPS or PDC identification or an EPG package. Else
-channels without a stable video signal and without any teletext packets
-will be skipped after 150 ms.</P>
-<P>UNIX only: The <EM>Use .xawtv</EM> button is automatically checked if an xawtv
-configuration file is found in your home directory. Instead of searching
-all possible channels in all bands, nxtvepg then just checks the channels
-assigned there (fine-tuning and absolute frequencies currently are ignored
-though).</P>
+In slow mode the scanner will not require a stable video signal and wait
+twice as long as normal for everything, i.e. up to 4 seconds for a
+VPS/PDC channel identification and up to 90 seconds for EPG for known
+providers or if potential data packets were found.  Note that you can
+change this setting while the scan is running.</P>
+<P>The <EM>Use TV app.</EM> button is automatically checked if an <EM>xawtv</EM>
+configuration file is found in your home directory (on UNIX) or
+a TV application was set up in the <EM>TV app. interaction</EM> dialog
+(or initially in the <EM>TV card input</EM> dialog).  Instead of
+searching all possible channels in all bands, nxtvepg then just checks
+the channels assigned there (in xawtv fine-tuning and absolute frequencies
+currently are ignored though), which saves a lot of time.</P>
 <P>Use the <EM>Refresh only</EM> mode if you deleted your database files or if you
 upgrade from an incompatible software version. In this mode only the
 channels on which Nextview data was received before are checked (the
 frequencies are kept in the rc/ini file). This enables you to regain your
 complete provider list very quickly.</P>
+<P>The scan will visit every physical TV frequency (or subsets thereof if
+you use one of the options described above) and check for a TV signal.
+If one is detected within 150 ms or if at least one teletext packet
+was received, the scan waits up to two seconds for a valid VPS/PDC
+channel identification.  At the same time it receives packets from all
+potential EPG teletext page addresses.  If a VPS/PDC code is read that
+belongs to one of the known EPG providers or valid data packets have
+been received (which does not necessarily mean it's EPG, because other
+services could use the same encoding) the scan waits up to 45 seconds
+for EPG inventory messages (BI and AI blocks). You can watch these
+proceedings in the message output window.</P>
+<P>Even though the scan tries very hard, it can not warrent that every
+EPG provider is found every time. For example some providers do have
+pauses of more than 45 seconds in their EPG transmission; or they
+might have technical problems.  So the safest way is to check the
+nxtvepg WWW homepage (see <EM>About</EM> in the Help menu) for a list of known
+EPG providers. If you receive the channels where they transmit, repeat
+the scan until they are found, e.g. at different times of the day.
+If you find new providers not listed on the web site, please let me know.</P>
 <P></P>
 <DT><STRONG><A NAME="item_TV_card_input%2E%2E%2E"><STRONG>TV card input...</STRONG></A></STRONG><BR>
 <DD>
 Open a dialog where the driver for the TV card can be configured.
-On Windows systems you must at least specify which type of tuner
+This dialog looks very different on Windows and UNIX platforms,
+because on UNIX the driver is part of the kernel, whereas on
+Windows it's part of the application and has to be configured
+separately for every application.
+<P>On Windows systems you must at least specify which type of tuner
 is on your card, and how the PLL needs to be initialized. You can
-check your setting by starting an EPG scan: if nothing is found,
-try a different setting (or check the antenna cable). For more
-details see <A HREF="#getting started">GETTING STARTED</A>, or <EM>README</EM> if you get error messages
-from the Bt8x8 driver. If you experience data loss due to heavy
-system load, you can raise the acquisition thread priority.
-<P>The remaining three configuration options apply to both Linux and
+copy these settings from a number of supported TV applications,
+which can be selected at the top of this dialog (please note that
+the TV application selected here is not neccessarily used for TV app.
+interaction; see <A HREF="#configuration: tv application interaction">CONFIGURATION: TV application interaction</A>).
+Please refer to <A HREF="#getting started">GETTING STARTED</A> for a detailed description on
+how to configure these parameters.</P>
+<P>Windows only: if you experience data loss due to heavy system load,
+you can raise the acquisition thread priority.  Default is <EM>normal</EM>,
+i.e. the same as for all user applications.</P>
+<P>The remaining three configuration options apply to both UNIX and
 Windows: firstly you may choose which video input source to use.
 See <A HREF="#data acquisition">DATA ACQUISITION</A> about the consequences of not using the
-TV tuner as input. If you live in France, select the French
-frequency table to be used for the EPG scan.
-If you have more than one TV tuner card, you can also choose which
-one to use, just like with the <STRONG>-card</STRONG> command line option.</P>
+TV tuner as input.  On Windows: in rare cases the descriptions of
+input sources in the TV card popup may be wrong (due to creative
+wiring of the Bt8x8 chip on your TV card) so that you may find
+your TV tuner for example on ``Composite 1''.  This is an open point
+in the driver interface implementation; feel free to complain to me.</P>
+<P>If you live in France, select the French frequency table to be used
+for the EPG scan; the default is a frequency table for Germany, Austria
+and Switzerland. Other countries are not supported, since there currently
+are no Nextview providers.</P>
+<P>If you have more than one TV tuner card, you can also choose which
+one to use, just like with the <STRONG>-card</STRONG> command line option. On
+Linux you get a popup menu with TV card names as supplied by the
+driver. On Windows you only can choose cards by an index; the
+relation between index number and cards is undefined, i.e. which card
+has index 0 depends on the driver implementation and may differ between
+applications using different drivers.</P>
+<P>Windows only: at the very bottom of the dialog window there's a
+checkbutton which allows to enable logging during driver startup and
+shutdown. The output is appended to a file named <EM>dsdrv.log</EM> in the
+nxtvepg working directory.  Enable this option if you're not able to
+start the driver and cannot find out why.  But first see the explanation
+of driver error messages in the README file.  Note that the logging
+option is not remembered across program starts, i.e. to make use of it
+you have to enable the acquisition via the Control menu and not be
+restarting nxtvepg.</P>
 <P></P>
 <DT><STRONG><A NAME="item_Client%2FServer%2E%2E%2E"><STRONG>Client/Server...</STRONG></A></STRONG><BR>
 <DD>
@@ -1311,28 +1474,44 @@ paragraph for logging to files.
 mode and TV card input has no effect and no EPG scan is possible.
 If you use the same rc/ini file for daemon and GUI the changed settings
 will however be used by the daemon upon the next start.</P>
-<DT><STRONG><A NAME="item_Xawtv_connection%2E%2E%2E"><STRONG>Xawtv connection...</STRONG></A></STRONG><BR>
+<DT><STRONG><A NAME="item_TV_application_interaction%2E%2E%2E"><STRONG>TV application interaction...</STRONG></A></STRONG><BR>
 <DD>
-Opens a dialog that allows to configure the interaction between the
-<EM>xawtv</EM> TV application and nxtvepg. This menu entry is available
-only on UNIX when a <EM>.xawtv</EM> configuration file is found in your home.
-The first three buttons allow to switch the interaction features
-separately on or off. If you want to improve startup time, turn them
-all off; in this case nxtvepg does not need to search for the xawtv
-window (which can take up to several seconds if you have many
-applications running or a slow connection to your X server.)
-By default all three interaction features are enabled.
-<P>The first button relates to the <EM>Tune TV</EM> button and it's little
-popup menu (accessed with right mouse button) below the clock.
-If you're not interested in remote-controlling xawtv, switch it off.</P>
+Opens a dialog that allows to configure the interaction between a
+TV application and nxtvepg.  On UNIX this menu entry is available
+only when a <EM>.xawtv</EM> configuration file is found in your home.
+On Windows you should at least configure your TV application type
+and path here if you're using one of the supported applications; this
+is a recommended step during the initial installation, as described
+in <A HREF="#getting started">GETTING STARTED</A>.
+<P>Windows only: the <EM>General enable</EM> option allows to disable or
+re-enable the allocation of communication resources, and implicitly
+to switch off or on all interaction features. While disabled, nxtvepg
+will be invisible for the TV application.  The use of this option is
+depreciated, as nxtvepg won't automatically free the driver when the
+TV is started, and nxtvepg will fail to start acquisition when a
+TV appliaction is running.  Use this option only if you suspect
+compatibility problems between the TV app and nxtvepg, e.g.  if one
+application hangs or crashes during startup if the other is already
+running (I'm not saying such behavior is to be expected, but it's
+better to be prepared for everything)</P>
+<P>The next three buttons (the first three on UNIX) allow to separately
+switch the interaction features on or off. If you want to improve startup
+time on UNIX, turn them all off; in this case nxtvepg does not need to
+search for the <EM>xawtv</EM> toplevel window (which can take up to several
+seconds if you have many applications running or a slow connection to
+your X server.) By default all three interaction features are enabled.</P>
+<P>The <EM>Tune TV button</EM> option allos to hide or show the equally named button
+and it's little popup menu (accessed with right mouse button) below the
+clock in the nxtvepg main window.  If you're not interested in
+remote-controlling the TV application, switch it off.</P>
 <P>If you leave the <EM>Cursor follows channel changes</EM> option enabled,
-nxtvepg will monitor xawtv channel changes. Whenever such a change is
+nxtvepg will monitor TV channel changes. Whenever such a change is
 detected, the cursor in the programme listbox will be set onto the
 title currently running on that network. During EPG acquisition VPS/PDC
 is used to exactly determine the current programme (only on networks
 which support VPS/PDC); however if the nominal running time is in the
 past it's currently not possible to display the programme in the
-listbox. This info may however be sent to xawtv (see next option).
+listbox. This info may however be sent to the TV app (see next option).
 If you have just a network filter enabled, it will be switched to the
 new network so that you'll get a complete listing of that network's
 programmes, starting with the currently running one. This works even
@@ -1341,14 +1520,16 @@ If there are more or other filters than network enabled, then they will
 remain unchanged. If the current programme on the new network does not
 match this filter setting, then neither cursor nor listbox content will
 be changed.</P>
-<P>If you leave the <EM>Display EPG info in xawtv</EM> option enabled,
-nxtvepg will monitor xawtv channel changes. During EPG acquisition
+<P>If you leave the <EM>Display EPG info in TV app</EM> option enabled,
+nxtvepg will monitor TV channel changes. During EPG acquisition
 VPS/PDC are also monitored to determine newly starting programmes.
 VPS/PDC also allows to detect channel changes on an external input
 source, e.g. a satellite receiver connected via the Composite socket.
 After a change of channel or current programme title, the info about
-the currently running title will be displayed in xawtv. The display
-format is selected by the following radio buttons:</P>
+the currently running title will be displayed in the TV application.
+On Windows it's entirely up to the TV application how this information
+is displayed.</P>
+<P>On UNIX the display format can be selected by the following radio buttons:</P>
 <P>With <EM>Separate popup</EM> nxtvepg will generate a small popup window and
 put it right beneath the xawtv window. The blue area in the small bar
 on top represents how much of the (nominal) running time lies in the past.
@@ -1369,6 +1550,40 @@ With <EM>Xawtv window title</EM> the info will be sent to xawtv and displayed
 in the window title. Except for this last option, you can configure the
 desired display duration with the slider at the bottom of the dialog.
 A duration of zero means the display will never be removed.</P>
+<P>Windows only: in the middle of the dialog there's one line that
+indicates the current TV application connection status.  It contains
+the name of the connected application or <EM>not connected</EM>. You
+can connect to different applications than configured below, but if
+the network names are not synchronized with nxtvepg, the interaction
+will not work optimally (i.e. nxtvepg might not be able to identify
+all networks, and hence not be able to provide programme titles).</P>
+<P>Windows only: in the lower part of the dialog window you can configure
+the type and path of your preferred TV application.  This information
+is used to access the TV app's channel table (i.e. TV tuner frequencies
+and station names) during an EPG provider scan
+(see <A HREF="#configuration: provider scan">CONFIGURATION: Provider scan</A>) and in the network name
+configuration dialog (see <A HREF="#configuration: network names...">CONFIGURATION: Network names...</A>).
+After you've changed the setting, you can press the <EM>Test</EM> button to
+check if nxtvepg can parse the channel table correctly. It will complain
+if it fails to open the file or registry key and if no channels are found.
+After the test was successful, you shoud open the network names
+configuration dialog and synchronize network names with nxtvepg.</P>
+<P>If your TV application is not supported, choose <EM>none</EM>.  (If it's a
+freeware application feel free to mail me a download URL and I will
+consider supporting it.  However I will not support proprietary
+closed-source software, unless on request by the author.)</P>
+<P>Note that not all of the TV applications listed in the popup menu can
+currently interact with nxtvepg.  The interaction requires modifications
+in the TV applications; it's up to the respective authors if they want
+to implement these. (If you are an author of a TV app, feel free to mail
+me if you want to add EPG support to your application; a demo application
+and reference implementation source code are available on the nxtvepg
+home page.)</P>
+<P>Note that there's a similar configuration in the <EM>TV card input</EM>
+dialog.  However that one is only used to load the hardware settings
+during initial setup (i.e. when you press <EM>Load Config</EM> in that dialog).
+In most cases you'll use the same TV app for both purposes, but you
+don't have to.</P>
 <P></P>
 <DT><STRONG><A NAME="item_Select_columns%2E%2E%2E"><STRONG>Select columns...</STRONG></A></STRONG><BR>
 <DD>
@@ -1402,27 +1617,32 @@ menu.</P>
 <DT><STRONG><A NAME="item_Network_names%2E%2E%2E"><STRONG>Network names...</STRONG></A></STRONG><BR>
 <DD>
 Open the network names configuration dialog. It's main purpose is to
-synchronize the network names with <EM>xawtv</EM> (UNIX TV application), i.e.
-the <EM>~/.xawtv</EM> configuration file. This is required because the network
-name is used in communication with <EM>xawtv</EM> for the <EM>``Tune TV''</EM> remote
-control, and as well for channel change notifications.  For many
-networks there will be no need to change anything, but for some there
-exist different variants, e.g. in Germany ``Super RTL'' vs. ``S-RTL''
-or ``KiKa'' vs. ``Kinderkanal''.
+synchronize the network names between nxtvepg and your TV application.
+This is required because the network name is used in communication when
+you use the <EM>Tune TV</EM> remote controls, and as well for channel change
+notifications by the TV applications.  For many networks there will be
+no need to change anything, but for some there exist different variants,
+e.g. in Germany ``Super RTL'' vs. ``S-RTL'' or ``MDR3'' vs. ``MDR''.
+<P>If you're not using UNIX, you first need to select which TV application
+you want to synchronize with and where the configuration files are
+located.  This is done in the <EM>TV app. interaction</EM> dialog in the Configure
+menu (see <A HREF="#configuration: tv application interaction">CONFIGURATION: TV application interaction</A>).</P>
 <P>Another use of this dialog is to make network naming consistent across
-all providers. The names you specify here will be used in the programme
-listbox and all filter menus, independently of the provider.</P>
-<P>On the left side of the window you'll find a list of all networks of
+all Nextview providers. The names you specify here will be used in the
+programme listbox and all filter menus, independently of the provider.</P>
+<P>On the left side of the dialog you find a list of all networks of
 all known Nextview providers. The names used here are the ones you
-configured before, or if you haven't done so, the names that match
-the station names in <EM>.xawtv</EM> best; unmatched names are marked red.
-If that file does not exist, the name is taken from the first database
-which covers this network, in order of your provider selection history.</P>
+configured before, or if you haven't done so yet, the names that match
+the station names of your TV application best. Unmatched names are
+marked red.  If no TV application is configured, each network's name
+is taken from the first Nextview database which covers this network,
+in order of your provider selection history.</P>
 <P>On the right side, you're offered four ways to change the name: topmost
 is a simple entry field where you can type in an arbitrary name. Below
-is a popup menu which contains all network names defined in <EM>.xawtv</EM>.
-Below is a button which contains the one name in <EM>.xawtv</EM> which resembles
-the current string in the entry field most, or <EM>none</EM>. It's marked red
+is a popup menu which contains all network names defined in your TV app.'s
+channel table.  Below is a button which contains the one name in your
+TV app.'s channel table which resembles the current string in the entry
+field most, or <EM>none</EM>. It's marked red
 until it's identical to the entry field. You can copy the name to the
 entry field by clicking the button. Below is a listbox with the original
 names used in the various provider databases. When you select a name from
@@ -1431,10 +1651,9 @@ network name list on the left. If you want to save the changed list,
 leave the dialog with <EM>Save</EM>, else use <EM>Abort</EM>.</P>
 <P>Note: if you receive channels that carry multiple networks, e.g.
 in Germany ``Arte / Kinderkanal'', it's recommended to include all
-networks' names in the xawtv network name, separated by a slash.
-The slash is recognized as separator by nxtvepg (and hopefully future
-versions of xawtv) and all resulting segments can be used as
-network names.</P>
+networks' names in the network name on side of the TV application,
+separated by a slash.  The slash is recognized as separator by nxtvepg
+and all resulting segments can be used as network names.</P>
 <P></P>
 <DT><STRONG><A NAME="item_Context_menu%2E%2E%2E"><STRONG>Context menu...</STRONG></A></STRONG><BR>
 <DD>
@@ -1597,7 +1816,7 @@ dialog.
 <DL>
 <DT><STRONG><A NAME="item_nxtvepg%2Eini"><STRONG>nxtvepg.ini</STRONG></A></STRONG><BR>
 <DD>
-Configuration file where all personal settings are stored. Per default
+Configuration file where all personal settings are stored. By default
 this is created in the working directory, but a different path and file
 name can be specified with the <STRONG>-rcfile</STRONG> option.
 <P></P>
@@ -1606,7 +1825,8 @@ name can be specified with the <STRONG>-rcfile</STRONG> option.
 One file for each provider's database is created in the working directory
 or the one given with the <STRONG>-dbdir</STRONG> command line option.
 The last 4 digits of the file base names are the hexadecimal CNI (Country
-and Network Identifier) of the provider.
+and Network Identifier) of the provider.  You must not change the name
+of this file, or nxtvepg will refuse to load the database.
 <P></P></DL>
 <P>
 <HR>
@@ -1643,7 +1863,10 @@ for instructions on which information must be included in a bug report.</P>
 <H1><A NAME="author">AUTHOR</A></H1>
 <P>Tom Zoerner, Erlangen, Germany.</P>
 <P>Email: tomzo (at) nefkom (dot) net</P>
-<P>Many thanks to Jan Schuster for beta testing starting with 0.7.0;
+<P>Many thanks to E-nek for the DScaler driver port and cooperation
+in develepment of the TV application interaction;
+to John Adcock for the DScaler driver;
+to Jan Schuster for beta testing nxtvepg 0.7.0;
 to Mario Kemper for the NetBSD port and early beta testing;
 to ``Mario's brother'' for beta testing the Windows port;
 to Gerd Knorr for xawtv;
@@ -1653,7 +1876,8 @@ and last but not least to the authors of bttv and v4l for their excellent work.<
 <P>
 <HR>
 <H1><A NAME="copyright">COPYRIGHT</A></H1>
-<P>Copyright (C) 1999, 2000, 2001 by Tom Zoerner.</P>
+<P>Copyright (C) 1999, 2000, 2001, 2002 by Tom Zoerner.
+All rights reserved.</P>
 <P>This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License Version 2 as
 published by the Free Software Foundation, e.g. at

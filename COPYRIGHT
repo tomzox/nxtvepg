@@ -1,7 +1,6 @@
-This message applies to all files within the archive:
+This message applies to all files within this release:
 
-    Copyright (C) 1999 - 2001 Tom Zoerner
-    and others (see the various source files for details on authors.)
+    Copyright (C) 1999 - 2002 Tom Zoerner
     All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
@@ -12,6 +11,42 @@ This message applies to all files within the archive:
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See below
     for more details.
+
+
+    Some portions of the source code have additional copyrights;
+    please see the Author sections of the respective file headers
+    for details.
+
+
+    Linux BT8x8 Driver:
+       Copyright (C) 1996,97,98 Ralph  Metzler (rjkm@thp.uni-koeln.de)
+       Copyright (C) 1997 Markus Schroeder (schroedm@uni-duesseldorf.de)
+       Copyright (C) 1997,1998 Gerd Knorr (kraxel@goldbach.in-berlin.de)
+
+    Multidec BT8x8 Driver:
+       Copyright (C) 2000 Espresso (echter_espresso@hotmail.com)
+
+    DScaler Driver:
+       Copyright (c) 2001 John Adcock.  All rights reserved.
+
+    DScaler Driver Interface:
+       Copyright (c) 2002 E-nek.
+
+    AleVT teletext latin-1 font tables:
+       Copyright (C) 1998,1999 Edgar Toernig (froese@gmx.de)
+
+    VBI decoding:
+       Copyright (C) 1996,97 Ralph Metzler  (rjkm@thp.uni-koeln.de)
+
+    TV channel table & INI parser code snippets:
+       K!TV: Copyright (c) 2000-2002 Quenotte
+       DScaler: Copyright: 9 Novemeber 2000 - Michael Eskin, Conexant Systems
+       Multidec: Copyright (c) 2000 echter_espresso@hotmail.com
+       Xawtv: Copyright Gerd Knorr (kraxel@bytesex.org)
+
+    Tcl/Tk library:
+       For Copright information please see http://dev.scriptics.com/
+
 
 Have fun.
 

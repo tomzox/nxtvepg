@@ -15,30 +15,36 @@
  *  Description:
  *
  *    Platform and compiler independent type definitions
- *    and other global definitions.
+ *    and global debug control.
  *
  *  Author: Tom Zoerner
  *
- *  $Id: mytypes.h,v 1.11 2001/02/25 16:03:08 tom Exp tom $
+ *  $Id: mytypes.h,v 1.14 2002/05/04 18:16:57 tom Exp tom $
  */
-
-#include <sys/types.h>
 
 #ifndef __MYTYPES_H
 #define __MYTYPES_H
+
+
+// include declaration of fixed-length types (e.g. uint32_t)
+#include <sys/types.h>
+#ifndef WIN32
+#include <inttypes.h>
+#else
+#include <stdint.h>
+#endif
 
 // required basic types
 typedef unsigned char  bool;     // >=1 bit unsigned
 typedef   signed char  schar;    // 8 bit signed
 typedef unsigned char  uchar;    // 8 bit unsigned
-typedef   signed int   sint;     // 32 bit signed
+typedef   signed int   sint;     // >=32 bit signed
 #ifdef WIN32
 typedef unsigned short ushort;   // >=16 bit unsigned
-typedef unsigned int   uint;     // 32 bit unsigned
+typedef unsigned int   uint;     // >=32 bit unsigned
 typedef unsigned long  ulong;    // >=32 bit unsigned
 #endif
 typedef   signed long  slong;    // >=32 bit signed
-typedef unsigned int   u32;      // 32 bit unsigned
 
 // boolean values
 #define FALSE 0
@@ -56,6 +62,8 @@ typedef unsigned int   u32;      // 32 bit unsigned
 #define DEBUG_SWITCH_EPGUI       OFF
 #define DEBUG_SWITCH_VBI         OFF
 #define DEBUG_SWITCH_TCL_BGERR   OFF
+#define DEBUG_SWITCH_TVSIM       OFF
+#define DEBUG_SWITCH_DSDRV       OFF
 
 // enable memory leak detection for debugging
 #define CHK_MALLOC               OFF

@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbif.c,v 1.40 2002/02/13 21:00:20 tom Exp tom $
+ *  $Id: epgdbif.c,v 1.41 2002/03/29 17:27:08 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -766,7 +766,7 @@ bool EpgDbGetStat( CPDBC dbc, EPGDB_BLOCK_COUNT * pCount, time_t * acqMinTime, u
    const AI_NETWOP *pNetwops;
    uint blockCount[2][MAX_NETWOP_COUNT];
    register uint cur_stream;
-   ulong  count1, count2;
+   uint32_t  count1, count2;
    uchar  ai_version[2];
    double avgPercentage1, avgPercentage2, variance1, variance2;
    uint   acqRepSum[2];
@@ -880,7 +880,7 @@ bool EpgDbGetStat( CPDBC dbc, EPGDB_BLOCK_COUNT * pCount, time_t * acqMinTime, u
          if (count1 > 0)
          {
             pCount[0].ai += count1;
-            blockCount[0][netwop] = (uint)((ulong)1000L * blockCount[0][netwop] / count1);
+            blockCount[0][netwop] = (uint)(1000L * blockCount[0][netwop] / count1);
          }
          else
             blockCount[0][netwop] = 1000L;
@@ -889,7 +889,7 @@ bool EpgDbGetStat( CPDBC dbc, EPGDB_BLOCK_COUNT * pCount, time_t * acqMinTime, u
          if (count2 > 0)
          {
             pCount[1].ai += count2;
-            blockCount[1][netwop] = (uint)((ulong)1000L * blockCount[1][netwop] / count2);
+            blockCount[1][netwop] = (uint)(1000L * blockCount[1][netwop] / count2);
          }
          else
             blockCount[1][netwop] = 1000L;
@@ -934,9 +934,9 @@ bool EpgDbGetStat( CPDBC dbc, EPGDB_BLOCK_COUNT * pCount, time_t * acqMinTime, u
 // - modulo 0x10000
 // - if stop == start - 1  =>  distance == 0  (see ETS 300 707)
 //
-ulong EpgDbGetPiBlockCount( uint startNo, uint stopNo )
+uint EpgDbGetPiBlockCount( uint startNo, uint stopNo )
 {
-   ulong result;
+   uint result;
 
    if (stopNo >= startNo)
    {

@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: menucmd.c,v 1.67 2002/02/28 19:15:58 tom Exp tom $
+ *  $Id: menucmd.c,v 1.72 2002/05/05 20:51:38 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -55,11 +55,15 @@
 #include "epgui/menucmd.h"
 #include "epgui/uictrl.h"
 #include "epgui/xawtv.h"
+#include "epgui/wintvcfg.h"
 #include "epgctl/epgctxctl.h"
 #include "epgvbi/vbidecode.h"
 #include "epgvbi/cni_tables.h"
 #include "epgvbi/tvchan.h"
 #include "epgvbi/btdrv.h"
+#ifdef WIN32
+#include "dsdrv/debuglog.h"
+#endif
 
 
 static void MenuCmd_EpgScanHandler( ClientData clientData );
@@ -135,6 +139,10 @@ static int MenuCmd_SetControlMenuStates(ClientData ttp, Tcl_Interp *interp, int 
       // enable "connect to acq. daemon" only if acq not already running locally
       sprintf(comm, ".menubar.ctrl entryconfigure \"Connect to acq. daemon\" -state %s\n",
                     (((acqState.state == ACQDESCR_DISABLED) || acqState.isNetAcq) ? "normal" : "disabled"));
+      eval_check(interp, comm);
+      #else
+      // no daemon -> always disable the option
+      sprintf(comm, ".menubar.ctrl entryconfigure \"Connect to acq. daemon\" -state disabled\n");
       eval_check(interp, comm);
       #endif
 
@@ -1672,6 +1680,7 @@ static void MenuCmd_AddEpgScanMsg( const char * pMsg )
 static int MenuCmd_StartEpgScan(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
 {
    const char * const pUsage = "Usage: C_StartEpgScan <input source> <slow=0/1> <refresh=0/1> <xawtv=0/1>";
+   EPGSCAN_START_RESULT scanResult;
    ulong *freqTab;
    uint  *cniTab;
    int freqCount;
@@ -1705,41 +1714,55 @@ static int MenuCmd_StartEpgScan(ClientData ttp, Tcl_Interp *interp, int argc, ch
                return TCL_OK;
             }
          }
-         #ifndef WIN32
          else if (isOptionXawtv)
          {  // in this mode only channels which are defined in the .xawtv file are visited
-            if ( (Xawtv_GetFreqTab(&freqTab, &freqCount) != TCL_OK) ||
+            if (
+                 #ifndef WIN32
+                 (Xawtv_GetFreqTab(interp, &freqTab, &freqCount) == FALSE) ||
+                 #else
+                 (WintvCfg_GetFreqTab(interp, &freqTab, &freqCount) == FALSE) ||
+                 #endif
                  (freqTab == NULL) || (freqCount == 0) )
             {  // message-box with explanation was already displayed
                return TCL_OK;
             }
          }
-         #else
-         isOptionXawtv = FALSE;
-         #endif
 
          // clear message window
          sprintf(comm, ".epgscan.all.fmsg.msg delete 1.0 end\n");
          eval_check(interp, comm);
 
-         switch (EpgScan_Start(inputSource, isOptionSlow, isOptionXawtv, isOptionRefresh,
-                               cniTab, freqTab, freqCount,
-                               &rescheduleMs, &MenuCmd_AddEpgScanMsg))
+         scanResult = EpgScan_Start(inputSource, isOptionSlow, isOptionXawtv, isOptionRefresh,
+                                    cniTab, freqTab, freqCount,
+                                    &rescheduleMs, &MenuCmd_AddEpgScanMsg);
+         switch (scanResult)
          {
-            case EPGSCAN_ACCESS_DEV_VIDEO:
             case EPGSCAN_ACCESS_DEV_VBI:
-               sprintf(comm, "tk_messageBox -type ok -icon error "
-                             "-message {Failed to open the video device. "
-                                       #ifndef WIN32
-                                       "Close all other video applications and try again."
-                                       #endif
-                                      "}\n");
+               #ifndef WIN32
+               sprintf(comm, "tk_messageBox -type ok -icon error -parent .epgscan -message \""
+                             "Failed to open the VBI (i.e. teletext) device "
+                             "(/dev/vbi[expr {[info exists hwcfg] ? [lindex $hwcfg 4] : 0}]). "
+                             "Close all other video or teletext related applications and try again."
+                             "\"");
+               eval_check(interp, comm);
+               break;
+               #endif
+               // Win32: fall-through!
+
+            case EPGSCAN_ACCESS_DEV_VIDEO:
+               sprintf(comm, "tk_messageBox -type ok -icon error -parent .epgscan -message \""
+                             "Failed to open the video device"
+                             #ifndef WIN32
+                             " (/dev/video[expr {[info exists hwcfg] ? [lindex $hwcfg 4] : 0}]). "
+                             "Close all other video or teletext related applications and try again"
+                             #endif
+                             ".\"");
                eval_check(interp, comm);
                break;
 
             case EPGSCAN_NO_TUNER:
-               sprintf(comm, "tk_messageBox -type ok -icon error "
-                             "-message {The input source you have set in the 'TV card input configuration' "
+               sprintf(comm, "tk_messageBox -type ok -icon error -parent .epgscan "
+                             "-message {The input source you have set in the 'TV card input' configuration "
                                        "is not a TV tuner device. Either change that setting or exit the "
                                        "EPG scan and tune the providers you're interested in manually.}\n");
                eval_check(interp, comm);
@@ -1964,6 +1987,9 @@ int SetHardwareConfig( Tcl_Interp *interp, int newCardIndex )
    char **pParamsArgv;
    char * pTmpStr;
    int idxCount, input, tuner, pll, prio, cardidx, ftable;
+   #ifdef WIN32
+   int dsdrvLog;
+   #endif
    int result;
 
    pTmpStr = Tcl_GetVar(interp, "hwcfg", TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG);
@@ -1990,12 +2016,27 @@ int SetHardwareConfig( Tcl_Interp *interp, int newCardIndex )
                   eval_check(interp, comm);
                }
 
+               #ifdef WIN32
+               pTmpStr = Tcl_GetVar(interp, "hwcf_dsdrv_log", TCL_GLOBAL_ONLY);
+               if (pTmpStr != NULL)
+               {
+                  if (Tcl_GetInt(interp, pTmpStr, &dsdrvLog) == TCL_OK)
+                     HwDrv_SetLogging(dsdrvLog);
+                  else
+                     debug1("Set-HardwareConfig: could not parse Tcl var dsdrvLog='%s'", pTmpStr);
+               }
+               #endif
+
                // pass the frequency table selection to the TV-channel module
                TvChannels_SelectFreqTable(ftable);
                // pass the hardware config params to the driver
-               BtDriver_Configure(cardidx, tuner, pll, prio);
-               // pass the input selection to acquisition control
-               EpgAcqCtl_SetInputSource(input);
+               if (BtDriver_Configure(cardidx, tuner, pll, prio))
+               {
+                  // pass the input selection to acquisition control
+                  EpgAcqCtl_SetInputSource(input);
+               }
+               else
+                  EpgAcqCtl_Stop();
             }
             else
                result = TCL_ERROR;
@@ -2250,6 +2291,9 @@ void MenuCmd_Init( bool isDemoMode )
          sprintf(comm, "CreateDemoModePseudoMenu\n");
          eval_check(interp, comm);
       }
+      #ifndef USE_DAEMON
+      eval_check(interp, ".menubar.config entryconfigure \"Client/Server...\" -state disabled");
+      #endif
    }
    else
       debug0("MenuCmd-Init: commands were already created");

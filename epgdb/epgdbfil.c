@@ -23,7 +23,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbfil.c,v 1.31 2002/01/06 19:03:04 tom Exp tom $
+ *  $Id: epgdbfil.c,v 1.33 2002/05/02 16:51:40 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -322,9 +322,9 @@ void EpgDbFilterSetLangDescr( CPDBC dbc, FILTER_CONTEXT *fc, const uchar *lg )
                {
                   for (langIdx=0; langIdx < pDesc[descIdx].lang_count; langIdx++)
                   {
-                     if ( (pDesc[descIdx].lang[0][langIdx] == lg[0]) &&
-                          (pDesc[descIdx].lang[1][langIdx] == lg[1]) &&
-                          (pDesc[descIdx].lang[2][langIdx] == lg[2]) )
+                     if ( (pDesc[descIdx].lang[langIdx][0] == lg[0]) &&
+                          (pDesc[descIdx].lang[langIdx][1] == lg[1]) &&
+                          (pDesc[descIdx].lang[langIdx][2] == lg[2]) )
                      {
                         fc->langDescrTable[netwop][pDesc[descIdx].id >> 8] |= 1 << (pDesc[descIdx].id & 7);
                         break;
@@ -749,9 +749,9 @@ void EpgDbFilterApplyNi( CPDBC dbc, FILTER_CONTEXT *fc, NI_FILTER_STATE *pNiStat
 //
 void EpgDbFilterFinishNi( FILTER_CONTEXT *fc, NI_FILTER_STATE *pNiState )
 {
-   ulong now;
-   uint nowMoD;
-   sint lto;
+   time_t  now;
+   uint    nowMoD;
+   sint    lto;
 
    now = time(NULL);
    lto = EpgLtoGet(now);

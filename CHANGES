@@ -5,6 +5,52 @@ changes or additions.
 Before you submit any feature requests, please read the TODO file.
 
 
+from 0.7.0 to 0.7.1 (2002-May-05)
+
+- Windows: exchanged the driver with the free (GPL'ed) DSdrv, a driver
+  developed in the DScaler project (see http://dscaler.org).  This
+  means that I finally can include a Bt8x8 driver with nxtvepg!  Many thanks
+  to e-nek for doing the initial port; also many thanks to John Adcock
+  and the other members of the DScaler team.
+- Windows: simplified the initial setup procedure by adding the possibility
+  to load configuration files or registry of some well known TV applications
+  (MoreTV, FreeTV, DScaler, K!TV, MultiDec) to extract their TV card setup.
+  The channel tables can also be extracted, to allow for network name
+  synchronization (via the Network name configuration dialog)
+- Windows: Prepared the possibility to interact with TV applications.  This
+  allows for the same features that already were available on UNIX with xawtv
+  This feature is disabled in the regular release as there are no TV apps
+  yet that support it officially. (The first one will be K!TV, see
+  <URL:http://perso.wanadoo.fr/quenottetv/>.  If you are an author of a
+  TV app, feel free to mail me if you want to add EPG support to your
+  application. A demo application and reference implementation are available.)
+- Windows: brought back a lost workaround (lost due to a crash of an almost
+  new Deskstar drive - thank you, IBM) in the Tk83.dll for message boxes
+  (do not use the native Windows message box from inside Tcl/Tk procedures,
+  because it sometimes destroys the main window for unkown reasons)
+
+- Fixed bug in support for big-endian CPU architectures: there was an
+  alignment error in one of the database structures which caused an abort
+  with a bus error (e.g. on Sun Sparc CPUs); also endian mismatches were
+  not reported in acquisition daemon connect attempts.
+- Fixed bug in the EPG scan that caused a crash 64-bit architectures
+  (e.g. PowerPC). Thanks to Helge Kreutzmann for reporting this bug.
+- Added automatic endian conversion during database reload and acquisition
+  daemon connections. In earlier versions the reload was simply refused.
+  Note: the data is still written in the native format and only converted if
+  neccessary, so there is no performance impact for little-endian machines
+  (e.g. in contrast to writing always in network byte order)
+- Improved channel change handling (handshake between acq master & slave)
+- Reduced latency in VPS/PDC decoding after channel changes (the latency
+  was increased due to a change in 0.7.0)
+- UNIX: improved startup of acquisition process/thread; fixed the design bug
+  due to which the TV tuner was programmed even if the VBI could not be opened.
+- Improved hyperlinks in help pages: can now link into sub-sections too,
+  which is esp. useful for the "Configuration" chapter.
+- Fixed a bug in the decoder for language and sub-title information blocks
+  (currently only broadcasted in France by M6 and Canal+).
+
+
 from 0.6.4 to 0.7.0 (2002-March-02)
 
 Note that as of this release the database format is changed (due to a

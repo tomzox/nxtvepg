@@ -36,7 +36,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgctxmerge.c,v 1.7 2002/02/16 17:12:54 tom Exp tom $
+ *  $Id: epgctxmerge.c,v 1.8 2002/04/29 18:14:22 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -185,13 +185,13 @@ bool EpgContextMergeCheckForCni( const EPGDB_CONTEXT * dbc, uint cni )
             }
          }
          else
-            debug0("EpgDbMerge-GetCnis: searching for illegal CNI 0");
+            debug0("EpgDbMerge-CheckForCni: searching for illegal CNI 0");
       }
       else
-         fatal0("EpgDbMerge-GetCnis: db has no merged context");
+         fatal0("EpgDbMerge-CheckForCni: db has no merged context");
    }
    else
-      fatal0("EpgDbMerge-GetCnis: illegal NULL ptr param");
+      fatal0("EpgDbMerge-CheckForCni: illegal NULL ptr param");
 
    return result;
 }

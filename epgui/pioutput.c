@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pioutput.c,v 1.13 2002/02/03 19:27:37 tom Exp tom $
+ *  $Id: pioutput.c,v 1.14 2002/03/22 21:11:46 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -113,14 +113,14 @@ const char alphaNumTab[256] =
 //
 const char * PiOutput_DictifyTitle( const char * pTitle, uchar lang, char * outbuf, uint maxLen )
 {
-   char *pe;
+   uchar *pe;
    uint cut, len;
 
    // remove appended series counter from title string =~ s/ \(\d+\)$//
    len = strlen(pTitle);
    if ((len >= 5) && (len < 100) && (*(pTitle + len - 1) == ')'))
    {  // found closing brace at end of string -> check for preceeding decimal number
-      pe = (char *)pTitle + len - 1 - 1;
+      pe = (uchar *)pTitle + len - 1 - 1;
       len -= 1;
       if (isdigit(*pe))
       {  // at least one digit found

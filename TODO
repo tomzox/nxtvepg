@@ -4,8 +4,11 @@ Your feedback is always welcome, so feel free to mail me if you want to
 boost any item's priority, find more points that need to be fixed or if
 you have ideas for additional features.
 
-
 daemon:
+- auto-enable for daemon mode is set too soon when connected via TCP/IP;
+  must wait until connect finished in the background
+- "cannot start scan while in client/server mode"
+  even while not connected
 - make concurrent updates of shared rc file safe (e.g. daemon writes provider freq)
   or use a different rc for acq parameters; currently data can be lost!
 - when dump is aborted, keep the old modification time on client-side
@@ -25,10 +28,12 @@ misc:
 - netwop name config: counts names to "automatic selection"
   even if there was just one provider (or just one with that netwop)
   note: no xawtv sync is done, so it must only appear if there's more than one provider
-
+- Canal+ only found in EPG scan when in slow mode
+- remove ulong in frequencies
 
 Bugs reported by Jan:
 - sometimes falsely detected "forced passive" after acq cycle advance
+- wheel mouse: scroll less than 1 page; keep Cursor on the same item
 
 xawtv patches (Gerd Knorr)
 - vtx: ESC codes for proportional font and possibly centering
@@ -44,12 +49,26 @@ nxtvepg xawtv.c:
 - VPS empty/pause codes display
 
 WIN32 port fixes:
-- should replace WinDriver, e.g. by DScaler driver (GPL)  However: Dscaler does
-  NOT work on my system! (hangs up, maybe due to 2nd TV card?)
-- input source naming needs to be configurable for exotic cards
+- TV card input dialog: warn if TV app changed but config not loaded
+- read VPS/PDC from TV app even if acq is OFF or uses different card
+  + use "is connected" instead of "acq passive" to decide if wait for VPS
+  + btdrv4win: do not check isEnabled; always do VBI acq for VPS/PDC!
+- prevent EPG scan while TV app connected OR adapt video signal detection
+  and add EPG syntax scanner into TV app
+- improve TTX stats: 1. running average of ttx pkg data rate 2. error
+  stats to estimate reception quality
+- option "hide on minimize": add task bar icon
+- Bt8x8: make video input matrix configurable
 - dump stream feature: must use window or file instead of stdout
 - need to debug source of crash in MessageBox()
 - better workaround for dynamic menus needed
+
+open points dsdrv:
+- must be able to load driver multiply in different apps
+- need portable card IDs, i.e. PCI slot, so to allow comm. between apps.
+     m_SubSystemId = 0x13eb0070
+     m_BusNumber = 0
+     m_SlotNumber = 18
 
 merged database fixes:
 - fine control for provider merge
@@ -60,6 +79,7 @@ merged database fixes:
   break up into substrings at any non-alnum except space
 
 other required fixes:
+- btdrv4linux: thread mode: signla HUP to slave thread is lost
 - during very bad reception acq restarts every 2-4 secs
   due to ttx page header decoding error (falsely detected channel change)
 - AdvanceCyclePhase: limit number of tries to update provider (first "if")
@@ -77,7 +97,6 @@ other required fixes:
 - allow to set input source via /dev/vbi (bttv version >= 0.7.5x)
 - cmd line option "predatory": in this mode the tuner is set via /dev/vbi
   regardless of other /dev/video users
-- do not tune channel if vbi busy, because it disturbs e.g. a teletext app.
 - filter shortcut combination logic modes: OR,AND
 - provider-specific shortcuts: are listed only for one provider
   mandatory when shortcut includes series or sortcrit filter

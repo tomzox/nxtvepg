@@ -25,9 +25,10 @@ distribution will be kindly tolerated.
 
 System requirements:
 
-Hardware requirements are a Pentium class PC and a Bt848, Bt849, Bt878
-or Bt879 based TV tuner card. Almost all TV cards nowadays except the
-ATI "TV Wonder" are build around one of the Booktree chips.
+Hardware requirements are a PC or workstation with a 90 MHz Intel Pentium
+or equivalently (or more) powerful CPU, and a TV tuner card based on the
+Booktree chip Bt848 or Bt878. Almost all TV cards nowadays except the
+ATI "TV Wonder" are built around one of the Booktree chips.
 
 Linux software requirements:
 - kernel >= 2.0.35 (upgrade to 2.2.x highly recommended for bttv users!)
@@ -44,58 +45,40 @@ NetBSD software requirements:
   available from http://www.scriptics.com/
 
 Windows software requirements:
-- Windows NT, Windows 95 and ME. (Windows 2000 is not supported.)
-- On Windows NT: you need to be in the Admininstrator group.
-- WinDriver version 4.00 or later, available from http://www.krftech.com/
-  This is *not* freeware, however there's a free 30 days evaluation version.
-  Since this is a software development tool and not intended for the end
-  user, the registration fee is quite steep (AFAIK around $1500).
-
-  However the same driver comes with many other TV applications, and often
-  works with nxtvepg. In the following I'll describe a couple of examples.
-  Please note that I'm just informing you of technical possibilities here;
-  you are responsible yourself to make sure you're not violating any
-  software's license or any other laws in your country.
-
-  1. One driver that's known to work comes with the older versions of MultiDec
-     (at least versions 3.5 through 5.5) available at http://freetv.notrix.de/
-     (in foreign language packages - but the driver is language independent)
-     or at http://www.neuz.de/
-  2. Another one that may work under certain conditions is from the "R@dio.mp3"
-     package at http://www.musicplay.de/  You have to start and stop the radio
-     player once to register the driver before you start nxtvepg.  For more
-     details see the section on installation below.
-  3. I've been told that the drivers from newer MultiDec versions work too
-     if you rename MDHalDr.sys/.vxd to WinDrvr.sys/.vxd (probably with similar
-     limitations as with the MusicPlay driver.)
+- Nothing actually: nxtvepg is shipped with all the required components.
+- Supported OS: Windows NT, Windows 2000, Windows XP, Windows 95/98/ME.
+- On Windows NT and 2000: you need to be in the Admininstrator group.
 
 If you want to compile for Windows you also need:
 - Cygwin GNU make and gcc compiler, see http://www.cygwin.com/
-  including the mingw32 header files ("Minimalistic GNU for Windows")
+  including the mingw ("Minimalistic GNU for Windows") and win32 header files
 - Tcl/Tk 8.3.2, available from http://www.scriptics.com/
   (I've patched the tk83.dll twice: (1) to catch shutdown messages and (2) to
   disable use of the Windows MessageBox() in tk_messageBox because it crashed
-  the program. Hence I recommend to keep using the DLL that comes with nxtvepg)
+  the program. Hence I recommend to keep using the DLL that comes with nxtvepg,
+  or apply the patches described in README.tcl83 to the tk8.3.2 sources)
 - Perl 5 to generate the help menus from the documentation in POD format
   (not essential unless you want to modify the help menus)
-- windrvr.h and windrvr_usb.h from the WinDriver package,
-  available from http://www.krftech.com/
+- If you want to compile the driver and the interface library dsdrv.dll
+  you also need the Microsoft Visual C++ compiler and the Device Driver
+  Development Kit. Driver sources are available at http://www.dscaler.org/
 
 
-UNIX installation procedure:
+UNIX installation procedure (when compiling from source):
 
-- Recommended: first install a TV application like xtvscreen or xawtv, or
-  preferrably a teletext decoder to be sure the video/vbi drivers work fine.
+- Recommended: first install a TV application like "xawtv" and a teletext
+  decoder like "alevt" to be sure the video and vbi drivers work fine.
 - Check the path definitions at the top of the Makefile, esp. for Tcl/Tk
 - make
   if compilation fails, check the type definitions in epgctl/mytypes.h first.
   Required types are: schar, uchar, sint, uint, slong, ulong.
 - If you compile on a non-supported operating system or if you don't have
-  bttv, then compile epgvbi/btdrv4dummy instead of btdrv4linux; acquisition
-  will of course not be possible.
+  bttv, then compile epgvbi/btdrv4dummy instead of btdrv4linux (then you
+  can use network acquisition mode to receive data from a supported platform)
 - make install
 - Invoke the application and start a provider scan from the Configure menu.
-  Further details can be found in the man page.
+  Further details can be found in the man page or help menu, section
+  "Getting Started"
 
 If the GUI shows up but does not react to any input, you probably
 need to tell Tcl/Tk where to find it's libraries. To do so, correct
@@ -108,31 +91,15 @@ Windows installation procedure:
 
 - Unpack the zip file into an empty directory.
 
-- Obtain the WinDriver as described above in chapter 'Windows software
-  requirements' and copy the file WinDrvr.sys (for Windows NT) and/or
-  WinDrvr.vxd (for all WinDOS variants) into the same directory as
-  nxtvepg.exe. If you installed the original WinDriver package they
-  can be found in WINNT/system32/drivers on NT or Windows/system/vmm32
-  (if you don't find them there, search for files named WinDrvr.*)
-
-  For the "R@dio.mp3" driver to work, you need two copies: one in the
-  Windows system directory named above, plus one in the nxtvepg working
-  directory. Remember, you'll have to use the radio player at least
-  once before Nextview acquisition will work.
-
-  If you want to use the MultiDec 3.5 - 5.5 driver, make sure there's no
-  other windrvr installed in the systems directory. Also check the registry
-  (type "regedit" in the Execute popup in the Start menu) for the key
-     HLM\System\CurrentControlSet\Servies\VxD\WinDriver
-  Delete this key and reboot if the driver does not work. This key is
-  automatically generated e.g. by the mp3 radio player.
-
 - Invoke the executable nxtvepg.exe
   If there are any warning or error message popups from the Bt8x8
   driver, please refer to the list below.
 
-- You need to set up the driver in the "TV card input" menu and then
-  start an EPG scan. If the scan just runs through without finding
+- Set up the driver in the "TV card input" menu.  There's extensive
+  help available in the documentation, sections "Getting Started" and
+  "Configuration: TV card input"
+
+- Start an EPG scan. If the scan just runs through without finding
   any network IDs, check your TV card settings, particularily "PLL init"
   (or check your antenna cable) and try again. If the scan still fails,
   there are two other possibilities for Nextview reception:
@@ -147,12 +114,49 @@ Windows installation procedure:
 
 Explanation of Windows Bt8x8 driver error messages:
 
-- "WARNING: WinDriver version mismatch"
-  You're using a version of WinDriver of which I suspect that it
-  does not work with nxtvepg. Download a newer version of WinDriver,
-  as described above, preferrably the version which I compiled with.
-  If you get this message although everything works fine, please
-  let me know so that I can update the version check.
+- "Failed to load the Bt8x8 driver. (...)"
+  This message can unfortunately have many causes. For the most probable
+  causes an explanation is appended to the message.  The following hints
+  may help you:
+
+  1. You may not have the driver files "dsdrv4.sys" and "dsdrv4.vxd"
+  in the working directory of nxtvepg. This may happen if you specify
+  a working directory (e.g. in a shortcut definition) that differs from
+  the one that contains the nxtvepg.exe. Don't do that, use the -dbdir
+  and -rcfile options instead to specify where configuration files are
+  searched for.
+
+  2. On Windows NT and Windows 2000 you need to have special privileges
+  to start the driver (e.g. on NT you should be in the Administrator group)
+
+  3. Another application using the DScaler driver may already be runing.
+  Currently the driver can be used only by one application at the same
+  time, even if you have more than one TV card.
+
+  4. You're using driver files of a wrong version.  You must use the
+  version that comes with nxtvepg.
+
+  5. The "DSdrv4" service entry in the registry may be messed up.
+  You can remove all keys that match "dsdrv". Note:  you should delete
+  not only those in the CurrentControlSet, but those in all control sets.
+
+  If none of these seem to be the cause, you can enable logging to a
+  file in the "TV card input" dialog in the Configure menu.  The log
+  file "dsdrv.log" is created in the nxtvepg home directory.  If you
+  don't get the driver to work, feel free to mail the log file and
+  a dump of the dsdrv4 service registry entry to me.
+
+- "Bt8x8 card #%d not found (found %d cards)"
+  If there's at least one card found, lower the card index below the
+  number of available cards, i.e. if you have two cards, specify index
+  0 or 1. The card index can be given either on the command line with
+  the -card option or in the "TV card input" configuration dialog.
+
+- "PCI-Card #x (with Bt8xx chip) cannot be locked!",
+  There may be a different application already using the TV card. On
+  M$ Windows you cannot run, e.g. a TV application in parallel to
+  nxtvepg (unless the TV app supports interaction with nxtvepg) or
+  teletext decoders (if you have only one TV card).
 
 - "Warning: no tuner found on Bt8x8 I2C bus"
   No tuner was found during the I2C bus scan. This failure does not
@@ -163,54 +167,16 @@ Explanation of Windows Bt8x8 driver error messages:
   set up input source and channel with a different application before
   starting nxtvepg.
 
-- "Failed to load NT device driver WinDrvr.sys", or
-  "Failed to load Win95/98 device driver WinDrvr.vxd"
-  You probably have not copied the driver files WinDrvr.sys and/or
-  .vxd into the working directory of nxtvepg. This may happen if
-  you specify a working directory, e.g. in a shortcut definition,
-  that differs from the one that contains the nxtvepg.exe. Don't
-  do that, use the -dbdir and -rcfile options instead to specify
-  where configuration files are searched for.
+- "Risc Memory (83 KB Contiguous) not Allocated",
+  "VBI Memory for DMA not Allocated". These mesages mean that the kernel
+  could not allocate RAM for data transfers from the TV card. Reboot and
+  try again, this should normally not happen because the amount of memory
+  which is allocated is relatively small.
 
-- "Failed to start the device driver for Bt8x8."
-  Same as the previous message. If may also mean that you do not
-  have permissions to start the driver. On Windows NT you need to
-  be in the Administrator Group (if anyone finds a way around this,
-  please let me know)
-
-- "PCI scan failed - no devices found"
-  The driver was loaded, but no devices at all were found on the PCI bus.
-  The most probable cause is a license problem in the driver. You may be
-  using a registered version of WinDriver that has to be initialized by
-  the application it belongs to. In many cases the driver can be used by
-  nxtvepg only after that application was runnnig (and was then terminated
-  again).
-  You also might be using an evaluation version of the driver, which is
-  limited to a 30 days evaluation period. After it has expired, you have
-  to pay apx. $1500 to Jungo to get a license. You could also just delete
-  the keys Software\Microsoft\Windows\CurrentVersion\Network\Driver*
-  in the registry. However using the driver for more than 30 days still
-  would be illegal.
-
-- "Bt8x8 card cannot be locked - already in use?"
-  There may be a different application already using the driver. On
-  Windows you cannot run, e.g. a TV application in parallel to
-  nxtvepg or teletext decoders. I recommend to upgrade to Linux  :)
-
-- "Bt8x8 card #%d not found (found %d cards)"
-  If there's at least one card found, lower the card index below the
-  number of available cards, i.e. if you have two cards, specify index
-  0 or 1. The card index can be given either on the command line with
-  the -card option or in the "TV card input" configuration menu.
-
-- "Failed to enable Interrupt for Bt8x8 card."
-  Currently the driver does not support IRQ sharing. A different
-  application may already use the interrupt or the card.
-
-Before you mail me, please try to get MultiDec to work. My Windows Bt8x8
-driver handling is heavily based upon that software. Since I'm not a
-M$ Windows software developer my understanding of Windows specific
-problems is rather limited.
+Before you mail me, please try to get DScaler to work (www.dscaler.org)
+My Windows Bt8x8 driver handling is heavily based upon that software.
+Since I'm not a M$ Windows software developer my understanding of Windows
+specific problems is rather limited.
 
 
 

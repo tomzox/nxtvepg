@@ -33,7 +33,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: statswin.c,v 1.56 2002/02/16 17:53:01 tom Exp tom $
+ *  $Id: statswin.c,v 1.58 2002/04/29 20:32:15 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -143,7 +143,7 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
    uchar version, versionSwo;
    ulong duration;
    uint  cni;
-   ulong total, allVersionsCount, curVersionCount, obsolete;
+   uint32_t  total, allVersionsCount, curVersionCount, obsolete;
    time_t acqMinTime[2];
    time_t lastAiUpdate;
    time_t now = time(NULL);
@@ -208,12 +208,12 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
                        "EPG provider:     %s (CNI %04X)\n"
                        "last AI update:   %s\n"
                        "Database version: %d/%d\n"
-                       "Blocks in AI:     %ld (%ld + %ld swo)\n"
-                       "Block count db:   %ld (%ld + %ld swo)\n"
-                       "current version:  %ld (%ld + %ld swo)\n"
+                       "Blocks in AI:     %d (%d + %d swo)\n"
+                       "Block count db:   %d (%d + %d swo)\n"
+                       "current version:  %d (%d + %d swo)\n"
                        "filled:           %d%% / %d%% current version\n"
-                       "expired blocks:   %d%%: %ld (%ld + %ld)\n"
-                       "defective blocks: %d%%: %ld (%ld + %ld)"
+                       "expired blocks:   %d%%: %d (%d + %d)\n"
+                       "defective blocks: %d%%: %d (%d + %d)"
                        "\"\n",
                        dbswn[target],
                        netname, cni,
@@ -261,7 +261,7 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
 
          sprintf(comm, "%s.browser.stat configure -text \""
                        "EPG Provider:     Merged database\n"
-                       "Block count db:   %ld\n"
+                       "Block count db:   %d\n"
                        "\nFor more info please refer to the\n"
                        "original databases (more statistics\n"
                        "will be added here in the future)\n"
@@ -334,19 +334,23 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
          sprintf(comm + strlen(comm), "Acq Runtime:      %02d:%02d\n",
                        (uint)(duration / 60), (uint)(duration % 60));
 
-         pAcqVpsPdc = EpgAcqCtl_GetVpsPdc();
-         if (pAcqVpsPdc != NULL)
+         pAcqVpsPdc = EpgAcqCtl_GetVpsPdc(VPSPDC_REQ_STATSWIN);
+         if ((pAcqVpsPdc != NULL) && (pAcqVpsPdc->cni != 0))
          {
-            if ((pAcqVpsPdc->cni != 0) && (VPS_PIL_IS_VALID(pAcqVpsPdc->pil)) )
+            if ( VPS_PIL_IS_VALID(pAcqVpsPdc->pil) )
+            {
                sprintf(comm + strlen(comm), "Channel VPS/PDC:  CNI %04X, PIL %02d.%02d. %02d:%02d\n",
                                             pAcqVpsPdc->cni,
                                             (pAcqVpsPdc->pil >> 15) & 0x1F, (pAcqVpsPdc->pil >> 11) & 0x0F,
                                             (pAcqVpsPdc->pil >>  6) & 0x1F, (pAcqVpsPdc->pil) & 0x3F);
-            else if (pAcqVpsPdc->cni != 0)
-               sprintf(comm + strlen(comm), "Channel VPS/PDC:  CNI %04X\n", pAcqVpsPdc->cni);
+            }
             else
-               strcat(comm, "Channel VPS/PDC:  ---\n");
+            {
+               sprintf(comm + strlen(comm), "Channel VPS/PDC:  CNI %04X\n", pAcqVpsPdc->cni);
+            }
          }
+         else
+            strcat(comm, "Channel VPS/PDC:  ---\n");
 
          sprintf(comm + strlen(comm),
                        "TTX data rate:    %d baud\n"
@@ -436,7 +440,7 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
 
          if (ACQMODE_IS_CYCLIC(acqState.mode))
          {
-            sprintf(comm + strlen(comm), "Network variance: %1.2f / %1.2f",
+            sprintf(comm + strlen(comm), "Network variance: %1.2f / %1.2f\n",
                                          sv->count[0].variance, sv->count[1].variance);
          }
 

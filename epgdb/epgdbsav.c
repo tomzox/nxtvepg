@@ -29,7 +29,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbsav.c,v 1.45 2002/02/13 21:02:28 tom Exp tom $
+ *  $Id: epgdbsav.c,v 1.46 2002/03/29 17:31:21 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -58,6 +58,7 @@
 #include "epgctl/debug.h"
 
 #include "epgdb/epgblock.h"
+#include "epgdb/epgswap.h"
 #include "epgdb/epgdbmgmt.h"
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
@@ -347,9 +348,6 @@ static EPGDB_RELOAD_RESULT EpgDbReloadAddDefectPiBlock( PDBC dbc, EPGDB_BLOCK * 
 {
    EPGDB_RELOAD_RESULT result;
 
-   // convert type to normal PI, since the "defect pi" type is known only inside this module
-   pBlock->type = BLOCK_TYPE_PI;
-
    if ( EpgBlockCheckConsistancy(pBlock) )
    {
       if (pBlock->version == ((pBlock->stream == 0) ? dbc->pAiBlock->blk.ai.version : dbc->pAiBlock->blk.ai.version_swo))
@@ -473,9 +471,10 @@ static EPGDB_RELOAD_RESULT EpgDbReloadAddPiBlock( PDBC dbc, EPGDB_BLOCK * pBlock
 // ---------------------------------------------------------------------------
 // Read and verify the file header
 //
-static EPGDB_RELOAD_RESULT EpgDbReloadHeader( uint cni, int fd, EPGDBSAV_HEADER * pHead )
+static EPGDB_RELOAD_RESULT EpgDbReloadHeader( uint cni, int fd, EPGDBSAV_HEADER * pHead, bool * pSwapEndian )
 {
    size_t size;
+   bool   swapEndian;
    EPGDB_RELOAD_RESULT result;
 
    size = read(fd, (uchar *)pHead, sizeof(*pHead));
@@ -483,13 +482,33 @@ static EPGDB_RELOAD_RESULT EpgDbReloadHeader( uint cni, int fd, EPGDBSAV_HEADER 
    {
       if (strncmp(pHead->magic, MAGIC_STR, MAGIC_STR_LEN) == 0)
       {
-         if (pHead->endianMagic == ENDIAN_MAGIC)
+         if ( (pHead->endianMagic == ENDIAN_MAGIC) ||
+              (pHead->endianMagic == WRONG_ENDIAN) )
          {
+            if (pHead->endianMagic == WRONG_ENDIAN)
+            {
+               swapEndian = TRUE;
+
+               swap32(&pHead->compatVersion);
+               swap32(&pHead->swVersion);
+               swap32(&pHead->lastPiDate);
+               swap32(&pHead->firstPiDate);
+               swap32(&pHead->lastAiUpdate);
+               swap32(&pHead->cni);
+               swap32(&pHead->pageNo);
+               swap32(&pHead->tunerFreq);
+               swap32(&pHead->appId);
+            }
+            else
+               swapEndian = FALSE;
+
             if (pHead->compatVersion == DUMP_COMPAT)
             {
                if ((cni == RELOAD_ANY_CNI) || (pHead->cni == cni))
                {
                   result = EPGDB_RELOAD_OK;
+                  if (pSwapEndian != NULL)
+                     *pSwapEndian = swapEndian;
                }
                else
                {
@@ -499,11 +518,11 @@ static EPGDB_RELOAD_RESULT EpgDbReloadHeader( uint cni, int fd, EPGDBSAV_HEADER 
             }
             else
             {
-               debug2("EpgDbReload-Header: reload db 0x%04X: incompatible version %06lx", cni, pHead->compatVersion);
+               debug2("EpgDbReload-Header: reload db 0x%04X: incompatible version %06x", cni, pHead->compatVersion);
                result = EPGDB_RELOAD_VERSION;
             }
          }
-         else if (pHead->endianMagic != WRONG_ENDIAN)
+         else
          {  // invalid endian code -> quick check if this is a header of a previous version
             OBSOLETE_EPGDBSAV_HEADER * pObsHead = (OBSOLETE_EPGDBSAV_HEADER *) pHead;
             if ( (pObsHead->dumpVersion >= OBSOLETE_DUMP_MIN_VERSION) &&
@@ -518,11 +537,6 @@ static EPGDB_RELOAD_RESULT EpgDbReloadHeader( uint cni, int fd, EPGDBSAV_HEADER 
                debug2("EpgDbReload-Header: reload db 0x%04X: illegal endian code 0x%02X found", cni, (int) pHead->endianMagic);
                result = EPGDB_RELOAD_CORRUPT;
             }
-         }
-         else
-         {
-            debug2("EpgDbReload-Header: reload db 0x%04X: incompatible endian 0x%04x", cni, pHead->endianMagic);
-            result = EPGDB_RELOAD_ENDIAN;
          }
       }
       else
@@ -550,11 +564,13 @@ PDBC EpgDbReload( uint cni, EPGDB_RELOAD_RESULT * pResult )
    EPGDB_BLOCK *pPrevNetwop[MAX_NETWOP_COUNT];
    EPGDB_BLOCK *pPrevGeneric[BLOCK_TYPE_GENERIC_COUNT];
    EPGDB_BLOCK *pBlock;
-   uchar buffer[BLK_UNION_OFF];
-   size_t size;
-   int fd;
+   uchar   buffer[BLK_UNION_OFF];
+   uint32_t size;
+   size_t  readSize;
+   int     fd;
+   bool    swapEndian;
    uchar * pFilename;
-   time_t piStartOff;
+   time_t  piStartOff;
    BLOCK_TYPE type, lastType;
    EPGDB_RELOAD_RESULT result;
 
@@ -576,7 +592,7 @@ PDBC EpgDbReload( uint cni, EPGDB_RELOAD_RESULT * pResult )
    fd = open(pFilename, O_RDONLY|O_BINARY);
    if (fd >= 0)
    {
-      result = EpgDbReloadHeader(cni, fd, &head);
+      result = EpgDbReloadHeader(cni, fd, &head, &swapEndian);
       if (result == EPGDB_RELOAD_OK)
       {
          dbc->pageNo       = head.pageNo;
@@ -598,9 +614,11 @@ PDBC EpgDbReload( uint cni, EPGDB_RELOAD_RESULT * pResult )
 
          // load the header of the next block from the file (including the block type)
          while ( (result == EPGDB_RELOAD_OK) &&
-                 ((size = read(fd, buffer, BLK_UNION_OFF)) == BLK_UNION_OFF) )
+                 (read(fd, buffer, BLK_UNION_OFF) == BLK_UNION_OFF) )
          {
             size = ((EPGDB_BLOCK *)buffer)->size;
+            if (swapEndian)
+               swap32(&size);
             // plausibility check for block size (avoid malloc failure, which reults in program abort)
             if (size <= EPGDBSAV_MAX_BLOCK_SIZE)
             {
@@ -608,13 +626,21 @@ PDBC EpgDbReload( uint cni, EPGDB_RELOAD_RESULT * pResult )
                pBlock = (EPGDB_BLOCK *) xmalloc(size + BLK_UNION_OFF);
                memcpy(pBlock, buffer, BLK_UNION_OFF);
                // load the rest of the block from the file
-               size = read(fd, (uchar *)pBlock + BLK_UNION_OFF, pBlock->size);
-               if (size == pBlock->size)
+               readSize = read(fd, (uchar *)pBlock + BLK_UNION_OFF, size);
+               if (readSize == size)
                {
                   // save the type in temp var in case the block gets freed
                   type = pBlock->type;
 
-                  switch (pBlock->type)
+                  if (swapEndian)
+                  {
+                     swap32(&type);
+                     if (type == BLOCK_TYPE_DEFECT_PI)
+                        pBlock->type = BLOCK_TYPE_PI << 24;
+                     EpgBlockSwapEndian(pBlock);
+                  }
+
+                  switch (type)
                   {
                      case BLOCK_TYPE_AI:
                         if (lastType == BLOCK_TYPE_INVALID)
@@ -634,6 +660,8 @@ PDBC EpgDbReload( uint cni, EPGDB_RELOAD_RESULT * pResult )
                         break;
 
                      case BLOCK_TYPE_DEFECT_PI:
+                        // convert type to normal PI, since the "defect pi" type is known only inside this module
+                        pBlock->type = BLOCK_TYPE_PI;
                         result = EpgDbReloadAddDefectPiBlock(dbc, pBlock);
                         break;
 
@@ -711,41 +739,50 @@ PDBC EpgDbReload( uint cni, EPGDB_RELOAD_RESULT * pResult )
 // Scan database file for the OI block #0
 // - returns a pointer to the block (the caller must free the memory)
 //
-static EPGDB_BLOCK * EpgDbPeekOi( int fd )
+static EPGDB_BLOCK * EpgDbPeekOi( int fd, bool swapEndian )
 {
    EPGDB_BLOCK * pBlock;
    uchar buffer[BLK_UNION_OFF];
-   size_t size;
+   BLOCK_TYPE  type;
+   size_t      readSize;
+   uint32_t    size;
 
    pBlock = NULL;
 
    while (read(fd, buffer, BLK_UNION_OFF) == BLK_UNION_OFF)
    {
       size = ((EPGDB_BLOCK *)buffer)->size;
+      if (swapEndian)
+         swap32(&size);
       // plausibility check for block size (avoid malloc failure, which reults in program abort)
       if (size <= EPGDBSAV_MAX_BLOCK_SIZE)
       {
-         if ( ((EPGDB_BLOCK *)buffer)->type == BLOCK_TYPE_OI )
+         type = ((EPGDB_BLOCK *)buffer)->type;
+         if (swapEndian)
+            swap32(&type);
+
+         if (type == BLOCK_TYPE_OI)
          {
             pBlock = (EPGDB_BLOCK *) xmalloc(size + BLK_UNION_OFF);
             memcpy(pBlock, buffer, BLK_UNION_OFF);
             // load the rest of the block from the file
-            size = read(fd, (uchar *)pBlock + BLK_UNION_OFF, pBlock->size);
-            if (size == pBlock->size)
+            readSize = read(fd, (uchar *)pBlock + BLK_UNION_OFF, size);
+            if (readSize == size)
             {
+               if (swapEndian)
+                  EpgBlockSwapEndian(pBlock);
+
                if (pBlock->blk.oi.block_no == 0)
-               {  // found -> done
+               {  // found the block -> check it's consistancy
                   pBlock->pNextBlock = NULL;
+                  if (EpgBlockCheckConsistancy(pBlock) == FALSE)
+                  {
+                     xfree(pBlock);
+                     pBlock = NULL;
+                  }
                }
                else
                {  // OI block, but not #0 -> finished (blocks are sorted by increasing blockno)
-                  xfree(pBlock);
-                  pBlock = NULL;
-               }
-
-               // found the block -> check it's consistancy
-               if (EpgBlockCheckConsistancy(pBlock) == FALSE)
-               {
                   xfree(pBlock);
                   pBlock = NULL;
                }
@@ -755,12 +792,13 @@ static EPGDB_BLOCK * EpgDbPeekOi( int fd )
             }
             else
             {
-               debug2("EpgDb-PeekOi: block read error: want %d, got %d", pBlock->size, size);
+               debug2("EpgDb-PeekOi: block read error: want %d, got %d", size, readSize);
                xfree(pBlock);
                pBlock = NULL;
+               break;
             }
          }
-         else if ( ((EPGDB_BLOCK *)buffer)->type == BLOCK_TYPE_PI )
+         else if ( ((EPGDB_BLOCK *)buffer)->type >= BLOCK_TYPE_PI )
          {  // read past all generic blocks -> finished
             break;
          }
@@ -791,9 +829,11 @@ EPGDB_CONTEXT * EpgDbPeek( uint cni, EPGDB_RELOAD_RESULT * pResult )
    EPGDB_CONTEXT * pDbContext;
    EPGDB_BLOCK   * pBlock;
    uchar buffer[BLK_UNION_OFF];
-   size_t size;
-   int fd;
-   uchar *pFilename;
+   uint32_t size;
+   size_t  readSize;
+   int     fd;
+   bool    swapEndian;
+   uchar * pFilename;
    EPGDB_RELOAD_RESULT result;
 
    pDbContext = NULL;
@@ -805,35 +845,47 @@ EPGDB_CONTEXT * EpgDbPeek( uint cni, EPGDB_RELOAD_RESULT * pResult )
       pDbContext = xmalloc(sizeof(EPGDB_CONTEXT));
       memset(pDbContext, 0, sizeof(EPGDB_CONTEXT));
 
-      result = EpgDbReloadHeader(cni, fd, &head);
+      result = EpgDbReloadHeader(cni, fd, &head, &swapEndian);
       if (result == EPGDB_RELOAD_OK)
       {
          pDbContext->pageNo       = head.pageNo;
          pDbContext->tunerFreq    = head.tunerFreq;
          pDbContext->appId        = head.appId;
 
-         if ((size = read(fd, buffer, BLK_UNION_OFF)) == BLK_UNION_OFF)
+         if (read(fd, buffer, BLK_UNION_OFF) == BLK_UNION_OFF)
          {
             size = ((EPGDB_BLOCK *)buffer)->size;
+            if (swapEndian)
+               swap32(&size);
             // plausibility check for block size (avoid malloc failure, which reults in program abort)
             if (size <= EPGDBSAV_MAX_BLOCK_SIZE)
             {
                pBlock = (EPGDB_BLOCK *) xmalloc(size + BLK_UNION_OFF);
                memcpy(pBlock, buffer, BLK_UNION_OFF);
                // load the rest of the block from the file
-               size = read(fd, (uchar *)pBlock + BLK_UNION_OFF, pBlock->size);
-               // check if it's a valid AI block (the first block in the dumped db must be AI)
-               if ( (size == pBlock->size) &&
-                    (pBlock->type == BLOCK_TYPE_AI) &&
-                    EpgBlockCheckConsistancy(pBlock) )
+               readSize = read(fd, (uchar *)pBlock + BLK_UNION_OFF, size);
+               if (readSize == size)
                {
-                  pDbContext->pAiBlock = pBlock;
-                  pDbContext->pFirstGenericBlock[BLOCK_TYPE_OI] = EpgDbPeekOi(fd);
+                  if (swapEndian)
+                     EpgBlockSwapEndian(pBlock);
+
+                  // check if it's a valid AI block (the first block in the dumped db must be AI)
+                  if ( (pBlock->type == BLOCK_TYPE_AI) &&
+                       EpgBlockCheckConsistancy(pBlock) )
+                  {
+                     pDbContext->pAiBlock = pBlock;
+                     pDbContext->pFirstGenericBlock[BLOCK_TYPE_OI] = EpgDbPeekOi(fd, swapEndian);
+                  }
+                  else
+                  {
+                     debug0("EpgDb-Peek: no AI block found");
+                     result = EPGDB_RELOAD_CORRUPT;
+                     xfree(pBlock);
+                  }
                }
                else
                {
-                  debug0("EpgDb-Peek: no AI block found");
-                  result = EPGDB_RELOAD_CORRUPT;
+                  debug2("EpgDb-Peek: block read error: want %d, got %d", size, readSize);
                   xfree(pBlock);
                }
             }
@@ -1153,10 +1205,12 @@ void EpgDbDumpGetDirAndCniFromArg( char * pArg, const char ** ppDirPath, uint * 
 bool EpgDbDumpUpdateHeader( uint cni, ulong freq )
 {
    EPGDBSAV_HEADER head;
-   size_t size;
-   uchar * pFilename;
-   int fd;
-   bool result = FALSE;
+   size_t   size;
+   uchar  * pFilename;
+   int      fd;
+   uint32_t headCompatVersion;
+   uint32_t headCni;
+   bool     result = FALSE;
 
    pFilename = xmalloc(strlen(epgDbDirPath) + 1 + DUMP_NAME_MAX);
    sprintf(pFilename, "%s/" DUMP_NAME_FMT, epgDbDirPath, cni);
@@ -1167,28 +1221,45 @@ bool EpgDbDumpUpdateHeader( uint cni, ulong freq )
       if (size == sizeof(head))
       {
          if ( (strncmp(head.magic, MAGIC_STR, MAGIC_STR_LEN) == 0) &&
-              (head.compatVersion == DUMP_COMPAT) &&
-              (head.endianMagic == ENDIAN_MAGIC) &&
-              (head.cni == cni) )
+              ( (head.endianMagic == ENDIAN_MAGIC) ||
+                (head.endianMagic == WRONG_ENDIAN)) )
          {
-            head.tunerFreq = freq;
+            headCompatVersion = head.compatVersion;
+            headCni           = head.cni;
 
-            // rewind to the start of file and overwrite header
-            if (lseek(fd, 0, SEEK_SET) == 0)
+            if (head.endianMagic == WRONG_ENDIAN)
             {
-               size = write(fd, &head, sizeof(head));
-               if (size == sizeof(head))
+               swap32(&headCompatVersion);
+               swap32(&headCni);
+            }
+
+            if ( (headCompatVersion == DUMP_COMPAT) &&
+                 (headCni == cni) )
+            {
+               head.tunerFreq = freq;
+
+               if (head.endianMagic == WRONG_ENDIAN)
+                  swap32(&head.tunerFreq);
+
+               // rewind to the start of file and overwrite header
+               if (lseek(fd, 0, SEEK_SET) == 0)
                {
-                  result = TRUE;
+                  size = write(fd, &head, sizeof(head));
+                  if (size == sizeof(head))
+                  {
+                     result = TRUE;
+                  }
+                  else
+                     debug2("EpgDbDump-UpdateHeader: write failed with %d, errno %d\n", size, errno);
                }
                else
-                  debug2("EpgDbDump-UpdateHeader: write failed with %d, errno %d\n", size, errno);
+                  debug1("EpgDbDump-UpdateHeader: seek failed with errno %d", errno);
             }
             else
-               debug1("EpgDbDump-UpdateHeader: seek failed with errno %d", errno);
+               debug2("EpgDbDump-UpdateHeader: invalid CNI 0x%04X in db, != 0x%04X", head.cni, cni);
          }
          else
-            debug0("EpgDbDump-UpdateHeader: invalid magic or cni in db");
+            debug0("EpgDbDump-UpdateHeader: invalid magic in db");
       }
       close(fd);
    }
@@ -1216,11 +1287,21 @@ time_t EpgReadAiUpdateTime( uint cni )
       if (size == sizeof(head))
       {
          if ( (strncmp(head.magic, MAGIC_STR, MAGIC_STR_LEN) == 0) &&
-              (head.compatVersion == DUMP_COMPAT) &&
-              (head.endianMagic == ENDIAN_MAGIC) &&
-              (head.cni == cni) )
+              ( (head.endianMagic == ENDIAN_MAGIC) ||
+                (head.endianMagic == WRONG_ENDIAN)) )
          {
-            aiUpdateTime = head.lastAiUpdate;
+            if (head.endianMagic == WRONG_ENDIAN)
+            {
+               swap32(&head.compatVersion);
+               swap32(&head.cni);
+               swap32(&head.lastAiUpdate);
+            }
+
+            if ( (head.compatVersion == DUMP_COMPAT) &&
+                 (head.cni == cni) )
+            {
+               aiUpdateTime = head.lastAiUpdate;
+            }
          }
       }
       close(fd);
@@ -1250,10 +1331,19 @@ ulong EpgDbReadFreqFromDefective( uint cni )
       if (size == sizeof(head))
       {
          if ( (strncmp(head.magic, MAGIC_STR, MAGIC_STR_LEN) == 0) &&
-              (head.endianMagic == ENDIAN_MAGIC) &&
-              (head.cni == cni) )
+              ( (head.endianMagic == ENDIAN_MAGIC) ||
+                (head.endianMagic == WRONG_ENDIAN)) )
          {
-            tunerFreq = head.tunerFreq;
+            if (head.endianMagic == WRONG_ENDIAN)
+            {
+               swap32(&head.cni);
+               swap32(&head.tunerFreq);
+            }
+
+            if (head.cni == cni)
+            {
+               tunerFreq = head.tunerFreq;
+            }
          }
       }
       close(fd);

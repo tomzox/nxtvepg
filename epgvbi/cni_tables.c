@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: cni_tables.c,v 1.10 2002/01/26 15:18:15 tom Exp tom $
+ *  $Id: cni_tables.c,v 1.14 2002/05/04 18:21:29 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -100,7 +100,7 @@ static const CNI_PDC_DESC cni_pdc_desc_table[] =
    // France
    {0x2FC1, 0x33C1, "AB1"},
    {0x2F20, 0x3320, "Aqui TV"},
-   {0x2F0A, 0x330A, "Arte / La Cinquième"},
+   {0x2F0A, 0x330A, "Arte"},
    {0x2FC2, 0x33C2, "Canal J"},
    {0x2FC3, 0x33C3, "Canal Jimmy"},
    {0x2F04, 0x33F4, "Canal+"},
@@ -109,6 +109,7 @@ static const CNI_PDC_DESC cni_pdc_desc_table[] =
    {0x2F01, 0x33F1, "France 1 (TF1)"},
    {0x2F02, 0x33F2, "France 2"},
    {0x2F03, 0x33F3, "France 3"},
+   {0x2F05, 0x33F5, "France 5 (La Cinquième)"},
    {0x2FC5, 0x33C5, "La Chaîne Météo"},
    {0x2FC4, 0x33C4, "LCI"},
    {0x2F06, 0x33F6, "M6"},
@@ -125,22 +126,20 @@ static const CNI_PDC_DESC cni_pdc_desc_table[] =
    {0x2FC7, 0x33C7, "TMC Monte-Carlo"},
    {0x2FE5, 0xF500, "TV5"},
    // Germany
-   {0x1D00, 0x490A, "Arte"},
-   {0x1D00, 0x49BF, "Home Shopping Europe"},
    {0x1D00, 0x49C1, "ARD (future use)"},
-   {0x1D00, 0x5C49, "QVC D Gmbh"},
    {0x1D41, 0x4941, "Festival"},
    {0x1D42, 0x4942, "MUXX"},
    {0x1D43, 0x4943, "EXTRA"},
    {0x1D44, 0x4944, "BR-Alpha: Bildungskanal des Bayerischen Rundfunks"},
    {0x1D7A, 0x0000, "n24"},
    {0x1D7C, 0x0000, "ONYX-TV"},
-   {0x1D7D, 0x0000, "QVC-Teleshopping"},
+   {0x1D7D, 0x5C49, "QVC-Teleshopping"},
    {0x1D7E, 0x0000, "Nickelodeon"},
-   {0x1D7F, 0x0000, "Home Shopping Europe"},
+   {0x1D7F, 0x49BF, "Home Shopping Europe"},
+   {0x1D80, 0x0000, "Tele-5"},
    {0x1D81, 0x0000, "ORB-1: Regionalprogramm"},
    {0x1D82, 0x4982, "ORB-3: Ostdeutscher Rundfunk Brandenburg"},
-   {0x1D85, 0x0000, "Arte"},
+   {0x1D85, 0x490A, "Arte"},
    {0x1D87, 0x0000, "1A-Fernsehen"},
    {0x1D88, 0x0000, "VIVA"},
    {0x1D89, 0x0000, "VIVA 2"},
@@ -291,6 +290,7 @@ static const CNI_PDC_DESC cni_pdc_desc_table[] =
    {0x1500, 0x390A, "Arte"},
    {0x1500, 0xFA05, "Canale 5"},
    {0x1500, 0xFA06, "Italia 1"},
+   {0x1500, 0x3933, "MTV Italia"},
    {0x1500, 0x3901, "RAI 1"},
    {0x1500, 0x3902, "RAI 2"},
    {0x1500, 0x3903, "RAI 3"},
@@ -302,6 +302,7 @@ static const CNI_PDC_DESC cni_pdc_desc_table[] =
    {0x1500, 0x3999, "Tele+3"},
    {0x1500, 0xFA08, "TMC"},
    {0x1500, 0x3910, "TRS TV"},
+   {0x1500, 0x3940, "Video Italia"},
    // Netherlands
    {0x4801, 0x3101, "Nederland 1"},
    {0x4802, 0x3102, "Nederland 2"},
@@ -674,8 +675,8 @@ static const uint cni_prov_table[] =
    0x1D8F,
    0x0D92,  // Kabel1 (Germany)
    0x1D92,
-   0x0D94,  // PRO7 (Germany)
-   0x1D94,
+   //0x0D94,  // PRO7 (Germany)
+   //0x1D94,
    0x0DC7,  // 3SAT (Germany)
    0x1DC7,
    0x2FE1,  // EuroNews (Germany)

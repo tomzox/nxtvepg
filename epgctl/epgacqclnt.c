@@ -21,24 +21,31 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgacqclnt.c,v 1.4 2002/02/16 17:19:29 tom Exp tom $
+ *  $Id: epgacqclnt.c,v 1.6 2002/05/04 18:10:28 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
 #define DPRINTF_OFF
 
+#ifdef USE_DAEMON
+
 #include <stdio.h>
 #include <string.h>
 #include <signal.h>
 #include <time.h>
+#ifndef WIN32
+#include <sys/signal.h>
+#endif
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
 #include "epgctl/epgversion.h"
 #include "epgdb/epgblock.h"
+#include "epgdb/epgswap.h"
 #include "epgdb/epgdbif.h"
 #include "epgdb/epgqueue.h"
 #include "epgdb/epgtscqueue.h"
+#include "epgdb/epgnetio.h"
 #include "epgui/epgmain.h"
 #include "epgui/epgtxtdump.h"
 #include "epgui/uictrl.h"
@@ -69,6 +76,7 @@ typedef struct
 {
    CLNT_STATE               state;
    EPGNETIO_STATE           io;
+   bool                     endianSwap;
    ulong                    rxTotal;
    ulong                    rxStartTime;
    char                     *pSrvHost;
@@ -158,61 +166,272 @@ static void EpgAcqClient_FreeStats( void )
 }
 
 // ----------------------------------------------------------------------------
+// Swap all struct elements > 1 byte for non-endian-matching databases
+//
+static void EpgAcqClient_SwapEpgAcqDescr( EPGACQ_DESCR * pDescr )
+{
+   swap32(&pDescr->state);
+   swap32(&pDescr->mode);
+   swap32(&pDescr->cyclePhase);
+   swap32(&pDescr->passiveReason);
+   swap16(&pDescr->cniCount);
+   swap32(&pDescr->dbCni);
+   swap32(&pDescr->cycleCni);
+}
+
+static void EpgAcqClient_SwapEpgdbBlockCount( EPGDB_BLOCK_COUNT * pCounts )
+{
+   uint  idx;
+
+   for (idx=0; idx < 2; idx++, pCounts++)
+   {
+      swap32(&pCounts->ai);
+      swap32(&pCounts->curVersion);
+      swap32(&pCounts->allVersions);
+      swap32(&pCounts->expired);
+      swap32(&pCounts->defective);
+      swap32(&pCounts->sinceAcq);
+
+      swap64(&pCounts->variance);
+      swap64(&pCounts->avgAcqRepCount);
+   }
+}
+
+static void EpgAcqClient_SwapEpgdbAcqAiStats( EPGDB_ACQ_AI_STATS * pAiStats )
+{
+   swap32(&pAiStats->lastAiTime);
+   swap32(&pAiStats->minAiDistance);
+   swap32(&pAiStats->maxAiDistance);
+   swap32(&pAiStats->sumAiDistance);
+   swap32(&pAiStats->aiCount);
+}
+
+static void EpgAcqClient_SwapEpgdbVarHist( EPGDB_VAR_HIST * pVarHist )
+{
+   uint  varIdx;
+   uint  loopIdx;
+
+   for (loopIdx=0; loopIdx < 2; loopIdx++, pVarHist++)
+   {
+      for (varIdx=0; varIdx < VARIANCE_HIST_COUNT; varIdx++)
+         swap64(&pVarHist->buf[varIdx]);
+      swap16(&pVarHist->count);
+      swap16(&pVarHist->lastIdx);
+   }
+}
+
+// ----------------------------------------------------------------------------
 // Checks the size of a message from server to client
 //
 static bool EpgAcqClient_CheckMsg( uint len, EPGNETIO_MSG_HEADER * pHead, EPGDBSRV_MSG_BODY * pBody )
 {
    EPGDB_BLOCK * pNewBlock;
-   bool result;
+   uint idx;
+   bool result = FALSE;
 
    switch (pHead->type)
    {
       case MSG_TYPE_CONNECT_CNF:
-         result = (len == sizeof(EPGNETIO_MSG_HEADER) + sizeof(pBody->con_cnf)) &&
-                  (memcmp(pBody->con_cnf.magic, MAGIC_STR, MAGIC_STR_LEN) == 0);
+         if ( (len == sizeof(EPGNETIO_MSG_HEADER) + sizeof(pBody->con_cnf)) &&
+              (memcmp(pBody->con_cnf.magic, MAGIC_STR, MAGIC_STR_LEN) == 0) )
+         {
+            if (pBody->con_cnf.endianMagic == PROTOCOL_ENDIAN_MAGIC)
+            {  // endian type matches -> no swapping required
+               clientState.endianSwap = FALSE;
+               result                 = TRUE;
+            }
+            else if (pBody->con_cnf.endianMagic == PROTOCOL_WRONG_ENDIAN)
+            {  // endian type does not match -> convert "endianess" of all msg elements > 1 byte
+               swap32(&pBody->con_cnf.blockCompatVersion);
+               swap32(&pBody->con_cnf.protocolCompatVersion);
+               swap32(&pBody->con_cnf.swVersion);
+
+               // enable byte swapping for all following messages
+               clientState.endianSwap = TRUE;
+               result                 = TRUE;
+            }
+         }
          break;
+
       case MSG_TYPE_FORWARD_CNF:
-         result = (len == sizeof(EPGNETIO_MSG_HEADER) + sizeof(pBody->fwd_cnf)) &&
-                  (pBody->fwd_cnf.cniCount <= MAX_MERGED_DB_COUNT);
+         if (len == sizeof(EPGNETIO_MSG_HEADER) + sizeof(pBody->fwd_cnf))
+         {
+            if (clientState.endianSwap)
+            {
+               swap32(&pBody->fwd_cnf.cniCount);
+               if (pBody->fwd_cnf.cniCount <= MAX_MERGED_DB_COUNT)
+               {
+                  for (idx=0; idx < pBody->fwd_cnf.cniCount; idx++)
+                  {
+                     swap32(&pBody->fwd_cnf.provCnis[idx]);
+                  }
+                  result = TRUE;
+               }
+            }
+            else if (pBody->fwd_cnf.cniCount <= MAX_MERGED_DB_COUNT)
+            {
+               result = TRUE;
+            }
+         }
          break;
+
       case MSG_TYPE_FORWARD_IND:
-         result = (len == sizeof(EPGNETIO_MSG_HEADER) + sizeof(pBody->fwd_ind));
+         if (len == sizeof(EPGNETIO_MSG_HEADER) + sizeof(pBody->fwd_ind))
+         {
+            if (clientState.endianSwap)
+            {
+               swap32(&pBody->fwd_ind.cni);
+            }
+            result = TRUE;
+         }
          break;
+
       case MSG_TYPE_DUMP_IND:
-         result = (len == sizeof(EPGNETIO_MSG_HEADER) + sizeof(pBody->dump_ind));
+         if (len == sizeof(EPGNETIO_MSG_HEADER) + sizeof(pBody->dump_ind));
+         {
+            if (clientState.endianSwap)
+            {
+               swap32(&pBody->dump_ind.cni);
+            }
+            result = TRUE;
+         }
          break;
+
       case MSG_TYPE_BLOCK_IND:
          pNewBlock = (EPGDB_BLOCK *) pBody;
-         if ( (pHead->len < sizeof(EPGNETIO_MSG_HEADER) + BLK_UNION_OFF) ||
-              (pHead->len != sizeof(EPGNETIO_MSG_HEADER) + pNewBlock->size + BLK_UNION_OFF) )
+         if (pHead->len >= sizeof(EPGNETIO_MSG_HEADER) + BLK_UNION_OFF)
          {
-            debug2("EpgAcqClient-CheckMsg: BLOCK_IND msg len %d != block size=%d", pHead->len, sizeof(EPGNETIO_MSG_HEADER) + pNewBlock->size + BLK_UNION_OFF);
-            result = FALSE;
+            uint32_t blockSize = pNewBlock->size;
+            if (clientState.endianSwap)
+               swap32(&blockSize);
+            if (pHead->len == sizeof(EPGNETIO_MSG_HEADER) + blockSize + BLK_UNION_OFF)
+            {
+               result = (!clientState.endianSwap || EpgBlockSwapEndian(pNewBlock)) &&
+                        EpgBlockCheckConsistancy(pNewBlock);
+            }
+            else
+               debug2("EpgAcqClient-CheckMsg: BLOCK_IND msg len %d != block size=%d", pHead->len, sizeof(EPGNETIO_MSG_HEADER) + blockSize + BLK_UNION_OFF);
          }
          else
-            result = EpgBlockCheckConsistancy(pNewBlock);
+            debug1("EpgAcqClient-CheckMsg: BLOCK_IND msg too short: len=%d", pHead->len);
          break;
+
       case MSG_TYPE_TSC_IND:
-         // exact length only known to upper layer
-         result = (len > sizeof(EPGNETIO_MSG_HEADER));
+         if (len > sizeof(EPGNETIO_MSG_HEADER))
+         {
+            EPGDB_PI_TSC_BUF * pTscBuf = (EPGDB_PI_TSC_BUF *) pBody;
+
+            if (clientState.endianSwap)
+            {
+               swap16(&pTscBuf->provCni);
+               swap16(&pTscBuf->fillCount);
+               swap16(&pTscBuf->popIdx);
+               swap32(&pTscBuf->baseTime);
+            }
+            if ( (pTscBuf->fillCount <= PI_TSC_GET_BUF_COUNT(pTscBuf->mode)) &&
+                 (len == sizeof(EPGNETIO_MSG_HEADER) + PI_TSC_GET_BUF_SIZE(pTscBuf->fillCount)) )
+            {
+               if (clientState.endianSwap)
+               {
+                  EPGDB_PI_TSC_ELEM  * pTscElem = pTscBuf->pi;
+                  uint  idx;
+
+                  for (idx = 0; idx < pTscBuf->fillCount; idx++, pTscElem++)
+                  {
+                     swap16(&pTscElem->startOffMins);
+                     swap16(&pTscElem->durationMins);
+                  }
+               }
+               result = TRUE;
+            }
+            else
+               debug3("EpgAcqClient-CheckMsg: TSC_IND msg len %d too short for %d entries (expected %d)", len, pTscBuf->fillCount, PI_TSC_GET_BUF_SIZE(pTscBuf->fillCount));
+         }
+         else
+            debug1("EpgAcqClient-CheckMsg: TSC_IND msg len %d too short", len);
          break;
+
       case MSG_TYPE_VPS_PDC_IND:
-         result = (len == sizeof(EPGNETIO_MSG_HEADER) + sizeof(pBody->vps_pdc_ind));
+         if (len == sizeof(EPGNETIO_MSG_HEADER) + sizeof(pBody->vps_pdc_ind))
+         {
+            if (clientState.endianSwap)
+            {
+               swap32(&pBody->vps_pdc_ind.vpsPdc.cni);
+               swap32(&pBody->vps_pdc_ind.vpsPdc.pil);
+            }
+            result = TRUE;
+         }
          break;
+
       case MSG_TYPE_STATS_IND:
          if (len > sizeof(EPGNETIO_MSG_HEADER) + sizeof(pBody->stats_ind) - sizeof(pBody->stats_ind.u))
          {
             uint size = len - (sizeof(EPGNETIO_MSG_HEADER) + sizeof(pBody->stats_ind) - sizeof(pBody->stats_ind.u));
+
+            if (clientState.endianSwap)
+            {
+               swap32(&pBody->stats_ind.type);
+               EpgAcqClient_SwapEpgAcqDescr(&pBody->stats_ind.descr);
+            }
+
             switch (pBody->stats_ind.type)
             {
                case EPGDB_STATS_UPD_TYPE_MINIMAL:
-                  result = (size == sizeof(pBody->stats_ind.u.minimal));
+                  if (size == sizeof(pBody->stats_ind.u.minimal))
+                  {
+                     if (clientState.endianSwap)
+                     {
+                        EpgAcqClient_SwapEpgdbBlockCount(pBody->stats_ind.u.minimal.count);
+                        swap32(&pBody->stats_ind.u.minimal.vpsPdc.cni);
+                        swap32(&pBody->stats_ind.u.minimal.vpsPdc.pil);
+                        swap32(&pBody->stats_ind.u.minimal.lastAiTime);
+                     }
+                     result = TRUE;
+                  }
+                  else
+                     debug2("EpgAcqClient-CheckMsg: STATS_IND type MINIMAL illegal msg len %d != %d", size, sizeof(pBody->stats_ind.u.minimal));
                   break;
                case EPGDB_STATS_UPD_TYPE_INITIAL:
-                  result = (size == sizeof(pBody->stats_ind.u.initial));
+                  if (size == sizeof(pBody->stats_ind.u.initial))
+                  {
+                     if (clientState.endianSwap)
+                     {
+                        swap32(&pBody->stats_ind.u.initial.stats.acqStartTime);
+                        EpgAcqClient_SwapEpgdbAcqAiStats(&pBody->stats_ind.u.initial.stats.ai);
+                        swap32(&pBody->stats_ind.u.initial.stats.ttx.ttxPkgCount);
+                        swap32(&pBody->stats_ind.u.initial.stats.ttx.epgPkgCount);
+                        swap32(&pBody->stats_ind.u.initial.stats.ttx.epgPagCount);
+                        swap16(&pBody->stats_ind.u.initial.stats.histIdx);
+                        EpgAcqClient_SwapEpgdbBlockCount(pBody->stats_ind.u.initial.stats.count);
+                        EpgAcqClient_SwapEpgdbVarHist(pBody->stats_ind.u.initial.stats.varianceHist);
+                        swap32(&pBody->stats_ind.u.initial.stats.nowNextMaxAcqRepCount);
+                        swap32(&pBody->stats_ind.u.initial.stats.vpsPdc.cni);
+                        swap32(&pBody->stats_ind.u.initial.stats.vpsPdc.pil);
+                     }
+                     result = TRUE;
+                  }
+                  else
+                     debug2("EpgAcqClient-CheckMsg: STATS_IND type INITIAL illegal msg len %d != %d", size, sizeof(pBody->stats_ind.u.initial));
                   break;
                case EPGDB_STATS_UPD_TYPE_UPDATE:
-                  result = (size == sizeof(pBody->stats_ind.u.update));
+                  if (size == sizeof(pBody->stats_ind.u.update))
+                  {
+                     if (clientState.endianSwap)
+                     {
+                        EpgAcqClient_SwapEpgdbBlockCount(pBody->stats_ind.u.update.count);
+                        EpgAcqClient_SwapEpgdbAcqAiStats(&pBody->stats_ind.u.update.ai);
+                        swap32(&pBody->stats_ind.u.update.ttx.ttxPkgCount);
+                        swap32(&pBody->stats_ind.u.update.ttx.epgPkgCount);
+                        swap32(&pBody->stats_ind.u.update.ttx.epgPagCount);
+                        swap32(&pBody->stats_ind.u.update.vpsPdc.cni);
+                        swap32(&pBody->stats_ind.u.update.vpsPdc.pil);
+                        swap16(&pBody->stats_ind.u.update.histIdx);
+                        swap32(&pBody->stats_ind.u.update.nowNextMaxAcqRepCount);
+                     }
+                     result = TRUE;
+                  }
+                  else
+                     debug2("EpgAcqClient-CheckMsg: STATS_IND type UPDATE illegal msg len %d != %d", size, sizeof(pBody->stats_ind.u.update));
                   break;
                default:
                   debug1("EpgAcqClient-CheckMsg: STATS_IND illegal type %d", pBody->stats_ind.type);
@@ -223,13 +442,14 @@ static bool EpgAcqClient_CheckMsg( uint len, EPGNETIO_MSG_HEADER * pHead, EPGDBS
          else
             result = FALSE;
          break;
+
       case MSG_TYPE_CLOSE_IND:
          result = (len == sizeof(EPGNETIO_MSG_HEADER));
          break;
       case MSG_TYPE_CONNECT_REQ:
       case MSG_TYPE_FORWARD_REQ:
       case MSG_TYPE_STATS_REQ:
-         debug1("EpgAcqServer-CheckMsg: recv server< msg type %d", pHead->type);
+         debug1("EpgAcqClient-CheckMsg: recv server msg type %d", pHead->type);
          result = FALSE;
          break;
       default:
@@ -259,18 +479,11 @@ static bool EpgAcqClient_TakeMessage( EPGACQ_EVHAND * pAcqEv, EPGDBSRV_MSG_BODY 
       case MSG_TYPE_CONNECT_CNF:
          if (clientState.state == CLNT_STATE_WAIT_CON_CNF)
          {
-            dprintf3("EpgDbClient-TakeMessage: CONNECT_CNF: reply version %lx, dump %lx protocol %lx\n", pMsg->con_cnf.swVersion, pMsg->con_cnf.blockCompatVersion, pMsg->con_cnf.protocolCompatVersion);
+            dprintf3("EpgDbClient-TakeMessage: CONNECT_CNF: reply version %x, dump %x protocol %x\n", pMsg->con_cnf.swVersion, pMsg->con_cnf.blockCompatVersion, pMsg->con_cnf.protocolCompatVersion);
             // first server message received: contains version info
-            if (memcmp(pMsg->con_cnf.magic, MAGIC_STR, MAGIC_STR_LEN) != 0)
-            {
-               EpgNetIo_SetErrorText(&clientState.pErrorText, "Server identification not recognized", NULL);
-            }
-            else if (pMsg->con_cnf.endianMagic != ENDIAN_MAGIC)
-            {
-               EpgNetIo_SetErrorText(&clientState.pErrorText, "Server endian type not matching", NULL);
-            }
-            else if ( (pMsg->con_cnf.blockCompatVersion != DUMP_COMPAT) ||
-                      (pMsg->con_cnf.protocolCompatVersion != PROTOCOL_COMPAT) )
+            // note: nxtvepg and endian magics are already checked
+            if ( (pMsg->con_cnf.blockCompatVersion != DUMP_COMPAT) ||
+                 (pMsg->con_cnf.protocolCompatVersion != PROTOCOL_COMPAT) )
             {
                EpgNetIo_SetErrorText(&clientState.pErrorText, "Incompatible server version", NULL);
             }
@@ -526,6 +739,7 @@ void EpgAcqClient_HandleSocket( EPGACQ_EVHAND * pAcqEv )
          // unintended (e.g. wrong service or port) or malicious (e.g. port scanner) connections
          memcpy(clientMsg.con_req.magic, MAGIC_STR, MAGIC_STR_LEN);
          memset(clientMsg.con_req.reserved, 0, sizeof(clientMsg.con_req.reserved));
+         clientMsg.con_req.endianMagic = PROTOCOL_ENDIAN_MAGIC;
          EpgNetIo_WriteMsg(&clientState.io, MSG_TYPE_CONNECT_REQ, sizeof(clientMsg.con_req), &clientMsg.con_req, FALSE);
 
          clientState.state = CLNT_STATE_WAIT_CON_CNF;
@@ -601,7 +815,6 @@ void EpgAcqClient_HandleSocket( EPGACQ_EVHAND * pAcqEv )
                }
                else
                {  // consistancy error
-                  clientState.io.pReadBuf = NULL;
                   EpgAcqClient_Close(FALSE);
                }
 
@@ -1179,6 +1392,11 @@ void EpgAcqClient_Init( void (* pCbUpdateEvHandler) ( EPGACQ_EVHAND * pAcqEv ) )
    sigemptyset(&act.sa_mask);
    act.sa_handler = SIG_IGN;
    sigaction(SIGPIPE, &act, NULL);
+
+   #else // WIN32
+   WSADATA stWSAData;
+
+   WSAStartup(0x202, &stWSAData);
    #endif
 
    // initialize client state
@@ -1203,3 +1421,4 @@ void EpgAcqClient_Destroy( void )
    EpgNetIo_SetErrorText(&clientState.pErrorText, NULL);
 }
 
+#endif  // USE_DAEMON

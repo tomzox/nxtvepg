@@ -1,0 +1,216 @@
+# ---------------------------------------------------------------------------
+#
+#  TV application interaction simulator online manual
+#
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License Version 2 as
+#  published by the Free Software Foundation. You find a copy of this
+#  license in the file COPYRIGHT in the root directory of this release.
+#
+#  THIS PROGRAM IS DISTRIBUTED IN THE HOPE THAT IT WILL BE USEFUL,
+#  BUT WITHOUT ANY WARRANTY; WITHOUT EVEN THE IMPLIED WARRANTY OF
+#  MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#
+#  Description:
+#
+#    User's documentation in Perl "POD" format. The content is
+#    converted into various other formats by use of different scripts:
+#    UNIX manpage by pod2man; HTML web page by pod2html (needs manual
+#    adjustments) and the online help by a self-made script. The releases
+#    should contain the converted files, so that the user is not forced
+#    to install Perl.
+#
+#  Author: Tom Zoerner
+#
+# $Id: tvsim.pod,v 1.1 2002/05/05 20:29:29 tom Exp tom $
+# ---------------------------------------------------------------------------
+
+=head1 NAME
+
+tvsim - TV application interaction simulator
+
+=head1 SYNOPSIS
+
+B<tvsim> S<[ options ]>
+
+=head1 DESCRIPTION
+
+B<tvsim>
+is a demo application that shows in which ways nxtvepg can cooperate
+with TV applications on the Micro$oft Windows operating system.
+It's also a reference implementation of the communication protocol
+and offers most of the source code (under the GPL license) that would
+be required to add EPG support to a TV application.
+
+=head1 OPTIONS
+
+Summary of command line options (it's a sub-set of the options
+supported by nxtvepg):
+
+=over 4
+
+=item B<-geometry> I<geometry>
+
+Specifies the position of the main window, e.g.  B<-geometry -0+0>
+to put the main window in the upper right corner of the visible screen.
+The size of the window cannot be changed.
+
+=item B<-iconic>
+
+Start with the main window iconified (i.e. minimized).
+
+=item B<-rcfile> I<path>
+
+Specify an alternate configuration file.
+Default: I<nxtvepg.ini> in the current directory.
+
+=item B<-card> I<index>
+
+Specify which tuner card to use, if you have more than one.
+The given index is appended to /dev/vbi and /dev/video.
+Default: index 0, i.e. the card in the first PCI slot.
+
+=item B<-help>
+
+List all available command line options.
+
+=back
+
+B<tvsim> uses the nxtvepg INI file, i.e. by default it searches for
+a file named I<nxtvepg.ini> in the current working directory.  If this
+file is located elsewhere, you need to specify the I<-rcfile> option.
+Please refer to L<"GETTING STARTED"> below for configuration information.
+
+
+=head1 INTERACTION FEATURES
+
+B<tvsim> can demonstrate all TV application interaction features
+which currently are supported by B<nxtvepg>:
+
+=over 4
+
+=item B<Automatically freeing the TV card>
+
+When nxtvepg is running with acquisition enabled when the TV application
+is started, it automatically frees the TV card to allow the TV application
+to access to the hardware.  When the TV application is stopped, nxtvepg
+automatically accesses the TV card again.  This allows the user to keep
+nxtvepg permanently running in the background without bothering to
+remember to switch acquisition off manually before starting the
+TV application.
+
+=item B<Look-up of program info in the EPG database>
+
+The TV application can pass a network name to nxtvepg to look up the title,
+start and stop times and PDC theme codes of the current programme on that
+network.  Usually the TV application will display that information on screen
+or in a popup windows next to the live TV image.  In tvsim it's displayed
+in the three text fields below that channel table.
+
+=item B<nxtvepg following channel changes>
+
+When the TV channel is changed inside the TV application, nxtvepg will
+follow with its cursor in the browser window, i.e. it'll set the cursor
+on the program title that's currently running on that network so that
+the detailed program information becomes displayed.  (Channels are
+identified firstly by their name, but also by VPS/PDC which is forwarded
+from the TV application to nxtvepg.)
+
+=item B<Changing channels from inside nxtvepg>
+
+When a TV application is connected to nxtvepg, there's a I<Tune TV> button
+in the main window that allows to tune in the network of the program that's
+currently selected in nxtvepg.  This allows the user to comfortably select
+his/her favorite program inside nxtvepg.
+
+=item B<EPG data acquisition while watching TV>
+
+Even while the TV card is "owned" by the TV application, it's possible
+for nxtvepg to keep acquiring EPG information if it's connected to a
+TV application that forwards incoming teletext packets on the designated
+EPG page. 
+
+=back
+
+
+=head1 GETTING STARTED
+
+The software is called a "simulator" because it doesn't display a TV
+image.  But still it does read in a channel table and tune in the
+respective TV channels when they are selected in the channel table;
+this is required to demonstrate forwarding of VPS/PDC and EPG packets.
+
+tvsim does not have its own INI file, instead it uses the nxtvepg
+INI file.  Hence you should configure nxtvepg first before using
+tvsim.  Please refer to the nxtvepg manual, section "GETTING STARTED"
+for detailed documentation of the initial configuration process.
+tvsim only uses the configuration settings of the I<TV card input>
+and I<TV app. interaction> dialogs.
+
+If your TV application's channel table format is not supported by
+nxtvepg and you don't have any of the supported freeware TV applications,
+you can set up a minimal channel table manually.  The simplest format
+is that of the DScaler channel table; so create a file named
+I<program.txt> somewhere with the following format:
+
+   Name: First Channel
+   Freq2: 2020
+   Name: Second Channel
+   Freq2: 2132
+
+where you replace "First Channel" etc. with the actual channel names and
+the numbers with the respective TV tuner frequencies in MHz times 16
+(i.e. 2020 means tuner frequency 126.25 MHz). Then open the
+I<TV app. interaction> dialog in nxtvepg, choose TV app. name I<DScaler>
+and specify the path to the channel table you've just creatd. Then quit
+the dialog with Ok and start tvsim (you don't need to quit nxtvepg).
+Your channels should appear in the tvsim channel table.
+
+
+=head1 FILES
+
+=over 4
+
+=item B<nxtvepg.ini>
+
+Configuration file where all configuration settings are stored. By default
+this is created in the working directory, but a different path and file
+name can be specified with the B<-rcfile> option.
+
+=back
+
+
+=head1 SEE ALSO
+
+Please refer to the B<nxtvepg> manual for information on TV card
+and TV application interaction configuration.
+
+
+=head1 AUTHOR
+
+Tom Zoerner, Erlangen, Germany.
+
+Email: tomzo (at) nefkom (dot) net
+
+Thanks to I<e-nek> for his contributions to the design of the
+communication protocol, alpha testing and most importantly for
+being the first to implement EPG interaction in a TV application.
+
+
+=head1 COPYRIGHT
+
+Copyright (C) 2002 by Tom Zoerner.
+All rights reserved.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License Version 2 as
+published by the Free Software Foundation, e.g. at
+http://www.fsf.org/
+
+This program is distributed in the hope that it will be useful, but
+B<WITHOUT ANY WARRANTY>; without even the implied warranty of
+merchantability or fitness for a particular purpose. See the
+file F<COPYRIGHT> for more details.
+

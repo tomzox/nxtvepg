@@ -36,7 +36,7 @@
  *
  *     Additional code and adaptions to nxtvepg by Tom Zoerner
  *
- *  $Id: xawtv.c,v 1.18 2002/01/16 20:28:20 tom Exp tom $
+ *  $Id: xawtv.c,v 1.20 2002/05/01 12:23:50 tom Exp tom $
  */
 
 #ifdef WIN32
@@ -165,7 +165,7 @@ static bool Xawtv_Check( void )
 //
 static int Xawtv_Enabled(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
 {
-   const char * const pUsage = "Usage: C_Xawtv_Enabled";
+   const char * const pUsage = "Usage: C_Tvapp_Enabled";
    int result;
 
    if (argc != 1)
@@ -208,14 +208,14 @@ static FILE * Xawtv_OpenRcFile( void )
 // ----------------------------------------------------------------------------
 // Extract all channels from $HOME/.xawtv
 //
-int Xawtv_GetFreqTab( ulong ** pFreqTab, uint * pCount )
+bool Xawtv_GetFreqTab( Tcl_Interp * interp, ulong ** pFreqTab, uint * pCount )
 {
    ulong *freqTab;
    int freqCount, freqTabLen;
    char line[256], tag[64], value[192];
    ulong freq;
    FILE * fp;
-   int result = TCL_ERROR;
+   bool result = FALSE;
 
    fp = Xawtv_OpenRcFile();
    if (fp != NULL)
@@ -266,7 +266,7 @@ int Xawtv_GetFreqTab( ulong ** pFreqTab, uint * pCount )
 
       *pFreqTab = freqTab;
       *pCount = freqCount;
-      result = TCL_OK;
+      result = TRUE;
    }
    else
    {
@@ -286,7 +286,7 @@ int Xawtv_GetFreqTab( ulong ** pFreqTab, uint * pCount )
 //
 static int Xawtv_GetStationNames(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
 {
-   const char * const pUsage = "Usage: C_Xawtv_GetStationNames";
+   const char * const pUsage = "Usage: C_Tvapp_GetStationNames";
    char line[256], section[100];
    char *ps, *pc, *pe, c;
    FILE * fp;
@@ -654,7 +654,7 @@ static void Xawtv_Popup( float rperc, const char *rtime, const char * ptitle )
 //
 static int Xawtv_SendCmd(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
 {
-   const char * const pUsage = "Usage: C_Xawtv_SendCmd <command> [<args> [<...>]]";
+   const char * const pUsage = "Usage: C_Tvapp_SendCmd <command> [<args> [<...>]]";
    Tk_ErrorHandler errHandler;
    Tk_Window tkwin;
    Display *dpy;
@@ -746,7 +746,7 @@ static int Xawtv_SendCmd(ClientData ttp, Tcl_Interp *interp, int argc, char *arg
             }
             else
             {  // xawtv window not found
-               if (strcmp(argv[0], "C_Xawtv_SendCmd") == 0)
+               if (strcmp(argv[0], "C_Tvapp_SendCmd") == 0)
                {  // display warning only if called after user-interaction
                   sprintf(comm, "tk_messageBox -type ok -icon error -message \"xawtv is not running!\"\n");
                   eval_check(interp, comm);
@@ -1067,21 +1067,23 @@ static void Xawtv_FollowTvNetwork( void )
    const PI_BLOCK *pPiBlock;
    
    pPiBlock = Xawtv_SearchCurrentPi(followTvState.cni, followTvState.pil);
-   if ( (pPiBlock != NULL) &&
-        ((followTvState.cni != followTvState.lastCni) ||
-         (pPiBlock->start_time != followTvState.lastStartTime)) )
+   if (pPiBlock != NULL)
    {
-      // remember PI to suppress double-popups
-      followTvState.lastCni       = followTvState.cni;
-      followTvState.lastStartTime = pPiBlock->start_time;
+      if ( (followTvState.cni != followTvState.lastCni) ||
+           (pPiBlock->start_time != followTvState.lastStartTime) )
+      {
+         // remember PI to suppress double-popups
+         followTvState.lastCni       = followTvState.cni;
+         followTvState.lastStartTime = pPiBlock->start_time;
 
-      // display the programme information
-      if (xawtvcf.doPop)
-         Xawtv_NowNext(pPiBlock);
+         // display the programme information
+         if (xawtvcf.doPop)
+            Xawtv_NowNext(pPiBlock);
 
-      // jump with the cursor on the current programme
-      if (xawtvcf.follow)
-         PiListBox_GotoPi(pPiBlock);
+         // jump with the cursor on the current programme
+         if (xawtvcf.follow)
+            PiListBox_GotoPi(pPiBlock);
+      }
    }
    else
    {  // unsupported network or no appropriate PI found -> remove popup
@@ -1094,14 +1096,14 @@ static void Xawtv_FollowTvNetwork( void )
 // - invoked (indirectly) by acq ctl when a new CNI or PIL is available
 // - if CNI or PIL changed, the user configured action is launched
 //
-void Xawtv_PollVpsPil( ClientData clientData )
+static void Xawtv_PollVpsPil( ClientData clientData )
 {
    const EPGDB_ACQ_VPS_PDC * pVpsPdc;
    EPGACQ_DESCR acqState;
 
    if ((xawtvcf.follow || xawtvcf.doPop) && (followTvState.stationPoll == 0))
    {
-      pVpsPdc = EpgAcqCtl_GetVpsPdc();
+      pVpsPdc = EpgAcqCtl_GetVpsPdc(VPSPDC_REQ_TVAPP);
       if (pVpsPdc != NULL)
       {
          if ( (followTvState.cni != pVpsPdc->cni) ||
@@ -1126,6 +1128,7 @@ void Xawtv_PollVpsPil( ClientData clientData )
          }
       }
    }
+   pollVpsEvent = Tcl_CreateTimerHandler(200, Xawtv_PollVpsPil, NULL);
 }
 
 // ----------------------------------------------------------------------------
@@ -1149,7 +1152,7 @@ static void Xawtv_StationTimer( ClientData clientData )
    pollVpsEvent = NULL;
    assert(followTvState.stationPoll > 0);
 
-   pVpsPdc = EpgAcqCtl_GetVpsPdc();
+   pVpsPdc = EpgAcqCtl_GetVpsPdc(VPSPDC_REQ_TVAPP);
    if ((pVpsPdc != NULL) && (pVpsPdc->cni != 0))
    {  // VPS data received - check if it's the expected CNI
       if ((pVpsPdc->cni == followTvState.stationCni) || (followTvState.stationPoll >= 360))
@@ -1179,6 +1182,8 @@ static void Xawtv_StationTimer( ClientData clientData )
    if (keepWaiting == FALSE)
    {  // dispatch the popup from the main loop
       AddMainIdleEvent(Xawtv_FollowTvHandler, NULL, TRUE);
+
+      pollVpsEvent = Tcl_CreateTimerHandler(200, Xawtv_PollVpsPil, NULL);
    }
    else
    {  // keep waiting
@@ -1206,6 +1211,7 @@ static void Xawtv_StationSelected( ClientData clientData )
          {
             Tcl_DeleteTimerHandler(pollVpsEvent);
             pollVpsEvent = NULL;
+            followTvState.stationPoll = 0;
          }
 
          // there definately was a station change -> remove suppression of popup
@@ -1250,7 +1256,7 @@ static void Xawtv_StationSelected( ClientData clientData )
          else
          {  // unknown CNI -> remove existing popup
             // note that multi-network station may be identified via VPS shortly after
-            dprintf1("Xawtv-StationSelected: unknown station: %s\n", station);
+            dprintf1("Xawtv-StationSelected: unknown station: \"%s\"\n", station);
             Xawtv_PopDownNowNext(NULL);
 
             EpgAcqCtl_ResetVpsPdc();
@@ -1259,6 +1265,9 @@ static void Xawtv_StationSelected( ClientData clientData )
       else
          debug1("Xawtv-StationSelected: no atom found on window 0x%X\n", (int)xawtv_wid);
    }
+
+   if (pollVpsEvent == NULL)
+      pollVpsEvent = Tcl_CreateTimerHandler(200, Xawtv_PollVpsPil, NULL);
 }
 
 // ----------------------------------------------------------------------------
@@ -1307,7 +1316,6 @@ static int Xawtv_ReadConfig( Tcl_Interp *interp, XAWTVCF *pNewXawtvcf )
                   result = TCL_ERROR;
                }
             }
-            Tcl_Free((char *) cfArgv);
 
             if (popType >= POP_COUNT)
             {
@@ -1336,6 +1344,7 @@ static int Xawtv_ReadConfig( Tcl_Interp *interp, XAWTVCF *pNewXawtvcf )
             Tcl_SetResult(interp, comm, TCL_VOLATILE);
             result = TCL_ERROR;
          }
+         Tcl_Free((char *) cfArgv);
       }
    }
    return result;
@@ -1355,6 +1364,12 @@ static int Xawtv_InitConfig(ClientData ttp, Tcl_Interp *interp, int argc, char *
    XAWTVCF newXawtvCf;
    bool isFirstCall = (bool)((int) ttp);
    int result = TCL_ERROR;
+
+   if (pollVpsEvent != NULL)
+   {
+      Tcl_DeleteTimerHandler(pollVpsEvent);
+      pollVpsEvent = NULL;
+   }
 
    if ( Xawtv_Check() )
    {
@@ -1380,6 +1395,8 @@ static int Xawtv_InitConfig(ClientData ttp, Tcl_Interp *interp, int argc, char *
                   eval_check(interp, "RemoveTuneTvButton\n");
                else if (xawtvcf.tunetv)
                   eval_check(interp, "CreateTuneTvButton\n");
+
+               Tcl_SetVar(interp, "tvapp_name", "xawtv", TCL_GLOBAL_ONLY);
 
                if (xawtvcf.tunetv || xawtvcf.follow || xawtvcf.doPop)
                {  // xawtv window id required for communication
@@ -1414,6 +1431,11 @@ static int Xawtv_InitConfig(ClientData ttp, Tcl_Interp *interp, int argc, char *
                   xawtv_wid = None;
                   parent_wid = None;
                }
+
+               if (xawtvcf.follow || xawtvcf.doPop)
+               {  // create a timer to regularily poll for VPS/PDC
+                  pollVpsEvent = Tcl_CreateTimerHandler(200, Xawtv_PollVpsPil, NULL);
+               }
             }
          }
       }
@@ -1426,6 +1448,16 @@ static int Xawtv_InitConfig(ClientData ttp, Tcl_Interp *interp, int argc, char *
 //
 void Xawtv_Destroy( void )
 {
+   if (pollVpsEvent != NULL)
+   {
+      Tcl_DeleteTimerHandler(pollVpsEvent);
+      pollVpsEvent = NULL;
+   }
+   if (popDownEvent != NULL)
+   {
+      Tcl_DeleteTimerHandler(popDownEvent);
+      popDownEvent = NULL;
+   }
 }
 
 // ----------------------------------------------------------------------------
@@ -1435,12 +1467,13 @@ void Xawtv_Init( void )
 {
    Tk_Window tkwin;
    Display *dpy;
+   bool  enabled = FALSE;
 
    // Create callback functions
-   Tcl_CreateCommand(interp, "C_Xawtv_InitConfig", Xawtv_InitConfig, (ClientData) FALSE, NULL);
-   Tcl_CreateCommand(interp, "C_Xawtv_Enabled", Xawtv_Enabled, (ClientData) NULL, NULL);
-   Tcl_CreateCommand(interp, "C_Xawtv_SendCmd", Xawtv_SendCmd, (ClientData) NULL, NULL);
-   Tcl_CreateCommand(interp, "C_Xawtv_GetStationNames", Xawtv_GetStationNames, (ClientData) NULL, NULL);
+   Tcl_CreateCommand(interp, "C_Tvapp_InitConfig", Xawtv_InitConfig, (ClientData) FALSE, NULL);
+   Tcl_CreateCommand(interp, "C_Tvapp_Enabled", Xawtv_Enabled, (ClientData) NULL, NULL);
+   Tcl_CreateCommand(interp, "C_Tvapp_GetStationNames", Xawtv_GetStationNames, (ClientData) NULL, NULL);
+   Tcl_CreateCommand(interp, "C_Tvapp_SendCmd", Xawtv_SendCmd, (ClientData) NULL, NULL);
 
    // check for existance of .xawtv config file
    // if not present the module remains completely dead
@@ -1462,13 +1495,17 @@ void Xawtv_Init( void )
             Xawtv_InitConfig((ClientData) TRUE, interp, 0, NULL);
 
             Tk_CreateGenericHandler(Xawtv_EventNotification, NULL);
-         }
 
-         // insert entry in the "Configure" menu to open the Xawtv configuration dialog
-         eval_check(interp, ".menubar.config insert 7 command -label \"Xawtv connection...\" -command XawtvConfigPopup\n");
+            enabled = TRUE;
+         }
       }
       dprintf0("Xawtv-Init: done.\n");
    }
+
+   // en-/disable TV app. entry in the "Configure" menu
+   sprintf(comm, ".menubar.config entryconfigure \"TV app. interaction...\" -state %s\n",
+                 (enabled ? "normal" : "disabled"));
+   eval_check(interp, comm);
 }
 
 #endif  // not WIN32

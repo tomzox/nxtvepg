@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <html lang="en">
-<!-- $Id: provnets.html,v 1.11 2002/03/02 15:40:33 tom Exp $ -->
+<!-- $Id: provnets.html,v 1.13 2002/05/06 10:22:56 tom Exp $ -->
 <head>
 <title>nexTView Provider Table</title>
 <META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
@@ -21,10 +21,6 @@
 <P>The following table lists which networks are covered by each of the
 nexTView provider's programme guide. Note that several EPGs use the same
 content provider; they differ only in their network selection.
-</P>
-<P>
-<B><FONT COLOR="red">New provider:</FONT></B> <I>Fast iPG</I>
-(Interactive electronic Programming Guide) on Kabel1.
 </P>
 
 <center><table BORDER=2 CELLPADDING=4 NOSAVE >
@@ -48,17 +44,6 @@ content provider; they differ only in their network selection.
 <td>ARD, ZDF, RTL, SAT.1, Pro7, BR, HR 3, Nord 3, SWR, WDR, MDR, ORB, 3sat,
 Viva, Kabel 1, Super RTL, VOX, RTL 2, tm3, DSF, Eurosport,
 KiKa, Arte, n-tv</td>
-</tr>
-
-<td VALIGN=TOP><b>Pro7</b></td>
-
-<td VALIGN=TOP><A HREF="http://www.tvdirekt.de/">TV Direkt</A></td>
-
-<td VALIGN=TOP>Germany, Austria</td>
-
-<td>ARD, ZDF, RTL, SAT.1, Pro7, BR, HR 3, Nord 3, SWR, WDR, MDR, ORB, 3sat,
-Viva, ORF1, Kabel 1, Super RTL, VOX, RTL 2, tm3, DSF, Eurosport, ORF2,
-KiKa, Arte, Premiere, n-tv</td>
 </tr>
 
 <tr>
@@ -127,24 +112,13 @@ ORF1, ORF2, TSR1, TSR2, TSI</td>
 </tr>
 
 <tr>
-<td VALIGN=TOP><b>TV5</b>
-<br><a href="#TV5-note">see note below</a></td>
-
-<td VALIGN=TOP><A HREF="http://www.swisstxt.ch/">Swiss Teletext</A></td>
-
-<td VALIGN=TOP>France</td>
-
-<td>TV5, TF1, F2, F3, M6, TSR1</td>
-</tr>
-
-<tr>
 <td VALIGN=TOP><b>M6</b></td>
 
 <td VALIGN=TOP><A HREF="http://www.swisstxt.ch/">Swiss Teletext</A></td>
 
 <td VALIGN=TOP>France</td>
 
-<td>unknown</td>
+<td>M6, arte, La Cinquième, TF1, France 2, France 3, Canal+</td>
 </tr>
 
 <tr>
@@ -154,7 +128,7 @@ ORF1, ORF2, TSR1, TSR2, TSI</td>
 
 <td VALIGN=TOP>France</td>
 
-<td>unknown</td>
+<td>Canal+, arte, La Cinquième, M6, TF1, France 2, France 3</td>
 </tr>
 
 <tr>
@@ -175,14 +149,53 @@ If you know a provider that's missing in this list or if you find the
 information not to be up to date, please let me know (for my mail address
 see the About popup in the Help menu of nxtvepg).
 </P><P>
-<B><A NAME="TV5-note">Notes about TV5:</A></B>
-</P><P>
-I haven't received any Nextview data from this provider since Nov/18/2001.
-Possibly they have terminated their service.  Update: As of release 0.7.0-b0
-I have removed them from the list of "known providers".
-</P><P>
 
-<B><A NAME="TRT-note">Notes about TRT:</A></B>
+
+<h2>Former nexTView providers</h2>
+<P>
+These providers have terminated their nexTView service:
+</P>
+<center><table BORDER=2 CELLPADDING=4 NOSAVE >
+<tr VALIGN=TOP NOSAVE>
+<th>Provider's network</th>
+
+<th>Content provider</th>
+
+<th>Country</th>
+
+<th>Notes</th>
+
+<th>Supported networks</th>
+</tr>
+
+<td VALIGN=TOP><b>Pro7</b></td>
+
+<td VALIGN=TOP><A HREF="http://www.tvdirekt.de/">TV Direkt</A></td>
+
+<td VALIGN=TOP>Germany, Austria</td>
+
+<td VALIGN=TOP>Stopped service in April 2002; service moved to Kabel 1</td>
+
+<td>ARD, ZDF, RTL, SAT.1, Pro7, BR, HR 3, Nord 3, SWR, WDR, MDR, ORB, 3sat,
+Viva, ORF1, Kabel 1, Super RTL, VOX, RTL 2, tm3, DSF, Eurosport, ORF2,
+KiKa, Arte, Premiere, n-tv</td>
+</tr>
+
+<tr>
+<td VALIGN=TOP><b>TV5</b>
+
+<td VALIGN=TOP><A HREF="http://www.swisstxt.ch/">Swiss Teletext</A></td>
+
+<td VALIGN=TOP>France</td>
+
+<td VALIGN=TOP>Stopped service on Nov/18/2001</td>
+
+<td>TV5, TF1, F2, F3, M6, TSR1</td>
+</tr>
+</table></center>
+
+
+<h2><A NAME="TRT-note">Notes about TRT:</A></h2>
 </P><P>
 This service started in May 2001. As of August they unfortunately still
 are not sending the correct country/network codes for non-Turkish networks

@@ -26,7 +26,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: vbidecode.c,v 1.27 2001/05/06 14:32:27 tom Exp tom $
+ *  $Id: vbidecode.c,v 1.29 2002/05/01 18:03:02 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -50,51 +50,12 @@
 
 
 // ---------------------------------------------------------------------------
-// Handle loss of a frame
-// - just pass the info to the ttx page decoder state machine
+// Start of VBI data for a new frame
+// - just pass the call through to the ttx page decoder state machine
 //
-void VbiDecodeLostFrame( void )
+bool VbiDecodeStartNewFrame( uint frameSeqNo )
 {
-   EpgDbAcqLostFrame();
-}
-
-// ---------------------------------------------------------------------------
-// Decode teletext packet header
-// - all packets are forwarded to the ring buffer
-//
-static void VbiDecodePacket(const uchar * data)
-{
-   sint tmp1, tmp2, tmp3;
-   uchar mag, pkgno;
-   uint page;
-   uint sub;
-
-   if (UnHam84Byte(data, &tmp1))
-   {
-      mag = tmp1 & 7;
-      pkgno = (tmp1 >> 3) & 0x1f;
-
-      if (pkgno == 0)
-      {  // this is a page header - start of a new page
-         if (UnHam84Byte(data + 2, &tmp1) &&
-             UnHam84Byte(data + 4, &tmp2) &&
-             UnHam84Byte(data + 6, &tmp3))
-         {
-            page = tmp1 | (mag << 8);
-            sub = (tmp2 | (tmp3 << 8)) & 0x3f7f;
-            //printf("**** page=%03x.%04X\n", page, sub);
-
-            EpgDbAcqAddPacket(page, sub, 0, data + 2);
-         }
-         //else debug0("page number or subcode hamming error - skipping page");
-      }
-      else
-      {
-         EpgDbAcqAddPacket((uint) mag << 8, 0, pkgno, data + 2);
-         //printf("**** pkgno=%d\n", pkgno);
-      }
-   }
-   //else debug0("packet header decoding error - skipping");
+   return EpgDbAcqNewVbiFrame(frameSeqNo);
 }
 
 // ---------------------------------------------------------------------------
@@ -189,7 +150,7 @@ void VbiDecodeLine(const uchar * lbuf, int line, bool doVps)
                case 0x27:
                   for (i = 3; i < 45; i++)
                      data[i] = vtscan(lbuf, &spos, off);
-                  VbiDecodePacket(data + 3);
+                  EpgDbAcqAddPacket(data + 3);
                   break;
                default:
                   //printf("****** line=%d  [2]=%x != 0x27 && 0xd8\n", line, data[2]);

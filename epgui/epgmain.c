@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgmain.c,v 1.79 2002/01/31 20:35:07 tom Exp tom $
+ *  $Id: epgmain.c,v 1.82 2002/04/29 20:31:50 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -35,6 +35,7 @@
 #include <signal.h>
 #else
 #include <windows.h>
+#include <winsock2.h>
 #include <locale.h>
 #include <io.h>
 #include <direct.h>
@@ -76,6 +77,8 @@
 #include "epgui/pioutput.h"
 #include "epgui/pifilter.h"
 #include "epgui/xawtv.h"
+#include "epgui/wintv.h"
+#include "epgui/wintvcfg.h"
 
 #include "epgui/nxtv_logo.xbm"
 #include "epgui/ptr_up.xbm"
@@ -84,6 +87,7 @@
 #include "epgui/qmark.xbm"
 
 #include "epgvbi/btdrv.h"
+#include "epgvbi/winshmsrv.h"
 #include "epgui/epgmain.h"
 
 
@@ -131,7 +135,6 @@ static int  optGuiPipe = -1;
 Tcl_AsyncHandler exitHandler = NULL;
 Tcl_TimerToken clockHandler = NULL;
 Tcl_TimerToken expirationHandler = NULL;
-Tcl_TimerToken vpsPollingHandler = NULL;
 int should_exit;
 
 // queue for events called from the main loop when Tcl is idle
@@ -394,18 +397,6 @@ static void EventHandler_UpdateClock( ClientData clientData )
 }
 
 // ---------------------------------------------------------------------------
-// called every 200 milliseconds (every 5 frames)
-// 
-#ifndef WIN32
-static void EventHandler_TimerVPSPolling( ClientData clientData )
-{
-   EpgAcqCtl_ProcessVps();
-
-   vpsPollingHandler = Tcl_CreateTimerHandler(200, EventHandler_TimerVPSPolling, NULL);
-}
-#endif
-
-// ---------------------------------------------------------------------------
 // Invoked from main loop after SIGHUP
 // - toggles acquisition on/off
 // - the mode (i.e. local vs. daemon) is the last one used manually
@@ -439,6 +430,9 @@ static void EventHandler_SigHup( ClientData clientData )
 #ifdef USE_DAEMON
 static int  networkFileHandle = -1;
 static void EventHandler_Network( ClientData clientData, int mask );
+#ifdef WIN32
+Tcl_Channel networkChannel = NULL;
+#endif
 
 // create, update or delete the handler with params returned from the epgacqclnt module
 // may also be invoked as callback from the epgacqclnt module, e.g. when acq is stopped
@@ -449,7 +443,13 @@ static void EventHandler_NetworkUpdate( EPGACQ_EVHAND * pAcqEv )
    // remove the old handler if neccessary
    if ((pAcqEv->fd != networkFileHandle) && (networkFileHandle != -1))
    {
+      #ifndef WIN32
       Tcl_DeleteFileHandler(networkFileHandle);
+      #else
+      Tcl_DeleteChannelHandler(networkChannel, EventHandler_Network, (ClientData) networkFileHandle);
+      Tcl_UnregisterChannel(NULL, networkChannel);
+      networkChannel = NULL;
+      #endif
       networkFileHandle = -1;
    }
 
@@ -466,7 +466,21 @@ static void EventHandler_NetworkUpdate( EPGACQ_EVHAND * pAcqEv )
       if (pAcqEv->blockOnWrite)
          mask |= TCL_WRITABLE;
 
+      #ifndef WIN32
       Tcl_CreateFileHandler(pAcqEv->fd, mask, EventHandler_Network, (ClientData) pAcqEv->fd);
+      #else
+      if (networkChannel == NULL)
+      {
+         networkChannel = Tcl_MakeTcpClientChannel((ClientData) pAcqEv->fd);
+         if (networkChannel != NULL)
+         {
+            Tcl_RegisterChannel(NULL, networkChannel);
+            Tcl_SetChannelOption(NULL, networkChannel, "-buffering", "none");
+         }
+      }
+      if (networkChannel != NULL)
+         Tcl_CreateChannelHandler(networkChannel, mask, EventHandler_Network, (ClientData) pAcqEv->fd);
+      #endif
       networkFileHandle = pAcqEv->fd;
    }
 }
@@ -486,13 +500,38 @@ static void EventHandler_Network( ClientData clientData, int mask )
 }
 
 // ---------------------------------------------------------------------------
+// Compatibility definitions for millisecond timer handling
+//
+#ifdef WIN32
+typedef struct
+{
+   uint  msecs;
+} msecTimer;
+#define gettimeofday(PT,N)    do {(PT)->msecs = GetCurrentTime();} while(0)
+#define CmpMsecTimer(A,B,CMP) ((A)->msecs CMP (B)->msecs)
+#define AddMsecTimer(T,VAL)   ((T)->msecs += (VAL) * 1000)
+#define AddSecTimer(T,VAL)    ((T)->msecs += (VAL))
+
+#else
+typedef struct timeval  msecTimer;
+#define CmpMsecTimer(A,B,CMP) timercmp(A,B,CMP)
+#define AddMsecTimer(T,VAL)   ((T)->tv_sec += (VAL))
+#define AddSecTimer(T,VAL)    do { (T)->tv_usec += (VAL) * 1000L; \
+                                    if (tvXawtv.tv_usec > 1000000L) { \
+                                       tvXawtv.tv_sec  += 1L; \
+                                       tvXawtv.tv_usec -= 1000000L; \
+                              }} while (0)
+#endif
+
+// ---------------------------------------------------------------------------
 // Daemon main loop
 //
 static void DaemonMainLoop( void )
 {
-   struct timeval tvIdle;
-   struct timeval tvAcq;
-   struct timeval tvXawtv;
+   msecTimer tvIdle;
+   msecTimer tvAcq;
+   msecTimer tvXawtv;
+   msecTimer tvNow;
    struct timeval tv;
    fd_set  rd, wr;
    uint    max;
@@ -503,30 +542,25 @@ static void DaemonMainLoop( void )
 
    while ((should_exit == FALSE) && (pAcqDbContext != NULL))
    {
-      gettimeofday(&tv, NULL);
-      if (timercmp(&tv, &tvAcq, >))
+      gettimeofday(&tvNow, NULL);
+      if (CmpMsecTimer(&tvNow, &tvAcq, >))
       {  // read VBI device and add blocks to db
          if (EpgAcqCtl_ProcessPackets())
             EpgAcqCtl_ProcessBlocks();
-         tvAcq = tv;
-         tvAcq.tv_sec += 1;
+         tvAcq = tvNow;
+         AddMsecTimer(&tvAcq, 1);
       }
-      if (timercmp(&tv, &tvIdle, >))
-      {  // handle acquisition timeouts
+      if (CmpMsecTimer(&tvNow, &tvIdle, >))
+      {  // check for acquisition timeouts
          EpgAcqCtl_Idle();
-         tvIdle = tv;
-         tvIdle.tv_sec += 20;
+         tvIdle = tvNow;
+         AddMsecTimer(&tvIdle, 20);
       }
-      if (timercmp(&tv, &tvXawtv, >))
+      if (CmpMsecTimer(&tvNow, &tvXawtv, >))
       {  // handle VPS/PDC forwarding
          EpgAcqCtl_ProcessVps();
-         tvXawtv = tv;
-         tvXawtv.tv_usec += 200000L;
-         if (tvXawtv.tv_usec > 1000000L)
-         {
-            tvXawtv.tv_sec  += 1L;
-            tvXawtv.tv_usec -= 1000000L;
-         }
+         tvXawtv = tvNow;
+         AddSecTimer(&tvXawtv, 200);
       }
 
       FD_ZERO(&rd);
@@ -546,7 +580,11 @@ static void DaemonMainLoop( void )
          if (errno != EINTR)
          {  // select syscall failed
             debug2("Daemon-MainLoop: select with max. fd %d: %s", max, strerror(errno));
+            #ifndef WIN32
             sleep(1);
+            #else
+            Sleep(1000);
+            #endif
          }
       }
    }
@@ -555,6 +593,7 @@ static void DaemonMainLoop( void )
 // ---------------------------------------------------------------------------
 // Background-wait for the daemon to be ready to accept client connection
 //
+#ifndef WIN32
 static void EventHandler_DaemonStart( ClientData clientData, int mask )
 {
    int fd = (int) clientData;
@@ -607,12 +646,14 @@ static void EventHandler_DaemonStart( ClientData clientData, int mask )
       // else: keep waiting
    }
 }
+#endif
 
 // ---------------------------------------------------------------------------
 // Start the daemon process from the GUI
 //
 bool EpgMain_StartDaemon( void )
 {
+#ifndef WIN32
    char  * daemonArgv[10];
    int     daemonArgc;
    char    fd_buf[10];
@@ -676,6 +717,9 @@ bool EpgMain_StartDaemon( void )
       fprintf(stderr, "Failed to create pipe to communicate with daemon: %s\n", strerror(errno));
 
    return result;
+#else
+   return FALSE;
+#endif
 }
 
 // ---------------------------------------------------------------------------
@@ -786,6 +830,7 @@ static void WinApiDestructionHandler( ClientData clientData)
 
    // properly shut down the acquisition
    EpgAcqCtl_Stop();
+   WintvSharedMem_Exit();
    BtDriver_Exit();
 
    // exit the application
@@ -1336,6 +1381,7 @@ int main( int argc, char *argv[] )
    #ifdef USE_DAEMON
    if (optDaemonMode)
    {  // deamon mode -> detach from tty
+      #ifndef WIN32
       if (optNoDetach == FALSE)
       {
          if (fork() > 0)
@@ -1347,6 +1393,7 @@ int main( int argc, char *argv[] )
          #endif
          setsid();
       }
+      #endif
       EpgAcqServer_Init(optNoDetach);
       EpgAcqCtl_InitDaemon();
    }
@@ -1362,6 +1409,9 @@ int main( int argc, char *argv[] )
 
    // UNIX must fork the VBI slave before GUI startup or the slave will inherit all X11 file handles
    BtDriver_Init();
+   #ifdef WIN32
+   WintvSharedMem_Init();
+   #endif
 
    // initialize Tcl/Tk interpreter and compile all scripts
    ui_init(argc, argv);
@@ -1411,6 +1461,9 @@ int main( int argc, char *argv[] )
       MenuCmd_Init(pDemoDatabase != NULL);
       #ifndef WIN32
       Xawtv_Init();
+      #else
+      WintvCfg_Init(TRUE);
+      Wintv_Init();
       #endif
 
       // draw the clock and update it every second afterwords
@@ -1418,7 +1471,7 @@ int main( int argc, char *argv[] )
       // init main window title, PI listbox state and status line
       UiControl_AiStateChange(DB_TARGET_UI);
 
-      // wait until window is open and everthing displayed
+      // wait until window is open and everything displayed
       while ( (Tk_GetNumMainWindows() > 0) &&
               Tcl_DoOneEvent(TCL_ALL_EVENTS | TCL_DONT_WAIT) )
          ;
@@ -1429,7 +1482,7 @@ int main( int argc, char *argv[] )
       #endif
 
       if (disableAcq == FALSE)
-      {
+      {  // enable EPG acquisition
          AutoStartAcq(interp);
       }
 
@@ -1437,10 +1490,6 @@ int main( int argc, char *argv[] )
       {
          // remove expired items from database and listbox every minute
          expirationHandler = Tcl_CreateTimerHandler(1000 * (60 - time(NULL) % 60), EventHandler_TimerDbSetDateTime, NULL);
-         #ifndef WIN32
-         // poll VPS PIL to follow channel changes made by an external TV app
-         vpsPollingHandler = Tcl_CreateTimerHandler(200, EventHandler_TimerVPSPolling, NULL);
-         #endif
 
          while (Tk_GetNumMainWindows() > 0)
          {
@@ -1469,8 +1518,6 @@ int main( int argc, char *argv[] )
                Tcl_DeleteTimerHandler(clockHandler);
             if (expirationHandler != NULL)
                Tcl_DeleteTimerHandler(expirationHandler);
-            if (vpsPollingHandler != NULL)
-               Tcl_DeleteTimerHandler(vpsPollingHandler);
             Tcl_AsyncDelete(exitHandler);
             // execute pending updates and close main window
             sprintf(comm, "update; destroy .");
@@ -1522,6 +1569,9 @@ int main( int argc, char *argv[] )
    #endif
 
    EpgAcqCtl_Stop();
+   #ifdef WIN32
+   WintvSharedMem_Exit();
+   #endif
    BtDriver_Exit();
 
    if (optDaemonMode == FALSE)
@@ -1534,6 +1584,9 @@ int main( int argc, char *argv[] )
       PiOutput_Destroy();
       #ifndef WIN32
       Xawtv_Destroy();
+      #else
+      Wintv_Destroy();
+      WintvCfg_Destroy();
       #endif
       #ifdef USE_DAEMON
       EpgAcqClient_Destroy();

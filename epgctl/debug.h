@@ -23,7 +23,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: debug.h,v 1.11 2002/01/04 16:57:50 tom Exp tom $
+ *  $Id: debug.h,v 1.12 2002/04/06 15:34:46 tom Exp tom $
  */
 
 #ifndef __DEBUG_H
@@ -150,6 +150,7 @@
 // report status messages
 // this is a simple printf() but with the advantage that it can be easily disabled
 #if !defined(DPRINTF_OFF) && (DEBUG_SWITCH == ON)
+#ifndef WIN32
 #define dprintf0(S) printf(S)
 #define dprintf1(S,A) printf(S,A)
 #define dprintf2(S,A,B) printf(S,A,B)
@@ -160,6 +161,21 @@
 #define dprintf7(S,A,B,C,D,E,F,G) printf(S,A,B,C,D,E,F,G)
 #define dprintf8(S,A,B,C,D,E,F,G,H) printf(S,A,B,C,D,E,F,G,H)
 #define dprintf9(S,A,B,C,D,E,F,G,H,I) printf(S,A,B,C,D,E,F,G,H,I)
+#else  // WIN32
+// M$ Windows debug output uses OS internal debug features; the output can be captured 
+// with the DebugView tool from http://www.sysinternals.com/
+#include <windows.h>
+#define dprintf0(S) do{sprintf(debugStr,S);OutputDebugString(debugStr);}while(0)
+#define dprintf1(S,A) do{sprintf(debugStr,S,A);OutputDebugString(debugStr);}while(0)
+#define dprintf2(S,A,B) do{sprintf(debugStr,S,A,B);OutputDebugString(debugStr);}while(0)
+#define dprintf3(S,A,B,C) do{sprintf(debugStr,S,A,B,C);OutputDebugString(debugStr);}while(0)
+#define dprintf4(S,A,B,C,D) do{sprintf(debugStr,S,A,B,C,D);OutputDebugString(debugStr);}while(0)
+#define dprintf5(S,A,B,C,D,E) do{sprintf(debugStr,S,A,B,C,D,E);OutputDebugString(debugStr);}while(0)
+#define dprintf6(S,A,B,C,D,E,F) do{sprintf(debugStr,S,A,B,C,D,E,F);OutputDebugString(debugStr);}while(0)
+#define dprintf7(S,A,B,C,D,E,F,G) do{sprintf(debugStr,S,A,B,C,D,E,F,G);OutputDebugString(debugStr);}while(0)
+#define dprintf8(S,A,B,C,D,E,F,G,H) do{sprintf(debugStr,S,A,B,C,D,E,F,G,H);OutputDebugString(debugStr);}while(0)
+#define dprintf9(S,A,B,C,D,E,F,G,H,I) do{sprintf(debugStr,S,A,B,C,D,E,F,G,H,I);OutputDebugString(debugStr);}while(0)
+#endif  // WIN32
 #else  //DPRINTF_OFF
 #define dprintf0(S)
 #define dprintf1(S,A)

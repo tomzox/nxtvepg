@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="de">
-<!-- $Id: index-de.html,v 1.24 2002/03/10 14:58:56 tom Exp $ -->
+<!-- $Id: index-de.html,v 1.27 2002/05/06 11:22:39 tom Exp $ -->
 <HEAD>
 <TITLE>nexTView EPG Dekoder Software Download</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
@@ -45,9 +45,11 @@
 
 <P class="navhead"><B>News</B>
 <P class="navsect">
+5.5.2002: release 0.7.1 aka 2.0.0</P>
+<HR width=70%><P class="navsect">
 2.3.2002: release 0.7.0</P>
 <HR width=70%><P class="navsect">
-<FONT COLOR="red">Neuer</FONT> deutscher Anbieter
+Neuer deutscher Anbieter
 <A HREF="provnets.html">Fast iPG</A></P>
 <HR width=70%><P class="navsect">
 6.11.2001: bugfix release 0.6.4</P>
@@ -113,8 +115,7 @@ einen der Sender empfangen können auf dem nexTView übertragen wird.
 Momentan wird nexTView auf den folgenden Sendern ausgestrahlt:
 </P>
 <DL>
-<LI>in Deutschland und Österreich:
-Kabel1 (<B><FONT COLOR=red>neu!</FONT></B>), Pro7, 3Sat, RTL-II.
+<LI>in Deutschland und Österreich: Kabel1, 3Sat, RTL-II.
 <LI>in der Schweiz: SF1, TSR1, TSI1, EuroNews.
 <LI>in Frankreich: Canal+, M6.
 <LI>in der Türkei: TRT-1 (TRT-int).
@@ -140,8 +141,9 @@ den Seiten der Hersteller vorbei:
 
 <H2>Systemanforderungen</H2>
 <P>
-Harwarevoraussetzungen sind ein Pentium PC und eine TV-Karte mit dem
-Booktree Chip Bt848 oder Bt878.
+Harwarevoraussetzungen sind ein PC oder Workstation mit mindestens einer
+90 Mhz Intel Pentium oder leistungsstärkeren CPU
+und eine TV-Karte mit dem Booktree Chip Bt848 oder Bt878.
 </P>
 
 <H3>Linux Softwareanforderungen</H3>
@@ -167,23 +169,24 @@ Booktree Chip Bt848 oder Bt878.
 
 <H3>Windows Softwareanforderungen</H3>
 <DL>
-<LI>Windows NT oder Windows 95, 98, ME.  Windows 2000 wird derzeit nicht
-unterstützt (XP wahrscheinlich auch nicht, ist aber bisher ungetestet)
-<LI>Auf Windows-NT sind Administrator-Rechte erforderlich (um den Treiber
-für die TV-Tuner-Karte beim Programmstart zu laden)
-<LI>Treiber für Bt8x8: Download-Anweisungen finden sich im README.txt im ZIP-File.
+<LI>nxtvepg benötigt keine zusätzliche Software, d.h. alle für den Decoder
+benötigte Software ist in der Distribution enthalten.
+<LI>Es werden alle Windows Versionen ab Windows 95 unterstützt.
+<LI>Auf Windows-NT und Windows 2000 ist ein priviligierter Account
+erforderlich (z.B. Administrator) um den Treiber für die TV Karte zu starten.
 </DL>
 
 <A NAME="download">
 <H2>Download</H2>
 </A>
 <P>
-Die neueste stabile Distribution ist Version 0.7.0 vom 2.3.2002.
-<STRONG>Neu in dieser Version</STRONG>
-ist die Netzwerkverbindung zwischen acquisition daemon und GUI, die ständige
-Updates der Browser Datenbanken und Überwachung des Akquisitionsprozesses
-erlaubt (UNIX only).  Zusätzlich sind eine Menge Verbesserungen und bugfixes
-enthalten.
+Die neueste stabile Distribution ist Version 0.7.1 aka 2.0.0 vom 5.5.2002.
+<STRONG>Neu in dieser Version: </STRONG>
+der Schwerpunkt lag in der Verbesserung der Unterstützung der Windows Plattform:
+nxtvepg benutzt jetzt den <A HREF=http://dscaler.org">DScaler</A>
+Treiber um die TV Karte anzusteuern.  Es wird kein separater Treiber
+mehr benötigt!
+Darüberhinaus gab es mehrere fixes für Big-Endian und 64-Bit CPUs.
 </P><P>
 Mehr Details und alle früheren Änderungen sind im
 <A HREF="changelog.html">Change-Log</A> dokumentiert. Falls mit der Software
@@ -196,10 +199,11 @@ Probleme auftauchen, bitte melden. Ältere Distributionen befinden sich noch im
 <H3>Source Distribution</H3>
 </A>
 Download der aktuellen Source Distribution für Linux und NetBSD:
-<A HREF=http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-0.7.0.tar.gz>nxtvepg-0.7.0.tar.gz</A> (494 kB)
+<A HREF=http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-0.7.1.tar.gz>nxtvepg-0.7.1.tar.gz</A>
+(601 kB)
 </P><P>
 Aus dem source tarball läßt sich auch ein RPM package bauen mit dem
-Kommando: <KBD>rpm -ta nxtvepg-0.7.0.tar.gz</KBD>. Das erzeugte package
+Kommando: <KBD>rpm -ta nxtvepg-0.7.1.tar.gz</KBD>. Das erzeugte package
 kann dann wie üblich mit <KBD>rpm -i</KBD> installiert werden. Alternativ
 sind auch fertige packages verfügbar (jedoch nicht notwendigerweise
 immer die neueste Version):
@@ -211,12 +215,19 @@ und für NetBSD von <A HREF="ftp://ftp.netbsd.org/pub/NetBSD/packages/pkgsrc/misc
 <H3>Binärdistribution für M$ Windows</H3>
 </A>
 <P>
-<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-1.14-win.zip">nxtvepg-1.14-win.zip</A> (956 kB)
+Windows executable:
+<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-2.0.0-win.zip">nxtvepg-2.0.0-win.zip</A>
+(977 kB)
 </P><P>
-Bitte beachten daß ein weiterer Treiber benötigt wird, der nicht in diesem
-Paket enthalten ist und separat heruntergeladen werden muß. In manchen Fällen
-kann auch der Treiber anderer TV-Applikationen verwendet werden. Die nötigen
-Infos dazu finden sich im README.txt im ZIP file.
+DScaler BT8x8 driver:
+<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-2.0.0-drv.zip">nxtvepg-2.0.0-drv.zip</A>
+(9 kB)
+</P><P>
+Die ZIP Archive müssen lediglich in ein leeres Verzeichnis entpackt werden,
+dann kann nxtvepg.exe direkt gestartet werden.  Eine Beschreibung der
+initialen Konfiguration findet sich im Hilfe Menü bzw. in der HTML
+Benutzeranleitung, Abschnitt <A HREF="man.html#getting started">Getting Started</A>
+(nur in englisch verfügbar).
 </P>
 
 <A NAME="download_demodb">

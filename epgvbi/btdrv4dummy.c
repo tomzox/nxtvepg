@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: btdrv4dummy.c,v 1.5 2002/01/26 15:18:01 tom Exp tom $
+ *  $Id: btdrv4dummy.c,v 1.8 2002/04/29 19:03:14 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -30,7 +30,7 @@
 #include "epgvbi/btdrv.h"
 
 
-EPGACQ_BUF *pVbiBuf;
+volatile EPGACQ_BUF *pVbiBuf;
 static EPGACQ_BUF vbiBuf;
 
 // ---------------------------------------------------------------------------
@@ -82,9 +82,11 @@ bool BtDriver_SetInputSource( int inputIdx, bool keepOpen, bool * pIsTuner )
 }
 
 
+#ifndef WIN32
 void BtDriver_CheckParent( void )
 {
 }
+#endif
 
 void BtDriver_CloseDevice( void )
 {
@@ -95,10 +97,12 @@ bool BtDriver_CheckDevice( void )
    return FALSE;
 }
 
+#ifndef WIN32
 int BtDriver_GetDeviceOwnerPid( void )
 {
    return -1;
 }
+#endif
 
 // ---------------------------------------------------------------------------
 // Interface to GUI
@@ -127,7 +131,8 @@ const char * BtDriver_GetInputName( uint cardIdx, uint inputIdx )
       return NULL;
 }
 
-void BtDriver_Configure( int cardIndex, int tunerType, int pll, int prio )
+bool BtDriver_Configure( int cardIndex, int tunerType, int pll, int prio )
 {
+   return TRUE;
 }
 

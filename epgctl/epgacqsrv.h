@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqsrv.h,v 1.3 2002/02/13 21:03:41 tom Exp tom $
+ *  $Id: epgacqsrv.h,v 1.5 2002/05/01 11:05:28 tom Exp tom $
  */
 
 #ifndef __EPGACQSRV_H
@@ -25,7 +25,6 @@
 #include "epgdb/epgnetio.h"
 #include "epgdb/epgdbsav.h"
 #include "epgdb/epgdbmerge.h"
-#include "epgui/uictrl.h"
 #include "epgctl/epgctxctl.h"
 #include "epgctl/epgacqctl.h"
 
@@ -56,6 +55,7 @@ typedef struct MSG_STRUCT_STATS_IND_STRUCT
    EPGDB_STATS_UPD_TYPE  type;
    bool                  aiFollows;
    EPGACQ_DESCR          descr;
+   uint32_t              resv_align1;      // 64-bit alignment for Sparc
 
    union
    {
@@ -64,6 +64,7 @@ typedef struct MSG_STRUCT_STATS_IND_STRUCT
          EPGDB_BLOCK_COUNT    count[2];
          EPGDB_ACQ_VPS_PDC    vpsPdc;
          time_t               lastAiTime;
+         uint32_t             resv_align2; // 64-bit alignment for Sparc
       } minimal;
 
       struct
@@ -78,8 +79,9 @@ typedef struct MSG_STRUCT_STATS_IND_STRUCT
          EPGDB_ACQ_TTX_STATS  ttx;
          EPGDB_ACQ_VPS_PDC    vpsPdc;
          EPGDB_HIST           hist;
-         uint                 histIdx;
-         uint                 nowNextMaxAcqRepCount;
+         uint16_t             histIdx;
+         uint32_t             nowNextMaxAcqRepCount;
+         uint32_t             resv_align3; // 64-bit alignment for Sparc
       } update;
    } u;
 } MSG_STRUCT_STATS_IND;
@@ -89,47 +91,48 @@ typedef struct MSG_STRUCT_STATS_IND_STRUCT
 //
 typedef struct
 {
-   uchar   magic[MAGIC_STR_LEN];    // magic string to identify the requested service
-   uchar   reserved[64];            // reserved for future additions
+   uchar     magic[MAGIC_STR_LEN];    // magic string to identify the requested service
+   uint16_t  endianMagic;             // distinguish big/little endian client
+   uint8_t   reserved[62];            // reserved for future additions
 } MSG_STRUCT_CONNECT_REQ;
 
 typedef struct
 {
-   uchar   magic[MAGIC_STR_LEN];    // magic string to identify the provided service
-   ushort  endianMagic;             // distinguish big/little endian server
-   ulong   blockCompatVersion;      // version of EPG database block format
-   ulong   protocolCompatVersion;   // protocol version
-   ulong   swVersion;               // software version (informative only)
-   uchar   reserved[64];            // reserved for future additions
+   uchar     magic[MAGIC_STR_LEN];    // magic string to identify the provided service
+   uint16_t  endianMagic;             // distinguish big/little endian server
+   uint32_t  blockCompatVersion;      // version of EPG database block format
+   uint32_t  protocolCompatVersion;   // protocol version
+   uint32_t  swVersion;               // software version (informative only)
+   uint8_t   reserved[64];            // reserved for future additions
 } MSG_STRUCT_CONNECT_CNF;
 
 typedef struct
 {
-   uint    cniCount;                // number of valid CNIs in list (0 allowed)
-   uint    provCnis[MAX_MERGED_DB_COUNT];    // list of requested provider CNIs
-   time_t  dumpStartTimes[MAX_MERGED_DB_COUNT];  // client-side time of last db update
-   uint    statsReqBits;            // extent of acq stats requested by the GUI
+   uint32_t  cniCount;                // number of valid CNIs in list (0 allowed)
+   uint32_t  provCnis[MAX_MERGED_DB_COUNT];    // list of requested provider CNIs
+   time_t    dumpStartTimes[MAX_MERGED_DB_COUNT];  // client-side time of last db update
+   uint32_t  statsReqBits;            // extent of acq stats requested by the GUI
 } MSG_STRUCT_FORWARD_REQ;
 
 typedef struct
 {
-   uint    cniCount;                // copy of REQ msg (to identify the reply): number of CNIs
-   uint    provCnis[MAX_MERGED_DB_COUNT];  // copy of REQ msg: list of requested provider CNIs
+   uint32_t  cniCount;                // copy of REQ msg (to identify the reply): number of CNIs
+   uint32_t  provCnis[MAX_MERGED_DB_COUNT];  // copy of REQ msg: list of requested provider CNIs
 } MSG_STRUCT_FORWARD_CNF;
 
 typedef struct
 {
-   uint    cni;                     // CNI of the db acq is currently working for
+   uint32_t  cni;                     // CNI of the db acq is currently working for
 } MSG_STRUCT_FORWARD_IND;
 
 typedef struct
 {
-   uint    cni;                     // CNI of the dumped db
+   uint32_t  cni;                     // CNI of the dumped db
 } MSG_STRUCT_DUMP_IND;
 
 typedef struct
 {
-   uint    statsReqBits;            // extent of acq stats (handled by upper layers only)
+   uint32_t  statsReqBits;            // extent of acq stats (handled by upper layers only)
 } MSG_STRUCT_STATS_REQ;
 
 typedef struct

@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: changelog.html,v 1.25 2002/03/07 21:40:17 tom Exp $ -->
+<!-- $Id: changelog.html,v 1.29 2002/05/06 11:22:19 tom Exp $ -->
 <HEAD>
 <TITLE>Nextview EPG Decoder Change-Log</TITLE>
 <LINK href="nxtvepg.css" rel=stylesheet type=text/css>
@@ -28,17 +28,78 @@ updated while work is in progress and new bugs are fixed or features added.
 If you're interested in beta testing pre-releases, just send me a mail.
 </P>
 
-<H2>From 0.7.0 to 0.7.1 (yet unreleased)</H2>
+<!---
+<H2>From 0.7.1 to 0.7.2 (yet unreleased)</H2>
 <P>
-The next release will contain the following new features:
+This feature was planned for 0.7.1 but was postponed in favor of
+improvements for the M$ Windows platform (see changelog for 0.7.1):
 </P>
 <UL>
-<LI>Remote control for the acquisition daemon, to allow changing the daemon's
-  acquisition mode, TV card and network parameters via the client GUI
+<LI>Added Remote control for the acquisition daemon, to allow changing the
+  daemon's acquisition mode, TV card and network parameters via the client GUI
   (there's already an <I>"Enable remote control"</I> option in the Client/Server
   configuration dialog in version 0.7.0, but it's not doing anything yet,
-  in case you haven't noticed :)
+  in case you haven't noticed :-)
 </UL>
+-->
+
+<H2>From 0.7.0 to 0.7.1 (May/05/2002)</H2>
+<P>
+This release contains the following new features and fixes:
+</P>
+<UL>
+<LI>Windows: exchanged the driver with the free (GPL'ed) DSdrv, a driver
+  developed in the <A HREF="http://dscaler.org">DScaler</A> project.  This
+  means that I finally can include a Bt8x8 driver with nxtvepg!  Many thanks
+  to <I>e-nek</I> for doing the initial port; also many thanks to <I>John Adcock</I>
+  and the other members of the DScaler team.
+<LI>Windows: simplified the initial setup procedure by adding the possibility
+  to load configuration files or registry of some well known TV applications
+  (MoreTV, FreeTV, DScaler, K!TV, MultiDec) to extract their TV card setup.
+  The channel tables can also be extracted, to allow for network name
+  synchronization (via the Network name configuration dialog)
+<LI>Windows: Prepared the possibility to interact with TV applications.  This
+  allows for the same features that already were available on UNIX with xawtv
+  This feature is disabled in the regular release as there are no TV applications
+  yet that support it officially.  (The first one will be
+  <A HREF="http://perso.wanadoo.fr/quenottetv/">K!TV</A> - note: an English
+  language version of this application is currently in development.
+  If you are an author of a TV app, feel free to mail me if you want to add
+  EPG support to your application.  A demo application and reference
+  implementation are available.)
+<LI>Windows: brought back a lost workaround (lost due to a crash of an almost
+  new <I>Deskstar</I> drive - thank you, IBM) in the Tk83.dll for message boxes
+  (do not use the native Windows message box from inside Tcl/Tk procedures,
+  because it sometimes destroys the main window for unkown reasons)
+
+<LI>Fixed bug in support for big-endian CPU architectures: there was an
+  alignment error in one of the database structures which caused an abort
+  with a bus error (e.g. on Sun Sparc CPUs); also endian mismatches were
+  not reported in acquisition daemon connect attempts.
+<LI>Fixed bug in the EPG scan that caused a crash 64-bit architectures
+  (e.g. PowerPC). Thanks to Helge Kreutzmann for reporting this bug.
+<LI>Added automatic endian conversion during database reload and acquisition
+  daemon connections. In earlier versions the reload was simply refused.
+  Note: the data is still written in the native format and only converted if
+  neccessary, so there is no performance impact for little-endian machines
+  (e.g. in contrast to writing always in network byte order)
+<LI>Improved channel change handling (handshake between acq master &amp; slave)
+<LI>Reduced latency in VPS/PDC decoding after channel changes (the latency
+  was increased due to a change in 0.7.0)
+<LI>UNIX: improved startup of acquisition process/thread; fixed the design bug
+  due to which the TV tuner was programmed even if the VBI could not be opened.
+<LI>Improved hyperlinks in help pages: can now link into sub-sections too,
+  which is esp. useful for the "Configuration" chapter.
+<LI>Fixed a bug in the decoder for language and sub-title information blocks
+  (currently only broadcasted in France by M6 and Canal+).
+</UL>
+
+Please note that Windows TV interaction support is intentionally disabled
+in this release, because the interface is not yet finalized.  But if you
+want to see a demonstration of the capabilities, go to the
+<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/devel/">Developer's page</A>
+where you'll find a package with an nxtvepg executable with TV app interaction
+support and debugging output enabled plus several demo and debugging tools.
 
 <H2>From 0.6.4 to 0.7.0 (March/02/2002)</H2>
 <P>

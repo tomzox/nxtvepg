@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqctl.h,v 1.37 2002/02/03 10:59:25 tom Exp tom $
+ *  $Id: epgacqctl.h,v 1.39 2002/04/29 19:46:00 tom Exp tom $
  */
 
 #ifndef __EPGACQCTL_H
@@ -121,9 +121,9 @@ typedef struct
    EPGACQ_MODE    mode;
    EPGACQ_PHASE   cyclePhase;
    EPGACQ_PASSIVE passiveReason;
-   uint           cniCount;
-   uint           dbCni;
-   uint           cycleCni;
+   uint16_t       cniCount;
+   uint32_t       dbCni;
+   uint32_t       cycleCni;
    bool           isNetAcq;
    bool           isLocalServer;
 
@@ -139,40 +139,41 @@ typedef struct
 
 typedef struct
 {
-   uchar  expir;
-   uchar  s1cur;
-   uchar  s1old;
-   uchar  s2cur;
-   uchar  s2old;
+   uint8_t   expir;
+   uint8_t   s1cur;
+   uint8_t   s1old;
+   uint8_t   s2cur;
+   uint8_t   s2old;
 } EPGDB_HIST;
 
 typedef struct
 {
-   double buf[VARIANCE_HIST_COUNT];   // ring buffer for variance
-   uint   count;                      // number of valid entries in the buffer
-   uint   lastIdx;                    // last written index
+   double    buf[VARIANCE_HIST_COUNT];   // ring buffer for variance
+   uint16_t  count;                      // number of valid entries in the buffer
+   uint16_t  lastIdx;                    // last written index
+   uint32_t  resv_align;                 // for 64-bit alignment (Sun-Sparc)
 } EPGDB_VAR_HIST;
 
 typedef struct
 {
-   ulong  ttxPkgCount;
-   ulong  epgPkgCount;
-   ulong  epgPagCount;
+   uint32_t  ttxPkgCount;
+   uint32_t  epgPkgCount;
+   uint32_t  epgPagCount;
 } EPGDB_ACQ_TTX_STATS;
 
 typedef struct
 {
-   time_t lastAiTime;
-   time_t minAiDistance;
-   time_t maxAiDistance;
-   ulong  sumAiDistance;
-   uint   aiCount;
+   time_t    lastAiTime;
+   time_t    minAiDistance;
+   time_t    maxAiDistance;
+   uint32_t  sumAiDistance;
+   uint32_t  aiCount;
 } EPGDB_ACQ_AI_STATS;
 
 typedef struct
 {
-   uint   cni;
-   uint   pil;
+   uint32_t  cni;
+   uint32_t  pil;
 } EPGDB_ACQ_VPS_PDC;
 
 typedef struct
@@ -183,15 +184,24 @@ typedef struct
    EPGDB_ACQ_TTX_STATS ttx;
 
    EPGDB_HIST          hist[STATS_HIST_WIDTH];
-   uchar               histIdx;
+   uint16_t            histIdx;
 
    EPGDB_BLOCK_COUNT   count[2];
    EPGDB_VAR_HIST      varianceHist[2];
-   uint                nowNextMaxAcqRepCount;
+   uint32_t            nowNextMaxAcqRepCount;
 
    EPGDB_ACQ_VPS_PDC   vpsPdc;
+   uint32_t            resv_align;  // for 64-bit alignment (Sun-Sparc)
 
 } EPGDB_STATS;
+
+typedef enum
+{
+   VPSPDC_REQ_TVAPP,
+   VPSPDC_REQ_STATSWIN,
+   VPSPDC_REQ_DAEMON,
+   VPSPDC_REQ_COUNT
+} VPSPDC_REQ_ID;
 
 // ---------------------------------------------------------------------------
 // Interface to main control module and user interface
@@ -217,7 +227,7 @@ bool EpgAcqCtl_ProcessVps( void );
 
 // interface to statistics windows
 const EPGDB_BLOCK_COUNT * EpgAcqCtl_GetDbStats( void );
-const EPGDB_ACQ_VPS_PDC * EpgAcqCtl_GetVpsPdc( void );
+const EPGDB_ACQ_VPS_PDC * EpgAcqCtl_GetVpsPdc( VPSPDC_REQ_ID clientId );
 const EPGDB_STATS * EpgAcqCtl_GetAcqStats( void );
 void EpgAcqCtl_EnableAcqStats( bool enable );
 void EpgAcqCtl_ResetVpsPdc( void );

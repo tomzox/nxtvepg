@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgstream.c,v 1.18 2001/12/21 20:06:07 tom Exp tom $
+ *  $Id: epgstream.c,v 1.19 2002/05/01 17:51:53 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -344,7 +344,7 @@ void EpgStreamDecodePacket( uchar packNo, const uchar * dat )
       if ( psd->haveBlock &&
           (packNo != psd->lastPkg + 1))
       {  // packet missing
-         debug2("missing packet %d (have %d) - discard block", psd->lastPkg + 1, packNo);
+         debug4("missing packet %d of %d (have %d) - discard block in stream %d", psd->lastPkg + 1, streamData[streamOfPage].pkgCount, packNo, streamOfPage);
          psd->haveBlock = FALSE;
       }
       psd->lastPkg = packNo;

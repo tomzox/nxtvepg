@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqctl.c,v 1.65 2002/02/28 19:09:03 tom Exp tom $
+ *  $Id: epgacqctl.c,v 1.68 2002/05/04 18:17:26 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -133,11 +133,11 @@ static void EpgAcqCtl_StatisticsReset( void )
 //
 static void EpgAcqCtl_StatisticsUpdate( void )
 {
-   ulong total, obsolete;
    time_t acqMinTime[2], aiDiff;
    time_t aiAcqTimestamp;
    time_t now = time(NULL);
    EPGDB_HIST * pHist;
+   uint total, obsolete;
    uint stream, idx;
 
    acqStatsUpdate = FALSE;
@@ -271,14 +271,33 @@ const EPGDB_STATS * EpgAcqCtl_GetAcqStats( void )
 //   it allows to see what channel is tuned in instead of the acq provider's
 // - in network acq mode the VPS CNI is forwarded by the remote acq server
 //
-const EPGDB_ACQ_VPS_PDC * EpgAcqCtl_GetVpsPdc( void )
+const EPGDB_ACQ_VPS_PDC * EpgAcqCtl_GetVpsPdc( VPSPDC_REQ_ID clientId )
 {
-   if (acqCtl.state != ACQSTATE_OFF)
+   static bool updateVect[VPSPDC_REQ_COUNT] = {FALSE};
+   EPGDB_ACQ_VPS_PDC * result = NULL;
+
+   if (clientId < VPSPDC_REQ_COUNT)
    {
-      return &acqStats.vpsPdc;
+      if (acqCtl.state != ACQSTATE_OFF)
+      {
+         // poll for new VPS/PDC data
+         if (EpgAcqCtl_ProcessVps())
+         {
+            memset(updateVect, FALSE, sizeof(updateVect));
+         }
+
+         // if there are reults which have not been given yet to the client, return them
+         if ( (updateVect[clientId] == FALSE) || (clientId == VPSPDC_REQ_DAEMON) )
+         {
+            updateVect[clientId] = TRUE;
+            result = &acqStats.vpsPdc;
+         }
+      }
    }
    else
-      return NULL;
+      debug1("EpgAcqCtl-GetVpsPdc: illegal client id %d", clientId);
+
+   return result;
 }
 
 #ifdef USE_DAEMON
@@ -397,8 +416,9 @@ void EpgAcqCtl_ResetVpsPdc( void )
       acqStats.vpsPdc.cni = 0;
 
       if (acqCtl.mode != ACQMODE_NETWORK)
-      {  // reset VPS/PDC acq state machine
-         EpgDbAcqResetVpsPdc();
+      {  // reset EPG and ttx decoder state machine
+         EpgAcqCtl_ChannelChange(FALSE);
+         EpgAcqCtl_StatisticsUpdate();
       }
       else
       {  // tell server to send the next newly received VPS/PDC CNI & PIL
@@ -537,16 +557,14 @@ bool EpgAcqCtl_Start( void )
 
          acqCtl.chanChangeTime = 0;
          EpgAcqCtl_InitCycle();
-         EpgAcqCtl_UpdateProvider(FALSE);
 
-         EpgDbAcqStart(pAcqDbContext, &acqDbQueue, EPG_ILLEGAL_PAGENO, EPG_ILLEGAL_APPID);
-
-         if (BtDriver_StartAcq() == FALSE)
-         {  // VBI slave process/thread does not exist or failed to start acq -> hold acq
-            EpgDbAcqStop();
-         }
-         else
+         if (BtDriver_StartAcq())
+         {
+            // set input source and tuner frequency (also detect if device is busy)
+            EpgAcqCtl_UpdateProvider(FALSE);
+            EpgDbAcqStart(pAcqDbContext, &acqDbQueue, EPG_ILLEGAL_PAGENO, EPG_ILLEGAL_APPID);
             result = TRUE;
+         }
       }
 
       if (result)
@@ -1402,15 +1420,21 @@ static bool EpgAcqCtl_AiCallback( const AI_BLOCK *pNewAi )
 
             if (acqCtl.mode != ACQMODE_NETWORK)
             {
-               EpgDbAcqReset(pAcqDbContext, &acqDbQueue, EPG_ILLEGAL_PAGENO, EPG_ILLEGAL_APPID);
+               if (acqCtl.state == ACQSTATE_RUNNING)
+               {  // should normally not happen, because channel changes are detected by TTX page header supervision
+                  debug2("EpgAcqCtl: unexpected prov change AI CNI=%04X -> %04X - resetting EPG Acq", AI_GET_CNI(pOldAi), AI_GET_CNI(pNewAi));
+                  EpgDbAcqReset(pAcqDbContext, &acqDbQueue, EPG_ILLEGAL_PAGENO, EPG_ILLEGAL_APPID);
 
-               // if db is new, dump asap
-               if (EpgDbContextGetCni(pAcqDbContext) == 0)
-                  acqCtl.dumpTime = 0;
+                  // if db is new, dump asap
+                  if (EpgDbContextGetCni(pAcqDbContext) == 0)
+                     acqCtl.dumpTime = 0;
+                  else
+                     acqCtl.dumpTime = time(NULL);
+
+                  acqCtl.state = ACQSTATE_WAIT_BI;
+               }
                else
-                  acqCtl.dumpTime = time(NULL);
-
-               acqCtl.state = ACQSTATE_WAIT_BI;
+                  acqCtl.state = ACQSTATE_RUNNING;
             }
 
             #ifdef USE_DAEMON
@@ -1418,7 +1442,10 @@ static bool EpgAcqCtl_AiCallback( const AI_BLOCK *pNewAi )
             EpgAcqServer_SetProvider(AI_GET_CNI(pNewAi));
             #endif
 
-            EpgAcqCtl_StatisticsReset();
+            if (acqCtl.state != ACQSTATE_RUNNING)
+               EpgAcqCtl_StatisticsReset();
+            else
+               acqStatsUpdate = TRUE;
             UiControlMsg_AcqEvent(ACQ_EVENT_PROV_CHANGE);
 
             EpgDbLockDatabase(pAcqDbContext, TRUE);
@@ -1572,13 +1599,15 @@ static void EpgAcqCtl_ChannelChange( bool changeDb )
 
 // ----------------------------------------------------------------------------
 // Poll VPS/PDC for channel changes
-// - called every 250 ms from main event loop
-// - if CNI or PIL changes, the user configured action is launched
+// - invoked when local client requests VPS/PDC data
+// - called every 250 ms from daemon main loop
+// - if CNI or PIL changes, it's forwarded to connected clients (if requested)
 //
 bool EpgAcqCtl_ProcessVps( void )
 {
    uint newCni, newPil;
    bool change = FALSE;
+   bool update = FALSE;
 
    if ( (acqCtl.state != ACQSTATE_OFF) && (EpgScan_IsActive() == FALSE) &&
         (acqCtl.mode != ACQMODE_NETWORK) )
@@ -1601,9 +1630,11 @@ bool EpgAcqCtl_ProcessVps( void )
          // inform server module about the current CNI and PIL (even if no change)
          EpgAcqServer_SetVpsPdc(change);
          #endif
+
+         update = TRUE;
       }
    }
-   return change;
+   return update;
 }
 
 // ---------------------------------------------------------------------------

@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pifilter.c,v 1.52 2001/12/08 17:50:55 tom Exp tom $
+ *  $Id: pifilter.c,v 1.53 2002/03/22 21:12:18 tom Exp tom $
  */
 
 #define __PIFILTER_C
@@ -1046,7 +1046,7 @@ static int CreateNi( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] 
    const NI_BLOCK *pNiBlock;
    const EVENT_ATTRIB *pEv;
    const char *evName;
-   char *p, subname[100];
+   uchar *p, subname[100];
    int blockno, i;
    int result;
 
@@ -1059,7 +1059,7 @@ static int CreateNi( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] 
    {
       EpgDbLockDatabase(dbc, TRUE);
       p = argv[1] + strlen(argv[1]);
-      while ((p > argv[1]) && isdigit(*(p-1)))
+      while (((char *)p > argv[1]) && isdigit(*(p-1)))
          p--;
       blockno = strtol(p, NULL, 10);
 

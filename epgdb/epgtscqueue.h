@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgtscqueue.h,v 1.2 2002/02/13 21:03:04 tom Exp tom $
+ *  $Id: epgtscqueue.h,v 1.3 2002/03/29 17:34:30 tom Exp tom $
  */
 
 #ifndef __EPGTSCQUEUE_H
@@ -49,12 +49,12 @@ typedef enum
 // it covers one or more PI (of the same network), if they have equal flags
 typedef struct
 {
-   ushort  startOffMins;       // start time, relative to base time (as offset to save 16 bit)
-   ushort  durationMins;       // absolute difference between start and stop time in minutes
-   uchar   netwop;             // index in the AI network table of the current provider
-   uchar   flags;              // logical OR of flags as defined above
-   uchar   blockIdx;           // index in the PI block tange table in the AI block (lowest index in case of concatenation)
-   uchar   concatCount;        // number of PI which are covered by this range (required to recover all block indices)
+   uint16_t  startOffMins;       // start time, relative to base time (as offset to save 16 bit)
+   uint16_t  durationMins;       // absolute difference between start and stop time in minutes
+   uint8_t   netwop;             // index in the AI network table of the current provider
+   uint8_t   flags;              // logical OR of flags as defined above
+   uint8_t   blockIdx;           // index in the PI block tange table in the AI block (lowest index in case of concatenation)
+   uint8_t   concatCount;        // number of PI which are covered by this range (required to recover all block indices)
 } EPGDB_PI_TSC_ELEM;
 
 // maximum length of the range array; must be appropriate for both the
@@ -66,11 +66,11 @@ typedef struct
 
 typedef struct EPGDB_PI_TSC_BUF_STRUCT
 {
-   ushort       provCni;                      // provider the data in the buffer belongs to
-   uchar        mode;                         // mode in which the data was created
+   uint16_t     provCni;                      // provider the data in the buffer belongs to
+   uint8_t      mode;                         // mode in which the data was created
    bool         locked;                       // locked until pending EPG blocks are processed
-   ushort       fillCount;                    // number of valid entries in pi array
-   ushort       popIdx;                       // number of 'popped' entries
+   uint16_t     fillCount;                    // number of valid entries in pi array
+   uint16_t     popIdx;                       // number of 'popped' entries
    time_t       baseTime;                     // base for start and stop time offsets
    struct EPGDB_PI_TSC_BUF_STRUCT  * pNext;   // pointer to next buffer in the queue
    struct EPGDB_PI_TSC_BUF_STRUCT  * pPrev;   // pointer to previous buffer in the queue
