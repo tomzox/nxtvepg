@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgtxtdump.c,v 1.11 2000/12/13 18:44:19 tom Exp tom $
+ *  $Id: epgtxtdump.c,v 1.12 2001/01/01 20:19:53 tom Exp tom $
  */
 
 #define __EPGTXTDUMP_C
@@ -184,15 +184,15 @@ void EpgTxtDumpPi( FILE *fp, const PI_BLOCK * pPi, uchar stream, uchar version, 
                   pPi->parental_rating *2,
                   pPi->editorial_rating,
                   GetPiPilStr(pPi->pil),
-                  pPi->short_info_length,
-                  pPi->long_info_length,
+                  (PI_HAS_SHORT_INFO(pPi) ? strlen(PI_GET_SHORT_INFO(pPi)) : 0),
+                  (PI_HAS_LONG_INFO(pPi) ? strlen(PI_GET_LONG_INFO(pPi)) : 0),
                   pPi->no_themes, pPi->themes[0], ((pPi->themes[0]<0x80) && ((pdc_themes[pPi->themes[0]] != NULL)) ? pdc_themes[pPi->themes[0]] : pdc_undefined_theme),
                   pPi->no_sortcrit, pPi->sortcrits[0]
              );
 
-      if (pPi->off_short_info != 0)
+      if (PI_HAS_SHORT_INFO(pPi))
          fprintf(fp, "     SHORT %s\n", PI_GET_SHORT_INFO(pPi));
-      if (pPi->off_long_info != 0)
+      if (PI_HAS_LONG_INFO(pPi))
          fprintf(fp, "     LONG %s\n", PI_GET_LONG_INFO(pPi));
    }
 }

@@ -25,7 +25,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgblock.h,v 1.20 2000/12/21 19:27:53 tom Exp tom $
+ *  $Id: epgblock.h,v 1.21 2001/01/01 20:16:46 tom Exp tom $
  */
 
 #ifndef __EPGBLOCK_H
@@ -168,6 +168,8 @@ typedef struct {
 } PI_BLOCK_COMPRESSED;
 */
 
+#define PI_MAX_THEME_COUNT      7
+#define PI_MAX_SORTCRIT_COUNT   7
 
 typedef struct {
   uint   block_no;
@@ -180,16 +182,13 @@ typedef struct {
   uchar  editorial_rating;
   uint   background_ref;
   uchar  background_reuse;
-  uchar  title_length;
-  uchar  short_info_length;
   uchar  long_info_type;
-  uint   long_info_length;
 
   uchar  no_themes;
   uchar  no_sortcrit;
   uchar  no_descriptors;
-  uchar  themes[7];
-  uchar  sortcrits[7];
+  uchar  themes[PI_MAX_THEME_COUNT];
+  uchar  sortcrits[PI_MAX_SORTCRIT_COUNT];
 
   uint   off_title;
   uint   off_short_info;
@@ -198,7 +197,9 @@ typedef struct {
 } PI_BLOCK;
 
 #define PI_GET_TITLE(X)        ((uchar*)(X)+((X)->off_title))
+#define PI_HAS_SHORT_INFO(X)   ((bool)((X)->off_short_info != 0))
 #define PI_GET_SHORT_INFO(X)   ((uchar*)(X)+((X)->off_short_info))
+#define PI_HAS_LONG_INFO(X)    ((bool)((X)->off_long_info != 0))
 #define PI_GET_LONG_INFO(X)    ((uchar*)(X)+((X)->off_long_info))
 #define PI_GET_STR_BY_OFF(X,O) ((uchar *)(X)+(O))
 #define PI_GET_DESCRIPTORS(X)  ((DESCRIPTOR*)((uchar*)(X)+((X)->off_descriptors)))

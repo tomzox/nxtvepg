@@ -1,5 +1,5 @@
 /*
- *  VBI driver interface for Linux
+ *  VBI driver interface for Linux and NetBSD
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
@@ -16,23 +16,34 @@
  *
  *    This module works as interface between acquisition control and
  *    the bttv kernel driver. The actual data acquisition is done in
- *    a slave process; the main reason for that is that it has to
- *    work under real-time conditions, i.e. every 20 ms it *must*
- *    get the CPU to read in one frame's worth of VBI lines. In
- *    earlier driver/kernel versions also select(2) did not work on
- *    /dev/vbi so that multiplexing with other tasks like GUI was
- *    impossible.
+ *    a slave process; the main reason is that it has to work under
+ *    real-time conditions, i.e. every 20 ms it *must* get the CPU
+ *    to read in one frame's worth of VBI lines. Also, in earlier
+ *    driver/kernel versions select(2) did not work on /dev/vbi
+ *    so that multiplexing with other tasks like GUI was impossible.
  *
  *    Master and slave process communicate through shared memory.
- *    Next to control parameters that allow to pass commands like
- *    acquisition on/off it contains a ring buffer for teletext
- *    packets. The buffer is managed in the epgdbacq module. When
+ *    It contains control parameters that allow to pass commands
+ *    like acquisition on/off, plus a ring buffer for teletext
+ *    packets. This buffer is managed in the epgdbacq module. When
  *    you read the code in the module, always remember that some
  *    of it is executed in the master process, some in the slave.
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *    Support for NetBSD required some awkward hacking, since the
+ *    bktr driver supports VBI capturing only while the video device
+ *    is open. Also, for other formats than PAL the VBI device
+ *    has to be opened *before* the video device. This port attempts
+ *    to work around these shortcomings, however there are some
+ *    cases where the acquisition will stall. For more info ask
+ *    Mario or complain directly to the bktr authors.
  *
- *  $Id: btdrv4linux.c,v 1.3 2000/12/26 15:51:56 tom Exp tom $
+ *
+ *  Authors:
+ *
+ *    Linux:  Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *    NetBSD: Mario Kemper <magick@bundy.zhadum.de>
+ *
+ *  $Id: btdrv4linux.c,v 1.6 2001/01/09 20:46:58 tom Exp tom $
  */
 
 #if !defined(linux) && !defined(__NetBSD__)
@@ -69,15 +80,27 @@
 #include "epgvbi/btdrv.h"
 
 #ifdef __NetBSD__
+# include <sys/mman.h>
 # include <dev/ic/bt8xx.h>
 # define VBI_MAXLINES 19
+# define VIDIOCSFREQ    TVTUNER_SETFREQ
+# define VIDIOCGFREQ    TVTUNER_GETFREQ
+# define VIDIOCGTUNER   TVTUNER_GETSTATUS
 #else
 # include "linux/videodev.h"
 # define VBI_MAXLINES 16
 #endif
 
 #define VBINAME       "/dev/vbi"
-#define VIDEONAME     "/dev/video"
+#ifndef __NetBSD__
+# define VIDEONAME    "/dev/video"
+# define TUNERNAME    VIDEONAME
+#else
+# define VIDEONAME    "/dev/bktr"
+# define TUNERNAME    "/dev/tuner"
+# define MAX_CARDS    4            // max number of supported cards
+# define MAX_INPUTS   4            // max number of supported inputs
+#endif
 #define PIDFILENAME   "/tmp/.vbi%u.pid"
 
 #define VBI_LINENUM VBI_MAXLINES
@@ -99,20 +122,111 @@ static int vbiCardIndex;
 static int vbi_fdin;
 static int shmId;
 
-// cars used in the control process
-static int video_fd;
+// vars used in the control process
+static int video_fd = -1;
 
+#ifdef __NetBSD__
+static int tuner_fd = -1;
+static int vbiInputIndex;
+static unsigned char *buffer;
+
+struct Input {
+  char name [20];         // name of the input
+  int inputID;            // id within the bktr-device
+  int isTuner;            // input is a tuner
+  int isAvailable;        // the hardware has this input-type
+};
+
+struct Card {
+  char name[20];
+  struct Input inputs[MAX_INPUTS]; // the inputs, bktr currently knows only 4
+  int isAvailable;        // the card is installed
+  int isBusy;             // the device is already open
+} tv_cards[MAX_CARDS];
+
+#endif //__NetBSD__
+
+#ifdef __NetBSD__
+// ---------------------------------------------------------------------------
+// scan for all cards and input sources
+//
+static void BtDriver_ScanDevices(void)
+{
+  int fd;
+  int i,j;
+  int input_id;
+  char *input_name;
+  char devName[DEV_MAX_NAME_LEN];
+
+  for (i=0;i<MAX_CARDS;i++) {
+    sprintf(devName, VIDEONAME "%u", i);
+    fd=open(devName,O_RDONLY);
+    if (fd!=-1) {
+      strcpy(tv_cards[i].name,devName);
+      tv_cards[i].isAvailable=1;
+      tv_cards[i].isBusy=0;
+      for (j=0;j<MAX_INPUTS;j++) {
+        switch (j) {
+        case 0: //i map 0 to tuner
+          input_id=METEOR_DEV1;
+          input_name ="tuner";
+          break;
+        case 1:
+          input_id=METEOR_DEV0;
+          input_name="video";
+          break;
+        case 2:
+          input_id=METEOR_DEV_SVIDEO;
+          input_name="svideo";
+          break;
+        case 3:
+          input_id=METEOR_DEV2;
+          input_name ="csvideo";
+          break;
+        }
+        if (ioctl(fd,METEORSINPUT,&input_id)==0) {
+          tv_cards[i].inputs[j].inputID=input_id;
+          tv_cards[i].inputs[j].isTuner=(input_id==METEOR_DEV1);
+          strcpy(tv_cards[i].inputs[j].name,input_name);
+          tv_cards[i].inputs[j].isAvailable=1;
+        }
+        else
+          tv_cards[i].inputs[j].isAvailable=0;
+      }
+      close(fd);
+    }
+    else {
+      if (errno==EBUSY) {
+        sprintf(tv_cards[i].name,"%s (busy)",devName);
+        tv_cards[i].isAvailable=1;
+        tv_cards[i].isBusy=1;
+      }
+      else {
+        tv_cards[i].isAvailable=0;
+      }
+    }
+  }
+}
+#endif  //__NetBSD__
 
 // ---------------------------------------------------------------------------
-// Close video device
+// Close video device (in the master process/thread)
 //
 void BtDriver_CloseDevice( void )
 {
+   #ifndef __NetBSD__
    if (video_fd != -1)
    {
       close(video_fd);
       video_fd = -1;
    }
+   #else //  __NetBSD__
+   if (tuner_fd != -1)
+   {
+      close(tuner_fd);
+      tuner_fd = -1;
+   }
+   #endif // __NetBSD__
 }
 
 // ---------------------------------------------------------------------------
@@ -120,16 +234,18 @@ void BtDriver_CloseDevice( void )
 //
 bool BtDriver_SetInputSource( int inputIdx, bool keepOpen, bool * pIsTuner )
 {
-   struct video_channel vchan;
-   struct video_tuner vtuner;
+#ifndef __NetBSD__
    char devName[DEV_MAX_NAME_LEN];
    bool isTuner = FALSE;
    bool result = FALSE;
+   struct video_channel vchan;
+   struct video_tuner vtuner;
 
    if (video_fd == -1)
    {
       sprintf(devName, VIDEONAME "%u", pVbiBuf->cardIndex);
-      video_fd = open(devName, O_RDWR);
+      video_fd = open(devName, O_RDONLY);
+      dprintf1("BtDriver-SetInputSource: opened video device, fd=%d\n", video_fd);
    }
    if (video_fd != -1)
    {
@@ -184,6 +300,7 @@ bool BtDriver_SetInputSource( int inputIdx, bool keepOpen, bool * pIsTuner )
 
       if ((keepOpen == FALSE) || (result == FALSE) || (isTuner == FALSE))
       {
+         dprintf1("BtDriver-SetInputSource: closing video device, fd=%d\n", video_fd);
          BtDriver_CloseDevice();
       }
    }
@@ -194,6 +311,24 @@ bool BtDriver_SetInputSource( int inputIdx, bool keepOpen, bool * pIsTuner )
       *pIsTuner = isTuner;
 
    return result;
+
+#else  // __NetBSD__
+   int result = FALSE;
+   int cardIndex = pVbiBuf->cardIndex;
+
+   if ((cardIndex<MAX_CARDS) && (inputIdx<MAX_INPUTS))
+     if (tv_cards[cardIndex].isAvailable)
+       if (!tv_cards[cardIndex].isBusy)
+         if (tv_cards[cardIndex].inputs[inputIdx].isAvailable) {
+           result=TRUE;
+           pVbiBuf->inputIndex=inputIdx;
+           if (tv_cards[cardIndex].inputs[inputIdx].isTuner)
+             *pIsTuner=TRUE;
+
+         }
+
+   return result;
+#endif
 }
 
 // ---------------------------------------------------------------------------
@@ -201,13 +336,15 @@ bool BtDriver_SetInputSource( int inputIdx, bool keepOpen, bool * pIsTuner )
 //
 bool BtDriver_TuneChannel( ulong freq, bool keepOpen )
 {
+#ifndef __NetBSD__
    char devName[DEV_MAX_NAME_LEN];
    bool result = FALSE;
 
    if (video_fd == -1)
    {
-      sprintf(devName, VIDEONAME "%u", pVbiBuf->cardIndex);
-      video_fd = open(devName, O_RDWR);
+      sprintf(devName, TUNERNAME "%u", pVbiBuf->cardIndex);
+      video_fd = open(devName, O_RDONLY);
+      dprintf1("BtDriver-TuneChannel: opened video device, fd=%d\n", video_fd);
    }
    if (video_fd != -1)
    {
@@ -223,11 +360,98 @@ bool BtDriver_TuneChannel( ulong freq, bool keepOpen )
 
       if (keepOpen == FALSE)
       {
+         dprintf1("BtDriver-TuneChannel: closing video device, fd=%d\n", video_fd);
          BtDriver_CloseDevice();
       }
    }
+#else // __NetBSD__
+   char devName[DEV_MAX_NAME_LEN];
+   bool result = FALSE;
 
+   if (tuner_fd == -1)
+   {
+     if (!tv_cards[pVbiBuf->cardIndex].isBusy) {
+       sprintf(devName, TUNERNAME "%u", pVbiBuf->cardIndex);
+       tuner_fd = open(devName, O_RDONLY);
+       dprintf1("BtDriver-TuneChannel: opened video device, fd=%d\n", tuner_fd);
+     }
+   }
+   if (tuner_fd != -1)
+   {
+      // Set the tuner frequency
+      if(ioctl(tuner_fd, VIDIOCSFREQ, &freq) == 0)
+      {
+         //printf("Vbi-TuneChannel: set to %.2f\n", (double)freq/16);
+
+         result = TRUE;
+      }
+      else
+         perror("VIDIOCSFREQ");
+
+      if (keepOpen == FALSE)
+      {
+         dprintf1("BtDriver-TuneChannel: closing video device, fd=%d\n", video_fd);
+         BtDriver_CloseDevice();
+      }
+   }
+#endif // __NetBSD__
    return result;
+}
+
+// ---------------------------------------------------------------------------
+// Query current tuner frequency
+// - The problem for Linux is that the VBI device is opened by the slave
+//   process and cannot be accessed from the master. So the command must be
+//   passed to the slave via IPC.
+// - returns 0 in case of error
+//
+ulong BtDriver_QueryChannel( void )
+{
+   ulong freq = 0L;
+#ifndef __NetBSD__
+   struct timeval tv;
+
+   if ((pVbiBuf != NULL) && (pVbiBuf->vbiPid != -1))
+   {
+      pVbiBuf->vbiQueryFreq = 0L;
+      pVbiBuf->doQueryFreq = TRUE;
+      recvWakeUpSig = FALSE;
+      if (kill(pVbiBuf->vbiPid, SIGUSR1) != -1)
+      {
+         if ((recvWakeUpSig == FALSE) && (pVbiBuf->doQueryFreq == FALSE))
+         {
+            tv.tv_sec = 1;
+            tv.tv_usec = 0;
+            select(0, NULL, NULL, NULL, &tv);
+         }
+         freq = pVbiBuf->vbiQueryFreq;
+      }
+      pVbiBuf->doQueryFreq = FALSE;
+   }
+#else  // __NetBSD__
+   char devName[DEV_MAX_NAME_LEN];
+
+   if (tuner_fd == -1)
+   {
+      dprintf1("BtDriver-QueryChannel: opened video device, fd=%d\n", tuner_fd);
+      sprintf(devName, TUNERNAME "%u", pVbiBuf->cardIndex);
+      tuner_fd = open(devName, O_RDONLY);
+   }
+   if (tuner_fd != -1)
+   {
+      if (ioctl(tuner_fd, VIDIOCGFREQ, &freq) == 0)
+      {
+         dprintf1("BtDriver-BtDriver_QueryChannel: got %.2f\n", (double)freq/16);
+      }
+      else
+         perror("VIDIOCGFREQ");
+
+      dprintf1("BtDriver-QueryChannel: closing video device, fd=%d\n", tuner_fd);
+      BtDriver_CloseDevice();
+   }
+#endif
+
+   return freq;
 }
 
 // ---------------------------------------------------------------------------
@@ -235,6 +459,7 @@ bool BtDriver_TuneChannel( ulong freq, bool keepOpen )
 //
 bool BtDriver_IsVideoPresent( void )
 {
+#ifndef __NetBSD__
    struct video_tuner vtuner;
    bool result = FALSE;
 
@@ -249,6 +474,19 @@ bool BtDriver_IsVideoPresent( void )
    }
 
    return result;
+
+#else  // __NetBSD__
+   /* disabled since it does not work [tom]
+   bool result = FALSE;
+   unsigned long status;
+   if (tuner_fd != -1)
+     if ((ioctl(tuner_fd,TVTUNER_GETSTATUS, &status))==0)
+       result=((status &(0x40))!=0);
+
+   return result;
+   */
+   return TRUE;
+#endif
 }
 
 // ---------------------------------------------------------------------------
@@ -256,6 +494,7 @@ bool BtDriver_IsVideoPresent( void )
 //
 const char * BtDriver_GetCardName( uint cardIndex )
 {
+#ifndef __NetBSD__
    const char * pName = NULL;
    struct video_capability vcapab;
    char devName[DEV_MAX_NAME_LEN];
@@ -264,10 +503,11 @@ const char * BtDriver_GetCardName( uint cardIndex )
 
    if (video_fd != -1)
    {
+      dprintf1("BtDriver-GetCardName: closing video device, fd=%d\n", video_fd);
       BtDriver_CloseDevice();
    }
    sprintf(devName, VIDEONAME "%u", cardIndex);
-   video_fd = open(devName, O_RDWR);
+   video_fd = open(devName, O_RDONLY);
 
    if (video_fd != -1)
    {
@@ -289,6 +529,17 @@ const char * BtDriver_GetCardName( uint cardIndex )
       pName = (const char *) name;
    }
    return pName;
+
+#else  // __NetBSD__
+   char *pName=NULL;
+
+   if (cardIndex<MAX_CARDS)
+     if (tv_cards[cardIndex].isAvailable)
+       pName=tv_cards[cardIndex].name;
+
+   return pName;
+
+#endif
 }
 
 // ---------------------------------------------------------------------------
@@ -298,6 +549,7 @@ const char * BtDriver_GetCardName( uint cardIndex )
 //
 const char * BtDriver_GetInputName( uint cardIndex, uint inputIdx )
 {
+#ifndef __NetBSD__
    struct video_capability vcapab;
    struct video_channel vchan;
    char devName[DEV_MAX_NAME_LEN];
@@ -307,8 +559,9 @@ const char * BtDriver_GetInputName( uint cardIndex, uint inputIdx )
 
    if (video_fd == -1)
    {
+      dprintf1("BtDriver-GetInputName: opened video device, fd=%d\n", video_fd);
       sprintf(devName, VIDEONAME "%u", cardIndex);
-      video_fd = open(devName, O_RDWR);
+      video_fd = open(devName, O_RDONLY);
    }
 
    if (video_fd != -1)
@@ -335,10 +588,23 @@ const char * BtDriver_GetInputName( uint cardIndex, uint inputIdx )
 
    if ((pName == NULL) && (video_fd != -1))
    {
+      dprintf1("BtDriver-GetInputName: closing video device, fd=%d\n", video_fd);
       BtDriver_CloseDevice();
    }
 
    return pName;
+
+#else  // __NetBSD__
+   char *pName = NULL;
+   if ((cardIndex<MAX_CARDS) && (inputIdx<MAX_INPUTS))
+     if (tv_cards[cardIndex].isAvailable)
+       if (!tv_cards[cardIndex].isBusy)
+         if (tv_cards[cardIndex].inputs[inputIdx].isAvailable)
+           pName =  tv_cards[cardIndex].inputs[inputIdx].name;
+
+   return pName;
+
+#endif
 }
 
 // ---------------------------------------------------------------------------
@@ -368,7 +634,7 @@ bool BtDriver_CheckDevice( void )
    if (video_fd == -1)
    {
       sprintf(devName, VIDEONAME "%u", pVbiBuf->cardIndex);
-      fd = open(devName, O_RDWR);
+      fd = open(devName, O_RDONLY);
       if (fd != -1)
       {
          close(fd);
@@ -523,6 +789,7 @@ static void BtDriver_DecodeFrame( void )
       {
          VbiDecodeLine(pData, line, pVbiBuf->isEpgScan);
          pData += VBI_BPL;
+         //printf("%02d: %08lx\n", line, *((ulong*)pData-4));  /* frame counter */
       }
    }
    else if ((stat < 0) && (errno != EINTR) && (errno != EAGAIN))
@@ -530,6 +797,117 @@ static void BtDriver_DecodeFrame( void )
       debug0("vbi decode: read");
    }
 }
+
+#ifdef __NetBSD__
+// ---------------------------------------------------------------------------
+// Sets up the capturing needed for NetBSD to receive vbi-data.
+//
+int BtDriver_StartCapture()
+{
+  char devName[DEV_MAX_NAME_LEN];
+  struct meteor_geomet geo;
+  int buffer_size;
+  int width,height;
+  struct bktr_clip clip[BT848_MAX_CLIP_NODE];
+  int result=FALSE;
+  int c;
+  int close_fd=0;
+
+  width=100;
+  height=100;
+  geo.rows = height;
+  geo.columns = width;
+  geo.frames = 1;
+  geo.oformat = METEOR_GEO_RGB24 ;
+  memset(clip,0,sizeof(clip));
+
+  /* setup clipping */
+  clip[0].x_min=0;
+  clip[0].y_min=0;
+  clip[0].x_max=2;
+  clip[0].y_max=2;
+  clip[1].y_min=0;
+  clip[1].y_max=0;
+  clip[1].x_min=0;
+  clip[1].x_max=0;
+
+  if (video_fd==-1) {
+    sprintf(devName, VIDEONAME, vbiCardIndex);
+    video_fd=open(devName,O_RDONLY);
+    if (video_fd==-1) {//device opened by someone else
+      dprintf1("BtDriver-StartCapture: could not open device %s\n", devName);
+      result=TRUE;
+    }
+  }
+
+  if (video_fd!=-1) {
+    if (ioctl(video_fd, METEORSETGEO, &geo) == 0) {
+      if (ioctl(video_fd, BT848SCLIP, &clip) == 0) {
+        c = METEOR_FMT_PAL;
+        if (ioctl(video_fd, METEORSFMT, &c) == 0) {
+          switch (vbiInputIndex) {
+          case 0:
+            c = METEOR_INPUT_DEV1;
+            break;
+          case 1:
+            c = METEOR_INPUT_DEV0;
+            break;
+          case 2:
+            c=METEOR_DEV_SVIDEO;
+            break;
+          case 3:
+            c=METEOR_DEV2;
+            break;
+          }
+          if (ioctl(video_fd, METEORSINPUT, &c) == 0) {
+            buffer_size = width*height*4;   /* R,G,B,spare */
+            buffer = (unsigned char *)mmap((caddr_t)0,buffer_size,PROT_READ,
+                                           MAP_SHARED, video_fd, (off_t)0);
+            if (buffer != (unsigned char *) MAP_FAILED) {
+              c = METEOR_CAP_CONTINOUS;
+              if (ioctl(video_fd, METEORCAPTUR, &c)==0)
+                result=TRUE;
+              else
+                perror("METEORCAPTUR");
+            }
+            else
+              perror("mmap");
+          }
+          else
+            perror("METEOROSINPUT");
+        }
+        else
+          perror("METEORSFMT");
+      }
+      else
+        perror("BT848SCLIP");
+
+    }
+    else
+      perror("METERORSETGEO");
+  }
+
+  if ((result==FALSE)&&(video_fd!=0)) {
+    close(video_fd);
+    video_fd=-1;
+  }
+  else {
+    c=CHNLSET_WEUROPE;
+    if (tuner_fd==-1) {
+      tuner_fd=open("/dev/tuner0",O_RDONLY);
+      close_fd=1;
+    }
+
+    ioctl(tuner_fd, TVTUNER_SETTYPE, &c);
+    if (close_fd) {
+      close(tuner_fd);
+      tuner_fd=-1;
+    }
+  }
+
+  return result;
+}
+#endif //__NetBSD__
 
 // ---------------------------------------------------------------------------
 // VBI decoder main loop
@@ -550,19 +928,38 @@ static void BtDriver_Main( void )
 
       if (pVbiBuf->isEnabled)
       {
+         #ifndef __NetBSD__
          if ((vbiCardIndex != pVbiBuf->cardIndex) && (vbi_fdin != -1))
+         #else
+         if (((vbiCardIndex != pVbiBuf->cardIndex) && (vbi_fdin != -1)) ||
+             ((vbiInputIndex != pVbiBuf->inputIndex) && (vbi_fdin != -1)))
+         #endif
          {
             sprintf(devName, PIDFILENAME, vbiCardIndex);
             unlink(devName);
 
             close(vbi_fdin);
             vbi_fdin = -1;
+            #ifdef __NetBSD__
+            if (video_fd != -1)
+            {
+               close(video_fd);
+               video_fd = -1;
+            }
+            #endif
+
          }
          if (vbi_fdin == -1)
          {  // acq was switched on -> open device
             vbiCardIndex = pVbiBuf->cardIndex;
-            sprintf(devName, VBINAME "%u", vbiCardIndex);
-            vbi_fdin = open(devName, O_RDONLY);
+            #ifdef __NetBSD__
+            vbiInputIndex = pVbiBuf->inputIndex;
+            if (BtDriver_StartCapture())
+            #endif
+            {
+               sprintf(devName, VBINAME "%u", vbiCardIndex);
+               vbi_fdin = open(devName, O_RDONLY);
+            }
             if (vbi_fdin == -1)
             {
                debug2("VBI open %s failed: errno=%d", devName, errno);
@@ -581,7 +978,9 @@ static void BtDriver_Main( void )
             kill(pVbiBuf->epgPid, SIGUSR1);
          }
          else
+         {  // device is open -> capture the VBI lines of this frame
             BtDriver_DecodeFrame();
+         }
       }
       else
       {
@@ -592,6 +991,13 @@ static void BtDriver_Main( void )
 
             close(vbi_fdin);
             vbi_fdin = -1;
+            #ifdef __NetBSD__
+            if (video_fd!=-1)
+            {
+               close(video_fd);
+               video_fd=-1;
+            }
+            #endif //__NetBSD__
          }
          // sleep until signal; check parent every 30 secs
          tv.tv_sec = 30;
@@ -599,15 +1005,35 @@ static void BtDriver_Main( void )
          select(0, NULL, NULL, NULL, &tv);
          BtDriver_CheckParent();
       }
+
+      if (pVbiBuf->doQueryFreq && (vbi_fdin != -1))
+      {
+         if (ioctl(vbi_fdin, VIDIOCGFREQ, &pVbiBuf->vbiQueryFreq) == 0)
+         {
+            dprintf1("BtDriver-BtDriver_QueryChannel: got %.2f\n", (double)pVbiBuf->vbiQueryFreq/16);
+         }
+         else
+            perror("VIDIOCGFREQ");
+
+         pVbiBuf->doQueryFreq = FALSE;
+         kill(pVbiBuf->epgPid, SIGUSR1);
+      }
    }
 
    if (vbi_fdin != -1)
    {
       sprintf(devName, PIDFILENAME, vbiCardIndex);
       unlink(devName);
-
       close(vbi_fdin);
       vbi_fdin = -1;
+
+#ifdef __NetBSD__
+      if (video_fd!=-1)
+      {
+         close(video_fd);
+         video_fd=-1;
+      }
+#endif //__NetBSD__
    }
 }
 
@@ -622,6 +1048,11 @@ bool BtDriver_Init( void )
    pVbiBuf = NULL;
    isVbiProcess = FALSE;
    video_fd = -1;
+
+   #ifdef __NetBSD__
+   // scan cards and inputs before child is started as leter access might be blocked
+   BtDriver_ScanDevices();
+   #endif
 
    shmId = shmget(IPC_PRIVATE, sizeof(EPGACQ_BUF), IPC_CREAT|IPC_EXCL|0600);
    if (shmId == -1)
@@ -673,9 +1104,11 @@ bool BtDriver_Init( void )
       signal(SIGHUP,  BtDriver_SignalHangup);
 
       vbi_fdin = -1;
+      #ifdef __NetBSD__
+      video_fd=-1;
+      #endif
       acqShouldExit = FALSE;
       freeDevice = FALSE;
-
       // notify parent that child is ready
       kill(pVbiBuf->epgPid, SIGUSR1);
 

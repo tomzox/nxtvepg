@@ -11,49 +11,62 @@ Currently Nextview EPG is transmitted by:
 - in Switzerland: TSR1, EuroNews and others.
 - in France: Canal+, M6, TV5.
 
-If you don't receive any of those, then this software is useless to you
-(except for a demo mode, see the documentation.)
+If you don't receive any of those, then this software unfortunately is
+almost useless to you, except for a demo mode. For more details please
+refer to the documentation in the "Help" menus or the UNIX manual page.
 
 The Nextview standard was developed by the major European consumer electronics
 manufacturers under the hood of the European Telecommunications Standards
 Institute (http://www.etsi.org/) in 1995-1997. The author of this software
-has no connections whatsoever to the ETSI - but he still hopes it's kindly
-tolerated.
+has no connections whatsoever to the ETSI - but he still hopes this software
+distribution will be kindly tolerated.
 
 
 System requirements:
 
-Hardware requirements are a Pentium class PC and a Bt848 or Bt878 based
-TV tuner card.
+Hardware requirements are a Pentium class PC and a Bt848, Bt849, Bt878
+or Bt879 based TV tuner card. Almost all TV cards nowadays except the
+ATI "TV Wonder" are build around one of the Booktree chips.
 
 Linux software requirements:
 - kernel >= 2.0.35 (upgrade to 2.2.x highly recommended for bttv users!)
 - bttv driver (video4linux), version >= 0.7.35 recommended
-- GNU C Compiler
+- GNU C Compiler, unless you got nxtvepg in a precompiled RPM archive
+- Tcl/Tk version 8.0 or later (8.3 recommended)
+  available from http://www.scriptics.com/
+
+NetBSD software requirements:
+- kernel >= 1.5 including the bktr driver 2.17 or later,
+  available from http://vulture.dmem.strath.ac.uk/bt848/
+- GNU C Compiler, unless you got nxtvepg in a precompiled NetBSD package
 - Tcl/Tk version 8.0 or later (8.3 recommended)
   available from http://www.scriptics.com/
 
 Windows software requirements:
 - Windows NT or Windows 95. Other variants may work too but are yet untested.
 - On Windows NT: you need to be in the Admininstrator group.
-- WinDriver version 4.0 or later, available from http://www.krftech.com/
+- WinDriver version 4.00 or later, available from http://www.krftech.com/
   This is *not* freeware, however there's a free 30 days evaluation version.
-  Note: there are patched versions of this driver which do not show the demo
-  message, e.g. at http://freetv.norix.de/ in the MultiDec package, but those
-  are probably not legal.
+  Note: there are patched versions of this driver which do not show the startup
+  message and may work for more than 30 days, e.g. at http://freetv.notrix.de/
+  in the MultiDec package (versions 3.5 to 5.5), but those are probably
+  not legal.
 
 If you want to compile for Windows you also need:
-- CygWin GNU make and compiler, see http://www.cygwin.org/
+- CygWin GNU make and gcc compiler, see http://www.cygwin.org/
 - Microsoft Visual C Compiler (Borland C probably works too)
 - Tcl/Tk 8.3.2, available from http://www.scriptics.com/
-- windrvr.h and windrvr_usb.h from the WinDriver package
+- Perl 5 to generate the help menus from the documentation in POD format
+  (not essential unless you want to modify the help menus)
+- windrvr.h and windrvr_usb.h from the WinDriver package,
+  available from http://www.krftech.com/
 
 
 UNIX installation procedure:
 
 - Recommended: first install a TV application like xtvscreen or xawtv, or
   preferrably a teletext decoder to be sure the video/vbi drivers work fine.
-- You MUST check the paths in the Makefile, esp. for Tcl/Tk
+- Check the path definitions at the top of the Makefile, esp. for Tcl/Tk
 - make
   if compilation fails, check the type definitions in epgctl/mytypes.h first.
   Required types are: schar, uchar, sint, uint, slong, ulong.
@@ -74,24 +87,116 @@ know about it (i.e. send me the diffs)
 Windows installation procedure:
 
 - Unpack the zip file into a new directory.
-- Obtain the WinDriver (see above) and copy the .sys and .vxd files
-  into the same directory. If you installed the original WinDriver
-  package they can be found in WINNT/system32/drivers.
-- Invoke the executable nxtvepg.exe and follow the instructions in
-  "Getting Started" from the Help menu.
+- Obtain the WinDriver as described above in chapter 'Windows software
+  requirements' and copy the file WinDrvr.sys (for Windows NT) and/or
+  WinDrvr.vxd (for all WinDOS variants) into the same directory as
+  nxtvepg.exe. If you installed the original WinDriver package they
+  can be found in WINNT/system32/drivers on NT or Windows/system/vmm32
+  (if you don't find them there, search for files named WinDrvr.*)
+- Invoke the executable nxtvepg.exe
+  If there are any warning or error message popups from the Bt8x8
+  driver, please refer to the list below.
+- You need to set up the driver in the "TV card input" menu and then
+  start an EPG scan. If the scan just runs through without finding
+  any network IDs, check your TV card settings, particularily "PLL init"
+  (or check your antenna cable) and try again. If the scan still fails,
+  try an external input, i.e. supply a provider's TV channel via the
+  Composite inputs, e.g. from your VCR.  In rare cases the descriptions
+  of input sources in the TV card popup may be wrong, so try all inputs,
+  e.g. "Composite 2" even if you connected the cable to #1.
+
+Explanation of Windows Bt8x8 driver error messages:
+
+- "WARNING: WinDriver version mismatch"
+  You're using a version of WinDriver of which I suspect that it
+  does not work with nxtvepg. Download a newer version of WinDriver,
+  as described above, preferrably the version which I compiled with.
+  If you get this message although everything works fine, please
+  let me know so that I can update the version check.
+
+- "Warning: no tuner found on Bt8x8 I2C bus"
+  No tuner was found during the I2C bus scan. This failure does not
+  depend on any configuration option, so you're simply out of luck.
+  If you know an open-source software that supports your hardware, let
+  me know and I'll try to support it in nxtvepg, too. In the meanwhile
+  you only can use the "Passive" acquisition mode, i.e. you have to
+  set up input source and channel with a different application before
+  starting nxtvepg.
+
+- "Failed to load NT device driver WinDrvr.sys", or
+  "Failed to load Win95/98 device driver WinDrvr.vxd"
+  You probably have not copied the driver files WinDrvr.sys and/or
+  .vxd into the working directory of nxtvepg. This may happen if
+  you specify a working directory, e.g. in a shortcut definition,
+  that differs from the one that contains the nxtvepg.exe. Don't
+  do that, use the -dbdir and -rcfile options instead to specify
+  where configuration files are searched for.
+
+- "Failed to start the device driver for Bt8x8."
+  Same as the previous message. If may also mean that you do not
+  have permissions to start the driver. On Windows NT you need to
+  be in the Administrator Group (if anyone finds a way around this,
+  please let me know)
+
+- "Bt8x8 card cannot be locked - already in use?"
+  There may be a different application already using the driver. On
+  Windows you cannot run, e.g. a TV application in parallel to
+  nxtvepg or teletext decoders. I recommend to upgrade to Linux  :)
+
+- "Bt8x8 card #%d not found (found %d cards)"
+  If zero cards are found, the reason may be that the driver refuses
+  work after expiration of the 30 days evaluation period. You
+  probably should pay krftech their license fee (which is steep,
+  since the package is intended for software developers). You could
+  also try the driver files from the MultiDec package, but as explained
+  above, I'm not sure those are legal.
+  If there's more than one card found, lower the card index below the
+  number of available cards, i.e. if you have two cards, specify index
+  0 or 1. The card index can be given either on the command line with
+  the -card option or in the "TV card input" configuration menu.
+
+- "Failed to enable Interrupt for Bt8x8 card."
+  Currently the driver does not support IRQ sharing. A different
+  application may already use the interrupt or the card.
+
+Before you mail me, please try to get MultiDec to work. My Windows Bt8x8
+driver handling is heavily based upon that software. Since I'm not a
+M$ Windows software developer my understanding of Windows specific
+problems is rather limited.
 
 
 
-Bug reports:
+Problem and bug reports:
 
 Before you email me any bug reports, please check the manual page as well
-as the TODO and CHANGES files. Please recompile with the -g option in
-CFLAGS and enable all debug options in mytypes.h by assigning ON instead
-of OFF. Then try to reproduce your problem and send me resulting debug.out
-log file.
+as the TODO and CHANGES files. And be *comprehensive* in describing your
+problem. At least include names and version numbers of your operating system,
+nxtvepg, possibly the bttv driver and any other software that may be
+involved. If it looks like a hardware related problem (e.g. acquisition
+does not work at all) also include the exact name of you TV card hardware.
+If MultiDec works with the same hardware, mail me the version number and
+describe your hardware configuration settings. If there is an error message,
+quote the message in full length and exactly as printed, even if you do not
+understand its relevance.
+
+In case nxtvepg crashes, or if you suspect internal errors, you need to
+recompile with debug support to allow me to analyze the problem.  Please
+add the -g option to CFLAGS in the Makefile and enable all debug options in
+mytypes.h by assigning ON instead of OFF. If you know which modules are
+responsible, you can also comment out DPRINTF_OFF at the top of those
+modules. Then try to reproduce your problem and send me the resulting
+debug.out log file.
+
 
 The latest version of this software is available at:
 http://nxtvepg.tripod.com/
+
+You can reach me at:  Tom.Zoerner@informatik.uni-erlangen.de
+
+[I'll switch to a new mail address soon. Meanwhile please note that this is
+just a plain mail forward that's kindly provided by the alumni program; I'm
+neither a student nor employed at the university anymore. Please do not
+contact the university with issues regarding this software. Thank you.]
 
 
 have fun.

@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: pilistbox.c,v 1.34 2000/12/26 16:08:37 tom Exp tom $
+ *  $Id: pilistbox.c,v 1.37 2001/01/09 20:07:22 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -35,16 +35,18 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "tcl.h"
-#include "tk.h"
+#include <tcl.h>
+#include <tk.h>
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
 #include "epgdb/epgblock.h"
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
+#include "epgdb/epgdbsav.h"
 #include "epgctl/epgmain.h"
 #include "epgctl/epgacqctl.h"
+#include "epgui/uictrl.h"
 #include "epgctl/epgctxctl.h"
 #include "epgui/pdc_themes.h"
 #include "epgui/pifilter.h"
@@ -171,29 +173,24 @@ static bool PiListBox_ConsistancyCheck( void )
 // ----------------------------------------------------------------------------
 // Update the listbox state according to database and acq state
 //
-void PiListBox_UpdateState( void )
+void PiListBox_UpdateState( EPGDB_STATE newDbState )
 {
-   EPGDB_STATE oldState;
-
    assert(pUiDbContext != NULL);
 
-   if ( (EpgDbContextGetCni(pUiDbContext) == 0) &&
-        (EpgDbContextGetCni(pAcqDbContext) != 0) )
-   {  // UI db is completely empty (should only happen if there's no provider at all
-      // switch browser to acq db
-      dprintf1("PiListBox_UpdateState: browser db empty, switch to acq db 0x%04X\n", EpgDbContextGetCni(pAcqDbContext));
-      EpgContextCtl_Close(pUiDbContext);
-      pUiDbContext = EpgContextCtl_Open(EpgDbContextGetCni(pAcqDbContext));
-      PiListBox_Reset();
-   }
-
-   oldState = pibox_dbstate;
-   pibox_dbstate = EpgAcqCtl_GetDbState();
-
-   if (pibox_dbstate != oldState)
+   if (pibox_dbstate != newDbState)
    {
+      pibox_dbstate = newDbState;
+
       switch (pibox_dbstate)
       {
+         case EPGDB_WAIT_SCAN:
+            pibox_state = PIBOX_MESSAGE;
+            sprintf(comm, "PiListBox_PrintHelpHeader {"
+                          "Please wait until the provider scan has finished."
+                          "\n}\n");
+            eval_check(interp, comm);
+            break;
+
          case EPGDB_PROV_SCAN:
             pibox_state = PIBOX_MESSAGE;
             sprintf(comm, "PiListBox_PrintHelpHeader {"
@@ -366,8 +363,8 @@ static void PiListBox_InsertItem( const PI_BLOCK *pPiBlock, int pos )
            pos + 1,
            netname,
            start_str, stop_str, date_str,
-           ((pPiBlock->short_info_length > 0) ? 's' : '-'),
-           ((pPiBlock->long_info_length > 0) ? 'l' : '-'),
+           (PI_HAS_SHORT_INFO(pPiBlock) ? 's' : '-'),
+           (PI_HAS_LONG_INFO(pPiBlock) ? 'l' : '-'),
            PI_GET_TITLE(pPiBlock),
            (pPiBlock->start_time <= time(NULL)) ? "now" : "");
 
@@ -489,8 +486,7 @@ static void PiListBox_UpdateInfoText( void )
                        (((pPiBlock->start_time - time(NULL)) > 12*60*60) ? (char *)date_str : "") );
          eval_check(interp, comm);
 
-         if ( (pPiBlock->short_info_length > 0) &&
-              (pPiBlock->long_info_length > 0) )
+         if ( PI_HAS_SHORT_INFO(pPiBlock) && PI_HAS_LONG_INFO(pPiBlock) )
          {
             // remove identical substring from beginning of long info
             // (this feature has been added esp. for the German provider RTL-II)
@@ -518,12 +514,106 @@ static void PiListBox_UpdateInfoText( void )
                           pl);
             eval_check(interp, comm);
          }
-         else if (pPiBlock->short_info_length > 0)
+         else if (PI_HAS_SHORT_INFO(pPiBlock))
          {
-            sprintf(comm, ".all.pi.info.text insert end {%s}\n", PI_GET_SHORT_INFO(pPiBlock));
-            eval_check(interp, comm);
+            if (EpgDbContextIsMerged(pUiDbContext))
+            {
+               // Merged database: needs special handling, because short and long infos
+               // of all providers are concatenated into the short info string. Separator
+               // between short and long info is a newline char. After each provider's
+               // info there's a form-feed char. For presentation the usual short/long
+               // info combination is done, plus a separator image is added between
+               // different provider's descriptions.
+
+               uchar c, *p, *ps, *pl, *pt;
+               int shortInfoLen, longInfoLen, len;
+
+               p = PI_GET_SHORT_INFO(pPiBlock);
+               do
+               {  // loop across all provider's descriptions
+
+                  if (p != PI_GET_SHORT_INFO(pPiBlock))
+                  {  // not the first info -> insert separator image (a horizontal line)
+                     sprintf(comm, ".all.pi.info.text insert end {\n\n} title\n"
+                                   ".all.pi.info.text image create {end - 2 line} -image bitmap_line\n");
+                     eval_check(interp, comm);
+                  }
+
+                  // obtain start and length of this provider's short and long info
+                  shortInfoLen = longInfoLen = 0;
+                  ps = p;
+                  pl = NULL;
+                  while (*p)
+                  {
+                     if (*p == '\n')
+                     {  // end of short info found
+                        shortInfoLen = p - ps;
+                        pl = p + 1;
+                     }
+                     else if (*p == 12)
+                     {  // end of short or long info found
+                        if (pl == NULL)
+                           shortInfoLen = p - ps;
+                        else
+                           longInfoLen = p - pl;
+                        p++;
+                        break;
+                     }
+                     p++;
+                  }
+
+                  // add the short info to the text widget insert command
+                  strcpy(comm, ".all.pi.info.text insert end {");
+                  strncat(comm, ps, shortInfoLen);
+
+                  if (pl != NULL)
+                  {
+                     // if there's a long info too, do the usual redundancy check
+
+                     if (shortInfoLen > longInfoLen)
+                     {
+                        len = longInfoLen;
+                        pt = ps + (shortInfoLen - longInfoLen);
+                     }
+                     else
+                     {
+                        len = shortInfoLen;
+                        pt = ps;
+                     }
+                     c = *pl;
+
+                     // min length is 30, because else single words might match
+                     while (len-- > 30)
+                     {
+                        if (*(pt++) == c)
+                        {
+                           if (!strncmp(pt, pl+1, len))
+                           {  // start of long info is identical to end of short info -> skip identical part in long info
+                              pl          += len + 1;
+                              longInfoLen -= len + 1;
+                              break;
+                           }
+                        }
+                     }
+
+                     // if short and long info were not merged, add a newline inbetween
+                     if (len <= 30)
+                        strcat(comm, "\n");
+                     // append the long info to the text widget insert command
+                     strncat(comm, pl, longInfoLen);
+                  }
+                  // display the description in the widget
+                  strcat(comm, "}\n");
+                  eval_check(interp, comm);
+               } while (*p);
+            }
+            else
+            {
+               sprintf(comm, ".all.pi.info.text insert end {%s}\n", PI_GET_SHORT_INFO(pPiBlock));
+               eval_check(interp, comm);
+            }
          }
-         else if (pPiBlock->long_info_length > 0)
+         else if (PI_HAS_LONG_INFO(pPiBlock))
          {
             sprintf(comm, ".all.pi.info.text insert end {%s}\n", PI_GET_LONG_INFO(pPiBlock));
             eval_check(interp, comm);
@@ -1185,7 +1275,7 @@ void PiListBox_DbInserted( const EPGDB_CONTEXT *usedDbc, const PI_BLOCK *pPiBloc
 
    if (pibox_state != PIBOX_LIST)
    {  // listbox was in an error state -> switch to normal mode
-      PiListBox_UpdateState();
+      UiControl_CheckDbState();
       return;
    }
 
@@ -1809,6 +1899,5 @@ void PiListBox_Create( void )
 
    pibox_state = PIBOX_NOT_INIT;
    pibox_dbstate = EPGDB_NOT_INIT;
-   PiListBox_UpdateState();
 }
 

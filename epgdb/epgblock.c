@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgblock.c,v 1.28 2000/12/17 18:38:22 tom Exp tom $
+ *  $Id: epgblock.c,v 1.30 2001/01/02 18:05:50 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -207,7 +207,11 @@ static void SetStartAndStopTime(uint bcdStart, uint julian, uint bcdStop, time_t
 
    // add UTC offset because mktime expects localtime but gets UTC
    // this is a gross hack that's only needed because there's no pendant to gmtime()
+   #ifndef __NetBSD__ 
    *pStartTime = mktime(&tm) - timezone + 60*60 * tm.tm_isdst;
+   #else 
+   *pStartTime = mktime(&tm) + tm.tm_gmtoff + 60*60 * tm.tm_isdst; 
+   #endif 
 
    *pStopTime  = *pStartTime + (stopMoD - startMoD) * 60;
 }
@@ -605,6 +609,7 @@ EPGDB_BLOCK * EpgBlockConvertPi(const uchar *pCtrl, uint ctrlLen, uint strLen)
    PI_BLOCK pi, *pPi;
    DESCRIPTOR *pDescriptors;
    const uchar *psd;
+   int titleLen, shortInfoLen, longInfoLen;
    uchar *pTitle, *pShortInfo, *pLongInfo;
    uint piLen;
  
@@ -632,24 +637,22 @@ EPGDB_BLOCK * EpgBlockConvertPi(const uchar *pCtrl, uint ctrlLen, uint strLen)
    pDescriptors = DecodeDescriptorLoop(psd, pi.no_descriptors, 0);
    psd += ((pi.no_descriptors * 5) + 1) / 2;
  
-   pi.title_length = psd[1+psd[0]*3];
-   pTitle = ApplyEscapes(pCtrl+ctrlLen+2, pi.title_length, psd+1, psd[0], pi.netwop_no);
+   titleLen = psd[1+psd[0]*3];
+   pTitle = ApplyEscapes(pCtrl+ctrlLen+2, titleLen, psd+1, psd[0], pi.netwop_no);
    psd += 1 + psd[0] * 3 + 1;
  
    if (pi.background_reuse)
    {
       pi.background_ref     = psd[0] + (psd[1] << 8);
       pShortInfo = NULL;
-      pi.short_info_length = 0;
-      pi.long_info_type    = 0;
-      pi.long_info_length  = 0;
       pLongInfo = NULL;
+      pi.long_info_type = 0;
    }
    else
    {
-      pi.short_info_length = psd[1 + psd[0]*3];
-      if (pi.short_info_length > 0)
-        pShortInfo = ApplyEscapes(pCtrl+ctrlLen+2+pi.title_length, pi.short_info_length, psd+1, psd[0], pi.netwop_no);
+      shortInfoLen = psd[1 + psd[0]*3];
+      if (shortInfoLen > 0)
+        pShortInfo = ApplyEscapes(pCtrl+ctrlLen+2+titleLen, shortInfoLen, psd+1, psd[0], pi.netwop_no);
       else
         pShortInfo = NULL;
       psd += psd[0] * 3 + 2;
@@ -659,21 +662,21 @@ EPGDB_BLOCK * EpgBlockConvertPi(const uchar *pCtrl, uint ctrlLen, uint strLen)
       switch (pi.long_info_type)
       {
          case EPG_STR_TYPE_TRANSP_SHORT:
-           pi.long_info_length = psd[psd[0]*3 + 1];
+           longInfoLen = psd[psd[0]*3 + 1];
            break;
          case EPG_STR_TYPE_TRANSP_LONG:
-           pi.long_info_length = psd[psd[0]*3 + 1] | ((psd[psd[0]*3 + 2] & 0x03) << 8);
+           longInfoLen = psd[psd[0]*3 + 1] | ((psd[psd[0]*3 + 2] & 0x03) << 8);
            break;
          case EPG_STR_TYPE_TTX_STR:
          case EPG_STR_TYPE_TTX_RECT:
          case EPG_STR_TYPE_TTX_PAGE:
         default:
            // TTX references are unsupported
-           pi.long_info_length = 0;
+           longInfoLen = 0;
            break;
       }
-      if (pi.long_info_length > 0)
-        pLongInfo = ApplyEscapes(pCtrl+ctrlLen+2+pi.title_length+pi.short_info_length, pi.long_info_length, psd+1, psd[0], pi.netwop_no);
+      if (longInfoLen > 0)
+        pLongInfo = ApplyEscapes(pCtrl+ctrlLen+2+titleLen+shortInfoLen, longInfoLen, psd+1, psd[0], pi.netwop_no);
       else
         pLongInfo = NULL;
    }
@@ -687,7 +690,10 @@ EPGDB_BLOCK * EpgBlockConvertPi(const uchar *pCtrl, uint ctrlLen, uint strLen)
       piLen += strlen(pTitle) + 1;
    }
    else
-      pi.off_title = 0;
+   {  // no title: set at least a 0-Byte
+      pi.off_title = piLen;
+      piLen += 1;
+   }
    if (pShortInfo != NULL)
    {
       pi.off_short_info = piLen;
@@ -721,6 +727,10 @@ EPGDB_BLOCK * EpgBlockConvertPi(const uchar *pCtrl, uint ctrlLen, uint strLen)
    {
       memcpy(PI_GET_TITLE(pPi), pTitle, strlen(pTitle) + 1);
       xfree(pTitle);
+   }
+   else
+   {  // title string shall always be available -> set a 0-Byte
+      PI_GET_TITLE(pPi)[0] = 0;
    }
    if (pShortInfo != NULL)
    {

@@ -4,6 +4,17 @@ changes or additions.
 
 Before you submit any feature requests, please read the TODO file.
 
+from 0.4.pre0 to 0.4.pre1 (Jan. 2001)
+- presentation of descriptions of merged databases improved
+  by adding a separator image (horizontal line) between the texts.
+- added support for Net/Free/OpenBSD Unix in btdrv4linux by Mario Kemper
+- described Windows installation in more depth and length in the README file
+- compatibility with WinDriver 4.00
+- updated registry hack for Windows Bt8x8 driver 4.31 and later
+- command line can take database path as last argument
+  This is intended for Windows, to be able to drag and drop a database file
+  onto the executable, but can generally be used to set -dbdir and -provider
+- added warning messages for database reload errors or missing frequencies
 
 from 0.3.4 to 0.4.pre0 (Dec. 2000)
 - added possibility to merge several provider databases into one

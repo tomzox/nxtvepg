@@ -15,7 +15,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: pilistbox.h,v 1.5 2000/10/11 18:07:04 tom Exp tom $
+ *  $Id: pilistbox.h,v 1.6 2001/01/09 20:09:55 tom Exp tom $
  */
 
 #ifndef __PILISTBOX_H
@@ -30,8 +30,10 @@ void PiListBox_Reset( void );
 void PiListBox_Refresh( void );
 const PI_BLOCK * PiListBox_GetSelectedPi( void );
 
-// Interface to menu cmd handler
-void PiListBox_UpdateState( void );
+#ifdef __EPGACQCTL_H
+// Interface to ui control module
+void PiListBox_UpdateState( EPGDB_STATE newDbState );
+#endif
 
 // Interface to database management
 void PiListBox_DbInserted( const EPGDB_CONTEXT *usedDbc, const PI_BLOCK *pPiBlock );

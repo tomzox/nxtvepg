@@ -17,7 +17,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: menucmd.c,v 1.25 2000/12/26 16:04:54 tom Exp tom $
+ *  $Id: menucmd.c,v 1.29 2001/01/09 20:26:59 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -29,8 +29,8 @@
 #include <time.h>
 #include <errno.h>
 
-#include "tcl.h"
-#include "tk.h"
+#include <tcl.h>
+#include <tk.h>
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
@@ -43,11 +43,12 @@
 #include "epgdb/epgdbmerge.h"
 #include "epgctl/epgmain.h"
 #include "epgctl/epgacqctl.h"
-#include "epgctl/epgctxctl.h"
 #include "epgui/pilistbox.h"
 #include "epgui/pifilter.h"
 #include "epgui/statswin.h"
 #include "epgui/menucmd.h"
+#include "epgui/uictrl.h"
+#include "epgctl/epgctxctl.h"
 #include "epgvbi/vbidecode.h"
 #include "epgvbi/btdrv.h"
 
@@ -159,7 +160,7 @@ static int MenuCmd_ToggleAcq(ClientData ttp, Tcl_Interp *interp, int argc, char 
          #endif
       }
       // update help message in listbox if database is empty
-      PiListBox_UpdateState();
+      UiControl_CheckDbState();
 
       result = TCL_OK;
    }
@@ -222,7 +223,7 @@ static int MenuCmd_DumpDatabase(ClientData ttp, Tcl_Interp *interp, int argc, ch
 
 // ----------------------------------------------------------------------------
 // Switch the provider for the browser
-// - only used for the provider selection pop,
+// - only used for the provider selection popup,
 //   not for the initial selection nor for provider merging
 //
 static int MenuCmd_ChangeProvider(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
@@ -245,7 +246,7 @@ static int MenuCmd_ChangeProvider(ClientData ttp, Tcl_Interp *interp, int argc, 
          oldAcqCni = EpgDbContextGetCni(pAcqDbContext);
 
          EpgContextCtl_Close(pUiDbContext);
-         pUiDbContext = EpgContextCtl_Open(cni);
+         pUiDbContext = EpgContextCtl_Open(cni, CTX_RELOAD_ERR_REQ);
 
          // in case follow-ui acq mode is used, change the acq db too
          EpgAcqCtl_UiProvChange();
@@ -258,10 +259,10 @@ static int MenuCmd_ChangeProvider(ClientData ttp, Tcl_Interp *interp, int argc, 
          if (oldAcqCni != EpgDbContextGetCni(pAcqDbContext))
             StatsWin_ProvChange(DB_TARGET_ACQ);
 
-         PiFilter_UpdateNetwopList(NULL);
+         UiControl_AiStateChange(NULL);
          eval_check(interp, "C_ResetFilter all; ResetFilterState");
 
-         PiListBox_UpdateState();
+         UiControl_CheckDbState();
          PiListBox_Reset();
 
          // put the new CNI at the front of the selection order and update the config file
@@ -272,7 +273,7 @@ static int MenuCmd_ChangeProvider(ClientData ttp, Tcl_Interp *interp, int argc, 
       }
       else
       {
-         sprintf(comm, "C_ChangeProvider: provider 0x%04X not found", cni);
+         sprintf(comm, "C_ChangeProvider: expected hex CNI but got: %s", argv[1]);
          Tcl_SetResult(interp, comm, TCL_VOLATILE);
          result = TCL_ERROR;
       }
@@ -289,6 +290,7 @@ static int MenuCmd_GetServiceNameAndNetwopList(ClientData ttp, Tcl_Interp *inter
 {
    const char * const pUsage = "Usage: C_GetServiceNameAndNetwopList <cni>";
    const EPGDBSAV_PEEK *pPeek;
+   EPGDB_RELOAD_RESULT dberr;
    int cni, netwop;
    int result;
 
@@ -303,7 +305,7 @@ static int MenuCmd_GetServiceNameAndNetwopList(ClientData ttp, Tcl_Interp *inter
    }
    else
    {
-      pPeek = EpgDbPeek(cni, NULL);
+      pPeek = EpgDbPeek(cni, &dberr);
       if (pPeek != NULL)
       {
          // first element in return list is the service name
@@ -317,14 +319,12 @@ static int MenuCmd_GetServiceNameAndNetwopList(ClientData ttp, Tcl_Interp *inter
 
          EpgDbPeekDestroy(pPeek);
 
-         result = TCL_OK;
       }
       else
-      {
-         sprintf(comm, "C_GetServiceNameAndNetwopList: provider 0x%04X not found", cni);
-         Tcl_SetResult(interp, comm, TCL_VOLATILE);
-         result = TCL_ERROR;
+      {  // failed to peek into the db -> inform the user
+         UiControlMsg_ReloadError(cni, dberr, CTX_RELOAD_ERR_ANY);
       }
+      result = TCL_OK;
    }
 
    return result;
@@ -367,6 +367,7 @@ static int MenuCmd_GetProvCnisAndNames(ClientData ttp, Tcl_Interp *interp, int a
 {
    const char * const pUsage = "Usage: C_GetProvCnisAndNames";
    const EPGDBSAV_PEEK *pPeek;
+   EPGDB_RELOAD_RESULT dberr;
    uint index, cni;
    int result;
 
@@ -380,7 +381,7 @@ static int MenuCmd_GetProvCnisAndNames(ClientData ttp, Tcl_Interp *interp, int a
       index = 0;
       while ( (cni = EpgDbReloadScan(index)) != 0 )
       {
-         pPeek = EpgDbPeek(cni, NULL);
+         pPeek = EpgDbPeek(cni, &dberr);
          if (pPeek != NULL)
          {
             sprintf(comm, "0x%04X", cni);
@@ -388,6 +389,10 @@ static int MenuCmd_GetProvCnisAndNames(ClientData ttp, Tcl_Interp *interp, int a
             Tcl_AppendElement(interp, AI_GET_NETWOP_NAME(&pPeek->pAiBlock->blk.ai, pPeek->pAiBlock->blk.ai.thisNetwop));
 
             EpgDbPeekDestroy(pPeek);
+         }
+         else
+         {  // failed to peek into the db -> inform the user
+            UiControlMsg_ReloadError(cni, dberr, CTX_RELOAD_ERR_ANY);
          }
          index += 1;
       }
@@ -553,10 +558,10 @@ static int ProvMerge_Start(ClientData ttp, Tcl_Interp *interp, int argc, char *a
 
          StatsWin_ProvChange(DB_TARGET_UI);
 
-         PiFilter_UpdateNetwopList(NULL);
+         UiControl_AiStateChange(NULL);
          eval_check(interp, "C_ResetFilter all; ResetFilterState");
 
-         PiListBox_UpdateState();
+         UiControl_CheckDbState();
          PiListBox_Reset();
 
          // put the new CNI at the front of the selection order and update the config file
@@ -625,17 +630,11 @@ void OpenInitialDb( uint startUiCni )
       }
       else
       {  // normal database or none specified
-         pUiDbContext = EpgContextCtl_Open(cni);
+         pUiDbContext = EpgContextCtl_Open(cni, CTX_RELOAD_ERR_REQ);
          if ( (cni != 0) && (EpgDbContextGetCni(pUiDbContext) != cni) )
          {  // failed to open the requested database
-            if (startUiCni != 0)
-            {  // db was specifically requested on the cmd line -> issue warning
-               sprintf(comm, "tk_messageBox -type ok -icon error "
-                             "-message {Failed to open the database of the requested provider 0x%04X. "
-                             "Opening the last previously used database instead (if any).}\n", startUiCni);
-               eval_check(interp, comm);
-            }
-            // destroy database, since we will try the next CNI (or at last 0)
+
+            // destroy database, since we will try the next CNI (or at last CNI 0)
             EpgContextCtl_Close(pUiDbContext);
             pUiDbContext = NULL;
          }
@@ -655,6 +654,7 @@ void OpenInitialDb( uint startUiCni )
 
 // ----------------------------------------------------------------------------
 // Fetch the acquisition mode parameters from Tcl vars and pass then to acq control
+// - if no valid config is found, the default mode is used: Follow-UI
 //
 int SetAcquisitionMode( void )
 {
@@ -703,6 +703,7 @@ int SetAcquisitionMode( void )
                   for (idx=0; (idx < cniCount) && (result == TCL_OK); idx++)
                   {
                      result = Tcl_GetInt(interp, pCniArgv[idx], cniTab + idx);
+                     ifdebug2(result!=TCL_OK, "SetAcquisitionMode: arg #%d in '%s' is not a CNI", idx, pCniArgv[idx]);
                   }
                   Tcl_Free((char *) pCniArgv);
 
@@ -724,7 +725,15 @@ int SetAcquisitionMode( void )
       }
    }
    else
+   {
+      debug0("SetAcquisitionMode: Tcl var acq_mode not defined - using default mode");
       result = TCL_ERROR;
+   }
+
+   if (result == TCL_ERROR)
+   {  // silently ignore the error and set the default acquisition mode
+      EpgAcqCtl_SelectMode(ACQMODE_FOLLOW_UI, 0, NULL);
+   }
 
    return result;
 }
@@ -750,7 +759,7 @@ static int UpdateAcquisitionMode(ClientData ttp, Tcl_Interp *interp, int argc, c
       result = SetAcquisitionMode();
 
       // update help message in listbox if database is empty
-      PiListBox_UpdateState();
+      UiControl_CheckDbState();
    }
    return result;
 }
@@ -806,6 +815,8 @@ static int MenuCmd_StartEpgScan(ClientData ttp, Tcl_Interp *interp, int argc, ch
                        ".epgscan.cmd.help configure -state disabled\n"
                        ".epgscan.cmd.dismiss configure -state disabled\n");
          eval_check(interp, comm);
+         // update PI listbox help message, if there's no db in the browser yet
+         UiControl_CheckDbState();
          break;
 
       default:
@@ -837,7 +848,7 @@ int MenuCmd_StopEpgScan(ClientData ttp, Tcl_Interp *interp, int argc, char *argv
                  "}\n");
    eval_check(interp, comm);
 
-   PiListBox_UpdateState();
+   UiControl_CheckDbState();
 
    return TCL_OK;
 }

@@ -46,7 +46,7 @@
  *    VBI only adaption and nxtvepg integration
  *      Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: btdrv4win.c,v 1.5 2000/12/26 15:53:08 tom Exp tom $
+ *  $Id: btdrv4win.c,v 1.8 2001/01/07 19:48:49 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -67,6 +67,8 @@
 
 // ----------------------------------------------------------------------------
 // Declaration of internal variables
+
+#define WINDRVR_MIN_VERSION   400
 
 #define VBI_LINES_PER_FIELD   16
 #define VBI_LINES_PER_FRAME  (VBI_LINES_PER_FIELD * 2)
@@ -124,13 +126,14 @@ static struct TTunerType Tuners[] =
    { "Temic PAL I",   2720/*16*170.00*/,7200/*16*450.00*/,0xa0,0x90,0x30,0x8e,0xc2,623},
 };
 #define TUNERS_COUNT (sizeof(Tuners) / sizeof(struct TTunerType))
+#define INVALID_INPUT_SOURCE  4
 
 static int TvCardIndex = 0;
 static int TvCardCount = 0;
 static int TunerType = 0;
 static int ThreadPrio = 0;
 static BOOL INIT_PLL = FALSE;
-static int InputSource = 0;
+static int InputSource = INVALID_INPUT_SOURCE;
 static HANDLE VBI_Event=NULL;
 static BOOL StopVBI;
 static BOOL Capture_Videotext;
@@ -419,6 +422,7 @@ bool BtDriver_SetInputSource( int inputIdx, bool keepOpen, bool * pIsTuner )
    // 1= Video_Ext1,
    // 2= Video_Ext2,
    // 3= Video_Ext3
+   // 4= INVALID_INPUT_SOURCE
    assert(inputIdx < 4);
 
    // remember the input source for later
@@ -877,7 +881,7 @@ BOOL Init_Tuner( int TunerNr )
          result = TRUE;
       }
       else
-         MessageBox(NULL, "Warning: no tuner found", "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+         MessageBox(NULL, "Warning: no tuner found on Bt8x8 I2C bus\nIn address range 0xc0 - 0xce", "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
    }
    else
       debug1("Init_Tuner: illegal tuner idx %d", TunerNr);
@@ -909,10 +913,7 @@ BT8X8_Open (BT8X8_HANDLE * phBT8X8)
    BZERO (*hBT8X8);
 
    hBT8X8->cardReg.hCard = 0;
-   if (NT)
-      hBT8X8->hWD = WD_Open();
-   else
-      hBT8X8->hWD = Bt_Device_Handle;
+   hBT8X8->hWD = WD_Open();
 
    // check if handle valid & version OK
    if (hBT8X8->hWD == INVALID_HANDLE_VALUE)
@@ -927,9 +928,11 @@ BT8X8_Open (BT8X8_HANDLE * phBT8X8)
    BZERO(ver);
    WD_Version(hBT8X8->hWD, &ver);
    //if (ver.dwVer < WD_VER)
-   if (ver.dwVer < (WD_VER - (WD_VER % 100)))
+   if (ver.dwVer < WINDRVR_MIN_VERSION)
    {
-      sprintf(comm, "WARNING: WinDriver version mismatch: found %d, expected %d", ver.dwVer, WD_VER);
+      sprintf(comm, "WARNING: WinDriver version mismatch: found %d, expected at least %d (compiled with %d)\n"
+                    "Please refer to README.txt for further information.",
+                    ver.dwVer, WINDRVR_MIN_VERSION, WD_VER);
       MessageBox(NULL, comm, "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
       //Ret = BT8X8_OPEN_RESULT_VERSION;
       //goto Exit;
@@ -1668,24 +1671,33 @@ static bool Init_WinDriver( void )
       }
    }
 
+   // Hack (by Espresso)
+   // Ich benutze eine Windriver 4.00 Evaluation Version ( Gutes Teil ))
+   // Eigentlich nur 30 Tage Laufzeit aber ein Löschen folgender Registry-Werte
+   // verlängert die Laufzeit :-)
+   // Diese Version von Windriver kann im Internet von //www.krftech.com gesaugt werden
+   // Zur neuen Übersetzung wird die Windrvr.h benötigt ( Ist in der Evaluation enthalten )
+
+   if (NT == TRUE)
+      RegRet = RegOpenKey (HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Network", &hKey);
+   else
+      RegRet = RegOpenKey (HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Network", &hKey);
+   if (RegRet == ERROR_SUCCESS)
+   {
+      // ( Windriver 4.00 )
+      RegDeleteValue(hKey,"DriverFigIA");
+      RegDeleteValue(hKey,"DriverFigLA");
+      RegDeleteValue(hKey,"DriverFigUA");
+      // ( Windriver 4.31 )
+      RegDeleteValue(hKey,"DriverFigId");
+      RegDeleteValue(hKey,"DriverFigLd");
+      RegDeleteValue(hKey,"DriverFigUd");
+
+      RegCloseKey (hKey);
+   }
+
    if (NT == TRUE)
    {
-      // Hack (by Espresso)
-      // Ich benutze eine Windriver 4.00 Evaluation Version ( Gutes Teil ))
-      // Eigentlich nur 30 Tage Laufzeit aber ein Löschen folgender Registry-Werte
-      // verlängert die Laufzeit :-)
-      // Diese Version von Windriver kann im Internet von //www.krftech.com gesaugt werden
-      // Zur neuen Übersetzung wird die Windrvr.h benötigt ( Ist in der Evaluation enthalten )
-
-      RegRet = RegOpenKey (HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Network", &hKey);
-      if (RegRet == ERROR_SUCCESS)
-      {
-         RegDeleteValue (hKey, "DriverFigIA");
-         RegDeleteValue (hKey, "DriverFigLA");
-         RegDeleteValue (hKey, "DriverFigUA");
-         RegCloseKey (hKey);
-      }
-
       GetCurrentDirectory( sizeof(Path), Path );
       strcat(Path,"\\WINDRVR.SYS");
       //strcpy (Path, "SYSTEM32\\DRIVERS\\WINDRVR.SYS");
@@ -1698,25 +1710,22 @@ static bool Init_WinDriver( void )
 
       if (LoadDeviceDriver ("WinDriver", Path, &Bt_Device_Handle, TRUE) == FALSE)
       {
-         MessageBox(NULL, "Failed to load NT device driver WinDrvr.sys", "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+         MessageBox(NULL, "Failed to load NT device driver WinDrvr.sys\n"
+                          "Have you copied the driver file into the nxtvepg working directory?\n"
+                          "Please refer to README.txt for further information.",
+                    "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
          result = FALSE;
       }
    }
    else
    {
-      RegRet = RegOpenKey (HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Network", &hKey);
-      if (RegRet == ERROR_SUCCESS)
-      {
-         RegDeleteValue (hKey, "DriverFigIA");
-         RegDeleteValue (hKey, "DriverFigLA");
-         RegDeleteValue (hKey, "DriverFigUA");
-         RegCloseKey (hKey);
-      }
-
       Bt_Device_Handle = CreateFile ("\\\\.\\WinDrvr.VXD", 0, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_DELETE_ON_CLOSE, 0);
       if (Bt_Device_Handle == INVALID_HANDLE_VALUE)
       {
-         MessageBox(NULL, "Failed to load Win95/98 device driver WinDrvr.vxd", "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+         MessageBox(NULL, "Failed to load Win95/98 device driver WinDrvr.vxd"
+                          "Have you copied the driver file into the nxtvepg working directory?\n"
+                          "Please refer to README.txt for further information.",
+                    "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
          result = FALSE;
       }
    }
@@ -1730,12 +1739,17 @@ static bool Init_WinDriver( void )
       }
       else if (ret == BT8X8_OPEN_RESULT_DRIVER)
       {
-         MessageBox(NULL, "Failed to start device driver for Bt8x8", "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+         MessageBox(NULL, "Failed to start the device driver for Bt8x8.\n"
+                          "Do you have permission to start a driver?\n"
+                          "Please refer to README.txt for further information.",
+                    "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
          result = FALSE;
       }
       else if (ret == BT8X8_OPEN_RESULT_REGISTER)
       {
-         MessageBox(NULL, "Bt8x8 card cannot be locked - already in use?", "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+         MessageBox(NULL, "Bt8x8 card cannot be locked - already in use?\n"
+                          "Please refer to README.txt for further information.",
+                    "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
          result = FALSE;
       }
       else
@@ -1749,7 +1763,9 @@ static bool Init_WinDriver( void )
       {
          if (BT8X8_IntEnable (hBT8X8, NULL) == FALSE)
          {
-            MessageBox(NULL, "Failed to enable Interrupt for Bt8x8 card", "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+            MessageBox(NULL, "Failed to enable Interrupt for Bt8x8 card.\n"
+                             "Please refer to README.txt for further information.",
+                       "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
             result = FALSE;
          }
       }
@@ -1788,6 +1804,7 @@ static void BtDriver_Unload( void )
       Free_DMA(&Vbi_dma);
 
       LastFrequency = 0;
+      InputSource = INVALID_INPUT_SOURCE;
       Initialized = FALSE;
    }
 }
@@ -1824,11 +1841,15 @@ static bool BtDriver_Load( void )
 
          // auto-detect the tuner on the I2C bus
          Init_Tuner(TunerType);
+
          if (LastFrequency != 0)
          {  // if freq already set, apply it now
             Tuner_SetFrequency(TunerType, LastFrequency);
          }
-         BtDriver_SetInputSource(InputSource, FALSE, NULL);
+         if (InputSource != INVALID_INPUT_SOURCE)
+         {  // if source already set, apply it now
+            BtDriver_SetInputSource(InputSource, FALSE, NULL);
+         }
 
          result = TRUE;
       }
@@ -1843,14 +1864,14 @@ static bool BtDriver_Load( void )
 // ----------------------------------------------------------------------------
 // Set user-configurable hardware parameters
 // - called at program start and after config change
-// - note: input source and tuner freq are set by other funcs
-//   here only the previously chosen values are written again, if neccessary
+// - Important: input source and tuner freq must be set afterwards
 //
 void BtDriver_Configure( int cardIndex, int tunerType, int pll, int prio )
 {
    int oldCardIdx = TvCardIndex;
-   bool pllChange, acqena;
+   bool pllChange, tunerChange;
 
+   tunerChange = (tunerType != TunerType);
    TunerType = tunerType;
    ThreadPrio = prio;
    pllChange = (pll && !INIT_PLL);
@@ -1858,35 +1879,32 @@ void BtDriver_Configure( int cardIndex, int tunerType, int pll, int prio )
    TvCardIndex = cardIndex;
 
    if (Initialized)
-   {
+   {  // acquisition already running -> must change parameters on the fly
+
       if (oldCardIdx != cardIndex)
       {  // change of TV card -> unload and reload driver
-         acqena = Capture_Videotext;
-         if (acqena)
-            BtDriver_StopAcq();
-
-         BtDriver_Unload();
-
-         if ( BtDriver_Load() )
+         if (Capture_Videotext)
          {
-            if (acqena)
-               BtDriver_StartAcq();
+            BtDriver_StopAcq();
+            BtDriver_StartAcq();
+         }
+         else
+         {  // acq not running, but driver loaded (this mode is currently not used)
+            BtDriver_Unload();
+            // load the driver with the new params
+            BtDriver_Load();
          }
       }
       else
-      {  // acquisition already running -> must change parameters on the fly
-         if ((TunerType != 0) && (InputSource == 0))
+      {  // same card index: just update tuner type and PLL
+         if (tunerChange && (TunerType != 0) && (InputSource == 0))
          {
-            if (Init_Tuner(TunerType))
-            {
-               Tuner_SetFrequency(TunerType, LastFrequency);
-            }
+            Init_Tuner(TunerType);
          }
          if (pllChange)
          {
             InitPll();
          }
-         BtDriver_SetInputSource(InputSource, FALSE, NULL);
       }
    }
 }
@@ -1908,6 +1926,26 @@ bool BtDriver_TuneChannel( ulong freq, bool keepOpen )
    {  // driver not loaded -> freq will be tuned upon acq start
       return TRUE;
    }
+}
+
+// ----------------------------------------------------------------------------
+// Get the current tuner frequency
+//
+ulong BtDriver_QueryChannel( void )
+{
+   return LastFrequency;
+}
+
+// ----------------------------------------------------------------------------
+// Dummies - not used for Windows
+//
+void BtDriver_CloseDevice( void )
+{
+}
+
+bool BtDriver_CheckDevice( void )
+{
+   return TRUE;
 }
 
 // ----------------------------------------------------------------------------

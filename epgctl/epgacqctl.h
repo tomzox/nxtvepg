@@ -15,7 +15,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgacqctl.h,v 1.17 2000/12/26 15:57:11 tom Exp tom $
+ *  $Id: epgacqctl.h,v 1.19 2001/01/09 19:52:40 tom Exp tom $
  */
 
 #ifndef __EPGACQCTL_H
@@ -28,6 +28,7 @@
 typedef enum
 {
    EPGDB_NOT_INIT,
+   EPGDB_WAIT_SCAN,
    EPGDB_PROV_SCAN,
    EPGDB_PROV_WAIT,
    EPGDB_PROV_SEL,
@@ -125,6 +126,8 @@ enum
 #define MIN_CYCLE_VARIANCE  0.25
 #define MAX_CYCLE_VAR_DIFF  0.01
 
+#define NOWNEXT_TIMEOUT_AI_COUNT  5
+
 // ---------------------------------------------------------------------------
 // Structure to keep statistics about the current acq db
 // - updated after every received AI block
@@ -172,7 +175,7 @@ void EpgAcqCtl_StopScan( void );
 bool EpgAcqCtl_SelectMode( EPGACQ_MODE newAcqMode, uint cniCount, const uint * pCniTab );
 bool EpgAcqCtl_SetInputSource( uint inputIdx );
 bool EpgAcqCtl_UiProvChange( void );
-EPGDB_STATE EpgAcqCtl_GetDbState( void );
+EPGDB_STATE EpgAcqCtl_GetDbState( uint cni );
 
 // Interface for notifications from acquisition
 #ifdef __EPGBLOCK_H

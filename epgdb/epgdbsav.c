@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgdbsav.c,v 1.25 2000/12/25 13:42:53 tom Exp tom $
+ *  $Id: epgdbsav.c,v 1.30 2001/01/08 20:43:50 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -244,26 +244,47 @@ bool EpgDbDump( PDBC dbc )
 static EPGDB_RELOAD_RESULT EpgDbReloadCheckAiBlock( EPGDB_BLOCK * pBlock )
 {
    EPGDB_RELOAD_RESULT result = EPGDB_RELOAD_CORRUPT;
+   const AI_NETWOP * pNetwop;
+   const uchar *pBlockEnd, *pName;
+   uchar netwop;
+
+   pBlockEnd = (uchar *) pBlock + pBlock->size + BLK_UNION_OFF;
 
    if ((pBlock->blk.ai.netwopCount == 0) || (pBlock->blk.ai.netwopCount > MAX_NETWOP_COUNT))
    {
-      debug1("EpgDbReload-AddAiBlock: illegal netwop count %d", pBlock->blk.ai.netwopCount);
+      debug1("EpgDbReload-CheckAiBlock: illegal netwop count %d", pBlock->blk.ai.netwopCount);
    }
    else if (pBlock->blk.ai.thisNetwop >= pBlock->blk.ai.netwopCount)
    {
-      debug2("EpgDbReload-AddAiBlock: this netwop %d >= count %d", pBlock->blk.ai.thisNetwop, pBlock->blk.ai.netwopCount);
+      debug2("EpgDbReload-CheckAiBlock: this netwop %d >= count %d", pBlock->blk.ai.thisNetwop, pBlock->blk.ai.netwopCount);
    }
-   else if ((uchar *)AI_GET_NETWOP_N(&pBlock->blk.ai, pBlock->blk.ai.netwopCount) > (uchar *) pBlock + pBlock->size)
+   else if ((uchar *)AI_GET_NETWOP_N(&pBlock->blk.ai, pBlock->blk.ai.netwopCount) > pBlockEnd)
    {
-      debug1("EpgDbReload-AddAiBlock: netwop count %d exceeds block length", pBlock->blk.ai.netwopCount);
+      debug1("EpgDbReload-CheckAiBlock: netwop count %d exceeds block length", pBlock->blk.ai.netwopCount);
    }
-   else if ( (AI_GET_SERVICENAME(&pBlock->blk.ai) >= (uchar *) pBlock + pBlock->size) ||
-             (AI_GET_SERVICENAME(&pBlock->blk.ai) + strlen(AI_GET_SERVICENAME(&pBlock->blk.ai)) + 1 > (uchar *) pBlock + pBlock->size) )
+   else if ( (AI_GET_SERVICENAME(&pBlock->blk.ai) >= pBlockEnd) ||
+             (AI_GET_SERVICENAME(&pBlock->blk.ai) + strlen(AI_GET_SERVICENAME(&pBlock->blk.ai)) + 1 > pBlockEnd) )
    {
-      debug0("EpgDbReload-AddAiBlock: service name exceeds block size");
+      debug0("EpgDbReload-CheckAiBlock: service name exceeds block size");
    }
    else
+   {
       result = EPGDB_RELOAD_OK;
+
+      // check the name string offsets the netwop array
+      pNetwop = AI_GET_NETWOPS(&pBlock->blk.ai);
+      for (netwop=0; netwop < pBlock->blk.ai.netwopCount; netwop++, pNetwop++)
+      {
+         pName = AI_GET_STR_BY_OFF(&pBlock->blk.ai, pNetwop->off_name);
+         if ( (pName >= pBlockEnd) ||
+              (pName + strlen(pName) + 1 > pBlockEnd) )
+         {
+            debug1("EpgDbReload-CheckAiBlock: netwop name #%d exceeds block size", netwop);
+            result = EPGDB_RELOAD_CORRUPT;
+            break;
+         }
+      }
+   }
 
    return result;
 }
@@ -361,34 +382,90 @@ static EPGDB_RELOAD_RESULT EpgDbReloadAddGenericBlock( PDBC dbc, EPGDB_BLOCK *pB
 }
 
 // ---------------------------------------------------------------------------
+// Check reloaded PI block for gross consistancy errors
+//
+static EPGDB_RELOAD_RESULT EpgDbReloadCheckPiBlock( EPGDB_BLOCK * pBlock )
+{
+   EPGDB_RELOAD_RESULT result = EPGDB_RELOAD_CORRUPT;
+   const PI_BLOCK * pPi = &pBlock->blk.pi;
+   uchar *pBlockEnd;
+
+   pBlockEnd = (uchar *) pBlock + pBlock->size + BLK_UNION_OFF;
+
+   if (pPi->no_themes > PI_MAX_THEME_COUNT)
+   {
+      debug1("EpgDbReload-CheckPiBlock: illegal theme count %d", pPi->no_themes);
+   }
+   else if (pPi->no_sortcrit > PI_MAX_SORTCRIT_COUNT)
+   {
+      debug1("EpgDbReload-CheckPiBlock: illegal sortcrit count %d", pPi->no_sortcrit);
+   }
+   else if (pPi->off_title == 0)
+   {
+      debug0("EpgDbReload-CheckPiBlock: has no title");
+   }
+   #if 0
+   // these tests are too time consuming and the other tests should be safe enough
+   else if ( PI_HAS_SHORT_INFO(pPi) &&
+             ( (pStr = PI_GET_SHORT_INFO(pPi) >= pBlockEnd) ||
+               (pStr + strlen(pStr) + 1 > pBlockEnd) ))
+   {
+      debug0("EpgDbReload-CheckPiBlock: short info exceeds block size");
+   }
+   else if ( PI_HAS_LONG_INFO(pPi) &&
+             ( (pStr = PI_GET_LONG_INFO(pPi) >= pBlockEnd) ||
+               (pStr + strlen(pStr) + 1 > pBlockEnd) ))
+   {
+      debug0("EpgDbReload-CheckPiBlock: short info exceeds block size");
+   }
+   #endif
+   else if ( (pPi->no_descriptors > 0) &&
+             ((uchar *)&PI_GET_DESCRIPTORS(pPi)[pPi->no_descriptors] > pBlockEnd) )
+   {
+      debug1("EpgDbReload-CheckPiBlock: descriptor count %d exceeds block length", pPi->no_descriptors);
+   }
+   else
+      result = EPGDB_RELOAD_OK;
+
+   return result;
+}
+
+// ---------------------------------------------------------------------------
 // Add an expired or defect PI block to the database
 //
 static EPGDB_RELOAD_RESULT EpgDbReloadAddDefectPiBlock( PDBC dbc, EPGDB_BLOCK * pBlock )
 {
-   EPGDB_RELOAD_RESULT result = EPGDB_RELOAD_CORRUPT;
+   EPGDB_RELOAD_RESULT result;
 
-   if (pBlock->version == ((pBlock->stream == 0) ? dbc->pAiBlock->blk.ai.version : dbc->pAiBlock->blk.ai.version_swo))
+   result = EpgDbReloadCheckPiBlock(pBlock);
+   if (result == EPGDB_RELOAD_OK)
    {
-      if ( EpgDbPiBlockNoValid(dbc, pBlock->blk.pi.block_no, pBlock->blk.pi.netwop_no) )
+      if (pBlock->version == ((pBlock->stream == 0) ? dbc->pAiBlock->blk.ai.version : dbc->pAiBlock->blk.ai.version_swo))
       {
-         // convert type to normal PI, since the "defect pi" type is known only inside this module
-         pBlock->type = BLOCK_TYPE_PI;
-         // prepend to list of defect blocks
-         pBlock->pNextBlock = dbc->pObsoletePi;
-         dbc->pObsoletePi = pBlock;
-         result = EPGDB_RELOAD_OK;
+         if ( EpgDbPiBlockNoValid(dbc, pBlock->blk.pi.block_no, pBlock->blk.pi.netwop_no) )
+         {
+            // convert type to normal PI, since the "defect pi" type is known only inside this module
+            pBlock->type = BLOCK_TYPE_PI;
+            // prepend to list of defect blocks
+            pBlock->pNextBlock = dbc->pObsoletePi;
+            dbc->pObsoletePi = pBlock;
+            result = EPGDB_RELOAD_OK;
+         }
+         else
+         {
+            debug4("EpgDbReload-AddDefectPiBlock: prov=0x%04X: invalid netwop=%d stop=%ld block_no=%d", AI_GET_CNI(&dbc->pAiBlock->blk.ai), pBlock->blk.pi.netwop_no, pBlock->blk.pi.stop_time, pBlock->blk.pi.block_no);
+            xfree(pBlock);
+         }
       }
       else
-      {
-         debug4("EpgDbReload-AddDefectPiBlock: prov=0x%04X: invalid netwop=%d stop=%ld block_no=%d", AI_GET_CNI(&dbc->pAiBlock->blk.ai), pBlock->blk.pi.netwop_no, pBlock->blk.pi.stop_time, pBlock->blk.pi.block_no);
+      {  // this is not an error, since the PI block may not (yet) have been obsolete when the db was dumped
          xfree(pBlock);
+         result = EPGDB_RELOAD_OK;
       }
    }
    else
-   {  // this is not an error, since the PI block may not (yet) have been obsolete when the db was dumped
       xfree(pBlock);
-      result = EPGDB_RELOAD_OK;
-   }
+
    return result;
 }
 
@@ -400,82 +477,89 @@ static EPGDB_RELOAD_RESULT EpgDbReloadAddPiBlock( PDBC dbc, EPGDB_BLOCK * pBlock
    EPGDB_BLOCK *pPrev;
    uchar netwop;
    time_t now;
-   EPGDB_RELOAD_RESULT result = EPGDB_RELOAD_CORRUPT;
+   EPGDB_RELOAD_RESULT result;
    
-   netwop = pBlock->blk.pi.netwop_no;
-   if ( EpgDbPiBlockNoValid(dbc, pBlock->blk.pi.block_no, netwop) )
+   result = EpgDbReloadCheckPiBlock(pBlock);
+   if (result == EPGDB_RELOAD_OK)
    {
-      now = time(NULL);
+      netwop = pBlock->blk.pi.netwop_no;
+      if ( EpgDbPiBlockNoValid(dbc, pBlock->blk.pi.block_no, netwop) )
+      {
+         now = time(NULL);
 
-      //if ( pBlock->blk.pi.start_time >= now + 28*60*60 ) xfree(pBlock); else
-      if ( (pBlock->blk.pi.start_time < pBlock->blk.pi.stop_time) &&
-           (pBlock->blk.pi.stop_time > now) )
-      {  // Sendung noch nicht abgelaufen
+         //if ( pBlock->blk.pi.start_time >= now + 28*60*60 ) xfree(pBlock); else
+         if ( (pBlock->blk.pi.start_time < pBlock->blk.pi.stop_time) &&
+              (pBlock->blk.pi.stop_time > now) )
+         {  // Sendung noch nicht abgelaufen
 
-         //dprintf4("RELOAD PI ptr=%lx: netwop=%d, blockno=%d, start=%ld\n", (ulong)pBlock, netwop, pBlock->blk.pi.block_no, pBlock->blk.pi.start_time);
-         pBlock->acqRepCount = 0;
+            //dprintf4("RELOAD PI ptr=%lx: netwop=%d, blockno=%d, start=%ld\n", (ulong)pBlock, netwop, pBlock->blk.pi.block_no, pBlock->blk.pi.start_time);
+            pBlock->acqRepCount = 0;
 
-         if (dbc->pFirstPi == NULL)
-         {  // allererstes Element
-            assert(dbc->pLastPi == NULL);
-            assert(dbc->pFirstNetwopPi[netwop] == NULL);
-            pBlock->pNextNetwopBlock = NULL;
-            pBlock->pPrevNetwopBlock = NULL;
-            dbc->pFirstNetwopPi[netwop] = pBlock;
-            pBlock->pPrevBlock = NULL;
-            pBlock->pNextBlock = NULL;
-            dbc->pFirstPi = pBlock;
-            dbc->pLastPi  = pBlock;
-            pPrevNetwop[netwop] = pBlock;
-            result = EPGDB_RELOAD_OK;
-         }
-         else
-         if ( ( (pBlock->blk.pi.start_time > dbc->pLastPi->blk.pi.start_time) ||
-                ( (pBlock->blk.pi.start_time == dbc->pLastPi->blk.pi.start_time) &&
-                  (pBlock->blk.pi.netwop_no > dbc->pLastPi->blk.pi.netwop_no) )) &&
-              ( ((pPrev = pPrevNetwop[netwop]) == NULL) ||
-                ( EpgDbPiCmpBlockNoGt(dbc, pBlock->blk.pi.block_no, pPrev->blk.pi.block_no, netwop) &&
-                  (pBlock->blk.pi.start_time >= pPrev->blk.pi.stop_time) )))
-         {  // hinten anhaengen
-
-            // Netwop-Verzeigerung
-            if (dbc->pFirstNetwopPi[netwop] == NULL)
-            {
-               dbc->pFirstNetwopPi[netwop] = pBlock;
+            if (dbc->pFirstPi == NULL)
+            {  // allererstes Element
+               assert(dbc->pLastPi == NULL);
+               assert(dbc->pFirstNetwopPi[netwop] == NULL);
+               pBlock->pNextNetwopBlock = NULL;
                pBlock->pPrevNetwopBlock = NULL;
+               dbc->pFirstNetwopPi[netwop] = pBlock;
+               pBlock->pPrevBlock = NULL;
+               pBlock->pNextBlock = NULL;
+               dbc->pFirstPi = pBlock;
+               dbc->pLastPi  = pBlock;
+               pPrevNetwop[netwop] = pBlock;
+               result = EPGDB_RELOAD_OK;
             }
             else
-            {
-               pPrevNetwop[netwop]->pNextNetwopBlock = pBlock;
-               pBlock->pPrevNetwopBlock = pPrevNetwop[netwop];
-            }
-            pBlock->pNextNetwopBlock = NULL;
-            pPrevNetwop[netwop] = pBlock;
+            if ( ( (pBlock->blk.pi.start_time > dbc->pLastPi->blk.pi.start_time) ||
+                   ( (pBlock->blk.pi.start_time == dbc->pLastPi->blk.pi.start_time) &&
+                     (pBlock->blk.pi.netwop_no > dbc->pLastPi->blk.pi.netwop_no) )) &&
+                 ( ((pPrev = pPrevNetwop[netwop]) == NULL) ||
+                   ( EpgDbPiCmpBlockNoGt(dbc, pBlock->blk.pi.block_no, pPrev->blk.pi.block_no, netwop) &&
+                     (pBlock->blk.pi.start_time >= pPrev->blk.pi.stop_time) )))
+            {  // hinten anhaengen
 
-            // in Startzeit-Verzeigerung einhaengen
-            pBlock->pPrevBlock = dbc->pLastPi;
-            pBlock->pNextBlock = NULL;
-            dbc->pLastPi->pNextBlock = pBlock;
-            dbc->pLastPi = pBlock;
-            result = EPGDB_RELOAD_OK;
+               // Netwop-Verzeigerung
+               if (dbc->pFirstNetwopPi[netwop] == NULL)
+               {
+                  dbc->pFirstNetwopPi[netwop] = pBlock;
+                  pBlock->pPrevNetwopBlock = NULL;
+               }
+               else
+               {
+                  pPrevNetwop[netwop]->pNextNetwopBlock = pBlock;
+                  pBlock->pPrevNetwopBlock = pPrevNetwop[netwop];
+               }
+               pBlock->pNextNetwopBlock = NULL;
+               pPrevNetwop[netwop] = pBlock;
+
+               // in Startzeit-Verzeigerung einhaengen
+               pBlock->pPrevBlock = dbc->pLastPi;
+               pBlock->pNextBlock = NULL;
+               dbc->pLastPi->pNextBlock = pBlock;
+               dbc->pLastPi = pBlock;
+               result = EPGDB_RELOAD_OK;
+            }
+            else
+            {  // Startzeit und BlockNo nicht groesser als die des letzten Blocks -> ignorieren
+               debug4("EpgDbReload-AddPiBlock: PI not consecutive: prov=0x%04X: netwop=%02d block_no=%d start=%ld", AI_GET_CNI(&dbc->pAiBlock->blk.ai), netwop, pBlock->blk.pi.block_no, pBlock->blk.pi.start_time);
+               xfree(pBlock);
+            }
+
+            //assert(EpgDbCheckChains());
          }
          else
-         {  // Startzeit und BlockNo nicht groesser als die des letzten Blocks -> ignorieren
-            debug4("EpgDbReload-AddPiBlock: PI not consecutive: prov=0x%04X: netwop=%02d block_no=%d start=%ld", AI_GET_CNI(&dbc->pAiBlock->blk.ai), netwop, pBlock->blk.pi.block_no, pBlock->blk.pi.start_time);
-            xfree(pBlock);
+         {  // Sendung bereits abgelaufen -> PI nicht aufnehmen
+            //dprintf3("EXPIRED pi netwop=%d, blockno=%d start=%ld\n", pBlock->blk.pi.netwop_no, pBlock->blk.pi.block_no, pBlock->blk.pi.start_time);
+            result = EpgDbReloadAddDefectPiBlock(dbc, pBlock);
          }
-
-         //assert(EpgDbCheckChains());
       }
       else
-      {  // Sendung bereits abgelaufen -> PI nicht aufnehmen
-         //dprintf3("EXPIRED pi netwop=%d, blockno=%d start=%ld\n", pBlock->blk.pi.netwop_no, pBlock->blk.pi.block_no, pBlock->blk.pi.start_time);
-         result = EpgDbReloadAddDefectPiBlock(dbc, pBlock);
+      {  // invalid netwop or blockno
+         xfree(pBlock);
       }
    }
    else
-   {  // ungueltige netwop-Angabe -> PI nicht aufnehmen
-      debug4("EpgDbReload-AddPiBlock: prov=0x%04X: invalid netwop=%d stop=%ld block_no=%d", AI_GET_CNI(&dbc->pAiBlock->blk.ai), netwop, pBlock->blk.pi.stop_time, pBlock->blk.pi.block_no);
+   {  // PI inconsistant
       xfree(pBlock);
    }
    return result;
@@ -512,6 +596,22 @@ static EPGDB_RELOAD_RESULT EpgDbReloadHeader( uint cni, int fd, EPGDBSAV_HEADER 
             {
                debug2("EpgDbReload-Header: reload db 0x%04X: incompatible version %06lx", cni, pHead->compatVersion);
                result = EPGDB_RELOAD_VERSION;
+            }
+         }
+         else if (pHead->endianMagic != WRONG_ENDIAN)
+         {  // invalid endian code -> quick check if this is a header of a previous version
+            OBSOLETE_EPGDBSAV_HEADER * pObsHead = (OBSOLETE_EPGDBSAV_HEADER *) pHead;
+            if ( (pObsHead->dumpVersion >= OBSOLETE_DUMP_MIN_VERSION) &&
+                 (pObsHead->dumpVersion <= OBSOLETE_DUMP_MAX_VERSION) &&
+                 ((cni == RELOAD_ANY_CNI) || (pObsHead->cni == cni)) )
+            {
+               debug2("EpgDbReload-Header: reload db 0x%04X: incompatible version %06lx", pObsHead->cni, pObsHead->dumpVersion);
+               result = EPGDB_RELOAD_VERSION;
+            }
+            else
+            {
+               debug2("EpgDbReload-Header: reload db 0x%04X: illegal endian code 0x%02X found", cni, (int) pHead->endianMagic);
+               result = EPGDB_RELOAD_CORRUPT;
             }
          }
          else
@@ -676,7 +776,10 @@ PDBC EpgDbReload( uint cni, EPGDB_RELOAD_RESULT * pResult )
    else
    {
       dprintf1("EpgDb-Reload: db of requested provider %04X not found\n", cni);
-      result = EPGDB_RELOAD_ACCESS;
+      if (errno == EACCES)
+         result = EPGDB_RELOAD_ACCESS;
+      else
+         result = EPGDB_RELOAD_EXIST;
    }
    xfree(pFilename);
 
@@ -776,7 +879,10 @@ const EPGDBSAV_PEEK * EpgDbPeek( uint cni, EPGDB_RELOAD_RESULT * pResult )
    else
    {
       dprintf1("EpgDb-Peek: db of requested provider %04X not found\n", cni);
-      result = EPGDB_RELOAD_ACCESS;
+      if (errno == EACCES)
+         result = EPGDB_RELOAD_ACCESS;
+      else
+         result = EPGDB_RELOAD_EXIST;
    }
 
    xfree(pFilename);
@@ -816,7 +922,7 @@ uint EpgDbReloadScan( int nextIndex )
    struct stat st;
    time_t best_mtime;
    uint   cni, best_cni;
-   int    this_index;
+   int    this_index, scanLen;
    char   *pFilePath;
 
    best_cni = 0;
@@ -828,8 +934,9 @@ uint EpgDbReloadScan( int nextIndex )
       while ((entry = readdir(dir)) != NULL)
       {
          if ( (strlen(entry->d_name) == DUMP_NAME_LEN) &&
-              (sscanf(entry->d_name, DUMP_NAME_FMT, &cni) == 1) )
-         {  // file name matched
+              (sscanf(entry->d_name, DUMP_NAME_FMT "%n", &cni, &scanLen) == 1) &&
+              (scanLen == DUMP_NAME_LEN) )
+         {  // file name matched (complete match is forced by %n)
             if (nextIndex != -1)
             {
                this_index += 1;
@@ -980,6 +1087,65 @@ bool EpgDbDumpCreateDir( const char * pDirPath )
 #endif
 
    return result;
+}
+
+// ---------------------------------------------------------------------------
+// Determine dbdir and provider CNI from database file command line argument
+//
+void EpgDbDumpGetDirAndCniFromArg( char * pArg, const char ** ppDirPath, uint * pCni )
+{
+   char *pDirPath, *pNamePath;
+   int len, scanLen;
+
+   assert((ppDirPath != NULL) && (pCni != NULL));
+
+   len = strlen(pArg);
+   if (len > 0)
+   {
+      // search for the begin of the database file name
+      pDirPath = NULL;
+      pNamePath = pArg;
+      while (--len >= 0)
+      {
+         if (pArg[len] == PATH_SEPARATOR)
+         {
+            pDirPath = pArg;
+            pArg[len] = 0;
+            pNamePath = pArg + len + 1;
+            break;
+         }
+      }
+
+      if (pDirPath == NULL)
+      {  // no path separator found -> use current working directory
+         pDirPath = ".";
+         len = 0;
+      }
+      else if (len == 0)
+      {
+         pDirPath = PATH_ROOT;
+      }
+
+      // retrieve the hex CNI from the file name
+      // %n is required to check for garbage behind the CNI
+      if ( (strlen(pNamePath) == DUMP_NAME_LEN) &&
+           (sscanf(pNamePath, DUMP_NAME_FMT "%n", pCni, &scanLen) == 1) &&
+           (scanLen == DUMP_NAME_LEN) )
+      {  // this seems to be a regular database file -> set dbdir path
+         *ppDirPath = (const char *) pDirPath;
+      }
+      else
+      {  // not a valid database file format -> assume demo database
+         // repair path name
+         if (len > 0)
+            pDirPath[len] = PATH_SEPARATOR;
+         *pCni = 0;
+      }
+   }
+   else
+   {  // empty argument -> dummy return values
+      *pCni = 0;
+   }
 }
 
 // ---------------------------------------------------------------------------

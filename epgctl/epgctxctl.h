@@ -26,7 +26,7 @@
 // ---------------------------------------------------------------------------
 // Declaration of service interface functions
 //
-EPGDB_CONTEXT * EpgContextCtl_Open( uint cni );
+EPGDB_CONTEXT * EpgContextCtl_Open( uint cni, CONTEXT_RELOAD_ERR_HAND errHand );
 EPGDB_CONTEXT * EpgContextCtl_CreateNew( void );
 void EpgContextCtl_Close( EPGDB_CONTEXT * pContext );
 void EpgContextCtl_SetDateTime( void );

@@ -20,7 +20,7 @@
 #
 #  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
 #
-#  $Id: Makefile.win32,v 1.2 2000/12/26 19:55:01 tom Exp tom $
+#  $Id: Makefile.win32,v 1.3 2001/01/09 20:50:35 tom Exp tom $
 #
 
 TCLSH   = /gnu/tcl/bin/tclsh83.exe
@@ -54,7 +54,7 @@ CSRC    = epgctl/epgmain epgctl/debug epgctl/epgacqctl epgctl/epgctxctl \
           epgdb/epgdbacq epgdb/epgstream epgdb/epgtxtdump epgdb/epgblock \
           epgdb/epgdbmgmt epgdb/epgdbif epgdb/epgdbsav epgdb/epgdbfil \
           epgdb/epgdbmerge epgui/pilistbox epgui/pifilter epgui/statswin \
-          epgui/menucmd epgui/pdc_themes
+          epgui/menucmd epgui/uictrl epgui/pdc_themes
 CGEN    = epgui/tcl_libs epgui/epgui epgui/help
 WINRES  = epgui/tkwinico.res
 
@@ -84,16 +84,21 @@ epgui/epgui.c: epgui/epgui.tcl tcl2c.exe
 epgui/help.c: epgui/help.tcl tcl2c.exe
 	./tcl2c.exe help_tcl_script < epgui/help.tcl > epgui/help.c
 
-epgui/help.tcl: nxtvepg.1x man2help.tcl
-	$(TCLSH) man2help.tcl nxtvepg.1x > epgui/help.tcl
+epgui/help.tcl:
+	if test -x epgui/help.tcl; then
+	  touch epgui/help.tcl; \
+	else; \
+	  echo "ERROR: missing epgui/help.tcl"; \
+	  false; \
+	fi
 
-epgui/tcl_libs.c:
+epgui/tcl_libs.c: tcl2c.exe
 	cat tcl8.3.2/* tk8.3.2/* | ./tcl2c.exe tcl_init_scripts > epgui/tcl_libs.c
 
 clean:
 	-rm -rf WinRel
 	-rm -f epg*/*.obj tcl2c.exe nxtvepg.exe
-	-rm -f epgui/epgui.c epgui/help.c epgui/help.tcl epgui/tcl_libs.c epgui/tkwinico.res
+	-rm -f epgui/epgui.c epgui/help.c epgui/tcl_libs.c epgui/tkwinico.res
 	-rm -f vc50.idb vc50.pdb nxtvepg.ilk nxtvepg.pdb nxtvepg.opt nxtvepg.plg nxtvepg.ncb
 
 depend:

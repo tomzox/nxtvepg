@@ -23,7 +23,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgdbfil.c,v 1.21 2000/12/21 19:21:49 tom Exp tom $
+ *  $Id: epgdbfil.c,v 1.22 2001/01/01 20:19:24 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -939,16 +939,16 @@ bool EpgDbFilterMatches( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT *fc, con
       {
          if (fc->ignoreCase == FALSE)
          {
-            if ( ((pPi->title_length == 0) || !strstr(PI_GET_TITLE(pPi), fc->subStrFilter)) &&
-                 ((pPi->short_info_length == 0) || !strstr(PI_GET_SHORT_INFO(pPi), fc->subStrFilter)) &&
-                 ((pPi->long_info_length == 0) || !strstr(PI_GET_LONG_INFO(pPi), fc->subStrFilter)) )
+            if ( (!strstr(PI_GET_TITLE(pPi), fc->subStrFilter)) &&
+                 (!PI_HAS_SHORT_INFO(pPi) || !strstr(PI_GET_SHORT_INFO(pPi), fc->subStrFilter)) &&
+                 (!PI_HAS_LONG_INFO(pPi) || !strstr(PI_GET_LONG_INFO(pPi), fc->subStrFilter)) )
                goto failed;
          }
          else
          {
-            if ( ((pPi->title_length == 0) || !strstri(PI_GET_TITLE(pPi), fc->subStrFilter)) &&
-                 ((pPi->short_info_length == 0) || !strstri(PI_GET_SHORT_INFO(pPi), fc->subStrFilter)) &&
-                 ((pPi->long_info_length == 0) || !strstri(PI_GET_LONG_INFO(pPi), fc->subStrFilter)) )
+            if ( (!strstri(PI_GET_TITLE(pPi), fc->subStrFilter)) &&
+                 (!PI_HAS_SHORT_INFO(pPi) || !strstri(PI_GET_SHORT_INFO(pPi), fc->subStrFilter)) &&
+                 (!PI_HAS_SHORT_INFO(pPi) || !strstri(PI_GET_LONG_INFO(pPi), fc->subStrFilter)) )
                goto failed;
          }
       }
@@ -956,12 +956,12 @@ bool EpgDbFilterMatches( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT *fc, con
       {
          if (fc->ignoreCase == FALSE)
          {
-            if ((pPi->title_length == 0) || !strstr(PI_GET_TITLE(pPi), fc->subStrFilter))
+            if (!strstr(PI_GET_TITLE(pPi), fc->subStrFilter))
                goto failed;
          }
          else
          {
-            if ((pPi->title_length == 0) || !strstri(PI_GET_TITLE(pPi), fc->subStrFilter))
+            if (!strstri(PI_GET_TITLE(pPi), fc->subStrFilter))
                goto failed;
          }
       }
@@ -969,14 +969,14 @@ bool EpgDbFilterMatches( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT *fc, con
       {
          if (fc->ignoreCase == FALSE)
          {
-            if ( ((pPi->short_info_length == 0) || !strstr(PI_GET_SHORT_INFO(pPi), fc->subStrFilter)) &&
-                 ((pPi->long_info_length == 0) || !strstr(PI_GET_LONG_INFO(pPi), fc->subStrFilter)) )
+            if ( (!PI_HAS_SHORT_INFO(pPi) || !strstr(PI_GET_SHORT_INFO(pPi), fc->subStrFilter)) &&
+                 (!PI_HAS_SHORT_INFO(pPi) || !strstr(PI_GET_LONG_INFO(pPi), fc->subStrFilter)) )
                goto failed;
          }
          else
          {
-            if ( ((pPi->short_info_length == 0) || !strstri(PI_GET_SHORT_INFO(pPi), fc->subStrFilter)) &&
-                 ((pPi->long_info_length == 0) || !strstri(PI_GET_LONG_INFO(pPi), fc->subStrFilter)) )
+            if ( (!PI_HAS_SHORT_INFO(pPi) || !strstri(PI_GET_SHORT_INFO(pPi), fc->subStrFilter)) &&
+                 (!PI_HAS_SHORT_INFO(pPi) || !strstri(PI_GET_LONG_INFO(pPi), fc->subStrFilter)) )
                goto failed;
          }
       }

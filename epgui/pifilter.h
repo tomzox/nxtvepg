@@ -15,7 +15,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: pifilter.h,v 1.4 2000/09/16 19:29:41 tom Exp tom $
+ *  $Id: pifilter.h,v 1.5 2001/01/09 20:05:13 tom Exp tom $
  */
 
 #ifndef __PIFILTER_H
@@ -31,7 +31,7 @@ extern const FILTER_CONTEXT *pPiFilterContext;
 void PiFilter_Create( void );
 void PiFilter_Destroy( void );
 
-// Interface to acquisition control module
-void PiFilter_UpdateNetwopList( ClientData clientData );
+// Interface to ui control module
+void PiFilter_UpdateNetwopList( void );
 
 #endif  // __PIFILTER_H

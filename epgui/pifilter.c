@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: pifilter.c,v 1.31 2000/12/21 19:48:40 tom Exp tom $
+ *  $Id: pifilter.c,v 1.32 2001/01/09 20:02:51 tom Exp tom $
  */
 
 #define __PIFILTER_C
@@ -34,8 +34,8 @@
 #include <string.h>
 #include <ctype.h>
 
-#include "tcl.h"
-#include "tk.h"
+#include <tcl.h>
+#include <tk.h>
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
@@ -1035,63 +1035,42 @@ static int SelectNi( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] 
 }
 
 // ----------------------------------------------------------------------------
-// fill listbox widget with names of all netwops
-// - called as idle function after AI update or when first AI received
+// Fill listbox widget with names of all netwops
 //
-void PiFilter_UpdateNetwopList( ClientData clientData )
+void PiFilter_UpdateNetwopList( void )
 {
-   const AI_BLOCK *pAiBlock;
    int idx, netwop;
    char **argv;
    int argc;
 
    if (pPiFilterContext != NULL)
    {
-      // if db is now empty, display help message
-      // if db empty but acq not -> switch UI to acq db
-      PiListBox_UpdateState();
-
-      EpgDbLockDatabase(dbc, TRUE);
-      pAiBlock = EpgDbGetAi(dbc);
-      if (pAiBlock != NULL)
+      // remove the old list; set cursor on first element
+      sprintf(comm, "UpdateNetwopFilterBar 0x%04X\n", EpgDbContextGetCni(pUiDbContext));
+      if ( (eval_check(interp, comm) == TCL_OK) &&
+           (Tcl_SplitList(interp, interp->result, &argc, &argv) == TCL_OK) )
       {
-         // set the window title according to the new AI
-         sprintf(comm, "wm title . {Nextview EPG: %s}\n", AI_GET_SERVICENAME(pAiBlock));
-         eval_check(interp, comm);
+         EpgDbFilterInitNetwopPreFilter(pPiFilterContext);
+         EpgDbFilterEnable(pPiFilterContext, FILTER_NETWOP_PRE);
 
-         // remove the old list; set cursor on first element
-         sprintf(comm, "UpdateNetwopFilterBar 0x%04X\n", EpgDbContextGetCni(pUiDbContext));
-         if ( (eval_check(interp, comm) == TCL_OK) &&
-              (Tcl_SplitList(interp, interp->result, &argc, &argv) == TCL_OK) )
+         for (idx = 0; idx < argc; idx++) 
          {
-            EpgDbFilterInitNetwopPreFilter(pPiFilterContext);
-            EpgDbFilterEnable(pPiFilterContext, FILTER_NETWOP_PRE);
-
-            for (idx = 0; idx < argc; idx++) 
+            if (Tcl_GetInt(interp, argv[idx], &netwop) == TCL_OK)
             {
-               if (Tcl_GetInt(interp, argv[idx], &netwop) == TCL_OK)
-               {
-                  EpgDbFilterSetNetwopPreFilter(pPiFilterContext, netwop);
-               }
+               EpgDbFilterSetNetwopPreFilter(pPiFilterContext, netwop);
             }
-            Tcl_Free((char *) argv);
          }
+         Tcl_Free((char *) argv);
+      }
 
-         // in case the db state did not change, just re-sync with db
-         PiListBox_Refresh();
-      }
-      else
-      {  // db now empty -> reset window title
-         sprintf(comm, "wm title . {Nextview EPG}\n");
-         eval_check(interp, comm);
-      }
-      EpgDbLockDatabase(dbc, FALSE);
+      // removed pre-filtered networks from the browser, or add them back
+      PiListBox_Refresh();
    }
 }
 
 static int UpdateNetwopList( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
 {
-   PiFilter_UpdateNetwopList(NULL);
+   PiFilter_UpdateNetwopList();
    return TCL_OK;
 }
 
@@ -1576,8 +1555,6 @@ void PiFilter_Create( void )
 
    // create and initialize the filter context
    pPiFilterContext = EpgDbFilterCreateContext();
-
-   PiFilter_UpdateNetwopList(NULL);
 }
 
 // ----------------------------------------------------------------------------

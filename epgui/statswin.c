@@ -23,7 +23,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: statswin.c,v 1.21 2000/12/02 12:03:19 tom Exp tom $
+ *  $Id: statswin.c,v 1.24 2001/01/09 20:10:25 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -32,8 +32,8 @@
 #include <string.h>
 #include <time.h>
 
-#include "tcl.h"
-#include "tk.h"
+#include <tcl.h>
+#include <tk.h>
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
@@ -178,7 +178,7 @@ void StatsWin_NewPi( EPGDB_CONTEXT * dbc, const PI_BLOCK *pPi, uchar stream )
          else
          {
             StatsWin_DisplayPi(target, pPi->netwop_no, stream, pPi->start_time, pPi->stop_time,
-                               (bool)(pPi->short_info_length>0), (bool)(pPi->long_info_length>0));
+                               PI_HAS_SHORT_INFO(pPi), PI_HAS_LONG_INFO(pPi));
          }
 
          StatsWin_HighlightNetwop(target, pPi->netwop_no, stream);
@@ -327,7 +327,7 @@ void StatsWin_NewAi( void )
       if (acqStatUpdateScheduled == FALSE)
       {
          acqStatUpdateScheduled = TRUE;
-         Tcl_DoWhenIdle(StatsWin_DisplayAcqStats, NULL);
+         AddMainIdleEvent(StatsWin_DisplayAcqStats, NULL, TRUE);
       }
    }
 }
@@ -381,8 +381,8 @@ static void StatsWin_Load( int target, EPGDB_CONTEXT *dbc )
          if (start_time[netwop_no] != 0)
          {
             if ((pPi->start_time == stop_time[netwop_no]) &&
-                (((pPi->short_info_length>0) ^ has_short_info[netwop_no]) == FALSE) &&
-                (((pPi->long_info_length>0) ^ has_long_info[netwop_no]) == FALSE) &&
+                ((PI_HAS_SHORT_INFO(pPi) ^ has_short_info[netwop_no]) == FALSE) &&
+                ((PI_HAS_LONG_INFO(pPi) ^ has_long_info[netwop_no]) == FALSE) &&
                 (this_stream == stream[netwop_no]) )
             {
                stop_time[netwop_no] = pPi->stop_time;
@@ -398,8 +398,8 @@ static void StatsWin_Load( int target, EPGDB_CONTEXT *dbc )
          {
             start_time[netwop_no]     = pPi->start_time;
             stop_time[netwop_no]      = pPi->stop_time;
-            has_short_info[netwop_no] = (pPi->short_info_length>0);
-            has_long_info[netwop_no]  = (pPi->long_info_length>0);
+            has_short_info[netwop_no] = PI_HAS_SHORT_INFO(pPi);
+            has_long_info[netwop_no]  = PI_HAS_LONG_INFO(pPi);
             stream[netwop_no]         = this_stream;
          }
          pPi = EpgDbSearchNextPi(dbc, NULL, pPi);
@@ -432,7 +432,7 @@ static void StatsWin_Load( int target, EPGDB_CONTEXT *dbc )
             eval_check(interp, comm);
          }
          StatsWin_DisplayPi(target, pPi->netwop_no, 4, pPi->start_time, pPi->stop_time,
-                            (bool)(pPi->short_info_length>0), (bool)(pPi->long_info_length>0));
+                            PI_HAS_SHORT_INFO(pPi), PI_HAS_LONG_INFO(pPi));
 
          pPi = EpgDbGetNextObsoletePi(dbc, pPi);
       }
@@ -507,11 +507,11 @@ void StatsWin_VersionChange( void )
    // determine in which of the opened timescale windows acq is running
    if ( tscaleState[DB_TARGET_ACQ].open )
    {
-      Tcl_DoWhenIdle(StatsWin_RebuildCanvas, (ClientData) DB_TARGET_ACQ);
+      AddMainIdleEvent(StatsWin_RebuildCanvas, (ClientData) DB_TARGET_ACQ, TRUE);
    }
    else if ( tscaleState[DB_TARGET_UI].open && (pAcqDbContext == pUiDbContext) )
    {
-      Tcl_DoWhenIdle(StatsWin_RebuildCanvas, (ClientData) DB_TARGET_UI);
+      AddMainIdleEvent(StatsWin_RebuildCanvas, (ClientData) DB_TARGET_UI, TRUE);
    }
 }
 
@@ -749,7 +749,7 @@ void StatsWin_ProvChange( int target )
       // rebuild network timescales
       if (tscaleState[target].open)
       {
-         Tcl_DoWhenIdle(StatsWin_RebuildCanvas, (ClientData) target);
+         AddMainIdleEvent(StatsWin_RebuildCanvas, (ClientData) target, TRUE);
       }
 
       // if a network in the inactive UI window is still marked, unmark it
@@ -762,7 +762,7 @@ void StatsWin_ProvChange( int target )
       // if the acq stats window is open, update its content
       if (acqStatOpen && (target == DB_TARGET_ACQ))
       {
-         Tcl_DoWhenIdle(StatsWin_DisplayAcqStats, NULL);
+         AddMainIdleEvent(StatsWin_DisplayAcqStats, NULL, TRUE);
       }
    }
    else

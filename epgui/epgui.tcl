@@ -21,7 +21,7 @@
 #
 #  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
 #
-#  $Id: epgui.tcl,v 1.51 2000/12/26 16:03:06 tom Exp tom $
+#  $Id: epgui.tcl,v 1.54 2001/01/08 20:47:50 tom Exp tom $
 #
 
 frame     .all -relief flat -borderwidth 0
@@ -114,6 +114,15 @@ pack      .all.pi.info -side top -fill y -expand 1
 pack      .all.pi -side left -anchor n -fill y -expand 1
 pack      .all
 
+# create a bitmap of an horizontal line for use as separator in the info window
+# inserted here manually from the file epgui/line.xbm
+image create bitmap bitmap_line -data "#define line_width 200\n#define line_height 2\n
+static unsigned char line_bits[] = {
+   0xe7, 0xe7, 0x3f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+   0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xf3, 0xcf,
+   0xe7, 0xe7, 0xe7, 0x3f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+   0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xf3,
+   0xcf, 0xe7};";
 
 menu .menubar -relief ridge
 . config -menu .menubar
@@ -1272,7 +1281,8 @@ proc SelectTimeFilterEntry {varname val} {
       set timspec [expr $hour * 60 + $minute]
       SelectTimeFilter 0
    } else {
-      tk_messageBox -type ok -default ok -icon error -message "Invalid input format in \"$val\"; use \"HH:MM\""
+      tk_messageBox -type ok -default ok -icon error -parent .timsel \
+                    -message "Invalid input format in \"$val\"; use \"HH:MM\""
    }
 }
 
@@ -1412,12 +1422,12 @@ proc AddSortCritSelection {} {
       switch -exact [scan $item "%x-%x" from to] {
          1 {set to $from}
          2 {}
-         default {tk_messageBox -type ok -default ok -icon error -message "Invalid entry item \"$item\"; expected format: nn\[-nn\]{,nn-...}"}
+         default {tk_messageBox -type ok -default ok -icon error -parent .sortcrit -message "Invalid entry item \"$item\"; expected format: nn\[-nn\]{,nn-...}"}
       }
       if {$to != -1} {
          if {$to < $from} {set swap $to; set to $from; set from $swap}
          if {$to >= 256} {
-            tk_messageBox -type ok -default ok -icon error -message "Invalid range; values must be lower than 0x100"
+            tk_messageBox -type ok -default ok -icon error -parent .sortcrit -message "Invalid range; values must be lower than 0x100"
          } else {
             for {} {$from <= $to} {incr from} {
                set all($from) 1
@@ -2341,7 +2351,7 @@ proc ProvMerge_Quit {cause} {
                      } else {
                         set provname {}
                      }
-                     tk_messageBox -type ok -icon error -message "The provider list for [string tolower $ProvmergeOptLabels($name)] contains a database$provname that's not in the main selection. Either remove the provider or use 'Reset' to reset the configuration."
+                     tk_messageBox -type ok -icon error -parent .provmerge -message "The provider list for [string tolower $ProvmergeOptLabels($name)] contains a database$provname that's not in the main selection. Either remove the provider or use 'Reset' to reset the configuration."
                      return
                   }
                }
@@ -2516,15 +2526,15 @@ proc QuitAcqModePopup {} {
    global acqmode_sel
    global acq_mode acq_mode_cnis
 
-   set acq_mode $acqmode_sel
-
    if {[string compare -length 6 "cyclic" $acqmode_sel] == 0} {
       if {[llength $acqmode_selist] == 0} {
-         tk_messageBox -type ok -default ok -icon error -message "You have not selected any providers."
+         tk_messageBox -type ok -default ok -icon error -parent .acqmode -message "You have not selected any providers."
          return
       }
       set acq_mode_cnis $acqmode_selist
    }
+   set acq_mode $acqmode_sel
+
    unset acqmode_ailist acqmode_selist acqmode_sel
    if {[info exists acqmode_names]} {unset acqmode_names}
 
@@ -2727,7 +2737,7 @@ proc HardwareConfigQuit {} {
 
    if { ([string compare $tcl_platform(platform) "unix"] != 0) && \
         ($hwcfg_input_sel == 0) && ($hwcfg_tuner_sel == 0) } {
-      set answer [tk_messageBox -type okcancel -default cancel -icon warning -message "You haven't selected a tuner - acquisition will not be possible!"]
+      set answer [tk_messageBox -type okcancel -default cancel -icon warning -parent .hwcfg -message "You haven't selected a tuner - acquisition will not be possible!"]
    } else {
       set answer "ok"
    }
@@ -2846,18 +2856,18 @@ proc ApplyTimeZone {} {
    if {$tz_auto_sel == 0} {
       # check if the manually configured LTO is a valid integer
       if {[scan $tz_lto_sel "%d" lto] != 1} {
-         tk_messageBox -type ok -default ok -icon error -message "Invalid input format in LTO '$tz_lto_sel'\nMust be positive or negative decimal integer."
+         tk_messageBox -type ok -default ok -icon error -parent .timezone -message "Invalid input format in LTO '$tz_lto_sel'\nMust be positive or negative decimal integer."
          return
       }
       # check if the value is within bounds of +/- 12 hours
       if {($lto < -12*60) || ($lto > 12*60)} {
-         tk_messageBox -type ok -default ok -icon error -message "Invalid LTO: $lto\nThe maximum absolute value is 12 hours."
+         tk_messageBox -type ok -default ok -icon error -parent .timezone -message "Invalid LTO: $lto\nThe maximum absolute value is 12 hours."
          return
       }
       # warn if it's not a half-hour value
       # then the user probably has mistakenly entered hours instead of minutes
       if {($lto % 30) != 0} {
-         set answer [tk_messageBox -type okcancel -icon warning -message "Warning: the given LTO value '$lto minutes' is not a complete hour or half hour.\nMaybe you entered an hour value instead of minutes?\nDo you still want to set this LTO?"]
+         set answer [tk_messageBox -type okcancel -icon warning -parent .timezone -message "Warning: the given LTO value '$lto minutes' is not a complete hour or half hour.\nMaybe you entered an hour value instead of minutes?\nDo you still want to set this LTO?"]
          if {[string compare $answer "ok"] != 0} {
             return
          }
@@ -3594,7 +3604,7 @@ proc AddFilterShortcut {} {
       incr fscedit_count
 
       if {[string length $mask] == 0} {
-         set answer [tk_messageBox -type okcancel -icon warning -message "Currently no filters selected. Do you still want to continue?"]
+         set answer [tk_messageBox -type okcancel -icon warning -parent .fscedit -message "Currently no filters selected. Do you still want to continue?"]
          if {[string compare $answer "cancel"] == 0} {
             return
          }
@@ -3951,14 +3961,7 @@ proc UpdateRcFile {} {
       if {[info exists prov_merge_cf]} {puts $rcfile [list set prov_merge_cf $prov_merge_cf]}
 
       # dump acquisition mode and provider CNIs
-      if {[info exists acq_mode]} {
-         if {[string compare $acq_mode "passive"] == 0} {
-            # passive acquisition mode is folded to 'follow ui'
-            puts $rcfile [list set acq_mode "follow-ui"]
-         } else {
-            puts $rcfile [list set acq_mode $acq_mode]
-         }
-      }
+      if {[info exists acq_mode]} { puts $rcfile [list set acq_mode $acq_mode] }
       if {[info exists acq_mode_cnis]} {puts $rcfile [list set acq_mode_cnis $acq_mode_cnis]}
 
       if {[info exists hwcfg]} {puts $rcfile [list set hwcfg $hwcfg]}

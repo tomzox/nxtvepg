@@ -5,28 +5,19 @@ please let me know.
 
 db merge fixes:
 - fine control for provider merge
-- change of CNI list -> keep suppressed list, even if obsolete?
-- short/long info merging: remove redundant text, add newline between providers
+- new provider selection -> keep all CNIs from suppressed list, even if obsolete?
 - version & block index handling (for timescales)
 
 acq mode ctl. & cyclic acq fixes:
-- warn when db has no tuner freq
-- better handling of db version changes: display message
-  take tuner freq from obsolete db version also
+- take tuner freq from obsolete db version also
 - check if version is incompatible before recommending prov selection
 - acqmode popup: check for device-access or no-tuner errors
-- stats window:
-  + report acq mode, cycle phase and index
-  + update even if no EPG reception; include CNI
+- warn when acq mode not possible due to non-tuner input
+- stats window: report acq mode, cycle phase and index
 
 WIN32 port fixes:
-- accepting db as argument: set path as working dir, take CNI from filename
-- dump stream feature: must window or file instead of stdout
-- timezone popup required?
-- README and manpage
-  + Erklaerung aller Startup Fehlermeldungen
-  + Liste von TV-Karten und zugehoerigen Tunertypen (bttv-cards.h)
-
+- improve "Getting Started" in help for Win32
+- dump stream feature: must use window or file instead of stdout
 
 +++ Already DONE +++
 - ui stays empty while acq finds 1st db in the background
@@ -35,13 +26,26 @@ WIN32 port fixes:
 - timeout in case of reception failure
 - automatic upgrade from follow-ui to cyclic for merged db
 - service name for merged db: concatenate prov names
-- delay after target variance is reached
+- delay phase advance after target variance is reached
 - passive & non-TV-tuner input modes
 - option -dbdir: need WIN32 error handling in main
+- accepting db as argument: set path as working dir, take CNI from filename
+- NOW cycle never completes if there are no currently running PI in the db
+- short/long info merging: remove redundant text, add newline between providers
+- Win32: improve installation description in README, explain all error messages
+- compile with WinDriver header file from version 4.00
+- tuner was touched although in "passive" mode
+- warn when db has no tuner freq
+- better handling of db version changes: display message
 
 
 required fixes:
 - EPG scan skips some channels with bad reception or encryption
+- short info text view is set to line 1.0 during every update
+- suggest bttv driver fix: CGFREQ from tuner driver
+- cmd line option predatory: in this mode the tuner is set via /dev/vbi
+  regardless of other /dev/video users
+- use frame counter at the end of the frame buffer
 - latin-1 chars in substring search do not work with Tcl/Tk 8.3
 - do not tune channel if vbi busy
 - filter shortcut combination logic modes: OR,AND
@@ -55,6 +59,10 @@ required fixes:
 - debugging: make serious debugX events fatal (developers only)
 
 possible new features: (in order of decreasing priority)
+- stats window:
+  + update even if no EPG reception; include VPS/PDC CNI
+  + offer stats for browser db (even if acq is off)
+- timezone popup (GUI already implemented)
 - timer programming & invocation or external dispatch
 - long-term search: maintain list of search filters that are applied each time
   new data has been acquired; notify the user when a matching PI arrives. This

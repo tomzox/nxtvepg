@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: btdrv.h,v 1.4 2000/12/26 15:51:26 tom Exp tom $
+ *  $Id: btdrv.h,v 1.6 2001/01/09 20:47:40 tom Exp tom $
  */
 
 #ifndef __BTDRV_H
@@ -68,8 +68,15 @@ typedef struct
    #ifndef WIN32
    pid_t      vbiPid;
    pid_t      epgPid;
-   #endif
+
+   bool       doQueryFreq;
+   ulong      vbiQueryFreq;
+
    uchar      cardIndex;
+   # ifdef __NetBSD__
+   uchar      inputIndex;
+   # endif
+   #endif
 } EPGACQ_BUF;
 
 
@@ -86,13 +93,14 @@ bool BtDriver_StartAcq( void );
 void BtDriver_StopAcq( void );
 bool BtDriver_IsVideoPresent( void );
 bool BtDriver_TuneChannel( ulong freq, bool keepOpen );
+ulong BtDriver_QueryChannel( void );
 bool BtDriver_SetInputSource( int inputIdx, bool keepOpen, bool * pIsTuner );
 
 #ifndef WIN32
 void BtDriver_CheckParent( void );
-void BtDriver_CloseDevice( void );
-bool BtDriver_CheckDevice( void );
 #endif
+bool BtDriver_CheckDevice( void );
+void BtDriver_CloseDevice( void );
 
 // interface to GUI
 const char * BtDriver_GetCardName( uint cardIdx );

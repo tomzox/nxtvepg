@@ -15,7 +15,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgdbsav.h,v 1.17 2000/12/25 13:43:10 tom Exp tom $
+ *  $Id: epgdbsav.h,v 1.21 2001/01/08 18:25:52 tom Exp tom $
  */
 
 #ifndef __EPGDBSAV_H
@@ -28,16 +28,20 @@
 #define MAGIC_STR      "NEXTVIEW-DB by TOMZO\n"
 #define MAGIC_STR_LEN  20
 
-#define DUMP_COMPAT    EPG_VERSION_TO_INT(0,4,0)   // latest compatible
+#define DUMP_COMPAT    EPG_VERSION_TO_INT(0,4,1)   // latest compatible
 
 #define ENDIAN_MAGIC   0xAA55
 #define WRONG_ENDIAN   (((ENDIAN_MAGIC>>8)&0xFF)|((ENDIAN_MAGIC&0xFF)<<8))
 
 #ifdef WIN32
+#define PATH_SEPARATOR '\\'
+#define PATH_ROOT      "\\"
 #define DUMP_NAME_FMT  "NXTV%04X.EPG"
 #define DUMP_NAME_PAT  "NXTV*.EPG"
 #define DUMP_NAME_LEN  (8+1+3)
 #else
+#define PATH_SEPARATOR '/'
+#define PATH_ROOT      "/"
 #define DUMP_NAME_FMT  "nxtvdb-%04x"
 #define DUMP_NAME_TMP  ".tmp"
 #define DUMP_NAME_LEN  (6+1+4)
@@ -98,8 +102,33 @@ typedef enum
    EPGDB_RELOAD_WRONG_MAGIC,   // magic not found or file too short
    EPGDB_RELOAD_ACCESS,        // file open failed
    EPGDB_RELOAD_ENDIAN,        // big/little endian conflict
-   EPGDB_RELOAD_VERSION        // incompatible version
+   EPGDB_RELOAD_VERSION,       // incompatible version
+   EPGDB_RELOAD_EXIST          // file does not exist
 } EPGDB_RELOAD_RESULT;
+
+// macro to compare severity of reload errors
+// (to be used if multiple errors occur in a loop across all databases)
+#define RELOAD_ERR_WORSE(X,Y)  ((X)>(Y))
+
+// ---------------------------------------------------------------------------
+// header format of previous versions, included for error detection
+// - else for previous versions' databases an "endian mismatch" would be reported
+//
+#define OBSOLETE_DUMP_MAX_VERSION   0x00000304 // start version
+#define OBSOLETE_DUMP_MIN_VERSION   0x0000010a // max version
+
+typedef struct
+{
+   uchar   magic[MAGIC_STR_LEN];  // file header
+   ulong   dumpVersion;           // version of this software
+
+   ulong   forbidden;             // different meanings between versions
+   uint    cni;                   // CNI of EPG provider
+   uint    pageNo;                // last used ttx page
+   ulong   tunerFreq;             // tuner frequency of provider's channel
+
+   uchar   reserved[46];          // unused space for future use; set to 0
+} OBSOLETE_EPGDBSAV_HEADER;
 
 // ---------------------------------------------------------------------------
 // declaration of service interface functions
@@ -108,6 +137,7 @@ bool EpgDbDump( EPGDB_CONTEXT * pDbContext );
 EPGDB_CONTEXT * EpgDbReload( uint cni, EPGDB_RELOAD_RESULT * pError );
 uint EpgDbReloadScan( int index );
 bool EpgDbDumpCreateDir( const char * pDirPath );
+void EpgDbDumpGetDirAndCniFromArg( char * pArg, const char ** ppDirPath, uint * pCni );
 
 const EPGDBSAV_PEEK * EpgDbPeek( uint cni, EPGDB_RELOAD_RESULT * pResult );
 void EpgDbPeekDestroy( const EPGDBSAV_PEEK *pPeek );

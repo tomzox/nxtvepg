@@ -15,7 +15,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgmain.h,v 1.13 2000/12/17 18:49:02 tom Exp tom $
+ *  $Id: epgmain.h,v 1.14 2001/01/09 19:57:58 tom Exp tom $
  */
 
 #ifndef __EPGMAIN_H
@@ -36,6 +36,7 @@ extern char comm[1000];
 
 int eval_check(Tcl_Interp *i, char *c);
 int eval_global(Tcl_Interp *interp, char *cmd);
+void AddMainIdleEvent( Tcl_IdleProc *IdleProc, ClientData clientData, bool unique );
 #endif  // _TCL
 
 // Access to databases from UI and acq-ctl

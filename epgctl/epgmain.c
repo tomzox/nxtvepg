@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgmain.c,v 1.44 2000/12/25 13:42:13 tom Exp tom $
+ *  $Id: epgmain.c,v 1.47 2001/01/09 19:53:04 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -49,8 +49,8 @@
 #include <sys/stat.h>
 #include <time.h>
 
-#include "tcl.h"
-#include "tk.h"
+#include <tcl.h>
+#include <tk.h>
 
 #include "epgctl/mytypes.h"
 #include "epgctl/epgversion.h"
@@ -64,7 +64,9 @@
 #include "epgdb/epgdbacq.h"
 #include "epgdb/epgdbsav.h"
 #include "epgctl/epgacqctl.h"
+#include "epgui/uictrl.h"
 #include "epgctl/epgctxctl.h"
+#include "epgui/uictrl.h"
 #include "epgui/statswin.h"
 #include "epgui/menucmd.h"
 #include "epgui/pilistbox.h"
@@ -116,8 +118,17 @@ sint lto = 0;
 Tcl_AsyncHandler exitHandler = NULL;
 Tcl_TimerToken clockHandler = NULL;
 Tcl_TimerToken expirationHandler = NULL;
-bool clockSecEvent, clockMinEvent;
 int should_exit;
+
+// queue for events called from the main loop when Tcl is idle
+typedef struct MAIN_IDLE_EVENT_STRUCT
+{
+   struct MAIN_IDLE_EVENT_STRUCT *pNext;
+   Tcl_IdleProc                  *IdleProc;
+   ClientData                    clientData;
+} MAIN_IDLE_EVENT;
+
+MAIN_IDLE_EVENT * pMainIdleEventQueue = NULL;
 
 EPGDB_CONTEXT * pUiDbContext;
 EPGDB_CONTEXT * pAcqDbContext;
@@ -174,13 +185,103 @@ int eval_global(Tcl_Interp *interp, char *cmd)
 }
 
 // ---------------------------------------------------------------------------
-// Enable event handling in main loop
+// Append a main idle event to the FIFO queue
+// - the event handle will be called from the main loop if no other events are available
+// - cannot call the events via the normal Tcl/Tk event handler
+//   because those eventually get invoked from deep down the call stack, too
 //
-static void IdleEvent_SetFlag( ClientData clientData )
+void AddMainIdleEvent( Tcl_IdleProc *IdleProc, ClientData clientData, bool unique )
 {
-   bool *pBool = (bool *) clientData;
+   MAIN_IDLE_EVENT *pNew, *pWalk, *pLast;
+   bool found;
 
-   *pBool = TRUE;
+   pWalk = pMainIdleEventQueue;
+   pLast = NULL;
+   found = FALSE;
+   while (pWalk != NULL)
+   {
+      if (pWalk->IdleProc == IdleProc)
+      {
+         found = TRUE;
+      }
+      pLast = pWalk;
+      pWalk = pWalk->pNext;
+   }
+
+   if ((unique == FALSE) || (found == FALSE))
+   {
+      pNew = xmalloc(sizeof(MAIN_IDLE_EVENT));
+      pNew->IdleProc = IdleProc;
+      pNew->clientData = clientData;
+      pNew->pNext = NULL;
+
+      if (pLast != NULL)
+         pLast->pNext = pNew;
+      else
+         pMainIdleEventQueue = pNew;
+   }
+}
+
+// ---------------------------------------------------------------------------
+// Schedeule the first main idle event from the FIFO queue
+//
+static void ProcessMainIdleEvent( void )
+{
+   MAIN_IDLE_EVENT * pEvent;
+
+   if (pMainIdleEventQueue != NULL)
+   {
+      pEvent = pMainIdleEventQueue;
+      pMainIdleEventQueue = pEvent->pNext;
+
+      pEvent->IdleProc(pEvent->clientData);
+      xfree(pEvent);
+   }
+}
+
+// ---------------------------------------------------------------------------
+// Discard all events in the main idle queue
+// - only required if memory-leak detection is enabled
+//
+#if CHK_MALLOC == ON
+static void DiscardAllMainIdleEvents( void )
+{
+   MAIN_IDLE_EVENT *pWalk, *pNext;
+
+   pWalk = pMainIdleEventQueue;
+   while (pWalk != NULL)
+   {
+      pNext = pWalk->pNext;
+      if ((pWalk->IdleProc == UiControl_ReloadError) && (pWalk->clientData != NULL))
+      {  // special case: this event gets an allocated message
+         xfree(pWalk->clientData);
+      }
+      xfree(pWalk);
+      pWalk = pNext;
+   }
+   pMainIdleEventQueue = NULL;
+}
+#endif
+
+// ---------------------------------------------------------------------------
+// Regular event, called every second
+//
+static void ClockSecEvent( ClientData clientData )
+{
+   // process teletext packets in the ring buffer
+   EpgAcqCtl_ProcessPackets();
+}
+
+// ---------------------------------------------------------------------------
+// Regular event, called every minute
+//
+static void ClockMinEvent( ClientData clientData )
+{
+   // remove expired PI from all databases
+   EpgContextCtl_SetDateTime();
+
+   // check upon acquisition progress
+   EpgAcqCtl_Idle();
 }
 
 // ---------------------------------------------------------------------------
@@ -189,7 +290,7 @@ static void IdleEvent_SetFlag( ClientData clientData )
 static void EventHandler_TimerDbSetDateTime( ClientData clientData )
 {
    // not executed until all current events are processed
-   Tcl_DoWhenIdle(IdleEvent_SetFlag, (ClientData) &clockMinEvent);
+   AddMainIdleEvent(ClockMinEvent, NULL, TRUE);
 
    expirationHandler = Tcl_CreateTimerHandler(1000 * (60 - time(NULL) % 60), EventHandler_TimerDbSetDateTime, NULL);
 }
@@ -209,7 +310,7 @@ static void EventHandler_UpdateClock( ClientData clientData )
       eval_check(interp, comm);
 
       // next time when idle, set flag to process second related events in main loop
-      Tcl_DoWhenIdle(IdleEvent_SetFlag, (ClientData) &clockSecEvent);
+      AddMainIdleEvent(ClockSecEvent, NULL, TRUE);
 
       clockHandler = Tcl_CreateTimerHandler(1000, EventHandler_UpdateClock, NULL);
    }
@@ -406,6 +507,37 @@ static void SetArgv( int * argcPtr, char *** argvPtr )
     *argcPtr = argc;
     *argvPtr = argv;
 }
+
+// ---------------------------------------------------------------------------
+// Determine the working directory from executable file path and chdir there
+// - used when a db is given on the command line
+// - required because when the program is started by dropping a db onto the
+//   executable the working dir is set to the desktop, which is certainly
+//   not the right place to create the ini file
+//
+static void SetWorkingDirectoryFromExe( const char *argv0 )
+{
+   char *pDirPath;
+   int len;
+
+   // search backwards from the end for the begin of the file name
+   len = strlen(argv0);
+   while (--len >= 0)
+   {
+      if (argv0[len] == PATH_SEPARATOR)
+      {
+         pDirPath = strdup(argv0);
+         pDirPath[len] = 0;
+         // change to the directory
+         if (chdir(pDirPath) != 0)
+         {
+            debug2("Cannot change working dir to %s: %s", pDirPath, strerror(errno));
+         }
+         free(pDirPath);
+         break;
+      }
+   }
+}
 #endif
 
 // ---------------------------------------------------------------------------
@@ -548,8 +680,19 @@ static void ParseArgv( int argc, char * argv[] )
          else
             Usage(argv[0], argv[argIdx], "unknown option");
       }
+      else if (argIdx + 1 == argc)
+      {  // database file argument -> determine dbdir and provider from path
+         EpgDbDumpGetDirAndCniFromArg(argv[argIdx], &dbdir, &startUiCni);
+         if (startUiCni == 0)
+            pDemoDatabase = argv[argIdx];
+         //printf("dbdir=%s CNI=%04X\n", dbdir, startUiCni);
+         #ifdef WIN32
+         SetWorkingDirectoryFromExe(argv[0]);
+         #endif
+         argIdx += 1;
+      }
       else
-         Usage(argv[0], argv[argIdx], "Unexpected argument");
+         Usage(argv[0], argv[argIdx], "Too many arguments");
    }
 }
 
@@ -691,13 +834,10 @@ int main( int argc, char *argv[] )
 
    if (pDemoDatabase != NULL)
    {  // demo mode -> open the db given by -demo cmd line arg
-      pUiDbContext = EpgContextCtl_Open(0x00f1);  //dummy CNI
+      pUiDbContext = EpgContextCtl_Open(0x00f1, CTX_RELOAD_ERR_DEMO);  //dummy CNI
       if (EpgDbContextGetCni(pUiDbContext) == 0)
       {
-         sprintf(comm, "tk_messageBox -type ok -icon error "
-                       "-message {Failed to open the demo database - abort}\n");
-         eval_check(interp, comm);
-         exit(0);
+         pDemoDatabase = NULL;
       }
       disableAcq = TRUE;
    }
@@ -728,39 +868,26 @@ int main( int argc, char *argv[] )
    if (disableAcq == FALSE)
    {
       EpgAcqCtl_Start();
-      PiListBox_UpdateState();
    }
+   UiControl_AiStateChange(NULL);
 
    if (Tk_GetNumMainWindows() > 0)
    {
       // remove expired items from database and listbox every minute
       expirationHandler = Tcl_CreateTimerHandler(1000 * (60 - time(NULL) % 60), EventHandler_TimerDbSetDateTime, NULL);
 
-      clockSecEvent = clockMinEvent = FALSE;
-
       while (Tk_GetNumMainWindows() > 0)
       {
-         Tcl_DoOneEvent(0);
-
-         // Do not call the following events from inside the Tcl/Tk event handlers
-         // because those eventually get invoked from deep down the call stack, too
-         if (clockSecEvent)
+         if (pMainIdleEventQueue == NULL)
          {
-            // process teletext packets in the ring buffer
-            EpgAcqCtl_ProcessPackets();
-
-            clockSecEvent = FALSE;
+            Tcl_DoOneEvent(0);
          }
-
-         if (clockMinEvent)
+         else
          {
-            // remove expired PI from all databases
-            EpgContextCtl_SetDateTime();
-
-            // check upon acquisition progress
-            EpgAcqCtl_Idle();
-
-            clockMinEvent = FALSE;
+            if (Tcl_DoOneEvent(TCL_DONT_WAIT) == 0)
+            {  // no events pending -> schedule my idle events
+               ProcessMainIdleEvent();
+            }
          }
 
          if (should_exit)
@@ -792,6 +919,7 @@ int main( int argc, char *argv[] )
    PiFilter_Destroy();
 
    #if CHK_MALLOC == ON
+   DiscardAllMainIdleEvents();
    #ifdef WIN32
    xfree(argv);
    #endif

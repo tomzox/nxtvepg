@@ -39,6 +39,7 @@
 #include "epgdb/epgdbsav.h"
 #include "epgdb/epgdbmgmt.h"
 #include "epgdb/epgdbmerge.h"
+#include "epgui/uictrl.h"
 #include "epgctl/epgmain.h"
 #include "epgctl/epgctxctl.h"
 
@@ -85,11 +86,21 @@ static EPGDB_CONTEXT * EpgContextCtl_GetAny( void )
 
 // ---------------------------------------------------------------------------
 // Open a database for a specific (or the last used) provider
+// - always returns a context; if there is no db for that CNI or if the
+//   reload fails, the context is empty; caller should check if ctx CNI==0
+// - always returns error code; maybe set even if load succeeded, in case
+//   caller used CNI=0 and one of the dbs found had an error
 //
-EPGDB_CONTEXT * EpgContextCtl_Open( uint cni )
+EPGDB_CONTEXT * EpgContextCtl_Open( uint cni, CONTEXT_RELOAD_ERR_HAND errHand )
 {
    EPGDB_CONTEXT * pContext;
+   EPGDB_RELOAD_RESULT dberr, anErr;
+   uint aCni, errCni, index;
+
    assert((pContextList == 0) || (pContextList->pNext != pContextList));
+
+   dberr = EPGDB_RELOAD_OK;
+   errCni = 0;
 
    if (cni == 0)
    {  // load any provider -> use an already opened one or search for the best
@@ -98,8 +109,30 @@ EPGDB_CONTEXT * EpgContextCtl_Open( uint cni )
       if (pContext == NULL)
       {  // no db open yet -> search and reload the "best"
          cni = EpgDbReloadScan(-1);
-         if ( (cni == 0) ||
-              ((pContext = EpgDbReload(cni, NULL)) == NULL) )
+         if (cni != 0)
+         {
+            pContext = EpgDbReload(cni, &dberr);
+            if (pContext == NULL)
+            {  // reload failed -> try all dbs in the dbdir one after the other
+               errCni = cni;
+               index = 0;
+               while ( ((aCni = EpgDbReloadScan(index)) != 0) && (pContext == NULL) )
+               {
+                  if (aCni != cni)
+                  {
+                     pContext = EpgDbReload(aCni, &anErr);
+                     if (RELOAD_ERR_WORSE(anErr, dberr))
+                     {
+                        dberr = anErr;
+                        errCni = aCni;
+                     }
+                  }
+                  index += 1;
+               }
+            }
+         }
+
+         if (pContext == NULL)
          {  // no db found -> create an empty one
             pContext = EpgDbCreate();
          }
@@ -122,9 +155,12 @@ EPGDB_CONTEXT * EpgContextCtl_Open( uint cni )
       pContext = EpgContextCtl_SearchCni(cni);
       if (pContext == NULL)
       {
-         pContext = EpgDbReload(cni, NULL);
+         pContext = EpgDbReload(cni, &dberr);
          if (pContext == NULL)
+         {
+            errCni = cni;
             pContext = EpgDbCreate();
+         }
          pContext->refCount = 1;
          pContext->pNext = pContextList;
          pContextList = pContext;
@@ -133,6 +169,12 @@ EPGDB_CONTEXT * EpgContextCtl_Open( uint cni )
       {
          pContext->refCount += 1;
       }
+   }
+
+   // send a messaage to the user interface
+   if (dberr != EPGDB_RELOAD_OK)
+   {
+      UiControlMsg_ReloadError(errCni, dberr, errHand);
    }
 
    // always returns a valid context (at minimum an empty one for new providers)
