@@ -23,7 +23,7 @@
  *
  *  DScaler #Id: Bt848_Defines.h,v 1.19 2002/09/12 21:56:26 ittarnavsky Exp #
  *
- *  $Id: bt8x8_reg.h,v 1.14 2003/02/22 19:11:59 tom Exp tom $
+ *  $Id: bt8x8_reg.h,v 1.15 2003/06/24 20:13:21 tom Exp tom $
  */
 
 #ifndef __BT8X8_REG_H
@@ -139,7 +139,7 @@
 #define BT848_VSCALE_YCOMB     (1<<7)
 #define BT848_VSCALE_COMB      (1<<6)
 #define BT848_VSCALE_INT       (1<<5)
-#define BT848_VSCALE_HI        15
+#define BT848_VSCALE_HI        31
 
 #define BT848_E_VSCALE_LO      0x050
 #define BT848_O_VSCALE_LO      0x0D0

@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pifilter.c,v 1.82 2003/04/21 10:31:20 tom Exp tom $
+ *  $Id: pifilter.c,v 1.83 2003/06/28 11:22:44 tom Exp tom $
  */
 
 #define __PIFILTER_C
@@ -362,7 +362,7 @@ static int SelectSubStr( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *
    int scope_title, scope_descr, match_case, match_full;
    const char * subStr;
    char *native;
-   uint  idx;
+   sint  idx;
    bool  enable;
    Tcl_DString ds;
    int strCount;
@@ -824,7 +824,7 @@ static int PiFilter_ContextCacheCtl( ClientData ttp, Tcl_Interp *interp, int obj
       {
          if (Tcl_GetIntFromObj(interp, objv[2], &index) == TCL_OK)
          {
-            if (index < filterCacheCount)
+            if ((uint)index < filterCacheCount)
             {
                if (pFilterCache[index] == NULL)
                   pFilterCache[index] = EpgDbFilterCreateContext();

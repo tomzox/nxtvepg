@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumphtml.c,v 1.1 2003/02/26 21:59:29 tom Exp tom $
+ *  $Id: dumphtml.c,v 1.2 2003/06/28 10:55:08 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -479,7 +479,7 @@ static void EpgDumpHtml_Title( FILE * fpDst, const PI_BLOCK * pPiBlock,
    int   imgObjc;
    uint  colIdx;
    uint  len;
-   uint  fmtIdx;
+   sint  fmtIdx;
 
    if ((fpDst != NULL) && (pPiBlock != NULL) && (pColTab != NULL))
    {
@@ -579,7 +579,7 @@ static int EpgDumpHtml_DumpDatabase( ClientData ttp, Tcl_Interp *interp, int obj
    const PIBOX_COL_CFG * pColTab;
    Tcl_Obj ** pColObjv;
    FILE *fpSrc, *fpDst;
-   uint piIdx;
+   sint piIdx;
    int  doTitles, doDesc, optAppend, optSelOnly, optMaxCount, optHyperlinks;
    int  colCount;
    int  result;

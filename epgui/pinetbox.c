@@ -19,7 +19,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pinetbox.c,v 1.36 2003/04/06 19:42:24 tom Exp tom $
+ *  $Id: pinetbox.c,v 1.37 2003/06/28 16:20:40 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -95,7 +95,7 @@ typedef struct
    sint         height;
    uint         max_elems;
 
-   sint         cur_col;
+   uint         cur_col;
    sint         cur_req_row;
    time_t       cur_req_time;
    uint         cur_idx;
@@ -692,7 +692,7 @@ static void PiNetBox_WithdrawCursor( void )
 {
    NETBOX_COL   * pCol;
    NETBOX_ELEM  * pElem;
-   uint  row;
+   sint  row;
 
    if (netbox.cur_col < netbox.col_count)
    {
@@ -2571,7 +2571,7 @@ static void PiNetBox_RefreshDownwards( const PI_BLOCK * pPiBlock, uint colIdx )
    NETBOX_ELEM    * pLastElem;
    NETBOX_ELEM    * pTmpElem;
    REFRESH_VECT   * pWalk;
-   uint  elemIdx;
+   sint  elemIdx;
    uint  tmpColIdx;
    sint  last_row;
    sint  maxDelta;
@@ -3597,7 +3597,7 @@ static int PiNetBox_ScrollPageDown( void )
    NETBOX_COL   * pCol;
    NETBOX_ELEM  * pElem;
    uint  colIdx;
-   uint  delta;
+   sint  delta;
 
    if (netbox.cur_col < netbox.col_count)
    {
@@ -3643,7 +3643,7 @@ static int PiNetBox_ScrollPageUp( void )
    NETBOX_COL   * pCol;
    NETBOX_ELEM  * pElem;
    uint  colIdx;
-   uint  delta;
+   sint  delta;
 
    if (netbox.cur_col < netbox.col_count)
    {
@@ -3963,7 +3963,7 @@ static int PiNetBox_CursorRight( ClientData ttp, Tcl_Interp *interp, int objc, T
 //     start time is searched for in the new network column selection
 // - if the last column is already visible, only the cursor is moved
 //
-static int PiNetBox_ScrollRight( sint delta )
+static int PiNetBox_ScrollRight( uint delta )
 {
    const PI_BLOCK * pPiBlock;
    uint  colIdx;
@@ -3976,8 +3976,6 @@ static int PiNetBox_ScrollRight( sint delta )
 
       if (delta > netbox.net_count - (netbox.net_off + netbox.col_count))
          delta = netbox.net_count - (netbox.net_off + netbox.col_count);
-      else if (delta < 0)
-         delta = 0;
 
       pPiBlock = PiNetBox_PickCurPi(delta, netbox.col_count - delta, &colIdx, &textRow, &elemIdx);
 
@@ -4026,7 +4024,7 @@ static int PiNetBox_ScrollRight( sint delta )
 // Scroll the listbox view one column to the left, i.e. move content right
 // - for comments see the above function
 //
-static int PiNetBox_ScrollLeft( sint delta )
+static int PiNetBox_ScrollLeft( uint delta )
 {
    const PI_BLOCK * pPiBlock;
    uint  colIdx;
@@ -4039,8 +4037,6 @@ static int PiNetBox_ScrollLeft( sint delta )
 
       if (delta > netbox.net_off)
          delta = netbox.net_off;
-      else if (delta < 0)
-         delta = 0;
 
       pPiBlock = PiNetBox_PickCurPi(0, netbox.col_count - delta, &colIdx, &textRow, &elemIdx);
 
@@ -4192,7 +4188,7 @@ static int PiNetBox_SelectItem( ClientData ttp, Tcl_Interp *interp, int objc, Tc
       if (newCol + netbox.net_off >= netbox.net_count)
          newCol = netbox.net_count - netbox.net_off - 1;
 
-      if ((newCol >= 0) && (newCol < netbox.col_count))
+      if ((newCol >= 0) && ((uint)newCol < netbox.col_count))
       {
          pCol = netbox.cols + newCol;
 
@@ -4204,7 +4200,7 @@ static int PiNetBox_SelectItem( ClientData ttp, Tcl_Interp *interp, int objc, Tc
          elemIdx = PiNetBox_PickCursorRow(newCol, ABOVE_PARTIAL);
 
          // check if the cursor position has changed row or to a different element
-         if ((newCol != netbox.cur_col) || (elemIdx != netbox.cur_idx))
+         if (((uint)newCol != netbox.cur_col) || (elemIdx != netbox.cur_idx))
          {
             // set cursor to new element
             PiNetBox_WithdrawCursor();
@@ -4724,7 +4720,7 @@ static void PiNetBox_UpdateNetwopMap( void )
    uchar netJoinCol[MAX_NETWOP_COUNT];
    int  netwop;
    uint sel_idx;
-   uint idx;
+   sint idx;
    int  count;
    bool result = FALSE;
 
@@ -4835,7 +4831,7 @@ static void PiNetBox_UpdateNetwopMap( void )
       }
 
       // mark all content as invalid
-      for (idx=0; idx < netbox.col_count; idx++)
+      for (idx=0; (uint)idx < netbox.col_count; idx++)
       {
          netbox.cols[idx].entries = 0;
       }
@@ -4886,7 +4882,7 @@ static int PiNetBox_Resize( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Ob
       col_count = MAX_NETWOP_COUNT;
 
    if ( (netbox.cols == NULL) ||
-        (height != netbox.height) || (col_count != netbox.col_count) )
+        (height != netbox.height) || ((uint)col_count != netbox.col_count) )
    {
       old_list  = netbox.cols;
       max_elems = ((height / NETBOX_ELEM_MIN_HEIGHT) * 3) + 3;

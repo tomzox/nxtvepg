@@ -22,9 +22,13 @@
 #    Perl is not required to install the package.  Dependencies are
 #    generated into a separate file.
 #
+#    To compile the package simply type "make", to compile and install
+#    type "make install" (without the quotes).  If compilation fails
+#    you may have to adapt some paths below.
+#
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile.solaris,v 1.1 2003/03/22 18:38:56 tom Exp tom $
+#  $Id: Makefile.solaris,v 1.3 2003/07/01 20:28:45 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -37,9 +41,14 @@ prefix  = /usr/local
 exec_prefix = ${prefix}
 bindir  = $(ROOT)${exec_prefix}/bin
 mandir  = $(ROOT)${prefix}/man/man1
+resdir  = $(ROOT)/usr/X11R6/lib/X11
 
 # if you have perl set the path here, else just leave it alone
 PERL    = /usr/local/bin/perl
+
+# select Tcl/Tk version (8.3 recommended; text widget in 8.4. is slower)
+#TCL_VER := $(shell echo 'puts [package require Tcl]' | tclsh)
+TCL_VER = 8.3
 
 LDLIBS  = -R/usr/local/lib -ltk8.3 -ltcl8.3 -lX11 -lXmu -lm -ldl
 LDLIBS += -lsocket -lnsl -lresolv
@@ -53,8 +62,10 @@ DEFS   += -DX11_APP_DEFAULTS=\"$(resdir)/app-defaults/Nxtvepg\"
 #INCS   += -I/usr/local/tcl/tcl8.0/generic -I/usr/local/tcl/tk8.0/generic
 
 # path to Tcl/Tk script library (Tk is usually in X11/lib/tk#.#)
-DEFS   += -DTK_LIBRARY_PATH=\"/usr/local/lib/tk8.3\"
-DEFS   += -DTCL_LIBRARY_PATH=\"/usr/local/lib/tcl8.3\"
+TK_LIBRARY_PATH  = /usr/local/lib/tk$(TCL_VER)
+TCL_LIBRARY_PATH = /usr/local/lib/tcl$(TCL_VER)
+DEFS   += -DTK_LIBRARY_PATH=\"$(TK_LIBRARY_PATH)\"
+DEFS   += -DTCL_LIBRARY_PATH=\"$(TCL_LIBRARY_PATH)\"
 
 # enable use of multi-threading
 #DEFS   += -DUSE_THREADS
@@ -63,10 +74,20 @@ DEFS   += -DTCL_LIBRARY_PATH=\"/usr/local/lib/tcl8.3\"
 # enable use of daemon and client/server connection
 DEFS   += -DUSE_DAEMON
 
-# path to the directory where the provider database files are kept
-DB_DIR  = /usr/tmp/nxtvdb
-DEFS   += -DEPG_DB_DIR=\"$(DB_DIR)\"
-INST_DB_DIR = $(ROOT)$(DB_DIR)
+# enable use of zvbi slicer (does not require the zvbi library)
+#DEFS   += -DZVBI_DECODER
+
+# The database directory can be either in the user's $HOME (or relative to any
+# other env variable) or at a global place like /var/spool (world-writable)
+# -> uncomment 2 lines below to put the databases in the user's home
+#USER_DBDIR  = .nxtvdb
+#DEFS       += -DEPG_DB_ENV=\"HOME\" -DEPG_DB_DIR=\"$(USER_DBDIR)\"
+ifndef USER_DBDIR
+SYS_DBDIR    = /usr/tmp/nxtvdb
+DEFS        += -DEPG_DB_DIR=\"$(SYS_DBDIR)\"
+INST_DB_DIR  = $(ROOT)$(SYS_DBDIR)
+INST_DB_PERM = 0777
+endif
 
 WARN    = -Wall -Wpointer-arith -Wnested-externs \
           -Werror -Wmissing-prototypes
@@ -76,8 +97,9 @@ CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -g -O2
 
 # ----- don't change anything below ------------------------------------------
 
-CSRC    = epgvbi/btdrv4dummy epgvbi/vbidecode epgvbi/ttxdecode epgvbi/hamming \
-          epgvbi/tvchan epgvbi/cni_tables epgvbi/syserrmsg \
+CSRC    = epgvbi/btdrv4dummy epgvbi/vbidecode epgvbi/zvbidecoder \
+          epgvbi/ttxdecode epgvbi/hamming epgvbi/cni_tables epgvbi/tvchan \
+          epgvbi/syserrmsg \
           epgctl/debug epgctl/epgacqctl epgctl/epgscan epgctl/epgctxctl \
           epgctl/epgctxmerge epgctl/epgacqclnt epgctl/epgacqsrv \
           epgdb/epgstream epgdb/epgdbmerge epgdb/epgdbsav \
@@ -86,63 +108,82 @@ CSRC    = epgvbi/btdrv4dummy epgvbi/vbidecode epgvbi/ttxdecode epgvbi/hamming \
           epgui/pibox epgui/pilistbox epgui/pinetbox \
           epgui/uictrl epgui/pioutput epgui/pidescr epgui/pifilter \
           epgui/statswin epgui/timescale epgui/pdc_themes epgui/menucmd \
-          epgui/epgmain epgui/loadtcl epgui/xawtv epgui/dumptext epgui/dumpraw \
-          epgui/dumphtml epgui/dumpxml epgui/shellcmd
+          epgui/epgmain epgui/loadtcl epgui/xawtv epgui/wintvcfg \
+          epgui/dumptext epgui/dumpraw epgui/dumphtml epgui/dumpxml \
+          epgui/shellcmd
 TCLSRC  = epgtcl/mainwin epgtcl/helptexts epgtcl/dlg_hwcfg epgtcl/dlg_xawtvcf \
           epgtcl/dlg_ctxmencf epgtcl/dlg_acqmode epgtcl/dlg_netsel \
           epgtcl/dlg_dump epgtcl/dlg_netname epgtcl/dlg_udefcols \
           epgtcl/shortcuts epgtcl/dlg_shortcuts epgtcl/draw_stats \
           epgtcl/dlg_filter epgtcl/dlg_prov epgtcl/rcfile
 
-SRCS    = $(addsuffix .c, $(CSRC)) $(addsuffix .c, $(TCLSRC))
 OBJS    = $(addsuffix .o, $(CSRC)) $(addsuffix .o, $(TCLSRC))
 
 all: nxtvepg nxtvepg.1
+.PHONY: all
 
 nxtvepg: $(OBJS)
 	$(CC) $(CFLAGS) $(INCS) $(LDFLAGS) -o nxtvepg $(OBJS) $(LDLIBS)
 
-install: nxtvepg nxtvepg.1
-	test -d $(bindir) || mkdirhier $(bindir)
-	test -d $(mandir) || mkdirhier $(mandir)
-	test -d $(INST_DB_DIR) || mkdirhier $(INST_DB_DIR)
-	chmod 0777 $(INST_DB_DIR)
+install: nxtvepg nxtvepg.1 Nxtvepg.ad
+	test -d $(bindir) || install -d $(bindir)
+	test -d $(mandir) || install -d $(mandir)
+	test -d $(resdir)/app-defaults || install -d $(resdir)/app-defaults
+ifndef USER_DBDIR
+	test -d $(INST_DB_DIR) || install -d $(INST_DB_DIR)
+	chmod $(INST_DB_PERM) $(INST_DB_DIR)
+endif
 	install -c -m 0755 nxtvepg     $(bindir)
 	install -c -m 0644 nxtvepg.1   $(mandir)
+	install -c -m 0644 Nxtvepg.ad  $(resdir)/app-defaults/Nxtvepg
 	rm -f $(mandir)/nxtvepg.1x
+
+.SUFFIXES: .c .o .tcl
 
 %.c: %.tcl tcl2c
 	./tcl2c $*.tcl
 
+%.h: %.tcl tcl2c.exe
+	./tcl2c.exe $*.tcl
+
 tcl2c: tcl2c.c
 	$(CC) -O -o tcl2c tcl2c.c
+
+$(TCL_LIBRARY_PATH)/tclIndex $(TK_LIBRARY_PATH)/tclIndex :
+	@echo "$(@D) is not a valid Tcl/Tk library directory"
+	@echo "Check the definitions of TCL_LIBRARY_PATH and TK_LIBRARY_PATH"
+	@false
+
+epgui/loadtcl.c :: $(TCL_LIBRARY_PATH)/tclIndex $(TK_LIBRARY_PATH)/tclIndex
 
 epgui/loadtcl.c :: $(addsuffix .c, $(TCLSRC))
 
 epgui/loadtcl.c :: $(addsuffix .h, $(TCLSRC))
 
-nxtvepg.1 man.html epgui/help.tcl: nxtvepg.pod pod2help.pl
+nxtvepg.1 manual.html epgtcl/helptexts.tcl: nxtvepg.pod pod2help.pl
 	@if test -x $(PERL); then \
 	  EPG_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*EPG_VERSION_STR' epgctl/epgversion.h | head -1 | cut -d\" -f2`; \
-	  echo "$(PERL) pod2help.pl nxtvepg.pod > epgui/help.tcl"; \
-	  $(PERL) pod2help.pl nxtvepg.pod > epgui/help.tcl; \
+	  echo "$(PERL) pod2help.pl nxtvepg.pod > epgtcl/helptexts.tcl"; \
+	  $(PERL) pod2help.pl nxtvepg.pod > epgtcl/helptexts.tcl; \
 	  echo "pod2man nxtvepg.pod > nxtvepg.1"; \
 	  pod2man -date " " -center "Nextview EPG Decoder" -section "1" \
-	          -release "nxtvepg "$$EPG_VERSION_STR" (C) 1999-2001 Tom Zoerner" \
+	          -release "nxtvepg "$$EPG_VERSION_STR" (C) 1999-2003 Tom Zoerner" \
 	     nxtvepg.pod > nxtvepg.1; \
-	  echo "pod2html nxtvepg.pod > man.html"; \
-	  pod2html nxtvepg.pod > man.html; \
+	  echo "pod2html nxtvepg.pod > manual.html"; \
+	  pod2html nxtvepg.pod | $(PERL) -p -e 's/HREF="#[^:]+: +/HREF="#/g;' > manual.html; \
 	  rm -f pod2html-{dircache,itemcache}; \
-	elif test -f epgui/help.tcl; then \
-	  touch epgui/help.tcl; \
+	elif test -f epgtcl/helptexts.tcl; then \
+	  touch epgtcl/helptexts.tcl; \
 	else \
-	  echo "ERROR: cannot generate epgui/help.tcl or nxtvepg.1 without Perl"; \
+	  echo "ERROR: cannot generate epgtcl/helptexts.tcl or nxtvepg.1 without Perl"; \
 	  false; \
 	fi
 
 clean:
-	-rm -f *.o epg*/*.o core a.out tcl2c nxtvepg
-	-rm -f epgui/epgui.c epgui/help.c
+	-rm -f *.o epg*/*.o dsdrv/*.[oa] tvsim/*.o
+	-rm -f core a.out *.exe tcl2c nxtvepg
+	-rm -f epgtcl/*.[ch] epgtcl/tcl_libs.tcl epgtcl/tk_libs.tcl
+	-rm -f tvsim/tvsim_gui.[ch] tvsim/vbirec_gui.[ch]
 
 depend:
 	-:>Makefile.dep

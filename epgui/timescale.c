@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: timescale.c,v 1.9 2002/09/16 11:57:25 tom Exp tom $
+ *  $Id: timescale.c,v 1.10 2003/06/28 11:39:13 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -59,9 +59,9 @@ static struct
    uchar  lastStream;        // index of last received stream
    int    highlighted;       // index of last network marked by acq
    time_t startTime;         // for DisplayPi: start time of time scales, equal start time of oldest PI in db
-   uint   widthPixels;       // width of the PI scales in pixels
-   uint   widthSecs;         // width in seconds (i.e. time span covered by the entire scale)
-   uint   secsPerPixel;      // scale factor for zooming
+   sint   widthPixels;       // width of the PI scales in pixels
+   sint   widthSecs;         // width in seconds (i.e. time span covered by the entire scale)
+   sint   secsPerPixel;      // scale factor for zooming
 } tscaleState[2];
 
 static Tcl_TimerToken scaleUpdateHandler = NULL;  // for "now" arrow in date scales
@@ -250,8 +250,8 @@ static void TimeScale_UpdateDateScale( ClientData dummy )
                toff = mktime(pTm) - tscaleState[target].startTime;
 
                if (toff < tscaleState[target].widthSecs)
-                  sprintf(comm + strlen(comm), "%u %d.%d. ",
-                          (uint)(toff / tscaleState[target].secsPerPixel),
+                  sprintf(comm + strlen(comm), "%d %d.%d. ",
+                          (sint)(toff / tscaleState[target].secsPerPixel),
                           pTm->tm_mday, pTm->tm_mon + 1);
                else
                   break;
@@ -407,8 +407,8 @@ static void TimeScale_DisplayPi( int target, STREAM_COLOR streamCol, uchar netwo
                                  time_t start, time_t stop, uchar hasShortInfo, uchar hasLongInfo, bool isLast )
 {
    time_t now;
-   uint corrOff;
-   uint startOff, stopOff;
+   sint corrOff;
+   sint startOff, stopOff;
 
    if ((target < 2) && (streamCol < STREAM_COLOR_COUNT))
    {
@@ -487,7 +487,7 @@ static void TimeScale_AddPi( int target, EPGDB_PI_TSC * ptsc )
    STREAM_COLOR col;
    time_t startTime, stopTime, baseTime;
    uint   blockIdx;
-   uint   idx;
+   sint   idx;
 
    tscaleState[target].filled = EpgTscQueue_IsIncremental(ptsc);
 
@@ -534,7 +534,10 @@ static void TimeScale_AddPi( int target, EPGDB_PI_TSC * ptsc )
             // The first 5 blocks (according to the numbers in the AI per netwop) are
             // additionally inserted to the 5 separate buttons in front of the scales
             // to reflect NOW coverage.
-            for (blockIdx = pPt->blockIdx; (blockIdx < NOW_NEXT_BLOCK_COUNT) && (blockIdx < pPt->blockIdx + pPt->concatCount); blockIdx++)
+            for ( blockIdx = pPt->blockIdx;
+                     (blockIdx < NOW_NEXT_BLOCK_COUNT) &&
+                     (blockIdx < (uint)pPt->blockIdx + pPt->concatCount);
+                        blockIdx++ )
             {
                sprintf(comm, "TimeScale_MarkNow %s.top.n%d %d %s\n",
                              tscn[idx], pPt->netwop, blockIdx, streamColors[col]);
@@ -951,7 +954,7 @@ static int TimeScale_Zoom( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj
    const char * const pUsage = "Usage: C_TimeScale_Zoom ui|acq <step>";
    const char * pKey;
    uint target;
-   uint  newFac;
+   sint  newFac;
    int   step;
    int   result = TCL_ERROR;
 

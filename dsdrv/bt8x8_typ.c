@@ -26,9 +26,9 @@
  *
  *      Copyright (c) 2001 John Adcock.  All rights reserved.
  *
- *  DScaler #Id: BT848Card_Types.cpp,v 1.30 2002/10/29 11:05:27 adcockj Exp #
+ *  DScaler #Id: BT848Card_Types.cpp,v 1.34 2003/06/01 15:04:16 adcockj Exp #
  *
- *  $Id: bt8x8_typ.c,v 1.7 2003/03/11 12:32:54 tom Exp tom $
+ *  $Id: bt8x8_typ.c,v 1.9 2003/06/24 20:22:59 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -150,6 +150,8 @@ typedef enum
     TVCARD_SENSORAY311,
     TVCARD_WINDVR,
     TVCARD_AVERTVOLD,
+    TVCARD_KWORLD_MPEGTV,
+    TVCARD_APAC_VIEWCOMP,
     TVCARD_LASTONE,
 } eTVCardId;
 
@@ -413,7 +415,7 @@ static const TCardType m_TVCards[TVCARD_LASTONE] =
                 1,
             },
         },
-        PLL_NONE,
+        PLL_28,
         TUNER_USER_SETUP,
         SOUNDCHIP_NONE,
         NULL,
@@ -803,7 +805,7 @@ static const TCardType m_TVCards[TVCARD_LASTONE] =
                 1,
             },
         },
-        PLL_NONE,
+        PLL_28,
         TUNER_USER_SETUP,
         SOUNDCHIP_NONE,
         NULL,
@@ -1713,7 +1715,7 @@ static const TCardType m_TVCards[TVCARD_LASTONE] =
                 1,
             },
         },
-        PLL_NONE,
+        PLL_28,
         TUNER_USER_SETUP,
         SOUNDCHIP_NONE,
         NULL,
@@ -3593,7 +3595,7 @@ static const TCardType m_TVCards[TVCARD_LASTONE] =
         0,
         { 0, 0, 0, 0, 0, 0}
     },
-  // Card Number 91 - Canopus WinDVR PCI (COMPAQ Presario 3524JP, 5112JP)
+    // Card Number 91 - Canopus WinDVR PCI (COMPAQ Presario 3524JP, 5112JP)
     {
         "Canopus WinDVR PCI (COMPAQ Presario 3524JP, 5112JP)",
      4,
@@ -3664,6 +3666,76 @@ static const TCardType m_TVCards[TVCARD_LASTONE] =
         /* TUNER   RADIO     EXTERNAL  INTERNAL  MUTE      STEREO */
         {0x00600e, 0x006006, 0x00600a, 0x00600a, 0x006002, 0, }
     },
+    // Patch thanks to Kevin Radke 
+    {
+        "KWorld MPEGTV RF Pro",
+        4,
+        {
+            {
+                "Tuner",
+                INPUTTYPE_TUNER,
+                2,
+            },
+            {
+                "Composite",
+                INPUTTYPE_COMPOSITE,
+                3,
+            },
+            {
+                "S-Video",
+                INPUTTYPE_SVIDEO,
+                1,
+            },
+       {
+                "Composite over S-Video",
+                INPUTTYPE_COMPOSITE,
+                1,
+            },
+        },
+        PLL_NONE,
+        TUNER_PHILIPS_NTSC,
+        SOUNDCHIP_NONE,
+        NULL,
+        StandardBT848InputSelect,
+        //CAudioDecoder::AUDIODECODERTYPE_WINDVR,
+        0x140007,
+        { 0, 1, 2, 3, 4, 0 }
+    },
+    // details provided by Nikola Maric
+    {
+        "APAC Viewcomp BT878",
+        4,
+        {
+            {
+                "Tuner",
+                INPUTTYPE_TUNER,
+                2,
+            },
+            {
+                "Composite",
+                INPUTTYPE_COMPOSITE,
+                3,
+            },
+            {
+                "S-Video",
+                INPUTTYPE_SVIDEO,
+                1,
+            },
+            {
+                "Composite over S-Video",
+                INPUTTYPE_COMPOSITE,
+                1,
+            },
+        },
+        PLL_28,
+        TUNER_PHILIPS_NTSC,
+        SOUNDCHIP_NONE,
+        NULL,
+        StandardBT848InputSelect,
+        //CAudioDecoder::AUDIODECODERTYPE_DETECT,
+        0x400f,
+        {0x003ffff8, 0x003ffff0, 0x003ffff0, 0x003ffff0, 0x003ffff0, 0x003ffff0, }
+    },
 };
 
 static const TAutoDectect878 m_AutoDectect878[] =
@@ -3724,6 +3796,7 @@ static const TAutoDectect878 m_AutoDectect878[] =
     { 0x00790e11, TVCARD_WINDVR,        "Canopus WinDVR PCI" },
     { 0xa0fca1a0, TVCARD_ZOLTRIX,       "Face to Face Tvmax" },
     { 0x31323334, TVCARD_GRANDTEC,      "GrandTec XCapture" },
+    { 0x109e306e, TVCARD_KWORLD_MPEGTV, "KWorld MPEGTV RF Pro" },
     { 0, (eTVCardId)-1, NULL }
 };
 

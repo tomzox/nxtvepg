@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgmain.c,v 1.121 2003/04/12 13:36:58 tom Exp tom $
+ *  $Id: epgmain.c,v 1.122 2003/06/28 11:09:31 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -859,7 +859,7 @@ static void DaemonMainLoop( void )
    msecTimer tvNow;
    struct timeval tv;
    fd_set  rd, wr;
-   uint    max;
+   sint    max_fd;
    sint    selSockCnt;
 
    gettimeofday(&tvAcq, NULL);
@@ -891,13 +891,13 @@ static void DaemonMainLoop( void )
 
       FD_ZERO(&rd);
       FD_ZERO(&wr);
-      max = EpgAcqServer_GetFdSet(&rd, &wr);
+      max_fd = EpgAcqServer_GetFdSet(&rd, &wr);
 
       // wait for any event, but max. 250 ms
       tv.tv_sec  = 0;
       tv.tv_usec = 250000L;
 
-      selSockCnt = select(((max > 0) ? (max + 1) : 0), &rd, &wr, NULL, &tv);
+      selSockCnt = select(((max_fd > 0) ? (max_fd + 1) : 0), &rd, &wr, NULL, &tv);
       if (selSockCnt != -1)
       {  // forward new blocks to network clients, handle incoming messages, check for timeouts
          DBGONLY( if (selSockCnt > 0) )
@@ -909,10 +909,10 @@ static void DaemonMainLoop( void )
          if (errno != EINTR)
          {  // select syscall failed
             #ifndef WIN32
-            debug2("Daemon-MainLoop: select with max. fd %d: %s", max, strerror(errno));
+            debug2("Daemon-MainLoop: select with max. fd %d: %s", max_fd, strerror(errno));
             sleep(1);
             #else
-            debug2("Daemon-MainLoop: select with max. fd %d: %d", max, WSAGetLastError());
+            debug2("Daemon-MainLoop: select with max. fd %d: %d", max_fd, WSAGetLastError());
             Sleep(1000);
             #endif
          }

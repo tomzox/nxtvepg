@@ -1,4 +1,4 @@
-## $Id: CHANGES.version,v 1.14 2003/02/09 16:24:14 tom Exp $ ##
+## $Id: CHANGES.version,v 1.15 2003/07/01 19:50:48 tom Exp $ ##
 
 Steps to prepare new distribution:
 
@@ -30,6 +30,7 @@ Makefile AND Makefile.win
 - remove -Werr
 - enable USE_THREADS
 - empty Makefile.dep AND Makefile.depwin
+- disable ZVBI?
 
 adapt epgctl/mytypes.h
 - all debug options from ON to OFF
