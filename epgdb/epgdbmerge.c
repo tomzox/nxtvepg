@@ -22,7 +22,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbmerge.c,v 1.26 2003/01/11 19:40:14 tom Exp tom $
+ *  $Id: epgdbmerge.c,v 1.28 2003/10/05 19:13:36 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -460,12 +460,13 @@ void EpgDbMergeAllPiBlocks( PDBC dbc )
    EPGDB_BLOCK *pBlock;
    EPGDB_BLOCK *pPrevNetwopBlock[MAX_NETWOP_COUNT];
    time_t firstStartTime, firstStopTime, minStartTime;
-   time_t now;
+   time_t expireTime;
    uchar  netwop, minMappedNetwop, firstNetwop;
    uint dbCount, dbIdx;
 
    dbmc = dbc->pMergeContext;
    dbCount = dbmc->dbCount;
+   expireTime = time(NULL) - dbc->expireDelayPi;
    minStartTime = 0;
    minMappedNetwop = 0;
    memset(pPrevNetwopBlock, 0, sizeof(pPrevNetwopBlock));
@@ -473,7 +474,6 @@ void EpgDbMergeAllPiBlocks( PDBC dbc )
    {
       pNextBlock[dbIdx] = dbmc->pDbContext[dbIdx]->pFirstPi;
    }
-   now = time(NULL);
 
    // loop until all PI blocks are processed
    while (1)
@@ -488,7 +488,7 @@ void EpgDbMergeAllPiBlocks( PDBC dbc )
          pBlock = pNextBlock[dbIdx];
          while ( (pBlock != NULL) &&
                  ( (pBlock->blk.pi.start_time < minStartTime) ||
-                   (pBlock->blk.pi.stop_time < now) ) )
+                   (pBlock->blk.pi.stop_time < expireTime) ) )
          {
             pBlock = pBlock->pNextBlock;
          }
@@ -670,12 +670,13 @@ void EpgDbMergeInsertPi( EPGDB_MERGE_CONTEXT * dbmc, EPGDB_BLOCK * pNewBlock )
 {
    EPGDB_BLOCK *pFoundBlocks[MAX_MERGED_DB_COUNT];
    EPGDB_BLOCK *pWalk, *pPrev, *pNext;
-   time_t now = time(NULL);
 
    // find equivalent blocks in all other dbs and check for conflicts with higher-priorized PI
-   if ( (pNewBlock->blk.pi.stop_time >= now) &&
-        EpgDbMergeGetPiEquivs(dbmc, pNewBlock, pFoundBlocks) )
+   if ( EpgDbMergeGetPiEquivs(dbmc, pNewBlock, pFoundBlocks) )
    {
+      if (pUiDbContext->pPiAcqCb != NULL)
+         pUiDbContext->pPiAcqCb(pUiDbContext, EPGDB_PI_PROC_START, NULL, NULL);
+
       // merge the found blocks
       pNewBlock = EpgDbMergePiBlocks(pUiDbContext, pFoundBlocks);
 
@@ -730,7 +731,7 @@ void EpgDbMergeInsertPi( EPGDB_MERGE_CONTEXT * dbmc, EPGDB_BLOCK * pNewBlock )
       assert(EpgDbCheckChains(pUiDbContext));
       // if blocks were removed, re-evaluate scrollbar position
       if (pUiDbContext->pPiAcqCb != NULL)
-         pUiDbContext->pPiAcqCb(pUiDbContext, EPGDB_PI_RECOUNT, NULL, NULL);
+         pUiDbContext->pPiAcqCb(pUiDbContext, EPGDB_PI_PROC_DONE, NULL, NULL);
 
       // append the block's covered time range to the PI timescale queue
       if (dbmc->tscEnable)

@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: menucmd.c,v 1.103 2003/06/28 11:11:58 tom Exp $
+ *  $Id: menucmd.c,v 1.106 2003/10/05 19:25:37 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -50,6 +50,7 @@
 #include "epgctl/epgctxmerge.h"
 #include "epgui/epgmain.h"
 #include "epgui/pibox.h"
+#include "epgui/piremind.h"
 #include "epgui/pifilter.h"
 #include "epgui/pdc_themes.h"
 #include "epgui/menucmd.h"
@@ -620,6 +621,8 @@ static int MenuCmd_ChangeProvider( ClientData ttp, Tcl_Interp *interp, int objc,
             SetAcquisitionMode(NETACQ_KEEP);
             // in case automatic language selection is used, update the theme language
             SetUserLanguage(interp);
+            // adapt reminder list for new database
+            PiRemind_CheckDb();
 
             UiControl_AiStateChange(DB_TARGET_UI);
             eval_check(interp, "ResetFilterState");
@@ -1208,6 +1211,9 @@ static int ProvMerge_Start( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Ob
          // set language and rebuild the theme filter menu
          SetUserLanguage(interp);
 
+         // adapt reminder list for new database
+         PiRemind_CheckDb();
+
          UiControl_AiStateChange(DB_TARGET_UI);
          eval_check(interp, "ResetFilterState");
 
@@ -1217,10 +1223,9 @@ static int ProvMerge_Start( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Ob
          // at the front of the provider selection order
          eval_check(interp, "UpdateMergedProvSelection");
 
-         result = TCL_OK;
       }
-      else
-         result = TCL_ERROR;
+      // note: db load errors are reported via callback
+      result = TCL_OK;
    }
 
    return result;
@@ -1301,6 +1306,98 @@ void OpenInitialDb( uint startUiCni )
    // note: the usual provider change events are not triggered here because
    // at the time this function is called the other modules are not yet initialized.
 }
+
+// ----------------------------------------------------------------------------
+// Read expire time delta configuration setting and pass it to all modules
+// - executed during startup and when the user changes the setting
+//
+void MenuCmd_SetPiExpireDelay( void )
+{
+   Tcl_Obj * cfgVar;
+   int  expireTime;
+
+   cfgVar = Tcl_GetVar2Ex(interp, "piexpire_cutoff", NULL, TCL_GLOBAL_ONLY);
+   if ( (cfgVar == NULL) ||
+        (Tcl_GetIntFromObj(NULL, cfgVar, &expireTime) != TCL_OK) )
+   {
+      expireTime = EPGDBSAV_DEFAULT_EXPIRE_TIME;
+
+      Tcl_SetVar2Ex(interp, "piexpire_cutoff", NULL,
+                       Tcl_NewIntObj(expireTime / 60), TCL_GLOBAL_ONLY);
+   }
+   else  // convert unit from minute into seconds
+      expireTime *= 60;
+
+   EpgContextCtl_SetPiExpireDelay(expireTime);
+}
+
+// ----------------------------------------------------------------------------
+// Callback for expire cut-off delay configuration dialog
+// 
+static int MenuCmd_UpdatePiExpireDelay( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+{
+   const char * const pUsage = "Usage: C_UpdatePiExpireDelay";
+   int  result;
+
+   if (objc != 1)
+   {  // parameter count is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else
+   {
+      MenuCmd_SetPiExpireDelay();
+
+      PiBox_Refresh();
+
+      UiControlMsg_AcqEvent(ACQ_EVENT_PI_EXPIRED);
+      UiControl_AiStateChange(DB_TARGET_UI);
+
+      result = TCL_OK;
+   }
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Pre-check for cut-off time configuration
+// - returns the number of PI which would be deleted
+// 
+static int MenuCmd_CountExpiredPi( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+{
+   const char * const pUsage = "Usage: C_CountExpiredPi <threshold>";
+   const PI_BLOCK  * pPiBlock;
+   int  cutOffTime;
+   int  piCount;
+   int  result;
+
+   if ( (objc != 1+1) ||
+        (Tcl_GetIntFromObj(interp, objv[1], &cutOffTime) != TCL_OK) )
+   {
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else
+   {
+      cutOffTime = EpgGetUiMinuteTime() - (cutOffTime * 60);
+
+      EpgDbLockDatabase(pUiDbContext, TRUE);
+      pPiBlock = EpgDbSearchFirstPi(pUiDbContext, NULL);
+      piCount = 0;
+      while ((pPiBlock != NULL) && (pPiBlock->start_time < cutOffTime))
+      {
+         if (pPiBlock->stop_time <= cutOffTime)
+            piCount += 1;
+
+         pPiBlock = EpgDbSearchNextPi(pUiDbContext, NULL, pPiBlock);
+      }
+      EpgDbLockDatabase(pUiDbContext, FALSE);
+
+      Tcl_SetObjResult(interp, Tcl_NewIntObj(piCount));
+      result = TCL_OK;
+   }
+   return result;
+}
+
 
 // ----------------------------------------------------------------------------
 // Fetch the acquisition mode and CNI list from global Tcl variables
@@ -1416,7 +1513,7 @@ static void SortAcqCniList( uint cniCount, uint * cniTab )
       // create a filter context with only an expire time filter set
       pfc = EpgDbFilterCreateContext();
       EpgDbFilterSetExpireTime(pfc, time(NULL));
-      EpgDbFilterEnable(pfc, FILTER_EXPIRE_TIME);
+      EpgDbPreFilterEnable(pfc, FILTER_EXPIRE_TIME);
 
       // check if there are any non-expired PI in the database
       pPiBlock = EpgDbSearchFirstPi(pUiDbContext, pfc);
@@ -2338,7 +2435,8 @@ static int MenuCmd_GetInputList( ClientData ttp, Tcl_Interp *interp, int objc, T
 // ----------------------------------------------------------------------------
 // Helper func: read integer from global Tcl var
 //
-static int MenuCmd_ReadTclInt( CONST84 char * pName, int fallbackVal )
+static int MenuCmd_ReadTclInt( Tcl_Interp *interp,
+                               CONST84 char * pName, int fallbackVal )
 {
    Tcl_Obj  * pVarObj;
    int  value;
@@ -2378,9 +2476,9 @@ int SetHardwareConfig( Tcl_Interp *interp, int newCardIndex )
    int  cardIdx, input, prio;
    int  chipType, cardType, tuner, pll;
 
-   cardIdx = MenuCmd_ReadTclInt("hwcf_cardidx", 0);
-   input   = MenuCmd_ReadTclInt("hwcf_input", 0);
-   prio    = MenuCmd_ReadTclInt("hwcf_acq_prio", 0);
+   cardIdx = MenuCmd_ReadTclInt(interp, "hwcf_cardidx", 0);
+   input   = MenuCmd_ReadTclInt(interp, "hwcf_input", 0);
+   prio    = MenuCmd_ReadTclInt(interp, "hwcf_acq_prio", 0);
 
    if ((newCardIndex >= 0) && (newCardIndex != cardIdx))
    {
@@ -2395,7 +2493,7 @@ int SetHardwareConfig( Tcl_Interp *interp, int newCardIndex )
    }
 
    #ifdef WIN32
-   HwDrv_SetLogging(MenuCmd_ReadTclInt("hwcf_dsdrv_log", 0));
+   HwDrv_SetLogging(MenuCmd_ReadTclInt(interp, "hwcf_dsdrv_log", 0));
 
    // retrieve card specific parameters
    sprintf(idx_str, "%d", cardIdx);
@@ -2464,8 +2562,8 @@ bool MenuCmd_CheckTvCardConfig( void )
    int  chipType, cardType, tuner, pll;
    bool result = FALSE;
 
-   cardIdx = MenuCmd_ReadTclInt("hwcf_cardidx", 0);
-   input   = MenuCmd_ReadTclInt("hwcf_input", 0);
+   cardIdx = MenuCmd_ReadTclInt(interp, "hwcf_cardidx", 0);
+   input   = MenuCmd_ReadTclInt(interp, "hwcf_input", 0);
 
    sprintf(idx_str, "%d", cardIdx);
    pCardCfList = Tcl_GetVar2Ex(interp, "tvcardcf", idx_str, TCL_GLOBAL_ONLY);
@@ -2692,6 +2790,8 @@ void MenuCmd_Init( bool isDemoMode )
       Tcl_CreateObjCommand(interp, "C_GetProvCnisAndNames", MenuCmd_GetProvCnisAndNames, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetAiNetwopList", MenuCmd_GetAiNetwopList, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_ProvMerge_Start", ProvMerge_Start, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_UpdatePiExpireDelay", MenuCmd_UpdatePiExpireDelay, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_CountExpiredPi", MenuCmd_CountExpiredPi, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_UpdateAcquisitionMode", MenuCmd_UpdateAcquisitionMode, (ClientData) NULL, NULL);
 
       Tcl_CreateObjCommand(interp, "C_StartEpgScan", MenuCmd_StartEpgScan, (ClientData) NULL, NULL);

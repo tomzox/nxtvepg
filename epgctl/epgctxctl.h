@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgctxctl.h,v 1.15 2002/09/14 18:13:43 tom Exp tom $
+ *  $Id: epgctxctl.h,v 1.16 2003/09/20 19:13:04 tom Exp tom $
  */
 
 #ifndef __EPGCTXCTL_H
@@ -50,6 +50,7 @@ uint EpgContextCtl_GetFreqList( uint ** ppProvList, uint ** ppFreqList );
 time_t EpgContextCtl_GetAiUpdateTime( uint cni );
 uint EpgContextCtl_Remove( uint cni );
 
+void EpgContextCtl_SetPiExpireDelay( time_t expireDelay );
 bool EpgContextCtl_UpdateFreq( uint cni, uint freq );
 void EpgContextCtl_LockDump( bool enable );
 

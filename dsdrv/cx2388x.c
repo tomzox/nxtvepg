@@ -27,7 +27,7 @@
  *  DScaler #Id: CX2388xSource.cpp,v 1.42 2003/01/25 23:46:25 laurentg Exp #
  *  DScaler #Id: CX2388xProvider.cpp,v 1.3 2002/11/02 09:47:36 adcockj Exp #
  *
- *  $Id: cx2388x.c,v 1.11 2003/04/12 17:52:27 tom Exp tom $
+ *  $Id: cx2388x.c,v 1.12 2003/07/06 17:47:35 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -45,6 +45,7 @@
 #include "epgctl/debug.h"
 
 #include "epgvbi/vbidecode.h"
+#include "epgvbi/zvbidecoder.h"
 #include "epgvbi/btdrv.h"
 #include "epgvbi/winshm.h"
 #include "epgvbi/winshmsrv.h"
@@ -59,6 +60,9 @@
 #include "dsdrv/cx2388x_typ.h"
 #include "dsdrv/cx2388x.h"
 
+#ifdef ZVBI_DECODER
+static vbi_raw_decoder zvbi_rd;
+#endif
 
 // ----------------------------------------------------------------------------
 // Declaration of internal variables
@@ -915,12 +919,26 @@ static DWORD WINAPI Cx2388x_VbiThread( LPVOID dummy )
    BYTE *pVBI;
    uint  OldFrame;
    uint  CurFrame;
-   uint  row;
 
    dprintf0("Cx2388x-VbiThread: VBI thread started\n");
 
    //SetAcqPriority(GetCurrentThread(), btCfg.threadPrio);
+   #ifndef ZVBI_DECODER
    VbiDecodeSetSamplingRate(27000000L, 7);
+   #else
+   memset(&zvbi_rd, 0, sizeof(zvbi_rd));
+   zvbi_rd.sampling_rate    = 27000000L;
+   zvbi_rd.bytes_per_line   = VBI_LINE_SIZE;
+   zvbi_rd.start[0]         = 7;
+   zvbi_rd.count[0]         = VBI_LINES_PER_FIELD;
+   zvbi_rd.start[1]         = 319;
+   zvbi_rd.count[1]         = VBI_LINES_PER_FIELD;
+   zvbi_rd.interlaced       = FALSE;
+   zvbi_rd.synchronous      = TRUE;
+   zvbi_rd.sampling_format  = VBI_PIXFMT_YUV420;
+   zvbi_rd.scanning         = 625;
+   vbi_raw_decoder_add_services(&zvbi_rd, VBI_SLICED_TELETEXT_B | VBI_SLICED_VPS, 1);
+   #endif
 
    Cx2388x_StartCapture();
 
@@ -952,14 +970,20 @@ static DWORD WINAPI Cx2388x_VbiThread( LPVOID dummy )
 
                // notify teletext decoder about start of new frame; since we don't have a
                // frame counter (no frame interrupt) we always pass 0 as frame sequence number
+               #ifndef ZVBI_DECODER
                if ( VbiDecodeStartNewFrame(0) )
                {
+                  uint  row;
+
                   for (row = 0; row < VBI_LINES_PER_FRAME; row++, pVBI += VBI_LINE_SIZE)
                   {
                      VbiDecodeLine(pVBI, row, TRUE);
                   }
                }
                else
+               #else  // ZVBI_DECODER
+               if (ZvbiSliceAndProcess(&zvbi_rd, pVBI, 0) == FALSE)
+               #endif
                {  // discard all VBI frames in the buffer
                   OldFrame = CurFrame;
                   break;
@@ -975,6 +999,11 @@ static DWORD WINAPI Cx2388x_VbiThread( LPVOID dummy )
       }
    }
    Cx2388x_StopCapture();
+
+   #ifdef ZVBI_DECODER
+   ZvbiSliceAndProcess(NULL, NULL, 0);
+   vbi_raw_decoder_destroy(&zvbi_rd);
+   #endif
 
    dprintf0("Cx2388x-VbiThread: VBI thread stopped\n");
 

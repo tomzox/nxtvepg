@@ -14122,3 +14122,1028 @@ www/tripod-src-index.html [rev:1.15, 2003-07-03T19:05:20]:
 www/v4l2-index.html [rev:1.2, 2003-07-03T19:05:45]:
 - changed hyperlink to mailing list from https to http
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_5_2 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+epgvbi/zvbidecoder.c [rev:1.2, 2003-07-06T11:15:45]:
+- adapted vbi_raw_decoder_check_service() to allow fields with 0 lines:
+    required for separate field decoding in dsdrv/saa7134.c
+- updated slicer code from libzvbi src/decoder.c CVS rev. 1.12
+- fix: added #define DEBUG_SWITCH to make debugN() output work
+epgui/shellcmd.c [rev:1.3, 2003-07-06T12:14:40]:
+- Added special context menu command keyword !xawtv! equiv. to !wintv!
+- renamed USERCMD_PREFIX_WINTV into USERCMD_PREFIX_TVAPP
+- PiOutput_ExecUserCmd(): moved sending of wintv command into wintv.c;
+    for xawtv call new command Xawtv_SendCmdArgv()
+epgui/wintv.c [rev:1.15, 2003-07-06T12:14:55]:
+- Added special context menu command keyword !xawtv! equiv. to !wintv!
+- added new global function Wintv_SendCmdArgv(): code moved here from
+    shellcmd.c: split off to by symmetric with !xawtv!
+- added new query function Wintv_IsConnected() for !wintv! cmd en-/disable
+epgui/wintv.h [rev:1.3, 2003-07-06T12:14:55]:
+- Added special context menu command keyword !xawtv! equiv. to !wintv!
+- added new global function Wintv_SendCmdArgv(): code moved here from
+    shellcmd.c: split off to by symmetric with !xawtv!
+- added new query function Wintv_IsConnected() for !wintv! cmd en-/disable
+epgui/xawtv.c [rev:1.34, 2003-07-06T12:15:03]:
+- Added special context menu command keyword !xawtv! equiv. to !wintv!
+- split function Xawtv_SendCmd(): func with same name now only has Tcl
+    interface, new global function Xawtv_SendCmdArgv() does the actual sending
+epgui/xawtv.h [rev:1.7, 2003-07-06T12:15:08]:
+- Added special context menu command keyword !xawtv! equiv. to !wintv!
+- added declaration for new global function Xawtv_SendCmdArgv()
+dsdrv/bt8x8.c [rev:1.9, 2003-07-06T17:47:21]:
+- Cleanup ZVBI support:
+- Bt8x8_VbiThread(): moved slicer line loop into new function in zvbidecider.c
+    ZvbiSliceAndProcess(): code shared with Linux/UNIX driver
+- fix: call function vbi_raw_decoder_destroy() to free resources
+dsdrv/saa7134.c [rev:1.17, 2003-07-06T17:47:29]:
+- Added ZVBI slicer support (#ifdef ZVBI_DECODER)
+dsdrv/cx2388x.c [rev:1.12, 2003-07-06T17:47:35]:
+- Added ZVBI slicer support (#ifdef ZVBI_DECODER)
+epgvbi/btdrv4linux.c [rev:1.47, 2003-07-06T17:47:43]:
+- ZVBI_DECODER: moved slicer line loop from BtDriver_DecodeFrame() into new
+    func zvbidecoder.c::ZvbiSliceAndProcess(): code shared with win32 drivers
+- ZVBI fix: call function vbi_raw_decoder_destroy() to free resources
+- fixed TV freq query for USE_THREADS mode: use condition var instead SIGUSR1
+    split off BtDriver_SlaveQueryChannel() from decoder main loop
+epgvbi/zvbidecoder.c [rev:1.3, 2003-07-06T17:47:53]:
+- Added new function ZvbiSliceAndProcess(): forward data to ttxdecode.c;
+    shared code between Linux/UNIX and all win32 VBI driver interfaces
+- fix: added function vbi_raw_decoder_destroy() to free pattern array
+epgvbi/zvbidecoder.h [rev:1.2, 2003-07-06T17:48:33]:
+- Added new function ZvbiSliceAndProcess(): forward data to ttxdecode.c;
+    shared code between Linux/UNIX and all win32 VBI driver interfaces
+- fix: added function vbi_raw_decoder_destroy() to free pattern array
+- added #ifndef USE_LIBZVBI to avoid conflicts with some types and macros
+epgdb/epgdbfil.c [rev:1.44, 2003-08-06T17:15:12]:
+- Reduced memory consumption for filter context struct:
+- allocate memory for series matrix and LI/TI tables dynamically
+- introduced new typedefs EPGDB_FILT_SERIES etc.
+epgdb/epgdbfil.h [rev:1.27, 2003-08-06T17:15:12]:
+- Reduced memory consumption for filter context struct:
+- allocate memory for series matrix and LI/TI tables dynamically
+- introduced new typedefs EPGDB_FILT_SERIES etc.
+epgtcl/mclistbox.tcl [rev:1.1, 2003-08-10T11:37:55]:
+- Initial revision
+epgtcl/rnotebook.tcl [rev:1.1, 2003-08-11T12:23:06]:
+- Initial revision
+epgtcl/dlg_remind.tcl [rev:1.1, 2003-08-11T12:50:10]:
+- Initial revision
+epgui/pidescr.c [rev:1.7, 2003-08-11T17:53:52]:
+- Bugfix broken cast in PiDescription_DictifyTitle()
+- char index into alphaNumTab[] was casted to (uint) instead of (uchar)
+    which includes sign extension before unsigned conversion -> crash
+- bug reported by Helge Kreutzmann, 2003-Aug-09
+epgvbi/ttxdecode.c [rev:1.55, 2003-08-11T18:00:35]:
+- bugfix/cleanup TtxDecode_GetP830Cni()
+- changed invalid cast from (schar)->(uint) into (schar)->(uchar)
+- note: did no harm here since value is checked for >= 0
+epgtcl/dlg_remind.tcl [rev:1.2, 2003-08-13T15:36:16]:
+- implemented reminder group configuration dialog
+- changed variable remgroups from hash array into scalar list
+- implemented script exec parallel to reminder messages
+- added error checks and bgerror output for invalid temp list indices
+- store data in rc/ini file
+epgtcl/dlg_shortcuts.tcl [rev:1.10, 2003-08-13T15:38:09]:
+- bugfix: fixed typo in widget path in <Key-Delete> binding
+epgtcl/dlg_remind.tcl [rev:1.3, 2003-08-14T16:03:27]:
+- reminder list: stores changes in column width in mclistbox
+    also in fill proc: place cursor on first/new/last selected element
+- implemented "asking" before execution of reminder scripts
+- added consistancy checks during initial load of reminders
+- new proc Reminder_SelectFromTagList for user-def column header menu
+- added "show" button to PI reminder list
+- fill "set group" popup menus dynamically (to include newly added groups)
+    and added "group config" link to remider config dialog
+- remcfg save: don't overwrite shortcut lists in remgroups config
+epgui/piremind.c [rev:1.1, 2003-08-15T19:46:33]:
+- Initial revision
+epgui/piremind.h [rev:1.1, 2003-08-15T19:46:35]:
+- Initial revision
+epgtcl/mclistbox.tcl [rev:1.2, 2003-08-16T10:24:15]:
+- Added new widget sub-command "column widths"
+- to query for current width of all listbox columns (in pixels)
+- used to remember changes by the user and re-apply them upon next dialog open
+epgtcl/dlg_remind.tcl [rev:1.4, 2003-08-16T10:34:41]:
+- bugfix format for default reminder pibox column
+- for "show matches": moved "single PI" into separate sub-context to allow AND
+    with primary context (i.e. filter reminders for additional criteria)
+- prepared "suppress" reminder group (commented out due missing GUI)
+- improved proc Reminder_SelectFromTagList: bahave more similar to shortcuts
+- bugfix reminder popup messages (didn't work at all)
+- fixed proc Reminder_RemovePi: use new C func C_PiBox_GetSelectedNetwop
+    to identify which reminder is matched by the selected PI listbox entry
+- changed selectmode of listboxes from "single" to "browse"
+    and improved key binding for cursor up/down
+epgui/piremind.c [rev:1.2, 2003-08-16T17:12:28]:
+- added enums for reminder pi elems and reminder groups
+- adapted for interface change to EpgDbFilterSetCustom(): pass free function
+- added new funcs PiRemind_AddPi, _RemovePi: moved here from Tcl level
+    removed obsolete Tcl callback function C_PiRemind_GetSelectedReminder
+- improved PiRemind_SetReminderMenuStates(): include supress functionality
+- added new func PiRemind_CheckDb(): split off from Tcl proc Reminder_InitData
+    invoked from module init func: do consistancy check & update netwop indices
+- format fix: removed white space from line ends
+epgui/piremind.h [rev:1.2, 2003-08-16T17:12:44]:
+- added new func PiRemind_CheckDb(): called upon provider changes
+epgtcl/dlg_remind.tcl [rev:1.5, 2003-08-16T17:16:09]:
+- Reminder_InitData: reminder check moved into piremind.c::PiRemind_CheckDb()
+- moved proc Reminder_AddPi and _RemovePi into piremind.c
+    split off new proc Reminder_ExternalChange
+- enabled suppress PI reminder functionality
+- fix cursor positioning in RemPiList_FillPi: new global remlist_lastpi_start
+www/pre-releases.html [rev:1.27, 2003-08-20T20:26:35]:
+- updated for pre-release 2.6.0pre0 (plus small patch)
+images/nxtv_small.xbm [rev:1.1, 2003-08-20T20:48:09]:
+- Initial revision
+Makefile [rev:1.61, 2003-08-20T20:50:32]:
+- Added new modules for reminders:
+- epgui/piremind.c
+- epgtcl/dlg_remind.tcl, mclistbox, rnotebook
+COPYRIGHT [rev:1.9, 2003-08-20T20:51:48]:
+- Added copyright for new Tcl packages mclistbox and rnotebook
+Makefile.win32 [rev:1.40, 2003-08-20T20:53:03]:
+- Added new modules for reminders:
+- epgui/piremind.c
+- epgtcl/dlg_remind.tcl, mclistbox, rnotebook
+nxtvepg.spec [rev:1.16, 2003-08-20T20:55:08]:
+- updated for pre-release 2.6.0pre0
+- removed 3sat from list of German providers
+README [rev:1.35, 2003-08-20T20:55:48]:
+- removed 3sat from list of German providers
+- replaced "RPM archive" with more generic term
+    (suggested by Helge Kreutzmann 2003/Aug/09)
+TODO [rev:1.31, 2003-08-20T20:57:54]:
+- updated for pre-release 2.6.0pre0: temp TODO list
+- added requirement specs for new "reminder" feature
+- removed some obsolete (already implemented) features from the list
+CHANGES [rev:1.37, 2003-08-20T20:59:11]:
+- updated for pre-release 2.6.0pre0:
+- new: reminders, !xawtv!, "other" colors in user-def columns and more
+Makefile.solaris [rev:1.4, 2003-08-20T21:00:59]:
+- Added new modules for reminders:
+- epgui/piremind.c
+- epgtcl/dlg_remind.tcl, mclistbox, rnotebook
+epgui/piremind.c [rev:1.3, 2003-08-20T21:15:09]:
+- performance optimization of "single PI" reminder filter (was necessary
+    because a single event match took 300ms with 3 reminder groups):
+    added static Tcl hash RemPiCache to hold all PI reminders
+    added cache updates (key remove/add) where applicable
+- C module now must be notified about all changes of "reminder" list to update
+    the cache; moved "delete" and "set group" handling from edit dialog here
+- added PiReminder_UnshareList(): required before any Tcl object modifications
+    (note: also call Tcl_InvalidateStringRep() for parent list at some places)
+- improved _CheckDb(): do CNI search in AI only if netwop index is invalid
+- improved labels in "reminder" menu: added "for selected title"
+epgtcl/dlg_remind.tcl [rev:1.6, 2003-08-20T21:19:48]:
+- performance optimization of "single PI" reminder filter (was necessary
+    because a single event match took 300ms with 3 reminder groups):
+    C module now maintains cache of all PI in "reminder" list and must be
+    notified about all changes in the list
+-> moved "delete" and "set group" in edit dialog into C level -> new C procs
+-> call new proc C_PiRemind_PiReload after reminder group deletion
+- bugfix: new proc RemCfg_MergeScIntoTempList to update shortcuts list
+    before checking shortcut list upon reminder group deletion
+- improved warning popup for group deletion: show exact count of
+    associated single-PI reminders and shortcuts
+epgtcl/dlg_remind.tcl [rev:1.7, 2003-08-25T21:12:05]:
+- moved specs from TODO list into module description in file header
+- fix: keep expired PI in message box until user presses Ok -> added new var
+    rem_msg_base_time = min PI stop time, passed to C_PiRemind_GetReminderEvents
+- added "Tune TV" button to reminder popup -> added "href" tag to message list
+    to allow user to select single elements
+- fix for reminder or shortcut list changes: call C_PiNetBox_Invalidate
+- edit dialog: added "Display" menu with checkbuttons for selection of
+    pending, suppressed, expired single-PI reminders -> removed single PI rems.
+    from list acc. to disp. sel.; also: set group name #31 to "suppress"
+- fix: update shortcut list after group config changes
+- sort reminders shortcut list alphabetically
+- fix group config save: call update timer after updating filter cache;
+    also: unified sequence of list/config update processing across the module
+epgui/piremind.c [rev:1.4, 2003-08-25T21:12:15]:
+- fix PiRemind_GetReminderEvents(): added param <msg-base-time>: min time
+    for PI stop time: used while message is shown to keep expired PI in the list
+- performance opt. PiRemind_GetReminderEvents(): use expire time filter
+- bugfix crash in PiRemind_AddPi(): must unshare reminders list
+- updated/improved comments
+www/pre-releases.html [rev:1.28, 2003-08-26T20:50:32]:
+- updated for pre-release 2.6.0pre1
+epgtcl/dlg_remind.tcl [rev:1.8, 2003-09-02T19:47:17]:
+- Bugfix RemCfg_WindowClose: reminders in "suppress" group were deleted
+dsdrv/wintuner.c [rev:1.15, 2003-09-02T19:48:39]:
+- Bugfix Tuner_SetFrequency():
+- tuner type TUNER_MT2032_PAL was not processed in MT2032 mode
+dsdrv/bt8x8_typ.c [rev:1.1.1.4, 2003-09-02T19:52:52]:
+-r1.35: "Mew PMSVideo cards"
+dsdrv/bt8x8_typ.c [rev:1.10, 2003-09-02T19:54:08]:
+- Imported from DScaler CVS r1.35: Added 2 new PMSVideo cards
+dsdrv/saa7134_typ.c [rev:1.1.1.8, 2003-09-02T19:56:55]:
+- r1.33: Added ASK Select AS-VCV300/PCI card
+- r1.34: Added AOPEN VA1000 Lite2
+dsdrv/saa7134_typ.c [rev:1.13, 2003-09-02T19:57:19]:
+- DScaler CVS import:
+-r1.33: Added ASK Select AS-VCV300/PCI card
+-r1.34: Added AOPEN VA1000 Lite2
+Makefile [rev:1.62, 2003-09-02T20:03:09]:
+- Added new Tcl module epgtcl/combobox.tcl
+Makefile.win32 [rev:1.41, 2003-09-02T20:04:26]:
+- Added new Tcl module epgtcl/combobox.tcl
+epgtcl/combobox.tcl [rev:1.1, 2003-09-02T20:12:30]:
+- Initial revision
+epgtcl/dlg_substr.tcl [rev:1.1, 2003-09-06T12:46:36]:
+- Initial revision
+epgtcl/dlg_remind.tcl [rev:1.9, 2003-09-12T20:00:12]:
+- Implemented "repeat" and "suppress" controls for messages
+- added $::rpi_ctrl_idx to single IP reminder list elements
+- added repeat & suppress buttons to message popup dialog
+- proc Reminder_AlarmTimer: add "repeat" events to event list
+    sort & filter duplicate events for the same PI
+- added "state" column to "edit reminders" dialog
+    with context menu: new proc RemList_PostStateCtxMenu
+- Extended reminder main menu: allow to select reminder group
+- added new proc Reminder_PostGroupMenu
+epgui/piremind.c [rev:1.5, 2003-09-12T20:00:20]:
+- Implemented "repeat" and "suppress" controls for messages
+- added EPI_CTRL_IDX to reminder list elements, added enum RPI_CTRL_TYPE
+- added funcs PiRemind_GetPiControlValue() and PiRemind_SetControl()
+- PiRemind_MatchFirstReminder() and PiRemind_GetReminderEvents(): handle ctrl
+    also: optimization MatchFirstReminder(): use expire time filter
+- Extended reminder main menu: allow to select reminder group
+- PiRemind_SetReminderMenuStates(): added 3rd command entry
+- PiRemind_PiSetGroup(): added support for pibox
+- split off helper function PiRemind_AddReminder() from _AddPi() for SetGroup
+www/pre-releases.html [rev:1.29, 2003-09-13T11:17:35]:
+- updated for pre-release 2.6.0pre3
+- replaced change-log with history for all pre-releases
+    (as in mail annoucements)
+epgui/piremind.c [rev:1.6, 2003-09-14T11:28:22]:
+- Design fix: changed remgroups from plain list into hash array
+- array is indexed by unique, stable tags (equiv to shortcuts array)
+    fixes problems after group order changes & handles dangling ref's cleanly
+- new global list remgroup_order: holds all group tags in user-conf. order
+- globally replaced RPI_GROUP_IDX with RPI_GRPTAG_IDX
+- supress group now identified by tag #0 instead of group idx #31;
+    new function PiRemind_GetDefaultGroupTag() to determine group #0
+- PiRemind_PiCacheAdd()_ convert goup tag to index, as used in filter bitmap
+    PiRemind_SearchRemGroupMatch(): iterate over remgroup_order instead remgroups
+- PiRemind_AddPi: made group param optional -> default group #0 is used
+    avoids adding tag search in_CtxMenuAdd() and _SetReminderMenuStates()
+- PiRemind_CheckDb(): adapted way of validating group tag in reminder list
+- Other fixes:
+- bugfix PiRemind_CheckDb(): c&p error in unshare params for elem removal
+epgtcl/dlg_remind.tcl [rev:1.10, 2003-09-14T11:28:33]:
+- Design fix: changed remgroups from plain list into hash array
+- array is indexed by unique, stable tags (equiv to shortcuts array)
+    fixes problems after group order changes & handles dangling ref's cleanly
+- new global list remgroup_order: holds all group tags in user-conf. order
+- globally replaced for{} loops across remgroups with foreach $remgroup_order
+    globally replaced 'group' var name with 'grp_tag' for ref's into remgroups
+    globally replaced $::rpi_group_idx with $::rpi_grptag_idx
+- supress group now identified by tag #0 instead of group idx #31
+- Other fixes:
+- RemPiList_SetGroup: group output in mclist is now in #1 instead of #0
+- RemCfg_WindowClose: update pibox filter if reminder match is in use
+epgui/piremind.c [rev:1.7, 2003-09-14T18:19:31]:
+- Bugfix PiRemind_GetReminderEvents():
+- negated boolean expression made loop terminate after first event
+epgui/piremind.c [rev:1.8, 2003-09-14T18:54:35]:
+- Bugfix PiRemind_CheckDb():
+- local group variable was not updated when invalid group was fixed
+epgtcl/dlg_remind.tcl [rev:1.11, 2003-09-14T20:46:19]:
+- bugfix RemCfg_WindowClose: cancel change check was broken
+- bugfix RemScList_AddShortcut: missing '$' in front of variable
+www/pre-releases.html [rev:1.30, 2003-09-14T21:14:50]:
+- updated for 2.6.0pre4
+epgtcl/dlg_udefcols.tcl [rev:1.12, 2003-09-15T20:12:03]:
+- Extended display format options:
+- allow background color for complete element or the attribute only
+- allow user-defined colors -> color selection dialog
+- added "Text sample" element
+- Implemented reminders:
+- offer reminder group matches in addition to shortcut matches
+- pick up newly created shortcuts and reminders while the dialog is open
+- also: remove unresolved shortcut & reminder references upon save
+epgtcl/dlg_filter.tcl [rev:1.9, 2003-09-15T20:12:14]:
+- split off text search filter dialog into new module dlg_substr.tcl
+- added new dialog to modify expire time: new proc PopupExpireDelaySelection
+    note: still TODO: dialog to configure cut-off time when PI are removed in db
+epgtcl/dlg_substr.tcl [rev:1.2, 2003-09-15T20:12:21]:
+- added multi-column list above entry field to list currently active texts
+    and associated options; the latter can be modified in-place
+-> removed active search texts from history; use plain list instead of
+     checkbuttons, enlarged list from 10 to 50 texts
+- use combobox for entry field and history
+- added new sub-dialog: proc Substr_OpenPasteDialog
+- added intro text in module header
+epgtcl/mainwin.tcl [rev:1.225, 2003-09-15T20:12:28]:
+- added weekday scale at the right side of the main window pibox
+    load 7 colors from one line in X resources; also load scale font
+- changed color for expired PI from red into light yellow
+    (because red is used to mark reminders now)
+- added key binding for "i" in pibox: show EPG info for tuned TV channel
+- moved pibox text color tag assignments into dlg_udefcols.tcl
+    because user can now freely define colors; also added "overstrike" tag
+- added new main menu "Reminder"; also call Reminder_InitData upon start,
+    add reminders to column-header drop-down menus; added reminder pibox column
+- added new menu entry "Show weekday scale" in Show/hide sub-menu
+    new proc ToggleDateScale
+- added new filter dialog to manipulate expire time threshold
+    new procs ResetExpireDelay, SelectExpireDelayFilter
+- proc ResetFilterState: call "C_PiFilter_ForkContext reset" to clear filter
+    sub-contexts used in reminder matches or new AND/OR shortcut modes
+- enlarged search text history from 10 to 50 (only 10 in column header menu)
+- CreateTransientPopup: fixed x/y pos calc for new window on M$ Windows
+- help dialog: added "back" button and history stack
+epgtcl/dlg_shortcuts.tcl [rev:1.11, 2003-09-15T20:12:39]:
+- bugfix: when updating shortcuts, update invert list too
+- added call to new proc Reminder_UpdateTimer after shortcut modifications
+    also notify user-defined column config dialog: proc UserCols_ShortcutsChanged
+- added call to proc CheckShortcutUpdatePending at more places,
+    e.g. when moving up/down to copy mainly to copy label changes into the list
+- enabled dialog widgets for "logic", now called "combination rule"
+    to allow AND/OR between entire shortcuts instead of "merge"
+    -> for "Invoke" button use shortcut copy with logic replaced by "merge"
+- fix PopupFilterShortcuts: reset dialog state only if it's newly opened
+- fix: new proc ApplyShortcutChanges to notify other modules about changes;
+    was partly missing from delete and update procs
+epgtcl/shortcuts.tcl [rev:1.13, 2003-09-15T20:12:47]:
+- moved proc DownloadUserDefinedColumnFilters here from dlg_udefcols.tcl
+    due to addition of reminder handling
+- optimization of substr filter handling for large text lists
+- bufix check for undone filter inversions
+- added support for "combination rule" AND,OR:
+    + use new func C_PiFilter_ForkContext to for filter sub-context
+      and use proc SelectSingleShortcut
+    + use new func C_PiFilter_ForkContext remove for deselection
+    + note: large diff due to indentation of large switch {} construct
+- fixed proc SelectShortcutFromTagList
+epgtcl/rcfile.tcl [rev:1.16, 2003-09-15T20:12:56]:
+- added boolean flag showDateScale: show/hide weekday scale in main window
+- added piexpire_cutoff: delta when expired PI are removed from database
+- added reminder list, group config and message cut-off times
+    note: reminder list is broken up and re-assembled with "lappend" upon load
+- added various branches for backwards-compatibility between 2.6.0 pre-releases
+epgui/loadtcl.c [rev:1.6, 2003-09-15T20:40:11]:
+- imported modules for new widgets: mclistbox, combobox, rnotebook
+- split off new module dlg_substr from dlg_filter
+- added new module dlg_remind
+COPYRIGHT [rev:1.10, 2003-09-18T19:52:33]:
+- Added copyright for new Tcl package combobox
+Makefile [rev:1.63, 2003-09-18T19:56:32]:
+- added new Tcl module epgtcl/dlg_substr (split off from epgtcl/dlg_filter)
+- fixed .tcl -> .h rule: used to refer to tcl2c.exe (copied from win32?)
+Makefile.solaris [rev:1.5, 2003-09-18T19:56:38]:
+- added new Tcl module epgtcl/dlg_substr (split off from epgtcl/dlg_filter)
+- added new Tcl module epgtcl/combobox for new widget type
+Makefile.win32 [rev:1.42, 2003-09-18T19:58:22]:
+- added new Tcl module epgtcl/dlg_substr (split off from epgtcl/dlg_filter)
+- improved cross-compilation: separate rule for host compilation of tcl2c.exe
+Nxtvepg.ad [rev:1.3, 2003-09-18T20:00:09]:
+- Added assignments for weekday scale in mainwin: 7 colors (in one line) and font
+epgui/epgmain.c [rev:1.123, 2003-09-19T21:55:30]:
+- added uiMinuteTime and retrieval function EpgGetUiMinuteTime()
+- added "bitmap_gray" for weekday scale: created internally, without BMP file
+- implemented new reminder feature
+    + added new bitmap "images/nxtv_small.xbm" for reminder message popup
+    + added include, init and destroy for new module piremind.c
+    + call new proc Reminder_UpdateTimer to set time for first reminder event
+- fixed locale handling (again): load LC_ALL from environment,
+    only override LC_NUMERIC for Tcl floating point arithmetics
+- added expire time filter and configurable cut-off time for PI removal
+    + moved refresh into main b/c PiFilter_Expire() is also called during start
+    + call MenuCmd_UpdatePiExpireDelay() upon start
+epgui/epgmain.h [rev:1.23, 2003-09-19T21:55:37]:
+- Added declaration for new query function EpgGetUiMinuteTime()
+epgui/pioutput.c [rev:1.50, 2003-09-19T21:56:02]:
+- added support for expired PI in listbox -> handling of "past" tag
+- added new pre-defined column/attribute type: reminder; formatted
+    as user-defined columns; format loaded from Tcl var $::rem_col_fmt
+- allow display format params for images in user-def columns
+    to support background colors (note: requires space in front of all images)
+- added support background color for entire column/grid element
+- adapted for change of filter context and interface functions
+    (to support new feature "context fork", i.e. AND/OR of sub-contexts)
+- bugfix image output: when image suppressed because not enough space,
+    the image command buffer was not cleared; prev. one appeared twice
+epgui/pioutput.h [rev:1.16, 2003-09-19T21:56:05]:
+- added new pre-defined column/attribute type: reminder
+epgui/pidescr.c [rev:1.8, 2003-09-19T21:56:27]:
+- Split off new func PiDescription_RemoveSeriesIndex() from Dictify:
+- used for context menu title search
+epgui/pidescr.h [rev:1.5, 2003-09-19T21:56:27]:
+- Split off new func PiDescription_RemoveSeriesIndex() from Dictify:
+- used for context menu title search
+epgui/xawtv.c [rev:1.35, 2003-09-19T21:56:37]:
+- added new Tcl command C_Tvapp_ShowEpg: bound to "i" key: manual OSD trigger
+- bugfix: made reference to $::tvapp_name in error message global
+- adapted for interface change in epgdbfil.h: separate funcs for pre-filters
+epgui/wintv.c [rev:1.16, 2003-09-19T21:56:42]:
+- added new Tcl command C_Tvapp_ShowEpg: bound to "i" key: manual OSD trigger
+- adapted for interface change in epgdbfil.h: separate funcs for pre-filters
+epgui/statswin.c [rev:1.64, 2003-09-19T21:56:52]:
+- Adapted for expired PI in database
+- split "expired blocks" statistics into "expired stream" and "expired total"
+- expired PI outside of AI block are counted in new stats struct elem "extra"
+epgui/pifilter.c [rev:1.84, 2003-09-19T21:57:01]:
+- adapted for interface change in epgdbfil.h: separate funcs for pre-filters
+    and internal changes in filter context struct
+- added new Tcl interface SelectExpiredPiDisplay(): allow expired PI in pibox
+    also in PiFilter_Expire(): add current offset of expire time filter and
+    moved refresh into calling func in epgmain as this is called during startup
+- PiFilter_Invert(): added new "custom" filter type
+- added new func PiFilter_ForkContext(): allows AND/OR on sub-contexts
+- added PiFilter_ContextCacheGet(): access to filter cache for piremind.c
+- context menu:
+    + use new func PiDescription_RemoveSeriesIndex() for titles
+    + added reminder menu entries -> added call to PiReminder_CtxMenuAdd()
+epgui/pifilter.h [rev:1.11, 2003-09-19T21:57:06]:
+- added PiFilter_ContextCacheGet(): access to filter cache for piremind.c
+epgui/piremind.c [rev:1.9, 2003-09-19T21:57:16]:
+- Adapted for interface change in epgmain.c: renamed EpgGetUiMinuteTime()
+epgui/shellcmd.c [rev:1.4, 2003-09-19T21:57:20]:
+- do not quote substituted strings in '' on WIN32 (no change for UNIX)
+    requested in nxtvepg discussion forum by progro 2003-09-04
+- ShellCmd_CtxMenuAddUserDef() changed to return number of added entries
+- copied new funcs PiOutput_ParseScript() and PiOutput_ExecParsedScript()
+    out of PiOutput_ExecUserCmd() to support reminder scripts
+    (code duplication, to be fixed in the future)
+epgui/shellcmd.h [rev:1.2, 2003-09-19T21:57:26]:
+- added decl for new func PiOutput_ParseScript(): used by piremind.c
+- ShellCmd_CtxMenuAddUserDef() changed to return number of added entries
+epgui/pilistbox.c [rev:1.90, 2003-09-19T21:57:35]:
+- added support for weekday scale in mainwin: draw scale and move slider
+- show cursor: added support for expired PI in listbox: different bg color;
+    also adapted PiListBox_GotoTime(): always use STARTING_AT mode for "next"
+- simplification reset & refresh: use EpgDbCountPi() for pibox_max calculations
+    also PiListBox_GotoTime(): use EpgDbSearchFirstPiAfter()/Before()
+- performance optimization of PiListBox_ScrollMoveto(): search requested
+    PI# from the nearest known position (start, end, viewable window)
+- adapted for interface change in epgdbfil.h: separate funcs for pre-filters
+epgui/pinetbox.c [rev:1.38, 2003-09-19T21:57:40]:
+- added support for weekday scale in mainwin: draw scale and move slider
+- adapted for interface change in epgdbfil.h: separate funcs for pre-filters
+- added support for expired PI in netbox:
+    + different cursor bg color
+    + suppress NOW alignment
+    + adapted PiListBox_GotoTime(): always use STARTING_AT mode for "next"
+epgui/menucmd.c [rev:1.104, 2003-09-19T22:00:29]:
+- new reminder feature -> call PiRemind_CheckDb() after provider changes
+    to adapt network indices (and in the future: fuzzy match on db)
+- added new global func MenuCmd_UpdatePiExpireDelay(): load expire cut-off
+    time from Tcl config var and pass it to db; called during start-up
+- adapted for change of filter context and interface functions
+    (to support new feature "context fork", i.e. AND/OR of sub-contexts)
+epgui/menucmd.h [rev:1.21, 2003-09-19T22:00:32]:
+- added new global func MenuCmd_UpdatePiExpireDelay(): load expire cut-off
+    time from Tcl config var and pass it to db; called during start-up
+epgui/uictrl.c [rev:1.38, 2003-09-19T22:01:30]:
+- Adapted for interface change in epgdbfil.h: separate funcs for pre-filters
+epgctl/epgctxctl.c [rev:1.23, 2003-09-19T22:06:59]:
+- Added support for expired PI in listbox:
+- added EpgContextCtl_SetPiExpireDelay(): set PI "cut-off" time for open dbs
+    and pass value to epgdbsav for future reloads
+epgdb/epgblock.h [rev:1.44, 2003-09-19T22:07:20]:
+- Added support for expired PI in listbox:
+- new db context element: expireDelayPi = cut-off time for PI removal
+- new stats element: extra = expired PI which are no longer registered in AI
+epgdb/epgdbfil.c [rev:1.45, 2003-09-19T22:07:35]:
+- added context "fork", i.e. AND/OR between sub-contexts
+    + added pFocus pointer: all filter set funcs work through that pointer
+    + split off prefilters from filter context; others stored in linked list
+    + split off EpgDbFilterMatchAct() from EpgDbFilterMatches()
+    + removed netwop match cache (too complex with sub-context combination modes)
+- added new filter type "custom": used to search for "single PI" reminders;
+    + caller passes pointer to match function, stored in filter context
+- optimized case-insensitive text search (do lower-case conversion only once)
+epgdb/epgdbfil.h [rev:1.28, 2003-09-19T22:07:39]:
+- added new filter type "custom": used to search for "single PI" reminders;
+    + caller passes pointer to match function, stored in filter context
+- added context "fork", i.e. AND/OR between sub-contexts
+    + added pFocus pointer: all filter set funcs work through that pointer
+    + split off prefilters from filter context; others stored in linked list
+- added new query functions to mask some of the internal changes
+- made filter context param const again: possible because netwop cache removal
+epgdb/epgdbif.c [rev:1.46, 2003-09-19T22:07:55]:
+- made filter context param const again (possible because netwop cache removal)
+- EpgDbGetStats(): added support for expired PI in listbox -> count expired PI
+    which are no longer covered by AI separately in new "extra" element
+epgdb/epgdbif.h [rev:1.30, 2003-09-19T22:08:00]:
+- made filter context param const again (possible because netwop cache removal)
+epgdb/epgdbmerge.c [rev:1.27, 2003-09-19T22:08:13]:
+- Added support for expired PI in listbox
+- don't cut off at "now" anymore, instead at expireDelayPi saved in context
+- removed expire threshold for insertions by acq.
+epgdb/epgdbmgmt.c [rev:1.46, 2003-09-19T22:08:22]:
+- Added support for expired PI in listbox
+- EpgDbRemoveObsoleteNetwops(): set block_no_in_ai flag
+- EpgDbPiCheckBlockSequence() and EpgDbPiResolveConflicts()
+    extended to check block_no_in_ai flag
+epgdb/epgdbsav.c [rev:1.50, 2003-09-19T22:08:30]:
+- Added support for expired PI in listbox
+- don't cut off at "now" anymore, instead at expireDelayPi saved in context
+- added new interface func EpgDbSavSetPiExpireDelay(); store internally in
+    new module-global vars epgDbReloadExpireDelayPi
+epgdb/epgdbsav.h [rev:1.35, 2003-09-19T22:08:36]:
+- Added support for expired PI in listbox
+- don't cut off at "now" anymore, instead at expireDelayPi saved in context
+- added new interface func EpgDbSavSetPiExpireDelay() and global storage
+tcl2c.c [rev:1.7, 2003-09-20T11:03:50]:
+- dded pre-processor to substitute variables with integer constants
+- added new directives =CONST= and =INCLUDE=
+- generate #defines in header files
+- search for $<const-variable> in all lines of converted Tcl scripts
+    and replace them with the assigned integer strings
+epgvbi/zvbidecoder.c [rev:1.4, 2003-09-20T19:07:29]:
+- Fixed some gcc3 compiler warnings by adding dummy variable initializations
+epgvbi/syserrmsg.c [rev:1.3, 2003-09-20T19:07:36]:
+- Fixed DEBUG_SWITCH: was non-existing EPGVBI category; now VBI
+epgdb/epgstream.c [rev:1.28, 2003-09-20T19:08:10]:
+- Changed module's DEBUG_SWITCH from EPGDB into new switch: STREAM
+- to allow to specifically disable output for VBI decoding errors
+epgvbi/ttxdecode.c [rev:1.56, 2003-09-20T19:08:20]:
+- Use new debug switch DEBUG_SWITCH_STREAM
+- placed as #if around some debug output macros
+- allows to specifically disable output for VBI decoding errors
+epgdb/epgdbmgmt.c [rev:1.47, 2003-09-20T19:08:25]:
+- Use new debug switch DEBUG_SWITCH_STREAM
+- placed as #if around some debug output macros
+- allows to specifically disable output for VBI decoding errors
+epgctl/epgctxmerge.c [rev:1.11, 2003-09-20T19:12:09]:
+- Added support for expired PI in listbox
+- EpgContextMerge(): copy expireDelayPi parameter into merged db context
+epgctl/epgctxctl.h [rev:1.16, 2003-09-20T19:13:04]:
+- Added support for expired PI in listbox:
+- added EpgContextCtl_SetPiExpireDelay(): set PI "cut-off" time for open dbs
+    and pass value to epgdbsav for future reloads
+epgui/piremind.c [rev:1.10, 2003-09-20T19:28:25]:
+- Use new =CONST= tcl2c pre-processor feature
+- use EPGTCL_... defines instead of internal enum types RPI_, RGP_, RPI_CTRL_
+- added #includes for generated Tcl header files
+epgtcl/dlg_remind.tcl [rev:1.12, 2003-09-20T19:31:21]:
+- use new =CONST= tcl2c pre-processor feature:
+    + added const decls for event lists and msg/cmd sub-lists in rem.groups
+    + added =INCLUDE= to import constants from dlg_udefcols and shortcuts
+- bugfix Reminder_AlarmTimer:
+    + in uniq across event list only netwops were compared
+    + repeat events: is_latest was abs.time instead of boolean
+- unified ev_desc for msg and cmd types: group at idx #6, argv at #7 for cmds
+    i.e. insert group at #6 instead of appending at the end of ev_desc list
+- RemAlarm_Quit: update rem. edit dialog to clear "rep." status
+epgtcl/dlg_shortcuts.tcl [rev:1.12, 2003-09-20T19:31:31]:
+- Use new =CONST= tcl2c pre-processor feature:
+- globally replaced $fsc_ with $::fsc_; removed global declarations
+- use new $::scdesc_ indices into result list of proc DescribeCurrentFilter
+- added =INCLUDE= to import constants from shortcuts.tcl
+epgtcl/shortcuts.tcl [rev:1.14, 2003-09-20T19:31:38]:
+- Use new =CONST= tcl2c pre-processor feature:
+- globally replaced $fsc_ with $::fsc_; removed global declarations
+- added new $::scdesc_ indices for result list of proc DescribeCurrentFilter
+epgtcl/dlg_udefcols.tcl [rev:1.13, 2003-09-20T19:31:46]:
+- Use new =CONST= tcl2c pre-processor feature:
+- globally replaced $fsc_ and $usf_ with $::...; removed global declarations
+- use new $::cod_ indices into mainwin's colsel table
+    use new $::pimg_ indices into mainwin's pi_img array elements
+- added =INCLUDE= to import constants from shortcuts, dlg_remind and mainwin
+- Added support for new pre-defined column type "Weekday colors"
+- do not delete ag_dayN tags in pibox text widgets
+- bugfix: tag delete did not work: tag list must be concat'ed not given as list
+epgtcl/mainwin.tcl [rev:1.226, 2003-09-20T19:34:59]:
+- Use new =CONST= tcl2c pre-processor feature:
+- added const declarations for user-defined columns: $::cod_, $::pimg_
+- globally replaced $fsc_ and $usf_ with $::...; removed global declarations
+    added =INCLUDE= to import constants from shortcuts, dlg_remind, dlg_udefcols
+- Added new pre-defined column type "Weekday colors"
+- AssignPiTextTags: add background colors (same as date scale)
+- new entry in colsel_tabs and default pilistbox_cols
+epgtcl/dlg_remind.tcl [rev:1.13, 2003-09-21T14:00:37]:
+- bugfix for last ci: "count" constants for list indices were wrong
+epgdb/epgdbfil.c [rev:1.46, 2003-09-21T14:39:51]:
+- Fix EpgDbFilterFork(): prevent multiple sub-contexts with identical tags
+- when same shortcut (i.e. fork with same tag) was added multiply by UI layer
+    but removed only once, it did in fact remain enabled
+- now any sub-context with same tag is destroyed before forking
+- note: also fixed UI to set shortcut only once
+CHANGES.version [rev:1.16, 2003-09-22T20:51:42]:
+- added note for new debug switch DEBUG_SWITCH_STREAM
+tcl2c.c [rev:1.8, 2003-09-22T20:58:18]:
+- Write new header file only if content has changed (or if no old one exists)
+- use temporary file; new func CompareHeaderFiles() used after processing
+    tcl to decide if new file can be discarded
+- also catch signals and error-exits to remove temporary file
+- advantage: depending C and TCL files are only compiled if header changes,
+    which is much less frequent than tcl script changes
+- disadvantage: requires removal of dependencies of .h from .tcl
+    and some hacks in makefile
+epgtcl/dlg_filter.tcl [rev:1.10, 2003-09-23T19:20:21]:
+- Extended start time filter with weekly and monthly modes
+- replaced boolean $timsel_nodate with $timsel_datemode; added radio buttons
+- increased relative date range from 7 to 14 days
+- cleanup callbacks: split off display update from value update
+    required to fix proc TimeFilterExternalChange: now also used for shortcuts
+- upon quit, remove the variable traces
+epgtcl/dlg_udefcols.tcl [rev:1.14, 2003-09-23T19:20:29]:
+- adapted example column for change of default shortcut tags
+- added short intro text with link to manual at the top of the dialog
+epgtcl/mainwin.tcl [rev:1.227, 2003-09-23T19:20:35]:
+- Extended start time filter with weekly and monthly modes
+- proc SelectTimeFilter: adapted for change of timsel variable names
+epgtcl/rcfile.tcl [rev:1.17, 2003-09-23T19:20:41]:
+- When loading rc files < 2.6.0pre5 add new "weekcol" to pibox column list
+epgtcl/shortcuts.tcl [rev:1.15, 2003-09-23T19:20:46]:
+- Extended start time filter with weekly and monthly modes
+- adapted shortcut undo-check, save, set and print procs
+- fold new var $timsel_datemode into $timsel_date: -10-weekday, -100-mday
+- fix: call proc TimeFilterExternalChange to update dialog after changes
+- Fix AND/OR combination modes handling:
+- check $fsc_prevselection if sub-context is already set before adding it
+- Extended default shortcut list
+- added "No sport", "Evening" and "> 15 min"
+- changed tag range from 0,1,... into 10000,10010,... to leave space for adds.
+epgui/epgmain.c [rev:1.124, 2003-09-23T19:26:04]:
+- added new command line option -daemonstop
+    changed type of variable optDaemonMode from bool into int
+- postfix locale change: query language from LC_TIME instead of LC_ALL
+    since LC_ALL seems to return a complex construct, i.e. more than one lang
+epgui/pifilter.c [rev:1.85, 2003-09-23T19:26:15]:
+- Extended start time filter with weekly and monthly modes
+- SelectStartTime(): replaced boolean arg doIgnoreDate with datemode keyword
+    use new flags to NI_DATE_ bitmap (not used by NI blocks)
+- added new filter types FILTER_TIME_WEEKLY, FILTER_TIME_MONTHLY
+    and new #define FILTER_TIME_ALL: used for reset and invert
+- adapted UpdateFilterContextMenuState()
+    (fix: should have already been done for previous doIgnoreDate extension)
+epgui/pioutput.c [rev:1.51, 2003-09-23T19:27:32]:
+- Bugfix broken cast in PiOutput_PiListboxInsert()
+- char index into alphaNumTab[] was casted to (uint) instead of (uchar)
+    which includes sign extension before unsigned conversion -> crash
+- bug reported by Helge Kreutzmann, 2003-Aug-09
+- Added new pre-defined column type "Weekday colors"
+- PiOutput_PiListboxInsert() and PiOutput_PiNetBoxInsert():
+    special handling: no text, just background identical to weekday scale
+- note: for netbox this type isn't very useful as-is; needs more work
+- Use new =CONST= tcl2c pre-processor feature
+- use EPGTCL_... defines instead of numerical constants
+- added #includes for generated Tcl header files
+epgui/pioutput.h [rev:1.17, 2003-09-23T19:27:43]:
+- Added new pre-defined column type "Weekday colors"
+- added new member to column type enum
+epgui/piremind.c [rev:1.11, 2003-09-23T19:28:32]:
+- bugfix PiRemind_GetReminderEvents(): boolean is_latest flag was negated
+- bugfix PiRemind_CheckDb(): must skip remIdx++ when reminder is removed
+    from the list -> changed for loop into while; improved debug output
+- postfix last ci: removed EPGTCL_ prefix again from local macro
+epgui/xawtv.c [rev:1.36, 2003-09-23T19:34:28]:
+- Optimization to speed-up boot times:
+- moved search for xawtv window into "after idle" handler
+- new function Xawtv_InitDelayHandler() split off from Xawtv_InitConfig()
+epgdb/epgdbfil.h [rev:1.29, 2003-09-23T19:36:26]:
+- Extended start time filter with weekly and monthly modes
+- added new filter types FILTER_TIME_WEEKLY, FILTER_TIME_MONTHLY
+    and new #define FILTER_TIME_ALL: or of all start time filter types
+- added new bits in NI_DATE_ bitmap: NI_DATE_WEEKLY, NI_DATE_MONTHLY
+- added new elem to filter struct: timeDayOffset: for weekly, monthly
+epgdb/epgdbfil.c [rev:1.47, 2003-09-23T19:36:32]:
+- Extended start time filter with weekly and monthly modes
+- EpgDbFilterFinishNi(): handle new flags in NI_DATE_ bitmap
+- EpgDbFilterMatchAct(): add match for new filter types
+    FILTER_TIME_WEEKLY, FILTER_TIME_MONTHLY
+epgctl/mytypes.h [rev:1.20, 2003-09-23T19:39:10]:
+- Added new debug switch DEBUG_SWITCH_STREAM
+- used for teletext decoding errors (missing packets, hamming errors, etc.)
+- allows to specifically disable such error messages (used for pre-releases)
+tcl2c.c [rev:1.9, 2003-09-23T19:49:30]:
+- Made latest features optional -> added argv options -d, -c, -h
+- added ParseArgv() and Usage() functions
+Makefile [rev:1.64, 2003-09-23T19:49:40]:
+- Adapted for tcl2c.c -h option: changed header output file handling
+- generated headers written only if content has changed
+-> removed dependencies of .h from .tcl
+-> instead add new phony dependency tcl_headers in front of all other
+     dependencies in targets which might depend on .h generated from .tcl
+- also added generated Tcl->C files to depend rule
+- Adapted for tcl2c.c -h option: changed header output file handling
+- generated headers written only if content has changed
+-> removed dependencies of .h from .tcl
+-> instead add new phony dependency tcl_headers in front of all other
+     dependencies in targets which might depend on .h generated from .tcl
+- also added generated Tcl->C files to depend rule
+Makefile.solaris [rev:1.6, 2003-09-23T19:49:40]:
+- Adapted for tcl2c.c -h option: changed header output file handling
+- generated headers written only if content has changed
+-> removed dependencies of .h from .tcl
+-> instead add new phony dependency tcl_headers in front of all other
+     dependencies in targets which might depend on .h generated from .tcl
+- also added generated Tcl->C files to depend rule
+- Adapted for tcl2c.c -h option: changed header output file handling
+- generated headers written only if content has changed
+-> removed dependencies of .h from .tcl
+-> instead add new phony dependency tcl_headers in front of all other
+     dependencies in targets which might depend on .h generated from .tcl
+- also added generated Tcl->C files to depend rule
+Makefile.win32 [rev:1.43, 2003-09-23T19:49:40]:
+- Adapted for tcl2c.c -h option: changed header output file handling
+- generated headers written only if content has changed
+-> removed dependencies of .h from .tcl
+-> instead add new phony dependency tcl_headers in front of all other
+     dependencies in targets which might depend on .h generated from .tcl
+- also added generated Tcl->C files to depend rule
+- Adapted for tcl2c.c -h option: changed header output file handling
+- generated headers written only if content has changed
+-> removed dependencies of .h from .tcl
+-> instead add new phony dependency tcl_headers in front of all other
+     dependencies in targets which might depend on .h generated from .tcl
+- also added generated Tcl->C files to depend rule
+epgui/menucmd.c [rev:1.105, 2003-09-23T20:03:14]:
+- fix ProvMerge_Start(): do not return TCL_ERROR upon db reload errors
+- did cause an empty Tcl script error popup
+- note: db load errors are already reported via callback
+www/pre-releases.html [rev:1.31, 2003-09-24T20:10:13]:
+- updated for 2.6.0pre5
+www/help-wanted.html [rev:1.1, 2003-09-27T12:12:24]:
+- Initial revision
+www/nxtvepg.css [rev:1.5, 2003-09-27T12:12:52]:
+- Added new class "marg" for <P>: used in help-wanted.html
+www/index-de.html [rev:1.58, 2003-09-27T12:16:07]:
+- added new "help wanted" section
+- removed undefined class=hr from <P> tags
+www/index.html [rev:1.71, 2003-09-27T12:16:07]:
+- added new "help wanted" section
+- removed undefined class=hr from <P> tags
+epgui/wmhooks.c [rev:1.1, 2003-09-28T11:59:19]:
+- Initial revision
+epgdb/epgdbfil.h [rev:1.30, 2003-09-28T17:10:49]:
+- Cleanup of filter type definitions, i.e. use adjacent bits for adjacent defines
+epgdb/epgdbmgmt.c [rev:1.48, 2003-09-28T17:16:49]:
+- Block range checks:
+- allow one extra block for MI and OI namely because M6 transmits
+    MI block #1 with MI counter set to #1
+- reported by Thierry, email 2003-09-27
+epgui/xawtv.c [rev:1.37, 2003-09-28T18:24:35]:
+- fixed compiler warning in non-DPRINTF_OFF mode: replaced int with uint
+epgui/wmhooks.c [rev:1.2, 2003-09-28T18:28:22]:
+- added support for win32 -> module renamed from x11wm.c into wmhooks.c
+- win32 support based on SetWindowPos(... HWND_TOPMOST ...)
+- simplified X11: use "wm frame" instead of tree traversal to get outer frame
+epgui/shellcmd.c [rev:1.5, 2003-09-28T18:29:53]:
+- For Win32 use CreateProcess() instead of system() to avoid DOS console
+- added new helper function PiOutput_Win32SystemExec()
+epgui/epgmain.c [rev:1.125, 2003-09-28T18:29:56]:
+- Added init/destroy for new module epgui/wmhooks.c
+- for "stay on top" windows, used for reminder popups
+epgui/pinetbox.c [rev:1.39, 2003-09-28T18:30:12]:
+- Changed PiNetBox_SearchPrevNext() to work without copying the filter context
+- instead save and restore the netwop pre2 filter array
+- copy does not work with forked contexts, because sub-contexts are not copied
+Makefile.solaris [rev:1.7, 2003-09-28T18:30:31]:
+- Added new module epgui/wmhooks.c
+Makefile.win32 [rev:1.44, 2003-09-28T18:31:05]:
+- added new module epgui/wmhooks.c
+- fix: added tcl_headers dependency for "devel" target
+Makefile [rev:1.65, 2003-09-28T18:31:31]:
+- added new module epgui/wmhooks.c
+- raised preferred tcl version from 8.3 to 8.4
+    because the new 8.4.4 release seems at least as fast as 8.3.5
+Nxtvepg.ad [rev:1.4, 2003-09-28T18:32:44]:
+- added note to intro that nxtvepg and possibly the X server must be restarted
+- added new options dscale_date_fmt, dscale_width and dscale_scwidth
+- moved dscale_cols so that all dscale options are close
+epgtcl/mainwin.tcl [rev:1.228, 2003-09-28T18:34:02]:
+- Made weekday scale more configurable via resource Database
+- added new options dscale_date_fmt, dscale_width and dscale_scwidth
+- use new global vars of same names when drawing the scale
+- also fix PiDateScale_SetSlider: skip painting if start time is 0
+    i.e. when no PI are in the pibox
+epgdb/epgnetio.h [rev:1.20, 2003-09-28T18:34:55]:
+- Raised compat version from 0.7.1 to 2.6.0pre2 (numeric value 0x020592)
+- due to change in struct EPGDB_BLOCK_COUNT which is parts of stats
+epgtcl/dlg_remind.tcl [rev:1.14, 2003-09-28T18:42:03]:
+- bugfix Reminder_DisplayMessage: don't use main window's coordinates for
+    placement if it's iconified
+- make message window stay on top -> new C level function C_Wm_StayOnTop
+- proc RemList_WindowClose: added fail-safe check to make sure column
+    width array always covers all columns
+www/index-de.html [rev:1.59, 2003-09-28T19:08:58]:
+- added list of features in upcoming 2.6.0
+- removed new history from before 2.5.2
+www/index.html [rev:1.72, 2003-09-28T19:08:58]:
+- added list of features in upcoming 2.6.0
+- removed new history from before 2.5.2
+www/pre-releases.html [rev:1.32, 2003-09-28T19:26:05]:
+- updated for 2.6.0pre6 (RC2)
+epgui/epgmain.c [rev:1.126, 2003-10-03T06:55:08]:
+- Fix for last ci: removed #ifndef WIN32 around wmhooks.c init/destroy
+epgtcl/mainwin.tcl [rev:1.229, 2003-10-03T10:29:33]:
+- bugfix proc LoadWidgetOptions:
+- dscale_date_fmt parsing broken: wrong param count to regsub for tcl <= 8.3
+epgtcl/rcfile.tcl [rev:1.18, 2003-10-03T10:33:06]:
+- bugfix LoadRcFile: upgrade from version < 0x020590:
+- bold and underline omitted from user-def col. format due to if expr. error
+epgvbi/syserrmsg.c [rev:1.4, 2003-10-03T16:45:54]:
+- Added text for winsock error code WSAETIMEDOUT
+- seen during connect when host down and after connection abort
+epgdb/epgblock.h [rev:1.45, 2003-10-03T16:53:27]:
+- EPGDB_BLOCK_COUNT: added element reserved_0 behind recently added "extra"
+- struct was no longer binary compatible between gcc2.95-win and gcc3
+- led to abort of connection to acq daemon
+epgdb/epgnetio.c [rev:1.34, 2003-10-03T17:03:14]:
+- WIN32 EpgNetIo_CloseIO: call shutdown() before closing socket
+- otherwise the client sometimes didn't notice when the daemon shut down
+epgui/pilistbox.c [rev:1.91, 2003-10-03T19:49:03]:
+- Bugfix PiListBox_DbRecount(): db unlock missing in error branch
+nxtvepg.pod [rev:1.98, 2003-10-04T18:38:28]:
+- Updated for new features in 2.6.0
+- added new command line option -daemonstop
+- added weekday scale
+- basic browsing: added "i" key and added reference to filtering
+- expired programmes in stats & filtering
+- start time: new date modes "weekly" and "monthly"
+- text search filter dialog improvements
+- new sub-chapter on shortcut combination modes
+- new chapter on reminders
+- attrib. composition dialog: reminders & background colors, overstrike text
+- Context menu extensions and TV interaction: !xawtv! prefix
+- Also:
+- removed 3sat from list of German providers& other references
+- added thanks to Peter Rolf to AUTHOR chapter
+README [rev:1.36, 2003-10-04T18:43:10]:
+- Updated note about Tcl/Tk version 8.4: performance of 8.4.4 is ok
+dsdrv/cx2388x_typ.c [rev:1.9, 2003-10-04T19:40:32]:
+- Added PCI id for Hauppauge WinTV Go (taken from Linux cx88 driver)
+- refers to same card type as WinTV PCI
+- adapted label of WinTV PCI to reflect that the entry is for both cards
+epgvbi/syserrmsg.c [rev:1.5, 2003-10-05T18:55:01]:
+- Added yet another winsock error code: WSAEINTR
+- occurs when an outgoing connection is refused manually via a firewall
+epgdb/epgdbsav.c [rev:1.51, 2003-10-05T18:59:17]:
+- WIN32 bugfix EpgDbSavSetupDir()
+- FindFirstFile() did not always work for checking if a directory exists:
+    fails for root dir or for roots of shares (e.g. \\myhost\myshare)
+- replaced with GetFileAttributes()
+- also: use SystemErrorMessage_Set() to translate error codes
+epgdb/epgnetio.h [rev:1.21, 2003-10-05T19:02:36]:
+- Set PROTOCOL_COMPAT from 2.6.0pre2 to 2.6.0pre6
+- due to fix for recent change of struct EPGDB_BLOCK_COUNT (added resvd elem)
+epgdb/epgnetio.h [rev:1.22, 2003-10-05T19:03:18]:
+- Added new function EpgNetIo_IsLocalHost()
+- used by client to check if the daemon is running locally (for auto start)
+- improves former string compare with "localhost"
+epgdb/epgnetio.c [rev:1.35, 2003-10-05T19:03:28]:
+- Added new function EpgNetIo_IsLocalHost()
+- used by client to check if the daemon is running locally (for auto start)
+- improves former string compare with "localhost"
+epgdb/epgblock.h [rev:1.46, 2003-10-05T19:12:47]:
+- Added new element EPGDB_PI_PROC_START to enum EPGDB_PI_ACQ_EVENT:
+- also renamed RECOUNT into PROC_DONE
+- now all acq operations are braced by PROC_START...PROC_DONE callbacks
+epgdb/epgdbmgmt.h [rev:1.18, 2003-10-05T19:12:57]:
+- Added declaration for new function EpgDbExpire()
+epgdb/epgdbmgmt.c [rev:1.49, 2003-10-05T19:13:23]:
+- Implemented expire "cut-off" time configuration dialog (dlg_filter.tcl)
+- added new global function EpgDbExpire(): remove PI beyond expire threshold
+- adapted listbox callback handling for large removals (e.g. by expiry)
+    + added call with mode EPGDB_PI_PROC_START before all modifications
+      placed at top leve, i.e. queue processing and expiry functions
+    + moved "recount" calls up to the same level, i.e. always called last
+epgdb/epgdbmerge.c [rev:1.28, 2003-10-05T19:13:36]:
+- Adapted for changed listbox callback handling:
+- EpgDbMergeInsertPi(): added PROC_START callback at function top,
+    symmetrical to PROC_DONE (renamed from RECOUNT) event at the end
+epgctl/epgctxctl.c [rev:1.24, 2003-10-05T19:14:28]:
+- Implemented expire "cut-off" time configuration dialog (dlg_filter.tcl)
+- EpgContextCtl_SetPiExpireDelay(): added call to new func EpgDbExpire()
+    immediately remove PI beyond the expire threshold
+epgctl/epgacqclnt.c [rev:1.11, 2003-10-05T19:16:43]:
+- Improved EpgAcqClient_IsLocalServe():
+- use new function EpgNetIo_IsLocalHost(): compare local with server hostname
+epgctl/epgacqsrv.c [rev:1.12, 2003-10-05T19:19:37]:
+- Improved server log output: added port no output; remove "local" for WIN32
+epgui/epgmain.c [rev:1.127, 2003-10-05T19:24:36]:
+- WIN32: search for an other nxtvepg instance -> new RaiseNxtvepgGuiWindow();
+    added boolean arg to Wintv_Init(): FALSE if other instance running
+- WIN32 fix: use WSAGetLastError() instead of errno for daemon select() errors
+- adapted for menucmd.c interface change:
+    renamed MenuCmd_UpdatePiExpireDelay() into MenuCmd_SetPiExpireDelay()
+epgui/menucmd.h [rev:1.22, 2003-10-05T19:24:42]:
+- Implemented expire "cut-off" time configuration dialog (dlg_filter.tcl)
+- renamed MenuCmd_UpdatePiExpireDelay() into MenuCmd_SetPiExpireDelay()
+epgui/menucmd.c [rev:1.106, 2003-10-05T19:25:37]:
+- Implemented expire "cut-off" time configuration dialog (dlg_filter.tcl)
+- added new Tcl callback C_UpdatePiExpireDelay: set new threshold
+- added new cb C_CountExpiredPi: pre-check for new threshold
+- renamed MenuCmd_UpdatePiExpireDelay() into MenuCmd_SetPiExpireDelay()
+- Also: clean-up MenuCmd_ReadTclInt(): pass interp through from caller
+epgui/piremind.c [rev:1.12, 2003-10-05T19:29:17]:
+- PiRemind_PiSetGroup(): set NEW control bit upon group change
+- Bugfix handling of PiRemind_GetDefaultGroupTag() result:
+    + result may be NULL if remgroup-order var is undefined (rc file error)
+    + adapted PiRemind_CheckDb() and PiRemind_AddPi()
+epgui/timescale.c [rev:1.11, 2003-10-05T19:29:31]:
+- Adapted for (non-AI) expired PI in database
+- increase length of scales by expire "cut-off" delay
+epgui/wintv.c [rev:1.17, 2003-10-05T19:31:41]:
+- Adapted Wintv_Init(): added boolean param to start with interaction disabled
+- used by epgmain.c when another nxtvepg instance is already running
+- also simplified Wintv_InitConfig(): use Tcl_VarEval() instead of malloc()
+epgui/wintv.h [rev:1.4, 2003-10-05T19:31:44]:
+- Adapted Wintv_Init(): added boolean param to start with interaction disabled
+- used by epgmain.c when another nxtvepg instance is already running
+epgui/statswin.c [rev:1.65, 2003-10-05T19:32:09]:
+- Fix acq stats output: check if acq start time < now
+- if client's clock is drifting huge values might be displayed
+epgui/pilistbox.c [rev:1.92, 2003-10-05T19:34:37]:
+- Adapted listbox callback handling for large removals (e.g. by expiry)
+- PiListBox_HandleAcqEvent(): stop processing after X calls
+- added new call with mode PROC_START to reset counter at start of queue proc.
+- replaced semantics of pibox_resync: always refresh instead of just counting
+    PI before and after visible area (before this was done only if the prog-idx
+    filter was activated); also skip all insert/Remove/update handlers if a
+    refresh is scheduled -> removed obsolete function PiListBox_DbRecount()
+epgui/uictrl.c [rev:1.39, 2003-10-05T19:36:50]:
+- Added new event ACQ_EVENT_PI_EXPIRED to UiControlMsg_AcqEvent()
+- used when expire cut-off time was changed -> redisplay statistics
+epgui/uictrl.h [rev:1.14, 2003-10-05T19:40:38]:
+- Added new event ACQ_EVENT_PI_EXPIRED to UiControlMsg_AcqEvent()
+- used when expire cut-off time was changed -> redisplay statistics
+epgui/pinetbox.c [rev:1.40, 2003-10-05T19:42:35]:
+- Adapted for change in pilistbox.c acq callback handling (not used here)
+epgui/shellcmd.c [rev:1.6, 2003-10-05T19:43:16]:
+- Fix: check for NULL pointer result of SystemErrorMessage_Set()
+epgtcl/dlg_filter.tcl [rev:1.11, 2003-10-05T19:45:08]:
+- Implemented expire "cut-off" time configuration dialog (dlg_filter.tcl)
+- added notebook widget to piexpire dialog: 2nd tab with cut-off config
+- new proc PiExpTime_UpdateCutOff: use new C func C_UpdatePiExpireDelay
+- also fix ParseDurationValue: check for negative minute values
+- Also: added abs. time output for expire time filter
+epgtcl/dlg_remind.tcl [rev:1.15, 2003-10-05T19:46:11]:
+- minor fix: remove superfluous pack for notebook contents
+- added 2nd default group "movies" with 2 messages
+epgtcl/dlg_hwcfg.tcl [rev:1.11, 2003-10-05T19:47:23]:
+- Fixed proc TvCardConfigAuto:
+- if sucessful set cursor onto list entry of detected card
+epgtcl/mainwin.tcl [rev:1.230, 2003-10-05T19:47:31]:
+- WIN32: added bind for main window <Map> event: remove systray icon
+- used when main window is raised by 2nd instance of nxtvepg
+nxtvepg.pod [rev:1.99, 2003-10-05T19:50:47]:
+- Improved Client/Server config dialog description
+- added link to -daemon option and to control menu
+- suggested by "Manuel" in the forum
+www/pre-releases.html [rev:1.33, 2003-10-05T20:49:47]:
+- updated for pre-release 2.6.0pre7 (RC3)
+- moved page from nefkom server to sourceforge:
+    renamed file from devel-index.html into pre-releases.html
+- added "last update" tag in download section
+epgui/piremind.c [rev:1.13, 2003-10-09T18:39:20]:
+- bugfix PiRemind_PiSetGroup(): (bug introduced in last check-in)
+- must unshare EPGTCL_RPI_CTRL before modifying it
+epgvbi/btdrv4linux.c [rev:1.48, 2003-10-09T19:17:32]:
+- Fixed gcc3 compiler warning about signed/unsigned comparison
+tvsim/vbiplay.pod [rev:1.4, 2003-10-10T21:31:59]:
+- Fixed typo
+epgctl/epgversion.h [rev:1.51, 2003-10-11T06:34:53]:
+- set version to 2.6.0
+CHANGES [rev:1.38, 2003-10-11T08:13:36]:
+- updated for release 2.6.0
+TODO [rev:1.32, 2003-10-11T08:13:36]:
+- updated for release 2.6.0
+nxtvepg.spec [rev:1.17, 2003-10-11T08:14:03]:
+- updated for release 2.6.0
+images/hatch.xbm [rev:1.2, 2003-10-11T08:15:35]:
+- renamed bitmap from stipple into hatch
+www/man.html [rev:1.27, 2003-10-11T09:52:17]:
+- updated for release 2.6.0
+www/index-de.html [rev:1.60, 2003-10-11T09:52:27]:
+- updated download links and descriptions for new release 2.6.0
+- removed all mentions of former provider "3sat"
+- replaced link to screenshot-linux.gif with screenshot-reminder.gif
+- updated feedback section: moved discussion from ML into forum
+- improved "help wanted" section
+- added note that ATI cards ard not supported
+www/index.html [rev:1.73, 2003-10-11T09:52:27]:
+- updated download links and descriptions for new release 2.6.0
+- removed all mentions of former provider "3sat"
+- replaced link to screenshot-linux.gif with screenshot-reminder.gif
+- updated feedback section: moved discussion from ML into forum
+- improved "help wanted" section
+- added note that ATI cards ard not supported
+www/changelog.html [rev:1.47, 2003-10-11T09:52:32]:
+- added change-log for release 2.6.0
+    new log consists of 3 sections: new features, improvements, bug fixes
+- removed "3sat" from keyword list
+www/tripod-src-index.html [rev:1.16, 2003-10-11T13:21:37]:
+- updated for release 2.6.0
+www/nefkom-src-index.html [rev:1.18, 2003-10-11T13:23:32]:
+- updated for release 2.6.0
+www/nefkom-src-index.html [rev:1.19, 2003-10-11T13:49:16]:
+- removed older versions to make space
+www/tvsim-faq.html [rev:1.1, 2003-10-12T09:57:33]:
+- Initial revision
+www/help-wanted.html [rev:1.2, 2003-10-12T09:59:08]:
+- improved intro
+- rewrote and extended DirectShow topic
+- tv interaction: added link to new Q&A page
+- added translation topic
+www/index-de.html [rev:1.61, 2003-10-12T10:41:33]:
+- added link from tvsim package to help-wanted page
+www/index.html [rev:1.74, 2003-10-12T10:41:33]:
+- added link from tvsim package to help-wanted page
+epgui/wmhooks.h [rev:NONE - MISSING CHECKIN]
+- Initial revision
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_6_0 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

@@ -22,7 +22,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: loadtcl.c,v 1.5 2003/01/11 13:02:52 tom Exp tom $
+ *  $Id: loadtcl.c,v 1.6 2003/09/15 20:40:11 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -43,6 +43,9 @@
 #include "epgtcl/helptexts.h"
 #include "epgtcl/draw_stats.h"
 #include "epgtcl/shortcuts.h"
+#include "epgtcl/mclistbox.h"
+#include "epgtcl/combobox.h"
+#include "epgtcl/rnotebook.h"
 #include "epgtcl/dlg_hwcfg.h"
 #include "epgtcl/dlg_xawtvcf.h"
 #include "epgtcl/dlg_ctxmencf.h"
@@ -54,6 +57,8 @@
 #include "epgtcl/dlg_shortcuts.h"
 #include "epgtcl/dlg_prov.h"
 #include "epgtcl/dlg_filter.h"
+#include "epgtcl/dlg_substr.h"
+#include "epgtcl/dlg_remind.h"
 #ifdef USE_PRECOMPILED_TCL_LIBS
 #include "epgtcl/tcl_libs.h"
 #include "epgtcl/tk_libs.h"
@@ -99,6 +104,11 @@ static const TCL_LOAD_TAB pLoadTab[] =
    {draw_stats_tcl_static, draw_stats_tcl_dynamic, "draw_stats_tcl"},
    {dlg_prov_tcl_static, dlg_prov_tcl_dynamic, "dlg_prov_tcl"},
    {dlg_filter_tcl_static, dlg_filter_tcl_dynamic, "dlg_filter_tcl"},
+   {dlg_substr_tcl_static, dlg_substr_tcl_dynamic, "dlg_substr_tcl"},
+   {dlg_remind_tcl_static, dlg_remind_tcl_dynamic, "dlg_remind_tcl"},
+   {mclistbox_tcl_static, mclistbox_tcl_dynamic, "mclistbox_tcl"},
+   {combobox_tcl_static, combobox_tcl_dynamic, "combobox_tcl"},
+   {rnotebook_tcl_static, rnotebook_tcl_dynamic, "rnotebook_tcl"},
    {NULL, NULL, NULL}
 };
 

@@ -20,10 +20,10 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: syserrmsg.c,v 1.2 2003/03/22 14:44:25 tom Exp tom $
+ *  $Id: syserrmsg.c,v 1.5 2003/10/05 18:55:01 tom Exp tom $
  */
 
-#define DEBUG_SWITCH DEBUG_SWITCH_EPGVBI
+#define DEBUG_SWITCH DEBUG_SWITCH_VBI
 #define DPRINTF_OFF
 
 #ifdef WIN32
@@ -61,9 +61,11 @@ static void SystemErrorMessage_WinStrError( DWORD errCode, uchar * pBuf, uint ma
          case WSAECONNABORTED:
          case WSAECONNRESET:     strcpy(pBuf, "Connection aborted"); break;
          case WSAECONNREFUSED:   strcpy(pBuf, "Connection refused (daemon not running?)"); break;
+         case WSAETIMEDOUT:      strcpy(pBuf, "Connection timed out (host is down?)"); break;
          case WSAEHOSTDOWN:      strcpy(pBuf, "Host is down"); break;
          case WSAEHOSTUNREACH:   strcpy(pBuf, "Host unreachable"); break;
          case WSAHOST_NOT_FOUND: strcpy(pBuf, "Host not found"); break;
+         case WSAEINTR:          strcpy(pBuf, "System call interrupted"); break;
          default:
             if (errCode >= WSABASEERR)
                sprintf(pBuf, "WinSock error #%ld", errCode);

@@ -20,8 +20,12 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: mainwin.tcl,v 1.224 2003/06/28 22:27:16 tom Exp tom $
+#  $Id: mainwin.tcl,v 1.230 2003/10/05 19:47:31 tom Exp tom $
 #
+# import constants from other modules
+#=INCLUDE= "epgtcl/shortcuts.h"
+#=INCLUDE= "epgtcl/dlg_udefcols.h"
+#=INCLUDE= "epgtcl/dlg_remind.h"
 
 ##  ---------------------------------------------------------------------------
 ##  Set up global variables which define general widget parameters
@@ -33,6 +37,7 @@ proc LoadWidgetOptions {} {
    global text_bg default_bg win_frm_fg pi_bg_now pi_bg_past help_bg
    global pi_cursor_bg pi_cursor_bg_now pi_cursor_bg_past
    global xawtv_font xawtv_overlay_fg xawtv_overlay_bg
+   global dscale_cols dscale_font dscale_width dscale_scwidth dscale_date_fmt
    global entry_disabledforeground x11_appdef_path
    global tcl_version is_unix
 
@@ -43,7 +48,7 @@ proc LoadWidgetOptions {} {
       # background for cursor when above a currently running programme
       set pi_cursor_bg_now  #b8b8df
       # background for cursor when above an expired programme
-      set pi_cursor_bg_past #dfb8b8
+      set pi_cursor_bg_past #d7d7c7
    } else {
       if {$tcl_version >= 8.3} {
          set font_pt_size  12
@@ -52,17 +57,19 @@ proc LoadWidgetOptions {} {
       }
       set pi_cursor_bg      #d4d4d4
       set pi_cursor_bg_now  #d8d8ff
-      set pi_cursor_bg_past #ffd8d8
+      set pi_cursor_bg_past #e0e0c9
    }
 
    # background color for all text and list in- and output fields
-   set text_bg    #E9E9EC
+   set text_bg    #e9e9ec
    # background in TV schedule for currently running programmes
    set pi_bg_now  #d9d9ef
    # background in TV schedule for expired programmes
-   set pi_bg_past #dfc9c9
+   set pi_bg_past #ede7dd
    # background for help text
    set help_bg    #ffd840
+   # background colors for PI date scale (red, orange, yellow, green, cyan, blue, purple)
+   set dscale_cols {#ff3d3d #ff9d3c #fdff4f #4eff57 #07d1c1 #5b73ff #eb41ff}
 
    set font_normal [list helvetica [expr   0 - $font_pt_size] normal]
    set font_fixed  [list courier   [expr   0 - $font_pt_size] normal]
@@ -78,6 +85,11 @@ proc LoadWidgetOptions {} {
    set xawtv_overlay_bg black
    # font for message popups (e.g. warnings and error messages)
    set msgbox_font  [DeriveFont $font_normal 2 bold]
+   # font for PI date scale
+   set dscale_font  $pi_bold_font
+   set dscale_width 30
+   set dscale_scwidth 20
+   set dscale_date_fmt {%a}
 
    if $is_unix {
       # UNIX: load defaults from app-defaults file
@@ -94,27 +106,62 @@ proc LoadWidgetOptions {} {
                 pi_bg_now pi_bg_past xawtv_overlay_fg xawtv_overlay_bg} {
       set value [option get . $opt userDefault]
       if {([string length $value] > 0) && \
-          ([catch [list .test_opt configure -foreground $value]] == 0)} {
+          ([catch {.test_opt configure -foreground $value}] == 0)} {
          set $opt $value
       }
    }
-
-   # load and check all font resources
-   foreach opt {pi_font xawtv_font help_font msgbox_font} {
-      set value [option get . $opt userDefault]
-      if {([llength $value] == 3) && \
-          ([catch [list .test_opt configure -font $value]] == 0)} {
-         set $opt $value
+   # load 7 colors for date scale
+   set value [option get . dscale_cols userDefault]
+   if {[string length $value] > 0} {
+      set ltmp [split $value { ,;}]
+      if {[llength $ltmp] == 7} {
+         set idx 0
+         foreach value $ltmp {
+            if {[catch {.test_opt configure -foreground $value}] == 0} {
+               incr idx
+            }
+         }
+         if {$idx == 7} {
+            set dscale_cols $ltmp
+         }
       }
    }
    destroy .test_opt
 
+   # load and check all font resources
+   foreach opt {pi_font xawtv_font help_font msgbox_font dscale_font} {
+      set value [option get . $opt userDefault]
+      if {[string length $value] > 0} {
+         if {[catch {font metrics $value -linespace}] == 0} {
+            set $opt $value
+         }
+      }
+   }
+
+   # date format and width of weekday scale
+   set value [option get . dscale_date_fmt userDefault]
+   if {([string length $value] > 0) && \
+       ([catch {clock format 0 -format $value}] == 0)} {
+      regsub -all {\\n} $value "\n" dscale_date_fmt
+   }
+   set value [option get . dscale_width userDefault]
+   if {([string length $value] > 0) && [regexp {^\d+$} $value] && ($value > 10)} {
+      set dscale_width $value
+   }
+   set value [option get . dscale_scwidth userDefault]
+   if {([string length $value] > 0) && [regexp {^\d+$} $value] && \
+       ($value >= 1) && ($value < $dscale_width)} {
+      set dscale_scwidth $value
+   }
+
    # starting with Tk8.4 an entry's text is grey when disabled and
    # this new option must be used where this is not desirable
    if {$tcl_version >= 8.4} {
-      set entry_disabledforeground "-disabledforeground"
+      set ::entry_disabledforeground "-disabledforeground"
+      set ::entry_disabledbackground "-disabledbackground"
    } else {
-      set entry_disabledforeground "-foreground"
+      set ::entry_disabledforeground "-foreground"
+      set ::entry_disabledbackground "-background"
    }
 
    if {[llength [info commands tkButtonInvoke]] == 0} {
@@ -151,12 +198,17 @@ set pibox_type 0
 set pinetbox_col_count 4
 set pinetbox_col_width 125
 
+#=CONST=  ::pimg_name_idx   0
+#=CONST=  ::pimg_width_idx  1
+#=CONST=  ::pimg_idx_count  2
+
 proc CreateMainWindow {} {
    global is_unix entry_disabledforeground
    global text_bg pi_bg_now pi_bg_past default_bg
    global font_normal pi_font pi_bold_font
    global fileImage pi_img
    global pibox_type pinetbox_col_count pinetbox_col_width
+   global dscale_width
 
    # copy event bindings which are required for scrolling and selection (outbound copy&paste)
    foreach event {<ButtonPress-1> <ButtonRelease-1> <B1-Motion> <Double-Button-1> <Shift-Button-1> \
@@ -285,6 +337,7 @@ proc CreateMainWindow {} {
    bind      TextPiBox <Key-8>           {ToggleShortcut 7}
    bind      TextPiBox <Key-9>           {ToggleShortcut 8}
    bind      TextPiBox <Key-0>           {ToggleShortcut 9}
+   bind      TextPiBox <Key-i>           {C_Tvapp_ShowEpg}
    bind      TextPiBox <Return>          {if {[llength [info commands .all.shortcuts.tune]] != 0} {tkButtonInvoke .all.shortcuts.tune}}
    bind      TextPiBox <Double-Button-1> {if {[llength [info commands .all.shortcuts.tune]] != 0} {tkButtonInvoke .all.shortcuts.tune}}
    bind      TextPiBox <Escape>          {tkButtonInvoke .all.shortcuts.reset}
@@ -296,6 +349,11 @@ proc CreateMainWindow {} {
    if {$pibox_type == 0} {
       grid   .all.pi.list.text -row 1 -rowspan 3 -column 1 -columnspan 2 -sticky news
    }
+   canvas    .all.pi.list.dscale -width $dscale_width -background $default_bg -cursor top_left_arrow
+   bind      .all.pi.list.dscale <ButtonPress>   {PiDateScale_Goto %y 0x100}
+   bind      .all.pi.list.dscale <ButtonRelease> {PiDateScale_Goto %y 0}
+   grid      .all.pi.list.dscale -row 1 -rowspan 3 -column 3 -sticky n -pady 2
+
 
    ###########################################################################
 
@@ -315,7 +373,7 @@ proc CreateMainWindow {} {
    button    .all.pi.list.panner -bitmap bitmap_pan_updown -cursor top_left_arrow -takefocus 0
    bind      .all.pi.list.panner <ButtonPress-1> {+ PanningControl 1}
    bind      .all.pi.list.panner <ButtonRelease-1> {+ PanningControl 0}
-   grid      .all.pi.list.panner -row 4 -column 2 -sticky ens
+   grid      .all.pi.list.panner -row 4 -column 2 -columnspan 2 -sticky ens
 
    grid      columnconfigure .all.pi.list 1 -weight 1
    grid      rowconfigure .all.pi.list 3 -weight 1
@@ -424,7 +482,7 @@ proc CreateMainWindow {} {
 ##
 proc AssignPiTextTags {wid} {
    global pi_bg_now pi_bg_past pi_bold_font
-   global pi_cursor_bg
+   global pi_cursor_bg dscale_cols
 
    # tags to mark currently running programmes
    # note: background color of "cur" is changed dynamically at time of display
@@ -436,20 +494,37 @@ proc AssignPiTextTags {wid} {
    $wid tag configure cur_pseudo_overlay -relief ridge -background $pi_cursor_bg \
                                  -borderwidth 2 -bgstipple bitmap_hatch
 
-
-   # tags used in user-defined columns
-   $wid tag configure bold -font $pi_bold_font
-   $wid tag configure underline -underline 1
-   $wid tag configure black -foreground black
-   $wid tag configure red -foreground #CC0000
-   $wid tag configure blue -foreground #0000CC
-   $wid tag configure green -foreground #00CC00
-   $wid tag configure yellow -foreground #CCCC00
-   $wid tag configure pink -foreground #CC00CC
-   $wid tag configure cyan -foreground #00CCCC
-
    $wid tag lower now
    $wid tag lower past
+
+   # background color tags for weekday colors column type
+   for {set wday_idx 0} {$wday_idx < 7} {incr wday_idx} {
+      $wid tag configure ag_day$wday_idx -bgstipple bitmap_gray \
+                                         -background [lindex $dscale_cols $wday_idx]
+   }
+
+   # text font tags used in user-defined columns
+   $wid tag configure bold -font $pi_bold_font
+   $wid tag configure underline -underline 1
+   $wid tag configure overstrike -overstrike 1
+
+   # foreground color tags used in user-defined columns
+   UserCols_SetPiBoxTextColors $wid
+}
+
+##  ---------------------------------------------------------------------------
+##  Update listbox color tags after changes in user-defined column definitions
+##
+proc UpdateListboxColorTags {} {
+   global pinetbox_col_count
+
+   UserCols_SetPiBoxTextColors .all.pi.list.text
+
+   for {set idx 0} {$idx < $pinetbox_col_count} {incr idx} {
+      if {[llength [info commands .all.pi.list.nets.n_$idx]] != 0} {
+         UserCols_SetPiBoxTextColors .all.pi.list.nets.n_$idx
+      }
+   }
 }
 
 ##  ---------------------------------------------------------------------------
@@ -533,7 +608,7 @@ proc CreateMenubar {} {
    . config -menu .menubar
    .menubar add cascade -label "Control" -menu .menubar.ctrl -underline 0
    .menubar add cascade -label "Configure" -menu .menubar.config -underline 1
-   #.menubar add cascade -label "Reminder" -menu .menubar.timer -underline 0
+   .menubar add cascade -label "Reminder" -menu .menubar.reminder -underline 0
    .menubar add cascade -label "Shortcuts" -menu .menubar.shortcuts -underline 0
    .menubar add cascade -label "Filter" -menu .menubar.filter -underline 0
    if {$is_unix} {
@@ -592,6 +667,7 @@ proc CreateMenubar {} {
    .menubar.config.show_hide add checkbutton -label "Show layout button" -command {ShowOrHideShortcutList; UpdateRcFile} -variable showLayoutButton
    .menubar.config.show_hide add checkbutton -label "Show status line" -command ToggleStatusLine -variable showStatusLine
    .menubar.config.show_hide add checkbutton -label "Show column headers" -command ToggleColumnHeader -variable showColumnHeader
+   .menubar.config.show_hide add checkbutton -label "Show weekday scale" -command ToggleDateScale -variable showDateScale
    menu .menubar.config.layout
    .menubar.config.layout add radiobutton -label "Single list for all networks" -command Toggle_PiBoxType -variable pibox_type -value 0
    .menubar.config.layout add radiobutton -label "Separate columns for each network" -command Toggle_PiBoxType -variable pibox_type -value 1
@@ -599,12 +675,17 @@ proc CreateMenubar {} {
       .menubar.config.show_hide add checkbutton -label "Hide on minimize" -command ToggleHideOnMinimize -variable hideOnMinimize
    }
    # Reminder menu
-   #menu .menubar.timer -tearoff 0
-   #.menubar.timer add command -label "Add selected title" -state disabled
-   #.menubar.timer add command -label "Add selected series" -state disabled
-   #.menubar.timer add command -label "Add filter selection" -state disabled
-   #.menubar.timer add separator
-   #.menubar.timer add command -label "List reminders..." -state disabled
+   # (note: first three entries' label, state and command binding are overridden by post command)
+   menu .menubar.reminder -tearoff 0 -postcommand C_SetReminderMenuStates
+   .menubar.reminder add command -label "Add reminder" -state disabled
+   .menubar.reminder add cascade -label "Add reminder to group" -menu .menubar.reminder.group -state disabled
+   .menubar.reminder add command -label "Remove reminder" -state disabled
+   .menubar.reminder add separator
+   .menubar.reminder add command -label "Show reminder matches" -command Reminder_ShowAll
+   .menubar.reminder add command -label "Edit reminder list..." -command PopupReminderList
+   .menubar.reminder add separator
+   .menubar.reminder add command -label "Configure reminder groups..." -command PopupReminderConfig
+   menu .menubar.reminder.group -tearoff 0
    # Filter menu
    menu .menubar.filter
    .menubar.filter add cascade -menu .menubar.filter.themes -label Themes
@@ -626,6 +707,7 @@ proc CreateMenubar {} {
    .menubar.filter add command -label "Text search..." -command SubStrPopup
    .menubar.filter add command -label "Start Time..." -command PopupTimeFilterSelection
    .menubar.filter add command -label "Duration..." -command PopupDurationFilterSelection
+   .menubar.filter add command -label "Expired display..." -command PopupExpireDelaySelection
    .menubar.filter add command -label "Sorting Criteria..." -command PopupSortCritSelection
    if {!$is_unix} {
       .menubar.filter add command -label "Navigate" -command {PostSeparateMenu .menubar.filter.ni_1 C_CreateNi 1}
@@ -739,9 +821,8 @@ proc CreateMenubar {} {
 ##  Apply settings loaded from rc/ini file to menu and PI listbox
 ##
 proc ApplyRcSettingsToMenu {} {
-   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_inv_idx fsc_logi_idx fsc_hide_idx
-   global showColumnHeader showStatusLine hideOnMinimize
-   global pibox_type pibox_height shortinfo_height
+   global showColumnHeader showStatusLine showDateScale hideOnMinimize
+   global pibox_type pibox_height shortinfo_height dscale_width
    global shortcuts shortcut_order
    global usercols
 
@@ -761,6 +842,11 @@ proc ApplyRcSettingsToMenu {} {
    if $hideOnMinimize {
       ToggleHideOnMinimize
    }
+   if {$showDateScale == 0} {
+      grid remove .all.pi.list.dscale
+   }
+   .all.pi.list.dscale configure -width $dscale_width
+
 
    # set the height of the listbox text widget
    if {[info exists pibox_height]} {
@@ -779,9 +865,11 @@ proc ApplyRcSettingsToMenu {} {
 
    # fill the shortcut listbox
    foreach index $shortcut_order {
-      .all.shortcuts.list insert end [lindex $shortcuts($index) $fsc_name_idx]
+      .all.shortcuts.list insert end [lindex $shortcuts($index) $::fsc_name_idx]
    }
    .all.shortcuts.list configure -height [llength $shortcut_order]
+
+   Reminder_InitData
 
    if {[array size usercols] == 0} {
       PreloadUserDefinedColumns
@@ -1072,6 +1160,7 @@ set showShortcutListbox 1
 set showStatusLine 1
 set showColumnHeader 1
 set showLayoutButton 1
+set showDateScale 1
 set hideOnMinimize 1
 set menuUserLanguage 7
 
@@ -1156,6 +1245,19 @@ proc ToggleColumnHeader {} {
    UpdateRcFile
 }
 
+proc ToggleDateScale {} {
+   global showDateScale
+
+   if $showDateScale {
+      grid .all.pi.list.dscale
+   } else {
+      grid remove .all.pi.list.dscale
+   }
+   UpdateRcFile
+   # refresh PI listbox to trigger drawing the scale
+   C_PiBox_Refresh
+}
+
 proc ToggleHideOnMinimize {} {
    global hideOnMinimize
    global is_unix
@@ -1163,8 +1265,10 @@ proc ToggleHideOnMinimize {} {
    if {!$is_unix} {
       if $hideOnMinimize {
          bind . <Unmap> {if {([string compare %W "."] == 0) && [C_SystrayIcon 1]} {wm withdraw .}}
+         bind . <Map> {if {([string compare %W "."] == 0)} {C_SystrayIcon 0}}
       } else {
          bind . <Unmap> {}
+         bind . <Map> {}
       }
    }
 }
@@ -1561,6 +1665,13 @@ proc ResetVpsPdcFilt {} {
    array unset filter_invert vps_pdc
 }
 
+proc ResetExpireDelay {} {
+   global piexpire_display 0
+
+   set piexpire_display 0
+   C_SelectExpiredPiDisplay
+}
+
 proc ResetGlobalInvert {} {
    global filter_invert
 
@@ -1572,6 +1683,7 @@ proc ResetGlobalInvert {} {
 ##
 proc ResetFilterState {} {
    global fsc_prevselection
+   global remgroup_filter
    global filter_invert
 
    ResetThemes
@@ -1586,15 +1698,18 @@ proc ResetFilterState {} {
    ResetSubstr
    ResetNetwops
    ResetVpsPdcFilt
+   ResetExpireDelay
 
    array unset filter_invert all
 
    # reset the filter shortcut bar
    .all.shortcuts.list selection clear 0 end
    set fsc_prevselection {}
+   set remgroup_filter {}
 
    C_ResetFilter all
    C_InvertFilter {}
+   C_PiFilter_ForkContext reset
 }
 
 ##  ---------------------------------------------------------------------------
@@ -1946,12 +2061,12 @@ proc SelectProgIdx {first last} {
 ##  Callback for time filter changes
 ##
 proc SelectTimeFilter {} {
-   global timsel_relative timsel_absstop timsel_nodate
+   global timsel_relative timsel_absstop timsel_datemode
    global timsel_start timsel_stop timsel_date
    global timsel_enabled
 
    if $timsel_enabled {
-      C_SelectStartTime $timsel_relative $timsel_absstop $timsel_nodate \
+      C_SelectStartTime $timsel_relative $timsel_absstop $timsel_datemode \
                         $timsel_start $timsel_stop $timsel_date
    } else {
       C_SelectStartTime
@@ -1992,6 +2107,15 @@ proc SelectDurationFilter {} {
 }
 
 ##
+##  Callback for expiration delay popup
+##
+proc SelectExpireDelayFilter {} {
+
+   C_SelectExpiredPiDisplay
+   C_PiBox_Refresh
+}
+
+##
 ##  Update the filter context and refresh the PI listbox
 ##  - boolean param indicates if current substr dialog settings should be
 ##    copied (or if substr_stack was already modified by the caller)
@@ -2029,8 +2153,8 @@ proc SubstrUpdateFilter {append_current} {
          incr idx
       }
       set substr_history [linsert $substr_history 0 $new]
-      if {[llength $substr_history] > 10} {
-         set substr_history [lreplace $substr_history 10 end]
+      if {[llength $substr_history] > 50} {
+         set substr_history [lreplace $substr_history 50 end]
       }
       UpdateRcFile
    }
@@ -2334,14 +2458,13 @@ proc CreateContextMenu {mode wid xcoo ycoo} {
 ##  Open a context menu below the current listbox entry
 ##
 proc CreateListboxContextMenu {wmen wlist coord_x coord_y} {
-   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_inv_idx fsc_logi_idx fsc_hide_idx
    global shortcuts shortcut_order
    global ctxmen_selidx
 
    set ctxmen_selidx [$wlist index @$coord_x,$coord_y]
    if {$ctxmen_selidx < [llength $shortcut_order]} {
       set sc_tag [lindex $shortcut_order $ctxmen_selidx]
-      $wmen entryconfigure 0 -label "Shortcut '[lindex $shortcuts($sc_tag) $fsc_name_idx]'"
+      $wmen entryconfigure 0 -label "Shortcut '[lindex $shortcuts($sc_tag) $::fsc_name_idx]'"
 
       set rooty [expr [winfo rooty $wlist] + $coord_y]
       set rootx [expr [winfo rootx $wlist] + $coord_x]
@@ -2611,9 +2734,9 @@ proc CreateTransientPopup {wname title {parent .}} {
    if {!$is_unix} {
       # make it a slave of the parent, usually without decoration
       wm transient $wname $parent
-      # place it in the upper left corner of the parent
-      if {[regexp "\\+(\\d+)\\+(\\d+)" [wm geometry $parent] foo root_x root_y]} {
-         wm geometry $wname "+[expr $root_x + 30]+[expr $root_y + 30]"
+      # place it in the upper left corner of the parent (unless iconified)
+      if {[string compare [wm state $parent] normal] == 0} {
+         wm geometry $wname "+[expr [winfo rootx $parent] + 30]+[expr [winfo rooty $parent] + 30]"
       }
    } else {
       wm group $wname $parent
@@ -2822,6 +2945,132 @@ proc ShortInfoResized {} {
 #   }
 #}
 
+
+##  --------------------------------------------------------------------------
+##  Date scale to the right of the programme list
+##  - redraw function is called with start times of the first and last PI
+##    matching the current filter upon each refresh or reset
+##  - slider position is updated whenever the PI list is scrolled
+##  - the user can click or drag in the scale to jump around in the list
+##
+set dscale_tfirst 0
+set dscale_tlen 0
+set dscale_button_state 0
+
+##
+##  Called when PI list changes (filter changed or PI inserted during acquisition)
+##  - parameters: start times of first and last matching PI and GMT offset of first PI
+##
+proc PiDateScale_Redraw {t_first t_last lto} {
+   global dscale_width dscale_scwidth dscale_height
+   global dscale_cols dscale_font dscale_date_fmt
+   global dscale_tfirst dscale_tlen
+   global default_bg pibox_height pi_font
+   global showDateScale
+
+   catch {.all.pi.list.dscale delete all}
+
+   if $showDateScale {
+      set dscale_height [expr $pibox_height * [font metrics $pi_font -linespace]]
+      .all.pi.list.dscale configure -height $dscale_height
+
+      set t_root [expr $t_first - (($t_first + $lto) % (24*60*60))]
+      set first_wday [expr ([clock format $t_first -format {%u}] + 1) % 7]
+
+      set dscale_tfirst $t_first
+      set dscale_tlen [expr $t_last - $t_first]
+
+      if {$t_first != 0} {
+         set th_asc [font metrics $dscale_font -ascent]
+         set th_min [font metrics $dscale_font -linespace]
+         set wday_idx $first_wday
+         set base_y 0
+         set t_cur $t_root
+         while {$t_cur < $t_last} {
+            set date_str [clock format $t_cur -format $dscale_date_fmt]
+            set t_cur [expr $t_cur + (24*60*60)]
+            if {$dscale_tlen != 0} {
+               set next_y [expr double($t_cur - $t_first) * $dscale_height / $dscale_tlen]
+            } else {
+               set next_y $dscale_height
+            }
+            set scmarg [expr ($dscale_width - $dscale_scwidth) / 2]
+            .all.pi.list.dscale create rectangle $scmarg $base_y [expr $dscale_width - $scmarg] $next_y \
+                                                 -fill [lindex $dscale_cols $wday_idx] \
+                                                 -outline white -stipple bitmap_gray
+            set cur_y $base_y
+            foreach line_str [split $date_str "\n"] {
+               if {($cur_y + $th_min + 6 < $next_y) && \
+                   ($cur_y + $th_min + 6 < $dscale_height)} {
+                  .all.pi.list.dscale create text [expr $dscale_width / 2] \
+                                                  [expr $cur_y + $th_asc + 2] \
+                                                  -anchor c -font $dscale_font -text $line_str
+               }
+               set cur_y [expr $cur_y + $th_min + 2]
+            }
+            set base_y $next_y
+            incr wday_idx
+            if {$wday_idx >= 7} {set wday_idx 0}
+         }
+      }
+   }
+}
+
+##
+##  Called by PI listbox when list is scrolled
+##  - parameters: start times of first, selected and last visible PI
+##
+proc PiDateScale_SetSlider {t_first t_cursor t_last} {
+   global dscale_width dscale_scwidth dscale_height dscale_font
+   global dscale_tfirst dscale_tlen
+   global showDateScale
+
+   if {$showDateScale && ($dscale_tfirst != 0)} {
+      catch {.all.pi.list.dscale delete slider}
+
+      if {$dscale_tlen != 0} {
+         set y0 [expr double($t_first - $dscale_tfirst) * $dscale_height / $dscale_tlen]
+         set y1 [expr double($t_last - $dscale_tfirst) * $dscale_height / $dscale_tlen]
+         if {$y0 < 2} {
+            set y0 2
+         }
+      } else {
+         set y0 2
+         set y1 $dscale_height
+      }
+      set scmarg [expr ($dscale_width - $dscale_scwidth) / 2 - 2]
+      .all.pi.list.dscale create rectangle $scmarg $y0 [expr $dscale_width - $scmarg + 1] $y1 \
+                                           -fill white -outline black -width 2 -tags slider
+      .all.pi.list.dscale lower slider
+      if {$::dscale_button_state != 0} {
+         .all.pi.list.dscale create rectangle $scmarg $y0 [expr $dscale_width - $scmarg + 1] $y1 \
+                                              -fill {} -outline black -width 2 -tags slider
+      }
+   }
+}
+
+# callback for button #1 press, motion or release in the date scale
+proc PiDateScale_Goto {ycoo_rel but_state} {
+   global dscale_height dscale_font
+   global dscale_tfirst dscale_tlen
+   global dscale_button_state
+
+   if {(($but_state & 0x100) != 0) && ($dscale_button_state == 0)} {
+      # install a handler for motion events while the mouse button remains pressed
+      bind .all.pi.list.dscale <Motion> {PiDateScale_Goto %y %s}
+      set dscale_button_state 1
+
+   } elseif {(($but_state & 0x100) == 0) && ($dscale_button_state != 0)} {
+      # button no longer pressed -> remove the motion event handler
+      bind .all.pi.list.dscale <Motion> {}
+      set dscale_button_state 0
+   }
+
+   # jump in the programme list to the first PI running at the selected time
+   C_PiBox_GotoTime 0 [expr $dscale_tfirst + ($ycoo_rel * $dscale_tlen / $dscale_height)]
+}
+
+
 ##  --------------------------------------------------------------------------
 ##  Tune the station of the currently selected programme
 ##  - callback command of the "Tune TV" button in the main window
@@ -2838,7 +3087,7 @@ proc TuneTV {} {
       set tunetv_msg_nocfg 1
 
       set answer [tk_messageBox -type okcancel -default ok -icon info \
-                     -message "Please synchronize the nextwork names with $tvapp_name in the Network Name Configuration dialog. You need to do this just once."]
+                     -message "Please synchronize network names with $tvapp_name in the Network Name Configuration dialog. You need to do this just once."]
       if {[string compare $answer "ok"] == 0} {
          # invoke the network name configuration dialog
          NetworkNamingPopup
@@ -2886,7 +3135,7 @@ proc SelectTextOnFocus {wid} {
 ##
 set help_popup 0
 
-proc PopupHelp {index {subheading {}}} {
+proc PopupHelp {index {subheading {}} {subrange {}}} {
    global help_bg help_font font_fixed win_frm_fg
    global help_popup help_winsize helpTexts helpIndex
 
@@ -2905,9 +3154,11 @@ proc PopupHelp {index {subheading {}}} {
                                 -takefocus 1 -highlightthickness 1 -highlightcolor $win_frm_fg
       button .help.cmd.prev -text "Previous" -width 7
       button .help.cmd.next -text "Next" -width 7
+      button .help.cmd.back -text "Back" -width 7 -command HelpHistoryBack -state disabled
       pack   .help.cmd.dismiss -side left -padx 20
       pack   .help.cmd.chpt -side left -padx 20
       pack   .help.cmd.prev .help.cmd.next -side left
+      pack   .help.cmd.back -side left -padx 20
       pack   .help.cmd -side top
       bind   .help.cmd <Destroy> {+ set help_popup 0}
 
@@ -2921,7 +3172,7 @@ proc PopupHelp {index {subheading {}}} {
 
       frame  .help.disp
       text   .help.disp.text -width 60 -wrap word -background $help_bg \
-                             -font $help_font -spacing3 6 -cursor top_left_arrow \
+                             -font $help_font -spacing3 6 -cursor circle \
                              -yscrollcommand {.help.disp.sb set}
       pack   .help.disp.text -side left -fill both -expand 1
       scrollbar .help.disp.sb -orient vertical -command {.help.disp.text yview}
@@ -2937,6 +3188,8 @@ proc PopupHelp {index {subheading {}}} {
       .help.disp.text tag configure pfixed -font $font_fixed -spacing1 0 -spacing2 0 -spacing3 0
       .help.disp.text tag configure href -underline 1 -foreground blue
       .help.disp.text tag bind href <ButtonRelease-1> {FollowHelpHyperlink}
+      .help.disp.text tag bind href <Enter> {.help.disp.text configure -cursor top_left_arrow}
+      .help.disp.text tag bind href <Leave> {.help.disp.text configure -cursor circle}
 
       # allow to scroll the text with the cursor keys
       bindtags .help.disp.text {.help.disp.text TextReadOnly . all}
@@ -2959,8 +3212,14 @@ proc PopupHelp {index {subheading {}}} {
       if [info exists help_winsize] {
          wm geometry .help $help_winsize
       }
+      # initialize history stack
+      set ::helpStack {}
 
    } else {
+      # save old text position on the stack
+      if {[llength $subrange] == 0} {
+         HelpHistoryUpdate
+      }
       # when the popup is already open, just exchange the text
       .help.disp.text configure -state normal
       .help.disp.text delete 1.0 end
@@ -2989,8 +3248,11 @@ proc PopupHelp {index {subheading {}}} {
       bind .help.disp.text <Right> {}
    }
 
-   # bring the given subheading into view
-   if {[string length $subheading] != 0} {
+   # bring the given text section into view
+   if {[llength $subrange] == 2} {
+      .help.disp.text see [lindex $subrange 1]
+      .help.disp.text see [lindex $subrange 0]
+   } elseif {[string length $subheading] != 0} {
       # search for the string at the beginning of the line only (prevents matches on hyperlinks)
       append pattern {^} $subheading
       set idx_match [.help.disp.text search -regexp -- $pattern 1.0]
@@ -3003,6 +3265,7 @@ proc PopupHelp {index {subheading {}}} {
          }
       }
    }
+   HelpHistoryPush $index
 }
 
 proc FollowHelpHyperlink {} {
@@ -3027,6 +3290,40 @@ proc FollowHelpHyperlink {} {
    if {[info exists helpIndex($hlink)]} {
       PopupHelp $helpIndex($hlink) $subsect
    }
+}
+
+proc HelpHistoryUpdate {} {
+   global helpStack
+
+   if {[llength $helpStack] > 0} {
+      set min_idx [.help.disp.text index @0,0]
+      set max_idx [.help.disp.text index @0,[winfo height .help.disp.text]]
+
+      set sect_idx [lindex [lindex $helpStack end] 0 ]
+      set helpStack [lreplace $helpStack end end \
+                              [list $sect_idx $min_idx $max_idx]]
+   }
+}
+
+proc HelpHistoryPush {sect_idx} {
+   global helpStack
+
+   lappend helpStack [list $sect_idx {} {}]
+
+   if {[llength $helpStack] > 1} {
+      .help.cmd.back configure -state normal
+   } else {
+      .help.cmd.back configure -state disabled
+   }
+}
+
+proc HelpHistoryBack {} {
+   global helpStack
+
+   set helpStack [lreplace $helpStack end end]
+   set elem [lindex $helpStack end]
+   set helpStack [lreplace $helpStack end end]
+   PopupHelp [lindex $elem 0] {} [lrange $elem 1 2]
 }
 
 # callback for Configure (aka resize) event on the toplevel window
@@ -3100,6 +3397,10 @@ THIS PROGRAM IS DISTRIBUTED IN THE HOPE THAT IT WILL BE USEFUL, BUT WITHOUT ANY 
 ##  --------------------------------------------------------------------------
 ##  Browser columns selection popup
 ##
+#=CONST= ::cod_width_idx   0
+#=CONST= ::cod_head_idx    1
+#=CONST= ::cod_menu_idx    2
+#=CONST= ::cod_label_idx   3
 
 # this array defines the width of the columns (in pixels), the column
 # heading, dropdown menu and the description in the config listbox.
@@ -3122,17 +3423,21 @@ array set colsel_tabs {
    live_repeat    {47  L/R      FilterMenuAdd_LiveRepeat "Live or repeat"} \
    description    {15  I        none                     "Flag description"} \
    subtitles      {18  ST       FilterMenuAdd_Subtitles  "Flag subtitles"} \
+   weekcol        {20  Day      FilterMenuAdd_Date       "Weekday colors"} \
+   reminder       {30  Mark     FilterMenuAdd_AllReminders "Reminder marks"} \
 }
 
 # define presentation order for configuration listbox
 set colsel_ailist_predef [list \
    title netname time duration weekday day day_month day_month_year \
-   pil theme sound format ed_rating par_rating live_repeat description subtitles]
+   pil theme sound format ed_rating par_rating live_repeat description \
+   subtitles weekcol reminder]
 
 # define default column configuration - is overridden by rc/ini config
-set pilistbox_cols {weekday day_month time title netname}
-set pinetbox_rows {weekday time title theme}
+set pilistbox_cols {weekcol day_month time title netname reminder}
+set pinetbox_rows {reminder weekday time title theme}
 set pinetbox_rows_nonl(weekday) 1
+set pinetbox_rows_nonl(reminder) 1
 
 set colsel_popup 0
 
@@ -3266,7 +3571,7 @@ proc FillColumnSelectionDialog {wselbox var_ailist var_selist old_selist is_init
 
    array unset colsel_names
    foreach name [array names colsel_tabs] {
-      set colsel_names($name) [lindex $colsel_tabs($name) 3]
+      set colsel_names($name) [lindex $colsel_tabs($name) $::cod_label_idx]
    }
    set ailist $colsel_ailist_predef
    foreach tag [array names usercols] {
@@ -3326,9 +3631,9 @@ proc UpdatePiListboxColumns {} {
    if {$showColumnHeader} {
       # create colum header menu buttons
       foreach col $pilistbox_cols {
-         frame .all.pi.list.colheads.col_$col -width [lindex $colsel_tabs($col) 0] -height $colhead_height
+         frame .all.pi.list.colheads.col_$col -width [lindex $colsel_tabs($col) $::cod_width_idx] -height $colhead_height
          menubutton .all.pi.list.colheads.col_${col}.b -width 1 -cursor top_left_arrow \
-                                                  -text [lindex $colsel_tabs($col) 1] -font $colhead_font
+                                                  -text [lindex $colsel_tabs($col) $::cod_head_idx] -font $colhead_font
          if {$is_unix} {
             .all.pi.list.colheads.col_${col}.b configure -borderwidth 1 -relief raised
          } else {
@@ -3338,16 +3643,16 @@ proc UpdatePiListboxColumns {} {
          pack propagate .all.pi.list.colheads.col_${col} 0
          pack .all.pi.list.colheads.col_${col} -side left -anchor w
 
-         if {[string compare [lindex $colsel_tabs($col) 2] "none"] != 0} {
+         if {[string compare [lindex $colsel_tabs($col) $::cod_menu_idx] "none"] != 0} {
             # create the drop-down menu below the header (the menu items are added dynamically)
-            set func [lindex $colsel_tabs($col) 2]
+            set func [lindex $colsel_tabs($col) $::cod_menu_idx]
             if {[string compare -length 1 $func "&"] == 0} {
                if {[string compare $func "&user_def"] == 0} {
                   # special case: menu derived from shortuts used in user-defined column
                   set func FilterMenuAdd_RefdShortcuts
                } else {
-                  # indirect function reference in used-defined column
-                  set func [lindex $colsel_tabs([string range $func 1 end]) 2]
+                  # indirect function reference by a user-defined column
+                  set func [lindex $colsel_tabs([string range $func 1 end]) $::cod_menu_idx]
                }
             }
             .all.pi.list.colheads.col_${col}.b configure -menu .all.pi.list.colheads.col_${col}.b.men
@@ -3360,7 +3665,7 @@ proc UpdatePiListboxColumns {} {
          bind .all.pi.list.colheads.col_${col}.b <ButtonRelease-1> [concat ColumnHeaderButtonRel $col]
          bind .all.pi.list.colheads.col_${col}.b <Leave> [concat ColumnHeaderLeave $col]
 
-         incr tab_pos [lindex $colsel_tabs($col) 0]
+         incr tab_pos [lindex $colsel_tabs($col) $::cod_width_idx]
          lappend tabs ${tab_pos}
       }
       if {[info exists col] && ([string length [info commands .all.pi.list.colheads.col_${col}]] > 0)} {
@@ -3370,7 +3675,7 @@ proc UpdatePiListboxColumns {} {
    } else {
       # create an invisible frame to set the width of the text widget
       foreach col $pilistbox_cols {
-         incr tab_pos [lindex $colsel_tabs($col) 0]
+         incr tab_pos [lindex $colsel_tabs($col) $::cod_width_idx]
          lappend tabs ${tab_pos}
       }
       frame .all.pi.list.colheads.c0 -width "[expr $tab_pos + 2]"
@@ -3501,25 +3806,32 @@ proc FilterMenuAdd_Title {widget is_stand_alone} {
       menu ${widget}.series -postcommand [list PostDynamicMenu ${widget}.series CreateSeriesNetworksMenu {}]
    }
 
-   # append shortcuts for the last 10 substring searches
+   # append shortcuts for the last 10 (of 50) substring searches
    if {[llength $substr_history] + [llength $substr_stack] > 0} {
       $widget add separator
 
       # add the search stack as menu commands
+      set idx 0
       array unset substr_hist_arr2
       foreach item $substr_stack {
          set substr_hist_arr2($item) 1
 
          $widget add checkbutton -label [lindex $item 0] -variable substr_hist_arr2($item) \
                                  -command [list SubstrUndoFilter $item]
+         incr idx
+         if {$idx >= 10} break
       }
 
       # add the search history as menu commands, if not in the stack
-      foreach item $substr_history {
-         if {! [info exists substr_hist_arr2($item)]} {
-            set substr_hist_arr2($item) 0
-            $widget add checkbutton -label [lindex $item 0] -variable substr_hist_arr2($item) \
-                                    -command [list SubstrSetFilter $item]
+      if {$idx < 10} {
+         foreach item $substr_history {
+            if {! [info exists substr_hist_arr2($item)]} {
+               set substr_hist_arr2($item) 0
+               $widget add checkbutton -label [lindex $item 0] -variable substr_hist_arr2($item) \
+                                       -command [list SubstrSetFilter $item]
+            }
+            incr idx
+            if {$idx >= 10} break
          }
       }
 
@@ -3530,32 +3842,71 @@ proc FilterMenuAdd_Title {widget is_stand_alone} {
    }
 }
 
+proc FilterMenuAdd_AllReminders {widget is_stand_alone} {
+   global remgroups remgroup_order
+   global remgroup_filter
+
+   foreach gtag $remgroup_order {
+      upvar #0 foo_rgp_sel_$gtag cbval
+      set cbval [expr [lsearch $remgroup_filter $gtag] != -1]
+      set cblab [lindex $remgroups($gtag) $::rgp_name_idx]
+
+      $widget add checkbutton -label $cblab -variable foo_rgp_sel_$gtag \
+                              -command [list Reminder_SelectFromTagList $remgroup_order $gtag]
+   }
+
+   set ::foo_rgp_sel_all [expr [llength $remgroup_filter] >= [llength $remgroup_order]]
+   $widget add separator
+   $widget add checkbutton -label "All reminders" -variable foo_rgp_sel_all \
+                           -command [list Reminder_SelectFromTagList $remgroup_order 0]
+}
+
 # create a popup menu derived from shortcuts used in a user-defined column
 proc FilterMenuAdd_RefdShortcuts {widget is_stand_alone} {
-   global ucf_type_idx ucf_value_idx ucf_fmt_idx ucf_ctxcache_idx ucf_sctag_idx
-   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_inv_idx fsc_logi_idx fsc_hide_idx
-   global colsel_tabs shortcuts usercols
-   global fsc_prevselection
+   global colsel_tabs shortcuts usercols remgroups remgroup_order
+   global fsc_prevselection remgroup_filter
 
    # derive user-def-column tag from menu widget name
    if {[scan $widget {.all.pi.list.colheads.col_user_def_%[^.].b.men} col] == 1} {
       if [info exists usercols($col)] {
          # loop across all shortcuts used by this column
-         set tag_list {}
+         set sc_list {}
+         set rgp_list {}
          foreach filt $usercols($col) {
-            set sc_tag [lindex $filt $ucf_sctag_idx]
-            if {($sc_tag != -1) && [info exists shortcuts($sc_tag)]} {
-               lappend tag_list $sc_tag
+            set sc_tag [lindex $filt $::ucf_sctag_idx]
+            set gtag [UserColsDlg_IsReminderPseudoTag $sc_tag]
+            if {($gtag == 0) || [info exists remgroups($gtag)]} {
+               lappend rgp_list $gtag
+            } elseif {($sc_tag != -1) && [info exists shortcuts($sc_tag)]} {
+               lappend sc_list $sc_tag
             }
          }
 
          # add a menu entry to invoke this shortcut and deselect the others
-         foreach sc_tag $tag_list {
-            $widget add checkbutton -label [lindex $shortcuts($sc_tag) $fsc_name_idx] \
-                                    -command [list SelectShortcutFromTagList $tag_list $sc_tag] \
+         foreach sc_tag $sc_list {
+            $widget add checkbutton -label [lindex $shortcuts($sc_tag) $::fsc_name_idx] \
+                                    -command [list SelectShortcutFromTagList $sc_list $sc_tag] \
                                     -variable foo_sc_tag_sel_$sc_tag
-            global foo_sc_tag_sel_$sc_tag
-            set foo_sc_tag_sel_$sc_tag [expr [lsearch $fsc_prevselection $sc_tag] != -1]
+            set ::foo_sc_tag_sel_$sc_tag [expr [lsearch $fsc_prevselection $sc_tag] != -1]
+         }
+
+         if {([llength $sc_list] > 0) && ([llength $rgp_list] > 0)} {
+            $widget add separator
+         }
+
+         foreach gtag $rgp_list {
+            if {$gtag != 0} {
+               upvar #0 foo_rgp_sel_$gtag cbval
+               set cbval [expr [lsearch $remgroup_filter $gtag] != -1]
+               set cblab [lindex $remgroups($gtag) $::rgp_name_idx]
+
+               $widget add checkbutton -label $cblab -variable foo_rgp_sel_$gtag \
+                                       -command [list Reminder_SelectFromTagList $rgp_list $gtag]
+            } else {
+               set ::foo_rgp_sel_all [expr [llength $remgroup_filter] >= [llength $remgroup_order]]
+               $widget add checkbutton -label "all reminders" -variable foo_rgp_sel_all \
+                                       -command [list Reminder_SelectFromTagList $rgp_list $gtag]
+            }
          }
       }
    }
@@ -3796,7 +4147,7 @@ proc ColumnHeaderMotion {col state xcoo} {
       if {$pibox_type == 0} {
          # standard listbox: "linear list" layout
 
-         if {$xcoo != [lindex $colsel_tabs($col) 0]} {
+         if {$xcoo != [lindex $colsel_tabs($col) $::cod_width_idx]} {
 
             # configure width of the column header
             $wid configure -width $xcoo
@@ -3806,7 +4157,7 @@ proc ColumnHeaderMotion {col state xcoo} {
             set tab_pos 0
             set tabs {}
             foreach col $pilistbox_cols {
-               incr tab_pos [lindex $colsel_tabs($col) 0]
+               incr tab_pos [lindex $colsel_tabs($col) $::cod_width_idx]
                lappend tabs ${tab_pos}
             }
             .all.pi.list.text tag configure past -tab $tabs

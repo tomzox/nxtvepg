@@ -33,7 +33,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: statswin.c,v 1.63 2003/02/08 14:37:01 tom Exp tom $
+ *  $Id: statswin.c,v 1.65 2003/10/05 19:32:09 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -225,7 +225,8 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
                        "Block count db:   %d (%d + %d swo)\n"
                        "current version:  %d (%d + %d swo)\n"
                        "filled:           %d%% / %d%% current version\n"
-                       "expired blocks:   %d%%: %d (%d + %d)\n"
+                       "expired stream:   %d%%: %d (%d + %d)\n"
+                       "expired total:    %d%%: %d\n"
                        "defective blocks: %d%%: %d (%d + %d)"
                        "\"\n",
                        dbswn[target],
@@ -243,6 +244,8 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
                        ((total > 0) ? (int)((double)curVersionCount * 100.0 / total) : 100),
                        ((allVersionsCount > 0) ? ((int)((double)(count[0].expired + count[1].expired) * 100.0 / allVersionsCount)) : 0),
                           count[0].expired + count[1].expired, count[0].expired, count[1].expired,
+                       ((allVersionsCount + count[0].extra > 0) ? ((int)((double)count[0].extra * 100.0 / (allVersionsCount + count[0].extra))) : 0),
+                          count[0].extra,
                        ((allVersionsCount > 0) ? ((int)((double)(count[0].defective + count[1].defective) * 100.0 / allVersionsCount)) : 0),
                           count[0].defective + count[1].defective, count[0].defective, count[1].defective
                 );
@@ -312,7 +315,7 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
 
          EpgAcqCtl_DescribeAcqState(&acqState);
 
-         if (sv->acqStartTime > 0)
+         if ((sv->acqStartTime > 0) && (sv->acqStartTime <= now))
          {
             duration = now - sv->acqStartTime;
             if (duration == 0)

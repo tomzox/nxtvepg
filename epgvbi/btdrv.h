@@ -37,7 +37,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: btdrv.h,v 1.32 2003/02/22 19:29:32 tom Exp tom $
+ *  $Id: btdrv.h,v 1.32 2003/02/22 19:29:32 tom Exp $
  */
 
 #ifndef __BTDRV_H

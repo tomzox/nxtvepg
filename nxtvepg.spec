@@ -1,5 +1,5 @@
 %define    prefix    /usr/local
-%define    version   2.5.2
+%define    version   2.6.0
 
 Summary:   nexTView EPG decoder and browser
 Name:      nxtvepg
@@ -20,7 +20,7 @@ listings for most of the major networks in Germany, Austria, France and
 Switzerland.
 
 Currently Nextview EPG is transmitted by:
-- in Germany and Austria: Kabel1, 3Sat, RTL-II.
+- in Germany and Austria: Kabel1, RTL-II.
 - in Switzerland: SF1, TSR1, TSI1, EuroNews.
 - in France: Canal+, M6, TV5.
 - in Turkey: TRT.

@@ -5,6 +5,22 @@ boost any item's priority, find more points that need to be fixed or if
 you have ideas for additional features.
 
 
+Reminders TODO:
+- acq: update event timer for PI starting in +15 - minimal pre-offset
+- fuzzy matching (for PI w/o PIL) to catch shifted start times
+Possible future reminder options:
+- allow to edit programme's reminder title (e.g. to add notes)?
+  problem: disables possibility of fuzzy match on titles
+- after manual repeat: remove single PI for shortcuts? (needs extra flag)
+- state in reminder list: display min/hours/days until next event?
+  (cumbersome since it requires to be updated every minute)
+- snooze (i.e. repeat) for user-confirmed commands?
+- include clock in reminder popup?
+- use VPS/PDC to detect actual programme's start time
+  problem: only possible while TV display switched off or on the same channel
+  unless the user has multiple cards; even then coord. with acq. is required
+- don't suppress outdated message for new reminder if it's the last one? (Peter)
+
 Misc. fixes & changes recently suggested/planned for the near future:
 - TV app shm: resend info for same channel (req. by zoomin)
   also: add more EPG info to shared memory; add video norm to shm
@@ -12,7 +28,8 @@ Misc. fixes & changes recently suggested/planned for the near future:
 - start time search: abs. stop time val "23:10" excludes titles starting at 23:10
 - improve text search: keywords (google style AND), parity-safe/fuzzy
 - parity-safe short/long info redundancy removal
-- series search via title
+- series filter based on title instead of provider-supplied series codes
+  possibly allow manually maintained series list (i.e.title/CNIs couples)
 - allow provider channel names at the -prov command line arg
 - HTML dump: allow to specify which column to use for hyperlink?
 - user-def column: background color (maybe of complete row?)
@@ -21,11 +38,12 @@ Misc. fixes & changes recently suggested/planned for the near future:
 - different background colors for PI, alternating by date (Ronceval)
 - WIN32: save main window position in INI file (when manually changed; Thierry)
 - graying out filtered programmes instead of removing them
+- marking attributes which match current filter in the description window,
+  esp. for text search (Volker Moell)
 - localize language for date drop-down menu (Thierry)
 - allow multiple, non-continguous selections in shortcut & networks menu
   without use of the keyboard (like in -selectmode multiple)
   (suggested via discussion forum by "Philippe")
-- allow expired PI in the database and browser window (at least for VPS)
 - optionally hide short-info window -> display with double-click
 - sort networks in merged provider database by default in the user-configured
   order of the merged providers; when adding a new provider to an merge
@@ -34,20 +52,19 @@ Misc. fixes & changes recently suggested/planned for the near future:
 - M6 Nextview: derive theme codes from description
 - timescale bug: when acq running in daemon for non-UI database, display is
   cleared but not refilled after zoom +/-
+- weekday scale for grid layout: additional column (Thierry)
 
 VBI slicer:
 - vbidecode: handle interlaced data and non-symmetric start lines
 - libzvbi: don't skip frames after channel change, already done by lib
 
 New "NetBox" layout: open issues/known problems:
-- refresh may leave excessive gaps between items;
+- refresh may leave excessive gaps between items
 - special marker row between different days?
 - changing column count/width by resizing outer window?
 - possible additional formatting options:
   + wrap text (e.g. for title, or even description)
   + align text: left/center/right
-  + shortcut-specific background color
-  + general background color (for complete element)
 
 Acquisition daemon:
 - make concurrent updates of shared rc file safe (e.g. daemon writes provider
@@ -104,17 +121,17 @@ merged database fixes:
 other required fixes:
 - epgdbmerge.c: AI merge: design fixes (don't modify caller's CNI array)
 - advance ranges of expired PI in timescale popup every minute
-- epgblock.h: make use of latest additions to PI: series_code, block_no_in_ai
 - TI & LI (subtitle and language information blocks): implement output methods
   and search filters
 - merge db: remove expired PI from db every minute
+- automatically show expired PI in the database when still running
+  (according to VPS/PDC) when following TV channel changes
 - netwop name config: counts names to "automatic selection"
   even if there was just one provider (or just one with that netwop)
   note: no xawtv sync is done, so it must only appear if there's more than one provider
 - during very bad reception acq restarts every 2-4 secs
   due to ttx page header decoding error (falsely detected channel change)
 - AdvanceCyclePhase: limit number of tries to update provider (first "if")
-- improve VBI/TTX decoder: use code from aletv
 - improve streams decoder hamming error handling: assemble AI block
   from multiple instances if neccessary
 - add decoding error statistics to epgdbacq (e.g. # of dropped packets & blocks)
@@ -128,23 +145,16 @@ other required fixes:
 - allow to set input source via /dev/vbi (bttv version >= 0.7.5x)
 - cmd line option "predatory": in this mode the tuner is set via /dev/vbi
   regardless of other /dev/video users
-- filter shortcut combination logic modes: OR,AND
 - provider-specific shortcuts: are listed only for one provider
   mandatory when shortcut includes series or sortcrit filter
 - navigation: disable leafs with zero PI / display number of matches
 
 possible new features: (in order of decreasing priority)
-- filter for min/max duration of shows
-- bookmarks with multiple priority levels and reminders (popups, or automatic
-  TV channel change) for bookmarks above an adjustable priority level (raise
-  popup or dispatch external app.)
 - series management based on titles only, across all networks
 - use GTK+ or Tix library to improve GUI
 - allow multiple acquisition and GUI clients, possibly on different hosts
-- export database content via HTTP
 - export database content to mysql server
 - dialogs, menus and help texts in German and French
-- add hyperlinks in the online help menus for all cross-references
 - wish list: maintain list of search filters that are applied each time new
   data has been acquired; notify the user when a matching programme is found
   for the first time. This can be used for a list of favourite movies or actors

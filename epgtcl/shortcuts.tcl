@@ -1,5 +1,5 @@
 #
-#  Configuration dialog for user-defined entries in the context menu
+#  Handling of filter shortcuts
 #
 #  This program is free software; you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License Version 2 as
@@ -14,19 +14,18 @@
 #
 #  Description:
 #
-#    Implements a configuration dialog that allows to manage user-defined
-#    entries in the context menu in the PI listbox.
+#    Implements methods to invoke or undo filter shortcuts.
 #
 #  Author: Tom Zoerner
 #
-#  $Id: shortcuts.tcl,v 1.12 2003/04/01 20:56:03 tom Exp tom $
+#  $Id: shortcuts.tcl,v 1.15 2003/09/23 19:20:46 tom Exp tom $
 #
-set fsc_name_idx 0
-set fsc_mask_idx 1
-set fsc_filt_idx 2
-set fsc_inv_idx  3
-set fsc_logi_idx 4
-set fsc_hide_idx 5
+#=CONST= ::fsc_name_idx 0
+#=CONST= ::fsc_mask_idx 1
+#=CONST= ::fsc_filt_idx 2
+#=CONST= ::fsc_inv_idx  3
+#=CONST= ::fsc_logi_idx 4
+#=CONST= ::fsc_hide_idx 5
 
 ##
 ##  Predefined filter shortcuts
@@ -38,62 +37,68 @@ proc PreloadShortcuts {} {
    if {([string compare -nocase -length 2 $user_language de] == 0) || \
        ([string compare -nocase -length 3 $user_language ger] == 0)} {
       # Germany
-      set shortcuts(0)  {Spielfilme themes {theme_class1 16} {} merge 0}
-      set shortcuts(1)  {Sport themes {theme_class1 64} {} merge 0}
-      set shortcuts(2)  {Serien themes {theme_class1 128} {} merge 0}
-      set shortcuts(3)  {Kinder themes {theme_class1 80} {} merge 0}
-      set shortcuts(4)  {Shows themes {theme_class1 48} {} merge 0}
-      set shortcuts(5)  {News themes {theme_class1 32} {} merge 0}
-      set shortcuts(6)  {Sozial themes {theme_class1 37} {} merge 0}
-      set shortcuts(7)  {Wissen themes {theme_class1 86} {} merge 0}
-      set shortcuts(8)  {Hobby themes {theme_class1 52} {} merge 0}
-      set shortcuts(9)  {Musik themes {theme_class1 96} {} merge 0}
-      set shortcuts(10) {Kultur themes {theme_class1 112} {} merge 0}
-      set shortcuts(11) {Adult themes {theme_class1 24} {} merge 0}
+      set shortcuts(10000) {Spielfilme themes {theme_class1 16} {} merge 0}
+      set shortcuts(10010) {Sport themes {theme_class1 64} {} merge 0}
+      set shortcuts(10011) {{Ohne Sport} themes {theme_class1 64} theme_class1 and 0}
+      set shortcuts(10020) {Serien themes {theme_class1 128} {} merge 0}
+      set shortcuts(10030) {Kinder themes {theme_class1 80} {} merge 0}
+      set shortcuts(10040) {Shows themes {theme_class1 48} {} merge 0}
+      set shortcuts(10050) {News themes {theme_class1 32} {} merge 0}
+      set shortcuts(10060) {Sozial themes {theme_class1 37} {} merge 0}
+      set shortcuts(10070) {Wissen themes {theme_class1 86} {} merge 0}
+      set shortcuts(10080) {Hobby themes {theme_class1 52} {} merge 0}
+      set shortcuts(10090) {Musik themes {theme_class1 96} {} merge 0}
+      set shortcuts(10100) {Kultur themes {theme_class1 112} {} merge 0}
+      set shortcuts(10110) {Adult themes {theme_class1 24} {} merge 0}
+      set shortcuts(10120) {Abends timsel {timsel {0 0 1215 1410 -1}} {} merge 0}
+      set shortcuts(10130) {{>15 min.} dursel {dursel {16 1435}} {} merge 0}
       set shortcut_order [lsort -integer [array names shortcuts]]
    } elseif {[string compare -nocase -length 2 $user_language fr] == 0} {
       # France
-      set shortcuts(0)  {Films themes {theme_class1 {16 24}} {} merge 0}
-      set shortcuts(1)  {{Films de + 2heures} {themes dursel} {theme_class1 {16 24} dursel {120 1435}} {} merge 0}
-      set shortcuts(2)  {{Films pour Adulte} themes {theme_class1 24} {} merge 0}
-      set shortcuts(3)  {Sports themes {theme_class1 64} {} merge 0}
-      set shortcuts(4)  {Jeunesse themes {theme_class1 80} {} merge 0}
-      set shortcuts(5)  {Spectacle/Jeu themes {theme_class1 48} {} merge 0}
-      set shortcuts(6)  {Journal themes {theme_class1 32} {} merge 0}
-      set shortcuts(7)  {Documentaire themes {theme_class1 38} {} merge 0}
-      set shortcuts(8)  {Musique themes {theme_class1 96} {} merge 0}
-      set shortcuts(9)  {Religion themes {theme_class1 112} {} merge 0}
-      set shortcuts(10) {Variétés themes {theme_class1 50} {} merge 0}
-      set shortcuts(11) {Météo substr {substr {{Météo 1 0 0 0 0 0}}} {} merge 0}
-      set shortcuts(12) {{12 ans et +} parental {parental 5} parental merge 0}
-      set shortcuts(13) {{16 ans et +} parental {parental 7} parental merge 0}
-      set shortcuts(14) {{45 minutes et +} dursel {dursel {45 1435}} {} merge 0}
-      set shortcuts(15) {{3h00 et +} dursel {dursel {180 1435}} {} merge 0}
+      set shortcuts(10000) {Films themes {theme_class1 {16 24}} {} merge 0}
+      set shortcuts(10010) {{Films de + 2heures} {themes dursel} {theme_class1 {16 24} dursel {120 1435}} {} merge 0}
+      set shortcuts(10020) {{Films pour Adulte} themes {theme_class1 24} {} merge 0}
+      set shortcuts(10030) {Sports themes {theme_class1 64} {} merge 0}
+      set shortcuts(10031) {{pas de sports} themes {theme_class1 64} theme_class1 and 0}
+      set shortcuts(10040) {Jeunesse themes {theme_class1 80} {} merge 0}
+      set shortcuts(10050) {Spectacle/Jeu themes {theme_class1 48} {} merge 0}
+      set shortcuts(10060) {Journal themes {theme_class1 32} {} merge 0}
+      set shortcuts(10070) {Documentaire themes {theme_class1 38} {} merge 0}
+      set shortcuts(10080) {Musique themes {theme_class1 96} {} merge 0}
+      set shortcuts(10090) {Religion themes {theme_class1 112} {} merge 0}
+      set shortcuts(10100) {Variétés themes {theme_class1 50} {} merge 0}
+      set shortcuts(10110) {Météo substr {substr {{Météo 1 0 0 0 0 0}}} {} merge 0}
+      set shortcuts(10120) {{12 ans et +} parental {parental 5} parental merge 0}
+      set shortcuts(10130) {{16 ans et +} parental {parental 7} parental merge 0}
+      set shortcuts(10140) {{45 minutes et +} dursel {dursel {45 1435}} {} merge 0}
+      set shortcuts(10150) {{3h00 et +} dursel {dursel {180 1435}} {} merge 0}
       set shortcut_order [lsort -integer [array names shortcuts]]
    } else {
       # generic
-      set shortcuts(0)  {movies themes {theme_class1 16} {} merge 0}
-      set shortcuts(1)  {sports themes {theme_class1 64} {} merge 0}
-      set shortcuts(2)  {series themes {theme_class1 128} {} merge 0}
-      set shortcuts(3)  {kids themes {theme_class1 80} {} merge 0}
-      set shortcuts(4)  {shows themes {theme_class1 48} {} merge 0}
-      set shortcuts(5)  {news themes {theme_class1 32} {} merge 0}
-      set shortcuts(6)  {social themes {theme_class1 37} {} merge 0}
-      set shortcuts(7)  {science themes {theme_class1 86} {} merge 0}
-      set shortcuts(8)  {hobbies themes {theme_class1 52} {} merge 0}
-      set shortcuts(9)  {music themes {theme_class1 96} {} merge 0}
-      set shortcuts(10) {culture themes {theme_class1 112} {} merge 0}
-      set shortcuts(11) {adult themes {theme_class1 24} {} merge 0}
+      set shortcuts(10000) {movies themes {theme_class1 16} {} merge 0}
+      set shortcuts(10010) {sports themes {theme_class1 64} {} merge 0}
+      set shortcuts(10011) {{no sports} themes {theme_class1 64} theme_class1 and 0}
+      set shortcuts(10020) {series themes {theme_class1 128} {} merge 0}
+      set shortcuts(10030) {kids themes {theme_class1 80} {} merge 0}
+      set shortcuts(10040) {shows themes {theme_class1 48} {} merge 0}
+      set shortcuts(10050) {news themes {theme_class1 32} {} merge 0}
+      set shortcuts(10060) {social themes {theme_class1 37} {} merge 0}
+      set shortcuts(10070) {science themes {theme_class1 86} {} merge 0}
+      set shortcuts(10080) {hobbies themes {theme_class1 52} {} merge 0}
+      set shortcuts(10090) {music themes {theme_class1 96} {} merge 0}
+      set shortcuts(10100) {culture themes {theme_class1 112} {} merge 0}
+      set shortcuts(10110) {adult themes {theme_class1 24} {} merge 0}
+      set shortcuts(10120) {evening timsel {timsel {0 0 1215 1410 -1}} {} merge 0}
+      set shortcuts(10130) {{>15 minutes} dursel {dursel {16 1435}} {} merge 0}
       set shortcut_order [lsort -integer [array names shortcuts]]
    }
 }
 
 ##
-##  Generate a new, unique tag
+##  Generate a new shortcut tag: value is arbitrary, but unique
 ##
 proc GenerateShortcutTag {} {
-   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_inv_idx fsc_logi_idx fsc_hide_idx
-   global shortcuts shortcut_order
+   global shortcuts
 
    set tag [clock seconds]
    foreach stag [array names shortcuts] {
@@ -104,11 +109,41 @@ proc GenerateShortcutTag {} {
    return $tag
 }
 
+## ---------------------------------------------------------------------------
+##  Load filter const cache
+##  - 1. with shortcut combinations used by reminders
+##  - 2. with shortcuts used in user-defined columns, and
+##
+proc DownloadUserDefinedColumnFilters {} {
+   array set cache {}
+
+   # need filters for all reminder groups to be able to search for events
+   set rem_count [Reminder_GetShortcuts cache]
+
+   # query which shortcuts are required for user-defined columns (list returned in cache array)
+   set sc_count [UserCols_GetShortcuts cache $rem_count]
+
+   # free the old cache and allocate a new one with the required number of entries
+   C_PiFilter_ContextCacheCtl start [expr $rem_count + $sc_count]
+
+   # download reminder filter contexts
+   Reminder_SetShortcuts
+
+   # download shortcut filter context
+   foreach {sc_tag filt_idx} [array get cache] {
+      if {[UserColsDlg_IsReminderPseudoTag $sc_tag] == -1} {
+         C_PiFilter_ContextCacheCtl set $filt_idx
+         SelectSingleShortcut $sc_tag
+      }
+   }
+
+   C_PiFilter_ContextCacheCtl done
+}
+
 ##  --------------------------------------------------------------------------
 ##  Check if shortcut should be deselected after manual filter modification
 ##
 proc CheckShortcutDeselection {} {
-   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_inv_idx fsc_logi_idx fsc_hide_idx
    global shortcuts shortcut_order
    global parental_rating editorial_rating
    global theme_sel theme_class_sel current_theme_class theme_class_count
@@ -118,7 +153,7 @@ proc CheckShortcutDeselection {} {
    global progidx_first progidx_last filter_progidx
    global substr_stack
    global timsel_enabled timsel_start timsel_stop timsel_date
-   global timsel_relative timsel_absstop timsel_nodate
+   global timsel_relative timsel_absstop timsel_datemode
    global dursel_min dursel_max
    global vpspdc_filt
    global filter_invert
@@ -127,7 +162,7 @@ proc CheckShortcutDeselection {} {
    foreach sc_index [.all.shortcuts.list curselection] {
       set sc_tag [lindex $shortcut_order $sc_index]
       set undo 0
-      foreach {ident valist} [lindex $shortcuts($sc_tag) $fsc_filt_idx] {
+      foreach {ident valist} [lindex $shortcuts($sc_tag) $::fsc_filt_idx] {
          switch -glob $ident {
             theme_class* {
                scan $ident "theme_class%d" class
@@ -223,10 +258,15 @@ proc CheckShortcutDeselection {} {
                               ($timsel_relative != [lindex $valist 0]) || \
                               ($timsel_absstop  != [lindex $valist 1]) || \
                               ($timsel_start    != [lindex $valist 2]) || \
-                              ($timsel_stop     != [lindex $valist 3]) || \
-                              ($timsel_nodate ? \
-                                ($timsel_date   != -1) : \
-                                ($timsel_date   != [lindex $valist 4])) ]
+                              ($timsel_stop     != [lindex $valist 3]) ]
+               if {$undo == 0} {
+                  switch -exact $timsel_datemode {
+                     rel    {set undo [expr [lindex $valist 4] != $timsel_date]}
+                     ignore {set undo [expr [lindex $valist 4] != -1]}
+                     wday   {set undo [expr [lindex $valist 4] != -10 - $timsel_date]}
+                     mday   {set undo [expr [lindex $valist 4] != -100 - $timsel_date]}
+                  }
+               }
             }
             dursel {
                set undo [expr ($dursel_min != [lindex $valist 0]) || \
@@ -237,27 +277,25 @@ proc CheckShortcutDeselection {} {
             }
             substr {
                # check if all substr param sets are still active, i.e. on the stack
+               array set stack_cache {}
+               foreach item $substr_stack {
+                  set stack_cache($item) {}
+               }
                foreach parlist $valist {
-                  set found 0
-                  foreach stit $substr_stack {
-                     if {$parlist == $stit} {
-                        set found 1
-                        break
-                     }
-                  }
-                  if {$found == 0} {
+                  if {[info exists stack_cache($parlist)] == 0} {
                      set undo 1
                      break
                   }
                }
+               array unset stack_cache
             }
          }
          if $undo break
       }
 
       # check if any filters in the mask are inverted
-      set invl [lindex $shortcuts($sc_tag) $fsc_inv_idx]
-      foreach {ident valist} [lindex $shortcuts($sc_tag) $fsc_mask_idx] {
+      set invl [lindex $shortcuts($sc_tag) $::fsc_inv_idx]
+      foreach {ident valist} [lindex $shortcuts($sc_tag) $::fsc_mask_idx] {
          if {[lsearch -exact $invl $ident] == -1} {
             if {[info exists filter_invert($ident)] && ($filter_invert($ident) != 0)} {
                set undo 1
@@ -273,7 +311,8 @@ proc CheckShortcutDeselection {} {
 
       # check if any filter inversions were undone
       foreach ident $invl {
-         if {$filter_invert($ident) == 0} {
+         if {![info exists filter_invert($ident)] || \
+             $filter_invert($ident) == 0} {
             set undo 1
             break
          }
@@ -304,10 +343,9 @@ proc CheckShortcutDeselection {} {
 ##    is called a different context must be selected as target
 ##
 proc SelectSingleShortcut {sc_tag} {
-   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_inv_idx fsc_logi_idx fsc_hide_idx
    global shortcuts
 
-   foreach {ident valist} [lindex $shortcuts($sc_tag) $fsc_filt_idx] {
+   foreach {ident valist} [lindex $shortcuts($sc_tag) $::fsc_filt_idx] {
       switch -glob $ident {
          theme_class*   {
             scan $ident "theme_class%d" class
@@ -339,9 +377,21 @@ proc SelectSingleShortcut {sc_tag} {
             set timsel_absstop  [lindex $valist 1]
             set timsel_start    [lindex $valist 2]
             set timsel_stop     [lindex $valist 3]
-            set timsel_date     [lindex $valist 4]
-            set timsel_nodate   [expr $timsel_date < 0]
-            C_SelectStartTime $timsel_relative $timsel_absstop $timsel_nodate \
+            set tmp_date        [lindex $valist 4]
+            if {$tmp_date <= -100} {
+               set timsel_datemode mday
+               set timsel_date [expr -100 - [lindex $valist 4]]
+            } elseif {$tmp_date <= -10} {
+               set timsel_datemode wday
+               set timsel_date [expr -10 - [lindex $valist 4]]
+            } elseif {$tmp_date < 0} {
+               set timsel_datemode ignore
+               set timsel_date 0
+            } else {
+               set timsel_datemode rel
+               set timsel_date [lindex $valist 4]
+            }
+            C_SelectStartTime $timsel_relative $timsel_absstop $timsel_datemode \
                               $timsel_start $timsel_stop $timsel_date
          }
          dursel {
@@ -374,14 +424,13 @@ proc SelectSingleShortcut {sc_tag} {
    }
 
    # process list of inverted filter types
-   C_InvertFilter [lindex $shortcuts($sc_tag) $fsc_inv_idx]
+   C_InvertFilter [lindex $shortcuts($sc_tag) $::fsc_inv_idx]
 }
 
 ##  --------------------------------------------------------------------------
 ##  Callback for button-release on shortcuts listbox
 ##
 proc SelectShortcuts {sc_tag_list shortcuts_arr} {
-   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_inv_idx fsc_logi_idx fsc_hide_idx
    global parental_rating editorial_rating
    global theme_sel theme_class_sel current_theme_class theme_class_count
    global sortcrit_class sortcrit_class_sel
@@ -391,7 +440,7 @@ proc SelectShortcuts {sc_tag_list shortcuts_arr} {
    global substr_stack substr_pattern substr_grep_title substr_grep_descr
    global substr_match_case substr_match_full
    global timsel_enabled timsel_start timsel_stop timsel_date
-   global timsel_relative timsel_absstop timsel_nodate
+   global timsel_relative timsel_absstop timsel_datemode
    global dursel_min dursel_max dursel_minstr dursel_maxstr
    global vpspdc_filt
    global fsc_prevselection
@@ -412,11 +461,10 @@ proc SelectShortcuts {sc_tag_list shortcuts_arr} {
          }
       }
    }
-   set fsc_prevselection $sc_tag_list
 
    # reset all filters in the combined mask
    foreach sc_tag $sc_tag_list {
-      foreach type [lindex $shortcuts($sc_tag) $fsc_mask_idx] {
+      foreach type [lindex $shortcuts($sc_tag) $::fsc_mask_idx] {
          # reset filter menu state; remember which types were reset
          switch -exact $type {
             themes     {ResetThemes;          set reset(themes) 1}
@@ -443,213 +491,245 @@ proc SelectShortcuts {sc_tag_list shortcuts_arr} {
 
    # clear all filters of deselected shortcuts
    foreach sc_tag [array names deleted] {
-      foreach {ident valist} [lindex $shortcuts($sc_tag) $fsc_filt_idx] {
-         if {![info exists reset($ident)]} {
+      if {[lindex $shortcuts($sc_tag) $::fsc_logi_idx] != "merge"} {
+         C_PiFilter_ForkContext remove $sc_tag
+      } else {
+         foreach {ident valist} [lindex $shortcuts($sc_tag) $::fsc_filt_idx] {
+            if {![info exists reset($ident)]} {
 
-            array unset filter_invert $ident
+               array unset filter_invert $ident
 
+               switch -glob $ident {
+                  theme_class*   {
+                     scan $ident "theme_class%d" class
+                     if {[info exists tcdesel($class)]} {
+                        set tcdesel($class) [concat $tcdesel($class) $valist]
+                     } else {
+                        set tcdesel($class) $valist
+                     }
+                  }
+                  sortcrit_class*   {
+                     scan $ident "sortcrit_class%d" class
+                     foreach item $valist {
+                        set index [lsearch -exact $sortcrit_class_sel($class) $item]
+                        if {$index != -1} {
+                           set sortcrit_class_sel($class) [lreplace $sortcrit_class_sel($class) $index $index]
+                        }
+                     }
+                  }
+                  features {
+                     foreach {mask value} $valist {
+                        for {set class 1} {$class <= $feature_class_count} {incr class} {
+                           if {($feature_class_mask($class) == $mask) && ($feature_class_value($class) == $value)} {
+                              set feature_class_mask($class)  0
+                              set feature_class_value($class) 0
+                           }
+                        }
+                     }
+                  }
+                  parental {
+                     set parental_rating 0
+                     C_SelectParentalRating 0
+                  }
+                  editorial {
+                     set editorial_rating 0
+                     C_SelectEditorialRating 0
+                  }
+                  substr {
+                     set substr_stack {}
+                     set substr_pattern {}
+                     C_SelectSubStr {}
+                  }
+                  progidx {
+                     set filter_progidx 0
+                     C_SelectProgIdx
+                  }
+                  timsel {
+                     set timsel_enabled 0
+                     C_SelectStartTime
+                  }
+                  dursel {
+                     set dursel_min 0
+                     set dursel_max 0
+                     C_SelectMinMaxDuration 0 0
+                  }
+                  vps_pdc {
+                     set vpspdc_filt 0
+                     C_SelectVpsPdcFilter $vpspdc_filt
+                  }
+                  series {
+                     foreach index $valist {
+                        set series_sel($index) 0
+                        C_SelectSeries $index 0
+                     }
+                  }
+                  netwops {
+                     if {[info exists netdesel]} {
+                        set netdesel [concat $netdesel $valist]
+                     } else {
+                        set netdesel $valist
+                     }
+                  }
+                  default {
+                  }
+               }
+            }
+         }
+
+         if {[lsearch -exact [lindex $shortcuts($sc_tag) $::fsc_inv_idx] all] != -1} {
+            array unset filter_invert all
+         }
+      }
+   }
+
+   # set all filters in all selected shortcuts (merge)
+   foreach sc_tag $sc_tag_list {
+      if {[lindex $shortcuts($sc_tag) $::fsc_logi_idx] != "merge"} {
+         if {[lsearch $fsc_prevselection $sc_tag] == -1} {
+            C_PiFilter_ForkContext [lindex $shortcuts($sc_tag) $::fsc_logi_idx] $sc_tag
+            SelectSingleShortcut $sc_tag
+            C_PiFilter_ForkContext close
+         }
+      } else {
+         foreach {ident valist} [lindex $shortcuts($sc_tag) $::fsc_filt_idx] {
             switch -glob $ident {
                theme_class*   {
                   scan $ident "theme_class%d" class
-                  if {[info exists tcdesel($class)]} {
-                     set tcdesel($class) [concat $tcdesel($class) $valist]
+                  if {[info exists tcsel($class)]} {
+                     set tcsel($class) [concat $tcsel($class) $valist]
                   } else {
-                     set tcdesel($class) $valist
+                     set tcsel($class) $valist
                   }
                }
                sortcrit_class*   {
                   scan $ident "sortcrit_class%d" class
-                  foreach item $valist {
-                     set index [lsearch -exact $sortcrit_class_sel($class) $item]
-                     if {$index != -1} {
-                        set sortcrit_class_sel($class) [lreplace $sortcrit_class_sel($class) $index $index]
-                     }
-                  }
+                  set sortcrit_class_sel($class) [lsort -int [concat $sortcrit_class_sel($class) $valist]]
                }
                features {
                   foreach {mask value} $valist {
+                     # search the first unused class; if none found, drop the filter
                      for {set class 1} {$class <= $feature_class_count} {incr class} {
-                        if {($feature_class_mask($class) == $mask) && ($feature_class_value($class) == $value)} {
-                           set feature_class_mask($class)  0
-                           set feature_class_value($class) 0
-                        }
+                        if {$feature_class_mask($class) == 0} break
+                     }
+                     if {$class <= $feature_class_count} {
+                        set feature_class_mask($class)  $mask
+                        set feature_class_value($class) $value
                      }
                   }
                }
                parental {
-                  set parental_rating 0
-                  C_SelectParentalRating 0
+                  set rating [lindex $valist 0]
+                  if {($rating < $parental_rating) || ($parental_rating == 0)} {
+                     set parental_rating $rating
+                     C_SelectParentalRating $parental_rating
+                  }
                }
                editorial {
-                  set editorial_rating 0
-                  C_SelectEditorialRating 0
+                  set rating [lindex $valist 0]
+                  if {($rating > $editorial_rating) || ($editorial_rating == 0)} {
+                     set editorial_rating [lindex $valist 0]
+                     C_SelectEditorialRating $editorial_rating
+                  }
                }
                substr {
-                  set substr_stack {}
-                  set substr_pattern {}
-                  C_SelectSubStr {}
+                  if {[llength $substr_stack] > 0} {
+                     array set stack_cache {}
+                     set idx 0
+                     foreach item $substr_stack {
+                        set stack_cache($item) $idx
+                        incr idx
+                     }
+                     # remove identical items from the substr stack
+                     foreach parlist $valist {
+                        if [info exists stack_cache($parlist)] {
+                           set idx $stack_cache($parlist)
+                           set substr_stack [lreplace $substr_stack $idx $idx]
+                        }
+                     }
+                     array unset stack_cache
+                  }
+                  # push set onto the substr stack; new stack is applied at the end
+                  set substr_stack [concat $valist $substr_stack]
+                  set upd_substr 1
+                  # display first element in the test search dialog
+                  if {[llength $valist] > 0} {
+                     set parlist [lindex $valist 0]
+                     set substr_pattern     [lindex $parlist 0]
+                     set substr_grep_title  [lindex $parlist 1]
+                     set substr_grep_descr  [lindex $parlist 2]
+                     set substr_match_case  [lindex $parlist 3]
+                     set substr_match_full  [lindex $parlist 4]
+
+                  }
                }
                progidx {
-                  set filter_progidx 0
-                  C_SelectProgIdx
+                  if {($progidx_first > [lindex $valist 0]) || ($filter_progidx == 0)} {
+                     set progidx_first [lindex $valist 0]
+                  }
+                  if {($progidx_last < [lindex $valist 1]) || ($filter_progidx == 0)} {
+                     set progidx_last  [lindex $valist 1]
+                  }
+                  C_SelectProgIdx $progidx_first $progidx_last
+                  UpdateProgIdxMenuState
                }
                timsel {
-                  set timsel_enabled 0
-                  C_SelectStartTime
+                  set timsel_enabled  1
+                  set timsel_relative [lindex $valist 0]
+                  set timsel_absstop  [lindex $valist 1]
+                  set timsel_start    [lindex $valist 2]
+                  set timsel_stop     [lindex $valist 3]
+                  set tmp_date        [lindex $valist 4]
+                  if {$tmp_date <= -100} {
+                     set timsel_datemode mday
+                     set timsel_date [expr -100 - [lindex $valist 4]]
+                  } elseif {$tmp_date <= -10} {
+                     set timsel_datemode wday
+                     set timsel_date [expr -10 - [lindex $valist 4]]
+                  } elseif {$tmp_date < 0} {
+                     set timsel_datemode ignore
+                  } else {
+                     set timsel_datemode rel
+                     set timsel_date [lindex $valist 4]
+                  }
+                  C_SelectStartTime $timsel_relative $timsel_absstop $timsel_datemode \
+                                    $timsel_start $timsel_stop $timsel_date
+                  TimeFilterExternalChange
                }
                dursel {
-                  set dursel_min 0
-                  set dursel_max 0
-                  C_SelectMinMaxDuration 0 0
+                  if {$dursel_max == 0} {
+                     set dursel_min [lindex $valist 0]
+                     set dursel_max [lindex $valist 1]
+                  } else {
+                     if {[lindex $valist 0] < $dursel_min} {set dursel_min [lindex $valist 0]}
+                     if {[lindex $valist 1] > $dursel_max} {set dursel_max [lindex $valist 1]}
+                  }
+                  C_SelectMinMaxDuration $dursel_min $dursel_max
                }
                vps_pdc {
-                  set vpspdc_filt 0
+                  set vpspdc_filt [lindex $valist 0]
                   C_SelectVpsPdcFilter $vpspdc_filt
                }
                series {
-                  foreach index $valist {
-                     set series_sel($index) 0
-                     C_SelectSeries $index 0
+                  foreach series $valist {
+                     set series_sel($series) 1
+                     C_SelectSeries $series 1
                   }
                }
                netwops {
-                  if {[info exists netdesel]} {
-                     set netdesel [concat $netdesel $valist]
+                  if {[info exists netsel]} {
+                     set netsel [concat $netsel $valist]
                   } else {
-                     set netdesel $valist
+                     set netsel $valist
                   }
                }
                default {
                }
             }
          }
-      }
 
-      if {[lsearch -exact [lindex $shortcuts($sc_tag) $fsc_inv_idx] all] != -1} {
-         array unset filter_invert all
-      }
-   }
-
-   # set all filters in all selected shortcuts (merge)
-   foreach sc_tag $sc_tag_list {
-      foreach {ident valist} [lindex $shortcuts($sc_tag) $fsc_filt_idx] {
-         switch -glob $ident {
-            theme_class*   {
-               scan $ident "theme_class%d" class
-               if {[info exists tcsel($class)]} {
-                  set tcsel($class) [concat $tcsel($class) $valist]
-               } else {
-                  set tcsel($class) $valist
-               }
-            }
-            sortcrit_class*   {
-               scan $ident "sortcrit_class%d" class
-               set sortcrit_class_sel($class) [lsort -int [concat $sortcrit_class_sel($class) $valist]]
-            }
-            features {
-               foreach {mask value} $valist {
-                  # search the first unused class; if none found, drop the filter
-                  for {set class 1} {$class <= $feature_class_count} {incr class} {
-                     if {$feature_class_mask($class) == 0} break
-                  }
-                  if {$class <= $feature_class_count} {
-                     set feature_class_mask($class)  $mask
-                     set feature_class_value($class) $value
-                  }
-               }
-            }
-            parental {
-               set rating [lindex $valist 0]
-               if {($rating < $parental_rating) || ($parental_rating == 0)} {
-                  set parental_rating $rating
-                  C_SelectParentalRating $parental_rating
-               }
-            }
-            editorial {
-               set rating [lindex $valist 0]
-               if {($rating > $editorial_rating) || ($editorial_rating == 0)} {
-                  set editorial_rating [lindex $valist 0]
-                  C_SelectEditorialRating $editorial_rating
-               }
-            }
-            substr {
-               foreach parlist $valist {
-                  set substr_pattern     [lindex $parlist 0]
-                  set substr_grep_title  [lindex $parlist 1]
-                  set substr_grep_descr  [lindex $parlist 2]
-                  set substr_match_case  [lindex $parlist 3]
-                  set substr_match_full  [lindex $parlist 4]
-
-                  # remove identical items from the substr stack
-                  set idx 0
-                  foreach item $substr_stack {
-                     if {$item == $parlist} {
-                        set substr_stack [lreplace $substr_stack $idx $idx]
-                        break
-                     }
-                     incr idx
-                  }
-
-                  # push set onto the substr stack; new stack is applied at the end
-                  set substr_stack [linsert $substr_stack 0 $parlist]
-                  set upd_substr 1
-               }
-            }
-            progidx {
-               if {($progidx_first > [lindex $valist 0]) || ($filter_progidx == 0)} {
-                  set progidx_first [lindex $valist 0]
-               }
-               if {($progidx_last < [lindex $valist 1]) || ($filter_progidx == 0)} {
-                  set progidx_last  [lindex $valist 1]
-               }
-               C_SelectProgIdx $progidx_first $progidx_last
-               UpdateProgIdxMenuState
-            }
-            timsel {
-               set timsel_enabled  1
-               set timsel_relative [lindex $valist 0]
-               set timsel_absstop  [lindex $valist 1]
-               set timsel_start    [lindex $valist 2]
-               set timsel_stop     [lindex $valist 3]
-               set timsel_date     [lindex $valist 4]
-               set timsel_nodate   [expr $timsel_date < 0]
-               C_SelectStartTime $timsel_relative $timsel_absstop $timsel_nodate \
-                                 $timsel_start $timsel_stop $timsel_date
-            }
-            dursel {
-               if {$dursel_max == 0} {
-                  set dursel_min [lindex $valist 0]
-                  set dursel_max [lindex $valist 1]
-               } else {
-                  if {[lindex $valist 0] < $dursel_min} {set dursel_min [lindex $valist 0]}
-                  if {[lindex $valist 1] > $dursel_max} {set dursel_max [lindex $valist 1]}
-               }
-               C_SelectMinMaxDuration $dursel_min $dursel_max
-            }
-            vps_pdc {
-               set vpspdc_filt [lindex $valist 0]
-               C_SelectVpsPdcFilter $vpspdc_filt
-            }
-            series {
-               foreach series $valist {
-                  set series_sel($series) 1
-                  C_SelectSeries $series 1
-               }
-            }
-            netwops {
-               if {[info exists netsel]} {
-                  set netsel [concat $netsel $valist]
-               } else {
-                  set netsel $valist
-               }
-            }
-            default {
-            }
+         foreach ident [lindex $shortcuts($sc_tag) $::fsc_inv_idx] {
+            set filter_invert($ident) 1
          }
-      }
-
-      foreach ident [lindex $shortcuts($sc_tag) $fsc_inv_idx] {
-         set filter_invert($ident) 1
       }
    }
 
@@ -765,6 +845,8 @@ proc SelectShortcuts {sc_tag_list shortcuts_arr} {
 
    # finally display the PI selected by the new filter setting
    C_PiBox_Refresh
+
+   set fsc_prevselection $sc_tag_list
 }
 
 ##
@@ -793,16 +875,29 @@ proc SelectShortcutFromTagList {tag_list sc_tag} {
    global fsc_prevselection
 
    if [info exists fsc_prevselection] {
-      # check if the given shortcut is already selected
-      set undo [expr [lsearch -exact $fsc_prevselection $sc_tag] != -1]
+      # check if the given shortcut is already selected -> toggle
+      if {$sc_tag != {}} {
+         set undo [expr [lsearch -exact $fsc_prevselection $sc_tag] != -1]
+      } else {
+         set undo 0
+      }
 
+      # disable shortcuts in the given list, if currently selected
       set sc_tag_list {}
       foreach prev_tag $fsc_prevselection {
-         if {[lsearch -exact $tag_list $prev_tag] == -1} {
+         if {[lsearch -exact $tag_list $prev_tag] != -1} {
+            # shortcut selected & in the given list -> deselect in listbox
+            # (the shortcut's filters are implicitly disabled by not passing the tag to select below)
+            set idx [lsearch -exact $shortcut_order $prev_tag]
+            if {$idx != -1} {
+               .all.shortcuts.list selection clear $idx
+            }
+         } else {
+            # shortcut is not in the list -> leave it selected
             lappend sc_tag_list $prev_tag
          }
       }
-      if {$undo == 0} {
+      if {($undo == 0) && ($sc_tag != {})} {
          lappend sc_tag_list $sc_tag
       }
 
@@ -889,7 +984,7 @@ proc DescribeCurrentFilter {} {
    global substr_stack
    global filter_progidx progidx_first progidx_last
    global timsel_enabled timsel_start timsel_stop timsel_date
-   global timsel_relative timsel_absstop timsel_nodate
+   global timsel_relative timsel_absstop timsel_datemode
    global dursel_min dursel_max
    global vpspdc_filt
    global filter_invert
@@ -969,8 +1064,14 @@ proc DescribeCurrentFilter {} {
 
    # dump start time filter
    if {$timsel_enabled} {
-      lappend all "timsel" [list $timsel_relative $timsel_absstop $timsel_start $timsel_stop \
-                                 [expr $timsel_nodate ? -1 : $timsel_date]]
+      set temp [list $timsel_relative $timsel_absstop $timsel_start $timsel_stop]
+      switch -exact $timsel_datemode {
+         rel    {lappend temp $timsel_date}
+         ignore {lappend temp -1}
+         wday   {lappend temp [expr -10 - $timsel_date]}
+         mday   {lappend temp [expr -100 - $timsel_date]}
+      }
+      lappend all "timsel" $temp
       lappend mask timsel
    }
 
@@ -1016,6 +1117,11 @@ proc DescribeCurrentFilter {} {
 
    return [list $mask $all $inv]
 }
+
+# indices into result list returned by proc DescribeCurrentFilter
+#=CONST= ::scdesc_mask_idx  0
+#=CONST= ::scdesc_filt_idx  1
+#=CONST= ::scdesc_inv_idx   2
 
 ##  --------------------------------------------------------------------------
 ##  Generate a text that describes a given filter setting
@@ -1173,14 +1279,21 @@ proc ShortcutPrettyPrint {filter inv_list} {
             }
          }
          timsel {
-            if {[lindex $valist 4] == -1} {
+            set date [lindex $valist 4]
+            if {$date <= -100} {
+               set date "monthly, day #[expr -100 - $date]"
+            } elseif {$date <= -10} {
+               set date "weekly at [GetNameForWeekday [expr -10 - $date] {%A}]"
+            } elseif {$date < 0} {
                set date "daily"
-            } elseif {[lindex $valist 4] == 0} {
-               set date "today"
-            } elseif {[lindex $valist 4] == 1} {
-               set date "tomorrow"
             } else {
-               set date "in [lindex $valist 4] days"
+               if {$date == 0} {
+                  set date "today"
+               } elseif {$date == 1} {
+                  set date "tomorrow"
+               } else {
+                  set date "in $date days"
+               }
             }
             if {[lindex $valist 0] == 0} {
                if {[lindex $valist 1] == 0} {

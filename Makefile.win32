@@ -22,7 +22,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile.win32,v 1.39 2003/07/01 19:33:49 tom Exp tom $
+#  $Id: Makefile.win32,v 1.44 2003/09/28 18:31:05 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -67,7 +67,7 @@ DEFS   += -DICON_PATCHED_INTO_DLL
 # enable use of daemon and client/server connection (UNIX only)
 DEFS   += -DUSE_DAEMON
 # enable use of zvbi slicer (does not require the zvbi library)
-#DEFS   += -DZVBI_DECODER
+DEFS   += -DZVBI_DECODER
 # testing TV app interaction on a host without a TV card
 #DEFS   += -DWITHOUT_TVCARD
 
@@ -76,7 +76,7 @@ DEFS   += -DWIN32
 
 WARN    = -Wall -Wpointer-arith -Wnested-externs -Wmissing-prototypes
 #WARN  += -Wstrict-prototypes -Werror
-CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -O6 -mno-cygwin
+CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -g -O -mno-cygwin
 LDFLAGS = -mwindows -mno-cygwin -Wl,--subsystem,windows
 
 # ----- don't change anything below ------------------------------------------
@@ -90,16 +90,17 @@ CSRC    = epgvbi/btdrv4win epgvbi/vbidecode epgvbi/zvbidecoder \
           epgdb/epgdbmgmt epgdb/epgdbif epgdb/epgdbfil epgdb/epgblock \
           epgdb/epgqueue epgdb/epgtscqueue epgdb/epgnetio \
           epgui/uictrl epgui/pibox epgui/pilistbox epgui/pinetbox \
-          epgui/pidescr epgui/pioutput epgui/pifilter \
+          epgui/pidescr epgui/pioutput epgui/pifilter epgui/piremind \
           epgui/statswin epgui/timescale epgui/pdc_themes epgui/menucmd \
           epgui/epgmain epgui/loadtcl epgui/wintv epgui/wintvcfg \
           epgui/dumptext epgui/dumpraw epgui/dumphtml epgui/dumpxml \
-          epgui/shellcmd
+          epgui/shellcmd epgui/wmhooks
 TCLSRC  = epgtcl/mainwin epgtcl/helptexts epgtcl/dlg_hwcfg epgtcl/dlg_xawtvcf \
           epgtcl/dlg_ctxmencf epgtcl/dlg_acqmode epgtcl/dlg_netsel \
           epgtcl/dlg_dump epgtcl/dlg_netname epgtcl/dlg_udefcols \
           epgtcl/shortcuts epgtcl/dlg_shortcuts epgtcl/draw_stats \
-          epgtcl/dlg_filter epgtcl/dlg_prov epgtcl/rcfile \
+          epgtcl/dlg_filter epgtcl/dlg_substr  epgtcl/dlg_prov epgtcl/rcfile \
+          epgtcl/dlg_remind epgtcl/mclistbox epgtcl/combobox epgtcl/rnotebook \
           epgtcl/tcl_libs epgtcl/tk_libs
 
 DSDRV_CSRC    = dsdrv/dsdrv34 dsdrv/hwdrv dsdrv/hwpci dsdrv/hwmem dsdrv/debuglog
@@ -119,10 +120,12 @@ VBIPLAY_CSRC2 = tvsim/winshmclnt epgctl/debug
 
 SRCS          = $(addsuffix .c, $(CSRC))
 OBJS          = $(addsuffix .o, $(CSRC)) $(addsuffix .o, $(TCLSRC)) epgui/tkwinico.res.o
+ALLTCL_SRCS   = $(addsuffix .c, $(TCLSRC)) $(addsuffix .c, $(TVSIM_TCLSRC)) $(addsuffix .c, $(VBIREC_TCLSRC))
+TCL_SRCS      = $(addsuffix .c, $(TCLSRC))
 DSDRV_SRCS    = $(addsuffix .c, $(DSDRV_CSRC))
 DSDRV_OBJS    = $(addsuffix .o, $(DSDRV_CSRC))
-TVCARD_SRCS    = $(addsuffix .c, $(TVCARD_CSRC))
-TVCARD_OBJS    = $(addsuffix .o, $(TVCARD_CSRC))
+TVCARD_SRCS   = $(addsuffix .c, $(TVCARD_CSRC))
+TVCARD_OBJS   = $(addsuffix .o, $(TVCARD_CSRC))
 TVSIM_SRCS    = $(addsuffix .c, $(TVSIM_CSRC))
 TVSIM_OBJS    = $(addsuffix .o, $(TVSIM_CSRC)) $(addsuffix .o, $(TVSIM_CSRC2)) $(addsuffix .o, $(TVSIM_TCLSRC))
 VBIREC_SRCS   = $(addsuffix .c, $(VBIREC_CSRC))
@@ -130,9 +133,9 @@ VBIREC_OBJS   = $(addsuffix .o, $(VBIREC_CSRC)) $(addsuffix .o, $(VBIREC_CSRC2))
 VBIPLAY_SRCS  = $(addsuffix .c, $(VBIREC_CSRC))
 VBIPLAY_OBJS  = $(addsuffix .o, $(VBIPLAY_CSRC)) $(addsuffix .o, $(VBIPLAY_CSRC2))
 
-devel: nxtvepg.exe
-all: nxtvepg.exe tvsim.exe vbirec.exe vbiplay.exe manuals
 .PHONY: all devel
+devel: tcl_headers nxtvepg.exe
+all: tcl_headers nxtvepg.exe tvsim.exe vbirec.exe vbiplay.exe manuals
 
 nxtvepg.exe:dsdrv/libdsdrv.a dsdrv/libtvcard.a $(OBJS) 
 	$(CC) $(LDFLAGS) $(OBJS) $(LDLIBS) -o nxtvepg.exe
@@ -155,21 +158,19 @@ dsdrv/libtvcard.a: $(TVCARD_OBJS)
 .SUFFIXES: .c .o .tcl
 
 %.c: %.tcl tcl2c.exe
-	./tcl2c.exe $*.tcl
+	./tcl2c.exe -c -d -h $*.tcl
 
-%.h: %.tcl tcl2c.exe
-	./tcl2c.exe $*.tcl
-
-epgui/loadtcl.c :: $(addsuffix .c, $(TCLSRC))
-
-epgui/loadtcl.c :: $(addsuffix .h, $(TCLSRC))
-
-tvsim/tvsim_main.c :: $(addsuffix .h, $(TVSIM_TCLSRC))
-
-tvsim/vbirec_main.c :: $(addsuffix .h, $(VBIREC_TCLSRC))
+.PHONY: tcl_headers
+tcl_headers: $(ALLTCL_SRCS)
+##%.h: %.tcl tcl2c.exe
+##	./tcl2c.exe -c -d -h $*.tcl
 
 tcl2c.exe: tcl2c.c
+ifeq ($(OS),Windows_NT)
 	$(CC) -O6 -o tcl2c.exe tcl2c.c
+else
+	gcc -O6 -o tcl2c.exe tcl2c.c
+endif
 
 epgtcl/tcl_libs.tcl:
 	if test -d tcl$(TCL_V); then \
@@ -265,11 +266,11 @@ clean:
 	-rm -f tvsim/tvsim_gui.[ch] tvsim/vbirec_gui.[ch]
 	-rm -f epgui/tkwinico.res
 
-depend:
+depend: $(ALLTCL_SRCS)
 	-:>Makefile.depwin
-	DIRLIST=`(for cmod in $(SRCS) $(DSDRV_SRCS) $(TVCARD_SRCS) $(TVSIM_SRCS) $(VBIREC_SRCS) $(VBIPLAY_SRCS); do echo $$cmod; done) | cut -d/ -f1 | sort -u`; \
+	DIRLIST=`(for cmod in $(SRCS) $(ALLTCL_SRCS) $(DSDRV_SRCS) $(TVCARD_SRCS) $(TVSIM_SRCS) $(VBIREC_SRCS) $(VBIPLAY_SRCS); do echo $$cmod; done) | cut -d/ -f1 | sort -u`; \
 	for dir in $$DIRLIST; do \
-	  CLIST=`(for src in $(SRCS) $(DSDRV_SRCS) $(TVCARD_SRCS) $(TVSIM_SRCS) $(VBIREC_SRCS); do echo $$src; done) | grep $$dir/`; \
+	  CLIST=`(for src in $(SRCS) $(ALLTCL_SRCS) $(DSDRV_SRCS) $(TVCARD_SRCS) $(TVSIM_SRCS) $(VBIREC_SRCS); do echo $$src; done) | grep $$dir/`; \
 	  $(CC) -MM $(INCS) $(DEFS) $$CLIST | \
 	  sed -e 's#^.*\.o#'$$dir/'&#g' >> Makefile.depwin; \
 	done

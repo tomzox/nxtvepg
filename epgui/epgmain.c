@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgmain.c,v 1.122 2003/06/28 11:09:31 tom Exp tom $
+ *  $Id: epgmain.c,v 1.127 2003/10/05 19:24:36 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -76,7 +76,9 @@
 #include "epgui/pibox.h"
 #include "epgui/pioutput.h"
 #include "epgui/pifilter.h"
+#include "epgui/piremind.h"
 #include "epgui/xawtv.h"
+#include "epgui/wmhooks.h"
 #include "epgui/wintv.h"
 #include "epgui/wintvcfg.h"
 #include "epgui/dumpraw.h"
@@ -87,6 +89,7 @@
 #include "epgui/loadtcl.h"
 
 #include "images/nxtv_logo.xbm"
+#include "images/nxtv_small.xbm"
 #include "images/ptr_up.xbm"
 #include "images/ptr_down.xbm"
 #include "images/pan_updown.xbm"
@@ -118,6 +121,14 @@ char epg_rcs_id_str[] = EPG_VERSION_RCS_ID;
 Tcl_Interp * interp;               // Interpreter for application
 char comm[TCL_COMM_BUF_SIZE + 1];  // Command buffer (one extra byte for overflow detection)
 
+typedef enum
+{
+   EPGGUI_START,
+   DAEMON_START,
+   DAEMON_STOP
+} DAEMON_MODE;
+#define IS_DAEMON(MODE)  ((MODE) != EPGGUI_START)
+
 // command line options
 #ifdef WIN32
 static const char * const defaultRcFile = "nxtvepg.ini";
@@ -131,7 +142,7 @@ static const char * rcfile = NULL;
 static const char * dbdir  = NULL;
 static int  videoCardIndex = -1;
 static bool disableAcq = FALSE;
-static bool optDaemonMode = FALSE;
+static DAEMON_MODE optDaemonMode = EPGGUI_START;
 static EPGTAB_DUMP_MODE optDumpMode = EPGTAB_DUMP_NONE;
 #ifdef USE_DAEMON
 static bool optNoDetach   = FALSE;
@@ -151,6 +162,7 @@ static Tcl_TimerToken expirationHandler = NULL;
 
 #ifdef WIN32
 static HINSTANCE  hMainInstance;  // copy of win32 instance handle
+static HWND       OtherNxtvepgHWnd = NULL;
 #endif
 
 // queue for events called from the main loop when Tcl is idle
@@ -164,6 +176,7 @@ typedef struct MAIN_IDLE_EVENT_STRUCT
 static MAIN_IDLE_EVENT * pMainIdleEventQueue = NULL;
 
 EPGDB_CONTEXT * pUiDbContext;
+static time_t   uiMinuteTime;
 
 // ---------------------------------------------------------------------------
 // Append a main idle event to the FIFO queue
@@ -297,12 +310,32 @@ static void MainEventHandler_ProcessBlocks( ClientData clientData )
 }
 
 // ---------------------------------------------------------------------------
+// Query current UI wallclock time
+// - used to determine if PI fall into past, now or then (<, ==, >)
+// - formerly the expire time threshold was used, but this doesn't work while
+//   the threshold is moved into the past (to show expired PI in pibox)
+//
+time_t EpgGetUiMinuteTime( void )
+{
+   return uiMinuteTime;
+}
+
+// ---------------------------------------------------------------------------
 // Regular event, called every minute
 //
 static void ClockMinEvent( ClientData clientData )
 {
+   // rounding expire time down to full minute, in case the handler is called late
+   // so that programmes which end in that minute do always expire; also add a few
+   // seconds to round up to the next minute in case we're called early
+   uiMinuteTime  = time(NULL) + 2;
+   uiMinuteTime -= uiMinuteTime % 60;
+
    // remove expired PI from the listing
    PiFilter_Expire();
+
+   // refresh the listbox to remove expired PI
+   PiBox_Refresh();
 
    // check upon acquisition progress
    EpgAcqCtl_Idle();
@@ -906,16 +939,19 @@ static void DaemonMainLoop( void )
       }
       else
       {
+         #ifndef WIN32
          if (errno != EINTR)
          {  // select syscall failed
-            #ifndef WIN32
             debug2("Daemon-MainLoop: select with max. fd %d: %s", max_fd, strerror(errno));
-            sleep(1);
-            #else
-            debug2("Daemon-MainLoop: select with max. fd %d: %d", max_fd, WSAGetLastError());
-            Sleep(1000);
-            #endif
+            sleep(1);  // sleep 1 second to avoid busy looping
          }
+         #else  // WIN32
+         if (WSAGetLastError() != WSAEINTR)
+         {
+            debug2("Daemon-MainLoop: select with max. fd %d: %d", max_fd, WSAGetLastError());
+            Sleep(1000);  // 1000 milliseconds == 1 second
+         }
+         #endif
       }
    }
 }
@@ -1392,14 +1428,14 @@ static int AsyncHandler_AppTerminate( ClientData clientData, Tcl_Interp *interp,
 #ifndef WIN32
 static void signal_handler( int sigval )
 {
-   if ((sigval == SIGHUP) && (optDaemonMode == FALSE) && (optDumpMode == EPGTAB_DUMP_NONE))
+   if ((sigval == SIGHUP) && !IS_DAEMON(optDaemonMode) && (optDumpMode == EPGTAB_DUMP_NONE))
    {  // toggle acquisition on/off (unless in daemon mode)
       AddMainIdleEvent(EventHandler_SigHup, NULL, TRUE);
    }
    else
    {
       #ifdef USE_DAEMON
-      if (optDaemonMode)
+      if (IS_DAEMON(optDaemonMode))
       {
          char str_buf[10];
 
@@ -1764,7 +1800,61 @@ static int TclCbWinSystrayIcon( ClientData ttp, Tcl_Interp *interp, int argc, CO
    }
    return result;
 }
-#endif
+
+// ----------------------------------------------------------------------------
+// Search if an nxtvepg GUI is already running
+//
+static BOOL CALLBACK NxtvepgWinSearchEnumCb( HWND hwnd, LPARAM lParam )
+{
+   char title_buf[15];
+
+   GetWindowText(hwnd, (LPSTR)&title_buf, sizeof(title_buf) - 1);
+   if (strncmp(title_buf, "Nextview EPG", 12) == 0)
+   {
+      OtherNxtvepgHWnd = hwnd;
+      return FALSE;
+   }
+   return TRUE;
+}
+
+static void RaiseNxtvepgGuiWindow( void )
+{
+   int  answer;
+
+   OtherNxtvepgHWnd = NULL;
+   EnumWindows(NxtvepgWinSearchEnumCb, 0);
+   if (OtherNxtvepgHWnd != NULL) 
+   {  // found another instance of the application
+
+      answer = MessageBox(NULL, "Nextview EPG already running.\n"
+                                "Really start a second time?", "Nextview EPG",
+                                MB_ICONQUESTION | MB_YESNOCANCEL | MB_DEFBUTTON2 | MB_TASKMODAL | MB_SETFOREGROUND);
+      if (answer == IDNO)
+      {  // "No" (default) -> raise other window
+         if (startIconified == FALSE)
+         {
+            if (IsIconic(OtherNxtvepgHWnd))
+               ShowWindow(OtherNxtvepgHWnd, SW_RESTORE);
+            SetForegroundWindow(OtherNxtvepgHWnd);
+         }
+         ExitProcess(0);
+      }
+      else if (answer == IDCANCEL)
+      {  // "Cancel"
+         ExitProcess(0);
+      }
+      else if (answer == IDYES)
+      {  // "Yes" -> continue launch, but prevent unnecessary warnings
+         // (note: tvapp interaction setup is suppressed by checking window handle)
+
+         if (videoCardIndex == -1)
+         {  // suppress acq through default card to avoid warning from driver
+            disableAcq = TRUE;
+         }
+      }
+   }
+}
+#endif  // WIN32
 
 /*
  *-------------------------------------------------------------------------
@@ -1943,6 +2033,7 @@ static void Usage( const char *argv0, const char *argvn, const char * reason )
                    "       -noacq              \t: don't start acquisition automatically\n"
                    #ifdef USE_DAEMON
                    "       -daemon             \t: don't open any windows; acquisition only\n"
+                   "       -daemonstop         \t: terminate background acquisition process\n"
                    "       -nodetach           \t: daemon remains connected to tty\n"
                    "       -acqpassive         \t: force daemon to passive acquisition mode\n"
                    #endif
@@ -2007,7 +2098,12 @@ static void ParseArgv( int argc, char * argv[] )
          #ifdef USE_DAEMON
          else if (!strcmp(argv[argIdx], "-daemon"))
          {  // suppress GUI
-            optDaemonMode = TRUE;
+            optDaemonMode = DAEMON_START;
+            argIdx += 1;
+         }
+         else if (!strcmp(argv[argIdx], "-daemonstop"))
+         {  // kill daemon process, then exit
+            optDaemonMode = DAEMON_STOP;
             argIdx += 1;
          }
          else if (!strcmp(argv[argIdx], "-nodetach"))
@@ -2158,7 +2254,8 @@ static void ParseArgv( int argc, char * argv[] )
    }
 
    // Check for disallowed option combinations
-   if (optDaemonMode)
+   #ifdef USE_DAEMON
+   if (IS_DAEMON(optDaemonMode))
    {
       if (disableAcq)
          Usage(argv[0], "-daemon", "Cannot combine with -noacq");
@@ -2170,6 +2267,7 @@ static void ParseArgv( int argc, char * argv[] )
          Usage(argv[0], "-daemon", "Cannot combine with -dump");
    }
    else
+   #endif
    {
       if (optAcqPassive)
          Usage(argv[0], "-acqpassive", "Only meant for -daemon mode");
@@ -2193,8 +2291,8 @@ static int ui_init( int argc, char **argv, bool withTk )
    char *args;
 
    // set up the user-configured locale
-   setlocale(LC_ALL, "C");  // required for Tcl or parsing of floating point numbers fails
-   pLanguage = setlocale(LC_TIME, "");
+   setlocale(LC_ALL, "");
+   setlocale(LC_NUMERIC, "C");  // required for Tcl or parsing of floating point numbers fails
 
    if (argc >= 1)
    {
@@ -2212,8 +2310,7 @@ static int ui_init( int argc, char **argv, bool withTk )
    {
       args = Tcl_Merge(argc - 1, (CONST84 char **) argv + 1);
       Tcl_SetVar(interp, "argv", args, TCL_GLOBAL_ONLY);
-      sprintf(comm, "%d", argc - 1);
-      Tcl_SetVar(interp, "argc", comm, TCL_GLOBAL_ONLY);
+      Tcl_SetVar2Ex(interp, "argc", NULL, Tcl_NewIntObj(argc - 1), TCL_GLOBAL_ONLY);
    }
    Tcl_SetVar(interp, "argv0", argv[0], TCL_GLOBAL_ONLY);
 
@@ -2224,11 +2321,13 @@ static int ui_init( int argc, char **argv, bool withTk )
    #ifndef WIN32
    Tcl_SetVar(interp, "x11_appdef_path", X11_APP_DEFAULTS, TCL_GLOBAL_ONLY);
 
-   Tcl_SetVar(interp, "is_unix", "1", TCL_GLOBAL_ONLY);
+   Tcl_SetVar2Ex(interp, "is_unix", NULL, Tcl_NewIntObj(1), TCL_GLOBAL_ONLY);
    #else
-   Tcl_SetVar(interp, "is_unix", "0", TCL_GLOBAL_ONLY);
+   Tcl_SetVar2Ex(interp, "is_unix", NULL, Tcl_NewIntObj(0), TCL_GLOBAL_ONLY);
    #endif
 
+   // query language for default shortcut selection
+   pLanguage = setlocale(LC_TIME, NULL);
    Tcl_SetVar(interp, "user_language", ((pLanguage != NULL) ? pLanguage : ""), TCL_GLOBAL_ONLY);
 
    sprintf(comm, "0x%06X", EPG_VERSION_NO);
@@ -2271,7 +2370,9 @@ static int ui_init( int argc, char **argv, bool withTk )
       Tk_DefineBitmap(interp, Tk_GetUid("bitmap_col_plus"), col_plus_bits, col_plus_width, col_plus_height);
       Tk_DefineBitmap(interp, Tk_GetUid("bitmap_col_minus"), col_minus_bits, col_minus_width, col_minus_height);
       Tk_DefineBitmap(interp, Tk_GetUid("bitmap_hatch"), hatch_bits, hatch_width, hatch_height);
+      Tk_DefineBitmap(interp, Tk_GetUid("bitmap_gray"), "\x01\x02", 2, 2);
       Tk_DefineBitmap(interp, Tk_GetUid("nxtv_logo"), nxtv_logo_bits, nxtv_logo_width, nxtv_logo_height);
+      Tk_DefineBitmap(interp, Tk_GetUid("nxtv_small"), nxtv_small_bits, nxtv_small_width, nxtv_small_height);
 
       #ifdef WIN32
       Tcl_CreateCommand(interp, "C_SystrayIcon", TclCbWinSystrayIcon, (ClientData) NULL, NULL);
@@ -2342,7 +2443,7 @@ int main( int argc, char *argv[] )
    pOptArgv0 = argv[0];
 
    #ifdef USE_DAEMON
-   if (optDaemonMode)
+   if (optDaemonMode == DAEMON_START)
    {  // deamon mode -> detach from tty
       #ifndef WIN32
       if (optNoDetach == FALSE)
@@ -2364,6 +2465,13 @@ int main( int argc, char *argv[] )
       EpgAcqCtl_InitDaemon();
    }
    #endif
+   #ifdef WIN32
+   else if ((optDaemonMode == EPGGUI_START) && (optDumpMode == EPGTAB_DUMP_NONE))
+   {
+      RaiseNxtvepgGuiWindow();
+   }
+   #endif
+
 
    // set up the directory for the databases (unless in demo mode)
    if (EpgDbSavSetupDir(dbdir, pDemoDatabase) == FALSE)
@@ -2384,7 +2492,7 @@ int main( int argc, char *argv[] )
 
    // initialize Tcl interpreter and compile all scripts
    // Tk is only initialized if a GUI will be opened
-   ui_init(argc, argv, ((optDaemonMode == FALSE) && (optDumpMode == EPGTAB_DUMP_NONE)));
+   ui_init(argc, argv, (!IS_DAEMON(optDaemonMode) && (optDumpMode == EPGTAB_DUMP_NONE)));
 
    should_exit = FALSE;
    exitHandler = Tcl_AsyncCreate(AsyncHandler_AppTerminate, NULL);
@@ -2392,8 +2500,11 @@ int main( int argc, char *argv[] )
    // load the user configuration from the rc/ini file
    sprintf(comm, "LoadRcFile {%s} %d %d",
                  rcfile, (strcmp(defaultRcFile, rcfile) == 0),
-                 ((optDaemonMode != FALSE) || (optDumpMode != EPGTAB_DUMP_NONE)));
+                 (IS_DAEMON(optDaemonMode) || (optDumpMode != EPGTAB_DUMP_NONE)));
    eval_check(interp, comm);
+
+   // setup cut-off time for expired PI blocks during database reload
+   MenuCmd_SetPiExpireDelay();
 
    if (optDumpMode != EPGTAB_DUMP_NONE)
    {  // dump mode: just dump the database, then exit
@@ -2411,7 +2522,7 @@ int main( int argc, char *argv[] )
       }
       EpgContextCtl_Close(pUiDbContext);
    }
-   else if (optDaemonMode == FALSE)
+   else if (optDaemonMode == EPGGUI_START)
    {  // normal GUI mode
 
       eval_check(interp, "LoadWidgetOptions\n"
@@ -2446,11 +2557,14 @@ int main( int argc, char *argv[] )
       SetHardwareConfig(interp, videoCardIndex);
       SetAcquisitionMode(NETACQ_DEFAULT);
       SetUserLanguage(interp);
+      uiMinuteTime  = time(NULL);
+      uiMinuteTime -= uiMinuteTime % 60;
 
       // initialize the GUI control modules
       StatsWin_Create();
       TimeScale_Create();
       MenuCmd_Init(pDemoDatabase != NULL);
+      PiRemind_Create();
       PiFilter_Create();
       PiBox_Create();
 
@@ -2459,11 +2573,12 @@ int main( int argc, char *argv[] )
       EpgDumpXml_Init();
       EpgDumpRaw_Init();
       ShellCmd_Init();
+      WmHooks_Init(interp);
       WintvCfg_Init(TRUE);
       #ifndef WIN32
       Xawtv_Init(pTvX11Display);
       #else
-      Wintv_Init();
+      Wintv_Init(OtherNxtvepgHWnd == NULL);
       #endif
 
       // draw the clock and update it every second afterwords
@@ -2485,6 +2600,9 @@ int main( int argc, char *argv[] )
       SetWindowsIcon(hInstance);
       #endif
       sprintf(comm, "DisplayMainWindow %d", startIconified);
+      eval_check(interp, comm);
+
+      sprintf(comm, "Reminder_UpdateTimer");
       eval_check(interp, comm);
 
       if (disableAcq == FALSE)
@@ -2541,7 +2659,15 @@ int main( int argc, char *argv[] )
          debug0("could not open the main window - exiting.");
    }
    #ifdef USE_DAEMON
-   else
+   else if (optDaemonMode == DAEMON_STOP)
+   {
+      SetHardwareConfig(interp, videoCardIndex);
+      if ( EpgMain_StopDaemon() )
+         exit(0);
+      else
+         exit(1);
+   }
+   else if (optDaemonMode == DAEMON_START)
    {  // Daemon mode: no GUI - just do acq and handle requests from GUI via sockets
 
       // pass configurable parameters to the network server (e.g. enable logging)
@@ -2593,7 +2719,7 @@ int main( int argc, char *argv[] )
    BtDriver_Exit();
 
    // shut down all GUI modules
-   if ((optDaemonMode == FALSE) && (optDumpMode == EPGTAB_DUMP_NONE))
+   if ((optDaemonMode == EPGGUI_START) && (optDumpMode == EPGTAB_DUMP_NONE))
    {
       EpgContextCtl_Close(pUiDbContext);
       pUiDbContext = NULL;
@@ -2605,7 +2731,9 @@ int main( int argc, char *argv[] )
       ShellCmd_Destroy();
 
       PiFilter_Destroy();
+      PiRemind_Destroy();
       PiBox_Destroy();
+      WmHooks_Destroy();
       #ifndef WIN32
       Xawtv_Destroy();
       #else
@@ -2618,7 +2746,7 @@ int main( int argc, char *argv[] )
       #endif
    }
    #if defined(WIN32) && defined(USE_DAEMON)
-   else if (optDaemonMode)
+   else if (optDaemonMode == DAEMON_START)
    {  // notify the GUI in case we haven't done so before
       DaemonTriggerGui();
       // remove the window now to indicate the driver is down and the TV card free

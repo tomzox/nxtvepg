@@ -1,13 +1,13 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: changelog.html,v 1.46 2003/07/03 19:03:30 tom Exp $ -->
+<!-- $Id: changelog.html,v 1.47 2003/10/11 09:52:32 tom Exp $ -->
 <HEAD>
 <TITLE>Nextview EPG Decoder Change-Log</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
 <META name="language" content="en">
 <META name="author" content="Tom Zoerner">
 <META name="copyright" content="Tom Zoerner">
-<META name="keywords" lang="en" content="Bt848, video capture, capture, browser, Pro7, RTL2, 3Sat, Canal+, EuroNews, nexTView, EPG, nxtvepg, teletext, Bt878, Brooktree, electronic program guide, TV-Guide, Premiere, TV program listing, TV schedule, Nextview decoder, Linux, software download, bttv, video4linux, VBI, vertical blanking interval, multimedia, data service, subscription free, TV tuner card">
+<META name="keywords" lang="en" content="Bt848, video capture, capture, browser, Pro7, RTL2, Canal+, EuroNews, nexTView, EPG, nxtvepg, teletext, Bt878, Brooktree, electronic program guide, TV-Guide, Premiere, TV program listing, TV schedule, Nextview decoder, Linux, software download, bttv, video4linux, VBI, vertical blanking interval, multimedia, data service, subscription free, TV tuner card">
 <META name="description" content="History of releases and changes inbetween for the nxtvepg decoder software">
 <META name="robots" content="index, follow">
 <META name="revisit-after" content="01 month">
@@ -23,13 +23,66 @@
 This document contains a list of all major changes between releases
 of the <A HREF="http://nxtvepg.sourceforge.net/">nxtvepg</A>
 nexTView EPG decoder software.
-<BR>
-It also contains information about the next release and is regularily
-updated while work is in progress and new bugs are fixed or features added.
-For more details on work in progress please refer to
+For details on work in progress please refer to
 <A HREF="http://sourceforge.net/mailarchive/forum.php?forum_id=14102">mailing list archives</A>.
 </P>
 
+
+<H2><A NAME="release_2_6_0">From 2.5.2 to 2.6.0 (Oct/11/2003)</A></H2>
+<P>
+This release contains the following new features:
+</P><UL>
+<LI>Implemented reminders, i.e. bookmarking and message/command dispatch for
+  selected programmes or shortcuts
+<LI>Added weekday scale to the right of the programme list (note that colors
+  and text are configurable via the nxtvepg.ad file or X resources on UNIX)
+<LI>Added new programme list attribute type "weekday color", i.e. use colors
+  (same as in weekday scale) to mark programmes instead of words "Fri" etc.
+  Thanks to Peter Rolf for the idea.  Note: for the grid layout this attribute
+  isn't supported very well yet. Suggestions for improvement are welcome.
+<LI>Added an expire time filter to the filter menu, i.e. the possibility to
+  display descriptions of TV shows which have already finished.  The delay
+  after which expired programmes are removed from the database is configurable
+  (note large delays introduce performance penalities.)
+</UL><P>
+Plus the following feature improvements:
+</P><UL>
+<LI>Free choice of colors in "compound attributes" (user-defined columns and
+  grid elements).  Thanks to Peter Rolf for suggesting this improvement.
+  Also added new format types to change background colors of single attributes
+  or the entire programme element.
+<LI>Extended start time filter: in addition to "daily" and "relative day offset"
+  new modes "weekly" and "monthly" are supported; also date range for relative
+  offsets was extended from 1 to 2 weeks.
+<LI>Improved text search dialog (yet again): active searches are now displayed
+  in a list above the test entry field. There's also a sub-dialog which allows
+  to paste multiple search texts at once, i.e. a list of movie titles;
+<LI>Added shortcut combination modes "OR" and "AND" which keep filter of such
+  shortcuts separate instead of merging them all into one as before; this
+  allows logical OR or AND between complex shortcuts, i.e. "movies on net A"
+  OR "series on network B"; with merge you'd have got "movies or series on
+  network A or B"; see manual chapter "Shortcuts" for more details.
+<LI>Added new key binding for key "i": display EPG info just like upon a
+  channel change in a connected TV application.
+<LI>Added new command line option -daemonstop: terminate daemon process
+  to simplify controlling acquisition by use of scripts, esp. on M$ Windows
+<LI>Added possibility to invoke Xawtv remote commands via the programme list's
+  context menu, by use of prefix !xawtv!  (e.g. switch the channel to the
+  selected title with command: !xawtv! setstation ${network})
+</UL><P>
+Plus the following fixes:
+</P><UL>
+<LI>Bugfix for possible crash when opening the alphabetical series list in
+  the filter menu (mainly a problem on 64bit platforms.)
+  Thanks to Helge Kreutzmann for the bug report.
+<LI>Bugfix tuner frequency setting for MT2032 in PAL mode.
+  Thanks to Manfred Folgmann for debugging support.
+<LI>Windows: fixed bug in database directory handling: startup was aborted if
+  the directory was the root of a mounted share (e.g. //remotehost/share)
+  Thanks to Manuel for reporting this bug in the forum.
+<LI>Windows: user-configured commands in context menu: omit quotes around
+  command substitutions, use escape instead (requested by "progro")
+</UL>
 
 <H2><A NAME="release_2_5_2">From 2.5.1 to 2.5.2 (July/1/2003)</A></H2>
 <P>

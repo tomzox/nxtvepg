@@ -16,17 +16,15 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pifilter.h,v 1.10 2003/02/01 15:03:00 tom Exp tom $
+ *  $Id: pifilter.h,v 1.11 2003/09/19 21:57:06 tom Exp tom $
  */
 
 #ifndef __PIFILTER_H
 #define __PIFILTER_H
 
 
-#ifndef __PIFILTER_C
 // search context for pi listbox
 extern FILTER_CONTEXT *pPiFilterContext;
-#endif
 
 // Initialization and destruction - Interface to the EPG main module
 void PiFilter_Create( void );
@@ -38,5 +36,6 @@ void PiFilter_Expire( void );
 
 // Interface to PI listbox column output
 bool PiFilter_ContextCacheMatch( const PI_BLOCK * pPiBlock, uint idx );
+const FILTER_CONTEXT * PiFilter_ContextCacheGet( uint idx );
 
 #endif  // __PIFILTER_H

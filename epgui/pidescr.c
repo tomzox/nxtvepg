@@ -19,7 +19,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pidescr.c,v 1.6 2003/06/28 11:22:44 tom Exp tom $
+ *  $Id: pidescr.c,v 1.8 2003/09/19 21:56:27 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -87,16 +87,14 @@ const schar alphaNumTab[256] =
 };
 
 // ----------------------------------------------------------------------------
-// Prepare title for alphabetical sorting
-// - remove appended series counter from title string =~ s/ \(\d+\)$//
-// - move attribs "Der, Die, Das" to the end of the title for sorting
+// Remove appended series counter from title string
+// - effectively performs subsitution regexp: s/ \(\d+\)$//
 //
-const char * PiDescription_DictifyTitle( const char * pTitle, uchar lang, char * outbuf, uint maxLen )
+const char * PiDescription_RemoveSeriesIndex( const char * pTitle, char * outbuf, uint maxLen )
 {
-   uchar *pe;
-   uint cut, len;
+   uchar * pe;
+   uint  len;
 
-   // remove appended series counter from title string =~ s/ \(\d+\)$//
    len = strlen(pTitle);
    if ((len >= 5) && (len < 100) && (*(pTitle + len - 1) == ')'))
    {  // found closing brace at end of string -> check for preceeding decimal number
@@ -124,6 +122,21 @@ const char * PiDescription_DictifyTitle( const char * pTitle, uchar lang, char *
          }
       }
    }
+   return pTitle;
+}
+
+// ----------------------------------------------------------------------------
+// Prepare title for alphabetical sorting
+// - remove appended series counter from title string
+// - move attribs "Der, Die, Das" to the end of the title for sorting
+//
+const char * PiDescription_DictifyTitle( const char * pTitle, uchar lang, char * outbuf, uint maxLen )
+{
+   uchar *pe;
+   uint cut, len;
+
+   // remove appended series counter from title string
+   pTitle = PiDescription_RemoveSeriesIndex(pTitle, outbuf, maxLen);
 
    // check for attribs "Der, Die, Das" at the start of the string
    cut = 0;
@@ -229,7 +242,7 @@ const char * PiDescription_DictifyTitle( const char * pTitle, uchar lang, char *
    }
 
    // force the new first title character to be uppercase (for sorting)
-   if (alphaNumTab[(uint) pTitle[0]] == ALNUM_LCHAR)
+   if (alphaNumTab[(uchar) pTitle[0]] == ALNUM_LCHAR)
    {
       if (pTitle != outbuf)
       {

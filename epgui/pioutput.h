@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pioutput.h,v 1.15 2003/03/04 21:31:40 tom Exp tom $
+ *  $Id: pioutput.h,v 1.17 2003/09/23 19:27:43 tom Exp tom $
  */
 
 #ifndef __PIOUTPUT_H
@@ -45,6 +45,8 @@ typedef enum
    PIBOX_COL_TIME,
    PIBOX_COL_TITLE,
    PIBOX_COL_WEEKDAY,
+   PIBOX_COL_WEEKCOL,
+   PIBOX_COL_REMINDER,
    PIBOX_COL_USER_DEF,
    PIBOX_COL_INVALID
 } PIBOX_COL_TYPES;

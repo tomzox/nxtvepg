@@ -27,7 +27,7 @@
  *
  *  DScaler #Id: CX2388xCard_Types.cpp,v 1.11 2003/06/17 12:45:19 adcockj Exp #
  *
- *  $Id: cx2388x_typ.c,v 1.8 2003/06/24 20:22:30 tom Exp tom $
+ *  $Id: cx2388x_typ.c,v 1.9 2003/10/04 19:40:32 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_DSDRV
@@ -463,7 +463,7 @@ static const TCardType m_TVCards[CX2388xCARD_LASTONE] =
         //IDC_CX2388X,
     },
     {
-        "Hauppauge WinTV PCI-FM",
+        "Hauppauge WinTV GO/PCI-FM",
         3,
         {
             {
@@ -532,6 +532,7 @@ static const TAutoDectect m_AutoDectect[] =
     //Tee Added support for PAL EVK and also added support for SSVID
     { 0x016614F1, CX2388xCARD_CONEXANT_EVK_PAL, "Conexant CX23880 PAL TV/FM EVK" },
     { 0x48201043, CX2388xCARD_ASUS, "Asus 880" },
+    { 0x34000070, CX2388xCARD_HAUPPAUGE_PCI_FM, "Hauppauge WinTV Go" },
     { 0x34010070, CX2388xCARD_HAUPPAUGE_PCI_FM, "Hauppauge WinTV PCI-FM" },
     { 0, (eCX2388xCardId)-1, NULL }
 };

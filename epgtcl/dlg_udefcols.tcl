@@ -18,13 +18,18 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_udefcols.tcl,v 1.11 2003/03/31 19:15:21 tom Exp tom $
+#  $Id: dlg_udefcols.tcl,v 1.14 2003/09/23 19:20:29 tom Exp tom $
 #
-set ucf_type_idx 0
-set ucf_value_idx 1
-set ucf_fmt_idx 2
-set ucf_ctxcache_idx 3
-set ucf_sctag_idx 4
+# import constants from other modules
+#=INCLUDE= "epgtcl/dlg_remind.h"
+#=INCLUDE= "epgtcl/shortcuts.h"
+#=INCLUDE= "epgtcl/mainwin.h"
+
+#=CONST= ::ucf_type_idx     0
+#=CONST= ::ucf_value_idx    1
+#=CONST= ::ucf_fmt_idx      2
+#=CONST= ::ucf_ctxcache_idx 3
+#=CONST= ::ucf_sctag_idx    4
 
 set usercol_popup 0
 
@@ -36,47 +41,157 @@ proc PreloadUserDefinedColumns {} {
    global colsel_tabs usercols
 
    set colsel_tabs(user_def_0) {80  Example  &user_def  "Compound example"}
-   set usercols(0) {{0 Movie! {bold blue} 0 0} {2 theme {} -1 -1}}
+   set usercols(0) {{0 Reminder {bold fg_RGBCC0000 ag_RGBFFCCCC} 1 rgp_all} {0 Movie! {bold fg_RGB0068ce} 0 10000} {2 theme {} -1 -1}}
+}
+
+# convert an internal color tag into a widget color parameter
+proc TextTag2Color {tag} {
+   if {([string length $tag] == 6+6) && ([scan $tag {%*[fba]g_RGB%x%n} foo len] == 2) && ($len == 12)} {
+      return "#[string range $tag 6 end]"
+   } elseif {[string compare $tag "fg_UNDEF"] == 0} {
+      return "black"
+   } elseif {[string compare $tag "bg_UNDEF"] == 0} {
+      return $::text_bg
+   } elseif {[regexp {[fba]g_} $tag]} {
+      return [string range $tag 3 end]
+   } else {
+      return {}
+   }
+}
+
+# convert a color to a text tag
+proc Color2TextTag {col prefix} {
+   if {([string length $col] == 1+6) && ([scan $col "#%x%n" foo len] == 2) && ($len == 7)} {
+      return "${prefix}_RGB[string range $col 1 end]"
+   } else {
+      return "${prefix}_$col"
+   }
+}
+
+proc UserCols_SetPiBoxTextColors {wid} {
+   global pi_bold_font is_unix
+   global usercols usercol_count
+   global rem_col_fmt
+
+   # collect format tags from all filters in all compound definitions
+   foreach id [array names usercols] {
+      foreach filt $usercols($id) {
+         foreach fmt_tag [lindex $filt $::ucf_fmt_idx] {
+            set fmt_cache($fmt_tag) {}
+         }
+      }
+   }
+   foreach filt $rem_col_fmt {
+      foreach fmt_tag [lindex $filt $::ucf_fmt_idx] {
+         set fmt_cache($fmt_tag) {}
+      }
+   }
+
+   # remove old tags before setting new ones
+   set ltmp {}
+   foreach fmt_tag [$wid tag names] {
+      if {[regexp {^[fba]g_} $fmt_tag] && \
+          ![regexp {^ag_day} $fmt_tag] && \
+          ![info exists fmt_cache($fmt_tag)]} {
+         lappend ltmp $fmt_tag
+      }
+   }
+   if {[llength $ltmp] > 0} {
+      eval [concat $wid tag delete $ltmp]
+   }
+
+   # remove non-colors from tag list
+   catch {unset fmt_cache(bold)}
+   catch {unset fmt_cache(underline)}
+   catch {unset fmt_cache(overstrike)}
+
+   # return tags and color identifiers (e.g. "fg_red" -> "#ff0000")
+   foreach fmt_tag [array names fmt_cache] {
+      set col [TextTag2Color $fmt_tag]
+      if {[regexp {[ba]g_} $fmt_tag]} {
+         if {[catch {$wid tag configure $fmt_tag -background $col}] && $is_unix} {
+            puts stderr "Warning: Failed to load compund attribute color '$fmt_tag': $col"
+         }
+      } else {
+         # catch errors because color names come from config file,
+         # i.e. might be corrupt or not exist on the current system
+         if {[catch {$wid tag configure $fmt_tag -foreground $col}] && $is_unix} {
+            puts stderr "Warning: Failed to load compund attribute color '$fmt_tag': $col"
+         }
+      }
+   }
+
+   # raise background color tags
+   for {set wday_idx 0} {$wday_idx < 7} {incr wday_idx} {
+      $wid tag raise ag_day$wday_idx
+   }
+}
+
+# helper function: return group if given tag refers to a reminder group, else -1
+proc UserColsDlg_IsReminderPseudoTag {sc_tag} {
+
+   if {[string compare $sc_tag "rgp_all"] == 0} {
+      # special case: OR of all reminder groups
+      return 0
+   } elseif {([scan $sc_tag "rgp_%d%n" gtag len] == 2) && \
+             ($len == [string length $sc_tag]) && \
+             ($gtag > 0)} {
+      return $gtag
+   } else {
+      # not a reminder
+      return -1
+   }
 }
 
 ## ---------------------------------------------------------------------------
 ##  Load filter cache with shortcuts used in user-defined columns
 ##
-proc DownloadUserDefinedColumnFilters {} {
-   global ucf_type_idx ucf_value_idx ucf_fmt_idx ucf_ctxcache_idx ucf_sctag_idx
-   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_inv_idx fsc_logi_idx fsc_hide_idx
+proc UserCols_GetShortcuts {cache_var cache_idx} {
    global shortcuts shortcut_order
    global usercols usercol_count
+   global remgroups remgroup_order
 
-   set cache_idx 0
+   upvar $cache_var cache
+
    foreach id [array names usercols] {
       set new {}
       foreach filt $usercols($id) {
-         set sc_tag [lindex $filt $ucf_sctag_idx]
-         if {$sc_tag != -1} {
+         set sc_tag [lindex $filt $::ucf_sctag_idx]
+         if {[UserColsDlg_IsReminderPseudoTag $sc_tag] != -1} {
+            if [info exists cache($sc_tag)] {
+               lappend new [lreplace $filt $::ucf_ctxcache_idx $::ucf_ctxcache_idx $cache($sc_tag)]
+            }
+         } elseif {$sc_tag != -1} {
             if [info exists shortcuts($sc_tag)] {
                if {![info exists cache($sc_tag)]} {
                   set cache($sc_tag) $cache_idx
                   incr cache_idx
                }
-               lappend new [lreplace $filt $ucf_ctxcache_idx $ucf_ctxcache_idx $cache($sc_tag)]
+               lappend new [lreplace $filt $::ucf_ctxcache_idx $::ucf_ctxcache_idx $cache($sc_tag)]
             }
          } else {
-            lappend new [lreplace $filt $ucf_ctxcache_idx $ucf_ctxcache_idx -1]
+            lappend new [lreplace $filt $::ucf_ctxcache_idx $::ucf_ctxcache_idx -1]
          }
       }
       set usercols($id) $new
    }
+   return $cache_idx
+}
 
-   # free the old cache and allocate a new one
-   C_PiFilter_ContextCacheCtl start $cache_idx
+## ---------------------------------------------------------------------------
+##  Trigger function for changes in global shortcut list while dialog is open
+##
+proc UserCols_ShortcutsChanged {} {
+   global usercol_popup
+   global shortcuts usercol_scnames
 
-   foreach {sc_tag filt_idx} [array get cache] {
-      C_PiFilter_ContextCacheCtl set $filt_idx
-      SelectSingleShortcut $sc_tag
+   if $usercol_popup {
+      # add new shortcuts
+      foreach sc_tag [CompleteShortcutOrder] {
+         set usercol_scnames($sc_tag) [lindex $shortcuts($sc_tag) $::fsc_name_idx]
+      }
+      # note: obsolete shortcuts not removed here (done upon save)
    }
-
-   C_PiFilter_ContextCacheCtl done
 }
 
 #=LOAD=PopupUserDefinedColumns
@@ -86,28 +201,37 @@ proc DownloadUserDefinedColumnFilters {} {
 ## Callback for configure menu: create the configuration dialog
 ##
 proc PopupUserDefinedColumns {} {
-   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_inv_idx fsc_logi_idx fsc_hide_idx
-   global ucf_type_idx ucf_value_idx ucf_fmt_idx ucf_ctxcache_idx ucf_sctag_idx
    global shortcuts shortcut_order
+   global remgroups remgroup_order
    global usercols colsel_tabs colsel_ailist_predef
    global usercol_scnames usercol_cf_tag usercol_cf_filt_idx
-   global usercol_popup text_bg pi_img win_frm_fg
+   global usercol_popup text_bg pi_font pi_img win_frm_fg entry_disabledforeground
 
    if {$usercol_popup == 0} {
       CreateTransientPopup .usercol "Attribute composition & display format"
       set usercol_popup 1
 
-      frame   .usercol.sel -relief ridge -borderwidth 2
-      label   .usercol.sel.lab -text "Currently editing:"
-      pack    .usercol.sel.lab -side left
-      entry   .usercol.sel.cur -width 20 -textvariable usercol_cf_lab
-      bind    .usercol.sel.cur <Enter> {SelectTextOnFocus %W}
-      pack    .usercol.sel.cur -side left -fill x -expand 1
-      menubutton .usercol.sel.mb -text "Select definition" -direction below -indicatoron 1 -borderwidth 2 -relief raised \
-                                 -menu .usercol.sel.mb.men -underline 0
-      menu    .usercol.sel.mb.men -tearoff 0
-      pack    .usercol.sel.mb -side right
-      pack    .usercol.sel -side top -fill x
+      # 1st row: attribute selection and link to manual pages
+      frame   .usercol.head -relief ridge -borderwidth 2
+      frame   .usercol.head.sel
+      label   .usercol.head.sel.lab -text "Currently editing:"
+      pack    .usercol.head.sel.lab -side left
+      entry   .usercol.head.sel.cur -width 20 -textvariable usercol_cf_lab
+      bind    .usercol.head.sel.cur <Enter> {SelectTextOnFocus %W}
+      pack    .usercol.head.sel.cur -side left -fill x -expand 1
+      menubutton .usercol.head.sel.mb -text "Select definition" -direction below -indicatoron 1 -borderwidth 2 -relief raised \
+                                 -menu .usercol.head.sel.mb.men -underline 0
+      menu    .usercol.head.sel.mb.men -tearoff 0
+      pack    .usercol.head.sel.mb -side right
+      pack    .usercol.head.sel -side top -fill x -padx 5 -pady 5
+
+      label   .usercol.head.lab1 -text "In this dialog you can select text format and colors, or add images to the programme list." -font $::font_normal
+      pack    .usercol.head.lab1 -side top -anchor w -padx 5
+      button  .usercol.head.lab2 -text "Read the intro for details." -padx 0 -pady 0 \
+                      -borderwidth 0 -relief flat -font [DeriveFont $::font_normal 0 underline] \
+                      -foreground blue -activeforeground blue -command {PopupHelp $helpIndex(Composite attributes)}
+      pack    .usercol.head.lab2 -side top -anchor w -padx 5
+      pack    .usercol.head -side top -fill x
 
       # 2nd row: label and header definition
       frame   .usercol.txt
@@ -127,22 +251,30 @@ proc PopupUserDefinedColumns {} {
       # 3rd row: shortcut selection & display definition
       frame   .usercol.all
 
-      label   .usercol.all.lab_sel -text "Shortcut selection:"
+      label   .usercol.all.lab_sel -text "Shortcut/reminder selection:"
       grid    .usercol.all.lab_sel -sticky w -row 0 -column 0 -padx 5 -columnspan 2
 
       frame   .usercol.all.selcmd
-      menubutton  .usercol.all.selcmd.scadd -text "add" -indicatoron 1 -borderwidth 2 -relief raised \
-                                         -menu .usercol.all.selcmd.scadd.men -underline 0
-      menu    .usercol.all.selcmd.scadd.men -tearoff 0
+      menubutton  .usercol.all.selcmd.scadd -text "Add shortcut" -indicatoron 1 \
+                                            -borderwidth 2 -relief raised \
+                                            -menu .usercol.all.selcmd.scadd.men -underline 0
+      menu    .usercol.all.selcmd.scadd.men -tearoff 0 \
+                  -postcommand [list PostDynamicMenu .usercol.all.selcmd.scadd.men UserColsDlg_FillShortcutMenu 0]
       pack    .usercol.all.selcmd.scadd -side top -fill x -anchor nw
+      menubutton  .usercol.all.selcmd.remadd -text "Add reminder" -indicatoron 1 \
+                                            -borderwidth 2 -relief raised \
+                                            -menu .usercol.all.selcmd.remadd.men -underline 0
+      menu    .usercol.all.selcmd.remadd.men -tearoff 0 \
+                  -postcommand [list PostDynamicMenu .usercol.all.selcmd.remadd.men UserColsDlg_FillReminderMenu 0]
+      pack    .usercol.all.selcmd.remadd -side top -fill x -anchor nw
       frame   .usercol.all.selcmd.updown
       button  .usercol.all.selcmd.updown.up -bitmap "bitmap_ptr_up" -command {UserColsDlg_ShiftShortcut 1}
       pack    .usercol.all.selcmd.updown.up -side left -fill x -expand 1
       button  .usercol.all.selcmd.updown.down -bitmap "bitmap_ptr_down" -command {UserColsDlg_ShiftShortcut 0}
       pack    .usercol.all.selcmd.updown.down -side left -fill x -expand 1
       pack    .usercol.all.selcmd.updown -side top -anchor nw -fill x
-      button  .usercol.all.selcmd.delsc -text "delete" -command {UserColsDlg_DeleteShortcut}
-      pack    .usercol.all.selcmd.delsc -side top -anchor nw
+      button  .usercol.all.selcmd.delsc -text "Delete" -command {UserColsDlg_DeleteShortcut}
+      pack    .usercol.all.selcmd.delsc -side top -fill x -anchor nw
       grid    .usercol.all.selcmd -sticky wen -row 1 -column 0 -padx 5
 
       ## 3rd row, 2nd column: shortcut list
@@ -163,22 +295,22 @@ proc PopupUserDefinedColumns {} {
 
       frame   .usercol.all.disp
       frame   .usercol.all.disp.attr -relief ridge -borderwidth 2
-      label   .usercol.all.disp.attr.lab_type -text "Display shortcut match as:"
+      label   .usercol.all.disp.attr.lab_type -text "Display match as:"
       grid    .usercol.all.disp.attr.lab_type -sticky w -row 0 -column 0 -columnspan 2
-      radiobutton .usercol.all.disp.attr.type_text -text "Text" -variable usercol_cf_type -value 0
+      radiobutton .usercol.all.disp.attr.type_text -text "Text:" -variable usercol_cf_type -value 0
       grid    .usercol.all.disp.attr.type_text -sticky w -column 0 -row 1
       entry   .usercol.all.disp.attr.ent_text -textvariable usercol_cf_text
       bind    .usercol.all.disp.attr.ent_text <Enter> {SelectTextOnFocus %W}
       bind    .usercol.all.disp.attr.ent_text <Key-Return> {set usercol_cf_type 0}
       grid    .usercol.all.disp.attr.ent_text -sticky we -column 1 -row 1
-      radiobutton .usercol.all.disp.attr.type_image -text "Image" -variable usercol_cf_type -value 1
+      radiobutton .usercol.all.disp.attr.type_image -text "Image:" -variable usercol_cf_type -value 1
       grid    .usercol.all.disp.attr.type_image -sticky w -column 0 -row 2
       menubutton  .usercol.all.disp.attr.img -text "Image" -indicatoron 1 -borderwidth 2 -relief raised \
                                              -menu .usercol.all.disp.attr.img.men -height 20 \
                                              -takefocus 1 -highlightthickness 1 -highlightcolor $win_frm_fg
       menu    .usercol.all.disp.attr.img.men -tearoff 0
       grid    .usercol.all.disp.attr.img -sticky we -column 1 -row 2
-      radiobutton .usercol.all.disp.attr.type_attr -text "Attribute" -variable usercol_cf_type -value 2
+      radiobutton .usercol.all.disp.attr.type_attr -text "Attribute:" -variable usercol_cf_type -value 2
       grid    .usercol.all.disp.attr.type_attr -sticky w -column 0 -row 3
       menubutton  .usercol.all.disp.attr.att -text "Attribute" -indicatoron 1 -borderwidth 2 -relief raised \
                                              -menu .usercol.all.disp.attr.att.men \
@@ -191,14 +323,53 @@ proc PopupUserDefinedColumns {} {
 
       frame   .usercol.all.disp.fmt -relief ridge -borderwidth 2
       label   .usercol.all.disp.fmt.lab_fmt -text "Text format:"
-      grid    .usercol.all.disp.fmt.lab_fmt -sticky w -row 0 -column 0 -columnspan 2
-      checkbutton .usercol.all.disp.fmt.chk_bold -text "bold" -variable usercol_cf_bold
-      grid    .usercol.all.disp.fmt.chk_bold -sticky w -row 1 -column 0
-      checkbutton .usercol.all.disp.fmt.chk_underline -text "underline" -variable usercol_cf_underline
-      grid    .usercol.all.disp.fmt.chk_underline -sticky w -row 2 -column 0
-      tk_optionMenu .usercol.all.disp.fmt.mb_color usercol_cf_color black red blue green yellow pink cyan
-      .usercol.all.disp.fmt.mb_color configure -takefocus 1 -highlightthickness 1 -highlightcolor $win_frm_fg
-      grid    .usercol.all.disp.fmt.mb_color -sticky we -row 1 -column 1
+      grid    .usercol.all.disp.fmt.lab_fmt -sticky w -row 1 -column 0
+      text    .usercol.all.disp.fmt.txtdemo -height 2 -width 1 -font $pi_font \
+                                            -background $text_bg -wrap none -relief ridge \
+                                            -borderwidth 2 -takefocus 0 -highlightthickness 0 \
+                                            -exportselection 0 -insertofftime 0 -spacing1 0 -spacing2 0
+      set lh [font metrics $pi_font -linespace]
+      .usercol.all.disp.fmt.txtdemo tag configure half_line -font [list Helvetica [expr $lh / -2]]
+      .usercol.all.disp.fmt.txtdemo tag configure txt_margin -lmargin1 10 -rmargin 10 -justify center
+      .usercol.all.disp.fmt.txtdemo tag configure samplet -font $pi_font
+      .usercol.all.disp.fmt.txtdemo tag configure sampleb -background $text_bg
+      .usercol.all.disp.fmt.txtdemo tag configure samplec -background $text_bg
+      .usercol.all.disp.fmt.txtdemo tag lower samplec
+      .usercol.all.disp.fmt.txtdemo insert 1.0 "\n" half_line
+      .usercol.all.disp.fmt.txtdemo insert 2.0 " " {txt_margin samplec} " " {sampleb samplec} "Text sample" {samplet sampleb samplec} " " {sampleb samplec} "\n" {txt_margin samplec}
+      bindtags .usercol.all.disp.fmt.txtdemo {all . .usercol.all.disp.fmt.txtdemo}
+      grid    .usercol.all.disp.fmt.txtdemo -sticky news -row 0 -column 1 -rowspan 2 -pady 3
+      checkbutton .usercol.all.disp.fmt.chk_bold -text "bold" -variable usercol_cf_bold \
+                                                 -command UserColsDlg_UpdateFmtDemoText
+      grid    .usercol.all.disp.fmt.chk_bold -sticky w -row 2 -column 0
+      checkbutton .usercol.all.disp.fmt.chk_underline -text "underline" -variable usercol_cf_underline \
+                                                      -command UserColsDlg_UpdateFmtDemoText
+      grid    .usercol.all.disp.fmt.chk_underline -sticky w -row 3 -column 0
+      checkbutton .usercol.all.disp.fmt.chk_overstrike -text "overstrike" -variable usercol_cf_overstrike \
+                                                      -command UserColsDlg_UpdateFmtDemoText
+      grid    .usercol.all.disp.fmt.chk_overstrike -sticky w -row 4 -column 0
+      menubutton .usercol.all.disp.fmt.mb_fgcolor -text "Text color" -direction flush -indicatoron 1 \
+                                                  -takefocus 1 -highlightthickness 1 -borderwidth 2 -relief raised \
+                                                  -menu .usercol.all.disp.fmt.mb_fgcolor.men
+      grid    .usercol.all.disp.fmt.mb_fgcolor -sticky we -row 2 -column 1
+      UserColsDlg_CreateColorMenu .usercol.all.disp.fmt.mb_fgcolor.men fg \
+                  {auto fg_UNDEF black fg_RGB000000 red fg_RGBCC0000 blue fg_RGB0000CC \
+                   green fg_RGB00CC00 yellow fg_RGBCCCC00 pink fg_RGBCC00CC cyan fg_RGB00CCCC}
+      menubutton .usercol.all.disp.fmt.mb_agcolor -text "Attribute background" -direction flush -indicatoron 1 \
+                                                  -takefocus 1 -highlightthickness 1 -borderwidth 2 -relief raised \
+                                                  -menu .usercol.all.disp.fmt.mb_agcolor.men
+      grid    .usercol.all.disp.fmt.mb_agcolor -sticky we -row 3 -column 1
+      UserColsDlg_CreateColorMenu .usercol.all.disp.fmt.mb_agcolor.men ag \
+                              {auto bg_UNDEF white ag_RGBFFFFFF red ag_RGBFFCCCC blue ag_RGBCCCCFF \
+                               green ag_RGBCCFFCC yellow ag_RGBFFFFCC pink ag_RGBFFCCFF cyan ag_RGBCCFFFF}
+      menubutton .usercol.all.disp.fmt.mb_bgcolor -text "Column background" -direction flush -indicatoron 1 \
+                                                  -takefocus 1 -highlightthickness 1 -borderwidth 2 -relief raised \
+                                                  -menu .usercol.all.disp.fmt.mb_bgcolor.men
+      grid    .usercol.all.disp.fmt.mb_bgcolor -sticky we -row 4 -column 1
+      UserColsDlg_CreateColorMenu .usercol.all.disp.fmt.mb_bgcolor.men bg \
+                              {auto bg_UNDEF white bg_RGBFFFFFF red bg_RGBFFCCCC blue bg_RGBCCCCFF \
+                               green bg_RGBCCFFCC yellow bg_RGBFFFFCC pink bg_RGBFFCCFF cyan bg_RGBCCFFFF}
+
       grid    columnconfigure .usercol.all.disp.fmt 0 -weight 1
       grid    columnconfigure .usercol.all.disp.fmt 1 -weight 1
       pack    .usercol.all.disp.fmt -side top -anchor nw -fill x
@@ -216,7 +387,7 @@ proc PopupUserDefinedColumns {} {
       button  .usercol.cmd.dismiss -text "Dismiss" -width 7 -command {if [UserColsDlg_CheckDiscard] {destroy .usercol}}
       button  .usercol.cmd.apply -text "Apply" -width 7 -command {UserColsDlg_Apply}
       pack    .usercol.cmd.help .usercol.cmd.del .usercol.cmd.dismiss .usercol.cmd.apply -side left -padx 10
-      pack    .usercol.cmd -side top -pady 5
+      pack    .usercol.cmd -side top -pady 10
 
       bind    .usercol <Key-F1> {PopupHelp $helpIndex(Configuration) "Attribute composition"}
       bind    .usercol.cmd <Destroy> {+ set usercol_popup 0}
@@ -228,25 +399,25 @@ proc PopupUserDefinedColumns {} {
 
       # create drop-down menu with all images
       foreach id [lsort [array names pi_img]] {
-         .usercol.all.disp.attr.img.men add radiobutton -image [lindex $pi_img($id) 0] \
+         .usercol.all.disp.attr.img.men add radiobutton -image [lindex $pi_img($id) $::pimg_name_idx] \
             -variable usercol_cf_image -value $id \
             -command [concat set usercol_cf_type 1 {;} \
-                      .usercol.all.disp.attr.img configure -image [lindex $pi_img($id) 0]]
+                      .usercol.all.disp.attr.img configure -image [lindex $pi_img($id) $::pimg_name_idx]]
       }
       .usercol.all.disp.attr.img.men entryconfigure 7 -columnbreak 1
       .usercol.all.disp.attr.img.men entryconfigure 14 -columnbreak 1
 
       # create drop-down menu with all pre-defined columns
       foreach id $colsel_ailist_predef {
-         .usercol.all.disp.attr.att.men add radiobutton -label [lindex $colsel_tabs($id) 3] \
+         .usercol.all.disp.attr.att.men add radiobutton -label [lindex $colsel_tabs($id) $::cod_label_idx] \
             -variable usercol_cf_attr -value $id \
             -command [concat set usercol_cf_type 2 {;} \
-                      [list .usercol.all.disp.attr.att configure -text [lindex $colsel_tabs($id) 3]]]
+                      [list .usercol.all.disp.attr.att configure -text [lindex $colsel_tabs($id) $::cod_label_idx]]]
 
-         if {[string compare [lindex $colsel_tabs($id) 2] none] != 0} {
-            .usercol.txt.hmenu.men add radiobutton -label [lindex $colsel_tabs($id) 3] \
+         if {[string compare [lindex $colsel_tabs($id) $::cod_menu_idx] none] != 0} {
+            .usercol.txt.hmenu.men add radiobutton -label [lindex $colsel_tabs($id) $::cod_label_idx] \
                -variable usercol_cf_hmenu -value "&$id" \
-               -command [list .usercol.txt.hmenu configure -text [lindex $colsel_tabs($id) 3]]
+               -command [list .usercol.txt.hmenu configure -text [lindex $colsel_tabs($id) $::cod_label_idx]]
          }
       }
       .usercol.txt.hmenu.men add separator
@@ -256,16 +427,14 @@ proc PopupUserDefinedColumns {} {
       .usercol.txt.hmenu.men add radiobutton -label "none" -variable usercol_cf_hmenu -value "none" \
                                              -command {.usercol.txt.hmenu configure -text "none"}
 
-      # create drop-down menu with all currently defined shortcuts
-      # - save the shortcut names into a global array
+      # load cache variables with shortcut names
       foreach sc_tag [CompleteShortcutOrder] {
-         set usercol_scnames($sc_tag) [lindex $shortcuts($sc_tag) $fsc_name_idx]
-         .usercol.all.selcmd.scadd.men add command -label [lindex $shortcuts($sc_tag) $fsc_name_idx] \
-            -command [list UserColsDlg_AddShortcut $sc_tag]
+         set usercol_scnames($sc_tag) [lindex $shortcuts($sc_tag) $::fsc_name_idx]
       }
-      # append menu entry and pseudo-shortcut name for "no match"
-      .usercol.all.selcmd.scadd.men add separator
-      .usercol.all.selcmd.scadd.men add command -label "*no match*" -command {UserColsDlg_AddShortcut -1}
+      foreach gtag $remgroup_order {
+         set usercol_scnames(rgp_$gtag) [concat Reminder [lindex $remgroups($gtag) $::rgp_name_idx]]
+      }
+      set usercol_scnames(rgp_all) "all reminders"
       set usercol_scnames(-1) "*none of the above*"
 
       # create drop-down menu with all user-defined columns
@@ -293,16 +462,16 @@ proc UserColsDlg_FillColumnSelectionMenu {} {
    global usercols colsel_tabs
 
    # clear the old content
-   .usercol.sel.mb.men delete 0 end
+   .usercol.head.sel.mb.men delete 0 end
 
-   .usercol.sel.mb.men add command -label "Create new definition" -command UserColsDlg_NewCol
-   .usercol.sel.mb.men add separator
+   .usercol.head.sel.mb.men add command -label "Create new definition" -command UserColsDlg_NewCol
+   .usercol.head.sel.mb.men add separator
 
    set ailist [lsort -integer [array names usercols]]
    foreach tag $ailist {
       if [info exists colsel_tabs(user_def_$tag)] {
          set uc_def $colsel_tabs(user_def_$tag)
-         .usercol.sel.mb.men add command -label "[lindex $uc_def 3] ([lindex $uc_def 1])" \
+         .usercol.head.sel.mb.men add command -label "[lindex $uc_def $::cod_label_idx] ([lindex $uc_def $::cod_head_idx])" \
                                          -command [concat UserColsDlg_SelectColumn $tag]
       }
    }
@@ -315,9 +484,39 @@ proc UserColsDlg_FillColumnSelectionMenu {} {
    }
 }
 
+# dynamically fill popup menu with all currently defined shortcuts (including "hidden" ones)
+proc UserColsDlg_FillShortcutMenu {wid is_stand_alone} {
+   global shortcuts
+
+   foreach sc_tag [CompleteShortcutOrder] {
+      .usercol.all.selcmd.scadd.men add command -label [lindex $shortcuts($sc_tag) $::fsc_name_idx] \
+         -command [list UserColsDlg_AddShortcut $sc_tag]
+   }
+   # append menu entry and pseudo-shortcut name for "no match"
+   .usercol.all.selcmd.scadd.men add separator
+   .usercol.all.selcmd.scadd.men add command -label "*no match*" -command {UserColsDlg_AddShortcut -1}
+}
+
+# dynamically fill popup menu with all currently defined reminder groups
+proc UserColsDlg_FillReminderMenu {wid is_stand_alone} {
+   global remgroups remgroup_order
+   global usercol_scnames
+
+   foreach gtag $remgroup_order {
+      set elem $remgroups($gtag)
+      # update name cache in case new reminders were added since the dialog was opened
+      set usercol_scnames(rgp_$gtag) [concat Reminder [lindex $elem $::rgp_name_idx]]
+
+      .usercol.all.selcmd.remadd.men add command -label [lindex $elem $::rgp_name_idx] \
+         -command [list UserColsDlg_AddShortcut rgp_$gtag]
+   }
+   .usercol.all.selcmd.remadd.men add separator
+   .usercol.all.selcmd.remadd.men add command -label "All reminders" \
+         -command {UserColsDlg_AddShortcut rgp_all}
+}
+
 # check if the column definition was changed
 proc UserColsDlg_CheckDiscard {} {
-   global ucf_type_idx ucf_value_idx ucf_fmt_idx ucf_ctxcache_idx ucf_sctag_idx
    global usercol_cf_tag usercol_cf_selist usercol_cf_filt
    global usercol_cf_lab usercol_cf_head usercol_cf_hmenu
    global usercols colsel_tabs
@@ -334,12 +533,12 @@ proc UserColsDlg_CheckDiscard {} {
             # loop across all shortcuts
             foreach filt $usercols($usercol_cf_tag) {
                # check if the shortcut reference changed
-               if {[lindex $filt $ucf_sctag_idx] == [lindex $usercol_cf_selist $filt_idx]} {
+               if {[lindex $filt $::ucf_sctag_idx] == [lindex $usercol_cf_selist $filt_idx]} {
                   # compare the attributes for this shortcut
                   set new $usercol_cf_filt([lindex $usercol_cf_selist $filt_idx])
-                  if {([lindex $filt $ucf_type_idx] != [lindex $new $ucf_type_idx]) || \
-                      ([string compare [lindex $filt $ucf_value_idx] [lindex $new $ucf_value_idx]] != 0) || \
-                      ([string compare [lindex $filt $ucf_fmt_idx] [lindex $new $ucf_fmt_idx]] != 0)} {
+                  if {([lindex $filt $::ucf_type_idx] != [lindex $new $::ucf_type_idx]) || \
+                      ([string compare [lindex $filt $::ucf_value_idx] [lindex $new $::ucf_value_idx]] != 0) || \
+                      ([string compare [lindex $filt $::ucf_fmt_idx] [lindex $new $::ucf_fmt_idx]] != 0)} {
                      set ok 0
                      break
                   }
@@ -361,9 +560,9 @@ proc UserColsDlg_CheckDiscard {} {
       # check if label or column header have been changed
       if {[info exists colsel_tabs(user_def_$usercol_cf_tag)]} {
          set old $colsel_tabs(user_def_$usercol_cf_tag)
-         if {([string compare [lindex $old 1] $usercol_cf_head] != 0) ||
-             ([string compare [lindex $old 2] $usercol_cf_hmenu] != 0) ||
-             ([string compare [lindex $old 3] $usercol_cf_lab] != 0)} {
+         if {([string compare [lindex $old $::cod_head_idx] $usercol_cf_head] != 0) ||
+             ([string compare [lindex $old $::cod_menu_idx] $usercol_cf_hmenu] != 0) ||
+             ([string compare [lindex $old $::cod_label_idx] $usercol_cf_lab] != 0)} {
             set ok 0
          }
       } elseif {([string length $usercol_cf_head] > 0) || \
@@ -387,7 +586,6 @@ proc UserColsDlg_CheckDiscard {} {
 
 # callback for column selection (topmost menubutton)
 proc UserColsDlg_SelectColumn {tag} {
-   global ucf_type_idx ucf_value_idx ucf_fmt_idx ucf_ctxcache_idx ucf_sctag_idx
    global usercols colsel_tabs
    global usercol_scnames
    global usercol_cf_tag usercol_cf_selist usercol_cf_filt_idx usercol_cf_filt
@@ -402,17 +600,17 @@ proc UserColsDlg_SelectColumn {tag} {
    array unset usercol_cf_filt
    if [info exists usercols($usercol_cf_tag)] {
       foreach filt $usercols($usercol_cf_tag) {
-         lappend usercol_cf_selist [lindex $filt $ucf_sctag_idx]
-         set usercol_cf_filt([lindex $filt $ucf_sctag_idx]) $filt
+         lappend usercol_cf_selist [lindex $filt $::ucf_sctag_idx]
+         set usercol_cf_filt([lindex $filt $::ucf_sctag_idx]) $filt
       }
    }
 
    # display label and column header text
    if [info exists colsel_tabs(user_def_$usercol_cf_tag)] {
       set uc_def $colsel_tabs(user_def_$usercol_cf_tag)
-      set usercol_cf_lab [lindex $uc_def 3]
-      set usercol_cf_head [lindex $uc_def 1]
-      set usercol_cf_hmenu [lindex $uc_def 2]
+      set usercol_cf_lab [lindex $uc_def $::cod_label_idx]
+      set usercol_cf_head [lindex $uc_def $::cod_head_idx]
+      set usercol_cf_hmenu [lindex $uc_def $::cod_menu_idx]
    } else {
       set usercol_cf_lab {*unnamed*}
       set usercol_cf_hmenu "none"
@@ -430,8 +628,8 @@ proc UserColsDlg_SelectColumn {tag} {
       }
    }
 
-   focus .usercol.sel.cur
-   .usercol.sel.cur selection range 0 end
+   focus .usercol.head.sel.cur
+   .usercol.head.sel.cur selection range 0 end
 
    # fill shortcut list
    .usercol.all.sel.selist delete 0 end
@@ -459,11 +657,79 @@ proc UserColsDlg_NewCol {} {
    UserColsDlg_SelectColumn $tag
 }
 
+# create pop-up menu with all text colors
+proc UserColsDlg_CreateColorMenu {wid type col_arr} {
+   upvar #0 usercol_cf_${type}color cfg_var
+
+   menu    $wid -tearoff 0
+   foreach {colstr coldef} $col_arr {
+      $wid add radiobutton -label $colstr -variable usercol_cf_${type}color -value $coldef \
+                           -command UserColsDlg_UpdateFmtDemoText
+   }
+   $wid insert 1 separator
+   $wid add separator
+   $wid add command -label "other..." -command [list UserColsDlg_PopupUdefColorMenu usercol_cf_${type}color $type]
+}
+
+# helper function to invoke color selection sub-dialog for user-defined colors
+proc UserColsDlg_PopupUdefColorMenu {col_var type} {
+   upvar #0 $col_var colcf
+
+   set tmp [tk_chooseColor -initialcolor [TextTag2Color $colcf] \
+                           -parent .usercol -title "Select a color"]
+   if {[string length $tmp] > 0} {
+      set colcf [Color2TextTag $tmp $type]
+      UserColsDlg_UpdateFmtDemoText
+   }
+}
+
+# apply the text format settings to the demo text entry widget
+proc UserColsDlg_UpdateFmtDemoText {} {
+   global usercol_cf_bold usercol_cf_underline usercol_cf_overstrike
+   global usercol_cf_fgcolor usercol_cf_agcolor usercol_cf_bgcolor
+   global text_bg pi_font pi_bold_font
+
+   if $usercol_cf_bold {
+      set demo_font $pi_bold_font
+   } else {
+      set demo_font $pi_font
+   }
+   if $usercol_cf_underline {
+      if {[string compare [lindex $demo_font 2] "normal"] != 0} {
+         lappend demo_font "underline"
+      } else {
+         set demo_font [lreplace $demo_font 2 2 "underline"]
+      }
+   }
+   if $usercol_cf_overstrike {
+      if {[string compare [lindex $demo_font 2] "normal"] != 0} {
+         lappend demo_font "overstrike"
+      } else {
+         set demo_font [lreplace $demo_font 2 2 "overstrike"]
+      }
+   }
+
+   set fgcol [TextTag2Color $usercol_cf_fgcolor]
+   .usercol.all.disp.fmt.txtdemo tag configure samplet -font $demo_font -foreground $fgcol
+
+   if {[string compare $usercol_cf_agcolor bg_UNDEF] != 0} {
+      set agcol [TextTag2Color $usercol_cf_agcolor]
+      .usercol.all.disp.fmt.txtdemo tag configure sampleb -background $agcol
+      .usercol.all.disp.fmt.txtdemo tag raise sampleb
+   } else {
+      .usercol.all.disp.fmt.txtdemo tag lower sampleb
+   }
+
+   set bgcol [TextTag2Color $usercol_cf_bgcolor]
+   .usercol.all.disp.fmt.txtdemo tag configure samplec -background $bgcol
+}
+
 # helper function: store (possibly modified) settings of the selected shortcut
 proc UserColsDlg_UpdateShortcutAttribs {} {
    global usercol_cf_selist usercol_cf_filt usercol_cf_filt_idx
    global usercol_cf_type usercol_cf_text usercol_cf_image usercol_cf_attr
-   global usercol_cf_bold usercol_cf_underline usercol_cf_color
+   global usercol_cf_bold usercol_cf_underline usercol_cf_overstrike
+   global usercol_cf_fgcolor usercol_cf_agcolor usercol_cf_bgcolor
 
    if {$usercol_cf_filt_idx != -1} {
       set sc_tag [lindex $usercol_cf_selist $usercol_cf_filt_idx]
@@ -476,10 +742,18 @@ proc UserColsDlg_UpdateShortcutAttribs {} {
       } else {
          set value {}
       }
+      # build array of text format tags
+      # (note: rendering engine expects "bold" first, all-column bg color last
+      #        because these require special handling)
       set fmt {}
-      if $usercol_cf_bold {lappend fmt bold}
-      if $usercol_cf_underline {lappend fmt underline}
-      if {[string compare $usercol_cf_color black] != 0} {lappend fmt $usercol_cf_color}
+      if {$usercol_cf_type != 1} {
+         if $usercol_cf_bold {lappend fmt bold}
+         if $usercol_cf_underline {lappend fmt underline}
+         if $usercol_cf_overstrike {lappend fmt overstrike}
+         if {[string compare $usercol_cf_fgcolor fg_UNDEF] != 0} {lappend fmt $usercol_cf_fgcolor}
+      }
+      if {[string compare $usercol_cf_agcolor bg_UNDEF] != 0} {lappend fmt $usercol_cf_agcolor}
+      if {[string compare $usercol_cf_bgcolor bg_UNDEF] != 0} {lappend fmt $usercol_cf_bgcolor}
 
       set usercol_cf_filt($sc_tag) [list $usercol_cf_type $value $fmt 0 $sc_tag]
    }
@@ -487,10 +761,10 @@ proc UserColsDlg_UpdateShortcutAttribs {} {
 
 # callback for changes of selection in shortcut listbox
 proc UserColsDlg_SelectShortcut {} {
-   global ucf_type_idx ucf_value_idx ucf_fmt_idx ucf_ctxcache_idx ucf_sctag_idx
    global usercol_cf_tag usercol_cf_selist usercol_cf_filt_idx usercol_cf_filt
    global usercol_cf_type usercol_cf_text usercol_cf_image usercol_cf_attr
-   global usercol_cf_bold usercol_cf_underline usercol_cf_color
+   global usercol_cf_bold usercol_cf_underline usercol_cf_overstrike
+   global usercol_cf_fgcolor usercol_cf_agcolor usercol_cf_bgcolor
    global colsel_tabs pi_img
 
    set sc_idx [.usercol.all.sel.selist curselection]
@@ -503,28 +777,34 @@ proc UserColsDlg_SelectShortcut {} {
          set usercol_cf_filt_idx $sc_idx
          set filt $usercol_cf_filt([lindex $usercol_cf_selist $sc_idx])
 
-         set usercol_cf_type [lindex $filt $ucf_type_idx]
+         set usercol_cf_type [lindex $filt $::ucf_type_idx]
 
          set usercol_cf_text {}
          set usercol_cf_image diamond_black
          set usercol_cf_attr title
          if {$usercol_cf_type == 0} {
-            set usercol_cf_text [lindex $filt $ucf_value_idx]
+            set usercol_cf_text [lindex $filt $::ucf_value_idx]
          } elseif {$usercol_cf_type == 1} {
-            set usercol_cf_image [lindex $filt $ucf_value_idx]
+            set usercol_cf_image [lindex $filt $::ucf_value_idx]
          } elseif {$usercol_cf_type == 2} {
-            set usercol_cf_attr [lindex $filt $ucf_value_idx]
+            set usercol_cf_attr [lindex $filt $::ucf_value_idx]
          }
-         .usercol.all.disp.attr.img configure -image [lindex $pi_img($usercol_cf_image) 0]
-         .usercol.all.disp.attr.att configure -text [lindex $colsel_tabs($usercol_cf_attr) 3]
+         .usercol.all.disp.attr.img configure -image [lindex $pi_img($usercol_cf_image) $::pimg_name_idx]
+         .usercol.all.disp.attr.att configure -text [lindex $colsel_tabs($usercol_cf_attr) $::cod_label_idx]
 
          set usercol_cf_bold 0
          set usercol_cf_underline 0
-         set usercol_cf_color black
-         foreach fmt [lindex $filt $ucf_fmt_idx] {
+         set usercol_cf_overstrike 0
+         set usercol_cf_fgcolor fg_UNDEF
+         set usercol_cf_agcolor bg_UNDEF
+         set usercol_cf_bgcolor bg_UNDEF
+         foreach fmt [lindex $filt $::ucf_fmt_idx] {
             if {[string compare $fmt bold] == 0} {set usercol_cf_bold 1} \
             elseif {[string compare $fmt underline] == 0} {set usercol_cf_underline 1} \
-            else {set usercol_cf_color $fmt}
+            elseif {[string compare $fmt overstrike] == 0} {set usercol_cf_overstrike 1} \
+            elseif {[string compare -length 3 $fmt "fg_"] == 0} {set usercol_cf_fgcolor $fmt} \
+            elseif {[string compare -length 3 $fmt "ag_"] == 0} {set usercol_cf_agcolor $fmt} \
+            else {set usercol_cf_bgcolor $fmt}
          }
       }
    } else {
@@ -535,10 +815,14 @@ proc UserColsDlg_SelectShortcut {} {
       set usercol_cf_attr title
       set usercol_cf_bold 0
       set usercol_cf_underline 0
-      set usercol_cf_color black
-      .usercol.all.disp.attr.img configure -image [lindex $pi_img($usercol_cf_image) 0]
-      .usercol.all.disp.attr.att configure -text [lindex $colsel_tabs($usercol_cf_attr) 3]
+      set usercol_cf_overstrike 0
+      set usercol_cf_fgcolor fg_UNDEF
+      set usercol_cf_agcolor bg_UNDEF
+      set usercol_cf_bgcolor bg_UNDEF
+      .usercol.all.disp.attr.img configure -image [lindex $pi_img($usercol_cf_image) $::pimg_name_idx]
+      .usercol.all.disp.attr.att configure -text [lindex $colsel_tabs($usercol_cf_attr) $::cod_label_idx]
    }
+   UserColsDlg_UpdateFmtDemoText
 }
 
 # callback for "add" menu commands: add a shortcut to the user-defined column
@@ -558,8 +842,9 @@ proc UserColsDlg_AddShortcut {sc_tag} {
       }
 
       # initialize filter match display attribs: initial display type is text = shortcut name
-      set disp_text $usercol_scnames($sc_tag)
-      if {$sc_tag == -1} {
+      if {$sc_tag != -1} {
+         set disp_text $usercol_scnames($sc_tag)
+      } else {
          set disp_text ""
       }
       set usercol_cf_filt($sc_tag) [list 0 $disp_text {} 0 $sc_tag]
@@ -625,7 +910,7 @@ proc UserColsDlg_ShiftShortcut {is_up} {
 proc UserColsDlg_Apply {} {
    global usercol_cf_tag usercol_cf_selist usercol_cf_filt
    global usercol_cf_lab usercol_cf_head usercol_cf_hmenu
-   global usercols colsel_tabs pilistbox_cols pinetbox_rows pibox_type
+   global shortcuts usercols colsel_tabs pilistbox_cols pinetbox_rows pibox_type
    global dumphtml_popup
 
    # save possible changes in the shortcut attributes
@@ -649,19 +934,22 @@ proc UserColsDlg_Apply {} {
 
    set tmpl {}
    foreach tag $usercol_cf_selist {
-      lappend tmpl $usercol_cf_filt($tag)
+      if {($tag == -1) ||
+          [info exists shortcuts($tag)] || \
+          ([UserColsDlg_IsReminderPseudoTag $tag] != -1)} {
+         lappend tmpl $usercol_cf_filt($tag)
+      }
    }
-   set usercols($usercol_cf_tag) $tmpl
 
    if {[info exists colsel_tabs(user_def_$usercol_cf_tag)]} {
       set old $colsel_tabs(user_def_$usercol_cf_tag)
-      set width [lindex $old 0]
-      set head_change [expr ([string compare [lindex $old 1] $usercol_cf_head] != 0) || \
-                            ([string compare [lindex $old 2] $usercol_cf_hmenu] != 0) || \
-                            ([string compare [lindex $old 3] $usercol_cf_lab] != 0)]
+      set width [lindex $old $::cod_width_idx]
+      set head_change [expr ([string compare [lindex $old $::cod_head_idx] $usercol_cf_head] != 0) || \
+                            ([string compare [lindex $old $::cod_menu_idx] $usercol_cf_hmenu] != 0) || \
+                            ([string compare [lindex $old $::cod_label_idx] $usercol_cf_lab] != 0)]
       set is_new 0
    } else {
-      set width [UserColsDlg_CalcDefaultWidth $usercol_cf_tag]
+      set width [UserColsDlg_CalcDefaultWidth $tmpl]
       set head_change 0
       set is_new 1
    }
@@ -671,18 +959,22 @@ proc UserColsDlg_Apply {} {
       if {(($pibox_type == 0) && ([lsearch -exact $pilistbox_cols user_def_$usercol_cf_tag] == -1)) || \
           (($pibox_type != 0) && ([lsearch -exact $pinetbox_rows user_def_$usercol_cf_tag] == -1)) } {
 
-         set answer [tk_messageBox -icon question -type okcancel -default ok -parent .usercol \
+         set answer [tk_messageBox -icon question -type yesnocancel -default yes -parent .usercol \
                         -message "Do you want to append the attribute to the programme list?"]
-         if {[string compare $answer ok] == 0} {
+         if {[string compare $answer yes] == 0} {
             if {$pibox_type == 0} {
                lappend pilistbox_cols user_def_$usercol_cf_tag
                set head_change 1
             } else {
                lappend pinetbox_rows user_def_$usercol_cf_tag
             }
+         } elseif {[string compare $answer cancel] == 0} {
+            return
          }
       }
    }
+
+   set usercols($usercol_cf_tag) $tmpl
 
    set colsel_tabs(user_def_$usercol_cf_tag) [list $width $usercol_cf_head $usercol_cf_hmenu $usercol_cf_lab]
 
@@ -698,6 +990,7 @@ proc UserColsDlg_Apply {} {
    } else {
       UpdatePiListboxColumParams
    }
+   UpdateListboxColorTags
    C_PiBox_Refresh
    UpdateRcFile
 }
@@ -756,6 +1049,7 @@ proc UserColsDlg_Delete {} {
          } else {
             UpdatePiListboxColumParams
          }
+         UpdateListboxColorTags
          C_PiBox_Refresh
          UpdateRcFile
 
@@ -790,26 +1084,25 @@ proc UserColsDlg_Delete {} {
 }
 
 # helper function: get default width for a new column
-proc UserColsDlg_CalcDefaultWidth {uc_tag} {
-   global ucf_type_idx ucf_value_idx ucf_fmt_idx ucf_ctxcache_idx ucf_sctag_idx
+proc UserColsDlg_CalcDefaultWidth {filt_list} {
    global usercols colsel_tabs usercol_cf_tag
    global font_normal
 
    set width 32
-   foreach filt $usercols($uc_tag) {
-      set type [lindex $filt $ucf_type_idx]
+   foreach filt $filt_list {
+      set type [lindex $filt $::ucf_type_idx]
       if {$type == 0} {
          # this shortcut match is disaplyed with a static text
-         if {[lsearch [lindex $filt $ucf_fmt_idx] bold] == -1} {
+         if {[lsearch [lindex $filt $::ucf_fmt_idx] bold] == -1} {
             set font $font_normal
          } else {
             set font [DeriveFont $font_normal 0 bold]
          }
-         set this_width [font measure $font [lindex $filt $ucf_value_idx]]
+         set this_width [font measure $font [lindex $filt $::ucf_value_idx]]
          incr width 5
 
       } elseif {$type == 2} {
-         set this_width [lindex $colsel_tabs([lindex $filt $ucf_value_idx]) 0]
+         set this_width [lindex $colsel_tabs([lindex $filt $::ucf_value_idx]) $::cod_width_idx]
 
       } else {
          set this_width 0

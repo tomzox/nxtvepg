@@ -36,7 +36,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgctxmerge.c,v 1.10 2002/07/27 13:41:36 tom Exp tom $
+ *  $Id: epgctxmerge.c,v 1.11 2003/09/20 19:12:09 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -375,6 +375,7 @@ EPGDB_CONTEXT * EpgContextMerge( uint dbCount, const uint * pCni, MERGE_ATTRIB_V
 
       pDbContext->merged = TRUE;
       pDbContext->pMergeContext = pMergeContext;
+      pDbContext->expireDelayPi = pMergeContext->pDbContext[0]->expireDelayPi;
 
       // create AI block
       EpgDbMergeAiBlocks(pDbContext, netwopCount, pNetwopList);

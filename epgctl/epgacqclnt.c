@@ -21,7 +21,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgacqclnt.c,v 1.10 2003/03/14 12:33:58 tom Exp $
+ *  $Id: epgacqclnt.c,v 1.11 2003/10/05 19:16:43 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -1309,14 +1309,25 @@ bool EpgAcqClient_DescribeNetState( EPGDBSRV_DESCR * pNetState )
 
 // ----------------------------------------------------------------------------
 // Query if the client is connected to a local server (i.e. running on the same host)
-// - this check is currently very simple: check if hostname is equal "localhost"
+// - check if server name is equal "localhost" or local hostname
 //
 bool EpgAcqClient_IsLocalServer( void )
 {
+   bool result;
+
    if (clientState.pSrvHost != NULL)
-      return (strcmp(clientState.pSrvHost, "localhost") == 0);
+   {
+      if (strcmp(clientState.pSrvHost, "localhost") != 0)
+      {
+         result = EpgNetIo_IsLocalHost(clientState.pSrvHost);
+      }
+      else
+         result = TRUE;
+   }
    else
-      return FALSE;
+      result = FALSE;
+
+   return result;
 }
 
 // ----------------------------------------------------------------------------

@@ -17,9 +17,12 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-/* ZVBI #Id: decoder.c,v 1.7 2002/10/22 04:42:40 mschimek Exp # */
+/* ZVBI #Id: decoder.c,v 1.12 2003/05/17 13:02:04 tomzo Exp # */
 
-/* nxtvepg $Id: zvbidecoder.c,v 1.1 2003/04/12 13:59:00 tom Exp tom $ */
+/* nxtvepg $Id: zvbidecoder.c,v 1.4 2003/09/20 19:07:29 tom Exp tom $ */
+
+#define DEBUG_SWITCH DEBUG_SWITCH_VBI
+#define DPRINTF_OFF
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,6 +30,7 @@
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
+#include "epgvbi/ttxdecode.h"
 
 #include "zvbidecoder.h"
 
@@ -100,7 +104,7 @@ bit_slicer_tmpl(vbi_bit_slicer *d, uint8_t *raw,
 	unsigned int cl = 0, thresh0 = d->thresh, tr;
 	unsigned int c = 0, t;
 	unsigned char b, b1 = 0;
-	int raw0, raw1, mask;
+	int raw0=0, raw1=0, mask=0;
 
 	raw += d->skip;
 
@@ -647,6 +651,107 @@ vbi_raw_decode(vbi_raw_decoder *rd, uint8_t *raw, vbi_sliced *out)
 }
 
 /**
+ *  Helper function for service add and check functions:
+ *  check if the given service can be decoded with the parameters in rd;
+ *  if yes, return TRUE and line start and count for both fields within
+ *  the range limits of rd.
+ */
+static vbi_bool
+vbi_raw_decoder_check_service(const vbi_raw_decoder *rd, int srv_idx, int strict,
+                              int *row, int *count)
+{
+	double signal;
+	int field;
+	vbi_bool result = FALSE;
+
+	if (vbi_services[srv_idx].scanning != rd->scanning)
+		goto finished;
+
+	signal = vbi_services[srv_idx].cri_bits / (double) vbi_services[srv_idx].cri_rate
+		 + (vbi_services[srv_idx].frc_bits + vbi_services[srv_idx].payload)
+		   / (double) vbi_services[srv_idx].bit_rate;
+
+	if (rd->offset > 0 && strict > 0) {
+		double offset = rd->offset / (double) rd->sampling_rate;
+		double samples_end = (rd->offset + rd->bytes_per_line)
+				     / (double) rd->sampling_rate;
+
+		if (offset > (vbi_services[srv_idx].offset / 1e9 - 0.5e-6)) {
+			debug4("skipping service 0x%08X: H-Off %d = %f > %f\n", vbi_services[srv_idx].id, rd->offset, offset, vbi_services[srv_idx].offset / 1e9 - 0.5e-6);
+			goto finished;
+		}
+
+		if (samples_end < (vbi_services[srv_idx].offset / 1e9
+				   + signal + 0.5e-6)) {
+			debug5("skipping service 0x%08X: sampling window too short: end %f < %f = offset %d *10^-9 + %f\n", vbi_services[srv_idx].id, samples_end, vbi_services[srv_idx].offset / 1e9 + signal + 0.5e-6, vbi_services[srv_idx].offset, signal);
+			goto finished;
+		}
+	} else {
+		double samples = rd->bytes_per_line
+				 / (double) rd->sampling_rate;
+
+		if (samples < (signal + 1.0e-6)) {
+			debug1("skipping service 0x%08X: not enough samples\n", vbi_services[srv_idx].id);
+			goto finished;
+		}
+	}
+
+	for (field = 0; field < 2; field++) {
+		int start = rd->start[field];
+		int end = start + rd->count[field] - 1;
+
+		if (!rd->synchronous) {
+			debug1("skipping service 0x%08X: not sync'ed\n", vbi_services[srv_idx].id);
+			goto finished; /* too difficult */
+		}
+
+		if (!(vbi_services[srv_idx].first[field] && vbi_services[srv_idx].last[field])) {
+			count[field] = 0;
+			continue;
+		}
+
+		if (rd->count[field] == 0) {
+			count[field] = 0;
+			continue;
+		}
+
+		if (rd->start[field] > 0 && strict > 0) {
+			/*
+			 *  May succeed if not all scanning lines
+			 *  available for the service are actually used.
+			 */
+			if (strict > 1
+			    || (vbi_services[srv_idx].first[field] ==
+				vbi_services[srv_idx].last[field]))
+				if (start > vbi_services[srv_idx].first[field] ||
+				    end < vbi_services[srv_idx].last[field]) {
+					debug5("skipping service 0x%08X: lines not available have %d-%d, need %d-%d\n", vbi_services[srv_idx].id, start, end, vbi_services[srv_idx].first[field], vbi_services[srv_idx].last[field]);
+					goto finished;
+				}
+
+			row[field] = MAX(0, (int) vbi_services[srv_idx].first[field] - start);
+			count[field] = MIN(end, vbi_services[srv_idx].last[field])
+				       - (start + row[field]) + 1;
+		} else {
+			row[field] = 0;
+			count[field] = rd->count[field];
+		}
+	}
+	row[1] += rd->count[0];
+
+	if (count[0] + count[1] == 0) {
+		debug1("skipping service 0x%08X: zero line count\n", vbi_services[srv_idx].id);
+		goto finished;
+	}
+
+	result = TRUE;
+
+finished:
+	return result;
+}
+
+
+/**
  * @param rd Initialized vbi_raw_decoder structure.
  * @param services Set of @ref VBI_SLICED_ symbols.
  * @param strict A value of 0, 1 or 2 requests loose, reliable or strict
@@ -673,9 +778,12 @@ unsigned int
 vbi_raw_decoder_add_services(vbi_raw_decoder *rd, unsigned int services, int strict)
 {
 	double off_min = (rd->scanning == 525) ? 7.9e-6 : 8.0e-6;
-	int row[2], count[2], way;
+	double offset = rd->offset / (double) rd->sampling_rate;
 	struct _vbi_raw_decoder_job *job;
 	int8_t *pattern;
+	int row[2], count[2];
+	int skip;
+	int way;
 	int i, j, k;
 
 	//pthread_mutex_lock(&rd->mutex);
@@ -685,104 +793,17 @@ vbi_raw_decoder_add_services(vbi_raw_decoder *rd, unsigned int services, int str
 						* MAX_WAYS, sizeof(rd->pattern[0]));
 
 	for (i = 0; vbi_services[i].id; i++) {
-		double signal;
-		int skip = 0;
-
 		if (rd->num_jobs >= (int) MAX_JOBS)
 			break;
 
-		if (!(vbi_services[i].id & services))
+		if ((vbi_services[i].id & services) == 0)
 			continue;
 
-		if (vbi_services[i].scanning != rd->scanning)
-			goto eliminate;
+		if (vbi_raw_decoder_check_service(rd, i, strict, row, count) == FALSE)
+			goto finished;
 
-		signal = vbi_services[i].cri_bits / (double) vbi_services[i].cri_rate
-			 + (vbi_services[i].frc_bits + vbi_services[i].payload)
-			   / (double) vbi_services[i].bit_rate;
-
-		if (rd->offset > 0 && strict > 0) {
-			double offset = rd->offset / (double) rd->sampling_rate;
-			double samples_end = (rd->offset + rd->bytes_per_line)
-					     / (double) rd->sampling_rate;
-
-			if (offset > (vbi_services[i].offset / 1e9 - 0.5e-6)) {
-                                debug4("skipping service 0x%08X: H-Off %d = %f > %f", vbi_services[i].id, rd->offset, offset, (vbi_services[i].offset / 1e9 - 0.5e-6));
-				goto eliminate;
-                        }
-
-			if (samples_end < (vbi_services[i].offset / 1e9
-					   + signal + 0.5e-6)) {
-                                debug1("skipping service 0x%08X: sampling window too short", vbi_services[i].id);
-				goto eliminate;
-                        }
-
-			if (offset < off_min) /* skip colour burst */
-				skip = (int)(off_min * rd->sampling_rate);
-		} else {
-			double samples = rd->bytes_per_line
-				         / (double) rd->sampling_rate;
-
-			if (samples < (signal + 1.0e-6)) {
-                                debug1("skipping service 0x%08X: not enough samples", vbi_services[i].id);
-				goto eliminate;
-                        }
-		}
-
-		for (j = 0, job = rd->jobs; j < rd->num_jobs; job++, j++) {
-			unsigned int id = job->id | vbi_services[i].id;
-
-			if ((id & ~(VBI_SLICED_TELETEXT_B_L10_625 | VBI_SLICED_TELETEXT_B_L25_625)) == 0)
-				break;
-			/*
-			 *  General form implies the special form. If both are
-			 *  available from the device, decode() will set both
-			 *  bits in the id field for the respective line. 
-			 */
-		}
-
+		job = rd->jobs + rd->num_jobs;
 		for (j = 0; j < 2; j++) {
-			int start = rd->start[j];
-			int end = start + rd->count[j] - 1;
-
-			if (!rd->synchronous) {
-                                debug1("skipping service 0x%08X: not sync'ed", vbi_services[i].id);
-				goto eliminate; /* too difficult */
-                        }
-
-			if (!(vbi_services[i].first[j] && vbi_services[i].last[j])) {
-				count[j] = 0;
-				continue;
-			}
-
-			if (rd->count[j] == 0) {
-                                debug1("skipping service 0x%08X: zero count", vbi_services[i].id);
-				goto eliminate;
-                        }
-
-			if (rd->start[j] > 0 && strict > 0) {
-				/*
-				 *  May succeed if not all scanning lines
-				 *  available for the service are actually used.
-				 */
-				if (strict > 1
-				    || (vbi_services[i].first[j] ==
-					vbi_services[i].last[j]))
-					if (start > vbi_services[i].first[j] ||
-					    end < vbi_services[i].last[j]) {
-                                                debug5("skipping service 0x%08X: lines not available have %d-%d, need %d-%d", vbi_services[i].id, start, end, vbi_services[i].first[j], vbi_services[i].last[j]);
-						goto eliminate;
-                                        }
-
-				row[j] = MAX(0, (int) vbi_services[i].first[j] - start);
-				count[j] = MIN(end, vbi_services[i].last[j]) - (start + row[j]) + 1;  /* XXX TZ FIX */
-			} else {
-				row[j] = 0;
-				count[j] = rd->count[j];
-			}
-
-			row[1] += rd->count[0];
-
 			for (pattern = rd->pattern + row[j] * MAX_WAYS, k = count[j];
 			     k > 0; pattern += MAX_WAYS, k--) {
 				int free = 0;
@@ -793,9 +814,9 @@ vbi_raw_decoder_add_services(vbi_raw_decoder *rd, unsigned int services, int str
 						     == job - rd->jobs));
 
 				if (free <= 1) { /* reserve one NULL way */
-                                        debug1("skipping service 0x%08X: no more patterns free", vbi_services[i].id);
-					goto eliminate;
-                                }
+					debug1("skipping service 0x%08X: no more patterns free\n", vbi_services[i].id);
+					goto finished;
+				}
 			}
 		}
 
@@ -812,31 +833,33 @@ vbi_raw_decoder_add_services(vbi_raw_decoder *rd, unsigned int services, int str
 			}
                 }
 
+		/* skip colour burst */
+		if (rd->offset > 0 && strict > 0 && offset < off_min)
+			skip = (int)(off_min * rd->sampling_rate);
+		else
+			skip = 0;
+
 		job->id |= vbi_services[i].id;
 		job->offset = skip;
 
-		if (vbi_bit_slicer_init(&job->slicer,
-                                        rd->bytes_per_line - skip, // XXX * bpp?
-                                        rd->sampling_rate,
-                                        vbi_services[i].cri_rate,
-                                        vbi_services[i].bit_rate,
-                                        vbi_services[i].cri_frc,
-                                        vbi_services[i].cri_mask,
-                                        vbi_services[i].cri_bits,
-                                        vbi_services[i].frc_bits,
-                                        vbi_services[i].payload,
-                                        vbi_services[i].modulation,
-                                        rd->sampling_format) == FALSE)
-                {
-                   rd->services = 0;
-                   break;
-                }
+		vbi_bit_slicer_init(&job->slicer,
+				    rd->bytes_per_line - skip, // XXX * bpp?
+				    rd->sampling_rate,
+				    vbi_services[i].cri_rate,
+				    vbi_services[i].bit_rate,
+				    vbi_services[i].cri_frc,
+				    vbi_services[i].cri_mask,
+				    vbi_services[i].cri_bits,
+				    vbi_services[i].frc_bits,
+				    vbi_services[i].payload,
+				    vbi_services[i].modulation,
+				    rd->sampling_format);
 
 		if (job >= rd->jobs + rd->num_jobs)
 			rd->num_jobs++;
 
 		rd->services |= vbi_services[i].id;
-eliminate:
+finished:
 		;
 	}
 
@@ -845,4 +868,72 @@ eliminate:
 	return rd->services;
 }
 
-#endif  // ZVBI_DECODER
+/**
+ * @param rd Pointer to initialized vbi_raw_decoder
+ *  structure, can be @c NULL.
+ * 
+ * Free all resources associated with @a rd.
+ */
+void
+vbi_raw_decoder_destroy(vbi_raw_decoder *rd)
+{
+	if (rd) {
+		if (rd->pattern)
+			free(rd->pattern);
+
+		memset(rd, 0, sizeof(*rd));
+	}
+}
+
+/**
+ *  Slice all lines in a raw buffer and forward teletext and VPS
+ *  - temporary buffer is allocated automatically to hold sliced data
+ *  - must be called with NULL pointers at shutdown to free resources
+ */
+bool ZvbiSliceAndProcess( vbi_raw_decoder *rd, uint8_t *raw, uint32_t frame_no )
+{
+   static vbi_sliced *p_out = NULL;
+   static int rdo_lines = 0;
+   int  line_idx;
+   int  count;
+   bool result = FALSE;
+
+   if (rd != NULL)
+   {
+      if ( (p_out == NULL) || (rdo_lines < rd->count[0] + rd->count[1]) )
+      {
+         if (p_out != NULL)
+            xfree(p_out);
+         rdo_lines = rd->count[0] + rd->count[1];
+         p_out = xmalloc(sizeof(*p_out) * rdo_lines);
+      }
+
+      if ( TtxDecode_NewVbiFrame(frame_no) )
+      {
+         count = vbi_raw_decode(rd, raw, p_out);
+         assert(count <= rdo_lines);
+
+         for (line_idx=0; line_idx < count; line_idx++)
+         {
+            if ((p_out[line_idx].id & VBI_SLICED_TELETEXT_B) != 0)
+            {
+               TtxDecode_AddPacket(p_out[line_idx].data + 0, p_out[line_idx].line);
+            }
+            else if (p_out[line_idx].id == VBI_SLICED_VPS)
+            {
+               TtxDecode_AddVpsData(p_out[line_idx].data - 3);
+            }
+         }
+         result = TRUE;
+      }
+   }
+   else
+   {  /* special mode: free resources */
+      if (p_out != NULL)
+         xfree(p_out);
+      p_out = NULL;
+   }
+   return result;
+}
+
+#endif  /* ZVBI_DECODER */

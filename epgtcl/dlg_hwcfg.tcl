@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_hwcfg.tcl,v 1.10 2003/03/31 19:15:21 tom Exp tom $
+#  $Id: dlg_hwcfg.tcl,v 1.11 2003/10/05 19:47:23 tom Exp tom $
 #
 
 set hwcf_cardidx 0
@@ -473,6 +473,12 @@ proc TvCardConfigAuto {} {
       if {[lindex $tmpl 0] > 0} {
          set tvcard_cardtyp_sel [lindex $tmpl 0]
          .tvcard.opt0.curname configure -text "Card type: $tvcard_cardtype_names($tvcard_cardtyp_sel)"
+         set tmp [lsearch $tvcard_cardtype_idxlist $tvcard_cardtyp_sel]
+         if {$tmp != -1} {
+            .tvcard.opt1.lnames selection clear 0 end
+            .tvcard.opt1.lnames selection set $tmp
+            .tvcard.opt1.lnames see $tmp
+         }
 
          if {[lindex $tmpl 1] > 0} {
             set tvcard_tuner_sel [lindex $tmpl 1]

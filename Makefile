@@ -28,7 +28,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile,v 1.60 2003/07/01 19:31:26 tom Exp tom $
+#  $Id: Makefile,v 1.65 2003/09/28 18:31:31 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -55,7 +55,7 @@ PERL    = /usr/bin/perl
 
 # select Tcl/Tk version (8.3 recommended; text widget in 8.4. is slower)
 TCL_VER := $(shell echo 'puts [package require Tcl]' | tclsh)
-#TCL_VER = 8.3
+#TCL_VER = 8.4
 
 LDLIBS  = -ltk$(TCL_VER) -ltcl$(TCL_VER) -L/usr/X11R6/lib -lX11 -lXmu -lm -ldl
 
@@ -105,7 +105,7 @@ WARN    = -Wall -Wnested-externs -Wstrict-prototypes -Wmissing-prototypes
 #WARN  += -Wpointer-arith -Werror
 CC      = gcc
 # the following flags can be overridden by an environment variable with the same name
-CFLAGS ?= -pipe -O6
+CFLAGS ?= -pipe -O
 CFLAGS += $(WARN) $(INCS) $(DEFS)
 #LDLIBS += -pg
 
@@ -123,22 +123,24 @@ CSRC    = epgvbi/btdrv4linux epgvbi/vbidecode epgvbi/zvbidecoder \
           epgdb/epgstream epgdb/epgdbmerge epgdb/epgdbsav \
           epgdb/epgdbmgmt epgdb/epgdbif epgdb/epgdbfil epgdb/epgblock \
           epgdb/epgnetio epgdb/epgqueue epgdb/epgtscqueue \
-          epgui/pibox epgui/pilistbox epgui/pinetbox \
+          epgui/pibox epgui/pilistbox epgui/pinetbox epgui/piremind \
           epgui/uictrl epgui/pioutput epgui/pidescr epgui/pifilter \
           epgui/statswin epgui/timescale epgui/pdc_themes epgui/menucmd \
           epgui/epgmain epgui/loadtcl epgui/xawtv epgui/wintvcfg \
           epgui/dumptext epgui/dumpraw epgui/dumphtml epgui/dumpxml \
-          epgui/shellcmd
+          epgui/shellcmd epgui/wmhooks
 TCLSRC  = epgtcl/mainwin epgtcl/helptexts epgtcl/dlg_hwcfg epgtcl/dlg_xawtvcf \
           epgtcl/dlg_ctxmencf epgtcl/dlg_acqmode epgtcl/dlg_netsel \
           epgtcl/dlg_dump epgtcl/dlg_netname epgtcl/dlg_udefcols \
           epgtcl/shortcuts epgtcl/dlg_shortcuts epgtcl/draw_stats \
-          epgtcl/dlg_filter epgtcl/dlg_prov epgtcl/rcfile
+          epgtcl/dlg_filter epgtcl/dlg_substr epgtcl/dlg_remind \
+          epgtcl/dlg_prov epgtcl/rcfile \
+          epgtcl/mclistbox epgtcl/combobox epgtcl/rnotebook
 
 OBJS    = $(addsuffix .o, $(CSRC)) $(addsuffix .o, $(TCLSRC))
 
-all :: nxtvepg nxtvepg.1
 .PHONY: all
+all :: tcl_headers nxtvepg nxtvepg.1
 
 nxtvepg: $(OBJS)
 	$(CC) $(LDFLAGS) -o nxtvepg $(OBJS) $(LDLIBS)
@@ -159,10 +161,18 @@ endif
 .SUFFIXES: .c .o .tcl
 
 %.c: %.tcl tcl2c
-	./tcl2c $*.tcl
+	./tcl2c -d -c -h $*.tcl
 
-%.h: %.tcl tcl2c.exe
-	./tcl2c.exe $*.tcl
+# %.h rule disabled because tcl2c doesn't update timestamp of generated headers
+# unless they changed, to avoid excessive re-compilation after internal script
+# changes. note: this also requires to add a rule for all .tcl sources in front
+# of objects and depend targets to make sure all headers are already generated
+# when required, since there's no rule to generate them from Tcl scripts.
+#
+.PHONY: tcl_headers
+tcl_headers: $(addsuffix .c, $(TCLSRC))
+##%.h: %.tcl tcl2c
+##	./tcl2c -d -c -h $*.tcl
 
 tcl2c: tcl2c.c
 	$(CC) $(CFLAGS) -o tcl2c tcl2c.c
@@ -173,10 +183,6 @@ $(TCL_LIBRARY_PATH)/tclIndex $(TK_LIBRARY_PATH)/tclIndex :
 	@false
 
 epgui/loadtcl.c :: $(TCL_LIBRARY_PATH)/tclIndex $(TK_LIBRARY_PATH)/tclIndex
-
-epgui/loadtcl.c :: $(addsuffix .c, $(TCLSRC))
-
-epgui/loadtcl.c :: $(addsuffix .h, $(TCLSRC))
 
 nxtvepg.1 manual.html epgtcl/helptexts.tcl: nxtvepg.pod pod2help.pl
 	@if test -x $(PERL); then \
@@ -204,11 +210,11 @@ clean:
 	-rm -f epgtcl/*.[ch] epgtcl/tcl_libs.tcl epgtcl/tk_libs.tcl
 	-rm -f tvsim/tvsim_gui.[ch] tvsim/vbirec_gui.[ch]
 
-depend:
+depend: tcl_headers
 	-:>Makefile.dep
-	DIRLIST=`(for cmod in $(CSRC); do echo $$cmod; done) | cut -d/ -f1 | sort -u`; \
+	DIRLIST=`(for cmod in $(CSRC) $(TCLSRC); do echo $$cmod; done) | cut -d/ -f1 | sort -u`; \
 	for dir in $$DIRLIST; do \
-	  CLIST=`(for src in $(addsuffix .c, $(CSRC)); do echo $$src; done) | grep $$dir/`; \
+	  CLIST=`(for src in $(addsuffix .c, $(CSRC)) $(addsuffix .c, $(TCLSRC)); do echo $$src; done) | grep $$dir/`; \
 	  gcc -MM $(INCS) $(DEFS) $$CLIST | \
 	  sed -e 's#^.*\.o#'$$dir/'&#g' >> Makefile.dep; \
 	done

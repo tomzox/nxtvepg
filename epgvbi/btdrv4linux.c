@@ -44,7 +44,7 @@
  *    NetBSD:  Mario Kemper <magick@bundy.zhadum.de>
  *    FreeBSD: Simon Barner <barner@gmx.de>
  *
- *  $Id: btdrv4linux.c,v 1.46 2003/04/12 17:51:05 tom Exp tom $
+ *  $Id: btdrv4linux.c,v 1.48 2003/10/09 19:17:32 tom Exp tom $
  */
 
 #if !defined(linux) && !defined(__NetBSD__) && !defined(__FreeBSD__) 
@@ -80,12 +80,11 @@
 #include "epgctl/debug.h"
 #include "epgvbi/syserrmsg.h"
 #include "epgvbi/vbidecode.h"
+#include "epgvbi/zvbidecoder.h"
 #include "epgvbi/btdrv.h"
 
 #ifdef ZVBI_DECODER
-#include "epgvbi/ttxdecode.h"
-#include "epgvbi/zvbidecoder.h"
-static vbi_raw_decoder zvbi_rd;
+static vbi_raw_decoder   zvbi_rd;
 #endif
 
 #if defined(__NetBSD__) || defined(__FreeBSD__)
@@ -392,6 +391,11 @@ static void BtDriver_CloseVbi( void )
       sprintf(tmpName, PIDFILENAME, vbiCardIndex);
       unlink(tmpName);
 
+#ifdef ZVBI_DECODER
+      // free slicer buffer and pattern array
+      ZvbiSliceAndProcess(NULL, NULL, 0);
+      vbi_raw_decoder_destroy(&zvbi_rd);
+#endif
       close(vbi_fdin);
       vbi_fdin = -1;
       xfree(rawbuf);
@@ -670,29 +674,56 @@ bool BtDriver_TuneChannel( int inputIdx, uint freq, bool keepOpen, bool * pIsTun
 uint BtDriver_QueryChannel( void )
 {
 #if !defined (__NetBSD__) && !defined (__FreeBSD__)
-   struct timeval tv;
    uint freq = 0;
 
    if ((pVbiBuf != NULL) && (pVbiBuf->vbiPid != -1))
    {
+      #ifdef USE_THREADS
+      pthread_mutex_lock(&vbi_start_mutex);
+      #endif
       pVbiBuf->vbiQueryFreq = 0;
       pVbiBuf->doQueryFreq = TRUE;
       recvWakeUpSig = FALSE;
+
       #ifdef USE_THREADS
+      // wake the process/thread up from being blocked in read (Linux only)
       if (pthread_kill(vbi_thread_id, SIGUSR1) == 0)
+      {
+         struct timespec tsp;
+         struct timeval tv;
+
+         gettimeofday(&tv, NULL);
+         tv.tv_usec += 1000 * 1000L;
+         if (tv.tv_usec > 1000 * 1000L)
+         {
+            tv.tv_sec  += 1;
+            tv.tv_usec -= 1000 * 1000;
+         }
+         tsp.tv_sec  = tv.tv_sec;
+         tsp.tv_nsec = tv.tv_usec * 1000;
+
+         // wait for signal from slave on condition variable
+         pthread_cond_timedwait(&vbi_start_cond, &vbi_start_mutex, &tsp);
+      }
       #else
       if (kill(pVbiBuf->vbiPid, SIGUSR1) != -1)
-      #endif
       {
          if ((recvWakeUpSig == FALSE) && (pVbiBuf->doQueryFreq == FALSE))
          {
+            struct timeval tv;
+
             tv.tv_sec = 1;
             tv.tv_usec = 0;
             select(0, NULL, NULL, NULL, &tv);
          }
          freq = pVbiBuf->vbiQueryFreq;
       }
+      #endif
       pVbiBuf->doQueryFreq = FALSE;
+
+      #ifdef USE_THREADS
+      pthread_mutex_unlock(&vbi_start_mutex);
+      #endif
    }
    return freq;
 
@@ -722,6 +753,53 @@ uint BtDriver_QueryChannel( void )
    return (uint) lfreq;
 #endif
 }
+
+#if !defined (__NetBSD__) && !defined (__FreeBSD__)
+// ---------------------------------------------------------------------------
+// Slave handling of master's tuner frequency query
+//
+static void BtDriver_SlaveQueryChannel( void )
+{
+   struct video_channel vchan;
+   ulong lfreq;
+
+   if ((pVbiBuf != NULL) && (vbi_fdin != -1))
+   {
+      #ifdef USE_THREADS
+      pthread_mutex_lock(&vbi_start_mutex);
+      #endif
+
+      if (ioctl(vbi_fdin, VIDIOCGFREQ, &lfreq) == 0)
+      {
+         dprintf1("BtDriver-Main: QueryChannel got %.2f MHz\n", (double)lfreq/16);
+
+         // get TV norm set in the tuner (channel #0)
+         memset(&vchan, 0, sizeof(vchan));
+
+         if (ioctl(vbi_fdin, VIDIOCGCHAN, &vchan) == 0)
+         {
+            dprintf1("BtDriver-Main: QueryChannel got norm %d\n", vchan.norm);
+            lfreq |= (uint)vchan.norm << 24;
+         }
+         else
+            debug1("BtDriver-Main: VIDIOCGCHAN error: %s", strerror(errno));
+
+         pVbiBuf->vbiQueryFreq = lfreq;
+      }
+      else
+         perror("VIDIOCGFREQ");
+
+      pVbiBuf->doQueryFreq = FALSE;
+
+      #ifdef USE_THREADS
+      pthread_cond_signal(&vbi_start_cond);
+      pthread_mutex_unlock(&vbi_start_mutex);
+      #else  // not USE_THREADS
+      kill(pVbiBuf->epgPid, SIGUSR1);
+      #endif
+   }
+}
+#endif
 
 // ---------------------------------------------------------------------------
 // Get signal strength on current tuner frequency
@@ -838,7 +916,7 @@ const char * BtDriver_GetInputName( uint cardIndex, uint cardType, uint inputIdx
       memset(&vcapab, 0, sizeof(vcapab));
       if (ioctl(video_fd, VIDIOCGCAP, &vcapab) == 0)
       {
-         if (inputIdx < vcapab.channels)
+         if (inputIdx < (uint)vcapab.channels)
          {
             vchan.channel = inputIdx;
             if (ioctl(video_fd, VIDIOCGCHAN, &vchan) == 0)
@@ -1339,7 +1417,13 @@ static void BtDriver_OpenVbiBuf( void )
 
    // pass parameters to VBI slicer
    #ifdef ZVBI_DECODER
-   vbi_raw_decoder_add_services(&zvbi_rd, VBI_SLICED_TELETEXT_B | VBI_SLICED_VPS, 1);
+   if (vbi_raw_decoder_add_services(&zvbi_rd, VBI_SLICED_TELETEXT_B | VBI_SLICED_VPS, 1)
+        != (VBI_SLICED_TELETEXT_B | VBI_SLICED_VPS) )
+   {
+      fprintf(stderr, "Failed to initialize VBI slicer for teletext & VPS\n");
+      pVbiBuf->failureErrno = errno;
+      pVbiBuf->hasFailed = TRUE;
+   }
    #endif
 
    rawbuf = xmalloc(bufLines * bufLineSize);
@@ -1352,13 +1436,10 @@ static void BtDriver_DecodeFrame( void )
 {
 #ifndef ZVBI_DECODER
    uchar *pData;
-#else
-   vbi_sliced rdo[32];
-   uint count;
+   uint  line;
 #endif
    size_t bufSize;
    slong stat;
-   uint  line;
 
    #if defined(__NetBSD__) || defined(__FreeBSD__)
    // wait max. 10 seconds for the read to complete. After this time
@@ -1375,21 +1456,17 @@ static void BtDriver_DecodeFrame( void )
 
    if ( stat >= bufLineSize )
    {
+      #ifndef ZVBI_DECODER
       #if !defined (__NetBSD__) && !defined (__FreeBSD__)
       // retrieve frame sequence counter from the end of the buffer
-      #ifndef ZVBI_DECODER
       VbiDecodeStartNewFrame(*(uint32_t *)(rawbuf + stat - 4));
-      #else
-      TtxDecode_NewVbiFrame(*(uint32_t *)(rawbuf + stat - 4));
-      #endif
       #else
       VbiDecodeStartNewFrame(0);
       #endif
 
-      #ifndef ZVBI_DECODER
       #ifndef SAA7134_0_2_2
       pData = rawbuf;
-      for (line=0; line < stat/bufLineSize; line++, pData += bufLineSize)
+      for (line=0; line < (uint)stat/bufLineSize; line++, pData += bufLineSize)
       {
          VbiDecodeLine(pData, line, TRUE);
          //printf("%02d: %08lx\n", line, *((ulong*)pData-4));  // frame counter
@@ -1403,20 +1480,14 @@ static void BtDriver_DecodeFrame( void )
       for (line=0; line < 16; line++, pData += bufLineSize)
          VbiDecodeLine(pData, line, TRUE);
       #endif
+
       #else  // ZVBI_DECODER
-      count = vbi_raw_decode(&zvbi_rd, rawbuf, rdo);
-      for (line=0; line < count; line++)
-      {
-         if ((rdo[line].id & VBI_SLICED_TELETEXT_B) != 0)
-         {
-            TtxDecode_AddPacket(rdo[line].data + 0, rdo[line].line);
-         }
-         else if (rdo[line].id == VBI_SLICED_VPS)
-         {
-            TtxDecode_AddVpsData(rdo[line].data - 3);
-         }
-      }
-      #endif  // ZVBI_DECODER
+      #if !defined (__NetBSD__) && !defined (__FreeBSD__)
+      ZvbiSliceAndProcess(&zvbi_rd, rawbuf, *(uint32_t *)(rawbuf + stat - 4));
+      #else
+      ZvbiSliceAndProcess(&zvbi_rd, rawbuf, 0);
+      #endif
+      #endif
    }
    else if (stat < 0)
    {
@@ -1653,33 +1724,9 @@ static void * BtDriver_Main( void * foo )
 
       #if !defined (__NetBSD__) && !defined (__FreeBSD__)
       // We get here only on Linux (because of pVbiBuf->doQueryFreq),
-      if (pVbiBuf->doQueryFreq && (vbi_fdin != -1))
+      if (pVbiBuf->doQueryFreq)
       {
-         struct video_channel vchan;
-         ulong lfreq;
-
-         if (ioctl(vbi_fdin, VIDIOCGFREQ, &lfreq) == 0)
-         {
-            dprintf1("BtDriver-Main: QueryChannel got %.2f MHz\n", (double)lfreq/16);
-
-            // get TV norm set in the tuner (channel #0)
-            memset(&vchan, 0, sizeof(vchan));
-
-            if (ioctl(vbi_fdin, VIDIOCGCHAN, &vchan) == 0)
-            {
-               dprintf1("BtDriver-Main: QueryChannel got norm %d\n", vchan.norm);
-               lfreq |= (uint)vchan.norm << 24;
-            }
-            else
-               debug1("BtDriver-Main: VIDIOCGCHAN error: %s", strerror(errno));
-
-            pVbiBuf->vbiQueryFreq = lfreq;
-         }
-         else
-            perror("VIDIOCGFREQ");
-
-         pVbiBuf->doQueryFreq = FALSE;
-         kill(pVbiBuf->epgPid, SIGUSR1);
+         BtDriver_SlaveQueryChannel();
       }
       #endif
    }

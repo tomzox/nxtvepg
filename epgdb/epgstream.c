@@ -20,10 +20,10 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgstream.c,v 1.27 2003/03/19 16:17:28 tom Exp tom $
+ *  $Id: epgstream.c,v 1.28 2003/09/20 19:08:10 tom Exp tom $
  */
 
-#define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
+#define DEBUG_SWITCH DEBUG_SWITCH_STREAM
 #define DPRINTF_OFF
 
 #include <stdio.h>

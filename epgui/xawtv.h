@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: xawtv.h,v 1.6 2003/04/12 13:37:28 tom Exp tom $
+ *  $Id: xawtv.h,v 1.7 2003/07/06 12:15:08 tom Exp tom $
  */
 
 #ifndef __XAWTV_H
@@ -28,6 +28,8 @@
 //
 void Xawtv_Init( char * pTvX11Display );
 void Xawtv_Destroy( void );
+
+void Xawtv_SendCmdArgv(Tcl_Interp *interp, const char * pCmdStr, uint cmdLen );
 
 
 #endif  // __XAWTV_H

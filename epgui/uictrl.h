@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: uictrl.h,v 1.13 2002/05/11 15:52:12 tom Exp $
+ *  $Id: uictrl.h,v 1.14 2003/10/05 19:40:38 tom Exp $
  */
 
 #ifndef __UICTRL_H
@@ -48,6 +48,7 @@ typedef enum
    ACQ_EVENT_STATS_UPDATE,
    ACQ_EVENT_PI_ADDED,
    ACQ_EVENT_PI_MERGED,
+   ACQ_EVENT_PI_EXPIRED,
    ACQ_EVENT_VPS_PDC,
 } ACQ_EVENT;
 

@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: menucmd.h,v 1.20 2003/02/08 14:35:48 tom Exp tom $
+ *  $Id: menucmd.h,v 1.22 2003/10/05 19:24:42 tom Exp tom $
  */
 
 #ifndef __MENUCMD_H
@@ -38,6 +38,7 @@ typedef enum
 //
 void MenuCmd_Init( bool isDemoMode );
 void OpenInitialDb( uint startUiCni );
+void MenuCmd_SetPiExpireDelay( void );
 
 void SetUserLanguage( Tcl_Interp *interp );
 void SetAcquisitionMode( NETACQ_SET_MODE netAcqSetMode );

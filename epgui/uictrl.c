@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: uictrl.c,v 1.37 2003/02/26 21:21:10 tom Exp $
+ *  $Id: uictrl.c,v 1.39 2003/10/05 19:36:50 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -338,9 +338,10 @@ void UiControl_CheckDbState( void )
       else
       {  // provider present -> check for PI
          pPreFilterContext = EpgDbFilterCopyContext(pPiFilterContext);
-         filterMask = pPreFilterContext->enabledFilters;
+         filterMask = pPreFilterContext->enabledPreFilters;
          // disable all filters except the expire time
-         EpgDbFilterDisable(pPreFilterContext, FILTER_ALL & ~FILTER_EXPIRE_TIME);
+         EpgDbFilterDisable(pPreFilterContext, FILTER_NONPERM);
+         EpgDbPreFilterDisable(pPreFilterContext, FILTER_PERM & ~FILTER_EXPIRE_TIME);
 
          pPiBlock = EpgDbSearchFirstPi(pUiDbContext, pPreFilterContext);
          if (pPiBlock == NULL)
@@ -351,7 +352,7 @@ void UiControl_CheckDbState( void )
          {
             if (filterMask & FILTER_NETWOP_PRE)
             {  // re-enable the network pre-filter
-               EpgDbFilterEnable(pPreFilterContext, FILTER_NETWOP_PRE);
+               EpgDbPreFilterEnable(pPreFilterContext, FILTER_NETWOP_PRE);
             }
 
             pPiBlock = EpgDbSearchFirstPi(pUiDbContext, pPreFilterContext);
@@ -758,6 +759,13 @@ void UiControlMsg_AcqEvent( ACQ_EVENT acqEvent )
 
          case ACQ_EVENT_PI_ADDED:
             TimeScale_AcqPiAdded();
+            break;
+
+         case ACQ_EVENT_PI_EXPIRED:
+            TimeScale_ProvChange(DB_TARGET_UI);
+            TimeScale_ProvChange(DB_TARGET_ACQ);
+            StatsWin_StatsUpdate(DB_TARGET_UI);
+            StatsWin_StatsUpdate(DB_TARGET_ACQ);
             break;
 
          case ACQ_EVENT_PI_MERGED:

@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbmgmt.h,v 1.17 2002/01/02 17:04:31 tom Exp tom $
+ *  $Id: epgdbmgmt.h,v 1.18 2003/10/05 19:12:57 tom Exp tom $
  */
 
 #ifndef __EPGDBMGMT_H
@@ -49,6 +49,7 @@ void EpgDbReplacePi( EPGDB_CONTEXT * dbc, EPGDB_BLOCK * pObsolete, EPGDB_BLOCK *
 //
 EPGDB_CONTEXT * EpgDbCreate( void );
 void EpgDbDestroy( EPGDB_CONTEXT * dbc, bool keepAiOi );
+void EpgDbExpire( EPGDB_CONTEXT * dbc );
 
 void EpgDbProcessQueueByType( EPGDB_CONTEXT * const * pdbc, EPGDB_QUEUE * pQueue, BLOCK_TYPE type, const EPGDB_ADD_CB * pCb );
 #ifdef __EPGTSCQUEUE_H

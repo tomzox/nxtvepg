@@ -32,7 +32,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: ttxdecode.c,v 1.54 2003/04/09 20:44:05 tom Exp tom $
+ *  $Id: ttxdecode.c,v 1.56 2003/09/20 19:08:20 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -260,7 +260,9 @@ static void TtxDecode_AddCni( CNI_TYPE type, uint cni, uint pil )
             if ( (pVbiBuf->cnis[type].cniRepCount > 0) &&
                  (pVbiBuf->cnis[type].lastCni != cni) )
             {  // comparison failure -> reset repetition counter
+               #if DEBUG_SWITCH_STREAM == ON
                debug3("TtxDecode-AddCni: %s CNI error: last %04X != %04X", ((type == CNI_TYPE_VPS) ? "VPS" : ((type == CNI_TYPE_PDC) ? "PDC" : "NI")), pVbiBuf->cnis[type].lastCni, cni);
+               #endif
                pVbiBuf->cnis[type].cniRepCount = 0;
             }
             pVbiBuf->cnis[type].lastCni = cni;
@@ -285,7 +287,9 @@ static void TtxDecode_AddCni( CNI_TYPE type, uint cni, uint pil )
                if ( (pVbiBuf->cnis[type].pilRepCount > 0) &&
                     (pVbiBuf->cnis[type].lastPil != pil) )
                {  // comparison failure -> reset repetition counter
+                  #if DEBUG_SWITCH_STREAM == ON
                   debug11("TtxDecode-AddCni: %s PIL error: last %02d.%02d. %02d:%02d (0x%04X) != %02d.%02d. %02d:%02d (0x%04X)", ((type == CNI_TYPE_VPS) ? "VPS" : ((type == CNI_TYPE_PDC) ? "PDC" : "NI")), (pVbiBuf->cnis[type].lastPil >> 15) & 0x1F, (pVbiBuf->cnis[type].lastPil >> 11) & 0x0F, (pVbiBuf->cnis[type].lastPil >> 6) & 0x1F, pVbiBuf->cnis[type].lastPil & 0x3F, pVbiBuf->cnis[type].lastPil, (pil >> 15) & 0x1F, (pil >> 11) & 0x0F, (pil >> 6) & 0x1F, pil & 0x3F, pil);
+                  #endif
                   pVbiBuf->cnis[type].pilRepCount = 0;
                }
                pVbiBuf->cnis[type].lastPil = pil;
@@ -551,7 +555,7 @@ static void TtxDecode_GetP830Cni( const uchar * data )
          {
             if ((c1 = (schar) unhamtab[data[9 + idx]]) >= 0)
             {  // CNI and PIL are transmitted MSB first -> must reverse bit order of all nibbles
-               pdcbuf[idx] = reverse4Bits[(uint) c1];
+               pdcbuf[idx] = reverse4Bits[(uchar) c1];
             }
             else  // decoding error -> abort
                break;
@@ -578,8 +582,10 @@ static void TtxDecode_GetP830Cni( const uchar * data )
          }
          TtxDecode_AddText(CNI_TYPE_PDC, data + 20);
       }
+      #if DEBUG_SWITCH_STREAM == ON
       else
          debug1("TtxDecode-GetP830Cni: unknown DC %d - discarding packet", dc);
+      #endif
    }
 }
 
@@ -950,7 +956,9 @@ bool TtxDecode_NewVbiFrame( uint frameSeqNo )
 
          if ((frameSeqNo != acqSlaveState.frameSeqNo + 1) && (frameSeqNo != 0))
          {  // mising frame (0 is special case: no support for seq.no.)
+            #if DEBUG_SWITCH_STREAM == ON
             debug1("TtxDecode-NewVbiFrame: lost vbi frame #%u", acqSlaveState.frameSeqNo + 1);
+            #endif
             acqSlaveState.isEpgPage = FALSE;
             acqSlaveState.isMipPage = 0;
          }
@@ -1037,7 +1045,9 @@ void TtxDecode_AddPacket( const uchar * data, uint line )
                if ( (acqSlaveState.isEpgPage) &&
                     (mag == (pVbiBuf->epgPageNo >> 8)) )
                {
+                  #if DEBUG_SWITCH_STREAM == ON
                   debug0("TtxDecode-AddPacket: closing EPG page after hamming err");
+                  #endif
                   acqSlaveState.isEpgPage = FALSE;
                }
                else if (acqSlaveState.isMipPage & (1 << mag) )

@@ -7,7 +7,7 @@ browse TV programme listings for most of the major networks in Germany,
 Austria, France and Switzerland.
 
 Currently Nextview EPG is transmitted by:
-- in Germany and Austria: Kabel1, 3Sat, RTL-II.
+- in Germany and Austria: Kabel1, RTL-II.
 - in Switzerland: SF1, TSR1, TSI1, EuroNews.
 - in France: Canal+, M6, TV5, EuroNews.
 - in Turkey: TRT.
@@ -39,8 +39,8 @@ Linux software requirements:
 - video4linux and bttv drivers, bttv version >= 0.7.35 recommended;
   (note: SAA7134 support requires at least kernel 2.4.20 plus some v4l2
   patches, see http://www.bytesex.org/)
-- GNU C Compiler, unless you got nxtvepg in a precompiled RPM archive
-- Tcl/Tk version 8.0 or later (8.3 recommended; 8.4. depreciated)
+- GNU C Compiler, unless you got nxtvepg precompiled for your platform
+- Tcl/Tk version 8.3 or later (note version 8.4.0 to .3 were slow, use 8.4.4)
   available from http://www.scriptics.com/
 
 NetBSD software requirements:

@@ -17,10 +17,12 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-/* $Id: zvbidecoder.h,v 1.1 2003/04/12 13:59:02 tom Exp tom $ */
+/* $Id: zvbidecoder.h,v 1.2 2003/07/06 17:48:33 tom Exp tom $ */
 
-#ifndef DECODER_H
-#define DECODER_H
+#ifndef USE_LIBZVBI
+
+#ifndef ZVBIDECODER_H
+#define ZVBIDECODER_H
 
 typedef int vbi_bool;
 #define static_inline static inline
@@ -332,8 +334,12 @@ extern unsigned int	vbi_raw_decoder_add_services(vbi_raw_decoder *rd,
 						     unsigned int services,
 						     int strict);
 extern int		vbi_raw_decode(vbi_raw_decoder *rd, uint8_t *raw, vbi_sliced *out);
+
+extern void             vbi_raw_decoder_destroy(vbi_raw_decoder *rd);
 /** @} */
 
 /* Private */
+bool ZvbiSliceAndProcess( vbi_raw_decoder *rd, uint8_t *raw, uint32_t frame_no );
 
-#endif /* DECODER_H */
+#endif /* ZVBIDECODER_H */
+#endif /* not USE_LIBZVBI */
