@@ -21,7 +21,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: epgui.tcl,v 1.76 2001/02/26 20:21:59 tom Exp tom $
+#  $Id: epgui.tcl,v 1.77 2001/04/01 19:36:33 tom Exp tom $
 #
 
 frame     .all -relief flat -borderwidth 0
@@ -4476,7 +4476,7 @@ proc LoadRcFile {filename} {
       close $rcfile
 
       # for backwards compatibility append freq table index to hw cfg
-      if {[llength $hwcfg] == 5} {lappend hwcfg 0}
+      if {[info exists hwcfg] && ([llength $hwcfg] == 5)} {lappend hwcfg 0}
    }
 
    if {$showShortcutListbox == 0} {pack forget .all.shortcuts}

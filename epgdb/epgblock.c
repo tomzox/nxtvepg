@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgblock.c,v 1.32 2001/02/25 16:00:45 tom Exp tom $
+ *  $Id: epgblock.c,v 1.33 2001/04/01 19:42:12 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -210,7 +210,8 @@ static void SetStartAndStopTime(uint bcdStart, uint julian, uint bcdStop, time_t
    #ifndef __NetBSD__ 
    *pStartTime = mktime(&tm) - timezone + 60*60 * tm.tm_isdst;
    #else 
-   *pStartTime = mktime(&tm) + tm.tm_gmtoff + 60*60 * tm.tm_isdst; 
+   /* Seems like gmtoff already includes the dst offset, so we do not add tm.tm_isdst *60*60 */
+   *pStartTime = mktime(&tm) + tm.tm_gmtoff;
    #endif 
 
    *pStopTime  = *pStartTime + (stopMoD - startMoD) * 60;

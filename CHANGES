@@ -4,6 +4,12 @@ changes or additions.
 
 Before you submit any feature requests, please read the TODO file.
 
+from 0.4.4 to 0.4.5 (Mar. 2001)
+- fixed bug in NetBSD daylight saving time handling, due to which programmes
+  were shifted by 60 minutes. Thanks to Mario Kemper for the patch.
+- fixed bug in Tcl proc LoadRc, due to which rc reload failed.
+  Thanks to Dan Lindstroem for the patch (Dan.Lindstroem@t-online.de)
+
 from 0.4.3 to 0.4.4 (Feb. 2001)
 - please note my new email address: tomzo at nefkom.net
 - fixed severe bug in database reload (reference to freed block;

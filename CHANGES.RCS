@@ -3642,3 +3642,22 @@ www/changelog.html [rev:1.4, 2001-03-10T18:53:21]:
 www/man.html [rev:1.4, 2001-03-10T18:53:21]:
 - added BGCOLOR=#f8f8f8 to BODY, else bg was gray in Netscape
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_4_4 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+epgctl/epgversion.h [rev:1.10, 2001-04-01T19:31:49]:
+- set version to 0.4.5 (bugfix branch)
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.77, 2001-04-01T19:36:33]:
+- bugfix proc LoadRc
+- hwcfg was accessed without checking if it was defined
+- rc reload failed
+epgdb/epgblock.c [rev:1.33, 2001-04-01T19:42:12]:
+- bugfix NetBSD: all programmes were shifted by 60 mins during summer time
+CHANGES [rev:1.11, 2001-04-01T19:46:29]:
+- updated for release 0.4.5: bugfix branch
+www/changelog.html [rev:1.5, 2001-04-03T18:41:03]:
+- update for release 0.4.5
+www/index-de.html [rev:1.7, 2001-04-03T18:41:29]:
+- update for release 0.4.5: URL and News sect only.
+www/index.html [rev:1.18, 2001-04-03T18:41:29]:
+- update for release 0.4.5: URL and News sect only.
+www/man.html [rev:1.5, 2001-04-03T18:42:07]:
+- update for release 0.4.5: version number only.
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_4_5 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
