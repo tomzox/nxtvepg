@@ -36,7 +36,7 @@
  *
  *     Additional code and adaptions to nxtvepg by Tom Zoerner
  *
- *  $Id: xawtv.c,v 1.15 2001/05/31 17:58:50 tom Exp tom $
+ *  $Id: xawtv.c,v 1.16 2001/11/01 20:07:16 tom Exp tom $
  */
 
 #ifdef WIN32
@@ -557,9 +557,9 @@ static bool Xawtv_FindWindow( Display * dpy, Atom atom )
 
 // ---------------------------------------------------------------------------
 // Display a popup window below xawtv
-// - similar to SendCmd: first verify if the old window ID is still valid
+// - similar to SendCmd: first verify if the old window ID is still valid;
 //   if not search for a new xawtv window
-// - if the window manager's wrapper window (parent) is not know yet search it
+// - if the window manager's wrapper window (parent) is not known yet search it
 // - query the window manager's wrapper window for the position and size
 //
 static void Xawtv_Popup( float rperc, const char *rtime, const char * ptitle )
@@ -979,7 +979,7 @@ static void Xawtv_NowNext( const PI_BLOCK *pPiBlock )
       else if (now < pPiBlock->stop_time)
          percentage = (double)(now - pPiBlock->start_time) / (pPiBlock->stop_time - pPiBlock->start_time);
       else
-         percentage = 100.0;
+         percentage = 1.0;
 
       // remove previous popdown timer
       if (popDownEvent != NULL)

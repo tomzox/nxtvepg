@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: changelog.html,v 1.20 2001/09/16 11:31:31 tom Exp $ -->
+<!-- $Id: changelog.html,v 1.22 2001/11/07 19:38:12 tom Exp $ -->
 <HEAD>
 <TITLE>Nextview EPG Decoder Change-Log</TITLE>
 <LINK href="nxtvepg.css" rel=stylesheet type=text/css>
@@ -28,9 +28,37 @@ updated while work is in progress and new bugs are fixed or features added.
 If you're interested in beta testing pre-releases, just send me a mail.
 </P>
 
-<H2>From 0.6.2 to 0.6.3 (2001-September-16)</H2>
+<H2>From 0.6.4 to 0.7.0 (yet unreleased)</H2>
 <P>
-This release contains the following fixes and improvements;
+The next release will contain the following new features and fixes:
+</P>
+<UL>
+<LI>Added network connection between acquisition daemon and GUI.
+  The daemon now acts as a server which forwards all incoming EPG data
+  to one or more connected GUI clients. Both TCP/IP and UNIX pipes
+  are supported.
+<LI>Added compile-time option to use multi-threading for VBI acquisition
+  instead of a separate process. The advantage is that the threads are
+  only created when acquisition is enabled.
+</UL>
+
+<H2>From 0.6.3 to 0.6.4 (November/06/2001)</H2>
+<P>
+This release contains the following fixes:
+</P>
+<UL>
+<LI>Bugfix database merge: merging used to produce only empty databases, because
+  zero networks were loaded (the user was forced to manually add networks via
+  the network selection dialog.) This bug was introduced in version 0.6.2.
+  Thanks to Mathias Homann and Jan Schubert for reporting this nasty bug.
+<LI>Bugfix xawtv popup: percentage was displayed as 10000% for programmes
+  running later than the announced stop time (on channels with VPS/PDC).
+  Thanks to Ulrich Mueller for the bug report &amp; fix.
+</UL>
+
+<H2>From 0.6.2 to 0.6.3 (September/16/2001)</H2>
+<P>
+This release contains the following fixes and improvements;<BR>
 note that all of them are available in the UNIX version only:
 </P>
 <UL>

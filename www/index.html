@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: index.html,v 1.30 2001/09/16 11:31:42 tom Exp $ -->
+<!-- $Id: index.html,v 1.32 2001/11/07 19:36:12 tom Exp $ -->
 <HEAD>
 <TITLE>nexTView EPG Decoder Software Download Page</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
@@ -45,6 +45,8 @@
 
 <P class="navhead"><B>News</B>
 <P class="navsect">
+Nov/06/2001: release 0.6.4</P>
+<HR width=70%><P class="navsect">
 Sep/16/2001: release 0.6.3</P>
 <HR width=70%><P class="navsect">
 Sep/07/2001: release 0.6.2</P>
@@ -159,9 +161,14 @@ TV tuner card.
 <H2>Download</H2>
 </A>
 <P>
-Release 0.6.3 (released Sep/16/2001) adds the possibility to run data acquisition
-without the GUI as a daemon, i.e. even when no X server is running.  For a detailed
-history of new features and fixes refer to the <A HREF="changelog.html">Change-Log</A>.
+Release 0.6.4 (released Nov/06/2001) fixes a bug that had the
+<A HREF="man.html#MERGED_DATABASES">database merge feature</A>
+produce only empty databases. (Only users who manually selected which
+networks should be included in the merge via the network selection dialog
+could use this feature.)
+</P><P>
+For a detailed history of new features and fixes in previous releases
+refer to the <A HREF="changelog.html">Change-Log</A>.
 If there are any problems with this new release, please let me know. For previous releases,
 see the <A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/">source directory</A>
 (<A HREF="http://nxtvepg.tripod.com/src/">US mirror</A> has a larger selection)
@@ -172,10 +179,10 @@ see the <A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/">source directory<
 </A>
 <P>
 Download the latest source distribution for Linux and NetBSD:
-<A HREF=http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-0.6.3.tar.gz>nxtvepg-0.6.3.tar.gz</A> (389 kB)
+<A HREF=http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-0.6.4.tar.gz>nxtvepg-0.6.4.tar.gz</A> (394 kB)
 </P><P>
 You can build a RPM package from the source tarball simply by running
-<KBD>rpm -ta nxtvepg-0.6.3.tar.gz</KBD> and install it as usual with
+<KBD>rpm -ta nxtvepg-0.6.4.tar.gz</KBD> and install it as usual with
 <KBD>rpm -i</KBD>.  You can also donwload directly installable packages
 (not necessarily the latest version)
 for Linux at <A HREF="http://rpmfind.net/linux/rpm2html/search.php?query=nxtvepg">rpmfind.net</A>
@@ -186,7 +193,7 @@ and for NetBSD at <A HREF="ftp://ftp.netbsd.org/pub/NetBSD/packages/pkgsrc/misc/
 <H3>Binary distribution for M$ Windows</H3>
 </A>
 <P>
-<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-1.12-win.zip">nxtvepg-1.12-win.zip</A> (927 kB)
+<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-1.13-win.zip">nxtvepg-1.13-win.zip</A> (927 kB)
 </P><P>
 Note that you need an additional driver that is not included in this
 package. You may be able to use the driver from other TV applications.
@@ -233,6 +240,23 @@ merchantability or fitness for a particular purpose.
 
 </TD>
 </TBODY></TABLE>
+
+<!-- Begin Nedstat Basic code -->
+<!-- Title: nexTView EPG Decoder Software -->
+<!-- URL: http://nxtvepg.tripod.com/ -->
+<script language="JavaScript" src="http://m1.nedstatbasic.net/basic.js">
+</script>
+<script language="JavaScript">
+<!--
+nedstatbasic("ABLmbAYCeAjHJw8oZuzU34ENTm6Q", 0);
+// -->
+</script>
+<noscript>
+<a target="_blank" href="http://v1.nedstatbasic.net/stats?ABLmbAYCeAjHJw8oZuzU34ENTm6Q"><img
+src="http://m1.nedstatbasic.net/n?id=ABLmbAYCeAjHJw8oZuzU34ENTm6Q"
+border="0" nosave width="18" height="18"></a>
+</noscript>
+<!-- End Nedstat Basic code -->
 
 </BODY>
 </HTML>

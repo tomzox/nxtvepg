@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="de">
-<!-- $Id: index-de.html,v 1.18 2001/09/16 11:31:42 tom Exp $ -->
+<!-- $Id: index-de.html,v 1.20 2001/11/07 19:36:12 tom Exp $ -->
 <HEAD>
 <TITLE>nexTView EPG Dekoder Software Download</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
@@ -45,6 +45,8 @@
 
 <P class="navhead"><B>News</B>
 <P class="navsect">
+6.11.2001: bugfix release 0.6.4</P>
+<HR width=70%><P class="navsect">
 16.9.2001: release 0.6.3</P>
 <HR width=70%><P class="navsect">
 7.9.2001: release 0.6.2</P>
@@ -122,6 +124,13 @@ den Seiten der Hersteller vorbei:
 <A HREF="http://www.philips.com">Philips</A>,
 <A HREF="http://www.sony-europe.com">Sony</A> or
 <A HREF="http://www.thompson.com">Thomson</A>.
+</P><P>
+<B><FONT COLOR="Red">Neu:</FONT></B>
+Im Oktober 2001 ist nxtvepg in die deutsche <A HREF="http://www.suse.de/">SuSE</A>
+<A HREF="http://www.suse.de/de/products/suse_linux/i386/index.html">Linux Distribution 7.3</A>
+aufgenommen worden, in der Featuregruppe
+<A HREF="http://www.suse.de/de/products/suse_linux/i386/tv.html">Fernsehen mit Linux</A>.
+
 
 <H2>Systemanforderungen</H2>
 <P>
@@ -163,9 +172,13 @@ für die TV-Tuner-Karte beim Programmstart zu laden)
 <H2>Download</H2>
 </A>
 <P>
-Mit der neuen Distribution 0.6.3 vom 16. September 2001 kann die Datenakquisition
-im Hintergrund betrieben werden (nur UNIX Version), d.h. ohne GUI und somit auch
-wenn kein X-Server läuft.  Mehr Details und alle früheren Änderungen sind im
+Version 0.6.4 vom 6.11.2001 behebt einen Fehler im
+<A HREF="man.html#MERGED_DATABASES">Database Merge Feature</A>
+der dazu geführt hat daß bei erstmaliger Benutzung nur leere Datenbanken
+bzw. eine Sendertabelle mit keinem einzigen enthaltenem Sender generiert
+wurde.
+</P><P>
+Mehr Details und alle früheren Änderungen sind im
 <A HREF="changelog.html">Change-Log</A> dokumentiert. Falls mit der Software
 Probleme auftauchen, bitte melden. Ältere Distributionen befinden sich noch im
 <A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/">Source Verzeichnis</A>
@@ -176,10 +189,10 @@ Probleme auftauchen, bitte melden. Ältere Distributionen befinden sich noch im
 <H3>Source Distribution</H3>
 </A>
 Download der aktuellen Source Distribution für Linux und NetBSD:
-<A HREF=http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-0.6.3.tar.gz>nxtvepg-0.6.3.tar.gz</A> (389 kB)
+<A HREF=http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-0.6.4.tar.gz>nxtvepg-0.6.4.tar.gz</A> (394 kB)
 </P><P>
 Aus dem source tarball läßt sich auch ein RPM package bauen mit dem
-Kommando: <KBD>rpm -ta nxtvepg-0.6.3.tar.gz</KBD>. Das erzeugte package
+Kommando: <KBD>rpm -ta nxtvepg-0.6.4.tar.gz</KBD>. Das erzeugte package
 kann dann wie üblich mit <KBD>rpm -i</KBD> installiert werden. Alternativ
 sind auch fertige packages verfügbar (jedoch nicht notwendigerweise
 immer die neueste Version):
@@ -191,7 +204,7 @@ und für NetBSD von <A HREF="ftp://ftp.netbsd.org/pub/NetBSD/packages/pkgsrc/misc
 <H3>Binärdistribution für M$ Windows</H3>
 </A>
 <P>
-<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-1.12-win.zip">nxtvepg-1.12-win.zip</A> (912 kB)
+<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-1.13-win.zip">nxtvepg-1.13-win.zip</A> (912 kB)
 </P><P>
 Bitte beachten daß ein weiterer Treiber benötigt wird, der nicht in diesem
 Paket enthalten ist und separat heruntergeladen werden muß. In manchen Fällen
@@ -225,11 +238,11 @@ Anstrengungen Nextview bekannt zu machen toleriert werden.
 </P><P>
 Diese Software ist kostenlos; Weiterverbreitung und/oder Modifikation
 ist erlaubt, solange Sie die Richtlinien der
-<A HREF="http://www.fsf.org/copyleft/gpl.html">GNU General Public License</A>,
+<A HREF="http://www.fsf.org/copyleft/gpl.html">GNU General Public License Version 2</A>,
 veröffentlicht von der <A HREF="http://www.fsf.org/">Free Software Foundation.</A>
-beachten. Die Software wurde mit bestem Wissen und Gewissen erstellt.Es
+beachten. Die Software wurde mit bestem Wissen und Gewissen erstellt. Es
 wird jedoch <B>keinerlei Garantie</B> für deren Funktionstauglichkeit oder
-eventuelle Folgeschäden aus Fehlfunktionen übernommen. Näheres regelt die GPL.
+eventuelle Folgeschäden aus Fehlfunktionen übernommen. Näheres regelt die GPL2.
 </P>
 
 </TD>

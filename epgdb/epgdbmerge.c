@@ -22,7 +22,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbmerge.c,v 1.16 2001/09/02 16:23:11 tom Exp tom $
+ *  $Id: epgdbmerge.c,v 1.17 2001/11/05 21:43:54 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -805,6 +805,9 @@ static uchar * EpgDbMergeAiServiceNames( EPGDB_MERGE_CONTEXT * dbmc )
 // ---------------------------------------------------------------------------
 // Merge AI blocks & netwops
 // - build netwop mapping and reverse tables for each database
+// - during the very first merge the network list is always empty, because the
+//   user hasn't had a chance to invoke the network selection -> must include
+//   all CNIs of all providers
 //
 void EpgDbMergeAiBlocks( PDBC dbc, uint netwopCount, uint * pNetwopList )
 {
@@ -812,6 +815,7 @@ void EpgDbMergeAiBlocks( PDBC dbc, uint netwopCount, uint * pNetwopList )
    AI_BLOCK  * pAi, * pTargetAi;
    AI_NETWOP * pNetwops, * pTargetNetwops;
    uint netwop, dbIdx, idx;
+   bool  useAllNetwops;
    uchar netOrigIdx[MAX_NETWOP_COUNT];
    uchar * pServiceName;          // temporarily holds merged service name
    uint nameLen;                  // sum of netwop name lengths
@@ -826,6 +830,9 @@ void EpgDbMergeAiBlocks( PDBC dbc, uint netwopCount, uint * pNetwopList )
       netwopCount = MAX_NETWOP_COUNT;
    memset(netOrigIdx, 0xff, sizeof(netOrigIdx));
 
+   // if empty CNI preselection is given, all CNIs of all providers are included (initial merge)
+   useAllNetwops = (netwopCount == 0);
+
    for (dbIdx=0; dbIdx < dbCount; dbIdx++)
    {
       pAi = (AI_BLOCK *) &dbmc->pDbContext[dbIdx]->pAiBlock->blk.ai;
@@ -839,6 +846,12 @@ void EpgDbMergeAiBlocks( PDBC dbc, uint netwopCount, uint * pNetwopList )
          for (idx=0; idx < netwopCount; idx++)
             if (pNetwopList[idx] == pNetwops[netwop].cni)
                break;
+
+         if (useAllNetwops && (idx >= netwopCount) && (netwopCount < MAX_NETWOP_COUNT))
+         {  // initial merge & CNI not yet in the CNI list -> append it
+            pNetwopList[netwopCount] = pNetwops[netwop].cni;
+            netwopCount += 1;
+         }
 
          if (idx < netwopCount)
          {

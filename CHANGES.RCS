@@ -5322,3 +5322,70 @@ www/index-de.html [rev:1.18, 2001-09-16T11:31:42]:
 www/index.html [rev:1.30, 2001-09-16T11:31:42]:
 - update for release 0.6.3
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_6_3 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+epgui/epgmain.c [rev:1.68, 2001-09-23T19:13:22]:
+- fix EventHandler_StartAcq(): allow both en-/disable acq
+www/index.html [rev:1.31, 2001-10-04T18:03:03]:
+- added Nedstat counter code
+www/index-de.html [rev:1.19, 2001-10-13T11:37:16]:
+- added note about SuSE 7.3
+- copyright section: added version number (2) to GPL references
+epgdb/epgdbacq.c [epgvbi/ttxdecode.c, rev:1.32, 2001-11-01T11:06:18]:
+- split function EpgDbAcqProcessPackets(): new func EpgDbAcqProcessBlocks()
+    advantage: EpgDbAcqProcessPackets() can be called when DB is not locked;
+    no TTX packets are lost even when the GUI is blocked for a long time.
+    TODO: when the block queue gets very large, insertion must be optimized
+- EpgDbAcqGetScanResults: allow NULL ptrs for all return value pointers
+- improved module description plus a few other comments
+epgdb/epgdbacq.h [epgvbi/ttxdecode.h, rev:1.15, 2001-11-01T11:06:39]:
+- split function EpgDbAcqProcessPackets(): new func EpgDbAcqProcessBlocks()
+- advantage: EpgDbAcqProcessPackets() can be called when DB is not locked;
+- no TTX packets are lost even when the GUI is blocked for a long time.
+- TODO: when the block queue gets very large, insertion must be optimized
+epgvbi/btdrv4dummy.c [rev:1.4, 2001-11-01T11:10:44]:
+- fixed BtDriver_SetInputSource()
+- param bool keepOpen was missing as formal parameter
+epgvbi/btdrv4linux.c [rev:1.17, 2001-11-01T11:11:54]:
+- Added compile-time switch USE_THREADS
+-> instead of Sys-V IPC multi-threading is used for acq slave
+epgui/xawtv.c [rev:1.16, 2001-11-01T20:07:16]:
+- bugfix in Xawtv_NowNext()
+- percentage for titles with stop time in the past was 100*100
+- provided by Ulrich Mueller <ulrich.mueller42@web.de>
+www/changelog.html [rev:1.21, 2001-11-02T21:06:57]:
+- added 3 items for 0.7.0: dbsrv, multi-threading, bugfix xawtv.
+Makefile [rev:1.35, 2001-11-02T21:33:23]:
+- added -lpthread to LDLIBS
+- added epgdb/epgdbsrv to sources
+epgdb/epgdbsav.c [rev:1.40, 2001-11-02T23:47:56]:
+- bugfix EpgDbSavSetupDir()
+- check for dbdir permissions did not mask out unrelated bits from stats mode
+    hence chmod() was always called for the directory
+- bug reported by Enrico Scholz <enrico.scholz@informatik.tu-chemnitz.de>
+nxtvepg.spec [rev:NONE - missing check-in]:
+- changed version to 0.6.4
+www/provnets.html [rev:1.10, 2001-11-04T09:37:19]:
+- added TSI
+- added note to send me new providers or updates
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.136, 2001-11-04T11:36:36]:
+- added client/server configuration dialog
+- added netacqcf to the rc/ini file
+epgdb/epgdbmerge.c [rev:1.17, 2001-11-05T21:43:54]:
+- bugfix EpgDbMergeAiBlocks():
+- during the very first merge the network list is always empty, because the
+- user hasn't had a chance to invoke the network selection -> must include
+- all CNIs of all providers
+epgui/menucmd.c [rev:1.51, 2001-11-06T20:09:27]:
+- Fixed error handling in ProvMerge_Start()
+- check for NULL result after EpgContextMerge()
+- handle missing Tcl var cfnetwops in ProvMerge_ParseNetwopList()
+epgctl/epgversion.h [rev:1.18, 2001-11-06T20:42:27]:
+- set to version 0.6.4
+CHANGES [rev:1.19, 2001-11-07T19:33:18]:
+- updated for bugfix release 0.6.4
+www/index-de.html [rev:1.20, 2001-11-07T19:36:12]:
+- update for release 0.6.4
+www/index.html [rev:1.32, 2001-11-07T19:36:12]:
+- update for release 0.6.4
+www/changelog.html [rev:1.22, 2001-11-07T19:38:12]:
+- update for release 0.6.4
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_6_4 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

@@ -14,17 +14,22 @@
  *
  *  Description:
  *
- *    Saves the EPG database into a (binary) file. This is simply
- *    done by dumping all raw blocks consecutively. The reload
- *    function reverses these actions; expired PI blocks are
- *    skipped though. Only the EPG data structures are saved;
- *    all pointer chains are restored during reload. This is
- *    simple (compared to the normal insertion after acquisition),
- *    because the blocks are already checked and sorted.
+ *    Saves the EPG database into a (binary) file. This is simply done by
+ *    dumping all raw blocks consecutively. The reload function reverses
+ *    these actions. The reload does not use the normal db insert functions,
+ *    because the loaded blocks are already sorted and checked for overlaps,
+ *    so that each can simply be appended to the database. Reloaded blocks
+ *    are however thoroughly checked for consistancy (e.g. size and offset
+ *    values must be limited to the total block size) to avoid application
+ *    crashes due to corrupt input.
+ *
+ *    The module also offers functions to scan the database directory for
+ *    database files (e.g. to present a provider list in the GUI) and to
+ *    read or update database headers.
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbsav.c,v 1.39 2001/05/19 14:27:48 tom Exp tom $
+ *  $Id: epgdbsav.c,v 1.40 2001/11/02 23:47:56 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -1119,7 +1124,7 @@ bool EpgDbSavSetupDir( const char * pDirPath, const char * pDemoDb )
 
       if (result)
       {  // set permissions of database directory: world-r/w-access
-         if ((st.st_mode != 0777) && (chmod(pDirPath, 0777) != 0))
+         if (((st.st_mode & 07777) != 0777) && (chmod(pDirPath, 0777) != 0))
          {
             fprintf(stderr, "warning: cannot set permissions 0777 for dbdir %s: %s\n", pDirPath, strerror(errno));
             // this is not a fatal error, result remains TRUE

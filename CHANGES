@@ -4,6 +4,15 @@ changes or additions.
 
 Before you submit any feature requests, please read the TODO file.
 
+from 0.6.3 to 0.6.4 (2001-November-06)
+- bugfix database merge: merging used to produce only empty databases, because
+  zero networks were loaded; the user was forced to manually add networks via
+  the network selection dialog. This bug was introduced in version 0.6.2.
+  Thanks to Mathias Homann and Jan Schubert for reporting this bug.
+- bugfix xawtv popup: percentage was displayed as 10000% for programmes
+  running later than the announced stop time (on channels with VPS/PDC).
+  Thanks to Ulrich Mueller for the bug report & fix.
+
 from 0.6.2 to 0.6.3 (2001-September-16)
 All of these changes are available in the UNIX version only:
 - added daemon mode to allow background acquisition without GUI.

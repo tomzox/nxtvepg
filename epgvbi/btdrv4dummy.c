@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: btdrv4dummy.c,v 1.3 2001/02/25 15:59:43 tom Exp tom $
+ *  $Id: btdrv4dummy.c,v 1.4 2001/11/01 11:10:44 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -72,7 +72,7 @@ ulong BtDriver_QueryChannel( void )
    return 0;
 }
 
-bool BtDriver_SetInputSource( int inputIdx, bool * pIsTuner )
+bool BtDriver_SetInputSource( int inputIdx, bool keepOpen, bool * pIsTuner )
 {
    if (pIsTuner != NULL)
    {

@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: menucmd.c,v 1.50 2001/09/12 19:23:40 tom Exp tom $
+ *  $Id: menucmd.c,v 1.51 2001/11/06 20:09:27 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -555,7 +555,7 @@ static int ProvMerge_ParseNetwopList( Tcl_Interp * interp, uint * pCniCount, uin
 {
    char **pCniArgv, **pSubLists;
    char * pTmpStr;
-   int  * pCni;
+   int  * pCni, count;
    uint idx;
    int  result;
 
@@ -563,10 +563,10 @@ static int ProvMerge_ParseNetwopList( Tcl_Interp * interp, uint * pCniCount, uin
    if (pTmpStr != NULL)
    {
       // parse list of 2 lists, e.g. {{0x0dc1 0x0dc2} {0x0AC1 0x0AC2}}
-      result = Tcl_SplitList(interp, pTmpStr, pCniCount, &pSubLists);
+      result = Tcl_SplitList(interp, pTmpStr, &count, &pSubLists);
       if (result == TCL_OK)
       {
-         if (*pCniCount == 2)
+         if (count == 2)
          {
             // parse CNI list, e.g. {0x0dc1 0x0dc2}
             result = Tcl_SplitList(interp, pSubLists[0], pCniCount, &pCniArgv);
@@ -589,6 +589,10 @@ static int ProvMerge_ParseNetwopList( Tcl_Interp * interp, uint * pCniCount, uin
    }
    else
       result = TCL_ERROR;
+
+   // in case of parser errors, return an empty list
+   if (result != TCL_OK)
+      *pCniCount = 0;
 
    return result;
 }
@@ -752,6 +756,10 @@ static int ProvMerge_Start(ClientData ttp, Tcl_Interp *interp, int argc, char *a
 
          EpgContextCtl_Close(pUiDbContext);
          pUiDbContext = EpgContextMerge(provCount, provCniTab, max, netwopCount, netwopCniTab);
+         if (pUiDbContext == NULL)
+         {  // merge failed (e.g. one of the databases could not be opened) -> load any other db
+            pUiDbContext = EpgContextCtl_Open(0, CTX_RELOAD_ERR_ANY);
+         }
 
          EpgAcqCtl_UiProvChange();
 
