@@ -1,0 +1,858 @@
+#-----------------------------------------------------------------------------
+# Note file names in this first section of this log do not match actual
+# historic names, as the log shows the latest name under which the file was
+# maintained in RCS. In particular, sub-directories were not introduced before
+# check-in 2000-06-03T21:21:21.
+#-----------------------------------------------------------------------------
+acq.c [rev:1.1, 1999-02-28T09:18:58]:
+- Initial revision
+acq.c [rev:1.2, 1999-02-28T20:25:49]:
+- low level acq OK (indenepdent of block types)
+acq.c [rev:1.3, 1999-03-05T21:37:19]:
+- decodierung str-segment funkt
+acq.c [rev:1.4, 1999-03-10T20:55:56]:
+- PI Block Decoder ++
+acq.c [rev:1.5, 1999-06-03T11:50:25]:
+- decode AI version and netwop count
+acq.c [rev:1.6, 1999-06-09T19:19:28]:
+- complete AI decoding
+epgdb/piblock.h [rev:1.1, 1999-06-15T20:39:19]:
+- Initial revision
+acq.c [rev:1.7, 1999-06-15T20:39:24]:
+- started EPG-String decoding, extended PI block decoding
+acq.c [rev:1.8, 1999-06-16T22:39:03]:
+- added PI feature-flags and short/long info decoding
+acq.c [rev:1.9, 1999-06-20T12:28:58]:
+- bugfixes PI and string decoder
+- added OI decoder
+epgdb/oiblock.h [rev:1.1, 1999-06-20T12:29:12]:
+- Initial revision
+acq.c [rev:1.10, 1999-06-20T20:40:03]:
+- added NI decoder
+epgdb/niblock.h [rev:1.1, 1999-06-20T20:40:14]:
+- Initial revision
+acq.c [rev:1.11, 1999-06-22T19:22:05]:
+- decode MI and descriptors fo all block types
+epgdb/miblock.h [rev:1.1, 1999-06-22T19:22:32]:
+- Initial revision
+epgdb/epgstream.h [rev:1.1, 1999-06-22T19:22:37]:
+- Initial revision
+acq.c [rev:1.12, 1999-06-26T09:12:33]:
+- started with ui
+- save AI block in global compount structure
+epgui/epgmain.c [rev:1.1, 1999-06-26T09:12:57]:
+- Initial revision
+epgtcl/tcl_statswin.tcl [rev:1.1, 1999-06-26T09:13:12]:
+- Initial revision
+acq.c [rev:1.13, 1999-06-26T14:29:40]:
+- added time & date decoding for ui
+epgdb/piblock.h [rev:1.2, 1999-06-26T14:29:56]:
+- store PI data uncompressed, i.e. not in bitfields
+epgdb/aiblock.h [rev:1.1, 1999-06-26T14:30:21]:
+- Initial revision
+Makefile [rev:1.1, 1999-06-26T14:31:16]:
+- Initial revision
+epgvbi/vbidecode.c [rev:1.1, 1999-06-26T18:48:09]:
+- Initial revision
+epgvbi/vbidecode.h [rev:1.1, 1999-06-26T18:48:11]:
+- Initial revision
+epgdb/epgblock.c [rev:1.1, 1999-06-26T18:48:16]:
+- Initial revision
+epgdb/epgstream.h [rev:1.2, 1999-06-26T18:48:40]:
+- reorganized, renamed from block.h to blockdecode.h
+epgvbi/vbidecode.c [rev:1.2, 1999-06-27T10:15:11]:
+- DecodePacket: fixed bugs and added handling for BS=0x0C
+epgvbi/vbidecode.c [rev:1.3, 1999-06-27T11:25:07]:
+- bugfixes & fprintf improvements
+epgui/epgmain.c [rev:1.2, 1999-06-27T11:25:27]:
+- added ui_highlight_netwop
+epgdb/epgblock.c [rev:1.2, 1999-06-27T11:26:26]:
+- added ui_highlight_netwop
+- bugfix ui_open
+epgui/epgmain.h [rev:1.1, 1999-07-03T18:36:17]:
+- Initial revision
+epgui/epgmain.c [rev:1.3, 1999-07-03T18:36:50]:
+- added stats window with % stream 1 and 2
+- added toggle button for debug stream output
+- expired now blocks marked yellow
+epgdb/epgblock.c [rev:1.3, 1999-07-03T18:38:29]:
+- save all PI in global array
+- fill ui stats window with % stream 1 and 2
+- correct lto for mktime
+- expired now blocks marked yellow
+- allow to suppress blocks debug output by UI
+epgtcl/tcl_statswin.tcl [rev:1.2, 1999-07-04T09:14:51]:
+- added add_stat and create_bottom (stats canvas & "Debug Output" button)
+- check_now with color as argument
+epgdb/epgblock.c [rev:1.4, 1999-07-04T09:16:59]:
+- mark overlapping blocks in streams canvas in yellow
+epgui/epgmain.c [rev:1.4, 1999-07-04T09:16:59]:
+- mark overlapping blocks in streams canvas in yellow
+epgtcl/tcl_statswin.tcl [rev:1.3, 1999-07-04T12:21:43]:
+- added statistics window with AI count,avg and runtime
+epgui/epgmain.c [rev:1.5, 1999-07-04T12:21:43]:
+- added statistics window with AI count,avg and runtime
+epgdb/epgblock.c [rev:1.5, 1999-07-04T19:04:05]:
+- indicate PI blocks with short or long info in streams
+epgtcl/tcl_statswin.tcl [rev:1.4, 1999-07-04T19:04:05]:
+epgui/epgmain.c [rev:1.6, 1999-07-04T19:04:05]:
+epgui/epgmain.h [rev:1.2, 1999-07-11T10:20:24]:
+- indicate PI blocks with short or long info in streams
+epgdb/epgblock.c [rev:1.6, 2000-01-16T12:35:10]:
+- optimized ApplyEscapes() with table instead of switch()
+- improved whitespace/newline handling in ApplyEscapes()
+- added DecodePil() and GetPiPilStr()
+- added 1st draft for CycleStats() - incomplete
+- moved descriptor decoding for all blocks in sub DecodeDescriptorLoop()
+- for NI, OI, NI: build compount struct
+    separate debug output from block decoder; added PrintNiBlock()
+- added decoder for LI and TI
+epgdb/miblock.h [rev:1.2, 2000-01-16T12:36:06]:
+epgdb/niblock.h [rev:1.2, 2000-01-16T12:36:06]:
+epgdb/oiblock.h [rev:1.2, 2000-01-16T12:36:06]:
+- replaced raw struct with complete compound struct and access macros
+epgdb/piblock.h [rev:1.3, 2000-01-16T12:39:09]:
+- moved and renamed PI_DESCRIPTOR to DESCRIPTOR in blockdecode.h
+- same struct used by all block types
+- optimized access macros
+epgdb/liblock.h [rev:1.1, 2000-01-16T12:40:53]:
+- Initial revision
+epgdb/tiblock.h [rev:1.1, 2000-01-16T12:40:53]:
+- Initial revision
+epgdb/epgblock.c [rev:1.7, 2000-01-16T15:17:55]:
+- AI decoder: separated debug output and UI from decoder
+- fixed identation in AI and PI decoder
+epgdb/aiblock.h [rev:1.2, 2000-01-16T15:18:47]:
+- added AI_BLOCK access macros
+epgui/epgmain.c [rev:1.7, 2000-01-16T15:59:24]:
+- renamed AIBLOCK to AI_BLOCK and AIBLOCK_NETWOP to AI_NETWOP
+epgdb/epgblock.c [rev:1.8, 2000-01-16T17:02:32]:
+- [redacted]
+Makefile [rev:1.2, 2000-01-16T18:27:39]:
+- added lots of files
+epgvbi/ttxdecode.c [rev:1.1, 2000-01-16T18:28:27]:
+- Initial revision
+epgvbi/ttxdecode.h [rev:1.1, 2000-01-16T18:28:32]:
+- Initial revision
+epgdb/epgblock.c [rev:1.9, 2000-01-16T18:30:06]:
+- renamed from blockdecode.c; adapted some #include and #define
+- changed API BlockDecode(); renamed to EpgStreamDecodeBlock()
+epgdb/epgstream.h [rev:1.3, 2000-01-16T18:30:44]:
+- long ago: added provate struct stream_cycle_data
+- changed API BlockDecode(); renamed to EpgStreamsDecodeBlock()
+- renamed from blockdecode.c; adapted some #include and #define
+epgvbi/vbidecode.c [rev:1.4, 2000-01-16T18:31:40]:
+- [redacted]
+- EPG specific functionality moved to epgdbacq.c
+epgvbi/vbidecode.h [rev:1.2, 2000-01-16T18:33:19]:
+- beautified
+epgui/epgmain.c [rev:1.8, 2000-01-16T18:33:47]:
+- added init for EPG acq engine
+epgdb/epgblock.h [rev:1.1, 2000-01-16T18:55:15]:
+- Initial revision
+epgvbi/hamming.c [rev:1.1, 2000-01-26T17:35:41]:
+- Initial revision
+epgvbi/hamming.h [rev:1.1, 2000-01-26T17:35:43]:
+- Initial revision
+epgctl/mytypes.h [rev:1.1, 2000-01-26T17:35:55]:
+- Initial revision
+epgvbi/vbidecode.c [rev:1.5, 2000-04-29T19:58:36]:
+- [redacted]
+epgctl/debug.c [rev:1.1, 2000-05-14T07:55:29]:
+- Initial revision
+epgctl/debug.h [rev:1.1, 2000-05-14T07:55:31]:
+- Initial revision
+epgdb/epgblock.c [rev:1.10, 2000-05-14T07:56:13]:
+- added epgdb and browser window
+- splitted off epgtxtdump
+epgdb/epgstream.h [rev:1.4, 2000-05-14T07:56:35]:
+- added epgdb and browser window
+- splitted off epgtxtdump
+epgvbi/ttxdecode.c [rev:1.2, 2000-05-14T07:57:19]:
+- added epgdb and browser window
+epgdb/epgdbfil.c [rev:1.1, 2000-05-14T07:57:29]:
+- Initial revision
+epgdb/epgdbfil.h [rev:1.1, 2000-05-14T07:57:32]:
+- Initial revision
+epgdb/epgdbfil.hi [rev:1.1, 2000-05-14T07:57:34]:
+- Initial revision
+epgui/dumpraw.c [rev:1.1, 2000-05-14T07:57:44]:
+- Initial revision
+epgui/dumpraw.h [rev:1.1, 2000-05-14T07:57:46]:
+- Initial revision
+epgui/pilistbox.c [rev:1.1, 2000-05-14T07:58:29]:
+- Initial revision
+epgtcl/mainwin.tcl [rev:1.1, 2000-05-14T07:58:37]:
+- Initial revision
+epgdb/epgblock.h [rev:1.2, 2000-05-14T07:58:56]:
+- added epgdb and browser window
+- collected all block types into this single header file
+epgui/epgmain.c [rev:1.9, 2000-05-14T07:59:30]:
+- added epgdb and browser window
+epgui/epgmain.h [rev:1.3, 2000-05-14T07:59:35]:
+- added epgdb and browser window
+epgdb/epgdbmgmt.c [rev:1.1, 2000-05-14T08:00:03]:
+- Initial revision
+epgdb/epgdbmgmt.h [rev:1.1, 2000-05-14T08:00:07]:
+- Initial revision
+epgdb/epgdbmgmt.hi [rev:1.1, 2000-05-14T08:00:10]:
+- Initial revision
+epgctl/debug.c [rev:1.2, 2000-05-14T10:24:36]:
+epgctl/debug.h [rev:1.2, 2000-05-14T10:24:36]:
+epgctl/mytypes.h [rev:1.2, 2000-05-14T10:24:36]:
+epgdb/epgblock.c [rev:1.11, 2000-05-14T10:24:36]:
+epgdb/epgdbmgmt.c [rev:1.2, 2000-05-14T10:24:36]:
+epgui/dumpraw.c [rev:1.2, 2000-05-14T10:24:36]:
+epgui/epgmain.c [rev:1.10, 2000-05-14T10:24:36]:
+epgui/pilistbox.c [rev:1.2, 2000-05-14T10:24:36]:
+epgvbi/ttxdecode.c [rev:1.3, 2000-05-14T10:24:36]:
+epgvbi/vbidecode.c [rev:1.6, 2000-05-14T10:24:36]:
+epgvbi/vbidecode.h [rev:1.3, 2000-05-14T10:24:36]:
+- fixes for WIN32
+epgtcl/mainwin.tcl [rev:1.2, 2000-05-21T08:03:02]:
+- revamped listbox model to allow sync with db:
+- the text widget now only contains the currently visible items
+- the scrollbar is not directly connected to the text widget
+    but with a function that deletes and inserts text in the listbox
+    to simulate scrolling
+epgui/pilistbox.c [rev:1.3, 2000-05-21T08:03:02]:
+- revamped listbox model to allow sync with db:
+- the text widget now only contains the currently visible items
+- the scrollbar is not directly connected to the text widget
+    but with a function that deletes and inserts text in the listbox
+    to simulate scrolling
+epgui/epgmain.h [rev:1.4, 2000-05-21T08:05:24]:
+- added pilistbox variables for browse.c (TEMPORARY)
+epgdb/epgblock.c [rev:1.12, 2000-05-21T08:28:57]:
+- fix for win32: tm_isdst must be initialized with _daylight and _tzset()
+- txtdump mod not included with win32 yet
+epgui/epgmain.c [rev:1.11, 2000-05-21T08:31:28]:
+- fixed stat win: count # of blocks in db
+- fix for win32: do _tzset() to initialize _daylight global
+epgtcl/mainwin.tcl [rev:1.3, 2000-05-21T09:19:02]:
+- adapted PI popup to new pilistbox handling
+epgui/pilistbox.c [rev:1.4, 2000-05-21T09:19:02]:
+- adapted PI popup to new pilistbox handling
+epgtcl/tcl_statswin.tcl [rev:1.5, 2000-05-30T20:49:52]:
+- WIN32: determine bg for canvas from frame bg
+epgdb/epgdbfil.c [rev:1.2, 2000-05-31T00:25:40]:
+- added EpgDbSetFilterSubStr()
+- added const to some ptr params
+epgdb/epgdbfil.h [rev:1.2, 2000-05-31T00:25:40]:
+- added EpgDbSetFilterSubStr()
+- added const to some ptr params
+epgdb/epgdbfil.hi [rev:1.2, 2000-05-31T00:25:40]:
+- added EpgDbSetFilterSubStr()
+- added const to some ptr params
+epgui/pilistbox.c [rev:1.5, 2000-05-31T00:45:10]:
+- added synchronisation of pilistbox with db
+- PiListBox_DbInserted, PiListBox_DbRemoved, PiListBox_DbUpdated
+- PiListBox_DbRecount: after removal readjust scrollbar
+- PiListBox_UpdateNowItems: paint items blue which started running
+- added PiListBox_ConsistancyCheck
+- paint cursor dark blue when in NOW area
+- improved cursor positioning with page up/down
+- moved substr search to epgdbfil module
+- improved short/long info widget: check for common substrings
+epgui/epgmain.h [rev:1.5, 2000-05-31T00:53:11]:
+- temporarily added decls for pilistbox, needed by epgdb
+epgtcl/mainwin.tcl [rev:1.4, 2000-05-31T00:53:44]:
+- C_DoGrep renamed C_SelectSubStr, since it's now a regular filter setting
+Makefile [rev:1.3, 2000-05-31T00:54:44]:
+- added database and browser window
+- upgrade to tcl 8.0
+- enabled all warnings
+epgdb/epgdbmgmt.c [rev:1.3, 2000-05-31T10:29:34]:
+- added EpgDbGetStat() for stats window
+- WIN32 added O_BINARY
+- added LOCK_INTERNAL param to EpgDbLockDatabase() for pilistbox
+- added PiListBox_* interface for sync with listbox widget
+epgdb/epgdbmgmt.h [rev:1.2, 2000-05-31T10:31:16]:
+- added EpgDbGetStat() for stats window
+- added LOCK_INTERNAL param to EpgDbLockDatabase() for pilistbox
+epgvbi/vbidecode.c [rev:1.7, 2000-05-31T10:32:14]:
+- fixes for NETBSD
+- added VPS decoding (optional)
+epgui/epgmain.c [rev:1.12, 2000-05-31T10:33:28]:
+- changed eval_check to return result
+epgui/pilistbox.c [rev:1.6, 2000-05-31T14:31:51]:
+- added PiListBox_Refresh()
+epgui/epgmain.c [rev:1.13, 2000-05-31T15:59:06]:
+- set now buttons in ui_reload
+clock.c [rev:1.1, 2000-06-01T12:57:01]:
+- Initial revision
+epgdb/epgblock.h [rev:1.3, 2000-06-01T19:33:16]:
+- added copyright message and description
+epgdb/epgblock.c [rev:1.13, 2000-06-01T19:34:49]:
+- added copyright message
+epgdb/epgstream.h [rev:1.5, 2000-06-01T19:34:49]:
+- added copyright message
+epgdb/epgdbfil.c [rev:1.3, 2000-06-01T19:35:19]:
+- added copyright message
+epgdb/epgdbfil.h [rev:1.3, 2000-06-01T19:35:19]:
+- added copyright message
+epgdb/epgdbmgmt.c [rev:1.4, 2000-06-01T19:35:49]:
+- added copyright message
+- split off epgdbif and epgdbsav
+epgdb/epgdbmgmt.h [rev:1.3, 2000-06-01T19:35:49]:
+- added copyright message
+- split off epgdbif and epgdbsav
+epgdb/epgdbmgmt.hi [rev:1.2, 2000-06-01T19:36:13]:
+- added copyright message
+- split off epgdbif and epgdbsav
+epgvbi/ttxdecode.c [rev:1.4, 2000-06-01T19:36:58]:
+- added copyright message
+epgvbi/ttxdecode.h [rev:1.2, 2000-06-01T19:36:58]:
+- added copyright message
+epgdb/epgdbfil.hi [rev:1.3, 2000-06-01T19:38:49]:
+- added copyright message
+epgdb/epgdbif.c [rev:1.1, 2000-06-01T19:39:53]:
+- Initial revision
+epgdb/epgdbif.h [rev:1.1, 2000-06-01T19:39:55]:
+- Initial revision
+epgdb/epgdbsav.c [rev:1.1, 2000-06-01T19:40:02]:
+- Initial revision
+epgdb/epgdbsav.h [rev:1.1, 2000-06-01T19:40:04]:
+- Initial revision
+epgui/dumpraw.c [rev:1.3, 2000-06-01T19:41:53]:
+epgui/dumpraw.h [rev:1.2, 2000-06-01T19:42:05]:
+epgvbi/hamming.c [rev:1.2, 2000-06-01T19:42:30]:
+epgvbi/hamming.h [rev:1.2, 2000-06-01T19:42:30]:
+epgvbi/vbidecode.c [rev:1.8, 2000-06-01T19:42:49]:
+epgvbi/vbidecode.h [rev:1.4, 2000-06-01T19:42:49]:
+- added copyright message
+epgctl/debug.c [rev:1.3, 2000-06-01T19:44:32]:
+- fixed for non-debug mode: switches moved to mytypes.h
+epgctl/debug.h [rev:1.3, 2000-06-01T19:44:32]:
+- fixed for non-debug mode: switches moved to mytypes.h
+epgctl/mytypes.h [rev:1.3, 2000-06-01T19:45:08]:
+- added copyright message
+- added debug switches
+epgui/epgmain.c [rev:1.14, 2000-06-01T19:50:34]:
+- added copyright message
+- split off statswin.c
+- renamed from ui.c to main.c
+epgui/epgmain.h [rev:1.6, 2000-06-01T19:51:36]:
+- added copyright message
+- split off statswin.c
+- renamed from ui.h to main.h
+epgui/pdc_themes.c [rev:1.1, 2000-06-01T19:52:40]:
+- Initial revision
+epgui/pdc_themes.h [rev:1.1, 2000-06-01T19:52:40]:
+- Initial revision
+epgui/statswin.c [rev:1.1, 2000-06-01T19:52:49]:
+- Initial revision
+epgui/statswin.h [rev:1.1, 2000-06-01T19:52:49]:
+- Initial revision
+epgui/pilistbox.c [rev:1.7, 2000-06-01T19:58:53]:
+- added copyright message
+- renamed some variables
+- split off pifilter.c
+epgui/pilistbox.h [rev:1.1, 2000-06-01T19:59:14]:
+- Initial revision
+epgui/pifilter.c [rev:1.1, 2000-06-01T19:59:22]:
+- Initial revision
+epgui/pifilter.h [rev:1.1, 2000-06-01T19:59:25]:
+- Initial revision
+epgtcl/mainwin.tcl [rev:1.5, 2000-06-01T19:59:58]:
+- added copyright message
+- added "Statistics" button to open stats window
+epgtcl/tcl_statswin.tcl [rev:1.6, 2000-06-01T20:00:33]:
+- added copyright message
+epgui/statswin.c [rev:1.2, 2000-06-02T11:50:12]:
+- bugfix StatsWin_Load(): mark NOW buttons expired only if currently running item found
+epgdb/epgdbmgmt.c [rev:1.5, 2000-06-03T18:12:09]:
+- initialize prev and next pointers on AI and BI blocks
+- to allow pointer verification (by accessing pAiBlock->pNext,
+- which results in SEGV if pAiBlock is random)
+epgvbi/ttxdecode.c [rev:1.5, 2000-06-03T18:13:58]:
+- added VBI ringbuffer (moved here from vbidecode.c)
+- reason: needs decoder status (e.g. epgPageNo)
+- restructured interface functions + initialisation
+epgvbi/ttxdecode.h [rev:1.3, 2000-06-03T18:17:20]:
+- added VBI ringbuffer (moved here from vbidecode.c)
+- added decl of internal status (in shm)
+- restructured interface functions + initialisation
+epgdb/epgdbif.c [rev:1.2, 2000-06-03T18:19:09]:
+- renamed NEXTVIEW_NO_STREAM to NXTV_NO_STREAM
+epgdb/epgdbsav.c [rev:1.2, 2000-06-03T18:19:34]:
+- initialize prev and next pointers on AI and BI blocks (see epgdb.c)
+epgvbi/vbidecode.c [rev:1.9, 2000-06-03T18:20:37]:
+- removed ring buffer (moved to epgdbacq.c)
+- added child process handling
+- acq runs in separate process now to avoid timing problems
+    (I would have used select() but that does not work with /dev/vbi)
+epgui/epgmain.c [rev:1.15, 2000-06-03T18:26:15]:
+- revamped event handling - acq now runs in separate process
+epgvbi/vbidecode.h [rev:1.5, 2000-06-03T18:26:54]:
+- removed ring buffer (moved to epgdbacq.c)
+epgui/pilistbox.c [rev:1.8, 2000-06-03T18:28:28]:
+- bugfixes in PiListBox_DbRemoved()
+- for deletions caused by PI overlaps
+epgdb/epgdbfil.c [rev:1.4, 2000-06-03T20:57:42]:
+- introduced FEATURE_CONTEXT struct
+- this struct now keeps the filter status variables instead of all the
+    separate global variables; this allows different modules (e.g.
+    windows) to maintain different filter settings
+- the main reason for the introduction is that it's simply prettier
+- translated comments to english; reformatted to new design
+- removed .hi header file (obsolete since vars are now in struct)
+epgdb/epgdbfil.h [rev:1.4, 2000-06-03T20:59:34]:
+epgdb/epgdbif.c [rev:1.3, 2000-06-03T21:00:26]:
+epgdb/epgdbif.h [rev:1.2, 2000-06-03T21:00:41]:
+epgui/pifilter.c [rev:1.2, 2000-06-03T21:01:40]:
+epgui/pifilter.h [rev:1.2, 2000-06-03T21:01:40]:
+epgui/pilistbox.c [rev:1.9, 2000-06-03T21:01:40]:
+- introduced FEATURE_CONTEXT struct as parameter to PI search functions
+epgui/statswin.c [rev:1.3, 2000-06-03T21:02:45]:
+- introduced FEATURE_CONTEXT struct as parameter to PI search functions
+- reduced number of includes to those actually required
+- set title for statistics window to "Nextview Statistics"
+epgui/pilistbox.c [rev:1.10, 2000-06-03T21:19:21]:
+- bugfix PiListBox_Scroll() for pgdown cursor handling
+Makefile [rev:1.4, 2000-06-03T21:21:21]:
+- added copyright message
+- restructured files into several directories
+- renamed and split some files
+- added -DTCL_LIBRARY_PATH
+epgdb/epgdbfil.c [rev:1.5, 2000-06-06T08:04:51]:
+- removed upper-case from variable names
+epgdb/epgdbfil.h [rev:1.5, 2000-06-06T08:04:51]:
+- removed upper-case from variable names
+epgdb/epgblock.c [rev:1.14, 2000-06-06T08:05:53]:
+- renamed from epgstream.c to epgblock.c
+- added EpgBlockCreate() to initialize all new blocks (esp. ptrs)
+- removed obsolete #defines
+- revamped julian date conversion
+- removed entry function EpgStreamDecodeBlock()
+- this functionality moved to epgstream.c (stream parser & block assembly)
+    and to epgdbacq (call to db management)
+- hence the various block decoder funcs are no longer static
+epgdb/epgblock.h [rev:1.4, 2000-06-06T08:09:38]:
+- added EPGDB_BLOCK definitions from epgdb.h
+- mainly to avoid circular dependencies between epgblock and epgdb
+- service interface now consists of all the various block decoder funcs
+- instead of one general func
+epgdb/epgdbmgmt.c [rev:1.6, 2000-06-06T08:13:51]:
+- removed all acq control functionality
+- callbacks for AI,BI,Generic blocks: -> epgdbacq.c
+- scratch buffer -> epgstream.c, controlled by epgdbacq.c
+- prefilter: obsolete
+- AI updates: filtering of incompatible PI now done automatically
+- there's now one general entry point for adding blocks
+epgdb/epgdbmgmt.h [rev:1.4, 2000-06-06T08:16:40]:
+- moved EPGDB_BLOCK definitions to epgblock.h
+- removed many obsolete func decls
+- prefilter obsolete
+- only one entry point for block add
+- acq ctrl moved to epgdbacq
+epgdb/epgdbmgmt.hi [rev:1.3, 2000-06-06T08:18:36]:
+- removed obsolete variables: callbacks, AI block_no cache, scratch
+epgvbi/ttxdecode.h [rev:1.4, 2000-06-06T08:26:08]:
+- moved NXTV_STREAM and EPGDB_TYPE typedefs to epgstream.h
+- stream parser is now in epgstream.c
+- added MIP decoder: func decl & consts
+epgdb/epgdbif.c [rev:1.4, 2000-06-06T08:27:23]:
+- added EpgDbGetPiBlockCount() & EpgDbGetPiBlockIndex()
+- moved here from epgblock.c (former epgstream.c)
+epgdb/epgdbif.h [rev:1.3, 2000-06-06T08:28:28]:
+- added EpgDbGetPiBlockCount() & EpgDbGetPiBlockIndex()
+- moved here from epgblock.c (former epgstream.c)
+epgdb/epgdbsav.c [rev:1.3, 2000-06-06T08:31:20]:
+- removed netwop prefiltering (no longer supported)
+epgdb/epgstream.h [rev:1.6, 2000-06-06T08:58:27]:
+- content COMPLETELY exchanged
+- was: header for former epgstream.c (now: epgblock.c)
+- now: header for streams parser (extracted from epgdbacq.c)
+- added decls for streams decoder
+epgdb/epgstream.c [rev:1.1, 2000-06-06T09:00:05]:
+- Initial revision
+epgui/dumpraw.c [rev:1.4, 2000-06-06T09:00:32]:
+- renamed GetPiBlockCount() to EpgDbGetPiBlockCount()
+- moved from epgstream.c to epgdbif.c
+epgvbi/ttxdecode.c [rev:1.6, 2000-06-06T09:01:31]:
+- redesign of control flow (BIG change!)
+- stream parser moved into separate module epgstream.c
+- former epgstream.c renamed to epgblock.c (bit field decoder)
+- scratch buffer moved from epgdb.c to epgstream.c
+- added MIP decoder
+- added scratch buffer control and AI,BI callbacks
+- new control flow:
+- now centered around epgdbacq.c
+- calls epgstream.c to convert ttx packets to a list of blocks
+    epgstream uses epgblock.c to convert bit fields to C structs
+    temporarily epgstream also controls statwin and epgtxtdump
+- informs epgacqctl via callbacks
+- hands blocks to epgdb or frees them if rejected
+epgctl/epgacqctl.c [rev:1.1, 2000-06-06T09:15:32]:
+- Initial revision
+epgctl/epgacqctl.h [rev:1.1, 2000-06-06T09:15:34]:
+- Initial revision
+epgui/epgmain.c [rev:1.16, 2000-06-06T09:16:32]:
+- generalized ui_init for win32 and unix
+- added epgacqctl module
+epgvbi/vbidecode.c [rev:1.10, 2000-06-06T09:19:37]:
+- child now stays alive while acq is switched off
+    this is because the child must not be forked after UI is open,
+    or it will inherit the X file handles and keep the window open
+- acq can be switched off via a flag in shm
+- parent and child sync via SIG USR1 at start-up and acq-on
+epgui/epgmain.h [rev:1.7, 2000-06-06T09:22:32]:
+- renamed from main.h to epgmain.h
+epgvbi/vbidecode.h [rev:1.6, 2000-06-06T09:23:22]:
+- export pVbiBuf for epgacqctl, which now calls EpgDbAcqStart itself
+- added VbiDecodeWakeUp() for sync between parent and child at start-up and acq-on
+epgui/pifilter.c [rev:1.3, 2000-06-06T09:25:27]:
+- change of include file names and ordering
+epgui/pilistbox.c [rev:1.11, 2000-06-06T09:25:53]:
+- change of include file names and ordering
+- LOCK_INTERNAL obsolete, now use TRUE/FALSE
+epgui/statswin.c [rev:1.4, 2000-06-06T09:26:40]:
+- adapted to new control flow in epgdbacq
+- statwin now called in epgstream.c before block is added to db
+- hence check for block errors (yellow) must be guessed via filtering
+- renamed GetPiBlockDiff() to EpgDbGetPiBlockIndex()
+epgui/statswin.h [rev:1.2, 2000-06-06T09:28:07]:
+- added 2 params to StatsWin_NewPi(): short- and long-info
+epgtcl/mainwin.tcl [rev:1.6, 2000-06-06T09:28:39]:
+- added button "Start/Stop Acq" bound to EpgAcqCtl_Toggle()
+- widened netwop listbox from 6 to 8
+Makefile [rev:1.5, 2000-06-06T09:30:04]:
+- added epgctl/epgacqctl.c
+- added epgblock.c (content moved from epgstream.c, which got content from epgdbacq.c)
+- renamed main.c to epgmain.c
+epgdb/epgdbfil.c [rev:1.6, 2000-06-08T20:13:06]:
+- EpgDbInitFilterThemes(): allow to work on one class only
+- EpgDbSetFilterSubStr(): case-insensitive search and separate title from descr
+- match optimized: goto failed upon first failed match
+epgdb/epgdbfil.h [rev:1.6, 2000-06-08T20:14:14]:
+- EpgDbInitFilterThemes(): allow to work on one class only
+- EpgDbSetFilterSubStr(): case-insensitive search and separate title from descr
+- added DB_FILTER_SUBSTR_TITLE, DB_FILTER_SUBSTR_DESCR
+epgdb/epgdbif.c [rev:1.5, 2000-06-08T20:15:10]:
+- bugfix: search funcs for Generic Blocks didn't return NULL on failure
+epgui/dumpraw.c [rev:1.5, 2000-06-08T20:15:49]:
+- bugfix: start- and stoptimes were equal
+- added EpgTxtDump_Database(): dumps complete db
+epgui/dumpraw.h [rev:1.3, 2000-06-08T20:16:38]:
+- added EpgTxtDump_Database(): dumps complete db
+epgctl/epgacqctl.c [rev:1.2, 2000-06-08T20:17:49]:
+- moved UI stuff from acq start/stop to epgui/menucmd.c
+epgctl/epgacqctl.h [rev:1.2, 2000-06-08T20:18:42]:
+- moved UI stuff from acq start/stop to epgui/menucmd.c
+epgui/epgmain.c [rev:1.17, 2000-06-08T20:19:10]:
+- several small fixes
+- added init for epgui/menucmd.c
+epgui/pifilter.c [rev:1.4, 2000-06-08T20:20:55]:
+- revamped themes and features handling on Tcl/Tk side:
+- former theme listbox is going to be universal filter cache
+    (not completed yet)
+- all individual filter settings are now in the menubar
+- added PiFilter_UpdateNetwopList()
+epgui/pifilter.h [rev:1.3, 2000-06-08T20:24:03]:
+- added PiFilter_UpdateNetwopList()
+epgui/pilistbox.c [rev:1.12, 2000-06-08T20:24:18]:
+- CreateNetwopList() moved to epgui/pifilter.c::PiFilter_UpdateNetwopList()
+epgui/statswin.c [rev:1.5, 2000-06-08T20:25:44]:
+- removed: StatsWin_ToggleListBlocks() now in menucmd.c
+epgtcl/mainwin.tcl [rev:1.7, 2000-06-08T20:26:14]:
+- big changes!
+- added a menubar that keeps all the filter menues (features, ratings,...)
+- handling of theme classes changed
+- added feature classes
+- added About window (preliminary)
+- added pop-up for text search
+epgtcl/tcl_statswin.tcl [rev:1.7, 2000-06-08T20:28:33]:
+- removed toggle listblocks button (now in menubar of main window)
+Makefile [rev:1.6, 2000-06-08T20:29:13]:
+- added epgui/menucmd.c
+epgdb/epgblock.c [rev:1.15, 2000-06-08T22:32:10]:
+- added alphabet tables from ALEVT for nat.opts. and diacrits.
+- bugfix AI decoding: netwop default alphabet
+COPYRIGHT [rev:1.1, 2000-06-08T22:33:45]:
+- Initial revision
+epgui/menucmd.c [rev:1.1, 2000-06-09T11:06:21]:
+- Initial revision
+epgui/menucmd.h [rev:1.1, 2000-06-09T11:06:24]:
+- Initial revision
+epgtcl/mainwin.tcl [rev:1.8, 2000-06-09T11:06:46]:
+- added dump database popup
+- bugfix .about handling
+epgui/dumpraw.c [rev:1.6, 2000-06-09T11:07:27]:
+- added FILE* param to all TxtDump funcs
+- fprintf to FILE* instead of stdout
+- caller has to create/open that file
+- EpgTxtDump_Database() bools for eachblock type to select dumped scope
+epgui/dumpraw.h [rev:1.4, 2000-06-09T11:09:02]:
+- added FILE* param to all TxtDump funcs
+- EpgTxtDump_Database() bools for each block type to select dumped scope
+epgdb/epgstream.c [rev:1.2, 2000-06-09T11:09:26]:
+- EpgTxtDump*() func now need FILE* param
+- for now still dump stream to stdout
+epgdb/epgdbfil.h [rev:1.7, 2000-06-10T15:52:17]:
+- added series filter
+- added NI stack filter handling
+- revamped LI and TI descr filter setting for NI
+- bugfix EpgDbInitFilterThemes() for loop
+- bugfix EpgDbSetFilterThemes() for loop: uchar->uint for indices==255
+epgdb/epgdbif.c [rev:1.6, 2000-06-10T15:56:43]:
+- fixed EpgDbGetProgNo(): blockno arithmetic instead of search loop
+epgdb/epgdbif.h [rev:1.4, 2000-06-10T15:56:43]:
+- fixed EpgDbGetProgNo(): blockno arithmetic instead of search loop
+epgdb/epgdbmgmt.c [rev:1.7, 2000-06-10T16:00:28]:
+- fixed AI version change: scan PI block numbers
+- also bugfix: if() branch was never executed
+- EpgDbRemoveObsoleteNetwops() now checks every blockno
+- PiListBox_ConsistancyCheck() removed 2 times for ProgNo filter
+- when prog-no is used, listbox must be entirely re-synched
+    after each insertion or deletion
+epgdb/epgblock.c [rev:1.16, 2000-06-10T16:03:37]:
+- renamed & exported DtBCDToMoD() -> EpgBlockBcdToMoD()
+- also used by epgdbfil.c in NI time slot handling
+epgdb/epgblock.h [rev:1.5, 2000-06-10T16:04:22]:
+- added declaration of EpgBlockBcdToMoD()
+- added defines for NI theme & sortcrit filter ranges
+- moved DB_DESCR_BUFFER_SIZE to epgdbfil.h
+epgui/pdc_themes.c [rev:1.2, 2000-06-10T16:06:18]:
+- fixed case on some entries
+epgtcl/mainwin.tcl [rev:1.9, 2000-06-10T16:07:35]:
+- added handling of dynamic menus (content is created on the fly)
+- added series filter
+- added "Navigation" menu with NI hierarchy
+- removed obsolete themes browser
+epgui/pifilter.c [rev:1.5, 2000-06-10T16:09:37]:
+- added series filter
+- added NI navigation
+epgui/pilistbox.c [rev:1.13, 2000-06-10T16:11:17]:
+- quick (temporary) fixes to deal with prog-no filter
+- do not insert or remove, but use pibox_resync and do a complete refresh
+epgdb/epgdbfil.c [rev:1.7, 2000-06-10T16:17:55]:
+- added series filter
+- added NI stack filter handling
+- revamped LI and TI descr filter setting for NI
+- bugfix EpgDbInitFilterThemes() for loop
+- bugfix EpgDbSetFilterThemes() for loop: uchar->uint for indices==255
+epgui/pifilter.c [rev:1.6, 2000-06-10T17:24:10]:
+- bugfix: handling deep dynamic menus:
+- 3rd level menus sometimes were not destroyed before they were re-created
+epgdb/epgblock.c [rev:1.17, 2000-06-10T18:52:59]:
+epgdb/epgblock.h [rev:1.6, 2000-06-10T18:52:59]:
+epgdb/epgdbfil.c [rev:1.8, 2000-06-10T18:52:59]:
+epgdb/epgdbfil.h [rev:1.8, 2000-06-10T18:52:59]:
+epgdb/epgdbif.c [rev:1.7, 2000-06-10T18:52:59]:
+epgdb/epgdbmgmt.hi [rev:1.4, 2000-06-10T18:52:59]:
+epgdb/epgdbsav.c [rev:1.4, 2000-06-10T18:52:59]:
+epgdb/epgstream.h [rev:1.7, 2000-06-10T18:52:59]:
+epgvbi/ttxdecode.c [rev:1.7, 2000-06-10T18:52:59]:
+epgui/pifilter.c [rev:1.7, 2000-06-10T18:54:12]:
+epgui/pilistbox.c [rev:1.14, 2000-06-10T18:54:12]:
+epgui/statswin.c [rev:1.6, 2000-06-10T18:54:12]:
+- renamed or removed old-style constants (#defines)
+epgtcl/mainwin.tcl [rev:1.10, 2000-06-10T18:54:28]:
+- added $theme_class_count and $feature_class_count
+- as equivalent to C constants THEME_CLASS_COUNT & FEATURE_CLASS_COUNT
+- reduced feature class count from 12 to 6
+- 6 is the number of different feature submenues
+epgdb/epgblock.c [rev:1.18, 2000-06-10T19:17:39]:
+epgdb/epgblock.h [rev:1.7, 2000-06-10T19:17:39]:
+epgdb/epgdbif.c [rev:1.8, 2000-06-10T19:17:39]:
+epgdb/epgdbif.h [rev:1.5, 2000-06-10T19:17:39]:
+epgdb/epgdbmgmt.c [rev:1.8, 2000-06-10T19:17:39]:
+epgdb/epgdbmgmt.h [rev:1.5, 2000-06-10T19:17:39]:
+epgui/dumpraw.c [rev:1.7, 2000-06-10T19:17:39]:
+epgui/dumpraw.h [rev:1.5, 2000-06-10T19:17:39]:
+epgtcl/mainwin.tcl [rev:1.11, 2000-06-10T19:18:51]:
+epgui/menucmd.c [rev:1.2, 2000-06-10T19:18:51]:
+epgdb/epgstream.c [rev:1.3, 2000-06-11T19:27:17]:
+- [redacted]
+epgdb/epgdbmgmt.c [rev:1.9, 2000-06-11T19:24:31]:
+- added EpgDbDestroy(): free all blocks in db
+epgdb/epgdbmgmt.h [rev:1.6, 2000-06-11T19:25:01]:
+- added EpgDbDestroy(): free all blocks in db
+epgdb/epgdbfil.c [rev:1.9, 2000-06-11T19:25:20]:
+- removed ref to obsolete var name from comment
+epgdb/epgdbsav.c [rev:1.5, 2000-06-11T19:27:42]:
+- added support for multiple databases
+- dump format and file name changed
+epgdb/epgdbsav.h [rev:1.2, 2000-06-11T19:27:42]:
+- added support for multiple databases
+- dump format and file name changed
+epgctl/epgacqctl.c [rev:1.3, 2000-06-11T19:29:15]:
+- changed to support db selection via config menu
+- db reload and dump moved from main to acqctl module
+epgctl/epgacqctl.h [rev:1.3, 2000-06-11T19:29:15]:
+- changed to support db selection via config menu
+- db reload and dump moved from main to acqctl module
+epgui/epgmain.c [rev:1.18, 2000-06-11T19:29:15]:
+- changed to support db selection via config menu
+- db reload and dump moved from main to acqctl module
+epgui/pifilter.c [rev:1.8, 2000-06-11T19:30:32]:
+- append "Reset" command to the top-level Navigation menu
+epgtcl/mainwin.tcl [rev:1.12, 2000-06-11T19:31:17]:
+- added provider selection pop-up menu
+- fixed bindings for several pop-ups: add instead of replace binding
+- "Pos1" aka Home key in pi listbox: set cursor on 1.0
+epgui/menucmd.c [rev:1.3, 2000-06-11T19:36:24]:
+- added callbacks for provider selection pop-up
+epgdb/epgblock.c [rev:1.19, 2000-06-13T18:16:20]:
+epgdb/epgblock.h [rev:1.8, 2000-06-13T18:16:20]:
+epgdb/epgdbfil.c [rev:1.10, 2000-06-13T18:16:20]:
+epgdb/epgdbfil.h [rev:1.9, 2000-06-13T18:16:20]:
+epgdb/epgdbif.c [rev:1.9, 2000-06-13T18:16:20]:
+epgdb/epgdbif.h [rev:1.6, 2000-06-13T18:16:20]:
+epgdb/epgdbsav.c [rev:1.6, 2000-06-13T18:16:20]:
+epgdb/epgdbsav.h [rev:1.3, 2000-06-13T18:16:20]:
+epgdb/epgstream.c [rev:1.4, 2000-06-13T18:16:20]:
+epgdb/epgstream.h [rev:1.8, 2000-06-13T18:16:20]:
+epgui/dumpraw.c [rev:1.8, 2000-06-13T18:16:20]:
+epgui/dumpraw.h [rev:1.6, 2000-06-13T18:16:20]:
+epgvbi/ttxdecode.c [rev:1.8, 2000-06-13T18:16:20]:
+epgvbi/ttxdecode.h [rev:1.5, 2000-06-13T18:16:20]:
+epgdb/epgdbmgmt.c [rev:1.10, 2000-06-13T18:17:10]:
+epgdb/epgdbmgmt.h [rev:1.7, 2000-06-13T18:17:10]:
+epgui/epgmain.h [rev:1.8, 2000-06-13T18:20:12]:
+epgui/menucmd.c [rev:1.4, 2000-06-13T18:24:18]:
+epgui/pifilter.c [rev:1.9, 2000-06-13T18:24:18]:
+epgui/pilistbox.c [rev:1.15, 2000-06-13T18:24:18]:
+epgui/pilistbox.h [rev:1.2, 2000-06-13T18:24:18]:
+- introduced EPGDB_CONTEXT & support for separate acq and ui db
+epgctl/epgacqctl.c [rev:1.4, 2000-06-13T18:18:18]:
+- introduced EPGDB_CONTEXT & support for separate acq and ui db
+- moved acq statistics (e.g. history) here from statwin
+- added open/close db for ui and acq db
+epgctl/epgacqctl.h [rev:1.4, 2000-06-13T18:18:18]:
+- introduced EPGDB_CONTEXT & support for separate acq and ui db
+- moved acq statistics (e.g. history) here from statwin
+- added open/close db for ui and acq db
+epgui/epgmain.c [rev:1.19, 2000-06-13T18:20:12]:
+- introduced EPGDB_CONTEXT & support for separate acq and ui db
+- main centrally keeps the context pointers, but open/close
+    is done in epgacqctl
+epgui/statswin.c [rev:1.7, 2000-06-13T18:24:42]:
+- introduced EPGDB_CONTEXT & support for separate acq and ui db
+- revamped statistics windows:
+- now 3 windows: ui timescale, acq timescale, acq stats
+- stats are now maintained by epgacqctl
+- NewPi is now called from epgdbmgmt (was: epgstream)
+epgui/statswin.h [rev:1.3, 2000-06-13T18:24:42]:
+- introduced EPGDB_CONTEXT & support for separate acq and ui db
+- revamped statistics windows:
+- now 3 windows: ui timescale, acq timescale, acq stats
+- stats are now maintained by epgacqctl
+- NewPi is now called from epgdbmgmt (was: epgstream)
+epgtcl/mainwin.tcl [rev:1.13, 2000-06-13T18:26:54]:
+- adapted menus to support new 3 separate stats windows (introduced EPGDB_CONTEXT)
+- moved Tcl/Tk code from tcl_statwin.tcl file here
+Makefile [rev:1.7, 2000-06-13T18:27:50]:
+- removed obsolete epgui/tcl_statwin.tcl
+- merged with epgui/tcl_pilistbox.tcl
+epgtcl/mainwin.tcl [rev:1.14, 2000-06-13T20:17:04]:
+- added Reset button above netwop list
+- improved packing -expand info text widget
+epgui/statswin.c [rev:1.8, 2000-06-13T20:40:46]:
+- bugfix: update %% db completion in UI timescale win was blocked
+epgvbi/vbidecode.c [rev:1.11, 2000-06-13T20:51:12]:
+- added #includes for newly introduced EPGDB_CONTEXT in other header files
+epgvbi/ttxdecode.c [rev:1.9, 2000-06-14T19:18:25]:
+- additional statistics values maintained by ttx slave
+- if acq is stopped by slave, also stop acq in epgacqctl module
+epgvbi/ttxdecode.h [rev:1.6, 2000-06-14T19:19:05]:
+- additional statistics values maintained by ttx slave
+epgdb/epgdbif.c [rev:1.10, 2000-06-14T19:19:37]:
+- added func to retrieve version no from PI
+- improved EpgDbGetStat(): additionally count blocks with correct version
+epgdb/epgdbif.h [rev:1.7, 2000-06-14T19:20:30]:
+- added func to retrieve version no from PI
+- improved EpgDbGetStat(): additionally count blocks with correct version
+epgdb/epgdbmgmt.c [rev:1.11, 2000-06-14T19:20:48]:
+- bugfix: forgot to set the streams number
+epgctl/epgacqctl.c [rev:1.5, 2000-06-14T19:21:41]:
+- maintain additional statistics valued from ttx slave
+- in block count history, separate PI with current and obsolete version no
+- MenuCmd_UpdateToggleAcq() obsolete; is now polled by menu postcmd
+- improved OpenDb: acq follows ui whenever possible (e.g. no acq on cur chan)
+epgctl/epgacqctl.h [rev:1.5, 2000-06-14T19:21:41]:
+- maintain additional statistics valued from ttx slave
+- in block count history, separate PI with current and obsolete version no
+epgui/epgmain.c [rev:1.20, 2000-06-14T19:23:54]:
+- fixed SIGINT handling (dropped use of Tcl_Finalize)
+epgvbi/vbidecode.c [rev:1.12, 2000-06-14T19:25:06]:
+- new feature: write slave pid into file while /dev/vbi is open
+- when SIGHUP is received, vbi device is dropped
+- moved acq main loop into separate function
+epgui/menucmd.c [rev:1.5, 2000-06-14T19:26:32]:
+- fixed conditions for en-/disabling entries in Control menu
+-> MenuCmd_UpdateToggleAcq() obsolete, is polled now
+- fixed provider selection: acq db may change along with ui
+- if no reception on current channel
+epgui/menucmd.h [rev:1.2, 2000-06-14T19:27:39]:
+- removed obsolete MenuCmd_UpdateToggleAcq()
+epgui/statswin.c [rev:1.9, 2000-06-14T19:30:26]:
+- extended list of statistics in acq stat window
+- in both timescales and history list:
+- count and color PI separately that do not belong to the current AI version
+- TODO: db summary at timescale bottom still lists percentage of all PI
+    regardless of version
+- also a number of bugfixes
+epgtcl/mainwin.tcl [rev:1.15, 2000-06-14T19:33:21]:
+- all windows non-resizable & in group .
+- added some text to .about
+- block count histogram now supports 4 colors
+- color PI separately that do not belong to the current AI version
+epgdb/epgdbsav.c [rev:1.7, 2000-06-14T20:43:47]:
+epgdb/epgdbsav.h [rev:1.4, 2000-06-14T20:43:47]:
+- EpgDump returns FALSE as long as BI block (or AI) is missing
+epgctl/epgacqctl.c [rev:1.6, 2000-06-14T20:44:48]:
+- fixed dumpTime handling, to decrease time until first dump of new provider
+epgui/epgmain.c [rev:1.21, 2000-06-14T20:45:55]:
+- tcl_pilistbox.tcl renamed epgui.tcl
+- tried to fix persisting problem with SIGINT
+- clock update was executed after . was destroyed
+epgui/statswin.c [rev:1.10, 2000-06-14T20:47:06]:
+- comment fixed
+epgtcl/mainwin.tcl [rev:1.16, 2000-06-14T20:47:18]:
+- renamed to epgui.tcl from tcl_pilistbox.tcl
+- there is and will be only one Tcl script for this app
+- moved Reset button from netwop to themes bar
+- to decrease window height
+- added future menu items (still disabled)
+epgui/pifilter.c [rev:1.10, 2000-06-14T20:49:02]:
+- changed main window title prefix: added EPG after Netxtview
+Makefile [rev:1.8, 2000-06-14T20:49:48]:
+- renamed tcl_pilistbox.tcl to epgui.tcl
+- renamed executable to nxtvepg from epgacq
+epgdb/epgdbfil.c [rev:1.11, 2000-06-15T17:07:35]:
+epgdb/epgdbfil.h [rev:1.10, 2000-06-15T17:08:13]:
+epgdb/epgdbif.c [rev:1.11, 2000-06-15T17:08:29]:
+epgdb/epgdbif.h [rev:1.8, 2000-06-15T17:08:36]:
+- renamed every occurence of progno to progidx
+epgdb/epgdbsav.c [rev:1.8, 2000-06-15T17:08:53]:
+epgdb/epgdbsav.h [rev:1.5, 2000-06-15T17:08:53]:
+- UNIX dumps into tmp file that's renamed to the target at the end
+- abort dump upon file errors -> return FALSE
+- changed dump filename for UNIX to lower case and w/o ext
+epgctl/epgacqctl.c [rev:1.7, 2000-06-15T17:10:57]:
+epgctl/epgacqctl.h [rev:1.6, 2000-06-15T17:10:57]:
+- fixed dump handling:
+- do not try to dump until BI is in db
+- if db unmodified for >5min, abort acq and switch acq back to ui
+epgui/pilistbox.c [rev:1.16, 2000-06-15T17:12:18]:
+- renamed every occurence of progno to progidx
+epgui/statswin.c [rev:1.11, 2000-06-15T17:12:35]:
+- timescale & acqstat menu entries are now checkbuttons
+-> update tcl vars with status after open/close
+epgui/pifilter.c [rev:1.11, 2000-06-15T17:13:33]:
+- added SelectProgIdx()
+epgtcl/mainwin.tcl [rev:1.17, 2000-06-15T17:15:06]:
+- fixed END key in pi listbox
+- timescale & acqstat menu entries are now checkbuttons
+- added progidx filter and popup
+epgctl/debug.h [rev:1.4, 2000-06-15T17:56:31]:
+- SHOULD_NOT_BE_REACHED was undeclared with debug global off
+epgui/statswin.c [rev:1.12, 2000-06-15T18:05:02]:
+- bugfix: histogram preload index errors
+epgvbi/ttxdecode.c [rev:1.10, 2000-06-15T18:13:03]:
+- bugfix: bWaitForBiAi was never enabled (copy & paste error)
+README [rev:1.1, 2000-06-15T19:09:03]:
+- Initial revision
+#------------------------------ RELEASE_0_01a -------------------------------

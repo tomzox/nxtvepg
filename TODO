@@ -1,0 +1,15 @@
+- config netwops
+- filter add & edit
+- acq abort: slave should pass errno as reason via shmem
+- sigchld -> acq off
+- start-up: show message window for 4 secs
+- epgdbsav: save start time of 1st PI -> can tell how old db is
+  save netwop config together with db;
+  -> header should support config data of variable length
+- provider selection: display db age & fill percantage
+- navigation: disable leaves with zero PI
+- navigation: set filter state in menus!!!
+- command line args: -iconified -noacq
+- timer programming & invocation
+- count parity errors before replacing blocks of same version
+- start-time, sorting criterion, LI & TI filter popup
