@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: menucmd.c,v 1.83 2002/08/17 19:22:57 tom Exp $
+ *  $Id: menucmd.c,v 1.84 2002/08/24 13:57:35 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -752,7 +752,6 @@ static int MenuCmd_ChangeProvider(ClientData ttp, Tcl_Interp *interp, int argc, 
             UiControl_AiStateChange(DB_TARGET_UI);
             eval_check(interp, "C_ResetFilter all; ResetFilterState");
 
-
             PiListBox_Reset();
 
             // put the new CNI at the front of the selection order and update the config file
@@ -1118,7 +1117,10 @@ static int ProvMerge_ParseNetwopList( Tcl_Interp * interp, uint * pCniCount, uin
       }
    }
    else
-      result = TCL_ERROR;
+   {  // no network table configured for the merged db yet -> return empty list
+      *pCniCount = 0;
+      result = TCL_OK;
+   }
 
    // in case of parser errors, return an empty list
    if (result != TCL_OK)

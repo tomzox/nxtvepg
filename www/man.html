@@ -481,6 +481,11 @@ move the keyboard input focus to other widgets, e.g. to the scrollbars
 or the shortcut list. On Unix, the menus can be accessed with the
 Meta key (usually the ALT key) together with one of the underlined
 characters in the menu buttons.</P>
+<P>When you resize the main window vertically the difference in height
+will be added to the info text window at the bottom.  You can adjust
+the proportions between program listbox and the info text with the
+``panning'' button inbetween, i.e. by dragging the button you can
+resize the program listbox.</P>
 <P>nxtvepg can interact with TV applications (e.g. <EM>xawtv</EM> on UNIX;
 requires initial setup, see <A HREF="#getting started">GETTING STARTED</A>) to provide a connection
 in both directions: Firstly you'll find a
@@ -1730,9 +1735,9 @@ don't have to.</P>
 <P>Open the browser listbox column configuration dialog. It allows to
 select which attributes are displayed for the listed programmes. In the
 listbox on the left you find a list of all available categories, e.g.
-title, running time &amp; date, TV network, rating, sound and picture format,
-i.e. mostly the same attributes that are available for filtering.
-The listbox on the right contains the types currently selected for display.
+title, running time &amp; date, TV network name, rating, sound and picture
+format, i.e. mostly the same attributes that are available for filtering.</P>
+<P>The listbox on the right contains the types currently selected for display.
 The topmost entry appears on the left side of the listbox.  Press <EM>Apply</EM>
 to refresh the browser listbox with the new column selection and save the
 new configuration to the config file.</P>
@@ -1804,6 +1809,11 @@ in Germany ``Arte / Kinderkanal'', it's recommended to include all
 networks' names in the network name on side of the TV application,
 separated by a slash.  The slash is recognized as separator by nxtvepg
 and all resulting segments can be used as network names.</P>
+<P>Also note that the <EM>Network</EM> column in the main window is automatically
+resized to hold the longest name.  When determining the maximum length
+all networks of the current provider are considered including those you
+have suppressed in the <A HREF="#configuration:select networks">CONFIGURATION:Select networks</A> dialog (because
+they still might get displayed, e.g. via the <A HREF="#navigate">NAVIGATE</A> menu).</P>
 <P>
 <H2><A NAME="context menu">Context menu</A></H2>
 <P>Open the context menu configuration dialog which allows to add references

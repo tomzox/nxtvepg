@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqctl.c,v 1.74 2002/07/20 16:27:47 tom Exp tom $
+ *  $Id: epgacqctl.c,v 1.75 2002/08/24 13:54:56 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -693,7 +693,7 @@ void EpgAcqCtl_Stop( void )
 }
 
 // ---------------------------------------------------------------------------
-// Enable or disable BI/AI callback handling for EPG scan
+// Stop acquisition for the EPG scan but keep the device open/driver loaded
 //
 void EpgAcqCtl_Suspend( bool suspend )
 {

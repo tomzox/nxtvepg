@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pifilter.c,v 1.59 2002/08/11 19:52:31 tom Exp tom $
+ *  $Id: pifilter.c,v 1.60 2002/08/24 14:17:45 tom Exp tom $
  */
 
 #define __PIFILTER_C
@@ -545,6 +545,11 @@ static int GetPdcString( ClientData ttp, Tcl_Interp *interp, int argc, char *arg
    else
    {
       pThemeStr = PdcThemeGetWithGeneral(index, &pGeneralStr, FALSE);
+      if (pThemeStr == NULL)
+      {
+         sprintf(comm, "#%d", index);
+         pThemeStr = comm;
+      }
 
       Tcl_AppendResult(interp, pThemeStr, pGeneralStr, NULL);
       result = TCL_OK; 

@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgmain.h,v 1.19 2002/05/19 21:56:44 tom Exp tom $
+ *  $Id: epgmain.h,v 1.20 2002/08/24 13:55:46 tom Exp tom $
  */
 
 #ifndef __EPGMAIN_H
@@ -30,7 +30,7 @@ extern char epg_rcs_id_str[];
 // Interface to Tcl/Tk interpreter for UI modules
 #ifdef _TCL
 extern Tcl_Interp *interp;
-extern char comm[1000];
+extern char comm[2048];
 
 int eval_check(Tcl_Interp *i, char *c);
 int eval_global(Tcl_Interp *interp, char *cmd);

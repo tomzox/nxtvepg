@@ -21,7 +21,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: epgui.tcl,v 1.170 2002/08/11 19:50:51 tom Exp tom $
+#  $Id: epgui.tcl,v 1.171 2002/08/24 13:56:58 tom Exp tom $
 #
 
 set is_unix [expr [string compare $tcl_platform(platform) "unix"] == 0]
@@ -391,7 +391,7 @@ proc FilterMenuAdd_Themes {widget} {
             ${widget}.$subtheme entryconfigure 1 -label $pdc
             set submenidx 3
          }
-      } elseif {([string length $pdc] > 0) && ($subtheme > 0)} {
+      } elseif {([regexp {^#\d*$} $pdc] == 0) && ($subtheme > 0)} {
          if $is_new {
             ${widget}.$subtheme add checkbutton -label $pdc -command "SelectTheme $index" -variable theme_sel($index)
          } else {
@@ -2934,7 +2934,7 @@ proc PopupEpgScan {} {
    if {$epgscan_popup == 0} {
       if [C_IsNetAcqActive clear_errors] {
          # acquisition is not running local -> abort
-         tk_messageBox -type ok -icon info -message "EPG scan cannot be started while in client/server mode."
+         tk_messageBox -type ok -icon error -message "EPG scan cannot be started: you must disconnect from the acquisition daemon via the Control menu first."
          return
       } elseif {!$is_unix} {
          if {![info exists hwcfg] || (([lindex $hwcfg 0] == 0) && ([lindex $hwcfg 1] == 0))} {
@@ -3994,6 +3994,9 @@ proc NetworkNamesSave {} {
    # update the network menus with the new names
    UpdateNetwopFilterBar
 
+   # update the PI listbox network name column header width
+   C_PiOutput_SetNetnameColumnWidth
+
    # Redraw the PI listbox with the new network names
    C_RefreshPiListbox
 
@@ -4101,7 +4104,7 @@ proc ApplyUserNetnameCfg {name_arr} {
 
 array set colsel_tabs {
    title          {266 Title    FilterMenuAdd_Title      "Title"} \
-   netname        {71  Network  FilterMenuAdd_Networks   "Network name"} \
+   netname        {60  Network  FilterMenuAdd_Networks   "Network name"} \
    time           {83  Time     FilterMenuAdd_Time       "Running time"} \
    weekday        {30  Day      FilterMenuAdd_Date       "Day of week"} \
    day            {27  Date     FilterMenuAdd_Date       "Day of month"} \
@@ -4129,7 +4132,28 @@ set pilistbox_cols [list \
 
 set colsel_popup 0
 
-# create the configuration popup window
+# update width of network name column (after provider change)
+proc UpdateNetnameColumnWidth {width isInitial} {
+   global colsel_tabs pilistbox_cols
+
+   # check minimum width of 60 (= 55 + 5) pixels so that header text remains readable
+   if {$width < 55} {set width 55}
+
+   # add 5 pixels as distance to the following column
+   incr width 5
+
+   # check if the same width is already set
+   if {($width != [lindex $colsel_tabs(netname) 0]) || $isInitial} {
+      set colsel_tabs(netname) [concat $width [lrange $colsel_tabs(netname) 1 end]]
+
+      # check if the column is currently visible
+      if {([lsearch -exact $pilistbox_cols netname] != -1) || $isInitial} {
+         ApplySelectedColumnList initial
+      }
+   }
+}
+
+# callback for configure menu: create the configuration dialog
 proc PopupColumnSelection {} {
    global colsel_tabs colsel_ailist colsel_selist colsel_names
    global colsel_popup
@@ -4178,7 +4202,10 @@ proc ApplySelectedColumnList {mode} {
 
    # remove previous colum headers
    foreach head [info commands .all.pi.colheads.c*] {
-      destroy $head
+      if [regexp {.all.pi.colheads.col_[^.]*$} $head] {
+         pack forget $head
+         destroy $head
+      }
    }
 
    set tab_pos 0
@@ -4227,9 +4254,10 @@ proc ApplySelectedColumnList {mode} {
    .all.pi.list.text tag configure now -tab $tabs
    .all.pi.list.text tag configure then -tab $tabs
 
+   # update the settings in the listbox module
+   C_PiOutput_CfgColumns
+
    if {[string compare $mode "initial"] != 0} {
-      # unless suppressed, update the settings in the listbox module and then redraw the content
-      C_PiOutput_CfgColumns
       C_RefreshPiListbox
       # save the config to the rc-file
       set pilistbox_cols $colsel_selist
@@ -8024,9 +8052,6 @@ proc LoadRcFile {filename isDefault} {
    if {$showNetwopListbox == 0} {pack forget .all.netwops}
    if {$showStatusLine == 0} {pack forget .all.statusline}
    if {$hideOnMinimize != 0} {ToggleHideOnMinimize}
-
-   # create the column headers above the PI browser text widget
-   ApplySelectedColumnList initial
 
    # set the height of the listbox text widget
    if {[info exists pibox_height]} {

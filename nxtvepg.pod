@@ -24,7 +24,7 @@
 #
 #  Author: Tom Zoerner
 #
-# $Id: nxtvepg.pod,v 1.73 2002/08/17 19:39:01 tom Exp tom $
+# $Id: nxtvepg.pod,v 1.74 2002/08/24 14:15:08 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME
@@ -482,6 +482,12 @@ move the keyboard input focus to other widgets, e.g. to the scrollbars
 or the shortcut list. On Unix, the menus can be accessed with the
 Meta key (usually the ALT key) together with one of the underlined
 characters in the menu buttons.
+
+When you resize the main window vertically the difference in height
+will be added to the info text window at the bottom.  You can adjust
+the proportions between program listbox and the info text with the
+"panning" button inbetween, i.e. by dragging the button you can
+resize the program listbox.
 
 nxtvepg can interact with TV applications (e.g. I<xawtv> on UNIX;
 requires initial setup, see L<"GETTING STARTED">) to provide a connection
@@ -1919,8 +1925,9 @@ don't have to.
 Open the browser listbox column configuration dialog. It allows to
 select which attributes are displayed for the listed programmes. In the
 listbox on the left you find a list of all available categories, e.g.
-title, running time & date, TV network, rating, sound and picture format,
-i.e. mostly the same attributes that are available for filtering.
+title, running time & date, TV network name, rating, sound and picture
+format, i.e. mostly the same attributes that are available for filtering.
+
 The listbox on the right contains the types currently selected for display.
 The topmost entry appears on the left side of the listbox.  Press I<Apply>
 to refresh the browser listbox with the new column selection and save the
@@ -2005,6 +2012,12 @@ in Germany "Arte / Kinderkanal", it's recommended to include all
 networks' names in the network name on side of the TV application,
 separated by a slash.  The slash is recognized as separator by nxtvepg
 and all resulting segments can be used as network names.
+
+Also note that the I<Network> column in the main window is automatically
+resized to hold the longest name.  When determining the maximum length
+all networks of the current provider are considered including those you
+have suppressed in the L<"CONFIGURATION:Select networks"> dialog (because
+they still might get displayed, e.g. via the L<"NAVIGATE"> menu).
 
 
 =head2 Context menu

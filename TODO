@@ -86,6 +86,7 @@ other required fixes:
 - navigation: disable leafs with zero PI / display number of matches
 
 possible new features: (in order of decreasing priority)
+- filter for min/max duration of shows
 - bookmarks with multiple priority levels and reminders for bookmarks above
   an adjustable priority level (raise popup or dispatch external app.)
 - series management based on titles only, across all networks

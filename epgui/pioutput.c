@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pioutput.c,v 1.19 2002/08/17 19:25:45 tom Exp tom $
+ *  $Id: pioutput.c,v 1.20 2002/08/24 13:58:13 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -273,6 +273,69 @@ const char * PiOutput_DictifyTitle( const char * pTitle, uchar lang, char * outb
 }
 
 // ----------------------------------------------------------------------------
+// Determine the required width for the network name column and update the display
+//
+void PiOutput_SetNetnameColumnWidth( bool isInitial )
+{
+   const AI_BLOCK *pAiBlock;
+   Tk_Font tkfont;
+   const uchar * pName;
+   const char * fontName;
+   uchar  buf[20];
+   int    pixels;
+   uint   maxLen;
+   uint   netwop;
+
+   maxLen = 0;
+
+   fontName = Tcl_GetVar(interp, "textfont", TCL_GLOBAL_ONLY);
+   if (fontName != NULL)
+   {
+      tkfont = Tk_GetFont(interp, Tk_MainWindow(interp), fontName);
+      if (tkfont != NULL)
+      {
+         EpgDbLockDatabase(pUiDbContext, TRUE);
+         pAiBlock = EpgDbGetAi(pUiDbContext);
+         if (pAiBlock != NULL)
+         {
+            for (netwop = 0; netwop < pAiBlock->netwopCount; netwop++)
+            {
+               sprintf(buf, "0x%04X", AI_GET_NETWOP_N(pAiBlock, netwop)->cni);
+               pName = Tcl_GetVar2(interp, "cfnetnames", buf, TCL_GLOBAL_ONLY);
+               if (pName == NULL)
+                  pName = AI_GET_NETWOP_NAME(pAiBlock, netwop);
+
+               Tk_MeasureChars(tkfont, pName, strlen(pName), 200, -1, &pixels);
+               if (pixels > maxLen)
+                  maxLen = pixels;
+            }
+         }
+         EpgDbLockDatabase(pUiDbContext, FALSE);
+      }
+      else
+         debug1("PiOutput-SetNetnameColumnWidth: font '%s' unknown", fontName);
+
+      Tk_FreeFont(tkfont);
+   }
+   else
+      debug0("PiOutput-SetNetnameColumnWidth: Tcl var 'textfont' undefined");
+
+   // apply the width to the listbox
+   sprintf(comm, "UpdateNetnameColumnWidth %d %d", maxLen, (int)isInitial);
+   eval_check(interp, comm);
+}
+
+// ----------------------------------------------------------------------------
+// Tcl interface to the network name column width update function
+// - called after the user configured network names
+//
+static int PiOutput_TclCb_SetNetnameColumnWidth( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+{
+   PiOutput_SetNetnameColumnWidth(FALSE);
+   return TCL_OK;
+}
+
+// ----------------------------------------------------------------------------
 // Build cache of theme string max lengths to fit in the column
 // - required because a proportional (non fixed width) font is used
 // - must be called once during startup and whenever the theme language changes
@@ -350,10 +413,9 @@ int PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, uint idx, char * outstr
                sprintf(buf, "0x%04X", AI_GET_NETWOP_N(pAiBlock, pPiBlock->netwop_no)->cni);
                p = Tcl_GetVar2(interp, "cfnetnames", buf, TCL_GLOBAL_ONLY);
                if (p != NULL)
-                  strncpy(outstr + off, p, 9);
+                  strcpy(outstr + off, p);
                else
-                  strncpy(outstr + off, AI_GET_NETWOP_NAME(pAiBlock, pPiBlock->netwop_no), 9);
-               outstr[off + 9] = 0;
+                  strcpy(outstr + off, AI_GET_NETWOP_NAME(pAiBlock, pPiBlock->netwop_no));
             }
             else
             {
@@ -486,11 +548,13 @@ int PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, uint idx, char * outstr
                         break;
                      }
                   }
-                  if (themeIdx >= pPiBlock->no_themes)
-                     themeIdx = 0;
                }
                else
-               {  // no filter enabled -> select the "most significant" theme: lowest PDC index
+                  themeIdx = PI_MAX_THEME_COUNT;
+
+               if (themeIdx >= pPiBlock->no_themes)
+               {  // no filter enabled or nothing found above
+                  // -> select the "most significant" theme: lowest PDC index
                   uint minThemeIdx = PI_MAX_THEME_COUNT;
                   for (themeIdx=0; themeIdx < pPiBlock->no_themes; themeIdx++)
                   {
@@ -2114,13 +2178,16 @@ void PiOutput_Create( void )
    if (Tcl_GetCommandInfo(interp, "C_PiOutput_CfgColumns", &cmdInfo) == 0)
    {
       Tcl_CreateCommand(interp, "C_PiOutput_CfgColumns", PiOutput_CfgColumns, (ClientData) NULL, NULL);
+      Tcl_CreateCommand(interp, "C_PiOutput_SetNetnameColumnWidth", PiOutput_TclCb_SetNetnameColumnWidth, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_DumpHtml", PiOutput_DumpHtml, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_PopupPi", PiOutput_PopupPi, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_ExecUserCmd", PiOutput_ExecUserCmd, (ClientData) NULL, NULL);
 
       // set the column configuration
-      PiOutput_CfgColumns(NULL, interp, 0, NULL);
       PiOutput_CacheThemesMaxLen();
+
+      // create the column headers & set TAB stops in PI listbox
+      PiOutput_SetNetnameColumnWidth(TRUE);
    }
    else
       debug0("PiOutput-Create: commands were already created");

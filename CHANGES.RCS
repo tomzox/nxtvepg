@@ -9516,3 +9516,82 @@ www/tripod-src-index.html [rev:1.8, 2002-08-18T20:07:12]:
 - added release 2.2.0
 - removed file nxtvepg-1.8-win.zip to free space
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_2_0 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+epgvbi/ttxdecode.c [rev:1.51, 2002-08-24T13:54:38]:
+- bugfix TtxDecode_StartEpgAcq(): set pVbiBuf->obsolete1 = TRUE
+- for K!TV backwards compatibility
+epgctl/epgacqctl.c [rev:1.75, 2002-08-24T13:54:56]:
+- fixed function header comment for EpgAcqCtl_Suspend()
+epgui/epgmain.c [rev:1.94, 2002-08-24T13:55:43]:
+- major bugfix: increased the size og the global "comm" var from 1024 to 2048
+    required for short-info description display (preliminary fix)
+- bugfix EventHandler_SigHup(): added check if scan is running
+    else acq was started while scan was running
+- withdraw main window until all GUI modules initialized
+    due to variable-width netname column
+epgui/epgmain.h [rev:1.20, 2002-08-24T13:55:46]:
+- major bugfix: increased the size og the global "comm" var from 1024 to 2048
+    required for short-info description display (preliminary fix)
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.171, 2002-08-24T13:56:58]:
+- Implemented variable-width network-name column
+- netname config dialog: update netname column width
+- new proc UpdateNetnameColumnWidth: update width of network name column
+- LoadRcFile: removed call to ApplySelectedColumnList; moved into pioutput.c
+- reduced minimum netname column width from 71 to 60
+- Also:
+- improved EPG scan start refusal message for client/server mode
+- proc FilterMenuAdd_Themes adapted for change in C_GetPdcString:
+    returns now "#XX" for unknown themes instead of empty string;
+    this was required for filter pretty print in filter config dialog
+epgui/menucmd.c [rev:1.84, 2002-08-24T13:57:35]:
+- bugfix ProvMerge_ParseNetwopList():
+- do not return error if cfnetworps(0x00FF) is not defined
+epgui/pioutput.c [rev:1.20, 2002-08-24T13:58:13]:
+- Implemented variable-width network-name column
+- added new function PiOutput_SetNetnameColumnWidth(): determine the required
+    width for the network name column and update the display
+- also added Tcl interface proc "C_PiOutput_SetNetnameColumnWidth"
+- PiOutput_PrintColumnItem(): removed limit for netname char count
+- init: added call to new func PiOutput_SetNetnameColumnWidth();
+    hence removed call to PiOutput_CfgColumns()
+- Also:
+- PiOutput_PrintColumnItem() PIBOX_COL_THEME: improved for Kabel-1:
+    empty theme column when "movie" filter set and only themes #1 and "movie"
+epgui/pioutput.h [rev:1.8, 2002-08-24T13:58:16]:
+- Implemented variable-width network-name column
+- added new function PiOutput_SetNetnameColumnWidth()
+epgui/uictrl.c [rev:1.32, 2002-08-24T13:59:08]:
+- UiControl_AiStateChange(): added call to PiOutput_SetNetnameColumnWidth()
+nxtvepg.pod [rev:1.74, 2002-08-24T14:15:08]:
+- basic browsing: added note how to adapt size of PI listbox
+- network name config: added note about automatic adaption of network name
+    column in main window
+Makefile [rev:1.46, 2002-08-24T14:15:22]:
+- updated flags for linking statically (i.e. w/o shared libs)
+epgui/pifilter.c [rev:1.60, 2002-08-24T14:17:45]:
+- Tcl proc C_GetPdcString:
+- return theme # instead of empty string for undefined themes codes
+- this was required for filter pretty print in filter config dialog
+epgctl/epgversion.h [rev:1.25, 2002-08-24T14:18:22]:
+- set to version 2.2.1 (emergency bugfix release)
+CHANGES [rev:1.26, 2002-08-24T15:29:34]:
+- updated for release 2.2.1
+TODO [rev:1.20, 2002-08-24T15:29:39]:
+- updated for release 2.2.1
+www/man.html [rev:1.19, 2002-08-24T15:46:28]:
+- updated for version 2.2.1
+www/changelog.html [rev:1.35, 2002-08-24T15:46:49]:
+- added release note for version 2.2.1
+www/nefkom-src-index.html [rev:1.8, 2002-08-24T15:46:57]:
+- added release 2.2.1
+www/tripod-src-index.html [rev:1.9, 2002-08-24T15:47:03]:
+- added src and win release 2.2.1 (no tvsim, 2.2.0 still valid)
+- removed nxtvepg-1.9-win.zip to save space
+www/index-de.html [rev:1.35, 2002-08-24T15:47:15]:
+- updated for release 2.2.1
+- news section: removed release notes older than 0.7.4
+www/index.html [rev:1.46, 2002-08-24T15:47:15]:
+- updated for release 2.2.1
+- news section: removed release notes older than 0.7.4
+nxtvepg.spec [rev:1.7, 2002-08-24T15:49:09]:
+- set version to 2.2.1
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_2_1 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

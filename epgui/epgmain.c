@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgmain.c,v 1.93 2002/08/11 19:50:43 tom Exp tom $
+ *  $Id: epgmain.c,v 1.94 2002/08/24 13:55:43 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -110,7 +110,7 @@ extern char tcl_init_scripts[];
 extern char tk_init_scripts[];
 
 Tcl_Interp *interp;          // Interpreter for application
-char comm[1000];             // Command buffer
+char comm[2048];             // Command buffer
 
 // command line options
 #ifdef WIN32
@@ -403,13 +403,16 @@ static void EventHandler_UpdateClock( ClientData clientData )
 #ifndef WIN32
 static void EventHandler_SigHup( ClientData clientData )
 {
-   if (pAcqDbContext == NULL)
-   {  // acq currently not running -> start
-      AutoStartAcq(interp);
-   }
-   else
-   {  // acq currently running -> stop it or disconnect from server
-      EpgAcqCtl_Stop();
+   if (EpgScan_IsActive() == FALSE)
+   {
+      if (pAcqDbContext == NULL)
+      {  // acq currently not running -> start
+         AutoStartAcq(interp);
+      }
+      else
+      {  // acq currently running -> stop it or disconnect from server
+         EpgAcqCtl_Stop();
+      }
    }
 }
 #endif
@@ -2261,7 +2264,8 @@ static int ui_init( int argc, char **argv, bool withTk )
       Tcl_CreateCommand(interp, "C_SystrayIcon", TclCbWinSystrayIcon, (ClientData) NULL, NULL);
       #endif
 
-      sprintf(comm, "wm title . {Nextview EPG Decoder}\n"
+      sprintf(comm, "wm withdraw .\n"
+                    "wm title . {Nextview EPG Decoder}\n"
                     "wm resizable . 0 1\n"
                     "wm iconbitmap . nxtv_logo\n"
                     "wm iconname . {Nextview EPG}\n");
@@ -2388,10 +2392,6 @@ int main( int argc, char *argv[] )
    }
    else if (optDaemonMode == FALSE)
    {  // normal GUI mode
-      // note: iconification must be done after RC/INI file load
-      // because "hide on minimize" option state must be known and the <Unmap> event bound
-      if (startIconified)
-         eval_check(interp, "wm iconify .");
 
       UiControl_Init();
 
@@ -2437,6 +2437,12 @@ int main( int argc, char *argv[] )
 
       // draw the clock and update it every second afterwords
       EventHandler_UpdateClock(NULL);
+
+      if (startIconified)
+         eval_check(interp, "wm iconify .");
+      else
+         eval_check(interp, "wm deiconify .");
+
       // init main window title, PI listbox state and status line
       UiControl_AiStateChange(DB_TARGET_UI);
 

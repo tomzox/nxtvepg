@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: uictrl.c,v 1.31 2002/07/27 13:43:57 tom Exp $
+ *  $Id: uictrl.c,v 1.32 2002/08/24 13:59:08 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -48,6 +48,7 @@
 #include "epgui/epgmain.h"
 #include "epgui/pifilter.h"
 #include "epgui/pilistbox.h"
+#include "epgui/pioutput.h"
 #include "epgui/uictrl.h"
 #include "epgui/menucmd.h"
 #include "epgui/statswin.h"
@@ -277,6 +278,10 @@ void UiControl_AiStateChange( ClientData clientData )
          // set the window title according to the new AI
          sprintf(comm, "wm title . {Nextview EPG: %s}\n", AI_GET_SERVICENAME(pAiBlock));
          eval_check(interp, comm);
+
+         // create the column headers above the PI browser text widget
+         // (note: called before filter update, because that one does a screen refresh)
+         PiOutput_SetNetnameColumnWidth(FALSE);
 
          // update the netwop filter bar and the netwop prefilter
          PiFilter_UpdateNetwopList();

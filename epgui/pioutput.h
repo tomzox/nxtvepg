@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pioutput.h,v 1.7 2002/08/17 19:25:53 tom Exp tom $
+ *  $Id: pioutput.h,v 1.8 2002/08/24 13:58:16 tom Exp tom $
  */
 
 #ifndef __PIOUTPUT_H
@@ -55,6 +55,7 @@ void PiOutput_CtxMenuAddUserDef( const char * pMenu, bool addSeparator );
 
 // Interface to menus
 void PiOutput_CacheThemesMaxLen( void );
+void PiOutput_SetNetnameColumnWidth( bool isInitial );
 
 // Interface to PI listbox and HTML dump
 int  PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES type, char * outstr );

@@ -24,7 +24,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile,v 1.45 2002/08/11 19:49:59 tom Exp tom $
+#  $Id: Makefile,v 1.46 2002/08/24 14:15:22 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -45,8 +45,9 @@ PERL    = /usr/bin/perl
 TCL_VER = 8.3
 
 LDLIBS  = -ltk$(TCL_VER) -ltcl$(TCL_VER) -L/usr/X11R6/lib -lX11 -lXmu -lm -ldl
+
 # use static libraries for debugging only
-#LDLIBS  = dbglib/libtk8.3.a dbglib/libtcl8.3.a -lX11 -lm -ldl -L/usr/X11R6/lib
+#LDLIBS += -Ldbglib -static
 
 INCS   += -I. -I/usr/X11R6/include
 # path to Tcl/Tk headers, if not properly installed

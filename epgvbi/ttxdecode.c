@@ -32,7 +32,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: ttxdecode.c,v 1.50 2002/07/20 16:27:15 tom Exp tom $
+ *  $Id: ttxdecode.c,v 1.51 2002/08/24 13:54:38 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -89,6 +89,9 @@ void TtxDecode_StartEpgAcq( uint epgPageNo, bool isEpgScan )
 
    // enable ttx processing in the slave process/thread
    pVbiBuf->isEnabled = TRUE;
+
+   // for backwards compatibility initialize former doVpsPdc flag
+   pVbiBuf->obsolete1 = TRUE;  // (XXX remove upon increment of EPG_SHM_VERSION)
 
    // skip first VBI frame, reset ttx decoder, then set reader idx to writer idx
    pVbiBuf->chanChangeReq = pVbiBuf->chanChangeCnf + 2;
