@@ -19,7 +19,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: mytypes.h,v 1.19 2003/01/11 19:41:31 tom Exp tom $
+ *  $Id: mytypes.h,v 1.20 2003/09/23 19:39:10 tom Exp tom $
  */
 
 #ifndef __MYTYPES_H
@@ -75,6 +75,7 @@ typedef   signed long  slong;    // >=32 bit signed
 #define DEBUG_SWITCH_EPGCTL      OFF
 #define DEBUG_SWITCH_EPGUI       OFF
 #define DEBUG_SWITCH_VBI         OFF
+#define DEBUG_SWITCH_STREAM      OFF
 #define DEBUG_SWITCH_TCL_BGERR   OFF
 #define DEBUG_SWITCH_TVSIM       OFF
 #define DEBUG_SWITCH_DSDRV       OFF

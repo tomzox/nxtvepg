@@ -26,9 +26,9 @@
  *
  *    Copyright (c) 2002 Atsushi Nakagawa.  All rights reserved.
  *
- *  DScaler #Id: SAA7134Card_Types.cpp,v 1.31 2003/04/28 06:28:05 atnak Exp #
+ *  DScaler #Id: SAA7134Card_Types.cpp,v 1.33 2003/07/31 05:01:38 atnak Exp #
  *
- *  $Id: saa7134_typ.c,v 1.12 2003/05/23 21:02:56 tom Exp tom $
+ *  $Id: saa7134_typ.c,v 1.13 2003/09/02 19:57:19 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_DSDRV
@@ -136,6 +136,7 @@ static void PrimeTV7133CardInputSelect(TVCARD * pTvCard, int nInput);
 static void ManliMTV001CardInputSelect(TVCARD * pTvCard, int nInput);
 static void ManliMTV002CardInputSelect(TVCARD * pTvCard, int nInput);
 static void VGearMyTVSAPCardInputSelect(TVCARD * pTvCard, int nInput);
+static void AOpenVA1000L2CardInputSelect(TVCARD * pTvCard, int nInput);
 static void StandardSAA7134InputSelect(TVCARD * pTvCard, int nInput);
 
 /// SAA713x Card Ids
@@ -160,6 +161,8 @@ typedef enum
     SAA7134CARDID_MANLIMTV002,
     SAA7134CARDID_VGEAR_MYTV_SAP,
     SAA7134CARDID_ASUS_TVFM,
+    SAA7134CARDID_AOPEN_VA1000_L2,
+    SAA7134CARDID_ASK_ASVCV300_PCI,
     SAA7134CARDID_LASTONE,
 } eSAA7134CardId;
 
@@ -837,23 +840,88 @@ static const TCardType m_SAA7134Cards[] =
         NULL,
         StandardSAA7134InputSelect,
     },
+    // SAA7134CARDID_AOPEN_VA1000_L2 - Aopen VA1000 Lite2 (saa7130)
+    // Thanks "stu" <ausstu@ho...>
+    {
+        "Aopen VA1000 Lite2",
+        3,
+        {
+            {
+                "Tuner",
+                INPUTTYPE_TUNER,
+                VIDEOINPUTSOURCE_PIN0,
+                AUDIOINPUTSOURCE_LINE1,
+            },
+            {
+                "Composite",
+                INPUTTYPE_COMPOSITE,
+                VIDEOINPUTSOURCE_PIN0,
+                AUDIOINPUTSOURCE_LINE1,
+            },
+            {
+                "S-Video",
+                INPUTTYPE_SVIDEO,
+                VIDEOINPUTSOURCE_PIN0,
+                AUDIOINPUTSOURCE_LINE1,
+            },
+        },
+        TUNER_LG_TAPCNEW_PAL,
+        AUDIOCRYSTAL_NONE,
+        NULL,
+        AOpenVA1000L2CardInputSelect,
+    },
+    // SAA7134CARDID_ASK_ASVCV300_PCI (saa7130)
+    // Thanks "Tetsuya Takahashi" <tetsu_64k@zer...>
+    //  - may have Videoport
+    //  - may have Transport Stream
+    {
+        "ASK SELECT AS-VCV300/PCI",
+        2,
+        {
+            {
+                "Composite",
+                INPUTTYPE_COMPOSITE,
+                VIDEOINPUTSOURCE_PIN0,
+                AUDIOINPUTSOURCE_LINE1,
+            },
+            {
+                "S-Video",
+                INPUTTYPE_SVIDEO,
+                VIDEOINPUTSOURCE_PIN1,
+                AUDIOINPUTSOURCE_LINE1,
+            },
+        },
+        TUNER_ABSENT,
+        AUDIOCRYSTAL_NONE,
+        NULL,
+        StandardSAA7134InputSelect,
+    },
 };
 
 
 static const TAutoDetectSAA7134 m_AutoDetectSAA7134[] =
 {
+    // How to use RegSpy dump header information:
+    //
+    // Vendor ID:           0x1131  (drop this value)
+    // Device ID:           0xDDDD
+    // Subsystem ID:        0xSSSSVVVV
+    //
+    // { 0xDDDD, 0xVVVV, 0xSSSS, SAA7134CARDID_    },
+
     // DeviceId, Subsystem vendor Id, Subsystem Id, Card Id
-    { 0x7134, 0x1131, 0x0000, SAA7134CARDID_UNKNOWN      },
-    { 0x7130, 0x1131, 0x0000, SAA7134CARDID_UNKNOWN      },
-    { 0x7134, 0x1131, 0x2001, SAA7134CARDID_PROTEUSPRO   },
-    { 0x7134, 0x1131, 0x6752, SAA7134CARDID_EMPRESS      },
-    { 0x7134, 0x1131, 0x4E85, SAA7134CARDID_MONSTERTV    },
-    { 0x7134, 0x153B, 0x1142, SAA7134CARDID_CINERGY400   },
-    { 0x7130, 0x5168, 0x0138, SAA7134CARDID_FLYVIDEO2000 },
-    { 0x7133, 0x5168, 0x0138, SAA7134CARDID_PRIMETV7133  },
-    { 0x7134, 0x153b, 0x1143, SAA7134CARDID_CINERGY600   },
-    { 0x7134, 0x16be, 0x0003, SAA7134CARDID_MEDION7134   },
-    { 0x7134, 0x1043, 0x4842, SAA7134CARDID_ASUS_TVFM    },
+    { 0x7134, 0x1131, 0x0000, SAA7134CARDID_UNKNOWN             },
+    { 0x7130, 0x1131, 0x0000, SAA7134CARDID_UNKNOWN             },
+    { 0x7134, 0x1131, 0x2001, SAA7134CARDID_PROTEUSPRO          },
+    { 0x7134, 0x1131, 0x6752, SAA7134CARDID_EMPRESS             },
+    { 0x7134, 0x1131, 0x4E85, SAA7134CARDID_MONSTERTV           },
+    { 0x7134, 0x153B, 0x1142, SAA7134CARDID_CINERGY400          },
+    { 0x7130, 0x5168, 0x0138, SAA7134CARDID_FLYVIDEO2000        },
+    { 0x7133, 0x5168, 0x0138, SAA7134CARDID_PRIMETV7133         },
+    { 0x7134, 0x153b, 0x1143, SAA7134CARDID_CINERGY600          },
+    { 0x7134, 0x16be, 0x0003, SAA7134CARDID_MEDION7134          },
+    { 0x7134, 0x1043, 0x4842, SAA7134CARDID_ASUS_TVFM           },
+    { 0x7130, 0x1048, 0x226e, SAA7134CARDID_ASK_ASVCV300_PCI    },
 };
 
 
@@ -1243,6 +1311,26 @@ static void VGearMyTVSAPCardInputSelect(TVCARD * pTvCard, int nInput)
     case 2: // S-Video
         MaskDataDword(SAA7134_GPIO_GPMODE, 0x4400, 0x0EFFFFFF);
         MaskDataDword(SAA7134_GPIO_GPSTATUS, 0x0400, 0x4400);
+        break;
+    default:
+        break;
+    }
+}
+
+
+static void AOpenVA1000L2CardInputSelect(TVCARD * pTvCard, int nInput)
+{
+    StandardSAA7134InputSelect(pTvCard, nInput);
+    switch(nInput)
+    {
+    case 0: // Tuner
+        MaskDataDword(SAA7134_GPIO_GPMODE, 0x40, 0x0EFFFFFF);
+        MaskDataDword(SAA7134_GPIO_GPSTATUS, 0x70, 0x40);
+        break;
+    case 1: // Composite
+    case 2: // S-Video
+        MaskDataDword(SAA7134_GPIO_GPMODE, 0x20, 0x0EFFFFFF);
+        MaskDataDword(SAA7134_GPIO_GPSTATUS, 0x70, 0x20);
         break;
     default:
         break;

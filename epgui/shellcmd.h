@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: shellcmd.h,v 1.1 2003/02/26 22:00:04 tom Exp tom $
+ *  $Id: shellcmd.h,v 1.2 2003/09/19 21:57:26 tom Exp tom $
  */
 
 #ifndef __SHELLCMD_H
@@ -29,6 +29,8 @@
 void ShellCmd_Init( void );
 void ShellCmd_Destroy( void );
 
-void ShellCmd_CtxMenuAddUserDef( const char * pMenu, bool addSeparator );
+uint ShellCmd_CtxMenuAddUserDef( Tcl_Interp *interp, const char * pMenu, bool addSeparator );
+Tcl_Obj * PiOutput_ParseScript( Tcl_Interp *interp, Tcl_Obj * pCmdObj,
+                                const PI_BLOCK * pPiBlock );
 
 #endif  // __SHELLCMD_H

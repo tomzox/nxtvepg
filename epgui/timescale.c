@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: timescale.c,v 1.10 2003/06/28 11:39:13 tom Exp tom $
+ *  $Id: timescale.c,v 1.11 2003/10/05 19:29:31 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -783,7 +783,8 @@ static void TimeScale_CreateOrRebuild( ClientData dummy )
             tscaleState[target].lastStream  = 0xff;
             tscaleState[target].filled      = FALSE;
             tscaleState[target].isForAcq    = (target == DB_TARGET_ACQ);
-            tscaleState[target].widthSecs   = (TimeScale_GetMaxDayCount(dbc) + 1) * 24*60*60;
+            tscaleState[target].widthSecs   = (TimeScale_GetMaxDayCount(dbc) + 1) * 24*60*60
+                                                 + dbc->expireDelayPi;
             tscaleState[target].widthPixels = tscaleState[target].widthSecs / tscaleState[target].secsPerPixel;
 
             // create (or update) network table: each row has a label and scale

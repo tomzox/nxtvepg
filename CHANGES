@@ -5,11 +5,52 @@ features).  For patchlevel releases also internal changes might be listed in
 case they may fix bugs (or cause new ones)
 
 
-Work in progress:
+from 2.5.2 to 2.6.0 (2003-Oct-11)
 
-- UNIX: added support for libzvbi (with or without proxy daemon), enabled by
-  compiler switch -DUSE_LIBZVBI in the Makefile (note this is mutually
-  exclusive with the -DZVBI_DECODER switch)
+- implemented reminders, i.e. bookmarking and message/command dispatch for
+  selected programmes or shortcuts
+- added weekday scale to the right of the programme list (note that colors
+  and text are configurable via the nxtvepg.ad file or X resources on UNIX)
+- added new key binding for key "i": display EPG info just like upon a
+  channel change in a connected TV application.
+- free choice of colors in "compound attributes" (user-defined columns and
+  grid elements).  Thanks to Peter Rolf for suggesting this improvement.
+  Also added new format types to change background colors of single attributes
+  or the entire programme element.
+- added new programme list attribute type "weekday color", i.e. use colors
+  (same as in weekday scale) to mark programmes instead of words "Fri" etc.
+  Thanks to Peter Rolf for the idea.  Note: for the grid layout this attribute
+  isn't supported very well yet. Suggestions for improvement are welcome.
+- extended start time filter: in addition to "daily" and "relative day offset"
+  new modes "weekly" and "monthly" are supported; also date range for relative
+  offsets was extended from 1 to 2 weeks.
+- improved text search dialog (yet again): active searches are now displayed
+  in a list above the test entry field. There's also a sub-dialog which allows
+  to paste multiple search texts at once, i.e. a list of movie titles;
+- added shortcut combination modes "OR" and "AND" which keep filter of such
+  shortcuts separate instead of merging them all into one as before; this
+  allows logical OR or AND between complex shortcuts, i.e. "movies on net A"
+  OR "series on network B"; with merge you'd have got "movies or series on
+  network A or B"; see manual chapter "Shortcuts" for more details.
+- added an expire time filter to the filter menu, i.e. the possibility to
+  display descriptions of TV shows which have already finished.  The delay
+  after which expired programmes are removed from the database is configurable
+  (note large delays introduce performance penalities.)
+- added possibility to invoke Xawtv remote commands via the programme list's
+  context menu, by use of prefix !xawtv!  (e.g. switch the channel to the
+  selected title with command: !xawtv! setstation ${network})
+- added new command line option -daemonstop: terminate daemon process
+  to simplify controlling acquisition by use of scripts, esp. on M$ Windows
+- Windows: user-configured commands in context menu: omit quotes around
+  command substitutions, use escape instead (requested by "progro")
+- bugfix tuner frequency setting for MT2032 in PAL mode.
+  Thanks to Manfred Folgmann for debugging support.
+- Windows: fixed bug in database directory handling: startup was aborted if
+  the directory was the root of a mounted share (e.g. //remotehost/share)
+  Thanks to Manuel for reporting this bug in the forum.
+- bugfix for possible crash when opening the alphabetical series list in
+  the filter menu (mainly a problem on 64bit platforms.)
+  Thanks to Helge Kreutzmann for the bug report.
 
 
 from 2.5.1 to 2.5.2 (2003-July-01)

@@ -24,7 +24,7 @@
 #
 #  Author: Tom Zoerner
 #
-# $Id: nxtvepg.pod,v 1.97 2003/04/12 13:35:17 tom Exp tom $
+# $Id: nxtvepg.pod,v 1.99 2003/10/05 19:50:47 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME
@@ -58,7 +58,7 @@ many other networks):
 
 =item *
 
-In Germany and Austria: Kabel1, 3Sat, RTL-II.
+In Germany and Austria: Kabel1, RTL-II.
 
 =item *
 
@@ -147,7 +147,7 @@ but still constant (i.e. the order is determined by the driver, not nxtvepg)
 =item B<-provider> I<CNI>
 
 Select a provider by its hexadecimal CNI (Country and Network Identifier),
-e.g. I<-provider dc7> for B<3sat>. You can find out the provider's CNI
+e.g. I<-provider d92> for B<Kabel1>. You can find out the provider's CNI
 during a provider scan or from the database file names.
 Use the code I<FF> for the merged database
 (in the last used configuration as saved in the rc/ini file).
@@ -193,11 +193,21 @@ the $HOME environment variable  might not be (correctly) defined.  Example:
    su nobody -c "/usr/local/bin/nxtvepg -daemon \
                  -rcfile /usr/local/etc/nxtvepgrc"
 
-The only way to stop the daemon is to send it a signal, i.e. kill
-it with SIGTERM.  If it's running on the same host and login, it can
-also be stopped by deselecting I<Enable acquisition> in the I<Control>
-menu.  For more details see L<"CONTROL"> and L<"FILES">.
+For terminating the daemon process, see the -daemonstop option below.
 
+=item B<-daemonstop>
+
+With this option, a background acquisition process is searched and
+terminated if found; then the program exits. Note you need permission
+to send signals to the daemon process to be able to stop it (i.e. it
+must run with the same user ID).  This option is meant to allow
+controlling acquisition by scripts which start and stop acquisition
+automatically after a given time.
+
+Note if the daemon is running on the same host and uid, it can
+also be stopped by deselecting I<Enable acquisition> in the I<Control>
+menu while being connected to the daemon.
+For more details see L<"CONTROL"> and L<"FILES">.
 
 =item B<-nodetach>
 
@@ -239,7 +249,7 @@ For example you could enter the following command in the shell
 
   nxtvepg -dump ai -prov dc7 > networks.txt
 
-to write the network table of provider I<3sat> (CNI I<0xdc7>) into a file
+to write the network table of provider I<Kabel1> (CNI I<0xd92>) into a file
 called I<networks.txt>.
 
 
@@ -247,7 +257,7 @@ called I<networks.txt>.
 
 Load database given by I<path>
 and enter demo mode. In this mode all entries of the database are shifted
-into the presence, i.e. just far enough so that none expire. Hence the
+into the presence, i.e. just far enough so that none are expired. Hence the
 entries' dates and times are not for real and acquisition or database
 reselection is not possible.
 
@@ -537,23 +547,31 @@ information available here depends entirely on the content provider.
 The basic browsing of programme information works very straight-forward.
 You can either use the mouse or the keyboard cursor keys:
 
-With the mouse, you can click on any title to select it and display its
-description in the lower window. With a double-click you open a popup
-window with a summary of all attributes known for that title.  See
-L<"FILTERING"> on how to use those for filtering. Use the scrollbar
-to scroll the listing forward to programmes farer in the future.
+With the mouse, you can click on any title to select it and display
+its description in the lower window.  Use the scrollbar to the left to
+scroll the listing forward to programmes farer in the future, or the
+weekday scale on the right to jump to a specific time and date.
 
 With the keyboard, use the Cursor up/down keys to select any title.
 For fast scrolling use the page up/down keys. With the Home key you
 always get back to the first title. With TAB and SHIFT-TAB you can
-move the keyboard input focus to other widgets, e.g. to the network
+move the keyboard input focus to other input elements, e.g. to the network
 and shortcut lists; to apply a selected theme or shortcut as filter
-press the Space or Return key. The first 10 shortcuts can also be
+press the B<Space> key. The first 10 shortcuts can also be
 enabled directly from the main window with the digit keys 1-9 and 0.
 Control-C in the main window opens the context menu; Control-F opens
 the text search dialog; the Escape key is equivalent to the Reset
 button.  The menus can be accessed by pressing the ALT key together
 with the underlined character in the respective menu button.
+
+You can restrict the programme selection in many ways to make it
+easier to find what interests you.  For example, you can restrict the
+list to programmes of a certain network; or you can restrict the
+list to movies only.  This process is called I<filtering> and
+explained in detail below, see L<"FILTERING">.  For the most common
+filter options there's a list of I<Shortcuts> at the left of the main
+window.  Note you can freely modify this list, see
+L<"FILTER SHORTCUTS">.
 
 Since version 2.5.0 nxtvepg offers two different layouts for the TV
 schedules: By default programmes of all channels are combined in a
@@ -567,17 +585,20 @@ When you resize the main window vertically the difference in height
 will be added to the info text window at the bottom.  You can adjust
 the proportions between program listbox and the info text with the
 "panning" button inbetween, i.e. by dragging the button you can
-resize the program listbox.
+resize the programme list.
 
 nxtvepg can interact with TV applications (e.g. I<xawtv> on UNIX;
 requires initial setup, see L<"GETTING STARTED">) to provide a connection
 in both directions: Firstly you'll find a
 I<Tune-TV> button in the main window below the clock. When you press
 it, the network of the currently selected programme will be tuned in the
-TV application.  With the right mouse button you can also pop up a small
-menu which offers basic TV controls. Secondly, when you change the channel
+TV application.  This also works with a double-click on the programme
+or pressing the I<Return> key.  By clicking the right mouse button above
+the Tune-TV button you can also pop up a small menu which offers basic
+TV controls.  Secondly, when you change the channel
 in the TV application, the cursor in the nxtvepg main window will
 automatically jump onto the programme currently running on that network.
+You can manually trigger this reaction by pressing "i" on your keyboard.
 For more details see L<"CONFIGURATION: TV application interaction">
 
 At the bottom of the window there is a status line which informs you
@@ -836,11 +857,13 @@ the browser database, and one for the acquisition database. The
 acquisition window is updated whenenever new EPG blocks are received.
 
 The timescale windows have one scale for each network covered by the
-selected provider. Each scale begins with the start time of the first
-TV programme in the database. Depending on how long ago the database
-was updated, the TV programmes may be partly or entirely in the past.
+selected provider. Left side of the scales refer to with the start time
+of the oldest TV programme in the database.  Depending on how long ago
+the database was updated and the current expiry removal delay
+(see L<"FILTERING: Expired Programmes Display">),
+some or all TV programmes may lie in the past.
 The exact dates are printed in the date scale at top of the window,
-the current time is additionally marked with a small arrow.
+the current time is additionally marked with a small arrow labeled "now".
 
 Ranges that are covered by programmes of the respective network in the
 database are marked in shades of red or blue, uncovered ranges are left black.
@@ -954,12 +977,24 @@ the AI block, i.e. "Block count db" divided by "Blocks in AI". The
 second percentage in the line only reflects blocks of the current version
 and hence the degree of completeness of acquisition.
 
-=item I<Expired blocks:>
+=item I<Expired stream:>
 
-Number of blocks which have a stop time that's in the past, i.e. which
-no longer show up in the browser. The percentage given here is in respect
+Number of programme blocks which have a stop time that's in the past but
+are still registered in the provider's inventory (AI).  When acquisition is
+stopped, this number can be large.  During acquisition expired programmes
+are usually stripped by the provider with the start of every cycle, i.e.
+usually every 20-25 minutes.  The percentage given here is in respect
 to the actual number of blocks in the local database (all versions),
 not the AI.
+
+=item I<Expired total:>
+
+Total number and percentage of expired blocks in the database.  This value
+depends on the expire "cut-off time" configured by the user, i.e. on how
+long expired blocks are kept until they are removed from the database.
+Normally such blocks disappear from the programme list, but this can be
+changed with the expire time filter in the Filter menu
+(see also L<"FILTERING">).
 
 =item I<Defective blocks:>
 
@@ -1097,9 +1132,10 @@ i.e. not added to the merged database.
 The B<Configure> button in the dialog gives you fine-control over the
 priority of providers during the merge of all distinct programme
 attributes. You can even completely remove a provider for an attribute,
-e.g. if they transmit false data (e.g. the Sound attribute is handled
-wrong by the German provider 3Sat: they have swapped Stereo and Surround).
-An exception is the title, where you must not delete any providers.
+e.g. if they transmit false data (e.g. the Sound attribute was at some
+time handled wrong by the former German provider 3Sat: they did swap
+stereo and surround).  An exception is the title, where you must not
+delete any providers.
 
 Attributes that cannot be merged, e.g. editorial rating, are fetched from
 the first database in the list that contains the attribute for a given
@@ -1146,22 +1182,24 @@ this menu allows to control which of the programmes in the database
 are presented in the listing.  However here, you are not limited to a
 preselection of filter options.  There's a filter for every kind of
 attributes that can be attached to a program, e.g. it's network,
-start time, theme descriptors, ... and many more.
+start time, theme descriptors, and so on.
 
 Filters can be undone either singularily by selecting the same filter
-menu entry again, or globally by clicking on the I<Reset>
-button or menu entries.
+menu entry again, or globally by clicking on the I<Reset> button.
 
 You can combine as many filters as you want to build a complex filter.
 If you combine two filters of different types, only programmes that
 match both attributes will be listed (logical AND). If you choose more
 than one filter of the same type, all programmes that match either
-attribute will be listed (logical OR).
+attribute will be listed (logical OR).  Note some filter types also
+support multiple "classes" which allow logical AND within a category;
+this is explained in more detail in the filter types list below.
 
 I<Examples:>
-If you want to see all programmes listed for either network ARD or
-ZDF, simply select both networks. If you want to see all movies
-scheduled on Arte, select network=Arte and theme=movies.
+If you want to get all programmes listed for either network A B<OR> B,
+simply select both networks in the filter list. If you want to see all
+movies scheduled on A, i.e. all programmes which run on network A B<AND>
+are flagged as movies, select network A and theme "movie - general".
 
 
 =head2 Filter Types
@@ -1194,7 +1232,8 @@ series. A series code always implies a network specification (even if the
 same programme is transmitted on different networks).
 
 Note: This filter type is only available for providers that assign series
-codes; for the other ones you can use text search among programme titles.
+codes; also not all series may have a code assigned.  For other ones you
+can use text search among programme titles.
 
 When series and theme or likewise series and text searches are combined,
 programmes which match either of both filter types are listed.  This is
@@ -1218,25 +1257,41 @@ the list.
 =item B<Text search>
 
 Restrict the listing to programmes who's title or description (or either
-if both options are enabled) contain the given text.  If you enable
-I<match complete text> an exact match will be required, i.e. a search for
-"heute" will not match on "heute journal" (this option is intended for
-title-only searches, as started from the context menu). If you enable
-I<match case> character case is relevant in comparisons, i.e. a search
-for "heute" will not match on title "Heute Abend".
+if both options are enabled) contain one of the given character sequences.
+If you enable the I<match complete text> option, an exact match will be
+required, i.e. a search for "heute" will not match on "heute journal"
+(intended for title-only searches, as started from the context menu).
+If you enable option I<match case>, character case is relevant, i.e. a
+search for "heute" will not match on "Heute Abend".
+
+You can search for more than one text at the same time; you'll get all
+programmes that contain any of the given texts (logical OR).  The listbox
+above the text entry field lists all currently active texts.  You can
+double click on the options in the list to toggle them between "yes"
+and "no" (i.e. option enabled or disabled).  The entries also have small
+context menus which allow to remove single texts or toggle options.
+
+Press I<Click here to open...> to open a small dialog which allows to
+swiftly add a large list of texts (e.g. a list of your favorite movie
+titles.)  You can paste text for example from a text editor into the
+dialog or load them directly from a file.  Each line in the text fields
+will be added as a separate search when you press OK and all new entries
+will have the same options.  Blanks at the beginning or end of lines are
+automatically removed and lines starting with # are skipped when loading
+from a file.
+
+A history of the last 50 searches (manually entered ones only) including
+options, are stored and available in the drop-down menu below the search
+text entry field (opened with the arrow button at the left or one of
+the up/down cursor keys) and the last 10 searches are also available
+in the I<Title> column header menu in the programme list (the latter
+in "single list" layout only).
 
 Note: use of this search filter type is depreciated for permanent series
-searches saved in shortcuts.  If your provider does support series
-identifiers (see above), you should use those instead because the numerical
-identifiers are protexted more strongly during transmission.  A text search
-can fail due to a single erronous character.
-
-A history of the last 10 searches, including options, are stored and
-available in the drop-down menu below the search text entry field (opened
-with the arrow button at the left or one of the up/down cursor keys)
-and the I<Title> column header menu in the browser.  If you enter multiple
-texts, a logical OR is used.  You can undo single text searches by
-unchecking the button next to them in the history.
+searches saved in shortcuts if your provider supports series identifiers
+(see above).  In this case should use those instead because the numerical
+identifiers have a better protection against transmission errors.  A text
+search can fail due to a single erronous character.
 
 
 =item B<Features>
@@ -1271,18 +1326,28 @@ e.g. only 1, 3, 5 (thumb down, middle, thumb up)
 Restrict the listing to programmes who's start time lies in the
 interval specified by start, stop time and relative date.
 
-There are three options: If you enable I<Start at current time>
+Following options are available: If you enable I<Start at current time>
 the interval start is fixed to the actual time when the filter is
 set and the value given as stop time is interpreted as duration, i.e.
 it's added to the interval start. If you enable I<Stop at end of day>
-the interval end is fixed to 23:59 of the same day. If you enable
-I<Ignore date> the filter allows programmes that start in the given
-time window on any day.
+the interval end is fixed to 23:59 of the same day.
+
+For the date you can chose between the following modes:
+I<Ignore date>: the filter allows programmes that start on any day
+(in the time window given above).
+I<Relative date>: allow only programmes that start N days from today,
+i.e. for zero: today, for 1: tomorrow etc.
+I<Weekday>: allow programmes starting at the given day of the week
+(the scale runs from Saturday until Friday.)
+I<Day of month>: allow only programmes starting the Nth day of
+any month (the scale runs from 1 to 31.)
 
 Note that the main intention of this filter is to support time
-restrictions in the provider's navigation menus (see L<"NAVIGATE">).
+restrictions in the provider's navigation menus (see L<"NAVIGATE">)
+or shortcuts.
 For manual navigation there are more practical alternatives, e.g.
-the scrollbar and drop-down menus in the main browser window.
+the weekday scale and drop-down menus in the main browser window
+above the time and date columns (not available in grid layout.)
 
 
 =item B<Program index>
@@ -1307,6 +1372,29 @@ maxium is set to zero, the filter is switched off.
 You can specify the time values either by use of the scales or by
 entering a value in the format MM:HH into the text fields and
 pressing the Return key.
+
+
+=item B<Expired Programmes Display>
+
+Unlike all other filter options this one is used to I<enlarge> the
+set of matching programmes.  It allows to include expired programmes
+(i.e. those with a stop time in the past) into the list; they
+will be marked with a yellow background (you can change that color,
+see C<.Xdefaults> and C<nxtvepg.ad> in L<"FILES">.)  With the sliders
+you can set how many days plus hours to shift the expire time threshold.
+By default the threshold is zero so that expired programmes immediately
+disappear from the list.
+
+Note you cannot add more programmes than are stored in the database;
+usually programmes are removed after 4 hours.  There's a second tab
+called I<Configure> in the dialog which allows to change the delay
+after which expired programmes are automatically removed.  Press the
+I<Update> button to set the new value.  If it's lower than before,
+programmes will immediately be removed from the database; this
+operation cannot be undone (unless the progammes are still registered
+in the provider inventory, which may be the case if you haven't updated
+the database in a long time.  In this case you may get a confusing
+warning that programmes are about to be removed although they won't.)
 
 
 =item B<Sorting Criteria>
@@ -1369,9 +1457,10 @@ When you select global inversion, you'll get exactly the programmes that
 otherwise would have been filtered out (except for programmes which are
 permanently filtered out by your network and air-time selection). In other
 words, all programmes which match your current filter setting are removed
-from the list. Note: due to the way filter shortcuts are merged when more
+from the list.  Note: due to the way filter shortcuts are merged when more
 than one is selected at the same time, it's in most cases not recommended
-to use global invert for filter shortcuts.
+to use global invert for filter shortcuts unless you change the combination
+rule (see L<"FILTER SHORTCUTS: Shortcut combination modes">.)
 
 The invert menu also allows to individually negate certain filter types
 (there are also invert buttons in some filter sub-menus which have the
@@ -1423,17 +1512,10 @@ and don't want to add this shortcut after all.  If you want to define
 multiple shortcuts you can leave the Edit dialog open and save just once
 when you're done completely.
 
-You can invoke several shortcuts in parallel by pressing the I<CTRL>
-or I<SHIFT> keys when selecting in the main winddow's shortcut listbox.
-When combining filters with different combinations of filter categories
-the behavior is slightly subtle and sometimes suprising.  That's because
-currently filter shortcuts are not separated when processed.
-Instead all filters of all selected shortcuts are thrown together and
-then processed as if they belonged all to one shortcut in the way
-described in L<"FILTERING">. For example, if one shortcut searches for
-movies, another one subtitles, the combination will search for programmes
-which are movies AND have subtitles. There's currently no way to omplement
-a logical OR.  (This might change in the future.)
+You can invoke several shortcuts in parallel by moving the mouse with
+the left button pressed or by pressing the I<CTRL> or I<SHIFT> keys when
+selecting in the main winddow's shortcut listbox.  See the chapter below
+for possible side-effects when combining shortcuts.
 
 The shortcut list has a small context menu which shows when you click with
 the right mouse button into the  shortcut list.  If offers faster access
@@ -1480,8 +1562,8 @@ undo the change either by leaving the edit dialog with the I<Abort>
 button or selecting the respecting shortcut in the main window and
 assigning the original settings via I<Update>.
 
-At the bottom of the edit menu there's a checkbutton labeled I<Hide from
-main window>.  When it's enabled the currently selected shortcut will
+At the bottom of the edit menu there's a checkbutton labeled
+I<Hide from main window>.  When it's enabled the currently selected shortcut will
 not be included with the shortcut list in the main window. This is
 useful for shortcuts which you only intend to use in user-defined
 columns (see L<"COMPOSITE ATTRIBUTES">)
@@ -1514,6 +1596,37 @@ mask 'Themes' if you want a shortcut that allows to clear all
 theme-related filters at once. Or enabled all masks for a I<Reset>
 button (the only difference to the pre-defined Reset button would
 be that the cursor does not jump to the first Now programme.)
+
+=head2 Shortcut combination modes
+
+By default when combining multiple shortcuts, all filters of all selected
+shortcuts are simply thrown together (i.e. "merged") and then processed
+as if they belonged all to one shortcut.  The same combination rules
+apply as described in L<"FILTERING">.
+
+For example, if one shortcut searches for movies, another one subtitles,
+the combination will search for programmes which are movies B<AND> have
+subtitles.  Also, if you have one shortcut which filters for movies
+and one that filters for your favorite series, the combination will
+filter for all programmes which are either movies B<OR> among your
+favorite series.
+
+For such simple shortcuts which consist of a single filter type this
+behavior is usually intuitive.  When combining complex filters the result
+of merging however might not match your expecations.  For example, if
+you have a shortcut "movies on network A" and one "series on network B"
+merging would result in "either movies or series on either network
+A or B", i.e. the list would also include movies on network B.
+
+Hence the shortcut edit dialog has a I<Combination rule> option where
+you can change the mode into I<OR> or I<AND>.  If you put a shortcut
+into this mode, it's filters will be handled separately from all others.
+
+The only drawback is that the shortcut's filters will not be editable
+via the filter menus.  If you ever want to change the filter settings
+without creating them from scratch, use the I<Invoke> and I<Update>
+buttons in the edit dialog
+(see L<"FILTER SHORTCUTS: Editing Filter Shortcuts">.)
 
 =head2 Shortcut update dialog
 
@@ -1557,7 +1670,8 @@ Whenever nxtvepg displays a programme in the browser, it matches for
 each column/row (depending on your list layout) which contains compound
 attributes the programme's attributes against the shortctus associated
 which the respective compound attribute, in the given order (top to bottom
-in the dialog's list).  If a match is found, the text, image or attribute which
+in the dialog's list - so shortcut order is important).  If a match is
+found, the text, image or attribute which
 was assigned to that specific shortcut match is displayed in the column.
 If no shortcut matches, the column remains empty in that programme's row.
 
@@ -1589,6 +1703,142 @@ You can also use this machanism to combine several columns into one,
 to keep the listing compact.  For example you can combine the ER column
 with the theme column, so that for movies with ER >= 6 the text
 "great movie" is displayed, for all others the regular theme description.
+
+
+=head1 REMINDERS
+
+Reminders allow to mark TV shows which interest you and have nxtvepg mark
+them in the programme list and display a message or execute an external
+command when they start.  You can select either individual programmes in
+the programme list or complete filter shortcuts, e.g. for TV series.
+
+To set a new reminder simply select it with the cursor in the programme
+list and choose I<Add reminder for selected title> from the I<Reminder>
+menu.  The same command is also available in the context menu, i.e. by
+clicking on the selected title with the right mouse button.  To remove
+the reminder, simply select the title again and choose
+I<Remove reminder for selected title>.
+
+By default nxtvepg will display a message popup for every reminded
+programmme 5 minutes before and directly at the start time.  You can
+change this in the I<Configure reminder groups...> dialog described
+in a separate chapter below.
+
+If you want to set a reminder for an entire series, you need to create
+a filter shortcut first which matches the series (either by searching
+by series ID or by title).  To reduce the overhead you can create a
+shortcut which matches all your favorite series and set a reminder for
+this collection.  To assign a reminder to the shortcut use the
+I<Edit reminder list> described in the next chapter.
+
+Note you can add a single reminder for entries which already match a
+shortcut reminders.  This allows to assign an additional, specific
+action for that TV show (if you use different groups.)  Additionally
+you can suppress handling of reminders for individual shows; this
+option if offered in the Reminder and context menus when applicable.
+This option may help to get around excessively complex or restrictive
+shortcut filters.
+
+By default nxtvepg has (in the single list layout) a column titled
+I<Mark> which contains a red dot for all programmes which have a
+reminder registered, i.e. both single programmes and those which
+match shortcuts with associated reminders.  You can also set a filter
+which will display only programmes with reminders in the proramme
+list by selecting I<Show reminder matches> from the Reminder menu.
+
+=head2 Edit reminder list
+
+Opens a list of all reminders.  Single programmes and shortcuts are
+listed in separate "tabs"; switch between them by clicking on the
+buttons at the top.
+
+The B<single programmes> list is sorted by start time and network.  When
+you double-click on a reminder, the respective network will be filtered
+for in the programme list and the cursor jumps onto the programme
+(if it's present in the current database.)  To delete a reminder click
+on the I<Delete> button or press the delete key on your keyboard. You can
+also select the reminder's "group" (see below) either by selecting a
+group in the popup menu from the I<Set group> menubutton or by clicking
+with the right mousebutton into the group column.
+
+The list will normally not contain reminders for programmes which are
+already expired.  You can use the I<Display> popup menu at the right to
+change that.  You can also include "suppressed" reminders, i.e. entries
+which where created via the respective entry in the main menu to supress
+shortcut matches; those will appear with the virtual I<suppress> group
+in the list.
+
+When you switch to the B<Shortcuts> tab, you'll see a list of all shortcuts
+for which you have added reminders.
+The first time you open the dialog it will be empty.  You can add shortcuts
+by selecting them from the popup menu at the right.  Equivalently to single
+programmes you can change the group or delete the reminders again.  All
+changes to the lists are immediately saved and the markers in the programme
+list updated.
+
+All changes you make in this dialog take effect immediately.
+
+
+=head2 Reminder group configuration
+
+Opens a configuration dialog for reminder groups.  Every reminder is
+assigned to exactly one group which determines which actions are executed
+at the programmes' start time.  Having groups allows to change actions
+(and especially: disable them if you're not in the mood to watch TV)
+easily without having to edit every single reminder.  When you create
+a new reminder with the simple "add reminder" menu command it will be
+assigned to group zero.
+
+By default nxtvepg has only one group which pops up a message 5 minutes
+before and directly at the start time.  You can change this by selecting
+the group in the list at the left and then modifying the parameters at
+the right.  Or create a new reminder by clicking I<New>.  You can also
+change ordering of groups (only available for your convenience; except
+for group zero ordering is not relevant.)  The I<Show> buttons sets a
+filter for the programme list so that only programmes matching reminders
+in the same group as the currently selected shortcut are displayed.
+
+At the top of the parameter input section is the I<Label> entry field.
+It allows to give the group a name, which is then used in the reminder
+lists and in reminder confirmation messages.  Below is a checkbutton
+called I<Disable all group events>.  When enabled all actions for that
+group are suppressed, i.e. you'll get no popup messages and scripts
+are not executed.  The programmes are still marked in the listbox
+though.
+
+Further below is an entry field where you can give a list of comma separated
+values which define at which offsets reminder messages are displayed;
+offsets are substracted from the start time, i.e. when you enter "5" a
+message will appear 5 minutes before the programme's nominal start time.
+You can use negative values (e.g. "-5") if you want reminders to appear
+later than the start time.  In addition you can set start times for
+commands.  Commands are silently executed in the background, unless
+you enable I<Ask before executing script>.
+
+Note configuration changes (including group additions or deletions) are
+not applied before you leave the dialog with OK.
+
+=head2 Reminder Messages
+
+Once the nominal start time of a "reminded" programme (minus the configured
+time offset) is reached, a message window will appear.  If there's more
+than one message triggered at the same time, or if you leave the window
+open and reminders for additional programmes are triggered, they will all
+be collected in this window; in this case there's a cursor which determines
+to which reminders the controls explained below apply.
+When you press I<Ok> all messages are marked as "done" and will not appear
+again.  With a double-click or the I<Tune-TV> button you can switch the
+channel of a connected TV application to the selected programme, just as
+in the main programme list.
+
+For message windows there's several buttons which allow to control
+further reminder processing.  I<Suppress> will prevent any subsequent
+messages for the programme.  (Note that this is not the same as suppressing
+reminders in the main menu, since here you supress only messages but the
+programme remains marked as reminder).  I<Repeat> allows to schedule
+additional reminder messages at arbitrary time offsets.  Note that
+messages configured for the group are suppressed until the manual repetition
+but will re-appear afterwards.
 
 
 =head1 CONTEXT MENU
@@ -2042,16 +2292,19 @@ i.e. the same as for all user applications.
 
 =head2 Client/Server
 
-Opens a dialog that allows to configure the connection between acquisition
-daemon (called "server" here) and GUI.  The connection allows to forward
-all newly acquired EPG data from the daemon to the GUI and to monitor the
-daemon's acquisition progress.
+Opens a dialog that allows to configure the connection between browser
+and an acquisition daemon (i.e. a separate instance of nxtvepg which is
+running in server mode, see I<-daemon> command line switch in L<"OPTIONS">)
+The daemon allows to forward all newly acquired EPG data to one or more
+connected browsers and to monitor the it's acquisition progress.
 
 The dialog contains settings of which some refer to the server-side only,
 some to the client-side only and some to both server and client.  To avoid
 confusion, there are three radio buttons at the top of the dialog which
 allow to grey out items that do not refer to the client or server
-respectively.
+respectively.  Note: for server configuration changes to take effect, the
+daemon must be restarted.  If it's running locally, you can do this via
+the Control menu (see L<"CONTROL: Connect to acq. daemon">)
 
 =over 8
 
@@ -2331,11 +2584,11 @@ L<"COMPOSITE ATTRIBUTES">.  This chapter only describes usage
 of the configuration dialog.
 
 The dialog consists of three sections: at the top to the right there is a
-drop-down menu which lists all user-defined attributes. Here you
-select which attribute definition you want to edit.  Below to the left is the
-list of shortcuts and 4 buttons to edit the list.  On the right side of
-the shortcut list there are various controls for defining how a shortcut
-match should be displayed.
+drop-down menu which lists all currently defined compound attributes. Here you
+select which attribute definition you want to edit.  Below to the left is a
+list of shortcuts and reminders and 4 buttons to edit the list.  On
+the right side of the shortcut list there are various controls for
+defining how programmes matching shortcuts or reminders should be displayed.
 
 Note that there are dependencies between those sections: when you change
 to a different attribute definition with the drop-down menu at the top,
@@ -2347,24 +2600,39 @@ shortcut in the listbox, the display attributes at the right are updated.
 To create a new composite attribute, you will start by selecting the
 I<Create new definition> command in the menu at the top right of the dialog
 window. You should give the label right away, so that you can keep your
-definitions apart in the I<Attribute selection> configuration dialog.
+definitions apart, see L<"CONFIGURATION: Attribute selection">.
 You should also assign a column header text (only used in the "single list"
-layout), which will appear in the TV schedule browser; you'll probably
-use a shorter text here than in the label.
+layout), which will appear above the programme list in the main windiw;
+you'll probably use a shorter text here than in the label.
 
-Then you add one or more shortcuts to the list by use of the I<add>
-drop-down menu to the left of the listbox. You can change the order of
-the shortcuts by use of the arrow buttons, or delete them again with
-the I<delete> button.
+Then you add one or more filters to the list by use of the I<Add shortcut>
+or I<Add reminder> drop-down menus to the left of the listbox. New entries
+are always appended at the end, but you can change the ordering by use of
+the up/down arrow buttons.  To remove a shortcut or reminder from the list,
+first select it then click the I<Delete> button or key.  Note: ordering is
+important when a programme is matched by more than one shortcut or reminder,
+because the display format is determined by the first match (see also
+L<"COMPOSITE ATTRIBUTES">.)
 
-By default a shortcut match is displayed as the name of the shortcut.
-You can change that with the controls to the right of the listbox.
-The choices are: freely defined text, one of the pre-defined images or
-one of the programme's attributes (i.e. if you select I<Time> the
-programme's start time will be displayed).  For textual output you can
-additionally select a format below: either bold, underlined or colored.
-All these display options can be configured separately for every
-shortcut match.
+At the right of the shortcut list there are controls which defines what's
+displayed in the programme list depending on a shortcut or reminder match
+(for programmes which don't match any of the given shortcuts nothing will
+be displayed, unless you have a I<*no match*> entry.)
+By default a match is displayed as the name of the matching shortcut or
+reminder group, but you can easily change that with the controls to
+the right of the listbox.  The choices are: freely defined but static
+text, one of the pre-defined images or one of the programme's attributes
+(i.e. if you select I<Time> the programme's start time will be displayed).
+
+In case you chose to use text (including attributes), you can select
+bold, underlined or overstrike font and the text color.  For all types
+you can also select a background color, either only for the single
+column in which the element is displayed, or the complete programme
+element.  The resulting appearance is shown in a B<Text sample>
+above the controls.  These display options can be configured separately
+for every shortcut match.  An exception is the entire-column background
+color; if such a format is found in multiple attributes, the last one
+counts.
 
 When you want to try out your attribute definition, press the I<Apply>
 button at the bottom.  The definition is saved and the browser content
@@ -2543,8 +2811,8 @@ could for example result in
 
 to be passed to the Bourne Shell (F</bin/sh>).
 
-On Windows there's a special prefix C<!wintv!> which tells nxtvepg to
-send this command line to a connected TV application (see
+There are special prefixes C<!xawtv!> and C<!wintv!> which tell nxtvepg
+to send this command line to a connected TV application (see
 L<"CONFIGURATION: TV application interaction">).  For example
 
   !wintv! setstation ${network}
@@ -2591,8 +2859,8 @@ programme list.
 Maps or unmaps the I<Grid layout> checkbutton below the shortcuts or
 network list in the main window (see also L<"CONFIGURATION: List layout">).
 If you're permanently using one or the other layout, you will probably
-want to unmap this button.  (It's mainly present to make users of older
-versions aware of this new option.)
+want to unmap this button.  (It's mainly present to make users who
+upgrade from older versions aware of this new option.)
 
 =item I<Show status line>
 
@@ -2602,7 +2870,14 @@ of the browser window.
 =item I<Show column headers>
 
 Maps or unmaps the browser listbox column header menubar, i.e. the row
-of menu buttons above the programme list.
+of menu buttons above the programme list in single list layout.
+
+=item I<Show weekday scale>
+
+Maps or unmaps the weekday scale to the right of the programme list.
+(Note you can configure the looks, i.e. font, colors, width and date
+format via the resource file C<nxtvepg.ad> or C<.Xdefaults> on UNIX,
+see L<"FILES">)
 
 =item I<Hide on minimize>
 
@@ -2780,17 +3055,23 @@ are hard-coded) or the look of entire widget classes, like menus or buttons.
 However that's highly implementation dependent and generally not very useful,
 hence depreciated.
 
-Defaults for all officially supported options are listed in the app-defauls
-file F<Nxtvepg.ad> which is usually installed in F</usr/X11/lib/X11/app-defaults>
-(without the .ad extension).  You should not change valus there however,
-because they would be overwritten when you install new versions.  Instead copy
-changed lines into your .Xdefaults file (without the leading comment ! sign.)
-When X11 is already started you can override settings with xrdb like this:
+Defaults for all officially supported options are listed in the
+so-called "app-defaults" file F<Nxtvepg.ad> which is usually installed
+in F</usr/X11/lib/X11/app-defaults> (the .ad extension is omitted during
+installation.)  You should not change values there however, because they
+would be overwritten when you install new versions.  Instead copy changed
+lines into your .Xdefaults file (without the leading comment ! sign.)
+Note you have to restart nxtvepg for changes to take effect.  When X11 is
+already running you can override individual settings with xrdb like this:
 
    echo "nxtvepg*text_bg: #E9E9EC" | xrdb -merge
 
 Color values can specified either symbolically (e.g. "red") or as hexadecimal
-RGB values in #RRGGBB format. Fonts must be specified as triplets of family,
+RGB values in #RRGGBB format.  A special case are the 7 colors for weekday
+background colors in the main window's date scale: it's resource value
+consists of a comma separated list of 7 colors.
+
+Fonts must be specified as triplets of family,
 size (use negative values to specify the size in pixels and positive values
 for sizes given in points) and appearance (only "normal" or "bold" are
 recommended).  Lines starting with a ! sign are treated as comment and hence
@@ -2873,7 +3154,8 @@ T. Zoerner, Erlangen, Germany.
 
 Email: tomzo (at) users (dot) sourceforge (dot) net
 
-Many thanks to Thierry Ménétrier for his valuable feedback;
+Many thanks to Thierry Ménétrier and Peter Rolf
+for their valuable feedback and suggestions;
 to Simon Barner for the FreeBSD port;
 to Matthieu for the French translation of PDC theme descriptors;
 to E-nek for the DScaler driver port and cooperation

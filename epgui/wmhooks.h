@@ -1,5 +1,5 @@
 /*
- *  Nextview browser: M$ Windows TV application remote control module
+ *  X11 window manager hooks
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
@@ -16,21 +16,15 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: wintv.h,v 1.4 2003/10/05 19:31:44 tom Exp tom $
+ *  $Id$
  */
 
-#ifndef __WINTV_H
-#define __WINTV_H
+#ifndef __X11WM_H
+#define __X11WM_H
 
 
-// ----------------------------------------------------------------------------
-// Initialization
-//
-void Wintv_Init( bool enable );
-void Wintv_Destroy( void );
-
-bool Wintv_IsConnected( void );
-void Wintv_SendCmdArgv(Tcl_Interp *interp, const char * pCmdStr, uint strLen );
+void WmHooks_Init( Tcl_Interp * interp );
+void WmHooks_Destroy( void );
 
 
-#endif  // __WINTV_H
+#endif  // __X11WM_H

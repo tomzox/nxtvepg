@@ -1,5 +1,5 @@
 /*
- *  Nextview browser: M$ Windows TV application remote control module
+ *  Nextview GUI: Reminder interface to database
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
@@ -16,21 +16,19 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: wintv.h,v 1.4 2003/10/05 19:31:44 tom Exp tom $
+ *  $Id: piremind.h,v 1.2 2003/08/16 17:12:44 tom Exp tom $
  */
 
-#ifndef __WINTV_H
-#define __WINTV_H
+#ifndef __PIREMIND_H
+#define __PIREMIND_H
 
 
-// ----------------------------------------------------------------------------
-// Initialization
-//
-void Wintv_Init( bool enable );
-void Wintv_Destroy( void );
+// Initialization and destruction - Interface to the EPG main module
+void PiRemind_Create( void );
+void PiRemind_Destroy( void );
+void PiRemind_CheckDb( void );
 
-bool Wintv_IsConnected( void );
-void Wintv_SendCmdArgv(Tcl_Interp *interp, const char * pCmdStr, uint strLen );
+uint PiReminder_CtxMenuAdd( Tcl_Interp *interp, const PI_BLOCK * pPiBlock,
+                            const uchar * pMenu, bool addSeparator );
 
-
-#endif  // __WINTV_H
+#endif  // __PIREMIND_H

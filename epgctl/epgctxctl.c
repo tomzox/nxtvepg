@@ -31,7 +31,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgctxctl.c,v 1.22 2002/09/14 18:13:43 tom Exp tom $
+ *  $Id: epgctxctl.c,v 1.24 2003/10/05 19:14:28 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -848,6 +848,30 @@ time_t EpgContextCtl_GetAiUpdateTime( uint cni )
    }
 
    return lastAiUpdate;
+}
+
+// ---------------------------------------------------------------------------
+// Set PI "cut-off" time, i.e. time offset after which expired PI are removed from db
+// - assigned to all open databases (already removed PI are not recoverable though)
+// - also passed to reload module (where it's stored internally for future loads)
+//
+void EpgContextCtl_SetPiExpireDelay( time_t expireDelay )
+{
+   CTX_CACHE  * pWalk;
+
+   EpgDbSavSetPiExpireDelay(expireDelay);
+
+   pWalk = pContextCache;
+   while (pWalk != NULL)
+   {
+      if (pWalk->pDbContext != NULL)
+      {
+         pWalk->pDbContext->expireDelayPi = expireDelay;
+
+         EpgDbExpire(pWalk->pDbContext);
+      }
+      pWalk = pWalk->pNext;
+   }
 }
 
 // ---------------------------------------------------------------------------

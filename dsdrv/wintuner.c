@@ -32,7 +32,7 @@
  *  DScaler #Id: MT2032.cpp,v 1.11 2002/10/31 21:42:56 adcockj Exp #
  *  DScaler #Id: TDA9887.cpp,v 1.2 Sat Feb 22 10:07:10 2003 unknown Exp #
  *
- *  $Id: wintuner.c,v 1.14 2003/06/23 19:52:36 tom Exp tom $
+ *  $Id: wintuner.c,v 1.15 2003/09/02 19:48:39 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -1169,7 +1169,7 @@ bool Tuner_SetFrequency( TUNER_TYPE type, uint wFrequency, uint norm )
    {
       dprintf4("Tuner-SetFrequency: type=%d, freq=%d (last=%d), norm=%d\n", type, wFrequency, lastWFreq, norm);
 
-      if (type == TUNER_MT2032)
+      if ((type == TUNER_MT2032) || (type == TUNER_MT2032_PAL))
       {
          // XXX TODO: norm handling: use initial norm for now
          norm = m_LastVideoFormat;

@@ -1,5 +1,5 @@
 /*
- *  Tcl script inlining tool for the make process
+ *  Build tool for inlining Tcl scripts into the executable
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
@@ -24,6 +24,12 @@
  *    the dynamic part is only loaded when one of it's pre-defined entry
  *    procedures is referenced (usually when a dialog window is opened)
  *
+ *    As performance optimization the tool includes a pre-processor which
+ *    can replace global constant variables with an assigned integer value.
+ *    The constant definitions are also written to a header file to make
+ *    them available to all Tcl/Tk modules and also in as integer defines
+ *    to C modules.
+ *
  *    Usage:  tcl2c script.tcl
  *
  *    The input filename must have the .tcl ending, because  the file names
@@ -38,7 +44,7 @@
  *
  *    Completely rewritten and functionality added by Tom Zoerner
  *
- *  $Id: tcl2c.c,v 1.6 2003/01/11 13:02:16 tom Exp tom $
+ *  $Id: tcl2c.c,v 1.9 2003/09/23 19:49:30 tom Exp tom $
  */
 
 #include <stdlib.h>
@@ -46,9 +52,34 @@
 #include <stdio.h>
 #include <errno.h>
 #include <time.h>
+#include <ctype.h>
+#include <signal.h>
+#include <unistd.h>
 
+// command line options
+int optStubsForDynamic = 0;
+int optSubstConsts = 0;
+int optPreserveHeaders = 0;
 
-static void PrintLine( FILE * fp, const char * pLine )
+// struct to hold a substitution list member
+typedef struct
+{
+    int         len;
+    char        str[128];
+    char        define[128];
+} SUBST_DEF;
+
+#define SUBST_MAX     1000
+#define SUBST_PREFIX  "EPGTCL_"
+#define SUBST_POSTFIX "_STR"
+static SUBST_DEF SubstList[SUBST_MAX];
+static int       SubstCount = 0;
+static char    * outNameHtmp = NULL;
+
+// ---------------------------------------------------------------------------
+// Convert a text string and append it to a C string or array
+//
+static void PrintText( FILE * fp, const char * pLine )
 {
     unsigned char c;
 
@@ -80,11 +111,290 @@ static void PrintLine( FILE * fp, const char * pLine )
     #endif
 }
 
+// ---------------------------------------------------------------------------
+// Append a CONST substitution to the list
+// - called for every CONST in the main and any included scripts
+// - a declaration is also written to the header file (unless handle is NULL)
+//
+static void AddSubstitution( char *var_name,  char *subst, FILE * fpH )
+{
+    char *p, *s;
+    long substIntVal;
+
+    if (SubstCount < SUBST_MAX)
+    {
+        // make sure substituted value is an integer
+        substIntVal = strtol(subst, &p, 0);
+        if ((*subst == 0) || (*p != 0))
+        {
+            fprintf(stderr, "=CONST= substitution for '%s' is not an integer: '%s'\n", var_name, subst);
+            exit(1);
+        }
+
+        strcpy(SubstList[SubstCount].str, var_name);
+        SubstList[SubstCount].len = strlen(var_name);
+
+        // derive name for define from tcl var name: only use letters, digits and underscore
+        // (in particular crop :: prefix)
+        p = var_name;
+        s = SubstList[SubstCount].define;
+        while (*p != 0)
+        {
+            if ( ((*p >= 'A') && (*p <= 'Z')) ||
+                 ((*p >= 'a') && (*p <= 'z')) ||
+                 ((*p >= '0') && (*p <= '9')) ||
+                 (*p == '_') )
+            {
+                *(s++) = toupper(*p);
+            }
+            p++;
+        }
+        *s = 0;
+
+        if (fpH != NULL)
+        {
+           // add define to header file: as string for concat into Tcl/Tk script
+           #ifndef WIN32
+           fprintf(fpH, "#define %s%s%s \"", SUBST_PREFIX, SubstList[SubstCount].define, SUBST_POSTFIX);
+           PrintText(fpH, subst);
+           fprintf(fpH, "\"\n");
+           #else
+           fprintf(fpH, "#define %s%s%s ", SUBST_PREFIX, SubstList[SubstCount].define, SUBST_POSTFIX);
+           PrintText(fpH, subst);
+           #endif
+
+           // add integer define for use in C modules
+           fprintf(fpH, "#define %s%s %ld\n", SUBST_PREFIX, SubstList[SubstCount].define, substIntVal);
+        }
+        SubstCount += 1;
+    }
+    else
+    {
+        fprintf(stderr, "Constant substitution buffer overflow (max. %d)\n", SUBST_MAX);
+        exit(1);
+    }
+}
+
+// ---------------------------------------------------------------------------
+//  Read constants definitions from another Tcl module
+//
+static void IncludeConstants( const char * hFileName )
+{
+    char * tclFileName;
+    int fileNameLen;
+    char line[1024];
+    char proc_name[128];
+    char var_name[128];
+    FILE * fpTcl;
+
+    fileNameLen = strlen(hFileName);
+    if ((fileNameLen < 2) || (hFileName[0] != '"') || (hFileName[fileNameLen - 1] != '"'))
+    {
+        fprintf(stderr, "Include file name not enclosed in quotes (\"): %s\n", hFileName);
+	exit(1);
+    }
+    if ((fileNameLen < 1+3+1) || (strncmp(hFileName + fileNameLen - 2 - 1, ".h", 2) != 0))
+    {
+        fprintf(stderr, "Unexpected file name extension in include (not '.h'): %s\n", hFileName);
+	exit(1);
+    }
+    tclFileName = malloc(fileNameLen + 2 + 1);
+    strncpy(tclFileName, hFileName + 1, fileNameLen - 2);
+    strcpy(tclFileName + fileNameLen - (1 + 2 + 1), ".tcl");
+    tclFileName[fileNameLen - 1 + 4] = 0;
+
+    fpTcl = fopen(tclFileName, "r");
+    if (fpTcl == NULL)
+    {
+        fprintf(stderr, "Cannot open included Tcl modules '%s': %s\n", tclFileName, strerror(errno));
+	exit(1);
+    }
+
+    // read the complete file, ignoring everything except constant definitions
+    while (fgets(line, sizeof(line) - 1, fpTcl) != NULL)
+    {
+        if (sscanf(line, "#=CONST= %127s %127[^\n]", var_name, proc_name) == 2)
+        {
+            AddSubstitution(var_name, proc_name, NULL);
+        }
+    }
+    fclose(fpTcl);
+    free(tclFileName);
+}
+
+// ---------------------------------------------------------------------------
+// Substitute constants and append the output to a C string
+//
+static void PrintLine( FILE * fp, const char * pLine )
+{
+    const char *pNext;
+    char *pMatch;
+    int subIdx;
+
+    if (SubstCount > 0)
+    {
+       pNext = pLine;
+       while ((pMatch = strchr(pNext, '$')) != NULL)
+       {
+           for (subIdx = 0; subIdx < SubstCount; subIdx++)
+           {
+               if (strncmp(pMatch + 1, SubstList[subIdx].str, SubstList[subIdx].len) == 0)
+               {
+                  // print the text before the substitution
+                  *pMatch = 0;
+                  PrintText(fp, pLine);
+
+                  #ifndef WIN32
+                  fprintf(fp, "\" %s%s%s \"", SUBST_PREFIX, SubstList[subIdx].define, SUBST_POSTFIX);
+                  #else
+                  fprintf(fp, "%s%s%s\n", SUBST_PREFIX, SubstList[subIdx].define, SUBST_POSTFIX);
+                  #endif
+
+                  pLine = pMatch + 1 + SubstList[subIdx].len;
+                  pNext = pLine;
+                  break;
+               }
+           }
+           if (subIdx >= SubstCount)
+              pNext = pMatch + 1;
+       }
+    }
+    PrintText(fp, pLine);
+}
+
+// ---------------------------------------------------------------------------
+// Remove temporary files upon interruption
+//
+static void RemoveOutputHtmp( void )
+{
+    if (optPreserveHeaders && (outNameHtmp[0] != 0))
+    {
+        unlink(outNameHtmp);
+    }
+}
+
+#ifndef WIN32
+static void TermSignal( int sigval )
+{
+   RemoveOutputHtmp();
+}
+#endif
+
+// ---------------------------------------------------------------------------
+//  Compare content of two text files, return 1 if identical
+//
+static int CompareHeaderFiles( char * pNewFile, char * pOldFile )
+{
+    char line1[1000];
+    char line2[1000];
+    FILE * fp1;
+    FILE * fp2;
+    int result;
+
+    fp2 = fopen(pNewFile, "r");
+    if (fp2 == NULL)
+    {
+        fprintf(stderr, "Cannot open header file '%s': %s\n", pNewFile, strerror(errno));
+        exit(1);
+    }
+
+    fp1 = fopen(pOldFile, "r");
+    if (fp1 == NULL)
+    {
+	result = 0;
+        fclose(fp2);
+    }
+    else
+    {
+        // compare the two files line by line
+        result = 1;
+        while (fgets(line1, sizeof(line1) - 1, fp1) != NULL)
+        {
+            if ( (fgets(line2, sizeof(line2) - 1, fp2) == NULL) ||
+                 (strcmp(line1, line2) != 0) )
+            {
+                result = 0;
+                break;
+            }
+
+        }
+        // check if the 2nd file is longer than the first
+        if (fgets(line2, sizeof(line2) - 1, fp2) != NULL)
+            result = 0;
+
+        fclose(fp1);
+        fclose(fp2);
+    }
+
+    return result;
+}
+
+// ---------------------------------------------------------------------------
+// Print Usage and exit
+//
+static void Usage( const char *argv0, const char *argvn, const char * reason )
+{
+   fprintf(stderr, "%s: %s: %s\n"
+                   "Usage: %s [options] script.tcl\n"
+                   "       -?\t: this message\n"
+                   "       -d\t: generate stubs for procs in =DYNAMIC= tags\n"
+                   "       -c\t: generate cpp macros for =CONST= assignments\n"
+                   "       -h\t: write header file only if changed\n",
+                   argv0, reason, argvn, argv0);
+
+   exit(1);
+}
+
+// ---------------------------------------------------------------------------
+// Parse command line options
+//
+static void ParseArgv( int argc, char * argv[] )
+{
+    int argIdx = 1;
+
+    while ( (argIdx < argc) && (argv[argIdx][0] == '-') )
+    {
+        if (!strcmp(argv[argIdx], "-?"))
+        {
+            Usage(argv[0], "", "the following command line options are available");
+        }
+        else if (!strcmp(argv[argIdx], "-d"))
+        {
+            optStubsForDynamic = 1;
+            argIdx++;
+        }
+        else if (!strcmp(argv[argIdx], "-h"))
+        {
+            optPreserveHeaders = 1;
+            argIdx++;
+        }
+        else if (!strcmp(argv[argIdx], "-c"))
+        {
+            optSubstConsts = 1;
+            argIdx++;
+        }
+        else
+            Usage(argv[0], argv[argIdx], "unknown option");
+    }
+    if (argIdx + 1 < argc)
+    {
+        Usage(argv[0], "", "Too many arguments");
+    }
+    else if (argIdx + 1 > argc)
+    {
+        Usage(argv[0], "", "Missing script file argument");
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Main loop
+//
 int main(int argc, char **argv)
 {
     FILE * fpTcl;
     FILE * fpC;
     FILE * fpH;
+    char * inFileName;
     char * outNameC;
     char * outNameH;
     char * baseName;
@@ -92,35 +402,34 @@ int main(int argc, char **argv)
     time_t now;
     char line[1024];
     char proc_name[128];
+    char var_name[128];
     int comments;
     int fileNameLen;
+    int inBody;
 
-    if (argc < 2)
+    ParseArgv(argc, argv);
+    inFileName = argv[argc - 1];
+
+    fileNameLen = strlen(inFileName);
+    if ((fileNameLen < 5) || (strcmp(inFileName + fileNameLen - 4, ".tcl") != 0))
     {
-	fprintf(stderr, "Usage: %s stringname\n", argv[0]);
+        Usage(argv[0], "Unexpected file name extension (not '.tcl')", inFileName);
 	exit(1);
     }
 
-    fileNameLen = strlen(argv[1]);
-    if ((fileNameLen < 5) || (strcmp(argv[1] + fileNameLen - 4, ".tcl") != 0))
-    {
-        fprintf(stderr, "Unexpected file name extension (not '.tcl'): %s\n", argv[1]);
-	exit(1);
-    }
-
-    fpTcl = fopen(argv[1], "r");
+    fpTcl = fopen(inFileName, "r");
     if (fpTcl == NULL)
     {
-        fprintf(stderr, "Cannot open Tcl input file '%s': %s\n", argv[1], strerror(errno));
+        fprintf(stderr, "Cannot open Tcl input file '%s': %s\n", inFileName, strerror(errno));
 	exit(1);
     }
 
     outNameC = malloc(fileNameLen + 1);
     outNameH = malloc(fileNameLen + 1);
     scriptName = malloc(fileNameLen + 1);
-    strncpy(outNameC, argv[1], fileNameLen - 4);
-    strncpy(outNameH, argv[1], fileNameLen - 4);
-    baseName = (char *)strrchr(argv[1], '/');
+    strncpy(outNameC, inFileName, fileNameLen - 4);
+    strncpy(outNameH, inFileName, fileNameLen - 4);
+    baseName = (char *)strrchr(inFileName, '/');
     if (baseName != NULL)
     {
         baseName += 1;
@@ -129,8 +438,8 @@ int main(int argc, char **argv)
     }
     else
     {
-        strncpy(scriptName, argv[1], fileNameLen - 4);
-        baseName = argv[1];
+        strncpy(scriptName, inFileName, fileNameLen - 4);
+        baseName = inFileName;
     }
     strcat(outNameC, ".c");
     strcat(outNameH, ".h");
@@ -143,28 +452,37 @@ int main(int argc, char **argv)
 	exit(1);
     }
 
-    fpH = fopen(outNameH, "w");
+    if (optPreserveHeaders)
+    {
+        outNameHtmp = malloc(fileNameLen + 1 + 4);
+        strcpy(outNameHtmp, outNameH);
+        strcat(outNameHtmp, ".tmp");
+
+        atexit(RemoveOutputHtmp);
+        fpH = fopen(outNameHtmp, "w");
+    }
+    else
+        fpH = fopen(outNameH, "w");
     if (fpH == NULL)
     {
-        fprintf(stderr, "Cannot create H output file '%s': %s\n", outNameH, strerror(errno));
+        fprintf(stderr, "Cannot create H output file '%s': %s\n",
+                        ((outNameHtmp != NULL) ?  outNameHtmp : outNameH), strerror(errno));
 	exit(1);
     }
+    #ifndef WIN32
+    signal(SIGINT, TermSignal);
+    signal(SIGTERM, TermSignal);
+    signal(SIGHUP, TermSignal);
+    #endif
 
     now = time(NULL);
     fprintf(fpC, "/*\n** This file was automatically generated - do not edit\n"
                  "** Generated from %s at %s*/\n\n"
-                 "#include \"%s\"\n\n",
+                 "#include \"%s\"\n",
                  baseName, ctime(&now), outNameH);
     fprintf(fpH, "/*\n** This file was automatically generated - do not edit\n"
-                 "** Generated from %s at %s*/\n\n", baseName, ctime(&now));
-
-    #ifndef WIN32
-    fprintf(fpC, "unsigned const char %s_static[] = \"\\\n", scriptName);
-    fprintf(fpH, "extern unsigned const char %s_static[];\n", scriptName);
-    #else
-    fprintf(fpC, "unsigned const char %s_static[] = {\n", scriptName);
-    fprintf(fpH, "extern unsigned const char %s_static[];\n", scriptName);
-    #endif
+                 "** Generated from %s\n*/\n\n", baseName);
+    inBody = 0;
 
     while (fgets(line, sizeof(line) - 1, fpTcl) != NULL)
     {
@@ -172,11 +490,23 @@ int main(int argc, char **argv)
         sscanf(line, " #%n", &comments);
         if (comments == 0)
         {
-           PrintLine(fpC, line);
+            if (inBody == 0)
+            {
+                inBody = 1;
+                #ifndef WIN32
+                fprintf(fpC, "\nunsigned const char %s_static[] = \"\\\n", scriptName);
+                fprintf(fpH, "\nextern unsigned const char %s_static[];\n", scriptName);
+                #else
+                fprintf(fpC, "\nunsigned const char %s_static[] = {\n", scriptName);
+                fprintf(fpH, "\nextern unsigned const char %s_static[];\n", scriptName);
+                #endif
+            }
+            PrintLine(fpC, line);
         }
         else
         {
-            if (sscanf(line, "#=LOAD=%127[^\n]", proc_name) == 1)
+            if ( optStubsForDynamic &&
+                 (sscanf(line, "#=LOAD=%127[^\n]", proc_name) == 1) )
             {
                 char buf[256];
                 sprintf(buf, "proc %s args {\n"
@@ -184,9 +514,10 @@ int main(int argc, char **argv)
                        "   uplevel 1 %s $args\n"
                        "}\n",
                        proc_name, scriptName, proc_name);
-               PrintLine(fpC, buf);
+               PrintText(fpC, buf);
             }
-            else if (strcmp(line, "#=DYNAMIC=\n") == 0)
+            else if ( optStubsForDynamic &&
+                      (strcmp(line, "#=DYNAMIC=\n") == 0) )
             {
                 #ifndef WIN32
                 fprintf(fpC, "\";\n\n\n");
@@ -197,6 +528,22 @@ int main(int argc, char **argv)
                 fprintf(fpC, "unsigned const char %s_dynamic[] = {\n", scriptName);
                 fprintf(fpH, "extern unsigned const char %s_dynamic[];\n", scriptName);
                 #endif
+            }
+            else if ( optSubstConsts &&
+                      (sscanf(line, "#=INCLUDE= %127[^\n]", proc_name) == 1) )
+            {
+                if (inBody == 0)
+                {
+                    fprintf(fpC, "#include %s\n", proc_name);
+                    IncludeConstants(proc_name);
+                }
+                else
+                    fprintf(stderr, "ERROR: #=INCLUDE= directive after start of body\n");
+            }
+            else if ( optSubstConsts &&
+                      (sscanf(line, "#=CONST= %127s %127[^\n]", var_name, proc_name) == 2) )
+            {
+                AddSubstitution(var_name, proc_name, fpH);
             }
             // else: it's a comment, discard it
         }
@@ -210,6 +557,30 @@ int main(int argc, char **argv)
     fclose(fpC);
     fclose(fpH);
     fclose(fpTcl);
+
+    if (optPreserveHeaders)
+    {
+        // if the newly generated header file is identical to the previous one, discard it
+        if (CompareHeaderFiles(outNameHtmp, outNameH) == 0)
+        {
+            if (rename(outNameHtmp, outNameH) != 0)
+            {
+                fprintf(stderr, "failed to rename new header file '%s' into '%s': %s\n", outNameHtmp, outNameH, strerror(errno));
+                outNameHtmp[0] = 0;
+                exit(1);
+            }
+        }
+        else
+        {
+            if (unlink(outNameHtmp) != 0)
+            {
+                fprintf(stderr, "failed to unlink new, identical header file '%s'': %s\n", outNameHtmp, strerror(errno));
+                outNameHtmp[0] = 0;
+                exit(1);
+            }
+        }
+        outNameHtmp[0] = 0;
+    }
 
     exit(0);
     /*NOTREACHED*/

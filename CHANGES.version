@@ -1,4 +1,4 @@
-## $Id: CHANGES.version,v 1.15 2003/07/01 19:50:48 tom Exp $ ##
+## $Id: CHANGES.version,v 1.16 2003/09/22 20:51:42 tom Exp $ ##
 
 Steps to prepare new distribution:
 
@@ -34,6 +34,9 @@ Makefile AND Makefile.win
 
 adapt epgctl/mytypes.h
 - all debug options from ON to OFF
+
+pre-releases:
+- switch DEBUG_SWITCH_STREAM and HALT_ON_FAILED_ASSERTION to OFF
 
 remove CHANGES.version
 remove .nroff .gdbinit

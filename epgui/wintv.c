@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: wintv.c,v 1.14 2003/01/29 22:10:27 tom Exp tom $
+ *  $Id: wintv.c,v 1.17 2003/10/05 19:31:41 tom Exp tom $
  */
 
 #ifndef WIN32
@@ -172,8 +172,10 @@ static const PI_BLOCK * Wintv_SearchCurrentPi( uint cni, uint pil )
             // filter for the given network and start time >= now
             EpgDbFilterInitNetwop(fc);
             EpgDbFilterSetNetwop(fc, netwop);
+            EpgDbFilterEnable(fc, FILTER_NETWOP);
+
             EpgDbFilterSetExpireTime(fc, now);
-            EpgDbFilterEnable(fc, FILTER_NETWOP | FILTER_EXPIRE_TIME);
+            EpgDbPreFilterEnable(fc, FILTER_EXPIRE_TIME);
 
             pPiBlock = EpgDbSearchFirstPi(pUiDbContext, fc);
             if ((pPiBlock != NULL) && (pPiBlock->start_time > now))
@@ -188,6 +190,50 @@ static const PI_BLOCK * Wintv_SearchCurrentPi( uint cni, uint pil )
    }
 
    return pPiBlock;
+}
+
+// ----------------------------------------------------------------------------
+// Query if a TV app is connected
+//
+bool Wintv_IsConnected( void )
+{
+   return ( (wintvcf.shmEnable) &&
+            (WintvSharedMem_IsConnected(NULL, 0, NULL)) );
+}
+
+// ---------------------------------------------------------------------------
+// Send an already parsed command to the remote TV application
+// - the command is a list of strings separated by 0; terminated by two 0
+// - used to send commands from C level (e.g. context menu)
+//
+void Wintv_SendCmdArgv( Tcl_Interp *interp, const char * pCmdStr, uint cmdLen )
+{
+   uint  cmdArgCount;
+   uint  idx;
+
+   if ( Wintv_IsConnected() )
+   {
+      // count command arguments: count zero bytes except for the extra 0 after the last arg
+      cmdArgCount = 0;
+      for (idx=0; idx < cmdLen - 1; idx++)
+         if (pCmdStr[idx] == '\0')
+            cmdArgCount += 1;
+
+      if (WintvSharedMem_SetEpgCommand(cmdArgCount, pCmdStr, cmdLen) == FALSE)
+      {
+         sprintf(comm, "tk_messageBox -type ok -icon error -parent . "
+                       "-message \"Failed to send the command to the TV app.\"");
+         eval_check(interp, comm);
+         Tcl_ResetResult(interp);
+      }
+   }
+   else
+   {
+      sprintf(comm, "tk_messageBox -type ok -icon error -parent . "
+                    "-message \"Cannot send command: no TV application connected!\"");
+      eval_check(interp, comm);
+      Tcl_ResetResult(interp);
+   }
 }
 
 // ---------------------------------------------------------------------------
@@ -432,6 +478,27 @@ static void Wintv_StationSelected( void )
       pollVpsEvent = Tcl_CreateTimerHandler(200, Wintv_PollVpsPil, NULL);
 }
 
+// ---------------------------------------------------------------------------
+// Tcl callback to send a command to connected Xawtv application
+//
+static int Wintv_ShowEpg(ClientData ttp, Tcl_Interp *interp, int argc, CONST84 char *argv[])
+{
+   const char * const pUsage = "Usage: C_Tvapp_ShowEpg";
+   int result;
+
+   if (argc != 1)
+   {  // parameter count is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else
+   {
+      Wintv_StationSelected();
+      result = TCL_OK;
+   }
+   return result;
+}
+
 // ----------------------------------------------------------------------------
 // Query which TV app we're connected to, if any
 //
@@ -527,7 +594,6 @@ static int Wintv_ReadConfig( Tcl_Interp *interp, WINTVCF *pNewWintvcf )
 static int Wintv_InitConfig( ClientData ttp, Tcl_Interp *interp, int argc, CONST84 char *argv[] )
 {
    const char * pShmErrMsg;
-   char * pErrBuf;
    WINTVCF newWintvCf;
    bool acqEnabled;
    int result;
@@ -545,6 +611,12 @@ static int Wintv_InitConfig( ClientData ttp, Tcl_Interp *interp, int argc, CONST
       wintvcf = newWintvCf;
    }
 
+   // during start-up automatic attach may be suppressed
+   if ( PVOID2INT(ttp) == FALSE )
+   {  // FIXME: this state is not properly reflected by the dialog (still appears enabled)
+      wintvcf.shmEnable = FALSE;
+   }
+
    if (WintvSharedMem_StartStop(wintvcf.shmEnable, &acqEnabled) == FALSE)
    {  // failed to enable the shared memory server
       wintvcf.shmEnable = FALSE;
@@ -552,12 +624,9 @@ static int Wintv_InitConfig( ClientData ttp, Tcl_Interp *interp, int argc, CONST
       pShmErrMsg = WinSharedMem_GetErrorMsg();
       if (pShmErrMsg != NULL)
       {
-         pErrBuf = xmalloc(strlen(pShmErrMsg) + 100);
+         if (Tcl_VarEval(interp, "tk_messageBox -type ok -icon error -message {", pShmErrMsg, "}", NULL) != TCL_OK)
+            debugTclErr(interp, "Wintv-InitConfig msgbox");
 
-         sprintf(pErrBuf, "tk_messageBox -type ok -icon error -message {%s}", pShmErrMsg);
-         eval_check(interp, pErrBuf);
-
-         xfree((void *) pErrBuf);
          xfree((void *) pShmErrMsg);
       }
    }
@@ -566,8 +635,7 @@ static int Wintv_InitConfig( ClientData ttp, Tcl_Interp *interp, int argc, CONST
       EpgAcqCtl_Stop();
 
    // display the "Tune TV" button in the main window is an app is attached
-   if ( (wintvcf.tunetv) && (wintvcf.shmEnable) &&
-        WintvSharedMem_IsConnected(NULL, 0, NULL) )
+   if ( (wintvcf.tunetv) && (wintvcf.shmEnable) && Wintv_IsConnected() )
    {
       eval_check(interp, "CreateTuneTvButton\n");
    }
@@ -726,21 +794,24 @@ void Wintv_Destroy( void )
 // ----------------------------------------------------------------------------
 // Initialize the module
 // - note that the wintvcfg.c module must be initialized before
+// - boolean param can be used to start with interaction disabled (override config)
+//   currently used when another nxtvepg instance is already running to avoid err.msg.
 //
-void Wintv_Init( void )
+void Wintv_Init( bool enable )
 {
    // create an asynchronous event source that allows to receive triggers from the TV message receptor thread
    asyncThreadHandler = Tcl_AsyncCreate(Wintv_AsyncThreadHandler, NULL);
 
    // Create callback functions
-   Tcl_CreateCommand(interp, "C_Tvapp_InitConfig", Wintv_InitConfig, (ClientData) FALSE, NULL);
+   Tcl_CreateCommand(interp, "C_Tvapp_InitConfig", Wintv_InitConfig, INT2PVOID(TRUE), NULL);
    Tcl_CreateCommand(interp, "C_Tvapp_SendCmd", Wintv_SendCmd, (ClientData) NULL, NULL);
+   Tcl_CreateCommand(interp, "C_Tvapp_ShowEpg", Wintv_ShowEpg, (ClientData) NULL, NULL);
    Tcl_CreateCommand(interp, "C_Tvapp_QueryTvapp", Wintv_QueryTvapp, (ClientData) NULL, NULL);
 
    WintvSharedMem_SetCallbacks(&winShmSrvCb);
 
    // read user config and initialize local vars
-   Wintv_InitConfig(NULL, interp, 0, NULL);
+   Wintv_InitConfig(INT2PVOID(enable), interp, 0, NULL);
 }
 
 #endif  // not WIN32

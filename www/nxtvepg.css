@@ -16,6 +16,9 @@ P.navsect {
 P.navhead {
 	BACKGROUND-COLOR: #c8c8c8; BORDER-BOTTOM: medium none; BORDER-LEFT: medium none; BORDER-RIGHT: medium none; BORDER-TOP: medium none; FONT-SIZE: 10pt; PADDING-BOTTOM: 4px; PADDING-LEFT: 4px; PADDING-RIGHT: 4px; PADDING-TOP: 4px; TEXT-DECORATION: none
 }
+P.marg {
+        PADDING-LEFT: 10pt;
+}
 UL LI A.link {
 	COLOR: #336699; TEXT-DECORATION: none
 }

@@ -31,7 +31,7 @@
  *     xawtv-remote.c by Gerd Knorr (kraxel@bytesex.org).  Some source code
  *     is directly derived from xawtv.
  *
- *  $Id: xawtv.c,v 1.33 2003/06/28 11:29:18 tom Exp tom $
+ *  $Id: xawtv.c,v 1.37 2003/09/28 18:24:35 tom Exp tom $
  */
 
 #ifdef WIN32
@@ -148,7 +148,7 @@ const Tk_ErrorProc * Xawtv_X11ErrorHandler = NULL;
 #ifndef DPRINTF_OFF
 static void DebugDumpProperty( const char * prop, ulong nitems )
 {
-   int i;
+   uint i;
 
    for (i = 0; i < nitems; i += strlen(prop + i) + 1)
       dprintf1("%s ", prop + i);
@@ -442,114 +442,69 @@ static void Xawtv_Popup( float rperc, const char *rtime, const char * ptitle )
 // ---------------------------------------------------------------------------
 // Send a command to xawtv via X11 property
 //
-static int Xawtv_SendCmd(ClientData ttp, Tcl_Interp *interp, int argc, CONST84 char *argv[])
+void Xawtv_SendCmdArgv(Tcl_Interp *interp, const char * pCmdStr, uint cmdLen )
 {
-   const char * const pUsage = "Usage: C_Tvapp_SendCmd <command> [<args> [<...>]]";
    Tk_ErrorHandler errHandler;
    Display *dpy;
-   Tcl_DString *pass_dstr, *tmp_dstr;
-   char * pass;
-   int idx, len;
-   int  result;
 
-   if (argc < 2)
-   {  // parameter count is invalid
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR;
-   }
-   else
+   dpy = Xawtv_GetTvDisplay();
+   if (dpy != NULL)
    {
+      // push an /dev/null handler onto the stack that catches any type of X11 error events
+      errHandler = Tk_CreateErrorHandler(dpy, -1, -1, -1, (Tk_ErrorProc *) Xawtv_X11ErrorHandler, (ClientData) NULL);
+
+      // check if the cached window still exists
+      if (xawtv_wid != None)
       {
-         dpy = Xawtv_GetTvDisplay();
-         if (dpy != NULL)
+         Atom type;
+         int format;
+         ulong nitems, bytesafter;
+         uchar *args = NULL;
+
+         XGetWindowProperty(dpy, xawtv_wid, xawtv_station_atom, 0, (65536 / sizeof (long)), False,
+                            XA_STRING, &type, &format, &nitems, &bytesafter, &args);
+         if (args != NULL)
          {
-            // push an /dev/null handler onto the stack that catches any type of X11 error events
-            errHandler = Tk_CreateErrorHandler(dpy, -1, -1, -1, (Tk_ErrorProc *) Xawtv_X11ErrorHandler, (ClientData) NULL);
-
-            // check if the cached window still exists
-            if (xawtv_wid != None)
-            {
-               Atom type;
-               int format;
-               ulong nitems, bytesafter;
-               uchar *args = NULL;
-
-               XGetWindowProperty(dpy, xawtv_wid, xawtv_station_atom, 0, (65536 / sizeof (long)), False, XA_STRING,
-                                  &type, &format, &nitems, &bytesafter, &args);
-               if (args != NULL)
-               {
-                  dprintf1("SendCmd: xawtv alive, window 0x%08lx, STATION: ", xawtv_wid);
-                  DebugDumpProperty(args, nitems);
-                  XFree(args);
-               }
-               else
-                  xawtv_wid = None;
-            }
-
-            // try to find a new xawtv window
-            if (xawtv_wid == None)
-            {
-               if ( Xawtv_FindWindow(dpy, xawtv_station_atom) )
-               {
-                  dprintf1("Xawtv-SendCmd: Connect to xawtv 0x%lX\n", (ulong)xawtv_wid);
-                  XSelectInput(dpy, xawtv_wid, StructureNotifyMask | PropertyChangeMask);
-                  AddMainIdleEvent(Xawtv_StationSelected, NULL, TRUE);
-               }
-            }
-
-            if (xawtv_wid != None)
-            {
-               // sum up the total length of all parameters, including terminating 0-Bytes
-               pass_dstr = xmalloc(sizeof(Tcl_DString) * argc);  // allocate one too many
-               dprintf1("ctrl  0x%08lx: ", xawtv_wid);
-               len = 0;
-               for (idx = 1; idx < argc; idx++)
-               {
-                  tmp_dstr = pass_dstr + idx - 1;
-                  // convert Tcl internal Unicode to Latin-1
-                  Tcl_UtfToExternalDString(NULL, argv[idx], -1, tmp_dstr);
-                  dprintf1("%s ", Tcl_DStringValue(tmp_dstr));
-                  len += Tcl_DStringLength(tmp_dstr) + 1;
-               }
-               dprintf0("\n");
-
-               // concatenate the parameters into one char-array, separated by 0-Bytes
-               pass = xmalloc(len);
-               len = 0;
-               pass[0] = 0;
-               for (idx = 1; idx < argc; idx++)
-               {
-                  tmp_dstr = pass_dstr + idx - 1;
-                  strcpy(pass + len, Tcl_DStringValue(tmp_dstr));
-                  len += strlen(pass + len) + 1;
-                  Tcl_DStringFree(tmp_dstr);
-               }
-               xfree(pass_dstr);
-
-               // send the string to xawtv
-               XChangeProperty(dpy, xawtv_wid, xawtv_remote_atom, XA_STRING, 8*sizeof(char), PropModeReplace, pass, len);
-
-               xfree(pass);
-            }
-            else
-            {  // xawtv window not found
-               if (strcmp(argv[0], "C_Tvapp_SendCmd") == 0)
-               {  // display warning only if called after user-interaction
-                  sprintf(comm, "tk_messageBox -type ok -icon error -message \"$tvapp_name is not running!\"\n");
-                  eval_check(interp, comm);
-               }
-            }
-
-            // remove the dummy error handler
-            Tk_DeleteErrorHandler(errHandler);
+            dprintf1("SendCmd: xawtv alive, window 0x%08lx, STATION: ", xawtv_wid);
+            DebugDumpProperty(args, nitems);
+            XFree(args);
          }
          else
-            debug0("No Tk display available");
+            xawtv_wid = None;
       }
 
-      result = TCL_OK;
+      // try to find a new xawtv window
+      if (xawtv_wid == None)
+      {
+         if ( Xawtv_FindWindow(dpy, xawtv_station_atom) )
+         {
+            dprintf1("Xawtv-SendCmd: Connect to xawtv 0x%lX\n", (ulong)xawtv_wid);
+            XSelectInput(dpy, xawtv_wid, StructureNotifyMask | PropertyChangeMask);
+            AddMainIdleEvent(Xawtv_StationSelected, NULL, TRUE);
+         }
+      }
+
+      if (xawtv_wid != None)
+      {
+         // send the string to xawtv
+         XChangeProperty(dpy, xawtv_wid, xawtv_remote_atom, XA_STRING, 8*sizeof(char),
+                         PropModeReplace, pCmdStr, cmdLen);
+      }
+      else
+      {  // xawtv window not found
+         if (interp != NULL)
+         {  // display warning only if called after user-interaction
+            sprintf(comm, "tk_messageBox -type ok -icon error -message \"$::tvapp_name is not running!\"\n");
+            eval_check(interp, comm);
+            Tcl_ResetResult(interp);
+         }
+      }
+
+      // remove the dummy error handler
+      Tk_DeleteErrorHandler(errHandler);
    }
-   return result;
+   else
+      debug0("No Tk display available");
 }
 
 // ---------------------------------------------------------------------------
@@ -685,8 +640,10 @@ static const PI_BLOCK * Xawtv_SearchCurrentPi( uint cni, uint pil )
             // filter for the given network and start time >= now
             EpgDbFilterInitNetwop(fc);
             EpgDbFilterSetNetwop(fc, netwop);
+            EpgDbFilterEnable(fc, FILTER_NETWOP);
+
             EpgDbFilterSetExpireTime(fc, now);
-            EpgDbFilterEnable(fc, FILTER_NETWOP | FILTER_EXPIRE_TIME);
+            EpgDbPreFilterEnable(fc, FILTER_EXPIRE_TIME);
 
             pPiBlock = EpgDbSearchFirstPi(pUiDbContext, fc);
             if ((pPiBlock != NULL) && (pPiBlock->start_time > now))
@@ -748,9 +705,9 @@ static void Xawtv_PopDownNowNextTimer( ClientData clientData )
 //
 static void Xawtv_NowNext( const PI_BLOCK *pPiBlock )
 {
-   CONST84 char *argv[10];
    char start_str[10], stop_str[10], time_str[35];
    float percentage;
+   uint  cmdLen;
    time_t now;
 
    if (pPiBlock != NULL)
@@ -784,12 +741,9 @@ static void Xawtv_NowNext( const PI_BLOCK *pPiBlock )
 
          case POP_MSG:
             // send a command to xawtv to display the info in the xawtv window title
-            sprintf(comm, "%s-%s %s", start_str, stop_str, PI_GET_TITLE(pPiBlock));
-            argv[0] = "auto";
-            argv[1] = "message";
-            argv[2] = comm;
-            argv[3] = NULL;
-            Xawtv_SendCmd(NULL, interp, 3, argv);
+            cmdLen = sprintf(comm, "message%c%s-%s %s%c%c", 0,
+                             start_str, stop_str, PI_GET_TITLE(pPiBlock), 0, 0);
+            Xawtv_SendCmdArgv(NULL, comm, cmdLen);
             break;
 
          default:
@@ -1014,6 +968,80 @@ static void Xawtv_StationSelected( ClientData clientData )
       pollVpsEvent = Tcl_CreateTimerHandler(200, Xawtv_PollVpsPil, NULL);
 }
 
+// ---------------------------------------------------------------------------
+// Tcl callback to send a command to connected Xawtv application
+//
+static int Xawtv_SendCmd(ClientData ttp, Tcl_Interp *interp, int argc, CONST84 char *argv[])
+{
+   const char * const pUsage = "Usage: C_Tvapp_SendCmd <command> [<args> [<...>]]";
+   Tcl_DString *pass_dstr, *tmp_dstr;
+   char * pass;
+   int idx, len;
+   int result;
+
+   if (argc < 2)
+   {  // parameter count is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else
+   {
+      // sum up the total length of all parameters, including terminating 0-Bytes
+      pass_dstr = xmalloc(sizeof(Tcl_DString) * argc);  // allocate one too many
+      dprintf1("ctrl  0x%08lx: ", xawtv_wid);
+      len = 0;
+      for (idx = 1; idx < argc; idx++)
+      {
+         tmp_dstr = pass_dstr + idx - 1;
+         // convert Tcl internal Unicode to Latin-1
+         Tcl_UtfToExternalDString(NULL, argv[idx], -1, tmp_dstr);
+         dprintf1("%s ", Tcl_DStringValue(tmp_dstr));
+         len += Tcl_DStringLength(tmp_dstr) + 1;
+      }
+      dprintf0("\n");
+
+      // concatenate the parameters into one char-array, separated by 0-Bytes
+      pass = xmalloc(len);
+      len = 0;
+      pass[0] = 0;
+      for (idx = 1; idx < argc; idx++)
+      {
+         tmp_dstr = pass_dstr + idx - 1;
+         strcpy(pass + len, Tcl_DStringValue(tmp_dstr));
+         len += strlen(pass + len) + 1;
+         Tcl_DStringFree(tmp_dstr);
+      }
+      xfree(pass_dstr);
+
+      Xawtv_SendCmdArgv(interp, pass, len);
+
+      xfree(pass);
+      result = TCL_OK;
+   }
+   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Tcl callback to send a command to connected Xawtv application
+//
+static int Xawtv_ShowEpg(ClientData ttp, Tcl_Interp *interp, int argc, CONST84 char *argv[])
+{
+   const char * const pUsage = "Usage: C_Tvapp_ShowEpg";
+   int result;
+
+   if (argc != 1)
+   {  // parameter count is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else
+   {
+      AddMainIdleEvent(Xawtv_StationSelected, NULL, TRUE);
+      result = TCL_OK;
+   }
+   return result;
+}
+
 // ----------------------------------------------------------------------------
 // Read user configuration from Tcl global variables
 // 
@@ -1092,6 +1120,45 @@ static int Xawtv_ReadConfig( Tcl_Interp *interp, XAWTVCF *pNewXawtvcf )
 }
 
 // ----------------------------------------------------------------------------
+// Handler to trigger search for xawtv window in idle after start-up
+// - not done during init to speed-up the startup precedure
+//
+static void Xawtv_InitDelayHandler( ClientData clientData )
+{
+   Tk_ErrorHandler errHandler;
+   Display *dpy;
+
+   // check if a xawtv handle is needed ant not available yet
+   if ( (xawtvcf.tunetv || xawtvcf.follow || xawtvcf.doPop) &&
+        (xawtv_wid == None) )
+   {
+      dpy = Xawtv_GetTvDisplay();
+      if (dpy != NULL)
+      {
+         // push an /dev/null handler onto the stack that catches any type of X11 error events
+         errHandler = Tk_CreateErrorHandler(dpy, -1, -1, -1, (Tk_ErrorProc *) Xawtv_X11ErrorHandler, (ClientData) NULL);
+         if ( Xawtv_FindWindow(dpy, xawtv_station_atom) )
+         {
+            // install an event handler for property changes in xawtv
+            dprintf1("Install PropertyNotify for window 0x%X\n", (int)xawtv_wid);
+            XSelectInput(dpy, xawtv_wid, StructureNotifyMask | PropertyChangeMask);
+            AddMainIdleEvent(Xawtv_StationSelected, NULL, TRUE);
+
+            // no events required from the root window
+            XSelectInput(dpy, root_wid, 0);
+         }
+         else
+         {  // install event handler on the root window to check for xawtv being started
+            dprintf1("Install PropertyNotify for root window 0x%X\n", (int)root_wid);
+            XSelectInput(dpy, root_wid, SubstructureNotifyMask);
+         }
+         // remove the dummy error handler
+         Tk_DeleteErrorHandler(errHandler);
+      }
+   }
+}
+
+// ----------------------------------------------------------------------------
 // Read user configuration from Tcl global variables
 // - called during init and after user config changes
 // - loads config from rc/ini file
@@ -1133,26 +1200,26 @@ static int Xawtv_InitConfig(ClientData ttp, Tcl_Interp *interp, int argc, CONST8
             if (xawtvcf.tunetv || xawtvcf.follow || xawtvcf.doPop)
             {  // xawtv window id required for communication
 
-               // push an /dev/null handler onto the stack that catches any type of X11 error events
-               errHandler = Tk_CreateErrorHandler(dpy, -1, -1, -1, (Tk_ErrorProc *) Xawtv_X11ErrorHandler, (ClientData) NULL);
                // search for an xawtv window
-               if ( (xawtv_wid != None) || Xawtv_FindWindow(dpy, xawtv_station_atom) )
+               if (xawtv_wid != None)
                {
+                  // push an /dev/null handler onto the stack that catches any type of X11 error events
+                  errHandler = Tk_CreateErrorHandler(dpy, -1, -1, -1, (Tk_ErrorProc *) Xawtv_X11ErrorHandler, (ClientData) NULL);
+
                   // install an event handler for property changes in xawtv
                   dprintf1("Install PropertyNotify for window 0x%X\n", (int)xawtv_wid);
                   XSelectInput(dpy, xawtv_wid, StructureNotifyMask | PropertyChangeMask);
                   AddMainIdleEvent(Xawtv_StationSelected, NULL, TRUE);
                   // no events required from the root window
                   XSelectInput(dpy, root_wid, 0);
+
+                  // remove the dummy error handler
+                  Tk_DeleteErrorHandler(errHandler);
                }
                else
-               {  // install event handler on the root window to check for xawtv being started
-                  dprintf1("Install PropertyNotify for root window 0x%X\n", (int)root_wid);
-                  XSelectInput(dpy, root_wid, SubstructureNotifyMask);
+               {  // search for an existing xawtv window immediately afterwards
+                  AddMainIdleEvent(Xawtv_InitDelayHandler, NULL, TRUE);
                }
-
-               // remove the dummy error handler
-               Tk_DeleteErrorHandler(errHandler);
             }
             else
             {  // connection no longer required
@@ -1204,6 +1271,7 @@ void Xawtv_Init( char * pTvX11Display )
    // Create callback functions
    Tcl_CreateCommand(interp, "C_Tvapp_InitConfig", Xawtv_InitConfig, (ClientData) FALSE, NULL);
    Tcl_CreateCommand(interp, "C_Tvapp_SendCmd", Xawtv_SendCmd, (ClientData) NULL, NULL);
+   Tcl_CreateCommand(interp, "C_Tvapp_ShowEpg", Xawtv_ShowEpg, (ClientData) NULL, NULL);
 
    if (pTvX11Display != NULL)
    {

@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pilistbox.c,v 1.89 2003/06/28 11:23:02 tom Exp tom $
+ *  $Id: pilistbox.c,v 1.92 2003/10/05 19:34:37 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -72,6 +72,7 @@ typedef enum
 } PIBOX_STATE;
 
 #define PIBOX_DEFAULT_HEIGHT 25
+#define PIBOX_MAX_ACQ_CALLBACKS  100
 #define PIBOX_INVALID_CURPOS -1
 PIBOX_ENTRY * pibox_list = NULL; // list of all items in the window
 int         pibox_height;        // number of available lines in the widget
@@ -100,7 +101,7 @@ static bool PiListBox_HandleAcqEvent( const EPGDB_CONTEXT * usedDbc, EPGDB_PI_AC
 static bool PiListBox_ConsistancyCheck( void )
 {
    const PI_BLOCK *pPiBlock;
-   uint i;
+   int i;
 
    if (pibox_state == PIBOX_LIST)
    {
@@ -234,15 +235,64 @@ static void PiListBox_UpdateInfoText( bool keepView )
 }
 
 // ----------------------------------------------------------------------------
-// inform the vertical scrollbar about the start offset and viewable fraction
+// Draw a date scale to represent the range from first to last matching PI
+// - called after refresh or changed by acquisition, i.e. whenever pibox_max,
+//   changes (scrolling etc. only moves the slider)
+//
+static void PiListBox_DrawDateScale( void )
+{
+   const PI_BLOCK *pPiBlock;
+   time_t  t_first;
+   time_t  t_last;
+   sint    lto;
+
+   t_first = 0;
+   t_last  = 0;
+
+   EpgDbLockDatabase(dbc, TRUE);
+   pPiBlock = EpgDbSearchFirstPi(dbc, pPiFilterContext);
+   if (pPiBlock != NULL)
+   {
+      t_first = pPiBlock->start_time;
+
+      pPiBlock = EpgDbSearchLastPi(dbc, pPiFilterContext);
+      if (pPiBlock != NULL)
+         t_last = pPiBlock->start_time;
+   }
+   EpgDbLockDatabase(dbc, FALSE);
+
+   if (t_first != 0)
+      lto = EpgLtoGet(t_first);
+   else
+      lto = EpgLtoGet(time(NULL));
+
+   sprintf(comm, "PiDateScale_Redraw %d %d %d\n", (int)t_first, (int)t_last, lto);
+   eval_check(interp, comm);
+}
+
+// ----------------------------------------------------------------------------
+// Calculate and set slider position in scrollbar and weekday scales
+// - called whenever the list is scrolled or content changes (refresh or acq)
 //
 static void PiListBox_AdjustScrollBar( void )
 {
+   // scrollbar gets normalized start and end of viewable fraction
    if (pibox_max == 0)
       sprintf(comm, ".all.pi.list.sc set 0.0 1.0\n");
    else
-      sprintf(comm, ".all.pi.list.sc set %f %f\n", (float)pibox_off / pibox_max, (float)(pibox_off + pibox_height) / pibox_max);
+      sprintf(comm, ".all.pi.list.sc set %f %f\n", (float)pibox_off / pibox_max,
+                                                   (float)(pibox_off + pibox_height) / pibox_max);
    eval_check(interp, comm);
+
+   if (pibox_count > 0)
+   {
+      // pass start times of first and last visible PI to weekday scale
+      sprintf(comm, "PiDateScale_SetSlider %d %d %d\n",
+                    (int)pibox_list[0].start_time,
+                    (int)pibox_list[pibox_curpos].start_time,
+                    (int)pibox_list[pibox_count - 1].start_time);
+      eval_check(interp, comm);
+   }
 }
 
 // ----------------------------------------------------------------------------
@@ -250,16 +300,29 @@ static void PiListBox_AdjustScrollBar( void )
 //
 static void PiListBox_ShowCursor( void )
 {
+   const PI_BLOCK *pPiBlock;
    const char * pColor;
-   time_t  expireTime;
+   time_t       curTime;
 
-   expireTime = EpgDbFilterGetExpireTime(pPiFilterContext);
+   curTime = EpgGetUiMinuteTime();
 
-   //if (pibox_list[pibox_curpos].stop_time <= expireTime)
-   //   pColor = "pi_cursor_bg_past";
-   //else
-   if (pibox_list[pibox_curpos].start_time <= expireTime)
-      pColor = "pi_cursor_bg_now";
+   if (pibox_list[pibox_curpos].start_time <= curTime)
+   {
+      // check if expired PI are currently visible
+      if (curTime != EpgDbFilterGetExpireTime(pPiFilterContext))
+      {  // stop time is not cached, so it must be looked up again here
+         EpgDbLockDatabase(dbc, TRUE);
+         pPiBlock = EpgDbSearchPi(dbc, pibox_list[pibox_curpos].start_time, pibox_list[pibox_curpos].netwop_no);
+
+         if ((pPiBlock != NULL) && (pPiBlock->stop_time <= curTime))
+            pColor = "pi_cursor_bg_past";
+         else
+            pColor = "pi_cursor_bg_now";
+         EpgDbLockDatabase(dbc, FALSE);
+      }
+      else
+         pColor = "pi_cursor_bg_now";
+   }
    else
       pColor = "pi_cursor_bg";
 
@@ -291,20 +354,19 @@ void PiListBox_Reset( void )
    pibox_off = 0;
    if (pPiBlock != NULL)
    {
-      do
+      while ((pPiBlock != NULL) && (pibox_count < pibox_height))
       {
-	 if (pibox_count < pibox_height)
-	 {
-	    pibox_list[pibox_count].netwop_no  = pPiBlock->netwop_no;
-	    pibox_list[pibox_count].start_time = pPiBlock->start_time;
-	    PiOutput_PiListboxInsert(pPiBlock, pibox_count);
-	    pibox_count += 1;
-	 }
+         pibox_list[pibox_count].netwop_no  = pPiBlock->netwop_no;
+         pibox_list[pibox_count].start_time = pPiBlock->start_time;
+         PiOutput_PiListboxInsert(pPiBlock, pibox_count);
+         pibox_count += 1;
+	 pibox_max += 1;
 
          pPiBlock = EpgDbSearchNextPi(dbc, pPiFilterContext, pPiBlock);
-	 pibox_max += 1;
       }
-      while (pPiBlock != NULL);
+
+      if (pPiBlock != NULL)
+         pibox_max += EpgDbCountPi(dbc, pPiFilterContext, pPiBlock);
 
       // set the cursor on the first item
       pibox_curpos = 0;
@@ -321,6 +383,7 @@ void PiListBox_Reset( void )
    assert(PiListBox_ConsistancyCheck());
 
    // inform the vertical scrollbar about the viewable fraction
+   PiListBox_DrawDateScale();
    PiListBox_AdjustScrollBar();
 }
 
@@ -381,20 +444,20 @@ void PiListBox_Refresh( void )
 
          pibox_count = 0;
          pibox_max = pibox_off;
-         do
+
+         while ((pPiBlock != NULL) && (pibox_count < pibox_height))
          {
-            if (pibox_count < pibox_height)
-            {
-               pibox_list[pibox_count].netwop_no  = pPiBlock->netwop_no;
-               pibox_list[pibox_count].start_time = pPiBlock->start_time;
-               PiOutput_PiListboxInsert(pPiBlock, pibox_count);
-               pibox_count += 1;
-            }
+            pibox_list[pibox_count].netwop_no  = pPiBlock->netwop_no;
+            pibox_list[pibox_count].start_time = pPiBlock->start_time;
+            PiOutput_PiListboxInsert(pPiBlock, pibox_count);
+            pibox_count += 1;
+            pibox_max += 1;
 
             pPiBlock = EpgDbSearchNextPi(dbc, pPiFilterContext, pPiBlock);
-            pibox_max += 1;
          }
-         while (pPiBlock != NULL);
+
+         if (pPiBlock != NULL)
+            pibox_max += EpgDbCountPi(dbc, pPiFilterContext, pPiBlock);
 
          if ((pibox_count < pibox_height) && (pibox_max > pibox_count))
          {  // not enough items found after the cursor -> shift window upwards
@@ -450,6 +513,7 @@ void PiListBox_Refresh( void )
       assert(PiListBox_ConsistancyCheck());
 
       // inform the vertical scrollbar about the viewable fraction
+      PiListBox_DrawDateScale();
       PiListBox_AdjustScrollBar();
    }
 }
@@ -470,83 +534,145 @@ void PiListBox_AiStateChange( void )
 static void PiListBox_ScrollMoveto( int newpos )
 {  
    const PI_BLOCK *pPiBlock;
-   int   i;
+   uint   old_netwop;
+   time_t old_start;
+   int    search_off;
+   int    direction;
+   int    i;
 
    if (pibox_max > pibox_height)
    {
-      uint old_netwop;
-      time_t old_start;
-
       if (newpos < 0)
          newpos = 0;
       else if (newpos > pibox_max - pibox_height)
          newpos = pibox_max - pibox_height;
 
-      sprintf(comm, ".all.pi.list.text delete 1.0 end\n");
-      eval_check(interp, comm);
-      PiDescription_ClearText();
+      if (newpos != pibox_max)
+      {
+         sprintf(comm, ".all.pi.list.text delete 1.0 end\n");
+         eval_check(interp, comm);
+         PiDescription_ClearText();
 
-      if (pibox_curpos >= 0)
-      {
-         old_start  = pibox_list[pibox_curpos].start_time;
-         old_netwop = pibox_list[pibox_curpos].netwop_no;
-      }
-      else
-      {
-         old_start  = 0;
-         old_netwop = 0xff;
-      }
-
-      pibox_count = 0;
-      pibox_max = 0;
-      EpgDbLockDatabase(dbc, TRUE);
-      pPiBlock = EpgDbSearchFirstPi(dbc, pPiFilterContext);
-      if (pPiBlock != NULL)
-      {
-         do
+         if (pibox_curpos >= 0)
          {
-            if ((pibox_max >= newpos) && (pibox_count < pibox_height))
+            old_start  = pibox_list[pibox_curpos].start_time;
+            old_netwop = pibox_list[pibox_curpos].netwop_no;
+         }
+         else
+         {
+            old_start  = 0;
+            old_netwop = 0xff;
+         }
+
+         EpgDbLockDatabase(dbc, TRUE);
+         // as an optimization we don't search the requested PI starting at the first
+         // PI in the database because that will get slow towards the end of the list
+         // with complex filters; in most cases delta to the old position will be slow;
+         // (usually it's most efficient to search beginning from the visible PIs)
+         if (newpos < pibox_off)
+         {
+            if (newpos < pibox_off / 2)
+            {
+               dprintf1("search forward from start: %d\n", newpos);
+               pPiBlock = EpgDbSearchFirstPi(dbc, pPiFilterContext);
+               search_off = 0;
+               direction = 1;
+            }
+            else
+            {
+               dprintf1("search backwards from pi box: %d\n", pibox_off - newpos);
+               pPiBlock = EpgDbSearchPi(dbc, pibox_list[0].start_time, pibox_list[0].netwop_no);
+               search_off = pibox_off;
+               direction = -1;
+            }
+         }
+         else
+         {
+            if (newpos < pibox_off + pibox_count)
+            {
+               dprintf1("no search - new PI is visible (#%d)\n", newpos - (pibox_off + pibox_count));
+               pPiBlock = EpgDbSearchPi(dbc, pibox_list[newpos - pibox_off].start_time, pibox_list[newpos - pibox_off].netwop_no);
+               search_off = newpos;
+               direction = 0;
+            }
+            else if (newpos - (pibox_off + pibox_count) < (pibox_max - (pibox_off + pibox_count)) / 2)
+            {
+               dprintf1("search forward from pi box: %d\n", newpos - (pibox_off + pibox_count));
+               pPiBlock = EpgDbSearchPi(dbc, pibox_list[pibox_count - 1].start_time, pibox_list[pibox_count - 1].netwop_no);
+               search_off = pibox_off + pibox_count - 1;
+               direction = 1;
+            }
+            else
+            {
+               dprintf1("search backwards from end: %d\n", pibox_max - newpos);
+               pPiBlock = EpgDbSearchLastPi(dbc, pPiFilterContext);
+               search_off = pibox_max - 1;
+               direction = -1;
+            }
+         }
+
+         if (pPiBlock != NULL)
+         {
+            if (direction < 0)
+            {
+               while ((pPiBlock != NULL) && (search_off > newpos))
+               {
+                  search_off -= 1;
+                  pPiBlock = EpgDbSearchPrevPi(dbc, pPiFilterContext, pPiBlock);
+               }
+            }
+            else if (direction > 0)
+            {
+               while ((pPiBlock != NULL) && (search_off < newpos))
+               {
+                  search_off += 1;
+                  pPiBlock = EpgDbSearchNextPi(dbc, pPiFilterContext, pPiBlock);
+               }
+            }
+
+            pibox_count = 0;
+            while ((pPiBlock != NULL) && (pibox_count < pibox_height))
             {
                pibox_list[pibox_count].netwop_no  = pPiBlock->netwop_no;
                pibox_list[pibox_count].start_time = pPiBlock->start_time;
                PiOutput_PiListboxInsert(pPiBlock, pibox_count);
                pibox_count += 1;
+
+               pPiBlock = EpgDbSearchNextPi(dbc, pPiFilterContext, pPiBlock);
             }
+            assert(pibox_count >= pibox_height);
 
-            pPiBlock = EpgDbSearchNextPi(dbc, pPiFilterContext, pPiBlock);
-            pibox_max += 1;
+            // keep the cursor on the same item as long as its visable
+            // then keep the cursor at the top or bottom item
+            for (i=0; i < pibox_count; i++)
+               if ( (old_netwop == pibox_list[i].netwop_no) &&
+                    (old_start == pibox_list[i].start_time) )
+                  break;
+            if (i < pibox_count)
+               pibox_curpos = i;
+            else if (newpos < pibox_off)
+               pibox_curpos = pibox_count - 1;
+            else
+               pibox_curpos = 0;
+            pibox_off = newpos;
+            PiListBox_ShowCursor();
+
+            // display short and long info
+            PiListBox_UpdateInfoText(FALSE);
          }
-         while (pPiBlock != NULL);
-
-         // keep the cursor on the same item as long as its visable
-         // then keep the cursor at the top or bottom item
-         for (i=0; i < pibox_count; i++)
-            if ( (old_netwop == pibox_list[i].netwop_no) &&
-                 (old_start == pibox_list[i].start_time) )
-               break;
-         if (i < pibox_count)
-            pibox_curpos = i;
-         else if (newpos < pibox_off)
-            pibox_curpos = pibox_count - 1;
          else
-            pibox_curpos = 0;
-         pibox_off = newpos;
-         PiListBox_ShowCursor();
+         {
+            pibox_count = 0;
+            pibox_off = 0;
+            pibox_curpos = PIBOX_INVALID_CURPOS;
+         }
+         EpgDbLockDatabase(dbc, FALSE);
 
-         // display short and long info
-         PiListBox_UpdateInfoText(FALSE);
+         // adjust the vertical scrollbar
+         PiListBox_AdjustScrollBar();
+
+         assert(PiListBox_ConsistancyCheck());
       }
-      else
-      {
-         pibox_off = 0;
-         pibox_curpos = PIBOX_INVALID_CURPOS;
-      }
-      EpgDbLockDatabase(dbc, FALSE);
-
-      // adjust the vertical scrollbar
-      PiListBox_AdjustScrollBar();
-
-      assert(PiListBox_ConsistancyCheck());
    }
 }
 
@@ -976,6 +1102,7 @@ static int PiListBox_GotoTime( ClientData ttp, Tcl_Interp *interp, int objc, Tcl
 {
    const PI_BLOCK *pPiBlock;
    const uchar * pArg;
+   EPGDB_TIME_SEARCH_MODE timeMode;
    time_t startTime;
    int min_start;
    int i, delta, param;
@@ -983,19 +1110,23 @@ static int PiListBox_GotoTime( ClientData ttp, Tcl_Interp *interp, int objc, Tcl
    if ((objc == 3) && (pibox_state == PIBOX_LIST))
    {
       // determine mode: start or stop time as limiter
-      if (Tcl_GetBooleanFromObj(interp, objv[1], &min_start) != TCL_OK)
-         min_start = FALSE;
+      if ( (Tcl_GetBooleanFromObj(interp, objv[1], &min_start) != TCL_OK) ||
+           (min_start != FALSE) )
+         timeMode = STARTING_AT;
+      else
+         timeMode = RUNNING_AT;
 
       pArg = Tcl_GetString(objv[2]);
       // Retrieve the start time from the function parameters
       if (strcmp(pArg, "now") == 0)
-      {  // start with currently running -> suppress start time restriction
-         startTime = 0;
+      {  // start with currently running
+         timeMode = RUNNING_AT;
+         startTime = EpgGetUiMinuteTime();
       }
       else if (strcmp(pArg, "next") == 0)
       {  // start with the first that's not yet running -> start the next second
-         // (note: only works in min_start=1 mode)
-         startTime = 1 + EpgDbFilterGetExpireTime(pPiFilterContext);
+         timeMode = STARTING_AT;
+         startTime = 1 + EpgGetUiMinuteTime();
       }
       else if (Tcl_GetIntFromObj(interp, objv[2], &param) == TCL_OK)
       {  // absolute time given (UTC)
@@ -1004,57 +1135,32 @@ static int PiListBox_GotoTime( ClientData ttp, Tcl_Interp *interp, int objc, Tcl
       else  // internal error
          startTime = 0;
 
-      // Clear the listbox and the description window
-      sprintf(comm, ".all.pi.list.text delete 1.0 end\n");
-      eval_check(interp, comm);
-      PiDescription_ClearText();
-
-      pibox_resync = FALSE;
-      pibox_count = 0;
-      pibox_max = 0;
-      pibox_off = 0;
-
       EpgDbLockDatabase(dbc, TRUE);
-      pPiBlock = EpgDbSearchFirstPi(dbc, pPiFilterContext);
+
+      // search the first PI to be displayed
+      pPiBlock = EpgDbSearchFirstPiAfter(dbc, startTime, timeMode, pPiFilterContext);
+      if (pPiBlock == NULL)
+         pPiBlock = EpgDbSearchFirstPiBefore(dbc, startTime, timeMode, pPiFilterContext);
+
       if (pPiBlock != NULL)
       {
-         // skip all PI before the requested time
-         if (min_start)
-         {
-            while ( (pPiBlock != NULL) && (pPiBlock->start_time < startTime) )
-            {
-               pPiBlock = EpgDbSearchNextPi(dbc, pPiFilterContext, pPiBlock);
-               pibox_max += 1;
-            }
-         }
-         else
-         {
-            while ( (pPiBlock != NULL) && (pPiBlock->stop_time <= startTime) )
-            {
-               pPiBlock = EpgDbSearchNextPi(dbc, pPiFilterContext, pPiBlock);
-               pibox_max += 1;
-            }
-         }
-         pibox_off = pibox_max;
+         // Clear the listbox and the description window
+         sprintf(comm, ".all.pi.list.text delete 1.0 end\n");
+         eval_check(interp, comm);
+         PiDescription_ClearText();
 
-         // fill the listbox with the matching PI; skip & count when full
-         if (pPiBlock != NULL)
+         pibox_off = EpgDbCountPrevPi(dbc, pPiFilterContext, pPiBlock);
+         pibox_count = 0;
+         do
          {
-            do
-            {
-               if (pibox_count < pibox_height)
-               {
-                  pibox_list[pibox_count].netwop_no  = pPiBlock->netwop_no;
-                  pibox_list[pibox_count].start_time = pPiBlock->start_time;
-                  PiOutput_PiListboxInsert(pPiBlock, pibox_count);
-                  pibox_count += 1;
-               }
+            pibox_list[pibox_count].netwop_no  = pPiBlock->netwop_no;
+            pibox_list[pibox_count].start_time = pPiBlock->start_time;
+            PiOutput_PiListboxInsert(pPiBlock, pibox_count);
+            pibox_count += 1;
 
-               pPiBlock = EpgDbSearchNextPi(dbc, pPiFilterContext, pPiBlock);
-               pibox_max += 1;
-            }
-            while (pPiBlock != NULL);
+            pPiBlock = EpgDbSearchNextPi(dbc, pPiFilterContext, pPiBlock);
          }
+         while ((pibox_count < pibox_height) && (pPiBlock != NULL));
 
          // if the listbox could not be filled, scroll backwards
          if ((pibox_count < pibox_height) && (pibox_off > 0))
@@ -1117,6 +1223,7 @@ static int PiListBox_GotoTime( ClientData ttp, Tcl_Interp *interp, int objc, Tcl
       assert(PiListBox_ConsistancyCheck());
 
       // inform the vertical scrollbar about the viewable fraction
+      PiListBox_DrawDateScale();
       PiListBox_AdjustScrollBar();
    }
    return TCL_OK; 
@@ -1140,11 +1247,13 @@ void PiListBox_GotoPi( const PI_BLOCK * pPiBlock )
    {
       doRefresh = FALSE;
 
-      if ((pPiFilterContext->enabledFilters & ~FILTER_PERM) == FILTER_NETWOP)
-      {  // network filter is enabled -> switch to the new network
+      if ( EpgDbFilterIsEnabled(pPiFilterContext, FILTER_NETWOP) &&
+           !EpgDbFilterIsEnabled(pPiFilterContext, FILTER_NONPERM & ~FILTER_NETWOP) )
+      {  // only network filter is enabled -> switch to the new network
          // but check before if the item will be visible with the new filter setting
          fc = EpgDbFilterCopyContext(pPiFilterContext);
-         EpgDbFilterDisable(fc, FILTER_NETWOP | FILTER_NETWOP_PRE);
+         EpgDbFilterDisable(fc, FILTER_NETWOP);
+         EpgDbPreFilterDisable(fc, FILTER_NETWOP_PRE);
          if (EpgDbFilterMatches(dbc, fc, pPiBlock))
          {
             sprintf(comm, "ResetNetwops; SelectNetwopByIdx %d 1\n", pPiBlock->netwop_no);
@@ -1261,7 +1370,7 @@ static void PiListBox_DbInserted( const PI_BLOCK *pPiBlock )
    int pos;
    int i;
 
-   if (pPiFilterContext->enabledFilters & FILTER_PROGIDX)
+   if ( EpgDbFilterIsEnabled(pPiFilterContext, FILTER_PROGIDX) || pibox_resync )
    {  // when progidx filter is used insertion is too complicated, hence do complete refresh
       pibox_resync = TRUE;
       return;
@@ -1280,6 +1389,7 @@ static void PiListBox_DbInserted( const PI_BLOCK *pPiBlock )
 	 dprintf2("before visible area off=%d,max=%d\n", pibox_off, pibox_max);
          pibox_max += 1;
 	 pibox_off += 1;
+         PiListBox_DrawDateScale();
 	 PiListBox_AdjustScrollBar();
          assert(PiListBox_ConsistancyCheck());
       }
@@ -1317,6 +1427,7 @@ static void PiListBox_DbInserted( const PI_BLOCK *pPiBlock )
 	       eval_check(interp, comm);
 	       PiListBox_ShowCursor();
 	       PiListBox_UpdateInfoText(FALSE);
+               PiListBox_DrawDateScale();
 	       PiListBox_AdjustScrollBar();
                assert(PiListBox_ConsistancyCheck());
 	    }
@@ -1364,6 +1475,7 @@ static void PiListBox_DbInserted( const PI_BLOCK *pPiBlock )
 
 	       // update scrollbar
 	       pibox_max += 1;
+               PiListBox_DrawDateScale();
 	       PiListBox_AdjustScrollBar();
                assert(PiListBox_ConsistancyCheck());
 	    }
@@ -1372,6 +1484,7 @@ static void PiListBox_DbInserted( const PI_BLOCK *pPiBlock )
 	 {  // new block lies behind viewable area
 	    dprintf2("behind visible area off=%d,max=%d\n", pibox_off, pibox_max);
 	    pibox_max += 1;
+            PiListBox_DrawDateScale();
 	    PiListBox_AdjustScrollBar();
             assert(PiListBox_ConsistancyCheck());
 	 }
@@ -1392,6 +1505,7 @@ static bool PiListBox_DbPreUpdate( const PI_BLOCK *pObsolete, const PI_BLOCK *pP
 {
    bool result = FALSE;
 
+   if (pibox_resync == FALSE)
    {
       if ( (EpgDbFilterMatches(dbc, pPiFilterContext, pObsolete) != FALSE) &&
            (EpgDbFilterMatches(dbc, pPiFilterContext, pPiBlock) == FALSE) )
@@ -1420,8 +1534,9 @@ static void PiListBox_DbPostUpdate( const PI_BLOCK *pObsolete, const PI_BLOCK *p
 {
    int pos;
 
+   if (pibox_resync == FALSE)
    {
-      if (pPiFilterContext->enabledFilters & FILTER_PROGIDX)
+      if ( EpgDbFilterIsEnabled(pPiFilterContext, FILTER_PROGIDX) )
       {  // when progidx filter is used check is too complicated, hence do complete refresh
          pibox_resync = TRUE;
       }
@@ -1497,7 +1612,7 @@ static void PiListBox_DbRemoved( const PI_BLOCK *pPiBlock )
    const PI_BLOCK *pTemp, *pPrev, *pNext;
    int i, pos;
 
-   if (pibox_count > 0)
+   if ( (pibox_resync == FALSE) && (pibox_count > 0) )
    {
       for (pos=0; pos < pibox_count; pos++)
       {
@@ -1575,6 +1690,9 @@ static void PiListBox_DbRemoved( const PI_BLOCK *pPiBlock )
 	 }
 	 EpgDbLockDatabase(dbc, FALSE);
 
+         PiListBox_DrawDateScale();
+         PiListBox_AdjustScrollBar();
+
          // can not check here since db operation might not be completed
          //assert(PiListBox_ConsistancyCheck());
       }
@@ -1587,73 +1705,33 @@ static void PiListBox_DbRemoved( const PI_BLOCK *pPiBlock )
 }
 
 // ----------------------------------------------------------------------------
-// Recount number of items before and after the visible area
-//
-static void PiListBox_DbRecount( void )
-{
-   const PI_BLOCK *pPrev, *pNext;
-
-   if (pibox_resync)
-   {
-      pibox_resync = FALSE;
-
-      if (pPiFilterContext->enabledFilters & FILTER_PROGIDX)
-      {
-         PiListBox_Refresh();
-      }
-      else
-      if (pibox_count > 0)
-      {
-         dprintf2("recount items: old values: off=%d,max=%d\n", pibox_off, pibox_max);
-         EpgDbLockDatabase(dbc, TRUE);
-         pPrev = EpgDbSearchPi(dbc, pibox_list[0].start_time, pibox_list[0].netwop_no);
-         pNext = EpgDbSearchPi(dbc, pibox_list[pibox_count - 1].start_time, pibox_list[pibox_count - 1].netwop_no);
-         if ((pPrev != NULL) && (pNext != NULL))
-         {
-            pibox_off = 0;
-            pPrev = EpgDbSearchPrevPi(dbc, pPiFilterContext, pPrev);
-            while (pPrev != NULL)
-            {
-               pibox_off++;
-               pPrev = EpgDbSearchPrevPi(dbc, pPiFilterContext, pPrev);
-            }
-            pibox_max = pibox_off + pibox_count;
-            pNext = EpgDbSearchNextPi(dbc, pPiFilterContext, pNext);
-            while (pNext != NULL)
-            {
-               pibox_max++;
-               pNext = EpgDbSearchNextPi(dbc, pPiFilterContext, pNext);
-            }
-            EpgDbLockDatabase(dbc, FALSE);
-            dprintf2("recount items: new values: off=%d,max=%d\n", pibox_off, pibox_max);
-
-            // inform the vertical scrollbar about the viewable fraction
-            PiListBox_AdjustScrollBar();
-
-            assert(PiListBox_ConsistancyCheck());
-         }
-         else
-         {
-            debug0("PiListBox-DbRecount: first or last viewable item not found");
-            PiListBox_Reset();
-         }
-      }
-   }
-}
-
-// ----------------------------------------------------------------------------
 // Process changes in the PI database for the PI listbox
 // - invoked by the mgmt module as a callback (function pointer is set during init)
+// - database changes are braced by PROC_START and PROC_DONE events;
+//   number of changes inside those braces are limited to avoid locking up the GUI
+// - resync flag is set to switch from synchronous to asynchronous change mode
+//   triggers a refresh upon the recount event
 //
 static bool PiListBox_HandleAcqEvent( const EPGDB_CONTEXT * usedDbc, EPGDB_PI_ACQ_EVENT event,
                                       const PI_BLOCK * pPiBlock, const PI_BLOCK * pObsolete )
 {
+   static int cbCallCount = 0;
    bool result = FALSE;
 
    if ( (pibox_state == PIBOX_LIST) && (usedDbc == dbc) && (pibox_lock == FALSE) )
    {
+      cbCallCount += 1;
+      if (cbCallCount > PIBOX_MAX_ACQ_CALLBACKS)
+      {  // pull the plug on synchronous insertions and removals
+         pibox_resync = TRUE;
+      }
+
       switch (event)
       {
+         case EPGDB_PI_PROC_START:
+            assert(pibox_resync == FALSE);  // missing recount call after last queue processing
+            cbCallCount = 0;
+            break;
          case EPGDB_PI_INSERTED:
             PiListBox_DbInserted(pPiBlock);
             break;
@@ -1666,8 +1744,12 @@ static bool PiListBox_HandleAcqEvent( const EPGDB_CONTEXT * usedDbc, EPGDB_PI_AC
          case EPGDB_PI_REMOVED:
             PiListBox_DbRemoved(pPiBlock);
             break;
-         case EPGDB_PI_RECOUNT:
-            PiListBox_DbRecount();
+         case EPGDB_PI_PROC_DONE:
+            if (pibox_resync)
+            {
+               PiListBox_Refresh();
+            }
+            cbCallCount = 0;
             break;
          default:
             fatal1("PiListBox-HandleAcqEvent: unknown event %d received", event);
@@ -1879,7 +1961,7 @@ void PiListBox_Create( void )
    // set the initial listbox height
    PiListBox_Resize(NULL, interp, 0, NULL);
 
-   EpgDbFilterDisable(pPiFilterContext, FILTER_NETWOP_PRE2);
+   EpgDbPreFilterDisable(pPiFilterContext, FILTER_NETWOP_PRE2);
    EpgDbSetPiAcqCallback(dbc, PiListBox_HandleAcqEvent);
 }
 

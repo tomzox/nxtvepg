@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pidescr.h,v 1.4 2003/03/02 10:33:15 tom Exp tom $
+ *  $Id: pidescr.h,v 1.5 2003/09/19 21:56:27 tom Exp tom $
  */
 
 #ifndef __PIDESCR_H
@@ -50,6 +50,7 @@ void PiDescription_UpdateText( const PI_BLOCK * pPiBlock, bool keepView );
 void PiDescription_ClearText( void );
 
 // Interface to filter module (series title lists)
+const char * PiDescription_RemoveSeriesIndex( const char * pTitle, char * outbuf, uint maxLen );
 const char * PiDescription_DictifyTitle( const char * pTitle, uchar lang, char * outbuf, uint maxLen );
 
 // Interface to main module

@@ -37,7 +37,7 @@
  *    WinDriver replaced with DSdrv (DScaler driver)
  *      March 2002 by E-Nek (e-nek@netcourrier.com)
  *
- *  $Id: bt8x8.c,v 1.8 2003/06/23 19:52:50 tom Exp tom $
+ *  $Id: bt8x8.c,v 1.9 2003/07/06 17:47:21 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -52,6 +52,7 @@
 #include "epgctl/debug.h"
 
 #include "epgvbi/vbidecode.h"
+#include "epgvbi/zvbidecoder.h"
 #include "epgvbi/btdrv.h"
 #include "epgvbi/winshm.h"
 #include "epgvbi/winshmsrv.h"
@@ -65,8 +66,6 @@
 #include "dsdrv/bt8x8.h"
 
 #ifdef ZVBI_DECODER
-#include "epgvbi/ttxdecode.h"
-#include "epgvbi/zvbidecoder.h"
 static vbi_raw_decoder zvbi_rd;
 #endif
 
@@ -587,7 +586,6 @@ static DWORD WINAPI Bt8x8_VbiThread( LPVOID dummy )
 {
    int  OldFrame;
    int  CurFrame;
-   int  row;
    uint riscError;
    BYTE *pVBI;
 
@@ -652,33 +650,17 @@ static DWORD WINAPI Bt8x8_VbiThread( LPVOID dummy )
                #ifndef ZVBI_DECODER
                if ( VbiDecodeStartNewFrame(0) )
                {
+                  int  row;
+
                   for (row = 0; row < VBI_LINES_PER_FRAME; row++, pVBI += VBI_LINE_SIZE)
                   {
                      VbiDecodeLine(pVBI, row, TRUE);
                   }
                }
-               #else
-               if ( TtxDecode_NewVbiFrame(0) )
-               {
-                  {
-                     vbi_sliced rdo[32];
-                     uint count;
-                     count = vbi_raw_decode(&zvbi_rd, pVBI, rdo);
-                     for (row=0; row < count; row++)
-                     {
-                        if ((rdo[row].id & VBI_SLICED_TELETEXT_B) != 0)
-                        {
-                           TtxDecode_AddPacket(rdo[row].data + 0, row);
-                        }
-                        else if (rdo[row].id == VBI_SLICED_VPS)
-                        {
-                           TtxDecode_AddVpsData(rdo[row].data - 3);
-                        }
-                     }
-                  }
-               }
-               #endif  // ZVBI_DECODER
                else
+               #else  // ZVBI_DECODER
+               if (ZvbiSliceAndProcess(&zvbi_rd, pVBI, 0) == FALSE)
+               #endif
                {  // discard all VBI frames in the buffer
                   OldFrame = CurFrame;
                   break;
@@ -694,6 +676,11 @@ static DWORD WINAPI Bt8x8_VbiThread( LPVOID dummy )
       }
    }
    Bt8x8_SetCapture(FALSE);
+
+   #ifdef ZVBI_DECODER
+   ZvbiSliceAndProcess(NULL, NULL, 0);
+   vbi_raw_decoder_destroy(&zvbi_rd);
+   #endif
 
    return 0;  // dummy
 }

@@ -26,9 +26,9 @@
  *
  *      Copyright (c) 2001 John Adcock.  All rights reserved.
  *
- *  DScaler #Id: BT848Card_Types.cpp,v 1.34 2003/06/01 15:04:16 adcockj Exp #
+ *  DScaler #Id: BT848Card_Types.cpp,v 1.35 2003/07/14 19:17:35 adcockj Exp #
  *
- *  $Id: bt8x8_typ.c,v 1.9 2003/06/24 20:22:59 tom Exp tom $
+ *  $Id: bt8x8_typ.c,v 1.10 2003/09/02 19:54:08 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -152,6 +152,8 @@ typedef enum
     TVCARD_AVERTVOLD,
     TVCARD_KWORLD_MPEGTV,
     TVCARD_APAC_VIEWCOMP,
+    TVCARD_PMSVIDEO_PDI,
+    TVCARD_PMSVIDEO_SDI,
     TVCARD_LASTONE,
 } eTVCardId;
 
@@ -3735,6 +3737,44 @@ static const TCardType m_TVCards[TVCARD_LASTONE] =
         //CAudioDecoder::AUDIODECODERTYPE_DETECT,
         0x400f,
         {0x003ffff8, 0x003ffff0, 0x003ffff0, 0x003ffff0, 0x003ffff0, 0x003ffff0, }
+    },
+    {
+        "PMSVideo PDI",
+        1,
+        {
+            {
+                "PDI",
+                INPUTTYPE_CCIR,
+                0x00,
+            },
+        },
+        PLL_28,
+        TUNER_PHILIPS_NTSC,
+        SOUNDCHIP_NONE,
+        NULL,
+        StandardBT848InputSelect,
+        //CAudioDecoder::AUDIODECODERTYPE_DETECT,
+        0x1F800,
+        {0xD, 0xE, 0xB, 0x7, 0, 0, }
+    },
+    {
+        "PMSVideo SDI",
+        1,
+        {
+            {
+                "SDI",
+                INPUTTYPE_CCIR,
+                0x00,
+            },
+        },
+        PLL_28,
+        TUNER_PHILIPS_NTSC,
+        SOUNDCHIP_NONE,
+        NULL,
+        StandardBT848InputSelect,
+        //CAudioDecoder::AUDIODECODERTYPE_DETECT,
+        0x1F800,
+        {0xD, 0xE, 0xB, 0x7, 0, 0, }
     },
 };
 

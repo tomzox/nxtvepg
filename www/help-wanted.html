@@ -1,0 +1,148 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
+<HTML lang="en">
+<!-- $Id: help-wanted.html,v 1.2 2003/10/12 09:59:08 tom Exp $ -->
+<HEAD>
+<TITLE>Software developers help wanted for nxtvepg project</TITLE>
+<META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<META name="language" content="en">
+<META name="keywords" lang="en" content="software,developer,jobs,wanted,programming,freeware">
+<META name="description" content="Help wanted for free software contributions to the nxtvepg project">
+<META name="author" content="Tom Zoerner">
+<META name="copyright" content="Tom Zoerner">
+<META name="robots" content="index, follow">
+<LINK rel="stylesheet" type="text/css" href="nxtvepg.css">
+<LINK rel="shortcut icon" type="image/x-icon" href="nxtvepg.ico">
+<LINK rel="top" href="//nxtvepg.sourceforge.net/" title="nexTView EPG Decoder Homepage">
+</HEAD>
+<BODY bgcolor="#F8F8F8">
+
+<P><BR></P>
+<H1>Software Developers Help Wanted</H1>
+<P></P>
+<P CLASS="marg">
+The nxtvepg project is sort-of my pet project since 2000.  Development
+was mostly driven by how interesing the topic seemed to implement, or
+how much I liked to have it for myself.  Of course I also have honored
+reasonable feature requests, but since my time is limited (I do also
+have a job to pay for my living) and I'm a UNIX hacker and not skilled
+in Microsoft specifics, I often see myself unable to comply to requests
+even when wholeheartedly agreeing that nxtvepg direly needs improvements
+in some areas.
+</P><P CLASS="marg">
+Since during the last year the number of users appears to have grown
+considerably I feel a responsibility to address at least the most urgent
+topics which I have listed below.  There are of course a lot more open
+points and possible feature enhancements (see TODO list in the nxtvepg
+releases), but those below also have the advantage that they can be
+tackled without digging too deep into nxtvepg internals.
+If you feel like contributing in any way to these, or if you think
+there are even more pressing open issues in nxtvepg, please send me an
+email (see nxtvepg <I>Help -> About</I> for my address).
+</P>
+<P><BR></P>
+
+<DL>
+<DT><B>Teletext acquisition via DirectShow &reg; on Microsoft Windows &reg;</B>
+<DD><P>This is certainly the most important point of all, since many
+    Windows users cannot use nxtvepg at all because their TV card is
+    not supported by the driver.  This is because currently VBI
+    acquisition in nxtvepg is based exclusively on the
+    <A HREF="http://dscaler.org/">DScaler</A> "dsdrv4" driver, which
+    supports only cards based on Conexant BT878, CX23881 or Philips
+    SAA7134 (and even among these only the ones with supported tuners.)
+    Cards with chip sets from vendors which do not disclose specifications
+    to support open source driver implementations cannot be supported
+    this way.</P><P>
+    A solution around this is to use vendor supplied WDM drivers via
+    DirectShow. This is already implemented in DScaler and just would
+    need to be adapted/reduced for nxtvepg.  This task requires a MSVC
+    compiler though and a recent version of Windows with Direct X
+    version 8 or later.  Since I only have Windows NT and cannot even
+    compile against the DirectShow API, the prefered solution would
+    be a DLL with an interface compatible with epgvbi/btdrv.h in nxtvepg.
+    </P>
+
+<DT><B>TV application interaction</B>
+<DD><P>nxtvepg can only interact (e.g. display title info in OSD, see the
+    <A HREF="tvsim.html#interaction features">tvsim manual</A> for a
+    complete list of features) with TV applications which do support
+    the interaction protocol; also it can only load the TV channel table
+    if it has a parser for the specific file format.  Currently only xawtv
+    and xawdecode on UNIX and K!TV on Windows are supported this way.
+    On Windows in addition the channel table of a few more TV apps can
+    be used.<BR>
+    I do receive requests to suport one or other TV application almost
+    on a regular basis, but I cannot do much here since for the most
+    part the work is on side of the TV application;  I've already written
+    a prototype client in the
+    <A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.6.0-tvsim.zip?download">tvsim package</A>
+    which contains all the code necessary for interaction, but it would
+    need to be included on side of the TV apps.  Please refer to this
+    <A HREF="tvsim-faq.html">Questions &amp; answers</A> for more details.
+    </P>
+
+<DT><B>Linux VBI proxy</B>
+<DD><P>The VBI proxy is an independent project which I've started around
+    May 2003 with the aim to allow to run more than one VBI client at the
+    same time (i.e. teletext, Nextview EPG, TV subtitles, Closed Caption
+    etc.)  Development is based on the libzvbi library, which is part
+    of the <A HREF="http://zapping.sourceforge.net">zapping</A> project.
+    Nxtvepg users will benefit the most from this project since they can
+    then run the acquisition daemon permanently in the background without
+    disturbing any other programs.  See also my
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/README-proxy.txt">README</A>
+    file for more details.  Source download is available from Zapping CVS.<BR>
+    Now the core of the daemon, i.e. the actual VBI data forwarding, is
+    already implemented, but the proxy will only make sense if it's
+    supported by as many VBI applications as possible.  Pre-conditions for
+    that is that the proxy API is well-thought out and flexible and of
+    course enough users are lobbying for the idea towards other app's authors.
+    I think I'll need all the help I can get with these.
+    </P>
+
+<DT><B>Translation for French and German users</B>
+<DD><P>Appearently there is a number of users who do not understand English
+    well enough to understand the descriptions in the manual.  The manual
+    currently has more than 3000 lines but maybe someone still wants to
+    tackle it?   At least in case of French this would not be a one-time
+    only job, since the manual needs to be updated for every release.
+    (It's also been requested in the past to translate all menus and dialogs,
+    but this would be very hard since these texts are directly integrated
+    into the source code and not in a separate resource file which could
+    be replaced with different language versions.)
+    </P>
+
+<DT><B>User-interface improvements</B>
+<DD><P>Not really an open point, but I thought I'd bring it up since I've
+    received mail repeatedly along the lines "The nxtvepg user
+    interface (on Windows) is so ugly, I'd like to help you to change that".
+    Unfortunately it isn't as easy as that, since the GUI is based on the
+    Tcl/Tk library.  You can't improve the looks much without switching to
+    a different libraray (preferrably something portable like GTK or Qt)
+    which would mean re-writing the complete GUI, i.e. some 20,000 lines
+    of Tcl/Tk code plus a large percentage of 30,000 lines of GUI related
+    C code.<BR>
+    Still, if you have <I>specific</I> ideas for improvements I'm always
+    happy to hear them.</P>
+</DL>
+
+<H2>Disclaimer</H2>
+<P CLASS="marg">
+Finally it should be noted
+since nxtvepg is <A HREF="http://www.fsf.org/copyleft/gpl.html">GPL Freeware</A>,
+there's no money to be earned.  The users don't pay me, so I cannot pay you.
+Unlike with some high-profile open-source projects, there also isn't much
+fame to be earned, esp. outside central Europe where Nextview EPG is largely
+unknown.
+
+So I guess this opportunity is mostly aimed at people who code for
+the fun of it, or for people who use the nxtvepg themselves and want
+to improve on it.
+</P>
+
+<P><BR></P><HR>
+<P>
+Back to the <A HREF="http://nxtvepg.sourceforge.net/">nxtvepg homepage</A>
+</P>
+</BODY>
+</HTML>

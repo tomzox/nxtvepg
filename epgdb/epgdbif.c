@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbif.c,v 1.45 2003/02/27 18:43:07 tom Exp tom $
+ *  $Id: epgdbif.c,v 1.46 2003/09/19 22:07:55 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -436,7 +436,7 @@ const PI_BLOCK * EpgDbSearchPi( CPDBC dbc, time_t start_time, uchar netwop_no )
 //   these settings are considered
 //
 const PI_BLOCK * EpgDbSearchFirstPiAfter( CPDBC dbc, time_t min_time, EPGDB_TIME_SEARCH_MODE startOrStop,
-                                          FILTER_CONTEXT *fc )
+                                          const FILTER_CONTEXT *fc )
 {
    EPGDB_BLOCK * pBlock;
 
@@ -500,7 +500,7 @@ const PI_BLOCK * EpgDbSearchFirstPiAfter( CPDBC dbc, time_t min_time, EPGDB_TIME
 //   these settings are considered
 //
 const PI_BLOCK * EpgDbSearchFirstPiBefore( CPDBC dbc, time_t min_time, EPGDB_TIME_SEARCH_MODE startOrStop,
-                                           FILTER_CONTEXT *fc )
+                                           const FILTER_CONTEXT *fc )
 {
    EPGDB_BLOCK * pBlock;
 
@@ -551,7 +551,7 @@ const PI_BLOCK * EpgDbSearchFirstPiBefore( CPDBC dbc, time_t min_time, EPGDB_TIM
 //   The start time may lie in the past if the stop time is
 //   still in the future
 //
-const PI_BLOCK * EpgDbSearchFirstPi( CPDBC dbc, FILTER_CONTEXT *fc )
+const PI_BLOCK * EpgDbSearchFirstPi( CPDBC dbc, const FILTER_CONTEXT *fc )
 {
    const EPGDB_BLOCK * pBlock = NULL;
 
@@ -580,7 +580,7 @@ const PI_BLOCK * EpgDbSearchFirstPi( CPDBC dbc, FILTER_CONTEXT *fc )
 // ---------------------------------------------------------------------------
 // Search for the last matching PI block in database
 //
-const PI_BLOCK * EpgDbSearchLastPi( CPDBC dbc, FILTER_CONTEXT *fc )
+const PI_BLOCK * EpgDbSearchLastPi( CPDBC dbc, const FILTER_CONTEXT *fc )
 {
    const EPGDB_BLOCK * pBlock = NULL;
 
@@ -613,7 +613,7 @@ const PI_BLOCK * EpgDbSearchLastPi( CPDBC dbc, FILTER_CONTEXT *fc )
 //   and has a higher start time (or the same start time and a higher
 //   netwop index) as the given block.
 //
-const PI_BLOCK * EpgDbSearchNextPi( CPDBC dbc, FILTER_CONTEXT *fc, const PI_BLOCK * pPiBlock )
+const PI_BLOCK * EpgDbSearchNextPi( CPDBC dbc, const FILTER_CONTEXT *fc, const PI_BLOCK * pPiBlock )
 {
    const EPGDB_BLOCK * pBlock = NULL;
 
@@ -649,7 +649,7 @@ const PI_BLOCK * EpgDbSearchNextPi( CPDBC dbc, FILTER_CONTEXT *fc, const PI_BLOC
 // Search for the next matching PI block before a given block
 // - same as SearchNext(), just reverse
 //
-const PI_BLOCK * EpgDbSearchPrevPi( CPDBC dbc, FILTER_CONTEXT *fc, const PI_BLOCK * pPiBlock )
+const PI_BLOCK * EpgDbSearchPrevPi( CPDBC dbc, const FILTER_CONTEXT *fc, const PI_BLOCK * pPiBlock )
 {
    const EPGDB_BLOCK * pBlock = NULL;
 
@@ -685,7 +685,7 @@ const PI_BLOCK * EpgDbSearchPrevPi( CPDBC dbc, FILTER_CONTEXT *fc, const PI_BLOC
 // Count matching PI blocks starting with a given block
 // - note: the returned count includes the given block (if it matches)
 //
-uint EpgDbCountPi( CPDBC dbc, FILTER_CONTEXT *fc, const PI_BLOCK * pPiBlock )
+uint EpgDbCountPi( CPDBC dbc, const FILTER_CONTEXT *fc, const PI_BLOCK * pPiBlock )
 {
    const EPGDB_BLOCK * pBlock = NULL;
    uint  count = 0;
@@ -719,7 +719,7 @@ uint EpgDbCountPi( CPDBC dbc, FILTER_CONTEXT *fc, const PI_BLOCK * pPiBlock )
 // Count matching PI blocks before a given block
 // - note: the returned count does not include the given block
 //
-uint EpgDbCountPrevPi( CPDBC dbc, FILTER_CONTEXT *fc, const PI_BLOCK * pPiBlock )
+uint EpgDbCountPrevPi( CPDBC dbc, const FILTER_CONTEXT *fc, const PI_BLOCK * pPiBlock )
 {
    const EPGDB_BLOCK * pBlock = NULL;
    uint  count = 0;
@@ -1043,46 +1043,53 @@ bool EpgDbGetStat( CPDBC dbc, EPGDB_BLOCK_COUNT * pCount, time_t * acqMinTime, u
          // Cannot use the stream number from the block header because that's the stream
          // in which the block was received; However here we need the up-to-date stream
          // or the block counts will be inconsistent with the AI counts!
-         cur_stream = EpgDbGetStreamByBlockNo(dbc, pBlock);
-         if (pBlock->blk.pi.stop_time > now)
+         if (pBlock->blk.pi.block_no_in_ai == FALSE)
          {
-            pCount[cur_stream].allVersions += 1;
-            // note about the stream comparison:
-            // the borderline between stream 1 and 2 may change without a version change.
-            // since with a move from stream 2 to 1 more information may have been added
-            // we then consider the block out of date.
-            if ( (pBlock->version == ai_version[cur_stream]) &&
-                 (pBlock->stream == cur_stream) )
+            pCount[0].extra += 1;
+         }
+         else
+         {
+            cur_stream = EpgDbGetStreamByBlockNo(dbc, pBlock);
+            if (pBlock->blk.pi.stop_time > now)
             {
-               pCount[cur_stream].curVersion += 1;
+               pCount[cur_stream].allVersions += 1;
+               // note about the stream comparison:
+               // the borderline between stream 1 and 2 may change without a version change.
+               // since with a move from stream 2 to 1 more information may have been added
+               // we then consider the block out of date.
+               if ( (pBlock->version == ai_version[cur_stream]) &&
+                    (pBlock->stream == cur_stream) )
+               {
+                  pCount[cur_stream].curVersion += 1;
+               }
             }
-         }
-         else
-            pCount[cur_stream].expired += 1;
-
-         // note about "<=" in stream comparison: there's a bug in the TARA Nextview encoder,
-         // where blocks are assigned to stream 2 in AI, but transmitted in stream 1 anyways
-         // (e.g. when stream 1 is empty because there are no programmes in the time range
-         // that's usually covered by stream 1)
-         if ( (pBlock->acqTimestamp >= acqMinTime[cur_stream]) &&
-              (pBlock->version == ai_version[cur_stream]) &&
-              (pBlock->stream <= cur_stream) )
-         {
-            pCount[cur_stream].sinceAcq += 1;
-            blockCount[cur_stream][pBlock->blk.pi.netwop_no] += 1;
-         }
-
-         if (cur_stream == 1)
-         {  // stream 2
-            acqRepSum[cur_stream] += pBlock->acqRepCount;
-         }
-         else
-         {  // stream 1 needs special handling to split off rep counts from Now & Next
-            // PI in now & next sub-stream count exactly once; other PI may count more often
-            if (pBlock->acqRepCount >= maxNowRepCount)
-               acqRepSum[0] += 1;
             else
-               acqRepSum[0] += pBlock->acqRepCount;
+               pCount[cur_stream].expired += 1;
+
+            // note about "<=" in stream comparison: there's a bug in the TARA Nextview encoder,
+            // where blocks are assigned to stream 2 in AI, but transmitted in stream 1 anyways
+            // (e.g. when stream 1 is empty because there are no programmes in the time range
+            // that's usually covered by stream 1)
+            if ( (pBlock->acqTimestamp >= acqMinTime[cur_stream]) &&
+                 (pBlock->version == ai_version[cur_stream]) &&
+                 (pBlock->stream <= cur_stream) )
+            {
+               pCount[cur_stream].sinceAcq += 1;
+               blockCount[cur_stream][pBlock->blk.pi.netwop_no] += 1;
+            }
+
+            if (cur_stream == 1)
+            {  // stream 2
+               acqRepSum[cur_stream] += pBlock->acqRepCount;
+            }
+            else
+            {  // stream 1 needs special handling to split off rep counts from Now & Next
+               // PI in now & next sub-stream count exactly once; other PI may count more often
+               if (pBlock->acqRepCount >= maxNowRepCount)
+                  acqRepSum[0] += 1;
+               else
+                  acqRepSum[0] += pBlock->acqRepCount;
+            }
          }
 
          pBlock = pBlock->pNextBlock;

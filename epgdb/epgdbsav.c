@@ -29,7 +29,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbsav.c,v 1.49 2002/11/03 12:16:09 tom Exp tom $
+ *  $Id: epgdbsav.c,v 1.51 2003/10/05 18:59:17 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -56,6 +56,7 @@
 #include "epgctl/mytypes.h"
 #include "epgctl/epgversion.h"
 #include "epgctl/debug.h"
+#include "epgvbi/syserrmsg.h"
 
 #include "epgdb/epgblock.h"
 #include "epgdb/epgswap.h"
@@ -71,8 +72,12 @@ typedef const EPGDB_CONTEXT * CPDBC;
 typedef       EPGDB_CONTEXT * PDBC;
 
 
-const char * epgDbDirPath = NULL;
-const char * epgDemoDb    = NULL;
+static const char * epgDbDirPath = NULL;
+static const char * epgDemoDb    = NULL;
+
+// cache current time during database reload (optimization only)
+static time_t  epgDbReloadCurTime;
+static time_t  epgDbReloadExpireDelayPi = EPGDBSAV_DEFAULT_EXPIRE_TIME;
 
 
 // ---------------------------------------------------------------------------
@@ -389,12 +394,21 @@ static EPGDB_RELOAD_RESULT EpgDbReloadAddPiBlock( PDBC dbc, EPGDB_BLOCK * pBlock
    if (EpgBlockCheckConsistancy(pBlock))
    {
       netwop = pBlock->blk.pi.netwop_no;
-      if ( EpgDbPiBlockNoValid(dbc, pBlock->blk.pi.block_no, netwop) )
+      pPrev  = pPrevNetwop[netwop];
+
+      if ( (netwop < dbc->pAiBlock->blk.ai.netwopCount) &&
+           (pBlock->blk.pi.start_time < pBlock->blk.pi.stop_time) )
       {
-         if (pBlock->blk.pi.start_time < pBlock->blk.pi.stop_time)
+         pBlock->acqRepCount = 0;
+         // check if the block still part of current stream, i.e. fits in AI block range
+         ((PI_BLOCK *)&pBlock->blk.pi)->block_no_in_ai =
+            EpgDbPiBlockNoValid(dbc, pBlock->blk.pi.block_no, netwop);
+
+         if ( (pBlock->blk.pi.block_no_in_ai) ||
+              ( (pBlock->blk.pi.stop_time <= epgDbReloadCurTime) &&
+                (pBlock->blk.pi.stop_time >= epgDbReloadCurTime - dbc->expireDelayPi) ))
          {
             //dprintf4("RELOAD PI ptr=%lx: netwop=%d, blockno=%d, start=%ld\n", (ulong)pBlock, netwop, pBlock->blk.pi.block_no, pBlock->blk.pi.start_time);
-            pBlock->acqRepCount = 0;
 
             if (dbc->pFirstPi == NULL)
             {  // there's no PI yet in the database -> just link with head pointers
@@ -413,8 +427,10 @@ static EPGDB_RELOAD_RESULT EpgDbReloadAddPiBlock( PDBC dbc, EPGDB_BLOCK * pBlock
             if ( ( (pBlock->blk.pi.start_time > dbc->pLastPi->blk.pi.start_time) ||
                    ( (pBlock->blk.pi.start_time == dbc->pLastPi->blk.pi.start_time) &&
                      (pBlock->blk.pi.netwop_no > dbc->pLastPi->blk.pi.netwop_no) )) &&
-                 ( ((pPrev = pPrevNetwop[netwop]) == NULL) ||
-                   ( EpgDbPiCmpBlockNoGt(dbc, pBlock->blk.pi.block_no, pPrev->blk.pi.block_no, netwop) &&
+                 ( (pPrev == NULL) ||
+                   ( ( (pBlock->blk.pi.block_no_in_ai == FALSE) ||
+                       (pPrev->blk.pi.block_no_in_ai == FALSE) ||
+                       (EpgDbPiCmpBlockNoGt(dbc, pBlock->blk.pi.block_no, pPrev->blk.pi.block_no, netwop)) ) &&
                      (pBlock->blk.pi.start_time >= pPrev->blk.pi.stop_time) )))
             {  // append the block after the last reloaded one
 
@@ -447,13 +463,13 @@ static EPGDB_RELOAD_RESULT EpgDbReloadAddPiBlock( PDBC dbc, EPGDB_BLOCK * pBlock
             //assert(EpgDbCheckChains());
          }
          else
-         {  // defective stop time value, PI cannot be added to regular list
-            //dprintf3("EXPIRED pi netwop=%d, blockno=%d start=%ld\n", pBlock->blk.pi.netwop_no, pBlock->blk.pi.block_no, pBlock->blk.pi.start_time);
-            result = EpgDbReloadAddDefectPiBlock(dbc, pBlock);
+         {  // block expired or removed from stream
+            xfree(pBlock);
          }
       }
       else
-      {  // invalid netwop or blockno
+      {  // invalid netwop or defective stop time: should never happen (defective blocks are filtered before saving)
+         //dprintf3("EXPIRED pi netwop=%d, blockno=%d start=%ld\n", pBlock->blk.pi.netwop_no, pBlock->blk.pi.block_no, pBlock->blk.pi.start_time);
          xfree(pBlock);
       }
       result = EPGDB_RELOAD_OK;
@@ -596,6 +612,7 @@ PDBC EpgDbReload( uint cni, EPGDB_RELOAD_RESULT * pResult )
          dbc->pageNo       = head.pageNo;
          dbc->tunerFreq    = head.tunerFreq;
          dbc->appId        = head.appId;
+         dbc->expireDelayPi = epgDbReloadExpireDelayPi;
 
          if (epgDemoDb != NULL)
          {  // demo mode: shift all PI in time to the current time and future
@@ -609,6 +626,7 @@ PDBC EpgDbReload( uint cni, EPGDB_RELOAD_RESULT * pResult )
          memset(pPrevNetwop, 0, sizeof(pPrevNetwop));
          memset(pPrevGeneric, 0, sizeof(pPrevGeneric));
          lastType = BLOCK_TYPE_INVALID;
+         epgDbReloadCurTime = time(NULL);
 
          // load the header of the next block from the file (including the block type)
          while ( (result == EPGDB_RELOAD_OK) &&
@@ -651,7 +669,7 @@ PDBC EpgDbReload( uint cni, EPGDB_RELOAD_RESULT * pResult )
                         break;
 
                      case BLOCK_TYPE_PI:
-                        // in demo mode, add time offset to shift PI into presence or future
+                        // in demo mode, add time offset to shift PI into present or future
                         ((PI_BLOCK*)&pBlock->blk.pi)->start_time += piStartOff;
                         ((PI_BLOCK*)&pBlock->blk.pi)->stop_time  += piStartOff;
                         result = EpgDbReloadAddPiBlock(dbc, pBlock, pPrevNetwop);
@@ -849,6 +867,7 @@ EPGDB_CONTEXT * EpgDbPeek( uint cni, EPGDB_RELOAD_RESULT * pResult )
          pDbContext->pageNo       = head.pageNo;
          pDbContext->tunerFreq    = head.tunerFreq;
          pDbContext->appId        = head.appId;
+         pDbContext->expireDelayPi = epgDbReloadExpireDelayPi;
 
          if (read(fd, buffer, BLK_UNION_OFF) == BLK_UNION_OFF)
          {
@@ -1059,6 +1078,14 @@ const EPGDB_SCAN_BUF * EpgDbReloadScan( void )
 }
 
 // ---------------------------------------------------------------------------
+// Initialize expire time for reloading PI
+//
+void EpgDbSavSetPiExpireDelay( time_t expireDelayPi )
+{
+   epgDbReloadExpireDelayPi = expireDelayPi;
+}
+
+// ---------------------------------------------------------------------------
 // Create database directory, if neccessary
 //
 bool EpgDbSavSetupDir( const char * pDirPath, const char * pDemoDb )
@@ -1091,10 +1118,9 @@ bool EpgDbSavSetupDir( const char * pDirPath, const char * pDemoDb )
    }
 
 #else  //WIN32
-   HANDLE hFind;
-   WIN32_FIND_DATA finddata;
    DWORD attr;
-   char msg[256];
+   DWORD errCode;
+   char  * pError = NULL;
 
    epgDbDirPath = pDirPath;
    if (pDemoDb != NULL)
@@ -1103,25 +1129,50 @@ bool EpgDbSavSetupDir( const char * pDirPath, const char * pDemoDb )
    }
    else if (pDirPath != NULL)
    {
-      hFind = FindFirstFile(pDirPath, &finddata);
-      if (hFind == (HANDLE) -1)
-      {  // directory does no exist -> create it
-         if (mkdir(epgDbDirPath) != 0)
-         {  // creation failed -> warn
-            sprintf(msg, "Cannot create database directory %s:\n%s\nCheck your -dbdir command line option", pDirPath, strerror(errno));
-            MessageBox(NULL, msg, "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+      attr = GetFileAttributes(pDirPath);
+      if (attr == INVALID_FILE_ATTRIBUTES)
+      {
+         errCode = GetLastError();
+         debug1("EpgDb-SavSetupDir: dbdir error %ld", errCode);
+
+         if (errCode == ERROR_FILE_NOT_FOUND)
+         {
+            // directory does no exist -> create it
+            if (CreateDirectory(epgDbDirPath, NULL) == 0)
+            {  // creation failed -> warn
+               SystemErrorMessage_Set(&pError, errCode, "Check option -dbdir ", pDirPath,
+                                      "\nPath does not exist and cannot be created: ", NULL);
+               if (pError != NULL)
+               {
+                  MessageBox(NULL, pError, "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+                  xfree(pError);
+               }
+               result = FALSE;
+            }
+         }
+         else
+         {
+            errCode = GetLastError();
+            SystemErrorMessage_Set(&pError, errCode, "Cannot access database directory:\n",
+                                                     pDirPath, "\n", NULL);
+            if (pError != NULL)
+            {
+               MessageBox(NULL, pError, "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+               xfree(pError);
+            }
             result = FALSE;
          }
       }
-      if (result)
-      {  // check if the file found is a directory
-         attr = GetFileAttributes(pDirPath);
-         if ((attr & FILE_ATTRIBUTE_DIRECTORY) == 0)
-         {  // target not a directory -> warn
-            sprintf(msg, "Invalid database directory specified: %s\nAlready exists, but is not a directory", pDirPath);
-            MessageBox(NULL, msg, "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
-            result = FALSE;
+      else if ((attr & FILE_ATTRIBUTE_DIRECTORY) == 0)
+      {  // target not a directory -> warn
+         SystemErrorMessage_Set(&pError, 0, "Invalid database directory specified:\n",
+                                pDirPath, "\nAlready exists, but is not a directory", NULL);
+         if (pError != NULL)
+         {
+            MessageBox(NULL, pError, "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+            xfree(pError);
          }
+         result = FALSE;
       }
    }
 #endif

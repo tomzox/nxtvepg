@@ -19,7 +19,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pinetbox.c,v 1.37 2003/06/28 16:20:40 tom Exp tom $
+ *  $Id: pinetbox.c,v 1.40 2003/10/05 19:42:35 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -123,6 +123,10 @@ typedef enum
 } NETBOX_INIT_STATE;
 
 static NETBOX_INIT_STATE netbox_init_state = PIBOX_NOT_INIT;
+
+// forward declarations
+static time_t PiNetBox_GetMaxVisibleStartTime( void );
+static time_t PiNetBox_GetMinVisibleStartTime( void );
 
 // ----------------------------------------------------------------------------
 // Misc. types and structures used in sub-functions
@@ -557,7 +561,7 @@ static void PiNetBox_UpdateNetwopNames( void )
    EpgDbLockDatabase(dbc, FALSE);
 
    // set pre-filter to suppress all networks outside of the visible range in db queries
-   EpgDbFilterEnable(pPiFilterContext, FILTER_NETWOP_PRE2);
+   EpgDbPreFilterEnable(pPiFilterContext, FILTER_NETWOP_PRE2);
 
    // empty the headers of the remaining columns
    for ( ; colIdx < netbox.col_count; colIdx++, pCol++)
@@ -573,18 +577,18 @@ static void PiNetBox_UpdateNetwopNames( void )
 static void PiNetBox_SearchPrevNext( uint colIdx, time_t cur_time,
                                      const PI_BLOCK ** pPrevPi, const PI_BLOCK ** pNextPi )
 {
-   FILTER_CONTEXT * pFc;
    const AI_BLOCK * pAiBlock;
+   bool  pre2copy[MAX_NETWOP_COUNT];
    uint  netwop;
 
    assert(EpgDbIsLocked(dbc));
+   assert(sizeof(pre2copy) == sizeof(pPiFilterContext->netwopPreFilter2));
 
    if ((pPrevPi != NULL) && (pNextPi != NULL))
    {
-      // create a temporary filter context which holds only the networks
-      // which are mapped onto the given column and not filtered out
-      pFc = EpgDbFilterCopyContext(pPiFilterContext);
-      EpgDbFilterInitNetwopPreFilter2(pFc);
+      // make a copy of the current pre-filter to recover it later
+      memcpy(pre2copy, pPiFilterContext->netwopPreFilter2, sizeof(pre2copy));
+      EpgDbFilterInitNetwopPreFilter2(pPiFilterContext);
 
       pAiBlock = EpgDbGetAi(dbc);
       if (pAiBlock != NULL)
@@ -594,21 +598,55 @@ static void PiNetBox_SearchPrevNext( uint colIdx, time_t cur_time,
          {
             if (netbox.net_ai2sel[netwop] == netbox.net_off + colIdx)
             {
-               EpgDbFilterSetNetwopPreFilter2(pFc, netwop);
+               EpgDbFilterSetNetwopPreFilter2(pPiFilterContext, netwop);
             }
          }
       }
-      EpgDbFilterEnable(pFc, FILTER_NETWOP_PRE2);
 
       // note: don't use RUNNING-AT, else the same programme might show up
       // both as prev and next (even if the item is invisible above)
-      *pPrevPi = EpgDbSearchFirstPiBefore(dbc, cur_time, STARTING_AT, pFc);
-      *pNextPi = EpgDbSearchFirstPiAfter(dbc, cur_time, STARTING_AT, pFc);
+      *pPrevPi = EpgDbSearchFirstPiBefore(dbc, cur_time, STARTING_AT, pPiFilterContext);
+      *pNextPi = EpgDbSearchFirstPiAfter(dbc, cur_time, STARTING_AT, pPiFilterContext);
 
-      EpgDbFilterDestroyContext(pFc);
+      // recover prefilter state
+      memcpy(pPiFilterContext->netwopPreFilter2, pre2copy, sizeof(pre2copy));
    }
    else
       fatal0("PiNetBox-SearchPrevNext: illegal NULL ptr params");
+}
+
+// ----------------------------------------------------------------------------
+// Draw a date scale to represent the range from first to last matching PI
+//
+static void PiNetBox_DrawDateScale( void )
+{
+   const PI_BLOCK *pPiBlock;
+   time_t  t_first;
+   time_t  t_last;
+   sint    lto;
+
+   t_first = 0;
+   t_last  = 0;
+
+   EpgDbLockDatabase(dbc, TRUE);
+   pPiBlock = EpgDbSearchFirstPi(dbc, pPiFilterContext);
+   if (pPiBlock != NULL)
+   {
+      t_first = pPiBlock->start_time;
+
+      pPiBlock = EpgDbSearchLastPi(dbc, pPiFilterContext);
+      if (pPiBlock != NULL)
+         t_last = pPiBlock->start_time;
+   }
+   EpgDbLockDatabase(dbc, FALSE);
+
+   if (t_first != 0)
+      lto = EpgLtoGet(t_first);
+   else
+      lto = EpgLtoGet(time(NULL));
+
+   sprintf(comm, "PiDateScale_Redraw %d %d %d\n", (int)t_first, (int)t_last, lto);
+   eval_check(interp, comm);
 }
 
 // ----------------------------------------------------------------------------
@@ -669,6 +707,18 @@ static void PiNetBox_AdjustVerticalScrollBar( void )
    else
       sprintf(comm, ".all.pi.list.sc set 0.0 1.0\n");
    eval_check(interp, comm);
+
+   {
+      time_t t_first = PiNetBox_GetMinVisibleStartTime();
+      time_t t_last = PiNetBox_GetMaxVisibleStartTime();
+      time_t t_cur = netbox.cur_req_time;
+
+      if (t_cur < t_first)
+         t_cur = t_first;
+
+      sprintf(comm, "PiDateScale_SetSlider %d %d %d\n", (int)t_first, (int)t_cur, (int)t_last);
+      eval_check(interp, comm);
+   }
 }
 
 // ----------------------------------------------------------------------------
@@ -881,7 +931,7 @@ static void PiNetBox_ShowCursor( void )
    NETBOX_COL   * pCol;
    NETBOX_ELEM  * pElem;
    const char   * pColor;
-   time_t  expireTime;
+   time_t  curTime;
 
    if (netbox.cur_col < netbox.col_count)
    {
@@ -892,12 +942,11 @@ static void PiNetBox_ShowCursor( void )
          netbox.cur_type = CURTYPE_NORMAL;
 
          pElem = pCol->list + netbox.cur_idx;
-         expireTime = EpgDbFilterGetExpireTime(pPiFilterContext);
+         curTime = EpgGetUiMinuteTime();
 
-         //if (pElem->stop_time <= expireTime)
-         //   pColor = "pi_cursor_bg_past";
-         //else
-         if (pElem->start_time <= expireTime)
+         if (pElem->stop_time <= curTime)
+            pColor = "pi_cursor_bg_past";
+         else if (pElem->start_time <= curTime)
             pColor = "pi_cursor_bg_now";
          else
             pColor = "pi_cursor_bg";
@@ -1221,6 +1270,8 @@ static sint PiNetBox_AlignNowItems( sint top_row, bool isRefresh )
    bool  multipleNows;
 
    expireTime = EpgDbFilterGetExpireTime(pPiFilterContext);
+   if (expireTime != EpgGetUiMinuteTime())
+      expireTime = 0;
    multipleNows = FALSE;
 
    // determine the lowest row used by all NOW items (including default gap row)
@@ -1446,6 +1497,8 @@ static void PiNetBox_FillDownwards( sint delta, bool completeElem )
    time_t expireTime;
 
    expireTime  = EpgDbFilterGetExpireTime(pPiFilterContext);
+   if (expireTime != EpgGetUiMinuteTime())
+      expireTime = 0;
    pLastElem   = NULL;
    last_row    = 0;
    max_row     = 0;
@@ -1738,6 +1791,8 @@ static void PiNetBox_FillUpwards( sint delta, bool completeElem )
    time_t expireTime;
 
    expireTime  = EpgDbFilterGetExpireTime(pPiFilterContext);
+   if (expireTime != EpgGetUiMinuteTime())
+      expireTime = 0;
    pLastElem   = NULL;
    top_row     = 0;
 
@@ -1945,6 +2000,9 @@ static void PiNetBox_FillAroundPi( const PI_BLOCK * pPiBlock, uint refColIdx, si
    if (pPiBlock != NULL)
    {
       expireTime = EpgDbFilterGetExpireTime(pPiFilterContext);
+      if (expireTime != EpgGetUiMinuteTime())
+         expireTime = 0;
+
       if (pPiBlock->start_time <= expireTime)
       {  // currently running programme -> use first matching PI as start point instead
          pPrevPi = EpgDbSearchFirstPi(dbc, pPiFilterContext);
@@ -2524,6 +2582,7 @@ void PiNetBox_Reset( void )
    }
 
    PiNetBox_ShowCursor();
+   PiNetBox_DrawDateScale();
    PiNetBox_AdjustVerticalScrollBar();
    PiNetBox_UpdateInfoText(FALSE);
 
@@ -2609,6 +2668,8 @@ static void PiNetBox_RefreshDownwards( const PI_BLOCK * pPiBlock, uint colIdx )
       dprintf5("---- refresh downwards: start with col %d row %d(%+d) time %d %s", colIdx, pElem->text_row, netbox.cols[colIdx].start_off, (int)pPiBlock->start_time, ctime(&pPiBlock->start_time));
       last_row    = pElem->text_row;
       expireTime  = EpgDbFilterGetExpireTime(pPiFilterContext);
+      if (expireTime != EpgGetUiMinuteTime())
+         expireTime = 0;
       pLastElem   = NULL;
       maxDelta    = 0;
 
@@ -2990,6 +3051,8 @@ static void PiNetBox_RefreshUpwards( const PI_BLOCK * pPiBlock, uint refColIdx, 
    {
       top_row     = pLastElem->text_row;
       expireTime  = EpgDbFilterGetExpireTime(pPiFilterContext);
+      if (expireTime != EpgGetUiMinuteTime())
+         expireTime = 0;
       maxDelta    = 0;
 
       pPiBlock = EpgDbSearchPrevPi(dbc, pPiFilterContext, pPiBlock);
@@ -3482,6 +3545,7 @@ void PiNetBox_Refresh( void )
       netbox.cur_idx  = PiNetBox_PickCursorRow(netbox.cur_col, NO_PARTIAL);
 
       PiNetBox_ShowCursor();
+      PiNetBox_DrawDateScale();
       PiNetBox_AdjustVerticalScrollBar();
       PiNetBox_UpdateInfoText(FALSE);
 
@@ -3860,6 +3924,7 @@ static int PiNetBox_CursorLeft( ClientData ttp, Tcl_Interp *interp, int objc, Tc
          netbox.cur_idx  = PiNetBox_PickCursorRow(netbox.cur_col, NO_PARTIAL);
 
          PiNetBox_ShowCursor();
+         PiNetBox_DrawDateScale();
          PiNetBox_AdjustVerticalScrollBar();
          PiNetBox_UpdateInfoText(FALSE);
 
@@ -3921,6 +3986,7 @@ static int PiNetBox_CursorRight( ClientData ttp, Tcl_Interp *interp, int objc, T
          netbox.cur_idx  = PiNetBox_PickCursorRow(netbox.cur_col, NO_PARTIAL);
 
          PiNetBox_ShowCursor();
+         PiNetBox_DrawDateScale();
          PiNetBox_AdjustVerticalScrollBar();
          PiNetBox_UpdateInfoText(FALSE);
 
@@ -4001,6 +4067,7 @@ static int PiNetBox_ScrollRight( uint delta )
       netbox.cur_idx  = PiNetBox_PickCursorRow(netbox.cur_col, NO_PARTIAL);
 
       PiNetBox_ShowCursor();
+      PiNetBox_DrawDateScale();
       PiNetBox_AdjustVerticalScrollBar();
       PiNetBox_UpdateInfoText(FALSE);
 
@@ -4065,6 +4132,7 @@ static int PiNetBox_ScrollLeft( uint delta )
       netbox.cur_idx  = PiNetBox_PickCursorRow(netbox.cur_col, NO_PARTIAL);
 
       PiNetBox_ShowCursor();
+      PiNetBox_DrawDateScale();
       PiNetBox_AdjustVerticalScrollBar();
       PiNetBox_UpdateInfoText(FALSE);
 
@@ -4340,11 +4408,13 @@ static int PiNetBox_GotoTime( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_
       // Retrieve the start time from the function parameters
       if (strcmp(pArg, "now") == 0)
       {  // start with currently running -> suppress start time restriction
-         netbox.cur_req_time = 0;
+         timeMode = RUNNING_AT;
+         netbox.cur_req_time = EpgGetUiMinuteTime();
       }
       else if (strcmp(pArg, "next") == 0)
       {  // start with the first that's not yet running -> start the next second
-         netbox.cur_req_time = 1 + EpgDbFilterGetExpireTime(pPiFilterContext);
+         timeMode = STARTING_AT;
+         netbox.cur_req_time = 1 + EpgGetUiMinuteTime();
       }
       else if (Tcl_GetIntFromObj(interp, objv[2], &param) == TCL_OK)
       {  // absolute time given (UTC)
@@ -4407,7 +4477,7 @@ void PiNetBox_GotoPi( const PI_BLOCK * pPiBlock )
    assert(EpgDbIsLocked(dbc));
 
    // check if the given PI matches the current filter criteria
-   EpgDbFilterDisable(pPiFilterContext, FILTER_NETWOP_PRE2);
+   EpgDbPreFilterDisable(pPiFilterContext, FILTER_NETWOP_PRE2);
    if ( EpgDbFilterMatches(dbc, pPiFilterContext, pPiBlock) )
    {
       colIdx = netbox.net_ai2sel[pPiBlock->netwop_no];
@@ -4415,7 +4485,7 @@ void PiNetBox_GotoPi( const PI_BLOCK * pPiBlock )
       if ((colIdx >= netbox.net_off) && (colIdx < netbox.net_off + netbox.col_count))
       {  // the network is already visible
 
-         EpgDbFilterEnable(pPiFilterContext, FILTER_NETWOP_PRE2);
+         EpgDbPreFilterEnable(pPiFilterContext, FILTER_NETWOP_PRE2);
          colIdx -= netbox.net_off;
          pCol    = netbox.cols + colIdx;
 
@@ -4479,16 +4549,17 @@ void PiNetBox_GotoPi( const PI_BLOCK * pPiBlock )
          netbox.cur_idx = 0;
 
          PiNetBox_ShowCursor();
+         PiNetBox_DrawDateScale();
          PiNetBox_AdjustVerticalScrollBar();
          PiNetBox_UpdateInfoText(FALSE);
 
          assert(PiNetBox_ConsistancyCheck());
       }
       else
-         EpgDbFilterEnable(pPiFilterContext, FILTER_NETWOP_PRE2);
+         EpgDbPreFilterEnable(pPiFilterContext, FILTER_NETWOP_PRE2);
    }
    else
-      EpgDbFilterEnable(pPiFilterContext, FILTER_NETWOP_PRE2);
+      EpgDbPreFilterEnable(pPiFilterContext, FILTER_NETWOP_PRE2);
 }
 
 // ----------------------------------------------------------------------------
@@ -4528,7 +4599,8 @@ static bool PiNetBox_HandleAcqEvent( const EPGDB_CONTEXT * usedDbc, EPGDB_PI_ACQ
                fatal1("PiNetBox-HandleAcqEvent: illegal NULL PI block for event %d", event);
             break;
 
-         case EPGDB_PI_RECOUNT:
+         case EPGDB_PI_PROC_START:
+         case EPGDB_PI_PROC_DONE:
             break;
 
          default:
@@ -4789,7 +4861,7 @@ static void PiNetBox_UpdateNetwopMap( void )
                {
                   // append networks which are enabled in a network filter,
                   // but not part of the regular network filter selection
-                  if (pPiFilterContext->enabledFilters & FILTER_NETWOP)
+                  if (EpgDbFilterIsEnabled(pPiFilterContext, FILTER_NETWOP))
                   {
                      for (netwop=0; netwop < pAiBlock->netwopCount; netwop++)
                      {
@@ -4969,7 +5041,7 @@ void PiNetBox_Destroy( void )
       EpgDbSetPiAcqCallback(dbc, NULL);
 
    if (pPiFilterContext != NULL)
-      EpgDbFilterDisable(pPiFilterContext, FILTER_NETWOP_PRE2);
+      EpgDbPreFilterDisable(pPiFilterContext, FILTER_NETWOP_PRE2);
 }
 
 // ----------------------------------------------------------------------------

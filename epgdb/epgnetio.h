@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgnetio.h,v 1.19 2002/11/17 18:15:19 tom Exp $
+ *  $Id: epgnetio.h,v 1.22 2003/10/05 19:03:18 tom Exp $
  */
 
 #ifndef __EPGNETIO_H
@@ -25,7 +25,7 @@
 #include "epgdb/epgtscqueue.h"
 #include "epgdb/epgdbmerge.h"
 
-#define PROTOCOL_COMPAT          EPG_VERSION_TO_INT(0,7,1)
+#define PROTOCOL_COMPAT          EPG_VERSION_TO_INT(2,5,0x96)
 #define PROTOCOL_ENDIAN_MAGIC    0xAA55
 #define PROTOCOL_WRONG_ENDIAN    (((PROTOCOL_ENDIAN_MAGIC>>8)&0xFF)|((PROTOCOL_ENDIAN_MAGIC&0xFF)<<8))
 
@@ -128,6 +128,7 @@ bool EpgNetIo_DumpAllBlocks( EPGNETIO_STATE * pIO, EPGDB_CONTEXT * dbc, EPGNETIO
 int  EpgNetIo_ListenSocket( bool is_tcp_ip, const char * listen_ip, const char * listen_port );
 void EpgNetIo_StopListen( bool is_tcp_ip, int sock_fd );
 int  EpgNetIo_AcceptConnection( int listen_fd );
+bool EpgNetIo_IsLocalHost( char * pHostname );
 bool EpgNetIo_CheckConnect( void );
 int  EpgNetIo_ConnectToServer( bool use_tcp_ip, const char * pSrvHost, const char * pSrvPort, char ** ppErrorText );
 bool EpgNetIo_FinishConnect( int sock_fd, char ** ppErrorText );

@@ -18,17 +18,8 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_filter.tcl,v 1.8 2003/03/16 22:28:16 tom Exp tom $
+#  $Id: dlg_filter.tcl,v 1.11 2003/10/05 19:45:08 tom Exp tom $
 #
-set substr_grep_title 1
-set substr_grep_descr 1
-set substr_match_full 0
-set substr_match_case 0
-set substr_popup 0
-set substr_pattern {}
-set substr_stack {}
-set substr_history {}
-
 set progidx_first 0
 set progidx_last  0
 set progidx_popup 0
@@ -36,13 +27,17 @@ set progidx_popup 0
 set timsel_popup 0
 set timsel_enabled  0
 set timsel_relative 0
-set timsel_nodate   0
+set timsel_datemode ignore
 set timsel_absstop  0
 set timsel_stop [expr 23*60+59]
+set timsel_date 0
 
 set dursel_popup 0
 set dursel_min 0
 set dursel_max 0
+
+set piexpire_popup 0
+set piexpire_display 0
 
 set sortcrit_popup 0
 
@@ -60,136 +55,42 @@ proc UpdateSortCritListbox {} {
    }
 }
 
-# called when the timer filter is changed by the Navigate menu
+# called when filters are changed via "Navigate" menu or shortcut
 proc TimeFilterExternalChange {} {
    global timsel_popup
 
    if $timsel_popup {
-      UpdateTimeFilterRelStart
+      Timsel_UpdateWidgetState
+      Timsel_UpdateEntryText
    }
 }
 
-#=LOAD=SubStrPopup
+# helper function to get weekday name in local language
+# week days are specified as numbers 0..6 with 0=Sat...6=Fri
+proc GetNameForWeekday {wday fmt} {
+  # get arbirary time as base: use current time
+  set anytime [clock seconds]
+  # shift to 0:00 to avoid problems with daylight saving gaps at 2:00
+  set anytime [expr $anytime - ($anytime % (60*60*24))]
+  # calculate weekday index for the arbitrary timestampt
+  set anyday [expr ([clock format $anytime -format {%u}] + 1) % 7]
+  # substract offset to the requested weekday index from the time
+  set anytime [expr $anytime + (($wday - $anyday) * (24*60*60))]
+  # finally return name of the resulting timestamp
+  return [clock format $anytime -format $fmt]
+}
+
 #=LOAD=ProgIdxPopup
 #=LOAD=PopupTimeFilterSelection
 #=LOAD=PopupDurationFilterSelection
+#=LOAD=PopupExpireDelaySelection
 #=LOAD=PopupSortCritSelection
 #=DYNAMIC=
 
 ##  --------------------------------------------------------------------------
-##  Text search pop-up window
-##
-proc SubStrPopup {} {
-   global substr_grep_title substr_grep_descr
-   global substr_popup
-   global substr_pattern
-
-   if {$substr_popup == 0} {
-      CreateTransientPopup .substr "Text search"
-      set substr_popup 1
-
-      frame .substr.all
-
-      frame .substr.all.name
-      label .substr.all.name.prompt -text "Enter text:"
-      pack .substr.all.name.prompt -side left
-      entry .substr.all.name.str -textvariable substr_pattern -width 30
-      pack .substr.all.name.str -side left -fill x -expand 1
-      bind .substr.all.name.str <Enter> {SelectTextOnFocus %W}
-      bind .substr.all.name.str <Return> {tkButtonInvoke .substr.all.cmd.apply}
-      bind .substr.all.name.str <Escape> {tkButtonInvoke .substr.all.cmd.dismiss}
-      bind .substr.all.name.str <Key-Up> SubStrPopupHistoryMenu
-      bind .substr.all.name.str <Key-Down> SubStrPopupHistoryMenu
-      menu .substr.all.name.hist -tearoff 0
-      button .substr.all.name.but -bitmap "bitmap_ptr_down" -command SubStrPopupHistoryMenu
-      pack .substr.all.name.but -side left
-      pack .substr.all.name -side top -pady 10 -fill x -expand 1
-
-      frame .substr.all.opt
-      frame .substr.all.opt.scope
-      checkbutton .substr.all.opt.scope.titles -text "titles" -variable substr_grep_title -command {SubstrCheckOptScope substr_grep_descr}
-      pack .substr.all.opt.scope.titles -side top -anchor nw
-      checkbutton .substr.all.opt.scope.descr -text "descriptions" -variable substr_grep_descr -command {SubstrCheckOptScope substr_grep_title}
-      pack .substr.all.opt.scope.descr -side top -anchor nw
-      pack .substr.all.opt.scope -side left -padx 5
-      frame .substr.all.opt.match
-      checkbutton .substr.all.opt.match.full -text "match complete text" -variable substr_match_full
-      checkbutton .substr.all.opt.match.case -text "match case" -variable substr_match_case
-      pack .substr.all.opt.match.full .substr.all.opt.match.case -anchor nw
-      pack .substr.all.opt.match -side left -anchor nw -padx 5
-      pack .substr.all.opt -side top -pady 10
-
-      frame .substr.all.cmd
-      button .substr.all.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Filtering) "Text search"}
-      button .substr.all.cmd.clear -text "Clear" -width 5 -command {ResetSubstr; SubstrUpdateFilter 0}
-      button .substr.all.cmd.apply -text "Apply" -width 5 -command {SubstrUpdateFilter 1}
-      button .substr.all.cmd.dismiss -text "Dismiss" -width 5 -command {destroy .substr}
-      pack .substr.all.cmd.help .substr.all.cmd.clear .substr.all.cmd.apply .substr.all.cmd.dismiss -side left -padx 10
-      pack .substr.all.cmd -side top
-
-      pack .substr.all -padx 10 -pady 10 -fill x -expand 1
-      bind .substr.all <Destroy> {+ set substr_popup 0}
-      bind .substr <Key-F1> {PopupHelp $helpIndex(Filtering) "Text search"}
-
-      focus .substr.all.name.str
-      wm resizable .substr 1 0
-      update
-      wm minsize .substr [winfo reqwidth .substr] [winfo reqheight .substr]
-   } else {
-      raise .substr
-   }
-}
-
-# check that at lease one of the {title descr} options remains checked
-proc SubstrCheckOptScope {varname} {
-   global substr_grep_title substr_grep_descr
-
-   if {($substr_grep_title == 0) && ($substr_grep_descr == 0)} {
-      set $varname 1
-   }
-}
-
-# callback for up/down keys in entry widget: open search history menu
-proc SubStrPopupHistoryMenu {} {
-   global substr_stack substr_history
-   global substr_hist_arr1
-
-   # check if the history list is empty
-   if {[llength $substr_history] + [llength $substr_stack] > 0} {
-      set widget .substr.all.name.hist
-
-      # remove the previous content (in case the history changed since the last open)
-      $widget delete 0 end
-
-      # add the search stack as menu commands
-      array unset substr_hist_arr1
-      foreach item $substr_stack {
-         set substr_hist_arr1($item) 1
-
-         $widget add checkbutton -label [lindex $item 0] -variable substr_hist_arr1($item) \
-                                 -command [list SubstrUndoFilter $item]
-      }
-
-      # add the search history as menu commands, if not in the stack
-      foreach item $substr_history {
-         if {! [info exists substr_hist_arr1($item)]} {
-            set substr_hist_arr1($item) 0
-            $widget add checkbutton -label [lindex $item 0] -variable substr_hist_arr1($item) \
-                                    -command [list SubstrSetFilter $item]
-         }
-      }
-
-      # post (i.e. display) the menu
-      tk_popup $widget [winfo rootx .substr.all.name.str] \
-                       [expr [winfo rooty .substr.all.name.str] + [winfo reqheight .substr.all.name.str]]
-
-      # set the cursor onto the first menu element
-      $widget entryconfigure 0 -state active
-   }
-}
-
-##  --------------------------------------------------------------------------
 ##  Program-Index pop-up
+##  - restrict listing to the <n>th to <m>th programme of each network (n <= m)
+##  - index 0 refers to currently running programme, 1 to next etc.
 ##
 proc ProgIdxPopup {} {
    global progidx_first progidx_last
@@ -251,7 +152,7 @@ proc ProgIdxSelection {which val} {
 ##
 proc PopupTimeFilterSelection {} {
    global timsel_enabled timsel_start timsel_stop timsel_date
-   global timsel_relative timsel_absstop timsel_nodate
+   global timsel_relative timsel_absstop timsel_datemode
    global timsel_startstr timsel_stopstr timsel_lastinput
    global timsel_popup
 
@@ -296,13 +197,19 @@ proc PopupTimeFilterSelection {} {
       pack  .timsel.all.stop.val -side left -fill x -expand 1
       pack  .timsel.all.stop -side top -pady 10 -fill x -expand 1
 
-      checkbutton .timsel.all.nodate -text "Ignore date" -command UpdateTimeFilterRelStart -variable timsel_nodate
-      pack  .timsel.all.nodate -side top -anchor w
+      frame .timsel.all.datemode
+      radiobutton .timsel.all.datemode.dm_ign -text "Ignore date" -command UpdateTimeFilterRelStart -variable timsel_datemode -value ignore
+      radiobutton .timsel.all.datemode.dm_rel -text "Relative date" -command UpdateTimeFilterRelStart -variable timsel_datemode -value rel
+      radiobutton .timsel.all.datemode.dm_wday -text "Weekday" -command UpdateTimeFilterRelStart -variable timsel_datemode -value wday
+      radiobutton .timsel.all.datemode.dm_mday -text "Day of month" -command UpdateTimeFilterRelStart -variable timsel_datemode -value mday
+      pack  .timsel.all.datemode.dm_ign .timsel.all.datemode.dm_rel \
+            .timsel.all.datemode.dm_wday .timsel.all.datemode.dm_mday -side left
+      pack  .timsel.all.datemode -side top -anchor w
 
       frame .timsel.all.date -bd 2 -relief ridge
       label .timsel.all.date.lab -text "Relative date:" -width 16 -anchor w
       label .timsel.all.date.str -width 7
-      scale .timsel.all.date.val -orient hor -length 200 -command {UpdateTimeFilterEntry scale; UpdateTimeFilter 0} -variable timsel_date -from 0 -to 6 -showvalue 0
+      scale .timsel.all.date.val -orient hor -length 200 -command {UpdateTimeFilterEntry scale; UpdateTimeFilter 0} -variable timsel_date -from 0 -to 13 -showvalue 0
       pack  .timsel.all.date.lab .timsel.all.date.str -side left
       pack  .timsel.all.date.val -side left -fill x -expand 1
       pack  .timsel.all.date -side top -pady 10 -fill x -expand 1
@@ -310,11 +217,12 @@ proc PopupTimeFilterSelection {} {
 
       frame .timsel.cmd
       button .timsel.cmd.help -text "Help" -command {PopupHelp $helpIndex(Filtering) "Start time"}
-      button .timsel.cmd.undo -text "Undo" -command {destroy .timsel; UndoTimeFilter}
-      button .timsel.cmd.dismiss -text "Dismiss" -command {destroy .timsel}
+      button .timsel.cmd.undo -text "Undo" -command {Timsel_Quit undo}
+      button .timsel.cmd.dismiss -text "Dismiss" -command {Timsel_Quit dismiss}
       pack .timsel.cmd.help .timsel.cmd.undo .timsel.cmd.dismiss -side left -padx 10
       pack .timsel.cmd -side top -pady 5
 
+      wm protocol .timsel WM_DELETE_WINDOW {Timsel_Quit dismiss}
       bind .timsel <Key-F1> {PopupHelp $helpIndex(Filtering) "Start time"}
       bind .timsel.all <Destroy> {+ set timsel_popup 0}
       focus .timsel.all.start.str
@@ -354,8 +262,36 @@ proc Timsel_TraceStopStr {n1 n2 v} {
    }
 }
 
-proc UpdateTimeFilterRelStart {} {
-   global timsel_relative timsel_absstop timsel_nodate
+proc Timsel_UpdateEntryText {} {
+   global timsel_start timsel_stop timsel_date
+   global timsel_relative timsel_absstop timsel_datemode
+   global timsel_startstr timsel_stopstr
+
+   if {$timsel_relative} {
+      .timsel.all.start.str configure -state normal
+      set timsel_startstr "now"
+      .timsel.all.start.str configure -state disabled
+   } else {
+      set timsel_startstr [Motd2HHMM $timsel_start]
+   }
+   if {$timsel_absstop} {
+      .timsel.all.stop.str configure -state normal
+      set timsel_stopstr "23:59"
+      .timsel.all.stop.str configure -state disabled
+   } else {
+      set timsel_stopstr [Motd2HHMM $timsel_stop]
+   }
+   switch -exact $timsel_datemode {
+      ignore {set vtext "any day"}
+      rel    {set vtext [format "+%d days" $timsel_date]}
+      wday   {set vtext [GetNameForWeekday $timsel_date {%a}]}
+      mday   {set vtext $timsel_date}
+   }
+   .timsel.all.date.str configure -text $vtext
+}
+
+proc Timsel_UpdateWidgetState {} {
+   global timsel_relative timsel_absstop timsel_datemode
 
    if {$timsel_relative} {
       .timsel.all.start.str configure -state disabled
@@ -376,13 +312,26 @@ proc UpdateTimeFilterRelStart {} {
    } else {
       .timsel.all.stop.lab configure -text "Max. start time:"
    }
-   if {$timsel_nodate} {
+   if {[string compare $timsel_datemode ignore] == 0} {
       .timsel.all.date.str configure -state disabled
       .timsel.all.date.val configure -state disabled
    } else {
       .timsel.all.date.str configure -state normal
       .timsel.all.date.val configure -state normal
+      switch -exact $timsel_datemode {
+         rel    {.timsel.all.date.lab conf -text "Day offset:"
+                 .timsel.all.date.val conf -from 0 -to 13}
+         wday   {.timsel.all.date.lab conf -text "Weekday:"
+                 .timsel.all.date.val conf -from 0 -to 6}
+         mday   {.timsel.all.date.lab conf -text "Day of month:"
+                 .timsel.all.date.val conf -from 1 -to 31}
+      }
    }
+}
+
+# callback for change of time or date modes (check- and radiobuttons)
+proc UpdateTimeFilterRelStart {} {
+   Timsel_UpdateWidgetState
    UpdateTimeFilter 0
 }
 
@@ -411,7 +360,7 @@ proc ParseTimeValue {var val errstr} {
 proc UpdateTimeFilterEntry {which_first} {
    global timsel_start timsel_startstr
    global timsel_stop timsel_stopstr
-   global timsel_relative timsel_absstop timsel_nodate
+   global timsel_relative timsel_absstop timsel_datemode
    global timsel_lastinput
 
    if {[string compare $which_first "start"] == 0} {
@@ -434,10 +383,9 @@ proc UpdateTimeFilterEntry {which_first} {
    set timsel_lastinput 0
 }
 
+# callback for Rturn in entry fields or scale movements
 proc UpdateTimeFilter { round {val 0} } {
-   global timsel_start timsel_stop timsel_date
-   global timsel_relative timsel_absstop timsel_nodate
-   global timsel_startstr timsel_stopstr
+   global timsel_start timsel_stop
    global timsel_enabled
 
    set timsel_enabled 1
@@ -450,36 +398,27 @@ proc UpdateTimeFilter { round {val 0} } {
          set timsel_stop [expr $timsel_stop  - ($timsel_stop  % 5)]
       }
    }
-   if {$timsel_relative} {
-      .timsel.all.start.str configure -state normal
-      set timsel_startstr "now"
-      .timsel.all.start.str configure -state disabled
-   } else {
-      set timsel_startstr [Motd2HHMM $timsel_start]
-   }
-   if {$timsel_absstop} {
-      .timsel.all.stop.str configure -state normal
-      set timsel_stopstr "23:59"
-      .timsel.all.stop.str configure -state disabled
-   } else {
-      set timsel_stopstr [Motd2HHMM $timsel_stop]
-   }
-   if {$timsel_nodate} {
-      .timsel.all.date.str configure -text "any day"
-   } else {
-      .timsel.all.date.str configure -text [format "+%d days" $timsel_date]
-   }
+   Timsel_UpdateEntryText
 
    set timsel_lastinput 0
    SelectTimeFilter
 }
 
 # callback for "undo" button
-proc UndoTimeFilter {} {
+proc Timsel_Quit {mode} {
+   global timsel_stopstr timsel_startstr
    global timsel_enabled
 
-   set timsel_enabled 0
-   SelectTimeFilter
+   destroy .timsel
+
+   if {[string compare $mode undo] == 0} {
+      # undo button -> reset the filter
+      set timsel_enabled 0
+      SelectTimeFilter
+   }
+
+   trace vdelete timsel_stopstr w Timsel_TraceStopStr
+   trace vdelete timsel_startstr w Timsel_TraceStartStr
 }
 
 ##  --------------------------------------------------------------------------
@@ -567,17 +506,23 @@ proc DurSel_TraceMaxStr {n1 n1 v} {
 }
 
 # callback for <Return> key in min and max duration entry widgets
-proc ParseDurationValue {var newval errstr} {
+proc ParseDurationValue {var newval errstr wparent} {
    upvar $var timspec
 
-   if {([scan $newval "%2u:%2u%n" hour minute len] == 3) && ($len == [string length $newval])} {
+   if {([scan $newval "%2u:%2u%n" hour minute len] == 3) && ($len == [string length $newval]) && \
+       ($hour < 24) && ($minute < 60)} {
       set timspec [expr $hour * 60 + $minute]
-   } elseif {([scan $newval "%2u%n" minute len] == 2) && ($len == [string length $newval])} {
+      set result 1
+   } elseif {([scan $newval "%2d%n" minute len] == 2) && ($len == [string length $newval]) && \
+             ($minute >= 0)} {
       set timspec $minute
+      set result 1
    } else {
-      tk_messageBox -type ok -default ok -icon error -parent .dursel \
-                    -message "Invalid format in $errstr duration = \"$newval\"; use \"HH:MM\" or \"MM\" (HH is hour 0-23; MM is minute 0-59)"
+      tk_messageBox -type ok -default ok -icon error -parent $wparent \
+                    -message "Invalid format in $errstr = \"$newval\"; use \"HH:MM\" or \"MM\" (HH is hour 0-23; MM is minute 0-59)"
+      set result 0
    }
+   return $result
 }
 
 proc UpdateDurationFromText {which_first} {
@@ -586,19 +531,19 @@ proc UpdateDurationFromText {which_first} {
 
    if {[string compare $which_first "min"] == 0} {
       # Return was pressed while focus inside start time entry field
-      ParseDurationValue dursel_min $dursel_minstr "minimum"
-      ParseDurationValue dursel_max $dursel_maxstr "maximum"
+      ParseDurationValue dursel_min $dursel_minstr "minimum duration" .dursel
+      ParseDurationValue dursel_max $dursel_maxstr "maximum duration" .dursel
    } elseif {[string compare $which_first "max"] == 0} {
       # Return was pressed while focus inside stop time entry field
-      ParseDurationValue dursel_max $dursel_maxstr "maximum"
-      ParseDurationValue dursel_min $dursel_minstr "minimum"
+      ParseDurationValue dursel_max $dursel_maxstr "maximum duration" .dursel
+      ParseDurationValue dursel_min $dursel_minstr "minimum duration" .dursel
    } else {
       # if text was previously changed (without pressing Return), apply the changes now
       if {(($dursel_lastinput & 1) != 0) && ([string compare $which_first "min-scale"] != 0)} {
-         ParseDurationValue dursel_min $dursel_minstr "minimum"
+         ParseDurationValue dursel_min $dursel_minstr "minimum duration" .dursel
       }
       if {(($dursel_lastinput & 2) != 0) && ([string compare $which_first "max-scale"] != 0)} {
-         ParseDurationValue dursel_max $dursel_maxstr "maximum"
+         ParseDurationValue dursel_max $dursel_maxstr "maximum duration" .dursel
       }
    }
    set dursel_lastinput 0
@@ -629,6 +574,235 @@ proc UpdateDurationFilter { round {val 0} } {
    set dursel_lastinput 0
 
    SelectDurationFilter
+}
+
+
+##  --------------------------------------------------------------------------
+##  Expired PI display selection popup
+##
+proc PopupExpireDelaySelection {} {
+   global piexpire_display piexpire_days piexpire_mins
+   global piexpire_daystr piexpire_minstr piexpire_lastinput
+   global piexpire_cutoff
+   global piexpire_cut_daystr piexpire_cut_hourstr
+   global piexpire_popup
+
+   if {$piexpire_popup == 0} {
+      CreateTransientPopup .piexpire "Expired programmes display selection"
+      wm geometry  .piexpire "=400x200"
+      wm minsize   .piexpire 400 200
+      wm resizable .piexpire 1 1
+      set piexpire_popup 1
+
+      # load special widget libraries
+      rnotebook_load
+
+      Rnotebook:create .piexpire.nb -tabs {"Filter" "Configuration"} -borderwidth 2
+      pack .piexpire.nb -side left -pady 10 -padx 5 -fill both -expand 1
+      set frm1 [Rnotebook:frame .piexpire.nb 1]
+      set frm2 [Rnotebook:frame .piexpire.nb 2]
+
+      ##
+      ##  Tab 1: Expire time filter
+      ##
+      set piexpire_daystr [expr $piexpire_display / (24*60)]
+      set piexpire_minstr [Motd2HHMM [expr $piexpire_display % (24*60)]]
+      set piexpire_lastinput 0
+
+      frame  ${frm1}.time_frm
+      label  ${frm1}.time_frm.lab -text "Filter programmes ending before:"
+      pack   ${frm1}.time_frm.lab -side left
+      label  ${frm1}.time_frm.str -text "" -font $::font_normal
+      pack   ${frm1}.time_frm.str -side left -padx 5
+      grid   ${frm1}.time_frm -row 0 -column 0 -columnspan 3 -pady 10 -sticky w
+
+      label  ${frm1}.days_lab -text "Days:"
+      grid   ${frm1}.days_lab -row 1 -column 0 -sticky w
+      entry  ${frm1}.days_str -text "00:00" -width 7 -textvariable piexpire_daystr
+      trace  variable piexpire_daystr w PiExpTime_TraceDaysStr
+      bind   ${frm1}.days_str <Enter> {SelectTextOnFocus %W}
+      bind   ${frm1}.days_str <Return> {UpdateExpiryFromText bytext; UpdateExpiryFilter 0}
+      bind   ${frm1}.days_str <Escape> {tkButtonInvoke .piexpire.cmd.dismiss}
+      grid   ${frm1}.days_str -row 1 -column 1 -sticky we
+      scale  ${frm1}.days_val -orient hor -length 300 -command {UpdateExpiryFromText days; UpdateExpiryFilter 1} \
+                                   -variable piexpire_days -from 0 -to 7 -showvalue 0
+      grid   ${frm1}.days_val -row 1 -column 2 -sticky we
+
+      label  ${frm1}.hour_lab -text "Hours:"
+      grid   ${frm1}.hour_lab -row 2 -column 0 -sticky w
+      entry  ${frm1}.hour_str -text "00:00" -width 7 -textvariable piexpire_minstr
+      trace  variable piexpire_minstr w PiExpTime_TraceHourStr
+      bind   ${frm1}.hour_str <Enter> {SelectTextOnFocus %W}
+      bind   ${frm1}.hour_str <Return> {UpdateExpiryFromText bytext; UpdateExpiryFilter 0}
+      bind   ${frm1}.hour_str <Escape> {tkButtonInvoke .piexpire.cmd.dismiss}
+      grid   ${frm1}.hour_str -row 2 -column 1 -sticky we
+      scale  ${frm1}.max_val -orient hor -length 200 -command {UpdateExpiryFromText hours; UpdateExpiryFilter 2} \
+                                  -variable piexpire_mins -from 0 -to 1439 -showvalue 0
+      grid   ${frm1}.max_val -row 2 -column 2 -sticky we
+      grid   columnconfigure ${frm1} 1 -weight 1
+      grid   columnconfigure ${frm1} 2 -weight 2
+
+      ##
+      ##  Tab 2: Cut-off time configuration
+      ##
+      set piexpire_cut_daystr [expr $piexpire_cutoff / (24*60)]
+      set piexpire_cut_hourstr [expr ($piexpire_cutoff % (24*60)) / 60]
+
+      label  ${frm2}.head_lab -text "Delay before removing programmes from database:"
+      grid   ${frm2}.head_lab -row 0 -column 0 -columnspan 3 -pady 10 -sticky w
+
+      label  ${frm2}.days_lab -text "Days:"
+      grid   ${frm2}.days_lab -row 1 -column 0 -sticky w
+      entry  ${frm2}.days_str -text "00:00" -width 7 -textvariable piexpire_cut_daystr
+      bind   ${frm2}.days_str <Enter> {SelectTextOnFocus %W}
+      bind   ${frm2}.days_str <Escape> {tkButtonInvoke .piexpire.cmd.dismiss}
+      grid   ${frm2}.days_str -row 1 -column 1 -sticky we
+
+      label  ${frm2}.hour_lab -text "Hours:"
+      grid   ${frm2}.hour_lab -row 2 -column 0 -sticky w
+      entry  ${frm2}.hour_str -text "00:00" -width 7 -textvariable piexpire_cut_hourstr
+      bind   ${frm2}.hour_str <Enter> {SelectTextOnFocus %W}
+      bind   ${frm2}.hour_str <Escape> {tkButtonInvoke .piexpire.cmd.dismiss}
+      grid   ${frm2}.hour_str -row 2 -column 1 -sticky we
+
+      button ${frm2}.upd_but -text "Update" -command PiExpTime_UpdateCutOff
+      grid   ${frm2}.upd_but -row 1 -rowspan 2 -column 2 -padx 20 -sticky w
+      grid   columnconfigure ${frm2} 2 -weight 1
+      pack   .piexpire.nb -side top
+
+      ##
+      ##  Command row
+      ##
+      frame  .piexpire.cmd
+      button .piexpire.cmd.help -text "Help" -command {PopupHelp $helpIndex(Filtering) "Expired Programmes Display"}
+      button .piexpire.cmd.undo -text "Undo" -command {destroy .piexpire; set piexpire_display 0; SelectExpireDelayFilter}
+      button .piexpire.cmd.dismiss -text "Dismiss" -command {destroy .piexpire}
+      pack   .piexpire.cmd.help .piexpire.cmd.undo .piexpire.cmd.dismiss -side left -padx 10
+      pack   .piexpire.cmd -side top -pady 5
+
+      bind   .piexpire <Key-F1> {PopupHelp $helpIndex(Filtering) "Expired Programmes Display"}
+      bind   .piexpire.cmd <Destroy> {+ set piexpire_popup 0}
+      focus  ${frm1}.days_str
+
+   } else {
+      raise .piexpire
+   }
+}
+
+# trace changes in the minimum value entry field
+# - invoked when the user edits the text OR if anyone assigns a value to it
+proc PiExpTime_TraceDaysStr {n1 n1 v} {
+   global piexpire_days piexpire_daystr
+   global piexpire_lastinput
+
+   if {[string compare $piexpire_daystr $piexpire_days] != 0} {
+      set piexpire_lastinput [expr $piexpire_lastinput | 1]
+   }
+}
+
+proc PiExpTime_TraceHourStr {n1 n1 v} {
+   global piexpire_mins piexpire_minstr
+   global piexpire_lastinput
+
+   if {[string compare $piexpire_minstr [Motd2HHMM $piexpire_mins]] != 0} {
+      set piexpire_lastinput [expr $piexpire_lastinput | 2]
+   }
+}
+
+# callback for <Return> key in expire time hours entry widget
+proc ParseExpireDaysValue {var newval errstr} {
+   upvar $var timspec
+
+   if {([scan $newval "%d%n" days len] == 2) && ($len == [string length $newval]) && ($days >= 0)} {
+      set timspec $days
+      set result 1
+   } else {
+      tk_messageBox -type ok -default ok -icon error -parent .piexpire \
+                    -message "Invalid value for $errstr \"$newval\": must be positive numeric."
+      set result 0
+   }
+   return $result
+}
+
+proc UpdateExpiryFromText {which_first} {
+   global piexpire_daystr piexpire_minstr piexpire_lastinput
+   global piexpire_days piexpire_mins
+
+   if {[string compare $which_first "bytext"] == 0} {
+      # Return was pressed while focus inside entry fields
+      ParseExpireDaysValue piexpire_days $piexpire_daystr "days"
+      ParseDurationValue piexpire_mins $piexpire_minstr "hour delta" .piexpire
+   } else {
+      # if text was previously changed (without pressing Return), apply the changes now
+      if {(($piexpire_lastinput & 1) != 0) && ([string compare $which_first "day-scale"] != 0)} {
+         ParseExpireDaysValue piexpire_days $piexpire_daystr "day count"
+      }
+      if {(($piexpire_lastinput & 2) != 0) && ([string compare $which_first "hour-scale"] != 0)} {
+         ParseDurationValue piexpire_mins $piexpire_minstr "hour delta" .piexpire
+      }
+   }
+   set piexpire_lastinput 0
+}
+
+proc UpdateExpiryFilter { round {val 0} } {
+   global piexpire_daystr piexpire_minstr piexpire_lastinput
+   global piexpire_display piexpire_days piexpire_mins
+
+   if {$round == 2} {
+      if {$piexpire_mins != 1439} {
+         set piexpire_mins  [expr $piexpire_mins  - ($piexpire_mins  % 5)]
+      }
+   }
+
+   set piexpire_display [expr ($piexpire_days * 24*60) + $piexpire_mins]
+   set piexpire_daystr [expr $piexpire_display / (24*60)]
+   set piexpire_minstr [Motd2HHMM [expr $piexpire_display % (24*60)]]
+   set piexpire_lastinput 0
+
+   set frm1 [Rnotebook:frame .piexpire.nb 1]
+   set threshold [expr [clock seconds] - ($piexpire_display * 60)]
+   ${frm1}.time_frm.str configure -text [clock format $threshold -format {%a %d.%m. %H:%M}]
+
+   SelectExpireDelayFilter
+}
+
+proc PiExpTime_UpdateCutOff {} {
+   global piexpire_cut_daystr piexpire_cut_hourstr
+   global piexpire_cutoff
+
+   set ok [ParseExpireDaysValue days $piexpire_cut_daystr "days"]
+   if $ok {
+      set ok [ParseExpireDaysValue hours $piexpire_cut_hourstr "hours"]
+      if $ok {
+
+         set new_cutoff [expr ($days * 24*60) + ($hours * 60)]
+         set pi_count [C_CountExpiredPi $new_cutoff]
+
+         if {[C_IsNetAcqActive default]} {
+            # warn that params do not affect acquisition running remotely
+            set answer [tk_messageBox -type okcancel -icon info -parent .piexpire \
+                           -message "Please note this setting should be applied to the acquisition daemon too."]
+            if {[string compare $answer "ok"] != 0} {
+               return
+            }
+         } elseif {$pi_count > 0} {
+            # warn that PI will be removed
+            set answer [tk_messageBox -type okcancel -icon warning -parent .piexpire \
+                           -message "You're about to irrecoverably remove $pi_count programmes from the current database."]
+            if {[string compare $answer "ok"] != 0} {
+               return
+            }
+         }
+
+         set piexpire_cutoff $new_cutoff
+         C_UpdatePiExpireDelay
+         UpdateRcFile
+
+         # update display (including format corrections)
+         set piexpire_cut_daystr [expr $piexpire_cutoff / (24*60)]
+         set piexpire_cut_hourstr [expr ($piexpire_cutoff % (24*60)) / 60]
+      }
+   }
 }
 
 

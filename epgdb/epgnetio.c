@@ -22,7 +22,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgnetio.c,v 1.33 2003/03/22 14:44:41 tom Exp tom $
+ *  $Id: epgnetio.c,v 1.35 2003/10/05 19:03:28 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -519,6 +519,9 @@ void EpgNetIo_CloseIO( EPGNETIO_STATE * pIO )
 {
    if (pIO->sock_fd != -1)
    {
+#ifdef WIN32
+      shutdown(pIO->sock_fd, SD_SEND);
+#endif
       closesocket(pIO->sock_fd);
       pIO->sock_fd = -1;
    }
@@ -1319,6 +1322,49 @@ int EpgNetIo_AcceptConnection( int listen_fd )
    }
 
    return sock_fd;
+}
+
+// ----------------------------------------------------------------------------
+// Check if the given host name refers to the local host
+//
+bool EpgNetIo_IsLocalHost( char * pHostname )
+{
+   struct hostent  * pHostEntry;
+   struct in_addr  * pInAddr;
+   char local_name[100];
+   bool result;
+
+   if (gethostname(local_name, sizeof(local_name)-1) == 0)
+   {
+      if (strcmp(pHostname, local_name) != 0)
+      {
+         pHostEntry = gethostbyname(pHostname);
+         if (pHostEntry != NULL)
+         {
+            if (strcmp(pHostEntry->h_name, local_name) != 0)
+            {
+               pInAddr = (struct in_addr *)(pHostEntry->h_addr_list[0]);
+               if ( (pHostEntry->h_addrtype == AF_INET) &&
+                    (ntohl(pInAddr->s_addr) == INADDR_LOOPBACK) )
+               {
+                  result = TRUE;
+               }
+               else
+                  result = FALSE;
+            }
+            else
+               result = TRUE;
+         }
+         else
+            result = FALSE;
+      }
+      else
+         result = TRUE;
+   }
+   else
+      result = FALSE;
+
+   return result;
 }
 
 // ----------------------------------------------------------------------------

@@ -21,15 +21,25 @@
 !    not be edited there; instead any resources which differ from the
 !    defaults below should be copied into $HOME/.Xdefaults
 !
+!    IMPORTANT: nxtvepg reads its resources only during startup,
+!    so you have to restart it after all changes.  If you make
+!    changes in X11 resource files you either have to force the
+!    X server to reload it (xrdb -load ~/.Xdefaults) or you must
+!    restart the server (e.g. log out and in again.)  You can also
+!    make small changes without modifying the files by entering:
+!
+!      echo "nxtvepg*text_bg: #E9E9EC" | xrdb -merge
+!
 !  Author: Tom Zoerner
 !
-!  $Id: Nxtvepg.ad,v 1.2 2003/02/26 20:35:12 tom Exp tom $
+!  $Id: Nxtvepg.ad,v 1.4 2003/09/28 18:32:44 tom Exp tom $
 !
 
 ! Remove comment sign ! from values you want to change
+! Values defined below are the compiled-in defaults
 
 ! background color for all text and list in- and output fields
-!nxtvepg*text_bg: #E9E9EC
+!nxtvepg*text_bg: #e9e9ec
 ! background in TV schedule for currently running programmes
 !nxtvepg*pi_bg_now: #d9d9ef
 ! background in TV schedule for expired programmes
@@ -55,4 +65,19 @@
 !nxtvepg*xawtv_overlay_bg: black
 ! font for message popups (e.g. warnings and error messages)
 !nxtvepg*msgbox_font: Helvetica -14 bold
+
+! weekday background colors in date scale to the right of programme list
+! (7 values, starting with Saturday, ending with Friday)
+! (note: date scale background colors are painted through a 50% stipple bitmap)
+!nxtvepg*dscale_cols: #ff3d3d,#ff9d3c,#fdff4f,#4eff57,#07d1c1,#5b73ff,#eb41ff
+! font for weekday labels in date scale to the right of programme list
+!nxtvepg*dscale_font: Helvetica -12 normal
+! format of date text in weekday scale; multi-line possible with \n, e.g. %a\n%d
+! %a: abbreviated weekday name; %d: day of month (see strftime() manual page)
+!nxtvepg*dscale_date_fmt: %a
+! outer width of weekday scale in pixels (minimum 11)
+!nxtvepg*dscale_width: 30
+! inner width of the color scale; must be smaller than the overall width
+! to leave space for the slider frame
+!nxtvepg*dscale_scwidth: 20
 

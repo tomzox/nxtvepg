@@ -25,7 +25,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgblock.h,v 1.43 2003/01/11 19:39:48 tom Exp tom $
+ *  $Id: epgblock.h,v 1.46 2003/10/05 19:12:47 tom Exp tom $
  */
 
 #ifndef __EPGBLOCK_H
@@ -480,11 +480,12 @@ typedef struct EPGDB_BLOCK_STRUCT
 //
 typedef enum
 {
+   EPGDB_PI_PROC_START,
    EPGDB_PI_INSERTED,
    EPGDB_PI_PRE_UPDATE,
    EPGDB_PI_POST_UPDATE,
    EPGDB_PI_REMOVED,
-   EPGDB_PI_RECOUNT
+   EPGDB_PI_PROC_DONE
 } EPGDB_PI_ACQ_EVENT;
 
 struct EPGDB_CONTEXT_STRUCT;  // forward declaration only for following pointer reference
@@ -500,6 +501,7 @@ typedef struct EPGDB_CONTEXT_STRUCT
 {
    uint   lockLevel;                // number of database locks on this context
    bool   modified;                 // if TRUE, db was modified by acquisition
+   time_t expireDelayPi;            // how long to keep PI after they expired
 
    bool   merged;                   // Flag for merged db
    void   *pMergeContext;           // Pointer to merge parameters
@@ -524,7 +526,9 @@ typedef struct
    uint32_t  allVersions;
    uint32_t  expired;
    uint32_t  defective;
+   uint32_t  extra;
    uint32_t  sinceAcq;
+   uint32_t  reserved_0;
    double    variance;
    double    avgAcqRepCount;
 } EPGDB_BLOCK_COUNT;

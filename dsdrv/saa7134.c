@@ -25,7 +25,7 @@
  *  DScaler #Id: SAA7134Source.cpp,v 1.69 2003/01/27 22:04:12 laurentg Exp #
  *  DScaler #Id: SAA7134Provider.cpp,v 1.10 2002/12/24 08:22:14 atnak Exp #
  *
- *  $Id: saa7134.c,v 1.16 2003/04/12 17:52:19 tom Exp tom $
+ *  $Id: saa7134.c,v 1.17 2003/07/06 17:47:29 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -42,6 +42,7 @@
 #include "epgctl/debug.h"
 
 #include "epgvbi/vbidecode.h"
+#include "epgvbi/zvbidecoder.h"
 #include "epgvbi/btdrv.h"
 #include "epgvbi/winshm.h"
 #include "epgvbi/winshmsrv.h"
@@ -55,6 +56,9 @@
 #include "dsdrv/saa7134_typ.h"
 #include "dsdrv/saa7134.h"
 
+#ifdef ZVBI_DECODER
+static vbi_raw_decoder zvbi_rd[2];
+#endif
 
 // ----------------------------------------------------------------------------
 // Declaration of internal variables
@@ -818,14 +822,33 @@ static uint CheckFieldMarkers( uint startIdx, bool * pOverflow )
 //
 static DWORD WINAPI SAA7134_VbiThread( LPVOID dummy )
 {
-   BYTE * pVbiField;
    BYTE * pVbiLine;
    bool  overflow;
    uint  curIdx;
    uint  oldIdx;
-   uint  row;
 
+   #ifndef ZVBI_DECODER
    VbiDecodeSetSamplingRate(6750000 * 4, VBI_VSTART + 3);
+   #else
+   memset(&zvbi_rd[0], 0, sizeof(zvbi_rd[0]));
+   zvbi_rd[0].sampling_rate    = 6750000 * 4;
+   zvbi_rd[0].bytes_per_line   = VBI_LINE_SIZE;
+   zvbi_rd[0].interlaced       = FALSE;
+   zvbi_rd[0].synchronous      = TRUE;
+   zvbi_rd[0].sampling_format  = VBI_PIXFMT_YUV420;
+   zvbi_rd[0].scanning         = 625;
+   memcpy(&zvbi_rd[1], &zvbi_rd[0], sizeof(zvbi_rd[1]));
+   zvbi_rd[0].start[0]         = 7;
+   zvbi_rd[0].count[0]         = VBI_LINES_PER_FIELD;
+   zvbi_rd[0].start[1]         = -1;
+   zvbi_rd[0].count[1]         = 0;
+   zvbi_rd[1].start[0]         = -1;
+   zvbi_rd[1].count[0]         = 0;
+   zvbi_rd[1].start[1]         = 319;
+   zvbi_rd[1].count[1]         = VBI_LINES_PER_FIELD;
+   vbi_raw_decoder_add_services(&zvbi_rd[0], VBI_SLICED_TELETEXT_B | VBI_SLICED_VPS, 1);
+   vbi_raw_decoder_add_services(&zvbi_rd[1], VBI_SLICED_TELETEXT_B, 1);
+   #endif
 
    for (oldIdx = 0; oldIdx < VBI_FIELD_CAPTURE_COUNT; oldIdx++)
       WriteFieldMarker(oldIdx);
@@ -855,21 +878,26 @@ static DWORD WINAPI SAA7134_VbiThread( LPVOID dummy )
                dprintf1("processing field %d\n", oldIdx);
                WriteFieldMarker(oldIdx);
 
-               pVbiField = HwMem_GetUserPointer(&VbiDmaMem[oldIdx / 2]);
+               pVbiLine = HwMem_GetUserPointer(&VbiDmaMem[oldIdx / 2]);
                if (oldIdx % 2)
-                  pVbiField += VBI_LINES_PER_FIELD * VBI_LINE_SIZE;
+                  pVbiLine += VBI_LINES_PER_FIELD * VBI_LINE_SIZE;
 
                // notify teletext decoder about start of new field; since we don't have a
                // field counter (no capture interrupt) we always pass 0 as sequence number
+               #ifndef ZVBI_DECODER
                if ( VbiDecodeStartNewFrame(0) )
                {
-                  pVbiLine = pVbiField;
+                  uint  row;
+
                   for (row = 0; row < VBI_LINES_PER_FIELD; row++, pVbiLine += VBI_LINE_SIZE)
                   {
                      VbiDecodeLine(pVbiLine, row, TRUE);
                   }
                }
                else
+               #else  // ZVBI_DECODER
+               if (ZvbiSliceAndProcess(&zvbi_rd[oldIdx % 2], pVbiLine, 0) == FALSE)
+               #endif
                {  // channel change -> discard all previously captured data in the buffer
                   for (oldIdx = 0; oldIdx < VBI_FIELD_CAPTURE_COUNT; oldIdx++)
                      WriteFieldMarker(oldIdx);
@@ -897,6 +925,12 @@ static DWORD WINAPI SAA7134_VbiThread( LPVOID dummy )
       }
    }
    StopCapture();
+
+   #ifdef ZVBI_DECODER
+   ZvbiSliceAndProcess(NULL, NULL, 0);
+   vbi_raw_decoder_destroy(&zvbi_rd[0]);
+   vbi_raw_decoder_destroy(&zvbi_rd[1]);
+   #endif
 
    return 0;  // dummy
 }

@@ -1,11 +1,11 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: index.html,v 1.70 2003/07/03 19:03:54 tom Exp $ -->
+<!-- $Id: index.html,v 1.74 2003/10/12 10:41:33 tom Exp $ -->
 <HEAD>
 <TITLE>nexTView EPG Decoder Software Download Page</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
 <META name="language" content="en">
-<META name="keywords" lang="en" content="nexTView, EPG, decoder, nxtvepg, teletext, Fusion Bt878, SAA7134, Conexant CX23881, electronic program guide, TV-Guide, Premiere, TV program listing, TV schedule, Nextview decoder, Linux, NetBSD, FreeBSD, software download, bttv, video4linux, VBI, vertical blanking interval, multimedia, data service, subscription free, TV tuner card, Bt848, Brooktree, video capture, capture, browser, Kabel1, RTL2, 3Sat, Canal+, EuroNews, nexttview">
+<META name="keywords" lang="en" content="nexTView, EPG, decoder, nxtvepg, teletext, Fusion Bt878, SAA7134, Conexant CX23881, electronic program guide, TV-Guide, Premiere, TV program listing, TV schedule, Nextview decoder, Linux, NetBSD, FreeBSD, software download, bttv, video4linux, VBI, vertical blanking interval, multimedia, data service, subscription free, TV tuner card, Bt848, Brooktree, video capture, capture, browser, Kabel1, RTL2, Canal+, EuroNews, nexttview">
 <META name="description" lang="en" content="This nexTView EPG decoder software offers access to a subscription-free electronic TV program guide in the analog domain. Nextview currently is broadcasted in Germany, Austria, Switzerland, and France and covers the schedules of all major TV networks in these countries.">
 <META name="author" content="Tom Zoerner">
 <META name="copyright" content="Tom Zoerner">
@@ -35,7 +35,7 @@ width="125" height="37" border="0" alt="SourceForge.net Logo"></a>
 <P class="navhead"><B>Infos</B>
 <P class="navsect">
 <A HREF="man.html">Manual</A><BR>
-<A HREF="screenshot-linux.gif">Screenshot 1</A><BR>
+<A HREF="screenshot-reminder.gif">Screenshot 1</A><BR>
 <A HREF="screenshot-grid1.png">Screenshot 2</A><BR>
 <A HREF="screenshot-win.gif">Screenshot 3</A><BR>
 <A HREF="screenshot-series.gif">Screenshot 4</A><BR>
@@ -53,28 +53,7 @@ width="125" height="37" border="0" alt="SourceForge.net Logo"></a>
 
 <P class="navhead"><B>News</B>
 <P class="navsect">
-July/1/2003: <A HREF="index.html#download">release 2.5.2</A></P>
-<HR width="70%"><P class="navsect">
-Apr/21/2003: release 2.5.1</P>
-<HR width="70%"><P class="navsect">
-Mar/22/2003: release 2.5.0</P>
-<HR width="70%"><P class="navsect">
-Dec/8/2002: release 2.4.2</P>
-<HR width="70%"><P class="navsect">
-Dec/1/2002: release 2.4.1</P>
-<HR width="70%"><P class="navsect">
-Nov/19/2002: release 2.4.0</P>
-<HR width="70%"><P class="navsect">
-Oct/13/2002: release 2.3.1</P>
-<HR width="70%"><P class="navsect">
-Sep/17/2002: release 2.3.0</P>
-<HR width="70%"><P class="navsect">
-Aug/24/2002: <FONT COLOR="red">Major bugfix release 2.2.1</FONT></P>
-<HR width="70%"><P class="navsect">
-Aug/18/2002: release 2.2.0</P>
-<HR width="70%"><P class="navsect">
-June/2/2002: <A HREF="http://www.kastortv.com/">K!TV</A>
-interacts with nxtvepg</P>
+Oct/11/2003: <A HREF="index.html#download">release 2.6.0</A></P>
 </td>
 <td valign="top" class="main" width="85%">
 
@@ -92,8 +71,8 @@ France and Switzerland. You can have a look at it in this
 <A HREF="screenshot-grid2.png">Linux screenshot</A> or this
 <A HREF="screenshot-win.gif">Windows screenshot</A>
 (<A HREF="screenshot-grid1.png">new alternative layout</A>
-<B><FONT COLOR="red">since version 2.5.0</FONT></B>)
-<P></P>
+since version 2.5.0)
+</P><P>
 The nexTView standard was developed by the major European consumer electronics
 manufacturers under the hood of the <A HREF="http://www.etsi.org/">European Telecommunications Standards Institute</A> (ETSI)
 in 1995-1997 with the aim to offer an "electronic TV magazine" inside their
@@ -112,9 +91,9 @@ TV channels.
 Currently nexTView EPG is transmitted by the following TV stations:
 </P>
 <UL>
-<LI>in Germany and Austria: Kabel1, 3Sat, RTL-II, EuroNews
+<LI>in Germany and Austria: Kabel1, RTL-II, EuroNews
     (coverage: apx. 31 networks)
-<LI>in Switzerland: SF1, TSR1, TSI1, EuroNews, 3sat, Kabel1
+<LI>in Switzerland: SF1, TSR1, TSI1, EuroNews, Kabel1
     (coverage: apx. 37 networks)
 <LI>in France: Canal+, M6, EuroNews, TV5 (coverage: 8 networks)
 <LI>in Turkey: TRT-1 (coverage: 17 networks)
@@ -136,8 +115,36 @@ at one of the following manufacturers:
 <A HREF="http://www.quelle.de">Quelle Universum</A>.
 </P>
 
+<H2><A NAME="new_2_6_0"><FONT COLOR="green">New release 2.6.0 (Oct/11/2003)</FONT></H2>
+<P>
+The following major features are new in the latest release:
+see this <A HREF="screenshot-reminder.gif">screenshot</A>.
+</P>
+<UL>
+<LI>Setting reminders for specific TV shows or shortcuts (e.g. all your
+    favorite series.) The programmes are marked in the list (freely
+    configurable via composite attributes) and a message pops up before
+    it starts (also configurable, of course)
+<LI>Added a weekday scale to the right of the programme list which can by
+    used to quickly jump to any date and time.  There's also a new attribute
+    element which markes each programme in the color of the according weekday.
+<LI>Extended format capabilities for programme list: compound attributes
+    now can use freely defined colors (formerly only a small set of pre-defined
+    colors was available) and also change background colors.
+<LI>Improved text search dialog for large lists (i.e. your complete list
+    of favorite movie titles)
+<LI>Browsing expired programmes made possible, i.e. programme descriptions
+    are kept a few hours or days before they are removed from the database
+    (e.g. so that you can still look up details on that movie you watched
+    yesterday.)
+</UL>
+<P>
+For a complete list, including more details and a list of bug fixes and
+improvements see the <A HREF="changelog.html">change log</A>.
+</P>
 
-<H2 class=hr>Questions and feedback</H2>
+
+<H2>Questions and feedback</H2>
 <P>
 Your feedback is always welcome.  If you have specific questions, suggestions,
 bug reports or any other kind of feedback, feel free to use any of the
@@ -145,13 +152,12 @@ following possibilities:
 </P>
 <UL>
 <LI><A HREF="http://sourceforge.net/forum/forum.php?forum_id=217872">Discussion forum</A>:
-the fastest way to leave feedback (does not require Sourceforge registration).
+Preferred place for questions, feature requests, bug reports or exchange of
+tips &amp; tricks between users (does not require Sourceforge registration).
 <LI><A HREF="http://lists.sourceforge.net/lists/listinfo/nxtvepg-users">Mailing list</A>:
-This list is meant for general discussion between developer(s) and users of the nxtvepg
-software. Possible topics are questions, feature requests, bug reports or exchange of
-tips &amp; tricks between users. New software releases (including alpha and beta) will
-also be announced here.
-<LI>If you only want to be kept up to date about new releases, subscribe to the
+Currently used only for announcements of pre-releases.  But it's also open for
+general discussion between developer(s) and users of the nxtvepg software.
+<LI>If you only want to be kept up to date about official releases, subscribe to the
 nxtvepg project on <A HREF="http://freshmeat.net/projects/nxtvepg/">freshmeat.net</A>.
 </UL>
 <P>
@@ -162,15 +168,26 @@ and the <A HREF="http://sourceforge.net/forum/forum.php?forum_id=217872">forum</
 if the same question hasn't been asked recently.
 </P>
 
-
-<H2 class=hr>System Requirements</H2>
+<H2>Help wanted</H2>
 <P>
-Hardware requirements are a PC or workstation with a 90 MHz Intel Pentium
-or equivalently (or more) powerful CPU, and a TV tuner card (analog, i.e.
+If you're a software developer and like nxtvepg but want to help to make it
+even more useful, or if you're just generally seeking a freeware project to
+work on, please consider contributing to nxtvepg.  I've compiled a
+<A HREF="help-wanted.html">list of topics</A> which would benefit from your
+help the most.  Note that you can also contribute by adding nxtvepg support
+to <I>other</I> applications, e.g. by adding Nextview EPG on-screen-display
+to a TV viewing application.
+</P>
+
+
+<H2>System Requirements</H2>
+<P>
+Hardware requirements are a PC or workstation with an Intel Pentium or
+equivalently (or more) powerful CPU, and a TV tuner card (analog, i.e.
 not DVB).  The Windows version supports all TV cards based either on the
 capture chips Brooktree Fusion Bt878/Bt848, sucessor Conexant CX23881 or
-Philips SAA7134 (<B><FONT COLOR="red">new</FONT></B> since
-<A HREF="changelog.html">release 2.5.0</A>.)
+Philips SAA7134 (new since <A HREF="changelog.html">release 2.5.0</A>.)
+Please note that <B><FONT COLOR="red">no ATI cards</FONT></B> are supported!
 
 The Linux version supports all cards for which a
 <A HREF="http://roadrunner.swansea.uk.linux.org/v4l.shtml">video4linux</A>
@@ -184,11 +201,11 @@ The NetBSD and FreeBSD versions support all cards which are supported by the
 <LI>kernel &gt;= 2.0.35 (upgrade to 2.2.x highly recommended for bttv users)
 <LI>
 <A HREF="http://bytesex.org/bttv/">bttv</A>
-(at least version &gt;= 0.7.35 recommended) or
+(at least version &gt;= 0.7.55 recommended) or
 <A HREF="http://bytesex.org/saa7134/">saa7134</A> drivers and
 <A HREF="http://roadrunner.swansea.uk.linux.org/v4l.shtml">video4linux</A>
 <LI>GNU C Compiler
-<LI>Tcl/Tk version 8.0 or later (8.3 recommended) available from
+<LI>Tcl/Tk version 8.3.2 or later, available from
 <A HREF="ftp://www.scriptics.com/pub/tcl/">ftp://www.scriptics.com/pub/tcl/</A>
 </UL>
 
@@ -238,11 +255,12 @@ account with special privileges (you must be allowed to install &amp; start a se
 
 <H2><A NAME="download">Download</A></H2>
 <P>
-The latest stable release is version 2.5.2, which fixes several minor
-bugs in 2.5.1.
+The latest stable release is version 2.6.0, which adds a number of
+major new features plus various improvements for existing features
+(see <A HREF="#new_2_6_0">above</A>.)
 </P><P>
 For a detailed history of new features and fixes in this and previous releases
-refer to the <A HREF="changelog.html#release_2_5_2">change log 2.5.2</A>).
+refer to the <A HREF="changelog.html#release_2_6_0">change log 2.6.0</A>).
 If there are any problems with this new release, please let me know.
 For previous releases see the
 <A HREF="http://sourceforge.net/project/showfiles.php?group_id=64430">SourceForge File List</A>.
@@ -251,10 +269,10 @@ For previous releases see the
 <H3><A NAME="download_unix">Source distribution</A></H3>
 <P>
 Download the latest stable source distribution for Linux, NetBSD and FreeBSD:
-<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.5.2.tar.gz?download">nxtvepg-2.5.2.tar.gz</A>
+<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.6.0.tar.gz?download">nxtvepg-2.6.0.tar.gz</A>
 </P><P>
 You can build a RPM package from the source tarball simply by running
-<KBD>rpm -ta nxtvepg-2.5.2.tar.gz</KBD> and install it as usual with
+<KBD>rpm -ta nxtvepg-2.6.0.tar.gz</KBD> and install it as usual with
 <KBD>rpm -i</KBD>.
 
 <P>Alternatively, pre-compiled packages are provided at the following sites
@@ -276,10 +294,11 @@ href="http://www.leo.org/~barner/nxtvepg/nxtvepg-freebsd.html">leo.org</A>
 <H3><A NAME="download_windows">Binary distribution for M$ Windows</A></H3>
 <P>
 Windows executable of the latest stable version:
-<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.5.2-win.zip?download">nxtvepg-2.5.2-win.zip</A>
+<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.6.0-win.zip?download">nxtvepg-2.6.0-win.zip</A>
 </P><P>
-For developers: demo application for TV application interaction:
-<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.5.2-tvsim.zip?download">nxtvepg-2.5.2-tvsim.zip</A>
+For developers: demo application for TV application interaction
+(see also <A HREF="help-wanted.html">help wanted</A> page):
+<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.6.0-tvsim.zip?download">nxtvepg-2.6.0-tvsim.zip</A>
 <BR>(see <A HREF="tvsim.html">tvsim</A>,
 <A HREF="vbirec.html">vbirec</A> or
 <A HREF="vbiplay.html">vbiplay</A> manuals, or
@@ -291,7 +310,7 @@ double-click the nxtvepg.exe file.  If you're upgrading from an older version
 of nxtvepg, you can copy your previous INI file and databases into the new
 directory.  The optional tvsim ZIP file should be unpacked into the same
 directory.  Please refer to the Help menu or HTML manual page, section
-<A HREF="man.html#getting started">Getting Started</A> for setup instructions.
+<A HREF="man.html#getting_started">Getting Started</A> for setup instructions.
 </P>
 
 

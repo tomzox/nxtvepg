@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbmgmt.c,v 1.45 2003/06/28 10:48:12 tom Exp tom $
+ *  $Id: epgdbmgmt.c,v 1.49 2003/10/05 19:13:23 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -187,6 +187,8 @@ bool EpgDbCheckChains( CPDBC dbc )
          {
             assert(pPrev->pNextNetwopBlock == pWalk);
             assert( dbc->merged ||
+                    (pWalk->blk.pi.block_no_in_ai == FALSE) ||
+                    (pPrev->blk.pi.block_no_in_ai == FALSE) ||
                     (pWalk->blk.pi.block_no == pPrev->blk.pi.block_no + 1) ||
                     EpgDbPiCmpBlockNoGt(dbc, pWalk->blk.pi.block_no, pPrev->blk.pi.block_no, netwop) );
             assert(pWalk->blk.pi.start_time >= pPrev->blk.pi.stop_time);
@@ -325,14 +327,33 @@ static void EpgDbRemoveObsoleteNetwops( PDBC dbc, uchar netwopCount, uchar filte
 {
    EPGDB_BLOCK *pPrev, *pWalk, *pNext;
    uchar netwop;
+   bool  do_remove;
+   bool  block_no_in_ai;
+   time_t expireTime;
+
+   expireTime = time(NULL) - dbc->expireDelayPi;
 
    pWalk = dbc->pFirstPi;
    while (pWalk != NULL)
    {
       netwop = pWalk->blk.pi.netwop_no;
-      if ( (netwop >= netwopCount) ||
-           filter[netwop] ||
-           (EpgDbPiBlockNoValid(dbc, pWalk->blk.pi.block_no, netwop) == FALSE) )
+
+      if ( (netwop >= netwopCount) || filter[netwop] )
+      {  // the whole network has become obsolete -> remove all PI belonging to it
+         do_remove = TRUE;
+         block_no_in_ai = FALSE;  // dummy
+      }
+      else
+      {  // check if PI's block number is still registered in the current AI block
+         block_no_in_ai = EpgDbPiBlockNoValid(dbc, pWalk->blk.pi.block_no, netwop);
+         // if no longer registered, remove if expired or preceded by registered PI
+         do_remove = ( (block_no_in_ai == FALSE) && 
+                       ( ( (pWalk->pPrevNetwopBlock != NULL) &&
+                           (pWalk->pPrevNetwopBlock->blk.pi.block_no_in_ai) ) ||
+                         (pWalk->blk.pi.stop_time <= expireTime) ));
+      }
+
+      if (do_remove)
       {
          dprintf3("free obsolete PI ptr=%lx, netwop=%d >= %d or filtered\n", (ulong)pWalk, pWalk->blk.pi.netwop_no, netwopCount);
          // notify the GUI
@@ -367,14 +388,15 @@ static void EpgDbRemoveObsoleteNetwops( PDBC dbc, uchar netwopCount, uchar filte
       }
       else
       {
+         if (block_no_in_ai != pWalk->blk.pi.block_no_in_ai)
+         {
+            ((PI_BLOCK *)&pWalk->blk.pi)->block_no_in_ai = block_no_in_ai;
+         }
          pWalk = pWalk->pNextBlock;
       }
    }
 
    assert(EpgDbMgmtCheckChains(dbc));
-
-   if (dbc->pPiAcqCb != NULL)
-      dbc->pPiAcqCb(dbc, EPGDB_PI_RECOUNT, NULL, NULL);
 }
 
 // ---------------------------------------------------------------------------
@@ -410,6 +432,31 @@ static void EpgDbFilterIncompatiblePi( PDBC dbc, const AI_BLOCK *pOldAi, const A
 }
 
 // ---------------------------------------------------------------------------
+// Remove expired PI blocks from the database
+//
+void EpgDbExpire( EPGDB_CONTEXT * dbc )
+{
+   uchar filter[MAX_NETWOP_COUNT];
+
+   if (dbc->lockLevel == 0)
+   {
+      if (dbc->pAiBlock != NULL)
+      {
+         if (dbc->pPiAcqCb != NULL)
+            dbc->pPiAcqCb(dbc, EPGDB_PI_PROC_START, NULL, NULL);
+
+         memset(filter, FALSE, sizeof(filter));
+         EpgDbRemoveObsoleteNetwops(dbc, dbc->pAiBlock->blk.ai.netwopCount, filter);
+
+         if (dbc->pPiAcqCb != NULL)
+            dbc->pPiAcqCb(dbc, EPGDB_PI_PROC_DONE, NULL, NULL);
+      }
+   }
+   else
+      fatal0("EpgDb-Expire: database is locked");
+}
+
+// ---------------------------------------------------------------------------
 // Evaluate the max.no. of blocks of a given generic block type according to AI
 // - the maximum number is directly related to the valid range: [0 .. count[
 // - Exception #1: NI blocks start with #1
@@ -431,9 +478,13 @@ uint EpgDbGetGenericMaxCount( CPDBC dbc, BLOCK_TYPE type )
             break;
          case BLOCK_TYPE_OI:
             count = dbc->pAiBlock->blk.ai.oiCount + dbc->pAiBlock->blk.ai.oiCountSwo;
+            // block numbers may start with 1
+            count += 1;
             break;
          case BLOCK_TYPE_MI:
             count = dbc->pAiBlock->blk.ai.miCount + dbc->pAiBlock->blk.ai.miCountSwo;
+            // block numbers may start with 1
+            count += 1;
             break;
          case BLOCK_TYPE_LI:
          case BLOCK_TYPE_TI:
@@ -579,7 +630,9 @@ static bool EpgDbAddAiBlock( PDBC dbc, EPGDB_BLOCK * pBlock )
                if ( (pOldNets[netwop].startNo != pNewNets[netwop].startNo) ||
                     (pOldNets[netwop].stopNoSwo != pNewNets[netwop].stopNoSwo) )
                {  // at least one start/stop number changed -> check all PI
+                  #if DEBUG_SWITCH_STREAM == ON
                   debug5("EpgDb-AddAiBlock: PI block range changed: net=%d %d-%d -> %d-%d", netwop, pOldNets[netwop].startNo, pOldNets[netwop].stopNoSwo, pNewNets[netwop].startNo, pNewNets[netwop].stopNoSwo);
+                  #endif
                   EpgDbFilterIncompatiblePi(dbc, &pOldAiBlock->blk.ai, &dbc->pAiBlock->blk.ai);
                   EpgDbCheckDefectPiBlocknos(dbc);
                   break;
@@ -618,13 +671,16 @@ static bool EpgDbGenericBlockNoValid( PDBC dbc, EPGDB_BLOCK * pBlock, BLOCK_TYPE
             break;
 
          case BLOCK_TYPE_OI:
-            accept = (block_no < ((uint)dbc->pAiBlock->blk.ai.oiCount +
-                                  (uint)dbc->pAiBlock->blk.ai.oiCountSwo));
+            // since OI block #0 has a special meaning some providers are not
+            // transmitting it and may not count it -> hence compare with <=
+            accept = (block_no <= ((uint)dbc->pAiBlock->blk.ai.oiCount +
+                                   (uint)dbc->pAiBlock->blk.ai.oiCountSwo));
             break;
 
          case BLOCK_TYPE_MI:
-            accept = (block_no < ((uint)dbc->pAiBlock->blk.ai.miCount +
-                                  (uint)dbc->pAiBlock->blk.ai.miCountSwo));
+            // since MI block #0 is never used it may not be counted -> use <=
+            accept = (block_no <= ((uint)dbc->pAiBlock->blk.ai.miCount +
+                                   (uint)dbc->pAiBlock->blk.ai.miCountSwo));
             break;
 
          case BLOCK_TYPE_LI:
@@ -1196,6 +1252,7 @@ static bool EpgDbPiCheckBlockSequence( PDBC dbc, EPGDB_BLOCK *pPrev, EPGDB_BLOCK
    assert((pNext == NULL) || (pBlock->blk.pi.start_time <= pNext->blk.pi.start_time));
 
    if ( (pNext != NULL) &&
+        (pNext->blk.pi.block_no_in_ai) &&
         (pBlock->version == pNext->version) &&
         EpgDbPiCmpBlockNoGt(dbc, pBlock->blk.pi.block_no, pNext->blk.pi.block_no, pBlock->blk.pi.netwop_no) )
    {  // block number is larger than that of the previous block -> don't insert
@@ -1205,6 +1262,7 @@ static bool EpgDbPiCheckBlockSequence( PDBC dbc, EPGDB_BLOCK *pPrev, EPGDB_BLOCK
    }
    else
    if ( (pPrev != NULL) &&
+        (pPrev->blk.pi.block_no_in_ai) &&
         (pPrev->blk.pi.stop_time > pBlock->blk.pi.start_time) &&
         (pBlock->version == pPrev->version) &&
         EpgDbPiCmpBlockNoGt(dbc, pBlock->blk.pi.block_no, pPrev->blk.pi.block_no, pBlock->blk.pi.netwop_no) )
@@ -1235,7 +1293,8 @@ static void EpgDbPiResolveConflicts( PDBC dbc, EPGDB_BLOCK *pBlock, EPGDB_BLOCK 
    pWalk = *pPrev;
    while ( (pWalk != NULL) &&
            ( (pWalk->blk.pi.stop_time > pBlock->blk.pi.start_time) ||
-             !EpgDbPiCmpBlockNoGt(dbc, pBlock->blk.pi.block_no, pWalk->blk.pi.block_no, netwop) ))
+             ( (pWalk->blk.pi.block_no_in_ai) &&
+               !EpgDbPiCmpBlockNoGt(dbc, pBlock->blk.pi.block_no, pWalk->blk.pi.block_no, netwop) )))
    {  // block number is smaller or equal to the previous -> delete previous block
       dprintf6("+++++++ DELETE: ptr=%lx prev=%lx blockno=%d >= %d or start=%ld > %ld\n", (ulong)pBlock, (ulong)pWalk, pWalk->blk.pi.block_no, pBlock->blk.pi.block_no, pWalk->blk.pi.start_time, pBlock->blk.pi.start_time);
       *pPrev = pWalk->pPrevNetwopBlock;
@@ -1252,6 +1311,7 @@ static void EpgDbPiResolveConflicts( PDBC dbc, EPGDB_BLOCK *pBlock, EPGDB_BLOCK 
    pWalk = *pNext;
    while( (pWalk != NULL) &&
           ( (pBlock->blk.pi.stop_time > pWalk->blk.pi.start_time) ||
+            (pWalk->blk.pi.block_no_in_ai == FALSE) ||
             !EpgDbPiCmpBlockNoGt(dbc, pWalk->blk.pi.block_no, pBlock->blk.pi.block_no, netwop) ))
    {
       dprintf6("+++++++ DELETE: ptr=%lx next=%lx overlapped: blockno=%d<=%d, start=%ld < stop %ld\n", (ulong)pBlock, (ulong)pWalk, pWalk->blk.pi.block_no, pBlock->blk.pi.block_no, pWalk->blk.pi.start_time, pBlock->blk.pi.stop_time);
@@ -1352,11 +1412,6 @@ static bool EpgDbAddPiBlock( PDBC dbc, EPGDB_BLOCK *pBlock )
             defective = TRUE;
             added = FALSE;
          }
-
-         // notify the GUI that insertion and implied removals are done
-         // (the GUI may have to count PI to calculate scrollbar positions)
-         if (dbc->pPiAcqCb != NULL)
-            dbc->pPiAcqCb(dbc, EPGDB_PI_RECOUNT, NULL, NULL);
       }
       else
       {  // invalid duration
@@ -1485,6 +1540,9 @@ void EpgDbProcessQueueByType( EPGDB_CONTEXT * const * pdbc, EPGDB_QUEUE * pQueue
    pBlock = EpgDbQueue_GetByType(pQueue, type);
    if (pBlock != NULL)
    {
+      if ((*pdbc)->pPiAcqCb != NULL)
+         (*pdbc)->pPiAcqCb(*pdbc, EPGDB_PI_PROC_START, NULL, NULL);
+
       if (type == BLOCK_TYPE_BI)
       {
          dprintf1("EpgDbQueue-ProcessBlocks: Offer BI block to acq ctl (0x%lx)\n", (long)pBlock);
@@ -1507,6 +1565,9 @@ void EpgDbProcessQueueByType( EPGDB_CONTEXT * const * pdbc, EPGDB_QUEUE * pQueue
             xfree(pBlock);
          }
       }
+
+      if ((*pdbc)->pPiAcqCb != NULL)
+         (*pdbc)->pPiAcqCb(*pdbc, EPGDB_PI_PROC_DONE, NULL, NULL);
    }
 }
 
@@ -1519,6 +1580,9 @@ void EpgDbProcessQueue( EPGDB_CONTEXT * const * pdbc, EPGDB_QUEUE * pQueue,
                         EPGDB_PI_TSC * tsc, const EPGDB_ADD_CB * pCb )
 {
    EPGDB_BLOCK * pBlock;
+
+   if ((*pdbc)->pPiAcqCb != NULL)
+      (*pdbc)->pPiAcqCb(*pdbc, EPGDB_PI_PROC_START, NULL, NULL);
 
    // note: the acq might get switched off by the callbacks inside the loop,
    // but we don't need to check this since then the buffer is cleared
@@ -1545,5 +1609,10 @@ void EpgDbProcessQueue( EPGDB_CONTEXT * const * pdbc, EPGDB_QUEUE * pQueue,
          }
       }
    }
+
+   // notify the GUI that insertion and implied removals are done
+   // (the GUI may have to count PI to calculate scrollbar positions)
+   if ((*pdbc)->pPiAcqCb != NULL)
+      (*pdbc)->pPiAcqCb(*pdbc, EPGDB_PI_PROC_DONE, NULL, NULL);
 }
 

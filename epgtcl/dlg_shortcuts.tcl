@@ -19,8 +19,11 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_shortcuts.tcl,v 1.9 2003/03/31 19:15:21 tom Exp tom $
+#  $Id: dlg_shortcuts.tcl,v 1.12 2003/09/20 19:31:31 tom Exp tom $
 #
+# import constants from other modules
+#=INCLUDE=  "epgtcl/shortcuts.h"
+
 set fscupd_popup 0
 
 set fscedit_label ""
@@ -30,12 +33,11 @@ set fscedit_popup 0
 ##  Append tags of hidden shortcuts
 ##
 proc CompleteShortcutOrder {} {
-   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_inv_idx fsc_logi_idx fsc_hide_idx
    global shortcuts shortcut_order
 
    set ltags $shortcut_order
    foreach sc_tag [lsort -integer [array names shortcuts]] {
-      if [lindex $shortcuts($sc_tag) $fsc_hide_idx] {
+      if [lindex $shortcuts($sc_tag) $::fsc_hide_idx] {
          lappend ltags $sc_tag
       }
    }
@@ -50,28 +52,51 @@ proc CompleteShortcutOrder {} {
 #=DYNAMIC=
 
 ##  --------------------------------------------------------------------------
+##  Apply shortcut changes -> save in rc/ini file and notify other modules
+##
+proc ApplyShortcutChanges {} {
+
+   # save changed shortcut config into the rc/ini file
+   UpdateRcFile
+
+   # update filter & column cache with user-defined columns
+   DownloadUserDefinedColumnFilters
+   UpdatePiListboxColumParams
+   # refresh PI listbox in case shortcut is used for column attributes
+   if {$::pibox_type != 0} {
+      C_PiNetBox_Invalidate
+   }
+   C_PiBox_Refresh
+
+   # re-calculate time of next event in case shortcuts are used in reminders
+   Reminder_UpdateTimer
+
+   # notify user-def column dialog (in case it's open, to add new shortcuts)
+   UserCols_ShortcutsChanged
+}
+
+##  --------------------------------------------------------------------------
 ##  Compare settings of two shortcuts: return TRUE if identical
 ##  - NOTE: tags are not compared because they always differ between shortcuts
 ##  - NOTE: filter setting is not compared properly (see below)
 ##
 proc CompareShortcuts {sc_a sc_b} {
-   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_inv_idx fsc_logi_idx fsc_hide_idx
 
    set result 0
    # compare label
-   if {[string compare [lindex $sc_a $fsc_name_idx] [lindex $sc_b $fsc_name_idx]] == 0} {
+   if {[string compare [lindex $sc_a $::fsc_name_idx] [lindex $sc_b $::fsc_name_idx]] == 0} {
       # compare combination logic mode
-      if {[string compare [lindex $sc_a $fsc_logi_idx] [lindex $sc_b $fsc_logi_idx]] == 0} {
+      if {[string compare [lindex $sc_a $::fsc_logi_idx] [lindex $sc_b $::fsc_logi_idx]] == 0} {
          # compare mask
-         if {[lsort [lindex $sc_a $fsc_mask_idx]] == [lsort [lindex $sc_b $fsc_mask_idx]]} {
+         if {[lsort [lindex $sc_a $::fsc_mask_idx]] == [lsort [lindex $sc_b $::fsc_mask_idx]]} {
             # compare invert list
-            if {[lsort [lindex $sc_a $fsc_inv_idx]] == [lsort [lindex $sc_b $fsc_inv_idx]]} {
+            if {[lsort [lindex $sc_a $::fsc_inv_idx]] == [lsort [lindex $sc_b $::fsc_inv_idx]]} {
                # compare 'hide from main list' flag
-               if {[lindex $sc_a $fsc_hide_idx] == [lindex $sc_b $fsc_hide_idx]} {
+               if {[lindex $sc_a $::fsc_hide_idx] == [lindex $sc_b $::fsc_hide_idx]} {
                   # compare filter settings
                   # NOTE: would need to be sorted for exact comparison!
                   #       currently not required, hence not implemented
-                  if {[lindex $sc_a $fsc_filt_idx] == [lindex $sc_b $fsc_filt_idx]} {
+                  if {[lindex $sc_a $::fsc_filt_idx] == [lindex $sc_b $::fsc_filt_idx]} {
                      set result 1
                   }
                }
@@ -86,28 +111,27 @@ proc CompareShortcuts {sc_a sc_b} {
 ##  Ask for confirmation to update a shortcut via the context menu
 ##
 proc UpdateFilterShortcutByContext {edit_idx} {
-   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_inv_idx fsc_logi_idx fsc_hide_idx
    global shortcuts shortcut_order
 
    set new_filt [DescribeCurrentFilter]
    set sc_tag [lindex $shortcut_order $edit_idx]
 
    # check if any filters are set at all
-   if {[llength [lindex $new_filt 0]] == 0} {
+   if {[llength [lindex $new_filt $::scdesc_mask_idx]] == 0} {
       set answer [tk_messageBox -type okcancel -icon warning -parent .all.shortcuts.list \
                      -message "Currently no filters selected. Do you still want to continue?"]
       if {[string compare $answer "cancel"] == 0} {
          return
       }
-   } elseif {([lindex $new_filt 1] == [lindex $shortcuts($sc_tag) $fsc_filt_idx]) && \
-             ([lindex $new_filt 2] == [lindex $shortcuts($sc_tag) $fsc_inv_idx])} {
+   } elseif {([lindex $new_filt $::scdesc_filt_idx] == [lindex $shortcuts($sc_tag) $::fsc_filt_idx]) && \
+             ([lindex $new_filt $::scdesc_inv_idx] == [lindex $shortcuts($sc_tag) $::fsc_inv_idx])} {
       tk_messageBox -type ok -icon info -parent .all.shortcuts.list \
                     -message "The current filter setting is identical to the one stored with the selected shortcut."
       return
    }
 
    set answer [tk_messageBox -type okcancel -default ok -icon warning -parent .all.shortcuts.list \
-                 -message "Are you sure want to overwrite shortcut '[lindex $shortcuts($sc_tag) $fsc_name_idx]' with the current filter settings?"]
+                 -message "Are you sure want to overwrite shortcut '[lindex $shortcuts($sc_tag) $::fsc_name_idx]' with the current filter settings?"]
    if {[string compare $answer ok] == 0} {
       SaveUpdatedFilterShortcut {} $edit_idx
    }
@@ -117,7 +141,6 @@ proc UpdateFilterShortcutByContext {edit_idx} {
 ##  Open "Update filter shortcut" dialog window
 ##
 proc UpdateFilterShortcut {} {
-   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_inv_idx fsc_logi_idx fsc_hide_idx
    global shortcuts shortcut_order fsc_prevselection
    global fscupd_order
    global text_bg
@@ -125,7 +148,7 @@ proc UpdateFilterShortcut {} {
    global fscedit_popup fscedit_order fscedit_sclist
 
    # check if any filters are set at all
-   if {[llength [lindex [DescribeCurrentFilter] 0]] == 0} {
+   if {[llength [lindex [DescribeCurrentFilter] $::scdesc_mask_idx]] == 0} {
       set answer [tk_messageBox -type okcancel -icon warning -parent . \
                      -message "Currently no filters selected. Do you still want to continue?"]
       if {[string compare $answer "cancel"] == 0} {
@@ -180,12 +203,12 @@ proc UpdateFilterShortcut {} {
          }
       }
       foreach sc_tag $fscupd_order {
-         .fscupd.sc_list.lb insert end [lindex $fscedit_sclist($sc_tag) $fsc_name_idx]
+         .fscupd.sc_list.lb insert end [lindex $fscedit_sclist($sc_tag) $::fsc_name_idx]
       }
    } else {
       # edit dialog not open -> use names from the main list
       foreach sc_tag $fscupd_order {
-         .fscupd.sc_list.lb insert end [lindex $shortcuts($sc_tag) $fsc_name_idx]
+         .fscupd.sc_list.lb insert end [lindex $shortcuts($sc_tag) $::fsc_name_idx]
       }
    }
    set lb_height [llength $fscupd_order]
@@ -227,7 +250,6 @@ proc GetShortcutIdentList {shortcut} {
 
 # "Update" and "Update & Edit" command buttons
 proc SaveUpdatedFilterShortcut {call_edit {edit_idx -1}} {
-   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_inv_idx fsc_logi_idx fsc_hide_idx
    global shortcuts shortcut_order
    global fscupd_order fscedit_sclist fscedit_order
    global fscupd_popup fscedit_popup fscedit_idx
@@ -249,8 +271,8 @@ proc SaveUpdatedFilterShortcut {call_edit {edit_idx -1}} {
       set copy_mask 0
 
       # compare filter categories before and after
-      set old_ids [GetShortcutIdentList [lindex $shortcuts($sc_tag) $fsc_filt_idx]]
-      set new_ids [GetShortcutIdentList [lindex $new_sc 1]]
+      set old_ids [GetShortcutIdentList [lindex $shortcuts($sc_tag) $::fsc_filt_idx]]
+      set new_ids [GetShortcutIdentList [lindex $new_sc $::scdesc_filt_idx]]
       if {$old_ids != $new_ids} {
          # different categories -> ask user if he's sure he doesn't want to edit the mask
          set answer [tk_messageBox -icon warning -type yesnocancel -default yes -parent $parent \
@@ -279,28 +301,37 @@ proc SaveUpdatedFilterShortcut {call_edit {edit_idx -1}} {
             array set fscedit_sclist [array get shortcuts]
             set fscedit_order [CompleteShortcutOrder]
 
-            set fscedit_sclist($sc_tag) [lreplace $fscedit_sclist($sc_tag) $fsc_filt_idx $fsc_filt_idx [lindex $new_sc 1]]
+            set elem $fscedit_sclist($sc_tag)
+            set elem [lreplace $elem $::fsc_filt_idx $::fsc_filt_idx [lindex $new_sc $::scdesc_filt_idx]]
+            set elem [lreplace $elem $::fsc_inv_idx $::fsc_inv_idx [lindex $new_sc $::scdesc_inv_idx]]
             if $copy_mask {
-               set fscedit_sclist($sc_tag) [lreplace $fscedit_sclist($sc_tag) $fsc_mask_idx $fsc_mask_idx [lindex $new_sc 0]]
+               set elem [lreplace $elem $::fsc_mask_idx $::fsc_mask_idx [lindex $new_sc $::scdesc_mask_idx]]
             }
+            set fscedit_sclist($sc_tag) $elem
             set sel [lsearch -exact $fscedit_order $sc_tag]
 
          } else {
             # dialog already open
 
-            # save any changed settings in the edit dialog (because we change the selection below)
-            CheckShortcutUpdatePending
-
             # search for the shortcut in the edited list
             if [info exists fscedit_sclist($sc_tag)] {
-               set fscedit_sclist($sc_tag) [lreplace $fscedit_sclist($sc_tag) $fsc_filt_idx $fsc_filt_idx [lindex $new_sc 1]]
+
+               set elem $fscedit_sclist($sc_tag)
+               set elem [lreplace $elem $::fsc_filt_idx $::fsc_filt_idx [lindex $new_sc $::scdesc_filt_idx]]
+               set elem [lreplace $elem $::fsc_inv_idx $::fsc_inv_idx [lindex $new_sc $::scdesc_inv_idx]]
                if $copy_mask {
-                  set fscedit_sclist($sc_tag) [lreplace $fscedit_sclist($sc_tag) $fsc_mask_idx $fsc_mask_idx [lindex $new_sc 0]]
+                  set elem [lreplace $elem $::fsc_mask_idx $::fsc_mask_idx [lindex $new_sc $::scdesc_mask_idx]]
                }
+               set fscedit_sclist($sc_tag) $elem
+
                set sel [lsearch -exact $fscedit_order $sc_tag]
             } else {
-               # not found in list (deleted by user in temporary list) -> append
-               set fscedit_sclist($sc_tag) [lreplace $shortcuts($sc_tag) $fsc_filt_idx $fsc_filt_idx [lindex $new_sc 1]]
+               # not found in list (deleted by user in temporary list) -> insert at top
+               set elem $fscedit_sclist($sc_tag)
+               set elem [lreplace $elem $::fsc_filt_idx $::fsc_filt_idx [lindex $new_sc $::scdesc_filt_idx]]
+               set elem [lreplace $elem $::fsc_inv_idx $::fsc_inv_idx [lindex $new_sc $::scdesc_inv_idx]]
+               set fscedit_sclist($sc_tag) $elem
+
                set fscedit_order [linsert $fscedit_order 0 $sc_tag]
                set sel 0
             }
@@ -318,15 +349,14 @@ proc SaveUpdatedFilterShortcut {call_edit {edit_idx -1}} {
       } else {
          if [info exists shortcuts($sc_tag)] {
             # update the selected shortcut
-            set shortcuts($sc_tag) [lreplace $shortcuts($sc_tag) $fsc_filt_idx $fsc_filt_idx [lindex $new_sc 1]]
+            set elem $shortcuts($sc_tag)
+            set elem [lreplace $elem $::fsc_filt_idx $::fsc_filt_idx [lindex $new_sc $::scdesc_filt_idx]]
+            set elem [lreplace $elem $::fsc_inv_idx $::fsc_inv_idx [lindex $new_sc $::scdesc_inv_idx]]
+            set shortcuts($sc_tag) $elem
 
-            # update filter & column cache with user-defined columns, then redisplay
-            DownloadUserDefinedColumnFilters
-            UpdatePiListboxColumParams
-            C_PiBox_Refresh
+            # save shortcuts into the rc/ini & notify other modules
+            ApplyShortcutChanges
 
-            # save the shortcuts config into the rc/ini file
-            UpdateRcFile
          } else {
             tk_messageBox -icon error -type ok -parent $parent \
                           -message "The selected shortcut no longer exists - please add the filter as a new shortcut."
@@ -347,7 +377,6 @@ proc SaveUpdatedFilterShortcut {call_edit {edit_idx -1}} {
 ##  Delete a shortcut via the context menu in the main window's shortcut list
 ##
 proc DeleteFilterShortcut {edit_idx} {
-   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_inv_idx fsc_logi_idx fsc_hide_idx
    global shortcuts shortcut_order
    global fscedit_sclist fscedit_order fscedit_idx
    global fscedit_popup
@@ -355,6 +384,9 @@ proc DeleteFilterShortcut {edit_idx} {
    set sc_tag [lindex $shortcut_order $edit_idx]
 
    if $fscedit_popup {
+      # store settings of the currently selected shortcut
+      CheckShortcutUpdatePending
+
       # search for the shortcut in the edited list
       if [info exists fscedit_sclist($sc_tag)] {
          set sel [lsearch -exact $fscedit_order $sc_tag]
@@ -373,11 +405,11 @@ proc DeleteFilterShortcut {edit_idx} {
       } else {
          raise .fscedit
          tk_messageBox -type ok -icon error -parent .fscedit \
-                       -message "Shortcut '[lindex $shortcuts($sc_tag) $fsc_name_idx]' is already deleted in the edited shortcut list. Quit the dialog with save to copy the changed list into the main window."
+                       -message "Shortcut '[lindex $shortcuts($sc_tag) $::fsc_name_idx]' is already deleted in the edited shortcut list. Quit the dialog with save to copy the changed list into the main window."
       }
    } else {
       set answer [tk_messageBox -type okcancel -default ok -icon warning -parent . \
-                    -message "Are you sure you want to irrecoverably delete shortcut '[lindex $shortcuts($sc_tag) $fsc_name_idx]'?"]
+                    -message "Are you sure you want to irrecoverably delete shortcut '[lindex $shortcuts($sc_tag) $::fsc_name_idx]'?"]
       if {[string compare $answer ok] == 0} {
          # remove the element from the global variables
          set shortcut_order [lreplace $shortcut_order $edit_idx $edit_idx]
@@ -385,6 +417,9 @@ proc DeleteFilterShortcut {edit_idx} {
          # remove the element from listbox in the main window
          .all.shortcuts.list delete $edit_idx
          .all.shortcuts.list configure -height [llength $shortcut_order]
+
+         # save shortcuts into the rc/ini & notify other modules
+         ApplyShortcutChanges
       }
    }
 }
@@ -407,9 +442,9 @@ proc AddFilterShortcut {{edit_idx -1}} {
 
    # determine current filter settings and a default mask
    set temp [DescribeCurrentFilter]
-   set mask [lindex $temp 0]
-   set filt [lindex $temp 1]
-   set inv  [lindex $temp 2]
+   set mask [lindex $temp $::scdesc_mask_idx]
+   set filt [lindex $temp $::scdesc_filt_idx]
+   set inv  [lindex $temp $::scdesc_inv_idx]
    set name "new shortcut"
    set sc_tag  [GenerateShortcutTag]
 
@@ -487,6 +522,7 @@ proc EditFilterShortcuts {{edit_idx -1}} {
          if {$sel != -1} {
             .fscedit.list selection clear 0 end
             .fscedit.list selection set $sel
+            .fscedit.list see $sel
             SelectEditedShortcut
          }
       }
@@ -497,25 +533,24 @@ proc EditFilterShortcuts {{edit_idx -1}} {
 ##  Filter shortcut configuration pop-up window
 ##
 proc PopupFilterShortcuts {} {
-   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_inv_idx fsc_logi_idx fsc_hide_idx
    global fscedit_sclist fscedit_order
    global fscedit_desc fscedit_mask fscedit_hide fscedit_label fscedit_logic fscedit_idx
    global font_normal
    global pi_attr_labels
    global fscedit_popup
 
-   # initialize all state variables
-   if {[info exists fscedit_desc]} {unset fscedit_desc}
-   if {[info exists fscedit_mask]} {unset fscedit_mask}
-   if {[info exists fscedit_label]} {unset fscedit_label}
-   if {[info exists fscedit_logic]} {set fscedit_logic 0}
-   if {[info exists fscedit_hide]} {set fscedit_hide 0}
-   # set invalid index since no item is selected in the listbox yet (must be done by caller)
-   set fscedit_idx -1
-
    if {$fscedit_popup == 0} {
       CreateTransientPopup .fscedit "Edit shortcut list"
       set fscedit_popup 1
+
+      # initialize all state variables
+      if {[info exists fscedit_desc]} {unset fscedit_desc}
+      if {[info exists fscedit_mask]} {unset fscedit_mask}
+      if {[info exists fscedit_label]} {unset fscedit_label}
+      if {[info exists fscedit_logic]} {set fscedit_logic 0}
+      if {[info exists fscedit_hide]} {set fscedit_hide 0}
+      # set invalid index since no item is selected in the listbox yet (must be done by caller)
+      set fscedit_idx -1
 
       ## first column: listbox with all shortcut labels
       scrollbar .fscedit.list_sb -orient vertical -command {.fscedit.list yview} -takefocus 0
@@ -525,7 +560,7 @@ proc PopupFilterShortcuts {} {
       bind .fscedit.list <<ListboxSelect>> {+ SelectEditedShortcut}
       bind .fscedit.list <Control-Key-Up> [concat tkButtonInvoke .fscedit.cmd.updown.up {;} break]
       bind .fscedit.list <Control-Key-Down> [concat tkButtonInvoke .fscedit.cmd.updown.down {;} break]
-      bind .fscedit.list <Key-Delete> [list tkButtonInvoke .dscedit.cmd.delete]
+      bind .fscedit.list <Key-Delete> [list tkButtonInvoke .fscedit.cmd.delete]
       pack .fscedit.list_sb .fscedit.list -side left -pady 10 -fill y
 
       ## second column: command buttons
@@ -596,27 +631,31 @@ proc PopupFilterShortcuts {} {
          .fscedit.flags.mb_mask.men add checkbutton -label $pi_attr_labels($filt) -variable fscedit_mask($filt)
       }
 
+      label .fscedit.flags.lab_logic -text "Combination rule:"
+      grid  .fscedit.flags.lab_logic -row 5 -column 0 -sticky w
+      menubutton .fscedit.flags.mb_logic -text "Select" -menu .fscedit.flags.mb_logic.men \
+                                         -underline 2 -direction flush -relief raised -borderwidth 2
+      grid  .fscedit.flags.mb_logic -row 5 -column 1 -sticky we
+      menu  .fscedit.flags.mb_logic.men -tearoff 0
+      .fscedit.flags.mb_logic.men add radiobutton -label "merge" -variable fscedit_logic -value "merge"
+      .fscedit.flags.mb_logic.men add radiobutton -label "logical OR" -variable fscedit_logic -value "or"
+      .fscedit.flags.mb_logic.men add radiobutton -label "logical AND" -variable fscedit_logic -value "and"
+
       checkbutton .fscedit.flags.cb_hide -text "Hide in main window list" -variable fscedit_hide
-      grid  .fscedit.flags.cb_hide -row 5 -column 0 -columnspan 2 -sticky w
-
-
-      #label .fscedit.flags.ll -text "Combination with other shortcuts:"
-      #pack .fscedit.flags.ll -side top -anchor w
-      #frame .fscedit.flags.logic -relief ridge -bd 1
-      #radiobutton .fscedit.flags.logic.merge -text "merge" -variable fscedit_logic -value "merge"
-      #radiobutton .fscedit.flags.logic.or -text "logical OR" -variable fscedit_logic -value "or" -state disabled
-      #radiobutton .fscedit.flags.logic.and -text "logical AND" -variable fscedit_logic -value "and" -state disabled
-      #pack .fscedit.flags.logic.merge .fscedit.flags.logic.or .fscedit.flags.logic.and -side top -anchor w -padx 5
-      #pack .fscedit.flags.logic -side top -pady 10 -fill x
+      grid  .fscedit.flags.cb_hide -row 6 -column 0 -columnspan 2 -sticky w
       pack .fscedit.flags -side left -pady 10 -padx 10 -expand 1 -fill both
+
    } else {
       raise .fscedit
+
+      # store settings of the currently selected shortcut
+      CheckShortcutUpdatePending
    }
 
    # fill the listbox with all shortcut labels
    .fscedit.list delete 0 end
    foreach sc_tag $fscedit_order {
-      .fscedit.list insert end [lindex $fscedit_sclist($sc_tag) $fsc_name_idx]
+      .fscedit.list insert end [lindex $fscedit_sclist($sc_tag) $::fsc_name_idx]
    }
    set lb_height [llength $fscedit_order]
    if {$lb_height > 25} {set lb_height 25}
@@ -629,7 +668,6 @@ proc PopupFilterShortcuts {} {
 
 # "Invoke" command button: apply the filter settings to the main window
 proc InvokeEditedShortcutFilter {} {
-   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_inv_idx fsc_logi_idx fsc_hide_idx
    global shortcuts shortcut_order fsc_prevselection
    global fscedit_sclist fscedit_order
 
@@ -651,21 +689,23 @@ proc InvokeEditedShortcutFilter {} {
          set fsc_prevselection $sc_tag
       }
 
-      SelectShortcuts $sc_tag fscedit_sclist
+      # copy shortcut into a temporary array to replace the combination logic with "merge"
+      # so that filters are loaded into the editable parameter set
+      set atmp($sc_tag) [lreplace $fscedit_sclist($sc_tag) $::fsc_logi_idx $::fsc_logi_idx merge]
+      SelectShortcuts $sc_tag atmp
       C_PiBox_Refresh
    }
 }
 
 # "Update" command button: load the filter settings from the main window into the selected shortcut
 proc UpdateEditedShortcutFilter {} {
-   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_inv_idx fsc_logi_idx fsc_hide_idx
    global fscedit_sclist fscedit_order
    global fscedit_idx
 
    set new_sc [DescribeCurrentFilter]
 
    # check if any filters are set at all
-   if {[llength [lindex $new_sc 0]] == 0} {
+   if {[llength [lindex $new_sc $::scdesc_mask_idx]] == 0} {
       set answer [tk_messageBox -type okcancel -icon warning -parent .fscedit \
                      -message "Currently no filters selected in the browser. Do you still want to replace this shortcut's filters (with nothing)?"]
       if {[string compare $answer "cancel"] == 0} {
@@ -680,8 +720,8 @@ proc UpdateEditedShortcutFilter {} {
    if {([llength $sel] == 1) && ($sel < [llength $fscedit_order])} {
       set sc_tag [lindex $fscedit_order $sel]
 
-      set old_ids [GetShortcutIdentList [lindex $fscedit_sclist($sc_tag) $fsc_filt_idx]]
-      set new_ids [GetShortcutIdentList [lindex $new_sc 1]]
+      set old_ids [GetShortcutIdentList [lindex $fscedit_sclist($sc_tag) $::fsc_filt_idx]]
+      set new_ids [GetShortcutIdentList [lindex $new_sc $::scdesc_filt_idx]]
       if {$old_ids != $new_ids} {
          # different categories -> ask user if he's sure he doesn't want to edit the mask
          set answer [tk_messageBox -icon warning -type yesnocancel -default yes -parent .fscedit \
@@ -690,14 +730,16 @@ proc UpdateEditedShortcutFilter {} {
             return
          } elseif {[string compare $answer yes] == 0} {
             # replace the mask
-            set fscedit_sclist($sc_tag) [lreplace $fscedit_sclist($sc_tag) $fsc_mask_idx $fsc_mask_idx \
-                                                  [lindex $new_sc 0]]
+            set fscedit_sclist($sc_tag) [lreplace $fscedit_sclist($sc_tag) $::fsc_mask_idx $::fsc_mask_idx \
+                                                  [lindex $new_sc $::scdesc_mask_idx]]
          }
       }
 
       # replace the filter setting of the selected shortcut
-      set fscedit_sclist($sc_tag) [lreplace $fscedit_sclist($sc_tag) $fsc_filt_idx $fsc_filt_idx \
-                                            [lindex $new_sc 1]]
+      set elem $fscedit_sclist($sc_tag)
+      set elem [lreplace $elem $::fsc_filt_idx $::fsc_filt_idx [lindex $new_sc $::scdesc_filt_idx]]
+      set elem [lreplace $elem $::fsc_inv_idx $::fsc_inv_idx [lindex $new_sc $::scdesc_inv_idx]]
+      set fscedit_sclist($sc_tag) $elem
 
       # display the new filter setting
       set fscedit_idx -1
@@ -748,7 +790,6 @@ proc AbortEditedShortcuts {} {
 
 # "Save" command button - copy the temporary array onto the global shortcuts
 proc SaveEditedShortcuts {} {
-   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_inv_idx fsc_logi_idx fsc_hide_idx
    global fscedit_sclist fscedit_order
    global shortcuts shortcut_order
 
@@ -760,7 +801,7 @@ proc SaveEditedShortcuts {} {
    array set shortcuts [array get fscedit_sclist]
    set shortcut_order {}
    foreach sc_tag $fscedit_order {
-      if {[lindex $fscedit_sclist($sc_tag) $fsc_hide_idx] == 0} {
+      if {[lindex $fscedit_sclist($sc_tag) $::fsc_hide_idx] == 0} {
          lappend shortcut_order $sc_tag
       }
    }
@@ -768,25 +809,19 @@ proc SaveEditedShortcuts {} {
    # close the popup window
    destroy .fscedit
 
-   # save the shortcuts config into the rc/ini file
-   UpdateRcFile
-
    # update the shortcut listbox
    .all.shortcuts.list delete 0 end
    foreach sc_tag $shortcut_order {
-      .all.shortcuts.list insert end [lindex $shortcuts($sc_tag) $fsc_name_idx]
+      .all.shortcuts.list insert end [lindex $shortcuts($sc_tag) $::fsc_name_idx]
    }
    .all.shortcuts.list configure -height [llength $shortcut_order]
 
-   # update filter & column cache with user-defined columns, then redisplay
-   DownloadUserDefinedColumnFilters
-   UpdatePiListboxColumParams
-   C_PiBox_Refresh
+   # save shortcuts into the rc/ini & notify other modules
+   ApplyShortcutChanges
 }
 
 # selection of a shortcut in the listbox - update all displayed info in the popup
 proc SelectEditedShortcut {} {
-   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_inv_idx fsc_logi_idx fsc_hide_idx
    global fscedit_label fscedit_mask fscedit_hide fscedit_logic fscedit_idx
    global fscedit_sclist fscedit_order
 
@@ -800,21 +835,21 @@ proc SelectEditedShortcut {} {
       set sc_tag [lindex $fscedit_order $sel]
 
       # set label displayed in entry widget
-      set fscedit_label [lindex $fscedit_sclist($sc_tag) $fsc_name_idx]
+      set fscedit_label [lindex $fscedit_sclist($sc_tag) $::fsc_name_idx]
       .fscedit.flags.ent_name selection range 0 end
 
       # display description
       .fscedit.flags.desc.tx delete 1.0 end
-      .fscedit.flags.desc.tx insert end [ShortcutPrettyPrint [lindex $fscedit_sclist($sc_tag) $fsc_filt_idx] \
-                                                             [lindex $fscedit_sclist($sc_tag) $fsc_inv_idx]]
+      .fscedit.flags.desc.tx insert end [ShortcutPrettyPrint [lindex $fscedit_sclist($sc_tag) $::fsc_filt_idx] \
+                                                             [lindex $fscedit_sclist($sc_tag) $::fsc_inv_idx]]
 
       # set combination logic radiobuttons
-      set fscedit_logic [lindex $fscedit_sclist($sc_tag) $fsc_logi_idx]
-      set fscedit_hide [lindex $fscedit_sclist($sc_tag) $fsc_hide_idx]
+      set fscedit_logic [lindex $fscedit_sclist($sc_tag) $::fsc_logi_idx]
+      set fscedit_hide [lindex $fscedit_sclist($sc_tag) $::fsc_hide_idx]
 
       # set mask checkbuttons
       if {[info exists fscedit_mask]} {unset fscedit_mask}
-      foreach index [lindex $fscedit_sclist($sc_tag) $fsc_mask_idx] {
+      foreach index [lindex $fscedit_sclist($sc_tag) $::fsc_mask_idx] {
          set fscedit_mask($index) 1
       }
    }
@@ -822,7 +857,6 @@ proc SelectEditedShortcut {} {
 
 # Subroutine: Collect shortcut settings from entry and checkbutton widgets
 proc GetUpdatedShortcut {new_sc} {
-   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_inv_idx fsc_logi_idx fsc_hide_idx
    global fscedit_sclist fscedit_order
    global fscedit_mask fscedit_hide fscedit_logic fscedit_label
 
@@ -833,17 +867,17 @@ proc GetUpdatedShortcut {new_sc} {
          lappend mask $index
       }
    }
-   set new_sc [lreplace $new_sc $fsc_mask_idx $fsc_mask_idx $mask]
+   set new_sc [lreplace $new_sc $::fsc_mask_idx $::fsc_mask_idx $mask]
 
    # update combination logic setting
-   set new_sc [lreplace $new_sc $fsc_logi_idx $fsc_logi_idx $fscedit_logic]
+   set new_sc [lreplace $new_sc $::fsc_logi_idx $::fsc_logi_idx $fscedit_logic]
 
    # update hide flag
-   set new_sc [lreplace $new_sc $fsc_hide_idx $fsc_hide_idx $fscedit_hide]
+   set new_sc [lreplace $new_sc $::fsc_hide_idx $::fsc_hide_idx $fscedit_hide]
 
    # update description label from entry widget
    if {[string length $fscedit_label] > 0} {
-      set new_sc [lreplace $new_sc $fsc_name_idx $fsc_name_idx $fscedit_label]
+      set new_sc [lreplace $new_sc $::fsc_name_idx $::fsc_name_idx $fscedit_label]
    }
 
    return $new_sc
@@ -851,7 +885,6 @@ proc GetUpdatedShortcut {new_sc} {
 
 # helper function: store (possibly modified) settings of the selected shortcut
 proc CheckShortcutUpdatePending {} {
-   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_inv_idx fsc_logi_idx fsc_hide_idx
    global fscedit_sclist fscedit_order
    global fscedit_idx
 
@@ -863,11 +896,12 @@ proc CheckShortcutUpdatePending {} {
       # update the label in the shortcut listbox
       set old_sel [.fscedit.list curselection]
       .fscedit.list delete $fscedit_idx
-      .fscedit.list insert $fscedit_idx [lindex $fscedit_sclist($sc_tag) $fsc_name_idx]
+      .fscedit.list insert $fscedit_idx [lindex $fscedit_sclist($sc_tag) $::fsc_name_idx]
 
       if {$old_sel == $fscedit_idx} {
          # put the cursor onto the updated item again
          .fscedit.list selection set $fscedit_idx
+         .fscedit.list see $fscedit_idx
       }
    }
 }
@@ -897,9 +931,11 @@ proc DeleteEditedShortcut {} {
 
 # "Up-Arrow" command button
 proc ShiftUpEditedShortcut {} {
-   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_inv_idx fsc_logi_idx fsc_hide_idx
    global fscedit_sclist fscedit_order
    global fscedit_idx
+
+   # store settings of the currently selected shortcut
+   CheckShortcutUpdatePending
 
    set index [.fscedit.list curselection]
    if {([llength $index] == 1) && ($index > 0)} {
@@ -907,7 +943,7 @@ proc ShiftUpEditedShortcut {} {
       .fscedit.list delete [expr $index - 1]
       # re-insert the just removed item below the shifted one
       set tag_2 [lindex $fscedit_order [expr $index - 1]]
-      .fscedit.list insert $index [lindex $fscedit_sclist($tag_2) $fsc_name_idx]
+      .fscedit.list insert $index [lindex $fscedit_sclist($tag_2) $::fsc_name_idx]
 
       # perform the same exchange in the associated list
       set fscedit_order [lreplace $fscedit_order [expr $index - 1] $index \
@@ -915,14 +951,15 @@ proc ShiftUpEditedShortcut {} {
                            [lindex $fscedit_order [expr $index - 1]]]
       incr fscedit_idx -1
    }
-
 }
 
 # "Down-Arrow" command button
 proc ShiftDownEditedShortcut {} {
-   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_inv_idx fsc_logi_idx fsc_hide_idx
    global fscedit_sclist fscedit_order
    global fscedit_idx
+
+   # store settings of the currently selected shortcut
+   CheckShortcutUpdatePending
 
    set index [.fscedit.list curselection]
    if {([llength $index] == 1) && \
@@ -930,8 +967,7 @@ proc ShiftDownEditedShortcut {} {
 
       .fscedit.list delete [expr $index + 1]
       set tag_2 [lindex $fscedit_order [expr $index + 1]]
-      .fscedit.list insert $index [lindex $fscedit_sclist($tag_2) $fsc_name_idx]
-      set col [expr [lindex $fscedit_sclist($tag_2) $fsc_hide_idx] ? {"#602222"} : {"black"}]
+      .fscedit.list insert $index [lindex $fscedit_sclist($tag_2) $::fsc_name_idx]
 
       set fscedit_order [lreplace $fscedit_order $index [expr $index + 1] \
                            [lindex $fscedit_order [expr $index + 1]] \

@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbsav.h,v 1.34 2003/06/28 10:51:39 tom Exp tom $
+ *  $Id: epgdbsav.h,v 1.35 2003/09/19 22:08:36 tom Exp tom $
  */
 
 #ifndef __EPGDBSAV_H
@@ -81,6 +81,10 @@ typedef struct
 // but should be small enough so it can safely be malloc'ed during reload
 #define EPGDBSAV_MAX_BLOCK_SIZE  30000
 
+// default time after which PI which are no longer part of the stream are discarded
+// (note: PI which still have a valid block no are not discarded until acq is started)
+#define EPGDBSAV_DEFAULT_EXPIRE_TIME  (4*60*60)
+
 // result codes for reload and peek (ordered by increasing user relevance)
 typedef enum
 {
@@ -144,6 +148,7 @@ typedef struct
 bool EpgDbDump( EPGDB_CONTEXT * pDbContext );
 EPGDB_CONTEXT * EpgDbReload( uint cni, EPGDB_RELOAD_RESULT * pError );
 const EPGDB_SCAN_BUF * EpgDbReloadScan( void );
+void EpgDbSavSetPiExpireDelay( time_t expireDelayPi );
 bool EpgDbSavSetupDir( const char * pDirPath, const char * pDemoDb );
 void EpgDbDumpGetDirAndCniFromArg( char * pArg, const char ** ppDirPath, uint * pCni );
 

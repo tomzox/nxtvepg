@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgmain.h,v 1.22 2002/09/02 20:00:14 tom Exp tom $
+ *  $Id: epgmain.h,v 1.23 2003/09/19 21:55:37 tom Exp tom $
  */
 
 #ifndef __EPGMAIN_H
@@ -47,5 +47,7 @@ bool IsDemoMode( void );
 
 // Access to databases from UI and acq-ctl
 extern EPGDB_CONTEXT * pUiDbContext;
+
+time_t EpgGetUiMinuteTime( void );
 
 #endif  // __EPGMAIN_H

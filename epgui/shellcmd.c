@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: shellcmd.c,v 1.2 2003/06/28 11:23:39 tom Exp tom $
+ *  $Id: shellcmd.c,v 1.6 2003/10/05 19:43:16 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -34,6 +34,8 @@
 #include <string.h>
 #ifndef WIN32
 #include <signal.h>
+#else
+#include <windows.h>
 #endif
 
 #include <tcl.h>
@@ -42,6 +44,7 @@
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
 
+#include "epgvbi/syserrmsg.h"
 #include "epgdb/epgblock.h"
 #include "epgdb/epgdbif.h"
 #include "epgui/epgmain.h"
@@ -50,11 +53,15 @@
 #include "epgui/pidescr.h"
 #include "epgui/shellcmd.h"
 
-#include "epgvbi/btdrv.h"
-#include "epgvbi/winshm.h"
-#include "epgvbi/winshmsrv.h"
-#define USERCMD_PREFIX_WINTV  "!wintv!"
-#define USERCMD_PREFIX_WINTV_LEN  7
+#ifdef WIN32
+# include "epgui/wintv.h"
+# define USERCMD_PREFIX_TVAPP  "!wintv!"
+# define USERCMD_PREFIX_TVAPP_LEN  7
+#else
+# include "epgui/xawtv.h"
+# define USERCMD_PREFIX_TVAPP  "!xawtv!"
+# define USERCMD_PREFIX_TVAPP_LEN  7
+#endif
 
 
 // struct to hold dynamically growing char buffer
@@ -97,6 +104,9 @@ static void ShellCmd_AppendString( DYN_CHAR_BUF * pCmdBuf, const char * ps )
 {
    if (pCmdBuf->quoteShell)
    {
+#ifndef WIN32
+      // quote the complete string, because there are just too many chars with
+      // special meaning to the shell (e.g. $, &, |, ...) to escape them all
       ShellCmd_AppendChar('\'', pCmdBuf);
 
       while (*ps != 0)
@@ -119,6 +129,17 @@ static void ShellCmd_AppendString( DYN_CHAR_BUF * pCmdBuf, const char * ps )
       }
 
       ShellCmd_AppendChar('\'', pCmdBuf);
+#else
+      // WIN32: tere are much less control chars, so we escape only these
+      while (*ps != 0)
+      {
+         if ((*ps == '\'') || (*ps == '\"') || (*ps == ' '))
+         {  // escape the character
+            ShellCmd_AppendChar('\\', pCmdBuf);
+         }
+         ShellCmd_AppendChar(*(ps++), pCmdBuf);
+      }
+#endif
    }
    else
    {
@@ -408,6 +429,38 @@ static void PiOutput_CmdSubstitute( const char * pUserCmd, DYN_CHAR_BUF * pCmdBu
    }
 }
 
+#ifdef WIN32
+// ----------------------------------------------------------------------------
+// Windows helper function to have the system execute a command
+// - the command is started withtout a console window
+// - note on WIN32 the command is started asynchronously in the background
+//
+static void PiOutput_Win32SystemExec( Tcl_Interp *interp, const char * pCmdStr )
+{
+   STARTUPINFO          startup;
+   PROCESS_INFORMATION  proc_info;
+   char  * pError;
+
+   memset(&startup, 0, sizeof(startup));
+   memset(&proc_info, 0, sizeof(proc_info));
+
+   if (CreateProcess(NULL, (char *) pCmdStr, NULL, NULL, FALSE,
+                     CREATE_NO_WINDOW, NULL, NULL, &startup, &proc_info) == FALSE)
+   {
+      // failed to start the command -> display popup message
+      pError = NULL;
+      SystemErrorMessage_Set(&pError, GetLastError(), "Failed to execute command: ", NULL);
+      if (pError != NULL)
+      {
+         sprintf(comm, "tk_messageBox -type ok -icon error -parent . -message {%s}", pError);
+         eval_check(interp, comm);
+         Tcl_ResetResult(interp);
+         xfree(pError);
+      }
+   }
+}
+#endif  // WIN32
+
 // ----------------------------------------------------------------------------
 // Execute a user-defined command on the currently selected PI
 // - invoked from the context menu
@@ -455,13 +508,11 @@ static int PiOutput_ExecUserCmd( ClientData ttp, Tcl_Interp *interp, int objc, T
             if ((Tcl_ListObjIndex(interp, pCtxVarObj, userCmdIndex * 2 + 1, &pCtxItemObj) == TCL_OK) && (pCtxItemObj != NULL))
             {
                pUserCmd = Tcl_UtfToExternalDString(NULL, Tcl_GetString(pCtxItemObj), -1, &ds);
-               #ifdef WIN32
-               if (strncmp(USERCMD_PREFIX_WINTV, pUserCmd, USERCMD_PREFIX_WINTV_LEN) == 0)
+               if (strncmp(USERCMD_PREFIX_TVAPP, pUserCmd, USERCMD_PREFIX_TVAPP_LEN) == 0)
                {  // substitute and break strings apart at spaces, then pass argv to TV app
-                  uint argc, idx;
 
-                  pUserCmd += USERCMD_PREFIX_WINTV_LEN;
-                  // skip spaces between !wintv! keyword and command name
+                  // skip !wintv! keyword and following white space
+                  pUserCmd += USERCMD_PREFIX_TVAPP_LEN;
                   while (*pUserCmd == ' ')
                      pUserCmd += 1;
 
@@ -469,48 +520,32 @@ static int PiOutput_ExecUserCmd( ClientData ttp, Tcl_Interp *interp, int objc, T
                   PiOutput_CmdSubstitute(pUserCmd, &cmdbuf, TRUE, pPiBlock, pAiBlock);
                   ShellCmd_AppendChar('\0', &cmdbuf);
 
-                  argc = 0;
-                  for (idx=0; idx < cmdbuf.off; idx++)
-                     if (cmdbuf.strbuf[idx] == '\0')
-                        argc += 1;
-
-                  if (WintvSharedMem_SetEpgCommand(argc, cmdbuf.strbuf, cmdbuf.off) == FALSE)
-                  {
-                     bool isConnected;
-
-                     isConnected = WintvSharedMem_IsConnected(NULL, 0, NULL);
-                     if (isConnected == FALSE)
-                     {
-                        sprintf(comm, "tk_messageBox -type ok -icon error -parent . "
-                                      "-message \"Cannot record: no TV application connected!\"");
-                     }
-                     else
-                     {
-                        sprintf(comm, "tk_messageBox -type ok -icon error -parent . "
-                                      "-message \"Failed to send the record command to the TV app.\"");
-                     }
-                     eval_check(interp, comm);
-                     Tcl_ResetResult(interp);
-                  }
+                  #ifdef WIN32
+                  Wintv_SendCmdArgv(interp, cmdbuf.strbuf, cmdbuf.off);
+                  #else
+                  Xawtv_SendCmdArgv(interp, cmdbuf.strbuf, cmdbuf.off);
+                  #endif
                }
                else
-               #endif
                {  // substitute and quote variables in UNIX style, then execute the command
                   cmdbuf.quoteShell = TRUE;
                   PiOutput_CmdSubstitute(pUserCmd, &cmdbuf, FALSE, pPiBlock, pAiBlock);
 
+                  #ifndef WIN32
                   // append a '&' to have the shell execute the command asynchronously
                   // in the background; else we would hang until the command finishes.
-                  // XXX TODO must be adapted for WIN API
-                  #ifndef WIN32
                   ShellCmd_AppendChar('&', &cmdbuf);
-                  #endif
 
                   // finally null-terminate the string
                   ShellCmd_AppendChar('\0', &cmdbuf);
 
                   // execute the command
                   system(cmdbuf.strbuf);
+
+                  #else  // WIN32
+                  ShellCmd_AppendChar('\0', &cmdbuf);
+                  PiOutput_Win32SystemExec(interp, cmdbuf.strbuf);
+                  #endif
                }
                Tcl_DStringFree(&ds);
             }
@@ -525,20 +560,140 @@ static int PiOutput_ExecUserCmd( ClientData ttp, Tcl_Interp *interp, int objc, T
 }
 
 // ----------------------------------------------------------------------------
+// Parse a user-defined command with substitutions for the given PI
+// - invoked for reminder scripts
+//
+Tcl_Obj * PiOutput_ParseScript( Tcl_Interp *interp, Tcl_Obj * pCmdObj,
+                                const PI_BLOCK * pPiBlock )
+{
+   const AI_BLOCK * pAiBlock;
+   const char * pUserCmd;
+   Tcl_DString  ds;
+   Tcl_Obj    * pResultList;
+   DYN_CHAR_BUF cmdbuf;
+
+   assert(EpgDbIsLocked(pUiDbContext));
+
+   // allocate temporary buffer for the command line to be built
+   cmdbuf.size   = 2048;
+   cmdbuf.off    = 0;
+   cmdbuf.strbuf = xmalloc(cmdbuf.size);
+
+   pResultList = Tcl_NewListObj(0, NULL);
+
+   pAiBlock = EpgDbGetAi(pUiDbContext);
+   if ((pAiBlock != NULL) && (pPiBlock != NULL))
+   {
+      pUserCmd = Tcl_UtfToExternalDString(NULL, Tcl_GetString(pCmdObj), -1, &ds);
+      if (strncmp(USERCMD_PREFIX_TVAPP, pUserCmd, USERCMD_PREFIX_TVAPP_LEN) == 0)
+      {  // substitute and break strings apart at spaces, then pass argv to TV app
+
+         // skip !wintv! keyword and following white space
+         pUserCmd += USERCMD_PREFIX_TVAPP_LEN;
+         while (*pUserCmd == ' ')
+            pUserCmd += 1;
+
+         cmdbuf.quoteShell = FALSE;
+         PiOutput_CmdSubstitute(pUserCmd, &cmdbuf, TRUE, pPiBlock, pAiBlock);
+         ShellCmd_AppendChar('\0', &cmdbuf);
+
+         Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj("tvapp", -1));
+      }
+      else
+      {  // substitute and quote variables in UNIX style, then execute the command
+         cmdbuf.quoteShell = TRUE;
+         PiOutput_CmdSubstitute(pUserCmd, &cmdbuf, FALSE, pPiBlock, pAiBlock);
+
+         // append a '&' to have the shell execute the command asynchronously
+         // in the background; else we would hang until the command finishes.
+         // XXX TODO must be adapted for WIN API
+         #ifndef WIN32
+         ShellCmd_AppendChar('&', &cmdbuf);
+         #endif
+
+         ShellCmd_AppendChar('\0', &cmdbuf);
+
+         Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj("system", -1));
+      }
+      Tcl_DStringFree(&ds);
+
+      Tcl_ListObjAppendElement(interp, pResultList,
+                               Tcl_NewByteArrayObj(cmdbuf.strbuf, cmdbuf.off));
+   }
+   xfree(cmdbuf.strbuf);
+
+   return pResultList;
+}
+
+// ----------------------------------------------------------------------------
+// Pass an already parsed script to the system or a TV app
+// - argument is a 2-element list: 1st element contains type, 2nd the string
+//
+static int PiOutput_ExecParsedScript( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+{
+   const char * const pUsage = "Usage: C_ExecParsedScript <type> <script>";
+   const char * pCmdStr;
+   int    ctrl;
+   int    cmdLen;
+   int    result;
+
+   static CONST84 char * pKeywords[] = {"tvapp", "system", (char *) NULL};
+   enum fork_keys { EXEC_TVAPP_SCRIPT, EXEC_SYSTEM_SCRIPT };
+
+   if ( (objc != 1+2) ||
+        (Tcl_GetIndexFromObj(interp, objv[1], pKeywords, "keyword", TCL_EXACT, &ctrl) != TCL_OK) ||
+        ((pCmdStr = Tcl_GetByteArrayFromObj(objv[2], &cmdLen)) == NULL) )
+   {
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR; 
+   }  
+   else
+   {
+      switch (ctrl)
+      {
+         case EXEC_TVAPP_SCRIPT:
+            #ifdef WIN32
+            Wintv_SendCmdArgv(interp, pCmdStr, cmdLen);
+            #else
+            Xawtv_SendCmdArgv(interp, pCmdStr, cmdLen);
+            #endif
+            break;
+
+         case EXEC_SYSTEM_SCRIPT:
+            // execute the command
+            #ifndef WIN32
+            system(pCmdStr);
+            #else
+            PiOutput_Win32SystemExec(interp, pCmdStr);
+            #endif
+            break;
+
+         default:
+            fatal1("PiOutput-ExecParsedScript: invalid keyword index %d", ctrl);
+            break;
+      }
+      result = TCL_OK; 
+   }
+   return result;
+}
+
+// ----------------------------------------------------------------------------
 // Add user-defined commands to context menu
 //
-void ShellCmd_CtxMenuAddUserDef( const char * pMenu, bool addSeparator )
+uint ShellCmd_CtxMenuAddUserDef( Tcl_Interp *interp, const char * pMenu, bool addSeparator )
 {
    Tcl_Obj  * pCtxVarObj;
    Tcl_Obj ** pCtxList;
    int  userCmdCount;
    sint idx;
+   uint entryCount;
    #ifdef WIN32
    bool isConnected;
 
-   isConnected = WintvSharedMem_IsConnected(NULL, 0, NULL);
+   isConnected = Wintv_IsConnected();
    #endif
 
+   entryCount = 0;
    pCtxVarObj = Tcl_GetVar2Ex(interp, "ctxmencf", NULL, TCL_GLOBAL_ONLY);
    if ( (pCtxVarObj != NULL) &&
         (Tcl_ListObjGetElements(interp, pCtxVarObj, &userCmdCount, &pCtxList) == TCL_OK) &&
@@ -556,15 +711,17 @@ void ShellCmd_CtxMenuAddUserDef( const char * pMenu, bool addSeparator )
                        pMenu, Tcl_GetString(pCtxList[idx]), idx / 2);
 
          #ifdef WIN32
-         if ( (strncmp(USERCMD_PREFIX_WINTV, Tcl_GetString(pCtxList[idx + 1]), USERCMD_PREFIX_WINTV_LEN) == 0) &&
+         if ( (strncmp(USERCMD_PREFIX_TVAPP, Tcl_GetString(pCtxList[idx + 1]), USERCMD_PREFIX_TVAPP_LEN) == 0) &&
               (isConnected == FALSE) )
          {
             strcat(comm, " -state disabled");
          }
          #endif
          eval_check(interp, comm);
+         entryCount += 1;
       }
    }
+   return entryCount;
 }
 
 // ----------------------------------------------------------------------------
@@ -581,5 +738,6 @@ void ShellCmd_Destroy( void )
 void ShellCmd_Init( void )
 {
    Tcl_CreateObjCommand(interp, "C_ExecUserCmd", PiOutput_ExecUserCmd, (ClientData) NULL, NULL);
+   Tcl_CreateObjCommand(interp, "C_ExecParsedScript", PiOutput_ExecParsedScript, (ClientData) NULL, NULL);
 }
 

@@ -18,18 +18,18 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: rcfile.tcl,v 1.15 2003/04/01 20:56:00 tom Exp tom $
+#  $Id: rcfile.tcl,v 1.18 2003/10/03 10:33:06 tom Exp tom $
 #
 set myrcfile ""
 set is_daemon 0
 # define limit for forwards compatibility
-set nxtvepg_rc_compat 0x020500
+set nxtvepg_rc_compat 0x020594
 
 proc LoadRcFile {filename isDefault isDaemon} {
    global shortcuts shortcut_order
    global prov_selection prov_freqs cfnetwops cfnetnames cfnettimes cfnetjoin
    global showNetwopListbox showNetwopListboxLeft showShortcutListbox
-   global showLayoutButton showStatusLine showColumnHeader
+   global showLayoutButton showStatusLine showColumnHeader showDateScale
    global hideOnMinimize menuUserLanguage help_winsize
    global prov_merge_cnis prov_merge_cf
    global acq_mode acq_mode_cnis netacq_enable
@@ -49,6 +49,9 @@ proc LoadRcFile {filename isDefault isDaemon} {
    global dumphtml_hyperlinks dumphtml_use_colsel dumphtml_colsel
    global dumpxml_filename
    global colsel_tabs usercols
+   global piexpire_cutoff
+   global remgroups remgroup_order reminders rem_msg_cnf_time rem_cmd_cnf_time
+   global remlist_winsize rempilist_colsize remsclist_colsize
    global EPG_VERSION_NO is_unix
    global myrcfile is_daemon
 
@@ -165,6 +168,83 @@ proc LoadRcFile {filename isDefault isDaemon} {
             set shortcuts($tag) [lreplace $shortcuts($tag) 2 2 $ltmp]
          }
       }
+      if {[info exists nxtvepg_version] && ($nxtvepg_version < 0x020590)} {
+         array set old_cols {red #CC0000 blue #0000CC green #00CC00 \
+                             yellow #CCCC00 pink #CC00CC cyan #00CCCC}
+         foreach tag [array names pilistbox_usercol] {
+            set ltmp {}
+            foreach filt [lindex $pilistbox_usercol($tag) 1] {
+               set ftmp {}
+               foreach fmt [lindex $filt 2] {
+                  if { ([string compare $fmt bold] == 0) || \
+                       ([string compare $fmt underline] == 0)} {
+                     lappend ftmp $fmt
+                  } elseif [info exists old_cols($fmt)] {
+                     lappend ftmp fg_RGB[string range $old_cols($fmt) 1 end]
+                  }
+               }
+               lappend ltmp [lreplace $filt 2 2 $ftmp]
+            }
+            set pilistbox_usercol($tag) [lreplace $pilistbox_usercol($tag) 1 1 $ltmp]
+         }
+         # append reminder "Mark" column to pibox in both layouts
+         lappend pilistbox_cols reminder
+         set pinetbox_rows [concat reminder $pinetbox_rows]
+         lappend pinetbox_rows_nonl_l reminder
+      }
+      if {[info exists nxtvepg_version] && ($nxtvepg_version < 0x020593)} {
+         # "control" element was added to "single PI" reminders in 2.6.0pre3
+         set ltmp {}
+         foreach elem $reminders {
+            lappend ltmp [linsert $elem 1 0]
+         }
+         set reminders $ltmp
+         # added "state" column to "edit reminders" dialog
+         set rempilist_colsize {4 10 10 13 24 12}
+      }
+      if {[info exists nxtvepg_version] && ($nxtvepg_version < 0x020594)} {
+         # reminder group config changed from list into array index by random tags
+         set remgroup_order {}
+         if [info exists remgroups] {
+            set ltmp $remgroups
+            catch {unset remgroups}
+            set gtag 1000
+            foreach elem $ltmp {
+               set remgroups($gtag) $elem
+               lappend remgroup_order $gtag
+               incr gtag
+            }
+         }
+         # convert group tags in reminder elements
+         set ltmp {}
+         foreach elem $reminders {
+            if {[lindex $elem 0] < 31} {
+               lappend ltmp [lreplace $elem 0 0 [expr [lindex $elem 0] + 1000]]
+            } else {
+               lappend ltmp [lreplace $elem 0 0 0]
+            }
+         }
+         set reminders $ltmp
+         # convert group references in user-defined columns
+         foreach tag [array names pilistbox_usercol] {
+            set ltmp {}
+            foreach filt [lindex $pilistbox_usercol($tag) 1] {
+               set sc_tag [lindex $filt 4]
+               set grp_tag [UserColsDlg_IsReminderPseudoTag $sc_tag]
+               if {$grp_tag > 0} {
+                  set sc_tag rgp_[expr $grp_tag + 1000]
+               }
+               lappend ltmp [lreplace $filt 4 4 $sc_tag]
+            }
+            set pilistbox_usercol($tag) [lreplace $pilistbox_usercol($tag) 1 1 $ltmp]
+         }
+      }
+      if {[info exists nxtvepg_version] && ($nxtvepg_version < 0x020595)} {
+         # new column type was added -> show it (single list layout only)
+         if {[lsearch $pilistbox_cols weekcol] == -1} {
+            set pilistbox_cols [concat weekcol $pilistbox_cols]
+         }
+      }
    } elseif {!$isDefault} {
       # warn if rc/ini file could not be loaded
       if $is_unix {
@@ -254,7 +334,7 @@ proc UpdateRcFile {} {
    global shortcuts shortcut_order
    global prov_selection prov_freqs cfnetwops cfnetnames cfnettimes cfnetjoin
    global showNetwopListbox showNetwopListboxLeft showShortcutListbox
-   global showLayoutButton showStatusLine showColumnHeader
+   global showLayoutButton showStatusLine showColumnHeader showDateScale
    global hideOnMinimize menuUserLanguage help_winsize
    global prov_merge_cnis prov_merge_cf
    global acq_mode acq_mode_cnis netacq_enable
@@ -274,6 +354,9 @@ proc UpdateRcFile {} {
    global dumphtml_hyperlinks dumphtml_use_colsel dumphtml_colsel
    global dumpxml_filename
    global colsel_tabs usercols colsel_ailist_predef
+   global piexpire_cutoff
+   global remgroups remgroup_order reminders rem_msg_cnf_time rem_cmd_cnf_time
+   global remlist_winsize rempilist_colsize remsclist_colsize
    global EPG_VERSION EPG_VERSION_NO nxtvepg_rc_compat
    global myrcfile is_unix is_daemon
 
@@ -334,6 +417,7 @@ proc UpdateRcFile {} {
       puts $rcfile [list set showShortcutListbox $showShortcutListbox]
       puts $rcfile [list set showLayoutButton $showLayoutButton]
       puts $rcfile [list set showStatusLine $showStatusLine]
+      puts $rcfile [list set showDateScale $showDateScale]
       puts $rcfile [list set showColumnHeader $showColumnHeader]
       puts $rcfile [list set hideOnMinimize $hideOnMinimize]
       puts $rcfile [list set menuUserLanguage $menuUserLanguage]
@@ -417,6 +501,22 @@ proc UpdateRcFile {} {
       puts $rcfile [list set dumphtml_colsel $dumphtml_colsel]
 
       puts $rcfile [list set dumpxml_filename $dumpxml_filename]
+
+      puts $rcfile [list set piexpire_cutoff $piexpire_cutoff]
+
+      puts $rcfile [list set remlist_winsize $remlist_winsize]
+      puts $rcfile [list set rempilist_colsize $rempilist_colsize]
+      puts $rcfile [list set remsclist_colsize $remsclist_colsize]
+      foreach gtag [array names remgroups] {
+         puts $rcfile [list set remgroups($gtag) $remgroups($gtag)]
+      }
+      puts $rcfile [list set remgroup_order $remgroup_order]
+      puts $rcfile [list set reminders {}]
+      for {set idx 0} {$idx < [llength $reminders]} {incr idx} {
+         puts $rcfile [list lappend reminders [lindex $reminders $idx]]
+      }
+      puts $rcfile [list set rem_msg_cnf_time $rem_msg_cnf_time]
+      puts $rcfile [list set rem_cmd_cnf_time $rem_cmd_cnf_time]
 
       close $rcfile
 

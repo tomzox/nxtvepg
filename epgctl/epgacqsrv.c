@@ -20,7 +20,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgacqsrv.c,v 1.11 2003/06/28 10:25:57 tom Exp $
+ *  $Id: epgacqsrv.c,v 1.12 2003/10/05 19:19:37 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -962,7 +962,11 @@ bool EpgAcqServer_Listen( void )
             srvState.tcp_ip_fd = EpgNetIo_ListenSocket(TRUE, srvState.listen_ip, srvState.listen_port);
             if (srvState.tcp_ip_fd != -1)
             {
-               EpgNetIo_Logger(LOG_NOTICE, -1, 0, "started listening on local and TCP/IP socket", NULL);
+               #ifndef WIN32
+               EpgNetIo_Logger(LOG_NOTICE, -1, 0, "started listening on local and TCP/IP socket, port ", srvState.listen_port, NULL);
+               #else
+               EpgNetIo_Logger(LOG_NOTICE, -1, 0, "started listening on TCP/IP socket, port ", srvState.listen_port, NULL);
+               #endif
                result = TRUE;
             }
          }

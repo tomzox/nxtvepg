@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pioutput.c,v 1.49 2003/03/04 21:31:34 tom Exp tom $
+ *  $Id: pioutput.c,v 1.51 2003/09/23 19:27:32 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -48,6 +48,9 @@
 #include "epgui/pibox.h"
 #include "epgui/pidescr.h"
 #include "epgui/pioutput.h"
+#include "epgtcl/dlg_udefcols.h"
+#include "epgtcl/mainwin.h"
+
 
 // ----------------------------------------------------------------------------
 // Array which keeps pre-allocated Tcl/Tk objects
@@ -61,8 +64,10 @@ typedef enum
    TCLOBJ_STR_INSERT,
    TCLOBJ_STR_NOW,
    TCLOBJ_STR_THEN,
+   TCLOBJ_STR_PAST,
    TCLOBJ_STR_TEXT_IDX,
    TCLOBJ_STR_TEXT_ANY,
+   TCLOBJ_STR_TEXT_FMT,
    TCLOBJ_STR_LIST_ANY,
    TCLOBJ_COUNT
 } PIBOX_TCLOBJ;
@@ -88,6 +93,8 @@ static const char * const pColTypeKeywords[] =
    "time",
    "title",
    "weekday",
+   "weekcol",
+   "reminder",
    // "user_def_",
    // "invalid",
    NULL
@@ -162,18 +169,18 @@ uint PiOutput_MatchUserCol( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES * pType, 
       {
          for (filtIdx=0; filtIdx < filtCount; filtIdx++)
          {
-            if ((Tcl_ListObjIndex(interp, pFiltObjv[filtIdx], 3, &pScIdxObj) == TCL_OK) && (pScIdxObj != NULL))
+            if ((Tcl_ListObjIndex(interp, pFiltObjv[filtIdx], EPGTCL_UCF_CTXCACHE_IDX, &pScIdxObj) == TCL_OK) && (pScIdxObj != NULL))
             {
                if (Tcl_GetIntFromObj(interp, pScIdxObj, &scIdx) == TCL_OK)
                {
                   if ( (scIdx == -1) || (PiFilter_ContextCacheMatch(pPiBlock, scIdx)) )
                   {
                      // match found -> retrieve display format
-                     if ((Tcl_ListObjIndex(interp, pFiltObjv[filtIdx], 0, &pTypeObj) == TCL_OK) && (pTypeObj != NULL) &&
-                         (Tcl_ListObjIndex(interp, pFiltObjv[filtIdx], 1, &pValueObj) == TCL_OK) && (pValueObj != NULL) &&
-                         (Tcl_ListObjIndex(interp, pFiltObjv[filtIdx], 2, ppFmtObj) == TCL_OK) && (*ppFmtObj != NULL))
+                     if ((Tcl_ListObjIndex(interp, pFiltObjv[filtIdx], EPGTCL_UCF_TYPE_IDX, &pTypeObj) == TCL_OK) && (pTypeObj != NULL) &&
+                         (Tcl_ListObjIndex(interp, pFiltObjv[filtIdx], EPGTCL_UCF_VALUE_IDX, &pValueObj) == TCL_OK) && (pValueObj != NULL) &&
+                         (Tcl_ListObjIndex(interp, pFiltObjv[filtIdx], EPGTCL_UCF_FMT_IDX, ppFmtObj) == TCL_OK) && (*ppFmtObj != NULL))
                      {
-                        if ( (Tcl_ListObjLength(interp, *ppFmtObj, &fmtCount) == TCL_OK) &&
+                        if ( (Tcl_ListObjLength(interp, *ppFmtObj, &fmtCount) != TCL_OK) ||
                              (fmtCount == 0) )
                         {
                            *ppFmtObj = NULL;
@@ -197,7 +204,6 @@ uint PiOutput_MatchUserCol( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES * pType, 
                            {  // image
                               if (ppImageObj != NULL)
                                  *ppImageObj = pValueObj;
-                              *ppFmtObj = NULL;
                            }
                            else if (ucolType == 2)
                            {  // map onto standard column output type
@@ -357,17 +363,17 @@ uint PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES type,
                uint  themeIdx;
 
                if ( (pPiFilterContext != NULL) &&  // check req. when in cmd-line dump mode
-                    (pPiFilterContext->enabledFilters & FILTER_THEMES) )
+                    EpgDbFilterIsEnabled(pPiFilterContext, FILTER_THEMES) )
                {
                   // Search for the first theme that's not part of the filter setting.
                   // (It would be boring to print "movie" for all programmes, when there's
                   //  a movie theme filter; instead we print the first sub-theme, e.g. "sci-fi")
                   for (themeIdx=0; themeIdx < pPiBlock->no_themes; themeIdx++)
-                  {  // ignore theme class
+                  {
                      theme = pPiBlock->themes[themeIdx];
                      if ( (theme < 0x80) &&
                           PdcThemeIsDefined(theme) &&
-                          ((pPiFilterContext->themeFilterField[theme] & pPiFilterContext->usedThemeClasses) == 0) )
+                          !EpgDbFilterIsThemeFiltered(pPiFilterContext, theme) )
                      {
                         break;
                      }
@@ -407,6 +413,8 @@ uint PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES type,
             }
             break;
 
+         case PIBOX_COL_WEEKCOL:
+         case PIBOX_COL_REMINDER:
          case PIBOX_COL_USER_DEF:
             break;
 
@@ -495,7 +503,18 @@ const PIBOX_COL_CFG * PiOutput_CfgColumnsCache( uint colCount, Tcl_Obj ** pColOb
          type = PIBOX_COL_USER_DEF;
       }
       else
+      {
          type = PiOutput_GetPiColumnType(pColObjv[colIdx]);
+
+         if (type == PIBOX_COL_REMINDER)
+         {
+            pColTab[colIdx].pDefObj = Tcl_GetVar2Ex(interp, "rem_col_fmt", NULL, TCL_GLOBAL_ONLY);
+            if (pColTab[colIdx].pDefObj != NULL)
+               Tcl_IncrRefCount(pColTab[colIdx].pDefObj);
+            else
+               debug1("PiOutput-CfgColumnsCache: no fmt for reminder col %d", colIdx);
+         }
+      }
 
       skipNl = FALSE;
       width  = 64;
@@ -595,7 +614,7 @@ static int PiOutput_CfgPiColumns( ClientData ttp, Tcl_Interp *interp, int objc, 
 // - pre-defined columns consist of simple text, but user-defined columns may
 //   consist of an image or use additional formatting (e.g. bold or underlined text)
 // - for efficiency, text with equivalent format is concatenated and inserted as one string
-// - images are inserted into the text afterwards (but at most one id buffered)
+// - images are inserted into the text afterwards (but at most one is buffered)
 // - column (left) alignment is implemented by use of TAB characters; all column
 //   texts must be measured and cut off to not exceed the column max width
 //
@@ -607,9 +626,9 @@ void PiOutput_PiListboxInsert( const PI_BLOCK *pPiBlock, uint textrow )
    Tcl_Obj * pFmtObj, * pImageObj;
    Tcl_Obj * objv[10];
    Tcl_Obj * pLastFmtObj;
+   Tcl_Obj * pBgFmtObj;
    char      linebuf[15];
    char      imgCmdBuf[250];
-   time_t    expireTime;
    PIBOX_TCLOBJ    timeTag;
    PIBOX_COL_TYPES type;
    bool  isBoldFont;
@@ -618,14 +637,13 @@ void PiOutput_PiListboxInsert( const PI_BLOCK *pPiBlock, uint textrow )
    uint  textcol;
    uint  len, off, maxlen;
    uint  idx;
+   time_t curTime;
 
-   expireTime = EpgDbFilterGetExpireTime(pPiFilterContext);
-   if (pPiBlock->start_time <= expireTime)
-      timeTag = TCLOBJ_STR_NOW;
-   #if 0
-   else if ((pPiBlock->stop_time <= expireTime) && ((pPiFilterContext->enabledFilters & FILTER_EXPIRE_TIME) == FALSE))
+   curTime = EpgGetUiMinuteTime();
+   if (pPiBlock->stop_time <= curTime)
       timeTag = TCLOBJ_STR_PAST;
-   #endif
+   else if (pPiBlock->start_time <= curTime)
+      timeTag = TCLOBJ_STR_NOW;
    else
       timeTag = TCLOBJ_STR_THEN;
 
@@ -643,6 +661,7 @@ void PiOutput_PiListboxInsert( const PI_BLOCK *pPiBlock, uint textrow )
    imgCmdBuf[0] = 0;
    isBoldFont = FALSE;
    piboxFont = piBoldFont = NULL;
+   pBgFmtObj = NULL;
 
    // open the (proportional) fonts which are used to display the text
    fontNameObj = Tcl_GetVar2Ex(interp, "pi_font", NULL, TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG);
@@ -666,17 +685,19 @@ void PiOutput_PiListboxInsert( const PI_BLOCK *pPiBlock, uint textrow )
          len  = 0;
          pImageObj = pFmtObj = NULL;
 
-         if (type == PIBOX_COL_USER_DEF)
+         if ((type == PIBOX_COL_USER_DEF) || (type == PIBOX_COL_REMINDER))
          {
             len = PiOutput_MatchUserCol(pPiBlock, &type, pPiboxColCfg[idx].pDefObj,
                                         comm + off, maxRowLen - off, &pImageObj, &pFmtObj);
          }
 
-         if (type != PIBOX_COL_USER_DEF)
+         if ((type != PIBOX_COL_USER_DEF) && (type != PIBOX_COL_REMINDER) && (type != PIBOX_COL_WEEKCOL))
             len = PiOutput_PrintColumnItem(pPiBlock, type, comm + off, maxRowLen - off);
 
-         if ( ((pLastFmtObj != pFmtObj) || ((pImageObj != NULL) && (imgCmdBuf[0] != 0))) && 
-              (off > 0))
+         if ( (off > 0) &&
+              ( (type == PIBOX_COL_WEEKCOL) ||
+                (pLastFmtObj != pFmtObj) ||
+                ((pImageObj != NULL) && (imgCmdBuf[0] != 0)) ))
          {  // format change or image to be inserted -> display the text currently in the buffer
             Tcl_SetStringObj(objv[3], comm, off);
             if (Tcl_EvalObjv(interp, 5, objv, 0) != TCL_OK)
@@ -696,9 +717,10 @@ void PiOutput_PiListboxInsert( const PI_BLOCK *pPiBlock, uint textrow )
             if (imgCmdBuf[0] != 0)
             {  // display the image currently in the buffer
                eval_global(interp, imgCmdBuf);
+               imgCmdBuf[0] = 0;
                textcol += 1;
             }
-            if ((textcol + off == 0) && (off < maxRowLen))
+            if ((off == 0) && (off < maxRowLen))
             {  // in the first column a space character must be pre-pended because text-tags must be assigned
                // both left and right to the image position to define the background-color for tranparent images
                comm[off] = ' ';
@@ -708,8 +730,8 @@ void PiOutput_PiListboxInsert( const PI_BLOCK *pPiBlock, uint textrow )
             if (pImgSpec != NULL)
             {
                if ( (Tcl_ListObjGetElements(interp, pImgSpec, &imgObjc, &pImgObjv) == TCL_OK) &&
-                    (imgObjc == 2) &&
-                    (Tcl_GetIntFromObj(interp, pImgObjv[1], &imgWidth) == TCL_OK) &&
+                    (imgObjc == EPGTCL_PIMG_IDX_COUNT) &&
+                    (Tcl_GetIntFromObj(interp, pImgObjv[EPGTCL_PIMG_WIDTH_IDX], &imgWidth) == TCL_OK) &&
                     ((imgWidth + 5 + len*5) < pPiboxColCfg[idx].width) )
                {
                   // build the image insert command in a buffer
@@ -718,6 +740,41 @@ void PiOutput_PiListboxInsert( const PI_BLOCK *pPiBlock, uint textrow )
                                       (pPiboxColCfg[idx].width - (imgWidth + 2 + len*5)) / 2);
                }
             }
+         }
+
+         if (type == PIBOX_COL_WEEKCOL)
+         {
+            // special handling for weekday color column: no text, just bg color
+            // (note: any remaining text in the cache has already been written out above)
+            Tcl_Obj * TmpObjv[2];
+            int oldCount, spaceWidth;
+            uint sumWidth;
+            struct tm * ptm;
+
+            sprintf(linebuf, "%d.%d", textrow+1, textcol);
+            Tcl_SetStringObj(objv[2], linebuf, -1);
+
+            Tk_MeasureChars(piboxFont, " ", 1, -1, 0, &spaceWidth);
+            if (spaceWidth == 0)  // fail-safety
+               spaceWidth = 4;
+            len = 0;
+            for (sumWidth=spaceWidth; sumWidth < pPiboxColCfg[idx].width; sumWidth += spaceWidth)
+               comm[len++] = ' ';
+            Tcl_SetStringObj(objv[3], comm, len);
+
+            ptm = localtime(&pPiBlock->start_time);
+            sprintf(linebuf, "ag_day%d", (ptm->tm_wday + 1) % 7);
+            Tcl_SetStringObj(tcl_obj[TCLOBJ_STR_TEXT_FMT], linebuf, 6+1);
+            TmpObjv[0] = tcl_obj[TCLOBJ_STR_TEXT_FMT];
+            TmpObjv[1] = tcl_obj[timeTag];
+            Tcl_ListObjLength(interp, objv[4], &oldCount);
+            Tcl_ListObjReplace(interp, objv[4], 0, oldCount, 2, TmpObjv);
+
+            if (Tcl_EvalObjv(interp, 5, objv, 0) != TCL_OK)
+               debugTclErr(interp, "PiOutput-PiListboxInsert");
+            textcol += len;
+            pLastFmtObj = pFmtObj = NULL;
+            len = off = 0;
          }
 
          if (off == 0)
@@ -730,9 +787,15 @@ void PiOutput_PiListboxInsert( const PI_BLOCK *pPiBlock, uint textrow )
             // line number was specified; add 1 because first line is 1.0
             sprintf(linebuf, "%d.%d", textrow+1, textcol);
             Tcl_SetStringObj(objv[2], linebuf, -1);
-            if (pFmtObj != NULL)
+            if ( (pFmtObj != NULL) &&
+                 (Tcl_ListObjGetElements(interp, pFmtObj, &fmtCount, &pFmtObjv) == TCL_OK) &&
+                 (fmtCount > 0) )
             {
-               Tcl_ListObjGetElements(interp, pFmtObj, &fmtCount, &pFmtObjv);
+               if (strncmp(Tcl_GetString(pFmtObjv[fmtCount - 1]), "bg_", 3) == 0)
+               {  // background color for entire column: must be the last format element in list
+                  pBgFmtObj = pFmtObjv[fmtCount - 1];
+                  fmtCount -= 1;
+               }
                Tcl_ListObjReplace(interp, objv[4], 0, oldCount, fmtCount, pFmtObjv);
                Tcl_ListObjAppendElement(interp, objv[4], tcl_obj[timeTag]);
                isBoldFont = (strcmp(Tcl_GetString(pFmtObjv[0]), "bold") == 0);
@@ -750,16 +813,16 @@ void PiOutput_PiListboxInsert( const PI_BLOCK *pPiBlock, uint textrow )
             // strip word fragments from the end of shortened theme strings
             if ((type == PIBOX_COL_THEME) && (maxlen < len) && (maxlen > 3))
             {
-               if (alphaNumTab[(uint)comm[off + maxlen - 1]] == ALNUM_NONE)
+               if (alphaNumTab[(uchar)comm[off + maxlen - 1]] == ALNUM_NONE)
                   maxlen -= 1;
-               else if (alphaNumTab[(uint)comm[off + maxlen - 2]] == ALNUM_NONE)
+               else if (alphaNumTab[(uchar)comm[off + maxlen - 2]] == ALNUM_NONE)
                   maxlen -= 2;
-               else if (alphaNumTab[(uint)comm[off + maxlen - 3]] == ALNUM_NONE)
+               else if (alphaNumTab[(uchar)comm[off + maxlen - 3]] == ALNUM_NONE)
                   maxlen -= 3;
             }
             len = maxlen;
+            off += len;
          }
-         off += len;
 
          // append TAB or NEWLINE character to the column text
          if (off < maxRowLen)
@@ -775,6 +838,12 @@ void PiOutput_PiListboxInsert( const PI_BLOCK *pPiBlock, uint textrow )
       }
       if (imgCmdBuf[0] != 0)
       {  // display the last image
+         eval_global(interp, imgCmdBuf);
+      }
+      if (pBgFmtObj != NULL)
+      {  // set background color for entire column, if present in any column
+         sprintf(imgCmdBuf, ".all.pi.list.text tag add {%s} %d.0 %d.0",
+                            Tcl_GetString(pBgFmtObj), textrow+1, textrow+2);
          eval_global(interp, imgCmdBuf);
       }
    }
@@ -799,6 +868,7 @@ uint PiOutput_PiNetBoxInsert( const PI_BLOCK * pPiBlock, uint colIdx, sint textR
    Tcl_Obj * pFmtObj, * pImageObj;
    Tcl_Obj * objv[10];
    Tcl_Obj * pLastFmtObj;
+   Tcl_Obj * pBgFmtObj;
    char      linebuf[15];
    char      imgCmdBuf[250];
    PIBOX_COL_TYPES type;
@@ -809,10 +879,12 @@ uint PiOutput_PiNetBoxInsert( const PI_BLOCK * pPiBlock, uint colIdx, sint textR
    uint  bufHeight;
    uint  imgRow;
    PIBOX_TCLOBJ    timeTag;
-   time_t expireTime;
+   time_t curTime;
 
-   expireTime = EpgDbFilterGetExpireTime(pPiFilterContext);
-   if (pPiBlock->start_time <= expireTime)
+   curTime = EpgGetUiMinuteTime();
+   if (pPiBlock->stop_time <= curTime)
+      timeTag = TCLOBJ_STR_PAST;
+   else if (pPiBlock->start_time <= curTime)
       timeTag = TCLOBJ_STR_NOW;
    else
       timeTag = TCLOBJ_STR_THEN;
@@ -830,6 +902,7 @@ uint PiOutput_PiNetBoxInsert( const PI_BLOCK * pPiBlock, uint colIdx, sint textR
    bufHeight = 0;
    off = 0;
    pLastFmtObj = NULL;
+   pBgFmtObj = NULL;
    imgCmdBuf[0] = 0;
    imgRow = 0;
    piboxFont = piBoldFont = NULL;
@@ -856,23 +929,26 @@ uint PiOutput_PiNetBoxInsert( const PI_BLOCK * pPiBlock, uint colIdx, sint textR
          len  = 0;
          pImageObj = pFmtObj = NULL;
 
-         if (type == PIBOX_COL_USER_DEF)
+         if ((type == PIBOX_COL_USER_DEF) || (type == PIBOX_COL_REMINDER))
          {
             len = PiOutput_MatchUserCol(pPiBlock, &type, pPiboxColCfg[rowIdx].pDefObj,
                                         comm + off, maxRowLen - off, &pImageObj, &pFmtObj);
          }
 
-         if (type != PIBOX_COL_USER_DEF)
+         if ((type != PIBOX_COL_USER_DEF) && (type != PIBOX_COL_REMINDER) && (type != PIBOX_COL_WEEKCOL))
             len = PiOutput_PrintColumnItem(pPiBlock, type, comm + off, maxRowLen - off);
 
          if ( (len == 0) && (pImageObj == NULL) &&
+              (type != PIBOX_COL_WEEKCOL) &&
               ((bufCol == 0) || pPiboxColCfg[rowIdx].skipNewline) )
          {  // no output & no newline -> skip this element
             continue;
          }
 
-         if ( ((pLastFmtObj != pFmtObj) || ((pImageObj != NULL) && (imgCmdBuf[0] != 0))) && 
-              (off > 0))
+         if ( (off > 0) &&
+              ( (pLastFmtObj != pFmtObj) ||
+                (type == PIBOX_COL_WEEKCOL) ||
+                ((pImageObj != NULL) && (imgCmdBuf[0] != 0))) )
          {  // format change or image to be inserted -> display the text currently in the buffer
             Tcl_SetStringObj(objv[3], comm, off);
             if (Tcl_EvalObjv(interp, 5, objv, 0) != TCL_OK)
@@ -891,6 +967,7 @@ uint PiOutput_PiNetBoxInsert( const PI_BLOCK * pPiBlock, uint colIdx, sint textR
             if (imgCmdBuf[0] != 0)
             {  // display the image currently in the buffer
                eval_global(interp, imgCmdBuf);
+               imgCmdBuf[0] = 0;
                if (imgRow == bufHeight)
                   bufCol += 1;
             }
@@ -903,14 +980,43 @@ uint PiOutput_PiNetBoxInsert( const PI_BLOCK * pPiBlock, uint colIdx, sint textR
             pImgSpec = Tcl_GetVar2Ex(interp, "pi_img", Tcl_GetString(pImageObj), TCL_GLOBAL_ONLY);
             if (pImgSpec != NULL)
             {
-               if ( (Tcl_ListObjGetElements(interp, pImgSpec, &imgObjc, &pImgObjv) == TCL_OK) && (imgObjc == 2) )
+               if ( (Tcl_ListObjGetElements(interp, pImgSpec, &imgObjc, &pImgObjv) == TCL_OK) && (imgObjc == EPGTCL_PIMG_IDX_COUNT) )
                {
                   // build the image insert command in a buffer
                   sprintf(imgCmdBuf, ".all.pi.list.nets.n_%d image create %d.%d -image %s -padx 2",
-                                      colIdx, textRow + bufHeight + 1, bufCol + len, Tcl_GetString(pImgObjv[0]));
+                                      colIdx, textRow + bufHeight + 1, bufCol + len, Tcl_GetString(pImgObjv[EPGTCL_PIMG_NAME_IDX]));
                   imgRow = bufHeight;
                }
             }
+         }
+
+         if (type == PIBOX_COL_WEEKCOL)
+         {
+            // special handling for weekday color column: no text, just bg color
+            // (note: any remaining text in the cache has already been written out above)
+            Tcl_Obj * TmpObjv[2];
+            int oldCount;
+            struct tm * ptm;
+
+            sprintf(linebuf, "%d.%d", textRow + bufHeight + 1, bufCol);
+            Tcl_SetStringObj(objv[2], linebuf, -1);
+
+            len = 2;
+            Tcl_SetStringObj(objv[3], "  ", len);
+
+            ptm = localtime(&pPiBlock->start_time);
+            sprintf(linebuf, "ag_day%d", (ptm->tm_wday + 1) % 7);
+            Tcl_SetStringObj(tcl_obj[TCLOBJ_STR_TEXT_FMT], linebuf, 6+1);
+            TmpObjv[0] = tcl_obj[TCLOBJ_STR_TEXT_FMT];
+            TmpObjv[1] = tcl_obj[timeTag];
+            Tcl_ListObjLength(interp, objv[4], &oldCount);
+            Tcl_ListObjReplace(interp, objv[4], 0, oldCount, 2, TmpObjv);
+
+            if (Tcl_EvalObjv(interp, 5, objv, 0) != TCL_OK)
+               debugTclErr(interp, "PiOutput-PiListboxInsert");
+            pLastFmtObj = pFmtObj = NULL;
+            bufCol += len;
+            len = off = 0;
          }
 
          if (off == 0)
@@ -922,9 +1028,15 @@ uint PiOutput_PiNetBoxInsert( const PI_BLOCK * pPiBlock, uint colIdx, sint textR
 
             sprintf(linebuf, "%d.%d", textRow + bufHeight + 1, bufCol);
             Tcl_SetStringObj(objv[2], linebuf, -1);
-            if (pFmtObj != NULL)
+            if ( (pFmtObj != NULL) &&
+                 (Tcl_ListObjGetElements(interp, pFmtObj, &fmtCount, &pFmtObjv) == TCL_OK) &&
+                 (fmtCount > 0) )
             {
-               Tcl_ListObjGetElements(interp, pFmtObj, &fmtCount, &pFmtObjv);
+               if (strncmp(Tcl_GetString(pFmtObjv[fmtCount - 1]), "bg_", 3) == 0)
+               {  // background color for entire element: must be the last format element in list
+                  pBgFmtObj = pFmtObjv[fmtCount - 1];
+                  fmtCount -= 1;
+               }
                Tcl_ListObjReplace(interp, objv[4], 0, oldCount, fmtCount, pFmtObjv);
                Tcl_ListObjAppendElement(interp, objv[4], tcl_obj[timeTag]);
             }
@@ -982,6 +1094,13 @@ uint PiOutput_PiNetBoxInsert( const PI_BLOCK * pPiBlock, uint colIdx, sint textR
    }
    while (bufHeight < 3);
 
+   if (pBgFmtObj != NULL)
+   {  // set background color for all lines except the gap
+      sprintf(imgCmdBuf, ".all.pi.list.nets.n_%d tag add {%s} %d.0 %d.0",
+                         colIdx, Tcl_GetString(pBgFmtObj), textRow + 1, textRow + bufHeight);
+      eval_global(interp, imgCmdBuf);
+   }
+
    if (piboxFont != NULL)
       Tk_FreeFont(piboxFont);
    if (piBoldFont != NULL)
@@ -1025,9 +1144,11 @@ void PiOutput_Init( void )
       tcl_obj[TCLOBJ_WID_NET]       = Tcl_NewStringObj(".all.pi.nets.n_####", -1);
       tcl_obj[TCLOBJ_STR_INSERT]    = Tcl_NewStringObj("insert", -1);
       tcl_obj[TCLOBJ_STR_NOW]       = Tcl_NewStringObj("now", -1);
+      tcl_obj[TCLOBJ_STR_PAST]      = Tcl_NewStringObj("past", -1);
       tcl_obj[TCLOBJ_STR_THEN]      = Tcl_NewStringObj("then", -1);
       tcl_obj[TCLOBJ_STR_TEXT_IDX]  = Tcl_NewStringObj("#####", -1);
       tcl_obj[TCLOBJ_STR_TEXT_ANY]  = Tcl_NewStringObj("", -1);
+      tcl_obj[TCLOBJ_STR_TEXT_FMT]  = Tcl_NewStringObj("", -1);
       tcl_obj[TCLOBJ_STR_LIST_ANY]  = Tcl_NewListObj(0, NULL);
 
       for (idx=0; idx < TCLOBJ_COUNT; idx++)
