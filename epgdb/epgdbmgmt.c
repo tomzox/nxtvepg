@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbmgmt.c,v 1.44 2003/01/11 19:40:20 tom Exp tom $
+ *  $Id: epgdbmgmt.c,v 1.45 2003/06/28 10:48:12 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -613,15 +613,18 @@ static bool EpgDbGenericBlockNoValid( PDBC dbc, EPGDB_BLOCK * pBlock, BLOCK_TYPE
       {
          case BLOCK_TYPE_NI:
             // block numbers of NI blocks start with 1, hence <=
-            accept = (block_no <= (dbc->pAiBlock->blk.ai.niCount + dbc->pAiBlock->blk.ai.niCountSwo));
+            accept = (block_no <= ((uint)dbc->pAiBlock->blk.ai.niCount +
+                                   (uint)dbc->pAiBlock->blk.ai.niCountSwo));
             break;
 
          case BLOCK_TYPE_OI:
-            accept = (block_no < (dbc->pAiBlock->blk.ai.oiCount + dbc->pAiBlock->blk.ai.oiCountSwo));
+            accept = (block_no < ((uint)dbc->pAiBlock->blk.ai.oiCount +
+                                  (uint)dbc->pAiBlock->blk.ai.oiCountSwo));
             break;
 
          case BLOCK_TYPE_MI:
-            accept = (block_no < (dbc->pAiBlock->blk.ai.miCount + dbc->pAiBlock->blk.ai.miCountSwo));
+            accept = (block_no < ((uint)dbc->pAiBlock->blk.ai.miCount +
+                                  (uint)dbc->pAiBlock->blk.ai.miCountSwo));
             break;
 
          case BLOCK_TYPE_LI:

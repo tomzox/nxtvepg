@@ -30,7 +30,7 @@
  *  DScaler #Id: I2CBusForLineInterface.cpp,v 1.4 2001/12/08 13:43:20 adcockj Exp #
  *  DScaler #Id: I2CBus.cpp,v 1.2 2002/09/27 14:10:25 kooiman Exp #
  *
- *  $Id: bt8x8_i2c.c,v 1.6 2003/03/09 19:28:10 tom Exp tom $
+ *  $Id: bt8x8_i2c.c,v 1.7 2003/06/23 19:52:44 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -212,6 +212,7 @@ static bool Bt8x8I2c_Read( const TVCARD * pTvCard,
       assert(writeBuffer != NULL);
       assert(writeBufferSize >= 1);
       assert((readBuffer != NULL) || (readBufferSize == 0));
+      dprintf4("Bt8x8I2c-Read: from 0x%02X (sub %d wc=%d) %d bytes\n", writeBuffer[0], ((writeBufferSize > 1) ? writeBuffer[1] : 0), writeBufferSize, readBufferSize);
 
       if (readBufferSize == 0)
          return TRUE;
@@ -263,6 +264,8 @@ static bool Bt8x8I2c_Read( const TVCARD * pTvCard,
       }
       readBuffer[idx] = Bt8x8_I2cReadByte(pTvCard, TRUE);
       Bt8x8_I2cStop(pTvCard);
+
+      dprintf6("Bt8x8I2c-Read: %d bytes: %02x%02x%02x%02x%02x\n", readBufferSize, ((readBufferSize > 0) ? readBuffer[0] : 0), ((readBufferSize > 1) ? readBuffer[1] : 0), ((readBufferSize > 2) ? readBuffer[2] : 0), ((readBufferSize > 3) ? readBuffer[3] : 0), ((readBufferSize > 4) ? readBuffer[4] : 0));
    }
    else
       fatal2("Bt8x8I2c-Read: illegal NULL ptr params %lX, %lX", (long)pTvCard, (long)((pTvCard != NULL) ? pTvCard->i2cLineBus : NULL));
@@ -278,6 +281,8 @@ static bool Bt8x8I2c_Write( const TVCARD * pTvCard,
 {
    size_t idx;
    bool   result = FALSE;
+
+   dprintf6("Bt8x8I2c-Write: %d bytes: %02x%02x%02x%02x%02x\n", writeBufferSize, ((writeBufferSize > 0) ? writeBuffer[0] : 0), ((writeBufferSize > 1) ? writeBuffer[1] : 0), ((writeBufferSize > 2) ? writeBuffer[2] : 0), ((writeBufferSize > 3) ? writeBuffer[3] : 0), ((writeBufferSize > 4) ? writeBuffer[4] : 0));
 
    if ((pTvCard != NULL) && (pTvCard->i2cLineBus != NULL))
    {

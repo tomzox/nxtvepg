@@ -20,7 +20,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgacqsrv.c,v 1.10 2002/05/30 14:07:02 tom Exp $
+ *  $Id: epgacqsrv.c,v 1.11 2003/06/28 10:25:57 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -636,26 +636,26 @@ static bool EpgAcqServer_TakeMessage( EPGDBSRV_STATE *req, EPGDBSRV_MSG_BODY * p
 // ----------------------------------------------------------------------------
 // Set bits for all active sockets in fd_set for select syscall
 //
-uint EpgAcqServer_GetFdSet( fd_set * rd, fd_set * wr )
+sint EpgAcqServer_GetFdSet( fd_set * rd, fd_set * wr )
 {
    EPGDBSRV_STATE    *req;
-   uint              max;
+   sint              max_fd;
 
    // add TCP/IP and UNIX-domain listening sockets
-   max = 0;
+   max_fd = 0;
    if ((srvState.max_conn == 0) || (srvState.conCount < srvState.max_conn))
    {
       if (srvState.tcp_ip_fd != -1)
       {
          FD_SET(srvState.tcp_ip_fd, rd);
-         if (srvState.tcp_ip_fd > max)
-             max = srvState.tcp_ip_fd;
+         if (srvState.tcp_ip_fd > max_fd)
+             max_fd = srvState.tcp_ip_fd;
       }
       if (srvState.pipe_fd != -1)
       {
          FD_SET(srvState.pipe_fd, rd);
-         if (srvState.pipe_fd > max)
-             max = srvState.pipe_fd;
+         if (srvState.pipe_fd > max_fd)
+             max_fd = srvState.pipe_fd;
       }
    }
 
@@ -678,11 +678,11 @@ uint EpgAcqServer_GetFdSet( fd_set * rd, fd_set * wr )
       else
          FD_SET(req->io.sock_fd, rd);
 
-      if (req->io.sock_fd > max)
-          max = req->io.sock_fd;
+      if (req->io.sock_fd > max_fd)
+          max_fd = req->io.sock_fd;
    }
 
-   return max;
+   return max_fd;
 }
 
 // ----------------------------------------------------------------------------

@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: shellcmd.c,v 1.1 2003/02/26 22:00:03 tom Exp tom $
+ *  $Id: shellcmd.c,v 1.2 2003/06/28 11:23:39 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -532,7 +532,7 @@ void ShellCmd_CtxMenuAddUserDef( const char * pMenu, bool addSeparator )
    Tcl_Obj  * pCtxVarObj;
    Tcl_Obj ** pCtxList;
    int  userCmdCount;
-   uint idx;
+   sint idx;
    #ifdef WIN32
    bool isConnected;
 

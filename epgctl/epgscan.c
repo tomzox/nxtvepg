@@ -34,7 +34,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgscan.c,v 1.34 2003/04/09 20:45:37 tom Exp tom $
+ *  $Id: epgscan.c,v 1.35 2003/06/27 20:27:40 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -79,7 +79,7 @@ typedef struct
    uint             newProvCount;     // number of providers found
    uint             badProvCount;     // number of defective providers found (refresh mode)
    time_t           startTime;        // start of acq for the current channel
-   uint             extraWait;        // extra seconds to wait until timeout
+   time_t           extraWait;        // extra seconds to wait until timeout
    bool             doSlow;           // user option: do not skip channels w/o reception
    bool             doRefresh;        // user option: check already known providers only
    bool             useXawtv;         // user option: work on predefined channel list

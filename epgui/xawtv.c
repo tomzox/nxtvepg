@@ -31,7 +31,7 @@
  *     xawtv-remote.c by Gerd Knorr (kraxel@bytesex.org).  Some source code
  *     is directly derived from xawtv.
  *
- *  $Id: xawtv.c,v 1.32 2003/04/12 13:37:20 tom Exp tom $
+ *  $Id: xawtv.c,v 1.33 2003/06/28 11:29:18 tom Exp tom $
  */
 
 #ifdef WIN32
@@ -560,7 +560,8 @@ static bool Xawtv_QueryRemoteStation( Window wid, char * pBuffer, int bufLen )
    Tk_ErrorHandler errHandler;
    Display *dpy;
    Atom type;
-   int format, idx, argc;
+   int format, argc;
+   ulong off;
    ulong nitems, bytesafter;
    uchar *args;
    bool result = FALSE;
@@ -577,14 +578,14 @@ static bool Xawtv_QueryRemoteStation( Window wid, char * pBuffer, int bufLen )
                                   &type, &format, &nitems, &bytesafter, &args) == Success) && (args != NULL) )
          {
             // argument list is: frequency, channel, name
-            for (idx=0, argc=0; idx < nitems; idx += strlen(args + idx) + 1, argc++)
+            for (off=0, argc=0; off < nitems; off += strlen(args + off) + 1, argc++)
             {
                if (argc == 2)
                {
-                  dprintf2("Xawtv-Query: window 0x%lX: station name: %s\n", (ulong)wid, args + idx);
+                  dprintf2("Xawtv-Query: window 0x%lX: station name: %s\n", (ulong)wid, args + off);
                   if (pBuffer != NULL)
                   {
-                     strncpy(pBuffer, args + idx, bufLen);
+                     strncpy(pBuffer, args + off, bufLen);
                      pBuffer[bufLen - 1] = 0;
                   }
                   result = TRUE;

@@ -37,7 +37,7 @@
  *    WinDriver replaced with DSdrv (DScaler driver)
  *      March 2002 by E-Nek (e-nek@netcourrier.com)
  *
- *  $Id: bt8x8.c,v 1.6 2003/04/12 17:53:31 tom Exp tom $
+ *  $Id: bt8x8.c,v 1.8 2003/06/23 19:52:50 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -139,6 +139,8 @@ static void Bt8x8_I2cInitialize( void )
    m_I2CSleepCycle = m_I2CSleepCycle / elapsed * 1000L / 50000L;
    
    m_I2CInitialized = TRUE;
+
+   dprintf2("BT848-I2cInitialize: elapsed ticks=%ld sleep cycle=%ld\n", elapsed, m_I2CSleepCycle);
 }
 
 static void Bt8x8_I2cSleep( void )
@@ -465,6 +467,68 @@ static void Bt8x8_InitPll( int type )
 }
 
 // ----------------------------------------------------------------------------
+// Save/reload PCI register state into/from RAM array on host
+// - save or restore every register which is written to by nxtvepg,
+//   except for DMA, interrupt and capture control
+//
+static void Bt8x8_ManageMyState( void )
+{
+   ManageByte(BT848_IFORM);
+   ManageByte(BT848_FCNTR);
+   ManageByte(BT848_PLL_F_LO);
+   ManageByte(BT848_PLL_F_HI);
+   ManageByte(BT848_PLL_XCI);
+   ManageByte(BT848_TGCTRL);
+   ManageByte(BT848_TDEC);
+   ManageByte(BT848_E_CROP);
+   ManageByte(BT848_O_CROP);
+   ManageByte(BT848_E_VDELAY_LO);
+   ManageByte(BT848_O_VDELAY_LO);
+   ManageByte(BT848_E_VACTIVE_LO);
+   ManageByte(BT848_O_VACTIVE_LO);
+   ManageByte(BT848_E_HDELAY_LO);
+   ManageByte(BT848_O_HDELAY_LO);
+   ManageByte(BT848_E_HACTIVE_LO);
+   ManageByte(BT848_O_HACTIVE_LO);
+   ManageByte(BT848_E_HSCALE_HI);
+   ManageByte(BT848_O_HSCALE_HI);
+   ManageByte(BT848_E_HSCALE_LO);
+   ManageByte(BT848_O_HSCALE_LO);
+   ManageByte(BT848_BRIGHT);
+   ManageByte(BT848_E_CONTROL);
+   ManageByte(BT848_O_CONTROL);
+   ManageByte(BT848_CONTRAST_LO);
+   ManageByte(BT848_SAT_U_LO);
+   ManageByte(BT848_SAT_V_LO);
+   ManageByte(BT848_HUE);
+   ManageByte(BT848_E_SCLOOP);
+   ManageByte(BT848_O_SCLOOP);
+   ManageByte(BT848_WC_UP);
+   ManageByte(BT848_VTOTAL_LO);
+   ManageByte(BT848_VTOTAL_HI);
+   ManageByte(BT848_DVSIF);
+   ManageByte(BT848_OFORM);
+   ManageByte(BT848_E_VSCALE_HI);
+   ManageByte(BT848_O_VSCALE_HI);
+   ManageByte(BT848_E_VSCALE_LO);
+   ManageByte(BT848_O_VSCALE_LO);
+   ManageByte(BT848_ADC);
+   ManageByte(BT848_E_VTC);
+   ManageByte(BT848_O_VTC);
+   ManageByte(BT848_COLOR_FMT);
+   ManageByte(BT848_COLOR_CTL);
+   ManageByte(BT848_VBI_PACK_SIZE);
+   ManageByte(BT848_VBI_PACK_DEL);
+   ManageByte(BT848_ADELAY);
+   ManageByte(BT848_BDELAY);
+   ManageByte(BT848_GPIO_REG_INP);
+   ManageWord(BT848_GPIO_DMA_CTL);
+   ManageDword(BT848_GPIO_OUT_EN);
+   ManageDword(BT848_GPIO_OUT_EN_HIBYTE);
+   ManageDword(BT848_GPIO_DATA);
+}
+
+// ----------------------------------------------------------------------------
 // Reset the Bt8x8 and program all relevant registers with constants
 //
 static bool Bt8x8_ResetHardware( void )
@@ -709,13 +773,9 @@ static void Bt8x8_Close( void )
    {
       WriteByte(BT848_SRESET, 0);
 
-      // Workaround for Hauppauge "WinTV2000" TV application:
-      // - without this workaround the TV image is too dark when started after nxtvepg
-      // - appearently this TV app does neither initialize this register nor do a reset
-      //   upon start and hence depends on gamma control to be pre-enabled; this happens
-      //   to be the case after a PCI reset, but not after a soft-reset
-      Sleep(50);
-      WriteByte(BT848_COLOR_CTL, BT848_COLOR_CTL_GAMMA);
+      // reset PCI registers to original state
+      HwPci_RestoreState();
+      Bt8x8_ManageMyState();
    }
 
    Bt8x8_FreeDmaMemory();
@@ -751,6 +811,9 @@ static bool Bt8x8_Open( TVCARD * pTvCard )
       result = Bt8x8_AllocDmaMemory();
       if (result)
       {
+         HwPci_InitStateBuf();
+         Bt8x8_ManageMyState();
+
          // initialize all PCI registers
          Bt8x8_ResetHardware();
       }

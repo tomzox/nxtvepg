@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pilistbox.c,v 1.88 2003/03/04 21:30:58 tom Exp tom $
+ *  $Id: pilistbox.c,v 1.89 2003/06/28 11:23:02 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -61,7 +61,7 @@
 typedef struct
 {
    uchar    netwop_no;
-   ulong    start_time;
+   time_t   start_time;
 } PIBOX_ENTRY;
 
 typedef enum 
@@ -331,7 +331,7 @@ void PiListBox_Refresh( void )
 {
    const PI_BLOCK *pPiBlock, *pPrev, *pNext;
    uchar last_netwop;
-   ulong min_time;
+   time_t min_time;
    int i;
 
    if (pibox_state != PIBOX_LIST)
@@ -475,7 +475,7 @@ static void PiListBox_ScrollMoveto( int newpos )
    if (pibox_max > pibox_height)
    {
       uint old_netwop;
-      ulong old_start;
+      time_t old_start;
 
       if (newpos < 0)
          newpos = 0;

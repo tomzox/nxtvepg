@@ -1,0 +1,218 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
+<HTML lang="en">
+<HEAD>
+<TITLE>Proposal for v4l2 extension</TITLE>
+<META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
+<META name="language" content="en">
+<META name="robots" content="index, follow">
+<LINK rel="stylesheet" type="text/css" href="http://nxtvepg.sourceforge.net/nxtvepg.css">
+</HEAD>
+<BODY>
+
+<H1>Proposal for channel coordination between multiple v4l2 users</H1>
+
+<H2>Summary</H2>
+<P>
+I'm proposing an extension for the
+<A HREF="http://bytesex.org/v4l/spec/">v4l2 API</A> which would allow
+device users (i) to "play nice" with each other in regard to channel
+changes and (ii) to efficiently detect channel or norm changes by
+other users.  I've made patches against bttv and saa7134 and small
+test programs as proof of concept which I'd like to put the up for
+discussion.
+</P>
+
+<H2>Downloads</H2>
+<UL>
+<LI><A HREF="http://nxtvepg.sourceforge.net/v4l2/bttv9-s_prio.diff">Patch</A> against
+    <A HREF="http://bytesex.org/snapshot">bttv9-20030605</A>
+<LI><A HREF="http://nxtvepg.sourceforge.net/v4l2/saa7134-s_prio.diff">Patch</A> against
+    <A HREF="http://bytesex.org/snapshot">saa7134-20030605</A>
+<LI><A HREF="http://nxtvepg.sourceforge.net/v4l2/test-prio.c">Test program for channel priorities</A>
+<LI><A HREF="http://nxtvepg.sourceforge.net/v4l2/test-chnevent.c">Test program for channel events</A>
+</UL>
+
+<H2>Details</H2>
+<P>
+A few months ago I already
+<A HREF="http://www.redhat.com/mailman/private/video4linux-list/2003-January/msg00134.html">mailed to the list</A>
+asking for an extension
+of the v4l2 API to compensate for some of the side-effects of allowing
+multiple opens of the video devices, in particular for data services.
+My impression of the discussion was that there was an agreement that
+something should be done, but driver extensions should be as minimal
+as possible.  Unfortunately no solution was found at that time that
+enthralled anyone.
+</P><P>
+In the meantime we've discussed the matter some more on the
+<A HREF="http://zapping.sourceforge.net/doc/libzvbi/index.html">libzvbi</A>
+mailing list and came up with a solution which would provide the
+necessary means for data service apps.  Please keep in mind all
+following relates only to *channel* switching; capturing is not
+affected.
+</P>
+
+<H3>Avoiding disruptive channel changes</H3>
+<P>
+Background data harvesting applications often require to switch to a
+certain channel to load data from.  Preferrably such channel changes
+should be restricted to times when no TV display or other interactive
+application is running, to avoid annoying the user and forcing him/her
+to manually kill the background process.  With v4l1 such apps could
+achieve that simply by switching the channel through /dev/video.
+</P><P>
+To allow v4l2 clients to "play nice" too, I'd like to propose a concept
+which is based on a numeric "priority" level: by default all device
+users are assigned a middle priority when opening the device. By means
+of a new ioctl VIDIOC_S_CHNPRIO users can freely manipulate their level.
+Channel, frequency or norm changes would only succeed if there is no
+user with a higher priority, else the change is rejected and error EBUSY
+is returned (coordination of users at the same level is outside of the
+scope of this proposal, as it is dealt with differently between levels.
+At background level the VBI proxy can resolve conflicts, see
+<A HREF="http://nxtvepg.sourceforge.net/tmp/README-proxy.txt">VBI proxy</A>.)
+</P><P>
+Normal TV display and other interactive apps would not need to be
+changed at all.  Background apps would only have to call the above ioctl
+once to lower their priority to the minimum and be prepared to get EBUSY
+upon channel changes afterwards.
+</P><P>
+This ioctl could also allow to raise ones default above the default,
+which can be used by SoftVCRs to assist the user in avoiding to
+accidentially destroy the recording, e.g. by starting a TV display app
+which switches to channel #1 by default.  I don't know yet if this
+possibility will be used, but it's a straight-forward extension and
+comes at close to zero extra effort, so I don't see a reason not to
+include it.  We could also create an "exclusive" level which is only
+granted to one file handle for those apps which need to make absolutely
+sure noone interferes with their channel setup.
+</P><P>
+I've proposed such a simple priority scheme in the past, but it was
+rejected by Gerd Knorr AFAIR because of implementational issues, e.g.
+absence of a list of device users.  I've managed to work around this by
+maintaining global counters for the number of clients at each priority
+level (see the patch). Each file handle also remembers it's own level
+in it's private data.  To the driver checking channel change permission
+simply means checking for a count greater zero in the priorities above
+the respective file handle's own priority level.
+</P><P>
+I'd propose to offer the following 4 priority levels:
+</P>
+<UL>
+<LI>3= exclusive (non-interruptable TV recording)
+<LI>2= recording (secondary, non-exclusive recording)
+<LI>1= interactive (default: TV viewer, Radio, teletext reader)
+<LI>0= background (background data harvesting)
+</UL>
+<PRE>
+enum v4l2_chn_prio {
+        V4L2_CHN_PRIO_BACKGROUND,
+        V4L2_CHN_PRIO_INTERACTIVE,
+        V4L2_CHN_PRIO_DEFAULT = V4L2_CHN_PRIO_INTERACTIVE,
+        V4L2_CHN_PRIO_RADIO   = V4L2_CHN_PRIO_INTERACTIVE,
+        V4L2_CHN_PRIO_RECORD,
+        V4L2_CHN_PRIO_EXCL,
+        V4L2_CHN_PRIO_COUNT
+};
+</PRE>
+<P>
+For informational purposes the max. priority level among all device
+users can be queried with ioctl VIDIOC_G_PRIO.
+</P>
+<PRE>
+#define VIDIOC_G_CHNPRIO   _IOR('V' , BASE_VIDIOCPRIVATE+10, enum v4l2_chn_prio)
+#define VIDIOC_S_CHNPRIO   _IOW('V' , BASE_VIDIOCPRIVATE+11, enum v4l2_chn_prio)
+</PRE>
+<P>
+Still open is the handling of radio: bttv doesn't keep private data
+hence radio app's channel priority level is fixed at the default.
+Also the saa7134 driver immediately puts the device in radio mode
+when the device is opened, thereby destroying the channel setup of any
+other applications regardless of channel priorities.
+</P>
+
+<H3>Channel event notifications</H3>
+<P>
+Even with the above instruments it'll still happen frequently that one
+app switches the channel while others are capturing.  Most types of
+applications should react to such changes in one way or another: TV
+displays will at least update the channel name in their window's title
+bar, teletext apps will flush their page cache etc.
+</P><P>
+I'm proposing to add a mechanism that can provide at least a trigger
+to affected applications when a change of global parameters occurs.
+They can then use the appropriate ioctls to query for new parameter
+values.  Again, this mechanism is designed to allow applications to
+play nice which are otherwise not aware of each other. It's specifically
+not designed to support communication between video control panels and
+TV displays, which probably needs more elaborate event processing and
+should be dealt with in user space.
+</P><P>
+To provide such triggers I propose to add two ioctl commands: one to
+put a file handle into an "event reporting" mode (S_CHNEVENT), and a
+second one to query for ocurred events (G_CHNEVENT).  The latter ioctl 
+can either block until an event occurs, or poll() and select() can be
+used to wait for an event.
+</P><P>
+The crux here is to use a separate file handle exclusively for event
+reporting.  This keeps implementation in the driver simple, as users
+need not be woken up while blocked in a video buffer queue etc. Still
+no new minor device is required, as any v4l2 file handle can be put
+into event reporting mode simply by use of S_CHNEVENT.
+</P><P>
+Currently G_CHNEVENT returns an event mask which narrows down which type
+of event has occured, i.e. channel/tuner/freq., video norm, channel user
+priority.  The intention is to limit the number of ioctl queries
+the user has to do; but I'm not sure yet if we really need that or can
+drop it to keep the driver patch simpler. The following enum defines bit
+positions in v4l2_chn_event_mask:
+</P>
+<PRE><KBD>
+enum v4l2_chn_event_bit {
+        V4L2_CHN_EV_STD,        /* norm change */
+        V4L2_CHN_EV_INP,        /* channel or TV freq. change (implies possible norm change) */
+        V4L2_CHN_EV_PRIO,       /* channel priority change */
+        V4L2_CHN_EV_COUNT
+};
+typedef __u32 v4l2_chn_event_mask;
+#define V4L2_CHN_EV_MASK_ALL  ((1 &lt;&lt; V4L2_CHN_EV_COUNT) - 1)
+</KBD></PRE>
+<P>
+In the driver the implementation is based on a set of counters in the
+global device struct.  Counters are incremented whenever the respective
+event type occurs.  Each file handle has a copy of the counter array
+in it's private data.  Clients waiting for events in G_CHNEVENT, or
+poll()s on file handles in event reporting mode are woken up whenever
+their private counter set differs from the global one.
+</P><P>
+I should note though that usually a channel change consists of several
+subsequent ioctls, but this solution will wake up the user already upon
+the first. So the user should probably not respond to the notification
+immediately, but instead use a timer, or only set a flag and deal with
+it when the next video/vbi frame arrives.  VBI apps will usually skip
+one or two frames after channel changes anyways, so it's not a problem,
+since a subsequent notification would only reset the skip counter.
+</P>
+<PRE>
+#define VIDIOC_G_CHNEVENT       _IOR('V' , BASE_VIDIOCPRIVATE+12, v4l2_chn_event_mask)
+#define VIDIOC_S_CHNEVENT       _IOW('V' , BASE_VIDIOCPRIVATE+13, v4l2_chn_event_mask)
+</PRE>
+<P>
+Also note the mask bits given to S_CHNEVENT are currently ignored; the
+parameter is only checked against 0 to en- or disable event report mode.
+G_CHNEVENT will hence wake up for any event, not only the ones specified
+in the mask.  I intend to clean this up after the discussion.
+</P>
+
+<H2>Author</H2>
+<P>
+Tom Zoerner (tomzo at nefkom net), June 14th 2003.
+</P><P>
+Thanks to Michael Schimek for his helpful suggestions.
+</P><P>
+If you need more details or background, please refer to the patches
+and test programs above or mail to the v4l mailing list or to me
+personally.  Any comments or suggestions are welcome.
+</P>
+</BODY>
+</HTML>

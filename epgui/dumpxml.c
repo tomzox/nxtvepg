@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumpxml.c,v 1.1 2003/02/26 21:59:34 tom Exp tom $
+ *  $Id: dumpxml.c,v 1.2 2003/06/28 11:00:37 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -148,7 +148,7 @@ void EpgDumpXml_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp )
          }
 
          // loop across all PI and dump their info
-         pPiBlock = EpgDbSearchFirstPi(pDbContext, pPiFilterContext);
+         pPiBlock = EpgDbSearchFirstPi(pDbContext, NULL);
          while (pPiBlock != NULL)
          {
             // start & stop times, channel ID
@@ -212,7 +212,7 @@ void EpgDumpXml_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp )
 
             fprintf(fp, "</programme>\n");
 
-            pPiBlock = EpgDbSearchNextPi(pDbContext, pPiFilterContext, pPiBlock);
+            pPiBlock = EpgDbSearchNextPi(pDbContext, NULL, pPiBlock);
          }
          fprintf(fp, "</tv>\n");
       }

@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqsrv.h,v 1.5 2002/05/01 11:05:28 tom Exp tom $
+ *  $Id: epgacqsrv.h,v 1.6 2003/06/28 10:25:57 tom Exp tom $
  */
 
 #ifndef __EPGACQSRV_H
@@ -163,7 +163,7 @@ void EpgAcqServer_SetAddress( bool do_tcp_ip, const char * pIpStr, const char * 
 void EpgAcqServer_SetProvider( uint cni );
 void EpgAcqServer_SetVpsPdc( bool change );
 void EpgAcqServer_Destroy( void );
-uint EpgAcqServer_GetFdSet( fd_set * rd, fd_set * wr );
+sint EpgAcqServer_GetFdSet( fd_set * rd, fd_set * wr );
 void EpgAcqServer_HandleSockets( fd_set * rd, fd_set * wr );
 void EpgAcqServer_AddBlock( EPGDB_CONTEXT * dbc, EPGDB_BLOCK * pNewBlock );
 

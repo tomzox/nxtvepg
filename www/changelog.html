@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: changelog.html,v 1.45 2003/04/21 19:40:14 tom Exp $ -->
+<!-- $Id: changelog.html,v 1.46 2003/07/03 19:03:30 tom Exp $ -->
 <HEAD>
 <TITLE>Nextview EPG Decoder Change-Log</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -29,6 +29,30 @@ updated while work is in progress and new bugs are fixed or features added.
 For more details on work in progress please refer to
 <A HREF="http://sourceforge.net/mailarchive/forum.php?forum_id=14102">mailing list archives</A>.
 </P>
+
+
+<H2><A NAME="release_2_5_2">From 2.5.1 to 2.5.2 (July/1/2003)</A></H2>
+<P>
+This release contains the following fixes:
+</P>
+<UL>
+<LI>Windows BT8x8 driver: restore settings for all PCI registers upon shutdown
+  (solves problem with Hauppauge WinTV, thanks to Peter Rolf for pointing this
+  out; also solves problem with BtWinCap driver, as pointed out anonymously
+  in the discussion forum 2003-June-07)
+<LI>Windows: fixed support for Microtune tuner "MT2032" (e.g. on Pinnacle cards)
+  Many thanks to Oliview Avenel for debugging support.
+<LI>Windows: updated &amp; added TV card configuration from DScaler CVS
+<LI>Windows: added "Close this menu" entry to systray menu (workaround)
+<LI>removed German network 3sat from list of known Nextview EPG providers
+<LI>XML export via control menu dialog no longer applies current filter setting,
+  i.e. all programmes of all networks in the database are exported.
+<LI>fixed compiler warnings for gcc 3.3 (signed/unsigned type conflicts)
+<LI>UNIX: added compiler switch -DZVBI_DECODER in the Makefile to replace VBI
+  (Teletext) slicer with code from libzvbi which performs better on channels
+  with weak reception; sometimes this slicer seems to eat up a lot of CPU
+  (up to 25% on my 400MHz K6-2)
+</UL>
 
 
 <H2><A NAME="release_2_5_1">From 2.5.0 to 2.5.1 (April/21/2003)</A></H2>

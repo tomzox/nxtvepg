@@ -5,6 +5,33 @@ features).  For patchlevel releases also internal changes might be listed in
 case they may fix bugs (or cause new ones)
 
 
+Work in progress:
+
+- UNIX: added support for libzvbi (with or without proxy daemon), enabled by
+  compiler switch -DUSE_LIBZVBI in the Makefile (note this is mutually
+  exclusive with the -DZVBI_DECODER switch)
+
+
+from 2.5.1 to 2.5.2 (2003-July-01)
+
+- Windows BT8x8 driver: restore settings for all PCI registers upon shutdown
+  (solves problem with Hauppauge WinTV, thanks to Peter Rolf for pointing this
+  out; also solves problem with BtWinCap driver, as pointed out anonymously
+  in the discussion forum 2003-June-07)
+- Windows: fixed support for Microtune tuner "MT2032" (e.g. on Pinnacle cards)
+  Many thanks to Oliview Avenel for debugging support.
+- Windows: updated & added TV card configuration from DScaler CVS
+- Windows: added "Close this menu" entry to systray menu (workaround)
+- removed German network 3sat from list of known Nextview EPG providers
+- XML export via control menu dialog no longer applies current filter setting,
+  i.e. all programmes of all networks in the database are exported.
+- fixed compiler warnings for gcc 3.3 (signed/unsigned type conflicts)
+- UNIX: added compiler switch -DZVBI_DECODER in the Makefile to replace VBI
+  (Teletext) slicer with code from libzvbi which performs better on channels
+  with weak reception; sometimes this slicer seems to eat up a lot of CPU
+  (up to 25% on my 400MHz K6-2)
+
+
 from 2.5.0 to 2.5.1 (2003-April-21)
 
 - fixed French default shortcut "Météo" (did pop up an error message when

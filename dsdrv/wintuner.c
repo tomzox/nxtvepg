@@ -32,7 +32,7 @@
  *  DScaler #Id: MT2032.cpp,v 1.11 2002/10/31 21:42:56 adcockj Exp #
  *  DScaler #Id: TDA9887.cpp,v 1.2 Sat Feb 22 10:07:10 2003 unknown Exp #
  *
- *  $Id: wintuner.c,v 1.13 2003/03/09 19:29:44 tom Exp tom $
+ *  $Id: wintuner.c,v 1.14 2003/06/23 19:52:36 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -495,6 +495,7 @@ static void Tda9887_TunerSet( bool bPreSet, uint norm /* eVideoFormat videoForma
 {
    const BYTE * tda9887set;
 
+   dprintf2("Tda9887-TunerSet: preset=%d, norm=%d", bPreSet, norm);
    if (bPreSet)
    {
        switch (norm)
@@ -534,7 +535,14 @@ static void Tda9887_Init( bool bPreInit, uint norm /* eVideoFormat videoFormat *
 
 static bool Tda9887_Detect( void )
 {
-   return I2CBus_Write(tda9887detect, 5);
+   bool result;
+
+   dprintf0("Tda9887-Detect: query I2C bus...");
+
+   result = I2CBus_Write(tda9887detect, 5);
+
+   dprintf1("Tda9887-Detect: ...result: %d", result);
+   return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -607,6 +615,7 @@ static void TDA9887Pinnacle_TunerSet(bool bPreSet, uint norm /* eVideoFormat vid
 {
     static BYTE bData[5];
 
+    dprintf3("TDA9887Pinnacle-TunerSet: preset=%d, norm=%d (last %d)", bPreSet, norm, m_LastVideoFormat);
     if (norm != m_LastVideoFormat)
     {
         BYTE   bVideoIF     = 0;
@@ -692,7 +701,7 @@ static void TDA9887Pinnacle_TunerSet(bool bPreSet, uint norm /* eVideoFormat vid
             //bVideoIF     = TDA9887_VideoIF_38_90;
             //bAudioIF     = TDA9887_AudioIF_6_5;
             //break;
-        case VIDEOFORMAT_SECAM_L:
+        //case VIDEOFORMAT_SECAM_L:
             bVideoIF     = TDA9887_VideoIF_38_90;
             bAudioIF     = TDA9887_AudioIF_6_5;
             break;
@@ -786,6 +795,8 @@ static bool MT2032_Initialize( uint defaultNorm )
     BYTE rdbuf[22];
     int  xogc, xok = 0;
     int  i;
+
+    dprintf1("MT2032-Initialize: default norm %d\n", defaultNorm);
 
     if (haveTda9887Standard)
        Tda9887_Init(TRUE, defaultNorm);
@@ -1084,6 +1095,8 @@ static bool MT2032_SetIFFreq(int rfin, int if1, int if2, int from, int to, uint 
         else if (haveTda9887Pinnacle)
             TDA9887Pinnacle_TunerSet(TRUE, norm);
 
+         dprintf4("MT2032-SetIFFreq: 0x%02X%02X%02X%02X...\n", buf[0x00], buf[0x01], buf[0x02], buf[0x03]);
+
         /* send only the relevant registers per Rev. 1.2 */
         MT2032_SetRegister(0, buf[0x00]);
         MT2032_SetRegister(1, buf[0x01]);
@@ -1154,12 +1167,14 @@ bool Tuner_SetFrequency( TUNER_TYPE type, uint wFrequency, uint norm )
    }
    else if ((type < TUNERS_COUNT) && (type != TUNER_ABSENT))
    {
+      dprintf4("Tuner-SetFrequency: type=%d, freq=%d (last=%d), norm=%d\n", type, wFrequency, lastWFreq, norm);
+
       if (type == TUNER_MT2032)
       {
          // XXX TODO: norm handling: use initial norm for now
          norm = m_LastVideoFormat;
 
-         return MT2032_SetIFFreq(wFrequency * 1000L / 16, 1090 * 1000 * 1000, 38900 * 1000, 32900 * 1000, 39900 * 1000, norm);
+         return MT2032_SetIFFreq(wFrequency * 1000 / 16 * 1000, 1090 * 1000 * 1000, 38900 * 1000, 32900 * 1000, 39900 * 1000, norm);
       }
 
       if ((wFrequency < 44*16) || (wFrequency > 958*16))
@@ -1272,9 +1287,13 @@ void Tuner_Close( void )
 bool Tuner_Init( TUNER_TYPE type, TVCARD * pNewTvCardIf )
 {
    BYTE port;
+   uint defaultNorm = 0;
    bool result = FALSE;
 
+   dprintf1("Tuner-Init: requested type %d\n", type);
    InitializeCriticalSection(&m_cCrit);
+   TunerDeviceI2C = 0;
+   pTvCard = NULL;
 
    if ((pNewTvCardIf != NULL) && (pNewTvCardIf->i2cBus != NULL))
    {
@@ -1285,10 +1304,29 @@ bool Tuner_Init( TUNER_TYPE type, TVCARD * pNewTvCardIf )
 
       if (type < TUNERS_COUNT)
       {
+         if ((type == TUNER_MT2032) || (type == TUNER_MT2032_PAL))
+         {
+            defaultNorm = (type == TUNER_MT2032_PAL) ? VIDEO_MODE_PAL : VIDEO_MODE_SECAM;
+            dprintf1("Tuner-Init: detecting IFF demodulator for MT2032, norm %d\n", defaultNorm);
+
+            // detect and initialize external IF demodulator (must be done before port scan)
+            if (pTvCard->cfg->GetIffType(pTvCard, &isTda9887PinnacleMono) && Tda9887_Detect() )
+            {
+               haveTda9887Pinnacle = TRUE;
+               TDA9887Pinnacle_Init(TRUE, defaultNorm);
+            }
+            else if ( Tda9887_Detect() )
+            {
+               haveTda9887Standard  = TRUE;
+               Tda9887_Init(TRUE, defaultNorm);
+            }
+         }
+
          // scan the I2C bus for devices
          I2CBus_Lock();
          for (port = 0xc0; port <= 0xce; port += 2)
          {
+            dprintf1("Tuner-Init: check for tuner at 0x%02X\n", port);
             if ( pTvCard->i2cBus->I2cWrite(pTvCard, &port, 1) )
             {
                dprintf1("Tuner-Init: found tuner at 0x%02X\n", port);
@@ -1303,17 +1341,6 @@ bool Tuner_Init( TUNER_TYPE type, TVCARD * pNewTvCardIf )
 
             if ((type == TUNER_MT2032) || (type == TUNER_MT2032_PAL))
             {
-               uint defaultNorm = (type == TUNER_MT2032_PAL) ? VIDEO_MODE_PAL : VIDEO_MODE_SECAM;
-
-               // detect external IF demodulator
-               if (pTvCard->cfg->GetIffType(pTvCard, &isTda9887PinnacleMono) && Tda9887_Detect() )
-               {
-                  haveTda9887Pinnacle = TRUE;
-               }
-               else if ( Tda9887_Detect() )
-               {
-                  haveTda9887Standard  = TRUE;
-               }
                MT2032_Initialize(defaultNorm);
             }
             result = TRUE;
@@ -1322,6 +1349,7 @@ bool Tuner_Init( TUNER_TYPE type, TVCARD * pNewTvCardIf )
          {
             TunerDeviceI2C = 0;
             MessageBox(NULL, "Warning: no tuner found on I2C bus\nin address range 0xc0 - 0xce", "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+            debug0("Tuner-Init: no tuner found - disabling module");
          }
       }
       else
