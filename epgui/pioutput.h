@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pioutput.h,v 1.11 2002/10/20 17:35:27 tom Exp tom $
+ *  $Id: pioutput.h,v 1.12 2002/12/08 19:25:34 tom Exp tom $
  */
 
 #ifndef __PIOUTPUT_H
@@ -26,7 +26,7 @@
 // ----------------------------------------------------------------------------
 // Interface functions declaration
 
-typedef void (PiOutput_AppendInfoTextCb_Type) ( void *fp, const char * pShortInfo, bool insertSeparator, const char * pLongInfo );
+typedef void (PiOutput_AppendInfoTextCb_Type) ( void *fp, const char * pDesc, bool addSeparator );
 
 // Interface to filter module (series title lists)
 const char * PiOutput_DictifyTitle( const char * pTitle, uchar lang, char * outbuf, uint maxLen );

@@ -1,8 +1,22 @@
-If you need a detailed overview of differences between versions, ask for the
-RCS log files. In this file you'll find only a very brief listing of major
-changes or additions.
+This file summarizes changes between releases.
 
-Before you submit any feature requests, please read the TODO file.
+from 2.4.1 to 2.4.2 (2002-December-08)
+
+- Windows: Fixed Tuner parameters for "Philips SECAM/PAL-BG";
+  Thanks to Rami el Baida and Pascal for reporting this bug.
+- Windows: Fixed "maximizing" the main window: now only the window's height
+  is maximized, the width remains unchanged.
+- Windows: use bold font for clock (suggested by Thierry)
+- Fixed keyboard input handling for various configuration dialogs: popup
+  menus can now invoked by ALT-<underlined char> (note there's still a Windows
+  bug which prevents opening the popup multiple times subsequently); buttons
+  with dynamically changed labels do accept input focus by the TAB key.
+- Implemented redundancy removal in description texts of French providers
+  (e.g. multiple "Au sommaire: ..." paragraphs).  (Note that these repetitions
+  exist because both a short and long version of the programme description is
+  broadcasted; nxtvepg displays these together, but in TV sets they would
+  normally appear on different pages)
+
 
 from 2.4.0 to 2.4.1 (2002-December-01)
 

@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_netname.tcl,v 1.1 2002/10/25 20:16:27 tom Exp tom $
+#  $Id: dlg_netname.tcl,v 1.2 2002/12/08 19:59:00 tom Exp tom $
 #
 set netname_popup 0
 
@@ -48,7 +48,7 @@ proc NetworkNamingPopup {} {
    global netname_ailist netname_names netname_idx netname_xawtv netname_automatch
    global netname_prov_cnis netname_prov_names netname_provnets
    global netname_entry
-   global netname_popup font_fixed entry_disabledforeground
+   global netname_popup font_fixed entry_disabledforeground win_frm_fg
    global tvapp_name
 
    if {$netname_popup == 0} {
@@ -162,7 +162,7 @@ proc NetworkNamingPopup {} {
       frame .netname.list
       listbox .netname.list.ailist -exportselection false -height 20 -width 0 -selectmode single -relief ridge -yscrollcommand {.netname.list.sc set}
       pack .netname.list.ailist -anchor nw -side left -fill both -expand 1
-      scrollbar .netname.list.sc -orient vertical -command {.netname.list.ailist yview}
+      scrollbar .netname.list.sc -orient vertical -command {.netname.list.ailist yview} -takefocus 0
       pack .netname.list.sc -side left -fill y
       pack .netname.list -side left -pady 10 -padx 10 -fill both -expand 1
       bind .netname.list.ailist <ButtonPress-1> [list + after idle NetworkNameSelection]
@@ -179,7 +179,8 @@ proc NetworkNamingPopup {} {
       frame .netname.cmd.fx
       label .netname.cmd.fx.lab -text "In $tvapp_name:  "
       pack .netname.cmd.fx.lab -side left -anchor w
-      menubutton .netname.cmd.fx.mb -takefocus 1 -relief raised -borderwidth 2
+      menubutton .netname.cmd.fx.mb -takefocus 1 -relief raised -borderwidth 2 -indicatoron 1 \
+                                    -highlightthickness 1 -highlightcolor $win_frm_fg
       if [array exists netname_xawtv] {
          menu .netname.cmd.fx.mb.men -tearoff 0
          .netname.cmd.fx.mb configure -menu .netname.cmd.fx.mb.men

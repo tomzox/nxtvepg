@@ -23,7 +23,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: tvsim_gui.tcl,v 1.5 2002/10/13 10:36:03 tom Exp tom $
+#  $Id: tvsim_gui.tcl,v 1.6 2002/12/08 19:32:04 tom Exp tom $
 #
 
 set program_title {}
@@ -34,7 +34,12 @@ set grant_tuner 0
 set cur_chan 0
 set prev_chan 0
 
+set text_bg    #E9E9EC
+
 option add *Dialog.msg.font [list ansi -12 normal] userDefault
+option add *Listbox.background $text_bg userDefault
+option add *Entry.background $text_bg userDefault
+option add *Text.background $text_bg userDefault
 
 # create a listbox for the channel name list
 frame     .chan

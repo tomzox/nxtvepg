@@ -19,7 +19,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_ctxmencf.tcl,v 1.3 2002/11/30 20:28:38 tom Exp tom $
+#  $Id: dlg_ctxmencf.tcl,v 1.4 2002/12/08 19:59:00 tom Exp tom $
 #
 set ctxmencf_popup 0
 set ctxmencf {}
@@ -136,6 +136,7 @@ proc ContextMenuConfigPopup {} {
       pack .ctxmencf.cmd -side top -pady 5
 
       bind .ctxmencf <Key-F1> {PopupHelp $helpIndex(Configuration) "Context menu"}
+      bind .ctxmencf <Alt-KeyPress> [bind Menubutton <Alt-KeyPress>]
       bind .ctxmencf.cmd <Destroy> {+ set ctxmencf_popup 0}
       focus .ctxmencf.all.edit.title_ent
 

@@ -19,7 +19,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_prov.tcl,v 1.4 2002/11/10 20:30:41 tom Exp tom $
+#  $Id: dlg_prov.tcl,v 1.5 2002/12/08 19:59:00 tom Exp tom $
 #
 set provwin_popup 0
 set provmerge_popup 0
@@ -251,7 +251,8 @@ proc PopupProviderMerge {} {
          cfmisc "misc. features"
          cfvps "VPS/PDC label"
       }
-      menubutton .provmerge.mb -menu .provmerge.mb.men -relief raised -borderwidth 1 -text "Configure" -underline 0
+      menubutton .provmerge.mb -menu .provmerge.mb.men -relief raised -borderwidth 1 \
+                               -text "Configure" -underline 0
       pack .provmerge.mb -side top
       menu .provmerge.mb.men -tearoff 0
       .provmerge.mb.men add command -command {PopupProviderMergeOpt cftitle} -label $ProvmergeOptLabels(cftitle)
@@ -282,6 +283,7 @@ proc PopupProviderMerge {} {
       bind .provmerge.cmd.ok <Return> {tkButtonInvoke .provmerge.cmd.ok}
       bind .provmerge.cmd.ok <Escape> {tkButtonInvoke .provmerge.cmd.abort}
       bind .provmerge <Key-F1> {PopupHelp $helpIndex(Merged databases)}
+      bind .provmerge <Alt-KeyPress> [bind Menubutton <Alt-KeyPress>]
       focus .provmerge.cmd.ok
    } else {
       raise .provmerge

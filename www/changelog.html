@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: changelog.html,v 1.42 2002/12/01 19:21:00 tom Exp $ -->
+<!-- $Id: changelog.html,v 1.43 2002/12/08 21:25:53 tom Exp $ -->
 <HEAD>
 <TITLE>Nextview EPG Decoder Change-Log</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
@@ -44,12 +44,35 @@ improvements for the M$ Windows platform (see changelog for 0.7.1):
 -->
 
 
+<A NAME="release_2_4_2">
+<H2>From 2.4.1 to 2.4.2 (December/8/2002)</H2>
+</A>
+<P>This release fixes the following problems:</P>
+<UL>
+<LI>Windows: Fixed Tuner parameters for "Philips SECAM/PAL-BG";
+  Thanks to Rami el Baida and Pascal for reporting this bug.
+<LI>Windows: Fixed "maximizing" the main window: now only the window's height
+  is maximized, the width remains unchanged.
+<LI>Fixed keyboard input handling for various configuration dialogs: popup
+  menus can now invoked by ALT-&lt;underlined char&gt; (note there's still a Windows
+  bug which prevents opening the popup multiple times subsequently); buttons
+  with dynamically changed labels do accept input focus by the TAB key.
+</UL>
+<P>This release also contains the following improvements:</P>
+<UL>
+<LI>Implemented redundancy removal in description texts of French providers
+  (e.g. multiple "Au sommaire: ..." paragraphs).  (Note that these repetitions
+  exist because both a short and long version of the programme description is
+  broadcasted; nxtvepg displays these together, but in TV sets they would
+  normally appear on different pages)
+<LI>Windows: use bold font for clock (suggested by Thierry)
+</UL>
+
+
 <A NAME="release_2_4_1">
 <H2>From 2.4.0 to 2.4.1 (December/1/2002)</H2>
 </A>
-<P>
-This release fixes the following problems:
-</P>
+<P>This release fixes the following problems:</P>
 <UL>
 <LI>In generated HTML files the ".png" extension was missing in references to
   images used in user-defined columns.

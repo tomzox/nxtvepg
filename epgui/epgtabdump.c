@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgtabdump.c,v 1.4 2002/10/20 17:34:57 tom Exp tom $
+ *  $Id: epgtabdump.c,v 1.5 2002/12/08 19:25:42 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -54,49 +54,31 @@
 // ----------------------------------------------------------------------------
 // Print Short- and Long-Info texts or separators
 //
-static void EpgTabDumpPiInfoTextCb( void * vp, const char * pShortInfo,
-                                    bool insertSeparator, const char * pLongInfo )
+static void EpgTabDumpPiInfoTextCb( void * vp, const char * pDesc, bool addSeparator )
 {
    FILE * fp = (FILE *) vp;
-   const char * pText;
-   const char * pNewline;
+   char * pNewline;
    char  fmtBuf[15];
-   uint  idx;
 
    if (fp != NULL)
    {
-      if (pShortInfo == NULL)
-      {  // special case: neither short nor long info given: output only separator
-         assert(pLongInfo == NULL);
+      if (addSeparator)
+      {  // output separator between texts from different providers
          fprintf(fp, " //%%// ");
       }
-      else
+
+      // check for newline chars, they must be replaced, because one PI must
+      // occupy exactly one line in the output file
+      while ( (pNewline = strchr(pDesc, '\n')) != NULL )
       {
-         // use a pseudo-loop to process both the short and long info texts in the same way
-         pText = pShortInfo;
-         for (idx=0; idx < 2; idx++)
-         {
-            // check for newline chars, they must be replaced, because one PI must
-            // occupy exactly one line in the output file
-            while ( (pNewline = strchr(pText, '\n')) != NULL )
-            {
-               // print text up to (and excluding) the newline
-               sprintf(fmtBuf, "%%.%ds // ", pNewline - pText);
-               fprintf(fp, fmtBuf, pText);
-               // skip to text following the newline
-               pText = pNewline + 1;
-            }
-            fprintf(fp, "%s", pText);
-
-            if (insertSeparator)
-               fprintf(fp, " // ");
-
-            if (pLongInfo != NULL)
-               pText = pLongInfo;
-            else
-               break;
-         }
+         // print text up to (and excluding) the newline
+         sprintf(fmtBuf, "%%.%ds // ", pNewline - pDesc);
+         fprintf(fp, fmtBuf, pDesc);
+         // skip to text following the newline
+         pDesc = pNewline + 1;
       }
+      // write the segement behind the last newline
+      fprintf(fp, "%s", pDesc);
    }
 }
 

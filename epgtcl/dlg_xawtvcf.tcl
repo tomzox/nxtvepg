@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_xawtvcf.tcl,v 1.3 2002/11/10 20:31:01 tom Exp tom $
+#  $Id: dlg_xawtvcf.tcl,v 1.4 2002/12/08 19:59:00 tom Exp tom $
 #
 set xawtvcf_popup 0
 
@@ -71,7 +71,7 @@ proc XawtvConfigPopup {} {
    global xawtvcf_popup
    global xawtvcf wintvcf xawtv_tmpcf
    global tvapp_name wintvapp_idx wintvapp_path xawtv_tmp_tvapp_list
-   global is_unix fileImage
+   global is_unix fileImage win_frm_fg
 
    if {$xawtvcf_popup == 0} {
       CreateTransientPopup .xawtvcf "TV Application Interaction Configuration"
@@ -126,7 +126,7 @@ proc XawtvConfigPopup {} {
          pack .xawtvcf.all -side top -fill x
 
          frame  .xawtvcf.connect -borderwidth 1 -relief raised
-         checkbutton  .xawtvcf.connect.lab_tvapp -text "" -disabledforeground black
+         checkbutton  .xawtvcf.connect.lab_tvapp -text "" -disabledforeground black -takefocus 0
          bindtags  .xawtvcf.connect.lab_tvapp {.connect .}
          pack   .xawtvcf.connect.lab_tvapp -side top -anchor w -pady 5 -padx 5
          pack   .xawtvcf.connect -side top -fill x
@@ -152,7 +152,7 @@ proc XawtvConfigPopup {} {
          pack   .xawtvcf.tvapp.apptype.lab -side left -padx 5
          menubutton .xawtvcf.tvapp.apptype.mb -text [lindex $xawtv_tmp_tvapp_list $xawtv_tmpcf(tvapp_idx)] \
                          -justify center -relief raised -borderwidth 2 -menu .xawtvcf.tvapp.apptype.mb.men \
-                         -indicatoron 1
+                         -indicatoron 1 -takefocus 1 -highlightthickness 1 -highlightcolor $win_frm_fg
          menu   .xawtvcf.tvapp.apptype.mb.men -tearoff 0
          set cmd {.xawtvcf.tvapp.apptype.mb configure -text [lindex $xawtv_tmp_tvapp_list $xawtv_tmpcf(tvapp_idx)]}
          set idx 0

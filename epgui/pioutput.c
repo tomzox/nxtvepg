@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pioutput.c,v 1.43 2002/11/24 09:51:33 tom Exp tom $
+ *  $Id: pioutput.c,v 1.44 2002/12/08 19:25:28 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -1025,6 +1025,178 @@ void PiOutput_PiListboxInsert( const PI_BLOCK *pPiBlock, uint textrow )
 }
 
 // ----------------------------------------------------------------------------
+// Search for short-info text in each paragraph of long info
+// - short-info paragraph is completely ommitted if it's repeated completely at
+//   the start of a long-info paragraph (but the long-info paragraph may be longer);
+//   This applies to the French provider M6
+// - a short-info paragraph may also be only partially omitted, if a longer text
+//   at the end of the paragraph is repeated at the start of a long-info paragraph;
+//   This applies to the Germany provider RTL2 (they don't insert paragraph breaks
+//   before the description text in short-info)
+//
+static bool PiOutput_SearchLongInfo( const uchar * pShort, uint shortInfoLen,
+                                     const uchar * pLong,  uint longInfoLen )
+{
+   const uchar * pNewline;
+   const uchar * pt;
+   uint  len;
+   uchar c;
+   uint  result = shortInfoLen;
+
+   while (longInfoLen > 0)
+   {
+      pNewline = pLong;
+      while ((longInfoLen > 0) && (*pNewline != '\n'))
+      {
+         pNewline    += 1;
+         longInfoLen -= 1;
+      }
+
+      len = pNewline - pLong;
+      if (len > 30)
+      {
+         if (shortInfoLen < len)
+         {
+            len = shortInfoLen;
+            pt = pShort;
+         }
+         else
+            pt = pShort + (shortInfoLen - len);
+
+         // min length is 30, because else single words might match
+         c = *pLong;
+         while (len-- > 30)
+         {
+            if (*(pt++) == c)
+            {
+               if (strncmp(pt, pLong + 1, len) == 0)
+               {  // start of long info is identical to end of short info
+                  // -> truncate short info to remove identical part
+                  result = shortInfoLen - (len + 1);
+
+                  // remove whitespace and separator characters from the end of the truncated text
+                  pt = pShort + result - 1;
+                  while ( (pt > pShort) &&
+                          ((*pt == ' ') || (*pt == ':') || (*pt == '*') || (*pt == '-')) )
+                  {
+                     result -= 1;
+                     pt -= 1;
+                  }
+                  dprintf1("PiOutput-SearchLongInfo: REMOVE %s\n", pShort + result);
+                  // break inner and outer loop (hence the goto)
+                  goto found_match;
+               }
+            }
+         }
+      }
+      else if (shortInfoLen <= len)
+      {  // very short paragraph -> only match if the short-info text is contained completely
+         if (strncmp(pShort, pLong, shortInfoLen) == 0)
+         {
+            result = 0;
+            goto found_match;
+         }
+      }
+
+      // forward pointer to behind this paragraph
+      pLong = pNewline;
+      if (longInfoLen > 0)
+      {  // skip newline character, unless at end of text
+         pLong += 1;
+         longInfoLen -= 1;
+      }
+   }
+
+found_match:
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Concatenate short with long info text and remove redundant paragraphs
+// - each paragraph of short-info is compared with long-info;
+// - the invoked compare function then compares the short-info paragraph separately
+//   with each long-info paragraph
+//
+static uchar * PiOutput_UnifyShortLong( const uchar * pShort, uint shortInfoLen,
+                                        const uchar * pLong,  uint longInfoLen )
+{
+   const uchar * pNewline;
+   uint  outlen;
+   uint  len;
+   uint  nonRedLen;
+   uchar * pOut = NULL;
+
+   if ((pShort != NULL) && (pLong != NULL))
+   {
+      pOut = xmalloc(shortInfoLen + longInfoLen + 1 + 1);
+      outlen = 0;
+
+      while (shortInfoLen > 0)
+      {
+         pNewline = pShort;
+         while ((shortInfoLen > 0) && (*pNewline != '\n'))
+         {
+            pNewline     += 1;
+            shortInfoLen -= 1;
+         }
+
+         // ignore empty paragraphs (should never happen)
+         if (pNewline != pShort)
+         {
+            // cut off trailing "..." for comparison
+            len = pNewline - pShort;
+            if ( (len > 3) &&
+                 (pShort[len - 3] == '.') && (pShort[len - 2] == '.') && (pShort[len - 1] == '.') )
+            {
+               len -= 3;
+            }
+            // append the paragraph to the output buffer
+            strncpy(pOut + outlen, pShort, len);
+            pOut[outlen + len] = 0;
+
+            // check if this paragraph is part of long-info
+            nonRedLen = PiOutput_SearchLongInfo(pOut + outlen, len, pLong, longInfoLen);
+            if (nonRedLen > 0)
+            {  // not identical -> append this paragraph
+               if ((nonRedLen == len) && (len < pNewline - pShort))
+               {  // append any stuff which was cut off above
+                  nonRedLen = pNewline - pShort;
+                  strncpy(pOut + outlen + len, pShort + len, nonRedLen - len);
+               }
+               outlen += nonRedLen;
+               // append newline character, unless this is the first paragraph
+               // (note: no need to null-terminate the string here; done after the loop)
+               if (shortInfoLen > 0)
+                  pOut[outlen++] = '\n';
+            }
+            // forward pointer to behind this paragraph
+            pShort = pNewline;
+            if (shortInfoLen > 0)
+            {  // skip newline character, unless at end of text
+               pShort += 1;
+               shortInfoLen -= 1;
+            }
+         }
+         else  // (shortInfoLen > 0) is implied
+         {
+            pShort += 1;
+            shortInfoLen -= 1;
+         }
+      }
+
+      if ((outlen > 0) && (pOut[outlen - 1] != '\n'))
+         pOut[outlen++] = '\n';
+
+      strncpy(pOut + outlen, pLong, longInfoLen);
+      pOut[outlen + longInfoLen] = 0;
+   }
+   else
+      fatal2("PiOutput-UnifyShortLong: illegal NULL ptr params: %ld, %ld", (long)pShort, (long)pLong);
+
+   return pOut;
+}
+
+// ----------------------------------------------------------------------------
 // Remove descriptions that are substrings of other info strings in the given list
 //
 static uint PiOutput_UnifyMergedInfo( uchar ** infoStrTab, uint infoCount )
@@ -1116,9 +1288,8 @@ static uint PiOutput_UnifyMergedInfo( uchar ** infoStrTab, uint infoCount )
 //
 static uint PiOutput_SeparateMergedInfo( const PI_BLOCK * pPiBlock, uchar ** infoStrTab )
 {
-   const char *p, *ps, *pl, *pt;
-   uchar c;
-   int   shortInfoLen, longInfoLen, len;
+   const char *p, *ps, *pl;
+   int   shortInfoLen, longInfoLen;
    uint  count;
 
    p = PI_GET_SHORT_INFO(pPiBlock);
@@ -1133,7 +1304,7 @@ static uint PiOutput_SeparateMergedInfo( const PI_BLOCK * pPiBlock, uchar ** inf
       while (*p)
       {
          if (*p == '\n')
-         {  // end of short info found
+         {  // start of long info found
             shortInfoLen = p - ps;
             pl = p + 1;
          }
@@ -1151,47 +1322,8 @@ static uint PiOutput_SeparateMergedInfo( const PI_BLOCK * pPiBlock, uchar ** inf
 
       if (pl != NULL)
       {
-         // if there's a long info too, do the usual redundancy check
-
-         if (shortInfoLen > longInfoLen)
-         {
-            len = longInfoLen;
-            pt = ps + (shortInfoLen - longInfoLen);
-         }
-         else
-         {
-            len = shortInfoLen;
-            pt = ps;
-         }
-         c = *pl;
-
-         // min length is 30, because else single words might match
-         while (len-- > 30)
-         {
-            if (*(pt++) == c)
-            {
-               if (!strncmp(pt, pl+1, len))
-               {  // start of long info is identical to end of short info -> skip identical part in long info
-                  pl          += len + 1;
-                  longInfoLen -= len + 1;
-                  break;
-               }
-            }
-         }
-
-         infoStrTab[count] = xmalloc(shortInfoLen + longInfoLen + 1 + 1);
-         strncpy(infoStrTab[count], ps, shortInfoLen);
-
-         // if short and long info were not merged, add a newline inbetween
-         if (len <= 30)
-         {
-            infoStrTab[count][shortInfoLen] = '\n';
-            shortInfoLen += 1;
-         }
-         // append the long info to the text widget insert command
-         strncpy(infoStrTab[count] + shortInfoLen, pl, longInfoLen);
-
-         infoStrTab[count][shortInfoLen + longInfoLen] = 0;
+         // there's both short and long info -> redundancy removal
+         infoStrTab[count] = PiOutput_UnifyShortLong(ps, shortInfoLen, pl, longInfoLen);
       }
       else
       {  // only short info available; copy it into the array
@@ -1213,27 +1345,13 @@ void PiOutput_AppendShortAndLongInfoText( const PI_BLOCK *pPiBlock, PiOutput_App
 {
    if ( PI_HAS_SHORT_INFO(pPiBlock) && PI_HAS_LONG_INFO(pPiBlock) )
    {
-      // remove identical substring from beginning of long info
-      // (this feature has been added esp. for the German provider RTL-II)
-      const uchar *ps = PI_GET_SHORT_INFO(pPiBlock);
-      const uchar *pl = PI_GET_LONG_INFO(pPiBlock);
-      uint len = strlen(ps);
-      uchar c = *pl;
+      const uchar * pShortInfo = PI_GET_SHORT_INFO(pPiBlock);
+      const uchar * pLongInfo  = PI_GET_LONG_INFO(pPiBlock);
+      uchar * pConcat;
 
-      // min length is 30, because else single words might match
-      while (len-- > 30)
-      {
-         if (*(ps++) == c)
-         {
-            if (!strncmp(ps, pl+1, len))
-            {
-               pl += len + 1;
-               break;
-            }
-         }
-      }
-
-      AppendInfoTextCb(fp, PI_GET_SHORT_INFO(pPiBlock), (len <= 30), pl);
+      pConcat = PiOutput_UnifyShortLong(pShortInfo, strlen(pShortInfo), pLongInfo, strlen(pLongInfo));
+      AppendInfoTextCb(fp, pConcat, FALSE);
+      xfree((void *) pConcat);
    }
    else if (PI_HAS_SHORT_INFO(pPiBlock))
    {
@@ -1254,13 +1372,9 @@ void PiOutput_AppendShortAndLongInfoText( const PI_BLOCK *pPiBlock, PiOutput_App
          {
             if (infoStrTab[idx] != NULL)
             {
-               if (added > 0)
-               {  // not the only or first info -> insert separator image (a horizontal line)
-                  AppendInfoTextCb(fp, NULL, FALSE, NULL);
-               }
-
                // add the short info to the text widget insert command
-               AppendInfoTextCb(fp, infoStrTab[idx], FALSE, NULL);
+               // - if not the only or first info -> insert separator image (a horizontal line)
+               AppendInfoTextCb(fp, infoStrTab[idx], (added > 0));
 
                xfree(infoStrTab[idx]);
                added += 1;
@@ -1269,12 +1383,12 @@ void PiOutput_AppendShortAndLongInfoText( const PI_BLOCK *pPiBlock, PiOutput_App
       }
       else
       {
-         AppendInfoTextCb(fp, PI_GET_SHORT_INFO(pPiBlock), FALSE, NULL);
+         AppendInfoTextCb(fp, PI_GET_SHORT_INFO(pPiBlock), FALSE);
       }
    }
    else if (PI_HAS_LONG_INFO(pPiBlock))
    {
-      AppendInfoTextCb(fp, PI_GET_LONG_INFO(pPiBlock), FALSE, NULL);
+      AppendInfoTextCb(fp, PI_GET_LONG_INFO(pPiBlock), FALSE);
    }
 }
 
@@ -1430,42 +1544,32 @@ static void PiOutput_HtmlWriteString( FILE *fp, const char * pText )
 
 // ----------------------------------------------------------------------------
 // Print Short- and Long-Info texts or separators
+// - note: in HTML output there is no special separator between descriptions
+//   of different providers in a merged database, hence the "addSeparator"
+//   parameter is not used
 //
-static void PiOutput_HtmlAppendInfoTextCb( void *vp, const char * pShortInfo, bool insertSeparator, const char * pLongInfo )
+static void PiOutput_HtmlAppendInfoTextCb( void *vp, const char * pDesc, bool addSeparator )
 {
    FILE * fp = (FILE *) vp;
-   const char * pText;
    char * pNewline;
-   uint  idx;
 
-   if ((fp != NULL) && (pShortInfo != NULL))
+   if ((fp != NULL) && (pDesc != NULL))
    {
       fprintf(fp, "<tr>\n<td colspan=3 CLASS=\"textrow\">\n<p>\n");
 
-      // use a pseudo-loop to process both the short and long info texts in the same way
-      pText = pShortInfo;
-      for (idx=0; idx < 2; idx++)
+      // replace newline characters with paragraph tags
+      while ( (pNewline = strchr(pDesc, '\n')) != NULL )
       {
-         // replace newline characters with paragraph tags
-         while ( (pNewline = strchr(pText, '\n')) != NULL )
-         {
-            // print text up to (and excluding) the newline
-            *pNewline = 0;
-            PiOutput_HtmlWriteString(fp, pText);
-            fprintf(fp, "\n</p><p>\n");
-            // skip to text following the newline
-            pText = pNewline + 1;
-         }
-         PiOutput_HtmlWriteString(fp, pText);
-
-         if (insertSeparator)
-            fprintf(fp, "\n</p><p>\n");
-
-         if (pLongInfo != NULL)
-            pText = pLongInfo;
-         else
-            break;
+         // print text up to (and excluding) the newline
+         *pNewline = 0;  // XXX must not modify const string
+         PiOutput_HtmlWriteString(fp, pDesc);
+         fprintf(fp, "\n</p><p>\n");
+         // skip to text following the newline
+         pDesc = pNewline + 1;
       }
+      // write the segement behind the last newline
+      PiOutput_HtmlWriteString(fp, pDesc);
+
       fprintf(fp, "\n</p>\n</td>\n</tr>\n\n");
    }
 }
@@ -2001,39 +2105,29 @@ static int PiOutput_DumpHtml( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_
 // ----------------------------------------------------------------------------
 // Print Short- and Long-Info texts for XMLTV
 //
-static void PiOutput_XmlAppendInfoTextCb( void *vp, const char * pShortInfo, bool insertSeparator, const char * pLongInfo )
+static void PiOutput_XmlAppendInfoTextCb( void *vp, const char * pDesc, bool addSeparator )
 {
    FILE * fp = (FILE *) vp;
-   const char * pText;
    char * pNewline;
-   uint  idx;
 
-   if ((fp != NULL) && (pShortInfo != NULL))
+   if ((fp != NULL) && (pDesc != NULL))
    {
-      // use a pseudo-loop to process both the short and long info texts in the same way
-      pText = pShortInfo;
-      for (idx=0; idx < 2; idx++)
+      if (addSeparator)
+         fprintf(fp, "\n\n");
+
+      // replace newline characters with paragraph tags
+      while ( (pNewline = strchr(pDesc, '\n')) != NULL )
       {
-         // replace newline characters with paragraph tags
-         while ( (pNewline = strchr(pText, '\n')) != NULL )
-         {
-            // print text up to (and excluding) the newline
-            *pNewline = 0;
-            PiOutput_HtmlWriteString(fp, pText);
-            fprintf(fp, "\n\n");
-            // skip to text following the newline
-            pText = pNewline + 1;
-         }
-         PiOutput_HtmlWriteString(fp, pText);
-
-         if (insertSeparator)
-            fprintf(fp, "\n\n");
-
-         if (pLongInfo != NULL)
-            pText = pLongInfo;
-         else
-            break;
+         // print text up to (and excluding) the newline
+         *pNewline = 0;  // XXX must not modify const string
+         PiOutput_HtmlWriteString(fp, pDesc);
+         fprintf(fp, "\n\n");
+         // skip to text following the newline
+         pDesc = pNewline + 1;
       }
+      // write the segement behind the last newline
+      PiOutput_HtmlWriteString(fp, pDesc);
+
       fprintf(fp, "\n");
    }
 }
@@ -2440,25 +2534,28 @@ static void PiOutput_ExtCmdAppend( DYN_CHAR_BUF * pCmdBuf, const char * ps )
 // ----------------------------------------------------------------------------
 // Callback function for PiOutput-AppendShortAndLongInfoText
 //
-static void PiOutput_ExtCmdAppendInfoTextCb( void *fp, const char * pShortInfo, bool insertSeparator, const char * pLongInfo )
+static void PiOutput_ExtCmdAppendInfoTextCb( void *fp, const char * pDesc, bool addSeparator )
 {
    DYN_CHAR_BUF * pCmdBuf = (DYN_CHAR_BUF *) fp;
+   char * pNewline;
 
-   if (pShortInfo != NULL)
+   if ((pCmdBuf != NULL) && (pDesc != NULL))
    {
-      if (pLongInfo != NULL)
+      if (addSeparator)
+         PiOutput_ExtCmdAppend(pCmdBuf, " //// ");
+
+      // replace newline characters with "paragraph separators"
+      while ( (pNewline = strchr(pDesc, '\n')) != NULL )
       {
-         PiOutput_ExtCmdAppend(pCmdBuf, pShortInfo);
-         if (insertSeparator)
-            PiOutput_ExtCmdAppend(pCmdBuf, " // ");
-         PiOutput_ExtCmdAppend(pCmdBuf, pLongInfo);
+         // print text up to (and excluding) the newline
+         *pNewline = 0;  // XXX must not modify const string
+         PiOutput_ExtCmdAppend(pCmdBuf, pDesc);
+         PiOutput_ExtCmdAppend(pCmdBuf, " // ");
+         // skip to text following the newline
+         pDesc = pNewline + 1;
       }
-      else
-         PiOutput_ExtCmdAppend(pCmdBuf, pShortInfo);
-   }
-   else
-   {  // separator between info texts of different providers
-      PiOutput_ExtCmdAppend(pCmdBuf, " // ");
+      // write the segement behind the last newline
+      PiOutput_ExtCmdAppend(pCmdBuf, pDesc);
    }
 }
 

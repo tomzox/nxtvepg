@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_filter.tcl,v 1.5 2002/11/30 20:28:28 tom Exp tom $
+#  $Id: dlg_filter.tcl,v 1.6 2002/12/08 19:59:00 tom Exp tom $
 #
 set substr_grep_title 1
 set substr_grep_descr 1
@@ -621,6 +621,7 @@ proc UpdateDurationFilter { round {val 0} } {
 ##  Sorting criterion selection popup
 ##
 proc PopupSortCritSelection {} {
+   global win_frm_fg
    global sortcrit_str sortcrit_class sortcrit_class_sel
    global sortcrit_popup
 
@@ -659,12 +660,14 @@ proc PopupSortCritSelection {} {
       label   .sortcrit.all.sccl.lab_class -text "Class:"
       grid    .sortcrit.all.sccl.lab_class -sticky w -row 0 -column 0
       tk_optionMenu .sortcrit.all.sccl.mb_class sortcrit_class 1 2 3 4 5 6 7 8
+      .sortcrit.all.sccl.mb_class configure -takefocus 1 -highlightthickness 1 -highlightcolor $win_frm_fg
       trace variable sortcrit_class w UpdateSortCritClass
       grid    .sortcrit.all.sccl.mb_class -sticky we -row 0 -column 1
       label   .sortcrit.all.sccl.lab_inv -text "Invert class:"
       grid    .sortcrit.all.sccl.lab_inv -sticky w -row 1 -column 0
       menubutton .sortcrit.all.sccl.mb_inv -menu .sortcrit.all.sccl.mb_inv.men -text "Select" \
-                                    -indicatoron 1 -direction flush -relief raised -borderwidth 2
+                                    -indicatoron 1 -direction flush -relief raised -borderwidth 2 \
+                                    -takefocus 1 -highlightthickness 1 -highlightcolor $win_frm_fg
       AddInvertMenuForClasses .sortcrit.all.sccl.mb_inv.men sortcrit
       .sortcrit.all.sccl.mb_inv.men configure -tearoff 0
       grid    .sortcrit.all.sccl.mb_inv -sticky we -row 1 -column 1
@@ -684,6 +687,7 @@ proc PopupSortCritSelection {} {
       pack .sortcrit.all -side left -anchor n -fill both -expand 1 -padx 5 -pady 5
 
       bind .sortcrit <Key-F1> {PopupHelp $helpIndex(Filtering) "Sorting Criteria"}
+      bind .sortcrit <Alt-KeyPress> [bind Menubutton <Alt-KeyPress>]
       bind .sortcrit.all <Destroy> {+ set sortcrit_popup 0}
       focus .sortcrit.all.inp.str
 

@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pilistbox.c,v 1.82 2002/11/10 20:35:23 tom Exp tom $
+ *  $Id: pilistbox.c,v 1.83 2002/12/08 19:25:16 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -408,31 +408,21 @@ static void PiListBox_InsertText( PIBOX_TCLOBJ widgetObjIdx, int trow, const cha
 // ----------------------------------------------------------------------------
 // Callback function for PiOutput-AppendShortAndLongInfoText
 //
-static void PiListBox_AppendInfoTextCb( void *fp, const char * pShortInfo, bool insertSeparator, const char * pLongInfo )
+static void PiListBox_AppendInfoTextCb( void *fp, const char * pDesc, bool addSeparator )
 {
    assert(fp == NULL);
 
-   if (pShortInfo != NULL)
+   if (pDesc != NULL)
    {
-      if (pLongInfo != NULL)
-      {
-         //Tcl_VarEval(interp, ".all.pi.info.text insert end {", pShortInfo, (insertSeparator ? "\n" : ""), pLongInfo, "}", NULL);
-         PiListBox_InsertText(TCLOBJ_WID_INFO, -1, pShortInfo, TCLOBJ_STR_PARAGRAPH);
-         if (insertSeparator)
-            PiListBox_InsertText(TCLOBJ_WID_INFO, -1, "\n", TCLOBJ_STR_PARAGRAPH);
-         PiListBox_InsertText(TCLOBJ_WID_INFO, -1, pLongInfo, TCLOBJ_STR_PARAGRAPH);
+      if (addSeparator)
+      {  // separator between info texts of different providers
+         sprintf(comm, ".all.pi.info.text insert end {\n\n} title\n"
+                       ".all.pi.info.text image create {end - 2 line} -image bitmap_line\n");
+         eval_check(interp, comm);
       }
-      else
-      {
-         //Tcl_VarEval(interp, ".all.pi.info.text insert end {", pShortInfo, "}", NULL);
-         PiListBox_InsertText(TCLOBJ_WID_INFO, -1, pShortInfo, TCLOBJ_STR_PARAGRAPH);
-      }
-   }
-   else
-   {  // separator between info texts of different providers
-      sprintf(comm, ".all.pi.info.text insert end {\n\n} title\n"
-                    ".all.pi.info.text image create {end - 2 line} -image bitmap_line\n");
-      eval_check(interp, comm);
+
+      //Tcl_VarEval(interp, ".all.pi.info.text insert end {", pShortInfo, "}", NULL);
+      PiListBox_InsertText(TCLOBJ_WID_INFO, -1, pDesc, TCLOBJ_STR_PARAGRAPH);
    }
 }
 

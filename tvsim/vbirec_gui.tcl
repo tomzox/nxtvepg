@@ -58,6 +58,11 @@ InitGuiVars
 
 # set font type and size for message popups
 option add *Dialog.msg.font [list ansi -12 normal] userDefault
+# set background color for input widgets
+set text_bg    #E9E9EC
+option add *Listbox.background $text_bg userDefault
+option add *Entry.background $text_bg userDefault
+option add *Text.background $text_bg userDefault
 
 # create an image of a folder
 set fileImage [image create photo -data {
