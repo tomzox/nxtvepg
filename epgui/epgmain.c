@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgmain.c,v 1.89 2002/05/30 14:08:57 tom Exp tom $
+ *  $Id: epgmain.c,v 1.93 2002/08/11 19:50:43 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -79,6 +79,7 @@
 #include "epgui/xawtv.h"
 #include "epgui/wintv.h"
 #include "epgui/wintvcfg.h"
+#include "epgui/epgtabdump.h"
 
 #include "epgui/nxtv_logo.xbm"
 #include "epgui/ptr_up.xbm"
@@ -124,6 +125,7 @@ static const char * dbdir  = NULL;
 static int  videoCardIndex = -1;
 static bool disableAcq = FALSE;
 static bool optDaemonMode = FALSE;
+static EPGTAB_DUMP_MODE optDumpMode = EPGTAB_DUMP_NONE;
 #ifdef USE_DAEMON
 static bool optNoDetach   = FALSE;
 #endif
@@ -708,7 +710,7 @@ static void EventHandler_NetworkUpdate( EPGACQ_EVHAND * pAcqEv )
          mask |= TCL_WRITABLE;
 
       #ifndef WIN32
-      Tcl_CreateFileHandler(pAcqEv->fd, mask, EventHandler_Network, (ClientData) pAcqEv->fd);
+      Tcl_CreateFileHandler(pAcqEv->fd, mask, EventHandler_Network, INT2PVOID(pAcqEv->fd));
       #else
       if (pAcqEv->blockOnConnect)
          mask |= TCL_EXCEPTION;
@@ -1013,7 +1015,7 @@ static void DaemonTriggerGui( void )
 //
 static void EventHandler_DaemonStart( ClientData clientData, int mask )
 {
-   int fd = (int) clientData;
+   int fd = PVOID2INT(clientData);
    int execErrno;
    ssize_t res;
    char    buf[10];
@@ -1122,7 +1124,7 @@ bool EpgMain_StartDaemon( void )
          default:  // parent
             close(pipe_fd[1]);
             // wait for the daemon to start up (it will write to the pipe when it's done)
-            Tcl_CreateFileHandler(pipe_fd[0], TCL_READABLE, EventHandler_DaemonStart, (ClientData) pipe_fd[0]);
+            Tcl_CreateFileHandler(pipe_fd[0], TCL_READABLE, EventHandler_DaemonStart, INT2PVOID(pipe_fd[0]));
             result = TRUE;
             break;
       }
@@ -1433,7 +1435,7 @@ static void signal_handler( int sigval )
 {
    char str_buf[10];
 
-   if ((sigval == SIGHUP) && (optDaemonMode == FALSE))
+   if ((sigval == SIGHUP) && (optDaemonMode == FALSE) && (optDumpMode == EPGTAB_DUMP_NONE))
    {  // toggle acquisition on/off (unless in daemon mode)
       AddMainIdleEvent(EventHandler_SigHup, NULL, TRUE);
    }
@@ -1958,6 +1960,7 @@ static void Usage( const char *argv0, const char *argvn, const char * reason )
                    "       -nodetach           \t: daemon stays in the foreground\n"
                    "       -acqpassive         \t: force daemon to passive acquisition mode\n"
                    #endif
+                   "       -dump pi|ai|pdc     \t: dump database (schedules, networks or themes)\n"
                    "       -demo <db-file>     \t: load database in demo mode\n",
                    argv0, reason, argvn, argv0);
 #if 0
@@ -2024,6 +2027,18 @@ static void ParseArgv( int argc, char * argv[] )
             Usage(argv[0], argv[argIdx], "unsupported option");
          }
          #endif
+         else if (!strcmp(argv[argIdx], "-dump"))
+         {  // dump database and exit
+            if (argIdx + 1 < argc)
+            {
+               optDumpMode = EpgTabDump_GetMode(argv[argIdx + 1]);
+               if (optDumpMode == EPGTAB_DUMP_NONE)
+                  Usage(argv[argIdx + 1], argv[argIdx], "illegal mode keyword for");
+               argIdx += 2;
+            }
+            else
+               Usage(argv[0], argv[argIdx], "missing mode keyword after");
+         }
          else if (!strcmp(argv[argIdx], "-rcfile"))
          {
             if (argIdx + 1 < argc)
@@ -2141,18 +2156,28 @@ static void ParseArgv( int argc, char * argv[] )
          Usage(argv[0], "-daemon", "Cannot combine with -demo mode");
       else if ((startUiCni != 0) && optAcqPassive)
          Usage(argv[0], "-provider", "Cannot combine with -acqpassive");
+      else if (optDumpMode != EPGTAB_DUMP_NONE)
+         Usage(argv[0], "-daemon", "Cannot combine with -dump");
    }
    else
    {
       if (optAcqPassive)
          Usage(argv[0], "-acqpassive", "Only meant for -daemon mode");
    }
+
+   if (optDumpMode != EPGTAB_DUMP_NONE)
+   {
+      if (startUiCni == 0)
+         Usage(argv[0], "-dump", "Must also specify -provider");
+      else if (pDemoDatabase != NULL)
+         Usage(argv[0], "-dump", "Cannot combine with -demo mode");
+   }
 }
 
 // ---------------------------------------------------------------------------
 // Initialize the Tcl/Tk interpreter
 //
-static int ui_init( int argc, char **argv )
+static int ui_init( int argc, char **argv, bool withTk )
 {
    char *args;
 
@@ -2177,7 +2202,7 @@ static int ui_init( int argc, char **argv )
 
    if (argc > 1)
    {
-      args = Tcl_Merge(argc - 1, argv + 1);
+      args = Tcl_Merge(argc - 1, (CONST84 char **) argv + 1);
       Tcl_SetVar(interp, "argv", args, TCL_GLOBAL_ONLY);
       sprintf(comm, "%d", argc - 1);
       Tcl_SetVar(interp, "argc", comm, TCL_GLOBAL_ONLY);
@@ -2189,7 +2214,7 @@ static int ui_init( int argc, char **argv )
    Tcl_SetVar(interp, "tcl_interactive", "0", TCL_GLOBAL_ONLY);
 
    Tcl_Init(interp);
-   if (optDaemonMode == FALSE)
+   if (withTk)
    {
       if (Tk_Init(interp) != TCL_OK)
       {
@@ -2205,7 +2230,7 @@ static int ui_init( int argc, char **argv )
    {
       debug1("tcl_init_scripts error: %s\n", interp->result);
    }
-   if (optDaemonMode == FALSE)
+   if (withTk)
    {
       if (Tcl_VarEval(interp, tk_init_scripts, NULL) != TCL_OK)
       {
@@ -2224,7 +2249,7 @@ static int ui_init( int argc, char **argv )
    Tcl_SetVar(interp, "EPG_VERSION_NO", comm, TCL_GLOBAL_ONLY);
    Tcl_SetVar(interp, "EPG_VERSION", epg_version_str, TCL_GLOBAL_ONLY);
 
-   if (optDaemonMode == FALSE)
+   if (withTk)
    {
       Tk_DefineBitmap(interp, Tk_GetUid("bitmap_ptr_up"), ptr_up_bits, ptr_up_width, ptr_up_height);
       Tk_DefineBitmap(interp, Tk_GetUid("bitmap_ptr_down"), ptr_down_bits, ptr_down_width, ptr_down_height);
@@ -2244,7 +2269,7 @@ static int ui_init( int argc, char **argv )
    }
    eval_check(interp, epgui_tcl_script);
 
-   if (optDaemonMode == FALSE)
+   if (withTk)
       eval_check(interp, "CreateMainWindow; CreateMenubar\n");
 
    eval_check(interp, help_tcl_script);
@@ -2306,9 +2331,12 @@ int main( int argc, char *argv[] )
          if (fork() > 0)
             exit(0);
          close(0);
+         open("/dev/null", O_RDONLY, 0);
          #if DEBUG_SWITCH == OFF
          close(1);
+         open("/dev/null", O_WRONLY, 0);
          close(2);
+         dup(1);
          #endif
          setsid();
       }
@@ -2326,14 +2354,19 @@ int main( int argc, char *argv[] )
    // scan the database directory
    EpgContextCtl_InitCache();
 
-   // UNIX must fork the VBI slave before GUI startup or the slave will inherit all X11 file handles
-   BtDriver_Init();
-   #ifdef WIN32
-   WintvSharedMem_Init();
-   #endif
+   if (optDumpMode == EPGTAB_DUMP_NONE)
+   {
+      // UNIX must fork the VBI slave before GUI startup or the slave will inherit all X11 file handles
+      BtDriver_Init();
+      #ifdef WIN32
+      WintvSharedMem_Init();
+      #endif
+   }
 
-   // initialize Tcl/Tk interpreter and compile all scripts
-   ui_init(argc, argv);
+   // initialize Tcl interpreter and compile all scripts
+   // Tk is only initialized if a GUI will be opened
+   ui_init(argc, argv, ((optDaemonMode == FALSE) && (optDumpMode == EPGTAB_DUMP_NONE)));
+
    should_exit = FALSE;
    exitHandler = Tcl_AsyncCreate(AsyncHandler_AppTerminate, NULL);
 
@@ -2341,11 +2374,20 @@ int main( int argc, char *argv[] )
    sprintf(comm, "LoadRcFile {%s} %d", rcfile, (strcmp(defaultRcFile, rcfile) == 0));
    eval_check(interp, comm);
 
-   // pass TV card hardware parameters to the driver
-   SetHardwareConfig(interp, videoCardIndex);
-
-   if (optDaemonMode == FALSE)
-   {
+   if (optDumpMode != EPGTAB_DUMP_NONE)
+   {  // dump mode: just dump the database, then exit
+      if (startUiCni == 0x00ff)
+         pUiDbContext = MenuCmd_MergeDatabases();
+      else
+         pUiDbContext = EpgContextCtl_Open(startUiCni, CTX_FAIL_RET_NULL, CTX_RELOAD_ERR_REQ);
+      if (pUiDbContext != NULL)
+      {
+         EpgTabDump_Database(pUiDbContext, stdout, optDumpMode);
+      }
+      EpgContextCtl_Close(pUiDbContext);
+   }
+   else if (optDaemonMode == FALSE)
+   {  // normal GUI mode
       // note: iconification must be done after RC/INI file load
       // because "hide on minimize" option state must be known and the <Unmap> event bound
       if (startIconified)
@@ -2374,7 +2416,10 @@ int main( int argc, char *argv[] )
       EpgAcqClient_Init(&EventHandler_NetworkUpdate);
       SetNetAcqParams(interp, FALSE);
       #endif
+      // pass TV card hardware parameters to the driver
+      SetHardwareConfig(interp, videoCardIndex);
       SetAcquisitionMode(NETACQ_DEFAULT);
+      SetUserLanguage(interp);
 
       // initialize the GUI control modules
       StatsWin_Create();
@@ -2464,6 +2509,7 @@ int main( int argc, char *argv[] )
 
       // pass configurable parameters to the network server (e.g. enable logging)
       SetNetAcqParams(interp, TRUE);
+      SetHardwareConfig(interp, videoCardIndex);
 
       if (SetDaemonAcquisitionMode(startUiCni, optAcqPassive))
       {
@@ -2499,6 +2545,7 @@ int main( int argc, char *argv[] )
    }
    #endif
 
+   // stop EPG acquisition and the driver
    EpgScan_Stop();
    EpgAcqCtl_Stop();
    #ifdef WIN32
@@ -2506,7 +2553,8 @@ int main( int argc, char *argv[] )
    #endif
    BtDriver_Exit();
 
-   if (optDaemonMode == FALSE)
+   // shut down all GUI modules
+   if ((optDaemonMode == FALSE) && (optDumpMode == EPGTAB_DUMP_NONE))
    {
       EpgContextCtl_Close(pUiDbContext);
       pUiDbContext = NULL;
@@ -2525,8 +2573,8 @@ int main( int argc, char *argv[] )
       EpgAcqClient_Destroy();
       #endif
    }
-   #ifdef WIN32
-   else
+   #if defined(WIN32) && defined(USE_DAEMON)
+   else if (optDaemonMode)
    {  // notify the GUI in case we haven't done so before
       DaemonTriggerGui();
       // remove the window now to indicate the driver is down and the TV card free

@@ -44,7 +44,9 @@
 // define version number to be compiled into both files
 // we use this to make sure that we are atlingh the same language in both the 
 // drivers and the dll
-#define DSDRV_VERSION 0x4000
+#define DSDRV_COMPAT_MIN_VERSION    0x4000
+#define DSDRV_COMPAT_MASK         (~0x0fff)
+#define DSDRV_COMPAT_MAJ_VERSION  (DSDRV_COMPAT_MIN_VERSION & DSDRV_COMPAT_MASK)
 
 #define ALLOC_MEMORY_CONTIG 1
 

@@ -21,7 +21,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: epgui.tcl,v 1.164 2002/05/30 14:08:49 tom Exp tom $
+#  $Id: epgui.tcl,v 1.170 2002/08/11 19:50:51 tom Exp tom $
 #
 
 set is_unix [expr [string compare $tcl_platform(platform) "unix"] == 0]
@@ -52,10 +52,18 @@ set font_fixed      [list courier   [expr   0 - $font_pt_size] normal]
 
 if [info exists tk_version] {
    set default_bg [. cget -background]
+
+   # starting with Tk8.4 an entry's text is grey when disabled and
+   # this new option must be used where this is not desirable
+   if {$tcl_version >= 8.4} {
+      set entry_disabledforeground "-disabledforeground"
+   } else {
+      set entry_disabledforeground "-foreground"
+   }
 }
 
 proc CreateMainWindow {} {
-   global is_unix default_bg
+   global is_unix default_bg entry_disabledforeground
    global textfont font_small font_bold font_pl2_bold
    global fileImage
 
@@ -67,14 +75,16 @@ proc CreateMainWindow {} {
    button    .all.shortcuts.reset -text "Reset" -relief ridge -command {ResetFilterState; C_ResetFilter all; C_ResetPiListbox}
    pack      .all.shortcuts.reset -side top -fill x
 
-   listbox   .all.shortcuts.list -exportselection false -height 12 -width 0 -selectmode extended -relief ridge -cursor top_left_arrow
+   listbox   .all.shortcuts.list -exportselection false -height 12 -width 0 -selectmode extended \
+                                 -relief ridge -cursor top_left_arrow -background $default_bg
    bind      .all.shortcuts.list <ButtonRelease-1> {+ SelectShortcut}
    bind      .all.shortcuts.list <space> {+ SelectShortcut}
    pack      .all.shortcuts.list -fill x
    pack      .all.shortcuts -anchor nw -side left
 
    frame     .all.netwops
-   listbox   .all.netwops.list -exportselection false -height 25 -width 0 -selectmode extended -relief ridge -cursor top_left_arrow
+   listbox   .all.netwops.list -exportselection false -height 25 -width 0 -selectmode extended \
+                               -relief ridge -cursor top_left_arrow -background $default_bg
    .all.netwops.list insert end "-all-"
    .all.netwops.list selection set 0
    bind      .all.netwops.list <ButtonRelease-1> {+ SelectNetwop}
@@ -140,7 +150,7 @@ proc CreateMainWindow {} {
    pack      .all.pi -side top -fill y -expand 1
 
    entry     .all.statusline -state disabled -relief flat -borderwidth 1 \
-                             -font $font_small -background $default_bg \
+                             -font $font_small -background $default_bg $entry_disabledforeground black \
                              -textvariable dbstatus_line
    pack      .all.statusline -side bottom -fill x
    pack      .all -side left -fill y -expand 1
@@ -196,7 +206,8 @@ proc CreateMenubar {} {
    .menubar.ctrl add separator
    .menubar.ctrl add checkbutton -label "Dump stream" -variable menuStatusDumpStream -command {C_ToggleDumpStream $menuStatusDumpStream}
    .menubar.ctrl add command -label "Dump raw database..." -command PopupDumpDatabase
-   .menubar.ctrl add command -label "Dump in HTML..." -command PopupDumpHtml
+   .menubar.ctrl add command -label "Export as text..." -command PopupDumpDbTabs
+   .menubar.ctrl add command -label "Export as HTML..." -command PopupDumpHtml
    .menubar.ctrl add separator
    .menubar.ctrl add checkbutton -label "View timescales..." -command {C_TimeScale_Toggle ui} -variable menuStatusTscaleOpen(ui)
    .menubar.ctrl add checkbutton -label "View statistics..." -command {C_StatsWin_ToggleDbStats ui} -variable menuStatusStatsOpen(ui)
@@ -221,6 +232,7 @@ proc CreateMenubar {} {
    .menubar.config add command -label "Network names..." -command NetworkNamingPopup
    .menubar.config add command -label "Context menu..." -command ContextMenuConfigPopup
    .menubar.config add command -label "Filter shortcuts..." -command EditFilterShortcuts
+   .menubar.config add cascade -label "Themes language" -menu .menubar.config.lang
    .menubar.config add separator
    .menubar.config add checkbutton -label "Show shortcuts" -command ToggleShortcutListbox -variable showShortcutListbox
    .menubar.config add checkbutton -label "Show networks" -command ToggleNetwopListbox -variable showNetwopListbox
@@ -229,6 +241,13 @@ proc CreateMenubar {} {
    if {!$is_unix} {
       .menubar.config add checkbutton -label "Hide on minimize" -command ToggleHideOnMinimize -variable hideOnMinimize
    }
+   # Lanugage sub-menu
+   menu .menubar.config.lang
+   .menubar.config.lang add radiobutton -label "automatic" -command UpdateUserLanguage -variable menuUserLanguage -value 7
+   .menubar.config.lang add separator
+   .menubar.config.lang add radiobutton -label "English" -command UpdateUserLanguage -variable menuUserLanguage -value 0
+   .menubar.config.lang add radiobutton -label "German" -command UpdateUserLanguage -variable menuUserLanguage -value 1
+   .menubar.config.lang add radiobutton -label "French" -command UpdateUserLanguage -variable menuUserLanguage -value 4
    # Reminder menu
    #menu .menubar.timer -tearoff 0
    #.menubar.timer add command -label "Add selected title" -state disabled
@@ -342,29 +361,55 @@ proc CreateMenubar {} {
    .systray add command -label "Quit" -command {destroy .}
 }
 
+##  ---------------------------------------------------------------------------
+##  Fill the themes filter menu with PDC theme table
+##  - called once during startup and after theme language switches
+##  - if the menu items already exists, only the labels are updated
+##
 proc FilterMenuAdd_Themes {widget} {
+
+   # check if the menu is already created
+   # if yes, only labels are updated (upon language switch)
+   set is_new [expr [string length [info commands ${widget}.*]] == 0]
+
    # create the themes and sub-themes menues from the PDC table
    set subtheme 0
+   set menidx 0
    for {set index 0} {$index < 0x80} {incr index} {
       set pdc [C_GetPdcString $index]
-      if {[string match "* - general" $pdc]} {
-         # remove appendix "general" for menu label
-         set len [string length $pdc]
-         set tlabel [string range $pdc 0 [expr $len - 10]]
+      if {[regexp {(.*) - } $pdc {} tlabel]} {
          # create new sub-menu and add checkbutton
          set subtheme $index
-         $widget add cascade -label $tlabel -menu ${widget}.$subtheme
-         menu ${widget}.$subtheme
-         ${widget}.$subtheme add checkbutton -label $pdc -command "SelectTheme $subtheme" -variable theme_sel($subtheme)
-         ${widget}.$subtheme add separator
+         if $is_new {
+            $widget add cascade -label $tlabel -menu ${widget}.$subtheme
+            menu ${widget}.$subtheme
+            ${widget}.$subtheme add checkbutton -label $pdc -command "SelectTheme $subtheme" -variable theme_sel($subtheme)
+            ${widget}.$subtheme add separator
+         } else {
+            incr menidx
+            $widget entryconfigure $menidx -label $tlabel
+            ${widget}.$subtheme entryconfigure 1 -label $pdc
+            set submenidx 3
+         }
       } elseif {([string length $pdc] > 0) && ($subtheme > 0)} {
-         ${widget}.$subtheme add checkbutton -label $pdc -command "SelectTheme $index" -variable theme_sel($index)
+         if $is_new {
+            ${widget}.$subtheme add checkbutton -label $pdc -command "SelectTheme $index" -variable theme_sel($index)
+         } else {
+            ${widget}.$subtheme entryconfigure $submenidx -label $pdc
+            incr submenidx
+         }
       }
    }
    # add sub-menu with one entry: all series on all networks
-   $widget add cascade -menu ${widget}.series -label "series"
-   menu ${widget}.series -tearoff 0
-   ${widget}.series add checkbutton -label [C_GetPdcString 128] -command {SelectTheme 128} -variable theme_sel(128)
+   if {[string length [info commands ${widget}.series]] == 0} {
+      $widget add cascade -menu ${widget}.series -label [C_GetPdcString 128]
+      menu ${widget}.series -tearoff 0
+      ${widget}.series add checkbutton -label [C_GetPdcString 128] -command {SelectTheme 128} -variable theme_sel(128)
+   } else {
+      incr menidx
+      $widget entryconfigure $menidx -label [C_GetPdcString 128]
+      ${widget}.series entryconfigure 1 -label [C_GetPdcString 128]
+   }
 }
 
 ##  ---------------------------------------------------------------------------
@@ -387,7 +432,6 @@ proc GenerateFilterMenues {tcc fcc} {
    for {set index 1} {$index <= $feature_class_count} {incr index} {
       .menubar.filter.features.featureclass add radio -label $index -command {SelectFeatureClass $current_feature_class} -variable current_feature_class -value $index
    }
-
 }
 
 ##  ---------------------------------------------------------------------------
@@ -527,6 +571,7 @@ set showShortcutListbox 1
 set showStatusLine 1
 set showColumnHeader 1
 set hideOnMinimize 1
+set menuUserLanguage 7
 
 proc ToggleNetwopListbox {} {
    global showNetwopListbox
@@ -595,6 +640,16 @@ proc ToggleHideOnMinimize {} {
          bind . <Unmap> {}
       }
    }
+}
+
+proc UpdateUserLanguage {} {
+   # trigger language update in the C modules
+   C_UpdateLanguage
+
+   # redisplay the PI listbox content with the new language
+   C_RefreshPiListbox
+
+   UpdateRcFile
 }
 
 ##  ---------------------------------------------------------------------------
@@ -2297,9 +2352,9 @@ proc PopupDumpDatabase {} {
       frame .dumpdb.all.cmd
       button .dumpdb.all.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Control) "Dump raw database"}
       pack .dumpdb.all.cmd.help -side left -padx 10
-      button .dumpdb.all.cmd.clear -text "Abort" -width 5 -command {destroy .dumpdb}
+      button .dumpdb.all.cmd.clear -text "Dismiss" -width 5 -command {destroy .dumpdb}
       pack .dumpdb.all.cmd.clear -side left -padx 10
-      button .dumpdb.all.cmd.apply -text "Ok" -width 5 -command DoDbDump
+      button .dumpdb.all.cmd.apply -text "Start" -width 5 -command DoDbRawDump
       pack .dumpdb.all.cmd.apply -side left -padx 10
       pack .dumpdb.all.cmd -side top
 
@@ -2311,7 +2366,7 @@ proc PopupDumpDatabase {} {
 }
 
 # callback for Ok button
-proc DoDbDump {} {
+proc DoDbRawDump {} {
    global dumpdb_pi dumpdb_xi dumpdb_ai dumpdb_ni dumpdb_filename
    global dumpdb_oi dumpdb_mi dumpdb_li dumpdb_ti
 
@@ -2323,19 +2378,99 @@ proc DoDbDump {} {
          return
       }
    }
-   C_DumpDatabase $dumpdb_filename \
-                  $dumpdb_pi $dumpdb_xi $dumpdb_ai $dumpdb_ni \
-                  $dumpdb_oi $dumpdb_mi $dumpdb_li $dumpdb_ti
 
-   # close the popup window
-   destroy .dumpdb
+   C_DumpRawDatabase $dumpdb_filename \
+                     $dumpdb_pi $dumpdb_xi $dumpdb_ai $dumpdb_ni \
+                     $dumpdb_oi $dumpdb_mi $dumpdb_li $dumpdb_ti
 
    # save the settings to the rc/ini file
    UpdateRcFile
 }
 
 ##  --------------------------------------------------------------------------
-##  Popup "Dump HTML" dialog
+##  Create dialog to export the database into TAB-separated text file
+##
+set dumptabs "pi"
+set dumptabs_filename {}
+set dumptabs_popup 0
+
+proc PopupDumpDbTabs {} {
+   global dumptabs_popup dumptabs_filename dumptabs
+   global font_fixed fileImage
+
+   if {$dumptabs_popup == 0} {
+      CreateTransientPopup .dumptabs "Export database into text file"
+      set dumptabs_popup 1
+
+      frame .dumptabs.all
+
+      frame .dumptabs.all.name
+      label .dumptabs.all.name.prompt -text "File name:"
+      pack .dumptabs.all.name.prompt -side left
+      entry .dumptabs.all.name.filename -textvariable dumptabs_filename -font $font_fixed -width 30
+      pack .dumptabs.all.name.filename -side left -padx 5
+      bind .dumptabs.all.name.filename <Enter> {focus %W}
+      bind .dumptabs.all.name.filename <Return> DoDbDump
+      bind .dumptabs.all.name.filename <Escape> {destroy .dumptabs}
+      button .dumptabs.all.name.dlgbut -image $fileImage -command {
+         set tmp [tk_getSaveFile -parent .dumptabs \
+                     -initialfile [file tail $dumptabs_filename] \
+                     -initialdir [file dirname $dumptabs_filename]]
+         if {[string length $tmp] > 0} {
+            set dumptabs_filename $tmp
+         }
+         unset tmp
+      }
+      pack .dumptabs.all.name.dlgbut -side left -padx 5
+      pack .dumptabs.all.name -side top -pady 10
+
+      frame .dumptabs.all.opt
+      frame .dumptabs.all.opt.one
+      radiobutton .dumptabs.all.opt.one.pi -text "Programme Info" -variable dumptabs -value "pi"
+      radiobutton .dumptabs.all.opt.one.ai -text "Application Info" -variable dumptabs -value "ai"
+      radiobutton .dumptabs.all.opt.one.pdc -text "PDC themes list" -variable dumptabs -value "pdc"
+      pack .dumptabs.all.opt.one.pi -side top -anchor nw
+      pack .dumptabs.all.opt.one.ai -side top -anchor nw
+      pack .dumptabs.all.opt.one.pdc -side top -anchor nw
+      pack .dumptabs.all.opt.one -side left -anchor nw -padx 5
+      pack .dumptabs.all.opt -side top -pady 10
+
+      frame .dumptabs.all.cmd
+      button .dumptabs.all.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Control) "Export as text"}
+      pack .dumptabs.all.cmd.help -side left -padx 10
+      button .dumptabs.all.cmd.clear -text "Dismiss" -width 5 -command {destroy .dumptabs}
+      pack .dumptabs.all.cmd.clear -side left -padx 10
+      button .dumptabs.all.cmd.apply -text "Export" -width 5 -command DoDbTabsDump
+      pack .dumptabs.all.cmd.apply -side left -padx 10
+      pack .dumptabs.all.cmd -side top
+
+      pack .dumptabs.all -padx 10 -pady 10
+      bind .dumptabs.all <Destroy> {+ set dumptabs_popup 0}
+   } else {
+      raise .dumptabs
+   }
+}
+
+# callback for Ok button
+proc DoDbTabsDump {} {
+   global dumptabs_popup dumptabs_filename dumptabs
+
+   if {([string length $dumptabs_filename] > 0) && [file exists $dumptabs_filename]} {
+
+      set answer [tk_messageBox -type okcancel -icon warning -parent .dumptabs \
+                                -message "This file already exists - overwrite it?"]
+      if {[string compare $answer "ok"] != 0} {
+         return
+      }
+   }
+   C_DumpTabsDatabase $dumptabs_filename $dumptabs
+
+   # save the settings to the rc/ini file
+   UpdateRcFile
+}
+
+##  --------------------------------------------------------------------------
+##  Create dialog to export the database into HTML file
 ##
 set dumphtml_filename {}
 set dumphtml_type 3
@@ -2352,7 +2487,7 @@ proc PopupDumpHtml {} {
    global dumphtml_popup
 
    if {$dumphtml_popup == 0} {
-      CreateTransientPopup .dumphtml "Dump database in HTML"
+      CreateTransientPopup .dumphtml "Export database into HTML file"
       set dumphtml_popup 1
 
       frame .dumphtml.opt1 -borderwidth 1 -relief raised
@@ -2396,11 +2531,11 @@ proc PopupDumpHtml {} {
       pack .dumphtml.opt3 -side top -pady 5 -padx 10 -fill x
 
       frame .dumphtml.cmd
-      button .dumphtml.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Control) "Dump in HTML"}
+      button .dumphtml.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Control) "Export as HTML"}
       pack .dumphtml.cmd.help -side left -padx 10
       button .dumphtml.cmd.dismiss -text "Dismiss" -width 5 -command {destroy .dumphtml}
       pack .dumphtml.cmd.dismiss -side left -padx 10
-      button .dumphtml.cmd.write -text "Write" -width 5 -command DoDumpHtml
+      button .dumphtml.cmd.write -text "Export" -width 5 -command DoDumpHtml
       pack .dumphtml.cmd.write -side left -padx 10
       pack .dumphtml.cmd -side top -pady 10
 
@@ -2410,7 +2545,7 @@ proc PopupDumpHtml {} {
    }
 }
 
-# callback for Write button
+# callback for "Export" button
 proc DoDumpHtml {} {
    global dumphtml_filename dumphtml_type dumphtml_file_append dumphtml_file_overwrite
    global dumphtml_sel_only dumphtml_hyperlinks
@@ -2444,8 +2579,8 @@ proc DoDumpHtml {} {
 set help_popup 0
 
 proc PopupHelp {index {subheading {}}} {
-   global textfont font_bold font_pl4_bold
-   global help_popup helpTexts
+   global textfont font_bold font_pl2_bold font_pl4_bold font_fixed
+   global help_popup help_winsize helpTexts
 
    if {$help_popup == 0} {
       set help_popup 1
@@ -2464,7 +2599,7 @@ proc PopupHelp {index {subheading {}}} {
       bind   .help.cmd <Destroy> {+ set help_popup 0}
 
       frame  .help.disp
-      text   .help.disp.text -width 60 -wrap word -setgrid true -background #ffd840 \
+      text   .help.disp.text -width 60 -wrap word -background #ffd840 \
                              -font $textfont -spacing3 6 -cursor arrow \
                              -yscrollcommand {.help.disp.sb set}
       pack   .help.disp.text -side left -fill both -expand 1
@@ -2472,10 +2607,13 @@ proc PopupHelp {index {subheading {}}} {
       pack   .help.disp.sb -fill y -anchor e -side left
       pack   .help.disp -side top -fill both -expand 1
       # define tags for various nroff text formats
-      .help.disp.text tag configure title -font $font_pl4_bold -spacing3 10
+      .help.disp.text tag configure title1 -font $font_pl4_bold -spacing3 10
+      .help.disp.text tag configure title2 -font $font_pl2_bold -spacing1 20 -spacing3 10
       .help.disp.text tag configure indent -lmargin1 40 -lmargin2 40
       .help.disp.text tag configure bold -font $font_bold
       .help.disp.text tag configure underlined -underline 1
+      .help.disp.text tag configure fixed -font $font_fixed
+      .help.disp.text tag configure pfixed -font $font_fixed -spacing1 0 -spacing2 0 -spacing3 0
       .help.disp.text tag configure href -underline 1 -foreground blue
       .help.disp.text tag bind href <ButtonRelease-1> {FollowHelpHyperlink}
 
@@ -2491,6 +2629,13 @@ proc PopupHelp {index {subheading {}}} {
       # allow to scroll the text with a wheel mouse
       bind   .help.disp.text <Button-4> {.help.disp.text yview scroll -3 units}
       bind   .help.disp.text <Button-5> {.help.disp.text yview scroll 3 units}
+      # save width and height when the window is resized by the user
+      bind   .help <Configure> {HelpWindowResized %W}
+
+      # set user-modified window size
+      if [info exists help_winsize] {
+         wm geometry .help $help_winsize
+      }
 
    } else {
       # when the popup is already open, just exchange the text
@@ -2561,6 +2706,21 @@ proc FollowHelpHyperlink {} {
    }
 }
 
+# callback for Configure (aka resize) event on the toplevel window
+proc HelpWindowResized {w} {
+   global help_winsize
+
+   if {[string compare $w ".help"] == 0} {
+      set new_size "[winfo width .help]x[winfo height .help]"
+
+      if {![info exists help_winsize] || \
+          ([string compare $new_size $help_winsize] != 0)} {
+         set help_winsize $new_size
+         UpdateRcFile
+      }
+   }
+}
+
 ##  --------------------------------------------------------------------------
 ##  Handling of the About pop-up
 ##
@@ -2615,7 +2775,7 @@ set provwin_popup 0
 
 proc ProvWin_Create {} {
    global provwin_popup
-   global default_bg textfont
+   global default_bg textfont entry_disabledforeground
    global provwin_servicename
    global provwin_ailist
 
@@ -2659,7 +2819,8 @@ proc ProvWin_Create {} {
       frame .provwin.n.info.service
       label .provwin.n.info.service.header -text "Name of service"
       pack  .provwin.n.info.service.header -side top -anchor nw
-      entry .provwin.n.info.service.name -state disabled -textvariable provwin_servicename -width 45
+      entry .provwin.n.info.service.name -state disabled $entry_disabledforeground black \
+                                         -textvariable provwin_servicename -width 45
       pack  .provwin.n.info.service.name -side top -anchor nw -fill x
       pack  .provwin.n.info.service -side top -anchor nw -fill x
 
@@ -3072,6 +3233,7 @@ proc SelBoxButtonPress {lbox which} {
 set netsel_popup 0
 
 proc PopupNetwopSelection {} {
+   global entry_disabledforeground
    global netsel_popup
    global netsel_prov netsel_ailist netsel_selist netsel_names
    global cfnetwops
@@ -3094,17 +3256,46 @@ proc PopupNetwopSelection {} {
             set netsel_selist $netsel_ailist
          }
 
-         SelBoxCreate .netsel netsel_ailist netsel_selist netsel_names
+         frame .netsel.lb
+         SelBoxCreate .netsel.lb netsel_ailist netsel_selist netsel_names
 
-         menubutton .netsel.cmd.copy -text "copy" -menu .netsel.cmd.copy.men -relief raised -borderwidth 2
-         pack .netsel.cmd.copy -side top -anchor nw -pady 20 -fill x
-         menu .netsel.cmd.copy.men -tearoff 0 -postcommand {PostDynamicMenu .netsel.cmd.copy.men NetselCreateCopyMenu}
+         menubutton .netsel.lb.cmd.copy -text "copy" -menu .netsel.lb.cmd.copy.men -relief raised -borderwidth 2
+         pack .netsel.lb.cmd.copy -side top -anchor nw -pady 20 -fill x
+         menu .netsel.lb.cmd.copy.men -tearoff 0 -postcommand {PostDynamicMenu .netsel.lb.cmd.copy.men NetselCreateCopyMenu}
 
-         button .netsel.cmd.help -text "Help" -width 7 -command {PopupHelp $helpIndex(Configuration) "Select networks"}
-         button .netsel.cmd.abort -text "Abort" -width 7 -command {destroy .netsel}
-         button .netsel.cmd.save -text "Save" -width 7 -command {SaveSelectedNetwopList}
-         pack .netsel.cmd.help .netsel.cmd.abort .netsel.cmd.save -side bottom -anchor sw
-         bind .netsel.cmd <Destroy> {+ set netsel_popup 0}
+         button .netsel.lb.cmd.help -text "Help" -width 7 -command {PopupHelp $helpIndex(Configuration) "Select networks"}
+         button .netsel.lb.cmd.abort -text "Abort" -width 7 -command {destroy .netsel}
+         button .netsel.lb.cmd.save -text "Save" -width 7 -command {SaveSelectedNetwopList}
+         pack .netsel.lb.cmd.help .netsel.lb.cmd.abort .netsel.lb.cmd.save -side bottom -anchor sw
+         bind .netsel.lb.cmd <Destroy> {+ set netsel_popup 0}
+         pack  .netsel.lb -side top -fill both -expand 1
+
+         global netsel_off_name
+         global cfnettimes netsel_times netsel_start netsel_stop netsel_cni
+         global font_fixed
+         frame .netsel.bottom -borderwidth 2 -relief ridge
+         label .netsel.bottom.lab_offi -text "Official name:"
+         grid  .netsel.bottom.lab_offi -row 0 -column 0 -sticky w
+         entry .netsel.bottom.ent_offi -relief flat -textvariable netsel_off_name -state disabled $entry_disabledforeground black
+         grid  .netsel.bottom.ent_offi -row 0 -column 1 -sticky we
+         label .netsel.bottom.lab_time -text "Air times:"
+         grid  .netsel.bottom.lab_time -row 1 -column 0 -sticky w
+         frame .netsel.bottom.frm_time
+         label .netsel.bottom.frm_time.lab_start -text "from"
+         entry .netsel.bottom.frm_time.ent_start -textvariable netsel_start -font $font_fixed -width 5
+         label .netsel.bottom.frm_time.lab_stop  -text "until"
+         entry .netsel.bottom.frm_time.ent_stop  -textvariable netsel_stop -font $font_fixed -width 5
+         pack  .netsel.bottom.frm_time.lab_start .netsel.bottom.frm_time.ent_start .netsel.bottom.frm_time.lab_stop .netsel.bottom.frm_time.ent_stop -side left -padx 5 -anchor w
+         grid  .netsel.bottom.frm_time -row 1 -column 1 -sticky we
+         grid  columnconfigure .netsel.bottom 1 -weight 1
+         pack  .netsel.bottom -side top -padx 10 -pady 10 -fill x
+
+         bind  .netsel.lb.ai.ailist <ButtonRelease-1> [list + after idle [list NetselUpdateCni orig]]
+         bind  .netsel.lb.sel.selist <ButtonRelease-1> [list + after idle [list NetselUpdateCni sel]]
+         array unset netsel_times
+         array set netsel_times [array get cfnettimes]
+         set netsel_cni 0
+         NetselUpdateCni orig
 
          wm resizable .netsel 1 1
          update
@@ -3122,6 +3313,7 @@ proc PopupNetwopSelection {} {
 proc SaveSelectedNetwopList {} {
    global netsel_prov netsel_selist netsel_ailist netsel_names
    global cfnetwops
+   global cfnettimes netsel_times
 
    # make list of CNIs from AI which are missing in the user selection
    set sup {}
@@ -3131,6 +3323,12 @@ proc SaveSelectedNetwopList {} {
       }
    }
    set cfnetwops($netsel_prov) [list $netsel_selist $sup]
+
+   # store start & stop time of the last CNI and store the air times list
+   NetselUpdateTimes
+   array unset cfnettimes
+   array set cfnettimes [array get netsel_times]
+   array unset netsel_times
 
    # merged database: merge the requested networks
    if {$netsel_prov == 0x00FF} {
@@ -3143,6 +3341,75 @@ proc SaveSelectedNetwopList {} {
 
    # close popup
    destroy .netsel
+}
+
+# callback for selection in left or right list -> update description at the dialog bottom
+proc NetselUpdateCni {which} {
+   global netsel_off_name
+   global netsel_times netsel_start netsel_stop netsel_cni
+   global netsel_ailist netsel_selist 
+   global cfnetnames
+
+   # save the start and stop times of the previously selected CNI
+   NetselUpdateTimes
+
+   # get the currently selected CNI
+   set cni 0
+   if {[string compare $which "orig"] == 0} {
+      set nl [.netsel.lb.ai.ailist curselection]
+      if {[llength $nl] == 1} {
+         set cni [lindex $netsel_ailist $nl]
+      }
+   } else {
+      set nl [.netsel.lb.sel.selist curselection]
+      if {[llength $nl] == 1} {
+         set cni [lindex $netsel_selist $nl]
+      }
+   }
+   set netsel_cni $cni
+
+   if {$cni != 0} {
+      set netsel_off_name [C_GetCniDescription $cni]
+      if [info exists netsel_times($cni)] {
+         scan $netsel_times($cni) "%d,%d" start stop
+         set netsel_start [format "%02d:%02d" [expr int($start / 60)] [expr $start % 60]]
+         set netsel_stop [format "%02d:%02d" [expr int($stop / 60)] [expr $stop % 60]]
+      } else {
+         set netsel_start "00:00"
+         set netsel_stop  "00:00"
+      }
+   } else {
+      set netsel_off_name {}
+      set netsel_start {}
+      set netsel_stop {}
+   }
+}
+
+# save the start and stop times of the currently selected CNI
+proc NetselUpdateTimes {} {
+   global netsel_cni netsel_times netsel_start netsel_stop
+
+   if {$netsel_cni != 0} {
+      if { ([scan $netsel_start "%u:%u" s1 s2] == 2) &&
+           ([scan $netsel_stop "%u:%u" s3 s4] == 2) } {
+         if {$s1 > 23} {set s1 0}
+         if {$s2 > 59} {set s1 59}
+         if {$s3 > 23} {set s3 0}
+         if {$s4 > 59} {set s4 59}
+         set s1 [expr (60 * $s1) + $s2]
+         set s3 [expr (60 * $s3) + $s4]
+
+         if {($s1 == $s3) || \
+             ($s1 == (($s3 + 1) % 1440))} {
+            # range 00:00 - 00:00  OR  00:00 - 23:59 -> remove restriction
+            if [info exists netsel_times($netsel_cni)] {
+               unset netsel_times($netsel_cni)
+            }
+         } else {
+            set netsel_times($netsel_cni) [format "%d,%d" $s1 $s3]
+         }
+      }
+   }
 }
 
 # post the menu
@@ -3175,18 +3442,18 @@ proc NetselCopyNetwopList {copycni} {
       if {($copycni != $netsel_prov) && [array exists cfnetwops] && [info exists cfnetwops($copycni)]} {
 
          set netsel_selist {}
-         .netsel.sel.selist delete 0 end
+         .netsel.lb.sel.selist delete 0 end
          foreach cni [lindex $cfnetwops($copycni) 0] {
             if {[lsearch -exact $netsel_ailist $cni] != -1} {
                lappend netsel_selist $cni
-               .netsel.sel.selist insert end $netsel_names($cni)
+               .netsel.lb.sel.selist insert end $netsel_names($cni)
             }
          }
          set suppressed [lindex $cfnetwops($copycni) 1]
          foreach cni $netsel_ailist {
             if {([lsearch -exact $suppressed $cni] == -1) && ([lsearch -exact $netsel_selist $cni] == -1)} {
                lappend netsel_selist $cni
-               .netsel.sel.selist insert end $netsel_names($cni)
+               .netsel.lb.sel.selist insert end $netsel_names($cni)
             }
          }
       }
@@ -3324,7 +3591,7 @@ proc NetworkNamingPopup {} {
    global netname_ailist netname_names netname_idx netname_xawtv netname_automatch
    global netname_prov_cnis netname_prov_names netname_provnets
    global netname_entry
-   global netname_popup font_fixed
+   global netname_popup font_fixed entry_disabledforeground
    global tvapp_name
 
    if {$netname_popup == 0} {
@@ -3479,7 +3746,7 @@ proc NetworkNamingPopup {} {
       # fourth row: network description
       label .netname.cmd.lnetdesc -text "Official network description:"
       pack  .netname.cmd.lnetdesc -side top -anchor nw -pady 5
-      entry .netname.cmd.enetdesc -state disabled
+      entry .netname.cmd.enetdesc -state disabled $entry_disabledforeground black
       pack  .netname.cmd.enetdesc -side top -anchor nw -fill x
 
       # fifth row: provider name selection
@@ -4858,6 +5125,7 @@ set tzcfg_default {1 60 0}
 set timezone_popup 0
 
 proc PopupTimeZone {} {
+   global entry_disabledforeground
    global tzcfg tzcfg_default
    global tz_auto_sel tz_lto_sel tz_daylight_sel
    global timezone_popup
@@ -4890,7 +5158,7 @@ the correct value."
       label .timezone.f2.name -text ""
       frame .timezone.f2.ft
       label .timezone.f2.ft.l1 -text "Local time offset: "
-      entry .timezone.f2.ft.entry -width 4 -textvariable tz_lto_sel
+      entry .timezone.f2.ft.entry -width 4 -textvariable tz_lto_sel $entry_disabledforeground black
       bind  .timezone.f2.ft.entry <Enter> {focus %W}
       bind  .timezone.f2.ft.entry <Return> ApplyTimeZone
       label .timezone.f2.ft.l2 -text " minutes"
@@ -5527,7 +5795,7 @@ set ctxmencf {}
 
 proc ContextMenuConfigPopup {} {
    global ctxmencf_popup
-   global default_bg font_fixed
+   global default_bg font_fixed is_unix
    global ctxmencf_selidx ctxmencf_title ctxmencf_cmd
    global ctxmencf ctxmencf_ord ctxmencf_arr
 
@@ -5591,6 +5859,16 @@ proc ContextMenuConfigPopup {} {
       .ctxmencf.all.cmd.examples.men add command -label "All variables" -command {
          set ctxmencf_title "Demo: echo all variables";
          set ctxmencf_cmd   {echo title=${title} network=${network} start=${start} stop=${stop} VPS/PDC=${VPS} duration=${duration} relstart=${relstart} CNI=${CNI} description=${description} themes=${themes} e_rating=${e_rating} p_rating=${p_rating} sound=${sound} format=${format} digital=${digital} encrypted=${encrypted} live=${live} repeat=${repeat} subtitle=${subtitle}}
+      }
+      if {!$is_unix} {
+         .ctxmencf.all.cmd.examples.men add command -label "Send 'record' command to TV app." -command {
+            set ctxmencf_title "Record this show";
+            set ctxmencf_cmd   {!wintv! record ${network} ${CNI} ${start} ${stop} ${VPS} ${title} ${themes:n}}
+         }
+         .ctxmencf.all.cmd.examples.men add command -label "Change channel in connected TV app." -command {
+            set ctxmencf_title "Tune this channel";
+            set ctxmencf_cmd   {!wintv! setstation ${network}}
+         }
       }
       pack .ctxmencf.all.cmd -side top -pady 10
 
@@ -5878,6 +6156,26 @@ proc ContextMenuConfigQuit {is_abort} {
       unset ctxmencf_title ctxmencf_cmd
       # close the dialog window
       destroy .ctxmencf
+   }
+}
+
+## ---------------------------------------------------------------------------
+## Add "record" menu entry to context menu
+## - invoked when a TV app with record capabilities attaches (Windows only)
+##
+set ctxmencf_wintv_vcr 0
+
+proc ContextMenuAddWintvVcr {} {
+   global ctxmencf ctxmencf_wintv_vcr
+
+   if {$ctxmencf_wintv_vcr == 0} {
+      lappend ctxmencf {Record this show} {!wintv! record ${network} ${CNI} ${start} ${stop} ${VPS} ${title} ${themes:n}}
+
+      # remember that this entry was automatically added
+      # it will not be added again in the future (to allow the user to remove it)
+      set ctxmencf_wintv_vcr 1
+
+      UpdateRcFile
    }
 }
 
@@ -7654,16 +7952,18 @@ set myrcfile ""
 proc LoadRcFile {filename isDefault} {
    global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_logi_idx fsc_tag_idx
    global shortcuts shortcut_count
-   global prov_selection prov_freqs cfnetwops cfnetnames
-   global showNetwopListbox showShortcutListbox showStatusLine showColumnHeader hideOnMinimize
+   global prov_selection prov_freqs cfnetwops cfnetnames cfnettimes
+   global showNetwopListbox showShortcutListbox showStatusLine showColumnHeader
+   global hideOnMinimize menuUserLanguage help_winsize
    global prov_merge_cnis prov_merge_cf
    global acq_mode acq_mode_cnis netacq_enable
    global pibox_height pilistbox_cols shortinfo_height
-   global hwcfg netacqcf xawtvcf wintvcf ctxmencf
+   global hwcfg netacqcf xawtvcf wintvcf ctxmencf ctxmencf_wintv_vcr
    global wintvapp_idx wintvapp_path hwcfg_tvapp_idx hwcfg_tvapp_path
    global substr_history
    global dumpdb_filename
    global dumpdb_pi dumpdb_xi dumpdb_ai dumpdb_ni dumpdb_oi dumpdb_mi dumpdb_li dumpdb_ti
+   global dumptabs dumptabs_filename
    global dumphtml_filename dumphtml_type dumphtml_sel_only
    global dumphtml_hyperlinks dumphtml_file_append dumphtml_file_overwrite
    global EPG_VERSION_NO is_unix
@@ -7758,16 +8058,18 @@ proc LoadRcFile {filename isDefault} {
 ##
 proc UpdateRcFile {} {
    global shortcuts shortcut_count
-   global prov_selection prov_freqs cfnetwops cfnetnames
-   global showNetwopListbox showShortcutListbox showStatusLine showColumnHeader hideOnMinimize
+   global prov_selection prov_freqs cfnetwops cfnetnames cfnettimes
+   global showNetwopListbox showShortcutListbox showStatusLine showColumnHeader
+   global hideOnMinimize menuUserLanguage help_winsize
    global prov_merge_cnis prov_merge_cf
    global acq_mode acq_mode_cnis netacq_enable
    global pibox_height pilistbox_cols shortinfo_height
-   global hwcfg netacqcf xawtvcf wintvcf ctxmencf
+   global hwcfg netacqcf xawtvcf wintvcf ctxmencf ctxmencf_wintv_vcr
    global wintvapp_idx wintvapp_path hwcfg_tvapp_idx hwcfg_tvapp_path
    global substr_history
    global dumpdb_filename
    global dumpdb_pi dumpdb_xi dumpdb_ai dumpdb_ni dumpdb_oi dumpdb_mi dumpdb_li dumpdb_ti
+   global dumptabs dumptabs_filename
    global dumphtml_filename dumphtml_type dumphtml_sel_only
    global dumphtml_hyperlinks dumphtml_file_append dumphtml_file_overwrite
    global EPG_VERSION EPG_VERSION_NO
@@ -7805,6 +8107,10 @@ proc UpdateRcFile {} {
       if [array exists cfnetnames] {
          puts $rcfile [list array set cfnetnames [array get cfnetnames]]
       }
+      # dump network air times
+      if [array exists cfnettimes] {
+         puts $rcfile [list array set cfnettimes [array get cfnettimes]]
+      }
 
       # dump shortcuts & network listbox visibility
       puts $rcfile [list set showNetwopListbox $showNetwopListbox]
@@ -7812,6 +8118,10 @@ proc UpdateRcFile {} {
       puts $rcfile [list set showStatusLine $showStatusLine]
       puts $rcfile [list set showColumnHeader $showColumnHeader]
       puts $rcfile [list set hideOnMinimize $hideOnMinimize]
+      puts $rcfile [list set menuUserLanguage $menuUserLanguage]
+
+      # dump size of help window, if modified by the user
+      if {[info exists help_winsize]} {puts $rcfile [list set help_winsize $help_winsize]}
 
       # dump provider database merge CNIs and configuration
       if {[info exists prov_merge_cnis]} {puts $rcfile [list set prov_merge_cnis $prov_merge_cnis]}
@@ -7837,6 +8147,7 @@ proc UpdateRcFile {} {
       puts $rcfile [list set xawtvcf $xawtvcf]
       puts $rcfile [list set wintvcf $wintvcf]
       puts $rcfile [list set ctxmencf $ctxmencf]
+      puts $rcfile [list set ctxmencf_wintv_vcr $ctxmencf_wintv_vcr]
 
       if {[info exists substr_history]} {puts $rcfile [list set substr_history $substr_history]}
 
@@ -7849,6 +8160,9 @@ proc UpdateRcFile {} {
       puts $rcfile [list set dumpdb_mi $dumpdb_mi]
       puts $rcfile [list set dumpdb_li $dumpdb_li]
       puts $rcfile [list set dumpdb_ti $dumpdb_ti]
+
+      puts $rcfile [list set dumptabs_filename $dumptabs_filename]
+      puts $rcfile [list set dumptabs $dumptabs]
 
       puts $rcfile [list set dumphtml_filename $dumphtml_filename]
       puts $rcfile [list set dumphtml_type $dumphtml_type]
@@ -7892,12 +8206,14 @@ proc UpdateProvSelection {cni} {
 }
 
 ##
-##  Same as above, but with the possibility to submit more than one CNI
-##  - used for the merged db (starting with the special CNI 0x00FF)
+##  Same as above, but with more than one CNI
+##  CNI list taken from the merged db (starting with the special CNI 0x00FF)
 ##
-proc UpdateMergedProvSelection {cni_list} {
+proc UpdateMergedProvSelection {} {
    global prov_selection
+   global prov_merge_cnis
 
+   set cni_list [concat 0x00FF $prov_merge_cnis]
    set cni_count [llength $cni_list]
 
    # compare the given list with the beginning of the old list

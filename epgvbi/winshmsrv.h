@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: winshmsrv.h,v 1.3 2002/05/10 00:19:39 tom Exp tom $
+ *  $Id: winshmsrv.h,v 1.4 2002/07/20 16:27:30 tom Exp tom $
  */
 
 #ifndef __WINSHMSRV_H
@@ -30,7 +30,7 @@ typedef struct
    void (* pCbTvEvent)( void );
    void (* pCbStationSelected)( void );
    void (* pCbTunerGrant)( bool enable );
-   void (* pCbAttachTv)( bool enable, bool acqEnabled );
+   void (* pCbAttachTv)( bool enable, bool acqEnabled, bool slaveStateChange );
 } WINSHMSRV_CB;
 
 // ---------------------------------------------------------------------------

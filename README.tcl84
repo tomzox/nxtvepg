@@ -1,0 +1,121 @@
+This describes how to compile Tcl/Tk version 8.4b1 for gcc/mingw32
+(i.e. on Windows in the GNU/Cygwin environment) and which patches
+have been made against the original Tk 8.4b1 library.
+
+[note: working directory: /cygdrive/e/tcl]
+
+
+TCL Build
+---------
+
+cd tcl8.4b1/win
+
+Edit configure script:
+CFLAGS=-mno-cygwin
+
+sh configure
+
+Edit generated Makefile:
+prefix=/d/gnu/tcl84
+exec_prefix=${prefix}
+
+make install
+
+
+
+TK build
+--------
+
+cd tk8.4b1/win
+
+Edit configure script:
+CFLAGS=-mno-cygwin
+
+sh configure
+
+Edit generated Makefile:
+prefix=/d/gnu/tcl84
+exec_prefix=${prefix}
+
+replace win/rc/tk.ico with nxtvepg.ico
+
+windres -o tk.res.o rc/tk.rc --include ../generic --include ../../tcl8.4b1/generic --include rc
+windres -o wish.res.o rc/tk.rc --include ../generic --include ../../tcl8.4b1/generic --include rc
+
+
+
+patch tk_messageBox:
+
+diff -r tk8.4b1-orig/generic/tkWindow.c tk8.4b1/generic/tkWindow.c
+125c125
+< #ifdef __WIN32__
+---
+> #ifdef USE_WIN32_MSGBOX /*__WIN32__  // disabled by TZ (again) 2002-04-30 */
+
+
+
+
+patch shutdown message:
+
+
+diff -r tk8.4b1-orig/generic/tk.decls tk8.4b1/generic/tk.decls
+1278a1279,1282
+> declare 6 win {
+>     void Tk_RegisterMainDestructionHandler ( ClientData clientData )
+> }
+> 
+diff -r tk8.4b1-orig/generic/tkPlatDecls.h tk8.4b1/generic/tkPlatDecls.h
+49a50,52
+> /* 6 */
+> EXTERN void		Tk_RegisterMainDestructionHandler _ANSI_ARGS_((
+> 				Tcl_CloseProc * handler ));
+96a100
+>     void (*tk_RegisterMainDestructionHandler) _ANSI_ARGS_((Tcl_CloseProc * handler)); /* 6 */
+150a155,158
+> #endif
+> #ifndef Tk_RegisterMainDestructionHandler
+> #define Tk_RegisterMainDestructionHandler \
+> 	(tkPlatStubsPtr->tk_RegisterMainDestructionHandler) /* 6 */
+diff -r tk8.4b1-orig/generic/tkStubInit.c tk8.4b1/generic/tkStubInit.c
+628a629
+>     Tk_RegisterMainDestructionHandler, /* 6 */
+
+
+diff -r tk8.4b1-orig/win/tkWinX.c tk8.4b1/win/tkWinX.c
+116a117,134
+>  * Tk_RegisterMainDestructionHandler
+>  *
+>  *        Patched in by tzo: set a handler for shutdown messages
+>  *
+>  *----------------------------------------------------------------------
+>  */
+> static Tcl_CloseProc * tkMainDestructionHandler = NULL;
+> 
+> void
+> Tk_RegisterMainDestructionHandler( Tcl_CloseProc * handler )
+> {
+>     tkMainDestructionHandler = handler;
+> }
+> 
+> 
+> /*
+>  *----------------------------------------------------------------------
+>  *
+650a669,677
+> 
+>         /* TZ++ Jul/2002: this is a hack to catch shutdown messages */
+>         case WM_QUERYENDSESSION:
+>         case WM_ENDSESSION:
+>             if (tkMainDestructionHandler != NULL)
+>             {
+>                 tkMainDestructionHandler(NULL);
+>             }
+>             /*fall-through*/
+
+
+make install
+
+note: after adding the shutdown patch the include files
+must be installed again, or the new function is missing
+which can lead to strange linker errors.
+

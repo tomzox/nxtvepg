@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqclnt.h,v 1.3 2002/05/19 21:53:54 tom Exp tom $
+ *  $Id: epgacqclnt.h,v 1.3 2002/05/19 21:53:54 tom Exp $
  */
 
 #ifndef __EPGACQCLNT_H

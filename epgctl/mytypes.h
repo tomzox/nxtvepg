@@ -19,7 +19,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: mytypes.h,v 1.15 2002/05/08 11:45:17 tom Exp tom $
+ *  $Id: mytypes.h,v 1.16 2002/07/27 13:42:04 tom Exp tom $
  */
 
 #ifndef __MYTYPES_H
@@ -77,5 +77,25 @@ typedef   signed long  slong;    // >=32 bit signed
 
 // enable memory leak detection for debugging
 #define CHK_MALLOC               OFF
+
+// Macro to cast (void *) to (int) and backwards without compiler warning
+// (note: 64-bit compilers warn when casting a pointer to an int)
+#define  PVOID2INT(X)    ((int)((long)(X)))
+#define  PVOID2UINT(X)   ((uint)((ulong)(X)))
+#define  INT2PVOID(X)    ((void *)((long)(X)))
+#define  UINT2PVOID(X)   ((void *)((ulong)(X)))
+
+// In Tcl 8.4 several function pointer args were made const.
+// define a macro for backwards compatibility; this is included with 8.4's tcl.h
+#ifndef CONST84
+# if defined(TCL_MAJOR_VERSION) && defined(TCL_MINOR_VERSION)
+#  if (TCL_MAJOR_VERSION < 8) || \
+      ((TCL_MAJOR_VERSION == 8) && (TCL_MINOR_VERSION <= 3))
+#   define CONST84
+#  else
+#   define CONST84  const
+#  endif
+# endif
+#endif
 
 #endif // __MYTYPES_H

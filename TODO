@@ -23,11 +23,6 @@ win32 port:
 Bugs reported by Jan:
 - sometimes falsely detected "forced passive" after acq cycle advance
 
-xawtv patches (Gerd Knorr)
-- vtx: remove subtitles upon channel changes
-- handle input source change as channel change, e.g. update property
-- split multi-network station names prior to comparison in setstation_handler
-
 nxtvepg xawtv.c:
 - allow expired PI in the browser window (for VPS)
 - Tune-TV: warn if station name is not in .xawtv
@@ -39,15 +34,16 @@ nxtvepg xawtv.c:
 
 WIN32 port fixes:
 - Bt8x8 driver: make video input matrix configurable
+- Btx8x8 card auto-detection from bttv driver
+- use TV app directory in shm for auto-configuration
 - dump stream feature: must use window or file instead of stdout
   note: output to stdout works when started inside a GNU/Cygwin bash
 - need to debug source of main window crash in Windows MessageBox()
 - better workaround for dynamic menus (e.g. "Navigate" filer menu) needed
 - fill context menu config dialog with useful examples for Windows;
-  do not use DOS shell to start applications
-
-open points dsdrv:
-- must be able to load driver multiply in different apps
+  do not use DOS shell to start applications, use CreateProcess instead;
+  do not use Bourne shell quoting
+- prevent manual horizontal resizing (esp. during window maximize)
 
 merged database fixes:
 - fine control for provider merge
@@ -67,7 +63,6 @@ other required fixes:
 - netwop name config: counts names to "automatic selection"
   even if there was just one provider (or just one with that netwop)
   note: no xawtv sync is done, so it must only appear if there's more than one provider
-- btdrv4linux: thread mode: signal HUP to slave thread is ignored
 - during very bad reception acq restarts every 2-4 secs
   due to ttx page header decoding error (falsely detected channel change)
 - AdvanceCyclePhase: limit number of tries to update provider (first "if")
@@ -88,14 +83,9 @@ other required fixes:
 - filter shortcut combination logic modes: OR,AND
 - provider-specific shortcuts: are listed only for one provider
   mandatory when shortcut includes series or sortcrit filter
-- improve sync with acq slave process:
-  + acq abort: slave should pass errno as reason via shmem
-  + sigchld -> acq off
-  + check parent every 30 sec, also when no ttx reception
+- navigation: disable leafs with zero PI / display number of matches
 
 possible new features: (in order of decreasing priority)
-- network selection: allow to specify time windows, e.g. for ARTE 19:00-06:00
-- additional dump format: as text with TABS as separators
 - bookmarks with multiple priority levels and reminders for bookmarks above
   an adjustable priority level (raise popup or dispatch external app.)
 - series management based on titles only, across all networks
@@ -113,5 +103,4 @@ possible new features: (in order of decreasing priority)
   and fuzzy-matching actor's names in the description
 - provider selection: display db age & fill percentage
   save stats and start time of 1st PI in db header
-- navigation: disable leafs with zero PI / display number of matches
 

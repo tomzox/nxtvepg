@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: wintv.c,v 1.8 2002/06/02 19:04:44 tom Exp tom $
+ *  $Id: wintv.c,v 1.11 2002/08/03 14:42:53 tom Exp tom $
  */
 
 #ifndef WIN32
@@ -47,6 +47,7 @@
 #include "epgvbi/btdrv.h"
 #include "epgvbi/ttxdecode.h"
 #include "epgvbi/winshmsrv.h"
+#include "epgvbi/winshm.h"
 #include "epgdb/epgblock.h"
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
@@ -98,7 +99,8 @@ static uint Wintv_StationNametoCni( const char * station )
 {
    const AI_BLOCK *pAiBlock;
    const char * name;
-   uchar cni_str[7], *cfgn;
+   const char *cfgn;
+   uchar cni_str[7];
    uchar netwop;
    uint cni;
 
@@ -386,6 +388,7 @@ static void Wintv_StationTimer( ClientData clientData )
 static void Wintv_StationSelected( void )
 {
    char station[50];
+   bool drvEnabled, hasDriver;
 
    // query name of the selected TV station
    if ( WintvSharedMem_QueryChanName(station, sizeof(station), &followTvState.chanQueryIdx) )
@@ -413,9 +416,12 @@ static void Wintv_StationSelected( void )
          dprintf1("Wintv-StationSelected: unknown station: \"%s\"\n", station);
       }
 
-      // clear old VPS results, just like after a channel change
-      // XXX TODO check if acq is using the same TV card
-      EpgAcqCtl_ResetVpsPdc();
+      // reset EPG decoder if acq is using the TTX stream provided by the TV app
+      BtDriver_GetState(&drvEnabled, &hasDriver, NULL);
+      if (drvEnabled && !hasDriver)
+      {
+         EpgAcqCtl_ResetVpsPdc();
+      }
 
       followTvState.stationPoll = 120;
       pollVpsEvent = Tcl_CreateTimerHandler(120, Wintv_StationTimer, NULL);
@@ -448,10 +454,10 @@ static int Wintv_QueryTvapp( ClientData ttp, Tcl_Interp *interp, int argc, char 
 // 
 static int Wintv_ReadConfig( Tcl_Interp *interp, WINTVCF *pNewWintvcf )
 {
+   const char    * pTmpStr;
+   CONST84 char ** cfArgv;
    int shmEnable, tunetv, follow, doPop;
-   char * pTmpStr;
-   char **cfArgv;
-   int  cfArgc, idx;
+   int cfArgc, idx;
    int result = TCL_ERROR;
 
    pTmpStr = Tcl_GetVar(interp, "wintvcf", TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG);
@@ -632,21 +638,35 @@ static void Wintv_CbStationSelected( void )
 
 // ---------------------------------------------------------------------------
 // Incoming TV app message: TV tuner was granted or reposessed
+// - the enable parameter is currently not used because the check function
+//   detects this automatically upon attempting to change the channel
 //
 static void Wintv_CbTunerGrant( bool enable )
 {
-   // have the acq control update it's device state
-   EpgAcqCtl_CheckDeviceAccess();
+   bool drvEnabled, hasDriver;
+
+   BtDriver_GetState(&drvEnabled, &hasDriver, NULL);
+
+   if (drvEnabled && !hasDriver)
+   { // have the acq control update it's device state
+      EpgAcqCtl_CheckDeviceAccess();
+   }
 }
 
 // ---------------------------------------------------------------------------
 // TV application has attached or detached from nxtvepg
 //
-static void Wintv_CbAttachTv( bool enable, bool acqEnabled )
+static void Wintv_CbAttachTv( bool enable, bool acqEnabled, bool slaveStateChange )
 {
+   uint tvFeatures;
+
    if (acqEnabled)
    {  // update acquisition status, e.g. set to "forced passive" if TV card is owned by TV app now
-      EpgAcqCtl_CheckDeviceAccess();
+      dprintf2("Wintv-CbAttachTv: TV app attached: acq=%d, slave-change=%d\n", acqEnabled, slaveStateChange);
+      if (slaveStateChange)
+      {
+         EpgAcqCtl_CheckDeviceAccess();
+      }
    }
    else
    {  // switch off acquisition (if enabled) if the driver restart failed in the new mode
@@ -658,6 +678,13 @@ static void Wintv_CbAttachTv( bool enable, bool acqEnabled )
    if ( (wintvcf.shmEnable) && (wintvcf.tunetv) && (enable) )
    {
       eval_check(interp, "CreateTuneTvButton\n");
+
+      // add "record" button to context menu if supported by TV app
+      if ( (WintvSharedMem_IsConnected(NULL, 0, &tvFeatures)) &&
+           ((tvFeatures & TVAPP_FEAT_VCR) != 0) )
+      {
+         eval_check(interp, "ContextMenuAddWintvVcr\n");
+      }
    }
    else
       eval_check(interp, "RemoveTuneTvButton\n");

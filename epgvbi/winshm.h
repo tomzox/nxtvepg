@@ -19,7 +19,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: winshm.h,v 1.7 2002/05/30 13:58:01 tom Exp tom $
+ *  $Id: winshm.h,v 1.8 2002/08/03 14:36:13 tom Exp tom $
  */
 
 #ifndef __WINSHM_H
@@ -99,6 +99,7 @@ typedef struct
 #define TVAPP_FEAT_REQ_CNAME  0x0008  // requests name of current channel
 #define TVAPP_FEAT_CMD_TUNE   0x0010  // allows channel change by EPG App
 #define TVAPP_FEAT_CMD_MUTE   0x0020  // allows audio mute by EPG app
+#define TVAPP_FEAT_VCR        0x0040  // supports "record" command
 #define TVAPP_FEAT_ALL_000701 (TVAPP_FEAT_TTX_FWD|TVAPP_FEAT_VPS_FWD|TVAPP_FEAT_TUNER|TVAPP_FEAT_REQ_CNAME|TVAPP_FEAT_CMD_TUNE|TVAPP_FEAT_CMD_MUTE)
 
 #define EPG_SHM_VERSION       0xFF020101  // protocol version id

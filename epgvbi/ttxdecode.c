@@ -32,7 +32,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: ttxdecode.c,v 1.49 2002/05/30 13:57:45 tom Exp tom $
+ *  $Id: ttxdecode.c,v 1.50 2002/07/20 16:27:15 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -86,7 +86,6 @@ void TtxDecode_StartEpgAcq( uint epgPageNo, bool isEpgScan )
    // pass the configuration variables to the ttx process via shared memory
    pVbiBuf->epgPageNo = epgPageNo;
    pVbiBuf->isEpgScan = isEpgScan;
-   pVbiBuf->doVpsPdc  = TRUE;
 
    // enable ttx processing in the slave process/thread
    pVbiBuf->isEnabled = TRUE;
@@ -103,6 +102,7 @@ void TtxDecode_StopAcq( void )
 {
    // inform writer process/thread
    pVbiBuf->isEnabled = FALSE;
+   pVbiBuf->isEpgScan = FALSE;
 }
 
 // ---------------------------------------------------------------------------
@@ -263,8 +263,9 @@ static void TtxDecode_AddCni( CNI_TYPE type, uint cni, uint pil )
             pVbiBuf->cnis[type].lastCni = cni;
             pVbiBuf->cnis[type].cniRepCount += 1;
 
-            if (pVbiBuf->cnis[type].cniRepCount > 2)
+            if ( (pVbiBuf->cnis[type].cniRepCount > 2) || (type == CNI_TYPE_PDC) )
             {  // the same CNI value received 3 times -> make it available as result
+               // PDC is Hamming-8/4 coded, so one reception is safe enough
 
                if (pVbiBuf->cnis[type].havePil && (pVbiBuf->cnis[type].outCni != cni))
                {  // CNI result value changed -> remove PIL
@@ -287,7 +288,7 @@ static void TtxDecode_AddCni( CNI_TYPE type, uint cni, uint pil )
                pVbiBuf->cnis[type].lastPil = pil;
                pVbiBuf->cnis[type].pilRepCount += 1;
 
-               if (pVbiBuf->cnis[type].pilRepCount > 2)
+               if ( (pVbiBuf->cnis[type].pilRepCount > 2) || (type == CNI_TYPE_PDC) )
                {
                   // don't save as result if CNI is unknown or does not match the last CNI
                   if (pVbiBuf->cnis[type].haveCni && (pVbiBuf->cnis[type].outCni == cni))
@@ -457,7 +458,7 @@ void TtxDecode_AddVpsData( const uchar * data )
    uint mday, month, hour, minute;
    uint cni, pil;
 
-   if ( (pVbiBuf != NULL) && (pVbiBuf->doVpsPdc) &&
+   if ( (pVbiBuf != NULL) &&
         (pVbiBuf->chanChangeReq == pVbiBuf->chanChangeCnf) &&
         (acqSlaveState.skipFrames == 0) )
    {
@@ -864,7 +865,7 @@ bool TtxDecode_NewVbiFrame( uint frameSeqNo )
 {
    bool result = TRUE;
 
-   if ((pVbiBuf != NULL) && (pVbiBuf->isEnabled))
+   if (pVbiBuf != NULL)
    {
       if (pVbiBuf->chanChangeReq != pVbiBuf->chanChangeCnf)
       {  // acq master signaled channel change (e.g. new tuner freq.)
@@ -957,7 +958,7 @@ void TtxDecode_AddPacket( const uchar * data )
    uint  pageNo;
    uint  sub;
 
-   if ( (pVbiBuf != NULL) && (pVbiBuf->isEnabled) &&
+   if ( (pVbiBuf != NULL) &&
         (pVbiBuf->chanChangeReq == pVbiBuf->chanChangeCnf) &&
         (acqSlaveState.skipFrames == 0) )
    {
@@ -978,7 +979,7 @@ void TtxDecode_AddPacket( const uchar * data )
                pageNo = tmp1 | ((uint)mag << 8);
                sub    = (tmp2 | (tmp3 << 8)) & 0x3f7f;
 
-               if (pageNo == pVbiBuf->epgPageNo)
+               if ((pVbiBuf->isEnabled) && (pageNo == pVbiBuf->epgPageNo))
                {
                   acqSlaveState.isEpgPage = TRUE;
                   TtxDecode_BufferAdd(pageNo, sub, 0, data + 2);
@@ -1029,7 +1030,8 @@ void TtxDecode_AddPacket( const uchar * data )
          else
          {  // regular teletext packet (i.e. not a header)
 
-            if ( acqSlaveState.isEpgPage &&
+            if ( (pVbiBuf->isEnabled) && 
+                 (acqSlaveState.isEpgPage) &&
                  (mag == (pVbiBuf->epgPageNo >> 8)) &&
                  (pkgno < 26) )
             {  // new EPG packet
@@ -1040,7 +1042,7 @@ void TtxDecode_AddPacket( const uchar * data )
             {  // new MIP packet (may be received in parallel for several magazines)
                TtxDecode_MipPacket(mag, pkgno, data + 2);
             }
-            else if (pVbiBuf->doVpsPdc && (pkgno == 30) && (mag == 0))
+            else if ((pkgno == 30) && (mag == 0))
             {  // packet 8/30/1 is evaluated for CNI during EPG scan
                TtxDecode_GetP830Cni(data + 2);
             }

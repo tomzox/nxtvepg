@@ -9067,3 +9067,452 @@ www/tripod-src-index.html [rev:1.7, 2002-06-02T19:38:53]:
 CHANGES [rev:1.24, 2002-06-02T19:39:28]:
 - updated for release 0.7.4
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_7_4 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+epgdb/epgdbfil.c [rev:1.34, 2002-06-15T12:06:57]:
+- Implemented new filter type: FILTER_AIR_TIMES
+- new func EpgDbFilterInitAirTimesFilter()
+- new func EpgDbFilterSetAirTimesFilter()
+- EpgDbFilterMatches(): added AIR_TIMES filter matching
+epgdb/epgdbfil.h [rev:1.19, 2002-06-15T12:07:05]:
+- added new filter #define FILTER_AIR_TIMES
+- added FILTER_AIR_TIMES to FILTER_PERM
+- added new elems to struct FILTER_CONTEXT: netwopAirTimeStart/Stop
+- added decls for EpgDbFilterInitAirTimesFilter/SetAirTimesFilter()
+epgui/pifilter.c [rev:1.55, 2002-06-15T12:10:27]:
+- Added new func PiFilter_UpdateAirTime()
+- sets new FILTER_AIR_TIMES pre-filter;
+    config is stored in global Tcl/Tk variable "cfnettimes"
+- called from PiFilter_UpdateNetwopList()
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.165, 2002-06-15T12:19:00]:
+- Added air times configuration to network selection dialog
+- proc PopupNetwopSelection: added "official network name" and entry fields
+    for start/stop time to the bottom of the dialog window
+- new proc NetselUpdateCni: save the start and stop times of the selected CNI
+- new proc NetselUpdateTimes: callback for selection in left or right list
+- added array "cfnettimes" to rc/ini file
+dsdrv/hwdrv.c [rev:1.1.1.2, 2002-06-16T17:45:07]:
+- r1.13: Fix to allow multiple programs access to the driver
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.166, 2002-06-23T10:21:14]:
+- PDC theme language is now configurable
+- added "Theme language" cascade to "Configure" menu
+- proc FilterMenuAdd_Themes: can be called repeatedl to change the language
+    of theme strings
+- added proc UpdateUserLanguage to set the language
+    uses new C operator C_UpdateLanguage
+- added new config var menuUserLanguage to rc/ini load and store
+epgui/epgtxtdump.c [epgui/dumpraw.c, rev:1.26, 2002-06-23T10:21:34]:
+- PDC theme language is now configurable
+- replaced access to global theme string arrays with function calls
+epgui/epgmain.c [rev:1.90, 2002-06-23T10:21:40]:
+- PDC theme language is now configurable
+- added setup of user configured language for PDC themes
+nxtvepg.pod [rev:1.69, 2002-06-23T10:21:50]:
+- added description of new air times configuration in network selection dialog
+- added description of new themes language configuration
+epgui/menucmd.c [rev:1.80, 2002-06-23T10:22:40]:
+- PDC theme language is now configurable
+- added new Tcl operator MenuCmd_UpdateLanguage(): invokes SetUserLanguage
+- added new global func SetUserLanguage(): Set user configured theme language
+- invoke SetUserLanguage() during provider switch and prov merge
+epgui/menucmd.h [rev:1.18, 2002-06-23T10:23:09]:
+- PDC theme language is now configurable
+- added declaration of new function SetUserLanguage()
+epgui/pdc_themes.c [rev:1.7, 2002-06-23T10:23:20]:
+- PDC theme language is now configurable
+- added German and French translation of PDC theme table and other texts
+- removed " - general" from themes: added separate string pdc_general
+- added new function PdcThemeSetLanguage()
+- all texts are now module internal (static) -> added new access functions
+    PdcThemeGet(), PdcThemeGetWithGeneral(), PdcThemeIsDefined()
+- optimized PdcThemeGetCategory(): replaced for looop with 2 table lookups
+epgui/pdc_themes.h [rev:1.4, 2002-06-23T10:23:26]:
+- PDC theme language is now configurable
+- added new function PdcThemeSetLanguage()
+- all texts are now module internal (static) -> added new access functions
+    PdcThemeGet(), PdcThemeGetWithGeneral(), PdcThemeIsDefined()
+- added #define PDC_THEME_SERIES  0x80
+epgui/pifilter.c [rev:1.56, 2002-06-23T10:23:39]:
+- PDC theme language is now configurable
+- replaced access to global theme string arrays with function calls
+epgui/pioutput.c [rev:1.15, 2002-06-23T10:23:46]:
+- PDC theme language is now configurable
+- replaced access to global theme string arrays with function calls
+- Improved theme string output in listbox column
+- added new function PiOutput_CacheThemesMaxLen(): use Tk_MeasureChars() to
+    determine exactly how many chanrs fit (instead of using a pessimistic guess)
+epgui/pioutput.h [rev:1.5, 2002-06-23T10:23:52]:
+- Added declaration for new function PiOutput_CacheThemesMaxLen()
+epgui/uictrl.c [rev:1.29, 2002-06-23T10:24:36]:
+- PDC theme language is now configurable
+- UiControl_AiStateChange(): added call to SetUserLanguage():
+    update the language (if in automatic mode)
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.167, 2002-06-23T10:26:19]:
+- added comment for proc FilterMenuAdd_Themes
+epgui/pioutput.c [rev:1.16, 2002-06-23T10:52:00]:
+- bugfix "series" theme output in PiOutput_PrintColumnItem()
+www/pre-releases.html [rev:1.8, 2002-06-23T18:01:12]:
+- Added nxtvepg.exe.gz v2.2.0a1
+- developer's snapshot for mat100@ifrance.fr
+- for evaluation of French PDC themes translation
+dsdrv/hwdrv.c [rev:1.5, 2002-06-23T18:19:00]:
+- Fix in HwDrv_LoadDriver(): params to CreateFile()
+- added FILE_SHARE_WRITE permissions
+- from orig r1.13: "Fix to allow multiple programs access to the driver"
+epgvbi/btdrv4dummy.c [rev:1.10, 2002-06-26T19:38:50]:
+- removed BtDriver_CheckParent(): now static in btdrv4linux.c
+www/index-de.html [rev:1.31, 2002-06-29T14:41:11]:
+- added link to K!TV
+- changed URL for Grundig from .de to .com domain
+www/index.html [rev:1.42, 2002-06-29T14:41:11]:
+- added link to K!TV
+- changed URL for Grundig from .de to .com domain
+www/provnets.html [rev:1.15, 2002-06-29T14:41:56]:
+- updated note abour TRT:
+- added new networks which transmit the TRT database, provided by enek
+- updated list of transmission errors
+www/index-de.html [rev:1.32, 2002-07-01T19:53:14]:
+- added number of covered networks behind the countrys provider
+    list (because some people still don't understand that more
+    than the provider's networks are covered)
+- big syntax fix: replaced <DL> with <UL> in lists
+www/index.html [rev:1.43, 2002-07-01T19:53:14]:
+- added number of covered networks behind the countrys provider
+    list (because some people still don't understand that more
+    than the provider's networks are covered)
+- big syntax fix: replaced <DL> with <UL> in lists
+dsdrv/hwdrv.c [rev:1.6, 2002-07-07T12:17:07]:
+- fix for Windows 95:
+- resolve 2 symbols dynamically, which are missing in Win95 advapi32.dll
+dsdrv/hwdrv.c [rev:1.1.1.3, 2002-07-08T20:00:20]:
+- r1.14: Made a bit less strict with driver versions -
+         should be happy with newer drivers
+www/changelog.html [rev:1.33, 2002-07-17T17:49:38]:
+- Added <LINK> for shortcut icon: nxtvepg.ico
+www/index-de.html [rev:1.33, 2002-07-17T17:49:38]:
+- Added <LINK> for shortcut icon: nxtvepg.ico
+www/index.html [rev:1.44, 2002-07-17T17:49:38]:
+- Added <LINK> for shortcut icon: nxtvepg.ico
+www/provnets.html [rev:1.16, 2002-07-17T17:49:38]:
+- Added <LINK> for shortcut icon: nxtvepg.ico
+www/man.html [rev:1.17, 2002-07-17T17:50:10]:
+- Added <LINK> for shortcut icon: nxtvepg.ico
+- Added <!DOCTYPE> tag
+www/pre-releases.html [rev:1.9, 2002-07-17T17:51:01]:
+- updated: added new feature: TAB-separated db export
+tvsim/tvsim.pod [rev:1.3, 2002-07-20T16:25:45]:
+- -card option: was describing Linux devices; replaced with btdrv4win algorithm
+- -rcfile: added note that TV card index is not loaded from nxtvepg ini file
+tvsim/tvsim_main.c [rev:1.9, 2002-07-20T16:25:56]:
+- hardwired TV card index to 0; it's no longer loaded from nxtvepg.ini
+- adapted to changed interface to pdc_themes
+tvsim/vbiplay.c [rev:1.6, 2002-07-20T16:26:04]:
+- added TV card index to WinSharedMemClient_Init()
+tvsim/vbirec_main.c [rev:1.11, 2002-07-20T16:26:15]:
+- removed doVpsPdc from VBI buffer (VPS decoder is now always enabled)
+tvsim/winshmclnt.c [rev:1.7, 2002-07-20T16:26:23]:
+- Added support for multiple TV cards in interaction
+- added parameter cardIdx to WinSharedMemClient_Init(): written to shm
+- during startup don't wait fro nxtvepg to free the driver if it's using
+    a different TV card
+tvsim/winshmclnt.h [rev:1.5, 2002-07-20T16:26:29]:
+- Added support for multiple TV cards in interaction
+- added parameter cardIdx to WinSharedMemClient_Init()
+dsdrv/hwdrv.c [rev:1.7, 2002-07-20T16:26:39]:
+- made version check more tolerant: allow newer dsdrv versions
+- do not stop the service, because another app might still be using the driver
+- fix for dynamic symbol loading (from previous check-in)
+    added casts to avoid compiler warnings (still unsuccessful though)
+    added missing call to FreeLibrary() in error case
+epgvbi/btdrv.h [rev:1.23, 2002-07-20T16:26:50]:
+- Removed element doVpsPdc in struct EPGACQ_BUF
+epgvbi/btdrv4linux.c [rev:1.30, 2002-07-20T16:27:01]:
+- adapted to change in struct EPGACQ_BUF
+- element doVpsPdc was removed (VPS/PDC decoding is now always enabled)
+- pass TRUE instead to VbiDecodeLine()
+epgvbi/btdrv4win.c [rev:1.24, 2002-07-20T16:27:08]:
+- adapted to change in struct EPGACQ_BUF: element doVpsPdc was removed
+    (VPS/PDC decoding is now always enabled) -> pass TRUE to VbiDecodeLine()
+- implemented BtDriver_Configure() for slave mode, to allow to switch to
+    a different TV card
+epgvbi/ttxdecode.c [rev:1.50, 2002-07-20T16:27:15]:
+- PDC acq: no longer require 3 repetitions, i.e. result available immediately
+- removed element doVpsPdc: VPS/PDC is now always enabled
+- isEnabled now only controles EPG acquisition
+epgvbi/winshmsrv.c [rev:1.7, 2002-07-20T16:27:24]:
+- Fixes for added support for multiple TV cards in interaction
+- added 3rd arg to callback pCbAttachTv: slaveStateChange
+- slaveStateChange set to TRUE when entering or leaving slave acq mode
+    in WinSharedMem_AttachTvapp()
+- set pTvShm->vbiBuf.obsolete1 = TRUE: former doVps flag
+    now VPS is always enabled
+epgvbi/winshmsrv.h [rev:1.4, 2002-07-20T16:27:30]:
+- Fixes for added support for multiple TV cards in interaction
+- added 3rd arg to callback pCbAttachTv: slaveStateChange
+epgctl/epgacqctl.c [rev:1.74, 2002-07-20T16:27:47]:
+- Fixes for added support for multiple TV cards in interaction
+- trigger ACQ_EVENT_STATS_UPDATE in EpgAcqCtl_CheckDeviceAccess()
+epgui/epgmain.c [rev:1.91, 2002-07-20T16:27:56]:
+- added #ifdef USE_DAEMON around DaemonTriggerGui()
+- Tcl8.4 compatibility: added CONST84 to Tcl_Merge() argument
+epgui/pdc_themes.c [rev:1.8, 2002-07-20T16:28:05]:
+- added new function PdcThemeGetByLang(): for export into SQL db
+- bugfix in category calculation in PdcThemeGetWithGeneral()
+epgui/pdc_themes.h [rev:1.5, 2002-07-20T16:28:14]:
+- added new function PdcThemeGetByLang()
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.168, 2002-07-20T16:28:24]:
+- Implemented database export in TAB separated format for SQL import
+- added new entry in Control menu: "Export TAB-separated..."
+- renamed "Dump in HTML" into "Export in HTML"
+    and added string "Raw" to related procedures, e.g. C_DumpRawDatabase
+- added dialog to dump db in TAB separated format: proc PopupDumpDbTabs
+- added dumptabs_filename and dumptabs_filename to rc/ini file
+epgui/pifilter.c [rev:1.57, 2002-07-20T16:28:33]:
+- Tcl8.4 compatibility:
+- added CONST84 to Tcl_SplitList() and Tcl_GetVar()
+- SelectThemes(), SelectNetwops(): replaced use of argc,argv with
+    local variables
+epgui/pilistbox.c [rev:1.69, 2002-07-20T16:28:40]:
+- Tcl8.4 compatibility: use const char * for Tcl_GetVar() return value
+epgui/pioutput.c [rev:1.17, 2002-07-20T16:28:49]:
+- bugfix PiOutput_DictifyTitle(): first char was not made upper case
+    if no prefix had to be removed
+- Tcl8.4 compatibility: added CONST84 to Tcl_SplitList() and Tcl_GetVar()
+- PiOutput_ExecUserCmd(): changed implementation because Tcl list was
+    modified, which is now const
+epgui/uictrl.c [rev:1.30, 2002-07-20T16:29:25]:
+- Tcl8.4 compatibility: use const char * for Tcl_GetVar() return value
+epgui/menucmd.c [rev:1.81, 2002-07-20T16:30:34]:
+- added new Tcl operator C_DumpTabsDatabase: func MenuCmd_DumpTabsDatabase()
+- renamed function MenuCmd_DumpDatabase() into MenuCmd_DumpRawDatabase()
+    to reduce confusion between dump types
+- MenuCmd_SetControlMenuStates(): added state setting for new entry
+    "Export TAB-separated" and replaced "Dump in HTML" with "Export in HTML"
+- Tcl8.4 compatibility: added CONST84 to Tcl_SplitList() and Tcl_GetVar()
+epgui/wintvcfg.c [rev:1.6, 2002-07-20T16:39:15]:
+- Adapted on request of e-nek (email 2002-06-19)
+- WintvCfg_GetKtvIni(): allow keyword "card" as alternative to "carte"
+epgui/wintv.c [rev:1.9, 2002-07-20T16:39:21]:
+- Fixes for added support for multiple TV cards in interaction
+- Wintv_StationSelected(): only reset EPG acq if it uses the same TV card
+    as the TV app
+- Wintv_CbTunerGrant(): ignore trigger is TV app uses different TV card
+- added 3rd arg to callback pCbAttachTv aka Wintv_CbAttachTv():
+    bool slaveStateChange: TRUE when driver restarted -> check device status;
+    before the device status was always checked, even if the TV app used
+    a different card.
+epgui/xawtv.c [rev:1.24, 2002-07-20T16:59:05]:
+- Tcl8.4 compatibility: use CONST84 for Tcl_GetVar() and Tcl_SplitList()
+tvsim/tvsim_main.c [rev:1.10, 2002-07-27T13:40:28]:
+- Tcl8.4 compatibility: added CONST84 to Tcl_SplitList(), Tcl_GetVar()
+    and Tcl_Merge()
+tvsim/vbirec_main.c [rev:1.12, 2002-07-27T13:40:37]:
+- Tcl8.4 compatibility: added CONST84 to Tcl_SplitList(), Tcl_GetVar(),
+    Tcl_Merge() and trace callback function TclCb_EnableDump()
+epgvbi/btdrv4dummy.c [rev:1.11, 2002-07-27T13:41:18]:
+- Added missing #include <string.h> for memset() and memcpy()
+epgctl/epgctxctl.c [rev:1.21, 2002-07-27T13:41:29]:
+- Added missing #include <string.h> for memset() and memcpy()
+epgctl/epgctxmerge.c [rev:1.10, 2002-07-27T13:41:36]:
+- Added missing #include <string.h> for memset() and memcpy()
+epgctl/debug.c [rev:1.14, 2002-07-27T13:41:47]:
+- xmalloc: Added missing cast to (int) in fprintf (size_t) argument
+epgctl/mytypes.h [rev:1.16, 2002-07-27T13:42:04]:
+- added macros PVOID2INT(), INT2PVOID() for 64-bit platforms
+    [triggered by Helge Kreutzmann's email from 2002-07-15]
+- Tcl8.4 compatibility: defined empty macro CONST84 for older Tcl versions
+epgui/uictrl.c [rev:1.31, 2002-07-27T13:43:57]:
+- Fixed to avoid compiler warnings on 64-bit platforms:
+- use macros PVOID2INT(), INT2PVOID() for (int) <-> (void *) casts
+epgui/wintv.c [rev:1.10, 2002-07-27T13:45:17]:
+- Tcl8.4 compatibility: added CONST84 to Tcl_SplitList() and Tcl_GetVar()
+epgui/wintvcfg.c [rev:1.7, 2002-07-27T13:45:25]:
+- Tcl8.4 compatibility: added CONST84 to Tcl_SplitList() and Tcl_GetVar()
+epgui/epgmain.c [rev:1.92, 2002-07-27T13:45:33]:
+- Fixed to avoid compiler warnings on 64-bit platforms:
+    use macros PVOID2INT(), INT2PVOID() for (int) <-> (void *) casts
+- bugfix daemon mode (lead to Tcl panic with Tcl84): must not close stdin
+    and stdout: use /dev/null as replacements
+epgui/statswin.c [rev:1.61, 2002-07-27T13:45:50]:
+- Fixed to avoid compiler warnings on 64-bit platforms:
+- use macros PVOID2INT(), INT2PVOID() for (int) <-> (void *) casts
+README.tcl84 [README.tcltk, rev:1.1, 2002-07-27T13:57:59]:
+- Initial revision
+nxtvepg.pod [rev:1.70, 2002-07-28T16:18:27]:
+- improved description of -card option for Windows
+- replaced mention of provider Pro7 with 3sat
+- added description for new control menu entry "export tab separated"
+- added thanks to Mathieu for French translation of PDC theme table
+epgctl/epgscan.c [rev:1.28, 2002-08-03T11:49:40]:
+- Bugfix state SCAN_STATE_WAIT_NI_OR_EPG:
+- in this state EPG was not decoded -> hence, if VPS/PDC was never decoded
+    the EPG provider was not recognized.
+- bug reported by Helge Kreutzmann
+nxtvepg.pod [rev:1.71, 2002-08-03T14:34:52]:
+- Context menu config dialog: added support for "ZoomOut" K!TV plugin
+- added ":n" modifier for numerical output
+- added !wintv! commands
+README.tcl84 [README.tcltk, rev:1.2, 2002-08-03T14:35:14]:
+- Added WM_ENDSESSION patch from diff against orig Tk distribution
+tvsim/tvsim_main.c [rev:1.11, 2002-08-03T14:35:39]:
+- branches:  1.11.1;
+- Added "record" command for K!TV plugin "ZoomOut"
+- all params are simply dumped via dprintf; nothing else
+- added TVAPP_FEAT_VCR to supported features
+tvsim/winshmclnt.c [rev:1.8, 2002-08-03T14:35:50]:
+- fixed function name in two debug strings
+epgvbi/winshm.h [rev:1.8, 2002-08-03T14:36:13]:
+- Added #define TVAPP_FEAT_VCR
+epgvbi/winshmsrv.c [rev:1.8, 2002-08-03T14:36:24]:
+- WintvSharedMem_SetEpgCommand(): return error if no TV app connected
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.169, 2002-08-03T14:37:14]:
+- Adaptions for Tcl84:
+- set background of shortcut and netwops filter listbox in main window to gray
+- Automatically add "record" entry to conext menu for K!TV ZoomOut plugin
+- added sample commands to "Copy example" menu in ctx config dialog
+- added new proc ContextMenuAddWintvVcr: called upon winshm attach
+- added boolean flag ctxmencf_wintv_vcr to rc/ini file
+epgui/pioutput.c [rev:1.18, 2002-08-03T14:42:35]:
+- Implemented support for wintv commands in the context menu
+- prefix !wintv! -> command is not quoted for Bourne Shell, instead all spaces
+    are replaced by null characters
+- split off new sub-function PiOutput_CmdSubstitute() from
+    PiOutput_ExecUserCmd()
+- added element quoteShell to struct DYN_CHAR_BUF
+- added new function PiOutput_CtxMenuAddUserDef():
+    code moved here from pifilter.c::CreateContextMenu()
+- PiOutput_ExtCmdVariable:
+- variable "themes": added ":n" modifier for numerical output
+epgui/pioutput.h [rev:1.6, 2002-08-03T14:42:40]:
+- Added decl for new function PiOutput_CtxMenuAddUserDef():
+- code moved here from pifilter.c::CreateContextMenu()
+epgui/pifilter.c [rev:1.58, 2002-08-03T14:42:46]:
+- Implemented support for wintv commands in the context menu
+- CreateContextMenu(): moved user-defined command generation into pioutput.c
+    because the command execution is there too -> call new function
+    PiOutput_CtxMenuAddUserDef()
+epgui/wintv.c [rev:1.11, 2002-08-03T14:42:53]:
+- Automatically add "record" entry to conext menu for K!TV ZoomOut plugin
+- Wintv_CbAttachTv(): invoke new Tcl proc ContextMenuAddWintvVcr
+    if connected app has TVAPP_FEAT_VCR feature bit
+www/pre-releases.html [rev:1.10, 2002-08-06T18:53:24]:
+- replaced change explanation with reference to changelog
+- added complete package nxtvepg-2.2.0a3-tcl84.zip
+- added nxtvepg.exe.gz: patch for Zooomout K!TV plugin
+www/pre-releases.html [rev:1.11, 2002-08-08T19:28:55]:
+- removed all content for now (don't want random people to download from here)
+Makefile [rev:1.45, 2002-08-11T19:49:59]:
+- made Tcl/Tk library version configurable (prepared for version 8.4)
+- added new source module epgui/epgtabdump
+Makefile.win32 [rev:1.25, 2002-08-11T19:50:04]:
+- made Tcl/Tk library version configurable
+- upgraded to version 8.3.4 from 8.3.2 (prepared for version 8.4)
+    note: scripts subdirectories are still from 8.3.2
+- "zip" target: changed name of tvsim package: "-tvsim-$TVSIM_VERSION"
+    also print names of the generated zip files
+README.tcl84 [README.tcltk, rev:1.3, 2002-08-11T19:50:12]:
+- fixed misordered subheaders
+nxtvepg.pod [rev:1.72, 2002-08-11T19:50:18]:
+- added -dump command line flag
+- renamed section "Export TAB-separated" into "Export as text"
+    and improved the description
+- renamed section "Export in HTML" into "Export as HTML"
+- removed use of C<> macro: use I<> instead
+pod2help.pl [rev:1.15, 2002-08-11T19:50:26]:
+- improved output of pre-formatted paragraphs
+    + all preformatted lines are now handled as one paragraph
+    + use new tag "pfixed" -> fixed font, no line spacing
+- added support for POD C<> macro: fixed font
+- improved output of =head2: use new tag "title2"
+tvsim/tvsim_version.h [rev:1.3, 2002-08-11T19:50:35]:
+- set version to 1.10 from 1.9 due to addition of multicard support
+epgui/epgmain.c [rev:1.93, 2002-08-11T19:50:43]:
+- Added -dump switch to command line
+- new module global flag EPGTAB_DUMP_MODE optDumpMode
+- ui_init() now has param bool withTk: FALSE in daemon and dump mode;
+    used instead of module-global var optDaemonMode
+- added processing of dump mode to main()
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.170, 2002-08-11T19:50:51]:
+- made backwards compatible with Tk8.3 again: in 8.3 the entry widget does
+    not support -disabledforeground yet -> use -foreground instead
+- renamed control menu entry "Export TAB-separated" into "Export as text"
+- renamed "Export in HTML" into "Export as HTML"
+- help windows: added new tags fixed, pfixed and title2; renamed title into
+    title1 -> improved formatting used by pod2help.pl
+- added <Configure> callback for Help window: save manually set help window
+    size into rc/ini file
+- proc UpdateRcFile: added new variable help_winsize
+- proc UpdateMergedProvSelection: simplified: now use Tcl var prov_merge_cnis
+    instead of getting passed a CNI list from the caller on C level
+epgui/menucmd.c [rev:1.82, 2002-08-11T19:51:50]:
+- Added -dump switch to command line
+- split off new subfunction MenuCmd_MergeDatabases() from ProvMerge_Start()
+    and OpenInitialDb(): exported globally
+- removed ProvMerge_UpdateProvSelectionList():
+    all implemented in Tcl proc UpdateMergedProvSelection now
+- MenuCmd_DumpTabsDatabase() adapted for new interface to EpgTabDump_Database()
+- Also:
+- renamed control menu entry "Export TAB-separated" into "Export as text"
+- renamed "Export in HTML" into "Export as HTML"
+- made backwards compatible with Tk8.3 again: replaced const with CONST84
+epgui/menucmd.h [rev:1.19, 2002-08-11T19:52:25]:
+- Added declaration of new function MenuCmd_MergeDatabases
+epgui/pifilter.c [rev:1.59, 2002-08-11T19:52:31]:
+- Made backwards compatible with Tk8.3 again: replaced const with CONST84
+epgui/pilistbox.c [rev:1.70, 2002-08-11T19:52:37]:
+- Adapted for interface change to PiOutput_AppendShortAndLongInfoText()
+epgui/epgtabdump.c [epgui/dumptext.c, rev:1.1, 2002-08-11T19:53:12]:
+- Initial revision
+epgui/epgtabdump.h [epgui/dumptext.h, rev:1.1, 2002-08-11T19:53:15]:
+- Initial revision
+epgui/xawtv.c [rev:1.25, 2002-08-14T19:56:55]:
+- Xawtv_QueryClass(): added XAWDECODE as recognized window class
+epgctl/epgversion.h [rev:1.24, 2002-08-17T16:36:32]:
+- set to version 2.2.0
+tvsim/vbirec_main.c [rev:1.13, 2002-08-17T19:18:14]:
+- Made backwards compatible with Tck8.3 again: replaced const with CONST84
+tvsim/tvsim_main.c [rev:1.11.1.1, 2002-08-17T19:19:17]:
+- Removed multi-card support - 2.2.0 release branch
+epgui/menucmd.c [rev:1.83, 2002-08-17T19:22:57]:
+- Made backwards compatible with Tck8.3 again: replaced const with CONST84
+epgui/wintvcfg.c [rev:1.8, 2002-08-17T19:22:57]:
+- Made backwards compatible with Tck8.3 again: replaced const with CONST84
+epgui/pioutput.c [rev:1.19, 2002-08-17T19:25:45]:
+- Fixed interface to PiOutput_AppendShortAndLongInfoText()
+- now gets boolean param isMerged instead of accessing global pUiDbContext
+- adapted 2 calls to that function (not really cleanly yet)
+- Also: made backwards compatible with Tk8.3 again: replaced const with CONST84
+epgui/pioutput.h [rev:1.7, 2002-08-17T19:25:53]:
+- Fixed interface to PiOutput_AppendShortAndLongInfoText()
+- now gets boolean param isMerged instead of accessing global pUiDbContext
+Makefile.win32 [rev:1.26, 2002-08-17T19:37:38]:
+- renamed tcl & tk library directory into xx8.3.4 from xx8.3.2
+    scripts have been merged with the new version
+- corrected names of generated zip files
+nxtvepg.pod [rev:1.73, 2002-08-17T19:39:01]:
+- removed "=for html" section - caused more work than use
+- note: HTML header is checked in in www subdirectory
+nxtvepg.spec [rev:1.6, 2002-08-17T19:39:47]:
+- set version to 2.2.0
+- updated list of Nextview providers
+CHANGES [rev:1.25, 2002-08-18T19:56:26]:
+- updated for release 2.2.0
+TODO [rev:1.19, 2002-08-18T19:56:47]:
+- updated for release 2.2.0
+www/index-de.html [rev:1.34, 2002-08-18T20:06:37]:
+- updated for release 2.2.0
+- added "since 2.0.0" after "NEW" tags
+www/index.html [rev:1.45, 2002-08-18T20:06:37]:
+- updated for release 2.2.0
+- added "since 2.0.0" after "NEW" tags
+www/changelog.html [rev:1.34, 2002-08-18T20:06:46]:
+- added release note for version 2.2.0
+www/pre-releases.html [rev:1.12, 2002-08-18T20:06:55]:
+- removed all content after release of version 2.2.0
+www/man.html [rev:1.18, 2002-08-18T20:07:00]:
+- updated for version 2.2.0
+www/nefkom-src-index.html [rev:1.7, 2002-08-18T20:07:06]:
+- added release 2.2.0
+- removed all old minor releases except the last one per major
+www/tripod-src-index.html [rev:1.8, 2002-08-18T20:07:12]:
+- added release 2.2.0
+- removed file nxtvepg-1.8-win.zip to free space
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_2_0 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

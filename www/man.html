@@ -1,7 +1,7 @@
-<HTML>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
+<HTML lang="en">
 <HEAD>
 <TITLE>Nextview EPG Decoder Documentation</TITLE>
-<LINK href="nxtvepg.css" rel=stylesheet type=text/css>
 <META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
 <META name="language" content="en">
 <META name="author" content="Tom Zoerner">
@@ -10,6 +10,9 @@
 <META name="description" content="Online Documentation for the nxtvepg software, which offers access to a subscription-free electronic TV program guide. Nextview currently is broadcasted in Germany, Austria, Switzerland, and France and covers the schedules of all major TV networks in these countries.">
 <META name="robots" content="index, follow">
 <META name="revisit-after" content="01 month">
+<LINK rel="stylesheet" type="text/css" href="nxtvepg.css">
+<LINK rel="shortcut icon" type="image/x-icon" href="nxtvepg.ico">
+<LINK rel="top" href="//nxtvepg.tripod.com/" title="nexTView EPG Dekoder Homepage">
 </HEAD>
 <BODY BGCOLOR=#f8f8f8>
 <P><HR><P>
@@ -67,6 +70,7 @@ This is the manual page for the
 		<LI><A HREF="#network names">Network names</A></LI>
 		<LI><A HREF="#context menu">Context menu</A></LI>
 		<LI><A HREF="#filter shortcuts">Filter shortcuts</A></LI>
+		<LI><A HREF="#themes language">Themes language</A></LI>
 		<LI><A HREF="#show shortcuts">Show shortcuts</A></LI>
 		<LI><A HREF="#show networks">Show networks</A></LI>
 		<LI><A HREF="#show status line">Show status line</A></LI>
@@ -93,6 +97,7 @@ This is the manual page for the
 <P>
 <H1><A NAME="name">NAME</A></H1>
 <P>nxtvepg - Decoder, Browser and Analyzer for the Nextview Electronic Programme Guide</P>
+<P>
 <HR>
 <H1><A NAME="synopsis">SYNOPSIS</A></H1>
 <P><STRONG>nxtvepg</STRONG> [&nbsp;options&nbsp;] [&nbsp;database&nbsp;]</P>
@@ -173,14 +178,19 @@ a different host, you need to mount the remote directory, e.g. via NFS.</P>
 <P></P>
 <DT><STRONG><A NAME="item_%2Dcard_index"><STRONG>-card</STRONG> <EM>index</EM></A></STRONG><BR>
 <DD>
-Specify which tuner card to use, if you have more than one.
-The given index is appended to /dev/vbi and /dev/video.
-Default: index 0, i.e. the card in the first PCI slot.
+Specify which TV card hardware to use, if you have more than card.
+Default: index 0.
+On Linux the given index is appended to the device names,
+i.e. <EM>/dev/vbi</EM> and <EM>/dev/video</EM>.
+On Windows index ``n'' means the n-th card found while scanning the PCI
+bus for cards with a Bt878, Bt878A, Bt848 or Bt849 chip.  If you have more
+than one TV card with the same chip, the order between those is undefined,
+but still constant (i.e. the order is determined by the driver, not nxtvepg)
 <P></P>
 <DT><STRONG><A NAME="item_%2Dprovider_CNI"><STRONG>-provider</STRONG> <EM>CNI</EM></A></STRONG><BR>
 <DD>
 Select a provider by its hexadecimal CNI (Country and Network Identifier),
-e.g. <CODE>-provider d94</CODE> for ``Pro Sieben''. You can find out the provider's CNI
+e.g. <EM>-provider dc7</EM> for <STRONG>3sat</STRONG>. You can find out the provider's CNI
 during a provider scan or from the database file names.
 Default: the last provider selected during the previous session.
 <P></P>
@@ -236,6 +246,28 @@ In daemon mode this option overrides the acquisition mode setting in the
 configuration file and forces the acquisition into passive mode (see
 <A HREF="#acquisition modes">ACQUISITION MODES</A>).  The configuration file is not changed, so that
 you can use different acquisition strategies for daemon and GUI.
+<P></P>
+<DT><STRONG><A NAME="item_%2Ddump_mode"><STRONG>-dump</STRONG> <EM>mode</EM></A></STRONG><BR>
+<DD>
+With this argument, nxtvepg will only export the database in a fixed text
+format (see also <A HREF="#export as text">CONFIGURATION: Export as text</A>), then exit.
+This argument must be combined with <EM>-provider</EM> to specify which database
+is to be exported. Use the code <STRONG>0x00FF</STRONG> to export the merged database
+(in the last used configuration as saved in the rc/ini file).
+<P>Three mode keywords are understood:
+<EM>pi</EM> to dump programmes (i.e. the complete schedules),
+<EM>ai</EM> to dump the provider's network table,
+<EM>pdc</EM> to dump the PDC theme table.</P>
+<P>The output is written to <EM>stdout</EM> unless you redirect it into a file
+or pipe it into another program.  Note to Windows users: since nxtvepg
+is not a console application, no <EM>stdout</EM> is available, i.e. it's output
+will be discarded by the operating system unless you redirect it.
+For example you could enter the following command in the shell
+(or ``MS-DOS prompt''):</P>
+<PRE>
+  nxtvepg -dump ai -prov dc7 &gt; networks.txt</PRE>
+<P>to write the network table of provider <EM>3sat</EM> (CNI <EM>0xdc7</EM>) into a file
+called <EM>networks.txt</EM>.</P>
 <P></P>
 <DT><STRONG><A NAME="item_%2Ddemo_path"><STRONG>-demo</STRONG> <EM>path</EM></A></STRONG><BR>
 <DD>
@@ -957,7 +989,7 @@ attribute will be listed (logical OR).</P>
 <P><EM>Examples:</EM>
 If you want to see all programmes listed for either network ARD or
 ZDF, simply select both networks. If you want to see all movies
-scheduled on PRO7, select network=PRO7 and theme=movies.</P>
+scheduled on Arte, select network=Arte and theme=movies.</P>
 <P>Summary of filter options:</P>
 <DL>
 <DT><STRONG><A NAME="item_Features"><STRONG>Features</STRONG></A></STRONG><BR>
@@ -1219,7 +1251,72 @@ PI which were not accepted into the database because of inconsistencies
 like a zero or overlapping running time. For an explanation of the
 other block types please see the ETSI specification 707.</P>
 <P></P>
-<DT><STRONG><A NAME="item_Dump_in_HTML"><STRONG>Dump in HTML</STRONG></A></STRONG><BR>
+<DT><STRONG><A NAME="item_Export_as_text"><STRONG>Export as text</STRONG></A></STRONG><BR>
+<DD>
+Open a dialog that allows to export the complete database into a text
+file.  Each line in the file will represent one item in the database.
+The item's different fields are separated by TAB characters; the line
+is terminated by a single new-line character (no line feed character,
+even on Windows).  In some cases missing values are represented by
+<CODE>\N</CODE> which is the MySQL <EM>NULL</EM> identifier (currently only used for
+the VPS/PDC field).
+<P>The generated text file can be loaded directly into a relational
+database.  It's not formatted for viewing in a regular text editor.
+Networks and themes are represented as numerical indices into the
+network and themes table respectively.  Hence these tables are
+required in addition to the programme table.  To load them into
+a database, you need to export them into different files.</P>
+<P>For <EM>MySQL</EM> you could create the following tables:</P>
+<PRE>
+   CREATE TABLE PI (
+      netwop smallint(2) unsigned NOT NULL,
+      Dstart date NOT NULL,
+      Hstart time NOT NULL,
+      Hstop time NOT NULL,
+      vpspdc_pil datetime,
+      prat tinyint(2) unsigned,
+      erat tinyint(2) unsigned,
+      sound enum(&quot;mono&quot;,&quot;2-chan&quot;,&quot;stereo&quot;,&quot;surround&quot;),
+      is_wide BOOL,
+      is_palplus BOOL,
+      is_digital BOOL,
+      is_encrypted BOOL,
+      is_live BOOL,
+      is_repeat BOOL,
+      is_subtitled BOOL,
+      theme_0 tinyint(3) unsigned,
+      theme_1 tinyint(3) unsigned,
+      theme_2 tinyint(3) unsigned,
+      theme_3 tinyint(3) unsigned,
+      theme_4 tinyint(3) unsigned,
+      theme_5 tinyint(3) unsigned,
+      theme_6 tinyint(3) unsigned,
+      title varchar(40) NOT NULL,
+      descr text,
+      PRIMARY KEY (netwop, Dstart, Hstart)
+   );</PRE>
+<PRE>
+   CREATE TABLE AI (
+      netwop_idx smallint(2) unsigned NOT NULL,
+      cni smallint(5) unsigned,
+      lto_mins smallint(5),
+      daycount smallint(5) unsigned,
+      alphabet smallint(5) unsigned,
+      addinfo smallint(5) unsigned,
+      name text,
+      UNIQUE netwop_idx (netwop_idx)
+   );</PRE>
+<PRE>
+   CREATE TABLE pdc_themes (
+      theme_idx smallint(3) unsigned NOT NULL,
+      cat_idx smallint(3) unsigned,
+      name_eng text,
+      name_ger text,
+      name_fra text,
+      UNIQUE theme_idx (theme_idx)
+   );</PRE>
+<P></P>
+<DT><STRONG><A NAME="item_Export_as_HTML"><STRONG>Export as HTML</STRONG></A></STRONG><BR>
 <DD>
 Open a dialog that allows to export the complete database or selected
 programmes into a file in HTML format (Hypertext Markup Language) which can
@@ -1652,9 +1749,21 @@ both lists will have exactly the same content. If you want to exclude
 networks, select them in the right list and press <EM>Delete</EM>. You can always
 include them again by selecting them in the left list and pressing <EM>Add</EM>.
 You can change the order in the right list by selecting one or more networks
-and pressing the <EM>up</EM> or <EM>down</EM> arrows. If you want the same selection and
-order for all providers, you can simply copy your selection with the <EM>copy</EM>
-menu.</P>
+and pressing the <EM>up</EM> or <EM>down</EM> arrows.</P>
+<P>If you want the same selection and order for all providers, you can simply
+copy your order and selection with the <EM>copy</EM> popup menu;  this menu
+contains a list of all known providers.  Note that if you copy from a
+provider with less (or different) networks, those networks that are
+missing in the other provider's database appear at the end of the network
+selection in the right listbox.</P>
+<P>At the bottom of the dialog window there's an entry field that allows to
+limit the program listing for a network to a given time frame. For example
+if you receive Arte only from 19:00 until 07:00 o'clock, select Arte either
+in the left or right list, then enter ``19:00'' and ``07:00'' in the fields
+(make sure to always use 4 digits and the separating colon).  Programmes
+that fall completely outside that window will not appear in the browser
+window.  If you want to undo the limitation, enter 00:00 until 00:00
+or any other equal time values.</P>
 <P>
 <H2><A NAME="network names">Network names</A></H2>
 <P>Open the network names configuration dialog. It's main purpose is to
@@ -1745,10 +1854,11 @@ and e/p_rating which are editorial and parental rating respectively.</P>
 In case of the start, stop and VPS/PDC times, all options defined in the
 <STRONG>strftime(3)</STRONG> manpage are available; default is %H:%M-%d.%m.%Y (hour, minute,
 day, month, year). In case of relative start time and duration, you can choose
-between minutes (default) and seconds by appending ``m'' or ``s''. For all other
-variables the modifiers are currently ignored.</P>
-<P>The substrings which replace the formal variables are enclosed in single
-quotes to protect them from interpretation by the shell. Single quotes
+between minutes (default) and seconds by appending ``m'' or ``s''. For themes
+you can choose between numerical and textual output by appending ``n'' or ``t''.
+For all other variables the modifiers are currently ignored.</P>
+<P>On UNIX the substrings which replace the formal variables are enclosed in
+single quotes to protect them from interpretation by the shell. Single quotes
 inside the substituted string are correctly escaped.</P>
 <P>Example: The command line</P>
 <PRE>
@@ -1756,13 +1866,29 @@ inside the substituted string are correctly escaped.</P>
 <P>could for example result in</P>
 <PRE>
   plan '22.08.2001 13:05' 'Käpt'\''n Blaubärs Seemannsgarn'</PRE>
-<P>to be passed to the Bourne Shell.</P>
+<P>to be passed to the Bourne Shell (<EM>/bin/sh</EM>).</P>
+<P>On Windows there's a special prefix <CODE>!wintv!</CODE> which tells nxtvepg to
+send this command line to a connected TV application (see
+<A HREF="#tv application interaction">CONFIGURATION: TV application interaction</A>).  For example</P>
+<PRE>
+  !wintv! setstation ${network}</PRE>
+<P>would create a command that switches the TV app's channel to that of
+the currently selected programme (i.e. the same what the <EM>Tune TV</EM>
+button does).  When no TV application is connected, such entries are
+automatically disabled.</P>
 <P>
 <H2><A NAME="filter shortcuts">Filter shortcuts</A></H2>
 <P>Open the filter shortcut dialog to rename, reorder or delete shortcuts. 
 You have to press the <EM>Update</EM> button to save any changes for a shortcut
 and then close the dialog with <EM>Save</EM>.
 See <A HREF="#filter shortcuts">FILTER SHORTCUTS</A> for more details.</P>
+<P>
+<H2><A NAME="themes language">Themes language</A></H2>
+<P>Select the language for programme themes (i.e. content category, see
+<A HREF="#filtering">FILTERING</A>) in the main window and the filter menu.  By default
+it's set to default, in which case the language is derived from the
+selected provider's database.  Please note that the language of the
+menus, help etc. currently can not be changed from English.</P>
 <P>
 <H2><A NAME="show shortcuts">Show shortcuts</A></H2>
 <P>Toggle visibility of the shortcut listbox.</P>
@@ -1918,6 +2044,7 @@ for instructions on which information must be included in a bug report.</P>
 <P>Email: tomzo (at) nefkom (dot) net</P>
 <P>Many thanks to E-nek for the DScaler driver port and cooperation
 in develepment of the TV application interaction;
+to Matthieu for the French translation of PDC theme descriptors;
 to John Adcock for the DScaler driver;
 to Jan Schuster for beta testing nxtvepg 0.7.0;
 to Mario Kemper for the NetBSD port and early beta testing;

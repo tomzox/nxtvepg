@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pifilter.c,v 1.54 2002/05/12 16:53:20 tom Exp tom $
+ *  $Id: pifilter.c,v 1.59 2002/08/11 19:52:31 tom Exp tom $
  */
 
 #define __PIFILTER_C
@@ -63,7 +63,9 @@ FILTER_CONTEXT *pPiFilterContext = NULL;
 static int SelectThemes( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
 {  
    const char * const pUsage = "Usage: C_SelectThemes <class 1..8> <themes-list>";
+   CONST84 char ** pThemes;
    uchar usedClasses;
+   int themeCount;
    int class, theme, idx;
    int result; 
    
@@ -75,15 +77,15 @@ static int SelectThemes( ClientData ttp, Tcl_Interp *interp, int argc, char *arg
    }  
    else
    {
-      result = Tcl_SplitList(interp, argv[2], &argc, &argv);
+      result = Tcl_SplitList(interp, argv[2], &themeCount, &pThemes);
       if (result == TCL_OK)
       {
          class = 1 << (class - 1);
          usedClasses = EpgDbFilterInitThemes(pPiFilterContext, class);
 
-         for (idx=0; idx < argc; idx++)
+         for (idx=0; idx < themeCount; idx++)
          {
-            result = Tcl_GetInt(interp, argv[idx], &theme);
+            result = Tcl_GetInt(interp, pThemes[idx], &theme);
             if (result == TCL_OK)
             {
                if (theme == 0x80)
@@ -95,12 +97,12 @@ static int SelectThemes( ClientData ttp, Tcl_Interp *interp, int argc, char *arg
                break;
          }
 
-         if ((argc > 0) || usedClasses)
+         if ((themeCount > 0) || usedClasses)
             EpgDbFilterEnable(pPiFilterContext, FILTER_THEMES);
          else
             EpgDbFilterDisable(pPiFilterContext, FILTER_THEMES);
 
-         Tcl_Free((char *) argv);
+         Tcl_Free((char *) pThemes);
       }
    }
 
@@ -113,7 +115,7 @@ static int SelectThemes( ClientData ttp, Tcl_Interp *interp, int argc, char *arg
 static int SelectSortCrits( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
 {  
    const char * const pUsage = "Usage: C_SelectSortCrits <class 1..8> <list>";
-   char **pSortCritArgv;
+   CONST84 char **pSortCritArgv;
    uchar usedClasses;
    int class, sortcrit, sortcritCount, idx;
    int result; 
@@ -195,6 +197,8 @@ static int SelectSeries( ClientData ttp, Tcl_Interp *interp, int argc, char *arg
 static int SelectNetwops( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
 {  
    const char * const pUsage = "Usage: C_SelectNetwops <netwop-list>";
+   CONST84 char ** pNetwops;
+   int netwopCount;
    int netwop, idx;
    int result; 
    
@@ -205,15 +209,15 @@ static int SelectNetwops( ClientData ttp, Tcl_Interp *interp, int argc, char *ar
    }  
    else
    {
-      result = Tcl_SplitList(interp, argv[1], &argc, &argv);
+      result = Tcl_SplitList(interp, argv[1], &netwopCount, &pNetwops);
       if (result == TCL_OK)
       {
-         if (argc > 0)
+         if (netwopCount > 0)
          {
             EpgDbFilterInitNetwop(pPiFilterContext);
-            for (idx=0; idx < argc; idx++)
+            for (idx=0; idx < netwopCount; idx++)
             {
-               result = Tcl_GetInt(interp, argv[idx], &netwop);
+               result = Tcl_GetInt(interp, pNetwops[idx], &netwop);
                if (result == TCL_OK)
                {
                   EpgDbFilterSetNetwop(pPiFilterContext, netwop);
@@ -228,7 +232,7 @@ static int SelectNetwops( ClientData ttp, Tcl_Interp *interp, int argc, char *ar
             EpgDbFilterDisable(pPiFilterContext, FILTER_NETWOP);
          }
 
-         Tcl_Free((char *) argv);
+         Tcl_Free((char *) pNetwops);
       }
    }
 
@@ -528,7 +532,8 @@ static int PiFilter_Reset( ClientData ttp, Tcl_Interp *interp, int argc, char *a
 static int GetPdcString( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
 {  
    const char * const pUsage = "Usage: C_GetPdcString <index>";
-   const char * name;
+   const uchar * pGeneralStr;
+   const uchar * pThemeStr;
    int index;
    int result; 
    
@@ -539,12 +544,9 @@ static int GetPdcString( ClientData ttp, Tcl_Interp *interp, int argc, char *arg
    }  
    else
    {
-      if (index <= 0x80)
-         name = pdc_themes[index];
-      else
-         name = pdc_series;
+      pThemeStr = PdcThemeGetWithGeneral(index, &pGeneralStr, FALSE);
 
-      Tcl_SetResult(interp, (char *) name, TCL_STATIC);
+      Tcl_AppendResult(interp, pThemeStr, pGeneralStr, NULL);
       result = TCL_OK; 
    }
    return result;
@@ -789,7 +791,7 @@ static int GetSeriesTitles( ClientData ttp, Tcl_Interp *interp, int argc, char *
    const PI_BLOCK * pPiBlock;
    const char     * pTitle;
    FILTER_CONTEXT *fc;
-   char ** seriesArgv;
+   CONST84 char ** seriesArgv;
    uchar lang;
    int seriesCount, series, idx;
    int result;
@@ -1226,12 +1228,52 @@ static int SelectNi( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] 
 }
 
 // ----------------------------------------------------------------------------
+// Update network prefilter for restricted air times
+//
+static void PiFilter_UpdateAirTime( void )
+{
+   const AI_BLOCK  * pAiBlock;
+   const AI_NETWOP * pNetwop;
+   const char  * pTmpStr;
+   uint  startMoD, stopMoD;
+   uint  netwop;
+
+   EpgDbFilterInitAirTimesFilter(pPiFilterContext);
+   EpgDbFilterEnable(pPiFilterContext, FILTER_AIR_TIMES);
+
+   EpgDbLockDatabase(dbc, TRUE);
+   pAiBlock = EpgDbGetAi(dbc);
+   if (pAiBlock != NULL)
+   {
+      pNetwop = AI_GET_NETWOPS(pAiBlock);
+      for (netwop=0; netwop < pAiBlock->netwopCount; netwop++, pNetwop++)
+      {
+         sprintf(comm, "0x%04X", pNetwop->cni);
+         pTmpStr = Tcl_GetVar2(interp, "cfnettimes", comm, TCL_GLOBAL_ONLY);
+         if (pTmpStr != NULL)
+         {
+            if (sscanf(pTmpStr, "%u,%u", &startMoD, &stopMoD) == 2)
+            {
+               assert((startMoD < 24*60) && (stopMoD < 24*60));
+
+               if (startMoD != stopMoD)
+                  EpgDbFilterSetAirTimesFilter(pPiFilterContext, netwop, startMoD, stopMoD);
+            }
+            else
+               debug2("PiFilter-UpdateAirTime: cannot parse time config for CNI 0x%04X: '%s'", pNetwop->cni, pTmpStr);
+         }
+      }
+   }
+   EpgDbLockDatabase(dbc, FALSE);
+}
+
+// ----------------------------------------------------------------------------
 // Fill listbox widget with names of all netwops
 //
 void PiFilter_UpdateNetwopList( void )
 {
+   CONST84 char **argv;
    int idx, netwop;
-   char **argv;
    int argc;
 
    if (pPiFilterContext != NULL)
@@ -1252,6 +1294,8 @@ void PiFilter_UpdateNetwopList( void )
             }
          }
          Tcl_Free((char *) argv);
+
+         PiFilter_UpdateAirTime();
       }
 
       // check if browser is empty due to network prefilters
@@ -1280,12 +1324,10 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, char
    const char * const pUsage = "Usage: C_CreateContextMenu <menu-path>";
    const AI_BLOCK * pAiBlock;
    const PI_BLOCK * pPiBlock;
+   const uchar * pThemeStr;
    int idx, entryCount;
    uchar theme, themeCat, netwop;
    int result;
-   const char * pTmpStr;
-   char ** userCmds;
-   int userCmdCount;
 
    if (argc != 2) 
    {  // wrong # of args for this TCL cmd -> display error msg
@@ -1448,7 +1490,7 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, char
 
             // check if more than one theme filter is set
             count = theme = 0;
-            for (idx=0; idx <= 128; idx++)
+            for (idx=0; idx <= 0x80; idx++)
             {
                if (pPiFilterContext->themeFilterField[idx] != 0)
                {
@@ -1461,8 +1503,9 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, char
 
             if (count == 1)
             {
+               pThemeStr = PdcThemeGet(theme);
                sprintf(comm, "%s add command -label {Undo themes filter %s} -command {",
-                             argv[1], (((theme > 0) && (pdc_themes[theme] == NULL)) ? "" : (char *)pdc_themes[theme]));
+                             argv[1], (((theme > 0) && (pThemeStr == NULL)) ? "" : (char*)pThemeStr));
                for (class=0; class < THEME_CLASS_COUNT; class++)
                {
                   if (pPiFilterContext->themeFilterField[theme] & (1 << class))
@@ -1476,9 +1519,9 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, char
                for (idx=0; idx <= 128; idx++)
                {
                   if ( ((pPiFilterContext->themeFilterField[idx] & pPiFilterContext->usedThemeClasses) != 0) &&
-                       (pdc_themes[idx] != NULL) )
+                       ((pThemeStr = PdcThemeGet(idx)) != NULL) )
                   {
-                     sprintf(comm, "%s add command -label {Undo themes filter %s} -command {", argv[1], (char *)pdc_themes[idx]);
+                     sprintf(comm, "%s add command -label {Undo themes filter %s} -command {", argv[1], pThemeStr);
                      for (class=0; class < THEME_CLASS_COUNT; class++)
                      {
                         // only offer to undo this theme if it is in exactly one class
@@ -1563,19 +1606,20 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, char
                   if ( ((pPiFilterContext->enabledFilters & FILTER_THEMES) == FALSE ) ||
                        (pPiFilterContext->themeFilterField[theme] == FALSE) )
                   {
-                     themeCat = PdcThemeGetCategory(theme);
+                     pThemeStr = PdcThemeGet(theme);
+                     themeCat  = PdcThemeGetCategory(theme);
                      if ( (pPiFilterContext->enabledFilters & FILTER_THEMES) &&
                           (themeCat != theme) &&
                           (pPiFilterContext->themeFilterField[themeCat] != FALSE) )
                      {  // special case: undo general theme before sub-theme is enabled, else filter would have no effect (due to OR)
                         sprintf(comm, "%s add command -label {Filter theme %s} -command {set theme_sel(%d) 0; set theme_sel(%d) 1; SelectTheme %d}\n",
-                                      argv[1], ((pdc_themes[theme] == NULL) ? "" : (char *)pdc_themes[theme]), themeCat, theme, theme);
+                                      argv[1], ((pThemeStr == NULL) ? "" : (char *)pThemeStr), themeCat, theme, theme);
                         eval_check(interp, comm);
                      }
                      else
                      {
                         sprintf(comm, "%s add command -label {Filter theme %s} -command {set theme_sel(%d) 1; SelectTheme %d}\n",
-                                      argv[1], ((pdc_themes[theme] == NULL) ? "" : (char *)pdc_themes[theme]), theme, theme);
+                                      argv[1], ((pThemeStr == NULL) ? "" : (char *)pThemeStr), theme, theme);
                         eval_check(interp, comm);
                      }
                      entryCount += 1;
@@ -1688,22 +1732,7 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, char
             // ---------------------------------------------------------------------
             // Add user-defined entries
 
-            pTmpStr = Tcl_GetVar(interp, "ctxmencf", TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG);
-            if ( (pTmpStr != NULL) &&
-                 (Tcl_SplitList(interp, pTmpStr, &userCmdCount, &userCmds) == TCL_OK) &&
-                 (userCmdCount > 0) )
-            {
-               if (entryCount >= 1)
-               {
-                  sprintf(comm, "%s add separator\n", argv[1]);
-                  eval_check(interp, comm);
-               }
-               for (idx=0; idx < userCmdCount; idx += 2)
-               {
-                  sprintf(comm, "%s add command -label {%s} -command {C_ExecUserCmd %d}\n", argv[1], userCmds[idx], idx / 2);
-                  eval_check(interp, comm);
-               }
-            }
+            PiOutput_CtxMenuAddUserDef(argv[1], (entryCount >= 1));
          }
       }
       EpgDbLockDatabase(dbc, FALSE);

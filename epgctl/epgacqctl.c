@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqctl.c,v 1.73 2002/05/19 21:54:33 tom Exp tom $
+ *  $Id: epgacqctl.c,v 1.74 2002/07/20 16:27:47 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -1149,6 +1149,10 @@ bool EpgAcqCtl_CheckDeviceAccess( void )
         (EpgScan_IsActive() == FALSE) )
    {
       result = EpgAcqCtl_UpdateProvider(FALSE);
+
+      if (result == FALSE)
+         UiControlMsg_AcqEvent(ACQ_EVENT_STATS_UPDATE);
+
       dprintf1("EpgAcqCtl-CheckDeviceAccess: device is now %s\n", result ? "free" : "busy");
    }
    else

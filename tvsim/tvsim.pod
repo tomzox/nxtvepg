@@ -24,7 +24,7 @@
 #
 #  Author: Tom Zoerner
 #
-# $Id: tvsim.pod,v 1.2 2002/05/10 00:17:07 tom Exp tom $
+# $Id: tvsim.pod,v 1.3 2002/07/20 16:25:45 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME
@@ -65,12 +65,16 @@ Start with the main window iconified (i.e. minimized).
 
 Specify an alternate configuration file.
 Default: I<nxtvepg.ini> in the current directory.
+tvsim only loads the TV card configuration from this file
+(with the exception of the card index)
 
 =item B<-card> I<index>
 
 Specify which tuner card to use, if you have more than one.
-The given index is appended to /dev/vbi and /dev/video.
-Default: index 0, i.e. the card in the first PCI slot.
+Default: index 0, i.e. the "best" card in the order Bt878,
+Bt878A, Bt848, Bt849.  If you have more than one TV card
+with the same chip, the order between those is undefined
+(i.e. depends on the driver, not tvsim or nxtvepg).
 
 =item B<-help>
 
@@ -147,7 +151,8 @@ INI file.  Hence you should configure nxtvepg first before using
 tvsim.  Please refer to the nxtvepg manual, section "GETTING STARTED"
 for detailed documentation of the initial configuration process.
 tvsim only uses the configuration settings of the I<TV card input>
-and I<TV app. interaction> dialogs.
+and I<TV app. interaction> dialogs, with the exception of the
+card index.
 
 If your TV application's channel table format is not supported by
 nxtvepg and you don't have any of the supported freeware TV applications,
@@ -197,9 +202,9 @@ Tom Zoerner, Erlangen, Germany.
 
 Email: tomzo (at) nefkom (dot) net
 
-Thanks to I<e-nek> for his contributions to the design of the
-communication protocol, alpha testing and most importantly for
-being the first to implement EPG interaction in a TV application.
+Thanks to I<e-nek> for reviewing the design of the communication
+protocol, alpha testing and most importantly for being the first
+to implement interaction with nxtvepg in a TV application.
 
 
 =head1 COPYRIGHT

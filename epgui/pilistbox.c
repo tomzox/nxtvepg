@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pilistbox.c,v 1.68 2002/05/19 22:00:07 tom Exp tom $
+ *  $Id: pilistbox.c,v 1.70 2002/08/11 19:52:37 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -478,7 +478,7 @@ static void PiListBox_UpdateInfoText( bool keepView )
                        (((pPiBlock->start_time - time(NULL)) > 12*60*60) ? (char *)date_str : "") );
          eval_check(interp, comm);
 
-         PiOutput_AppendShortAndLongInfoText(pPiBlock, PiListBox_AppendInfoTextCb, NULL);
+         PiOutput_AppendShortAndLongInfoText(pPiBlock, PiListBox_AppendInfoTextCb, NULL, EpgDbContextIsMerged(pUiDbContext));
       }
       else
          debug2("PiListBox-UpdateInfoText: selected block start=%ld netwop=%d not found\n", pibox_list[pibox_count-1].start_time, pibox_list[pibox_count-1].netwop_no);
@@ -1938,7 +1938,7 @@ static int PiListBox_GetSelectedNetwop( ClientData ttp, Tcl_Interp *i, int argc,
 static int PiListBox_Resize( ClientData ttp, Tcl_Interp *i, int argc, char *argv[] )
 {
    PIBOX_ENTRY * old_list;
-   char * pTmpStr;
+   CONST84 char * pTmpStr;
    int height, off;
 
    pTmpStr = Tcl_GetVar(interp, "pibox_height", TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG);

@@ -1,5 +1,5 @@
 /*
- *  PDC themes definition
+ *  Nextview block ASCII dump
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
@@ -16,23 +16,28 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pdc_themes.h,v 1.5 2002/07/20 16:28:14 tom Exp tom $
+ *  $Id: epgtabdump.h,v 1.1 2002/08/11 19:53:15 tom Exp tom $
  */
 
-#ifndef __PDC_THEMES_H
-#define __PDC_THEMES_H
+#ifndef __EPGTABDUMP_H
+#define __EPGTABDUMP_H
 
 
-#define PDC_THEME_SERIES  0x80
+typedef enum
+{
+   EPGTAB_DUMP_AI,
+   EPGTAB_DUMP_PI,
+   EPGTAB_DUMP_PDC,
+   EPGTAB_DUMP_COUNT,
+   EPGTAB_DUMP_NONE = EPGTAB_DUMP_COUNT
+} EPGTAB_DUMP_MODE;
 
-// ----------------------------------------------------------------------------
-// Declaration of service interface functions
+
+// ---------------------------------------------------------------------------
+// declaration of service interface functions
 //
-void PdcThemeSetLanguage( uchar lang );
-const uchar * PdcThemeGet( uchar theme );
-const uchar * PdcThemeGetByLang( uchar theme, uchar lang );
-const uchar * PdcThemeGetWithGeneral( uchar theme, const uchar ** pGeneralStr, bool withUndef );
-bool PdcThemeIsDefined( uchar theme );
-uchar PdcThemeGetCategory( uchar theme );
 
-#endif //__PDC_THEMES_H
+EPGTAB_DUMP_MODE EpgTabDump_GetMode( const char * pModeStr );
+void EpgTabDump_Database( EPGDB_CONTEXT * pDbContext, FILE * fp, EPGTAB_DUMP_MODE mode );
+
+#endif  // __EPGTABDUMP_H

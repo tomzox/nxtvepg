@@ -23,7 +23,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbfil.c,v 1.33 2002/05/02 16:51:40 tom Exp tom $
+ *  $Id: epgdbfil.c,v 1.34 2002/06/15 12:06:57 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -448,6 +448,32 @@ void EpgDbFilterSetNetwopPreFilter( FILTER_CONTEXT *fc, uchar netwopNo )
 }
 
 // ---------------------------------------------------------------------------
+// Reset air times pre-filter -> no restrictions for any networks
+//
+void EpgDbFilterInitAirTimesFilter( FILTER_CONTEXT *fc )
+{
+   memset(fc->netwopAirTimeStart, 0, sizeof(fc->netwopAirTimeStart));
+   memset(fc->netwopAirTimeStop, 0, sizeof(fc->netwopAirTimeStop));
+}
+
+// ---------------------------------------------------------------------------
+// Set air times for one network in the air times filter array
+// - the filter is disabled by setting start and stop times to 0
+//
+void EpgDbFilterSetAirTimesFilter( FILTER_CONTEXT *fc, uchar netwopNo, uint startMoD, uint stopMoD )
+{
+   if (netwopNo < MAX_NETWOP_COUNT)
+   {
+      assert((startMoD < 24*60) && (stopMoD < 24*60));
+
+      fc->netwopAirTimeStart[netwopNo] = startMoD;
+      fc->netwopAirTimeStop[netwopNo]  = stopMoD;
+   }
+   else
+      fatal1("EpgDbFilter-SetAirTimesFilter: illegal netwop idx %d", netwopNo);
+}
+
+// ---------------------------------------------------------------------------
 // Set expire time border, i.e. min value for stop time
 // - usually this will be set to the current time every full minute
 //   so that expired programmes automatically disappear from the PI listing
@@ -826,6 +852,64 @@ bool EpgDbFilterMatches( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT *fc, con
          // this way also netwops outside of the prefilter can be explicitly requested, e.g. by a NI menu
          if (fc->netwopPreFilterField[pPi->netwop_no] == FALSE)
             goto failed;
+      }
+
+      if (fc->enabledFilters & FILTER_AIR_TIMES)
+      {
+         if ( (fc->netwopAirTimeStart[pPi->netwop_no] != 0) ||
+              (fc->netwopAirTimeStop[pPi->netwop_no] != 0) )
+         {
+            sint  lto = EpgLtoGet(pPi->start_time);
+            uint  airStartMoD = fc->netwopAirTimeStart[pPi->netwop_no];
+            uint  airStopMoD  = fc->netwopAirTimeStop[pPi->netwop_no];
+            uint  piStartMoD  = ((pPi->start_time + lto) % (60*60*24)) / 60;
+            uint  piStopMoD   = ((pPi->stop_time + lto) % (60*60*24)) / 60;
+
+            if (airStopMoD >= airStartMoD)
+            {  // time range e.g. 07:00 - 19:00
+               if (piStartMoD < airStartMoD)
+               {
+                  if ((piStopMoD <= airStartMoD) && (piStopMoD > piStartMoD))
+                     goto failed;
+               }
+               else if (piStartMoD >= airStopMoD)
+               {
+                  if ((piStopMoD > piStartMoD) || (piStopMoD <= airStartMoD))
+                     goto failed;
+               }
+
+               if (fc->enabledFilters & FILTER_EXPIRE_TIME)
+               {
+                  if (piStopMoD > airStopMoD)
+                  {
+                     if (pPi->stop_time - (piStopMoD - airStopMoD)*60 <= fc->expireTime)
+                        goto failed;
+                  }
+                  else if (piStopMoD <= airStartMoD)
+                  {
+                     if (pPi->stop_time - (piStopMoD + 24*60 - airStopMoD)*60 <= fc->expireTime)
+                        goto failed;
+                  }
+               }
+            }
+            else
+            {  // time range e.g. 19:00 - 07:00
+               if ((piStartMoD < airStartMoD) && (piStartMoD >= airStopMoD))
+               {
+                  if ((piStopMoD > piStartMoD) && (piStopMoD <= airStartMoD))
+                     goto failed;
+               }
+
+               if (fc->enabledFilters & FILTER_EXPIRE_TIME)
+               {
+                  if ((piStopMoD <= airStartMoD) && (piStopMoD > airStopMoD))
+                  {
+                     if (pPi->stop_time - (piStopMoD - airStopMoD)*60 <= fc->expireTime)
+                        goto failed;
+                  }
+               }
+            }
+         }
       }
 
       if (fc->enabledFilters & FILTER_EXPIRE_TIME)

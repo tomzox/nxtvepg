@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: tvsim_main.c,v 1.8 2002/05/19 17:19:03 tom Exp tom $
+ *  $Id: tvsim_main.c,v 1.11.1.1 2002/08/17 19:19:17 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_TVSIM
@@ -73,10 +73,18 @@ static Tcl_AsyncHandler asyncThreadHandler = NULL;
 static Tcl_TimerToken   popDownEvent       = NULL;
 static bool             haveIdleHandler    = FALSE;
 
+// Default TV card index - identifies which TV card is used by the simulator
+// (note that in contrary to the other TV card parameters this value is not
+// taken from the nxtvepg rc/ini file; can be overriden with -card option)
+#define TVSIM_CARD_IDX   0
+
+// select English language for PDC theme output
+#define TVSIM_PDC_THEME_LANGUAGE  0
+
 // command line options
 static const char * const defaultRcFile = "nxtvepg.ini";
 static const char * rcfile = NULL;
-static int  videoCardIndex = -1;
+static uint videoCardIndex = TVSIM_CARD_IDX;
 static bool startIconified = FALSE;
 
 // used by wintvcfg.c; declare here to avoid compiler warning
@@ -336,7 +344,7 @@ static void ParseArgv( int argc, char * argv[] )
                ulong cardIdx = strtol(argv[argIdx + 1], &pe, 0);
                if ((pe != (argv[argIdx + 1] + strlen(argv[argIdx + 1]))) || (cardIdx > 9))
                   Usage(argv[0], argv[argIdx+1], "invalid index (range 0-9)");
-               videoCardIndex = (int) cardIdx;
+               videoCardIndex = (uint) cardIdx;
                argIdx += 2;
             }
             else
@@ -367,15 +375,14 @@ static void ParseArgv( int argc, char * argv[] )
 }
 
 // ----------------------------------------------------------------------------
-// Set the hardware config params
-// - called at startup
-// - the card index can also be set via command line and is passed here
-//   from main; a value of -1 means don't care
+// Set the Bt8x8 driver config params
+// - the parameters must be loaded before from the nxtvepg rc/ini file,
+//   except for the TV card index, which is set by a command line switch only
 //
-static int SetHardwareConfig( Tcl_Interp *interp, int newCardIndex )
+static void SetHardwareConfig( Tcl_Interp *interp, uint cardIdx )
 {
-   char **pParamsArgv;
-   char * pTmpStr;
+   CONST84 char **pParamsArgv;
+   const char * pTmpStr;
    int idxCount, input, tuner, pll, prio, cardidx, ftable;
    int result;
 
@@ -393,31 +400,24 @@ static int SetHardwareConfig( Tcl_Interp *interp, int newCardIndex )
                  (Tcl_GetInt(interp, pParamsArgv[1], &tuner) == TCL_OK) &&
                  (Tcl_GetInt(interp, pParamsArgv[2], &pll) == TCL_OK) &&
                  (Tcl_GetInt(interp, pParamsArgv[3], &prio) == TCL_OK) &&
-                 (Tcl_GetInt(interp, pParamsArgv[4], &cardidx) == TCL_OK) &&
-                 (Tcl_GetInt(interp, pParamsArgv[5], &ftable) == TCL_OK) )
+                 (Tcl_GetInt(interp, pParamsArgv[4], &cardidx) == TCL_OK) &&  // unused
+                 (Tcl_GetInt(interp, pParamsArgv[5], &ftable) == TCL_OK) )    // unused
             {
-               // override TV card index with the command line switch -card
-               if (newCardIndex >= 0)
-                  cardidx = newCardIndex;
-
                // pass the hardware config params to the driver
                BtDriver_SetInputSource(input, FALSE, NULL);
-               BtDriver_Configure(cardidx, tuner, pll, prio);
+               BtDriver_Configure(cardIdx, tuner, pll, prio);
             }
             else
-               result = TCL_ERROR;
+               debug1("Set-HardwareConfig: parse error in one of the integers in Tcl list hwcfg='%s'", pTmpStr);
          }
          else
-         {
-            Tcl_SetResult(interp, "SetHardwareConfig: must get 6 params", TCL_STATIC);
-            result = TCL_ERROR;
-         }
+            debug2("Set-HardwareConfig: %d elements in Tcl list hwcfg='%s' (expected 6)", idxCount, pTmpStr);
       }
+      else
+         debug1("Set-HardwareConfig: failed to split Tcl list hwcfg='%s'", pTmpStr);
    }
    else
-      result = TCL_ERROR;
-
-   return result;
+      debug0("Set-HardwareConfig: TV card config var hwcfg and hwcfg_default undefined'");
 }
 
 // ---------------------------------------------------------------------------
@@ -511,44 +511,60 @@ static void TvSimuMsg_HandleEpgCmd( void )
 
    if (WinSharedMemClient_GetCmdArgv(&argc, argStr, sizeof(argStr)))
    {
-      if (argc == 2)
+      if (argc >= 1)
       {
          // XXX TODO: consistancy checking of argv string (i.e. max length)
          pArg2 = argStr + strlen(argStr) + 1;
 
          if (strcmp(argStr, "setstation") == 0)
          {
-            // check for special modes: prev/next (+/-) and back (toggle)
-            if (strcmp(pArg2, "back") == 0)
-               sprintf(comm, "TuneChanBack\n");
-            else if (strcmp(pArg2, "next") == 0)
-               sprintf(comm, "TuneChanNext\n");
-            else if (strcmp(pArg2, "prev") == 0)
-               sprintf(comm, "TuneChanPrev\n");
-            else
-            {  // not a special mode -> search for the name in the channel table
+            if (argc == 2)
+            {
+               // check for special modes: prev/next (+/-) and back (toggle)
+               if (strcmp(pArg2, "back") == 0)
+                  sprintf(comm, "TuneChanBack\n");
+               else if (strcmp(pArg2, "next") == 0)
+                  sprintf(comm, "TuneChanNext\n");
+               else if (strcmp(pArg2, "prev") == 0)
+                  sprintf(comm, "TuneChanPrev\n");
+               else
+               {  // not a special mode -> search for the name in the channel table
 
-               // Note: when the search fails, you should do a sub-string search too.
-               // This is required for multi-network channels like "Arte / KiKa".
-               // In nxtvepg these are separate, i.e. the TV app will receive setstation
-               // requests for either "Arte" or "KiKa" - the TV app should allow both and
-               // switch to the channel named "Arte / KiKa".  See gui.tcl for an example
-               // how to implement this.
+                  // Note: when the search fails, you should do a sub-string search too.
+                  // This is required for multi-network channels like "Arte / KiKa".
+                  // In nxtvepg these are separate, i.e. the TV app will receive setstation
+                  // requests for either "Arte" or "KiKa" - the TV app should allow both and
+                  // switch to the channel named "Arte / KiKa".  See gui.tcl for an example
+                  // how to implement this.
 
-               sprintf(comm, "TuneChanByName {%s}\n", pArg2);
+                  sprintf(comm, "TuneChanByName {%s}\n", pArg2);
+               }
+
+               eval_check(interp, comm);
             }
-
-            eval_check(interp, comm);
          }
          else if (strcmp(argStr, "capture") == 0)
          {
             // when capturing is switched off, grant tuner to EPG
-            sprintf(comm, "set grant_tuner %d; GrantTuner\n", (strcmp(pArg2, "off") == 0));
-            eval_check(interp, comm);
+            if (argc == 2)
+            {
+               sprintf(comm, "set grant_tuner %d; GrantTuner\n", (strcmp(pArg2, "off") == 0));
+               eval_check(interp, comm);
+            }
          }
          else if (strcmp(argStr, "volume") == 0)
          {
             // command ignored in simulation because audio is not supported
+         }
+         else if (strcmp(argStr, "record") == 0)
+         {
+            argc -= 1;
+            while (argc)
+            {
+               dprintf1("RECORD ARG: %s", pArg2);
+               pArg2 += strlen(pArg2) + 1;
+               argc -= 1;
+            }
          }
       }
    }
@@ -610,12 +626,12 @@ static void TvSimuMsg_UpdateProgInfo( void )
             if (epgPdcThemes[themeIdx] >= 128)
             {  // PDC codes 0x80..0xff identify series (most EPG providers just use 0x80 for
                // all series, but they could use different codes for every series of a network)
-               pThemeStr = pdc_series;
+               pThemeStr = PdcThemeGet(PDC_THEME_SERIES);
                break;
             }
-            else if (pdc_themes[epgPdcThemes[themeIdx]] != NULL)
+            else if (PdcThemeIsDefined(epgPdcThemes[themeIdx]))
             {  // this is a known PDC series code
-               pThemeStr = pdc_themes[epgPdcThemes[themeIdx]];
+               pThemeStr = PdcThemeGet(epgPdcThemes[themeIdx]);
                break;
             }
             // else: unknown series code -> keep searching
@@ -747,7 +763,7 @@ static const WINSHMCLNT_TVAPP_INFO tvSimuInfo =
    "TV application simulator " TVSIM_VERSION_STR,
    "",
    TVAPP_NONE,
-   TVAPP_FEAT_ALL_000701,
+   TVAPP_FEAT_ALL_000701 | TVAPP_FEAT_VCR,
    TvSimuMsg_EpgEvent
 };
 
@@ -851,7 +867,7 @@ static int ui_init( int argc, char **argv )
 
    if (argc > 1)
    {
-      args = Tcl_Merge(argc - 1, argv + 1);
+      args = Tcl_Merge(argc - 1, (CONST84 char **) argv + 1);
       Tcl_SetVar(interp, "argv", args, TCL_GLOBAL_ONLY);
       sprintf(comm, "%d", argc - 1);
       Tcl_SetVar(interp, "argc", comm, TCL_GLOBAL_ONLY);
@@ -923,7 +939,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
    WintvCfg_Init(FALSE);
 
    BtDriver_Init();
-   if (WinSharedMemClient_Init(&tvSimuInfo, &attachEvent))
+   if (WinSharedMemClient_Init(&tvSimuInfo, TVAPP_CARD_REQ_ALL, &attachEvent))
    {
       // set up callback to catch shutdown messages (requires tk83.dll patch!)
       Tk_RegisterMainDestructionHandler(WinApiDestructionHandler);
@@ -935,6 +951,9 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 
       // pass bt8x8 driver parameters to the driver
       SetHardwareConfig(interp, videoCardIndex);
+
+      // select language for PDC theme text output
+      PdcThemeSetLanguage(TVSIM_PDC_THEME_LANGUAGE);
 
       // fill channel listbox with names from TV app channel table
       // a warning is issued if the table is empty (used during startup)

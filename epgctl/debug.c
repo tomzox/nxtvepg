@@ -22,7 +22,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: debug.c,v 1.13 2002/05/19 21:45:22 tom Exp tom $
+ *  $Id: debug.c,v 1.14 2002/07/27 13:41:47 tom Exp tom $
  */
 
 #define __DEBUG_C
@@ -275,7 +275,7 @@ void * xmalloc( size_t size )
    if (ptr == NULL)
    {  // malloc failed - should never happen
       #ifndef WIN32
-      fprintf(stderr, "malloc failed (%d bytes) - abort.\n", size);
+      fprintf(stderr, "malloc failed (%d bytes) - abort.\n", (int) size);
       SHOULD_NOT_BE_REACHED;
       exit(-1);
       #else

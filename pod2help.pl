@@ -23,7 +23,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: pod2help.pl,v 1.14 2002/04/30 09:00:14 tom Exp tom $
+#  $Id: pod2help.pl,v 1.15 2002/08/11 19:50:26 tom Exp tom $
 #
 
 require "ctime.pl";
@@ -48,13 +48,17 @@ while(1)
       $_ = <>;
       last unless defined $_;
       chomp;
-      $line .= "$_ ";
-   } while ((($_ ne "") || ($line eq "")) && ($line !~ /^\s+\S/));
+      $line .= $_;
+      # insert whitespace to separate lines inside the paragraph,
+      # except for pre-formatted paragraphs in which the newline is kept
+      $line .= (($line =~ /^\s+\S/) ? "\n" : " ");
+
+   } while (($_ ne "") || ($line eq ""));
+
+   # remove white space at line end
+   $line =~ s/\s\s+$//;
 
    die "ran into EOF - where's section 'FILES'?" if ($line eq "");
-
-   # compress white space
-   $line =~ s/\s\s+$//;
 
    # check for command paragraphs and process its command
    if ($line =~ /^\=head1 (.*)/)
@@ -71,10 +75,13 @@ while(1)
             # appended format mode, which will be replaced with a tag later
             $chapter =~ s/S<([^>]*)>/$1/g;
             $chapter =~ s/T<([^>]*)>/##$1##T##/g;
+            $chapter =~ s/H<([^>]*)>/##$1##H##/g;  # non-POD, internal format
             $chapter =~ s/[IF]<([^>]*)>/##$1##I##/g;
+            $chapter =~ s/C<([^>]*)>/##$1##C##/g;
             $chapter =~ s/L<"([^>]*)">/##$1##L##/g;
             $chapter =~ s/L<([^>]*)>/##$1##L##/g;
             $chapter =~ s/B<([^>]*)>/##$1##B##/g;
+            $chapter =~ s/P<"([\x00-\xff]*?)">/##$1##P##/g;
             $chapter .= "####";
             $chapter =~ s/^#+//;
 
@@ -85,11 +92,14 @@ while(1)
             # - e.g. [list "text" underlined] to be inserted into a text widget
             # - note to hyperlinks: sections names are converted to lowercase;
             #   character ':' is a sub-section separator; see proc PopupHelp
-            while ($chapter =~ /([\x00-\xff]*?)##+(([IBTL])#+)?/sg)
+            while ($chapter =~ /([\x00-\xff]*?)##+(([IBCTHLP])#+)?/sg)
             {
                if    ($3 eq "B") { print "{$1} bold "; }
                elsif ($3 eq "I") { print "{$1} underlined "; }
-               elsif ($3 eq "T") { print "{$1} title "; }
+               elsif ($3 eq "C") { print "{$1} fixed "; }
+               elsif ($3 eq "P") { print "{$1} pfixed "; }
+               elsif ($3 eq "T") { print "{$1} title1 "; }
+               elsif ($3 eq "H") { print "{$1} title2 "; }
                elsif ($3 eq "L") { my $tmp = $1; $tmp =~ s/(.)([^:]*)/$1\L$2/; print "{$tmp} href "; }
                elsif ($1 ne "")  { print "{$1} {} "; }
             }
@@ -119,7 +129,7 @@ while(1)
    }
    elsif ($line =~ /^\=head2 (.*)/)
    {  # sub-header: handle like a regular paragraph, just in bold
-      $chapter .= "B<$1>\n";
+      $chapter .= "H<$1>\n";
    }
    elsif ($line =~ /^\=over/)
    {  # start of an indented paragraph or a list
@@ -133,9 +143,14 @@ while(1)
    {  # start a new list item, with a bullet at start of line or a title
       $chapter .= "$1\n" if ($1 ne "*");
    }
+   # this is a regular paragraph
+   # check for a pre-formatted paragraph: starts with white-space
    elsif ($line =~ /^\s+(\S.*)/)
    {
-      $chapter .= "   $1\n";
+      # add space after backslashes before newlines
+      # to prevent interpretation by Tcl/Tk
+      $line =~ s/\\\n/\\ \n/g;
+      $chapter .= "P<\"$line\n\n\">";
    }
    else
    {  # append text of an ordinary paragraph to the current chapter

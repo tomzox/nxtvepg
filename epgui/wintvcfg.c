@@ -29,7 +29,7 @@
  *    so their respective copyright applies too. Please see the notes in
  *    functions headers below.
  *
- *  $Id: wintvcfg.c,v 1.5 2002/05/19 22:01:49 tom Exp tom $
+ *  $Id: wintvcfg.c,v 1.8 2002/08/17 19:22:57 tom Exp tom $
  */
 
 #ifndef WIN32
@@ -98,7 +98,7 @@ typedef struct
 //
 static TVAPP_NAME WintvCfg_GetAppIdx( void )
 {
-   char  * pTvAppIdx;
+   CONST84 char  * pTvAppIdx;
    int     appIdx;
    TVAPP_NAME result = TVAPP_NONE;
 
@@ -1172,7 +1172,7 @@ static bool WintvCfg_GetKtvIni( Tcl_Interp * interp, TVAPP_NAME appIdx, const ch
          {
             if (sscanf(line,"[%99[^]]]", section) == 1)
             {
-               isHwSect    = (strcmp(section, "Carte") == 0);
+               isHwSect    = ((strcmp(section, "Carte") == 0) || (strcmp(section, "Card") == 0));
                isTunerSect = (strcmp(section, "Tuner") == 0);
             }
             else if (isHwSect)
@@ -1420,7 +1420,7 @@ static int WintvCfg_GetTvappList( ClientData ttp, Tcl_Interp * interp, int argc,
 static int WintvCfg_GetStationNames( ClientData ttp, Tcl_Interp * interp, int argc, char *argv[] )
 {
    const char * const pUsage = "Usage: C_Tvapp_GetStationNames";
-   char  * pTvAppPath;
+   const char * pTvAppPath;
    int     appIdx;
    int     result;
 
@@ -1450,7 +1450,7 @@ static int WintvCfg_GetStationNames( ClientData ttp, Tcl_Interp * interp, int ar
 bool WintvCfg_GetFreqTab( Tcl_Interp * interp, uint ** ppFreqTab, uint * pCount )
 {
    DYN_FREQ_BUF freqBuf;
-   uchar * pTvAppPath;
+   const char * pTvAppPath;
    int     appIdx;
    bool    result = FALSE;
 

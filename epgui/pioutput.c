@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pioutput.c,v 1.14 2002/03/22 21:11:46 tom Exp tom $
+ *  $Id: pioutput.c,v 1.19 2002/08/17 19:25:45 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -54,6 +54,11 @@
 #include "epgui/pilistbox.h"
 #include "epgui/pioutput.h"
 
+#include "epgvbi/btdrv.h"
+#include "epgvbi/winshm.h"
+#include "epgvbi/winshmsrv.h"
+#define USERCMD_PREFIX_WINTV  "!wintv!"
+#define USERCMD_PREFIX_WINTV_LEN  7
 
 // Emergency fallback for column configuration
 // (should never be used because tab-stops and column header buttons will not match)
@@ -74,12 +79,16 @@ typedef struct
    char   * strbuf;         // pointer to the allocated buffer
    uint     size;           // number of allocated bytes in the buffer
    uint     off;            // number of already used bytes
+   bool     quoteShell;     // TRUE to enable UNIX quoting of spaces etc.
 } DYN_CHAR_BUF;
+
+// cache for max. char counts to fit theme strings into the theme column
+static uchar themeStrMaxLen[128 + 1];
 
 // ----------------------------------------------------------------------------
 // Table to implement isalnum() for all latin fonts
 //
-const char alphaNumTab[256] =
+static const char alphaNumTab[256] =
 {
 /* 0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F */
    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 0 */
@@ -246,10 +255,72 @@ const char * PiOutput_DictifyTitle( const char * pTitle, uchar lang, char * outb
       len = strlen(outbuf);
       if ((len > 0) && (outbuf[len - 1] == ' '))
          outbuf[len - 1] = 0;
-      // force the new first title character to be uppercase (for sorting)
+   }
+
+   // force the new first title character to be uppercase (for sorting)
+   if (alphaNumTab[(uint) pTitle[0]] == ALNUM_LCHAR)
+   {
+      if (pTitle != outbuf)
+      {
+         strncpy(outbuf, pTitle, maxLen);
+         outbuf[maxLen - 1] = 0;
+         pTitle = outbuf;
+      }
       outbuf[0] = toupper(outbuf[0]);
    }
+
    return pTitle;
+}
+
+// ----------------------------------------------------------------------------
+// Build cache of theme string max lengths to fit in the column
+// - required because a proportional (non fixed width) font is used
+// - must be called once during startup and whenever the theme language changes
+//
+void PiOutput_CacheThemesMaxLen( void )
+{
+   Tk_Font tkfont;
+   const uchar * pThemeStr;
+   const uchar * p;
+   const char * fontName;
+   uint   len, dummy;
+   uint   idx;
+
+   memset(themeStrMaxLen, 0, sizeof(themeStrMaxLen));
+
+   fontName = Tcl_GetVar(interp, "textfont", TCL_GLOBAL_ONLY);
+   if (fontName != NULL)
+   {
+      tkfont = Tk_GetFont(interp, Tk_MainWindow(interp), fontName);
+      if (tkfont != NULL)
+      {
+         for (idx=0; idx <= 128; idx++)
+         {
+            pThemeStr = PdcThemeGet(idx);
+            if (pThemeStr != NULL)
+            {
+               len = strlen(pThemeStr);
+               themeStrMaxLen[idx] = Tk_MeasureChars(tkfont, pThemeStr, len, 64, -1, &dummy);
+
+               if (len > themeStrMaxLen[idx])
+               {  // remove single chars or separators from the end of the truncated string
+                  p = pThemeStr + themeStrMaxLen[idx] - 1;
+                  if (alphaNumTab[*(p - 1)] == ALNUM_NONE)
+                     p -= 2;
+                  while (alphaNumTab[*(p--)] == ALNUM_NONE)
+                     ;
+                  themeStrMaxLen[idx] = (p + 2) - pThemeStr;
+               }
+            }
+         }
+      }
+      else
+         debug1("PiOutput-CacheThemesMaxLen: font '%s' unknown", fontName);
+
+      Tk_FreeFont(tkfont);
+   }
+   else
+      debug0("PiOutput-CacheThemesMaxLen: Tcl var 'textfont' undefined");
 }
 
 // ----------------------------------------------------------------------------
@@ -274,7 +345,8 @@ int PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, uint idx, char * outstr
             pAiBlock = EpgDbGetAi(pUiDbContext);
             if ((pAiBlock != NULL) && (pPiBlock->netwop_no < pAiBlock->netwopCount))
             {
-               uchar buf[7], *p;
+               const uchar *p;
+               uchar buf[7];
                sprintf(buf, "0x%04X", AI_GET_NETWOP_N(pAiBlock, pPiBlock->netwop_no)->cni);
                p = Tcl_GetVar2(interp, "cfnetnames", buf, TCL_GLOBAL_ONLY);
                if (p != NULL)
@@ -395,9 +467,9 @@ int PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, uint idx, char * outstr
          case PIBOX_COL_THEME:
             if (pPiBlock->no_themes > 0)
             {
-               const uchar * p;
+               const uchar * pThemeStr;
                uchar theme;
-               uint themeIdx, len;
+               uint  themeIdx;
 
                if (pPiFilterContext->enabledFilters & FILTER_THEMES)
                {
@@ -408,7 +480,7 @@ int PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, uint idx, char * outstr
                   {  // ignore theme class
                      theme = pPiBlock->themes[themeIdx];
                      if ( (theme < 0x80) &&
-                          (pdc_themes[theme] != NULL) &&
+                          PdcThemeIsDefined(theme) &&
                           ((pPiFilterContext->themeFilterField[theme] & pPiFilterContext->usedThemeClasses) == 0) )
                      {
                         break;
@@ -423,7 +495,7 @@ int PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, uint idx, char * outstr
                   for (themeIdx=0; themeIdx < pPiBlock->no_themes; themeIdx++)
                   {
                      theme = pPiBlock->themes[themeIdx];
-                     if ( (theme >= 0x80) || (pdc_themes[theme] != NULL) )
+                     if ( (theme >= 0x80) || PdcThemeIsDefined(theme) )
                      {
                         if ( (minThemeIdx == PI_MAX_THEME_COUNT) ||
                              (theme < pPiBlock->themes[minThemeIdx]) )
@@ -438,35 +510,19 @@ int PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, uint idx, char * outstr
                      themeIdx = 0;
                }
 
-               if (pPiBlock->themes[themeIdx] >= 0x80)
-               {  // series
-                  strcpy(outstr + off, pdc_series);
+               theme = pPiBlock->themes[themeIdx];
+               if (theme > 0x80)
+               {  // replace individual series code with general series code
+                  theme = PDC_THEME_SERIES;
                }
-               else if ((p = pdc_themes[pPiBlock->themes[themeIdx]]) != NULL)
-               {  // remove " - general" from the end of the theme category name
-                  len = strlen(p);
-                  if ((len > 10) && (strcmp(p + len - 10, " - general") == 0))
-                  {
-                     strncpy(outstr + off, p, len - 10);
-                     outstr[off + len - 10] = 0;
-                  }
-                  else
-                     strcpy(outstr + off, p);
+               pThemeStr = PdcThemeGet(theme);
+               if (pThemeStr != NULL)
+               {
+                  uint maxlen = themeStrMaxLen[theme];
+                  strncpy(outstr + off, pThemeStr, maxlen);
+                  outstr[off + maxlen] = 0;
+                  off += maxlen;
                }
-
-               // limit max. length: theme must fit into the column width
-               len = strlen(outstr + off);
-               if (len > 10)
-               {  // remove single chars or separators from the end of the truncated string
-                  p = outstr + off + 10 - 1;
-                  if (alphaNumTab[*(p - 1)] == ALNUM_NONE)
-                     p -= 2;
-                  while (alphaNumTab[*(p--)] == ALNUM_NONE)
-                     ;
-                  off = (char *)(p + 2) - (char *)outstr;
-               }
-               else
-                  off += len;
             }
             break;
 
@@ -490,9 +546,9 @@ int PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, uint idx, char * outstr
 static int PiOutput_CfgColumns( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
 {
    PIBOX_COL_TYPES * pColTab;
-   char **pColArgv;
+   CONST84 char **pColArgv;
    uint colCount, colIdx, idx;
-   char * pTmpStr;
+   const char * pTmpStr;
    int result;
 
    pTmpStr = Tcl_GetVar(interp, "colsel_selist", TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG);
@@ -723,7 +779,7 @@ static uint PiOutput_SeparateMergedInfo( const PI_BLOCK * pPiBlock, uchar ** inf
 // ----------------------------------------------------------------------------
 // Print Short-Info and Long-Info
 //
-void PiOutput_AppendShortAndLongInfoText( const PI_BLOCK *pPiBlock, PiOutput_AppendInfoTextCb_Type AppendInfoTextCb, void *fp )
+void PiOutput_AppendShortAndLongInfoText( const PI_BLOCK *pPiBlock, PiOutput_AppendInfoTextCb_Type AppendInfoTextCb, void *fp, bool isMerged )
 {
    if ( PI_HAS_SHORT_INFO(pPiBlock) && PI_HAS_LONG_INFO(pPiBlock) )
    {
@@ -751,7 +807,7 @@ void PiOutput_AppendShortAndLongInfoText( const PI_BLOCK *pPiBlock, PiOutput_App
    }
    else if (PI_HAS_SHORT_INFO(pPiBlock))
    {
-      if (EpgDbContextIsMerged(pUiDbContext))
+      if (isMerged)
       {
          uchar *infoStrTab[MAX_MERGED_DB_COUNT];
          uint infoCount, idx, added;
@@ -797,7 +853,8 @@ void PiOutput_AppendShortAndLongInfoText( const PI_BLOCK *pPiBlock, PiOutput_App
 //
 void PiOutput_AppendCompressedThemes( const PI_BLOCK *pPiBlock, char * outstr, uint maxlen )
 {
-   int idx, theme, themeCat, themeStrLen;
+   const char * pThemeStr;
+   uint idx, theme, themeCat, themeStrLen;
    char * po;
 
    if (maxlen > 0)
@@ -809,8 +866,11 @@ void PiOutput_AppendCompressedThemes( const PI_BLOCK *pPiBlock, char * outstr, u
       theme = pPiBlock->themes[idx];
       if (theme > 0x80)
          theme = 0x80;
-      themeCat = PdcThemeGetCategory(theme);
-      if ( (pdc_themes[theme] != NULL) &&
+
+      pThemeStr = PdcThemeGet(theme);
+      themeCat  = PdcThemeGetCategory(theme);
+
+      if ( (pThemeStr != NULL) &&
            // current theme is general and next same category -> skip
            ( (themeCat != theme) ||
              (idx + 1 >= pPiBlock->no_themes) ||
@@ -819,22 +879,10 @@ void PiOutput_AppendCompressedThemes( const PI_BLOCK *pPiBlock, char * outstr, u
            ( (idx + 1 >= pPiBlock->no_themes) ||
              (theme != pPiBlock->themes[idx + 1]) ))
       {
-         themeStrLen = strlen(pdc_themes[theme]);
-         if ( (themeStrLen > 10) &&
-              (strcmp(pdc_themes[theme] + themeStrLen - 10, " - general") == 0) )
-         {  // copy theme name except of the trailing " - general"
-            if (maxlen > themeStrLen - 10 + 2)
-            {
-               themeStrLen -= 10;
-               strncpy(po, pdc_themes[theme], themeStrLen);
-               strcpy(po + themeStrLen, ", ");
-               po     += themeStrLen + 2;
-               maxlen -= themeStrLen + 2;
-            }
-         }
-         else if (maxlen > themeStrLen + 2)
+         themeStrLen = strlen(pThemeStr);
+         if (maxlen > themeStrLen + 2)
          {
-            strcpy(po, pdc_themes[theme]);
+            strcpy(po, pThemeStr);
             strcpy(po + themeStrLen, ", ");
             po     += themeStrLen + 2;
             maxlen -= themeStrLen + 2;
@@ -1039,7 +1087,7 @@ static void PiOutput_HtmlDesc( FILE *fp, const PI_BLOCK * pPiBlock, const AI_BLO
    fprintf(fp, "\n</td>\n</tr>\n\n");
 
    // start third row: description
-   PiOutput_AppendShortAndLongInfoText(pPiBlock, PiOutput_HtmlAppendInfoTextCb, fp);
+   PiOutput_AppendShortAndLongInfoText(pPiBlock, PiOutput_HtmlAppendInfoTextCb, fp, EpgDbContextIsMerged(pUiDbContext));
 
    fprintf(fp, "</table>\n</A>\n\n\n");
 }
@@ -1407,6 +1455,8 @@ static int PiOutput_PopupPi( ClientData ttp, Tcl_Interp *interp, int argc, char 
    const PI_BLOCK * pPiBlock;
    const DESCRIPTOR *pDesc;
    const char * pCfNetname;
+   const uchar * pThemeStr;
+   const uchar * pGeneralStr;
    uchar *p;
    uchar start_str[50], stop_str[50], cni_str[7];
    uchar ident[50];
@@ -1505,11 +1555,9 @@ static int PiOutput_PopupPi( ClientData ttp, Tcl_Interp *interp, int argc, char 
 
          for (index=0; index < pPiBlock->no_themes; index++)
          {
-            if (pPiBlock->themes[index] > 0x80)
-               p = "series";
-            else if ((p = (char *) pdc_themes[pPiBlock->themes[index]]) == 0)
-               p = (char *) pdc_undefined_theme;
-            sprintf(comm, "%s.text insert end {Theme:\t0x%02X %s\n} body\n", ident, pPiBlock->themes[index], p);
+            pThemeStr = PdcThemeGetWithGeneral(pPiBlock->themes[index], &pGeneralStr, TRUE);
+            sprintf(comm, "%s.text insert end {Theme:\t0x%02X %s%s\n} body\n",
+                          ident, pPiBlock->themes[index], pThemeStr, pGeneralStr);
             eval_check(interp, comm);
          }
 
@@ -1572,28 +1620,36 @@ static void PiOutput_ExtCmdAppendChar( char c, DYN_CHAR_BUF * pCmdBuf )
 //
 static void PiOutput_ExtCmdAppend( DYN_CHAR_BUF * pCmdBuf, const char * ps )
 {
-   PiOutput_ExtCmdAppendChar('\'', pCmdBuf);
-
-   while (*ps != 0)
+   if (pCmdBuf->quoteShell)
    {
-      if (*ps == '\'')
-      {  // single quote -> escape it
-         ps++;
-         PiOutput_ExtCmdAppendChar('\'', pCmdBuf);
-         PiOutput_ExtCmdAppendChar('\\', pCmdBuf);
-         PiOutput_ExtCmdAppendChar('\'', pCmdBuf);
-         PiOutput_ExtCmdAppendChar('\'', pCmdBuf);
+      PiOutput_ExtCmdAppendChar('\'', pCmdBuf);
+
+      while (*ps != 0)
+      {
+         if (*ps == '\'')
+         {  // single quote -> escape it
+            ps++;
+            PiOutput_ExtCmdAppendChar('\'', pCmdBuf);
+            PiOutput_ExtCmdAppendChar('\\', pCmdBuf);
+            PiOutput_ExtCmdAppendChar('\'', pCmdBuf);
+            PiOutput_ExtCmdAppendChar('\'', pCmdBuf);
+         }
+         else if ( ((uint) *ps) < ' ' )
+         {  // control character -> replace it with blank
+            ps++;
+            PiOutput_ExtCmdAppendChar(' ', pCmdBuf);
+         }
+         else
+            PiOutput_ExtCmdAppendChar(*(ps++), pCmdBuf);
       }
-      else if ( ((uint) *ps) < ' ' )
-      {  // control character -> replace it with blank
-         ps++;
-         PiOutput_ExtCmdAppendChar(' ', pCmdBuf);
-      }
-      else
+
+      PiOutput_ExtCmdAppendChar('\'', pCmdBuf);
+   }
+   else
+   {
+      while (*ps != 0)
          PiOutput_ExtCmdAppendChar(*(ps++), pCmdBuf);
    }
-
-   PiOutput_ExtCmdAppendChar('\'', pCmdBuf);
 }
 
 // ----------------------------------------------------------------------------
@@ -1627,30 +1683,41 @@ static void PiOutput_ExtCmdAppendInfoTextCb( void *fp, const char * pShortInfo, 
 // - unknown keyword is replaced with ${keyword: unknown vaiable}
 //
 static void PiOutput_ExtCmdVariable( const PI_BLOCK *pPiBlock, const AI_BLOCK * pAiBlock,
-                                     const char * pKeyword, const char * pModifier,
+                                     const char * pKeyword, uint keywordLen,
+                                     const char * pModifier, uint modifierLen,
                                      DYN_CHAR_BUF * pCmdBuf )
 {
    const char * pConst;
+   char  modbuf[100];
    char  strbuf[200];
+   uint   idx;
    struct tm vpsTime;
    time_t tdiff;
    time_t now = time(NULL);
 
-   if (strcmp(pKeyword, "start") == 0)
+   if (modifierLen >= sizeof(modbuf))
+      modifierLen = sizeof(modbuf) - 1;
+   modbuf[sizeof(modbuf) - 1] = 0;
+
+   if (strncmp(pKeyword, "start", keywordLen) == 0)
    {  // start time
       if (pModifier == NULL)
-         pModifier = "%H:%M-%d.%m.%Y";
-      strftime(strbuf, sizeof(strbuf), pModifier, localtime(&pPiBlock->start_time));
+         strcpy(modbuf, "%H:%M-%d.%m.%Y");
+      else
+         strncpy(modbuf, pModifier, modifierLen);
+      strftime(strbuf, sizeof(strbuf), modbuf, localtime(&pPiBlock->start_time));
       PiOutput_ExtCmdAppend(pCmdBuf, strbuf);
    }
-   else if (strcmp(pKeyword, "stop") == 0)
+   else if (strncmp(pKeyword, "stop", keywordLen) == 0)
    {  // stop time
       if (pModifier == NULL)
-         pModifier = "%H:%M-%d.%m.%Y";
-      strftime(strbuf, sizeof(strbuf), pModifier, localtime(&pPiBlock->stop_time));
+         strcpy(modbuf, "%H:%M-%d.%m.%Y");
+      else
+         strncpy(modbuf, pModifier, modifierLen);
+      strftime(strbuf, sizeof(strbuf), modbuf, localtime(&pPiBlock->stop_time));
       PiOutput_ExtCmdAppend(pCmdBuf, strbuf);
    }
-   else if (strcmp(pKeyword, "duration") == 0)
+   else if (strncmp(pKeyword, "duration", keywordLen) == 0)
    {  // duration = stop - start time; by default in minutes
       if (now >= pPiBlock->stop_time)
          tdiff = 0;
@@ -1663,7 +1730,7 @@ static void PiOutput_ExtCmdVariable( const PI_BLOCK *pPiBlock, const AI_BLOCK * 
       sprintf(strbuf, "%d", (int) tdiff);
       PiOutput_ExtCmdAppend(pCmdBuf, strbuf);
    }
-   else if (strcmp(pKeyword, "relstart") == 0)
+   else if (strncmp(pKeyword, "relstart", keywordLen) == 0)
    {  // relative start = start time - now; by default in minutes
       if (now >= pPiBlock->start_time)
          tdiff = 0;
@@ -1674,12 +1741,12 @@ static void PiOutput_ExtCmdVariable( const PI_BLOCK *pPiBlock, const AI_BLOCK * 
       sprintf(strbuf, "%d", (int) tdiff);
       PiOutput_ExtCmdAppend(pCmdBuf, strbuf);
    }
-   else if (strcmp(pKeyword, "CNI") == 0)
+   else if (strncmp(pKeyword, "CNI", keywordLen) == 0)
    {  // network CNI (hexadecimal)
       sprintf(strbuf, "0x%04X", AI_GET_NETWOP_N(pAiBlock, pPiBlock->netwop_no)->cni);
       PiOutput_ExtCmdAppend(pCmdBuf, strbuf);
    }
-   else if (strcmp(pKeyword, "network") == 0)
+   else if (strncmp(pKeyword, "network", keywordLen) == 0)
    {  // network name
       sprintf(strbuf, "0x%04X", AI_GET_NETWOP_N(pAiBlock, pPiBlock->netwop_no)->cni);
       pConst = Tcl_GetVar2(interp, "cfnetnames", strbuf, TCL_GLOBAL_ONLY);
@@ -1688,21 +1755,32 @@ static void PiOutput_ExtCmdVariable( const PI_BLOCK *pPiBlock, const AI_BLOCK * 
       else
          PiOutput_ExtCmdAppend(pCmdBuf, AI_GET_NETWOP_NAME(pAiBlock, pPiBlock->netwop_no));
    }
-   else if (strcmp(pKeyword, "title") == 0)
+   else if (strncmp(pKeyword, "title", keywordLen) == 0)
    {  // programme title string
       PiOutput_ExtCmdAppend(pCmdBuf, PI_GET_TITLE(pPiBlock));
    }
-   else if (strcmp(pKeyword, "description") == 0)
+   else if (strncmp(pKeyword, "description", keywordLen) == 0)
    {  // programme description (short & long info)
-      PiOutput_AppendShortAndLongInfoText(pPiBlock, PiOutput_ExtCmdAppendInfoTextCb, pCmdBuf);
+      PiOutput_AppendShortAndLongInfoText(pPiBlock, PiOutput_ExtCmdAppendInfoTextCb, pCmdBuf, EpgDbContextIsMerged(pUiDbContext));
    }
-   else if (strcmp(pKeyword, "themes") == 0)
+   else if (strncmp(pKeyword, "themes", keywordLen) == 0)
    {  // PDC themes
-      PiOutput_AppendCompressedThemes(pPiBlock, strbuf, sizeof(strbuf));
-      PiOutput_ExtCmdAppend(pCmdBuf, strbuf);
+      if ((pModifier == NULL) || (*pModifier == 't'))
+      {  // output in cleartext
+         PiOutput_AppendCompressedThemes(pPiBlock, strbuf, sizeof(strbuf));
+         PiOutput_ExtCmdAppend(pCmdBuf, strbuf);
+      }
+      else
+      {  // numerical output
+         for (idx=0; idx < pPiBlock->no_themes; idx++)
+         {
+            sprintf(strbuf, "%s%d", ((idx > 0) ? "," : ""), pPiBlock->themes[idx]);
+            PiOutput_ExtCmdAppend(pCmdBuf, strbuf);
+         }
+      }
    }
-   else if ( (strcmp(pKeyword, "VPS") == 0) ||
-             (strcmp(pKeyword, "PDC") == 0) )
+   else if ( (strncmp(pKeyword, "VPS", keywordLen) == 0) ||
+             (strncmp(pKeyword, "PDC", keywordLen) == 0) )
    {  // VPS/PDC time code
       memcpy(&vpsTime, localtime(&pPiBlock->start_time), sizeof(vpsTime));
       // note that the VPS label represents local time
@@ -1720,8 +1798,10 @@ static void PiOutput_ExtCmdVariable( const PI_BLOCK *pPiBlock, const AI_BLOCK * 
            (vpsTime.tm_mday >= 1) && (vpsTime.tm_mday <= 31) )
       {
          if (pModifier == NULL)
-            pModifier = "%H:%M-%d.%m.%Y";
-         strftime(strbuf, sizeof(strbuf), pModifier, &vpsTime);
+            strcpy(modbuf, "%H:%M-%d.%m.%Y");
+         else
+            strncpy(modbuf, pModifier, modifierLen);
+         strftime(strbuf, sizeof(strbuf), modbuf, &vpsTime);
          PiOutput_ExtCmdAppend(pCmdBuf, strbuf);
       }
       else
@@ -1729,7 +1809,7 @@ static void PiOutput_ExtCmdVariable( const PI_BLOCK *pPiBlock, const AI_BLOCK * 
          PiOutput_ExtCmdAppend(pCmdBuf, "none");
       }
    }
-   else if (strcmp(pKeyword, "sound") == 0)
+   else if (strncmp(pKeyword, "sound", keywordLen) == 0)
    {
       switch(pPiBlock->feature_flags & 0x03)
       {
@@ -1741,7 +1821,7 @@ static void PiOutput_ExtCmdVariable( const PI_BLOCK *pPiBlock, const AI_BLOCK * 
       }
       PiOutput_ExtCmdAppend(pCmdBuf, pConst);
    }
-   else if (strcmp(pKeyword, "format") == 0)
+   else if (strncmp(pKeyword, "format", keywordLen) == 0)
    {
       if (pPiBlock->feature_flags & 0x08)
          PiOutput_ExtCmdAppend(pCmdBuf, "PALplus");
@@ -1750,40 +1830,108 @@ static void PiOutput_ExtCmdVariable( const PI_BLOCK *pPiBlock, const AI_BLOCK * 
       else
          PiOutput_ExtCmdAppend(pCmdBuf, "normal/unknown");
    }
-   else if (strcmp(pKeyword, "digital") == 0)
+   else if (strncmp(pKeyword, "digital", keywordLen) == 0)
    {
       PiOutput_ExtCmdAppend(pCmdBuf, (pPiBlock->feature_flags & 0x10) ? "yes" : "no");
    }
-   else if (strcmp(pKeyword, "encrypted") == 0)
+   else if (strncmp(pKeyword, "encrypted", keywordLen) == 0)
    {
       PiOutput_ExtCmdAppend(pCmdBuf, (pPiBlock->feature_flags & 0x20) ? "yes" : "no");
    }
-   else if (strcmp(pKeyword, "live") == 0)
+   else if (strncmp(pKeyword, "live", keywordLen) == 0)
    {
       PiOutput_ExtCmdAppend(pCmdBuf, (pPiBlock->feature_flags & 0x40) ? "yes" : "no");
    }
-   else if (strcmp(pKeyword, "repeat") == 0)
+   else if (strncmp(pKeyword, "repeat", keywordLen) == 0)
    {
       PiOutput_ExtCmdAppend(pCmdBuf, (pPiBlock->feature_flags & 0x80) ? "yes" : "no");
    }
-   else if (strcmp(pKeyword, "subtitle") == 0)
+   else if (strncmp(pKeyword, "subtitle", keywordLen) == 0)
    {
       PiOutput_ExtCmdAppend(pCmdBuf, (pPiBlock->feature_flags & 0x100) ? "yes" : "no");
    }
-   else if (strcmp(pKeyword, "e_rating") == 0)
+   else if (strncmp(pKeyword, "e_rating", keywordLen) == 0)
    {  // editorial rating (0 means "none")
       sprintf(strbuf, "%d", pPiBlock->editorial_rating);
       PiOutput_ExtCmdAppend(pCmdBuf, strbuf);
    }
-   else if (strcmp(pKeyword, "p_rating") == 0)
+   else if (strncmp(pKeyword, "p_rating", keywordLen) == 0)
    {  // parental  rating (0 means "none", 1 "all")
       sprintf(strbuf, "%d", pPiBlock->parental_rating * 2);
       PiOutput_ExtCmdAppend(pCmdBuf, strbuf);
    }
    else
    {
-      sprintf(strbuf, "${%s: unknown variable}", pKeyword);
+      strcpy(strbuf, "${");
+      strncpy(strbuf + 2, pKeyword, keywordLen);
+      strbuf[2 + keywordLen] = 0;
+      strcat(strbuf, ": unknown variable}");
       PiOutput_ExtCmdAppend(pCmdBuf, strbuf);
+   }
+}
+
+// ----------------------------------------------------------------------------
+// Substitute variables in UNIX Bourne Shell command line
+// - at this point we have: one PI and one command specification string
+// - now we parse the spec string and replace all ${variable:modifiers} by PI data
+//
+static void PiOutput_CmdSubstitute( const char * pUserCmd, DYN_CHAR_BUF * pCmdBuf, bool breakSpace,
+                                    const PI_BLOCK * pPiBlock, const AI_BLOCK * pAiBlock )
+{
+   const char *ps, *pKeyword, *pModifier;
+   uint keywordLen;
+   uint modifierLen;
+
+   ps = pUserCmd;
+   while (*ps != 0)
+   {
+      if ( (*ps == '$') && (*(ps + 1) == '{') )
+      {
+         // found variable start -> search for closing brace
+         pKeyword    = ps + 2;
+         pModifier   = NULL;
+         keywordLen  = 0;
+         modifierLen = 0;
+
+         ps += 2;
+         while ( (*ps != 0) && (*ps != '}') )
+         {
+            // check for a modifier string appended to the variable name after ':'
+            if ((*ps == ':') && (pModifier == NULL))
+            {  // found -> break off the modstr from the varstr by replacing ':' with 0
+               keywordLen = ps - pKeyword;
+               pModifier  = ps + 1;
+            }
+            ps++;
+         }
+         if (*ps != 0)
+         {  // found closing brace
+            if (pModifier != NULL)
+               modifierLen = ps - pModifier;
+            else
+               keywordLen  = ps - pKeyword;
+            // replace the ${} construct with the actual content
+            PiOutput_ExtCmdVariable(pPiBlock, pAiBlock,
+                                    pKeyword, keywordLen,
+                                    pModifier, modifierLen,
+                                    pCmdBuf);
+            ps += 1;
+         }
+         else
+         {  // syntax error: no closing brace -> treat it as normal text
+            // track back to the '$' and append it to the output
+            ps = pKeyword - 2;
+            PiOutput_ExtCmdAppendChar(*(ps++), pCmdBuf);
+         }
+      }
+      else
+      {  // outside of variable -> just append the character
+         if ((*ps == ' ') && (breakSpace))
+            PiOutput_ExtCmdAppendChar('\0', pCmdBuf);
+         else
+            PiOutput_ExtCmdAppendChar(*ps, pCmdBuf);
+         ps += 1;
+      }
    }
 }
 
@@ -1797,9 +1945,9 @@ static int PiOutput_ExecUserCmd( ClientData ttp, Tcl_Interp *interp, int argc, c
    const AI_BLOCK * pAiBlock;
    const PI_BLOCK * pPiBlock;
    const char * pTmpStr;
+   const char * pUserCmd;
+   CONST84 char ** userCmds;
    DYN_CHAR_BUF cmdbuf;
-   char ** userCmds;
-   char *ps, *pe, *pa;
    int  idx, userCmdCount;
    int  result;
 
@@ -1833,54 +1981,64 @@ static int PiOutput_ExecUserCmd( ClientData ttp, Tcl_Interp *interp, int argc, c
          {
             if (idx * 2 + 1 < userCmdCount)
             {
-               // At this point we have: one PI and one command specification string.
-               // Now we parse the spec string and replace all ${variable:modifiers} by PI data.
-               ps = userCmds[idx * 2 + 1];
-               while (*ps != 0)
-               {
-                  if ( (*ps == '$') && (*(ps + 1) == '{') )
+               pUserCmd = userCmds[idx * 2 + 1];
+               #ifdef WIN32
+               if (strncmp(USERCMD_PREFIX_WINTV, pUserCmd, USERCMD_PREFIX_WINTV_LEN) == 0)
+               {  // substitute and break strings apart at spaces, then pass argv to TV app
+                  uint argc, idx;
+
+                  pUserCmd += USERCMD_PREFIX_WINTV_LEN;
+                  // skip spaces between !wintv! keyword and command name
+                  while (*pUserCmd == ' ')
+                     pUserCmd += 1;
+
+                  cmdbuf.quoteShell = FALSE;
+                  PiOutput_CmdSubstitute(pUserCmd, &cmdbuf, TRUE, pPiBlock, pAiBlock);
+                  PiOutput_ExtCmdAppendChar('\0', &cmdbuf);
+
+                  argc = 0;
+                  for (idx=0; idx < cmdbuf.off; idx++)
+                     if (cmdbuf.strbuf[idx] == '\0')
+                        argc += 1;
+
+                  if (WintvSharedMem_SetEpgCommand(argc, cmdbuf.strbuf, cmdbuf.off) == FALSE)
                   {
-                     // found variable start -> search for closing brace
-                     pe = ps + 2;
-                     pa = NULL;
-                     while ( (*pe != 0) && (*pe != '}') )
+                     bool isConnected;
+
+                     isConnected = WintvSharedMem_IsConnected(NULL, 0, NULL);
+                     if (isConnected == FALSE)
                      {
-                        // check for a modifier string appended to the variable name after ':'
-                        if ((*pe == ':') && (pa == NULL))
-                        {  // found -> break off the modstr from the varstr by replacing ':' with 0
-                           *pe = 0;
-                           pa = pe + 1;
-                        }
-                        pe++;
-                     }
-                     if (*pe != 0)
-                     {  // found closing brace
-                        ps += 2;
-                        *pe = 0;
-                        // replace the ${} construct with the actual content
-                        PiOutput_ExtCmdVariable(pPiBlock, pAiBlock, ps, pa, &cmdbuf);
-                        ps = pe + 1;
+                        sprintf(comm, "tk_messageBox -type ok -icon error -parent . "
+                                      "-message \"Cannot record: no TV application connected!\"");
                      }
                      else
-                        PiOutput_ExtCmdAppendChar(*(ps++), &cmdbuf);
-                  }
-                  else
-                  {  // outside of variable -> just append the character
-                     PiOutput_ExtCmdAppendChar(*(ps++), &cmdbuf);
+                     {
+                        sprintf(comm, "tk_messageBox -type ok -icon error -parent . "
+                                      "-message \"Failed to send the record command to the TV app.\"");
+                     }
+                     eval_check(interp, comm);
+                     Tcl_ResetResult(interp);
                   }
                }
-
-               // append a '&' to have the shell execute the command asynchronously
-               // in the background; else we would hang until the command finishes.
-               // XXX how does this work on Windows?
-               #ifndef WIN32
-               PiOutput_ExtCmdAppendChar('&', &cmdbuf);
+               else
                #endif
-               // finally null-terminate the string
-               PiOutput_ExtCmdAppendChar('\0', &cmdbuf);
+               {  // substitute and quote variables in UNIX style, then execute the command
+                  cmdbuf.quoteShell = TRUE;
+                  PiOutput_CmdSubstitute(pUserCmd, &cmdbuf, FALSE, pPiBlock, pAiBlock);
 
-               // execute the command
-               system(cmdbuf.strbuf);
+                  // append a '&' to have the shell execute the command asynchronously
+                  // in the background; else we would hang until the command finishes.
+                  // XXX TODO must be adapted for WIN API
+                  #ifndef WIN32
+                  PiOutput_ExtCmdAppendChar('&', &cmdbuf);
+                  #endif
+
+                  // finally null-terminate the string
+                  PiOutput_ExtCmdAppendChar('\0', &cmdbuf);
+
+                  // execute the command
+                  system(cmdbuf.strbuf);
+               }
             }
             else
                debug1("PiOutput-ExecUserCmd: user cmd #%d not found", idx);
@@ -1891,6 +2049,49 @@ static int PiOutput_ExecUserCmd( ClientData ttp, Tcl_Interp *interp, int argc, c
       xfree(cmdbuf.strbuf);
    }
    return result;
+}
+
+// ----------------------------------------------------------------------------
+// Add user-defined commands to conext menu
+//
+void PiOutput_CtxMenuAddUserDef( const char * pMenu, bool addSeparator )
+{
+   const char * pTmpStr;
+   CONST84 char ** userCmds;
+   int userCmdCount;
+   uint idx;
+   #ifdef WIN32
+   bool isConnected;
+
+   isConnected = WintvSharedMem_IsConnected(NULL, 0, NULL);
+   #endif
+
+   pTmpStr = Tcl_GetVar(interp, "ctxmencf", TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG);
+   if ( (pTmpStr != NULL) &&
+        (Tcl_SplitList(interp, pTmpStr, &userCmdCount, &userCmds) == TCL_OK) &&
+        (userCmdCount > 0) )
+   {
+      if (addSeparator)
+      {
+         sprintf(comm, "%s add separator\n", pMenu);
+         eval_check(interp, comm);
+      }
+
+      for (idx=0; idx < userCmdCount; idx += 2)
+      {
+         sprintf(comm, "%s add command -label {%s} -command {C_ExecUserCmd %d}",
+                       pMenu, userCmds[idx], idx / 2);
+
+         #ifdef WIN32
+         if ( (strncmp(USERCMD_PREFIX_WINTV, userCmds[idx + 1], USERCMD_PREFIX_WINTV_LEN) == 0) &&
+              (isConnected == FALSE) )
+         {
+            strcat(comm, " -state disabled");
+         }
+         #endif
+         eval_check(interp, comm);
+      }
+   }
 }
 
 // ----------------------------------------------------------------------------
@@ -1919,6 +2120,7 @@ void PiOutput_Create( void )
 
       // set the column configuration
       PiOutput_CfgColumns(NULL, interp, 0, NULL);
+      PiOutput_CacheThemesMaxLen();
    }
    else
       debug0("PiOutput-Create: commands were already created");

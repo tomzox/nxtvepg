@@ -24,30 +24,12 @@
 #
 #  Author: Tom Zoerner
 #
-# $Id: nxtvepg.pod,v 1.68 2002/05/30 13:56:57 tom Exp tom $
+# $Id: nxtvepg.pod,v 1.73 2002/08/17 19:39:01 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME
 
 nxtvepg - Decoder, Browser and Analyzer for the Nextview Electronic Programme Guide
-
-=for html
-<TITLE>Nextview EPG Decoder Documentation</TITLE>
-<LINK href="nxtvepg.css" rel=stylesheet type=text/css>
-<META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
-<META name="language" content="en">
-<META name="author" content="Tom Zoerner">
-<META name="copyright" content="Tom Zoerner">
-<META name="keywords" content="nexTView,nxtvepg,TV schedule,Linux,software download,bttv,video4linux,VBI,vertical blanking interval,multimedia,data service,subscription free,TV tuner card,Bt848,Booktree,video capture,decoder,browser,EPG,teletext,Bt878,electronic program guide,TV-Guide,TV program listing">
-<META name="description" content="Online Documentation for the nxtvepg software, which offers access to a subscription-free electronic TV program guide. Nextview currently is broadcasted in Germany, Austria, Switzerland, and France and covers the schedules of all major TV networks in these countries.">
-<META name="robots" content="index, follow">
-<META name="revisit-after" content="01 month">
-</HEAD>
-<BODY BGCOLOR=#f8f8f8>
-<P><HR><P>
-<H1>Nextview EPG Decoder Documentation</H1>
-This is the manual page for the
-<A HREF="http://nxtvepg.tripod.com/">nxtvepg</A> software package.
 
 =head1 SYNOPSIS
 
@@ -143,14 +125,19 @@ a different host, you need to mount the remote directory, e.g. via NFS.
 
 =item B<-card> I<index>
 
-Specify which tuner card to use, if you have more than one.
-The given index is appended to /dev/vbi and /dev/video.
-Default: index 0, i.e. the card in the first PCI slot.
+Specify which TV card hardware to use, if you have more than card.
+Default: index 0.
+On Linux the given index is appended to the device names,
+i.e. F</dev/vbi> and F</dev/video>.
+On Windows index "n" means the n-th card found while scanning the PCI
+bus for cards with a Bt878, Bt878A, Bt848 or Bt849 chip.  If you have more
+than one TV card with the same chip, the order between those is undefined,
+but still constant (i.e. the order is determined by the driver, not nxtvepg)
 
 =item B<-provider> I<CNI>
 
 Select a provider by its hexadecimal CNI (Country and Network Identifier),
-e.g. C<-provider d94> for "Pro Sieben". You can find out the provider's CNI
+e.g. I<-provider dc7> for B<3sat>. You can find out the provider's CNI
 during a provider scan or from the database file names.
 Default: the last provider selected during the previous session.
 
@@ -211,6 +198,32 @@ In daemon mode this option overrides the acquisition mode setting in the
 configuration file and forces the acquisition into passive mode (see
 L<"ACQUISITION MODES">).  The configuration file is not changed, so that
 you can use different acquisition strategies for daemon and GUI.
+
+=item B<-dump> I<mode>
+
+With this argument, nxtvepg will only export the database in a fixed text
+format (see also L<"CONFIGURATION: Export as text">), then exit.
+This argument must be combined with I<-provider> to specify which database
+is to be exported. Use the code B<0x00FF> to export the merged database
+(in the last used configuration as saved in the rc/ini file).
+
+Three mode keywords are understood:
+I<pi> to dump programmes (i.e. the complete schedules),
+I<ai> to dump the provider's network table,
+I<pdc> to dump the PDC theme table.
+
+The output is written to I<stdout> unless you redirect it into a file
+or pipe it into another program.  Note to Windows users: since nxtvepg
+is not a console application, no I<stdout> is available, i.e. it's output
+will be discarded by the operating system unless you redirect it.
+For example you could enter the following command in the shell
+(or "MS-DOS prompt"):
+
+  nxtvepg -dump ai -prov dc7 > networks.txt
+
+to write the network table of provider I<3sat> (CNI I<0xdc7>) into a file
+called I<networks.txt>.
+
 
 =item B<-demo> I<path>
 
@@ -1052,7 +1065,7 @@ attribute will be listed (logical OR).
 I<Examples:>
 If you want to see all programmes listed for either network ARD or
 ZDF, simply select both networks. If you want to see all movies
-scheduled on PRO7, select network=PRO7 and theme=movies.
+scheduled on Arte, select network=Arte and theme=movies.
 
 Summary of filter options:
 
@@ -1364,7 +1377,75 @@ like a zero or overlapping running time. For an explanation of the
 other block types please see the ETSI specification 707.
 
 
-=item B<Dump in HTML>
+=item B<Export as text>
+
+Open a dialog that allows to export the complete database into a text
+file.  Each line in the file will represent one item in the database.
+The item's different fields are separated by TAB characters; the line
+is terminated by a single new-line character (no line feed character,
+even on Windows).  In some cases missing values are represented by
+C<\N> which is the MySQL I<NULL> identifier (currently only used for
+the VPS/PDC field).
+
+The generated text file can be loaded directly into a relational
+database.  It's not formatted for viewing in a regular text editor.
+Networks and themes are represented as numerical indices into the
+network and themes table respectively.  Hence these tables are
+required in addition to the programme table.  To load them into
+a database, you need to export them into different files.
+
+For I<MySQL> you could create the following tables:
+
+   CREATE TABLE PI (
+      netwop smallint(2) unsigned NOT NULL,
+      Dstart date NOT NULL,
+      Hstart time NOT NULL,
+      Hstop time NOT NULL,
+      vpspdc_pil datetime,
+      prat tinyint(2) unsigned,
+      erat tinyint(2) unsigned,
+      sound enum("mono","2-chan","stereo","surround"),
+      is_wide BOOL,
+      is_palplus BOOL,
+      is_digital BOOL,
+      is_encrypted BOOL,
+      is_live BOOL,
+      is_repeat BOOL,
+      is_subtitled BOOL,
+      theme_0 tinyint(3) unsigned,
+      theme_1 tinyint(3) unsigned,
+      theme_2 tinyint(3) unsigned,
+      theme_3 tinyint(3) unsigned,
+      theme_4 tinyint(3) unsigned,
+      theme_5 tinyint(3) unsigned,
+      theme_6 tinyint(3) unsigned,
+      title varchar(40) NOT NULL,
+      descr text,
+      PRIMARY KEY (netwop, Dstart, Hstart)
+   );
+
+   CREATE TABLE AI (
+      netwop_idx smallint(2) unsigned NOT NULL,
+      cni smallint(5) unsigned,
+      lto_mins smallint(5),
+      daycount smallint(5) unsigned,
+      alphabet smallint(5) unsigned,
+      addinfo smallint(5) unsigned,
+      name text,
+      UNIQUE netwop_idx (netwop_idx)
+   );
+
+   CREATE TABLE pdc_themes (
+      theme_idx smallint(3) unsigned NOT NULL,
+      cat_idx smallint(3) unsigned,
+      name_eng text,
+      name_ger text,
+      name_fra text,
+      UNIQUE theme_idx (theme_idx)
+   );
+
+
+=item B<Export as HTML>
 
 Open a dialog that allows to export the complete database or selected
 programmes into a file in HTML format (Hypertext Markup Language) which can
@@ -1860,9 +1941,23 @@ both lists will have exactly the same content. If you want to exclude
 networks, select them in the right list and press I<Delete>. You can always
 include them again by selecting them in the left list and pressing I<Add>.
 You can change the order in the right list by selecting one or more networks
-and pressing the I<up> or I<down> arrows. If you want the same selection and
-order for all providers, you can simply copy your selection with the I<copy>
-menu.
+and pressing the I<up> or I<down> arrows.
+
+If you want the same selection and order for all providers, you can simply
+copy your order and selection with the I<copy> popup menu;  this menu
+contains a list of all known providers.  Note that if you copy from a
+provider with less (or different) networks, those networks that are
+missing in the other provider's database appear at the end of the network
+selection in the right listbox.
+
+At the bottom of the dialog window there's an entry field that allows to
+limit the program listing for a network to a given time frame. For example
+if you receive Arte only from 19:00 until 07:00 o'clock, select Arte either
+in the left or right list, then enter "19:00" and "07:00" in the fields
+(make sure to always use 4 digits and the separating colon).  Programmes
+that fall completely outside that window will not appear in the browser
+window.  If you want to undo the limitation, enter 00:00 until 00:00
+or any other equal time values.
 
 
 =head2 Network names
@@ -1966,11 +2061,12 @@ The keywords can be followed by a colon and an output format specification.
 In case of the start, stop and VPS/PDC times, all options defined in the
 B<strftime(3)> manpage are available; default is %H:%M-%d.%m.%Y (hour, minute,
 day, month, year). In case of relative start time and duration, you can choose
-between minutes (default) and seconds by appending "m" or "s". For all other
-variables the modifiers are currently ignored.
+between minutes (default) and seconds by appending "m" or "s". For themes
+you can choose between numerical and textual output by appending "n" or "t".
+For all other variables the modifiers are currently ignored.
 
-The substrings which replace the formal variables are enclosed in single
-quotes to protect them from interpretation by the shell. Single quotes
+On UNIX the substrings which replace the formal variables are enclosed in
+single quotes to protect them from interpretation by the shell. Single quotes
 inside the substituted string are correctly escaped.
 
 Example: The command line
@@ -1981,7 +2077,18 @@ could for example result in
 
   plan '22.08.2001 13:05' 'Käpt'\''n Blaubärs Seemannsgarn'
 
-to be passed to the Bourne Shell.
+to be passed to the Bourne Shell (F</bin/sh>).
+
+On Windows there's a special prefix C<!wintv!> which tells nxtvepg to
+send this command line to a connected TV application (see
+L<"CONFIGURATION: TV application interaction">).  For example
+
+  !wintv! setstation ${network}
+
+would create a command that switches the TV app's channel to that of
+the currently selected programme (i.e. the same what the I<Tune TV>
+button does).  When no TV application is connected, such entries are
+automatically disabled.
 
 
 =head2 Filter shortcuts
@@ -1990,6 +2097,15 @@ Open the filter shortcut dialog to rename, reorder or delete shortcuts.
 You have to press the I<Update> button to save any changes for a shortcut
 and then close the dialog with I<Save>.
 See L<"FILTER SHORTCUTS"> for more details.
+
+
+=head2 Themes language
+
+Select the language for programme themes (i.e. content category, see
+L<"FILTERING">) in the main window and the filter menu.  By default
+it's set to default, in which case the language is derived from the
+selected provider's database.  Please note that the language of the
+menus, help etc. currently can not be changed from English.
 
 
 =head2 Show shortcuts
@@ -2178,6 +2294,7 @@ Email: tomzo (at) nefkom (dot) net
 
 Many thanks to E-nek for the DScaler driver port and cooperation
 in develepment of the TV application interaction;
+to Matthieu for the French translation of PDC theme descriptors;
 to John Adcock for the DScaler driver;
 to Jan Schuster for beta testing nxtvepg 0.7.0;
 to Mario Kemper for the NetBSD port and early beta testing;

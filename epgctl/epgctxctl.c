@@ -31,13 +31,14 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgctxctl.c,v 1.20 2002/05/11 15:44:51 tom Exp tom $
+ *  $Id: epgctxctl.c,v 1.21 2002/07/27 13:41:29 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
 #define DPRINTF_OFF
 
 #include <time.h>
+#include <string.h>
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"

@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: menucmd.c,v 1.79 2002/05/30 14:09:43 tom Exp $
+ *  $Id: menucmd.c,v 1.83 2002/08/17 19:22:57 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -50,8 +50,11 @@
 #include "epgctl/epgctxmerge.h"
 #include "epgui/epgmain.h"
 #include "epgui/epgtxtdump.h"
+#include "epgui/epgtabdump.h"
 #include "epgui/pilistbox.h"
+#include "epgui/pioutput.h"
 #include "epgui/pifilter.h"
+#include "epgui/pdc_themes.h"
 #include "epgui/menucmd.h"
 #include "epgui/uictrl.h"
 #include "epgui/xawtv.h"
@@ -93,7 +96,10 @@ static int MenuCmd_SetControlMenuStates(ClientData ttp, Tcl_Interp *interp, int 
       sprintf(comm, ".menubar.ctrl entryconfigure \"Dump raw database...\" -state %s\n",
                     ((uiCni != 0) ? "normal" : "disabled"));
       eval_check(interp, comm);
-      sprintf(comm, ".menubar.ctrl entryconfigure \"Dump in HTML...\" -state %s\n",
+      sprintf(comm, ".menubar.ctrl entryconfigure \"Export as text...\" -state %s\n",
+                    ((uiCni != 0) ? "normal" : "disabled"));
+      eval_check(interp, comm);
+      sprintf(comm, ".menubar.ctrl entryconfigure \"Export as HTML...\" -state %s\n",
                     ((uiCni != 0) ? "normal" : "disabled"));
       eval_check(interp, comm);
 
@@ -541,10 +547,10 @@ static int MenuCmd_IsNetAcqActive(ClientData ttp, Tcl_Interp *interp, int argc, 
 // ----------------------------------------------------------------------------
 // Dump the complete database
 //
-static int MenuCmd_DumpDatabase(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+static int MenuCmd_DumpRawDatabase(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
 {
-   const char * const pUsage = "Usage: C_DumpDatabase <file-name> <pi=0/1> <xi=0/1> <ai=0/1>"
-                                              " <ni=0/1> <oi=0/1> <mi=0/1> <li=0/1> <ti=0/1>";
+   const char * const pUsage = "Usage: C_DumpRawDatabase <file-name> <pi=0/1> <xi=0/1> <ai=0/1>"
+                                                 " <ni=0/1> <oi=0/1> <mi=0/1> <li=0/1> <ti=0/1>";
    int do_pi, do_xi, do_ai, do_ni, do_oi, do_mi, do_li, do_ti;
    FILE *fp;
    int result;
@@ -595,6 +601,121 @@ static int MenuCmd_DumpDatabase(ClientData ttp, Tcl_Interp *interp, int argc, ch
 }
 
 // ----------------------------------------------------------------------------
+// Dump the database in TAB-separated format
+//
+static int MenuCmd_DumpTabsDatabase(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+{
+   const char * const pUsage = "Usage: C_DumpTabsDatabase <file-name> <type>";
+   EPGTAB_DUMP_MODE mode;
+   FILE *fp;
+   int result;
+
+   if (argc != 1+2)
+   {  // parameter count is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else
+   {
+      mode = EpgTabDump_GetMode(argv[2]);
+      if (mode != EPGTAB_DUMP_NONE)
+      {
+         if (argv[1][0] != 0)
+         {
+            fp = fopen(argv[1], "w");
+            if (fp != NULL)
+            {  // file created successfully -> start dump
+               EpgTabDump_Database(pUiDbContext, fp, mode);
+
+               fclose(fp);
+            }
+            else
+            {  // access, create or truncate failed -> inform the user
+               sprintf(comm, "tk_messageBox -type ok -icon error -parent .dumptabs -message \"Failed to open file '%s' for writing: %s\"",
+                             argv[1], strerror(errno));
+               eval_check(interp, comm);
+               Tcl_ResetResult(interp);
+            }
+         }
+         else
+         {  // no file name given -> dump to stdout
+            EpgTabDump_Database(pUiDbContext, stdout, mode);
+         }
+
+         result = TCL_OK;
+      }
+      else
+      {  // unsupported mode (internal error, since the GUI should use radio buttons)
+         Tcl_SetResult(interp, "C_DumpTabsDatabase: illegal type keyword", TCL_STATIC);
+         result = TCL_ERROR;
+      }
+   }
+
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Set user configured language of PDC themes
+// - called during startup and manual config change, and due to automatic language
+//   selection mode also after provider switch and AI version change
+//
+void SetUserLanguage( Tcl_Interp *interp )
+{
+   const AI_BLOCK * pAi;
+   CONST84 char * pTmpStr;
+   int    lang;
+   static int last_lang = -1;
+
+   pTmpStr = Tcl_GetVar(interp, "menuUserLanguage", TCL_GLOBAL_ONLY);
+   if (pTmpStr != NULL)
+   {
+      if (Tcl_GetInt(interp, pTmpStr, &lang) == TCL_OK)
+      {
+         if (lang == 7)
+         {
+            // automatic mode: determine language from AI block
+            if (pUiDbContext != NULL)
+            {
+               EpgDbLockDatabase(pUiDbContext, TRUE);
+               pAi = EpgDbGetAi(pUiDbContext);
+               if ( (pAi != NULL) && (pAi->thisNetwop < pAi->netwopCount) )
+               {
+                  lang = AI_GET_NETWOP_N(pAi, pAi->thisNetwop)->alphabet;
+               }
+               EpgDbLockDatabase(pUiDbContext, FALSE);
+            }
+         }
+
+         // pass the language index to the PDC themes module
+         PdcThemeSetLanguage(lang);
+
+         if ((lang != last_lang) && (last_lang != -1))
+         {
+            // rebuild the themes filter menu
+            eval_check(interp, "FilterMenuAdd_Themes .menubar.filter.themes");
+            PiOutput_CacheThemesMaxLen();
+         }
+         last_lang = lang;
+      }
+      else
+         debug1("SetUserLanguage: failed to parse '%s'", pTmpStr);
+   }
+   else
+      debug0("SetUserLanguage: Tcl var menuUserLanguage is undefined");
+}
+
+// ----------------------------------------------------------------------------
+// Trigger update of user configured language after menu selection
+//
+static int MenuCmd_UpdateLanguage(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+{
+   // load the new language setting from the Tcl config variable
+   SetUserLanguage(interp);
+
+   return TCL_OK;
+}
+
+// ----------------------------------------------------------------------------
 // Switch the provider for the browser
 // - only used for the provider selection popup,
 //   not for the initial selection nor for provider merging
@@ -625,9 +746,12 @@ static int MenuCmd_ChangeProvider(ClientData ttp, Tcl_Interp *interp, int argc, 
 
             // in case follow-ui acq mode is used, change the acq db too
             SetAcquisitionMode(NETACQ_KEEP);
+            // in case automatic language selection is used, update the theme language
+            SetUserLanguage(interp);
 
             UiControl_AiStateChange(DB_TARGET_UI);
             eval_check(interp, "C_ResetFilter all; ResetFilterState");
+
 
             PiListBox_Reset();
 
@@ -958,8 +1082,9 @@ static int MenuCmd_GetAiNetwopList( ClientData ttp, Tcl_Interp *interp, int argc
 //
 static int ProvMerge_ParseNetwopList( Tcl_Interp * interp, uint * pCniCount, uint * pCniTab )
 {
-   char **pCniArgv, **pSubLists;
-   char * pTmpStr;
+   CONST84 char ** pCniArgv;
+   CONST84 char ** pSubLists;
+   const char    * pTmpStr;
    int  * pCni, count;
    uint idx;
    int  result;
@@ -1008,9 +1133,11 @@ static int ProvMerge_ParseNetwopList( Tcl_Interp * interp, uint * pCniCount, uin
 static int
 ProvMerge_ParseConfigString( Tcl_Interp *interp, uint *pCniCount, uint * pCniTab, MERGE_ATTRIB_VECTOR_PTR pMax )
 {
-   char **pCniArgv, **pAttrArgv, **pIdxArgv;
+   CONST84 char ** pCniArgv;
+   CONST84 char ** pAttrArgv;
+   CONST84 char ** pIdxArgv;
    uint attrCount, idxCount, idx, idx2, ati, matIdx, cni;
-   char * pTmpStr;
+   const char * pTmpStr;
    int result;
 
    pTmpStr = Tcl_GetVar(interp, "prov_merge_cnis", TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG);
@@ -1134,21 +1261,26 @@ ProvMerge_ParseConfigString( Tcl_Interp *interp, uint *pCniCount, uint * pCniTab
 }
 
 // ----------------------------------------------------------------------------
-// Update provider selection preference list for the merged database
-// - put the fake "Merge" CNI plus the CNIs of all merged providers at the
-//   front of the provider selection order
+// Merge databases according to the current configuration
 //
-static void ProvMerge_UpdateProvSelectionList( uint provCount, uint * provCniTab )
+EPGDB_CONTEXT * MenuCmd_MergeDatabases( void )
 {
-   uint  idx;
+   EPGDB_CONTEXT * pDbContext;
+   MERGE_ATTRIB_MATRIX max;
+   uint pProvCniTab[MAX_MERGED_DB_COUNT];
+   uint netwopCniTab[MAX_NETWOP_COUNT];
+   uint provCount, netwopCount;
 
-   sprintf(comm, "UpdateMergedProvSelection {0x00FF ");
-   for (idx=0; idx < provCount; idx++)
+   pDbContext = NULL;
+
+   if (ProvMerge_ParseConfigString(interp, &provCount, pProvCniTab, &max[0]) == TCL_OK)
    {
-     sprintf(comm + strlen(comm), "0x%04X ", provCniTab[idx]);
+      if (ProvMerge_ParseNetwopList(interp, &netwopCount, netwopCniTab) == TCL_OK)
+      {
+         pDbContext = EpgContextMerge(provCount, pProvCniTab, max, netwopCount, netwopCniTab);
+      }
    }
-   sprintf(comm + strlen(comm) - 1, "}");
-   eval_check(interp, comm);
+   return pDbContext;
 }
 
 // ----------------------------------------------------------------------------
@@ -1161,10 +1293,6 @@ static int ProvMerge_Start(ClientData ttp, Tcl_Interp *interp, int argc, char *a
 {
    const char * const pUsage = "Usage: C_ProvMerge_Start";
    EPGDB_CONTEXT * pDbContext;
-   MERGE_ATTRIB_MATRIX max;
-   uint provCniTab[MAX_MERGED_DB_COUNT];
-   uint netwopCniTab[MAX_NETWOP_COUNT];
-   uint provCount, netwopCount;
    int  result;
 
    if (argc != 1)
@@ -1174,27 +1302,25 @@ static int ProvMerge_Start(ClientData ttp, Tcl_Interp *interp, int argc, char *a
    }
    else
    {
-      if (ProvMerge_ParseConfigString(interp, &provCount, provCniTab, &max[0]) == TCL_OK)
+      pDbContext = MenuCmd_MergeDatabases();
+      if (pDbContext != NULL)
       {
-         ProvMerge_ParseNetwopList(interp, &netwopCount, netwopCniTab);
+         EpgContextCtl_Close(pUiDbContext);
+         pUiDbContext = pDbContext;
 
-         pDbContext = EpgContextMerge(provCount, provCniTab, max, netwopCount, netwopCniTab);
-         if (pDbContext != NULL)
-         {
-            EpgContextCtl_Close(pUiDbContext);
-            pUiDbContext = pDbContext;
+         SetAcquisitionMode(NETACQ_KEEP);
 
-            SetAcquisitionMode(NETACQ_KEEP);
+         // set language and rebuild the theme filter menu
+         SetUserLanguage(interp);
 
-            UiControl_AiStateChange(DB_TARGET_UI);
-            eval_check(interp, "C_ResetFilter all; ResetFilterState");
+         UiControl_AiStateChange(DB_TARGET_UI);
+         eval_check(interp, "C_ResetFilter all; ResetFilterState");
 
-            PiListBox_Reset();
+         PiListBox_Reset();
 
-            // put the fake "Merge" CNI plus the CNIs of all merged providers
-            // at the front of the provider selection order
-            ProvMerge_UpdateProvSelectionList(provCount, provCniTab);
-         }
+         // put the fake "Merge" CNI plus the CNIs of all merged providers
+         // at the front of the provider selection order
+         eval_check(interp, "UpdateMergedProvSelection");
 
          result = TCL_OK;
       }
@@ -1213,8 +1339,8 @@ static int ProvMerge_Start(ClientData ttp, Tcl_Interp *interp, int argc, char *a
 //
 void OpenInitialDb( uint startUiCni )
 {
-   char **pCniArgv;
-   char *pTmpStr;
+   CONST84 char ** pCniArgv;
+   const char    * pTmpStr;
    uint cni, provIdx, provCount;
 
    // prepare list of previously opened databases
@@ -1256,18 +1382,9 @@ void OpenInitialDb( uint startUiCni )
 
       if (cni == 0x00ff)
       {  // special case: merged db
-         MERGE_ATTRIB_MATRIX max;
-         uint pProvCniTab[MAX_MERGED_DB_COUNT];
-         uint netwopCniTab[MAX_NETWOP_COUNT];
-         uint provCount, netwopCount;
-
-         if (ProvMerge_ParseConfigString(interp, &provCount, pProvCniTab, &max[0]) == TCL_OK)
-         {
-            ProvMerge_ParseNetwopList(interp, &netwopCount, netwopCniTab);
-            pUiDbContext = EpgContextMerge(provCount, pProvCniTab, max, netwopCount, netwopCniTab);
-            if (pUiDbContext != NULL)
-               ProvMerge_UpdateProvSelectionList(provCount, pProvCniTab);
-         }
+         pUiDbContext = MenuCmd_MergeDatabases();
+         if (pUiDbContext != NULL)
+            eval_check(interp, "UpdateMergedProvSelection");
       }
       else if (cni != 0)
       {  // regular database
@@ -1302,8 +1419,8 @@ void OpenInitialDb( uint startUiCni )
 //
 static EPGACQ_MODE GetAcquisitionModeParams( uint * pCniCount, uint * cniTab )
 {
-   char **pCniArgv;
-   const char * pTmpStr;
+   CONST84 char **pCniArgv;
+   CONST84 char * pTmpStr;
    uint cniIdx, dbIdx;
    EPGACQ_MODE mode;
 
@@ -1549,7 +1666,7 @@ bool SetDaemonAcquisitionMode( uint cmdLineCni, bool forcePassive )
    EPGACQ_MODE   mode;
    const char  * pTmpStr;
    const uint  * pProvList;
-   char       ** pCniArgv;
+   CONST84 char ** pCniArgv;
    uint cniCount, cniTab[MAX_MERGED_DB_COUNT];
    bool result = FALSE;
 
@@ -1717,8 +1834,8 @@ static int MenuCmd_LoadProvFreqsFromDbs(ClientData ttp, Tcl_Interp *interp, int 
 //
 uint GetProvFreqForCni( uint provCni )
 {
-   const char *pTmpStr;
-   char **pCniFreqArgv;
+   CONST84 char ** pCniFreqArgv;
+   const char    * pTmpStr;
    int   cni, freq;
    int   idx, freqCount;
    uint  provFreq;
@@ -1768,8 +1885,8 @@ uint GetProvFreqForCni( uint provCni )
 //
 static uint GetProvFreqTab( uint ** ppFreqTab, uint ** ppCniTab )
 {
-   const char *pTmpStr;
-   char **pCniFreqArgv;
+   CONST84 char ** pCniFreqArgv;
+   const char    * pTmpStr;
    uint  *freqTab;
    uint  *cniTab;
    uint  freqIdx;
@@ -2151,8 +2268,8 @@ static int MenuCmd_GetInputList(ClientData ttp, Tcl_Interp *interp, int argc, ch
 //
 int SetHardwareConfig( Tcl_Interp *interp, int newCardIndex )
 {
-   char **pParamsArgv;
-   char * pTmpStr;
+   CONST84 char ** pParamsArgv;
+   CONST84 char    * pTmpStr;
    int idxCount, input, tuner, pll, prio, cardidx, ftable;
    #ifdef WIN32
    int dsdrvLog;
@@ -2250,7 +2367,7 @@ static int MenuCmd_UpdateHardwareConfig(ClientData ttp, Tcl_Interp *interp, int 
 //
 static bool IsRemoteAcqDefault( Tcl_Interp * interp )
 {
-   char * pTmpStr;
+   CONST84 char * pTmpStr;
    int    is_enabled;
 
    pTmpStr = Tcl_GetVar(interp, "netacq_enable", TCL_GLOBAL_ONLY);
@@ -2277,10 +2394,10 @@ static bool IsRemoteAcqDefault( Tcl_Interp * interp )
 void SetNetAcqParams( Tcl_Interp * interp, bool isServer )
 {
 #ifdef USE_DAEMON
-   char **cfArgv;
-   const char * pTmpStr;
+   CONST84 char ** cfArgv;
+   const char    * pTmpStr;
    int  cfArgc, cf_idx;
-   char *pHostName, *pPort, *pIpStr, *pLogfileName;
+   const char *pHostName, *pPort, *pIpStr, *pLogfileName;
    int  do_tcp_ip, max_conn, fileloglev, sysloglev, remote_ctl;
 
    // initialize the config variables
@@ -2428,11 +2545,13 @@ void MenuCmd_Init( bool isDemoMode )
       Tcl_CreateCommand(interp, "C_ToggleAcq", MenuCmd_ToggleAcq, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_IsNetAcqActive", MenuCmd_IsNetAcqActive, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_ToggleDumpStream", MenuCmd_ToggleDumpStream, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_DumpDatabase", MenuCmd_DumpDatabase, (ClientData) NULL, NULL);
+      Tcl_CreateCommand(interp, "C_DumpRawDatabase", MenuCmd_DumpRawDatabase, (ClientData) NULL, NULL);
+      Tcl_CreateCommand(interp, "C_DumpTabsDatabase", MenuCmd_DumpTabsDatabase, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_SetControlMenuStates", MenuCmd_SetControlMenuStates, (ClientData) NULL, NULL);
 
       Tcl_CreateCommand(interp, "C_ChangeProvider", MenuCmd_ChangeProvider, (ClientData) NULL, NULL);
 
+      Tcl_CreateCommand(interp, "C_UpdateLanguage", MenuCmd_UpdateLanguage, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_GetCniDescription", MenuCmd_GetCniDescription, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_GetProvServiceInfos", MenuCmd_GetProvServiceInfos, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_GetCurrentDatabaseCni", MenuCmd_GetCurrentDatabaseCni, (ClientData) NULL, NULL);

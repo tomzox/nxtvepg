@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: btdrv.h,v 1.22 2002/05/30 13:57:36 tom Exp tom $
+ *  $Id: btdrv.h,v 1.23 2002/07/20 16:26:50 tom Exp tom $
  */
 
 #ifndef __BTDRV_H
@@ -129,7 +129,7 @@ typedef struct
 {
    uint8_t   isEnabled;         // In:  en-/disable EPG teletext packet forward
    uint8_t   isEpgScan;         // In:  en-/disable EPG syntax scan an all potential EPG pages
-   uint8_t   doVpsPdc;          // In:  en-/disable VPS/PDC decoder
+   uint8_t   obsolete1;         // --:  obsolete (former doVps, set to TRUE)
    uint8_t   reserved1;         // --:  unused; set to 0
    uint32_t  epgPageNo;         // In:  EPG teletext page number
 

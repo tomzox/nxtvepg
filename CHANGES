@@ -4,6 +4,34 @@ changes or additions.
 
 Before you submit any feature requests, please read the TODO file.
 
+from 0.7.4 aka 2.1.2 to 2.2.0 (2002-August-18)
+
+- network selection config dialog: allow to specify time windows for each
+  network (e.g. for ARTE 19:00 - 06:00 o'clock). Programmes that are
+  completely outside this window are suppressed in the listing.
+- PDC theme descriptors were translated to French and German; the language
+  can be either selected automatically or manually.  Thanks to Matthieu for
+  triggering this improvement and for the French translation.
+- the programme database can be exported into a text file in TAB separated
+  format, so that it can be directly loaded into an SQL database.
+  (This feature has been added to support the HTML converter
+  E*plore EPG nexTView written in PHP by sysmik.)
+- bugfix in the EPG scan due to which on channels which could not be
+  identified via VPS/PDC no EPG provider was found.  Thanks to Helge
+  Kreutzmann for pointing out this problem.
+- manual size changes of the help window are now remembered; also
+  improved a few details in help text formatting
+- Windows: upgraded to version 8.3.4 of the Tcl/Tk library (from 8.3.2);
+  all OS: prepared for the latest version 8.4(b1)
+- Windows: prepared support for using different TV card than a connected
+  TV app. so that EPG can be acquired from a different channel than you're
+  currently watching (note: requires update of DSdrv4 drivers, which are
+  not part of this release yet to maintain compatibility with K!TV)
+- Windows: support for the K!TV plugin "ZoomOut": automatically add a
+  "Record this show" entry to the context menu (right mouse button)
+- Windows-95 compatibility: resolved two missing symbols
+  (this was already supposed to be in 0.7.2 but forgotten to include)
+
 
 from 0.7.3 to 0.7.4 aka 2.1.2 (2002-June-02)
 

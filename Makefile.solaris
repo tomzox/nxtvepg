@@ -84,7 +84,7 @@ CSRC    = epgvbi/vbidecode epgvbi/tvchan epgvbi/btdrv4dummy epgvbi/hamming \
           epgdb/epgnetio epgdb/epgqueue epgdb/epgtscqueue \
           epgui/uictrl epgui/pilistbox epgui/pioutput epgui/pifilter \
           epgui/statswin epgui/timescale epgui/pdc_themes epgui/menucmd \
-          epgui/epgmain epgui/xawtv epgui/epgtxtdump
+          epgui/epgmain epgui/xawtv epgui/epgtxtdump epgui/epgtabdump
 CGEN    = epgui/epgui epgui/help
 
 SRCS    = $(addsuffix .c, $(CSRC)) $(addsuffix .c, $(CGEN))

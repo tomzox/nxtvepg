@@ -43,7 +43,7 @@
  *    Linux:  Tom Zoerner
  *    NetBSD: Mario Kemper <magick@bundy.zhadum.de>
  *
- *  $Id: btdrv4linux.c,v 1.29 2002/05/14 18:37:15 tom Exp tom $
+ *  $Id: btdrv4linux.c,v 1.30 2002/07/20 16:27:01 tom Exp tom $
  */
 
 #if !defined(linux) && !defined(__NetBSD__)
@@ -1128,7 +1128,7 @@ static void BtDriver_DecodeFrame( void )
       pData = rawbuf;
       for (line=0; line < stat/VBI_BPL; line++)
       {
-         VbiDecodeLine(pData, line, pVbiBuf->doVpsPdc);
+         VbiDecodeLine(pData, line, TRUE);
          pData += VBI_BPL;
          //printf("%02d: %08lx\n", line, *((ulong*)pData-4));  /* frame counter */
       }

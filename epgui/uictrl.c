@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: uictrl.c,v 1.28 2002/05/19 22:01:05 tom Exp $
+ *  $Id: uictrl.c,v 1.31 2002/07/27 13:43:57 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -248,7 +248,7 @@ void UiControl_CheckDbState( void )
 //
 void UiControl_AiStateChange( ClientData clientData )
 {
-   uint target = (uint) clientData;
+   uint target = PVOID2UINT(clientData);
    const AI_BLOCK *pAiBlock;
 
    if ( (EpgDbContextGetCni(pUiDbContext) == 0) &&
@@ -280,6 +280,9 @@ void UiControl_AiStateChange( ClientData clientData )
 
          // update the netwop filter bar and the netwop prefilter
          PiFilter_UpdateNetwopList();
+
+         // update the language (if in automatic mode)
+         SetUserLanguage(interp);
       }
       else
       {  // no AI block in db -> reset window title to empty
@@ -421,7 +424,8 @@ void UiControl_ReloadError( ClientData clientData )
 //
 void UiControlMsg_ReloadError( uint cni, EPGDB_RELOAD_RESULT dberr, CONTEXT_RELOAD_ERR_HAND errHand, bool isNewDb )
 {
-   uchar * pTmpStr, * pSavedResult;
+   const uchar * pTmpStr;
+   uchar       * pSavedResult;
    MSG_RELOAD_ERR * pMsg;
 
    if (errHand != CTX_RELOAD_ERR_NONE)
@@ -487,7 +491,7 @@ void UiControlMsg_ReloadError( uint cni, EPGDB_RELOAD_RESULT dberr, CONTEXT_RELO
 static void UiControl_MissingTunerFreq( ClientData clientData )
 {
    char * comm2 = xmalloc(2048);
-   uint cni = (uint) clientData;
+   uint cni = PVOID2UINT(clientData);
 
    sprintf(comm2, "tk_messageBox -type ok -icon warning -parent . "
                   "-message {Found a database (CNI %X) with unknown tuner frequency. "
@@ -505,7 +509,7 @@ static void UiControl_MissingTunerFreq( ClientData clientData )
 void UiControlMsg_MissingTunerFreq( uint cni )
 {
    if (uiControlInitialized)
-      AddMainIdleEvent(UiControl_MissingTunerFreq, (ClientData) cni, FALSE);
+      AddMainIdleEvent(UiControl_MissingTunerFreq, UINT2PVOID(cni), FALSE);
    else
       fprintf(stderr, "nxtvepg: warning: cannot tune channel for provider 0x%04X: frequency unknown\n", cni);
 }

@@ -45,7 +45,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: winshmclnt.c,v 1.6 2002/05/19 17:19:24 tom Exp tom $
+ *  $Id: winshmclnt.c,v 1.8 2002/08/03 14:35:50 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_TVSIM
@@ -54,6 +54,7 @@
 #include <windows.h>
 #include <stdio.h>
 #include <malloc.h>
+#include <string.h>
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
@@ -122,6 +123,7 @@ typedef struct
    uint32_t  epgProgInfoIdx;
    uint32_t  epgCommandIdx;
    bool      tvGrantTuner;
+   uint8_t   tvCardIdx;
    uint32_t  tvCurFreq;
    uint32_t  tvCurInput;
    uint32_t  epgReqFreq;
@@ -403,7 +405,7 @@ bool WinSharedMemClient_GetProgInfo( time_t * pStart, time_t * pStop,
       epgShmCache.epgProgInfoIdx = pTvShm->epgProgInfoIdx;
 
       if (ReleaseMutex(shmMutexHandle) == 0)
-         debug1("WinSharedMemClient-HandleEpgCmd: ReleaseMutex: %ld", GetLastError());
+         debug1("WinSharedMemClient-GetProgInfo: ReleaseMutex: %ld", GetLastError());
 
       if ((pThemes != NULL) && (maxTitleLen> 0))
          dprintf1("EPG title received: \"%s\"\n", pTitle);
@@ -411,7 +413,7 @@ bool WinSharedMemClient_GetProgInfo( time_t * pStart, time_t * pStop,
       result = TRUE;
    }
    else
-      debug1("WinSharedMemClient-HandleEpgCmd: WaitForSingleObject: %ld", GetLastError());
+      debug1("WinSharedMemClient-GetProgInfo: WaitForSingleObject: %ld", GetLastError());
 
    return result;
 }
@@ -612,7 +614,7 @@ static bool WinSharedMemClient_AttachShm( void )
                   {
                      // initialize TV app.'s params in shared memory
                      pTvShm->tvReqTvCard  = TRUE;
-                     pTvShm->tvCardIdx    = TVAPP_CARD_REQ_ALL;
+                     pTvShm->tvCardIdx    = epgShmCache.tvCardIdx;
                      pTvShm->tvFeatures   = pTvAppInfo->tvFeatures;
                      pTvShm->tvAppType    = pTvAppInfo->tvAppType;
                      strncpy((char *) pTvShm->tvAppName, pTvAppInfo->pAppName, TVAPP_NAME_MAX_LEN);
@@ -736,7 +738,8 @@ static void WinSharedMemClient_DetachShm( void )
 // - returns TRUE on success;
 //   returns FALSE upon fatal errors, i.e. the module will remain "dead"
 //
-bool WinSharedMemClient_Init( const WINSHMCLNT_TVAPP_INFO * pInitInfo, WINSHMCLNT_EVENT * pEvent )
+bool WinSharedMemClient_Init( const WINSHMCLNT_TVAPP_INFO * pInitInfo,
+                              uint cardIdx, WINSHMCLNT_EVENT * pEvent )
 {
    WINSHMCLNT_EVENT  attachEvent = SHM_EVENT_NONE;
    uint  idx;
@@ -751,6 +754,7 @@ bool WinSharedMemClient_Init( const WINSHMCLNT_TVAPP_INFO * pInitInfo, WINSHMCLN
 
       // initialize the state cache for the TV app side
       memset(&epgShmCache, 0, sizeof(epgShmCache));
+      epgShmCache.tvCardIdx  = cardIdx;
       epgShmCache.tvCurFreq  = EPG_REQ_FREQ_NONE;
       epgShmCache.tvCurInput = EPG_REQ_INPUT_NONE;
 
@@ -781,15 +785,19 @@ bool WinSharedMemClient_Init( const WINSHMCLNT_TVAPP_INFO * pInitInfo, WINSHMCLN
                            assert(pTvShm != NULL);  // pointer initialized by attach
 
                            // wait for the EPG app to free the driver
-                           for (idx=0; (pTvShm->epgHasDriver) && (idx < 2); idx++)
+                           for (idx=0; idx < 2; idx++)
                            {
+                              if ( (pTvShm->epgHasDriver == FALSE) ||
+                                   ((pTvShm->epgTvCardIdx != cardIdx) && (pTvShm->epgTvCardIdx != TVAPP_CARD_REQ_ALL)) )
+                                 break;
+
                               if (SetEvent(epgEventHandle) == 0)
                                  debug1("WinSharedMemClient-Init: SetEvent: %ld", GetLastError());
 
                               if (WaitForSingleObject(tvEventHandle, 1000) == WAIT_FAILED)
                                  debug1("WinSharedMemClient-Init: WaitForSingleObject tvEventHandle: %ld", GetLastError());
                            }
-                           dprintf1("WinSharedMemClient-Init: epgHasDriver=%d\n", pTvShm->epgHasDriver);
+                           dprintf2("WinSharedMemClient-Init: epgHasDriver=%d epgTvCardIdx=%d\n", pTvShm->epgHasDriver, pTvShm->epgTvCardIdx);
 
                            attachEvent = SHM_EVENT_ATTACH;
                         }

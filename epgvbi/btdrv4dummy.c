@@ -18,11 +18,13 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: btdrv4dummy.c,v 1.9 2002/05/11 15:42:50 tom Exp tom $
+ *  $Id: btdrv4dummy.c,v 1.11 2002/07/27 13:41:18 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
 #define DPRINTF_OFF
+
+#include <string.h>
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
@@ -81,12 +83,6 @@ bool BtDriver_SetInputSource( int inputIdx, bool keepOpen, bool * pIsTuner )
    return FALSE;
 }
 
-
-#ifndef WIN32
-void BtDriver_CheckParent( void )
-{
-}
-#endif
 
 void BtDriver_CloseDevice( void )
 {

@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgtxtdump.c,v 1.25 2002/05/02 16:59:27 tom Exp tom $
+ *  $Id: epgtxtdump.c,v 1.26 2002/06/23 10:21:34 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -125,6 +125,8 @@ static uchar * GetPiPilStr( uint pil )
 
 static void EpgTxtDumpPi( FILE *fp, const PI_BLOCK * pPi, uchar stream, uchar version, const AI_BLOCK * pAi )
 {
+   const uchar * pThemeStr;
+   const uchar * pGeneralStr;
    uchar start_str[40], stop_str[20];
    uchar netname[NETNAME_LENGTH+1];
    uchar *pStrSoundFormat;
@@ -170,7 +172,12 @@ static void EpgTxtDumpPi( FILE *fp, const PI_BLOCK * pPi, uchar stream, uchar ve
         default: pStrSoundFormat = ""; break;
       }
 
-      fprintf(fp, "     v%02x %s%s%s%s%s%s%s%s PR=%d ER=%d PIL=%s #s=%d #l=%d  #t=%d (%02x %s) #s=%d (%02x)\n",
+      if (pPi->no_themes > 0)
+         pThemeStr = PdcThemeGetWithGeneral(pPi->themes[0], &pGeneralStr, TRUE);
+      else
+         pGeneralStr = pThemeStr = "--";
+
+      fprintf(fp, "     v%02x %s%s%s%s%s%s%s%s PR=%d ER=%d PIL=%s #s=%d #l=%d  #t=%d (%02x %s%s) #s=%d (%02x)\n",
                   version,
                   pStrSoundFormat,
                   ((pPi->feature_flags & 0x04) ? ",wide" : ""),
@@ -187,7 +194,8 @@ static void EpgTxtDumpPi( FILE *fp, const PI_BLOCK * pPi, uchar stream, uchar ve
                   (PI_HAS_LONG_INFO(pPi) ? strlen(PI_GET_LONG_INFO(pPi)) : 0),
                   pPi->no_themes,
                   ((pPi->no_themes > 0) ? pPi->themes[0] : 0),
-                  ((pPi->no_themes > 0) ? (char *)((pPi->themes[0]<0x80) && ((pdc_themes[pPi->themes[0]] != NULL)) ? pdc_themes[pPi->themes[0]] : pdc_undefined_theme) : "none"),
+                  pThemeStr,
+                  pGeneralStr,
                   pPi->no_sortcrit,
                   ((pPi->no_sortcrit > 0) ? pPi->sortcrits[0] : 0)
              );

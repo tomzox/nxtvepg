@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="de">
-<!-- $Id: index-de.html,v 1.30 2002/06/02 19:36:15 tom Exp $ -->
+<!-- $Id: index-de.html,v 1.34 2002/08/18 20:06:37 tom Exp $ -->
 <HEAD>
 <TITLE>nexTView EPG Dekoder Software Download</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
@@ -13,6 +13,8 @@
 <META name="revisit-after" content="01 month">
 <LINK rel="stylesheet" type="text/css" href="nxtvepg.css">
 <LINK rel="alternate" type="text/html" href="index.html" hreflang="en" lang="en" title="nexTView Decoder Download Page">
+<LINK rel="shortcut icon" type="image/x-icon" href="nxtvepg.ico">
+<LINK rel="top" href="//nxtvepg.tripod.com/" title="nexTView EPG Dekoder Homepage">
 </HEAD>
 <BODY BGCOLOR=#f8f8f8>
 <P><HR><P>
@@ -45,6 +47,11 @@
 
 <P class="navhead"><B>News</B>
 <P class="navsect">
+18.8.2002: release 2.2.0</P>
+<HR width=70%><P class="navsect">
+2.6.2002: <A HREF="http://www.kastortv.com/">K!TV</A>
+interagiert mit nxtvepg</P>
+<HR width=70%><P class="navsect">
 2.6.2002: release 0.7.4 aka 2.1.2</P>
 <HR width=70%><P class="navsect">
 30.5.2002: release 0.7.3 aka 2.1.1</P>
@@ -100,12 +107,12 @@ einen der Sender empfangen können auf dem nexTView übertragen wird.
 </P><P>
 Momentan wird nexTView auf den folgenden Sendern ausgestrahlt:
 </P>
-<DL>
-<LI>in Deutschland und Österreich: Kabel1, 3Sat, RTL-II.
-<LI>in der Schweiz: SF1, TSR1, TSI1, EuroNews.
-<LI>in Frankreich: Canal+, M6.
-<LI>in der Türkei: TRT-1 (TRT-int).
-</DL>
+<UL>
+<LI>in Deutschland und Österreich: Kabel1, 3Sat, RTL-II (Abdeckung: ca. 31 Sender)
+<LI>in der Schweiz: SF1, TSR1, TSI1, EuroNews (Abdeckung: ca. 37 Sender)
+<LI>in Frankreich: Canal+, M6 (Abdeckung: ca. 8 Sender)
+<LI>in der Türkei: TRT-1 (TRT-int, Abdeckung: 23 Sender)
+</UL>
 <P>
 Nährere Details finden sich in der <A HREF="provnets.html">Anbietertabelle</A>.
 Sollten Sie keinen der genannten Sender empfangen, können Sie mit dieser
@@ -113,10 +120,17 @@ Software mit Ausnahme des Demo-Modus leider nichts anfangen. Mehr Infos dazu
 und zu allen weiteren Sofware-Features in der
 <A HREF="man.html">nxtvepg Dokumentation</A> (nur in englisch verfügbar).
 </P><P>
+<B><FONT COLOR="red">Neu:</FONT></B>
+Die <B>Windows TV software <A HREF="http://www.kastortv.com/">K!TV</A></B>
+kann jetzt mit nxtvepg kommunizieren (genau wie <I>xawtv</I> auf UNIX),
+z.B. um beim Programmwechsel eine Einblendung mit dem aktuell laufenden
+Programm zu zeigen, den Sender von nxtvepg aus zu wechseln,
+<A HREF="tvsim.html#interaction features">uvm.</A>
+<P></P>
 Falls nxtvepg Ihr Interesse geweckt haben sollte und Sie nun an einem
 TV mit integriertem nexTView interessiert sind, schauen Sie doch auf
 den Seiten der Hersteller vorbei:
-<A HREF="http://www.grundig.de">Grundig</A>,
+<A HREF="http://www.grundig.com">Grundig</A>,
 <A HREF="http://www.loewe.de">Loewe</A>,
 <A HREF="http://www.metz.de">Metz</A>,
 <A HREF="http://www.philips.com">Philips</A>,
@@ -133,7 +147,7 @@ und eine TV-Karte mit dem Booktree Chip Bt848 oder Bt878.
 </P>
 
 <H3>Linux Softwareanforderungen</H3>
-<DL>
+<UL>
 <LI>kernel &gt;= 2.0.35 (upgrade auf 2.2.x für bttv-Nutzer wärmstens empfohlen)
 <LI><A HREF="http://www.metzlerbros.de/bttv.html">bttv Treiber</A>
 (version &gt;= 0.7.35 empfohlen) und
@@ -141,61 +155,64 @@ und eine TV-Karte mit dem Booktree Chip Bt848 oder Bt878.
 <LI>GNU C Compiler (falls Sie nxtvepg nicht in Form eines RPM Binärarchivs herunterladen)
 <LI>Tcl/Tk Version 8.0 oder neuere (8.3 empfohlen) verfügbar unter
 <A HREF="ftp://www.scriptics.com/pub/tcl/">ftp://www.scriptics.com/pub/tcl/</A>
-</DL>
+</UL>
 
 <H3>NetBSD Softwareanforderungen</H3>
-<DL>
+<UL>
 <LI>Kernel &gt;= 1.5 mit dem
 <A HREF="http://vulture.dmem.strath.ac.uk/bt848/">bktr Treiber</A> Version 2.17 oder neuer,
 <LI>GNU C Compiler (falls Sie nxtvepg nicht in Form eines vorkompilierten NetBSD packages herunterladen)
 <LI>Tcl/Tk Version 8.0 oder neuere (8.3 empfohlen) verfügbar unter
 <A HREF="ftp://www.scriptics.com/pub/tcl/">ftp://www.scriptics.com/pub/tcl/</A>
-</DL>
+</UL>
 <P>
 
 <H3>Windows Softwareanforderungen</H3>
-<DL>
-<LI><B><FONT COLOR="red">Neu:</FONT></B>
+<UL>
+<LI><B><FONT COLOR="red">Neu seit 2.0.0:</FONT></B>
 nxtvepg benötigt keine zusätzliche Software, d.h. alle für den Decoder
 benötigte Software ist in der Distribution enthalten.
 <LI>Ausnahme Windows-95: es wird die winsock2 DLL benötigt (ws2_32.dll,
 für das daemon feature), die im Gegensatz zu neueren Windows Versionen
 noch nicht in der Windows 95 Basisinstallation enthalten war.
-<LI><B><FONT COLOR="red">Neu:</FONT></B>
+<LI><B><FONT COLOR="red">Neu seit 2.0.0:</FONT></B>
 Es werden alle Windows Versionen ab Windows 95 unterstützt.
 <LI>Auf Windows-NT und Windows 2000 ist ein priviligierter Account erforderlich
 (z.B. Administrator) um den Treiber für die TV Karte zu installieren und starten.
-</DL>
+</UL>
 
 <A NAME="download">
 <H2>Download</H2>
 </A>
 <P>
-Die neueste stabile Distribution ist Version 0.7.4 aka 2.1.2 vom 2.6.2002.
-<STRONG>Neu in Version 0.7.2 aka 2.1.0: </STRONG>
-neue Features in der Windows Version
-(<A HREF="tvsim.html#interaction features">Interaktion mit TV Applikationen</A>,
-<A HREF="man.html#hide on minimize">Icon im system tray wenn das Fenster "minimized" wird</A>
-und <A HREF="man.html#item_%2Ddaemon">-daemon" Modus</A>),
-und Bugfixes in der UNIX Version 0.7.2 bzw. im plattformunabhängigen Teil.
-Die zwei Folgeversionen umfassen weitere kleinere Verbesserungen.
+Die neueste stabile Distribution ist Version 2.2.0 vom 18.8.2002.
+<STRONG>Neu in Version 2.2.0: </STRONG>
+Eine Reihe kleinerer Verbesserungen, z.B.: das Programm ausgewählter Sender
+kann auf den Zeitraum beschränkt werden in dem der Sender tatsächlich empfangen
+wird (z.B. ARTE nur 19:00 - 7:00 Uhr); die Sprache der Themenbezeichner ist
+nun deutsch für deutsche EPG Anbieter; die Datenbank kann in eine Textdatei
+exportiert werden, die wiederum in andere Applikationen importiert werden
+kann.
 </P><P>
 Mehr Details und alle früheren Änderungen sind im
 <A HREF="changelog.html">Change-Log</A> dokumentiert. Falls mit der Software
 Probleme auftauchen, bitte melden. Ältere Distributionen befinden sich noch im
 <A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/">Source Verzeichnis</A>
 (<A HREF="http://nxtvepg.tripod.com/src/">US Mirror</A> hat mehr Versionen)
+</P><P>
+Wenn Sie über zukünftige releases auf dem Laufenden bleiben wollen, können Sie
+das nxtvepg Projekt abonnieren auf <A HREF="http://freshmeat.net/projects/nxtvepg/">freshmeat.net</A>
 </P>
 
 <A NAME="download_unix">
 <H3>Source Distribution</H3>
 </A>
 Download der aktuellen Source Distribution für Linux und NetBSD:
-<A HREF=http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-0.7.4.tar.gz>nxtvepg-0.7.4.tar.gz</A>
-(635 kB)
+<A HREF=http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-2.2.0.tar.gz>nxtvepg-2.2.0.tar.gz</A>
+(660 kB)
 </P><P>
 Aus dem source tarball läßt sich auch ein RPM package bauen mit dem
-Kommando: <KBD>rpm -ta nxtvepg-0.7.4.tar.gz</KBD>. Das erzeugte package
+Kommando: <KBD>rpm -ta nxtvepg-2.2.0.tar.gz</KBD>. Das erzeugte package
 kann dann wie üblich mit <KBD>rpm -i</KBD> installiert werden. Alternativ
 sind auch fertige packages verfügbar (jedoch nicht notwendigerweise
 immer die neueste Version):
@@ -208,12 +225,12 @@ und für NetBSD von <A HREF="ftp://ftp.netbsd.org/pub/NetBSD/packages/pkgsrc/misc
 </A>
 <P>
 Windows executable:
-<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-2.1.2-win.zip">nxtvepg-2.1.2-win.zip</A>
-(1007 kB)
+<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-2.2.0-win.zip">nxtvepg-2.2.0-win.zip</A>
+(1038 kB)
 </P><P>
 Demo für Interaktion mit TV Applikationen:
-<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-2.1.1-tvsim.zip">nxtvepg-2.1.1-tvsim.zip</A>
-(234 kB)<BR>
+<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-2.2.0-tvsim.zip">nxtvepg-2.2.0-tvsim.zip</A>
+(245 kB)<BR>
 (siehe auch <A HREF="tvsim.html">tvsim</A>,
 <A HREF="vbirec.html">vbirec</A> oder
 <A HREF="vbiplay.html">vbiplay</A> manuals, oder

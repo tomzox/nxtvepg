@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: winshmclnt.h,v 1.4 2002/05/19 17:19:34 tom Exp tom $
+ *  $Id: winshmclnt.h,v 1.5 2002/07/20 16:26:29 tom Exp tom $
  */
 
 #ifndef __WINSHMCLNT_H
@@ -67,7 +67,8 @@ bool WinSharedMemClient_GrantTuner( bool doGrant );
 bool WinSharedMemClient_SetStation( const char * pChanName, uint cni, uint inputSrc, uint freq );
 bool WinSharedMemClient_SetInputFreq( uint inputSrc, uint freq );
 void WinSharedMemClient_HandleEpgEvent( void );
-bool WinSharedMemClient_Init( const WINSHMCLNT_TVAPP_INFO * pInitInfo, WINSHMCLNT_EVENT * pEvent );
+bool WinSharedMemClient_Init( const WINSHMCLNT_TVAPP_INFO * pInitInfo,
+                              uint cardIdx, WINSHMCLNT_EVENT * pEvent );
 void WinSharedMemClient_Exit( void );
 
 

@@ -33,7 +33,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: statswin.c,v 1.60 2002/05/30 14:08:23 tom Exp tom $
+ *  $Id: statswin.c,v 1.61 2002/07/27 13:45:50 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -154,9 +154,9 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
    time_t acqMinTime[2];
    time_t lastAiUpdate;
    time_t now = time(NULL);
-   int target;
+   uint target;
 
-   target = (uint) clientData;
+   target = PVOID2UINT(clientData);
    if (target == DB_TARGET_ACQ)
       dbc = pAcqDbContext;
    else if (target == DB_TARGET_UI)
@@ -481,7 +481,7 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
          // set up a timer to re-display the stats in case there's no EPG reception
          if ((acqState.state != ACQDESCR_DISABLED) && (acqState.isNetAcq == FALSE))
             dbStatsWinState[target].updateHandler =
-               Tcl_CreateTimerHandler(((sv->ai.aiCount < 2) ? 2*1000 : 15*1000), StatsWin_UpdateDbStatsWinTimeout, (ClientData)target);
+               Tcl_CreateTimerHandler(((sv->ai.aiCount < 2) ? 2*1000 : 15*1000), StatsWin_UpdateDbStatsWinTimeout, UINT2PVOID(target));
       }
       else
       {  // acq not running (at least for the same db)
@@ -508,7 +508,7 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
 //
 static void StatsWin_UpdateDbStatsWinTimeout( ClientData clientData )
 {
-   uint target = (uint) clientData;
+   uint target = PVOID2UINT(clientData);
 
    if (target < 2)
    {
@@ -903,7 +903,7 @@ static int StatsWin_ToggleDbStats( ClientData ttp, Tcl_Interp *interp, int argc,
             EpgAcqCtl_EnableAcqStats(TRUE);
 
             // display initial summary
-            StatsWin_UpdateDbStatsWin((ClientData)target);
+            StatsWin_UpdateDbStatsWin(UINT2PVOID(target));
          }
          else
          {  // destroy the window
@@ -957,7 +957,7 @@ void StatsWin_StatsUpdate( int target )
    // update the db statistics window of the given db, if open
    if (dbStatsWinState[target].open)
    {
-      AddMainIdleEvent(StatsWin_UpdateDbStatsWin, (ClientData) target, FALSE);
+      AddMainIdleEvent(StatsWin_UpdateDbStatsWin, UINT2PVOID(target), FALSE);
    }
 
    // if the ui db is the same as the acq db, forward updates from acq to ui stats popup

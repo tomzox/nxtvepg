@@ -46,7 +46,7 @@
  *    WinDriver replaced with DSdrv (DScaler driver)
  *      March 2002 by E-Nek (e-nek@netcourrier.com)
  *
- *  $Id: btdrv4win.c,v 1.23 2002/05/30 13:57:22 tom Exp tom $
+ *  $Id: btdrv4win.c,v 1.24 2002/07/20 16:27:08 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -55,6 +55,7 @@
 #include <windows.h>
 #include <stdio.h>
 #include <malloc.h>
+#include <string.h>
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
@@ -1404,7 +1405,7 @@ static bool BtDriver_Load( void )
          if ( BT8X8_MemoryInit() )
          {
             // must be set to TRUE before the set funcs are called
-            dprintf0("BtDriver-Load: Bt8x8 driver successfully loaded\n");
+            dprintf1("BtDriver-Load: Bt8x8 driver loaded, card #%d opened\n", btCfg.cardIdx);
             btDrvLoaded = TRUE;
 
             // initialize all bt848 registers
@@ -1553,7 +1554,15 @@ bool BtDriver_Configure( int cardIndex, int tunerType, int pllType, int prio )
    {  // slave mode -> new card idx
       if (cardChange)
       {
-         // XXX TODO: may need to change from slave mode to normal OTOWA
+#ifndef WITHOUT_TVCARD
+         BtDriver_StopAcq();
+         if (BtDriver_StartAcq() == FALSE)
+         {
+            if (pVbiBuf != NULL)
+               pVbiBuf->hasFailed = TRUE;
+            result = FALSE;
+         }
+#endif
       }
    }
 
@@ -1669,7 +1678,7 @@ static DWORD WINAPI BtDriver_VbiThread( LPVOID dummy )
                {
                   for (row = 0; row < VBI_LINES_PER_FRAME; row++, pVBI += VBI_LINE_SIZE)
                   {
-                     VbiDecodeLine(pVBI, row, pVbiBuf->doVpsPdc);
+                     VbiDecodeLine(pVBI, row, TRUE);
                   }
                }
                else

@@ -24,7 +24,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile,v 1.44 2002/05/20 15:52:44 tom Exp tom $
+#  $Id: Makefile,v 1.45 2002/08/11 19:49:59 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -41,7 +41,10 @@ mandir  = $(ROOT)${prefix}/man/man1
 # if you have perl set the path here, else just leave it alone
 PERL    = /usr/bin/perl
 
-LDLIBS  = -ltk8.3 -ltcl8.3 -L/usr/X11R6/lib -lX11 -lXmu -lm -ldl
+# select Tcl/Tk version
+TCL_VER = 8.3
+
+LDLIBS  = -ltk$(TCL_VER) -ltcl$(TCL_VER) -L/usr/X11R6/lib -lX11 -lXmu -lm -ldl
 # use static libraries for debugging only
 #LDLIBS  = dbglib/libtk8.3.a dbglib/libtcl8.3.a -lX11 -lm -ldl -L/usr/X11R6/lib
 
@@ -50,8 +53,8 @@ INCS   += -I. -I/usr/X11R6/include
 #INCS   += -I/usr/local/tcl/tcl8.0/generic -I/usr/local/tcl/tk8.0/generic
 
 # path to Tcl/Tk script library (Tk is usually in X11/lib/tk#.#)
-DEFS   += -DTK_LIBRARY_PATH=\"/usr/lib/tk8.3\"
-DEFS   += -DTCL_LIBRARY_PATH=\"/usr/lib/tcl8.3\"
+DEFS   += -DTK_LIBRARY_PATH=\"/usr/lib/tk$(TCL_VER)\"
+DEFS   += -DTCL_LIBRARY_PATH=\"/usr/lib/tcl$(TCL_VER)\"
 
 # enable use of multi-threading
 DEFS   += -DUSE_THREADS
@@ -66,9 +69,10 @@ DEFS   += -DEPG_DB_DIR=\"$(DB_DIR)\"
 INST_DB_DIR = $(ROOT)$(DB_DIR)
 
 WARN    = -Wall -Wnested-externs -Wstrict-prototypes -Wmissing-prototypes
-#WARN  += -Wpointer-arith -Werror
+#WARN   += -Wpointer-arith -Werror
 CC      = gcc
-CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -O2
+CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -O6
+#LDLIBS += -pg
 
 # ----- don't change anything below ------------------------------------------
 
@@ -81,7 +85,7 @@ CSRC    = epgvbi/btdrv4linux epgvbi/vbidecode epgvbi/ttxdecode epgvbi/hamming \
           epgdb/epgnetio epgdb/epgqueue epgdb/epgtscqueue \
           epgui/uictrl epgui/pilistbox epgui/pioutput epgui/pifilter \
           epgui/statswin epgui/timescale epgui/pdc_themes epgui/menucmd \
-          epgui/epgmain epgui/xawtv epgui/epgtxtdump
+          epgui/epgmain epgui/xawtv epgui/epgtxtdump epgui/epgtabdump
 CGEN    = epgui/epgui epgui/help
 
 SRCS    = $(addsuffix .c, $(CSRC)) $(addsuffix .c, $(CGEN))
@@ -149,7 +153,7 @@ depend:
 
 bak:
 	cd .. && tar cf pc1.tar pc -X pc/tar-ex && bzip2 -f -9 pc1.tar
-	tar cf ../pc2.tar www ATTIC dsdrv* tk8* tcl8* && bzip2 -f -9 ../pc2.tar
+	tar cf ../pc2.tar www ATTIC dsdrv?* tk8* tcl8* && bzip2 -f -9 ../pc2.tar
 	cd .. && tar cf /e/pc.tar pc -X pc/tar-ex-win
 
 include Makefile.dep

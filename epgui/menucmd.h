@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: menucmd.h,v 1.17 2002/05/19 21:59:51 tom Exp tom $
+ *  $Id: menucmd.h,v 1.19 2002/08/11 19:52:25 tom Exp tom $
  */
 
 #ifndef __MENUCMD_H
@@ -39,6 +39,7 @@ typedef enum
 void MenuCmd_Init( bool isDemoMode );
 void OpenInitialDb( uint startUiCni );
 
+void SetUserLanguage( Tcl_Interp *interp );
 void SetAcquisitionMode( NETACQ_SET_MODE netAcqSetMode );
 bool SetDaemonAcquisitionMode( uint cmdLineCni, bool forcePassive );
 int  SetHardwareConfig( Tcl_Interp *interp, int cardIndex );
@@ -46,6 +47,7 @@ void SetNetAcqParams( Tcl_Interp * interp, bool isServer );
 void AutoStartAcq( Tcl_Interp * interp );
 void MenuCmd_AcqStatsUpdate( void );
 uint GetProvFreqForCni( uint provCni );
+EPGDB_CONTEXT * MenuCmd_MergeDatabases( void );
 
 
 #endif  // __MENUCMD_H

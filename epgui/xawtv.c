@@ -36,7 +36,7 @@
  *
  *     Additional code and adaptions to nxtvepg by Tom Zoerner
  *
- *  $Id: xawtv.c,v 1.23 2002/06/02 19:04:22 tom Exp tom $
+ *  $Id: xawtv.c,v 1.25 2002/08/14 19:56:55 tom Exp tom $
  */
 
 #ifdef WIN32
@@ -404,7 +404,8 @@ static bool Xawtv_QueryClass( Display * dpy, Window wid )
                             &type, &format, &nitems, &bytesafter, &args) == Success) && (args != NULL) )
    {
       dprintf1("Xawtv-Query: wm-class: %s\n", args);
-      if (strcasecmp(args, "XAWTV") == 0)
+      if ( (strcasecmp(args, "XAWTV") == 0) ||
+           (strcasecmp(args, "XAWDECODE") == 0) )
       {
          xawtv_wid = wid;
          // parent is unknown, because the window is not managed by the wm yet
@@ -831,7 +832,8 @@ static uint Xawtv_StationNametoCni( const char * station )
 {
    const AI_BLOCK *pAiBlock;
    const char * name;
-   uchar cni_str[7], *cfgn;
+   const char * cfgn;
+   uchar cni_str[7];
    uchar netwop;
    uint cni;
 
@@ -1267,8 +1269,8 @@ static void Xawtv_StationSelected( ClientData clientData )
 static int Xawtv_ReadConfig( Tcl_Interp *interp, XAWTVCF *pNewXawtvcf )
 {
    int tunetv, follow, doPop, popType, duration;
-   char * pTmpStr;
-   char **cfArgv;
+   const char * pTmpStr;
+   CONST84 char ** cfArgv;
    int  cfArgc, idx;
    int result = TCL_ERROR;
 

@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pioutput.h,v 1.4 2001/08/21 19:47:26 tom Exp tom $
+ *  $Id: pioutput.h,v 1.7 2002/08/17 19:25:53 tom Exp tom $
  */
 
 #ifndef __PIOUTPUT_H
@@ -51,10 +51,16 @@ typedef void (PiOutput_AppendInfoTextCb_Type) ( void *fp, const char * pShortInf
 
 // Interface to filter module (series title lists)
 const char * PiOutput_DictifyTitle( const char * pTitle, uchar lang, char * outbuf, uint maxLen );
+void PiOutput_CtxMenuAddUserDef( const char * pMenu, bool addSeparator );
+
+// Interface to menus
+void PiOutput_CacheThemesMaxLen( void );
 
 // Interface to PI listbox and HTML dump
 int  PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES type, char * outstr );
-void PiOutput_AppendShortAndLongInfoText( const PI_BLOCK *pPiBlock, PiOutput_AppendInfoTextCb_Type AppendInfoTextCb, void *fp );
+void PiOutput_AppendShortAndLongInfoText( const PI_BLOCK *pPiBlock,
+                                          PiOutput_AppendInfoTextCb_Type AppendInfoTextCb,
+                                          void *fp, bool isMerged );
 void PiOutput_AppendCompressedThemes( const PI_BLOCK *pPiBlock, char * outstr, uint maxlen );
 void PiOutput_AppendFeatureList( const PI_BLOCK *pPiBlock, char * outstr );
 

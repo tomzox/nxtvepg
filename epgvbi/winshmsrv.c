@@ -19,7 +19,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: winshmsrv.c,v 1.6 2002/05/10 14:59:42 tom Exp tom $
+ *  $Id: winshmsrv.c,v 1.8 2002/08/03 14:36:24 tom Exp tom $
  */
 
 #ifndef WIN32
@@ -32,6 +32,7 @@
 #include <windows.h>
 #include <stdio.h>
 #include <malloc.h>
+#include <string.h>
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
@@ -249,13 +250,16 @@ bool WintvSharedMem_SetEpgCommand( uint argc, const char * pArgStr, uint cmdlen 
          // wait for the semaphore and request "ownership"
          if (WaitForSingleObject(shmMutexHandle, INFINITE) != WAIT_FAILED)
          {
-            // copy the command into SHM - must not use strcpy because of zeros inside
-            memcpy((char *) pTvShm->epgCommand, pArgStr, cmdlen);
-            pTvShm->epgCmdArgc = argc;
+            if (pTvShm->tvAppAlive)
+            {
+               // copy the command into SHM - must not use strcpy because of zeros inside
+               memcpy((char *) pTvShm->epgCommand, pArgStr, cmdlen);
+               pTvShm->epgCmdArgc = argc;
 
-            pTvShm->epgCommandIdx += 1;
+               pTvShm->epgCommandIdx += 1;
 
-            result = TRUE;
+               result = TRUE;
+            }
 
             // release the semaphore
             if (ReleaseMutex(shmMutexHandle) == 0)
@@ -410,7 +414,8 @@ static void WinSharedMem_AttachTvapp( void )
    {
       if (WaitForSingleObject(shmMutexHandle, INFINITE) != WAIT_FAILED)
       {
-         if ( (pTvShm->tvAppAlive) &&     // note: mutex was not locked during first check
+         // note: check flags again because mutex was not locked the first time
+         if ( (pTvShm->tvAppAlive) &&
               (pTvShm->tvReqTvCard) &&
               ( (pTvShm->tvCardIdx == epgTvCardIdx) ||
                 (pTvShm->tvCardIdx == TVAPP_CARD_REQ_ALL) ))
@@ -431,6 +436,7 @@ static void WinSharedMem_AttachTvapp( void )
    {  // notify TV app that we've freed the driver
       SetEvent(tvEventHandle);
    }
+
    tvAppStarted = (shmTvCache.tvAppAlive == FALSE);
 
    shmTvCache.tvReqTvCard = pTvShm->tvReqTvCard;
@@ -440,7 +446,7 @@ static void WinSharedMem_AttachTvapp( void )
    if (tvAppStarted)
    {  // notify GUI that TV app status changed
       if (pWinShmSrvCb->pCbAttachTv != NULL)
-         pWinShmSrvCb->pCbAttachTv(shmTvCache.tvAppAlive, acqEnabled);
+         pWinShmSrvCb->pCbAttachTv(TRUE, acqEnabled, restarted);
    }
    else
    {  // notify GUI & acq control that acq mode changed
@@ -455,7 +461,9 @@ static void WinSharedMem_AttachTvapp( void )
 static void WinSharedMem_DetachTvapp( void )
 {
    bool acqEnabled, epgHasDriver;
+   bool restarted;
 
+   restarted = FALSE;
    BtDriver_GetState(&acqEnabled, &epgHasDriver, NULL);
 
    if (acqEnabled)
@@ -467,6 +475,7 @@ static void WinSharedMem_DetachTvapp( void )
          {
             // stop slave-mode and load the actual Bt8x8 HW driver
             acqEnabled = BtDriver_Restart();
+            restarted = TRUE;
 
             if (ReleaseMutex(shmMutexHandle) == 0)
                debug1("WintvSharedMem-HandleTvCmd: ReleaseMutex: %ld", GetLastError());
@@ -482,7 +491,7 @@ static void WinSharedMem_DetachTvapp( void )
    shmTvCache.tvAppAlive = FALSE;
 
    if (pWinShmSrvCb->pCbAttachTv != NULL)
-      pWinShmSrvCb->pCbAttachTv(FALSE, acqEnabled);
+      pWinShmSrvCb->pCbAttachTv(FALSE, acqEnabled, restarted);
 }
 
 // ---------------------------------------------------------------------------
@@ -757,6 +766,7 @@ static bool WintvSharedMem_Enable( void )
                               pTvShm->epgReqInput    = EPG_REQ_INPUT_NONE;
                               pTvShm->epgReqFreq     = EPG_REQ_FREQ_NONE;
                               pTvShm->epgAppAlive    = TRUE;
+                              pTvShm->vbiBuf.obsolete1 = TRUE;
 
                               BtDriver_GetState(&acqEnabled, &epgHasDriver, &cardIdx);
                               pTvShm->epgHasDriver   = acqEnabled && epgHasDriver;
@@ -991,7 +1001,7 @@ bool WintvSharedMem_StartStop( bool start, bool * pAcqEnabled )
 
          // notify acq ctl that no TV app is connected anymore
          if (pWinShmSrvCb->pCbAttachTv != NULL)
-            pWinShmSrvCb->pCbAttachTv(FALSE, acqEnabled);
+            pWinShmSrvCb->pCbAttachTv(FALSE, acqEnabled, TRUE);
       }
 
       result = TRUE;

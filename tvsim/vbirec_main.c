@@ -26,7 +26,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: vbirec_main.c,v 1.10 2002/05/30 14:11:33 tom Exp tom $
+ *  $Id: vbirec_main.c,v 1.13 2002/08/17 19:18:14 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_TVSIM
@@ -389,7 +389,7 @@ static void VbiRec_CbTunerGrant( bool enable )
 // ----------------------------------------------------------------------------
 // TV application attached or detached
 //
-static void VbiRec_CbAttachTv( bool enable, bool acqEnabled )
+static void VbiRec_CbAttachTv( bool enable, bool acqEnabled, bool slaveStateChange )
 {
    char  tvAppName[100];
 
@@ -596,10 +596,10 @@ static void SecTimerEvent( ClientData clientData )
 // ---------------------------------------------------------------------------
 // Toggle teletext dump on/off
 //
-static char * TclCb_EnableDump( ClientData clientData, Tcl_Interp * interp, char * name1, char * name2, int flags )
+static char * TclCb_EnableDump( ClientData clientData, Tcl_Interp * interp, char * name1, CONST84 char * name2, int flags )
 {
-   char * pFileName;
-   char * pTmpStr;
+   const char * pFileName;
+   CONST84 char * pTmpStr;
    int    enable;
 
    pFileName = Tcl_GetVar(interp, "dumpttx_filename", TCL_GLOBAL_ONLY);
@@ -680,7 +680,7 @@ static int ui_init( int argc, char **argv )
 
    if (argc > 1)
    {
-      args = Tcl_Merge(argc - 1, argv + 1);
+      args = Tcl_Merge(argc - 1, (CONST84 char **) argv + 1);
       Tcl_SetVar(interp, "argv", args, TCL_GLOBAL_ONLY);
       sprintf(comm, "%d", argc - 1);
       Tcl_SetVar(interp, "argc", comm, TCL_GLOBAL_ONLY);
@@ -773,7 +773,6 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
             // enable acquisition in the slave process/thread
             pVbiBuf->chanChangeReq = pVbiBuf->chanChangeCnf + 2;
             pVbiBuf->isEnabled = TRUE;
-            pVbiBuf->doVpsPdc = TRUE;
 
             VbiRec_CbStationSelected();
 

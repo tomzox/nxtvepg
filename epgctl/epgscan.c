@@ -34,7 +34,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgscan.c,v 1.27 2002/05/30 14:01:13 tom Exp tom $
+ *  $Id: epgscan.c,v 1.28 2002/08/03 11:49:40 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -140,7 +140,9 @@ static bool EpgScan_AiCallback( const AI_BLOCK *pNewAi )
    uchar msgbuf[80];
    bool accept = FALSE;
 
-   if ((scanCtl.state >= SCAN_STATE_WAIT_EPG) && (AI_GET_CNI(pNewAi) != 0))
+   if ( ( (scanCtl.state == SCAN_STATE_WAIT_NI_OR_EPG) ||
+          (scanCtl.state == SCAN_STATE_WAIT_EPG) ) &&
+        (AI_GET_CNI(pNewAi) != 0))
    {
       dprintf3("EpgScan: AI found, CNI=0x%04X version %d/%d\n", AI_GET_CNI(pNewAi), pNewAi->version, pNewAi->version_swo);
       EpgDbLockDatabase(scanCtl.pDbContext, TRUE);
@@ -211,7 +213,8 @@ static bool EpgScan_AiCallback( const AI_BLOCK *pNewAi )
 //
 static bool EpgScan_BiCallback( const BI_BLOCK *pNewBi )
 {
-   if (scanCtl.state >= SCAN_STATE_WAIT_EPG)
+   if ( (scanCtl.state == SCAN_STATE_WAIT_NI_OR_EPG) ||
+        (scanCtl.state == SCAN_STATE_WAIT_EPG) )
    {
       if (pNewBi->app_id == EPG_ILLEGAL_APPID)
       {
@@ -294,7 +297,8 @@ uint EpgScan_EvHandler( void )
       }
       else
       {
-         if (scanCtl.state == SCAN_STATE_WAIT_EPG)
+         if ( (scanCtl.state == SCAN_STATE_WAIT_NI_OR_EPG) ||
+              (scanCtl.state == SCAN_STATE_WAIT_EPG) )
          {
             pageNo = TtxDecode_GetMipPageNo();
             if ((pageNo != EPG_ILLEGAL_PAGENO) && (pageNo != scanCtl.pDbContext->pageNo))

@@ -15,7 +15,7 @@
 //  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 //  GNU General Public License for more details
 /////////////////////////////////////////////////////////////////////////////
-// nxtvepg $Id: hwdrv.c,v 1.4 2002/05/30 13:55:44 tom Exp tom $
+// nxtvepg $Id: hwdrv.c,v 1.7 2002/07/20 16:26:39 tom Exp tom $
 //////////////////////////////////////////////////////////////////////////////
 
 #define WIN32_LEAN_AND_MEAN
@@ -155,7 +155,7 @@ DWORD HwDrv_LoadDriver( void )
                 m_hFile = CreateFile(
                                      "\\\\.\\DSDrv4",
                                      GENERIC_READ | GENERIC_WRITE,
-                                     FILE_SHARE_READ,
+                                     FILE_SHARE_READ | FILE_SHARE_WRITE,
                                      NULL,
                                      OPEN_EXISTING,
                                      0,
@@ -204,15 +204,20 @@ DWORD HwDrv_LoadDriver( void )
                         &dwReturnedLength
                        );
 
-            if(dwVersion != DSDRV_VERSION)
+            if ( (dwVersion < DSDRV_COMPAT_MIN_VERSION) ||
+                 ((dwVersion & DSDRV_COMPAT_MASK) != DSDRV_COMPAT_MAJ_VERSION) )
             {
-                LOG(1, "We've loaded up the wrong version of the driver");
+                LOG(1, "We've loaded up an incompatible version of the driver");
                 loadError = HWDRV_LOAD_VERSION;
                 bError = TRUE;
 
                 // Maybe another driver from an old DScaler version is still installed. 
                 // Try to uninstall it.
                 HwDrv_UnInstallNTDriver();
+            }
+            else
+            {
+                LOG(2, "Found driver version 0x%X", dwVersion);
             }
         }
         else
@@ -252,12 +257,15 @@ void HwDrv_UnloadDriver( void )
     {
         if (m_hService != NULL)
         {
+            // do not stop the service, because another app might still be using the driver
+            #if 0
             SERVICE_STATUS ServiceStatus;
             LOG(2,"UnloadDriver: stopping the service...");
             if(ControlService(m_hService, SERVICE_CONTROL_STOP, &ServiceStatus ) == FALSE)
             {
                 LOG(1,"SERVICE_CONTROL_STOP failed, error 0x%X", GetLastError());
             }
+            #endif
 
             if(m_hService != NULL)
             {
@@ -457,6 +465,9 @@ static BOOL AdjustAccessRights( void )
     PACL                    pNewAcl = NULL;
     PACL                    pacl = NULL;
     EXPLICIT_ACCESS         ea;
+    HINSTANCE               hInstance;
+    VOID  (WINAPI *BuildExplicitAccessWithName)(PEXPLICIT_ACCESS_A,LPSTR,DWORD,ACCESS_MODE,DWORD);
+    DWORD (WINAPI *SetEntriesInAcl)(ULONG,PEXPLICIT_ACCESS_A,PACL,PACL*);
 
     if(m_bWindows95)
     {
@@ -465,6 +476,21 @@ static BOOL AdjustAccessRights( void )
     if(m_hService == NULL)
     {
         return FALSE;
+    }
+
+    //http://groups.google.de/groups?hl=de&lr=&threadm=u4WzwtCQBHA.1564%40tkmsftngp03&rnum=2&prev=/groups%3Fq%3DBuildExplicitAccessWithName%2Bwindows-95%26hl%3Dde
+    hInstance = LoadLibrary("advapi32.dll");
+    BuildExplicitAccessWithName = (VOID (WINAPI *)(PEXPLICIT_ACCESS_A,LPSTR,DWORD,ACCESS_MODE,DWORD))
+                                  GetProcAddress(hInstance, "BuildExplicitAccessWithNameA");
+    SetEntriesInAcl = (DWORD (WINAPI *)(ULONG,PEXPLICIT_ACCESS_A,PACL,PACL*))
+                      GetProcAddress(hInstance, "SetEntriesInAclA");
+
+    if ( (BuildExplicitAccessWithName == NULL) ||
+         (SetEntriesInAcl == NULL) )
+    {
+       LOG(1, "ACL functions not found in advapi32.dll");
+       FreeLibrary(hInstance);
+       return FALSE;
     }
 
     // Find out how much memory to allocate for psd.
@@ -558,6 +584,8 @@ static BOOL AdjustAccessRights( void )
     // Free buffers.
     LocalFree((HLOCAL)pNewAcl);
     HeapFree(GetProcessHeap(), 0, (LPVOID)psd);
+
+    FreeLibrary(hInstance);
     
     return !bError;
 }

@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: vbiplay.c,v 1.5 2002/05/19 17:19:10 tom Exp tom $
+ *  $Id: vbiplay.c,v 1.6 2002/07/20 16:26:04 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_TVSIM
@@ -32,6 +32,7 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <string.h>
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
@@ -229,7 +230,7 @@ int main( int argc, char ** argv )
       if (playEventHandle != NULL)
       {
          pVbiBuf = NULL;
-         if (WinSharedMemClient_Init(&tvSimuInfo, &attachEvent))
+         if (WinSharedMemClient_Init(&tvSimuInfo, 0, &attachEvent))
          {
             if (attachEvent != SHM_EVENT_ATTACH_ERROR)
             {
