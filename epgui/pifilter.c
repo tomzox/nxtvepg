@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: pifilter.c,v 1.24 2000/10/09 18:05:26 tom Exp tom $
+ *  $Id: pifilter.c,v 1.25 2000/10/28 23:13:11 tom Exp tom $
  */
 
 #define __PIFILTER_C
@@ -1151,7 +1151,6 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, char
 {
    const char * const pUsage = "Usage: C_PiListBox_CreateContextMenu <menu-path>";
    const AI_BLOCK * pAiBlock;
-   const AI_NETWOP *pNetwop;
    const PI_BLOCK * pPiBlock;
    int idx, entryCount;
    uchar theme, themeCat;
@@ -1171,7 +1170,6 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, char
       pAiBlock = EpgDbGetAi(dbc);
       if (pAiBlock != NULL)
       {
-         pNetwop = AI_GET_NETWOP_N(pAiBlock, pPiBlock->netwop_no);
          entryCount = 0;
 
          // query listbox for user-selected PI, if any

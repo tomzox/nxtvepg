@@ -1,4 +1,5 @@
 fixes:
+- possible heap corruption in ApplyEscapes (string max len not enforced)
 - do not tune channel if vbi busy
 - filter shortcut combination logic modes: OR,AND
 - provider-specific shortcuts: are listed only for one provider

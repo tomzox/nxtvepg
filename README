@@ -3,21 +3,23 @@ Hi there,
 in this software package you find a decoder for Nextview - an Electronic
 Programme Guide for the analog domain (as opposed to the various digital EPGs
 that come with most digital broadcasts). It allows you to receive and browse
-TV programme listings for most of the important networks in Germany, France
-and Switzerland.
+TV programme listings for most of the major networks in Germany, France and
+Switzerland.
 
 Currently Nextview EPG is transmitted by:
 - in Germany and Austria: Pro7, 3Sat, RTL-II, EuroNews.
 - in Switzerland: TSR1 and others.
 - in France: Canal+, M6, TV5.
 
-If you don't receive any of those networks then this software is useless to you.
+If you don't receive any of those, then this software is useless to you.
 
 To compile and use this software, you need:
-- Pentium class PC with a Bt8x8-based TV tuner card
+- Pentium class PC with a Bt848 or Bt878 based TV tuner card
 - Linux with kernel >= 2.0.35 and bttv driver (video4linux)
 - GNU C Compiler
 - Tcl/Tk version 8.0 or later (ftp://www.scriptics.com/pub/tcl/)
+
+As of now, there's no supprt for M$ Windows. Please read the file `Windows'.
 
 Installation procedure:
 - Recommended: first install a TV application like xtvscreen or xawtv, or
@@ -35,8 +37,10 @@ the paths in TCL_LIBRARY_PATH and TK_LIBRARY_PATH in the Makefile.
 If you need to change anything besides the Makefile, please let me
 know about it (i.e. send me the diffs)
 
-Before you email me, please carefully read manual page as well as the TODO
-and CHANGES files.
+Before you email me, please check the manual page as well as the TODO
+and CHANGES files. The latest version of this software is available at:
+
+ftp://ftp.informatik.uni-erlangen.de/local/cip/tnzoerne/nxtvepg/
 
 
 have fun.

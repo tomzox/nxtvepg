@@ -1560,3 +1560,27 @@ epgui/pilistbox.c [rev:1.25, 2000-10-15T18:55:41]:
 - hence a wrong PI was inserted as replacement
 -> use new function SearchPiExact that also compares start time
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_3_1 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+nxtvepg.1x [nxtvepg.pod, rev:1.11, 2000-10-24T16:43:48]:
+- added credits to AUTHOR section
+README [rev:1.4, 2000-10-24T16:44:10]:
+- added link to `Windows' file
+epgui/pifilter.c [rev:1.25, 2000-10-28T23:13:11]:
+- bugfix: reference to uninitialized pointer in obsolete assignment
+README [rev:1.5, 2000-10-28T23:24:56]:
+- added URL for ftp distribution archive
+- plus some minor fixes
+CHANGES.version [rev:1.3, 2000-10-28T23:29:49]:
+- added memo: remove -g from Makefile
+TODO [rev:1.3, 2000-10-28T23:35:17]:
+- version 0.3.2
+Makefile [rev:1.13, 2000-10-29T00:32:56]:
+- added -c to install for backwards compatibility (NetBSD)
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.37, 2000-10-29T00:37:33]:
+- branches:  1.37.1;
+- bugfix: deleting sortcrits from popup failed -> fixed scan format string
+- added ftp URL to about popup
+- added underlines to top-level menu for keyboard invokation
+- prepared reminder menu
+CHANGES [rev:1.3, 2000-10-29T00:43:34]:
+- release 0.3.2
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_3_2 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<

@@ -19,7 +19,7 @@
 #
 #  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
 #
-#  $Id: Makefile,v 1.12 2000/10/11 18:23:04 tom Exp tom $
+#  $Id: Makefile,v 1.13 2000/10/29 00:07:57 tom Exp tom $
 #
 
 IROOT   = /usr/local
@@ -45,7 +45,7 @@ DEFS   += -DTCL_LIBRARY_PATH=\"/usr/lib/tcl8.3\"
 WARN    = -Wall -Wpointer-arith -Wnested-externs \
           -Werror -Wstrict-prototypes -Wmissing-prototypes
 CC      = gcc
-CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -g -O2
+CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -O6
 
 # ----- don't change anything below ------------------------------------------
 
@@ -64,8 +64,8 @@ nxtvepg: $(OBJS)
 install: all
 	test -d $(BINDIR) || mkdirhier $(BINDIR)
 	test -d $(MANDIR) || mkdirhier $(MANDIR)
-	install -m 0755 nxtvepg     $(BINDIR)
-	install -m 0644 nxtvepg.1x  $(MANDIR)
+	install -c -m 0755 nxtvepg     $(BINDIR)
+	install -c -m 0644 nxtvepg.1x  $(MANDIR)
 
 ##%.o: %.c
 ##	$(CC) $(CFLAGS) -c *.c -o *.o

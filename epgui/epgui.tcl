@@ -21,7 +21,7 @@
 #
 #  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
 #
-#  $Id: epgui.tcl,v 1.36 2000/10/12 18:46:43 tom Exp tom $
+#  $Id: epgui.tcl,v 1.37 2000/10/29 00:37:33 tom Exp tom $
 #
 
 frame     .all -relief flat -borderwidth 0
@@ -96,12 +96,13 @@ pack      .all
 
 menu .menubar -relief ridge
 . config -menu .menubar
-.menubar add cascade -label "Control" -menu .menubar.ctrl
-.menubar add cascade -label "Configure" -menu .menubar.config
-.menubar add cascade -label "Filter" -menu .menubar.filter
-.menubar add cascade -label "Navigate" -menu .menubar.ni_1
+.menubar add cascade -label "Control" -menu .menubar.ctrl -underline 0
+.menubar add cascade -label "Configure" -menu .menubar.config -underline 1
+#.menubar add cascade -label "Reminder" -menu .menubar.timer -underline 0
+.menubar add cascade -label "Filter" -menu .menubar.filter -underline 0
+.menubar add cascade -label "Navigate" -menu .menubar.ni_1 -underline 0
 #.menubar add command -label "" -activebackground $default_bg -command {} -foreground #2e2e37
-.menubar add cascade -label "Help" -menu .menubar.help
+.menubar add cascade -label "Help" -menu .menubar.help -underline 0
 # Control menu
 menu .menubar.ctrl -tearoff 0 -postcommand C_SetControlMenuStates
 .menubar.ctrl add checkbutton -label "Enable acquisition" -variable menuStatusStartAcq -command {C_ToggleAcq $menuStatusStartAcq}
@@ -122,6 +123,13 @@ menu .menubar.config -tearoff 0
 .menubar.config add separator
 .menubar.config add checkbutton -label "Show shortcuts" -command ToggleShortcutListbox -variable showShortcutListbox
 .menubar.config add checkbutton -label "Show networks" -command ToggleNetwopListbox -variable showNetwopListbox
+# Reminder menu
+#menu .menubar.timer -tearoff 0
+#.menubar.timer add command -label "Add selected title" -state disabled
+#.menubar.timer add command -label "Add selected series" -state disabled
+#.menubar.timer add command -label "Add filter selection" -state disabled
+#.menubar.timer add separator
+#.menubar.timer add command -label "List reminders..." -state disabled
 # Filter menu
 menu .menubar.filter
 .menubar.filter add cascade -menu .menubar.filter.features -label Features
@@ -1362,7 +1370,7 @@ proc DeleteSortCritSelection {} {
       set all($item) 1
    }
    foreach index [lsort -integer -decreasing [.sortcrit.fl.list curselection]] {
-      if {[scan [.sortcrit.fl.list get $index] "%x" sortcrit] == 1} {
+      if {[scan [.sortcrit.fl.list get $index] "0x%x" sortcrit] == 1} {
          unset all($sortcrit)
       }
       .sortcrit.fl.list delete $index
@@ -1563,9 +1571,10 @@ proc CreateAbout {} {
       pack .about.version -side top
       label .about.copyr1 -text "Copyright © 1999, 2000 by Tom Zörner"
       label .about.copyr2 -text "Tom.Zoerner@informatik.uni-erlangen.de"
+      label .about.copyr3 -text "ftp://ftp.informatik.uni-erlangen.de/local/cip/tnzoerne/nxtvepg/" -font {courier -12 normal} -foreground blue
       pack .about.copyr1 .about.copyr2 -side top
+      pack .about.copyr3 -side top -padx 10 -pady 10
       message .about.m -text {
-
 If you publish any information that was acquired by use of this software, please do always include a note about the source of your information and where to obtain a copy of this software.
 
 This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License Version 2 as published by the Free Software Foundation. You find a copy of this license in the file COPYRIGHT in the root directory of this release.

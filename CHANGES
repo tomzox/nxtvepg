@@ -5,9 +5,15 @@ changes or additions.
 Before you submit any feature requests, please read the TODO file.
 
 
-from 0.02a to 0.3.1 (first release) Sep./Oct. 2000
+from 0.3.1 to 0.3.2 (Oct. 2000)
+- fixed bug (SIGSEGV) in CreateContextMenu()
+- fixed bug in epgui.tcl, proc DeleteSortCritSelection: deletion failed
+- added -c to install in Makefile for NetBSD compatibility
+- added credits to manpage
+
+from 0.02a to 0.3.1 (Sep./Oct. 2000)
 - added netwop, start time & sorting criterion filters to menus & shortcuts
-- fixed bugs in shortcut selection: series were not set in the menu checkbuttons,
+- fixed bugs in shortcut selection: series were not set in the menu checkbuttons
   and series filter not disabled in filter context after deselection
 - automatic shortcut deselection when it's filters are manually undone
 - timescale windows are reloaded after AI version changed and
@@ -23,7 +29,7 @@ from 0.02a to 0.3.1 (first release) Sep./Oct. 2000
 - added programme title & feature summary to short-info field
 - fixed LTO (GMT offset) computation during daylight saving time
 
-from 0.01a to 0.02a (pre-release)
+from 0.01a to 0.02a
 - added rc/ini file to save filter shortcuts and other config options
 - added netwop configuration for general exclusion of non-receptable
   netwops and for personalized network ordering
