@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: debug.h,v 1.6 2000/10/14 21:58:21 tom Exp tom $
+ *  $Id: debug.h,v 1.7 2000/12/25 13:48:01 tom Exp tom $
  */
 
 #ifndef __DEBUG_H
@@ -32,16 +32,11 @@
 #endif
 
 #if DEBUG_SWITCH == ON
-#if HALT_ON_FAILED_ASSERTION == ON
 // assert() declares preconditions, e.g. for function arguments
 // if the conditions are not met by the actual parameters, execution is halted
-#define assert(X) {if(!(X)) {sprintf(debugStr,"assertion (" #X ") failed in %s, line %d\n",__FILE__,__LINE__);DebugLogLine();*(ulong*)1=1;}}
+#define assert(X) {if(!(X)) {sprintf(debugStr,"assertion (" #X ") failed in %s, line %d\n",__FILE__,__LINE__);DebugLogLine(TRUE);}}
 // same as above, but with a constant negative result
-#define SHOULD_NOT_BE_REACHED {sprintf(debugStr,"branch should not have been reached in %s, line %d\n",__FILE__,__LINE__);DebugLogLine();*(ulong*)1=1;}
-#else
-#define assert(X) {if(!(X)) {sprintf(debugStr,"assertion (" #X ") failed in %s, line %d\n",__FILE__,__LINE__);DebugLogLine();}}
-#define SHOULD_NOT_BE_REACHED {sprintf(debugStr,"branch should not have been reached in %s, line %d\n",__FILE__,__LINE__);DebugLogLine();}
-#endif
+#define SHOULD_NOT_BE_REACHED {sprintf(debugStr,"branch should not have been reached in %s, line %d\n",__FILE__,__LINE__);DebugLogLine(TRUE);}
 #else
 #define assert(X)
 #define SHOULD_NOT_BE_REACHED
@@ -49,22 +44,22 @@
 
 // report error conditions to stdout and the log file
 #if DEBUG_SWITCH == ON
-#define debug0(S)               {sprintf(debugStr,S " in %s, line %d\n",__FILE__,__LINE__);DebugLogLine();}
-#define debug1(S,A)             {sprintf(debugStr,S " in %s, line %d\n",(A),__FILE__,__LINE__);DebugLogLine();}
-#define debug2(S,A,B)           {sprintf(debugStr,S " in %s, line %d\n",(A),(B),__FILE__,__LINE__);DebugLogLine();}
-#define debug3(S,A,B,C)         {sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),__FILE__,__LINE__);DebugLogLine();}
-#define debug4(S,A,B,C,D)       {sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),__FILE__,__LINE__);DebugLogLine();}
-#define debug5(S,A,B,C,D,E)     {sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),__FILE__,__LINE__);DebugLogLine();}
-#define debug6(S,A,B,C,D,E,F)   {sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),(F),__FILE__,__LINE__);DebugLogLine();}
-#define debug7(S,A,B,C,D,E,F,G) {sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),(F),(G),__FILE__,__LINE__);DebugLogLine();}
-#define ifdebug0(I,S)           if(I){sprintf(debugStr,S " in %s, line %d\n",__FILE__,__LINE__);DebugLogLine();}
-#define ifdebug1(I,S,A)         if(I){sprintf(debugStr,S " in %s, line %d\n",(A),__FILE__,__LINE__);DebugLogLine();}
-#define ifdebug2(I,S,A,B)       if(I){sprintf(debugStr,S " in %s, line %d\n",(A),(B),__FILE__,__LINE__);DebugLogLine();}
-#define ifdebug3(I,S,A,B,C)     if(I){sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),__FILE__,__LINE__);DebugLogLine();}
-#define ifdebug4(I,S,A,B,C,D)   if(I){sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),__FILE__,__LINE__);DebugLogLine();}
-#define ifdebug5(I,S,A,B,C,D,E) if(I){sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),__FILE__,__LINE__);DebugLogLine();}
-#define ifdebug6(I,S,A,B,C,D,E,F)   if(I){sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),(F),__FILE__,__LINE__);DebugLogLine();}
-#define ifdebug7(I,S,A,B,C,D,E,F,G) if(I){sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),(F),(G),__FILE__,__LINE__);DebugLogLine();}
+#define debug0(S)               {sprintf(debugStr,S " in %s, line %d\n",__FILE__,__LINE__);DebugLogLine(FALSE);}
+#define debug1(S,A)             {sprintf(debugStr,S " in %s, line %d\n",(A),__FILE__,__LINE__);DebugLogLine(FALSE);}
+#define debug2(S,A,B)           {sprintf(debugStr,S " in %s, line %d\n",(A),(B),__FILE__,__LINE__);DebugLogLine(FALSE);}
+#define debug3(S,A,B,C)         {sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),__FILE__,__LINE__);DebugLogLine(FALSE);}
+#define debug4(S,A,B,C,D)       {sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),__FILE__,__LINE__);DebugLogLine(FALSE);}
+#define debug5(S,A,B,C,D,E)     {sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),__FILE__,__LINE__);DebugLogLine(FALSE);}
+#define debug6(S,A,B,C,D,E,F)   {sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),(F),__FILE__,__LINE__);DebugLogLine(FALSE);}
+#define debug7(S,A,B,C,D,E,F,G) {sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),(F),(G),__FILE__,__LINE__);DebugLogLine(FALSE);}
+#define ifdebug0(I,S)           if(I){sprintf(debugStr,S " in %s, line %d\n",__FILE__,__LINE__);DebugLogLine(FALSE);}
+#define ifdebug1(I,S,A)         if(I){sprintf(debugStr,S " in %s, line %d\n",(A),__FILE__,__LINE__);DebugLogLine(FALSE);}
+#define ifdebug2(I,S,A,B)       if(I){sprintf(debugStr,S " in %s, line %d\n",(A),(B),__FILE__,__LINE__);DebugLogLine(FALSE);}
+#define ifdebug3(I,S,A,B,C)     if(I){sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),__FILE__,__LINE__);DebugLogLine(FALSE);}
+#define ifdebug4(I,S,A,B,C,D)   if(I){sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),__FILE__,__LINE__);DebugLogLine(FALSE);}
+#define ifdebug5(I,S,A,B,C,D,E) if(I){sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),__FILE__,__LINE__);DebugLogLine(FALSE);}
+#define ifdebug6(I,S,A,B,C,D,E,F)   if(I){sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),(F),__FILE__,__LINE__);DebugLogLine(FALSE);}
+#define ifdebug7(I,S,A,B,C,D,E,F,G) if(I){sprintf(debugStr,S " in %s, line %d\n",(A),(B),(C),(D),(E),(F),(G),__FILE__,__LINE__);DebugLogLine(FALSE);}
 #define DBGONLY(X)              X
 #else  // DEBUG_SWITCH == OFF
 #define debug0(S)
@@ -116,7 +111,7 @@
 #define DEBUGSTR_LEN 512
 extern char debugStr[DEBUGSTR_LEN];
 
-void DebugLogLine( void );
+void DebugLogLine( bool doHalt );
 void DebugSetError( void );
 #endif
 

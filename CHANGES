@@ -5,6 +5,14 @@ changes or additions.
 Before you submit any feature requests, please read the TODO file.
 
 
+from 0.3.4 to 0.4.pre0 (Dec. 2000)
+- added possibility to merge several provider databases into one
+- cyclic acquisition between several databases
+- added TV input configuration popup
+- added Help button to all popups
+  order of Help, Abort, Ok identical in all popups
+- port to M$ Windows (in new module epgvbi/btdrv4win.c)
+
 from 0.3.3 to 0.3.4 (Nov. 2000)
 - added -demo cmd line option for users without live Nextview reception
 

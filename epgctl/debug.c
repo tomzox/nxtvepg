@@ -22,7 +22,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: debug.c,v 1.5 2000/10/14 21:57:42 tom Exp tom $
+ *  $Id: debug.c,v 1.9 2000/12/25 13:46:48 tom Exp tom $
  */
 
 #define __DEBUG_C
@@ -33,15 +33,22 @@
 # define DEBUG_SWITCH OFF
 #endif
 
-#include <malloc.h>
-
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
+
+#include <malloc.h>
+#ifdef WIN32
+#include <process.h>
+#ifdef HALT_ON_FAILED_ASSERTION
+#include <windows.h>
+#endif
+#endif
 
 
 #if DEBUG_SWITCH == ON
 
 #ifdef WIN32
+#include <stdlib.h>
 #include <io.h>
 #else
 #include <unistd.h>
@@ -60,17 +67,23 @@
 #if CHK_MALLOC == ON
 // define magic string that allows to detect memory overwrites
 static const char * const pMallocMagic = "Mägi";
+static const char * const pMallocXmark = "Nöpe";
 #define MALLOC_CHAIN_MAGIC_LEN     4
 
 // define structure that's used to chain all malloc'ed memory
+#ifndef WIN32
 #define MALLOC_CHAIN_FILENAME_LEN 20
+#else
+// need more space for Win32 since there the complete path is included in __FILE__
+#define MALLOC_CHAIN_FILENAME_LEN 50
+#endif
 typedef struct MALLOC_CHAIN_STRUCT
 {
    struct MALLOC_CHAIN_STRUCT * prev;
    struct MALLOC_CHAIN_STRUCT * next;
    char                         fileName[MALLOC_CHAIN_FILENAME_LEN];
    int                          line;
-   int                          size;
+   size_t                       size;
    char                         magic1[MALLOC_CHAIN_MAGIC_LEN];
 } MALLOC_CHAIN;
 #define MALLOC_CHAIN_ADD_LEN (sizeof(MALLOC_CHAIN) + MALLOC_CHAIN_MAGIC_LEN)
@@ -84,19 +97,19 @@ static ulong malPeak  = 0L;
 #endif
 
 // ---------------------------------------------------------------------------
-// global that contains the to-be-logged string
+// global that contains the string to be logged
 //
 char debugStr[DEBUGSTR_LEN];
 
 // ---------------------------------------------------------------------------
 // Appends a message to the log file
 //
-void DebugLogLine( void )
+void DebugLogLine( bool doHalt )
 {
    char *ct;
    sint fd;
 
-   fd = open("EPG.LOG", O_WRONLY|O_CREAT|O_APPEND, 0666);
+   fd = open("debug.out", O_WRONLY|O_CREAT|O_APPEND, 0666);
    if (fd >= 0)
    {
       time_t ts = time(NULL);
@@ -106,9 +119,20 @@ void DebugLogLine( void )
       close(fd);
    }
    else
-      perror("open epg log file EPG.LOG");
+      perror("open epg log file debug.out");
 
    printf("%s", debugStr);
+
+   #ifdef HALT_ON_FAILED_ASSERTION
+   if (doHalt)
+   {
+      #ifndef WIN32
+      abort();
+      #else
+      MessageBox(NULL, debugStr, "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+      #endif
+   }
+   #endif
 }
 
 // ---------------------------------------------------------------------------
@@ -186,6 +210,10 @@ void chk_free( void * ptr )
    // update memory usage
    assert(malUsage >= pElem->size);
    malUsage -= pElem->size;
+
+   // invalidate the magic
+   memcpy(pElem->magic1, pMallocXmark, sizeof(MALLOC_CHAIN_MAGIC_LEN));
+   memcpy((uchar *)&pElem[1] + pElem->size, pMallocXmark, sizeof(MALLOC_CHAIN_MAGIC_LEN));
 
    // remove the element from the chain
    if (pElem->prev != NULL)

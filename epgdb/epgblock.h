@@ -25,7 +25,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgblock.h,v 1.11 2000/06/26 18:21:04 tom Exp tom $
+ *  $Id: epgblock.h,v 1.20 2000/12/21 19:27:53 tom Exp tom $
  */
 
 #ifndef __EPGBLOCK_H
@@ -200,6 +200,7 @@ typedef struct {
 #define PI_GET_TITLE(X)        ((uchar*)(X)+((X)->off_title))
 #define PI_GET_SHORT_INFO(X)   ((uchar*)(X)+((X)->off_short_info))
 #define PI_GET_LONG_INFO(X)    ((uchar*)(X)+((X)->off_long_info))
+#define PI_GET_STR_BY_OFF(X,O) ((uchar *)(X)+(O))
 #define PI_GET_DESCRIPTORS(X)  ((DESCRIPTOR*)((uchar*)(X)+((X)->off_descriptors)))
 
 
@@ -448,12 +449,16 @@ typedef union
 
 typedef struct EPGDB_BLOCK_STRUCT
 {
-   struct EPGDB_BLOCK_STRUCT *pNextBlock;        // naechster Block in Verkettung nach BlockNo
-   struct EPGDB_BLOCK_STRUCT *pPrevBlock;        // vorheriger Block
+   struct EPGDB_BLOCK_STRUCT *pNextBlock;        // naechster Block in Verkettung nach Startzeit
+   struct EPGDB_BLOCK_STRUCT *pPrevBlock;        // vorheriger Block in Verkettung nach Startzeit
    struct EPGDB_BLOCK_STRUCT *pNextNetwopBlock;  // naechster Block desselben Netwops
+   struct EPGDB_BLOCK_STRUCT *pPrevNetwopBlock;  // vorheriger Block desselben Netwops
    uint         size;               // tatsaechliche Groesse der Union
    uchar        version;            // AI-Version zum Zeitpkt. der Acq.
    uchar        stream;             // Stream aus dem Block akquiriert wurde
+   uchar        mergeCount;         // count of databases from which this block was merged
+   time_t       acqTimestamp;       // time when the block was added to the database
+   uint         acqRepCount;        // reception count with same version and size
    BLOCK_TYPE   type;
 
    const EPGDB_BLOCK_UNION   blk;   // die eigentlichen Daten
@@ -464,14 +469,21 @@ typedef struct EPGDB_BLOCK_STRUCT
 // ----------------------------------------------------------------------------
 // declaration of database context, which keeps lists of all blocks
 //
-typedef struct
+typedef struct EPGDB_CONTEXT_STRUCT
 {
-   uchar lockLevel;
+   struct EPGDB_CONTEXT_STRUCT *pNext;
+
+   uint  refCount;
+   uint  lockLevel;
    bool  modified;
+
+   bool  merged;
+   void  *pMergeContext;
+
    uint  pageNo;
    ulong tunerFreq;
+   uint  appId;
 
-   EPGDB_BLOCK *pBiBlock;
    EPGDB_BLOCK *pAiBlock;
    EPGDB_BLOCK *pFirstPi, *pLastPi;
    EPGDB_BLOCK *pObsoletePi;
@@ -485,6 +497,8 @@ typedef struct
    ulong  curVersion;
    ulong  allVersions;
    ulong  obsolete;
+   ulong  sinceAcq;
+   double variance;
 } EPGDB_BLOCK_COUNT;
 
 // ----------------------------------------------------------------------------
@@ -498,6 +512,7 @@ EPGDB_BLOCK * EpgBlockConvertMi(const uchar *pCtrl, uint ctrlLen, uint strLen);
 EPGDB_BLOCK * EpgBlockConvertLi(const uchar *pCtrl, uint ctrlLen, uint strLen);
 EPGDB_BLOCK * EpgBlockConvertTi(const uchar *pCtrl, uint ctrlLen, uint strLen);
 EPGDB_BLOCK * EpgBlockConvertBi(const uchar *pCtrl, uint ctrlLen);
+EPGDB_BLOCK * EpgBlockCreate( uchar type, uint size );
 
 uint EpgBlockBcdToMoD( uint BCD );
 void EpgBlockSetAlphabets( const AI_BLOCK *pAiBlock );

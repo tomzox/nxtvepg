@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgdbfil.h,v 1.12 2000/09/26 13:25:31 tom Exp tom $
+ *  $Id: epgdbfil.h,v 1.14 2000/12/21 19:21:49 tom Exp tom $
  */
 
 #ifndef __EPGDBFIL_H
@@ -79,7 +79,7 @@ typedef struct
    uint   enabledFilters;
 
    uchar  firstProgIdx, lastProgIdx;
-   ulong  timeBegin, timeEnd;
+   time_t timeBegin, timeEnd;
    uchar  netwopFilterField[MAX_NETWOP_COUNT];
    uchar  netwopPreFilterField[MAX_NETWOP_COUNT];
    uchar  themeFilterField[256];
@@ -103,6 +103,7 @@ typedef struct
 // global function declarations
 
 FILTER_CONTEXT * EpgDbFilterCreateContext( void );
+FILTER_CONTEXT * EpgDbFilterCopyContext( const FILTER_CONTEXT * fc );
 void   EpgDbFilterDestroyContext( FILTER_CONTEXT * fc );
 
 void   EpgDbFilterEnable( FILTER_CONTEXT *fc, uint searchFilter );

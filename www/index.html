@@ -1,28 +1,45 @@
 <HTML>
 <BASE HREF="http://nxtvepg.tripod.com/">
-<!-- $Id: index.html,v 1.7 2000/11/16 21:56:08 tom Exp $ -->
+<!-- $Id: index.html,v 1.11 2000/12/29 18:52:42 tom Exp $ -->
 <HEAD>
-<META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
-<META name="Author" content="Tom Zoerner">
-<META name="keywords" lang="en-us" content="nextview, EPG, electronic program guide, TV-Guide, schedule">
-<META name="keywords" lang="de" content="Nextview Dekoder, nexTView, TV-Programm, Fernsehzeitschrift, Fernseher, Fernsehprogramm, TV-Guide">
-<META name="description" content="Nextview EPG Decoder Software for Linux">
+<TITLE>Nextview EPG Decoder Download Page</TITLE>
 
-<TITLE>Linux Nextview EPG Decoder Download Page</TITLE>
+<LINK href="nxtvepg.css" rel=stylesheet type=text/css>
+<META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
+<META name="author" content="Tom Zoerner">
+<META name="copyright" content="Tom Zoerner">
+<META name="keywords" lang="de" content="nexTView,Dekoder,nexTView,nxtvepg,Bt878,Fernsehprogramm,TV-Programm,Teletext,Videotext,TV-Guide,EPG,Programmzeitschrift,Austastlücke,Multimedia,TV-Tunerkarte,Linux,Softwaredownload,bttv,video4linux,VBI,Bt848,Booktree,video capture">
+<META name="keywords" lang="en-us" content="nexTView,decoder,browser,nxtvepg,EPG,teletext,Bt878,electronic program guide,TV-Guide,TV program listing,TV schedule,Linux,software download,bttv,video4linux,VBI,vertical blanking interval,multimedia,data service,subscription free,TV tuner card,Bt848,Booktree,video capture">
+<META name="description" content="This Nextview EPG decoder software offers access to a subscription-free electronic TV program guide in the analog domain. Nextview currently is broadcasted in Germany, Austria, Switzerland, and France and covers the schedules of all major TV networks in these countries.">
 </HEAD>
-<BODY bgcolor="#EEEEEE" text="#000000">
+<BODY>
 <P><HR><P>
 <CENTER>
 <IMG SRC="nxtv_logo.xbm">
-<H2>Linux Nextview EPG Decoder Download Page</H2>
+<H1>Nextview EPG Decoder Download Page</H1>
 </CENTER>
-In this software package you find a decoder for Nextview - an Electronic
+In this software package you find a decoder for Nextview - an Electronic TV
 Programme Guide for the analog domain (as opposed to the various digital EPGs
 that come with most digital broadcasts). It allows you to receive and browse
-free TV programme listings for most of the major networks in Germany, Austria,
-France and Switzerland. For detailed information please refer to the
-<A HREF="man.html">manual page</A> or this
-<A HREF="screenshot.gif">screenshot</A>.
+free TV programme listings for all of the major networks in Germany, Austria,
+France and Switzerland. You can have a look at it in this
+<A HREF="screenshot.gif">Linux screenshot</A>, or this
+<A HREF="screenshot-win.gif">Windows screenshot</A>.
+<P>
+The Nextview standard was developed by the major European consumer electronics
+manufacturers under the hood of the <A HREF="http://www.etsi.org/">European Telecommunications Standards Institute</A> (ETSI)
+in 1995-1997 with the aim to offer an "electronic TV magazine" inside their
+analog TV sets.  The transmission protocol is based on teletext, however
+using a compact binary format instead of preformatted text pages. The advantage
+compared to paper-based TV magazines is that you have an immediate overview
+what's running <I>Now &amp; Next</I>, plus you can search through the programme
+database by many different filter categories.
+<P>
+Now the <I>nxtvepg</I> software allows you to use Nextview with your PC too,
+and adds a lot of features that would not be possible to implement inside a TV set.
+The only preconditions are (a) that you have a TV tuner card for TV reception
+inside your PC and (b) that you receive one of the Nextview content provider's
+TV channels.
 <P>
 Currently Nextview EPG is transmitted by the following TV stations:
 <DL>
@@ -31,48 +48,79 @@ Currently Nextview EPG is transmitted by the following TV stations:
 <LI>in France: Canal+, M6, TV5.
 </DL>
 <P>
-If you don't receive any of these, then this software is useless to you
-(except for a demo mode - see below).
+If you don't receive any of these, then unfortunately this software is
+useless to you, except for a demo mode. For detailed information please
+refer to the <A HREF="man.html">nxtvepg manual page</A>.
 <P>
-The Nextview standard was developed by the major European consumer electronics
-manufacturers under the hood of the
-<A HREF="http://www.etsi.org/">European Telecommunications Standards Institute</A>
-(ETSI) in 1995-1997. The author of this site's software has no connections
-whatsoever to the ETSI - but he still hopes it's kindly tolerated.
+If you're interested in buying a TV with Nextview inside, look for it
+at one of the following manufacturers:
+<A HREF="http://www.grundig.de">Grundig</A>,
+<A HREF="http://www.loewe.de">Loewe</A>,
+<A HREF="http://www.metz.de">Metz</A>,
+<A HREF="http://www.philips.com">Philips</A>,
+<A HREF="http://www.sony-europe.com">Sony</A> or
+<A HREF="http://www.thompson.com">Thomson</A>.
 
-<H3>System Requirements</H3>
-To compile and use this software, you will need:
+<H2>System Requirements</H2>
+Hardware requirements are a Pentium class PC and a Bt848 or Bt878 based
+TV tuner card.
+<P>
+Linux software requirements:
 <DL>
-<LI>Pentium class PC with a Bt848 or Bt878 based TV tuner card
-<LI>Linux with kernel &gt;= 2.0.35 and
-<A HREF="http://www.metzlerbros.de/bttv.html"> bttv driver</A> and
+<LI>kernel &gt;= 2.0.35 (upgrade to 2.2.x highly recommended for bttv users)
+<LI>
+<A HREF="http://www.metzlerbros.de/bttv.html">bttv driver</A>
+(version &gt;= 0.7.35 recommended) and
 <A HREF="http://roadrunner.swansea.uk.linux.org/v4l.shtml">video4linux</A>
 <LI>GNU C Compiler
-<LI>Tcl/Tk version 8.0 or later
-(<A HREF="ftp://www.scriptics.com/pub/tcl/">ftp://www.scriptics.com/pub/tcl/</A>)
+<LI>Tcl/Tk version 8.0 or later (8.3 recommended) available from
+<A HREF="ftp://www.scriptics.com/pub/tcl/">ftp://www.scriptics.com/pub/tcl/</A>
 </DL>
 <P>
-As of now, there's no supprt for Micro$oft Windows.
-Please read the file <A HREF="windows.txt">windows</A>
-
-<H3>Download</H3>
+Windows software requirements:
 <DL>
-<LI>Download the latest source distribution:
+<LI>Windows NT or Windows 95. Other variants may work too but are yet untested.
+<LI>On Windows NT: you need to be in the Admininstrator group.
+<LI>Kernel driver for Bt848 (download instructions see the README.txt inside the package)
+</DL>
+
+<H2>Download</H2>
+<B>Important note:</B> The links in this section lead to Tripod download pages:
+Just click on the hyper-link on these pages and wait for your browser to offer
+to save the file. Do <B>not</B> attempt to save the URL target before clicking
+on the link - you'd probably only download the download HTML page again. Sorry
+for this inconvenience.
+<DL>
+<LI>Download the latest stable source distribution for Linux:
 <A HREF=src/nxtvepg-0.3.4.tar.gz>nxtvepg-0.3.4.tar.gz</A> (160 kB)
-<P>
-<LI>In case of trouble, download the previous distribution:
-<A HREF=src/nxtvepg-0.3.3.tar.gz>nxtvepg-0.3.3.tar.gz</A> (150 kB)
 <P>
 <LI>If you do not receive any of the Nextview providers listed above,
 download the demo database <A HREF=src/nxtvdb-tv5.gz>nxtvdb-tv5.gz</A>
 and load it with the command line arguments <CODE>-demo nxtvdb-tv5</CODE>
-into nxtvepg (the copyright of this data is by <I>Swiss Tele+text</I> - please
+into nxtvepg (the copyright of this data is by <I>Swiss Tele text</I> - please
 do not redistribute). This option is available as of release 0.3.4.
+<P>
+<LI>Download pre-release
+<A HREF="src/nxtvepg-0.4.pre0.tar.gz">nxtvepg-0.4.pre0.tar.gz</A> (210 kB)
+<BR>New in this release: merging of provider databases, extended acquisition
+control and support for M$ Windows. Please note that this is not a normal
+release, but just a snapshot of work in progress. It should be stable, but
+some details may not yet be implemented. Please report any bugs that are
+not already listed in the TODO file.
+<P>
+<LI>Download binary pre-release for M$ Windows
+<A HREF="src/nxtvepg-win32-0.4.pre0.zip">nxtvepg-win32-0.4.pre0.zip</A> (820 kB)
+<BR>Note that you need an additional driver that is not included in this
+package. For download instructions see README.txt inside the zip file.
 </DL>
 
-<H3>Copyright</H3>
+<H2>Copyright</H2>
 &copy; Copyright 1999, 2000 by Thorsten <I>"Tom"</I> Z&ouml;rner (and others).
 All rights reserved.
+<P>
+The author of this site's software is not a member of the
+<A HREF="http://www.etsi.org">ETSI</A> - but he still hopes his efforts to
+promote Nextview usage are kindly tolerated.
 <P>
 This program is free software; you can redistribute it and/or modify
 it under the terms of the

@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: pifilter.c,v 1.26 2000/10/31 19:34:14 tom Exp tom $
+ *  $Id: pifilter.c,v 1.31 2000/12/21 19:48:40 tom Exp tom $
  */
 
 #define __PIFILTER_C
@@ -111,8 +111,9 @@ static int SelectThemes( ClientData ttp, Tcl_Interp *interp, int argc, char *arg
 static int SelectSortCrits( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
 {  
    const char * const pUsage = "Usage: SelectSortCrits <class 1..8> <list>";
+   char **pSortCritArgv;
    uchar usedClasses;
-   int class, sortcrit, idx;
+   int class, sortcrit, sortcritCount, idx;
    int result; 
    
    if ( (argc != 3)  || Tcl_GetInt(interp, argv[1], &class) ||
@@ -123,15 +124,15 @@ static int SelectSortCrits( ClientData ttp, Tcl_Interp *interp, int argc, char *
    }  
    else
    {
-      result = Tcl_SplitList(interp, argv[2], &argc, &argv);
+      result = Tcl_SplitList(interp, argv[2], &sortcritCount, &pSortCritArgv);
       if (result == TCL_OK)
       {
          class = 1 << (class - 1);
          usedClasses = EpgDbFilterInitSortCrit(pPiFilterContext, class);
 
-         for (idx=0; idx < argc; idx++)
+         for (idx=0; idx < sortcritCount; idx++)
          {
-            result = Tcl_GetInt(interp, argv[idx], &sortcrit);
+            result = Tcl_GetInt(interp, pSortCritArgv[idx], &sortcrit);
             if (result == TCL_OK)
             {
                EpgDbFilterSetSortCrit(pPiFilterContext, sortcrit, sortcrit, class);
@@ -140,12 +141,12 @@ static int SelectSortCrits( ClientData ttp, Tcl_Interp *interp, int argc, char *
                break;
          }
 
-         if ((argc > 0) || usedClasses)
+         if ((sortcritCount > 0) || usedClasses)
             EpgDbFilterEnable(pPiFilterContext, FILTER_SORTCRIT);
          else
             EpgDbFilterDisable(pPiFilterContext, FILTER_SORTCRIT);
 
-         Tcl_Free((char *) argv);
+         Tcl_Free((char *) pSortCritArgv);
       }
    }
 
@@ -1046,6 +1047,10 @@ void PiFilter_UpdateNetwopList( ClientData clientData )
 
    if (pPiFilterContext != NULL)
    {
+      // if db is now empty, display help message
+      // if db empty but acq not -> switch UI to acq db
+      PiListBox_UpdateState();
+
       EpgDbLockDatabase(dbc, TRUE);
       pAiBlock = EpgDbGetAi(dbc);
       if (pAiBlock != NULL)
@@ -1072,7 +1077,13 @@ void PiFilter_UpdateNetwopList( ClientData clientData )
             Tcl_Free((char *) argv);
          }
 
+         // in case the db state did not change, just re-sync with db
          PiListBox_Refresh();
+      }
+      else
+      {  // db now empty -> reset window title
+         sprintf(comm, "wm title . {Nextview EPG}\n");
+         eval_check(interp, comm);
       }
       EpgDbLockDatabase(dbc, FALSE);
    }

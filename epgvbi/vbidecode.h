@@ -1,5 +1,5 @@
 /*
- *  Nextview GUI: Execute commands and control status of the menu bar
+ *  Teletext decoder
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
@@ -11,28 +11,22 @@
  *  MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
+ *
  *  Description: see according C source file.
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: menucmd.h,v 1.6 2000/12/11 18:48:41 tom Exp tom $
+ *  $Id: vbidecode.h,v 1.13 2000/12/09 16:50:51 tom Exp tom $
  */
 
-#ifndef __MENUCMD_H
-#define __MENUCMD_H
+#ifndef __VBIDECODE_H
+#define __VBIDECODE_H
 
 
-void MenuCmd_Init( void );
-void OpenInitialDb( uint startUiCni );
-
-void MenuCmd_AddEpgScanMsg( char *pMsg );
-int  MenuCmd_StopEpgScan(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[]);
-
-#ifdef __EPGDBMERGE_H
-int  ProvMerge_ParseConfigString( Tcl_Interp *interp, uint *pCniCount, uint * pCniTab, MERGE_ATTRIB_VECTOR_PTR pMax );
-#endif
-int SetAcquisitionMode( void );
-int SetHardwareConfig( Tcl_Interp *interp, int cardIndex );
+// ---------------------------------------------------------------------------
+// Declaration of service interface functions
+//
+void VbiDecodeLine( const uchar *lbuf, int line, bool doVps );
 
 
-#endif  // __MENUCMD_H
+#endif // __VBIDECODE_H

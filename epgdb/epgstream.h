@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgstream.h,v 1.9 2000/06/24 18:04:04 tom Exp tom $
+ *  $Id: epgstream.h,v 1.10 2000/12/02 18:22:59 tom Exp tom $
  */
 
 #ifndef __EPGSTREAM_H
@@ -62,7 +62,7 @@ typedef struct
    uchar appID;
    uint  blockLen, recvLen;
    bool  haveBlock;
-   bool  haveHeader;
+   uint  haveHeader;
    uchar headerFragment[3];
    uchar blockBuf[NXTV_BLOCK_MAXLEN + 4];
 } NXTV_STREAM;

@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: mytypes.h,v 1.6 2000/09/20 10:58:09 tom Exp tom $
+ *  $Id: mytypes.h,v 1.8 2000/12/03 18:56:35 tom Exp tom $
  */
 
 #include <sys/types.h>
@@ -51,6 +51,8 @@ typedef   signed long slong;    // >=32 bit signed
 #define DEBUG_SWITCH_EPGDB       OFF
 #define DEBUG_SWITCH_EPGCTL      OFF
 #define DEBUG_SWITCH_EPGUI       OFF
+#define DEBUG_SWITCH_VBI         OFF
+#define DEBUG_SWITCH_TCL_BGERR   OFF
 
 // enable memory leak detection for debugging
 #define CHK_MALLOC               OFF

@@ -1,0 +1,5 @@
+
+#define RESOURCE_INCLUDED
+ 
+NXTVEPG_ICON     ICON    DISCARDABLE     "nxtvepg.ico"
+

@@ -19,43 +19,49 @@
 #
 #  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
 #
-#  $Id: Makefile,v 1.13 2000/10/29 00:07:57 tom Exp tom $
+#  $Id: Makefile,v 1.17 2000/12/26 20:06:50 tom Exp tom $
 #
+
+ifeq ($(OS),Windows_NT)
+# for Windows a separate makefile is used
+include Makefile.win32
+else
 
 IROOT   = /usr/local
 BINDIR  = $(IROOT)/bin
 MANDIR   =$(IROOT)/man/man1
 
 LDLIBS  = -ltk8.3 -ltcl8.3 -L/usr/X11R6/lib -lX11 -lm -ldl
-# use old TCL library version
-#LDLIBS  = -ltk4.2i -ltcl7.6i -L/usr/X11R6/lib -lX11 -lm -ldl
-#LDLIBS  = -ltk8.0 -ltcl8.0 -L/usr/X11R6/lib -lX11 -lm -ldl
 # use static libraries
-#LDLIBS  = libtk8.0.a libtcl8.0.a -lX11 -lm -ldl -L/usr/X11R6/lib
+#LDLIBS  = dbglib/libtk8.3.a dbglib/libtcl8.3.a -lX11 -lm -ldl -L/usr/X11R6/lib
 
 INCS   += -I. -I/usr/X11R6/include
 # path to Tcl/Tk headers, if not properly installed
-INCS   += -I/tom/tcl/tcl8.0/generic -I/tom/tcl/tk8.0/generic
+#INCS   += -I/usr/local/tcl/tcl8.0/generic -I/usr/local/tcl/tk8.0/generic
 
 # path to Tcl/Tk script library (Tk is usually in X11/lib/tk#.#)
 DEFS   += -DTK_LIBRARY_PATH=\"/usr/lib/tk8.3\"
 DEFS   += -DTCL_LIBRARY_PATH=\"/usr/lib/tcl8.3\"
 
 
-WARN    =
-#WARN   = -Wall -Wpointer-arith -Wnested-externs \
-#         -Werror -Wstrict-prototypes -Wmissing-prototypes
+#WARN    = -Wall -Wpointer-arith -Wnested-externs \
+#          -Werror -Wstrict-prototypes -Wmissing-prototypes
+WARN    = 
 CC      = gcc
-CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -O6
+CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -O
 
 # ----- don't change anything below ------------------------------------------
 
-OBJS    = epgctl/epgmain.o epgctl/debug.o epgctl/vbidecode.o epgctl/epgacqctl.o \
-          epgdb/epgdbacq.o epgdb/hamming.o epgdb/epgstream.o epgdb/epgtxtdump.o \
-          epgdb/epgdbmgmt.o epgdb/epgdbif.o epgdb/epgdbsav.o epgdb/epgdbfil.o \
-          epgdb/epgblock.o \
-          epgui/pilistbox.o epgui/epgui.o epgui/help.o epgui/pifilter.o \
-          epgui/statswin.o epgui/pdc_themes.o epgui/menucmd.o
+MODS    = epgctl/epgmain epgctl/debug epgctl/epgacqctl epgctl/epgctxctl \
+          epgvbi/vbidecode epgvbi/tvchan epgvbi/btdrv4linux epgvbi/hamming \
+          epgdb/epgdbacq epgdb/epgstream epgdb/epgtxtdump epgdb/epgdbsav \
+          epgdb/epgdbmgmt epgdb/epgdbif epgdb/epgdbfil epgdb/epgblock \
+          epgdb/epgdbmerge \
+          epgui/pilistbox epgui/epgui epgui/help epgui/pifilter \
+          epgui/statswin epgui/pdc_themes epgui/menucmd
+
+SRCS    = $(addsuffix .c, $(MODS))
+OBJS    = $(addsuffix .o, $(MODS))
 
 all: nxtvepg
 
@@ -72,7 +78,7 @@ install: all
 ##	$(CC) $(CFLAGS) -c *.c -o *.o
 
 tcl2c: tcl2c.c
-	$(CC) -o tcl2c tcl2c.c
+	$(CC) -O -o tcl2c tcl2c.c
 
 epgui/epgui.c: epgui/epgui.tcl tcl2c
 	egrep -v '^ *#' epgui/epgui.tcl | ./tcl2c epgui_tcl_script > epgui/epgui.c
@@ -88,8 +94,11 @@ clean:
 	-rm -f epgui/epgui.c epgui/help.c epgui/help.tcl
 
 depend:
-	makedepend $(INCS) -f Makefile epg*/*.[ch]
+	-rm -f Makefile.dep
+	makedepend $(INCS) -f Makefile.dep $(SRCS)
 
+include Makefile.dep
 
-# DO NOT DELETE THIS LINE -- make depend depends on it.
+# end UNIX specific part
+endif
 

@@ -24,7 +24,7 @@
 
 #include <stdio.h>
 
-#ifndef WIN32
+#if !defined(WIN32) && !defined(__CYGWIN__)
 
 main(int argc, char **argv)
 {
@@ -70,11 +70,19 @@ main(int argc, char **argv)
 	exit(1);
     }
 
-    printf("char %s[] = {\n", argv[1]);
-    for (n = 0; (c = getchar()) != EOF;)
-	printf("%u,%c", c, ((++n & 0xf) == 0) ? '\n' : ' ');
+    printf("unsigned char %s[] = {\n", argv[1]);
+    for (n = 0; (c = getchar()) != EOF; ) {
+        if (c == 0)
+        {
+            fprintf(stderr, "WARNING: null byte in file replaced with blank\n");
+            c = ' ';
+        }
+	printf("%u,%c", (unsigned int) c, ((++n & 0xf) == 0) ? '\n' : ' ');
+    }
 
-    printf("};\n");
+    /* don't forget to terminate the string with a null byte */
+    printf("\n0\n};\n");
+
     exit(0);
     /*NOTREACHED*/
 }

@@ -1,45 +1,96 @@
 Hi there,
 
 in this software package you find a decoder for Nextview - an Electronic
-Programme Guide for the analog domain (as opposed to the various digital EPGs
-that come with most digital broadcasts). It allows you to receive and browse
-TV programme listings for most of the major networks in Germany, France and
-Switzerland.
+TV Programme Guide for the analog domain (as opposed to the various digital
+EPGs that come with most digital broadcasts). It allows you to decode and
+browse TV programme listings for most of the major networks in Germany,
+Austria, France and Switzerland.
 
 Currently Nextview EPG is transmitted by:
-- in Germany and Austria: Pro7, 3Sat, RTL-II, EuroNews.
-- in Switzerland: TSR1 and others.
+- in Germany and Austria: Pro7, 3Sat, RTL-II.
+- in Switzerland: TSR1, EuroNews and others.
 - in France: Canal+, M6, TV5.
 
-If you don't receive any of those, then this software is useless to you.
+If you don't receive any of those, then this software is useless to you
+(except for a demo mode, see the documentation.)
 
-To compile and use this software, you need:
-- Pentium class PC with a Bt848 or Bt878 based TV tuner card
-- Linux with kernel >= 2.0.35 and bttv driver (video4linux)
+The Nextview standard was developed by the major European consumer electronics
+manufacturers under the hood of the European Telecommunications Standards
+Institute (http://www.etsi.org/) in 1995-1997. The author of this software
+has no connections whatsoever to the ETSI - but he still hopes it's kindly
+tolerated.
+
+
+System requirements:
+
+Hardware requirements are a Pentium class PC and a Bt848 or Bt878 based
+TV tuner card.
+
+Linux software requirements:
+- kernel >= 2.0.35 (upgrade to 2.2.x highly recommended for bttv users!)
+- bttv driver (video4linux), version >= 0.7.35 recommended
 - GNU C Compiler
-- Tcl/Tk version 8.0 or later (ftp://www.scriptics.com/pub/tcl/)
+- Tcl/Tk version 8.0 or later (8.3 recommended)
+  available from http://www.scriptics.com/
 
-As of now, there's no supprt for M$ Windows. Please read the file `Windows'.
+Windows software requirements:
+- Windows NT or Windows 95. Other variants may work too but are yet untested.
+- On Windows NT: you need to be in the Admininstrator group.
+- WinDriver version 4.0 or later, available from http://www.krftech.com/
+  This is *not* freeware, however there's a free 30 days evaluation version.
+  Note: there are patched versions of this driver which do not show the demo
+  message, e.g. at http://freetv.norix.de/ in the MultiDec package, but those
+  are probably not legal.
 
-Installation procedure:
+If you want to compile for Windows you also need:
+- CygWin GNU make and compiler, see http://www.cygwin.org/
+- Microsoft Visual C Compiler (Borland C probably works too)
+- Tcl/Tk 8.3.2, available from http://www.scriptics.com/
+- windrvr.h and windrvr_usb.h from the WinDriver package
+
+
+UNIX installation procedure:
+
 - Recommended: first install a TV application like xtvscreen or xawtv, or
-  preferrably a teletext decoder to be sure the video/vbi driver works fine.
+  preferrably a teletext decoder to be sure the video/vbi drivers work fine.
 - You MUST check the paths in the Makefile, esp. for Tcl/Tk
 - make
   if compilation fails, check the type definitions in epgctl/mytypes.h first.
   Required types are: schar, uchar, sint, uint, slong, ulong.
+- If you compile on a non-supported operating system or if you don't have
+  bttv, then compile epgvbi/btdrv4dummy instead of btdrv4linux; acquisition
+  will of course not be possible.
 - make install
+- Invoke the application and start a provider scan from the Configure menu.
+  Further details can be found in the man page.
 
 If the GUI shows up but does not react to any input, you probably
 need to tell Tcl/Tk where to find it's libraries. To do so, correct
 the paths in TCL_LIBRARY_PATH and TK_LIBRARY_PATH in the Makefile.
-
 If you need to change anything besides the Makefile, please let me
 know about it (i.e. send me the diffs)
 
-Before you email me, please check the manual page as well as the TODO
-and CHANGES files. The latest version of this software is available at:
 
+Windows installation procedure:
+
+- Unpack the zip file into a new directory.
+- Obtain the WinDriver (see above) and copy the .sys and .vxd files
+  into the same directory. If you installed the original WinDriver
+  package they can be found in WINNT/system32/drivers.
+- Invoke the executable nxtvepg.exe and follow the instructions in
+  "Getting Started" from the Help menu.
+
+
+
+Bug reports:
+
+Before you email me any bug reports, please check the manual page as well
+as the TODO and CHANGES files. Please recompile with the -g option in
+CFLAGS and enable all debug options in mytypes.h by assigning ON instead
+of OFF. Then try to reproduce your problem and send me resulting debug.out
+log file.
+
+The latest version of this software is available at:
 http://nxtvepg.tripod.com/
 
 

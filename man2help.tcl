@@ -23,7 +23,7 @@
 #
 #  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
 #
-#  $Id: man2help.tcl,v 1.3 2000/10/14 21:56:08 tom Exp tom $
+#  $Id: man2help.tcl,v 1.7 2000/12/26 20:25:13 tom Exp tom $
 #
 
 set started 0
@@ -48,12 +48,12 @@ while {[gets $manpage line] >= 0} {
       # ignore comments
    } elseif {[regexp {^\.SH (.*)} $line foo title]} {
       # skip the last chapters
-      if {[string equal "FILES" $title]} {
+      if {[string compare "FILES" $title] == 0} {
          break
       }
 
       # skip all chapters until "Getting started"
-      if {$started || [string equal "GETTING STARTED" $title]} {
+      if {$started || [string compare "INTRODUCTION" $title] == 0} {
          if {$started} {
             # save the text of the last paragraph
             puts stdout [list set helpTexts($index) $paragraph]
@@ -62,9 +62,19 @@ while {[gets $manpage line] >= 0} {
          # initialize new paragraph
          set started 1
          set style ""
-         set title [string totitle $title]
+         if {$tcl_version >= 8.3} {
+            set title [string totitle $title]
+         } else {
+            set title [string toupper [string index $title 0]][string tolower [string range $title 1 end]]
+         }
 
+         # append title to Help in the menubar
          puts stdout ".menubar.help insert $index command -label {$title} -command \{PopupHelp $index\}"
+
+         # build array of chapter names for access from help buttons in popups
+         puts stdout "set {helpIndex($title)} $index"
+
+         # put chapter heading at the front of the paragraph
          set paragraph [list "$title\n" title]
       }
    } else {
@@ -109,6 +119,7 @@ while {[gets $manpage line] >= 0} {
          }
          # remove backslashes before blanks (e.g. used in .BI lines)
          regsub -all -- {\\ } $line { } line
+         regsub -all -- {\\-} $line {-} line
          # remove quotes around complete argument to .BI
          regsub -all -- {^\"(.*)\"\s*$} $line {\1 } line
 

@@ -15,7 +15,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgmain.h,v 1.9.1.1 2000/11/16 21:26:38 tom Exp $
+ *  $Id: epgmain.h,v 1.13 2000/12/17 18:49:02 tom Exp tom $
  */
 
 #ifndef __EPGMAIN_H
@@ -25,12 +25,17 @@
 // local time offset (in minutes relative to GMT)
 extern sint lto;
 
+// software version in form of a string
+extern char *epg_version_str;
+extern char epg_rcs_id_str[];
+
 // Interface to Tcl/Tk interpreter for UI modules
 #ifdef _TCL
 extern Tcl_Interp *interp;
 extern char comm[1000];
 
 int eval_check(Tcl_Interp *i, char *c);
+int eval_global(Tcl_Interp *interp, char *cmd);
 #endif  // _TCL
 
 // Access to databases from UI and acq-ctl

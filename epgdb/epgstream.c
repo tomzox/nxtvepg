@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgstream.c,v 1.8 2000/09/17 19:48:34 tom Exp tom $
+ *  $Id: epgstream.c,v 1.10 2000/12/09 17:28:22 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -31,7 +31,7 @@
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
-#include "epgdb/hamming.h"
+#include "epgvbi/hamming.h"
 #include "epgdb/epgblock.h"
 #include "epgdb/epgdbif.h"
 #include "epgdb/epgtxtdump.h"
@@ -236,7 +236,8 @@ static uint EpgStreamComputeChkSum( uchar *pdat, uint len )
 static void EpgStreamCheckBlock( NXTV_STREAM * const psd, uchar stream )
 {
    schar c1, c2, c3, c4;
-   uint  type, ctrlLen, strLen, chkSum, myChkSum;
+   uchar type;
+   uint  ctrlLen, strLen, chkSum, myChkSum;
 
    if (psd->appID == 0)
    {  // Bundle Inventory (BI block)
@@ -306,9 +307,8 @@ static void EpgStreamCheckBlock( NXTV_STREAM * const psd, uchar stream )
 void EpgStreamDecodePacket( uchar packNo, const uchar * dat )
 {
    NXTV_STREAM * const psd = &streamData[streamOfPage];
-   schar blockPtr, bs;
    schar c1,c2,c3,c4;
-   uint  restLine;
+   uint  blockPtr, restLine;
 
    if ( (streamOfPage < NXTV_NO_STREAM) &&
         (packNo <= streamData[streamOfPage].pkgCount) )
@@ -322,9 +322,9 @@ void EpgStreamDecodePacket( uchar packNo, const uchar * dat )
       }
       psd->lastPkg = packNo;
 
-      if ( UnHam84Nibble(dat, &blockPtr) && (blockPtr <= 0x0d) )
+      if ( UnHam84Nibble(dat, &c1) && (c1 <= 0x0d) )
       {
-         blockPtr = 1 + 3 * blockPtr;
+         blockPtr = 1 + 3 * c1;
 
          if (psd->haveHeader)
          {  // continuation of the header fragment in the last packet
@@ -399,7 +399,7 @@ void EpgStreamDecodePacket( uchar packNo, const uchar * dat )
 
          while (blockPtr < 40)
          {  // start of at least one new structure in this packet
-            if ( UnHam84Nibble(dat + blockPtr, &bs) && (bs == 0x0c) )
+            if ( UnHam84Nibble(dat + blockPtr, &c1) && (c1 == 0x0c) )
             {
                if (blockPtr >= 36)
                {  // part of the header is in the next packet
@@ -437,7 +437,7 @@ void EpgStreamDecodePacket( uchar packNo, const uchar * dat )
                         psd->haveHeader = FALSE;
                         psd->haveBlock = FALSE;
                         // Filler bytes ueberspringen
-                        while ((blockPtr < 40) && UnHam84Nibble(dat + blockPtr, &bs) && (bs == 0x03))
+                        while ((blockPtr < 40) && UnHam84Nibble(dat + blockPtr, &c1) && (c1 == 0x03))
                         {
                            dprintf2("pkg=%d, BP=%d: skipping filler byte\n", packNo, blockPtr);
                            blockPtr += 1;
@@ -455,7 +455,7 @@ void EpgStreamDecodePacket( uchar packNo, const uchar * dat )
             }
             else
             {  // decoding error - skip this packet
-               debug3("struct header error: appID=%x blockLen=%x bs=%x - skipping block", psd->appID, psd->blockLen, bs);
+               debug3("struct header error: appID=%x blockLen=%x bs=%x - skipping block", psd->appID, psd->blockLen, c1);
                psd->haveHeader = FALSE;
                psd->haveBlock = FALSE;
                blockPtr = 40;
@@ -464,7 +464,7 @@ void EpgStreamDecodePacket( uchar packNo, const uchar * dat )
       }
       else
       {
-         debug2("hamming error in BP=%x - discard packet %d", blockPtr, packNo);
+         debug2("hamming error in BP=%x - discard packet %d", c1, packNo);
          psd->haveHeader = FALSE;
          psd->haveBlock = FALSE;
       }

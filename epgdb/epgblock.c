@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgblock.c,v 1.23 2000/11/01 09:28:25 tom Exp tom $
+ *  $Id: epgblock.c,v 1.28 2000/12/17 18:38:22 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -61,7 +61,7 @@ void EpgBlockSetAlphabets( const AI_BLOCK *pAiBlock )
 // ----------------------------------------------------------------------------
 // Allocate a new block and initialize the common elements
 //
-static EPGDB_BLOCK * EpgBlockCreate( uchar type, uint size )
+EPGDB_BLOCK * EpgBlockCreate( uchar type, uint size )
 {
    EPGDB_BLOCK *pBlock;
 
@@ -70,12 +70,16 @@ static EPGDB_BLOCK * EpgBlockCreate( uchar type, uint size )
    pBlock->pNextBlock       = NULL;
    pBlock->pPrevBlock       = NULL;
    pBlock->pNextNetwopBlock = NULL;
+   pBlock->pPrevNetwopBlock = NULL;
 
    pBlock->type = type;
    pBlock->size = size;
 
    pBlock->version = 0xff;
    pBlock->stream = 0xff;
+
+   time(&pBlock->acqTimestamp);
+   pBlock->acqRepCount = 1;
 
    return pBlock;
 }
@@ -197,16 +201,13 @@ static void SetStartAndStopTime(uint bcdStart, uint julian, uint bcdStop, time_t
    tm.tm_sec   = 0;
    tm.tm_min   = startMoD % 60;
    tm.tm_hour  = startMoD / 60;
-   #ifdef WIN32
-   tm.tm_isdst = _daylight;  // initialized by _tzset() at start-up
-   #else
-   tm.tm_isdst = 0;
-   #endif
+   tm.tm_isdst = -1;           // let mktime() determine daylight at this date
 
    GetDateFromJulian(&tm, julian);
 
    // add UTC offset because mktime expects localtime but gets UTC
-   *pStartTime = mktime(&tm) - timezone;
+   // this is a gross hack that's only needed because there's no pendant to gmtime()
+   *pStartTime = mktime(&tm) - timezone + 60*60 * tm.tm_isdst;
 
    *pStopTime  = *pStartTime + (stopMoD - startMoD) * 60;
 }
@@ -384,10 +385,10 @@ static uchar GetG0Char(uchar val, uchar alphabeth)
 static uchar * ApplyEscapes(const uchar *pText, uint textLen, const uchar *pEscapes, uchar escCount, uchar netwop)
 {
    uchar *pout, *po;
-   uint  data, escIdx, nextEsc;
+   uint  escIdx, nextEsc;
    uint  i, linePos, strLen;
    bool  lastWhite;
-   uchar alphabet;
+   uchar data, alphabet;
 
    // get default alphabet for the actual netwop
    if (netwop < MAX_NETWOP_COUNT)

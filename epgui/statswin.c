@@ -23,7 +23,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: statswin.c,v 1.19 2000/09/21 14:51:27 tom Exp tom $
+ *  $Id: statswin.c,v 1.21 2000/12/02 12:03:19 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -115,21 +115,25 @@ static void StatsWin_HighlightNetwop( int target, uchar netwop, uchar stream )
    if ( (netwop != tscaleState[target].highlighted) ||
         (stream != tscaleState[target].lastStream) )
    {
+      // remove the highlighting from the previous netwop
       if (tscaleState[target].highlighted != 0xff)
       {
          sprintf(comm, "%s.top.n%d.name config -bg $default_bg\n", tscn[target], tscaleState[target].highlighted);
-         eval_check(interp, comm);
+         eval_global(interp, comm);
+
+         tscaleState[target].highlighted = 0xff;
       }
 
+      // highlight the new netwop
       if (stream < 2)
       {
          sprintf(comm, "%s.top.n%d.name config -bg %s\n",
                        tscn[target], netwop, (stream == 0) ? "#ffc0c0" : "#c0c0ff");
          eval_check(interp, comm);
-      }
 
-      tscaleState[target].highlighted = netwop;
-      tscaleState[target].lastStream  = stream;
+         tscaleState[target].highlighted = netwop;
+         tscaleState[target].lastStream  = stream;
+      }
    }
 }
 
@@ -159,25 +163,22 @@ void StatsWin_NewPi( EPGDB_CONTEXT * dbc, const PI_BLOCK *pPi, uchar stream )
       {
          pNetwop = AI_GET_NETWOP_N(pAi, pPi->netwop_no);
          blockOff = EpgDbGetPiBlockIndex(pNetwop->startNo, pPi->block_no);
-         if (blockOff < EpgDbGetPiBlockCount(pNetwop->startNo, pNetwop->stopNoSwo))
+         if (blockOff < 5)
          {
-            if (blockOff < 5)
-            {
-               sprintf(comm, "TimeScale_MarkNow %s.top.n%d %d %s\n",
-                             tscn[target], pPi->netwop_no, blockOff,
-                             (pPi->stop_time >= now) ? streamColors[0] : streamColors[4]);
-               eval_check(interp, comm);
-            }
+            sprintf(comm, "TimeScale_MarkNow %s.top.n%d %d %s\n",
+                          tscn[target], pPi->netwop_no, blockOff,
+                          (pPi->stop_time >= now) ? streamColors[0] : streamColors[4]);
+            eval_check(interp, comm);
+         }
 
-            if (EpgDbSearchObsoletePi(dbc, pPi->netwop_no, pPi->start_time, pPi->stop_time) != NULL)
-            {  // conflict with other block -> mark as faulty
-               StatsWin_DisplayPi(target, pPi->netwop_no, 4, pPi->start_time, pPi->stop_time, TRUE, TRUE);
-            }
-            else
-            {
-               StatsWin_DisplayPi(target, pPi->netwop_no, stream, pPi->start_time, pPi->stop_time,
-                                  (bool)(pPi->short_info_length>0), (bool)(pPi->long_info_length>0));
-            }
+         if (EpgDbSearchObsoletePi(dbc, pPi->netwop_no, pPi->start_time, pPi->stop_time) != NULL)
+         {  // conflict with other block -> mark as faulty
+            StatsWin_DisplayPi(target, pPi->netwop_no, 4, pPi->start_time, pPi->stop_time, TRUE, TRUE);
+         }
+         else
+         {
+            StatsWin_DisplayPi(target, pPi->netwop_no, stream, pPi->start_time, pPi->stop_time,
+                               (bool)(pPi->short_info_length>0), (bool)(pPi->long_info_length>0));
          }
 
          StatsWin_HighlightNetwop(target, pPi->netwop_no, stream);
@@ -264,6 +265,7 @@ static void StatsWin_DisplayAcqStats( ClientData clientData )
                           "Block count db:   %ld (%ld + %ld swo + %ld exp)\n"
                           "current version:  %ld (%ld + %ld swo + %ld exp)\n"
                           "Blocks in AI:     %ld (%d%%/%d%% complete)\n"
+                          "Network variance: %1.2f / %1.2f\n"
                           "                                              \"",
                           netname,
                           version, versionSwo,
@@ -273,12 +275,13 @@ static void StatsWin_DisplayAcqStats( ClientData clientData )
                           ((sv->ttxPkgCount > 0) ? ((double)sv->epgPkgCount*100.0/sv->ttxPkgCount) : 0.0),
                           ((double)sv->epgPagCount / duration),
                           sv->aiCount,
-                          sv->minAiDistance, sv->avgAiDistance, sv->maxAiDistance,
+                          (int)sv->minAiDistance, sv->avgAiDistance, (int)sv->maxAiDistance,
                           allVersionsCount, sv->count[0].allVersions, sv->count[1].allVersions, sv->count[0].obsolete + sv->count[1].obsolete,
                           curVersionCount, sv->count[0].curVersion, sv->count[1].curVersion, sv->count[0].obsolete + sv->count[1].obsolete,
                           total,
                           ((total > 0) ? (int)((double)allVersionsCount * 100.0 / total) : 0),
-                          ((total > 0) ? (int)((double)curVersionCount * 100.0 / total) : 0)
+                          ((total > 0) ? (int)((double)curVersionCount * 100.0 / total) : 0),
+                          sv->count[0].variance, sv->count[1].variance
                    );
             eval_check(interp, comm);
          }
@@ -439,7 +442,9 @@ static void StatsWin_Load( int target, EPGDB_CONTEXT *dbc )
    // display summary at the bottom of the window
    sprintf(comm, "%s.bottom.l configure -text {%s database %d%% complete.}\n",
                  tscn[target],
-                 ((pAi != NULL) ? (char*)AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop) : ""),
+                 (EpgDbContextIsMerged(dbc) ?
+                   "Merged" :
+                   ((pAi != NULL) ? (char*)AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop) : "")),
                  ((total > 0) ? (int)((double)bsum * 100 / total) : 0));
    eval_check(interp, comm);
 
@@ -467,6 +472,7 @@ static void StatsWin_RebuildCanvas( ClientData clientData )
          // remove the previous timescales
          sprintf(comm, "foreach temp [info command %s.top.n*] {pack forget $temp; destroy $temp}\n", tscn[target]);
          eval_check(interp, comm);
+         tscaleState[target].highlighted = 0xff;
 
          // create the timescales anew
          EpgDbLockDatabase(dbc, TRUE);
@@ -524,10 +530,10 @@ static void StatsWin_BuildCanvas( int target, EPGDB_CONTEXT *dbc )
    {
       sprintf(comm, "toplevel %s\n"
                     "wm title %s {Nextview database timescales}\n"
-                    "wm resizable . 0 0\n"
+                    "wm resizable %s 0 0\n"
                     "wm group %s .\n"
                     "frame %s.top\n",
-                    tscn[target], tscn[target], tscn[target], tscn[target]);
+                    tscn[target], tscn[target], tscn[target], tscn[target], tscn[target]);
       eval_check(interp, comm);
 
       pNetwops = AI_GET_NETWOPS(pAi);
@@ -570,7 +576,7 @@ static int StatsWin_ToggleTimescale( ClientData ttp, Tcl_Interp *interp, int arg
 
    if ((argc == 2) || (argc == 3))
    {
-      // dtermine target from first parameter: ui or acq db context
+      // determine target from first parameter: ui or acq db context
       if (!strcmp(argv[1], "ui"))
       {
          dbc = pUiDbContext;

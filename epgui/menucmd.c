@@ -17,7 +17,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: menucmd.c,v 1.13.1.1 2000/11/16 21:33:07 tom Exp $
+ *  $Id: menucmd.c,v 1.25 2000/12/26 16:04:54 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -25,6 +25,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>
 #include <time.h>
 #include <errno.h>
 
@@ -39,12 +40,16 @@
 #include "epgdb/epgdbif.h"
 #include "epgdb/epgdbsav.h"
 #include "epgdb/epgtxtdump.h"
+#include "epgdb/epgdbmerge.h"
 #include "epgctl/epgmain.h"
 #include "epgctl/epgacqctl.h"
+#include "epgctl/epgctxctl.h"
 #include "epgui/pilistbox.h"
 #include "epgui/pifilter.h"
 #include "epgui/statswin.h"
 #include "epgui/menucmd.h"
+#include "epgvbi/vbidecode.h"
+#include "epgvbi/btdrv.h"
 
 
 // ----------------------------------------------------------------------------
@@ -53,6 +58,7 @@
 static int SetControlMenuStates(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
 {
    const char * const pUsage = "Usage: C_SetControlMenuStates";
+   uint acqCni, uiCni;
    int result;
 
    if (argc != 1)
@@ -62,24 +68,27 @@ static int SetControlMenuStates(ClientData ttp, Tcl_Interp *interp, int argc, ch
    }
    else
    {
+      acqCni = EpgDbContextGetCni(pAcqDbContext);
+      uiCni  = EpgDbContextGetCni(pUiDbContext);
+
       // enable "dump database" only if UI database has at least an AI block
-      sprintf(comm, ".menubar.ctrl entryconfigure 2 -state %s\n",
-                    ((EpgDbContextGetCni(pUiDbContext) != 0) ? "normal" : "disabled"));
+      sprintf(comm, ".menubar.ctrl entryconfigure \"Dump database...\" -state %s\n",
+                    ((uiCni != 0) ? "normal" : "disabled"));
       eval_check(interp, comm);
 
       // enable "timescales" only if UI database has AI block
-      sprintf(comm, ".menubar.ctrl entryconfigure 4 -state %s\n",
-                    ((EpgDbContextGetCni(pUiDbContext) != 0) ? "normal" : "disabled"));
+      sprintf(comm, ".menubar.ctrl entryconfigure \"View timescales...\" -state %s\n",
+                    ((uiCni != 0) ? "normal" : "disabled"));
       eval_check(interp, comm);
 
       // enable "acq timescales" only if acq running on different db than ui
-      sprintf(comm, ".menubar.ctrl entryconfigure 5 -state %s\n",
-                    (((EpgDbContextGetCni(pAcqDbContext) != 0) && (pAcqDbContext != pUiDbContext)) ? "normal" : "disabled"));
+      sprintf(comm, ".menubar.ctrl entryconfigure \"View acq timescales...\" -state %s\n",
+                    (((acqCni != 0) && (acqCni != uiCni)) ? "normal" : "disabled"));
       eval_check(interp, comm);
 
       // enable "acq stats" only if acq running
-      sprintf(comm, ".menubar.ctrl entryconfigure 6 -state %s\n",
-                    ((EpgDbContextGetCni(pAcqDbContext) != 0) ? "normal" : "disabled"));
+      sprintf(comm, ".menubar.ctrl entryconfigure \"Acq Statistics...\" -state %s\n",
+                    ((acqCni != 0) ? "normal" : "disabled"));
       eval_check(interp, comm);
 
       // check button of "Enable Acq" if acq is running
@@ -125,7 +134,7 @@ static int MenuCmd_ToggleDumpStream(ClientData ttp, Tcl_Interp *interp, int argc
 static int MenuCmd_ToggleAcq(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
 {
    const char * const pUsage = "Usage: C_ToggleAcq <boolean>";
-   uint value;
+   int value;
    int result;
 
    if (argc != 2)
@@ -141,11 +150,13 @@ static int MenuCmd_ToggleAcq(ClientData ttp, Tcl_Interp *interp, int argc, char 
    {
       if (EpgAcqCtl_Toggle(value) != value)
       {
+         #ifndef WIN32  //is handled by bt-driver in win32
          sprintf(comm, "tk_messageBox -type ok -icon error "
                        "-message {Failed to %s acquisition. "
                                  "Close all other video applications and try again.}\n",
                        (value ? "start" : "stop"));
          eval_check(interp, comm);
+         #endif
       }
       // update help message in listbox if database is empty
       PiListBox_UpdateState();
@@ -161,9 +172,9 @@ static int MenuCmd_ToggleAcq(ClientData ttp, Tcl_Interp *interp, int argc, char 
 //
 static int MenuCmd_DumpDatabase(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
 {
-   const char * const pUsage = "Usage: C_DumpDatabase <file-name> <pi=0/1> <ai=0/1> <bi=0/1>"
+   const char * const pUsage = "Usage: C_DumpDatabase <file-name> <pi=0/1> <xi=0/1> <ai=0/1>"
                                               " <ni=0/1> <oi=0/1> <mi=0/1> <li=0/1> <ti=0/1>";
-   int do_pi, do_ai, do_bi, do_ni, do_oi, do_mi, do_li, do_ti;
+   int do_pi, do_xi, do_ai, do_ni, do_oi, do_mi, do_li, do_ti;
    FILE *fp;
    int result;
 
@@ -173,8 +184,8 @@ static int MenuCmd_DumpDatabase(ClientData ttp, Tcl_Interp *interp, int argc, ch
       result = TCL_ERROR;
    }
    else if ( Tcl_GetBoolean(interp, argv[2], &do_pi) || 
-             Tcl_GetBoolean(interp, argv[3], &do_ai) || 
-             Tcl_GetBoolean(interp, argv[4], &do_bi) || 
+             Tcl_GetBoolean(interp, argv[3], &do_xi) || 
+             Tcl_GetBoolean(interp, argv[4], &do_ai) || 
              Tcl_GetBoolean(interp, argv[5], &do_ni) || 
              Tcl_GetBoolean(interp, argv[6], &do_oi) || 
              Tcl_GetBoolean(interp, argv[7], &do_mi) || 
@@ -192,7 +203,8 @@ static int MenuCmd_DumpDatabase(ClientData ttp, Tcl_Interp *interp, int argc, ch
 
       if (fp != NULL)
       {
-         EpgTxtDump_Database(pUiDbContext, fp, do_pi, do_ai, do_bi, do_ni, do_oi, do_mi, do_li, do_ti);
+         EpgTxtDump_Database(pUiDbContext, fp, (bool)do_pi, (bool)do_xi, (bool)do_ai, (bool)do_ni,
+                                               (bool)do_oi, (bool)do_mi, (bool)do_li, (bool)do_ti);
          if (fp != stdout)
             fclose(fp);
          result = TCL_OK;
@@ -209,113 +221,15 @@ static int MenuCmd_DumpDatabase(ClientData ttp, Tcl_Interp *interp, int argc, ch
 }
 
 // ----------------------------------------------------------------------------
-// Show the info for a selected provider in the Provider Window
+// Switch the provider for the browser
+// - only used for the provider selection pop,
+//   not for the initial selection nor for provider merging
 //
-static void ProvWin_UpdateInfo( const EPGDBSAV_PEEK *pPeek )
+static int MenuCmd_ChangeProvider(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
 {
-   uchar netwop;
-
-   if ((pPeek != NULL) && (pPeek->pAiBlock != NULL))
-   {
-      // update the service name
-      sprintf(comm, "set provwin_servicename {%s}\n", AI_GET_SERVICENAME(&pPeek->pAiBlock->blk.ai));
-      eval_check(interp, comm);
-
-      // remove the old netwop list
-      sprintf(comm, ".provwin.n.info.net.list configure -state normal\n"
-                    ".provwin.n.info.net.list delete 1.0 end\n");
-      eval_check(interp, comm);
-
-      for ( netwop = 0; netwop < pPeek->pAiBlock->blk.ai.netwopCount; netwop++ ) 
-      {
-         sprintf(comm, ".provwin.n.info.net.list insert end {%s%s}\n",
-                       AI_GET_NETWOP_NAME(&pPeek->pAiBlock->blk.ai, netwop),
-                       ((netwop == pPeek->pAiBlock->blk.ai.netwopCount - 1) ? "" : ", "));
-         eval_check(interp, comm);
-      }
-
-      sprintf(comm, ".provwin.n.info.net.list configure -state disabled\n");
-      eval_check(interp, comm);
-   }
-}
-
-// ----------------------------------------------------------------------------
-// Provider window opened -> fill with list of providers
-//
-static int ProvWin_Open(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
-{
-   const char * const pUsage = "Usage: C_ProvWin_Open";
-   const EPGDBSAV_PEEK *pPeek;
-   const AI_BLOCK *pDbAi;
-   uint cni, dbCni;
-   int index;
-   int result;
-
-   if (argc != 1)
-   {  // parameter count is invalid
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR;
-   }
-   else
-   {
-      result = TCL_OK;
-
-      // get the CNI of the currently used database
-      EpgDbLockDatabase(pUiDbContext, TRUE);
-      pDbAi = EpgDbGetAi(pUiDbContext);
-      if (pDbAi != NULL)
-         dbCni = AI_GET_NETWOP_N(pDbAi, pDbAi->thisNetwop)->cni;
-      else
-         dbCni = 0;
-      EpgDbLockDatabase(pUiDbContext, FALSE);
-
-      index = 0;
-      while ( (cni = EpgDbReloadScan(index)) != 0 )
-      {
-         pPeek = EpgDbPeek(cni);
-         if (pPeek != NULL)
-         {
-            assert(cni == AI_GET_NETWOP_N(&pPeek->pAiBlock->blk.ai, pPeek->pAiBlock->blk.ai.thisNetwop)->cni);
-
-            sprintf(comm, "set provwin_list(%d) 0x%04X\n", index, cni);
-            eval_check(interp, comm);
-
-            // add name of provider's network to the listbox
-            sprintf(comm, ".provwin.n.b.list insert end {%s}\n",
-                          AI_GET_NETWOP_NAME(&pPeek->pAiBlock->blk.ai, pPeek->pAiBlock->blk.ai.thisNetwop));
-            eval_check(interp, comm);
-
-            // select the currently active provider's entry in the listbox
-            if (dbCni == cni)
-            {
-               sprintf(comm, ".provwin.n.b.list selection set %d\n", index);
-               eval_check(interp, comm);
-
-               ProvWin_UpdateInfo(pPeek);
-            }
-
-            EpgDbPeekDestroy(pPeek);
-         }
-         else
-            break;
-
-         index += 1;
-      }
-   }
-
-   return result;
-}
-
-// ----------------------------------------------------------------------------
-// Provider selected for info
-//
-static int ProvWin_Select(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
-{
-   const char * const pUsage = "Usage: C_ProvWin_Select <prov-idx>";
-   const EPGDBSAV_PEEK *pPeek;
-   char *cni_str;
-   uint cni;
-   int index;
+   const char * const pUsage = "Usage: C_ChangeProvider <cni>";
+   uint oldAcqCni;
+   int cni;
    int result;
 
    if (argc != 2)
@@ -323,31 +237,42 @@ static int ProvWin_Select(ClientData ttp, Tcl_Interp *interp, int argc, char *ar
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
    }
-   else if ( Tcl_GetInt(interp, argv[1], &index) )
-   {  // the parameter is not an integer
-      result = TCL_ERROR;
-   }
    else
    {
-      sprintf(comm, "%d", index);
-      cni_str = Tcl_GetVar2(interp, "provwin_list", comm, TCL_GLOBAL_ONLY);
-      if ((cni_str != NULL) && (Tcl_GetInt(interp, cni_str, &cni) == TCL_OK))
+      // get the CNI of the selected provider
+      if (Tcl_GetInt(interp, argv[1], &cni) == TCL_OK)
       {
-         pPeek = EpgDbPeek(cni);
-         if (pPeek != NULL)
-         {
-            //sprintf(comm, ".provwin.n.b.list selection set %d\n", index);
-            //eval_check(interp, comm);
+         oldAcqCni = EpgDbContextGetCni(pAcqDbContext);
 
-            ProvWin_UpdateInfo(pPeek);
+         EpgContextCtl_Close(pUiDbContext);
+         pUiDbContext = EpgContextCtl_Open(cni);
 
-            EpgDbPeekDestroy(pPeek);
-         }
+         // in case follow-ui acq mode is used, change the acq db too
+         EpgAcqCtl_UiProvChange();
+
+         StatsWin_ProvChange(DB_TARGET_UI);
+
+         // note that acq db may change in parallel, if there is no EPG
+         // reception on the current channel; this is to avoid uselessly
+         // keeping a 2nd db open
+         if (oldAcqCni != EpgDbContextGetCni(pAcqDbContext))
+            StatsWin_ProvChange(DB_TARGET_ACQ);
+
+         PiFilter_UpdateNetwopList(NULL);
+         eval_check(interp, "C_ResetFilter all; ResetFilterState");
+
+         PiListBox_UpdateState();
+         PiListBox_Reset();
+
+         // put the new CNI at the front of the selection order and update the config file
+         sprintf(comm, "UpdateProvSelection 0x%04X\n", cni);
+         eval_check(interp, comm);
+
          result = TCL_OK;
       }
       else
       {
-         sprintf(comm, "C_ProvWin_Select: no provider found at index %d", index);
+         sprintf(comm, "C_ChangeProvider: provider 0x%04X not found", cni);
          Tcl_SetResult(interp, comm, TCL_VOLATILE);
          result = TCL_ERROR;
       }
@@ -357,62 +282,480 @@ static int ProvWin_Select(ClientData ttp, Tcl_Interp *interp, int argc, char *ar
 }
 
 // ----------------------------------------------------------------------------
-// Provider window closed -> change provider
+// Return service name and list of networks of the given database
+// - used by provider selection popup
 //
-static int ProvWin_Exit(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+static int MenuCmd_GetServiceNameAndNetwopList(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
 {
-   const char * const pUsage = "Usage: C_ProvWin_Exit [<prov-idx>]";
-   int cni, oldAcqCni;
-   char *cni_str;
-   int index;
+   const char * const pUsage = "Usage: C_GetServiceNameAndNetwopList <cni>";
+   const EPGDBSAV_PEEK *pPeek;
+   int cni, netwop;
    int result;
 
-   if ((argc != 1) && (argc != 2))
+   if (argc != 2)
    {  // parameter count is invalid
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
    }
+   else if ( Tcl_GetInt(interp, argv[1], &cni) )
+   {  // the parameter is not an integer
+      result = TCL_ERROR;
+   }
    else
    {
-      result = TCL_OK;
-
-      // get the index of the selected provider, or -1 if none
-      if ((argc == 2) && (Tcl_GetInt(interp, argv[1], &index) == TCL_OK) && (index != -1))
+      pPeek = EpgDbPeek(cni, NULL);
+      if (pPeek != NULL)
       {
-         sprintf(comm, "%d", index);
-         cni_str = Tcl_GetVar2(interp, "provwin_list", comm, TCL_GLOBAL_ONLY);
-         if ((cni_str != NULL) && (Tcl_GetInt(interp, cni_str, &cni) == TCL_OK))
+         // first element in return list is the service name
+         Tcl_AppendElement(interp, AI_GET_SERVICENAME(&pPeek->pAiBlock->blk.ai));
+
+         // append names of all netwops
+         for ( netwop = 0; netwop < pPeek->pAiBlock->blk.ai.netwopCount; netwop++ ) 
          {
-            oldAcqCni = EpgDbContextGetCni(pAcqDbContext);
-
-            EpgAcqCtl_CloseDb(DB_TARGET_UI);
-            EpgAcqCtl_OpenDb(DB_TARGET_UI, cni);
-
-            StatsWin_ProvChange(DB_TARGET_UI);
-
-            // note that acq db may change in parallel, if there is no EPG
-            // reception on the current channel; this is to avoid uselessly
-            // keeping a 2nd db open
-            if (oldAcqCni != EpgDbContextGetCni(pAcqDbContext))
-               StatsWin_ProvChange(DB_TARGET_ACQ);
-
-            PiFilter_UpdateNetwopList(NULL);
-            eval_check(interp, "C_ResetFilter all; ResetFilterState");
-
-            PiListBox_UpdateState();
-            PiListBox_Reset();
-
-            // put the new CNI at the front of the selection order and update the config file
-            sprintf(comm, "UpdateProvSelection 0x%04X\n", cni);
-            eval_check(interp, comm);
+            Tcl_AppendElement(interp, AI_GET_NETWOP_NAME(&pPeek->pAiBlock->blk.ai, netwop));
          }
+
+         EpgDbPeekDestroy(pPeek);
+
+         result = TCL_OK;
+      }
+      else
+      {
+         sprintf(comm, "C_GetServiceNameAndNetwopList: provider 0x%04X not found", cni);
+         Tcl_SetResult(interp, comm, TCL_VOLATILE);
+         result = TCL_ERROR;
       }
    }
 
    return result;
 }
 
-#ifndef WIN32
+// ----------------------------------------------------------------------------
+// Return the CNI of the database currenlty open for the browser
+// - used by provider selection popup
+// - result is 0 if none is opened or 0x00ff for the merged db
+//
+static int MenuCmd_GetCurrentDatabaseCni(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+{
+   const char * const pUsage = "Usage: C_GetCurrentDatabaseCni";
+   uint dbCni;
+   int result;
+
+   if (argc != 1)
+   {  // parameter count is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else
+   {  // return the CNI of the currently used browser database
+      dbCni = EpgDbContextGetCni(pUiDbContext);
+
+      sprintf(comm, "0x%04X", dbCni);
+      Tcl_SetResult(interp, comm, TCL_VOLATILE);
+
+      result = TCL_OK;
+   }
+
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Get list of provider CNIs and names
+// - for provider selection and merge popup
+//
+static int MenuCmd_GetProvCnisAndNames(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+{
+   const char * const pUsage = "Usage: C_GetProvCnisAndNames";
+   const EPGDBSAV_PEEK *pPeek;
+   uint index, cni;
+   int result;
+
+   if (argc != 1)
+   {  // parameter count is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else
+   {
+      index = 0;
+      while ( (cni = EpgDbReloadScan(index)) != 0 )
+      {
+         pPeek = EpgDbPeek(cni, NULL);
+         if (pPeek != NULL)
+         {
+            sprintf(comm, "0x%04X", cni);
+            Tcl_AppendElement(interp, comm);
+            Tcl_AppendElement(interp, AI_GET_NETWOP_NAME(&pPeek->pAiBlock->blk.ai, pPeek->pAiBlock->blk.ai.thisNetwop));
+
+            EpgDbPeekDestroy(pPeek);
+         }
+         index += 1;
+      }
+      result = TCL_OK;
+   }
+
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Parse the Tcl provider merge config string and convert it to attribute matrix
+//
+int ProvMerge_ParseConfigString( Tcl_Interp *interp, uint *pCniCount, uint * pCniTab, MERGE_ATTRIB_VECTOR_PTR pMax )
+{
+   char **pCniArgv, **pAttrArgv, **pIdxArgv;
+   uint attrCount, idxCount, idx, idx2, ati, matIdx, cni;
+   char * pTmpStr;
+   int result;
+
+   pTmpStr = Tcl_GetVar(interp, "prov_merge_cnis", TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG);
+   if (pTmpStr != NULL)
+   {
+      // parse CNI list, format: {0x0d94, ...}
+      result = Tcl_SplitList(interp, pTmpStr, pCniCount, &pCniArgv);
+      if (result == TCL_OK)
+      {
+         if (*pCniCount > MAX_MERGED_DB_COUNT)
+            *pCniCount = MAX_MERGED_DB_COUNT;
+
+         for (idx=0; (idx < *pCniCount) && (result == TCL_OK); idx++)
+         {
+            result = Tcl_GetInt(interp, pCniArgv[idx], pCniTab + idx);
+         }
+         Tcl_Free((char *) pCniArgv);
+
+         if (result == TCL_OK)
+         {  // continue only if all CNIs could be parsed
+
+            // parse attribute list, format is pairs of keyword and index list: {key {3 1 2} ...}
+            pTmpStr = Tcl_GetVar(interp, "prov_merge_cf", TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG);
+            if (pTmpStr != NULL)
+            {
+               result = Tcl_SplitList(interp, pTmpStr, &attrCount, &pAttrArgv);
+               if (result == TCL_OK)
+               {
+                  // initialize the attribute matrix with default index order: 0,1,2,...,n-1,0xff,...
+                  memset(pMax, 0xff, sizeof(MERGE_ATTRIB_MATRIX));
+                  for (ati=0; ati < MERGE_TYPE_COUNT; ati++)
+                     for (idx=0; idx < *pCniCount; idx++)
+                        pMax[ati][idx] = idx;
+
+                  for (ati=0; (ati+1 < attrCount) && (result == TCL_OK); ati+=2)
+                  {
+                     // translate keyword to index into attribute matrix
+                     if      (strcmp(pAttrArgv[ati], "cftitle") == 0) matIdx = MERGE_TYPE_TITLE;
+                     else if (strcmp(pAttrArgv[ati], "cfdescr") == 0) matIdx = MERGE_TYPE_DESCR;
+                     else if (strcmp(pAttrArgv[ati], "cfthemes") == 0) matIdx = MERGE_TYPE_THEMES;
+                     else if (strcmp(pAttrArgv[ati], "cfseries") == 0) matIdx = MERGE_TYPE_SERIES;
+                     else if (strcmp(pAttrArgv[ati], "cfsortcrit") == 0) matIdx = MERGE_TYPE_SORTCRIT;
+                     else if (strcmp(pAttrArgv[ati], "cfeditorial") == 0) matIdx = MERGE_TYPE_EDITORIAL;
+                     else if (strcmp(pAttrArgv[ati], "cfparental") == 0) matIdx = MERGE_TYPE_PARENTAL;
+                     else if (strcmp(pAttrArgv[ati], "cfsound") == 0) matIdx = MERGE_TYPE_SOUND;
+                     else if (strcmp(pAttrArgv[ati], "cfformat") == 0) matIdx = MERGE_TYPE_FORMAT;
+                     else if (strcmp(pAttrArgv[ati], "cfrepeat") == 0) matIdx = MERGE_TYPE_REPEAT;
+                     else if (strcmp(pAttrArgv[ati], "cfsubt") == 0) matIdx = MERGE_TYPE_SUBT;
+                     else if (strcmp(pAttrArgv[ati], "cfmisc") == 0) matIdx = MERGE_TYPE_OTHERFEAT;
+                     else if (strcmp(pAttrArgv[ati], "cfvps") == 0) matIdx = MERGE_TYPE_VPS;
+                     else matIdx = MERGE_TYPE_COUNT;
+
+                     if (matIdx < MERGE_TYPE_COUNT)
+                     {
+                        // parse index list
+                        result = Tcl_SplitList(interp, pAttrArgv[ati + 1], &idxCount, &pIdxArgv);
+                        if (result== TCL_OK)
+                        {
+                           if (idxCount <= *pCniCount)
+                           {
+                              for (idx=0; (idx < idxCount) && (result == TCL_OK); idx++)
+                              {
+                                 result = Tcl_GetInt(interp, pIdxArgv[idx], &cni);
+                                 if (result == TCL_OK)
+                                 {
+                                    for (idx2=0; idx2 < *pCniCount; idx2++)
+                                       if (pCniTab[idx2] == cni)
+                                          break;
+
+                                    if (idx2 < *pCniCount)
+                                       pMax[matIdx][idx] = idx2;
+                                    else
+                                    {
+                                       sprintf(comm, "C_ProvMerge_Start: illegal cni: 0x%X for attrib %s", cni, pAttrArgv[ati]);
+                                       Tcl_SetResult(interp, comm, TCL_VOLATILE);
+                                       result = TCL_ERROR;
+                                       break;
+                                    }
+                                 }
+                              }
+                              // clear rest of index array, since used db count might be smaller than db merge count
+                              for ( ; idx < MAX_MERGED_DB_COUNT; idx++)
+                              {
+                                 pMax[matIdx][idx] = 0xff;
+                              }
+                           }
+                           else
+                           {
+                              sprintf(comm, "C_ProvMerge_Start: illegal index count: %d > cni count %d for attrib %s", idxCount, *pCniCount, pAttrArgv[ati]);
+                              Tcl_SetResult(interp, comm, TCL_VOLATILE);
+                              result = TCL_ERROR;
+                              break;
+                           }
+                        }
+                     }
+                     else
+                     {  // illegal keyword in attribute list
+                        sprintf(comm, "C_ProvMerge_Start: unknown attrib type: %s", pAttrArgv[ati]);
+                        Tcl_SetResult(interp, comm, TCL_VOLATILE);
+                        result = TCL_ERROR;
+                        break;
+                     }
+                  }
+                  Tcl_Free((char *) pAttrArgv);
+               }
+            }
+            else
+               result = TCL_ERROR;
+         }
+      }
+   }
+   else
+      result = TCL_ERROR;
+
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Initiate the database merging
+// - called from the 'Merge providers' popup menu
+// - parameters are taken from global Tcl variables, because the same
+//   update is required at startup
+//
+static int ProvMerge_Start(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+{
+   const char * const pUsage = "Usage: C_ProvMerge_Start";
+   MERGE_ATTRIB_MATRIX max;
+   uint pCniTab[MAX_MERGED_DB_COUNT];
+   uint cniCount;
+   int  result;
+
+   if (argc != 1)
+   {  // parameter count is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else
+   {
+      result = ProvMerge_ParseConfigString(interp, &cniCount, pCniTab, &max[0]);
+      if (result == TCL_OK)
+      {
+         EpgContextCtl_Close(pUiDbContext);
+         pUiDbContext = EpgDbMerge(cniCount, pCniTab, max);
+
+         EpgAcqCtl_UiProvChange();
+
+         StatsWin_ProvChange(DB_TARGET_UI);
+
+         PiFilter_UpdateNetwopList(NULL);
+         eval_check(interp, "C_ResetFilter all; ResetFilterState");
+
+         PiListBox_UpdateState();
+         PiListBox_Reset();
+
+         // put the new CNI at the front of the selection order and update the config file
+         sprintf(comm, "UpdateProvSelection 0x00FF\n");
+         eval_check(interp, comm);
+      }
+   }
+
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Open the initial database after program start
+// - provider can be chosen by the -provider flag: warn if it does not exist
+// - else try all dbs in list list of previously opened ones (saved in rc/ini file)
+// - else scan the db directory or create an empty database
+//
+void OpenInitialDb( uint startUiCni )
+{
+   char **pCniArgv;
+   char *pTmpStr;
+   uint cni, provIdx, provCount;
+
+   // prepare list of previously opened databases
+   provCount = 0;
+   pTmpStr = Tcl_GetVar(interp, "prov_selection", TCL_GLOBAL_ONLY);
+   if (pTmpStr != NULL)
+   {
+      Tcl_SplitList(interp, pTmpStr, &provCount, &pCniArgv);
+   }
+
+   cni = 0;
+   provIdx = 0;
+   do
+   {
+      if (startUiCni != 0)
+      {  // first use the CNI given on the command line
+         cni = startUiCni;
+      }
+      else if (provIdx < provCount)
+      {  // then try all providers given in the list of previously loaded databases
+         if (Tcl_GetInt(interp, pCniArgv[provIdx], &cni) != TCL_OK)
+         {
+            debug2("OpenInitialDb: cannot parse CNI #%d: %s - skipping", provIdx, pCniArgv[provIdx]);
+            provIdx += 1;
+            continue;
+         }
+         provIdx += 1;
+      }
+      else
+      {  // if everything above failed, open any database found in the dbdir or create an empty one
+         // (the CNI 0 has a special handling in the context open function)
+         cni = 0;
+      }
+
+      if (cni == 0x00ff)
+      {  // special case: merged db
+         MERGE_ATTRIB_MATRIX max;
+         uint pCniTab[MAX_MERGED_DB_COUNT];
+         uint cniCount;
+
+         if (ProvMerge_ParseConfigString(interp, &cniCount, pCniTab, &max[0]) == TCL_OK)
+         {
+            pUiDbContext = EpgDbMerge(cniCount, pCniTab, max);
+         }
+      }
+      else
+      {  // normal database or none specified
+         pUiDbContext = EpgContextCtl_Open(cni);
+         if ( (cni != 0) && (EpgDbContextGetCni(pUiDbContext) != cni) )
+         {  // failed to open the requested database
+            if (startUiCni != 0)
+            {  // db was specifically requested on the cmd line -> issue warning
+               sprintf(comm, "tk_messageBox -type ok -icon error "
+                             "-message {Failed to open the database of the requested provider 0x%04X. "
+                             "Opening the last previously used database instead (if any).}\n", startUiCni);
+               eval_check(interp, comm);
+            }
+            // destroy database, since we will try the next CNI (or at last 0)
+            EpgContextCtl_Close(pUiDbContext);
+            pUiDbContext = NULL;
+         }
+      }
+      // clear the cmd-line CNI since it's already used
+      startUiCni = 0;
+   }
+   while (pUiDbContext == NULL);
+
+   // update rc/ini file with new CNI order
+   if (cni != 0)
+   {
+      sprintf(comm, "UpdateProvSelection 0x%04X\n", cni);
+      eval_check(interp, comm);
+   }
+}
+
+// ----------------------------------------------------------------------------
+// Fetch the acquisition mode parameters from Tcl vars and pass then to acq control
+//
+int SetAcquisitionMode( void )
+{
+   EPGACQ_MODE mode;
+   char **pCniArgv;
+   char * pTmpStr;
+   uint idx, cniCount, cniTab[MAX_MERGED_DB_COUNT];
+   int  result;
+
+   pTmpStr = Tcl_GetVar(interp, "acq_mode", TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG);
+   if (pTmpStr != NULL)
+   {
+      if      (strcmp(pTmpStr, "passive") == 0)      mode = ACQMODE_PASSIVE;
+      else if (strcmp(pTmpStr, "follow-ui") == 0)    mode = ACQMODE_FOLLOW_UI;
+      else if (strcmp(pTmpStr, "cyclic_2") == 0)     mode = ACQMODE_CYCLIC_2;
+      else if (strcmp(pTmpStr, "cyclic_012") == 0)   mode = ACQMODE_CYCLIC_012;
+      else if (strcmp(pTmpStr, "cyclic_02") == 0)    mode = ACQMODE_CYCLIC_02;
+      else if (strcmp(pTmpStr, "cyclic_12") == 0)    mode = ACQMODE_CYCLIC_12;
+      else                                           mode = ACQMODE_COUNT;  //illegal value
+
+      switch (mode)
+      {
+         case ACQMODE_PASSIVE:
+         case ACQMODE_FOLLOW_UI:
+            EpgAcqCtl_SelectMode(mode, 0, NULL);
+            result = TCL_OK;
+            break;
+
+         case ACQMODE_CYCLIC_2:
+         case ACQMODE_CYCLIC_012:
+         case ACQMODE_CYCLIC_02:
+         case ACQMODE_CYCLIC_12:
+            // cyclic mode -> expect list of CNIs in format: {0x0d94, ...}
+            pTmpStr = Tcl_GetVar(interp, "acq_mode_cnis", TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG);
+            if (pTmpStr != NULL)
+            {
+               result = Tcl_SplitList(interp, pTmpStr, &cniCount, &pCniArgv);
+               if (result == TCL_OK)
+               {
+                  if (cniCount > MAX_MERGED_DB_COUNT)
+                  {
+                     debug2("SetAcquisitionMode: too many CNIs: %d - limiting to %d", cniCount, MAX_MERGED_DB_COUNT);
+                     cniCount = MAX_MERGED_DB_COUNT;
+                  }
+
+                  for (idx=0; (idx < cniCount) && (result == TCL_OK); idx++)
+                  {
+                     result = Tcl_GetInt(interp, pCniArgv[idx], cniTab + idx);
+                  }
+                  Tcl_Free((char *) pCniArgv);
+
+                  if (result == TCL_OK)
+                  {
+                     EpgAcqCtl_SelectMode(mode, cniCount, cniTab);
+                  }
+               }
+            }
+            else
+               result = TCL_ERROR;
+            break;
+
+         default:
+            sprintf(comm, "SetAcquisitionMode: illegal mode: %s", pTmpStr);
+            Tcl_SetResult(interp, comm, TCL_VOLATILE);
+            result = TCL_ERROR;
+            break;
+      }
+   }
+   else
+      result = TCL_ERROR;
+
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Select acquisition mode and choose provider for acq
+// - called after change of acq mode via the popup menu
+// - parameters are taken from global Tcl variables, because the same
+//   update is required at startup
+//
+static int UpdateAcquisitionMode(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+{
+   const char * const pUsage = "Usage: C_UpdateAcquisitionMode";
+   int  result;
+
+   if (argc != 1)
+   {  // parameter count is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else
+   {
+      result = SetAcquisitionMode();
+
+      // update help message in listbox if database is empty
+      PiListBox_UpdateState();
+   }
+   return result;
+}
+
+
 // ----------------------------------------------------------------------------
 // Append a line to the EPG scan messages
 //
@@ -435,19 +778,39 @@ static int MenuCmd_StartEpgScan(ClientData ttp, Tcl_Interp *interp, int argc, ch
    sprintf(comm, ".epgscan.all.fmsg.msg delete 1.0 end\n");
    eval_check(interp, comm);
 
-   if (EpgAcqCtl_StartScan())
+   switch (EpgAcqCtl_StartScan())
    {
-      sprintf(comm, ".epgscan.cmd.start configure -state disabled\n"
-                    ".epgscan.cmd.stop configure -state normal\n"
-                    ".epgscan.cmd.dismiss configure -state disabled\n");
-      eval_check(interp, comm);
-   }
-   else
-   {
-      sprintf(comm, "tk_messageBox -type ok -icon error "
-                    "-message {Failed to open video device. "
-                              "Close all other video applications and try again.}\n");
-      eval_check(interp, comm);
+      case EPGSCAN_ACCESS_DEV_VIDEO:
+      case EPGSCAN_ACCESS_DEV_VBI:
+         sprintf(comm, "tk_messageBox -type ok -icon error "
+                       "-message {Failed to open the video device. "
+                                 #ifndef WIN32
+                                 "Close all other video applications and try again."
+                                 #endif
+                                "}\n");
+         eval_check(interp, comm);
+         break;
+
+      case EPGSCAN_NO_TUNER:
+         sprintf(comm, "tk_messageBox -type ok -icon error "
+                       "-message {The input source you have set in the 'TV card input configuration' "
+                                 "is not a TV tuner device. Either change that setting or exit the "
+                                 "EPG scan and tune the providers you're interested in manually.}\n");
+         eval_check(interp, comm);
+         break;
+
+      case EPGSCAN_OK:
+         sprintf(comm, "grab .epgscan\n"
+                       ".epgscan.cmd.start configure -state disabled\n"
+                       ".epgscan.cmd.stop configure -state normal\n"
+                       ".epgscan.cmd.help configure -state disabled\n"
+                       ".epgscan.cmd.dismiss configure -state disabled\n");
+         eval_check(interp, comm);
+         break;
+
+      default:
+         SHOULD_NOT_BE_REACHED;
+         break;
    }
 
    return TCL_OK;
@@ -466,8 +829,10 @@ int MenuCmd_StopEpgScan(ClientData ttp, Tcl_Interp *interp, int argc, char *argv
    }
 
    sprintf(comm, "if {[string length [info commands .epgscan.cmd]] > 0} {"
+                 "   grab release .epgscan\n"
                  "   .epgscan.cmd.start configure -state normal\n"
                  "   .epgscan.cmd.stop configure -state disabled\n"
+                 "   .epgscan.cmd.help configure -state normal\n"
                  "   .epgscan.cmd.dismiss configure -state normal\n"
                  "}\n");
    eval_check(interp, comm);
@@ -476,7 +841,203 @@ int MenuCmd_StopEpgScan(ClientData ttp, Tcl_Interp *interp, int argc, char *argv
 
    return TCL_OK;
 }
-#endif //WIN32
+
+// ----------------------------------------------------------------------------
+// Get list of all tuner types
+// - on Linux the tuner is already configured in the bttv driver
+//
+static int MenuCmd_GetTunerList(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+{
+   #ifdef WIN32
+   const char * pName;
+   uint idx;
+
+   idx = 0;
+   while (1)
+   {
+      pName = BtDriver_GetTunerName(idx);
+      if (pName != NULL)
+         Tcl_AppendElement(interp, (char *) pName);
+      else
+         break;
+      idx += 1;
+   }
+   #endif
+   return TCL_OK;
+}
+
+// ----------------------------------------------------------------------------
+// Get list of all TV card names
+//
+static int MenuCmd_GetTvCardList(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+{
+   const char * const pUsage = "Usage: C_HwCfgGetTvCardList";
+   const char * pName;
+   uint idx;
+   int  result;
+
+   if (argc != 1)
+   {  // parameter count is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else
+   {
+      idx = 0;
+      do
+      {
+         pName = BtDriver_GetCardName(idx);
+         if (pName != NULL)
+            Tcl_AppendElement(interp, (char *) pName);
+
+         idx += 1;
+      }
+      while (pName != NULL);
+
+      result = TCL_OK;
+   }
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Get list of all input types
+//
+static int MenuCmd_GetInputList(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+{
+   const char * const pUsage = "Usage: C_GetInputList <card index>";
+   const char * pName;
+   int  cardIndex;
+   uint idx;
+   int  result;
+
+   if ( (argc != 2) || (Tcl_GetInt(interp, argv[1], &cardIndex) != TCL_OK) )
+   {  // parameter count is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else
+   {
+      idx = 0;
+      while (1)
+      {
+         pName = BtDriver_GetInputName(cardIndex, idx);
+
+         if (pName != NULL)
+            Tcl_AppendElement(interp, (char *) pName);
+         else
+            break;
+         idx += 1;
+      }
+
+      result = TCL_OK;
+   }
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Set the hardware config params
+// - the card index can also be set via command line and is passed here
+//   from main; a value of -1 means don't care
+//
+int SetHardwareConfig( Tcl_Interp *interp, int newCardIndex )
+{
+   char **pParamsArgv;
+   char * pTmpStr;
+   int idxCount, input, tuner, pll, prio, cardidx;
+   int result;
+
+   pTmpStr = Tcl_GetVar(interp, "hwcfg", TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG);
+   if (pTmpStr == NULL)
+      pTmpStr = Tcl_GetVar(interp, "hwcfg_default", TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG);
+   if (pTmpStr != NULL)
+   {
+      result = Tcl_SplitList(interp, pTmpStr, &idxCount, &pParamsArgv);
+      if (result == TCL_OK)
+      {
+         if (idxCount == 5)
+         {
+            if ( (Tcl_GetInt(interp, pParamsArgv[0], &input) == TCL_OK) &&
+                 (Tcl_GetInt(interp, pParamsArgv[1], &tuner) == TCL_OK) &&
+                 (Tcl_GetInt(interp, pParamsArgv[2], &pll) == TCL_OK) &&
+                 (Tcl_GetInt(interp, pParamsArgv[3], &prio) == TCL_OK) &&
+                 (Tcl_GetInt(interp, pParamsArgv[4], &cardidx) == TCL_OK) )
+            {
+               if ((newCardIndex >= 0) && (newCardIndex != cardidx))
+               {
+                  cardidx = newCardIndex;
+                  sprintf(comm, "HardwareConfigUpdateCardIdx %d\n", cardidx);
+                  eval_check(interp, comm);
+               }
+
+               // pass the hardware config params to the driver
+               BtDriver_Configure(cardidx, tuner, pll, prio);
+               // pass the input selection to acquisition control
+               EpgAcqCtl_SetInputSource(input);
+            }
+            else
+               result = TCL_ERROR;
+         }
+         else
+         {
+            Tcl_SetResult(interp, "SetHardwareConfig: must get 5 params", TCL_STATIC);
+            result = TCL_ERROR;
+         }
+      }
+   }
+   else
+      result = TCL_ERROR;
+
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Apply the user-configured hardware configuration
+// - called when hwcfg popup was closed
+//
+static int MenuCmd_UpdateHardwareConfig(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+{
+   const char * const pUsage = "Usage: C_UpdateHardwareConfig";
+   int  result;
+
+   if (argc != 1)
+   {  // parameter count is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else
+   {
+      result = SetHardwareConfig(interp, -1);
+   }
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Return information about the system time zone
+//
+static int MenuCmd_GetTimeZone(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+{
+   const char * const pUsage = "Usage: C_GetTimeZone";
+   int  result;
+
+   if (argc != 1)
+   {  // parameter count is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else
+   {
+      struct tm *tm;
+      time_t now;
+
+      tzset();
+      tm = localtime(&now);
+
+      sprintf(comm, "%d %d {%s}", lto/60, tm->tm_isdst, (tm->tm_isdst ? tzname[1] : tzname[0]));
+      Tcl_SetResult(interp, comm, TCL_VOLATILE);
+      result = TCL_OK;
+   }
+   return result;
+}
 
 // ----------------------------------------------------------------------------
 // Initialize the module
@@ -492,17 +1053,23 @@ void MenuCmd_Init( void )
       Tcl_CreateCommand(interp, "C_DumpDatabase", MenuCmd_DumpDatabase, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_SetControlMenuStates", SetControlMenuStates, (ClientData) NULL, NULL);
 
-      Tcl_CreateCommand(interp, "C_ProvWin_Open", ProvWin_Open, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_ProvWin_Select", ProvWin_Select, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_ProvWin_Exit", ProvWin_Exit, (ClientData) NULL, NULL);
+      Tcl_CreateCommand(interp, "C_ChangeProvider", MenuCmd_ChangeProvider, (ClientData) NULL, NULL);
 
-      #ifndef WIN32
+      Tcl_CreateCommand(interp, "C_GetServiceNameAndNetwopList", MenuCmd_GetServiceNameAndNetwopList, (ClientData) NULL, NULL);
+      Tcl_CreateCommand(interp, "C_GetCurrentDatabaseCni", MenuCmd_GetCurrentDatabaseCni, (ClientData) NULL, NULL);
+      Tcl_CreateCommand(interp, "C_GetProvCnisAndNames", MenuCmd_GetProvCnisAndNames, (ClientData) NULL, NULL);
+      Tcl_CreateCommand(interp, "C_ProvMerge_Start", ProvMerge_Start, (ClientData) NULL, NULL);
+      Tcl_CreateCommand(interp, "C_UpdateAcquisitionMode", UpdateAcquisitionMode, (ClientData) NULL, NULL);
+
       Tcl_CreateCommand(interp, "C_StartEpgScan", MenuCmd_StartEpgScan, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_StopEpgScan", MenuCmd_StopEpgScan, (ClientData) NULL, NULL);
-      #else
-      sprintf(comm, ".menubar.config entryconfigure 1 -state disabled\n");
-      eval_check(interp, comm);
-      #endif
+
+      Tcl_CreateCommand(interp, "C_HwCfgGetTvCardList", MenuCmd_GetTvCardList, (ClientData) NULL, NULL);
+      Tcl_CreateCommand(interp, "C_HwCfgGetInputList", MenuCmd_GetInputList, (ClientData) NULL, NULL);
+      Tcl_CreateCommand(interp, "C_HwCfgGetTunerList", MenuCmd_GetTunerList, (ClientData) NULL, NULL);
+      Tcl_CreateCommand(interp, "C_UpdateHardwareConfig", MenuCmd_UpdateHardwareConfig, (ClientData) NULL, NULL);
+
+      Tcl_CreateCommand(interp, "C_GetTimeZone", MenuCmd_GetTimeZone, (ClientData) NULL, NULL);
 
       if (pDemoDatabase != NULL)
       {  // create menu with warning labels and disable some menu commands

@@ -15,7 +15,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgdbmgmt.h,v 1.7 2000/06/13 18:17:10 tom Exp tom $
+ *  $Id: epgdbmgmt.h,v 1.10 2000/12/17 18:41:17 tom Exp tom $
  */
 
 #ifndef __EPGDBMGMT_H
@@ -25,11 +25,14 @@
 // ----------------------------------------------------------------------------
 // function declarations, to be shared only with other db-internal modules
 //
-bool EpgDbCheckChains( EPGDB_CONTEXT * dbc );
-bool EpgDbPiCmpBlockNoGt( EPGDB_CONTEXT * dbc, uint no1, uint no2, uchar netwop );
-uint EpgDbGetGenericMaxCount( EPGDB_CONTEXT * dbc, BLOCK_TYPE type );
-bool EpgDbPiBlockNoValid( EPGDB_CONTEXT * dbc, uint block_no, uchar netwop );
+bool EpgDbCheckChains( const EPGDB_CONTEXT * dbc );
+bool EpgDbPiCmpBlockNoGt( const EPGDB_CONTEXT * dbc, uint no1, uint no2, uchar netwop );
+uint EpgDbGetGenericMaxCount( const EPGDB_CONTEXT * dbc, BLOCK_TYPE type );
+bool EpgDbPiBlockNoValid( const EPGDB_CONTEXT * dbc, uint block_no, uchar netwop );
 
+void EpgDbPiRemove( EPGDB_CONTEXT * dbc, EPGDB_BLOCK * pObsolete );
+void EpgDbLinkPi( EPGDB_CONTEXT * dbc, EPGDB_BLOCK * pBlock, EPGDB_BLOCK * pPrev, EPGDB_BLOCK * pNext );
+void EpgDbReplacePi( EPGDB_CONTEXT * dbc, EPGDB_BLOCK * pObsolete, EPGDB_BLOCK * pBlock );
 
 // ----------------------------------------------------------------------------
 // Declaration of database management functions
@@ -44,4 +47,4 @@ void EpgDbSetDateTime( EPGDB_CONTEXT * dbc );
 bool EpgDbAddBlock( EPGDB_CONTEXT * dbc, EPGDB_BLOCK * pBlock );
 
 
-#endif  // __EPGDB_H
+#endif  // __EPGDBMGMT_H

@@ -15,7 +15,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgdbsav.h,v 1.10.1.2 2000/11/16 21:18:09 tom Exp $
+ *  $Id: epgdbsav.h,v 1.17 2000/12/25 13:43:10 tom Exp tom $
  */
 
 #ifndef __EPGDBSAV_H
@@ -28,8 +28,10 @@
 #define MAGIC_STR      "NEXTVIEW-DB by TOMZO\n"
 #define MAGIC_STR_LEN  20
 
-#define DUMP_VERSION   0x00000304 // current version 0.3.4
-#define DUMP_COMPAT    0x0000010a // last compatible version
+#define DUMP_COMPAT    EPG_VERSION_TO_INT(0,4,0)   // latest compatible
+
+#define ENDIAN_MAGIC   0xAA55
+#define WRONG_ENDIAN   (((ENDIAN_MAGIC>>8)&0xFF)|((ENDIAN_MAGIC&0xFF)<<8))
 
 #ifdef WIN32
 #define DUMP_NAME_FMT  "NXTV%04X.EPG"
@@ -50,16 +52,19 @@
 typedef struct
 {
    uchar   magic[MAGIC_STR_LEN];  // file header
-   ulong   dumpVersion;           // version of this software
+   unsigned short endianMagic;    // magic to recognize big/little endian
+   ulong   compatVersion;         // version of oldest compatible software
+   ulong   swVersion;             // version of this software
 
-   // temp hack for branch 0.3.4: replace lastPiDate with dumpDate for -demo db
-   //ulong   lastPiDate;          // stop time of last PI in db
-   ulong   dumpDate;              // time the db was dumped
+   ulong   lastPiDate;            // stop time of last PI in db
+   ulong   firstPiDate;           // start time of first PI in db
+   ulong   dumpDate;              // time the db is dumped
    uint    cni;                   // CNI of EPG provider
    uint    pageNo;                // last used ttx page
    ulong   tunerFreq;             // tuner frequency of provider's channel
+   uint    appId;                 // EPG application ID from BI block
 
-   uchar   reserved[46];          // unused space for future use; set to 0
+   uchar   reserved[28];          // unused space for future use; set to 0
 } EPGDBSAV_HEADER;
 
 
@@ -69,6 +74,10 @@ typedef struct
 {
    uint         pageNo;
    ulong        tunerFreq;
+   uint         appId;
+   ulong        dumpDate;
+   ulong        firstPiDate;
+   ulong        lastPiDate;
    EPGDB_BLOCK  *pBiBlock;
    EPGDB_BLOCK  *pAiBlock;
 } EPGDBSAV_PEEK;
@@ -76,17 +85,33 @@ typedef struct
 
 #define BLOCK_TYPE_DEFECT_PI  0x77
 
+// max size is much larger than any block will ever become
+// but should be small enough so it can safely be malloc'ed during reload
+#define EPGDBSAV_MAX_BLOCK_SIZE  65536
+
+// result codes for reload and peek (ordered by increasing user relevance)
+typedef enum
+{
+   EPGDB_RELOAD_OK,            // no error
+   EPGDB_RELOAD_INTERNAL,      // unexpected error
+   EPGDB_RELOAD_CORRUPT,       // unexpected content
+   EPGDB_RELOAD_WRONG_MAGIC,   // magic not found or file too short
+   EPGDB_RELOAD_ACCESS,        // file open failed
+   EPGDB_RELOAD_ENDIAN,        // big/little endian conflict
+   EPGDB_RELOAD_VERSION        // incompatible version
+} EPGDB_RELOAD_RESULT;
 
 // ---------------------------------------------------------------------------
 // declaration of service interface functions
 
-bool EpgDbDump( EPGDB_CONTEXT *pDbContext );
-bool EpgDbReload( EPGDB_CONTEXT *pDbContext, uint cni );
+bool EpgDbDump( EPGDB_CONTEXT * pDbContext );
+EPGDB_CONTEXT * EpgDbReload( uint cni, EPGDB_RELOAD_RESULT * pError );
 uint EpgDbReloadScan( int index );
+bool EpgDbDumpCreateDir( const char * pDirPath );
 
-const EPGDBSAV_PEEK * EpgDbPeek( uint cni );
+const EPGDBSAV_PEEK * EpgDbPeek( uint cni, EPGDB_RELOAD_RESULT * pResult );
 void EpgDbPeekDestroy( const EPGDBSAV_PEEK *pPeek );
-bool EpgDbDumpUpdateHeader( const EPGDB_CONTEXT *pDbContext, uint cni, ulong freq );
+bool EpgDbDumpUpdateHeader( uint cni, ulong freq );
 
 
 #endif  // __EPGDBSAV_H

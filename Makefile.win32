@@ -1,0 +1,109 @@
+#
+#  Windows Makefile for Nextview EPG decoder
+#
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License Version 2 as
+#  published by the Free Software Foundation. You find a copy of this
+#  license in the file COPYRIGHT in the root directory of this release.
+#
+#  THIS PROGRAM IS DISTRIBUTED IN THE HOPE THAT IT WILL BE USEFUL,
+#  BUT WITHOUT ANY WARRANTY; WITHOUT EVEN THE IMPLIED WARRANTY OF
+#  MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#
+#  Description:
+#
+#    Controls compilation of C and Tcl/Tk source to an executable on
+#    Windows systems using MVC. This make file requires GNU make by Cygwin.
+#    Tcl/Tk source is converted to a C string by tcl2c.
+#
+#  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+#
+#  $Id: Makefile.win32,v 1.2 2000/12/26 19:55:01 tom Exp tom $
+#
+
+TCLSH   = /gnu/tcl/bin/tclsh83.exe
+LD      = link.exe
+CC      = cl.exe
+
+# path to Tcl/Tk script library (Tk is usually in X11/lib/tk#.#)
+#CFLAGS += /DTK_LIBRARY_PATH=\"/gnu/tcl/lib/tk8.0\"
+#CFLAGS += /DTCL_LIBRARY_PATH=\"/gnu/tcl/lib/tcl8.0\"
+CFLAGS += /DUSE_PRECOMPILED_TCL_LIBS
+
+# define this if you have patched nxtvepg.ico into the tk DLL
+CFLAGS += /DICON_PATCHED_INTO_DLL
+
+INCS    = /I"." /I"D:\gnu\tcl\include" /I"D:\Programme\DevStudio\VC\include"
+CFLAGS += /nologo /G6 /Gf /MD /W3 /Gi /Zi /Ox $(INCS) \
+          /DNDEBUG /D_WINDOWS /DWIN32 /D_MBCS /FD /Zm200
+
+# obsolete libraries:
+#   odbc32.lib odbccp32.lib ddraw.lib gdi32.lib winspool.lib oleaut32.lib
+#   comdlg32.lib shell32.lib ole32.lib uuid.lib mpr.lib user32.lib
+
+LDFLAGS = kernel32.lib advapi32.lib user32.lib /libpath:"D:\Programme\DevStudio\VC\lib" \
+	  tcl83.lib tk83.lib /libpath:"D:\gnu\tcl\lib" \
+	  /nologo /subsystem:windows /debug /machine:I386 /incremental:no
+
+# ----- don't change anything below ------------------------------------------
+
+CSRC    = epgctl/epgmain epgctl/debug epgctl/epgacqctl epgctl/epgctxctl \
+          epgvbi/vbidecode epgvbi/btdrv4win epgvbi/tvchan epgvbi/hamming  \
+          epgdb/epgdbacq epgdb/epgstream epgdb/epgtxtdump epgdb/epgblock \
+          epgdb/epgdbmgmt epgdb/epgdbif epgdb/epgdbsav epgdb/epgdbfil \
+          epgdb/epgdbmerge epgui/pilistbox epgui/pifilter epgui/statswin \
+          epgui/menucmd epgui/pdc_themes
+CGEN    = epgui/tcl_libs epgui/epgui epgui/help
+WINRES  = epgui/tkwinico.res
+
+SRCS    = $(addsuffix .c, $(CSRC)) $(addsuffix .c, $(CGEN))
+OBJS    = $(addsuffix .obj, $(CSRC)) $(addsuffix .obj, $(CGEN)) $(WINRES)
+
+all: nxtvepg.exe
+
+tcl: epgui/epgui.c epgui/help.c epgui/tcl_libs.c
+
+%.obj: %.c
+	$(CC) $(CFLAGS) /c /Fo"$*.obj" $*.c
+
+epgui/tkwinico.res: epgui/tkwinico.rc
+	rc -fo epgui/tkwinico.res epgui/tkwinico.rc
+
+nxtvepg.exe : $(OBJS)
+	$(LD) $(LDFLAGS) /out:nxtvepg.exe $(OBJS)
+
+tcl2c.exe: tcl2c.c
+	#$(CC) $(CFLAGS) /O2 /Fo"tcl2c.exe" tcl2c.c
+	gcc -O -o tcl2c.exe tcl2c.c
+
+epgui/epgui.c: epgui/epgui.tcl tcl2c.exe
+	./tcl2c.exe epgui_tcl_script < epgui/epgui.tcl > epgui/epgui.c
+
+epgui/help.c: epgui/help.tcl tcl2c.exe
+	./tcl2c.exe help_tcl_script < epgui/help.tcl > epgui/help.c
+
+epgui/help.tcl: nxtvepg.1x man2help.tcl
+	$(TCLSH) man2help.tcl nxtvepg.1x > epgui/help.tcl
+
+epgui/tcl_libs.c:
+	cat tcl8.3.2/* tk8.3.2/* | ./tcl2c.exe tcl_init_scripts > epgui/tcl_libs.c
+
+clean:
+	-rm -rf WinRel
+	-rm -f epg*/*.obj tcl2c.exe nxtvepg.exe
+	-rm -f epgui/epgui.c epgui/help.c epgui/help.tcl epgui/tcl_libs.c epgui/tkwinico.res
+	-rm -f vc50.idb vc50.pdb nxtvepg.ilk nxtvepg.pdb nxtvepg.opt nxtvepg.plg nxtvepg.ncb
+
+depend:
+	-:>Makefile.dep
+	DIRLIST=`(for cmod in $(CSRC); do echo $$cmod; done) | cut -d/ -f1 | sort -u`; \
+	for dir in $$DIRLIST; do \
+	  CLIST=`(for src in $(addsuffix .c, $(CSRC)); do echo $$src; done) | grep $$dir/`; \
+	  gcc -MM -I. -DWIN32 -DUSE_PRECOMPILED_TCL_LIBS $$CLIST | \
+	  sed -e 's#^.*\.o#'$$dir/'&bj#g' >> Makefile.dep; \
+	done
+
+include Makefile.dep
+

@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgtxtdump.c,v 1.9 2000/06/26 18:32:39 tom Exp tom $
+ *  $Id: epgtxtdump.c,v 1.11 2000/12/13 18:44:19 tom Exp tom $
  */
 
 #define __EPGTXTDUMP_C
@@ -60,7 +60,7 @@ static uchar epgTxtListBlocks = FALSE;
 //
 static bool DecodePil(ulong pil, uchar *pHour, uchar *pMinute, uchar *pDay, uchar *pMonth)
 {
-   uchar hour, minute, day, month;
+   uint hour, minute, day, month;
    bool result;
    
    /*
@@ -452,10 +452,9 @@ void EpgTxtDump_Toggle( void )
 // Dump the complete database
 //
 void EpgTxtDump_Database( EPGDB_CONTEXT *pDbContext, FILE *fp,
-                          bool do_pi, bool do_ai, bool do_bi, bool do_ni,
+                          bool do_pi, bool do_xi, bool do_ai, bool do_ni,
                           bool do_oi, bool do_mi, bool do_li, bool do_ti )
 {
-   const BI_BLOCK * pBi;
    const AI_BLOCK * pAi;
    const NI_BLOCK * pNi;
    const OI_BLOCK * pOi;
@@ -474,13 +473,6 @@ void EpgTxtDump_Database( EPGDB_CONTEXT *pDbContext, FILE *fp,
 
    // write file header
    fprintf(fp, "%s", pEpgTxtDumpHeader);
-
-   // Dump bundle information block
-   pBi = EpgDbGetBi(pDbContext);
-   if ((pBi != NULL) && do_bi)
-   {
-      EpgTxtDumpBi(fp, pBi, 0);
-   }
 
    pAi = EpgDbGetAi(pDbContext);
    if (pAi != NULL)
@@ -563,14 +555,16 @@ void EpgTxtDump_Database( EPGDB_CONTEXT *pDbContext, FILE *fp,
             EpgTxtDumpPi(fp, pPi, EpgDbGetStream(pPi), EpgDbGetVersion(pPi), pAi);
             pPi = EpgDbSearchNextPi(pDbContext, NULL, pPi);
          }
+      }
 
-         {  // Dump expired/obsolete PI blocks
-            EPGDB_BLOCK *pWalk = pDbContext->pObsoletePi;
-            while (pWalk != NULL)
-            {
-               EpgTxtDumpPi(fp, &pWalk->blk.pi, pWalk->stream, pWalk->version, pAi);
-               pWalk = pWalk->pNextBlock;
-            }
+      // Dump expired/obsolete programme information blocks
+      if (do_xi)
+      {
+         EPGDB_BLOCK *pWalk = pDbContext->pObsoletePi;
+         while (pWalk != NULL)
+         {
+            EpgTxtDumpPi(fp, &pWalk->blk.pi, pWalk->stream, pWalk->version, pAi);
+            pWalk = pWalk->pNextBlock;
          }
       }
    }

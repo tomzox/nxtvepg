@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: hamming.c,v 1.3 2000/09/17 19:48:34 tom Exp tom $
+ *  $Id: hamming.c,v 1.5 2000/12/09 17:14:55 tom Exp tom $
  */
 
 #define __HAMMING_C
@@ -29,7 +29,7 @@
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
 
-#include "epgdb/hamming.h"
+#include "epgvbi/hamming.h"
 
 
 // ----------------------------------------------------------------------------
@@ -38,7 +38,7 @@
 /*
 uchar UnHam84Nibble( const uchar * d )
 {
-   schar c = unhamtab[*d];
+   schar c = (schar) unhamtab[*d];
 
    if (c >= 0)
       return c;
@@ -56,10 +56,10 @@ uchar UnHam84Byte( const uchar * d )
 {
    schar c1, c2;
   
-   c1 = unhamtab[*(d++)];
+   c1 = (schar) unhamtab[*(d++)];
    if (c1 >= 0)
    {
-      c2 = unhamtab[*d];
+      c2 = (schar) unhamtab[*d];
       if (c2 >= 0)
       {
          return ((c2<<4) | c1);
@@ -79,10 +79,10 @@ uint UnHam84Word( const uchar * d )
 {
    schar c1,c2,c3,c4;
   
-   if ( ((c1 = unhamtab[*(d++)]) >= 0) &&
-        ((c2 = unhamtab[*(d++)]) >= 0) &&
-        ((c3 = unhamtab[*(d++)]) >= 0) &&
-        ((c4 = unhamtab[* d   ]) >= 0) )
+   if ( ((c1 = (schar) unhamtab[*(d++)]) >= 0) &&
+        ((c2 = (schar) unhamtab[*(d++)]) >= 0) &&
+        ((c3 = (schar) unhamtab[*(d++)]) >= 0) &&
+        ((c4 = (schar) unhamtab[* d   ]) >= 0) )
    {
       return (c4<<12) | (c3<<8) | (c2<<4) | c1;
    }
@@ -106,8 +106,8 @@ bool UnHam84Array( uchar * pin, uint byteCount )
 
    for (; byteCount > 0; byteCount--)
    {
-      if ( ((c1 = unhamtab[*(pin++)]) >= 0) &&
-           ((c2 = unhamtab[*(pin++)]) >= 0) )
+      if ( ((c1 = (schar) unhamtab[*(pin++)]) >= 0) &&
+           ((c2 = (schar) unhamtab[*(pin++)]) >= 0) )
       {
          *(pout++) = (c2<<4) | c1;
       }
@@ -130,7 +130,7 @@ void UnHamParityArray( const uchar *pin, uchar *pout, uint byteCount )
 
    for (; byteCount > 0; byteCount--)
    {
-      c1 = parityTab[*(pin++)];
+      c1 = (schar)parityTab[*(pin++)];
       if (c1 >= 0)
          *(pout++) = c1;
       else

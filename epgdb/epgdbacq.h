@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgdbacq.h,v 1.8 2000/06/24 18:03:13 tom Exp tom $
+ *  $Id: epgdbacq.h,v 1.9 2000/12/09 17:27:15 tom Exp tom $
  */
 
 #ifndef __EPGDBACQ_H
@@ -33,58 +33,11 @@
 
 
 // ---------------------------------------------------------------------------
-// internal ring buffer for EPG packets
-//
-// number of teletext packets that can be stored in ring buffer
-// - Nextview maximum data rate is 5 pages per second (200ms min distance)
-//   data rate usually is much lower though, around 1-2 pages per sec
-// - room for 1-2 secs should be enought in most cases, i.e. 2*5*24=240
-#define EPGACQ_BUF_COUNT  512
-
-typedef struct
-{
-   uint    pageno;
-   uint    sub;
-   uchar   pkgno;
-   uchar   data[40];
-} VBI_LINE;
-
-typedef struct
-{
-   bool       isEnabled;
-   bool       isEpgScan;
-   bool       isEpgPage;
-   uchar      isMipPage;
-   uint       epgPageNo;
-
-   uint       mipPageNo;
-   uint       dataPageCount;
-   uint       vpsCni;
-   uint       pdcCni;
-   uint       ni;
-   uchar      niRepCnt;
-
-   uint       writer_idx;
-   uint       reader_idx;
-   VBI_LINE   line[EPGACQ_BUF_COUNT];
-
-   ulong      ttxPkgCount;
-   ulong      epgPkgCount;
-   ulong      epgPagCount;
-
-   #ifndef WIN32
-   pid_t      vbiPid;
-   pid_t      epgPid;
-   #endif
-} EPGACQ_BUF;
-
-
-// ---------------------------------------------------------------------------
 // Declaration of the service interface functions
 //
 
 // interface to the EPG acquisition control module
-void EpgDbAcqInit( EPGACQ_BUF * pShm );
+void EpgDbAcqInit( void );
 void EpgDbAcqStart( EPGDB_CONTEXT *dbc, uint pageNo, uint appId );
 void EpgDbAcqStop( void );
 void EpgDbAcqReset( EPGDB_CONTEXT *dbc, uint pageNo, uint appId );
@@ -95,6 +48,7 @@ void EpgDbAcqGetStatistics( ulong *pTtxPkgCount, ulong *pEpgPkgCount, ulong *pEp
 
 // interface to the teletext packet decoder
 bool EpgDbAcqAddPacket( uint pageNo, uint sub, uchar pkgno, const uchar * data );
+void EpgDbAcqAddVpsCode( uint cni );
 
 // interface to the main event control - should be called every 40 ms in average
 void EpgDbAcqProcessPackets( EPGDB_CONTEXT * const * pdbc );

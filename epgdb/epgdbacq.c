@@ -28,7 +28,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgdbacq.c,v 1.15 2000/09/17 19:48:34 tom Exp tom $
+ *  $Id: epgdbacq.c,v 1.21 2000/12/13 18:41:55 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -39,15 +39,15 @@
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
-#include "epgdb/hamming.h"
+#include "epgvbi/hamming.h"
 #include "epgdb/epgblock.h"
 #include "epgdb/epgdbif.h"
 #include "epgdb/epgdbmgmt.h"
 #include "epgdb/epgdbacq.h"
-#include "epgctl/vbidecode.h"
 #include "epgdb/epgstream.h"
 #include "epgdb/epgtxtdump.h"
 #include "epgui/statswin.h"
+#include "epgvbi/btdrv.h"
 #include "epgctl/epgacqctl.h"
 
 
@@ -59,7 +59,6 @@
 #define HEADER_CHECK_LEN_STR    "12"   // for debug output
 #define HEADER_CHECK_MAX_ERRORS   2
 
-static EPGACQ_BUF  * pVbiBuf = NULL;
 static uint        epgAppId;
 static uint        epgPageNo;
 static bool        isEpgPage;
@@ -72,18 +71,10 @@ static uchar       lastPageHeader[HEADER_CHECK_LEN];
 // ----------------------------------------------------------------------------
 // Initialize the internal state
 //
-void EpgDbAcqInit( EPGACQ_BUF * pShm )
+void EpgDbAcqInit( void )
 {
    bEpgDbAcqEnabled = FALSE;
 
-   if (pShm != NULL)
-   {  // shared memory (SYSV IPC) has to be created by the caller
-      pVbiBuf = pShm;
-   }
-   else
-   {  // no shared memory needed for multi-threading -> Malloc does it
-      pVbiBuf = xmalloc(sizeof(EPGACQ_BUF));
-   }
    pVbiBuf->writer_idx = 0;
    pVbiBuf->reader_idx = 0;
    pVbiBuf->isEnabled = FALSE;
@@ -108,8 +99,10 @@ void EpgDbAcqStart( EPGDB_CONTEXT *dbc, uint pageNo, uint appId )
       else
          epgPageNo = dbc->pageNo = EPG_DEFAULT_PAGENO;
 
-      if ((appId == EPG_ILLEGAL_APPID) && (dbc->pBiBlock != NULL))
-         epgAppId = dbc->pBiBlock->blk.bi.app_id;
+      if (appId != EPG_ILLEGAL_APPID)
+         epgAppId = appId;
+      else if (dbc->appId != EPG_ILLEGAL_APPID)
+         epgAppId = dbc->appId;
       else
          epgAppId = EPG_DEFAULT_APPID;
 
@@ -358,6 +351,17 @@ static void EpgDbAcqGetP830Cni( const char * data )
 }
 
 // ---------------------------------------------------------------------------
+// Save an VPS code from the VBI process/thread
+//
+void EpgDbAcqAddVpsCode( uint cni )
+{
+   if (pVbiBuf != NULL)
+   {
+      pVbiBuf->vpsCni = cni;
+   }
+}
+
+// ---------------------------------------------------------------------------
 // Return statistics collected by slave process/thread during acquisition
 //
 void EpgDbAcqGetStatistics( ulong *pTtxPkgCount, ulong *pEpgPkgCount, ulong *pEpgPagCount )
@@ -387,7 +391,7 @@ static bool EpgDbAcqDoPageHeaderCheck( const uchar * curPageHeader )
       err = 0;
       for (i=0; i < HEADER_CHECK_LEN; i++)
       {
-         dec = parityTab[curPageHeader[i]];
+         dec = (schar)parityTab[curPageHeader[i]];
          if ( (dec >= 0) && (dec != lastPageHeader[i]) )
          {  // Abweichung gefunden
             err += 1;
@@ -404,7 +408,7 @@ static bool EpgDbAcqDoPageHeaderCheck( const uchar * curPageHeader )
    {  // erster Aufruf -> Parity dekodieren; falls fehlerfrei abspeichern
       for (i=0; i < HEADER_CHECK_LEN; i++)
       {
-         dec = parityTab[ curPageHeader[i] ];
+         dec = (schar)parityTab[ curPageHeader[i] ];
          if (dec >= 0)
          {
             lastPageHeader[i] = dec;
@@ -443,7 +447,7 @@ static bool EpgDbAcqDoPageHeaderCheck( const uchar * curPageHeader )
 //
 void EpgDbAcqProcessPackets( EPGDB_CONTEXT * const * pdbc )
 {
-   EPGDB_BLOCK *pBlock, *pBiBlock;
+   EPGDB_BLOCK *pBlock;
    VBI_LINE *vbl;
 
    if (bEpgDbAcqEnabled)
@@ -463,7 +467,7 @@ void EpgDbAcqProcessPackets( EPGDB_CONTEXT * const * pdbc )
                if ( EpgDbAcqDoPageHeaderCheck(vbl->data + 13 - 5) == FALSE )
                {
                   bHeaderCheckInit = FALSE;
-                  EpgAcqCtl_ChannelChange();
+                  EpgAcqCtl_ChannelChange(TRUE);
                   // must exit loop b/c reader_idx might be changed by AcqReset!
                   break;
                }
@@ -482,10 +486,11 @@ void EpgDbAcqProcessPackets( EPGDB_CONTEXT * const * pdbc )
 
       if ( bEpgDbAcqEnabled && bScratchAcqMode )
       {
-         pBiBlock = EpgStreamGetBlockByType(BLOCK_TYPE_BI);
-         if (pBiBlock != NULL)
+         pBlock = EpgStreamGetBlockByType(BLOCK_TYPE_BI);
+         if (pBlock != NULL)
          {
-            EpgAcqCtl_BiCallback(&pBiBlock->blk.bi);
+            EpgAcqCtl_BiCallback(&pBlock->blk.bi);
+            xfree(pBlock);
          }
 
          pBlock = EpgStreamGetBlockByType(BLOCK_TYPE_AI);
@@ -497,17 +502,11 @@ void EpgDbAcqProcessPackets( EPGDB_CONTEXT * const * pdbc )
                {
                   bScratchAcqMode = FALSE;
                   EpgStreamEnableAllTypes();
-
-                  // now add the BI block (using knowledge about behaviour of EpgCtl module)
-                  if ( (pBiBlock != NULL) && EpgDbAddBlock(*pdbc, pBiBlock) )
-                     pBiBlock = NULL;
                }
                else
                   xfree(pBlock);
             }
          }
-         if (pBiBlock != NULL)
-            xfree(pBiBlock);
       }
 
       if ( bEpgDbAcqEnabled && !bScratchAcqMode )
@@ -516,13 +515,25 @@ void EpgDbAcqProcessPackets( EPGDB_CONTEXT * const * pdbc )
          // but we don't need to check this since then the buffer is cleared
          while ((pBlock = EpgStreamGetNextBlock()) != NULL)
          {
-            if ( ( (pBlock->type == BLOCK_TYPE_BI) &&
-                   (EpgAcqCtl_BiCallback(&pBlock->blk.bi) == FALSE) ) ||
-                 ( (pBlock->type == BLOCK_TYPE_AI) &&
-                   (EpgAcqCtl_AiCallback(&pBlock->blk.ai) == FALSE) ) ||
-                 ( EpgDbAddBlock(*pdbc, pBlock) == FALSE ) )
-            {  // block was not accepted
+            if (pBlock->type == BLOCK_TYPE_BI)
+            {  // the Bi block never is added to the db, only evaluated by acq ctl
+               EpgAcqCtl_BiCallback(&pBlock->blk.bi);
                xfree(pBlock);
+            }
+            else if (pBlock->type == BLOCK_TYPE_AI)
+            {
+               if ( (EpgAcqCtl_AiCallback(&pBlock->blk.ai) == FALSE) || 
+                    (EpgDbAddBlock(*pdbc, pBlock) == FALSE) )
+               {  // block was not accepted
+                  xfree(pBlock);
+               }
+            }
+            else
+            {
+               if ( EpgDbAddBlock(*pdbc, pBlock) == FALSE )
+               {  // block was not accepted
+                  xfree(pBlock);
+               }
             }
          }
       }
@@ -556,9 +567,7 @@ bool EpgDbAcqCheckForPackets( void )
 //
 static void EpgDbAcqBufferAdd( uint pageNo, uint sub, uchar pkgno, const uchar * data )
 {
-   #ifndef WIN32
    static int overflow = 0;
-   #endif
 
    assert((pVbiBuf->reader_idx <= EPGACQ_BUF_COUNT) && (pVbiBuf->writer_idx <= EPGACQ_BUF_COUNT));
 
@@ -572,20 +581,18 @@ static void EpgDbAcqBufferAdd( uint pageNo, uint sub, uchar pkgno, const uchar *
 
       pVbiBuf->writer_idx = (pVbiBuf->writer_idx + 1) % EPGACQ_BUF_COUNT;
 
-      #ifndef WIN32
       overflow = 0;
-      #endif
    }
    else
    {
-      #ifndef WIN32
       if ((overflow % EPGACQ_BUF_COUNT) == 0)
       {
          debug0("EpgDbAcq-BufferAdd: buffer overflow");
-         VbiDecodeCheckParent();
+         #ifndef WIN32
+         BtDriver_CheckParent();
+         #endif
       }
       overflow += 1;
-      #endif
    }
 }
 
@@ -643,7 +650,7 @@ bool EpgDbAcqAddPacket( uint pageNo, uint sub, uchar pkgno, const uchar * data )
          }
          else if ( pVbiBuf->isMipPage & (1 << (pageNo >> 8)) )
          {  // new MIP packet (may be received in parallel for several magazines)
-            EpgDbAcqMipPacket(pageNo >> 8, pkgno, data);
+            EpgDbAcqMipPacket((uchar)(pageNo >> 8), pkgno, data);
          }
          else if (pVbiBuf->isEpgScan && (pkgno == 30) && ((pageNo >> 8) == 0))
          {  // packet 8/30/1 is evaluated for CNI during EPG scan
@@ -652,7 +659,7 @@ bool EpgDbAcqAddPacket( uint pageNo, uint sub, uchar pkgno, const uchar * data )
          // packets from other magazines (e.g. in parallel mode) and 8/30 have to be ignored
 
          if (pVbiBuf->isEpgScan)
-            if (EpgStreamSyntaxScanPacket(pageNo>>8, pkgno, data))
+            if (EpgStreamSyntaxScanPacket((uchar)(pageNo >> 8), pkgno, data))
                pVbiBuf->dataPageCount += 1;
       }
    }

@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgtxtdump.h,v 1.7 2000/06/26 18:32:39 tom Exp tom $
+ *  $Id: epgtxtdump.h,v 1.8 2000/12/13 18:45:01 tom Exp tom $
  */
 
 #ifndef __EPGTXTDUMP_H
@@ -50,7 +50,7 @@ void EpgTxtDumpUnknown( FILE *fp, uchar type );
 // interface to GUI
 void EpgTxtDump_Toggle( void );
 void EpgTxtDump_Database( EPGDB_CONTEXT *pDbContext, FILE *fp,
-                          bool do_pi, bool do_ai, bool do_bi, bool do_ni,
+                          bool do_pi, bool do_xi, bool do_ai, bool do_ni,
                           bool do_oi, bool do_mi, bool do_li, bool do_ti );
 
 #endif  // __EPGTXTDUMP_H

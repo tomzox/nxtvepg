@@ -1,11 +1,47 @@
-these new features will be available in version 0.4.x soon:
-- merging of your favorite provider's databases into one
-- cyclic "round-robin" acquisition between multiple providers
-- programming reminders for single titles or complete selections
-check for the new release at http://nxtvepg.tripod.com/
+nxtvepg version 0.4.pre0 is just a snapshot of work in progress.
+The following features are still incomplete and need to be fixed
+before the next release. If you find any bugs not listed here,
+please let me know.
+
+db merge fixes:
+- fine control for provider merge
+- change of CNI list -> keep suppressed list, even if obsolete?
+- short/long info merging: remove redundant text, add newline between providers
+- version & block index handling (for timescales)
+
+acq mode ctl. & cyclic acq fixes:
+- warn when db has no tuner freq
+- better handling of db version changes: display message
+  take tuner freq from obsolete db version also
+- check if version is incompatible before recommending prov selection
+- acqmode popup: check for device-access or no-tuner errors
+- stats window:
+  + report acq mode, cycle phase and index
+  + update even if no EPG reception; include CNI
+
+WIN32 port fixes:
+- accepting db as argument: set path as working dir, take CNI from filename
+- dump stream feature: must window or file instead of stdout
+- timezone popup required?
+- README and manpage
+  + Erklaerung aller Startup Fehlermeldungen
+  + Liste von TV-Karten und zugehoerigen Tunertypen (bttv-cards.h)
 
 
-fixes:
++++ Already DONE +++
+- ui stays empty while acq finds 1st db in the background
+- EpgAcqCtl_GetDbState: disable all filters for SearchPi
+- different msg for EPGDB_ACQ_WAIT if acq is not follow-ui
+- timeout in case of reception failure
+- automatic upgrade from follow-ui to cyclic for merged db
+- service name for merged db: concatenate prov names
+- delay after target variance is reached
+- passive & non-TV-tuner input modes
+- option -dbdir: need WIN32 error handling in main
+
+
+required fixes:
+- EPG scan skips some channels with bad reception or encryption
 - latin-1 chars in substring search do not work with Tcl/Tk 8.3
 - do not tune channel if vbi busy
 - filter shortcut combination logic modes: OR,AND
@@ -19,11 +55,7 @@ fixes:
 - debugging: make serious debugX events fatal (developers only)
 
 possible new features: (in order of decreasing priority)
-- cyclic acq: round robin of providers when 100% complete
 - timer programming & invocation or external dispatch
-- merge data of all providers into new database
-  user may specify which categories to take from which provider,
-  e.g. short&long info from 3SAT, series code from Pro7, rating from RTL2 etc.
 - long-term search: maintain list of search filters that are applied each time
   new data has been acquired; notify the user when a matching PI arrives. This
   can be used for a list of favourite movies or actors

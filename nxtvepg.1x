@@ -19,10 +19,10 @@
 .\"
 .\"  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
 .\"
-.\" $Id: nxtvepg.1x,v 1.14 2000/11/16 20:38:59 tom Exp tom $
+.\" $Id: nxtvepg.1x,v 1.18 2000/12/26 20:26:55 tom Exp tom $
 .\"----------------------------------------------------------------------------
 .na
-.TH nxtvepg 1x "version 0.3.4 (C) 1999,2000 Tom Zoerner" "" "Nextview EPG Decoder"
+.TH nxtvepg 1x "version 0.4.0 (C) 1999,2000 Tom Zoerner" "" "Nextview EPG Decoder"
 .SH NAME
 nxtvepg \- Decoder, Browser and Analyzer for the
 Nextview Electronic Programme Guide
@@ -31,38 +31,59 @@ Nextview Electronic Programme Guide
 .B nxtvepg
 .RI [ options ]
 
-.SH DESCRIPTION
+.SH INTRODUCTION
 .B nxtvepg
-is an X11 application to receive, store and browse TV programme information
-transmitted in the Nextview format by analog TV channels as defined in the
-ETSI standard ETS 300 707.
+is an X11 and Win32API application to decode, analyze and browse TV programme
+schedules transmitted on analog TV channels as defined in ETS 300 707:
+"Protocol for a TV Guide using electronic data transmission" by the
+European Telecommunications Standards Institute.
 .PP
-Nextview was developed for use in TV sets, but it can also be received and
-used by a PC - provided you have a Teletext capable TV tuner card and are
-lucky enough to have a Nextview provider in your country.
+The Nextview standard was developed for use in TV sets, but it can also be
+received and used in a PC - provided you have a Teletext capable TV tuner
+card and are lucky enough to have a Nextview content provider in your country.
+.PP
+.B nxtvepg
+allows you to obtain free TV programme listings for all of the major
+networks in Germany, Austria, France and Switzerland. Currently
+Nextview EPG is transmitted by the following TV stations:
+.TP
+In Germany and Austria: Pro7, 3Sat, RTL-II.
+.TP
+In Switzerland: EuroNews, TSR1 and others.
+.TP
+In France: Canal+, M6, TV5.
+.PP
+For up-to-date information check the nxtvepg homepage in the Internet
+(see the About popup in the Help menu). If you don't receive any of the
+channels listed above, you can only use the demo mode as described
+with the
+.I \-demo
+command line option.
 
 .SH OPTIONS
-A summary of command line options is included below. The X11 user
-interface is described in the X server man pages.
+Summary of command line options:
 .TP
 .BI \-display \ display
-Where to display the windows.
-Default: $DISPLAY.
+UNIX only: The display on which the windows will be created.
+Default: taken from environment variable DISPLAY.
 .TP
 .BI \-geometry \ geometry
-Specifies the position of the main window.
+Specifies the position of the main window, e.g.
+.I -geometry -0+0
+to put the main window in the upper right corner of the visible screen.
 The size of the window cannot be changed.
 .TP
 .BI \-iconic
-Start with the main window iconified.
+Start with the main window iconified (i.e. minimized).
 .TP
 .BI \-rcfile \ path
 Specify an alternate configuration file.
-Default: ~/.nxtvepgrc
+Default: on UNIX ~/.nxtvepgrc,
+on Windows nxtvepg.ini in the current directory.
 .TP
 .BI \-dbdir \ directory
 Specify an alternate directory for the databases.
-Default: /usr/tmp/nxtvdb.
+Default: On UNIX /usr/tmp/nxtvdb, on Windows the current directory.
 Note that the database management is not equipped for concurrent writing,
 so if you have more than one TV tuner card in your system or network,
 relocate the directory into the users' homes.
@@ -70,9 +91,10 @@ relocate the directory into the users' homes.
 .BI \-card \ index
 Specify which tuner card to use, if you have more than one.
 The given index is appended to /dev/vbi and /dev/video.
-Default: no index postfix, i.e. whatever minor device the symlink
+Default on UNIX: no index postfix, i.e. whatever minor device the symlink
 .B /dev/vbi
-refers to.
+refers to. Default on Windows: #1. This setting is rememered in the
+startup file.
 .TP
 .BI \-provider \ CNI
 Select a provider by its hexadecimal CNI (Country and Network Identifier),
@@ -94,34 +116,50 @@ or database reselection is not possible.
 .TP
 .BI \-help
 List of command line options.
+.PP
+Note to Windows users: all these options - unless otherwise noted -
+are available in the Win32 version too. You can supply the options
+either from a "MS-DOS" command prompt or batch file, or by appending
+them to the executable in a shortcut definition.
 
 .\"----------------------------------------------------------------------------
 
 .SH GETTING STARTED
-The first time you start the Nextview decoder, there won't be
-a provider yet, so there won't be any programme data either.
-To start reading in data (called
+Before you can start reading in TV programme schedules (called
 .I acquisition
-from hereon), the decoder needs to know on which TV channel(s)
-data can be received.
+from here on), you have to do just a few configurations. Which
+ones depends on your setup and will be described in the following.
+As long as your browser window contains no data, there's also a
+recommondation how to get to data in the browser window,
+highlighted with a yellow background.
 .PP
-The best way to get started is to run a provider scan from the
-Configure menu.  During the scan all TV channels are checked for
-Nextview transmissions.  If there are found any, you then can select
-your favorite provider in the Provider selection menu from the
-Configure menu.
+This manual describes all features of nxtvepg in detail. You
+do not have to read all of it at once to operate the software.
+However it's recommended to skim at least through
+.B Basic Browsing,
+.B Data Acquisition
+and
+.B Filtering.
 .PP
-Alternatively, you can use a separate application like
-.BR xtvscreen (1)
-to tune in a provider's channel (currently Pro7, RTL2, 3SAT,
-TV5, EuroNews, Canal+, M6 and several Swiss channels).
-.I Note:
-if you use
-.BR xawtv (1)
-be aware that the version including nagra decoding hogs the VBI
-device, hence it does not work together with this Nextview decoder
-(or any other teletext based software). Of course you still can
-browse the already stored programme databases.
+Windows users first have to configure the driver for their TV card.
+Therefore please invoke the 'TV card input' popup from the Configure
+menu and specify the type of your tuner; check the PLL init if needed.
+Alternatively, if you don't have an antenna connected to your PC,
+you can select an external source for video input.
+.PP
+UNIX users just need to check if the correct input source is selected
+in the TV card input popup menu.
+.PP
+In the next step - if you chose to use the TV tuner - run a provider
+scan from the Configure menu.  During the scan all TV channels are
+checked for Nextview transmissions.  The first one found will
+automatically be loaded into the browser after the scan has stopped.
+If you want a different provider, you can select it via the provider
+selection popup from the Configure menu.
+.PP
+Alternatively if you decided not to use the tuner, provide the video
+signal of one of the content provider channels listed in the introduction
+to the selected input socket.
 .PP
 Acquisition of a complete database takes about 20 minutes. However
 programmes that are nearer in the future are available much faster,
@@ -169,29 +207,23 @@ Every effort is taken to not alter the cursor position or title selection,
 except if the cursor is on the very first item - then the cursor
 stays on top.
 .PP
-There are two modes of operation:
-.I active
-and
-.I passive.
-Which one is used depends on on whether the
-.I /dev/video
-device is busy (i.e. used by a TV application).
+By default, the acquisition always works for the provider whose database
+you have loaded into the browser. Therefore, upon program start or whenever
+you switch providers, the TV tuner is set onto the frequency of the
+provider's TV channel.  Please note that this mode is only possible after
+a provider scan, because that's the only way to find out the frequencies.
+Check out the following chapter for more sophisticated acquisition
+strategies.
 .PP
-In active acquisition mode, data is always acquired for the currently
-selected provider. At startup or when a new provider is selected from
-the Configure menu, the tuner frequency is set to the frequency of that
-provider's channel. Please note that this mode is only possible after
-a provider scan, because that's the only way to find out the frequencies
-(that's a limitation of the
-.I Video\ 4\ Linux
-driver).
-.PP
-In passive mode (e.g. while you are watching TV), acquisition follows
-the external channel selection.  If there's no Nextview transmission
-on the selected channel, no data will be acquired. If there is a
-transmission belonging to a different provider than the one selected
-for the browser, a second database will automatically be opened in
-the background to store the incoming data.
+If you do not choose the TV tuner as input (e.g. if you choose an external
+source via the Composite or S-Video input sockets), or if the TV tuner is
+kept busy by another application (e.g. if you watch TV) data is still
+being acquired, but it's no longer possible to automatically change the
+TV channel. Hence you are resposible for selecting the channel of the
+provider who's database you want to load or refresh. If a transmission
+belonging to a different provider than the one selected in the browser
+is detected, a second database is automatically opened in the background
+to store the incoming data.
 .PP
 The transmitted database is constantly in change: Elapsed titles are
 removed, new titles appended, and the titles closest to the current time
@@ -256,6 +288,100 @@ that expired PI are not accessible from the user interface, however they
 are included in the database dump from the
 .I Control
 menu.
+
+.\"----------------------------------------------------------------------------
+
+.SH ACQUISITION MODES
+The acquiition mode configuration allows you to control for which providers
+data is collected, and in which order. It's mainly intended for users who use
+more than one provider's database, i.e. in a merged database, or want to
+optimize startup time. If you're happy with a single provider or don't
+want to browse immediately after program start, you should keep the
+default, which is loading data always for the provider selected in the
+browser.
+.TP
+.B Passive
+In this mode the software never changes the input channel; it's intended
+for UNIX systems when you run a different software in parallel that needs
+the video device. It's not useful for Windows systems. The mode is automatically
+switched to if the software detects an external, i.e. uncontrolled channel change.
+This is the only possible mode if you choose an input source other than
+the TV tuner, since there's no means by which the TV channel that's received
+through one of the composite inputs can be switched.
+.TP
+.B Follow-UI
+This is the default mode: the acquisition always works for the provider you
+have selected for the browser (i.e. user interface). If you change the
+provider in the browser window, acquisition follows by tuning the new channel.
+Of course this requires to have performed an EPG scan at least once, so that
+the tuner frequencies of all providers are known. When you use a merged
+database in the browser, acquisition works on each of the merged providers,
+one after another, just like in the mode described next.
+.TP
+.B Manually selected
+This mode allows you to manually select for which providers the acquisition
+should work. If you select more than one provider, they are loaded one after
+another, in your specified order. Warning: if you choose a provider for the
+browser that's no on the list, no data will be loaded into the browser,
+even if it's completely empty.
+Since transmission errors have to be considered, it's not attempted
+to load every single block of a provider before acquisitions switches to the
+next. Instead a statistical criterium was defined, that regards the variance
+in coverage of all networks contained in the database, and the slope of that
+variance.
+.TP
+.B Cyclic: Now -> Near -> All
+Like the previous mode, this one allows you to specify a list of providers
+to load data for. However they are not just loaded completely one after another.
+Instead, a 3-staged round-robin is implemented. In the first stage, only
+.I Now
+data is loaded, i.e. the currently running and next 2-3 programmes. When
+this has been completed for all providers, the next stage begins, which loads
+.I Near
+data, i.e. all programmes running in the next 12-24 hours. When that was
+completed, the final stage loads the outstanding blocks for all providers.
+See below for an explanation what this mode is good for.
+.TP
+.B Cyclic: Now -> All
+This is the same as the previous mode, except that the
+.I Near
+stage is skipped.
+.TP
+.B Cyclic: Near -> All
+This is the same as the mode before the previous one, except that the
+.I Now
+stage is skipped.
+.PP
+Which mode is best for you depends on how you use the browser. As said
+above, if you're mainly using a single provider, stick with the Follow-UI
+mode. If you use a merged database, data is automatically loaded for all
+contained providers. However if you switch manually between multiple
+providers, you should choose one of the manual acquisition modes.
+.PP
+The Cyclic modes allow you to optimize startup time. While in standard
+manual mode, the first database is loaded completely before the next one
+is started, in Cyclic modes you can specify to load only Now data of all
+providers first. Hence already after a couple minutes you'll have updated
+Now information for all providers. If you require more look-ahead than
+the next 2-3 programmes, e.g. the complete evening, use a Cyclic mode
+that starts with the Near stage.
+.PP
+If you use manual acquisition together with a merged browser database,
+make sure to put the same provider at top in both lists, i.e. acquisition
+should always start for the "master database" of the merge.
+.PP
+Please note that the time until all databases are complete is longer
+in the cyclic modes than in standard manual mode. In general, the time
+used for the Now and Next stages just adds to the time to complete the
+database.
+.PP
+Also note that the cyclic modes depend on the transmission cycles of
+the providers. Firstly this means that the time ranges covered by the
+cycle stages may differ between providers. Secondly, the cycle times
+may vary. In the worst case the Near cycle runs as long as the cycle
+for the complete database (e.g. the German provider RTL2). In this case
+you don't win anything by selecting a mode that contains a Near stage.
+
 
 .\"----------------------------------------------------------------------------
 
@@ -484,16 +610,21 @@ Summary of commands available from the Control menu:
 
 .TP
 .B Enable\ acquisition
-Toggles acquisition on or off.  When acquisition is switched off, the
+Toggles acquisition on or off. Switching off allows other applications
+(e.g. a teletext decoder) to use the TV card while you browse the database.
+If you have more than one card, it's always possible to use one for
+watching TV and the other for loading data.
+UNIX: When acquisition is switched off, the
 .I /dev/vbi
-device is freed, so that other applications (e.g. a teletext decoder)
-can use it.  Acquisition can also been turned off automatically
+device is freed.  Acquisition can also been turned off automatically
 by sending the process the signal HUP.  The process id is stored in
 .I /tmp/.vbi.pid
 while the device is in use.
+Windows: When acquisition is switched off, the driver is unloaded.
 
 .TP
 .B Dump stream
+UNIX only:
 All incoming Nextview blocks are dumped to
 .I stdout
 in an ASCII format. This is intended for developers only.
@@ -502,7 +633,7 @@ in an ASCII format. This is intended for developers only.
 .B Dump database
 Allows to dump all blocks of selected types in the database to
 .I stdout
-or into the given file.  Also for developers only.
+(UNIX only) or into the given file.  Also for developers only.
 
 .TP
 .B View timescales
@@ -539,8 +670,19 @@ from which Nextview data can be received.  When you select a channel
 name on the list, you'll see the name of the Nextview service that's
 transmitted there and a list of all networks covered by it on the right.
 If you close the popup with Ok, the selected provider's database will be
-loaded into the browser.  In active acquisition mode the according
-TV channel will also be tuned to update the database.
+loaded into the browser.  The according TV channel will also be tuned
+to update the database, if you have slected "Follow-UI" acquisition mode.
+
+.TP
+.B Merge providers...
+Open a popup that allows to merge several databases into one.
+
+.TP
+.B Acquisition mode...
+Open a popup that allows to control the background acquisition process.
+See chapter
+.I Acquisition modes
+for more details.
 
 .TP
 .B Provider scan...
@@ -548,7 +690,25 @@ Open a popup that allows to start a scan across all TV channels for
 Nextview transmissions.  You should perform this search at least once,
 firstly to get a complete list of all providers, and secondly to find
 out the frequencies to all provider's channels. They are required for
-active acquisition mode.
+most acquisition modes.
+
+.TP
+.B TV card input...
+Open a popup where the driver for the TV card can be configured.
+On Windows systems you must at least specify which type of tuner
+is on your card, and if the PLL needs to be initialized. You can
+check your setting by starting an EPG scan: if nothing is found,
+try a different setting (or check the antenna cable). If you
+experience data loss due to heavy system load, you should raise
+the acquisition thread priority.
+On Linux systems only the remaining two configuration options
+apply: you may choose which video input source to use. See the
+.I Data Acuisition
+chapter about the consequences of not using the TV tuner as input.
+If you have more than one TV tuner card, you can also choose which
+one to use, just like with the
+.I \-card
+command line option.
 
 .TP
 .B Select networks...
@@ -576,6 +736,9 @@ You have to press the
 .I Update
 button to save any changes for a shortcut and then close the popup with
 .I Save.
+See chapter
+.I Filter Shortcuts
+for more details.
 
 .TP
 .B Show shortcuts
@@ -583,11 +746,12 @@ Toggle visibility of the shortcut listbox.
 
 .TP
 .B Show networks
-Toggle visibility of the network listbox.
+Toggle visibility of the network filter listbox.
 
 .\"----------------------------------------------------------------------------
 
 .SH FILES
+.SS The following files are used by nxtvepg on UNIX systems:
 .TP
 .B ~/.nxtvepgrc
 Configuration file where all personal settings are stored. Per default
@@ -606,30 +770,50 @@ The last 4 digits of the file names are the hexadecimal CNI (Country
 and Network Identifier) of the provider.
 
 .TP
-.B /dev/vbi, /dev/vbi0, etc.
+.B /dev/vbi0, /dev/vbi1, etc.
 Device files from which Nextview data is being read.
 The index postfix can be specified with the
 .B -card
 command line option.
 
 .TP
-.B /dev/video, /dev/video0, etc.
-Device files that are needed to set tuner frequency for VBI reception.
-The index postfix can be specified with the
+.B /dev/video0, /dev/video1, etc.
+Device files that are needed to set tuner frequency for
+VBI reception.  The index postfix can be specified with the
 .B -card
 command line option.
 The device is only kept open during a provider search. Else, it's just
-opened shortly to set the tuner frequency at the start of acquisition.
-If the device is busy, acquisition starts on the currently selected channel
-and follows any externally controlled channel changes (passive acquisition
-mode).
+opened shortly to set the input source and tuner frequency at the start
+of acquisition. If the device is busy, acquisition starts on the currently
+selected source and frequency and follows any externally controlled channel
+changes (passive acquisition mode).
 
 .TP
-.BI /tmp/.vbi.pid
+.B /tmp/.vbi0.pid, /tmp/.vbi1.pid, etc.
 This file contains the process id of the Nextview decoder (or the
-acquisition slave process) whenever /dev/vbi is kept open. The
+acquisition slave process) whenever a vbi device is kept open. The
 process can be forced to free the device by sending it signal SIGHUP,
 e.g. from a wrapper script around a teletext decoder.
+
+.\"-  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
+
+.SS The following files are used by nxtvepg on Windows systems:
+.TP
+.B nxtvepg.ini
+Configuration file where all personal settings are stored. Per default
+this is created in the working directory, but a different path and file
+name can be specified with the
+.B \-rcfile
+option.
+
+.TP
+.B nxtv####.epg
+One file for each provider's database is created in the working directory
+or the one given with the
+.B \-dbdir
+command line option.
+The last 4 digits of the file base names are the hexadecimal CNI (Country
+and Network Identifier) of the provider.
 
 .\"----------------------------------------------------------------------------
 
@@ -638,8 +822,12 @@ For in-depth information about Nextview please refer to the specifications
 ETS 300 707 (data structures and basic principles), ETS 300 708
 (transmission protocol) and ETR 288 (code of practice). These specs
 are available from
+.I "http://www.etsi.org/"
 .PP
-http://www.etsi.org/
+You can also have Nextview directly inside your television set - check
+out the catalogues of Grundig, Loewe, Metz, Sony, Philips, Thompson or
+Telefunken. However be aware that not all models do support the same
+set of Nextview features.
 
 .\"----------------------------------------------------------------------------
 
@@ -648,7 +836,8 @@ Feel free to mail any bug reports to me, but please make sure that
 (a) you have the latest version of this software, (b) it's not already
 in the TODO file and (c) it's not just an error in your provider's EPG
 transmission. And please note that I've got no telepathic capabilities,
-so be comprehensive in describing your problem.
+so be comprehensive in describing your problem. See the README file
+for instructions on which information must be included in a bug report.
 
 .SH AUTHOR
 Tom Zoerner, Erlangen, Germany.
@@ -662,13 +851,17 @@ and last but not least to the authors of v4l for their excellent work.
 
 .SH COPYRIGHT
 Copyright (C) 1999,2000 Tom Zoerner
-
+.PP
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License Version 2 as
-published by the Free Software Foundation.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-file COPYRIGHT for more details.
+published by the Free Software Foundation, e.g. at
+.I "http://www.fsf.org/"
+.PP
+This program is distributed in the hope that it will be useful, but
+.B WITHOUT ANY WARRANTY;
+without even the implied warranty of
+merchantability or fitness for a particular purpose. See the
+file
+.I COPYRIGHT
+for more details.
 

@@ -21,7 +21,7 @@
 #
 #  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
 #
-#  $Id: epgui.tcl,v 1.37.1.2 2000/11/16 21:30:12 tom Exp $
+#  $Id: epgui.tcl,v 1.51 2000/12/26 16:03:06 tom Exp tom $
 #
 
 frame     .all -relief flat -borderwidth 0
@@ -46,7 +46,27 @@ bind      .all.netwops.list <space> {+ SelectNetwop}
 pack      .all.netwops.list -side left -anchor n
 pack      .all.netwops -side left -anchor n -pady 2 -padx 2
 
-set textfont {Helvetica -12 normal}
+if {[string compare $tcl_platform(platform) "unix"] == 0} {
+   set font_pt_size  12
+   set cursor_bg     #c3c3c3
+   set cursor_bg_now #b8b8df
+} else {
+   if {$tcl_version >= 8.3} {
+      set font_pt_size  12
+   } else {
+      set font_pt_size  15
+   }
+   set cursor_bg     #e2e2e2
+   set cursor_bg_now #d8d8ff
+}
+set textfont        [list helvetica [expr   0 - $font_pt_size] normal]
+set font_bold       [list helvetica [expr   0 - $font_pt_size] bold]
+set font_pl2_bold   [list helvetica [expr  -2 - $font_pt_size] bold]
+set font_pl4_bold   [list helvetica [expr  -4 - $font_pt_size] bold]
+set font_pl6_bold   [list helvetica [expr  -6 - $font_pt_size] bold]
+set font_pl12_bold  [list helvetica [expr -12 - $font_pt_size] bold]
+set font_fixed      [list courier   [expr   0 - $font_pt_size] normal]
+
 set default_bg [.all cget -background]
 
 frame     .all.pi
@@ -57,7 +77,7 @@ text      .all.pi.list.text -height 27 -width 70 \
                             -font $textfont -exportselection false \
                             -background $default_bg \
                             -cursor top_left_arrow \
-			    -insertofftime 0
+                            -insertofftime 0
 bindtags  .all.pi.list.text {.all.pi.list.text . all}
 bind      .all.pi.list.text <Button-1> {C_PiListBox_SelectItem [GetSelectedItem %x %y]}
 bind      .all.pi.list.text <Double-Button-1> {C_PiListBox_PopupPi %x %y}
@@ -69,6 +89,7 @@ bind      .all.pi.list.text <Next>  {C_PiListBox_Scroll scroll 1 pages}
 bind      .all.pi.list.text <Home>  {C_PiListBox_Scroll moveto 0.0; C_PiListBox_SelectItem 0}
 bind      .all.pi.list.text <End>   {C_PiListBox_Scroll moveto 1.0; C_PiListBox_Scroll scroll 1 pages}
 bind      .all.pi.list.text <Enter> {focus %W}
+.all.pi.list.text tag configure sel -foreground black -relief raised -borderwidth 1
 .all.pi.list.text tag configure now -background #c9c9df
 .all.pi.list.text tag lower now
 pack      .all.pi.list.text -fill x -fill y -side left
@@ -82,10 +103,10 @@ text      .all.pi.info.text -height 10 -width 70 -wrap word \
                             -background $default_bg \
                             -yscrollcommand {.all.pi.info.sc set} \
                             -cursor circle \
-			    -insertofftime 0
-.all.pi.info.text tag configure title -font {helvetica -14 bold} -justify center -spacing3 3
-.all.pi.info.text tag configure bold -font {helvetica -12 bold}
-.all.pi.info.text tag configure features -font {helvetica -12 bold} -justify center -spacing3 6
+                            -insertofftime 0
+.all.pi.info.text tag configure title -font $font_pl2_bold -justify center -spacing3 3
+.all.pi.info.text tag configure bold -font $font_bold
+.all.pi.info.text tag configure features -font $font_bold -justify center -spacing3 6
 bindtags  .all.pi.info.text {.all.pi.info.text . all}
 pack      .all.pi.info.text -side left -fill y -expand 1
 pack      .all.pi.info -side top -fill y -expand 1
@@ -117,7 +138,13 @@ menu .menubar.ctrl -tearoff 0 -postcommand C_SetControlMenuStates
 # Config menu
 menu .menubar.config -tearoff 0
 .menubar.config add command -label "Select provider..." -command ProvWin_Create
+.menubar.config add command -label "Merge providers..." -command PopupProviderMerge
+.menubar.config add command -label "Acquisition mode..." -command PopupAcqMode
+.menubar.config add separator
 .menubar.config add command -label "Provider scan..." -command PopupEpgScan
+.menubar.config add command -label "TV card input..." -command PopupHardwareConfig
+#.menubar.config add command -label "Time zone..." -command PopupTimeZone
+.menubar.config add separator
 .menubar.config add command -label "Select networks..." -command PopupNetwopSelection
 .menubar.config add command -label "Filter shortcuts..." -command EditFilterShortcuts
 .menubar.config add separator
@@ -294,8 +321,12 @@ proc CreateDemoModePseudoMenu {} {
 
    # provider change not possible, since -demo db is always reloaded
    .menubar.config entryconfigure "Select provider*" -state disabled
+   # providers can not be merged because there is only one db given with -demo
+   .menubar.config entryconfigure "Merge providers*" -state disabled
    # acq not possible, hence no scan also
    .menubar.config entryconfigure "Provider scan*" -state disabled
+   # TV hardware/TV input config not required, since acq disabled
+   .menubar.config entryconfigure "TV card input*" -state disabled
    # acq not possible, hence no mode change
    .menubar.config entryconfigure "Acquisition mode*" -state disabled
 }
@@ -819,7 +850,9 @@ proc CreateContextMenu {xcoo ycoo} {
 set poppedup_pi {}
 
 proc Create_PopupPi {ident xcoo ycoo} {
+   global textfont font_pl6_bold default_bg
    global poppedup_pi
+
    if {[string length $poppedup_pi] > 0} {destroy $poppedup_pi}
    set poppedup_pi $ident
 
@@ -829,9 +862,11 @@ proc Create_PopupPi {ident xcoo ycoo} {
    set xcoo [expr $xcoo + [winfo rootx .all.pi.list.text] - 200]
    set ycoo [expr $ycoo + [winfo rooty .all.pi.list.text] - 5]
    wm geometry $poppedup_pi "+$xcoo+$ycoo"
-   text $poppedup_pi.text -relief ridge -width 55 -height 20 -cursor circle
+   text $poppedup_pi.text -relief ridge -width 55 -height 20 -cursor circle \
+                          -background $default_bg -font $textfont
    $poppedup_pi.text tag configure title \
-                     -justify center -spacing3 12 -font {helvetica -18 bold}
+                     -justify center -spacing3 12 -font $font_pl6_bold
+   $poppedup_pi.text tag configure body -tabs 35m
 
    #C_PopupPi $poppedup_pi.text $netwop $blockno
    #$poppedup_pi.text configure -state disabled
@@ -895,6 +930,11 @@ proc CompareSeriesMenuEntries {a b} {
 proc CreateSeriesMenuEntries {menu_name tmp_list lang} {
    set all {}
    foreach {title series} $tmp_list {
+      # remove series instance number postfix
+      if {[regsub -- { +\([\d]+\)$} $title {} result] > 0} {
+         set title $result
+      }
+      # move attribs "Der, Die, Das" to the end fot the title for sorting
       switch $lang {
          0 {  # English
             regsub -nocase -- "^(the|a) (.*)" $title {\2, \1} result
@@ -934,7 +974,7 @@ proc PostDynamicMenu {menu cmd} {
    }
    if {$dynmenu_posted($menu) == 0} {
       # delete the previous menu content
-      if {![string equal "none" [$menu index end]]} {
+      if {[string compare "none" [$menu index end]] != 0} {
          for {set i [$menu index end]} {$i >= 0} {incr i -1} {
             #puts stdout "post $menu -> check index $i"
             if {[string compare [$menu type $i] "cascade"] == 0} {
@@ -979,6 +1019,28 @@ proc UnpostDynamicMenu {menu} {
 }
 
 ##  --------------------------------------------------------------------------
+##  Create a popup toplevel window
+##
+proc CreateTransientPopup {wname title} {
+   global tcl_platform
+
+   toplevel $wname
+   wm title $wname $title
+   # disable the resize button in the window frame
+   wm resizable $wname 0 0
+   if {[string compare $tcl_platform(platform) "unix"] != 0} {
+      # make it a slave of the parent, usually without decoration
+      wm transient $wname .
+      # place it in the upper left corner of the parent
+      if {[regexp "\\+(\\d+)\\+(\\d+)" [wm geometry .] foo root_x root_y]} {
+         wm geometry $wname "+[expr $root_x + 30]+[expr $root_y + 30]"
+      }
+   } else {
+      wm group $wname .
+   }
+}
+
+##  --------------------------------------------------------------------------
 ##  Text search pop-up window
 ##
 set substr_grep_title 1
@@ -1012,10 +1074,7 @@ proc SubStrPopup {} {
    global substr_pattern
 
    if {$substr_popup == 0} {
-      toplevel .substr
-      wm title .substr "Text Search"
-      wm resizable .substr 0 0
-      wm group .substr .
+      CreateTransientPopup .substr "Text search"
       set substr_popup 1
 
       frame .substr.all
@@ -1023,7 +1082,7 @@ proc SubStrPopup {} {
       frame .substr.all.name
       label .substr.all.name.prompt -text "Enter text:"
       pack .substr.all.name.prompt -side left
-      entry .substr.all.name.str -textvariable substr_pattern
+      entry .substr.all.name.str -textvariable substr_pattern -width 30
       pack .substr.all.name.str -side left
       bind .substr.all.name.str <Enter> {focus %W}
       bind .substr.all.name.str <Return> SubstrUpdateFilter
@@ -1044,12 +1103,11 @@ proc SubStrPopup {} {
       pack .substr.all.opt -side top -pady 10
 
       frame .substr.all.cmd
-      button .substr.all.cmd.apply -text "Apply" -command SubstrUpdateFilter
-      pack .substr.all.cmd.apply -side left -padx 10
-      button .substr.all.cmd.clear -text "Clear" -command {set substr_pattern {}; SubstrUpdateFilter}
-      pack .substr.all.cmd.clear -side left -padx 10
-      button .substr.all.cmd.dismiss -text "Dismiss" -command {destroy .substr}
-      pack .substr.all.cmd.dismiss -side left -padx 10
+      button .substr.all.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Filtering) "Text search"}
+      button .substr.all.cmd.clear -text "Clear" -width 5 -command {set substr_pattern {}; SubstrUpdateFilter}
+      button .substr.all.cmd.apply -text "Apply" -width 5 -command SubstrUpdateFilter
+      button .substr.all.cmd.dismiss -text "Dismiss" -width 5 -command {destroy .substr}
+      pack .substr.all.cmd.help .substr.all.cmd.clear .substr.all.cmd.apply .substr.all.cmd.dismiss -side left -padx 10
       pack .substr.all.cmd -side top
 
       pack .substr.all -padx 10 -pady 10
@@ -1084,10 +1142,7 @@ proc ProgIdxPopup {} {
    global progidx_popup
 
    if {$progidx_popup == 0} {
-      toplevel .progidx
-      wm title .progidx "Program index selection"
-      wm resizable .progidx 0 0
-      wm group .progidx .
+      CreateTransientPopup .progidx "Program index selection"
       set progidx_popup 1
 
       frame .progidx.firstidx
@@ -1103,10 +1158,10 @@ proc ProgIdxPopup {} {
       pack .progidx.lastidx -side top -fill x -expand 1
 
       frame .progidx.cmd
-      button .progidx.cmd.clear -text "Undo" -command {set filter_progidx 0; C_SelectProgIdx; C_RefreshPiListbox; destroy .progidx}
-      pack .progidx.cmd.clear -side left -padx 20
-      button .progidx.cmd.dismiss -text "Dismiss" -command {destroy .progidx}
-      pack .progidx.cmd.dismiss -side left -padx 20
+      button .progidx.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Filtering) "Program index"}
+      button .progidx.cmd.clear -text "Undo" -width 5 -command {set filter_progidx 0; C_SelectProgIdx; C_RefreshPiListbox; destroy .progidx}
+      button .progidx.cmd.dismiss -text "Dismiss" -width 5 -command {destroy .progidx}
+      pack .progidx.cmd.help .progidx.cmd.clear .progidx.cmd.dismiss -side left -padx 10
       pack .progidx.cmd -side top -pady 10
 
       bind .progidx.cmd <Destroy> {+ set progidx_popup 0}
@@ -1129,10 +1184,7 @@ proc PopupTimeFilterSelection {} {
    global timsel_popup
 
    if {$timsel_popup == 0} {
-      toplevel .timsel
-      wm title .timsel "Time filter selection"
-      wm resizable .timsel 0 0
-      wm group .timsel .
+      CreateTransientPopup .timsel "Time filter selection"
       set timsel_popup 1
 
       frame .timsel.all
@@ -1171,10 +1223,10 @@ proc PopupTimeFilterSelection {} {
       pack  .timsel.all -padx 10 -pady 10 -side top
 
       frame .timsel.cmd
+      button .timsel.cmd.help -text "Help" -command {PopupHelp $helpIndex(Filtering) "Start Time"}
       button .timsel.cmd.undo -text "Undo" -command {destroy .timsel; UndoTimeFilter}
-      pack .timsel.cmd.undo -side left -padx 10
       button .timsel.cmd.dismiss -text "Dismiss" -command {destroy .timsel}
-      pack .timsel.cmd.dismiss -side left -padx 10
+      pack .timsel.cmd.help .timsel.cmd.undo .timsel.cmd.dismiss -side left -padx 10
       pack .timsel.cmd -side top -pady 5
 
       bind .timsel.all <Destroy> {+ set timsel_popup 0}
@@ -1277,10 +1329,7 @@ proc PopupSortCritSelection {} {
    global sortcrit_popup
 
    if {$sortcrit_popup == 0} {
-      toplevel .sortcrit
-      wm title .sortcrit "Sorting criterion selection"
-      wm resizable .sortcrit 0 0
-      wm group .sortcrit .
+      CreateTransientPopup .sortcrit "Sorting criterion selection"
       set sortcrit_popup 1
 
       frame .sortcrit.fl
@@ -1302,8 +1351,8 @@ proc PopupSortCritSelection {} {
       pack  .sortcrit.all.inp -side top -pady 10 -anchor nw -fill x -expand 1
 
       # buttons Add and Delete below entry field
-      button .sortcrit.all.scadd -text "Add" -command AddSortCritSelection -width 7
-      button .sortcrit.all.scdel -text "Delete" -command DeleteSortCritSelection -width 7
+      button .sortcrit.all.scadd -text "Add" -command AddSortCritSelection -width 5
+      button .sortcrit.all.scdel -text "Delete" -command DeleteSortCritSelection -width 5
       pack .sortcrit.all.scadd .sortcrit.all.scdel -side top -anchor nw
 
       # class selection array
@@ -1326,10 +1375,10 @@ proc PopupSortCritSelection {} {
       pack .sortcrit.all.sccl -side top -anchor w -pady 5
 
       # Buttons at bottom: Clear and Dismiss
-      button .sortcrit.all.apply -text "Dismiss" -command {destroy .sortcrit} -width 7
-      pack .sortcrit.all.apply -side bottom -anchor w
-      button .sortcrit.all.clear -text "Clear" -command ClearSortCritSelection -width 7
-      pack .sortcrit.all.clear -side bottom -pady 5 -anchor w
+      button .sortcrit.all.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Filtering) "Sorting Criterions"}
+      button .sortcrit.all.clear -text "Clear" -width 5 -command ClearSortCritSelection
+      button .sortcrit.all.dismiss -text "Dismiss" -width 5 -command {destroy .sortcrit}
+      pack .sortcrit.all.dismiss .sortcrit.all.clear .sortcrit.all.help -side bottom -anchor w
       pack .sortcrit.all -side left -anchor n -fill y -expand 1 -padx 5 -pady 5
 
       bind .sortcrit.all <Destroy> {+ set sortcrit_popup 0}
@@ -1430,8 +1479,8 @@ proc UpdateSortCritListbox {} {
 ##  DumpDatabase pop-up window
 ##
 set dumpdb_pi 1
+set dumpdb_xi 1
 set dumpdb_ai 1
-set dumpdb_bi 1
 set dumpdb_ni 1
 set dumpdb_oi 1
 set dumpdb_mi 1
@@ -1440,15 +1489,12 @@ set dumpdb_ti 1
 set dumpdb_popup 0
 
 proc PopupDumpDatabase {} {
-   global dumpdb_pi dumpdb_ai dumpdb_bi dumpdb_ni
+   global dumpdb_pi dumpdb_xi dumpdb_ai dumpdb_ni
    global dumpdb_oi dumpdb_mi dumpdb_li dumpdb_ti
    global dumpdb_popup
 
    if {$dumpdb_popup == 0} {
-      toplevel .dumpdb
-      wm title .dumpdb "Dump Database"
-      wm resizable .dumpdb 0 0
-      wm group .dumpdb .
+      CreateTransientPopup .dumpdb "Dump Database"
       set dumpdb_popup 1
 
       frame .dumpdb.all
@@ -1466,13 +1512,13 @@ proc PopupDumpDatabase {} {
       frame .dumpdb.all.opt
       frame .dumpdb.all.opt.one
       checkbutton .dumpdb.all.opt.one.pi -text "Programme Info" -variable dumpdb_pi
-      checkbutton .dumpdb.all.opt.one.ni -text "Navigation Info" -variable dumpdb_ni
+      checkbutton .dumpdb.all.opt.one.xi -text "Expired PI" -variable dumpdb_xi
       checkbutton .dumpdb.all.opt.one.ai -text "Application Info" -variable dumpdb_ai
-      checkbutton .dumpdb.all.opt.one.bi -text "Bundle Info" -variable dumpdb_bi
+      checkbutton .dumpdb.all.opt.one.ni -text "Navigation Info" -variable dumpdb_ni
       pack .dumpdb.all.opt.one.pi -side top -anchor nw
-      pack .dumpdb.all.opt.one.ni -side top -anchor nw
+      pack .dumpdb.all.opt.one.xi -side top -anchor nw
       pack .dumpdb.all.opt.one.ai -side top -anchor nw
-      pack .dumpdb.all.opt.one.bi -side top -anchor nw
+      pack .dumpdb.all.opt.one.ni -side top -anchor nw
       pack .dumpdb.all.opt.one -side left -anchor nw -padx 5
 
       frame .dumpdb.all.opt.two
@@ -1488,10 +1534,12 @@ proc PopupDumpDatabase {} {
       pack .dumpdb.all.opt -side top -pady 10
 
       frame .dumpdb.all.cmd
-      button .dumpdb.all.cmd.apply -text "Ok" -command {C_DumpDatabase $dumpdb_filename $dumpdb_pi $dumpdb_ai $dumpdb_bi $dumpdb_ni $dumpdb_oi $dumpdb_mi $dumpdb_li $dumpdb_ti; destroy .dumpdb}
-      pack .dumpdb.all.cmd.apply -side left -padx 10
-      button .dumpdb.all.cmd.clear -text "Abort" -command {destroy .dumpdb}
+      button .dumpdb.all.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Control) "Dump database"}
+      pack .dumpdb.all.cmd.help -side left -padx 10
+      button .dumpdb.all.cmd.clear -text "Abort" -width 5 -command {destroy .dumpdb}
       pack .dumpdb.all.cmd.clear -side left -padx 10
+      button .dumpdb.all.cmd.apply -text "Ok" -width 5 -command {C_DumpDatabase $dumpdb_filename $dumpdb_pi $dumpdb_xi $dumpdb_ai $dumpdb_ni $dumpdb_oi $dumpdb_mi $dumpdb_li $dumpdb_ti; destroy .dumpdb}
+      pack .dumpdb.all.cmd.apply -side left -padx 10
       pack .dumpdb.all.cmd -side top
 
       pack .dumpdb.all -padx 10 -pady 10
@@ -1504,7 +1552,8 @@ proc PopupDumpDatabase {} {
 ##
 set help_popup 0
 
-proc PopupHelp {index} {
+proc PopupHelp {index {subheading {}}} {
+   global textfont font_bold font_pl4_bold
    global help_popup helpTexts
 
    if {$help_popup == 0} {
@@ -1524,17 +1573,17 @@ proc PopupHelp {index} {
       bind   .help.cmd <Destroy> {+ set help_popup 0}
 
       frame  .help.disp
-      scrollbar .help.disp.sb -orient vertical -command {.help.disp.text yview}
-      pack   .help.disp.sb -fill y -anchor e -side left
       text   .help.disp.text -width 60 -wrap word -setgrid true -background #ffd030 \
-                             -font {helvetica -12 normal} -spacing3 6 \
+                             -font $textfont -spacing3 6 \
                              -yscrollcommand {.help.disp.sb set}
       pack   .help.disp.text -side left -fill both -expand 1
+      scrollbar .help.disp.sb -orient vertical -command {.help.disp.text yview}
+      pack   .help.disp.sb -fill y -anchor e -side left
       pack   .help.disp -side top -fill both -expand 1
       # define tags for various nroff text formats
-      .help.disp.text tag configure title -font {helvetica -16 bold} -spacing3 10
+      .help.disp.text tag configure title -font $font_pl4_bold -spacing3 10
       .help.disp.text tag configure indent -lmargin1 40 -lmargin2 40
-      .help.disp.text tag configure bold -font {helvetica -12 bold}
+      .help.disp.text tag configure bold -font $font_bold
       .help.disp.text tag configure underlined -underline 1
 
       # allow to scroll the text with the cursor keys
@@ -1573,6 +1622,14 @@ proc PopupHelp {index} {
       .help.cmd.next configure -command {} -state disabled
       bind .help.disp.text <Right> {}
    }
+
+   # bring the given subheading into view
+   if {[string length $subheading] != 0} {
+      set subheading [.help.disp.text search -- $subheading 1.0]
+      if {[string length $subheading] != 0} {
+         .help.disp.text see $subheading
+      }
+   }
 }
 
 ##  --------------------------------------------------------------------------
@@ -1581,26 +1638,31 @@ proc PopupHelp {index} {
 set about_popup 0
 
 proc CreateAbout {} {
+   global EPG_VERSION tcl_patchLevel font_fixed
    global about_popup
 
    if {$about_popup == 0} {
+      CreateTransientPopup .about "About nxtvepg"
       set about_popup 1
-      toplevel .about
-      wm title .about "About Nextview EPG"
-      wm resizable .about 0 0
-      wm group .about .
-      label .about.name -text "Nextview EPG Decoder / Browser / Analyzer"
+
+      label .about.name -text "nexTView EPG Decoder - nxtvepg v$EPG_VERSION"
       pack .about.name -side top -pady 8
-      label .about.logo -bitmap nxtv_logo
-      pack .about.logo -side top -pady 8
-      label .about.version -text "v0.3.4"
-      pack .about.version -side top
+      #label .about.tcl_version -text " Tcl/Tk version $tcl_patchLevel"
+      #pack .about.tcl_version -side top
+
       label .about.copyr1 -text "Copyright © 1999, 2000 by Thorsten \"Tom\" Zörner"
       label .about.copyr2 -text "Tom.Zoerner@informatik.uni-erlangen.de"
-      label .about.copyr3 -text "http://nxtvepg.tripod.com/" -font {courier -12 normal} -foreground blue
+      label .about.copyr3 -text "http://nxtvepg.tripod.com/" -font $font_fixed -foreground blue
       pack .about.copyr1 .about.copyr2 -side top
       pack .about.copyr3 -side top -padx 10 -pady 10
+
+      label .about.logo -bitmap nxtv_logo
+      pack .about.logo -side top -pady 5
+      # disclaimer that the author is not member of the ETSI should be placed right beneath the logo
+
       message .about.m -text {
+The Nextview standard was developed by the major European consumer electronics manufacturers under the hood of the European Telecommunications Standards Institute (http://www.etsi.org/) in 1995-1997. The author of nxtvepg has no connections to the ETSI.
+
 If you publish any information that was acquired by use of this software, please do always include a note about the source of your information and where to obtain a copy of this software.
 
 This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License Version 2 as published by the Free Software Foundation. You find a copy of this license in the file COPYRIGHT in the root directory of this release.
@@ -1624,15 +1686,29 @@ proc ProvWin_Create {} {
    global provwin_popup
    global default_bg textfont
    global provwin_servicename
-   global provwin_list
+   global provwin_ailist
 
    if {$provwin_popup == 0} {
-      set provwin_popup 1
 
-      toplevel .provwin
-      wm title .provwin "Provider Selection"
-      wm resizable .provwin 0 0
-      wm group .provwin .
+      # build list of available providers
+      set provwin_ailist {}
+      foreach {cni name} [C_GetProvCnisAndNames] {
+         # build list of CNIs
+         lappend provwin_ailist $cni
+         # build array of provider network names
+         set provwin_names($cni) $name
+      }
+      # sort CNI list according to user preferences
+      set provwin_ailist [SortProvList $provwin_ailist]
+
+      if {[llength $provwin_ailist] == 0} {
+         # no providers found -> abort
+         tk_messageBox -type ok -icon info -message "There are no providers available yet.\nPlease start a provider scan from the Configure menu."
+         return
+      }
+
+      CreateTransientPopup .provwin "Provider Selection"
+      set provwin_popup 1
 
       # list of providers at the left side of the window
       frame .provwin.n
@@ -1640,10 +1716,11 @@ proc ProvWin_Create {} {
       scrollbar .provwin.n.b.sb -orient vertical -command {.provwin.n.b.list yview}
       listbox .provwin.n.b.list -relief ridge -selectmode single -width 15 -height 5 -yscrollcommand {.provwin.n.b.sb set}
       pack .provwin.n.b.sb .provwin.n.b.list -side left -fill y
-      bind .provwin.n.b.list <ButtonRelease-1> {+ C_ProvWin_Select [.provwin.n.b.list curselection]}
-      bind .provwin.n.b.list <KeyRelease-space> {+ C_ProvWin_Select [.provwin.n.b.list curselection]}
+      bind .provwin.n.b.list <ButtonRelease-1> {+ ProvWin_Select}
+      bind .provwin.n.b.list <KeyRelease-space> {+ ProvWin_Select}
 
       # provider info at the right side of the window
+      if {[info exists provwin_servicename]} {unset provwin_servicename}
       frame .provwin.n.info
       label .provwin.n.info.serviceheader -text "Name of service"
       entry .provwin.n.info.servicename -state disabled -textvariable provwin_servicename -width 35
@@ -1662,22 +1739,63 @@ proc ProvWin_Create {} {
 
       # buttons at the bottom of the window
       frame .provwin.cmd
-      button .provwin.cmd.apply -text "Ok" -command {C_ProvWin_Exit [.provwin.n.b.list curselection]; destroy .provwin}
-      pack .provwin.cmd.apply -side left -padx 10
-      button .provwin.cmd.clear -text "Abort" -command {C_ProvWin_Exit; destroy .provwin}
-      pack .provwin.cmd.clear -side left -padx 10
+      button .provwin.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Configuration) "Select provider"}
+      button .provwin.cmd.abort -text "Abort" -width 5 -command {destroy .provwin}
+      button .provwin.cmd.ok -text "Ok" -width 5 -command ProvWin_Exit
+      pack .provwin.cmd.help .provwin.cmd.abort .provwin.cmd.ok -side left -padx 10
 
       pack .provwin.n .provwin.cmd -side top -pady 10
-      bind .provwin.n <Destroy> {+ set provwin_popup 0; C_ProvWin_Exit}
+      bind .provwin.n <Destroy> {+ set provwin_popup 0}
 
-      # empty the list of providers
-      if {[info exists provwin_list]} {
-         unset provwin_list
+      # fill the listbox with the provider's network names
+      foreach cni $provwin_ailist {
+         .provwin.n.b.list insert end $provwin_names($cni)
       }
 
-      # fill the window
-      C_ProvWin_Open
+      # select the entry of the currently opened provider (if any)
+      set index [lsearch -exact $provwin_ailist [C_GetCurrentDatabaseCni]]
+      if {$index >= 0} {
+         .provwin.n.b.list selection set $index
+         ProvWin_Select
+      }
    }
+}
+
+# callback for provider selection in listbox: display infos on the right
+proc ProvWin_Select {} {
+   global provwin_ailist provwin_servicename
+
+   # remove the old service name and netwop list
+   set provwin_servicename {}
+   .provwin.n.info.net.list configure -state normal
+   .provwin.n.info.net.list delete 1.0 end
+
+   set index [.provwin.n.b.list curselection]
+   if {[string length $index] > 0} {
+      set names [C_GetServiceNameAndNetwopList [lindex $provwin_ailist $index]]
+      # display service name in entry widget
+      set provwin_servicename [lindex $names 0]
+
+      # display all netwops from the AI, separated by commas
+      .provwin.n.info.net.list insert end [lindex $names 1]
+      if {[llength $names] > 2} {
+         foreach netwop [lrange $names 2 end] {
+            .provwin.n.info.net.list insert end ", $netwop"
+         }
+      }
+   }
+   .provwin.n.info.net.list configure -state disabled
+}
+
+# callback for OK button: activate the selected provider
+proc ProvWin_Exit {} {
+   global provwin_ailist
+
+   set index [.provwin.n.b.list curselection]
+   if {[string length $index] > 0} {
+      C_ChangeProvider [lindex $provwin_ailist $index]
+   }
+   destroy .provwin
 }
 
 ##  --------------------------------------------------------------------------
@@ -1687,21 +1805,32 @@ set epgscan_popup 0
 set epgscan_timeout 2
 
 proc PopupEpgScan {} {
+   global hwcfg tcl_platform
    global epgscan_popup
 
    if {$epgscan_popup == 0} {
-      toplevel .epgscan
-      wm title .epgscan "Scan for Nextview EPG providers"
-      wm resizable .epgscan 0 0
-      wm group .epgscan .
+      if {[string compare $tcl_platform(platform) "unix"] != 0} {
+         if {![info exists hwcfg] || (([lindex $hwcfg 0] == 0) && ([lindex $hwcfg 1] == 0))} {
+            # tuner type has not been configured yet -> abort
+            tk_messageBox -type ok -icon info -message "Before you start the scan, please do configure your card's tuner type in the 'TV card input' sub-menu of the Configure menu.\nIf no channels are found during the scan, try to enable the tuner PLL initialization in that menu."
+            return
+         } elseif {[lindex $hwcfg 0] != 0} {
+            # tuner not configured as input -> no scan possible or needed
+            tk_messageBox -type ok -icon info -message "You have not selected the TV tuner as video input source. Hence a scan is neither needed nor possible.\nIf you want to use the TV tuner for input, you can change this setting in the 'TV card input' menu."
+            return
+         }
+      }
+
+      CreateTransientPopup .epgscan "Scan for Nextview EPG providers"
       set epgscan_popup 1
 
       frame  .epgscan.cmd
       # control commands
       button .epgscan.cmd.start -text "Start scan" -width 12 -command C_StartEpgScan
       button .epgscan.cmd.stop -text "Abort scan" -width 12 -command C_StopEpgScan -state disabled
+      button .epgscan.cmd.help -text "Help" -width 12 -command {PopupHelp $helpIndex(Configuration) "Provider scan"}
       button .epgscan.cmd.dismiss -text "Dismiss" -width 12 -command {destroy .epgscan}
-      pack .epgscan.cmd.start .epgscan.cmd.stop .epgscan.cmd.dismiss -side top -padx 10 -pady 10
+      pack .epgscan.cmd.start .epgscan.cmd.stop .epgscan.cmd.help .epgscan.cmd.dismiss -side top -padx 10 -pady 10
       pack .epgscan.cmd -side left
 
       frame .epgscan.all -relief raised -bd 2
@@ -1716,21 +1845,166 @@ proc PopupEpgScan {} {
       # message window to inform about the scanning state
       frame .epgscan.all.fmsg
       text .epgscan.all.fmsg.msg -width 35 -height 7 -yscrollcommand {.epgscan.all.fmsg.sb set} -wrap none
-      pack .epgscan.all.fmsg.msg -side left
+      pack .epgscan.all.fmsg.msg -side left -expand 1 -fill y
       scrollbar .epgscan.all.fmsg.sb -orient vertical -command {.epgscan.all.fmsg.msg yview}
       pack .epgscan.all.fmsg.sb -side left -fill y
-      pack .epgscan.all.fmsg -side top -padx 10 -pady 10
+      pack .epgscan.all.fmsg -side top -padx 10 -pady 10 -fill y -expand 1
 
       pack .epgscan.all -side top -fill y -expand 1
       bind .epgscan.all <Destroy> {+ set epgscan_popup 0; C_StopEpgScan}
 
       .epgscan.all.fmsg.msg insert end "Press the <Start scan> button\n"
-
-      # force input focus into the popup
-      grab .epgscan
    }
 }
 
+
+##  --------------------------------------------------------------------------
+##  Helper functions for selecting and ordering list items
+##
+
+proc SelBoxCreate {lbox arr_ailist arr_selist arr_names} {
+   upvar $arr_ailist ailist
+   upvar $arr_selist selist
+   upvar $arr_names names
+
+   ## first column: listbox with all netwops in AI order
+   listbox $lbox.ailist -exportselection false -setgrid true -height 27 -width 12 -selectmode extended -relief ridge
+   pack $lbox.ailist -fill x -anchor nw -side left -pady 10 -padx 10 -fill y -expand 1
+   bind $lbox.ailist <ButtonPress-1> [list + after idle [list SelBoxButtonPress $lbox orig]]
+
+   ## second column: command buttons
+   frame $lbox.cmd
+   button $lbox.cmd.add -text "add" -command [list SelBoxAddItem $lbox $arr_ailist $arr_selist $arr_names] -width 7
+   pack $lbox.cmd.add -side top -anchor nw -pady 10
+   frame $lbox.cmd.updown
+   button $lbox.cmd.updown.up -bitmap "bitmap_ptr_up" -command [list SelBoxShiftUpItem $lbox.selist $arr_selist $arr_names]
+   pack $lbox.cmd.updown.up -side left -fill x -expand 1
+   button $lbox.cmd.updown.down -bitmap "bitmap_ptr_down" -command [list SelBoxShiftDownItem $lbox.selist $arr_selist $arr_names]
+   pack $lbox.cmd.updown.down -side left -fill x -expand 1
+   pack $lbox.cmd.updown -side top -anchor nw -fill x
+   button $lbox.cmd.delnet -text "delete" -command [list SelBoxRemoveItem $lbox $arr_selist] -width 7
+   pack $lbox.cmd.delnet -side top -anchor nw -pady 10
+   pack $lbox.cmd -side left -anchor nw -pady 10 -padx 5 -fill y
+
+   ## third column: selected providers in selected order
+   listbox $lbox.selist -exportselection false -setgrid true -height 27 -width 12 -selectmode extended -relief ridge
+   pack $lbox.selist -fill x -anchor nw -side left -pady 10 -padx 10 -fill y -expand 1
+   bind $lbox.selist <ButtonPress-1> [list + after idle [list SelBoxButtonPress $lbox sel]]
+
+   # fill the listboxes
+   foreach item $ailist { $lbox.ailist insert end $names($item) }
+   foreach item $selist { $lbox.selist insert end $names($item) }
+
+   # adjust the listbox size to fit exactly the max. number of entries
+   $lbox.ailist configure -height [llength $ailist]
+   $lbox.selist configure -height [llength $ailist]
+
+   # initialize command button state
+   # (all disabled until an item is selected from either the left or right list)
+   after idle [list SelBoxButtonPress $lbox none]
+}
+
+# selected items in the AI CNI list are appended to the selection list
+proc SelBoxAddItem {lbox arr_ailist arr_selist arr_names} {
+   upvar $arr_ailist ailist
+   upvar $arr_selist selist
+   upvar $arr_names names
+
+   foreach index [$lbox.ailist curselection] {
+      set cni [lindex $ailist $index]
+      if {[lsearch -exact $selist $cni] == -1} {
+         # append the selected item to the right listbox
+         lappend selist $cni
+         $lbox.selist insert end $names($cni)
+         # select the newly inserted item
+         $lbox.selist selection set end
+      }
+   }
+
+   # update command button states and clear selection in the left listbox
+   after idle [list SelBoxButtonPress $lbox sel]
+}
+
+# all selected items are removed from the list
+proc SelBoxRemoveItem {lbox arr_selist} {
+   upvar $arr_selist selist
+
+   foreach index [lsort -integer -decreasing [$lbox.selist curselection]] {
+      $lbox.selist delete $index
+      set selist [lreplace $selist $index $index]
+   }
+
+   # update command button states (no selection -> all disabled)
+   after idle [list SelBoxButtonPress $lbox none]
+}
+
+# move all selected items up by one row
+# - the selected items may be non-consecutive
+# - the first row must not be selected
+proc SelBoxShiftUpItem {lbox arr_selist arr_names} {
+   upvar $arr_selist selist
+   upvar $arr_names names
+
+   set el [lsort -integer -increasing [$lbox curselection]]
+   if {[lindex $el 0] > 0} {
+      foreach index $el {
+         # remove the item in the listbox widget above the shifted one
+         $lbox delete [expr $index - 1]
+         # re-insert the just removed item below the shifted one
+         $lbox insert $index $names([lindex $selist [expr $index - 1]])
+
+         # perform the same exchange in the associated list
+         set selist [lreplace $selist [expr $index - 1] $index \
+                              [lindex $selist $index] \
+                              [lindex $selist [expr $index - 1]]]
+      }
+   }
+}
+
+# move all selected items down by one row
+proc SelBoxShiftDownItem {lbox arr_selist arr_names} {
+   upvar $arr_selist selist
+   upvar $arr_names names
+
+   set el [lsort -integer -decreasing [$lbox curselection]]
+   if {[lindex $el 0] < [expr [llength $selist] - 1]} {
+      foreach index $el {
+         $lbox delete [expr $index + 1]
+         $lbox insert $index $names([lindex $selist [expr $index + 1]])
+         set selist [lreplace $selist $index [expr $index + 1] \
+                              [lindex $selist [expr $index + 1]] \
+                              [lindex $selist $index]]
+      }
+   }
+}
+
+# called after button press in left or right listbox
+proc SelBoxButtonPress {lbox which} {
+   # clear the selection in the opposite listbox
+   if {[string compare $which "orig"] == 0} {
+      $lbox.selist selection clear 0 end
+   } else {
+      $lbox.ailist selection clear 0 end
+   }
+
+   # selection in the left box <--> "add" enabled
+   if {[llength [$lbox.ailist curselection]] > 0} {
+      $lbox.cmd.add configure -state normal
+   } else {
+      $lbox.cmd.add configure -state disabled
+   }
+
+   # selection in the right box <--> "delete" & "shift up/down" enabled
+   if {[llength [$lbox.selist curselection]] > 0} {
+      $lbox.cmd.updown.up configure -state normal
+      $lbox.cmd.updown.down configure -state normal
+      $lbox.cmd.delnet configure -state normal
+   } else {
+      $lbox.cmd.updown.up configure -state disabled
+      $lbox.cmd.updown.down configure -state disabled
+      $lbox.cmd.delnet configure -state disabled
+   }
+}
 
 ##  --------------------------------------------------------------------------
 ##  Network selection popup
@@ -1739,48 +2013,15 @@ set netsel_popup 0
 
 proc PopupNetwopSelection {} {
    global netsel_popup
-   global netsel_prov netsel_selist netsel_ailist netsel_names
+   global netsel_prov netsel_ailist netsel_selist netsel_names
    global cfnetwops
 
    if {$netsel_popup == 0} {
       # get CNI of currently selected provider (or 0 if db is empty)
       set netsel_prov [C_GetProvCni]
       if {$netsel_prov != 0} {
-         toplevel .netsel
-         wm title .netsel "Network Selection"
-         wm resizable .netsel 0 0
-         wm group .netsel .
+         CreateTransientPopup .netsel "Network Selection"
          set netsel_popup 1
-
-         ## first column: listbox with all netwops in AI order
-         listbox .netsel.ailist -exportselection false -setgrid true -height 27 -width 12 -selectmode extended -relief ridge
-         pack .netsel.ailist -fill x -anchor nw -side left -pady 10 -padx 10 -fill y -expand 1
-         bind .netsel.ailist <ButtonPress-1> {+ after idle {ButtonPressNetwopList orig}}
-
-         ## second column: command buttons
-         frame .netsel.cmd
-         button .netsel.cmd.addnet -text "add" -command {AddSelectedNetwop} -width 7
-         pack .netsel.cmd.addnet -side top -anchor nw -pady 10
-
-         button .netsel.cmd.up -text "up" -command {ShiftUpSelectedNetwop} -width 7
-         pack .netsel.cmd.up -side top -anchor nw
-         button .netsel.cmd.down -text "down" -command {ShiftDownSelectedNetwop} -width 7
-         pack .netsel.cmd.down -side top -anchor nw
-         button .netsel.cmd.delnet -text "delete" -command {RemoveSelectedNetwop} -width 7
-         pack .netsel.cmd.delnet -side top -anchor nw -pady 10
-
-         button .netsel.cmd.save -text "Save" -command {SaveSelectedNetwopList} -width 7
-         pack .netsel.cmd.save -side bottom -anchor sw
-         button .netsel.cmd.abort -text "Abort" -command {destroy .netsel} -width 7
-         pack .netsel.cmd.abort -side bottom -anchor sw
-
-         pack .netsel.cmd -side left -anchor nw -pady 10 -padx 5 -fill y -expand 1
-         bind .netsel.cmd <Destroy> {+ set netsel_popup 0}
-
-         ## third column: selected netwops in selected order
-         listbox .netsel.selist -exportselection false -setgrid true -height 27 -width 12 -selectmode extended -relief ridge
-         pack .netsel.selist -fill x -anchor nw -side left -pady 10 -padx 10 -fill y -expand 1
-         bind .netsel.selist <ButtonPress-1> {+ after idle {ButtonPressNetwopList sel}}
 
          # fetch CNI list from AI block in database
          # as a side effect this function stores all netwop names into the array netsel_names
@@ -1792,109 +2033,18 @@ proc PopupNetwopSelection {} {
             set netsel_selist $netsel_ailist
          }
 
-         foreach cni $netsel_ailist {
-            .netsel.ailist insert end $netsel_names($cni)
-         }
-         foreach cni $netsel_selist {
-            .netsel.selist insert end $netsel_names($cni)
-         }
-         .netsel.ailist configure -height [llength $netsel_ailist]
-         .netsel.selist configure -height [llength $netsel_ailist]
+         SelBoxCreate .netsel netsel_ailist netsel_selist netsel_names
 
-         # initialize button state
-         # (all disabled until a netwop is selected from either the left or right list)
-         after idle {ButtonPressNetwopList orig}
+         button .netsel.cmd.help -text "Help" -width 7 -command {PopupHelp $helpIndex(Configuration) "Select networks"}
+         button .netsel.cmd.abort -text "Abort" -width 7 -command {destroy .netsel}
+         button .netsel.cmd.save -text "Save" -width 7 -command {SaveSelectedNetwopList}
+         pack .netsel.cmd.help .netsel.cmd.abort .netsel.cmd.save -side bottom -anchor sw
+         bind .netsel.cmd <Destroy> {+ set netsel_popup 0}
       } else {
          # no AI block in database
          tk_messageBox -type ok -default ok -icon error -message "Cannot configure networks without a provider selected."
       }
    }
-}
-
-# called after button press in left or right listbox
-proc ButtonPressNetwopList {which} {
-   if {[string equal $which "orig"]} {
-      .netsel.selist selection clear 0 end
-   } else {
-      .netsel.ailist selection clear 0 end
-   }
-
-   if {[llength [.netsel.ailist curselection]] > 0} {
-      .netsel.cmd.addnet configure -state normal
-   } else {
-      .netsel.cmd.addnet configure -state disabled
-   }
-
-   if {[llength [.netsel.selist curselection]] > 0} {
-      .netsel.cmd.up configure -state normal
-      .netsel.cmd.down configure -state normal
-      .netsel.cmd.delnet configure -state normal
-   } else {
-      .netsel.cmd.up configure -state disabled
-      .netsel.cmd.down configure -state disabled
-      .netsel.cmd.delnet configure -state disabled
-   }
-}
-
-# selected items in the AI CNI list are appended to the selection list
-proc AddSelectedNetwop {} {
-   global netsel_prov netsel_selist netsel_ailist netsel_names
-
-   foreach index [.netsel.ailist curselection] {
-      set cni [lindex $netsel_ailist $index]
-      if {[lsearch -exact $netsel_selist $cni] == -1} {
-         lappend netsel_selist $cni
-         .netsel.selist insert end $netsel_names($cni)
-      }
-   }
-   .netsel.selist selection clear 0 end
-}
-
-# all selected items are removed from the list
-proc RemoveSelectedNetwop {} {
-   global netsel_prov netsel_selist netsel_ailist netsel_names
-
-   foreach index [lsort -integer -decreasing [.netsel.selist curselection]] {
-      .netsel.selist delete $index
-      set netsel_selist [lreplace $netsel_selist $index $index]
-   }
-   .netsel.ailist selection clear 0 end
-}
-
-# move all selected items up by one row
-# - the selected items may be non-consecutive
-# - the first row must not be selected
-proc ShiftUpSelectedNetwop {} {
-   global netsel_prov netsel_selist netsel_ailist netsel_names
-
-   set el [lsort -integer -increasing [.netsel.selist curselection]]
-   if {[lindex $el 0] > 0} {
-      foreach index $el {
-         .netsel.selist delete [expr $index - 1]
-         .netsel.selist insert $index $netsel_names([lindex $netsel_selist [expr $index - 1]])
-         set netsel_selist [lreplace $netsel_selist [expr $index - 1] $index \
-                                   [lindex $netsel_selist $index] \
-                                   [lindex $netsel_selist [expr $index - 1]]]
-      }
-   }
-   .netsel.ailist selection clear 0 end
-}
-
-# move all selected items down by one row
-proc ShiftDownSelectedNetwop {} {
-   global netsel_prov netsel_selist netsel_ailist netsel_names
-
-   set el [lsort -integer -decreasing [.netsel.selist curselection]]
-   if {[lindex $el 0] < [expr [llength $netsel_selist] - 1]} {
-      foreach index $el {
-         .netsel.selist delete [expr $index + 1]
-         .netsel.selist insert $index $netsel_names([lindex $netsel_selist [expr $index + 1]])
-         set netsel_selist [lreplace $netsel_selist $index [expr $index + 1] \
-                                   [lindex $netsel_selist [expr $index + 1]] \
-                                   [lindex $netsel_selist $index]]
-      }
-   }
-   .netsel.ailist selection clear 0 end
 }
 
 # finished -> save and apply the user selection
@@ -1957,26 +2107,29 @@ proc UpdateNetwopFilterBar {prov} {
          .menubar.filter.netwops add checkbutton -label $netsel_names($cni) -variable netselmenu($nlidx) -command [list SelectNetwopMenu $nlidx]
          set netwop_map($nlidx) $order($cni)
          unset netsel_names($cni)
+         # increment index (only when item is not deleted)
+         incr nlidx
       } else {
          # CNI no longer exists -> remove from selection, do not add to filter bar
          set selist [lreplace $selist $nlidx $nlidx]
       }
-      incr nlidx
    }
 
+   # remove suppressed CNIs from the list
    set index 0
    foreach cni $suplist {
       if {[info exists netsel_names($cni)]} {
          unset netsel_names($cni)
+         incr index
       } else {
          # CNI no longer exists -> remove from suppressed list
          set suplist [lreplace $suplist $index $index]
       }
-      incr index
    }
 
+   # check for unreferenced CNIs and append them to the list
    foreach cni [array names netsel_names] {
-      lappend selist $netsel_names($cni)
+      lappend selist $cni
       .all.netwops.list insert end $netsel_names($cni)
       .menubar.filter.netwops add checkbutton -label $netsel_names($cni) -variable netselmenu($nlidx) -command [list SelectNetwopMenu $nlidx]
       set netwop_map($nlidx) $order($cni)
@@ -1995,11 +2148,398 @@ proc UpdateNetwopFilterBar {prov} {
    return $supidx
 }
 
+# remove elements from a list that are not member of a reference list
+proc RemoveObsoleteCnisFromList {alist ref_list} {
+   upvar $alist cni_list
+
+   set idx 0
+   foreach cni $cni_list {
+      if {[lsearch -exact $ref_list $cni] >= 0} {
+         incr idx
+      } else {
+         set cni_list [lreplace $cni_list $idx $idx]
+      }
+   }
+}
+
+##  --------------------------------------------------------------------------
+##  Provider merge popup
+##
+set provmerge_popup 0
+
+proc PopupProviderMerge {} {
+   global provmerge_popup
+   global provmerge_ailist provmerge_selist provmerge_names provmerge_cf
+   global prov_merge_cnis prov_merge_cf
+   global ProvmergeOptLabels
+   global cfnetwops
+
+   if {$provmerge_popup == 0} {
+      # get CNIs and names of all known providers
+      set provmerge_ailist {}
+      foreach {cni name} [C_GetProvCnisAndNames] {
+         lappend provmerge_ailist $cni
+         set provmerge_names($cni) $name
+      }
+      set provmerge_ailist [SortProvList $provmerge_ailist]
+      if {[info exists prov_merge_cnis]} {
+         set provmerge_selist {}
+         foreach cni $prov_merge_cnis {
+            if {[lsearch -exact $provmerge_ailist $cni] != -1} {
+               lappend provmerge_selist $cni
+            }
+         }
+      } else {
+         set provmerge_selist $provmerge_ailist
+      }
+      if {[info exists prov_merge_cf]} {
+         array set provmerge_cf $prov_merge_cf
+      }
+
+      if {[llength $provmerge_ailist] == 0} {
+         # no providers found -> abort
+         tk_messageBox -type ok -icon info -message "There are no providers available yet.\nPlease start a provider scan from the Configure menu."
+         return
+      }
+
+      # create the popup window
+      CreateTransientPopup .provmerge "Merging provider databases"
+      set provmerge_popup 1
+
+      message .provmerge.msg -aspect 800 -text "Select the providers who's databases you want to merge and their priority:"
+      pack .provmerge.msg -side top -expand 1 -fill x -pady 5
+
+      # create the two listboxes for database selection
+      frame .provmerge.lb
+      SelBoxCreate .provmerge.lb provmerge_ailist provmerge_selist provmerge_names
+      pack .provmerge.lb -side top
+
+      # create menu for option sub-windows
+      array set ProvmergeOptLabels {
+         cftitle "Title"
+         cfdescr "Description"
+         cfthemes "Themes"
+         cfseries "Series codes"
+         cfsortcrit "Sorting Criteria"
+         cfeditorial "Editorial rating"
+         cfparental "Parental rating"
+         cfsound "Sound format"
+         cfformat "Picture format"
+         cfrepeat "Repeat flag"
+         cfsubt "Subtitle flag"
+         cfmisc "misc. features"
+         cfvps "VPS/PDC label"
+      }
+      menubutton .provmerge.mb -menu .provmerge.mb.men -relief raised -borderwidth 1 -text "Configure"
+      pack .provmerge.mb -side top
+      menu .provmerge.mb.men -tearoff 0
+      .provmerge.mb.men add command -command {PopupProviderMergeOpt cftitle} -label $ProvmergeOptLabels(cftitle)
+      .provmerge.mb.men add command -command {PopupProviderMergeOpt cfdescr} -label $ProvmergeOptLabels(cfdescr)
+      .provmerge.mb.men add command -command {PopupProviderMergeOpt cfthemes} -label $ProvmergeOptLabels(cfthemes)
+      .provmerge.mb.men add command -command {PopupProviderMergeOpt cfseries} -label $ProvmergeOptLabels(cfseries)
+      .provmerge.mb.men add command -command {PopupProviderMergeOpt cfsortcrit} -label $ProvmergeOptLabels(cfsortcrit)
+      .provmerge.mb.men add command -command {PopupProviderMergeOpt cfeditorial} -label $ProvmergeOptLabels(cfeditorial)
+      .provmerge.mb.men add command -command {PopupProviderMergeOpt cfparental} -label $ProvmergeOptLabels(cfparental)
+      .provmerge.mb.men add command -command {PopupProviderMergeOpt cfsound} -label $ProvmergeOptLabels(cfsound)
+      .provmerge.mb.men add command -command {PopupProviderMergeOpt cfformat} -label $ProvmergeOptLabels(cfformat)
+      .provmerge.mb.men add command -command {PopupProviderMergeOpt cfrepeat} -label $ProvmergeOptLabels(cfrepeat)
+      .provmerge.mb.men add command -command {PopupProviderMergeOpt cfsubt} -label $ProvmergeOptLabels(cfsubt)
+      .provmerge.mb.men add command -command {PopupProviderMergeOpt cfmisc} -label $ProvmergeOptLabels(cfmisc)
+      .provmerge.mb.men add command -command {PopupProviderMergeOpt cfvps} -label $ProvmergeOptLabels(cfvps)
+      .provmerge.mb.men add separator
+      .provmerge.mb.men add command -command {ProvMerge_Reset} -label "Reset"
+
+      # create cmd buttons at bottom
+      frame .provmerge.cmd
+      button .provmerge.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Configuration)}
+      button .provmerge.cmd.abort -text "Abort" -width 5 -command {ProvMerge_Quit Abort}
+      button .provmerge.cmd.ok -text "Ok" -width 5 -command {ProvMerge_Quit Ok}
+      pack .provmerge.cmd.help .provmerge.cmd.abort .provmerge.cmd.ok -side left -padx 10
+      pack .provmerge.cmd -side top -pady 10
+      bind .provmerge.cmd <Destroy> {+ set provmerge_popup 0; ProvMerge_Quit Abort}
+   }
+}
+
+# create menu for option selection
+set provmergeopt_popup 0
+
+proc PopupProviderMergeOpt {cfoption} {
+   global provmerge_selist provmerge_cf provmerge_names
+   global provmerge_popup provmergeopt_popup
+   global ProvmergeOptLabels
+
+   if {$provmerge_popup == 1} {
+      if {$provmergeopt_popup == 0} {
+         CreateTransientPopup .provmergeopt "Database Selection for $ProvmergeOptLabels($cfoption)"
+         set provmergeopt_popup 1
+
+         # initialize the result array: default is all databases
+         if {![info exists provmerge_cf($cfoption)]} {
+            set provmerge_cf($cfoption) $provmerge_selist
+         }
+
+         message .provmergeopt.msg -aspect 800 -text "Select the databases from which the [string tolower $ProvmergeOptLabels($cfoption)] shall be extracted:"
+         pack .provmergeopt.msg -side top -expand 1 -fill x -pady 5
+
+         # create the two listboxes for database selection
+         frame .provmergeopt.lb
+         SelBoxCreate .provmergeopt.lb provmerge_selist provmerge_cf($cfoption) provmerge_names
+         pack .provmergeopt.lb -side top
+
+         # create cmd buttons at bottom
+         frame .provmergeopt.cb
+         button .provmergeopt.cb.ok -text "Ok" -width 7 -command {destroy .provmergeopt}
+         pack .provmergeopt.cb.ok -side left -padx 10
+         pack .provmergeopt.cb -side top -pady 10
+         bind .provmergeopt.cb <Destroy> {+ set provmergeopt_popup 0}
+      } else {
+         # the popup is already opened -> just exchange the contents
+         wm title .provmergeopt "Database Selection for $ProvmergeOptLabels($cfoption)"
+
+         if {![info exists provmerge_cf($cfoption)]} {
+            set provmerge_cf($cfoption) $provmerge_selist
+         }
+
+         .provmergeopt.msg configure -text "Select the databases from which the [string tolower $ProvmergeOptLabels($cfoption)] shall be extracted:"
+
+         # create the two listboxes for database selection
+         foreach widget [info commands .provmergeopt.lb.*] {
+            destroy $widget
+         }
+         SelBoxCreate .provmergeopt.lb provmerge_selist provmerge_cf($cfoption) provmerge_names
+      }
+   }
+}
+
+# Reset the attribute configuration
+proc ProvMerge_Reset {} {
+   global provmerge_cf
+
+   if {[info exists provmerge_cf]} {
+      array unset provmerge_cf
+   }
+}
+
+# close the provider merge popups and free the state variables
+proc ProvMerge_Quit {cause} {
+   global provmerge_popup provmergeopt_popup
+   global provmerge_selist provmerge_cf
+   global prov_merge_cnis prov_merge_cf
+   global provmerge_names ProvmergeOptLabels
+
+   # check the configuration parameters for consistancy
+   if {[string compare $cause "Ok"] == 0} {
+      # save the configuration into global variables
+      set tmp_cf {}
+      if {[info exists provmerge_cf]} {
+         foreach {name vlist} [array get provmerge_cf] {
+            if {[string compare $vlist $provmerge_selist] != 0} {
+               foreach cni $vlist {
+                  if {[lsearch -exact $provmerge_selist $cni] == -1} {
+                     if {[info exists provmerge_names($cni)]} {
+                        set provname " ($provmerge_names($cni))"
+                     } else {
+                        set provname {}
+                     }
+                     tk_messageBox -type ok -icon error -message "The provider list for [string tolower $ProvmergeOptLabels($name)] contains a database$provname that's not in the main selection. Either remove the provider or use 'Reset' to reset the configuration."
+                     return
+                  }
+               }
+               lappend tmp_cf $name $vlist
+            }
+         }
+      }
+   }
+
+   # close database selection popup (main)
+   if {$provmerge_popup} {
+      set provmerge_popup 0
+      bind .provmerge.cmd <Destroy> {}
+      destroy .provmerge
+   }
+   # close attribute selection popup (slave)
+   if {$provmergeopt_popup} {
+      set provmerge_popupopt 0
+      bind .provmergeopt.cb <Destroy> {}
+      destroy .provmergeopt
+   }
+   # free space from arrays
+   if {[info exists ProvmergeOptLabels]} {
+      unset ProvmergeOptLabels
+   }
+
+   # if closed with OK button, start the merge
+   if {[string compare $cause "Ok"] == 0} {
+      # save the configuration into global variables
+      set prov_merge_cnis $provmerge_selist 
+      set prov_merge_cf $tmp_cf
+
+      # save the configuration into the rc/ini file
+      UpdateRcFile
+
+      # perform the merge and load the new database into the browser
+      C_ProvMerge_Start
+   }
+}
+
+## ---------------------------------------------------------------------------
+## Sort a list of provider CNIs according to user preference
+##
+proc SortProvList {ailist} {
+   global prov_selection sortProvListArr
+
+   if {[info exists prov_selection] && ([llength $prov_selection] > 0)} {
+      set idx 0
+      foreach cni $prov_selection {
+         set sortProvListArr($cni) $idx
+         incr idx
+      }
+      set result [lsort -command SortProvList_cmd $ailist]
+      unset sortProvListArr
+   } else {
+      set result $ailist
+   }
+   return $result
+}
+
+# helper procedur for sorting the provider list
+proc SortProvList_cmd {a b} {
+   global sortProvListArr
+
+   if {[info exists sortProvListArr($a)] && [info exists sortProvListArr($b)]} {
+      if       {$sortProvListArr($a) < $sortProvListArr($b)} {
+         return -1
+      } elseif {$sortProvListArr($a) > $sortProvListArr($b)} {
+         return  1
+      } else {
+         return 0
+      }
+   } else {
+      return 0
+   }
+}
+
+## ---------------------------------------------------------------------------
+## Open popup for acquisition mode selection
+## - can not be popped up if /dev/video is busy
+##
+set acqmode_popup 0
+
+proc PopupAcqMode {} {
+   global acqmode_popup
+   global acqmode_ailist acqmode_selist acqmode_names
+   global acqmode_sel
+   global acq_mode acq_mode_cnis
+
+   if {$acqmode_popup == 0} {
+      CreateTransientPopup .acqmode "Acquisition mode selection"
+      set acqmode_popup 1
+
+      # load list of providers
+      set acqmode_ailist {}
+      foreach {cni name} [C_GetProvCnisAndNames] {
+         lappend acqmode_ailist $cni
+         set acqmode_names($cni) $name
+      }
+      set acqmode_ailist [SortProvList $acqmode_ailist]
+      set acqmode_selist $acqmode_ailist
+
+      # initialize popup with current settings
+      if {[info exists acq_mode]} {
+         set acqmode_sel $acq_mode
+      } else {
+         set acqmode_sel "follow-ui"
+      }
+
+      # checkbuttons for modes
+      frame .acqmode.mode
+      radiobutton .acqmode.mode.mode0 -text "Passive (follow external selection)" -variable acqmode_sel -value "passive" -command UpdateAcqModePopup
+      radiobutton .acqmode.mode.mode1 -text "Follow browser database" -variable acqmode_sel -value "follow-ui" -command UpdateAcqModePopup
+      radiobutton .acqmode.mode.mode2 -text "Manually selected" -variable acqmode_sel -value "cyclic_2" -command UpdateAcqModePopup
+      radiobutton .acqmode.mode.mode3 -text "Cyclic: Now->Near->All" -variable acqmode_sel -value "cyclic_012" -command UpdateAcqModePopup
+      radiobutton .acqmode.mode.mode4 -text "Cyclic: Now->All" -variable acqmode_sel -value "cyclic_02" -command UpdateAcqModePopup
+      radiobutton .acqmode.mode.mode5 -text "Cyclic: Near->All" -variable acqmode_sel -value "cyclic_12" -command UpdateAcqModePopup
+      pack .acqmode.mode.mode0 .acqmode.mode.mode1 .acqmode.mode.mode2 .acqmode.mode.mode3 .acqmode.mode.mode4 .acqmode.mode.mode5 -side top -anchor w
+      pack .acqmode.mode -side top -pady 10 -padx 10 -anchor w
+
+      # create two listboxes for provider database selection
+      frame .acqmode.lb
+      UpdateAcqModePopup
+      pack .acqmode.lb -side top
+
+      # command buttons at the bottom of the window
+      frame .acqmode.cmd
+      button .acqmode.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Acquisition modes)}
+      button .acqmode.cmd.abort -text "Abort" -width 5 -command {destroy .acqmode}
+      button .acqmode.cmd.apply -text "Ok" -width 5 -command {QuitAcqModePopup}
+      pack .acqmode.cmd.help .acqmode.cmd.abort .acqmode.cmd.apply -side left -padx 10
+      pack .acqmode.cmd -side top -pady 10
+      bind .acqmode.cmd <Destroy> {+ set acqmode_popup 0}
+   }
+}
+
+# add or remove database selection popups after mode change
+proc UpdateAcqModePopup {} {
+   global acqmode_ailist acqmode_selist acqmode_names
+   global acqmode_sel
+   global acq_mode acq_mode_cnis
+
+   if {[string compare -length 6 "cyclic" $acqmode_sel] == 0} {
+      # manual selection -> add listboxes to allow selection of multiple databases and priority
+      if {[string length [info command .acqmode.lb.ailist]] == 0} {
+         # listbox does not yet exist
+         foreach widget [info commands .acqmode.lb.*] {
+            destroy $widget
+         }
+         if {[info exists acq_mode_cnis]} {
+            set acqmode_selist $acq_mode_cnis
+            RemoveObsoleteCnisFromList acqmode_selist $acqmode_ailist
+         } else {
+            set acqmode_selist $acqmode_ailist
+         }
+         SelBoxCreate .acqmode.lb acqmode_ailist acqmode_selist acqmode_names
+      }
+   } else {
+      foreach widget [info commands .acqmode.lb.*] {
+         destroy $widget
+      }
+      # passive or ui mode -> remove listboxes
+      # (the frame is added to trigger the shrink of the window around the remaining widgets)
+      frame .acqmode.lb.foo
+      pack .acqmode.lb.foo
+   }
+}
+
+# extract, apply and save the settings
+proc QuitAcqModePopup {} {
+   global acqmode_ailist acqmode_selist acqmode_names
+   global acqmode_sel
+   global acq_mode acq_mode_cnis
+
+   set acq_mode $acqmode_sel
+
+   if {[string compare -length 6 "cyclic" $acqmode_sel] == 0} {
+      if {[llength $acqmode_selist] == 0} {
+         tk_messageBox -type ok -default ok -icon error -message "You have not selected any providers."
+         return
+      }
+      set acq_mode_cnis $acqmode_selist
+   }
+   unset acqmode_ailist acqmode_selist acqmode_sel
+   if {[info exists acqmode_names]} {unset acqmode_names}
+
+   C_UpdateAcquisitionMode
+   UpdateRcFile
+
+   # close the popup window
+   destroy .acqmode
+}
 
 ## ---------------------------------------------------------------------------
 ## Create help text header inside text listbox
 ##
 proc PiListBox_PrintHelpHeader {text} {
+   global font_bold font_pl4_bold font_pl12_bold
 
    .all.pi.list.text delete 1.0 end
 
@@ -2007,11 +2547,12 @@ proc PiListBox_PrintHelpHeader {text} {
       destroy .all.pi.list.text.nxtvlogo
    }
    button .all.pi.list.text.nxtvlogo -bitmap nxtv_logo -relief flat
+   bindtags .all.pi.list.text.nxtvlogo {all .}
 
    .all.pi.list.text tag configure centerTag -justify center
-   .all.pi.list.text tag configure bold24Tag -font {helvetica -24 bold} -spacing1 15 -spacing3 10
-   .all.pi.list.text tag configure bold16Tag -font {helvetica -16 bold} -spacing3 10
-   .all.pi.list.text tag configure bold12Tag -font {helvetica -12 bold}
+   .all.pi.list.text tag configure bold24Tag -font $font_pl12_bold -spacing1 15 -spacing3 10
+   .all.pi.list.text tag configure bold16Tag -font $font_pl4_bold -spacing3 10
+   .all.pi.list.text tag configure bold12Tag -font $font_bold
    .all.pi.list.text tag configure wrapTag   -wrap word
    .all.pi.list.text tag configure redTag    -background #ffff50
 
@@ -2025,6 +2566,309 @@ proc PiListBox_PrintHelpHeader {text} {
 
    .all.pi.list.text insert end $text {wrapTag redTag}
 }
+
+##  --------------------------------------------------------------------------
+##  TV card hardware configuration popup (Win-32 only)
+##  - Tuner
+##  - PLL init 0/1
+##  - thread priority normal/high/real-time
+##  - card index 0-4
+##
+set hwcfg_default {0 0 0 0 0}
+set hwcfg_popup 0
+
+proc PopupHardwareConfig {} {
+   global tcl_platform
+   global hwcfg_input_sel
+   global hwcfg_tuner_sel hwcfg_tuner_list hwcfg_card_list
+   global hwcfg_pll_sel hwcfg_prio_sel hwcfg_cardidx_sel
+   global hwcfg_popup hwcfg hwcfg_default
+
+   if {$hwcfg_popup == 0} {
+      CreateTransientPopup .hwcfg "TV card input configuration"
+      set hwcfg_popup 1
+
+      set hwcfg_tuner_list [C_HwCfgGetTunerList]
+      set hwcfg_card_list [C_HwCfgGetTvCardList]
+      if {![info exists hwcfg]} {
+         set hwcfg $hwcfg_default
+      }
+      set hwcfg_input_sel [lindex $hwcfg 0]
+      set hwcfg_tuner_sel [lindex $hwcfg 1]
+      set hwcfg_pll_sel [lindex $hwcfg 2]
+      set hwcfg_prio_sel [lindex $hwcfg 3]
+      set hwcfg_cardidx_sel [lindex $hwcfg 4]
+
+      # create menu to select video input
+      frame .hwcfg.input
+      label .hwcfg.input.curname -text "Video source: "
+      menubutton .hwcfg.input.mb -text "Configure" -menu .hwcfg.input.mb.menu -relief raised -borderwidth 1
+      menu .hwcfg.input.mb.menu -tearoff 0 -postcommand {PostDynamicMenu .hwcfg.input.mb.menu HardwareCreateInputMenu}
+      pack .hwcfg.input.curname -side left -padx 10 -anchor w -expand 1
+      pack .hwcfg.input.mb -side left -padx 10 -anchor e
+      pack .hwcfg.input -side top -pady 10 -anchor w -fill x
+
+      if {[string compare $tcl_platform(platform) "unix"] != 0} {
+         # create menu for tuner selection
+         frame .hwcfg.tuner
+         label .hwcfg.tuner.curname -text "Tuner: [lindex $hwcfg_tuner_list $hwcfg_tuner_sel]"
+         menubutton .hwcfg.tuner.mb -text "Configure" -menu .hwcfg.tuner.mb.menu -relief raised -borderwidth 1
+         menu .hwcfg.tuner.mb.menu -tearoff 0
+         set idx 0
+         foreach name $hwcfg_tuner_list {
+            .hwcfg.tuner.mb.menu add radiobutton -variable hwcfg_tuner_sel -value $idx -label $name \
+                                                 -command {.hwcfg.tuner.curname configure -text "Tuner: [lindex $hwcfg_tuner_list $hwcfg_tuner_sel]"}
+            incr idx
+         }
+         pack .hwcfg.tuner.curname -side left -padx 10 -anchor w -expand 1
+         pack .hwcfg.tuner.mb -side left -padx 10 -anchor e
+         pack .hwcfg.tuner -side top -pady 10 -anchor w -fill x
+
+         # create checkbuttons to enable PLL initialization
+         checkbutton .hwcfg.pll -text "Tuner PLL init" -variable hwcfg_pll_sel
+         pack .hwcfg.pll -side top -padx 10 -anchor w
+
+         # create checkbuttons to select acquisition priority
+         frame .hwcfg.prio
+         label .hwcfg.prio.label -text "Priority:"
+         radiobutton .hwcfg.prio.normal -text "normal" -variable hwcfg_prio_sel -value 0
+         radiobutton .hwcfg.prio.high   -text "high" -variable hwcfg_prio_sel -value 1
+         radiobutton .hwcfg.prio.crit   -text "real-time" -variable hwcfg_prio_sel -value 2
+         pack .hwcfg.prio.label -side left -padx 10
+         pack .hwcfg.prio.normal .hwcfg.prio.high .hwcfg.prio.crit -side left
+         pack .hwcfg.prio -side top -anchor w
+      }
+
+      # create menu or checkbuttons to select TV card
+      frame .hwcfg.card
+      label .hwcfg.card.label -text "TV card: "
+      pack .hwcfg.card.label -side left -padx 10
+      if {[string compare $tcl_platform(platform) "unix"] != 0} {
+         radiobutton .hwcfg.card.idx0 -text "0" -variable hwcfg_cardidx_sel -value 0 -command HardwareConfigCard
+         radiobutton .hwcfg.card.idx1 -text "1" -variable hwcfg_cardidx_sel -value 1 -command HardwareConfigCard
+         radiobutton .hwcfg.card.idx2 -text "2" -variable hwcfg_cardidx_sel -value 2 -command HardwareConfigCard
+         radiobutton .hwcfg.card.idx3 -text "3" -variable hwcfg_cardidx_sel -value 3 -command HardwareConfigCard
+         pack .hwcfg.card.idx0 .hwcfg.card.idx1 .hwcfg.card.idx2 .hwcfg.card.idx3 -side left
+      } else {
+         menubutton .hwcfg.card.mb -text "Configure" -menu .hwcfg.card.mb.menu -relief raised -borderwidth 1
+         menu .hwcfg.card.mb.menu -tearoff 0
+         pack .hwcfg.card.mb -side left -padx 10 -anchor e
+         set idx 0
+         foreach name $hwcfg_card_list {
+            .hwcfg.card.mb.menu add radiobutton -variable hwcfg_cardidx_sel -value $idx -label $name -command HardwareConfigCard
+            incr idx
+         }
+      }
+      pack .hwcfg.card -side top -anchor w -pady 5
+
+      # display current card name and input source
+      HardwareConfigCard
+
+      # create standard command buttons
+      frame .hwcfg.cmd
+      button .hwcfg.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Configuration) "Aquisition mode"}
+      button .hwcfg.cmd.abort -text "Abort" -width 5 -command {destroy .hwcfg}
+      button .hwcfg.cmd.ok -text "Ok" -width 5 -command {HardwareConfigQuit}
+      pack .hwcfg.cmd.help .hwcfg.cmd.abort .hwcfg.cmd.ok -side left -padx 10
+      pack .hwcfg.cmd -side top -pady 10
+      bind .hwcfg.cmd <Destroy> {+ set hwcfg_popup 0}
+   }
+}
+
+# Card index has changed - update video source name
+proc HardwareConfigCard {} {
+   global tcl_platform
+   global hwcfg_input_sel hwcfg_input_list
+   global hwcfg_cardidx_sel hwcfg_card_list
+
+   set hwcfg_input_list [C_HwCfgGetInputList $hwcfg_cardidx_sel]
+
+   if {[string compare $tcl_platform(platform) "unix"] == 0} {
+      .hwcfg.card.label configure -text "TV card: [lindex $hwcfg_card_list $hwcfg_cardidx_sel]"
+   }
+
+   if {$hwcfg_input_sel >= [lindex $hwcfg_input_list $hwcfg_input_sel]} {
+      set hwcfg_input_sel 0
+   }
+
+   if {[llength $hwcfg_input_list] > 0} {
+      .hwcfg.input.curname configure -text "Video source: [lindex $hwcfg_input_list $hwcfg_input_sel]"
+   } else {
+      .hwcfg.input.curname configure -text "Video source: #$hwcfg_input_sel (video device busy)"
+   }
+}
+
+# callback for dynamic input source menu
+proc HardwareCreateInputMenu {widget} {
+   global hwcfg_input_sel hwcfg_input_list hwcfg_cardidx_sel
+
+   # get list of source names directly from the driver
+   set hwcfg_input_list [C_HwCfgGetInputList $hwcfg_cardidx_sel]
+
+   if {[llength $hwcfg_input_list] > 0} {
+      set idx 0
+      foreach name $hwcfg_input_list {
+         .hwcfg.input.mb.menu add radiobutton -variable hwcfg_input_sel -value $idx -label $name \
+                                              -command {.hwcfg.input.curname configure -text "Video source: [lindex $hwcfg_input_list $hwcfg_input_sel]"}
+         incr idx
+      }
+   } else {
+      .hwcfg.input.mb.menu add command -label "Video device not available:" -state disabled
+      .hwcfg.input.mb.menu add command -label "cannot switch video source" -state disabled
+   }
+}
+
+# Leave popup with OK button
+proc HardwareConfigQuit {} {
+   global tcl_platform
+   global hwcfg_input_sel hwcfg_tuner_sel
+   global hwcfg_pll_sel hwcfg_prio_sel hwcfg_cardidx_sel
+   global hwcfg hwcfg_default
+
+   if { ([string compare $tcl_platform(platform) "unix"] != 0) && \
+        ($hwcfg_input_sel == 0) && ($hwcfg_tuner_sel == 0) } {
+      set answer [tk_messageBox -type okcancel -default cancel -icon warning -message "You haven't selected a tuner - acquisition will not be possible!"]
+   } else {
+      set answer "ok"
+   }
+
+   if {[string compare $answer "ok"] == 0} {
+      set hwcfg [list $hwcfg_input_sel $hwcfg_tuner_sel $hwcfg_pll_sel $hwcfg_prio_sel $hwcfg_cardidx_sel]
+      UpdateRcFile
+
+      C_UpdateHardwareConfig
+
+      destroy .hwcfg
+   }
+}
+
+# save a TV card index that was selected via the command line
+proc HardwareConfigUpdateCardIdx {cardidx} {
+   global hwcfg hwcfg_default
+
+   if {![info exists hwcfg]} {
+      set hwcfg $hwcfg_default
+   }
+   set hwcfg [lreplace $hwcfg 4 4 $cardidx]
+   UpdateRcFile
+}
+
+
+## ---------------------------------------------------------------------------
+## Time zone configuration popup
+##
+set tzcfg_default {1 60 0}
+set timezone_popup 0
+
+proc PopupTimeZone {} {
+   global tzcfg tzcfg_default
+   global tz_auto_sel tz_lto_sel tz_daylight_sel
+   global timezone_popup
+
+   if {$timezone_popup == 0} {
+      CreateTransientPopup .timezone "Configure time zone"
+      set timezone_popup 1
+
+      if {![info exists tzcfg]} {
+         set tzcfg $tzcfg_default
+      }
+      set tz_auto_sel [lindex $tzcfg 0]
+      set tz_lto_sel [lindex $tzcfg 1]
+      set tz_daylight_sel [lindex $tzcfg 2]
+
+      frame .timezone.f1
+      message .timezone.msg -aspect 400 -text \
+"All times and dates in Nextview are transmitted in UTC \
+(Universal Coordinated Time, formerly known as Greenwhich Mean Time) \
+and have to be converted to your local time by adding the local time offset. \
+If the offset given below is not correct, switch to manual mode and enter \
+the correct value."
+      pack .timezone.msg -side top -pady 5 -padx 5
+      radiobutton .timezone.f1.auto -text "automatic" -variable tz_auto_sel -value 1 -command {ToggleTimeZoneAuto 1}
+      radiobutton .timezone.f1.manu -text "manual" -variable tz_auto_sel -value 0 -command {ToggleTimeZoneAuto 0}
+      pack .timezone.f1.auto .timezone.f1.manu -side left -padx 10
+      pack .timezone.f1 -side top -pady 10
+
+      frame .timezone.f2 -borderwidth 1 -relief raised
+      label .timezone.f2.name -text ""
+      frame .timezone.f2.ft
+      label .timezone.f2.ft.l1 -text "Local time offset: "
+      entry .timezone.f2.ft.entry -width 4 -textvariable tz_lto_sel
+      bind  .timezone.f2.ft.entry <Enter> {focus %W}
+      bind  .timezone.f2.ft.entry <Return> ApplyTimeZone
+      label .timezone.f2.ft.l2 -text " minutes"
+      pack .timezone.f2.ft.l1 .timezone.f2.ft.entry .timezone.f2.ft.l2 -side left
+      checkbutton .timezone.f2.daylight -text "Daylight saving time (+60 minutes)" -variable tz_daylight_sel
+      pack .timezone.f2.name .timezone.f2.ft .timezone.f2.daylight -side top -pady 5 -padx 5
+      pack .timezone.f2 -side top -pady 10 -fill x
+
+      frame .timezone.cmd
+      button .timezone.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Configuration)}
+      button .timezone.cmd.abort -text "Abort" -width 5 -command {destroy .timezone}
+      button .timezone.cmd.ok -text "Ok" -width 5 -command ApplyTimeZone
+      pack .timezone.cmd.help .timezone.cmd.abort .timezone.cmd.ok -side left -padx 10
+      bind .timezone.cmd <Destroy> {+ set timezone_popup 0}
+
+      pack .timezone.cmd -side top -pady 10
+
+      ToggleTimeZoneAuto $tz_auto_sel
+   }
+}
+
+# called after auto/manual radio was toggled
+proc ToggleTimeZoneAuto {newval} {
+   global tz_auto_sel tz_lto_sel tz_daylight_sel
+
+   if {$newval} {
+      # fetch default values
+      set tzarr [C_GetTimeZone]
+      set tz_lto_sel [lindex $tzarr 0]
+      set tz_daylight_sel [lindex $tzarr 1]
+      .timezone.f2.name configure -text "Time zone name: [lindex $tzarr 2]"
+
+      .timezone.f2.ft.entry configure -state disabled
+      .timezone.f2.daylight configure -state disabled
+      .timezone.f2.ft.l1 configure -state disabled
+      .timezone.f2.ft.l2 configure -state disabled
+   } else {
+      .timezone.f2.ft.entry configure -state normal
+      .timezone.f2.daylight configure -state normal
+      .timezone.f2.ft.l1 configure -state normal
+      .timezone.f2.ft.l2 configure -state normal
+   }
+}
+
+# called after the OK button was pressed
+proc ApplyTimeZone {} {
+   global tz_auto_sel tz_lto_sel tz_daylight_sel
+   global tzcfg
+
+   if {$tz_auto_sel == 0} {
+      # check if the manually configured LTO is a valid integer
+      if {[scan $tz_lto_sel "%d" lto] != 1} {
+         tk_messageBox -type ok -default ok -icon error -message "Invalid input format in LTO '$tz_lto_sel'\nMust be positive or negative decimal integer."
+         return
+      }
+      # check if the value is within bounds of +/- 12 hours
+      if {($lto < -12*60) || ($lto > 12*60)} {
+         tk_messageBox -type ok -default ok -icon error -message "Invalid LTO: $lto\nThe maximum absolute value is 12 hours."
+         return
+      }
+      # warn if it's not a half-hour value
+      # then the user probably has mistakenly entered hours instead of minutes
+      if {($lto % 30) != 0} {
+         set answer [tk_messageBox -type okcancel -icon warning -message "Warning: the given LTO value '$lto minutes' is not a complete hour or half hour.\nMaybe you entered an hour value instead of minutes?\nDo you still want to set this LTO?"]
+         if {[string compare $answer "ok"] != 0} {
+            return
+         }
+      }
+   }
+
+   set tzcfg [list $tz_auto_sel $tz_lto_sel $tz_daylight_sel]
+
+   destroy .timezone
+}
+
 
 ## ---------------------------------------------------------------------------
 ##                 S T A T I S T I C S   W I N D O W S
@@ -2075,10 +2919,8 @@ proc TimeScale_MarkNow {frame num color} {
 ## ---------------------------------------------------------------------------
 ## Create the acq stats window with histogram and summary text
 ##
-set acqstatsfont     -*-courier-medium-r-*-*-12-*-*-*-*-*-iso8859-1
-
 proc AcqStat_Create {} {
-   global acqstatsfont
+   global font_fixed
 
    toplevel .acqstat
    wm title .acqstat {Nextview acquisition statistics}
@@ -2088,7 +2930,7 @@ proc AcqStat_Create {} {
    canvas .acqstat.hist -bg white -height 128 -width 128
    pack .acqstat.hist -side left
 
-   message .acqstat.statistics -font $acqstatsfont -aspect 2000 -justify left -anchor nw
+   message .acqstat.statistics -font $font_fixed -aspect 2000 -justify left -anchor nw
    pack .acqstat.statistics -expand 1 -fill both -side left
    #set width [$frame.stat cget -width]
    #$frame.stat create line 0 64 $width 64 
@@ -2146,18 +2988,18 @@ set fsc_logi_idx 3
 proc PreloadShortcuts {} {
    global shortcuts shortcut_count
 
-   set shortcuts(0)  {spielfilme themes {theme_class1 16} merge}
-   set shortcuts(1)  {sport themes {theme_class1 64} merge}
-   set shortcuts(2)  {serien themes {theme_class1 128} merge}
-   set shortcuts(3)  {kinder themes {theme_class1 80} merge}
+   set shortcuts(0)  {movies themes {theme_class1 16} merge}
+   set shortcuts(1)  {sports themes {theme_class1 64} merge}
+   set shortcuts(2)  {series themes {theme_class1 128} merge}
+   set shortcuts(3)  {kids themes {theme_class1 80} merge}
    set shortcuts(4)  {shows themes {theme_class1 48} merge}
    set shortcuts(5)  {news themes {theme_class1 32} merge}
-   set shortcuts(6)  {sozial themes {theme_class1 37} merge}
-   set shortcuts(7)  {wissenschaft themes {theme_class1 86} merge}
-   set shortcuts(8)  {hobby themes {theme_class1 52} merge}
-   set shortcuts(9)  {musik themes {theme_class1 96} merge}
-   set shortcuts(10) {kultur themes {theme_class1 112} merge}
-   set shortcuts(11) {erotik themes {theme_class1 24} merge}
+   set shortcuts(6)  {social themes {theme_class1 37} merge}
+   set shortcuts(7)  {science themes {theme_class1 86} merge}
+   set shortcuts(8)  {hobbies themes {theme_class1 52} merge}
+   set shortcuts(9)  {music themes {theme_class1 96} merge}
+   set shortcuts(10) {culture themes {theme_class1 112} merge}
+   set shortcuts(11) {adult themes {theme_class1 24} merge}
    set shortcut_count 12
 }
 
@@ -2299,7 +3141,7 @@ proc CheckShortcutDeselection {} {
                set undo [expr ($substr_grep_title != [lindex $valist 0]) || \
                               ($substr_grep_descr != [lindex $valist 1]) || \
                               ($substr_ignore_case != [lindex $valist 2]) || \
-                              ![string equal $substr_pattern [lindex $valist 3]] ]
+                              ([string compare $substr_pattern [lindex $valist 3]] != 0) ]
             }
          }
          if {$undo} {
@@ -2800,10 +3642,7 @@ proc PopupFilterShortcuts {} {
    global fscedit_popup fscedit_label
 
    if {$fscedit_popup == 0} {
-      toplevel .fscedit
-      wm title .fscedit "Edit shortcuts"
-      wm resizable .fscedit 0 0
-      wm group .fscedit .
+      CreateTransientPopup .fscedit "Edit shortcuts"
       set fscedit_popup 1
 
       ## first column: listbox with all shortcut labels
@@ -2819,20 +3658,22 @@ proc PopupFilterShortcuts {} {
       bind .fscedit.cmd.label <Enter> {focus %W}
       bind .fscedit.cmd.label <Return> {+ UpdateEditedShortcut}
       focus .fscedit.cmd.label
-      button .fscedit.cmd.rename -text "update" -command {UpdateEditedShortcut} -width 7
-      pack .fscedit.cmd.rename -side top -anchor nw -pady 10
 
-      button .fscedit.cmd.up -text "up" -command {ShiftUpEditedShortcut} -width 7
-      pack .fscedit.cmd.up -side top -anchor nw
-      button .fscedit.cmd.down -text "down" -command {ShiftDownEditedShortcut} -width 7
-      pack .fscedit.cmd.down -side top -anchor nw
+      button .fscedit.cmd.rename -text "update" -command {UpdateEditedShortcut} -width 7
+      pack .fscedit.cmd.rename -side top -anchor nw
+      frame .fscedit.cmd.updown
+      button .fscedit.cmd.updown.up -bitmap "bitmap_ptr_up" -command ShiftUpEditedShortcut -width 30
+      pack .fscedit.cmd.updown.up -side left
+      button .fscedit.cmd.updown.down -bitmap "bitmap_ptr_down" -command ShiftDownEditedShortcut -width 30
+      pack .fscedit.cmd.updown.down -side left
+      pack .fscedit.cmd.updown -side top -anchor nw
       button .fscedit.cmd.delete -text "delete" -command {DeleteEditedShortcut} -width 7
-      pack .fscedit.cmd.delete -side top -anchor nw -pady 10
+      pack .fscedit.cmd.delete -side top -anchor nw
 
       button .fscedit.cmd.save -text "Save" -command {SaveEditedShortcuts} -width 7
-      pack .fscedit.cmd.save -side bottom -anchor sw
       button .fscedit.cmd.abort -text "Abort" -command {destroy .fscedit} -width 7
-      pack .fscedit.cmd.abort -side bottom -anchor sw
+      button .fscedit.cmd.help -text "Help" -command {PopupHelp $helpIndex(Filter shortcuts)} -width 7
+      pack .fscedit.cmd.save .fscedit.cmd.abort .fscedit.cmd.help -side bottom -anchor sw
 
       pack .fscedit.cmd -side left -anchor nw -pady 10 -padx 5 -fill y -expand 1
       bind .fscedit.cmd <Destroy> {+ set fscedit_popup 0}
@@ -3028,6 +3869,9 @@ proc LoadRcFile {filename} {
    global shortcuts shortcut_count
    global prov_selection cfnetwops
    global showNetwopListbox showShortcutListbox
+   global prov_merge_cnis prov_merge_cf
+   global acq_mode acq_mode_cnis
+   global hwcfg
    global myrcfile
 
    set myrcfile $filename
@@ -3048,10 +3892,10 @@ proc LoadRcFile {filename} {
       if {$showShortcutListbox == 0} {pack forget .all.shortcuts}
       if {$showNetwopListbox == 0} {pack forget .all.netwops}
 
-   } else {
-      # ini file does not exist -> dump default settings
+   }
+
+   if {$shortcut_count == 0} {
       PreloadShortcuts
-      UpdateRcFile
    }
 
    for {set index 0} {$index < $shortcut_count} {incr index} {
@@ -3067,6 +3911,10 @@ proc UpdateRcFile {} {
    global shortcuts shortcut_count
    global prov_selection cfnetwops
    global showNetwopListbox showShortcutListbox
+   global prov_merge_cnis prov_merge_cf
+   global acq_mode acq_mode_cnis
+   global hwcfg
+   global EPG_VERSION
    global myrcfile
 
    if {[catch {set rcfile [open $myrcfile "w"]}] == 0} {
@@ -3076,6 +3924,9 @@ proc UpdateRcFile {} {
       puts $rcfile "# This file is automatically generated - do not edit"
       puts $rcfile "# Written at: [clock format [clock seconds] -format %c]"
       puts $rcfile "#"
+
+      # dump software version
+      puts $rcfile [list set nxtvepg_version $EPG_VERSION]
 
       # dump filter shortcuts
       for {set index 0} {$index < $shortcut_count} {incr index} {
@@ -3095,6 +3946,23 @@ proc UpdateRcFile {} {
       puts $rcfile [list set showNetwopListbox $showNetwopListbox]
       puts $rcfile [list set showShortcutListbox $showShortcutListbox]
 
+      # dump provider database merge CNIs and configuration
+      if {[info exists prov_merge_cnis]} {puts $rcfile [list set prov_merge_cnis $prov_merge_cnis]}
+      if {[info exists prov_merge_cf]} {puts $rcfile [list set prov_merge_cf $prov_merge_cf]}
+
+      # dump acquisition mode and provider CNIs
+      if {[info exists acq_mode]} {
+         if {[string compare $acq_mode "passive"] == 0} {
+            # passive acquisition mode is folded to 'follow ui'
+            puts $rcfile [list set acq_mode "follow-ui"]
+         } else {
+            puts $rcfile [list set acq_mode $acq_mode]
+         }
+      }
+      if {[info exists acq_mode_cnis]} {puts $rcfile [list set acq_mode_cnis $acq_mode_cnis]}
+
+      if {[info exists hwcfg]} {puts $rcfile [list set hwcfg $hwcfg]}
+
       close $rcfile
    } else {
       tk_messageBox -type ok -default ok -icon error -message "could not write to ini file $myrcfile"
@@ -3109,19 +3977,23 @@ set prov_selection {}
 proc UpdateProvSelection {cni} {
    global prov_selection
 
-   # delete the cni in the old list
-   set index 0
-   foreach prov $prov_selection {
-      if {$prov == $cni} {
-         set prov_selection [lreplace $prov_selection $index $index]
-         break
-      }
-      incr index
-   }
-   # prepend the cni to the selection list
-   set prov_selection [linsert $prov_selection 0 $cni]
+   # check if an update is required
+   if {($cni != [lindex $prov_selection 0]) && ($cni != 0)} {
 
-   # save the new list into the ini/rc file
-   UpdateRcFile
+      # delete the cni in the old list
+      set index 0
+      foreach prov $prov_selection {
+         if {$prov == $cni} {
+            set prov_selection [lreplace $prov_selection $index $index]
+            break
+         }
+         incr index
+      }
+      # prepend the cni to the selection list
+      set prov_selection [linsert $prov_selection 0 $cni]
+
+      # save the new list into the ini/rc file
+      UpdateRcFile
+   }
 }
 

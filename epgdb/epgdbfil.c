@@ -23,7 +23,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgdbfil.c,v 1.19 2000/09/26 13:22:42 tom Exp tom $
+ *  $Id: epgdbfil.c,v 1.21 2000/12/21 19:21:49 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -58,9 +58,33 @@ FILTER_CONTEXT * EpgDbFilterCreateContext( void )
    FILTER_CONTEXT * fc;
 
    fc = (FILTER_CONTEXT *) xmalloc(sizeof(*fc));
+   memset(fc, 0, sizeof(*fc));
    fc->enabledFilters = 0;
 
    return fc;
+}
+
+// ---------------------------------------------------------------------------
+// Copy a filter context
+// - intended for checks that require modifications of the filter mask
+// - when the context is no longer used, it has to be destroyed (i.e. freed)
+//
+FILTER_CONTEXT * EpgDbFilterCopyContext( const FILTER_CONTEXT * fc )
+{
+   FILTER_CONTEXT * newfc;
+
+   if (fc != NULL)
+   {
+      newfc = (FILTER_CONTEXT *) xmalloc(sizeof(*fc));
+      memcpy(newfc, fc, sizeof(*fc));
+   }
+   else
+   {
+      debug0("EpgDbFilter-CopyContext: illegal NULL ptr param");
+      newfc = NULL;
+   }
+
+   return newfc;
 }
 
 // ---------------------------------------------------------------------------
@@ -68,7 +92,12 @@ FILTER_CONTEXT * EpgDbFilterCreateContext( void )
 //
 void EpgDbFilterDestroyContext( FILTER_CONTEXT * fc )
 {
-   xfree(fc);
+   if (fc != NULL)
+   {
+      xfree(fc);
+   }
+   else
+      debug0("EpgDbFilter-DestroyContext: illegal NULL ptr param");
 }
 
 // ---------------------------------------------------------------------------
@@ -570,22 +599,22 @@ void EpgDbFilterApplyNi( CPDBC dbc, FILTER_CONTEXT *fc, NI_FILTER_STATE *pNiStat
    {
       case EV_ATTRIB_KIND_PROGNO_START:
          if ((fc->enabledFilters & FILTER_PROGIDX) == FALSE)
-            fc->lastProgIdx = data;
-         fc->firstProgIdx = data;
+            fc->lastProgIdx = (uchar)(data & 0xff);
+         fc->firstProgIdx = (uchar)(data & 0xff);
          fc->enabledFilters |= FILTER_PROGIDX;
          break;
 
       case EV_ATTRIB_KIND_PROGNO_STOP:
          if ((fc->enabledFilters & FILTER_PROGIDX) == FALSE)
             fc->firstProgIdx = 0;
-         fc->lastProgIdx = data;
+         fc->lastProgIdx = (uchar)(data & 0xff);
          fc->enabledFilters |= FILTER_PROGIDX;
          break;
 
       case EV_ATTRIB_KIND_NETWOP:
          if ((fc->enabledFilters & FILTER_NETWOP) == FALSE)
             EpgDbFilterInitNetwop(fc);
-         fc->netwopFilterField[data] = TRUE;
+         fc->netwopFilterField[data & 0xff] = TRUE;
          fc->enabledFilters |= FILTER_NETWOP;
          break;
 
@@ -622,12 +651,12 @@ void EpgDbFilterApplyNi( CPDBC dbc, FILTER_CONTEXT *fc, NI_FILTER_STATE *pNiStat
          break;
 
       case EV_ATTRIB_KIND_EDITORIAL:
-         fc->editorialRating = data;
+         fc->editorialRating = (uchar)(data & 0xff);
          fc->enabledFilters |= FILTER_EDIT_RAT;
          break;
 
       case EV_ATTRIB_KIND_PARENTAL:
-         fc->parentalRating = data;
+         fc->parentalRating = (uchar)(data & 0xff);
          fc->enabledFilters |= FILTER_PAR_RAT;
          break;
 
@@ -646,7 +675,7 @@ void EpgDbFilterApplyNi( CPDBC dbc, FILTER_CONTEXT *fc, NI_FILTER_STATE *pNiStat
          break;
 
       case EV_ATTRIB_KIND_REL_DATE:
-         pNiState->reldate = data;
+         pNiState->reldate = (uchar)(data & 0xff);
          pNiState->flags |= NI_DATE_RELDATE;
          break;
 
@@ -663,9 +692,9 @@ void EpgDbFilterApplyNi( CPDBC dbc, FILTER_CONTEXT *fc, NI_FILTER_STATE *pNiStat
       case EV_ATTRIB_KIND_LANGUAGE:
          if ((fc->enabledFilters & FILTER_LANGUAGES) == FALSE)
             EpgDbFilterInitLangDescr(fc);
-         lg[0] = data & 0xff;
-         lg[1] = (data >> 8) & 0xff;
-         lg[2] = (data >> 16) & 0xff;
+         lg[0] = (uchar)(data & 0xff);
+         lg[1] = (uchar)((data >> 8) & 0xff);
+         lg[2] = (uchar)((data >> 16) & 0xff);
          EpgDbFilterSetLangDescr(dbc, fc, lg);
          fc->enabledFilters |= FILTER_LANGUAGES;
          break;
@@ -673,9 +702,9 @@ void EpgDbFilterApplyNi( CPDBC dbc, FILTER_CONTEXT *fc, NI_FILTER_STATE *pNiStat
       case EV_ATTRIB_KIND_SUBT_LANG:
          if ((fc->enabledFilters & FILTER_SUBTITLES) == FALSE)
             EpgDbFilterInitSubtDescr(fc);
-         lg[0] = data & 0xff;
-         lg[1] = (data >> 8) & 0xff;
-         lg[2] = (data >> 16) & 0xff;
+         lg[0] = (uchar)(data & 0xff);
+         lg[1] = (uchar)((data >> 8) & 0xff);
+         lg[2] = (uchar)((data >> 16) & 0xff);
          EpgDbFilterSetSubtDescr(dbc, fc, lg);
          fc->enabledFilters |= FILTER_SUBTITLES;
          break;

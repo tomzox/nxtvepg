@@ -1,5 +1,5 @@
 /*
- *  Teletext decoder
+ *  VBI capture driver for the Booktree 848/849/878/879 family
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
@@ -16,38 +16,18 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: vbidecode.h,v 1.10 2000/09/28 20:32:05 tom Exp tom $
+ *  $Id: tvchan.h,v 1.1 2000/12/09 14:03:40 tom Exp tom $
  */
 
-#ifndef __VBIDECODE_H
-#define __VBIDECODE_H
+#ifndef __TVCHAN_H
+#define __TVCHAN_H
 
-
-// ---------------------------------------------------------------------------
-// Buffer for communication between slave and master process
-//
-#ifndef WIN32
-extern EPGACQ_BUF *pVbiBuf;
-#endif
 
 // ---------------------------------------------------------------------------
 // declaration of service interface functions
 //
-void VbiDecodeLine(const uchar *lbuf, int line);
-
-#ifndef WIN32
-bool VbiDecodeInit( uchar cardPostfix );
-void VbiDecodeExit( void );
-bool VbiDecodeFrame( void );
-void VbiDecodeCheckParent( void );
-bool VbiDecodeWakeUp( void );
-
-bool VbiGetNextChannel( uint *pChan, ulong *pFreq );
-int  VbiGetChannelCount( void );
-bool VbiTuneChannel( ulong freq, bool keepOpen );
-uint VbiTuneGetSignalStrength( void );
-void VbiTuneCloseDevice( void );
-#endif
+bool TvChannels_GetNext( uint *pChan, ulong *pFreq );
+int  TvChannels_GetCount( void );
 
 
-#endif // __VBIDECODE_H
+#endif  // __TVCHAN_H

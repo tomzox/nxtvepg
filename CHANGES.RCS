@@ -1655,3 +1655,856 @@ TODO [rev:1.5, 2000-11-16T21:46:28]:
 - release 0.3.4
 - added lookout for version 0.4.0
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_3_4 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+epgdb/epgblock.c [rev:1.24, 2000-11-03T20:09:28]:
+- STARTED DB MERGE
+- EpgBlockCreate() now global, for epgdbmerge.c
+epgdb/epgblock.h [rev:1.12, 2000-11-03T20:10:09]:
+- STARTED DB MERGE
+- EpgBlockCreate() now global, for epgdbmerge.c
+- added PI_GET_STR_BY_OFF macro
+- added bool merged to db context
+epgdb/epgdbif.c [rev:1.15, 2000-11-03T20:10:47]:
+- STARTED DB MERGE
+- general interface change: upper layers must no longer use blockno
+  for identification, since blocknos have no meaning in merged dbs
+- now netwopno & start_time are used instead
+- removed onsolete EpgDbGetPi() : was unused
+- removed obsolete EpgDbSearchPiExact(): now equal to normal SearchPi()
+- ContextGetCni now returns 0x00ff for merged db
+- GetProgIdx no longer requires lock (since no pointers are used)
+epgdb/epgdbif.h [rev:1.11, 2000-11-03T20:13:59]:
+- STARTED DB MERGE
+- general interface change: upper layers must no longer use blockno
+  for identification, since blocknos have no meaning in merged dbs
+- now netwopno & start_time are used instead
+- removed onsolete EpgDbGetPi() : was unused
+- removed obsolete EpgDbSearchPiExact(): now equal to normal SearchPi()
+epgdb/epgdbmgmt.c [rev:1.17, 2000-11-03T20:15:16]:
+- STARTED DB MERGE
+- in CheckConsistancy, do not check blocknos for merged dbs
+epgdb/epgdbmgmt.h [rev:1.8, 2000-11-03T20:15:38]:
+- fixed comment for #endif (copy&paste error)
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.38, 2000-11-03T20:19:48]:
+- STARTED DB MERGE
+- added "Merge providers..." entry to Configure menu
+- extracted network selection functions from netwop prefilter popup
+  and built SelBox "widget" from it, that's no used both by netwop
+  and prov-merge popups
+- added .provmerge popup and .provmergeopt sub-popup
+- added provmerge config to rc/ini file
+- translated pre-defined shortcuts to english
+epgui/menucmd.c [rev:1.14, 2000-11-03T20:26:44]:
+- STARTED DB MERGE
+- added ProvMerge_List(): returns list of provider CNIs and names (netwops)
+- added ProvMerge_Start(): start db merge
+- prov selection uses EpgDbContextGetCni() instead of direct AI access
+  since in merged dbs artificial CNI 0x00ff must be used instead of
+  this_netwop CNI
+epgui/pilistbox.c [rev:1.26, 2000-11-03T20:35:49]:
+- STARTED DB MERGE
+- db interface changed: blocknos must no longer be used for PI search
+  since blocknos have no meaning in merged dbs
+- now use only netwop and start_time
+-> status changed plus all calls to EpgDbSearch functions
+- XXX FIXME: db remove now broken, because wrong item might get deleted
+-> need to fix epgdbmgmt to remove obsolete PI *before* insertion
+   so that there never is an ambiguity
+epgdb/epgblock.c [rev:1.25, 2000-11-04T11:15:45]:
+- added new element pPrevNetwopBlock to EPGDB_BLOCK struct
+- netwop chains are now for- and backwards to simplify mgmt
+epgdb/epgblock.h [rev:1.13, 2000-11-04T11:15:45]:
+- added new element pPrevNetwopBlock to EPGDB_BLOCK struct
+- netwop chains are now for- and backwards to simplify mgmt
+epgdb/epgdbmerge.c [rev:1.1, 2000-11-04T11:30:48]:
+- Initial revision
+epgdb/epgdbmerge.h [rev:1.1, 2000-11-04T11:30:50]:
+- Initial revision
+epgdb/epgdbif.c [rev:1.16, 2000-11-04T11:32:02]:
+- slight optimization EpgDbSearchPi()
+- does no longer compare netwop in search loop since netwop chains is used
+epgdb/epgdbmgmt.c [rev:1.18, 2000-11-04T11:32:28]:
+- introduced new pointer *pPrevNetwopBlock to EPGDB_BLOCK struct
+- PI blocks now chained forwards and backwards per netwop
+- simplified PI insertion, esp. resolving blockno/time conflicts
+epgdb/epgdbsav.c [rev:1.17, 2000-11-04T11:35:33]:
+- introduced new pointer *pPrevNetwopBlock to EPGDB_BLOCK struct
+epgui/pilistbox.c [rev:1.27, 2000-11-04T11:35:59]:
+- removed obsolete (and already commented out) branch from _DbInsert()
+- XXX FIXED: introduced new pointer *pPrevNetwopBlock to EPGDB_BLOCK struct
+-> db now is always consistent, i.e. max. one PI per netwop with same blockno
+-> _DbRemove() now working stable
+-  no changes in this file for this fix
+epgctl/epgversion.h [rev:1.1, 2000-11-04T12:57:02]:
+- Initial revision
+epgctl/epgversion.h [rev:1.2, 2000-11-04T13:02:09]:
+- added compilation date to EPG_VERSION_RCS_ID
+epgdb/epgdbsav.c [rev:1.18, 2000-11-04T13:41:32]:
+- all version numbers are now maintained centrally in epgversion.h
+epgdb/epgdbsav.h [rev:1.11, 2000-11-04T13:41:32]:
+- all version numbers are now maintained centrally in epgversion.h
+epgctl/epgmain.c [epgui/epgmain.c, rev:1.35, 2000-11-04T13:42:15]:
+- added epg_version_str & epg_rcs_id_str
+- includes epgversion.h
+- -help now also outputs version number
+- version string is passed to TCL for .about popup
+epgctl/epgmain.h [epgui/epgmain.h, rev:1.10, 2000-11-04T13:42:15]:
+- added decl for epg_version_str, epg_rcs_id_str
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.39, 2000-11-04T13:53:22]:
+- added global EPG_VERSION for .about popup
+epgui/pifilter.c [rev:1.27, 2000-11-04T13:54:03]:
+- added setting of Tcl global EPG_VERSION in init func
+epgui/menucmd.c [rev:1.15, 2000-11-04T16:01:17]:
+- bugfix StartMerge: wrong idx var for loop across cf options
+epgdb/epgdbif.c [rev:1.17, 2000-11-06T18:57:44]:
+- added EpgDbContextIsMerged()
+epgdb/epgdbif.h [rev:1.12, 2000-11-06T18:57:44]:
+- added EpgDbContextIsMerged()
+epgdb/epgblock.h [rev:1.14, 2000-11-06T18:58:07]:
+- added *pMergeContext to EPGDB_CONTEXT
+- for merged databases only, holds pointer to EPGDB_MERGE_CONTEXT
+- ptr is void to avoid forcing everyone to include epgdbmerge.h
+epgdb/epgdbmerge.c [rev:1.2, 2000-11-06T19:01:43]:
+- added dynamic insertion of blocks into merged database
+- also: globally replaced pFoundBlock with pFoundBlocks
+epgdb/epgdbmerge.h [rev:1.2, 2000-11-06T19:01:43]:
+- added dynamic insertion of blocks into merged database
+epgdb/epgdbmgmt.c [rev:1.19, 2000-11-06T19:05:37]:
+- for epgdbmerge.c: (added dynamic insertion of blocks into merged database)
+- separated parts of EpgDbInsertPi() into sub-functions
+- removed special handling of case pFirstPi==NULL in InsertPi()
+epgdb/epgdbmgmt.h [rev:1.9, 2000-11-06T19:05:37]:
+- added decls for EpgDbPiRemove(), EpgDbLinkPi(), EpgDbReplacePi()
+- used by epgdbmerge.h for insertion into merged db
+epgctl/epgacqctl.c [rev:1.21, 2000-11-06T19:10:00]:
+- in EpgAcqCtl_OpenDb():
+- do not use merged db for acquisition
+- XXX temporary solution: instead use any other db
+www/index.html [rev:1.3, 2000-11-07T21:22:37]:
+- added links to bttv and v4l (might be outdated!?)
+www/index.html [rev:1.4, 2000-11-11T15:14:46]:
+- added META tags for search engines
+- added link to manual page
+- replaced link to my COPRIGHT file with link to GNU.org
+Makefile [rev:1.14, 2000-11-14T18:38:25]:
+- added epgdb/epgdbmerge.o
+epgdb/epgblock.h [rev:1.15, 2000-11-14T18:42:19]:
+- added mergeCount to EPGDB_BLOCK
+epgdb/epgdbacq.c [epgvbi/ttxdecode.c, rev:1.16, 2000-11-14T18:42:49]:
+- changed interface to EpgAcqCtl_ChannelChange(): added param bool changeDb
+epgdb/epgdbmerge.c [rev:1.3, 2000-11-14T18:43:33]:
+- bugfixes: updated PI and AI were not freed
+- split off EpgDbMergeOpenAcqContext() from PiInsert
+- added EpgDbMergeAiUpdate()
+- added mergeCount to PI
+epgdb/epgdbmerge.h [rev:1.3, 2000-11-14T18:45:47]:
+- added EpgDbMergeAiUpdate() for epgdbmgmt
+epgdb/epgdbmgmt.c [rev:1.20, 2000-11-14T18:46:29]:
+- call to EpgDbMergeAiUpdate() in InsertAi func
+- bugfix: check for NULL ptr in pBlock->pNextNetwopBlock
+epgdb/epgdbsav.h [rev:1.12, 2000-11-14T18:47:38]:
+- increased DUMP_COMPAT to 0.4.0
+- dur to addition of *pNextNetwopBlock to PI_BLOCK
+epgctl/epgacqctl.c [rev:1.22, 2000-11-14T18:50:41]:
+- added EpgAcqCtl_SelectMode()
+- new state machine in static vars
+- mode can be set via GUI
+- added EpgAcqCtl_UpdateProvider() to switch providers depending on mode
+epgctl/epgacqctl.h [rev:1.13, 2000-11-14T18:53:48]:
+- added enum EPGACQ_MODE
+- added EpgAcqCtl_SelectMode() and EpgAcqCtl_UpdateProvider()
+- changed decl for EpgAcqCtl_ChannelChange(): new bool param
+epgctl/epgmain.c [epgui/epgmain.c, rev:1.36, 2000-11-14T18:54:38]:
+- added bitmaps ptr_up.xbm and ptr_down.xbm for SelBox up/down buttons
+- merge database when last db was CNI 0x00ff
+epgctl/epgversion.h [rev:1.3, 2000-11-14T18:57:36]:
+- set version from 0.3.3 to 0.4.0
+epgvbi/vbidecode.c [rev:1.19, 2000-11-14T18:58:08]:
+- added VbiTuneCheckDevice(): return TRUE when /dev/video can be opened
+epgvbi/vbidecode.h [rev:1.11, 2000-11-14T18:58:08]:
+- added VbiTuneCheckDevice(): return TRUE when /dev/video can be opened
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.40, 2000-11-14T19:00:24]:
+- fix proc CreateSeriesMenuEntries: remove series number postfix from titles
+- changed ftp address from uni-erlangen to nxtvepg.tripod.com
+- added popup to select acq mode .acqmode
+- use bitmaps ptr_up.xbm and ptr_down.xbm in SelBox for up/down buttons
+- provmergeopt popup: added message to print option name
+- names are kept in array, which is also used to build menu in .provmerge
+- provmergeopt option type can be changed on-the-fly via provmerge menu
+- C_ProvMerge_Start is called without parameters, because they are
+    fetched from globals; needed for merge at startup, i.e. not via the popup
+- added proc SortProvList to sort provider list in popups
+- added globals acq_mode and acq_mode_cnis to rc file
+epgui/menucmd.c [rev:1.16, 2000-11-14T19:10:15]:
+- renamed ProvMerge_List to GetProvCnisAndNames()
+- split off ProvMerge_ParseConfigString() from ProvMerge_Start()
+- can be called from background, i.e. not from popup
+- parameters are now taken from Tcl globals
+- added SetAcquisitionMode() and UpdateAcquisitionMode()
+- for new popup .acqmode
+- takes params from Tcl globals
+epgui/menucmd.h [rev:1.4, 2000-11-14T19:13:05]:
+- added ProvMerge_ParseConfigString()
+- added SetAcquisitionMode()
+epgui/statswin.c [rev:1.20, 2000-11-14T19:13:24]:
+- removed superflous call to EpgDbGetPiBlockCount() in StatsWin_NewPi()
+- fixed StatsWin_Load(): correct provider name for merged db
+epgdb/epgdbsav.c [rev:1.19, 2000-11-17T19:57:42]:
+- addition of -demo <db> option (identical to branch 1.16.1.1)
+- added dumpDate and firstDate to EPGDBSAV_HEADER
+- shift all PI in reloaded db just enough so that none expire
+- db path name is taken from -demo argument
+    other dbs cannot be loaded
+epgdb/epgdbsav.h [rev:1.13, 2000-11-17T19:58:55]:
+- addition of -demo <db> option
+- added dumpDate and firstDate to EPGDBSAV_HEADER
+- added dumpDate, firstDate, lastPiDate to EPGDBSAV_PEEK
+epgctl/debug.c [rev:1.6, 2000-11-17T20:04:52]:
+- added #include "epgctl/debug.h"
+epgctl/epgmain.c [epgui/epgmain.c, rev:1.37, 2000-11-17T20:05:09]:
+- added command line option -demo
+- fixed error in help for -card: index starts at 0, not 1
+epgctl/epgmain.h [epgui/epgmain.h, rev:1.11, 2000-11-17T20:06:03]:
+- added pDemoDatabase for -demo option
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.41, 2000-11-17T20:06:27]:
+- added proc CreateDemoModePseudoMenu for -demo cmd line option
+- create "Demo-Mode" menu with warning labels and disable some menu commands
+epgui/menucmd.c [rev:1.17, 2000-11-17T20:07:24]:
+- addition of -demo mode
+- call Tcl proc CreateDemoModePseudoMenu during start-up
+    when demo mode is enabled
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.42, 2000-11-18T11:09:10]:
+- replaced all [string equal ...] with [string compare ...]==0
+- for compatibility with ealier Tcl versions, esp. v8.0
+man2help.tcl [pod2help.pl, rev:1.4, 2000-11-18T11:10:43]:
+- for compatibility with ealier Tcl versions, esp. v8.0:
+- replaced all [string equal ...] with [string compare ...]==0
+- use [string totitle ...] only for v8.3, else user tolower&toupper
+epgdb/epgdbacq.c [epgvbi/ttxdecode.c, rev:1.17, 2000-11-18T20:18:58]:
+- fix for WIN32:
+- allocate memory for VBI buffer statically instead of malloc
+    since it's allocated right at start anyway and kept until the end
+epgdb/epgdbsav.c [rev:1.20, 2000-11-18T20:22:17]:
+- fix for WIN32 in EpgDbReloadScan()
+- missed DUMP_NAME_TMP
+- convert file names to lower case for directory search
+epgctl/epgacqctl.c [rev:1.23, 2000-11-18T20:26:18]:
+- small fixes for WIN32: added #if branches
+epgctl/epgmain.c [epgui/epgmain.c, rev:1.38, 2000-11-18T20:27:49]:
+- added eval_global()
+- same as eval_check, but uses Tcl_GlobalEval
+- simplifies use of global vars in C functions called by Tcl procs
+    else the Tcl proc would have to declare the var global
+- for WIN32:
+- added #ifdef for -dbdir handling (not needed)
+- changed main API to allow stanadlone compilation
+    (before the API was for a sub-thread inside a larger application)
+epgctl/epgmain.h [epgui/epgmain.h, rev:1.12, 2000-11-18T20:30:07]:
+- added decl for eval_global()
+epgui/menucmd.c [rev:1.18, 2000-11-18T20:30:30]:
+- fixed startup: for WIN32
+- index for "Provider scan" is no longer 1; use string match instead
+epgui/pilistbox.c [rev:1.28, 2000-11-18T20:31:22]:
+- fix in PiListBox_InsertItem() for WIN32
+- use global vars for cursor colors instead of numeric constants
+    since WIN32 Tcl uses darker bg color, hence cursor colors are
+    different for UNIX and WIN32
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.43, 2000-11-18T20:32:48]:
+- fixed listbox cursor color and font sizes for windows
+- base font for WIN32 is 15pt instead of 12 pt for Linux
+- bg color is darker on WIN32 -> global vars for cursor col
+epgdb/epgdbmerge.c [rev:1.4, 2000-11-18T22:48:37]:
+- bugfix: missing xfree() in EpgDbMerge() when db open failed
+www/index.html [rev:1.8, 2000-11-27T18:38:10]:
+- added note that Windows will be supported soon
+- removed "Linux" from title and header
+- removed blanks between META keywords
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.44, 2000-11-30T21:48:31]:
+- removed acq mode manual: identical to cycle with 1 provider
+epgvbi/btdrv4win.c [rev:1.1, 2000-12-02T09:52:19]:
+- Initial revision
+epgvbi/btdrv.h [rev:1.1, 2000-12-02T09:52:21]:
+- Initial revision
+epgvbi/windrvr.h [rev:1.1, 2000-12-02T09:52:32]:
+- Initial revision
+epgvbi/windrvr_usb.h [rev:1.1, 2000-12-02T09:52:35]:
+- Initial revision
+epgctl/debug.c [rev:1.7, 2000-12-02T09:54:10]:
+- fix for WIN32
+epgctl/epgacqctl.c [rev:1.24, 2000-12-02T09:55:39]:
+- removed almost all exceptions for WIN32
+- win32 now fully supported
+- interface to vbidecode identical to Linux
+- removed acq mode "manual" - identical to cycle with length=1
+- the fomer mode cyclic_near is now called manual
+epgctl/epgacqctl.h [rev:1.14, 2000-12-02T09:57:19]:
+- removed acq mode "manual" - identical to cycle with length=1
+- the fomer mode cyclic_near is now called manual
+epgctl/mytypes.h [rev:1.7, 2000-12-02T09:58:34]:
+- added #define DEBUG_SWITCH_VBI for vbidecode and btdriver
+tcl2c.c [rev:1.1, 2000-12-02T11:12:52]:
+- Initial revision
+tcl2c.c [rev:1.2, 2000-12-02T11:13:58]:
+- fixed for WIN32
+- switch __CYGWIN__ is equivalent to WIN32
+- append 0 byte to char array
+- declare array unsigned to avoid warning for non-ASCII chars
+- check for 0 bytes in input file & replace with blank (just to be sure)
+epgctl/epgmain.c [epgui/epgmain.c, rev:1.39, 2000-12-02T11:17:01]:
+- full support for WIN32
+- added switch USE_PRECOMPILED_TCL_LIBS to compile Tcl/Tk init scripts
+    into the binary; Tk_Init() error must be ignored since it will not
+    find its scripts
+- use yet another variant of InitLTO that works without extern daylight
+- added SetWindowsIcon() to set icon in window title and task bar
+    not needed if ICON_PATCHED_INTO_DLL defined
+- added SetArgv() to parse command line arguments
+    (this is not done by the shell as in UNIX)
+- added tabs to help output to display properly in proportional fonts
+    also suppressed unsupported option -display for WIN32
+    msg is displayed in MessageBox() as stdout is not available for Win API
+- main: removed restrictions for WIN32, particularily all cmd line options
+    except -display are suppored now
+- clock is now displayed instantly
+epgvbi/vbidecode.c [rev:1.20, 2000-12-02T11:17:44]:
+- fixed for full WIN32 support
+- API to above layers is identical for WIN32 and Linux
+- WIN32 uses btdriver module instead of Linux bttv driver
+    but functionality is the same
+epgvbi/vbidecode.h [rev:1.12, 2000-12-02T11:19:50]:
+- fixed for full WIN32 support
+- API to above layers is identical for WIN32 and Linux
+Makefile [rev:1.15, 2000-12-02T11:49:53]:
+- for Win32 automatically invoke separate makefile
+- moved dependencies into separate file MAkefile.dep
+- define list of C sources without extensions
+    generate $(OBJS) and $(SRCS) from that list
+- added -O to tcl2c
+man2help.tcl [pod2help.pl, rev:1.5, 2000-12-02T11:53:20]:
+- start one chapter earlier, with OPTIONS since this is the only place
+    where windows users can read about the command line options
+- replace backslashes in front of dashes (-) too; needed for OPTIONS
+epgdb/epgblock.c [rev:1.26, 2000-12-02T11:55:06]:
+- fix for time decoding:
+- tm_isdst must be set to -1 to force mktime() to determine daylight
+    this holds true for all platforms
+- then must also substract daylight from mktime() result
+epgdb/epgdbacq.c [epgvbi/ttxdecode.c, rev:1.18, 2000-12-02T11:58:07]:
+- added full support for WIN32 -> removed almost all #ifdef
+epgdb/epgdbfil.h [rev:1.13, 2000-12-02T11:59:02]:
+- fixed type of timeBegin and timeEnd to time_t in filter context
+epgdb/epgdbsav.c [rev:1.21, 2000-12-02T12:00:07]:
+- fixed EpgDbReloadScan() for Win32: did not use -dbdir path
+- fixed type of now from ulong to time_t in AddPi
+epgui/pilistbox.c [rev:1.29, 2000-12-02T12:02:00]:
+- bugfix PiListBox_UpdateState()
+- scrollbar must only be reset to [0,1] when in error state
+epgui/statswin.c [rev:1.21, 2000-12-02T12:03:19]:
+- bugfix StatsWin_BuildCanvas()
+- did call wm resizable on . instead of child
+- for WIN32 this resulted in a complete rebuild of the main win
+    (and possibly a fallback to the Tk default window icon)
+- bugfix StatsWin_HighlightNetwop(): must use eval_global for $default_bg
+epgui/pifilter.c [rev:1.28, 2000-12-02T12:05:30]:
+- fix for SelectSortCrits()
+- use separate argv array to parse sortcrits list
+epgui/menucmd.c [rev:1.19, 2000-12-02T12:08:02]:
+- ProvWin_Exit(): improved to keep silent if empty CNI string is given
+- ToggleAcq: no warning message on WIN32 upon failure
+- removed acq mode "manual" - i identical to cycle with length=1
+    the former mode cyclic-near is now called manual
+- WIN32 support
+- added hardware configuration popup .hwcfg
+    C_HwCfgGetInputList(), C_HwCfgGetTunerList(), C_UpdateHardwareConfig()
+- added timezone configuration popup
+    XXX still read-only, i.e. set function is missing
+    added C_GetTimeZone()
+epgui/menucmd.h [rev:1.5, 2000-12-02T12:11:05]:
+- added SetHardwareConfig(): called at startup to initialize btdriver module
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.45, 2000-12-02T14:22:23]:
+- new proc for creation of popup windows: CreateTransientPopup
+- Win32 Tk version 8.3 does not need bigger font sizes anymore
+- improved PI Popup esp. for Win32: use tabs and default_bg
+- help window: moved scrollbar to the right window border
+- EPG scan: warnings for WIN32 if hardware not configured
+    or tuner not input source
+- added .hwcfg popup for WIN32
+    added hwcfg to rc/ini file
+- added .timezone popup
+epgvbi/bt848.h [dsdrv/bt8x8_reg.h, rev:1.1, 2000-12-02T18:12:30]:
+- Initial revision
+epgctl/epgacqctl.c [rev:1.25, 2000-12-02T18:19:25]:
+- resolved data type conflicts (warnings from MVC compiler)
+- EpgAcqCtl_GetDbState(): added state EPGDB_PREFILTERED_EMPTY
+- PI might be in the db, but not displayed even after filter reset
+- must display help message
+epgctl/epgacqctl.h [rev:1.15, 2000-12-02T18:20:56]:
+- added db state EPGDB_PREFILTERED_EMPTY
+- resolved data type conflicts (warnings from MVC compiler)
+epgvbi/vbidecode.c [rev:1.21, 2000-12-02T18:21:26]:
+- resolved data type conflicts (warnings from MVC compiler)
+epgdb/epgblock.c [rev:1.27, 2000-12-02T18:22:25]:
+- resolved data type conflicts (warnings from MVC compiler)
+epgdb/epgdbfil.c [rev:1.20, 2000-12-02T18:22:25]:
+- resolved data type conflicts (warnings from MVC compiler)
+epgdb/epgdbif.c [rev:1.18, 2000-12-02T18:22:25]:
+- resolved data type conflicts (warnings from MVC compiler)
+epgdb/epgdbif.h [rev:1.13, 2000-12-02T18:22:25]:
+- resolved data type conflicts (warnings from MVC compiler)
+epgdb/epgdbacq.c [epgvbi/ttxdecode.c, rev:1.19, 2000-12-02T18:22:25]:
+- resolved data type conflicts (warnings from MVC compiler)
+epgdb/epgdbmgmt.c [rev:1.21, 2000-12-02T18:22:59]:
+- resolved data type conflicts (warnings from MVC compiler)
+epgdb/epgstream.c [rev:1.9, 2000-12-02T18:22:59]:
+- resolved data type conflicts (warnings from MVC compiler)
+epgdb/epgstream.h [rev:1.10, 2000-12-02T18:22:59]:
+- resolved data type conflicts (warnings from MVC compiler)
+epgdb/epgtxtdump.c [epgui/dumpraw.c, rev:1.10, 2000-12-02T18:22:59]:
+- resolved data type conflicts (warnings from MVC compiler)
+epgvbi/hamming.c [rev:1.4, 2000-12-02T18:23:15]:
+- resolved data type conflicts (warnings from MVC compiler)
+- made parity and hamming tables uchar again
+- all users should cast to schar for check < 0
+epgvbi/hamming.h [rev:1.4, 2000-12-02T18:23:15]:
+- resolved data type conflicts (warnings from MVC compiler)
+- made parity and hamming tables uchar again
+- all users should cast to schar for check < 0
+epgui/menucmd.c [rev:1.20, 2000-12-02T18:24:19]:
+- resolved data type conflicts (warnings from MVC compiler)
+epgui/pifilter.c [rev:1.29, 2000-12-02T18:26:17]:
+- PiFilter_UpdateNetwopList(): call PiListBox_UpdateState()
+- in case db has become empty
+epgui/pilistbox.c [rev:1.30, 2000-12-02T18:26:40]:
+- PiListBox_UpdateState(): added db state EPGDB_PREFILTERED_EMPTY
+- resolved data type conflicts (warnings from MVC compiler)
+epgdb/epgdbmerge.c [rev:1.5, 2000-12-02T19:21:39]:
+- resolved data type conflicts (warnings from MVC compiler)
+epgctl/mytypes.h [rev:1.8, 2000-12-03T18:56:35]:
+- added debug switch DEBUG_SWITCH_TCL_BGERR
+epgui/pilistbox.c [rev:1.31, 2000-12-03T18:57:13]:
+- PiListBox_UpdateState(): clear shortinfo box when in error state
+epgui/menucmd.c [rev:1.21, 2000-12-03T18:57:56]:
+- MenuCmd_StartEpgScan(): focus grab moved here
+- focus is now not grabbed until the scan is started
+- this is neccessary for the Help button
+    else the help window could not be used
+man2help.tcl [pod2help.pl, rev:1.6, 2000-12-03T20:01:06]:
+- added set helpIndex for all chapters
+- build array of chapter names for access from help buttons in popups
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.46, 2000-12-03T20:09:19]:
+- unified Ok/Abort cmd handling in all popups
+    + order is: first Help, Abort, Ok.
+    + -width 5 for all buttons
+- added help buttons to all popups: select chapter and subheading
+- additional parameter to proc PopupHelp: to bring subheading into view
+- up/down arrows in buttons instead of text in shortcut popup
+- fixed position of "delete" button in netsel popup
+- added Tcl/Tk version to about popup
+nxtvepg.1x [nxtvepg.pod, rev:1.15, 2000-12-04T18:22:23]:
+- started adding doc for Win32 specifics
+epgdb/epgblock.h [rev:1.16, 2000-12-04T18:23:28]:
+- fixed comments for EPGDB_BLOCK pNextBlock, pPrevBlock
+epgctl/epgmain.c [epgui/epgmain.c, rev:1.40, 2000-12-04T18:35:53]:
+- added debug switch DEBUG_SWITCH_TCL_BGERR
+- when OFF, suppress popups about Tcl/Tk background errors
+- when ON, use proc bgerror to report foreground errors too
+    (esp. useful on Windows where stderr is not connected to the tty)
+- bugfix timer handlers:
+- handle was saved only in main, but not upon re-creation in
+    timer event functions
+- moved initial call to clock handler in front of "update" loop
+- this avoids the delay until the clock is displayed
+epgvbi/vbidecode.c [rev:1.22, 2000-12-09T13:47:38]:
+- moved Linux specific stuff to btdrv4linux
+- in parallel btdrv4win offers the same functionality for Win32 systems
+- moved channel list and handling to tvchan.c
+epgvbi/tvchan.c [rev:1.1, 2000-12-09T14:03:38]:
+- Initial revision
+epgvbi/tvchan.h [rev:1.1, 2000-12-09T14:03:40]:
+- Initial revision
+epgvbi/vbidecode.c [rev:1.23, 2000-12-09T16:50:11]:
+- reformatted with indent(1)
+- removed tabs
+- indentation with 3 bytes
+epgvbi/vbidecode.h [rev:1.13, 2000-12-09T16:50:51]:
+- moved Linux specific stuff to btdrv4linux
+- in parallel btdrv4win offers the same functionality for Win32 systems
+- moved channel list and handling to tvchan.c
+epgvbi/btdrv.h [rev:1.2, 2000-12-09T17:10:58]:
+- file renamed from btdriver.h to btdrv.h
+- now serves both for Win32 and Linux Bt848 driver interfaces
+- added struct EPGACQ_BUF, formerly in epgdbacq.h
+    avois that the drivers have to include epgdbacq.h
+epgvbi/btdrv4linux.c [rev:1.1, 2000-12-09T17:14:03]:
+- Initial revision
+epgvbi/hamming.c [rev:1.5, 2000-12-09T17:14:55]:
+- header moved from epgctl to epgvbi subdir
+epgvbi/btdrv4win.c [rev:1.2, 2000-12-09T17:18:35]:
+- renamed btdrv4win.c from btdriver.c
+- driver works now identically as Linux driver
+- upper layers use same i/f to win32 as to linux
+- linux vbi briver moved from vbidecode to btdrv4linux
+epgdb/epgdbacq.c [epgvbi/ttxdecode.c, rev:1.20, 2000-12-09T17:26:47]:
+- hamming.h moved to epgvbi from epgdb subdir -> include path adapted
+- pVbiBuf is now globally exported by btdrv4* modules
+    epgdbacq module does no longer have a separate pointer
+- all bt848 driver i/f funcs moved from vbidecode to btdrv
+epgdb/epgdbacq.h [epgvbi/ttxdecode.h, rev:1.9, 2000-12-09T17:27:15]:
+- struct EPGACQ_BUF moved to btdrv.h
+- to avoid that btdrv has to include eogdbacq and epgblock
+- func EpgDbAcqInit() decl changed
+- does no longer get ptr pVbiBuf; is now global
+epgdb/epgstream.c [rev:1.10, 2000-12-09T17:28:22]:
+- hamming.h moved to epgvbi from epgdb subdir -> include path adapted
+epgvbi/btdrv.h [rev:1.3, 2000-12-11T18:26:27]:
+- added BtDriver_SetInputSource()
+- changed BtDriver_Configure() params: removed input source
+epgvbi/btdrv4linux.c [rev:1.2, 2000-12-11T18:27:03]:
+- added module description
+- added BtDriver_SetInputSource()
+- replaces functionality of BtDriver_TuneOpen()
+epgvbi/btdrv4win.c [rev:1.3, 2000-12-11T18:29:49]:
+- added BtDriver_SetInputSource()
+- removed WinDriver version check - display warning only
+- changed BtDriver_Configure() params: removed input source
+epgdb/epgdbmerge.c [rev:1.6, 2000-12-11T18:32:49]:
+- make use of epgctxctl module to open acq dbs
+epgdb/epgblock.h [rev:1.17, 2000-12-11T18:35:35]:
+- changed EPGDB_CONTEXT_STRUCT
+- added pointer to link all contexts together
+- added reference counter
+epgctl/epgacqctl.h [rev:1.16, 2000-12-11T18:37:03]:
+- moved Open/Close db to new module: epgctxctl
+- added EpgAcqCtl_SetInputSource() - not yet implemented
+epgctl/epgmain.c [epgui/epgmain.c, rev:1.41, 2000-12-11T18:37:51]:
+- split off btdrv from vbidecode -> adapted func names
+- cmd line option -card: use integer index instead of char postfix
+- GUI clock: compute localtime in C instead of Tcl/Tk
+- initial db is now opened in menucmd module instead of here
+- VBI init split up: first module init, then (after GUI init) drv configure
+epgctl/epgacqctl.c [rev:1.26, 2000-12-11T18:43:06]:
+- moved Open/Close db funcs to new module: epgctxctl
+- split off btdrv from vbidecode -> adapted func names
+- split off tvchan from vbidecode -> adapted func names
+epgui/menucmd.h [rev:1.6, 2000-12-11T18:48:41]:
+- added OpenInitialDb(): functionality moved here from main()
+- SetHardwareConfig() now available for Linux also
+epgui/menucmd.c [rev:1.22, 2000-12-11T18:50:22]:
+- revamped provwin popup
+    uses generic funcs now: MenuCmd_GetServiceNameAndNetwopList(),
+    MenuCmd_GetCurrentDatabaseCni(), MenuCmd_GetProvCnisAndNames()
+- added OpenInitialDb(): functionality moved here from main()
+- added MenuCmd_GetTvCardList() for hwcfg popup
+- added param cardIdx to MenuCmd_GetInputList()
+- changed SetHardwareConfig(): input source now passed to epgacqctl
+    instead of HwConfig func
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.47, 2000-12-11T19:03:18]:
+- hardware config popup now available for Linux platform too
+- revamped provwin popup: uses generic C funcs now
+- bugfix proc UpdateNetwopFilterBar: for new CNIs not CNI was added
+    but its netwop name
+- provmerge: added consistancy check before merge start
+Makefile [rev:1.16, 2000-12-11T19:09:21]:
+- new directory epgvbi: moved vbidecode and hamming here
+- split off btdrv4linux and tvchan from vbidecode, added to epgvbi
+nxtvepg.1x [nxtvepg.pod, rev:1.16, 2000-12-11T19:11:03]:
+- fix in FILES section:
+- default devices no longer used, only /dev/vbi0 etc.
+Makefile.win32 [rev:1.1, 2000-12-11T19:11:48]:
+- Initial revision
+epgui/tkwinico.rc [rev:1.1, 2000-12-11T19:12:44]:
+- Initial revision
+>>>>>>>>>>>>>>>>>>>>>>>>>>> LABEL_WIN32_PORT <<<<<<<<<<<<<<<<<<<<<<<<<<<
+epgdb/epgblock.h [rev:1.18, 2000-12-13T18:40:27]:
+- BI block is no longer added to the db
+- instead only the app ID is saved in the context (or dump header)
+- this simplifies the acq state machines
+epgdb/epgdbacq.c [epgvbi/ttxdecode.c, rev:1.21, 2000-12-13T18:41:55]:
+- BI block is no longer added to the db
+- instead only the app ID is saved in the context (or dump header)
+- BI callback result is ignored; BI block is always discarded
+epgdb/epgdbif.c [rev:1.19, 2000-12-13T18:42:31]:
+- BI block is no longer added to the db
+-> removed EpgDbGetBi()
+epgdb/epgdbif.h [rev:1.14, 2000-12-13T18:42:31]:
+- BI block is no longer added to the db
+-> removed EpgDbGetBi()
+epgdb/epgdbmgmt.c [rev:1.22, 2000-12-13T18:42:55]:
+- BI block is no longer added to the db
+- instead only the app ID is saved in the context (or dump header)
+- this simplifies the acq state machines
+epgdb/epgdbsav.c [rev:1.22, 2000-12-13T18:43:17]:
+- BI block is no longer added to the db
+- instead only the app ID is saved in the context (or dump header)
+- this simplifies the acq state machines
+- also: corrected/improved func names in debug statements
+epgdb/epgdbsav.h [rev:1.14, 2000-12-13T18:43:49]:
+- BI block is no longer added to the db
+- instead only the app ID is saved in the context (or dump header)
+epgdb/epgtxtdump.c [epgui/dumpraw.c, rev:1.11, 2000-12-13T18:44:19]:
+- BI block is no longer added to the db
+- instead only the app ID is saved in the context (or dump header)
+-> txt dump does no longer output BI block
+- instead the user can choose PI and obsolete/expired PI separately
+epgdb/epgtxtdump.h [epgui/dumpraw.h, rev:1.8, 2000-12-13T18:45:01]:
+- BI block is no longer added to the db
+-> txt dump does no longer output BI block
+- instead the user can choose PI and obsolete/expired PI separately
+epgdb/epgdbmerge.c [rev:1.7, 2000-12-13T18:45:22]:
+- BI block is no longer added to the db
+-> removed EpgDbMergeBiBlocks()
+epgui/pifilter.c [rev:1.30, 2000-12-13T18:46:44]:
+- removed assignment to Tcl var EPG_VERSION
+- this is now done much sooner, in ui init
+epgui/menucmd.c [rev:1.23, 2000-12-13T18:47:37]:
+- straightened SetControlMenuStates()
+- acq and ui db context pointers are no longer compared
+    only the context CNI is acquired through them
+- use menu item labels instead of indices when setting the item state
+- db dump:
+- BI block is no longer added to the db
+- instead the user can choose PI and obsolete/expired PI separately
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.48, 2000-12-13T18:50:10]:
+- BI block is no longer added to the db -> removed from dbdump popup
+    instead the user can choose PI and obsolete/expired PI separately
+- fix: remove CNIs from no longer existant dbs from acqmode_selist
+- add EPG_VERSION to rc/ini file
+- UpdateRc: write file only if CNI is not already first in list
+epgctl/epgacqctl.c [rev:1.27, 2000-12-13T19:11:28]:
+- BI block is no longer added to the db
+- instead only the app ID is saved in the context
+- this simplifies the state machine: do not have to wait for BI in db
+    (although the app ID is not saved before the 2nd acquisition, i.e.
+    after a AI was received; but the app ID is not mandatory)
+- bugfix AI callback:
+- did lose tuner freq when reload for new CNI failed
+- acq idle:
+- moved check if acq is running here from main module
+epgctl/epgmain.c [epgui/epgmain.c, rev:1.42, 2000-12-13T19:21:11]:
+- bugfix: moved processing of DbSetDateTime & Acq events into main()
+- reason: Tcl did execute idle events from deep, deep down the call stack,
+    probably when waiting for windows to be destroyed by the server
+- however the acq insert etc. funcs must NOT be called while other
+    procedures are executed, e.g. an operation on the PI listbox must
+    not be interrupted by yet another insert/delete!
+- solution: just set a flag in the idle event handlers. the action
+    is started from the main loop itself
+epgvbi/btdrv4win.c [rev:1.4, 2000-12-17T18:36:57]:
+- fixed includes for non-debug mode
+- softened WinDriver version check: complain only if major version differs
+epgdb/epgblock.c [rev:1.28, 2000-12-17T18:38:22]:
+- added acqRepCount to EPGDB_BLOCK
+epgdb/epgblock.h [rev:1.19, 2000-12-17T18:39:02]:
+- added acqRepCount to EPGDB_BLOCK
+- added acqTimestamp to EPGDB_BLOCK
+epgdb/epgdbif.c [rev:1.20, 2000-12-17T18:39:38]:
+- EpgDbGetStat: also compute network coverage variance for acq control
+- new funcs: EpgDbResetAcqRepCounters and EpgDbGetNowCycleMaxRepCounter
+epgdb/epgdbif.h [rev:1.15, 2000-12-17T18:40:31]:
+- EpgDbGetStat: also compute network coverage variance for acq control
+- new funcs: EpgDbResetAcqRepCounters and EpgDbGetNowCycleMaxRepCounter
+epgdb/epgdbmgmt.h [rev:1.10, 2000-12-17T18:41:17]:
+- added const to EPGDB_CONTEXT ptr params whereever possible
+epgdb/epgdbmgmt.c [rev:1.23, 2000-12-17T18:41:46]:
+- translated some comments to english
+- added const to EPGDB_CONTEXT ptr params whereever possible
+- maintain acqRepCount in EPGDB_BLOCK in EpgDbInsertPiBlock()
+epgctl/epgversion.h [rev:1.4, 2000-12-17T18:47:50]:
+- added EPG_VERSION_STR
+- string can be defined freely here
+- and is no longer fixed to %d.%d.%d
+epgctl/epgmain.h [epgui/epgmain.h, rev:1.13, 2000-12-17T18:49:02]:
+- epg_version_str is defined in epgversion.h now
+epgctl/epgmain.c [epgui/epgmain.c, rev:1.43, 2000-12-17T18:49:40]:
+- epg_version_str is defined in epgversion.h now
+- syntax fix: added cast to Tcl_DoWhenIdle() param
+- added SetAcquisitionMode() to main()
+epgctl/debug.c [rev:1.8, 2000-12-17T18:50:33]:
+- added #define for win32
+- memchk: invalidate magic when freed
+epgvbi/btdrv4dummy.c [rev:1.1, 2000-12-18T19:43:45]:
+- Initial revision
+www/index.html [rev:1.9, 2000-12-19T20:52:59]:
+- improved keywords and description (taken from freshmeat)
+- added 2nd screenshort for Windows with browser, timescale and acq stats
+- added release date for 0.4.0 with Windows support
+- added note about Tripod download page
+- replaced 0.3.3.tar.gz with request for alpha testers for 0.4.0
+epgdb/epgdbfil.c [rev:1.21, 2000-12-21T19:21:49]:
+- added EpgDbFilterCopyContext()
+- required for EpgAcqCtl_GetDbState(): needs prefilters only and has
+    to unset all other filters
+epgdb/epgdbfil.h [rev:1.14, 2000-12-21T19:21:49]:
+- added EpgDbFilterCopyContext()
+- required for EpgAcqCtl_GetDbState(): needs prefilters only and has
+    to unset all other filters
+epgdb/epgdbif.c [rev:1.21, 2000-12-21T19:22:56]:
+- added counter sinceAcq: number of blocks that match acqMinTime creterium
+- moved variances into the count struct
+- use blockno compare for obsolete PI too, instead of stream no in block
+epgdb/epgdbif.h [rev:1.16, 2000-12-21T19:24:06]:
+- EpgDbGetStat(): moved variances into the count struct (was ptr param)
+epgdb/epgblock.h [rev:1.20, 2000-12-21T19:27:53]:
+- added sinceAcq, variance to EPGDB_COUNT (for EpgDbGetStat)
+epgdb/epgdbmgmt.c [rev:1.24, 2000-12-21T19:28:37]:
+- EpgDbCheckChains: improved version check for obsolete PI
+epgdb/epgdbsav.c [rev:1.23, 2000-12-21T19:36:09]:
+- added a lot of error checking to Reload and Peek
+- new EpgDbReloadCheckAiBlock() checks AI internal consistancy (offsets)
+- all add funcs return result code; abort upon error
+- header check returns qualified result code
+- reload loop: abort immediately upon error; check for bloc type order
+- reload: API change: does no longer work on existing context
+    mallocs ctx and returns ptr
+- changed file header: added compat version and endian magic
+epgdb/epgdbsav.h [rev:1.15, 2000-12-21T19:41:31]:
+- Reload and Peek now return EPGDB_RELOAD_RESULT
+- reload: API change: does no longer work on existing context
+    mallocs ctx and returns ptr
+epgui/pifilter.c [rev:1.31, 2000-12-21T19:48:40]:
+- fix PiFilter_UpdateNetwopList():
+- call PiListBox_UpdateState() at start of func to alow the listbox
+    to switch to the acq db if the browser has no CNI yet
+- when current db has no CNI reset window title
+epgui/pilistbox.c [rev:1.32, 2000-12-21T19:53:03]:
+- PiListBox_UpdateState():
+- added new db state EPGDB_ACQ_OTHER_PROV
+- if ui db is empty and acq db not, switch provider
+epgdb/epgdbsav.c [rev:1.24, 2000-12-21T21:54:31]:
+- EpgDbDumpUpdateHeader(): removed superfluous parameter *pDbContext
+epgdb/epgdbsav.h [rev:1.16, 2000-12-21T21:54:31]:
+- EpgDbDumpUpdateHeader(): removed superfluous parameter *pDbContext
+nxtvepg.1x [nxtvepg.pod, rev:1.17, 2000-12-24T12:29:34]:
+- added chapter about acquisition modes
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.49, 2000-12-24T12:38:01]:
+- reworked about popup:
+- put nxtv version and email on top
+- below the Nextview logo disclaimer that author is no member of the ETSI
+- demo mode: additionally disable TV input config
+- acq mode popup
+- added more cyclic modes: all permutations of Now,Next: on/off possible
+- prov selection not resetted if already present,
+    i.e. when change between different manual/cyclic modes
+epgui/pilistbox.c [rev:1.33, 2000-12-24T12:43:04]:
+- bugfix PiListBox_DbPreUpdate()
+- did not check if the context is the same
+epgdb/epgdbmerge.c [rev:1.8, 2000-12-24T13:34:57]:
+- added EpgDbMergeAiServiceNames()
+- create service name that contains the netwop names of all merged providers
+- added EpgDbMergeGetCnis()
+- retrieve list of merged CNIs for acq ctl in follow-ui mode
+epgdb/epgdbmerge.h [rev:1.4, 2000-12-24T13:35:53]:
+- added EpgDbMergeGetCnis()
+- retrieve list of merged CNIs for acq ctl in follow-ui mode
+epgctl/epgmain.c [epgui/epgmain.c, rev:1.44, 2000-12-25T13:42:13]:
+- moved creation & check of dbdir into epgdbsav module
+epgdb/epgdbsav.c [rev:1.25, 2000-12-25T13:42:53]:
+- added EpgDbDumpCreateDir(): creates and checks dbdir for UNIX and WIN32
+epgdb/epgdbsav.h [rev:1.17, 2000-12-25T13:43:10]:
+- added EpgDbDumpCreateDir()
+- changed uchort to unsigned short in header struct
+- because uchort is not defined in mytypes.h
+epgctl/debug.c [rev:1.9, 2000-12-25T13:46:48]:
+- DebugLogLine():
+- added param doHalt, as support for assert() macro
+- changed name of output file to debug.out from EPG.LOG
+- upon doHalt, abort on UNIX, bring MessageBox on Windows
+epgctl/debug.h [rev:1.7, 2000-12-25T13:48:01]:
+- changed assert: abort is now done inside DebugLogLine(TRUE)
+- all debug macros changed, due to additional param FALSE to DebugLogLine
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.50, 2000-12-25T13:51:01]:
+- fix acqmode popup:
+- did not check if zero prov were selected for manual/cyclic modes
+    when OK button was pressed
+- added warning msg and refuse OK
+epgui/menucmd.c [rev:1.24, 2000-12-25T13:54:30]:
+- adapted to new interface for db reload fincs:
+- EpgDbPeek() has new param pErrno to return cause for failure
+- XXX this param is not used yet, TODO!
+- EpgAcqCtl_UpdateProvider() changed to EpgAcqCtl_UiProvChange()
+- also call EpgAcqCtl_UiProvChange() upon prov merge
+- new acq modes: more variants for cyclic
+- UpdateAcquisitionMode() fix:
+- call PiListBox_UpdateState() to update help message if db is empty
+epgvbi/btdrv.h [rev:1.4, 2000-12-26T15:51:26]:
+- BtDriver_SetInputSource(): added param bool keepOpen
+epgvbi/btdrv4linux.c [rev:1.3, 2000-12-26T15:51:56]:
+- BtDriver_SetInputSource():
+- added param bool keepOpen
+- keeps /dev/video open only for tuner device
+- modified mode hack: must not be used for non-tuner input source!?
+epgvbi/btdrv4win.c [rev:1.5, 2000-12-26T15:53:08]:
+- BtDriver_SetInputSource(): added dummy param bol keepOpen
+epgctl/epgacqctl.c [rev:1.28, 2000-12-26T15:54:44]:
+- BIG CHANGE: reworked acq state machine for new features
+- now supports cyclic acquisition
+- now supports non-tuner input source
+- handles error states and recovers from /dev/video access failures
+- complete state now packed in struct EPGACQCTL_STATE
+epgctl/epgacqctl.h [rev:1.17, 2000-12-26T15:57:11]:
+- BIG CHANGE: reworked acq state machine for new features
+- complete state now packed in struct EPGACQCTL_STATE
+- new enums: EPGACQ_PHASE, EPGACQ_PASSIVE, EPGSCAN_START_RESULT
+- renamed/added acq modes: more cyclic modes
+- diversified EPGDB_STATEs
+- added cariance history array to stats struct
+- added result values to hwcfg API funcs
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.51, 2000-12-26T16:03:06]:
+- fix hwcfg popup: missing global for hwcfg_input_sel
+epgui/menucmd.c [rev:1.25, 2000-12-26T16:04:54]:
+- improved error result report for EpgAcqCtl_StartScan()
+epgui/pilistbox.c [rev:1.34, 2000-12-26T16:08:37]:
+- PiListBox_UpdateState(): new db state EPGDB_ACQ_NO_TUNER, others renamed
+Makefile.win32 [rev:1.2, 2000-12-26T19:55:01]:
+- added make depend
+- required to split OBJS into CSRC and CGEN (generated C files)
+- also required to split off include path def from CFLAGS
+- fix: added -r to rm -rf WinRel
+Makefile [rev:1.17, 2000-12-26T20:06:50]:
+- updated LDLIBS
+- removed onsolete tcl & tk libs (already commented out)
+- added static libs for tcl/tk (commented out)
+- updated INCS
+- removed special path for Tcl/Tk (is now in /usr/include)
+README [rev:1.7, 2000-12-26T20:23:40]:
+- added description for Windows
+- software requirements
+- installation procedure
+- added paragraph about proper bug reports
+- improved intro, similar to index.html
+man2help.tcl [pod2help.pl, rev:1.7, 2000-12-26T20:25:13]:
+- changed first cahpter to be processed:
+- now start with INSTRODUCTION (formerly called DESCRIPTION)
+    instead of OPTIONS
+nxtvepg.1x [nxtvepg.pod, rev:1.18, 2000-12-26T20:26:55]:
+- reworked intro (formerly called DESCRIPTION)
+    added stuff from index.html and README
+- reworked Getting Started: describe mandatory configuration procedure
+    (TV input cfg) and removed reference to xawtv
+- Data Acquisition chapter: replaced description of active and
+    passive modes with reference to acq modes
+- some fixes in acq modes chapter
+- added description for TV card input popup in Configure chaoter
+- fixed formatting of Copyright
+- added hint in which TV brands NExtview is available
+CHANGES.version [rev:1.4, 2000-12-26T20:34:29]:
+- version now kept centrally in epgversion.h
+- added update instructions for web page
+- added adaption for Makefile
+- added instructions for WinDriver
+CHANGES [rev:1.6, 2000-12-26T20:42:59]:
+- release 0.4.pre0
+TODO [rev:1.6, 2000-12-26T20:42:59]:
+- release 0.4.pre0
+README [rev:1.8, 2000-12-26T20:50:51]:
+- added win32 sw requirement: windrvr.h
+www/index.html [rev:1.10, 2000-12-29T18:51:10]:
+- added pre-release 0.4.pre0
+- added support for M$ Windows
+- updated keywords and description
+- updated Tripod download note
+www/index.html [rev:1.11, 2000-12-29T18:52:42]:
+- improved introduction: added more info about Nextview in general
+    and its history
+- added links to TV manuafacturers
+- added first try at style sheets
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_4_PRE0 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
