@@ -17,7 +17,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: menucmd.c,v 1.32 2001/01/21 20:44:37 tom Exp tom $
+ *  $Id: menucmd.c,v 1.37 2001/02/07 16:19:51 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -43,6 +43,7 @@
 #include "epgdb/epgdbmerge.h"
 #include "epgctl/epgmain.h"
 #include "epgctl/epgacqctl.h"
+#include "epgctl/epgscan.h"
 #include "epgui/pilistbox.h"
 #include "epgui/pifilter.h"
 #include "epgui/statswin.h"
@@ -94,7 +95,7 @@ static int SetControlMenuStates(ClientData ttp, Tcl_Interp *interp, int argc, ch
 
       // enable "acq stats" only if acq running on different db than ui
       sprintf(comm, ".menubar.ctrl entryconfigure \"View acq statistics...\" -state %s\n",
-                    (((pAcqDbContext != 0) && (acqCni != uiCni)) ? "normal" : "disabled"));
+                    ((pAcqDbContext != 0) ? "normal" : "disabled"));
       eval_check(interp, comm);
 
       // check button of "Enable Acq" if acq is running
@@ -293,9 +294,9 @@ static int MenuCmd_ChangeProvider(ClientData ttp, Tcl_Interp *interp, int argc, 
 // Return service name and list of networks of the given database
 // - used by provider selection popup
 //
-static int MenuCmd_GetServiceNameAndNetwopList(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+static int MenuCmd_GetProvServiceInfos(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
 {
-   const char * const pUsage = "Usage: C_GetServiceNameAndNetwopList <cni>";
+   const char * const pUsage = "Usage: C_GetProvServiceInfos <cni>";
    const EPGDBSAV_PEEK *pPeek;
    EPGDB_RELOAD_RESULT dberr;
    int cni, netwop;
@@ -318,6 +319,18 @@ static int MenuCmd_GetServiceNameAndNetwopList(ClientData ttp, Tcl_Interp *inter
          // first element in return list is the service name
          Tcl_AppendElement(interp, AI_GET_SERVICENAME(&pPeek->pAiBlock->blk.ai));
 
+         // second element is OI header
+         if ((pPeek->pOiBlock != NULL) && OI_HAS_HEADER(&pPeek->pOiBlock->blk.oi))
+            Tcl_AppendElement(interp, OI_GET_HEADER(&pPeek->pOiBlock->blk.oi));
+         else
+            Tcl_AppendElement(interp, "");
+
+         // third element is OI message
+         if ((pPeek->pOiBlock != NULL) && OI_HAS_MESSAGE(&pPeek->pOiBlock->blk.oi))
+            Tcl_AppendElement(interp, OI_GET_MESSAGE(&pPeek->pOiBlock->blk.oi));
+         else
+            Tcl_AppendElement(interp, "");
+
          // append names of all netwops
          for ( netwop = 0; netwop < pPeek->pAiBlock->blk.ai.netwopCount; netwop++ ) 
          {
@@ -325,7 +338,6 @@ static int MenuCmd_GetServiceNameAndNetwopList(ClientData ttp, Tcl_Interp *inter
          }
 
          EpgDbPeekDestroy(pPeek);
-
       }
       else
       {  // failed to peek into the db -> inform the user
@@ -780,6 +792,60 @@ static int UpdateAcquisitionMode(ClientData ttp, Tcl_Interp *interp, int argc, c
    return result;
 }
 
+// ----------------------------------------------------------------------------
+// Fetch the list of provider frequencies from the global Tcl variable
+// - the list contains pairs of CNI and frequency
+//
+static int GetProvFreqTab( ulong ** pFreqTab, uint * pCount )
+{
+   const char *pTmpStr;
+   char **pCniFreqArgv;
+   ulong *freqTab;
+   int idx, freqCount, tmp;
+   int freqIdx;
+   int result;
+
+   // initialize result values
+   freqIdx = 0;
+   freqTab = NULL;
+
+   pTmpStr = Tcl_GetVar(interp, "prov_freqs", TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG);
+   if (pTmpStr != NULL)
+   {
+      result = Tcl_SplitList(interp, pTmpStr, &freqCount, &pCniFreqArgv);
+      if ((result == TCL_OK) && (freqCount > 0))
+      {
+         freqTab = xmalloc(freqCount / 2 * sizeof(ulong));
+
+         // retrieve the frequencies from the list, skip the CNIs
+         for (idx = 0; (idx + 1 < freqCount) && (result == TCL_OK); idx += 2)
+         {
+            result = Tcl_GetInt(interp, pCniFreqArgv[idx + 1], &tmp);
+            if (result == TCL_OK)
+            {
+               freqTab[freqIdx] = (ulong) tmp;
+               freqIdx += 1;
+            }
+         }
+         Tcl_Free((char *) pCniFreqArgv);
+
+         if (result != TCL_OK)
+         {  // discard the allocated list upon errors
+            xfree(freqTab);
+            freqTab = NULL;
+         }
+      }
+      else
+         result = TCL_ERROR;
+   }
+   else
+      result = TCL_OK;
+
+   *pFreqTab = freqTab;
+   *pCount   = freqIdx;
+
+   return result;
+}
 
 // ----------------------------------------------------------------------------
 // Append a line to the EPG scan messages
@@ -799,48 +865,84 @@ void MenuCmd_AddEpgScanMsg( char *pMsg )
 //
 static int MenuCmd_StartEpgScan(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
 {
-   // clear message window
-   sprintf(comm, ".epgscan.all.fmsg.msg delete 1.0 end\n");
-   eval_check(interp, comm);
+   const char * const pUsage = "Usage: C_StartEpgScan <input source> <slow=0/1> <refresh=0/1>";
+   ulong *freqTab;
+   int freqCount;
+   int inputSource, isOptionSlow, isOptionRefresh;
+   int result;
 
-   switch (EpgAcqCtl_StartScan())
+   if (argc != 4)
+   {  // parameter count is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else
    {
-      case EPGSCAN_ACCESS_DEV_VIDEO:
-      case EPGSCAN_ACCESS_DEV_VBI:
-         sprintf(comm, "tk_messageBox -type ok -icon error "
-                       "-message {Failed to open the video device. "
-                                 #ifndef WIN32
-                                 "Close all other video applications and try again."
-                                 #endif
-                                "}\n");
-         eval_check(interp, comm);
-         break;
+      if ( (Tcl_GetInt(interp, argv[1], &inputSource) == TCL_OK) &&
+           (Tcl_GetInt(interp, argv[2], &isOptionSlow) == TCL_OK) &&
+           (Tcl_GetInt(interp, argv[3], &isOptionRefresh) == TCL_OK) )
+      {
+         freqTab = NULL;
+         freqCount = 0;
+         if (isOptionRefresh)
+         {
+            // the returned list is freed by the EPG scan
+            if ( (GetProvFreqTab(&freqTab, &freqCount) != TCL_OK) ||
+                 (freqTab == NULL) || (freqCount == 0) )
+            {
+               Tcl_AppendResult(interp, " - Internal error, aborting start of refresh scan.", NULL);
+               return TCL_ERROR;
+            }
+         }
 
-      case EPGSCAN_NO_TUNER:
-         sprintf(comm, "tk_messageBox -type ok -icon error "
-                       "-message {The input source you have set in the 'TV card input configuration' "
-                                 "is not a TV tuner device. Either change that setting or exit the "
-                                 "EPG scan and tune the providers you're interested in manually.}\n");
+         // clear message window
+         sprintf(comm, ".epgscan.all.fmsg.msg delete 1.0 end\n");
          eval_check(interp, comm);
-         break;
 
-      case EPGSCAN_OK:
-         sprintf(comm, "grab .epgscan\n"
-                       ".epgscan.cmd.start configure -state disabled\n"
-                       ".epgscan.cmd.stop configure -state normal\n"
-                       ".epgscan.cmd.help configure -state disabled\n"
-                       ".epgscan.cmd.dismiss configure -state disabled\n");
-         eval_check(interp, comm);
-         // update PI listbox help message, if there's no db in the browser yet
-         UiControl_CheckDbState();
-         break;
+         switch (EpgScan_Start(inputSource, isOptionSlow, isOptionRefresh, freqTab, freqCount))
+         {
+            case EPGSCAN_ACCESS_DEV_VIDEO:
+            case EPGSCAN_ACCESS_DEV_VBI:
+               sprintf(comm, "tk_messageBox -type ok -icon error "
+                             "-message {Failed to open the video device. "
+                                       #ifndef WIN32
+                                       "Close all other video applications and try again."
+                                       #endif
+                                      "}\n");
+               eval_check(interp, comm);
+               break;
 
-      default:
-         SHOULD_NOT_BE_REACHED;
-         break;
+            case EPGSCAN_NO_TUNER:
+               sprintf(comm, "tk_messageBox -type ok -icon error "
+                             "-message {The input source you have set in the 'TV card input configuration' "
+                                       "is not a TV tuner device. Either change that setting or exit the "
+                                       "EPG scan and tune the providers you're interested in manually.}\n");
+               eval_check(interp, comm);
+               break;
+
+            case EPGSCAN_OK:
+               sprintf(comm, "grab .epgscan\n"
+                             ".epgscan.cmd.start configure -state disabled\n"
+                             ".epgscan.cmd.stop configure -state normal\n"
+                             ".epgscan.cmd.help configure -state disabled\n"
+                             ".epgscan.cmd.dismiss configure -state disabled\n"
+                             ".epgscan.all.opt.refresh configure -state disabled\n");
+               eval_check(interp, comm);
+               // update PI listbox help message, if there's no db in the browser yet
+               UiControl_CheckDbState();
+               break;
+
+            default:
+               SHOULD_NOT_BE_REACHED;
+               break;
+         }
+         result = TCL_OK;
+      }
+      else
+         result = TCL_ERROR;
    }
 
-   return TCL_OK;
+   return result;
 }
 
 // ----------------------------------------------------------------------------
@@ -852,7 +954,7 @@ int MenuCmd_StopEpgScan(ClientData ttp, Tcl_Interp *interp, int argc, char *argv
 {
    if (argc > 0)
    {  // called from UI -> stop scan handler
-      EpgAcqCtl_StopScan();
+      EpgScan_Stop();
    }
 
    sprintf(comm, "if {[string length [info commands .epgscan.cmd]] > 0} {"
@@ -861,12 +963,42 @@ int MenuCmd_StopEpgScan(ClientData ttp, Tcl_Interp *interp, int argc, char *argv
                  "   .epgscan.cmd.stop configure -state disabled\n"
                  "   .epgscan.cmd.help configure -state normal\n"
                  "   .epgscan.cmd.dismiss configure -state normal\n"
+                 "   if {[llength $prov_freqs] > 0} {\n"
+                 "      .epgscan.all.opt.refresh configure -state normal\n"
+                 "   }\n"
                  "}\n");
    eval_check(interp, comm);
 
    UiControl_CheckDbState();
 
    return TCL_OK;
+}
+
+// ----------------------------------------------------------------------------
+// Modify speed of EPG scan while scan is running
+// - ignored if called otherwise (speed is also passed in start command)
+//
+static int MenuCmd_SetEpgScanSpeed(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+{
+   const char * const pUsage = "Usage: C_SetEpgScanSpeed <slow=0/1>";
+   int isOptionSlow;
+   int result;
+
+   if (argc != 2)
+   {  // parameter count is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else if ( Tcl_GetInt(interp, argv[1], &isOptionSlow) )
+   {  // the parameter is not an integer
+      result = TCL_ERROR;
+   }
+   else
+   {
+      EpgScan_SetSpeed(isOptionSlow);
+      result = TCL_OK;
+   }
+   return result;
 }
 
 // ----------------------------------------------------------------------------
@@ -1041,7 +1173,9 @@ static int MenuCmd_UpdateHardwareConfig(ClientData ttp, Tcl_Interp *interp, int 
       result = SetHardwareConfig(interp, -1);
 
       // update statistics windows for acq stats
-      StatsWin_NewAi(pUiDbContext);
+      StatsWin_NewAi(pAcqDbContext);
+      // update help message in listbox if database is empty
+      UiControl_CheckDbState();
    }
    return result;
 }
@@ -1090,7 +1224,7 @@ void MenuCmd_Init( void )
 
       Tcl_CreateCommand(interp, "C_ChangeProvider", MenuCmd_ChangeProvider, (ClientData) NULL, NULL);
 
-      Tcl_CreateCommand(interp, "C_GetServiceNameAndNetwopList", MenuCmd_GetServiceNameAndNetwopList, (ClientData) NULL, NULL);
+      Tcl_CreateCommand(interp, "C_GetProvServiceInfos", MenuCmd_GetProvServiceInfos, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_GetCurrentDatabaseCni", MenuCmd_GetCurrentDatabaseCni, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_GetProvCnisAndNames", MenuCmd_GetProvCnisAndNames, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_ProvMerge_Start", ProvMerge_Start, (ClientData) NULL, NULL);
@@ -1098,6 +1232,7 @@ void MenuCmd_Init( void )
 
       Tcl_CreateCommand(interp, "C_StartEpgScan", MenuCmd_StartEpgScan, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_StopEpgScan", MenuCmd_StopEpgScan, (ClientData) NULL, NULL);
+      Tcl_CreateCommand(interp, "C_SetEpgScanSpeed", MenuCmd_SetEpgScanSpeed, (ClientData) NULL, NULL);
 
       Tcl_CreateCommand(interp, "C_HwCfgGetTvCardList", MenuCmd_GetTvCardList, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_HwCfgGetInputList", MenuCmd_GetInputList, (ClientData) NULL, NULL);

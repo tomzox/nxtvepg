@@ -21,7 +21,7 @@
 #
 #  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
 #
-#  $Id: epgui.tcl,v 1.56 2001/01/21 20:45:30 tom Exp tom $
+#  $Id: epgui.tcl,v 1.73 2001/02/14 21:43:32 tom Exp tom $
 #
 
 frame     .all -relief flat -borderwidth 0
@@ -46,7 +46,8 @@ bind      .all.netwops.list <space> {+ SelectNetwop}
 pack      .all.netwops.list -side left -anchor n
 pack      .all.netwops -side left -anchor n -pady 2 -padx 2
 
-if {[string compare $tcl_platform(platform) "unix"] == 0} {
+set is_unix [expr [string compare $tcl_platform(platform) "unix"] == 0]
+if {$is_unix} {
    set font_pt_size  12
    set cursor_bg     #c3c3c3
    set cursor_bg_now #b8b8df
@@ -68,13 +69,19 @@ set font_pl6_bold   [list helvetica [expr  -6 - $font_pt_size] bold]
 set font_pl12_bold  [list helvetica [expr -12 - $font_pt_size] bold]
 set font_fixed      [list courier   [expr   0 - $font_pt_size] normal]
 
+option add *Dialog.msg.font $font_pl2_bold userDefault
 set default_bg [.all cget -background]
 
 frame     .all.pi
+frame     .all.pi.colheads
+frame     .all.pi.colheads.spacer -width [expr $is_unix ? 22 : 16]
+pack      .all.pi.colheads.spacer -side left
+pack      .all.pi.colheads -side top -anchor w
+
 frame     .all.pi.list
 scrollbar .all.pi.list.sc -orient vertical -command {C_PiListBox_Scroll}
 pack      .all.pi.list.sc -fill y -side left
-text      .all.pi.list.text -height 25 -width 70 \
+text      .all.pi.list.text -width 50 -height 25 -wrap none \
                             -font $textfont -exportselection false \
                             -background $default_bg \
                             -cursor top_left_arrow \
@@ -93,13 +100,13 @@ bind      .all.pi.list.text <Enter> {focus %W}
 .all.pi.list.text tag configure sel -foreground black -relief raised -borderwidth 1
 .all.pi.list.text tag configure now -background #c9c9df
 .all.pi.list.text tag lower now
-pack      .all.pi.list.text -fill x -fill y -side left
-pack      .all.pi.list -side top
+pack      .all.pi.list.text -fill x -expand 1 -side left
+pack      .all.pi.list -side top -fill x -anchor w
 
 frame     .all.pi.info
 scrollbar .all.pi.info.sc -orient vertical -command {.all.pi.info.text yview}
 pack      .all.pi.info.sc -fill y -anchor e -side left
-text      .all.pi.info.text -height 10 -width 70 -wrap word \
+text      .all.pi.info.text -width 50 -height 10 -wrap word \
                             -font $textfont \
                             -background $default_bg \
                             -yscrollcommand {.all.pi.info.sc set} \
@@ -107,9 +114,8 @@ text      .all.pi.info.text -height 10 -width 70 -wrap word \
 .all.pi.info.text tag configure title -font $font_pl2_bold -justify center -spacing3 3
 .all.pi.info.text tag configure bold -font $font_bold
 .all.pi.info.text tag configure features -font $font_bold -justify center -spacing3 6
-bindtags  .all.pi.info.text {.all.pi.info.text . all}
-pack      .all.pi.info.text -side left -fill y -expand 1
-pack      .all.pi.info -side top -fill y -expand 1
+pack      .all.pi.info.text -side left -fill both -expand 1
+pack      .all.pi.info -side top -fill both -expand 1 -anchor w
 
 pack      .all.pi -side top -anchor n -fill y -expand 1
 
@@ -135,7 +141,9 @@ menu .menubar -relief ridge
 .menubar add cascade -label "Configure" -menu .menubar.config -underline 1
 #.menubar add cascade -label "Reminder" -menu .menubar.timer -underline 0
 .menubar add cascade -label "Filter" -menu .menubar.filter -underline 0
-.menubar add cascade -label "Navigate" -menu .menubar.ni_1 -underline 0
+if {$is_unix} {
+   .menubar add cascade -label "Navigate" -menu .menubar.ni_1 -underline 0
+}
 #.menubar add command -label "" -activebackground $default_bg -command {} -foreground #2e2e37
 .menubar add cascade -label "Help" -menu .menubar.help -underline 0
 # Control menu
@@ -145,8 +153,8 @@ menu .menubar.ctrl -tearoff 0 -postcommand C_SetControlMenuStates
 .menubar.ctrl add command -label "Dump database..." -command PopupDumpDatabase
 .menubar.ctrl add separator
 .menubar.ctrl add checkbutton -label "View timescales..." -command {C_StatsWin_ToggleTimescale ui} -variable menuStatusTscaleOpen(ui)
-.menubar.ctrl add checkbutton -label "View acq timescales..." -command {C_StatsWin_ToggleTimescale acq} -variable menuStatusTscaleOpen(acq)
 .menubar.ctrl add checkbutton -label "View statistics..." -command {C_StatsWin_ToggleDbStats ui} -variable menuStatusStatsOpen(ui)
+.menubar.ctrl add checkbutton -label "View acq timescales..." -command {C_StatsWin_ToggleTimescale acq} -variable menuStatusTscaleOpen(acq)
 .menubar.ctrl add checkbutton -label "View acq statistics..." -command {C_StatsWin_ToggleDbStats acq} -variable menuStatusStatsOpen(acq)
 .menubar.ctrl add separator
 .menubar.ctrl add command -label "Quit" -command {destroy .; update}
@@ -160,12 +168,14 @@ menu .menubar.config -tearoff 0
 .menubar.config add command -label "TV card input..." -command PopupHardwareConfig
 #.menubar.config add command -label "Time zone..." -command PopupTimeZone
 .menubar.config add separator
+.menubar.config add command -label "Select columns..." -command PopupColumnSelection
 .menubar.config add command -label "Select networks..." -command PopupNetwopSelection
 .menubar.config add command -label "Filter shortcuts..." -command EditFilterShortcuts
 .menubar.config add separator
 .menubar.config add checkbutton -label "Show shortcuts" -command ToggleShortcutListbox -variable showShortcutListbox
 .menubar.config add checkbutton -label "Show networks" -command ToggleNetwopListbox -variable showNetwopListbox
 .menubar.config add checkbutton -label "Show status line" -command ToggleStatusLine -variable showStatusLine
+.menubar.config add checkbutton -label "Show column headers" -command ToggleColumnHeader -variable showColumnHeader
 # Reminder menu
 #menu .menubar.timer -tearoff 0
 #.menubar.timer add command -label "Add selected title" -state disabled
@@ -180,34 +190,51 @@ menu .menubar.filter
 .menubar.filter add cascade -menu .menubar.filter.e_rating -label "Editorial Rating"
 .menubar.filter add separator
 .menubar.filter add cascade -menu .menubar.filter.themes -label Themes
-.menubar.filter add cascade -menu .menubar.filter.series -label Series
+if {$is_unix} {
+   .menubar.filter add cascade -menu .menubar.filter.series -label Series
+}
 .menubar.filter add cascade -menu .menubar.filter.progidx -label "Program index"
 .menubar.filter add cascade -menu .menubar.filter.netwops -label "Networks"
+if {!$is_unix} {
+   .menubar.filter add command -label "Series..." -command {PostSeparateMenu .menubar.filter.series C_CreateSeriesNetwopMenu}
+}
 .menubar.filter add command -label "Text search..." -command SubStrPopup
 .menubar.filter add command -label "Start Time..." -command PopupTimeFilterSelection
 .menubar.filter add command -label "Sorting Criterions..." -command PopupSortCritSelection
 .menubar.filter add separator
 .menubar.filter add command -label "Add filter shortcut..." -command AddFilterShortcut
+if {!$is_unix} {
+   .menubar.filter add command -label "Navigate" -command {PostSeparateMenu .menubar.filter.ni_1 C_CreateNi}
+}
 .menubar.filter add command -label "Reset" -command {ResetFilterState; C_ResetFilter all; C_ResetPiListbox}
+
+proc FilterMenuAdd_EditorialRating {widget} {
+   $widget add radio -label any -command SelectEditorialRating -variable editorial_rating -value 0
+   $widget add radio -label "all rated programmes" -command SelectEditorialRating -variable editorial_rating -value 1
+   $widget add radio -label "at least 2 of 7" -command SelectEditorialRating -variable editorial_rating -value 2
+   $widget add radio -label "at least 3 of 7" -command SelectEditorialRating -variable editorial_rating -value 3
+   $widget add radio -label "at least 4 of 7" -command SelectEditorialRating -variable editorial_rating -value 4
+   $widget add radio -label "at least 5 of 7" -command SelectEditorialRating -variable editorial_rating -value 5
+   $widget add radio -label "at least 6 of 7" -command SelectEditorialRating -variable editorial_rating -value 6
+   $widget add radio -label "7 of 7" -command SelectEditorialRating -variable editorial_rating -value 7
+}
 menu .menubar.filter.e_rating
-.menubar.filter.e_rating add radio -label any -command SelectEditorialRating -variable editorial_rating -value 0
-.menubar.filter.e_rating add radio -label "all rated programmes" -command SelectEditorialRating -variable editorial_rating -value 1
-.menubar.filter.e_rating add radio -label "at least 2 of 7" -command SelectEditorialRating -variable editorial_rating -value 2
-.menubar.filter.e_rating add radio -label "at least 3 of 7" -command SelectEditorialRating -variable editorial_rating -value 3
-.menubar.filter.e_rating add radio -label "at least 4 of 7" -command SelectEditorialRating -variable editorial_rating -value 4
-.menubar.filter.e_rating add radio -label "at least 5 of 7" -command SelectEditorialRating -variable editorial_rating -value 5
-.menubar.filter.e_rating add radio -label "at least 6 of 7" -command SelectEditorialRating -variable editorial_rating -value 6
-.menubar.filter.e_rating add radio -label "7 of 7" -command SelectEditorialRating -variable editorial_rating -value 7
+FilterMenuAdd_EditorialRating .menubar.filter.e_rating
+
+proc FilterMenuAdd_ParentalRating {widget} {
+   $widget add radio -label any -command SelectParentalRating -variable parental_rating -value 0
+   $widget add radio -label "ok for all ages" -command SelectParentalRating -variable parental_rating -value 1
+   $widget add radio -label "ok for 4 years or elder" -command SelectParentalRating -variable parental_rating -value 2
+   $widget add radio -label "ok for 6 years or elder" -command SelectParentalRating -variable parental_rating -value 3
+   $widget add radio -label "ok for 8 years or elder" -command SelectParentalRating -variable parental_rating -value 4
+   $widget add radio -label "ok for 10 years or elder" -command SelectParentalRating -variable parental_rating -value 5
+   $widget add radio -label "ok for 12 years or elder" -command SelectParentalRating -variable parental_rating -value 6
+   $widget add radio -label "ok for 14 years or elder" -command SelectParentalRating -variable parental_rating -value 7
+   $widget add radio -label "ok for 16 years or elder" -command SelectParentalRating -variable parental_rating -value 8
+}
 menu .menubar.filter.p_rating
-.menubar.filter.p_rating add radio -label any -command SelectParentalRating -variable parental_rating -value 0
-.menubar.filter.p_rating add radio -label "ok for all ages" -command SelectParentalRating -variable parental_rating -value 1
-.menubar.filter.p_rating add radio -label "ok for 4 years or elder" -command SelectParentalRating -variable parental_rating -value 2
-.menubar.filter.p_rating add radio -label "ok for 6 years or elder" -command SelectParentalRating -variable parental_rating -value 3
-.menubar.filter.p_rating add radio -label "ok for 8 years or elder" -command SelectParentalRating -variable parental_rating -value 4
-.menubar.filter.p_rating add radio -label "ok for 10 years or elder" -command SelectParentalRating -variable parental_rating -value 5
-.menubar.filter.p_rating add radio -label "ok for 12 years or elder" -command SelectParentalRating -variable parental_rating -value 6
-.menubar.filter.p_rating add radio -label "ok for 14 years or elder" -command SelectParentalRating -variable parental_rating -value 7
-.menubar.filter.p_rating add radio -label "ok for 16 years or elder" -command SelectParentalRating -variable parental_rating -value 8
+FilterMenuAdd_ParentalRating .menubar.filter.p_rating
+
 menu .menubar.filter.features
 .menubar.filter.features add cascade -menu .menubar.filter.features.sound -label Sound
 .menubar.filter.features add cascade -menu .menubar.filter.features.format -label Format
@@ -217,37 +244,64 @@ menu .menubar.filter.features
 .menubar.filter.features add cascade -menu .menubar.filter.features.subtitles -label Subtitles
 .menubar.filter.features add separator
 .menubar.filter.features add cascade -menu .menubar.filter.features.featureclass -label "Feature class"
+
+proc FilterMenuAdd_Sound {widget} {
+   $widget add radio -label any -command {SelectFeatures 0 0 0x03} -variable feature_sound -value 0
+   $widget add radio -label mono -command {SelectFeatures 0x03 0x00 0} -variable feature_sound -value 1
+   $widget add radio -label stereo -command {SelectFeatures 0x03 0x02 0} -variable feature_sound -value 3
+   $widget add radio -label "2-channel" -command {SelectFeatures 0x03 0x01 0} -variable feature_sound -value 2
+   $widget add radio -label surround -command {SelectFeatures 0x03 0x03 0} -variable feature_sound -value 4
+}
 menu .menubar.filter.features.sound
-.menubar.filter.features.sound add radio -label any -command {SelectFeatures 0 0 0x03} -variable feature_sound -value 0
-.menubar.filter.features.sound add radio -label mono -command {SelectFeatures 0x03 0x00 0} -variable feature_sound -value 1
-.menubar.filter.features.sound add radio -label stereo -command {SelectFeatures 0x03 0x02 0} -variable feature_sound -value 3
-.menubar.filter.features.sound add radio -label "2-channel" -command {SelectFeatures 0x03 0x01 0} -variable feature_sound -value 2
-.menubar.filter.features.sound add radio -label surround -command {SelectFeatures 0x03 0x03 0} -variable feature_sound -value 4
+FilterMenuAdd_Sound .menubar.filter.features.sound
+
+proc FilterMenuAdd_Format {widget} {
+   $widget add radio -label any -command {SelectFeatures 0 0 0x0c} -variable feature_format -value 0
+   $widget add radio -label full -command {SelectFeatures 0x0c 0x00 0x00} -variable feature_format -value 1
+   $widget add radio -label widescreen -command {SelectFeatures 0x04 0x04 0x08} -variable feature_format -value 2
+   $widget add radio -label "PAL+" -command {SelectFeatures 0x08 0x08 0x04} -variable feature_format -value 3
+}
 menu .menubar.filter.features.format
-.menubar.filter.features.format add radio -label any -command {SelectFeatures 0 0 0x0c} -variable feature_format -value 0
-.menubar.filter.features.format add radio -label full -command {SelectFeatures 0x0c 0x00 0x00} -variable feature_format -value 1
-.menubar.filter.features.format add radio -label widescreen -command {SelectFeatures 0x04 0x04 0x08} -variable feature_format -value 2
-.menubar.filter.features.format add radio -label "PAL+" -command {SelectFeatures 0x08 0x08 0x04} -variable feature_format -value 3
+FilterMenuAdd_Format .menubar.filter.features.format
+
+proc FilterMenuAdd_Digital {widget} {
+   $widget add radio -label any -command {SelectFeatures 0 0 0x10} -variable feature_digital -value 0
+   $widget add radio -label analog -command {SelectFeatures 0x10 0x00 0} -variable feature_digital -value 1
+   $widget add radio -label digital -command {SelectFeatures 0x10 0x10 0} -variable feature_digital -value 2
+}
 menu .menubar.filter.features.digital
-.menubar.filter.features.digital add radio -label any -command {SelectFeatures 0 0 0x10} -variable feature_digital -value 0
-.menubar.filter.features.digital add radio -label analog -command {SelectFeatures 0x10 0x00 0} -variable feature_digital -value 1
-.menubar.filter.features.digital add radio -label digital -command {SelectFeatures 0x10 0x10 0} -variable feature_digital -value 2
+FilterMenuAdd_Digital .menubar.filter.features.digital
+
+proc FilterMenuAdd_Encryption {widget} {
+   $widget add radio -label any -command {SelectFeatures 0 0 0x20} -variable feature_encryption -value 0
+   $widget add radio -label free -command {SelectFeatures 0x20 0 0} -variable feature_encryption -value 1
+   $widget add radio -label encrypted -command {SelectFeatures 0x20 0x20 0} -variable feature_encryption -value 2
+}
 menu .menubar.filter.features.encryption
-.menubar.filter.features.encryption add radio -label any -command {SelectFeatures 0 0 0x20} -variable feature_encryption -value 0
-.menubar.filter.features.encryption add radio -label free -command {SelectFeatures 0x20 0 0} -variable feature_encryption -value 1
-.menubar.filter.features.encryption add radio -label encrypted -command {SelectFeatures 0x20 0x20 0} -variable feature_encryption -value 2
+FilterMenuAdd_Encryption .menubar.filter.features.encryption
+
+proc FilterMenuAdd_LiveRepeat {widget} {
+   $widget add radio -label any -command {SelectFeatures 0 0 0xc0} -variable feature_live -value 0
+   $widget add radio -label live -command {SelectFeatures 0x40 0x40 0x80} -variable feature_live -value 2
+   $widget add radio -label new -command {SelectFeatures 0xc0 0 0} -variable feature_live -value 1
+   $widget add radio -label repeat -command {SelectFeatures 0x80 0x80 0x40} -variable feature_live -value 3
+}
 menu .menubar.filter.features.live
-.menubar.filter.features.live add radio -label any -command {SelectFeatures 0 0 0xc0} -variable feature_live -value 0
-.menubar.filter.features.live add radio -label live -command {SelectFeatures 0x40 0x40 0x80} -variable feature_live -value 2
-.menubar.filter.features.live add radio -label new -command {SelectFeatures 0xc0 0 0} -variable feature_live -value 1
-.menubar.filter.features.live add radio -label repeat -command {SelectFeatures 0x80 0x80 0x40} -variable feature_live -value 3
+FilterMenuAdd_LiveRepeat .menubar.filter.features.live
+
+proc FilterMenuAdd_Subtitles {widget} {
+   $widget add radio -label any -command {SelectFeatures 0 0 0x100} -variable feature_subtitles -value 0
+   $widget add radio -label untitled -command {SelectFeatures 0x100 0 0} -variable feature_subtitles -value 1
+   $widget add radio -label subtitle -command {SelectFeatures 0x100 0x100 0} -variable feature_subtitles -value 2
+}
 menu .menubar.filter.features.subtitles
-.menubar.filter.features.subtitles add radio -label any -command {SelectFeatures 0 0 0x100} -variable feature_subtitles -value 0
-.menubar.filter.features.subtitles add radio -label untitled -command {SelectFeatures 0x100 0 0} -variable feature_subtitles -value 1
-.menubar.filter.features.subtitles add radio -label subtitle -command {SelectFeatures 0x100 0x100 0} -variable feature_subtitles -value 2
+FilterMenuAdd_Subtitles .menubar.filter.features.subtitles
+
 menu .menubar.filter.features.featureclass
 menu .menubar.filter.themes
-menu .menubar.filter.series -postcommand {PostDynamicMenu .menubar.filter.series C_CreateSeriesNetwopMenu}
+if {$is_unix} {
+   menu .menubar.filter.series -postcommand {PostDynamicMenu .menubar.filter.series C_CreateSeriesNetwopMenu}
+}
 menu .menubar.filter.progidx
 .menubar.filter.progidx add radio -label "any" -command {SelectProgIdx -1 -1} -variable filter_progidx -value 0
 .menubar.filter.progidx add radio -label "running now" -command {SelectProgIdx 0 0} -variable filter_progidx -value 1
@@ -256,7 +310,9 @@ menu .menubar.filter.progidx
 .menubar.filter.progidx add radio -label "other..." -command ProgIdxPopup -variable filter_progidx -value 4
 menu .menubar.filter.netwops
 # Navigation menu
-menu .menubar.ni_1 -postcommand {PostDynamicMenu .menubar.ni_1 C_CreateNi}
+if {$is_unix} {
+   menu .menubar.ni_1 -postcommand {PostDynamicMenu .menubar.ni_1 C_CreateNi}
+}
 # Help menu
 menu .menubar.help -tearoff 0
 .menubar.help add command -label "About..." -command CreateAbout
@@ -273,15 +329,7 @@ set menuStatusTscaleOpen(acq) 0
 set menuStatusStatsOpen(ui) 0
 set menuStatusStatsOpen(acq) 0
 
-
-##  ---------------------------------------------------------------------------
-##  Generate the themes & feature menues
-##
-proc GenerateFilterMenues {tcc fcc} {
-   global theme_class_count feature_class_count
-   set theme_class_count   $tcc
-   set feature_class_count $fcc
-
+proc FilterMenuAdd_Themes {widget} {
    # create the themes and sub-themes menues from the PDC table
    set subtheme 0
    for {set index 0} {$index < 0x80} {incr index} {
@@ -292,18 +340,29 @@ proc GenerateFilterMenues {tcc fcc} {
          set tlabel [string range $pdc 0 [expr $len - 10]]
          # create new sub-menu and add checkbutton
          set subtheme $index
-         .menubar.filter.themes add cascade -label $tlabel -menu .menubar.filter.themes.$subtheme
-         menu .menubar.filter.themes.$subtheme
-         .menubar.filter.themes.$subtheme add checkbutton -label $pdc -command "SelectTheme $subtheme" -variable theme_sel($subtheme)
-         .menubar.filter.themes.$subtheme add separator
+         $widget add cascade -label $tlabel -menu ${widget}.$subtheme
+         menu ${widget}.$subtheme
+         ${widget}.$subtheme add checkbutton -label $pdc -command "SelectTheme $subtheme" -variable theme_sel($subtheme)
+         ${widget}.$subtheme add separator
       } elseif {([string length $pdc] > 0) && ($subtheme > 0)} {
-         .menubar.filter.themes.$subtheme add checkbutton -label $pdc -command "SelectTheme $index" -variable theme_sel($index)
+         ${widget}.$subtheme add checkbutton -label $pdc -command "SelectTheme $index" -variable theme_sel($index)
       }
    }
    # add sub-menu with one entry: all series on all networks
-   .menubar.filter.themes add cascade -menu .menubar.filter.themes.series -label "series"
-   menu .menubar.filter.themes.series -tearoff 0
-   .menubar.filter.themes.series add checkbutton -label [C_GetPdcString 128] -command {SelectTheme 128} -variable theme_sel(128)
+   $widget add cascade -menu ${widget}.series -label "series"
+   menu ${widget}.series -tearoff 0
+   ${widget}.series add checkbutton -label [C_GetPdcString 128] -command {SelectTheme 128} -variable theme_sel(128)
+}
+
+##  ---------------------------------------------------------------------------
+##  Generate the themes & feature menues
+##
+proc GenerateFilterMenues {tcc fcc} {
+   global theme_class_count feature_class_count
+   set theme_class_count   $tcc
+   set feature_class_count $fcc
+
+   FilterMenuAdd_Themes .menubar.filter.themes
    # add theme-class sub-menu
    .menubar.filter.themes add separator
    .menubar.filter.themes add cascade -menu .menubar.filter.themes.themeclass -label "Theme class"
@@ -351,11 +410,14 @@ proc CreateDemoModePseudoMenu {} {
 ##  ---------------------------------------------------------------------------
 ##  Show or hide shortcut listbox, network filter listbox and db status line
 ##
-set showNetwopListbox 1
+set showNetwopListbox 0
 set showShortcutListbox 1
 set showStatusLine 1
+set showColumnHeader 1
 
 proc ToggleNetwopListbox {} {
+   global showNetwopListbox
+
    if {[lsearch -exact [pack slaves .all] .all.netwops] == -1} {
       # netwop listbox is currently not visible -> pack left of PI listbox
       pack .all.netwops -before .all.pi -side left -anchor n -pady 2 -padx 2
@@ -369,6 +431,8 @@ proc ToggleNetwopListbox {} {
 }
 
 proc ToggleShortcutListbox {} {
+   global showShortcutListbox
+
    if {[lsearch -exact [pack slaves .all] .all.shortcuts] == -1} {
       # shortcuts listbox is currently not visible -> pack left of netwop bar or PI listbox
       if {[lsearch -exact [pack slaves .all] .all.netwops] == -1} {
@@ -386,6 +450,8 @@ proc ToggleShortcutListbox {} {
 }
 
 proc ToggleStatusLine {} {
+   global showStatusLine
+
    if {[lsearch -exact [pack slaves .all] .all.statusline] == -1} {
       # status line is currently not visible -> pack below "short info" text widget
       pack .all.statusline -after .all.pi -side top -fill x
@@ -395,6 +461,13 @@ proc ToggleStatusLine {} {
       pack forget .all.statusline
       set showStatusLine 0
    }
+   UpdateRcFile
+}
+
+proc ToggleColumnHeader {} {
+   global showColumnHeader
+
+   ApplySelectedColumnList initial
    UpdateRcFile
 }
 
@@ -617,6 +690,8 @@ proc SelectNetwop {} {
 
 ##
 ##  Select network in filter menu
+##  - the parameter is the index into the network menu,
+##    i.e. into the user network selection table
 ##
 proc SelectNetwopMenu {netidx} {
    global netselmenu
@@ -628,6 +703,31 @@ proc SelectNetwopMenu {netidx} {
       .all.netwops.list selection clear [expr $netidx + 1]
    }
    SelectNetwop
+}
+
+##
+##  Select network in context menu
+##  - the parameter is the network index in the AI block
+##
+proc SelectNetwopByIdx {netwop} {
+   global netwop_map netselmenu
+
+   # search to which menu index this network was mapped
+   foreach {idx val} [array get netwop_map] {
+      if {$val == $netwop} {
+         # simulate a click into the netwop listbox
+         .all.netwops.list selection clear 0
+         .all.netwops.list selection set [expr $idx + 1]
+         SelectNetwop
+         return
+      }
+   }
+
+   # not found in the netwop menus (not part of user network selection)
+   # -> just set the filter & deselect the "All netwops" entry
+   .all.netwops.list selection clear 0
+   C_SelectNetwops $netwop
+   C_RefreshPiListbox
 }
 
 ##
@@ -876,6 +976,23 @@ proc CreateContextMenu {xcoo ycoo} {
 }
 
 ##  ---------------------------------------------------------------------------
+##  Menu command to post a separate sub-menu
+##  - Complex dynamic menus need to be separated on Windows, because the whole
+##    menu tree is created every time the top-level menu is mapped. After a
+##    few mappings the application gets extremely slow! (Tk or Windows bug!?)
+##
+proc PostSeparateMenu {wmenu func} {
+   set xcoo [expr [winfo rootx .all.pi.list.text] - 5]
+   set ycoo [expr [winfo rooty .all.pi.list.text] - 5]
+
+   if {[string length [info commands $wmenu]] == 0} {
+      menu $wmenu -postcommand [list PostDynamicMenu $wmenu $func] -tearoff 0
+   }
+
+   $wmenu post $xcoo $ycoo
+}
+
+##  ---------------------------------------------------------------------------
 ##  Callback for double-click on a PiListBox item
 ##
 set poppedup_pi {}
@@ -944,7 +1061,7 @@ proc FillSeriesMenu {parent prov netlist} {
          set child $parent.netwop_$netwop
 
          $parent add cascade -label [lindex $item 1] -menu $child
-         if {![info exist dynmenu_posted($child)] || ($dynmenu_posted($child) == 0)} {
+         if {[string length [info commands $child]] == 0} {
             menu $child -postcommand [list PostDynamicMenu $child C_CreateSeriesMenu]
          }
       }
@@ -998,12 +1115,12 @@ proc CreateSeriesMenuEntries {menu_name tmp_list lang} {
 ##    but we must not destroy the menu until the last instance is unposted
 ##
 proc PostDynamicMenu {menu cmd} {
-   global dynmenu_posted dynmenu_created
+   global is_unix dynmenu_posted dynmenu_created
 
    if {![info exist dynmenu_posted($menu)]} {
       set dynmenu_posted($menu) 0
    }
-   if {$dynmenu_posted($menu) == 0} {
+   if {($dynmenu_posted($menu) == 0) || !$is_unix} {
       # delete the previous menu content
       if {[string compare "none" [$menu index end]] != 0} {
          for {set i [$menu index end]} {$i >= 0} {incr i -1} {
@@ -1041,7 +1158,7 @@ proc UnpostDynamicMenu {menu} {
       # decrement the reference counter
       incr dynmenu_posted($menu) -1
 
-      if {($dynmenu_posted($menu) == 0) && ([string length [info command $menu]] > 0)} {
+      if {($dynmenu_posted($menu) == 0) && ([string length [info commands $menu]] > 0)} {
          bind $menu <Destroy> {}
       }
    }
@@ -1053,13 +1170,13 @@ proc UnpostDynamicMenu {menu} {
 ##  Create a popup toplevel window
 ##
 proc CreateTransientPopup {wname title} {
-   global tcl_platform
+   global is_unix
 
    toplevel $wname
    wm title $wname $title
    # disable the resize button in the window frame
    wm resizable $wname 0 0
-   if {[string compare $tcl_platform(platform) "unix"] != 0} {
+   if {!$is_unix} {
       # make it a slave of the parent, usually without decoration
       wm transient $wname .
       # place it in the upper left corner of the parent
@@ -1079,6 +1196,7 @@ set substr_grep_descr 1
 set substr_ignore_case 0
 set substr_popup 0
 set substr_pattern {}
+set substr_history {}
 
 # check that at lease one of the {title descr} options remains checked
 proc SubstrCheckOptScope {varname} {
@@ -1093,12 +1211,43 @@ proc SubstrCheckOptScope {varname} {
 proc SubstrUpdateFilter {} {
    global substr_grep_title substr_grep_descr substr_ignore_case
    global substr_pattern
+   global substr_history
 
    C_SelectSubStr $substr_grep_title $substr_grep_descr $substr_ignore_case $substr_pattern
    C_RefreshPiListbox
    CheckShortcutDeselection
+
+   if {[string length $substr_pattern] > 0} {
+      set new [list $substr_grep_title $substr_grep_descr $substr_ignore_case $substr_pattern]
+      set idx 0
+      foreach item $substr_history {
+         if {[string compare $substr_pattern [lindex $item 3]] == 0} {
+            set substr_history [lreplace $substr_history $idx $idx]
+            break
+         }
+         incr idx
+      }
+      set substr_history [linsert $substr_history 0 $new]
+      if {[llength $substr_history] > 10} {
+         set substr_history [lreplace $substr_history 10 end]
+      }
+      UpdateRcFile
+   }
 }
 
+# set the parameters saved in the history
+proc SubstrSetFilter {grep_title grep_descr ignore_case pattern} {
+   global substr_grep_title substr_grep_descr substr_ignore_case
+   global substr_pattern
+
+   set substr_grep_title  $grep_title
+   set substr_grep_descr  $grep_descr
+   set substr_ignore_case $ignore_case
+   set substr_pattern     $pattern
+   SubstrUpdateFilter
+}
+
+# open the popup window
 proc SubStrPopup {} {
    global substr_grep_title substr_grep_descr
    global substr_popup
@@ -1605,7 +1754,7 @@ proc PopupHelp {index {subheading {}}} {
       bind   .help.cmd <Destroy> {+ set help_popup 0}
 
       frame  .help.disp
-      text   .help.disp.text -width 60 -wrap word -setgrid true -background #ffd030 \
+      text   .help.disp.text -width 60 -wrap word -setgrid true -background #ffd840 \
                              -font $textfont -spacing3 6 \
                              -yscrollcommand {.help.disp.sb set}
       pack   .help.disp.text -side left -fill both -expand 1
@@ -1746,8 +1895,10 @@ proc ProvWin_Create {} {
       frame .provwin.n
       frame .provwin.n.b
       scrollbar .provwin.n.b.sb -orient vertical -command {.provwin.n.b.list yview}
-      listbox .provwin.n.b.list -relief ridge -selectmode single -width 15 -height 5 -yscrollcommand {.provwin.n.b.sb set}
+      listbox .provwin.n.b.list -relief ridge -selectmode single -exportselection 0 \
+                                -width 12 -height 5 -yscrollcommand {.provwin.n.b.sb set}
       pack .provwin.n.b.sb .provwin.n.b.list -side left -fill y
+      pack .provwin.n.b -side left -fill y
       bind .provwin.n.b.list <ButtonRelease-1> {+ ProvWin_Select}
       bind .provwin.n.b.list <KeyRelease-space> {+ ProvWin_Select}
 
@@ -1755,18 +1906,22 @@ proc ProvWin_Create {} {
       if {[info exists provwin_servicename]} {unset provwin_servicename}
       frame .provwin.n.info
       label .provwin.n.info.serviceheader -text "Name of service"
-      entry .provwin.n.info.servicename -state disabled -textvariable provwin_servicename -width 35
+      entry .provwin.n.info.servicename -state disabled -textvariable provwin_servicename -width 45
       pack .provwin.n.info.serviceheader .provwin.n.info.servicename -side top -anchor nw
       frame .provwin.n.info.net
       label .provwin.n.info.net.header -text "List of networks"
-      text .provwin.n.info.net.list -width 35 -height 5 -wrap word \
+      text .provwin.n.info.net.list -width 45 -height 4 -wrap word \
                                     -font $textfont -background $default_bg \
-                                    -selectborderwidth 0 -selectbackground $default_bg \
-                                    -insertofftime 0 -exportselection false
+                                    -insertofftime 0 -state disabled -exportselection 1
       pack .provwin.n.info.net.header .provwin.n.info.net.list -side top -anchor nw
       pack .provwin.n.info.net -side top -anchor nw
 
-      pack .provwin.n.b -side left -fill y
+      # OI block header and message
+      label .provwin.n.info.oiheader -text "OSD header and message"
+      text .provwin.n.info.oimsg -width 45 -height 6 -wrap word \
+                                 -font $textfont -background $default_bg \
+                                 -insertofftime 0 -state disabled -exportselection 1
+      pack .provwin.n.info.oiheader .provwin.n.info.oimsg -side top -anchor nw
       pack .provwin.n.info -side left -fill y -padx 10
 
       # buttons at the bottom of the window
@@ -1801,22 +1956,27 @@ proc ProvWin_Select {} {
    set provwin_servicename {}
    .provwin.n.info.net.list configure -state normal
    .provwin.n.info.net.list delete 1.0 end
+   .provwin.n.info.oimsg configure -state normal
+   .provwin.n.info.oimsg delete 1.0 end
 
    set index [.provwin.n.b.list curselection]
    if {[string length $index] > 0} {
-      set names [C_GetServiceNameAndNetwopList [lindex $provwin_ailist $index]]
+      set names [C_GetProvServiceInfos [lindex $provwin_ailist $index]]
       # display service name in entry widget
       set provwin_servicename [lindex $names 0]
+      # display OI strings in text widget
+      .provwin.n.info.oimsg insert end "[lindex $names 1]\n[lindex $names 2]"
 
       # display all netwops from the AI, separated by commas
-      .provwin.n.info.net.list insert end [lindex $names 1]
-      if {[llength $names] > 2} {
-         foreach netwop [lrange $names 2 end] {
+      .provwin.n.info.net.list insert end [lindex $names 3]
+      if {[llength $names] > 4} {
+         foreach netwop [lrange $names 4 end] {
             .provwin.n.info.net.list insert end ", $netwop"
          }
       }
    }
    .provwin.n.info.net.list configure -state disabled
+   .provwin.n.info.oimsg configure -state disabled
 }
 
 # callback for OK button: activate the selected provider
@@ -1835,13 +1995,17 @@ proc ProvWin_Exit {} {
 ##
 set epgscan_popup 0
 set epgscan_timeout 2
+set epgscan_opt_slow 0
+set epgscan_opt_refresh 0
 
 proc PopupEpgScan {} {
-   global hwcfg tcl_platform
+   global hwcfg hwcfg_default is_unix
+   global prov_freqs
    global epgscan_popup
+   global epgscan_opt_slow epgscan_opt_refresh
 
    if {$epgscan_popup == 0} {
-      if {[string compare $tcl_platform(platform) "unix"] != 0} {
+      if {!$is_unix} {
          if {![info exists hwcfg] || (([lindex $hwcfg 0] == 0) && ([lindex $hwcfg 1] == 0))} {
             # tuner type has not been configured yet -> abort
             tk_messageBox -type ok -icon info -message "Before you start the scan, please do configure your card's tuner type in the 'TV card input' sub-menu of the Configure menu.\nIf no channels are found during the scan, try to enable the tuner PLL initialization in that menu."
@@ -1858,7 +2022,7 @@ proc PopupEpgScan {} {
 
       frame  .epgscan.cmd
       # control commands
-      button .epgscan.cmd.start -text "Start scan" -width 12 -command C_StartEpgScan
+      button .epgscan.cmd.start -text "Start scan" -width 12 -command {if {[info exists hwcfg]} {C_StartEpgScan [lindex $hwcfg 0] $epgscan_opt_slow $epgscan_opt_refresh} else {C_StartEpgScan [lindex $hwcfg_default 0] $epgscan_opt_slow $epgscan_opt_refresh}}
       button .epgscan.cmd.stop -text "Abort scan" -width 12 -command C_StopEpgScan -state disabled
       button .epgscan.cmd.help -text "Help" -width 12 -command {PopupHelp $helpIndex(Configuration) "Provider scan"}
       button .epgscan.cmd.dismiss -text "Dismiss" -width 12 -command {destroy .epgscan}
@@ -1880,7 +2044,17 @@ proc PopupEpgScan {} {
       pack .epgscan.all.fmsg.msg -side left -expand 1 -fill y
       scrollbar .epgscan.all.fmsg.sb -orient vertical -command {.epgscan.all.fmsg.msg yview}
       pack .epgscan.all.fmsg.sb -side left -fill y
-      pack .epgscan.all.fmsg -side top -padx 10 -pady 10 -fill y -expand 1
+      pack .epgscan.all.fmsg -side top -padx 10 -fill y -expand 1
+
+      # mode buttons
+      frame .epgscan.all.opt
+      checkbutton .epgscan.all.opt.slow -text "Slow" -variable epgscan_opt_slow -command {C_SetEpgScanSpeed $epgscan_opt_slow}
+      checkbutton .epgscan.all.opt.refresh -text "Refresh only" -variable epgscan_opt_refresh
+      pack .epgscan.all.opt.slow .epgscan.all.opt.refresh -side left -padx 10
+      pack .epgscan.all.opt -side top -padx 10 -pady 5
+      if {[llength $prov_freqs] == 0} {
+         .epgscan.all.opt.refresh configure -state disabled
+      }
 
       pack .epgscan.all -side top -fill y -expand 1
       bind .epgscan.all <Destroy> {+ set epgscan_popup 0; C_StopEpgScan}
@@ -2067,6 +2241,10 @@ proc PopupNetwopSelection {} {
 
          SelBoxCreate .netsel netsel_ailist netsel_selist netsel_names
 
+         menubutton .netsel.cmd.copy -text "copy" -menu .netsel.cmd.copy.men -relief raised -borderwidth 2
+         pack .netsel.cmd.copy -side top -anchor nw -pady 20 -fill x
+         menu .netsel.cmd.copy.men -tearoff 0 -postcommand {PostDynamicMenu .netsel.cmd.copy.men NetselCreateCopyMenu}
+
          button .netsel.cmd.help -text "Help" -width 7 -command {PopupHelp $helpIndex(Configuration) "Select networks"}
          button .netsel.cmd.abort -text "Abort" -width 7 -command {destroy .netsel}
          button .netsel.cmd.save -text "Save" -width 7 -command {SaveSelectedNetwopList}
@@ -2099,6 +2277,54 @@ proc SaveSelectedNetwopList {} {
 
    # close popup
    destroy .netsel
+}
+
+# post the menu
+proc NetselCreateCopyMenu {widget} {
+   global netsel_popup netsel_prov cfnetwops
+
+   if {$netsel_popup} {
+      set provlist [C_GetProvCnisAndNames]
+      lappend provlist 0x00FF "Merged"
+      set count 0
+      foreach {cni name} $provlist {
+         if {($cni != $netsel_prov) && [array exists cfnetwops] && [info exists cfnetwops($cni)]} {
+            $widget add command -label "Copy from $name" -command [list NetselCopyNetwopList $cni]
+            incr count
+         }
+      }
+   }
+   # if the menu is empty, add a note
+   if {$count == 0} {
+      $widget add command -label "No other providers available" -state disabled
+   }
+}
+
+# copy the netwop selection and order from another provider
+proc NetselCopyNetwopList {copycni} {
+   global netsel_popup netsel_prov cfnetwops
+   global netsel_selist netsel_ailist netsel_names
+
+   if {$netsel_popup} {
+      if {($copycni != $netsel_prov) && [array exists cfnetwops] && [info exists cfnetwops($copycni)]} {
+
+         set netsel_selist {}
+         .netsel.selist delete 0 end
+         foreach cni [lindex $cfnetwops($copycni) 0] {
+            if {[lsearch -exact $netsel_ailist $cni] != -1} {
+               lappend netsel_selist $cni
+               .netsel.selist insert end $netsel_names($cni)
+            }
+         }
+         set suppressed [lindex $cfnetwops($copycni) 1]
+         foreach cni $netsel_ailist {
+            if {([lsearch -exact $suppressed $cni] == -1) && ([lsearch -exact $netsel_selist $cni] == -1)} {
+               lappend netsel_selist $cni
+               .netsel.selist insert end $netsel_names($cni)
+            }
+         }
+      }
+   }
 }
 
 ## ---------------------------------------------------------------------------
@@ -2195,6 +2421,226 @@ proc RemoveObsoleteCnisFromList {alist ref_list} {
 }
 
 ##  --------------------------------------------------------------------------
+##  Browser columns selection popup
+##
+
+# this array defines the width of the columns (in 1/1000 meters), the column
+# heading and the description in the config listbox.
+
+array set colsel_tabs {
+   title          {90  75  Title    FilterMenuAdd_Title      "Title"} \
+   netname        {24  18  Network  FilterMenuAdd_Networks   "Network name"} \
+   time           {28  20  Time     FilterMenuAdd_Time       "Running time"} \
+   weekday        {10   8  Day      FilterMenuAdd_Date       "Day of week"} \
+   day            { 9   7  Date     FilterMenuAdd_Date       "Day of month"} \
+   day_month      {14  11  Date     FilterMenuAdd_Date       "Day and month"} \
+   day_month_year {24  20  Date     FilterMenuAdd_Date       "Day, month and year"} \
+   pil            {25  20  VPS/PDC  none                     "VPS/PDC code"} \
+   theme          {25  20  Theme    FilterMenuAdd_Themes     "Theme"} \
+   sound          {15  13  Sound    FilterMenuAdd_Sound      "Sound"} \
+   format         {14  12  Format   FilterMenuAdd_Format     "Format"} \
+   ed_rating      {10   8  ER       FilterMenuAdd_EditorialRating "Editorial rating"} \
+   par_rating     {10   8  PR       FilterMenuAdd_ParentalRating  "Parental rating"} \
+   live_repeat    {15  12  L/R      FilterMenuAdd_LiveRepeat "Live or repeat"} \
+   description    { 5   4  I        none                     "Flag description"} \
+   subtitles      { 5   4  ST       FilterMenuAdd_Subtitles  "Flag subtitles"} \
+}
+
+# define presentation order for configuration listbox
+set colsel_ailist [list \
+   title netname time weekday day day_month day_month_year \
+   pil theme sound format ed_rating par_rating live_repeat description subtitles]
+
+# define default column configuration - is overridden by rc/ini config
+set pilistbox_cols [list \
+   weekday day_month time title netname]
+
+set colsel_popup 0
+
+# create the configuration popup window
+proc PopupColumnSelection {} {
+   global colsel_tabs colsel_ailist colsel_selist colsel_names
+   global colsel_popup
+   global pilistbox_cols
+
+   if {$colsel_popup == 0} {
+      CreateTransientPopup .colsel "Browser Columns Selection"
+      set colsel_popup 1
+
+      if {![array exists colsel_names]} {
+         foreach name [array names colsel_tabs] {
+            set colsel_names($name) [lindex $colsel_tabs($name) 4]
+         }
+      }
+      set colsel_selist $pilistbox_cols
+
+      SelBoxCreate .colsel colsel_ailist colsel_selist colsel_names
+      .colsel.ailist configure -width 20
+      .colsel.selist configure -width 20
+
+      button .colsel.cmd.help -text "Help" -width 7 -command {PopupHelp $helpIndex(Configuration) "Select columns"}
+      button .colsel.cmd.apply -text "Apply" -width 7 -command {ApplySelectedColumnList normal}
+      button .colsel.cmd.quit -text "Dismiss" -width 7 -command {destroy .colsel}
+      pack .colsel.cmd.help .colsel.cmd.quit .colsel.cmd.apply -side bottom -anchor sw
+      bind .colsel.cmd <Destroy> {+ set colsel_popup 0}
+   }
+}
+
+##
+##  Apply the settings to the PI browser listbox
+##
+proc ApplySelectedColumnList {mode} {
+   global colsel_selist colsel_names colsel_tabs
+   global showColumnHeader font_small
+   global pilistbox_cols
+   global is_unix
+
+   if {[string compare $mode "initial"] == 0} {
+      # not called from the popup -> load the current config into the temp var
+      set colsel_selist $pilistbox_cols
+   } elseif {![info exists colsel_selist]} {
+      set colsel_selist $pilistbox_cols
+   }
+
+   # remove previous colum headers
+   foreach head [info commands .all.pi.colheads.c*] {
+      destroy $head
+   }
+
+   set tab_pos 0
+   set tabs {}
+   if {$showColumnHeader} {
+      # create colum header menu buttons
+      foreach col $colsel_selist {
+         frame .all.pi.colheads.col_$col -width "[lindex $colsel_tabs($col) [expr $is_unix ? 0 : 1]]m" -height 14
+         menubutton .all.pi.colheads.col_${col}.b -width 1 -cursor top_left_arrow \
+                                                  -text [lindex $colsel_tabs($col) 2] -font $font_small
+         if {$is_unix} {
+            .all.pi.colheads.col_${col}.b configure -borderwidth 1 -relief raised
+         } else {
+            .all.pi.colheads.col_${col}.b configure -borderwidth 2 -relief ridge
+         }
+         pack .all.pi.colheads.col_${col}.b -fill x
+         pack propagate .all.pi.colheads.col_${col} 0
+         pack .all.pi.colheads.col_${col} -side left -anchor w
+
+         if {[string compare [lindex $colsel_tabs($col) 3] "none"] != 0} {
+            # create the drop-down menu below the header (the menu items are added dynamically)
+            .all.pi.colheads.col_${col}.b configure -menu .all.pi.colheads.col_${col}.b.men
+            .all.pi.colheads.col_${col}.b configure -menu .all.pi.colheads.col_${col}.b.men
+            menu .all.pi.colheads.col_${col}.b.men -postcommand [list PostDynamicMenu .all.pi.colheads.col_${col}.b.men [lindex $colsel_tabs($col) 3]]
+         }
+
+         incr tab_pos [lindex $colsel_tabs($col) [expr $is_unix ? 0 : 1]]
+         lappend tabs ${tab_pos}m
+      }
+      if {[info exists col] && ([string length [info commands .all.pi.colheads.col_${col}]] > 0)} {
+         # increase width of the last header button to accomodate for text widget borderwidth
+         .all.pi.colheads.col_${col} configure -width [expr 5 + [.all.pi.colheads.col_${col} cget -width]]
+      }
+   } else {
+      # create an invisible frame to set the width of the text width
+      foreach col $colsel_selist {
+         incr tab_pos [lindex $colsel_tabs($col) 0]
+         lappend tabs ${tab_pos}m
+      }
+      frame .all.pi.colheads.c0 -width "[expr $tab_pos + 2]m"
+      pack .all.pi.colheads.c0 -side left -anchor w
+   }
+
+   # configure tab-stobs in text widget
+   .all.pi.list.text tag configure now -tab $tabs
+   .all.pi.list.text tag configure then -tab $tabs
+
+   if {[string compare $mode "initial"] != 0} {
+      # unless suppressed, update the settings in the listbox module and then redraw the content
+      C_PiListBox_CfgColumns
+      C_RefreshPiListbox
+      # save the config to the rc-file
+      set pilistbox_cols $colsel_selist
+      UpdateRcFile
+   }
+}
+
+##
+##  Creating menus for the column heads
+##
+proc FilterMenuAdd_Time {widget} {
+   $widget add command -label "Now" -command {C_PiListBox_GotoTime now}
+   $widget add command -label "Next" -command {C_PiListBox_GotoTime next}
+
+   set now        [clock seconds] 
+   set start_time [expr $now - ($now % (2*60*60)) + (2*60*60)]
+   set hour       [expr ($start_time % (24*60*60)) / (60*60)]
+
+   for {set i 0} {$i < 24} {incr i 2} {
+      $widget add command -label "$hour:00" -command [list C_PiListBox_GotoTime $start_time]
+      incr start_time [expr 2*60*60]
+      set hour [expr ($hour + 2) % 24]
+   }
+}
+
+proc FilterMenuAdd_Date {widget} {
+   set start_time [clock seconds]
+   $widget add command -label "Today" -command {C_PiListBox_GotoTime now}
+   incr start_time [expr 24*60*60]
+   $widget add command -label "Tomorrow" -command [list C_PiListBox_GotoTime $start_time]
+
+   for {set i 2} {$i < 5} {incr i} {
+      incr start_time [expr 24*60*60]
+      $widget add command -label [clock format $start_time -format "%A"] -command [list C_PiListBox_GotoTime $start_time]
+   }
+}
+
+proc FilterMenuAdd_Networks {widget} {
+   global cfnetwops netselmenu netsel_names
+
+   $widget add command -label "All networks" -command {ResetNetwops; SelectNetwop}
+   $widget add separator
+
+   # fetch CNI list from AI block in database
+   # as a side effect this function stores all netwop names into the array netsel_names
+   set netsel_prov [C_GetProvCni]
+   set netsel_ailist [C_GetAiNetwopList]
+
+   if {[info exists cfnetwops($netsel_prov)]} {
+      set netsel_selist [lindex $cfnetwops($netsel_prov) 0]
+   } else {
+      set netsel_selist $netsel_ailist
+   }
+
+   set nlidx 0
+   foreach cni $netsel_selist {
+      $widget add checkbutton -label $netsel_names($cni) -variable netselmenu($nlidx) -command [list SelectNetwopMenu $nlidx]
+      incr nlidx
+   }
+   if {[array exists netsel_names]} { unset netsel_names }
+}
+
+proc FilterMenuAdd_Title {widget} {
+   global substr_grep_title substr_grep_descr substr_ignore_case
+   global substr_pattern
+   global substr_history
+
+   $widget add command -label "Text search..." -command SubStrPopup
+   $widget add command -label "Undo text search" -command {set substr_pattern {}; SubstrUpdateFilter}
+
+   # append the series menu (same as from the filter menu)
+   $widget add cascade -label "Series" -menu ${widget}.series
+   if {[string length [info commands ${widget}.series]] == 0} {
+      menu ${widget}.series -postcommand [list PostDynamicMenu ${widget}.series C_CreateSeriesNetwopMenu]
+   }
+
+   # append shortcuts for the last 10 substring searches
+   if {[llength $substr_history] > 0} {
+      $widget add separator
+      foreach item $substr_history {
+         $widget add command -label [lindex $item 3] -command [concat SubstrSetFilter $item]
+      }
+   }
+}
+
+##  --------------------------------------------------------------------------
 ##  Provider merge popup
 ##
 set provmerge_popup 0
@@ -2283,7 +2729,7 @@ proc PopupProviderMerge {} {
 
       # create cmd buttons at bottom
       frame .provmerge.cmd
-      button .provmerge.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Configuration)}
+      button .provmerge.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Merged databases)}
       button .provmerge.cmd.abort -text "Abort" -width 5 -command {ProvMerge_Quit Abort}
       button .provmerge.cmd.ok -text "Ok" -width 5 -command {ProvMerge_Quit Ok}
       pack .provmerge.cmd.help .provmerge.cmd.abort .provmerge.cmd.ok -side left -padx 10
@@ -2523,7 +2969,7 @@ proc UpdateAcqModePopup {} {
 
    if {[string compare -length 6 "cyclic" $acqmode_sel] == 0} {
       # manual selection -> add listboxes to allow selection of multiple databases and priority
-      if {[string length [info command .acqmode.lb.ailist]] == 0} {
+      if {[string length [info commands .acqmode.lb.ailist]] == 0} {
          # listbox does not yet exist
          foreach widget [info commands .acqmode.lb.*] {
             destroy $widget
@@ -2580,7 +3026,7 @@ proc PiListBox_PrintHelpHeader {text} {
 
    .all.pi.list.text delete 1.0 end
 
-   if {[string length [info command .all.pi.list.text.nxtvlogo]] > 0} {
+   if {[string length [info commands .all.pi.list.text.nxtvlogo]] > 0} {
       destroy .all.pi.list.text.nxtvlogo
    }
    button .all.pi.list.text.nxtvlogo -bitmap nxtv_logo -relief flat
@@ -2615,7 +3061,7 @@ set hwcfg_default {0 0 0 0 0}
 set hwcfg_popup 0
 
 proc PopupHardwareConfig {} {
-   global tcl_platform
+   global is_unix
    global hwcfg_input_sel
    global hwcfg_tuner_sel hwcfg_tuner_list hwcfg_card_list
    global hwcfg_pll_sel hwcfg_prio_sel hwcfg_cardidx_sel
@@ -2645,7 +3091,7 @@ proc PopupHardwareConfig {} {
       pack .hwcfg.input.mb -side left -padx 10 -anchor e
       pack .hwcfg.input -side top -pady 10 -anchor w -fill x
 
-      if {[string compare $tcl_platform(platform) "unix"] != 0} {
+      if {!$is_unix} {
          # create menu for tuner selection
          frame .hwcfg.tuner
          label .hwcfg.tuner.curname -text "Tuner: [lindex $hwcfg_tuner_list $hwcfg_tuner_sel]"
@@ -2684,7 +3130,7 @@ proc PopupHardwareConfig {} {
       frame .hwcfg.card
       label .hwcfg.card.label -text "TV card: "
       pack .hwcfg.card.label -side left -padx 10
-      if {[string compare $tcl_platform(platform) "unix"] != 0} {
+      if {!$is_unix} {
          radiobutton .hwcfg.card.idx0 -text "0" -variable hwcfg_cardidx_sel -value 0 -command HardwareConfigCard
          radiobutton .hwcfg.card.idx1 -text "1" -variable hwcfg_cardidx_sel -value 1 -command HardwareConfigCard
          radiobutton .hwcfg.card.idx2 -text "2" -variable hwcfg_cardidx_sel -value 2 -command HardwareConfigCard
@@ -2718,13 +3164,13 @@ proc PopupHardwareConfig {} {
 
 # Card index has changed - update video source name
 proc HardwareConfigCard {} {
-   global tcl_platform
+   global is_unix
    global hwcfg_input_sel hwcfg_input_list
    global hwcfg_cardidx_sel hwcfg_card_list
 
    set hwcfg_input_list [C_HwCfgGetInputList $hwcfg_cardidx_sel]
 
-   if {[string compare $tcl_platform(platform) "unix"] == 0} {
+   if {$is_unix} {
       .hwcfg.card.label configure -text "TV card: [lindex $hwcfg_card_list $hwcfg_cardidx_sel]"
    }
 
@@ -2761,13 +3207,12 @@ proc HardwareCreateInputMenu {widget} {
 
 # Leave popup with OK button
 proc HardwareConfigQuit {} {
-   global tcl_platform
+   global is_unix
    global hwcfg_input_sel hwcfg_tuner_sel
    global hwcfg_pll_sel hwcfg_prio_sel hwcfg_cardidx_sel
    global hwcfg hwcfg_default
 
-   if { ([string compare $tcl_platform(platform) "unix"] != 0) && \
-        ($hwcfg_input_sel == 0) && ($hwcfg_tuner_sel == 0) } {
+   if { !$is_unix && ($hwcfg_input_sel == 0) && ($hwcfg_tuner_sel == 0) } {
       set answer [tk_messageBox -type okcancel -default cancel -icon warning -parent .hwcfg -message "You haven't selected a tuner - acquisition will not be possible!"]
    } else {
       set answer "ok"
@@ -2917,24 +3362,28 @@ proc ApplyTimeZone {} {
 
 ## ---------------------------------------------------------------------------
 ## Create the timescale for one network
+## - for merged databases do not display checkboxes for Now & Next PI blocks
 ##
-proc TimeScale_Create {frame netwopName} {
+proc TimeScale_Create {frame netwopName isMerged} {
+   global tscnowid
+
    frame $frame
    set default_bg [$frame cget -background]
 
    label $frame.name -text $netwopName -anchor w
    pack $frame.name -side left -fill x -expand true
 
-   frame $frame.now
-   for {set i 0} {$i < 5} {incr i} {
-      frame $frame.now.n$i -width 4 -height 8 -bg black
-      pack $frame.now.n$i -side left -padx 1
-   }
-   pack $frame.now -side left -padx 5
-
-   canvas $frame.stream -bg $default_bg -height 12 -width 256
+   canvas $frame.stream -bg $default_bg -height 12 -width 298
    pack $frame.stream -side left
-   $frame.stream create rect 0 4 258 12 -outline "" -fill black
+   $frame.stream create rect 40 4 298 12 -outline "" -fill black
+
+   if {!$isMerged} {
+      set tscnowid(0) [$frame.stream create rect  1 4  5 12 -outline "" -fill black]
+      set tscnowid(1) [$frame.stream create rect  8 4 12 12 -outline "" -fill black]
+      set tscnowid(2) [$frame.stream create rect 15 4 19 12 -outline "" -fill black]
+      set tscnowid(3) [$frame.stream create rect 22 4 26 12 -outline "" -fill black]
+      set tscnowid(4) [$frame.stream create rect 29 4 33 12 -outline "" -fill black]
+   }
 
    pack $frame -fill x -expand true
 }
@@ -2947,14 +3396,15 @@ proc TimeScale_AddPi {frame pos1 pos2 color hasShort hasLong} {
    set y1 12
    if {$hasShort} {set y0 [expr $y0 - 2]}
    if {$hasLong}  {set y1 [expr $y1 + 2]}
-   $frame.stream create rect $pos1 $y0 $pos2 $y1 -fill $color -outline ""
+   $frame.stream create rect [expr 40 + $pos1] $y0 [expr 40 + $pos2] $y1 -fill $color -outline ""
 }
 
 ## ---------------------------------------------------------------------------
 ## Mark a network label for which a PI was received
 ##
 proc TimeScale_MarkNow {frame num color} {
-   $frame.now.n$num config -bg $color
+   global tscnowid
+   $frame.stream itemconfigure $tscnowid($num) -fill $color
 }
 
 ## ---------------------------------------------------------------------------
@@ -2991,30 +3441,55 @@ proc DbStatsWin_Create {wname} {
 }
 
 ## ---------------------------------------------------------------------------
-## Paint the pie
+## Paint the pie which reflects the current database percentages
 ##
-proc DbStatsWin_PaintPie {wname valEx val1c val1o val2c val2o} {
+proc DbStatsWin_PaintPie {wname val1exp val1cur val1all val1total val2exp val2cur val2all} {
 
    catch [ $wname.pie delete all ]
+
+   if {$val1total > 0} {
+      # paint the slice of stream 1 in red
+      $wname.browser.pie create arc 1 1 127 127 -start 0 -extent $val1total -fill red
+
+      if {$val1exp > 0} {
+         # mark expired and defective percentage in yellow
+         $wname.browser.pie create arc 1 1 127 127 -start 0 -extent $val1exp -fill yellow -outline {} -stipple gray75
+      }
+      if {$val1cur < $val1all} {
+         # mark percentage of old version in shaded red
+         $wname.browser.pie create arc 1 1 127 127 -start $val1cur -extent [expr $val1all - $val1cur] -fill #A52A2A -outline {} -stipple gray50
+      }
+      if {$val1all < $val1total} {
+         # mark percentage of missing stream 1 data in slight red
+         $wname.browser.pie create arc 1 1 127 127 -start $val1all -extent [expr $val1total - $val1all] -fill #FFDDDD -outline {} -stipple gray75
+      }
+   }
+
+   if {$val1total < 359.9} {
+      # paint the slice of stream 2 in blue
+      $wname.browser.pie create arc 1 1 127 127 -start $val1total -extent [expr 359.999 - $val1total] -fill blue
+
+      if {$val2exp > 0} {
+         # mark expired and defective percentage in yellow
+         $wname.browser.pie create arc 1 1 127 127 -start $val1total -extent [expr $val2exp - $val1total] -fill yellow -outline {} -stipple gray75
+      }
+      if {$val2cur < $val2all} {
+         # mark percentage of old version in shaded blue
+         $wname.browser.pie create arc 1 1 127 127 -start $val2cur -extent [expr $val2all - $val2cur] -fill #483D8B -outline {} -stipple gray50
+      }
+      if {$val2all < 359.9} {
+         # mark percentage of missing stream 1 data in slight blue
+         $wname.browser.pie create arc 1 1 127 127 -start $val2all -extent [expr 359.9 - $val2all] -fill #DDDDFF -outline {} -stipple gray75
+      }
+   }
+}
+
+## ---------------------------------------------------------------------------
+## Clear the pie chart for an empty database
+##
+proc DbStatsWin_ClearPie {wname} {
+   catch [ $wname.pie delete all ]
    $wname.browser.pie create oval 1 1 127 127 -outline black -fill white
-
-   if {$valEx > 0} {
-      $wname.browser.pie create arc 1 1 127 127 -start 0 -extent [expr $valEx *359.9/128] -fill yellow
-   }
-   if {$val1o > $valEx} {
-      $wname.browser.pie create arc 1 1 127 127 -start [expr $valEx *359.9/128] -extent [expr ($val1o - $valEx) *359.9/128] -fill red
-      if {$val1o > $val1c} {
-         $wname.browser.pie create arc 1 1 127 127 -start [expr $val1c *359.9/128] -extent [expr ($val1o - $val1c) *359.9/128] -fill #A52A2A -outline {} -stipple gray50
-      }
-   }
-
-
-   if {$val2o > $val1o} {
-      $wname.browser.pie create arc 1 1 127 127 -start [expr $val1o *359.9/128] -extent [expr ($val2o - $val1o) *359.9/128] -fill blue
-      if {$val2o > $val2c} {
-         $wname.browser.pie create arc 1 1 127 127 -start [expr $val2c *359.9/128] -extent [expr ($val2o - $val2c) *359.9/128] -fill #483D8B -outline {} -stipple gray50
-      }
-   }
 }
 
 ## ---------------------------------------------------------------------------
@@ -3672,7 +4147,7 @@ proc AddFilterShortcut {} {
       incr fscedit_count
 
       if {[string length $mask] == 0} {
-         set answer [tk_messageBox -type okcancel -icon warning -parent .fscedit -message "Currently no filters selected. Do you still want to continue?"]
+         set answer [tk_messageBox -type okcancel -icon warning -message "Currently no filters selected. Do you still want to continue?"]
          if {[string compare $answer "cancel"] == 0} {
             return
          }
@@ -3945,11 +4420,14 @@ set myrcfile ""
 proc LoadRcFile {filename} {
    global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_logi_idx
    global shortcuts shortcut_count
-   global prov_selection cfnetwops
-   global showNetwopListbox showShortcutListbox showStatusLine
+   global prov_selection prov_freqs cfnetwops
+   global showNetwopListbox showShortcutListbox showStatusLine showColumnHeader
    global prov_merge_cnis prov_merge_cf
    global acq_mode acq_mode_cnis
    global hwcfg
+   global pilistbox_cols
+   global substr_history
+   global EPG_VERSION_NO
    global myrcfile
 
    set myrcfile $filename
@@ -3966,20 +4444,30 @@ proc LoadRcFile {filename} {
          }
       }
       close $rcfile
-
-      if {$showShortcutListbox == 0} {pack forget .all.shortcuts}
-      if {$showNetwopListbox == 0} {pack forget .all.netwops}
-      if {$showStatusLine == 0} {pack forget .all.statusline}
    }
+
+   if {$showShortcutListbox == 0} {pack forget .all.shortcuts}
+   if {$showNetwopListbox == 0} {pack forget .all.netwops}
+   if {$showStatusLine == 0} {pack forget .all.statusline}
+
+   # create the column headers above the PI browser text widget
+   ApplySelectedColumnList initial
 
    if {$shortcut_count == 0} {
       PreloadShortcuts
    }
 
+   # fill the shortcut listbox
    for {set index 0} {$index < $shortcut_count} {incr index} {
       .all.shortcuts.list insert end [lindex $shortcuts($index) $fsc_name_idx]
    }
    .all.shortcuts.list configure -height $shortcut_count
+
+   if {[info exists EPG_VERSION_NO] && [info exists nxtvepg_version]} {
+      if {$nxtvepg_version > $EPG_VERSION_NO} {
+         set answer [tk_messageBox -type ok -default ok -icon warning -message "The config file is from a newer version of nxtvepg. Some settings may get lost."]
+      }
+   }
 }
 
 ##
@@ -3987,12 +4475,14 @@ proc LoadRcFile {filename} {
 ##
 proc UpdateRcFile {} {
    global shortcuts shortcut_count
-   global prov_selection cfnetwops
-   global showNetwopListbox showShortcutListbox showStatusLine
+   global prov_selection prov_freqs cfnetwops
+   global showNetwopListbox showShortcutListbox showStatusLine showColumnHeader
    global prov_merge_cnis prov_merge_cf
    global acq_mode acq_mode_cnis
    global hwcfg
-   global EPG_VERSION
+   global pilistbox_cols
+   global substr_history
+   global EPG_VERSION EPG_VERSION_NO
    global myrcfile
 
    if {[catch {set rcfile [open $myrcfile "w"]}] == 0} {
@@ -4004,7 +4494,8 @@ proc UpdateRcFile {} {
       puts $rcfile "#"
 
       # dump software version
-      puts $rcfile [list set nxtvepg_version $EPG_VERSION]
+      puts $rcfile [list set nxtvepg_version $EPG_VERSION_NO]
+      puts $rcfile [list set nxtvepg_version_str $EPG_VERSION]
 
       # dump filter shortcuts
       for {set index 0} {$index < $shortcut_count} {incr index} {
@@ -4015,6 +4506,9 @@ proc UpdateRcFile {} {
       # dump provider selection order
       puts $rcfile [list set prov_selection $prov_selection]
 
+      # dump provider frequency list
+      puts $rcfile [list set prov_freqs $prov_freqs]
+
       # dump network selection for all providers
       foreach index [array names cfnetwops] {
          puts $rcfile [list set cfnetwops($index) $cfnetwops($index)]
@@ -4024,16 +4518,22 @@ proc UpdateRcFile {} {
       puts $rcfile [list set showNetwopListbox $showNetwopListbox]
       puts $rcfile [list set showShortcutListbox $showShortcutListbox]
       puts $rcfile [list set showStatusLine $showStatusLine]
+      puts $rcfile [list set showColumnHeader $showColumnHeader]
 
       # dump provider database merge CNIs and configuration
       if {[info exists prov_merge_cnis]} {puts $rcfile [list set prov_merge_cnis $prov_merge_cnis]}
       if {[info exists prov_merge_cf]} {puts $rcfile [list set prov_merge_cf $prov_merge_cf]}
+
+      # dump browser column configuration
+      if {[info exists pilistbox_cols]} {puts $rcfile [list set pilistbox_cols $pilistbox_cols]}
 
       # dump acquisition mode and provider CNIs
       if {[info exists acq_mode]} { puts $rcfile [list set acq_mode $acq_mode] }
       if {[info exists acq_mode_cnis]} {puts $rcfile [list set acq_mode_cnis $acq_mode_cnis]}
 
       if {[info exists hwcfg]} {puts $rcfile [list set hwcfg $hwcfg]}
+
+      if {[info exists substr_history]} {puts $rcfile [list set substr_history $substr_history]}
 
       close $rcfile
    } else {
@@ -4067,5 +4567,31 @@ proc UpdateProvSelection {cni} {
       # save the new list into the ini/rc file
       UpdateRcFile
    }
+}
+
+##
+##  Update the frequency for a given provider
+##
+set prov_freqs {}
+
+proc UpdateProvFrequency {cni freq} {
+   global prov_freqs
+
+   # search the list for the given CNI
+   set idx 0
+   foreach {rc_cni rc_freq} $prov_freqs {
+      if {$rc_cni == $cni} {
+         if {$rc_freq != $freq} {
+            # CNI already in the list with a different frequency -> update
+            set prov_freqs [lreplace $prov_freqs $idx [expr $idx + 1] $cni $freq]
+            UpdateRcFile
+         }
+         return
+      }
+      incr idx 2
+   }
+   # not found in the list -> append new pair to the list
+   lappend prov_freqs $cni $freq
+   UpdateRcFile
 }
 

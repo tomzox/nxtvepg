@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: pifilter.c,v 1.32 2001/01/09 20:02:51 tom Exp tom $
+ *  $Id: pifilter.c,v 1.36 2001/02/14 20:29:48 tom Exp tom $
  */
 
 #define __PIFILTER_C
@@ -46,6 +46,7 @@
 #include "epgui/pdc_themes.h"
 #include "epgui/pilistbox.h"
 #include "epgui/pifilter.h"
+#include "epgui/uictrl.h"
 
 
 // this is the filter context, which contains all filter settings
@@ -351,6 +352,8 @@ static int SelectSubStr( ClientData ttp, Tcl_Interp *interp, int argc, char *arg
 {  
    const char * const pUsage = "Usage: SelectSubStr <bTitle=0/1> <bDescr=0/1> <bCase=0/1> <substring>";
    int scope_title, scope_descr, case_ignore;
+   char *native;
+   Tcl_DString ds;
    int result; 
    
    if (argc != 5) 
@@ -376,7 +379,11 @@ static int SelectSubStr( ClientData ttp, Tcl_Interp *interp, int argc, char *arg
          if (scope_descr)
             EpgDbFilterEnable(pPiFilterContext, FILTER_SUBSTR_DESCR);
 
-	 EpgDbFilterSetSubStr(pPiFilterContext, argv[4], case_ignore);
+         // convert the String from Tcl internal format to Latin-1
+         native = Tcl_UtfToExternalDString(NULL, argv[4], -1, &ds);
+
+         EpgDbFilterSetSubStr(pPiFilterContext, native, case_ignore);
+         Tcl_DStringFree(&ds);
       }
 
       result = TCL_OK; 
@@ -903,16 +910,17 @@ static int CreateNi( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] 
       pNiBlock = EpgDbGetNi(dbc, blockno);
       if (pNiBlock != NULL)
       {
-         pEv = NI_GET_EVENTS(*pNiBlock);
+         pEv = NI_GET_EVENTS(pNiBlock);
          for (i=0; i < pNiBlock->no_events; i++)
          {
-            evName = ((pEv[i].off_evstr != 0) ? NI_GET_EVENT_STR(*pNiBlock, pEv[i]) : (uchar *)"?");
+            evName = ((pEv[i].off_evstr != 0) ? NI_GET_EVENT_STR(pNiBlock, &pEv[i]) : (uchar *)"?");
             if (pEv[i].next_type == 1) 
             {  // link to NI -> cascade
                sprintf(subname, "%sx%d_%d", argv[1], i, pEv[i].next_id);
                sprintf(comm, "%s add cascade -label {%s} -menu {%s}\n"
-                             "if {[string length [info command %s]] > 0} {destroy %s}\n"
-                             "if {![info exist dynmenu_posted(%s)] || ($dynmenu_posted(%s) == 0)} {\n"
+                             "if {[string length [info commands %s]] > 0} {\n"
+                             "   PostDynamicMenu %s C_CreateNi\n"
+                             "} elseif {![info exist dynmenu_posted(%s)] || ($dynmenu_posted(%s) == 0)} {\n"
                              "   menu %s -postcommand {PostDynamicMenu %s C_CreateNi}\n"
                              "}\n",
                              argv[1], evName, subname,
@@ -999,7 +1007,7 @@ static int SelectNi( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] 
          if ((pNiBlock != NULL) && (index < pNiBlock->no_events))
          {
             dprintf2("Select-Ni: apply NI %d #%d\n", blockno, index);
-            pEv = NI_GET_EVENTS(*pNiBlock) + index;
+            pEv = NI_GET_EVENTS(pNiBlock) + index;
 
             // apply all filters of the selected item
             for (attrib=0; attrib < pEv->no_attribs; attrib++)
@@ -1063,17 +1071,23 @@ void PiFilter_UpdateNetwopList( void )
          Tcl_Free((char *) argv);
       }
 
+      // check if browser is empty due to network prefilters
+      UiControl_CheckDbState();
+
       // removed pre-filtered networks from the browser, or add them back
       PiListBox_Refresh();
    }
 }
 
+// ----------------------------------------------------------------------------
+// Set netwop prefilters and update network listbox
+// - called by GUI after change of user network selection (netsel popup)
+//
 static int UpdateNetwopList( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
 {
    PiFilter_UpdateNetwopList();
    return TCL_OK;
 }
-
 
 // ----------------------------------------------------------------------------
 // Get List of netwop CNIs and array of names from AI for netwop selection
@@ -1169,7 +1183,7 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, char
          if (pPiFilterContext->enabledFilters & (FILTER_SUBSTR_TITLE|FILTER_SUBSTR_DESCR))
          {
             sprintf(comm, "%s add command -label {Undo substring filter '%s'} "
-                          "-command {set substr_pattern {}; C_SelectSubStr 0 0 0 {}; C_RefreshPiListbox; CheckShortcutDeselection}\n",
+                          "-command {set substr_pattern {}; SubstrUpdateFilter}\n",
                           argv[1], pPiFilterContext->subStrFilter);
             eval_check(interp, comm);
             entryCount += 1;
@@ -1381,8 +1395,7 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, char
                   if ( (EpgDbSearchPrevPi(pUiDbContext, pPiFilterContext, pPiBlock) != NULL) ||
                        (EpgDbSearchNextPi(pUiDbContext, pPiFilterContext, pPiBlock) != NULL) )
                   {
-                     sprintf(comm, "%s add command -label {Filter title '%s'} "
-                                   "-command {set substr_grep_title 1; set substr_grep_descr 0; set substr_ignore_case 0; set substr_pattern {%s}; C_SelectSubStr $substr_grep_title $substr_grep_descr $substr_ignore_case $substr_pattern; C_RefreshPiListbox}\n",
+                     sprintf(comm, "%s add command -label {Filter title '%s'} -command {SubstrSetFilter 1 0 0 {%s}}\n",
                                    argv[1], subStr, subStr);
                      eval_check(interp, comm);
                   }
@@ -1497,7 +1510,7 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, char
             // netwop filter
             if ( (pPiFilterContext->enabledFilters & FILTER_NETWOP) == FALSE )
             {
-               sprintf(comm, "%s add command -label {Filter network %s} -command {C_SelectNetwops %d; C_RefreshPiListbox}\n",
+               sprintf(comm, "%s add command -label {Filter network %s} -command {SelectNetwopByIdx %d}\n",
                              argv[1], AI_GET_NETWOP_NAME(pAiBlock, pPiBlock->netwop_no), pPiBlock->netwop_no);
                eval_check(interp, comm);
             }

@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgstream.c,v 1.10 2000/12/09 17:28:22 tom Exp tom $
+ *  $Id: epgstream.c,v 1.12 2001/02/10 14:49:02 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -146,7 +146,7 @@ void EpgStreamClearScratchBuffer( void )
 // Take a pointer the control and string bit fields from the block decoder and
 // convert them to a C "compound" structure depending on the type qualifier
 //
-static void EpgStreamConvertBlock( const uchar *pBuffer, uint blockLen, uchar stream, uchar type )
+static void EpgStreamConvertBlock( const uchar *pBuffer, uint blockLen, uchar stream, ushort parityErrCnt, uchar type )
 {
    EPGDB_BLOCK *pBlock;
    uint ctrlLen = pBuffer[3] | ((uint)(pBuffer[4]&0x03)<<8);
@@ -203,7 +203,11 @@ static void EpgStreamConvertBlock( const uchar *pBuffer, uint blockLen, uchar st
    {
       if (enableAllTypes || (type <= EPGDBACQ_TYPE_AI))
       {
-         pBlock->stream = stream;
+         pBlock->stream        = stream;
+         pBlock->parityErrCnt  = parityErrCnt;
+         pBlock->origChkSum    = pBuffer[2];
+         pBlock->origBlkLen    = blockLen;
+
          EpgStreamAddBlockToScratch(pBlock);
       }
       else
@@ -238,6 +242,7 @@ static void EpgStreamCheckBlock( NXTV_STREAM * const psd, uchar stream )
    schar c1, c2, c3, c4;
    uchar type;
    uint  ctrlLen, strLen, chkSum, myChkSum;
+   ushort errCnt;
 
    if (psd->appID == 0)
    {  // Bundle Inventory (BI block)
@@ -249,7 +254,7 @@ static void EpgStreamCheckBlock( NXTV_STREAM * const psd, uchar stream )
          if (chkSum == myChkSum)
          {
             psd->blockBuf[2] = chkSum;
-            EpgStreamConvertBlock(psd->blockBuf, psd->blockLen/2, stream, EPGDBACQ_TYPE_BI);
+            EpgStreamConvertBlock(psd->blockBuf, psd->blockLen/2, stream, 0, EPGDBACQ_TYPE_BI);
          }
          else
             debug3("BI block chksum error: my %x != %x, len=%d", myChkSum, chkSum, psd->blockLen);
@@ -272,7 +277,9 @@ static void EpgStreamCheckBlock( NXTV_STREAM * const psd, uchar stream )
             if ( UnHam84Array(psd->blockBuf, ctrlLen + 2) )
             {
                strLen = psd->blockLen - (ctrlLen + 2)*2;
-               UnHamParityArray(psd->blockBuf + (ctrlLen+2)*2, psd->blockBuf + ctrlLen+2, strLen);
+               errCnt = UnHamParityArray(psd->blockBuf + (ctrlLen+2)*2, psd->blockBuf + ctrlLen+2, strLen);
+               DBGONLY(if (errCnt))
+                  dprintf1("PARITY errors: %d\n", errCnt);
 
                chkSum = psd->blockBuf[2];
                psd->blockBuf[2] = 0;  // chksum does not include itself
@@ -281,7 +288,7 @@ static void EpgStreamCheckBlock( NXTV_STREAM * const psd, uchar stream )
                {
                   psd->blockBuf[2] = chkSum;
                   // real block size = header + control-data + string-data
-                  EpgStreamConvertBlock(psd->blockBuf, 2 + ctrlLen + strLen, stream, type);
+                  EpgStreamConvertBlock(psd->blockBuf, 2 + ctrlLen + strLen, stream, errCnt, type);
                }
                else
                   debug2("block chksum error: my %x != %x", myChkSum, chkSum);

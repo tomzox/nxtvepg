@@ -15,7 +15,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgacqctl.h,v 1.21 2001/01/21 20:39:09 tom Exp tom $
+ *  $Id: epgacqctl.h,v 1.23 2001/01/28 11:34:55 tom Exp tom $
  */
 
 #ifndef __EPGACQCTL_H
@@ -83,30 +83,9 @@ typedef enum
    ACQPASSIVE_NONE,             // not in forced passive mode (unused)
    ACQPASSIVE_NO_TUNER,         // input source is not TV tuner
    ACQPASSIVE_NO_FREQ,          // selected database has no tuner frequency
+   ACQPASSIVE_NO_DB,            // no db yet or database file is missing
    ACQPASSIVE_ACCESS_DEVICE     // failed to tune channel (access /dev/video)
 } EPGACQ_PASSIVE;
-
-// result values for epg scan start function
-typedef enum
-{
-   EPGSCAN_OK,                  // no error
-   EPGSCAN_ACCESS_DEV_VIDEO,    // failed to set input source or tuner freq
-   EPGSCAN_ACCESS_DEV_VBI,      // failed to start acq
-   EPGSCAN_NO_TUNER,            // input source is not a TV tuner
-   EPGSCAN_START_RESULT_COUNT
-} EPGSCAN_START_RESULT;
-
-// internal state during epg scan
-typedef enum
-{
-   SCAN_STATE_OFF,
-   SCAN_STATE_RESET,
-   SCAN_STATE_WAIT,
-   SCAN_STATE_WAIT_NI,
-   SCAN_STATE_WAIT_DATA,
-   SCAN_STATE_WAIT_EPG,
-   SCAN_STATE_DONE
-} EPGSCAN_STATE;
 
 
 enum
@@ -138,17 +117,22 @@ enum
 
 typedef struct
 {
+   uchar  expir;
+   uchar  s1cur;
+   uchar  s1old;
+   uchar  s2cur;
+   uchar  s2old;
+} EPGDB_HIST;
+
+typedef struct
+{
    time_t acqStartTime;
    time_t lastAiTime;
    time_t minAiDistance;
    time_t maxAiDistance;
    double avgAiDistance;
    uint   aiCount;
-   uchar  hist_expir[STATS_HIST_WIDTH];
-   uchar  hist_s1cur[STATS_HIST_WIDTH];
-   uchar  hist_s1old[STATS_HIST_WIDTH];
-   uchar  hist_s2cur[STATS_HIST_WIDTH];
-   uchar  hist_s2old[STATS_HIST_WIDTH];
+   EPGDB_HIST hist[STATS_HIST_WIDTH];
    uchar  histIdx;
 
    double varianceHist[VARIANCE_HIST_COUNT];  // ring buffer for variance
@@ -198,14 +182,12 @@ typedef struct
 bool EpgAcqCtl_Start( void );
 void EpgAcqCtl_Stop( void );
 int  EpgAcqCtl_Toggle( int newState );
-EPGSCAN_START_RESULT EpgAcqCtl_StartScan( void );
-void EpgAcqCtl_StopScan( void );
 bool EpgAcqCtl_SelectMode( EPGACQ_MODE newAcqMode, uint cniCount, const uint * pCniTab );
 bool EpgAcqCtl_SetInputSource( uint inputIdx );
 bool EpgAcqCtl_UiProvChange( void );
 EPGDB_STATE EpgAcqCtl_GetDbState( uint cni );
 void EpgAcqCtl_DescribeAcqState( EPGACQ_DESCR * pAcqState );
-bool EpgAcqCtl_ScanIsActive( void );
+void EpgAcqCtl_ToggleAcqForScan( bool enable );
 
 // Interface for notifications from acquisition
 #ifdef __EPGBLOCK_H

@@ -28,7 +28,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgdbacq.c,v 1.22 2001/01/20 15:42:47 tom Exp tom $
+ *  $Id: epgdbacq.c,v 1.23 2001/02/04 20:11:56 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -199,9 +199,15 @@ void EpgDbAcqInitScan( void )
       pVbiBuf->ni = 0;
       pVbiBuf->niRepCnt = 0;
       pVbiBuf->dataPageCount = 0;
+      // reset statistics variables
+      pVbiBuf->ttxPkgCount = 0;
+      pVbiBuf->epgPkgCount = 0;
+      pVbiBuf->epgPagCount = 0;
       // enable scan mode
       pVbiBuf->isEpgScan = TRUE;
       pVbiBuf->doVpsPdc  = TRUE;
+      // clear the ring buffer
+      pVbiBuf->reader_idx = pVbiBuf->writer_idx;
    }
    else
       debug0("EpgDbAcq-InitScan: acq not enabled");

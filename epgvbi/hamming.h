@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: hamming.h,v 1.4 2000/12/02 18:23:15 tom Exp tom $
+ *  $Id: hamming.h,v 1.5 2001/02/03 20:28:37 tom Exp tom $
  */
 
 #ifndef __HAMMING_H
@@ -121,7 +121,7 @@ EXT const uchar parityTab[256]
 #define UnHam84Byte(P,V)   (( *(V) = ((sint)unhamtab[(uint)*(P)] | ((sint)unhamtab[(uint)*((P)+1)] << 4)) ) >= 0 )
 
 bool UnHam84Array( uchar *pin, uint byteCount );
-void UnHamParityArray( const uchar *pin, uchar *pout, uint byteCount );
+ushort UnHamParityArray( const uchar *pin, uchar *pout, uint byteCount );
 
 #undef EXT
 

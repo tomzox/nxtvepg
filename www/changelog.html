@@ -7,7 +7,7 @@
 <META name="language" content="en">
 <META name="author" content="Tom Zoerner">
 <META name="copyright" content="Tom Zoerner">
-<META name="keywords" lang="en" content="Bt848, video capture, capture, browser, Pro7, RTL2, 3Sat, Canal+, EuroNews, nexTView, EPG, decoder, nxtvepg, teletext, Bt878, Booktree, electronic program guide, TV-Guide, Premiere, TV program listing, TV schedule, Nextview decoder, Linux, software download, bttv, video4linux, VBI, vertical blanking interval, multimedia, data service, subscription free, TV tuner card">
+<META name="keywords" lang="en" content="Bt848, video capture, capture, browser, Pro7, RTL2, 3Sat, Canal+, EuroNews, nexTView, EPG, nxtvepg, teletext, Bt878, Booktree, electronic program guide, TV-Guide, Premiere, TV program listing, TV schedule, Nextview decoder, Linux, software download, bttv, video4linux, VBI, vertical blanking interval, multimedia, data service, subscription free, TV tuner card">
 <META name="description" content="History of releases and changes inbetween for the nxtvepg decoder software">
 <META name="robots" content="index, follow">
 <META name="revisit-after" content="01 month">
@@ -17,9 +17,78 @@
 <P><HR><P>
 <H1>Nextview EPG Decoder Change-Log</H1>
 
-This is the history of releases and major changes inbetween of the
-<A HREF="http://nxtvepg.tripod.com">nxtvepg</A>
-nexTView EPG decoder software.
+The following new features have been added between release 0.3 and 0.4
+of the <A HREF="http://nxtvepg.tripod.com">nxtvepg</A>
+nexTView EPG decoder software:
+
+<DL>
+<DT><STRONG>Database Merging</STRONG>
+<DD><P>
+If you compare databases of different Nextview providers, you will often
+find that each has one or more nice features, or covers networks, that the
+others lack. Instead of changing back and forth between several providers
+all the time, database merging allows to select and combine features or
+networks from several original databases into one newly created database.
+</P>
+<DT><STRONG>Extended Acquisition Control</STRONG>
+<DD><P>
+Previously, acquisition always worked for the provider you had chosen
+for the browser. If you were interested in more than one provider's
+database, you had to manually select them one after each other to get
+them up to date. Now, you can put your favorite providers into a list
+and have them automatically updated one-by-one. There are several modes
+that allow for a faster start-up time, e.g. by loading just the "Now"
+data of all providers in a first pass (takes about 2 minutes each) and
+afterwards the complete databases (takes about 20 minutes each).
+</P>
+<DT><STRONG>Browser listbox column configuration</STRONG>
+<DD><P>
+Previously the format of the programme listings was fixed. Now you have
+the free choice which attributes you're interested in. Usually you'll
+have at least the title, running time and channel name, and then add
+whatever you need most often, e.g. the major theme (movie/series/show etc.),
+rating, picture format, ...
+</P>
+<DT><STRONG>Support for other operating systems</STRONG>
+<DD><P>
+Last but not least, nxtvepg has been ported to NetBSD (many Thanks to
+Mario Kemper, who's also my valued beta tester) and to Micro$oft Windows
+(thanks to "Espresso", from whose MultiDec software the driver was derived)
+</P>
+</DL>
+
+For a detailed description of these new features please refer to the
+<A HREF="man.html">Manual</A>.
+<P>
+Below is a history of additions and bug fixes inbetween releases:
+
+<H2>From 0.4.pre2 to 0.4.3 (Feb. 2001)</H2>
+<UL>
+<LI>Fixed various glitches in acquisition mode handling and warnings
+<LI>Added warning when acq mode is forced passive due to non-tuner input source
+<LI>Finally added chapter about merged databases to documentation
+<LI>Split off EPG scan sources from epgacqctl.c into separate module epgscan.c
+<LI>Temp workaround for merged db statistics: supress unsupported categories
+<LI>Improved presentation of merged descriptions: suppress redundant text
+<LI>added transmission error handling: do not replace equivalent block with a
+  copy with more parity errors (in the string segment)
+<LI>Introduced EPG scan options "Slow" and "Refresh" for bad reception or
+  database loss, respectively
+<LI>Added OI header and message to provider selection popup
+<LI>Network selection popup: added possibility to copy CNI order and suppression
+  between providers
+<LI>Added infos to README about Windows driver installation; thanks to Mario.
+<LI>Browser listbox format now configurable: now columns can be freely selected
+  from 16 attribute types, including title, time, date, theme, ratings, etc.
+<LI>Added browser listbox column header buttons with drop-down menus
+<LI>Fixed substring search with latin-1 chars: did not work due to new internal
+  encoding in Tcl 8.3 (UTF8)
+<LI>Fixed dynamic menus on Win32 (e.g. context menu, series menu, Navigate):
+  Windows does not generate unmap event, hence the menu content always
+  remained the same, regardless of PI selection or even provider changes
+<LI>Fixed program crash on Win32 while error MessageBox was displayed via Tcl:
+  crashed when the mouse was moved from the desktop directly into the main win
+</UL>
 
 <H2>From 0.4.pre1 to 0.4.pre2 (Jan. 2001)</H2>
 <UL>

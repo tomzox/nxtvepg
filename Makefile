@@ -24,7 +24,7 @@
 #
 #  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
 #
-#  $Id: Makefile,v 1.19 2001/01/09 20:48:44 tom Exp tom $
+#  $Id: Makefile,v 1.22 2001/02/14 21:18:12 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -52,16 +52,15 @@ DEFS   += -DTK_LIBRARY_PATH=\"/usr/lib/tk8.3\"
 DEFS   += -DTCL_LIBRARY_PATH=\"/usr/lib/tcl8.3\"
 
 
-#WARN    = -Wall -Wpointer-arith -Wnested-externs \
-#          -Werror -Wstrict-prototypes -Wmissing-prototypes
 WARN    = -Wall
 CC      = gcc
-CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -g -O2
+CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -g -O
 
 # ----- don't change anything below ------------------------------------------
 
-MODS    = epgctl/epgmain epgctl/debug epgctl/epgacqctl epgctl/epgctxctl \
-          epgvbi/vbidecode epgvbi/tvchan epgvbi/btdrv4linux epgvbi/hamming \
+MODS    = epgctl/epgmain epgctl/debug epgctl/epgacqctl epgctl/epgscan \
+          epgctl/epgctxctl epgvbi/vbidecode epgvbi/tvchan epgvbi/btdrv4linux \
+          epgvbi/hamming \
           epgdb/epgdbacq epgdb/epgstream epgdb/epgtxtdump epgdb/epgdbsav \
           epgdb/epgdbmgmt epgdb/epgdbif epgdb/epgdbfil epgdb/epgblock \
           epgdb/epgdbmerge \
@@ -96,7 +95,7 @@ epgui/help.c: epgui/help.tcl tcl2c
 
 nxtvepg.1x man.html epgui/help.tcl: nxtvepg.pod pod2help.pl
 	@if test -x $(PERL); then \
-	  EPG_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*EPG_VERSION_STR' epgctl/epgversion.h | cut -d\" -f2`; \
+	  EPG_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*EPG_VERSION_STR' epgctl/epgversion.h | head -1 | cut -d\" -f2`; \
 	  echo "./pod2help.pl nxtvepg.pod > epgui/help.tcl"; \
 	  ./pod2help.pl nxtvepg.pod > epgui/help.tcl; \
 	  echo "pod2man nxtvepg.pod > nxtvepg.1x"; \
@@ -120,6 +119,10 @@ clean:
 depend:
 	-rm -f Makefile.dep
 	makedepend $(INCS) -f Makefile.dep $(SRCS)
+
+bak:
+	cd .. && tar cf pc.tar pc -X pc/tar-ex && gzip -f -9 pc.tar
+	cd .. && tar cf /e/pc.tar pc -X pc/tar-ex-win
 
 include Makefile.dep
 

@@ -4,6 +4,32 @@ changes or additions.
 
 Before you submit any feature requests, please read the TODO file.
 
+from 0.4.pre2 to 0.4.3 (Feb. 2001)
+- fixed various glitches in acquisition mode handling and warnings
+- added warning when acq mode is forced passive due to non-tuner input source
+- finally added chapter about merged databases to documentation
+- split off EPG scan sources from epgacqctl.c into separate module epgscan.c
+- temp workaround for merged db statistics: supress unsupported categories
+- improved presentation of merged descriptions: suppress redundant text
+- added transmission error handling: do not replace equivalent block with a
+  copy with more parity errors (in the string segment)
+- introduced EPG scan options "Slow" and "Refresh" for bad reception or
+  database loss, respectively
+- added OI header and message to provider selection popup
+- network selection popup: added possibility to copy CNI order and suppression
+  between providers
+- added infos to README about Windows driver installation; thanks to Mario.
+- browser listbox format now configurable: now columns can be freely selected
+  from 16 attribute types, including title, time, date, theme, ratings, etc.
+- added browser listbox column header buttons with drop-down menus
+- fixed substring search with latin-1 chars: did not work due to new internal
+  encoding in Tcl 8.3 (UTF8)
+- fixed dynamic menus on Win32 (e.g. context menu, series menu, Navigate):
+  Windows does not generate unmap event, hence the menu content always
+  remained the same, regardless of PI selection or even provider changes
+- fixed program crash on Win32 while error MessageBox was displayed via Tcl:
+  crashed when the mouse was moved from the desktop directly into the main win
+
 from 0.4.pre1 to 0.4.pre2 (Jan. 2001)
 - Added status line below browser window for db coverage and acq status
 - Statistics windows now available separately for browser and acq databases.

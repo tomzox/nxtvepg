@@ -23,7 +23,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgdbfil.c,v 1.22 2001/01/01 20:19:24 tom Exp tom $
+ *  $Id: epgdbfil.c,v 1.23 2001/02/06 19:00:07 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -318,7 +318,7 @@ void EpgDbFilterSetLangDescr( CPDBC dbc, FILTER_CONTEXT *fc, const uchar *lg )
 
             if (pLiBlock != NULL)
             {
-               pDesc = LI_GET_DESC(*pLiBlock);
+               pDesc = LI_GET_DESC(pLiBlock);
 
                for (descIdx=0; descIdx < pLiBlock->desc_no; descIdx++)
                {
@@ -376,7 +376,7 @@ void EpgDbFilterSetSubtDescr( CPDBC dbc, FILTER_CONTEXT *fc, const uchar *lg )
 
             if (pTiBlock != NULL)
             {
-               pDesc = TI_GET_DESC(*pTiBlock);
+               pDesc = TI_GET_DESC(pTiBlock);
 
                for (descIdx=0; descIdx < pTiBlock->desc_no; descIdx++)
                {

@@ -15,11 +15,13 @@
  *  Description:
  *
  *    Implements a database with all types of Nextview structures
- *    sorted by start time or block number respectively.
+ *    sorted by start time or block number respectively. This module
+ *    contains only functions that modify the database; queries are
+ *    implemented in the epgdbif.c module.
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgdbmgmt.c,v 1.26 2001/01/21 12:07:44 tom Exp tom $
+ *  $Id: epgdbmgmt.c,v 1.27 2001/02/03 21:02:51 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -309,6 +311,42 @@ bool EpgDbCheckChains( CPDBC dbc )
    return TRUE;
 }
 #endif // DEBUG_GLOBAL_SWITCH == ON
+
+// ---------------------------------------------------------------------------
+// Check equivalent blocks for parity errors
+// - called from insert functions if a block with the same block number and
+//   network already is in the database
+// - since the content may change without db version change (i.e. in PI blocks
+//   long info might be added) additionally the low-level block size and
+//   check-sum are compared (the high-level block size may change, since chars
+//   with parity errors are replaced with white space, and multiple whitespace
+//   gets compressed)
+// - Note: there's no need to count hamming errors, since blocks with hamming
+//   errors are generally refused (control data must be intact)
+// - returns FALSE if the new block has more parity errors
+// - as a side-effect, the acquisition repetition counter is incremented
+//
+static bool EpgDbCompareParityErrorCount( EPGDB_BLOCK * pOldBlock, EPGDB_BLOCK * pNewBlock )
+{
+   bool result = TRUE;
+
+   if ( (pOldBlock->version    == pNewBlock->version) &&
+        (pOldBlock->stream     == pNewBlock->stream) &&
+        (pOldBlock->origBlkLen == pNewBlock->origBlkLen) &&
+        (pOldBlock->origChkSum == pNewBlock->origChkSum) )
+   {
+      if (pNewBlock->parityErrCnt > pOldBlock->parityErrCnt)
+      {  // refuse block if it has more errors than the already available copy
+         debug3("PARITY refuse block type=%d: error counts new=%d old=%d", pNewBlock->type, pNewBlock->parityErrCnt, pOldBlock->parityErrCnt);
+         result = FALSE;
+      }
+      else
+      { // count the number of times this block was received
+         pNewBlock->acqRepCount = pOldBlock->acqRepCount + 1;
+      }
+   }
+   return result;
+}
 
 // ---------------------------------------------------------------------------
 // Entfernt alle PI-Bloecke obsoleter netwops aus der DB
@@ -655,14 +693,20 @@ static bool EpgDbAddGenericBlock( PDBC dbc, EPGDB_BLOCK * pBlock )
          if ( (pWalk != NULL) && (pWalk->blk.all.block_no == block_no) )
          {  // Block schon vorhanden -> ersetzen
             dprintf3("REPLACE GENERIC type=%d ptr=%lx: blockno=%d\n", pBlock->type, (ulong)pBlock, block_no);
-            pBlock->pNextBlock = pWalk->pNextBlock;
-            if (pPrev != NULL)
-               pPrev->pNextBlock = pBlock;
-            else
-               dbc->pFirstGenericBlock[pBlock->type] = pBlock;
 
-            // free replaced block
-            xfree(pWalk);
+            if ( EpgDbCompareParityErrorCount(pWalk, pBlock) )
+            {
+               pBlock->pNextBlock = pWalk->pNextBlock;
+               if (pPrev != NULL)
+                  pPrev->pNextBlock = pBlock;
+               else
+                  dbc->pFirstGenericBlock[pBlock->type] = pBlock;
+
+               // free replaced block
+               xfree(pWalk);
+            }
+            else
+               xfree(pBlock);
          }
          else if (pPrev == NULL)
          {  // Block ganz am Anfang einfuegen
@@ -1236,16 +1280,14 @@ static bool EpgDbInsertPiBlock( PDBC dbc, EPGDB_BLOCK * pBlock )
         (pWalk->blk.pi.stop_time == pBlock->blk.pi.stop_time) )
    {  // derselbe PI-Block (alle Ordnungskriterien unveraendert) -> ersetzen
 
-      if ( (pWalk->version == pBlock->version) &&
-           (pWalk->size == pBlock->size) )
-      {  // increment counter if block has (probably) the same content
-         pBlock->acqRepCount = pWalk->acqRepCount + 1;
+      if ( EpgDbCompareParityErrorCount(pWalk, pBlock) )
+      {
+         EpgDbReplacePi(dbc, pWalk, pBlock);
+         // offer the block to the merged db
+         EpgDbMergeInsertPi(dbc, pBlock);
       }
-
-      EpgDbReplacePi(dbc, pWalk, pBlock);
-
-      // offer the block to the merged db
-      EpgDbMergeInsertPi(dbc, pBlock);
+      else
+         xfree(pBlock);
 
       result = TRUE;
    }

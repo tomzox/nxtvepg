@@ -14,11 +14,24 @@
  *
  *  Description:
  *
- *    Merges serveral databases into one.
+ *    Merges serveral databases into one: At the start there's always a
+ *    complete merge of all PI in a number of given databases into a newly
+ *    created database. The first provider in the list is the 'master',
+ *    i.e. if there are differing start times between providers, only PI
+ *    that do not conflict with the master will be added. There's no
+ *    comparison of other creteria than start and stop time, so it is
+ *    not detected if two providers list two different programmes on one
+ *    network with accidentially the same start and stop times.
+ *
+ *    After the initial merge the original databases are freed again,
+ *    unless acquisition is enabled. During acquisition new blocks are
+ *    inserted into their original databases first, and then if added
+ *    successfully handed over to this module.
+ *
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgdbmerge.c,v 1.11 2001/01/20 15:50:09 tom Exp tom $
+ *  $Id: epgdbmerge.c,v 1.13 2001/02/04 21:11:34 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -69,7 +82,7 @@ static void EpgDbMergeCloseDatabases( EPGDB_MERGE_CONTEXT * pMergeContext )
 // ---------------------------------------------------------------------------
 // Open all databases for complete merge or acquisition
 //
-static bool EpgDbMergeOpenDatabases( EPGDB_MERGE_CONTEXT * pMergeContext )
+static bool EpgDbMergeOpenDatabases( EPGDB_MERGE_CONTEXT * pMergeContext, bool isForAcq )
 {
    uint dbIdx, cni;
    bool result = TRUE;
@@ -79,7 +92,7 @@ static bool EpgDbMergeOpenDatabases( EPGDB_MERGE_CONTEXT * pMergeContext )
       if (pMergeContext->pDbContext[dbIdx] == NULL)
       {
          cni = pMergeContext->cnis[dbIdx];
-         pMergeContext->pDbContext[dbIdx] = EpgContextCtl_Open(cni, CTX_RELOAD_ERR_ACQ);
+         pMergeContext->pDbContext[dbIdx] = EpgContextCtl_Open(cni, (isForAcq ? CTX_RELOAD_ERR_ACQ : CTX_RELOAD_ERR_REQ));
 
          if (EpgDbContextGetCni(pMergeContext->pDbContext[dbIdx]) != cni)
          {  // database could not be loaded -> abort merge
@@ -167,7 +180,7 @@ static bool EpgDbMergeOpenAcqContext( PDBC dbc, uint cni )
       {  // open the db contexts of all dbs in the merge context
          if (dbmc->pDbContext[0] == NULL)
          {
-            if (EpgDbMergeOpenDatabases(dbmc) == FALSE)
+            if (EpgDbMergeOpenDatabases(dbmc, TRUE) == FALSE)
             {  // open failed -> cannot insert
                dbmc->acqIdx = 0xff;
                result = FALSE;
@@ -1009,7 +1022,10 @@ static void EpgDbMergeAiBlocks( PDBC dbc )
 }
 
 // ---------------------------------------------------------------------------
-// Update AI block when an AI in one of the dbs was updated
+// Update AI block when an AI in one of the dbs has changed
+// - Only called after change of version number in one of the blocks.
+//   More frequent updates are not required because changes of blockno range
+//   are not of any interest for the merged database.
 //
 void EpgDbMergeAiUpdate( PDBC pAcqContext, EPGDB_BLOCK * pAiBlock )
 {
@@ -1056,7 +1072,7 @@ EPGDB_CONTEXT * EpgDbMerge( uint dbCount, const uint * pCni, MERGE_ATTRIB_VECTOR
    memcpy(pMergeContext->cnis, pCni, sizeof(uint) * dbCount);
    memcpy(pMergeContext->max, pMax, sizeof(MERGE_ATTRIB_MATRIX));
 
-   if ( EpgDbMergeOpenDatabases(pMergeContext) )
+   if ( EpgDbMergeOpenDatabases(pMergeContext, FALSE) )
    {
       // create target database
       pDbContext = EpgDbCreate();
@@ -1066,6 +1082,7 @@ EPGDB_CONTEXT * EpgDbMerge( uint dbCount, const uint * pCni, MERGE_ATTRIB_VECTOR
 
       // create AI block
       EpgDbMergeAiBlocks(pDbContext);
+      pDbContext->lastAiUpdate = time(NULL);
 
       // merge all PI from all databases into the new one
       EpgDbMergeAllPiBlocks(pDbContext);

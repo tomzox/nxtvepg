@@ -46,7 +46,7 @@
  *    VBI only adaption and nxtvepg integration
  *      Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: btdrv4win.c,v 1.9 2001/01/21 12:06:58 tom Exp tom $
+ *  $Id: btdrv4win.c,v 1.11 2001/02/03 20:29:34 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -1846,7 +1846,7 @@ static bool Init_WinDriver( void )
       Bt_Device_Handle = CreateFile ("\\\\.\\WinDrvr.VXD", 0, 0, 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_DELETE_ON_CLOSE, 0);
       if (Bt_Device_Handle == INVALID_HANDLE_VALUE)
       {
-         MessageBox(NULL, "Failed to load Win95/98 device driver WinDrvr.vxd"
+         MessageBox(NULL, "Failed to load Win95/98 device driver WinDrvr.vxd\n"
                           "Have you copied the driver file into the nxtvepg working directory?\n"
                           "Please refer to README.txt for further information.",
                     "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
@@ -1885,7 +1885,7 @@ static bool Init_WinDriver( void )
       }
       else if(ret == BT8X8_OPEN_RESULT_PCI_SCAN)
       {
-         MessageBox(NULL, "PCI scan failed - no devices found\n"
+         MessageBox(NULL, "PCI scan failed - no devices found.\n"
                           "Appearantly the driver refuses work.\n"
                           "Please refer to README.txt for further information.",
                     "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
@@ -2137,6 +2137,7 @@ static void BtDriver_VbiThread( void )
 bool BtDriver_StartAcq( void )
 {
    DWORD LinkThreadID;
+   bool result = FALSE;
 
    if (Initialized == FALSE)
    {
@@ -2149,10 +2150,13 @@ bool BtDriver_StartAcq( void )
 
          Set_Capture(TRUE);
 
-         return TRUE;
+         result = TRUE;
       }
    }
-   return FALSE;
+   else
+      result = TRUE;
+
+   return result;
 }
 
 // ---------------------------------------------------------------------------

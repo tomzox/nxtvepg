@@ -15,7 +15,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: uictrl.h,v 1.2 2001/01/09 21:32:34 tom Exp tom $
+ *  $Id: uictrl.h,v 1.4 2001/02/04 20:23:21 tom Exp tom $
  */
 
 #ifndef __UICTRL_H
@@ -43,6 +43,8 @@ void UiControl_ReloadError( ClientData clientData );
 // Interface to acquisition control
 void UiControlMsg_AiStateChange( void );
 void UiControlMsg_MissingTunerFreq( uint cni );
+void UiControlMsg_AcqPassive( void );
+void UiControlMsg_NewProvFreq( uint cni, ulong freq );
 
 // Interface to context control
 #ifdef __EPGDBSAV_H

@@ -1,4 +1,4 @@
-## $Id: CHANGES.version,v 1.4 2000/12/26 20:34:29 tom Exp $ ##
+## $Id: CHANGES.version,v 1.5 2001/02/14 21:10:52 tom Exp $ ##
 
 Steps to prepare new distribution:
 
@@ -12,6 +12,8 @@ version no contained in:
 
 RCS
 - check in all files, including TODO & CHANGES
+- check in epgversion *BEFORE* making the distribution
+  the rest afterwards (to correct possible glitches)
 - tag all archives
 
 Makefile

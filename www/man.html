@@ -17,11 +17,8 @@
 <P><HR><P>
 <H1>Nextview EPG Decoder Documentation</H1>
 
-This is the manual page for pre-release 0.4.pre2 of
+This is the manual page for release 0.4.3 of
 <A HREF="http://nxtvepg.tripod.com">nxtvepg</A>.
-<BR>
-For documentation of the latest stable version please refer to the
-<A HREF="man-0_3_4.html">manual page from release 0.3.4</A>.
 
 <!-- INDEX BEGIN -->
 
@@ -35,6 +32,8 @@ For documentation of the latest stable version please refer to the
 	<LI><A HREF="#BASIC_BROWSING">BASIC BROWSING</A>
 	<LI><A HREF="#DATA_ACQUISITION">DATA ACQUISITION</A>
 	<LI><A HREF="#ACQUISITION_MODES">ACQUISITION MODES</A>
+	<LI><A HREF="#STATISTICS">STATISTICS</A>
+	<LI><A HREF="#MERGED_DATABASES">MERGED DATABASES</A>
 	<LI><A HREF="#NAVIGATE">NAVIGATE</A>
 	<LI><A HREF="#FILTERING">FILTERING</A>
 	<LI><A HREF="#FILTER_SHORTCUTS">FILTER SHORTCUTS</A>
@@ -62,7 +61,6 @@ For documentation of the latest stable version please refer to the
 <P>
 nxtvepg - Decoder, Browser and Analyzer for the Nextview Electronic
 Programme Guide
-
 
 <P>
 <HR>
@@ -235,16 +233,28 @@ the TV card input popup menu.
 <P>
 In the next step - if you chose to use the TV tuner - run a provider scan
 from the Configure menu. During the scan all TV channels are checked for
-Nextview transmissions. The first one found will automatically be loaded
-into the browser after the scan has stopped. If you want a different
-provider, you can select it via the provider selection popup from the
-Configure menu.
+Nextview transmissions. After the scan has finished, open the provider
+selection popup from the Configure menu and select you favorite one.
 
 <P>
-Alternatively if you decided not to use the tuner, provide the video signal
-of one of the content provider channels listed in the introduction to the
-selected input socket. See <A HREF="#DATA_ACQUISITION">DATA ACQUISITION</A> about the disadvantages of not using the TV tuner as input. As soon as an
-EPG provider is recognized, its data will appear in the browser window.
+If the provider scan does not find all Nextview provider channels (possibly
+due to weak reception - this is a very simple scan that does not attempt
+any fine-tuning) check the <EM>Slow</EM> button and try again. If this did not help, you can still add the missing
+providers manually. Therefore set the acquisition mode to <EM>passive</EM>, then use an external application to tune the channel (Windows users have
+to quit nxtvepg first; then start the other application; then tune the
+channel; then quit the TV application; finally start nxtvepg again). In
+passive mode nxtvepg will not touch the tuner and infinitly wait for
+Nextview reception on the current channel. On Windows and Linux with old
+bttv drivers (version 0.7.50 and earlier) this method has the disadvantage
+that no frequency will be known for this provider so that it can not be
+updated automatically (see <A HREF="#DATA_ACQUISITION">DATA ACQUISITION</A> for details).
+
+<P>
+Alternatively if you decided not to use the tuner, open the Acquisition
+mode popup from the Configure menu and select passive mode. Then provide
+the video signal of one of the content provider channels listed in the
+introduction to the selected input socket. As soon as an EPG provider is
+recognized, its data will appear in the browser window. See <A HREF="#DATA_ACQUISITION">DATA ACQUISITION</A> about the disadvantages of not using the TV tuner as input.
 
 <P>
 Acquisition of a complete database takes about 20 minutes. However
@@ -257,9 +267,10 @@ minutes max.
 <HR>
 <H1><A NAME="BASIC_BROWSING">BASIC BROWSING</A></H1>
 <P>
-The browsing area consists of two windows: the upper one contains a list of
-programme titles, sorted by start time. All currently running programmes
-are marked by a light blue background color. One line in the list is
+The browser mainly consists of two windows: the upper one contains a list
+of programme titles, sorted by start time. All currently running programmes
+(or rather: all programmes that should be running according to their start
+time) are marked by a light blue background color. One line in the list is
 selected by a cursor; the lower window contains the attributes and
 description for this selected title. The amount of data available depends
 entirely on the content provider.
@@ -269,23 +280,33 @@ The basic browsing of programme information works very straight-forward.
 You can either use the mouse or the keyboard cursor keys:
 
 <P>
-With the mouse, you can click on any title to select it and get its
-description in the lower window. With a double-click you get a popup window
-with a summary of all attributes known for that title. See
+With the mouse, you can click on any title to select it and display its
+description in the lower window. With a double-click you open a popup
+window with a summary of all attributes known for that title. See
 <A HREF="#FILTERING">FILTERING</A> on how to use those for filtering. Use the scrollbar to scroll the listing
 forward to programmes farer in the future.
 
 <P>
 With the keyboard, use the Cursor up/down keys to select any title. For
 fast scrolling use the page up/down keys. With the Home key you always get
-back to the first title.
+back to the first title. With TAB and SHIFT-TAB you can move the keyboard
+input focus to other widgets, e.g. to the scrollbars or the shortcut list.
+On Unix, the menus can be accessed with the Meta key (usually the ALT key)
+together with one of the underlined characters in the menu buttons.
+
+<P>
+At the bottom of the window there is a status line which informs you about
+the state of the browser database and background acquisition. It's
+basically a very dense summary of the <STRONG>Statistics</STRONG> popups from the <STRONG>Control</STRONG> menu and is especially useful to warn you about the database age or stalled
+acquisition.
 
 <P>
 <EM>Note:</EM>
-For most providers it holds true that the description is not available (or
-only partially) until the start time of that title is very close. The time
-span can be as short as 2 hours, or the next 5 titles per network. For
-details on the acquisition process see the following chapter.
+For most providers it holds true that descriptions are available only (or
+only in full length) for currently running programmes and those whose start
+time is very close. This time span for full coverage can be as short as 2
+hours, or 3 titles per network. For details on the acquisition process see
+the following chapter.
 
 <P>
 <HR>
@@ -308,13 +329,13 @@ Check out <A HREF="#ACQUISITION_MODES">ACQUISITION MODES</A> for more sophistica
 <P>
 If you do not choose the TV tuner as input (e.g. if you choose an external
 source via the Composite or S-Video input sockets), or if the TV tuner is
-kept busy by another application (e.g. if you watch TV) data is still being
-acquired, but it's no longer possible to automatically change the TV
-channel. Hence you are resposible for selecting the channel of the provider
-who's database you want to load or refresh. If a transmission belonging to
-a different provider than the one selected in the browser is detected, a
-second database is automatically opened in the background to store the
-incoming data.
+kept busy by another application (UNIX only, e.g. if you watch TV) data is
+still being acquired, but it's no longer possible to automatically change
+the TV channel. Hence you are resposible for selecting the channel of the
+provider who's database you want to load or refresh. If a transmission
+belonging to a different provider than the one selected in the browser is
+detected, a second database is automatically opened in the background to
+store the incoming data.
 
 <P>
 The transmitted database is constantly in change: Elapsed titles are
@@ -323,67 +344,18 @@ updated with an increased amount of description. (The reason that the
 complete description is not transmitted for all titles is simply that the
 size of the database has to be reduced - it shall be transmitted in 20
 minutes maximum.) So you should start the acquisition as often as possible,
-at least a couple of minutes before you browse.
+about every 2-3 hours, at least a couple of minutes before you browse.
 
 <P>
-You can monitor the progress of acquisition with the timescale windows
-which can be opened from the Control menu. There's one window for the
-browser database, and one for the acquisition database, if it's a different
-one. The timescale windows have one scale for each network covered by the
-selected provider. Each scale covers the next 5 days. Ranges that are
-covered by programmes available in the database are marked in red or blue.
-
-<P>
-The differences in colors are of interest only to technical insiders and
-shall therefore only be mentioned briefly:
-<EM>red:</EM> PI blocks received in stream 1;
-<EM>blue:</EM> PI blocks received in stream 2;
-<EM>shaded red or blue:</EM> PI blocks from an earlier database version;
-<EM>yellow:</EM> expired or invalid PI blocks (overlapping or zero run-time, block number
-not in the range given in AI, etc.)
-
-<P>
-There's also a statistics window available from the Control menu which
-informs you about the acquisition progress. The statistics are updated
-every time a new AI block is received and reset when the database version
-changes.
-
-<P>
-The diagram at the left displays a history of fill percentages for stream 1
-and 2; the meaning of the colors is the same as in the timescale windows.
-The baud rates are computed as avarage of received bits during the total
-acquisition runtime; every teletext packet is counted as 45 * 8 Bits.
-<EM>AI min/avg/max</EM>
-describes the frequency of AI packet reception as: minimum, average and
-maximum interval length between AI blocks. The last 3 lines reflect the PI
-(programme information) block counts in the database.
-
-<P>
-<EM>Block count db</EM>
-gives the total number of PI blocks; in the brackets the sum is broken up
-into stream 1, stream 2 and expired &amp; obsolete (colors red, blue and
-yellow in the graphics). The next line has the same meaning, but only PI
-blocks of the current database version are counted. The last line gives the
-number of PI blocks that are transmitted in the current Nextview cycle.
-This value is computed from the block ranges given in the AI block. The
-percentages behind the total express how many of the blocks already are
-available in the database; the second of the percentages only considers PI
-of the current version.
-
-<P>
-When you interpret thos values, please remember that PI blocks may be
-appended to the transmission cycle when programmes have expired (in a
-slight violation of the Nextview standard this is done even without
-changing the database version). So you might see from time to time that the
-fill percentages take a step back down during acquisition. Also note that
-expired PI are not accessible from the user interface, however they are
-included in the database dump from the <EM>Control</EM> menu.
+You can monitor the progress of acquisition with the timescale and database
+statistics windows from the Control menu. See <A HREF="#STATISTICS">STATISTICS</A>
+for details.
 
 <P>
 <HR>
 <H1><A NAME="ACQUISITION_MODES">ACQUISITION MODES</A></H1>
 <P>
-The acquiition mode configuration allows you to control for which providers
+The acquisition mode configuration allows you to control for which providers
 data is collected, and in which order. It's mainly intended for users who
 use more than one provider's database, i.e. in a merged database, or want
 to optimize startup time. If you're happy with a single provider or don't
@@ -491,6 +463,140 @@ stages may differ between providers. Secondly, the cycle times may vary. In
 the worst case the Near cycle runs as long as the cycle for the complete
 database (e.g. the German provider RTL2). In this case you don't win
 anything by selecting a mode that contains a Near stage.
+
+<P>
+<HR>
+<H1><A NAME="STATISTICS">STATISTICS</A></H1>
+<P>
+You can monitor the progress of acquisition with the timescale windows
+which can be opened from the Control menu. There's one window for the
+browser database, and one for the acquisition database, if it's a different
+one. The timescale windows have one scale for each network covered by the
+selected provider. Each scale covers the next 5 days, starting with the
+current time. Ranges that are covered by programmes in the database are
+marked in red or blue, uncovered ranges are left black.
+
+<P>
+The different colors reflect the <EM>stream</EM> in which the data was received, or an error status. Stream numbers are
+directly connected with the cycle phases mentioned in <A HREF="#ACQUISITION_MODES">ACQUISITION MODES</A>; besides this the difference is not relevant during normal operation.
+
+<DL>
+<DT><STRONG><A NAME="item_red">red:</A></STRONG><DD>
+<P>
+PI blocks received in stream 1, i.e. cycle phase 'Near'.
+
+<DT><STRONG><A NAME="item_blue">blue:</A></STRONG><DD>
+<P>
+PI blocks received in stream 2, i.e. cycle phase 'All'.
+
+<DT><STRONG><A NAME="item_shaded">shaded red or blue:</A></STRONG><DD>
+<P>
+PI blocks from an earlier database version.
+
+<DT><STRONG><A NAME="item_yellow">yellow:</A></STRONG><DD>
+<P>
+expired or invalid PI blocks (overlapping or zero run-time, block number
+not in the range given in inventory, etc.)
+
+</DL>
+<P>
+In front of the scales there are 5 separate boxes, which refer to the first
+5 programmes (PI blocks) in the inventory (AI block). Please note that in
+contrary to the timescales these boxes do not start with the currently
+running programmes. They have two purposes: firstly, during acquisition you
+can see when the 'Now' cycle phase is complete; secondly you can check if
+the data from the Now cycle is expired (marked yellow). If all 5 are
+yellow, it's time to update the database.
+
+<P>
+There are also statistics windows available from the Control menu which
+inform you about the browser database and the acquisition progress. The
+acquisition statistics are updated every time a new AI block is received
+and reset when the database version changes.
+
+<P>
+The diagram at the left displays a history of fill percentages for stream 1
+and 2; the meaning of the colors is the same as in the timescale windows.
+The baud rates are computed as avarage of received bits during the total
+acquisition runtime; every teletext packet is counted as 45 * 8 Bits.
+<EM>AI min/avg/max</EM>
+describes the frequency of AI packet reception as: minimum, average and
+maximum interval length between AI blocks. The last 3 lines reflect the PI
+(programme information) block counts in the database.
+
+<P>
+<EM>Block count db</EM>
+gives the total number of PI blocks; in the brackets the sum is broken up
+into stream 1, stream 2 and expired &amp; obsolete (colors red, blue and
+yellow in the graphics). The next line has the same meaning, but only PI
+blocks of the current database version are counted. The last line gives the
+number of PI blocks that are transmitted in the current Nextview cycle.
+This value is computed from the block ranges given in the AI block. The
+percentages behind the total express how many of the blocks already are
+available in the database; the second of the percentages only considers PI
+of the current version.
+
+<P>
+When you interpret those values, please remember that PI blocks may be
+appended to the transmission cycle when programmes have expired (in a
+slight violation of the Nextview standard this is done even without
+changing the database version). So you might see from time to time that the
+fill percentages take a step back down during acquisition. Also note that
+expired PI are not accessible from the user interface, however they are
+included in the database dump from the <EM>Control</EM> menu.
+
+<P>
+<HR>
+<H1><A NAME="MERGED_DATABASES">MERGED DATABASES</A></H1>
+<P>
+If you compare databases of different Nextview providers, you will often
+find that each has one or more nice features, or covers networks, that the
+others lack. Instead of changing back and forth between several providers
+all the time, database merging allows to select and combine features or
+networks from several original databases into one newly created database.
+
+<P>
+When you select the <STRONG>Merge providers...</STRONG> entry from the <STRONG>Configure</STRONG>
+menu, you will get a popup with two listboxes: the left one contains a list
+of all currently available databases. The right one is the list of
+databases you want to merge. You can add, delete or reorder the entries is
+this list. When you're done with your selection, press <STRONG>Ok</STRONG>
+to start the merge and switch the browser to the new database.
+
+<P>
+By ordering providers in your selection, you assign priorities which are
+important for conflict resolution. A conflict occurs when programme start
+and stop times differ between providers. The likelyhood of such conflicts
+depends on the quality of your providers; theoretically they should never
+happen except if there are late program changes. In reality, conflicts are
+not that unlikely, particularily for programmes early in the morning. You
+should put the most reliable provider in the first position, because
+conflicting programmes from providers further down will be rejected, i.e.
+not added to the merged database.
+
+<P>
+The <STRONG>Configure</STRONG> button in the popup gives you fine-control over the priority of providers
+during the merge of all distinct programme attributes. You can even
+completely remove a provider for an attribute, e.g. if they transmit false
+data (e.g. the Sound attribute is handled wrong by the German provider
+3Sat: they have swapped Stereo and Surround). An exception is the title,
+where you must not delete any providers.
+
+<P>
+Attributes that cannot be merged, e.g. editorial rating, are fetched from
+the first database in the list that contains the attribute for a given
+programme. An exception are sorting criteria and series, where only the
+first provider in the list is queried (i.e. even if the first provider does
+not have a sorting criterion for a given programme, the further databases
+are not searched) because these types of attributes cannot be mixed between
+providers (see also <A HREF="#FILTERING">FILTERING</A>).
+
+<P>
+Note: If you use a manual or cyclic acquisition mode, you should take care
+to include all providers of your merged database in the same order. Else,
+program changes will not appear in your database until the provider with
+highest priority is loaded. If you stay with the default <STRONG>Follow-UI</STRONG>, acquisition control will automatically cycle across all merged providers
+in the correct order.
 
 <P>
 <HR>
@@ -738,7 +844,7 @@ Allows to dump all blocks of selected types in the database to
 
 <DT><STRONG><A NAME="item_View">View timescales</A></STRONG><DD>
 <P>
-Toggles the timescale window for the browser database. See <A HREF="#DATA_ACQUISITION">DATA ACQUISITION</A> for details.
+Toggles the timescale window for the browser database. See <A HREF="#STATISTICS">STATISTICS</A> for details.
 
 <DT><STRONG>View acq timescales</STRONG><DD>
 <P>
@@ -746,10 +852,16 @@ Toggles the timescale window for the acquisition database. This entry is
 only available if the acquisition uses a different database than the
 browser.
 
+<DT><STRONG><A NAME="item_Statistics">Statistics</A></STRONG><DD>
+<P>
+Toggles the browser database statistics window, which informs you about
+number of entries in the database, fill percentage, expiration percentage,
+date of last update etc. See <A HREF="#Data_Acquisition">Data Acquisition</A> for details.
+
 <DT><STRONG><A NAME="item_Acq">Acq statistics</A></STRONG><DD>
 <P>
-Toggles the acquisition statistics window, which informs you about the
-progress of the acquisition. See <A HREF="#Data_Acquisition">Data Acquisition</A> for details.
+Toggles the acquisition statistics window, which informs you about state
+and progress of acquisition. See <A HREF="#Data_Acquisition">Data Acquisition</A> for details.
 
 <DT><STRONG><A NAME="item_Quit">Quit</A></STRONG><DD>
 <P>
@@ -768,14 +880,14 @@ Summary of commands available from the Configure menu:
 Open the provider selection popup. This popup lists all TV channels from
 which Nextview data can be received. When you select a channel name on the
 list, you'll see the name of the Nextview service that's transmitted there
-and a list of all networks covered by it on the right. If you close the
+and a list of all networks covered by it on the right. If you leave the
 popup with Ok, the selected provider's database will be loaded into the
 browser. The according TV channel will also be tuned to update the
-database, if you have slected ``Follow-UI'' acquisition mode.
+database, if you have selected ``Follow-UI'' acquisition mode.
 
 <DT><STRONG><A NAME="item_Merge">Merge providers...</A></STRONG><DD>
 <P>
-Open a popup that allows to merge several databases into one.
+Open a popup that allows to merge several databases into one. See <A HREF="#MERGED_DATABASES">MERGED DATABASES</A> for details.
 
 <DT><STRONG><A NAME="item_Acquisition">Acquisition mode...</A></STRONG><DD>
 <P>
@@ -785,9 +897,24 @@ Open a popup that allows to control the background acquisition process. See <A H
 <P>
 Open a popup that allows to start a scan across all TV channels for
 Nextview transmissions. You should perform this search at least once,
-firstly to get a complete list of all providers, and secondly to find out
-the frequencies to all provider's channels. They are required for most
-acquisition modes.
+firstly to find out which providers are available in your area, and
+secondly to determine the frequencies of all provider's TV channels. They
+are required for most acquisition modes, and due to driver limitations
+often not available without a scan (e.g. on Windows or Linux with bttv
+driver &lt;= 0.7.50). See also <A HREF="#GETTING_STARTED">GETTING STARTED</A>.
+
+<P>
+Check the <EM>Slow</EM> button if you have bad reception on some channels. In slow mode the scanner
+will wait at least for 2 seconds on each channel for a VPS or PDC
+identification or en EPG package. Else channels without a stable video
+signal and without any teletext packets will be skipped after 150 ms.
+
+<P>
+Use the <EM>Refresh only</EM> mode if you deleted your database files or if you upgrade from an
+incompatible software version. In this mode only the channels on which
+Nextview data was received before are checked (the requencies are kept in
+the rc/ini file). This allows you to regain your complete provider list
+very quickly.
 
 <DT><STRONG><A NAME="item_TV">TV card input...</A></STRONG><DD>
 <P>
@@ -807,18 +934,35 @@ than one TV tuner card, you can also choose which one to use, just like
 with the <STRONG>-card</STRONG>
 command line option.
 
+<DT><STRONG>Select columns...</STRONG><DD>
+<P>
+Open the browser listbox column configuration popup window. It allows to
+select which attributes are displayed for the listed programmes. In the
+listbox on the left you find a list of all available categories, e.g.
+title, running time &amp; date, TV network, rating, sound and picture
+format, i.e. mostly the same attributes that are available for filtering.
+The listbox on the right contains the types currently selected for display.
+The topmost entry appears on the left side of the listbox. Press <EM>Apply</EM>
+to refresh the browser listbox with the new column selection and save the
+new configuration to the config file.
+
 <DT><STRONG>Select networks...</STRONG><DD>
 <P>
-Open the network selection popup. This popup has two lists: on the left
-you'll find all networks that are covered by the provider in their original
-order, on the right those that are selected for the programme listing in
-your preferred order. By default, both lists will have exactly the same
-content. If you want to exclude networks, e.g. if you can not receive them,
-select them in the right list and press
-<EM>Delete</EM>. You can always include them again by selecting them in the left list and
-pressing <EM>Add</EM>. You can change the order in the right list (e.g. to achieve that the
-order is the same for all providers) by selecting one or more networks and
-pressing <EM>up</EM> or <EM>down</EM>.
+Open the network selection popup. It allows to permanently suppress TV
+networks in a provider's listing, e.g. if you can not receive the channel.
+You can also change the order of the networks, e.g. to put your favorite
+networks at the top of the filter menus.
+
+<P>
+This popup has two lists: on the left you'll find all networks that are
+covered by the provider in their original order, on the right those that
+are selected for the programme listing in your preferred order. By default,
+both lists will have exactly the same content. If you want to exclude
+networks, select them in the right list and press <EM>Delete</EM>. You can always include them again by selecting them in the left list and
+pressing <EM>Add</EM>. You can change the order in the right list by selecting one or more
+networks and pressing the <EM>up</EM> or <EM>down</EM> arrows. If you want the same selection and order for all providers, you can
+simply copy your selection with the <EM>copy</EM>
+menu.
 
 <DT><STRONG><A NAME="item_Filter">Filter shortcuts...</A></STRONG><DD>
 <P>
@@ -832,6 +976,14 @@ Toggle visibility of the shortcut listbox.
 <DT><STRONG>Show networks</STRONG><DD>
 <P>
 Toggle visibility of the network filter listbox.
+
+<DT><STRONG>Show status line</STRONG><DD>
+<P>
+Toggle visibility of the status line at the bottom of the browser window.
+
+<DT><STRONG>Show column headers</STRONG><DD>
+<P>
+Toggle visibility of the browser listbox column header menu bar.
 
 </DL>
 <P>
@@ -855,18 +1007,24 @@ hexadecimal CNI (Country and Network Identifier) of the provider.
 
 <DT><STRONG><A NAME="item__dev_vbi0_">/dev/vbi0, /dev/vbi1, etc.</A></STRONG><DD>
 <P>
-Device files from which Nextview data is being read. The index postfix can
-be specified with the <STRONG>-card</STRONG> command line option.
+Device files from which Nextview data is being read during acquisition. The
+index postfix can be specified with the <STRONG>-card</STRONG> command line option.
 
 <DT><STRONG><A NAME="item__dev_video0_">/dev/video0, /dev/video1, etc.</A></STRONG><DD>
 <P>
-Device files that are needed to set tuner frequency for VBI reception. The
-index postfix can be specified with the
-<STRONG>-card</STRONG> command line option. The device is only kept open during a provider search.
-Else, it's just opened shortly to set the input source and tuner frequency
-at the start of acquisition. If the device is busy, acquisition starts on
-the currently selected source and frequency and follows any externally
-controlled channel changes (passive acquisition mode).
+Device files that are needed to set input source (e.g. TV tuner or one of
+the composite or S-Video sockets) and tuner frequency for VBI reception,
+unless you choose the passive acquisition mode. The index postfix can be
+specified with the <STRONG>-card</STRONG> command line option.
+
+<P>
+The device is only kept open during a provider search. Else, it's just
+opened shortly to set the input source and tuner frequency. If the device
+is busy (e.g. while you watch TV), acquisition starts on the currently
+selected source and frequency and automatically follows any externally
+controlled channel changes (this will be reported, e.g. in the status line
+at the bottom of the browser window, as <EM>forced passive</EM>
+acquisition mode).
 
 <DT><STRONG><A NAME="item__tmp_vbi0_pid_">/tmp/.vbi0.pid, /tmp/.vbi1.pid, etc.</A></STRONG><DD>
 <P>

@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgacqctl.c,v 1.35 2001/01/21 20:37:15 tom Exp tom $
+ *  $Id: epgacqctl.c,v 1.38 2001/02/04 20:14:32 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -26,7 +26,6 @@
 
 #include <string.h>
 #include <time.h>
-#include <tcl.h>
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
@@ -40,12 +39,10 @@
 #include "epgdb/epgdbacq.h"
 
 #include "epgui/uictrl.h"
-#include "epgui/menucmd.h"
 #include "epgui/statswin.h"
 #include "epgctl/epgmain.h"
 #include "epgctl/epgctxctl.h"
-#include "epgvbi/vbidecode.h"
-#include "epgvbi/tvchan.h"
+#include "epgctl/epgscan.h"
 #include "epgvbi/btdrv.h"
 
 #include "epgctl/epgacqctl.h"
@@ -65,21 +62,16 @@ typedef struct {
    uint           cniTab[MAX_MERGED_DB_COUNT];
    time_t         dumpTime;
    uint           inputSource;
+   bool           haveWarnedInpSrc;
 } EPGACQCTL_STATE;
 
 static EPGACQCTL_STATE  acqCtl = {ACQSTATE_OFF, ACQMODE_FOLLOW_UI, ACQMODE_FOLLOW_UI};
 static EPGDB_STATS      acqStats;
 static bool             acqStatsUpdate;
 
-static EPGSCAN_STATE    scanState = SCAN_STATE_OFF;
-static Tcl_TimerToken   scanHandler = NULL;
-static bool             scanAcqWasEnabled;
-static uint             scanChannel;
-static uint             scanChannelCount;
-
 
 static void EpgAcqCtl_InitCycle( void );
-static uint EpgAcqCtl_UpdateProvider( bool changeDb );
+static bool EpgAcqCtl_UpdateProvider( bool changeDb );
 
 // ---------------------------------------------------------------------------
 // Reset statistic values
@@ -112,6 +104,7 @@ static void EpgAcqCtl_StatisticsUpdate( void )
 {
    ulong total, obsolete;
    time_t intv, now = time(NULL);
+   EPGDB_HIST * pHist;
    uint idx;
 
    acqStatsUpdate = FALSE;
@@ -148,11 +141,12 @@ static void EpgAcqCtl_StatisticsUpdate( void )
       dprintf4("EpgAcqCtl-StatisticsUpdate: AI #%d, db filled %.2f%%, variance %1.2f/%1.2f\n", acqStats.aiCount, (double)(acqStats.count[0].allVersions + obsolete + acqStats.count[1].allVersions) / total * 100.0, acqStats.count[0].variance, acqStats.count[1].variance);
 
       acqStats.histIdx = (acqStats.histIdx + 1) % STATS_HIST_WIDTH;
-      acqStats.hist_expir[acqStats.histIdx] = (uchar)((double)obsolete / total * 128.0);
-      acqStats.hist_s1cur[acqStats.histIdx] = (uchar)((double)(acqStats.count[0].curVersion + obsolete) / total * 128.0);
-      acqStats.hist_s1old[acqStats.histIdx] = (uchar)((double)(acqStats.count[0].allVersions + obsolete) / total * 128.0);
-      acqStats.hist_s2cur[acqStats.histIdx] = (uchar)((double)(acqStats.count[0].allVersions + obsolete + acqStats.count[1].curVersion) / total * 128.0);
-      acqStats.hist_s2old[acqStats.histIdx] = (uchar)((double)(acqStats.count[0].allVersions + obsolete + acqStats.count[1].allVersions) / total * 128.0);
+      pHist = &acqStats.hist[acqStats.histIdx];
+      pHist->expir = (uchar)((double)obsolete / total * 128.0);
+      pHist->s1cur = (uchar)((double)(acqStats.count[0].curVersion + obsolete) / total * 128.0);
+      pHist->s1old = (uchar)((double)(acqStats.count[0].allVersions + obsolete) / total * 128.0);
+      pHist->s2cur = (uchar)((double)(acqStats.count[0].allVersions + obsolete + acqStats.count[1].curVersion) / total * 128.0);
+      pHist->s2old = (uchar)((double)(acqStats.count[0].allVersions + obsolete + acqStats.count[1].allVersions) / total * 128.0);
 
       // maintain history of netwop coverage variance for cycle state machine
       if (ACQMODE_IS_CYCLIC(acqCtl.mode))
@@ -206,6 +200,7 @@ bool EpgAcqCtl_Start( void )
    if (acqCtl.state == ACQSTATE_OFF)
    {
       acqCtl.state = ACQSTATE_WAIT_BI;
+      acqCtl.haveWarnedInpSrc = FALSE;
 
       // initialize teletext decoder
       EpgDbAcqInit();
@@ -287,12 +282,23 @@ int EpgAcqCtl_Toggle( int newState )
 }
 
 // ---------------------------------------------------------------------------
+// Enable or disable BI/AI callback handling for EPG scan
+//
+void EpgAcqCtl_ToggleAcqForScan( bool enable )
+{
+   if (enable)
+      acqCtl.state = ACQSTATE_WAIT_BI;
+   else
+      acqCtl.state = ACQSTATE_OFF;
+}
+
+// ---------------------------------------------------------------------------
 // Set input source and tuner frequency for a provider and check the result
 //
-static bool EpgAcqCtl_TuneProvider( ulong freq )
+static bool EpgAcqCtl_TuneProvider( ulong freq, uint cni )
 {
    bool isTuner;
-   bool result = TRUE;
+   bool result = FALSE;
 
    assert(acqCtl.mode != ACQMODE_PASSIVE);
 
@@ -308,31 +314,45 @@ static bool EpgAcqCtl_TuneProvider( ulong freq )
          if (freq != 0)
          {
             // tune onto the provider's channel (before starting acq, to avoid catching false data)
-            if (BtDriver_TuneChannel(freq, FALSE) == FALSE)
+            if (BtDriver_TuneChannel(freq, FALSE))
+            {
+               BtDriver_CloseDevice();
+               result = TRUE;
+            }
+            else
             {
                dprintf0("EpgAcqCtl-TuneProv: failed to tune channel -> force to passive mode\n");
                acqCtl.mode = ACQMODE_FORCED_PASSIVE;
                acqCtl.passiveReason = ACQPASSIVE_ACCESS_DEVICE;
-               result = FALSE;
             }
-            else
-               BtDriver_CloseDevice();
          }
          else
          {
-            BtDriver_CloseDevice();
             dprintf0("EpgAcqCtl-TuneProv: no freq in db");
+            // close the device, which was kept open after setting the input source
+            BtDriver_CloseDevice();
+            if (cni != 0)
+            {  // inform the user that acquisition will not be possible
+               UiControlMsg_MissingTunerFreq(cni);
+               acqCtl.passiveReason = ACQPASSIVE_NO_FREQ;
+            }
+            else
+            {
+               acqCtl.passiveReason = ACQPASSIVE_NO_DB;
+            }
             acqCtl.mode = ACQMODE_FORCED_PASSIVE;
-            acqCtl.passiveReason = ACQPASSIVE_NO_FREQ;
-            result = FALSE;
          }
       }
       else
       {
          dprintf0("EpgAcqCtl-TuneProv: input is no tuner -> force to passive mode\n");
+         if (acqCtl.haveWarnedInpSrc == FALSE)
+         {  // warn the user, but only once
+            UiControlMsg_AcqPassive();
+            acqCtl.haveWarnedInpSrc = TRUE;
+         }
          acqCtl.mode = ACQMODE_FORCED_PASSIVE;
          acqCtl.passiveReason = ACQPASSIVE_NO_TUNER;
-         result = FALSE;
       }
    }
    else
@@ -340,7 +360,6 @@ static bool EpgAcqCtl_TuneProvider( ulong freq )
       dprintf0("EpgAcqCtl-TuneProv: failed to set input source -> force to passive mode\n");
       acqCtl.mode = ACQMODE_FORCED_PASSIVE;
       acqCtl.passiveReason = ACQPASSIVE_ACCESS_DEVICE;
-      result = FALSE;
    }
    return result;
 }
@@ -386,12 +405,13 @@ static uint EpgAcqCtl_GetProvider( void )
 // - called when acq mode is changed by the user
 // - called after end of a cycle phase for one db
 //
-static uint EpgAcqCtl_UpdateProvider( bool changeDb )
+static bool EpgAcqCtl_UpdateProvider( bool changeDb )
 {
    const EPGDBSAV_PEEK * pPeek;
    EPGDB_RELOAD_RESULT dberr;
    ulong freq = 0;
    uint cni;
+   bool warnInputError;
    bool result = TRUE;
 
    // determine current CNI depending on acq mode and index
@@ -411,19 +431,19 @@ static uint EpgAcqCtl_UpdateProvider( bool changeDb )
       {
          changeDb = TRUE;
       }
+      warnInputError = FALSE;
 
       if (cni == EpgDbContextGetCni(pAcqDbContext))
       {
          freq = pAcqDbContext->tunerFreq;
-         if (freq == 0)
-         {  // inform the user that acquisition will not be possible
-            UiControlMsg_MissingTunerFreq(cni);
-         }
+         warnInputError = TRUE;
       }
       else if ( changeDb )
       {  // switch to the new database
          EpgContextCtl_Close(pAcqDbContext);
          pAcqDbContext = EpgContextCtl_Open(cni, CTX_RELOAD_ERR_ACQ);
+         if (EpgDbContextGetCni(pAcqDbContext) == cni)
+            warnInputError = TRUE;
          // notify the statistics GUI module
          StatsWin_ProvChange(DB_TARGET_ACQ);
          if (acqCtl.state != ACQSTATE_OFF)
@@ -437,10 +457,6 @@ static uint EpgAcqCtl_UpdateProvider( bool changeDb )
             EpgDbResetAcqRepCounters(pAcqDbContext);
          }
          freq = pAcqDbContext->tunerFreq;
-         if (freq == 0)
-         {  // inform the user that acquisition will not be possible
-            UiControlMsg_MissingTunerFreq(cni);
-         }
          acqCtl.dumpTime = time(NULL);
       }
       else
@@ -450,10 +466,7 @@ static uint EpgAcqCtl_UpdateProvider( bool changeDb )
          {
             freq = pPeek->tunerFreq;
             EpgDbPeekDestroy(pPeek);
-            if (freq == 0)
-            {  // inform the user that acquisition will not be possible
-               UiControlMsg_MissingTunerFreq(cni);
-            }
+            warnInputError = TRUE;
          }
          else
          {  // invalid database; inform the user
@@ -465,21 +478,14 @@ static uint EpgAcqCtl_UpdateProvider( bool changeDb )
       if ( (acqCtl.mode != ACQMODE_PASSIVE) &&
            ((acqCtl.mode != ACQMODE_FORCED_PASSIVE) || (acqCtl.passiveReason != ACQPASSIVE_NO_TUNER)) )
       {
-         result = EpgAcqCtl_TuneProvider(freq);
+         result = EpgAcqCtl_TuneProvider(freq, (warnInputError ? cni: 0));
       }
    }
    else
    {  // no provider to be tuned onto -> set at least the input source
       if (acqCtl.mode != ACQMODE_PASSIVE)
       {
-         result = EpgAcqCtl_TuneProvider(0L);
-
-         if ((result == FALSE) && (acqCtl.mode == ACQMODE_FORCED_PASSIVE) && (acqCtl.passiveReason == ACQPASSIVE_NO_FREQ))
-         {  // ignore "no freq in db" error, since we don't have a db yet
-            acqCtl.mode = acqCtl.userMode;
-            acqCtl.passiveReason = ACQPASSIVE_NONE;
-            result = TRUE;
-         }
+         result = EpgAcqCtl_TuneProvider(0L, 0);
       }
    }
 
@@ -574,7 +580,7 @@ static void EpgAcqCtl_AdvanceCyclePhase( bool forceAdvance )
    wrongCni = FALSE;
    if ( (acqCtl.mode != ACQMODE_PASSIVE) &&
         !((acqCtl.mode == ACQMODE_FORCED_PASSIVE) && (acqCtl.passiveReason != ACQPASSIVE_ACCESS_DEVICE)) &&
-        (scanState == SCAN_STATE_OFF) )
+        (EpgScan_IsActive() == FALSE) )
    {
       cni = EpgAcqCtl_GetProvider();
       if ((cni != 0) && (EpgAcqCtl_GetProvider() != EpgDbContextGetCni(pAcqDbContext)))
@@ -586,7 +592,7 @@ static void EpgAcqCtl_AdvanceCyclePhase( bool forceAdvance )
 
    if ( ((acqCtl.state == ACQSTATE_RUNNING) || forceAdvance) &&
         (wrongCni == FALSE) &&
-        (scanState == SCAN_STATE_OFF) &&
+        (EpgScan_IsActive() == FALSE) &&
         ( ACQMODE_IS_CYCLIC(acqCtl.mode) ||
           ((acqCtl.mode == ACQMODE_FORCED_PASSIVE) && ACQMODE_IS_CYCLIC(acqCtl.userMode) && (acqCtl.passiveReason == ACQPASSIVE_ACCESS_DEVICE)) ) &&
         (acqCtl.cniCount > 1) )
@@ -675,7 +681,7 @@ bool EpgAcqCtl_UiProvChange( void )
 
    if ( (acqCtl.state != ACQSTATE_OFF) &&
         ((acqCtl.userMode == ACQMODE_FOLLOW_UI) || (acqCtl.userMode == ACQMODE_FOLLOW_MERGED)) &&
-        (scanState == SCAN_STATE_OFF) )
+        (EpgScan_IsActive() == FALSE) )
    {
       // reset mode from follow-merged to follow-ui
       acqCtl.userMode = ACQMODE_FOLLOW_UI;
@@ -711,6 +717,7 @@ bool EpgAcqCtl_SelectMode( EPGACQ_MODE newAcqMode, uint cniCount, const uint * p
 
    acqCtl.userMode = newAcqMode;
    acqCtl.mode = newAcqMode;
+   acqCtl.haveWarnedInpSrc = FALSE;
 
    if (acqCtl.state != ACQSTATE_OFF)
    {
@@ -734,6 +741,7 @@ bool EpgAcqCtl_SetInputSource( uint inputIdx )
    bool result;
 
    acqCtl.inputSource = inputIdx;
+   acqCtl.haveWarnedInpSrc = FALSE;
 
    if ((acqCtl.state != ACQSTATE_OFF) && (acqCtl.mode != ACQMODE_PASSIVE))
    {
@@ -764,6 +772,9 @@ static EPGDB_STATE EpgAcqCtl_GetForcedPassiveState( void )
       case ACQPASSIVE_NO_FREQ:
          state = EPGDB_ACQ_NO_FREQ;
          break;
+      case ACQPASSIVE_NO_DB:
+         state = EPGDB_ACQ_PASSIVE;
+         break;
       case ACQPASSIVE_ACCESS_DEVICE:
          state = EPGDB_ACQ_ACCESS_DEVICE;
          break;
@@ -788,7 +799,7 @@ EPGDB_STATE EpgAcqCtl_GetDbState( uint cni )
 
    if (cni == 0)
    {  // no AI block in current database
-      if (scanState != SCAN_STATE_OFF)
+      if (EpgScan_IsActive())
       {
          state = EPGDB_WAIT_SCAN;
       }
@@ -808,7 +819,7 @@ EPGDB_STATE EpgAcqCtl_GetDbState( uint cni )
    {  // AI present, but no PI in database
       if (acqCtl.state != ACQSTATE_OFF)
       {  // acq is running
-         if (scanState != SCAN_STATE_OFF)
+         if (EpgScan_IsActive())
          {
             state = EPGDB_WAIT_SCAN;
          }
@@ -900,7 +911,7 @@ void EpgAcqCtl_DescribeAcqState( EPGACQ_DESCR * pAcqState )
 {
    time_t lastAi, now;
 
-   if (scanState != SCAN_STATE_OFF)
+   if (EpgScan_IsActive())
    {
       memset(pAcqState, 0, sizeof(EPGACQ_DESCR));
       pAcqState->state = ACQDESCR_SCAN;
@@ -965,11 +976,10 @@ bool EpgAcqCtl_AiCallback( const AI_BLOCK *pNewAi )
       if (pOldAi == NULL)
       {  // the current db is empty
          EpgDbLockDatabase(pAcqDbContext, FALSE);
-         DBGONLY(pOldAi = NULL);
 
          oldTunerFreq = pAcqDbContext->tunerFreq;
          EpgContextCtl_Close(pAcqDbContext);
-         pAcqDbContext = EpgContextCtl_Open(AI_GET_CNI(pNewAi), ((scanState == SCAN_STATE_OFF) ? CTX_RELOAD_ERR_ANY : CTX_RELOAD_ERR_NONE));
+         pAcqDbContext = EpgContextCtl_Open(AI_GET_CNI(pNewAi), (EpgScan_IsActive() ? CTX_RELOAD_ERR_NONE : CTX_RELOAD_ERR_ANY));
 
          if ((pAcqDbContext->tunerFreq != oldTunerFreq) && (oldTunerFreq != 0))
          {
@@ -981,6 +991,11 @@ bool EpgAcqCtl_AiCallback( const AI_BLOCK *pNewAi )
          {  // freq for db unknown -> try to obtain it from the driver
             pAcqDbContext->tunerFreq = BtDriver_QueryChannel();
             debug2("EpgAcqCtl: setting current tuner frequency %.2f for CNI 0x%04X", (double)pAcqDbContext->tunerFreq/16, AI_GET_CNI(pNewAi));
+         }
+
+         if (pAcqDbContext->tunerFreq != 0)
+         {  // store the provider channel frequency in the rc/ini file
+            UiControlMsg_NewProvFreq(AI_GET_CNI(pNewAi), pAcqDbContext->tunerFreq);
          }
 
          // update the ui netwop list if neccessary
@@ -1006,6 +1021,10 @@ bool EpgAcqCtl_AiCallback( const AI_BLOCK *pNewAi )
                pAcqDbContext->tunerFreq = BtDriver_QueryChannel();
                debug2("EpgAcqCtl: setting current tuner frequency %.2f for CNI 0x%04X", (double)pAcqDbContext->tunerFreq/16, AI_GET_CNI(pNewAi));
             }
+            if ((acqCtl.state == ACQSTATE_WAIT_AI) && (pAcqDbContext->tunerFreq != 0))
+            {  // store the provider channel frequency in the rc/ini file
+               UiControlMsg_NewProvFreq(AI_GET_CNI(pNewAi), pAcqDbContext->tunerFreq);
+            }
 
             if ( (pOldAi->version != pNewAi->version) ||
                  (pOldAi->version_swo != pNewAi->version_swo) )
@@ -1029,7 +1048,7 @@ bool EpgAcqCtl_AiCallback( const AI_BLOCK *pNewAi )
             dprintf2("EpgAcqCtl: switching acq db from %04X to %04X\n", AI_GET_CNI(pOldAi), AI_GET_CNI(pNewAi));
             EpgDbLockDatabase(pAcqDbContext, FALSE);
             EpgContextCtl_Close(pAcqDbContext);
-            pAcqDbContext = EpgContextCtl_Open(AI_GET_CNI(pNewAi), ((scanState == SCAN_STATE_OFF) ? CTX_RELOAD_ERR_ANY : CTX_RELOAD_ERR_NONE));
+            pAcqDbContext = EpgContextCtl_Open(AI_GET_CNI(pNewAi), (EpgScan_IsActive() ? CTX_RELOAD_ERR_NONE : CTX_RELOAD_ERR_ANY));
 
             EpgDbLockDatabase(pAcqDbContext, TRUE);
             assert((EpgDbContextGetCni(pAcqDbContext) == AI_GET_CNI(pNewAi)) || (EpgDbContextGetCni(pAcqDbContext) == 0));
@@ -1051,7 +1070,7 @@ bool EpgAcqCtl_AiCallback( const AI_BLOCK *pNewAi )
    }
    else
    {  // should be reached only during epg scan -> discard block
-      assert(scanState != SCAN_STATE_OFF);
+      assert(EpgScan_IsActive());
    }
 
    return accept;
@@ -1099,7 +1118,7 @@ bool EpgAcqCtl_BiCallback( const BI_BLOCK *pNewBi )
 
          default:
             // should be reached only during epg scan -> discard block
-            assert(scanState != SCAN_STATE_OFF);
+            assert(EpgScan_IsActive());
             break;
       }
    }
@@ -1120,7 +1139,7 @@ void EpgAcqCtl_ChannelChange( bool changeDb )
            (EpgDbContextIsMerged(pUiDbContext) == FALSE) )
       {  // close acq db and fall back to ui db
          EpgContextCtl_Close(pAcqDbContext);
-         pAcqDbContext = EpgContextCtl_Open(0, ((scanState == SCAN_STATE_OFF) ? CTX_RELOAD_ERR_ANY : CTX_RELOAD_ERR_NONE));
+         pAcqDbContext = EpgContextCtl_Open(0, (EpgScan_IsActive() ? CTX_RELOAD_ERR_NONE : CTX_RELOAD_ERR_ANY));
       }
 
       EpgDbAcqReset(pAcqDbContext, EPG_ILLEGAL_PAGENO, EPG_ILLEGAL_APPID);
@@ -1140,7 +1159,7 @@ void EpgAcqCtl_Idle( void )
 {
    time_t now = time(NULL);
 
-   if ( (acqCtl.state != ACQSTATE_OFF) && (scanState == SCAN_STATE_OFF) )
+   if ( (acqCtl.state != ACQSTATE_OFF) && (EpgScan_IsActive() == FALSE))
    {
       // preriodic db dump
       if (acqCtl.state == ACQSTATE_RUNNING)
@@ -1227,305 +1246,5 @@ void EpgAcqCtl_ProcessPackets( void )
          EpgDbAcqReset(pAcqDbContext, pageNo, EPG_ILLEGAL_APPID);
       }
    }
-}
-
-// ----------------------------------------------------------------------------
-//                             E P G    S C A N
-// ----------------------------------------------------------------------------
-
-// The purpose of the EPG scan is to find out the tuner frequencies of all
-// EPG providers. This would not be needed it the Nextview decoder was
-// integrated into a TV application. But as a separate application, there
-// is no other way to find out the frequencies, since /dev/video can not
-// be opened twice, not even to only query the actual tuner frequency.
-
-// The scan is designed to perform as fast as possible. We stay max. 2 secs
-// on each channel. If a CNI is found and it's a known and loaded provider,
-// we go on immediately. If no CNI is found or if it's not a known provider,
-// we wait if any syntactically correct packets are received on any of the
-// 8*24 possible EPG teletext pages. If yes, we try for 45 seconds to
-// receive the BI and AI blocks. This period is chosen that long, because
-// some providers have gaps of over 45 seconds between cycles (e.g. RTL-II)
-// and others do not transmit on the default page 1DF, so we have to wait
-// for the MIP, which usually is transmitted about every 30 seconds. For
-// any provider that's found, a database is created and the frequency
-// saved in its header.
-
-// ----------------------------------------------------------------------------
-// EPG scan timer event handler - called every 250ms
-// 
-static void EventHandler_EpgScan( ClientData clientData )
-{
-   const EPGDBSAV_PEEK *pPeek;
-   const AI_BLOCK *pAi;
-   time_t now = time(NULL);
-   ulong freq;
-   uint cni, dataPageCnt;
-   time_t delay;
-   bool niWait;
-
-   scanHandler = NULL;
-   if (scanState != SCAN_STATE_OFF)
-   {
-      if (scanState == SCAN_STATE_RESET)
-      {  // reset state again 50ms after channel change
-         EpgDbAcqInitScan();
-         //printf("Start channel %d\n", scanChannel);
-         if (BtDriver_IsVideoPresent() == FALSE)
-            scanState = SCAN_STATE_DONE;
-         else
-            scanState = SCAN_STATE_WAIT;
-      }
-      else
-      {
-         EpgDbAcqGetScanResults(&cni, &niWait, &dataPageCnt);
-
-         if (scanState == SCAN_STATE_WAIT_EPG)
-         {
-            if (acqCtl.state == ACQSTATE_RUNNING)
-            {  // AI block has been received
-               assert((pAcqDbContext->pAiBlock != NULL) && pAcqDbContext->modified);
-
-               EpgDbDump(pAcqDbContext);
-
-               EpgDbLockDatabase(pAcqDbContext, TRUE);
-               pAi = EpgDbGetAi(pAcqDbContext);
-               if (pAi != NULL)
-               {
-                  sprintf(comm, "Found new provider: %s", AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop));
-                  MenuCmd_AddEpgScanMsg(comm);
-                  scanState = SCAN_STATE_DONE;
-               }
-               EpgDbLockDatabase(pAcqDbContext, FALSE);
-            }
-         }
-         else if ((cni != 0) && (scanState <= SCAN_STATE_WAIT_NI))
-         {
-            sprintf(comm, "Channel %d: network id 0x%04X", scanChannel, cni);
-            MenuCmd_AddEpgScanMsg(comm);
-            pPeek = EpgDbPeek(cni, NULL);
-            if (pPeek != NULL)
-            {  // provider already loaded -> skip
-               sprintf(comm, "provider already known: %s",
-                             AI_GET_NETWOP_NAME(&pPeek->pAiBlock->blk.ai, pPeek->pAiBlock->blk.ai.thisNetwop));
-               MenuCmd_AddEpgScanMsg(comm);
-               scanState = SCAN_STATE_DONE;
-               if (pPeek->tunerFreq != pAcqDbContext->tunerFreq)
-               {
-                  MenuCmd_AddEpgScanMsg("storing provider's tuner frequency");
-                  EpgContextCtl_UpdateFreq(cni, pAcqDbContext->tunerFreq);
-               }
-               EpgDbPeekDestroy(pPeek);
-            }
-            else
-            {  // no database for this CNI yet
-               switch (cni)
-               {
-                  case 0x0D8F:  // RTL-II (Germany)
-                  case 0x1D8F:
-                  case 0x0D94:  // PRO7 (Germany)
-                  case 0x1D94:
-                  case 0x0DC7:  // 3SAT (Germany)
-                  case 0x1DC7:
-                  case 0x2FE1:  // EuroNews (Germany)
-                  case 0xFE01:
-                  case 0x24C2:  // TSR1 (Switzerland)
-                  case 0x2FE5:  // TV5 (France)
-                  case 0xF500:
-                  case 0x2F06:  // M6 (France)
-                     // known provider -> wait for BI/AI
-                     MenuCmd_AddEpgScanMsg("checking for EPG transmission...");
-                     scanState = SCAN_STATE_WAIT_EPG;
-                     // enable normal EPG acq callback handling
-                     acqCtl.state = ACQSTATE_WAIT_BI;
-                     break;
-                  default:
-                     // CNI not known as provider -> keep checking for data page
-                     scanState = SCAN_STATE_WAIT_DATA;
-                     break;
-               }
-            }
-         }
-         else if ((dataPageCnt != 0) && (scanState <= SCAN_STATE_WAIT_DATA))
-         {
-            sprintf(comm, "Found ETS-708 syntax on %d pages", dataPageCnt);
-            MenuCmd_AddEpgScanMsg(comm);
-            MenuCmd_AddEpgScanMsg("checking for EPG transmission...");
-            scanState = SCAN_STATE_WAIT_EPG;
-            // enable normal EPG acq callback handling
-            acqCtl.state = ACQSTATE_WAIT_BI;
-         }
-         else if (niWait)
-         {
-            scanState = SCAN_STATE_WAIT_NI;
-         }
-      }
-
-      // determine timeout for the current state
-      switch (scanState)
-      {
-         case SCAN_STATE_WAIT:      delay =  2; break;
-         case SCAN_STATE_WAIT_NI:   delay =  4; break;
-         case SCAN_STATE_WAIT_DATA: delay =  2; break;
-         case SCAN_STATE_WAIT_EPG:  delay = 45; break;
-         default:                   delay =  0; break;
-      }
-
-      if ( (scanState == SCAN_STATE_DONE) || ((now - acqStats.acqStartTime) >= delay) )
-      {  // max wait exceeded -> next channel
-         if ( TvChannels_GetNext(&scanChannel, &freq) )
-         {
-            if ( BtDriver_TuneChannel(freq, TRUE) )
-            {
-               EpgDbAcqReset(pAcqDbContext, EPG_ILLEGAL_PAGENO, EPG_ILLEGAL_APPID);
-               EpgDbAcqInitScan();
-
-               // automatically dump db if provider was found, then free resources
-               assert((pAcqDbContext->pAiBlock == NULL) || (pAcqDbContext->tunerFreq != 0));
-               EpgContextCtl_Close(pAcqDbContext);
-
-               pAcqDbContext = EpgContextCtl_CreateNew();
-               pAcqDbContext->tunerFreq = freq;
-
-               acqStats.acqStartTime = now;
-               scanState = SCAN_STATE_RESET;
-               acqCtl.state = ACQSTATE_OFF;
-               scanChannelCount += 1;
-               sprintf(comm, ".epgscan.all.baro.bari configure -width %d\n",
-                             (int)((double)scanChannelCount/TvChannels_GetCount()*140.0));
-               eval_check(interp, comm);
-
-               scanHandler = Tcl_CreateTimerHandler(150, EventHandler_EpgScan, NULL);
-            }
-            else
-            {
-               EpgAcqCtl_StopScan();
-               MenuCmd_AddEpgScanMsg("channel change failed - abort.");
-               eval_check(interp, "bell");
-               MenuCmd_StopEpgScan(NULL, interp, 0, NULL);
-            }
-         }
-         else
-         {
-            EpgAcqCtl_StopScan();
-            MenuCmd_AddEpgScanMsg("EPG scan finished.");
-            eval_check(interp, "bell");
-            MenuCmd_StopEpgScan(NULL, interp, 0, NULL);
-         }
-      }
-      else
-      {  // continue scan on current channel
-         scanHandler = Tcl_CreateTimerHandler(250, EventHandler_EpgScan, NULL);
-      }
-   }
-   else
-      debug0("EventHandler-EpgScan: scan not running");
-}
-
-// ----------------------------------------------------------------------------
-// Start EPG scan
-// - sets up the scan for the first channel; the real work is done in the
-//   timer event handler, which must be called every 250 ms
-// - returns FALSE if either /dev/video or /dev/vbi could not be opened
-//
-EPGSCAN_START_RESULT EpgAcqCtl_StartScan( void )
-{
-   ulong freq;
-   bool  isTuner;
-   EPGSCAN_START_RESULT result;
-
-   if ( BtDriver_SetInputSource(acqCtl.inputSource, TRUE, &isTuner) )
-   {
-      if (isTuner)
-      {
-         scanChannel = 0;
-         if ( TvChannels_GetNext(&scanChannel, &freq) &&
-              BtDriver_TuneChannel(freq, TRUE) )
-         {
-            // stop acq if running, but remember the state for when scan finishes
-            scanAcqWasEnabled = (acqCtl.state != ACQSTATE_OFF);
-            EpgAcqCtl_Stop();
-
-            // set up an empty db and start EPG and CNI acquisition
-            pAcqDbContext = EpgContextCtl_CreateNew();
-            pAcqDbContext->tunerFreq = freq;
-            EpgDbAcqInit();
-            EpgDbAcqStart(pAcqDbContext, EPG_ILLEGAL_PAGENO, EPG_ILLEGAL_APPID);
-            EpgDbAcqInitScan();
-            // must repeat settings because of acq stop above, which may have reset some params in the driver
-            BtDriver_SetInputSource(acqCtl.inputSource, TRUE, &isTuner);
-            BtDriver_TuneChannel(freq, TRUE);
-
-            if (BtDriver_StartAcq())
-            {
-               scanState = SCAN_STATE_RESET;
-               acqCtl.state = ACQSTATE_OFF;
-               acqStats.acqStartTime = time(NULL);
-               scanHandler = Tcl_CreateTimerHandler(150, EventHandler_EpgScan, NULL);
-               scanChannelCount = 0;
-
-               sprintf(comm, "Starting scan on channel %d", scanChannel);
-               MenuCmd_AddEpgScanMsg(comm);
-               sprintf(comm, ".epgscan.all.baro.bari configure -width 1\n");
-               eval_check(interp, comm);
-
-               result = EPGSCAN_OK;
-            }
-            else
-            {  // failed to start acquisition
-               EpgDbAcqStop();
-               EpgContextCtl_Close(pAcqDbContext);
-               pAcqDbContext = NULL;
-
-               result = EPGSCAN_ACCESS_DEV_VBI;
-            }
-         }
-         else
-         {
-            BtDriver_CloseDevice();
-            result = EPGSCAN_ACCESS_DEV_VIDEO;
-         }
-      }
-      else
-         result = EPGSCAN_NO_TUNER;
-   }
-   else
-      result = EPGSCAN_ACCESS_DEV_VIDEO;
-
-   return result;
-}
-
-// ----------------------------------------------------------------------------
-// Stop EPG scan
-// - might be called repeatedly by UI to ensure background activity has stopped
-//
-void EpgAcqCtl_StopScan( void )
-{
-   if (scanState != SCAN_STATE_OFF)
-   {
-      Tcl_DeleteTimerHandler(scanHandler);
-      scanHandler = NULL;
-
-      BtDriver_CloseDevice();
-      BtDriver_StopAcq();
-
-      EpgDbAcqStop();
-      EpgContextCtl_Close(pAcqDbContext);
-      pAcqDbContext = NULL;
-      acqCtl.state = ACQSTATE_OFF;
-
-      if (scanAcqWasEnabled)
-         EpgAcqCtl_Start();
-
-      scanState = SCAN_STATE_OFF;
-   }
-}
-
-// ----------------------------------------------------------------------------
-// Return if EPG scan is currently running
-// 
-bool EpgAcqCtl_ScanIsActive( void )
-{
-   return (scanState != SCAN_STATE_OFF);
 }
 

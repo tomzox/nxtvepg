@@ -25,7 +25,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgblock.h,v 1.22 2001/01/20 15:42:15 tom Exp tom $
+ *  $Id: epgblock.h,v 1.24 2001/02/06 19:00:07 tom Exp tom $
  */
 
 #ifndef __EPGBLOCK_H
@@ -282,10 +282,11 @@ typedef struct
    uint  off_descriptors;
 } NI_BLOCK;
 
-#define NI_GET_HEADER(X)       ((uchar*)&(X)+((X).off_header))
-#define NI_GET_EVENTS(X)       ((EVENT_ATTRIB*)((uchar*)&(X)+((X).off_events)))
-#define NI_GET_EVENT_STR(X,Y)  ((uchar*)&(X)+((Y).off_evstr))
-#define NI_GET_DESCRIPTORS(X)  ((DESCRIPTOR*)((uchar*)&(X)+((X).off_descriptors)))
+#define NI_GET_HEADER(X)       ((uchar*)(X)+((X)->off_header))
+#define NI_HAS_HEADER(X)       ((bool)(((X)->off_header) != 0))
+#define NI_GET_EVENTS(X)       ((EVENT_ATTRIB*)((uchar*)(X)+((X)->off_events)))
+#define NI_GET_EVENT_STR(X,Y)  ((uchar*)(X)+((Y)->off_evstr))
+#define NI_GET_DESCRIPTORS(X)  ((DESCRIPTOR*)((uchar*)(X)+((X)->off_descriptors)))
 
 // ---------------------------------------------------------------------------
 //    MI Block
@@ -309,8 +310,9 @@ typedef struct
    uint  off_descriptors;
 } MI_BLOCK;
 
-#define MI_GET_MESSAGE(X)      ((uchar*)((uchar*)&(X)+((X).off_message)))
-#define MI_GET_DESCRIPTORS(X)  ((DESCRIPTOR*)((uchar*)&(X)+((X).off_descriptors)))
+#define MI_GET_MESSAGE(X)      ((uchar*)(X)+((X)->off_message))
+#define MI_HAS_MESSAGE(X)      ((bool)((X)->off_message != 0))
+#define MI_GET_DESCRIPTORS(X)  ((DESCRIPTOR*)((uchar*)(X)+((X)->off_descriptors)))
 
 
 // ---------------------------------------------------------------------------
@@ -345,9 +347,11 @@ typedef struct
    uint  off_descriptors;
 } OI_BLOCK;
 
-#define OI_GET_HEADER(X)       ((uchar*)((uchar*)&(X)+((X).off_header)))
-#define OI_GET_MESSAGE(X)      ((uchar*)((uchar*)&(X)+((X).off_message)))
-#define OI_GET_DESCRIPTORS(X)  ((DESCRIPTOR*)((uchar*)&(X)+((X).off_descriptors)))
+#define OI_GET_HEADER(X)       ((uchar*)(X)+((X)->off_header))
+#define OI_HAS_HEADER(X)       ((bool)((X)->off_header != 0))
+#define OI_GET_MESSAGE(X)      ((uchar*)(X)+((X)->off_message))
+#define OI_HAS_MESSAGE(X)      ((bool)((X)->off_message != 0))
+#define OI_GET_DESCRIPTORS(X)  ((DESCRIPTOR*)((uchar*)(X)+((X)->off_descriptors)))
 
 
 // ---------------------------------------------------------------------------
@@ -373,7 +377,7 @@ typedef struct
    uint  off_desc;
 } LI_BLOCK;
 
-#define LI_GET_DESC(X)       ((LI_DESC*)((uchar*)&(X)+((X).off_desc)))
+#define LI_GET_DESC(X)       ((LI_DESC*)((uchar*)(X)+((X)->off_desc)))
 
 // ---------------------------------------------------------------------------
 //    TI Block
@@ -405,7 +409,7 @@ typedef struct
    uint  off_desc;
 } TI_BLOCK;
 
-#define TI_GET_DESC(X)       ((TI_DESC*)((uchar*)&(X)+((X).off_desc)))
+#define TI_GET_DESC(X)       ((TI_DESC*)((uchar*)(X)+((X)->off_desc)))
 
 // ----------------------------------------------------------------------------
 // EPG block types (internal redefinition; ordering is relevant!)
@@ -458,6 +462,9 @@ typedef struct EPGDB_BLOCK_STRUCT
    uchar        version;            // AI-Version zum Zeitpkt. der Acq.
    uchar        stream;             // Stream aus dem Block akquiriert wurde
    uchar        mergeCount;         // count of databases from which this block was merged
+   uchar        origChkSum;
+   ushort       origBlkLen;
+   ushort       parityErrCnt;       // parity error count for string segment
    time_t       acqTimestamp;       // time when the block was added to the database
    uint         acqRepCount;        // reception count with same version and size
    BLOCK_TYPE   type;

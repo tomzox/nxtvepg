@@ -23,7 +23,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: statswin.c,v 1.26 2001/01/21 20:47:36 tom Exp tom $
+ *  $Id: statswin.c,v 1.31 2001/02/07 17:54:52 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -43,6 +43,7 @@
 #include "epgdb/epgdbif.h"
 #include "epgctl/epgmain.h"
 #include "epgctl/epgacqctl.h"
+#include "epgctl/epgscan.h"
 #include "epgui/statswin.h"
 
 
@@ -151,7 +152,13 @@ static void StatsWin_HighlightNetwop( int target, uchar netwop, uchar stream )
 }
 
 // ----------------------------------------------------------------------------
-//  display time covered by a new PI in the canvas
+// Display the time range covered by a new PI in the timescale canvas
+// - The first 5 blocks (according to the numbers in the AI per netwop) are
+//   additionally inserted to the 5 separate buttons in front of the scales
+//   to reflect NOW coverage.
+// - If the new PI was added to the list of expired/defective blocks
+//   or if a PI in that list overlaps with the new block, the time range
+//   is marked in yellow.
 //
 void StatsWin_NewPi( EPGDB_CONTEXT * dbc, const PI_BLOCK *pPi, uchar stream )
 {
@@ -160,6 +167,7 @@ void StatsWin_NewPi( EPGDB_CONTEXT * dbc, const PI_BLOCK *pPi, uchar stream )
    uint blockOff;
    time_t now = time(NULL);
    int target;
+   bool isMerged;
 
    if (tscaleState[DB_TARGET_UI].open && (dbc == pUiDbContext))
       target = DB_TARGET_UI;
@@ -170,18 +178,22 @@ void StatsWin_NewPi( EPGDB_CONTEXT * dbc, const PI_BLOCK *pPi, uchar stream )
 
    if (target != -1)
    {
+      isMerged = EpgDbContextIsMerged(dbc);
       EpgDbLockDatabase(dbc, TRUE);
       pAi = EpgDbGetAi(dbc);
       if ((pAi != NULL) && (pPi->netwop_no < pAi->netwopCount))
       {
-         pNetwop = AI_GET_NETWOP_N(pAi, pPi->netwop_no);
-         blockOff = EpgDbGetPiBlockIndex(pNetwop->startNo, pPi->block_no);
-         if (blockOff < 5)
+         if (isMerged == FALSE)
          {
-            sprintf(comm, "TimeScale_MarkNow %s.top.n%d %d %s\n",
-                          tscn[target], pPi->netwop_no, blockOff,
-                          (pPi->stop_time >= now) ? streamColors[0] : streamColors[4]);
-            eval_check(interp, comm);
+            pNetwop = AI_GET_NETWOP_N(pAi, pPi->netwop_no);
+            blockOff = EpgDbGetPiBlockIndex(pNetwop->startNo, pPi->block_no);
+            if (blockOff < 5)
+            {
+               sprintf(comm, "TimeScale_MarkNow %s.top.n%d %d %s\n",
+                             tscn[target], pPi->netwop_no, blockOff,
+                             (pPi->stop_time >= now) ? streamColors[0] : streamColors[4]);
+               eval_check(interp, comm);
+            }
          }
 
          if (EpgDbSearchObsoletePi(dbc, pPi->netwop_no, pPi->start_time, pPi->stop_time) != NULL)
@@ -201,7 +213,12 @@ void StatsWin_NewPi( EPGDB_CONTEXT * dbc, const PI_BLOCK *pPi, uchar stream )
 }
 
 // ----------------------------------------------------------------------------
-// update history diagram and stats text
+// Update the database statistics window
+// - consists of two parts:
+//   + the upper one describes the current state of the database, with a pie chart
+//     and statistics of PI block counts against the numbers from the AI block
+//   + the lower one describes the current acquisition state and a histroy diagram
+//     of current and past PI block count percentages
 //
 void StatsWin_UpdateDbStatsWin( ClientData clientData )
 {
@@ -237,85 +254,109 @@ void StatsWin_UpdateDbStatsWin( ClientData clientData )
       }
       if (sv == NULL)
       {  // acq not running for this database -> display db stats only
-         EpgDbGetStat(pUiDbContext, myCount, 0);
+         EpgDbGetStat(dbc, myCount, 0);
          count = myCount;
       }
       else
          count = sv->count;
 
-      // get provider's network name and db version from AI block
-      EpgDbLockDatabase(dbc, TRUE);
-      pAi = EpgDbGetAi(dbc);
-      if (pAi != NULL)
+      if (EpgDbContextIsMerged(dbc) == FALSE)
       {
-         strncpy(netname, AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop), 20);
-         netname[20] = 0;
-         strftime(datestr, 25, "%H:%M:%S %a %d.%m.", localtime(&dbc->lastAiUpdate));
-         version = pAi->version;
-         versionSwo = pAi->version_swo;
-         cni = AI_GET_CNI(pAi);
-      }
-      else
-      {
-         strcpy(netname, "none yet");
-         strcpy(datestr, "none yet");
-         version = versionSwo = 0;
-         cni = 0;
-      }
-      EpgDbLockDatabase(dbc, FALSE);
+         // get provider's network name and db version from AI block
+         EpgDbLockDatabase(dbc, TRUE);
+         pAi = EpgDbGetAi(dbc);
+         if (pAi != NULL)
+         {
+            strncpy(netname, AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop), 20);
+            netname[20] = 0;
+            strftime(datestr, 25, "%H:%M:%S %a %d.%m.", localtime(&dbc->lastAiUpdate));
+            version = pAi->version;
+            versionSwo = pAi->version_swo;
+            cni = AI_GET_CNI(pAi);
+         }
+         else
+         {
+            strcpy(netname, "none yet");
+            strcpy(datestr, "none yet");
+            version = versionSwo = 0;
+            cni = 0;
+         }
+         EpgDbLockDatabase(dbc, FALSE);
 
-      total = count[0].ai + count[1].ai;
-      obsolete         = count[0].expired + count[0].defective +
-                         count[1].expired + count[1].defective;
-      allVersionsCount = count[0].allVersions + count[1].allVersions + obsolete;
-      curVersionCount  = count[0].curVersion + count[1].curVersion + obsolete;
+         total            = count[0].ai + count[1].ai;
+         obsolete         = count[0].expired + count[0].defective +
+                            count[1].expired + count[1].defective;
+         allVersionsCount = count[0].allVersions + count[1].allVersions + obsolete;
+         curVersionCount  = count[0].curVersion + count[1].curVersion + obsolete;
 
-      sprintf(comm, "%s.browser.stat configure -text \""
-                    "EPG provider:     %s (CNI %04X)\n"
-                    "last AI update:   %s\n"
-                    "Database version: %d/%d\n"
-                    "Blocks in AI:     %ld (%ld + %ld swo)\n"
-                    "Block count db:   %ld (%ld + %ld swo)\n"
-                    "current version:  %ld (%ld + %ld swo)\n"
-                    "filled:           %d%% / %d%% current version\n"
-                    "expired blocks:   %ld (%d%%)"
-                    "\"\n",
-                    dbswn[target],
-                    netname, cni,
-                    datestr,
-                    version, versionSwo,
-                    total, count[0].ai, count[1].ai,
-                    allVersionsCount,
-                       count[0].allVersions + count[0].expired + count[0].defective,
-                       count[1].allVersions + count[1].expired + count[1].defective,
-                    curVersionCount,
-                       count[0].curVersion + count[0].expired + count[0].defective,
-                       count[1].curVersion + count[1].expired + count[1].defective,
-                    ((total > 0) ? (int)((double)allVersionsCount * 100.0 / total) : 0),
-                    ((total > 0) ? (int)((double)curVersionCount * 100.0 / total) : 0),
-                    count[0].expired + count[1].expired,
-                       ((curVersionCount > 0) ? ((int)((double)(count[0].expired + count[1].expired) * 100.0 / allVersionsCount)) : 0)
-             );
-      eval_check(interp, comm);
-
-      if ((sv != NULL) && (sv->aiCount > 0))
-      {
-         sprintf(comm, "DbStatsWin_PaintPie %s %d %d %d %d %d\n",
+         sprintf(comm, "%s.browser.stat configure -text \""
+                       "EPG provider:     %s (CNI %04X)\n"
+                       "last AI update:   %s\n"
+                       "Database version: %d/%d\n"
+                       "Blocks in AI:     %ld (%ld + %ld swo)\n"
+                       "Block count db:   %ld (%ld + %ld swo)\n"
+                       "current version:  %ld (%ld + %ld swo)\n"
+                       "filled:           %d%% / %d%% current version\n"
+                       "expired blocks:   %d%%: %ld (%ld + %ld)\n"
+                       "defective blocks: %d%%: %ld (%ld + %ld)"
+                       "\"\n",
                        dbswn[target],
-                       sv->hist_expir[sv->histIdx],
-                       sv->hist_s1cur[sv->histIdx], sv->hist_s1old[sv->histIdx],
-                       sv->hist_s2cur[sv->histIdx], sv->hist_s2old[sv->histIdx]);
+                       netname, cni,
+                       datestr,
+                       version, versionSwo,
+                       total, count[0].ai, count[1].ai,
+                       allVersionsCount,
+                          count[0].allVersions + count[0].expired + count[0].defective,
+                          count[1].allVersions + count[1].expired + count[1].defective,
+                       curVersionCount,
+                          count[0].curVersion + count[0].expired + count[0].defective,
+                          count[1].curVersion + count[1].expired + count[1].defective,
+                       ((total > 0) ? (int)((double)allVersionsCount * 100.0 / total) : 0),
+                       ((total > 0) ? (int)((double)curVersionCount * 100.0 / total) : 0),
+                       ((curVersionCount > 0) ? ((int)((double)(count[0].expired + count[1].expired) * 100.0 / allVersionsCount)) : 0),
+                          count[0].expired + count[1].expired, count[0].expired, count[1].expired,
+                       ((curVersionCount > 0) ? ((int)((double)(count[0].defective + count[1].defective) * 100.0 / allVersionsCount)) : 0),
+                          count[0].defective + count[1].defective, count[0].defective, count[1].defective
+                );
+         eval_check(interp, comm);
+
+         if (total > 0)
+         {
+            sprintf(comm, "DbStatsWin_PaintPie %s %d %d %d %d %d %d %d\n",
+                          dbswn[target],
+                          (int)((double)(count[0].defective + count[0].expired) / total * 359.9),
+                          (int)((double)(count[0].curVersion + count[0].defective + count[0].expired) / total * 359.9),
+                          (int)((double)(count[0].allVersions + count[0].defective + count[0].expired) / total * 359.9),
+                          (int)((double)count[0].ai / total * 359.9),
+                          (int)((double)(count[0].ai + count[1].defective + count[1].expired) / total * 359.9),
+                          (int)((double)(count[0].ai + count[1].curVersion + count[1].defective + count[1].expired) / total * 359.9),
+                          (int)((double)(count[0].ai + count[1].allVersions + count[1].defective + count[1].expired) / total * 359.9));
+         }
+         else
+         {
+            sprintf(comm, "DbStatsWin_ClearPie %s\n", dbswn[target]);
+         }
          eval_check(interp, comm);
       }
       else
-      {
-         sprintf(comm, "DbStatsWin_PaintPie %s %d %d %d %d %d\n",
+      {  // Merged database
+
+         allVersionsCount = count[0].allVersions + count[0].expired + count[0].defective +
+                            count[1].allVersions + count[1].expired + count[1].defective;
+
+         sprintf(comm, "%s.browser.stat configure -text \""
+                       "EPG Provider:     Merged database\n"
+                       "Block count db:   %ld\n"
+                       "\nFor more info please refer to the\n"
+                       "original databases (more statistics\n"
+                       "will be added here in the future)\n"
+                       "\"\n",
                        dbswn[target],
-                       (uint)((double)obsolete / total * 128.0),
-                       (uint)((double)(count[0].curVersion + obsolete) / total * 128.0),
-                       (uint)((double)(count[0].allVersions + obsolete) / total * 128.0),
-                       (uint)((double)(count[0].allVersions + obsolete + count[1].curVersion) / total * 128.0),
-                       (uint)((double)(count[0].allVersions + obsolete + count[1].allVersions) / total * 128.0));
+                       allVersionsCount
+                );
+         eval_check(interp, comm);
+
+         sprintf(comm, "DbStatsWin_ClearPie %s\n", dbswn[target]);
          eval_check(interp, comm);
       }
 
@@ -337,10 +378,10 @@ void StatsWin_UpdateDbStatsWin( ClientData clientData )
          }
          sprintf(comm, "DbStatsWin_AddHistory %s %d %d %d %d %d %d\n",
                        dbswn[target],
-                       sv->histIdx+1,
-                       sv->hist_expir[sv->histIdx],
-                       sv->hist_s1cur[sv->histIdx], sv->hist_s1old[sv->histIdx],
-                       sv->hist_s2cur[sv->histIdx], sv->hist_s2old[sv->histIdx]);
+                       sv->histIdx + 1,
+                       sv->hist[sv->histIdx].expir,
+                       sv->hist[sv->histIdx].s1cur, sv->hist[sv->histIdx].s1old,
+                       sv->hist[sv->histIdx].s2cur, sv->hist[sv->histIdx].s2old);
          eval_check(interp, comm);
          dbStatsWinState[target].lastHistPos = sv->histIdx;
 
@@ -369,10 +410,10 @@ void StatsWin_UpdateDbStatsWin( ClientData clientData )
                        "EPG page rate:    %1.2f pages/sec\n"
                        "AI recv. count:   %d\n"
                        "AI min/avg/max:   %d/%2.2f/%d sec\n",
-                       (int)((sv->ttxPkgCount*45*8)/duration),
-                       (int)((sv->epgPkgCount*45*8)/duration),
+                       ((duration > 0) ? (int)((sv->ttxPkgCount*45*8)/duration) : 0),
+                       ((duration > 0) ? (int)((sv->epgPkgCount*45*8)/duration) : 0),
                        ((sv->ttxPkgCount > 0) ? ((double)sv->epgPkgCount*100.0/sv->ttxPkgCount) : 0.0),
-                       ((double)sv->epgPagCount / duration),
+                       ((duration > 0) ? ((double)sv->epgPagCount / duration) : 0),
                        sv->aiCount,
                        (int)sv->minAiDistance, sv->avgAiDistance, (int)sv->maxAiDistance
                 );
@@ -391,6 +432,9 @@ void StatsWin_UpdateDbStatsWin( ClientData clientData )
                      break;
                   case ACQPASSIVE_NO_FREQ:
                      strcat(comm, "Passive reason:   frequency unknown\n");
+                     break;
+                  case ACQPASSIVE_NO_DB:
+                     strcat(comm, "Passive reason:   database missing\n");
                      break;
                   case ACQPASSIVE_ACCESS_DEVICE:
                      strcat(comm, "Passive reason:   video device busy\n");
@@ -424,26 +468,28 @@ void StatsWin_UpdateDbStatsWin( ClientData clientData )
                   default:
                      break;
                }
-               sprintf(comm + strlen(comm),
-                                "Network variance: %1.2f / %1.2f",
-                                sv->count[0].variance, sv->count[1].variance
-                         );
                break;
+         }
+
+         if (ACQMODE_IS_CYCLIC(acqState.mode))
+         {
+            sprintf(comm + strlen(comm), "Network variance: %1.2f / %1.2f",
+                                         sv->count[0].variance, sv->count[1].variance);
          }
 
          strcat(comm, "}\n");
          eval_check(interp, comm);
 
-         // set up a time to re-display the stats if there's no EPG reception
+         // set up a timer to re-display the stats in case there's no EPG reception
          if (dbStatsWinState[target].updateHandler != NULL)
             Tcl_DeleteTimerHandler(dbStatsWinState[target].updateHandler);
          dbStatsWinState[target].updateHandler =
             Tcl_CreateTimerHandler(((sv->aiCount < 2) ? 2*1000 : 15*1000), StatsWin_UpdateDbStatsWinTimeout, (ClientData)target);
       }
       else
-      {  // acq not running (at least for the same db) -> remove acq stats
+      {  // acq not running (at least for the same db)
          if (dbStatsWinState[target].isForAcq)
-         {
+         {  // acq stats are still being displayed -> remove them
             sprintf(comm, "%s.acq.stat configure -text {}\n"
                           "pack forget %s.acq\n",
                           dbswn[target], dbswn[target]);
@@ -678,6 +724,17 @@ void StatsWin_UpdateDbStatusLine( ClientData clientData )
          break;
       case ACQDESCR_STALLED:
          strcat(comm, "Acquisition stalled");
+         if ( (acqState.mode != ACQMODE_PASSIVE) &&
+              (acqState.mode != ACQMODE_FORCED_PASSIVE) )
+         {
+            EpgDbLockDatabase(pAcqDbContext, TRUE);
+            pAi = EpgDbGetAi(pAcqDbContext);
+            if (pAi != NULL)
+            {
+               sprintf(comm + strlen(comm), " on %s", AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop));
+            }
+            EpgDbLockDatabase(pAcqDbContext, FALSE);
+         }
          break;
       case ACQDESCR_RUNNING:
          EpgDbLockDatabase(pAcqDbContext, TRUE);
@@ -711,7 +768,7 @@ void StatsWin_UpdateDbStatusLine( ClientData clientData )
       }
       else if ((acqState.dbCni != acqState.cycleCni) && (acqState.cycleCni != 0))
       {
-         debug2("db %04X  cycle %04X", acqState.dbCni, acqState.cycleCni);
+         debug2("StatsWin-UpdateDbStatusLine: prov change pending: db %04X  cycle %04X", acqState.dbCni, acqState.cycleCni);
          strcat(comm, " (provider change pending)");
       }
       else if ( (acqState.mode == ACQMODE_FOLLOW_UI) ||
@@ -801,12 +858,14 @@ static void StatsWin_Load( int target, EPGDB_CONTEXT *dbc )
    uchar  netwop_no;
    ulong  bsum, total;
    int    idx;
+   bool   isMerged;
 
    EpgDbLockDatabase(dbc, TRUE);
    memset(start_time, 0, sizeof(start_time));
    now = time(NULL);
    bsum = total = 0;
 
+   isMerged = EpgDbContextIsMerged(dbc);
    pAi = EpgDbGetAi(dbc);
    pPi = EpgDbSearchFirstPi(dbc, NULL);
    if ((pAi != NULL) && (pPi != NULL))
@@ -823,11 +882,14 @@ static void StatsWin_Load( int target, EPGDB_CONTEXT *dbc )
          if (this_version == pAi->version)
             bsum += 1;
 
-         idx = EpgDbGetPiBlockIndex(AI_GET_NETWOP_N(pAi, netwop_no)->startNo, pPi->block_no);
-         if (idx < 5)
+         if (isMerged == FALSE)
          {
-            sprintf(comm, "TimeScale_MarkNow %s.top.n%d %d red\n", tscn[target], netwop_no, idx);
-            eval_check(interp, comm);
+            idx = EpgDbGetPiBlockIndex(AI_GET_NETWOP_N(pAi, netwop_no)->startNo, pPi->block_no);
+            if (idx < 5)
+            {
+               sprintf(comm, "TimeScale_MarkNow %s.top.n%d %d red\n", tscn[target], netwop_no, idx);
+               eval_check(interp, comm);
+            }
          }
 
          if (start_time[netwop_no] != 0)
@@ -877,11 +939,14 @@ static void StatsWin_Load( int target, EPGDB_CONTEXT *dbc )
       do
       {
          bsum += 1;
-         idx = EpgDbGetPiBlockIndex(AI_GET_NETWOP_N(pAi, pPi->netwop_no)->startNo, pPi->block_no);
-         if (idx < 5)
-         {  // mark NOW button as expired
-            sprintf(comm, "TimeScale_MarkNow %s.top.n%d %d yellow\n", tscn[target], pPi->netwop_no, idx);
-            eval_check(interp, comm);
+         if (isMerged == FALSE)
+         {
+            idx = EpgDbGetPiBlockIndex(AI_GET_NETWOP_N(pAi, pPi->netwop_no)->startNo, pPi->block_no);
+            if (idx < 5)
+            {  // mark NOW button as expired
+               sprintf(comm, "TimeScale_MarkNow %s.top.n%d %d yellow\n", tscn[target], pPi->netwop_no, idx);
+               eval_check(interp, comm);
+            }
          }
          StatsWin_DisplayPi(target, pPi->netwop_no, 4, pPi->start_time, pPi->stop_time,
                             PI_HAS_SHORT_INFO(pPi), PI_HAS_LONG_INFO(pPi));
@@ -892,12 +957,16 @@ static void StatsWin_Load( int target, EPGDB_CONTEXT *dbc )
    }
 
    // display summary at the bottom of the window
-   sprintf(comm, "%s.bottom.l configure -text {%s database %d%% complete.}\n",
-                 tscn[target],
-                 (EpgDbContextIsMerged(dbc) ?
-                   "Merged" :
-                   ((pAi != NULL) ? (char*)AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop) : "")),
-                 ((total > 0) ? (int)((double)bsum * 100 / total) : 0));
+   if (EpgDbContextIsMerged(dbc) == FALSE)
+   {
+      sprintf(comm, "%s.bottom.l configure -text {%s database %d%% complete.}\n",
+                    tscn[target],
+                    ((pAi != NULL) ? (char*)AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop) : ""),
+                    ((total > 0) ? (int)((double)bsum * 100 / total) : 0));
+      eval_check(interp, comm);
+   }
+   else
+      sprintf(comm, "%s.bottom.l configure -text {Merged database.}\n", tscn[target]);
    eval_check(interp, comm);
 
    EpgDbLockDatabase(dbc, FALSE);
@@ -913,6 +982,7 @@ static void StatsWin_RebuildCanvas( ClientData clientData )
    EPGDB_CONTEXT   *dbc;
    uchar netwop;
    uint  target;
+   bool  isMerged;
 
    target = (int) clientData;
    if (target < 2)
@@ -927,6 +997,7 @@ static void StatsWin_RebuildCanvas( ClientData clientData )
          tscaleState[target].highlighted = 0xff;
 
          // create the timescales anew
+         isMerged = EpgDbContextIsMerged(dbc);
          EpgDbLockDatabase(dbc, TRUE);
          pAi = EpgDbGetAi(dbc);
          if (pAi != NULL)
@@ -934,7 +1005,7 @@ static void StatsWin_RebuildCanvas( ClientData clientData )
             pNetwops = AI_GET_NETWOPS(pAi);
             for (netwop=0; netwop < pAi->netwopCount; netwop++)
             {
-               sprintf(comm, "TimeScale_Create %s.top.n%d {%s}\n", tscn[target], netwop, AI_GET_STR_BY_OFF(pAi, pNetwops[netwop].off_name));
+               sprintf(comm, "TimeScale_Create %s.top.n%d {%s} %d\n", tscn[target], netwop, AI_GET_STR_BY_OFF(pAi, pNetwops[netwop].off_name), isMerged);
                eval_check(interp, comm);
             }
          }
@@ -975,6 +1046,9 @@ static void StatsWin_BuildCanvas( int target, EPGDB_CONTEXT *dbc )
    const AI_BLOCK  *pAi;
    const AI_NETWOP *pNetwops;
    uchar netwop;
+   bool  isMerged;
+
+   isMerged = EpgDbContextIsMerged(dbc);
 
    EpgDbLockDatabase(dbc, TRUE);
    pAi = EpgDbGetAi(dbc);
@@ -992,7 +1066,7 @@ static void StatsWin_BuildCanvas( int target, EPGDB_CONTEXT *dbc )
 
       for (netwop=0; netwop < pAi->netwopCount; netwop++)
       {
-         sprintf(comm, "TimeScale_Create %s.top.n%d {%s}\n", tscn[target], netwop, AI_GET_STR_BY_OFF(pAi, pNetwops[netwop].off_name));
+         sprintf(comm, "TimeScale_Create %s.top.n%d {%s} %d\n", tscn[target], netwop, AI_GET_STR_BY_OFF(pAi, pNetwops[netwop].off_name), isMerged);
          eval_check(interp, comm);
       }
       sprintf(comm, "pack %s.top -padx 5 -pady 5 -side top -fill x\n"
@@ -1164,20 +1238,13 @@ static int StatsWin_ToggleDbStats( ClientData ttp, Tcl_Interp *interp, int argc,
                {
                   if ((sv->histIdx > 1) && (sv->histIdx != STATS_HIST_WIDTH - 1))
                   {
-                     sprintf(comm, "DbStatsWin_PaintPie %s %d %d %d %d %d\n",
-                                   dbswn[target],
-                                   sv->hist_expir[sv->histIdx],
-                                   sv->hist_s1cur[sv->histIdx], sv->hist_s1old[sv->histIdx],
-                                   sv->hist_s2cur[sv->histIdx], sv->hist_s2old[sv->histIdx]);
-                     eval_check(interp, comm);
-
                      for (lastHistPos=0; lastHistPos < sv->histIdx; lastHistPos++)
                      {
                         sprintf(comm, "DbStatsWin_AddHistory %s %d %d %d %d %d %d\n",
                                       dbswn[target], lastHistPos+1,
-                                      sv->hist_expir[lastHistPos],
-                                      sv->hist_s1cur[lastHistPos], sv->hist_s1old[lastHistPos],
-                                      sv->hist_s2cur[lastHistPos], sv->hist_s2old[lastHistPos]);
+                                      sv->hist[lastHistPos].expir,
+                                      sv->hist[lastHistPos].s1cur, sv->hist[lastHistPos].s1old,
+                                      sv->hist[lastHistPos].s2cur, sv->hist[lastHistPos].s2old);
                         eval_check(interp, comm);
                      }
                      dbStatsWinState[target].lastHistPos = sv->histIdx - 1;
@@ -1197,7 +1264,7 @@ static int StatsWin_ToggleDbStats( ClientData ttp, Tcl_Interp *interp, int argc,
             dbStatsWinState[target].open = FALSE;
 
             // disable the VPS/PDC acquisition when the last stats
-            if (EpgAcqCtl_ScanIsActive() == FALSE)
+            if (EpgScan_IsActive() == FALSE)
             {
                if ( ((target == DB_TARGET_UI) && (dbStatsWinState[DB_TARGET_ACQ].open == FALSE)) ||
                     ((target == DB_TARGET_ACQ) && ((dbStatsWinState[DB_TARGET_UI].open == FALSE) ||
@@ -1208,7 +1275,9 @@ static int StatsWin_ToggleDbStats( ClientData ttp, Tcl_Interp *interp, int argc,
             }
          }
          // set the state of the checkbutton of the according menu entry
-         sprintf(comm, "set menuStatusStatsOpen(%s) %d\n", argv[1], dbStatsWinState[target].open);
+         sprintf(comm, "set menuStatusStatsOpen(%s) %d\n",
+                       ((target == DB_TARGET_UI) ? "ui" : "acq"),
+                       dbStatsWinState[target].open);
          eval_check(interp, comm);
       }
    }

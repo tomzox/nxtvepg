@@ -15,7 +15,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgdbsav.h,v 1.22 2001/01/20 15:52:55 tom Exp tom $
+ *  $Id: epgdbsav.h,v 1.24 2001/02/06 19:06:02 tom Exp tom $
  */
 
 #ifndef __EPGDBSAV_H
@@ -28,7 +28,7 @@
 #define MAGIC_STR      "NEXTVIEW-DB by TOMZO\n"
 #define MAGIC_STR_LEN  20
 
-#define DUMP_COMPAT    EPG_VERSION_TO_INT(0,4,1)   // latest compatible
+#define DUMP_COMPAT    EPG_VERSION_TO_INT(0,4,3)   // latest compatible
 
 #define ENDIAN_MAGIC   0xAA55
 #define WRONG_ENDIAN   (((ENDIAN_MAGIC>>8)&0xFF)|((ENDIAN_MAGIC&0xFF)<<8))
@@ -56,7 +56,7 @@
 typedef struct
 {
    uchar   magic[MAGIC_STR_LEN];  // file header
-   unsigned short endianMagic;    // magic to recognize big/little endian
+   ushort  endianMagic;           // magic to recognize big/little endian
    ulong   compatVersion;         // version of oldest compatible software
    ulong   swVersion;             // version of this software
 
@@ -84,6 +84,7 @@ typedef struct
    time_t       lastPiDate;
    EPGDB_BLOCK  *pBiBlock;
    EPGDB_BLOCK  *pAiBlock;
+   EPGDB_BLOCK  *pOiBlock;
 } EPGDBSAV_PEEK;
 
 

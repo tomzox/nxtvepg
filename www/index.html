@@ -1,7 +1,7 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
 <BASE HREF="http://nxtvepg.tripod.com/">
-<!-- $Id: index.html,v 1.14 2001/01/23 18:30:42 tom Exp $ -->
+<!-- $Id: index.html,v 1.15 2001/02/16 17:49:34 tom Exp $ -->
 <HEAD>
 <TITLE>nexTView EPG Decoder Software Download Page</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
@@ -37,13 +37,16 @@
 
 <P class="navhead"><A HREF="#download"><B>Download</B></A><BR>
 <P class="navsect">
+<A HREF="#download_unix">Linux</A><BR>
+<A HREF="#download_unix">NetBSD</A><BR>
+<A HREF="#download_windows">Windows</A><BR>
+<A HREF="#download_demodb">Demo database</A><BR>
 <A HREF="changelog.html">Change-Log</A><BR>
-<A HREF="#download_linux">Linux</A><BR>
-<A HREF="#download_netbsd">NetBSD</A><BR>
-<A HREF="#download_win32">Windows</A>
 
 <P class="navhead"><B>News</B>
 <P class="navsect">
+Feb/15/2001: release 0.4.3</P>
+<HR width=70%><P class="navsect">
 Jan/22/2001: 2nd beta release 0.4.pre2</P>
 <HR width=70%><P class="navsect">
 Jan/10/2001: beta release 0.4.pre1</P>
@@ -137,51 +140,56 @@ TV tuner card.
 <A NAME="download">
 <H2>Download</H2>
 </A>
+
+This distribution was released Feb/15/2001. For a description of new
+features and a detailed history of changes and additions see the
+<A HREF="changelog.html">ChangeLog</A>. If there are any problems with
+this new release, please let me know. For previous releases, see the
+<A HREF="src/">source directory</A>.
+<P>
 <B>Important note:</B> The links in this section lead to Tripod download pages:
 Just click on the hyper-link on these pages and wait for your browser to offer
 to save the file. Do <B>not</B> attempt to save the URL target before clicking
 on the link - you'd probably only download the download HTML page again. Sorry
 for this inconvenience.
 
-<A NAME="download_linux">
-<H3>Latest stable distribution</H3>
+<A NAME="download_unix">
+<H3>Source distribution</H3>
 </A>
-<DL>
-<LI>Download the latest stable source distribution for Linux:
-<A HREF=src/nxtvepg-0.3.4.tar.gz>nxtvepg-0.3.4.tar.gz</A> (160 kB)
+Download the latest source distribution for Linux and NetBSD:
+<A HREF=src/nxtvepg-0.4.3.tar.gz>nxtvepg-0.4.3.tar.gz</A> (283 kB)
 <P>
-<LI>This version also is available as Linux RPM archive at
+This version is brand-new and not yet available as pre-compiled
+distribution. However you can get the previous release 0.3.4
+as Linux RPM archive at
 <A HREF="http://rpmfind.net/linux/rpm2html/search.php?query=nxtvepg">rpmfind.net</A>
-<P>
-<LI>If you do not receive any of the nexTView providers listed above,
-download the demo database <A HREF=src/nxtvdb-tv5.gz>nxtvdb-tv5.gz</A>
-and load it with the command line arguments <CODE>-demo nxtvdb-tv5</CODE>
-into nxtvepg (the copyright of this data is by <I>Swiss Tele text</I> - please
-do not redistribute). This option is available as of release 0.3.4.
-</DL>
 
-<H3>Pre-Distributions (beta version)</H3>
-New in this release: merging of provider databases, extended acquisition
-control and support for NetBSD and M$ Windows. For a more detailed history
-of changes see the <A HREF="changelog.html">ChangeLog</A>.
-This release is believed to be stable. Please report all bugs.
-Suggestions to improve the new features are welcome, too.
-<P>
-<DL>
-<A NAME="download_netbsd">
-<LI>Download source-distribution
+<A NAME="download_windows">
+<H3>Binary distribution for M$ Windows</H3>
 </A>
-<A HREF="src/nxtvepg-0.4.pre2.tar.gz">nxtvepg-0.4.pre2.tar.gz</A> (262 kB)
-for Linux and NetBSD
+<A HREF="src/nxtvepg-1.3-win.zip">nxtvepg-1.3-win.zip</A> (858 kB)
 <P>
-<A NAME="download_win32">
-<LI>Download binary pre-release for M$ Windows
-<A HREF="src/nxtvepg-win32-0.4.pre2.zip">nxtvepg-win32-0.4.pre2.zip</A> (843 kB)
-</A>
-<BR>Note that you need an additional driver that is not included in this
+Note that you need an additional driver that is not included in this
 package. You may be able to use the driver from other TV applications.
 For detailed instructions see README.txt inside the zip file.
-</DL>
+
+
+<A NAME="download_demodb">
+<H3>Demo Database</H3>
+</A>
+If you do not receive any of the nexTView provider channels listed at the
+top of this page, download the demo database
+<A HREF=src/nxdemodb.epg.gz>nxdemodb.epg.gz</A>,
+which will allow you to check out the main features of the browser,
+so that you can see what you're missing.
+<P>
+To use the demo database, download it into your nxtvepg directory, decompress it
+and load it with the command line arguments <CODE>-demo nxdemodb.epg</CODE> (Unix)
+into nxtvepg, or simply drag and drop it onto the executable (Windows Explorer)
+<P>
+The copyright of the content of this database is by <I>Swiss Tele text</I> -
+please do not redistribute.
+
 
 <H2>Copyright</H2>
 &copy; Copyright 1999, 2000, 2001 by Thorsten <I>"Tom"</I> Z&ouml;rner (and others).

@@ -1,12 +1,12 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="de">
 <BASE HREF="http://nxtvepg.tripod.com/">
-<!-- $Id: index-de.html,v 1.3 2001/01/23 18:30:42 tom Exp $ -->
+<!-- $Id: index-de.html,v 1.4 2001/02/16 17:49:34 tom Exp $ -->
 <HEAD>
 <TITLE>nexTView EPG Dekoder Software Download</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
 <META name="language" content="de">
-<META name="keywords" lang="de" content="nexTView, Dekoder, nxtvepg, Teletext, EPG, Bt878, Fernsehprogramm, TV-Programm, Videotext, Premiere, TV-Guide, Nextview Dekoder, Programmzeitschrift, Austastlücke, Multimedia, TV-Tunerkarte, Linux, NetBSD, Softwaredownload, bttv, bktr, video4linux, VBI, Bt848, Booktree, video capture, Programmführer, Pro7, RTL2, 3Sat, Canal+, FreeBSD, OpenBSD">
+<META name="keywords" lang="de" content="nexTView, Dekoder, nxtvepg, Teletext, EPG, Bt878, Fernsehprogramm, TV-Programm, Videotext, Premiere, TV-Guide, Nextview Dekoder, Programmzeitschrift, Austastlücke, Multimedia, TV-Tunerkarte, Linux, NetBSD, Softwaredownload, bttv, bktr, video4linux, VBI, Bt848, Booktree, video capture, Programmführer, Pro7, RTL2, 3Sat, Canal+, FreeBSD, OpenBSD, VPS, PDC, VCR, nextview-link, AV-Link, Megalogic">
 <META name="description" lang="de" content="Hompage von 'nxtvepg' - Ein nexTView EPG Dekoder für den PC. Nextview ist eine kostenlose elektronische Programmzeitschrift die im (analogen) TV-Signal übertragen wird und u.a. alle überregionalen deutschen TV-Sender abdeckt.">
 <META name="author" content="Tom Zoerner">
 <META name="copyright" content="Tom Zoerner">
@@ -37,13 +37,16 @@
 
 <P class="navhead"><A HREF="#download"><B>Download</B></A><BR>
 <P class="navsect">
+<A HREF="#download_unix">Linux</A><BR>
+<A HREF="#download_unix">NetBSD</A><BR>
+<A HREF="#download_windows">Windows</A><BR>
+<A HREF="#download_demodb">Demo database</A><BR>
 <A HREF="changelog.html">Change-Log</A><BR>
-<A HREF="#download_linux">Linux</A><BR>
-<A HREF="#download_netbsd">NetBSD</A><BR>
-<A HREF="#download_win32">Windows</A>
 
 <P class="navhead"><B>News</B>
 <P class="navsect">
+15.2.2001:<BR>release 0.4.3</P>
+<HR width=70%><P class="navsect">
 22.1.2001: beta^2 release 0.4.pre2</P>
 <HR width=70%><P class="navsect">
 10.1.2001: beta release 0.4.pre1</P>
@@ -141,53 +144,54 @@ für die TV-Tuner-Karte beim Programmstart zu laden)
 <A NAME="download">
 <H2>Download</H2>
 </A>
+
+Die neueste Distribution 0.4.3 (Unix) bzw. 1.3-win (Windows) wurde am 15.2.2001
+veröffentlicht. Eine Übersicht der seit der letzten "offiziellen" Version 0.3.4
+hinzugekommenen Features und Bug-Fixes befindet sich im
+<A HREF="changelog.html">ChangeLog</A>. Falls mit der Software Probleme
+auftauchen, bitte melden. Ältere Distributionen befinden sich noch im
+<A HREF="src/">Source Verzeichnis</A>.
+<P>
 <B>Wichtiger Hinweis:</B> Die folgenden Links verweisen nicht direkt auf
 die Zieldateien, sondern auf Tripod Downloadpages (zu Werbezwecken; bitte um
 Entschuldigung). Sie sollten <B>nicht</B> versuchen die Datei mittels "Ziel
 speichern" herunterzuladen, sondern die Links einfach anclicken. Ihr
 WWW-Browser bietet dann von alleine die Speicherung der Datei an.
 
-<A NAME="download_linux">
-<H3>Neueste stabile Version</H3>
-</A>
-<DL>
-<LI>Download der neuesten stabilen Source-Distribution für Linux:
-<A HREF=src/nxtvepg-0.3.4.tar.gz>nxtvepg-0.3.4.tar.gz</A> (160 kB)
-<P>
-<LI>Diese Version ist für auch vorcompiliert als Linux RPM-Archiv erhältlich bei
-<A HREF="http://rpmfind.net/linux/rpm2html/search.php?query=nxtvepg">rpmfind.net</A>
-<P>
-<LI>Falls Sie keine der oben genannten nexTView Programmanbieter
-empfangen, können Sie die Software dennoch im Demo-Modus ausprobieren.
-Dazu können Sie diese <A HREF=src/nxtvdb-tv5.gz>Demo-Datenbank</A>
-downloaden und dann mit den Kommandozeilenargumenten <CODE>-demo nxtvdb-tv5</CODE>
-laden. (Das Urheberrecht dieser Daten liegt bei Swiss Tele text, deshalb
-bitte nicht weiterverbreiten.)
-</DL>
 
-<H3>Beta-Version</H3>
-Neu in dieser Distribution: Verschmelzung von Datenbanken, erweiterte
-Akquisitionskontrolle und Portierung auf NetBSD und M$ Windows. Für eine
-detaillierte Aufstellung neuer Features und Bugfixes siehe im
-<A HREF="changelog.html">ChangeLog</A>.
-Diese Version sollte stabil sein; bitte alle Fehler melden.
-Verbesserungsvorschläge für die neuen Features werden gerne entgegengenommen.
-<P>
-<DL>
-<A NAME="download_netbsd">
-<LI>Download der Beta-Version der nächsten Distribution als Source:
+<A NAME="download_unix">
+<H3>Source Distribution</H3>
 </A>
-<A HREF="src/nxtvepg-0.4.pre2.tar.gz">nxtvepg-0.4.pre2.tar.gz</A> (262 kB)
+Download der aktuellen Source Distribution für Linux und NetBSD:
+<A HREF=src/nxtvepg-0.4.3.tar.gz>nxtvepg-0.4.3.tar.gz</A> (283 kB)
 <P>
-<A NAME="download_win32">
-<LI>Download der Beta-Version des Windows Ports:
-<A HREF="src/nxtvepg-win32-0.4.pre2.zip">nxtvepg-win32-0.4.pre2.zip</A> (843 kB)
+Diese Version ist brandneu und deshalb noch nicht vorkompiliert verfügbar.
+Die Vorgängerversion 0.3.4 ist als Linux RPM-Archiv erhältlich bei:
+<A HREF="http://rpmfind.net/linux/rpm2html/search.php?query=nxtvepg">rpmfind.net</A>
+
+<A NAME="download_windows">
+<H3>Binärdistribution für M$ Windows</H3>
 </A>
-<BR>Bitte beachten daß ein weiterer Treiber benötigt wird, der nicht in diesem
+<A HREF="src/nxtvepg-1.3-win.zip">nxtvepg-1.3-win.zip</A> (858 kB)
+<P>
+Bitte beachten daß ein weiterer Treiber benötigt wird, der nicht in diesem
 Paket enthalten ist und separat heruntergeladen werden muß. In manchen Fällen
 kann auch der Treiber anderer TV-Applikationen verwendet werden. Die nötigen
 Infos dazu finden sich im README.txt im ZIP file.
-</DL>
+
+
+<A NAME="download_demodb">
+<H3>Demo Datenbank</H3>
+</A>
+Falls Sie keine der oben genannten nexTView Programmanbieter empfangen,
+können Sie die Software dennoch im Demo-Modus ausprobieren.
+Dazu können Sie diese <A HREF=src/nxdemodb.epg.gz>Demo Datenbank</A> (57 kB)
+downloaden, dekomprimieren und dann mit den Kommandozeilenargumenten
+<CODE>-demo nxdemodb.epg</CODE> laden oder im Windows-Explorer einfach per
+Drag-and-Drop auf das nxtvepg Executable fallen lassen.
+<P>
+Das Urheberrecht am Inhalt dieser Datenbank liegt bei Swiss Tele text,
+deshalb bitte nicht weiterverbreiten.
 
 <H2>Copyright</H2>
 &copy; Copyright 1999, 2000, 2001 Thorsten <I>"Tom"</I> Zörner (und andere).

@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgdbsav.c,v 1.31 2001/01/20 15:52:28 tom Exp tom $
+ *  $Id: epgdbsav.c,v 1.32 2001/02/06 19:06:02 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -801,6 +801,69 @@ PDBC EpgDbReload( uint cni, EPGDB_RELOAD_RESULT * pResult )
 }
 
 // ---------------------------------------------------------------------------
+// Scan database file for the OI block #0
+// - returns a pointer to the block (the caller must free the memory)
+//
+static EPGDB_BLOCK * EpgDbPeekOi( int fd )
+{
+   EPGDB_BLOCK * pBlock;
+   uchar buffer[BLK_UNION_OFF];
+   size_t size;
+
+   pBlock = NULL;
+
+   while (read(fd, buffer, BLK_UNION_OFF) == BLK_UNION_OFF)
+   {
+      size = ((EPGDB_BLOCK *)buffer)->size;
+      // plausibility check for block size (avoid malloc failure, which reults in program abort)
+      if (size <= EPGDBSAV_MAX_BLOCK_SIZE)
+      {
+         if ( ((EPGDB_BLOCK *)buffer)->type == BLOCK_TYPE_OI )
+         {
+            pBlock = (EPGDB_BLOCK *) xmalloc(size + BLK_UNION_OFF);
+            memcpy(pBlock, buffer, BLK_UNION_OFF);
+            // load the rest of the block from the file
+            size = read(fd, (uchar *)pBlock + BLK_UNION_OFF, pBlock->size);
+            if (size == pBlock->size)
+            {
+               if (pBlock->blk.oi.block_no != 0)
+               {  // OI block, but not #0 -> finished (blocks are sorted by increasing blockno)
+                  xfree(pBlock);
+                  pBlock = NULL;
+               }
+               // return the pointer to the block
+               break;
+            }
+            else
+            {
+               debug2("EpgDb-PeekOi: block read error: want %d, got %d", pBlock->size, size);
+               xfree(pBlock);
+               pBlock = NULL;
+            }
+         }
+         else if ( ((EPGDB_BLOCK *)buffer)->type == BLOCK_TYPE_PI )
+         {  // read past all generic blocks -> finished
+            break;
+         }
+         else
+         {  // skip the block in the file
+            if (lseek(fd, size, SEEK_CUR) == -1)
+            {
+               debug1("EpgDb-PeekOi: lseek +%ld failed - abort search", (ulong)size);
+               break;
+            }
+         }
+      }
+      else
+      {
+         debug1("EpgDb-PeekOi: illegal block size: %u", size);
+         break;
+      }
+   }
+   return pBlock;
+}
+
+// ---------------------------------------------------------------------------
 // Peek inside a dumped database: retrieve provider info
 //
 const EPGDBSAV_PEEK * EpgDbPeek( uint cni, EPGDB_RELOAD_RESULT * pResult )
@@ -821,7 +884,7 @@ const EPGDBSAV_PEEK * EpgDbPeek( uint cni, EPGDB_RELOAD_RESULT * pResult )
    if (fd >= 0)
    {
       pPeek = (EPGDBSAV_PEEK *) xmalloc(sizeof(EPGDBSAV_PEEK));
-      pPeek->pAiBlock = NULL;
+      memset(pPeek, 0, sizeof(EPGDBSAV_PEEK));
 
       result = EpgDbReloadHeader(cni, fd, &head);
       if (result == EPGDB_RELOAD_OK)
@@ -849,6 +912,7 @@ const EPGDBSAV_PEEK * EpgDbPeek( uint cni, EPGDB_RELOAD_RESULT * pResult )
                     (EpgDbReloadCheckAiBlock(pBlock) == EPGDB_RELOAD_OK) )
                {
                   pPeek->pAiBlock = pBlock;
+                  pPeek->pOiBlock = EpgDbPeekOi(fd);
                }
                else
                {
@@ -905,6 +969,8 @@ void EpgDbPeekDestroy( const EPGDBSAV_PEEK *pPeek )
    {
       if (pPeek->pAiBlock != NULL)
          xfree(pPeek->pAiBlock);
+      if (pPeek->pOiBlock != NULL)
+         xfree(pPeek->pOiBlock);
       xfree((uchar*)pPeek);
    }
 }

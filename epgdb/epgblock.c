@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgblock.c,v 1.30 2001/01/02 18:05:50 tom Exp tom $
+ *  $Id: epgblock.c,v 1.31 2001/02/06 19:00:07 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -927,17 +927,17 @@ EPGDB_BLOCK * EpgBlockConvertOi(const uchar *pCtrl, uint ctrlLen, uint strLen)
    memcpy(pOi, &oi, sizeof(OI_BLOCK));
    if (pHeader != NULL)
    {
-      memcpy(OI_GET_HEADER(*pOi), pHeader, strlen(pHeader) + 1);
+      memcpy(OI_GET_HEADER(pOi), pHeader, strlen(pHeader) + 1);
       xfree(pHeader);
    }
    if (pMessage != NULL)
    {
-      memcpy(OI_GET_MESSAGE(*pOi), pMessage, strlen(pMessage) + 1);
+      memcpy(OI_GET_MESSAGE(pOi), pMessage, strlen(pMessage) + 1);
       xfree(pMessage);
    }
    if (pDescriptors != NULL)
    {
-      memcpy(OI_GET_DESCRIPTORS(*pOi), pDescriptors, oi.no_descriptors * sizeof(DESCRIPTOR));
+      memcpy(OI_GET_DESCRIPTORS(pOi), pDescriptors, oi.no_descriptors * sizeof(DESCRIPTOR));
       xfree(pDescriptors);
    }
 
@@ -1055,23 +1055,23 @@ EPGDB_BLOCK * EpgBlockConvertNi(const uchar *pCtrl, uint ctrlLen, uint strLen)
    memcpy((void *)pNi, &ni, sizeof(NI_BLOCK));
    if (pNi->no_events > 0)
    {
-      memcpy(NI_GET_EVENTS(*pNi), ev, ni.no_events * sizeof(EVENT_ATTRIB));
+      memcpy(NI_GET_EVENTS(pNi), ev, ni.no_events * sizeof(EVENT_ATTRIB));
    }
    if (pHeader != NULL)
    {
-      memcpy(NI_GET_HEADER(*pNi), pHeader, strlen(pHeader) + 1);
+      memcpy(NI_GET_HEADER(pNi), pHeader, strlen(pHeader) + 1);
       xfree(pHeader);
    }
    if (pDescriptors != NULL)
    {
-      memcpy(NI_GET_DESCRIPTORS(*pNi), pDescriptors, ni.no_descriptors * sizeof(DESCRIPTOR));
+      memcpy(NI_GET_DESCRIPTORS(pNi), pDescriptors, ni.no_descriptors * sizeof(DESCRIPTOR));
       xfree(pDescriptors);
    }
    for (i=0; i<ni.no_events; i++)
    {
       if (tmp_evstr[i] != NULL)
       {
-         memcpy(NI_GET_EVENT_STR(*pNi, ev[i]), tmp_evstr[i], strlen(tmp_evstr[i]) + 1);
+         memcpy(NI_GET_EVENT_STR(pNi, &ev[i]), tmp_evstr[i], strlen(tmp_evstr[i]) + 1);
          xfree(tmp_evstr[i]);
       }
    } 
@@ -1129,12 +1129,12 @@ EPGDB_BLOCK * EpgBlockConvertMi(const uchar *pCtrl, uint ctrlLen, uint strLen)
    memcpy((void *)pMi, &mi, sizeof(MI_BLOCK));
    if (pMessage != NULL)
    {
-      memcpy(MI_GET_MESSAGE(*pMi), pMessage, strlen(pMessage) + 1);
+      memcpy(MI_GET_MESSAGE(pMi), pMessage, strlen(pMessage) + 1);
       xfree(pMessage);
    }
    if (pDescriptors != NULL)
    {
-      memcpy(MI_GET_DESCRIPTORS(*pMi), pDescriptors, mi.no_descriptors * sizeof(DESCRIPTOR));
+      memcpy(MI_GET_DESCRIPTORS(pMi), pDescriptors, mi.no_descriptors * sizeof(DESCRIPTOR));
       xfree(pDescriptors);
    }
 
@@ -1231,7 +1231,7 @@ EPGDB_BLOCK * EpgBlockConvertLi(const uchar *pCtrl, uint ctrlLen, uint strLen)
    memcpy((void*)pLi, &li, sizeof(LI_BLOCK));
    if (li.desc_no > 0)
    {
-      memcpy((void*)LI_GET_DESC(*pLi), ld, li.desc_no * sizeof(LI_DESC));
+      memcpy((void*)LI_GET_DESC(pLi), ld, li.desc_no * sizeof(LI_DESC));
    }
 
    return(pBlk);
@@ -1343,7 +1343,7 @@ EPGDB_BLOCK * EpgBlockConvertTi(const uchar *pCtrl, uint ctrlLen, uint strLen)
    memcpy((void *)pTi, &ti, sizeof(TI_BLOCK));
    if (ti.desc_no > 0)
    {
-      memcpy(TI_GET_DESC(*pTi), std, ti.desc_no * sizeof(TI_DESC));
+      memcpy(TI_GET_DESC(pTi), std, ti.desc_no * sizeof(TI_DESC));
    }
 
    return(pBlk);

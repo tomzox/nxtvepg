@@ -43,26 +43,39 @@ NetBSD software requirements:
   available from http://www.scriptics.com/
 
 Windows software requirements:
-- Windows NT or Windows 95. Other variants may work too but are yet untested.
+- Windows NT, Windows 95 and ME. Other variants may work too but are yet
+  untested.
 - On Windows NT: you need to be in the Admininstrator group.
 - WinDriver version 4.00 or later, available from http://www.krftech.com/
   This is *not* freeware, however there's a free 30 days evaluation version.
   Since this is a software development tool and not intended for the end
-  user, the registration fee is quite steep (around $1500).
+  user, the registration fee is quite steep (AFAIK around $1500).
 
-  Note: the same driver comes with many other TV applications, and often
-  works with nxtvepg. One that's known to work is from "R@dio.mp3" at
-  http://www.musicplay.de/ (you may have to start and stop the player once
-  before you start nxtvepg). Another one were the older versions of MultiDec
-  (at least versions 3.5 through 5.5) available at http://freetv.notrix.de/
+  However the same driver comes with many other TV applications, and often
+  works with nxtvepg. In the following I'll describe a couple of examples.
   Please note that I'm just informing you of technical possibilities here;
-  you are responsible yourself to make sure you're not violating the licenses
-  of any of the software mentioned herein.
+  you are responsible yourself to make sure you're not violating any
+  software's license or any other laws in your country.
+
+  1. One driver that's known to work is from the "R@dio.mp3" package at
+     http://www.musicplay.de/  However you have to start and stop the radio
+     player once to register the driver before you start nxtvepg. For more
+     details see the section on installation below.
+  2. Another possibility are the older versions of MultiDec (at least versions
+     3.5 through 5.5) available at http://freetv.notrix.de/  (in foreign
+     language packages - but the driver is language independent) or at
+     http://www.neuz.de/
+  3. I've been told that the drivers from newer MultiDec versions work too
+     if you rename MDHalDr.sys/.vxd to WinDrvr.sys/.vxd (probably with similar
+     limitations as with the MusicPlay driver.)
 
 If you want to compile for Windows you also need:
 - CygWin GNU make and gcc compiler, see http://www.cygwin.org/
 - Microsoft Visual C Compiler (Borland C probably works too)
 - Tcl/Tk 8.3.2, available from http://www.scriptics.com/
+  (I've patched the tk83.dll twice: (1) to catch shutdown messages and (2) to
+  disable use of the Windows MessageBox() in tk_messageBox because it crashed
+  the program. Hence I recommend to keep using the DLL that comes with nxtvepg)
 - Perl 5 to generate the help menus from the documentation in POD format
   (not essential unless you want to modify the help menus)
 - windrvr.h and windrvr_usb.h from the WinDriver package,
@@ -93,16 +106,31 @@ know about it (i.e. send me the diffs)
 
 Windows installation procedure:
 
-- Unpack the zip file into a new directory.
+- Unpack the zip file into an empty directory.
+
 - Obtain the WinDriver as described above in chapter 'Windows software
   requirements' and copy the file WinDrvr.sys (for Windows NT) and/or
   WinDrvr.vxd (for all WinDOS variants) into the same directory as
   nxtvepg.exe. If you installed the original WinDriver package they
   can be found in WINNT/system32/drivers on NT or Windows/system/vmm32
   (if you don't find them there, search for files named WinDrvr.*)
+
+  For the "R@dio.mp3" driver to work, you need two copies: one in the
+  Windows system directory named above, plus one in the nxtvepg working
+  directory. Remember, you'll have to use the radio player at least
+  once before Nextview acquisition will work.
+
+  If you want to use the MultiDec 3.5 - 5.5 driver, make sure there's no
+  other windrvr installed in the systems directory. Also check the registry
+  (type "regedit" in the Execute popup in the Start menu) for the key
+     HLM\System\CurrentControlSet\Servies\VxD\WinDriver
+  Delete this key and reboot if the driver does not work. This key is
+  automatically generated e.g. by the mp3 radio player.
+
 - Invoke the executable nxtvepg.exe
   If there are any warning or error message popups from the Bt8x8
   driver, please refer to the list below.
+
 - You need to set up the driver in the "TV card input" menu and then
   start an EPG scan. If the scan just runs through without finding
   any network IDs, check your TV card settings, particularily "PLL init"
@@ -152,13 +180,12 @@ Explanation of Windows Bt8x8 driver error messages:
   the application it belongs to. In many cases the driver can be used by
   nxtvepg only after that application was runnnig (and was then terminated
   again).
-  It may also be that you're using an evaluation version of the driver,
-  which is limited to 30 days. After that you have to pay apx. $1500 to
-  Jungo to get a license. You could also just delete the keys
-  Software\Microsoft\Windows\CurrentVersion\Network\Driver*
+  You also might be using an evaluation version of the driver, which is
+  limited to a 30 days evaluation period. After it has expired, you have
+  to pay apx. $1500 to Jungo to get a license. You could also just delete
+  the keys Software\Microsoft\Windows\CurrentVersion\Network\Driver*
   in the registry. However using the driver for more than 30 days still
-  would be illegal. Your choice. (Oh, there's another option: upgrade to a
-  freeware operating system like Linux - it includes a free bt8x8 driver)
+  would be illegal.
 
 - "Bt8x8 card cannot be locked - already in use?"
   There may be a different application already using the driver. On

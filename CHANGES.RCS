@@ -3037,3 +3037,401 @@ www/changelog.html [rev:1.1, 2001-01-23T18:33:29]:
 www/man.html [rev:1.1, 2001-01-23T18:54:31]:
 - Initial revision
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_4_PRE2 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+epgvbi/btdrv4win.c [rev:1.10, 2001-01-27T19:20:30]:
+- fixed newline in two MessageBox texts
+epgctl/epgacqctl.c [rev:1.36, 2001-01-27T20:01:48]:
+- added warning when acq forced passive due to non-tuner input source
+- fix: no warning about missing freq when non-tuner input source
+- new forced passive reason: missing database (said "missing freq" before)
+- moved acq history data into sub.struct EPGDB_HIST
+epgctl/epgacqctl.h [rev:1.22, 2001-01-27T20:04:39]:
+- changed EPGDB_STATS:
+- moved acq history data into sub-struct EPGDB_HIST
+- new forced passive reason: missing database (said "missing freq" before)
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.57, 2001-01-27T20:29:49]:
+- changed font for tk_messageBox via option add: font font_pl2_bold
+- proc DbStatsWin_PaintPie rewritten:
+- added 2 new sections
+- paint stream 1 & 2 areas completely
+epgui/uictrl.c [rev:1.5, 2001-01-27T20:35:25]:
+- added UiControl_AcqPassive() and UiControlMsg_AcqPassive()
+epgui/uictrl.h [rev:1.3, 2001-01-27T20:35:44]:
+- added UiControlMsg_AcqPassive()
+epgui/menucmd.c [rev:1.33, 2001-01-27T20:36:59]:
+- MenuCmd_UpdateHardwareConfig():
+- call UiControl_CheckDbState() in case ui db is empty
+- fix param to StatsWin_NewAi: acq ctx instead of ui
+- SetControlMenuStates: allow acq stats even when ui and acq db are the same
+epgui/statswin.c [rev:1.27, 2001-01-27T20:42:36]:
+- fix StatsWin_ToggleDbStats():
+- menu button was not unchecked when windows was destroyed via wm
+- widget name was used in binding instead of "ui" and "acq"
+- Db stats window update:
+- added 2 new segments to pie chart
+- fixed division by zero in many places
+- new forced passive reason: ACQPASSIVE_NO_DB
+- removed obsolete paint pie call during db stats setup
+- history stats data moved into separate struct
+epgctl/epgscan.h [rev:1.1, 2001-01-28T10:30:59]:
+- Initial revision
+epgctl/epgscan.c [rev:1.1, 2001-01-28T10:31:55]:
+- Initial revision
+epgctl/epgscan.c [rev:1.2, 2001-01-28T10:57:36]:
+- improved stability: check if any ttx packets were received
+- before skipping a channel due to BtDriver_IsVideoPresent() == FALSE
+epgctl/epgscan.c [rev:1.3, 2001-01-28T11:05:31]:
+- moved all static variables into struct EPGSCANCTL_STATE
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.58, 2001-01-28T11:19:18]:
+- EPG scan moved into new module epgctl/epgscan.c
+- added parameter <input source> to C_StartEpgScan()
+- which is directly passed to epgscan module
+Makefile [rev:1.20, 2001-01-28T11:24:56]:
+- added new module epgctl/epgscan.c
+epgui/uictrl.c [rev:1.6, 2001-01-28T11:31:10]:
+- EPG scan moved into new module epgctl/epgscan.c
+- include new header file
+- renamed EpgAcqCtl_ScanIsActive() to EpgScan_IsActive()
+epgui/statswin.c [rev:1.28, 2001-01-28T11:32:16]:
+- EPG scan moved into new module epgctl/epgscan.c
+- include new header file
+- renamed EpgAcqCtl_ScanIsActive() to EpgScan_IsActive()
+epgui/menucmd.c [rev:1.34, 2001-01-28T11:33:37]:
+- EPG scan moved into new module epgctl/epgscan.c
+- added parameter <input source> to C_StartEpgScan()
+    which is directly passed to epgscan module
+- include new header file epgscan.h
+- scan interface uncs renamed EpgScan_* from EpgAcqCtl_*
+epgctl/epgacqctl.h [rev:1.23, 2001-01-28T11:34:55]:
+- moved EPG scan into separate module epgscan.c
+-> removed type decls and if uncs
+epgctl/epgacqctl.c [rev:1.37, 2001-01-28T11:37:25]:
+- moved EPG scan into separate module epgscan.c
+- query if scan is running via new func EpgScan_IsActive()
+- added func EpgAcqCtl_ToggleAcqForScan() to en-/disable BI/AI cb handling
+epgctl/epgscan.c [rev:1.4, 2001-01-28T11:41:35]:
+- renamed scan interface funcs to EpgScan_* from EpgAcqCtl_*
+epgctl/epgscan.h [rev:1.2, 2001-01-28T11:41:35]:
+- renamed scan interface funcs to EpgScan_* from EpgAcqCtl_*
+nxtvepg.pod [rev:1.23, 2001-01-31T18:25:48]:
+- added paragraph in Getting Started about manual provider "scan"
+- added status line to BAsic Browsing and Configure chapters
+- split off new chapter Statistics from Acquisition
+- added chapter Merged Databases
+nxtvepg.pod [rev:1.24, 2001-02-02T18:31:59]:
+- moved section STATISTICS behind ACQ MODES
+- it was between DB-ACQ and ACQ-MODES, now it follows both
+epgui/statswin.c [rev:1.29, 2001-02-02T19:33:45]:
+- added temp workaround for merged db
+- suppress NOW buttons in timescales
+- suppress 0 values in db stats win, display msg instead
+- added defective blocks to db stats win
+- added expired block count separately for stream 1 & 2
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.59, 2001-02-02T19:45:56]:
+- proc TimeScale_Create: suppress NOW boxes for merged dbs
+- reference new help chapter from provmerge popup
+- LoadRc: warn about nxtvepg version if newer
+epgctl/epgmain.c [epgui/epgmain.c, rev:1.52, 2001-02-02T19:47:56]:
+- ui init: set numeric EPG_VERSION_NO too, for version checks
+epgctl/epgscan.c [rev:1.5, 2001-02-02T19:50:42]:
+- count number of channels with sync found
+- warn if none found, suggest TV card input configuration
+epgdb/epgdbmerge.c [rev:1.12, 2001-02-02T19:53:29]:
+- added module description
+- set pDbContext->lastAiUpdate in initial merge
+epgui/statswin.c [rev:1.30, 2001-02-02T20:48:21]:
+- additional fix for merged db stats:
+- timscale status line: do not display fill percentage (always 0%)
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.60, 2001-02-02T20:56:17]:
+- optimized timescales NOW buttons
+- now created as rect inside the canvas instead of button widget
+epgui/pilistbox.c [rev:1.39, 2001-02-03T12:47:37]:
+- PiListBox_UpdateInfoText(): improved merged descr handling
+- split off merged info handling into new funcs
+    PiListBox_SeparateMergedInfo() and PiListBox_UnifyMergedInfo()
+- remove redundant strings
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.61, 2001-02-03T13:56:32]:
+- removed removal of bindings from .all.pi.info.text
+-> text widget can be scrolled per mouse and (more importantly)
+     text can be copied into the scratch buffer
+epgui/pilistbox.c [rev:1.40, 2001-02-03T13:58:11]:
+- changed input handling of .all.pi.info.text
+- bindings no longer removed
+- instead widget disabled; just set to normal to remove/insert text
+-> text widget can be scrolled per mouse and (more importantly)
+     text can be copied into the scratch buffer
+epgvbi/hamming.c [rev:1.6, 2001-02-03T20:28:37]:
+- changed result type of UnHamParityArray() from void to ushort
+- now returns number of parity errors
+epgvbi/hamming.h [rev:1.5, 2001-02-03T20:28:37]:
+- changed result type of UnHamParityArray() from void to ushort
+- now returns number of parity errors
+epgvbi/btdrv4win.c [rev:1.11, 2001-02-03T20:29:34]:
+- fix BtDriver_StartAcq() for EPG scan:
+- return TRUE if acq already running
+- required to change from EPG scan back to acq
+epgdb/epgtxtdump.c [epgui/dumpraw.c, rev:1.13, 2001-02-03T20:37:12]:
+- bugfix EpgTxtDumpPi()
+- print thme and sortcrit code 0 if the respective count is 0
+- before random values were printed which made a comparison
+    of dumps difficult
+epgdb/epgblock.h [rev:1.23, 2001-02-03T20:53:20]:
+- EPGDB_BLOCK: added origChkSum, origBlkLen, parityErrCnt
+- for parity error control in epgdbmgmt
+epgdb/epgdbsav.h [rev:1.23, 2001-02-03T20:54:48]:
+- increased DUMP_COMPAT from 0.4.1 to 0.4.3
+- due to addition of origChkSum, origBlkLen, parityErrCnt to EPGDB_BLOCK
+- use type ushort for endianMagic instead of unsigned short
+epgdb/epgstream.c [rev:1.11, 2001-02-03T20:56:10]:
+- EpgStreamConvertBlock()
+- initialize new vars in EPGDB_BLOCK: origChkSum, origBlkLen, parityErrCnt
+- parity errors retrieved from UnHamParityArray() in EpgStreamCheckBlock()
+epgdb/epgdbmgmt.c [rev:1.27, 2001-02-03T21:02:51]:
+- added EpgDbCompareParityErrorCount()
+- blocks are only replaced with the same version if less or equal number
+    of parity errors
+- implemented for PI and GENERIC, AI is still ToDo
+epgctl/mytypes.h [rev:1.9, 2001-02-03T21:04:06]:
+- added type ushort for Win32
+epgctl/epgscan.c [rev:1.6, 2001-02-03T21:04:24]:
+- improved 2 dprintf statements to debug channel skipping
+epgui/uictrl.c [rev:1.7, 2001-02-03T21:05:53]:
+- UiControl_ReloadError()
+- improved message for CTX_RELOAD_ERR_ACQ
+- suggest change of acq mode only for EPGDB_RELOAD_EXIST error
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.62, 2001-02-03T21:08:19]:
+- proc DbStatsWin_PaintPie:
+- changed color for missing PI from white to very light red/blue
+- because stipples don't work on Windows
+Makefile.win32 [rev:1.4, 2001-02-03T21:21:34]:
+- added epgctl/epgscan.c
+epgui/pilistbox.c [rev:1.41, 2001-02-04T11:22:40]:
+- PiListBox_UnifyMergedInfo()
+- made string comparison case-independant (for ASCII chars only)
+epgdb/epgdbacq.c [epgvbi/ttxdecode.c, rev:1.23, 2001-02-04T20:11:56]:
+- EpgDbAcqInitScan: reset additionally: ttxPkg stats and reader_idx
+epgctl/epgacqctl.c [rev:1.38, 2001-02-04T20:14:32]:
+- Ai callback:
+- upon first reception of an AI for a provider pass the frequency
+    to UiControlMsg_NewProvFreq() to store it in the rc/ini file
+- this is for the new doRefresh mode in the EPG scan
+epgctl/epgscan.c [rev:1.7, 2001-02-04T20:15:21]:
+- Added slow and refresh modes
+- EpgScan_Start() has additional params doSlow, doRefresh, freqTab
+- new func EpgScan_SetSpeed() to change the speed while the scan is running
+- tried to improve stability on weak channels -> new state WAIT_SIGNAL,
+    split off from 50ms RESET state
+- new state SCAN_STATE_WAIT_NI_OR_EPG to avoid wrong message if EPG
+    syntax is found before NI (prov was always waited for and called "new")
+- freq tab is stored in rc/ini file -> UiControlMsg_NewProvFreq()
+- slow mode: all delays doubled, plus skip of video signal check
+- added dprintf to allow debugging state machine
+epgctl/epgscan.h [rev:1.3, 2001-02-04T20:21:32]:
+- Added slow and refresh modes
+- EpgScan_Start() has additional params doSlow, doRefresh, freqTab
+- new func EpgScan_SetSpeed() to change the speed while the scan is running
+- Tried to improve stability on weak channels
+- new states WAIT_SIGNAL, split off from 50ms RESET state
+- Fixed problem on TV5
+- new state SCAN_STATE_WAIT_NI_OR_EPG to avoid wrong message if EPG
+- syntax is found before NI (prov was always waited for and called "new")
+epgui/uictrl.c [rev:1.8, 2001-02-04T20:22:35]:
+- added UiControlMsg_NewProvFreq
+- pass provider channel frequencies from acq ctl to Tcl
+- freq are stored in rc/ini file in case dbs get lost
+epgui/uictrl.h [rev:1.4, 2001-02-04T20:23:21]:
+- added UiControlMsg_NewProvFreq()
+- pass provider channel frequencies from acq ctl to Tcl
+- freq are stored in rc/ini file in case dbs get lost
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.63, 2001-02-04T20:33:52]:
+- EPG scan: added options "slow" and "refresh only"
+- added checkbuttons to popup, below text widget
+- added global prov_freqs, saved to rc/ini
+- added proc UpdateProvFrequency: maintains list of provider frequencies
+epgui/menucmd.c [rev:1.35, 2001-02-04T20:35:52]:
+- EPG scan: added options "slow" and "refresh only"
+- new func GetProvFreqTab() to fetch freq table from Tcl var prov_freqs
+- new func MenuCmd_SetEpgScanSpeed() to toggle option "slow" during scan
+- C_StartEpgScan: gets 2 additional params: isOptionSlow, isOptionRefresh
+    and calls GetProvFreqTab() in case of refresh mode
+- 4 additional params passed to EPG scan start func: slow and refresh mode
+    flags plus frequency table and count
+- refresh mode button must be dis-/enabled at start/stop of scan
+nxtvepg.pod [rev:1.25, 2001-02-04T20:40:50]:
+- added description of new EPG scan modes "slow" and "refresh"
+- in CONFIGURATION and GETTING STARTED
+epgdb/epgdbmerge.c [rev:1.13, 2001-02-04T21:11:34]:
+- fix EpgDbMergeOpenDatabases()
+- added param bool isForAcq
+- selects appropriate error reporting mode for EpgContextCtl_Open()
+- before all errors were reported as belonging to acq
+    (even if acq was turned off)
+epgdb/epgblock.c [rev:1.31, 2001-02-06T19:00:07]:
+- Changed NI, MI, OI, LI and TI block access macros:
+- xI_GET_HEADER(X) get pointer to block instead of &struct
+- changed for consistancy with equivalent macros for AI and PI blocks
+--> remove dereference (*) in all invocations of these macros
+epgdb/epgblock.h [rev:1.24, 2001-02-06T19:00:07]:
+- Changed NI, MI, OI, LI and TI block access macros:
+- xI_GET_HEADER(X) get pointer to block instead of &struct
+- changed for consistancy with equivalent macros for AI and PI blocks
+--> remove dereference (*) in all invocations of these macros
+epgdb/epgdbfil.c [rev:1.23, 2001-02-06T19:00:07]:
+- Changed NI, MI, OI, LI and TI block access macros:
+- xI_GET_HEADER(X) get pointer to block instead of &struct
+- changed for consistancy with equivalent macros for AI and PI blocks
+--> remove dereference (*) in all invocations of these macros
+epgdb/epgtxtdump.c [epgui/dumpraw.c, rev:1.14, 2001-02-06T19:00:07]:
+- Changed NI, MI, OI, LI and TI block access macros:
+- xI_GET_HEADER(X) get pointer to block instead of &struct
+- changed for consistancy with equivalent macros for AI and PI blocks
+--> remove dereference (*) in all invocations of these macros
+epgui/pifilter.c [rev:1.33, 2001-02-06T19:03:16]:
+- Changed NI, MI, OI, LI and TI block access macros:
+- xI_GET_HEADER(X) get pointer to block instead of &struct
+- changed for consistancy with equivalent macros for AI and PI blocks
+--> remove dereference (*) in all invocations of these macros
+epgui/menucmd.c [rev:1.36, 2001-02-06T19:03:47]:
+- C_GetServiceNameAndNetwopList renamed C_GetProvServiceInfos
+- added OI header and message to provider selection popup
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.64, 2001-02-06T19:04:39]:
+- C_GetServiceNameAndNetwopList renamed C_GetProvServiceInfos
+- added OI header and message to provider selection popup
+- provwin popup text widgets now export their selection
+epgdb/epgdbsav.c [rev:1.32, 2001-02-06T19:06:02]:
+- added OI block to EPGDBSAV_PEEK
+-> new static func EpgDbPeekOi() called by EpgDbPeek()
+epgdb/epgdbsav.h [rev:1.24, 2001-02-06T19:06:02]:
+- added OI block to EPGDBSAV_PEEK
+epgui/menucmd.c [rev:1.37, 2001-02-07T16:19:51]:
+- restructured prov_freqs array:
+- is now plain list with even number of elements -> pairs of CNI, freq
+- instead of list of list -> simpler to parse in GetProvFreqTab()
+epgui/pifilter.c [rev:1.34, 2001-02-07T16:38:44]:
+- PiFilter_UpdateNetwopList()
+- call UiControl_CheckDbState() after prefilters are set
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.65, 2001-02-07T16:39:29]:
+- network selection: added "copy" menu
+- allows to copy selection from other providers
+epgui/statswin.c [rev:1.31, 2001-02-07T17:54:52]:
+- fix: call DbStatsWin_ClearPie for merged db
+- required for switch from orig to merged db while stats are open
+epgdb/epgstream.c [rev:1.12, 2001-02-10T14:49:02]:
+- tiny fix in EpgStreamCheckBlock(): declare errCnt ushort instead of uint
+epgctl/epgmain.c [epgui/epgmain.c, rev:1.53, 2001-02-10T15:22:15]:
+- added call to PiListBox_Destroy() during shutdown
+- slight fixes in a few comments
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.66, 2001-02-10T15:23:11]:
+- Browser listbox columns can now be configured by the user
+- added frame with menu buttons above the browser text widget
+- width of text widget no longer static, depends on width of header frame
+- added config popup proc PopupColumnSelection
+- save column config to rc/ini file
+epgui/pilistbox.c [rev:1.42, 2001-02-10T16:00:12]:
+- Browser listbox columns can now be configured by the user
+- PiListBox_InsertItem() now is a loop across all configured columns
+- added PiListBox_CfgColumns() to copy the column config from Tcl var
+    called from PiListBox_Create() and after config change by the user
+- added PiListBox_Destroy() to free the column list during shutdown
+- moved definition of alphaNumTab to the start of the file
+epgui/pilistbox.h [rev:1.7, 2001-02-10T16:02:07]:
+- Browser listbox columns can now be configured by the user
+- added typedef enum PIBOX_COL_TYPES
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.67, 2001-02-10T16:32:06]:
+- fix: removed expand from pack .all.pi.list
+- fix: ApplySelectedColumnList always called even if rc not loaded
+- fix: increase width of the last header button to accomodate for text widget borderwidth
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.68, 2001-02-11T11:44:19]:
+- Added drop-down menus to the listbox column headers
+- put feature filter and theme menu creation into procs
+    are now used both for regular filter menu and column drop-downs
+- proc SubstrUpdateFilter: maintain history of searches
+    added SubstrSetFilter to apply searches from history
+- added new filter menu creation procs: FilterMenuAdd_Time,
+    FilterMenuAdd_Date, FilterMenuAdd_Networks, FilterMenuAdd_TitleHead
+- added substr history to rc/ini file
+- slight fixes in column header and tab stop widths
+epgui/pilistbox.c [rev:1.43, 2001-02-11T11:50:01]:
+- added new func PiListBox_GotoTime()
+- Jump to the first PI of the given start time
+- This function is to be used by time and date navigation menus.
+nxtvepg.pod [rev:1.26, 2001-02-11T19:32:34]:
+- reworked description of network selection popup
+README [rev:1.12, 2001-02-11T19:33:39]:
+- restructured description of WinDrvr installation
+- by hints from Mario's email
+- added new source site: http://www.neuz.de/
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.69, 2001-02-13T17:52:48]:
+- clumn header menu bar can now be suppressed by user config
+- added entry to Configure menu "Show column headers"
+- uses frame with height 0 to set the text widget width
+- added showColumnHeader to rc/ini file
+- fixed context menu filter settings
+- filter were not set in the Tcl vars
+- new proc SelectNetwopByIdx: gets AI netwop index
+epgui/pifilter.c [rev:1.35, 2001-02-13T17:57:01]:
+- bugfix context menu filter settings
+- filter were not set in the Tcl vars
+- new proc SelectNetwopByIdx: gets AI netwop index
+- new proc SubstrSetFilter: gets pattern and flags
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.70, 2001-02-13T20:04:16]:
+- browser listbox column width computation ported to Windows
+- .all.pi.colheads.spacer lower, because scrollbar is less wide
+- use frames to set width of header menu buttons (instead of setting
+    width via char count)
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.71, 2001-02-14T20:26:17]:
+- bugfix/workaround for dynamic menus on Windows
+- on Windows menus never get unmapped -> unpost proc never executed
+- all menus in the menubar including all submenus are posted
+    immediately when any menubutton is invoked
+  --> must not use complex dynamic menus on Windows
+- split off Navigate and Series menus from menubar
+- new proc PostSeparateMenu
+- also:
+  - global var $is_unix
+  - globally renamed info command to info commands
+epgui/pifilter.c [rev:1.36, 2001-02-14T20:29:48]:
+- bugfix/workaround for dynamic menus on Windows
+- do not destroy sub-menus before mapping the menu
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.72, 2001-02-14T21:05:12]:
+- renamed colsel_selist to pilistbox_cols in the rc/ini file
+- also renamed FilterMenuAdd_Title to FilterMenuAdd_TitleHead
+epgctl/epgversion.h [rev:1.7, 2001-02-14T21:07:48]:
+- set version to 0.4.3
+- separate version string from Windows - start at 1.3
+README [rev:1.13, 2001-02-14T21:09:53]:
+- added note about tk83.dll patches
+Makefile [rev:1.21, 2001-02-14T21:10:23]:
+- added target "bak" to archive the software
+CHANGES.version [rev:1.5, 2001-02-14T21:10:52]:
+- added reminder to ci epgversion before making the dist
+- else the wrong ident label will be compiled into the binary
+Makefile [rev:1.22, 2001-02-14T21:18:12]:
+- fix for epgversion with 2 separate EPG_VERSION_STR
+- use head -1 to get UNIX version for manpage
+nxtvepg.pod [rev:1.27, 2001-02-14T21:26:41]:
+- added paragraphs about PI listbox column config
+- and column header suppression
+CHANGES [rev:1.9, 2001-02-14T21:30:18]:
+- updated for release 0.4.3
+TODO [rev:1.9, 2001-02-14T21:30:18]:
+- updated for release 0.4.3
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.73, 2001-02-14T21:43:32]:
+- changed default for pilistbox_cols:
+www/index-de.html [rev:1.4, 2001-02-16T17:49:34]:
+- update for release 0.4.3:
+- removed beta release section
+- instead created separate download section for Windows
+- added separate download section for demo database
+www/index.html [rev:1.15, 2001-02-16T17:49:34]:
+- update for release 0.4.3:
+- removed beta release section
+- instead created separate download section for Windows
+- added separate download section for demo database
+www/changelog.html [rev:1.2, 2001-02-16T17:52:21]:
+- update for release 0.4.3:
+- added summary of new features between 0.3.4 and 0.4.3
+- added changes between 0.4.pre2 and 0.4.3
+www/man.html [rev:1.2, 2001-02-16T17:53:21]:
+- update for release 0.4.3:
+- see nxtvepg.pod for log history
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_4_3 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

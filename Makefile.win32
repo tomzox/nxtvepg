@@ -20,7 +20,7 @@
 #
 #  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
 #
-#  $Id: Makefile.win32,v 1.3 2001/01/09 20:50:35 tom Exp tom $
+#  $Id: Makefile.win32,v 1.4 2001/02/03 21:21:34 tom Exp tom $
 #
 
 TCLSH   = /gnu/tcl/bin/tclsh83.exe
@@ -50,6 +50,7 @@ LDFLAGS = kernel32.lib advapi32.lib user32.lib /libpath:"D:\Programme\DevStudio\
 # ----- don't change anything below ------------------------------------------
 
 CSRC    = epgctl/epgmain epgctl/debug epgctl/epgacqctl epgctl/epgctxctl \
+          epgctl/epgscan \
           epgvbi/vbidecode epgvbi/btdrv4win epgvbi/tvchan epgvbi/hamming  \
           epgdb/epgdbacq epgdb/epgstream epgdb/epgtxtdump epgdb/epgblock \
           epgdb/epgdbmgmt epgdb/epgdbif epgdb/epgdbsav epgdb/epgdbfil \

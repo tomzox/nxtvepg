@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: uictrl.c,v 1.4 2001/01/21 20:41:56 tom Exp tom $
+ *  $Id: uictrl.c,v 1.8 2001/02/04 20:22:35 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -41,6 +41,7 @@
 #include "epgdb/epgdbsav.h"
 #include "epgctl/epgmain.h"
 #include "epgctl/epgacqctl.h"
+#include "epgctl/epgscan.h"
 #include "epgui/pifilter.h"
 #include "epgui/pilistbox.h"
 #include "epgui/uictrl.h"
@@ -121,7 +122,7 @@ void UiControl_AiStateChange( ClientData clientData )
 
    if ( (EpgDbContextGetCni(pUiDbContext) == 0) &&
         (EpgDbContextGetCni(pAcqDbContext) != 0) &&
-        (EpgAcqCtl_ScanIsActive() == FALSE) )
+        (EpgScan_IsActive() == FALSE) )
    {  // UI db is completely empty (should only happen if there's no provider at all)
       dprintf1("UiControl-AiStateChange: browser db empty, switch to acq db 0x%04X\n", EpgDbContextGetCni(pAcqDbContext));
       // switch browser to acq db
@@ -168,6 +169,16 @@ void UiControl_AiStateChange( ClientData clientData )
 void UiControlMsg_AiStateChange( void )
 {
    AddMainIdleEvent( UiControl_AiStateChange, (ClientData) ((int)TRUE), FALSE );
+}
+
+// ----------------------------------------------------------------------------
+// Add or update an EPG provider channel frequency in the rc/ini file
+// - Called by the AI callback
+//
+void UiControlMsg_NewProvFreq( uint cni, ulong freq )
+{
+   sprintf(comm, "UpdateProvFrequency 0x%04X %ld\n", cni, freq);
+   eval_check(interp, comm);
 }
 
 // ----------------------------------------------------------------------------
@@ -235,9 +246,10 @@ void UiControl_ReloadError( ClientData clientData )
          case CTX_RELOAD_ERR_ACQ:
             sprintf(comm2, "tk_messageBox -type ok -icon warning -message {"
                              "Failed to load the database of provider %X because %s. "
-                             "Acquisition will not be possible for this provider. %s"
-                             "Or choose a different acquisition mode."
-                             "}\n", pMsg->cni, pReason, pHint);
+                             "Cannot switch the TV channel to start acquisition for this provider. "
+                             "%s%s}\n",
+                             pMsg->cni, pReason, pHint,
+                             ((pMsg->dberr == EPGDB_RELOAD_EXIST) ? "Or choose a different acquisition mode. " : ""));
             eval_check(interp, comm2);
             break;
 
@@ -341,5 +353,31 @@ static void UiControl_MissingTunerFreq( ClientData clientData )
 void UiControlMsg_MissingTunerFreq( uint cni )
 {
    AddMainIdleEvent(UiControl_MissingTunerFreq, (ClientData) cni, FALSE);
+}
+
+// ----------------------------------------------------------------------------
+// Warn the user about acquisition mode error
+//
+static void UiControl_AcqPassive( ClientData clientData )
+{
+   char * comm2 = xmalloc(2048);
+
+   sprintf(comm2, "tk_messageBox -type ok -icon warning -parent . "
+                  "-message {Since the selected input source is not a TV tuner, "
+                            "only the passive acquisition mode is possible. Either "
+                            "select a different input source in the 'TV card input' "
+                            "menu or select acquisition mode 'passive' to avoid "
+                            "this message."
+                            "}\n");
+   eval_check(interp, comm2);
+   xfree(comm2);
+}
+
+// ----------------------------------------------------------------------------
+// Accept message from acq control about input source problem
+//
+void UiControlMsg_AcqPassive( void )
+{
+   AddMainIdleEvent(UiControl_AcqPassive, (ClientData) NULL, TRUE);
 }
 

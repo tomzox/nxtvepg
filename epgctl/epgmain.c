@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgmain.c,v 1.51 2001/01/21 12:19:13 tom Exp tom $
+ *  $Id: epgmain.c,v 1.53 2001/02/10 15:22:15 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -789,6 +789,8 @@ static int ui_init( int argc, char **argv )
    eval_check(interp, comm);
    #endif
 
+   sprintf(comm, "0x%06X", EPG_VERSION_NO);
+   Tcl_SetVar(interp, "EPG_VERSION_NO", comm, TCL_GLOBAL_ONLY);
    Tcl_SetVar(interp, "EPG_VERSION", epg_version_str, TCL_GLOBAL_ONLY);
 
    Tk_DefineBitmap(interp, Tk_GetUid("bitmap_ptr_up"), ptr_up_bits, ptr_up_width, ptr_up_height);
@@ -838,7 +840,7 @@ int main( int argc, char *argv[] )
    signal(SIGINT, signal_handler);
    signal(SIGTERM, signal_handler);
    #else
-   // set up callback to catch shutdiwn messages (requires tk83.dll patch!)
+   // set up callback to catch shutdown messages (requires tk83.dll patch!)
    Tk_RegisterMainDestructionHandler(WinApiDestructionHandler);
    // set up an handler to catch fatal exceptions
    __try {
@@ -852,10 +854,10 @@ int main( int argc, char *argv[] )
       exit(-1);
    }
 
-   // UNIX must init VBI before fork or slave will inherit X11 file handles
+   // UNIX must fork the VBI slave before GUI startup or the slave will inherit all X11 file handles
    BtDriver_Init();
 
-   // initialize Tcl/Tk interpreter and load the scripts
+   // initialize Tcl/Tk interpreter and compile all scripts
    ui_init(argc, argv);
    should_exit = FALSE;
    exitHandler = Tcl_AsyncCreate(AsyncHandler_AppTerminate, NULL);
@@ -964,6 +966,7 @@ int main( int argc, char *argv[] )
    EpgContextCtl_Close(pUiDbContext);
    pUiDbContext = NULL;
    PiFilter_Destroy();
+   PiListBox_Destroy();
 
    #if CHK_MALLOC == ON
    DiscardAllMainIdleEvents();

@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: mytypes.h,v 1.8 2000/12/03 18:56:35 tom Exp tom $
+ *  $Id: mytypes.h,v 1.9 2001/02/03 21:04:06 tom Exp tom $
  */
 
 #include <sys/types.h>
@@ -27,15 +27,16 @@
 #define __MYTYPES_H
 
 // required basic types
-typedef unsigned char bool;     // >=1 bit unsigned
-typedef   signed char schar;    // 8 bit signed
-typedef unsigned char uchar;    // 8 bit unsigned
-typedef   signed int  sint;     // 32 bit signed
+typedef unsigned char  bool;     // >=1 bit unsigned
+typedef   signed char  schar;    // 8 bit signed
+typedef unsigned char  uchar;    // 8 bit unsigned
+typedef   signed int   sint;     // 32 bit signed
 #ifdef WIN32
-typedef unsigned int  uint;     // 32 bit unsigned
-typedef unsigned long ulong;    // >=32 bit unsigned
+typedef unsigned short ushort;   // >=16 bit unsigned
+typedef unsigned int   uint;     // 32 bit unsigned
+typedef unsigned long  ulong;    // >=32 bit unsigned
 #endif
-typedef   signed long slong;    // >=32 bit signed
+typedef   signed long  slong;    // >=32 bit signed
 
 // boolean values
 #define FALSE 0

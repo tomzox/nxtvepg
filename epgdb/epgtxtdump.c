@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgtxtdump.c,v 1.12 2001/01/01 20:19:53 tom Exp tom $
+ *  $Id: epgtxtdump.c,v 1.14 2001/02/06 19:00:07 tom Exp tom $
  */
 
 #define __EPGTXTDUMP_C
@@ -186,8 +186,11 @@ void EpgTxtDumpPi( FILE *fp, const PI_BLOCK * pPi, uchar stream, uchar version, 
                   GetPiPilStr(pPi->pil),
                   (PI_HAS_SHORT_INFO(pPi) ? strlen(PI_GET_SHORT_INFO(pPi)) : 0),
                   (PI_HAS_LONG_INFO(pPi) ? strlen(PI_GET_LONG_INFO(pPi)) : 0),
-                  pPi->no_themes, pPi->themes[0], ((pPi->themes[0]<0x80) && ((pdc_themes[pPi->themes[0]] != NULL)) ? pdc_themes[pPi->themes[0]] : pdc_undefined_theme),
-                  pPi->no_sortcrit, pPi->sortcrits[0]
+                  pPi->no_themes,
+                  ((pPi->no_themes > 0) ? pPi->themes[0] : 0),
+                  ((pPi->no_themes > 0) ? (char *)((pPi->themes[0]<0x80) && ((pdc_themes[pPi->themes[0]] != NULL)) ? pdc_themes[pPi->themes[0]] : pdc_undefined_theme) : "none"),
+                  pPi->no_sortcrit,
+                  ((pPi->no_sortcrit > 0) ? pPi->sortcrits[0] : 0)
              );
 
       if (PI_HAS_SHORT_INFO(pPi))
@@ -252,11 +255,11 @@ void EpgTxtDumpOi( FILE *fp, const OI_BLOCK * pOi, uchar stream )
                   pOi->msg_size + 1,
                   pOi->msg_attrib,
                   pOi->no_descriptors,
-                  ((pOi->off_header != 0) ? OI_GET_HEADER(*pOi) : (uchar *) "")
+                  ((pOi->off_header != 0) ? OI_GET_HEADER(pOi) : (uchar *) "")
       );
 
       if (pOi->off_message != 0)
-         fprintf(fp, "     MSG %s\n", OI_GET_MESSAGE(*pOi));
+         fprintf(fp, "     MSG %s\n", OI_GET_MESSAGE(pOi));
    }
 }
 
@@ -278,10 +281,10 @@ void EpgTxtDumpNi( FILE *fp, const NI_BLOCK * pNi, uchar stream )
                   pNi->msg_size + 1,
                   pNi->msg_attrib,
                   pNi->no_descriptors,
-                  ((pNi->off_header != 0) ? NI_GET_HEADER(*pNi) : (uchar *) "")
+                  ((pNi->off_header != 0) ? NI_GET_HEADER(pNi) : (uchar *) "")
              );
 
-      pEv = NI_GET_EVENTS(*pNi);
+      pEv = NI_GET_EVENTS(pNi);
 
       for (i=0; i<pNi->no_events; i++)
       {
@@ -347,7 +350,7 @@ void EpgTxtDumpNi( FILE *fp, const NI_BLOCK * pNi, uchar stream )
                      ((pEv[i].next_type == 1) ? "NI" : "OI"),
                      pEv[i].next_id,
                      pEv[i].no_attribs,
-                     ((pEv[i].off_evstr != 0) ? NI_GET_EVENT_STR(*pNi, pEv[i]) : (uchar*)"NULL"),
+                     ((pEv[i].off_evstr != 0) ? NI_GET_EVENT_STR(pNi, &pEv[i]) : (uchar*)"NULL"),
                      pAts
                 );
       }
@@ -365,7 +368,7 @@ void EpgTxtDumpMi( FILE *fp, const MI_BLOCK * pMi, uchar stream )
                   stream + 1,
                   pMi->block_no,
                   pMi->no_descriptors,
-                  ((pMi->off_message != 0) ? MI_GET_MESSAGE(*pMi) : (uchar *) "")
+                  ((pMi->off_message != 0) ? MI_GET_MESSAGE(pMi) : (uchar *) "")
              );
    }
 }
@@ -381,7 +384,7 @@ void EpgTxtDumpLi( FILE *fp, const LI_BLOCK * pLi, uchar stream )
    if ((pLi != NULL) && epgTxtListBlocks)
    {
       fprintf(fp, "LI:%d %04x %d #desc=%d\n", stream + 1, pLi->block_no, pLi->netwop_no, pLi->desc_no);
-      pLd = LI_GET_DESC(*pLi);
+      pLd = LI_GET_DESC(pLi);
 
       for (desc=0; desc < pLi->desc_no;desc++)
       {
@@ -406,7 +409,7 @@ void EpgTxtDumpTi( FILE *fp, const TI_BLOCK * pTi, uchar stream )
    if ((pTi != NULL) && epgTxtListBlocks)
    {
       fprintf(fp, "TI:%d %04x %d #desc=%d\n", stream + 1, pTi->block_no, pTi->netwop_no, pTi->desc_no);
-      pStd = TI_GET_DESC(*pTi);
+      pStd = TI_GET_DESC(pTi);
 
       for (desc=0; desc < pTi->desc_no; desc++)
       {

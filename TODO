@@ -1,46 +1,43 @@
-nxtvepg version 0.4.preX is just a snapshot of work in progress.
-The following features are still incomplete and need to be fixed
-before the next release. If you find any bugs not listed here,
-please let me know.
+This file contains a list of changes that are planned for the future.
+No promises are made as to when I'll get to execute these changes.
+Your feedback is always welcome, so feel free to mail me if you want to
+boost any item's priority, find more points that need to be fixed or if
+you have ideas for additional features.
 
-mail to Linux bttv maintainer:
-- CGFREQ on /dev/vbi does not work
-- set input source on /dev/vbi not possible
-- how to get frame number from vbi buffer?
-
-db merge fixes:
-- documentation missing
-- fine control for provider merge
-- new provider selection -> keep all CNIs from suppressed list, even if obsolete?
-- version & block index handling (for timescales)
 
 acq mode ctl. & cyclic acq fixes:
 - documentation for new browser status line and 2 stats wins
 - acq timebase for cycle stats in EpgDbGetStat()
-- take tuner freq from obsolete db version also
+- 2nd stage after dbs are (almost) complete: concentrate on reaching
+  100%, then sleep and just wake up to check AI, e.g. every 5 minutes
 - check if version is incompatible before recommending prov selection
-- acqmode popup: check for device-access or no-tuner errors
-- warn when acq mode not possible due to non-tuner input
-- stats window: report acq mode, cycle phase and index
+- limit number of error/warning popups for database errors
+  or combine several CNIs into one popup
 
 WIN32 port fixes:
 - tuner input source fixed to #0
-- CTRL-C, shutdown or abnormal termination crashes the host
-- improve "Getting Started" in help for Win32
 - dump stream feature: must use window or file instead of stdout
+- catch exceptions in VBI thread separately (anyone still seeing blue-screens?)
+- need to debug source of crash in MessageBox()
+- better workaround for dynamic menus needed
 
+required bttv driver fixes:
+- setting input source via /dev/vbi is not possible
+- need to use frame counter to check for lost frames
 
+merged database fixes:
+- fine control for provider merge
+  (e.g. average editorial rating instead of first)
+- merged database: version & block index handling (for statistics)
+- more intelligent redundancy check for merged descriptions:
+  break up into substrings at any non-alnum except space
 
-required fixes:
-- EPG scan skips some channels with bad reception or encryption
-- EPG scan summary: # of syncs found, # of EPG providers found
-  Manual scan; ttx error rate in stats window
+other required fixes:
+- add manual EPG scan: direct input of channel and fine-tune or frequency
 - short info text view is set to line 1.0 during every update
-- suggest bttv driver fix: CGFREQ from tuner driver
-- cmd line option predatory: in this mode the tuner is set via /dev/vbi
+- cmd line option "predatory": in this mode the tuner is set via /dev/vbi
   regardless of other /dev/video users
 - use frame counter at the end of the frame buffer
-- latin-1 chars in substring search do not work with Tcl/Tk 8.3
 - do not tune channel if vbi busy
 - filter shortcut combination logic modes: OR,AND
 - provider-specific shortcuts: are listed only for one provider
@@ -49,13 +46,14 @@ required fixes:
   + acq abort: slave should pass errno as reason via shmem
   + sigchld -> acq off
   + check parent every 30 sec, also when no ttx reception
-- count parity errors before replacing blocks of same version
 - debugging: make serious debugX events fatal (developers only)
 
 possible new features: (in order of decreasing priority)
-- TV channel switching for NOW programmes with middle mouse button
+- Use Tix library to improve GUI
+- add hyperlinks in the online help menus for all section references
+- TV channel switching for NOW programmes
 - timezone popup (GUI already implemented)
-- timer programming & invocation or external dispatch
+- timer programming and invocation or external dispatch
 - long-term search: maintain list of search filters that are applied each time
   new data has been acquired; notify the user when a matching PI arrives. This
   can be used for a list of favourite movies or actors

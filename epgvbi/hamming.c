@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: hamming.c,v 1.5 2000/12/09 17:14:55 tom Exp tom $
+ *  $Id: hamming.c,v 1.6 2001/02/03 20:28:37 tom Exp tom $
  */
 
 #define __HAMMING_C
@@ -124,17 +124,26 @@ bool UnHam84Array( uchar * pin, uint byteCount )
 // Resolve parity on an array in-place
 // - errors are ignored, the character just replaced by a blank
 //
-void UnHamParityArray( const uchar *pin, uchar *pout, uint byteCount )
+ushort UnHamParityArray( const uchar *pin, uchar *pout, uint byteCount )
 {
+   ushort errCount;
    schar c1;
 
+   errCount = 0;
    for (; byteCount > 0; byteCount--)
    {
       c1 = (schar)parityTab[*(pin++)];
       if (c1 >= 0)
+      {
          *(pout++) = c1;
+      }
       else
+      {
          *(pout++) = ' ';
+         errCount += 1;
+      }
    }
+
+   return errCount;
 }
 

@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: pilistbox.c,v 1.38 2001/01/20 15:54:38 tom Exp tom $
+ *  $Id: pilistbox.c,v 1.43 2001/02/11 11:50:01 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -44,6 +44,7 @@
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
 #include "epgdb/epgdbsav.h"
+#include "epgdb/epgdbmerge.h"
 #include "epgctl/epgmain.h"
 #include "epgctl/epgacqctl.h"
 #include "epgui/uictrl.h"
@@ -82,6 +83,49 @@ PIBOX_STATE pibox_state = PIBOX_NOT_INIT;  // listbox state
 EPGDB_STATE pibox_dbstate;       // database state
 
 #define dbc pUiDbContext         // internal shortcut
+
+// Emergency fallback for column configuration
+// (should never be used because tab-stops and column header buttons will not match)
+static const PIBOX_COL_TYPES defaultPiboxCols[] =
+{
+   PIBOX_COL_NETNAME,
+   PIBOX_COL_TIME,
+   PIBOX_COL_WEEKDAY,
+   PIBOX_COL_TITLE,
+   PIBOX_COL_COUNT
+};
+// pointer to a list of the currently configured column types
+static const PIBOX_COL_TYPES * pPiboxCols = defaultPiboxCols;
+
+// ----------------------------------------------------------------------------
+// Table to implement isalnum() for all latin fonts
+//
+const char alphaNumTab[256] =
+{
+/* 0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F */
+   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 0 */
+   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 1 */
+   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 2 */
+   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,  /* 3 */ // 0 - 9
+   0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,  /* 4 */ // A - Z
+   2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0,  /* 5 */
+   0,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,  /* 6 */ // a - z
+  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 0, 0, 0, 0, 0,  /* 7 */
+   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 8 */
+   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 9 */
+   0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,  /* A */ // national
+   4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,  /* B */
+   4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,  /* C */
+   4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,  /* D */
+   4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,  /* E */
+   4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,  /* F */
+/* 0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F */
+};
+#define ALNUM_NONE    0
+#define ALNUM_DIGIT   1
+#define ALNUM_UCHAR   2
+#define ALNUM_LCHAR  -1
+#define ALNUM_NATION  4
 
 // ----------------------------------------------------------------------------
 // Check the consistancy of the listbox state with the database and text widget
@@ -328,7 +372,9 @@ void PiListBox_UpdateState( EPGDB_STATE newDbState )
       if (pibox_dbstate != EPGDB_OK)
       {
          sprintf(comm, ".all.pi.list.sc set 0.0 1.0\n"
-                       ".all.pi.info.text delete 1.0 end\n");
+                       ".all.pi.info.text configure -state normal\n"
+                       ".all.pi.info.text delete 1.0 end\n"
+                       ".all.pi.info.text configure -state disabled\n");
          eval_check(interp, comm);
       }
    }
@@ -340,35 +386,441 @@ void PiListBox_UpdateState( EPGDB_STATE newDbState )
 static void PiListBox_InsertItem( const PI_BLOCK *pPiBlock, int pos )
 {
    const AI_BLOCK *pAiBlock;
-   uchar date_str[20], start_str[20], stop_str[20];
-   uchar netname[8];
+   struct tm ttm;
+   uint idx, off;
 
-   strftime(date_str, 19, "%a %d.%m", localtime(&pPiBlock->start_time));
-   strftime(start_str, 19, "%H:%M", localtime(&pPiBlock->start_time));
-   strftime(stop_str, 19, "%H:%M", localtime(&pPiBlock->stop_time));
+   memcpy(&ttm, localtime(&pPiBlock->start_time), sizeof(struct tm));
+   idx = 0;
+   sprintf(comm, ".all.pi.list.text insert %d.0 {", pos + 1);
+   off = strlen(comm);
 
-   pAiBlock = EpgDbGetAi(dbc);
-   if ((pAiBlock != NULL) && (pPiBlock->netwop_no < pAiBlock->netwopCount))
+   while (pPiboxCols[idx] < PIBOX_COL_COUNT)
    {
-      strncpy(netname, AI_GET_NETWOP_NAME(pAiBlock, pPiBlock->netwop_no), 7);
-      netname[7] = 0;
+      switch (pPiboxCols[idx])
+      {
+         case PIBOX_COL_NETNAME:
+            EpgDbLockDatabase(dbc, TRUE);
+            pAiBlock = EpgDbGetAi(dbc);
+            if ((pAiBlock != NULL) && (pPiBlock->netwop_no < pAiBlock->netwopCount))
+            {
+               strncpy(comm + off, AI_GET_NETWOP_NAME(pAiBlock, pPiBlock->netwop_no), 9);
+               comm[off + 9] = 0;
+            }
+            else
+            {
+               debug0("PiListBox_InsertItem: no AI block");
+               strcpy(comm + off, "??");
+            }
+            EpgDbLockDatabase(dbc, FALSE);
+            off += strlen(comm + off);
+            break;
+            
+         case PIBOX_COL_TIME:
+            strftime(comm + off,     19, "%H:%M-", &ttm);
+            strftime(comm + off + 6, 19, "%H:%M",  localtime(&pPiBlock->stop_time));
+            off += 11;
+            break;
+
+         case PIBOX_COL_WEEKDAY:
+            strftime(comm + off, 19, "%a", &ttm);
+            off += strlen(comm + off);
+            break;
+
+         case PIBOX_COL_DAY:
+            strftime(comm + off, 19, "%d.", &ttm);
+            off += strlen(comm + off);
+            break;
+
+         case PIBOX_COL_DAY_MONTH:
+            strftime(comm + off, 19, "%d.%m.", &ttm);
+            off += strlen(comm + off);
+            comm[off] = 0;
+            break;
+
+         case PIBOX_COL_DAY_MONTH_YEAR:
+            strftime(comm + off, 19, "%d.%m.%Y", &ttm);
+            off += strlen(comm + off);
+            break;
+
+         case PIBOX_COL_TITLE:
+            strcpy(comm + off, PI_GET_TITLE(pPiBlock));
+            off += strlen(comm + off);
+            break;
+
+         case PIBOX_COL_DESCR:
+            comm[off++] = (PI_HAS_LONG_INFO(pPiBlock) ? 'l' : 
+                          (PI_HAS_SHORT_INFO(pPiBlock) ? 's' : '-'));
+            break;
+
+         case PIBOX_COL_PIL:
+            if (pPiBlock->pil != 0x7fff)
+            {
+               sprintf(comm + off, "%02d:%02d/%02d.%02d.",
+                       (pPiBlock->pil >>  6) & 0x1F,
+                       (pPiBlock->pil      ) & 0x3F,
+                       (pPiBlock->pil >> 15) & 0x1F,
+                       (pPiBlock->pil >> 11) & 0x0F);
+               off += strlen(comm + off);
+            }
+            break;
+
+         case PIBOX_COL_SOUND:
+            switch(pPiBlock->feature_flags & 0x03)
+            {
+               case 1: strcpy(comm + off, "2-chan"); break;
+               case 2: strcpy(comm + off, "stereo"); break;
+               case 3: strcpy(comm + off, "surr."); break;
+            }
+            off += strlen(comm + off);
+            break;
+
+         case PIBOX_COL_FORMAT:
+            if (pPiBlock->feature_flags & 0x08)
+               strcpy(comm + off, "PAL+");
+            else if (pPiBlock->feature_flags & 0x04)
+               strcpy(comm + off, "wide");
+            off += strlen(comm + off);
+            break;
+
+         case PIBOX_COL_ED_RATING:
+            if (pPiBlock->editorial_rating > 0)
+            {
+               sprintf(comm + off, " %d", pPiBlock->editorial_rating);
+               off += strlen(comm + off);
+            }
+            break;
+
+         case PIBOX_COL_PAR_RATING:
+            if (pPiBlock->parental_rating == 1)
+               strcpy(comm + off, "all");
+            else if (pPiBlock->parental_rating > 0)
+               sprintf(comm + off, ">%2d", pPiBlock->parental_rating * 2);
+            off += strlen(comm + off);
+            break;
+
+         case PIBOX_COL_LIVE_REPEAT:
+            if (pPiBlock->feature_flags & 0x40)
+               strcpy(comm + off, "live");
+            else if (pPiBlock->feature_flags & 0x80)
+               strcpy(comm + off, "repeat");
+            off += strlen(comm + off);
+            break;
+
+         case PIBOX_COL_SUBTITLES:
+            comm[off++] = ((pPiBlock->feature_flags & 0x100) ? 't' : '-');
+            break;
+
+         case PIBOX_COL_THEME:
+            if (pPiBlock->no_themes > 0)
+            {
+               const uchar * p;
+               uchar theme;
+               uint themeIdx, len;
+
+               if (pPiFilterContext->enabledFilters & FILTER_THEMES)
+               {
+                  // Search for the first theme that's not part of the filter setting.
+                  // (It would be boring to print "movie" for all programmes, when there's
+                  //  a movie theme filter; instead we print the first sub-theme, e.g. "sci-fi")
+                  for (themeIdx=0; themeIdx < pPiBlock->no_themes; themeIdx++)
+                  {  // ignore theme class
+                     theme = pPiBlock->themes[themeIdx];
+                     if ( (theme < 0x80) &&
+                          ((pPiFilterContext->themeFilterField[theme] & pPiFilterContext->usedThemeClasses) == 0) )
+                     {
+                        break;
+                     }
+                  }
+                  if (themeIdx >= pPiBlock->no_themes)
+                     themeIdx = 0;
+               }
+               else
+                  themeIdx = 0;
+
+               if (pPiBlock->themes[themeIdx] >= 0x80)
+               {  // series
+                  strcpy(comm + off, pdc_series);
+               }
+               else if ((p = pdc_themes[pPiBlock->themes[themeIdx]]) != NULL)
+               {  // remove " - general" from the end of the theme category name
+                  len = strlen(p);
+                  if ((len > 10) && (strcmp(p + len - 10, " - general") == 0))
+                  {
+                     strncpy(comm + off, p, len - 10);
+                     comm[off + len - 10] = 0;
+                  }
+                  else
+                     strcpy(comm + off, p);
+               }
+
+               // limit max. length: theme must fit into the column width
+               len = strlen(comm + off);
+               if (len > 10)
+               {  // remove single chars or separators from the end of the truncated string
+                  p = comm + off + 10 - 1;
+                  if (alphaNumTab[*(p - 1)] == ALNUM_NONE)
+                     p -= 2;
+                  while (alphaNumTab[*(p--)] == ALNUM_NONE)
+                     ;
+                  off = (char *)(p + 2) - (char *)comm;
+               }
+               else
+                  off += len;
+            }
+            break;
+
+         default:
+            SHOULD_NOT_BE_REACHED;
+            break;
+      }
+      comm[off++] = '\t';
+      comm[off] = 0;
+      idx += 1;
+   }
+   // remove trailing tab character
+   if (idx > 0)
+      off -= 1;
+
+   sprintf(comm + off, "\n} %s\n", (pPiBlock->start_time <= time(NULL)) ? "now" : "then");
+   eval_check(interp, comm);
+}
+
+// ----------------------------------------------------------------------------
+// Configure browser listing columns
+// - Additionally the tab-stops in the text widget must be defined for the
+//   width of the respective columns: Tcl/Tk proc ApplySelectedColumnList
+// - Also, the listbox must be refreshed
+//
+static int PiListBox_CfgColumns( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+{
+   PIBOX_COL_TYPES * pColTab;
+   char **pColArgv;
+   uint colCount, colIdx, idx;
+   char * pTmpStr;
+   int result;
+
+   pTmpStr = Tcl_GetVar(interp, "colsel_selist", TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG);
+   if (pTmpStr != NULL)
+   {
+      result = Tcl_SplitList(interp, pTmpStr, &colCount, &pColArgv);
+      if (result == TCL_OK)
+      {
+         pColTab = xmalloc((colCount + 1) * sizeof(PIBOX_COL_TYPES));
+
+         for (idx=0; idx < colCount; idx++)
+         {
+            if      (strcmp(pColArgv[idx], "netname") == 0) colIdx = PIBOX_COL_NETNAME;
+            else if (strcmp(pColArgv[idx], "time") == 0) colIdx = PIBOX_COL_TIME;
+            else if (strcmp(pColArgv[idx], "weekday") == 0) colIdx = PIBOX_COL_WEEKDAY;
+            else if (strcmp(pColArgv[idx], "day") == 0) colIdx = PIBOX_COL_DAY;
+            else if (strcmp(pColArgv[idx], "day_month") == 0) colIdx = PIBOX_COL_DAY_MONTH;
+            else if (strcmp(pColArgv[idx], "day_month_year") == 0) colIdx = PIBOX_COL_DAY_MONTH_YEAR;
+            else if (strcmp(pColArgv[idx], "title") == 0) colIdx = PIBOX_COL_TITLE;
+            else if (strcmp(pColArgv[idx], "description") == 0) colIdx = PIBOX_COL_DESCR;
+            else if (strcmp(pColArgv[idx], "pil") == 0) colIdx = PIBOX_COL_PIL;
+            else if (strcmp(pColArgv[idx], "theme") == 0) colIdx = PIBOX_COL_THEME;
+            else if (strcmp(pColArgv[idx], "sound") == 0) colIdx = PIBOX_COL_SOUND;
+            else if (strcmp(pColArgv[idx], "format") == 0) colIdx = PIBOX_COL_FORMAT;
+            else if (strcmp(pColArgv[idx], "ed_rating") == 0) colIdx = PIBOX_COL_ED_RATING;
+            else if (strcmp(pColArgv[idx], "par_rating") == 0) colIdx = PIBOX_COL_PAR_RATING;
+            else if (strcmp(pColArgv[idx], "live_repeat") == 0) colIdx = PIBOX_COL_LIVE_REPEAT;
+            else if (strcmp(pColArgv[idx], "subtitles") == 0) colIdx = PIBOX_COL_SUBTITLES;
+            else colIdx = PIBOX_COL_COUNT;
+
+            pColTab[idx] = colIdx;
+         }
+         pColTab[idx] = PIBOX_COL_COUNT;
+
+         if (pPiboxCols != defaultPiboxCols)
+            xfree((void *)pPiboxCols);
+         pPiboxCols = pColTab;
+      }
    }
    else
+      result = TCL_ERROR;
+
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Remove descriptions that are substrings of other info strings in the given list
+//
+static uint PiListBox_UnifyMergedInfo( uchar ** infoStrTab, uint infoCount )
+{
+   register uchar c1, c2;
+   register schar ia1, ia2;
+   uchar *pidx, *pcmp, *p1, *p2;
+   uint idx, cmpidx;
+   int len, cmplen;
+
+   for (idx = 0; idx < infoCount; idx++)
    {
-      debug0("PiListBox_InsertItem: no AI block");
-      strcpy(netname, "??");
+      pidx = infoStrTab[idx];
+      while ( (*pidx != 0) && (alphaNumTab[*pidx] == ALNUM_NONE) )
+         pidx += 1;
+      len = strlen(pidx);
+
+      for (cmpidx = 0; cmpidx < infoCount; cmpidx++)
+      {
+         if ((idx != cmpidx) && (infoStrTab[cmpidx] != NULL))
+         {
+            pcmp = infoStrTab[cmpidx];
+            while ( (alphaNumTab[*pcmp] != 0) && (alphaNumTab[*pcmp] == ALNUM_NONE) )
+               pcmp += 1;
+            cmplen = strlen(pcmp);
+            if (cmplen >= len)
+            {
+               cmplen -= len;
+
+               while (cmplen-- >= 0)
+               {
+                  if (*(pcmp++) == *pidx)
+                  {
+                     p1 = pidx + 1;
+                     p2 = pcmp;
+
+                     while ( ((c1 = *p1) != 0) && ((c2 = *p2) != 0) )
+                     {
+                        ia1 = alphaNumTab[c1];
+                        ia2 = alphaNumTab[c2];
+                        if (ia1 == ALNUM_NONE)
+                           p1++;
+                        else if (ia2 == ALNUM_NONE)
+                           p2++;
+                        else
+                        {
+                           if ( (ia1 ^ ia2) < 0 )
+                           {  // different case -> make both upper case
+                              c1 &= ~0x20;
+                              c2 &= ~0x20;
+                           }
+                           if (c1 != c2)
+                              break;
+                           else
+                           {
+                              p1++;
+                              p2++;
+                           }
+                        }
+                     }
+
+                     if (*p1 == 0)
+                     {  // found identical substring
+                        dprintf1("PiListBox-UnifyMergedInfo: remove %s\n", infoStrTab[idx]);
+                        xfree(infoStrTab[idx]);
+                        infoStrTab[idx] = NULL;
+                        break;
+                     }
+                  }
+               }
+               if (infoStrTab[idx] == NULL)
+                  break;
+            }
+         }
+      }
    }
 
-   sprintf(comm, ".all.pi.list.text insert %d.0 {%-7s\t%s-%s %s %c%c\t%s\n} %s\n",
-           pos + 1,
-           netname,
-           start_str, stop_str, date_str,
-           (PI_HAS_SHORT_INFO(pPiBlock) ? 's' : '-'),
-           (PI_HAS_LONG_INFO(pPiBlock) ? 'l' : '-'),
-           PI_GET_TITLE(pPiBlock),
-           (pPiBlock->start_time <= time(NULL)) ? "now" : "");
+   return infoCount;
+}
 
-   eval_check(interp, comm);
+// ----------------------------------------------------------------------------
+// Build array of description strings for merged PI
+// - Merged database needs special handling, because short and long infos
+//   of all providers are concatenated into the short info string. Separator
+//   between short and long info is a newline char. After each provider's
+//   info there's a form-feed char.
+// - Returns the number of separate strings and puts their pointers into the array.
+//   The caller must free the separated strings.
+//
+static uint PiListBox_SeparateMergedInfo( const PI_BLOCK * pPiBlock, uchar ** infoStrTab )
+{
+   uchar c, *p, *ps, *pl, *pt;
+   int   shortInfoLen, longInfoLen, len;
+   uint  count;
+
+   p = PI_GET_SHORT_INFO(pPiBlock);
+   count = 0;
+   do
+   {  // loop across all provider's descriptions
+
+      // obtain start and length of this provider's short and long info
+      shortInfoLen = longInfoLen = 0;
+      ps = p;
+      pl = NULL;
+      while (*p)
+      {
+         if (*p == '\n')
+         {  // end of short info found
+            shortInfoLen = p - ps;
+            pl = p + 1;
+         }
+         else if (*p == 12)
+         {  // end of short and/or long info found
+            if (pl == NULL)
+               shortInfoLen = p - ps;
+            else
+               longInfoLen = p - pl;
+            p++;
+            break;
+         }
+         p++;
+      }
+
+      if (pl != NULL)
+      {
+         // if there's a long info too, do the usual redundancy check
+
+         if (shortInfoLen > longInfoLen)
+         {
+            len = longInfoLen;
+            pt = ps + (shortInfoLen - longInfoLen);
+         }
+         else
+         {
+            len = shortInfoLen;
+            pt = ps;
+         }
+         c = *pl;
+
+         // min length is 30, because else single words might match
+         while (len-- > 30)
+         {
+            if (*(pt++) == c)
+            {
+               if (!strncmp(pt, pl+1, len))
+               {  // start of long info is identical to end of short info -> skip identical part in long info
+                  pl          += len + 1;
+                  longInfoLen -= len + 1;
+                  break;
+               }
+            }
+         }
+
+         infoStrTab[count] = xmalloc(shortInfoLen + longInfoLen + 1 + 1);
+         strncpy(infoStrTab[count], ps, shortInfoLen);
+
+         // if short and long info were not merged, add a newline inbetween
+         if (len <= 30)
+         {
+            infoStrTab[count][shortInfoLen] = '\n';
+            shortInfoLen += 1;
+         }
+         // append the long info to the text widget insert command
+         strncpy(infoStrTab[count] + shortInfoLen, pl, longInfoLen);
+
+         infoStrTab[count][shortInfoLen + longInfoLen] = 0;
+      }
+      else
+      {  // only short info available; copy it into the array
+         infoStrTab[count] = xmalloc(shortInfoLen + 1);
+         strncpy(infoStrTab[count], ps, shortInfoLen);
+         infoStrTab[count][shortInfoLen] = 0;
+      }
+      count += 1;
+
+   } while (*p);
+
+   return count;
 }
 
 // ----------------------------------------------------------------------------
@@ -381,7 +833,8 @@ static void PiListBox_UpdateInfoText( void )
    uchar date_str[20], start_str[20], stop_str[20];
    int len, idx, theme, themeCat;
    
-   sprintf(comm, ".all.pi.info.text delete 1.0 end\n");
+   sprintf(comm, ".all.pi.info.text configure -state normal\n"
+                 ".all.pi.info.text delete 1.0 end\n");
    eval_check(interp, comm);
 
    if (pibox_curpos >= 0)
@@ -518,94 +971,36 @@ static void PiListBox_UpdateInfoText( void )
          {
             if (EpgDbContextIsMerged(pUiDbContext))
             {
-               // Merged database: needs special handling, because short and long infos
-               // of all providers are concatenated into the short info string. Separator
-               // between short and long info is a newline char. After each provider's
-               // info there's a form-feed char. For presentation the usual short/long
-               // info combination is done, plus a separator image is added between
+               uchar *infoStrTab[MAX_MERGED_DB_COUNT];
+               uint infoCount, idx, added;
+
+               // Merged database -> for presentation the usual short/long info
+               // combination is done, plus a separator image is added between
                // different provider's descriptions.
 
-               uchar c, *p, *ps, *pl, *pt;
-               int shortInfoLen, longInfoLen, len;
+               infoCount = PiListBox_SeparateMergedInfo(pPiBlock, infoStrTab);
+               infoCount = PiListBox_UnifyMergedInfo(infoStrTab, infoCount);
+               added = 0;
 
-               p = PI_GET_SHORT_INFO(pPiBlock);
-               do
-               {  // loop across all provider's descriptions
+               for (idx=0; idx < infoCount; idx++)
+               {
+                  if (infoStrTab[idx] != NULL)
+                  {
+                     if (added > 0)
+                     {  // not the only or first info -> insert separator image (a horizontal line)
+                        sprintf(comm, ".all.pi.info.text insert end {\n\n} title\n"
+                                      ".all.pi.info.text image create {end - 2 line} -image bitmap_line\n");
+                        eval_check(interp, comm);
+                     }
 
-                  if (p != PI_GET_SHORT_INFO(pPiBlock))
-                  {  // not the first info -> insert separator image (a horizontal line)
-                     sprintf(comm, ".all.pi.info.text insert end {\n\n} title\n"
-                                   ".all.pi.info.text image create {end - 2 line} -image bitmap_line\n");
+                     // add the short info to the text widget insert command
+                     sprintf(comm, ".all.pi.info.text insert end {%s}\n", infoStrTab[idx]);
                      eval_check(interp, comm);
+
+                     xfree(infoStrTab[idx]);
+                     added += 1;
                   }
-
-                  // obtain start and length of this provider's short and long info
-                  shortInfoLen = longInfoLen = 0;
-                  ps = p;
-                  pl = NULL;
-                  while (*p)
-                  {
-                     if (*p == '\n')
-                     {  // end of short info found
-                        shortInfoLen = p - ps;
-                        pl = p + 1;
-                     }
-                     else if (*p == 12)
-                     {  // end of short or long info found
-                        if (pl == NULL)
-                           shortInfoLen = p - ps;
-                        else
-                           longInfoLen = p - pl;
-                        p++;
-                        break;
-                     }
-                     p++;
-                  }
-
-                  // add the short info to the text widget insert command
-                  strcpy(comm, ".all.pi.info.text insert end {");
-                  strncat(comm, ps, shortInfoLen);
-
-                  if (pl != NULL)
-                  {
-                     // if there's a long info too, do the usual redundancy check
-
-                     if (shortInfoLen > longInfoLen)
-                     {
-                        len = longInfoLen;
-                        pt = ps + (shortInfoLen - longInfoLen);
-                     }
-                     else
-                     {
-                        len = shortInfoLen;
-                        pt = ps;
-                     }
-                     c = *pl;
-
-                     // min length is 30, because else single words might match
-                     while (len-- > 30)
-                     {
-                        if (*(pt++) == c)
-                        {
-                           if (!strncmp(pt, pl+1, len))
-                           {  // start of long info is identical to end of short info -> skip identical part in long info
-                              pl          += len + 1;
-                              longInfoLen -= len + 1;
-                              break;
-                           }
-                        }
-                     }
-
-                     // if short and long info were not merged, add a newline inbetween
-                     if (len <= 30)
-                        strcat(comm, "\n");
-                     // append the long info to the text widget insert command
-                     strncat(comm, pl, longInfoLen);
-                  }
-                  // display the description in the widget
-                  strcat(comm, "}\n");
-                  eval_check(interp, comm);
-               } while (*p);
+               }
             }
             else
             {
@@ -624,6 +1019,9 @@ static void PiListBox_UpdateInfoText( void )
 
       EpgDbLockDatabase(dbc, FALSE);
    }
+
+   sprintf(comm, ".all.pi.info.text configure -state disabled\n");
+   eval_check(interp, comm);
 }
 
 // ----------------------------------------------------------------------------
@@ -669,7 +1067,9 @@ void PiListBox_Reset( void )
       return;
 
    sprintf(comm, ".all.pi.list.text delete 1.0 end\n"
-                 ".all.pi.info.text delete 1.0 end\n");
+                 ".all.pi.info.text configure -state normal\n"
+                 ".all.pi.info.text delete 1.0 end\n"
+                 ".all.pi.info.text configure -state disabled\n");
    eval_check(interp, comm);
 
    EpgDbLockDatabase(dbc, TRUE);
@@ -734,7 +1134,9 @@ void PiListBox_Refresh( void )
    else
    {
       sprintf(comm, ".all.pi.list.text delete 1.0 end\n"
-                    ".all.pi.info.text delete 1.0 end\n");
+                    ".all.pi.info.text configure -state normal\n"
+                    ".all.pi.info.text delete 1.0 end\n"
+                    ".all.pi.info.text configure -state disabled\n");
       eval_check(interp, comm);
 
       EpgDbLockDatabase(dbc, TRUE);
@@ -849,7 +1251,9 @@ static int PiListBox_Scroll( ClientData ttp, Tcl_Interp *interp, int argc, char 
 	    delta = pibox_max - PIBOX_HEIGHT;
 
 	 sprintf(comm, ".all.pi.list.text delete 1.0 end\n"
-		       ".all.pi.info.text delete 1.0 end\n");
+                       ".all.pi.info.text configure -state normal\n"
+                       ".all.pi.info.text delete 1.0 end\n"
+                       ".all.pi.info.text configure -state disabled\n");
 	 eval_check(interp, comm);
 
          if (pibox_curpos >= 0)
@@ -1226,6 +1630,145 @@ static int PiListBox_CursorUp( ClientData ttp, Tcl_Interp *interp, int argc, cha
       assert(PiListBox_ConsistancyCheck());
    }
 
+   return TCL_OK; 
+}
+
+// ----------------------------------------------------------------------------
+// Jump to the first PI of the given start time
+// - Scrolls the listing so that the first PI that starts at or after the given
+//   time is in the first row; if there are not enough PI to fill the listbox,
+//   the downmost page is displayed and the cursor set on the first matching PI.
+//   If there's no PI at all, the cursor is set on the very last PI in the listing.
+// - Unlike with filter function, the PI before the given time are not suppressed,
+//   they are just scrolled out (unless there are not enough PI after the start)
+// - This function is to be used by time and date navigation menus.
+//
+static int PiListBox_GotoTime( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+{
+   const PI_BLOCK *pPiBlock;
+   time_t startTime;
+   int i, delta, param;
+   
+   if ((argc == 2) && (pibox_state == PIBOX_LIST))
+   {
+      // Retrieve the start time from the function parameters
+      if (strcmp(argv[1], "now") == 0)
+      {  // start with currently running -> suppress start time restriction
+         startTime = 0;
+      }
+      else if (strcmp(argv[1], "next") == 0)
+      {  // start with the first that's not yet running -> start the next second
+         startTime = time(NULL) + 1;
+      }
+      else if (Tcl_GetInt(interp, argv[1], &param) == TCL_OK)
+      {  // absolute time given: convert parameter from local time to UTC
+         startTime = param - lto;
+      }
+      else  // internal error
+         startTime = 0;
+
+      // Clear the listbox and the description window
+      sprintf(comm, ".all.pi.list.text delete 1.0 end\n"
+                    ".all.pi.info.text configure -state normal\n"
+                    ".all.pi.info.text delete 1.0 end\n"
+                    ".all.pi.info.text configure -state disabled\n");
+      eval_check(interp, comm);
+
+      pibox_resync = FALSE;
+      pibox_count = 0;
+      pibox_max = 0;
+      pibox_off = 0;
+
+      EpgDbLockDatabase(dbc, TRUE);
+      pPiBlock = EpgDbSearchFirstPi(dbc, pPiFilterContext);
+      if (pPiBlock != NULL)
+      {
+         // skip all PI before the requested start time
+         while ((pPiBlock != NULL) && (pPiBlock->start_time < startTime))
+         {
+            pPiBlock = EpgDbSearchNextPi(dbc, pPiFilterContext, pPiBlock);
+            pibox_max += 1;
+         }
+         pibox_off = pibox_max;
+
+         // fill the listbox with the matching PI; skip & count when full
+         if (pPiBlock != NULL)
+         {
+            do
+            {
+               if (pibox_count < PIBOX_HEIGHT)
+               {
+                  pibox_list[pibox_count].netwop_no  = pPiBlock->netwop_no;
+                  pibox_list[pibox_count].start_time = pPiBlock->start_time;
+                  pibox_count += 1;
+
+                  PiListBox_InsertItem(pPiBlock, pibox_count);
+               }
+
+               pPiBlock = EpgDbSearchNextPi(dbc, pPiFilterContext, pPiBlock);
+               pibox_max += 1;
+            }
+            while (pPiBlock != NULL);
+         }
+
+         // if the listbox could not be filled, scroll backwards
+         if ((pibox_count < PIBOX_HEIGHT) && (pibox_off > 0))
+         {
+            delta = PIBOX_HEIGHT - pibox_count;
+            if (delta > pibox_off)
+               delta = pibox_off;
+
+            if (pibox_count == 0)
+            {  // no PI found at all -> scan backwards from the last PI in the db matching the filter
+               pPiBlock = EpgDbSearchLastPi(dbc, pPiFilterContext);
+            }
+            else
+            {  // at least one PI was found -> scn backwards from there
+               pPiBlock = EpgDbSearchPi(dbc, pPiFilterContext, pibox_list[0].start_time, pibox_list[0].netwop_no);
+               pPiBlock = EpgDbSearchPrevPi(dbc, pPiFilterContext, pPiBlock);
+            }
+
+            // shift down the existing PI in the listbox
+            for (i = pibox_count - 1; i >= 0; i--)
+               pibox_list[i + delta] = pibox_list[i];
+
+            // set the cursor on the first item that matched the start time, or the last PI if none matched
+            pibox_off   -= delta;
+            pibox_count += delta;
+            if (delta >= PIBOX_HEIGHT)
+               pibox_curpos = PIBOX_HEIGHT - 1;
+            else
+               pibox_curpos = delta;
+
+            // fill the listbox backwards with the missing PI
+            for (delta -= 1; delta >= 0; delta--)
+            {
+               pibox_list[delta].netwop_no  = pPiBlock->netwop_no;
+               pibox_list[delta].start_time = pPiBlock->start_time;
+
+               PiListBox_InsertItem(pPiBlock, 0);
+
+               pPiBlock = EpgDbSearchPrevPi(dbc, pPiFilterContext, pPiBlock);
+            }
+         }
+         else
+         {  // set the cursor on the first item
+            pibox_curpos = 0;
+         }
+         PiListBox_ShowCursor();
+
+         // display short and long info
+         PiListBox_UpdateInfoText();
+      }
+      else
+         pibox_curpos = PIBOX_INVALID_CURPOS;
+
+      EpgDbLockDatabase(dbc, FALSE);
+      assert(PiListBox_ConsistancyCheck());
+
+      // inform the vertical scrollbar about the viewable fraction
+      PiListBox_AdjustScrollBar();
+   }
    return TCL_OK; 
 }
 
@@ -1877,6 +2420,15 @@ const PI_BLOCK * PiListBox_GetSelectedPi( void )
 }
 
 // ----------------------------------------------------------------------------
+// Free resources allocated by the listbox
+//
+void PiListBox_Destroy( void )
+{
+   if (pPiboxCols != defaultPiboxCols)
+      xfree((void *)pPiboxCols);
+}
+
+// ----------------------------------------------------------------------------
 // create the listbox and its commands
 // - this should be called only once during start-up
 //
@@ -1889,10 +2441,14 @@ void PiListBox_Create( void )
       Tcl_CreateCommand(interp, "C_PiListBox_Scroll", PiListBox_Scroll, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_PiListBox_CursorDown", PiListBox_CursorDown, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_PiListBox_CursorUp", PiListBox_CursorUp, (ClientData) NULL, NULL);
+      Tcl_CreateCommand(interp, "C_PiListBox_GotoTime", PiListBox_GotoTime, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_PiListBox_SelectItem", PiListBox_SelectItem, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_PiListBox_PopupPi", PiListBox_PopupPi, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_RefreshPiListbox", PiListBox_RefreshCmd, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_ResetPiListbox", PiListBox_ResetCmd, (ClientData) NULL, NULL);
+      Tcl_CreateCommand(interp, "C_PiListBox_CfgColumns", PiListBox_CfgColumns, (ClientData) NULL, NULL);
+      // set the column configuration
+      PiListBox_CfgColumns(NULL, interp, 0, NULL);
    }
    else
       debug0("PiListBox-Create: commands were already created");
