@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: menucmd.c,v 1.100 2003/02/26 21:54:58 tom Exp $
+ *  $Id: menucmd.c,v 1.102 2003/04/12 13:36:05 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -54,7 +54,6 @@
 #include "epgui/pdc_themes.h"
 #include "epgui/menucmd.h"
 #include "epgui/uictrl.h"
-#include "epgui/xawtv.h"
 #include "epgui/wintvcfg.h"
 #include "epgctl/epgctxctl.h"
 #include "epgvbi/vbidecode.h"
@@ -1945,12 +1944,7 @@ static int MenuCmd_StartEpgScan( ClientData ttp, Tcl_Interp *interp, int objc, T
          }
          else if (ftableIdx == 0)
          {  // in this mode only channels which are defined in the .xawtv file are visited
-            if (
-                 #ifndef WIN32
-                 (Xawtv_GetFreqTab(interp, &freqTab, &freqCount) == FALSE) ||
-                 #else
-                 (WintvCfg_GetFreqTab(interp, &freqTab, &freqCount) == FALSE) ||
-                 #endif
+            if ( (WintvCfg_GetFreqTab(interp, &freqTab, &freqCount) == FALSE) ||
                  (freqTab == NULL) || (freqCount == 0) )
             {  // message-box with explanation was already displayed
                return TCL_OK;

@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: rcfile.tcl,v 1.14 2003/03/19 16:18:58 tom Exp tom $
+#  $Id: rcfile.tcl,v 1.15 2003/04/01 20:56:00 tom Exp tom $
 #
 set myrcfile ""
 set is_daemon 0
@@ -144,6 +144,25 @@ proc LoadRcFile {filename isDefault isDaemon} {
          if {[info exists substr_history] && ([llength $substr_history] > 0) && \
              ([llength [lindex $substr_history 0]] == 5)} { \
             set substr_history {}
+         }
+      }
+      if {[info exists nxtvepg_version] && ($nxtvepg_version == 0x020500)} {
+         # fix a bug in a pre-defined shortcut for France in 2.5.0
+         foreach tag [array names shortcuts] {
+            # {Météo substr {substr {{1 0 0 0 Météo}}} {} merge 0}
+            set ltmp {}
+            foreach {ident valist} [lindex $shortcuts($tag) 2] {
+               if {([string compare $ident substr] == 0) && \
+                   ([llength $valist] == 1) && \
+                   ([llength [lindex $valist 0]] == 5) } {
+                  set ltmp0  [lindex $valist 0]
+                  lappend ltmp $ident [list [concat [lindex $ltmp0 4] [lrange $ltmp0 0 3] 0 0]]
+                  unset ltmp0
+               } else {
+                  lappend ltmp $ident $valist
+               }
+            }
+            set shortcuts($tag) [lreplace $shortcuts($tag) 2 2 $ltmp]
          }
       }
    } elseif {!$isDefault} {

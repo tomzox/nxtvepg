@@ -37,7 +37,7 @@
  *    WinDriver replaced with DSdrv (DScaler driver)
  *      March 2002 by E-Nek (e-nek@netcourrier.com)
  *
- *  $Id: bt8x8.c,v 1.5 2003/02/22 19:11:59 tom Exp tom $
+ *  $Id: bt8x8.c,v 1.6 2003/04/12 17:53:31 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -64,6 +64,11 @@
 #include "dsdrv/bt8x8_typ.h"
 #include "dsdrv/bt8x8.h"
 
+#ifdef ZVBI_DECODER
+#include "epgvbi/ttxdecode.h"
+#include "epgvbi/zvbidecoder.h"
+static vbi_raw_decoder zvbi_rd;
+#endif
 
 // ----------------------------------------------------------------------------
 // Declaration of internal variables
@@ -523,7 +528,24 @@ static DWORD WINAPI Bt8x8_VbiThread( LPVOID dummy )
    BYTE *pVBI;
 
    //SetAcqPriority(GetCurrentThread(), btCfg.threadPrio);
-   VbiDecodeSetSamplingRate(0);
+
+   // pass parameters to VBI slicer
+   #ifndef ZVBI_DECODER
+   VbiDecodeSetSamplingRate(0, 0);
+   #else
+   memset(&zvbi_rd, 0, sizeof(zvbi_rd));
+   zvbi_rd.sampling_rate    = 35468950L;
+   zvbi_rd.bytes_per_line   = VBI_LINE_SIZE;
+   zvbi_rd.start[0]         = 7;
+   zvbi_rd.count[0]         = VBI_LINES_PER_FIELD;
+   zvbi_rd.start[1]         = 319;
+   zvbi_rd.count[1]         = VBI_LINES_PER_FIELD;
+   zvbi_rd.interlaced       = FALSE;
+   zvbi_rd.synchronous      = TRUE;
+   zvbi_rd.sampling_format  = VBI_PIXFMT_YUV420;
+   zvbi_rd.scanning         = 625;
+   vbi_raw_decoder_add_services(&zvbi_rd, VBI_SLICED_TELETEXT_B | VBI_SLICED_VPS, 1);
+   #endif
 
    Bt8x8_SetCapture(TRUE);
 
@@ -563,6 +585,7 @@ static DWORD WINAPI Bt8x8_VbiThread( LPVOID dummy )
 
                // notify teletext decoder about start of new frame; since we don't have a
                // frame counter (no frame interrupt) we always pass 0 as frame sequence number
+               #ifndef ZVBI_DECODER
                if ( VbiDecodeStartNewFrame(0) )
                {
                   for (row = 0; row < VBI_LINES_PER_FRAME; row++, pVBI += VBI_LINE_SIZE)
@@ -570,6 +593,27 @@ static DWORD WINAPI Bt8x8_VbiThread( LPVOID dummy )
                      VbiDecodeLine(pVBI, row, TRUE);
                   }
                }
+               #else
+               if ( TtxDecode_NewVbiFrame(0) )
+               {
+                  {
+                     vbi_sliced rdo[32];
+                     uint count;
+                     count = vbi_raw_decode(&zvbi_rd, pVBI, rdo);
+                     for (row=0; row < count; row++)
+                     {
+                        if ((rdo[row].id & VBI_SLICED_TELETEXT_B) != 0)
+                        {
+                           TtxDecode_AddPacket(rdo[row].data + 0, row);
+                        }
+                        else if (rdo[row].id == VBI_SLICED_VPS)
+                        {
+                           TtxDecode_AddVpsData(rdo[row].data - 3);
+                        }
+                     }
+                  }
+               }
+               #endif  // ZVBI_DECODER
                else
                {  // discard all VBI frames in the buffer
                   OldFrame = CurFrame;

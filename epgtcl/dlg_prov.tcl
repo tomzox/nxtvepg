@@ -19,7 +19,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_prov.tcl,v 1.8 2003/03/03 20:05:51 tom Exp tom $
+#  $Id: dlg_prov.tcl,v 1.9 2003/03/31 19:17:24 tom Exp tom $
 #
 set provwin_popup 0
 set provmerge_popup 0
@@ -278,6 +278,7 @@ proc PopupProviderMerge {} {
       pack .provmerge.cmd.help .provmerge.cmd.abort .provmerge.cmd.ok -side left -padx 10
       pack .provmerge.cmd -side top -pady 10
 
+      wm protocol .provmerge WM_DELETE_WINDOW {ProvMerge_Quit Abort}
       bind .provmerge.cmd <Destroy> {+ set provmerge_popup 0; ProvMerge_Quit Abort}
       bind .provmerge.cmd.ok <Return> {tkButtonInvoke .provmerge.cmd.ok}
       bind .provmerge.cmd.ok <Escape> {tkButtonInvoke .provmerge.cmd.abort}
@@ -674,7 +675,10 @@ proc EpgScan_CheckTvAppStatus {n1 n1 v} {
             set epgscan_opt_ftable 1
          }
       } else {
-         .epgscan.all.ftable.tab0 configure -state normal
+         if {[string compare [.epgscan.all.ftable.tab0 cget -state] "disabled"] == 0} {
+            .epgscan.all.ftable.tab0 configure -state normal
+            set epgscan_opt_ftable 0
+         }
       }
       .epgscan.all.ftable.tab0 configure -text "Load from $tvapp_name"
    }

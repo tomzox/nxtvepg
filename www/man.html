@@ -137,7 +137,7 @@ In Germany and Austria: Kabel1, 3Sat, RTL-II.
 In Switzerland: SF1, TSR1, TSI1, EuroNews.
 <P></P>
 <LI>
-In France: Canal+, TV5, EuroNews.
+In France: Canal+, M6, TV5, EuroNews.
 <P></P>
 <LI>
 In Turkey: TRT.
@@ -153,8 +153,16 @@ with the <STRONG>-demo</STRONG> command line option.</P>
 <DL>
 <DT><STRONG><A NAME="item_%2Ddisplay_display"><STRONG>-display</STRONG> <EM>display</EM></A></STRONG><BR>
 <DD>
-UNIX only: The display on which the windows will be created.
-Default: taken from environment variable DISPLAY.
+UNIX only: The display on which the user interface will be placed,
+for example <STRONG>localhost:0.0</STRONG>.
+Default: taken from environment variable <EM>DISPLAY</EM>.
+For more info see the <EM>X</EM> manual page section <STRONG>Display Names</STRONG>
+<P></P>
+<DT><STRONG><A NAME="item_%2Dtvdisplay_display"><STRONG>-tvdisplay</STRONG> <EM>display</EM></A></STRONG><BR>
+<DD>
+UNIX only: The display on which the TV application window is searched,
+e.g. on a remote host or different screen on a station with multiple
+monitors.  Default: same as the main window's display.
 <P></P>
 <DT><STRONG><A NAME="item_%2Dgeometry_geometry"><STRONG>-geometry</STRONG> <EM>geometry</EM></A></STRONG><BR>
 <DD>
@@ -471,12 +479,8 @@ directly following programmes of all networks are usually available
 after about 2-3 minutes max.</P>
 <P>
 <H2><A NAME="configuring a tv application">Configuring a TV application</A></H2>
-<P>nxtvepg can cooperate in three ways with TV applications:</P>
+<P>nxtvepg can cooperate in the following ways with TV applications:</P>
 <UL>
-<LI>
-Windows only: loading TV card parameters to simplify the
-initial configuration (already described above).
-<P></P>
 <LI>
 Loading the TV application's channel table: use of the TV tuner frequencies
 can significantly speed up the EPG scan (already mentioned above);
@@ -1946,8 +1950,8 @@ TV application and nxtvepg.  On UNIX this menu entry is available
 only when a <EM>.xawtv</EM> configuration file is found in your home.
 On Windows you should at least configure your TV application type
 and path here if you're using one of the supported applications; this
-is a recommended step during the initial installation, as described
-in <A HREF="#getting started">GETTING STARTED</A>.</P>
+is a recommended step during the initial installation to speed up
+the EPG provider search, as described in <A HREF="#getting started">GETTING STARTED</A>.</P>
 <P>The first four (only three on UNIX) options allow to 
 switch interaction features on or off. If you want to improve startup
 time on UNIX, turn them all off; in this case nxtvepg does not need to
@@ -2052,11 +2056,6 @@ to implement these. (If you are an author of a TV app, feel free to mail
 me if you want to add EPG support to your application; a demo application
 and reference implementation source code are available on the nxtvepg
 home page.)</P>
-<P>Note that there's a similar configuration in the <EM>TV card input</EM>
-dialog.  However that one is only used to load the hardware settings
-during initial setup (i.e. when you press <EM>Load Config</EM> in that dialog).
-In most cases you'll use the same TV app for both purposes, but you
-don't have to.</P>
 <P>
 <H2><A NAME="select attributes">Select attributes</A></H2>
 <P>Open the programme attribute display configuration dialog, which allows

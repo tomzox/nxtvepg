@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: changelog.html,v 1.44 2003/03/22 18:29:05 tom Exp $ -->
+<!-- $Id: changelog.html,v 1.45 2003/04/21 19:40:14 tom Exp $ -->
 <HEAD>
 <TITLE>Nextview EPG Decoder Change-Log</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -29,6 +29,43 @@ updated while work is in progress and new bugs are fixed or features added.
 For more details on work in progress please refer to
 <A HREF="http://sourceforge.net/mailarchive/forum.php?forum_id=14102">mailing list archives</A>.
 </P>
+
+
+<H2><A NAME="release_2_5_1">From 2.5.0 to 2.5.1 (April/21/2003)</A></H2>
+<P>
+This release contains the following fixes and improvements:
+</P>
+<UL>
+<LI>Fixed French default shortcut "Météo" (did pop up an error message when
+  invoked.  At first start of 2.5.1 the broken shortcut is replaced in the
+  rc file; if that does not work remove and re-define the shortcut manually
+  via the "Shortcuts" menu)
+<LI>Improved resizing: status line no longer vanishes when reducing
+  (however the window bottom now "jitters" during vertical resizing)
+<LI>Allow horizontal resizing of main window when in "grid" layout (UNIX only)
+<LI>Display warning about "lost changes" when the window is closed via it's
+  title bar "close" button, same as with the "Abort" button
+<LI>TV app interaction configuration dialog: added TV app selection for UNIX,
+  to select which channel table to use, i.e. select between xawtv or xawdecode
+<LI>Don't require existance of .xawtv for TV app interaction on UNIX
+  <BR>Thanks to "Sir Pingus" for suggesting this fix.
+<LI>Programme list can now be scrolled by dragging with the middle mouse button
+<LI>Grid layout: added +/- buttons to control column count;
+  <BR>Thanks to Thorsten for suggesting these features in the discussion forum
+<LI>Disabled "Show column headers" option for the grid layout
+<LI>Grid layout: refresh no longer brings scrolled-out elements back into view
+<LI>Added French network "M6" back to the EPG scan's list of "known providers"
+  and documentation.<BR>Thanks to Thierry for pointing this out first.
+<LI>Major bugfix in grid layout: when scrolling horizontally one programme
+  could be inserted into the wrong network column under certain conditions
+<LI>Bugfix EPG provider scan in non-TV-app-assisted mode: channels without
+  signal often were not skipped due to uninitialized variable (bug was
+  introduced in nxtvepg version 0.7.2).  Thanks to Florian Zierer for
+  indirectly triggering discovery of this bug.
+<LI>UNIX: added new command line option "-tvdisplay" to allow communication
+  with a TV app running on a different X11 server (e.g. a remote host).
+  Thanks to Stefan Zoller for suggesting this feature.
+</UL>
 
 
 <H2><A NAME="release_2_5_0">From 2.4.2 to 2.5.0 (March/22/2003)</A></H2>

@@ -19,7 +19,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pinetbox.c,v 1.34 2003/03/22 17:14:37 tom Exp tom $
+ *  $Id: pinetbox.c,v 1.36 2003/04/06 19:42:24 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -223,6 +223,9 @@ static bool PiNetBox_ConsistancyCheck( void )
             assert(pElem->text_row <= netbox.height);
             assert(pElem->text_height >= NETBOX_ELEM_MIN_HEIGHT);
             assert((elemIdx == 0) || (pElem->text_row >= (pElem - 1)->text_row + (pElem - 1)->text_height));
+
+            // check network, i.e. if the element is in the correct column
+            assert(netbox.net_ai2sel[pElem->netwop] == netbox.net_off + colIdx);
 
             // check if text rows between elements are empty
             if ((elemIdx + 1 < pCol->entries) && (pElem->text_row + pElem->text_height - NETBOX_ELEM_GAP <= netbox.height))
@@ -1326,13 +1329,17 @@ static void PiNetBox_MoveTextUp( sint lineCount )
 {
    NETBOX_COL   * pCol;
    NETBOX_ELEM  * pElem;
+   NETBOX_ELEM  * pMaxInvisible;
    uint  colIdx;
    uint  elemIdx;
    uint  removed;
    sint  delRows;
    sint  topRow;
 
-   // search for the topmost element in each column which is NOT deleted
+   // search for the topmost element in each column which is NOT deleted, because
+   // - one invisible element must be kept so that the next refresh doesn't bring it into view
+   // - invisible elements must be kept if older elements are visible due to a larger element height
+   pMaxInvisible = NULL;
    topRow = lineCount;
    pCol = netbox.cols;
    for (colIdx=0; colIdx < netbox.col_count; colIdx++, pCol++)
@@ -1341,10 +1348,19 @@ static void PiNetBox_MoveTextUp( sint lineCount )
       for (elemIdx=0; elemIdx < pCol->entries; elemIdx++, pElem++)
       {
          if (pElem->text_row + pElem->text_height > lineCount)
-         {
+         {  // element is visible
             if (topRow > pElem->text_row)
                topRow = pElem->text_row;
             break;
+         }
+         else
+         {  // element is invisible
+            if ( (pMaxInvisible == NULL) ||
+                 (pMaxInvisible->start_time < pElem->start_time) ||
+                 ((pMaxInvisible->start_time == pElem->start_time) && (pMaxInvisible->netwop < pElem->netwop)) )
+            {
+               pMaxInvisible = pElem;
+            }
          }
       }
    }
@@ -1360,10 +1376,15 @@ static void PiNetBox_MoveTextUp( sint lineCount )
       {
          if ( (pElem->text_row + pElem->text_height <= lineCount) &&
               (pElem->text_row < topRow) )
-         {  // element becomes invisible -> remove
-            if ((removed == 0) && (pElem->text_row < 0))
-               delRows -= pElem->text_row;  // note: "-" increases since value is negative
-            removed += 1;
+         {
+            if (pElem != pMaxInvisible)
+            {  // element becomes invisible -> remove
+               if ((removed == 0) && (pElem->text_row < 0))
+                  delRows -= pElem->text_row;  // note: "-" increases since value is negative
+               removed += 1;
+            }
+            else
+               dprintf5("KEEP col %d, elem %d, PI: %d-%d: %s", colIdx, elemIdx, (uint)pElem->start_time, (uint)pElem->stop_time, ctime(&pElem->start_time));
          }
          // move element x lines up (may become invisible, start index max be negative)
          pElem->text_row -= lineCount;
@@ -1432,6 +1453,7 @@ static void PiNetBox_FillDownwards( sint delta, bool completeElem )
    PiNetBox_WithdrawCursor();
 
    // search the last element displayed (in order of search time and AI network index)
+   // and determine max. start and stop row of all elements
    pCol = netbox.cols;
    for (colIdx=0; colIdx < netbox.col_count; colIdx++, pCol++)
    {
@@ -1461,8 +1483,11 @@ static void PiNetBox_FillDownwards( sint delta, bool completeElem )
       pPiBlock = EpgDbSearchPi(dbc, pLastElem->start_time, pLastElem->netwop);
       if (pPiBlock != NULL)
       {
+         dprintf4("---- fill downwards: start after row %d netwop %d time %d %s", pLastElem->text_row, pLastElem->netwop, (int)pPiBlock->start_time, ctime(&pPiBlock->start_time));
          pPiBlock = EpgDbSearchNextPi(dbc, pPiFilterContext, pPiBlock);
       }
+      else
+         debug3("PiNetBox-FillDownwards: last element not found in db: row %d, netwop %d, time %d", pLastElem->text_row, pLastElem->netwop, (int)pPiBlock->start_time);
    }
    else
       pPiBlock = EpgDbSearchFirstPi(dbc, pPiFilterContext);
@@ -1512,6 +1537,8 @@ static void PiNetBox_FillDownwards( sint delta, bool completeElem )
 
             if (last_row < netbox.height + delta)
             {
+               dprintf8("FILL-DOWN col %d idx %d row %d(%+d) netwop %d time %d-%d %s", colIdx, pCol->entries, last_row, pCol->start_off, (int)pPiBlock->start_time, pPiBlock->netwop_no, (int)pPiBlock->stop_time, ctime(&pPiBlock->start_time));
+
                pLastElem = pCol->list + pCol->entries;
                pCol->entries += 1;
 
@@ -1592,9 +1619,33 @@ static void PiNetBox_MoveTextDown( sint lineCount )
 {
    NETBOX_COL   * pCol;
    NETBOX_ELEM  * pElem;
+   NETBOX_ELEM  * pMinInvisible;
    uint  colIdx;
    uint  elemIdx;
    sint  delStart;
+
+   // search for the lowest element in each column which is NOT deleted, because
+   // - one invisible element must be kept so that the next refresh doesn't bring it into view
+   // - note: in contrary to moving upwards, the elements'  hiehght is not relevant,
+   //   hence no invisible elements must be kept due to earlier elements
+   pMinInvisible = NULL;
+   pCol = netbox.cols;
+   for (colIdx=0; colIdx < netbox.col_count; colIdx++, pCol++)
+   {
+      pElem = pCol->list;
+      for (elemIdx=0; elemIdx < pCol->entries; elemIdx++, pElem++)
+      {
+         if (pElem->text_row + lineCount < netbox.height)
+         {  // element becomes invisible
+            if ( (pMinInvisible == NULL) ||
+                 (pMinInvisible->start_time > pElem->start_time) ||
+                 ((pMinInvisible->start_time == pElem->start_time) && (pMinInvisible->netwop > pElem->netwop)) )
+            {
+               pMinInvisible = pElem;
+            }
+         }
+      }
+   }
 
    pCol = netbox.cols;
    for (colIdx=0; colIdx < netbox.col_count; colIdx++, pCol++)
@@ -1603,10 +1654,15 @@ static void PiNetBox_MoveTextDown( sint lineCount )
       for (elemIdx=0; elemIdx < pCol->entries; elemIdx++, pElem++)
       {
          if (pElem->text_row + lineCount >= netbox.height)
-         {  // element becomes invisible
-            // remove this and all following elements; exit loop
-            pCol->entries = elemIdx;
-            break;
+         {
+            if (pElem != pMinInvisible)
+            {  // element becomes invisible
+               // remove this and all following elements; exit loop
+               pCol->entries = elemIdx;
+               break;
+            }
+            else
+               dprintf5("KEEP col %d, elem %d, PI: %d-%d: %s", colIdx, elemIdx, (uint)pElem->start_time, (uint)pElem->stop_time, ctime(&pElem->start_time));
          }
          // adjust row index
          pElem->text_row += lineCount;
@@ -1770,6 +1826,8 @@ static void PiNetBox_FillUpwards( sint delta, bool completeElem )
             if ( ((top_row > 0 - (delta + NETBOX_ELEM_MIN_HEIGHT)) && (max_top_row >= 0 - delta)) ||
                  (pPiBlock->start_time <= expireTime) )
             {
+               dprintf8("FILL-UP col %d idx #0 (of %d) row %d(%+d) netwop %d time %d-%d %s", colIdx, pCol->entries, top_row, pCol->start_off, pPiBlock->netwop_no, (int)pPiBlock->start_time, (int)pPiBlock->stop_time, ctime(&pPiBlock->start_time));
+
                if (netbox.pi_off > 0)
                   netbox.pi_off -= 1;
 
@@ -1934,6 +1992,8 @@ static void PiNetBox_FillAroundPi( const PI_BLOCK * pPiBlock, uint refColIdx, si
          pElem->text_height = PiNetBox_InsertPi(pPiBlock, refColIdx, 0);
          pCol->text_rows    = pElem->text_height;
          netbox.cur_idx     = INVALID_CUR_IDX;
+
+         dprintf4("---- fill around: insert ref'PI col %d row 0 netwop %d time %d %s", refColIdx, pElem->netwop, (int)pPiBlock->start_time, ctime(&pPiBlock->start_time));
       }
       else
          debug2("PiNetBox-FillAroundPi: illegal col idx %d (>= %d)", refColIdx, netbox.col_count);
@@ -2194,14 +2254,45 @@ static bool PiNetBox_IsPartialElemAtBottom( uint * pNewIdx )
 }
 
 // ----------------------------------------------------------------------------
+// Check if the currently selected item remains visible after hor. scrolling
+//
+static const PI_BLOCK * PiNetBox_PickCurPi( uint startCol, uint colCount,
+                                            uint * pColIdx, sint * pTextRow, uint * pElemIdx )
+{
+   const PI_BLOCK * pPiBlock;
+   NETBOX_ELEM    * pElem;
+
+   pPiBlock   = NULL;
+
+   if ( (netbox.cur_col < netbox.col_count) &&
+        (netbox.cur_idx < netbox.cols[netbox.cur_col].entries) )
+   {
+      if ((netbox.cur_col >= startCol) && (netbox.cur_col < startCol + colCount))
+      {
+         // a visible item is selected -> use that as reference
+         pElem     = netbox.cols[netbox.cur_col].list + netbox.cur_idx;
+         pPiBlock  = EpgDbSearchPi(dbc, pElem->start_time, pElem->netwop);
+
+         *pColIdx  = netbox.cur_col;
+         *pElemIdx = netbox.cur_idx;
+         *pTextRow = pElem->text_row;
+
+         if (pPiBlock != NULL)
+            dprintf7("PickCurPi: col %d idx %d row %d networp %d time %d-%d %s", netbox.cur_col, netbox.cur_idx, pElem->text_row, pElem->netwop, (int)pPiBlock->start_time, (int)pPiBlock->stop_time, ctime(&pElem->start_time));
+      }
+   }
+   return pPiBlock;
+}
+
+// ----------------------------------------------------------------------------
 // Pick "reference" PI among currently visible elements
 // - used to refill the listbox around the selected PI
 // - the column with the cursor is preferred; is no match is found there, all
 //   other columns are searched except those which are scrolled out
 // - a PI is suitable when it covers the start time of the last selected programme
 //
-static const PI_BLOCK * PiNetBox_PickCurPi( uint startCol, uint colCount,
-                                            uint * pColIdx, sint * pTextRow, uint * pElemIdx )
+static const PI_BLOCK * PiNetBox_PickVisiblePi( uint startCol, uint colCount,
+                                                uint * pColIdx, sint * pTextRow, uint * pElemIdx )
 {
    NETBOX_COL     * pCol;
    NETBOX_ELEM    * pElem;
@@ -2237,6 +2328,8 @@ static const PI_BLOCK * PiNetBox_PickCurPi( uint startCol, uint colCount,
                   *pColIdx  = netbox.cur_col;
                   *pElemIdx = netbox.cur_idx;
                   *pTextRow = pElem->text_row;
+
+                  dprintf7("PickVisiblePi: col %d idx %d row %d networp %d time %d-%d %s", netbox.cur_col, netbox.cur_idx, pElem->text_row, pElem->netwop, (int)pPiBlock->start_time, (int)pPiBlock->stop_time, ctime(&pElem->start_time));
                }
                else
                   pPiBlock = NULL;
@@ -2268,6 +2361,7 @@ static const PI_BLOCK * PiNetBox_PickCurPi( uint startCol, uint colCount,
                         *pTextRow = pElem->text_row;
                         *pElemIdx = elemIdx;
 
+                        dprintf7("PickVisiblePi: col %d idx %d row %d networp %d time %d-%d %s", netbox.cur_col, netbox.cur_idx, pElem->text_row, pElem->netwop, (int)pPiBlock->start_time, (int)pPiBlock->stop_time, ctime(&pElem->start_time));
                         // done -> break inner and outer loop
                         goto found_pi;
                      }
@@ -2331,6 +2425,8 @@ static const PI_BLOCK * PiNetBox_PickNewPi( uint * pColIdx, sint * pTextRow, uin
                *pElemIdx = INVALID_CUR_IDX;
             }
             *pColIdx  = colIdx;
+
+            dprintf7("PickNewPi: col %d idx %d row %d networp %d time %d-%d %s", netbox.cur_col, netbox.cur_idx, pElem->text_row, pElem->netwop, (int)pPiBlock->start_time, (int)pPiBlock->stop_time, ctime(&pElem->start_time));
          }
          else
             pPiBlock = NULL;
@@ -2764,7 +2860,7 @@ static void PiNetBox_RefreshDownwards( const PI_BLOCK * pPiBlock, uint colIdx )
             }
             else
             {  // listbox is full -> stop insertion / refresh
-               //dprintf7("col %d, last %d, prev %d, height %d + %d, PI: %d-%d\n", colIdx, last_row, pCol->text_rows, netbox.height, delta, (uint)pPiBlock->start_time, (uint)pPiBlock->stop_time);
+               dprintf6("STOP BEFORE col %d, last %d, prev %d, height %d, PI: %d-%d\n", colIdx, last_row, pCol->text_rows, netbox.height, (uint)pPiBlock->start_time, (uint)pPiBlock->stop_time);
                break;
             }
          }
@@ -3166,6 +3262,7 @@ static void PiNetBox_RefreshUpwards( const PI_BLOCK * pPiBlock, uint refColIdx, 
             else
             {  // exit loop -> all elements above are removed
                // XXX TODO: do not remove visible elements! (> MIN_HEIGHT)
+               dprintf6("STOP BEFORE col %d, top %d, prev %d, height %d, PI: %d-%d\n", colIdx, top_row, pCol->text_rows, netbox.height, (uint)pPiBlock->start_time, (uint)pPiBlock->stop_time);
                break;
             }
          }
@@ -3330,7 +3427,7 @@ void PiNetBox_Refresh( void )
       // if none found, search another element with the last requested start time & position
       if ((pPiBlock == NULL) || (EpgDbFilterMatches(dbc, pPiFilterContext, pPiBlock) == FALSE))
       {
-         pPiBlock = PiNetBox_PickCurPi(0, netbox.col_count, &colIdx, &textRow, &elemIdx);
+         pPiBlock = PiNetBox_PickVisiblePi(0, netbox.col_count, &colIdx, &textRow, &elemIdx);
       }
 
       // if none found, search any PI with the last requested start time
@@ -3746,7 +3843,7 @@ static int PiNetBox_CursorLeft( ClientData ttp, Tcl_Interp *interp, int objc, Tc
       {
          EpgDbLockDatabase(dbc, TRUE);
 
-         pPiBlock = PiNetBox_PickCurPi(0, netbox.col_count - 1, &colIdx, &textRow, &elemIdx);
+         pPiBlock = PiNetBox_PickVisiblePi(0, netbox.col_count - 1, &colIdx, &textRow, &elemIdx);
 
          netbox.net_off -= 1;
 
@@ -3807,7 +3904,7 @@ static int PiNetBox_CursorRight( ClientData ttp, Tcl_Interp *interp, int objc, T
       {
          EpgDbLockDatabase(dbc, TRUE);
 
-         pPiBlock = PiNetBox_PickCurPi(1, netbox.col_count - 1, &colIdx, &textRow, &elemIdx);
+         pPiBlock = PiNetBox_PickVisiblePi(1, netbox.col_count - 1, &colIdx, &textRow, &elemIdx);
 
          netbox.net_off += 1;
 
@@ -3869,7 +3966,6 @@ static int PiNetBox_CursorRight( ClientData ttp, Tcl_Interp *interp, int objc, T
 static int PiNetBox_ScrollRight( sint delta )
 {
    const PI_BLOCK * pPiBlock;
-   NETBOX_ELEM    * pElem;
    uint  colIdx;
    uint  elemIdx;
    sint  textRow;
@@ -3878,38 +3974,23 @@ static int PiNetBox_ScrollRight( sint delta )
    {
       EpgDbLockDatabase(dbc, TRUE);
 
-      pPiBlock = NULL;
-
       if (delta > netbox.net_count - (netbox.net_off + netbox.col_count))
          delta = netbox.net_count - (netbox.net_off + netbox.col_count);
       else if (delta < 0)
          delta = 0;
 
-      if (netbox.cur_col >= delta)
-      {
-         // currently selected PI will remain visible
-         if ( (netbox.cur_col < netbox.col_count) &&
-              (netbox.cur_idx < netbox.cols[netbox.cur_col].entries) )
-         {
-            // a visible item is selected -> use that as reference
-            pElem    = netbox.cols[netbox.cur_col].list + netbox.cur_idx;
-            colIdx   = netbox.cur_col;
-            textRow  = pElem->text_row;
-            pPiBlock = EpgDbSearchPi(dbc, pElem->start_time, pElem->netwop);
-         }
+      pPiBlock = PiNetBox_PickCurPi(delta, netbox.col_count - delta, &colIdx, &textRow, &elemIdx);
 
-         netbox.cur_col -= delta;
-         colIdx         -= delta;
-      }
-      else
-         netbox.cur_col = 0;
-
-      if ( (pPiBlock == NULL) && (delta < netbox.col_count) )
-      {
-         pPiBlock = PiNetBox_PickCurPi(delta, netbox.col_count - delta, &colIdx, &textRow, &elemIdx);
-      }
+      if (pPiBlock == NULL)
+         pPiBlock = PiNetBox_PickVisiblePi(delta, netbox.col_count - delta, &colIdx, &textRow, &elemIdx);
 
       netbox.net_off += delta;
+      colIdx         -= delta;
+
+      if (netbox.cur_col >= delta)
+         netbox.cur_col -= delta;
+      else
+         netbox.cur_col = 0;
 
       PiNetBox_UpdateNetwopNames();
       PiNetBox_AdjustHorizontalScrollBar();
@@ -3948,7 +4029,6 @@ static int PiNetBox_ScrollRight( sint delta )
 static int PiNetBox_ScrollLeft( sint delta )
 {
    const PI_BLOCK * pPiBlock;
-   NETBOX_ELEM    * pElem;
    uint  colIdx;
    uint  elemIdx;
    sint  textRow;
@@ -3957,41 +4037,26 @@ static int PiNetBox_ScrollLeft( sint delta )
    {
       EpgDbLockDatabase(dbc, TRUE);
 
-      pPiBlock = NULL;
-
       if (delta > netbox.net_off)
          delta = netbox.net_off;
       else if (delta < 0)
          delta = 0;
 
+      pPiBlock = PiNetBox_PickCurPi(0, netbox.col_count - delta, &colIdx, &textRow, &elemIdx);
+
+      if (pPiBlock == NULL)
+         pPiBlock = PiNetBox_PickVisiblePi(0, netbox.col_count - delta, &colIdx, &textRow, &elemIdx);
+
+      netbox.net_off -= delta;
+      colIdx         += delta;
+
       if (delta < netbox.col_count)
       {
          if (netbox.cur_col < netbox.col_count - delta)
-         {
-            // the currently selected PI will remain visible
-            if ( (netbox.cur_col < netbox.col_count) &&
-                 (netbox.cur_idx < netbox.cols[netbox.cur_col].entries) )
-            {
-               // a visible item is selected -> use that as reference
-               pElem    = netbox.cols[netbox.cur_col].list + netbox.cur_idx;
-               colIdx   = netbox.cur_col;
-               textRow  = pElem->text_row;
-               pPiBlock = EpgDbSearchPi(dbc, pElem->start_time, pElem->netwop);
-            }
-
             netbox.cur_col += delta;
-            colIdx         += delta;
-         }
          else
             netbox.cur_col = netbox.col_count - 1;
-
-         if (pPiBlock == NULL)
-         {
-            pPiBlock = PiNetBox_PickCurPi(0, netbox.col_count - delta, &colIdx, &textRow, &elemIdx);
-         }
       }
-
-      netbox.net_off -= delta;
 
       PiNetBox_UpdateNetwopNames();
       PiNetBox_AdjustHorizontalScrollBar();
@@ -4868,7 +4933,7 @@ static int PiNetBox_Resize( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Ob
          xfree(old_list);
 
          // only display during interactive refresh, not during start-up
-         PiNetBox_WithdrawCursor();
+         netbox.cur_type = CURTYPE_INVISIBLE;
          PiNetBox_UpdateNetwopMap();
          PiNetBox_UpdateNetwopNames();
          PiNetBox_AdjustHorizontalScrollBar();

@@ -27,7 +27,7 @@
  *  DScaler #Id: CX2388xSource.cpp,v 1.42 2003/01/25 23:46:25 laurentg Exp #
  *  DScaler #Id: CX2388xProvider.cpp,v 1.3 2002/11/02 09:47:36 adcockj Exp #
  *
- *  $Id: cx2388x.c,v 1.10 2003/03/09 19:28:49 tom Exp tom $
+ *  $Id: cx2388x.c,v 1.11 2003/04/12 17:52:27 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -920,7 +920,7 @@ static DWORD WINAPI Cx2388x_VbiThread( LPVOID dummy )
    dprintf0("Cx2388x-VbiThread: VBI thread started\n");
 
    //SetAcqPriority(GetCurrentThread(), btCfg.threadPrio);
-   VbiDecodeSetSamplingRate(27000000L);
+   VbiDecodeSetSamplingRate(27000000L, 7);
 
    Cx2388x_StartCapture();
 

@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pifilter.c,v 1.81 2003/03/16 22:28:30 tom Exp tom $
+ *  $Id: pifilter.c,v 1.82 2003/04/21 10:31:20 tom Exp tom $
  */
 
 #define __PIFILTER_C
@@ -2247,11 +2247,17 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, CONS
 //   the tight sync between PI listbox and DB would break.
 // - must be called exery minute, or SearchFirst will not work,
 //   i.e. return expired PI blocks
-// - returns TRUE if any blocks are newly expired
 //
 void PiFilter_Expire( void )
 {
-   EpgDbFilterSetExpireTime(pPiFilterContext, time(NULL));
+   time_t now;
+
+   // rounding expire time down to full minute, in case the handler is called late
+   // so that programmes which end in that minute do always expire
+   now  = time(NULL);
+   now -= now % 60;
+
+   EpgDbFilterSetExpireTime(pPiFilterContext, now);
 
    // refresh the listbox to remove expired PI
    PiBox_Refresh();

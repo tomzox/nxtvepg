@@ -1,0 +1,4 @@
+#define col_plus_width 6
+#define col_plus_height 6
+static unsigned char col_plus_bits[] = {
+   0x0c, 0x0c, 0x3f, 0x3f, 0x0c, 0x0c};

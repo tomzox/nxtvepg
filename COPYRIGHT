@@ -52,6 +52,11 @@ This message applies to all files within this release:
        License terms are included below.  Note nxtvepg contains modified
        versions of the libraries, details see README and README.tcl83
 
+    Column/attribute selection icon:
+       Mozilla (1.2.1) mail reader, see http://mozilla.org/
+       Copyright 1998-2003 by Contributors to the Mozilla codebase under the
+       Mozilla Public License and Netscape Public License. All Rights Reserved.
+
     Linux saa7134 and cx8800 capture chip drivers:
        (c) 2001,02 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
 
@@ -61,6 +66,9 @@ This message applies to all files within this release:
 
     DScaler I2C bus protocol implementation:
        Copyleft 2001 itt@myself.com
+
+    zvbi - Raw VBI slicer:
+       Copyright (C) 2000, 2001, 2002 Michael H. Schimek
 
 
 Have fun.

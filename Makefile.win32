@@ -22,7 +22,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile.win32,v 1.37 2003/03/22 14:42:25 tom Exp tom $
+#  $Id: Makefile.win32,v 1.38 2003/04/12 17:50:48 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -66,8 +66,11 @@ DEFS   += -DICON_PATCHED_INTO_DLL
 #DEFS   += -DUSE_THREADS
 # enable use of daemon and client/server connection (UNIX only)
 DEFS   += -DUSE_DAEMON
+# enable use of zvbi slicer (does not require the zvbi library)
+#DEFS   += -DZVBI_DECODER
 # testing TV app interaction on a host without a TV card
 #DEFS   += -DWITHOUT_TVCARD
+
 
 DEFS   += -DWIN32
 
@@ -78,8 +81,9 @@ LDFLAGS = -mwindows -mno-cygwin -Wl,--subsystem,windows
 
 # ----- don't change anything below ------------------------------------------
 
-CSRC    = epgvbi/btdrv4win epgvbi/vbidecode epgvbi/ttxdecode epgvbi/hamming \
-          epgvbi/tvchan epgvbi/cni_tables epgvbi/winshmsrv epgvbi/syserrmsg \
+CSRC    = epgvbi/btdrv4win epgvbi/vbidecode epgvbi/zvbidecoder \
+          epgvbi/ttxdecode epgvbi/hamming epgvbi/cni_tables epgvbi/tvchan \
+          epgvbi/syserrmsg epgvbi/winshmsrv \
           epgctl/debug epgctl/epgacqctl epgctl/epgscan epgctl/epgctxctl \
           epgctl/epgctxmerge epgctl/epgacqsrv epgctl/epgacqclnt \
           epgdb/epgstream epgdb/epgdbmerge epgdb/epgdbsav \
@@ -103,8 +107,8 @@ TVCARD_CSRC   = dsdrv/bt8x8 dsdrv/bt8x8_i2c dsdrv/bt8x8_typ \
                 dsdrv/saa7134 dsdrv/saa7134_i2c dsdrv/saa7134_typ \
                 dsdrv/cx2388x dsdrv/cx2388x_typ dsdrv/wintuner
 TVSIM_CSRC    = tvsim/tvsim_main tvsim/winshmclnt
-TVSIM_CSRC2   = epgvbi/btdrv4win epgvbi/vbidecode epgvbi/ttxdecode epgvbi/hamming \
-		epgvbi/cni_tables \
+TVSIM_CSRC2   = epgvbi/btdrv4win epgvbi/vbidecode epgvbi/zvbidecoder \
+                epgvbi/ttxdecode epgvbi/hamming epgvbi/cni_tables \
                 epgctl/debug epgui/pdc_themes epgui/wintvcfg
 TVSIM_TCLSRC  = tvsim/tvsim_gui epgtcl/tcl_libs epgtcl/tk_libs
 VBIREC_CSRC   = tvsim/vbirec_main

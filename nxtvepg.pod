@@ -24,7 +24,7 @@
 #
 #  Author: Tom Zoerner
 #
-# $Id: nxtvepg.pod,v 1.95 2003/03/22 17:14:41 tom Exp tom $
+# $Id: nxtvepg.pod,v 1.97 2003/04/12 13:35:17 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME
@@ -66,7 +66,7 @@ In Switzerland: SF1, TSR1, TSI1, EuroNews.
 
 =item *
 
-In France: Canal+, TV5, EuroNews.
+In France: Canal+, M6, TV5, EuroNews.
 
 =item *
 
@@ -87,8 +87,16 @@ Summary of command line options:
 
 =item B<-display> I<display>
 
-UNIX only: The display on which the windows will be created.
-Default: taken from environment variable DISPLAY.
+UNIX only: The display on which the user interface will be placed,
+for example B<localhost:0.0>.
+Default: taken from environment variable I<DISPLAY>.
+For more info see the I<X> manual page section B<Display Names>
+
+=item B<-tvdisplay> I<display>
+
+UNIX only: The display on which the TV application window is searched,
+e.g. on a remote host or different screen on a station with multiple
+monitors.  Default: same as the main window's display.
 
 =item B<-geometry> I<geometry>
 

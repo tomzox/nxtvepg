@@ -44,7 +44,7 @@
  *    NetBSD:  Mario Kemper <magick@bundy.zhadum.de>
  *    FreeBSD: Simon Barner <barner@gmx.de>
  *
- *  $Id: btdrv4linux.c,v 1.45 2003/03/22 14:43:23 tom Exp tom $
+ *  $Id: btdrv4linux.c,v 1.46 2003/04/12 17:51:05 tom Exp tom $
  */
 
 #if !defined(linux) && !defined(__NetBSD__) && !defined(__FreeBSD__) 
@@ -81,6 +81,12 @@
 #include "epgvbi/syserrmsg.h"
 #include "epgvbi/vbidecode.h"
 #include "epgvbi/btdrv.h"
+
+#ifdef ZVBI_DECODER
+#include "epgvbi/ttxdecode.h"
+#include "epgvbi/zvbidecoder.h"
+static vbi_raw_decoder zvbi_rd;
+#endif
 
 #if defined(__NetBSD__) || defined(__FreeBSD__)
 # include <sys/mman.h>
@@ -467,14 +473,12 @@ static bool BtDriver_SetInputSource( int inputIdx, int norm, bool * pIsTuner )
                {
                   if (vtuner.flags & ((norm == VIDEO_MODE_SECAM) ? VIDEO_TUNER_SECAM : VIDEO_TUNER_PAL))
                   {
-                     vtuner.mode = norm;
+                     result = TRUE;
 
-                     if (ioctl(video_fd, VIDIOCSTUNER, &vtuner) == 0)
-                     {
-                        result = TRUE;
-                     }
-                     else
-                        SystemErrorMessage_Set(&pSysErrorText, errno, "failed to set TV norm (v4l ioctl VIDIOCSTUNER) ", (norm == VIDEO_MODE_SECAM) ? "SECAM" : "PAL", ": ", NULL);
+                     // set tuner norm again (already done in CSCHAN above) - ignore errors
+                     vtuner.mode = norm;
+                     if (ioctl(video_fd, VIDIOCSTUNER, &vtuner) != 0)
+                        debug3("BtDriver-SetInputSource: v4l ioctl VIDIOCSTUNER for %s failed: %d: %s", (norm == VIDEO_MODE_SECAM) ? "SECAM" : "PAL", errno, strerror(errno));
                   }
                   else
                      SystemErrorMessage_Set(&pSysErrorText, 0, "tuner supports no ", (norm == VIDEO_MODE_SECAM) ? "SECAM" : "PAL", NULL);
@@ -484,7 +488,7 @@ static bool BtDriver_SetInputSource( int inputIdx, int norm, bool * pIsTuner )
 
                #else
                // workaround for SAA7134 driver version 0.2.2 and assorted v4l2 kernel patch:
-               // in this version vtuner.flags lackts the video norm capability flags & VIDIOCSTUNER always returns an error code
+               // in this version vtuner.flags lacks the video norm capability flags & VIDIOCSTUNER always returns an error code
                result = TRUE;
                #endif
             }
@@ -1238,13 +1242,50 @@ static void BtDriver_OpenVbiBuf( void )
 {
    #if !defined (__NetBSD__) && !defined (__FreeBSD__)
    struct vbi_format fmt;
+   struct vbi_format fmt_copy;
    long bufSize;
+   #endif
+
+   bufLines            = VBI_DEFAULT_LINES * 2;
+   bufLineSize         = VBI_DEFAULT_BPL;
+
+   #ifndef ZVBI_DECODER
+   VbiDecodeSetSamplingRate(0, 0);
+   #else
+   memset(&zvbi_rd, 0, sizeof(zvbi_rd));
+   zvbi_rd.sampling_rate    = 35468950L;
+   zvbi_rd.offset           = (int)(9.2e-6 * 35468950L);
+   zvbi_rd.bytes_per_line   = VBI_DEFAULT_BPL;
+   zvbi_rd.start[0]         = 7;
+   zvbi_rd.count[0]         = VBI_DEFAULT_LINES;
+   zvbi_rd.start[1]         = 319;
+   zvbi_rd.count[1]         = VBI_DEFAULT_LINES;
+   zvbi_rd.interlaced       = FALSE;
+   zvbi_rd.synchronous      = TRUE;
+   zvbi_rd.sampling_format  = VBI_PIXFMT_YUV420;
+   zvbi_rd.scanning         = 625;
+   #endif  // ZVBI_DECODER
+
+   #if !defined (__NetBSD__) && !defined (__FreeBSD__)
 
    dprintf1("BTTV driver version 0x%X\n", ioctl(vbi_fdin, BTTV_VERSION));
 
    if (ioctl(vbi_fdin, VIDIOCGVBIFMT, &fmt) == 0)
-   {
-      dprintf3("VBI format: %d lines, %d samples per line, %d sampling rate\n", fmt.count[0] + fmt.count[1], fmt.samples_per_line, fmt.sampling_rate);
+   {  // VBI format query succeeded -> now try to alter acc. to out preferences
+      fmt_copy = fmt;
+      fmt_copy.start[0]       = 7;
+      fmt_copy.count[0]       = VBI_DEFAULT_LINES;
+      fmt_copy.start[1]       = 319;
+      fmt_copy.count[1]       = VBI_DEFAULT_LINES;
+      fmt_copy.sample_format  = VIDEO_PALETTE_RAW;
+      if (ioctl(vbi_fdin, VIDIOCSVBIFMT, &fmt_copy) == 0)
+      {  // update succeeded -> use the new parameters (possibly altered by the driver)
+         fmt = fmt_copy;
+      }
+      else  // ignore failure
+         debug2("BtDriver-OpenVbiBuf: ioctl(VIDIOCSVBIFMT) failed with errno %d: %s", errno, strerror(errno));
+
+      dprintf5("VBI format: %d lines, %d samples per line, %d sampling rate, start lines %d,%d\n", fmt.count[0] + fmt.count[1], fmt.samples_per_line, fmt.sampling_rate, fmt.start[0], fmt.start[1]);
       bufLines = fmt.count[0] + fmt.count[1];
       if (bufLines > VBI_MAX_LINENUM * 2)
          bufLines = VBI_MAX_LINENUM;
@@ -1253,7 +1294,20 @@ static void BtDriver_OpenVbiBuf( void )
       if ((bufLineSize == 0) || (bufLineSize > VBI_MAX_LINESIZE))
          bufLineSize = VBI_MAX_LINESIZE;
 
-      VbiDecodeSetSamplingRate(fmt.sampling_rate);
+      #ifndef ZVBI_DECODER
+      VbiDecodeSetSamplingRate(fmt.sampling_rate, fmt.start[0]);
+      #else  // ZVBI_DECODER
+      zvbi_rd.sampling_rate    = fmt.sampling_rate;
+      zvbi_rd.offset           = (int)(9.2e-6 * fmt.sampling_rate);
+      zvbi_rd.bytes_per_line   = fmt.samples_per_line;
+      zvbi_rd.start[0]         = fmt.start[0];
+      zvbi_rd.count[0]         = fmt.count[0];
+      zvbi_rd.start[1]         = fmt.start[1];
+      zvbi_rd.count[1]         = fmt.count[1];
+      //zvbi_rd.interlaced       = !!(fmt.flags & VBI_INTERLACED);
+      //zvbi_rd.synchronous      = !(fmt.flags & VBI_UNSYNC);
+      zvbi_rd.sampling_format  = VBI_PIXFMT_YUV420;
+      #endif  // ZVBI_DECODER
    }
    else
    {
@@ -1263,28 +1317,29 @@ static void BtDriver_OpenVbiBuf( void )
       if (bufSize == -1)
       {
          perror("ioctl BTTV_VBISIZE");
-         bufLines    = VBI_DEFAULT_LINES * 2;
-         bufLineSize = VBI_DEFAULT_BPL;
       }
       else if ( (bufSize < VBI_DEFAULT_BPL) ||
                 (bufSize > VBI_MAX_LINESIZE * VBI_MAX_LINENUM * 2) ||
                 ((bufSize % VBI_DEFAULT_BPL) != 0) )
       {
          fprintf(stderr, "BTTV_VBISIZE: illegal buffer size %ld\n", bufSize);
-         bufLines    = VBI_DEFAULT_LINES * 2;
-         bufLineSize = VBI_DEFAULT_BPL;
       }
       else
       {  // ok
          bufLines    = bufSize / VBI_DEFAULT_BPL;
          bufLineSize = VBI_DEFAULT_BPL;
-      }
-      VbiDecodeSetSamplingRate(0);
-   }
 
-   #else  // __NetBSD__
-   bufLines    = VBI_DEFAULT_LINES * 2;
-   bufLineSize = VBI_DEFAULT_BPL;
+         #ifdef ZVBI_DECODER
+         zvbi_rd.count[0] = (bufSize / VBI_DEFAULT_BPL) >> 1;
+         zvbi_rd.count[1] = (bufSize / VBI_DEFAULT_BPL) - zvbi_rd.count[0];
+         #endif
+      }
+   }
+   #endif  // not NetBSD
+
+   // pass parameters to VBI slicer
+   #ifdef ZVBI_DECODER
+   vbi_raw_decoder_add_services(&zvbi_rd, VBI_SLICED_TELETEXT_B | VBI_SLICED_VPS, 1);
    #endif
 
    rawbuf = xmalloc(bufLines * bufLineSize);
@@ -1295,7 +1350,12 @@ static void BtDriver_OpenVbiBuf( void )
 //
 static void BtDriver_DecodeFrame( void )
 {
+#ifndef ZVBI_DECODER
    uchar *pData;
+#else
+   vbi_sliced rdo[32];
+   uint count;
+#endif
    size_t bufSize;
    slong stat;
    uint  line;
@@ -1317,19 +1377,24 @@ static void BtDriver_DecodeFrame( void )
    {
       #if !defined (__NetBSD__) && !defined (__FreeBSD__)
       // retrieve frame sequence counter from the end of the buffer
+      #ifndef ZVBI_DECODER
       VbiDecodeStartNewFrame(*(uint32_t *)(rawbuf + stat - 4));
+      #else
+      TtxDecode_NewVbiFrame(*(uint32_t *)(rawbuf + stat - 4));
+      #endif
       #else
       VbiDecodeStartNewFrame(0);
       #endif
 
-#ifndef SAA7134_0_2_2
+      #ifndef ZVBI_DECODER
+      #ifndef SAA7134_0_2_2
       pData = rawbuf;
       for (line=0; line < stat/bufLineSize; line++, pData += bufLineSize)
       {
          VbiDecodeLine(pData, line, TRUE);
          //printf("%02d: %08lx\n", line, *((ulong*)pData-4));  // frame counter
       }
-#else
+      #else  // SAA7134_0_2_2
       // workaround for bug in saa7134-0.2.2: the 2nd field of every frame is one buffer late
       pData = rawbuf + (16 * bufLineSize);
       for (line=16; line < 32; line++, pData += bufLineSize)
@@ -1337,7 +1402,21 @@ static void BtDriver_DecodeFrame( void )
       pData = rawbuf;
       for (line=0; line < 16; line++, pData += bufLineSize)
          VbiDecodeLine(pData, line, TRUE);
-#endif
+      #endif
+      #else  // ZVBI_DECODER
+      count = vbi_raw_decode(&zvbi_rd, rawbuf, rdo);
+      for (line=0; line < count; line++)
+      {
+         if ((rdo[line].id & VBI_SLICED_TELETEXT_B) != 0)
+         {
+            TtxDecode_AddPacket(rdo[line].data + 0, rdo[line].line);
+         }
+         else if (rdo[line].id == VBI_SLICED_VPS)
+         {
+            TtxDecode_AddVpsData(rdo[line].data - 3);
+         }
+      }
+      #endif  // ZVBI_DECODER
    }
    else if (stat < 0)
    {

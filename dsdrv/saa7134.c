@@ -25,7 +25,7 @@
  *  DScaler #Id: SAA7134Source.cpp,v 1.69 2003/01/27 22:04:12 laurentg Exp #
  *  DScaler #Id: SAA7134Provider.cpp,v 1.10 2002/12/24 08:22:14 atnak Exp #
  *
- *  $Id: saa7134.c,v 1.15 2003/03/22 14:42:37 tom Exp tom $
+ *  $Id: saa7134.c,v 1.16 2003/04/12 17:52:19 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -825,7 +825,7 @@ static DWORD WINAPI SAA7134_VbiThread( LPVOID dummy )
    uint  oldIdx;
    uint  row;
 
-   VbiDecodeSetSamplingRate(6750000 * 4);
+   VbiDecodeSetSamplingRate(6750000 * 4, VBI_VSTART + 3);
 
    for (oldIdx = 0; oldIdx < VBI_FIELD_CAPTURE_COUNT; oldIdx++)
       WriteFieldMarker(oldIdx);

@@ -1,5 +1,5 @@
 /*
- *  Nextview decoder: xawtv remote control module
+ *  Nextview EPG: xawtv remote control module
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
@@ -14,29 +14,24 @@
  *
  *  Description:
  *
- *    This module implements integration with the xawtv Linux TV viewer.
- *    It provides services to read the .xawtv configuration file, detect
- *    external channel changes and transfer EPG info to xawtv.
+ *    This module implements interaction with xawtv and derived TV viewing
+ *    applications.  It detects xawtv channel changes and triggers popups
+ *    with current programme information.  It can also send remote commands
+ *    to the TV application (e.g. to switch the TV channel).
  *
- *    It's serivces are used for the following purposes: 1. synchronize
- *    station names with the .xawtv configuration file, 2. read channel
- *    list from .xawtv for EPG scan, 3. tune a selected network's channel
- *    into xawtv, 4. receive channel change notifications from xawtv,
- *    5. transfer title information to xawtv.
+ *    Communication is based on so-called "X atoms", i.e. variables which are
+ *    stored in the X server; an event handler is installed both in xawtv and
+ *    nxtvepg which is called whenever an atom's value is changed by the other
+ *    application.
  *
- *  Authors:
+ *  Author: Tom Zoerner
  *
- *     Parts of this code originate from Netscape (author unknown).
- *     Those parts have been adapted for xawtv-remote.c by Gerd Knorr
- *     (kraxel@bytesex.org). The toplevel query could be improved with
- *     methods copied from ssetroot of the tvtwm package by Mark
- *     Lillibridge, MIT Project Athena, and Tcl/Tk version 8.3.
- *     Parser patterns for .xawtv have been directly lifted from
- *     xawtv-3.41 by Gerd Knorr.
+ *     Parts of this code (root and toplevel window tree traversal) originate
+ *     from Netscape (author unknown).  Those parts have been adapted for
+ *     xawtv-remote.c by Gerd Knorr (kraxel@bytesex.org).  Some source code
+ *     is directly derived from xawtv.
  *
- *     Additional code and adaptions to nxtvepg by Tom Zoerner
- *
- *  $Id: xawtv.c,v 1.30 2003/02/26 20:35:01 tom Exp tom $
+ *  $Id: xawtv.c,v 1.32 2003/04/12 13:37:20 tom Exp tom $
  */
 
 #ifdef WIN32
@@ -64,7 +59,6 @@
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
-#include "epgvbi/tvchan.h"
 #include "epgvbi/btdrv.h"
 #include "epgvbi/ttxdecode.h"
 #include "epgdb/epgblock.h"
@@ -76,31 +70,23 @@
 #include "epgui/xawtv.h"
 
 
-// ----------------------------------------------------------------------------
-// Structure that holds frequency count & table
-// - dynamically growing if more channels than fit the default max. table size
-//
-// default allocation size for frequency table (will grow if required)
-#define CHAN_CLUSTER_SIZE  50
+// this atom is set by xawtv: it contains the current channel's name
+static Atom xawtv_station_atom = None;
+// this atom is set by nxtvepg to send remote commands
+static Atom xawtv_remote_atom = None;
+// this atom is used to identify xawtv in the search across all toplevel windows
+static Atom wm_class_atom = None;
 
-typedef struct
-{
-   uint    * pFreqTab;
-   uint      maxCount;
-   uint      fillCount;
-} DYN_FREQ_BUF;
+// X11 display handle if TV app is on different display than the GUI
+static Display * alternate_dpy = NULL;
 
+// window IDs (note: on the TV app's X11 server)
+static Window xawtv_wid = None;
+static Window parent_wid = None;
+static Window root_wid = None;
 
-Atom xawtv_station_atom = None;
-Atom xawtv_remote_atom = None;
-Atom wm_class_atom = None;
-
-Window xawtv_wid = None;
-Window parent_wid = None;
-Window root_wid = None;
-
-Tcl_TimerToken popDownEvent = NULL;
-Tcl_TimerToken pollVpsEvent = NULL;
+static Tcl_TimerToken popDownEvent = NULL;
+static Tcl_TimerToken pollVpsEvent = NULL;
 
 // possible EPG info display types in xawtv
 typedef enum
@@ -145,308 +131,6 @@ static struct
 
 
 // ----------------------------------------------------------------------------
-// Check if an .xawtv config file exists
-//
-static bool Xawtv_Check( void )
-{
-   static bool initialized = FALSE;
-   static bool enabled = FALSE;
-   char * pHome, * pPath;
-
-   if (initialized == FALSE)
-   {
-      pHome = getenv("HOME");
-      if (pHome != NULL)
-      {
-         pPath = xmalloc(strlen(pHome) + 7 + 1);
-         strcpy(pPath, pHome);
-         strcat(pPath, "/.xawtv");
-
-         enabled = (access(pPath, R_OK) == 0);
-
-         xfree(pPath);
-      }
-      initialized = TRUE;
-   }
-
-   return enabled;
-}
-
-// ----------------------------------------------------------------------------
-// Tcl interface to Xawtv_Check
-//
-static int Xawtv_Enabled(ClientData ttp, Tcl_Interp *interp, int argc, CONST84 char *argv[])
-{
-   const char * const pUsage = "Usage: C_Tvapp_Enabled";
-   int result;
-
-   if (argc != 1)
-   {  // parameter count is invalid
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR;
-   }
-   else
-   {
-      Tcl_SetResult(interp, (Xawtv_Check() ? "1" : "0"), TCL_STATIC);
-      result = TCL_OK;
-   }
-   return result;
-}
-
-// ----------------------------------------------------------------------------
-// Open the .xawtv configuration file
-// - must be closed by caller!
-//
-static FILE * Xawtv_OpenRcFile( void )
-{
-   char * pHome, * pPath;
-   FILE * fp;
-
-   fp = NULL;
-   pHome = getenv("HOME");
-   if (pHome != NULL)
-   {
-      pPath = xmalloc(strlen(pHome) + 7 + 1);
-      strcpy(pPath, pHome);
-      strcat(pPath, "/.xawtv");
-
-      fp = fopen(pPath, "r");
-
-      xfree(pPath);
-   }
-   return fp;
-}
-
-// ----------------------------------------------------------------------------
-// Helper func to append frequency values to a growing list
-// - the list grows automatically when required
-//
-static void Xawtv_AddFreqToBuf( DYN_FREQ_BUF * pFreqBuf, uint freq )
-{
-   uint * pOldFreqTab;
-
-   assert(pFreqBuf->fillCount <= pFreqBuf->maxCount);
-
-   // ignore zero frequencies (e.g. the TV app channel table may contain non-tuner input sources)
-   if (freq != 0)
-   {
-      if (pFreqBuf->fillCount == pFreqBuf->maxCount)
-      {
-         pOldFreqTab = pFreqBuf->pFreqTab;
-         pFreqBuf->maxCount += CHAN_CLUSTER_SIZE;
-         pFreqBuf->pFreqTab = xmalloc(pFreqBuf->maxCount * sizeof(uint));
-
-         if (pOldFreqTab != NULL)
-         {
-            memcpy(pFreqBuf->pFreqTab, pOldFreqTab, pFreqBuf->fillCount * sizeof(uint));
-            xfree(pOldFreqTab);
-         }
-      }
-
-      pFreqBuf->pFreqTab[pFreqBuf->fillCount] = freq;
-      pFreqBuf->fillCount += 1;
-   }
-}
-
-// ----------------------------------------------------------------------------
-// Extract all TV frequencies & norms from $HOME/.xawtv for the EPG scan
-//
-bool Xawtv_GetFreqTab( Tcl_Interp * interp, uint ** ppFreqTab, uint * pCount )
-{
-   DYN_FREQ_BUF freqBuf;
-   char line[256], tag[64], value[192];
-   uint defaultNorm, attrNorm;
-   sint defaultFine, attrFine;
-   bool defaultIsTvInput, isTvInput;
-   bool isDefault;
-   uint freq;
-   FILE * fp;
-   bool result = FALSE;
-
-   fp = Xawtv_OpenRcFile();
-   if (fp != NULL)
-   {
-      memset(&freqBuf, 0, sizeof(freqBuf));
-
-      isDefault = TRUE;
-      defaultNorm = attrNorm = VIDEO_MODE_PAL;
-      defaultFine = attrFine = 0;
-      defaultIsTvInput = isTvInput = TRUE;
-      freq = 0;
-
-      // read all lines of the file (ignoring section structure)
-      while (fgets(line, 255, fp) != NULL)
-      {
-         if (line[0] == '\n' || line[0] == '#' || line[0] == '%')
-            continue;
-
-         // search for section headers, i.e. "[station]"
-         if (sscanf(line,"[%99[^]]]", value) == 1)
-         {
-            // add the last section's data to the output list
-            dprintf4("Xawtv channel: freq=%d fine=%d norm=%d, isTvInput=%d\n", freq, attrFine, attrNorm, isTvInput);
-            if ((freq != 0) && (isDefault == FALSE) && isTvInput)
-               Xawtv_AddFreqToBuf(&freqBuf, (attrNorm << 24) | (freq + attrFine));
-
-            // initialize variables for the new section
-            freq = 0;
-            attrFine = defaultFine;
-            attrNorm = defaultNorm;
-            isTvInput = defaultIsTvInput;
-            dprintf1("Xawtv channel: name=%s\n", value);
-            isDefault = ((strcmp(value, "defaults") == 0) || (strcmp(value, "global") == 0));
-         }
-         else if (sscanf(line," %63[^= ] = %191[^\n]", tag, value) == 2)
-         {
-            // search for channel assignment lines, e.g. " channel = SE15"
-            if (strcasecmp(tag, "channel") == 0)
-            {
-               freq = TvChannels_NameToFreq(value);
-            }
-            else if (strcasecmp(tag, "norm") == 0)
-            {
-               if (strcasecmp(value, "pal") == 0)
-                  attrNorm = VIDEO_MODE_PAL;
-               else if (strcasecmp(value, "secam") == 0)
-                  attrNorm = VIDEO_MODE_SECAM;
-               else if (strcasecmp(value, "ntsc") == 0)
-                  attrNorm = VIDEO_MODE_NTSC;
-               else
-                  debug1("Xawtv-GetFreqTab: unknown norm '%s' in .xawtvrc", value);
-               if (isDefault)
-                  defaultNorm = attrNorm;
-            }
-            else if (strcasecmp(tag, "fine") == 0)
-            {
-               attrFine = atoi(value);
-               if (isDefault)
-                  defaultFine = attrFine;
-            }
-            else if (strcasecmp(tag, "isTvInput") == 0)
-            {
-               isTvInput = (strcasecmp(value, "television") == 0);
-               if (isDefault)
-                  defaultIsTvInput = isTvInput;
-            }
-         }
-         else
-            debug1("Xawtv-GetFreqTab: parse error line \"%s\"", line);
-      }
-      fclose(fp);
-
-      // add the last section's data to the output list
-      if ((freq != 0) && (isDefault == FALSE) && isTvInput)
-      {
-         dprintf4("Xawtv channel: freq=%d fine=%d norm=%d, isTvInput=%d\n", freq, attrFine, attrNorm, isTvInput);
-         Xawtv_AddFreqToBuf(&freqBuf, (attrNorm << 24) | (freq + attrFine));
-      }
-
-      if (freqBuf.fillCount == 0)
-      {  // no channel assignments found in the file -> warn the user and abort
-         sprintf(comm, "tk_messageBox -type ok -icon error -parent .epgscan -message {"
-                          "No channel assignments found in ~/.xawtv - "
-                          "Please disable option 'Use .xawtv'}\n");
-         eval_check(interp, comm);
-
-         if (freqBuf.pFreqTab != NULL)
-            xfree(freqBuf.pFreqTab);
-         freqBuf.pFreqTab = NULL;
-      }
-
-      *ppFreqTab = freqBuf.pFreqTab;
-      *pCount    = freqBuf.fillCount;
-      result = TRUE;
-   }
-   else
-   {
-      sprintf(comm, "tk_messageBox -type ok -icon error -parent .epgscan -message {"
-                       "Could not open file ~/.xawtv - "
-                       "Make the file readable or disable option 'Use .xawtv'}\n");
-      eval_check(interp, comm);
-   }
-   return result;
-}
-
-// ----------------------------------------------------------------------------
-// Build list of all channel names defined in the .xawtv configuration file
-// - the parsing pattern used here is lifted directly from xawtv-3.41
-// - station names are defined on single lines in brackets, e.g. [ARD]
-// - names containing '/' characters are assumed to be multi-network channels,
-//   e.g. "[arte / kinderkanal]". Those are broken up around the separator and
-//   each segment added separately to the output list
-//
-static int Xawtv_GetStationNames(ClientData ttp, Tcl_Interp *interp, int argc, CONST84 char *argv[])
-{
-   const char * const pUsage = "Usage: C_Tvapp_GetStationNames";
-   char line[256], section[100];
-   char *ps, *pc, *pe, c;
-   FILE * fp;
-   int result = TCL_ERROR;
-
-   if (argc != 1)
-   {  // parameter count is invalid
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR;
-   }
-   else
-   {
-      fp = Xawtv_OpenRcFile();
-      if (fp != NULL)
-      {
-         // read all lines of the file (ignoring section structure)
-         while (fgets(line, 255, fp) != NULL)
-         {
-            // search for section headers, i.e. "[station]"
-            if (sscanf(line,"[%99[^]]]", section) == 1)
-            {
-               if ( (strcmp(section, "global") != 0) &&
-                    (strcmp(section, "defaults") != 0) &&
-                    (strcmp(section, "launch") != 0) )
-               {
-                  Tcl_AppendElement(interp, section);
-
-                  // split multi-channel names at separator '/' and append each segment separately
-                  ps = section;
-                  pe = strchr(ps, '/');
-                  if (pe != NULL)
-                  {
-                     do
-                     {
-                        pc = pe;
-                        // remove trailing white space
-                        while ((pc > ps) && (*(pc - 1) == ' '))
-                            pc--;
-                        if (pc > ps)
-                        {
-                           c = *pc;
-                           *pc = 0;
-                           Tcl_AppendElement(interp, ps);
-                           *pc = c;
-                        }
-                        ps = pe + 1;
-                        // skip whitespace following the separator
-                        while (*ps == ' ')
-                            ps++;
-                     }
-                     while ((pe = strchr(ps, '/')) != NULL);
-
-                     // add the segment after the last separator
-                     while (*ps == ' ')
-                        ps++;
-                     if (*ps != 0)
-                        Tcl_AppendElement(interp, ps);
-                  }
-               }
-            }
-         }
-         fclose(fp);
-      }
-      result = TCL_OK;
-   }
-   return result;
-}
-
-// ----------------------------------------------------------------------------
 // Dummy X11 error event handler for debugging purposes
 //
 #ifdef DEBUG_SWITCH
@@ -473,6 +157,29 @@ static void DebugDumpProperty( const char * prop, ulong nitems )
 #else
 # define DebugDumpProperty(X,Y)
 #endif
+
+
+// ---------------------------------------------------------------------------
+// Get X11 display for the TV app
+// - usually the same as the display of the nxtvepg GUI
+// - can be modified via command line switch (e.g. multi-headed PC)
+//
+static Display * Xawtv_GetTvDisplay( void )
+{
+   Tk_Window   tkwin;
+   Display   * dpy;
+
+   dpy = alternate_dpy;
+   if (dpy == NULL)
+   {  // same as GUI -> query main window for it's display handle
+      tkwin = Tk_MainWindow(interp);
+      if (tkwin != NULL)
+      {
+         dpy = Tk_Display(tkwin);
+      }
+   }
+   return dpy;
+}
 
 // ---------------------------------------------------------------------------
 // Check the class of a newly created window
@@ -518,12 +225,11 @@ static bool Xawtv_QueryClass( Display * dpy, Window wid )
 //
 static bool Xawtv_QueryParent( Display * dpy, Window wid )
 {
-   Window root, root_ret, parent, *kids;
+   Window root_ret, parent, *kids;
    uint   nkids;
    bool   result = FALSE;
 
-   root = RootWindowOfScreen(DefaultScreenOfDisplay(dpy));
-   while ( (wid != root) &&
+   while ( (wid != root_wid) &&
            XQueryTree(dpy, wid, &root_ret, &parent, &kids, &nkids))
    {
       dprintf3("Xawtv-QueryParent: wid=0x%lX parent=0x%lx root=0x%lx\n", wid, parent, root_ret);
@@ -609,7 +315,7 @@ static int Xawtv_EventNotification( ClientData clientData, XEvent *eventPtr )
 //
 static bool Xawtv_FindWindow( Display * dpy, Atom atom )
 {
-   Window root, root2, parent, *kids, w;
+   Window root2, parent, *kids, w;
    unsigned int nkids;
    bool result = FALSE;
    int n;
@@ -618,10 +324,7 @@ static bool Xawtv_FindWindow( Display * dpy, Atom atom )
    ulong nitems, bytesafter;
    uchar *args = NULL;
 
-   // get normal root window
-   root = RootWindowOfScreen(DefaultScreenOfDisplay(dpy));
-
-   if (XQueryTree(dpy, root, &root2, &parent, &kids, &nkids) != 0)
+   if (XQueryTree(dpy, root_wid, &root2, &parent, &kids, &nkids) != 0)
    {
       if (kids != NULL)
       {
@@ -668,14 +371,11 @@ static void Xawtv_Popup( float rperc, const char *rtime, const char * ptitle )
 {
    XWindowAttributes wat;
    Tk_ErrorHandler errHandler;
-   Tk_Window tkwin;
    Display *dpy;
    int retry;
 
-   tkwin = Tk_MainWindow(interp);
-   if (tkwin != NULL)
    {
-      dpy = Tk_Display(tkwin);
+      dpy = Xawtv_GetTvDisplay();
       if (dpy != NULL)
       {
          // push an /dev/null handler onto the stack that catches any type of X11 error events
@@ -721,7 +421,8 @@ static void Xawtv_Popup( float rperc, const char *rtime, const char * ptitle )
 
          if ((xawtv_wid != None) && (wat.map_state == IsViewable))
          {
-            sprintf(comm, "Create_XawtvPopup %d %d %d %d %d %f {%s} {%s}\n",
+            sprintf(comm, "Create_XawtvPopup {%s} %d %d %d %d %d %f {%s} {%s}\n",
+                          DisplayString(dpy),
                           xawtvcf.popType,
                           wat.x, wat.y, wat.width, wat.height, rperc, rtime, ptitle);
             eval_check(interp, comm);
@@ -736,8 +437,6 @@ static void Xawtv_Popup( float rperc, const char *rtime, const char * ptitle )
       else
          debug0("No Tk display available");
    }
-   else
-      debug0("Tk main window not found");
 }
 
 // ---------------------------------------------------------------------------
@@ -747,7 +446,6 @@ static int Xawtv_SendCmd(ClientData ttp, Tcl_Interp *interp, int argc, CONST84 c
 {
    const char * const pUsage = "Usage: C_Tvapp_SendCmd <command> [<args> [<...>]]";
    Tk_ErrorHandler errHandler;
-   Tk_Window tkwin;
    Display *dpy;
    Tcl_DString *pass_dstr, *tmp_dstr;
    char * pass;
@@ -761,10 +459,8 @@ static int Xawtv_SendCmd(ClientData ttp, Tcl_Interp *interp, int argc, CONST84 c
    }
    else
    {
-      tkwin = Tk_MainWindow(interp);
-      if (tkwin != NULL)
       {
-         dpy = Tk_Display(tkwin);
+         dpy = Xawtv_GetTvDisplay();
          if (dpy != NULL)
          {
             // push an /dev/null handler onto the stack that catches any type of X11 error events
@@ -839,7 +535,7 @@ static int Xawtv_SendCmd(ClientData ttp, Tcl_Interp *interp, int argc, CONST84 c
             {  // xawtv window not found
                if (strcmp(argv[0], "C_Tvapp_SendCmd") == 0)
                {  // display warning only if called after user-interaction
-                  sprintf(comm, "tk_messageBox -type ok -icon error -message \"xawtv is not running!\"\n");
+                  sprintf(comm, "tk_messageBox -type ok -icon error -message \"$tvapp_name is not running!\"\n");
                   eval_check(interp, comm);
                }
             }
@@ -850,8 +546,6 @@ static int Xawtv_SendCmd(ClientData ttp, Tcl_Interp *interp, int argc, CONST84 c
          else
             debug0("No Tk display available");
       }
-      else
-         debug0("Tk main window not found");
 
       result = TCL_OK;
    }
@@ -864,7 +558,6 @@ static int Xawtv_SendCmd(ClientData ttp, Tcl_Interp *interp, int argc, CONST84 c
 static bool Xawtv_QueryRemoteStation( Window wid, char * pBuffer, int bufLen )
 {
    Tk_ErrorHandler errHandler;
-   Tk_Window tkwin;
    Display *dpy;
    Atom type;
    int format, idx, argc;
@@ -872,10 +565,8 @@ static bool Xawtv_QueryRemoteStation( Window wid, char * pBuffer, int bufLen )
    uchar *args;
    bool result = FALSE;
 
-   tkwin = Tk_MainWindow(interp);
-   if (tkwin != NULL)
    {
-      dpy = Tk_Display(tkwin);
+      dpy = Xawtv_GetTvDisplay();
       if (dpy != NULL)
       {
          // push an /dev/null handler onto the stack that catches any type of X11 error events
@@ -909,8 +600,6 @@ static bool Xawtv_QueryRemoteStation( Window wid, char * pBuffer, int bufLen )
       else
          debug0("No Tk display available");
    }
-   else
-      debug0("Tk main window not found");
 
    return result;
 }
@@ -1365,16 +1054,14 @@ static int Xawtv_ReadConfig( Tcl_Interp *interp, XAWTVCF *pNewXawtvcf )
                   result = Tcl_GetInt(interp, cfArgv[idx + 1], &duration);
                else
                {
-                  sprintf(comm, "C_Xawtv_ReadConfig: unknown config type: %s", cfArgv[idx]);
-                  Tcl_SetResult(interp, comm, TCL_VOLATILE);
+                  debug1("C_Xawtv_ReadConfig: unknown config type: %s", cfArgv[idx]);
                   result = TCL_ERROR;
                }
             }
 
             if (popType >= POP_COUNT)
             {
-               sprintf(comm, "C_Xawtv_ReadConfig: illegal popup type: %d (valid 0..%d)", popType, POP_COUNT-1);
-               Tcl_SetResult(interp, comm, TCL_VOLATILE);
+               debug2("C_Xawtv_ReadConfig: illegal popup type: %d (valid 0..%d)", popType, POP_COUNT-1);
                result = TCL_ERROR;
             }
 
@@ -1394,8 +1081,7 @@ static int Xawtv_ReadConfig( Tcl_Interp *interp, XAWTVCF *pNewXawtvcf )
          }
          else
          {
-            sprintf(comm, "C_Xawtv_ReadConfig: odd number of list elements: %s", pTmpStr);
-            Tcl_SetResult(interp, comm, TCL_VOLATILE);
+            debug1("C_Xawtv_ReadConfig: odd number of list elements: %s", pTmpStr);
             result = TCL_ERROR;
          }
          Tcl_Free((char *) cfArgv);
@@ -1413,11 +1099,9 @@ static int Xawtv_ReadConfig( Tcl_Interp *interp, XAWTVCF *pNewXawtvcf )
 static int Xawtv_InitConfig(ClientData ttp, Tcl_Interp *interp, int argc, CONST84 char *argv[])
 {
    Tk_ErrorHandler errHandler;
-   Tk_Window tkwin;
    Display *dpy;
    XAWTVCF newXawtvCf;
    bool isFirstCall = (bool)((int) ttp);
-   int result = TCL_ERROR;
 
    if (pollVpsEvent != NULL)
    {
@@ -1425,76 +1109,68 @@ static int Xawtv_InitConfig(ClientData ttp, Tcl_Interp *interp, int argc, CONST8
       pollVpsEvent = NULL;
    }
 
-   if ( Xawtv_Check() )
+   // remove existing popup by the old method
+   if (isFirstCall == FALSE)
+      Xawtv_PopDownNowNext(NULL);
+
+   // load config from rc/ini file
+   if (Xawtv_ReadConfig(interp, &newXawtvCf) == TCL_OK)
    {
-      tkwin = Tk_MainWindow(interp);
-      if (tkwin != NULL)
+      // copy new config over the old
+      xawtvcf = newXawtvCf;
+
+      // create or remove the "Tune TV" button
+      if (xawtvcf.tunetv == FALSE)
+         eval_check(interp, "RemoveTuneTvButton\n");
+      else
+         eval_check(interp, "CreateTuneTvButton\n");
+
       {
-         dpy = Tk_Display(tkwin);
+         dpy = Xawtv_GetTvDisplay();
          if (dpy != NULL)
          {
-            // load config from rc/ini file
-            result = Xawtv_ReadConfig(interp, &newXawtvCf);
-            if (result == TCL_OK)
-            {
-               // remove existing popup by the old method
-               if (isFirstCall == FALSE)
-                  Xawtv_PopDownNowNext(NULL);
+            if (xawtvcf.tunetv || xawtvcf.follow || xawtvcf.doPop)
+            {  // xawtv window id required for communication
 
-               // copy new config over the old
-               xawtvcf = newXawtvCf;
-
-               // create or remove the "Tune TV" button
-               if ((xawtvcf.tunetv == FALSE) && (isFirstCall == FALSE))
-                  eval_check(interp, "RemoveTuneTvButton\n");
-               else if (xawtvcf.tunetv)
-                  eval_check(interp, "CreateTuneTvButton\n");
-
-               Tcl_SetVar(interp, "tvapp_name", "xawtv", TCL_GLOBAL_ONLY);
-
-               if (xawtvcf.tunetv || xawtvcf.follow || xawtvcf.doPop)
-               {  // xawtv window id required for communication
-
-                  // push an /dev/null handler onto the stack that catches any type of X11 error events
-                  errHandler = Tk_CreateErrorHandler(dpy, -1, -1, -1, (Tk_ErrorProc *) Xawtv_X11ErrorHandler, (ClientData) NULL);
-                  // search for an xawtv window
-                  if ( (xawtv_wid != None) || Xawtv_FindWindow(dpy, xawtv_station_atom) )
-                  {
-                     // install an event handler for property changes in xawtv
-                     dprintf1("Install PropertyNotify for window 0x%X\n", (int)xawtv_wid);
-                     XSelectInput(dpy, xawtv_wid, StructureNotifyMask | PropertyChangeMask);
-                     AddMainIdleEvent(Xawtv_StationSelected, NULL, TRUE);
-                     // no events required from the root window
-                     XSelectInput(dpy, root_wid, 0);
-                  }
-                  else
-                  {  // install event handler on the root window to check for xawtv being started
-                     dprintf1("Install PropertyNotify for root window 0x%X\n", (int)root_wid);
-                     XSelectInput(dpy, root_wid, SubstructureNotifyMask);
-                  }
-
-                  // remove the dummy error handler
-                  Tk_DeleteErrorHandler(errHandler);
+               // push an /dev/null handler onto the stack that catches any type of X11 error events
+               errHandler = Tk_CreateErrorHandler(dpy, -1, -1, -1, (Tk_ErrorProc *) Xawtv_X11ErrorHandler, (ClientData) NULL);
+               // search for an xawtv window
+               if ( (xawtv_wid != None) || Xawtv_FindWindow(dpy, xawtv_station_atom) )
+               {
+                  // install an event handler for property changes in xawtv
+                  dprintf1("Install PropertyNotify for window 0x%X\n", (int)xawtv_wid);
+                  XSelectInput(dpy, xawtv_wid, StructureNotifyMask | PropertyChangeMask);
+                  AddMainIdleEvent(Xawtv_StationSelected, NULL, TRUE);
+                  // no events required from the root window
+                  XSelectInput(dpy, root_wid, 0);
                }
                else
-               {  // connection no longer required
-                  if (xawtv_wid != None)
-                     XSelectInput(dpy, xawtv_wid, 0);
-                  if (root_wid != None)
-                     XSelectInput(dpy, root_wid, 0);
-                  xawtv_wid = None;
-                  parent_wid = None;
+               {  // install event handler on the root window to check for xawtv being started
+                  dprintf1("Install PropertyNotify for root window 0x%X\n", (int)root_wid);
+                  XSelectInput(dpy, root_wid, SubstructureNotifyMask);
                }
 
-               if (xawtvcf.follow || xawtvcf.doPop)
-               {  // create a timer to regularily poll for VPS/PDC
-                  pollVpsEvent = Tcl_CreateTimerHandler(200, Xawtv_PollVpsPil, NULL);
-               }
+               // remove the dummy error handler
+               Tk_DeleteErrorHandler(errHandler);
+            }
+            else
+            {  // connection no longer required
+               if (xawtv_wid != None)
+                  XSelectInput(dpy, xawtv_wid, 0);
+               if (root_wid != None)
+                  XSelectInput(dpy, root_wid, 0);
+               xawtv_wid = None;
+               parent_wid = None;
             }
          }
       }
+
+      if (xawtvcf.follow || xawtvcf.doPop)
+      {  // create a timer to regularily poll for VPS/PDC
+         pollVpsEvent = Tcl_CreateTimerHandler(200, Xawtv_PollVpsPil, NULL);
+      }
    }
-   return result;
+   return TCL_OK;
 }
 
 // ----------------------------------------------------------------------------
@@ -1516,50 +1192,65 @@ void Xawtv_Destroy( void )
 
 // ----------------------------------------------------------------------------
 // Initialize the module
+// - optionally an alternate display can be specified for the TV app window
 //
-void Xawtv_Init( void )
+void Xawtv_Init( char * pTvX11Display )
 {
-   Tk_Window tkwin;
-   Display *dpy;
-   bool  enabled = FALSE;
+   Tk_Window   tkwin;
+   Tk_Window   tvwin;
+   Display   * dpy;
 
    // Create callback functions
    Tcl_CreateCommand(interp, "C_Tvapp_InitConfig", Xawtv_InitConfig, (ClientData) FALSE, NULL);
-   Tcl_CreateCommand(interp, "C_Tvapp_Enabled", Xawtv_Enabled, (ClientData) NULL, NULL);
-   Tcl_CreateCommand(interp, "C_Tvapp_GetStationNames", Xawtv_GetStationNames, (ClientData) NULL, NULL);
    Tcl_CreateCommand(interp, "C_Tvapp_SendCmd", Xawtv_SendCmd, (ClientData) NULL, NULL);
 
-   // check for existance of .xawtv config file
-   // if not present the module remains completely dead
-   if ( Xawtv_Check() )
+   if (pTvX11Display != NULL)
    {
+      Tcl_ResetResult(interp);
       tkwin = Tk_MainWindow(interp);
       if (tkwin != NULL)
-      {
-         dpy = Tk_Display(tkwin);
-         if (dpy != NULL)
+      {  // create a dummy window to force Tk to open the 2nd X11 display for the TV app
+         tvwin = Tk_CreateWindow(interp, tkwin, ".tv_screen_dummy", pTvX11Display);
+         if (tvwin != NULL)
          {
-            xawtv_station_atom = XInternAtom(dpy, "_XAWTV_STATION", False);
-            xawtv_remote_atom = XInternAtom(dpy, "_XAWTV_REMOTE", False);
-            wm_class_atom = XInternAtom(dpy, "WM_CLASS", False);
-
-            root_wid = RootWindowOfScreen(DefaultScreenOfDisplay(dpy));
-
-            // read user config and initialize local vars
-            Xawtv_InitConfig((ClientData) TRUE, interp, 0, NULL);
-
-            Tk_CreateGenericHandler(Xawtv_EventNotification, NULL);
-
-            enabled = TRUE;
+            alternate_dpy = Tk_Display(tvwin);
+            if (alternate_dpy != NULL)
+            {
+               dprintf1("Using alternate display '%s' for TV app\n", DisplayString(alternate_dpy));
+               root_wid = RootWindowOfScreen(Tk_Screen(tvwin));
+            }
+         }
+         else
+         {  // failed to open the display, e.g. due to access permissions -> display message to user
+            fprintf(stderr, "Failed to open TV app display '%s': %s\n", pTvX11Display, Tcl_GetStringResult(interp));
          }
       }
-      dprintf0("Xawtv-Init: done.\n");
+      else
+         debug1("Xawtv-Init: failed to query main window id: %s\n", Tcl_GetStringResult(interp));
+
+      Tcl_ResetResult(interp);
    }
 
-   // en-/disable TV app. entry in the "Configure" menu
-   sprintf(comm, ".menubar.config entryconfigure \"TV app. interaction...\" -state %s\n",
-                 (enabled ? "normal" : "disabled"));
-   eval_check(interp, comm);
+   {
+      dpy = Xawtv_GetTvDisplay();
+      if (dpy != NULL)
+      {
+         // create atoms for communication with TV client
+         xawtv_station_atom = XInternAtom(dpy, "_XAWTV_STATION", False);
+         xawtv_remote_atom = XInternAtom(dpy, "_XAWTV_REMOTE", False);
+         wm_class_atom = XInternAtom(dpy, "WM_CLASS", False);
+
+         if (root_wid == None)
+            root_wid = RootWindowOfScreen(DefaultScreenOfDisplay(dpy));
+
+         Tk_CreateGenericHandler(Xawtv_EventNotification, NULL);
+      }
+   }
+
+   // read user config and initialize local vars
+   Xawtv_InitConfig((ClientData) TRUE, interp, 0, NULL);
+
+   dprintf0("Xawtv-Init: done.\n");
 }
 
 #endif  // not WIN32
