@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbif.c,v 1.28 2001/06/12 18:20:53 tom Exp tom $
+ *  $Id: epgdbif.c,v 1.29 2001/08/29 08:59:49 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -701,17 +701,14 @@ bool EpgDbGetStat( CPDBC dbc, EPGDB_BLOCK_COUNT * pCount, time_t acqMinTime )
          pBlock = pBlock->pNextBlock;
       }
 
-      // count number of expired/defect blocks
+      // count number of defective blocks
       // - no version comparison required, since these are discarded when AI version changes
       pBlock = dbc->pObsoletePi;
       while (pBlock != NULL)
       {
          if (EpgDbPiCmpBlockNoGt(dbc, pBlock->blk.pi.block_no, pNetwops[pBlock->blk.pi.netwop_no].stopNo, pBlock->blk.pi.netwop_no) == FALSE)
          {
-            if (pBlock->blk.pi.stop_time <= now)
-               pCount[0].expired += 1;
-            else
-               pCount[0].defective += 1;
+            pCount[0].defective += 1;
             if (pBlock->acqTimestamp >= acqMinTime)
             {
                pCount[0].sinceAcq += 1;
@@ -720,10 +717,7 @@ bool EpgDbGetStat( CPDBC dbc, EPGDB_BLOCK_COUNT * pCount, time_t acqMinTime )
          }
          else
          {
-            if (pBlock->blk.pi.stop_time <= now)
-               pCount[1].expired += 1;
-            else
-               pCount[1].defective += 1;
+            pCount[1].defective += 1;
             if (pBlock->acqTimestamp >= acqMinTime)
             {
                pCount[1].sinceAcq += 1;

@@ -4966,3 +4966,36 @@ www/changelog.html [rev:1.15, 2001-08-28T19:11:30]:
 - removed "maybe more" from 0.6.0
 - fixed HTML: replaced some & with &amp;
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_6_0 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+epgdb/epgdbmgmt.c [rev:1.34, 2001-08-29T08:58:21]:
+- bugfix EpgDbPiBlockNoValid:
+- did not check for special case of AI block range 0x0000-0xffff
+    and startno=stopno+1
+- in this case all blocks for that network are obsolete
+epgdb/epgdbif.c [rev:1.29, 2001-08-29T08:59:49]:
+- bugfix EpgDbGetStat:
+- obsolete blocks were counted as expired when stop time is in the past
+- this distinction is no longer neccessary as normal expired blocks
+    are kept in the normal PI list since some time
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.130, 2001-08-30T08:41:56]:
+- bugfix proc ApplySelectedColumnList:
+- in the branch for "column headers off" for PI listbox width calculation
+- forgot to remove "m" after width variable -> set pixels as if mm
+epgctl/epgversion.h [rev:1.15, 2001-08-30T08:52:56]:
+- set to version 0.6.1 (bugfix release)
+nxtvepg.spec [rev:NONE - missing check-in]:
+- changed version to 0.6.1
+www/changelog.html [rev:1.16, 2001-08-29T19:27:34]:
+- added note about GUI bug: listbox width when column headers switched off
+www/index.html [rev:1.28, 2001-08-30T15:54:03]:
+- update for release 0.6.1
+- improved description of new features in 0.6.0 a little bit
+www/index-de.html [rev:1.16, 2001-08-30T15:55:10]:
+- update for release 0.6.1
+- improved description of new features in 0.6.0 a little bit
+www/changelog.html [rev:1.17, 2001-08-30T15:55:57]:
+- update for release 0.6.1
+- improved description of new features in 0.6.0 a little bit
+- improved introductionary paragraph regarding unreleased features
+CHANGES [rev:1.16, 2001-08-30T16:04:05]:
+- updated for bugfix release 0.6.1
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_6_1 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

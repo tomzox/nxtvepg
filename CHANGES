@@ -4,7 +4,15 @@ changes or additions.
 
 Before you submit any feature requests, please read the TODO file.
 
-from 0.5.2 to 0.6.0 (August 2001)
+from 0.6.0 to 0.6.1 (2001-August-30)
+- fixed bug in GUI: when programme listbox column headers were disabled,
+  the main window was much too wide (calculated width as pixels, but applied
+  as if millimeters).
+- fixed bug in block management which allowed for PI blocks to remain in the
+  database although the valid network block range was declared void in the AI.
+  This could result in fill percentages > 100 in the statistic output.
+
+from 0.5.2 to 0.6.0 (2001-August-25)
 - possibility to invoke user-defined external commands from the context
   menu in the browser listbox, e.g. to program a timer for the selected
   programme.

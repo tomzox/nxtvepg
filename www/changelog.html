@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: changelog.html,v 1.15 2001/08/28 19:11:30 tom Exp $ -->
+<!-- $Id: changelog.html,v 1.17 2001/08/30 15:55:57 tom Exp $ -->
 <HEAD>
 <TITLE>Nextview EPG Decoder Change-Log</TITLE>
 <LINK href="nxtvepg.css" rel=stylesheet type=text/css>
@@ -23,20 +23,23 @@ This document contains a list of all major changes between releases
 of the <A HREF="http://nxtvepg.tripod.com/">nxtvepg</A>
 nexTView EPG decoder software.
 <BR>
-It now also contains information about work in progress on the next release. 
-If you're interested in beta testing new features, just send me a mail.
+It also contains information about the next release and is regularily
+updated while work is in progress and new bugs are fixed or features added.
+If you're interested in beta testing pre-releases, just send me a mail.
 </P>
 
-<H2>From 0.6.0 to 0.6.1 (yet unreleased)</H2>
+<H2>From 0.6.0 to 0.6.1 (August/30/2001)</H2>
 <P>
-This release will contain the following bugfixes and/or new features:
+This release contains the following bugfixes:
 </P>
 <UL>
+<LI>Fixed bug in the GUI: when the listbox column headers were disabled in the
+  Configure menu, the main window appeared much too wide (calculated width as
+  pixels, but applied as if millimeters).
 <LI>Fixed bug in block management which allowed for PI blocks to remain in the
   database although the valid network block range was declared void in the AI.
   This could result in fill percentages &gt; 100 in the statistic output
   (as seen on provider Pro7 on 08/28/2001).
-<LI><I>and certainly more...</I>
 </UL>
 
 <H2>From 0.5.2 to 0.6.0 (August/25/2001)</H2>
@@ -44,13 +47,12 @@ This release will contain the following bugfixes and/or new features:
 This release contains the following new features:
 </P>
 <UL>
-<LI>Possibility to invoke user-defined external commands from the context
-  menu in the browser listbox, e.g. to program a timer for the selected
-  programme in a scheduler like <I>plan</I>.
+<LI>Possibility to add references to external applications to the context
+  popup menu in the browser listbox, e.g. to program an alarm timer for the
+  selected TV show in your favourite scheduler.
 <LI>Dump of programme list or selected programme descriptions into a file
   in HTML format, from where they can be loaded by any WWW browser. This
-  may be of interest for people who want to print out TV schedules
-  onto dead trees.
+  may be of interest for people who want to print out TV schedules.
 <LI>New text search option <I>Match full</I> to allow exact title matches,
   e.g. a search for "heute" will no longer match on "heute journal" when
   full match is enabled.

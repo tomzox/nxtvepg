@@ -21,7 +21,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: epgui.tcl,v 1.129 2001/08/25 15:07:45 tom Exp tom $
+#  $Id: epgui.tcl,v 1.130 2001/08/30 08:41:56 tom Exp tom $
 #
 
 set is_unix [expr [string compare $tcl_platform(platform) "unix"] == 0]
@@ -3714,16 +3714,16 @@ proc ApplySelectedColumnList {mode} {
          .all.pi.colheads.col_${col} configure -width [expr 5 + [.all.pi.colheads.col_${col} cget -width]]
       }
    } else {
-      # create an invisible frame to set the width of the text width
+      # create an invisible frame to set the width of the text widget
       foreach col $colsel_selist {
          incr tab_pos [lindex $colsel_tabs($col) 0]
-         lappend tabs ${tab_pos}m
+         lappend tabs ${tab_pos}
       }
-      frame .all.pi.colheads.c0 -width "[expr $tab_pos + 2]m"
+      frame .all.pi.colheads.c0 -width "[expr $tab_pos + 2]"
       pack .all.pi.colheads.c0 -side left -anchor w
    }
 
-   # configure tab-stobs in text widget
+   # configure tab-stops in text widget
    .all.pi.list.text tag configure past -tab $tabs
    .all.pi.list.text tag configure now -tab $tabs
    .all.pi.list.text tag configure then -tab $tabs

@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbmgmt.c,v 1.33 2001/05/19 14:27:15 tom Exp tom $
+ *  $Id: epgdbmgmt.c,v 1.34 2001/08/29 08:58:21 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -819,7 +819,9 @@ void EpgDbLinkPi( PDBC dbc, EPGDB_BLOCK * pBlock, EPGDB_BLOCK * pPrev, EPGDB_BLO
 }
 
 // ---------------------------------------------------------------------------
-// Check if the given block number lies in the valid range
+// Check if the given netwop and block number fall into the valid ranges
+// - special case block numer start = stop + 1 defines an empty range,
+//   i.e. all block numbers are invalid for that network
 //
 bool EpgDbPiBlockNoValid( CPDBC dbc, uint block_no, uchar netwop )
 {
@@ -833,19 +835,29 @@ bool EpgDbPiBlockNoValid( CPDBC dbc, uint block_no, uchar netwop )
          pNetwop = AI_GET_NETWOP_N(&dbc->pAiBlock->blk.ai, netwop);
 
          if (pNetwop->startNo <= pNetwop->stopNoSwo)
-         {  // case 1: no block sequence overflow -> simple comparison
-            result = ( (block_no >= pNetwop->startNo) &&
-                       (block_no <= pNetwop->stopNoSwo) );
-         }
-         else if (pNetwop->startNo == pNetwop->stopNoSwo + 1)
-         {  // case 2: empty range
-            result = FALSE;
+         {
+            if ((pNetwop->startNo == 0x0000) && (pNetwop->stopNoSwo == 0xffff))
+            {  // case 1: empty range (startNo == stopNoSwo + 1 modulo 2^16)
+               result = FALSE;
+            }
+            else
+            {  // case 2: no block sequence overflow -> simple comparison
+               result = ( (block_no >= pNetwop->startNo) &&
+                          (block_no <= pNetwop->stopNoSwo) );
+            }
          }
          else
-         {  // case 3: block sequence overflow -> range of valid block numbers consists of
-            //         two separate ranges at the top and bottom of the 16-bit number space
-            result = ( (block_no >= pNetwop->startNo) ||
-                       (block_no <= pNetwop->stopNoSwo) );
+         {
+            if (pNetwop->startNo == pNetwop->stopNoSwo + 1)
+            {  // case 3: empty range (as defined in ETS 300 707)
+               result = FALSE;
+            }
+            else
+            {  // case 4: block sequence overflow -> range of valid block numbers consists of
+               //         two separate ranges at the top and bottom of the 16-bit number space
+               result = ( (block_no >= pNetwop->startNo) ||
+                          (block_no <= pNetwop->stopNoSwo) );
+            }
          }
          DBGONLY( if (result == FALSE) )
             dprintf4("EpgDb-PiBlockNoValid: netwop=%d block_no not in range: %d <= %d <= %d\n", netwop, pNetwop->startNo, block_no, pNetwop->stopNoSwo);
