@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: menucmd.c,v 1.39 2001/02/26 20:23:05 tom Exp tom $
+ *  $Id: menucmd.c,v 1.44 2001/04/19 20:47:22 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -29,6 +29,7 @@
 #include <ctype.h>
 #include <time.h>
 #include <errno.h>
+#include <stdlib.h>
 
 #include <tcl.h>
 #include <tk.h>
@@ -40,11 +41,12 @@
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
 #include "epgdb/epgdbsav.h"
-#include "epgdb/epgtxtdump.h"
 #include "epgdb/epgdbmerge.h"
-#include "epgctl/epgmain.h"
 #include "epgctl/epgacqctl.h"
 #include "epgctl/epgscan.h"
+#include "epgctl/epgctxmerge.h"
+#include "epgui/epgmain.h"
+#include "epgui/epgtxtdump.h"
 #include "epgui/pilistbox.h"
 #include "epgui/pifilter.h"
 #include "epgui/statswin.h"
@@ -55,6 +57,8 @@
 #include "epgvbi/tvchan.h"
 #include "epgvbi/btdrv.h"
 
+
+static void MenuCmd_EpgScanHandler( ClientData clientData );
 
 // ----------------------------------------------------------------------------
 // Set the states of the entries in Control menu
@@ -352,8 +356,7 @@ static int MenuCmd_GetProvServiceInfos(ClientData ttp, Tcl_Interp *interp, int a
 }
 
 // ----------------------------------------------------------------------------
-// Return the CNI of the database currenlty open for the browser
-// - used by provider selection popup
+// Return the CNI of the database currently open for the browser
 // - result is 0 if none is opened or 0x00ff for the merged db
 //
 static int MenuCmd_GetCurrentDatabaseCni(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
@@ -420,6 +423,79 @@ static int MenuCmd_GetProvCnisAndNames(ClientData ttp, Tcl_Interp *interp, int a
       result = TCL_OK;
    }
 
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Get List of netwop CNIs and array of names from AI for netwop selection
+// - 1st argument selects the provider; 0 for the current browser database
+// - 2nd argument names a Tcl array where to store the network names;
+//   may be 0-string if not needed
+//
+static int MenuCmd_GetAiNetwopList( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+{
+   const char * const pUsage = "Usage: C_GetAiNetwopList <CNI> <varname>";
+   const EPGDBSAV_PEEK *pPeek;
+   EPGDB_RELOAD_RESULT dberr;
+   const AI_BLOCK *pAiBlock;
+   uchar netwop;
+   int result, cni;
+
+   if (argc != 3) 
+   {  // wrong # of args for this TCL cmd -> display error msg
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR; 
+   }  
+   else
+   {
+      result = Tcl_GetInt(interp, argv[1], &cni);
+      if (result == TCL_OK)
+      {
+         if ((cni == 0) || (cni == EpgDbContextGetCni(pUiDbContext)))
+         {
+            EpgDbLockDatabase(pUiDbContext, TRUE);
+            pAiBlock = EpgDbGetAi(pUiDbContext);
+            if (pAiBlock != NULL)
+            {
+               for ( netwop = 0; netwop < pAiBlock->netwopCount; netwop++ ) 
+               {
+                  // append the CNI in the format "0x0D94" to the TCL result list
+                  sprintf(comm, "0x%04X", AI_GET_NETWOP_N(pAiBlock, netwop)->cni);
+                  Tcl_AppendElement(interp, comm);
+
+                  // as a side-effect the netwop names are stored into a TCL array
+                  if (argv[2][0] != 0)
+                     Tcl_SetVar2(interp, argv[2], comm, AI_GET_NETWOP_NAME(pAiBlock, netwop), 0);
+               }
+            }
+            EpgDbLockDatabase(pUiDbContext, FALSE);
+         }
+         else
+         {
+            pPeek = EpgDbPeek(cni, &dberr);
+            if (pPeek != NULL)
+            {
+               pAiBlock = &pPeek->pAiBlock->blk.ai;
+               for ( netwop = 0; netwop < pAiBlock->netwopCount; netwop++ ) 
+               {
+                  // append the CNI in the format "0x0D94" to the TCL result list
+                  sprintf(comm, "0x%04X", AI_GET_NETWOP_N(pAiBlock, netwop)->cni);
+                  Tcl_AppendElement(interp, comm);
+
+                  // as a side-effect the netwop names are stored into a TCL array
+                  if (argv[2][0] != 0)
+                     Tcl_SetVar2(interp, argv[2], comm, AI_GET_NETWOP_NAME(pAiBlock, netwop), 0);
+               }
+
+               EpgDbPeekDestroy(pPeek);
+            }
+            else
+            {  // failed to peek into the db -> inform the user
+               UiControlMsg_ReloadError(cni, dberr, CTX_RELOAD_ERR_ANY);
+            }
+         }
+      }
+   }
    return result;
 }
 
@@ -578,7 +654,7 @@ static int ProvMerge_Start(ClientData ttp, Tcl_Interp *interp, int argc, char *a
       if (result == TCL_OK)
       {
          EpgContextCtl_Close(pUiDbContext);
-         pUiDbContext = EpgDbMerge(cniCount, pCniTab, max);
+         pUiDbContext = EpgContextMerge(cniCount, pCniTab, max);
 
          EpgAcqCtl_UiProvChange();
 
@@ -651,7 +727,7 @@ void OpenInitialDb( uint startUiCni )
 
          if (ProvMerge_ParseConfigString(interp, &cniCount, pCniTab, &max[0]) == TCL_OK)
          {
-            pUiDbContext = EpgDbMerge(cniCount, pCniTab, max);
+            pUiDbContext = EpgContextMerge(cniCount, pCniTab, max);
          }
       }
       else
@@ -696,6 +772,7 @@ int SetAcquisitionMode( void )
    if (pTmpStr != NULL)
    {
       if      (strcmp(pTmpStr, "passive") == 0)      mode = ACQMODE_PASSIVE;
+      else if (strcmp(pTmpStr, "external") == 0)     mode = ACQMODE_EXTERNAL;
       else if (strcmp(pTmpStr, "follow-ui") == 0)    mode = ACQMODE_FOLLOW_UI;
       else if (strcmp(pTmpStr, "cyclic_2") == 0)     mode = ACQMODE_CYCLIC_2;
       else if (strcmp(pTmpStr, "cyclic_012") == 0)   mode = ACQMODE_CYCLIC_012;
@@ -706,6 +783,7 @@ int SetAcquisitionMode( void )
       switch (mode)
       {
          case ACQMODE_PASSIVE:
+         case ACQMODE_EXTERNAL:
          case ACQMODE_FOLLOW_UI:
             EpgAcqCtl_SelectMode(mode, 0, NULL);
             result = TCL_OK;
@@ -795,6 +873,88 @@ static int UpdateAcquisitionMode(ClientData ttp, Tcl_Interp *interp, int argc, c
 }
 
 // ----------------------------------------------------------------------------
+// Extract all channels from $HOME/.xawtv
+//
+#define CHAN_CLUSTER_SIZE  50
+static int XawtvGetFreqTab( ulong ** pFreqTab, uint * pCount )
+{
+   ulong *freqTab;
+   int freqCount, freqTabLen;
+   char * pHome, * pPath;
+   char line[256], tag[64], value[192];
+   ulong freq;
+   FILE * fp;
+   int result = TCL_ERROR;
+
+   pHome = getenv("HOME");
+   if (pHome != NULL)
+   {
+      pPath = xmalloc(strlen(pHome) + 7 + 1);
+      strcpy(pPath, pHome);
+      strcat(pPath, "/.xawtv");
+
+      fp = fopen(pPath, "r");
+      if (fp != NULL)
+      {
+         freqTabLen  = CHAN_CLUSTER_SIZE;
+         freqTab     = xmalloc(freqTabLen * sizeof(ulong));
+         freqCount   = 0;
+
+         // read all lines of the file (ignoring section structure)
+         while (fgets(line, 255, fp) != NULL)
+         {
+            // search for channel assignment lines, e.g. " channel = SE15"
+            if (sscanf(line," %63[^= ] = %191[^\n]", tag, value) == 2)
+            {
+               if (strcmp(tag, "channel") == 0)
+               {
+                  // convert channel name to frequency and append it to the list
+                  freq = TvChannels_NameToFreq(value);
+                  if (freq != 0)
+                  {
+                     if (freqCount == freqTabLen)
+                     {  // table is full -> allocate and copy
+                        ulong * oldFreqTab = freqTab;
+                        freqTab = xmalloc((freqTabLen + CHAN_CLUSTER_SIZE) * sizeof(ulong));
+                        memcpy(freqTab, oldFreqTab, freqTabLen * sizeof(ulong));
+                        freqTabLen += CHAN_CLUSTER_SIZE;
+                        xfree(oldFreqTab);
+                     }
+                     dprintf2("CHANNEL \"%s\" -> FREQ %f\n", value, (double)freq/16.0);
+                     freqTab[freqCount] = freq;
+                     freqCount += 1;
+                  }
+                  else
+                     debug1("Xawtv-GetFreqTab: parse error channel value \"%s\"", value);
+               }
+            }
+         }
+         fclose(fp);
+
+         if (freqCount == 0)
+         {  // no channel assignments found in the file -> warn the user and abort
+            sprintf(comm, "tk_messageBox -type ok -icon error -message {No channel assignments found in '%s'\nPlease disable option 'Use .xawtv'}\n", pPath);
+            eval_check(interp, comm);
+
+            xfree(pFreqTab);
+            pFreqTab = NULL;
+         }
+
+         *pFreqTab = freqTab;
+         *pCount = freqCount;
+         result = TCL_OK;
+      }
+      else
+      {
+         sprintf(comm, "tk_messageBox -type ok -icon error -message {Could not open file '%s'\nMake the file readable or disable option 'Use .xawtv'}\n", pPath);
+         eval_check(interp, comm);
+      }
+      xfree(pPath);
+   }
+   return result;
+}
+
+// ----------------------------------------------------------------------------
 // Fetch the list of provider frequencies from the global Tcl variable
 // - the list contains pairs of CNI and frequency
 //
@@ -852,7 +1012,7 @@ static int GetProvFreqTab( ulong ** pFreqTab, uint * pCount )
 // ----------------------------------------------------------------------------
 // Append a line to the EPG scan messages
 //
-void MenuCmd_AddEpgScanMsg( char *pMsg )
+static void MenuCmd_AddEpgScanMsg( const char * pMsg )
 {
    if (Tcl_VarEval(interp, ".epgscan.all.fmsg.msg insert end {", pMsg, "\n}\n"
                            ".epgscan.all.fmsg.msg see {end linestart - 2 lines}\n",
@@ -867,13 +1027,14 @@ void MenuCmd_AddEpgScanMsg( char *pMsg )
 //
 static int MenuCmd_StartEpgScan(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
 {
-   const char * const pUsage = "Usage: C_StartEpgScan <input source> <slow=0/1> <refresh=0/1>";
+   const char * const pUsage = "Usage: C_StartEpgScan <input source> <slow=0/1> <refresh=0/1> <xawtv=0/1>";
    ulong *freqTab;
    int freqCount;
-   int inputSource, isOptionSlow, isOptionRefresh;
+   int inputSource, isOptionSlow, isOptionRefresh, isOptionXawtv;
+   uint rescheduleMs;
    int result;
 
-   if (argc != 4)
+   if (argc != 5)
    {  // parameter count is invalid
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
@@ -882,7 +1043,8 @@ static int MenuCmd_StartEpgScan(ClientData ttp, Tcl_Interp *interp, int argc, ch
    {
       if ( (Tcl_GetInt(interp, argv[1], &inputSource) == TCL_OK) &&
            (Tcl_GetInt(interp, argv[2], &isOptionSlow) == TCL_OK) &&
-           (Tcl_GetInt(interp, argv[3], &isOptionRefresh) == TCL_OK) )
+           (Tcl_GetInt(interp, argv[3], &isOptionRefresh) == TCL_OK) &&
+           (Tcl_GetInt(interp, argv[4], &isOptionXawtv) == TCL_OK) )
       {
          freqTab = NULL;
          freqCount = 0;
@@ -896,12 +1058,23 @@ static int MenuCmd_StartEpgScan(ClientData ttp, Tcl_Interp *interp, int argc, ch
                return TCL_ERROR;
             }
          }
+         #ifndef WIN32
+         else if (isOptionXawtv)
+         {
+            if ( (XawtvGetFreqTab(&freqTab, &freqCount) != TCL_OK) ||
+                 (freqTab == NULL) || (freqCount == 0) )
+            {  // message-box with explanation was already displayed
+               return TCL_OK;
+            }
+            isOptionRefresh = TRUE;
+         }
+         #endif
 
          // clear message window
          sprintf(comm, ".epgscan.all.fmsg.msg delete 1.0 end\n");
          eval_check(interp, comm);
 
-         switch (EpgScan_Start(inputSource, isOptionSlow, isOptionRefresh, freqTab, freqCount))
+         switch (EpgScan_Start(inputSource, isOptionSlow, isOptionRefresh, freqTab, freqCount, &rescheduleMs, &MenuCmd_AddEpgScanMsg))
          {
             case EPGSCAN_ACCESS_DEV_VIDEO:
             case EPGSCAN_ACCESS_DEV_VBI:
@@ -923,15 +1096,13 @@ static int MenuCmd_StartEpgScan(ClientData ttp, Tcl_Interp *interp, int argc, ch
                break;
 
             case EPGSCAN_OK:
-               sprintf(comm, "grab .epgscan\n"
-                             ".epgscan.cmd.start configure -state disabled\n"
-                             ".epgscan.cmd.stop configure -state normal\n"
-                             ".epgscan.cmd.help configure -state disabled\n"
-                             ".epgscan.cmd.dismiss configure -state disabled\n"
-                             ".epgscan.all.opt.refresh configure -state disabled\n");
+               // grab focus, disable all command buttons except "Abort"
+               sprintf(comm, "EpgScanButtonControl start\n");
                eval_check(interp, comm);
                // update PI listbox help message, if there's no db in the browser yet
                UiControl_CheckDbState();
+               // Install the event handler
+               Tcl_CreateTimerHandler(rescheduleMs, MenuCmd_EpgScanHandler, NULL);
                break;
 
             default:
@@ -952,23 +1123,15 @@ static int MenuCmd_StartEpgScan(ClientData ttp, Tcl_Interp *interp, int argc, ch
 // - called from UI after Abort button or when popup is destroyed
 // - also called from scan handler when scan has finished
 //
-int MenuCmd_StopEpgScan(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+static int MenuCmd_StopEpgScan(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
 {
    if (argc > 0)
    {  // called from UI -> stop scan handler
       EpgScan_Stop();
    }
 
-   sprintf(comm, "if {[string length [info commands .epgscan.cmd]] > 0} {"
-                 "   grab release .epgscan\n"
-                 "   .epgscan.cmd.start configure -state normal\n"
-                 "   .epgscan.cmd.stop configure -state disabled\n"
-                 "   .epgscan.cmd.help configure -state normal\n"
-                 "   .epgscan.cmd.dismiss configure -state normal\n"
-                 "   if {[llength $prov_freqs] > 0} {\n"
-                 "      .epgscan.all.opt.refresh configure -state normal\n"
-                 "   }\n"
-                 "}\n");
+   // release grab, re-enable command buttons
+   sprintf(comm, "EpgScanButtonControl stop\n");
    eval_check(interp, comm);
 
    UiControl_CheckDbState();
@@ -1001,6 +1164,33 @@ static int MenuCmd_SetEpgScanSpeed(ClientData ttp, Tcl_Interp *interp, int argc,
       result = TCL_OK;
    }
    return result;
+}
+
+// ----------------------------------------------------------------------------
+// Backgroundhandler for the EPG scan
+//
+static void MenuCmd_EpgScanHandler( ClientData clientData )
+{
+   uint rescheduleMs;
+
+   rescheduleMs = EpgScan_EvHandler();
+   if (rescheduleMs > 0)
+   {
+      // update the progress bar
+      sprintf(comm, ".epgscan.all.baro.bari configure -width %d\n", (int)(EpgScan_GetProgressPercentage() * 140.0));
+      eval_check(interp, comm);
+
+      // Install the event handler
+      Tcl_CreateTimerHandler(rescheduleMs, MenuCmd_EpgScanHandler, NULL);
+   }
+   else
+   {
+      MenuCmd_StopEpgScan(NULL, interp, 0, NULL);
+
+      // ring the bell when the scan has finished
+      eval_check(interp, "bell");
+      eval_check(interp, ".epgscan.all.baro.bari configure -width 140\n");
+   }
 }
 
 // ----------------------------------------------------------------------------
@@ -1203,9 +1393,11 @@ static int MenuCmd_GetTimeZone(ClientData ttp, Tcl_Interp *interp, int argc, cha
    {
       struct tm *tm;
       time_t now;
+      sint lto;
 
       tzset();
       tm = localtime(&now);
+      lto = EpgLtoGet();
 
       sprintf(comm, "%d %d {%s}", lto/60, tm->tm_isdst, (tm->tm_isdst ? tzname[1] : tzname[0]));
       Tcl_SetResult(interp, comm, TCL_VOLATILE);
@@ -1217,7 +1409,7 @@ static int MenuCmd_GetTimeZone(ClientData ttp, Tcl_Interp *interp, int argc, cha
 // ----------------------------------------------------------------------------
 // Initialize the module
 //
-void MenuCmd_Init( void )
+void MenuCmd_Init( bool isDemoMode )
 {
    Tcl_CmdInfo cmdInfo;
 
@@ -1233,6 +1425,7 @@ void MenuCmd_Init( void )
       Tcl_CreateCommand(interp, "C_GetProvServiceInfos", MenuCmd_GetProvServiceInfos, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_GetCurrentDatabaseCni", MenuCmd_GetCurrentDatabaseCni, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_GetProvCnisAndNames", MenuCmd_GetProvCnisAndNames, (ClientData) NULL, NULL);
+      Tcl_CreateCommand(interp, "C_GetAiNetwopList", MenuCmd_GetAiNetwopList, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_ProvMerge_Start", ProvMerge_Start, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_UpdateAcquisitionMode", UpdateAcquisitionMode, (ClientData) NULL, NULL);
 
@@ -1247,7 +1440,7 @@ void MenuCmd_Init( void )
 
       Tcl_CreateCommand(interp, "C_GetTimeZone", MenuCmd_GetTimeZone, (ClientData) NULL, NULL);
 
-      if (pDemoDatabase != NULL)
+      if (isDemoMode)
       {  // create menu with warning labels and disable some menu commands
          sprintf(comm, "CreateDemoModePseudoMenu\n");
          eval_check(interp, comm);

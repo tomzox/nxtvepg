@@ -26,7 +26,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: vbidecode.c,v 1.25 2001/02/25 15:59:43 tom Exp tom $
+ *  $Id: vbidecode.c,v 1.26 2001/04/03 18:48:43 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -35,7 +35,6 @@
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
 #include "epgdb/epgblock.h"
-#include "epgdb/epgdbif.h"
 #include "epgdb/epgdbacq.h"
 #include "epgvbi/hamming.h"
 #include "epgvbi/vbidecode.h"

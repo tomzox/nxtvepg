@@ -26,7 +26,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgctxctl.c,v 1.4 2001/02/25 16:03:08 tom Exp tom $
+ *  $Id: epgctxctl.c,v 1.5 2001/04/03 19:47:01 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -40,7 +40,8 @@
 #include "epgdb/epgdbmgmt.h"
 #include "epgdb/epgdbmerge.h"
 #include "epgui/uictrl.h"
-#include "epgctl/epgmain.h"
+#include "epgui/epgmain.h"
+#include "epgctl/epgctxmerge.h"
 #include "epgctl/epgctxctl.h"
 
 
@@ -91,7 +92,7 @@ static EPGDB_CONTEXT * EpgContextCtl_GetAny( void )
 // - always returns error code; maybe set even if load succeeded, in case
 //   caller used CNI=0 and one of the dbs found had an error
 //
-EPGDB_CONTEXT * EpgContextCtl_Open( uint cni, CONTEXT_RELOAD_ERR_HAND errHand )
+EPGDB_CONTEXT * EpgContextCtl_Open( uint cni, int errHand )
 {
    EPGDB_CONTEXT * pContext;
    EPGDB_RELOAD_RESULT dberr, anErr;
@@ -203,6 +204,21 @@ EPGDB_CONTEXT * EpgContextCtl_CreateNew( void )
 }
 
 // ---------------------------------------------------------------------------
+// Free memory of a context
+//
+static void EpgContextDestroy( EPGDB_CONTEXT * pContext )
+{
+   // free sub-context if it's a merged database
+   if (pContext->pMergeContext != NULL)
+   {
+      EpgContextMergeDestroy(pContext->pMergeContext);
+      pContext->pMergeContext = NULL;
+   }
+
+   EpgDbDestroy(pContext);
+}
+
+// ---------------------------------------------------------------------------
 // Close a database
 // - if the db was modified, it's automatically saved before the close
 // - the db may be kept open by another party (ui or acq repectively)
@@ -246,7 +262,7 @@ void EpgContextCtl_Close( EPGDB_CONTEXT * pContext )
                   pContextList = pContext->pNext;
 
                // free the context
-               EpgDbDestroy(pContext);
+               EpgContextDestroy(pContext);
             }
             else
                pContext->refCount -= 1;
@@ -259,7 +275,7 @@ void EpgContextCtl_Close( EPGDB_CONTEXT * pContext )
       }
       else
       {  // merged database is not in the list - there must be only one at any time
-         EpgDbDestroy(pContext);
+         EpgContextDestroy(pContext);
       }
    }
    else

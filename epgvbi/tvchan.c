@@ -28,12 +28,13 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: tvchan.c,v 1.4 2001/02/26 20:33:40 tom Exp tom $
+ *  $Id: tvchan.c,v 1.6 2001/04/17 19:58:09 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
 #define DPRINTF_OFF
 
+#include <stdlib.h>
 #include <string.h>
 
 #include "epgctl/mytypes.h"
@@ -92,6 +93,35 @@ const FREQ_TABLE * const freqTableList[] =
 
 // index of the frequency table currently in use
 static uint freqTabIdx = 0;
+
+// ---------------------------------------------------------------------------
+// Converts channel name back to frequency
+//
+ulong TvChannels_NameToFreq( const char * pName )
+{
+   const FREQ_TABLE *ft;
+   char * pEnd;
+   ulong channel;
+
+   ft = freqTableList[freqTabIdx];
+   while (ft->firstChannel > 0)
+   {
+      if ((*ft->prefix == 0) || (strncmp(pName, ft->prefix, strlen(ft->prefix)) == 0))
+      {
+         channel = strtol(pName + strlen(ft->prefix), &pEnd, 10);
+         if (*pEnd == 0)
+         {
+            channel += ft->idxOffset;
+            if ((channel >= ft->firstChannel) && (channel <= ft->lastChannel))
+            {
+               return (ulong)(16.0 * (ft->freqStart + ft->freqOffset * (channel - ft->firstChannel)));
+            }
+         }
+      }
+      ft += 1;
+   }
+   return 0;
+}
 
 // ---------------------------------------------------------------------------
 // Builds the name for a given channel number

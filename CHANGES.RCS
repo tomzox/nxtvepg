@@ -3661,3 +3661,405 @@ www/index.html [rev:1.18, 2001-04-03T18:41:29]:
 www/man.html [rev:1.5, 2001-04-03T18:42:07]:
 - update for release 0.4.5: version number only.
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_4_5 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+epgvbi/vbidecode.c [rev:1.26, 2001-04-03T18:48:43]:
+- removed superfluous #include "epgdb/epgdbif.h"
+epgdb/epgblock.c [rev:1.34, 2001-04-03T18:51:14]:
+- added funcs EpgLtoInit() and EpgLtoGet() to maintain lto
+- removed superfluous includes
+epgdb/epgblock.h [rev:1.26, 2001-04-03T18:51:48]:
+- added funcs EpgLtoInit() and EpgLtoGet() to maintain lto
+epgdb/epgdbacq.c [epgvbi/ttxdecode.c, rev:1.26, 2001-04-03T18:52:11]:
+- changed access to lto from global var to EpgLtoGet()
+- removed superfluous includes
+epgdb/epgdbfil.c [rev:1.25, 2001-04-03T18:59:10]:
+- changed access to lto from global var to EpgLtoGet()
+- removed superfluous includes
+epgctl/epgscan.c [rev:1.11, 2001-04-03T19:16:12]:
+- removed all GUI related functionality (i.e. Tcl refs)
+- timer evant handler now installed in menucmd.c
+- scan start func gets additional params *resched_ms and msg_cb func
+- added EpgScan_GetProgressPercentage for queries from timer handler
+epgctl/epgscan.h [rev:1.5, 2001-04-03T19:17:46]:
+- removed all GUI related functionality (i.e. Tcl refs)
+- timer evant handler now installed in menucmd.c
+- scan start func gets additional params *resched_ms and msg_cb func
+- added EpgScan_GetProgressPercentage for queries from timer handler
+epgctl/epgctxctl.c [rev:1.5, 2001-04-03T19:47:01]:
+- EpgContextCtl_Open(): declaration changed
+- replaced enum errHand with simple int -> don't need uictrl include
+- added static func EpgContextDestroy()
+- moved context related part from EpgDbDestroy to here
+- removed superfluous includes
+epgctl/epgctxctl.h [rev:1.5, 2001-04-03T19:48:47]:
+- EpgContextCtl_Open(): declaration changed (replace typedef by int)
+epgui/epgmain.c [rev:1.55, 2001-04-03T19:49:16]:
+- Moved module from epgctl to epgui directory
+- removed superfluous includes
+- moved InitLTO to epgdb/epgblock.c, renamed EpgLtoInit()
+- made command line params static
+- values are now passed to the init funcs of the various modules
+- moved global pAcqDbContext into epgacqctl module
+epgui/epgmain.h [rev:1.16, 2001-04-03T19:52:02]:
+- removed global lto: replaced by EpgLtoGet() in epgdb/epgblock.c
+- removed global pAcqDbContext: moved to epgacqctl
+- removed globals dbdir, pDemoDatabase: now local, passed to modules via fparm
+epgui/pifilter.c [rev:1.38, 2001-04-03T19:58:02]:
+- changed access to lto from global var to EpgLtoGet()
+- include epgmain moved from epgctl to epgui subdir
+epgui/statswin.c [rev:1.33, 2001-04-03T19:58:47]:
+- include epgmain moved from epgctl to epgui subdir
+- StatsWin_Create() additional param isDemoMode
+epgui/statswin.h [rev:1.9, 2001-04-03T19:59:12]:
+- StatsWin_Create() has additional param isDemoMode
+epgui/uictrl.c [rev:1.10, 2001-04-03T20:00:39]:
+- include epgmain moved from epgctl to epgui subdir
+epgui/pilistbox.c [rev:1.45, 2001-04-03T20:00:51]:
+- changed access to lto from global var to EpgLtoGet()
+- include epgmain moved from epgctl to epgui subdir
+epgui/menucmd.c [rev:1.40, 2001-04-03T20:04:59]:
+- moved all GUI-related stuff from epgscan.c up here
+- timer handler now created here
+- static scan handler calls EpgScan_EvHandler()
+- additional params to scan start: *resched_ms and msg_cb func
+- also:
+- changed access to lto from global var to EpgLtoGet()
+- include epgmain moved from epgctl to epgui subdir
+- removed superfluous includes
+- interface to merge moved up to epgctl from epgdb -> renamed funcs
+- MenuCmd_Init() has additional param isDemoMode
+epgui/menucmd.h [rev:1.8, 2001-04-03T20:07:13]:
+- MenuCmd_Init() has additional param isDemoMode
+- removed MenuCmd_AddEpgScanMsg, MenuCmd_StopEpgScan
+- these funcs were called by epgctl/epgscan
+- now the functionality is realized via funcretern val and callback
+epgdb/epgdbmerge.c [rev:1.15, 2001-04-04T18:21:55]:
+- Split the module in two parts
+- upper layer has moved to epgctx/epgctxmerge
+- upper layer handles merged context and opening/closing of databases
+    lower layer does the actual merging of AI and PI
+epgdb/epgdbmerge.h [rev:1.6, 2001-04-04T18:24:33]:
+- Split the module in two parts
+- removed interface to epgdbmgmt and GUI
+- added interface to epgctxmerge
+epgdb/epgdbmgmt.c [rev:1.29, 2001-04-04T18:25:04]:
+- interface to merge functionality changed
+- interface moved to epgctl/epgctxmerge -> functions renamed
+- context destruction: destruction of merged context
+- has moved one level up, into a wrapper function in epgctl/epgctxctl
+- removed superfluous includes
+epgdb/epgdbsav.c [rev:1.35, 2001-04-04T18:28:36]:
+- removed globals dbdir and pDemoDatabase
+- these variables are now kept statically and passed during start-up
+    via EpgDbSavSetupDir()
+- renamed all ref's to these vars to epgDbDirPath and epgDemoDb
+- EpgDbDumpCreateDir() renamed EpgDbSavSetupDir()
+    and additional parameter pDemoDb
+epgdb/epgdbsav.h [rev:1.26, 2001-04-04T18:31:02]:
+- EpgDbDumpCreateDir() renamed EpgDbSavSetupDir()
+- additional parameter pDemoDb
+- reason: removed globals dbdir and pDemoDatabase
+    these variables are now kept statically and passed during start-up
+epgdb/epgstream.c [rev:1.14, 2001-04-04T18:31:45]:
+- interface to ASCII dump changed:
+- interface is now a single function for all block types
+- txtdump module moved from epgdb two levels up to epgui
+- removed superfluous includes
+epgctl/epgctxmerge.c [rev:1.1, 2001-04-04T18:34:25]:
+- Initial revision
+epgctl/epgctxmerge.h [rev:1.1, 2001-04-04T18:34:52]:
+- Initial revision
+epgctl/epgacqctl.c [rev:1.40, 2001-04-04T18:40:33]:
+- interface to merge module changed (merge module was splitted)
+- renamed functions from EpgDbMerge... to EpgContextMerge...
+- removed superfluous includes
+- added global pAcqDbContext: moved here from epgmain
+epgctl/epgacqctl.h [rev:1.25, 2001-04-04T18:42:12]:
+- added decl. of global pAcqDbContext: moved here from epgmain
+epgui/epgtxtdump.c [epgui/dumpraw.c, rev:1.16, 2001-04-04T18:46:42]:
+- Changed interface: now only one function for all block types
+- new function EpgTxtDump_Block() called from streams decoder module
+- new function EpgTxtDumpUnknown() for unknown block types
+- pEpgTxtDumpHeader moved to .c from .h: needed only locally
+epgui/epgtxtdump.h [epgui/dumpraw.h, rev:1.10, 2001-04-04T18:47:12]:
+- Module has been moved from epgdb to epgui directory
+- Changed interface: now only one function for all block types
+- new function EpgTxtDump_Block() called from streams decoder module
+- new function EpgTxtDumpUnknown() for unknown block types
+- pEpgTxtDumpHeader moved to .c from .h: needed only locally
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.78, 2001-04-04T18:58:21]:
+- bugfix/workaround for context popup menu
+- unpost the context menu when a new PI is selected
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.79, 2001-04-04T19:09:05]:
+- Added 'Update filter shortcut' in filter menu
+- added new field to all shortcut items: tag (i.e. ID)
+- tags are uniquely generated by new proc GenerateShortcutTag
+- new global fsc_prevselection keeps last selected shortcut
+- LoadRc: for backwards compatibility add tag to old shortcuts
+epgui/epgmain.c [rev:1.56, 2001-04-08T16:39:22]:
+- added bitmap pan_updown.xbm for text widget panning button
+epgui/pilistbox.c [rev:1.46, 2001-04-08T16:46:04]:
+- made listbox height configurable at runtime
+- replaced all occurences of macro PIBOX_HEIGHT by new var pibox_height
+- pibox_list must be allocated at start in PiListBox_Create()
+- added new func PiListBox_Resize: called by Tcl after size changed
+epgui/pilistbox.c [rev:1.47, 2001-04-08T16:47:50]:
+- added debug statement to catch wrong value in Tcl global pibox_height
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.80, 2001-04-08T17:14:33]:
+- made listbox height configurable at runtime
+- toplevel window is now vertically resizable
+- changed packing in main win:
+    + removed -setgrid from netwop and shortcut listboxes
+    + only short-info win is now packed as -fill y -expand 1
+- added panning button between PI listbox and short-info
+    + callbacks are new procs PanningControl, PanningMotion
+- added proc CountVisibleTextLines (for future use only)
+    + would be required if PI listbox was to be resized via the toplevel
+    + could be used by a callback bound to the Configure event
+- added pibox_height to the rc file
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.81, 2001-04-08T17:40:12]:
+- all popups: raise window upon attempt to open it a 2nd time
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.82, 2001-04-08T18:55:28]:
+- Height of short-info text widget now saved in rc file
+- added callback for Configure event: new proc ShortInfoResized
+- height also saved in proc PanningControl
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.83, 2001-04-09T20:39:47]:
+- added option "Use .xawtv" to EPG scan popup
+- supported on UNIX only, disabled when .xawtv does not exist
+- new proc EpgScanButtonControl: moved here from EPG start/stop C funcs
+epgui/menucmd.c [rev:1.41, 2001-04-09T20:42:17]:
+- MenuCmd_StartEpgScan: added option "Use .xawtv"
+- new function XawtvGetFreqTab: parses .xawtv, returns freq list
+- moved dis-/enabling of scan command buttons to new Tcl
+    proc EpgScanButtonControl (because re-enabling is conditional)
+epgvbi/tvchan.c [rev:1.5, 2001-04-09T20:46:09]:
+- added new func TvChannels_NameToFreq()
+- reverse to TvChannels_GetName()
+epgvbi/tvchan.h [rev:1.4, 2001-04-09T20:47:26]:
+- added new func TvChannels_NameToFreq()
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.84, 2001-04-11T14:42:26]:
+- DescribeCurrentFilter: changed result
+- return value is now a list that contains mask and filter
+- should not write to global fscedit_mask
+    because popup might already be open when a shortcut shall be added or updated
+- Moved proc UpdateFilterShortcut to different place in source file
+- because it was inbetween the add/edit shortcut popup procs
+- Now the real improvements in shortcut management:
+- shortcut update warns if filter categories changed
+    offers to call shortcut edit popup
+- added "Update & Edit" button to update popup
+- shortcuts can be added/updated while the popup is already open
+- config popup warns when changes in label or mask are not yet applied
+    before selecting another shortcut or leaving
+    new proc CheckShortcutUpdatePending
+- config popup asks for confirmation before changes are discarded with Abort
+- bugfix config popup: mask checkbuttons were not updated after Delete
+epgui/pifilter.c [rev:1.39, 2001-04-12T18:00:28]:
+- bugfix UpdateFilterContextMenuState()
+- did not set Tcl global timsel_enabled to 1
+- hence the GUI didn't know time filters were set (e.g. in "Add shortcut")
+- added new Tcl operator C_GetSeriesTitles
+- used by the shortcut config menu to pretty-print the filter settings
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.85, 2001-04-12T18:12:35]:
+- Added description of filter settings to shortcut config popup
+- new proc ShortcutPrettyPrint
+- added read-only text widget to .fscedit popup
+- commented out combination logic checkbuttons (were disabled anyways)
+- splitted proc CreateSeriesMenuEntries:
+    new sub-proc DictifySeriesTitle, used by shortcut pretty print too
+- new helper proc Motd2HHMM (one-liner)
+    split off from SelectTimeFilter, used by shortcut pretty-print
+- Bugfixes for last check-in
+- AddFilterShortcut: result of DescribeCurrentFilter was handled wrong
+- fixed creation order of command buttons (to match display order)
+- fscedit_logic was not initialized properly
+- removed obsolete proc ProcessThemeSpec (already commented out)
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.86, 2001-04-12T19:12:25]:
+- shortcut pretty print:
+- added language handling to series sorting
+epgui/pifilter.c [rev:1.40, 2001-04-12T19:12:25]:
+- GetSeriesTitles: extended result by langage id for each returned series title
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.87, 2001-04-13T12:34:02]:
+- added "Tune TV" button to the main window (UNIX only)
+- command callback is new proc TuneTV
+- moved assignment of $is_unix to the very top of the file
+epgui/pilistbox.c [rev:1.48, 2001-04-13T18:39:29]:
+- added Tcl operator C_PiListBox_GetSelectedNetwop
+- returns the name of the network of the currently selected PI
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.88, 2001-04-14T15:52:40]:
+- Added Network Naming Popup to Configure menu
+- used for xawtv-remote setstation parameter in "Tune TV" button
+- added global array cfnetnames to rc/ini file
+- proc C_GetAiNetwopList: added params <CNI> and <varname>
+epgui/menucmd.c [rev:1.42, 2001-04-14T15:54:31]:
+- added MenuCmd_GetAiNetwopList()
+- moved here from menucmd.c
+- expanded functionality: new params CNI and varname
+epgui/pilistbox.c [rev:1.49, 2001-04-14T15:55:50]:
+- PiListBox_GetSelectedNetwop()
+- prepended CNI to result: which is now a list
+epgui/pifilter.c [rev:1.41, 2001-04-14T16:02:27]:
+- moved GetAiNetwopList() to mnucmd.c
+- note: at the same time added parameters CNI and varname
+- removed GetProvCni(): redundant to GetCurrentCni in menucmd.c
+Makefile [rev:1.24, 2001-04-14T16:28:49]:
+- restructured C epgdb/epgctl
+- moved epgmain to epgui from epgctl
+- moved epgtxtdump to epgui from epgdb
+- plit off epgctl/epgctxmerge from epgdb/epgdbmerge
+- moved tarball from /e/ to /c/
+Makefile.win32 [rev:1.6, 2001-04-14T16:40:52]:
+- restructured C epgdb/epgctl
+- moved epgmain to epgui from epgctl
+- moved epgtxtdump to epgui from epgdb
+- plit off epgctl/epgctxmerge from epgdb/epgdbmerge
+nxtvepg.pod [rev:1.32, 2001-04-14T16:41:36]:
+- removed obsolete HTML inserts (remnant from 0.3.4)
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.89, 2001-04-14T20:31:47]:
+- added new proc ApplyUserNetnameCfg
+- replaces provider's network name with user-configured names
+- used in all procs where networks names are displayed
+- revamped C_CreateSeriesNetwopMenu and C_CreateSeriesMenu
+- main funcs are now CreateSeriesNetworksMenu and CreateSeriesMenu
+- call C funcs just to get a list of netwops or series titles
+- cause for action: netwop names shall use ApplyUserNetnameCfg
+- added Help section for Network Name Config popup
+epgui/pifilter.c [rev:1.42, 2001-04-14T20:35:36]:
+- revamed Tcl ops C_CreateSeriesNetwopMenu and C_CreateSeriesMenu
+- main funcs are now proc CreateSeriesNetworksMenu and CreateSeriesMenu
+- call C funcs just to get a list of netwops or series titles
+- cause for action: netwop names shall use ApplyUserNetnameCfg
+-> renamed C_GetNetwopsWithSeries and C_GetNetwopSeriesList
+nxtvepg.pod [rev:1.33, 2001-04-14T20:39:43]:
+- added sub-section about Network Names configuration popup
+- added sub-section about .xawtv config file
+nxtvepg.pod [rev:1.34, 2001-04-15T13:15:57]:
+- corrected English language
+- replaced "allows you" with "enables you"
+- replaced "popup" with "dialog"
+epgui/menucmd.c [rev:1.43, 2001-04-15T17:34:56]:
+- MenuCmd_GetAiNetwopList()
+- param 2: <varname> can now be replaced by 0-string
+- no network names are returned then
+epgui/pifilter.c [rev:1.43, 2001-04-15T17:36:03]:
+- PiFilter_UpdateNetwopList()
+- renamed Tcl proc UpdateNetwopFilterBar to UpdateProvCniTable
+    (because the proc was splitted; the split-off part has the old name)
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.90, 2001-04-15T17:44:27]:
+- Splitted proc UpdateNetwopFilterBar
+- renamed into UpdateProvCniTable; split-off part has the old name
+- UpdateProvCniTable: rebuilds cfnetwops array for the current provider
+- UpdateNetwopFilterBar: updates the network menus
+    is now also called after Network Name Configuration dialog
+- also added comments
+- Network Name Configuration
+- added proc NetworkNameSaveEntry: split off from NetworkNameSave
+    saves name-change for the curently selected network
+    now called before Abort too
+- added warning about lost changes when the dialog is aborted
+- handle Windows platform and missing .xawtv better
+    removed warning when .xawtv does not exist
+- C_GetAiNetwopList
+- 2nd param may now be replaced by {} if no network names are required
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.91, 2001-04-15T20:05:05]:
+- added context menu to "Tune TV" button
+- display "Tune TV" button only if .xawtv exists
+- CreateContextMenu: use tk_popup instead of own bindings
+epgui/pifilter.c [rev:1.44, 2001-04-15T20:39:08]:
+- CreateContextMenu()
+- removed bind <Leave> for popup: obsolete due to use of tk_popup
+- fixed Usage string
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.92, 2001-04-16T10:13:01]:
+- enabled auto-width for the following listboxes:
+- .all.shortcuts.list
+- .all.netwops.list
+- .netname.list.ailist
+- .netname.cmd.provnams
+- .fscupd.list
+- .fscedit.list
+epgui/pilistbox.c [rev:1.50, 2001-04-16T20:06:26]:
+- use user-configured network names
+- added check of global Tcl var cfnetnames(CNI) to all
+    uses of AI_GET_NETWOP_NAME macro
+- in: listbox, PI popup, short-info
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.93, 2001-04-17T18:50:10]:
+- added "Start Capturing" to "Tune TV" popup menu
+- added exact date to day/date dropdown menu in pibox column header
+epgui/pilistbox.c [rev:1.51, 2001-04-17T19:55:35]:
+- syntax bugfix PiListBox_Scroll()
+- variable pibox_height was used in array size declaration
+- use xmalloc instead (gcc did not complain! only M$VC)
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.94, 2001-04-17T19:56:53]:
+- fixed Network Naming Dialog for Win32
+- added set xawtv_list {}
+- added C_RefreshPiListbox to Save func: redisplay with new names
+epgvbi/tvchan.c [rev:1.6, 2001-04-17T19:58:09]:
+- syntax fix: TvChannels_NameToFreq
+- cast result value from double to ulong
+- avoids compiler warning under win32 MVC
+nxtvepg.pod [rev:1.35, 2001-04-18T19:53:43]:
+- added paragraph about the "Tune TV" button
+epgctl/epgacqctl.c [rev:1.41, 2001-04-19T20:41:55]:
+- added acq mode ACQMODE_EXTERNAL
+- intended for external inputs
+- similiar passive, but sets the input source
+epgctl/epgacqctl.h [rev:1.26, 2001-04-19T20:41:55]:
+- added acq mode ACQMODE_EXTERNAL
+- intended for external inputs
+- similiar passive, but sets the input source
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.95, 2001-04-19T20:46:24]:
+- added acquisition mode "external" to .acqmode popup
+- intended for Composite or S-Video input
+- suppress passive mode for win32
+epgui/menucmd.c [rev:1.44, 2001-04-19T20:47:22]:
+- SetAcquisitionMode: added ACQMODE_EXTERNAL
+epgui/statswin.c [rev:1.34, 2001-04-19T20:48:44]:
+- adapted status line for new acq mode ACQMODE_EXTERNAL
+- bugfix: used mode instead of state struct elem in one place
+epgui/uictrl.c [rev:1.11, 2001-04-19T20:51:34]:
+- UiControl_AcqPassive: now separate messages for UNIX and win32
+- UNIX: added acq mode "external"
+- Win32: replaced passive with external
+README [rev:1.15, 2001-04-19T20:53:25]:
+- win32: improved description of workarounds for tuner trouble
+- 1: acq mode external, 2: composite input.
+Makefile.win32 [rev:1.7, 2001-04-19T20:54:18]:
+- updated path to MSVC, use new make var MVCPATH
+nxtvepg.pod [rev:1.36, 2001-04-19T20:54:56]:
+- introduced acquisition mode 'external'
+- is required for external input, i.e. Composite/S-Video
+- passive is now obsolete on Win32 because an input source must be set
+    (the IFORM register is reset upon driver start plus there are only
+    4 possible inputs so the user can easily try them all)
+- rewrote all workarounds for tuner trouble on Win32
+    + Getting started
+    + acq mode passive: added paragraph with warning about non-tuner inputs
+    + acq mode external: is new
+- plus some other minor fixes
+epgui/epgmain.c [rev:1.57, 2001-04-20T19:25:18]:
+- bugfix -rcfile option:
+- added {} around path arg to proc LoadRc
+- backslash chars in Win32 paths disappeared
+nxtvepg.pod [rev:1.37, 2001-04-21T12:54:37]:
+- added "Use .xawtv" button
+- plus some more minor fixes
+epgctl/epgversion.h [rev:1.11, 2001-04-21T13:12:30]:
+- set to version 0.5.0
+www/index-de.html [rev:1.8, 2001-04-21T13:53:08]:
+- removed old news (0.4 pre-releases)
+www/index.html [rev:1.19, 2001-04-21T13:53:29]:
+- fixed english: replaced "allows you" with "enables you"
+www/index-de.html [rev:1.9, 2001-04-21T14:38:59]:
+- update for release 0.5.0: News sect, URL, descr. in download sect.
+www/index.html [rev:1.20, 2001-04-21T14:38:59]:
+- update for release 0.5.0: News sect, URL, descr. in download sect.
+www/man.html [rev:1.6, 2001-04-21T14:39:54]:
+- update for release 0.5.0
+www/changelog.html [rev:1.6, 2001-04-21T14:40:06]:
+- update for release 0.5.0
+TODO [rev:1.11, 2001-04-21T14:47:02]:
+- updated for release 0.5.0
+Makefile [rev:1.25, 2001-04-21T14:47:39]:
+- canged path for win32 tar file again
+CHANGES [rev:1.12, 2001-04-21T14:48:07]:
+- updated for release 0.5.0
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_5_0 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

@@ -24,7 +24,7 @@
 #
 #  Author: Tom Zoerner
 #
-# $Id: nxtvepg.pod,v 1.31 2001/02/26 21:45:41 tom Exp tom $
+# $Id: nxtvepg.pod,v 1.37 2001/04/21 12:54:37 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME
@@ -35,17 +35,20 @@ nxtvepg - Decoder, Browser and Analyzer for the Nextview Electronic Programme Gu
 <TITLE>Nextview EPG Decoder Documentation</TITLE>
 <LINK href="nxtvepg.css" rel=stylesheet type=text/css>
 <META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
+<META name="language" content="en">
 <META name="author" content="Tom Zoerner">
 <META name="copyright" content="Tom Zoerner">
 <META name="keywords" content="nexTView,nxtvepg,TV schedule,Linux,software download,bttv,video4linux,VBI,vertical blanking interval,multimedia,data service,subscription free,TV tuner card,Bt848,Booktree,video capture,decoder,browser,EPG,teletext,Bt878,electronic program guide,TV-Guide,TV program listing">
 <META name="description" content="Online Documentation for the nxtvepg software, which offers access to a subscription-free electronic TV program guide. Nextview currently is broadcasted in Germany, Austria, Switzerland, and France and covers the schedules of all major TV networks in these countries.">
-<!-- end of header insert - start of body insert -->
+<META name="robots" content="index, follow">
+<META name="revisit-after" content="01 month">
+</HEAD>
+<BODY BGCOLOR=#f8f8f8>
 <P><HR><P>
-This is the UNIX man page for pre-release 0.4.pre0 of
-<A HREF="http://nxtvepg.tripod.com/">nxtvepg</A>.
-<BR>
-For documentation of previous releases please refer to the
-<A HREF="man-0_3_4.html">manual page from release 0.3.4</A>.
+<H1>Nextview EPG Decoder Documentation</H1>
+
+This is the manual page for the
+<A HREF="http://nxtvepg.tripod.com/">nxtvepg</A> software package.
 
 =head1 SYNOPSIS
 
@@ -64,7 +67,7 @@ received and used in a PC - provided you have a Teletext capable TV tuner
 card and are lucky enough to have a Nextview content provider in your country.
 
 B<nxtvepg>
-allows you to obtain free TV programme listings for all of the major
+enables you to obtain free TV programme listings for all of the major
 networks in Germany, Austria, France and Switzerland. Currently
 Nextview EPG is transmitted by the following TV stations:
 
@@ -193,11 +196,11 @@ However it's recommended to skim at least through L<"BASIC BROWSING">,
 L<"DATA ACQUISITION"> and L<"FILTERING">.
 
 Windows users first have to configure the driver for their TV card.
-Therefore please invoke the 'TV card input' popup from the Configure
-menu and specify the type of your tuner. In Germany, Austria and
-Switzerland it should be either Philips PAL or Temic PAL. In France
-it's one of the SECAM types. Then select how your card's I<PLL> needs
-to be set up. On most cards it's either I<No init> or I<28 MHz>.
+Therefore invoke the 'TV card input' dialog from the Configure menu
+(see L<"CONFIGURATION">) and specify the type of your tuner. In Germany,
+Austria and Switzerland it should be either Philips PAL or Temic PAL.
+In France it's one of the SECAM types. Then select how your card's I<PLL>
+needs to be set up. On most cards it's either I<No init> or I<28 MHz>.
 If you're not sure about your configuration, start with the topmost and
 then try them one after each other and start an EPG scan inbetween to
 check if the tuner works. If this seems too much work, open your PC
@@ -208,30 +211,30 @@ external source for video input. If you have problems see F<README>
 for more details and a list of error messages from the Windows driver.
 
 UNIX users just need to check if the correct input source and
-frequency table are selected in the TV card input popup menu.
+frequency table are selected in the TV card input dialog.
 
 In the next step - if you chose to use the TV tuner - run a provider
 scan from the Configure menu.  During the scan all TV channels are
 checked for Nextview transmissions. After the scan has finished,
-open the provider selection popup from the Configure menu and select
+open the provider selection dialog from the Configure menu and select
 you favorite one.
 
 If the provider scan does not find all Nextview provider channels
 (possibly due to weak reception - this is a very simple scan that does
 not attempt any fine-tuning) check the I<Slow> button and try again.
-If this did not help, you can still add the missing providers manually.
-Therefore set the acquisition mode to I<passive>, then use
-an external application to tune the channel (Windows users have to quit
-nxtvepg first; then start the other application; then tune the channel;
-then quit the TV application; finally start nxtvepg again). In passive
-mode nxtvepg will not touch the tuner and infinitly wait for Nextview
-reception on the current channel. On Windows and Linux with old bttv
-drivers (version 0.7.50 and earlier) this method has the disadvantage
-that no frequency will be known for this provider so that it can not
-be updated automatically (see L<"DATA ACQUISITION"> for details).
+If this does not help, you can still add the missing providers manually.
+set the acquisition mode to I<external> or I<passive> (UNIX only). Then
+use an external application to tune the channel (Windows users have to
+stop acquisition first; then start the TV application; then tune the
+channel; then quit the other application; finally start acquisition again).
+In external mode nxtvepg will not touch the tuner and wait infinitly for
+Nextview reception on the current channel.  On Windows (and Linux with
+bttv drivers version 0.7.50 and earlier) this method has the disadvantage
+that no frequency will be known for this provider so this procedure has
+to be repeated every time you start acquisition.
 
 Alternatively if you decided not to use the tuner, open the Acquisition
-mode popup from the Configure menu and select passive mode. Then provide
+mode dialog from the Configure menu and select external mode. Then provide
 the video signal of one of the content provider channels listed in the
 introduction to the selected input socket. As soon as an EPG provider is
 recognized, its data will appear in the browser window.
@@ -254,7 +257,7 @@ programmes (or rather: all programmes that should be running according
 to their start time) are marked by a light blue background color.
 One line in the list is selected by a cursor; the lower window contains
 the attributes and description for this selected title. The amount of
-data available depends entirely on the content provider.
+information available here depends entirely on the content provider.
 
 The basic browsing of programme information works very straight-forward.
 You can either use the mouse or the keyboard cursor keys:
@@ -272,6 +275,12 @@ move the keyboard input focus to other widgets, e.g. to the scrollbars
 or the shortcut list. On Unix, the menus can be accessed with the
 Meta key (usually the ALT key) together with one of the underlined
 characters in the menu buttons.
+
+If you're a user of the I<xawtv> TV application (UNIX only), you'll find
+a I<Tune TV> button below the clock. When you press it, the network of
+the currently selected programme will be tuned into xawtv. With the
+right mouse button you can also pop up a small menu which offers basic
+control over xawtv.
 
 At the bottom of the window there is a status line which informs you
 about the state of the browser database and background acquisition.
@@ -332,7 +341,7 @@ for details.
 
 =head1 ACQUISITION MODES
 
-The acquiition mode configuration allows you to control for which providers
+The acquisition mode configuration dialog enables you to control for which providers
 data is collected, and in which order. It's mainly intended for users who use
 more than one provider's database, i.e. in a merged database, or want to
 optimize startup time. If you're happy with a single provider or don't
@@ -344,17 +353,35 @@ browser.
 
 =item B<Passive>
 
-In this mode the software never changes the input channel; it's intended
-for UNIX systems when you run a different software in parallel that needs
-the video device. It can also be used on Windows systems if the tuner on
-your TV card is not supported; you then can set up input source and
-frequency with a different application before you start nxtvepg.
+UNIX only:
+In this mode the software never accesses the video device and never changes
+the input channel or tuner frequency.  It's useful if you want to set up the
+source with command line tools like I<v4lctl>. If you're using applications
+which keep the video device busy (e.g. a TV application) you don't need this
+mode, because when nxtvepg detects an unsolicited channel change, it
+automatically switches to the passive mode for as long as the video device
+remains busy.
 
-This is the only possible mode if you choose an input source other than
-the TV tuner, since there's no means by which the TV channel that's received
-through one of the composite inputs can be switched. Furthermore, this mode
-is automatically used if the software detects an external, i.e. uncontrolled
-channel change.
+Please note: when nxtvepg does not control the input channel, it can not
+automatically take care of updating your databases. Even if the browser
+database should be completely empty, no data will appear until you tune in
+the provider's channel manually with an external application. Because of
+this, passive mode is depreciated.
+
+=item B<External>
+
+This is the recommended mode for Composite or S-Video input sources. Only
+the input source will be set; the tuner is not touched. Hence the provider
+channel has to be selected either externally (e.g. in a satellite receiver
+connected to the Composite or S-Video input sockets) or by a different
+application (e.g. TV application, UNIX only), just like in passive mode.
+
+On Windows systems this mode can be used if your tuner is not known to
+nxtvepg, i.e. if the EPG scan does not find any channels with all of the
+available tuner types. In this case tune in the provider channel with a
+TV application; then quit this application and start nxtvepg. When you
+view the acquisition statistics from the Control menu, the VPS/PDC code
+of the tuned channel should appear in the lower half of the window.
 
 =item B<Follow-UI>
 
@@ -368,10 +395,10 @@ one after another, just like in the mode described next.
 
 =item B<Manually selected>
 
-This mode allows you to manually select for which providers the acquisition
+This mode enables you to manually select for which providers the acquisition
 should work. If you select more than one provider, they are loaded one after
 another, in your specified order. Warning: if you choose a provider for the
-browser that's no on the list, no data will be loaded into the browser,
+browser that's not on the list, no data will be loaded into the browser,
 even if it's completely empty.
 
 Since transmission errors have to be considered, it's not attempted
@@ -382,7 +409,7 @@ variance.
 
 =item B<Cyclic: Now - Near - All>
 
-Like the previous mode, this one allows you to specify a list of providers
+Like the previous mode, this one enables you to specify a list of providers
 to load data for. However they are not just loaded completely one after another.
 Instead, a 3-staged round-robin is implemented. In the first stage, only
 I<Now>
@@ -411,7 +438,7 @@ mode. If you use a merged database, data is automatically loaded for all
 contained providers. However if you switch manually between multiple
 providers, you should choose one of the manual acquisition modes.
 
-The Cyclic modes allow you to optimize startup time. While in standard
+The Cyclic modes enables you to optimize startup time. While in standard
 manual mode, the first database is loaded completely before the next one
 is started, in Cyclic modes you can specify to load only Now data of all
 providers first. Hence already after a couple minutes you'll have updated
@@ -524,12 +551,12 @@ are included in the database dump from the I<Control> menu.
 If you compare databases of different Nextview providers, you will
 often find that each has one or more nice features, or covers networks,
 that the others lack. Instead of changing back and forth between
-several providers all the time, database merging allows to select and
+several providers all the time, database merging enables to select and
 combine features or networks from several original databases into one
 newly created database.
 
 When you select the B<Merge providers...> entry from the B<Configure>
-menu, you will get a popup with two listboxes: the left one contains
+menu, you will get a dialog with two listboxes: the left one contains
 a list of all currently available databases. The right one is the list
 of databases you want to merge. You can add, delete or reorder the
 entries is this list. When you're done with your selection, press B<Ok>
@@ -545,7 +572,7 @@ You should put the most reliable provider in the first position, because
 conflicting programmes from providers further down will be rejected,
 i.e. not added to the merged database.
 
-The B<Configure> button in the popup gives you fine-control over the
+The B<Configure> button in the dialog gives you fine-control over the
 priority of providers during the merge of all distinct programme
 attributes. You can even completely remove a provider for an attribute,
 e.g. if they transmit false data (e.g. the Sound attribute is handled
@@ -572,7 +599,7 @@ in the correct order.
 =head1 NAVIGATE
 
 The Navigate menu contains a tree of filtering options, that's transmitted
-by the selected provider together with the programme data. Filtering allows
+by the selected provider together with the programme data. Filtering enables
 to restrict the listing of programme information to those titles matching
 the selected menu entry.
 
@@ -589,7 +616,7 @@ I<Reset> menu entry or the reset button in the main window.
 =head1 FILTERING
 
 Similar to I<Navigate>,
-this menu allows to control which of the programmes in the database
+this menu enables to control which of the programmes in the database
 are presented in the listing.  However here, you are not limited to a
 preselection of filter options.  There's a filter for every kind of
 attributes that can be attached to a program, e.g. it's network,
@@ -720,19 +747,19 @@ that are invoked by the entries in the Navigate menu.
 =head1 FILTER SHORTCUTS
 
 There's a number of predefined filter options in the box below the
-clock. These shortcuts allow you to invoke filters by a single click
+clock. These shortcuts enable you to invoke filters by a single click
 of the mouse. You can freely add or remove entries from this list.
 
 When you want to add a shortcut, either choose an entry from the
 Navigate menu or define your own filters via the Filter menu, possibly
 based on one or more already defined shortcuts. When you have found an
 interesting selection, call I<Add filter shortcut...>
-from the Filter menu to save the setting. You will get a pop-up
-window that allows you to change any names or the ordering, or to
-delete shortcuts. If you want to discard all changes made in the
-pop-up, leave it with the I<Abort> button. Else, use I<Save>.
+from the Filter menu to save the setting. You will get a dialog
+that enables you to change any names or the ordering, or to
+delete shortcuts. If you want to discard all changes,
+quit the dialog with the I<Abort> button. Else, use I<Save>.
 
-The filter mask list in the pop-up reflects which types of filters
+The filter mask list in the dialog reflects which types of filters
 you currently have chosen. When you invoke the shortcut from the listbox
 later, all filters of the same type will be cleared (masked out). If you
 deselect the button for that filter type in the filter mask list, then
@@ -754,7 +781,7 @@ described in L<"FILTERING">. This might change in the future
 if someone convices me there's a real need to.
 
 If you want to modify the shortcut list without adding a new one,
-you can also access the popup from the I<Configure> menu.
+you can also access the dialog from the I<Configure> menu.
 
 If you want to change the filter settings of a shortcut, you can do
 this only indirectly: first invoke the shortcut, then modify the
@@ -779,7 +806,7 @@ programme title, it's series code, repeat or original transmission
 suppression (only in cunjunction with series or title text filters)
 and last but not least the title text (as substring search).
 
-The series and title text filters allow you to check very quickly for
+The series and title text filters enable you to check very quickly for
 repeats of any programmes. If there is no match for these filters except
 for the already selected title, they are not offered.
 
@@ -873,30 +900,30 @@ Summary of commands available from the Configure menu:
 
 =item B<Select provider...>
 
-Open the provider selection popup.  This popup lists all TV channels
+Open the provider selection dialog.  This dialog lists all TV channels
 from which Nextview data can be received.  When you select a channel
 name on the list, you'll see the name of the Nextview service that's
 transmitted there and a list of all networks covered by it on the right.
-If you leave the popup with Ok, the selected provider's database will be
+If you leave the dialog with Ok, the selected provider's database will be
 loaded into the browser.  The according TV channel will also be tuned
 to update the database, if you have selected "Follow-UI" acquisition mode.
 
 
 =item B<Merge providers...>
 
-Open a popup that allows to merge several databases into one.
+Open a dialog that allows to merge several databases into one.
 See L<"MERGED DATABASES"> for details.
 
 
 =item B<Acquisition mode...>
 
-Open a popup that allows to control the background acquisition process.
+Open a dialog that allows to control the background acquisition process.
 See L<"ACQUISITION MODES"> for more details.
 
 
 =item B<Provider scan...>
 
-Open a popup that allows to start a scan across all TV channels for
+Open a dialog that allows to start a scan across all TV channels for
 Nextview transmissions.  You should perform this search at least once,
 firstly to find out which providers are available in your area, and
 secondly to determine the frequencies of all provider's TV channels. They
@@ -910,26 +937,32 @@ channel for a VPS or PDC identification or en EPG package. Else
 channels without a stable video signal and without any teletext packets
 will be skipped after 150 ms.
 
+UNIX only: The I<Use .xawtv> button is automatically checked if an xawtv
+configuration file is found in your home directory. Instead of searching
+all possible channels in all bands, nxtvepg then just checks the channels
+assigned there (fine-tuning and absolute frequencies currently are ignored
+though).
+
 Use the I<Refresh only> mode if you deleted your database files or if you
 upgrade from an incompatible software version. In this mode only the
 channels on which Nextview data was received before are checked (the
-requencies are kept in the rc/ini file). This allows you to regain your
+requencies are kept in the rc/ini file). This enables you to regain your
 complete provider list very quickly.
 
 
 =item B<TV card input...>
 
-Open a popup where the driver for the TV card can be configured.
+Open a dialog where the driver for the TV card can be configured.
 On Windows systems you must at least specify which type of tuner
 is on your card, and how the PLL needs to be initialized. You can
 check your setting by starting an EPG scan: if nothing is found,
 try a different setting (or check the antenna cable). For more
-details see F<README>, particularily if you get error messages
+details see L<"GETTING STARTED">, or F<README> if you get error messages
 from the Bt8x8 driver. If you experience data loss due to heavy
 system load, you can raise the acquisition thread priority.
 
-On Linux systems only the remaining three configuration options
-apply: firstly you may choose which video input source to use.
+The remaining three configuration options apply to both Linux and
+Windows: firstly you may choose which video input source to use.
 See L<"DATA ACQUISITION"> about the consequences of not using the
 TV tuner as input. If you live in France, select the French
 frequency table to be used for the EPG scan.
@@ -939,7 +972,7 @@ one to use, just like with the B<-card> command line option.
 
 =item B<Select columns...>
 
-Open the browser listbox column configuration popup window. It allows to
+Open the browser listbox column configuration dialog. It allows to
 select which attributes are displayed for the listed programmes. In the
 listbox on the left you find a list of all available categories, e.g.
 title, running time & date, TV network, rating, sound and picture format,
@@ -952,12 +985,12 @@ new configuration to the config file.
 
 =item B<Select networks...>
 
-Open the network selection popup. It allows to permanently suppress
+Open the network selection dialog. It allows to permanently suppress
 TV networks in a provider's listing, e.g. if you can not receive the
 channel. You can also change the order of the networks, e.g. to put
 your favorite networks at the top of the filter menus.
 
-This popup has two lists: on the left you'll find all networks that are
+This window has two lists: on the left you'll find all networks that are
 covered by the provider in their original order, on the right those that
 are selected for the programme listing in your preferred order. By default,
 both lists will have exactly the same content. If you want to exclude
@@ -969,11 +1002,41 @@ order for all providers, you can simply copy your selection with the I<copy>
 menu.
 
 
+=item B<Network names...>
+
+Open the network names configuration dialog. It's main purpose is to
+synchronize the network names with I<xawtv> (UNIX TV application), i.e.
+the F<.xawtv> configuration file. This is required because I<xawtv-remote>
+gets the network name as parameter when you press the I<"Tune TV">
+button. If this name does not match exactly a name in F<.xawtv>,
+xawtv will not be able to switch to the requested channel. For many
+channels there will be no need to change anything, but for some there
+exist many different variants, e.g. in Germany "Super RTL" vs. "S-RTL"
+or "KiKa" vs. "Kinderkanal".
+
+Another use of this dialog is to make network naming consistent across
+all providers. The names you specify here will be used in the programme
+listbox and all filter menus, independently of the provider.
+
+On the left side of the window you'll find a list of all networks of
+all known Nextview providers. The names used here are the ones you
+configured before, or if you haven't done so, the name that matches
+F<.xawtv> best. Unmatched names are marked red. On the right side,
+you're offered three ways to change the name: topmost is a simple
+entry field where you can type in an arbitrary name. Below is a popup
+menu which contains all network names defined in F<.xawtv>. Below
+is a listbox with the original names used in the various databases.
+When you select a name from the menu or the listbox, it will be
+copied into the entry field and the network name list on the left.
+If you want to save the changed list, leave the dialog with I<Save>,
+else use I<Abort>.
+
+
 =item B<Filter shortcuts...>
 
-Open the filter shortcut popup to rename, reorder or delete shortcuts. 
+Open the filter shortcut dialog to rename, reorder or delete shortcuts. 
 You have to press the I<Update> button to save any changes for a shortcut
-and then close the popup with I<Save>.
+and then close the dialog with I<Save>.
 See L<"FILTER SHORTCUTS"> for more details.
 
 
@@ -1030,7 +1093,7 @@ The index postfix can be specified with the B<-card> command line option.
 
 =item B</dev/video0>, B</dev/video1>, etc.
 
-Device files that are needed to set input source (e.g. TV tuner or one of
+Device files which are needed to set input source (e.g. TV tuner or one of
 the composite or S-Video sockets) and tuner frequency for VBI reception,
 unless you choose the passive acquisition mode. The index postfix can be
 specified with the B<-card> command line option.
@@ -1038,10 +1101,9 @@ specified with the B<-card> command line option.
 The device is only kept open during a provider search. Else, it's just
 opened shortly to set the input source and tuner frequency. If the device
 is busy (e.g. while you watch TV), acquisition starts on the currently
-selected source and frequency and automatically follows any externally
-controlled channel changes (this will be reported, e.g. in the
-status line at the bottom of the browser window, as I<forced passive>
-acquisition mode).
+selected channel and automatically follows any externally controlled
+changes (this will be reported, e.g. in the status line at the bottom
+of the browser window, as I<forced passive> acquisition mode).
 
 
 =item B</tmp/.vbi0.pid>, B</tmp/.vbi1.pid>, etc.
@@ -1050,6 +1112,14 @@ This file contains the process id of the Nextview decoder (or the
 acquisition slave process) whenever a vbi device is kept open. The
 process can be forced to free the device by sending it signal SIGHUP,
 e.g. from a wrapper script around a teletext decoder.
+
+=item B<$HOME/.xawtv>, etc.
+
+This file belongs to the TV viewer F<xawtv>. It's not required or
+created by nxtvepg. But if it exists, it will be used in the
+EPG scan (for a fast scan mode where only the channels defined in
+this file will be checked) and in the network name configuration
+dialog.
 
 =back
 
@@ -1096,7 +1166,7 @@ application is terminated by force, e.g. with TerminateProcess(). This
 cannot be changed because in this case there's no chance to stop the
 driver and disable the interrupt. In normal operation this should be
 very unlikely though, since all software exceptions (e.g. page faults)
-and shutdown mesages are catched and the driver then stopped before
+and shutdown messages are caught and the driver then stopped before
 the exit.
 
 

@@ -21,24 +21,40 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: epgui.tcl,v 1.77 2001/04/01 19:36:33 tom Exp tom $
+#  $Id: epgui.tcl,v 1.95 2001/04/19 20:46:24 tom Exp tom $
 #
+
+set is_unix [expr [string compare $tcl_platform(platform) "unix"] == 0]
 
 frame     .all -relief flat -borderwidth 0
 frame     .all.shortcuts -borderwidth 2
 label     .all.shortcuts.clock -borderwidth 1 -text {}
 pack      .all.shortcuts.clock -fill x -pady 5
+if {$is_unix  && [info exists env(HOME)] && [file isfile "$env(HOME)/.xawtv"]} {
+   button .all.shortcuts.tune -text "Tune TV" -relief ridge -command TuneTV
+   bind   .all.shortcuts.tune <Button-3> {TuneTvPopupMenu 1 %x %y}
+   pack   .all.shortcuts.tune -side top -fill x
+
+   menu .tunetvcfg -tearoff 0
+   .tunetvcfg add command -label "Start Capturing" -command {TuneTVSendCmd {capture on}}
+   .tunetvcfg add command -label "Stop Capturing" -command {TuneTVSendCmd {capture off}}
+   .tunetvcfg add command -label "Toggle mute" -command {TuneTVSendCmd {volume mute}}
+   .tunetvcfg add separator
+   .tunetvcfg add command -label "Toggle TV station" -command {TuneTVSendCmd {setstation back}}
+   .tunetvcfg add command -label "Next TV station" -command {TuneTVSendCmd {setstation next}}
+   .tunetvcfg add command -label "Previous TV station" -command {TuneTVSendCmd {setstation prev}}
+}
 button    .all.shortcuts.reset -text "Reset" -relief ridge -command {ResetFilterState; C_ResetFilter all; C_ResetPiListbox}
 pack      .all.shortcuts.reset -side top -fill x
 
-listbox   .all.shortcuts.list -exportselection false -setgrid true -height 12 -width 12 -selectmode extended -relief ridge -cursor top_left_arrow
+listbox   .all.shortcuts.list -exportselection false -height 12 -width 0 -selectmode extended -relief ridge -cursor top_left_arrow
 bind      .all.shortcuts.list <ButtonRelease-1> {+ SelectShortcut}
 bind      .all.shortcuts.list <space> {+ SelectShortcut}
 pack      .all.shortcuts.list -fill x
 pack      .all.shortcuts -anchor nw -side left
 
 frame     .all.netwops
-listbox   .all.netwops.list -exportselection false -setgrid true -height 25 -width 8 -selectmode extended -relief ridge -cursor top_left_arrow
+listbox   .all.netwops.list -exportselection false -height 25 -width 0 -selectmode extended -relief ridge -cursor top_left_arrow
 .all.netwops.list insert end alle
 .all.netwops.list selection set 0
 bind      .all.netwops.list <ButtonRelease-1> {+ SelectNetwop}
@@ -46,7 +62,6 @@ bind      .all.netwops.list <space> {+ SelectNetwop}
 pack      .all.netwops.list -side left -anchor n
 pack      .all.netwops -side left -anchor n -pady 2 -padx 2
 
-set is_unix [expr [string compare $tcl_platform(platform) "unix"] == 0]
 if {$is_unix} {
    set font_pt_size  12
    set cursor_bg     #c3c3c3
@@ -87,9 +102,9 @@ text      .all.pi.list.text -width 50 -height 25 -wrap none \
                             -cursor top_left_arrow \
                             -insertofftime 0
 bindtags  .all.pi.list.text {.all.pi.list.text . all}
-bind      .all.pi.list.text <Button-1> {C_PiListBox_SelectItem [GetSelectedItem %x %y]}
+bind      .all.pi.list.text <Button-1> {SelectPi %x %y}
 bind      .all.pi.list.text <Double-Button-1> {C_PiListBox_PopupPi %x %y}
-bind      .all.pi.list.text <Button-3> {C_PiListBox_SelectItem [GetSelectedItem %x %y]; CreateContextMenu %x %y}
+bind      .all.pi.list.text <Button-3> {SelectPi %x %y; CreateContextMenu %x %y}
 bind      .all.pi.list.text <Up>    {C_PiListBox_CursorUp}
 bind      .all.pi.list.text <Down>  {C_PiListBox_CursorDown}
 bind      .all.pi.list.text <Prior> {C_PiListBox_Scroll scroll -1 pages}
@@ -100,12 +115,17 @@ bind      .all.pi.list.text <Enter> {focus %W}
 .all.pi.list.text tag configure sel -foreground black -relief raised -borderwidth 1
 .all.pi.list.text tag configure now -background #c9c9df
 .all.pi.list.text tag lower now
-pack      .all.pi.list.text -fill x -expand 1 -side left
-pack      .all.pi.list -side top -fill x -anchor w
+pack      .all.pi.list.text -side left -fill x -expand 1
+pack      .all.pi.list -side top -fill x
+
+button    .all.pi.panner -bitmap bitmap_pan_updown -cursor top_left_arrow
+bind      .all.pi.panner <ButtonPress-1> {+ PanningControl 1}
+bind      .all.pi.panner <ButtonRelease-1> {+ PanningControl 0}
+pack      .all.pi.panner -side top -anchor e
 
 frame     .all.pi.info
 scrollbar .all.pi.info.sc -orient vertical -command {.all.pi.info.text yview}
-pack      .all.pi.info.sc -fill y -anchor e -side left
+pack      .all.pi.info.sc -side left -fill y -anchor e
 text      .all.pi.info.text -width 50 -height 10 -wrap word \
                             -font $textfont \
                             -background $default_bg \
@@ -114,16 +134,17 @@ text      .all.pi.info.text -width 50 -height 10 -wrap word \
 .all.pi.info.text tag configure title -font $font_pl2_bold -justify center -spacing3 3
 .all.pi.info.text tag configure bold -font $font_bold
 .all.pi.info.text tag configure features -font $font_bold -justify center -spacing3 6
+bind      .all.pi.info.text <Configure> ShortInfoResized
 pack      .all.pi.info.text -side left -fill both -expand 1
-pack      .all.pi.info -side top -fill both -expand 1 -anchor w
-
-pack      .all.pi -side top -anchor n -fill y -expand 1
+pack      .all.pi.info -side top -fill both -expand 1
+pack      .all.pi -side top -fill y -expand 1
 
 entry     .all.statusline -state disabled -relief flat -borderwidth 1 \
                           -font $font_small -background $default_bg \
                           -textvariable dbstatus_line
-pack      .all.statusline -side top -fill x
-pack      .all -side top
+pack      .all.statusline -side bottom -fill x
+pack      .all -side left -fill y -expand 1
+
 
 # create a bitmap of an horizontal line for use as separator in the info window
 # inserted here manually from the file epgui/line.xbm
@@ -170,6 +191,7 @@ menu .menubar.config -tearoff 0
 .menubar.config add separator
 .menubar.config add command -label "Select columns..." -command PopupColumnSelection
 .menubar.config add command -label "Select networks..." -command PopupNetwopSelection
+.menubar.config add command -label "Network names..." -command NetworkNamingPopup
 .menubar.config add command -label "Filter shortcuts..." -command EditFilterShortcuts
 .menubar.config add separator
 .menubar.config add checkbutton -label "Show shortcuts" -command ToggleShortcutListbox -variable showShortcutListbox
@@ -196,13 +218,14 @@ if {$is_unix} {
 .menubar.filter add cascade -menu .menubar.filter.progidx -label "Program index"
 .menubar.filter add cascade -menu .menubar.filter.netwops -label "Networks"
 if {!$is_unix} {
-   .menubar.filter add command -label "Series..." -command {PostSeparateMenu .menubar.filter.series C_CreateSeriesNetwopMenu}
+   .menubar.filter add command -label "Series..." -command {PostSeparateMenu .menubar.filter.series CreateSeriesNetworksMenu}
 }
 .menubar.filter add command -label "Text search..." -command SubStrPopup
 .menubar.filter add command -label "Start Time..." -command PopupTimeFilterSelection
 .menubar.filter add command -label "Sorting Criterions..." -command PopupSortCritSelection
 .menubar.filter add separator
 .menubar.filter add command -label "Add filter shortcut..." -command AddFilterShortcut
+.menubar.filter add command -label "Update filter shortcut..." -command UpdateFilterShortcut
 if {!$is_unix} {
    .menubar.filter add command -label "Navigate" -command {PostSeparateMenu .menubar.filter.ni_1 C_CreateNi}
 }
@@ -300,7 +323,7 @@ FilterMenuAdd_Subtitles .menubar.filter.features.subtitles
 menu .menubar.filter.features.featureclass
 menu .menubar.filter.themes
 if {$is_unix} {
-   menu .menubar.filter.series -postcommand {PostDynamicMenu .menubar.filter.series C_CreateSeriesNetwopMenu}
+   menu .menubar.filter.series -postcommand {PostDynamicMenu .menubar.filter.series CreateSeriesNetworksMenu}
 }
 menu .menubar.filter.progidx
 .menubar.filter.progidx add radio -label "any" -command {SelectProgIdx -1 -1} -variable filter_progidx -value 0
@@ -630,6 +653,8 @@ proc ResetNetwops {} {
 }
 
 proc ResetFilterState {} {
+   global fsc_prevselection
+
    ResetThemes
    ResetSortCrits
    ResetFeatures
@@ -643,6 +668,7 @@ proc ResetFilterState {} {
 
    # reset the filter shortcut bar
    .all.shortcuts.list selection clear 0 end
+   set fsc_prevselection {}
 }
 
 ##  --------------------- F I L T E R   C A L L B A C K S ---------------------
@@ -961,18 +987,29 @@ proc GetSelectedItem {xcoo ycoo} {
 }
 
 ##  ---------------------------------------------------------------------------
+##  Callback for selection of a program item
+##
+proc SelectPi {xcoo ycoo} {
+   # first unpost the context menu
+   global dynmenu_posted
+   if {[info exists dynmenu_posted(.contextmenu)] && ($dynmenu_posted(.contextmenu) > 0)} {
+      set dynmenu_posted(.contextmenu) 1
+      .contextmenu unpost
+   }
+
+   C_PiListBox_SelectItem [GetSelectedItem $xcoo $ycoo]
+}
+
+##  ---------------------------------------------------------------------------
 ##  Callback for right-click on a PiListBox item
 ##
 proc CreateContextMenu {xcoo ycoo} {
    global contextMenuItem
 
-   set xcoo [expr $xcoo + [winfo rootx .all.pi.list.text] - 5]
-   set ycoo [expr $ycoo + [winfo rooty .all.pi.list.text] - 5]
+   set xcoo [expr $xcoo + [winfo rootx .all.pi.list.text]]
+   set ycoo [expr $ycoo + [winfo rooty .all.pi.list.text]]
 
-   # remember index of selected listbox item
-   #set contextMenuItem GetSelectedItem $xcoo $ycoo
-
-   .contextmenu post $xcoo $ycoo
+   tk_popup .contextmenu $xcoo $ycoo 0
 }
 
 ##  ---------------------------------------------------------------------------
@@ -1022,89 +1059,106 @@ proc Create_PopupPi {ident xcoo ycoo} {
    #pack $poppedup_pi.text
 }
 
-## ---------------------------------------------------------------------------
-## Sort a list of network names and append them to the series networks menu
-##
-proc CompareSeriesMenuNetwops {ordarr a b} {
-   upvar $ordarr order
-
-   if {[info exists order([lindex $a 0])]} {
-      set ord_a $order([lindex $a 0])
-   } else {
-      set ord_a 0xff
-   }
-
-   if {[info exists order([lindex $b 0])]} {
-      set ord_b $order([lindex $b 0])
-   } else {
-      set ord_b 0xff
-   }
-
-     if     {[expr $ord_a < $ord_b]} { return -1
-   } elseif {[expr $ord_a > $ord_b]} { return  1
-   } else                            { return  0
-   }
-}
-
-proc FillSeriesMenu {parent prov netlist} {
-   global netwop_map
-
-   # get reverse netwop mapping, i.e. user-selected netwop ordering
-   foreach {idx val} [array get netwop_map] {
-      set order($val) $idx
-   }
-
-   foreach item [lsort -command {CompareSeriesMenuNetwops order} $netlist] {
-      set netwop [lindex $item 0]
-      # check if netwop is suppressed by user config
-      if {[info exists order($netwop)]} {
-         set child $parent.netwop_$netwop
-
-         $parent add cascade -label [lindex $item 1] -menu $child
-         if {[string length [info commands $child]] == 0} {
-            menu $child -postcommand [list PostDynamicMenu $child C_CreateSeriesMenu]
-         }
-      }
-   }
-}
-
 ##  ---------------------------------------------------------------------------
-##  Sort a list of programme titles and append them to a series menu
+##  Sort a list of series titles alphabetically
 ##
 proc CompareSeriesMenuEntries {a b} {
    return [string compare [lindex $a 0] [lindex $b 0]]
 }
 
-proc CreateSeriesMenuEntries {menu_name tmp_list lang} {
-   set all {}
-   foreach {title series} $tmp_list {
-      # remove series instance number postfix
-      if {[regsub -- { +\([\d]+\)$} $title {} result] > 0} {
-         set title $result
-      }
-      # move attribs "Der, Die, Das" to the end fot the title for sorting
-      switch $lang {
-         0 {  # English
-            regsub -nocase -- "^(the|a) (.*)" $title {\2, \1} result
-         }
-         1 {  # German
-            regsub -nocase -- "^(der|die|das|ein|eine) (.*)" $title {\2, \1} result
-         }
-         3 {  # Italian
-            regsub -nocase -- "^(una|uno|la) (.*)" $title {\2, \1} result
-         }
-         4 {  # French
-            regsub -nocase -- "^(un |une |la |le |les |l')(.*)" $title {\2, \1} result
-         }
-         default {
-            set result $title
-         }
-      }
-      # force the new first title character to be uppercase (for sorting)
-      lappend all [list [string toupper [string index $result 0]][string range $result 1 end] $series]
+proc DictifySeriesTitle {title lang} {
+   # remove series instance number postfix
+   if {[regsub -- { +\([\d]+\)$} $title {} result] > 0} {
+      set title $result
    }
-   foreach item [lsort -command CompareSeriesMenuEntries $all] {
-      $menu_name add checkbutton -label [lindex $item 0] -variable series_sel([lindex $item 1]) -command [list SelectSeries [lindex $item 1]]
+   # move attribs "Der, Die, Das" to the end of the title for sorting
+   switch $lang {
+      0 {
+         # English
+         regsub -nocase -- "^(the|a) (.*)" $title {\2, \1} result
+      }
+      1 {
+         # German
+         regsub -nocase -- "^(der|die|das|ein|eine) (.*)" $title {\2, \1} result
+      }
+      3 {
+         # Italian
+         regsub -nocase -- "^(una|uno|la) (.*)" $title {\2, \1} result
+      }
+      4 {
+         # French
+         regsub -nocase -- "^(un |une |la |le |les |l')(.*)" $title {\2, \1} result
+      }
+      default {
+         set result $title
+      }
+   }
+   # force the new first title character to be uppercase (for sorting)
+   return [string toupper [string index $result 0]][string range $result 1 end]
+}
+
+##  ---------------------------------------------------------------------------
+##  Create the series sub-menu for a given network
+##  - with a list of all series on this network, sorted by title
+## 
+proc CreateSeriesMenu {w} {
+   set idx [string first net_ $w]
+   if {$idx >= 0} {
+
+      # fetch the list of series codes and titles
+      set slist [C_GetNetwopSeriesList [string range $w [expr $idx + 4] end] lang]
+
+      # sort the list of commands by series title and then create the entries in that order
+      set all {}
+      foreach {series title} $slist {
+         # force the new first title character to be uppercase (for sorting)
+         lappend all [list [DictifySeriesTitle $title $lang] $series]
+      }
+      foreach item [lsort -command CompareSeriesMenuEntries $all] {
+         $w add checkbutton -label [lindex $item 0] -variable series_sel([lindex $item 1]) -command [list SelectSeries [lindex $item 1]]
+      }
+   }
+}
+
+##  ---------------------------------------------------------------------------
+##  Create root of Series menu
+##  - post-command for the "Series" entry in various filter menus
+##  - consists of a list of all netwops with PI that have assigned PDC themes > 0x80
+##  - each entry is a sub-menu (cascade) that list all found series in that netwop
+##
+proc CreateSeriesNetworksMenu {w} {
+   global cfnetwops
+
+   # fetch a list of CNIs of netwops which broadcast series programmes
+   set series_nets [C_GetNetwopsWithSeries]
+
+   # fetch all network names from AI into an array
+   C_GetAiNetwopList 0 netsel_names
+   ApplyUserNetnameCfg netsel_names
+
+   # get the CNI of the currently selected db
+   set prov [C_GetCurrentDatabaseCni]
+   if {$prov != 0} {
+
+      # sort the cni list according to the user network selection
+      if [info exists cfnetwops($prov)] {
+         set tmp {}
+         foreach cni [lindex $cfnetwops($prov) 0] {
+            if {[lsearch -exact $series_nets $cni] >= 0} {
+               lappend tmp $cni
+            }
+         }
+         set series_nets $tmp
+      }
+
+      # insert the names into the menu
+      foreach cni $series_nets {
+         set child $w.net_$cni
+         $w add cascade -label $netsel_names($cni) -menu $child
+         if {[string length [info commands $child]] == 0} {
+            menu $child -postcommand [list PostDynamicMenu $child CreateSeriesMenu]
+         }
+      }
    }
 }
 
@@ -1185,6 +1239,179 @@ proc CreateTransientPopup {wname title} {
       }
    } else {
       wm group $wname .
+   }
+}
+
+##  --------------------------------------------------------------------------
+##  Count number of visible lines in a text widget, e.g. after toplevel resize
+##  -- currently unused --
+##
+proc CountVisibleTextLines {w} {
+   # remember the position of the last character in the text widget
+   set prevEnd [$w index end]
+   scan $prevEnd "%d." prevLines
+   incr prevLines -1
+
+   # loop over all lines of text (appending new ones if needed)
+   set count 0
+   set lastLHeight 0
+   while 1 {
+      # if the text doesn't fill the widget, append empty lines for measurement
+      if {$prevLines <= $count} {
+        $w insert end "\n"
+      }
+      # determine the height of the current line
+      set bbox [$w bbox "[expr $count + 1].0"]
+      set lheight [lindex $bbox 3]
+      # check if its invisible or only partially visible (assuming all lines have equal height)
+      if {([string length $bbox] == 0) ||
+          (($lheight < $lastLHeight) && ($lastLHeight != 0))} {
+         # reached the bottom border of visibility
+         break
+      }
+      set lastLHeight $lheight
+      incr count
+   }
+
+   # remove the appended lines
+   $w delete $prevEnd end
+
+   return $count
+}
+
+##  --------------------------------------------------------------------------
+##  Handling of "Panning"
+##  - i.e. adjusting the proportions of the listbox and info text widgets
+##  - the total height of the main window shall remain unchanged
+##  - by dragging the panning button the user can reduce the height of the
+##    listbox and enlarge the info window below by the same amount -
+##    or the other way around
+
+set pibox_height 25
+set pibox_resized 0
+set shortinfo_height 10
+
+proc AdjustTextWidgetProportions {delta} {
+   global panning_list_height panning_info_height
+   global pibox_height
+   global pibox_resized
+
+   pack propagate .all.pi.list 1
+   set hl [winfo height .all.pi.list]
+   set hi [winfo height .all.pi.info]
+
+   .all.pi.list.text configure -height [expr $panning_list_height - $delta]
+
+   # Workaround for UNIX window management
+   # - Before the user has resized the toplevel window, the size of the window
+   #   is controlled entirely by the size of the enclosed widgets.
+   # - Afterwards, the window height "sticks" to the configured height.
+   #   Under Windows any resize of expanded widgets is ignored then, but
+   #   UNIX also adds the offset by which the toplevel was resized
+   if {$pibox_resized == 0} {
+      .all.pi.info.text configure -height [expr $panning_info_height + $delta]
+   }
+   #.all.pi.info configure -height [expr $hi + ($hl - [winfo height .all.pi.list])]
+
+   set pibox_height [expr $panning_list_height - $delta]
+   C_ResizePiListbox
+
+   wm minsize . 0 [expr [winfo height .] - [winfo height .all.pi.info.text] + 80]
+}
+
+# callback for mouse motion while the panning button is pressed
+proc PanningMotion {w state ypos} {
+   global panning_root_y1 panning_root_y2 panning_list_height panning_info_height
+   global textfont
+
+   if {$state != 0} {
+      set cheight [font metrics $textfont -linespace]
+
+      # compute how far the mouse pointer has been moved
+      # - it's not enough to move one line at a time, because the widget size might "freeze"
+      #   before the pointer position is fully reached when the pointer is no longer moved
+      if {$ypos <= $panning_root_y1} {
+         #puts "$panning_root_y1 $panning_root_y2 $ypos [.all.pi.list.text cget -height] [expr 1 + int(($panning_root_y1 - $ypos) / $cheight)]"
+         AdjustTextWidgetProportions [expr 1 + int(($panning_root_y1 - $ypos) / $cheight)]
+      } elseif {$ypos >= $panning_root_y2} {
+         #puts "$panning_root_y1 $panning_root_y2 $ypos [.all.pi.list.text cget -height] [expr -1 - int(($ypos - $panning_root_y2) / $cheight)]"
+         AdjustTextWidgetProportions [expr -1 - int(($ypos - $panning_root_y2) / $cheight)]
+      }
+   }
+}
+
+# callback for button press an release on the panning button
+# sets up or stops the panning
+proc PanningControl {start} {
+   global panning_root_y1 panning_root_y2 panning_list_height panning_info_height
+   global pibox_resized
+   global shortinfo_height textfont
+   global is_unix
+
+   if {$start} {
+      set panning_root_y1 [winfo rooty .all.pi.panner]
+      set panning_root_y2 [expr $panning_root_y1 + [winfo height .all.pi.panner]]
+      set panning_list_height [.all.pi.list.text cget -height]
+      set panning_info_height [.all.pi.info.text cget -height]
+      # check if the toplevel window was resized by the user
+      set pibox_resized [expr !$is_unix || ([winfo height .all.pi.info.text] != [winfo reqheight .all.pi.info.text])]
+
+      bind .all.pi.panner <Motion> {PanningMotion .all.pi.panner %s %Y}
+   } else {
+      unset panning_root_y1 panning_root_y2
+      unset panning_list_height panning_info_height
+      bind .all.pi.panner <Motion> {}
+
+      # save the new listbox and shortinfo geometry to the rc/ini file
+      set shortinfo_height [expr int([winfo height .all.pi.info.text] / [font metrics $textfont -linespace])]
+      UpdateRcFile
+   }
+}
+
+# callback for Configure (aka resize) event in short info text widget
+proc ShortInfoResized {} {
+   global textfont shortinfo_height
+
+   set new_height [expr int([winfo height .all.pi.info.text] / [font metrics $textfont -linespace])]
+
+   if {$new_height != $shortinfo_height} {
+      set shortinfo_height $new_height
+      UpdateRcFile
+   }
+}
+
+##  --------------------------------------------------------------------------
+##  Tune the station of the currently selected programme
+##  - callback command of the "Tune TV" button in the main window
+##
+proc TuneTV {} {
+   global cfnetnames
+
+   # retrieve the name of the network of the currently selected PI
+   set selnet [C_PiListBox_GetSelectedNetwop]
+   if {[llength $selnet] > 0} {
+      set cni [lindex $selnet 0]
+      set name [lindex $selnet 1]
+      if [info exists cfnetnames($cni)] {
+         set name $cfnetnames($cni)
+         TuneTVSendCmd [list "setstation" $name]
+      }
+   }
+}
+
+# callback for right-click onto the "Tune TV" button
+proc TuneTvPopupMenu {state xcoo ycoo} {
+   set xcoo [expr $xcoo + [winfo rootx .all.shortcuts.tune]]
+   set ycoo [expr $ycoo + [winfo rooty .all.shortcuts.tune]]
+
+   tk_popup .tunetvcfg $xcoo $ycoo 0
+}
+
+# send a command to xawtv
+# catch handles exceptions, usually 'command is not found' or 'xawtv not running'
+proc TuneTVSendCmd {cmdlist} {
+   if [catch [concat exec "xawtv-remote" $cmdlist] retval] {
+      tk_messageBox -type ok -icon error -message "xawtv-remote failed: $retval"
    }
 }
 
@@ -1292,6 +1519,8 @@ proc SubStrPopup {} {
 
       pack .substr.all -padx 10 -pady 10
       bind .substr.all <Destroy> {+ set substr_popup 0}
+   } else {
+      raise .substr
    }
 }
 
@@ -1345,6 +1574,8 @@ proc ProgIdxPopup {} {
       pack .progidx.cmd -side top -pady 10
 
       bind .progidx.cmd <Destroy> {+ set progidx_popup 0}
+   } else {
+      raise .progidx
    }
 }
 
@@ -1415,6 +1646,8 @@ proc PopupTimeFilterSelection {} {
       if {$timsel_relative} {
          SelectTimeFilterRelStart
       }
+   } else {
+      raise .timsel
    }
 }
 
@@ -1457,6 +1690,11 @@ proc SelectTimeFilterEntry {varname val} {
    }
 }
 
+# small helper function to convert time format from "minutes of day" to HH:MM
+proc Motd2HHMM {motd} {
+   return [format "%02d:%02d" [expr $motd / 60] [expr $motd % 60]]
+}
+
 proc SelectTimeFilter { round {val 0} } {
    global timsel_start timsel_stop timsel_date
    global timsel_startstr timsel_stopstr
@@ -1474,14 +1712,14 @@ proc SelectTimeFilter { round {val 0} } {
       set timsel_startstr "now"
       .timsel.all.start.str configure -state disabled
    } else {
-      set timsel_startstr [format "%02d:%02d" [expr $timsel_start / 60] [expr $timsel_start % 60]]
+      set timsel_startstr [Motd2HHMM $timsel_start]
    }
    if {$timsel_absstop} {
       .timsel.all.stop.str configure -state normal
       set timsel_stopstr "23:59"
       .timsel.all.stop.str configure -state disabled
    } else {
-      set timsel_stopstr [format "%02d:%02d" [expr $timsel_stop / 60] [expr $timsel_stop % 60]]
+      set timsel_stopstr [Motd2HHMM $timsel_stop]
    }
    .timsel.all.date.str configure -text [format "+%d days" $timsel_date]
 
@@ -1565,6 +1803,8 @@ proc PopupSortCritSelection {} {
       bind .sortcrit.all <Destroy> {+ set sortcrit_popup 0}
 
       UpdateSortCritListbox
+   } else {
+      raise .sortcrit
    }
 }
 
@@ -1725,6 +1965,8 @@ proc PopupDumpDatabase {} {
 
       pack .dumpdb.all -padx 10 -pady 10
       bind .dumpdb.all <Destroy> {+ set dumpdb_popup 0}
+   } else {
+      raise .dumpdb
    }
 }
 
@@ -1784,6 +2026,8 @@ proc PopupHelp {index {subheading {}}} {
       .help.disp.text configure -state normal
       .help.disp.text delete 1.0 end
       .help.disp.sb set 0 1
+      # raise the popup above all others in the window stacking order
+      raise .help
    }
 
    # fill the widget with the formatted text
@@ -1874,6 +2118,8 @@ THIS PROGRAM IS DISTRIBUTED IN THE HOPE THAT IT WILL BE USEFUL, BUT WITHOUT ANY 
 
       button .about.dismiss -text "Dismiss" -command {destroy .about}
       pack .about.dismiss -pady 10
+   } else {
+      raise .about
    }
 }
 
@@ -1964,6 +2210,8 @@ proc ProvWin_Create {} {
          .provwin.n.b.list selection set $index
          ProvWin_Select
       }
+   } else {
+      raise .provwin
    }
 }
 
@@ -2016,12 +2264,13 @@ set epgscan_popup 0
 set epgscan_timeout 2
 set epgscan_opt_slow 0
 set epgscan_opt_refresh 0
+set epgscan_opt_xawtv $is_unix
 
 proc PopupEpgScan {} {
-   global hwcfg hwcfg_default is_unix
+   global hwcfg hwcfg_default is_unix env
    global prov_freqs
    global epgscan_popup
-   global epgscan_opt_slow epgscan_opt_refresh
+   global epgscan_opt_slow epgscan_opt_refresh epgscan_opt_xawtv
 
    if {$epgscan_popup == 0} {
       if {!$is_unix} {
@@ -2041,7 +2290,7 @@ proc PopupEpgScan {} {
 
       frame  .epgscan.cmd
       # control commands
-      button .epgscan.cmd.start -text "Start scan" -width 12 -command {if {[info exists hwcfg]} {C_StartEpgScan [lindex $hwcfg 0] $epgscan_opt_slow $epgscan_opt_refresh} else {C_StartEpgScan [lindex $hwcfg_default 0] $epgscan_opt_slow $epgscan_opt_refresh}}
+      button .epgscan.cmd.start -text "Start scan" -width 12 -command {if {[info exists hwcfg]} {C_StartEpgScan [lindex $hwcfg 0] $epgscan_opt_slow $epgscan_opt_refresh $epgscan_opt_xawtv} else {C_StartEpgScan [lindex $hwcfg_default 0] $epgscan_opt_slow $epgscan_opt_refresh $epgscan_opt_xawtv}}
       button .epgscan.cmd.stop -text "Abort scan" -width 12 -command C_StopEpgScan -state disabled
       button .epgscan.cmd.help -text "Help" -width 12 -command {PopupHelp $helpIndex(Configuration) "Provider scan"}
       button .epgscan.cmd.dismiss -text "Dismiss" -width 12 -command {destroy .epgscan}
@@ -2059,7 +2308,7 @@ proc PopupEpgScan {} {
 
       # message window to inform about the scanning state
       frame .epgscan.all.fmsg
-      text .epgscan.all.fmsg.msg -width 35 -height 7 -yscrollcommand {.epgscan.all.fmsg.sb set} -wrap none
+      text .epgscan.all.fmsg.msg -width 40 -height 7 -yscrollcommand {.epgscan.all.fmsg.sb set} -wrap none
       pack .epgscan.all.fmsg.msg -side left -expand 1 -fill y
       scrollbar .epgscan.all.fmsg.sb -orient vertical -command {.epgscan.all.fmsg.msg yview}
       pack .epgscan.all.fmsg.sb -side left -fill y
@@ -2069,7 +2318,15 @@ proc PopupEpgScan {} {
       frame .epgscan.all.opt
       checkbutton .epgscan.all.opt.slow -text "Slow" -variable epgscan_opt_slow -command {C_SetEpgScanSpeed $epgscan_opt_slow}
       checkbutton .epgscan.all.opt.refresh -text "Refresh only" -variable epgscan_opt_refresh
-      pack .epgscan.all.opt.slow .epgscan.all.opt.refresh -side left -padx 10
+      pack .epgscan.all.opt.slow .epgscan.all.opt.refresh -side left -padx 5
+      if {$is_unix} {
+         checkbutton .epgscan.all.opt.xawtv -text "Use .xawtv" -variable epgscan_opt_xawtv
+         pack .epgscan.all.opt.xawtv -side left -padx 5
+         if {![info exists env(HOME)] || ![file isfile "$env(HOME)/.xawtv"]} {
+            set epgscan_opt_xawtv 0
+            .epgscan.all.opt.xawtv configure -state disabled
+         }
+      }
       pack .epgscan.all.opt -side top -padx 10 -pady 5
       if {[llength $prov_freqs] == 0} {
          .epgscan.all.opt.refresh configure -state disabled
@@ -2079,9 +2336,47 @@ proc PopupEpgScan {} {
       bind .epgscan.all <Destroy> {+ set epgscan_popup 0; C_StopEpgScan}
 
       .epgscan.all.fmsg.msg insert end "Press the <Start scan> button\n"
+   } else {
+      raise .epgscan
    }
 }
 
+# called after start or stop of EPG scan to update button states
+proc EpgScanButtonControl {is_start} {
+   global is_unix env prov_freqs
+
+   if {[string compare $is_start "start"] == 0} {
+      # grab input focus to prevent any interference with the scan
+      grab .epgscan
+      # disable options and command buttons, enable the "Abort" button
+      .epgscan.cmd.start configure -state disabled
+      .epgscan.cmd.stop configure -state normal
+      .epgscan.cmd.help configure -state disabled
+      .epgscan.cmd.dismiss configure -state disabled
+      .epgscan.all.opt.refresh configure -state disabled
+      if {$is_unix} {
+         .epgscan.all.opt.xawtv configure -state disabled
+      }
+   } else {
+      # check if the popup window still exists
+      if {[string length [info commands .epgscan.cmd]] > 0} {
+         # release input focus
+         grab release .epgscan
+         # disable "Abort" button, re-enable others
+         .epgscan.cmd.start configure -state normal
+         .epgscan.cmd.stop configure -state disabled
+         .epgscan.cmd.help configure -state normal
+         .epgscan.cmd.dismiss configure -state normal
+         # enable option checkboxes only if they were enabled before the scan
+         if {[llength $prov_freqs] > 0} {
+            .epgscan.all.opt.refresh configure -state normal
+         }
+         if {$is_unix && [info exists env(HOME)] && [file isfile $env(HOME)/.xawtv]} {
+            .epgscan.all.opt.xawtv configure -state normal
+         }
+      }
+   }
+}
 
 ##  --------------------------------------------------------------------------
 ##  Helper functions for selecting and ordering list items
@@ -2243,14 +2538,15 @@ proc PopupNetwopSelection {} {
 
    if {$netsel_popup == 0} {
       # get CNI of currently selected provider (or 0 if db is empty)
-      set netsel_prov [C_GetProvCni]
+      set netsel_prov [C_GetCurrentDatabaseCni]
       if {$netsel_prov != 0} {
          CreateTransientPopup .netsel "Network Selection"
          set netsel_popup 1
 
          # fetch CNI list from AI block in database
          # as a side effect this function stores all netwop names into the array netsel_names
-         set netsel_ailist [C_GetAiNetwopList]
+         set netsel_ailist [C_GetAiNetwopList 0 netsel_names]
+         ApplyUserNetnameCfg netsel_names
          # initialize list of user-selected CNIs
          if {[info exists cfnetwops($netsel_prov)]} {
             set netsel_selist [lindex $cfnetwops($netsel_prov) 0]
@@ -2273,6 +2569,8 @@ proc PopupNetwopSelection {} {
          # no AI block in database
          tk_messageBox -type ok -default ok -icon error -message "Cannot configure networks without a provider selected."
       }
+   } else {
+      raise .netsel
    }
 }
 
@@ -2347,16 +2645,15 @@ proc NetselCopyNetwopList {copycni} {
 }
 
 ## ---------------------------------------------------------------------------
-## Update netwop filter bar according to filter selection
+## Update network selection configuration after AI update
+## - returns list of indices of suppressed netwops (for prefiltering)
 ## - note: all CNIs have to be in the format 0x%04X
 ##
-proc UpdateNetwopFilterBar {prov} {
-   global netsel_names cfnetwops netwop_map netselmenu
+proc UpdateProvCniTable {prov} {
+   global cfnetwops netwop_map netselmenu
 
    # fetch CNI list from AI block in database
-   # as a side effect this function stores all netwop names into the array netsel_names
-   if {[array exists netsel_names]} { unset netsel_names }
-   set ailist [C_GetAiNetwopList]
+   set ailist [C_GetAiNetwopList 0 {}]
    # initialize list of user-selected CNIs
    if {[info exists cfnetwops($prov)]} {
       set selist [lindex $cfnetwops($prov) 0]
@@ -2370,20 +2667,17 @@ proc UpdateNetwopFilterBar {prov} {
    set index 0
    foreach cni $ailist {
       set order($cni) $index
+      set unused($cni) 1
       incr index
    }
 
-   .all.netwops.list delete 1 end
-   .all.netwops.list selection set 0
-   .menubar.filter.netwops delete 1 end
+   # step #1: collect user-selected networks in the user-defined order
    set nlidx 0
    foreach cni $selist {
-      if {[info exists netsel_names($cni)]} {
-         # CNI still exists in actual AI -> add to filter bar
-         .all.netwops.list insert end $netsel_names($cni)
-         .menubar.filter.netwops add checkbutton -label $netsel_names($cni) -variable netselmenu($nlidx) -command [list SelectNetwopMenu $nlidx]
+      if {[info exists unused($cni)]} {
+         # CNI still exists in actual AI -> add it
          set netwop_map($nlidx) $order($cni)
-         unset netsel_names($cni)
+         unset unused($cni)
          # increment index (only when item is not deleted)
          incr nlidx
       } else {
@@ -2392,11 +2686,11 @@ proc UpdateNetwopFilterBar {prov} {
       }
    }
 
-   # remove suppressed CNIs from the list
+   # step #2: remove suppressed CNIs from the list
    set index 0
    foreach cni $suplist {
-      if {[info exists netsel_names($cni)]} {
-         unset netsel_names($cni)
+      if {[info exists unused($cni)]} {
+         unset unused($cni)
          incr index
       } else {
          # CNI no longer exists -> remove from suppressed list
@@ -2404,18 +2698,21 @@ proc UpdateNetwopFilterBar {prov} {
       }
    }
 
-   # check for unreferenced CNIs and append them to the list
-   foreach cni [array names netsel_names] {
-      lappend selist $cni
-      .all.netwops.list insert end $netsel_names($cni)
-      .menubar.filter.netwops add checkbutton -label $netsel_names($cni) -variable netselmenu($nlidx) -command [list SelectNetwopMenu $nlidx]
-      set netwop_map($nlidx) $order($cni)
-      incr nlidx
+   # step #3: check for unreferenced CNIs and append them to the list
+   foreach cni $ailist {
+      if [info exists unused($cni)] {
+         lappend selist $cni
+         set netwop_map($nlidx) $order($cni)
+         incr nlidx
+      }
    }
-   .all.netwops.list configure -height [expr [llength $selist] + 1]
 
+   # save the new config to the rc file
    set cfnetwops($prov) [list $selist $suplist]
    UpdateRcFile
+
+   # fill network filter menus according to the new network list
+   UpdateNetwopFilterBar
 
    # return list of indices of suppressed netwops
    set supidx {}
@@ -2423,6 +2720,34 @@ proc UpdateNetwopFilterBar {prov} {
       lappend supidx $order($cni)
    }
    return $supidx
+}
+
+# update the network filter menus
+proc UpdateNetwopFilterBar {} {
+   global cfnetwops
+
+   # fetch CNI of current db (may be 0 if none available)
+   set prov [C_GetCurrentDatabaseCni]
+
+   # fetch CNI list and netwop names from AI block in database
+   set ailist [C_GetAiNetwopList 0 netnames]
+   ApplyUserNetnameCfg netnames
+
+   if [info exists cfnetwops($prov)] {
+      set ailist [lindex $cfnetwops($prov) 0]
+   }
+
+   .all.netwops.list delete 1 end
+   .all.netwops.list selection set 0
+   .menubar.filter.netwops delete 1 end
+
+   set nlidx 0
+   foreach cni $ailist {
+      .all.netwops.list insert end $netnames($cni)
+      .menubar.filter.netwops add checkbutton -label $netnames($cni) -variable netselmenu($nlidx) -command [list SelectNetwopMenu $nlidx]
+      incr nlidx
+   }
+   .all.netwops.list configure -height [expr [llength $ailist] + 1]
 }
 
 # remove elements from a list that are not member of a reference list
@@ -2435,6 +2760,386 @@ proc RemoveObsoleteCnisFromList {alist ref_list} {
          incr idx
       } else {
          set cni_list [lreplace $cni_list $idx $idx]
+      }
+   }
+}
+
+
+##  --------------------------------------------------------------------------
+##  Configure individual names for networks
+##
+set netname_popup 0
+
+proc NetworkNamingPopup {} {
+   global cfnetnames prov_selection cfnetwops
+   global netname_ailist netname_names netname_idx netname_xawtv
+   global netname_prov_cnis netname_prov_names netname_provnets
+   global netname_entry
+   global netname_popup font_fixed is_unix
+
+   if {$netname_popup == 0} {
+      set netname_popup 1
+
+      # build list of available providers
+      set netname_prov_cnis {}
+      foreach {cni name} [C_GetProvCnisAndNames] {
+         # build list of CNIs
+         lappend netname_prov_cnis $cni
+         # build array of provider network names
+         set netname_prov_names($cni) $name
+      }
+      # sort provider list according to user preferences
+      set netname_prov_cnis [SortProvList $netname_prov_cnis]
+
+      if {[llength $netname_prov_cnis] == 0} {
+         # no providers found -> abort
+         tk_messageBox -type ok -icon info -message "There are no providers available yet.\nPlease start a provider scan from the Configure menu."
+         return
+      }
+
+      set netname_ailist {}
+      # retrieve all networks from all providers
+      foreach prov $netname_prov_cnis {
+         array unset tmparr
+         set cnilist [C_GetAiNetwopList $prov tmparr]
+         foreach cni $cnilist {
+            set netname_provnets($prov,$cni) $tmparr($cni)
+         }
+
+         if [info exists cfnetwops($prov)] {
+            foreach cni [lindex $cfnetwops($prov) 0] {
+               if [info exists tmparr($cni)] {
+                  if {[lsearch -exact $netname_ailist $cni] == -1} {
+                     lappend netname_ailist $cni
+                  }
+                  unset tmparr($cni)
+               }
+            }
+         }
+         foreach cni $cnilist {
+            if [info exists tmparr($cni)] {
+               if {[lsearch -exact $netname_ailist $cni] == -1} {
+                  lappend netname_ailist $cni
+               }
+            }
+         }
+      }
+      array unset tmparr
+
+      # re-sort CNI list for the merged database
+      if {[info exists cfnetwops(0x00FF)] && ([C_GetCurrentDatabaseCni] == 0x00FF)} {
+         set tmp {}
+         foreach cni [lindex $cfnetwops(0x00FF) 0] {
+            set idx [lsearch -exact $netname_ailist $cni]
+            if {$idx >= 0} {
+               lappend tmp $cni
+               set netname_ailist [lreplace $netname_ailist $idx $idx]
+            }
+         }
+         set netname_ailist [concat $tmp $netname_ailist]
+      }
+
+      # build array with all names from .xawtv rc file
+      if $is_unix {
+         set xawtv_list [ReadXawtvNetworkNames]
+         foreach name $xawtv_list {
+            set netname_xawtv($name) $name
+            regsub -all -- {[^a-zA-Z0-9]*} $name {} tmp
+            set netname_xawtv([string tolower $tmp]) $name
+         }
+      } else {
+         set xawtv_list {}
+      }
+
+      # copy or build an array with the currently configured network names
+      foreach cni $netname_ailist {
+         if [info exists cfnetnames($cni)] {
+            set netname_names($cni) $cfnetnames($cni)
+         } else {
+            # no name yet defined -> search best among all providers
+            foreach prov $netname_prov_cnis {
+               if [info exists netname_provnets($prov,$cni)] {
+                  regsub -all -- {[^a-zA-Z0-9]*} $netname_provnets($prov,$cni) {} name
+                  set name [string tolower $name]
+                  if [info exists netname_xawtv($netname_provnets($prov,$cni))] {
+                     set netname_names($cni) $netname_xawtv($netname_provnets($prov,$cni))
+                     break
+                  } elseif [info exists netname_xawtv($name)] {
+                     set netname_names($cni) $netname_xawtv($name)
+                     break
+                  } elseif {![info exists netname_names($cni)]} {
+                     set netname_names($cni) $netname_provnets($prov,$cni)
+                  }
+               }
+            }
+            if {![info exists netname_names($cni)]} {
+               # should never happen
+               set netname_names($cni) "undefined"
+            }
+         }
+      }
+
+      CreateTransientPopup .netname "Network name configuration"
+
+      ## first column: listbox with all netwops in AI order
+      frame .netname.list
+      listbox .netname.list.ailist -exportselection false -setgrid true -height 20 -width 0 -selectmode single -relief ridge -yscrollcommand {.netname.list.sc set}
+      pack .netname.list.ailist -anchor nw -side left -fill both -expand 1
+      scrollbar .netname.list.sc -orient vertical -command {.netname.list.ailist yview}
+      pack .netname.list.sc -side left -fill y
+      pack .netname.list -side left -fill both -pady 10 -padx 10
+      bind .netname.list.ailist <ButtonPress-1> [list + after idle NetworkNameSelection]
+      bind .netname.list.ailist <space>         [list + after idle NetworkNameSelection]
+
+      ## second column: info and commands for the selected network
+      frame .netname.cmd
+      entry .netname.cmd.myname -textvariable netname_entry -font $font_fixed
+      pack .netname.cmd.myname -side top -anchor nw -fill x
+
+      if $is_unix {
+         frame .netname.cmd.fx
+         label .netname.cmd.fx.lab -text "In .xawtv:  "
+         pack .netname.cmd.fx.lab -side left -anchor w
+         menubutton .netname.cmd.fx.mb -text "" -menu .netname.cmd.fx.mb.men -takefocus 1 \
+                                       -relief raised -borderwidth 2 -width 12
+         if [array exists netname_xawtv] {
+            menu .netname.cmd.fx.mb.men -tearoff 0
+         } else {
+            .netname.cmd.fx.mb configure -state disabled
+         }
+         pack .netname.cmd.fx.mb -side left -anchor e
+         pack .netname.cmd.fx -side top -fill x -pady 10
+      }
+
+      label .netname.cmd.lprovnams -text "Names used by providers:"
+      pack .netname.cmd.lprovnams -side top -anchor nw -pady 10
+      listbox .netname.cmd.provnams -exportselection false -height [llength $netname_prov_cnis] -width 0 -selectmode single
+      pack .netname.cmd.provnams -side top -anchor n -fill x
+      bind .netname.cmd.provnams <ButtonPress-1> [list + after idle NetworkNameProvSelection]
+      bind .netname.cmd.provnams <space>         [list + after idle NetworkNameProvSelection]
+
+      button .netname.cmd.save -text "Save" -width 7 -command NetworkNamesSave
+      button .netname.cmd.abort -text "Abort" -width 7 -command NetworkNamesAbort
+      button .netname.cmd.help -text "Help" -width 7 -command {PopupHelp $helpIndex(Configuration) "Network names"}
+      pack .netname.cmd.help .netname.cmd.abort .netname.cmd.save -side bottom -anchor sw
+
+      pack .netname.cmd -side left -fill y -anchor n -pady 10 -padx 10
+
+      bind .netname.cmd <Destroy> {+ set netname_popup 0}
+      focus .netname.cmd.myname
+
+      foreach name $xawtv_list {
+         .netname.cmd.fx.mb.men add command -label $name -command [list NetworkNameXawtvSelection $name]
+      }
+
+      foreach cni $netname_ailist {
+         .netname.list.ailist insert end $netname_names($cni)
+         if {[array exists netname_xawtv] && ![info exists netname_xawtv($netname_names($cni))]} {
+            .netname.list.ailist itemconfigure end -foreground red -selectforeground red
+         }
+      }
+      set netname_idx -1
+      .netname.list.ailist selection set 0
+      NetworkNameSelection
+
+   } else {
+      raise .netname
+   }
+}
+
+# Save changed name for the currently selected network
+proc NetworkNameSaveEntry {} {
+   global netname_ailist netname_names netname_idx netname_xawtv
+   global netname_entry
+
+   if {$netname_idx != -1} {
+      set cni [lindex $netname_ailist $netname_idx]
+
+      # save the selected name
+      set netname_names($cni) $netname_entry
+
+      # update the network names listbox
+      set sel [.netname.list.ailist curselection]
+      .netname.list.ailist delete $netname_idx
+      .netname.list.ailist insert $netname_idx $netname_names($cni)
+      .netname.list.ailist selection set $sel
+      if {[array exists netname_xawtv] && ![info exists netname_xawtv($netname_entry)]} {
+         .netname.list.ailist itemconfigure $netname_idx -foreground red -selectforeground red
+      }
+   }
+}
+
+# callback for selection of a network in the ailist
+# -> requires update of the information displayed on the right
+proc NetworkNameSelection {} {
+   global netname_ailist netname_names netname_idx netname_xawtv
+   global netname_prov_cnis netname_prov_names netname_provnets
+   global netname_entry
+   global is_unix
+
+   set sel [.netname.list.ailist curselection]
+   if {([string length $sel] > 0) && ($sel < [llength $netname_ailist]) && ($sel != $netname_idx)} {
+      # save name of the previously selected network, if changed
+      NetworkNameSaveEntry
+
+      set netname_idx $sel
+
+      # copy the name of the currently selected network into the entry field
+      set cni [lindex $netname_ailist $netname_idx]
+      set netname_entry $netname_names($cni)
+
+      # display the matched name in the .xawtv file
+      if $is_unix {
+         if {[info exists netname_xawtv($netname_names($cni))]} {
+            .netname.cmd.fx.mb configure -text $netname_xawtv($netname_names($cni))
+         } else {
+            .netname.cmd.fx.mb configure -text "unknown"
+         }
+      }
+
+      # rebuild the list of provider's network names
+      .netname.cmd.provnams delete 0 end
+      foreach prov $netname_prov_cnis {
+         if [info exists netname_provnets($prov,$cni)] {
+            .netname.cmd.provnams insert end "\[$netname_prov_names($prov)\]  $netname_provnets($prov,$cni)"
+         }
+      }
+   }
+}
+
+# callback for selection of a name in the provider listbox
+proc NetworkNameProvSelection {} {
+   global netname_ailist netname_names netname_idx netname_xawtv
+   global netname_prov_cnis netname_prov_names netname_provnets
+   global netname_entry
+
+   set cni [lindex $netname_ailist $netname_idx]
+   set sel [.netname.cmd.provnams curselection]
+   if {([string length $sel] > 0) && ($sel < [llength $netname_prov_cnis])} {
+      set prov [lindex $netname_prov_cnis $sel]
+
+      if [info exists netname_provnets($prov,$cni)] {
+         set netname_entry $netname_provnets($prov,$cni)
+         .netname.list.ailist delete $netname_idx
+         .netname.list.ailist insert $netname_idx $netname_entry
+         .netname.list.ailist selection set $netname_idx
+         if {[array exists netname_xawtv] && ![info exists netname_xawtv($netname_entry)]} {
+            .netname.list.ailist itemconfigure $netname_idx -foreground red -selectforeground red
+         }
+      }
+   }
+}
+
+# callback for selection of a name in the xawtv menu
+proc NetworkNameXawtvSelection {name} {
+   global netname_entry netname_idx
+   global is_unix
+
+   set netname_entry $name
+   if $is_unix {
+      .netname.cmd.fx.mb configure -text $name
+   }
+   .netname.list.ailist delete $netname_idx
+   .netname.list.ailist insert $netname_idx $netname_entry
+   .netname.list.ailist selection set $netname_idx
+}
+
+# "Save" command button
+proc NetworkNamesSave {} {
+   global cfnetnames netname_names
+
+   # save name of the currently selected network, if changed
+   NetworkNameSaveEntry
+
+   # save new name list to the rc/ini dile
+   array unset cfnetnames
+   array set cfnetnames [array get netname_names]
+   UpdateRcFile
+
+   # update the network menus with the new names
+   UpdateNetwopFilterBar
+
+   # Redraw the PI listbox with the new network names
+   C_RefreshPiListbox
+
+   # close the window
+   destroy .netname
+
+   # free memory
+   foreach var {netname_ailist netname_names netname_idx netname_xawtv
+                netname_prov_cnis netname_prov_names netname_provnets
+                netname_entry} {
+      if [info exists $var] {unset $var}
+   }
+}
+
+# "Abort" command button
+proc NetworkNamesAbort {} {
+   global cfnetnames netname_names
+
+   # save name of the currently selected network, if changed
+   NetworkNameSaveEntry
+
+   set changed 0
+   if [array exists cfnetnames] {
+      # check if any names have changed (or if there are new CNIs)
+      foreach cni [array names netname_names] {
+         if {![info exists cfnetnames($cni)] || ([string compare $cfnetnames($cni) $netname_names($cni)] != 0)} {
+            set changed 1
+            break
+         }
+      }
+   } else {
+      # no config exists yet (popup called for the first time)
+      # cannot determine if the user touched anything -> must ask
+      set changed 1
+   }
+
+   if $changed {
+      set answer [tk_messageBox -type okcancel -icon warning -parent .netname -message "Discard all changes?"]
+      if {[string compare $answer cancel] == 0} {
+         return
+      }
+   }
+
+   # close the popup window
+   destroy .netname
+}
+
+
+# return all channel names defined in .xawtv
+proc ReadXawtvNetworkNames {} {
+   set xawtv_names {}
+   if {[catch {set rcfile [open "~/.xawtv" "r"]} errmsg] == 0} {
+      while {[gets $rcfile line] >= 0} {
+         if {[scan $line {[%99[^]]]} section] == 1} {
+            if {[string compare $section "global"] && [string compare $section "defaults"]} {
+               lappend xawtv_names $section
+            }
+         }
+      }
+      close $rcfile
+
+      if {[llength $xawtv_names] == 0} {
+         tk_messageBox -type ok -icon error -message "No channel names found in .xawtv! Expecting one name per line in the format: [name] (including brackets)"
+      }
+   }
+   #elseif $must_exist {
+   #   tk_messageBox -type ok -icon error -message "Failed to read \$HOME/.xawtv: $errmsg"
+   #}
+   return $xawtv_names
+}
+
+##  --------------------------------------------------------------------------
+##  Replace provider-supplied network names with user-configured names
+##
+proc ApplyUserNetnameCfg {name_arr} {
+   upvar $name_arr netnames
+   global cfnetnames
+
+   foreach cni [array names netnames] {
+      if [info exists cfnetnames($cni)] {
+         set netnames($cni) $cfnetnames($cni)
       }
    }
 }
@@ -2502,6 +3207,8 @@ proc PopupColumnSelection {} {
       button .colsel.cmd.quit -text "Dismiss" -width 7 -command {destroy .colsel}
       pack .colsel.cmd.help .colsel.cmd.quit .colsel.cmd.apply -side bottom -anchor sw
       bind .colsel.cmd <Destroy> {+ set colsel_popup 0}
+   } else {
+      raise .colsel
    }
 }
 
@@ -2601,26 +3308,27 @@ proc FilterMenuAdd_Time {widget} {
 
 proc FilterMenuAdd_Date {widget} {
    set start_time [clock seconds]
-   $widget add command -label "Today" -command {C_PiListBox_GotoTime now}
+   $widget add command -label "Today, [clock format $start_time -format {%d. %b. %Y}]" -command {C_PiListBox_GotoTime now}
    incr start_time [expr 24*60*60]
-   $widget add command -label "Tomorrow" -command [list C_PiListBox_GotoTime $start_time]
+   $widget add command -label "Tomorrow, [clock format $start_time -format {%d. %b. %Y}]" -command [list C_PiListBox_GotoTime $start_time]
 
    for {set i 2} {$i < 5} {incr i} {
       incr start_time [expr 24*60*60]
-      $widget add command -label [clock format $start_time -format "%A"] -command [list C_PiListBox_GotoTime $start_time]
+      $widget add command -label [clock format $start_time -format {%A, %d. %b. %Y}] -command [list C_PiListBox_GotoTime $start_time]
    }
 }
 
 proc FilterMenuAdd_Networks {widget} {
-   global cfnetwops netselmenu netsel_names
+   global cfnetwops netselmenu
 
    $widget add command -label "All networks" -command {ResetNetwops; SelectNetwop}
    $widget add separator
 
    # fetch CNI list from AI block in database
    # as a side effect this function stores all netwop names into the array netsel_names
-   set netsel_prov [C_GetProvCni]
-   set netsel_ailist [C_GetAiNetwopList]
+   set netsel_prov [C_GetCurrentDatabaseCni]
+   set netsel_ailist [C_GetAiNetwopList 0 netsel_names]
+   ApplyUserNetnameCfg netsel_names
 
    if {[info exists cfnetwops($netsel_prov)]} {
       set netsel_selist [lindex $cfnetwops($netsel_prov) 0]
@@ -2633,7 +3341,6 @@ proc FilterMenuAdd_Networks {widget} {
       $widget add checkbutton -label $netsel_names($cni) -variable netselmenu($nlidx) -command [list SelectNetwopMenu $nlidx]
       incr nlidx
    }
-   if {[array exists netsel_names]} { unset netsel_names }
 }
 
 proc FilterMenuAdd_Title {widget} {
@@ -2647,7 +3354,7 @@ proc FilterMenuAdd_Title {widget} {
    # append the series menu (same as from the filter menu)
    $widget add cascade -label "Series" -menu ${widget}.series
    if {[string length [info commands ${widget}.series]] == 0} {
-      menu ${widget}.series -postcommand [list PostDynamicMenu ${widget}.series C_CreateSeriesNetwopMenu]
+      menu ${widget}.series -postcommand [list PostDynamicMenu ${widget}.series CreateSeriesNetworksMenu]
    }
 
    # append shortcuts for the last 10 substring searches
@@ -2754,6 +3461,8 @@ proc PopupProviderMerge {} {
       pack .provmerge.cmd.help .provmerge.cmd.abort .provmerge.cmd.ok -side left -padx 10
       pack .provmerge.cmd -side top -pady 10
       bind .provmerge.cmd <Destroy> {+ set provmerge_popup 0; ProvMerge_Quit Abort}
+   } else {
+      raise .provmerge
    }
 }
 
@@ -2804,6 +3513,9 @@ proc PopupProviderMergeOpt {cfoption} {
             destroy $widget
          }
          SelBoxCreate .provmergeopt.lb provmerge_selist provmerge_cf($cfoption) provmerge_names
+
+         # make the sure the popup is not obscured by other windows
+         raise .provmergeopt
       }
    }
 }
@@ -2932,6 +3644,7 @@ proc PopupAcqMode {} {
    global acqmode_ailist acqmode_selist acqmode_names
    global acqmode_sel
    global acq_mode acq_mode_cnis
+   global is_unix
 
    if {$acqmode_popup == 0} {
       CreateTransientPopup .acqmode "Acquisition mode selection"
@@ -2955,13 +3668,17 @@ proc PopupAcqMode {} {
 
       # checkbuttons for modes
       frame .acqmode.mode
-      radiobutton .acqmode.mode.mode0 -text "Passive (follow external selection)" -variable acqmode_sel -value "passive" -command UpdateAcqModePopup
-      radiobutton .acqmode.mode.mode1 -text "Follow browser database" -variable acqmode_sel -value "follow-ui" -command UpdateAcqModePopup
-      radiobutton .acqmode.mode.mode2 -text "Manually selected" -variable acqmode_sel -value "cyclic_2" -command UpdateAcqModePopup
-      radiobutton .acqmode.mode.mode3 -text "Cyclic: Now->Near->All" -variable acqmode_sel -value "cyclic_012" -command UpdateAcqModePopup
-      radiobutton .acqmode.mode.mode4 -text "Cyclic: Now->All" -variable acqmode_sel -value "cyclic_02" -command UpdateAcqModePopup
-      radiobutton .acqmode.mode.mode5 -text "Cyclic: Near->All" -variable acqmode_sel -value "cyclic_12" -command UpdateAcqModePopup
-      pack .acqmode.mode.mode0 .acqmode.mode.mode1 .acqmode.mode.mode2 .acqmode.mode.mode3 .acqmode.mode.mode4 .acqmode.mode.mode5 -side top -anchor w
+      if $is_unix {
+         radiobutton .acqmode.mode.mode0 -text "Passive (no input selection)" -variable acqmode_sel -value "passive" -command UpdateAcqModePopup
+         pack .acqmode.mode.mode0 -side top -anchor w
+      }
+      radiobutton .acqmode.mode.mode1 -text "External (don't touch TV tuner)" -variable acqmode_sel -value "external" -command UpdateAcqModePopup
+      radiobutton .acqmode.mode.mode2 -text "Follow browser database" -variable acqmode_sel -value "follow-ui" -command UpdateAcqModePopup
+      radiobutton .acqmode.mode.mode3 -text "Manually selected" -variable acqmode_sel -value "cyclic_2" -command UpdateAcqModePopup
+      radiobutton .acqmode.mode.mode4 -text "Cyclic: Now->Near->All" -variable acqmode_sel -value "cyclic_012" -command UpdateAcqModePopup
+      radiobutton .acqmode.mode.mode5 -text "Cyclic: Now->All" -variable acqmode_sel -value "cyclic_02" -command UpdateAcqModePopup
+      radiobutton .acqmode.mode.mode6 -text "Cyclic: Near->All" -variable acqmode_sel -value "cyclic_12" -command UpdateAcqModePopup
+      pack .acqmode.mode.mode1 .acqmode.mode.mode2 .acqmode.mode.mode3 .acqmode.mode.mode4 .acqmode.mode.mode5 .acqmode.mode.mode6 -side top -anchor w
       pack .acqmode.mode -side top -pady 10 -padx 10 -anchor w
 
       # create two listboxes for provider database selection
@@ -2977,6 +3694,8 @@ proc PopupAcqMode {} {
       pack .acqmode.cmd.help .acqmode.cmd.abort .acqmode.cmd.apply -side left -padx 10
       pack .acqmode.cmd -side top -pady 10
       bind .acqmode.cmd <Destroy> {+ set acqmode_popup 0}
+   } else {
+      raise .acqmode
    }
 }
 
@@ -3189,6 +3908,8 @@ proc PopupHardwareConfig {} {
       pack .hwcfg.cmd.help .hwcfg.cmd.abort .hwcfg.cmd.ok -side left -padx 10
       pack .hwcfg.cmd -side top -pady 10
       bind .hwcfg.cmd <Destroy> {+ set hwcfg_popup 0}
+   } else {
+      raise .hwcfg
    }
 }
 
@@ -3328,6 +4049,8 @@ the correct value."
       pack .timezone.cmd -side top -pady 10
 
       ToggleTimeZoneAuto $tz_auto_sel
+   } else {
+      raise .timezone
    }
 }
 
@@ -3564,6 +4287,7 @@ set fsc_name_idx 0
 set fsc_mask_idx 1
 set fsc_filt_idx 2
 set fsc_logi_idx 3
+set fsc_tag_idx  4
 
 ##
 ##  Predefined filter shortcuts
@@ -3571,43 +4295,190 @@ set fsc_logi_idx 3
 proc PreloadShortcuts {} {
    global shortcuts shortcut_count
 
-   set shortcuts(0)  {movies themes {theme_class1 16} merge}
-   set shortcuts(1)  {sports themes {theme_class1 64} merge}
-   set shortcuts(2)  {series themes {theme_class1 128} merge}
-   set shortcuts(3)  {kids themes {theme_class1 80} merge}
-   set shortcuts(4)  {shows themes {theme_class1 48} merge}
-   set shortcuts(5)  {news themes {theme_class1 32} merge}
-   set shortcuts(6)  {social themes {theme_class1 37} merge}
-   set shortcuts(7)  {science themes {theme_class1 86} merge}
-   set shortcuts(8)  {hobbies themes {theme_class1 52} merge}
-   set shortcuts(9)  {music themes {theme_class1 96} merge}
-   set shortcuts(10) {culture themes {theme_class1 112} merge}
-   set shortcuts(11) {adult themes {theme_class1 24} merge}
+   set shortcuts(0)  {movies themes {theme_class1 16} merge 0}
+   set shortcuts(1)  {sports themes {theme_class1 64} merge 1}
+   set shortcuts(2)  {series themes {theme_class1 128} merge 2}
+   set shortcuts(3)  {kids themes {theme_class1 80} merge 3}
+   set shortcuts(4)  {shows themes {theme_class1 48} merge 4}
+   set shortcuts(5)  {news themes {theme_class1 32} merge 5}
+   set shortcuts(6)  {social themes {theme_class1 37} merge 6}
+   set shortcuts(7)  {science themes {theme_class1 86} merge 7}
+   set shortcuts(8)  {hobbies themes {theme_class1 52} merge 8}
+   set shortcuts(9)  {music themes {theme_class1 96} merge 9}
+   set shortcuts(10) {culture themes {theme_class1 112} merge 10}
+   set shortcuts(11) {adult themes {theme_class1 24} merge 11}
    set shortcut_count 12
 }
 
 ##
-##  Process list of theme filters: convert to decimal and expand ranges
+##  Generate a new, unique tag
 ##
-#proc ProcessThemeSpec {tlist} {
-#   set result {}
-#   foreach theme $tlist {
-#      if {[scan $theme "%d-%d" start stop]==2 || [scan $theme "0x%x-0x%x" start stop]==2} {
-#         for {} {$start <= $stop} {incr start} {
-#            lappend result $start
-#         }
-#      } else {
-#         lappend result [expr $theme + 0]
-#      }
-#   }
-#   return $result
-#}
+proc GenerateShortcutTag {} {
+   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_logi_idx fsc_tag_idx
+   global shortcuts shortcut_count
+
+   set tag [clock seconds]
+   foreach idx [array names shortcuts] {
+      set stag [lindex $shortcuts($idx) $fsc_tag_idx]
+      if {([string length $tag] > 0) && ($tag <= $stag)} {
+         set tag [expr $stag + 1]
+      }
+   }
+   return $tag
+}
+
+##  --------------------------------------------------------------------------
+##  Generate a text that describes a given filter setting
+##
+proc ShortcutPrettyPrint {filter} {
+
+   # fetch CNI list from AI block in database
+   set netsel_ailist [C_GetAiNetwopList 0 netnames]
+   ApplyUserNetnameCfg netnames
+
+   set out {}
+   foreach {ident valist} $filter {
+      switch -glob $ident {
+         theme_class1 {
+            foreach theme $valist {
+               append out "Theme: [C_GetPdcString $theme]\n"
+            }
+         }
+         theme_class* {
+            scan $ident "theme_class%d" class
+            foreach theme $valist {
+               append out "Theme, class $class: [C_GetPdcString $theme]\n"
+            }
+         }
+         sortcrit_class* {
+            scan $ident "sortcrit_class%d" class
+            foreach sortcrit $valist {
+               append out "Sort.crit., class $class: [format 0x%02X $sortcrit]\n"
+            }
+         }
+         series {
+            set titnet_list [C_GetSeriesTitles $valist]
+            set title_list {}
+            foreach {title netwop lang} $titnet_list {
+               lappend title_list [list [DictifySeriesTitle $title $lang] $netwop]
+            }
+            foreach title [lsort -command CompareSeriesMenuEntries $title_list] {
+               append out "Series: '[lindex $title 0]' on [lindex $title 1]\n"
+            }
+         }
+         netwops {
+            foreach cni $valist {
+               if [info exists netnames($cni)] {
+                  append out "Network: $netnames($cni)\n"
+               } else {
+                  append out "Network: CNI $cni\n"
+               }
+            }
+         }
+         features {
+            foreach {mask value} $valist {
+               if {($mask & 0x03) == 0x03} {
+                  append out "Feature: " [switch -exact [expr $value & 0x03] {
+                     0 {format "mono"}
+                     1 {format "2-channel"}
+                     2 {format "stereo"}
+                     3 {format "surround"}
+                  }] " sound\n"
+               }
+               if {$mask & 0x04} {
+                  append out "Feature: widescreen picture\n"
+               }
+               if {$mask & 0x08} {
+                  append out "Feature: PAL+ picture\n"
+               }
+               if {$mask & 0x10} {
+                  append out "Feature: digital\n"
+               }
+               if {$mask & 0x20} {
+                  append out "Feature: encrypted\n"
+               }
+               if {$mask & 0x40} {
+                  append out "Feature: live transmission\n"
+               }
+               if {$mask & 0x80} {
+                  append out "Feature: repeat\n"
+               }
+               if {$mask & 0x100} {
+                  append out "Feature: subtitled\n"
+               }
+            }
+         }
+         parental {
+            if {$valist == 1} {
+               append out "Parental rating: general (all ages)\n"
+            } elseif {$valist > 0} {
+               append out "Parental rating: age [expr $valist * 2] and up\n"
+            }
+         }
+         editorial {
+            append out "Editorial rating: $valist of 1..7\n"
+         }
+         progidx {
+            set start [lindex $valist 0]
+            set stop  [lindex $valist 1]
+            if {($start == 0) && ($stop == 0)} {
+               append out "Program running NOW\n"
+            } elseif {($start == 0) && ($stop == 1)} {
+               append out "Program running NOW or NEXT\n"
+            } elseif {($start == 1) && ($stop == 1)} {
+               append out "Program running NEXT\n"
+            } else {
+               append out "Program indices #$start..#$stop\n"
+            }
+         }
+         timsel {
+            if {[lindex $valist 4] == 0} {
+               set date "today"
+            } elseif {[lindex $valist 4] == 1} {
+               set date "tomorrow"
+            } else {
+               set date "in [lindex $valist 4] days"
+            }
+            if {[lindex $valist 0] == 0} {
+               if {[lindex $valist 1] == 0} {
+                  append out "Time span: $date from [Motd2HHMM [lindex $valist 2]] til [Motd2HHMM [lindex $valist 3]]\n"
+               } else {
+                  append out "Time span: $date from [Motd2HHMM [lindex $valist 2]] til midnight\n"
+               }
+            } else {
+               if {[lindex $valist 1] == 0} {
+                  append out "Time span: $date from NOW til [Motd2HHMM [lindex $valist 3]]\n"
+               } else {
+                  append out "Time span: $date from NOW til midnight\n"
+               }
+            }
+         }
+         substr {
+            set grep_title [lindex $valist 0]
+            set grep_descr [lindex $valist 1]
+            if {$grep_title && !$grep_descr} {
+               append out "Title"
+            } elseif {!$grep_title && $grep_descr} {
+               append out "Description"
+            } else {
+               append out "Title or Description"
+            }
+            append out " containing '[lindex $valist 3]'"
+            if [lindex $valist 2] {
+               append out " (case ignored)"
+            }
+            append out "\n"
+         }
+      }
+   }
+   return $out
+}
 
 ##  --------------------------------------------------------------------------
 ##  Check if shortcut should be deselected after manual filter modification
 ##
 proc CheckShortcutDeselection {} {
-   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_logi_idx
+   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_logi_idx fsc_tag_idx
    global shortcuts shortcut_count
    global parental_rating editorial_rating
    global theme_sel theme_class_sel current_theme_class theme_class_count
@@ -3739,7 +4610,7 @@ proc CheckShortcutDeselection {} {
 ##  Callback for button-release on shortcuts listbox
 ##
 proc SelectShortcut {} {
-   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_logi_idx
+   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_logi_idx fsc_tag_idx
    global shortcuts shortcut_count
    global parental_rating editorial_rating
    global theme_sel theme_class_sel current_theme_class theme_class_count
@@ -3997,7 +4868,7 @@ proc SelectShortcut {} {
       # convert CNIs to netwop indices
       set all {}
       set index 0
-      foreach cni [C_GetAiNetwopList] {
+      foreach cni [C_GetAiNetwopList 0 {}] {
          if {[lsearch -exact $selcnis $cni] != -1} {
             lappend all $index
          }
@@ -4053,7 +4924,6 @@ proc DescribeCurrentFilter {} {
    global feature_class_count current_feature_class
    global substr_grep_title substr_grep_descr substr_ignore_case substr_pattern
    global filter_progidx progidx_first progidx_last
-   global fscedit_desc fscedit_mask
    global timsel_enabled timsel_start timsel_stop timsel_date timsel_relative timsel_absstop
 
    # save the setting of the current theme class into the array
@@ -4066,13 +4936,13 @@ proc DescribeCurrentFilter {} {
    set theme_class_sel($current_theme_class) $all
 
    set all {}
-   if {[info exists fscedit_mask]} {unset fscedit_mask}
+   set mask {}
 
    # dump all theme classes
    for {set class 1} {$class <= $theme_class_count} {incr class} {
       if {[string length $theme_class_sel($class)] > 0} {
          lappend all "theme_class$class" $theme_class_sel($class)
-         set fscedit_mask(themes) 1
+         lappend mask themes
       }
    }
 
@@ -4080,7 +4950,7 @@ proc DescribeCurrentFilter {} {
    for {set class 1} {$class <= $theme_class_count} {incr class} {
       if {[string length $sortcrit_class_sel($class)] > 0} {
          lappend all "sortcrit_class$class" $sortcrit_class_sel($class)
-         set fscedit_mask(sortcrits) 1
+         lappend mask sortcrits
       }
    }
 
@@ -4093,28 +4963,28 @@ proc DescribeCurrentFilter {} {
    }
    if {[string length $temp] > 0} {
       lappend all "features" $temp
-      set fscedit_mask(features) 1
+      lappend mask features
    }
 
    if {$parental_rating > 0} {
       lappend all "parental" $parental_rating
-      set fscedit_mask(parental) 1
+      lappend mask parental
    }
    if {$editorial_rating > 0} {
       lappend all "editorial" $editorial_rating
-      set fscedit_mask(editorial) 1
+      lappend mask editorial
    }
 
    # dump text substring filter state
    if {[string length $substr_pattern] > 0} {
       lappend all "substr" [list $substr_grep_title $substr_grep_descr $substr_ignore_case $substr_pattern]
-      set fscedit_mask(substr) 1
+      lappend mask substr
    }
 
    # dump program index filter state
    if {$filter_progidx > 0} {
       lappend all "progidx" [list $progidx_first $progidx_last]
-      set fscedit_mask(progidx) 1
+      lappend mask progidx
    }
 
    # dump series array
@@ -4126,13 +4996,13 @@ proc DescribeCurrentFilter {} {
    }
    if {[string length $temp] > 0} {
       lappend all "series" $temp
-      set fscedit_mask(series) 1
+      lappend mask series
    }
 
    # dump start time filter
    if {$timsel_enabled} {
       lappend all "timsel" [list $timsel_relative $timsel_absstop $timsel_start $timsel_stop $timsel_date]
-      set fscedit_mask(timsel) 1
+      lappend mask timsel
    }
 
    # dump CNIs of selected netwops
@@ -4141,10 +5011,175 @@ proc DescribeCurrentFilter {} {
    set temp [C_GetNetwopFilterList]
    if {[llength $temp] > 0} {
       lappend all "netwops" $temp
-      set fscedit_mask(netwops) 1
+      lappend mask netwops
    }
 
-   return $all
+   return [list $mask $all]
+}
+
+##  --------------------------------------------------------------------------
+##  Compare settings of two shortcuts: return TRUE if identical
+##  - NOTE: tags are not compared because they always differ between shortcuts
+##  - NOTE: filter setting is not compared properly (see below)
+##
+proc CompareShortcuts {sc_a sc_b} {
+   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_logi_idx fsc_tag_idx
+
+   set result 0
+   # compare label
+   if {[string compare [lindex $sc_a $fsc_name_idx] [lindex $sc_b $fsc_name_idx]] == 0} {
+      # compare combination logic mode
+      if {[string compare [lindex $sc_a $fsc_logi_idx] [lindex $sc_b $fsc_logi_idx]] == 0} {
+         # compare combination logic mode
+         if {[string compare [lsort [lindex $sc_a $fsc_mask_idx]] [lsort [lindex $sc_b $fsc_mask_idx]]] == 0} {
+            # compare filter settings
+            # NOTE: would need to be sorted for exact comparison!
+            #       currently not required, hence not implemented
+            if {[string compare [lindex $sc_a $fsc_filt_idx] [lindex $sc_b $fsc_filt_idx]] == 0} {
+               set result 1
+            }
+         }
+      }
+   }
+   return $result
+}
+
+##  --------------------------------------------------------------------------
+##  Update filter shortcut pop-up window
+##
+set fscupd_popup 0
+
+proc UpdateFilterShortcut {} {
+   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_logi_idx fsc_tag_idx
+   global shortcuts shortcut_count
+   global fscupd_popup fscedit_popup
+   global fsc_prevselection
+
+
+   if {$fscupd_popup == 0} {
+      CreateTransientPopup .fscupd "Update shortcut"
+      set fscupd_popup 1
+
+      message .fscupd.msg -aspect 400 -text "Please select which shortcut shall be updated with the current filter setting:"
+      pack .fscupd.msg -side top -padx 10
+
+      ## first column: listbox with all shortcut labels
+      listbox .fscupd.list -exportselection false -setgrid true -height 12 -width 0 -selectmode single -relief ridge
+      #bind .fscupd.list <Double-Button-1> {+ SelectEditedShortcut}
+      pack .fscupd.list -fill x -anchor nw -side left -pady 10 -padx 10 -fill y -expand 1
+
+      ## second column: command buttons and entry widget to rename shortcuts
+      frame .fscupd.cmd
+      button .fscupd.cmd.update -text "Update" -command {SaveUpdatedFilterShortcut no} -width 12
+      button .fscupd.cmd.edit -text "Update & Edit" -command {SaveUpdatedFilterShortcut yes} -width 12
+      button .fscupd.cmd.abort -text "Abort" -command {destroy .fscupd} -width 12
+      button .fscupd.cmd.help -text "Help" -command {PopupHelp $helpIndex(Filter shortcuts)} -width 12
+      pack .fscupd.cmd.help .fscupd.cmd.abort .fscupd.cmd.edit .fscupd.cmd.update -side bottom -anchor sw
+      pack .fscupd.cmd -side left -anchor nw -pady 10 -padx 5 -fill y -expand 1
+      bind .fscupd.cmd <Destroy> {+ set fscupd_popup 0}
+
+      # fill the listbox with all shortcut labels
+      for {set index 0} {$index < $shortcut_count} {incr index} {
+         .fscupd.list insert end [lindex $shortcuts($index) $fsc_name_idx]
+      }
+      .fscupd.list configure -height $shortcut_count
+
+      # preselect the currently selected shortcut
+      if {[info exists fsc_prevselection] && ([llength $fsc_prevselection] == 1)} {
+         .fscupd.list selection set $fsc_prevselection
+      }
+   } else {
+      raise .fscupd
+   }
+}
+
+proc GetShortcutIdentList {shortcut} {
+   set idl {}
+   foreach {ident valist} $shortcut {
+      switch -glob $ident {
+         theme_class*   {
+            lappend idl "themes"
+         }
+         sortcrit_class*   {
+            lappend idl "sortcrits"
+         }
+         default {
+            lappend idl $ident
+         }
+      }
+   }
+   return $idl
+}
+
+# "Update" and "Update & Edit" command buttons
+proc SaveUpdatedFilterShortcut {call_edit} {
+   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_logi_idx fsc_tag_idx
+   global shortcuts shortcut_count
+   global fscedit_sclist fscedit_count
+   global fscedit_popup
+
+   # determine current filter settings (discard mask)
+   set filt [lindex [DescribeCurrentFilter] 1]
+
+   set sel [.fscupd.list curselection]
+   if {([llength $sel] == 1) && ($sel < $shortcut_count)} {
+      if {[string compare $call_edit yes] != 0} {
+         # compare filter categories before and after
+         set old_ids [GetShortcutIdentList [lindex $shortcuts($sel) $fsc_filt_idx]]
+         set new_ids [GetShortcutIdentList $filt]
+         if {$old_ids != $new_ids} {
+            # different categories -> ask user if he's sure he doesn't want to edit the mask
+            set call_edit [tk_messageBox -icon warning -type yesnocancel -default yes -parent .fscupd \
+                               -message "The current settings include different filter categories than the selected shortcut. Do you want to adapt the filter mask?"]
+            if {[string compare $call_edit cancel] == 0} {
+               return
+            }
+         }
+      }
+
+      if {([string compare $call_edit yes] == 0) || $fscedit_popup} {
+         # close the popup window
+         # (note: need to close before edit window is opened or tvtwm will crash)
+         destroy .fscupd
+
+         if {$fscedit_popup == 0} {
+            # copy the shortcuts into a temporary array
+            if {[info exists fscedit_sclist]} {unset fscedit_sclist}
+            array set fscedit_sclist [array get shortcuts]
+            set fscedit_count $shortcut_count
+            set fscedit_sclist($sel) [lreplace $fscedit_sclist($sel) $fsc_filt_idx $fsc_filt_idx $filt]
+         } else {
+            # search for the shortcut in the edited list
+            set tag [lindex $shortcuts($sel) $fsc_tag_idx]
+            for {set sel_tmp 0} {$sel_tmp < $fscedit_count} {incr sel_tmp} {
+               if {[lindex $shortcuts($sel_tmp) $fsc_tag_idx] == $tag} {
+                  set fscedit_sclist($sel_tmp) [lreplace $fscedit_sclist($sel_tmp) $fsc_filt_idx $fsc_filt_idx $filt]
+                  break
+               }
+            }
+            if {$sel_tmp >= $fscedit_count} {
+               # not found in list (deleted by user in temporary list) -> append
+               set fscedit_sclist($fscedit_count) [lreplace $shortcuts($sel) $fsc_filt_idx $fsc_filt_idx $filt]
+               incr fscedit_count
+            }
+            set sel $sel_tmp
+            raise .fscedit
+         }
+
+         # create the popup (if neccessary) and fill the listbox with all shortcuts
+         PopupFilterShortcuts
+         # select the updated shortcut in the listbox
+         .fscedit.list selection set $sel
+         SelectEditedShortcut
+
+      } else {
+         # update the selected shortcut
+         set shortcuts($sel) [lreplace $shortcuts($sel) $fsc_filt_idx $fsc_filt_idx $filt]
+         UpdateRcFile
+         # close the popup window
+         destroy .fscupd
+      }
+   }
 }
 
 ##  --------------------------------------------------------------------------
@@ -4157,46 +5192,49 @@ proc AddFilterShortcut {} {
    global fscedit_popup
 
    if {$fscedit_popup == 0} {
-
       # copy the shortcuts into a temporary array
       if {[info exists fscedit_sclist]} {unset fscedit_sclist}
       array set fscedit_sclist [array get shortcuts]
       set fscedit_count $shortcut_count
-
-      # determine current filter settings and a default mask
-      set filt [DescribeCurrentFilter]
-      set mask {}
-      foreach index [array names fscedit_mask] {
-         if {$fscedit_mask($index) != 0} {
-            lappend mask $index
-         }
-      }
-      set name "shortcut #$fscedit_count"
-
-      set fscedit_sclist($fscedit_count) [list $name $mask $filt merge]
-      incr fscedit_count
-
-      if {[string length $mask] == 0} {
-         set answer [tk_messageBox -type okcancel -icon warning -message "Currently no filters selected. Do you still want to continue?"]
-         if {[string compare $answer "cancel"] == 0} {
-            return
-         }
-      }
-
-      PopupFilterShortcuts
-      # select the new entry in the listbox
-      .fscedit.list selection set [expr $fscedit_count - 1]
-      SelectEditedShortcut
+   } else {
+      # popup already open -> keep the existing temporary array
+      raise .fscedit
    }
+
+   # determine current filter settings and a default mask
+   set temp [DescribeCurrentFilter]
+   set mask [lindex $temp 0]
+   set filt [lindex $temp 1]
+   set name "shortcut #$fscedit_count"
+   set tag  [GenerateShortcutTag]
+
+   # check if any filters are set at all
+   if {[string length $mask] == 0} {
+      set answer [tk_messageBox -type okcancel -icon warning -message "Currently no filters selected. Do you still want to continue?"]
+      if {[string compare $answer "cancel"] == 0} {
+         return
+      }
+   }
+
+   # append the new shortcut to the temporary array
+   set fscedit_sclist($fscedit_count) [list $name $mask $filt merge $tag]
+   incr fscedit_count
+
+   # create the popup and fill the shortcut listbox
+   PopupFilterShortcuts
+   # select the new entry in the listbox
+   .fscedit.list selection set [expr $fscedit_count - 1]
+   SelectEditedShortcut
 }
 
 ##  --------------------------------------------------------------------------
 ##  Popup window to edit the shortcut list
+##  - Invoked from the configuration popup
 ##
 proc EditFilterShortcuts {} {
    global shortcuts shortcut_count
-   global fscedit_desc fscedit_mask
    global fscedit_sclist fscedit_count
+   global fscedit_idx
    global fscedit_popup
 
    if {$fscedit_popup == 0} {
@@ -4206,30 +5244,42 @@ proc EditFilterShortcuts {} {
       array set fscedit_sclist [array get shortcuts]
       set fscedit_count $shortcut_count
 
+      # create the popup and fill the shortcut listbox
       PopupFilterShortcuts
       # select the first listbox entry
       .fscedit.list selection set 0
       SelectEditedShortcut
+
+   } else {
+      raise .fscedit
    }
 }
 
 ##  --------------------------------------------------------------------------
-##  Edit filter shortcut pop-up window
+##  Filter shortcut configuration pop-up window
 ##
 set fscedit_label ""
 set fscedit_popup 0
 
 proc PopupFilterShortcuts {} {
-   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_logi_idx
+   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_logi_idx fsc_tag_idx
    global fscedit_sclist fscedit_count
-   global fscedit_popup fscedit_label
+   global fscedit_desc fscedit_mask fscedit_label fscedit_logic fscedit_idx
+   global textfont default_bg
+   global fscedit_popup
+
+   # initialize all state variables
+   if {[info exists fscedit_desc]} {unset fscedit_desc}
+   if {[info exists fscedit_mask]} {unset fscedit_mask}
+   if {[info exists fscedit_label]} {unset fscedit_label}
+   if {[info exists fscedit_logic]} {set fscedit_logic 0}
 
    if {$fscedit_popup == 0} {
       CreateTransientPopup .fscedit "Edit shortcuts"
       set fscedit_popup 1
 
       ## first column: listbox with all shortcut labels
-      listbox .fscedit.list -exportselection false -setgrid true -height 12 -width 12 -selectmode single -relief ridge
+      listbox .fscedit.list -exportselection false -setgrid true -height 12 -width 0 -selectmode single -relief ridge
       bind .fscedit.list <ButtonRelease-1> {+ SelectEditedShortcut}
       bind .fscedit.list <KeyRelease-space> {+ SelectEditedShortcut}
       pack .fscedit.list -fill x -anchor nw -side left -pady 10 -padx 10 -fill y -expand 1
@@ -4254,17 +5304,28 @@ proc PopupFilterShortcuts {} {
       pack .fscedit.cmd.delete -side top -anchor nw
 
       button .fscedit.cmd.save -text "Save" -command {SaveEditedShortcuts} -width 7
-      button .fscedit.cmd.abort -text "Abort" -command {destroy .fscedit} -width 7
       button .fscedit.cmd.help -text "Help" -command {PopupHelp $helpIndex(Filter shortcuts)} -width 7
-      pack .fscedit.cmd.save .fscedit.cmd.abort .fscedit.cmd.help -side bottom -anchor sw
+      button .fscedit.cmd.abort -text "Abort" -command {AbortEditedShortcuts} -width 7
+      pack .fscedit.cmd.abort .fscedit.cmd.help .fscedit.cmd.save -side bottom -anchor sw
 
       pack .fscedit.cmd -side left -anchor nw -pady 10 -padx 5 -fill y -expand 1
       bind .fscedit.cmd <Destroy> {+ set fscedit_popup 0}
 
       ## third column: shortcut flags
       frame .fscedit.flags
+      label .fscedit.flags.ld -text "Filter setting:"
+      pack .fscedit.flags.ld -side top -anchor w
+      frame .fscedit.flags.desc
+      text .fscedit.flags.desc.tx -width 1 -height 6 -wrap none -yscrollcommand {.fscedit.flags.desc.sc set} \
+                                  -font $textfont -background $default_bg \
+                                  -insertofftime 0 -state disabled -exportselection 1
+      pack .fscedit.flags.desc.tx -side left -fill x -expand 1
+      scrollbar .fscedit.flags.desc.sc -orient vertical -command {.fscedit.flags.desc.tx  yview}
+      pack .fscedit.flags.desc.sc -side left -fill y
+      pack .fscedit.flags.desc -side top -anchor w -fill x
+
       label .fscedit.flags.lm -text "Filter mask:"
-      pack .fscedit.flags.lm -side top -anchor w
+      pack .fscedit.flags.lm -side top -anchor w -pady 5
       frame .fscedit.flags.mask -relief ridge -bd 1
       frame .fscedit.flags.mask.one
       checkbutton .fscedit.flags.mask.one.features  -text "Features" -variable fscedit_mask(features)
@@ -4291,32 +5352,67 @@ proc PopupFilterShortcuts {} {
       pack .fscedit.flags.mask.two.netwops   -side top -anchor nw
       pack .fscedit.flags.mask.two.substr    -side top -anchor nw
       pack .fscedit.flags.mask.two -side left -anchor nw -padx 5
-      pack .fscedit.flags.mask -side top -pady 10 -fill x
+      pack .fscedit.flags.mask -side top -pady 5 -fill x
 
-      label .fscedit.flags.ll -text "Combination with other shortcuts:"
-      pack .fscedit.flags.ll -side top -anchor w
-      frame .fscedit.flags.logic -relief ridge -bd 1
-      radiobutton .fscedit.flags.logic.merge -text "merge" -variable fscedit_logic -value "merge"
-      radiobutton .fscedit.flags.logic.or -text "logical OR" -variable fscedit_logic -value "or" -state disabled
-      radiobutton .fscedit.flags.logic.and -text "logical AND" -variable fscedit_logic -value "and" -state disabled
-      pack .fscedit.flags.logic.merge .fscedit.flags.logic.or .fscedit.flags.logic.and -side top -anchor w -padx 5
-      pack .fscedit.flags.logic -side top -pady 10 -fill x
+      #label .fscedit.flags.ll -text "Combination with other shortcuts:"
+      #pack .fscedit.flags.ll -side top -anchor w
+      #frame .fscedit.flags.logic -relief ridge -bd 1
+      #radiobutton .fscedit.flags.logic.merge -text "merge" -variable fscedit_logic -value "merge"
+      #radiobutton .fscedit.flags.logic.or -text "logical OR" -variable fscedit_logic -value "or" -state disabled
+      #radiobutton .fscedit.flags.logic.and -text "logical AND" -variable fscedit_logic -value "and" -state disabled
+      #pack .fscedit.flags.logic.merge .fscedit.flags.logic.or .fscedit.flags.logic.and -side top -anchor w -padx 5
+      #pack .fscedit.flags.logic -side top -pady 10 -fill x
       pack .fscedit.flags -side left -anchor nw -pady 10 -padx 10
-
-      # fill the listbox with all shortcut labels
-      for {set index 0} {$index < $fscedit_count} {incr index} {
-         .fscedit.list insert end [lindex $fscedit_sclist($index) $fsc_name_idx]
-      }
-      .fscedit.list configure -height $fscedit_count
    }
+
+   # fill the listbox with all shortcut labels
+   .fscedit.list delete 0 end
+   for {set index 0} {$index < $fscedit_count} {incr index} {
+      .fscedit.list insert end [lindex $fscedit_sclist($index) $fsc_name_idx]
+   }
+   .fscedit.list configure -height $fscedit_count
+   # set invalid index since no item is selected in the listbox yet (must be done by caller)
+   set fscedit_idx -1
 }
 
+# "Abort" command button - ask to confirm before changes are lost
+proc AbortEditedShortcuts {} {
+   global shortcuts shortcut_count
+   global fscedit_sclist fscedit_count
+
+   if {$shortcut_count != $fscedit_count} {
+      set changed 1
+   } else {
+      set changed 0
+      foreach {idx val} [array get fscedit_sclist] {
+         if {![info exists shortcuts($idx)] || ([string compare $val $shortcuts($idx)] != 0)} {
+            set changed 1
+            break
+         }
+      }
+   }
+   if {$changed} {
+      set answer [tk_messageBox -type okcancel -icon warning -parent .fscedit -message "Discard all changes?"]
+      if {[string compare $answer cancel] == 0} {
+         return
+      }
+   }
+   destroy .fscedit
+}
+
+# "Save" command button - copy the temporary array onto the global shortcuts
 proc SaveEditedShortcuts {} {
-   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_logi_idx
+   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_logi_idx fsc_tag_idx
    global fscedit_sclist fscedit_count
    global shortcuts shortcut_count
 
-   # copy temporary array back into the shortcuts array
+   # check if there are changed settings that have not been saved
+   if [CheckShortcutUpdatePending yesnocancel] {
+      # user pressed the "Cancel" button
+      return
+   }
+
+   # copy the temporary array back into the shortcuts array
    unset shortcuts
    array set shortcuts [array get fscedit_sclist]
    set shortcut_count $fscedit_count
@@ -4335,60 +5431,115 @@ proc SaveEditedShortcuts {} {
    .all.shortcuts.list configure -height $shortcut_count
 }
 
+# selection of a shortcut in the listbox - update all displayed info in the popup
 proc SelectEditedShortcut {} {
-   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_logi_idx
-   global fscedit_label fscedit_mask fscedit_logic
+   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_logi_idx fsc_tag_idx
+   global fscedit_label fscedit_mask fscedit_logic fscedit_idx
    global fscedit_sclist fscedit_count
+
+   # check if there are changed settings that have not been saved
+   CheckShortcutUpdatePending yesno
 
    set sel [.fscedit.list curselection]
    if {([string length $sel] > 0) && ($sel < $fscedit_count)} {
+      # remember the index of the currently selected shortcut
+      set fscedit_idx $sel
+
       # set label displayed in entry widget
       set fscedit_label [lindex $fscedit_sclist($sel) $fsc_name_idx]
       .fscedit.cmd.label selection range 0 end
+
+      # display description
+      .fscedit.flags.desc.tx configure -state normal
+      .fscedit.flags.desc.tx delete 1.0 end
+      .fscedit.flags.desc.tx insert end [ShortcutPrettyPrint [lindex $fscedit_sclist($sel) $fsc_filt_idx]]
+      .fscedit.flags.desc.tx configure -state disabled
 
       # set combination logic radiobuttons
       set fscedit_logic [lindex $fscedit_sclist($sel) $fsc_logi_idx]
 
       # set mask checkbuttons
-      unset fscedit_mask
+      if {[info exists fscedit_mask]} {unset fscedit_mask}
       foreach index [lindex $fscedit_sclist($sel) $fsc_mask_idx] {
          set fscedit_mask($index) 1
       }
    }
 }
 
-proc UpdateEditedShortcut {} {
-   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_logi_idx
+# Subroutine: Collect shortcut settings from entry and checkbutton widgets
+proc GetUpdatedShortcut {new_sc} {
+   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_logi_idx fsc_tag_idx
    global fscedit_sclist fscedit_count
    global fscedit_mask fscedit_logic fscedit_label
 
-   set sel [.fscedit.list curselection]
-   if {([string length $sel] > 0) && ($sel < $fscedit_count)} {
-      set mask {}
-      foreach index [array names fscedit_mask] {
-         if {$fscedit_mask($index) != 0} {
-            lappend mask $index
-         }
+   # update filter mask from checkbuttons
+   set mask {}
+   foreach index [array names fscedit_mask] {
+      if {$fscedit_mask($index) != 0} {
+         lappend mask $index
       }
-      # update mask setting
-      set fscedit_sclist($sel) [lreplace $fscedit_sclist($sel) $fsc_mask_idx $fsc_mask_idx $mask]
+   }
+   set new_sc [lreplace $new_sc $fsc_mask_idx $fsc_mask_idx $mask]
 
-      # update combination logic setting
-      set fscedit_sclist($sel) [lreplace $fscedit_sclist($sel) $fsc_logi_idx $fsc_logi_idx $fscedit_logic]
+   # update combination logic setting
+   set new_sc [lreplace $new_sc $fsc_logi_idx $fsc_logi_idx $fscedit_logic]
 
-      # update description label
-      if {[string length $fscedit_label] > 0} {
-         set fscedit_sclist($sel) [lreplace $fscedit_sclist($sel) $fsc_name_idx $fsc_name_idx $fscedit_label]
+   # update description label from entry widget
+   if {[string length $fscedit_label] > 0} {
+      set new_sc [lreplace $new_sc $fsc_name_idx $fsc_name_idx $fscedit_label]
+   }
 
-         .fscedit.list delete $sel
-         .fscedit.list insert $sel $fscedit_label
-         .fscedit.list selection set $sel
+   return $new_sc
+}
+
+# "Update" command button
+proc UpdateEditedShortcut {} {
+   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_logi_idx fsc_tag_idx
+   global fscedit_sclist fscedit_count
+   global fscedit_idx
+
+   if [info exists fscedit_sclist($fscedit_idx)] {
+
+      set fscedit_sclist($fscedit_idx) [GetUpdatedShortcut $fscedit_sclist($fscedit_idx)]
+
+      # update the label in the shortcut listbox
+      set old_sel [.fscedit.list curselection]
+      .fscedit.list delete $fscedit_idx
+      .fscedit.list insert $fscedit_idx [lindex $fscedit_sclist($fscedit_idx) $fsc_name_idx]
+      if {$old_sel == $fscedit_idx} {
+         # put the cursor onto the updated item again
+         .fscedit.list selection set $fscedit_idx
       }
    }
 }
 
+# Subroutine: Check if user has changed settings for the curently selected shortcut
+proc CheckShortcutUpdatePending {type} {
+   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_logi_idx fsc_tag_idx
+   global fscedit_sclist fscedit_count
+   global fscedit_idx
+
+   set cancel 0
+   if [info exists fscedit_sclist($fscedit_idx)] {
+
+      set new_sc [GetUpdatedShortcut $fscedit_sclist($fscedit_idx)]
+      if {![CompareShortcuts $new_sc $fscedit_sclist($fscedit_idx)]} {
+         set answer [tk_messageBox -type $type -default yes -icon question -parent .fscedit \
+                        -message "Update the shortcut '[lindex $fscedit_sclist($fscedit_idx) $fsc_name_idx]' with the changed settings?"]
+         if {[string compare $answer yes] == 0} {
+            UpdateEditedShortcut
+         } elseif {[string compare $answer cancel] == 0} {
+            set cancel 1
+         }
+      }
+   }
+   return $cancel
+}
+
+# "Delete" command button
 proc DeleteEditedShortcut {} {
    global fscedit_sclist fscedit_count
+   global fscedit_idx
 
    set sel [.fscedit.list curselection]
    if {([string length $sel] > 0) && ($sel < $fscedit_count)} {
@@ -4397,18 +5548,23 @@ proc DeleteEditedShortcut {} {
       }
       incr fscedit_count -1
 
+      set fscedit_idx -1
       .fscedit.list delete $sel
       if {$sel < $fscedit_count} {
          .fscedit.list selection set $sel
+         SelectEditedShortcut
       } elseif {$fscedit_count > 0} {
          .fscedit.list selection set [expr $sel - 1]
+         SelectEditedShortcut
       }
    }
 }
 
+# "Up-Arrow" command button
 proc ShiftUpEditedShortcut {} {
-   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_logi_idx
+   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_logi_idx fsc_tag_idx
    global fscedit_sclist fscedit_count
+   global fscedit_idx
 
    set sel [.fscedit.list curselection]
    if {([string length $sel] > 0) && ($sel > 0) && ($sel < $fscedit_count)} {
@@ -4421,12 +5577,15 @@ proc ShiftUpEditedShortcut {} {
       incr sel -1
       .fscedit.list insert $sel [lindex $fscedit_sclist($sel) $fsc_name_idx]
       .fscedit.list selection set $sel
+      set fscedit_idx $sel
    }
 }
 
+# "Down-Arrow" command button
 proc ShiftDownEditedShortcut {} {
-   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_logi_idx
+   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_logi_idx fsc_tag_idx
    global fscedit_sclist fscedit_count
+   global fscedit_idx
 
    set sel [.fscedit.list curselection]
    if {([string length $sel] > 0) && ($fscedit_count > 1) && ($sel < [expr $fscedit_count - 1])} {
@@ -4439,6 +5598,7 @@ proc ShiftDownEditedShortcut {} {
       incr sel
       .fscedit.list insert $sel [lindex $fscedit_sclist($sel) $fsc_name_idx]
       .fscedit.list selection set $sel
+      set fscedit_idx $sel
    }
 }
 
@@ -4448,14 +5608,14 @@ proc ShiftDownEditedShortcut {} {
 set myrcfile ""
 
 proc LoadRcFile {filename} {
-   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_logi_idx
+   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_logi_idx fsc_tag_idx
    global shortcuts shortcut_count
-   global prov_selection prov_freqs cfnetwops
+   global prov_selection prov_freqs cfnetwops cfnetnames
    global showNetwopListbox showShortcutListbox showStatusLine showColumnHeader
    global prov_merge_cnis prov_merge_cf
    global acq_mode acq_mode_cnis
    global hwcfg
-   global pilistbox_cols
+   global pibox_height pilistbox_cols shortinfo_height
    global substr_history
    global EPG_VERSION_NO
    global myrcfile
@@ -4486,12 +5646,23 @@ proc LoadRcFile {filename} {
    # create the column headers above the PI browser text widget
    ApplySelectedColumnList initial
 
+   # set the height of the listbox text widget
+   if {[info exists pibox_height]} {
+      .all.pi.list.text configure -height $pibox_height
+   }
+   if {[info exists shortinfo_height]} {
+      .all.pi.info.text configure -height $shortinfo_height
+   }
+
    if {$shortcut_count == 0} {
       PreloadShortcuts
    }
 
    # fill the shortcut listbox
    for {set index 0} {$index < $shortcut_count} {incr index} {
+      if {[llength $shortcuts($index)] < 5} {
+         lappend shortcuts($index) [GenerateShortcutTag]
+      }
       .all.shortcuts.list insert end [lindex $shortcuts($index) $fsc_name_idx]
    }
    .all.shortcuts.list configure -height $shortcut_count
@@ -4508,12 +5679,12 @@ proc LoadRcFile {filename} {
 ##
 proc UpdateRcFile {} {
    global shortcuts shortcut_count
-   global prov_selection prov_freqs cfnetwops
+   global prov_selection prov_freqs cfnetwops cfnetnames
    global showNetwopListbox showShortcutListbox showStatusLine showColumnHeader
    global prov_merge_cnis prov_merge_cf
    global acq_mode acq_mode_cnis
    global hwcfg
-   global pilistbox_cols
+   global pibox_height pilistbox_cols shortinfo_height
    global substr_history
    global EPG_VERSION EPG_VERSION_NO
    global myrcfile
@@ -4546,6 +5717,10 @@ proc UpdateRcFile {} {
       foreach index [array names cfnetwops] {
          puts $rcfile [list set cfnetwops($index) $cfnetwops($index)]
       }
+      # dump network names
+      if [array exists cfnetnames] {
+         puts $rcfile [list array set cfnetnames [array get cfnetnames]]
+      }
 
       # dump shortcuts & network listbox visibility
       puts $rcfile [list set showNetwopListbox $showNetwopListbox]
@@ -4557,8 +5732,10 @@ proc UpdateRcFile {} {
       if {[info exists prov_merge_cnis]} {puts $rcfile [list set prov_merge_cnis $prov_merge_cnis]}
       if {[info exists prov_merge_cf]} {puts $rcfile [list set prov_merge_cf $prov_merge_cf]}
 
-      # dump browser column configuration
+      # dump browser listbox configuration
+      if {[info exists pibox_height]} {puts $rcfile [list set pibox_height $pibox_height]}
       if {[info exists pilistbox_cols]} {puts $rcfile [list set pilistbox_cols $pilistbox_cols]}
+      if {[info exists shortinfo_height]} {puts $rcfile [list set shortinfo_height $shortinfo_height]}
 
       # dump acquisition mode and provider CNIs
       if {[info exists acq_mode]} { puts $rcfile [list set acq_mode $acq_mode] }

@@ -4,6 +4,23 @@ changes or additions.
 
 Before you submit any feature requests, please read the TODO file.
 
+from 0.4.5 to 0.5.0 (Apr. 2001)
+- main window is now vertically resizable. The proportions of program listbox
+  and info text can be adjusted with a "panning" button (slider)
+- added "Tune TV" button in the main window to remote control xawtv (UNIX only)
+- added network name configuration dialog to sync names with .xawtv
+  and to allow consistant network naming across all providers
+- use channel assignments in .xawtv rc file to speed up EPG scan (UNIX only)
+- added "Update filter shortcut" dialog to the filter menu to simplify changing
+  existing shortcuts
+- made handling of filter shortcut dialog fool-proof
+- added filter settings description to the shortcut configuration dialog.
+  Removed the filter combination checkboxes (were disabled anyway)
+- added acquisition mode "external" for Composite/S-Video input source (or
+  unknown win32 tuner types)  Win32: suppressed obsolete acq mode "passive".
+- fixed command line option -rcfile for Win32: backslash chars in path vanished
+- restructured software to simplify reuse as library in other projects
+
 from 0.4.4 to 0.4.5 (Mar. 2001)
 - fixed bug in NetBSD daylight saving time handling, due to which programmes
   were shifted by 60 minutes. Thanks to Mario Kemper for the patch.

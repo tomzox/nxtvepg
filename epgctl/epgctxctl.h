@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgctxctl.h,v 1.4 2001/02/25 16:03:08 tom Exp tom $
+ *  $Id: epgctxctl.h,v 1.5 2001/04/03 19:48:47 tom Exp tom $
  */
 
 #ifndef __EPGCTXCTL_H
@@ -26,7 +26,7 @@
 // ---------------------------------------------------------------------------
 // Declaration of service interface functions
 //
-EPGDB_CONTEXT * EpgContextCtl_Open( uint cni, CONTEXT_RELOAD_ERR_HAND errHand );
+EPGDB_CONTEXT * EpgContextCtl_Open( uint cni, int errHandling );
 EPGDB_CONTEXT * EpgContextCtl_CreateNew( void );
 void EpgContextCtl_Close( EPGDB_CONTEXT * pContext );
 bool EpgContextCtl_Expire( void );

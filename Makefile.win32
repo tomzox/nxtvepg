@@ -20,7 +20,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile.win32,v 1.5 2001/02/25 16:06:08 tom Exp tom $
+#  $Id: Makefile.win32,v 1.7 2001/04/19 20:54:18 tom Exp tom $
 #
 
 TCLSH   = /gnu/tcl/bin/tclsh83.exe
@@ -35,7 +35,9 @@ CFLAGS += /DUSE_PRECOMPILED_TCL_LIBS
 # define this if you have patched nxtvepg.ico into the tk DLL
 CFLAGS += /DICON_PATCHED_INTO_DLL
 
-INCS    = /I"." /I"D:\gnu\tcl\include" /I"D:\Programme\DevStudio\VC\include"
+MVCPATH = C:\Programme\DevStudio\VC
+
+INCS    = /I"." /I"D:\gnu\tcl\include" /I"$(MVCPATH)\include"
 CFLAGS += /nologo /G6 /Gf /MD /W3 /Gi /Zi /Ox $(INCS) \
           /DNDEBUG /D_WINDOWS /DWIN32 /D_MBCS /FD /Zm200
 
@@ -43,19 +45,20 @@ CFLAGS += /nologo /G6 /Gf /MD /W3 /Gi /Zi /Ox $(INCS) \
 #   odbc32.lib odbccp32.lib ddraw.lib gdi32.lib winspool.lib oleaut32.lib
 #   comdlg32.lib shell32.lib ole32.lib uuid.lib mpr.lib user32.lib
 
-LDFLAGS = kernel32.lib advapi32.lib user32.lib /libpath:"D:\Programme\DevStudio\VC\lib" \
+LDFLAGS = kernel32.lib advapi32.lib user32.lib /libpath:"$(MVCPATH)\lib" \
 	  tcl83.lib tk83.lib /libpath:"D:\gnu\tcl\lib" \
 	  /nologo /subsystem:windows /debug /machine:I386 /incremental:no
 
 # ----- don't change anything below ------------------------------------------
 
-CSRC    = epgctl/epgmain epgctl/debug epgctl/epgacqctl epgctl/epgctxctl \
-          epgctl/epgscan \
-          epgvbi/vbidecode epgvbi/btdrv4win epgvbi/tvchan epgvbi/hamming  \
-          epgdb/epgdbacq epgdb/epgstream epgdb/epgtxtdump epgdb/epgblock \
+CSRC    = epgvbi/vbidecode epgvbi/btdrv4win epgvbi/tvchan epgvbi/hamming  \
+          epgdb/epgdbacq epgdb/epgstream epgdb/epgblock \
           epgdb/epgdbmgmt epgdb/epgdbif epgdb/epgdbsav epgdb/epgdbfil \
           epgdb/epgdbmerge epgui/pilistbox epgui/pifilter epgui/statswin \
-          epgui/menucmd epgui/uictrl epgui/pdc_themes
+          epgctl/debug epgctl/epgacqctl epgctl/epgscan epgctl/epgctxctl \
+          epgctl/epgctxmerge \
+          epgui/menucmd epgui/uictrl epgui/pdc_themes epgui/epgtxtdump \
+          epgui/epgmain
 CGEN    = epgui/tcl_libs epgui/epgui epgui/help
 WINRES  = epgui/tkwinico.res
 

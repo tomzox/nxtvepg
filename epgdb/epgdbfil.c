@@ -23,7 +23,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbfil.c,v 1.24 2001/02/25 16:00:45 tom Exp tom $
+ *  $Id: epgdbfil.c,v 1.25 2001/04/03 18:59:10 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -35,11 +35,9 @@
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
-#include "epgctl/epgmain.h"
 
 #include "epgdb/epgblock.h"
 #include "epgdb/epgstream.h"
-#include "epgdb/epgdbacq.h"
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
 
@@ -721,8 +719,10 @@ void EpgDbFilterFinishNi( FILTER_CONTEXT *fc, NI_FILTER_STATE *pNiState )
 {
    ulong now;
    uint nowMoD;
+   sint lto;
 
    now = time(NULL);
+   lto = EpgLtoGet();
    // number of minutes that have elapsed since last midnight (Minutes-of-Day)
    nowMoD = ((now + lto) % (60*60*24)) / 60;
 

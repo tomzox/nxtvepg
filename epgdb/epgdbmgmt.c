@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbmgmt.c,v 1.28 2001/02/25 16:00:45 tom Exp tom $
+ *  $Id: epgdbmgmt.c,v 1.29 2001/04/04 18:25:04 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -34,13 +34,11 @@
 #include "epgctl/debug.h"
 
 #include "epgdb/epgblock.h"
-#include "epgdb/epgdbfil.h"
-#include "epgdb/epgdbif.h"
-#include "epgdb/epgdbacq.h"
 #include "epgui/pilistbox.h"
 #include "epgui/statswin.h"
 #include "epgdb/epgdbmerge.h"
 #include "epgdb/epgdbmgmt.h"
+#include "epgctl/epgctxmerge.h"
 
 
 // internal shortcuts
@@ -115,18 +113,11 @@ void EpgDbDestroy( PDBC dbc )
          dbc->pAiBlock = NULL;
       }
 
-      // free sub-context if it's a merged database
-      if (dbc->pMergeContext != NULL)
-      {
-         EpgDbMergeDestroyContext(dbc->pMergeContext);
-         dbc->pMergeContext = NULL;
-      }
-
       // free the database context
       xfree(dbc);
    }
    else
-      debug0("EpgDbDestroy: cannot destroy locked db");
+      debug0("EpgDb-Destroy: cannot destroy locked db");
 }
 
 // ---------------------------------------------------------------------------
@@ -567,7 +558,7 @@ static bool EpgDbAddAiBlock( PDBC dbc, EPGDB_BLOCK * pBlock )
          EpgDbFilterIncompatiblePi(dbc, &pOldAiBlock->blk.ai, &dbc->pAiBlock->blk.ai);
          EpgDbRemoveObsoleteGenericBlocks(dbc);
 
-         EpgDbMergeAiUpdate(dbc, pBlock);
+         EpgContextMergeAiUpdate(dbc, pBlock);
       }
       else
       {  // same version, but block start numbers might still have changed
@@ -1284,7 +1275,7 @@ static bool EpgDbInsertPiBlock( PDBC dbc, EPGDB_BLOCK * pBlock )
       {
          EpgDbReplacePi(dbc, pWalk, pBlock);
          // offer the block to the merged db
-         EpgDbMergeInsertPi(dbc, pBlock);
+         EpgContextMergeInsertPi(dbc, pBlock);
       }
       else
          xfree(pBlock);
@@ -1302,7 +1293,7 @@ static bool EpgDbInsertPiBlock( PDBC dbc, EPGDB_BLOCK * pBlock )
       EpgDbLinkPi(dbc, pBlock, pPrev, pWalk);
 
       // offer the block to the merged db
-      EpgDbMergeInsertPi(dbc, pBlock);
+      EpgContextMergeInsertPi(dbc, pBlock);
 
       result = TRUE;
    }

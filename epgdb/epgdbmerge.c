@@ -14,24 +14,15 @@
  *
  *  Description:
  *
- *    Merges serveral databases into one: At the start there's always a
- *    complete merge of all PI in a number of given databases into a newly
- *    created database. The first provider in the list is the 'master',
- *    i.e. if there are differing start times between providers, only PI
- *    that do not conflict with the master will be added. There's no
- *    comparison of other creteria than start and stop time, so it is
- *    not detected if two providers list two different programmes on one
- *    network with accidentially the same start and stop times.
- *
- *    After the initial merge the original databases are freed again,
- *    unless acquisition is enabled. During acquisition new blocks are
- *    inserted into their original databases first, and then if added
- *    successfully handed over to this module.
- *
+ *    This module implements the 'lower' half of the merge functionality
+ *    where the actual merging is done. It offers three services to the
+ *    upper half in the epgctl directory: 1 - merge AI blocks of the source
+ *    databases; 2 - merge all PI of all source databases; 3 - insert one
+ *    PI from one of the source databases into an existing merged database.
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbmerge.c,v 1.14 2001/02/25 16:00:45 tom Exp tom $
+ *  $Id: epgdbmerge.c,v 1.15 2001/04/04 18:21:55 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -44,156 +35,17 @@
 #include "epgctl/debug.h"
 
 #include "epgdb/epgblock.h"
-#include "epgctl/epgmain.h"
-#include "epgui/uictrl.h"
-#include "epgctl/epgctxctl.h"
-#include "epgdb/epgdbif.h"
-#include "epgdb/epgdbsav.h"
+#include "epgui/epgmain.h"
 #include "epgdb/epgdbmgmt.h"
-#include "epgdb/epgdbmerge.h"
 #include "epgdb/epgstream.h"
 #include "epgui/pilistbox.h"
 #include "epgui/statswin.h"
+#include "epgdb/epgdbmerge.h"
 
 
 // internal shortcut
 typedef EPGDB_CONTEXT *PDBC;
 
-
-// ---------------------------------------------------------------------------
-// Close all databases
-//
-static void EpgDbMergeCloseDatabases( EPGDB_MERGE_CONTEXT * pMergeContext )
-{
-   uint dbIdx;
-
-   for (dbIdx=0; dbIdx < pMergeContext->dbCount; dbIdx++)
-   {
-      if (pMergeContext->pDbContext[dbIdx] != NULL)
-      {
-         EpgContextCtl_Close(pMergeContext->pDbContext[dbIdx]);
-         pMergeContext->pDbContext[dbIdx] = NULL;
-      }
-   }
-
-   pMergeContext->acqIdx = 0xff;
-}
-
-// ---------------------------------------------------------------------------
-// Open all databases for complete merge or acquisition
-//
-static bool EpgDbMergeOpenDatabases( EPGDB_MERGE_CONTEXT * pMergeContext, bool isForAcq )
-{
-   uint dbIdx, cni;
-   bool result = TRUE;
-
-   for (dbIdx=0; dbIdx < pMergeContext->dbCount; dbIdx++)
-   {
-      if (pMergeContext->pDbContext[dbIdx] == NULL)
-      {
-         cni = pMergeContext->cnis[dbIdx];
-         pMergeContext->pDbContext[dbIdx] = EpgContextCtl_Open(cni, (isForAcq ? CTX_RELOAD_ERR_ACQ : CTX_RELOAD_ERR_REQ));
-
-         if (EpgDbContextGetCni(pMergeContext->pDbContext[dbIdx]) != cni)
-         {  // database could not be loaded -> abort merge
-            result = FALSE;
-            break;
-         }
-      }
-   }
-
-   if (result == FALSE)
-   {  // free already opened databases
-      EpgDbMergeCloseDatabases(pMergeContext);
-   }
-   return result;
-}
-
-// ---------------------------------------------------------------------------
-// Destroy the sub-context of a merged database
-//
-void EpgDbMergeDestroyContext( void * pMergeContextPtr )
-{
-   EpgDbMergeCloseDatabases((EPGDB_MERGE_CONTEXT *) pMergeContextPtr);
-   xfree(pMergeContextPtr);
-}
-
-// ---------------------------------------------------------------------------
-// Returns list of provider CNIs in merged database
-//
-bool EpgDbMergeGetCnis( const EPGDB_CONTEXT * dbc, uint * pCniCount, uint *pCniTab )
-{
-   EPGDB_MERGE_CONTEXT * dbmc;
-   bool result = FALSE;
-
-   if ((pCniCount != NULL) && (pCniTab != NULL))
-   {
-      if (dbc->pMergeContext != NULL)
-      {
-         dbmc = pUiDbContext->pMergeContext;
-
-         *pCniCount = dbmc->dbCount;
-         memcpy(pCniTab, dbmc->cnis, dbmc->dbCount * sizeof(uint));
-
-         result = TRUE;
-      }
-      else
-         debug0("EpgDbMerge-GetCnis: db has no merged context");
-   }
-   else
-      debug0("EpgDbMerge-GetCnis: illegal NULL ptr param");
-
-   return result;
-}
-
-// ---------------------------------------------------------------------------
-// Determine the index of the current acq db
-//
-static bool EpgDbMergeOpenAcqContext( PDBC dbc, uint cni )
-{
-   EPGDB_MERGE_CONTEXT * dbmc;
-   uint dbIdx;
-   bool result = FALSE;
-
-   if ( (pUiDbContext != NULL) && (pUiDbContext->pMergeContext != NULL) )
-   {
-      dbmc = pUiDbContext->pMergeContext;
-
-      // get the index of the acq db in the merge context
-      if ( (dbmc->acqIdx >= dbmc->dbCount) || (cni != dbmc->cnis[dbmc->acqIdx]) )
-      {  // no index cached or wrong CNI -> search CNI in list
-         dbmc->acqIdx = 0xff;
-         for (dbIdx=0; dbIdx < dbmc->dbCount; dbIdx++)
-         {
-            if (dbmc->cnis[dbIdx] == cni)
-            {
-               dbmc->acqIdx = dbIdx;
-               result = TRUE;
-               break;
-            }
-         }
-      }
-      else
-         result = TRUE;
-
-      if (result)
-      {  // open the db contexts of all dbs in the merge context
-         if (dbmc->pDbContext[0] == NULL)
-         {
-            if (EpgDbMergeOpenDatabases(dbmc, TRUE) == FALSE)
-            {  // open failed -> cannot insert
-               dbmc->acqIdx = 0xff;
-               result = FALSE;
-            }
-         }
-      }
-      else
-      {  // wrong cni -> close db contexts, if neccessary
-         EpgDbMergeCloseDatabases(dbmc);
-      }
-   }
-   return result;
-}
 
 // ---------------------------------------------------------------------------
 // Append a PI block to the database
@@ -595,7 +447,7 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
 // ---------------------------------------------------------------------------
 // Merge all PI blocks
 //
-static void EpgDbMergeAllPiBlocks( PDBC dbc )
+void EpgDbMergeAllPiBlocks( PDBC dbc )
 {
    EPGDB_MERGE_CONTEXT * dbmc;
    EPGDB_BLOCK *pNextBlock[MAX_MERGED_DB_COUNT];
@@ -798,77 +650,70 @@ static bool EpgDbMergeGetPiEquivs( EPGDB_MERGE_CONTEXT * dbmc, EPGDB_BLOCK * pNe
 // Insert a PI block into the merged db
 // - called after the block was inserted to its provider's database
 // 
-void EpgDbMergeInsertPi( PDBC pAcqContext, EPGDB_BLOCK * pNewBlock )
+void EpgDbMergeInsertPi( EPGDB_MERGE_CONTEXT * dbmc, EPGDB_BLOCK * pNewBlock )
 {
-   EPGDB_MERGE_CONTEXT * dbmc;
    EPGDB_BLOCK *pFoundBlocks[MAX_MERGED_DB_COUNT];
    EPGDB_BLOCK *pWalk, *pPrev, *pNext;
 
-   if (EpgDbMergeOpenAcqContext(pAcqContext, AI_GET_CNI(&pAcqContext->pAiBlock->blk.ai)))
+   // find equivalent blocks in all other dbs and check for conflicts with higher-priorized PI
+   if ( EpgDbMergeGetPiEquivs(dbmc, pNewBlock, pFoundBlocks) )
    {
-      dbmc = pUiDbContext->pMergeContext;
-      dprintf6("MERGE PI ptr=%lx: dbidx=%d, netwop=%d->%d, blockno=%d, start=%ld\n", (ulong)pNewBlock, dbmc->acqIdx, pNewBlock->blk.pi.netwop_no, dbmc->netwopMap[dbmc->acqIdx][pNewBlock->blk.pi.netwop_no], pNewBlock->blk.pi.block_no, pNewBlock->blk.pi.start_time);
+      // merge the found blocks
+      pNewBlock = EpgDbMergePiBlocks(pUiDbContext, pFoundBlocks);
 
-      // find equivalent blocks in all other dbs and check for conflicts with higher-priorized PI
-      if ( EpgDbMergeGetPiEquivs(dbmc, pNewBlock, pFoundBlocks) )
+      // find the insertion position in the merged db
+      pWalk = pUiDbContext->pFirstNetwopPi[pNewBlock->blk.pi.netwop_no];
+      pPrev = NULL;
+      while ( (pWalk != NULL) &&
+              (pWalk->blk.pi.start_time < pNewBlock->blk.pi.start_time) )
       {
-         // merge the found blocks
-         pNewBlock = EpgDbMergePiBlocks(pUiDbContext, pFoundBlocks);
-
-         // find the insertion position in the merged db
-         pWalk = pUiDbContext->pFirstNetwopPi[pNewBlock->blk.pi.netwop_no];
-         pPrev = NULL;
-         while ( (pWalk != NULL) &&
-                 (pWalk->blk.pi.start_time < pNewBlock->blk.pi.start_time) )
-         {
-            pPrev = pWalk;
-            pWalk = pWalk->pNextNetwopBlock;
-         }
-
-         if ( (pWalk != NULL) &&
-              (pWalk->blk.pi.start_time == pNewBlock->blk.pi.start_time) &&
-              (pWalk->blk.pi.stop_time  == pNewBlock->blk.pi.stop_time) )
-         {  // special case: replacing a block with identical ordering keys
-            // (this case is handled special for performance reasons only:
-            // conflict handling and search of exact insert position is not needed here)
-
-            EpgDbReplacePi(pUiDbContext, pWalk, pNewBlock);
-         }
-         else
-         {
-            pNext = pWalk;
-            // delete conflicting blocks in the merged db
-            // (this also covers a replacement of an equivalent block)
-            pWalk = pPrev;
-            while ( (pWalk != NULL) && (pWalk->blk.pi.stop_time > pNewBlock->blk.pi.start_time) )
-            {  // previous blocks overlaps the new one -> remove it
-               dprintf4("+++++++ DELETE: ptr=%lx prev=%lx start=%ld > %ld\n", (ulong)pNewBlock, (ulong)pWalk, pWalk->blk.pi.start_time, pNewBlock->blk.pi.start_time);
-               pPrev = pWalk->pPrevNetwopBlock;
-               EpgDbPiRemove(pUiDbContext, pWalk);
-               xfree(pWalk);
-               pWalk = pPrev;
-            }
-
-            pWalk = pNext;
-            while( (pWalk != NULL) && (pNewBlock->blk.pi.stop_time > pWalk->blk.pi.start_time) )
-            {
-               dprintf4("+++++++ DELETE: ptr=%lx next=%lx overlapped: start=%ld < stop %ld\n", (ulong)pNewBlock, (ulong)pWalk, pWalk->blk.pi.start_time, pNewBlock->blk.pi.stop_time);
-               pNext = pWalk->pNextNetwopBlock;
-               EpgDbPiRemove(pUiDbContext, pWalk);
-               xfree(pWalk);
-               pWalk = pNext;
-            }
-
-            // find the exact insertion position and link the new PI inbetween
-            EpgDbLinkPi(pUiDbContext, pNewBlock, pPrev, pNext);
-         }
-
-         assert(EpgDbCheckChains(pUiDbContext));
-         // if blocks were removed, re-evaluate scrollbar position
-         PiListBox_DbRecount(pUiDbContext);
-
-         StatsWin_NewPi(pUiDbContext, &pNewBlock->blk.pi, pNewBlock->stream);
+         pPrev = pWalk;
+         pWalk = pWalk->pNextNetwopBlock;
       }
+
+      if ( (pWalk != NULL) &&
+           (pWalk->blk.pi.start_time == pNewBlock->blk.pi.start_time) &&
+           (pWalk->blk.pi.stop_time  == pNewBlock->blk.pi.stop_time) )
+      {  // special case: replacing a block with identical ordering keys
+         // (this case is handled special for performance reasons only:
+         // conflict handling and search of exact insert position is not needed here)
+
+         EpgDbReplacePi(pUiDbContext, pWalk, pNewBlock);
+      }
+      else
+      {
+         pNext = pWalk;
+         // delete conflicting blocks in the merged db
+         // (this also covers a replacement of an equivalent block)
+         pWalk = pPrev;
+         while ( (pWalk != NULL) && (pWalk->blk.pi.stop_time > pNewBlock->blk.pi.start_time) )
+         {  // previous blocks overlaps the new one -> remove it
+            dprintf4("+++++++ DELETE: ptr=%lx prev=%lx start=%ld > %ld\n", (ulong)pNewBlock, (ulong)pWalk, pWalk->blk.pi.start_time, pNewBlock->blk.pi.start_time);
+            pPrev = pWalk->pPrevNetwopBlock;
+            EpgDbPiRemove(pUiDbContext, pWalk);
+            xfree(pWalk);
+            pWalk = pPrev;
+         }
+
+         pWalk = pNext;
+         while( (pWalk != NULL) && (pNewBlock->blk.pi.stop_time > pWalk->blk.pi.start_time) )
+         {
+            dprintf4("+++++++ DELETE: ptr=%lx next=%lx overlapped: start=%ld < stop %ld\n", (ulong)pNewBlock, (ulong)pWalk, pWalk->blk.pi.start_time, pNewBlock->blk.pi.stop_time);
+            pNext = pWalk->pNextNetwopBlock;
+            EpgDbPiRemove(pUiDbContext, pWalk);
+            xfree(pWalk);
+            pWalk = pNext;
+         }
+
+         // find the exact insertion position and link the new PI inbetween
+         EpgDbLinkPi(pUiDbContext, pNewBlock, pPrev, pNext);
+      }
+
+      assert(EpgDbCheckChains(pUiDbContext));
+      // if blocks were removed, re-evaluate scrollbar position
+      PiListBox_DbRecount(pUiDbContext);
+
+      StatsWin_NewPi(pUiDbContext, &pNewBlock->blk.pi, pNewBlock->stream);
    }
 }
 
@@ -913,7 +758,7 @@ static uchar * EpgDbMergeAiServiceNames( EPGDB_MERGE_CONTEXT * dbmc )
 // Merge AI blocks & netwops
 // - build netwop mapping tables
 //
-static void EpgDbMergeAiBlocks( PDBC dbc )
+void EpgDbMergeAiBlocks( PDBC dbc )
 {
    EPGDB_MERGE_CONTEXT * dbmc;
    AI_BLOCK  * pAi, * pTargetAi;
@@ -1019,83 +864,5 @@ static void EpgDbMergeAiBlocks( PDBC dbc )
    }
    assert(lastCount == netwopCount);
    xfree(pServiceName);
-}
-
-// ---------------------------------------------------------------------------
-// Update AI block when an AI in one of the dbs has changed
-// - Only called after change of version number in one of the blocks.
-//   More frequent updates are not required because changes of blockno range
-//   are not of any interest for the merged database.
-//
-void EpgDbMergeAiUpdate( PDBC pAcqContext, EPGDB_BLOCK * pAiBlock )
-{
-   AI_BLOCK *pAi;
-   uchar old_version, old_version_swo;
-
-   if (EpgDbMergeOpenAcqContext(pAcqContext, AI_GET_CNI(&pAiBlock->blk.ai)))
-   {
-      pAi = (AI_BLOCK *) &pAiBlock->blk.ai;  //remove const
-      old_version     = pAi->version;
-      old_version_swo = pAi->version_swo;
-
-      xfree(pUiDbContext->pAiBlock);
-      pUiDbContext->pAiBlock = NULL;
-      pUiDbContext->lastAiUpdate = time(NULL);
-
-      EpgDbMergeAiBlocks(pUiDbContext);
-
-      pAi->version     = old_version;
-      pAi->version_swo = old_version_swo;
-   }
-}
-
-// ---------------------------------------------------------------------------
-// Start complete merge
-//
-EPGDB_CONTEXT * EpgDbMerge( uint dbCount, const uint * pCni, MERGE_ATTRIB_VECTOR_PTR pMax )
-{
-   EPGDB_CONTEXT * pDbContext;
-   EPGDB_MERGE_CONTEXT * pMergeContext;
-
-   if (dbCount > MAX_MERGED_DB_COUNT)
-   {
-      debug2("EpgDb-Merge: too many dbs %d > %d", dbCount, MAX_MERGED_DB_COUNT);
-      dbCount = MAX_MERGED_DB_COUNT;
-   }
-
-   // initialize context
-   pMergeContext = xmalloc(sizeof(EPGDB_MERGE_CONTEXT));
-   memset(pMergeContext, 0, sizeof(EPGDB_MERGE_CONTEXT));
-
-   pMergeContext->dbCount = dbCount;
-   pMergeContext->acqIdx  = 0xff;
-   memcpy(pMergeContext->cnis, pCni, sizeof(uint) * dbCount);
-   memcpy(pMergeContext->max, pMax, sizeof(MERGE_ATTRIB_MATRIX));
-
-   if ( EpgDbMergeOpenDatabases(pMergeContext, FALSE) )
-   {
-      // create target database
-      pDbContext = EpgDbCreate();
-
-      pDbContext->merged = TRUE;
-      pDbContext->pMergeContext = pMergeContext;
-
-      // create AI block
-      EpgDbMergeAiBlocks(pDbContext);
-      pDbContext->lastAiUpdate = time(NULL);
-
-      // merge all PI from all databases into the new one
-      EpgDbMergeAllPiBlocks(pDbContext);
-
-      // close the databases
-      EpgDbMergeCloseDatabases(pMergeContext);
-   }
-   else
-   {
-      pDbContext = NULL;
-      xfree(pMergeContext);
-   }
-
-   return pDbContext;
 }
 

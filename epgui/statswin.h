@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: statswin.h,v 1.8 2001/02/25 16:03:47 tom Exp tom $
+ *  $Id: statswin.h,v 1.9 2001/04/03 19:59:12 tom Exp tom $
  */
 
 #ifndef __STATSWIN_H
@@ -24,7 +24,7 @@
 
 
 // Initialization - Interface to main module
-void StatsWin_Create( void );
+void StatsWin_Create( bool isDemoMode );
 
 // Interface to database management
 void StatsWin_NewPi( EPGDB_CONTEXT * usedDbc, const PI_BLOCK *pPi, uchar stream );

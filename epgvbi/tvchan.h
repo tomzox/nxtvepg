@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: tvchan.h,v 1.3 2001/02/26 20:35:50 tom Exp tom $
+ *  $Id: tvchan.h,v 1.4 2001/04/09 20:47:26 tom Exp tom $
  */
 
 #ifndef __TVCHAN_H
@@ -30,6 +30,7 @@ bool TvChannels_GetNext( uint *pChan, ulong *pFreq );
 int  TvChannels_GetCount( void );
 void TvChannels_GetName( uint channel, uchar * pName, uint maxNameLen );
 void TvChannels_SelectFreqTable( uint tableIdx );
+ulong TvChannels_NameToFreq( const char * pName );
 
 
 #endif  // __TVCHAN_H

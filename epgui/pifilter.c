@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pifilter.c,v 1.37 2001/02/25 16:03:47 tom Exp tom $
+ *  $Id: pifilter.c,v 1.44 2001/04/15 20:39:08 tom Exp tom $
  */
 
 #define __PIFILTER_C
@@ -42,7 +42,7 @@
 #include "epgdb/epgblock.h"
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
-#include "epgctl/epgmain.h"
+#include "epgui/epgmain.h"
 #include "epgui/pdc_themes.h"
 #include "epgui/pilistbox.h"
 #include "epgui/pifilter.h"
@@ -555,20 +555,17 @@ static int GetPdcString( ClientData ttp, Tcl_Interp *interp, int argc, char *arg
 }
 
 // ----------------------------------------------------------------------------
-// Create the series netwop menu
-// - consists of a list of all netwops with PI that have assigned PDC themes > 0x80
-// - each entry is a sub-menu (cascade) that list all found series in that netwop
+// Return a list of CNIs of all networks that have PI of theme "series"
 //
-static int CreateSeriesNetwopMenu( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+static int GetNetwopsWithSeries( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
 {
-   const char * const pUsage = "Usage: C_CreateSeriesNetwopMenu <menu-path>";
+   const char * const pUsage = "Usage: C_GetNetwopsWithSeries";
    const AI_BLOCK *pAiBlock;
    FILTER_CONTEXT *fc;
-   bool found;
    int netwop;
    int result;
 
-   if (argc != 2) 
+   if (argc != 1) 
    {  // wrong # of args for this TCL cmd -> display error msg
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR; 
@@ -586,27 +583,16 @@ static int CreateSeriesNetwopMenu( ClientData ttp, Tcl_Interp *interp, int argc,
       pAiBlock = EpgDbGetAi(dbc);
       if (pAiBlock != NULL)
       {
-         Tcl_UnsetVar(interp, "tmp_list", 0);
-         found = FALSE;
-
          for ( netwop = 0; netwop < pAiBlock->netwopCount; netwop++ ) 
          {
             EpgDbFilterInitNetwop(fc);
             EpgDbFilterSetNetwop(fc, netwop);
             if (EpgDbSearchFirstPi(dbc, fc) != NULL)
             {
-               sprintf(comm, "lappend tmp_list [list %d {%s}]", netwop, AI_GET_NETWOP_NAME(pAiBlock, netwop));
-               eval_check(interp, comm);
-               found = TRUE;
+               // append the CNI in the format "0x0D94" to the TCL result list
+               sprintf(comm, "0x%04X", AI_GET_NETWOP_N(pAiBlock, netwop)->cni);
+               Tcl_AppendElement(interp, comm);
             }
-         }
-
-         if (found)
-         {  // sort found netwop names by user-selection and add them to the menu
-            sprintf(comm, "FillSeriesMenu %s 0x%04X $tmp_list\n", argv[1], AI_GET_CNI(pAiBlock));
-            eval_check(interp, comm);
-
-            Tcl_UnsetVar(interp, "tmp_list", 0);
          }
       }
       EpgDbFilterDestroyContext(fc);
@@ -617,80 +603,153 @@ static int CreateSeriesNetwopMenu( ClientData ttp, Tcl_Interp *interp, int argc,
 }
 
 // ----------------------------------------------------------------------------
-// Create the series sub-menu for a selected network
-// - with a list of all series on this network, sorted by title
+// Get a list of all series codes and titles on a given network
 //
-static int CreateSeriesMenu( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+static int GetNetwopSeriesList( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
 {
-   const char * const pUsage = "Usage: C_CreateSeriesMenu <menu-path.netwop_#>";
+   const char * const pUsage = "Usage: C_GetNetwopSeriesList <cni> <lang-varname>";
    const AI_BLOCK *pAiBlock;
    const PI_BLOCK * pPiBlock;
-   char *p;
    bool usedSeries[0x80];
    FILTER_CONTEXT *fc;
    uchar netwop, series;
-   uint index;
+   uint index, cni;
    int result;
 
-   if ( (argc != 2)  ||
-        ((p = strstr(argv[1], "netwop_")) == NULL) )
+   if ( (argc != 3)  ||
+        (Tcl_GetInt(interp, argv[1], &cni) != TCL_OK) )
    {  // wrong # of args for this TCL cmd -> display error msg
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR; 
    }  
    else
    {
-      netwop = strtol(p + 7, NULL, 10);
-      result = TCL_OK; 
-
       EpgDbLockDatabase(dbc, TRUE);
-      fc = EpgDbFilterCreateContext();
       pAiBlock = EpgDbGetAi(dbc);
-      if ((pAiBlock != NULL) && (netwop < pAiBlock->netwopCount))
+      if (pAiBlock != NULL)
       {
-         memset(usedSeries, FALSE, sizeof(usedSeries));
+         // convert the CNI parameter to a netwop index
+         for ( netwop = 0; netwop < pAiBlock->netwopCount; netwop++ ) 
+            if (cni == AI_GET_NETWOP_N(pAiBlock, netwop)->cni)
+               break;
 
-         EpgDbFilterEnable(fc, FILTER_NETWOP);
-         EpgDbFilterInitNetwop(fc);
-         EpgDbFilterSetNetwop(fc, netwop);
-
-         pPiBlock = EpgDbSearchFirstPi(dbc, fc);
-         if (pPiBlock != NULL)
+         if (netwop < pAiBlock->netwopCount)
          {
-            Tcl_UnsetVar(interp, "tmp_list", TCL_GLOBAL_ONLY);
-            do
-            {
-               series = 0;
-               for (index=0; index < pPiBlock->no_themes; index++)
-               {
-                  series = pPiBlock->themes[index];
-                  if ((series > 0x80) && (usedSeries[series - 0x80] == FALSE))
-                  {
-                     // append the command to create this menu entry to a list
-                     usedSeries[series - 0x80] = TRUE;
-                     //sprintf(comm, "lappend tmp_list {%s add checkbutton -label {%s} -variable series_sel(%d) -command {SelectSeries %d}}",
-                     sprintf(comm, "lappend tmp_list {%s} %d",
-                                   PI_GET_TITLE(pPiBlock),
-                                   netwop * 0x100 + series);
-                     eval_check(interp, comm);
-                     //printf("%s 0x%02x - %s\n", netname, series, PI_GET_TITLE(pPiBlock));
-                     break;
-                  }
-               }
-               pPiBlock = EpgDbSearchNextPi(dbc, fc, pPiBlock);
-            }
-            while (pPiBlock != NULL);
+            // save the id of the network's language into the named Tcl variable
+            sprintf(comm, "%d", AI_GET_NETWOP_N(pAiBlock, netwop)->alphabet);
+            Tcl_SetVar(interp, argv[2], comm, 0);
 
-            // sort the list of commands by series title and then create the entries in that order
-            sprintf(comm, "CreateSeriesMenuEntries %s $tmp_list %d\n",
-                          argv[1], AI_GET_NETWOP_N(pAiBlock, netwop)->alphabet);
-            eval_check(interp, comm);
+            memset(usedSeries, FALSE, sizeof(usedSeries));
+
+            fc = EpgDbFilterCreateContext();
+            EpgDbFilterEnable(fc, FILTER_NETWOP);
+            EpgDbFilterInitNetwop(fc);
+            EpgDbFilterSetNetwop(fc, netwop);
+
+            pPiBlock = EpgDbSearchFirstPi(dbc, fc);
+            if (pPiBlock != NULL)
+            {
+               do
+               {
+                  series = 0;
+                  for (index=0; index < pPiBlock->no_themes; index++)
+                  {
+                     series = pPiBlock->themes[index];
+                     if ((series > 0x80) && (usedSeries[series - 0x80] == FALSE))
+                     {
+                        usedSeries[series - 0x80] = TRUE;
+
+                        sprintf(comm, "%d", netwop * 0x100 + series);
+                        Tcl_AppendElement(interp, comm);
+                        Tcl_AppendElement(interp, PI_GET_TITLE(pPiBlock));
+                        //printf("%s 0x%02x - %s\n", netname, series, PI_GET_TITLE(pPiBlock));
+                        break;
+                     }
+                  }
+                  pPiBlock = EpgDbSearchNextPi(dbc, fc, pPiBlock);
+               }
+               while (pPiBlock != NULL);
+            }
+            EpgDbFilterDestroyContext(fc);
          }
+         else
+            debug1("Get-NetwopSeriesList: CNI 0x%04X not found in AI", cni);
       }
-      EpgDbFilterDestroyContext(fc);
+      else
+         debug0("Get-NetwopSeriesList: no AI in db");
       EpgDbLockDatabase(dbc, FALSE);
+      result = TCL_OK; 
    }
 
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Retrieve list of titles for a list of series/netwop codes
+// - used by the shortcut config menu to pretty-print the filter settings
+// - returns a 'tripled list', i.e. titles, netwop names, language id
+//
+static int GetSeriesTitles( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+{
+   const char * const pUsage = "Usage: C_GetSeriesTitles <series-list>";
+   const AI_BLOCK *pAiBlock;
+   const PI_BLOCK * pPiBlock;
+   FILTER_CONTEXT *fc;
+   char ** seriesArgv;
+   int seriesCount, series, idx;
+   int result;
+
+   if (argc != 2) 
+   {  // wrong # of args for this TCL cmd -> display error msg
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR; 
+   }  
+   else
+   {
+      result = Tcl_SplitList(interp, argv[1], &seriesCount, &seriesArgv);
+      if (result == TCL_OK)
+      {
+         fc = EpgDbFilterCreateContext();
+         EpgDbFilterInitSeries(fc);
+         EpgDbFilterEnable(fc, FILTER_SERIES);
+         EpgDbLockDatabase(dbc, TRUE);
+         pAiBlock = EpgDbGetAi(dbc);
+         if (pAiBlock != NULL)
+         {
+            // loop across all series passed as arguments
+            for (idx=0; (idx < seriesCount) && (result == TCL_OK); idx++)
+            {
+               result = Tcl_GetInt(interp, seriesArgv[idx], &series);
+               if ((result == TCL_OK) && ((series >> 8) < pAiBlock->netwopCount))
+               {
+                  // determine series title by searching a PI in the database
+                  EpgDbFilterSetSeries(fc, series >> 8, series & 0xff, TRUE);
+                  pPiBlock = EpgDbSearchFirstPi(dbc, fc);
+                  if (pPiBlock != NULL)
+                  {
+                     Tcl_AppendElement(interp, PI_GET_TITLE(pPiBlock));
+                  }
+                  else
+                  {  // no PI of that series in the db (this will happen quite often
+                     // unfortunately since most databases do not cover full 7 days)
+                     sprintf(comm, "[0x%02X - no instance in database]", series & 0xff);
+                     Tcl_AppendElement(interp, comm);
+                  }
+                  // append network name from AI block
+                  Tcl_AppendElement(interp, AI_GET_NETWOP_NAME(pAiBlock, series >> 8));
+                  // append language identifier (required by sort)
+                  sprintf(comm, "%d", AI_GET_NETWOP_N(pAiBlock, series >> 8)->alphabet);
+                  Tcl_AppendElement(interp, comm);
+                  EpgDbFilterSetSeries(fc, series >> 8, series & 0xff, FALSE);
+               }
+            }
+         }
+
+         EpgDbLockDatabase(dbc, FALSE);
+         EpgDbFilterDestroyContext(fc);
+         Tcl_Free((char *)seriesArgv);
+      }
+   }
    return result;
 }
 
@@ -855,6 +914,7 @@ static void UpdateFilterContextMenuState( const NI_FILTER_STATE * pNiState )
 
    if (pNiState->flags != NI_DATE_NONE)
    {
+      sint lto = EpgLtoGet();
       uint nowMoD = ((time(NULL) + lto) % (60*60*24)) / 60;
 
       if ((pNiState->flags & NI_DATE_RELDATE) == 0)
@@ -877,7 +937,8 @@ static void UpdateFilterContextMenuState( const NI_FILTER_STATE * pNiState )
          sprintf(comm, "set timsel_stop %d\nset timsel_absstop 0\n", pNiState->stopMoD);
       eval_check(interp, comm);
 
-      eval_check(interp, "if {$timsel_popup} SelectTimeFilterRelStart\n");
+      eval_check(interp, "set timsel_enabled 1\n"
+                         "if {$timsel_popup} SelectTimeFilterRelStart\n");
    }
 }
 
@@ -1054,7 +1115,7 @@ void PiFilter_UpdateNetwopList( void )
    if (pPiFilterContext != NULL)
    {
       // remove the old list; set cursor on first element
-      sprintf(comm, "UpdateNetwopFilterBar 0x%04X\n", EpgDbContextGetCni(pUiDbContext));
+      sprintf(comm, "UpdateProvCniTable 0x%04X\n", EpgDbContextGetCni(pUiDbContext));
       if ( (eval_check(interp, comm) == TCL_OK) &&
            (Tcl_SplitList(interp, interp->result, &argc, &argv) == TCL_OK) )
       {
@@ -1090,70 +1151,11 @@ static int UpdateNetwopList( ClientData ttp, Tcl_Interp *interp, int argc, char 
 }
 
 // ----------------------------------------------------------------------------
-// Get List of netwop CNIs and array of names from AI for netwop selection
-//
-static int GetAiNetwopList( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
-{
-   const char * const pUsage = "Usage: C_GetAiNetwopList";
-   const AI_BLOCK *pAiBlock;
-   uchar netwop;
-   int result;
-
-   if (argc != 1) 
-   {  // wrong # of args for this TCL cmd -> display error msg
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR; 
-   }  
-   else
-   {
-      EpgDbLockDatabase(dbc, TRUE);
-      pAiBlock = EpgDbGetAi(dbc);
-      if (pAiBlock != NULL)
-      {
-         for ( netwop = 0; netwop < pAiBlock->netwopCount; netwop++ ) 
-         {
-            // append the CNI in the format "0x0D94" to the TCL result list
-            sprintf(comm, "0x%04X", AI_GET_NETWOP_N(pAiBlock, netwop)->cni);
-            Tcl_AppendElement(interp, comm);
-
-            // as a side-effect the netwop names are stored into a TCL array
-            Tcl_SetVar2(interp, "netsel_names", comm, AI_GET_NETWOP_NAME(pAiBlock, netwop), TCL_GLOBAL_ONLY);
-         }
-      }
-      EpgDbLockDatabase(dbc, FALSE);
-      result = TCL_OK; 
-   }
-   return result;
-}
-
-// ----------------------------------------------------------------------------
-// Get CNI of currently selected provider for netwop selection popup
-//
-static int GetProvCni( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
-{
-   const char * const pUsage = "Usage: C_GetProvCni";
-   int result;
-
-   if (argc != 1) 
-   {  // wrong # of args for this TCL cmd -> display error msg
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR; 
-   }  
-   else
-   {
-      sprintf(comm, "0x%04X", EpgDbContextGetCni(pUiDbContext));
-      Tcl_SetResult(interp, comm, TCL_VOLATILE);
-      result = TCL_OK; 
-   }
-   return result;
-}
-
-// ----------------------------------------------------------------------------
 // Create the context menu (after click with the right mouse button onto a PI)
 //
 static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
 {
-   const char * const pUsage = "Usage: C_PiListBox_CreateContextMenu <menu-path>";
+   const char * const pUsage = "Usage: C_CreateContextMenu <menu-path>";
    const AI_BLOCK * pAiBlock;
    const PI_BLOCK * pPiBlock;
    int idx, entryCount;
@@ -1167,9 +1169,6 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, char
    }  
    else
    {
-      sprintf(comm, "bind %s <Leave> {%s unpost}\n", argv[1], argv[1]);
-      eval_check(interp, comm);
-
       EpgDbLockDatabase(dbc, TRUE);
       pAiBlock = EpgDbGetAi(dbc);
       if (pAiBlock != NULL)
@@ -1546,15 +1545,14 @@ void PiFilter_Create( void )
       Tcl_CreateCommand(interp, "C_ResetFilter", PiFilter_Reset, (ClientData) NULL, NULL);
 
       Tcl_CreateCommand(interp, "C_GetPdcString", GetPdcString, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_CreateSeriesNetwopMenu", CreateSeriesNetwopMenu, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_CreateSeriesMenu", CreateSeriesMenu, (ClientData) NULL, NULL);
+      Tcl_CreateCommand(interp, "C_GetNetwopsWithSeries", GetNetwopsWithSeries, (ClientData) NULL, NULL);
+      Tcl_CreateCommand(interp, "C_GetNetwopSeriesList", GetNetwopSeriesList, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_CreateNi", CreateNi, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_SelectNi", SelectNi, (ClientData) NULL, NULL);
 
       Tcl_CreateCommand(interp, "C_UpdateNetwopList", UpdateNetwopList, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_GetProvCni", GetProvCni, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_GetAiNetwopList", GetAiNetwopList, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_GetNetwopFilterList", GetNetwopFilterList, (ClientData) NULL, NULL);
+      Tcl_CreateCommand(interp, "C_GetSeriesTitles", GetSeriesTitles, (ClientData) NULL, NULL);
 
       Tcl_CreateCommand(interp, "C_CreateContextMenu", CreateContextMenu, (ClientData) NULL, NULL);
 

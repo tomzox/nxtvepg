@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqctl.c,v 1.39 2001/02/25 16:03:08 tom Exp tom $
+ *  $Id: epgacqctl.c,v 1.41 2001/04/19 20:41:55 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -31,7 +31,6 @@
 #include "epgctl/debug.h"
 
 #include "epgdb/epgblock.h"
-#include "epgdb/epgstream.h"
 #include "epgdb/epgdbif.h"
 #include "epgdb/epgdbsav.h"
 #include "epgdb/epgdbmgmt.h"
@@ -40,7 +39,8 @@
 
 #include "epgui/uictrl.h"
 #include "epgui/statswin.h"
-#include "epgctl/epgmain.h"
+#include "epgui/epgmain.h"
+#include "epgctl/epgctxmerge.h"
 #include "epgctl/epgctxctl.h"
 #include "epgctl/epgscan.h"
 #include "epgvbi/btdrv.h"
@@ -68,6 +68,8 @@ typedef struct {
 static EPGACQCTL_STATE  acqCtl = {ACQSTATE_OFF, ACQMODE_FOLLOW_UI, ACQMODE_FOLLOW_UI};
 static EPGDB_STATS      acqStats;
 static bool             acqStatsUpdate;
+
+EPGDB_CONTEXT * pAcqDbContext = NULL;
 
 
 static void EpgAcqCtl_InitCycle( void );
@@ -346,11 +348,11 @@ static bool EpgAcqCtl_TuneProvider( ulong freq, uint cni )
       else
       {
          dprintf0("EpgAcqCtl-TuneProv: input is no tuner -> force to passive mode\n");
-         if (acqCtl.haveWarnedInpSrc == FALSE)
+         if ((acqCtl.mode != ACQMODE_EXTERNAL) && (acqCtl.haveWarnedInpSrc == FALSE))
          {  // warn the user, but only once
             UiControlMsg_AcqPassive();
-            acqCtl.haveWarnedInpSrc = TRUE;
          }
+         acqCtl.haveWarnedInpSrc = TRUE;
          acqCtl.mode = ACQMODE_FORCED_PASSIVE;
          acqCtl.passiveReason = ACQPASSIVE_NO_TUNER;
       }
@@ -390,6 +392,7 @@ static uint EpgAcqCtl_GetProvider( void )
          cni = acqCtl.cniTab[acqCtl.cycleIdx];
          break;
 
+      case ACQMODE_EXTERNAL:
       case ACQMODE_PASSIVE:
       default:
          cni = 0;
@@ -503,7 +506,7 @@ static void EpgAcqCtl_InitCycle( void )
    if ( (acqCtl.mode == ACQMODE_FOLLOW_UI) &&
         EpgDbContextIsMerged(pUiDbContext) )
    {
-      if ( EpgDbMergeGetCnis(pUiDbContext, &acqCtl.cniCount, acqCtl.cniTab) )
+      if ( EpgContextMergeGetCnis(pUiDbContext, &acqCtl.cniCount, acqCtl.cniTab) )
       {
          dprintf1("EpgAcqCtl-InitCycle: switching from follow-ui to follow-merged for merged db with %d CNIs\n", acqCtl.cniCount);
          acqCtl.userMode = ACQMODE_FOLLOW_MERGED;
@@ -528,6 +531,7 @@ static void EpgAcqCtl_InitCycle( void )
          acqCtl.cyclePhase = ACQMODE_PHASE_STREAM2;
          break;
       case ACQMODE_PASSIVE:
+      case ACQMODE_EXTERNAL:
       case ACQMODE_FORCED_PASSIVE:
       default:
          acqCtl.cyclePhase = ACQMODE_PHASE_STREAM2;
@@ -578,7 +582,7 @@ static void EpgAcqCtl_AdvanceCyclePhase( bool forceAdvance )
    uint cni, maxRep;
 
    wrongCni = FALSE;
-   if ( (acqCtl.mode != ACQMODE_PASSIVE) &&
+   if ( (acqCtl.mode != ACQMODE_PASSIVE) && (acqCtl.mode != ACQMODE_EXTERNAL) &&
         !((acqCtl.mode == ACQMODE_FORCED_PASSIVE) && (acqCtl.passiveReason != ACQPASSIVE_ACCESS_DEVICE)) &&
         (EpgScan_IsActive() == FALSE) )
    {
@@ -823,7 +827,7 @@ EPGDB_STATE EpgAcqCtl_GetDbState( uint cni )
          {
             state = EPGDB_WAIT_SCAN;
          }
-         else if (acqCtl.mode == ACQMODE_PASSIVE)
+         else if ((acqCtl.mode == ACQMODE_PASSIVE) || (acqCtl.mode == ACQMODE_EXTERNAL))
          {
             state = EPGDB_ACQ_PASSIVE;
          }
@@ -862,7 +866,7 @@ EPGDB_STATE EpgAcqCtl_GetDbState( uint cni )
                uint mergeIdx, mergeCniCount, mergeCniTab[MAX_MERGED_DB_COUNT];
                int foundIdx;
 
-               if (EpgDbMergeGetCnis(pUiDbContext, &mergeCniCount, mergeCniTab))
+               if (EpgContextMergeGetCnis(pUiDbContext, &mergeCniCount, mergeCniTab))
                {
                   // check if the current acq CNI is one of the merged
                   for (mergeIdx=0; mergeIdx < mergeCniCount; mergeIdx++)

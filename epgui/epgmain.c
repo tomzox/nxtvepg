@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgmain.c,v 1.54 2001/02/25 16:03:08 tom Exp tom $
+ *  $Id: epgmain.c,v 1.57 2001/04/20 19:25:18 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -56,7 +56,6 @@
 #include "epgctl/epgversion.h"
 #include "epgctl/debug.h"
 #include "epgdb/epgblock.h"
-#include "epgdb/epgstream.h"
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
 #include "epgdb/epgdbmgmt.h"
@@ -74,9 +73,10 @@
 #include "epgui/nxtv_logo.xbm"
 #include "epgui/ptr_up.xbm"
 #include "epgui/ptr_down.xbm"
+#include "epgui/pan_updown.xbm"
 
 #include "epgvbi/btdrv.h"
-#include "epgctl/epgmain.h"
+#include "epgui/epgmain.h"
 
 
 #ifndef USE_PRECOMPILED_TCL_LIBS
@@ -101,18 +101,16 @@ char comm[1000];             // Command buffer
 // command line options
 #ifdef WIN32
 static const char *rcfile = "nxtvepg.ini";
-       const char *dbdir  = ".";
+static const char *dbdir  = ".";
 #else
 static const char *rcfile = "~/.nxtvepgrc";
-       const char *dbdir  = "/usr/tmp/nxtvdb";
+static const char *dbdir  = "/usr/tmp/nxtvdb";
 #endif
 static int  videoCardIndex = -1;
 static bool disableAcq = FALSE;
 static bool startIconified = FALSE;
 static uint startUiCni = 0;
-       const char *pDemoDatabase = NULL;
-
-sint lto = 0;
+static const char *pDemoDatabase = NULL;
 
 // Global variable: if TRUE, will exit on the next iteration of the main loop
 Tcl_AsyncHandler exitHandler = NULL;
@@ -131,7 +129,6 @@ typedef struct MAIN_IDLE_EVENT_STRUCT
 MAIN_IDLE_EVENT * pMainIdleEventQueue = NULL;
 
 EPGDB_CONTEXT * pUiDbContext;
-EPGDB_CONTEXT * pAcqDbContext;
 
 // ---------------------------------------------------------------------------
 // Execute a Tcl/Tk command line and check the result
@@ -381,29 +378,6 @@ static void WinApiDestructionHandler( ClientData clientData)
 extern TCL_STORAGE_CLASS void Tk_RegisterMainDestructionHandler( Tcl_CloseProc * handler );
 
 #endif
-
-// ---------------------------------------------------------------------------
-// determine local time offset to UTC
-//
-static void InitLTO( void )
-{
-   struct tm *tm;
-   time_t now;
-
-   tzset();
-   time(&now);
-
-   #ifndef __NetBSD__
-   tm = localtime(&now);
-   lto = 60*60 * tm->tm_isdst - timezone;
-   #else
-   tm = gmtime(&now);
-   tm->tm_isdst = -1;
-   lto = now - mktime(tm);
-   #endif
-
-   //printf("LTO = %d min, %s/%s, off=%ld, daylight=%d\n", lto/60, tzname[0], tzname[1], timezone/60, tm->tm_isdst);
-}
 
 #ifdef WIN32
 // ---------------------------------------------------------------------------
@@ -795,10 +769,11 @@ static int ui_init( int argc, char **argv )
 
    Tk_DefineBitmap(interp, Tk_GetUid("bitmap_ptr_up"), ptr_up_bits, ptr_up_width, ptr_up_height);
    Tk_DefineBitmap(interp, Tk_GetUid("bitmap_ptr_down"), ptr_down_bits, ptr_down_width, ptr_down_height);
+   Tk_DefineBitmap(interp, Tk_GetUid("bitmap_pan_updown"), pan_updown_bits, pan_updown_width, pan_updown_height);
    Tk_DefineBitmap(interp, Tk_GetUid("nxtv_logo"), nxtv_logo_bits, nxtv_logo_width, nxtv_logo_height);
 
    sprintf(comm, "wm title . {Nextview EPG Decoder}\n"
-                 "wm resizable . 0 0\n"
+                 "wm resizable . 0 1\n"
                  "wm iconbitmap . nxtv_logo\n"
                  "wm iconname . {Nextview EPG}\n");
    eval_check(interp, comm);
@@ -832,9 +807,8 @@ int main( int argc, char *argv[] )
    interp = NULL;
    // set db states to not initialized
    pUiDbContext = NULL;
-   pAcqDbContext = NULL;
 
-   InitLTO();
+   EpgLtoInit();
 
    #ifndef WIN32
    signal(SIGINT, signal_handler);
@@ -849,7 +823,7 @@ int main( int argc, char *argv[] )
    ParseArgv(argc, argv);
    
    // set up the directory for the databases (unless in demo mode)
-   if ((pDemoDatabase == NULL) && (EpgDbDumpCreateDir(dbdir) == FALSE))
+   if (EpgDbSavSetupDir(dbdir, pDemoDatabase) == FALSE)
    {  // failed to create dir: message was already issued, so just exit
       exit(-1);
    }
@@ -863,7 +837,7 @@ int main( int argc, char *argv[] )
    exitHandler = Tcl_AsyncCreate(AsyncHandler_AppTerminate, NULL);
 
    // load the user configuration from the rc/ini file
-   sprintf(comm, "LoadRcFile %s\n", rcfile);
+   sprintf(comm, "LoadRcFile {%s}\n", rcfile);
    eval_check(interp, comm);
 
    // pass TV card hardware parameters to the driver
@@ -876,6 +850,10 @@ int main( int argc, char *argv[] )
       if (EpgDbContextGetCni(pUiDbContext) == 0)
       {
          pDemoDatabase = NULL;
+         if (EpgDbSavSetupDir(dbdir, pDemoDatabase) == FALSE)
+         {  // failed to create dir: message was already issued, so just exit
+            exit(-1);
+         }
       }
       disableAcq = TRUE;
    }
@@ -885,10 +863,10 @@ int main( int argc, char *argv[] )
    }
 
    // initialize the GUI control modules
-   StatsWin_Create();
+   StatsWin_Create(pDemoDatabase != NULL);
    PiFilter_Create();
    PiListBox_Create();
-   MenuCmd_Init();
+   MenuCmd_Init(pDemoDatabase != NULL);
 
    // draw the clock and update it every second afterwords
    EventHandler_UpdateClock(NULL);

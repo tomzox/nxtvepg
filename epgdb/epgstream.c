@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgstream.c,v 1.13 2001/02/25 16:00:45 tom Exp tom $
+ *  $Id: epgstream.c,v 1.14 2001/04/04 18:31:45 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -33,8 +33,7 @@
 #include "epgctl/debug.h"
 #include "epgvbi/hamming.h"
 #include "epgdb/epgblock.h"
-#include "epgdb/epgdbif.h"
-#include "epgdb/epgtxtdump.h"
+#include "epgui/epgtxtdump.h"
 #include "epgdb/epgstream.h"
 
 
@@ -156,63 +155,54 @@ static void EpgStreamConvertBlock( const uchar *pBuffer, uint blockLen, uchar st
    {
       case EPGDBACQ_TYPE_BI:
          pBlock = EpgBlockConvertBi(pBuffer, ctrlLen);
-         EpgTxtDumpBi(stdout, &pBlock->blk.bi, stream);
          break;
       case EPGDBACQ_TYPE_AI:
          pBlock = EpgBlockConvertAi(pBuffer, ctrlLen, strLen);
-         EpgTxtDumpAi(stdout, &pBlock->blk.ai, stream);
          break;
       case EPGDBACQ_TYPE_PI:
          pBlock = EpgBlockConvertPi(pBuffer, ctrlLen, strLen);
-         if (pBlock != NULL)
-         {
-            pBlock->stream = stream;
-            EpgTxtDumpPi(stdout, &pBlock->blk.pi, stream, 0xff, NULL);
-         }
          break;
       case EPGDBACQ_TYPE_NI:
          pBlock = EpgBlockConvertNi(pBuffer, ctrlLen, strLen);
-         EpgTxtDumpNi(stdout, &pBlock->blk.ni, stream);
          break;
       case EPGDBACQ_TYPE_OI:
          pBlock = EpgBlockConvertOi(pBuffer, ctrlLen, strLen);
-         EpgTxtDumpOi(stdout, &pBlock->blk.oi, stream);
          break;
       case EPGDBACQ_TYPE_MI:
          pBlock = EpgBlockConvertMi(pBuffer, ctrlLen, strLen);
-         EpgTxtDumpMi(stdout, &pBlock->blk.mi, stream);
          break;
       case EPGDBACQ_TYPE_LI:
          pBlock = EpgBlockConvertLi(pBuffer, ctrlLen, strLen);
-         EpgTxtDumpLi(stdout, &pBlock->blk.li, stream);
          break;
       case EPGDBACQ_TYPE_TI:
          pBlock = EpgBlockConvertTi(pBuffer, ctrlLen, strLen);
-         EpgTxtDumpTi(stdout, &pBlock->blk.ti, stream);
          break;
       case EPGDBACQ_TYPE_HI:
       case EPGDBACQ_TYPE_UI:
       case EPGDBACQ_TYPE_CI:
       default:
-         EpgTxtDumpUnknown(stdout, type);
          pBlock = NULL;
          break;
    }
 
    if (pBlock != NULL)
    {
+      pBlock->stream        = stream;
+      pBlock->parityErrCnt  = parityErrCnt;
+      pBlock->origChkSum    = pBuffer[2];
+      pBlock->origBlkLen    = blockLen;
+
+      EpgTxtDump_Block(&pBlock->blk, pBlock->type, stream);
+
       if (enableAllTypes || (type <= EPGDBACQ_TYPE_AI))
       {
-         pBlock->stream        = stream;
-         pBlock->parityErrCnt  = parityErrCnt;
-         pBlock->origChkSum    = pBuffer[2];
-         pBlock->origBlkLen    = blockLen;
-
          EpgStreamAddBlockToScratch(pBlock);
       }
       else
          xfree(pBlock);
    }
+   else
+      EpgTxtDump_UnknownBlock(type, blockLen, stream);
 }
 
 // ---------------------------------------------------------------------------

@@ -34,14 +34,13 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgscan.c,v 1.10 2001/02/26 22:07:14 tom Exp tom $
+ *  $Id: epgscan.c,v 1.11 2001/04/03 19:16:12 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
 #define DPRINTF_OFF
 
 #include <time.h>
-#include <tcl.h>
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
@@ -52,8 +51,6 @@
 #include "epgdb/epgdbacq.h"
 
 #include "epgui/uictrl.h"
-#include "epgui/menucmd.h"
-#include "epgctl/epgmain.h"
 #include "epgctl/epgctxctl.h"
 #include "epgctl/epgacqctl.h"
 #include "epgvbi/vbidecode.h"
@@ -69,7 +66,6 @@
 typedef struct
 {
    EPGSCAN_STATE    state;            // state machine
-   Tcl_TimerToken   evHandler;        // timer handle
    bool             acqWasEnabled;    // flag if acq was active before start of scan
    uint             channel;          // currently scanned channel
    uint             channelIdx;       // index of channel currently checked
@@ -79,9 +75,10 @@ typedef struct
    bool             doRefresh;        // user option: check already known providers only
    ulong          * provFreqTab;      // list of known providers (refresh mode)
    uint             provFreqCount;    // number of known providers (refresh mode)
+   void          (* MsgCallback)( const char * pMsg );
 } EPGSCANCTL_STATE;
 
-static EPGSCANCTL_STATE scanCtl = {SCAN_STATE_OFF, NULL};
+static EPGSCANCTL_STATE scanCtl = {SCAN_STATE_OFF};
 
 
 // ----------------------------------------------------------------------------
@@ -115,19 +112,20 @@ static bool EpgScan_NextChannel( ulong * pFreq )
 // ----------------------------------------------------------------------------
 // EPG scan timer event handler - called every 250ms
 // 
-static void EventHandler_EpgScan( ClientData clientData )
+uint EpgScan_EvHandler( void )
 {
    const EPGDBSAV_PEEK *pPeek;
    const AI_BLOCK *pAi;
    time_t now = time(NULL);
-   uchar chanName[10];
+   uchar chanName[10], msgbuf[80];
    ulong freq;
    ulong ttxPkgCount, epgPkgCount, epgPageCount;
    uint cni, dataPageCnt;
    time_t delay;
+   uint rescheduleMs;
    bool niWait;
 
-   scanCtl.evHandler = NULL;
+   rescheduleMs = 0;
    if (scanCtl.state != SCAN_STATE_OFF)
    {
       if (scanCtl.state == SCAN_STATE_RESET)
@@ -167,13 +165,13 @@ static void EventHandler_EpgScan( ClientData clientData )
                pPeek = EpgDbPeek(cni, NULL);
                if (pPeek != NULL)
                {
-                  sprintf(comm, "provider already known: %s",
+                  sprintf(msgbuf, "provider already known: %s",
                                 AI_GET_NETWOP_NAME(&pPeek->pAiBlock->blk.ai, pPeek->pAiBlock->blk.ai.thisNetwop));
-                  MenuCmd_AddEpgScanMsg(comm);
+                  scanCtl.MsgCallback(msgbuf);
                   scanCtl.state = SCAN_STATE_DONE;
                   if (pPeek->tunerFreq != pAcqDbContext->tunerFreq)
                   {
-                     MenuCmd_AddEpgScanMsg("storing provider's tuner frequency");
+                     scanCtl.MsgCallback("storing provider's tuner frequency");
                      EpgContextCtl_UpdateFreq(cni, pAcqDbContext->tunerFreq);
                   }
                   UiControlMsg_NewProvFreq(cni, pAcqDbContext->tunerFreq);
@@ -187,8 +185,8 @@ static void EventHandler_EpgScan( ClientData clientData )
                   pAi = EpgDbGetAi(pAcqDbContext);
                   if (pAi != NULL)
                   {
-                     sprintf(comm, "Found new provider: %s", AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop));
-                     MenuCmd_AddEpgScanMsg(comm);
+                     sprintf(msgbuf, "Found new provider: %s", AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop));
+                     scanCtl.MsgCallback(msgbuf);
                      scanCtl.state = SCAN_STATE_DONE;
                   }
                   EpgDbLockDatabase(pAcqDbContext, FALSE);
@@ -202,18 +200,18 @@ static void EventHandler_EpgScan( ClientData clientData )
                TvChannels_GetName(scanCtl.channel, chanName, 10);
             else
                sprintf(chanName, "#%d", scanCtl.channel);
-            sprintf(comm, "Channel %s: network id 0x%04X", chanName, cni);
-            MenuCmd_AddEpgScanMsg(comm);
+            sprintf(msgbuf, "Channel %s: network id 0x%04X", chanName, cni);
+            scanCtl.MsgCallback(msgbuf);
             pPeek = EpgDbPeek(cni, NULL);
             if (pPeek != NULL)
             {  // provider already loaded -> skip
-               sprintf(comm, "provider already known: %s",
-                             AI_GET_NETWOP_NAME(&pPeek->pAiBlock->blk.ai, pPeek->pAiBlock->blk.ai.thisNetwop));
-               MenuCmd_AddEpgScanMsg(comm);
+               sprintf(msgbuf, "provider already known: %s",
+                               AI_GET_NETWOP_NAME(&pPeek->pAiBlock->blk.ai, pPeek->pAiBlock->blk.ai.thisNetwop));
+               scanCtl.MsgCallback(msgbuf);
 
                if (pPeek->tunerFreq != pAcqDbContext->tunerFreq)
                {
-                  MenuCmd_AddEpgScanMsg("storing provider's tuner frequency");
+                  scanCtl.MsgCallback("storing provider's tuner frequency");
                   EpgContextCtl_UpdateFreq(cni, pAcqDbContext->tunerFreq);
                }
                UiControlMsg_NewProvFreq(cni, pAcqDbContext->tunerFreq);
@@ -239,7 +237,7 @@ static void EventHandler_EpgScan( ClientData clientData )
                   case 0x2F06:  // M6 (France)
                      // known provider -> wait for BI/AI
                      if (scanCtl.state <= SCAN_STATE_WAIT_NI)
-                        MenuCmd_AddEpgScanMsg("checking for EPG transmission...");
+                        scanCtl.MsgCallback("checking for EPG transmission...");
                      scanCtl.state = SCAN_STATE_WAIT_EPG;
                      // enable normal EPG acq callback handling
                      EpgAcqCtl_ToggleAcqForScan(TRUE);
@@ -255,9 +253,9 @@ static void EventHandler_EpgScan( ClientData clientData )
          else if ((dataPageCnt != 0) && (scanCtl.state <= SCAN_STATE_WAIT_DATA))
          {
             dprintf2("Found %d data pages on channel %d\n", dataPageCnt, scanCtl.channel);
-            sprintf(comm, "Found ETS-708 syntax on %d pages", dataPageCnt);
-            MenuCmd_AddEpgScanMsg(comm);
-            MenuCmd_AddEpgScanMsg("checking for EPG transmission...");
+            sprintf(msgbuf, "Found ETS-708 syntax on %d pages", dataPageCnt);
+            scanCtl.MsgCallback(msgbuf);
+            scanCtl.MsgCallback("checking for EPG transmission...");
 
             if (scanCtl.state <= SCAN_STATE_WAIT_NI)
                scanCtl.state = SCAN_STATE_WAIT_NI_OR_EPG;
@@ -308,47 +306,41 @@ static void EventHandler_EpgScan( ClientData clientData )
                scanCtl.startTime = now;
                scanCtl.state = SCAN_STATE_RESET;
                EpgAcqCtl_ToggleAcqForScan(FALSE);
-               sprintf(comm, ".epgscan.all.baro.bari configure -width %d\n",
-                             (int)((double)scanCtl.channelIdx / (scanCtl.doRefresh ? (scanCtl.provFreqCount + 1) : TvChannels_GetCount())*140.0));
-               eval_check(interp, comm);
 
-               scanCtl.evHandler = Tcl_CreateTimerHandler(50, EventHandler_EpgScan, NULL);
+               rescheduleMs = 50;
             }
             else
             {
                EpgScan_Stop();
-               MenuCmd_AddEpgScanMsg("channel change failed - abort.");
-               eval_check(interp, "bell");
-               MenuCmd_StopEpgScan(NULL, interp, 0, NULL);
+               scanCtl.MsgCallback("channel change failed - abort.");
             }
          }
          else
          {
             EpgScan_Stop();
-            MenuCmd_AddEpgScanMsg("EPG scan finished.");
-            eval_check(interp, ".epgscan.all.baro.bari configure -width 140\n");
+            scanCtl.MsgCallback("EPG scan finished.");
             if (scanCtl.signalFound == 0)
             {
-               MenuCmd_AddEpgScanMsg("No signal found on any channels!\n"
-                                     "Please check your settings in the\n"
-                                     "TV card input popup (Configure menu)\n"
-                                     "or check your antenna cable.");
+               scanCtl.MsgCallback("No signal found on any channels!\n"
+                                   "Please check your settings in the\n"
+                                   "TV card input popup (Configure menu)\n"
+                                   "or check your antenna cable.");
             }
-            eval_check(interp, "bell");
-            MenuCmd_StopEpgScan(NULL, interp, 0, NULL);
          }
       }
       else
       {  // continue scan on current channel
          dprintf2("Continue waiting... waited %d of max. %d secs\n", (int)(now - scanCtl.startTime), (int)delay);
          if (scanCtl.state == SCAN_STATE_WAIT_SIGNAL)
-            scanCtl.evHandler = Tcl_CreateTimerHandler(100, EventHandler_EpgScan, NULL);
+            rescheduleMs = 100;
          else
-            scanCtl.evHandler = Tcl_CreateTimerHandler(250, EventHandler_EpgScan, NULL);
+            rescheduleMs = 250;
       }
    }
    else
       debug0("EventHandler-EpgScan: scan not running");
+
+   return rescheduleMs;
 }
 
 // ----------------------------------------------------------------------------
@@ -357,18 +349,22 @@ static void EventHandler_EpgScan( ClientData clientData )
 //   timer event handler, which must be called every 250 ms
 // - returns FALSE if either /dev/video or /dev/vbi could not be opened
 //
-EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool doRefresh, ulong *freqTab, uint freqCount )
+EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool doRefresh,
+                                    ulong *freqTab, uint freqCount, uint * pRescheduleMs,
+                                    void (* MsgCallback)(const char * pMsg) )
 {
    ulong freq;
    bool  isTuner;
    EPGSCAN_START_RESULT result;
-   uchar chanName[10];
+   uchar chanName[10], msgbuf[80];
+   uint rescheduleMs;
 
    scanCtl.doRefresh     = doRefresh;
    scanCtl.doSlow        = doSlow;
    scanCtl.acqWasEnabled = (pAcqDbContext != NULL);
    scanCtl.provFreqTab   = freqTab;
    scanCtl.provFreqCount = freqCount;
+   scanCtl.MsgCallback   = MsgCallback;
    result = EPGSCAN_OK;
 
    // set up an empty db
@@ -378,6 +374,7 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool doRefresh
       pAcqDbContext = NULL;
    }
    pAcqDbContext = EpgContextCtl_CreateNew();
+   rescheduleMs = 0;
 
    // start EPG acquisition
    if (scanCtl.acqWasEnabled == FALSE)
@@ -408,20 +405,17 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool doRefresh
                dprintf1("RESET channel %d\n", scanCtl.channel);
                scanCtl.state = SCAN_STATE_RESET;
                scanCtl.startTime = time(NULL);
-               scanCtl.evHandler = Tcl_CreateTimerHandler(50, EventHandler_EpgScan, NULL);
+               rescheduleMs = 50;
                scanCtl.signalFound = 0;
 
                if (scanCtl.doRefresh == FALSE)
                {
                   TvChannels_GetName(scanCtl.channel, chanName, 10);
-                  sprintf(comm, "Starting scan on channel %s", chanName);
+                  sprintf(msgbuf, "Starting scan on channel %s", chanName);
                }
                else
-                  sprintf(comm, "Starting scan on %d known channels", scanCtl.provFreqCount);
-               MenuCmd_AddEpgScanMsg(comm);
-               sprintf(comm, ".epgscan.all.baro.bari configure -width %d\n",
-                             (int)((double)scanCtl.channelIdx / (scanCtl.doRefresh ? (scanCtl.provFreqCount + 1) : TvChannels_GetCount())*140.0));
-               eval_check(interp, comm);
+                  sprintf(msgbuf, "Starting scan on %d known channels", scanCtl.provFreqCount);
+               scanCtl.MsgCallback(msgbuf);
             }
             else
                result = EPGSCAN_ACCESS_DEV_VIDEO;
@@ -457,6 +451,11 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool doRefresh
       }
    }
 
+   if (pRescheduleMs != NULL)
+      *pRescheduleMs = rescheduleMs;
+   else
+      debug0("EpgScan-Start: illegal NULL ptr param pRescheduleMs");
+
    return result;
 }
 
@@ -468,9 +467,6 @@ void EpgScan_Stop( void )
 {
    if (scanCtl.state != SCAN_STATE_OFF)
    {
-      Tcl_DeleteTimerHandler(scanCtl.evHandler);
-      scanCtl.evHandler = NULL;
-
       if (scanCtl.provFreqTab != NULL)
       {
          xfree(scanCtl.provFreqTab);
@@ -501,6 +497,24 @@ void EpgScan_Stop( void )
 void EpgScan_SetSpeed( bool doSlow )
 {
    scanCtl.doSlow = doSlow;
+}
+
+// ----------------------------------------------------------------------------
+// Return progress percentage for the progress bar
+// 
+double EpgScan_GetProgressPercentage( void )
+{
+   uint count;
+
+   if (scanCtl.doRefresh)
+      count = scanCtl.provFreqCount + 1;
+   else
+      count = TvChannels_GetCount();
+
+   if (count != 0)
+      return (double)scanCtl.channelIdx / count;
+   else
+      return 100.0;
 }
 
 // ----------------------------------------------------------------------------

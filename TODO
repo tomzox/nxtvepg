@@ -15,15 +15,11 @@ acq mode ctl. & cyclic acq fixes:
   or combine several CNIs into one popup
 
 WIN32 port fixes:
-- tuner input source fixed to #0
+- input source naming needs to be configurable for exotic cards
 - dump stream feature: must use window or file instead of stdout
 - catch exceptions in VBI thread separately (anyone still seeing blue-screens?)
 - need to debug source of crash in MessageBox()
 - better workaround for dynamic menus needed
-
-required bttv driver fixes:
-- setting input source via /dev/vbi is not possible
-  (waiting for answer from Gerd Knorr to mail from Feb/21/2001)
 
 merged database fixes:
 - fine control for provider merge
@@ -33,11 +29,13 @@ merged database fixes:
   break up into substrings at any non-alnum except space
 
 other required fixes:
-- add manual EPG scan: direct input of channel and fine-tune or frequency
+- fix: obsolete series codes can not be deleted, because only series which
+  have an instance in the db are listed in the series menu
 - short info text view is set to line 1.0 during every update
+- allow to set input source via /dev/vbi (bttv version >= 0.7.5x)
 - cmd line option "predatory": in this mode the tuner is set via /dev/vbi
   regardless of other /dev/video users
-- do not tune channel if vbi busy
+- do not tune channel if vbi busy, because it disturbs e.g. a teletext app.
 - filter shortcut combination logic modes: OR,AND
 - provider-specific shortcuts: are listed only for one provider
   mandatory when shortcut includes series or sortcrit filter
@@ -48,7 +46,9 @@ other required fixes:
 - debugging: make serious debugX events fatal (developers only)
 
 possible new features: (in order of decreasing priority)
-- Use Tix library to improve GUI
+- series management based on titles only, across all networks
+- Help in German
+- Use GTK or Tix library to improve GUI
 - add hyperlinks in the online help menus for all cross-references
 - TV channel switching for NOW programmes
 - timezone popup (GUI already implemented)

@@ -24,7 +24,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile,v 1.23 2001/02/25 16:06:08 tom Exp tom $
+#  $Id: Makefile,v 1.24 2001/04/14 16:28:49 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -60,14 +60,14 @@ CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -O
 
 # ----- don't change anything below ------------------------------------------
 
-MODS    = epgctl/epgmain epgctl/debug epgctl/epgacqctl epgctl/epgscan \
-          epgctl/epgctxctl epgvbi/vbidecode epgvbi/tvchan epgvbi/btdrv4linux \
-          epgvbi/hamming \
-          epgdb/epgdbacq epgdb/epgstream epgdb/epgtxtdump epgdb/epgdbsav \
+MODS    = epgvbi/vbidecode epgvbi/tvchan epgvbi/btdrv4linux epgvbi/hamming \
+          epgctl/debug epgctl/epgacqctl epgctl/epgscan epgctl/epgctxctl \
+          epgctl/epgctxmerge \
+          epgdb/epgdbacq epgdb/epgstream epgdb/epgdbmerge epgdb/epgdbsav \
           epgdb/epgdbmgmt epgdb/epgdbif epgdb/epgdbfil epgdb/epgblock \
-          epgdb/epgdbmerge \
           epgui/uictrl epgui/pilistbox epgui/pifilter epgui/epgui epgui/help \
-          epgui/statswin epgui/pdc_themes epgui/menucmd
+          epgui/statswin epgui/pdc_themes epgui/menucmd epgui/epgtxtdump \
+          epgui/epgmain
 
 SRCS    = $(addsuffix .c, $(MODS))
 OBJS    = $(addsuffix .o, $(MODS))
@@ -124,7 +124,7 @@ depend:
 
 bak:
 	cd .. && tar cf pc.tar pc -X pc/tar-ex && gzip -f -9 pc.tar
-	cd .. && tar cf /e/pc.tar pc -X pc/tar-ex-win
+	cd .. && tar cf /c/nxtvepg/pc.tar pc -X pc/tar-ex-win
 
 include Makefile.dep
 

@@ -135,10 +135,15 @@ Windows installation procedure:
   start an EPG scan. If the scan just runs through without finding
   any network IDs, check your TV card settings, particularily "PLL init"
   (or check your antenna cable) and try again. If the scan still fails,
-  try an external input, i.e. supply a provider's TV channel via the
-  Composite inputs, e.g. from your VCR.  In rare cases the descriptions
-  of input sources in the TV card popup may be wrong, so try all inputs,
-  e.g. "Composite 2" even if you connected the cable to #1.
+  there are two other possibilities for Nextview reception:
+  1: Set acquisition mode "external". Then stop acquisition and tune in a
+  provider channel with a separate application, e.g. a TV viewer. Then quit
+  the other application again and start acquisition. See 'Getting Started'
+  and the help for the acquisition mode dialog for more information.
+  2: Alternatively you can try an external input, i.e. supply a provider's
+  TV channel via the Composite inputs, e.g. from your VCR.  In rare cases
+  the descriptions of input sources in the TV card popup may be wrong, so
+  try all inputs, e.g.  "Composite 2" even if you connected the cable to #1.
 
 Explanation of Windows Bt8x8 driver error messages:
 

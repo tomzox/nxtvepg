@@ -16,12 +16,14 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqctl.h,v 1.24 2001/02/25 16:03:08 tom Exp tom $
+ *  $Id: epgacqctl.h,v 1.26 2001/04/19 20:41:55 tom Exp tom $
  */
 
 #ifndef __EPGACQCTL_H
 #define __EPGACQCTL_H
 
+
+extern EPGDB_CONTEXT * pAcqDbContext;
 
 // ---------------------------------------------------------------------------
 // describing the state of the acq and db
@@ -58,6 +60,7 @@ typedef enum
 {
    ACQMODE_FORCED_PASSIVE,  // forced passive
    ACQMODE_PASSIVE,         // do not touch /dev/video
+   ACQMODE_EXTERNAL,        // set input source, then passive
    ACQMODE_FOLLOW_UI,       // change acq db to follow browser
    ACQMODE_FOLLOW_MERGED,   // substate of follow-ui for merged db, equiv to cyclic-2
    ACQMODE_CYCLIC_2,        // cyclic: full only

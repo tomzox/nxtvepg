@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: statswin.c,v 1.32 2001/02/25 16:03:47 tom Exp tom $
+ *  $Id: statswin.c,v 1.34 2001/04/19 20:48:44 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -42,9 +42,9 @@
 #include "epgdb/epgdbacq.h"
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
-#include "epgctl/epgmain.h"
 #include "epgctl/epgacqctl.h"
 #include "epgctl/epgscan.h"
+#include "epgui/epgmain.h"
 #include "epgui/statswin.h"
 
 
@@ -87,6 +87,8 @@ const char * const streamColors[STREAM_COLOR_COUNT] =
    "#483D8B",       // stream 2, obsolete version -> DarkSlate
    "yellow"         // defect block -> yellow
 };
+
+static bool isStatsDemoMode;
 
 
 static void StatsWin_UpdateDbStatsWinTimeout( ClientData clientData );
@@ -424,6 +426,9 @@ void StatsWin_UpdateDbStatsWin( ClientData clientData )
             case ACQMODE_PASSIVE:
                strcat(comm, "Acq mode:         passive\n");
                break;
+            case ACQMODE_EXTERNAL:
+               strcat(comm, "Acq mode:         external\n");
+               break;
             case ACQMODE_FORCED_PASSIVE:
                strcat(comm, "Acq mode:         forced passive\n");
                switch (acqState.passiveReason)
@@ -602,7 +607,7 @@ void StatsWin_UpdateDbStatusLine( ClientData clientData )
 
    strcpy(comm, "set dbstatus_line {");
 
-   if (pDemoDatabase != NULL)
+   if (isStatsDemoMode)
    {  // Demo database -> do not display statistics
       strcat(comm, "Demo database: start times are not real. ");
    }
@@ -705,7 +710,9 @@ void StatsWin_UpdateDbStatusLine( ClientData clientData )
          break;
       case ACQDESCR_STARTING:
          if ( (acqState.dbCni == acqState.cycleCni) && (acqState.dbCni != 0) &&
-              (acqState.state != ACQMODE_FORCED_PASSIVE) && (acqState.state != ACQMODE_PASSIVE) )
+              (acqState.mode != ACQMODE_FORCED_PASSIVE) &&
+              (acqState.mode != ACQMODE_PASSIVE) &&
+              (acqState.mode != ACQMODE_EXTERNAL) )
          {
             EpgDbLockDatabase(pAcqDbContext, TRUE);
             pAi = EpgDbGetAi(pAcqDbContext);
@@ -726,6 +733,7 @@ void StatsWin_UpdateDbStatusLine( ClientData clientData )
       case ACQDESCR_STALLED:
          strcat(comm, "Acquisition stalled");
          if ( (acqState.mode != ACQMODE_PASSIVE) &&
+              (acqState.mode != ACQMODE_EXTERNAL) &&
               (acqState.mode != ACQMODE_FORCED_PASSIVE) )
          {
             EpgDbLockDatabase(pAcqDbContext, TRUE);
@@ -758,6 +766,14 @@ void StatsWin_UpdateDbStatusLine( ClientData clientData )
             sprintf(comm + strlen(comm), ", %d%% complete", ACQ_COUNT_TO_PERCENT(allCount, aiTotal));
          }
          strcat(comm, " (passive mode)");
+      }
+      else if (acqState.mode == ACQMODE_EXTERNAL)
+      {
+         if ((acqState.state == ACQDESCR_RUNNING) && (sv != NULL))
+         {
+            sprintf(comm + strlen(comm), ", %d%% complete", ACQ_COUNT_TO_PERCENT(allCount, aiTotal));
+         }
+         strcat(comm, " (external)");
       }
       else if (acqState.mode == ACQMODE_FORCED_PASSIVE)
       {
@@ -1336,7 +1352,7 @@ void StatsWin_ProvChange( int target )
 // create and initialize (but do NOT show) the statistics window
 // - this should be called only once during start-up
 //
-void StatsWin_Create( void )
+void StatsWin_Create( bool isDemoMode )
 {
    Tcl_CmdInfo cmdInfo;
 
@@ -1344,6 +1360,7 @@ void StatsWin_Create( void )
    {
       Tcl_CreateCommand(interp, "C_StatsWin_ToggleTimescale", StatsWin_ToggleTimescale, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_StatsWin_ToggleDbStats", StatsWin_ToggleDbStats, (ClientData) NULL, NULL);
+      isStatsDemoMode = isDemoMode;
    }
    else
       debug0("StatsWin-Create: commands are already created");

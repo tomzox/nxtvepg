@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgscan.h,v 1.4 2001/02/25 16:03:08 tom Exp tom $
+ *  $Id: epgscan.h,v 1.5 2001/04/03 19:17:46 tom Exp tom $
  */
 
 #ifndef __EPGSCAN_H
@@ -51,10 +51,14 @@ typedef enum
 // ---------------------------------------------------------------------------
 // Interface to main control module and user interface
 //
-EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doFast, bool doRefresh, ulong *freqTab, uint freqCount );
+EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool doRefresh,
+                                    ulong *freqTab, uint freqCount, uint * pRescheduleMs,
+                                    void (* MsgCallback)(const char * pMsg) );
+uint EpgScan_EvHandler( void );
 void EpgScan_Stop( void );
 void EpgScan_SetSpeed( bool doFast );
 bool EpgScan_IsActive( void );
+double EpgScan_GetProgressPercentage( void );
 
 
 #endif  // __EPGSCAN_H

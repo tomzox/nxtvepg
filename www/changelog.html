@@ -21,6 +21,25 @@ This document contains a list of all changes between releases
 of the <A HREF="http://nxtvepg.tripod.com">nxtvepg</A>
 nexTView EPG decoder software.
 
+<H2>From 0.4.5 to 0.5.0 (Apr/21/2001)</H2>
+<UL>
+<LI>The main window is now vertically resizable. The proportions of the program listbox
+  and the info text can be adjusted with a "panning" button (slider).
+<LI>Added a button called "Tune TV" in the main window to remote-control xawtv (UNIX only).
+<LI>Added network name configuration dialog to synchronize names with the <I>.xawtv</I>
+  configuration file and to allow consistant network naming across all providers.
+<LI>Allow using channel assignments in .xawtv to speed up the EPG scan (UNIX only).
+<LI>Added "Update filter shortcut" dialog to the filter menu to simplify changing
+  existing shortcuts.
+<LI>Made handling of filter shortcut dialog fool-proof.
+<LI>Added filter settings description to the shortcut configuration dialog.
+  Removed the filter combination checkboxes (were disabled anyway).
+<LI>Added acquisition mode "external" for Composite/S-Video input source (or
+  unknown win32 tuner types).  Win32: suppressed obsolete acq mode "passive".
+<LI>Fixed command line option -rcfile for Win32: backslash chars in path vanished.
+<LI>Restructured software to simplify reuse as library in other projects.
+</UL>
+
 <H2>From 0.4.4 to 0.4.5 (Apr/1/2001)</H2>
 <UL>
 <LI>Fixed bug in NetBSD daylight saving time handling, due to which programmes

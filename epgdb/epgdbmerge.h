@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbmerge.h,v 1.5 2001/02/25 16:00:45 tom Exp tom $
+ *  $Id: epgdbmerge.h,v 1.6 2001/04/04 18:24:33 tom Exp tom $
  */
 
 #ifndef __EPGDBMERGE_H
@@ -67,11 +67,9 @@ typedef struct
 // ----------------------------------------------------------------------------
 // Declaration of interface functions
 //
-EPGDB_CONTEXT * EpgDbMerge( uint dbCount, const uint * pCni, MERGE_ATTRIB_VECTOR_PTR pMax );
-void EpgDbMergeInsertPi( EPGDB_CONTEXT * pAcqContext, EPGDB_BLOCK * pNewBlock );
-void EpgDbMergeAiUpdate( EPGDB_CONTEXT * pAcqContext, EPGDB_BLOCK * pAiBlock );
-void EpgDbMergeDestroyContext( void * pMergeContextPtr );
-bool EpgDbMergeGetCnis( const EPGDB_CONTEXT * dbc, uint * pCniCount, uint *pCniTab );
+void EpgDbMergeInsertPi( EPGDB_MERGE_CONTEXT * dbmc, EPGDB_BLOCK * pNewBlock );
+void EpgDbMergeAiBlocks( EPGDB_CONTEXT * dbc );
+void EpgDbMergeAllPiBlocks( EPGDB_CONTEXT * dbc );
 
 
 #endif  // __EPGDBMERGE_H

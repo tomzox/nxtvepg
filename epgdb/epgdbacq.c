@@ -28,7 +28,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbacq.c,v 1.25 2001/02/25 16:00:45 tom Exp tom $
+ *  $Id: epgdbacq.c,v 1.26 2001/04/03 18:52:11 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -41,12 +41,9 @@
 #include "epgctl/debug.h"
 #include "epgvbi/hamming.h"
 #include "epgdb/epgblock.h"
-#include "epgdb/epgdbif.h"
 #include "epgdb/epgdbmgmt.h"
 #include "epgdb/epgdbacq.h"
 #include "epgdb/epgstream.h"
-#include "epgdb/epgtxtdump.h"
-#include "epgui/statswin.h"
 #include "epgvbi/btdrv.h"
 #include "epgctl/epgacqctl.h"
 

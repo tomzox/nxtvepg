@@ -21,12 +21,10 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgtxtdump.c,v 1.15 2001/02/25 16:00:45 tom Exp tom $
+ *  $Id: epgtxtdump.c,v 1.16 2001/04/04 18:46:42 tom Exp tom $
  */
 
-#define __EPGTXTDUMP_C
-
-#define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
+#define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
 #define DPRINTF_OFF
 
 #include <string.h>
@@ -38,7 +36,7 @@
 #include "epgdb/epgblock.h"
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
-#include "epgdb/epgtxtdump.h"
+#include "epgui/epgtxtdump.h"
 #include "epgui/pdc_themes.h"
 
 
@@ -51,6 +49,7 @@
 // - can be toggled by user interface or command line argument
 //
 static uchar epgTxtListBlocks = FALSE;
+static const char * const pEpgTxtDumpHeader = "Nextview ASCII Dump\n";
 
 // ----------------------------------------------------------------------------
 // Print PI
@@ -124,14 +123,14 @@ static uchar * GetPiPilStr( ulong pil )
 // ---------------------------------------------------------------------------
 // Print Programme Information
 
-void EpgTxtDumpPi( FILE *fp, const PI_BLOCK * pPi, uchar stream, uchar version, const AI_BLOCK * pAi )
+static void EpgTxtDumpPi( FILE *fp, const PI_BLOCK * pPi, uchar stream, uchar version, const AI_BLOCK * pAi )
 {
    uchar start_str[20], stop_str[20];
    uchar netname[NETNAME_LENGTH+1];
    uchar *pStrSoundFormat;
    struct tm *pStart, *pStop;
 
-   if ((pPi != NULL) && epgTxtListBlocks)
+   if (pPi != NULL)
    {
       pStart = localtime(&pPi->start_time);
       if (pStart != NULL)
@@ -203,12 +202,12 @@ void EpgTxtDumpPi( FILE *fp, const PI_BLOCK * pPi, uchar stream, uchar version, 
 // ---------------------------------------------------------------------------
 // Print Application Information
 
-void EpgTxtDumpAi( FILE *fp, const AI_BLOCK * pAi, uchar stream )
+static void EpgTxtDumpAi( FILE *fp, const AI_BLOCK * pAi, uchar stream )
 {
    ulong blockSum1, blockSum2;
    uint i;
 
-   if ((pAi != NULL) && epgTxtListBlocks)
+   if (pAi != NULL)
    {
       fprintf(fp, "AI: \"%s\" version %d/%d, %d netwops, this=%d\n",
                   AI_GET_SERVICENAME(pAi), pAi->version, pAi->version_swo,
@@ -244,9 +243,9 @@ void EpgTxtDumpAi( FILE *fp, const AI_BLOCK * pAi, uchar stream )
 // ---------------------------------------------------------------------------
 // Print OSD Information
 
-void EpgTxtDumpOi( FILE *fp, const OI_BLOCK * pOi, uchar stream )
+static void EpgTxtDumpOi( FILE *fp, const OI_BLOCK * pOi, uchar stream )
 {
-   if ((pOi != NULL) && epgTxtListBlocks)
+   if (pOi != NULL)
    {
       fprintf(fp, "OI:%d %04x #h=%d #m=%d ma=%d #d=%d %s\n",
                   stream + 1,
@@ -266,13 +265,13 @@ void EpgTxtDumpOi( FILE *fp, const OI_BLOCK * pOi, uchar stream )
 // ---------------------------------------------------------------------------
 // Print Navigation Information
 
-void EpgTxtDumpNi( FILE *fp, const NI_BLOCK * pNi, uchar stream )
+static void EpgTxtDumpNi( FILE *fp, const NI_BLOCK * pNi, uchar stream )
 {
    const EVENT_ATTRIB *pEv;
    uchar off, pAts[400];
    uint i, j;
 
-   if ((pNi != NULL) && epgTxtListBlocks)
+   if (pNi != NULL)
    {
       fprintf(fp, "NI:%d %04x #h=%d #m=%d ma=%d #d=%d %s\n",
                   stream + 1,
@@ -360,9 +359,9 @@ void EpgTxtDumpNi( FILE *fp, const NI_BLOCK * pNi, uchar stream )
 // ---------------------------------------------------------------------------
 // Print Message Information
 
-void EpgTxtDumpMi( FILE *fp, const MI_BLOCK * pMi, uchar stream )
+static void EpgTxtDumpMi( FILE *fp, const MI_BLOCK * pMi, uchar stream )
 {
-   if ((pMi != NULL) && epgTxtListBlocks)
+   if (pMi != NULL)
    {
       fprintf(fp, "MI:%d %04x #d=%d %s\n",
                   stream + 1,
@@ -376,12 +375,12 @@ void EpgTxtDumpMi( FILE *fp, const MI_BLOCK * pMi, uchar stream )
 // ---------------------------------------------------------------------------
 // Print Language Information
 
-void EpgTxtDumpLi( FILE *fp, const LI_BLOCK * pLi, uchar stream )
+static void EpgTxtDumpLi( FILE *fp, const LI_BLOCK * pLi, uchar stream )
 {
    const LI_DESC *pLd;
    uint desc, lang;
 
-   if ((pLi != NULL) && epgTxtListBlocks)
+   if (pLi != NULL)
    {
       fprintf(fp, "LI:%d %04x %d #desc=%d\n", stream + 1, pLi->block_no, pLi->netwop_no, pLi->desc_no);
       pLd = LI_GET_DESC(pLi);
@@ -401,12 +400,12 @@ void EpgTxtDumpLi( FILE *fp, const LI_BLOCK * pLi, uchar stream )
 // ---------------------------------------------------------------------------
 // Print Subtitle Information
 
-void EpgTxtDumpTi( FILE *fp, const TI_BLOCK * pTi, uchar stream )
+static void EpgTxtDumpTi( FILE *fp, const TI_BLOCK * pTi, uchar stream )
 {
    const TI_DESC *pStd;
    uint desc, subt;
 
-   if ((pTi != NULL) && epgTxtListBlocks)
+   if (pTi != NULL)
    {
       fprintf(fp, "TI:%d %04x %d #desc=%d\n", stream + 1, pTi->block_no, pTi->netwop_no, pTi->desc_no);
       pStd = TI_GET_DESC(pTi);
@@ -426,21 +425,23 @@ void EpgTxtDumpTi( FILE *fp, const TI_BLOCK * pTi, uchar stream )
 // ---------------------------------------------------------------------------
 // Print Bundle Information
 
-void EpgTxtDumpBi( FILE *fp, const BI_BLOCK * pBi, uchar stream )
+static void EpgTxtDumpBi( FILE *fp, const BI_BLOCK * pBi, uchar stream )
 {
-   if ((pBi != NULL) && epgTxtListBlocks)
+   if (pBi != NULL)
    {
       fprintf(fp, "BI:0 EPG app-ID=%d\n", pBi->app_id);
    }
 }
 
 // ---------------------------------------------------------------------------
-// Print unknown type
-
-void EpgTxtDumpUnknown( FILE *fp, uchar type )
+// Dump a single block of unknown type
+//
+void EpgTxtDump_UnknownBlock( BLOCK_TYPE type, uint size, uchar stream )
 {
    if (epgTxtListBlocks)
-      fprintf(fp, "Other: block type %d\n", type);
+   {
+      fprintf(stdout, "Other: block type 0x%02X, stream=%d, size=%d\n", type, (int)stream, size);
+   }
 }
 
 // ---------------------------------------------------------------------------
@@ -449,6 +450,51 @@ void EpgTxtDumpUnknown( FILE *fp, uchar type )
 void EpgTxtDump_Toggle( void )
 {
    epgTxtListBlocks = ! epgTxtListBlocks;
+}
+
+// ---------------------------------------------------------------------------
+// Dump a single block
+//
+void EpgTxtDump_Block( const EPGDB_BLOCK_UNION * pUnion, BLOCK_TYPE type, uchar stream )
+{
+   if (pUnion != NULL)
+   {
+      if (epgTxtListBlocks)
+      {
+         switch (type)
+         {
+            case BLOCK_TYPE_BI:
+               EpgTxtDumpBi(stdout, &pUnion->bi, stream);
+               break;
+            case BLOCK_TYPE_AI:
+               EpgTxtDumpAi(stdout, &pUnion->ai, stream);
+               break;
+            case BLOCK_TYPE_PI:
+               EpgTxtDumpPi(stdout, &pUnion->pi, stream, 0xff, NULL);
+               break;
+            case BLOCK_TYPE_NI:
+               EpgTxtDumpNi(stdout, &pUnion->ni, stream);
+               break;
+            case BLOCK_TYPE_OI:
+               EpgTxtDumpOi(stdout, &pUnion->oi, stream);
+               break;
+            case BLOCK_TYPE_MI:
+               EpgTxtDumpMi(stdout, &pUnion->mi, stream);
+               break;
+            case BLOCK_TYPE_LI:
+               EpgTxtDumpLi(stdout, &pUnion->li, stream);
+               break;
+            case BLOCK_TYPE_TI:
+               EpgTxtDumpTi(stdout, &pUnion->ti, stream);
+               break;
+            default:
+               debug1("EpgTxtDump-Block: unknown block type %d\n", type);
+               break;
+         }
+      }
+   }
+   else
+      debug0("EpgTxtDump-Block: illegal NULL ptr param");
 }
 
 // ---------------------------------------------------------------------------
@@ -467,10 +513,6 @@ void EpgTxtDump_Database( EPGDB_CONTEXT *pDbContext, FILE *fp,
    const PI_BLOCK * pPi;
    uint  blockno, count;
    uchar netwop;
-   uchar savedListState;
-
-   savedListState = epgTxtListBlocks;
-   epgTxtListBlocks = TRUE;
 
    EpgDbLockDatabase(pDbContext, TRUE);
 
@@ -572,7 +614,5 @@ void EpgTxtDump_Database( EPGDB_CONTEXT *pDbContext, FILE *fp,
       }
    }
    EpgDbLockDatabase(pDbContext, FALSE);
-
-   epgTxtListBlocks = savedListState;
 }
 

@@ -25,7 +25,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgblock.h,v 1.25 2001/02/25 16:00:45 tom Exp tom $
+ *  $Id: epgblock.h,v 1.26 2001/04/03 18:51:48 tom Exp tom $
  */
 
 #ifndef __EPGBLOCK_H
@@ -526,5 +526,7 @@ EPGDB_BLOCK * EpgBlockCreate( uchar type, uint size );
 
 uint EpgBlockBcdToMoD( uint BCD );
 void EpgBlockSetAlphabets( const AI_BLOCK *pAiBlock );
+void EpgLtoInit( void );
+sint EpgLtoGet( void );
 
 #endif // __EPGBLOCK_H

@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgtxtdump.h,v 1.9 2001/02/25 16:00:45 tom Exp tom $
+ *  $Id: epgtxtdump.h,v 1.10 2001/04/04 18:47:12 tom Exp tom $
  */
 
 #ifndef __EPGTXTDUMP_H
@@ -24,33 +24,17 @@
 
 
 // ---------------------------------------------------------------------------
-// Header for the dumped file (to differentiate from binary dump)
-//
-#ifdef __EPGTXTDUMP_C
-const char * pEpgTxtDumpHeader = "Nextview ASCII Dump\n";
-#else
-extern const char * pEpgTxtDumpHeader;
-#endif
-
-// ---------------------------------------------------------------------------
 // declaration of service interface functions
 //
-#ifdef __EPGBLOCK_H
-void EpgTxtDumpPi( FILE *fp, const PI_BLOCK * pPi, uchar stream, uchar version, const AI_BLOCK * pAi );
-void EpgTxtDumpAi( FILE *fp, const AI_BLOCK * pAi, uchar stream );
-void EpgTxtDumpOi( FILE *fp, const OI_BLOCK * pOi, uchar stream );
-void EpgTxtDumpNi( FILE *fp, const NI_BLOCK * pNi, uchar stream );
-void EpgTxtDumpMi( FILE *fp, const MI_BLOCK * pMi, uchar stream );
-void EpgTxtDumpLi( FILE *fp, const LI_BLOCK * pLi, uchar stream );
-void EpgTxtDumpTi( FILE *fp, const TI_BLOCK * pTi, uchar stream );
-void EpgTxtDumpBi( FILE *fp, const BI_BLOCK * pBi, uchar stream );
-void EpgTxtDumpUnknown( FILE *fp, uchar type );
-#endif
 
 // interface to GUI
 void EpgTxtDump_Toggle( void );
 void EpgTxtDump_Database( EPGDB_CONTEXT *pDbContext, FILE *fp,
                           bool do_pi, bool do_xi, bool do_ai, bool do_ni,
                           bool do_oi, bool do_mi, bool do_li, bool do_ti );
+
+// interface to stream decoder
+void EpgTxtDump_Block( const EPGDB_BLOCK_UNION * pUnion, BLOCK_TYPE type, uchar stream );
+void EpgTxtDump_UnknownBlock( BLOCK_TYPE type, uint size, uchar stream );
 
 #endif  // __EPGTXTDUMP_H

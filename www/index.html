@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: index.html,v 1.18 2001/04/03 18:41:29 tom Exp $ -->
+<!-- $Id: index.html,v 1.20 2001/04/21 14:38:59 tom Exp $ -->
 <HEAD>
 <TITLE>nexTView EPG Decoder Software Download Page</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
@@ -44,6 +44,8 @@
 
 <P class="navhead"><B>News</B>
 <P class="navsect">
+Apr/21/2001: release 0.5.0</P>
+<HR width=70%><P class="navsect">
 Apr/1/2001: bugfix release 0.4.5</P>
 <HR width=70%><P class="navsect">
 Feb/27/2001: release 0.4.4</P>
@@ -59,7 +61,7 @@ Feb/15/2001: release 0.4.3</P>
 </CENTER>
 In this software package you find a decoder for nexTView - an Electronic TV
 Programme Guide for the analog domain (as opposed to the various digital EPGs
-that come with most digital broadcasts). It allows you to receive and browse
+that come with most digital broadcasts). It enables you to receive and browse
 free TV programme listings for all of the major networks in Germany, Austria,
 France and Switzerland. You can have a look at it in this
 <A HREF="screenshot-linux.gif">Linux screenshot</A>, or this
@@ -74,7 +76,7 @@ compared to paper-based TV magazines is that you have an immediate overview
 what's running <I>Now &amp; Next</I>, plus you can search through the programme
 database by many different filter categories.
 <P>
-Now the <I>nxtvepg</I> software allows you to use nexTView with your PC too,
+Now the <I>nxtvepg</I> software enables you to use nexTView with your PC too,
 and adds a lot of features that would not be possible to implement inside a TV set.
 The only preconditions are (a) that you have a TV tuner card for TV reception
 inside your PC and (b) that you receive one of the nexTView content provider's
@@ -137,19 +139,21 @@ TV tuner card.
 <A NAME="download">
 <H2>Download</H2>
 </A>
-This distribution was released Apr/1/2001. It comprises two bugfixes for
-an error in reloading the rc/ini file and handling of daylight saving time
-in NetBSD.  An update from 0.4.3 or 0.4.4 is required only if you
-experienced problems.  For a detailed history of fixes and new features
+This distribution was released Apr/21/2001 and comprises a number of new
+features, such as the possibility to resize the main window, remote-control
+for <A HREF="http://www.strusel007.de/linux/xawtv/">xawtv</A> (UNIX TV application)
+and simpler handling of filter shortcuts.  An update from earlier versions is highly
+recommended.  For a detailed history of new features and fixes
 refer to the <A HREF="changelog.html">Change-Log</A>. If there are
 any problems with this new release, please let me know. For previous releases,
-see the <A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/">source directory</A>.
+see the <A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/">source directory</A>
+(US mirror: <A HREF="http://nxtvepg.tripod.com/src/">http://nxtvepg.tripod.com/src/</A>)
 
 <A NAME="download_unix">
 <H3>Source distribution</H3>
 </A>
 Download the latest source distribution for Linux and NetBSD:
-<A HREF=http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-0.4.5.tar.gz>nxtvepg-0.4.5.tar.gz</A> (287 kB)
+<A HREF=http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-0.5.0.tar.gz>nxtvepg-0.5.0.tar.gz</A> (303 kB)
 <P>
 The software is also available as packages (not necessarily the latest version):
 for Linux at <A HREF="http://rpmfind.net/linux/rpm2html/search.php?query=nxtvepg">rpmfind.net</A>
@@ -158,7 +162,7 @@ and for NetBSD at <A HREF="ftp://ftp.netbsd.org/pub/NetBSD/packages/pkgsrc/misc/
 <A NAME="download_windows">
 <H3>Binary distribution for M$ Windows</H3>
 </A>
-<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-1.5-win.zip">nxtvepg-1.5-win.zip</A> (860 kB)
+<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-1.6-win.zip">nxtvepg-1.6-win.zip</A> (862 kB)
 <P>
 Note that you need an additional driver that is not included in this
 package. You may be able to use the driver from other TV applications.
@@ -171,7 +175,7 @@ For detailed instructions see README.txt inside the zip file.
 If you do not receive any of the nexTView provider channels listed at the
 top of this page, download the demo database
 <A HREF=http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxdemodb.epg.gz>nxdemodb.epg.gz</A>,
-which will allow you to check out the main features of the browser,
+which will enables you to check out the main features of the browser,
 so that you can see what you're missing.
 <P>
 To use the demo database, download it into your nxtvepg directory, decompress it

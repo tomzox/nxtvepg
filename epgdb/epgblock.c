@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgblock.c,v 1.33 2001/04/01 19:42:12 tom Exp tom $
+ *  $Id: epgblock.c,v 1.34 2001/04/03 18:51:14 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -31,13 +31,13 @@
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
-#include "epgctl/epgmain.h"
 #include "epgdb/epgblock.h"
-#include "epgdb/epgdbif.h"
 
 
 static uchar netwopAlphabets[MAX_NETWOP_COUNT];
 static uchar providerAlphabet;
+static sint lto = 0;
+
 
 // ----------------------------------------------------------------------------
 // Save the alphabets of all networks for string decoding
@@ -82,6 +82,37 @@ EPGDB_BLOCK * EpgBlockCreate( uchar type, uint size )
    pBlock->acqRepCount = 1;
 
    return pBlock;
+}
+
+// ---------------------------------------------------------------------------
+// Determine local time offset to UTC
+//
+void EpgLtoInit( void )
+{
+   struct tm *tm;
+   time_t now;
+
+   tzset();
+   time(&now);
+
+   #ifndef __NetBSD__
+   tm = localtime(&now);
+   lto = 60*60 * tm->tm_isdst - timezone;
+   #else
+   tm = gmtime(&now);
+   tm->tm_isdst = -1;
+   lto = now - mktime(tm);
+   #endif
+
+   //printf("LTO = %d min, %s/%s, off=%ld, daylight=%d\n", lto/60, tzname[0], tzname[1], timezone/60, tm->tm_isdst);
+}
+
+// ----------------------------------------------------------------------------
+// Retrieve the LTO
+//
+sint EpgLtoGet( void )
+{
+   return lto;
 }
 
 // ----------------------------------------------------------------------------

@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbsav.c,v 1.34 2001/02/26 20:01:19 tom Exp tom $
+ *  $Id: epgdbsav.c,v 1.35 2001/04/04 18:28:36 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -51,9 +51,7 @@
 #include "epgctl/epgversion.h"
 #include "epgctl/debug.h"
 
-#include "epgctl/epgmain.h"
 #include "epgdb/epgblock.h"
-#include "epgdb/epgdbacq.h"
 #include "epgdb/epgdbmgmt.h"
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
@@ -64,6 +62,10 @@
 //internal shortcuts
 typedef const EPGDB_CONTEXT * CPDBC;
 typedef       EPGDB_CONTEXT * PDBC;
+
+
+const char * epgDbDirPath = NULL;
+const char * epgDemoDb    = NULL;
 
 
 // ---------------------------------------------------------------------------
@@ -163,10 +165,10 @@ bool EpgDbDump( PDBC dbc )
    EpgDbLockDatabase(dbc, TRUE);
    if ((dbc->pAiBlock != NULL) && (dbc->modified))
    {
-      pFilename = xmalloc(strlen(dbdir) + 1 + DUMP_NAME_MAX);
-      sprintf(pFilename, "%s/" DUMP_NAME_FMT, dbdir, AI_GET_NETWOP_N(&dbc->pAiBlock->blk.ai, dbc->pAiBlock->blk.ai.thisNetwop)->cni);
+      pFilename = xmalloc(strlen(epgDbDirPath) + 1 + DUMP_NAME_MAX);
+      sprintf(pFilename, "%s/" DUMP_NAME_FMT, epgDbDirPath, AI_GET_NETWOP_N(&dbc->pAiBlock->blk.ai, dbc->pAiBlock->blk.ai.thisNetwop)->cni);
       #ifdef DUMP_NAME_TMP
-      pTmpname = xmalloc(strlen(dbdir) + 1 + DUMP_NAME_MAX);
+      pTmpname = xmalloc(strlen(epgDbDirPath) + 1 + DUMP_NAME_MAX);
       strcpy(pTmpname, pFilename);
       strcat(pFilename, DUMP_NAME_TMP);
       #endif
@@ -655,16 +657,16 @@ PDBC EpgDbReload( uint cni, EPGDB_RELOAD_RESULT * pResult )
 
    dbc = EpgDbCreate();
 
-   if (pDemoDatabase == NULL)
+   if (epgDemoDb == NULL)
    {  // append database file name to db directory (from -dbdir argument)
-      pFilename = xmalloc(strlen(dbdir) + 1 + DUMP_NAME_MAX);
-      sprintf(pFilename, "%s/" DUMP_NAME_FMT, dbdir, cni);
+      pFilename = xmalloc(strlen(epgDbDirPath) + 1 + DUMP_NAME_MAX);
+      sprintf(pFilename, "%s/" DUMP_NAME_FMT, epgDbDirPath, cni);
    }
    else
    {  // demo mode: database file name is taken from command line argument
       // CNI function parameter is ignored
-      pFilename = xmalloc(strlen(pDemoDatabase) + 1);
-      strcpy(pFilename, pDemoDatabase);
+      pFilename = xmalloc(strlen(epgDemoDb) + 1);
+      strcpy(pFilename, epgDemoDb);
       cni = RELOAD_ANY_CNI;
    }
 
@@ -679,7 +681,7 @@ PDBC EpgDbReload( uint cni, EPGDB_RELOAD_RESULT * pResult )
          dbc->appId        = head.appId;
          dbc->lastAiUpdate = head.lastAiUpdate;
 
-         if (pDemoDatabase != NULL)
+         if (epgDemoDb != NULL)
          {  // demo mode: shift all PI in time to the current time and future
             piStartOff = time(NULL) - head.lastAiUpdate;
             piStartOff -= piStartOff % (60*60L);
@@ -881,8 +883,8 @@ const EPGDBSAV_PEEK * EpgDbPeek( uint cni, EPGDB_RELOAD_RESULT * pResult )
    EPGDB_RELOAD_RESULT result;
 
    pPeek = NULL;
-   pFilename = xmalloc(strlen(dbdir) + 1 + DUMP_NAME_MAX);
-   sprintf(pFilename, "%s/" DUMP_NAME_FMT, dbdir, cni);
+   pFilename = xmalloc(strlen(epgDbDirPath) + 1 + DUMP_NAME_MAX);
+   sprintf(pFilename, "%s/" DUMP_NAME_FMT, epgDbDirPath, cni);
    fd = open(pFilename, O_RDONLY|O_BINARY);
    if (fd >= 0)
    {
@@ -998,7 +1000,7 @@ uint EpgDbReloadScan( int nextIndex )
    best_cni = 0;
    best_mtime = 0;
    this_index = -1;
-   dir = opendir(dbdir);
+   dir = opendir(epgDbDirPath);
    if (dir != NULL)
    {
       while ((entry = readdir(dir)) != NULL)
@@ -1018,8 +1020,8 @@ uint EpgDbReloadScan( int nextIndex )
             }
             else
             {
-               pFilePath = xmalloc(strlen(dbdir) + 1 + strlen(entry->d_name) + 1);
-               sprintf(pFilePath, "%s/%s", dbdir, entry->d_name);
+               pFilePath = xmalloc(strlen(epgDbDirPath) + 1 + strlen(entry->d_name) + 1);
+               sprintf(pFilePath, "%s/%s", epgDbDirPath, entry->d_name);
 
                if ( (stat(pFilePath, &st) == 0) &&
                     (st.st_mtime > best_mtime) )
@@ -1050,8 +1052,8 @@ uint EpgDbReloadScan( int nextIndex )
    best_cni = 0;
    this_index = -1;
 
-   pDirPath = xmalloc(strlen(dbdir) + 1 + DUMP_NAME_MAX);
-   sprintf(pDirPath, "%s\\%s", dbdir, DUMP_NAME_PAT);
+   pDirPath = xmalloc(strlen(epgDbDirPath) + 1 + DUMP_NAME_MAX);
+   sprintf(pDirPath, "%s\\%s", epgDbDirPath, DUMP_NAME_PAT);
    hFind = FindFirstFile(pDirPath, &finddata);
    bMore = (hFind != (HANDLE) -1);
    while (bMore)
@@ -1092,14 +1094,19 @@ uint EpgDbReloadScan( int nextIndex )
 // ---------------------------------------------------------------------------
 // Create database directory, if neccessary
 //
-bool EpgDbDumpCreateDir( const char * pDirPath )
+bool EpgDbSavSetupDir( const char * pDirPath, const char * pDemoDb )
 {
    bool result = TRUE;
 
 #ifndef WIN32
    struct stat st;
 
-   if (pDirPath != NULL)
+   epgDbDirPath = pDirPath;
+   if (pDemoDb != NULL)
+   {
+      epgDemoDb = pDemoDb;
+   }
+   else if (pDirPath != NULL)
    {
       if (stat(pDirPath, &st) != 0)
       {  // directory does no exist -> create it
@@ -1131,12 +1138,17 @@ bool EpgDbDumpCreateDir( const char * pDirPath )
    DWORD attr;
    char msg[256];
 
-   if (pDirPath != NULL)
+   epgDbDirPath = pDirPath;
+   if (pDemoDb != NULL)
+   {
+      epgDemoDb = pDemoDb;
+   }
+   else if (pDirPath != NULL)
    {
       hFind = FindFirstFile(pDirPath, &finddata);
       if (hFind == (HANDLE) -1)
       {  // directory does no exist -> create it
-         if (mkdir(dbdir) != 0)
+         if (mkdir(epgDbDirPath) != 0)
          {  // creation failed -> warn
             sprintf(msg, "Cannot create database directory %s:\n%s\nCheck your -dbdir command line option", pDirPath, strerror(errno));
             MessageBox(NULL, msg, "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
@@ -1229,8 +1241,8 @@ bool EpgDbDumpUpdateHeader( uint cni, ulong freq )
    int fd;
    bool result = FALSE;
 
-   pFilename = xmalloc(strlen(dbdir) + 1 + DUMP_NAME_MAX);
-   sprintf(pFilename, "%s/" DUMP_NAME_FMT, dbdir, cni);
+   pFilename = xmalloc(strlen(epgDbDirPath) + 1 + DUMP_NAME_MAX);
+   sprintf(pFilename, "%s/" DUMP_NAME_FMT, epgDbDirPath, cni);
    fd = open(pFilename, O_RDWR|O_BINARY);
    if (fd >= 0)
    {

@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: uictrl.c,v 1.9 2001/02/25 16:03:47 tom Exp tom $
+ *  $Id: uictrl.c,v 1.11 2001/04/19 20:51:34 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -40,9 +40,9 @@
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
 #include "epgdb/epgdbsav.h"
-#include "epgctl/epgmain.h"
 #include "epgctl/epgacqctl.h"
 #include "epgctl/epgscan.h"
+#include "epgui/epgmain.h"
 #include "epgui/pifilter.h"
 #include "epgui/pilistbox.h"
 #include "epgui/uictrl.h"
@@ -365,10 +365,12 @@ static void UiControl_AcqPassive( ClientData clientData )
 
    sprintf(comm2, "tk_messageBox -type ok -icon warning -parent . "
                   "-message {Since the selected input source is not a TV tuner, "
-                            "only the passive acquisition mode is possible. Either "
-                            "select a different input source in the 'TV card input' "
-                            "menu or select acquisition mode 'passive' to avoid "
-                            "this message."
+                            #ifndef WIN32
+                            "only the 'passive' and 'external' acquisition modes are possible. "
+                            #else
+                            "only the 'external' acquisition mode is possible. "
+                            #endif
+                            "Change either source or mode to avoid this message."
                             "}\n");
    eval_check(interp, comm2);
    xfree(comm2);

@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pilistbox.c,v 1.44 2001/02/25 16:03:47 tom Exp tom $
+ *  $Id: pilistbox.c,v 1.51 2001/04/17 19:55:35 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -45,8 +45,8 @@
 #include "epgdb/epgdbif.h"
 #include "epgdb/epgdbsav.h"
 #include "epgdb/epgdbmerge.h"
-#include "epgctl/epgmain.h"
 #include "epgctl/epgacqctl.h"
+#include "epgui/epgmain.h"
 #include "epgui/uictrl.h"
 #include "epgctl/epgctxctl.h"
 #include "epgui/pdc_themes.h"
@@ -71,9 +71,10 @@ typedef enum
    PIBOX_LIST
 } PIBOX_STATE;
 
-#define PIBOX_HEIGHT 25
+#define PIBOX_DEFAULT_HEIGHT 25
 #define PIBOX_INVALID_CURPOS -1
-PIBOX_ENTRY pibox_list[PIBOX_HEIGHT];  // list of all items in the window
+PIBOX_ENTRY * pibox_list = NULL; // list of all items in the window
+int         pibox_height;        // number of available lines in the widget
 int         pibox_count;         // number of items currently visible
 int         pibox_curpos;        // relative cursor position in window or -1 if window empty
 int         pibox_max;           // total number of matching items
@@ -147,9 +148,9 @@ static bool PiListBox_ConsistancyCheck( void )
       pPiBlock = EpgDbSearchFirstPi(dbc, pPiFilterContext);
       if (pPiBlock != NULL)
       {
-         assert((pibox_count > 0) && (pibox_count <= PIBOX_HEIGHT));
-         assert((pibox_max < PIBOX_HEIGHT) || (pibox_count == PIBOX_HEIGHT));
-         assert((pibox_max >= PIBOX_HEIGHT) || (pibox_off == 0));
+         assert((pibox_count > 0) && (pibox_count <= pibox_height));
+         assert((pibox_max < pibox_height) || (pibox_count == pibox_height));
+         assert((pibox_max >= pibox_height) || (pibox_off == 0));
          assert(pibox_off + pibox_count <= pibox_max);
          assert(pibox_curpos < pibox_count);
 
@@ -403,7 +404,13 @@ static void PiListBox_InsertItem( const PI_BLOCK *pPiBlock, int pos )
             pAiBlock = EpgDbGetAi(dbc);
             if ((pAiBlock != NULL) && (pPiBlock->netwop_no < pAiBlock->netwopCount))
             {
-               strncpy(comm + off, AI_GET_NETWOP_NAME(pAiBlock, pPiBlock->netwop_no), 9);
+               uchar buf[7], *p;
+               sprintf(buf, "0x%04X", AI_GET_NETWOP_N(pAiBlock, pPiBlock->netwop_no)->cni);
+               p = Tcl_GetVar2(interp, "cfnetnames", buf, TCL_GLOBAL_ONLY);
+               if (p != NULL)
+                  strncpy(comm + off, p, 9);
+               else
+                  strncpy(comm + off, AI_GET_NETWOP_NAME(pAiBlock, pPiBlock->netwop_no), 9);
                comm[off + 9] = 0;
             }
             else
@@ -830,7 +837,8 @@ static void PiListBox_UpdateInfoText( void )
 {  
    const AI_BLOCK *pAiBlock;
    const PI_BLOCK *pPiBlock;
-   uchar date_str[20], start_str[20], stop_str[20];
+   const uchar *pCfNetname;
+   uchar date_str[20], start_str[20], stop_str[20], cni_str[7];
    int len, idx, theme, themeCat;
    
    sprintf(comm, ".all.pi.info.text configure -state normal\n"
@@ -933,8 +941,13 @@ static void PiListBox_UpdateInfoText( void )
          strftime(start_str, 19, "%H:%M", localtime(&pPiBlock->start_time));
          strftime(stop_str, 19, "%H:%M", localtime(&pPiBlock->stop_time));
 
+         sprintf(cni_str, "0x%04X", AI_GET_NETWOP_N(pAiBlock, pPiBlock->netwop_no)->cni);
+         pCfNetname = Tcl_GetVar2(interp, "cfnetnames", cni_str, TCL_GLOBAL_ONLY);
+         if (pCfNetname == NULL)
+            pCfNetname = AI_GET_NETWOP_NAME(pAiBlock, pPiBlock->netwop_no);
+
          sprintf(comm, ".all.pi.info.text insert end {%s, %s-%s%s: } bold\n",
-                       AI_GET_NETWOP_NAME(pAiBlock, pPiBlock->netwop_no),
+                       pCfNetname,
                        start_str, stop_str,
                        (((pPiBlock->start_time - time(NULL)) > 12*60*60) ? (char *)date_str : "") );
          eval_check(interp, comm);
@@ -1032,7 +1045,7 @@ static void PiListBox_AdjustScrollBar( void )
    if (pibox_max == 0)
       sprintf(comm, ".all.pi.list.sc set 0.0 1.0\n");
    else
-      sprintf(comm, ".all.pi.list.sc set %f %f\n", (float)pibox_off / pibox_max, (float)(pibox_off + PIBOX_HEIGHT) / pibox_max);
+      sprintf(comm, ".all.pi.list.sc set %f %f\n", (float)pibox_off / pibox_max, (float)(pibox_off + pibox_height) / pibox_max);
    eval_check(interp, comm);
 }
 
@@ -1082,7 +1095,7 @@ void PiListBox_Reset( void )
    {
       do
       {
-	 if (pibox_count < PIBOX_HEIGHT)
+	 if (pibox_count < pibox_height)
 	 {
 	    pibox_list[pibox_count].netwop_no  = pPiBlock->netwop_no;
 	    pibox_list[pibox_count].start_time = pPiBlock->start_time;
@@ -1168,7 +1181,7 @@ void PiListBox_Refresh( void )
          pibox_max = pibox_off;
          do
          {
-            if (pibox_count < PIBOX_HEIGHT)
+            if (pibox_count < pibox_height)
             {
                pibox_list[pibox_count].netwop_no  = pPiBlock->netwop_no;
                pibox_list[pibox_count].start_time = pPiBlock->start_time;
@@ -1182,10 +1195,10 @@ void PiListBox_Refresh( void )
          }
          while (pPiBlock != NULL);
 
-         if ((pibox_count < PIBOX_HEIGHT) && (pibox_max > pibox_count))
+         if ((pibox_count < pibox_height) && (pibox_max > pibox_count))
          {  // not enough items found after the cursor -> shift window upwards
             pPiBlock = EpgDbSearchPi(dbc, pPiFilterContext, pibox_list[0].start_time, pibox_list[0].netwop_no);
-            while ( (pibox_count < PIBOX_HEIGHT) &&
+            while ( (pibox_count < pibox_height) &&
                     ((pPiBlock = EpgDbSearchPrevPi(dbc, pPiFilterContext, pPiBlock)) != NULL) )
             {
                dprintf4("shift up: count=%d, max=%d: insert block start=%ld net=%d\n", pibox_count, pibox_max, pPiBlock->start_time, pPiBlock->netwop_no);
@@ -1200,7 +1213,7 @@ void PiListBox_Refresh( void )
                pibox_curpos += 1;
                pibox_count += 1;
             }
-            assert((pibox_count >= PIBOX_HEIGHT) || ((pibox_off == 0) && (pPiBlock == NULL)));
+            assert((pibox_count >= pibox_height) || ((pibox_off == 0) && (pPiBlock == NULL)));
          }
 
          if (pibox_curpos >= pibox_count)
@@ -1239,7 +1252,7 @@ static int PiListBox_Scroll( ClientData ttp, Tcl_Interp *interp, int argc, char 
    {
       //  ----  Move to absolute position  ----
 
-      if (pibox_max > PIBOX_HEIGHT)
+      if (pibox_max > pibox_height)
       {
          uint old_netwop;
          ulong old_start;
@@ -1247,8 +1260,8 @@ static int PiListBox_Scroll( ClientData ttp, Tcl_Interp *interp, int argc, char 
 	 delta = (int)(pibox_max * atof(argv[2]));
 	 if (delta < 0)
 	    delta = 0;
-	 else if (delta > pibox_max - PIBOX_HEIGHT)
-	    delta = pibox_max - PIBOX_HEIGHT;
+	 else if (delta > pibox_max - pibox_height)
+	    delta = pibox_max - pibox_height;
 
 	 sprintf(comm, ".all.pi.list.text delete 1.0 end\n"
                        ".all.pi.info.text configure -state normal\n"
@@ -1275,7 +1288,7 @@ static int PiListBox_Scroll( ClientData ttp, Tcl_Interp *interp, int argc, char 
 	 {
 	    do
 	    {
-	       if ((pibox_max >= delta) && (pibox_count < PIBOX_HEIGHT))
+	       if ((pibox_max >= delta) && (pibox_count < pibox_height))
 	       {
 		  pibox_list[pibox_count].netwop_no  = pPiBlock->netwop_no;
 		  pibox_list[pibox_count].start_time = pPiBlock->start_time;
@@ -1325,7 +1338,7 @@ static int PiListBox_Scroll( ClientData ttp, Tcl_Interp *interp, int argc, char 
       delta = atoi(argv[2]);
       if (!strcmp(argv[3], "pages"))
       {
-	 const PI_BLOCK *pNewPiBlock[PIBOX_HEIGHT];
+	 const PI_BLOCK ** pNewPiBlock = xmalloc(pibox_height * sizeof(PI_BLOCK *));
 	 int new_count = 0;
 
 	 if (delta > 0)
@@ -1333,12 +1346,12 @@ static int PiListBox_Scroll( ClientData ttp, Tcl_Interp *interp, int argc, char 
 	    //  ----  Scroll one page down  ----
 
 	    EpgDbLockDatabase(dbc, TRUE);
-            if (pibox_count >= PIBOX_HEIGHT)
+            if (pibox_count >= pibox_height)
             {
                pPiBlock = EpgDbSearchPi(dbc, pPiFilterContext, pibox_list[pibox_count-1].start_time, pibox_list[pibox_count-1].netwop_no);
                if (pPiBlock != NULL)
                {
-                  while ( (new_count < PIBOX_HEIGHT) &&
+                  while ( (new_count < pibox_height) &&
                           ((pPiBlock = EpgDbSearchNextPi(dbc, pPiFilterContext, pPiBlock)) != NULL) )
                   {
                      pNewPiBlock[new_count] = pPiBlock;
@@ -1369,9 +1382,9 @@ static int PiListBox_Scroll( ClientData ttp, Tcl_Interp *interp, int argc, char 
                sprintf(comm, ".all.pi.list.text delete 1.0 %d.0\n", new_count + 1);
                eval_check(interp, comm);
 
-               for (i=new_count; i < PIBOX_HEIGHT; i++)
+               for (i=new_count; i < pibox_height; i++)
                   pibox_list[i - new_count] = pibox_list[i];
-               for (i=PIBOX_HEIGHT-new_count, j=0; i < PIBOX_HEIGHT; i++, j++)
+               for (i=pibox_height-new_count, j=0; i < pibox_height; i++, j++)
                {
                   pibox_list[i].netwop_no  = pNewPiBlock[j]->netwop_no;
                   pibox_list[i].start_time = pNewPiBlock[j]->start_time;
@@ -1382,11 +1395,11 @@ static int PiListBox_Scroll( ClientData ttp, Tcl_Interp *interp, int argc, char 
                if (new_count > pibox_curpos)
                {  // cursor moves downwards by number of items in widget
                   // i.e. during a full page scroll it stays at the same position
-                  pibox_curpos = pibox_curpos + PIBOX_HEIGHT - new_count;
+                  pibox_curpos = pibox_curpos + pibox_height - new_count;
                }
                else
                {  // end of listing reached -> set cursor onto the last item
-                  pibox_curpos = PIBOX_HEIGHT - 1;
+                  pibox_curpos = pibox_height - 1;
                }
                PiListBox_ShowCursor();
                PiListBox_UpdateInfoText();
@@ -1415,7 +1428,7 @@ static int PiListBox_Scroll( ClientData ttp, Tcl_Interp *interp, int argc, char 
 	    if (pPiBlock != NULL)
 	    {
 	       new_count = 0;
-	       while ( (new_count < PIBOX_HEIGHT) &&
+	       while ( (new_count < pibox_height) &&
 	               ((pPiBlock = EpgDbSearchPrevPi(dbc, pPiFilterContext, pPiBlock)) != NULL) )
 	       {
 		  pNewPiBlock[new_count] = pPiBlock;
@@ -1431,7 +1444,7 @@ static int PiListBox_Scroll( ClientData ttp, Tcl_Interp *interp, int argc, char 
 	       if (new_count > 0)
 	       {
 		  // remove cursor, if on one of the remaining items
-		  if ((pibox_curpos < PIBOX_HEIGHT - new_count) && (pibox_curpos >= 0))
+		  if ((pibox_curpos < pibox_height - new_count) && (pibox_curpos >= 0))
 		  {
 		     sprintf(comm, ".all.pi.list.text tag remove sel %d.0 %d.0\n", pibox_curpos + 1, pibox_curpos + 2);
 		     eval_check(interp, comm);
@@ -1439,10 +1452,10 @@ static int PiListBox_Scroll( ClientData ttp, Tcl_Interp *interp, int argc, char 
 		  else
 		     i=0; //breakpoint
 		  // remove old text at the bottom of the widget
-		  sprintf(comm, ".all.pi.list.text delete %d.0 %d.0\n", PIBOX_HEIGHT - new_count + 1, PIBOX_HEIGHT + 1);
+		  sprintf(comm, ".all.pi.list.text delete %d.0 %d.0\n", pibox_height - new_count + 1, pibox_height + 1);
 		  eval_check(interp, comm);
 
-		  for (i=PIBOX_HEIGHT-1; i >= new_count; i--)
+		  for (i=pibox_height-1; i >= new_count; i--)
 		     pibox_list[i] = pibox_list[i - new_count];
 		  // insert new items at the top in reverse order
 		  for (i=0, j=new_count-1; i < new_count; i++, j--)
@@ -1453,10 +1466,10 @@ static int PiListBox_Scroll( ClientData ttp, Tcl_Interp *interp, int argc, char 
 		  }
 		  pibox_off -= new_count;
 
-		  if (new_count >= PIBOX_HEIGHT - pibox_curpos)
+		  if (new_count >= pibox_height - pibox_curpos)
 		  {  // cursor moves upwards by number of items in widget
 		     // i.e. during a full page scroll it stays at the same position
-		     pibox_curpos = new_count + pibox_curpos - PIBOX_HEIGHT;
+		     pibox_curpos = new_count + pibox_curpos - pibox_height;
 		  }
 		  else
 		  {  // start of listing reached -> set cursor onto the first item
@@ -1482,10 +1495,11 @@ static int PiListBox_Scroll( ClientData ttp, Tcl_Interp *interp, int argc, char 
 	    EpgDbLockDatabase(dbc, FALSE);
             assert(PiListBox_ConsistancyCheck());
 	 }
+	 xfree((void*)pNewPiBlock);
       }
       else if (!strcmp(argv[3], "units"))
       {
-	 if ((delta > 0) && (pibox_count >= PIBOX_HEIGHT))
+	 if ((delta > 0) && (pibox_count >= pibox_height))
 	 {
 	    //  ----  Scroll one item down  ----
 
@@ -1498,13 +1512,13 @@ static int PiListBox_Scroll( ClientData ttp, Tcl_Interp *interp, int argc, char 
 	       {
 		  sprintf(comm, ".all.pi.list.text delete 1.0 2.0\n");
 		  eval_check(interp, comm);
-		  for (i=1; i < PIBOX_HEIGHT; i++)
+		  for (i=1; i < pibox_height; i++)
 		     pibox_list[i - 1] = pibox_list[i];
 		  pibox_list[pibox_count-1].netwop_no  = pPiBlock->netwop_no;
 		  pibox_list[pibox_count-1].start_time = pPiBlock->start_time;
 		  pibox_off += 1;
 
-		  PiListBox_InsertItem(pPiBlock, PIBOX_HEIGHT);
+		  PiListBox_InsertItem(pPiBlock, pibox_height);
 		  if (pibox_curpos == 0)
 		  {
 		     PiListBox_ShowCursor();
@@ -1522,7 +1536,7 @@ static int PiListBox_Scroll( ClientData ttp, Tcl_Interp *interp, int argc, char 
 	    EpgDbLockDatabase(dbc, FALSE);
             assert(PiListBox_ConsistancyCheck());
 	 }
-	 else if (pibox_count >= PIBOX_HEIGHT)
+	 else if (pibox_count >= pibox_height)
 	 {
 	    //  ----  Scroll one item up  ----
 
@@ -1533,16 +1547,16 @@ static int PiListBox_Scroll( ClientData ttp, Tcl_Interp *interp, int argc, char 
 	       pPiBlock = EpgDbSearchPrevPi(dbc, pPiFilterContext, pPiBlock);
 	       if (pPiBlock != NULL)
 	       {
-		  sprintf(comm, ".all.pi.list.text delete %d.0 %d.0\n", PIBOX_HEIGHT, PIBOX_HEIGHT+1);
+		  sprintf(comm, ".all.pi.list.text delete %d.0 %d.0\n", pibox_height, pibox_height+1);
 		  eval_check(interp, comm);
-		  for (i=PIBOX_HEIGHT-2; i >= 0; i--)
+		  for (i=pibox_height-2; i >= 0; i--)
 		     pibox_list[i + 1] = pibox_list[i];
 		  pibox_list[0].netwop_no  = pPiBlock->netwop_no;
 		  pibox_list[0].start_time = pPiBlock->start_time;
 		  pibox_off -= 1;
 
 		  PiListBox_InsertItem(pPiBlock, 0);
-		  if (pibox_curpos == PIBOX_HEIGHT - 1)
+		  if (pibox_curpos == pibox_height - 1)
 		  {
 		     PiListBox_ShowCursor();
 		  }
@@ -1569,14 +1583,14 @@ static int PiListBox_CursorDown( ClientData ttp, Tcl_Interp *interp, int argc, c
 {  
    if (argc == 1)
    {
-      if (pibox_curpos == PIBOX_HEIGHT-1)
+      if (pibox_curpos == pibox_height-1)
       {  // last item is selected -> scroll down
 	 const char *av[] = { "C_PiListBox_Scroll", "scroll", "1", "units" };
 
 	 PiListBox_Scroll(ttp, interp, 4, (char **) av);
 
 	 // set cursor to new last element
-	 if (pibox_curpos == PIBOX_HEIGHT-2)
+	 if (pibox_curpos == pibox_height-2)
 	 {
 	    // set cursor one line down, onto last item
 	    sprintf(comm, ".all.pi.list.text tag remove sel %d.0 %d.0\n", pibox_curpos + 1, pibox_curpos + 2);
@@ -1662,7 +1676,7 @@ static int PiListBox_GotoTime( ClientData ttp, Tcl_Interp *interp, int argc, cha
       }
       else if (Tcl_GetInt(interp, argv[1], &param) == TCL_OK)
       {  // absolute time given: convert parameter from local time to UTC
-         startTime = param - lto;
+         startTime = param - EpgLtoGet();
       }
       else  // internal error
          startTime = 0;
@@ -1696,7 +1710,7 @@ static int PiListBox_GotoTime( ClientData ttp, Tcl_Interp *interp, int argc, cha
          {
             do
             {
-               if (pibox_count < PIBOX_HEIGHT)
+               if (pibox_count < pibox_height)
                {
                   pibox_list[pibox_count].netwop_no  = pPiBlock->netwop_no;
                   pibox_list[pibox_count].start_time = pPiBlock->start_time;
@@ -1712,9 +1726,9 @@ static int PiListBox_GotoTime( ClientData ttp, Tcl_Interp *interp, int argc, cha
          }
 
          // if the listbox could not be filled, scroll backwards
-         if ((pibox_count < PIBOX_HEIGHT) && (pibox_off > 0))
+         if ((pibox_count < pibox_height) && (pibox_off > 0))
          {
-            delta = PIBOX_HEIGHT - pibox_count;
+            delta = pibox_height - pibox_count;
             if (delta > pibox_off)
                delta = pibox_off;
 
@@ -1735,8 +1749,8 @@ static int PiListBox_GotoTime( ClientData ttp, Tcl_Interp *interp, int argc, cha
             // set the cursor on the first item that matched the start time, or the last PI if none matched
             pibox_off   -= delta;
             pibox_count += delta;
-            if (delta >= PIBOX_HEIGHT)
-               pibox_curpos = PIBOX_HEIGHT - 1;
+            if (delta >= pibox_height)
+               pibox_curpos = pibox_height - 1;
             else
                pibox_curpos = delta;
 
@@ -1825,7 +1839,7 @@ void PiListBox_DbInserted( const EPGDB_CONTEXT *usedDbc, const PI_BLOCK *pPiBloc
    EpgDbLockDatabase(dbc, TRUE);
    if ((pibox_state == PIBOX_LIST) && EpgDbFilterMatches(dbc, pPiFilterContext, pPiBlock))
    {
-      if ((pibox_count >= PIBOX_HEIGHT) &&
+      if ((pibox_count >= pibox_height) &&
 	  ((pibox_off > 0) || (pibox_curpos > 0)) &&
 	  ( (pibox_list[0].start_time > pPiBlock->start_time) ||
 	    ((pibox_list[0].start_time == pPiBlock->start_time) &&
@@ -1847,18 +1861,18 @@ void PiListBox_DbInserted( const EPGDB_CONTEXT *usedDbc, const PI_BLOCK *pPiBloc
 	       break;
 	 }
 
-	 if (pos < PIBOX_HEIGHT)
+	 if (pos < pibox_height)
 	 {
             if ((pos == 0) && (pibox_off == 0) && (pibox_curpos <= 0))
 	    {  // special case: empty or cursor on the very first item -> cursor stays on top
 	       dprintf4("insert at top: curpos=%d,off=%d,max=%d,c=%d\n", pibox_curpos, pibox_off, pibox_max, pibox_count);
-	       for (i=PIBOX_HEIGHT-2; i >= 0; i--)
+	       for (i=pibox_height-2; i >= 0; i--)
 		  pibox_list[i + 1] = pibox_list[i];
 	       pibox_list[0].netwop_no  = pPiBlock->netwop_no;
 	       pibox_list[0].start_time = pPiBlock->start_time;
 	       pibox_max += 1;
 
-	       if (pibox_count >= PIBOX_HEIGHT)
+	       if (pibox_count >= pibox_height)
 	       {
 		  sprintf(comm, ".all.pi.list.text delete %d.0 %d.0\n", pibox_count, pibox_count + 1);
 		  eval_check(interp, comm);
@@ -1874,15 +1888,15 @@ void PiListBox_DbInserted( const EPGDB_CONTEXT *usedDbc, const PI_BLOCK *pPiBloc
 	       PiListBox_AdjustScrollBar();
                assert(PiListBox_ConsistancyCheck());
 	    }
-	    else if ((pos > 0) || (pibox_count < PIBOX_HEIGHT))
+	    else if ((pos > 0) || (pibox_count < pibox_height))
 	    {
 	       // selected item must not be shifted out of viewable area
-	       if ((pos > pibox_curpos) || (pibox_count < PIBOX_HEIGHT))
+	       if ((pos > pibox_curpos) || (pibox_count < pibox_height))
 	       {  // insert below the cursor position (or window not full)
 		  dprintf5("insert below curpos=%d at pos=%d  off=%d,max=%d,c=%d\n", pibox_curpos, pos, pibox_off, pibox_max, pibox_count);
-		  if (pibox_count >= PIBOX_HEIGHT)
+		  if (pibox_count >= pibox_height)
 		  {  // box already full -> remove last line
-		     sprintf(comm, ".all.pi.list.text delete %d.0 %d.0\n", PIBOX_HEIGHT, PIBOX_HEIGHT + 1);
+		     sprintf(comm, ".all.pi.list.text delete %d.0 %d.0\n", pibox_height, pibox_height + 1);
 		     eval_check(interp, comm);
 		  }
 		  else
@@ -1894,7 +1908,7 @@ void PiListBox_DbInserted( const EPGDB_CONTEXT *usedDbc, const PI_BLOCK *pPiBloc
 			pibox_curpos = 0;
 		  }
 
-		  for (i=PIBOX_HEIGHT-2; i >= pos; i--)
+		  for (i=pibox_height-2; i >= pos; i--)
 		     pibox_list[i + 1] = pibox_list[i];
 		  PiListBox_InsertItem(pPiBlock, pos);
 	       }
@@ -2250,8 +2264,9 @@ static int PiListBox_PopupPi( ClientData ttp, Tcl_Interp *i, int argc, char *arg
    const AI_NETWOP *pNetwop;
    const PI_BLOCK * pPiBlock;
    const DESCRIPTOR *pDesc;
+   const char * pCfNetname;
    uchar *p;
-   uchar start_str[50], stop_str[50];
+   uchar start_str[50], stop_str[50], cni_str[7];
    uchar ident[50];
    int index;
    int result;
@@ -2274,6 +2289,11 @@ static int PiListBox_PopupPi( ClientData ttp, Tcl_Interp *i, int argc, char *arg
 	 {
 	    pNetwop = AI_GET_NETWOP_N(pAiBlock, pPiBlock->netwop_no);
 
+            sprintf(cni_str, "0x%04X", AI_GET_NETWOP_N(pAiBlock, pPiBlock->netwop_no)->cni);
+            pCfNetname = Tcl_GetVar2(interp, "cfnetnames", cni_str, TCL_GLOBAL_ONLY);
+            if (pCfNetname == NULL)
+               pCfNetname = AI_GET_NETWOP_NAME(pAiBlock, pPiBlock->netwop_no);
+
 	    sprintf(ident, ".poppi_%d_%ld", pPiBlock->netwop_no, pPiBlock->start_time);
 
 	    sprintf(comm, "Create_PopupPi %s %s %s\n", ident, argv[1], argv[2]);
@@ -2282,7 +2302,7 @@ static int PiListBox_PopupPi( ClientData ttp, Tcl_Interp *i, int argc, char *arg
 	    sprintf(comm, "%s.text insert end {%s\n} title\n", ident, PI_GET_TITLE(pPiBlock));
 	    eval_check(interp, comm);
 
-	    sprintf(comm, "%s.text insert end {Network: \t#%d %s\n} body\n", ident, pPiBlock->netwop_no, AI_GET_NETWOP_NAME(pAiBlock,pPiBlock->netwop_no));
+	    sprintf(comm, "%s.text insert end {Network: \t%s\n} body\n", ident, pCfNetname);
 	    eval_check(interp, comm);
 
 	    sprintf(comm, "%s.text insert end {BlockNo:\t0x%04X in %04X-%04X-%04X\n} body\n", ident, pPiBlock->block_no, pNetwop->startNo, pNetwop->stopNo, pNetwop->stopNoSwo);
@@ -2411,12 +2431,106 @@ const PI_BLOCK * PiListBox_GetSelectedPi( void )
 {
    const PI_BLOCK * pPiBlock;
 
-   if ((pibox_curpos >= 0) && (pibox_curpos < pibox_count))
+   if ( (pibox_state == PIBOX_LIST) &&
+        (pibox_curpos >= 0) && (pibox_curpos < pibox_count) )
+   {
       pPiBlock = EpgDbSearchPi(dbc, NULL, pibox_list[pibox_curpos].start_time, pibox_list[pibox_curpos].netwop_no);
+   }
    else
       pPiBlock = NULL;
 
    return pPiBlock;
+}
+
+// ----------------------------------------------------------------------------
+// Returns the CNI and name of the network of the currently selected PI
+//
+static int PiListBox_GetSelectedNetwop( ClientData ttp, Tcl_Interp *i, int argc, char *argv[] )
+{
+   const char * const pUsage = "Usage: C_PiListBox_GetSelectedNetwop";
+   const AI_BLOCK *pAiBlock;
+   uchar netwop;
+   int result;
+
+   if (argc != 1)
+   {  // parameter count is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else
+   {
+      if ( (pibox_state == PIBOX_LIST) &&
+           (pibox_curpos >= 0) && (pibox_curpos < pibox_count))
+      {
+         netwop = pibox_list[pibox_curpos].netwop_no;
+
+         EpgDbLockDatabase(dbc, TRUE);
+         pAiBlock = EpgDbGetAi(dbc);
+         if ((pAiBlock != NULL) && (netwop < pAiBlock->netwopCount))
+         {
+            sprintf(comm, "0x%04X", AI_GET_NETWOP_N(pAiBlock, netwop)->cni);
+            Tcl_AppendElement(interp, comm);
+            Tcl_AppendElement(interp, AI_GET_NETWOP_NAME(pAiBlock, netwop));
+         }
+         EpgDbLockDatabase(dbc, FALSE);
+      }
+      result = TCL_OK;
+   }
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Configure the number of PI in the listbox
+//
+static int PiListBox_Resize( ClientData ttp, Tcl_Interp *i, int argc, char *argv[] )
+{
+   PIBOX_ENTRY * old_list;
+   char * pTmpStr;
+   int height, off;
+
+   pTmpStr = Tcl_GetVar(interp, "pibox_height", TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG);
+   if ((pTmpStr == NULL) || (Tcl_GetInt(interp, pTmpStr, &height) != TCL_OK))
+   {  // no height configured or invalid number -> use default
+      debug1("PiListBox-Resize: invalid pibox_height \"%s\"", (pTmpStr == NULL) ? "" : pTmpStr);
+      height = PIBOX_DEFAULT_HEIGHT;
+   }
+   // minimum of one line avoids dealing with special cases
+   if (height < 1)
+      height = 1;
+
+   if ((height != pibox_height) || (pibox_list == NULL))
+   {
+      old_list = pibox_list;
+      pibox_list = xmalloc(height * sizeof(PIBOX_ENTRY));
+
+      if ((old_list != NULL) && (pibox_count > 0))
+      {
+         // copy the old into the new array, to keep the cursor on the same PI
+         // if the height was reduced, shift the listbox upwards to keep the cursor visible
+         if (pibox_curpos >= height)
+            off = pibox_curpos + 1 - height;
+         else
+            off = 0;
+         memcpy(pibox_list, old_list + off, height * sizeof(PIBOX_ENTRY));
+
+         pibox_height = height;
+         // keep listbox params consistent
+         pibox_curpos -= off;
+         if (pibox_count > pibox_height)
+            pibox_count = pibox_height;
+
+         PiListBox_Refresh();
+      }
+      else
+      {
+         pibox_height = height;
+         PiListBox_Reset();
+      }
+      if (old_list != NULL)
+         xfree(old_list);
+   }
+
+   return TCL_OK;
 }
 
 // ----------------------------------------------------------------------------
@@ -2426,6 +2540,8 @@ void PiListBox_Destroy( void )
 {
    if (pPiboxCols != defaultPiboxCols)
       xfree((void *)pPiboxCols);
+   if (pibox_list != NULL)
+      xfree(pibox_list);
 }
 
 // ----------------------------------------------------------------------------
@@ -2435,6 +2551,9 @@ void PiListBox_Destroy( void )
 void PiListBox_Create( void )
 {
    Tcl_CmdInfo cmdInfo;
+
+   pibox_state = PIBOX_NOT_INIT;
+   pibox_dbstate = EPGDB_NOT_INIT;
 
    if (Tcl_GetCommandInfo(interp, "C_PiListBox_Scroll", &cmdInfo) == 0)
    {
@@ -2446,14 +2565,15 @@ void PiListBox_Create( void )
       Tcl_CreateCommand(interp, "C_PiListBox_PopupPi", PiListBox_PopupPi, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_RefreshPiListbox", PiListBox_RefreshCmd, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_ResetPiListbox", PiListBox_ResetCmd, (ClientData) NULL, NULL);
+      Tcl_CreateCommand(interp, "C_ResizePiListbox", PiListBox_Resize, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_PiListBox_CfgColumns", PiListBox_CfgColumns, (ClientData) NULL, NULL);
+      Tcl_CreateCommand(interp, "C_PiListBox_GetSelectedNetwop", PiListBox_GetSelectedNetwop, (ClientData) NULL, NULL);
       // set the column configuration
       PiListBox_CfgColumns(NULL, interp, 0, NULL);
+      // set the initial listbox height
+      PiListBox_Resize(NULL, interp, 0, NULL);
    }
    else
       debug0("PiListBox-Create: commands were already created");
-
-   pibox_state = PIBOX_NOT_INIT;
-   pibox_dbstate = EPGDB_NOT_INIT;
 }
 

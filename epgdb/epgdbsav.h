@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbsav.h,v 1.25 2001/02/25 16:00:45 tom Exp tom $
+ *  $Id: epgdbsav.h,v 1.26 2001/04/04 18:31:02 tom Exp tom $
  */
 
 #ifndef __EPGDBSAV_H
@@ -138,7 +138,7 @@ typedef struct
 bool EpgDbDump( EPGDB_CONTEXT * pDbContext );
 EPGDB_CONTEXT * EpgDbReload( uint cni, EPGDB_RELOAD_RESULT * pError );
 uint EpgDbReloadScan( int index );
-bool EpgDbDumpCreateDir( const char * pDirPath );
+bool EpgDbSavSetupDir( const char * pDirPath, const char * pDemoDb );
 void EpgDbDumpGetDirAndCniFromArg( char * pArg, const char ** ppDirPath, uint * pCni );
 
 const EPGDBSAV_PEEK * EpgDbPeek( uint cni, EPGDB_RELOAD_RESULT * pResult );
