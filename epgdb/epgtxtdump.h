@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgtxtdump.h,v 1.6 2000/06/13 18:16:20 tom Exp tom $
+ *  $Id: epgtxtdump.h,v 1.7 2000/06/26 18:32:39 tom Exp tom $
  */
 
 #ifndef __EPGTXTDUMP_H
@@ -36,7 +36,7 @@ extern const char * pEpgTxtDumpHeader;
 // declaration of service interface functions
 //
 #ifdef __EPGBLOCK_H
-void EpgTxtDumpPi( FILE *fp, const PI_BLOCK * pPi, uchar stream, const AI_BLOCK * pAi );
+void EpgTxtDumpPi( FILE *fp, const PI_BLOCK * pPi, uchar stream, uchar version, const AI_BLOCK * pAi );
 void EpgTxtDumpAi( FILE *fp, const AI_BLOCK * pAi, uchar stream );
 void EpgTxtDumpOi( FILE *fp, const OI_BLOCK * pOi, uchar stream );
 void EpgTxtDumpNi( FILE *fp, const NI_BLOCK * pNi, uchar stream );

@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgmain.c,v 1.21 2000/06/14 20:45:55 tom Exp tom $
+ *  $Id: epgmain.c,v 1.27 2000/07/08 18:33:20 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -64,6 +64,7 @@
 #include "epgui/menucmd.h"
 #include "epgui/pilistbox.h"
 #include "epgui/pifilter.h"
+#include "epgui/nxtv_logo.xbm"
 
 #include "epgctl/vbidecode.h"
 #include "epgctl/epgmain.h"
@@ -73,6 +74,16 @@ extern char epgui_tcl_script[];
 
 Tcl_Interp *interp;          // Interpreter for application
 char comm[1000];             // Command buffer
+
+// command line options
+#ifdef WIN32
+static const char *rcfile = "NXTVEPG.INI";
+#else
+static const char *rcfile = "~/.nxtvepgrc";
+#endif
+static bool disableAcq = FALSE;
+static bool startIconified = FALSE;
+static uint startUiCni = 0;
 
 sint lto = 0;
 
@@ -114,7 +125,7 @@ static void IdleEvent_VbiBufferService( ClientData clientData )
    {
       if (EpgDbIsLocked(pAcqDbContext) == FALSE)
       {
-         EpgDbAcqProcessPackets(&pAcqDbContext);
+         EpgAcqCtl_ProcessPackets();
       }
       else if ((long)clientData < 10)
       {  // obviously we are not yet idle -> try again later
@@ -126,7 +137,7 @@ static void IdleEvent_VbiBufferService( ClientData clientData )
 }
 
 // ---------------------------------------------------------------------------
-// every minute expired items have to be removed from the database and listbox
+// called every minute: remove expired PI from the database and listbox
 // 
 static void IdleEvent_TimerDbSetDateTime( ClientData clientData )
 {
@@ -146,19 +157,12 @@ static void IdleEvent_TimerDbSetDateTime( ClientData clientData )
    {  // if acq uses a separate db, update that too. it should never be locked.
       EpgDbSetDateTime(pAcqDbContext);
    }
-
 }
 
 static void EventHandler_TimerDbSetDateTime( ClientData clientData )
 {
    // not executed until all current events are processed
    Tcl_DoWhenIdle(IdleEvent_TimerDbSetDateTime, NULL);
-
-   // process teletext packets in the buffer
-   if (EpgDbAcqCheckForPackets())
-   {
-      Tcl_DoWhenIdle(IdleEvent_VbiBufferService, NULL);
-   }
 
    Tcl_CreateTimerHandler(1000 * (60 - time(NULL) % 60), EventHandler_TimerDbSetDateTime, NULL);
 }
@@ -171,8 +175,14 @@ static void EventHandler_UpdateClock( ClientData clientData )
    if (should_exit == FALSE)
    {
       //  Update the clock every second with the current time
-      sprintf(comm, ".all.themes.clock configure -text [clock format [clock seconds] -format {%%a %%H:%%M:%%S} -gmt 0]\n");
+      sprintf(comm, ".all.shortcuts.clock configure -text [clock format [clock seconds] -format {%%a %%H:%%M:%%S} -gmt 0]\n");
       eval_check(interp, comm);
+
+      // process teletext packets in the buffer
+      if (EpgDbAcqCheckForPackets())
+      {
+         Tcl_DoWhenIdle(IdleEvent_VbiBufferService, NULL);
+      }
 
       // check upon acquisition progress
       EpgAcqCtl_Idle();
@@ -230,10 +240,94 @@ static void InitLTO( void )
    //printf("LTO = %d sec = %d min\n", lto, lto/60);
 }
 
+#ifndef WIN32
+// ---------------------------------------------------------------------------
+// Print Usage and exit
+//
+static void Usage( const char *argv0, const char *argvn, const char * reason )
+{
+   fprintf(stderr, "%s: %s: %s\n"
+                   "Usage: -display <display>   : X11 display\n"
+                   "       -geometry <geometry> : window geometry\n"
+                   "       -iconic              : iconify window\n"
+                   "       -rcfile <path>       : path and file name of setup file\n"
+                   "       -provider <cni>      : network id of EPG provider (hex)\n"
+                   "       -noacq               : disable acquisition\n",
+                   argv0, reason, argvn);
+   exit(1);
+}
+
+// ---------------------------------------------------------------------------
+// Parse command line options
+//
+static void ParseArgv( int argc, char * argv[] )
+{
+   struct stat st;
+   int argIdx = 1;
+
+   while (argIdx < argc)
+   {
+      if (argv[argIdx][0] == '-')
+      {
+         if (!strcmp(argv[argIdx], "-noacq"))
+         {  // do not enable acquisition
+            disableAcq = TRUE;
+            argIdx += 1;
+         }
+         else if (!strcmp(argv[argIdx], "-rcfile"))
+         {
+            if (argIdx + 1 < argc)
+            {  // read file name of rc/ini file: warn if file does not exist
+               rcfile = argv[argIdx + 1];
+               if (stat(rcfile, &st))
+                  perror("Warning -rcfile");
+               argIdx += 2;
+            }
+            else
+               Usage(argv[0], argv[argIdx], "missing file name after");
+         }
+         else if (!strcmp(argv[argIdx], "-provider"))
+         {
+            if (argIdx + 1 < argc)
+            {  // read hexadecimal CNI of selected provider
+               char *pe;
+               startUiCni = strtol(argv[argIdx + 1], &pe, 16);
+               if (pe != (argv[argIdx + 1] + strlen(argv[argIdx + 1])))
+                  Usage(argv[0], argv[argIdx+1], "invalid CNI (must be hexadecimal, e.g. 0x0d94 or d94)");
+               argIdx += 2;
+            }
+            else
+               Usage(argv[0], argv[argIdx], "missing provider cni after");
+         }
+         else if ( !strcmp(argv[argIdx], "-iconic") )
+         {  // start with iconified main window
+            startIconified = TRUE;
+            argIdx += 1;
+         }
+         else if ( !strcmp(argv[argIdx], "-display") ||
+                   !strcmp(argv[argIdx], "-geometry") ||
+                   !strcmp(argv[argIdx], "-name") )
+         {  // ignore arguments that are handled by Tk
+            if (argIdx + 1 >= argc)
+               Usage(argv[0], argv[argIdx], "missing argument after");
+            argIdx += 2;
+         }
+         else
+            Usage(argv[0], argv[argIdx], "unknown option");
+      }
+      else
+         Usage(argv[0], argv[argIdx], "Unexpected argument");
+   }
+}
+#endif  //WIN32
+
 // ---------------------------------------------------------------------------
 // Initialize the Tcl/Tk interpreter
 //
-static int ui_init(int argc, char **argv)
+//#if !defined(TCL_LIBRARY_PATH) || !defined(TK_LIBRARY_PATH)
+//#include "epgui/tcl_libs.c"
+//#endif
+static int ui_init( int argc, char **argv )
 {
    char *args, buffer[128];
 
@@ -252,20 +346,38 @@ static int ui_init(int argc, char **argv)
       Tcl_SetVar(interp, "argc", buffer, TCL_GLOBAL_ONLY);
       Tcl_SetVar(interp, "argv0", argv[0], TCL_GLOBAL_ONLY);
    }
-   #if defined(TCL_LIBRARY_PATH) && defined(TK_LIBRARY_PATH)
+   //#if defined(TCL_LIBRARY_PATH) && defined(TK_LIBRARY_PATH)
    Tcl_SetVar(interp, "tcl_library", TCL_LIBRARY_PATH, TCL_GLOBAL_ONLY);
    Tcl_SetVar(interp, "tk_library", TK_LIBRARY_PATH, TCL_GLOBAL_ONLY);
-   #else
-   Tcl_SetVar(interp, "tcl_library", "C:/utils/tcl/lib/tcl8.3", TCL_GLOBAL_ONLY);
-   Tcl_SetVar(interp, "tk_library", "C:/utils/tcl/lib/tk8.3", TCL_GLOBAL_ONLY);
-   #endif
+   //#endif
    Tcl_SetVar(interp, "tcl_interactive", "0", TCL_GLOBAL_ONLY);
 
    Tcl_Init(interp);
-   Tk_Init(interp);
+   if (Tk_Init(interp) != TCL_OK)
+   {
+      fprintf(stderr, "%s\n", interp->result);
+      exit(1);
+   }
 
-   sprintf(comm, "wm title . {Nextview EPG Decoder}; wm resizable . 0 0");
+   //#if !defined(TCL_LIBRARY_PATH) || !defined(TK_LIBRARY_PATH)
+   //if (Tcl_VarEval(interp, TCL_LIBS, NULL) != TCL_OK)
+   //{
+   //   debug1("TCL_LIBS error: %s\n", interp->result);
+   //}
+   //#endif
+
+   Tk_DefineBitmap(interp, Tk_GetUid("nxtv_logo"), nxtv_logo_bits, nxtv_logo_width, nxtv_logo_height);
+
+   sprintf(comm, "wm title . {Nextview EPG Decoder}\n"
+                 "wm resizable . 0 0\n"
+                 "wm iconbitmap . nxtv_logo\n"
+                 "wm iconname . {Nextview EPG}\n");
    eval_check(interp, comm);
+
+   if (startIconified)
+      eval_check(interp, "wm iconify .");
+
+   eval_check(interp, epgui_tcl_script);
 
    Tcl_ResetResult(interp);
    return (TRUE);
@@ -276,12 +388,13 @@ static int ui_init(int argc, char **argv)
 // entry point
 //
 #ifdef WIN32
-void NextviewMain( void )
+int NextviewMain( void )
 #else
-int main(int argc, char *argv[])
+int main( int argc, char *argv[] )
 #endif
 {
    Tcl_TimerToken clockHandler, expirationHandler;
+
    // mark Tcl/Tk interpreter as uninitialized
    interp = NULL;
    // set db states to not initialized
@@ -291,6 +404,7 @@ int main(int argc, char *argv[])
    InitLTO();
 
    #ifndef WIN32
+   ParseArgv(argc, argv);
    VbiDecodeInit();
 
    ui_init(argc, argv);
@@ -303,10 +417,30 @@ int main(int argc, char *argv[])
    ui_init(0, NULL);
    #endif
 
-   EpgAcqCtl_OpenDb(DB_TARGET_UI, 0);
+   sprintf(comm, "LoadRcFile %s\n", rcfile);
+   eval_check(interp, comm);
 
-   // load the Tcl/Tk code for the different windows and initialize the C control modules
-   eval_check(interp, epgui_tcl_script);
+   if (startUiCni == 0)
+   {
+      uint iniCni;
+      if ( (eval_check(interp, "lindex $prov_selection 0") == TCL_OK) &&
+           (sscanf(interp->result, "0x%04X", &iniCni) == 1) )
+      {
+         startUiCni = iniCni;
+         // update rc/ini file with new CNI order
+         sprintf(comm, "UpdateProvSelection 0x%04X\n", iniCni);
+         eval_check(interp, comm);
+      }
+   }
+   if ( (EpgAcqCtl_OpenDb(DB_TARGET_UI, startUiCni) == FALSE) && (startUiCni != 0) )
+   {
+      sprintf(comm, "tk_messageBox -type ok -icon error "
+                    "-message {Failed to open the database of the requested provider 0x%04X. "
+                    "Please use the Configure menu to choose a different one.}\n", startUiCni);
+      eval_check(interp, comm);
+   }
+
+   // initialize the GUI control modules
    StatsWin_Create();
    PiFilter_Create();
    PiListBox_Create();
@@ -317,7 +451,10 @@ int main(int argc, char *argv[])
            Tcl_DoOneEvent(TCL_ALL_EVENTS | TCL_DONT_WAIT) )
       ;
 
-   EpgAcqCtl_Start();
+   if (disableAcq == FALSE)
+   {
+      EpgAcqCtl_Start();
+   }
 
    if (Tk_GetNumMainWindows() > 0)
    {
@@ -330,11 +467,6 @@ int main(int argc, char *argv[])
       while (Tk_GetNumMainWindows() > 0)
       {
          Tcl_DoOneEvent(0);
-
-         if (EpgDbAcqCheckForPackets())
-         {
-            Tcl_DoWhenIdle(IdleEvent_VbiBufferService, NULL);
-         }
 
          if (should_exit)
          {

@@ -855,4 +855,257 @@ epgvbi/ttxdecode.c [rev:1.10, 2000-06-15T18:13:03]:
 - bugfix: bWaitForBiAi was never enabled (copy & paste error)
 README [rev:1.1, 2000-06-15T19:09:03]:
 - Initial revision
-#------------------------------ RELEASE_0_01a -------------------------------
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_01a <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+epgdb/epgdbfil.c [rev:1.12, 2000-06-16T15:44:36]:
+- bugfix: debug warning feature set: logical NOT was missing
+epgdb/epgdbfil.c [rev:1.13, 2000-06-17T18:38:55]:
+- bugfixes in theme filter handling
+- reset theme & sortcrits classes and feature count upon disable
+epgctl/epgmain.c [epgui/epgmain.c, rev:1.22, 2000-06-17T18:40:17]:
+- clock widget renamed due to new shortcut bar
+epgui/pilistbox.c [rev:1.17, 2000-06-17T18:41:06]:
+- added individual Tcl commands for listbox reset & refresh
+- this is no longer implicitly done during filter change
+epgui/pifilter.c [rev:1.12, 2000-06-17T18:42:04]:
+- added C_ResetFilter for shortcuts
+- removed obsolete series handling from SelectThemes
+- split SelectRating into two funcs for edi and par
+- all select funcs: refresh is no longer done automatically
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.18, 2000-06-17T18:44:10]:
+- added "Add filter shortcut" popup and shortcut selection
+- still todo: saving shortcuts to file & multi-selection
+- moved features & feature-class into sub-menu
+- moved themes-class into themes submenu
+epgctl/epgmain.c [epgui/epgmain.c, rev:1.23, 2000-06-19T17:53:48]:
+- added creation of Nextview logo from bitmap in nxtv_logo.xbm
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.19, 2000-06-19T17:55:24]:
+- added Nextview logo to .about popup
+epgdb/epgblock.c [rev:1.20, 2000-06-19T19:17:24]:
+- extended "case 0x10 ... 0x1f:  // diacritical mark" for compatibility with M$
+epgdb/epgblock.h [rev:1.9, 2000-06-19T19:17:58]:
+- removed obsolete EV_ATTRIB_KIND_THEME_7, EV_ATTRIB_KIND_SORTCRIT_7
+epgdb/epgdbacq.c [epgvbi/ttxdecode.c, rev:1.11, 2000-06-19T19:18:12]:
+- added check for (pVbiBuf != NULL) in pkg add for Win32
+epgdb/epgdbfil.c [rev:1.14, 2000-06-19T19:20:54]:
+- extended EV_ATTRIB_KIND_THEME case vals for Win32 compatibility
+- put themes and series filters in one type class
+- i.e. always assume theme OR series filter match
+epgdb/epgdbsav.c [rev:1.9, 2000-06-19T19:21:47]:
+- added reload scan for Win32 (incompatible dir scan)
+epgdb/epgdbsav.h [rev:1.6, 2000-06-19T19:21:47]:
+- added reload scan for Win32 (incompatible dir scan)
+epgui/pifilter.c [rev:1.13, 2000-06-19T19:23:37]:
+- sort series by title (TODO: removed prefixes like Der, Die, Das)
+epgctl/epgmain.c [epgui/epgmain.c, rev:1.24, 2000-06-22T18:19:47]:
+- added command line argument parsing & handling
+- rcfile, noacq, iconic
+- pass Tk args: geometry, display, name
+- prepared for compiling in Tcl/Tk init scripts
+- added wm iconbitmap and iconname
+epgui/pifilter.c [rev:1.14, 2000-06-22T18:20:57]:
+- bugfix: parental and editorial rating c funcs were swapped
+- PreloadShortcuts obsolete - called by rc handler
+epgui/pilistbox.c [rev:1.18, 2000-06-22T18:21:54]:
+- bugfix db insertion handling
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.20, 2000-06-22T18:22:31]:
+- added rc/init file handling
+- dump: shortcuts, provider selection order, filter bar visibility
+- added config options to suppress shortcut & netwop filter bars
+- shortcut filters are now stored in only one variable each
+- added shortcut edit popup: by extending fscadd popup
+- added first draft of EPG scan popup
+epgui/menucmd.c [rev:1.6, 2000-06-22T18:25:17]:
+- added first draft of EPG scan handling
+- added provider selection order : saved permanantly in config file
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.21, 2000-06-22T19:47:19]:
+- remove  prefixe prefixes Der, Die, Das, La, ... depending on country
+- moved the sorting into the Tcl domain
+epgui/pifilter.c [rev:1.15, 2000-06-22T19:47:19]:
+- remove  prefixe prefixes Der, Die, Das, La, ... depending on country
+- moved the sorting into the Tcl domain
+epgdb/epgblock.h [rev:1.10, 2000-06-24T13:17:15]:
+- added tuner frequency to EPGDB_CONTEXT
+epgdb/epgdbacq.c [epgvbi/ttxdecode.c, rev:1.12, 2000-06-24T13:17:37]:
+- added epg scan & CNI acquisition
+- improved acqreset: no longer stops slave
+epgdb/epgdbacq.h [epgvbi/ttxdecode.h, rev:1.7, 2000-06-24T13:17:37]:
+- added epg scan & CNI acquisition
+- improved acqreset: no longer stops slave
+epgdb/epgdbif.c [rev:1.12, 2000-06-24T13:19:01]:
+- removed debug warning in GetStat when AI missing
+- also set all counts to 0 when no AI
+epgdb/epgdbsav.c [rev:1.10, 2000-06-24T13:19:38]:
+- added tuner frequency to dump header (and EPGDB_CONTEXT)
+- added EpgDbDumpUpdateHeader() to update tuner freq. in header
+- accepted versions is now range: DUMP_COMPAT - DUMP_VERSION
+- reload & peek: no debug warning when db for given CNI missing
+epgdb/epgdbsav.h [rev:1.7, 2000-06-24T13:19:38]:
+- added tuner frequency to dump header (and EPGDB_CONTEXT)
+- added EpgDbDumpUpdateHeader() to update tuner freq. in header
+- accepted versions is now range: DUMP_COMPAT - DUMP_VERSION
+- reload & peek: no debug warning when db for given CNI missing
+epgctl/epgacqctl.c [rev:1.8, 2000-06-24T13:27:14]:
+- added epg scan
+epgctl/epgacqctl.h [rev:1.7, 2000-06-24T13:27:14]:
+- added epg scan
+epgctl/epgmain.c [epgui/epgmain.c, rev:1.25, 2000-06-24T13:29:09]:
+- added cmd line option -provider <cni>
+- moved EpgDbAcqCheckForPackets from min to sec timer handler
+epgctl/vbidecode.c [epgvbi/vbidecode.c, rev:1.13, 2000-06-24T13:30:35]:
+- added support for EPG scan
+- enabled VPS acquisition (during epg scan only)
+- added channel table for Europe
+- added functions to get freq from chan.# and to tune freq.
+epgctl/vbidecode.h [epgvbi/vbidecode.h, rev:1.7, 2000-06-24T13:32:33]:
+- added support for EPG scan
+   - added functions to get freq from chan.# and to tune freq.
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.22, 2000-06-24T13:34:01]:
+- finished epg scan popup: dropped scale, use text instead of message widget
+epgui/menucmd.c [rev:1.7, 2000-06-24T13:34:20]:
+- finished epg scan: moved handling into epgacqctl module
+epgui/menucmd.h [rev:1.3, 2000-06-24T13:35:06]:
+- finished epg scan: added interface for epgacqctl module
+epgdb/epgdbacq.c [epgvbi/ttxdecode.c, rev:1.13, 2000-06-24T18:03:13]:
+   completed EPG scan with syntax scan of all possible EPG pages
+epgdb/epgdbacq.h [epgvbi/ttxdecode.h, rev:1.8, 2000-06-24T18:03:13]:
+   completed EPG scan with syntax scan of all possible EPG pages
+epgdb/epgstream.c [rev:1.5, 2000-06-24T18:04:04]:
+- added EPG syntax scan: checks possible EPG pages for ETS 708 syntax
+- kept very simple: only stream, bp, bs and sh are checked,
+    where sh is checked for hamming errors only
+epgdb/epgstream.h [rev:1.9, 2000-06-24T18:04:04]:
+- added state defs for EPG syntax scan
+epgctl/epgacqctl.c [rev:1.9, 2000-06-24T18:07:31]:
+- epg scan: slight optimization of messages
+- ring bell when scan is finished
+- differ between normal and abnormal termination
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.23, 2000-06-24T18:08:49]:
+- epg scan: slight optimizations; increased with of progress bar
+epgdb/epgblock.h [rev:1.11, 2000-06-26T18:21:04]:
+- added obsolete PI to db context
+- added struct for db statistic counts
+epgdb/epgdbif.c [rev:1.13, 2000-06-26T18:21:37]:
+- added access funcs for obsolete pi list
+- revamped EpgDbGetStat(): count separately for both streams, use struct
+epgdb/epgdbif.h [rev:1.9, 2000-06-26T18:22:32]:
+- added access funcs for obsolete pi list
+- revamped EpgDbGetStat(): count separately for both streams, use struct
+epgdb/epgdbmgmt.c [rev:1.12, 2000-06-26T18:27:01]:
+- new concept: keep expired or overlapping PI in separate list in db
+- only current version of PI is kept -> list emptied upon AI version change
+- synchronize both PI lists: block must noth be in both
+- list is unsorted (may change in future to sorted by start time)
+epgdb/epgdbsav.c [rev:1.11, 2000-06-26T18:30:26]:
+- BUG FIX: free() was forgotten on blocks that could not be added to db
+- new concept: keep expired or overlapping PI in separate list in db
+- expired blocks in dumped db are immediately stuck in obsolete list
+- obsolete db blocks are dumped behind PI list, with a separate type
+epgdb/epgdbsav.h [rev:1.8, 2000-06-26T18:31:20]:
+- added BLOCK_TYPE_DEFECT_PI for list of obsolete PI
+epgdb/epgstream.c [rev:1.6, 2000-06-26T18:31:55]:
+- added parameter to call of EpgTxtDumpPi(): version, but here only dummy
+epgdb/epgtxtdump.c [epgui/dumpraw.c, rev:1.9, 2000-06-26T18:32:39]:
+- added parameter version to EpgTxtDumpPi()
+- database dump also dumps obsolete PI
+epgdb/epgtxtdump.h [epgui/dumpraw.h, rev:1.7, 2000-06-26T18:32:39]:
+- added parameter version to EpgTxtDumpPi()
+epgctl/epgacqctl.c [rev:1.10, 2000-06-26T18:34:48]:
+- EpgDbGetStat() interface changed
+-> computation of history diagram and other stats adapted
+- added msg to epg scan when tuner freq updated in dumped db
+epgctl/epgacqctl.h [rev:1.8, 2000-06-26T18:36:08]:
+- acq stats struct adapted to new EpgDbGetStat() interface
+- all counts now kept in two structs
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.24, 2000-06-26T18:38:49]:
+- added new value to acq history diagram: expired/defect PI (in valid range)
+- plus: don't plot lines of zero length
+- changed version to 0.02a
+epgui/statswin.c [rev:1.13, 2000-06-26T18:42:52]:
+- db now also keeps list of obsolete (expired/defect) PI
+- timescale reload can mark defect blocks yellow
+- acq stats diag contains graph for obsolete PI
+- stats interface changed -> computation adapted
+- timescale bottom now separates percentage for all and near (stream 1)
+epgui/statswin.h [rev:1.4, 2000-06-26T18:51:07]:
+- StatsWin_NewPi(): param "inserted" removed
+- because all PI (unless invalid netwop or block outside legal range)
+    are added to db; PI is marked yellow in timescale if added to defect
+    list or if overlapped by block in defect list -> search for time range
+    in defect list
+epgctl/epgacqctl.c [rev:1.11, 2000-06-29T18:17:24]:
+- improved epg scan:
+- keep video device open during scan
+- check for signal strength: if below threshhold, skip channel quickly
+- restructured task handler
+epgctl/vbidecode.c [epgvbi/vbidecode.c, rev:1.14, 2000-06-29T18:19:52]:
+- improved support for EPG tuner scan
+- allow to keep video device open during whole scan
+- configure video channel & tuner more thoroughly esp. for cold start
+    in device open function
+- added function to query signal strength (actually it only returns
+    a boolean at the moment)
+epgctl/vbidecode.h [epgvbi/vbidecode.h, rev:1.8, 2000-06-29T18:22:34]:
+- improved support for EPG tuner scan
+- allow to keep video device open during whole scan
+- added function to query signal strength
+epgui/menucmd.c [rev:1.8, 2000-07-01T08:36:07]:
+- bugfix init: epg scan disabled wrong index
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.25, 2000-07-01T08:38:24]:
+- added shortcut deselection
+- completed shortcut merge: for parental & editorial & progidx
+epgdb/epgdbsav.c [rev:1.12, 2000-07-01T08:40:52]:
+- removed superflous debug statement (made to dprintf)
+epgctl/epgacqctl.c [rev:1.12, 2000-07-04T19:28:26]:
+- EpgAcqCtl_OpenDb() returns FALSE if no db found to given (non-zero) CNI
+epgctl/epgacqctl.h [rev:1.9, 2000-07-04T19:28:48]:
+- EpgAcqCtl_OpenDb() returns FALSE if no db found to given (non-zero) CNI
+epgctl/epgmain.c [epgui/epgmain.c, rev:1.26, 2000-07-04T19:29:01]:
+- stronger check of -provider CNI, msg box if no db for given provider
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.26, 2000-07-04T19:30:36]:
+- added netwop config popup & netwop prefiltering
+epgui/pifilter.c [rev:1.16, 2000-07-04T19:30:53]:
+- added netwop config popup & netwop prefiltering
+- added filter menu state update after NI
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.27, 2000-07-08T11:03:30]:
+- added series network sorting (according to user netwop selection)
+- bugfix netwop filter bar: was one too short
+epgui/menucmd.c [rev:1.9, 2000-07-08T11:04:16]:
+- general housekeeping only:
+- declare pUsage const * const
+- use Tcl_SetResult to assign error messages
+- use Tcl_GetBoolean to read boolean parameters instead of Tcl_GetInt
+- use tk_messageBox to report errors in acq start/stop
+- use Tcl_GetVar to read tcl var instead of Tcl_Eval
+epgui/pifilter.c [rev:1.17, 2000-07-08T11:07:58]:
+- fixed SelectNetwops: must use prefilter list only when no netwops filtered
+- added netwop sorting by user config to series netwop menu
+- sorting (and menu add) is done in the tcl domain
+- plus general housekeeping:
+- declare pUsage const * const
+- use Tcl_SetResult to assign error messages
+- use Tcl_GetInt to parse args instead of strtol
+epgctl/epgacqctl.c [rev:1.13, 2000-07-08T18:31:47]:
+- call to StatisticsUpdate in Ai callback delayed until AI is in db
+- before, stats didn't reflect the new state of db
+epgctl/epgmain.c [epgui/epgmain.c, rev:1.27, 2000-07-08T18:33:20]:
+- EpgDbAcqProcessPackets now called from epgacqctl module
+- fix for win32: cmd line option args were undeclared
+epgctl/vbidecode.c [epgvbi/vbidecode.c, rev:1.15, 2000-07-08T18:33:53]:
+- fix for win32: pVbiBuf was undeclared in VPS decoding
+epgctl/epgacqctl.h [rev:1.10, 2000-07-08T18:34:22]:
+- added EpgAcqCtl_ProcessPackets()
+- EpgDbAcqProcessPackets now called from epgacqctl module
+epgui/statswin.c [rev:1.14, 2000-07-08T18:34:53]:
+- acq stats update is now delayed until idle
+- new AI must have been inserted to db and stats generated by epgacqctl
+- plus general housekeeping:
+- declare pUsage const * const
+- use Tcl_SetResult to assign error messages
+- use Tcl_GetBoolean to read boolean parameters instead of Tcl_GetInt
+CHANGES [rev:1.1, 2000-07-08T18:43:54]:
+- Initial revision
+TODO [rev:1.1, 2000-07-08T18:43:58]:
+- Initial revision
+README [rev:1.2, 2000-07-08T18:44:58]:
+- small changes in text
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_02a <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<

@@ -16,13 +16,16 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: vbidecode.h,v 1.6 2000/06/06 09:23:22 tom Exp tom $
+ *  $Id: vbidecode.h,v 1.8 2000/06/29 18:22:34 tom Exp tom $
  */
 
 #ifndef __VBIDECODE_H
 #define __VBIDECODE_H
 
 
+// ---------------------------------------------------------------------------
+// Buffer for communication between slave and master process
+//
 #ifndef WIN32
 extern EPGACQ_BUF *pVbiBuf;
 #endif
@@ -38,6 +41,12 @@ void VbiDecodeExit( void );
 bool VbiDecodeFrame( void );
 void VbiDecodeCheckParent( void );
 bool VbiDecodeWakeUp( void );
+
+bool VbiGetNextChannel( uint *pChan, ulong *pFreq );
+int  VbiGetChannelCount( void );
+bool VbiTuneChannel( ulong freq, bool keepOpen );
+uint VbiTuneGetSignalStrength( void );
+void VbiTuneCloseDevice( void );
 #endif
 
 

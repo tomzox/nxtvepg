@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgstream.h,v 1.8 2000/06/13 18:16:20 tom Exp tom $
+ *  $Id: epgstream.h,v 1.9 2000/06/24 18:04:04 tom Exp tom $
  */
 
 #ifndef __EPGSTREAM_H
@@ -67,6 +67,17 @@ typedef struct
    uchar blockBuf[NXTV_BLOCK_MAXLEN + 4];
 } NXTV_STREAM;
 
+// max. number of pages that are allowed for EPG transmission: mFd & mdF: m[0..7],d[0..9]
+#define NXTV_VALID_PAGE_PER_MAG (1 + 10 + 10)
+#define NXTV_VALID_PAGE_COUNT   (8 * NXTV_VALID_PAGE_PER_MAG)
+
+typedef struct
+{
+   uchar pkgCount;
+   uchar lastPkg;
+   uchar okCount;
+} PAGE_SCAN_STATE;
+
 
 // ----------------------------------------------------------------------------
 // Declaration of service interface functions
@@ -80,6 +91,9 @@ EPGDB_BLOCK * EpgStreamGetNextBlock( void );
 EPGDB_BLOCK * EpgStreamGetBlockByType( uchar type );
 void          EpgStreamClearScratchBuffer( void );
 
+void EpgStreamSyntaxScanInit( void );
+void EpgStreamSyntaxScanHeader( uint page, uint sub );
+bool EpgStreamSyntaxScanPacket( uchar mag, uchar packNo, const uchar * dat );
 
 
 #endif // __EPGSTREAM_H

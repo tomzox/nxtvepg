@@ -24,13 +24,14 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgdbif.c,v 1.11 2000/06/15 17:08:29 tom Exp tom $
+ *  $Id: epgdbif.c,v 1.13 2000/06/26 18:21:37 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
 #define DPRINTF_OFF
 
 #include <time.h>
+#include <string.h>
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
@@ -272,6 +273,79 @@ const TI_BLOCK * EpgDbGetTi( CPDBC dbc, uint block_no, uchar netwop )
       return &pBlock->blk.ti;
    else
       return NULL;
+}
+
+// ---------------------------------------------------------------------------
+// Get the first block from the obsolete PI list
+//
+const PI_BLOCK * EpgDbGetFirstObsoletePi( CPDBC dbc )
+{
+   if ( EpgDbIsLocked(dbc) )
+   {
+      if (dbc->pObsoletePi != NULL)
+      {
+         return &dbc->pObsoletePi->blk.pi;
+      }
+   }
+   else
+      debug0("EpgDb-GetFirstObsoletePi: DB not locked");
+
+   return NULL;
+}
+
+// ---------------------------------------------------------------------------
+// Get the next obsolete PI block after a given block
+//
+const PI_BLOCK * EpgDbGetNextObsoletePi( CPDBC dbc, const PI_BLOCK * pPiBlock )
+{
+   const EPGDB_BLOCK * pBlock;
+
+   if ( EpgDbIsLocked(dbc) )
+   {
+      if (pPiBlock != NULL)
+      {
+         pBlock = (const EPGDB_BLOCK *)((ulong)pPiBlock - BLK_UNION_OFF);
+         pBlock = pBlock->pNextBlock;
+
+         if (pBlock != NULL)
+         {
+            return &pBlock->blk.pi;
+         }
+      }
+      else
+         debug0("EpgDb-GetNextObsoletePi: illegal NULL ptr param");
+   }
+   else
+      debug0("EpgDb-GetNextObsoletePi: DB not locked");
+
+   return NULL;
+}
+
+// ---------------------------------------------------------------------------
+// Search for a PI block in the obsolete list that overlaps the given time window
+//
+const PI_BLOCK * EpgDbSearchObsoletePi( CPDBC dbc, uchar netwop_no, ulong start_time, ulong stop_time )
+{
+   const EPGDB_BLOCK * pBlock;
+
+   if ( EpgDbIsLocked(dbc) )
+   {
+      pBlock = dbc->pObsoletePi;
+      while (pBlock != NULL)
+      {
+         if ( (pBlock->blk.pi.netwop_no == netwop_no) &&
+              (pBlock->blk.pi.start_time < stop_time) &&
+              (pBlock->blk.pi.stop_time > start_time) ) 
+         {
+            return &pBlock->blk.pi;
+         }
+         pBlock = pBlock->pNextBlock;
+      }
+   }
+   else
+      debug0("EpgDb-SearchObsoletePi: DB not locked");
+
+   return NULL;
 }
 
 // ---------------------------------------------------------------------------
@@ -538,55 +612,71 @@ uchar EpgDbGetVersion( const void * pUnion )
 // Count the number of PI blocks in the database, separately for stream 1 & 2
 // - db needs not be locked since this is an atomic operation
 //   and no pointers into the db are returned
+// - returns counts separately for both streams - pCount points to array[2] !!
 //
-bool EpgDbGetStat( CPDBC dbc, ulong *pStream1, ulong *pStream2,
-                              ulong *pCur1, ulong *pCur2, ulong *pTotal )
+bool EpgDbGetStat( CPDBC dbc, EPGDB_BLOCK_COUNT * pCount )
 {
    const EPGDB_BLOCK * pBlock;
    const AI_NETWOP *pNetwops;
    uchar version1, version2;
    uchar netwop;
-   bool result = FALSE;
+   bool result;
+
+   memset(pCount, 0, 2 * sizeof(EPGDB_BLOCK_COUNT));
 
    if (dbc->pAiBlock != NULL)
    {
       version1 = dbc->pAiBlock->blk.ai.version;
       version2 = dbc->pAiBlock->blk.ai.version_swo;
-      pBlock = dbc->pFirstPi;
-      *pStream1 = *pStream2 = 0;
-      *pCur1 = *pCur2 = 0;
 
+      pBlock = dbc->pFirstPi;
       while (pBlock != NULL)
       {
          if (pBlock->stream == NXTV_STREAM_NO_1)
          {
-            *pStream1 += 1;
+            pCount[0].allVersions += 1;
             if (pBlock->version == version1)
-               *pCur1 += 1;
+               pCount[0].curVersion += 1;
          }
          else
          {
-            *pStream2 += 1;
+            pCount[1].allVersions += 1;
             if (pBlock->version == version2)
-               *pCur2 += 1;
+               pCount[1].curVersion += 1;
          }
 
          pBlock = pBlock->pNextBlock;
       }
 
+      // count number of defect blocks; these are always current version
+      pBlock = dbc->pObsoletePi;
+      while (pBlock != NULL)
+      {
+         if (pBlock->stream == NXTV_STREAM_NO_1)
+            pCount[0].obsolete += 1;
+         else
+            pCount[1].obsolete += 1;
+         pBlock = pBlock->pNextBlock;
+      }
+
       // determine total block sum from AI block start- and stop numbers per netwop
       pNetwops = AI_GET_NETWOPS(&dbc->pAiBlock->blk.ai);
-      *pTotal = 0;
 
       for (netwop=0; netwop < dbc->pAiBlock->blk.ai.netwopCount; netwop++)
       {
-         *pTotal += EpgDbGetPiBlockCount(pNetwops[netwop].startNo, pNetwops[netwop].stopNoSwo);
+         pCount[0].ai += EpgDbGetPiBlockCount(pNetwops[netwop].startNo, pNetwops[netwop].stopNo);
+         pCount[1].ai += EpgDbGetPiBlockCount(pNetwops[netwop].startNo, pNetwops[netwop].stopNoSwo);
       }
+      pCount[1].ai -= pCount[0].ai;
 
+      dprintf5("EpgDb-GetStat: count1=%ld count2=%ld cur1=%ld cur2=%ld total=%ld\n", *pStream1, *pStream2, *pCur1, *pCur2, *pTotal);
       result = TRUE;
    }
    else
-      debug0("EpgDb-GetStat: no AI in db");
+   {  // empty database -> return 0 for all counts
+      dprintf0("EpgDb-GetStat: no AI in db\n");
+      result = FALSE;
+   }
 
    return result;
 }

@@ -15,7 +15,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: statswin.h,v 1.3 2000/06/13 18:24:42 tom Exp tom $
+ *  $Id: statswin.h,v 1.4 2000/06/26 18:51:07 tom Exp tom $
  */
 
 #ifndef __STATSWIN_H
@@ -26,7 +26,7 @@
 void StatsWin_Create( void );
 
 // Interface to database management
-void StatsWin_NewPi( EPGDB_CONTEXT * usedDbc, const PI_BLOCK *pPi, uchar stream, bool inserted );
+void StatsWin_NewPi( EPGDB_CONTEXT * usedDbc, const PI_BLOCK *pPi, uchar stream );
 void StatsWin_NewAi( void );
 
 // Interface to acq control and provider selection menu

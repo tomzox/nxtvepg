@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgtxtdump.c,v 1.8 2000/06/13 18:16:20 tom Exp tom $
+ *  $Id: epgtxtdump.c,v 1.9 2000/06/26 18:32:39 tom Exp tom $
  */
 
 #define __EPGTXTDUMP_C
@@ -124,7 +124,7 @@ static uchar * GetPiPilStr( ulong pil )
 // ---------------------------------------------------------------------------
 // Print Programme Information
 
-void EpgTxtDumpPi( FILE *fp, const PI_BLOCK * pPi, uchar stream, const AI_BLOCK * pAi )
+void EpgTxtDumpPi( FILE *fp, const PI_BLOCK * pPi, uchar stream, uchar version, const AI_BLOCK * pAi )
 {
    uchar start_str[20], stop_str[20];
    uchar netname[NETNAME_LENGTH+1];
@@ -171,7 +171,8 @@ void EpgTxtDumpPi( FILE *fp, const PI_BLOCK * pPi, uchar stream, const AI_BLOCK 
         default: pStrSoundFormat = ""; break;
       }
 
-      fprintf(fp, "     %s%s%s%s%s%s%s%s PR=%d ER=%d PIL=%s #s=%d #l=%d  #t=%d (%02x %s) #s=%d (%02x)\n",
+      fprintf(fp, "     v%02x %s%s%s%s%s%s%s%s PR=%d ER=%d PIL=%s #s=%d #l=%d  #t=%d (%02x %s) #s=%d (%02x)\n",
+                  version,
                   pStrSoundFormat,
                   ((pPi->feature_flags & 0x04) ? ",wide" : ""),
                   ((pPi->feature_flags & 0x08) ? ",PAL+" : ""),
@@ -559,8 +560,17 @@ void EpgTxtDump_Database( EPGDB_CONTEXT *pDbContext, FILE *fp,
          pPi = EpgDbSearchFirstPi(pDbContext, NULL);
          while (pPi != NULL)
          {
-            EpgTxtDumpPi(fp, pPi, EpgDbGetStream(pPi), pAi);
+            EpgTxtDumpPi(fp, pPi, EpgDbGetStream(pPi), EpgDbGetVersion(pPi), pAi);
             pPi = EpgDbSearchNextPi(pDbContext, NULL, pPi);
+         }
+
+         {  // Dump expired/obsolete PI blocks
+            EPGDB_BLOCK *pWalk = pDbContext->pObsoletePi;
+            while (pWalk != NULL)
+            {
+               EpgTxtDumpPi(fp, &pWalk->blk.pi, pWalk->stream, pWalk->version, pAi);
+               pWalk = pWalk->pNextBlock;
+            }
          }
       }
    }

@@ -15,7 +15,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgdbif.h,v 1.8 2000/06/15 17:08:36 tom Exp tom $
+ *  $Id: epgdbif.h,v 1.9 2000/06/26 18:22:32 tom Exp tom $
  */
 
 #ifndef __EPGDBIF_H
@@ -36,6 +36,9 @@ const MI_BLOCK * EpgDbGetMi( const EPGDB_CONTEXT * dbc, uint block_no );
 const LI_BLOCK * EpgDbGetLi( const EPGDB_CONTEXT * dbc, uint block_no, uchar netwop_no );
 const TI_BLOCK * EpgDbGetTi( const EPGDB_CONTEXT * dbc, uint block_no, uchar netwop_no );
 const PI_BLOCK * EpgDbGetPi( const EPGDB_CONTEXT * dbc, uint block_no, uchar netwop_no );
+const PI_BLOCK * EpgDbGetFirstObsoletePi( const EPGDB_CONTEXT * dbc );
+const PI_BLOCK * EpgDbGetNextObsoletePi( const EPGDB_CONTEXT * dbc, const PI_BLOCK * pPiBlock );
+const PI_BLOCK * EpgDbSearchObsoletePi( const EPGDB_CONTEXT * dbc, uchar netwop_no, ulong start_time, ulong stop_time );
 
 #ifdef __EPGDBFIL_H
 const PI_BLOCK * EpgDbSearchPi( const EPGDB_CONTEXT * dbc, const FILTER_CONTEXT *fc, uint block_no, uchar netwop_no );
@@ -48,7 +51,7 @@ const PI_BLOCK * EpgDbSearchPrevPi( const EPGDB_CONTEXT * dbc, const FILTER_CONT
 uint  EpgDbGetProgIdx( const EPGDB_CONTEXT * dbc, uint block_no, uchar netwop );
 uchar EpgDbGetStream( const void * pBlock );
 uchar EpgDbGetVersion( const void * pBlock );
-bool  EpgDbGetStat( const EPGDB_CONTEXT * dbc, ulong *pStream1, ulong *pStream2, ulong *pCur1, ulong *pCur2, ulong *pTotal );
+bool  EpgDbGetStat( const EPGDB_CONTEXT * dbc, EPGDB_BLOCK_COUNT * pCount );
 ulong EpgDbGetPiBlockCount( uint startNo, uint stopNo );
 ulong EpgDbGetPiBlockIndex( uint startNo, uint blockNo );
 uint  EpgDbContextGetCni( const EPGDB_CONTEXT * dbc );

@@ -23,7 +23,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: statswin.c,v 1.12 2000/06/15 18:05:02 tom Exp tom $
+ *  $Id: statswin.c,v 1.14 2000/07/08 18:34:53 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -48,6 +48,7 @@
 
 // state of AcqStat window
 static bool   acqStatOpen  = FALSE;
+static bool   acqStatUpdateScheduled = FALSE;
 static int    lastHistPos;
 
 // state of TimeScale windows
@@ -95,7 +96,7 @@ static void StatsWin_DisplayPi( int target, uchar netwop, uchar stream,
          stop = 5 * 60*60*24;
 
       startOff = start * 256 / (5*60*60*24);
-      stopOff  = stop  * 256 / (5*60*60*24) + 1;
+      stopOff  = stop  * 256 / (5*60*60*24);
 
       sprintf(comm, "TimeScale_AddPi %s.top.n%d %d %d %s %d %d\n",
               tscn[target], netwop, startOff, stopOff,
@@ -135,11 +136,11 @@ static void StatsWin_HighlightNetwop( int target, uchar netwop, uchar stream )
 // ----------------------------------------------------------------------------
 //  display time covered by a new PI in the canvas
 //
-void StatsWin_NewPi( EPGDB_CONTEXT * dbc, const PI_BLOCK *pPi, uchar stream, bool inserted )
+void StatsWin_NewPi( EPGDB_CONTEXT * dbc, const PI_BLOCK *pPi, uchar stream )
 {
    const AI_BLOCK  *pAi;
    const AI_NETWOP *pNetwop;
-   int blockOff;
+   uint blockOff;
    time_t now = time(NULL);
    int target;
 
@@ -158,7 +159,7 @@ void StatsWin_NewPi( EPGDB_CONTEXT * dbc, const PI_BLOCK *pPi, uchar stream, boo
       {
          pNetwop = AI_GET_NETWOP_N(pAi, pPi->netwop_no);
          blockOff = EpgDbGetPiBlockIndex(pNetwop->startNo, pPi->block_no);
-         if ((blockOff < EpgDbGetPiBlockCount(pNetwop->startNo, pNetwop->stopNoSwo)) && (blockOff >= 0))
+         if (blockOff < EpgDbGetPiBlockCount(pNetwop->startNo, pNetwop->stopNoSwo))
          {
             if (blockOff < 5)
             {
@@ -168,14 +169,14 @@ void StatsWin_NewPi( EPGDB_CONTEXT * dbc, const PI_BLOCK *pPi, uchar stream, boo
                eval_check(interp, comm);
             }
 
-            if (inserted == FALSE)
+            if (EpgDbSearchObsoletePi(dbc, pPi->netwop_no, pPi->start_time, pPi->stop_time) != NULL)
             {  // conflict with other block -> mark as faulty
                StatsWin_DisplayPi(target, pPi->netwop_no, 4, pPi->start_time, pPi->stop_time, TRUE, TRUE);
             }
             else
             {
                StatsWin_DisplayPi(target, pPi->netwop_no, stream, pPi->start_time, pPi->stop_time,
-                                  pPi->short_info_length>0, pPi->long_info_length>0);
+                                  (bool)(pPi->short_info_length>0), (bool)(pPi->long_info_length>0));
             }
          }
 
@@ -188,7 +189,7 @@ void StatsWin_NewPi( EPGDB_CONTEXT * dbc, const PI_BLOCK *pPi, uchar stream, boo
 // ----------------------------------------------------------------------------
 // update history diagram and stats text
 //
-void StatsWin_NewAi( void )
+static void StatsWin_DisplayAcqStats( ClientData clientData )
 {
    const EPGDB_STATS *sv;
    const AI_BLOCK *pAi;
@@ -196,6 +197,7 @@ void StatsWin_NewAi( void )
    uchar netname[20+1];
    uchar version, versionSwo;
    ulong duration;
+   ulong total, allVersionsCount, curVersionCount;
    time_t now = time(NULL);
    int target;
 
@@ -211,6 +213,10 @@ void StatsWin_NewAi( void )
       sv = EpgAcqCtl_GetStatistics();
       if ((pAcqDbContext != NULL) && (sv != NULL))
       {
+         total = sv->count[0].ai + sv->count[1].ai;
+         allVersionsCount = sv->count[0].allVersions + sv->count[0].obsolete + sv->count[1].allVersions + sv->count[1].obsolete;
+         curVersionCount  = sv->count[0].curVersion + sv->count[0].obsolete + sv->count[1].curVersion + sv->count[1].obsolete;
+
          // get provider's network name
          EpgDbLockDatabase(pAcqDbContext, TRUE);
          pAi = EpgDbGetAi(pAcqDbContext);
@@ -235,8 +241,9 @@ void StatsWin_NewAi( void )
                sprintf(comm, "AcqStat_ClearHistory\n");
                eval_check(interp, comm);
             }
-            sprintf(comm, "AcqStat_AddHistory %d %d %d %d %d\n",
+            sprintf(comm, "AcqStat_AddHistory %d %d %d %d %d %d\n",
                           sv->histIdx+1,
+                          sv->hist_expir[sv->histIdx],
                           sv->hist_s1cur[sv->histIdx], sv->hist_s1old[sv->histIdx],
                           sv->hist_s2cur[sv->histIdx], sv->hist_s2old[sv->histIdx]);
             eval_check(interp, comm);
@@ -260,8 +267,8 @@ void StatsWin_NewAi( void )
                           "EPG page rate:    %1.2f pages/sec\n"
                           "AI recv. count:   %d\n"
                           "AI min/avg/max:   %d/%2.2f/%d sec\n"
-                          "Block count db:   %ld (%ld + %ld swo)\n"
-                          "current version:  %ld (%ld + %ld swo)\n"
+                          "Block count db:   %ld (%ld + %ld swo + %ld exp)\n"
+                          "current version:  %ld (%ld + %ld swo + %ld exp)\n"
                           "Blocks in AI:     %ld (%d%%/%d%% complete)\n"
                           "                                              \"",
                           netname,
@@ -273,21 +280,57 @@ void StatsWin_NewAi( void )
                           ((double)sv->epgPagCount / duration),
                           sv->aiCount,
                           sv->minAiDistance, avgAiDistance, sv->maxAiDistance,
-                          sv->blockCount1 + sv->blockCount2, sv->blockCount1, sv->blockCount2,
-                          sv->curBlockCount1 + sv->curBlockCount2, sv->curBlockCount1, sv->curBlockCount2,
-                          sv->blockCountAi,
-                          ((sv->blockCountAi > 0) ? (int)((double)(sv->blockCount1 + sv->blockCount2) * 100.0 / sv->blockCountAi) : 0),
-                          ((sv->blockCountAi > 0) ? (int)((double)(sv->curBlockCount1 + sv->curBlockCount2) * 100.0 / sv->blockCountAi) : 0)
+                          allVersionsCount, sv->count[0].allVersions, sv->count[1].allVersions, sv->count[0].obsolete + sv->count[1].obsolete,
+                          curVersionCount, sv->count[0].curVersion, sv->count[1].curVersion, sv->count[0].obsolete + sv->count[1].obsolete,
+                          total,
+                          ((total > 0) ? (int)((double)allVersionsCount * 100.0 / total) : 0),
+                          ((total > 0) ? (int)((double)curVersionCount * 100.0 / total) : 0)
                    );
             eval_check(interp, comm);
          }
 
          if ((target >= 0) && (sv->aiCount > 0))
          {
-            sprintf(comm, "%s.bottom.l configure -text {%s database %d%% complete.}\n",
-                          tscn[target], netname, (int)((double)sv->hist_s2old[sv->histIdx]/1.28));
+            if (curVersionCount < total)
+            {  // db not complete -> print percentage for far & near
+
+               // stream 1 count is not exact, because stats func uses stream index the
+               // block was recv in, but the total refers to the range from the current AI
+               uint nearPerc = (int)((double)(sv->count[0].obsolete + sv->count[0].curVersion) * 100.0 / sv->count[0].ai);
+               if (nearPerc > 100)
+                  nearPerc = 100;
+
+               sprintf(comm, "%s.bottom.l configure -text {%s database %d%% complete, near data %d%%.}\n",
+                             tscn[target], netname,
+                             (int)((double)curVersionCount * 100.0 / total), nearPerc);
+            }
+            else
+            {
+               sprintf(comm, "%s.bottom.l configure -text {%s database 100%% complete.}\n",
+                             tscn[target], netname);
+            }
             eval_check(interp, comm);
          }
+      }
+   }
+   acqStatUpdateScheduled = FALSE;
+}
+
+// ----------------------------------------------------------------------------
+// Schedule an update of the acq stats window and timescale summaries
+// - called from db management after new AI was received
+// - execution is delayed until acq control has finished processing new blocks
+//
+void StatsWin_NewAi( void )
+{
+   if ( acqStatOpen ||
+        (tscaleState[DB_TARGET_UI].open && (pAcqDbContext == pUiDbContext)) ||
+        (tscaleState[DB_TARGET_ACQ].open) )
+   {
+      if (acqStatUpdateScheduled == FALSE)
+      {
+         acqStatUpdateScheduled = TRUE;
+         Tcl_DoWhenIdle(StatsWin_DisplayAcqStats, NULL);
       }
    }
 }
@@ -321,7 +364,6 @@ static void StatsWin_Load( int target, EPGDB_CONTEXT *dbc )
    {
       do
       {
-         bsum += 1;
          netwop_no = pPi->netwop_no;
          this_stream = EpgDbGetStream(pPi);
          this_version = EpgDbGetVersion(pPi);
@@ -329,20 +371,14 @@ static void StatsWin_Load( int target, EPGDB_CONTEXT *dbc )
             this_stream = 2;
          else if ((this_stream == 1) && (this_version != pAi->version_swo))
             this_stream = 3;
+         if (this_version == pAi->version)
+            bsum += 1;
 
          idx = EpgDbGetPiBlockIndex(AI_GET_NETWOP_N(pAi, netwop_no)->startNo, pPi->block_no);
          if (idx < 5)
          {
             sprintf(comm, "TimeScale_MarkNow %s.top.n%d %d red\n", tscn[target], netwop_no, idx);
             eval_check(interp, comm);
-            if (pPi->start_time < now)
-            {  // this item is currently running -> all previous itmes must be expired
-               for (idx=idx-1; idx >= 0; idx--)
-               {
-                  sprintf(comm, "TimeScale_MarkNow %s.top.n%d %d yellow\n", tscn[target], netwop_no, idx);
-                  eval_check(interp, comm);
-               }
-            }
          }
 
          if (start_time[netwop_no] != 0)
@@ -384,6 +420,26 @@ static void StatsWin_Load( int target, EPGDB_CONTEXT *dbc )
          total += EpgDbGetPiBlockCount(pNetwops[netwop_no].startNo, pNetwops[netwop_no].stopNoSwo);
       }
 
+   }
+
+   pPi = EpgDbGetFirstObsoletePi(dbc);
+   if ((pAi != NULL) && (pPi != NULL))
+   {
+      do
+      {
+         bsum += 1;
+         idx = EpgDbGetPiBlockIndex(AI_GET_NETWOP_N(pAi, pPi->netwop_no)->startNo, pPi->block_no);
+         if (idx < 5)
+         {  // mark NOW button as expired
+            sprintf(comm, "TimeScale_MarkNow %s.top.n%d %d yellow\n", tscn[target], pPi->netwop_no, idx);
+            eval_check(interp, comm);
+         }
+         StatsWin_DisplayPi(target, pPi->netwop_no, 4, pPi->start_time, pPi->stop_time,
+                            (bool)(pPi->short_info_length>0), (bool)(pPi->long_info_length>0));
+
+         pPi = EpgDbGetNextObsoletePi(dbc, pPi);
+      }
+      while (pPi != NULL);
    }
 
    // display summary at the bottom of the window
@@ -447,7 +503,7 @@ static void StatsWin_BuildCanvas( int target, EPGDB_CONTEXT *dbc )
 //
 static int StatsWin_ToggleTimescale( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
 {
-   const char *pUsage = "Usage: C_StatsWin_ToggleTimescaleUi ui|acq [0|1]";
+   const char * const pUsage = "Usage: C_StatsWin_ToggleTimescaleUi ui|acq [0|1]";
    EPGDB_CONTEXT *dbc = NULL;
    int target, newState;
    int result = TCL_OK;
@@ -483,7 +539,7 @@ static int StatsWin_ToggleTimescale( ClientData ttp, Tcl_Interp *interp, int arg
       }
       else
       {
-         if (Tcl_GetInt(interp, argv[2], &newState) || ((uint)newState > 1))
+         if (Tcl_GetBoolean(interp, argv[2], &newState))
             result = TCL_ERROR;
       }
    }
@@ -524,7 +580,7 @@ static int StatsWin_ToggleTimescale( ClientData ttp, Tcl_Interp *interp, int arg
    }
    else
    {  // error of any kind -> display usage
-      interp->result = (char *) pUsage;
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
    }
 
    return result;
@@ -535,7 +591,7 @@ static int StatsWin_ToggleTimescale( ClientData ttp, Tcl_Interp *interp, int arg
 //
 static int StatsWin_ToggleStatistics( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
 {
-   const char *pUsage = "Usage: C_StatsWin_ToggleStatistics [0|1]";
+   const char * const pUsage = "Usage: C_StatsWin_ToggleStatistics [0|1]";
    int newState;
    int result;
 
@@ -546,9 +602,9 @@ static int StatsWin_ToggleStatistics( ClientData ttp, Tcl_Interp *interp, int ar
    }
    else if (argc == 2)
    {
-      if (Tcl_GetInt(interp, argv[1], &newState) || ((uint)newState > 1))
+      if (Tcl_GetBoolean(interp, argv[1], &newState))
       {  // parameter is not a boolean
-         interp->result = (char *) pUsage;
+         Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
          result = TCL_ERROR;
       }
       else
@@ -556,7 +612,7 @@ static int StatsWin_ToggleStatistics( ClientData ttp, Tcl_Interp *interp, int ar
    }
    else
    {  // illegal parameter count
-      interp->result = (char *) pUsage;
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
    }
 
@@ -576,8 +632,9 @@ static int StatsWin_ToggleStatistics( ClientData ttp, Tcl_Interp *interp, int ar
             {
                for (lastHistPos=0; lastHistPos < sv->histIdx; lastHistPos++)
                {
-                  sprintf(comm, "AcqStat_AddHistory %d %d %d %d %d\n",
+                  sprintf(comm, "AcqStat_AddHistory %d %d %d %d %d %d\n",
                                 lastHistPos+1,
+                                sv->hist_expir[lastHistPos],
                                 sv->hist_s1cur[lastHistPos], sv->hist_s1old[lastHistPos],
                                 sv->hist_s2cur[lastHistPos], sv->hist_s2old[lastHistPos]);
                   eval_check(interp, comm);
@@ -588,7 +645,7 @@ static int StatsWin_ToggleStatistics( ClientData ttp, Tcl_Interp *interp, int ar
                lastHistPos = 0;
 
             // display initial summary
-            StatsWin_NewAi();
+            StatsWin_DisplayAcqStats(NULL);
          }
       }
       else
@@ -643,7 +700,7 @@ void StatsWin_ProvChange( int target )
       // if the acq stats window is open, update its content
       if (acqStatOpen && (target == DB_TARGET_ACQ))
       {
-         StatsWin_NewAi();
+         StatsWin_DisplayAcqStats(NULL);
       }
    }
    else

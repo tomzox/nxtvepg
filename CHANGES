@@ -1,0 +1,20 @@
+If you need a detailed overview of differences between versions,
+then ask for the RCS log files. In the CHANGES file you'll find
+only a very brief listing of major changes or additions.
+
+Before you submit any feature requests, please read the TODO file.
+
+
+from 0.01a to 0.02a (pre-release)
+- added rc/ini file to save filter shortcuts and other config options
+- added netwop configuration for general exclusion of non-receptable
+  netwops and for personalized network ordering
+- added command line options (UNIX only)
+- added shortcut add&edit popup and implemented "merge" mode
+- added EPG scan and "active acquisition mode"; the tuner is set
+  to the chanel of the selected ui db, if possible (UNIX only)
+- maintain list of "obsolete" PI, i.e. PI that could not be added
+  to the db or are expired. This now allows to generate an exact
+  statistic on how many blocks on the range given in AI were
+  acquired.
+

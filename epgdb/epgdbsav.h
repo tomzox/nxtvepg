@@ -15,7 +15,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgdbsav.h,v 1.5 2000/06/15 17:08:53 tom Exp tom $
+ *  $Id: epgdbsav.h,v 1.8 2000/06/26 18:31:20 tom Exp tom $
  */
 
 #ifndef __EPGDBSAV_H
@@ -28,10 +28,12 @@
 #define MAGIC_STR      "NEXTVIEW-DB by TOMZO\n"
 #define MAGIC_STR_LEN  20
 
-#define DUMP_VERSION   0x0000010a // current version 0.1a
+#define DUMP_VERSION   0x0000020a // current version 0.2a
+#define DUMP_COMPAT    0x0000010a // last compatible version
 
 #ifdef WIN32
 #define DUMP_NAME_FMT  "NXTV%04X.EPG"
+#define DUMP_NAME_PAT  "NXTV*.EPG"
 #define DUMP_NAME_LEN  (8+1+3)
 #else
 #define DUMP_NAME_FMT  "nxtvdb-%04x"
@@ -53,8 +55,9 @@ typedef struct
    ulong   lastPiDate;            // stop time of last PI in db
    uint    cni;                   // CNI of EPG provider
    uint    pageNo;                // last used ttx page
+   ulong   tunerFreq;             // tuner frequency of provider's channel
 
-   uchar   reserved[50];          // unused space for future use; set to 0
+   uchar   reserved[46];          // unused space for future use; set to 0
 } EPGDBSAV_HEADER;
 
 
@@ -62,9 +65,14 @@ typedef struct
 
 typedef struct
 {
-   EPGDB_BLOCK      *pBiBlock;
-   EPGDB_BLOCK      *pAiBlock;
+   uint         pageNo;
+   ulong        tunerFreq;
+   EPGDB_BLOCK  *pBiBlock;
+   EPGDB_BLOCK  *pAiBlock;
 } EPGDBSAV_PEEK;
+
+
+#define BLOCK_TYPE_DEFECT_PI  0x77
 
 
 // ---------------------------------------------------------------------------
@@ -76,6 +84,7 @@ uint EpgDbReloadScan( const char *path, int index );
 
 const EPGDBSAV_PEEK * EpgDbPeek( uint cni );
 void EpgDbPeekDestroy( const EPGDBSAV_PEEK *pPeek );
+bool EpgDbDumpUpdateHeader( const EPGDB_CONTEXT *pDbContext, uint cni, ulong freq );
 
 
 #endif  // __EPGDBSAV_H

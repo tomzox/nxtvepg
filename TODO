@@ -1,15 +1,22 @@
-- config netwops
-- filter add & edit
+fixes:
+- active acq: round robin of providers when 100% complete
+- filter shortcut combination logic modes: OR,AND
+- disable or suppress shortcuts with series & sortcrit from different provider
 - acq abort: slave should pass errno as reason via shmem
 - sigchld -> acq off
-- start-up: show message window for 4 secs
-- epgdbsav: save start time of 1st PI -> can tell how old db is
-  save netwop config together with db;
-  -> header should support config data of variable length
-- provider selection: display db age & fill percantage
-- navigation: disable leaves with zero PI
-- navigation: set filter state in menus!!!
-- command line args: -iconified -noacq
-- timer programming & invocation
+- vbi slave: check parent every 30 sec, also when no ttx reception
+- start-up: show message window for 4 secs and help if db is empty
 - count parity errors before replacing blocks of same version
 - start-time, sorting criterion, LI & TI filter popup
+- debugging: make serious debugX events fatal (developers only)
+
+new features:
+- provider selection: display db age & fill percentage
+  save stats and start time of 1st PI in db header
+- navigation: disable leafs with zero PI
+- timer programming & invocation or external dispatch
+- merge data of all providers into new database
+  user may specify which categories to take from which provider,
+  e.g. short&long info from 3SAT, series code from Pro7, rating from RTL2 etc.
+- context menu with right mouse button
+  containing: list of repeats, filter shortcuts (same title, netwop, theme etc.)

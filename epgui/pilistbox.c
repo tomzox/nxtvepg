@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: pilistbox.c,v 1.16 2000/06/15 17:12:18 tom Exp tom $
+ *  $Id: pilistbox.c,v 1.18 2000/06/22 18:21:54 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -960,7 +960,7 @@ void PiListBox_DbInserted( const EPGDB_CONTEXT *usedDbc, const PI_BLOCK *pPiBloc
 	       PiListBox_AdjustScrollBar();
                assert(PiListBox_ConsistancyCheck());
 	    }
-	    else
+	    else if ((pos > 0) || (pibox_count < PIBOX_HEIGHT))
 	    {
 	       // selected item must not be shifted out of viewable area
 	       if ((pos > pibox_curpos) || (pibox_count < PIBOX_HEIGHT))
@@ -1006,8 +1006,8 @@ void PiListBox_DbInserted( const EPGDB_CONTEXT *usedDbc, const PI_BLOCK *pPiBloc
 	       // update scrollbar
 	       pibox_max += 1;
 	       PiListBox_AdjustScrollBar();
+               assert(PiListBox_ConsistancyCheck());
 	    }
-            assert(PiListBox_ConsistancyCheck());
 	 }
 	 else
 	 {  // new block lies behind viewable area
@@ -1405,6 +1405,24 @@ static int PiListBox_PopupPi( ClientData ttp, Tcl_Interp *i, int argc, char *arg
 }
 
 // ----------------------------------------------------------------------------
+// Refresh the listbox after filter change
+//
+static int PiListBox_RefreshCmd( ClientData ttp, Tcl_Interp *i, int argc, char *argv[] )
+{
+   PiListBox_Refresh();
+   return TCL_OK;
+}
+
+// ----------------------------------------------------------------------------
+// Refresh the listbox after filter change
+//
+static int PiListBox_ResetCmd( ClientData ttp, Tcl_Interp *i, int argc, char *argv[] )
+{
+   PiListBox_Reset();
+   return TCL_OK;
+}
+
+// ----------------------------------------------------------------------------
 // create the listbox and its commands
 // - this should be called only once during start-up
 //
@@ -1419,6 +1437,8 @@ void PiListBox_Create( void )
       Tcl_CreateCommand(interp, "C_PiListBox_CursorUp", PiListBox_CursorUp, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_PiListBox_SelectItem", PiListBox_SelectItem, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_PiListBox_PopupPi", PiListBox_PopupPi, (ClientData) NULL, NULL);
+      Tcl_CreateCommand(interp, "C_RefreshPiListbox", PiListBox_RefreshCmd, (ClientData) NULL, NULL);
+      Tcl_CreateCommand(interp, "C_ResetPiListbox", PiListBox_ResetCmd, (ClientData) NULL, NULL);
    }
    else
       debug0("PiListBox-Create: commands were already created");

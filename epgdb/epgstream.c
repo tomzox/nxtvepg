@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgstream.c,v 1.4 2000/06/13 18:16:20 tom Exp tom $
+ *  $Id: epgstream.c,v 1.6 2000/06/26 18:31:55 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -49,6 +49,8 @@ static EPGDB_BLOCK * pScratchBuffer;
 static uint        epgStreamAppId;
 static bool        enableAllTypes;
 
+static PAGE_SCAN_STATE scanState[NXTV_VALID_PAGE_COUNT];
+static int             lastMagIdx[8];
 
 // ----------------------------------------------------------------------------
 // Append the converted block to a temporary buffer
@@ -166,7 +168,7 @@ static void EpgStreamConvertBlock( const uchar *pBuffer, uint blockLen, uchar st
          if (pBlock != NULL)
          {
             pBlock->stream = stream;
-            EpgTxtDumpPi(stdout, &pBlock->blk.pi, stream, NULL);
+            EpgTxtDumpPi(stdout, &pBlock->blk.pi, stream, 0xff, NULL);
          }
          break;
       case EPGDBACQ_TYPE_NI:
@@ -563,5 +565,131 @@ void EpgStreamInit( bool bWaitForBiAi, uint appId )
    pScratchBuffer = NULL;
    epgStreamAppId = appId;
    enableAllTypes = !bWaitForBiAi;
+}
+
+
+// ---------------------------------------------------------------------------
+//                              E P G   S C A N
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Initialize state of EPG syntax scan
+//
+void EpgStreamSyntaxScanInit( void )
+{
+   // set all indices to -1
+   memset(lastMagIdx, 0xff, sizeof(lastMagIdx));
+   // set all ok counters to 0
+   memset(scanState, 0, sizeof(scanState));
+}
+
+// ---------------------------------------------------------------------------
+// Scan EPG page header syntax
+// - checks if page number is suggested EPG page number 0x1DF, mdF or mFd
+//   (where <m> stands for magazine number, <d> for 0..9 and F for 0x0F)
+//   and stream number in page subcode is 0 or 1.
+//
+void EpgStreamSyntaxScanHeader( uint page, uint sub )
+{
+   uint d1, d2;
+   int idx;
+
+   if ( ((sub & 0xf00) >> 8) < 2 )
+   {
+      // Compute an index into the page state array for a potential EPG page
+      d1 = page & 0x0f;
+      d2 = (page >> 4) & 0x0f;
+
+      if ((page & 0xff) == 0xdf)
+         idx = 0;
+      else if ( (d1 == 0xf) && (d2 < 0xa) )
+         idx = 1 + d2;
+      else if ( (d2 == 0xf) && (d1 < 0xa) )
+         idx = 11 + d1;
+      else
+         idx = -1;
+
+      if (idx >= 0)
+      {
+         idx += ((page >> 8) & 0x07) * NXTV_VALID_PAGE_PER_MAG;
+         dprintf2("EpgStream-ScanPageHeader: found possible EPG page %03X, idx=%d\n", page, idx);
+
+         scanState[idx].pkgCount = ((sub & 0x3000) >> (12-3)) | ((sub & 0x70) >> 4);
+         scanState[idx].lastPkg = 0;
+      }
+   }
+   else
+   {  // invalid stream number
+      idx = -1;
+   }
+
+   lastMagIdx[(page >> 8) & 0x07] = idx;
+}
+
+// ---------------------------------------------------------------------------
+// Scan EPG data packet syntax
+// - this is done in a very limited and simple way: only BP and BS are
+//   checked, plus SH for hamming errors
+// - a page is considered ok if at least two third of the packets are
+//   syntactically correct
+//
+bool EpgStreamSyntaxScanPacket( uchar mag, uchar packNo, const uchar * dat )
+{
+   PAGE_SCAN_STATE *psc;
+   uchar bs, bp;
+   bool result = FALSE;
+
+   if ((mag < 8) && (lastMagIdx[mag] >= 0))
+   {
+      psc = &scanState[lastMagIdx[mag]];
+      if (packNo > psc->lastPkg)
+      {
+         if (packNo <= psc->pkgCount)
+         {
+            hamErr = 0;
+            bp = UnHam84Nibble(dat);
+
+            if (bp < 0x0c)
+            {
+               bp = 1 + 3 * bp;
+
+               bs = UnHam84Nibble(dat + bp);
+               UnHam84Nibble(dat + bp + 1);
+               UnHam84Nibble(dat + bp + 2);
+               UnHam84Nibble(dat + bp + 3);
+               UnHam84Nibble(dat + bp + 4);
+
+               if ((bs == 0x0c) && !hamErr)
+                  psc->okCount++;
+            }
+            else if (bp == 0x0c)
+            {
+               bp = 1 + 3 * bp;
+
+               bs = UnHam84Nibble(dat + bp);
+               UnHam84Nibble(dat + bp + 1);
+               UnHam84Nibble(dat + bp + 2);
+
+               if ((bs == 0x0c) && !hamErr)
+                  psc->okCount++;
+            }
+            else if (bp == 0x0d)
+            {
+               if (!hamErr)
+                  psc->okCount++;
+            }
+
+            if (psc->okCount >= 16)
+            {  // this page has had enough syntactically correct packages
+               dprintf2("EpgStream-ScanPacketSyntax: syntax ok: mag=%d, idx=%d\n", mag, lastMagIdx[mag]);
+               lastMagIdx[mag] = -1;
+               result = TRUE;
+            }
+         }
+      }
+      else
+         lastMagIdx[mag] = -1;
+   }
+   return result;
 }
 

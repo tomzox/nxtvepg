@@ -17,7 +17,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: menucmd.c,v 1.5 2000/06/14 19:26:32 tom Exp tom $
+ *  $Id: menucmd.c,v 1.9 2000/07/08 11:04:16 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -52,13 +52,13 @@
 //
 static int SetControlMenuStates(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
 {
-   const char *pUsage = "Usage: C_SetControlMenuStates";
+   const char * const pUsage = "Usage: C_SetControlMenuStates";
    bool acqDbOk;
    int result;
 
    if (argc != 1)
    {  // parameter count is invalid
-      interp->result = (char *)pUsage;
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
    }
    else
@@ -97,18 +97,17 @@ static int SetControlMenuStates(ClientData ttp, Tcl_Interp *interp, int argc, ch
 //
 static int MenuCmd_ToggleDumpStream(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
 {
-   const char *pUsage = "Usage: C_ToggleDumpStream 0|1";
+   const char * const pUsage = "Usage: C_ToggleDumpStream <boolean>";
    uint value;
    int result;
 
    if (argc != 2)
    {  // parameter count is invalid
-      interp->result = (char *)pUsage;
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
    }
-   else if (Tcl_GetInt(interp, argv[1], &value))
+   else if (Tcl_GetBoolean(interp, argv[1], &value))
    {  // string parameter is not a decimal integer
-      interp->result = (char *)pUsage;
       result = TCL_ERROR;
    }
    else
@@ -125,29 +124,30 @@ static int MenuCmd_ToggleDumpStream(ClientData ttp, Tcl_Interp *interp, int argc
 //
 static int MenuCmd_ToggleAcq(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
 {
-   const char *pUsage = "Usage: C_ToggleAcq 0|1";
+   const char * const pUsage = "Usage: C_ToggleAcq <boolean>";
    uint value;
    int result;
 
    if (argc != 2)
    {  // parameter count is invalid
-      interp->result = (char *)pUsage;
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
    }
-   else if (Tcl_GetInt(interp, argv[1], &value))
+   else if (Tcl_GetBoolean(interp, argv[1], &value))
    {  // string parameter is not a decimal integer
-      interp->result = (char *)pUsage;
       result = TCL_ERROR;
    }
    else
    {
       if (EpgAcqCtl_Toggle(value) != value)
       {
-         interp->result = "Failed to start/stop acquisition";
-         result = TCL_ERROR;
+         sprintf(comm, "tk_messageBox -type ok -icon error "
+                       "-message {Failed to %s acquisition. "
+                                 "Close all other video applications and try again.}\n",
+                       (value ? "start" : "stop"));
+         eval_check(interp, comm);
       }
-      else
-         result = TCL_OK;
+      result = TCL_OK;
    }
 
    return result;
@@ -158,27 +158,26 @@ static int MenuCmd_ToggleAcq(ClientData ttp, Tcl_Interp *interp, int argc, char 
 //
 static int MenuCmd_DumpDatabase(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
 {
-   const char *pUsage = "Usage: C_DumpDatabase <file-name> <pi=0/1> <ai=0/1> <bi=0/1> \\\n"
-                        "       <ni=0/1> <oi=0/1> <mi=0/1> <li=0/1> <ti=0/1>";
+   const char * const pUsage = "Usage: C_DumpDatabase <file-name> <pi=0/1> <ai=0/1> <bi=0/1>"
+                                              " <ni=0/1> <oi=0/1> <mi=0/1> <li=0/1> <ti=0/1>";
    int do_pi, do_ai, do_bi, do_ni, do_oi, do_mi, do_li, do_ti;
    FILE *fp;
    int result;
 
    if (argc != 1+1+8)
    {  // parameter count is invalid
-      interp->result = (char *)pUsage;
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
    }
-   else if ( Tcl_GetInt(interp, argv[2], &do_pi) || ((uint)do_pi > 1) ||
-             Tcl_GetInt(interp, argv[3], &do_ai) || ((uint)do_ai > 1) ||
-             Tcl_GetInt(interp, argv[4], &do_bi) || ((uint)do_bi > 1) ||
-             Tcl_GetInt(interp, argv[5], &do_ni) || ((uint)do_ni > 1) ||
-             Tcl_GetInt(interp, argv[6], &do_oi) || ((uint)do_oi > 1) ||
-             Tcl_GetInt(interp, argv[7], &do_mi) || ((uint)do_mi > 1) ||
-             Tcl_GetInt(interp, argv[8], &do_li) || ((uint)do_li > 1) ||
-             Tcl_GetInt(interp, argv[9], &do_ti) || ((uint)do_ti > 1) )
+   else if ( Tcl_GetBoolean(interp, argv[2], &do_pi) || 
+             Tcl_GetBoolean(interp, argv[3], &do_ai) || 
+             Tcl_GetBoolean(interp, argv[4], &do_bi) || 
+             Tcl_GetBoolean(interp, argv[5], &do_ni) || 
+             Tcl_GetBoolean(interp, argv[6], &do_oi) || 
+             Tcl_GetBoolean(interp, argv[7], &do_mi) || 
+             Tcl_GetBoolean(interp, argv[8], &do_li) || 
+             Tcl_GetBoolean(interp, argv[9], &do_ti) )
    {  // one of the params is not boolean
-      interp->result = (char *)pUsage;
       result = TCL_ERROR;
    }
    else
@@ -242,7 +241,7 @@ static void ProvWin_UpdateInfo( const EPGDBSAV_PEEK *pPeek )
 //
 static int ProvWin_Open(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
 {
-   const char *pUsage = "Usage: C_ProvWin_Open";
+   const char * const pUsage = "Usage: C_ProvWin_Open";
    const EPGDBSAV_PEEK *pPeek;
    const AI_BLOCK *pDbAi;
    uint cni, dbCni;
@@ -251,7 +250,7 @@ static int ProvWin_Open(ClientData ttp, Tcl_Interp *interp, int argc, char *argv
 
    if (argc != 1)
    {  // parameter count is invalid
-      interp->result = (char *)pUsage;
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
    }
    else
@@ -275,7 +274,7 @@ static int ProvWin_Open(ClientData ttp, Tcl_Interp *interp, int argc, char *argv
          {
             assert(cni == AI_GET_NETWOP_N(&pPeek->pAiBlock->blk.ai, pPeek->pAiBlock->blk.ai.thisNetwop)->cni);
 
-            sprintf(comm, "set provwin_list(%d) %04X\n", index, cni);
+            sprintf(comm, "set provwin_list(%d) 0x%04X\n", index, cni);
             eval_check(interp, comm);
 
             // add name of provider's network to the listbox
@@ -309,7 +308,7 @@ static int ProvWin_Open(ClientData ttp, Tcl_Interp *interp, int argc, char *argv
 //
 static int ProvWin_Select(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
 {
-   const char *pUsage = "Usage: C_ProvWin_Select <prov-idx>";
+   const char * const pUsage = "Usage: C_ProvWin_Select <prov-idx>";
    const EPGDBSAV_PEEK *pPeek;
    char *cni_str;
    uint cni;
@@ -318,21 +317,18 @@ static int ProvWin_Select(ClientData ttp, Tcl_Interp *interp, int argc, char *ar
 
    if (argc != 2)
    {  // parameter count is invalid
-      interp->result = (char *)pUsage;
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
    }
    else if ( Tcl_GetInt(interp, argv[1], &index) )
-   {  // the parameter is not boolean
-      interp->result = (char *)pUsage;
+   {  // the parameter is not an integer
       result = TCL_ERROR;
    }
    else
    {
-      result = TCL_OK;
-
-      sprintf(comm, "provwin_list(%d)", index);
-      cni_str = Tcl_GetVar(interp, comm, TCL_GLOBAL_ONLY);
-      if ((cni_str != NULL) && (sscanf(cni_str, "%04X", &cni) == 1))
+      sprintf(comm, "%d", index);
+      cni_str = Tcl_GetVar2(interp, "provwin_list", comm, TCL_GLOBAL_ONLY);
+      if ((cni_str != NULL) && (Tcl_GetInt(interp, cni_str, &cni) == TCL_OK))
       {
          pPeek = EpgDbPeek(cni);
          if (pPeek != NULL)
@@ -344,9 +340,14 @@ static int ProvWin_Select(ClientData ttp, Tcl_Interp *interp, int argc, char *ar
 
             EpgDbPeekDestroy(pPeek);
          }
+         result = TCL_OK;
       }
       else
-         debug1("ProvWin-Select: no provider found at index %d", index);
+      {
+         sprintf(comm, "C_ProvWin_Select: no provider found at index %d", index);
+         Tcl_SetResult(interp, comm, TCL_VOLATILE);
+         result = TCL_ERROR;
+      }
    }
 
    return result;
@@ -357,7 +358,7 @@ static int ProvWin_Select(ClientData ttp, Tcl_Interp *interp, int argc, char *ar
 //
 static int ProvWin_Exit(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
 {
-   const char *pUsage = "Usage: C_ProvWin_Exit [<prov-idx>]";
+   const char * const pUsage = "Usage: C_ProvWin_Exit [<prov-idx>]";
    int cni, oldAcqCni;
    char *cni_str;
    int index;
@@ -365,7 +366,7 @@ static int ProvWin_Exit(ClientData ttp, Tcl_Interp *interp, int argc, char *argv
 
    if ((argc != 1) && (argc != 2))
    {  // parameter count is invalid
-      interp->result = (char *)pUsage;
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
    }
    else
@@ -373,11 +374,11 @@ static int ProvWin_Exit(ClientData ttp, Tcl_Interp *interp, int argc, char *argv
       result = TCL_OK;
 
       // get the index of the selected provider, or -1 if none
-      if ((argc == 2) && !Tcl_GetInt(interp, argv[1], &index) && (index != -1))
+      if ((argc == 2) && (Tcl_GetInt(interp, argv[1], &index) == TCL_OK) && (index != -1))
       {
-         sprintf(comm, "provwin_list(%d)", index);
-         cni_str = Tcl_GetVar(interp, comm, TCL_GLOBAL_ONLY);
-         if ((cni_str != NULL) && (sscanf(cni_str, "%04X", &cni) == 1))
+         sprintf(comm, "%d", index);
+         cni_str = Tcl_GetVar2(interp, "provwin_list", comm, TCL_GLOBAL_ONLY);
+         if ((cni_str != NULL) && (Tcl_GetInt(interp, cni_str, &cni) == TCL_OK))
          {
             oldAcqCni = EpgDbContextGetCni(pAcqDbContext);
 
@@ -394,12 +395,80 @@ static int ProvWin_Exit(ClientData ttp, Tcl_Interp *interp, int argc, char *argv
 
             PiFilter_UpdateNetwopList(NULL);
             PiListBox_Reset();
+
+            // put the new CNI at the front of the selection order and update the config file
+            sprintf(comm, "UpdateProvSelection 0x%04X\n", cni);
+            eval_check(interp, comm);
          }
       }
    }
 
    return result;
 }
+
+#ifndef WIN32
+// ----------------------------------------------------------------------------
+// Append a line to the EPG scan messages
+//
+void MenuCmd_AddEpgScanMsg( char *pMsg )
+{
+   if (Tcl_VarEval(interp, ".epgscan.all.fmsg.msg insert end {", pMsg, "\n}\n"
+                           ".epgscan.all.fmsg.msg see {end linestart - 2 lines}\n",
+                           NULL
+                  ) != TCL_OK)
+      debug0("MenuCmd_AddEpgScanMsg: Tcl/Tk cmd failed");
+}
+
+// ----------------------------------------------------------------------------
+// Start EPG scan
+// - during the scan the focus is forced into the .epgscan popup
+//
+static int MenuCmd_StartEpgScan(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+{
+   // clear message window
+   sprintf(comm, ".epgscan.all.fmsg.msg delete 1.0 end\n");
+   eval_check(interp, comm);
+
+   if (EpgAcqCtl_StartScan())
+   {
+      sprintf(comm, ".epgscan.cmd.start configure -state disabled\n"
+                    ".epgscan.cmd.stop configure -state normal\n"
+                    ".epgscan.cmd.dismiss configure -state disabled\n");
+      eval_check(interp, comm);
+   }
+   else
+   {
+      sprintf(comm, "tk_messageBox -type ok -icon error "
+                    "-message {Failed to open video device. "
+                              "Close all other video applications and try again.}\n");
+      eval_check(interp, comm);
+   }
+
+   return TCL_OK;
+}
+
+// ----------------------------------------------------------------------------
+// Stop EPG scan
+// - called from UI after Abort button or when popup is destroyed
+// - also called from scan handler when scan has finished
+//
+int MenuCmd_StopEpgScan(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+{
+   if (argc > 0)
+   {  // called from UI -> stop scan handler
+      EpgAcqCtl_StopScan();
+   }
+
+   sprintf(comm, "if {[string length [info commands .epgscan.cmd]] > 0} {"
+                 "   .epgscan.cmd.start configure -state normal\n"
+                 "   .epgscan.cmd.stop configure -state disabled\n"
+                 "   .epgscan.cmd.dismiss configure -state normal\n"
+                 "}\n");
+   eval_check(interp, comm);
+
+   return TCL_OK;
+}
+#endif //WIN32
 
 // ----------------------------------------------------------------------------
 // Initialize the module
@@ -418,6 +487,14 @@ void MenuCmd_Init( void )
       Tcl_CreateCommand(interp, "C_ProvWin_Open", ProvWin_Open, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_ProvWin_Select", ProvWin_Select, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_ProvWin_Exit", ProvWin_Exit, (ClientData) NULL, NULL);
+
+      #ifndef WIN32
+      Tcl_CreateCommand(interp, "C_StartEpgScan", MenuCmd_StartEpgScan, (ClientData) NULL, NULL);
+      Tcl_CreateCommand(interp, "C_StopEpgScan", MenuCmd_StopEpgScan, (ClientData) NULL, NULL);
+      #else
+      sprintf(comm, ".menubar.config entryconfigure 1 -state disabled\n");
+      eval_check(interp, comm);
+      #endif
    }
 }
 

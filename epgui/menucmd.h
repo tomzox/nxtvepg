@@ -15,7 +15,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: menucmd.h,v 1.2 2000/06/14 19:27:39 tom Exp tom $
+ *  $Id: menucmd.h,v 1.3 2000/06/24 13:35:06 tom Exp tom $
  */
 
 #ifndef __MENUCMD_H
@@ -23,6 +23,9 @@
 
 
 void MenuCmd_Init( void );
+
+void MenuCmd_AddEpgScanMsg( char *pMsg );
+int  MenuCmd_StopEpgScan(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[]);
 
 
 #endif  // __MENUCMD_H

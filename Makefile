@@ -70,16 +70,6 @@ epgctl/debug.o: /usr/include/time.h
 epgctl/debug.o: /usr/lib/gcc-lib/i486-linux/2.7.2.3/include/stddef.h
 epgctl/debug.o: /usr/include/endian.h /usr/include/bytesex.h
 epgctl/debug.o: /usr/include/sys/select.h /usr/include/selectbits.h
-epgctl/debug.o: epgctl/debug.h /usr/include/stdio.h /usr/include/libio.h
-epgctl/debug.o: /usr/include/_G_config.h
-epgctl/debug.o: /usr/lib/gcc-lib/i486-linux/2.7.2.3/include/stdarg.h
-epgctl/debug.o: /usr/include/stdio_lim.h /usr/include/unistd.h
-epgctl/debug.o: /usr/include/posix_opt.h /usr/include/confname.h
-epgctl/debug.o: /usr/include/sys/stat.h /usr/include/statbuf.h
-epgctl/debug.o: /usr/include/fcntl.h /usr/include/fcntlbits.h
-epgctl/debug.o: /usr/include/errno.h /usr/include/errnos.h
-epgctl/debug.o: /usr/include/linux/errno.h /usr/include/asm/errno.h
-epgctl/debug.o: /usr/include/string.h
 epgctl/debug.o: /usr/include/stdio.h /usr/include/libio.h
 epgctl/debug.o: /usr/include/features.h /usr/include/sys/cdefs.h
 epgctl/debug.o: /usr/include/gnu/stubs.h /usr/include/_G_config.h
@@ -139,15 +129,18 @@ epgctl/epgmain.o: epgctl/debug.h epgdb/epgblock.h epgdb/epgstream.h
 epgctl/epgmain.o: epgdb/epgdbfil.h epgdb/epgdbif.h epgdb/epgdbmgmt.h
 epgctl/epgmain.o: epgdb/epgdbacq.h epgctl/epgacqctl.h epgui/statswin.h
 epgctl/epgmain.o: epgui/menucmd.h epgui/pilistbox.h epgui/pifilter.h
-epgctl/epgmain.o: epgctl/vbidecode.h epgctl/epgmain.h
+epgctl/epgmain.o: epgui/nxtv_logo.xbm epgctl/vbidecode.h epgctl/epgmain.h
 epgctl/mytypes.o: /usr/include/sys/types.h /usr/include/features.h
 epgctl/mytypes.o: /usr/include/sys/cdefs.h /usr/include/gnu/stubs.h
 epgctl/mytypes.o: /usr/include/gnu/types.h /usr/include/time.h
 epgctl/mytypes.o: /usr/lib/gcc-lib/i486-linux/2.7.2.3/include/stddef.h
 epgctl/mytypes.o: /usr/include/endian.h /usr/include/bytesex.h
 epgctl/mytypes.o: /usr/include/sys/select.h /usr/include/selectbits.h
-epgctl/vbidecode.o: /usr/include/sys/types.h /usr/include/features.h
+epgctl/vbidecode.o: /usr/include/sys/ioctl.h /usr/include/features.h
 epgctl/vbidecode.o: /usr/include/sys/cdefs.h /usr/include/gnu/stubs.h
+epgctl/vbidecode.o: /usr/include/ioctls.h /usr/include/asm/ioctls.h
+epgctl/vbidecode.o: /usr/include/asm/ioctl.h /usr/include/ioctl-types.h
+epgctl/vbidecode.o: /usr/include/sys/ttydefaults.h /usr/include/sys/types.h
 epgctl/vbidecode.o: /usr/include/gnu/types.h /usr/include/time.h
 epgctl/vbidecode.o: /usr/lib/gcc-lib/i486-linux/2.7.2.3/include/stddef.h
 epgctl/vbidecode.o: /usr/include/endian.h /usr/include/bytesex.h
@@ -229,9 +222,9 @@ epgdb/epgdbfil.o: epgdb/epgstream.h epgdb/epgdbacq.h epgdb/epgdbfil.h
 epgdb/epgdbfil.o: epgdb/epgdbif.h
 epgdb/epgdbif.o: /usr/include/time.h /usr/include/gnu/types.h
 epgdb/epgdbif.o: /usr/include/features.h /usr/include/sys/cdefs.h
-epgdb/epgdbif.o: /usr/include/gnu/stubs.h epgctl/mytypes.h
-epgdb/epgdbif.o: /usr/include/sys/types.h
+epgdb/epgdbif.o: /usr/include/gnu/stubs.h /usr/include/string.h
 epgdb/epgdbif.o: /usr/lib/gcc-lib/i486-linux/2.7.2.3/include/stddef.h
+epgdb/epgdbif.o: epgctl/mytypes.h /usr/include/sys/types.h
 epgdb/epgdbif.o: /usr/include/endian.h /usr/include/bytesex.h
 epgdb/epgdbif.o: /usr/include/sys/select.h /usr/include/selectbits.h
 epgdb/epgdbif.o: epgctl/debug.h /usr/include/stdio.h /usr/include/libio.h
@@ -257,21 +250,23 @@ epgdb/epgdbsav.o: /usr/include/unistd.h /usr/include/features.h
 epgdb/epgdbsav.o: /usr/include/sys/cdefs.h /usr/include/gnu/stubs.h
 epgdb/epgdbsav.o: /usr/include/posix_opt.h /usr/include/gnu/types.h
 epgdb/epgdbsav.o: /usr/lib/gcc-lib/i486-linux/2.7.2.3/include/stddef.h
-epgdb/epgdbsav.o: /usr/include/confname.h /usr/include/stdio.h
-epgdb/epgdbsav.o: /usr/include/libio.h /usr/include/_G_config.h
+epgdb/epgdbsav.o: /usr/include/confname.h /usr/include/dirent.h
+epgdb/epgdbsav.o: /usr/include/direntry.h /usr/include/posix1_lim.h
+epgdb/epgdbsav.o: /usr/include/local_lim.h /usr/include/linux/limits.h
+epgdb/epgdbsav.o: /usr/include/stdio.h /usr/include/libio.h
+epgdb/epgdbsav.o: /usr/include/_G_config.h
 epgdb/epgdbsav.o: /usr/lib/gcc-lib/i486-linux/2.7.2.3/include/stdarg.h
-epgdb/epgdbsav.o: /usr/include/stdio_lim.h /usr/include/sys/types.h
+epgdb/epgdbsav.o: /usr/include/stdio_lim.h /usr/include/errno.h
+epgdb/epgdbsav.o: /usr/include/errnos.h /usr/include/linux/errno.h
+epgdb/epgdbsav.o: /usr/include/asm/errno.h /usr/include/sys/types.h
 epgdb/epgdbsav.o: /usr/include/time.h /usr/include/endian.h
 epgdb/epgdbsav.o: /usr/include/bytesex.h /usr/include/sys/select.h
 epgdb/epgdbsav.o: /usr/include/selectbits.h /usr/include/sys/stat.h
-epgdb/epgdbsav.o: /usr/include/statbuf.h /usr/include/dirent.h
-epgdb/epgdbsav.o: /usr/include/direntry.h /usr/include/posix1_lim.h
-epgdb/epgdbsav.o: /usr/include/local_lim.h /usr/include/linux/limits.h
-epgdb/epgdbsav.o: /usr/include/fcntl.h /usr/include/fcntlbits.h
-epgdb/epgdbsav.o: /usr/include/string.h /usr/include/malloc.h
-epgdb/epgdbsav.o: epgctl/mytypes.h epgctl/debug.h epgdb/epgblock.h
-epgdb/epgdbsav.o: epgdb/epgdbacq.h epgdb/epgdbmgmt.h epgdb/epgdbfil.h
-epgdb/epgdbsav.o: epgdb/epgdbif.h epgdb/epgdbsav.h
+epgdb/epgdbsav.o: /usr/include/statbuf.h /usr/include/fcntl.h
+epgdb/epgdbsav.o: /usr/include/fcntlbits.h /usr/include/string.h
+epgdb/epgdbsav.o: /usr/include/malloc.h epgctl/mytypes.h epgctl/debug.h
+epgdb/epgdbsav.o: epgdb/epgblock.h epgdb/epgdbacq.h epgdb/epgdbmgmt.h
+epgdb/epgdbsav.o: epgdb/epgdbfil.h epgdb/epgdbif.h epgdb/epgdbsav.h
 epgdb/epgstream.o: /usr/include/stdio.h /usr/include/libio.h
 epgdb/epgstream.o: /usr/include/features.h /usr/include/sys/cdefs.h
 epgdb/epgstream.o: /usr/include/gnu/stubs.h /usr/include/_G_config.h

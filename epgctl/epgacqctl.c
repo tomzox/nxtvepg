@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgacqctl.c,v 1.7 2000/06/15 17:10:57 tom Exp tom $
+ *  $Id: epgacqctl.c,v 1.13 2000/07/08 18:31:47 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -49,12 +49,19 @@
 
 static EPGACQ_STATE acqState    = ACQSTATE_OFF;
 static EPGDB_STATS acqStats;
+static bool acqStatsUpdate;
 static ulong dumpTime;
+
+static EPGSCAN_STATE  scanState = SCAN_STATE_OFF;
+static Tcl_TimerToken scanHandler = NULL;
+static bool           scanAcqWasEnabled;
+static uint           scanChannel;
+static uint           scanChannelCount;
+
 
 // ---------------------------------------------------------------------------
 // Reset statistic values
 // - should be called right after start/reset acq and once after first AI
-// - note: call this function only AFTER setting acqState
 //
 static void EpgAcqCtl_StatisticsReset( void )
 {
@@ -64,11 +71,10 @@ static void EpgAcqCtl_StatisticsReset( void )
    acqStats.lastAiTime    = acqStats.acqStartTime;
    acqStats.minAiDistance = 0;
    acqStats.maxAiDistance = 0;
-   acqStats.aiCount       = ((acqState > ACQSTATE_WAIT_BI) ? 1 : 0);
+   acqStats.aiCount       = 0;
    acqStats.histIdx       = STATS_HIST_WIDTH - 1;
 
-   EpgDbGetStat(pAcqDbContext, &acqStats.blockCount1, &acqStats.blockCount2,
-                               &acqStats.curBlockCount1, &acqStats.curBlockCount2, &acqStats.blockCountAi);
+   acqStatsUpdate = TRUE;
 }
 
 // ---------------------------------------------------------------------------
@@ -79,31 +85,42 @@ static void EpgAcqCtl_StatisticsReset( void )
 //
 static void EpgAcqCtl_StatisticsUpdate( void )
 {
+   ulong total, obsolete;
    ulong now = time(NULL);
 
+   acqStatsUpdate = FALSE;
+
    // determine block counts in current database
-   EpgDbGetStat(pAcqDbContext, &acqStats.blockCount1, &acqStats.blockCount2,
-                               &acqStats.curBlockCount1, &acqStats.curBlockCount2, &acqStats.blockCountAi);
-   // maintain history of block counts per stream
-   acqStats.histIdx = (acqStats.histIdx + 1) % STATS_HIST_WIDTH;
-   acqStats.hist_s1cur[acqStats.histIdx] = (uchar)((double)acqStats.curBlockCount1 / acqStats.blockCountAi * 128.0);
-   acqStats.hist_s1old[acqStats.histIdx] = (uchar)((double)acqStats.blockCount1 / acqStats.blockCountAi * 128.0);
-   acqStats.hist_s2cur[acqStats.histIdx] = (uchar)((double)(acqStats.blockCount1 + acqStats.curBlockCount2) / acqStats.blockCountAi * 128.0);
-   acqStats.hist_s2old[acqStats.histIdx] = (uchar)((double)(acqStats.blockCount1 + acqStats.blockCount2) / acqStats.blockCountAi * 128.0);
+   EpgDbGetStat(pAcqDbContext, acqStats.count);
 
-   // compute minimum and maximum distance between AI blocks (in seconds)
-   if (acqStats.minAiDistance > 0)
+   if (acqState == ACQSTATE_RUNNING)
    {
-      if (now - acqStats.lastAiTime < acqStats.minAiDistance)
-         acqStats.minAiDistance = now - acqStats.lastAiTime;
-      if (now - acqStats.lastAiTime > acqStats.maxAiDistance)
-         acqStats.maxAiDistance = now - acqStats.lastAiTime;
-   }
-   else
-      acqStats.maxAiDistance = acqStats.minAiDistance = now - acqStats.lastAiTime;
+      acqStats.lastAiTime = now;
+      acqStats.aiCount += 1;
 
-   acqStats.lastAiTime = now;
-   acqStats.aiCount += 1;
+      // maintain history of block counts per stream
+      total = acqStats.count[0].ai + acqStats.count[1].ai;
+      obsolete = acqStats.count[0].obsolete + acqStats.count[1].obsolete;
+      dprintf2("EpgAcqCtl-StatisticsUpdate: AI #%d, db filled %.2f%%\n", acqStats.aiCount, (double)(acqStats.count[0].allVersions + obsolete + acqStats.count[1].allVersions) / total * 100.0);
+
+      acqStats.histIdx = (acqStats.histIdx + 1) % STATS_HIST_WIDTH;
+      acqStats.hist_expir[acqStats.histIdx] = (uchar)((double)obsolete / total * 128.0);
+      acqStats.hist_s1cur[acqStats.histIdx] = (uchar)((double)(acqStats.count[0].curVersion + obsolete) / total * 128.0);
+      acqStats.hist_s1old[acqStats.histIdx] = (uchar)((double)(acqStats.count[0].allVersions + obsolete) / total * 128.0);
+      acqStats.hist_s2cur[acqStats.histIdx] = (uchar)((double)(acqStats.count[0].allVersions + obsolete + acqStats.count[1].curVersion) / total * 128.0);
+      acqStats.hist_s2old[acqStats.histIdx] = (uchar)((double)(acqStats.count[0].allVersions + obsolete + acqStats.count[1].allVersions) / total * 128.0);
+
+      // compute minimum and maximum distance between AI blocks (in seconds)
+      if (acqStats.minAiDistance > 0)
+      {
+         if (now - acqStats.lastAiTime < acqStats.minAiDistance)
+            acqStats.minAiDistance = now - acqStats.lastAiTime;
+         if (now - acqStats.lastAiTime > acqStats.maxAiDistance)
+            acqStats.maxAiDistance = now - acqStats.lastAiTime;
+      }
+      else
+         acqStats.maxAiDistance = acqStats.minAiDistance = now - acqStats.lastAiTime;
+   }
 }
 
 // ---------------------------------------------------------------------------
@@ -111,8 +128,11 @@ static void EpgAcqCtl_StatisticsUpdate( void )
 //
 const EPGDB_STATS * EpgAcqCtl_GetStatistics( void )
 {
+   assert(acqStatsUpdate == FALSE);  // must not be called asynchronously
+
    if (acqState != ACQSTATE_OFF)
    {
+      dprintf1("EpgAcqCtl_GetStatistics: stats requested: ai #%d\n", acqStats.aiCount);
       // retrieve additional values from ttx decoder
       EpgDbAcqGetStatistics(&acqStats.ttxPkgCount, &acqStats.epgPkgCount, &acqStats.epgPagCount);
 
@@ -141,6 +161,13 @@ bool EpgAcqCtl_Start( void )
       assert(pAcqDbContext == NULL);
       EpgAcqCtl_OpenDb(DB_TARGET_ACQ, 0);
 
+      #ifndef WIN32
+      // try to tune onto the provider's channel
+      // (before starting acq, to avoid catching false data)
+      if (pAcqDbContext->tunerFreq != 0)
+         VbiTuneChannel(pAcqDbContext->tunerFreq, FALSE);
+      #endif
+
       EpgDbAcqStart(pAcqDbContext, EPG_ILLEGAL_PAGENO, EPG_ILLEGAL_APPID);
 
       #ifndef WIN32
@@ -156,6 +183,7 @@ bool EpgAcqCtl_Start( void )
          acqState = ACQSTATE_WAIT_BI;
 
          EpgAcqCtl_StatisticsReset();
+         EpgAcqCtl_StatisticsUpdate();
          dumpTime = acqStats.acqStartTime;
 
          result = TRUE;
@@ -273,7 +301,7 @@ bool EpgAcqCtl_AiCallback( const AI_BLOCK *pNewAi )
             }
             else
             {  // just a regular AI repetition, no news
-               EpgAcqCtl_StatisticsUpdate();
+               acqStatsUpdate = TRUE;
             }
 
             acqState = ACQSTATE_RUNNING;
@@ -304,7 +332,9 @@ bool EpgAcqCtl_AiCallback( const AI_BLOCK *pNewAi )
       EpgDbLockDatabase(pAcqDbContext, FALSE);
    }
    else
-      debug1("EpgAcqCtl: illegal acq state %d", acqState);
+   {  // should be reached only during epg scan -> discard block
+      assert(scanState != SCAN_STATE_OFF);
+   }
 
    return accept;
 }
@@ -356,7 +386,8 @@ bool EpgAcqCtl_BiCallback( const BI_BLOCK *pNewBi )
             break;
 
          default:
-            SHOULD_NOT_BE_REACHED;
+            // should be reached only during epg scan -> discard block
+            assert(scanState != SCAN_STATE_OFF);
             break;
       }
    }
@@ -433,12 +464,30 @@ void EpgAcqCtl_Idle( void )
 }
 
 // ---------------------------------------------------------------------------
+// Process all available lines from VBI and insert blocks to db
+//
+void EpgAcqCtl_ProcessPackets( void )
+{
+   acqStatsUpdate = FALSE;
+
+   EpgDbAcqProcessPackets(&pAcqDbContext);
+
+   // if new AI received, update statistics (after AI was inserted into db)
+   if (acqStatsUpdate)
+   {
+      EpgAcqCtl_StatisticsUpdate();
+   }
+}
+
+// ---------------------------------------------------------------------------
 // Open a database for a specific (or the last used) provider
 // - Careful! both ui and acq context pointers may change inside this function!
 //   Caller stack must not contain (and use) any copies of the old pointers
 //
-void EpgAcqCtl_OpenDb( int target, uint cni )
+bool EpgAcqCtl_OpenDb( int target, uint cni )
 {
+   bool result = TRUE;
+
    if (cni == 0)
    {  // load any provider -> use an already opene one or search for the best
       if ((target == DB_TARGET_UI) && (pAcqDbContext != NULL))
@@ -472,19 +521,27 @@ void EpgAcqCtl_OpenDb( int target, uint cni )
             {  // db is already opened for acq
                pUiDbContext = pAcqDbContext;
             }
-            else if ((acqState == ACQSTATE_WAIT_BI) && (pAcqDbContext->modified == FALSE))
-            {  // acq uses different db, but there's no EPG reception
-               EpgAcqCtl_CloseDb(DB_TARGET_ACQ);
-               // use new db context for both ui and acq
-               pUiDbContext = pAcqDbContext = EpgDbCreate();
-               EpgDbReload(pUiDbContext, cni);
-               // reset acquisition
-               EpgAcqCtl_ChannelChange();
-            }
             else
             {
                pUiDbContext = EpgDbCreate();
-               EpgDbReload(pUiDbContext, cni);
+               result = EpgDbReload(pUiDbContext, cni);
+
+               #ifndef WIN32
+               if ( (pUiDbContext->tunerFreq != 0) &&
+                    VbiTuneChannel(pUiDbContext->tunerFreq, FALSE) )
+               {  // tuned onto provider's channel
+                  // XXX do nothing - channel change is handled automatically (but not very well)
+               }
+               else
+               #endif
+               if ((acqState == ACQSTATE_WAIT_BI) && (pAcqDbContext->modified == FALSE))
+               {  // acq uses different db, but there's no EPG reception
+                  EpgAcqCtl_CloseDb(DB_TARGET_ACQ);
+                  // use ui context for acq
+                  pAcqDbContext = pUiDbContext;
+                  // reset acquisition
+                  EpgAcqCtl_ChannelChange();
+               }
             }
             break;
 
@@ -496,14 +553,16 @@ void EpgAcqCtl_OpenDb( int target, uint cni )
             else
             {
                pAcqDbContext = EpgDbCreate();
-               EpgDbReload(pAcqDbContext, cni);
+               result = EpgDbReload(pAcqDbContext, cni);
             }
             break;
 
          default:
             SHOULD_NOT_BE_REACHED;
+            result = FALSE;
       }
    }
+   return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -549,4 +608,275 @@ void EpgAcqCtl_CloseDb( int target )
          SHOULD_NOT_BE_REACHED;
    }
 }
+
+#ifndef WIN32
+// ----------------------------------------------------------------------------
+//                             E P G    S C A N
+// ----------------------------------------------------------------------------
+
+// The purpose of the EPG scan is to find out the tuner frequencies of all
+// EPG providers. This would not be needed it the Nextview decoder was
+// integrated into a TV application. But as a separate application, there
+// is no other way to find out the frequencies, since /dev/video can not
+// be opened twice, not even to only query the actual tuner frequency.
+
+// The scan is designed to perform as fast as possible. We stay max. 2 secs
+// on each channel. If a CNI is found and it's a known and loaded provider,
+// we go on immediately. If no CNI is found or if it's not a known provider,
+// we wait if any syntactically correct packets are received on any of the
+// 8*24 possible EPG teletext pages. If yes, we try for 45 seconds to
+// receive the BI and AI blocks. This period is chosen that long, because
+// some providers have gaps of over 45 seconds between cycles (e.g. RTL-II)
+// and others do not transmit on the default page 1DF, so we have to wait
+// for the MIP, which usually is transmitted about every 30 seconds. For
+// any provider that's found, a database is created and the frequency
+// saved in its header.
+
+// ----------------------------------------------------------------------------
+// EPG scan timer event handler - called every 250ms
+// 
+static void EventHandler_EpgScan( ClientData clientData )
+{
+   const EPGDBSAV_PEEK *pPeek;
+   const AI_BLOCK *pAi;
+   time_t now = time(NULL);
+   ulong freq;
+   uint cni, dataPageCnt;
+   uint delay;
+   bool niWait;
+
+   scanHandler = NULL;
+   if (scanState != SCAN_STATE_OFF)
+   {
+      if (scanState == SCAN_STATE_RESET)
+      {  // reset state again 50ms after channel change
+         EpgDbAcqInitScan();
+         //printf("Start channel %d\n", scanChannel);
+         if (VbiTuneGetSignalStrength() < 32768)
+            scanState = SCAN_STATE_DONE;
+         else
+            scanState = SCAN_STATE_WAIT;
+      }
+      else
+      {
+         EpgDbAcqGetScanResults(&cni, &niWait, &dataPageCnt);
+
+         if (scanState == SCAN_STATE_WAIT_EPG)
+         {
+            if ( (acqState == ACQSTATE_RUNNING) && (pAcqDbContext->pBiBlock != NULL) )
+            {  // both AI and BI have been received and inserted into the db
+               assert((pAcqDbContext->pAiBlock != NULL) && pAcqDbContext->modified);
+
+               EpgDbDump(pAcqDbContext);
+
+               EpgDbLockDatabase(pAcqDbContext, TRUE);
+               pAi = EpgDbGetAi(pAcqDbContext);
+               if (pAi != NULL)
+               {
+                  sprintf(comm, "Found new provider: %s", AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop));
+                  MenuCmd_AddEpgScanMsg(comm);
+                  scanState = SCAN_STATE_DONE;
+               }
+               EpgDbLockDatabase(pAcqDbContext, FALSE);
+            }
+         }
+         else if ((cni != 0) && (scanState <= SCAN_STATE_WAIT_NI))
+         {
+            sprintf(comm, "Channel %d: network id 0x%04X", scanChannel, cni);
+            MenuCmd_AddEpgScanMsg(comm);
+            pPeek = EpgDbPeek(cni);
+            if (pPeek != NULL)
+            {  // provider already loaded -> skip
+               sprintf(comm, "provider already known: %s",
+                             AI_GET_NETWOP_NAME(&pPeek->pAiBlock->blk.ai, pPeek->pAiBlock->blk.ai.thisNetwop));
+               MenuCmd_AddEpgScanMsg(comm);
+               scanState = SCAN_STATE_DONE;
+               if (pPeek->tunerFreq != pAcqDbContext->tunerFreq)
+               {
+                  MenuCmd_AddEpgScanMsg("storing provider's tuner frequency");
+                  EpgDbDumpUpdateHeader(pAcqDbContext, cni, pAcqDbContext->tunerFreq);
+               }
+               EpgDbPeekDestroy(pPeek);
+            }
+            else
+            {  // no database for this CNI yet
+               switch (cni)
+               {
+                  case 0x0D8F:  // RTL-II (Germany)
+                  case 0x1D8F:
+                  case 0x0D94:  // PRO7 (Germany)
+                  case 0x1D94:
+                  case 0x0DC7:  // 3SAT (Germany)
+                  case 0x1DC7:
+                  case 0x2FE1:  // EuroNews (Germany)
+                  case 0xFE01:
+                  case 0x24C2:  // TSR1 (Switzerland)
+                  case 0x2FE5:  // TV5 (France)
+                  case 0xF500:
+                  case 0x2F06:  // M6 (France)
+                     // known provider -> wait for BI/AI
+                     MenuCmd_AddEpgScanMsg("checking for EPG transmission...");
+                     scanState = SCAN_STATE_WAIT_EPG;
+                     // enable normal EPG acq callback handling
+                     acqState = ACQSTATE_WAIT_BI;
+                     break;
+                  default:
+                     // CNI not known as provider -> keep checking for data page
+                     scanState = SCAN_STATE_WAIT_DATA;
+                     break;
+               }
+            }
+         }
+         else if ((dataPageCnt != 0) && (scanState <= SCAN_STATE_WAIT_DATA))
+         {
+            sprintf(comm, "Found ETS-708 syntax on %d pages", dataPageCnt);
+            MenuCmd_AddEpgScanMsg(comm);
+            MenuCmd_AddEpgScanMsg("checking for EPG transmission...");
+            scanState = SCAN_STATE_WAIT_EPG;
+            // enable normal EPG acq callback handling
+            acqState = ACQSTATE_WAIT_BI;
+         }
+         else if (niWait)
+         {
+            scanState = SCAN_STATE_WAIT_NI;
+         }
+      }
+
+      // determine timeout for the current state
+      switch (scanState)
+      {
+         case SCAN_STATE_WAIT:      delay =  2; break;
+         case SCAN_STATE_WAIT_NI:   delay =  4; break;
+         case SCAN_STATE_WAIT_DATA: delay =  2; break;
+         case SCAN_STATE_WAIT_EPG:  delay = 45; break;
+         default:                   delay =  0; break;
+      }
+
+      if ( (scanState == SCAN_STATE_DONE) || ((now - acqStats.acqStartTime) >= delay) )
+      {  // max wait exceeded -> next channel
+         if ( VbiGetNextChannel(&scanChannel, &freq) )
+         {
+            if ( VbiTuneChannel(freq, TRUE) )
+            {
+               EpgDbAcqReset(pAcqDbContext, EPG_ILLEGAL_PAGENO, EPG_ILLEGAL_APPID);
+               EpgDbAcqInitScan();
+
+               EpgDbDestroy(pAcqDbContext);
+               pAcqDbContext = EpgDbCreate();
+               pAcqDbContext->tunerFreq = freq;
+
+               acqStats.acqStartTime = now;
+               scanState = SCAN_STATE_RESET;
+               acqState = ACQSTATE_OFF;
+               scanChannelCount += 1;
+               sprintf(comm, ".epgscan.all.baro.bari configure -width %d\n",
+                             (int)((double)scanChannelCount/VbiGetChannelCount()*140.0));
+               eval_check(interp, comm);
+
+               scanHandler = Tcl_CreateTimerHandler(150, EventHandler_EpgScan, NULL);
+            }
+            else
+            {
+               EpgAcqCtl_StopScan();
+               MenuCmd_AddEpgScanMsg("channel change failed - abort.");
+               eval_check(interp, "bell");
+               MenuCmd_StopEpgScan(NULL, interp, 0, NULL);
+            }
+         }
+         else
+         {
+            EpgAcqCtl_StopScan();
+            MenuCmd_AddEpgScanMsg("EPG scan finished.");
+            eval_check(interp, "bell");
+            MenuCmd_StopEpgScan(NULL, interp, 0, NULL);
+         }
+      }
+      else
+      {  // continue scan on current channel
+         scanHandler = Tcl_CreateTimerHandler(250, EventHandler_EpgScan, NULL);
+      }
+   }
+   else
+      debug0("EventHandler-EpgScan: scan not running");
+}
+
+// ----------------------------------------------------------------------------
+// Start EPG scan
+// - sets up the scan for the first channel; the real work is done in the
+//   timer event handler, which must be called every 250 ms
+// - returns FALSE if either /dev/video or /dev/vbi could not be opened
+//
+bool EpgAcqCtl_StartScan( void )
+{
+   ulong freq;
+   bool result = FALSE;
+
+   scanChannel = 0;
+   if ( VbiGetNextChannel(&scanChannel, &freq) &&
+        VbiTuneChannel(freq, TRUE) )
+   {
+      // stop acq if running, but remember the state for when scan finishes
+      scanAcqWasEnabled = (acqState != ACQSTATE_OFF);
+      EpgAcqCtl_Stop();
+
+      // set up an empty db and start EPG and CNI acquisition
+      pAcqDbContext = EpgDbCreate();
+      pAcqDbContext->tunerFreq = freq;
+      EpgDbAcqInit(pVbiBuf);
+      EpgDbAcqStart(pAcqDbContext, EPG_ILLEGAL_PAGENO, EPG_ILLEGAL_APPID);
+      EpgDbAcqInitScan();
+
+      if (VbiDecodeWakeUp())
+      {
+         scanState = SCAN_STATE_RESET;
+         acqState = ACQSTATE_OFF;
+         acqStats.acqStartTime = time(NULL);
+         scanHandler = Tcl_CreateTimerHandler(150, EventHandler_EpgScan, NULL);
+         scanChannelCount = 0;
+
+         sprintf(comm, "Starting scan on channel %d", scanChannel);
+         MenuCmd_AddEpgScanMsg(comm);
+         sprintf(comm, ".epgscan.all.baro.bari configure -width 1\n");
+         eval_check(interp, comm);
+
+         result = TRUE;
+      }
+      else
+      {  // failed to start acquisition
+         EpgDbAcqStop();
+         EpgDbDestroy(pAcqDbContext);
+         pAcqDbContext = NULL;
+         // restart normal acq, if it was enabled before the scan started
+         if (scanAcqWasEnabled)
+            EpgAcqCtl_Start();
+      }
+   }
+
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Stop EPG scan
+// - might be called repeatedly by UI to ensure background activity has stopped
+//
+void EpgAcqCtl_StopScan( void )
+{
+   if (scanState != SCAN_STATE_OFF)
+   {
+      Tcl_DeleteTimerHandler(scanHandler);
+      scanHandler = NULL;
+
+      VbiTuneCloseDevice();
+
+      EpgDbAcqStop();
+      EpgDbDestroy(pAcqDbContext);
+      pAcqDbContext = NULL;
+
+      if (scanAcqWasEnabled)
+         EpgAcqCtl_Start();
+
+      scanState = SCAN_STATE_OFF;
+   }
+}
+#endif //WIN32
 

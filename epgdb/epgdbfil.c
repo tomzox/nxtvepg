@@ -23,7 +23,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgdbfil.c,v 1.11 2000/06/15 17:07:35 tom Exp tom $
+ *  $Id: epgdbfil.c,v 1.14 2000/06/19 19:20:54 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -204,8 +204,8 @@ void EpgDbFilterSetFeatureFlags( FILTER_CONTEXT *fc, uchar index, uint flags, ui
 {
    if (index < FEATURE_CLASS_COUNT)
    {
-      ifdebug2((flags & mask) != 0, "EpgDbFilter-SetFeatureFlags: flags=%x outside of mask=%x", flags, mask);
-      ifdebug2((flags | mask) & FEATURES_ALL, "EpgDbFilter-SetFeatureFlags: flags=%x or mask=%x have invalid bits", flags, mask);
+      ifdebug2((flags & ~mask) != 0, "EpgDbFilter-SetFeatureFlags: flags=%x outside of mask=%x", flags, mask);
+      ifdebug2((flags | mask) & ~FEATURES_ALL, "EpgDbFilter-SetFeatureFlags: flags=%x or mask=%x have invalid bits", flags, mask);
 
       fc->featureFilterFlagField[index] = flags;
       fc->featureFilterMaskField[index] = mask;
@@ -462,6 +462,20 @@ void EpgDbFilterEnable( FILTER_CONTEXT *fc, uint searchFilter )
 void EpgDbFilterDisable( FILTER_CONTEXT *fc, uint searchFilter )
 {
    assert((searchFilter & ~FILTER_ALL) == 0);
+
+   if ((searchFilter & FILTER_THEMES) != 0)
+   {
+      fc->usedThemeClasses = 0;
+   }
+   if ((searchFilter & FILTER_SORTCRIT) != 0)
+   {
+      fc->usedSortCritClasses = 0;
+   }
+   if ((searchFilter & FILTER_FEATURES) != 0)
+   {
+      fc->featureFilterCount = 0;
+   }
+
    fc->enabledFilters &= ~ searchFilter;
 }
 
@@ -509,21 +523,35 @@ void EpgDbFilterApplyNi( CPDBC dbc, FILTER_CONTEXT *fc, NI_FILTER_STATE *pNiStat
          fc->enabledFilters |= FILTER_NETWOP;
          break;
 
-      case EV_ATTRIB_KIND_THEME ... EV_ATTRIB_KIND_THEME_7:
+      case EV_ATTRIB_KIND_THEME:
+      case EV_ATTRIB_KIND_THEME + 1:
+      case EV_ATTRIB_KIND_THEME + 2:
+      case EV_ATTRIB_KIND_THEME + 3:
+      case EV_ATTRIB_KIND_THEME + 4:
+      case EV_ATTRIB_KIND_THEME + 5:
+      case EV_ATTRIB_KIND_THEME + 6:
+      case EV_ATTRIB_KIND_THEME + 7:
          if ((fc->enabledFilters & FILTER_THEMES) == FALSE)
-            EpgDbFilterInitThemes(fc, 1);
+            EpgDbFilterInitThemes(fc, 0xff);
          class = 1 << (kind - EV_ATTRIB_KIND_THEME);
-         fc->themeFilterField[data] = class;
-         fc->usedThemeClasses      |= class;
+         fc->themeFilterField[data & 0xff] |= class;
+         fc->usedThemeClasses |= class;
          fc->enabledFilters |= FILTER_THEMES;
          break;
 
-      case EV_ATTRIB_KIND_SORTCRIT ... EV_ATTRIB_KIND_SORTCRIT_7:
+      case EV_ATTRIB_KIND_SORTCRIT:
+      case EV_ATTRIB_KIND_SORTCRIT + 1:
+      case EV_ATTRIB_KIND_SORTCRIT + 2:
+      case EV_ATTRIB_KIND_SORTCRIT + 3:
+      case EV_ATTRIB_KIND_SORTCRIT + 4:
+      case EV_ATTRIB_KIND_SORTCRIT + 5:
+      case EV_ATTRIB_KIND_SORTCRIT + 6:
+      case EV_ATTRIB_KIND_SORTCRIT + 7:
          if ((fc->enabledFilters & FILTER_SORTCRIT) == FALSE)
             EpgDbFilterInitSortCrit(fc);
          class = 1 << (kind - EV_ATTRIB_KIND_SORTCRIT);
-         fc->sortCritFilterField[data] |= class;
-         fc->usedSortCritClasses       |= class;
+         fc->sortCritFilterField[data & 0xff] |= class;
+         fc->usedSortCritClasses |= class;
          fc->enabledFilters |= FILTER_SORTCRIT;
          break;
 
@@ -657,6 +685,7 @@ bool EpgDbFilterMatches( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT *fc, con
 {
    uchar class;
    uint  index;
+   bool  skipThemes = FALSE;
    
    if ((fc != NULL) && (pPi != NULL))
    {
@@ -708,7 +737,27 @@ bool EpgDbFilterMatches( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT *fc, con
             goto failed;
       }
 
-      if (fc->enabledFilters & FILTER_THEMES)
+      if (fc->enabledFilters & FILTER_SERIES)
+      {
+         for (index=0; index < pPi->no_themes; index++)
+         {
+            register uchar theme = pPi->themes[index];
+            if ((theme > 0x80) &&
+                (fc->seriesFilterMatrix[pPi->netwop_no][theme - 0x80]))
+               break;
+         }
+         // logical OR between series and themes filter (same filter type)
+         if (index < pPi->no_themes)
+         {  // series matched -> skip themes filter
+            skipThemes = TRUE;
+         }
+         else if ((fc->enabledFilters & FILTER_THEMES) == FALSE)
+         {  // series did not match -> failed only, if themes disabled
+            goto failed;
+         }
+      }
+
+      if ((fc->enabledFilters & FILTER_THEMES) && (skipThemes == FALSE))
       {
          for (class=1; class != 0; class <<= 1)
          {  // AND across all classes
@@ -725,19 +774,6 @@ bool EpgDbFilterMatches( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT *fc, con
                }
             }
          }
-      }
-
-      if (fc->enabledFilters & FILTER_SERIES)
-      {
-         for (index=0; index < pPi->no_themes; index++)
-         {
-            register uchar theme = pPi->themes[index];
-            if ((theme > 0x80) &&
-                (fc->seriesFilterMatrix[pPi->netwop_no][theme - 0x80]))
-               break;
-         }
-         if (index >= pPi->no_themes)
-            goto failed;
       }
 
       if (fc->enabledFilters & FILTER_SORTCRIT)

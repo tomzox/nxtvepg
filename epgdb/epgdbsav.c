@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgdbsav.c,v 1.8 2000/06/15 17:08:53 tom Exp tom $
+ *  $Id: epgdbsav.c,v 1.12 2000/07/01 08:40:52 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -32,13 +32,17 @@
 
 #ifndef WIN32
 #include <unistd.h>
+#include <dirent.h>
 #else
+#include <windows.h>
+#include <stdlib.h>
 #include <io.h>
+#include <direct.h>
 #endif
 #include <stdio.h>
+#include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <dirent.h>
 #include <fcntl.h>
 #include <string.h>
 #include <time.h>
@@ -78,6 +82,7 @@ static bool EpgDbDumpHeader( CPDBC dbc, int fd )
    {
       header.cni = AI_GET_NETWOP_N(&dbc->pAiBlock->blk.ai, dbc->pAiBlock->blk.ai.thisNetwop)->cni;
       header.pageNo = dbc->pageNo;
+      header.tunerFreq = dbc->tunerFreq;
 
       if (dbc->pLastPi != NULL)
          header.lastPiDate = dbc->pLastPi->blk.pi.start_time;
@@ -178,6 +183,15 @@ bool EpgDbDump( PDBC dbc )
             pWalk = pWalk->pNextBlock;
          }
 
+         pWalk = dbc->pObsoletePi;
+         while ((pWalk != NULL) && result)
+         {
+            pWalk->type = BLOCK_TYPE_DEFECT_PI;
+            result = EpgDbDumpAppendBlock(pWalk, fd);
+            pWalk->type = BLOCK_TYPE_PI;
+            pWalk = pWalk->pNextBlock;
+         }
+
          close(fd);
 
          if (result != FALSE)
@@ -220,7 +234,10 @@ static void EpgDbReloadAddBiBlock( PDBC dbc, EPGDB_BLOCK * pBlock )
       dbc->pBiBlock = pBlock;
    }
    else
+   {
       debug0("EpgDb-Reload-AddBiBlock: BI block already exists");
+      free(pBlock);
+   }
 }
 
 // ---------------------------------------------------------------------------
@@ -237,7 +254,10 @@ static void EpgDbReloadAddAiBlock( PDBC dbc, EPGDB_BLOCK * pBlock )
       dbc->pAiBlock = pBlock;
    }
    else
+   {
       debug0("EpgDb-Reload-AddAiBlock: AI block already exists");
+      free(pBlock);
+   }
 }
 
 // ---------------------------------------------------------------------------
@@ -283,12 +303,45 @@ static void EpgDbReloadAddGenericBlock( PDBC dbc, EPGDB_BLOCK *pBlock, EPGDB_BLO
          }
       }
       else
+      {
          debug3("EpgDb-AddGenericBlock: type=%d: invalid block_no=%d >= count=%d", pBlock->type, pBlock->blk.all.block_no, blockCount);
-
+         free(pBlock);
+      }
       //assert(EpgDbCheckChains());
    }
    else
+   {
       debug2("EpgDb-AddGenericBlock: invalid type %d or block_no %d", pBlock->type, pBlock->blk.all.block_no);
+      free(pBlock);
+   }
+}
+
+// ---------------------------------------------------------------------------
+// Add an expired or defect PI block to the database
+//
+static void EpgDbReloadAddDefectPiBlock( PDBC dbc, EPGDB_BLOCK * pBlock )
+{
+   if (pBlock->version == dbc->pAiBlock->blk.ai.version)
+   {
+      if ( EpgDbPiBlockNoValid(dbc, pBlock->blk.pi.block_no, pBlock->blk.pi.netwop_no) )
+      {
+         // convert type to normal PI, since the "defect pi" type is known only inside this module
+         pBlock->type = BLOCK_TYPE_PI;
+         // prepend to list of defect blocks
+         pBlock->pNextBlock = dbc->pObsoletePi;
+         dbc->pObsoletePi = pBlock;
+      }
+      else
+      {
+         debug3("EpgDbReload-AddDefectPiBlock: invalid netwop=%d stop=%ld block_no=%d", pBlock->blk.pi.netwop_no, pBlock->blk.pi.stop_time, pBlock->blk.pi.block_no);
+         free(pBlock);
+      }
+   }
+   else
+   {
+      dprintf5("EpgDbReload-AddDefectPiBlock: PI obsolete version=%d != %d: netwop=%02d block_no=%d start=%ld\n", pBlock->version, dbc->pAiBlock->blk.ai.version, pBlock->blk.pi.netwop_no, pBlock->blk.pi.block_no, pBlock->blk.pi.start_time);
+      free(pBlock);
+   }
 }
 
 // ---------------------------------------------------------------------------
@@ -302,12 +355,12 @@ static void EpgDbReloadAddPiBlock( PDBC dbc, EPGDB_BLOCK * pBlock, EPGDB_BLOCK *
    
    netwop = pBlock->blk.pi.netwop_no;
    if ( (netwop < dbc->pAiBlock->blk.ai.netwopCount) &&
-        (pBlock->blk.pi.start_time < pBlock->blk.pi.stop_time) &&
         EpgDbPiBlockNoValid(dbc, pBlock->blk.pi.block_no, netwop) )
    {
       now = time(NULL);
 
-      if (pBlock->blk.pi.stop_time > now)
+      if ( (pBlock->blk.pi.start_time < pBlock->blk.pi.stop_time) &&
+           (pBlock->blk.pi.stop_time > now) )
       {  // Sendung noch nicht abgelaufen
 
          //dprintf4("RELOAD PI ptr=%lx: netwop=%d, blockno=%d, start=%ld\n", (ulong)pBlock, netwop, pBlock->blk.pi.block_no, pBlock->blk.pi.start_time);
@@ -361,18 +414,20 @@ static void EpgDbReloadAddPiBlock( PDBC dbc, EPGDB_BLOCK * pBlock, EPGDB_BLOCK *
       else
       {  // Sendung bereits abgelaufen -> PI nicht aufnehmen
          //dprintf3("EXPIRED pi netwop=%d, blockno=%d start=%ld\n", pBlock->blk.pi.netwop_no, pBlock->blk.pi.block_no, pBlock->blk.pi.start_time);
+         EpgDbReloadAddDefectPiBlock(dbc, pBlock);
       }
    }
    else
    {  // ungueltige netwop-Angabe -> PI nicht aufnehmen
-      debug3("EpgDb-AddPiBlock: invalid netwop=%d stop=%ld block_no=%d", netwop, pBlock->blk.pi.stop_time, pBlock->blk.pi.block_no);
+      debug3("EpgDbReload-AddPiBlock: invalid netwop=%d stop=%ld block_no=%d", netwop, pBlock->blk.pi.stop_time, pBlock->blk.pi.block_no);
+      free(pBlock);
    }
 }
 
 // ---------------------------------------------------------------------------
 // Read and verify the file header
 //
-static bool EpgDbReloadHeader( uint cni, int fd, uint *pPageNo )
+static bool EpgDbReloadHeader( uint cni, int fd, uint *pPageNo, ulong *pFreq )
 {
    EPGDBSAV_HEADER head;
    size_t size;
@@ -382,10 +437,12 @@ static bool EpgDbReloadHeader( uint cni, int fd, uint *pPageNo )
    if (size == sizeof(head))
    {
       if ( (strncmp(head.magic, MAGIC_STR, MAGIC_STR_LEN) == 0) &&
-           (head.dumpVersion == DUMP_VERSION) &&
+           (head.dumpVersion <= DUMP_VERSION) &&
+           (head.dumpVersion >= DUMP_COMPAT) &&
            ((cni == RELOAD_ANY_CNI) || (head.cni == cni)) )
       {
          *pPageNo = head.pageNo;
+         *pFreq   = head.tunerFreq;
          result = TRUE;
       }
    }
@@ -396,6 +453,7 @@ static bool EpgDbReloadHeader( uint cni, int fd, uint *pPageNo )
 // ---------------------------------------------------------------------------
 // Restore the complete Nextview EPG database from a file dump
 // - XXX TODO: ensure that BI and AI are loaded first
+// - XXX TODO: handle read i/o errors
 //
 bool EpgDbReload( PDBC dbc, uint cni )
 {
@@ -418,7 +476,7 @@ bool EpgDbReload( PDBC dbc, uint cni )
          fd = open(filename, O_RDONLY|O_BINARY);
          if (fd >= 0)
          {
-            if (EpgDbReloadHeader(cni, fd, &dbc->pageNo))
+            if (EpgDbReloadHeader(cni, fd, &dbc->pageNo, &dbc->tunerFreq))
             {
                memset(pPrevNetwop, 0, sizeof(pPrevNetwop));
                memset(pPrevGeneric, 0, sizeof(pPrevGeneric));
@@ -446,6 +504,10 @@ bool EpgDbReload( PDBC dbc, uint cni )
                               EpgDbReloadAddPiBlock(dbc, pBlock, pPrevNetwop);
                               break;
 
+                           case BLOCK_TYPE_DEFECT_PI:
+                              EpgDbReloadAddDefectPiBlock(dbc, pBlock);
+                              break;
+
                            default:
                               EpgDbReloadAddGenericBlock(dbc, pBlock, pPrevGeneric);
                               break;
@@ -461,7 +523,7 @@ bool EpgDbReload( PDBC dbc, uint cni )
             close(fd);
          }
          else
-            debug1("EpgDb-Reload: db of requested provider %04X not found", cni);
+            dprintf1("EpgDb-Reload: db of requested provider %04X not found\n", cni);
       }
       else
          debug0("EpgDb-Reload: db not empty");
@@ -481,7 +543,6 @@ const EPGDBSAV_PEEK * EpgDbPeek( uint cni )
    EPGDB_BLOCK *pBlock;
    uchar buffer[BLK_UNION_OFF];
    size_t size;
-   uint pageNo;
    int fd;
    uchar filename[DUMP_NAME_MAX];
 
@@ -491,7 +552,7 @@ const EPGDBSAV_PEEK * EpgDbPeek( uint cni )
    if (fd >= 0)
    {
       pPeek = (EPGDBSAV_PEEK *) malloc(sizeof(EPGDBSAV_PEEK));
-      if (EpgDbReloadHeader(cni, fd, &pageNo))
+      if (EpgDbReloadHeader(cni, fd, &pPeek->pageNo, &pPeek->tunerFreq))
       {
          pPeek->pBiBlock = NULL;
          pPeek->pAiBlock = NULL;
@@ -536,7 +597,7 @@ const EPGDBSAV_PEEK * EpgDbPeek( uint cni )
       close(fd);
    }
    else
-      debug1("EpgDb-Reload: db of requested provider %04X not found", cni);
+      dprintf1("EpgDb-Reload: db of requested provider %04X not found\n", cni);
 
    return (const EPGDBSAV_PEEK *) pPeek;
 }
@@ -564,6 +625,7 @@ void EpgDbPeekDestroy( const EPGDBSAV_PEEK *pPeek )
 //
 uint EpgDbReloadScan( const char *path, int nextIndex )
 {
+#ifndef WIN32
    DIR    *dir;
    struct dirent *entry;
    struct stat st;
@@ -607,5 +669,92 @@ uint EpgDbReloadScan( const char *path, int nextIndex )
       perror("opendir");
 
    return best_cni;
+
+#else  //WIN32
+   HANDLE hFind;
+   WIN32_FIND_DATA finddata;
+   FILETIME best_mtime;
+   uint cni, best_cni;
+   bool bMore;
+   int  this_index;
+
+   best_cni = 0;
+   this_index = -1;
+
+   hFind = FindFirstFile(DUMP_NAME_PAT, &finddata);
+   bMore = (hFind != (HANDLE) -1);
+   while (bMore)
+   {
+      if ( (strlen(finddata.cFileName) == DUMP_NAME_LEN) &&
+           (sscanf(finddata.cFileName, DUMP_NAME_FMT, &cni) == 1) )
+      {  // file name matched
+         if (nextIndex != -1)
+         {
+            this_index += 1;
+            if (this_index == nextIndex)
+            {
+               best_cni = cni;
+               break;
+            }
+         }
+         else if ( (best_cni == 0) ||
+                   (CompareFileTime(&best_mtime, &finddata.ftLastWriteTime) == -1) )
+         {
+            best_mtime = finddata.ftLastWriteTime;
+            best_cni = cni;
+         }
+      }
+      bMore = FindNextFile(hFind, &finddata);
+   }
+   FindClose(hFind);
+
+   return best_cni;
+#endif  //WIN32
+}
+
+// ---------------------------------------------------------------------------
+// Update the tuner frequency in the dump file header
+//
+bool EpgDbDumpUpdateHeader( CPDBC dbc, uint cni, ulong freq )
+{
+   EPGDBSAV_HEADER head;
+   size_t size;
+   uchar filename[DUMP_NAME_MAX];
+   int fd;
+   bool result = FALSE;
+
+   sprintf(filename, DUMP_NAME_FMT, cni);
+   fd = open(filename, O_RDWR|O_BINARY);
+   if (fd >= 0)
+   {
+      size = read(fd, (uchar *)&head, sizeof(head));
+      if (size == sizeof(head))
+      {
+         if ( (strncmp(head.magic, MAGIC_STR, MAGIC_STR_LEN) == 0) &&
+              (head.dumpVersion <= DUMP_VERSION) &&
+              (head.dumpVersion >= DUMP_COMPAT) &&
+              (head.cni == cni) )
+         {
+            head.tunerFreq = freq;
+
+            // rewind to the start of file and overwrite header
+            if (lseek(fd, 0, SEEK_SET) == 0)
+            {
+               size = write(fd, &head, sizeof(head));
+               if (size == sizeof(head))
+               {
+                  result = TRUE;
+               }
+               else
+                  debug2("EpgDb-DumpUpdateHeader: write failed with %d, errno %d\n", size, errno);
+            }
+            else
+               debug1("EpgDb-DumpUpdateHeader: seek failed with errno %d", errno);
+         }
+         else
+            debug0("EpgDb-DumpUpdateHeader: invalid magic or cni in db");
+      }
+   }
+   return result;
 }
 

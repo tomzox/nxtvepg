@@ -1,25 +1,24 @@
 Nextview EPG Decoder/Analyzer for PC
 ------------------------------------
 
-This software package contains a free decoder for Nextview EPG,
-an Electronic Programme Guide, that's transmitted by a number
-of European Channels in the analog domain. Usually not only
-the program of the provider's channel itself is covered, but
-most of the country's relevant channels.
+This software package contains a free decoder for Nextview EPG, an
+Electronic Programme Guide, that's transmitted by a number of European
+channels in the analog domain. Usually not only the program of the
+provider's channel itself is covered, but most of the country's
+important channels.
 
 Currently Nextview EPG is transmitted by:
 - in Germany and Austria: Pro7, 3Sat, RTL-II, EuroNews.
 - in Switzerland: TSR1 and others.
 - in France: Canal+, M6, TV5.
 
-If you don't receive any of those channels then this software
-is useless to you.
+If you don't receive any of those networks then this software is
+useless to you.
 
 To compile and use this software, you need:
-- one Pentium class PC with a Bt8x8-based TV tuner card
-- Linux with bttv driver (video4linux)
-- gcc
-- xtvscreen or other TV application to tune in the provider's channel
+- Pentium class PC with a Bt8x8-based TV tuner card
+- Linux with kernel >= 2.0.35 and bttv driver (video4linux)
+- GNU C Compiler
 - Tcl/Tk version 8.0 or later (ftp://www.scriptics.com/pub/tcl/)
 
 

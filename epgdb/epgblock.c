@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgblock.c,v 1.19 2000/06/13 18:16:20 tom Exp tom $
+ *  $Id: epgblock.c,v 1.20 2000/06/19 19:17:24 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -449,7 +449,22 @@ static uchar * ApplyEscapes(const uchar *pText, uint textLen, const uchar *pEsca
                   else
                      *po = ' ';
                   break;
-               case 0x10 ... 0x1f:  // diacritical mark
+               case 0x10:  // diacritical mark
+               case 0x11:
+               case 0x12:
+               case 0x13:
+               case 0x14:
+               case 0x15:
+               case 0x16:
+               case 0x17:
+               case 0x18:
+               case 0x19:
+               case 0x1a:
+               case 0x1b:
+               case 0x1c:
+               case 0x1d:
+               case 0x1e:
+               case 0x1f:
                {
                   uint c = (pEscapes[1]>>2)&0x0f;
                   const char *pd = strchr(diacrits[c].g0, *po);

@@ -14,14 +14,21 @@
  *
  *  Description:
  *
- *    Assemble separate teletext packets to Nextview bit fields,
- *    detect hamming and parity errors, and pass them on to the
- *    streams decoder. Channel changes are automatically detected
- *    by a change of the header field in packet 0.
+ *    This module is the center of the acquisition process. It
+ *    contains the interface between the slave and control processes,
+ *    i.e. there are two execution threads running here. The slave
+ *    puts all teletext packets of a given page into a ring buffer.
+ *    Additionally it decodes MIP, and during scan also packet 8/30.
+ *    This data is passed via shared memory to the master. The master
+ *    takes the packets from the ring buffer and hands them to the
+ *    streams module for assembly to Nextview blocks. The interface
+ *    to the higher level acquisition control consists of functions
+ *    to start and stop acquisition, get statistics values and detect
+ *    channel changes.
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgdbacq.c,v 1.10 2000/06/15 18:13:03 tom Exp tom $
+ *  $Id: epgdbacq.c,v 1.13 2000/06/24 18:03:13 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -116,6 +123,7 @@ void EpgDbAcqStart( EPGDB_CONTEXT *dbc, uint pageNo, uint appId )
       pVbiBuf->mipPageNo = 0;
       pVbiBuf->isEpgPage = FALSE;
       pVbiBuf->isMipPage = 0;
+      pVbiBuf->isEpgScan = FALSE;
       pVbiBuf->isEnabled = TRUE;
       // reset statistics variables
       pVbiBuf->ttxPkgCount = 0;
@@ -157,7 +165,6 @@ void EpgDbAcqStop( void )
       // remove unused blocks from scratch buffer in stream decoder
       EpgStreamClearScratchBuffer();
 
-      pVbiBuf->isEnabled = FALSE;
       bEpgDbAcqEnabled = FALSE;
    }
    else
@@ -170,8 +177,67 @@ void EpgDbAcqStop( void )
 //
 void EpgDbAcqReset( EPGDB_CONTEXT *dbc, uint pageNo, uint appId )
 {
-   EpgDbAcqStop();
-   EpgDbAcqStart(dbc, pageNo, appId);
+   if (bEpgDbAcqEnabled)
+   {
+      // discard remaining blocks in the scratch buffer
+      EpgStreamClearScratchBuffer();
+
+      // set acq state to OFF internally only to satisfy start-acq function
+      bEpgDbAcqEnabled = FALSE;
+
+      EpgDbAcqStart(dbc, pageNo, appId);
+   }
+   else
+      debug0("EpgDbAcq-Reset: acq not enabled");
+}
+
+// ---------------------------------------------------------------------------
+// Initialize EPG scan upon start-up or after a channel change
+//
+void EpgDbAcqInitScan( void )
+{
+   if (bEpgDbAcqEnabled)
+   {
+      EpgStreamSyntaxScanInit();
+
+      // reset result variables
+      pVbiBuf->vpsCni = 0;
+      pVbiBuf->pdcCni = 0;
+      pVbiBuf->ni = 0;
+      pVbiBuf->niRepCnt = 0;
+      pVbiBuf->dataPageCount = 0;
+      // enable scan mode
+      pVbiBuf->isEpgScan = TRUE;
+   }
+   else
+      debug0("EpgDbAcq-InitScan: acq not enabled");
+}
+
+// ---------------------------------------------------------------------------
+// Return CNIs and number of data pages found
+//
+void EpgDbAcqGetScanResults( uint *pCni, bool *pNiWait, uint *pDataPageCnt )
+{
+   *pCni = 0;
+   *pNiWait = 0;
+
+   if (pVbiBuf->vpsCni != 0)
+   {
+      *pCni = pVbiBuf->vpsCni;
+   }
+   else if (pVbiBuf->pdcCni != 0)
+   {
+      *pCni = pVbiBuf->pdcCni;
+   }
+   else if (pVbiBuf->ni != 0)
+   {
+      if (pVbiBuf->niRepCnt > 2)
+         *pCni = pVbiBuf->ni;
+      else
+         *pNiWait = (pVbiBuf->niRepCnt < 2);
+   }
+
+   *pDataPageCnt = pVbiBuf->dataPageCount;
 }
 
 // ---------------------------------------------------------------------------
@@ -234,6 +300,73 @@ static void EpgDbAcqMipPacket( uchar magNo, uchar pkgNo, const uchar *data )
 uint EpgDbAcqGetMipPageNo( void )
 {
    return pVbiBuf->mipPageNo;
+}
+
+// ---------------------------------------------------------------------------
+// reverse bit order in one byte
+//
+static uchar EpgDbAcqReverseBitOrder( uchar b )
+{
+   int i;
+   uchar result;
+
+   result = b & 0x1;
+
+   for (i=0; i < 7; i++)
+   {
+      b >>= 1;
+      result <<= 1;
+
+      result |= b & 0x1;
+   }
+
+   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Parse packet 8/30 /1 and /2 for CNI
+//
+static void EpgDbAcqGetP830Cni( const char * data )
+{
+   uchar pdcbuf[10];
+   uchar dc;
+   uint cni;
+
+   hamErr = 0;
+   dc = UnHam84Nibble(data);
+   if (hamErr == 0)
+   {
+      if (dc == 0)
+      {  // this is a packet 8/30/1
+         cni = ((uint)EpgDbAcqReverseBitOrder(data[7]) << 8) |
+                      EpgDbAcqReverseBitOrder(data[8]);
+         if ((cni != 0) && (cni != 0xffff))
+         {
+            // CNI is not parity protected, so we have to receive and compare it several times
+            if ( (pVbiBuf->niRepCnt > 0) && (pVbiBuf->ni != cni))
+            {  // comparison failure -> restart
+               debug2("EpgDbAcqGetP830Cni: pkg 8/30/1 CNI error: %04X != %04X", pVbiBuf->ni, cni);
+               pVbiBuf->niRepCnt = 0;
+            }
+            pVbiBuf->ni = cni;
+            pVbiBuf->niRepCnt += 1;
+         }
+      }
+      else if (dc == 4)
+      {  // this is a packet 8/30/2 (PDC)
+         memcpy(pdcbuf, data + 9, 9);
+         UnHam84Array(pdcbuf, 9);
+         if (hamErr == 0)
+         {
+            cni = (data[0] << 12) | ((data[6] & 3) << 10) | ((data[7] & 0xc) << 6) |
+                  ((data[1] & 0xc) << 4) | ((data[7] & 0x3) << 4) | (data[8] & 0xf);
+            if ((cni != 0) && (cni != 0xffff))
+            {
+               pVbiBuf->pdcCni = cni;
+            }
+         }
+      }
+   }
 }
 
 // ---------------------------------------------------------------------------
@@ -478,7 +611,7 @@ bool EpgDbAcqAddPacket( uint pageNo, uint sub, uchar pkgno, const uchar * data )
 {
    bool result = FALSE;
 
-   if (pVbiBuf->isEnabled)
+   if ((pVbiBuf != NULL) && pVbiBuf->isEnabled)
    {
       pVbiBuf->ttxPkgCount += 1;
 
@@ -495,7 +628,7 @@ bool EpgDbAcqAddPacket( uint pageNo, uint sub, uchar pkgno, const uchar * data )
          else
          {
             if ( (pageNo >> 8) == (pVbiBuf->epgPageNo >> 8) )
-            {  // same magazine, but not the EPG page -> skip this page
+            {  // same magazine, but not the EPG page -> previous EPG page closed
                pVbiBuf->isEpgPage = FALSE;
             }
 
@@ -506,20 +639,34 @@ bool EpgDbAcqAddPacket( uint pageNo, uint sub, uchar pkgno, const uchar * data )
             else
                pVbiBuf->isMipPage &= ~(1 << (pageNo >> 8));
          }
+
+         if (pVbiBuf->isEpgScan)
+            EpgStreamSyntaxScanHeader(pageNo, sub);
       }
-      else if ( pVbiBuf->isEpgPage &&
-                ((pageNo >> 8) == (pVbiBuf->epgPageNo >> 8)) &&
-                (pkgno < 26) )
-      {  // new EPG packet
-         EpgDbAcqBufferAdd(0, 0, pkgno, data);
-         pVbiBuf->epgPkgCount += 1;
-         result = TRUE;
+      else
+      {
+         if ( pVbiBuf->isEpgPage &&
+                   ((pageNo >> 8) == (pVbiBuf->epgPageNo >> 8)) &&
+                   (pkgno < 26) )
+         {  // new EPG packet
+            EpgDbAcqBufferAdd(0, 0, pkgno, data);
+            pVbiBuf->epgPkgCount += 1;
+            result = TRUE;
+         }
+         else if ( pVbiBuf->isMipPage & (1 << (pageNo >> 8)) )
+         {  // new MIP packet (may be received in parallel for several magazines)
+            EpgDbAcqMipPacket(pageNo >> 8, pkgno, data);
+         }
+         else if (pVbiBuf->isEpgScan && (pkgno == 30) && ((pageNo >> 8) == 0))
+         {  // packet 8/30/1 is evaluated for CNI during EPG scan
+            EpgDbAcqGetP830Cni(data);
+         }
+         // packets from other magazines (e.g. in parallel mode) and 8/30 have to be ignored
+
+         if (pVbiBuf->isEpgScan)
+            if (EpgStreamSyntaxScanPacket(pageNo>>8, pkgno, data))
+               pVbiBuf->dataPageCount += 1;
       }
-      else if ( pVbiBuf->isMipPage & (1 << (pageNo >> 8)) )
-      {  // new MIP packet (may be received in parallel for several magazines)
-         EpgDbAcqMipPacket(pageNo >> 8, pkgno, data);
-      }
-      // packets from other magazines (e.g. in parallel mode) and 8/30 have to be ignored
    }
 
    // return TRUE if packet was used by EPG

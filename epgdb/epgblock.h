@@ -25,7 +25,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgblock.h,v 1.8 2000/06/13 18:16:20 tom Exp tom $
+ *  $Id: epgblock.h,v 1.11 2000/06/26 18:21:04 tom Exp tom $
  */
 
 #ifndef __EPGBLOCK_H
@@ -226,9 +226,7 @@ typedef struct
 #define EV_ATTRIB_KIND_PROGNO_STOP  0x11  // last program prog_offset 
 #define EV_ATTRIB_KIND_NETWOP       0x18  // network operator netwop_no 
 #define EV_ATTRIB_KIND_THEME        0x20  // theme classes: 0x20-0x27
-#define EV_ATTRIB_KIND_THEME_7      0x27  // theme classes: 0x20-0x27
 #define EV_ATTRIB_KIND_SORTCRIT     0x30  // sorting crit.: 0x30-0x37
-#define EV_ATTRIB_KIND_SORTCRIT_7   0x37  // sorting crit.: 0x30-0x37
 #define EV_ATTRIB_KIND_EDITORIAL    0x40  // editorial rating editorial_rating 
 #define EV_ATTRIB_KIND_PARENTAL     0x41  // parental rating parental_rating 
 #define EV_ATTRIB_KIND_START_TIME   0x80  // start time time_code 
@@ -471,14 +469,23 @@ typedef struct
    uchar lockLevel;
    bool  modified;
    uint  pageNo;
+   ulong tunerFreq;
 
    EPGDB_BLOCK *pBiBlock;
    EPGDB_BLOCK *pAiBlock;
    EPGDB_BLOCK *pFirstPi, *pLastPi;
+   EPGDB_BLOCK *pObsoletePi;
    EPGDB_BLOCK *pFirstNetwopPi[MAX_NETWOP_COUNT];
    EPGDB_BLOCK *pFirstGenericBlock[BLOCK_TYPE_GENERIC_COUNT];
 } EPGDB_CONTEXT;
 
+typedef struct
+{
+   ulong  ai;
+   ulong  curVersion;
+   ulong  allVersions;
+   ulong  obsolete;
+} EPGDB_BLOCK_COUNT;
 
 // ----------------------------------------------------------------------------
 // Declaration of service interface functions

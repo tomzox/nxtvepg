@@ -21,23 +21,21 @@
 #
 #  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
 #
-#  $Id: epgui.tcl,v 1.17 2000/06/15 17:15:06 tom Exp tom $
+#  $Id: epgui.tcl,v 1.27 2000/07/08 11:03:30 tom Exp tom $
 #
 
 frame     .all -relief flat -borderwidth 0
-frame     .all.themes -borderwidth 2
-label     .all.themes.clock -borderwidth 1 -text {}
-pack      .all.themes.clock -fill x -pady 5
-button    .all.themes.reset -text "Reset" -relief ridge -command {ResetFilterState; C_ResetFilter}
-pack      .all.themes.reset -side top -fill x
+frame     .all.shortcuts -borderwidth 2
+label     .all.shortcuts.clock -borderwidth 1 -text {}
+pack      .all.shortcuts.clock -fill x -pady 5
+button    .all.shortcuts.reset -text "Reset" -relief ridge -command {ResetFilterState; C_ResetFilter all; C_ResetPiListbox}
+pack      .all.shortcuts.reset -side top -fill x
 
-listbox   .all.themes.list -exportselection false -setgrid true -height 12 -width 12 -selectmode extended -relief ridge
-.all.themes.list insert end "alle"
-.all.themes.list selection set 0
-bind      .all.themes.list <ButtonRelease-1> {+ SelectThemeListboxItem}
-bind      .all.themes.list <space> {+ SelectThemeListboxItem}
-pack      .all.themes.list -fill x
-pack      .all.themes -anchor nw -side left
+listbox   .all.shortcuts.list -exportselection false -setgrid true -height 12 -width 12 -selectmode extended -relief ridge
+bind      .all.shortcuts.list <ButtonRelease-1> {+ SelectShortcut}
+bind      .all.shortcuts.list <space> {+ SelectShortcut}
+pack      .all.shortcuts.list -fill x
+pack      .all.shortcuts -anchor nw -side left
 
 frame     .all.netwops
 listbox   .all.netwops.list -exportselection false -setgrid true -height 27 -width 8 -selectmode extended -relief ridge
@@ -114,77 +112,81 @@ menu .menubar.ctrl -tearoff 0 -postcommand C_SetControlMenuStates
 # Config menu
 menu .menubar.config -tearoff 0
 .menubar.config add command -label "Select provider..." -command ProvWin_Create
-.menubar.config add command -label "Networks..." -state disabled
-.menubar.config add command -label "Filter shortcuts..." -state disabled
+.menubar.config add command -label "Provider scan..." -command PopupEpgScan
+.menubar.config add command -label "Select networks..." -command PopupNetwopSelection
+.menubar.config add command -label "Filter shortcuts..." -command EditFilterShortcuts
+.menubar.config add separator
+.menubar.config add checkbutton -label "Show shortcuts" -command ToggleShortcutListbox -variable showShortcutListbox
+.menubar.config add checkbutton -label "Show networks" -command ToggleNetwopListbox -variable showNetwopListbox
 # Filter menu
 menu .menubar.filter
-.menubar.filter add cascade -menu .menubar.filter.sound -label Sound
-.menubar.filter add cascade -menu .menubar.filter.format -label Format
-.menubar.filter add cascade -menu .menubar.filter.digital -label Digital
-.menubar.filter add cascade -menu .menubar.filter.encryption -label Encryption
-.menubar.filter add cascade -menu .menubar.filter.live -label "Live/Repeat"
-.menubar.filter add cascade -menu .menubar.filter.subtitles -label Subtitles
-.menubar.filter add cascade -menu .menubar.filter.featureclass -label "Feature class"
-.menubar.filter add separator
+.menubar.filter add cascade -menu .menubar.filter.features -label Features
 .menubar.filter add cascade -menu .menubar.filter.p_rating -label "Parental Rating"
 .menubar.filter add cascade -menu .menubar.filter.e_rating -label "Editorial Rating"
 .menubar.filter add separator
 .menubar.filter add cascade -menu .menubar.filter.themes -label Themes
-.menubar.filter add cascade -menu .menubar.filter.themeclass -label "Theme class"
-.menubar.filter add separator
 .menubar.filter add cascade -menu .menubar.filter.series -label Series
 .menubar.filter add cascade -menu .menubar.filter.progidx -label "Program index"
 .menubar.filter add command -label "Text search..." -command SubStrPopup
 .menubar.filter add separator
-.menubar.filter add command -label "Add filter shortcut..." -state disabled
-.menubar.filter add command -label "Reset" -command {ResetFilterState; C_ResetFilter}
-menu .menubar.filter.sound
-.menubar.filter.sound add radio -label any -command {SelectFeatures 0 0 0x03} -variable feature_sound -value 0
-.menubar.filter.sound add radio -label mono -command {SelectFeatures 0x03 0x00 0} -variable feature_sound -value 1
-.menubar.filter.sound add radio -label stereo -command {SelectFeatures 0x03 0x02 0} -variable feature_sound -value 3
-.menubar.filter.sound add radio -label "2-channel" -command {SelectFeatures 0x03 0x01 0} -variable feature_sound -value 2
-.menubar.filter.sound add radio -label surround -command {SelectFeatures 0x03 0x03 0} -variable feature_sound -value 4
-menu .menubar.filter.format
-.menubar.filter.format add radio -label any -command {SelectFeatures 0 0 0x0c} -variable feature_format -value 0
-.menubar.filter.format add radio -label full -command {SelectFeatures 0x0c 0x00 0x00} -variable feature_format -value 1
-.menubar.filter.format add radio -label widescreen -command {SelectFeatures 0x04 0x04 0x08} -variable feature_format -value 2
-.menubar.filter.format add radio -label "PAL+" -command {SelectFeatures 0x08 0x08 0x04} -variable feature_format -value 3
-menu .menubar.filter.digital
-.menubar.filter.digital add radio -label any -command {SelectFeatures 0 0 0x10} -variable feature_digital -value 0
-.menubar.filter.digital add radio -label analog -command {SelectFeatures 0x10 0x00 0} -variable feature_digital -value 1
-.menubar.filter.digital add radio -label digital -command {SelectFeatures 0x10 0x10 0} -variable feature_digital -value 2
-menu .menubar.filter.encryption
-.menubar.filter.encryption add radio -label any -command {SelectFeatures 0 0 0x20} -variable feature_encryption -value 0
-.menubar.filter.encryption add radio -label free -command {SelectFeatures 0x20 0 0} -variable feature_encryption -value 1
-.menubar.filter.encryption add radio -label encrypted -command {SelectFeatures 0x20 0x20 0} -variable feature_encryption -value 2
-menu .menubar.filter.live
-.menubar.filter.live add radio -label any -command {SelectFeatures 0 0 0xc0} -variable feature_live -value 0
-.menubar.filter.live add radio -label live -command {SelectFeatures 0x40 0x40 0x80} -variable feature_live -value 2
-.menubar.filter.live add radio -label new -command {SelectFeatures 0xc0 0 0} -variable feature_live -value 1
-.menubar.filter.live add radio -label repeat -command {SelectFeatures 0x80 0x80 0x40} -variable feature_live -value 3
-menu .menubar.filter.subtitles
-.menubar.filter.subtitles add radio -label any -command {SelectFeatures 0 0 0x100} -variable feature_subtitles -value 0
-.menubar.filter.subtitles add radio -label untitled -command {SelectFeatures 0x100 0 0} -variable feature_subtitles -value 1
-.menubar.filter.subtitles add radio -label subtitle -command {SelectFeatures 0x100 0x100 0} -variable feature_subtitles -value 2
+.menubar.filter add command -label "Add filter shortcut..." -command AddFilterShortcut
+.menubar.filter add command -label "Reset" -command {ResetFilterState; C_ResetFilter all; C_ResetPiListbox}
 menu .menubar.filter.e_rating
-.menubar.filter.e_rating add radio -label any -command SelectRating -variable editorial_rating -value 0
-.menubar.filter.e_rating add radio -label "all rated programmes" -command SelectRating -variable editorial_rating -value 1
-.menubar.filter.e_rating add radio -label "at least 2 of 7" -command SelectRating -variable editorial_rating -value 2
-.menubar.filter.e_rating add radio -label "at least 3 of 7" -command SelectRating -variable editorial_rating -value 3
-.menubar.filter.e_rating add radio -label "at least 4 of 7" -command SelectRating -variable editorial_rating -value 4
-.menubar.filter.e_rating add radio -label "at least 5 of 7" -command SelectRating -variable editorial_rating -value 5
-.menubar.filter.e_rating add radio -label "at least 6 of 7" -command SelectRating -variable editorial_rating -value 6
-.menubar.filter.e_rating add radio -label "7 of 7" -command SelectRating -variable editorial_rating -value 7
+.menubar.filter.e_rating add radio -label any -command SelectEditorialRating -variable editorial_rating -value 0
+.menubar.filter.e_rating add radio -label "all rated programmes" -command SelectEditorialRating -variable editorial_rating -value 1
+.menubar.filter.e_rating add radio -label "at least 2 of 7" -command SelectEditorialRating -variable editorial_rating -value 2
+.menubar.filter.e_rating add radio -label "at least 3 of 7" -command SelectEditorialRating -variable editorial_rating -value 3
+.menubar.filter.e_rating add radio -label "at least 4 of 7" -command SelectEditorialRating -variable editorial_rating -value 4
+.menubar.filter.e_rating add radio -label "at least 5 of 7" -command SelectEditorialRating -variable editorial_rating -value 5
+.menubar.filter.e_rating add radio -label "at least 6 of 7" -command SelectEditorialRating -variable editorial_rating -value 6
+.menubar.filter.e_rating add radio -label "7 of 7" -command SelectEditorialRating -variable editorial_rating -value 7
 menu .menubar.filter.p_rating
-.menubar.filter.p_rating add radio -label any -command SelectRating -variable parental_rating -value 0
-.menubar.filter.p_rating add radio -label "ok for all ages" -command SelectRating -variable parental_rating -value 1
-.menubar.filter.p_rating add radio -label "ok for 4 years or elder" -command SelectRating -variable parental_rating -value 2
-.menubar.filter.p_rating add radio -label "ok for 6 years or elder" -command SelectRating -variable parental_rating -value 3
-.menubar.filter.p_rating add radio -label "ok for 8 years or elder" -command SelectRating -variable parental_rating -value 4
-.menubar.filter.p_rating add radio -label "ok for 10 years or elder" -command SelectRating -variable parental_rating -value 5
-.menubar.filter.p_rating add radio -label "ok for 12 years or elder" -command SelectRating -variable parental_rating -value 6
-.menubar.filter.p_rating add radio -label "ok for 14 years or elder" -command SelectRating -variable parental_rating -value 7
-.menubar.filter.p_rating add radio -label "ok for 16 years or elder" -command SelectRating -variable parental_rating -value 8
+.menubar.filter.p_rating add radio -label any -command SelectParentalRating -variable parental_rating -value 0
+.menubar.filter.p_rating add radio -label "ok for all ages" -command SelectParentalRating -variable parental_rating -value 1
+.menubar.filter.p_rating add radio -label "ok for 4 years or elder" -command SelectParentalRating -variable parental_rating -value 2
+.menubar.filter.p_rating add radio -label "ok for 6 years or elder" -command SelectParentalRating -variable parental_rating -value 3
+.menubar.filter.p_rating add radio -label "ok for 8 years or elder" -command SelectParentalRating -variable parental_rating -value 4
+.menubar.filter.p_rating add radio -label "ok for 10 years or elder" -command SelectParentalRating -variable parental_rating -value 5
+.menubar.filter.p_rating add radio -label "ok for 12 years or elder" -command SelectParentalRating -variable parental_rating -value 6
+.menubar.filter.p_rating add radio -label "ok for 14 years or elder" -command SelectParentalRating -variable parental_rating -value 7
+.menubar.filter.p_rating add radio -label "ok for 16 years or elder" -command SelectParentalRating -variable parental_rating -value 8
+menu .menubar.filter.features
+.menubar.filter.features add cascade -menu .menubar.filter.features.sound -label Sound
+.menubar.filter.features add cascade -menu .menubar.filter.features.format -label Format
+.menubar.filter.features add cascade -menu .menubar.filter.features.digital -label Digital
+.menubar.filter.features add cascade -menu .menubar.filter.features.encryption -label Encryption
+.menubar.filter.features add cascade -menu .menubar.filter.features.live -label "Live/Repeat"
+.menubar.filter.features add cascade -menu .menubar.filter.features.subtitles -label Subtitles
+.menubar.filter.features add separator
+.menubar.filter.features add cascade -menu .menubar.filter.features.featureclass -label "Feature class"
+menu .menubar.filter.features.sound
+.menubar.filter.features.sound add radio -label any -command {SelectFeatures 0 0 0x03} -variable feature_sound -value 0
+.menubar.filter.features.sound add radio -label mono -command {SelectFeatures 0x03 0x00 0} -variable feature_sound -value 1
+.menubar.filter.features.sound add radio -label stereo -command {SelectFeatures 0x03 0x02 0} -variable feature_sound -value 3
+.menubar.filter.features.sound add radio -label "2-channel" -command {SelectFeatures 0x03 0x01 0} -variable feature_sound -value 2
+.menubar.filter.features.sound add radio -label surround -command {SelectFeatures 0x03 0x03 0} -variable feature_sound -value 4
+menu .menubar.filter.features.format
+.menubar.filter.features.format add radio -label any -command {SelectFeatures 0 0 0x0c} -variable feature_format -value 0
+.menubar.filter.features.format add radio -label full -command {SelectFeatures 0x0c 0x00 0x00} -variable feature_format -value 1
+.menubar.filter.features.format add radio -label widescreen -command {SelectFeatures 0x04 0x04 0x08} -variable feature_format -value 2
+.menubar.filter.features.format add radio -label "PAL+" -command {SelectFeatures 0x08 0x08 0x04} -variable feature_format -value 3
+menu .menubar.filter.features.digital
+.menubar.filter.features.digital add radio -label any -command {SelectFeatures 0 0 0x10} -variable feature_digital -value 0
+.menubar.filter.features.digital add radio -label analog -command {SelectFeatures 0x10 0x00 0} -variable feature_digital -value 1
+.menubar.filter.features.digital add radio -label digital -command {SelectFeatures 0x10 0x10 0} -variable feature_digital -value 2
+menu .menubar.filter.features.encryption
+.menubar.filter.features.encryption add radio -label any -command {SelectFeatures 0 0 0x20} -variable feature_encryption -value 0
+.menubar.filter.features.encryption add radio -label free -command {SelectFeatures 0x20 0 0} -variable feature_encryption -value 1
+.menubar.filter.features.encryption add radio -label encrypted -command {SelectFeatures 0x20 0x20 0} -variable feature_encryption -value 2
+menu .menubar.filter.features.live
+.menubar.filter.features.live add radio -label any -command {SelectFeatures 0 0 0xc0} -variable feature_live -value 0
+.menubar.filter.features.live add radio -label live -command {SelectFeatures 0x40 0x40 0x80} -variable feature_live -value 2
+.menubar.filter.features.live add radio -label new -command {SelectFeatures 0xc0 0 0} -variable feature_live -value 1
+.menubar.filter.features.live add radio -label repeat -command {SelectFeatures 0x80 0x80 0x40} -variable feature_live -value 3
+menu .menubar.filter.features.subtitles
+.menubar.filter.features.subtitles add radio -label any -command {SelectFeatures 0 0 0x100} -variable feature_subtitles -value 0
+.menubar.filter.features.subtitles add radio -label untitled -command {SelectFeatures 0x100 0 0} -variable feature_subtitles -value 1
+.menubar.filter.features.subtitles add radio -label subtitle -command {SelectFeatures 0x100 0x100 0} -variable feature_subtitles -value 2
 menu .menubar.filter.themes
 menu .menubar.filter.series -postcommand {PostDynamicMenu .menubar.filter.series C_CreateSeriesNetwopMenu}
 menu .menubar.filter.progidx
@@ -193,15 +195,14 @@ menu .menubar.filter.progidx
 .menubar.filter.progidx add radio -label "running next" -command {SelectProgIdx 1 1} -variable filter_progidx -value 2
 .menubar.filter.progidx add radio -label "running now or next" -command {SelectProgIdx 0 1} -variable filter_progidx -value 3
 .menubar.filter.progidx add radio -label "other..." -command ProgIdxPopup -variable filter_progidx -value 4
-menu .menubar.filter.themeclass
-menu .menubar.filter.featureclass
+menu .menubar.filter.features.featureclass
 # Navigation menu
 menu .menubar.ni_1 -postcommand {PostDynamicMenu .menubar.ni_1 C_CreateNi}
 # Help menu
 menu .menubar.help -tearoff 0
 .menubar.help add command -label "About" -command CreateAbout
 
-# initialize menu status
+# initialize menu state
 set menuStatusStartAcq 0
 set menuStatusDumpStream 0
 set menuStatusThemeClass 1
@@ -230,65 +231,65 @@ proc GenerateFilterMenues {tcc fcc} {
          set subtheme $index
          .menubar.filter.themes add cascade -label $tlabel -menu .menubar.filter.themes.$subtheme
          menu .menubar.filter.themes.$subtheme
-         .menubar.filter.themes.$subtheme add checkbutton -label $pdc -command "SelectThemeMenuItem $subtheme" -variable theme_sel($subtheme)
+         .menubar.filter.themes.$subtheme add checkbutton -label $pdc -command "SelectTheme $subtheme" -variable theme_sel($subtheme)
          .menubar.filter.themes.$subtheme add separator
       } elseif {([string length $pdc] > 0) && ($subtheme > 0)} {
-         .menubar.filter.themes.$subtheme add checkbutton -label $pdc -command "SelectThemeMenuItem $index" -variable theme_sel($index)
+         .menubar.filter.themes.$subtheme add checkbutton -label $pdc -command "SelectTheme $index" -variable theme_sel($index)
       }
    }
    # add sub-menu with one entry: all series on all networks
    .menubar.filter.themes add cascade -menu .menubar.filter.themes.series -label "series"
    menu .menubar.filter.themes.series -tearoff 0
-   .menubar.filter.themes.series add checkbutton -label [C_GetPdcString 128] -command {SelectThemeMenuItem 128} -variable theme_sel(128)
+   .menubar.filter.themes.series add checkbutton -label [C_GetPdcString 128] -command {SelectTheme 128} -variable theme_sel(128)
+   # add theme-class sub-menu
+   .menubar.filter.themes add separator
+   .menubar.filter.themes add cascade -menu .menubar.filter.themes.themeclass -label "Theme class"
+   menu .menubar.filter.themes.themeclass
 
    for {set index 1} {$index <= $theme_class_count} {incr index} {
-      .menubar.filter.themeclass add radio -label $index -command SelectThemeClass -variable menuStatusThemeClass -value $index
+      .menubar.filter.themes.themeclass add radio -label $index -command SelectThemeClass -variable menuStatusThemeClass -value $index
    }
    for {set index 1} {$index <= $feature_class_count} {incr index} {
-      .menubar.filter.featureclass add radio -label $index -command {SelectFeatureClass $current_feature_class} -variable current_feature_class -value $index
+      .menubar.filter.features.featureclass add radio -label $index -command {SelectFeatureClass $current_feature_class} -variable current_feature_class -value $index
    }
 
 }
 
 ##  ---------------------------------------------------------------------------
-##  Predefined filter settings in the theme listbox
+##  Show or hide shortcuts and network filter listboxes
 ##
-set preDefThemeName(0)   "spielfilme"
-set preDefThemeValue(0)  [list 0x10 0x11 0x12 0x13 0x14 0x15 0x16 0x17 0x18]
-set preDefThemeName(1)   "sport"
-set preDefThemeValue(1)  [list 0x40 0x41 0x42 0x43 0x44 0x45 0x46 0x47 0x48 0x49 0x4a 0x4b 0x4c]
-set preDefThemeName(2)   "serien"
-set preDefThemeValue(2)  [list 0x80]
-set preDefThemeName(3)   "kinder"
-set preDefThemeValue(3)  [list 0x50 0x51 0x52 0x53 0x54 0x55]
-set preDefThemeName(4)   "shows"
-set preDefThemeValue(4)  [list 0x30 0x31 0x32 0x33]
-set preDefThemeName(5)   "news"
-set preDefThemeValue(5)  [list 0x20 0x21 0x22 0x23 0x24]
-set preDefThemeName(6)   "sozial"
-set preDefThemeValue(6)  [list 0x25 0x26 0x27 0x28]
-set preDefThemeName(7)   "wissenschaft"
-set preDefThemeValue(7)  [list 0x56 0x57 0x58 0x59 0x5a 0x5b 0x5c 0x5d]
-set preDefThemeName(8)   "hobby"
-set preDefThemeValue(8)  [list 0x34 0x35 0x36 0x37 0x38 0x39 0x3a]
-set preDefThemeName(9)   "musik"
-set preDefThemeValue(9)  [list 0x60 0x61 0x62 0x63 0x64 0x65 0x66]
-set preDefThemeName(10)  "kultur"
-set preDefThemeValue(10) [list 0x70 0x71 0x72 0x73 0x74 0x75 0x76 0x77 0x78 0x79 0x7a 0x7b]
-set preDefThemeName(11)  "erotik"
-set preDefThemeValue(11) [list 0x18]
-set preDefThemeCount 12
+set showNetwopListbox 1
+set showShortcutListbox 1
 
-proc InitThemesListbox {} {
-   global preDefThemeName preDefThemeValue
-   global preDefThemeCount
-
-   for {set index 0} {$index < $preDefThemeCount} {incr index} {
-      .all.themes.list insert end $preDefThemeName($index)
+proc ToggleNetwopListbox {} {
+   if {[lsearch -exact [pack slaves .all] .all.netwops] == -1} {
+      # netwop listbox is currently not visible -> pack left of PI listbox
+      pack .all.netwops -before .all.pi -side left -anchor n -pady 2 -padx 2
+      set showNetwopListbox 1
+   } else {
+      # visible -> unpack
+      pack forget .all.netwops
+      set showNetwopListbox 0
    }
-   .all.themes.list configure -height [expr $preDefThemeCount + 1]
+   UpdateRcFile
 }
 
+proc ToggleShortcutListbox {} {
+   if {[lsearch -exact [pack slaves .all] .all.shortcuts] == -1} {
+      # shortcuts listbox is currently not visible -> pack left of netwop bar or PI listbox
+      if {[lsearch -exact [pack slaves .all] .all.netwops] == -1} {
+         pack .all.shortcuts -before .all.pi -side left -anchor nw
+      } else {
+         pack .all.shortcuts -before .all.netwops -side left -anchor nw
+      }
+      set showShortcutListbox 1
+   } else {
+      # shortcuts listbox is visible -> unpack
+      pack forget .all.shortcuts
+      set showShortcutListbox 0
+   }
+   UpdateRcFile
+}
 
 ##  ---------------------------------------------------------------------------
 ##  Set the feature radio button states according to the mask/value pair of the current class
@@ -321,59 +322,90 @@ proc UpdateProgIdxMenuState {} {
    global progidx_first progidx_last
    global filter_progidx
 
-        if {($progidx_first == 0) && ($progidx_last == 0)} { set filter_progidx 1
+         if {($progidx_first == 0) && ($progidx_last == 0)} { set filter_progidx 1
    } elseif {($progidx_first == 1) && ($progidx_last == 1)} { set filter_progidx 2
    } elseif {($progidx_first == 0) && ($progidx_last == 1)} { set filter_progidx 3
-   } else                                                    { set filter_progidx 4
+   } else                                                   { set filter_progidx 4
    }
 }
 
 ##  ---------------------------------------------------------------------------
-##  Reset the filter state
+##  Reset the state of all filter menus
 ##
-proc ResetFilterState {} {
-   global feature_class_mask feature_class_value
-   global parental_rating editorial_rating
+proc ResetThemes {} {
    global theme_class_count current_theme_class menuStatusThemeClass
-   global feature_class_count current_feature_class
    global theme_sel theme_class_sel
-   global series_sel
-   global grepvar
-   global filter_progidx
 
-   # initialize feature filter state
-   set current_feature_class 1
-   for {set index 1} {$index <= $feature_class_count} {incr index} {
-      set feature_class_mask($index) 0
-      set feature_class_value($index) 0
-   }
-   UpdateFeatureMenuState
-
-   set parental_rating 0
-   set editorial_rating 0
-   set current_theme_class 1
-   set menuStatusThemeClass $current_theme_class
-   set grepvar {}
-   set filter_progidx 0
-
-   # initialize theme filter and menu state
-   foreach index [array names theme_sel] {
-      unset theme_sel($index)
+   if {[info exists theme_sel]} {
+      unset theme_sel
    }
    for {set index 1} {$index <= $theme_class_count} {incr index} {
       set theme_class_sel($index) {}
    }
+   set current_theme_class 1
+   set menuStatusThemeClass $current_theme_class
+}
 
-   # reset the theme and netwop quick filter bars
-   .all.themes.list selection clear 1 end
-   .all.themes.list selection set 0
-   .all.netwops.list selection clear 1 end
-   .all.netwops.list selection set 0
+proc ResetFeatures {} {
+   global feature_class_mask feature_class_value
+   global feature_class_count current_feature_class
 
-   # initialize series filter and menu state
+   for {set index 1} {$index <= $feature_class_count} {incr index} {
+      set feature_class_mask($index)  0
+      set feature_class_value($index) 0
+   }
+   set current_feature_class 1
+
+   UpdateFeatureMenuState
+}
+
+proc ResetSeries {} {
+   global series_sel
+
    foreach index [array names series_sel] {
       unset series_sel($index)
    }
+}
+
+proc ResetProgIdx {} {
+   global filter_progidx
+
+   set filter_progidx 0
+}
+
+proc ResetParentalRating {} {
+   global parental_rating editorial_rating
+
+   set parental_rating 0
+}
+
+proc ResetEditorialRating {} {
+   global parental_rating editorial_rating
+
+   set editorial_rating 0
+}
+
+proc ResetSubstr {} {
+   global substr_pattern
+
+   set substr_pattern {}
+}
+
+proc ResetFilterState {} {
+   ResetThemes
+   ResetFeatures
+   ResetSeries
+   ResetProgIdx
+   ResetParentalRating
+   ResetEditorialRating
+   ResetSubstr
+
+   # reset the filter shortcut bar
+   .all.shortcuts.list selection clear 0 end
+
+   # reset the netwop filter bar
+   .all.netwops.list selection clear 1 end
+   .all.netwops.list selection set 0
 }
 
 ##  --------------------- F I L T E R   C A L L B A C K S ---------------------
@@ -382,62 +414,40 @@ proc ResetFilterState {} {
 ##  Callback for button-release on netwop listbox
 ##
 proc SelectNetwop {} {
+   global netwop_map
+
    if {[.all.netwops.list selection includes 0]} {
       .all.netwops.list selection clear 1 end
       C_SelectNetwops {}
    } else {
-      C_SelectNetwops [.all.netwops.list curselection]
+      if {[info exists netwop_map]} {
+         foreach idx [.all.netwops.list curselection] {
+            if {[info exists netwop_map([expr $idx - 1])]} {
+               lappend all [expr $netwop_map([expr $idx - 1]) + 1]
+            }
+         }
+         C_SelectNetwops $all
+      } else {
+         C_SelectNetwops [.all.netwops.list curselection]
+      }
    }
+   C_RefreshPiListbox
 }
 
 ##
 ##  Update the filter context and refresh the listbox
 ##
-proc UpdateThemeFilters {} {
-   global current_theme_class
-   global theme_sel
+proc SelectTheme {index} {
+   global theme_sel current_theme_class
 
    set all {}
-   foreach {index value} [array get theme_sel "*"] {
-      if {[expr $value != 0]} {
+   foreach {index value} [array get theme_sel] {
+      if {$value != 0} {
          lappend all $index
       }
    }
    C_SelectThemes $current_theme_class $all
-}
-
-##
-##  Callback for button-release on theme listbox
-##
-proc SelectThemeListboxItem {} {
-   global preDefThemeValue
-   global theme_sel
-
-   if {[llength [.all.themes.list curselection]] == 0} {
-      .all.themes.list selection set 0
-   }
-
-   # reset all theme indices and menu state
-   for {set index 1} {$index <= 0x80} {incr index} {
-      set theme_sel($index) 0
-   }
-   if {[.all.themes.list selection includes 0]} {
-      .all.themes.list selection clear 1 end
-   } else {
-      # then set the selected themes
-      foreach theme [.all.themes.list curselection] {
-         foreach index $preDefThemeValue([expr $theme - 1]) {
-            # need to convert index to decimal value
-            set theme_sel([expr $index + 0]) 1
-         }
-      }
-   }
-
-   UpdateThemeFilters
-}
-
-proc SelectThemeMenuItem {index} {
-   UpdateThemeFilters
+   C_RefreshPiListbox
 }
 
 ##
@@ -462,8 +472,8 @@ proc SelectThemeClass {} {
       }
       set theme_class_sel($current_theme_class) $all
 
-      .all.themes.list selection clear 1 end
-      .all.themes.list selection set 0
+      .all.shortcuts.list selection clear 1 end
+      .all.shortcuts.list selection set 0
 
       # copy the new classes settings into the array, thereby setting the menu state
       set current_theme_class $menuStatusThemeClass
@@ -488,8 +498,8 @@ proc SelectFeatures {mask value unmask} {
    set curvalue $feature_class_value($current_feature_class)
 
    ## change the state of the feature group given by mask
-   set curmask [expr ($mask & ~$unmask) | $mask]
-   set curvalue [expr ($value & ~($mask | $unmask)) | $value]
+   set curmask [expr ($curmask & ~$unmask) | $mask]
+   set curvalue [expr ($curvalue & ~($mask | $unmask)) | $value]
 
    ## save the new state into the global array
    set feature_class_mask($current_feature_class) $curmask
@@ -505,6 +515,7 @@ proc SelectFeatures {mask value unmask} {
 
    ## update the database filter context and re-display the listbox
    C_SelectFeatures $all
+   C_RefreshPiListbox
 }
 
 ##
@@ -526,12 +537,23 @@ proc SelectFeatureClass {new_class} {
 
 
 ##
-##  Callback for parental and editorial rating radio buttons
+##  Callback for parental rating radio buttons
 ##
-proc SelectRating {} {
-   global parental_rating editorial_rating
+proc SelectParentalRating {} {
+   global parental_rating
 
-   C_SelectRating $parental_rating $editorial_rating
+   C_SelectParentalRating $parental_rating
+   C_RefreshPiListbox
+}
+
+##
+##  Callback for parental rating radio buttons
+##
+proc SelectEditorialRating {} {
+   global editorial_rating
+
+   C_SelectEditorialRating $editorial_rating
+   C_RefreshPiListbox
 }
 
 ##
@@ -556,6 +578,7 @@ proc SelectSeries {series} {
    } else {
       C_SelectSeries $series 1
    }
+   C_RefreshPiListbox
 }
 
 ##
@@ -573,6 +596,7 @@ proc SelectProgIdx {first last} {
    } else {
       C_SelectProgIdx
    }
+   C_RefreshPiListbox
 }
 
 ##  ---------------------------------------------------------------------------
@@ -607,6 +631,87 @@ proc Create_PopupPi {ident xcoo ycoo} {
    #$poppedup_pi.text configure -state disabled
    #$poppedup_pi.text configure -height [expr 1 + [$poppedup_pi.text index end]]
    #pack $poppedup_pi.text
+}
+
+## ---------------------------------------------------------------------------
+## Sort a list of network names and append them to the series networks menu
+##
+proc CompareSeriesMenuNetwops {ordarr a b} {
+   upvar $ordarr order
+
+   if {[info exists order([lindex $a 0])]} {
+      set ord_a $order([lindex $a 0])
+   } else {
+      set ord_a 0xff
+   }
+
+   if {[info exists order([lindex $b 0])]} {
+      set ord_b $order([lindex $b 0])
+   } else {
+      set ord_b 0xff
+   }
+
+     if     {[expr $ord_a < $ord_b]} { return -1
+   } elseif {[expr $ord_a > $ord_b]} { return  1
+   } else                            { return  0
+   }
+}
+
+proc FillSeriesMenu {parent prov netlist} {
+   global netwop_map
+
+   # get reverse netwop mapping, i.e. user-selected netwop ordering
+   foreach {idx val} [array get netwop_map] {
+      set order($val) $idx
+   }
+
+   foreach item [lsort -command {CompareSeriesMenuNetwops order} $netlist] {
+      set netwop [lindex $item 0]
+      # check if netwop is suppressed by user config
+      if {[info exists order($netwop)]} {
+         set child $parent.netwop_$netwop
+
+         $parent add cascade -label [lindex $item 1] -menu $child
+         if {![info exist dynmenu_posted($child)] || ($dynmenu_posted($child) == 0)} {
+            menu $child -postcommand [list PostDynamicMenu $child C_CreateSeriesMenu]
+         }
+      }
+   }
+}
+
+##  ---------------------------------------------------------------------------
+##  Sort a list of programme titles and append them to a series menu
+##
+proc CompareSeriesMenuEntries {a b} {
+   return [string compare [lindex $a 0] [lindex $b 0]]
+}
+
+proc CreateSeriesMenuEntries {menu_name tmp_list lang} {
+   set all {}
+   foreach {title series} $tmp_list {
+      switch $lang {
+         0 {  # English
+            regsub -nocase -- "^(the|a) (.*)" $title {\2, \1} result
+         }
+         1 {  # German
+            regsub -nocase -- "^(der|die|das|ein|eine) (.*)" $title {\2, \1} result
+         }
+         3 {  # Italian
+            regsub -nocase -- "^(una|uno|la) (.*)" $title {\2, \1} result
+         }
+         4 {  # French
+            regsub -nocase -- "^(un |une |la |le |les |l')(.*)" $title {\2, \1} result
+         }
+         default {
+            set result $title
+         }
+      }
+      # force the new first title character to be uppercase (for sorting)
+      lappend all [list [string toupper [string index $result 0]][string range $result 1 end] $series]
+   }
+   foreach item [lsort -command CompareSeriesMenuEntries $all] {
+      $menu_name add checkbutton -label [lindex $item 0] -variable series_sel([lindex $item 1]) -command [list SelectSeries [lindex $item 1]]
+   }
 }
 
 ##  ---------------------------------------------------------------------------
@@ -672,7 +777,7 @@ set substr_grep_title 1
 set substr_grep_descr 1
 set substr_ignore_case 0
 set substr_popup 0
-set grepvar {}
+set substr_pattern {}
 
 # check that at lease one of the {title descr} options remains checked
 proc SubstrCheckOptScope {varname} {
@@ -686,15 +791,16 @@ proc SubstrCheckOptScope {varname} {
 # update the filter context and refresh the PI listbox
 proc SubstrUpdateFilter {} {
    global substr_grep_title substr_grep_descr substr_ignore_case
-   global grepvar
+   global substr_pattern
 
-   C_SelectSubStr $substr_grep_title $substr_grep_descr $substr_ignore_case $grepvar
+   C_SelectSubStr $substr_grep_title $substr_grep_descr $substr_ignore_case $substr_pattern
+   C_RefreshPiListbox
 }
 
 proc SubStrPopup {} {
    global substr_grep_title substr_grep_descr
    global substr_popup
-   global grepvar
+   global substr_pattern
 
    if {$substr_popup == 0} {
       toplevel .substr
@@ -708,7 +814,7 @@ proc SubStrPopup {} {
       frame .substr.all.name
       label .substr.all.name.prompt -text "Enter text:"
       pack .substr.all.name.prompt -side left
-      entry .substr.all.name.str -textvariable grepvar
+      entry .substr.all.name.str -textvariable substr_pattern
       pack .substr.all.name.str -side left
       bind .substr.all.name.str <Enter> {focus %W}
       bind .substr.all.name.str <Return> SubstrUpdateFilter
@@ -730,7 +836,7 @@ proc SubStrPopup {} {
       frame .substr.all.cmd
       button .substr.all.cmd.apply -text "Apply" -command SubstrUpdateFilter
       pack .substr.all.cmd.apply -side left -padx 10
-      button .substr.all.cmd.clear -text "Clear" -command {set grepvar {}; SubstrUpdateFilter}
+      button .substr.all.cmd.clear -text "Clear" -command {set substr_pattern {}; SubstrUpdateFilter}
       pack .substr.all.cmd.clear -side left -padx 10
       button .substr.all.cmd.dismiss -text "Dismiss" -command {destroy .substr}
       pack .substr.all.cmd.dismiss -side left -padx 10
@@ -760,6 +866,7 @@ proc ProgIdxSelection {which val} {
    }
    C_SelectProgIdx $progidx_first $progidx_last
    UpdateProgIdxMenuState
+   C_RefreshPiListbox
 }
 
 proc ProgIdxPopup {} {
@@ -786,7 +893,7 @@ proc ProgIdxPopup {} {
       pack .progidx.lastidx -side top -fill x -expand 1
 
       frame .progidx.cmd
-      button .progidx.cmd.clear -text "Undo" -command {set filter_progidx 0; C_SelectProgIdx; destroy .progidx}
+      button .progidx.cmd.clear -text "Undo" -command {set filter_progidx 0; C_SelectProgIdx; C_RefreshPiListbox; destroy .progidx}
       pack .progidx.cmd.clear -side left -padx 20
       button .progidx.cmd.dismiss -text "Dismiss" -command {destroy .progidx}
       pack .progidx.cmd.dismiss -side left -padx 20
@@ -878,15 +985,19 @@ proc CreateAbout {} {
    if {$about_popup == 0} {
       set about_popup 1
       toplevel .about
-      wm title .about "About Nextview"
+      wm title .about "About Nextview EPG"
       wm resizable .about 0 0
       wm group .about .
+      label .about.name -text "Nextview EPG Decoder & Analyzer"
+      pack .about.name -side top -pady 8
+      label .about.logo -bitmap nxtv_logo
+      pack .about.logo -side top -pady 8
+      label .about.version -text "v0.02alpha / pre-release"
+      pack .about.version -side top
+      label .about.copyr1 -text "Copyright © 1999,2000 by Tom Zörner"
+      label .about.copyr2 -text "<Tom.Zoerner@informatik.uni-erlangen.de>"
+      pack .about.copyr1 .about.copyr2 -side top
       message .about.m -text {
-         Nextview EPG Decoder & Analyzer
-         v0.01alpha / pre-release
-
-         Copyright © 1999,2000 by Tom Zörner
-         <Tom.Zoerner@informatik.uni-erlangen.de>
 
 If you publish any information that was acquired by use of this software, please do always include a note about the source of your information and where to obtain a copy of this software.
 
@@ -894,7 +1005,7 @@ This program is free software; you can redistribute it and/or modify it under th
 
 THIS PROGRAM IS DISTRIBUTED IN THE HOPE THAT IT WILL BE USEFUL, BUT WITHOUT ANY WARRANTY; WITHOUT EVEN THE IMPLIED WARRANTY OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
       }
-      pack .about.m
+      pack .about.m -side top
       bind .about.m <Destroy> {+ set about_popup 0}
 
       button .about.dismiss -text "Dismiss" -command {destroy .about}
@@ -958,13 +1069,296 @@ proc ProvWin_Create {} {
       bind .provwin.n <Destroy> {+ set provwin_popup 0; C_ProvWin_Exit}
 
       # empty the list of providers
-      foreach index [array names provwin_list] {
-         unset provwin_list($index)
+      if {[info exists provwin_list]} {
+         unset provwin_list
       }
 
       # fill the window
       C_ProvWin_Open
    }
+}
+
+##  --------------------------------------------------------------------------
+##  Create EPG scan popup-window
+##
+set epgscan_popup 0
+set epgscan_timeout 2
+
+proc PopupEpgScan {} {
+   global epgscan_popup
+
+   if {$epgscan_popup == 0} {
+      toplevel .epgscan
+      wm title .epgscan "Scan for Nextview EPG providers"
+      wm resizable .epgscan 0 0
+      wm group .epgscan .
+      set epgscan_popup 1
+
+      frame  .epgscan.cmd
+      # control commands
+      button .epgscan.cmd.start -text "Start scan" -width 12 -command C_StartEpgScan
+      button .epgscan.cmd.stop -text "Abort scan" -width 12 -command C_StopEpgScan -state disabled
+      button .epgscan.cmd.dismiss -text "Dismiss" -width 12 -command {destroy .epgscan}
+      pack .epgscan.cmd.start .epgscan.cmd.stop .epgscan.cmd.dismiss -side top -padx 10 -pady 10
+      pack .epgscan.cmd -side left
+
+      frame .epgscan.all -relief raised -bd 2
+      # progress bar
+      frame .epgscan.all.baro -width 140 -height 15 -relief sunken -borderwidth 2
+      pack propagate .epgscan.all.baro 0
+      frame .epgscan.all.baro.bari -width 0 -height 11 -background blue
+      pack propagate .epgscan.all.baro.bari 0
+      pack .epgscan.all.baro.bari -padx 2 -pady 2 -side left -anchor w
+      pack .epgscan.all.baro -pady 5
+
+      # message window to inform about the scanning state
+      frame .epgscan.all.fmsg
+      text .epgscan.all.fmsg.msg -width 35 -height 7 -yscrollcommand {.epgscan.all.fmsg.sb set} -wrap none
+      pack .epgscan.all.fmsg.msg -side left
+      scrollbar .epgscan.all.fmsg.sb -orient vertical -command {.epgscan.all.fmsg.msg yview}
+      pack .epgscan.all.fmsg.sb -side left -fill y
+      pack .epgscan.all.fmsg -side top -padx 10 -pady 10
+
+      pack .epgscan.all -side top -fill y -expand 1
+      bind .epgscan.all <Destroy> {+ set epgscan_popup 0; C_StopEpgScan}
+
+      .epgscan.all.fmsg.msg insert end "Press the <Start scan> button\n"
+
+      # force input focus into the popup
+      grab .epgscan
+   }
+}
+
+
+##  --------------------------------------------------------------------------
+##  Network selection popup
+##
+set netsel_popup 0
+
+proc PopupNetwopSelection {} {
+   global netsel_popup
+   global netsel_prov netsel_selist netsel_ailist netsel_names
+   global cfnetwops
+
+   if {$netsel_popup == 0} {
+      # get CNI of currently selected provider (or 0 if db is empty)
+      set netsel_prov [C_GetProvCni]
+      if {$netsel_prov != 0} {
+         toplevel .netsel
+         wm title .netsel "Network Selection"
+         wm resizable .netsel 0 0
+         wm group .netsel .
+         set netsel_popup 1
+
+         ## first column: listbox with all netwops in AI order
+         listbox .netsel.ailist -exportselection false -setgrid true -height 27 -width 12 -selectmode extended -relief ridge
+         pack .netsel.ailist -fill x -anchor nw -side left -pady 10 -padx 10 -fill y -expand 1
+         bind .netsel.ailist <ButtonPress-1> {+ .netsel.selist selection clear 0 end}
+
+         ## second column: command buttons
+         frame .netsel.cmd
+         button .netsel.cmd.addnet -text "add" -command {AddSelectedNetwop} -width 7
+         pack .netsel.cmd.addnet -side top -anchor nw -pady 10
+
+         button .netsel.cmd.up -text "up" -command {ShiftUpSelectedNetwop} -width 7
+         pack .netsel.cmd.up -side top -anchor nw
+         button .netsel.cmd.down -text "down" -command {ShiftDownSelectedNetwop} -width 7
+         pack .netsel.cmd.down -side top -anchor nw
+         button .netsel.cmd.delnet -text "delete" -command {RemoveSelectedNetwop} -width 7
+         pack .netsel.cmd.delnet -side top -anchor nw -pady 10
+
+         button .netsel.cmd.save -text "Save" -command {SaveSelectedNetwopList} -width 7
+         pack .netsel.cmd.save -side bottom -anchor sw
+         button .netsel.cmd.abort -text "Abort" -command {destroy .netsel} -width 7
+         pack .netsel.cmd.abort -side bottom -anchor sw
+
+         pack .netsel.cmd -side left -anchor nw -pady 10 -padx 5 -fill y -expand 1
+         bind .netsel.cmd <Destroy> {+ set netsel_popup 0}
+
+         ## third column: selected netwops in selected order
+         listbox .netsel.selist -exportselection false -setgrid true -height 27 -width 12 -selectmode extended -relief ridge
+         pack .netsel.selist -fill x -anchor nw -side left -pady 10 -padx 10 -fill y -expand 1
+         bind .netsel.selist <ButtonPress-1> {+ .netsel.ailist selection clear 0 end}
+
+         # fetch CNI list from AI block in database
+         # as a side effect this function stores all netwop names into the array netsel_names
+         set netsel_ailist [C_GetAiNetwopList]
+         # initialize list of user-selected CNIs
+         if {[info exists cfnetwops($netsel_prov)]} {
+            set netsel_selist [lindex $cfnetwops($netsel_prov) 0]
+         } else {
+            set netsel_selist $netsel_ailist
+         }
+
+         foreach cni $netsel_ailist {
+            .netsel.ailist insert end $netsel_names($cni)
+         }
+         foreach cni $netsel_selist {
+            .netsel.selist insert end $netsel_names($cni)
+         }
+         .netsel.ailist configure -height [llength $netsel_ailist]
+         .netsel.selist configure -height [llength $netsel_ailist]
+      } else {
+         # no AI block in database
+         tk_messageBox -type ok -default ok -icon error -message "Cannot configure networks without a provider selected."
+      }
+   }
+}
+
+# selected items in the AI CNI list are appended to the selection list
+proc AddSelectedNetwop {} {
+   global netsel_prov netsel_selist netsel_ailist netsel_names
+
+   foreach index [.netsel.ailist curselection] {
+      set cni [lindex $netsel_ailist $index]
+      if {[lsearch -exact $netsel_selist $cni] == -1} {
+         lappend netsel_selist $cni
+         .netsel.selist insert end $netsel_names($cni)
+      }
+   }
+   .netsel.selist selection clear 0 end
+}
+
+# all selected items are removed from the list
+proc RemoveSelectedNetwop {} {
+   global netsel_prov netsel_selist netsel_ailist netsel_names
+
+   foreach index [lsort -integer -decreasing [.netsel.selist curselection]] {
+      .netsel.selist delete $index
+      set netsel_selist [lreplace $netsel_selist $index $index]
+   }
+   .netsel.ailist selection clear 0 end
+}
+
+# move all selected items up by one row
+# - the selected items may be non-consecutive
+# - the first row must not be selected
+proc ShiftUpSelectedNetwop {} {
+   global netsel_prov netsel_selist netsel_ailist netsel_names
+
+   set el [lsort -integer -increasing [.netsel.selist curselection]]
+   if {[lindex $el 0] > 0} {
+      foreach index $el {
+         .netsel.selist delete [expr $index - 1]
+         .netsel.selist insert $index $netsel_names([lindex $netsel_selist [expr $index - 1]])
+         set netsel_selist [lreplace $netsel_selist [expr $index - 1] $index \
+                                   [lindex $netsel_selist $index] \
+                                   [lindex $netsel_selist [expr $index - 1]]]
+      }
+   }
+   .netsel.ailist selection clear 0 end
+}
+
+# move all selected items down by one row
+proc ShiftDownSelectedNetwop {} {
+   global netsel_prov netsel_selist netsel_ailist netsel_names
+
+   set el [lsort -integer -decreasing [.netsel.selist curselection]]
+   if {[lindex $el 0] < [expr [llength $netsel_selist] - 1]} {
+      foreach index $el {
+         .netsel.selist delete [expr $index + 1]
+         .netsel.selist insert $index $netsel_names([lindex $netsel_selist [expr $index + 1]])
+         set netsel_selist [lreplace $netsel_selist $index [expr $index + 1] \
+                                   [lindex $netsel_selist [expr $index + 1]] \
+                                   [lindex $netsel_selist $index]]
+      }
+   }
+   .netsel.ailist selection clear 0 end
+}
+
+# finished -> save and apply the user selection
+proc SaveSelectedNetwopList {} {
+   global netsel_prov netsel_selist netsel_ailist netsel_names
+   global cfnetwops
+
+   # make list of CNIs from AI which are missing in the user selection
+   set sup {}
+   foreach cni $netsel_ailist {
+      if {[lsearch -exact $netsel_selist $cni] == -1} {
+         lappend sup $cni
+      }
+   }
+   set cfnetwops($netsel_prov) [list $netsel_selist $sup]
+
+   # save list into rc/ini file
+   UpdateRcFile
+   after idle C_UpdateNetwopList
+
+   # close popup
+   destroy .netsel
+}
+
+## ---------------------------------------------------------------------------
+## Update netwop filter bar according to filter selection
+## - note: all CNIs have to be in the format 0x%04X
+##
+proc UpdateNetwopFilterBar {prov} {
+   global netsel_names cfnetwops netwop_map
+
+   # fetch CNI list from AI block in database
+   # as a side effect this function stores all netwop names into the array netsel_names
+   if {[array exists netsel_names]} { unset netsel_names }
+   set ailist [C_GetAiNetwopList]
+   # initialize list of user-selected CNIs
+   if {[info exists cfnetwops($prov)]} {
+      set selist [lindex $cfnetwops($prov) 0]
+      set suplist [lindex $cfnetwops($prov) 1]
+   } else {
+      set selist $ailist
+      set suplist {}
+   }
+
+   if {[info exists netwop_map]} { unset netwop_map }
+   set index 0
+   foreach cni $ailist {
+      set order($cni) $index
+      incr index
+   }
+
+   .all.netwops.list delete 1 end
+   .all.netwops.list selection set 0
+   set nlidx 0
+   foreach cni $selist {
+      if {[info exists netsel_names($cni)]} {
+         # CNI still exists in actual AI -> add to filter bar
+         .all.netwops.list insert end $netsel_names($cni)
+         set netwop_map($nlidx) $order($cni)
+         unset netsel_names($cni)
+      } else {
+         # CNI no longer exists -> remove from selection, do not add to filter bar
+         set selist [lreplace $selist $nlidx $nlidx]
+      }
+      incr nlidx
+   }
+
+   set index 0
+   foreach cni $suplist {
+      if {[info exists netsel_names($cni)]} {
+         unset netsel_names($cni)
+      } else {
+         # CNI no longer exists -> remove from suppressed list
+         set suplist [lreplace $suplist $index $index]
+      }
+      incr index
+   }
+
+   foreach cni [array names netsel_names] {
+      lappend selist $netsel_names($cni)
+      .all.netwops.list insert end $netsel_names($cni)
+      set netwop_map($nlidx) $order($cni)
+      incr nlidx
+   }
+   .all.netwops.list configure -height [expr [llength $selist] + 1]
+
+   set cfnetwops($prov) [list $selist $suplist]
+   UpdateRcFile
+
+   # return list of indices of suppressed netwops
+   set supidx {}
+   foreach cni $suplist {
+      lappend supidx $order($cni)
+   }
+   return $supidx
 }
 
 ## ---------------------------------------------------------------------------
@@ -1041,15 +1435,26 @@ proc AcqStat_Create {} {
 ## ---------------------------------------------------------------------------
 ## Add a line to the history graph
 ##
-proc AcqStat_AddHistory {pos val1c val1o val2c val2o} {
+proc AcqStat_AddHistory {pos valEx val1c val1o val2c val2o} {
 
    .acqstat.hist addtag "TBDEL" enclosed $pos 0 [expr $pos + 2] 128
    catch [ .acqstat.hist delete "TBDEL" ]
 
-   .acqstat.hist create line $pos 128 $pos [expr 128 - $val1c] -fill red
-   .acqstat.hist create line $pos [expr 128 - $val1c] $pos [expr 128 - $val1o] -fill #A52A2A
-   .acqstat.hist create line $pos [expr 128 - $val1o] $pos [expr 128 - $val2c] -fill blue
-   .acqstat.hist create line $pos [expr 128 - $val2c] $pos [expr 128 - $val2o] -fill #483D8B
+   if {$valEx > 0} {
+      .acqstat.hist create line $pos 128 $pos [expr 128 - $valEx] -fill yellow
+   }
+   if {$val1c > $valEx} {
+      .acqstat.hist create line $pos [expr 128 - $valEx] $pos [expr 128 - $val1c] -fill red
+   }
+   if {$val1o > $val1c} {
+      .acqstat.hist create line $pos [expr 128 - $val1c] $pos [expr 128 - $val1o] -fill #A52A2A
+   }
+   if {$val2c > $val1o} {
+      .acqstat.hist create line $pos [expr 128 - $val1o] $pos [expr 128 - $val2c] -fill blue
+   }
+   if {$val2o > $val2c} {
+      .acqstat.hist create line $pos [expr 128 - $val2c] $pos [expr 128 - $val2o] -fill #483D8B
+   }
 }
 
 ## ---------------------------------------------------------------------------
@@ -1058,5 +1463,734 @@ proc AcqStat_AddHistory {pos val1c val1o val2c val2o} {
 proc AcqStat_ClearHistory {} {
    # the tag "all" is automatically assigned to every item in the canvas
    catch [ .acqstat.hist delete all ]
+}
+
+
+## ---------------------------------------------------------------------------
+##                    F I L T E R   S H O R T C U T S
+## ---------------------------------------------------------------------------
+
+set fsc_name_idx 0
+set fsc_mask_idx 1
+set fsc_filt_idx 2
+set fsc_logi_idx 3
+
+##
+##  Predefined filter shortcuts
+##
+proc PreloadShortcuts {} {
+   global shortcuts shortcut_count
+
+   set shortcuts(0)  {spielfilme   themes {theme_class1 0x10-0x18} merge}
+   set shortcuts(1)  {sport        themes {theme_class1 0x40-0x4c} merge}
+   set shortcuts(2)  {serien       themes {theme_class1 0x80} merge}
+   set shortcuts(3)  {kinder       themes {theme_class1 0x50-0x55} merge}
+   set shortcuts(4)  {shows        themes {theme_class1 0x30-0x33} merge}
+   set shortcuts(5)  {news         themes {theme_class1 0x20-0x24} merge}
+   set shortcuts(6)  {sozial       themes {theme_class1 0x25-0x28} merge}
+   set shortcuts(7)  {wissenschaft themes {theme_class1 0x56-0x5d} merge}
+   set shortcuts(8)  {hobby        themes {theme_class1 0x34-0x3a} merge}
+   set shortcuts(9)  {musik        themes {theme_class1 0x60-0x66} merge}
+   set shortcuts(10) {kultur       themes {theme_class1 0x70-0x7b} merge}
+   set shortcuts(11) {erotik       themes {theme_class1 0x18} merge}
+   set shortcut_count 12
+}
+
+##
+##  Process list of theme filters: convert to decimal and expand ranges
+##
+proc ProcessThemeSpec {tlist} {
+   set result {}
+   foreach theme $tlist {
+      if {[scan $theme "%d-%d" start stop]==2 || [scan $theme "0x%x-0x%x" start stop]==2} {
+         for {} {$start <= $stop} {incr start} {
+            lappend result $start
+         }
+      } else {
+         lappend result [expr $theme + 0]
+      }
+   }
+   return $result
+}
+
+##
+##  Callback for button-release on shortcuts listbox
+##
+proc SelectShortcut {} {
+   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_logi_idx
+   global shortcuts shortcut_count
+   global parental_rating editorial_rating
+   global progidx_first progidx_last
+   global theme_sel theme_class_sel current_theme_class theme_class_count
+   global feature_class_count feature_class_mask feature_class_value
+   global progidx_first progidx_last filter_progidx
+   global substr_pattern substr_grep_title substr_grep_descr substr_ignore_case
+   global fsc_prevselection
+
+   # determine which shortcuts are no longer selected
+   set fsc_curselection [.all.shortcuts.list curselection]
+   if {[info exists fsc_prevselection]} {
+      foreach index $fsc_prevselection {
+         set deleted($index) 1
+      }
+      foreach index $fsc_curselection {
+         if {[info exists deleted($index)]} {
+            unset deleted($index)
+         }
+      }
+   }
+   set fsc_prevselection $fsc_curselection
+
+   # reset all filters in the combined mask
+   foreach index $fsc_curselection {
+      foreach index [lindex $shortcuts($index) $fsc_mask_idx] {
+         # reset filter menu state; remember which types were reset
+         switch -exact $index {
+            themes     {ResetThemes;          set reset(themes) 1}
+            features   {ResetFeatures;        set reset(features) 1}
+            series     {ResetSeries;          set reset(series) 1}
+            parental   {ResetParentalRating;  set reset(parental) 1}
+            editorial  {ResetEditorialRating; set reset(editorial) 1}
+            progidx    {ResetProgIdx;         set reset(progidx) 1}
+            substr     {ResetSubstr;          set reset(substr) 1}
+         }
+         # disable the filter in the filter context
+         C_ResetFilter $index
+      }
+   }
+
+   # clear all filters of deselected shortcuts
+   foreach index [array names deleted] {
+      foreach {ident valist} [lindex $shortcuts($index) $fsc_filt_idx] {
+         if {![info exists reset($ident)]} {
+            switch -glob $ident {
+               theme_class*   {
+                  scan $ident "theme_class%d" class
+                  # note: use eval to avoid appending as a sub-list
+                  eval lappend tcdesel($class) [ProcessThemeSpec $valist]
+               }
+               features {
+                  foreach {mask value} $valist {
+                     for {set class 1} {$class <= $feature_class_count} {incr class} {
+                        if {($feature_class_mask($class) == $mask) && ($feature_class_value($class) == $value)} {
+                           set feature_class_mask($class)  0
+                           set feature_class_value($class) 0
+                        }
+                     }
+                  }
+               }
+               parental {
+                  set parental_rating 0
+                  C_SelectParentalRating 0
+               }
+               editorial {
+                  set editorial_rating 0
+                  C_SelectEditorialRating 0
+               }
+               substr {
+                  set substr_pattern {}
+                  C_SelectSubStr {} 0 0 0
+               }
+               progidx {
+                  set filter_progidx 0
+                  C_SelectProgIdx
+               }
+               series {
+                  foreach series $valist {
+                     set series_sel($series) 0
+                     C_SelectSeries $series 0
+                     #SelectSeries $series
+                  }
+               }
+               default {
+               }
+            }
+         }
+      }
+   }
+
+   # set all filters in all selected shortcuts (merge)
+   foreach index $fsc_curselection {
+      foreach {ident valist} [lindex $shortcuts($index) $fsc_filt_idx] {
+         switch -glob $ident {
+            theme_class*   {
+               scan $ident "theme_class%d" class
+               # note: use eval to avoid appending as a sub-list
+               eval lappend tcsel($class) [ProcessThemeSpec $valist]
+            }
+            features {
+               foreach {mask value} $valist {
+                  # search the first unused class; if none found, drop the filter
+                  for {set class 1} {$class <= $feature_class_count} {incr class} {
+                     if {$feature_class_mask($class) == 0} break
+                  }
+                  if {$class <= $feature_class_count} {
+                     set feature_class_mask($class)  $mask
+                     set feature_class_value($class) $value
+                  }
+               }
+            }
+            parental {
+               set rating [lindex $valist 0]
+               if {($rating < $parental_rating) || ($parental_rating == 0)} {
+                  set parental_rating $rating
+                  C_SelectParentalRating $parental_rating
+               }
+            }
+            editorial {
+               set rating [lindex $valist 0]
+               if {($rating > $editorial_rating) || ($editorial_rating == 0)} {
+                  set editorial_rating [lindex $valist 0]
+                  C_SelectEditorialRating $editorial_rating
+               }
+            }
+            substr {
+               set substr_grep_title  [lindex $valist 0]
+               set substr_grep_descr  [lindex $valist 1]
+               set substr_ignore_case [lindex $valist 2]
+               set substr_pattern     [lindex $valist 3]
+               C_SelectSubStr $substr_grep_title $substr_grep_descr $substr_ignore_case $substr_pattern
+            }
+            progidx {
+               if {($progidx_first > [lindex $valist 0]) || ($filter_progidx == 0)} {
+                  set progidx_first [lindex $valist 0]
+               }
+               if {($progidx_last < [lindex $valist 1]) || ($filter_progidx == 0)} {
+                  set progidx_last  [lindex $valist 1]
+               }
+               C_SelectProgIdx $progidx_first $progidx_last
+               UpdateProgIdxMenuState
+            }
+            series {
+               foreach series $valist {
+                  set series_sel($series) 1
+                  C_SelectSeries $series 1
+               }
+            }
+            default {
+            }
+         }
+      }
+   }
+
+   # set the collected themes filter
+   for {set class 1} {$class < $theme_class_count} {incr class} {
+      if {$class == $current_theme_class} {
+         if {[info exists tcdesel($class)]} {
+            foreach theme $tcdesel($class) {
+               set theme_sel($theme) 0
+            }
+         }
+         if {[info exists tcsel($class)]} {
+            foreach theme $tcsel($class) {
+               set theme_sel($theme) 1
+            }
+         }
+         set theme_class_sel($class) {}
+         foreach {index value} [array get theme_sel] {
+            if {$value != 0} {
+               eval lappend theme_class_sel($class) $index
+            }
+         }
+      } else {
+         if {[info exists tcsel($class)]} {
+            set theme_class_sel($class) $tcsel($class)
+            # XXX TODO: substract tcdesel
+         }
+      }
+      C_SelectThemes $class $theme_class_sel($class)
+   }
+
+   # set the collected feature filters
+   set all {}
+   for {set class 1} {$class <= $feature_class_count} {incr class} {
+      if {[expr $feature_class_mask($class) != 0]} {
+         lappend all $feature_class_mask($class) $feature_class_value($class)
+      }
+   }
+   UpdateFeatureMenuState
+   C_SelectFeatures $all
+
+   # finally display the PI selected by the new filter setting
+   C_RefreshPiListbox
+}
+
+##
+##  Generate a list that describes all current filter settings
+##
+proc DescribeCurrentFilter {} {
+   global feature_class_mask feature_class_value
+   global parental_rating editorial_rating
+   global theme_class_count current_theme_class
+   global feature_class_count current_feature_class
+   global theme_sel theme_class_sel
+   global series_sel
+   global substr_grep_title substr_grep_descr substr_ignore_case substr_pattern
+   global filter_progidx progidx_first progidx_last
+   global fscedit_desc fscedit_mask
+
+   # save the setting of the current theme class into the array
+   set all {}
+   foreach {index value} [array get theme_sel] {
+      if {[expr $value != 0]} {
+         lappend all $index
+      }
+   }
+   set theme_class_sel($current_theme_class) $all
+
+   set all {}
+   if {[info exists fscedit_mask]} {unset fscedit_mask}
+
+   # dump all theme classes
+   for {set class 1} {$class <= $theme_class_count} {incr class} {
+      if {[string length $theme_class_sel($class)] > 0} {
+         lappend all "theme_class$class" $theme_class_sel($class)
+         set fscedit_mask(themes) 1
+      }
+   }
+
+   # dump feature filter state
+   set temp {}
+   for {set class 1} {$class <= $feature_class_count} {incr class} {
+      if {[expr $feature_class_mask($class) != 0]} {
+         lappend temp $feature_class_mask($class) $feature_class_value($class)
+      }
+   }
+   if {[string length $temp] > 0} {
+      lappend all "features" $temp
+      set fscedit_mask(features) 1
+   }
+
+   if {$parental_rating > 0} {
+      lappend all "parental" $parental_rating
+      set fscedit_mask(parental) 1
+   }
+   if {$editorial_rating > 0} {
+      lappend all "editorial" $editorial_rating
+      set fscedit_mask(editorial) 1
+   }
+
+   if {[string length $substr_pattern] > 0} {
+      lappend all "substr" [list $substr_grep_title $substr_grep_descr $substr_ignore_case $substr_pattern]
+      set fscedit_mask(substr) 1
+   }
+
+   if {$filter_progidx > 0} {
+      lappend all "progidx" [list $progidx_first $progidx_last]
+      set fscedit_mask(progidx) 1
+   }
+
+   # dump series array
+   set temp {}
+   foreach index [array names series_sel] {
+      if {$series_sel($index) != 0} {
+         lappend temp $index
+      }
+   }
+   if {[string length $temp] > 0} {
+      lappend all "series" $temp
+      set fscedit_mask(series) 1
+   }
+
+   return $all
+}
+
+##  --------------------------------------------------------------------------
+##  Popup window to add the current filter setting as new shortcut
+##
+proc AddFilterShortcut {} {
+   global shortcuts shortcut_count
+   global fscedit_desc fscedit_mask
+   global fscedit_sclist fscedit_count
+   global fscedit_popup
+
+   if {$fscedit_popup == 0} {
+
+      # copy the shortcuts into a temporary array
+      if {[info exists fscedit_sclist]} {unset fscedit_sclist}
+      array set fscedit_sclist [array get shortcuts]
+      set fscedit_count $shortcut_count
+
+      # determine current filter settings and a default mask
+      set filt [DescribeCurrentFilter]
+      set mask {}
+      foreach index [array names fscedit_mask] {
+         if {$fscedit_mask($index) != 0} {
+            lappend mask $index
+         }
+      }
+      set name "shortcut #$fscedit_count"
+
+      set fscedit_sclist($fscedit_count) [list $name $mask $filt merge]
+      incr fscedit_count
+
+      if {[string length $mask] == 0} {
+         set answer [tk_messageBox -type okcancel -icon warning -message "Currently no filters selected. Do you still want to continue?"]
+         if {[string compare $answer "cancel"] == 0} {
+            return
+         }
+      }
+
+      PopupFilterShortcuts
+      # select the new entry in the listbox
+      .fscedit.list selection set [expr $fscedit_count - 1]
+      SelectEditedShortcut
+   }
+}
+
+##  --------------------------------------------------------------------------
+##  Popup window to edit the shortcut list
+##
+proc EditFilterShortcuts {} {
+   global shortcuts shortcut_count
+   global fscedit_desc fscedit_mask
+   global fscedit_sclist fscedit_count
+   global fscedit_popup
+
+   if {$fscedit_popup == 0} {
+
+      # copy the shortcuts into a temporary array
+      if {[info exists fscedit_sclist]} {unset fscedit_sclist}
+      array set fscedit_sclist [array get shortcuts]
+      set fscedit_count $shortcut_count
+
+      PopupFilterShortcuts
+      # select the first listbox entry
+      .fscedit.list selection set 0
+      SelectEditedShortcut
+   }
+}
+
+##  --------------------------------------------------------------------------
+##  Edit filter shortcut pop-up window
+##
+set fscedit_label ""
+set fscedit_popup 0
+
+proc PopupFilterShortcuts {} {
+   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_logi_idx
+   global fscedit_sclist fscedit_count
+   global fscedit_popup fscedit_label
+
+   if {$fscedit_popup == 0} {
+      toplevel .fscedit
+      wm title .fscedit "Edit shortcuts"
+      wm resizable .fscedit 0 0
+      wm group .fscedit .
+      set fscedit_popup 1
+
+      ## first column: listbox with all shortcut labels
+      listbox .fscedit.list -exportselection false -setgrid true -height 12 -width 12 -selectmode single -relief ridge
+      bind .fscedit.list <ButtonRelease-1> {+ SelectEditedShortcut}
+      bind .fscedit.list <KeyRelease-space> {+ SelectEditedShortcut}
+      pack .fscedit.list -fill x -anchor nw -side left -pady 10 -padx 10 -fill y -expand 1
+
+      ## second column: command buttons and entry widget to rename shortcuts
+      frame .fscedit.cmd
+      entry .fscedit.cmd.label -textvariable fscedit_label -width 15
+      pack .fscedit.cmd.label -side top -anchor nw
+      bind .fscedit.cmd.label <Enter> {focus %W}
+      bind .fscedit.cmd.label <Return> {+ UpdateEditedShortcut}
+      focus .fscedit.cmd.label
+      button .fscedit.cmd.rename -text "update" -command {UpdateEditedShortcut} -width 7
+      pack .fscedit.cmd.rename -side top -anchor nw -pady 10
+
+      button .fscedit.cmd.up -text "up" -command {ShiftUpEditedShortcut} -width 7
+      pack .fscedit.cmd.up -side top -anchor nw
+      button .fscedit.cmd.down -text "down" -command {ShiftDownEditedShortcut} -width 7
+      pack .fscedit.cmd.down -side top -anchor nw
+      button .fscedit.cmd.delete -text "delete" -command {DeleteEditedShortcut} -width 7
+      pack .fscedit.cmd.delete -side top -anchor nw -pady 10
+
+      button .fscedit.cmd.save -text "Save" -command {SaveEditedShortcuts} -width 7
+      pack .fscedit.cmd.save -side bottom -anchor sw
+      button .fscedit.cmd.abort -text "Abort" -command {destroy .fscedit} -width 7
+      pack .fscedit.cmd.abort -side bottom -anchor sw
+
+      pack .fscedit.cmd -side left -anchor nw -pady 10 -padx 5 -fill y -expand 1
+      bind .fscedit.cmd <Destroy> {+ set fscedit_popup 0}
+
+      ## third column: shortcut flags
+      frame .fscedit.flags
+      label .fscedit.flags.lm -text "Filter mask:"
+      pack .fscedit.flags.lm -side top -anchor w
+      frame .fscedit.flags.mask -relief ridge -bd 1
+      frame .fscedit.flags.mask.one
+      checkbutton .fscedit.flags.mask.one.features  -text "Features" -variable fscedit_mask(features)
+      checkbutton .fscedit.flags.mask.one.parental  -text "Parental rating" -variable fscedit_mask(parental)
+      checkbutton .fscedit.flags.mask.one.editorial -text "Editorial rating" -variable fscedit_mask(editorial)
+      checkbutton .fscedit.flags.mask.one.progidx   -text "Program index" -variable fscedit_mask(progidx)
+      pack .fscedit.flags.mask.one.features  -side top -anchor nw
+      pack .fscedit.flags.mask.one.parental  -side top -anchor nw
+      pack .fscedit.flags.mask.one.editorial -side top -anchor nw
+      pack .fscedit.flags.mask.one.progidx   -side top -anchor nw
+      pack .fscedit.flags.mask.one -side left -anchor nw -padx 5
+
+      frame .fscedit.flags.mask.two
+      checkbutton .fscedit.flags.mask.two.themes -text "Themes" -variable fscedit_mask(themes)
+      checkbutton .fscedit.flags.mask.two.series -text "Series" -variable fscedit_mask(series)
+      checkbutton .fscedit.flags.mask.two.substr -text "Text search" -variable fscedit_mask(substr)
+      checkbutton .fscedit.flags.mask.two.other  -text "other" -variable fscedit_mask(other)
+      pack .fscedit.flags.mask.two.themes -side top -anchor nw
+      pack .fscedit.flags.mask.two.series -side top -anchor nw
+      pack .fscedit.flags.mask.two.substr -side top -anchor nw
+      pack .fscedit.flags.mask.two.other  -side top -anchor nw
+      pack .fscedit.flags.mask.two -side left -anchor nw -padx 5
+      pack .fscedit.flags.mask -side top -pady 10 -fill x
+
+      label .fscedit.flags.ll -text "Combination with other shortcuts:"
+      pack .fscedit.flags.ll -side top -anchor w
+      frame .fscedit.flags.logic -relief ridge -bd 1
+      radiobutton .fscedit.flags.logic.merge -text "merge" -variable fscedit_logic -value "merge"
+      radiobutton .fscedit.flags.logic.or -text "logical OR" -variable fscedit_logic -value "or" -state disabled
+      radiobutton .fscedit.flags.logic.and -text "logical AND" -variable fscedit_logic -value "and" -state disabled
+      pack .fscedit.flags.logic.merge .fscedit.flags.logic.or .fscedit.flags.logic.and -side top -anchor w -padx 5
+      pack .fscedit.flags.logic -side top -pady 10 -fill x
+      pack .fscedit.flags -side left -anchor nw -pady 10 -padx 10
+
+      # fill the listbox with all shortcut labels
+      for {set index 0} {$index < $fscedit_count} {incr index} {
+         .fscedit.list insert end [lindex $fscedit_sclist($index) $fsc_name_idx]
+      }
+      .fscedit.list configure -height $fscedit_count
+   }
+}
+
+proc SaveEditedShortcuts {} {
+   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_logi_idx
+   global fscedit_sclist fscedit_count
+   global shortcuts shortcut_count
+
+   # copy temporary array back into the shortcuts array
+   unset shortcuts
+   array set shortcuts [array get fscedit_sclist]
+   set shortcut_count $fscedit_count
+
+   # close the popup window
+   destroy .fscedit
+
+   # save the shortcuts config into the rc/ini file
+   UpdateRcFile
+
+   # update the shortcut listbox
+   .all.shortcuts.list delete 0 end
+   for {set index 0} {$index < $shortcut_count} {incr index} {
+      .all.shortcuts.list insert end [lindex $shortcuts($index) $fsc_name_idx]
+   }
+   .all.shortcuts.list configure -height $shortcut_count
+}
+
+proc SelectEditedShortcut {} {
+   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_logi_idx
+   global fscedit_label fscedit_mask fscedit_logic
+   global fscedit_sclist fscedit_count
+
+   set sel [.fscedit.list curselection]
+   if {([string length $sel] > 0) && ($sel < $fscedit_count)} {
+      # set label displayed in entry widget
+      set fscedit_label [lindex $fscedit_sclist($sel) $fsc_name_idx]
+      .fscedit.cmd.label selection range 0 end
+
+      # set combination logic radiobuttons
+      set fscedit_logic [lindex $fscedit_sclist($sel) $fsc_logi_idx]
+
+      # set mask checkbuttons
+      unset fscedit_mask
+      foreach index [lindex $fscedit_sclist($sel) $fsc_mask_idx] {
+         set fscedit_mask($index) 1
+      }
+   }
+}
+
+proc UpdateEditedShortcut {} {
+   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_logi_idx
+   global fscedit_sclist fscedit_count
+   global fscedit_mask fscedit_logic fscedit_label
+
+   set sel [.fscedit.list curselection]
+   if {([string length $sel] > 0) && ($sel < $fscedit_count)} {
+      set mask {}
+      foreach index [array names fscedit_mask] {
+         if {$fscedit_mask($index) != 0} {
+            lappend mask $index
+         }
+      }
+      # update mask setting
+      set fscedit_sclist($sel) [lreplace $fscedit_sclist($sel) $fsc_mask_idx $fsc_mask_idx $mask]
+
+      # update combination logic setting
+      set fscedit_sclist($sel) [lreplace $fscedit_sclist($sel) $fsc_logi_idx $fsc_logi_idx $fscedit_logic]
+
+      # update description label
+      if {[string length $fscedit_label] > 0} {
+         set fscedit_sclist($sel) [lreplace $fscedit_sclist($sel) $fsc_name_idx $fsc_name_idx $fscedit_label]
+
+         .fscedit.list delete $sel
+         .fscedit.list insert $sel $fscedit_label
+         .fscedit.list selection set $sel
+      }
+   }
+}
+
+proc DeleteEditedShortcut {} {
+   global fscedit_sclist fscedit_count
+
+   set sel [.fscedit.list curselection]
+   if {([string length $sel] > 0) && ($sel < $fscedit_count)} {
+      for {set index [expr $sel + 1]} {$index < $fscedit_count} {incr index} {
+         set fscedit_sclist([expr $index - 1]) $fscedit_sclist($index)
+      }
+      incr fscedit_count -1
+
+      .fscedit.list delete $sel
+      if {$sel < $fscedit_count} {
+         .fscedit.list selection set $sel
+      } elseif {$fscedit_count > 0} {
+         .fscedit.list selection set [expr $sel - 1]
+      }
+   }
+}
+
+proc ShiftUpEditedShortcut {} {
+   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_logi_idx
+   global fscedit_sclist fscedit_count
+
+   set sel [.fscedit.list curselection]
+   if {([string length $sel] > 0) && ($sel > 0) && ($sel < $fscedit_count)} {
+      # swap with the item above
+      set tmp $fscedit_sclist($sel)
+      set fscedit_sclist($sel) $fscedit_sclist([expr $sel - 1])
+      set fscedit_sclist([expr $sel - 1]) $tmp
+
+      .fscedit.list delete $sel
+      incr sel -1
+      .fscedit.list insert $sel [lindex $fscedit_sclist($sel) $fsc_name_idx]
+      .fscedit.list selection set $sel
+   }
+}
+
+proc ShiftDownEditedShortcut {} {
+   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_logi_idx
+   global fscedit_sclist fscedit_count
+
+   set sel [.fscedit.list curselection]
+   if {([string length $sel] > 0) && ($fscedit_count > 1) && ($sel < [expr $fscedit_count - 1])} {
+      # swap with the item below
+      set tmp $fscedit_sclist($sel)
+      set fscedit_sclist($sel) $fscedit_sclist([expr $sel + 1])
+      set fscedit_sclist([expr $sel + 1]) $tmp
+
+      .fscedit.list delete $sel
+      incr sel
+      .fscedit.list insert $sel [lindex $fscedit_sclist($sel) $fsc_name_idx]
+      .fscedit.list selection set $sel
+   }
+}
+
+## ---------------------------------------------------------------------------
+##                    R C - F I L E   H A N D L I N G
+## ---------------------------------------------------------------------------
+set myrcfile ""
+
+proc LoadRcFile {filename} {
+   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_logi_idx
+   global shortcuts shortcut_count
+   global prov_selection cfnetwops
+   global showNetwopListbox showShortcutListbox
+   global myrcfile
+
+   set myrcfile $filename
+   set shortcut_count 0
+   set error 0
+   set line_no 0
+
+   if {[catch {set rcfile [open $filename "r"]}] == 0} {
+      while {[gets $rcfile line] >= 0} {
+         incr line_no
+         if {([catch $line] != 0) && !$error} {
+            tk_messageBox -type ok -default ok -icon error -message "error in rc/ini file, line #$line_no: $line"
+            set error 1
+         }
+      }
+      close $rcfile
+
+      if {$showShortcutListbox == 0} {pack forget .all.shortcuts}
+      if {$showNetwopListbox == 0} {pack forget .all.netwops}
+
+   } else {
+      # ini file does not exist -> dump default settings
+      PreloadShortcuts
+      UpdateRcFile
+   }
+
+   for {set index 0} {$index < $shortcut_count} {incr index} {
+      .all.shortcuts.list insert end [lindex $shortcuts($index) $fsc_name_idx]
+   }
+   .all.shortcuts.list configure -height $shortcut_count
+}
+
+##
+##  Write all config variables into the rc/ini file
+##
+proc UpdateRcFile {} {
+   global shortcuts shortcut_count
+   global prov_selection cfnetwops
+   global showNetwopListbox showShortcutListbox
+   global myrcfile
+
+   if {[catch {set rcfile [open $myrcfile "w"]}] == 0} {
+      puts $rcfile "#"
+      puts $rcfile "# Nextview EPG configuration file"
+      puts $rcfile "#"
+      puts $rcfile "# This file is automatically generated - do not edit"
+      puts $rcfile "# Written at: [clock format [clock seconds] -format %c]"
+      puts $rcfile "#"
+
+      # dump filter shortcuts
+      for {set index 0} {$index < $shortcut_count} {incr index} {
+         puts $rcfile [list set shortcuts($index) $shortcuts($index)]
+      }
+      puts $rcfile [list set shortcut_count $shortcut_count]
+
+      # dump provider selection order
+      puts $rcfile [list set prov_selection $prov_selection]
+
+      # dump network selection for all providers
+      foreach index [array names cfnetwops] {
+         puts $rcfile [list set cfnetwops($index) $cfnetwops($index)]
+      }
+
+      # dump shortcuts & network listbox visibility
+      puts $rcfile [list set showNetwopListbox $showNetwopListbox]
+      puts $rcfile [list set showShortcutListbox $showShortcutListbox]
+
+      close $rcfile
+   } else {
+      tk_messageBox -type ok -default ok -icon error -message "could not write to ini file $myrcfile"
+   }
+}
+
+##
+##  Update the provider selection order: move the last selected CNI to the front
+##
+set prov_selection {}
+
+proc UpdateProvSelection {cni} {
+   global prov_selection
+
+   # delete the cni in the old list
+   set index 0
+   foreach prov $prov_selection {
+      if {$prov == $cni} {
+         set prov_selection [lreplace $prov_selection $index $index]
+         break
+      }
+      incr index
+   }
+   # prepend the cni to the selection list
+   set prov_selection [linsert $prov_selection 0 $cni]
+
+   # save the new list into the ini/rc file
+   UpdateRcFile
 }
 

@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgdbacq.h,v 1.6 2000/06/14 19:19:05 tom Exp tom $
+ *  $Id: epgdbacq.h,v 1.8 2000/06/24 18:03:13 tom Exp tom $
  */
 
 #ifndef __EPGDBACQ_H
@@ -52,10 +52,18 @@ typedef struct
 typedef struct
 {
    bool       isEnabled;
+   bool       isEpgScan;
    bool       isEpgPage;
    uchar      isMipPage;
    uint       epgPageNo;
+
    uint       mipPageNo;
+   uint       dataPageCount;
+   uint       vpsCni;
+   uint       pdcCni;
+   uint       ni;
+   uchar      niRepCnt;
+
    uint       writer_idx;
    uint       reader_idx;
    VBI_LINE   line[EPGACQ_BUF_COUNT];
@@ -80,6 +88,8 @@ void EpgDbAcqInit( EPGACQ_BUF * pShm );
 void EpgDbAcqStart( EPGDB_CONTEXT *dbc, uint pageNo, uint appId );
 void EpgDbAcqStop( void );
 void EpgDbAcqReset( EPGDB_CONTEXT *dbc, uint pageNo, uint appId );
+void EpgDbAcqInitScan( void );
+void EpgDbAcqGetScanResults( uint *pCni, bool *pNiWait, uint *pDataPageCnt );
 uint EpgDbAcqGetMipPageNo( void );
 void EpgDbAcqGetStatistics( ulong *pTtxPkgCount, ulong *pEpgPkgCount, ulong *pEpgPagCount );
 

@@ -23,13 +23,15 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: vbidecode.c,v 1.12 2000/06/14 19:25:06 tom Exp tom $
+ *  $Id: vbidecode.c,v 1.15 2000/07/08 18:33:53 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
 #define DPRINTF_OFF
 
 #ifndef WIN32
+#include "sys/ioctl.h"
+
 #include <sys/types.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -79,15 +81,10 @@
 #define FPSHIFT 16
 #define FPFAC (1<<FPSHIFT)
 
-// use standard frequency for Bt848 and PAL/NTSC
-#define NORM PAL
-#if NORM == PAL
+// use standard frequency for Bt848 and PAL
+// (no Nextview exists in any NTSC countries)
 #define VTSTEP  ((int)((35.468950/6.9375)*FPFAC+0.5))
 #define VPSSTEP ((int)(7.1 * FPFAC + 0.5))
-#else
-#define VTSTEP  ((int)((28.636363/5.72725)*FPFAC+0.5))
-#define VPSSTEP 0  // VPS is defined for PAL only
-#endif
 
 
 // ---------------------------------------------------------------------------
@@ -106,7 +103,7 @@ static void VbiDecodePacket( uchar *dat )
 
    if (hamErr)
    {
-      debug0("packet header decoding error - skipping");
+      //debug0("packet header decoding error - skipping");
    }
    else if (pack == 0)
    { // this is a page header - start of a new page
@@ -117,8 +114,7 @@ static void VbiDecodePacket( uchar *dat )
          //printf("**** page=%x%02x.%04X\n", mag, page, sub);
          EpgDbAcqAddPacket(((uint)mag << 8) | page, sub, 0, dat + 5);
       }
-      else
-         debug0("page number or subcode hamming error - skipping page");
+      //else debug0("page number or subcode hamming error - skipping page");
    }
    else
    {
@@ -147,7 +143,7 @@ static uchar vtscan(uchar *lbuf, ulong *spos, int off)
 // ---------------------------------------------------------------------------
 //   Get one byte from the analog VPS data line
 //   VPS uses a lower bit rate than teletext
-#if DO_VPS
+//
 static uchar vps_scan(uchar *lbuf, ulong *spos, int off)
 { 
   int j;
@@ -159,7 +155,6 @@ static uchar vps_scan(uchar *lbuf, ulong *spos, int off)
 
   return theByte;
 }
-#endif //DO_VPS
 
 // ---------------------------------------------------------------------------
 // Low level decoder of raw VBI data 
@@ -231,8 +226,8 @@ void VbiDecodeLine(uchar *lbuf, int line)
         break;
     }
   }
-  #if DO_VPS
-  else if (line == 9) //  || (line = 28)
+  #ifndef WIN32
+  else if ((line == 9) && pVbiBuf->isEpgScan)
   {
      if ((vps_scan(lbuf, &dpos, off) == 0x55) &&  // VPS run in
 	 (vps_scan(lbuf, &dpos, off) == 0x55) &&
@@ -256,15 +251,17 @@ void VbiDecodeLine(uchar *lbuf, int line)
 
 	if (i > 14)
 	{
-	   printf("VPS line %d %02x%02x\n",  line,
-		  ((data[13] & 0x3) << 2) | ((data[14] & 0xc0) >> 6),
-		  ((data[11] & 0xc0) ) | (data[14] & 0x3f));
+           uint cni = ((data[13] & 0x3) << 10) | ((data[14] & 0xc0) << 2) |
+                      ((data[11] & 0xc0) ) | (data[14] & 0x3f);
+           if ((cni != 0) && ((cni & 0xfff) != 0xfff))
+              pVbiBuf->vpsCni = cni;
+	   //printf("VPS line %d: CNI=0x%04x\n", line, cni);
 	}
      }
      //else
         //printf("VPS line %d=%02x %02x %02x\n", line, data[1], data[2], data[3]);
   }
-  #endif
+  #endif  //WIN32
   //else
      //printf("****** line=%d  [0]=%x != 0x54\n", line, data[0]);
   
@@ -318,6 +315,202 @@ bool VbiDecodeFrame( void )
       perror("vbi decode: read");  // unguenstig, weil output nach stderr
 
    return (stat > 0);
+}
+
+// ---------------------------------------------------------------------------
+// Channel frequency table (Europe only)
+//
+typedef struct
+{
+   double  freqStart;      // base freq of first channel in this band
+   double  freqMax;        // max. freq of last channel, including fine-tuning
+   uint    freqOffset;     // freq offset between two channels in this band
+   uint    firstChannel;
+   uint    lastChannel;
+} FREQ_TABLE;
+
+// channel table for Europe
+#define FREQ_TABLE_COUNT  8
+#define FIRST_CHANNEL   2
+const FREQ_TABLE freqTable[FREQ_TABLE_COUNT] =
+{  // must be sorted by channel numbers
+   { 48.25,   66.25, 7.0,   2,   4},
+   {175.25,  228.25, 7.0,   5,  12},
+   {471.25,  859.25, 8.0,  21,  69},
+   {112.25,  172.25, 7.0,  72,  80},
+   {231.25,  298.25, 7.0,  81,  90},
+   {303.25,  451.25, 8.0,  91, 109},
+   {455.25,  471.25, 8.0, 110, 112},
+   {859.25, 1175.25, 8.0, 161, 200}
+};
+
+// ---------------------------------------------------------------------------
+// Get number of channels in table (for EPG scan progress bar)
+//
+int VbiGetChannelCount( void )
+{
+   int band, count;
+
+   count = 0;
+   for (band=0; band < FREQ_TABLE_COUNT; band++)
+   {
+      count += freqTable[band].lastChannel - freqTable[band].firstChannel + 1;
+   }
+   return count;
+}
+
+// ---------------------------------------------------------------------------
+// Get the next channel and frequency from the table
+//
+bool VbiGetNextChannel( uint *pChan, ulong *pFreq )
+{
+   int band;
+
+   if (*pChan < FIRST_CHANNEL)
+      *pChan = FIRST_CHANNEL;
+   else
+      *pChan = *pChan + 1;
+
+   for (band=0; band < FREQ_TABLE_COUNT; band++)
+   {
+      // assume that the table is sorted by channel numbers
+      if (*pChan < freqTable[band].lastChannel)
+      {
+         // skip possible channel gap between bands
+         if (*pChan < freqTable[band].firstChannel)
+            *pChan = freqTable[band].firstChannel;
+
+         // get the frequency of this channel
+         *pFreq = (ulong) (16.0 * (freqTable[band].freqStart +
+                                  (*pChan - freqTable[band].firstChannel) * freqTable[band].freqOffset));
+         break;
+      }
+   }
+
+   return (band < FREQ_TABLE_COUNT);
+}
+
+// ---------------------------------------------------------------------------
+// Open video device for access to tuner
+//
+static int video_fd = -1;
+static bool VbiTuneOpenDevice( void )
+{
+   struct video_capability vcapab;
+   struct video_channel vchan;
+   struct video_tuner vtuner;
+   bool result = FALSE;
+
+   video_fd = open("/dev/video", O_RDWR);
+   if (video_fd != -1)
+   {
+      // get capabilities: number of channels
+      if (ioctl(video_fd, VIDIOCGCAP, &vcapab) == 0)
+      {
+         // search for the TV tuner channel
+         for (vchan.channel=0; vchan.channel < vcapab.channels; vchan.channel++)
+         {
+            if ((ioctl(video_fd, VIDIOCGCHAN, &vchan) == 0) &&
+                (vchan.type == VIDEO_TYPE_TV) &&
+                (vchan.flags & VIDEO_VC_TUNER))
+               break;
+         }
+         if (vchan.channel < vcapab.channels)
+         {  // found a tuner
+            //printf("found tuner on channel %d\n", vchan.channel);
+
+            // query the settings of tuner #0
+            vtuner.tuner = 0;
+            if (ioctl(video_fd, VIDIOCGTUNER, &vtuner) == 0)
+            {
+               vtuner.mode = VIDEO_MODE_PAL;
+               if (ioctl(video_fd, VIDIOCSTUNER, &vtuner) == 0)
+               {
+                  // set the tuner as input channel
+                  vchan.channel = 0;
+                  vchan.norm = VIDEO_MODE_PAL;
+                  if(ioctl(video_fd, VIDIOCSCHAN, &vchan) == 0)
+                  {
+                     result = TRUE;
+                  }
+                  else
+                     perror("VIDIOCSCHAN");
+               }
+               else
+                  perror("VIDIOCSTUNER");
+            }
+            else
+               perror("VIDIOCGTUNER");
+         }
+         else
+            debug1("no tuner found among %d input channels", vcapab.channels);
+      }
+      else
+         perror("VIDIOCGCAP");
+   }
+   else
+      printf("Vbi-TuneChannel: could not open device\n");
+
+   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Close video device
+//
+void VbiTuneCloseDevice( void )
+{
+   if (video_fd != -1)
+   {
+      close(video_fd);
+      video_fd = -1;
+   }
+}
+
+// ---------------------------------------------------------------------------
+// Tune a given frequency
+//
+bool VbiTuneChannel( ulong freq, bool keepOpen )
+{
+   bool result = FALSE;
+
+   if ( (video_fd != -1) || VbiTuneOpenDevice() )
+   {
+      // Set the tuner frequency
+      if(ioctl(video_fd, VIDIOCSFREQ, &freq) == 0)
+      {
+         //printf("Vbi-TuneChannel: set to %.2f\n", (double)freq/16);
+
+         if (keepOpen == FALSE)
+         {
+            VbiTuneCloseDevice();
+         }
+         result = TRUE;
+      }
+      else
+         perror("VIDIOCSFREQ");
+   }
+   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Get signal strength on current tuner frequency
+//
+uint VbiTuneGetSignalStrength( void )
+{
+   struct video_tuner vtuner;
+   uint result = 0;
+
+   if ( video_fd != -1 )
+   {
+      vtuner.tuner = 0;
+      if (ioctl(video_fd, VIDIOCGTUNER, &vtuner) == 0)
+      {
+         //printf("VbiTune-GetSignalStrength: %u\n", vtuner.signal);
+         result = vtuner.signal;
+      }
+   }
+
+   return result;
 }
 
 // ---------------------------------------------------------------------------
