@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_filter.tcl,v 1.4 2002/11/09 20:21:43 tom Exp tom $
+#  $Id: dlg_filter.tcl,v 1.5 2002/11/30 20:28:28 tom Exp tom $
 #
 set substr_grep_title 1
 set substr_grep_descr 1
@@ -237,38 +237,46 @@ proc ProgIdxSelection {which val} {
 proc PopupTimeFilterSelection {} {
    global timsel_enabled timsel_start timsel_stop timsel_date
    global timsel_relative timsel_absstop timsel_nodate
-   global timsel_startstr timsel_stopstr
+   global timsel_startstr timsel_stopstr timsel_lastinput
    global timsel_popup
 
    if {$timsel_popup == 0} {
       CreateTransientPopup .timsel "Time filter selection"
       set timsel_popup 1
 
+      if {![info exists timsel_lastinput]} {
+         set timsel_lastinput 0
+         set timsel_startstr {}
+         set timsel_stopstr {}
+      }
+
       frame .timsel.all
-      checkbutton .timsel.all.relstart -text "Start at current time" -command UpdateTimeFilterRelStart -variable timsel_relative
+      checkbutton .timsel.all.relstart -text "Current time as minimum start time" -command UpdateTimeFilterRelStart -variable timsel_relative
       pack  .timsel.all.relstart -side top -anchor w
 
       frame .timsel.all.start -bd 2 -relief ridge
       label .timsel.all.start.lab -text "Min. start time:" -width 16 -anchor w
       entry .timsel.all.start.str -width 7 -textvariable timsel_startstr
+      trace variable timsel_startstr w Timsel_TraceStartStr
       bind  .timsel.all.start.str <Enter> {SelectTextOnFocus %W}
-      bind  .timsel.all.start.str <Return> {UpdateTimeFilterEntry timsel_start $timsel_startstr}
+      bind  .timsel.all.start.str <Return> {UpdateTimeFilterEntry start; UpdateTimeFilter 0}
       bind  .timsel.all.start.str <Escape> {tkButtonInvoke .timsel.cmd.dismiss}
-      scale .timsel.all.start.val -orient hor -length 200 -command {UpdateTimeFilter 1} -variable timsel_start -from 0 -to 1439 -showvalue 0
+      scale .timsel.all.start.val -orient hor -length 200 -command {UpdateTimeFilterEntry scale; UpdateTimeFilter 1} -variable timsel_start -from 0 -to 1439 -showvalue 0
       pack  .timsel.all.start.lab .timsel.all.start.str -side left
       pack  .timsel.all.start.val -side left -fill x -expand 1
       pack  .timsel.all.start -side top -pady 10 -fill x -expand 1
 
-      checkbutton .timsel.all.absstop -text "Stop at end of day" -command UpdateTimeFilterRelStart -variable timsel_absstop
+      checkbutton .timsel.all.absstop -text "End of day as maximum start time" -command UpdateTimeFilterRelStart -variable timsel_absstop
       pack  .timsel.all.absstop -side top -anchor w
 
       frame .timsel.all.stop -bd 2 -relief ridge
       label .timsel.all.stop.lab -text "Max. start time:" -width 16 -anchor w
       entry .timsel.all.stop.str -text "00:00" -width 7 -textvariable timsel_stopstr
+      trace variable timsel_stopstr w Timsel_TraceStopStr
       bind  .timsel.all.stop.str <Enter> {SelectTextOnFocus %W}
-      bind  .timsel.all.stop.str <Return> {UpdateTimeFilterEntry timsel_stop $timsel_stopstr}
+      bind  .timsel.all.stop.str <Return> {UpdateTimeFilterEntry stop; UpdateTimeFilter 0}
       bind  .timsel.all.stop.str <Escape> {tkButtonInvoke .timsel.cmd.dismiss}
-      scale .timsel.all.stop.val -orient hor -length 200 -command {UpdateTimeFilter 2} -variable timsel_stop -from 0 -to 1439 -showvalue 0
+      scale .timsel.all.stop.val -orient hor -length 200 -command {UpdateTimeFilterEntry scale; UpdateTimeFilter 2} -variable timsel_stop -from 0 -to 1439 -showvalue 0
       pack  .timsel.all.stop.lab .timsel.all.stop.str -side left
       pack  .timsel.all.stop.val -side left -fill x -expand 1
       pack  .timsel.all.stop -side top -pady 10 -fill x -expand 1
@@ -277,22 +285,22 @@ proc PopupTimeFilterSelection {} {
       pack  .timsel.all.nodate -side top -anchor w
 
       frame .timsel.all.date -bd 2 -relief ridge
-      label .timsel.all.date.lab -text "Rel. date:" -width 16 -anchor w
+      label .timsel.all.date.lab -text "Relative date:" -width 16 -anchor w
       label .timsel.all.date.str -width 7
-      scale .timsel.all.date.val -orient hor -length 200 -command {UpdateTimeFilter 0} -variable timsel_date -from 0 -to 6 -showvalue 0
+      scale .timsel.all.date.val -orient hor -length 200 -command {UpdateTimeFilterEntry scale; UpdateTimeFilter 0} -variable timsel_date -from 0 -to 6 -showvalue 0
       pack  .timsel.all.date.lab .timsel.all.date.str -side left
       pack  .timsel.all.date.val -side left -fill x -expand 1
       pack  .timsel.all.date -side top -pady 10 -fill x -expand 1
       pack  .timsel.all -padx 10 -pady 10 -side top -fill x -expand 1
 
       frame .timsel.cmd
-      button .timsel.cmd.help -text "Help" -command {PopupHelp $helpIndex(Filtering) "Start Time"}
+      button .timsel.cmd.help -text "Help" -command {PopupHelp $helpIndex(Filtering) "Start time"}
       button .timsel.cmd.undo -text "Undo" -command {destroy .timsel; UndoTimeFilter}
       button .timsel.cmd.dismiss -text "Dismiss" -command {destroy .timsel}
       pack .timsel.cmd.help .timsel.cmd.undo .timsel.cmd.dismiss -side left -padx 10
       pack .timsel.cmd -side top -pady 5
 
-      bind .timsel <Key-F1> {PopupHelp $helpIndex(Filtering) "Start Time"}
+      bind .timsel <Key-F1> {PopupHelp $helpIndex(Filtering) "Start time"}
       bind .timsel.all <Destroy> {+ set timsel_popup 0}
       focus .timsel.all.start.str
 
@@ -304,6 +312,30 @@ proc PopupTimeFilterSelection {} {
       wm minsize .timsel [winfo reqwidth .timsel] [winfo reqheight .timsel]
    } else {
       raise .timsel
+   }
+   # this variable decides if input is taken from the scales or text fields
+   set timsel_lastinput 0
+}
+
+# callback for variable trace on timsel_startstr
+proc Timsel_TraceStartStr {n1 n2 v} {
+   global timsel_start timsel_startstr
+   global timsel_relative
+   global timsel_lastinput
+
+   if {($timsel_relative == 0) && ([string compare $timsel_startstr [Motd2HHMM $timsel_start]] != 0)} {
+      set timsel_lastinput [expr $timsel_lastinput | 1]
+   }
+}
+
+# callback for variable trace on timsel_stopstr
+proc Timsel_TraceStopStr {n1 n2 v} {
+   global timsel_stop timsel_stopstr
+   global timsel_absstop
+   global timsel_lastinput
+
+   if {($timsel_absstop == 0) && ([string compare $timsel_stopstr [Motd2HHMM $timsel_stop]] != 0)} {
+      set timsel_lastinput [expr $timsel_lastinput | 2]
    }
 }
 
@@ -339,18 +371,52 @@ proc UpdateTimeFilterRelStart {} {
    UpdateTimeFilter 0
 }
 
-proc UpdateTimeFilterEntry {varname val} {
-   global timsel_start timsel_startstr
-   global timsel_stop timsel_stopstr
-   upvar $varname timspec
+# Convert text input in entry fields into time value (MoD format) or report error
+proc ParseTimeValue {var val errstr} {
+   upvar $var timspec
 
-   if {[scan $val "%u:%u" hour minute] == 2} {
-      set timspec [expr $hour * 60 + $minute]
-      UpdateTimeFilter 0
+   if {(([scan $val "%u:%u%n" hour minute len] == 3) && ($len == [string length $val])) || \
+       (([scan $val "%1u%2u%n" hour minute len] == 3) && ($len == [string length $val])) || \
+       (([scan $val "%2u%2u%n" hour minute len] == 3) && ($len == [string length $val]))} {
+
+      if {($hour < 24) && ($minute < 60)} {
+         set timspec [expr $hour * 60 + $minute]
+
+      } else {
+         tk_messageBox -type ok -default ok -icon error -parent .timsel \
+                       -message "Invalid value for $errstr time: [format %02d:%02d $hour $minute] (hour must be in range 0-23; minute in 0-59)"
+      }
    } else {
       tk_messageBox -type ok -default ok -icon error -parent .timsel \
-                    -message "Invalid input format in \"$val\"; use \"HH:MM\""
+                    -message "Invalid format in $errstr time: \"$val\"; use \"HH:MM\" (HH is hour 0-23; MM is minute 0-59)"
    }
+}
+
+# callback for "Return" key in text entry field
+proc UpdateTimeFilterEntry {which_first} {
+   global timsel_start timsel_startstr
+   global timsel_stop timsel_stopstr
+   global timsel_relative timsel_absstop timsel_nodate
+   global timsel_lastinput
+
+   if {[string compare $which_first "start"] == 0} {
+      # Return was pressed while focus inside start time entry field
+      ParseTimeValue timsel_start $timsel_startstr "start"
+      ParseTimeValue timsel_stop $timsel_stopstr "stop"
+   } elseif {[string compare $which_first "stop"] == 0} {
+      # Return was pressed while focus inside stop entry field
+      ParseTimeValue timsel_stop $timsel_stopstr "stop"
+      ParseTimeValue timsel_start $timsel_startstr "start"
+   } else {
+      if {(($timsel_lastinput & 1) != 0) && ($timsel_relative == 0)} {
+         # text was previously changed (without pressing Return)
+         ParseTimeValue timsel_start $timsel_startstr "start"
+      }
+      if {(($timsel_lastinput & 2) != 0) && ($timsel_absstop == 0)} {
+         ParseTimeValue timsel_stop $timsel_stopstr "stop"
+      }
+   }
+   set timsel_lastinput 0
 }
 
 proc UpdateTimeFilter { round {val 0} } {
@@ -361,9 +427,13 @@ proc UpdateTimeFilter { round {val 0} } {
 
    set timsel_enabled 1
    if {$round == 1} {
-      set timsel_start [expr $timsel_start - ($timsel_start % 5)]
+      if {$timsel_start != 23*60+59} {
+         set timsel_start [expr $timsel_start - ($timsel_start % 5)]
+      }
    } elseif {$round == 2} {
-      set timsel_stop  [expr $timsel_stop  - ($timsel_stop  % 5)]
+      if {$timsel_stop != 23*60+59} {
+         set timsel_stop [expr $timsel_stop  - ($timsel_stop  % 5)]
+      }
    }
    if {$timsel_relative} {
       .timsel.all.start.str configure -state normal
@@ -385,6 +455,7 @@ proc UpdateTimeFilter { round {val 0} } {
       .timsel.all.date.str configure -text [format "+%d days" $timsel_date]
    }
 
+   set timsel_lastinput 0
    SelectTimeFilter
 }
 
@@ -401,31 +472,40 @@ proc UndoTimeFilter {} {
 ##
 proc PopupDurationFilterSelection {} {
    global dursel_min dursel_max
+   global dursel_minstr dursel_maxstr dursel_lastinput
    global dursel_popup
 
    if {$dursel_popup == 0} {
       CreateTransientPopup .dursel "Duration filter selection"
       set dursel_popup 1
 
+      set dursel_minstr [Motd2HHMM $dursel_min]
+      set dursel_maxstr [Motd2HHMM $dursel_max]
+      set dursel_lastinput 0
+
       frame .dursel.all
       label .dursel.all.min_lab -text "Minimum:"
       grid  .dursel.all.min_lab -row 0 -column 0 -sticky w
       entry .dursel.all.min_str -text "00:00" -width 7 -textvariable dursel_minstr
+      trace variable dursel_minstr w DurSel_TraceMinStr
       bind  .dursel.all.min_str <Enter> {SelectTextOnFocus %W}
-      bind  .dursel.all.min_str <Return> {SelectDurationFilterEntry dursel_min $dursel_minstr}
+      bind  .dursel.all.min_str <Return> {UpdateDurationFromText min; UpdateDurationFilter 0}
       bind  .dursel.all.min_str <Escape> {tkButtonInvoke .dursel.cmd.dismiss}
       grid  .dursel.all.min_str -row 0 -column 1 -sticky we
-      scale .dursel.all.min_val -orient hor -length 300 -command {UpdateDurationFilter 1} -variable dursel_min -from 0 -to 1439 -showvalue 0
+      scale .dursel.all.min_val -orient hor -length 300 -command {UpdateDurationFromText min-scale; UpdateDurationFilter 1} \
+                                -variable dursel_min -from 0 -to 1439 -showvalue 0
       grid  .dursel.all.min_val -row 0 -column 2 -sticky we
 
       label .dursel.all.max_lab -text "Maximum:"
       grid  .dursel.all.max_lab -row 1 -column 0 -sticky w
       entry .dursel.all.max_str -text "00:00" -width 7 -textvariable dursel_maxstr
+      trace variable dursel_maxstr w DurSel_TraceMaxStr
       bind  .dursel.all.max_str <Enter> {SelectTextOnFocus %W}
-      bind  .dursel.all.max_str <Return> {SelectDurationFilterEntry dursel_max $dursel_maxstr}
+      bind  .dursel.all.max_str <Return> {UpdateDurationFromText max; UpdateDurationFilter 0}
       bind  .dursel.all.max_str <Escape> {tkButtonInvoke .dursel.cmd.dismiss}
       grid  .dursel.all.max_str -row 1 -column 1 -sticky we
-      scale .dursel.all.max_val -orient hor -length 200 -command {UpdateDurationFilter 2} -variable dursel_max -from 0 -to 1439 -showvalue 0
+      scale .dursel.all.max_val -orient hor -length 200 -command {UpdateDurationFromText max-scale; UpdateDurationFilter 2} \
+                                -variable dursel_max -from 0 -to 1439 -showvalue 0
       grid  .dursel.all.max_val -row 1 -column 2 -sticky we
       grid  columnconfigure .dursel.all 1 -weight 1
       grid  columnconfigure .dursel.all 2 -weight 2
@@ -451,36 +531,88 @@ proc PopupDurationFilterSelection {} {
    }
 }
 
-# callback for <Return> key in min and max duration entry widgets
-proc SelectDurationFilterEntry {varname val} {
-   upvar $varname timspec
+# trace changes in the minimum value entry field
+# - invoked when the user edits the text OR if anyone assigns a value to it
+proc DurSel_TraceMinStr {n1 n1 v} {
+   global dursel_min dursel_minstr
+   global dursel_lastinput
 
-   if {([scan $val "%2u:%2u%n" hour minute len] == 3) && ($len == [string length $val])} {
-      set timspec [expr $hour * 60 + $minute]
-      UpdateDurationFilter 0
-   } elseif {([scan $val "%2u%n" minute len] == 2) && ($len == [string length $val])} {
-      set timspec $minute
-      UpdateDurationFilter 0
-   } else {
-      tk_messageBox -type ok -default ok -icon error -parent .dursel \
-                    -message "Invalid input format in \"$val\"; use \"HH:MM\""
+   if {[string compare $dursel_minstr [Motd2HHMM $dursel_min]] != 0} {
+      set dursel_lastinput [expr $dursel_lastinput | 1]
    }
 }
 
+proc DurSel_TraceMaxStr {n1 n1 v} {
+   global dursel_max dursel_maxstr
+   global dursel_lastinput
+
+   if {[string compare $dursel_maxstr [Motd2HHMM $dursel_max]] != 0} {
+      set dursel_lastinput [expr $dursel_lastinput | 2]
+   }
+}
+
+# callback for <Return> key in min and max duration entry widgets
+proc ParseDurationValue {var newval errstr} {
+   upvar $var timspec
+
+   if {([scan $newval "%2u:%2u%n" hour minute len] == 3) && ($len == [string length $newval])} {
+      set timspec [expr $hour * 60 + $minute]
+   } elseif {([scan $newval "%2u%n" minute len] == 2) && ($len == [string length $newval])} {
+      set timspec $minute
+   } else {
+      tk_messageBox -type ok -default ok -icon error -parent .dursel \
+                    -message "Invalid format in $errstr duration = \"$newval\"; use \"HH:MM\" or \"MM\" (HH is hour 0-23; MM is minute 0-59)"
+   }
+}
+
+proc UpdateDurationFromText {which_first} {
+   global dursel_minstr dursel_maxstr dursel_lastinput
+   global dursel_min dursel_max
+
+   if {[string compare $which_first "min"] == 0} {
+      # Return was pressed while focus inside start time entry field
+      ParseDurationValue dursel_min $dursel_minstr "minimum"
+      ParseDurationValue dursel_max $dursel_maxstr "maximum"
+   } elseif {[string compare $which_first "max"] == 0} {
+      # Return was pressed while focus inside stop time entry field
+      ParseDurationValue dursel_max $dursel_maxstr "maximum"
+      ParseDurationValue dursel_min $dursel_minstr "minimum"
+   } else {
+      # if text was previously changed (without pressing Return), apply the changes now
+      if {(($dursel_lastinput & 1) != 0) && ([string compare $which_first "min-scale"] != 0)} {
+         ParseDurationValue dursel_min $dursel_minstr "minimum"
+      }
+      if {(($dursel_lastinput & 2) != 0) && ([string compare $which_first "max-scale"] != 0)} {
+         ParseDurationValue dursel_max $dursel_maxstr "maximum"
+      }
+   }
+   set dursel_lastinput 0
+}
+
 proc UpdateDurationFilter { round {val 0} } {
+   global dursel_minstr dursel_maxstr dursel_lastinput
    global dursel_min dursel_max
 
    if {$round == 1} {
-      set dursel_min [expr $dursel_min - ($dursel_min % 5)]
+      if {$dursel_min != 1439} {
+         set dursel_min [expr $dursel_min - ($dursel_min % 5)]
+      }
       if {$dursel_min > $dursel_max} {
          set dursel_max $dursel_min
       }
    } elseif {$round == 2} {
-      set dursel_max  [expr $dursel_max  - ($dursel_max  % 5)]
+      if {$dursel_max != 1439} {
+         set dursel_max  [expr $dursel_max  - ($dursel_max  % 5)]
+      }
       if {$dursel_max < $dursel_min} {
          set dursel_min $dursel_max
       }
    }
+
+   set dursel_minstr [Motd2HHMM $dursel_min]
+   set dursel_maxstr [Motd2HHMM $dursel_max]
+   set dursel_lastinput 0
+
    SelectDurationFilter
 }
 

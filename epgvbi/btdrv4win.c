@@ -14,10 +14,10 @@
  *
  *  Description:
  *
- *    This module is a "user-space driver" for the Booktree Bt8x8 chips and
- *    Philips or Temic tuners on Win32 systems. It uses DSdrv by Mathias Ellinger
- *    and John Adcock - a free open-source driver for the BT8x8 chipset. The
- *    driver offers generic I/O functions to directly access the BT8x8 chip.
+ *    This module is a "user-space driver" for the Booktree Bt8x8 chips on
+ *    Win32 systems. It uses DSdrv by Mathias Ellinger and John Adcock:
+ *    a free open-source driver for the BT8x8 chipset. The driver offers
+ *    generic I/O functions to directly access the BT8x8 chip via PCI bus.
  *    This module provides an abstraction layer with higher-level functions,
  *    e.g. to tune a given TV channel or start/stop acquisition.
  *
@@ -33,10 +33,6 @@
  *      Copyright (C) 1996,97,98 Ralph  Metzler (rjkm@thp.uni-koeln.de)
  *                             & Marcus Metzler (mocm@thp.uni-koeln.de)
  *
- *    Tuner and I2C bus (from bttv driver for Linux)
- *      Copyright (C) 1997 Markus Schroeder (schroedm@uni-duesseldorf.de)
- *      Copyright (C) 1997,1998 Gerd Knorr (kraxel@goldbach.in-berlin.de)
- *
  *    WinDriver adaption (from MultiDec)
  *      Copyright (C) 2000 Espresso (echter_espresso@hotmail.com)
  *
@@ -46,7 +42,7 @@
  *    WinDriver replaced with DSdrv (DScaler driver)
  *      March 2002 by E-Nek (e-nek@netcourrier.com)
  *
- *  $Id: btdrv4win.c,v 1.28 2002/11/19 20:57:48 tom Exp tom $
+ *  $Id: btdrv4win.c,v 1.30 2002/11/26 19:13:37 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -67,6 +63,7 @@
 
 #include "dsdrv/dsdrvlib.h"
 #include "epgvbi/bt848.h"
+#include "epgvbi/wintuner.h"
 
 
 // ----------------------------------------------------------------------------
@@ -85,128 +82,6 @@
 #define RISC_CODE_LENGTH     (512 * sizeof(DWORD))
 typedef DWORD PHYS;
 
-#define I2C_DELAY 0
-#define I2C_TIMING (0x7<<4)
-#define I2C_COMMAND (I2C_TIMING | BT848_I2C_SCL | BT848_I2C_SDA)
-
-
-static BYTE TunerDeviceI2C;
-static CRITICAL_SECTION m_cCrit;    //semaphore for I2C access
-
-struct TTunerType
-{
-   uchar  *name;
-   uchar  vendor;
-   uchar  type;
-
-   double thresh1;       // frequency range for UHF, VHF-L, VHF_H
-   double thresh2;
-   uchar  VHF_L;
-   uchar  VHF_H;
-   uchar  UHF;
-   uchar  config;
-   ushort IFPCoff;
-};
-
-// Tuner type table, copied from bttv tuner driver
-static const struct TTunerType Tuners[TUNER_COUNT] =
-{  // Note: order must be identical to enum in header file!
-   { "none", NoTuner, NOTUNER,
-     0,0,0x00,0x00,0x00,0x00,0x00},
-
-   { "Temic PAL (4002 FH5)", TEMIC, PAL,
-     16*140.25,16*463.25,0x02,0x04,0x01,0x8e,623},
-   { "Philips PAL_I (FI1246 and compatibles)", Philips, PAL_I,
-     16*140.25,16*463.25,0xa0,0x90,0x30,0x8e,623},
-   { "Philips NTSC (FI1236 and compatibles)", Philips, NTSC,
-     16*157.25,16*451.25,0xA0,0x90,0x30,0x8e,732},
-
-   { "Philips (SECAM+PAL_BG) (FI1216MF, FM1216MF, FR1216MF)", Philips, SECAM,
-     16*168.25,16*447.25,0xA7,0x97,0x37,0x8e,623},
-   { "Philips PAL_BG (FI1216 and compatibles)", Philips, PAL,
-     16*168.25,16*447.25,0xA0,0x90,0x30,0x8e,623},
-   { "Temic NTSC (4032 FY5)", TEMIC, NTSC,
-     16*157.25,16*463.25,0x02,0x04,0x01,0x8e,732},
-   { "Temic PAL_I (4062 FY5)", TEMIC, PAL_I,
-     16*170.00,16*450.00,0x02,0x04,0x01,0x8e,623},
-
-   { "Temic NTSC (4036 FY5)", TEMIC, NTSC,
-     16*157.25,16*463.25,0xa0,0x90,0x30,0x8e,732},
-   { "Alps HSBH1", TEMIC, NTSC,
-     16*137.25,16*385.25,0x01,0x02,0x08,0x8e,732},
-   { "Alps TSBE1",TEMIC,PAL,
-     16*137.25,16*385.25,0x01,0x02,0x08,0x8e,732},
-   { "Alps TSBB5", Alps, PAL_I, /* tested (UK UHF) with Modulartech MM205 */
-     16*133.25,16*351.25,0x01,0x02,0x08,0x8e,632},
-
-   { "Alps TSBE5", Alps, PAL, /* untested - data sheet guess. Only IF differs. */
-     16*133.25,16*351.25,0x01,0x02,0x08,0x8e,622},
-   { "Alps TSBC5", Alps, PAL, /* untested - data sheet guess. Only IF differs. */
-     16*133.25,16*351.25,0x01,0x02,0x08,0x8e,608},
-   { "Temic PAL_BG (4006FH5)", TEMIC, PAL,
-     16*170.00,16*450.00,0xa0,0x90,0x30,0x8e,623},
-   { "Alps TSCH6",Alps,NTSC,
-     16*137.25,16*385.25,0x14,0x12,0x11,0x8e,732},
-
-   { "Temic PAL_DK (4016 FY5)",TEMIC,PAL,
-     16*168.25,16*456.25,0xa0,0x90,0x30,0x8e,623},
-   { "Philips NTSC_M (MK2)",Philips,NTSC,
-     16*160.00,16*454.00,0xa0,0x90,0x30,0x8e,732},
-   { "Temic PAL_I (4066 FY5)", TEMIC, PAL_I,
-     16*169.00, 16*454.00, 0xa0,0x90,0x30,0x8e,623},
-   { "Temic PAL* auto (4006 FN5)", TEMIC, PAL,
-     16*169.00, 16*454.00, 0xa0,0x90,0x30,0x8e,623},
-
-   { "Temic PAL_BG (4009 FR5) or PAL_I (4069 FR5)", TEMIC, PAL,
-     16*141.00, 16*464.00, 0xa0,0x90,0x30,0x8e,623},
-   { "Temic NTSC (4039 FR5)", TEMIC, NTSC,
-     16*158.00, 16*453.00, 0xa0,0x90,0x30,0x8e,732},
-   { "Temic PAL/SECAM multi (4046 FM5)", TEMIC, PAL,
-     16*169.00, 16*454.00, 0xa0,0x90,0x30,0x8e,623},
-   { "Philips PAL_DK (FI1256 and compatibles)", Philips, PAL,
-     16*170.00,16*450.00,0xa0,0x90,0x30,0x8e,623},
-
-   { "Philips PAL/SECAM multi (FQ1216ME)", Philips, PAL,
-     16*170.00,16*450.00,0xa0,0x90,0x30,0x8e,623},
-   { "LG PAL_I+FM (TAPC-I001D)", LGINNOTEK, PAL_I,
-     16*170.00,16*450.00,0xa0,0x90,0x30,0x8e,623},
-   { "LG PAL_I (TAPC-I701D)", LGINNOTEK, PAL_I,
-     16*170.00,16*450.00,0xa0,0x90,0x30,0x8e,623},
-   { "LG NTSC+FM (TPI8NSR01F)", LGINNOTEK, NTSC,
-     16*210.00,16*497.00,0xa0,0x90,0x30,0x8e,732},
-
-   { "LG PAL_BG+FM (TPI8PSB01D)", LGINNOTEK, PAL,
-     16*170.00,16*450.00,0xa0,0x90,0x30,0x8e,623},
-   { "LG PAL_BG (TPI8PSB11D)", LGINNOTEK, PAL,
-     16*170.00,16*450.00,0xa0,0x90,0x30,0x8e,623},
-   { "Temic PAL* auto + FM (4009 FN5)", TEMIC, PAL,
-     16*141.00, 16*464.00, 0xa0,0x90,0x30,0x8e,623},
-   { "SHARP NTSC_JP (2U5JF5540)", SHARP, NTSC, /* 940=16*58.75 NTSC@Japan */
-     16*137.25,16*317.25,0x01,0x02,0x08,0x8e,732 }, // Corrected to NTSC=732 (was:940)
-
-   { "Samsung PAL TCPM9091PD27", Samsung, PAL,  /* from sourceforge v3tv */
-     16*169,16*464,0xA0,0x90,0x30,0x8e,623},
-   { "MT2032 universal", Microtune,PAL|NTSC,
-     0,0,0,0,0,0,0},
-   { "Temic PAL_BG (4106 FH5)", TEMIC, PAL,
-     16*141.00, 16*464.00, 0xa0,0x90,0x30,0x8e,623},
-   { "Temic PAL_DK/SECAM_L (4012 FY5)", TEMIC, PAL,
-     16*140.25, 16*463.25, 0x02,0x04,0x01,0x8e,623},
-
-   { "Temic NTSC (4136 FY5)", TEMIC, NTSC,
-     16*158.00, 16*453.00, 0xa0,0x90,0x30,0x8e,732},
-   { "LG PAL (newer TAPC series)", LGINNOTEK, PAL,
-     16*170.00, 16*450.00, 0x01,0x02,0x08,0x8e,623},
-   { "Philips PAL/SECAM multi (FM1216ME MK3)", Philips, PAL,
-     16*160.00,16*442.00,0x01,0x02,0x04,0x8e,623 },
-   { "LG NTSC (newer TAPC series)", LGINNOTEK, NTSC,
-     16*170.00, 16*450.00, 0x01,0x02,0x08,0x8e,732},
-};
-
-#define TUNERS_COUNT (sizeof(Tuners) / sizeof(struct TTunerType))
-//#if (TUNER_COUNT != TUNERS_COUNT)
-//#error "tuner table length not equal enum"
-//#endif
 
 typedef struct
 {
@@ -911,417 +786,6 @@ static bool Init_BT_HardWare( void )
 }
 
 // ---------------------------------------------------------------------------
-// I2C bus access
-// - does not use the hardware I2C capabilities of the Bt8x8
-// - instead every bit of the protocol is implemented in sofware
-//
-static void
-I2CBus_wait (int us)
-{
-   if (us > 0)
-   {
-      Sleep (us);
-      return;
-   }
-   Sleep (0);
-   Sleep (0);
-   Sleep (0);
-   Sleep (0);
-   Sleep (0);
-}
-
-static void
-I2C_SetLine (BOOL bCtrl, BOOL bData)
-{
-   BT8X8_WriteDword ( BT848_I2C, (bCtrl << 1) | bData);
-   I2CBus_wait (I2C_DELAY);
-}
-
-static BOOL
-I2C_GetLine ( void )
-{
-   return BT8X8_ReadDword (BT848_I2C) & 1;
-}
-
-#if 0  // unused code
-static BYTE
-I2C_Read (BYTE nAddr)
-{
-   DWORD i;
-   volatile DWORD stat;
-
-   // clear status bit ; BT848_INT_RACK is ro
-
-   BT8X8_WriteDword (BT848_INT_STAT, BT848_INT_I2CDONE);
-   BT8X8_WriteDword (BT848_I2C, (nAddr << 24) | I2C_COMMAND);
-
-   for (i = 0x7fffffff; i; i--)
-   {
-      stat = BT8X8_ReadDword (BT848_INT_STAT);
-      if (stat & BT848_INT_I2CDONE)
-         break;
-   }
-
-   if (!i)
-      return (BYTE) - 1;
-   if (!(stat & BT848_INT_RACK))
-      return (BYTE) - 2;
-
-   return (BYTE) ((BT8X8_ReadDword (BT848_I2C) >> 8) & 0xFF);
-}
-
-static BOOL
-I2C_Write (BYTE nAddr, BYTE nData1, BYTE nData2, BOOL bSendBoth)
-{
-   DWORD i;
-   DWORD data;
-   DWORD stat;
-
-   /* clear status bit; BT848_INT_RACK is ro */
-   BT8X8_WriteDword (BT848_INT_STAT, BT848_INT_I2CDONE);
-
-   data = (nAddr << 24) | (nData1 << 16) | I2C_COMMAND;
-   if (bSendBoth)
-      data |= (nData2 << 8) | BT848_I2C_W3B;
-   BT8X8_WriteDword (BT848_I2C, data);
-
-   for (i = 0x7fffffff; i; i--)
-   {
-      stat = BT8X8_ReadDword (BT848_INT_STAT);
-      if (stat & BT848_INT_I2CDONE)
-         break;
-   }
-
-   if (!i)
-      return FALSE;
-   if (!(stat & BT848_INT_RACK))
-      return FALSE;
-
-   return TRUE;
-}
-#endif
-
-
-static BOOL
-I2CBus_Lock ( void )
-{
-   EnterCriticalSection (&m_cCrit);
-   return TRUE;
-}
-
-static BOOL
-I2CBus_Unlock ( void )
-{
-   LeaveCriticalSection (&m_cCrit);
-   return TRUE;
-}
-
-static void
-I2CBus_Start ( void )
-{
-   I2C_SetLine (0, 1);
-   I2C_SetLine (1, 1);
-   I2C_SetLine (1, 0);
-   I2C_SetLine (0, 0);
-}
-
-static void
-I2CBus_Stop ( void )
-{
-   I2C_SetLine (0, 0);
-   I2C_SetLine (1, 0);
-   I2C_SetLine (1, 1);
-}
-
-static void
-I2CBus_One ( void )
-{
-   I2C_SetLine (0, 1);
-   I2C_SetLine (1, 1);
-   I2C_SetLine (0, 1);
-}
-
-static void
-I2CBus_Zero ( void )
-{
-   I2C_SetLine (0, 0);
-   I2C_SetLine (1, 0);
-   I2C_SetLine (0, 0);
-}
-
-static BOOL
-I2CBus_Ack ( void )
-{
-   BOOL bAck;
-
-   I2C_SetLine (0, 1);
-   I2C_SetLine (1, 1);
-   bAck = !I2C_GetLine ();
-   I2C_SetLine (0, 1);
-   return bAck;
-}
-
-static BOOL
-I2CBus_SendByte (BYTE nData, int nWaitForAck)
-{
-   I2C_SetLine (0, 0);
-   nData & 0x80 ? I2CBus_One () : I2CBus_Zero ();
-   nData & 0x40 ? I2CBus_One () : I2CBus_Zero ();
-   nData & 0x20 ? I2CBus_One () : I2CBus_Zero ();
-   nData & 0x10 ? I2CBus_One () : I2CBus_Zero ();
-   nData & 0x08 ? I2CBus_One () : I2CBus_Zero ();
-   nData & 0x04 ? I2CBus_One () : I2CBus_Zero ();
-   nData & 0x02 ? I2CBus_One () : I2CBus_Zero ();
-   nData & 0x01 ? I2CBus_One () : I2CBus_Zero ();
-   if (nWaitForAck)
-      I2CBus_wait (nWaitForAck);
-   return I2CBus_Ack ();
-}
-
-#if 0  // unused code
-static BYTE
-I2CBus_ReadByte (BOOL bLast)
-{
-   int i;
-   BYTE bData = 0;
-
-   I2C_SetLine (0, 1);
-   for (i = 7; i >= 0; i--)
-   {
-      I2C_SetLine (1, 1);
-      if (I2C_GetLine ())
-         bData |= (1 << i);
-      I2C_SetLine (0, 1);
-   }
-
-   bLast ? I2CBus_One () : I2CBus_Zero ();
-   return bData;
-}
-
-static BYTE
-I2CBus_Read (BYTE nAddr)
-{
-   BYTE bData;
-
-   I2CBus_Start ();
-   I2CBus_SendByte (nAddr, 0);
-   bData = I2CBus_ReadByte (TRUE);
-   I2CBus_Stop ();
-   return bData;
-}
-#endif
-
-static BOOL
-I2CBus_Write (BYTE nAddr, BYTE nData1, BYTE nData2, BOOL bSendBoth)
-{
-   BOOL bAck;
-
-   I2CBus_Start ();
-   I2CBus_SendByte (nAddr, 0);
-   bAck = I2CBus_SendByte (nData1, 0);
-   if (bSendBoth)
-      bAck = I2CBus_SendByte (nData2, 0);
-   I2CBus_Stop ();
-   return bAck;
-}
-
-
-static BOOL
-I2CBus_AddDevice (BYTE I2C_Port)
-{
-   BOOL bAck;
-
-   // Test whether device exists
-   I2CBus_Lock ();
-   I2CBus_Start ();
-   bAck = I2CBus_SendByte (I2C_Port, 0);
-   I2CBus_Stop ();
-   I2CBus_Unlock ();
-   if (bAck)
-      return TRUE;
-   else
-      return FALSE;
-}
-
-// ---------------------------------------------------------------------------
-// Set TV tuner synthesizer frequency
-//
-static BOOL Tuner_SetFrequency( TUNER_TYPE type, uint wFrequency, uint norm )
-{
-   const struct TTunerType *pTun;
-   double dFrequency;
-   BYTE buffer[4];
-   BYTE config;
-   WORD div;
-   BOOL bAck;
-
-   static uint lastWFreq = 0;
-
-   if ((type < TUNERS_COUNT) && (type != TUNER_NONE))
-   {
-      if ((wFrequency < 44*16) || (wFrequency > 958*16))
-         debug1("Tuner-SetFrequency: freq %d/16 is out of range", wFrequency);
-
-      pTun = Tuners + type;
-      dFrequency = (double) wFrequency;
-
-      if (dFrequency < pTun->thresh1)
-         config = pTun->VHF_L;
-      else if (dFrequency < pTun->thresh2)
-         config = pTun->VHF_H;
-      else
-         config = pTun->UHF;
-
-      // tv norm specification for multi-norm tuners
-      switch (type)
-      {
-         case TUNER_PHILIPS_SECAM:
-            /* XXX TODO: disabled until norm is provided by TV channel file parsers
-            if (norm == VIDEO_MODE_SECAM)
-               config |= 0x02;
-            else
-               config &= ~0x02;
-            */
-            break;
-         case TUNER_TEMIC_4046FM5:
-            /*
-            if (norm == VIDEO_MODE_SECAM)
-               config |= TEMIC_SET_PAL_L;
-            else
-            */
-            config |= TEMIC_SET_PAL_BG;
-            break;
-         case TUNER_PHILIPS_FQ1216ME:
-            config |= PHILIPS_SET_PAL_BGDK;
-            break;
-         default:
-            break;
-      }
-
-      div = (WORD)dFrequency + pTun->IFPCoff;
-
-      if ((type == TUNER_PHILIPS_SECAM) && (wFrequency < lastWFreq))
-      {
-         /* Philips specification says to send config data before
-         ** frequency in case (wanted frequency < current frequency) */
-         buffer[0] = pTun->config;
-         buffer[1] = config;
-         buffer[2] = (div>>8) & 0x7f;
-         buffer[3] = div      & 0xff;
-      }
-      else
-      {
-         buffer[0] = (div>>8) & 0x7f;
-         buffer[1] = div      & 0xff;
-         buffer[2] = pTun->config;
-         buffer[3] = config;
-      }
-
-      I2CBus_Lock ();              // Lock/wait
-
-      if (!I2CBus_Write ((BYTE) TunerDeviceI2C, buffer[0], buffer[1], TRUE))
-      {
-         Sleep (1);
-         if (!I2CBus_Write ((BYTE) TunerDeviceI2C, buffer[0], buffer[1], TRUE))
-         {
-            Sleep (1);
-            if (!I2CBus_Write ((BYTE) TunerDeviceI2C, buffer[0], buffer[1], TRUE))
-            {
-               debug4("Tuner-SetFrequency: i2c write failed for word #1: type=%d, dev=0x%X, val1=0x%x, val2=0x%x", type, TunerDeviceI2C, buffer[0], buffer[1]);
-               I2CBus_Unlock ();   // Unlock
-
-               return (FALSE);
-            }
-         }
-      }
-      if (!(bAck = I2CBus_Write (TunerDeviceI2C, buffer[2], buffer[3], TRUE)))
-      {
-         Sleep (1);
-         if (!(bAck = I2CBus_Write (TunerDeviceI2C, buffer[2], buffer[3], TRUE)))
-         {
-            Sleep (1);
-            if (!(bAck = I2CBus_Write (TunerDeviceI2C, buffer[2], buffer[3], TRUE)))
-            {
-               debug4("Tuner-SetFrequency: i2c write failed for word #2: type=%d, dev=0x%X, val1=0x%x, val2=0x%x", type, TunerDeviceI2C, buffer[2], buffer[3]);
-            }
-         }
-      }
-      I2CBus_Unlock ();            // Unlock
-
-      if (!bAck)
-         return FALSE;
-   }
-   else if (type != TUNER_NONE)
-      debug1("Tuner-SetFrequency: illegal tuner idx %d", type);
-
-   return TRUE;
-}
-
-// ---------------------------------------------------------------------------
-// Auto-detect a tuner on the I2C bus
-//
-static BOOL Init_Tuner( int TunerNr )
-{
-   unsigned char j;
-   bool result = FALSE;
-
-   if (TunerNr < TUNERS_COUNT)
-   {
-      InitializeCriticalSection (&m_cCrit);
-
-      j = 0xc0;
-      TunerDeviceI2C = j;
-
-      while ((j <= 0xce) && (I2CBus_AddDevice ((BYTE) j) == FALSE))
-      {
-         j++;
-         TunerDeviceI2C = j;
-      }
-
-      if (j <= 0xce)
-      {
-         result = TRUE;
-      }
-      else
-         MessageBox(NULL, "Warning: no tuner found on Bt8x8 I2C bus\nIn address range 0xc0 - 0xce", "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
-   }
-   else
-      debug1("Init_Tuner: illegal tuner idx %d", TunerNr);
-
-   return result;
-}
-
-// ---------------------------------------------------------------------------
-// Search a tuner in the list by given parameters
-// - used to identify a manually configured tuner when importing a TV app INI file
-//
-uint BtDriver_MatchTunerByParams( uint thresh1, uint thresh2,
-                                         uchar VHF_L, uchar VHF_H, uchar UHF,
-                                         uchar config, ushort IFPCoff )
-{
-   const struct TTunerType * pTuner;
-   uint idx;
-
-   pTuner = Tuners;
-   for (idx=0; idx < TUNERS_COUNT; idx++)
-   {
-      if ( (thresh1 == pTuner->thresh1) &&
-           (thresh2 == pTuner->thresh2) &&
-           (VHF_L == pTuner->VHF_L) &&
-           (VHF_H == pTuner->VHF_H) &&
-           (UHF == pTuner->UHF) &&
-           (config == pTuner->config) &&
-           (IFPCoff == pTuner->IFPCoff) )
-      {
-         return idx;
-      }
-      pTuner += 1;
-   }
-   return 0;
-}
-
-
-// ---------------------------------------------------------------------------
 // Free I/O resources and close the driver device
 //
 static void BT8X8_Close( void )
@@ -1465,7 +929,7 @@ static bool BtDriver_Load( void )
             InitPll(btCfg.pllType);
 
             // auto-detect the tuner on the I2C bus
-            Init_Tuner(btCfg.tunerType);
+            Tuner_Init(btCfg.tunerType);
 
             if (btCfg.tunerFreq != 0)
             {  // if freq already set, apply it now
@@ -1587,7 +1051,7 @@ bool BtDriver_Configure( int cardIndex, int tunerType, int pllType, int prio )
          {  // same card index: just update tuner type and PLL
             if (tunerChange && (btCfg.tunerType != 0) && (btCfg.inputSrc == 0))
             {
-               Init_Tuner(btCfg.tunerType);
+               Tuner_Init(btCfg.tunerType);
             }
             if (pllChange)
             {
@@ -1683,12 +1147,15 @@ uint BtDriver_QueryChannel( void )
 }
 
 // ----------------------------------------------------------------------------
-// Dummies - not used for Windows
+// Dummy - not used for Windows
 //
 void BtDriver_CloseDevice( void )
 {
 }
 
+// ----------------------------------------------------------------------------
+// Check if the driver has control over the TV channel selection
+//
 bool BtDriver_CheckDevice( void )
 {
    return (shmSlaveMode == FALSE);
@@ -1700,10 +1167,7 @@ bool BtDriver_CheckDevice( void )
 //
 const char * BtDriver_GetTunerName( uint idx )
 {
-   if (idx < TUNERS_COUNT)
-      return Tuners[idx].name;
-   else
-      return NULL;
+   return Tuner_GetName(idx);
 }
 
 // ---------------------------------------------------------------------------

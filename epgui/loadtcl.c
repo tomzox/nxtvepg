@@ -22,7 +22,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: loadtcl.c,v 1.3 2002/11/10 20:05:19 tom Exp tom $
+ *  $Id: loadtcl.c,v 1.4 2002/11/23 15:12:58 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -169,7 +169,7 @@ void LoadTcl_Init( bool withGui )
       {
          if (TCL_EVAL_CONST(interp, pModule->pStatic) != TCL_OK)
          {
-            debug1("LoadTcl-Init: failed to compile static script '%s'", pModule->pFileName);
+            debug1("LoadTcl-Init: failed to compile static script #%d", pModule - pLoadTab);
             debugTclErr(interp, "eval");
          }
       }

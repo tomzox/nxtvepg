@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: btdrv.h,v 1.26 2002/11/17 18:12:34 tom Exp tom $
+ *  $Id: btdrv.h,v 1.27 2002/11/26 19:13:43 tom Exp tom $
  */
 
 #ifndef __BTDRV_H
@@ -221,9 +221,6 @@ const char * BtDriver_GetTunerName( uint tunerIdx );
 const char * BtDriver_GetInputName( uint cardIdx, uint inputIdx );
 bool BtDriver_Configure( int cardIndex, int tunerType, int pllType, int prio );
 #ifdef WIN32
-uint BtDriver_MatchTunerByParams( uint thresh1, uint thresh2,
-                                  uchar VHF_L, uchar VHF_H, uchar UHF,
-                                  uchar config, ushort IFPCoff );
 bool BtDriver_GetState( bool * pEnabled, bool * pHasDriver, uint * pCardIdx );
 #endif
 

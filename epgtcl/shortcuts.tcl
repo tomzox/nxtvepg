@@ -19,7 +19,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: shortcuts.tcl,v 1.6 2002/11/09 20:22:18 tom Exp tom $
+#  $Id: shortcuts.tcl,v 1.7 2002/11/23 18:29:04 tom Exp tom $
 #
 set fsc_name_idx 0
 set fsc_mask_idx 1
@@ -748,6 +748,84 @@ proc ToggleShortcut {index} {
    # update filter settings
    InvokeSelectedShortcuts
 }
+
+##
+##  Enable exactly one single shortcut out of a given list
+##  - if another shortcut in the list is currently selected, it's deselected
+##  - if the single shortcut is already selected, it's deselected
+##
+proc SelectShortcutFromTagList {tag_list sc_tag} {
+   global shortcuts shortcut_order
+   global fsc_prevselection
+
+   if [info exists fsc_prevselection] {
+      # check if the given shortcut is already selected
+      set undo [expr [lsearch -exact $fsc_prevselection $sc_tag] != -1]
+
+      set sc_tag_list {}
+      foreach prev_tag $fsc_prevselection {
+         if {[lsearch -exact $tag_list $prev_tag] == -1} {
+            lappend sc_tag_list $prev_tag
+         }
+      }
+      if {$undo == 0} {
+         lappend sc_tag_list $sc_tag
+      }
+
+   } else {
+      # no shortcuts selected previously -> select the new shortcut
+      set sc_tag_list $sc_tag
+      set undo 0
+   }
+
+   set idx [lsearch -exact $shortcut_order $sc_tag]
+   if {$idx != -1} {
+      if {$undo == 0} {
+         .all.shortcuts.list selection set $idx
+      } else {
+         .all.shortcuts.list selection clear $idx
+      }
+   }
+
+   SelectShortcuts $sc_tag_list shortcuts
+}
+
+##
+##  Toggle the shortcut given by the tag on/off
+##  - all other shortcuts remain unaffected
+##
+#proc ToggleShortcutByTag {sc_tag} {
+#   global shortcuts shortcut_order
+#   global fsc_prevselection
+#
+#   if [info exists fsc_prevselection] {
+#      set idx [lsearch -exact $fsc_prevselection $sc_tag]
+#      if {$idx == -1} {
+#         # shortcut currently not selected -> append it to shortcut list
+#         set sc_tag_list [concat $fsc_prevselection $sc_tag]
+#         set undo 0
+#      } else {
+#         # shortcut already selected -> remove it from list
+#         set sc_tag_list [lreplace $fsc_prevselection $idx $idx]
+#         set undo 1
+#      }
+#   } else {
+#      # no shortcuts selected previously -> select the new shortcut
+#      set sc_tag_list $sc_tag
+#      set undo 0
+#   }
+#
+#   set idx [lsearch -exact $shortcut_order $sc_tag]
+#   if {$idx != -1} {
+#      if {$undo == 0} {
+#         .all.shortcuts.list selection set $idx
+#      } else {
+#         .all.shortcuts.list selection clear $idx
+#      }
+#   }
+#
+#   SelectShortcuts $sc_tag_list shortcuts
+#}
 
 proc InvokeSelectedShortcuts {} {
    global shortcuts shortcut_order

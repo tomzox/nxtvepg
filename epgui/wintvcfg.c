@@ -29,7 +29,7 @@
  *    so their respective copyright applies too. Please see the notes in
  *    functions headers below.
  *
- *  $Id: wintvcfg.c,v 1.10 2002/09/29 17:16:52 tom Exp tom $
+ *  $Id: wintvcfg.c,v 1.12 2002/12/01 15:26:12 tom Exp tom $
  */
 
 #ifndef WIN32
@@ -53,6 +53,7 @@
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
 #include "epgvbi/btdrv.h"
+#include "epgvbi/wintuner.h"
 #include "epgvbi/winshm.h"
 #include "epgdb/epgblock.h"
 #include "epgui/epgmain.h"
@@ -1107,7 +1108,7 @@ static bool WintvCfg_GetMultidecIni( Tcl_Interp * interp, TVAPP_NAME appIdx, con
 
             if (tunerType == MULTIDEC_TUNER_MANUAL)
             {
-               tunerType = BtDriver_MatchTunerByParams(thresh1, thresh2, VHF_L, VHF_H, UHF, config, IFPCoff);
+               tunerType = Tuner_MatchByParams(thresh1, thresh2, VHF_L, VHF_H, UHF, config, IFPCoff);
                if (tunerType == 0)
                   eval_check(interp, "tk_messageBox -type ok -icon warning -parent .hwcfg -message {"
                         "Manual tuner setting did not match any known tuner type. Sorry, you'll have to choose a tuner manually.}");
@@ -1158,11 +1159,14 @@ static const uchar DScalerPllInit[] =
 // map DScaler TV tuner indices to nxtvepg indices
 static const uchar DScalerTunerMapping[] =
 {
-   0, 2, 3, 4, 5, 1,
-   6,7,8,9,10,11,12,13,14,
-   0, 0,
-   15,16,17,18,19,20,21,22,23,24,
-   25,26,27,28,29,39,31,32,33
+   /*  0 */ 0, 2, 3, 4, 5, 1,
+   /*  6 */ 6,7,8,9,10,11,12,13,14,
+   /* 15 */ 0, 0,
+   /* 17 */ 15,16,17,
+   /* 20 */ 18,19,20,21,22,23,24,25,26,27,28,29,30,
+   /* 33 */ 33,
+   /* 34 */ 31,0,32,34,35,36,37,38,39,
+   /* 43 */ 33
 };
 #define DSCALER_TUNER_COUNT (sizeof(DScalerTunerMapping) / sizeof(*DScalerTunerMapping))
 
@@ -1363,7 +1367,7 @@ static bool WintvCfg_GetKtvIni( Tcl_Interp * interp, TVAPP_NAME appIdx, const ch
             pllType = WinTvCfg_UpdatePll(interp, pllType, "PLL initialization");
             if (tunerType == ((isNewTunerTable == FALSE) ? KTV_TUNER_MANUAL : KTV_TUNER_MANUAL_NEW))
             {
-               tunerType = BtDriver_MatchTunerByParams(thresh1, thresh2, VHF_L, VHF_H, UHF, config, IFPCoff);
+               tunerType = Tuner_MatchByParams(thresh1, thresh2, VHF_L, VHF_H, UHF, config, IFPCoff);
                if (tunerType == 0)
                   eval_check(interp, "tk_messageBox -type ok -icon warning -parent .hwcfg -message {"
                         "Manual tuner setting did not match any known tuner type. Sorry, you'll have to choose a tuner manually.}");

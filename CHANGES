@@ -4,6 +4,33 @@ changes or additions.
 
 Before you submit any feature requests, please read the TODO file.
 
+from 2.4.0 to 2.4.1 (2002-December-01)
+
+- In generated HTML files the ".png" extension was missing in references to
+  images used in user-defined columns.
+- Tuner parameters for "Philips PAL/SECAM multi (FQ1216ME)" were incorrect
+  in version 2.4.0.  Thanks to Volker Beck for pointing this out.
+- invert flag for "Program index" filter was not reset with the "Reset" button
+- the main window's column selection config button was not removed when
+  the "column header" menu buttons were hidden via the "Show/hide" sub-menu
+  of the Configure menu.
+- bugfix in XML output: removed linebreaks inside the <title>...</title>
+  element, which appearently caused mythtv to display empty title lines.
+  Thanks to David Klotz for reporting this bug.
+- bugfix in importing tuner types from DScaler INI file & update for DScaler
+  version 4.0.  Thanks to Ronceval for reporting this bug.
+- Added a new "column header" popup menu for user-defined columns, which
+  consists of the shortcuts used to define the column.
+- Improved handling of start time and duration filter dialogs (more flexible
+  parsing; removed requirement to press Return key after every single change;
+  made it possible to enter value "23:59" with the scales)
+- Added preliminary support for tuner MT2032 (e.g. used in Pinnacle PCTVpro)
+  by copying the required source code from the DScaler project (who seem to
+  have copied it from the Linux BTTV driver).  Note that some cards with MT2032
+  still will not work because they use an additional chip besides the tuner
+  which is not yet supported.
+
+
 from 2.3.1 to 2.4.0 (2002-November-19)
 
 - implemented user-defined columns in TV schedule output, which allow to
