@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: rcfile.tcl,v 1.4 2002/11/17 19:40:44 tom Exp tom $
+#  $Id: rcfile.tcl,v 1.6 2002/11/30 21:56:05 tom Exp tom $
 #
 set myrcfile ""
 
@@ -122,11 +122,20 @@ proc LoadRcFile {filename isDefault} {
       set usercols($tag) [lindex $pilistbox_usercol($tag) 1]
       set ltmp [lindex $pilistbox_usercol($tag) 0]
       set htyp [lindex $ltmp 2]
-      if [info exists colsel_tabs($htyp)] {
-         set colsel_tabs(user_def_$tag) [lreplace $ltmp 2 2 [lindex $colsel_tabs($htyp) 2]]
-      } else {
-         set colsel_tabs(user_def_$tag) [lreplace $ltmp 2 2 none]
+      if {([string compare $htyp none] != 0) && \
+          ([string compare $htyp "&user_def"] != 0)} {
+         if {([string compare -length 1 $htyp "&"] != 0) && \
+             [info exists nxtvepg_version] && ($nxtvepg_version <= 0x020400)} {
+            # backward compatibility: prepend "&" operator
+            set htyp "&$htyp"
+            set ltmp [lreplace $ltmp 2 2 $htyp]
+         }
+         if {[info exists colsel_tabs([string range $htyp 1 end])] == 0} {
+            # indirect function reference with unknown column keyword -> remove
+            set ltmp [lreplace $ltmp 2 2 none]
+         }
       }
+      set colsel_tabs(user_def_$tag) $ltmp
    }
 
    # check consistancy of references from PI column selection to user-defined columns
@@ -260,13 +269,8 @@ proc UpdateRcFile {} {
       puts $rcfile [list set pilistbox_col_widths $pilistbox_col_widths]
 
       # dump user-defined columns
-      foreach id $colsel_ailist_predef {
-         set colmen([lindex $colsel_tabs($id) 2]) $id
-      }
-      set colmen(none) none
       foreach col [array names usercols] {
-         set hmenu $colmen([lindex $colsel_tabs(user_def_$col) 2])
-         puts $rcfile [list set pilistbox_usercol($col) [list [lreplace $colsel_tabs(user_def_$col) 2 2 $hmenu] $usercols($col)]]
+         puts $rcfile [list set pilistbox_usercol($col) [list $colsel_tabs(user_def_$col) $usercols($col)]]
       }
 
       # dump acquisition mode and provider CNIs

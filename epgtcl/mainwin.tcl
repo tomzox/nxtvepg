@@ -20,7 +20,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: mainwin.tcl,v 1.200 2002/11/17 19:40:38 tom Exp tom $
+#  $Id: mainwin.tcl,v 1.203 2002/12/01 12:47:04 tom Exp $
 #
 
 ##  ---------------------------------------------------------------------------
@@ -136,7 +136,7 @@ proc DeriveFont {afont delta_size {style {}}} {
 }
 
 ##  ---------------------------------------------------------------------------
-##  Create the main window and menu bar
+##  Create the main window
 ##  - called once during start-up
 ##
 proc CreateMainWindow {} {
@@ -258,7 +258,6 @@ proc CreateMainWindow {} {
    bind      .all.pi.list.text <Escape> {tkButtonInvoke .all.shortcuts.reset}
    bind      .all.pi.list.text <Control-Key-f> {SubStrPopup}
    bind      .all.pi.list.text <Control-Key-c> {CreateContextMenu key 0 0}
-   #bind    .all.pi.list.text <Control-Key-n> {tk_popup .all.pi.list.colheads.col_netname.b.men %X %Y 0}
    bind      .all.pi.list.text <Enter> {focus %W}
    .all.pi.list.text tag configure cur -relief raised -borderwidth 1
    .all.pi.list.text tag configure now -background $pi_bg_now
@@ -380,7 +379,9 @@ proc CreateMainWindow {} {
 }
 
 
-# initialize menu state
+##  ---------------------------------------------------------------------------
+##  Initialize menu state variables
+##
 set menuStatusStartAcq 0
 set menuStatusDaemon 0
 set menuStatusDumpStream 0
@@ -406,6 +407,10 @@ array set pi_attr_labels [list \
    invert_all {Global invert} \
 ]
 
+##  ---------------------------------------------------------------------------
+##  Create the menu bar and it's sub-menus
+##  - called once during start-up
+##
 proc CreateMenubar {} {
    global helpIndex pi_attr_labels
    global is_unix
@@ -615,11 +620,16 @@ proc CreateMenubar {} {
 ##
 proc ApplyRcSettingsToMenu {} {
    global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_inv_idx fsc_logi_idx fsc_hide_idx
-   global showStatusLine hideOnMinimize
+   global showColumnHeader showStatusLine hideOnMinimize
    global pibox_height shortinfo_height
    global shortcuts shortcut_order
 
    ShowOrHideShortcutList
+
+   if {$showColumnHeader == 0} {
+      # use "remove" instead of "forget" so that grid parameters are not lost
+      grid remove .all.pi.list.colcfg
+   }
 
    if {$showStatusLine == 0} {
       pack forget .all.statusline
@@ -932,6 +942,14 @@ proc ToggleStatusLine {} {
 proc ToggleColumnHeader {} {
    global showColumnHeader
 
+   # show of hide the "config" button (it's save to do this even if already shown or hidden)
+   if $showColumnHeader {
+      # note: grid position is alread configured during start-up, and need not be set again
+      grid .all.pi.list.colcfg
+   } else {
+      grid remove .all.pi.list.colcfg
+   }
+
    UpdatePiListboxColumns
    UpdateRcFile
 }
@@ -1231,7 +1249,7 @@ proc ResetProgIdx {} {
    global filter_invert
 
    set filter_progidx 0
-   array unset filter_invert proxidx
+   array unset filter_invert progidx
 }
 
 proc ResetTimSel {} {
@@ -1701,7 +1719,6 @@ proc SelectVpsPdcFilter {} {
 ##  Callback for duration sliders and entry fields
 ##
 proc SelectDurationFilter {} {
-   global dursel_minstr dursel_maxstr
    global dursel_min dursel_max
 
    if {$dursel_max < $dursel_min} {
@@ -1711,9 +1728,6 @@ proc SelectDurationFilter {} {
          set dursel_max $dursel_min
       }
    }
-
-   set dursel_minstr [Motd2HHMM $dursel_min]
-   set dursel_maxstr [Motd2HHMM $dursel_max]
 
    C_SelectMinMaxDuration $dursel_min $dursel_max
    C_RefreshPiListbox
@@ -2457,13 +2471,13 @@ proc PopupHelp {index {subheading {}}} {
       .help.disp.text tag bind href <ButtonRelease-1> {FollowHelpHyperlink}
 
       # allow to scroll the text with the cursor keys
-      bindtags .help.disp.text {.help.disp.text . all}
-      bind   .help.disp.text <Up>    {.help.disp.text yview scroll -1 unit}
-      bind   .help.disp.text <Down>  {.help.disp.text yview scroll 1 unit}
-      bind   .help.disp.text <Prior> {.help.disp.text yview scroll -1 pages}
-      bind   .help.disp.text <Next>  {.help.disp.text yview scroll 1 pages}
-      bind   .help.disp.text <Home>  {.help.disp.text yview moveto 0.0}
-      bind   .help.disp.text <End>   {.help.disp.text yview moveto 1.0}
+      bindtags .help.disp.text {.help.disp.text TextReadOnly . all}
+      bind   .help.disp.text <Up>    [concat .help.disp.text yview scroll -1 unit {;} break]
+      bind   .help.disp.text <Down>  [concat .help.disp.text yview scroll 1 unit {;} break]
+      bind   .help.disp.text <Prior> [concat .help.disp.text yview scroll -1 pages {;} break]
+      bind   .help.disp.text <Next>  [concat .help.disp.text yview scroll 1 pages {;} break]
+      bind   .help.disp.text <Home>  [concat .help.disp.text yview moveto 0.0 {;} break]
+      bind   .help.disp.text <End>   [concat .help.disp.text yview moveto 1.0 {;} break]
       bind   .help.disp.text <Enter> {focus %W}
       bind   .help.disp.text <Escape> {tkButtonInvoke .help.cmd.dismiss}
       # allow to scroll the text with a wheel mouse
@@ -2625,7 +2639,7 @@ THIS PROGRAM IS DISTRIBUTED IN THE HOPE THAT IT WILL BE USEFUL, BUT WITHOUT ANY 
 array set colsel_tabs {
    title          {266 Title    FilterMenuAdd_Title      "Title"} \
    netname        {60  Network  FilterMenuAdd_Networks   "Network name"} \
-   time           {78  Time     FilterMenuAdd_Time       "Running time"} \
+   time           {86  Time     FilterMenuAdd_Time       "Running time"} \
    duration       {43  Duration FilterMenuAdd_Duration   "Duration"} \
    weekday        {35  Day      FilterMenuAdd_Date       "Day of week"} \
    day            {27  Date     FilterMenuAdd_Date       "Day of month"} \
@@ -2789,8 +2803,18 @@ proc UpdatePiListboxColumns {} {
 
          if {[string compare [lindex $colsel_tabs($col) 2] "none"] != 0} {
             # create the drop-down menu below the header (the menu items are added dynamically)
+            set func [lindex $colsel_tabs($col) 2]
+            if {[string compare -length 1 $func "&"] == 0} {
+               if {[string compare $func "&user_def"] == 0} {
+                  # special case: menu derived from shortuts used in user-defined column
+                  set func FilterMenuAdd_RefdShortcuts
+               } else {
+                  # indirect function reference in used-defined column
+                  set func [lindex $colsel_tabs([string range $func 1 end]) 2]
+               }
+            }
             .all.pi.list.colheads.col_${col}.b configure -menu .all.pi.list.colheads.col_${col}.b.men
-            menu .all.pi.list.colheads.col_${col}.b.men -postcommand [list PostDynamicMenu .all.pi.list.colheads.col_${col}.b.men [lindex $colsel_tabs($col) 2] 1]
+            menu .all.pi.list.colheads.col_${col}.b.men -postcommand [list PostDynamicMenu .all.pi.list.colheads.col_${col}.b.men $func 1]
          }
 
          # add bindings to allow manual resizing
@@ -2930,6 +2954,38 @@ proc FilterMenuAdd_Title {widget is_stand_alone} {
       $widget add command -label "Clear search history" -command {set substr_history {}; UpdateRcFile}
    }
 }
+
+# create a popup menu derived from shortcuts used in a user-defined column
+proc FilterMenuAdd_RefdShortcuts {widget is_stand_alone} {
+   global ucf_type_idx ucf_value_idx ucf_fmt_idx ucf_ctxcache_idx ucf_sctag_idx
+   global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_inv_idx fsc_logi_idx fsc_hide_idx
+   global colsel_tabs shortcuts usercols
+   global fsc_prevselection
+
+   # derive user-def-column tag from menu widget name
+   if {[scan $widget {.all.pi.list.colheads.col_user_def_%[^.].b.men} col] == 1} {
+      if [info exists usercols($col)] {
+         # loop across all shortcuts used by this column
+         set tag_list {}
+         foreach filt $usercols($col) {
+            set sc_tag [lindex $filt $ucf_sctag_idx]
+            if {($sc_tag != -1) && [info exists shortcuts($sc_tag)]} {
+               lappend tag_list $sc_tag
+            }
+         }
+
+         # add a menu entry to invoke this shortcut and deselect the others
+         foreach sc_tag $tag_list {
+            $widget add checkbutton -label [lindex $shortcuts($sc_tag) $fsc_name_idx] \
+                                    -command [list SelectShortcutFromTagList $tag_list $sc_tag] \
+                                    -variable foo_sc_tag_sel_$sc_tag
+            global foo_sc_tag_sel_$sc_tag
+            set foo_sc_tag_sel_$sc_tag [expr [lsearch $fsc_prevselection $sc_tag] != -1]
+         }
+      }
+   }
+}
+
 
 ##  ---------------------------------------------------------------------------
 ##  Callbacks for PI listbox column resizing

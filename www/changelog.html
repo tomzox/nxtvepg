@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: changelog.html,v 1.41 2002/11/19 22:21:11 tom Exp $ -->
+<!-- $Id: changelog.html,v 1.42 2002/12/01 19:21:00 tom Exp $ -->
 <HEAD>
 <TITLE>Nextview EPG Decoder Change-Log</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
@@ -44,8 +44,44 @@ improvements for the M$ Windows platform (see changelog for 0.7.1):
 -->
 
 
+<A NAME="release_2_4_1">
+<H2>From 2.4.0 to 2.4.1 (December/1/2002)</H2>
+</A>
+<P>
+This release fixes the following problems:
+</P>
+<UL>
+<LI>In generated HTML files the ".png" extension was missing in references to
+  images used in user-defined columns.
+<LI>Tuner parameters for "Philips PAL/SECAM multi (FQ1216ME)" were incorrect
+  in version 2.4.0.  Thanks to Volker Beck for pointing this out.
+<LI>Invert flag for "Program index" filter was not reset with the "Reset" button
+<LI>The main window's column selection config button was not removed when
+  the "column header" menu buttons were hidden via the "Show/hide" sub-menu
+  of the Configure menu.
+<LI>Bugfix in XML output: removed linebreaks inside the &lt;title&gt;...&lt;/title&gt;
+  element, which appearently caused mythtv to display empty title lines.
+  Thanks to David Klotz for reporting this bug.
+<LI>Bugfix in importing tuner types from DScaler INI file &amp; update for DScaler
+  version 4.0.  Thanks to Ronceval for reporting this bug.
+</UL>
+<P>This release also contains the following improvements:</P>
+<UL>
+<LI>Added a new "column header" popup menu for user-defined columns, which
+  consists of the shortcuts used to define the column.
+<LI>Improved handling of start time and duration filter dialogs (more flexible
+  parsing; removed requirement to press Return key after every single change;
+  made it possible to enter value "23:59" with the scales)
+<LI>Added preliminary support for tuner MT2032 (e.g. used in Pinnacle PCTVpro)
+  by copying the required source code from the DScaler project (who seem to
+  have copied it from the Linux BTTV driver).  Note that some cards with MT2032
+  still will not work because they use an additional chip besides the tuner
+  which is not yet supported.
+</UL>
+
+
 <A NAME="release_2_4_0">
-<H2>From 2.3.1 to 2.4.0 (November/19/2992)</H2>
+<H2>From 2.3.1 to 2.4.0 (November/19/2002)</H2>
 </A>
 <P>
 This release contains the following new features and improvements:
@@ -56,7 +92,7 @@ This release contains the following new features and improvements:
   shortcuts; the content can consist of static text, pre-defined images or
   a standard attribute.
   See the <A HREF="man.html#userdefined columns">manual</A> or this
-  <A HREF="screenshot-linux-2.4.0.gif">screenshot</A> for details.
+  <A HREF="screenshot-linux.gif">screenshot</A> for details.
 <LI>Implemented inverted filters, i.e. you can now search for all programmes
   which do not match one or more of given filter criteria or simply invert
   the outcome of a complete filter setting.

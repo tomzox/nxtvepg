@@ -44,7 +44,7 @@
  *    NetBSD:  Mario Kemper <magick@bundy.zhadum.de>
  *    FreeBSD: Simon Barner <barner@gmx.de>
  *
- *  $Id: btdrv4linux.c,v 1.34 2002/11/17 18:12:55 tom Exp tom $
+ *  $Id: btdrv4linux.c,v 1.35 2002/11/25 19:30:40 tom Exp tom $
  */
 
 #if !defined(linux) && !defined(__NetBSD__) && !defined(__FreeBSD__) 
@@ -516,7 +516,7 @@ bool BtDriver_TuneChannel( int inputIdx, uint freq, bool keepOpen, bool * pIsTun
    norm  = freq >> 24;
    lfreq = freq & 0xffffff;
 
-   if (DevKeptOpen || BtDriver_SetInputSource(inputIdx, norm, pIsTuner))
+   if (devKeptOpen || BtDriver_SetInputSource(inputIdx, norm, pIsTuner))
    {
       if ( (devKeptOpen || *pIsTuner) && (lfreq != 0) )
       {

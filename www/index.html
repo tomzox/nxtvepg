@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: index.html,v 1.58 2002/11/19 22:21:26 tom Exp $ -->
+<!-- $Id: index.html,v 1.60 2002/12/01 19:21:50 tom Exp $ -->
 <HEAD>
 <TITLE>nexTView EPG Decoder Software Download Page</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
@@ -24,7 +24,7 @@
 <tr>
 <td valign="top" class="navbar" width="20%">
 <a href="http://sourceforge.net"><img
-src="http://sourceforge.net/sflogo.php?group_id=YOUR_GROUP_ID_GOES_HERE&amp;type=4"
+src="http://sourceforge.net/sflogo.php?group_id=64430&amp;type=4"
 width="125" height="37" border="0" alt="SourceForge.net Logo"></a>
 
 <P class="navhead"><B>Language</B>
@@ -50,7 +50,9 @@ width="125" height="37" border="0" alt="SourceForge.net Logo"></a>
 
 <P class="navhead"><B>News</B>
 <P class="navsect">
-Nov/19/2002: <A HREF="#download">release 2.4.0</A></P>
+Dec/1/2002: <A HREF="#download">release 2.4.1</A></P>
+<HR width=70%><P class="navsect">
+Nov/19/2002: release 2.4.0</P>
 <HR width=70%><P class="navsect">
 Oct/13/2002: release 2.3.1</P>
 <HR width=70%><P class="navsect">
@@ -65,13 +67,8 @@ interacts with nxtvepg</P>
 <HR width=70%><P class="navsect">
 June/2/2002: release 0.7.4 aka 2.1.2</P>
 <HR width=70%><P class="navsect">
-New German provider
+Jan/2002: New German provider
 <A HREF="provnets.html">Fast iPG</A></P>
-<HR width=70%><P class="navsect">
-Oct/2001: nxtvepg included with
-<A HREF="http://www.suse.de/de/products/suse_linux/i386/index.html">SuSE Linux 7.3</A>
-<HR width=70%><P class="navsect">
-May/2001: <A HREF="provnets.html">TRT launches Nextview EPG service</A></P>
 </td>
 <td valign="top" class="main" width="85%">
 
@@ -132,12 +129,42 @@ at one of the following manufacturers:
 <A HREF="http://www.quelle.de">Quelle Universum</A>.
 </P>
 
+
+<H2 class=hr>Questions and feedback</H2>
+<P>
+Your feedback is always welcome.  If you have specific questions, suggestions,
+bug reports or any other kind of feedback, feel free to use any of the
+following possibilities:
+</P>
+<UL>
+<LI><A HREF="http://sourceforge.net/forum/forum.php?forum_id=217872">Discussion forum</A>:
+the fastest way to leave feedback (does not require Sourceforge registration).
+<LI><A HREF="http://lists.sourceforge.net/lists/listinfo/nxtvepg-users">Mailing list</A>:
+This list is meant for general discussion between developer(s) and users of the nxtvepg
+software. Possible topics are questions, feature requests, bug reports or exchange of
+tips &amp; tricks between users. New software releases (including alpha and beta) will
+also be announced here.
+<LI>If you only want to be kept up to date about new releases, subscribe to the
+nxtvepg project on <A HREF="http://freshmeat.net/projects/nxtvepg/">freshmeat.net</A>.
+</UL>
+<P>
+Before posting a question, please check if it isn't answered in the
+<A HREF="man.html">manual</A> and look through the mailing list archives
+and the forum if the same question hasn't been asked recently.
+</P>
+
+
 <H2 class=hr>System Requirements</H2>
 <P>
 Hardware requirements are a PC or workstation with a 90 MHz Intel Pentium or
-equivalently (or more) powerful CPU and a TV tuner card based on the
-Booktree chip Bt848 or Bt878.  (Almost all TV cards for PC except the
-ATI "TV Wonder" are built around one of the Booktree chips.)
+equivalently (or more) powerful CPU and a TV tuner card.  The Windows version
+supports all TV cards based on the Booktree chip Bt848 or Bt878 (i.e. almost all
+PCI TV cards except the ATI "TV Wonder" and some low-end cards based on the
+Philips SAA7134).  The Linux version supports all cards for which a
+<A HREF="http://roadrunner.swansea.uk.linux.org/v4l.shtml">video4linux</A>
+compatible driver exists (i.e. bttv or saa7134, including even some USB cards).
+The NetBSD/FreeBSD version supports all cards which are supported by the
+<A HREF="http://vulture.dmem.strath.ac.uk/bt848/">bktr driver</A>.
 </P>
 
 <H3>Linux software requirements</H3>
@@ -163,12 +190,10 @@ ATI "TV Wonder" are built around one of the Booktree chips.)
 
 <H3>Windows software requirements</H3>
 <UL>
-<LI><B><FONT COLOR="red">New since 2.0.0:</FONT></B>
-No additional software is required: nxtvepg is shipped with all the required components.
+<LI>No additional software is required: nxtvepg is shipped with all the required components.
 <LI>Exception for Windows 95: the winsock2 DLL is required (ws2_32.dll, for the daemon
 feature) which - in contrary to newer Windows versions - was not included with this OS.
-<LI><B><FONT COLOR="red">New since 2.0.0:</FONT></B>
-All Windows versions starting with Windows 95 are supported.
+<LI>All Windows versions starting with Windows 95 are supported.
 <LI>Note: On Windows NT and Windows 2000 you need to run nxtvepg under an
 account with special privileges (you must be allowed to install &amp; start a service)
 </UL>
@@ -177,23 +202,19 @@ account with special privileges (you must be allowed to install &amp; start a se
 <H2>Download</H2>
 </A>
 <P>
-The latest stable release is version 2.3.1; the newest release is 2.4.0.
-<BR>The latest release offers major improvements, including
+The latest stable release is version 2.4.1.
+Release 2.4.0 introduced major improvements over 2.3.1, including
 user defined programme display (e.g. print titles of your favorite series
 in bold red text), inverting searches (e.g. show all programmes that do
 NOT have adult content), export in XML format, and many more
 (details see <A HREF="changelog.html#release_2_4_0">change log 2.4.0</A>).
+Release 2.4.1 fixes several minor bugs.
 </P><P>
 For a detailed history of new features and fixes in previous releases
 refer to the <A HREF="changelog.html">change log</A>.
 If there are any problems with this new release, please let me know.
 For previous releases see the
 <A HREF="http://sourceforge.net/project/showfiles.php?group_id=64430">SourceForge File List</A>.
-</P><P>
-If you want to be kept up to date about future new releases, you can subscribe
-to the nxtvepg project on <A HREF="http://freshmeat.net/projects/nxtvepg/">freshmeat.net</A>.
-I also appreciate all kind of feed-back in my (yet empty)
-<A HREF="http://sourceforge.net/forum/forum.php?forum_id=217872">discussion forum</A>.
 </P>
 
 <A NAME="download_unix">
@@ -201,13 +222,10 @@ I also appreciate all kind of feed-back in my (yet empty)
 </A>
 <P>
 Download the latest stable source distribution for Linux and NetBSD:
-<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.3.1.tar.gz?download">nxtvepg-2.3.1.tar.gz</A>
-</P><P>
-Download the newest (possibly unstable) source distribution:
-<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.4.0.tar.gz?download">nxtvepg-2.4.0.tar.gz</A>
+<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.4.1.tar.gz?download">nxtvepg-2.4.1.tar.gz</A>
 </P><P>
 You can build a RPM package from the source tarball simply by running
-<KBD>rpm -ta nxtvepg-2.4.0.tar.gz</KBD> and install it as usual with
+<KBD>rpm -ta nxtvepg-2.4.1.tar.gz</KBD> and install it as usual with
 <KBD>rpm -i</KBD>.  You can also donwload directly installable packages
 (not necessarily the latest version)
 for Linux at <A HREF="http://rpmfind.net/linux/rpm2html/search.php?query=nxtvepg">rpmfind.net</A>
@@ -220,13 +238,10 @@ and for NetBSD at <A HREF="ftp://ftp.netbsd.org/pub/NetBSD/packages/pkgsrc/misc/
 </A>
 <P>
 Windows executable of the latest stable version:
-<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.3.1-win.zip?download">nxtvepg-2.3.1-win.zip</A>
-</P><P>
-Windows executable of the newest (possibly unstable) version:
-<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.4.0-win.zip?download">nxtvepg-2.4.0-win.zip</A>
+<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.4.1-win.zip?download">nxtvepg-2.4.1-win.zip</A>
 </P><P>
 Demo application for TV application interaction:
-<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.4.0-tvsim.zip?download">nxtvepg-2.4.0-tvsim.zip</A>
+<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.4.1-tvsim.zip?download">nxtvepg-2.4.1-tvsim.zip</A>
 <BR>(see <A HREF="tvsim.html">tvsim</A>,
 <A HREF="vbirec.html">vbirec</A> or
 <A HREF="vbiplay.html">vbiplay</A> manuals, or

@@ -19,7 +19,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_ctxmencf.tcl,v 1.2 2002/11/03 16:02:42 tom Exp tom $
+#  $Id: dlg_ctxmencf.tcl,v 1.3 2002/11/30 20:28:38 tom Exp tom $
 #
 set ctxmencf_popup 0
 set ctxmencf {}
@@ -101,32 +101,19 @@ proc ContextMenuConfigPopup {} {
       button .ctxmencf.all.cmd.clear -text "clear" -command ContextMenuConfigClearEntry -width 7
       pack   .ctxmencf.all.cmd.clear -side left -fill y
 
-      menubutton .ctxmencf.all.cmd.examples -text "Copy example" -menu .ctxmencf.all.cmd.examples.men -borderwidth 2 -relief raised
+      menubutton .ctxmencf.all.cmd.examples -text "Copy example" -menu .ctxmencf.all.cmd.examples.men \
+                                            -borderwidth 2 -relief raised -underline 0
       pack .ctxmencf.all.cmd.examples -side left -fill y
-      menu .ctxmencf.all.cmd.examples.men -tearoff 0
-      .ctxmencf.all.cmd.examples.men add command -label "Plan reminder" -command {
-         set ctxmencf_title "Set reminder in plan";
-         set ctxmencf_cmd   {plan ${start:%d.%m.%Y %H:%M} ${title}\ \(${network}\)}
-      }
-      .ctxmencf.all.cmd.examples.men add command -label "XAlarm timer" -command {
-         set ctxmencf_title "Set alarm timer";
-         set ctxmencf_cmd   {xalarm -time ${start:%H:%M} -date ${start:%b %d %Y} ${title}\ \(${network}\)}
-      }
-      .ctxmencf.all.cmd.examples.men add command -label "All variables" -command {
-         set ctxmencf_title "Demo: echo all variables";
-         set ctxmencf_cmd   {echo title=${title} network=${network} start=${start} stop=${stop} VPS/PDC=${VPS} duration=${duration} relstart=${relstart} CNI=${CNI} description=${description} themes=${themes} e_rating=${e_rating} p_rating=${p_rating} sound=${sound} format=${format} digital=${digital} encrypted=${encrypted} live=${live} repeat=${repeat} subtitle=${subtitle}}
-      }
-      if {!$is_unix} {
-         .ctxmencf.all.cmd.examples.men add command -label "Send 'record' command to TV app." -command {
-            set ctxmencf_title "Record this show";
-            set ctxmencf_cmd   {!wintv! record ${network} ${CNI} ${start} ${stop} ${VPS} ${title} ${themes:n}}
-         }
-         .ctxmencf.all.cmd.examples.men add command -label "Change channel in connected TV app." -command {
-            set ctxmencf_title "Tune this channel";
-            set ctxmencf_cmd   {!wintv! setstation ${network}}
-         }
-      }
       pack .ctxmencf.all.cmd -side top -pady 10
+
+      # create popup-menu with example commands
+      menu .ctxmencf.all.cmd.examples.men -tearoff 0
+      set idx 0
+      foreach example [ContextMenuGetExamples] {
+         .ctxmencf.all.cmd.examples.men add command -label [lindex $example 2] \
+                                                    -command [list ContextMenuCopyExample $idx]
+         incr idx
+      }
 
       # section #3: entry field to modify or create commands
       frame .ctxmencf.all.edit -borderwidth 2 -relief ridge
@@ -168,14 +155,55 @@ proc ContextMenuConfigPopup {} {
    }
 }
 
+# this proc returns a list of example commands
+proc ContextMenuGetExamples {} {
+   global is_unix
+
+   set examples [list \
+      [list "Set reminder in plan" \
+            {plan ${start:%d.%m.%Y %H:%M} ${title}\ \(${network}\)} \
+            "Plan reminder"] \
+      [list "Set alarm timer" \
+            {xalarm -time ${start:%H:%M} -date ${start:%b %d %Y} ${title}\ \(${network}\)} \
+            "XAlarm timer"] \
+      [list "Demo: echo all variables" \
+            {echo title=${title} network=${network} start=${start} stop=${stop} VPS/PDC=${VPS} duration=${duration} relstart=${relstart} CNI=${CNI} description=${description} themes=${themes} e_rating=${e_rating} p_rating=${p_rating} sound=${sound} format=${format} digital=${digital} encrypted=${encrypted} live=${live} repeat=${repeat} subtitle=${subtitle}} \
+            "All variables"] \
+   ]
+   if {!$is_unix} {
+      lappend examples \
+         [list "Record this show" \
+               {!wintv! record ${network} ${CNI} ${start} ${stop} ${VPS} ${title} ${themes:n}} \
+               "Send 'record' command to TV app."] \
+         [list "Tune this channel" \
+               {!wintv! setstation ${network}} \
+               "Change channel in connected TV app."]
+   }
+   return $examples
+}
+
+# callback for example popup menu: copy title and setting into entry fields
+proc ContextMenuCopyExample {index} {
+   global ctxmencf_title ctxmencf_cmd
+
+   # check for unsaved changes in the entry fields
+   if [ContextMenuCompareInput] return
+
+   set examples [ContextMenuGetExamples]
+   if {$index < [llength $examples]} {
+      set example [lindex $examples $index]
+
+      set ctxmencf_title [lindex $example 0]
+      set ctxmencf_cmd   [lindex $example 1]
+   }
+}
+
 # helper function: check if there are unsaved changes in the entry fields
 # returns TRUE if user wants to cancel the operation
 proc ContextMenuCompareInput {} {
    global ctxmencf_selidx ctxmencf_title ctxmencf_cmd
    global ctxmencf_arr ctxmencf_ord
 
-   set title_change 0
-   set cmd_change 0
    set result 0
 
    if {([string length $ctxmencf_title] != 0) ||
@@ -274,13 +302,21 @@ proc ContextMenuConfigAddNew {} {
    global ctxmencf_arr ctxmencf_ord
 
    if [ContextMenuConfigCheckInput 0] {
-      set id [llength $ctxmencf_ord]
-      lappend ctxmencf_ord $id
-      set ctxmencf_arr($id) [list $ctxmencf_title $ctxmencf_cmd]
+
+      # search an unique ID for the new element
+      set new_id 0
+      foreach id [array names ctxmencf_arr] {
+         if {$id >= $new_id} {
+            set new_id [expr $id + 1]
+         }
+      }
+      lappend ctxmencf_ord $new_id
+
+      set ctxmencf_arr($new_id) [list $ctxmencf_title $ctxmencf_cmd]
       .ctxmencf.all.lbox.cmdlist insert end $ctxmencf_title
       .ctxmencf.all.lbox.cmdlist selection clear 0 end
-      .ctxmencf.all.lbox.cmdlist selection set $id
-      set ctxmencf_selidx $id
+      .ctxmencf.all.lbox.cmdlist selection set $new_id
+      set ctxmencf_selidx [expr [llength $ctxmencf_ord] - 1]
    }
 }
 

@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pioutput.c,v 1.41 2002/11/19 18:40:36 tom Exp tom $
+ *  $Id: pioutput.c,v 1.43 2002/11/24 09:51:33 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -511,7 +511,7 @@ static uint PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES
             
          case PIBOX_COL_TIME:
             memcpy(&ttm, localtime(&pPiBlock->start_time), sizeof(struct tm));
-            outlen  = strftime(pOutBuffer, maxLen, "%H:%M-", &ttm);
+            outlen  = strftime(pOutBuffer, maxLen, "%H:%M - ", &ttm);
             outlen += strftime(pOutBuffer + outlen, maxLen - outlen, "%H:%M",  localtime(&pPiBlock->stop_time));
             break;
 
@@ -1515,8 +1515,8 @@ static void PiOutput_HtmlDesc( FILE *fp, const PI_BLOCK * pPiBlock, const AI_BLO
    fprintf(fp, "<A NAME=\"TITLE_%02d_%s\">\n"
                "<table CLASS=PI COLS=3 WIDTH=\"100%%\">\n"
                "<tr>\n"
-               "<td CLASS=\"titlerow\" WIDTH=\"10%%\">\n"
-               "%s-%s\n"  // running time
+               "<td CLASS=\"titlerow\" WIDTH=\"20%%\">\n"
+               "%s - %s\n"  // running time
                "</td>\n"
                "<td rowspan=2 CLASS=\"titlerow\">\n",
                pPiBlock->netwop_no, label_str,
@@ -1524,13 +1524,13 @@ static void PiOutput_HtmlDesc( FILE *fp, const PI_BLOCK * pPiBlock, const AI_BLO
    PiOutput_HtmlWriteString(fp, PI_GET_TITLE(pPiBlock));
    fprintf(fp, "\n"
                "</td>\n"
-               "<td rowspan=2 CLASS=\"titlerow\" WIDTH=\"15%%\">\n");
+               "<td rowspan=2 CLASS=\"titlerow\" WIDTH=\"20%%\">\n");
    PiOutput_HtmlWriteString(fp, pCfNetname);
    fprintf(fp, "\n"
                "</td>\n"
                "</tr>\n"
                "<tr>\n"
-               "<td CLASS=\"titlerow\" WIDTH=\"10%%\">\n"
+               "<td CLASS=\"titlerow\" WIDTH=\"20%%\">\n"
                "%s\n"  // date
                "</td>\n"
                "</tr>\n\n",
@@ -1850,7 +1850,7 @@ static void PiOutput_HtmlTitle( FILE * fpDst, const PI_BLOCK * pPiBlock,
                     (imgObjc == 2) )
                {
                   // note: there's intentionally no WIDTH and HEIGHT tags so that the user can use different images
-                  fprintf(fpDst, "<IMG SRC=\"images/%s\" JUSTIFY=\"center\">\n", Tcl_GetString(pImageObj));
+                  fprintf(fpDst, "<IMG SRC=\"images/%s.png\" JUSTIFY=\"center\">\n", Tcl_GetString(pImageObj));
                }
             }
          }
@@ -2124,9 +2124,9 @@ void PiOutput_DumpDatabaseXml( EPGDB_CONTEXT * pDbContext, FILE * fp )
 
             // programme title and description (quoting "<", ">" and "&" characters)
             PiOutput_PrintColumnItem(pPiBlock, PIBOX_COL_TITLE, comm, TCL_COMM_BUF_SIZE);
-            fprintf(fp, "\t<title>\n\t\t");
+            fprintf(fp, "\t<title>");
             PiOutput_HtmlWriteString(fp, comm);
-            fprintf(fp, "\n\t</title>\n");
+            fprintf(fp, "</title>\n");
             if ( PI_HAS_SHORT_INFO(pPiBlock) || PI_HAS_LONG_INFO(pPiBlock) )
             {
                fprintf(fp, "\t<desc>\n");

@@ -11214,3 +11214,137 @@ www/index.html [rev:1.58, 2002-11-19T22:21:26]:
 www/pre-releases.html [rev:1.16, 2002-11-19T22:21:48]:
 - update to release 2.4.0pre5
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_4_0 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+epgui/loadtcl.c [rev:1.4, 2002-11-23T15:12:58]:
+- LoadTcl_Init(): fixed debug statement
+- upon failure of loading static Tcl script: NULL ptr arg to sprintf
+epgui/menucmd.c [rev:1.94, 2002-11-23T15:14:04]:
+- WIN32 syntax fix in MenuCmd_StartLocalAcq():
+- added #ifndef WIN32 around declaration of pErrStr
+epgui/pioutput.c [rev:1.42, 2002-11-23T15:17:08]:
+- Fixes in HTML export:
+- bugfix: added extension ".png" to file names in IMG SRC tags
+- enlarged "time" column from 10% to 20% so that it's certain to be large
+    enough with all fonts and window sizes; also enlarged netwop column
+    from 15% to 20% for symmetry
+- added spaces around "-" in time specs: both in HTML and PI listbox
+    (suggested by Thierry)
+epgtcl/mainwin.tcl [rev:1.201, 2002-11-23T18:28:39]:
+- bugfix proc ResetProgIdx: typo in array unset filter_invert(progidx)
+- help text output: added bind tag "TextReadOnly" to allow copy & paste
+- enlarged "time" PI listbox column due to added spaces around "-" between
+    start and stop time (as suggested by Thierry)
+- added new column type "user_def" for user-defined columns: consists of a
+    list of all shortcuts used to define the column
+epgtcl/dlg_udefcols.tcl [rev:1.5, 2002-11-23T18:28:47]:
+- added new column type "user_def" for user-defined columns: consists of a
+    list of all shortcuts used to define the column
+- fix: automatically replace label "*unnamed*" (not only when label is empty)
+    with the column header upon saving, or give a warning
+epgtcl/rcfile.tcl [rev:1.5, 2002-11-23T18:28:58]:
+- changed format of column header menu references in user-defined columns
+- in Tcl array colsel_tabs: instead of the function name they store the
+    keyword of a pre-defined column with a "&" prepended
+- no format conversion required upon saving the column definition
+- during load: only do a consistance check (i.e. check if the referred
+    function does exist)
+epgtcl/shortcuts.tcl [rev:1.7, 2002-11-23T18:29:04]:
+- added new proc SelectShortcutFromTagList: used by new PI listbox column
+    header menu in user-defined columns
+- also added proc ToggleShortcutByTag: currently unused, commented out
+epgtcl/mainwin.tcl [rev:1.202, 2002-11-23T19:48:20]:
+- bugfix proc ToggleColumnHeader:
+- column selection config button was not removed when column headers hidden
+epgui/pioutput.c [rev:1.43, 2002-11-24T09:51:33]:
+- bugfix XML output: there must be no linebreak between <title>...</title>
+- pointed out by David Klotz in the discussion forum
+epgvbi/btdrv4win.c [rev:1.29, 2002-11-24T18:52:43]:
+- bugfix Tuner_SetFrequency():
+- TUNER_PHILIPS_FQ1216ME norm setting was broken: must mask norm bits before OR
+- bug reported by Volker Beck
+epgvbi/btdrv4linux.c [rev:1.35, 2002-11-25T19:30:40]:
+- syntax fix for NetBSD; reported by Mario
+www/index-de.html [rev:1.46, 2002-11-25T20:25:54]:
+- major bugfix:
+- added group ID to sourceforge logo link -> to get access statistics!
+- also:
+- added link to changelog for known bugs in 2.4.0
+- added FreeBSD to keywords list
+- removed some old news items
+www/index.html [rev:1.59, 2002-11-25T20:25:54]:
+- major bugfix:
+- added group ID to sourceforge logo link -> to get access statistics!
+- also:
+- added link to changelog for known bugs in 2.4.0
+- added FreeBSD to keywords list
+- removed some old news items
+epgvbi/wintuner.c [dsdrv/wintuner.c, rev:1.1, 2002-11-26T19:13:14]:
+- Initial revision
+epgvbi/wintuner.h [dsdrv/wintuner.h, rev:1.1, 2002-11-26T19:13:32]:
+- Initial revision
+epgvbi/btdrv4win.c [rev:1.30, 2002-11-26T19:13:37]:
+- Split off new module wintuner.c from btdrv4win.c
+- moved I2C functions into wintuner.c
+- moved tuner table and init and setfreq. funcs into wintuner.c
+- moved BtDriver_MatchTunerByParams() into wintuner.c
+epgvbi/btdrv.h [rev:1.27, 2002-11-26T19:13:43]:
+- Split off new module wintuner.c from btdrv4win.c
+- moved BtDriver_MatchTunerByParams() into wintuner.c
+epgvbi/bt848.h [dsdrv/bt8x8_reg.h, rev:1.9, 2002-11-26T19:13:48]:
+- Split off new module wintuner.c from btdrv4win.c
+- moved tuner type enum into wintuner.h, all other wintuner.c
+Makefile.win32 [rev:1.30, 2002-11-30T13:44:00]:
+- added new module epgvbi/wintuner to nxtvepg and tvsim
+epgvbi/wintuner.c [dsdrv/wintuner.c, rev:1.2, 2002-11-30T20:28:11]:
+- Updated MT2302 code
+- the previous code was appearently from an obsolete DScaler module Tuner.cpp;
+    now copied from MT2302.cpp instead
+- do not perform I2C detection; hard-wire to 0xC0 for MT2302
+- still TODO: m_ExternalIFDemodulator (commented out)
+epgtcl/dlg_filter.tcl [rev:1.5, 2002-11-30T20:28:28]:
+- Improved handling of start time and duration filter dialogs (more flexible
+    parsing; removed requirement to press Return key after every single change;
+    made it possible to enter value "23:59" with the scales)
+epgtcl/dlg_ctxmencf.tcl [rev:1.3, 2002-11-30T20:28:38]:
+- split off generation of example list: new proc ContextMenuGetExamples;
+    use new proc ContextMenuCopyExample as callback for example menu
+- add -underline option to popup menu
+- bugfix proc ContextMenuConfigAddNew: IDs were not unique
+epgtcl/rcfile.tcl [rev:1.6, 2002-11-30T21:56:05]:
+- bugfix: conversion of col-header menu ref's in user-defined columns
+- always replaced menu ref' with "none" because check was broken
+epgtcl/dlg_udefcols.tcl [rev:1.6, 2002-11-30T22:00:55]:
+- bugfix: initial column header menu did not work: always said "none"
+    initially, because check was not yet adapted for "&" reference format
+- set focus to label entry field upon switch of user-def column
+epgtcl/mainwin.tcl [rev:1.203, 2002-12-01T12:47:04]:
+- small cleanup proc SelectDurationFilter:
+- do not assign dursel_minstr and maxstr here, as these are used only
+    when the duration filter dialog is open
+- the update of these vars is now kept inside dlg_filter.tcl
+epgctl/epgversion.h [rev:1.29, 2002-12-01T12:48:41]:
+- set version to 2.4.1
+epgui/wintvcfg.c [rev:1.11, 2002-12-01T14:15:57]:
+- Adapted to split off/new module wintuner.c:
+- added include wintuner.h
+- renamed function BtDriver_MatchTunerByParams() into Tuner_MatchByParams()
+epgui/wintvcfg.c [rev:1.12, 2002-12-01T15:26:12]:
+- Fixed DScaler tuner mapping table & added new tuners from DScaler 4.00
+- mapping bug pointed out by ronceval@free.fr for MT2032
+www/changelog.html [rev:1.42, 2002-12-01T19:21:00]:
+- updated for release 2.4.1
+- fixed date in 2.4.0 release (was 2992) and link to screenshot
+www/pre-releases.html [rev:1.17, 2002-12-01T19:21:30]:
+- updated for release 2.4.1
+www/index-de.html [rev:1.47, 2002-12-01T19:21:50]:
+- updated for release 2.4.1
+- 2.4.1 is stable, hence removed link to 2.3.1
+- added note to feedback to check archive if the question was asked before
+www/index.html [rev:1.60, 2002-12-01T19:21:50]:
+- updated for release 2.4.1
+- 2.4.1 is stable, hence removed link to 2.3.1
+- added note to feedback to check archive if the question was asked before
+CHANGES [rev:1.30, 2002-12-01T19:22:54]:
+- updated for release 2.4.1
+TODO [rev:1.23, 2002-12-01T19:22:54]:
+- updated for release 2.4.1
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_4_1 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

@@ -21,7 +21,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile.win32,v 1.28 2002/11/10 19:57:10 tom Exp tom $
+#  $Id: Makefile.win32,v 1.30 2002/11/30 13:44:00 tom Exp tom $
 #
 
 # if you have perl set the path here, else just leave it alone
@@ -58,8 +58,9 @@ LDFLAGS = -mwindows -mno-cygwin -Wl,--subsystem,windows
 
 # ----- don't change anything below ------------------------------------------
 
-CSRC    = epgvbi/btdrv4win epgvbi/vbidecode epgvbi/ttxdecode epgvbi/hamming \
-          epgvbi/tvchan epgvbi/cni_tables epgvbi/winshmsrv epgvbi/syserrmsg \
+CSRC    = epgvbi/btdrv4win epgvbi/wintuner epgvbi/vbidecode epgvbi/ttxdecode \
+          epgvbi/hamming epgvbi/tvchan epgvbi/cni_tables epgvbi/winshmsrv \
+          epgvbi/syserrmsg \
           epgctl/debug epgctl/epgacqctl epgctl/epgscan epgctl/epgctxctl \
           epgctl/epgctxmerge epgctl/epgacqsrv epgctl/epgacqclnt \
           epgdb/epgstream epgdb/epgdbmerge epgdb/epgdbsav \
@@ -78,8 +79,9 @@ TCLSRC  = epgtcl/mainwin epgtcl/helptexts epgtcl/dlg_hwcfg epgtcl/dlg_xawtvcf \
 
 DSDRV_CSRC    = dsdrv/dsdrv34 dsdrv/hwdrv dsdrv/hwpci dsdrv/debuglog
 TVSIM_CSRC    = tvsim/tvsim_main tvsim/winshmclnt
-TVSIM_CSRC2   = epgvbi/btdrv4win epgvbi/vbidecode epgvbi/hamming epgvbi/cni_tables \
-                epgvbi/ttxdecode epgctl/debug epgui/pdc_themes epgui/wintvcfg
+TVSIM_CSRC2   = epgvbi/btdrv4win epgvbi/wintuner epgvbi/vbidecode epgvbi/hamming \
+                epgvbi/cni_tables epgvbi/ttxdecode epgctl/debug epgui/pdc_themes \
+                epgui/wintvcfg
 TVSIM_TCLSRC  = tvsim/tvsim_gui epgtcl/tcl_libs epgtcl/tk_libs
 VBIREC_CSRC   = tvsim/vbirec_main
 VBIREC_CSRC2  = epgvbi/winshmsrv epgvbi/cni_tables epgvbi/hamming epgctl/debug
@@ -241,21 +243,22 @@ zip:
         echo Packing $$ARCHIVE; \
 	rm -f $$ARCHIVE; \
         strip nxtvepg.exe; \
-	zip $$ARCHIVE nxtvepg.exe tcl$(TCL_L).dll tk$(TCL_L).dll dsdrv4.sys dsdrv4.vxd nxtvepg.ico; \
-	zip $$ARCHIVE -l manual.html Nxtvepg.ad; \
+	zip -9 $$ARCHIVE nxtvepg.exe tcl$(TCL_L).dll tk$(TCL_L).dll dsdrv4.sys dsdrv4.vxd nxtvepg.ico; \
+	zip -9 $$ARCHIVE -l manual.html Nxtvepg.ad; \
 	for v in TODO README CHANGES COPYRIGHT; do \
 	   mv $$v $${v}.txt; \
-	   zip -l $$ARCHIVE $${v}.txt; \
+	   zip -9 -l $$ARCHIVE $${v}.txt; \
 	   mv $${v}.txt $$v; \
 	done; \
+        zip -0 $$ARCHIVE images/*.png; \
 	ARCHIVE=nxtvepg-$${EPG_VERSION_STR}-tvsim.zip; \
 	echo Packing $$ARCHIVE; \
 	rm -f $$ARCHIVE; \
         strip tvsim.exe vbirec.exe vbiplay.exe; \
-	zip $$ARCHIVE tvsim.exe vbirec.exe vbiplay.exe; \
+	zip -9 $$ARCHIVE tvsim.exe vbirec.exe vbiplay.exe; \
 	cd tvsim && zip ../$$ARCHIVE -l tvsim.html vbirec.html vbiplay.html && cd ..; \
         mv COPYRIGHT COPYRIGHT2.txt; \
-	zip -l $$ARCHIVE COPYRIGHT2.txt; \
+	zip -9 -l $$ARCHIVE COPYRIGHT2.txt; \
 	mv COPYRIGHT2.txt COPYRIGHT
 
 bak:

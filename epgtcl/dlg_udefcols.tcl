@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_udefcols.tcl,v 1.4 2002/11/17 19:40:57 tom Exp tom $
+#  $Id: dlg_udefcols.tcl,v 1.6 2002/11/30 22:00:55 tom Exp tom $
 #
 set ucf_type_idx 0
 set ucf_value_idx 1
@@ -205,7 +205,7 @@ proc PopupUserDefinedColumns {} {
       bind    .usercol.cmd <Destroy> {+ set usercol_popup 0}
       #bind    .usercol.cmd.ok <Return> {tkButtonInvoke .usercol.cmd.ok}
       #bind    .usercol.cmd.ok <Escape> {tkButtonInvoke .usercol.cmd.abort}
-      #focus   .usercol.cmd.ok
+      bind    .usercol <Alt-KeyPress> [bind Menubutton <Alt-KeyPress>]
 
 
       # create drop-down menu with all images
@@ -227,13 +227,16 @@ proc PopupUserDefinedColumns {} {
 
          if {[string compare [lindex $colsel_tabs($id) 2] none] != 0} {
             .usercol.txt.hmenu.men add radiobutton -label [lindex $colsel_tabs($id) 3] \
-               -variable usercol_cf_hmenu -value [lindex $colsel_tabs($id) 2] \
+               -variable usercol_cf_hmenu -value "&$id" \
                -command [list .usercol.txt.hmenu configure -text [lindex $colsel_tabs($id) 3]]
          }
       }
       .usercol.txt.hmenu.men add separator
+      .usercol.txt.hmenu.men add radiobutton -label "Used shortcuts" -variable usercol_cf_hmenu -value "&user_def" \
+                                             -command {.usercol.txt.hmenu configure -text "Shortcuts"}
+      .usercol.txt.hmenu.men add separator
       .usercol.txt.hmenu.men add radiobutton -label "none" -variable usercol_cf_hmenu -value "none" \
-                                             -command [list .usercol.txt.hmenu configure -text "none"]
+                                             -command {.usercol.txt.hmenu configure -text "none"}
 
       # create drop-down menu with all currently defined shortcuts
       # - save the shortcut names into a global array
@@ -367,7 +370,7 @@ proc UserColsDlg_CheckDiscard {} {
 # callback for column selection (topmost menubutton)
 proc UserColsDlg_SelectColumn {tag} {
    global ucf_type_idx ucf_value_idx ucf_fmt_idx ucf_ctxcache_idx ucf_sctag_idx
-   global usercols colsel_tabs colsel_ailist_predef
+   global usercols colsel_tabs
    global usercol_scnames
    global usercol_cf_tag usercol_cf_selist usercol_cf_filt_idx usercol_cf_filt
    global usercol_cf_lab usercol_cf_head usercol_cf_hmenu
@@ -400,15 +403,16 @@ proc UserColsDlg_SelectColumn {tag} {
 
    # display column header menu type
    .usercol.txt.hmenu configure -text "none"
-   if {[string compare $usercol_cf_hmenu "none"] != 0} {
-      foreach id $colsel_ailist_predef {
-         if {[string compare [lindex $colsel_tabs($id) 2] $usercol_cf_hmenu] == 0} {
-            .usercol.txt.hmenu configure -text [lindex $colsel_tabs($id) 3]
-            break
-         }
+   if {[string compare $usercol_cf_hmenu "&user_def"] == 0} {
+      .usercol.txt.hmenu configure -text "Shortcuts"
+   } elseif {[string compare -length 1 $usercol_cf_hmenu "&"] == 0} {
+      set colref [string range $usercol_cf_hmenu 1 end]
+      if {[info exists colsel_tabs($colref)]} {
+         .usercol.txt.hmenu configure -text [lindex $colsel_tabs($colref) 3]
       }
    }
 
+   focus .usercol.sel.cur
    .usercol.sel.cur selection range 0 end
 
    # fill shortcut list
@@ -613,10 +617,11 @@ proc UserColsDlg_Apply {} {
                     -message "Refusing to save a column definition without shortcuts assigend - the column would always be empty."
       return
    }
-   if {[string length $usercol_cf_lab] == 0} {
+   if {([string length $usercol_cf_lab] == 0) || \
+       ([string compare $usercol_cf_lab "*unnamed*"] == 0)} {
       if {[string length $usercol_cf_head] == 0} {
          tk_messageBox -icon error -type ok -default ok -parent .usercol \
-                       -message "Please enter a description for this column in the 'Header' entry field. It's used in the column selection configuration dialog."
+                       -message "Please enter a description for this column in the 'Column header text' field. The text used in the programme list and the column selection configuration dialog."
          return
       } else {
          set usercol_cf_lab $usercol_cf_head
