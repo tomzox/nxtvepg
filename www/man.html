@@ -12,13 +12,13 @@
 <META name="revisit-after" content="01 month">
 <LINK rel="stylesheet" type="text/css" href="nxtvepg.css">
 <LINK rel="shortcut icon" type="image/x-icon" href="nxtvepg.ico">
-<LINK rel="top" href="//nxtvepg.tripod.com/" title="nexTView EPG Dekoder Homepage">
+<LINK rel="top" href="http://nxtvepg.sourceforge.net/" title="nexTView EPG Dekoder Homepage">
 </HEAD>
 <BODY BGCOLOR=#f8f8f8>
 <P><HR><P>
 <H1>Nextview EPG Decoder Documentation</H1>
 This is the manual page for the
-<A HREF="http://nxtvepg.tripod.com/">nxtvepg</A> software package.<P>
+<A HREF="http://nxtvepg.sourceforge.net/">nxtvepg</A> software package.<P>
 
 <A NAME="__index__"></A>
 <!-- INDEX BEGIN -->
@@ -32,9 +32,9 @@ This is the manual page for the
 	<LI><A HREF="#getting started">GETTING STARTED</A></LI>
 	<UL>
 
-		<LI><A HREF="#tv card setup on unix">TV card Setup on UNIX</A></LI>
 		<LI><A HREF="#tv card setup on m$ windows">TV card Setup on M$ Windows</A></LI>
-		<LI><A HREF="#search for epg providers">Search for EPG providers</A></LI>
+		<LI><A HREF="#video input configuration">Video input configuration</A></LI>
+		<LI><A HREF="#search for nextview providers">EPG scan: Search for Nextview providers</A></LI>
 		<LI><A HREF="#configuring a tv application">Configuring a TV application</A></LI>
 	</UL>
 
@@ -312,22 +312,11 @@ do not have to read all of it at once to operate the software.
 However it's recommended to skim at least through <A HREF="#basic browsing">BASIC BROWSING</A>,
 <A HREF="#data acquisition">DATA ACQUISITION</A> and <A HREF="#filtering">FILTERING</A>.</P>
 <P>
-<H2><A NAME="tv card setup on unix">TV card Setup on UNIX</A></H2>
-<P>UNIX users do not need to do any hardware related configuration.
-However there are still 3 parameters that should be checked via
-the TV card configuration dialog in the configure menu:
-if you're not using an antenna cable for TV reception, choose either
-Composite or S-Video as input source, depending where you've connected
-your external receiver;
-if you live in France and are using an antenna, you must select the
-French TV frequency table (which implies using the Secam TV norm
-instead of PAL B/G/I);
-if you have more than one TV card you can otionally select which on to use.</P>
-<P>
 <H2><A NAME="tv card setup on m$ windows">TV card Setup on M$ Windows</A></H2>
 <P>Windows users first have to configure the driver for their TV card
 in the 'TV card input' dialog from the Configure menu (for more
-in-depth information see also <A HREF="#tv card input">CONFIGURATION: TV card input</A>).</P>
+in-depth information see also <A HREF="#tv card input">CONFIGURATION: TV card input</A>).
+UNIX users can skip this section.</P>
 <P>The easiest way is to copy the values of your favorite TV application.
 nxtvepg can read the INI files or registry of the following freeware
 programs: DScaler, K!TV, MultiDec, MoreTV, FreeTV. After selecting a
@@ -355,22 +344,66 @@ The correct value for <EM>PLL initialization</EM> with PAL and SECAM cards
 is either <EM>No init</EM> or <EM>28 MHz</EM>. (If you select the wrong value
 you have no reception at all.)</P>
 <P>If you're not sure about your configuration, start with the topmost and
-then try them one after each other and start an EPG scan inbetween to
+then try them one after each other and start an EPG scan inbetween (see
+below) to
 check if the tuner works.  If you have one of the TV applications listed
 above make sure to keep the <EM>Use TV app freq.</EM> button enabled; this way
 only well known channels are visited, and you can monitor in the output
 window if there is reception on these channels (however only networks
 which transmit VPS/PDC can be identified with their network name).</P>
-<P>If you don't have an antenna connected to your PC, you can select an
-external source for video input and supply a TV signal via a satellite
-receiver.</P>
 <P>If you have problems see <EM>README</EM> for more details and a
 list of error messages from the Windows driver.</P>
 <P>
-<H2><A NAME="search for epg providers">Search for EPG providers</A></H2>
-<P>In the next step - if you chose to use the TV tuner - run a provider
+<H2><A NAME="video input configuration">Video input configuration</A></H2>
+<P>Before nxtvepg can start acquiring EPG data, it must be told if the
+video feed is provided by your TV card's internal TV tuner (if you're
+connected to your city's TV cable network or a terrestrial antenna)
+or an external source (usually satellite receivers connected via
+Composite or S-Video cable).  This can be configured in the
+<EM>TV card input</EM> dialog in the Configure menu
+(for more in-depth information see also <A HREF="#tv card input">CONFIGURATION: TV card input</A>).</P>
+<P>By default nxtvepg assumes input via TV tuner.  This is the preferred
+mode of operation, since nxtvepg can change channels between multiple
+Nextview providers, while with an external source you have to switch
+channels manually (see also <A HREF="#data acquisition">DATA ACQUISITION</A>).  If you're living in
+France you should tell nxtvepg to use the French channel table (which
+implies using the Secam TV norm instead of PAL B/G/I); this information
+is required for the next step: the EPG scan.</P>
+<P>If you cannot use the TV tuner but have instead connected a satellite
+receiver through the Composite or S-Video input, select the respective
+setting in the <EM>video input</EM> drop-down menu.  Then close the dialog with
+Ok and open the aquisition mode configuration dialog from the same menu.
+There you should change to the <EM>external</EM> mode: in this mode nxtvepg
+will switch to the configured video input channel during startup of
+acquisition, but afterwards expect you to tune in a Nextview provider's
+channel at the external video source. To load all provider's inventories
+in the way the EPG scan does, you have to tune in all provider channels
+(for a list see the intro of this manual or the Internet homepage) and
+wait until the status line changes from ``starting up'' to ``working on''.</P>
+<P>Note that you can also connect your satellite receiver via antenna cable.
+However this  variant is highly depreciated, because the signal is often
+degraded so much that nxtvepg is not able to decode the EPG data stream
+any more.  But if you still want to go that route, you'd keep the tuner
+as input source and start an EPG scan to find the channel your receiver
+is transmitting its signal on.  Make sure to disable the <EM>Use .xawtv</EM>
+option in the provider scan dialog, unless your satellite receiver's
+channel (i.e. the frequency onto which the satellite signal is modulated)
+is defined as an input channel in xawtv.  Before you start the EPG scan
+you need to tune in a Nextview provider's channel.  The scan will only
+find that one provider. If you want to load all providers you have to
+continue manually as described above.  For an acquisition mode it's
+recommended to stay with <EM>Follow browser database</EM>. Although nxtvepg
+will not be able to actually ``follow'' your provider selection with the
+acquisition since it can't switch the TV channel at your external input,
+this mode will tell nxtvepg to set the TV tuner onto your receiver's
+channel (see also <A HREF="#acquisition modes">ACQUISITION MODES</A> for more details.)</P>
+<P>
+<H2><A NAME="epg scan: search for nextview providers">EPG scan: Search for Nextview providers</A></H2>
+<P>This section only applies if you chose to use your TV card's internal
+tuner.  In this case the next step to get started is to run a provider
 scan from the Configure menu.  During the scan all TV channels are
-checked for Nextview transmissions.</P>
+checked for Nextview transmissions and a list of Nextview providers
+is built from the result.</P>
 <P>You can speed up the scan by using a TV application's channel table;
 in this case the scan is limited to TV frequencies defined in the
 TV app's channel table. This mode is enabled with the
@@ -394,15 +427,8 @@ channel; then quit the other application; finally start acquisition again).</P>
 <P>In external mode nxtvepg will not touch the tuner and wait infinitly for
 Nextview reception on the current channel.  On Windows (and Linux with
 bttv drivers version 0.7.50 and earlier) this method has the disadvantage
-that no frequency will be known for this provider so you have to tune
-the provider's channel manually whenever you start acquisition.</P>
-<P>Alternatively if you decided not to use the tuner, open the Acquisition
-mode dialog from the Configure menu and select external mode. Then provide
-the video signal of one of the content provider channels listed in the
-introduction to the selected input socket. As soon as an EPG provider is
-recognized, its data will appear in the browser window.
-See <A HREF="#data acquisition">DATA ACQUISITION</A> about the disadvantages of not using the
-TV tuner as input.</P>
+that no channel number or frequency will be known for this provider so you
+have to tune the provider's channel manually whenever you start acquisition.</P>
 <P>Acquisition of a complete database takes about 20 minutes. However
 programmes that are nearer in the future are available much faster,
 since they are transmitted more often. The currently running and
@@ -2118,15 +2144,16 @@ for instructions on which information must be included in a bug report.</P>
 <HR>
 <H1><A NAME="author">AUTHOR</A></H1>
 <P>Tom Zoerner, Erlangen, Germany.</P>
-<P>Email: tomzo (at) nefkom (dot) net</P>
-<P>Many thanks to E-nek for the DScaler driver port and cooperation
-in develepment of the TV application interaction;
+<P>Email: tomzo (at) users (dot) sourceforge (dot) net</P>
+<P>Many thanks to Thierry Ménétrier for his valuable feedback;
 to Matthieu for the French translation of PDC theme descriptors;
+to E-nek for the DScaler driver port and cooperation
+in develepment of the TV application interaction;
 to John Adcock for the DScaler driver;
 to Jan Schuster for beta testing nxtvepg 0.7.0;
 to Mario Kemper for the NetBSD port and early beta testing;
-to ``Mario's brother'' for beta testing the Windows port;
-to Gerd Knorr for xawtv;
+to ``Mario's brother'' for beta testing the first Windows port;
+to Gerd Knorr for xawtv and maintaining the Debian and SuSE nxtvepg packages;
 to Ralph Metzler for his teletext decoder;
 to Edgar Toernig for the Latin-1 conversion tables in alevt;
 and last but not least to the authors of bttv and v4l for their excellent work,

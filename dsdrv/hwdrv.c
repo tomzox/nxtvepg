@@ -15,7 +15,7 @@
 //  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 //  GNU General Public License for more details
 /////////////////////////////////////////////////////////////////////////////
-// nxtvepg $Id: hwdrv.c,v 1.7 2002/07/20 16:26:39 tom Exp tom $
+// nxtvepg $Id: hwdrv.c,v 1.8 2002/10/13 17:45:56 tom Exp tom $
 //////////////////////////////////////////////////////////////////////////////
 
 #define WIN32_LEAN_AND_MEAN
@@ -540,10 +540,22 @@ static BOOL AdjustAccessRights( void )
     // Build the ACE.
     if(!bError)
     {
-        BuildExplicitAccessWithName(&ea, "EVERYONE", DRIVER_ACCESS_RIGHTS, SET_ACCESS, 
-            NO_INHERITANCE);
-        
-        dwError = SetEntriesInAcl(1, &ea, pacl, &pNewAcl);
+        const char * const pGroupTab[] = {"EVERYONE", "Jeder", "Chacun", NULL};
+        const char * const * pGroupName;
+
+        for (pGroupName = pGroupTab; *pGroupName != NULL; pGroupName++)
+        {
+            BuildExplicitAccessWithName(&ea, (char *) *pGroupName, DRIVER_ACCESS_RIGHTS, SET_ACCESS, 
+                NO_INHERITANCE);
+           
+            dwError = SetEntriesInAcl(1, &ea, pacl, &pNewAcl);
+
+            if (dwError != ERROR_NONE_MAPPED)
+                break;
+
+            LOG(2,"SetEntriesInAcl failed: %s unknown - trying again", *pGroupName);
+        }
+
         if(dwError != ERROR_SUCCESS)
         {
             LOG(1,"SetEntriesInAcl failed. 0x%X", GetLastError());

@@ -24,7 +24,7 @@
 #
 #  Author: Tom Zoerner
 #
-# $Id: tvsim.pod,v 1.3 2002/07/20 16:25:45 tom Exp tom $
+# $Id: tvsim.pod,v 1.4 2002/10/13 14:05:41 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME
@@ -200,7 +200,7 @@ B<vbirec> and B<vbiplay> for further debugging possibilities.
 
 Tom Zoerner, Erlangen, Germany.
 
-Email: tomzo (at) nefkom (dot) net
+Email: tomzo (at) users (dot) sourceforge (dot) net
 
 Thanks to I<e-nek> for reviewing the design of the communication
 protocol, alpha testing and most importantly for being the first

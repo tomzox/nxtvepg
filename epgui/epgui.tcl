@@ -21,7 +21,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: epgui.tcl,v 1.180 2002/09/16 19:28:37 tom Exp tom $
+#  $Id: epgui.tcl,v 1.180.1.1 2002/10/13 18:02:58 tom Exp $
 #
 
 set is_unix [expr [string compare $tcl_platform(platform) "unix"] == 0]
@@ -3003,8 +3003,8 @@ proc CreateAbout {} {
       #pack .about.tcl_version -side top
 
       label .about.copyr1 -text "Copyright © 1999, 2000, 2001, 2002 by Tom Zörner"
-      label .about.copyr2 -text "tomzo@nefkom.net"
-      label .about.copyr3 -text "http://nxtvepg.tripod.com/" -font $font_fixed -foreground blue
+      label .about.copyr2 -text "tomzo@users.sourceforge.net"
+      label .about.copyr3 -text "http://nxtvepg.sourceforge.net/" -font $font_fixed -foreground blue
       pack .about.copyr1 .about.copyr2 -side top
       pack .about.copyr3 -side top -padx 10 -pady 10
 
@@ -4591,15 +4591,15 @@ proc UpdatePiListboxColumns {} {
 ##  Creating menus for the column heads
 ##
 proc FilterMenuAdd_Time {widget} {
-   $widget add command -label "Now" -command {C_PiListBox_GotoTime now}
-   $widget add command -label "Next" -command {C_PiListBox_GotoTime next}
+   $widget add command -label "Now" -command {C_PiListBox_GotoTime 1 now}
+   $widget add command -label "Next" -command {C_PiListBox_GotoTime 1 next}
 
    set now        [clock seconds] 
    set start_time [expr $now - ($now % (2*60*60)) + (2*60*60)]
    set hour       [expr ($start_time % (24*60*60)) / (60*60)]
 
    for {set i 0} {$i < 24} {incr i 2} {
-      $widget add command -label [clock format $start_time -format {%H:%M}] -command [list C_PiListBox_GotoTime $start_time]
+      $widget add command -label [clock format $start_time -format {%H:%M}] -command [list C_PiListBox_GotoTime 1 $start_time]
       incr start_time [expr 2*60*60]
       set hour [expr ($hour + 2) % 24]
    }
@@ -4607,13 +4607,16 @@ proc FilterMenuAdd_Time {widget} {
 
 proc FilterMenuAdd_Date {widget} {
    set start_time [clock seconds]
-   $widget add command -label "Today, [clock format $start_time -format {%d. %b. %Y}]" -command {C_PiListBox_GotoTime now}
-   incr start_time [expr 24*60*60]
-   $widget add command -label "Tomorrow, [clock format $start_time -format {%d. %b. %Y}]" -command [list C_PiListBox_GotoTime $start_time]
+   set last_time [C_GetLastPiTime]
 
-   for {set i 2} {$i < 5} {incr i} {
+   $widget add command -label "Today, [clock format $start_time -format {%d. %b. %Y}]" -command {C_PiListBox_GotoTime 1 now}
+   incr start_time [expr 24*60*60]
+   $widget add command -label "Tomorrow, [clock format $start_time -format {%d. %b. %Y}]" -command [list C_PiListBox_GotoTime 1 $start_time]
+   incr start_time [expr 24*60*60]
+
+   while {$start_time <= $last_time} {
+      $widget add command -label [clock format $start_time -format {%A, %d. %b. %Y}] -command [list C_PiListBox_GotoTime 1 $start_time]
       incr start_time [expr 24*60*60]
-      $widget add command -label [clock format $start_time -format {%A, %d. %b. %Y}] -command [list C_PiListBox_GotoTime $start_time]
    }
 }
 
@@ -5216,7 +5219,7 @@ proc PiListBox_PrintHelpHeader {text} {
    .all.pi.list.text insert end "An Electronic TV Programme Guide for Your PC\n" bold16Tag
    .all.pi.list.text window create end -window .all.pi.list.text.nxtvlogo
    .all.pi.list.text insert end "\n\nCopyright © 1999, 2000, 2001, 2002 by Tom Zörner\n" bold12Tag
-   .all.pi.list.text insert end "tomzo@nefkom.net\n\n" bold12Tag
+   .all.pi.list.text insert end "tomzo@users.sourceforge.net\n\n" bold12Tag
    .all.pi.list.text tag add centerTag 1.0 {end - 1 lines}
    .all.pi.list.text insert end "This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License Version 2 as published by the Free Software Foundation. This program is distributed in the hope that it will be useful, but without any warranty. See the GPL2 for more details.\n\n" wrapTag
 
@@ -6934,7 +6937,7 @@ proc TimeScale_GotoTime {netwop w xcoo} {
       C_ResetFilter all
       SelectNetwopByIdx $netwop 1
       # set cursor onto the first PI starting after the selected time
-      C_PiListBox_GotoTime $pi_time
+      C_PiListBox_GotoTime 0 $pi_time
    }
 }
 

@@ -26,7 +26,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: vbirec_gui.tcl,v 1.5 2002/05/12 16:41:43 tom Exp tom $
+#  $Id: vbirec_gui.tcl,v 1.6 2002/10/13 10:34:23 tom Exp tom $
 #
 
 set dumpttx_filename {ttx.dat}
@@ -204,8 +204,8 @@ proc CreateAbout {} {
       pack .about.name -side top -pady 8
 
       label .about.copyr1 -text "Copyright © 2002 by Tom Zörner"
-      label .about.copyr2 -text "tomzo@nefkom.net"
-      label .about.copyr3 -text "http://nxtvepg.tripod.com/" -font {courier -12 normal} -foreground blue
+      label .about.copyr2 -text "tomzo@users.sourceforge.net"
+      label .about.copyr3 -text "http://nxtvepg.sourceforge.net/" -font {courier -12 normal} -foreground blue
       pack .about.copyr1 .about.copyr2 -side top
       pack .about.copyr3 -side top -padx 10 -pady 10
 

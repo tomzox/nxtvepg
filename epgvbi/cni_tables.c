@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: cni_tables.c,v 1.16 2002/05/28 20:02:16 tom Exp tom $
+ *  $Id: cni_tables.c,v 1.17 2002/10/13 13:46:32 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -526,22 +526,27 @@ static const CNI_COUNTRY_DESC cni_country_table[] =
 
 // ---------------------------------------------------------------------------
 // Search a description for the given CNI
+// - returns a pointer to a channel label string, or NULL for unknown CNIs
+// - also returns pointer to country string, or NULL if unknown
 //
 const char * CniGetDescription( uint cni, const char ** ppCountry )
 {
    const CNI_PDC_DESC * pPdc;
    const CNI_COUNTRY_DESC * pCountry;
    const char * pName;
+   const char * pCountryName;
    uchar country;
 
    if (cni == 0)
    {
-     debug0("Cni-GetDescription: illegal CNI 0");
-     pName = NULL;
+      debug0("Cni-GetDescription: illegal CNI 0");
+      pName = NULL;
+      pCountryName = NULL;
    }
    else if ((cni & 0xff00) == 0xff00)
    {
-     pName = "unknown network (temporary network code, not officially registered)";
+      pName = "unknown network (temporary network code, not officially registered)";
+      pCountryName = NULL;
    }
    else
    {
@@ -576,24 +581,24 @@ const char * CniGetDescription( uint cni, const char ** ppCountry )
       }
 
       // search country name
-      if (ppCountry != NULL)
+      pCountryName = NULL;
+      if (country != 0)
       {
-         *ppCountry = NULL;
-         if (country != 0)
+         pCountry = cni_country_table;
+         while (pCountry->name != NULL)
          {
-            pCountry = cni_country_table;
-            while (pCountry->name != NULL)
+            if (pCountry->code == country)
             {
-               if (pCountry->code == country)
-               {
-                  *ppCountry = pCountry->name;
-                  break;
-               }
-               pCountry += 1;
+               pCountryName = pCountry->name;
+               break;
             }
+            pCountry += 1;
          }
       }
    }
+
+   if (ppCountry != NULL)
+      *ppCountry = pCountryName;
 
    return pName;
 }

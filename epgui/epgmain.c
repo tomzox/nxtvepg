@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgmain.c,v 1.98 2002/09/16 11:57:33 tom Exp tom $
+ *  $Id: epgmain.c,v 1.99 2002/10/13 17:55:27 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -36,10 +36,10 @@
 #else
 #include <windows.h>
 #include <winsock2.h>
-#include <locale.h>
 #include <io.h>
 #include <direct.h>
 #endif
+#include <locale.h>
 #include <math.h>
 #include <stdio.h>
 #include <errno.h>
@@ -1482,7 +1482,7 @@ static void SetWindowsIcon( HINSTANCE hInstance )
       sprintf(comm, "wm frame .\n");
       if (Tcl_EvalEx(interp, comm, -1, 0) == TCL_OK)
       {
-         pId = Tcl_GetObjResult(interp)
+         pId = Tcl_GetObjResult(interp);
          if (pId != NULL)
          {
             if (Tcl_GetIntFromObj(interp, pId, &hWnd) == TCL_OK)
@@ -1734,7 +1734,7 @@ static bool WinSystrayIcon( bool enable )
 // ----------------------------------------------------------------------------
 // Tcl callback procedure: Create or destroy icon in system tray
 //
-static int TclCbWinSystrayIcon( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+static int TclCbWinSystrayIcon( ClientData ttp, Tcl_Interp *interp, int argc, CONST84 char *argv[] )
 {
    const char * const pUsage = "Usage: C_SystrayIcon <boolean>";
    bool withdraw;
@@ -2150,10 +2150,10 @@ static int ui_init( int argc, char **argv, bool withTk )
 {
    char *args;
 
-   #ifdef WIN32
    // set up the default locale to be standard "C" locale so parsing is performed correctly
    setlocale(LC_ALL, "C");
 
+   #ifdef WIN32
    // Increase the application queue size from default value of 8.
    // At the default value, cross application SendMessage of WM_KILLFOCUS
    // will fail because the handler will not be able to do a PostMessage!

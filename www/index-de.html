@@ -1,12 +1,12 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="de">
-<!-- $Id: index-de.html,v 1.38 2002/09/22 18:56:21 tom Exp $ -->
+<!-- $Id: index-de.html,v 1.42 2002/10/13 19:01:48 tom Exp $ -->
 <HEAD>
 <TITLE>nexTView EPG Dekoder Software Download</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
 <META name="language" content="de">
 <META name="keywords" lang="de" content="nexTView, Dekoder, nxtvepg, Teletext, EPG, Bt878, Fernsehprogramm, TV-Programm, Videotext, Premiere, TV-Guide, Nextview Dekoder, Programmzeitschrift, Austastlücke, Multimedia, TV-Tunerkarte, Linux, NetBSD, Softwaredownload, bttv, bktr, video4linux, VBI, Bt848, Booktree, video capture, Programmführer, Pro7, RTL2, 3Sat, Canal+, FreeBSD, OpenBSD, VPS, PDC, VCR, nextview-link, AV-Link, Megalogic">
-<META name="description" lang="de" content="Hompage von 'nxtvepg' - Ein nexTView EPG Dekoder für den PC. Nextview ist eine kostenlose elektronische Programmzeitschrift die im (analogen) TV-Signal übertragen wird und u.a. alle überregionalen deutschen TV-Sender abdeckt.">
+<META name="description" lang="de" content="Homepage von 'nxtvepg' - Ein nexTView EPG Dekoder für den PC. Nextview ist eine kostenlose elektronische Programmzeitschrift die im (analogen) TV-Signal übertragen wird und u.a. alle überregionalen deutschen TV-Sender abdeckt.">
 <META name="author" content="Tom Zoerner">
 <META name="copyright" content="Tom Zoerner">
 <META name="robots" content="index, follow">
@@ -14,16 +14,19 @@
 <LINK rel="stylesheet" type="text/css" href="nxtvepg.css">
 <LINK rel="alternate" type="text/html" href="index.html" hreflang="en" lang="en" title="nexTView Decoder Download Page">
 <LINK rel="shortcut icon" type="image/x-icon" href="nxtvepg.ico">
-<LINK rel="top" href="//nxtvepg.tripod.com/" title="nexTView EPG Dekoder Homepage">
+<LINK rel="top" href="http://nxtvepg.sourceforge.net/" title="nexTView EPG Dekoder Homepage">
 </HEAD>
 <BODY BGCOLOR=#f8f8f8>
-<P><HR><P>
 
 <table summary="Layouttabelle: Die erste Zelle enthält Links zur Navigation, die zweite die Informationen"
  border="0" width="99%" cellspacing="20" cellpadding="0">
 <tbody>
 <tr>
 <td valign="top" class="navbar" width="20%">
+<a href="http://sourceforge.net"><img
+src="http://sourceforge.net/sflogo.php?group_id=YOUR_GROUP_ID_GOES_HERE&amp;type=4"
+width="125" height="37" border="0" alt="SourceForge.net Logo"></a>
+
 <P class="navhead"><B>Sprache</B>
 <P class="navsect">
 <IMG ALT="" SRC="de.png" WIDTH=16 HEIGHT=10> Deutsch<BR>
@@ -47,7 +50,9 @@
 
 <P class="navhead"><B>News</B>
 <P class="navsect">
-17.9.2002: <A HREF="#download">release 2.3.0</A></P>
+13.10.2002: <A HREF="#download">release 2.3.1</A></P>
+<HR width=70%><P class="navsect">
+17.9.2002: release 2.3.0</P>
 <HR width=70%><P class="navsect">
 24.8.2002: <FONT COLOR="red">Wichtiger bugfix release 2.2.1</FONT></P>
 <HR width=70%><P class="navsect">
@@ -116,12 +121,21 @@ Software mit Ausnahme des Demo-Modus leider nichts anfangen. Mehr Infos dazu
 und zu allen weiteren Sofware-Features in der
 <A HREF="man.html">nxtvepg Dokumentation</A> (nur in englisch verfügbar).
 </P><P>
-<B><FONT COLOR="red">Neu:</FONT></B>
+<B>Neu:</B>
 Die <B>Windows TV software <A HREF="http://www.kastortv.com/">K!TV</A></B>
 kann jetzt mit nxtvepg kommunizieren (genau wie <I>xawtv</I> auf UNIX),
 z.B. um beim Programmwechsel eine Einblendung mit dem aktuell laufenden
 Programm zu zeigen, den Sender von nxtvepg aus zu wechseln,
 <A HREF="tvsim.html#interaction features">uvm.</A>
+</P>
+<P>
+<B><FONT COLOR="red">Aktuell:</FONT></B>
+nxtvpepg wurde die Ehre einer Erwähnung in der Share- &amp; Freeware-Sektion von
+Ausgabe 21 des <A HREF="http://www.heise.de/ct/shareware/">c't Magazins</A> zuteil.
+Um den dadurch signifikant angestiegenen Traffic bewältigen zu können mußte die
+website nach sourceforge.net umziehen.  An dieser Stelle vielen Dank an das
+SourceForge Team; vielen Dank auch an Thomas Schlebusch und Peter Schumacher
+dafür daß sie während der Übergangszeit die packages gespiegelt haben.
 <P></P>
 Falls nxtvepg Ihr Interesse geweckt haben sollte und Sie nun an einem
 TV mit integriertem nexTView interessiert sind, schauen Sie doch auf
@@ -182,22 +196,22 @@ Es werden alle Windows Versionen ab Windows 95 unterstützt.
 <H2>Download</H2>
 </A>
 <P>
-Die letzte stabile Distribution ist Version is 2.3.0.
+Die letzte stabile Distribution ist Version is 2.3.1 vom 13. Oktober 2002.
+<BR>Die neue Version behebt eine Reihe von Fehlern in der Vorgängerversion
+(Details siehe <A HREF="changelog.html#release_2_3_1">Change-Log 2.3.1</A>)
 </P><P>
 <B><FONT color="red">Achtung:</FONT></B> In allen nxtvepg Versionen bis einschließlich
 2.2.0 ist leider ein Fehler der seit August 2002 für Benutzer des Nextview EPG
 Anbieters Kabel1 zu häufigen Programmabstürzen beim Scrolling durch die
 TV Programmanzeige führt.  Falls Sie von dem Fehler betroffen sind, können Sie
 den Programmquellcode von den Versionen
-<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/patch-nxtvepg-0.6.4.txt">0.6.4</A> und
-<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/patch-nxtvepg-0.7.0.txt">0.7.0</A>
+<A HREF="patches/patch-nxtvepg-0.6.4.txt">0.6.4</A> und
+<A HREF="patches/patch-nxtvepg-0.7.0.txt">0.7.0</A>
 patchen, oder laden Sie einfach eine neuere Version herunter.
 </P><P>
 Mehr Details und alle früheren Änderungen sind im
 <A HREF="changelog.html">Change-Log</A> dokumentiert. Falls mit der Software
-Probleme auftauchen, bitte melden. Ältere Distributionen befinden sich noch im
-<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/">Source Verzeichnis</A>
-(<A HREF="http://nxtvepg.tripod.com/src/">US Mirror</A> hat mehr Versionen)
+Probleme auftauchen, bitte melden.
 </P><P>
 Wenn Sie über zukünftige releases auf dem Laufenden bleiben wollen, können Sie
 das nxtvepg Projekt abonnieren auf <A HREF="http://freshmeat.net/projects/nxtvepg/">freshmeat.net</A>
@@ -207,11 +221,10 @@ das nxtvepg Projekt abonnieren auf <A HREF="http://freshmeat.net/projects/nxtvep
 <H3>Source Distribution</H3>
 </A>
 Download der letzten stabilen Source Distribution für Linux und NetBSD:
-<A HREF=http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-2.3.0.tar.gz>nxtvepg-2.3.0.tar.gz</A>
-(680 kB)
+<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.3.1.tar.gz">nxtvepg-2.3.1.tar.gz</A>
 </P><P>
 Aus dem source tarball läßt sich auch ein RPM package bauen mit dem
-Kommando: <KBD>rpm -ta nxtvepg-2.3.0.tar.gz</KBD>. Das erzeugte package
+Kommando: <KBD>rpm -ta nxtvepg-2.3.1.tar.gz</KBD>. Das erzeugte package
 kann dann wie üblich mit <KBD>rpm -i</KBD> installiert werden. Alternativ
 sind auch fertige packages verfügbar (jedoch nicht notwendigerweise
 immer die neueste Version):
@@ -225,13 +238,11 @@ und für NetBSD von <A HREF="ftp://ftp.netbsd.org/pub/NetBSD/packages/pkgsrc/misc
 </A>
 <P>
 Windows executable der letzten stabilen Version:
-<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-2.3.0-win.zip">nxtvepg-2.3.0-win.zip</A>
-(1048 kB)
+<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.3.1-win.zip">nxtvepg-2.3.1-win.zip</A>
 </P><P>
 Demo für Interaktion mit TV Applikationen:
-<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-2.3.0-tvsim.zip">nxtvepg-2.3.0-tvsim.zip</A>
-(245 kB)<BR>
-(siehe auch <A HREF="tvsim.html">tvsim</A>,
+<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.3.1-tvsim.zip">nxtvepg-2.3.1-tvsim.zip</A>
+<BR>(siehe auch <A HREF="tvsim.html">tvsim</A>,
 <A HREF="vbirec.html">vbirec</A> oder
 <A HREF="vbiplay.html">vbiplay</A> manuals, oder
 <A HREF="screenshot-tvsim.gif">tvsim &amp; nxtvepg</A> und
@@ -253,7 +264,7 @@ Benutzeranleitung, Abschnitt <A HREF="man.html#getting started">Getting Started<
 <P>
 Falls Sie keine der oben genannten nexTView Programmanbieter empfangen,
 können Sie die Software dennoch im Demo-Modus ausprobieren.
-Dazu können Sie diese <A HREF=http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxdemodb.epg.gz>Demo Datenbank</A> (56 kB)
+Dazu können Sie diese <A HREF=http://prdownloads.sourceforge.net/nxtvepg/nxdemodb.epg.gz>Demo Datenbank</A> (56 kB)
 downloaden, dekomprimieren und dann mit den Kommandozeilenargumenten
 <CODE>-demo nxdemodb.epg</CODE> laden oder im Windows-Explorer einfach per
 Drag-and-Drop auf das nxtvepg Executable fallen lassen.

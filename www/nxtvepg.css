@@ -1,5 +1,5 @@
 TABLE BODY {
-	
+	BACKGROUND-COLOR: #f8f8f8;
 }
 TD.navbar {
 	BACKGROUND-COLOR: #e8e8e8;
@@ -29,7 +29,7 @@ H2 {
 	COLOR: #333333; FONT-FAMILY: Verdana,Geneva,Arial,Helvetica; FONT-SIZE: 14pt; FONT-WEIGHT: bold; PADDING-TOP: 30pt
 }
 H3 {
-	BACKGROUND-COLOR: #e8e8e8; COLOR: #333333; FONT-FAMILY: Verdana,Geneva,Arial,Helvetica; FONT-SIZE: 12pt; FONT-WEIGHT: bold
+	BACKGROUND-COLOR: #e8e8e8; COLOR: #333333; FONT-FAMILY: Verdana,Geneva,Arial,Helvetica; FONT-SIZE: 12pt; FONT-WEIGHT: bold; PADDING-TOP: 5pt; PADDING-BOTTOM: 5pt
 }
 .menu1 {
 	COLOR: #e8e8e8; FONT-SIZE: 13px; FONT-WEIGHT: bold; TEXT-DECORATION: none

@@ -4,6 +4,33 @@ changes or additions.
 
 Before you submit any feature requests, please read the TODO file.
 
+from 2.3.0 to 2.3.1 (2002-October-13)
+
+- bugfix: crash when selecting a network with unknown ID in the network
+  selection configuration dialog (uninitialized pointer variable; crashes
+  not on all platforms). Thanks to Udo A. Steinberg for reporting this bug.
+- weekday names are now printed in the local language (defined ba the locale
+  setting on UNIX).  Thanks to Thierry for the suggestion.
+- fixed the case of French theme names: first character is now upper case
+- fixed "Time" column header drop-down menu (was broken with 2.3.0): the NEXT
+  entry behaved like NOW, discrete times used to jumped to the first programme
+  which was running at the given time, opposed to the first which started at
+  or after the given time (a matter of taste, but I found it to be confusing)
+- improved "Date" column-header drop-down menu: it now has as many entries as
+  days covered by the database (also depends on current filter setting)
+- improved "Getting Started" section in the manual
+- Windows: fixed permissions for TV card driver: before, admin or power-user
+  status was often required to start the driver (i.e. to start acquisition);
+  now there's a workaround that lets the driver "try harder" to grant this
+  right to everyone.
+
+Also note that the nxtvepg Internet homepage has moved from tripod.com to
+http://nxtvepg.sourceforge.net/ because the old site no longer could handle
+the traffic. Many thanks to the sourceforge.net team for accepting the project
+and to Thomas Schlebusch and Peter Schumacher for providing temporary mirrors
+during the transition period.
+
+
 from 2.2.1 to 2.3.0 (2002-September-17)
 
 - bugfix in user-defined context menu entries: variables using modifiers

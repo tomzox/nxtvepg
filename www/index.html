@@ -1,11 +1,11 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: index.html,v 1.49 2002/09/22 18:56:21 tom Exp $ -->
+<!-- $Id: index.html,v 1.54 2002/10/13 19:01:48 tom Exp $ -->
 <HEAD>
 <TITLE>nexTView EPG Decoder Software Download Page</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
 <META name="language" content="en">
-<META name="keywords" lang="en" content="nexTView, EPG, decoder, nxtvepg, teletext, Bt878, electronic program guide, TV-Guide, Premiere, TV program listing, TV schedule, Nextview decoder, Linux, software download, bttv, video4linux, VBI, vertical blanking interval, multimedia, data service, subscription free, TV tuner card, Bt848, Booktree, video capture, capture, browser, Pro7, RTL2, 3Sat, Canal+, EuroNews">
+<META name="keywords" lang="en" content="nexTView, EPG, decoder, nxtvepg, teletext, Bt878, electronic program guide, TV-Guide, Premiere, TV program listing, TV schedule, Nextview decoder, Linux, software download, bttv, video4linux, VBI, vertical blanking interval, multimedia, data service, subscription free, TV tuner card, Bt848, Booktree, video capture, capture, browser, Pro7, RTL2, 3Sat, Canal+, EuroNews, nexttview">
 <META name="description" lang="en" content="This nexTView EPG decoder software offers access to a subscription-free electronic TV program guide in the analog domain. Nextview currently is broadcasted in Germany, Austria, Switzerland, and France and covers the schedules of all major TV networks in these countries.">
 <META name="author" content="Tom Zoerner">
 <META name="copyright" content="Tom Zoerner">
@@ -14,16 +14,19 @@
 <LINK rel="stylesheet" type="text/css" href="nxtvepg.css">
 <LINK rel="alternate" type="text/html" href="index-de.html" hreflang="de" lang="de" title="nexTView Dekoder Download">
 <LINK rel="shortcut icon" type="image/x-icon" href="nxtvepg.ico">
-<LINK rel="top" href="//nxtvepg.tripod.com/" title="nexTView EPG Decoder Homepage">
+<LINK rel="top" href="http://nxtvepg.sourceforge.net/" title="nexTView EPG Decoder Homepage">
 </HEAD>
 <BODY BGCOLOR=#f8f8f8>
-<P><HR><P>
 
 <table summary="Layout table: The first cell contains a navigation bar, the second contains the main content"
  border="0" width="99%" cellspacing="20" cellpadding="0">
 <tbody>
 <tr>
-<td valign="top" class="navbar" width="15%">
+<td valign="top" class="navbar" width="20%">
+<a href="http://sourceforge.net"><img
+src="http://sourceforge.net/sflogo.php?group_id=YOUR_GROUP_ID_GOES_HERE&amp;type=4"
+width="125" height="37" border="0" alt="SourceForge.net Logo"></a>
+
 <P class="navhead"><B>Language</B>
 <P class="navsect">
 <IMG ALT="" SRC="en.png" WIDTH=16 HEIGHT=10> English<BR>
@@ -47,7 +50,9 @@
 
 <P class="navhead"><B>News</B>
 <P class="navsect">
-Sep/17/2002: <A HREF="#download">release 2.3.0</A></P>
+Oct/13/2002: <A HREF="#download">release 2.3.1</A></P>
+<HR width=70%><P class="navsect">
+Sep/17/2002: release 2.3.0</P>
 <HR width=70%><P class="navsect">
 Aug/24/2002: <FONT COLOR="red">Major bugfix release 2.2.1</FONT></P>
 <HR width=70%><P class="navsect">
@@ -113,12 +118,21 @@ If you don't receive any of these, then unfortunately this software is
 useless to you, except for a demo mode. For detailed information please
 refer to the <A HREF="man.html">nxtvepg manual page</A>.
 <P></P>
-<B><FONT COLOR="red">New:</FONT></B>
+<B>New:</B>
 Check out the <B>Windows TV app <A HREF="http://www.kastortv.com/">K!TV</A></B>
 which now interacts seemlessly with nxtvepg (exactly like <I>xawtv</I>
 does on UNIX), e.g. you get an EPG info popup with every channel change,
 you can switch the TV channel from inside nxtvepg,
 <A HREF="tvsim.html#interaction features">and more</A>.
+<P></P>
+<B><FONT COLOR="red">News:</FONT></B>
+The nxtvepg software has earned a mention in the share- and freeware
+section of edition 21 of the German
+<A HREF="http://www.heise.de/ct/shareware/">c't magazine</A>.
+Due to the significantly increased traffic to the homepage, it had to
+be loacated to sourceforge.  Many thanks to the sourceforge team for
+accepting the project and to Thomas Schlebusch and Peter Schumacher
+for providing a temporary mirror during the transition period.
 <P></P>
 If you're interested in buying a TV with nexTView inside, look for it
 at one of the following manufacturers:
@@ -176,22 +190,22 @@ account with special privileges (you must be allowed to install &amp; start a se
 <H2>Download</H2>
 </A>
 <P>
-The latest stable release is version 2.3.0.
+The latest stable release is version 2.3.1.
+<BR>This release fixes a number of minor bugs in the previous version
+(details see <A HREF="changelog.html#release_2_3_1">change log 2.3.1</A>).
 </P><P>
 <B><FONT color="red">Important announcement:</FONT></B> Unfortunately there was a bug in all
 versions up to (and including) 2.2.0 which led to frequent crashes since August 2002
 for users of the German provider Kabel1.  If you experience crashes when scrolling
 through programme listings read from Kabel1, then please either apply one of the
 patches against the source code, which are available for versions
-<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/patch-nxtvepg-0.6.4.txt">0.6.4</A> and
-<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/patch-nxtvepg-0.7.0.txt">0.7.0</A>
+<A HREF="patches/patch-nxtvepg-0.6.4.txt">0.6.4</A> and
+<A HREF="patches/patch-nxtvepg-0.7.0.txt">0.7.0</A>
 or upgrade to the latest stable version.
 </P><P>
 For a detailed history of new features and fixes in previous releases
-refer to the <A HREF="changelog.html">Change-Log</A>.
-If there are any problems with this new release, please let me know. For previous releases,
-see the <A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/">source directory</A>
-(<A HREF="http://nxtvepg.tripod.com/src/">US mirror</A> has a larger selection)
+refer to the <A HREF="changelog.html">change log</A>.
+If there are any problems with this new release, please let me know.
 </P><P>
 If you want to be kept up to date about future new releases, you can subscribe
 to the nxtvepg project on <A HREF="http://freshmeat.net/projects/nxtvepg/">freshmeat.net</A>
@@ -202,11 +216,10 @@ to the nxtvepg project on <A HREF="http://freshmeat.net/projects/nxtvepg/">fresh
 </A>
 <P>
 Download the latest stable source distribution for Linux and NetBSD:
-<A HREF=http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-2.3.0.tar.gz>nxtvepg-2.3.0.tar.gz</A>
-(680 kB)
+<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.3.1.tar.gz">nxtvepg-2.3.1.tar.gz</A>
 </P><P>
 You can build a RPM package from the source tarball simply by running
-<KBD>rpm -ta nxtvepg-2.3.0.tar.gz</KBD> and install it as usual with
+<KBD>rpm -ta nxtvepg-2.3.1.tar.gz</KBD> and install it as usual with
 <KBD>rpm -i</KBD>.  You can also donwload directly installable packages
 (not necessarily the latest version)
 for Linux at <A HREF="http://rpmfind.net/linux/rpm2html/search.php?query=nxtvepg">rpmfind.net</A>
@@ -219,13 +232,11 @@ and for NetBSD at <A HREF="ftp://ftp.netbsd.org/pub/NetBSD/packages/pkgsrc/misc/
 </A>
 <P>
 Windows executable of the latest stable version:
-<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-2.3.0-win.zip">nxtvepg-2.3.0-win.zip</A>
-(1048 kB)
+<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.3.1-tvsim.zip">nxtvepg-2.3.1-win.zip</A>
 </P><P>
-Demo application for TV application interaction
-<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-2.3.0-tvsim.zip">nxtvepg-2.3.0-tvsim.zip</A>
-(245 kB)<BR>
-(see <A HREF="tvsim.html">tvsim</A>,
+Demo application for TV application interaction:
+<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.3.1-tvsim.zip">nxtvepg-2.3.1-tvsim.zip</A>
+<BR>(see <A HREF="tvsim.html">tvsim</A>,
 <A HREF="vbirec.html">vbirec</A> or
 <A HREF="vbiplay.html">vbiplay</A> manuals, or
 <A HREF="screenshot-tvsim.gif">tvsim &amp; nxtvepg</A> and
@@ -246,7 +257,7 @@ directory.  Please refer to the Help menu or HTML manual page, section
 <P>
 If you do not receive any of the nexTView provider channels listed at the
 top of this page, download the demo database
-<A HREF=http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxdemodb.epg.gz>nxdemodb.epg.gz</A>,
+<A HREF=http://prdownloads.sourceforge.net/nxtvepg/nxdemodb.epg.gz>nxdemodb.epg.gz</A>,
 which will enables you to check out the main features of the browser,
 so that you can see what you're missing.
 </P><P>
@@ -279,23 +290,5 @@ merchantability or fitness for a particular purpose.
 
 </TD>
 </TBODY></TABLE>
-
-<!-- Begin Nedstat Basic code -->
-<!-- Title: nexTView EPG Decoder Software -->
-<!-- URL: http://nxtvepg.tripod.com/ -->
-<script language="JavaScript" src="http://m1.nedstatbasic.net/basic.js">
-</script>
-<script language="JavaScript">
-<!--
-nedstatbasic("ABLmbAYCeAjHJw8oZuzU34ENTm6Q", 0);
-// -->
-</script>
-<noscript>
-<a target="_blank" href="http://v1.nedstatbasic.net/stats?ABLmbAYCeAjHJw8oZuzU34ENTm6Q"><img
-src="http://m1.nedstatbasic.net/n?id=ABLmbAYCeAjHJw8oZuzU34ENTm6Q"
-border="0" nosave width="18" height="18"></a>
-</noscript>
-<!-- End Nedstat Basic code -->
-
 </BODY>
 </HTML>

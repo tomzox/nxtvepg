@@ -126,11 +126,19 @@ Explanation of Windows Bt8x8 driver error messages:
   and -rcfile options instead to specify where configuration files are
   searched for.
 
-  2. On Windows NT and Windows 2000 you need to have special privileges
-  to start the driver (e.g. on NT you should be in the Administrator group)
+  2. On Windows NT and Windows 2000 you need to have administrator privileges
+  the very first time you start nxtvepg, to be able to install the TV card
+  driver.  The driver attempts to set up permissions in a way that afterwards
+  every user can start its "DsDrv4" service. However if that fails (the causes
+  for failure are still under investigation; all feedback is appreciated) you
+  need to have special privileges to start the driver: on NT you must be
+  in the Administrator group, on W2K and XP you need "Power user" status
+  (also called "main user").
 
-  3. You're using driver files of a wrong version.  You must use the
-  version that comes with nxtvepg.
+  3. You're using driver files of a wrong version.  You must use the version
+  that comes with nxtvepg.  nxtvepg attempts to automatically upgrade the
+  driver to the required version, but that may fail if the service cannot be
+  stopped or permissions don't allow to remove the service.
 
   4. You're starting nxtvepg from a network drive, however the driver
   cannot be installed on a remote drive.  Please move the nxtvepg
@@ -213,9 +221,9 @@ debug.out log file.
 
 
 The latest version of this software is available at:
-http://nxtvepg.tripod.com/
+http://nxtvepg.sourceforge.net/
 
-You can reach me at: tomzo@nefkom.net
+You can reach me at: tomzo (at) users.sourceforge.net
 
 have fun.
 

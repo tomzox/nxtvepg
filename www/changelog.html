@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: changelog.html,v 1.37 2002/09/22 18:56:34 tom Exp $ -->
+<!-- $Id: changelog.html,v 1.40 2002/10/13 19:02:13 tom Exp $ -->
 <HEAD>
 <TITLE>Nextview EPG Decoder Change-Log</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
@@ -13,7 +13,7 @@
 <META name="revisit-after" content="01 month">
 <LINK rel="stylesheet" type="text/css" href="nxtvepg.css">
 <LINK rel="shortcut icon" type="image/x-icon" href="nxtvepg.ico">
-<LINK rel="top" href="//nxtvepg.tripod.com/" title="nexTView EPG Dekoder Homepage">
+<LINK rel="top" href="//nxtvepg.sourceforge.net/" title="nexTView EPG Dekoder Homepage">
 </HEAD>
 <BODY BGCOLOR=#f8f8f8>
 
@@ -22,7 +22,7 @@
 
 <P>
 This document contains a list of all major changes between releases
-of the <A HREF="http://nxtvepg.tripod.com/">nxtvepg</A>
+of the <A HREF="http://nxtvepg.sourceforge.net/">nxtvepg</A>
 nexTView EPG decoder software.
 <BR>
 It also contains information about the next release and is regularily
@@ -45,13 +45,55 @@ improvements for the M$ Windows platform (see changelog for 0.7.1):
 -->
 
 
-<H2>Known problems in 2.3.0</H2>
+<H2>Changes in 2.4.0 (not yet released)</H2>
 <P>
+The following changes will be in the next release:
+</P>
 <UL>
-<LI>There's a bug in the drop-down menu under the header of the "Time"
-    column in the main window: "Next" behaves identical to "Now" and
-    all times are off by 2 hours. <I>Not analyzed yet.</I>
+<LI>Implemented user-defined columns, which allow to define the column content
+  depending on matches against a number of filter shortcuts; the content can
+  consist of static text, pre-defined images or a standard attribute.
+  <!-- See the <A HREF="man.html#userdefined columns">manual</A> for details.
+  -->
+<LI>Implemented inverted filters, i.e. you can now search for all programmes
+  which do not match a given criterium
+<LI>New pre-defined column: duration (suggested by Thierry)
+<LI>Fixed copy &amp; paste in short-info window for Win32 (Thierry)
+<LI>Added VPS/PDC search filter: all, only with VPS, only with VPS!=start
 </UL>
+
+
+<A NAME="release_2_3_1">
+<H2>From 2.3.0 to 2.3.1 (October/13/2002)</H2>
+</A>
+<P>
+This release fixes the following problems:
+</P>
+<UL>
+<LI>Bugfix: crash when selecting a network with unknown ID in the network
+  selection configuration dialog (uninitialized pointer variable; crashes
+  not on all platforms). Thanks to Udo A. Steinberg for reporting this bug.
+<LI>Weekday names are now printed in the local language (defined ba the locale
+  setting on UNIX).  Thanks to Thierry for the suggestion.
+<LI>Fixed the case of French theme names: first character is now upper case.
+<LI>Fixed "Time" column header drop-down menu (was broken with 2.3.0): the NEXT
+  entry behaved like NOW, discrete times used to jumped to the first programme
+  which was running at the given time, opposed to the first which started at
+  or after the given time (a matter of taste, but I found it to be confusing).
+<LI>Improved "Date" column-header drop-down menu: it now has as many entries as
+  days covered by the database (also depends on current filter setting)
+<LI>Improved "Getting Started" section in the manual.
+<LI>Windows: fixed permissions for TV card driver: before, admin or power-user
+  status was often required to start the driver (i.e. to start acquisition);
+  now there's a workaround that lets the driver "try harder" to grant this
+  right to everyone.
+</UL>
+
+Also note that the nxtvepg Internet homepage has moved from tripod.com to
+http://nxtvepg.sourceforge.net/ because the old site no longer could handle
+the traffic. Many thanks to the sourceforge.net team for accepting the project
+and to Thomas Schlebusch and Peter Schumacher for providing temporary mirrors
+during the transition period.
 
 
 <H2>From 2.2.1 to 2.3.0 (September/17/2002)</H2>
@@ -118,8 +160,8 @@ This release contains the following fixes:
   previous versions! (It surfaced only now because some very long description
   texts were transmitted by the German provider Kabel1).
   Due to the severity of the bug there are also patches available for
-  <A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/patch-nxtvepg-0.6.4.txt">0.6.4</A> and
-  <A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/patch-nxtvepg-0.7.0.txt">0.7.0</A>
+  <A HREF="patches/patch-nxtvepg-0.6.4.txt">0.6.4</A> and
+  <A HREF="patches/patch-nxtvepg-0.7.0.txt">0.7.0</A>
 <LI>Bugfix in database merge: merge failed when no networks were manually
   selected yet
 <LI>Network name column in the programme listing now automatically adapts
@@ -299,11 +341,8 @@ This release contains the following new features and fixes:
 </UL>
 
 Please note that Windows TV interaction support is intentionally disabled
-in this release, because the interface is not yet finalized.  But if you
-want to see a demonstration of the capabilities, go to the
-<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/devel/">Developer's page</A>
-where you'll find a package with an nxtvepg executable with TV app interaction
-support and debugging output enabled plus several demo and debugging tools.
+in this release, because the interface is not yet finalized.
+
 
 <H2>From 0.6.4 to 0.7.0 (March/02/2002)</H2>
 <P>

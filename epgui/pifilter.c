@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pifilter.c,v 1.66 2002/09/16 16:28:07 tom Exp tom $
+ *  $Id: pifilter.c,v 1.66.1.1 2002/10/13 18:06:58 tom Exp $
  */
 
 #define __PIFILTER_C
@@ -1029,6 +1029,37 @@ static int GetNetwopFilterList( ClientData ttp, Tcl_Interp *interp, int objc, Tc
 }
 
 // ----------------------------------------------------------------------------
+// Get stop time of the last PI in the current UI database
+//
+static int GetLastPiTime( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+{
+   const char * const pUsage = "Usage: C_GetLastPiTime";
+   const PI_BLOCK * pPiBlock;
+   time_t  lastTime;
+   int     result;
+
+   if (objc != 1) 
+   {  // wrong # of args for this TCL cmd -> display error msg
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR; 
+   }  
+   else
+   {
+      EpgDbLockDatabase(dbc, TRUE);
+      pPiBlock = EpgDbSearchLastPi(pUiDbContext, pPiFilterContext);
+      if (pPiBlock != NULL)
+         lastTime = pPiBlock->stop_time;
+      else
+         lastTime = 0;
+      EpgDbLockDatabase(dbc, FALSE);
+
+      Tcl_SetObjResult(interp, Tcl_NewIntObj(lastTime));
+      result = TCL_OK; 
+   }
+   return result;
+}
+
+// ----------------------------------------------------------------------------
 // Update filter menu state
 //
 static void UpdateFilterContextMenuState( const NI_FILTER_STATE * pNiState )
@@ -1208,13 +1239,14 @@ static int IsNavigateMenuEmpty( ClientData ttp, Tcl_Interp *interp, int objc, Tc
 // ----------------------------------------------------------------------------
 // Create navigation menu
 //
-static int CreateNi( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+static int CreateNi( ClientData ttp, Tcl_Interp *interp, int argc, CONST84 char *argv[] )
 {
    const char * const pUsage = "Usage: C_CreateNi <menu-path>";
    const NI_BLOCK *pNiBlock;
    const EVENT_ATTRIB *pEv;
    const char *evName;
-   uchar *p, subname[100];
+   const uchar *p;
+   uchar subname[100];
    int blockno, i;
    int result;
 
@@ -1295,13 +1327,14 @@ static int CreateNi( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] 
 // ----------------------------------------------------------------------------
 // Apply navigation menu filter setting
 //
-static int SelectNi( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+static int SelectNi( ClientData ttp, Tcl_Interp *interp, int argc, CONST84 char *argv[] )
 {
    const char * const pUsage = "Usage: C_SelectNi <menu-path>";
    const NI_BLOCK *pNiBlock;
    const EVENT_ATTRIB *pEv;
    NI_FILTER_STATE niState;
-   char *p, *n;
+   const char *p;
+   char *n;
    int blockno, index, attrib;
    int result;
 
@@ -1463,7 +1496,7 @@ static int UpdateNetwopList( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_O
 // ----------------------------------------------------------------------------
 // Create the context menu (after click with the right mouse button onto a PI)
 //
-static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, CONST84 char *argv[] )
 {
    const char * const pUsage = "Usage: C_CreateContextMenu <menu-path>";
    const AI_BLOCK * pAiBlock;
@@ -1947,6 +1980,7 @@ void PiFilter_Create( void )
       Tcl_CreateObjCommand(interp, "C_GetNetwopSeriesList", GetNetwopSeriesList, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetSeriesByLetter", GetSeriesByLetter, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetSeriesTitles", GetSeriesTitles, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_GetLastPiTime", GetLastPiTime, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_IsNavigateMenuEmpty", IsNavigateMenuEmpty, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_CreateNi", CreateNi, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_SelectNi", SelectNi, (ClientData) NULL, NULL);

@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pilistbox.c,v 1.75 2002/09/14 18:11:07 tom Exp tom $
+ *  $Id: pilistbox.c,v 1.75.1.1 2002/10/13 18:12:48 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -1253,11 +1253,16 @@ static int PiListBox_GotoTime( ClientData ttp, Tcl_Interp *interp, int objc, Tcl
    const PI_BLOCK *pPiBlock;
    const uchar * pArg;
    time_t startTime;
+   int min_start;
    int i, delta, param;
    
-   if ((objc == 2) && (pibox_state == PIBOX_LIST))
+   if ((objc == 3) && (pibox_state == PIBOX_LIST))
    {
-      pArg = Tcl_GetString(objv[1]);
+      // determine mode: start or stop time as limiter
+      if (Tcl_GetBooleanFromObj(interp, objv[1], &min_start) != TCL_OK)
+         min_start = FALSE;
+
+      pArg = Tcl_GetString(objv[2]);
       // Retrieve the start time from the function parameters
       if (strcmp(pArg, "now") == 0)
       {  // start with currently running -> suppress start time restriction
@@ -1267,7 +1272,7 @@ static int PiListBox_GotoTime( ClientData ttp, Tcl_Interp *interp, int objc, Tcl
       {  // start with the first that's not yet running -> start the next second
          startTime = time(NULL) + 1;
       }
-      else if (Tcl_GetIntFromObj(interp, objv[1], &param) == TCL_OK)
+      else if (Tcl_GetIntFromObj(interp, objv[2], &param) == TCL_OK)
       {  // absolute time given (UTC)
          startTime = param;
       }
@@ -1291,10 +1296,21 @@ static int PiListBox_GotoTime( ClientData ttp, Tcl_Interp *interp, int objc, Tcl
       if (pPiBlock != NULL)
       {
          // skip all PI before the requested time
-         while ((pPiBlock != NULL) && (pPiBlock->stop_time <= startTime))
+         if (min_start)
          {
-            pPiBlock = EpgDbSearchNextPi(dbc, pPiFilterContext, pPiBlock);
-            pibox_max += 1;
+            while ( (pPiBlock != NULL) && (pPiBlock->start_time < startTime) )
+            {
+               pPiBlock = EpgDbSearchNextPi(dbc, pPiFilterContext, pPiBlock);
+               pibox_max += 1;
+            }
+         }
+         else
+         {
+            while ( (pPiBlock != NULL) && (pPiBlock->stop_time <= startTime) )
+            {
+               pPiBlock = EpgDbSearchNextPi(dbc, pPiFilterContext, pPiBlock);
+               pibox_max += 1;
+            }
          }
          pibox_off = pibox_max;
 

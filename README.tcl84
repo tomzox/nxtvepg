@@ -36,6 +36,7 @@ sh configure
 Edit generated Makefile:
 prefix=/d/gnu/tcl84
 exec_prefix=${prefix}
+libdir=${prefix}/lib
 
 replace win/rc/tk.ico with nxtvepg.ico
 

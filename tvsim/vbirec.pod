@@ -24,7 +24,7 @@
 #
 #  Author: Tom Zoerner
 #
-# $Id: vbirec.pod,v 1.4 2002/05/30 14:11:23 tom Exp tom $
+# $Id: vbirec.pod,v 1.5 2002/10/13 14:05:41 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME
@@ -197,7 +197,7 @@ See also the manuals for B<nxtvepg>, B<tvsim> and B<vbiplay>.
 
 Tom Zoerner, Erlangen, Germany.
 
-Email: tomzo (at) nefkom (dot) net
+Email: tomzo (at) users (dot) sourceforge (dot) net
 
 
 =head1 COPYRIGHT

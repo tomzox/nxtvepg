@@ -1,5 +1,5 @@
 %define    prefix    /usr/local
-%define    version   2.3.0
+%define    version   2.3.1
 
 Summary:   nexTView EPG decoder and browser
 Name:      nxtvepg
@@ -9,7 +9,7 @@ Requires:  tcl >= 8.3, tk >= 8.3
 Source0:   nxtvepg-%{version}.tar.gz
 Group:     Applications/Multimedia
 Copyright: GPL
-URL:       http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-%{version}.tar.gz
+URL:       http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-%{version}.tar.gz
 BuildRoot: /tmp/nxtvepg-build
 
 %description

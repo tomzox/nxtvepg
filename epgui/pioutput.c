@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pioutput.c,v 1.27 2002/09/16 11:56:50 tom Exp tom $
+ *  $Id: pioutput.c,v 1.27.1.1 2002/10/13 18:09:20 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -1190,7 +1190,7 @@ static const uchar * const html_head =
    "<META http-equiv=\"Content-Type\" content=\"text/html; charset=iso8859-1\">\n"
    "<META name=\"copyright\" content=\"%s\">\n"
    "<META name=\"description\" lang=\"en\" content=\"nexTView EPG: TV programme schedules\">\n"
-   "<META name=\"generator\" content=\"nxtvepg %s; http://nxtvepg.tripod.com/\">\n"
+   "<META name=\"generator\" content=\"nxtvepg %s; http://nxtvepg.sourceforge.net/\">\n"
    "<TITLE>Nextview EPG</TITLE>\n"
    "<STYLE type=\"text/css\">\n"
    "   <!--\n"

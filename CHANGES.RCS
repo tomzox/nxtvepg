@@ -10144,3 +10144,295 @@ www/changelog.html [rev:1.37, 2002-09-22T18:56:34]:
     for versions 0.6.4 and 0.7.0
 - added one known bug for 2.3.0 (not analyzed yet)
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_3_0 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+epgui/pdc_themes.c [rev:1.9, 2002-09-26T06:38:26]:
+- Corrected case of French PDC theme names (suggested by Thierry)
+- first character of substantives upper-case, rest lower-case
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.181, 2002-09-27T21:06:55]:
+- changed background color of listboxes, entries and text to lighter gray
+- allow to change colors via resources
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.182, 2002-09-28T12:51:55]:
+- Implemented user-defined columns
+- added new proc PopupUserDefinedColumns and it's callback functions
+- added images (array pi_img) & PI listbox color tags
+- column selection dialog: split off proc FillColumnSelectionDialog
+    also used by Apply callback in user-defined colum dialog
+- invoke new proc DownloadUserDefinedColumnFilters after column or filter chg.
+    using new pioutput.c proc C_PiFilter_ContextCacheCtl
+- added new proc SelectSingleShortcut for DownloadUserDefinedColumnFilters
+- added new global array usercols to rc/ini file (renamed/merged for rc)
+epgui/pifilter.c [rev:1.67, 2002-09-28T12:52:02]:
+- Implemented user-defined columns
+- added cache for shortcut filter contexts: static global pFilterCache;
+    added pUiFilterContext, former pPiFilterContext is now only delegating
+    filter C_Select* functions either into the UI filter context or the cache
+- new Tcl proc C_PiFilter_ContextCacheCtl {start|set|done} [idx]
+    allows to switch to/from pUiFilterContext and clear the cache
+- new function PiFilter_ContextCacheMatch(), used by pioutput.c
+epgui/pifilter.h [rev:1.8, 2002-09-28T12:52:07]:
+- Implemented user-defined columns
+- new function PiFilter_ContextCacheMatch(), used by pioutput.c
+epgui/pilistbox.c [rev:1.76, 2002-09-28T12:52:14]:
+- Implemented user-defined columns
+- removed PiListBox_InsertItem(): content moved into pioutput.c::
+    PiOutput_PiListboxInsert() (former PiOutput_PrintColumnItems()):
+    because now a line may be broken up, due to different formatting
+    -> globally renamed all function calls
+- removed obsolete pre-defined Tcl objects (pioutput.c keeps it's own objects)
+epgui/pioutput.c [rev:1.28, 2002-09-28T12:52:21]:
+- Implemented user-defined columns
+- added array of pre-allocated Tcl objects (equivalently to pilistbox.c)
+- added 3rd elem Tcl_Obj * pDefObj to listbox column config cache
+- new helper function PiOutput_MatchUserCol()
+- PiOutput_PrintColumnItem(): ignore new column type PIBOX_COL_USER_DEF
+- PiOutput_CfgColumns():
+    + split off helper function PiOutput_GetPiColumnType(): performance-optimized
+      because it's also used in user-defined columns
+    + added caching of reference to Tcl array element usercols for user-def. col.
+- moved typedef PIBOX_COL_TYPES from header into C file
+epgui/pioutput.h [rev:1.10, 2002-09-28T12:52:36]:
+- Implemented user-defined columns
+- renamed PiOutput_PrintColumnItems() into PiOutput_PiListboxInsert():
+    merged with PiListBox_InsertItem()
+- moved typedef PIBOX_COL_TYPES from heaer into C file
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.183, 2002-09-28T17:30:28]:
+- added pink marker image for PI listbox
+- added "Duration" column type to PI listbox (on request of Thierry)
+- fix: update duration filter dialog when duration is changed via shortcut
+- fix: time column header drop-down menu: NEXT works again
+- date colummn header drop-down menu now is as long as PI in the database
+- fix: update shortcut filter context cache for user-defined columns
+    after changes in the shortcut dialogs have been applied
+epgui/pioutput.c [rev:1.29, 2002-09-28T17:30:34]:
+- added "Duration" column type to PI listbox (on request of Thierry)
+epgui/pifilter.c [rev:1.68, 2002-09-28T17:31:05]:
+- added Tcl callback proc C_GetLastPiTime
+epgui/pilistbox.c [rev:1.77, 2002-09-28T17:31:13]:
+- fixed "time" column header drop-down menu: added param to C_PiListBox_GotoTime
+    to indicate whether to use start or stop time as limit
+epgui/pioutput.c [rev:1.30, 2002-09-28T18:15:30]:
+- bugfix PiOutput_PiListboxInsert(): added Tcl_IncrRefCount for objv[4]
+epgui/pifilter.c [rev:1.69, 2002-09-28T18:15:56]:
+- Tcl8.4 compatibility: added CONST84 to Tcl callback command argv
+epgui/statswin.c [rev:1.62, 2002-09-28T18:15:56]:
+- Tcl8.4 compatibility: added CONST84 to Tcl callback command argv
+epgui/xawtv.c [rev:1.27, 2002-09-28T18:15:56]:
+- Tcl8.4 compatibility: added CONST84 to Tcl callback command argv
+epgui/pilistbox.c [rev:1.78, 2002-09-29T08:34:32]:
+- Switched from Tcl_GetVar to object-based Tcl_GetVar2Ex in PiListBox_Resize()
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.184, 2002-09-29T08:40:18]:
+- use grid to manage PI listbox column headers
+    globally replaced .all.pi.colheads with .all.pi.list.colheads
+- prepared to use panedwindow
+- fix for Tk8.4: proc tkButtonInvoke renamed tk::ButtonInvoke
+epgui/pilistbox.c [rev:1.79, 2002-09-29T09:46:26]:
+- removed state changes (normal/disabled) from short-info window before and
+    after content changes
+- was obsolete because the short-info window no longer has the "Text" bindtag
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.185, 2002-09-29T09:46:32]:
+- Made text selection in short-info work on Win32
+- removed Text tag binding from the text widget; instead copy only event
+    bindings which are required for scrolling and selection
+- added -takefocus 0 to short-info scrollbar
+epgdb/epgdbfil.c [rev:1.36, 2002-09-29T11:14:24]:
+- Implemented new filter type "VPS/PDC"
+- added mode function EpgDbFilterSetVpsPdcMode()
+- implemented filter FILTER_VPS_PDC in EpgDbFilterMatches()
+epgdb/epgdbfil.h [rev:1.21, 2002-09-29T11:14:24]:
+- Implemented new filter type "VPS/PDC"
+- added #define FILTER_VPS_PDC
+- added mode function EpgDbFilterSetVpsPdcMode()
+- added new elem vps_pdc_mode to filter context struct
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.186, 2002-09-29T11:14:45]:
+- Implemented new filter type "VPS/PDC"
+- new filter menu cascade with radiobuttons for global vpspdc_filt
+- new PI listbox column header drop-down menu proc FilterMenuAdd_VpsPdc
+- new shortcut filter type "vps_pdc"
+epgui/pifilter.c [rev:1.70, 2002-09-29T11:14:53]:
+- Implemented new filter type "VPS/PDC"
+- new Tcl filter select function SelectVpsPdcFilter
+- added filter keyword vps_pdc to PiFilter_Reset()
+epgui/wintv.c [rev:1.12, 2002-09-29T17:16:49]:
+- Tcl8.4 compatibility: added CONST84 to Tcl callback command argv
+epgui/wintvcfg.c [rev:1.10, 2002-09-29T17:16:52]:
+- Tcl8.4 compatibility: added CONST84 to Tcl callback command argv
+epgui/pifilter.c [rev:1.71, 2002-09-29T17:22:34]:
+- Optimization PiFilter_Reset():
+- use Tcl_GetIndexFromObj() to map keyword string onto enum index
+epgui/pioutput.c [rev:1.31, 2002-09-29T17:22:41]:
+- Optimization PiOutput_GetPiColumnType():
+- use Tcl_GetIndexFromObj() to map keyword string onto enum index
+epgui/pdc_themes.c [rev:1.10, 2002-09-29T17:57:00]:
+- fixed typo in 0x41 "Sportveranstaltungen"
+epgdb/epgstream.c [rev:1.24, 2002-10-03T08:51:54]:
+- removed \n in two debugX statements
+images/circle_black.ppm [rev:1.1, 2002-10-03T09:03:02]:
+- Initial revision
+images/circle_blue.ppm [rev:1.1, 2002-10-03T09:03:02]:
+- Initial revision
+images/circle_cyan.ppm [rev:1.1, 2002-10-03T09:03:02]:
+- Initial revision
+images/circle_green.ppm [rev:1.1, 2002-10-03T09:03:02]:
+- Initial revision
+images/circle_pink.ppm [rev:1.1, 2002-10-03T09:03:02]:
+- Initial revision
+images/circle_red.ppm [rev:1.1, 2002-10-03T09:03:02]:
+- Initial revision
+images/circle_yellow.ppm [rev:1.1, 2002-10-03T09:03:02]:
+- Initial revision
+images/diamond_black.ppm [rev:1.1, 2002-10-03T09:03:02]:
+- Initial revision
+images/diamond_blue.ppm [rev:1.1, 2002-10-03T09:03:02]:
+- Initial revision
+images/diamond_cyan.ppm [rev:1.1, 2002-10-03T09:03:02]:
+- Initial revision
+images/diamond_green.ppm [rev:1.1, 2002-10-03T09:03:02]:
+- Initial revision
+images/diamond_pink.ppm [rev:1.1, 2002-10-03T09:03:02]:
+- Initial revision
+images/diamond_red.ppm [rev:1.1, 2002-10-03T09:03:02]:
+- Initial revision
+images/diamond_yellow.ppm [rev:1.1, 2002-10-03T09:03:02]:
+- Initial revision
+images/dot_black.ppm [rev:1.1, 2002-10-03T09:03:02]:
+- Initial revision
+images/dot_blue.ppm [rev:1.1, 2002-10-03T09:03:02]:
+- Initial revision
+images/dot_cyan.ppm [rev:1.1, 2002-10-03T09:03:02]:
+- Initial revision
+images/dot_green.ppm [rev:1.1, 2002-10-03T09:03:02]:
+- Initial revision
+images/dot_pink.ppm [rev:1.1, 2002-10-03T09:03:02]:
+- Initial revision
+images/dot_red.ppm [rev:1.1, 2002-10-03T09:03:02]:
+- Initial revision
+images/dot_yellow.ppm [rev:1.1, 2002-10-03T09:03:02]:
+- Initial revision
+www/index.html [rev:1.50, 2002-10-07T19:01:48]:
+- added "nexttview" to the list of keywords,
+- because it's a very typical mis-spelling
+www/overload-de.html [rev:1.1, 2002-10-09T20:32:19]:
+- Initial revision
+www/overload.html [rev:1.1, 2002-10-09T20:32:19]:
+- Initial revision
+www/overload-de.html [rev:1.2, 2002-10-10T19:52:18]:
+- removed request for mirrors
+www/overload.html [rev:1.2, 2002-10-10T19:52:18]:
+- removed request for mirrors
+www/overload-de.html [rev:1.3, 2002-10-10T19:55:34]:
+- added note that mirrors are now available
+www/overload.html [rev:1.3, 2002-10-10T19:55:34]:
+- added note that mirrors are now available
+www/index-de.html [rev:1.39, 2002-10-12T18:51:29]:
+- branches:  1.39.1;
+- added newsflash: use mirror sites for download;
+    replaced manual and package links with mirror URLs;
+    commented out link to package archive
+- bugfix <LINK rel> tag: http: missing in URL
+www/index.html [rev:1.51, 2002-10-12T18:51:29]:
+- branches:  1.51.1;
+- added newsflash: use mirror sites for download;
+    replaced manual and package links with mirror URLs;
+    commented out link to package archive
+- bugfix <LINK rel> tag: http: missing in URL
+- bugfix: increased nav width from 15% to 20% to match index-de.html
+www/changelog.html [rev:1.38, 2002-10-12T18:51:58]:
+- added more stuff planned for 2.4.0
+www/index-de.html [rev:1.40, 2002-10-12T18:53:15]:
+- replaced links to tvagent.de mirror with t-online on request of the owner
+www/index.html [rev:1.52, 2002-10-12T18:53:15]:
+- replaced links to tvagent.de mirror with t-online on request of the owner
+www/index-de.html [rev:1.41, 2002-10-13T09:11:34]:
+- Homepage moved from nxtvepg.tripod.com to nxtvepg.sourceforge.net
+- adapted all links
+- removed mirrors for packages
+www/index.html [rev:1.53, 2002-10-13T09:11:34]:
+- Homepage moved from nxtvepg.tripod.com to nxtvepg.sourceforge.net
+- adapted all links
+- removed mirrors for packages
+www/man.html [rev:1.21, 2002-10-13T09:12:19]:
+- Homepage moved from nxtvepg.tripod.com to nxtvepg.sourceforge.net
+-> adapted "back to homepage link"
+www/provnets.html [rev:1.18, 2002-10-13T09:13:57]:
+- Homepage moved from nxtvepg.tripod.com to nxtvepg.sourceforge.net
+-> adapted "back to homepage link"
+www/changelog.html [rev:1.39, 2002-10-13T09:14:06]:
+- Homepage moved from nxtvepg.tripod.com to nxtvepg.sourceforge.net
+-> adapted "back to homepage link"
+-> adapted links to patches
+www/nxtvepg.css [rev:1.3, 2002-10-13T09:14:26]:
+- H3: added top and bottom padding of 5pt
+www/index.html [rev:1.51.1.1, 2002-10-13T09:16:14]:
+- Special version with <BASE> tag
+- redirect all links to sub-pages to a different site
+- only internal (#) links refer to the current page
+    -> changed links from relative to absolute
+www/index-de.html [rev:1.39.1.1, 2002-10-13T09:47:13]:
+- Special version with <BASE> tag
+- redirect all links to sub-pages to a different site
+- only internal (#) links refer to the current page
+    -> changed links from relative to absolute
+tvsim/vbirec_gui.tcl [rev:1.6, 2002-10-13T10:34:23]:
+- Changed homepage URL and mail address to sourceforge.net domain
+tvsim/tvsim_gui.tcl [rev:1.5, 2002-10-13T10:36:03]:
+- Changed homepage URL and mail address to sourceforge.net domain
+nxtvepg.pod [rev:1.77, 2002-10-13T12:11:59]:
+- improved GETTING STARTED: rewrote "setup for UNIX"; moved below TV card
+    setup for Win32; changed slate towards "video input setup"
+- added Thierry to Thank-You section
+epgctl/epgversion.h [rev:1.27, 2002-10-13T13:26:35]:
+- set version to 2.3.1 (bugfix release)
+epgvbi/cni_tables.c [rev:1.17, 2002-10-13T13:46:32]:
+- bugfix CniGetDescription():
+- result pointer ppCountry was uninitialized if CNI unknown -> crash
+- bug reported by Udo A. Steinberg 2002-Oct-09
+tvsim/tvsim.pod [rev:1.4, 2002-10-13T14:05:41]:
+- changed mail address from nefkom.net to users.sourceforge.net
+tvsim/vbiplay.pod [rev:1.2, 2002-10-13T14:05:41]:
+- changed mail address from nefkom.net to users.sourceforge.net
+tvsim/vbirec.pod [rev:1.5, 2002-10-13T14:05:41]:
+- changed mail address from nefkom.net to users.sourceforge.net
+README [rev:1.28, 2002-10-13T14:10:11]:
+- WIN32 driver errors: added description of W2K "power user"
+- moved home page and mail address to sourceforge.net
+README.tcl84 [README.tcltk, rev:1.4, 2002-10-13T14:11:16]:
+- fix for actual 8.4 libs: added assignment libdir=${prefix}/lib
+nxtvepg.pod [rev:1.78, 2002-10-13T14:12:32]:
+- minor fixes in GETTING STARTED
+- moved mail address to sourceforge.net
+nxtvepg.spec [rev:1.9, 2002-10-13T14:13:15]:
+- set version to 2.3.1
+- moved home page to sourceforge.net
+dsdrv/hwdrv.c [rev:1.8, 2002-10-13T17:45:56]:
+- AdjustAccessRights(): added workaround for SetEntriesInAcl() failure
+- if SetEntriesInAcl() fails for group "EVERYONE" also try "Jeder"
+epgui/epgmain.c [rev:1.99, 2002-10-13T17:55:27]:
+- call setlocale() for UNIX too: print weekday names in local language
+- WIN32 syntax and Tcl8.4 compat fixes
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.180.1.1, 2002-10-13T18:02:58]:
+- fix "Time" column header drop-down menu: NEXT didn't work and
+    discrete times had confusing semantic
+- improved "Date" column header drop-down menu: day count derived from db
+- changed URLs and email from tripod.com to sourceforge.net
+epgui/pifilter.c [rev:1.66.1.1, 2002-10-13T18:06:58]:
+- bugfix branch for release 2.3.1
+- Tcl8.4 compatibility: added CONST84 to Tcl callback command argv
+- added Tcl callback proc C_GetLastPiTime
+epgui/pioutput.c [rev:1.27.1.1, 2002-10-13T18:09:20]:
+- bugfix branch for release 2.3.1
+- changed URLs and email from tripod.com to sourceforge.net
+epgui/pilistbox.c [rev:1.75.1.1, 2002-10-13T18:12:48]:
+- bugfix branch for release 2.3.1
+- same changes as between 1.76 and 1.77 on main branch
+- fixed "time" column header drop-down menu: added param to C_PiListBox_GotoTime
+    to indicate whether to use start or stop time as limit
+www/man.html [rev:1.22, 2002-10-13T18:30:27]:
+- updated for version 2.3.1
+www/index-de.html [rev:1.42, 2002-10-13T19:01:48]:
+- updated for release 2.3.1
+www/index.html [rev:1.54, 2002-10-13T19:01:48]:
+- updated for release 2.3.1
+www/changelog.html [rev:1.40, 2002-10-13T19:02:13]:
+- updated for release 2.3.1
+CHANGES [rev:1.28, 2002-10-13T19:10:05]:
+- updated for release 2.3.1
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_3_1 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
