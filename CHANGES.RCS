@@ -2823,3 +2823,217 @@ www/nxtvepg.css [rev:1.2, 2001-01-17T17:50:53]:
 - added P.navhead for navigation table
 - added margin above <H2>
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_4_PRE1 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+epgvbi/btdrv.h [rev:1.7, 2001-01-11T21:16:28]:
+- added patch from Mario for NetBSD
+- card and input source info of the card opened by the VBI slave is
+    now put into shm and accessed there when GUI needs it
+epgvbi/btdrv4linux.c [rev:1.7, 2001-01-11T21:16:28]:
+- added patch from Mario for NetBSD
+- card and input source info of the card opened by the VBI slave is
+    now put into shm and accessed there when GUI needs it
+epgui/menucmd.c [rev:1.30, 2001-01-11T21:18:02]:
+- NetBSD: call BtDriver_ScanDevices() to fetch data for hwcfg popup
+epgui/uictrl.c [rev:1.3, 2001-01-20T14:57:17]:
+- bugfix UiControl_AiStateChange():
+- UiControl_CheckDbState() must be called after prefilters were set
+    or db might not be found as empty during startup
+epgctl/epgacqctl.c [rev:1.34, 2001-01-20T15:32:27]:
+- added EpgAcqCtl_DescribeAcqState() for stats win
+- split "obsolete" count into expired and defective
+- channel changes: always notify stats win
+epgctl/epgacqctl.h [rev:1.20, 2001-01-20T15:34:55]:
+- added EpgAcqCtl_DescribeAcqState() for stats win
+- added enum ACQDESCR_STATE, struct EPGACQ_DESCR
+epgctl/epgmain.c [epgui/epgmain.c, rev:1.48, 2001-01-20T15:38:14]:
+- added WIN32 exception handling __try {} __except() {}
+epgctl/epgmain.c [epgui/epgmain.c, rev:1.49, 2001-01-20T15:39:41]:
+- regularily invoke StatsWin_UpdateDbStatusLine() every minute
+epgdb/epgblock.h [rev:1.22, 2001-01-20T15:42:15]:
+- struct EPGDB_CONTEXT:
+- added time_t lastAiUpdate for acq description
+- resorted members
+- struct EPGDB_BLOCK_COUNT:
+- split obsolete into expired and defective for stats win
+epgdb/epgdbacq.c [epgvbi/ttxdecode.c, rev:1.22, 2001-01-20T15:42:47]:
+- added EpgDbAcqEnableVpsPdc()
+- VPS/PDC scan can be switched on during normal acq too, for stats win
+- added flag pVbiBuf->doVpsPdc to shm
+epgdb/epgdbacq.h [epgvbi/ttxdecode.h, rev:1.10, 2001-01-20T15:43:51]:
+- added EpgDbAcqEnableVpsPdc()
+epgdb/epgdbif.c [rev:1.22, 2001-01-20T15:49:09]:
+- EpgDbGetStat()
+- split obsolete into expired and defective for stats win
+epgdb/epgdbmerge.c [rev:1.11, 2001-01-20T15:50:09]:
+- EpgDbMergeAiUpdate(): set pUiDbContext->lastAiUpdate
+epgdb/epgdbmgmt.c [rev:1.25, 2001-01-20T15:50:54]:
+- EpgDbAddBlock(): set pUiDbContext->lastAiUpdate
+epgdb/epgdbsav.c [rev:1.31, 2001-01-20T15:52:28]:
+- replaced header.dumpDate with lastAiUpdate
+epgdb/epgdbsav.h [rev:1.22, 2001-01-20T15:52:55]:
+- replaced header.dumpDate with lastAiUpdate
+- same in PEEK struct
+epgui/pilistbox.c [rev:1.38, 2001-01-20T15:54:38]:
+- reduced PIBOX_HEIGHT from 27 to 25
+- to make place for db status line at the window bottom
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.55, 2001-01-20T16:13:47]:
+- added db status line below the browser window
+- added "Configure" menu entry to toggle status line visibility
+- uses callback proc ToggleStatusLine
+- added showStatusLine to rc file
+- statistics window now available for ui and acq separately
+- renamed procs from AcqStat_* to DbStatsWin_*
+- widget name now as param $wname instead of constant .acqstat
+- splitted "Control" menu entry "Acq Statistics..."
+- changed cursor icon to "top left arrow" for listboxes
+- changed cursor icon to "text" for short info win
+- hardware config popup
+- added 3rd PLL option for 35MHz
+- updated copyright notice for 2001
+epgui/menucmd.c [rev:1.31, 2001-01-20T16:15:26]:
+- SetControlMenuStates()
+- "Acq Statistics..." menu entry split for browser and acq db
+- added calls to StatsWin_NewAi() and StatsWin_UpdateDbStatusLine()
+- to update acq stat wins and db status line after cfg changes
+epgui/statswin.c [rev:1.25, 2001-01-20T16:31:22]:
+- split DB stats window for browser db and acq (similar to timescale wins)
+- added more acq info to statistics
+- updated via timer, every 3 secs during acq start, min every 15 secs
+- state is kept in strct dbStatsWinState[2]
+- renamed Tcl procs from AcqStat_* to DbStatsWin_*
+- timescale status line is updated in separate function
+- added db status line below the browser window
+- summarizes browser db and acq state
+epgui/statswin.h [rev:1.6, 2001-01-20T16:32:08]:
+- added StatsWin_UpdateDbStatusLine()
+- new param StatsWin_NewAi( EPGDB_CONTEXT * usedDbc );
+epgvbi/bt848.h [dsdrv/bt8x8_reg.h, rev:1.2, 2001-01-21T11:55:54]:
+- added new defines for BT848_TGCTRL to support 35MHz PLL
+- added new WD_Open error result BT8X8_OPEN_RESULT_PCI_SCAN
+epgvbi/btdrv.h [rev:1.8, 2001-01-21T11:56:39]:
+- BtDriver_Configure(): PLL arg now int instead of bool
+- to support 35MHz PLL
+epgvbi/btdrv4linux.c [rev:1.8, 2001-01-21T11:57:09]:
+- pVbiBuf->isEpgScan renamed to pVbiBuf->doVpsPdc
+- VPS/PDC can now be enabled indeneptly of EPG scan
+epgvbi/btdrv4win.c [rev:1.9, 2001-01-21T12:06:58]:
+- disabled registry hack by #if 0 for legal reasons
+- added support for 35MHz PLL: replace bool INIT_PLL with int PllType
+- updated PllInit() with Set_PLL() from MultiDec 5.5
+    however 4 of the new register settings could not be used!?
+- improved BT8X8_Open() error messages:
+    new result code BT8X8_OPEN_RESULT_PCI_SCAN if no cards found at all
+- improved NT driver start: copied from MultiDec 5.5
+    esp. added check if driver already running, to not start it a 2nd time
+    added debug() statements for all error branches during driver start
+- call to VbiDecodeLine(): pVbiBuf->isEpgScan renamed ->doVpsPdc in btdrv.h
+epgdb/epgdbmgmt.c [rev:1.26, 2001-01-21T12:07:44]:
+- EpgDbSetDateTime() renamed to EpgDbExpire()
+- returns TRUE when PI were expired and removed
+epgdb/epgdbmgmt.h [rev:1.11, 2001-01-21T12:07:44]:
+- EpgDbSetDateTime() renamed to EpgDbExpire()
+- returns TRUE when PI were expired and removed
+epgctl/epgmain.c [epgui/epgmain.c, rev:1.50, 2001-01-21T12:17:26]:
+- added WinApiDestructionHandler() to catch Windows shutdown messages
+- this currenlty requires a patch in the tk library!
+epgctl/epgmain.c [epgui/epgmain.c, rev:1.51, 2001-01-21T12:19:13]:
+- EpgContextCtl_SetDateTime() renamed to EpgContextCtl_Expire()
+- now returns TRUE when PI are expired
+-> call StatsWin_UpdateDbStatsWin() to update expired count and pie chart
+epgctl/epgctxctl.c [rev:1.1, 2001-01-21T12:25:18]:
+- Initial revision
+epgctl/epgctxctl.h [rev:1.1, 2001-01-21T12:25:19]:
+- Initial revision
+epgctl/epgctxctl.c [rev:1.2, 2001-01-21T12:25:58]:
+- changed between release 0.4.pre0 and 0.4.pre1 (forgotten checkin!)
+- EpgContextCtl_Open(): added error handling by uictrl module
+epgctl/epgctxctl.h [rev:1.2, 2001-01-21T12:27:47]:
+- changed between release 0.4.pre0 and 0.4.pre1 (forgotten checkin!)
+- EpgContextCtl_Open(): added error handling by uictrl module
+epgctl/epgctxctl.c [rev:1.3, 2001-01-21T12:28:35]:
+- EpgContextCtl_SetDateTime() renamed to EpgContextCtl_Expire()
+- result of rename in epgdbmgmt module: EpgDbSetDateTime -> EpgDbExpire
+- result now bool: TRUE when PI removed from db
+epgctl/epgctxctl.h [rev:1.3, 2001-01-21T12:29:46]:
+- EpgContextCtl_SetDateTime() renamed to EpgContextCtl_Expire()
+- result of rename in epgdbmgmt module: EpgDbSetDateTime -> EpgDbExpire
+- result now bool: TRUE when PI removed from db
+images/line.xbm [rev:1.1, 2001-01-21T12:32:15]:
+- Initial revision
+images/nxtv_logo.xbm [rev:1.1, 2001-01-21T12:32:15]:
+- Initial revision
+images/pan_updown.xbm [rev:1.1, 2001-01-21T12:32:15]:
+- Initial revision
+images/ptr_down.xbm [rev:1.1, 2001-01-21T12:32:15]:
+- Initial revision
+images/ptr_up.xbm [rev:1.1, 2001-01-21T12:32:15]:
+- Initial revision
+epgvbi/btdrv4linux.c [rev:1.9, 2001-01-21T13:04:17]:
+- added patch from Mario for NetBSD
+- implement read timeout of 10 secs for /dev/vbi via ALRM signal
+- fixes possible hangup after external TV app frees video device
+epgctl/epgacqctl.c [rev:1.35, 2001-01-21T20:37:15]:
+- EpgAcqCtl_GetDbState() fixed for merged db
+- due to CNI 0x00ff state always was EPGDB_ACQ_OTHER_PROV
+    even if one of the merged CNIs was in the acq CNI list
+- added EpgAcqCtl_ScanIsActive()
+- EpgAcqCtl_DescribeAcqState(): added passiveReason to output
+epgctl/epgacqctl.h [rev:1.21, 2001-01-21T20:39:09]:
+- added EpgAcqCtl_ScanIsActive()
+- struct EPGACQ_DESCR: added passiveReason
+epgui/uictrl.c [rev:1.4, 2001-01-21T20:41:56]:
+- fix UiControl_AiStateChange()
+- do not switch empty browser db to acq during scan
+- previously the netwop list was loaded already during the scan
+- now, no provider at all is automatically selected; the user must do this
+epgui/statswin.h [rev:1.7, 2001-01-21T20:43:16]:
+- added StatsWin_UpdateDbStatsWin()
+- func is now called by main module when PI have expired
+- number of expired PI and pie chart must eventually be updated
+epgui/menucmd.c [rev:1.32, 2001-01-21T20:44:37]:
+- bugfix ProvMerge_ParseConfigString()
+- abort if CNI count is 0, or Merge module will SEGV
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.56, 2001-01-21T20:45:30]:
+- DbStatsWin split into two frames & added pie chart to first frame
+- fixed background color of browser status line for Win32
+- bugfix .provmerge popup: refuse to merge 0 dbs
+epgui/statswin.c [rev:1.26, 2001-01-21T20:47:36]:
+- Statistics window split into two frames
+- added pie chart to upper frame, reflects current block count percentages
+- acq part is dynamically packed or unpacked
+- acq stats output now built incrmentally, instead of one big sprintf
+- added acq mode info
+- added comments to other stats win funcs
+- fixed status line for demo database
+- plus other minor fixes in browser status line output
+COPYRIGHT [rev:1.2, 2001-01-21T20:52:27]:
+- updated copyright message for year 2001
+README [rev:1.11, 2001-01-21T20:55:01]:
+- updated Win32 SW requirements: windrvr from "R@dio.mp3"
+- added Win32 error msg "PCI scan failed - no devices found"
+- removed similar explanation from cardidx error msg
+nxtvepg.pod [rev:1.22, 2001-01-21T20:57:16]:
+- updated "Getting started" for Win32
+- describe typical settings for Germany: Philips tuner, PLL 0 or 28MHz
+- added known Win32 bug: possible blue screen
+- updated copyright message for year 2001 & added NetBSD credits
+CHANGES [rev:1.8, 2001-01-21T22:06:47]:
+- updated for release 0.4.pre2
+TODO [rev:1.8, 2001-01-21T22:07:21]:
+- updated for release 0.4.pre2
+epgctl/epgversion.h [rev:1.6, 2001-01-21T22:09:09]:
+- set version to 0.4.pre2
+www/index-de.html [rev:1.3, 2001-01-23T18:30:42]:
+- update for release 0.4.pre2
+- updated screenshort for linux; added series menu screenshot
+- moved description of changes into separate document
+- added note that driver from other apps can be used for win32
+www/index.html [rev:1.14, 2001-01-23T18:30:42]:
+- update for release 0.4.pre2
+- updated screenshort for linux; added series menu screenshot
+- moved description of changes into separate document
+- added note that driver from other apps can be used for win32
+www/changelog.html [rev:1.1, 2001-01-23T18:33:29]:
+- Initial revision
+www/man.html [rev:1.1, 2001-01-23T18:54:31]:
+- Initial revision
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_4_PRE2 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

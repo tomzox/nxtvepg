@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgdbif.c,v 1.21 2000/12/21 19:22:56 tom Exp tom $
+ *  $Id: epgdbif.c,v 1.22 2001/01/20 15:49:09 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -605,6 +605,7 @@ bool EpgDbGetStat( CPDBC dbc, EPGDB_BLOCK_COUNT * pCount, time_t acqMinTime )
    uchar version1, version2;
    double avgPercentage1, avgPercentage2, variance1, variance2;
    uchar netwop;
+   time_t now;
    bool result;
 
    memset(pCount, 0, 2 * sizeof(EPGDB_BLOCK_COUNT));
@@ -656,12 +657,16 @@ bool EpgDbGetStat( CPDBC dbc, EPGDB_BLOCK_COUNT * pCount, time_t acqMinTime )
 
       // count number of expired/defect blocks
       // - no version comparison required, since these are discarded when AI version changes
+      now = time(NULL);
       pBlock = dbc->pObsoletePi;
       while (pBlock != NULL)
       {
          if (EpgDbPiCmpBlockNoGt(dbc, pBlock->blk.pi.block_no, pNetwops[pBlock->blk.pi.netwop_no].stopNo, pBlock->blk.pi.netwop_no) == FALSE)
          {
-            pCount[0].obsolete += 1;
+            if (pBlock->blk.pi.stop_time <= now)
+               pCount[0].expired += 1;
+            else
+               pCount[0].defective += 1;
             if (pBlock->acqTimestamp >= acqMinTime)
             {
                pCount[0].sinceAcq += 1;
@@ -670,7 +675,10 @@ bool EpgDbGetStat( CPDBC dbc, EPGDB_BLOCK_COUNT * pCount, time_t acqMinTime )
          }
          else
          {
-            pCount[1].obsolete += 1;
+            if (pBlock->blk.pi.stop_time <= now)
+               pCount[1].expired += 1;
+            else
+               pCount[1].defective += 1;
             if (pBlock->acqTimestamp >= acqMinTime)
             {
                pCount[1].sinceAcq += 1;

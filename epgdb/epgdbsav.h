@@ -15,7 +15,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgdbsav.h,v 1.21 2001/01/08 18:25:52 tom Exp tom $
+ *  $Id: epgdbsav.h,v 1.22 2001/01/20 15:52:55 tom Exp tom $
  */
 
 #ifndef __EPGDBSAV_H
@@ -60,9 +60,9 @@ typedef struct
    ulong   compatVersion;         // version of oldest compatible software
    ulong   swVersion;             // version of this software
 
-   ulong   lastPiDate;            // stop time of last PI in db
-   ulong   firstPiDate;           // start time of first PI in db
-   ulong   dumpDate;              // time the db is dumped
+   time_t  lastPiDate;            // stop time of last PI in db
+   time_t  firstPiDate;           // start time of first PI in db
+   time_t  lastAiUpdate;          // time when the last AI block was received
    uint    cni;                   // CNI of EPG provider
    uint    pageNo;                // last used ttx page
    ulong   tunerFreq;             // tuner frequency of provider's channel
@@ -79,9 +79,9 @@ typedef struct
    uint         pageNo;
    ulong        tunerFreq;
    uint         appId;
-   ulong        dumpDate;
-   ulong        firstPiDate;
-   ulong        lastPiDate;
+   time_t       lastAiUpdate;
+   time_t       firstPiDate;
+   time_t       lastPiDate;
    EPGDB_BLOCK  *pBiBlock;
    EPGDB_BLOCK  *pAiBlock;
 } EPGDBSAV_PEEK;

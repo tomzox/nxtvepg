@@ -1,7 +1,7 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="de">
 <BASE HREF="http://nxtvepg.tripod.com/">
-<!-- $Id: index-de.html,v 1.2 2001/01/17 17:48:27 tom Exp $ -->
+<!-- $Id: index-de.html,v 1.3 2001/01/23 18:30:42 tom Exp $ -->
 <HEAD>
 <TITLE>nexTView EPG Dekoder Software Download</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
@@ -31,17 +31,21 @@
 <P class="navhead"><B>Infos</B>
 <P class="navsect">
 <A HREF="man.html">Dokumentation</A><BR>
-<A HREF="screenshot.html">Bild 1</A><BR>
+<A HREF="screenshot-linux.html">Bild 1</A><BR>
 <A HREF="screenshot-win.html">Bild 2</A><BR>
+<A HREF="screenshot-series.html">Bild 3</A><BR>
 
 <P class="navhead"><A HREF="#download"><B>Download</B></A><BR>
 <P class="navsect">
+<A HREF="changelog.html">Change-Log</A><BR>
 <A HREF="#download_linux">Linux</A><BR>
 <A HREF="#download_netbsd">NetBSD</A><BR>
 <A HREF="#download_win32">Windows</A>
 
 <P class="navhead"><B>News</B>
 <P class="navsect">
+22.1.2001: beta^2 release 0.4.pre2</P>
+<HR width=70%><P class="navsect">
 10.1.2001: beta release 0.4.pre1</P>
 <HR width=70%><P class="navsect">
 27.12.2000: alpha release 0.4.pre0</P>
@@ -58,7 +62,7 @@ zusammen mit dem Teletext (Videotext) im analogen TV-Signal übertragen
 wird. Mit dem Dekoder erhalten Sie das Fernsehprogramm aller überregionalen
 Sender in Deutschland, Österreich, der Schweiz und Frankreich. Einen ersten
 Eindruck können Sie sich mit diesem
-<A HREF="screenshot.gif">Linux screenshot</A>, oder diesem
+<A HREF="screenshot-linux.gif">Linux screenshot</A>, oder diesem
 <A HREF="screenshot-win.gif">Windows screenshot</A> verschaffen.
 <P>
 Der nexTView Standard wurde von den führenden TV Herstellern
@@ -163,29 +167,30 @@ bitte nicht weiterverbreiten.)
 
 <H3>Beta-Version</H3>
 Neu in dieser Distribution: Verschmelzung von Datenbanken, erweiterte
-Akquisitionskontrolle und Portierung auf NetBSD und M$ Windows. Behobene
-Fehler seit dem Alpha-Release: Kompatibilitätsproblem mit älteren Versionen
-des Windows Treibers ("card locked" Fehlermeldung); zudem die meisten offenen
-Punkte in der TODO Liste. Diese Version sollte stabil sein; bitte alle Fehler
-melden.
+Akquisitionskontrolle und Portierung auf NetBSD und M$ Windows. Für eine
+detaillierte Aufstellung neuer Features und Bugfixes siehe im
+<A HREF="changelog.html">ChangeLog</A>.
+Diese Version sollte stabil sein; bitte alle Fehler melden.
+Verbesserungsvorschläge für die neuen Features werden gerne entgegengenommen.
 <P>
 <DL>
 <A NAME="download_netbsd">
 <LI>Download der Beta-Version der nächsten Distribution als Source:
 </A>
-<A HREF="src/nxtvepg-0.4.pre1.tar.gz">nxtvepg-0.4.pre1.tar.gz</A> (252 kB)
+<A HREF="src/nxtvepg-0.4.pre2.tar.gz">nxtvepg-0.4.pre2.tar.gz</A> (262 kB)
 <P>
 <A NAME="download_win32">
 <LI>Download der Beta-Version des Windows Ports:
-<A HREF="src/nxtvepg-win32-0.4.pre1.zip">nxtvepg-win32-0.4.pre1.zip</A> (838 kB)
+<A HREF="src/nxtvepg-win32-0.4.pre2.zip">nxtvepg-win32-0.4.pre2.zip</A> (843 kB)
 </A>
 <BR>Bitte beachten daß ein weiterer Treiber benötigt wird, der nicht in diesem
-Paket enthalten ist und separat heruntergeladen werden muß. Die nötigen Infos
-dazu finden sich im README.txt im ZIP file.
+Paket enthalten ist und separat heruntergeladen werden muß. In manchen Fällen
+kann auch der Treiber anderer TV-Applikationen verwendet werden. Die nötigen
+Infos dazu finden sich im README.txt im ZIP file.
 </DL>
 
 <H2>Copyright</H2>
-&copy; Copyright 1999, 2000 Thorsten <I>"Tom"</I> Zörner (und andere).
+&copy; Copyright 1999, 2000, 2001 Thorsten <I>"Tom"</I> Zörner (und andere).
 Alle Rechte vorbehalten.
 <P>
 Der Autor dieser Software ist kein Mitglied der

@@ -1,14 +1,22 @@
-nxtvepg version 0.4.pre0 is just a snapshot of work in progress.
+nxtvepg version 0.4.preX is just a snapshot of work in progress.
 The following features are still incomplete and need to be fixed
 before the next release. If you find any bugs not listed here,
 please let me know.
 
+mail to Linux bttv maintainer:
+- CGFREQ on /dev/vbi does not work
+- set input source on /dev/vbi not possible
+- how to get frame number from vbi buffer?
+
 db merge fixes:
+- documentation missing
 - fine control for provider merge
 - new provider selection -> keep all CNIs from suppressed list, even if obsolete?
 - version & block index handling (for timescales)
 
 acq mode ctl. & cyclic acq fixes:
+- documentation for new browser status line and 2 stats wins
+- acq timebase for cycle stats in EpgDbGetStat()
 - take tuner freq from obsolete db version also
 - check if version is incompatible before recommending prov selection
 - acqmode popup: check for device-access or no-tuner errors
@@ -16,31 +24,17 @@ acq mode ctl. & cyclic acq fixes:
 - stats window: report acq mode, cycle phase and index
 
 WIN32 port fixes:
+- tuner input source fixed to #0
+- CTRL-C, shutdown or abnormal termination crashes the host
 - improve "Getting Started" in help for Win32
 - dump stream feature: must use window or file instead of stdout
 
-+++ Already DONE +++
-- ui stays empty while acq finds 1st db in the background
-- EpgAcqCtl_GetDbState: disable all filters for SearchPi
-- different msg for EPGDB_ACQ_WAIT if acq is not follow-ui
-- timeout in case of reception failure
-- automatic upgrade from follow-ui to cyclic for merged db
-- service name for merged db: concatenate prov names
-- delay phase advance after target variance is reached
-- passive & non-TV-tuner input modes
-- option -dbdir: need WIN32 error handling in main
-- accepting db as argument: set path as working dir, take CNI from filename
-- NOW cycle never completes if there are no currently running PI in the db
-- short/long info merging: remove redundant text, add newline between providers
-- Win32: improve installation description in README, explain all error messages
-- compile with WinDriver header file from version 4.00
-- tuner was touched although in "passive" mode
-- warn when db has no tuner freq
-- better handling of db version changes: display message
 
 
 required fixes:
 - EPG scan skips some channels with bad reception or encryption
+- EPG scan summary: # of syncs found, # of EPG providers found
+  Manual scan; ttx error rate in stats window
 - short info text view is set to line 1.0 during every update
 - suggest bttv driver fix: CGFREQ from tuner driver
 - cmd line option predatory: in this mode the tuner is set via /dev/vbi
@@ -59,9 +53,7 @@ required fixes:
 - debugging: make serious debugX events fatal (developers only)
 
 possible new features: (in order of decreasing priority)
-- stats window:
-  + update even if no EPG reception; include VPS/PDC CNI
-  + offer stats for browser db (even if acq is off)
+- TV channel switching for NOW programmes with middle mouse button
 - timezone popup (GUI already implemented)
 - timer programming & invocation or external dispatch
 - long-term search: maintain list of search filters that are applied each time

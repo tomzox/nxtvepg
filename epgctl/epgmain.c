@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgmain.c,v 1.47 2001/01/09 19:53:04 tom Exp tom $
+ *  $Id: epgmain.c,v 1.51 2001/01/21 12:19:13 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -278,7 +278,11 @@ static void ClockSecEvent( ClientData clientData )
 static void ClockMinEvent( ClientData clientData )
 {
    // remove expired PI from all databases
-   EpgContextCtl_SetDateTime();
+   if (EpgContextCtl_Expire())
+   {  // db was changed -> update statistics
+      AddMainIdleEvent(StatsWin_UpdateDbStatsWin, (ClientData) DB_TARGET_UI, FALSE);
+   }
+
 
    // check upon acquisition progress
    EpgAcqCtl_Idle();
@@ -291,6 +295,9 @@ static void EventHandler_TimerDbSetDateTime( ClientData clientData )
 {
    // not executed until all current events are processed
    AddMainIdleEvent(ClockMinEvent, NULL, TRUE);
+
+   // update status line, e.g. to update db age or acq state
+   AddMainIdleEvent(StatsWin_UpdateDbStatusLine, NULL, TRUE);
 
    expirationHandler = Tcl_CreateTimerHandler(1000 * (60 - time(NULL) % 60), EventHandler_TimerDbSetDateTime, NULL);
 }
@@ -348,6 +355,31 @@ static void signal_handler(int sigval)
 
    signal(sigval, signal_handler);
 }
+#else
+
+// ---------------------------------------------------------------------------
+// Callback to deal with Windows shutdown
+// - called when WM_QUERYENDSESSION or WM_ENDSESSION message is received
+//   this currenlty requires a patch in the tk library!
+// - the driver must be stopped before the applications exits
+//   or the system will crash ("blue-screen")
+//
+static void WinApiDestructionHandler( ClientData clientData)
+{
+   debug0("received destroy event");
+
+   // properly shut down the acquisition
+   EpgAcqCtl_Stop();
+   BtDriver_Exit();
+
+   // exit the application
+   ExitProcess(0);
+}
+
+// Declare the new callback registration function
+// this function is patched into the tk83.dll and hence not listed in the standard header files
+extern TCL_STORAGE_CLASS void Tk_RegisterMainDestructionHandler( Tcl_CloseProc * handler );
+
 #endif
 
 // ---------------------------------------------------------------------------
@@ -806,6 +838,10 @@ int main( int argc, char *argv[] )
    signal(SIGINT, signal_handler);
    signal(SIGTERM, signal_handler);
    #else
+   // set up callback to catch shutdiwn messages (requires tk83.dll patch!)
+   Tk_RegisterMainDestructionHandler(WinApiDestructionHandler);
+   // set up an handler to catch fatal exceptions
+   __try {
    SetArgv(&argc, &argv);
    #endif
    ParseArgv(argc, argv);
@@ -911,6 +947,17 @@ int main( int argc, char *argv[] )
    }
    else
       debug0("could not open the main window - exiting.");
+
+   #ifdef WIN32
+   }
+   __except (EXCEPTION_EXECUTE_HANDLER)
+   {  // caught a fatal exception -> stop the driver to prevent system crash ("blue screen")
+      debug1("FATAL exception caught: %d", GetExceptionCode());
+      // skip EpgAcqCtl_Stop() because it tries to dump the db - do as little as possible here
+      BtDriver_Exit();
+      ExitProcess(-1);
+   }
+   #endif
 
    EpgAcqCtl_Stop();
    BtDriver_Exit();

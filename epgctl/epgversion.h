@@ -27,9 +27,9 @@
 
 #define EPG_VERSION_MAJOR   0   // major revision
 #define EPG_VERSION_MINOR   4   // minor revision
-#define EPG_VERSION_PL      1   // bugfix revision / patch level
+#define EPG_VERSION_PL      2   // bugfix revision / patch level
 
-#define EPG_VERSION_STR     "0.4.pre1"
+#define EPG_VERSION_STR     "0.4.pre2"
 
 
 // RCS id to be included to the object code for ident(1)

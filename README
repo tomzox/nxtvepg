@@ -47,10 +47,17 @@ Windows software requirements:
 - On Windows NT: you need to be in the Admininstrator group.
 - WinDriver version 4.00 or later, available from http://www.krftech.com/
   This is *not* freeware, however there's a free 30 days evaluation version.
-  Note: there are patched versions of this driver which do not show the startup
-  message and may work for more than 30 days, e.g. at http://freetv.notrix.de/
-  in the MultiDec package (versions 3.5 to 5.5), but those are probably
-  not legal.
+  Since this is a software development tool and not intended for the end
+  user, the registration fee is quite steep (around $1500).
+
+  Note: the same driver comes with many other TV applications, and often
+  works with nxtvepg. One that's known to work is from "R@dio.mp3" at
+  http://www.musicplay.de/ (you may have to start and stop the player once
+  before you start nxtvepg). Another one were the older versions of MultiDec
+  (at least versions 3.5 through 5.5) available at http://freetv.notrix.de/
+  Please note that I'm just informing you of technical possibilities here;
+  you are responsible yourself to make sure you're not violating the licenses
+  of any of the software mentioned herein.
 
 If you want to compile for Windows you also need:
 - CygWin GNU make and gcc compiler, see http://www.cygwin.org/
@@ -138,19 +145,28 @@ Explanation of Windows Bt8x8 driver error messages:
   be in the Administrator Group (if anyone finds a way around this,
   please let me know)
 
+- "PCI scan failed - no devices found"
+  The driver was loaded, but no devices at all were found on the PCI bus.
+  The most probable cause is a license problem in the driver. You may be
+  using a registered version of WinDriver that has to be initialized by
+  the application it belongs to. In many cases the driver can be used by
+  nxtvepg only after that application was runnnig (and was then terminated
+  again).
+  It may also be that you're using an evaluation version of the driver,
+  which is limited to 30 days. After that you have to pay apx. $1500 to
+  Jungo to get a license. You could also just delete the keys
+  Software\Microsoft\Windows\CurrentVersion\Network\Driver*
+  in the registry. However using the driver for more than 30 days still
+  would be illegal. Your choice. (Oh, there's another option: upgrade to a
+  freeware operating system like Linux - it includes a free bt8x8 driver)
+
 - "Bt8x8 card cannot be locked - already in use?"
   There may be a different application already using the driver. On
   Windows you cannot run, e.g. a TV application in parallel to
   nxtvepg or teletext decoders. I recommend to upgrade to Linux  :)
 
 - "Bt8x8 card #%d not found (found %d cards)"
-  If zero cards are found, the reason may be that the driver refuses
-  work after expiration of the 30 days evaluation period. You
-  probably should pay krftech their license fee (which is steep,
-  since the package is intended for software developers). You could
-  also try the driver files from the MultiDec package, but as explained
-  above, I'm not sure those are legal.
-  If there's more than one card found, lower the card index below the
+  If there's at least one card found, lower the card index below the
   number of available cards, i.e. if you have two cards, specify index
   0 or 1. The card index can be given either on the command line with
   the -card option or in the "TV card input" configuration menu.

@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgacqctl.c,v 1.33 2001/01/09 21:30:36 tom Exp tom $
+ *  $Id: epgacqctl.c,v 1.35 2001/01/21 20:37:15 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -65,7 +65,6 @@ typedef struct {
    uint           cniTab[MAX_MERGED_DB_COUNT];
    time_t         dumpTime;
    uint           inputSource;
-   bool           hasNoFrequency;
 } EPGACQCTL_STATE;
 
 static EPGACQCTL_STATE  acqCtl = {ACQSTATE_OFF, ACQMODE_FOLLOW_UI, ACQMODE_FOLLOW_UI};
@@ -144,7 +143,8 @@ static void EpgAcqCtl_StatisticsUpdate( void )
 
       // maintain history of block counts per stream
       total = acqStats.count[0].ai + acqStats.count[1].ai;
-      obsolete = acqStats.count[0].obsolete + acqStats.count[1].obsolete;
+      obsolete = acqStats.count[0].expired + acqStats.count[0].defective +
+                 acqStats.count[1].expired + acqStats.count[1].defective;
       dprintf4("EpgAcqCtl-StatisticsUpdate: AI #%d, db filled %.2f%%, variance %1.2f/%1.2f\n", acqStats.aiCount, (double)(acqStats.count[0].allVersions + obsolete + acqStats.count[1].allVersions) / total * 100.0, acqStats.count[0].variance, acqStats.count[1].variance);
 
       acqStats.histIdx = (acqStats.histIdx + 1) % STATS_HIST_WIDTH;
@@ -827,22 +827,63 @@ EPGDB_STATE EpgAcqCtl_GetDbState( uint cni )
          }
          else
          {  // check if the provider is in the acq provider list
-            for (idx=0; idx < acqCtl.cniCount; idx++)
-               if (acqCtl.cniTab[idx] == cni)
-                  break;
-            if (idx < acqCtl.cniCount)
-            {  // CNI not active, but in list -> try to switch
-               dprintf2("EpgAcqCtl-GetDbState: tuning provider 0x%04X, cycle idx %d\n", cni, idx);
-               acqCtl.cycleIdx = idx;
-               EpgAcqCtl_UpdateProvider(TRUE);
+            if (cni != 0x00ff)
+            {
+               for (idx=0; idx < acqCtl.cniCount; idx++)
+                  if (acqCtl.cniTab[idx] == cni)
+                     break;
+               if (idx < acqCtl.cniCount)
+               {  // CNI not active, but in list -> try to switch
+                  dprintf2("EpgAcqCtl-GetDbState: tuning provider 0x%04X, cycle idx %d\n", cni, idx);
+                  acqCtl.cycleIdx = idx;
+                  EpgAcqCtl_UpdateProvider(TRUE);
 
-               if (acqCtl.mode == ACQMODE_FORCED_PASSIVE)
-                  state = EpgAcqCtl_GetForcedPassiveState();
+                  if (acqCtl.mode == ACQMODE_FORCED_PASSIVE)
+                     state = EpgAcqCtl_GetForcedPassiveState();
+                  else
+                     state = EPGDB_ACQ_WAIT;
+               }
                else
-                  state = EPGDB_ACQ_WAIT;
+                  state = EPGDB_ACQ_OTHER_PROV;
             }
             else
-               state = EPGDB_ACQ_OTHER_PROV;
+            {  // Merged database
+               uint mergeIdx, mergeCniCount, mergeCniTab[MAX_MERGED_DB_COUNT];
+               int foundIdx;
+
+               if (EpgDbMergeGetCnis(pUiDbContext, &mergeCniCount, mergeCniTab))
+               {
+                  // check if the current acq CNI is one of the merged
+                  for (mergeIdx=0; mergeIdx < mergeCniCount; mergeIdx++)
+                     if (acqCtl.cniTab[acqCtl.cycleIdx] == mergeCniTab[mergeIdx])
+                        break;
+                  if (mergeIdx >= mergeCniCount)
+                  {  // current CNI is not parte of the merge -> search if any other is
+                     foundIdx = -1;
+                     for (mergeIdx=0; (mergeIdx < mergeCniCount) && (foundIdx == -1); mergeIdx++)
+                        for (idx=0; (idx < acqCtl.cniCount) && (foundIdx == -1); idx++)
+                           if (acqCtl.cniTab[idx] == mergeCniTab[mergeIdx])
+                              foundIdx = idx;
+                     if (foundIdx != -1)
+                     {  // one of the merged db is on the acq list -> try to switch
+                        dprintf2("EpgAcqCtl-GetDbState: tuning provider 0x%04X, cycle idx %d\n", cni, idx);
+                        acqCtl.cycleIdx = foundIdx;
+                        EpgAcqCtl_UpdateProvider(TRUE);
+
+                        if (acqCtl.mode == ACQMODE_FORCED_PASSIVE)
+                           state = EpgAcqCtl_GetForcedPassiveState();
+                        else
+                           state = EPGDB_ACQ_WAIT;
+                     }
+                     else
+                        state = EPGDB_ACQ_OTHER_PROV;
+                  }
+                  else
+                     state = EPGDB_ACQ_WAIT;
+               }
+               else  // internal error
+                  state = EPGDB_ACQ_WAIT;
+            }
          }
       }
       else
@@ -850,6 +891,55 @@ EPGDB_STATE EpgAcqCtl_GetDbState( uint cni )
    }
 
    return state;
+}
+
+// ---------------------------------------------------------------------------
+// Determine state of acquisition for user information
+//
+void EpgAcqCtl_DescribeAcqState( EPGACQ_DESCR * pAcqState )
+{
+   time_t lastAi, now;
+
+   if (scanState != SCAN_STATE_OFF)
+   {
+      memset(pAcqState, 0, sizeof(EPGACQ_DESCR));
+      pAcqState->state = ACQDESCR_SCAN;
+   }
+   else if (acqCtl.state == ACQSTATE_OFF)
+   {
+      memset(pAcqState, 0, sizeof(EPGACQ_DESCR));
+      pAcqState->state = ACQDESCR_DISABLED;
+   }
+   else
+   {
+      now = time(NULL);
+      if (pAcqDbContext->lastAiUpdate > acqStats.acqStartTime)
+         lastAi = pAcqDbContext->lastAiUpdate;
+      else
+         lastAi = acqStats.acqStartTime;
+
+      // check reception
+      if (acqCtl.state != ACQSTATE_RUNNING)
+      {
+         if (now - lastAi > ACQ_DESCR_STALLED_TIMEOUT)
+            pAcqState->state = ACQDESCR_NO_RECEPTION;
+         else
+            pAcqState->state = ACQDESCR_STARTING;
+      }
+      else
+      {
+         if (now - lastAi > ACQ_DESCR_STALLED_TIMEOUT)
+            pAcqState->state = ACQDESCR_STALLED;
+         else
+            pAcqState->state = ACQDESCR_RUNNING;
+      }
+
+      pAcqState->mode          = acqCtl.mode;
+      pAcqState->passiveReason = acqCtl.passiveReason;
+      pAcqState->cyclePhase    = acqCtl.cyclePhase;
+      pAcqState->dbCni         = EpgDbContextGetCni(pAcqDbContext);
+      pAcqState->cycleCni      = EpgAcqCtl_GetProvider();
+   }
 }
 
 // ---------------------------------------------------------------------------
@@ -1031,12 +1121,14 @@ void EpgAcqCtl_ChannelChange( bool changeDb )
       {  // close acq db and fall back to ui db
          EpgContextCtl_Close(pAcqDbContext);
          pAcqDbContext = EpgContextCtl_Open(0, ((scanState == SCAN_STATE_OFF) ? CTX_RELOAD_ERR_ANY : CTX_RELOAD_ERR_NONE));
-         StatsWin_ProvChange(DB_TARGET_ACQ);
       }
 
       EpgDbAcqReset(pAcqDbContext, EPG_ILLEGAL_PAGENO, EPG_ILLEGAL_APPID);
       acqCtl.state = ACQSTATE_WAIT_BI;
       EpgAcqCtl_StatisticsReset();
+
+      // notify GUI about state change
+      StatsWin_ProvChange(DB_TARGET_ACQ);
    }
 }
 
@@ -1427,5 +1519,13 @@ void EpgAcqCtl_StopScan( void )
 
       scanState = SCAN_STATE_OFF;
    }
+}
+
+// ----------------------------------------------------------------------------
+// Return if EPG scan is currently running
+// 
+bool EpgAcqCtl_ScanIsActive( void )
+{
+   return (scanState != SCAN_STATE_OFF);
 }
 

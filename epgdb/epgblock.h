@@ -25,7 +25,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgblock.h,v 1.21 2001/01/01 20:16:46 tom Exp tom $
+ *  $Id: epgblock.h,v 1.22 2001/01/20 15:42:15 tom Exp tom $
  */
 
 #ifndef __EPGBLOCK_H
@@ -474,16 +474,17 @@ typedef struct EPGDB_CONTEXT_STRUCT
 {
    struct EPGDB_CONTEXT_STRUCT *pNext;
 
-   uint  refCount;
-   uint  lockLevel;
-   bool  modified;
+   uint   refCount;
+   uint   lockLevel;
+   bool   modified;
+   time_t lastAiUpdate;
 
-   bool  merged;
-   void  *pMergeContext;
+   bool   merged;
+   void   *pMergeContext;
 
-   uint  pageNo;
-   ulong tunerFreq;
-   uint  appId;
+   uint   pageNo;
+   ulong  tunerFreq;
+   uint   appId;
 
    EPGDB_BLOCK *pAiBlock;
    EPGDB_BLOCK *pFirstPi, *pLastPi;
@@ -497,7 +498,8 @@ typedef struct
    ulong  ai;
    ulong  curVersion;
    ulong  allVersions;
-   ulong  obsolete;
+   ulong  expired;
+   ulong  defective;
    ulong  sinceAcq;
    double variance;
 } EPGDB_BLOCK_COUNT;

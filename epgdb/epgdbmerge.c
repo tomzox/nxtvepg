@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgdbmerge.c,v 1.10 2001/01/09 19:47:11 tom Exp tom $
+ *  $Id: epgdbmerge.c,v 1.11 2001/01/20 15:50:09 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -1024,6 +1024,7 @@ void EpgDbMergeAiUpdate( PDBC pAcqContext, EPGDB_BLOCK * pAiBlock )
 
       xfree(pUiDbContext->pAiBlock);
       pUiDbContext->pAiBlock = NULL;
+      pUiDbContext->lastAiUpdate = time(NULL);
 
       EpgDbMergeAiBlocks(pUiDbContext);
 

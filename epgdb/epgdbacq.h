@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgdbacq.h,v 1.9 2000/12/09 17:27:15 tom Exp tom $
+ *  $Id: epgdbacq.h,v 1.10 2001/01/20 15:43:51 tom Exp tom $
  */
 
 #ifndef __EPGDBACQ_H
@@ -45,6 +45,7 @@ void EpgDbAcqInitScan( void );
 void EpgDbAcqGetScanResults( uint *pCni, bool *pNiWait, uint *pDataPageCnt );
 uint EpgDbAcqGetMipPageNo( void );
 void EpgDbAcqGetStatistics( ulong *pTtxPkgCount, ulong *pEpgPkgCount, ulong *pEpgPagCount );
+void EpgDbAcqEnableVpsPdc( bool enable );
 
 // interface to the teletext packet decoder
 bool EpgDbAcqAddPacket( uint pageNo, uint sub, uchar pkgno, const uchar * data );

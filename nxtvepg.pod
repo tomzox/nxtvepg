@@ -24,7 +24,7 @@
 #
 #  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
 #
-# $Id: nxtvepg.pod,v 1.21 2001/01/09 19:32:51 tom Exp tom $
+# $Id: nxtvepg.pod,v 1.22 2001/01/21 20:57:16 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME
@@ -194,11 +194,16 @@ L<"DATA ACQUISITION"> and L<"FILTERING">.
 
 Windows users first have to configure the driver for their TV card.
 Therefore please invoke the 'TV card input' popup from the Configure
-menu and specify the type of your tuner; check I<PLL init> if needed.
+menu and specify the type of your tuner. In Germany, Austria and
+Switzerland it should be either Philips PAL or Temic PAL. In France
+it's one of the SECAM types. Then select how your card's I<PLL> needs
+to be set up. On most cards it's either I<No init> or I<28 MHz>.
 If you're not sure about your configuration, try them one by one and
-run an EPG scan inbetween to check if the tuner works. If you don't
-have an antenna connected to your PC, you can select an external source
-for video input. If you have problems see F<README> for more details.
+run an EPG scan inbetween to check if the tuner works.
+
+If you don't have an antenna connected to your PC, you can select an
+external source for video input. If you have problems see F<README>
+for more details and a list of error messages from the Windows driver.
 
 UNIX users just need to check if the correct input source is selected
 in the TV card input popup menu.
@@ -902,6 +907,17 @@ set of Nextview features.
 
 
 
+=head1 KNOWN BUGS
+
+Under Windows there's a risk of system crash ("blue screen") when the
+application is terminated by force, e.g. with TerminateProcess(). This
+cannot be changed because in this case there's no chance to stop the
+driver and disable the interrupt. In normal operation this should be
+very unlikely though, since all software exceptions (e.g. page faults)
+and shutdown mesages are catched and the driver then stopped before
+the exit.
+
+
 =head1 REPORTING BUGS
 
 Feel free to mail any bug reports to me, but please make sure that
@@ -917,14 +933,15 @@ Tom Zoerner, Erlangen, Germany.
 
 Email: Tom.Zoerner (at) informatik.uni-erlangen.de
 
-Many thanks to Mario Kemper for beta testing;
+Many thanks to Mario Kemper for the NetBSD port and beta testing;
+to "Mario's brother" for beta testing the Windows port;
 to Ralph Metzler for his teletext decoder;
 to Edgar Toernig for the Latin-1 conversion tables in alevt;
-and last but not least to the authors of v4l for their excellent work.
+and last but not least to the authors of bttv and v4l for their excellent work.
 
 =head1 COPYRIGHT
 
-Copyright (C) 1999,2000 Tom Zoerner
+Copyright (C) 1999, 2000, 2001 by Tom Zoerner.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License Version 2 as

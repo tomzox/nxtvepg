@@ -21,7 +21,7 @@
 #
 #  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
 #
-#  $Id: epgui.tcl,v 1.54 2001/01/08 20:47:50 tom Exp tom $
+#  $Id: epgui.tcl,v 1.56 2001/01/21 20:45:30 tom Exp tom $
 #
 
 frame     .all -relief flat -borderwidth 0
@@ -31,14 +31,14 @@ pack      .all.shortcuts.clock -fill x -pady 5
 button    .all.shortcuts.reset -text "Reset" -relief ridge -command {ResetFilterState; C_ResetFilter all; C_ResetPiListbox}
 pack      .all.shortcuts.reset -side top -fill x
 
-listbox   .all.shortcuts.list -exportselection false -setgrid true -height 12 -width 12 -selectmode extended -relief ridge
+listbox   .all.shortcuts.list -exportselection false -setgrid true -height 12 -width 12 -selectmode extended -relief ridge -cursor top_left_arrow
 bind      .all.shortcuts.list <ButtonRelease-1> {+ SelectShortcut}
 bind      .all.shortcuts.list <space> {+ SelectShortcut}
 pack      .all.shortcuts.list -fill x
 pack      .all.shortcuts -anchor nw -side left
 
 frame     .all.netwops
-listbox   .all.netwops.list -exportselection false -setgrid true -height 27 -width 8 -selectmode extended -relief ridge
+listbox   .all.netwops.list -exportselection false -setgrid true -height 25 -width 8 -selectmode extended -relief ridge -cursor top_left_arrow
 .all.netwops.list insert end alle
 .all.netwops.list selection set 0
 bind      .all.netwops.list <ButtonRelease-1> {+ SelectNetwop}
@@ -60,6 +60,7 @@ if {[string compare $tcl_platform(platform) "unix"] == 0} {
    set cursor_bg_now #d8d8ff
 }
 set textfont        [list helvetica [expr   0 - $font_pt_size] normal]
+set font_small      [list helvetica [expr   2 - $font_pt_size] normal]
 set font_bold       [list helvetica [expr   0 - $font_pt_size] bold]
 set font_pl2_bold   [list helvetica [expr  -2 - $font_pt_size] bold]
 set font_pl4_bold   [list helvetica [expr  -4 - $font_pt_size] bold]
@@ -73,7 +74,7 @@ frame     .all.pi
 frame     .all.pi.list
 scrollbar .all.pi.list.sc -orient vertical -command {C_PiListBox_Scroll}
 pack      .all.pi.list.sc -fill y -side left
-text      .all.pi.list.text -height 27 -width 70 \
+text      .all.pi.list.text -height 25 -width 70 \
                             -font $textfont -exportselection false \
                             -background $default_bg \
                             -cursor top_left_arrow \
@@ -102,7 +103,6 @@ text      .all.pi.info.text -height 10 -width 70 -wrap word \
                             -font $textfont \
                             -background $default_bg \
                             -yscrollcommand {.all.pi.info.sc set} \
-                            -cursor circle \
                             -insertofftime 0
 .all.pi.info.text tag configure title -font $font_pl2_bold -justify center -spacing3 3
 .all.pi.info.text tag configure bold -font $font_bold
@@ -111,8 +111,13 @@ bindtags  .all.pi.info.text {.all.pi.info.text . all}
 pack      .all.pi.info.text -side left -fill y -expand 1
 pack      .all.pi.info -side top -fill y -expand 1
 
-pack      .all.pi -side left -anchor n -fill y -expand 1
-pack      .all
+pack      .all.pi -side top -anchor n -fill y -expand 1
+
+entry     .all.statusline -state disabled -relief flat -borderwidth 1 \
+                          -font $font_small -background $default_bg \
+                          -textvariable dbstatus_line
+pack      .all.statusline -side top -fill x
+pack      .all -side top
 
 # create a bitmap of an horizontal line for use as separator in the info window
 # inserted here manually from the file epgui/line.xbm
@@ -141,7 +146,8 @@ menu .menubar.ctrl -tearoff 0 -postcommand C_SetControlMenuStates
 .menubar.ctrl add separator
 .menubar.ctrl add checkbutton -label "View timescales..." -command {C_StatsWin_ToggleTimescale ui} -variable menuStatusTscaleOpen(ui)
 .menubar.ctrl add checkbutton -label "View acq timescales..." -command {C_StatsWin_ToggleTimescale acq} -variable menuStatusTscaleOpen(acq)
-.menubar.ctrl add checkbutton -label "Acq Statistics..." -command C_StatsWin_ToggleStatistics -variable menuStatusAcqStatOpen
+.menubar.ctrl add checkbutton -label "View statistics..." -command {C_StatsWin_ToggleDbStats ui} -variable menuStatusStatsOpen(ui)
+.menubar.ctrl add checkbutton -label "View acq statistics..." -command {C_StatsWin_ToggleDbStats acq} -variable menuStatusStatsOpen(acq)
 .menubar.ctrl add separator
 .menubar.ctrl add command -label "Quit" -command {destroy .; update}
 # Config menu
@@ -159,6 +165,7 @@ menu .menubar.config -tearoff 0
 .menubar.config add separator
 .menubar.config add checkbutton -label "Show shortcuts" -command ToggleShortcutListbox -variable showShortcutListbox
 .menubar.config add checkbutton -label "Show networks" -command ToggleNetwopListbox -variable showNetwopListbox
+.menubar.config add checkbutton -label "Show status line" -command ToggleStatusLine -variable showStatusLine
 # Reminder menu
 #menu .menubar.timer -tearoff 0
 #.menubar.timer add command -label "Add selected title" -state disabled
@@ -263,7 +270,8 @@ set menuStatusDumpStream 0
 set menuStatusThemeClass 1
 set menuStatusTscaleOpen(ui) 0
 set menuStatusTscaleOpen(acq) 0
-set menuStatusAcqStatOpen 0
+set menuStatusStatsOpen(ui) 0
+set menuStatusStatsOpen(acq) 0
 
 
 ##  ---------------------------------------------------------------------------
@@ -341,10 +349,11 @@ proc CreateDemoModePseudoMenu {} {
 }
 
 ##  ---------------------------------------------------------------------------
-##  Show or hide shortcuts and network filter listboxes
+##  Show or hide shortcut listbox, network filter listbox and db status line
 ##
 set showNetwopListbox 1
 set showShortcutListbox 1
+set showStatusLine 1
 
 proc ToggleNetwopListbox {} {
    if {[lsearch -exact [pack slaves .all] .all.netwops] == -1} {
@@ -372,6 +381,19 @@ proc ToggleShortcutListbox {} {
       # shortcuts listbox is visible -> unpack
       pack forget .all.shortcuts
       set showShortcutListbox 0
+   }
+   UpdateRcFile
+}
+
+proc ToggleStatusLine {} {
+   if {[lsearch -exact [pack slaves .all] .all.statusline] == -1} {
+      # status line is currently not visible -> pack below "short info" text widget
+      pack .all.statusline -after .all.pi -side top -fill x
+      set showStatusLine 1
+   } else {
+      # status line is visible -> unpack
+      pack forget .all.statusline
+      set showStatusLine 0
    }
    UpdateRcFile
 }
@@ -1660,7 +1682,7 @@ proc CreateAbout {} {
       #label .about.tcl_version -text " Tcl/Tk version $tcl_patchLevel"
       #pack .about.tcl_version -side top
 
-      label .about.copyr1 -text "Copyright © 1999, 2000 by Thorsten \"Tom\" Zörner"
+      label .about.copyr1 -text "Copyright © 1999, 2000, 2001 by Thorsten \"Tom\" Zörner"
       label .about.copyr2 -text "Tom.Zoerner@informatik.uni-erlangen.de"
       label .about.copyr3 -text "http://nxtvepg.tripod.com/" -font $font_fixed -foreground blue
       pack .about.copyr1 .about.copyr2 -side top
@@ -1878,7 +1900,7 @@ proc SelBoxCreate {lbox arr_ailist arr_selist arr_names} {
    upvar $arr_names names
 
    ## first column: listbox with all netwops in AI order
-   listbox $lbox.ailist -exportselection false -setgrid true -height 27 -width 12 -selectmode extended -relief ridge
+   listbox $lbox.ailist -exportselection false -setgrid true -height 10 -width 12 -selectmode extended -relief ridge
    pack $lbox.ailist -fill x -anchor nw -side left -pady 10 -padx 10 -fill y -expand 1
    bind $lbox.ailist <ButtonPress-1> [list + after idle [list SelBoxButtonPress $lbox orig]]
 
@@ -1897,7 +1919,7 @@ proc SelBoxCreate {lbox arr_ailist arr_selist arr_names} {
    pack $lbox.cmd -side left -anchor nw -pady 10 -padx 5 -fill y
 
    ## third column: selected providers in selected order
-   listbox $lbox.selist -exportselection false -setgrid true -height 27 -width 12 -selectmode extended -relief ridge
+   listbox $lbox.selist -exportselection false -setgrid true -height 10 -width 12 -selectmode extended -relief ridge
    pack $lbox.selist -fill x -anchor nw -side left -pady 10 -padx 10 -fill y -expand 1
    bind $lbox.selist <ButtonPress-1> [list + after idle [list SelBoxButtonPress $lbox sel]]
 
@@ -2337,6 +2359,11 @@ proc ProvMerge_Quit {cause} {
    global prov_merge_cnis prov_merge_cf
    global provmerge_names ProvmergeOptLabels
 
+   if {[llength $provmerge_selist] == 0} {
+      tk_messageBox -type ok -icon error -parent .provmerge -message "You have to add at least one provider from the left to the listbox on the right."
+      return
+   }
+
    # check the configuration parameters for consistancy
    if {[string compare $cause "Ok"] == 0} {
       # save the configuration into global variables
@@ -2569,7 +2596,7 @@ proc PiListBox_PrintHelpHeader {text} {
    .all.pi.list.text insert end "Nextview EPG\n" bold24Tag
    .all.pi.list.text insert end "An Electronic TV Programme Guide for Your PC\n" bold16Tag
    .all.pi.list.text window create end -window .all.pi.list.text.nxtvlogo
-   .all.pi.list.text insert end "\n\nCopyright © 1999, 2000 by Thorsten \"Tom\" Zörner\n" bold12Tag
+   .all.pi.list.text insert end "\n\nCopyright © 1999, 2000, 2001 by Thorsten \"Tom\" Zörner\n" bold12Tag
    .all.pi.list.text insert end "Tom.Zoerner@informatik.uni-erlangen.de\n\n" bold12Tag
    .all.pi.list.text tag add centerTag 1.0 {end - 1 lines}
    .all.pi.list.text insert end "This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License Version 2 as published by the Free Software Foundation. This program is distributed in the hope that it will be useful, but without any warranty. See the GPL2 for more details.\n\n" wrapTag
@@ -2634,8 +2661,12 @@ proc PopupHardwareConfig {} {
          pack .hwcfg.tuner.mb -side left -padx 10 -anchor e
          pack .hwcfg.tuner -side top -pady 10 -anchor w -fill x
 
-         # create checkbuttons to enable PLL initialization
-         checkbutton .hwcfg.pll -text "Tuner PLL init" -variable hwcfg_pll_sel
+         # create radiobuttons to choose PLL initialization
+         frame .hwcfg.pll
+         radiobutton .hwcfg.pll.pll_none -text "No PLL" -variable hwcfg_pll_sel -value 0
+         radiobutton .hwcfg.pll.pll_28 -text "PLL 28 MHz" -variable hwcfg_pll_sel -value 1
+         radiobutton .hwcfg.pll.pll_35 -text "PLL 35 MHz" -variable hwcfg_pll_sel -value 2
+         pack .hwcfg.pll.pll_none .hwcfg.pll.pll_28 .hwcfg.pll.pll_35 -side left
          pack .hwcfg.pll -side top -padx 10 -anchor w
 
          # create checkbuttons to select acquisition priority
@@ -2929,57 +2960,94 @@ proc TimeScale_MarkNow {frame num color} {
 ## ---------------------------------------------------------------------------
 ## Create the acq stats window with histogram and summary text
 ##
-proc AcqStat_Create {} {
+proc DbStatsWin_Create {wname} {
    global font_fixed
 
-   toplevel .acqstat
-   wm title .acqstat {Nextview acquisition statistics}
-   wm resizable .acqstat 0 0
-   wm group .acqstat .
+   toplevel $wname
+   wm title $wname {Nextview database statistics}
+   wm resizable $wname 0 0
+   wm group $wname .
 
-   canvas .acqstat.hist -bg white -height 128 -width 128
-   pack .acqstat.hist -side left
+   frame $wname.browser -relief sunken -borderwidth 2
+   canvas $wname.browser.pie -height 128 -width 128
+   pack $wname.browser.pie -side left -anchor w
 
-   message .acqstat.statistics -font $font_fixed -aspect 2000 -justify left -anchor nw
-   pack .acqstat.statistics -expand 1 -fill both -side left
-   #set width [$frame.stat cget -width]
-   #$frame.stat create line 0 64 $width 64 
+   message $wname.browser.stat -font $font_fixed -aspect 2000 -justify left -anchor nw
+   pack $wname.browser.stat -expand 1 -fill both -side left
+   pack $wname.browser -side top -anchor nw -fill both
+
+   frame $wname.acq -relief sunken -borderwidth 2
+   canvas $wname.acq.hist -bg white -height 128 -width 128
+   pack $wname.acq.hist -side left -anchor s -anchor w
+
+   message $wname.acq.stat -font $font_fixed -aspect 2000 -justify left -anchor nw
+   pack $wname.acq.stat -expand 1 -fill both -side left
+
+   # this frame is intentionally not packed
+   #pack $wname.acq -side top -anchor nw -fill both
 
    # inform the control code when the window is destroyed
-   bind .acqstat <Destroy> {+ C_StatsWin_ToggleStatistics 0}
+   bind $wname.browser <Destroy> [list + C_StatsWin_ToggleDbStats $wname 0]
+}
+
+## ---------------------------------------------------------------------------
+## Paint the pie
+##
+proc DbStatsWin_PaintPie {wname valEx val1c val1o val2c val2o} {
+
+   catch [ $wname.pie delete all ]
+   $wname.browser.pie create oval 1 1 127 127 -outline black -fill white
+
+   if {$valEx > 0} {
+      $wname.browser.pie create arc 1 1 127 127 -start 0 -extent [expr $valEx *359.9/128] -fill yellow
+   }
+   if {$val1o > $valEx} {
+      $wname.browser.pie create arc 1 1 127 127 -start [expr $valEx *359.9/128] -extent [expr ($val1o - $valEx) *359.9/128] -fill red
+      if {$val1o > $val1c} {
+         $wname.browser.pie create arc 1 1 127 127 -start [expr $val1c *359.9/128] -extent [expr ($val1o - $val1c) *359.9/128] -fill #A52A2A -outline {} -stipple gray50
+      }
+   }
+
+
+   if {$val2o > $val1o} {
+      $wname.browser.pie create arc 1 1 127 127 -start [expr $val1o *359.9/128] -extent [expr ($val2o - $val1o) *359.9/128] -fill blue
+      if {$val2o > $val2c} {
+         $wname.browser.pie create arc 1 1 127 127 -start [expr $val2c *359.9/128] -extent [expr ($val2o - $val2c) *359.9/128] -fill #483D8B -outline {} -stipple gray50
+      }
+   }
 }
 
 ## ---------------------------------------------------------------------------
 ## Add a line to the history graph
 ##
-proc AcqStat_AddHistory {pos valEx val1c val1o val2c val2o} {
+proc DbStatsWin_AddHistory {wname pos valEx val1c val1o val2c val2o} {
 
-   .acqstat.hist addtag "TBDEL" enclosed $pos 0 [expr $pos + 2] 128
-   catch [ .acqstat.hist delete "TBDEL" ]
+   $wname.acq.hist addtag "TBDEL" enclosed $pos 0 [expr $pos + 2] 128
+   catch [ $wname.acq.hist delete "TBDEL" ]
 
    if {$valEx > 0} {
-      .acqstat.hist create line $pos 128 $pos [expr 128 - $valEx] -fill yellow
+      $wname.acq.hist create line $pos 128 $pos [expr 128 - $valEx] -fill yellow
    }
    if {$val1c > $valEx} {
-      .acqstat.hist create line $pos [expr 128 - $valEx] $pos [expr 128 - $val1c] -fill red
+      $wname.acq.hist create line $pos [expr 128 - $valEx] $pos [expr 128 - $val1c] -fill red
    }
    if {$val1o > $val1c} {
-      .acqstat.hist create line $pos [expr 128 - $val1c] $pos [expr 128 - $val1o] -fill #A52A2A
+      $wname.acq.hist create line $pos [expr 128 - $val1c] $pos [expr 128 - $val1o] -fill #A52A2A
    }
    if {$val2c > $val1o} {
-      .acqstat.hist create line $pos [expr 128 - $val1o] $pos [expr 128 - $val2c] -fill blue
+      $wname.acq.hist create line $pos [expr 128 - $val1o] $pos [expr 128 - $val2c] -fill blue
    }
    if {$val2o > $val2c} {
-      .acqstat.hist create line $pos [expr 128 - $val2c] $pos [expr 128 - $val2o] -fill #483D8B
+      $wname.acq.hist create line $pos [expr 128 - $val2c] $pos [expr 128 - $val2o] -fill #483D8B
    }
 }
 
 ## ---------------------------------------------------------------------------
 ## Clear the histogram (e.g. after provider change)
 ##
-proc AcqStat_ClearHistory {} {
+proc DbStatsWin_ClearHistory {wname} {
    # the tag "all" is automatically assigned to every item in the canvas
-   catch [ .acqstat.hist delete all ]
+   catch [ $wname.acq.hist delete all ]
 }
 
 
@@ -3878,7 +3946,7 @@ proc LoadRcFile {filename} {
    global fsc_mask_idx fsc_filt_idx fsc_name_idx fsc_logi_idx
    global shortcuts shortcut_count
    global prov_selection cfnetwops
-   global showNetwopListbox showShortcutListbox
+   global showNetwopListbox showShortcutListbox showStatusLine
    global prov_merge_cnis prov_merge_cf
    global acq_mode acq_mode_cnis
    global hwcfg
@@ -3901,7 +3969,7 @@ proc LoadRcFile {filename} {
 
       if {$showShortcutListbox == 0} {pack forget .all.shortcuts}
       if {$showNetwopListbox == 0} {pack forget .all.netwops}
-
+      if {$showStatusLine == 0} {pack forget .all.statusline}
    }
 
    if {$shortcut_count == 0} {
@@ -3920,7 +3988,7 @@ proc LoadRcFile {filename} {
 proc UpdateRcFile {} {
    global shortcuts shortcut_count
    global prov_selection cfnetwops
-   global showNetwopListbox showShortcutListbox
+   global showNetwopListbox showShortcutListbox showStatusLine
    global prov_merge_cnis prov_merge_cf
    global acq_mode acq_mode_cnis
    global hwcfg
@@ -3955,6 +4023,7 @@ proc UpdateRcFile {} {
       # dump shortcuts & network listbox visibility
       puts $rcfile [list set showNetwopListbox $showNetwopListbox]
       puts $rcfile [list set showShortcutListbox $showShortcutListbox]
+      puts $rcfile [list set showStatusLine $showStatusLine]
 
       # dump provider database merge CNIs and configuration
       if {[info exists prov_merge_cnis]} {puts $rcfile [list set prov_merge_cnis $prov_merge_cnis]}

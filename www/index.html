@@ -1,7 +1,7 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
 <BASE HREF="http://nxtvepg.tripod.com/">
-<!-- $Id: index.html,v 1.13 2001/01/17 17:49:14 tom Exp $ -->
+<!-- $Id: index.html,v 1.14 2001/01/23 18:30:42 tom Exp $ -->
 <HEAD>
 <TITLE>nexTView EPG Decoder Software Download Page</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
@@ -31,17 +31,21 @@
 <P class="navhead"><B>Infos</B>
 <P class="navsect">
 <A HREF="man.html">Manual</A><BR>
-<A HREF="screenshot.html">Screenshot 1</A><BR>
+<A HREF="screenshot-linux.html">Screenshot 1</A><BR>
 <A HREF="screenshot-win.html">Screenshot 2</A><BR>
+<A HREF="screenshot-series.html">Screenshot 3</A><BR>
 
 <P class="navhead"><A HREF="#download"><B>Download</B></A><BR>
 <P class="navsect">
+<A HREF="changelog.html">Change-Log</A><BR>
 <A HREF="#download_linux">Linux</A><BR>
 <A HREF="#download_netbsd">NetBSD</A><BR>
 <A HREF="#download_win32">Windows</A>
 
 <P class="navhead"><B>News</B>
 <P class="navsect">
+Jan/22/2001: 2nd beta release 0.4.pre2</P>
+<HR width=70%><P class="navsect">
 Jan/10/2001: beta release 0.4.pre1</P>
 <HR width=70%><P class="navsect">
 Dec/27/2000: alpha release 0.4.pre0</P>
@@ -58,7 +62,7 @@ Programme Guide for the analog domain (as opposed to the various digital EPGs
 that come with most digital broadcasts). It allows you to receive and browse
 free TV programme listings for all of the major networks in Germany, Austria,
 France and Switzerland. You can have a look at it in this
-<A HREF="screenshot.gif">Linux screenshot</A>, or this
+<A HREF="screenshot-linux.gif">Linux screenshot</A>, or this
 <A HREF="screenshot-win.gif">Windows screenshot</A>.
 <P>
 The nexTView standard was developed by the major European consumer electronics
@@ -158,28 +162,29 @@ do not redistribute). This option is available as of release 0.3.4.
 
 <H3>Pre-Distributions (beta version)</H3>
 New in this release: merging of provider databases, extended acquisition
-control and support for NetBSD and M$ Windows. Fixed since the alpha release:
-compatibility with old Windows driver versions ("card locked" error); added
-installation instructions in the README; plus most items of the TODO list.
+control and support for NetBSD and M$ Windows. For a more detailed history
+of changes see the <A HREF="changelog.html">ChangeLog</A>.
 This release is believed to be stable. Please report all bugs.
+Suggestions to improve the new features are welcome, too.
 <P>
 <DL>
 <A NAME="download_netbsd">
 <LI>Download source-distribution
 </A>
-<A HREF="src/nxtvepg-0.4.pre1.tar.gz">nxtvepg-0.4.pre1.tar.gz</A> (252 kB)
+<A HREF="src/nxtvepg-0.4.pre2.tar.gz">nxtvepg-0.4.pre2.tar.gz</A> (262 kB)
 for Linux and NetBSD
 <P>
 <A NAME="download_win32">
 <LI>Download binary pre-release for M$ Windows
-<A HREF="src/nxtvepg-win32-0.4.pre1.zip">nxtvepg-win32-0.4.pre1.zip</A> (838 kB)
+<A HREF="src/nxtvepg-win32-0.4.pre2.zip">nxtvepg-win32-0.4.pre2.zip</A> (843 kB)
 </A>
 <BR>Note that you need an additional driver that is not included in this
-package. For download instructions see README.txt inside the zip file.
+package. You may be able to use the driver from other TV applications.
+For detailed instructions see README.txt inside the zip file.
 </DL>
 
 <H2>Copyright</H2>
-&copy; Copyright 1999, 2000 by Thorsten <I>"Tom"</I> Z&ouml;rner (and others).
+&copy; Copyright 1999, 2000, 2001 by Thorsten <I>"Tom"</I> Z&ouml;rner (and others).
 All rights reserved.
 <P>
 The author of this site's software is not a member of the

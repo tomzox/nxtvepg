@@ -46,7 +46,7 @@
  *    VBI only adaption and nxtvepg integration
  *      Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: btdrv4win.c,v 1.8 2001/01/07 19:48:49 tom Exp tom $
+ *  $Id: btdrv4win.c,v 1.9 2001/01/21 12:06:58 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -67,6 +67,10 @@
 
 // ----------------------------------------------------------------------------
 // Declaration of internal variables
+
+// disabled hack to allow permanent use of WinDriver evaluation
+// must not enable this option; the evaluation license is limited to 30 days
+//#define USE_REGISTRY_HACK
 
 #define WINDRVR_MIN_VERSION   400
 
@@ -132,7 +136,7 @@ static int TvCardIndex = 0;
 static int TvCardCount = 0;
 static int TunerType = 0;
 static int ThreadPrio = 0;
-static BOOL INIT_PLL = FALSE;
+static int PllType = 0;
 static int InputSource = INVALID_INPUT_SOURCE;
 static HANDLE VBI_Event=NULL;
 static BOOL StopVBI;
@@ -498,11 +502,48 @@ bool BtDriver_IsVideoPresent( void )
 //
 static void InitPll( void )
 {
-   BT8X8_WriteByte (hBT8X8, BT8X8_AD_BAR0, BT848_PLL_F_LO, 0xf9);
-   BT8X8_WriteByte (hBT8X8, BT8X8_AD_BAR0, BT848_PLL_F_HI, 0xdc);
-   BT8X8_WriteByte (hBT8X8, BT8X8_AD_BAR0, BT848_PLL_XCI, 0x8e);
-   Sleep (500);
-   BT8X8_WriteByte (hBT8X8, BT8X8_AD_BAR0, BT848_TGCTRL, 0x08);
+   int i;
+
+   if (PllType == 0)
+   {
+      BT8X8_WriteByte (hBT8X8, BT8X8_AD_BAR0, BT848_TGCTRL, BT848_TGCTRL_TGCKI_NOPLL);
+      BT8X8_WriteByte (hBT8X8, BT8X8_AD_BAR0, BT848_PLL_XCI, 0x00);
+   }
+   else
+   {
+      if (PllType == 1)
+      {
+         BT8X8_WriteByte (hBT8X8, BT8X8_AD_BAR0, BT848_PLL_F_LO, 0xf9);
+         BT8X8_WriteByte (hBT8X8, BT8X8_AD_BAR0, BT848_PLL_F_HI, 0xdc);
+         BT8X8_WriteByte (hBT8X8, BT8X8_AD_BAR0, BT848_PLL_XCI, 0x8E);
+      }
+      else
+      {
+         BT8X8_WriteByte (hBT8X8, BT8X8_AD_BAR0, BT848_PLL_F_LO, 0x39);
+         BT8X8_WriteByte (hBT8X8, BT8X8_AD_BAR0, BT848_PLL_F_HI, 0xB0);
+         BT8X8_WriteByte (hBT8X8, BT8X8_AD_BAR0, BT848_PLL_XCI, 0x89);
+      }
+
+      for (i = 0; i < 100; i++)
+      {
+         if (BT8X8_ReadByte (hBT8X8, BT8X8_AD_BAR0, BT848_DSTATUS) & BT848_DSTATUS_CSEL)
+         {
+            BT8X8_WriteByte (hBT8X8, BT8X8_AD_BAR0, BT848_DSTATUS, 0x00);
+         }
+         else
+         {
+            BT8X8_WriteByte (hBT8X8, BT8X8_AD_BAR0, BT848_TGCTRL, BT848_TGCTRL_TGCKI_PLL);
+            break;
+         }
+         Sleep (10);
+      }
+
+      // these settings do not work with my cards
+      //BT8X8_WriteByte (hBT8X8, BT8X8_AD_BAR0, BT848_WC_UP, 0xcf);
+      //BT8X8_WriteByte (hBT8X8, BT8X8_AD_BAR0, BT848_VTOTAL_LO, 0x00);
+      //BT8X8_WriteByte (hBT8X8, BT8X8_AD_BAR0, BT848_VTOTAL_HI, 0x00);
+      //BT8X8_WriteByte (hBT8X8, BT8X8_AD_BAR0, BT848_DVSIF, 0x00);
+   }
 }
 
 // ----------------------------------------------------------------------------
@@ -516,7 +557,7 @@ bool Init_BT_HardWare( void )
 
    // start address for the DMA RISC code
    BT8X8_WriteDword (hBT8X8, BT8X8_AD_BAR0, BT848_RISC_STRT_ADD, (PHYS)Risc_dma.Page[0].pPhysicalAddr + 2 * sizeof(PHYS));
-   //BT8X8_WriteByte (hBT8X8, BT8X8_AD_BAR0, BT848_TDEC, 0x00);
+   BT8X8_WriteByte (hBT8X8, BT8X8_AD_BAR0, BT848_TDEC, 0x00);
    BT8X8_WriteByte (hBT8X8, BT8X8_AD_BAR0, BT848_COLOR_CTL, BT848_COLOR_CTL_GAMMA);
    BT8X8_WriteByte (hBT8X8, BT8X8_AD_BAR0, BT848_ADELAY, 0x7f);
    BT8X8_WriteByte (hBT8X8, BT8X8_AD_BAR0, BT848_BDELAY, 0x72);
@@ -551,9 +592,6 @@ bool Init_BT_HardWare( void )
 
    BT8X8_WriteByte (hBT8X8, BT8X8_AD_BAR0, BT848_E_SCLOOP, 0x00);
    BT8X8_WriteByte (hBT8X8, BT8X8_AD_BAR0, BT848_O_SCLOOP, 0x00);
-
-   BT8X8_WriteByte (hBT8X8, BT8X8_AD_BAR0, BT848_E_CONTROL, 0x03);
-   BT8X8_WriteByte (hBT8X8, BT8X8_AD_BAR0, BT848_O_CONTROL, 0x03);
 
    // interrupt mask; reset the status before enabling the interrupts
    BT8X8_WriteDword (hBT8X8, BT8X8_AD_BAR0, BT848_INT_STAT, (DWORD) 0x0fffffffUL);
@@ -877,7 +915,7 @@ BOOL Init_Tuner( int TunerNr )
 
       if (j <= 0xce)
       {
-         dprintf1("Tuner I2C-Bus I/O 0x%02x", j);
+         dprintf1("Tuner I2C-Bus I/O 0x%02x\n", j);
          result = TRUE;
       }
       else
@@ -941,7 +979,7 @@ BT8X8_Open (BT8X8_HANDLE * phBT8X8)
    // scan for all cards on PCI bus
    BZERO (pciScan);
    WD_PciScanCards (hBT8X8->hWD, &pciScan);
-   //debug1("PCI scan: found %d cards", pciScan.dwCards);
+   dprintf1("PCI scan: found %d cards\n", pciScan.dwCards);
    TvCardCount = 0;
    tvCardIdx = 0xffff;
    for (idx=0; idx < pciScan.dwCards; idx++)
@@ -958,13 +996,21 @@ BT8X8_Open (BT8X8_HANDLE * phBT8X8)
                   tvCardIdx = idx;
                TvCardCount += 1;
                break;
+            default:
+               dprintf1("PCI scan: found Booktree device 0x%x\n", pciScan.cardId[idx].dwDeviceId);
+               break;
          }
       }
+      else
+         dprintf2("PCI scan: found vendor 0x%x, device 0x%x\n", pciScan.cardId[idx].dwVendorId, pciScan.cardId[idx].dwDeviceId);
    }
    if (tvCardIdx == 0xffff)
    {
       // error - Cannot find PCI card with the given index
-      Ret = BT8X8_OPEN_RESULT_CARDIDX;
+      if (pciScan.dwCards == 0)
+         Ret = BT8X8_OPEN_RESULT_PCI_SCAN;
+      else
+         Ret = BT8X8_OPEN_RESULT_CARDIDX;
       goto Exit;
    }
 
@@ -1418,6 +1464,7 @@ static BOOL
 InstallDriver (IN SC_HANDLE SchSCManager, IN LPCTSTR DriverName, IN LPCTSTR ServiceExe)
 {
    SC_HANDLE schService;
+   BOOL result = FALSE;
 
    //
    // NOTE: This creates an entry for a standalone driver. If this
@@ -1440,70 +1487,51 @@ InstallDriver (IN SC_HANDLE SchSCManager, IN LPCTSTR DriverName, IN LPCTSTR Serv
                                 NULL,   // no dependencies
                                 NULL,   // LocalSystem account
                                 NULL    // no password
-      );
+                              );
+
    if (schService == NULL)
-      return FALSE;
+   {
+      if (GetLastError() == ERROR_SERVICE_EXISTS)
+      {
+         schService = OpenService (SchSCManager,
+                                   DriverName,
+                                   SERVICE_CHANGE_CONFIG
+                                  );
+         if (schService != NULL)
+         {
+            result = ChangeServiceConfig ( schService,
+                                           SERVICE_KERNEL_DRIVER,
+                                           SERVICE_DEMAND_START,
+                                           SERVICE_ERROR_NORMAL,
+                                           ServiceExe,
+                                           NULL,
+                                           NULL,
+                                           NULL,
+                                           DriverName,
+                                           NULL,
+                                           DriverName
+                                         );
+            CloseServiceHandle (schService);
 
-   CloseServiceHandle (schService);
+            DBGONLY(if (result))
+               dprintf0("InstallDriver: service config changed\n");
+            DBGONLY(else)
+               debug1("InstallDriver: failed to change service config, err=%d", GetLastError());
+         }
+         else
+            debug0("InstallDriver: failed to create service - already exists and cannot be changed");
+      }
+      else
+         debug1("InstallDriver: failed to create service, err=%d", GetLastError());
+   }
+   else
+   {
+      dprintf0("InstallDriver: service created\n");
+      CloseServiceHandle (schService);
+      result = TRUE;
+   }
 
-   return TRUE;
-}
-
-
-/****************************************************************************
-*
-*    FUNCTION: StartDriver( IN SC_HANDLE, IN LPCTSTR)
-*
-*    PURPOSE: Starts the driver service.
-*
-****************************************************************************/
-static BOOL
-StartDriver (IN SC_HANDLE SchSCManager, IN LPCTSTR DriverName)
-{
-   SC_HANDLE schService;
-   BOOL ret;
-
-   schService = OpenService (SchSCManager,
-                             DriverName,
-                             SERVICE_ALL_ACCESS
-      );
-   if (schService == NULL)
-      return FALSE;
-
-   ret = StartService (schService, 0, NULL);
-
-   if ((ret == FALSE) && (GetLastError () == ERROR_SERVICE_ALREADY_RUNNING))
-      ret = TRUE;;
-
-   CloseServiceHandle (schService);
-
-   return ret;
-}
-
-
-/****************************************************************************
-*
-*    FUNCTION: StopDriver( IN SC_HANDLE, IN LPCTSTR)
-*
-*    PURPOSE: Has the configuration manager stop the driver (unload it)
-*
-****************************************************************************/
-static BOOL
-StopDriver (IN SC_HANDLE SchSCManager, IN LPCTSTR DriverName)
-{
-   SC_HANDLE schService;
-   BOOL ret;
-   SERVICE_STATUS serviceStatus;
-
-   schService = OpenService (SchSCManager, DriverName, SERVICE_ALL_ACCESS);
-   if (schService == NULL)
-      return FALSE;
-
-   ret = ControlService (schService, SERVICE_CONTROL_STOP, &serviceStatus);
-
-   CloseServiceHandle (schService);
-
-   return ret;
+   return result;
 }
 
 
@@ -1518,24 +1546,112 @@ static BOOL
 RemoveDriver (IN SC_HANDLE SchSCManager, IN LPCTSTR DriverName)
 {
    SC_HANDLE schService;
-   BOOL ret;
-   return TRUE;
+   BOOL result = FALSE;
 
-   schService = OpenService (SchSCManager,
-                             DriverName,
-                             SERVICE_ALL_ACCESS
-      );
+   schService = OpenService (SchSCManager, DriverName, SERVICE_ALL_ACCESS);
+   if (schService != NULL)
+   {
+      result = DeleteService (schService);
 
-   if (schService == NULL)
-      return FALSE;
+      CloseServiceHandle (schService);
 
-   ret = DeleteService (schService);
+      ifdebug1(result==FALSE, "RemoveDriver: failed to delete service, err=%d", GetLastError());
+   }
+   else
+      debug1("RemoveDriver: failed to open service, err=%d", GetLastError());
 
-   CloseServiceHandle (schService);
-
-   return ret;
+   return result;
 }
 
+
+
+/****************************************************************************
+*
+*    FUNCTION: StartDriver( IN SC_HANDLE, IN LPCTSTR)
+*
+*    PURPOSE: Starts the driver service.
+*
+****************************************************************************/
+static BOOL
+StartDriver (IN SC_HANDLE SchSCManager, IN LPCTSTR DriverName)
+{
+   SC_HANDLE schService;
+   SERVICE_STATUS ServiceStatus;
+   BOOL result = FALSE;
+
+   schService = OpenService (SchSCManager, DriverName, SERVICE_ALL_ACCESS);
+   if (schService != NULL)
+   {
+      if (QueryServiceStatus (schService, &ServiceStatus))
+      {
+         if (ServiceStatus.dwCurrentState == SERVICE_RUNNING)
+         {
+            dprintf0("StartDriver: driver already running\n");
+            result = TRUE;
+         }
+         else
+         {
+            result = StartService (schService, 0, NULL);
+            if (result == FALSE)
+            {
+               if (GetLastError() == ERROR_SERVICE_ALREADY_RUNNING)
+               {
+                  debug0("StartDriver: StartService failed: already running - ignoring error");
+                  result = TRUE;
+               }
+               else
+               {
+                  debug1("StartDriver: StartService failed, err=%d", GetLastError());
+                  RemoveDriver (SchSCManager, DriverName);
+               }
+            }
+            else
+            {
+               dprintf0("StartDriver: driver started\n");
+               result = TRUE;
+            }
+         }
+      }
+      else
+         debug1("StartDriver: failed to query service, err=%d", GetLastError());
+
+      CloseServiceHandle (schService);
+   }
+   else
+      debug1("StartDriver: failed to open service, err=%d", GetLastError());
+
+   return result;
+}
+
+
+/****************************************************************************
+*
+*    FUNCTION: StopDriver( IN SC_HANDLE, IN LPCTSTR)
+*
+*    PURPOSE: Has the configuration manager stop the driver (unload it)
+*
+****************************************************************************/
+static BOOL
+StopDriver (IN SC_HANDLE SchSCManager, IN LPCTSTR DriverName)
+{
+   SC_HANDLE schService;
+   SERVICE_STATUS serviceStatus;
+   BOOL result = FALSE;
+
+   schService = OpenService (SchSCManager, DriverName, SERVICE_ALL_ACCESS);
+   if (schService != NULL)
+   {
+      result = ControlService (schService, SERVICE_CONTROL_STOP, &serviceStatus);
+
+      CloseServiceHandle (schService);
+
+      ifdebug1(result==FALSE, "StopDriver: failed to stop service, err=%d", GetLastError());
+   }
+   else
+      debug1("StopDriver: failed to open service, err=%d", GetLastError());
+
+   return result;
+}
 
 
 /****************************************************************************
@@ -1545,6 +1661,7 @@ RemoveDriver (IN SC_HANDLE SchSCManager, IN LPCTSTR DriverName)
 *    PURPOSE: Opens the device and returns a handle if desired.
 *
 ****************************************************************************/
+#if 0  //unused
 static BOOL
 OpenDevice (IN LPCTSTR DriverName, HANDLE * lphDevice)
 {
@@ -1588,7 +1705,7 @@ OpenDevice (IN LPCTSTR DriverName, HANDLE * lphDevice)
 
    return TRUE;
 }
-
+#endif
 
 /****************************************************************************
 *
@@ -1655,8 +1772,10 @@ static bool Init_WinDriver( void )
    OSVERSIONINFO osvi;
    char Path[255];
    int ret;
+   #ifdef USE_REGISTRY_HACK
    long RegRet;
    HKEY hKey;
+   #endif
    bool result;
 
    NT = FALSE;
@@ -1667,6 +1786,7 @@ static bool Init_WinDriver( void )
    {
       if (osvi.dwPlatformId == VER_PLATFORM_WIN32_NT)
       {
+         dprintf0("Init-WinDriver: using Windows NT\n");
          NT = TRUE;
       }
    }
@@ -1678,12 +1798,14 @@ static bool Init_WinDriver( void )
    // Diese Version von Windriver kann im Internet von //www.krftech.com gesaugt werden
    // Zur neuen Übersetzung wird die Windrvr.h benötigt ( Ist in der Evaluation enthalten )
 
+   #ifdef USE_REGISTRY_HACK
    if (NT == TRUE)
       RegRet = RegOpenKey (HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Network", &hKey);
    else
       RegRet = RegOpenKey (HKEY_LOCAL_MACHINE, "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Network", &hKey);
    if (RegRet == ERROR_SUCCESS)
    {
+      dprintf0("Init-WinDriver: resetting registry\n");
       // ( Windriver 4.00 )
       RegDeleteValue(hKey,"DriverFigIA");
       RegDeleteValue(hKey,"DriverFigLA");
@@ -1695,15 +1817,17 @@ static bool Init_WinDriver( void )
 
       RegCloseKey (hKey);
    }
+   #endif  //REGISTRY_HACK
 
    if (NT == TRUE)
    {
       GetCurrentDirectory( sizeof(Path), Path );
       strcat(Path,"\\WINDRVR.SYS");
-      //strcpy (Path, "SYSTEM32\\DRIVERS\\WINDRVR.SYS");
+      dprintf1("Init-WinDriver: using driver path '%s'\n", Path);
 
       if (OrgDriverName[0] != 0x00)
       {
+         dprintf1("Init-WinDriver: unloading org driver '%s'\n", OrgDriverName);
          UnloadDeviceDriver ((const char *) OrgDriverName, FALSE);
          Sleep (500);
       }
@@ -1735,7 +1859,7 @@ static bool Init_WinDriver( void )
       ret = BT8X8_Open (&hBT8X8);
       if (ret == BT8X8_OPEN_RESULT_OK)
       {
-         dprintf0("BT878 gefunden, VendorID=0x109e, DeviceID=0x036e");
+         dprintf0("BT878 gefunden, VendorID=0x109e, DeviceID=0x036e\n");
       }
       else if (ret == BT8X8_OPEN_RESULT_DRIVER)
       {
@@ -1752,10 +1876,30 @@ static bool Init_WinDriver( void )
                     "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
          result = FALSE;
       }
-      else
+      else if (ret == BT8X8_OPEN_RESULT_ELEMS)
+      {
+         MessageBox(NULL, "Bt8x8 card element detection failed.\n"
+                          "Please refer to README.txt for further information.",
+                    "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+         result = FALSE;
+      }
+      else if(ret == BT8X8_OPEN_RESULT_PCI_SCAN)
+      {
+         MessageBox(NULL, "PCI scan failed - no devices found\n"
+                          "Appearantly the driver refuses work.\n"
+                          "Please refer to README.txt for further information.",
+                    "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+         result = FALSE;
+      }
+      else if(ret == BT8X8_OPEN_RESULT_CARDIDX)
       {
          sprintf(comm, "Bt8x8 card #%d not found (found %d cards)", TvCardIndex, TvCardCount);
          MessageBox(NULL, comm, "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+         result = FALSE;
+      }
+      else
+      {
+         MessageBox(NULL, "Internal driver startup error", "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
          result = FALSE;
       }
 
@@ -1772,8 +1916,6 @@ static bool Init_WinDriver( void )
 
       if ( (result == FALSE) && NT )
       {
-         UnloadDeviceDriver ("WinDriver", TRUE);
-         Sleep (500);
          if (OrgDriverName[0] != 0x00)
             LoadDeviceDriver ((const char *) OrgDriverName, Path, &Bt_Device_Handle, FALSE);
       }
@@ -1834,10 +1976,7 @@ static bool BtDriver_Load( void )
          // initialize all bt848 registers
          Init_BT_HardWare();
 
-         if (INIT_PLL == TRUE)
-         {
-            InitPll();
-         }
+         InitPll();
 
          // auto-detect the tuner on the I2C bus
          Init_Tuner(TunerType);
@@ -1866,7 +2005,7 @@ static bool BtDriver_Load( void )
 // - called at program start and after config change
 // - Important: input source and tuner freq must be set afterwards
 //
-void BtDriver_Configure( int cardIndex, int tunerType, int pll, int prio )
+void BtDriver_Configure( int cardIndex, int tunerType, int pllType, int prio )
 {
    int oldCardIdx = TvCardIndex;
    bool pllChange, tunerChange;
@@ -1874,8 +2013,8 @@ void BtDriver_Configure( int cardIndex, int tunerType, int pll, int prio )
    tunerChange = (tunerType != TunerType);
    TunerType = tunerType;
    ThreadPrio = prio;
-   pllChange = (pll && !INIT_PLL);
-   INIT_PLL = pll;
+   pllChange = (pllType != PllType);
+   PllType = pllType;
    TvCardIndex = cardIndex;
 
    if (Initialized)
@@ -1984,7 +2123,7 @@ static void BtDriver_VbiThread( void )
 
          for (row = 0; row < VBI_LINES_PER_FRAME; row++, pVBI += VBI_LINE_SIZE)
          {
-            VbiDecodeLine(pVBI, row, pVbiBuf->isEpgScan);
+            VbiDecodeLine(pVBI, row, pVbiBuf->doVpsPdc);
          }
          memset(Vbi_dma.pUserAddr, 0xa5, VBI_DATA_SIZE);
       }

@@ -17,7 +17,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: menucmd.c,v 1.29 2001/01/09 20:26:59 tom Exp tom $
+ *  $Id: menucmd.c,v 1.32 2001/01/21 20:44:37 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -87,9 +87,14 @@ static int SetControlMenuStates(ClientData ttp, Tcl_Interp *interp, int argc, ch
                     (((acqCni != 0) && (acqCni != uiCni)) ? "normal" : "disabled"));
       eval_check(interp, comm);
 
-      // enable "acq stats" only if acq running
-      sprintf(comm, ".menubar.ctrl entryconfigure \"Acq Statistics...\" -state %s\n",
-                    ((acqCni != 0) ? "normal" : "disabled"));
+      // enable "db stats" only if UI db has AI block
+      sprintf(comm, ".menubar.ctrl entryconfigure \"View statistics...\" -state %s\n",
+                    ((uiCni != 0) ? "normal" : "disabled"));
+      eval_check(interp, comm);
+
+      // enable "acq stats" only if acq running on different db than ui
+      sprintf(comm, ".menubar.ctrl entryconfigure \"View acq statistics...\" -state %s\n",
+                    (((pAcqDbContext != 0) && (acqCni != uiCni)) ? "normal" : "disabled"));
       eval_check(interp, comm);
 
       // check button of "Enable Acq" if acq is running
@@ -161,6 +166,8 @@ static int MenuCmd_ToggleAcq(ClientData ttp, Tcl_Interp *interp, int argc, char 
       }
       // update help message in listbox if database is empty
       UiControl_CheckDbState();
+      // update statistics windows for UI to in- or exclude acq stats
+      StatsWin_NewAi(pUiDbContext);
 
       result = TCL_OK;
    }
@@ -428,7 +435,7 @@ int ProvMerge_ParseConfigString( Tcl_Interp *interp, uint *pCniCount, uint * pCn
          }
          Tcl_Free((char *) pCniArgv);
 
-         if (result == TCL_OK)
+         if ((result == TCL_OK) && (*pCniCount > 0))
          {  // continue only if all CNIs could be parsed
 
             // parse attribute list, format is pairs of keyword and index list: {key {3 1 2} ...}
@@ -518,6 +525,11 @@ int ProvMerge_ParseConfigString( Tcl_Interp *interp, uint *pCniCount, uint * pCn
             }
             else
                result = TCL_ERROR;
+         }
+         else if (*pCniCount == 0)
+         {
+            Tcl_SetResult(interp, "C_ProvMerge_Start: CNI count 0 is illegal", TCL_STATIC);
+            result = TCL_ERROR;
          }
       }
    }
@@ -649,6 +661,8 @@ void OpenInitialDb( uint startUiCni )
    {
       sprintf(comm, "UpdateProvSelection 0x%04X\n", cni);
       eval_check(interp, comm);
+
+      StatsWin_UpdateDbStatusLine(NULL);
    }
 }
 
@@ -760,6 +774,8 @@ static int UpdateAcquisitionMode(ClientData ttp, Tcl_Interp *interp, int argc, c
 
       // update help message in listbox if database is empty
       UiControl_CheckDbState();
+      // update statistics windows for acq stats
+      StatsWin_NewAi(pUiDbContext);
    }
    return result;
 }
@@ -894,6 +910,11 @@ static int MenuCmd_GetTvCardList(ClientData ttp, Tcl_Interp *interp, int argc, c
    }
    else
    {
+      #ifdef __NetBSD__
+      // On NetBSD BtDriver_GetCardName fetches its data from a struct which is filled here
+      BtDriver_ScanDevices(TRUE);
+      #endif
+
       idx = 0;
       do
       {
@@ -1018,6 +1039,9 @@ static int MenuCmd_UpdateHardwareConfig(ClientData ttp, Tcl_Interp *interp, int 
    else
    {
       result = SetHardwareConfig(interp, -1);
+
+      // update statistics windows for acq stats
+      StatsWin_NewAi(pUiDbContext);
    }
    return result;
 }

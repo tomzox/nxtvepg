@@ -15,7 +15,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgacqctl.h,v 1.19 2001/01/09 19:52:40 tom Exp tom $
+ *  $Id: epgacqctl.h,v 1.21 2001/01/21 20:39:09 tom Exp tom $
  */
 
 #ifndef __EPGACQCTL_H
@@ -163,6 +163,34 @@ typedef struct
 
 } EPGDB_STATS;
 
+// ---------------------------------------------------------------------------
+// Structure to describe the state of acq to the user
+
+// number of seconds without AI after which acq is considered "stalled"
+#define ACQ_DESCR_STALLED_TIMEOUT  30
+
+#define ACQ_COUNT_TO_PERCENT(C,T) (((T)>0) ? ((int)((double)(C) * 100.0 / (T))) : 100)
+
+typedef enum
+{
+   ACQDESCR_DISABLED,
+   ACQDESCR_SCAN,
+   ACQDESCR_STARTING,
+   ACQDESCR_NO_RECEPTION,
+   ACQDESCR_STALLED,
+   ACQDESCR_RUNNING,
+} ACQDESCR_STATE;
+
+typedef struct
+{
+   ACQDESCR_STATE state;
+   EPGACQ_MODE    mode;
+   EPGACQ_PHASE   cyclePhase;
+   EPGACQ_PASSIVE passiveReason;
+   uint           dbCni;
+   uint           cycleCni;
+
+} EPGACQ_DESCR;
 
 // ---------------------------------------------------------------------------
 // Interface to main control module and user interface
@@ -176,6 +204,8 @@ bool EpgAcqCtl_SelectMode( EPGACQ_MODE newAcqMode, uint cniCount, const uint * p
 bool EpgAcqCtl_SetInputSource( uint inputIdx );
 bool EpgAcqCtl_UiProvChange( void );
 EPGDB_STATE EpgAcqCtl_GetDbState( uint cni );
+void EpgAcqCtl_DescribeAcqState( EPGACQ_DESCR * pAcqState );
+bool EpgAcqCtl_ScanIsActive( void );
 
 // Interface for notifications from acquisition
 #ifdef __EPGBLOCK_H

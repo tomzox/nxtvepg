@@ -28,7 +28,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgdbacq.c,v 1.21 2000/12/13 18:41:55 tom Exp tom $
+ *  $Id: epgdbacq.c,v 1.22 2001/01/20 15:42:47 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -116,6 +116,7 @@ void EpgDbAcqStart( EPGDB_CONTEXT *dbc, uint pageNo, uint appId )
       pVbiBuf->isEpgPage = FALSE;
       pVbiBuf->isMipPage = 0;
       pVbiBuf->isEpgScan = FALSE;
+      pVbiBuf->doVpsPdc  = FALSE;
       pVbiBuf->isEnabled = TRUE;
       // reset statistics variables
       pVbiBuf->ttxPkgCount = 0;
@@ -200,9 +201,30 @@ void EpgDbAcqInitScan( void )
       pVbiBuf->dataPageCount = 0;
       // enable scan mode
       pVbiBuf->isEpgScan = TRUE;
+      pVbiBuf->doVpsPdc  = TRUE;
    }
    else
       debug0("EpgDbAcq-InitScan: acq not enabled");
+}
+
+// ---------------------------------------------------------------------------
+// En-/Disable VPS and Packet 8/30/x acquisition
+//
+void EpgDbAcqEnableVpsPdc( bool enable )
+{
+   if (bEpgDbAcqEnabled)
+   {
+      // reset result variables
+      pVbiBuf->vpsCni = 0;
+      pVbiBuf->pdcCni = 0;
+      pVbiBuf->ni = 0;
+      pVbiBuf->niRepCnt = 0;
+
+      // en-/disable VPS and PDC acquisition
+      pVbiBuf->doVpsPdc = enable;
+   }
+   else
+      debug0("EpgDbAcq-EnableVpsPdc: acq not enabled");
 }
 
 // ---------------------------------------------------------------------------
@@ -652,7 +674,7 @@ bool EpgDbAcqAddPacket( uint pageNo, uint sub, uchar pkgno, const uchar * data )
          {  // new MIP packet (may be received in parallel for several magazines)
             EpgDbAcqMipPacket((uchar)(pageNo >> 8), pkgno, data);
          }
-         else if (pVbiBuf->isEpgScan && (pkgno == 30) && ((pageNo >> 8) == 0))
+         else if (pVbiBuf->doVpsPdc && (pkgno == 30) && ((pageNo >> 8) == 0))
          {  // packet 8/30/1 is evaluated for CNI during EPG scan
             EpgDbAcqGetP830Cni(data);
          }

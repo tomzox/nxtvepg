@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgdbsav.c,v 1.30 2001/01/08 20:43:50 tom Exp tom $
+ *  $Id: epgdbsav.c,v 1.31 2001/01/20 15:52:28 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -86,7 +86,7 @@ static bool EpgDbDumpHeader( CPDBC dbc, int fd )
       header.pageNo = dbc->pageNo;
       header.tunerFreq = dbc->tunerFreq;
       header.appId = dbc->appId;
-      header.dumpDate = time(NULL);
+      header.lastAiUpdate = dbc->lastAiUpdate;
 
       if (dbc->pFirstPi != NULL)
          header.firstPiDate = dbc->pFirstPi->blk.pi.start_time;
@@ -674,15 +674,16 @@ PDBC EpgDbReload( uint cni, EPGDB_RELOAD_RESULT * pResult )
       result = EpgDbReloadHeader(cni, fd, &head);
       if (result == EPGDB_RELOAD_OK)
       {
-         dbc->pageNo      = head.pageNo;
-         dbc->tunerFreq   = head.tunerFreq;
-         dbc->appId       = head.appId;
+         dbc->pageNo       = head.pageNo;
+         dbc->tunerFreq    = head.tunerFreq;
+         dbc->appId        = head.appId;
+         dbc->lastAiUpdate = head.lastAiUpdate;
 
          if (pDemoDatabase != NULL)
          {  // demo mode: shift all PI in time to the current time and future
-            piStartOff = time(NULL) - head.dumpDate;
+            piStartOff = time(NULL) - head.lastAiUpdate;
             piStartOff -= piStartOff % (60*60L);
-            //printf("off=%lu = now=%lu - dump (= %lu=%s)\n", piStartOff, time(NULL), head.dumpDate, ctime(&head.dumpDate));
+            //printf("off=%lu = now=%lu - dump (= %lu=%s)\n", piStartOff, time(NULL), head.lastAiUpdate, ctime(&head.lastAiUpdate));
          }
          else
             piStartOff = 0;
@@ -825,12 +826,12 @@ const EPGDBSAV_PEEK * EpgDbPeek( uint cni, EPGDB_RELOAD_RESULT * pResult )
       result = EpgDbReloadHeader(cni, fd, &head);
       if (result == EPGDB_RELOAD_OK)
       {
-         pPeek->pageNo      = head.pageNo;
-         pPeek->tunerFreq   = head.tunerFreq;
-         pPeek->appId       = head.appId;
-         pPeek->dumpDate    = head.dumpDate;
-         pPeek->firstPiDate = head.firstPiDate;
-         pPeek->lastPiDate  = head.lastPiDate;
+         pPeek->pageNo       = head.pageNo;
+         pPeek->tunerFreq    = head.tunerFreq;
+         pPeek->appId        = head.appId;
+         pPeek->lastAiUpdate = head.lastAiUpdate;
+         pPeek->firstPiDate  = head.firstPiDate;
+         pPeek->lastPiDate   = head.lastPiDate;
 
          if ((size = read(fd, buffer, BLK_UNION_OFF)) == BLK_UNION_OFF)
          {

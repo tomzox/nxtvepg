@@ -4,12 +4,25 @@ changes or additions.
 
 Before you submit any feature requests, please read the TODO file.
 
+from 0.4.pre1 to 0.4.pre2 (Jan. 2001)
+- Added status line below browser window for db coverage and acq status
+- Statistics windows now available separately for browser and acq databases.
+  Added pie chart in addition to history diagram.
+- Acquisition statistics are now updated even while no EPG reception, to
+  allow analysis of reception trouble. Added output of VPS/PDC CNI.
+- NetBSD: patch from Mario to fix possible hangup of VBI slave after an
+  external /dev/video application is terminated.
+- Windows Bt8x8 driver: added PLL init for 35MHz; Improved driver start on NT;
+  Fixed blue screen during shutdown and crashes: exceptions and the shutdown
+  message are now catched and the driver stopped before the program exits;
+  Disabled registry hack for legal reasons.
+
 from 0.4.pre0 to 0.4.pre1 (Jan. 2001)
 - presentation of descriptions of merged databases improved
   by adding a separator image (horizontal line) between the texts.
 - added support for Net/Free/OpenBSD Unix in btdrv4linux by Mario Kemper
 - described Windows installation in more depth and length in the README file
-- compatibility with WinDriver 4.00
+- compatibility with Windows driver version 4.00
 - updated registry hack for Windows Bt8x8 driver 4.31 and later
 - command line can take database path as last argument
   This is intended for Windows, to be able to drag and drop a database file

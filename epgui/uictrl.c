@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: uictrl.c,v 1.2 2001/01/09 21:32:14 tom Exp tom $
+ *  $Id: uictrl.c,v 1.4 2001/01/21 20:41:56 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -44,6 +44,7 @@
 #include "epgui/pifilter.h"
 #include "epgui/pilistbox.h"
 #include "epgui/uictrl.h"
+#include "epgui/statswin.h"
 #include "epgctl/epgctxctl.h"
 
 
@@ -119,7 +120,8 @@ void UiControl_AiStateChange( ClientData clientData )
    const AI_BLOCK *pAiBlock;
 
    if ( (EpgDbContextGetCni(pUiDbContext) == 0) &&
-        (EpgDbContextGetCni(pAcqDbContext) != 0) )
+        (EpgDbContextGetCni(pAcqDbContext) != 0) &&
+        (EpgAcqCtl_ScanIsActive() == FALSE) )
    {  // UI db is completely empty (should only happen if there's no provider at all)
       dprintf1("UiControl-AiStateChange: browser db empty, switch to acq db 0x%04X\n", EpgDbContextGetCni(pAcqDbContext));
       // switch browser to acq db
@@ -133,9 +135,6 @@ void UiControl_AiStateChange( ClientData clientData )
    if ( (pUiDbContext != NULL) &&
         ((msgFromAcq == FALSE) || (pAcqDbContext == pUiDbContext)) )
    {
-      // if db is now empty, display help message
-      UiControl_CheckDbState();
-
       EpgDbLockDatabase(pUiDbContext, TRUE);
       pAiBlock = EpgDbGetAi(pUiDbContext);
       if (pAiBlock != NULL)
@@ -153,6 +152,11 @@ void UiControl_AiStateChange( ClientData clientData )
          eval_check(interp, comm);
       }
       EpgDbLockDatabase(pUiDbContext, FALSE);
+
+      // if db is now empty, display help message
+      UiControl_CheckDbState();
+      // update the info in the status line below the browser window
+      StatsWin_UpdateDbStatusLine(NULL);
    }
 }
 

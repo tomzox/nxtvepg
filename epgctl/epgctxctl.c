@@ -26,7 +26,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id$
+ *  $Id: epgctxctl.c,v 1.3 2001/01/21 12:28:35 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -271,16 +271,18 @@ void EpgContextCtl_Close( EPGDB_CONTEXT * pContext )
 // - should be called every minute, as close as possible after sec 0
 // - must be called when all dbs are unlocked, e.g. from main loop
 //
-void EpgContextCtl_SetDateTime( void )
+bool EpgContextCtl_Expire( void )
 {
    EPGDB_CONTEXT * pContext;
+   bool expired;
 
    pContext = pContextList;
+   expired = FALSE;
    while (pContext != NULL)
    {
       assert(EpgDbIsLocked(pContext) == FALSE);
 
-      EpgDbSetDateTime(pContext);
+      expired |= EpgDbExpire(pContext);
 
       pContext = pContext->pNext;
    }
@@ -288,8 +290,10 @@ void EpgContextCtl_SetDateTime( void )
    // handle merged db separately since it's not in the list
    if (EpgDbContextIsMerged(pUiDbContext))
    {
-      EpgDbSetDateTime(pUiDbContext);
+      EpgDbExpire(pUiDbContext);
    }
+
+   return expired;
 }
 
 // ---------------------------------------------------------------------------

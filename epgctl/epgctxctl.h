@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id$
+ *  $Id: epgctxctl.h,v 1.3 2001/01/21 12:29:46 tom Exp tom $
  */
 
 #ifndef __EPGCTXCTL_H
@@ -29,7 +29,7 @@
 EPGDB_CONTEXT * EpgContextCtl_Open( uint cni, CONTEXT_RELOAD_ERR_HAND errHand );
 EPGDB_CONTEXT * EpgContextCtl_CreateNew( void );
 void EpgContextCtl_Close( EPGDB_CONTEXT * pContext );
-void EpgContextCtl_SetDateTime( void );
+bool EpgContextCtl_Expire( void );
 bool EpgContextCtl_UpdateFreq( uint cni, ulong freq );
 
 

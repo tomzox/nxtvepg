@@ -52,11 +52,11 @@ DEFS   += -DTK_LIBRARY_PATH=\"/usr/lib/tk8.3\"
 DEFS   += -DTCL_LIBRARY_PATH=\"/usr/lib/tcl8.3\"
 
 
-WARN    = 
 #WARN    = -Wall -Wpointer-arith -Wnested-externs \
 #          -Werror -Wstrict-prototypes -Wmissing-prototypes
+WARN    = -Wall
 CC      = gcc
-CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -O2
+CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -g -O2
 
 # ----- don't change anything below ------------------------------------------
 

@@ -19,7 +19,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: epgdbmgmt.c,v 1.24 2000/12/21 19:28:37 tom Exp tom $
+ *  $Id: epgdbmgmt.c,v 1.26 2001/01/21 12:07:44 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -132,10 +132,11 @@ void EpgDbDestroy( PDBC dbc )
 //  - should be called exery minute, or SearchFirst will not work,
 //    i.e. return expired PI blocks
 //
-void EpgDbSetDateTime( PDBC dbc )
+bool EpgDbExpire( PDBC dbc )
 {
    EPGDB_BLOCK *pPrev, *pBlock, *pNext;
    time_t now;
+   bool expired = FALSE;
 
    if ( dbc->lockLevel == 0 )
    {
@@ -148,6 +149,7 @@ void EpgDbSetDateTime( PDBC dbc )
          {  // Sendung abgelaufen -> aus allen 3 Ketten aushaengen
 
             dprintf4("EXPIRED pi ptr=%lx: netwop=%d, blockno=%d start=%ld\n", (ulong)pBlock, pBlock->blk.pi.netwop_no, pBlock->blk.pi.block_no, pBlock->blk.pi.start_time);
+            expired = TRUE;
 
             // GUI benachrichtigen
             PiListBox_DbRemoved(dbc, &pBlock->blk.pi);
@@ -192,6 +194,8 @@ void EpgDbSetDateTime( PDBC dbc )
    }
    else
       debug0("DB-SetDateTime: DB is locked");
+
+   return expired;
 }
 
 // ---------------------------------------------------------------------------
@@ -1367,7 +1371,10 @@ bool EpgDbAddBlock( PDBC dbc, EPGDB_BLOCK * pBlock )
                pBlock->version = pBlock->blk.ai.version;
                result = EpgDbAddAiBlock(dbc, pBlock);
                if (result)
-                  StatsWin_NewAi();
+               {
+                  dbc->lastAiUpdate = time(NULL);
+                  StatsWin_NewAi(dbc);
+               }
                break;
             case BLOCK_TYPE_NI:
             case BLOCK_TYPE_OI:

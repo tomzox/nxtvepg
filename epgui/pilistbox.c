@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *
- *  $Id: pilistbox.c,v 1.37 2001/01/09 20:07:22 tom Exp tom $
+ *  $Id: pilistbox.c,v 1.38 2001/01/20 15:54:38 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -70,7 +70,7 @@ typedef enum
    PIBOX_LIST
 } PIBOX_STATE;
 
-#define PIBOX_HEIGHT 27
+#define PIBOX_HEIGHT 25
 #define PIBOX_INVALID_CURPOS -1
 PIBOX_ENTRY pibox_list[PIBOX_HEIGHT];  // list of all items in the window
 int         pibox_count;         // number of items currently visible

@@ -1,0 +1,116 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
+<HTML lang="en">
+<HEAD>
+<TITLE>Nextview EPG Decoder Change-Log</TITLE>
+<LINK href="nxtvepg.css" rel=stylesheet type=text/css>
+<META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
+<META name="language" content="en">
+<META name="author" content="Tom Zoerner">
+<META name="copyright" content="Tom Zoerner">
+<META name="keywords" lang="en" content="Bt848, video capture, capture, browser, Pro7, RTL2, 3Sat, Canal+, EuroNews, nexTView, EPG, decoder, nxtvepg, teletext, Bt878, Booktree, electronic program guide, TV-Guide, Premiere, TV program listing, TV schedule, Nextview decoder, Linux, software download, bttv, video4linux, VBI, vertical blanking interval, multimedia, data service, subscription free, TV tuner card">
+<META name="description" content="History of releases and changes inbetween for the nxtvepg decoder software">
+<META name="robots" content="index, follow">
+<META name="revisit-after" content="01 month">
+</HEAD>
+<BODY>
+
+<P><HR><P>
+<H1>Nextview EPG Decoder Change-Log</H1>
+
+This is the history of releases and major changes inbetween of the
+<A HREF="http://nxtvepg.tripod.com">nxtvepg</A>
+nexTView EPG decoder software.
+
+<H2>From 0.4.pre1 to 0.4.pre2 (Jan. 2001)</H2>
+<UL>
+<LI>Added status line below browser window for db coverage and acq status
+<LI>Statistics windows now available separately for browser and acq databases.
+  Added pie chart in addition to history diagram.
+<LI>Acquisition statistics are now updated even while no EPG reception, to
+  allow analysis of reception trouble. Added output of VPS/PDC CNI.
+<LI>NetBSD: patch from Mario to fix possible hangup of VBI slave after an
+  external /dev/video application is terminated.
+<LI>Windows Bt8x8 driver: added PLL init for 35MHz; Improved driver start on NT;
+  Fixed blue screen during shutdown and crashes: exceptions and the shutdown
+  message are now catched and the driver stopped before the program exits;
+  Disabled registry hack for legal reasons.
+</UL>
+
+<H2>From 0.4.pre0 to 0.4.pre1 (Jan. 2001)</H2>
+<UL>
+<LI>presentation of descriptions of merged databases improved
+  by adding a separator image (horizontal line) between the texts.
+<LI>added support for Net/Free/OpenBSD Unix in btdrv4linux by Mario Kemper
+<LI>described Windows installation in more depth and length in the README file
+<LI>compatibility with Windows driver version 4.00
+<LI>updated registry hack for Windows Bt8x8 driver 4.31 and later
+<LI>command line can take database path as last argument
+  This is intended for Windows, to be able to drag and drop a database file
+  onto the executable, but can generally be used to set -dbdir and -provider
+<LI>added warning messages for database reload errors or missing frequencies
+</UL>
+
+<H2>From 0.3.4 to 0.4.pre0 (Dec. 2000)</H2>
+<UL>
+<LI>added possibility to merge several provider databases into one
+<LI>cyclic acquisition between several databases
+<LI>added TV input configuration popup
+<LI>added Help button to all popups
+  order of Help, Abort, Ok identical in all popups
+<LI>port to M$ Windows (in new module epgvbi/btdrv4win.c)
+</UL>
+
+<H2>From 0.3.3 to 0.3.4 (Nov. 2000)</H2>
+<UL>
+<LI>added -demo cmd line option for users without live Nextview reception
+</UL>
+
+<H2>From 0.3.2 to 0.3.3 (Oct. 2000)</H2>
+<UL>
+<LI>fixed bug in context menu: arbitrary themes could get listed (pifilter.c)
+<LI>fixed possible heap corruption in string conversion (epgblock.c)
+</UL>
+
+<H2>From 0.3.1 to 0.3.2 (Oct. 2000)</H2>
+<UL>
+<LI>fixed bug (SIGSEGV) in CreateContextMenu()
+<LI>fixed bug in epgui.tcl, proc DeleteSortCritSelection: deletion failed
+<LI>added -c to install in Makefile for NetBSD compatibility
+<LI>added credits to manpage
+</UL>
+
+<H2>From 0.02a to 0.3.1 (Sep./Oct. 2000)</H2>
+<UL>
+<LI>added netwop, start time & sorting criterion filters to menus & shortcuts
+<LI>fixed bugs in shortcut selection: series were not set in the menu checkbuttons
+  and series filter not disabled in filter context after deselection
+<LI>automatic shortcut deselection when it's filters are manually undone
+<LI>timescale windows are reloaded after AI version changed and
+  not closed anymore upon provider change
+<LI>created manual page & help menu
+<LI>added install rule to Makefile and added installations instructions to README
+<LI>changed default for db directory to /usr/tmp/nxtvepg; added option -dbdir
+<LI>added command line option -card for alternate vbi & video devices
+  (needed when there's more than one TV card)
+<LI>added context menu, invoked by right mouse button: allows quick filter
+  selection, depending on currently selected title
+<LI>show copyright & helpful message if no provider known or db empty
+<LI>added programme title & feature summary to short-info field
+<LI>fixed LTO (GMT offset) computation during daylight saving time
+</UL>
+
+<H2>From 0.01a to 0.02a</H2>
+<UL>
+<LI>added rc/ini file to save filter shortcuts and other config options
+<LI>added netwop configuration for general exclusion of non-receptable
+  netwops and for personalized network ordering
+<LI>added command line options (UNIX only)
+<LI>added shortcut add&edit popup and implemented "merge" mode
+<LI>added EPG scan and "active acquisition mode"; the tuner is set
+  to the chanel of the selected ui db, if possible (UNIX only)
+<LI>maintain list of "obsolete" PI, i.e. PI that could not be added
+  to the db or are expired. This now allows to generate an exact
+  statistic on how many blocks on the range given in AI were
+  acquired.
+</UL>
+

@@ -16,7 +16,7 @@
  *
  *  Author: see according C source file.
  *
- *  $Id: bt848.h,v 1.1 2000/12/02 18:12:30 tom Exp tom $
+ *  $Id: bt848.h,v 1.2 2001/01/21 11:55:54 tom Exp tom $
  */
 
 #ifndef __BT848_H
@@ -59,8 +59,9 @@
 #define BT848_PLL_F_HI         0x0F4
 #define BT848_PLL_XCI          0x0F8
 
-#define BT848_TGCTRL           0x084
-
+#define BT848_TGCTRL           0x084  
+#define BT848_TGCTRL_TGCKI_PLL 0x08
+#define BT848_TGCTRL_TGCKI_NOPLL 0x00
 
 #define BT848_TDEC             0x008
 #define BT848_TDEC_DEC_FIELD   (1<<7)
@@ -113,6 +114,11 @@
 #define BT848_SCLOOP_HFILT_CIF  (1<<3)
 #define BT848_SCLOOP_HFILT_QCIF (2<<3)
 #define BT848_SCLOOP_HFILT_ICON (3<<3)
+
+#define BT848_WC_UP            0x044
+#define BT848_VTOTAL_LO        0x0B0
+#define BT848_VTOTAL_HI        0x0B4
+#define BT848_DVSIF            0x0FC
 
 #define BT848_OFORM            0x048
 #define BT848_OFORM_RANGE      (1<<7)
@@ -272,7 +278,9 @@
 
 #define BT848_RISC_STRT_ADD    0x114
 #define BT848_GPIO_OUT_EN      0x118
+#define BT848_GPIO_OUT_EN_HIBYTE      0x11A
 #define BT848_GPIO_REG_INP     0x11C
+#define BT848_GPIO_REG_INP_HIBYTE     0x11E
 #define BT848_RISC_COUNT       0x120
 #define BT848_GPIO_DATA        0x200
 #define BT848_GPIO_DATA_HIBYTE 0x202
@@ -411,6 +419,7 @@ typedef enum
    BT8X8_OPEN_RESULT_OK,
    BT8X8_OPEN_RESULT_DRIVER,
    BT8X8_OPEN_RESULT_CARDIDX,
+   BT8X8_OPEN_RESULT_PCI_SCAN,
    BT8X8_OPEN_RESULT_REGISTER,
    BT8X8_OPEN_RESULT_ELEMS,
    BT8X8_OPEN_RESULT_MALLOC,

@@ -43,7 +43,7 @@
  *    Linux:  Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
  *    NetBSD: Mario Kemper <magick@bundy.zhadum.de>
  *
- *  $Id: btdrv4linux.c,v 1.6 2001/01/09 20:46:58 tom Exp tom $
+ *  $Id: btdrv4linux.c,v 1.9 2001/01/21 13:04:17 tom Exp tom $
  */
 
 #if !defined(linux) && !defined(__NetBSD__)
@@ -129,42 +129,39 @@ static int video_fd = -1;
 static int tuner_fd = -1;
 static int vbiInputIndex;
 static unsigned char *buffer;
-
-struct Input {
-  char name [20];         // name of the input
-  int inputID;            // id within the bktr-device
-  int isTuner;            // input is a tuner
-  int isAvailable;        // the hardware has this input-type
-};
-
-struct Card {
-  char name[20];
-  struct Input inputs[MAX_INPUTS]; // the inputs, bktr currently knows only 4
-  int isAvailable;        // the card is installed
-  int isBusy;             // the device is already open
-} tv_cards[MAX_CARDS];
-
 #endif //__NetBSD__
 
 #ifdef __NetBSD__
 // ---------------------------------------------------------------------------
-// scan for all cards and input sources
-//
-static void BtDriver_ScanDevices(void)
+// This function is called by the slave and the master
+// The master calls with master==TRUE, the slave with slave==true
+// If in master mode, this function scans all devices that are not inUse
+// In slave mode it only scans the card which is inUse
+
+void BtDriver_ScanDevices( bool master )
 {
   int fd;
   int i,j;
   int input_id;
   char *input_name;
   char devName[DEV_MAX_NAME_LEN];
-
+  int done=0;
+  
   for (i=0;i<MAX_CARDS;i++) {
+    if (master) {
+      if (pVbiBuf->tv_cards[i].inUse)
+	continue;
+    }
+    else //slave
+      if (!pVbiBuf->tv_cards[i].inUse) {
+	continue;
+      }
     sprintf(devName, VIDEONAME "%u", i);
     fd=open(devName,O_RDONLY);
     if (fd!=-1) {
-      strcpy(tv_cards[i].name,devName);
-      tv_cards[i].isAvailable=1;
-      tv_cards[i].isBusy=0;
+      strcpy(pVbiBuf->tv_cards[i].name,devName);
+      pVbiBuf->tv_cards[i].isAvailable=1;
+      pVbiBuf->tv_cards[i].isBusy=0;
       for (j=0;j<MAX_INPUTS;j++) {
         switch (j) {
         case 0: //i map 0 to tuner
@@ -185,24 +182,24 @@ static void BtDriver_ScanDevices(void)
           break;
         }
         if (ioctl(fd,METEORSINPUT,&input_id)==0) {
-          tv_cards[i].inputs[j].inputID=input_id;
-          tv_cards[i].inputs[j].isTuner=(input_id==METEOR_DEV1);
-          strcpy(tv_cards[i].inputs[j].name,input_name);
-          tv_cards[i].inputs[j].isAvailable=1;
+          pVbiBuf->tv_cards[i].inputs[j].inputID=input_id;
+          pVbiBuf->tv_cards[i].inputs[j].isTuner=(input_id==METEOR_DEV1);
+          strcpy(pVbiBuf->tv_cards[i].inputs[j].name,input_name);
+          pVbiBuf->tv_cards[i].inputs[j].isAvailable=1;
         }
         else
-          tv_cards[i].inputs[j].isAvailable=0;
+          pVbiBuf->tv_cards[i].inputs[j].isAvailable=0;
       }
       close(fd);
     }
     else {
       if (errno==EBUSY) {
-        sprintf(tv_cards[i].name,"%s (busy)",devName);
-        tv_cards[i].isAvailable=1;
-        tv_cards[i].isBusy=1;
+        sprintf(pVbiBuf->tv_cards[i].name,"%s (busy)",devName);
+        pVbiBuf->tv_cards[i].isAvailable=1;
+        pVbiBuf->tv_cards[i].isBusy=1;
       }
       else {
-        tv_cards[i].isAvailable=0;
+        pVbiBuf->tv_cards[i].isAvailable=0;
       }
     }
   }
@@ -317,12 +314,12 @@ bool BtDriver_SetInputSource( int inputIdx, bool keepOpen, bool * pIsTuner )
    int cardIndex = pVbiBuf->cardIndex;
 
    if ((cardIndex<MAX_CARDS) && (inputIdx<MAX_INPUTS))
-     if (tv_cards[cardIndex].isAvailable)
-       if (!tv_cards[cardIndex].isBusy)
-         if (tv_cards[cardIndex].inputs[inputIdx].isAvailable) {
+     if (pVbiBuf->tv_cards[cardIndex].isAvailable)
+       if (!pVbiBuf->tv_cards[cardIndex].isBusy)
+         if (pVbiBuf->tv_cards[cardIndex].inputs[inputIdx].isAvailable) {
            result=TRUE;
            pVbiBuf->inputIndex=inputIdx;
-           if (tv_cards[cardIndex].inputs[inputIdx].isTuner)
+           if (pVbiBuf->tv_cards[cardIndex].inputs[inputIdx].isTuner)
              *pIsTuner=TRUE;
 
          }
@@ -370,10 +367,10 @@ bool BtDriver_TuneChannel( ulong freq, bool keepOpen )
 
    if (tuner_fd == -1)
    {
-     if (!tv_cards[pVbiBuf->cardIndex].isBusy) {
+     if (!pVbiBuf->tv_cards[pVbiBuf->cardIndex].isBusy) {
        sprintf(devName, TUNERNAME "%u", pVbiBuf->cardIndex);
        tuner_fd = open(devName, O_RDONLY);
-       dprintf1("BtDriver-TuneChannel: opened video device, fd=%d\n", tuner_fd);
+       dprintf1("BtDriver-TuneChannel: opened tuner device, fd=%d\n", tuner_fd);
      }
    }
    if (tuner_fd != -1)
@@ -390,7 +387,7 @@ bool BtDriver_TuneChannel( ulong freq, bool keepOpen )
 
       if (keepOpen == FALSE)
       {
-         dprintf1("BtDriver-TuneChannel: closing video device, fd=%d\n", video_fd);
+         dprintf1("BtDriver-TuneChannel: closing tuner device, fd=%d\n", tuner_fd);
          BtDriver_CloseDevice();
       }
    }
@@ -534,8 +531,8 @@ const char * BtDriver_GetCardName( uint cardIndex )
    char *pName=NULL;
 
    if (cardIndex<MAX_CARDS)
-     if (tv_cards[cardIndex].isAvailable)
-       pName=tv_cards[cardIndex].name;
+     if (pVbiBuf->tv_cards[cardIndex].isAvailable)
+       pName=pVbiBuf->tv_cards[cardIndex].name;
 
    return pName;
 
@@ -597,10 +594,10 @@ const char * BtDriver_GetInputName( uint cardIndex, uint inputIdx )
 #else  // __NetBSD__
    char *pName = NULL;
    if ((cardIndex<MAX_CARDS) && (inputIdx<MAX_INPUTS))
-     if (tv_cards[cardIndex].isAvailable)
-       if (!tv_cards[cardIndex].isBusy)
-         if (tv_cards[cardIndex].inputs[inputIdx].isAvailable)
-           pName =  tv_cards[cardIndex].inputs[inputIdx].name;
+     if (pVbiBuf->tv_cards[cardIndex].isAvailable)
+       if (!pVbiBuf->tv_cards[cardIndex].isBusy)
+         if (pVbiBuf->tv_cards[cardIndex].inputs[inputIdx].isAvailable)
+           pName =  pVbiBuf->tv_cards[cardIndex].inputs[inputIdx].name;
 
    return pName;
 
@@ -678,6 +675,28 @@ static void BtDriver_SignalHangup( int sigval )
    freeDevice = TRUE;
    signal(sigval, BtDriver_SignalHangup);
 }
+
+// ---------------------------------------------------------------------------
+// If one tries to read from /dev/vbi while theres no video capturing, 
+// the read() will block forever. Therefore it's surrounded by an alarm()
+// This SignalHandler will close /dev/vbi in this case and thus forces a 
+// reopening of both devices, as a read(2) will not exit when a signal 
+// arrives but simply restarted.  
+//
+#ifdef __NetBSD__
+static void BtDriver_SignalAlarm( int sigval )
+{
+  if (vbi_fdin!=-1) {
+    close(vbi_fdin);
+    vbi_fdin=-1;
+  }
+  if (video_fd!=-1) {
+    close(video_fd);
+    video_fd=-1;
+  }
+  signal(sigval, BtDriver_SignalAlarm);
+}
+#endif  //__NetBSD__
 
 // ---------------------------------------------------------------------------
 // Wake-up the acq child process to start acquisition
@@ -780,14 +799,24 @@ static void BtDriver_DecodeFrame( void )
    slong stat;
    uint  line;
 
+   #ifdef __NetBSD__
+   // wait 10 seconds for the read to complete. After this time, close
+   // dev/vbi in the signal handler, avoiding endless blocking
+   alarm(10);
+   #endif
+
    stat = read(vbi_fdin, data, VBI_BPF);
+
+   #ifdef __NetBSD__
+   alarm(0);
+   #endif
 
    if ( stat > 0 )
    {
       pData = data;
       for (line=0; line < stat/VBI_BPL; line++)
       {
-         VbiDecodeLine(pData, line, pVbiBuf->isEpgScan);
+         VbiDecodeLine(pData, line, pVbiBuf->doVpsPdc);
          pData += VBI_BPL;
          //printf("%02d: %08lx\n", line, *((ulong*)pData-4));  /* frame counter */
       }
@@ -802,7 +831,7 @@ static void BtDriver_DecodeFrame( void )
 // ---------------------------------------------------------------------------
 // Sets up the capturing needed for NetBSD to receive vbi-data.
 //
-int BtDriver_StartCapture()
+int BtDriver_StartCapture(void)
 {
   char devName[DEV_MAX_NAME_LEN];
   struct meteor_geomet geo;
@@ -945,6 +974,7 @@ static void BtDriver_Main( void )
             {
                close(video_fd);
                video_fd = -1;
+	       pVbiBuf->tv_cards[pVbiBuf->cardIndex].inUse=FALSE;
             }
             #endif
 
@@ -954,6 +984,8 @@ static void BtDriver_Main( void )
             vbiCardIndex = pVbiBuf->cardIndex;
             #ifdef __NetBSD__
             vbiInputIndex = pVbiBuf->inputIndex;
+	    pVbiBuf->tv_cards[pVbiBuf->cardIndex].inUse=TRUE;
+	    BtDriver_ScanDevices(FALSE);
             if (BtDriver_StartCapture())
             #endif
             {
@@ -992,10 +1024,11 @@ static void BtDriver_Main( void )
             close(vbi_fdin);
             vbi_fdin = -1;
             #ifdef __NetBSD__
-            if (video_fd!=-1)
+            if (video_fd != -1)
             {
                close(video_fd);
-               video_fd=-1;
+               video_fd = -1;
+	       pVbiBuf->tv_cards[pVbiBuf->cardIndex].inUse = FALSE;
             }
             #endif //__NetBSD__
          }
@@ -1027,13 +1060,14 @@ static void BtDriver_Main( void )
       close(vbi_fdin);
       vbi_fdin = -1;
 
-#ifdef __NetBSD__
-      if (video_fd!=-1)
+      #ifdef __NetBSD__
+      if (video_fd != -1)
       {
          close(video_fd);
-         video_fd=-1;
+         video_fd = -1;
+	 pVbiBuf->tv_cards[pVbiBuf->cardIndex].inUse = FALSE;
       }
-#endif //__NetBSD__
+      #endif //__NetBSD__
    }
 }
 
@@ -1048,11 +1082,6 @@ bool BtDriver_Init( void )
    pVbiBuf = NULL;
    isVbiProcess = FALSE;
    video_fd = -1;
-
-   #ifdef __NetBSD__
-   // scan cards and inputs before child is started as leter access might be blocked
-   BtDriver_ScanDevices();
-   #endif
 
    shmId = shmget(IPC_PRIVATE, sizeof(EPGACQ_BUF), IPC_CREAT|IPC_EXCL|0600);
    if (shmId == -1)
@@ -1070,9 +1099,15 @@ bool BtDriver_Init( void )
    memset(pVbiBuf, 0, sizeof(EPGACQ_BUF));
    pVbiBuf->epgPid = getpid();
 
+   #ifdef __NetBSD__
+   // scan cards and inputs
+   BtDriver_ScanDevices(TRUE);
+   #endif
+
    recvWakeUpSig = FALSE;
    signal(SIGHUP,  SIG_IGN);
    signal(SIGUSR1, BtDriver_SignalWakeUp);
+
    dbTaskPid = fork();
    if (dbTaskPid == -1)
    {
@@ -1102,10 +1137,14 @@ bool BtDriver_Init( void )
       signal(SIGTERM, BtDriver_SignalHandler);
       signal(SIGQUIT, BtDriver_SignalHandler);
       signal(SIGHUP,  BtDriver_SignalHangup);
+      #ifdef __NetBSD__
+      // install signal handler to implement read timeout on /dev/vbi
+      signal(SIGALRM,  BtDriver_SignalAlarm);
+      #endif
 
       vbi_fdin = -1;
       #ifdef __NetBSD__
-      video_fd=-1;
+      video_fd = -1;
       #endif
       acqShouldExit = FALSE;
       freeDevice = FALSE;
