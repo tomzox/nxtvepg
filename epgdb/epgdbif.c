@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbif.c,v 1.27 2001/05/19 14:25:56 tom Exp tom $
+ *  $Id: epgdbif.c,v 1.28 2001/06/12 18:20:53 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -665,15 +665,17 @@ bool EpgDbGetStat( CPDBC dbc, EPGDB_BLOCK_COUNT * pCount, time_t acqMinTime )
                if (pBlock->version == version1)
                {
                   pCount[0].curVersion += 1;
-                  if (pBlock->acqTimestamp >= acqMinTime)
-                  {
-                     pCount[0].sinceAcq += 1;
-                     blockCount1[pBlock->blk.pi.netwop_no] += 1;
-                  }
                }
             }
             else
                pCount[0].expired += 1;
+
+            if ( (pBlock->acqTimestamp >= acqMinTime) &&
+                 (pBlock->version == version1) )
+            {
+               pCount[0].sinceAcq += 1;
+               blockCount1[pBlock->blk.pi.netwop_no] += 1;
+            }
          }
          else
          {
@@ -683,15 +685,17 @@ bool EpgDbGetStat( CPDBC dbc, EPGDB_BLOCK_COUNT * pCount, time_t acqMinTime )
                if (pBlock->version == version2)
                {
                   pCount[1].curVersion += 1;
-                  if (pBlock->acqTimestamp >= acqMinTime)
-                  {
-                     pCount[1].sinceAcq += 1;
-                     blockCount2[pBlock->blk.pi.netwop_no] += 1;
-                  }
                }
             }
             else
                pCount[1].expired += 1;
+
+            if ( (pBlock->acqTimestamp >= acqMinTime) &&
+                 (pBlock->version == version2) )
+            {
+               pCount[1].sinceAcq += 1;
+               blockCount2[pBlock->blk.pi.netwop_no] += 1;
+            }
          }
 
          pBlock = pBlock->pNextBlock;

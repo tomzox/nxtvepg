@@ -4,7 +4,15 @@ changes or additions.
 
 Before you submit any feature requests, please read the TODO file.
 
-from 0.5.0 to 0.5.1 (June 2001)
+from 0.5.1 to 0.5.2 (yet unreleased)
+- bugfix programme listbox: the network filter did not follow xawtv channel
+  changes. Thanks to Werner Renhardt (werner at kangaroo.at)
+- bugfix cyclic acquisition (bug was introduced in 0.5.1): expired programmes
+  were not counted for acquisition statistics, hence sometimes the acq engine
+  did not detect when the database was complete and did not move on to the
+  next provider.
+
+from 0.5.0 to 0.5.1 (2001-June-5)
 - monitor the _XAWTV_STATION property on the xawtv window and VPS/PDC (during
   EPG acquisition) to detect channel changes (new source module epgui/xawtv.c;
   communication with xawtv is now done directly via X11 calls, and no longer

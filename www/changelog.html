@@ -1,5 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
+<!-- $Id: changelog.html,v 1.12 2001/06/14 19:42:09 tom Exp $ -->
 <HEAD>
 <TITLE>Nextview EPG Decoder Change-Log</TITLE>
 <LINK href="nxtvepg.css" rel=stylesheet type=text/css>
@@ -17,13 +18,49 @@
 <P><HR><P>
 <H1>Nextview EPG Decoder Change-Log</H1>
 
-This document contains a list of all changes between releases
-of the <A HREF="http://nxtvepg.tripod.com">nxtvepg</A>
+<P>
+This document contains a list of all major changes between releases
+of the <A HREF="http://nxtvepg.tripod.com/">nxtvepg</A>
 nexTView EPG decoder software.
+<BR>
+It now also contains information about work in progress on the next release. 
+If you're interested in beta testing new features, just send me a mail.
+</P>
+
+<H2>From 0.5.2 to 0.6.0 (yet unreleased)</H2>
+<P>
+The next release will contain the following new features:
+</P><P>
+<UL>
+<LI>Dump of programme list or selected programme descriptions into a file
+  in HTML format, from where they can be loaded by any WWW browser. This
+  may be of interest for people who want to print out TV schedules
+  onto dead trees.
+<LI>New text search option <I>Match full</I> to allow exact title matches,
+  e.g. a search for "heute" will no longer match on "heute journal" when
+  full match is enabled.
+<LI>internal change only: separated the EPG scan cleanly from the acq control
+  state machine. This removes some pitfalls which were one of the reasons the
+  last release was a week late.
+<LI><I>and certainly more...</I>
+</UL></P>
+
+<H2>From 0.5.1 to 0.5.2 (June/14/2001)</H2>
+<P>
+This release contains two bugfixes:
+</P><P>
+<UL>
+<LI>Bugfix programme listbox: the network filter did not follow xawtv channel
+  changes. Thanks to Werner Renhardt (werner at kangaroo.at)
+<LI>Bugfix cyclic acquisition (bug was introduced in release 0.5.1): expired programmes
+  were not counted for acquisition statistics, hence sometimes the acquisition engine
+  did not detect when the database was complete and did not move on to the
+  next provider.
+</UL></P>
 
 <H2>From 0.5.0 to 0.5.1 (June/5/2001)</H2>
 <P>
-This release concludes the connection of nxtvepg with
+This release completes the integration of nxtvepg with
 the <I>xawtv</I> TV application (UNIX only). Now you can not only switch the
 TV channel from inside nxtvepg's TV listings, but also zap through the channels
 with xawtv and nxtvepg's description will follow the currently tuned channel.

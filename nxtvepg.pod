@@ -24,7 +24,7 @@
 #
 #  Author: Tom Zoerner
 #
-# $Id: nxtvepg.pod,v 1.45 2001/06/05 19:01:51 tom Exp tom $
+# $Id: nxtvepg.pod,v 1.46 2001/06/12 18:46:38 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME
@@ -1021,11 +1021,14 @@ is used to exactly determine the current programme (only on networks
 which support VPS/PDC); however if the nominal running time is in the
 past it's currently not possible to display the programme in the
 listbox. This info may however be sent to xawtv (see next option).
-If you have a network filter enabled, it will be switched to the new
-network so that you'll get a complete listing of that network's
-programmes starting with the currently running one. If you have other
-filters than network enabled and they do not cover the current programme
-on the new network, the cursor or listbox content will not change.
+If you have just a network filter enabled, it will be switched to the
+new network so that you'll get a complete listing of that network's
+programmes, starting with the currently running one. This works even
+when you have excluded this network in the network selection configuration.
+If there are more or other filters than network enabled, then they will
+remain unchanged. If the current programme on the new network does not
+match this filter setting, then neither cursor nor listbox content will
+be changed.
 
 If you leave the I<Display EPG info in xawtv> option enabled,
 nxtvepg will monitor xawtv channel changes. During EPG acquisition

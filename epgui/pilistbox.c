@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pilistbox.c,v 1.56 2001/05/27 18:22:52 tom Exp tom $
+ *  $Id: pilistbox.c,v 1.57 2001/06/12 18:09:38 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -1842,7 +1842,7 @@ void PiListBox_GotoPi( const PI_BLOCK * pPiBlock )
       now = time(NULL);
       doRefresh = FALSE;
 
-      if ((pPiFilterContext->enabledFilters & ~FILTER_NETWOP_PRE) == FILTER_NETWOP)
+      if ((pPiFilterContext->enabledFilters & ~FILTER_PERM) == FILTER_NETWOP)
       {  // network filter is enabled -> switch to the new network
          // but check before if the item will be visible with the new filter setting
          fc = EpgDbFilterCopyContext(pPiFilterContext);

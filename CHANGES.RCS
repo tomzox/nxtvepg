@@ -4648,3 +4648,26 @@ www/provnets.html [rev:1.8, 2001-06-06T16:27:59]:
 www/changelog.html [rev:1.10, 2001-06-06T16:28:55]:
 - corrected English.
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_5_1 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+epgui/pilistbox.c [rev:1.57, 2001-06-12T18:09:38]:
+- bugfix PiListBox_GotoPi
+- network filter setting was never detected because expire
+    filter was not masked out
+- bug report submitted by Werner Renhardt <werner@kangaroo.at>
+epgdb/epgdbif.c [rev:1.28, 2001-06-12T18:20:53]:
+- bugfix EpgDbGetStat()
+- expired PI were not counted for sinceAcq statistics
+- hence the variance did not reach 0 even if 100% blocks were in the db
+epgctl/epgversion.h [rev:1.13, 2001-06-14T18:26:03]:
+- set to version 0.5.2 (bugfix release)
+www/index-de.html [rev:1.14, 2001-06-14T19:41:45]:
+- update for release 0.5.2
+www/index.html [rev:1.26, 2001-06-14T19:41:45]:
+- update for release 0.5.2
+www/changelog.html [rev:1.12, 2001-06-14T19:42:09]:
+- update for release 0.5.2
+- also added first changes for 0.6.0
+www/man.html [rev:1.9, 2001-06-14T19:56:06]:
+- update for release 0.5.2
+CHANGES [rev:1.14, 2001-06-14T20:49:38]:
+- updated for release 0.5.2 (bugfix release)
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_5_2 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
