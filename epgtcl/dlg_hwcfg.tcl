@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_hwcfg.tcl,v 1.15 2005/01/08 13:59:44 tom Exp $
+#  $Id: dlg_hwcfg.tcl,v 1.15 2005/01/08 13:59:44 tom Exp tom $
 #
 set hwcfg_popup 0
 set tvcard_popup 0
@@ -37,6 +37,7 @@ set hwcf_dsdrv_log 0
 #=CONST= ::pci_id_brooktree      0x109e
 #=CONST= ::pci_id_phlips         0x1131
 #=CONST= ::pci_id_conexant       0x14F1
+#=CONST= ::pci_id_pseudo_wdm     0x57444D00
 
 #=LOAD=PopupHardwareConfig
 #=DYNAMIC=
@@ -247,7 +248,19 @@ proc HardwareConfigCard {} {
          } else {
             .hwcfg.opt3.wdm_stop configure -state disabled
          }
-         .hwcfg.tvcardcfg configure -state normal
+
+         # card configuration is not required for WDM sources
+         if {[lindex $hwcfg_chip_list $hwcfg_cardidx_sel] == $::pci_id_pseudo_wdm} {
+            .hwcfg.tvcardcfg configure -state disabled
+
+            # set up pseudo card configuration (WDM sources need not be configured)
+            # (caution: order implies array indices: tvcf_chip_idx, tvcf_card_idx, tvcf_tuner_idx, tvcf_pll_idx)
+            set tvcardcf($hwcfg_cardidx_sel) [list $::pci_id_pseudo_wdm 1 1 0]
+            eval C_HwCfgUpdateTvCardConfig $hwcfg_cardidx_sel $tvcardcf($hwcfg_cardidx_sel)
+
+         } else {
+            .hwcfg.tvcardcfg configure -state normal
+         }
          catch {destroy .tvcard}
       }
    } else {

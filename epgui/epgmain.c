@@ -1969,6 +1969,9 @@ int main( int argc, char *argv[] )
 
       if (mainOpts.disableAcq == FALSE)
       {  // enable EPG acquisition
+#ifdef WIN32
+         if (RcFile_Query()->tvcard.winsrc_count > 0)
+#endif
          AutoStartAcq();
       }
 

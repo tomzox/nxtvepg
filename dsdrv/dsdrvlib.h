@@ -17,7 +17,7 @@
 // Extracted from Dscaler 
 // Copyright (c) 2000 John Adcock.  All rights reserved.
 /////////////////////////////////////////////////////////////////////////////
-// nxtvepg $Id: dsdrvlib.h,v 1.10 2004/12/26 21:51:14 tom Exp $
+// nxtvepg $Id: dsdrvlib.h,v 1.9 2003/02/22 14:58:05 tom Exp tom $
 /////////////////////////////////////////////////////////////////////////////
 
 #ifndef DSDRV43_HELPER
@@ -40,9 +40,9 @@
 extern "C" {
 #endif
 
-DWORD LoadDriver( void );
-void UnloadDriver( void );
-const char * GetDriverErrorMsg( DWORD loadError );
+DWORD DsDrvLoad( void );
+void DsDrvUnload( void );
+const char * DsDrvGetErrorMsg( DWORD loadError );
 
 DWORD DoesThisPCICardExist(DWORD dwVendorID, DWORD dwDeviceID, DWORD dwCardIndex,
                            DWORD * pdwSubSystemId, DWORD * pdwBusNumber, DWORD * pdwSlotNumber);
