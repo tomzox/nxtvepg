@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbsav.h,v 1.33 2002/09/14 18:17:46 tom Exp tom $
+ *  $Id: epgdbsav.h,v 1.34 2003/06/28 10:51:39 tom Exp tom $
  */
 
 #ifndef __EPGDBSAV_H
@@ -79,7 +79,7 @@ typedef struct
 
 // max size is much larger than any block will ever become
 // but should be small enough so it can safely be malloc'ed during reload
-#define EPGDBSAV_MAX_BLOCK_SIZE  65536
+#define EPGDBSAV_MAX_BLOCK_SIZE  30000
 
 // result codes for reload and peek (ordered by increasing user relevance)
 typedef enum

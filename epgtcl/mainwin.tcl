@@ -20,7 +20,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: mainwin.tcl,v 1.223 2003/04/21 18:57:55 tom Exp tom $
+#  $Id: mainwin.tcl,v 1.224 2003/06/28 22:27:16 tom Exp tom $
 #
 
 ##  ---------------------------------------------------------------------------
@@ -731,6 +731,7 @@ proc CreateMenubar {} {
    .systray add checkbutton -label "Enable acquisition" -variable menuStatusStartAcq -command {C_ToggleAcq $menuStatusStartAcq $menuStatusDaemon}
    .systray add checkbutton -label "Connect to acq. daemon" -variable menuStatusDaemon -command {C_ToggleAcq $menuStatusStartAcq $menuStatusDaemon}
    .systray add separator
+   .systray add command -label "Close this menu" -command {.systray unpost}
    .systray add command -label "Quit" -command {destroy .}
 }
 

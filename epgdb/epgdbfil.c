@@ -23,7 +23,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbfil.c,v 1.42 2003/03/19 16:17:12 tom Exp tom $
+ *  $Id: epgdbfil.c,v 1.43 2003/06/28 10:44:41 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -1118,10 +1118,10 @@ bool EpgDbFilterMatches( const EPGDB_CONTEXT *dbc, FILTER_CONTEXT *fc, const PI_
               (fc->netwopAirTimeStop[pPi->netwop_no] != 0) )
          {
             sint  lto = EpgLtoGet(pPi->start_time);
-            uint  airStartMoD = fc->netwopAirTimeStart[pPi->netwop_no];
-            uint  airStopMoD  = fc->netwopAirTimeStop[pPi->netwop_no];
-            uint  piStartMoD  = ((pPi->start_time + lto) % (60*60*24)) / 60;
-            uint  piStopMoD   = ((pPi->stop_time + lto) % (60*60*24)) / 60;
+            sint  airStartMoD = fc->netwopAirTimeStart[pPi->netwop_no];
+            sint  airStopMoD  = fc->netwopAirTimeStop[pPi->netwop_no];
+            sint  piStartMoD  = ((pPi->start_time + lto) % (60*60*24)) / 60;
+            sint  piStopMoD   = ((pPi->stop_time + lto) % (60*60*24)) / 60;
 
             if (airStopMoD >= airStartMoD)
             {  // time range e.g. 07:00 - 19:00
@@ -1449,10 +1449,10 @@ bool EpgDbFilterMatches( const EPGDB_CONTEXT *dbc, FILTER_CONTEXT *fc, const PI_
             struct tm * pTm = localtime(&pPi->start_time);
             if (pPi->pil == INVALID_VPS_PIL)
                fail = TRUE;
-            else if ( (pTm->tm_min == (pPi->pil & 0x3f)) &&
-                      (pTm->tm_hour == ((pPi->pil >>  6) & 0x1f)) &&
-                      (pTm->tm_mday == ((pPi->pil >> 15) & 0x1f)) &&
-                      (pTm->tm_mon + 1 == ((pPi->pil >> 11) & 0x0f)) )
+            else if ( (pTm->tm_min == (sint)(pPi->pil & 0x3f)) &&
+                      (pTm->tm_hour == (sint)((pPi->pil >>  6) & 0x1f)) &&
+                      (pTm->tm_mday == (sint)((pPi->pil >> 15) & 0x1f)) &&
+                      (pTm->tm_mon + 1 == (sint)((pPi->pil >> 11) & 0x0f)) )
                fail = TRUE;
             else
                fail = FALSE;

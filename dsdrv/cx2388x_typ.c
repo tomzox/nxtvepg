@@ -25,9 +25,9 @@
  *  Authors:
  *    Copyright (c) 2002 John Adcock.  All rights reserved.
  *
- *  DScaler #Id: CX2388xCard_Types.cpp,v 1.10 2003/03/10 17:43:19 adcockj Exp#
+ *  DScaler #Id: CX2388xCard_Types.cpp,v 1.11 2003/06/17 12:45:19 adcockj Exp #
  *
- *  $Id: cx2388x_typ.c,v 1.7 2003/03/16 18:26:31 tom Exp tom $
+ *  $Id: cx2388x_typ.c,v 1.8 2003/06/24 20:22:30 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_DSDRV
@@ -123,6 +123,7 @@ typedef enum
     CX2388xCARD_ASUS,
     CX2388xCARD_PLAYHD,
     CX2388xCARD_HAUPPAUGE_PCI_FM,
+    CX2388xCARD_PIXELVIEW_XCAPTURE_PDIMOD,
     CX2388xCARD_LASTONE,
 } eCX2388xCardId;
 
@@ -490,6 +491,37 @@ static const TCardType m_TVCards[CX2388xCARD_LASTONE] =
         //SetAnalogSaturationV,
         StandardSetFormat,
         TUNER_AUTODETECT,
+        //IDC_CX2388X,
+    },
+    {
+        "PixelView XCapture With PDI Mod",
+        3,
+        {
+            {
+                "Composite",
+                INPUTTYPE_COMPOSITE,
+                1,
+            },
+            {
+                "S-Video",
+                INPUTTYPE_SVIDEO,
+                2,
+            },
+            {
+                "PDI",
+                INPUTTYPE_CCIR,
+                3,
+            },
+        },
+        NULL,
+        //NULL,
+        StandardInputSelect,
+        //SetAnalogContrastBrightness,
+        //SetAnalogHue,
+        //SetAnalogSaturationU,
+        //SetAnalogSaturationV,
+        StandardSetFormat,
+        TUNER_ABSENT,
         //IDC_CX2388X,
     },
 };

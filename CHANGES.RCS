@@ -13966,3 +13966,159 @@ www/nefkom-src-index.html [rev:1.16, 2003-04-21T19:40:14]:
 www/tripod-src-index.html [rev:1.14, 2003-04-21T19:40:14]:
 - updated for release 2.5.1
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_5_1 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+dsdrv/saa7134_typ.c [rev:1.1.1.6, 2003-04-27T10:18:43]:
+-r1.30: Added new card: "V-Gear MyTV SAP PK"
+-r1.29: Fixed Medion TV-Tuner 7134 MK2/3 audio clock and default tuner
+-r1.28: Updated FlyVideo2000 radio GPIO setting
+dsdrv/saa7134_typ.c [rev:1.11, 2003-04-27T10:19:39]:
+- From DScaler CVS r1.28-1.30:
+-r1.30: Added new card: "V-Gear MyTV SAP PK"
+-r1.29: Fixed Medion TV-Tuner 7134 MK2/3 audio clock and default tuner
+-r1.28: Updated FlyVideo2000 radio GPIO setting
+dsdrv/bt8x8_typ.c [rev:1.1.1.2, 2003-04-27T10:57:40]:
+-r1.33: Changed PLL on Aimslab VHX
+-r1.32: Changed STB PLL
+-r1.31: Added new card: "KWorld MPEGTV RF Pro" - Patch from Kevin Radke
+dsdrv/bt8x8_typ.c [rev:1.8, 2003-04-27T10:58:19]:
+- From DScaler CVS:
+-r1.33: Changed PLL on Aimslab VHX
+-r1.32: Changed STB PLL
+-r1.31: Added new card: "KWorld MPEGTV RF Pro" - Patch from Kevin Radke
+dsdrv/saa7134_typ.c [rev:1.1.1.7, 2003-05-23T21:02:27]:
+- Imported from DScaler CVS:
+-r1.31: Added new card: "Added ASUS TV/FM"
+dsdrv/saa7134_typ.c [rev:1.12, 2003-05-23T21:02:56]:
+- Imported from DScaler CVS:
+-r1.31: Added new card: "Added ASUS TV/FM"
+epgctl/epgversion.h [rev:1.46, 2003-06-01T20:58:31]:
+- set version to 2.5.2pre1
+www/provnets.html [rev:1.24, 2003-06-05T19:38:45]:
+- Moved 3sat into the "death" section.
+epgctl/epgversion.h [rev:1.47, 2003-06-07T17:54:46]:
+- set version to 2.5.2pre2
+epgvbi/cni_tables.c [rev:1.22, 2003-06-09T15:30:23]:
+- Removed 3sat from list of "known" providers
+- (3sat teletext is now provided by ZDF instead of SwissText)
+dsdrv/bt8x8.c [rev:1.7, 2003-06-09T15:37:00]:
+- Added PCI register "management", i.e. restore settings during shutdown
+- added new function Bt8x8_ManageMyState(), equiv. to saa7134 and cx88 drivers
+- as reaction to mail from Peter Rolf <peter.rolf@arcor.de> 04 Jun 2003
+    and SF forum post "BTWinCap again" 07 Jun 2003
+www/v4l2-index.html [rev:1.1, 2003-06-15T20:08:07]:
+- Initial revision
+www/pre-releases.html [rev:1.25, 2003-06-15T20:08:35]:
+- updated for nxtvepg-2.5.2pre2
+epgctl/epgversion.h [rev:1.48, 2003-06-19T13:21:04]:
+- set version to 2.5.2pre3 (MT2032 debug release)
+dsdrv/wintuner.c [rev:1.14, 2003-06-23T19:52:36]:
+- MT2032 bug fixes
+- Tuner_SetFrequency(): freq. passed to MT2032_SetIFFreq() was kHz instead Hz
+- Tuner_Init(): TDA9887 must be initialized before MT2032 is probed on bus
+dsdrv/bt8x8_i2c.c [rev:1.7, 2003-06-23T19:52:44]:
+- Added debug output of read and written data
+- Added debug output of read and written data
+dsdrv/bt8x8.c [rev:1.8, 2003-06-23T19:52:50]:
+- Added one line of debug output in BT848_I2cInitialize()
+dsdrv/bt8x8_typ.c [rev:1.1.1.3, 2003-06-24T20:08:13]:
+-r1.34: Added APAC Viewcomp card def from Nikola Maric
+dsdrv/bt8x8_reg.h [rev:1.1.1.3, 2003-06-24T20:12:46]:
+- Update to DScaler CVS r1.24: added new card APAC, corrected BT848_VSCALE_HI
+dsdrv/bt8x8_reg.h [rev:1.15, 2003-06-24T20:13:21]:
+- Import of DScaler CVS r1.24: corrected BT848_VSCALE_HI (unused in nxtvepg)
+dsdrv/cx2388x_typ.c [rev:1.1.1.3, 2003-06-24T20:19:37]:
+-r1.11: Added new card for use with PDI (PIXELVIEW_XCAPTURE_PDIMOD)
+dsdrv/cx2388x_typ.c [rev:1.8, 2003-06-24T20:22:30]:
+- DScaler CVS Import r1.11: Added new card for use with PDI (PIXELVIEW_XCAPTURE_PDIMOD)
+dsdrv/bt8x8_typ.c [rev:1.9, 2003-06-24T20:22:59]:
+- DScaler CVS Import r1.34: added new card APAC Viewcomp BT878
+dsdrv/cx2388x_reg.h [rev:1.1.1.3, 2003-06-24T20:25:40]:
+-r1.12: Added new card for use with PDI (PIXELVIEW_XCAPTURE_PDIMOD)
+epgctl/epgscan.c [rev:1.35, 2003-06-27T20:27:40]:
+- Compiler warning fixed: changed type of extraWait from uint to time_t
+epgctl/epgacqsrv.c [rev:1.11, 2003-06-28T10:25:57]:
+- gcc3 warning fixed: EpgAcqServer_GetFdSet()
+- changed return type and type of "max" (renamed "max_fd") from uint to sint
+epgctl/epgacqsrv.h [rev:1.6, 2003-06-28T10:25:57]:
+- gcc3 warning fixed: EpgAcqServer_GetFdSet()
+- changed return type and type of "max" (renamed "max_fd") from uint to sint
+epgdb/epgdbfil.c [rev:1.43, 2003-06-28T10:44:41]:
+- gcc3 warning fixed: in _Matches(): uint->sint for airStartMoD etc. and pPi->pil
+epgdb/epgdbmgmt.c [rev:1.45, 2003-06-28T10:48:12]:
+- gcc3 compiler warnings fixed (type clash in comparisons)
+- cast dbc->pAiBlock->blk.ai.niCount etc. to uint: actual type is uint16_t
+epgdb/epgdbsav.h [rev:1.34, 2003-06-28T10:51:39]:
+- Lowered EPGDBSAV_MAX_BLOCK_SIZE from 65536 to 30000
+- actual cause was compiler warning from comparison of uint16_t to 65536
+    in daemon message block headers, but 30000 is more than enough anyways
+epgui/dumphtml.c [rev:1.2, 2003-06-28T10:55:08]:
+- gcc3 compiler warnings fixed: 2 local vars changed from uint to sint
+epgui/dumpxml.c [rev:1.2, 2003-06-28T11:00:37]:
+- Bugfix EpgDumpXml_Standalone():
+- only PI matching the GUI filters were dumped as pPiFilterContext was used
+    for PI search (because the XML code was derived from HTML dump)
+- pointed out in the nxtvepg discussion forum 2003-06-25
+epgui/epgmain.c [rev:1.122, 2003-06-28T11:09:31]:
+- gcc3 warning fixed: adapted for changed return type of EpgAcqServer_GetFdSet()
+- in DaemonMainLoop(): renamed "max" into "max_fd", from uint to sint
+epgui/menucmd.c [rev:1.103, 2003-06-28T11:11:58]:
+- fix SetHardwareConfig(): save newCardIndex in rc/ini file
+- also gcc3 warning fixed: added sint cast for comparisons with Tcl's int
+epgui/pidescr.c [rev:1.6, 2003-06-28T11:22:44]:
+- gcc3 compiler warnings fixed: some types changed from uint to sint
+epgui/pifilter.c [rev:1.83, 2003-06-28T11:22:44]:
+- gcc3 compiler warnings fixed: some types changed from uint to sint
+epgui/pilistbox.c [rev:1.89, 2003-06-28T11:23:02]:
+- gcc3 warning fixed: changed type from ulong to time_t in multiple places
+epgui/shellcmd.c [rev:1.2, 2003-06-28T11:23:39]:
+- gcc3 compiler warnings fixed: some types changed from uint to sint
+epgui/xawtv.c [rev:1.33, 2003-06-28T11:29:18]:
+- gcc3 compiler warnings fixed: Xawtv_QueryRemoteStation():
+- variable "idx" (renamed "off") adapted to match type of "nitems" for "<"
+epgui/timescale.c [rev:1.10, 2003-06-28T11:39:13]:
+- gcc3 compiler warnings fixed: some types changed from uint to sint
+epgui/pinetbox.c [rev:1.37, 2003-06-28T16:20:40]:
+- gcc3 compiler warnings fixed: (signed/unsigned type conflicts)
+- changed type of netbox.cur_col from sint to uint
+- PiNetBox_ScrollLeft/Right: changed type of param delta from sint to uint
+- misc. local varriable types changed from uint to sint
+epgctl/epgversion.h [rev:1.49, 2003-06-28T22:11:54]:
+- set version to 2.5.2pre4 (rc1)
+epgtcl/mainwin.tcl [rev:1.224, 2003-06-28T22:27:16]:
+- Windows workaround: added "Close this menu" entry to systray popup menu
+- required because menu doesn't close upon "ESC" key or mouse click outside
+    (apprearently the focus grab fails while the main window is withdrawn)
+- bugfix requested by oavenel@netpratique.fr via email 2003-06-23
+www/pre-releases.html [rev:1.26, 2003-06-28T22:32:35]:
+- updated for nxtvepg-2.5.2pre4 (rc1)
+Makefile.solaris [rev:1.2, 2003-06-28T22:33:04]:
+- Added wintvcfg to list of source modules
+epgctl/epgversion.h [rev:1.50, 2003-07-01T19:25:06]:
+- set version to 2.5.2
+nxtvepg.spec [rev:1.15, 2003-07-01T19:25:24]:
+- updated for release 2.5.2
+Makefile [rev:1.60, 2003-07-01T19:31:26]:
+- Updated copyright for UNIX manpage from 2002 to 2003
+Makefile.win32 [rev:1.39, 2003-07-01T19:33:49]:
+- updated copyright for UNIX manpages from 2002 to 2003
+- disabled -dZVBI_DECODER by default
+CHANGES.version [rev:1.15, 2003-07-01T19:50:48]:
+- added Makefile note for ZVBI
+CHANGES [rev:1.36, 2003-07-01T20:23:58]:
+- updated for release 2.5.2
+TODO [rev:1.30, 2003-07-01T20:24:34]:
+- updated for release 2.5.2
+Makefile.solaris [rev:1.3, 2003-07-01T20:28:45]:
+- Merged with latest Linux/BSD Makefile
+www/changelog.html [rev:1.46, 2003-07-03T19:03:30]:
+- updated for release 2.5.2
+www/index-de.html [rev:1.57, 2003-07-03T19:03:54]:
+- updated for release 2.5.2
+www/index.html [rev:1.70, 2003-07-03T19:03:54]:
+- updated for release 2.5.2
+www/nefkom-src-index.html [rev:1.17, 2003-07-03T19:05:20]:
+- updated for release 2.5.2
+www/tripod-src-index.html [rev:1.15, 2003-07-03T19:05:20]:
+- updated for release 2.5.2
+www/v4l2-index.html [rev:1.2, 2003-07-03T19:05:45]:
+- changed hyperlink to mailing list from https to http
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_5_2 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

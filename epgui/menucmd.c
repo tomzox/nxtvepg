@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: menucmd.c,v 1.102 2003/04/12 13:36:05 tom Exp $
+ *  $Id: menucmd.c,v 1.103 2003/06/28 11:11:58 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -1424,7 +1424,7 @@ static void SortAcqCniList( uint cniCount, uint * cniTab )
       {  // no PI in database
          if (EpgDbContextIsMerged(pUiDbContext) == FALSE)
          {
-            for (startIdx=0; startIdx < cniCount; startIdx++)
+            for (startIdx=0; startIdx < (sint)cniCount; startIdx++)
                if (cniTab[startIdx] == uiCni)
                   break;
          }
@@ -1447,11 +1447,11 @@ static void SortAcqCniList( uint cniCount, uint * cniTab )
             }
          }
 
-         if ((startIdx > 0) && (startIdx < cniCount))
+         if ((startIdx > 0) && (startIdx < (sint)cniCount))
          {  // move the UI CNI to the front of the list
             dprintf2("SortAcqCniList: moving provider 0x%04X from idx %d to 0\n", cniTab[startIdx], startIdx);
             uiCni = cniTab[startIdx];
-            for (idx=1; idx <= startIdx; idx++)
+            for (idx=1; idx <= (uint)startIdx; idx++)
                cniTab[idx] = cniTab[idx - 1];
             cniTab[0] = uiCni;
          }
@@ -1780,7 +1780,7 @@ uint GetProvFreqForCni( uint provCni )
             if ( (Tcl_GetInt(interp, pCniFreqArgv[idx], &cni) == TCL_OK) &&
                  (Tcl_GetInt(interp, pCniFreqArgv[idx + 1], &freq) == TCL_OK) )
             {
-               if (cni == provCni)
+               if ((uint)cni == provCni)
                {  // found the requested provider
                   provFreq = freq;
                   break;
@@ -2372,9 +2372,9 @@ int SetHardwareConfig( Tcl_Interp *interp, int newCardIndex )
    #ifdef WIN32
    Tcl_Obj  * pCardCfList;
    Tcl_Obj ** pCardCfObjv;
-   char       idx_str[10];
    int        llen;
    #endif
+   char idx_str[10];
    int  cardIdx, input, prio;
    int  chipType, cardType, tuner, pll;
 
@@ -2386,6 +2386,9 @@ int SetHardwareConfig( Tcl_Interp *interp, int newCardIndex )
    {
       // different card idx passed via command line -> use that & save in rc file
       cardIdx = newCardIndex;
+
+      sprintf(idx_str, "%d", newCardIndex);
+      Tcl_SetVar(interp, "hwcf_cardidx", idx_str, TCL_GLOBAL_ONLY);
 
       sprintf(comm, "UpdateRcFile");
       eval_check(interp, comm);

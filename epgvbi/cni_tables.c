@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: cni_tables.c,v 1.21 2003/04/05 12:32:45 tom Exp tom $
+ *  $Id: cni_tables.c,v 1.22 2003/06/09 15:30:23 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -726,8 +726,8 @@ static const uint cni_prov_table[] =
    0x1D92,
    //0x0D94,  // PRO7 (Germany) - deceased Apr/14/2002
    //0x1D94,
-   0x0DC7,  // 3SAT (Germany)
-   0x1DC7,
+   //0x0DC7,  // 3SAT (Germany) - deceased May/31/2003
+   //0x1DC7,
    0x2FE1,  // EuroNews (Germany)
    0xFE01,
    0x24C1,  // SF1 (Switzerland)

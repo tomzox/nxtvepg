@@ -19,7 +19,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pidescr.c,v 1.5 2003/03/09 19:30:03 tom Exp tom $
+ *  $Id: pidescr.c,v 1.6 2003/06/28 11:22:44 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -253,14 +253,14 @@ const char * PiDescription_DictifyTitle( const char * pTitle, uchar lang, char *
 //   This applies to the Germany provider RTL2 (they don't insert paragraph breaks
 //   before the description text in short-info)
 //
-static uint PiDescription_SearchLongInfo( const uchar * pShort, uint shortInfoLen,
+static sint PiDescription_SearchLongInfo( const uchar * pShort, uint shortInfoLen,
                                           const uchar * pLong,  uint longInfoLen )
 {
    const uchar * pNewline;
    const uchar * pt;
    uint  len;
    uchar c;
-   uint  result = shortInfoLen;
+   sint  result = shortInfoLen;
 
    while (longInfoLen > 0)
    {
@@ -340,9 +340,9 @@ static uchar * PiDescription_UnifyShortLong( const uchar * pShort, uint shortInf
                                              const uchar * pLong,  uint longInfoLen )
 {
    const uchar * pNewline;
-   uint  outlen;
-   uint  len;
-   uint  nonRedLen;
+   sint  outlen;
+   sint  len;
+   sint  nonRedLen;
    uchar * pOut = NULL;
 
    if ((pShort != NULL) && (pLong != NULL))

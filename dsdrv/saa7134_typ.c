@@ -26,9 +26,9 @@
  *
  *    Copyright (c) 2002 Atsushi Nakagawa.  All rights reserved.
  *
- *  DScaler #Id: SAA7134Card_Types.cpp,v 1.27 2003/02/14 09:10:40 atnak Exp #
+ *  DScaler #Id: SAA7134Card_Types.cpp,v 1.31 2003/04/28 06:28:05 atnak Exp #
  *
- *  $Id: saa7134_typ.c,v 1.10 2003/03/11 12:32:47 tom Exp tom $
+ *  $Id: saa7134_typ.c,v 1.12 2003/05/23 21:02:56 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_DSDRV
@@ -135,6 +135,7 @@ static void KWTV713XRFCardInputSelect(TVCARD * pTvCard, int nInput);
 static void PrimeTV7133CardInputSelect(TVCARD * pTvCard, int nInput);
 static void ManliMTV001CardInputSelect(TVCARD * pTvCard, int nInput);
 static void ManliMTV002CardInputSelect(TVCARD * pTvCard, int nInput);
+static void VGearMyTVSAPCardInputSelect(TVCARD * pTvCard, int nInput);
 static void StandardSAA7134InputSelect(TVCARD * pTvCard, int nInput);
 
 /// SAA713x Card Ids
@@ -157,6 +158,8 @@ typedef enum
     SAA7134CARDID_MEDION7134,
     SAA7134CARDID_TYPHOON90031,
     SAA7134CARDID_MANLIMTV002,
+    SAA7134CARDID_VGEAR_MYTV_SAP,
+    SAA7134CARDID_ASUS_TVFM,
     SAA7134CARDID_LASTONE,
 } eSAA7134CardId;
 
@@ -691,8 +694,8 @@ static const TCardType m_SAA7134Cards[] =
                 AUDIOINPUTSOURCE_LINE2,
             },
         },
-        TUNER_PHILIPS_PAL,
-        AUDIOCRYSTAL_24576Hz,
+        TUNER_PHILIPS_FM1216ME_MK3,
+        AUDIOCRYSTAL_32110Hz,
         NULL,
         StandardSAA7134InputSelect,
     },
@@ -768,6 +771,72 @@ static const TCardType m_SAA7134Cards[] =
         NULL,
         ManliMTV002CardInputSelect,
     },
+    // SAA7134CARDID_VGEAR_MYTV_SAP - V-Gear MyTV SAP PK
+    // Thanks "Ken Chung" <kenchunghk2000@ya...>
+    {
+        "V-Gear MyTV SAP PK",
+        3,
+        {
+            {
+                "Tuner",
+                INPUTTYPE_TUNER,
+                VIDEOINPUTSOURCE_PIN1,
+                AUDIOINPUTSOURCE_DAC,
+            },
+            {
+                "Composite",
+                INPUTTYPE_COMPOSITE,
+                VIDEOINPUTSOURCE_PIN3,
+                AUDIOINPUTSOURCE_LINE1,
+            },
+            {
+                "S-Video",
+                INPUTTYPE_SVIDEO,
+                VIDEOINPUTSOURCE_PIN0,
+                AUDIOINPUTSOURCE_LINE1,
+            },
+        },
+        TUNER_PHILIPS_PAL_I,
+        AUDIOCRYSTAL_32110Hz,
+        NULL,
+        VGearMyTVSAPCardInputSelect,
+    },
+    // SAA7134CARDID_ASUS_TVFM - ASUS TV/FM
+    // Thanks "Wolfgang Scholz" <wolfgang.scholz@ka...>
+    {
+        "ASUS TV/FM",
+        4,
+        {
+            {
+                "Tuner",
+                INPUTTYPE_TUNER,
+                VIDEOINPUTSOURCE_PIN1,
+                AUDIOINPUTSOURCE_DAC,
+            },
+            {
+                "Composite",
+                INPUTTYPE_COMPOSITE,
+                VIDEOINPUTSOURCE_PIN4,
+                AUDIOINPUTSOURCE_LINE2,
+            },
+            {
+                "S-Video",
+                INPUTTYPE_SVIDEO,
+                VIDEOINPUTSOURCE_PIN0,          // (Might req mode 6)
+                AUDIOINPUTSOURCE_LINE2,
+            },
+            {
+                "Radio",
+                INPUTTYPE_SVIDEO,
+                VIDEOINPUTSOURCE_PIN0,
+                AUDIOINPUTSOURCE_LINE2,
+            },
+        },
+        TUNER_PHILIPS_PAL,
+        AUDIOCRYSTAL_32110Hz,
+        NULL,
+        StandardSAA7134InputSelect,
+    },
 };
 
 
@@ -784,6 +853,7 @@ static const TAutoDetectSAA7134 m_AutoDetectSAA7134[] =
     { 0x7133, 0x5168, 0x0138, SAA7134CARDID_PRIMETV7133  },
     { 0x7134, 0x153b, 0x1143, SAA7134CARDID_CINERGY600   },
     { 0x7134, 0x16be, 0x0003, SAA7134CARDID_MEDION7134   },
+    { 0x7134, 0x1043, 0x4842, SAA7134CARDID_ASUS_TVFM    },
 };
 
 
@@ -1054,7 +1124,7 @@ static void FLYVIDEO2000CardInputSelect(TVCARD * pTvCard, int nInput)
         break;
     case 4: // Radio
         MaskDataDword(SAA7134_GPIO_GPMODE, 0x0018e700, 0x0EFFFFFF);
-        MaskDataDword(SAA7134_GPIO_GPSTATUS, 0x0000, 0xE000);
+        MaskDataDword(SAA7134_GPIO_GPSTATUS, 0x2000, 0xE000);
         break;
     case -1: // Ending cleanup
         MaskDataDword(SAA7134_GPIO_GPMODE, 0x0018e700, 0x0EFFFFFF);
@@ -1160,6 +1230,23 @@ static void ManliMTV002CardInputSelect(TVCARD * pTvCard, int nInput)
         break;
     }
     */
+}
+
+
+static void VGearMyTVSAPCardInputSelect(TVCARD * pTvCard, int nInput)
+{
+    StandardSAA7134InputSelect(pTvCard, nInput);
+    switch(nInput)
+    {
+    case 0: // Tuner
+    case 1: // Composite
+    case 2: // S-Video
+        MaskDataDword(SAA7134_GPIO_GPMODE, 0x4400, 0x0EFFFFFF);
+        MaskDataDword(SAA7134_GPIO_GPSTATUS, 0x0400, 0x4400);
+        break;
+    default:
+        break;
+    }
 }
 
 

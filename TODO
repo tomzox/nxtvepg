@@ -31,6 +31,13 @@ Misc. fixes & changes recently suggested/planned for the near future:
   order of the merged providers; when adding a new provider to an merge
   config, append new networks to the merged db's network list
 - add note to acq config dlg: does not affect display db
+- M6 Nextview: derive theme codes from description
+- timescale bug: when acq running in daemon for non-UI database, display is
+  cleared but not refilled after zoom +/-
+
+VBI slicer:
+- vbidecode: handle interlaced data and non-symmetric start lines
+- libzvbi: don't skip frames after channel change, already done by lib
 
 New "NetBox" layout: open issues/known problems:
 - refresh may leave excessive gaps between items;
@@ -82,6 +89,9 @@ WIN32 port fixes:
 - allow manual horizontal resizing for grid layout
 - menubutton popups does not work when invoked for the 2nd time via
   ALT key binding (Thierry)
+- start with main window maximized when requested in Windows shortcut properties
+  (requested by Thierry; I've no idea how to query these properties though)
+- systray popup menu should close by any mouse click outside of it
 
 merged database fixes:
 - fine control for provider merge
