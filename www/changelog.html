@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: changelog.html,v 1.35 2002/08/24 15:46:49 tom Exp $ -->
+<!-- $Id: changelog.html,v 1.37 2002/09/22 18:56:34 tom Exp $ -->
 <HEAD>
 <TITLE>Nextview EPG Decoder Change-Log</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
@@ -45,15 +45,81 @@ improvements for the M$ Windows platform (see changelog for 0.7.1):
 -->
 
 
+<H2>Known problems in 2.3.0</H2>
+<P>
+<UL>
+<LI>There's a bug in the drop-down menu under the header of the "Time"
+    column in the main window: "Next" behaves identical to "Now" and
+    all times are off by 2 hours. <I>Not analyzed yet.</I>
+</UL>
+
+
+<H2>From 2.2.1 to 2.3.0 (September/17/2002)</H2>
+<P>
+This release contains the following new features and fixes:
+</P>
+<UL>
+<LI>Bugfix in user-defined context menu entries: variables using modifiers
+  (e.g. ${start: %H:%M %d.%m.%Y}) sometimes had trailing garbage; this
+  bug was introduced in 2.2.0. Thanks to Friedrich Delgado Friedrichs
+  for pointing this out.
+<LI>Bugfix in decoding of description texts (newlines were not processed
+  correctly sometimes); also improved text display by inserting paragraph
+  breaks when there is a completely empty line in the original description text
+<LI>Added "duration" filter, so that programmes ouside of given running time
+  length boundaries can be suppressed (e.g. filler programmes which are
+  less then 10 minutes long)
+<LI>Added possibility to manually resize all listbox columns by dragging the
+  right border of the column header menu buttons (not possible if headers are
+  disabled in the "show" options of the configure menu). Note that the
+  automatic resizing of the network name column was dropped in favour
+  of this feature.
+<LI>Timescale windows are now always made large enough to display the time range
+  covered by all programmes in the database (formerly only the next 5 days were
+  covered, which was by far not enough for the German provider Kabel1)
+<LI>Added zoom and help buttons to the timescale windows
+<LI>Improved key bindings and default keyboard focus in main browser and dialog
+  windows; CTRL-F in main window now opens the text search dialog;
+  CTRL-C opens the context menu; digit keys now toggle shortcuts;
+  Return tunes the channel like pressing the Tune-TV button
+<LI>The search text history is now accessible from inside the text search filter
+  dialog (by pressing the down cursor key or clicking the arrow button next to
+  the text entry field)
+<LI>The "Refresh" mode of the EPG scan now allows to remove databases of obsolete
+  providers which no longer transmit Nextview EPG (e.g. Pro7 or TV5).
+  Thanks to Frank Mauler for pointing out the need for this feature.
+<LI>Added a "Load all used" button to the sorting criterion filter dialog
+  which fills the sorting criterion selection listbox with a list of all
+  codes that are actually used in the current database. This allows a quick
+  overview which criterions will produce any matches when filtered for.
+<LI>Linux only: fixed tuner frequency setting (in particular the EPG scan) for
+  SECAM/PAL multi-norm tuners. Thanks to "Keuleu 36" for debugging this problem
+<LI>UNIX only: fine tuning offsets and TV norm in the .xawtv file are now
+  evaluated for the EPG scan
+<LI>Windows: enabled multi-card support (see changelog of version 2.2.0)
+<LI>Internal reorganization of the interface between Tcl/Tk and C modules
+  (using the "object-based" Tcl interface for function arguments and results)
+</UL>
+<P>
+Note that this release comes with a new version of the Win32 DScaler TV card
+driver (files dsdrv4.sys and dsdrv4.vxd) which is not compatible with K!TV
+versions 1.2.0.2 and earlier.  Except for multi-card support nxtvepg will
+work with older drivers too, hence if K!TV complains you can simply replace
+the driver files with older versions.
+</P>
+
 <H2>From 2.2.0 to 2.2.1 (August/24/2002)</H2>
 <P>
 This release contains the following fixes:
 </P>
 <UL>
-<LI>Major bugfix: nxtvepg crashed randomly due to a memory overwrite bug
-  in the short-info description text display function. The bug was present
-  since at least version 0.7.0 but surfaced only now because some very
-  long description texts were transmitted by the German provider Kabel1.
+<LI>Major bugfix: nxtvepg crashed frequently due to a memory overwrite bug
+  in the description text display function. The bug exists in <B>all</B>
+  previous versions! (It surfaced only now because some very long description
+  texts were transmitted by the German provider Kabel1).
+  Due to the severity of the bug there are also patches available for
+  <A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/patch-nxtvepg-0.6.4.txt">0.6.4</A> and
+  <A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/patch-nxtvepg-0.7.0.txt">0.7.0</A>
 <LI>Bugfix in database merge: merge failed when no networks were manually
   selected yet
 <LI>Network name column in the programme listing now automatically adapts

@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgstream.c,v 1.21 2002/05/10 18:01:18 tom Exp tom $
+ *  $Id: epgstream.c,v 1.23 2002/09/13 08:36:44 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -299,7 +299,7 @@ static uint EpgStreamAddData( const uchar * dat, uint restLine, bool isNewBlock 
             psd->blockLen = ((c2 >> 1) | (c3 << 3) | (c4 << 7)) + 4;  // + length of block len itself
             psd->haveHeader = TRUE;
 
-            dprintf4("               start block recv stream %d, appID=%d, len=%d, startlen=%d\n", /*packNo, blockPtr,*/ streamOfPage+1, psd->appID, psd->blockLen, restLine);
+            dprintf4("               start block recv stream %d, appID=%d, len=4+%d, startlen=4+%d\n", /*packNo, blockPtr,*/ streamOfPage+1, psd->appID, psd->blockLen - 4, restLine);
          }
          else
          {  // hamming error
@@ -332,8 +332,8 @@ static uint EpgStreamAddData( const uchar * dat, uint restLine, bool isNewBlock 
 
 // ---------------------------------------------------------------------------
 // Process EPG data packet
-// - the function uses two separate internal states the two streams
-// - a single teletext packet can produce several blocks
+// - the function uses two separate internal states for the two streams
+// - a single teletext packet can produce several EPG blocks
 //
 static void EpgStreamDecodePacket( uchar packNo, const uchar * dat )
 {
@@ -341,8 +341,22 @@ static void EpgStreamDecodePacket( uchar packNo, const uchar * dat )
    schar c1;
    uint  blockPtr;
 
-   if ( (streamOfPage < NXTV_NO_STREAM) &&
-        (packNo <= streamData[streamOfPage].pkgCount) )
+   if (streamOfPage < NXTV_NO_STREAM)
+   {
+      if (packNo <= psd->lastPkg)
+      {  // packet sequence broken, probably due to missing page header
+         // don't know what stream this page belongs to -> discard it
+         debug2("missed page header: got pkg %d <= last pkg %d - discard page", packNo, psd->lastPkg);
+         streamOfPage = NXTV_NO_STREAM;
+      }
+      else if (packNo > streamData[streamOfPage].pkgCount)
+      {  // unexpected packet, probably from different page -> stop decoding current page
+         debug2("EpgStream-DecodePacket: invalid pkg no #%d > %d - discard page", packNo, streamData[streamOfPage].pkgCount);
+         streamOfPage = NXTV_NO_STREAM;
+      }
+   }
+
+   if (streamOfPage < NXTV_NO_STREAM)
    {
       if ( psd->haveBlock &&
           (packNo != psd->lastPkg + 1))
@@ -358,31 +372,37 @@ static void EpgStreamDecodePacket( uchar packNo, const uchar * dat )
 
          if (psd->haveBlock && (blockPtr > 1))
          {  // append data to a block
-            dprintf2("pkg=%2d, BP= 1: append %d bytes\n", packNo, blockPtr - 1);
-            EpgStreamAddData(dat + 1, blockPtr - 1, FALSE);
+            dprintf2("pkg=%2d, BP= 1: append up to %d bytes\n", packNo, blockPtr - 1);
+            blockPtr = 1 + EpgStreamAddData(dat + 1, blockPtr - 1, FALSE);
          }
-         else if (blockPtr == 40) dprintf1("BP=0xD -> no block start in this packet %d\n", packNo);
+         else if ((psd->haveBlock == FALSE) && (blockPtr == 40))
+            dprintf1("pkg=%2d: BP=0xD -> no block start in this packet\n", packNo);
 
          while (blockPtr < 40)
          {  // start of at least one new structure in this packet
-            if ( UnHam84Nibble(dat + blockPtr, &c1) && (c1 == 0x0c) )
+            if ( UnHam84Nibble(dat + blockPtr, &c1) )
             {
-               dprintf3("pkg=%2d, BP=%2d: start with %d bytes\n", packNo, blockPtr, 40 - 1 - blockPtr);
-               blockPtr += 1;
-               // write the data in the output buffer & process the EPG block when complete
-               blockPtr += EpgStreamAddData(dat + blockPtr, 40 - blockPtr, TRUE);
-
-               // skip filler bytes
-               while ((blockPtr < 40) && UnHam84Nibble(dat + blockPtr, &c1) && (c1 == 0x03))
+               if (c1 == 0x0c)
                {
+                  dprintf3("pkg=%2d, BP=%2d: start with %d bytes\n", packNo, blockPtr, 40 - 1 - blockPtr);
+                  blockPtr += 1;
+                  // write the data in the output buffer & process the EPG block when complete
+                  blockPtr += EpgStreamAddData(dat + blockPtr, 40 - blockPtr, TRUE);
+               }
+               else if (c1 == 0x03)
+               {  // filler byte -> skip one byte
                   dprintf2("pkg=%2d, BP=%2d: skipping filler byte\n", packNo, blockPtr);
                   blockPtr += 1;
+               }
+               else
+               {  // unexpected content (lost sync) -> skip this packet
+                  debug3("pkg=%2d, BP=%2d: %02X: neither BS nor FB - skipping\n", packNo, blockPtr, c1);
+                  blockPtr = 40;
                }
             }
             else
             {  // decoding error - skip this packet
-               debug4("struct header error: BP=%d appID=%x blockLen=%x bs=%x - skipping block", blockPtr, psd->appID, psd->blockLen, c1);
-               psd->haveBlock = FALSE;
+               debug3("BS marker hamming error atBP=%d: BP=%d != 3; appID=%x", blockPtr, c1, psd->appID);
                blockPtr = 40;
             }
          }
@@ -394,7 +414,7 @@ static void EpgStreamDecodePacket( uchar packNo, const uchar * dat )
       }
    }
    else
-      debug3("EpgStream-DecodePacket: invalid stream=%d or packet=%d > %d", streamOfPage, packNo, streamData[streamOfPage].pkgCount);
+      dprintf1("pkg=%2d: discarded - not on a valid page\n", packNo);
 }
 
 // ---------------------------------------------------------------------------
@@ -451,7 +471,7 @@ static bool EpgStreamNewPage( uint sub )
             }
          }
 
-         dprintf4("new page: CI=%d stream=%d pkgno=%d last=%d\n", newCi, streamOfPage, newPkgCount, firstPkg);
+         dprintf4("pkg= 0: ***NEW PAGE*** CI=%d stream=%d pkgno=%d last=%d\n", newCi, streamOfPage, newPkgCount, firstPkg);
          streamData[streamOfPage].ci = newCi;
          streamData[streamOfPage].pkgCount = newPkgCount;
          streamData[streamOfPage].lastPkg = firstPkg;
@@ -489,7 +509,7 @@ static bool EpgStreamPageHeaderCheck( const uchar * curPageHeader )
       {
          dec = (schar)parityTab[curPageHeader[i]];
          if ( (dec >= 0) && (dec != ttxState.lastPageHeader[i]) )
-         {  // Abweichung gefunden
+         {  // count the number of differing characters
             err += 1;
          }
       }
@@ -501,7 +521,7 @@ static bool EpgStreamPageHeaderCheck( const uchar * curPageHeader )
       }
    }
    else
-   {  // erster Aufruf -> Parity dekodieren; falls fehlerfrei abspeichern
+   {  // first header after channel change -> copy header
       for (i=0; i < HEADER_CHECK_LEN; i++)
       {
          dec = (schar)parityTab[ curPageHeader[i] ];
@@ -513,7 +533,7 @@ static bool EpgStreamPageHeaderCheck( const uchar * curPageHeader )
             break;
       }
 
-      // erst OK wenn fehlerfrei abgespeichert
+      // only OK if no parity decoding error
       if (i >= HEADER_CHECK_LEN)
       {
          dprintf1("EpgStream-PageHeaderCheck: found header \"%" HEADER_CHECK_LEN_STR "s\"\n", ttxState.lastPageHeader);

@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgtabdump.c,v 1.1 2002/08/11 19:53:12 tom Exp tom $
+ *  $Id: epgtabdump.c,v 1.3 2002/09/11 12:40:46 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -40,6 +40,7 @@
 #include "epgdb/epgdbif.h"
 #include "epgctl/epgctxctl.h"
 #include "epgui/pdc_themes.h"
+#include "epgui/epgmain.h"
 #include "epgui/uictrl.h"
 #include "epgui/menucmd.h"
 #include "epgui/pioutput.h"
@@ -53,35 +54,48 @@
 // ----------------------------------------------------------------------------
 // Print Short- and Long-Info texts or separators
 //
-static void EpgTabDumpPiInfoTextCb( void *vp, const char * pShortInfo, bool insertSeparator, const char * pLongInfo )
+static void EpgTabDumpPiInfoTextCb( void * vp, const char * pShortInfo,
+                                    bool insertSeparator, const char * pLongInfo )
 {
    FILE * fp = (FILE *) vp;
-   char * pNewline;
+   const char * pText;
+   const char * pNewline;
+   char  fmtBuf[15];
+   uint  idx;
 
    if (fp != NULL)
    {
       if (pShortInfo == NULL)
       {  // special case: neither short nor long info given: output only separator
-         fprintf(fp, " /\\/\\/ ");
-      }
-      else if (pLongInfo == NULL)
-      {  // only short info given
-
-         // check for newline chars, which are normally used to separate infos from
-         // different providers; however here they must be replaced, because one PI
-         // must occupy exactly one line in the output file
-         pNewline = strchr(pShortInfo, '\n');
-         if (pNewline != NULL)
-         {
-            *pNewline = 0;
-            fprintf(fp, "%s // %s", pShortInfo, pNewline + 1);
-         }
-         else
-            fprintf(fp, "%s", pShortInfo);
+         assert(pLongInfo == NULL);
+         fprintf(fp, " //%%// ");
       }
       else
-      {  // short and long info given
-         fprintf(fp, "%s%s%s", pShortInfo, (insertSeparator ? " // " : ""), pLongInfo);
+      {
+         // use a pseudo-loop to process both the short and long info texts in the same way
+         pText = pShortInfo;
+         for (idx=0; idx < 2; idx++)
+         {
+            // check for newline chars, they must be replaced, because one PI must
+            // occupy exactly one line in the output file
+            while ( (pNewline = strchr(pText, '\n')) != NULL )
+            {
+               // print text up to (and excluding) the newline
+               sprintf(fmtBuf, "%%.%ds // ", pNewline - pText);
+               fprintf(fp, fmtBuf, pText);
+               // skip to text following the newline
+               pText = pNewline + 1;
+            }
+            fprintf(fp, "%s", pText);
+
+            if (insertSeparator)
+               fprintf(fp, " // ");
+
+            if (pLongInfo != NULL)
+               pText = pLongInfo;
+            else
+               break;
+         }
       }
    }
 }
@@ -185,6 +199,10 @@ static void EpgTabDumpPi( FILE *fp, const PI_BLOCK * pPi, const EPGDB_CONTEXT * 
 static void EpgTabDumpAi( FILE *fp, const AI_BLOCK * pAi )
 {
    const AI_NETWOP *pNetwop;
+   const uchar * pCfNetname;
+   uchar cni_str[7];
+   Tcl_DString ds;
+   char * native;
    uint netwop;
 
    if (pAi != NULL)
@@ -193,6 +211,16 @@ static void EpgTabDumpAi( FILE *fp, const AI_BLOCK * pAi )
 
       for (netwop=0; netwop < pAi->netwopCount; netwop++)
       {
+         // get user-configured network name
+         sprintf(cni_str, "0x%04X", pNetwop->cni);
+         pCfNetname = Tcl_GetVar2(interp, "cfnetnames", cni_str, TCL_GLOBAL_ONLY);
+         if (pCfNetname != NULL)
+         {  // convert the String from Tcl internal format to Latin-1
+            native = Tcl_UtfToExternalDString(NULL, pCfNetname, -1, &ds);
+         }
+         else
+            native = NULL;
+
          fprintf(fp, "%u\t%u\t%d\t%u\t%u\t%u\t%s\n",
                      netwop,
                      pNetwop->cni,
@@ -200,7 +228,11 @@ static void EpgTabDumpAi( FILE *fp, const AI_BLOCK * pAi )
                      pNetwop->dayCount,
                      pNetwop->alphabet,
                      pNetwop->addInfo,
-                     AI_GET_STR_BY_OFF(pAi, pNetwop->off_name));
+                     ((native != NULL) ? (char*) native : (char*) AI_GET_STR_BY_OFF(pAi, pNetwop->off_name)));
+
+         if (pCfNetname != NULL)
+            Tcl_DStringFree(&ds);
+
          pNetwop += 1;
       }
    }

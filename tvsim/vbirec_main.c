@@ -26,7 +26,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: vbirec_main.c,v 1.13 2002/08/17 19:18:14 tom Exp tom $
+ *  $Id: vbirec_main.c,v 1.14 2002/09/02 19:50:31 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_TVSIM
@@ -72,7 +72,9 @@ extern char tcl_init_scripts[];
 extern char tk_init_scripts[];
 
 Tcl_Interp *interp;          // Interpreter for application
-char comm[1000];             // Command buffer
+#define TCL_COMM_BUF_SIZE  1000
+// add one extra byte at the end of the comm buffer for overflow detection
+char comm[TCL_COMM_BUF_SIZE + 1];
 
 static Tcl_AsyncHandler asyncThreadHandler = NULL;
 static Tcl_TimerToken   clockHandler       = NULL;
@@ -98,36 +100,6 @@ typedef struct
 static TTX_DEC_STATS ttxStats;
 static CNI_DEC_STATS cniStats;
 static uint          epgPageNo;
-
-// ---------------------------------------------------------------------------
-// Execute a Tcl/Tk command line and check the result
-//
-static int eval_check(Tcl_Interp *interp, char *cmd)
-{
-   int result;
-
-   result = Tcl_Eval(interp, cmd);
-
-   #if DEBUG_SWITCH == ON
-   if (result != TCL_OK)
-   {
-      if (strlen(cmd) > 256)
-         cmd[256] = 0;
-      #if (DEBUG_SWITCH_TCL_BGERR == ON)
-      {
-         char *errbuf = xmalloc(strlen(cmd) + strlen(interp->result) + 20);
-         sprintf(errbuf, "bgerror {%s: %s}", cmd, interp->result);
-         Tcl_Eval(interp, errbuf);
-         xfree(errbuf);
-      }
-      #else
-      debug2("Command: %s\nError: %s", cmd, interp->result);
-      #endif
-   }
-   #endif
-
-   return result;
-}
 
 // ---------------------------------------------------------------------------
 // Callback to deal with Windows shutdown
@@ -676,6 +648,11 @@ static int ui_init( int argc, char **argv )
       Tcl_FindExecutable(argv[0]);
    }
 
+   #if DEBUG_SWITCH == ON
+   // set last byte of command buffer to zero to detect overflow
+   comm[sizeof(comm) - 1] = 0;
+   #endif
+
    interp = Tcl_CreateInterp();
 
    if (argc > 1)
@@ -696,7 +673,8 @@ static int ui_init( int argc, char **argv )
    if (Tk_Init(interp) != TCL_OK)
    {
       #ifndef USE_PRECOMPILED_TCL_LIBS
-      fprintf(stderr, "%s\n", interp->result);
+      fprintf(stderr, "Failed to initialise the Tk library at '%s' - exiting.\nTk error message: %s\n",
+                      TK_LIBRARY_PATH, Tcl_GetStringResult(interp));
       exit(1);
       #endif
    }
@@ -704,11 +682,13 @@ static int ui_init( int argc, char **argv )
    #ifdef USE_PRECOMPILED_TCL_LIBS
    if (Tcl_VarEval(interp, tcl_init_scripts, NULL) != TCL_OK)
    {
-      debug1("tcl_init_scripts error: %s\n", interp->result);
+      debug1("tcl_init_scripts error: %s\n", Tcl_GetStringResult(interp));
+      debugTclErr(interp, "tcl_init_scripts");
    }
    if (Tcl_VarEval(interp, tk_init_scripts, NULL) != TCL_OK)
    {
-      debug1("tk_init_scripts error: %s\n", interp->result);
+      debug1("tk_init_scripts error: %s\n", Tcl_GetStringResult(interp));
+      debugTclErr(interp, "tk_init_scripts");
    }
    #endif
 

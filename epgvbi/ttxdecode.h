@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: ttxdecode.h,v 1.26 2002/05/30 13:57:51 tom Exp tom $
+ *  $Id: ttxdecode.h,v 1.27 2002/09/14 19:01:47 tom Exp tom $
  */
 
 #ifndef __TTXDECODE_H
@@ -70,7 +70,7 @@ void TtxDecode_NotifyChannelChange( volatile EPGACQ_BUF * pThisVbiBuf );
 #endif
 
 // interface to the teletext packet decoder
-void TtxDecode_AddPacket( const uchar * data );
+void TtxDecode_AddPacket( const uchar * data, uint line );
 void TtxDecode_AddVpsData( const uchar * data );
 bool TtxDecode_NewVbiFrame( uint frameSeqNo );
 

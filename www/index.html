@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: index.html,v 1.46 2002/08/24 15:47:15 tom Exp $ -->
+<!-- $Id: index.html,v 1.49 2002/09/22 18:56:21 tom Exp $ -->
 <HEAD>
 <TITLE>nexTView EPG Decoder Software Download Page</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
@@ -47,7 +47,9 @@
 
 <P class="navhead"><B>News</B>
 <P class="navsect">
-Aug/24/2002: <A HREF="#download">release 2.2.1</A></P>
+Sep/17/2002: <A HREF="#download">release 2.3.0</A></P>
+<HR width=70%><P class="navsect">
+Aug/24/2002: <FONT COLOR="red">Major bugfix release 2.2.1</FONT></P>
 <HR width=70%><P class="navsect">
 Aug/18/2002: release 2.2.0</P>
 <HR width=70%><P class="navsect">
@@ -98,10 +100,12 @@ TV channels.
 Currently nexTView EPG is transmitted by the following TV stations:
 </P>
 <UL>
-<LI>in Germany and Austria: Kabel1, 3Sat, RTL-II (coverage: apx. 31 networks)
-<LI>in Switzerland: SF1, TSR1, TSI1, EuroNews (coverage: apx. 37 networks)
+<LI>in Germany and Austria: Kabel1, 3Sat, RTL-II, EuroNews
+    (coverage: apx. 31 networks)
+<LI>in Switzerland: SF1, TSR1, TSI1, EuroNews, 3sat, Kabel1
+    (coverage: apx. 37 networks)
 <LI>in France: Canal+, M6 (coverage: 8 networks)
-<LI>in Turkey: TRT-1 (coverage: 23 networks)
+<LI>in Turkey: TRT-1 (coverage: 17 networks)
 </UL>
 <P>
 For more details see the <A HREF="provnets.html">provider table</A>.
@@ -122,8 +126,9 @@ at one of the following manufacturers:
 <A HREF="http://www.loewe.de">Loewe</A>,
 <A HREF="http://www.metz.de">Metz</A>,
 <A HREF="http://www.philips.com">Philips</A>,
-<A HREF="http://www.sony-europe.com">Sony</A> or
-<A HREF="http://www.thompson.com">Thomson</A>.
+<A HREF="http://www.sony-europe.com">Sony</A>,
+<A HREF="http://www.thompson.com">Thomson</A> or
+<A HREF="http://www.quelle.de">Quelle Universum</A>.
 </P>
 
 <H2 class=hr>System Requirements</H2>
@@ -171,14 +176,16 @@ account with special privileges (you must be allowed to install &amp; start a se
 <H2>Download</H2>
 </A>
 <P>
-The latest stable release is version 2.2.1 (released August/24/2002).
-<STRONG>Notable changes in 2.2.x:</STRONG>
-The language of theme identifiers is no longer English only; listings for
-selected networks can be restricted to the time window where they are
-available to the user (e.g. ARTE 19:00 - 7:00); the database can be
-exported into a text file which then can be loaded into other applications,
-e.g. relational databases or spreadsheets.  <B>Version 2.2.1</B> fixes several
-major bugs; An update is highly recommended, also from version 0.7.x.
+The latest stable release is version 2.3.0.
+</P><P>
+<B><FONT color="red">Important announcement:</FONT></B> Unfortunately there was a bug in all
+versions up to (and including) 2.2.0 which led to frequent crashes since August 2002
+for users of the German provider Kabel1.  If you experience crashes when scrolling
+through programme listings read from Kabel1, then please either apply one of the
+patches against the source code, which are available for versions
+<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/patch-nxtvepg-0.6.4.txt">0.6.4</A> and
+<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/patch-nxtvepg-0.7.0.txt">0.7.0</A>
+or upgrade to the latest stable version.
 </P><P>
 For a detailed history of new features and fixes in previous releases
 refer to the <A HREF="changelog.html">Change-Log</A>.
@@ -194,15 +201,16 @@ to the nxtvepg project on <A HREF="http://freshmeat.net/projects/nxtvepg/">fresh
 <H3>Source distribution</H3>
 </A>
 <P>
-Download the latest source distribution for Linux and NetBSD:
-<A HREF=http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-2.2.1.tar.gz>nxtvepg-2.2.1.tar.gz</A>
-(661 kB)
+Download the latest stable source distribution for Linux and NetBSD:
+<A HREF=http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-2.3.0.tar.gz>nxtvepg-2.3.0.tar.gz</A>
+(680 kB)
 </P><P>
 You can build a RPM package from the source tarball simply by running
-<KBD>rpm -ta nxtvepg-2.2.1.tar.gz</KBD> and install it as usual with
+<KBD>rpm -ta nxtvepg-2.3.0.tar.gz</KBD> and install it as usual with
 <KBD>rpm -i</KBD>.  You can also donwload directly installable packages
 (not necessarily the latest version)
 for Linux at <A HREF="http://rpmfind.net/linux/rpm2html/search.php?query=nxtvepg">rpmfind.net</A>
+or <A HREF="http://packages.debian.org/stable/utils/nxtvepg.html">Debian</A>
 and for NetBSD at <A HREF="ftp://ftp.netbsd.org/pub/NetBSD/packages/pkgsrc/misc/nxtvepg/README.html">netbsd.org</A>
 </P>
 
@@ -210,22 +218,24 @@ and for NetBSD at <A HREF="ftp://ftp.netbsd.org/pub/NetBSD/packages/pkgsrc/misc/
 <H3>Binary distribution for M$ Windows</H3>
 </A>
 <P>
-Windows executable:
-<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-2.2.1-win.zip">nxtvepg-2.2.1-win.zip</A>
-(1039 kB)
+Windows executable of the latest stable version:
+<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-2.3.0-win.zip">nxtvepg-2.3.0-win.zip</A>
+(1048 kB)
 </P><P>
 Demo application for TV application interaction
-<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-2.2.0-tvsim.zip">nxtvepg-2.2.0-tvsim.zip</A>
-(245 kB; no update for 2.2.1)<BR>
+<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-2.3.0-tvsim.zip">nxtvepg-2.3.0-tvsim.zip</A>
+(245 kB)<BR>
 (see <A HREF="tvsim.html">tvsim</A>,
 <A HREF="vbirec.html">vbirec</A> or
 <A HREF="vbiplay.html">vbiplay</A> manuals, or
 <A HREF="screenshot-tvsim.gif">tvsim &amp; nxtvepg</A> and
 <A HREF="screenshot-vbirec.gif">tvsim &amp; vbirec screenshot</A>)
 </P><P>
-Simply unpack the nxtvepg ZIP file into an empty directory and then double-click the
-nxtvepg.exe file.  The optional tvsim ZIP file should be unpacked into the same directory.
-Please refer to the Help menu or HTML manual page, section
+Simply unpack the nxtvepg ZIP file into an empty directory and then
+double-click the nxtvepg.exe file.  If you're upgrading from an older version
+of nxtvepg, you can copy your previous INI file and databases into the new
+directory.  The optional tvsim ZIP file should be unpacked into the same
+directory.  Please refer to the Help menu or HTML manual page, section
 <A HREF="man.html#getting started">Getting Started</A> for setup instructions.
 </P>
 
@@ -242,7 +252,7 @@ so that you can see what you're missing.
 </P><P>
 To use the demo database, download it into your nxtvepg directory, decompress it
 and load it with the command line arguments <CODE>-demo nxdemodb.epg</CODE> (Unix)
-into nxtvepg, or simply drag and drop it onto the executable (Windows Explorer)
+into nxtvepg, or simply drag and drop it onto the executable (Windows Explorer).
 </P><P>
 The copyright of the content of this database is by <I>Swiss Tele text</I> -
 please do not redistribute.

@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgmain.h,v 1.20 2002/08/24 13:55:46 tom Exp tom $
+ *  $Id: epgmain.h,v 1.22 2002/09/02 20:00:14 tom Exp tom $
  */
 
 #ifndef __EPGMAIN_H
@@ -29,11 +29,11 @@ extern char epg_rcs_id_str[];
 
 // Interface to Tcl/Tk interpreter for UI modules
 #ifdef _TCL
+#define TCL_COMM_BUF_SIZE  1000
 extern Tcl_Interp *interp;
-extern char comm[2048];
+// add one extra byte at the end of the comm buffer for overflow detection
+extern char comm[TCL_COMM_BUF_SIZE + 1];
 
-int eval_check(Tcl_Interp *i, char *c);
-int eval_global(Tcl_Interp *interp, char *cmd);
 void AddMainIdleEvent( Tcl_IdleProc *IdleProc, ClientData clientData, bool unique );
 bool RemoveMainIdleEvent( Tcl_IdleProc * IdleProc, ClientData clientData, bool matchData );
 

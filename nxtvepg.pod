@@ -24,7 +24,7 @@
 #
 #  Author: Tom Zoerner
 #
-# $Id: nxtvepg.pod,v 1.74 2002/08/24 14:15:08 tom Exp tom $
+# $Id: nxtvepg.pod,v 1.76 2002/09/16 19:30:41 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME
@@ -278,13 +278,16 @@ L<"DATA ACQUISITION"> and L<"FILTERING">.
 
 =head2 TV card Setup on UNIX
 
-UNIX users just need to check if the correct input source and
-frequency table are selected; default is to use the TV tuner as
-input source (i.e. the antenna cable) and a German/Austrian/Swiss
-frequency table.  If you live in France or want to use one of the
-external video inputs (e.g. a satellite receiver), open the
-TV card configuration dialog in the Configure menu and change the
-parameters; else you can skip this step.
+UNIX users do not need to do any hardware related configuration.
+However there are still 3 parameters that should be checked via
+the TV card configuration dialog in the configure menu:
+if you're not using an antenna cable for TV reception, choose either
+Composite or S-Video as input source, depending where you've connected
+your external receiver;
+if you live in France and are using an antenna, you must select the
+French TV frequency table (which implies using the Secam TV norm
+instead of PAL B/G/I);
+if you have more than one TV card you can otionally select which on to use.
 
 
 =head2 TV card Setup on M$ Windows
@@ -372,8 +375,8 @@ channel; then quit the other application; finally start acquisition again).
 In external mode nxtvepg will not touch the tuner and wait infinitly for
 Nextview reception on the current channel.  On Windows (and Linux with
 bttv drivers version 0.7.50 and earlier) this method has the disadvantage
-that no frequency will be known for this provider so this procedure has
-to be repeated every time you start acquisition.
+that no frequency will be known for this provider so you have to tune
+the provider's channel manually whenever you start acquisition.
 
 Alternatively if you decided not to use the tuner, open the Acquisition
 mode dialog from the Configure menu and select external mode. Then provide
@@ -478,10 +481,14 @@ to scroll the listing forward to programmes farer in the future.
 With the keyboard, use the Cursor up/down keys to select any title.
 For fast scrolling use the page up/down keys. With the Home key you
 always get back to the first title. With TAB and SHIFT-TAB you can
-move the keyboard input focus to other widgets, e.g. to the scrollbars
-or the shortcut list. On Unix, the menus can be accessed with the
-Meta key (usually the ALT key) together with one of the underlined
-characters in the menu buttons.
+move the keyboard input focus to other widgets, e.g. to the network
+and shortcut lists; to apply a selected theme or shortcut as filter
+press the Space or Return key. The first 10 shortcuts can also be
+enabled directly from the main window with the digit keys 1-9 and 0.
+Control-C in the main window opens the context menu; Control-F opens
+the text search dialog; the Escape key is equivalent to the Reset
+button.  The menus can be accessed by pressing the ALT key together
+with the underlined character in the respective menu button.
 
 When you resize the main window vertically the difference in height
 will be added to the info text window at the bottom.  You can adjust
@@ -756,10 +763,11 @@ the browser database, and one for the acquisition database. The
 acquisition window is updated whenenever new EPG blocks are received.
 
 The timescale windows have one scale for each network covered by the
-selected provider. Each scale covers 5 days, beginning with the start time
-of the first TV programme in the database. Depending on how long ago
-the database was updated, the dates may be partly or entirely in the past.
-The exact dates are printed in the date scale at top of the window.
+selected provider. Each scale begins with the start time of the first
+TV programme in the database. Depending on how long ago the database
+was updated, the TV programmes may be partly or entirely in the past.
+The exact dates are printed in the date scale at top of the window,
+the current time is additionally marked with a small arrow.
 
 Ranges that are covered by programmes of the respective network in the
 database are marked in shades of red or blue, uncovered ranges are left black.
@@ -806,6 +814,15 @@ is available.
 time range which is not covered by the provider.
 
 =back
+
+Programmes for which description texts are currently available are
+additionally marked by an increased height of the scale in the covered
+time range.  For short-info the area is extended towards the top, for
+long-info towards the bottom (the distinction between short and long
+info is only related to the Nextview transmission specification and
+does not neccessarily relate to the length of the description texts;
+also note that for the merged database there's no distinction between
+short and long info because all texts are concatenated into one.)
 
 In front of the scales there are 5 separate boxes, which refer to the
 first 5 programmes (PI blocks) in the inventory (AI block).  They have
@@ -1107,9 +1124,9 @@ Restrict the listing to programmes that have any of the given theme
 categories attached to them (logical OR). The Nextview standard
 contains a list of 76 predefined themes, which are structured into
 11 main categories and subcategories. A programme can have up to
-5 themes attached. If you want to restrict the listing to programmes
-that have more than one of the given themes (logical AND) you need
-to specify them in different theme classes.
+7 theme descriptors attached. If you want to restrict the listing to
+programmes that have more than one of the given themes (logical AND)
+you need to specify them in different theme classes.
 
 
 =item B<Series>
@@ -1155,9 +1172,10 @@ title-only searches, as started from the context menu). If you enable
 I<match case> character case is relevant in comparisons, i.e. a search
 for "heute" will not match on title "Heute Abend".
 
-The last used options are remembered in your personal configuration file.
-A history of the last searches, including options, are also stored and
-available in the "Title" drop-down menu in the main browser window.
+A history of the last 10 searches, including options, are stored and
+available in the drop-down menu below the search text entry field (opened
+with the arrow button at the left or one of the up/down cursor keys)
+and the I<Title> column header menu in the browser.
 
 
 =item B<Start Time>
@@ -1176,16 +1194,38 @@ For manual navigation there are more practical alternatives, e.g.
 the scrollbar and drop-down menus in the main browser window.
 
 
-=item B<Sorting Criterions>
+=item B<Duration>
+
+Restrict the listing to programmes whose duration (i.e. difference
+between start and stop time) lies in the given range.  When the
+maxium is set to zero, the filter is switched off.
+
+
+=item B<Sorting Criteria>
 
 Restrict the listing to programmes that have any of the given sorting
-criteria attached to them. Sorting criteria work very much like themes,
+criteria attached to them; every programme can have 0..7 sorting
+criteria attached to it.  They work very much like theme descriptors
 however their meaning is not predefined by the Nextview standard.
 The content provider can use arbitrary numbers to represent an attribute.
 Attributes usually are themes that are not in the predefined catalog,
 e.g. current events like the Olympic Games, but could also be not
-content related at all.  The meaning of these numbers is only
+content related at all.  The meaning of these numbers is usually
 defined by the provider's navigation menus (see L<"NAVIGATE">).
+
+Equivalently to themes, you can assign sorting criteria in different
+I<classes> to implement a logical AND, i.e. only programmes that have
+at least one of the sorting criteria specified in every used class
+will match. Example: to get all programmes that have 0x01 attached
+plus either 0x10 or 0x11, specify sorting criterion 0x01 in class #1
+and 0x10 and 0x11 in class #2.  Note that the dialog displays
+all values in hexadecimal format, i.e. with digits 0-9 followed
+by a-f.
+
+The I<Load all used> button in the sorting criteria filter dialog
+fills the selection listbox with a list of all codes that are actually
+used in the current database.  This allows a quick overview which filter
+criteria will produce any matches.
 
 =back
 
@@ -1540,9 +1580,19 @@ Open the provider selection dialog.  This dialog lists all TV channels
 from which Nextview data can be received.  When you select a channel
 name on the list, you'll see the name of the Nextview service that's
 transmitted there and a list of all networks covered by it on the right.
-If you leave the dialog with Ok, the selected provider's database will be
-loaded into the browser.  The according TV channel will also be tuned
-to update the database, if you have selected "Follow-UI" acquisition mode.
+
+If you leave the dialog with Ok, the selected provider's database will
+be loaded into the browser.  If the database hasn't been updated for a
+long time, the programme list might initially be empty, but if you have
+selected "Follow-UI" acquisition mode, the provider's TV channel will be
+tuned to update the database content (see L<"ACQUISITION MODES"> for
+more details.)
+
+To remove obsolete providers (i.e. such which have ceased to provide
+Nextview service or which you can no longer receive), you should start a
+provider scan in I<refresh> mode.  You cannot remove active providers
+because nxtvepg would add them back automatically in the next scan or
+when their TV channel is tuned externally.
 
 
 =head2 Merge providers
@@ -1565,7 +1615,8 @@ firstly to find out which providers are available in your area, and
 secondly to determine the frequencies of all provider's TV channels. They
 are required for most acquisition modes, and due to driver limitations
 often not available without a scan (e.g. on Windows or Linux with bttv
-driver <= 0.7.50). See also L<"GETTING STARTED">.
+driver <= 0.7.50). See also L<"GETTING STARTED"> and the subsequent
+chapter on TV card configuration.
 
 Check the I<Slow> button if you have bad reception on some channels.
 In slow mode the scanner will not require a stable video signal and wait
@@ -1579,14 +1630,17 @@ configuration file is found in your home directory (on UNIX) or
 a TV application was set up in the I<TV app. interaction> dialog
 (or initially in the I<TV card input> dialog).  Instead of
 searching all possible channels in all bands, nxtvepg then just checks
-the channels assigned there (in xawtv fine-tuning and absolute frequencies
-currently are ignored though), which saves a lot of time.
+the TV channels defined there, which saves a lot of time.
 
-Use the I<Refresh only> mode if you deleted your database files or if you
-upgrade from an incompatible software version. In this mode only the
-channels on which Nextview data was received before are checked (the
-frequencies are kept in the rc/ini file). This enables you to regain your
-complete provider list very quickly.
+Use the I<Refresh only> mode if you deleted your database files (or if you
+upgrade from an incompatible software version) or if you want to find and
+remove obsolete providers. In this mode only the channels on which Nextview
+data was received before are checked (the frequencies are kept both in the
+databases and your rc/ini file). This allows you to regain your complete
+provider list very quickly. If no data transmission is found on a
+provider's channel, a I<Remove this provider> will be added to the
+output window, which you can use after the scan has finished to remove
+the database and any information recorded about the provider.
 
 The scan will visit every physical TV frequency (or subsets thereof if
 you use one of the options described above) and check for a TV signal.
@@ -1614,8 +1668,8 @@ If you find new providers not listed on the web site, please let me know.
 
 Open a dialog where the driver for the TV card can be configured.
 This dialog looks very different on Windows and UNIX platforms,
-because on UNIX the driver is part of the kernel, whereas on
-Windows it's part of the application and has to be configured
+because on UNIX the driver is part of the operating system, whereas
+on Windows it's part of the application and has to be configured
 separately for every application.
 
 On Windows systems you must at least specify which type of tuner
@@ -1632,7 +1686,16 @@ you can raise the acquisition thread priority.  Default is I<normal>,
 i.e. the same as for all user applications.
 
 The remaining three configuration options apply to both UNIX and
-Windows: firstly you may choose which video input source to use.
+Windows: firstly choose which video input source to use, i.e. where
+you have connected an input signal cable to the TV card:
+I<Tuner> or I<Television> refer to input via antenna cable (also
+known as RF cable, i.e. terrestrial reception or cable TV);
+I<Composite> refers to a cinch video cable as used by satellite
+receivers or cheap video records; I<S-Video> is an variant of Composite
+with improved image quality (often wrongly called S-VHS cable since
+it's mostly used by S-VHS video recorders) and easily recognized
+by the Sub-D connectors (called "Hosidenstecker" in German).
+
 See L<"DATA ACQUISITION"> about the consequences of not using the
 TV tuner as input.  On Windows: in rare cases the descriptions of
 input sources in the TV card popup may be wrong (due to creative
@@ -1640,10 +1703,13 @@ wiring of the Bt8x8 chip on your TV card) so that you may find
 your TV tuner for example on "Composite 1".  This is an open point
 in the driver interface implementation; feel free to complain to me.
 
-If you live in France, select the French frequency table to be used
-for the EPG scan; the default is a frequency table for Germany, Austria
-and Switzerland. Other countries are not supported, since there currently
-are no Nextview providers.
+If you live in France, select the French frequency table (which implies
+the I<Secam L> TV norm) to be used for the EPG scan; the default is a
+frequency table for Germany, Austria and Switzerland and the PAL B/G/I
+TV norm. Other countries are not supported, since there currently
+are no Nextview providers.  If you live in an area where you receive
+both PAL and Secam stations, you should perform the EPG scan twice
+with different channel tables.
 
 If you have more than one TV tuner card, you can also choose which
 one to use, just like with the B<-card> command line option. On
@@ -1660,7 +1726,7 @@ nxtvepg working directory.  Enable this option if you're not able to
 start the driver and cannot find out why.  But first see the explanation
 of driver error messages in the README file.  Note that the logging
 option is not remembered across program starts, i.e. to make use of it
-you have to enable the acquisition via the Control menu and not be
+you have to enable the acquisition via the Control menu and not by
 restarting nxtvepg.
 
 
@@ -1933,6 +1999,12 @@ The topmost entry appears on the left side of the listbox.  Press I<Apply>
 to refresh the browser listbox with the new column selection and save the
 new configuration to the config file.
 
+Note: you can change the width of each column by moving the mouse pointer
+to the very right of the menu button above each column (provided column
+headers have not been disabled in the Configure menu) and then dragging
+the border to a new position while keeping the left mouse button pressed
+down.
+
 
 =head2 Select networks
 
@@ -1965,6 +2037,15 @@ in the left or right list, then enter "19:00" and "07:00" in the fields
 that fall completely outside that window will not appear in the browser
 window.  If you want to undo the limitation, enter 00:00 until 00:00
 or any other equal time values.
+
+Note: you can also operate this dialog (and all other dialogs with similar
+listbox selections) with he keyboard: use the TAB key or the mouse to move
+the keyboard input focus to the left or right listbox. Use the cursor
+up/down keys to select an item; hold down SHIFT to select multiple items.
+In the left list, press Return to add a network to the right list. In the
+right list, press the Delete key to remove a network, or press CONTROL
+and the up/down cursor keys to change the selected items' position in
+the list.
 
 
 =head2 Network names
@@ -2012,12 +2093,6 @@ in Germany "Arte / Kinderkanal", it's recommended to include all
 networks' names in the network name on side of the TV application,
 separated by a slash.  The slash is recognized as separator by nxtvepg
 and all resulting segments can be used as network names.
-
-Also note that the I<Network> column in the main window is automatically
-resized to hold the longest name.  When determining the maximum length
-all networks of the current provider are considered including those you
-have suppressed in the L<"CONFIGURATION:Select networks"> dialog (because
-they still might get displayed, e.g. via the L<"NAVIGATE"> menu).
 
 
 =head2 Context menu

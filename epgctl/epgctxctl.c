@@ -31,7 +31,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgctxctl.c,v 1.21 2002/07/27 13:41:29 tom Exp tom $
+ *  $Id: epgctxctl.c,v 1.22 2002/09/14 18:13:43 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -39,6 +39,7 @@
 
 #include <time.h>
 #include <string.h>
+#include <errno.h>
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
@@ -1021,6 +1022,57 @@ uint EpgContextCtl_GetFreqList( uint ** ppProvList, uint ** ppFreqList )
 
    // note: the list must be freed by the caller!
    return maxCount;
+}
+
+// ---------------------------------------------------------------------------
+// Remove a provider from the cache and remove the database
+// - fails if the database is still opened
+// - returns 0 on success, EBUSY if db open, or POSIX error code from file unlink
+//
+uint EpgContextCtl_Remove( uint cni )
+{
+   CTX_CACHE * pContext;
+   uint result = 0;
+
+   // search for the context in the cache
+   pContext = pContextCache;
+   while (pContext != NULL)
+   {
+      if (pContext->provCni == cni)
+         break;
+      pContext = pContext->pNext;
+   }
+
+   if (pContext != NULL)
+   {
+      if ( (pContext->openRefCount == 0) &&
+           (pContext->peekRefCount == 0) )
+      {
+         if (pContext->pDbContext != NULL)
+         {
+            EpgDbDestroy(pContext->pDbContext, FALSE);
+            pContext->pDbContext = NULL;
+         }
+
+         pContext->state     = CTX_CACHE_ERROR;
+         pContext->reloadErr = EPGDB_RELOAD_EXIST;
+
+         result = EpgDbRemoveDatabaseFile(cni);
+      }
+      else
+      {  // db still opened -> abort
+         debug3("EpgContextCtl-Remove: cannot remove open db 0x%04X: ref=%d+%d", cni, pContext->openRefCount, pContext->peekRefCount);
+         result = EBUSY;
+      }
+   }
+   else
+      result = EpgDbRemoveDatabaseFile(cni);
+
+   // a missing database file is no error
+   if (result == ENOENT)
+      result = 0;
+
+   return result;
 }
 
 // ---------------------------------------------------------------------------

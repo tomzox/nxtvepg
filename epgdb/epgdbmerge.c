@@ -22,7 +22,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbmerge.c,v 1.24 2002/01/31 20:28:19 tom Exp tom $
+ *  $Id: epgdbmerge.c,v 1.25 2002/09/14 18:22:50 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -826,6 +826,7 @@ void EpgDbMergeAiBlocks( PDBC dbc, uint cfNetwopCount, uint * pNetwopList )
    uint netwop, dbIdx, idx;
    bool  found;
    uchar netOrigIdx[MAX_NETWOP_COUNT];
+   uchar dayCount[MAX_NETWOP_COUNT];
    uchar * pServiceName;          // temporarily holds merged service name
    uint nameLen;                  // sum of netwop name lengths
    uint blockLen;                 // length of composed AI block
@@ -883,6 +884,7 @@ void EpgDbMergeAiBlocks( PDBC dbc, uint cfNetwopCount, uint * pNetwopList )
       if ((netwop >= netwopCount) && (cni != 0) && (cni != 0x00ff) &&
           (netwopCount < MAX_NETWOP_COUNT))
       {
+         dayCount[netwopCount] = 0;
          for (dbIdx=0; dbIdx < dbCount; dbIdx++)
          {
             pAi = (AI_BLOCK *) &dbmc->pDbContext[dbIdx]->pAiBlock->blk.ai;
@@ -901,6 +903,8 @@ void EpgDbMergeAiBlocks( PDBC dbc, uint cfNetwopCount, uint * pNetwopList )
                   pNetwopList[netwopCount] = cni;
                   found = TRUE;
                }
+               if (pNetwops->dayCount > dayCount[netwopCount])
+                  dayCount[netwopCount] = pNetwops->dayCount;
                dbmc->netwopMap[dbIdx][netwop] = netwopCount;
                dbmc->revNetwopMap[dbIdx][netwopCount] = netwop;
             }
@@ -954,6 +958,7 @@ void EpgDbMergeAiBlocks( PDBC dbc, uint cfNetwopCount, uint * pNetwopList )
 
             pTargetNetwops[netwop].cni      = pNetwops->cni;
             pTargetNetwops[netwop].alphabet = pNetwops->alphabet;
+            pTargetNetwops[netwop].dayCount = dayCount[netwop];
             pTargetNetwops[netwop].off_name = blockLen;
             strcpy((char *) AI_GET_STR_BY_OFF(pTargetAi, blockLen), AI_GET_STR_BY_OFF(pAi, pNetwops->off_name));
             blockLen += strlen(AI_GET_STR_BY_OFF(pAi, pNetwops->off_name)) + 1;

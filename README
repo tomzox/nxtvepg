@@ -129,20 +129,26 @@ Explanation of Windows Bt8x8 driver error messages:
   2. On Windows NT and Windows 2000 you need to have special privileges
   to start the driver (e.g. on NT you should be in the Administrator group)
 
-  3. Another application using the DScaler driver may already be runing.
-  Currently the driver can be used only by one application at the same
-  time, even if you have more than one TV card.
-
-  4. You're using driver files of a wrong version.  You must use the
+  3. You're using driver files of a wrong version.  You must use the
   version that comes with nxtvepg.
 
-  5. You're starting nxtvepg from a network drive, however the driver
+  4. You're starting nxtvepg from a network drive, however the driver
   cannot be installed on a remote drive.  Please move the nxtvepg
   directory onto a local drive (e.g. C:)
 
-  6. The "DSdrv4" service entry in the registry may be messed up.
-  You can remove all keys that match "dsdrv". Note:  you should delete
+  5. The "DSdrv4" service entry in the registry may be messed up.
+  You can remove all keys that match "dsdrv4". Note:  you should delete
   not only those in the CurrentControlSet, but those in all control sets.
+
+  6. Another application using version 4.00 of the DScaler driver may
+  already be runing.  Early versions of the driver could be used only by
+  one application at the same time, even if you had more than one TV card.
+  For compatibility reasons nxtvepg does not insist on the latest driver.
+  Note: to force windows to use the new driver version which comes with
+  nxtvepg, you should remove or rename all other files names dsdrv4.sys
+  and dsdrv4.vxd on your harddisk, because windows does not use the drivers
+  in the current directory but instead a path that was recoded in the
+  registry during service installation.
 
   If none of these seem to be the cause, you can enable logging to a
   file in the "TV card input" dialog in the Configure menu.  The log

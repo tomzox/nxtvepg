@@ -46,7 +46,7 @@
  *    WinDriver replaced with DSdrv (DScaler driver)
  *      March 2002 by E-Nek (e-nek@netcourrier.com)
  *
- *  $Id: btdrv4win.c,v 1.24 2002/07/20 16:27:08 tom Exp tom $
+ *  $Id: btdrv4win.c,v 1.25 2002/09/14 19:03:05 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -677,7 +677,7 @@ static BOOL Set_Capture(BOOL enable)
 // - returns TRUE in *pIsTuner if the selected source is the TV tuner
 //   XXX currently index 0 is hardwired as TV tuner input
 //
-bool BtDriver_SetInputSource( int inputIdx, bool keepOpen, bool * pIsTuner )
+static bool BtDriver_SetInputSource( int inputIdx, bool * pIsTuner )
 {
    bool result = FALSE;
 
@@ -1422,7 +1422,7 @@ static bool BtDriver_Load( void )
             }
             if (btCfg.inputSrc != INVALID_INPUT_SOURCE)
             {  // if source already set, apply it now
-               BtDriver_SetInputSource(btCfg.inputSrc, FALSE, NULL);
+               BtDriver_SetInputSource(btCfg.inputSrc, NULL);
             }
 
             result = TRUE;
@@ -1573,27 +1573,38 @@ bool BtDriver_Configure( int cardIndex, int tunerType, int pllType, int prio )
 // Change the tuner frequency
 // - makes only sense if TV tuner is input source
 //
-bool BtDriver_TuneChannel( uint freq, bool keepOpen )
+bool BtDriver_TuneChannel( int inputIdx, uint freq, bool keepOpen, bool * pIsTuner )
 {
    bool result = FALSE;
 
-   // remember frequency for later
-   btCfg.tunerFreq = freq;
-
-   if (shmSlaveMode == FALSE)
+   if (BtDriver_SetInputSource(inputIdx, pIsTuner))
    {
-      if (btDrvLoaded)
+      // XXX discard TV norm info in the high-byte
+      freq &= 0xffffff;
+
+      if (*pIsTuner && (freq != 0))
       {
-         result = Tuner_SetFrequency(btCfg.tunerType, freq);
+         // remember frequency for later
+         btCfg.tunerFreq = freq;
+
+         if (shmSlaveMode == FALSE)
+         {
+            if (btDrvLoaded)
+            {
+               result = Tuner_SetFrequency(btCfg.tunerType, freq);
+            }
+            else
+            {  // driver not loaded -> freq will be tuned upon acq start
+               result = TRUE;
+            }
+         }
+         else
+         {  // even in slave mode the TV app may have granted the tuner tu us
+            result = WintvSharedMem_SetTunerFreq(freq);
+         }
       }
       else
-      {  // driver not loaded -> freq will be tuned upon acq start
          result = TRUE;
-      }
-   }
-   else
-   {  // even in slave mode the TV app may have granted the tuner tu us
-      result = WintvSharedMem_SetTunerFreq(freq);
    }
 
    return result;

@@ -28,7 +28,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: tvchan.c,v 1.7 2002/05/11 15:42:50 tom Exp tom $
+ *  $Id: tvchan.c,v 1.8 2002/09/14 19:00:48 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -39,6 +39,7 @@
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
+#include "epgvbi/btdrv.h"
 #include "epgvbi/tvchan.h"
 
 
@@ -90,9 +91,15 @@ const FREQ_TABLE * const freqTableList[] =
    freqTableFrance
 };
 
+typedef enum
+{
+   FREQ_TAB_D_A_CH,
+   FREQ_TAB_FRANCE,
+   FREQ_TAB_COUNT
+} TVCHAN_FREQ_TAB_IDX;
 
 // index of the frequency table currently in use
-static uint freqTabIdx = 0;
+static TVCHAN_FREQ_TAB_IDX freqTabIdx = 0;
 
 // ---------------------------------------------------------------------------
 // Converts channel name back to frequency
@@ -101,25 +108,31 @@ uint TvChannels_NameToFreq( const char * pName )
 {
    const FREQ_TABLE *ft;
    char * pEnd;
+   TVCHAN_FREQ_TAB_IDX tabIdx;
    uint  channel;
 
-   ft = freqTableList[freqTabIdx];
-   while (ft->firstChannel > 0)
+   for (tabIdx=0; tabIdx < FREQ_TAB_COUNT; tabIdx++)
    {
-      if ((*ft->prefix == 0) || (strncmp(pName, ft->prefix, strlen(ft->prefix)) == 0))
+      ft = freqTableList[tabIdx];
+
+      while (ft->firstChannel > 0)
       {
-         channel = (uint) strtol(pName + strlen(ft->prefix), &pEnd, 10);
-         if (*pEnd == 0)
+         if ((*ft->prefix == 0) || (strncmp(pName, ft->prefix, strlen(ft->prefix)) == 0))
          {
-            channel += ft->idxOffset;
-            if ((channel >= ft->firstChannel) && (channel <= ft->lastChannel))
+            channel = (uint) strtol(pName + strlen(ft->prefix), &pEnd, 10);
+            if (*pEnd == 0)
             {
-               return (uint)(16.0 * (ft->freqStart + ft->freqOffset * (channel - ft->firstChannel)));
+               channel += ft->idxOffset;
+               if ((channel >= ft->firstChannel) && (channel <= ft->lastChannel))
+               {
+                  return (uint)(16.0 * (ft->freqStart + ft->freqOffset * (channel - ft->firstChannel)));
+               }
             }
          }
+         ft += 1;
       }
-      ft += 1;
    }
+   debug1("TvChannels-NameToFreq: unknown channel ID \"%s\"", pName);
    return 0;
 }
 
@@ -198,6 +211,8 @@ bool TvChannels_GetNext( uint *pChan, uint *pFreq )
 
          // get the frequency of this channel
          *pFreq = (uint) (16.0 * (ft->freqStart + (*pChan - ft->firstChannel) * ft->freqOffset));
+         if (freqTabIdx == FREQ_TAB_FRANCE)
+            *pFreq |= (VIDEO_MODE_SECAM << 24);
          break;
       }
       ft += 1;
@@ -211,7 +226,7 @@ bool TvChannels_GetNext( uint *pChan, uint *pFreq )
 //
 void TvChannels_SelectFreqTable( uint tableIdx )
 {
-   if (tableIdx <= 1)
+   if (tableIdx < FREQ_TAB_COUNT)
       freqTabIdx = tableIdx;
    else
       debug1("TvChannels-SelectFreqTable: illegal index %d - ignored", tableIdx);

@@ -43,7 +43,7 @@
  *    Linux:  Tom Zoerner
  *    NetBSD: Mario Kemper <magick@bundy.zhadum.de>
  *
- *  $Id: btdrv4linux.c,v 1.30 2002/07/20 16:27:01 tom Exp tom $
+ *  $Id: btdrv4linux.c,v 1.32 2002/09/14 19:03:59 tom Exp tom $
  */
 
 #if !defined(linux) && !defined(__NetBSD__)
@@ -345,23 +345,16 @@ void BtDriver_CloseDevice( void )
 }
 
 // ---------------------------------------------------------------------------
-// Change the video input source
+// Change the video input source and TV norm
 //
-bool BtDriver_SetInputSource( int inputIdx, bool keepOpen, bool * pIsTuner )
+static bool BtDriver_SetInputSource( int inputIdx, int norm, bool * pIsTuner )
 {
 #ifndef __NetBSD__
-   char devName[DEV_MAX_NAME_LEN];
    bool isTuner = FALSE;
    bool result = FALSE;
    struct video_channel vchan;
    struct video_tuner vtuner;
 
-   if (video_fd == -1)
-   {
-      sprintf(devName, VIDEONAME "%u", pVbiBuf->cardIndex);
-      video_fd = open(devName, O_RDONLY);
-      dprintf1("BtDriver-SetInputSource: opened video device, fd=%d\n", video_fd);
-   }
    if (video_fd != -1)
    {
       // get current config of the selected chanel
@@ -370,11 +363,9 @@ bool BtDriver_SetInputSource( int inputIdx, bool keepOpen, bool * pIsTuner )
       if (ioctl(video_fd, VIDIOCGCHAN, &vchan) == 0)
       {  // channel index is valid
 
-         // select the channel as input
+         vchan.norm    = norm;
          vchan.channel = inputIdx;
-         // XXX don't really know why I have to set the wrong norm first
-         // XXX but if I set PAL here I have no VBI reception after booting
-         vchan.norm = VIDEO_MODE_NTSC;
+
          if (ioctl(video_fd, VIDIOCSCHAN, &vchan) == 0)
          {
             if ( (vchan.type & VIDEO_TYPE_TV) && (vchan.flags & VIDEO_VC_TUNER) )
@@ -383,9 +374,10 @@ bool BtDriver_SetInputSource( int inputIdx, bool keepOpen, bool * pIsTuner )
                memset(&vtuner, 0, sizeof(vtuner));
                if (ioctl(video_fd, VIDIOCGTUNER, &vtuner) == 0)
                {
-                  if (vtuner.flags & VIDEO_TUNER_PAL)
+                  if (vtuner.flags & ((norm == VIDEO_MODE_SECAM) ? VIDEO_TUNER_SECAM : VIDEO_TUNER_PAL))
                   {
-                     vtuner.mode = VIDEO_MODE_PAL;
+                     vtuner.mode = norm;
+
                      if (ioctl(video_fd, VIDIOCSTUNER, &vtuner) == 0)
                      {
                         isTuner = TRUE;
@@ -395,22 +387,14 @@ bool BtDriver_SetInputSource( int inputIdx, bool keepOpen, bool * pIsTuner )
                         perror("VIDIOCSTUNER");
                   }
                   else
-                     fprintf(stderr, "tuner supports no PAL\n");
+                     fprintf(stderr, "tuner supports no %s\n", (norm == VIDEO_MODE_SECAM) ? "SECAM" : "PAL");
                }
                else
                   perror("VIDIOCGTUNER");
             }
             else
             {  // not a tuner -> don't need to set the frequency
-
-               // XXX workaround continued: now set the correct norm PAL
-               vchan.norm = VIDEO_MODE_PAL;
-               if (ioctl(video_fd, VIDIOCSCHAN, &vchan) == 0)
-               {
-                  result = TRUE;
-               }
-               else
-                  perror("VIDIOCSCHAN");
+               result = TRUE;
             }
          }
          else
@@ -419,14 +403,9 @@ bool BtDriver_SetInputSource( int inputIdx, bool keepOpen, bool * pIsTuner )
       else
          perror("VIDIOCGCHAN");
 
-      if ((keepOpen == FALSE) || (result == FALSE) || (isTuner == FALSE))
-      {
-         dprintf1("BtDriver-SetInputSource: closing video device, fd=%d\n", video_fd);
-         BtDriver_CloseDevice();
-      }
    }
    else
-      debug2("BtDriver-SetInputSource: could not open device %s: %s", devName, strerror(errno));
+      fatal0("BtDriver-SetInputSource: device not open");
 
    if (pIsTuner != NULL)
       *pIsTuner = isTuner;
@@ -453,35 +432,46 @@ bool BtDriver_SetInputSource( int inputIdx, bool keepOpen, bool * pIsTuner )
 }
 
 // ---------------------------------------------------------------------------
-// Tune a given frequency
+// Set the input channel and tune a given frequency and norm
 //
-bool BtDriver_TuneChannel( uint freq, bool keepOpen )
+bool BtDriver_TuneChannel( int inputIdx, uint freq, bool keepOpen, bool * pIsTuner )
 {
 #ifndef __NetBSD__
    char devName[DEV_MAX_NAME_LEN];
    ulong lfreq;
+   uint  norm;
    bool result = FALSE;
+
+   norm  = freq >> 24;
+   lfreq = freq & 0xffffff;
 
    if (video_fd == -1)
    {
-      sprintf(devName, TUNERNAME "%u", pVbiBuf->cardIndex);
+      sprintf(devName, VIDEONAME "%u", pVbiBuf->cardIndex);
       video_fd = open(devName, O_RDONLY);
       dprintf1("BtDriver-TuneChannel: opened video device, fd=%d\n", video_fd);
    }
    if (video_fd != -1)
    {
-      // Set the tuner frequency
-      lfreq = freq;
-      if(ioctl(video_fd, VIDIOCSFREQ, &freq) == 0)
+      if (BtDriver_SetInputSource(inputIdx, norm, pIsTuner))
       {
-         //printf("Vbi-TuneChannel: set to %.2f\n", (double)freq/16);
+         if ( (*pIsTuner) && (lfreq != 0) )
+         {
+            // Set the tuner frequency
+            if (ioctl(video_fd, VIDIOCSFREQ, &lfreq) == 0)
+            {
+               dprintf1("BtDriver-TuneChannel: set to %.2f\n", (double)lfreq/16);
 
-         result = TRUE;
+               result = TRUE;
+            }
+            else
+               perror("VIDIOCSFREQ");
+         }
+         else
+            result = TRUE;
       }
-      else
-         perror("VIDIOCSFREQ");
 
-      if (keepOpen == FALSE)
+      if ((keepOpen == FALSE) || (result == FALSE))
       {
          dprintf1("BtDriver-TuneChannel: closing video device, fd=%d\n", video_fd);
          BtDriver_CloseDevice();
@@ -492,31 +482,37 @@ bool BtDriver_TuneChannel( uint freq, bool keepOpen )
    ulong lfreq;
    bool result = FALSE;
 
-   if (tuner_fd == -1)
+   lfreq = freq & 0xffffff;
+   if (BtDriver_SetInputSource(inputIdx, norm, pIsTuner))
    {
-     if (!pVbiBuf->tv_cards[pVbiBuf->cardIndex].isBusy) {
-       sprintf(devName, TUNERNAME "%u", pVbiBuf->cardIndex);
-       tuner_fd = open(devName, O_RDONLY);
-       dprintf1("BtDriver-TuneChannel: opened tuner device, fd=%d\n", tuner_fd);
-     }
-   }
-   if (tuner_fd != -1)
-   {
-      // Set the tuner frequency
-      lfreq = freq;
-      if(ioctl(tuner_fd, VIDIOCSFREQ, &freq) == 0)
+      if ( (*pIsTuner) && (lfreq != 0) )
       {
-         //printf("Vbi-TuneChannel: set to %.2f\n", (double)freq/16);
+         if (tuner_fd == -1)
+         {
+           if (!pVbiBuf->tv_cards[pVbiBuf->cardIndex].isBusy) {
+             sprintf(devName, TUNERNAME "%u", pVbiBuf->cardIndex);
+             tuner_fd = open(devName, O_RDONLY);
+             dprintf1("BtDriver-TuneChannel: opened tuner device, fd=%d\n", tuner_fd);
+           }
+         }
+         if (tuner_fd != -1)
+         {
+            // Set the tuner frequency
+            if(ioctl(tuner_fd, VIDIOCSFREQ, &lfreq) == 0)
+            {
+               //printf("Vbi-TuneChannel: set to %.2f\n", (double)freq/16);
 
-         result = TRUE;
-      }
-      else
-         perror("VIDIOCSFREQ");
+               result = TRUE;
+            }
+            else
+               perror("VIDIOCSFREQ");
 
-      if (keepOpen == FALSE)
-      {
-         dprintf1("BtDriver-TuneChannel: closing tuner device, fd=%d\n", tuner_fd);
-         BtDriver_CloseDevice();
+            if (keepOpen == FALSE)
+            {
+               dprintf1("BtDriver-TuneChannel: closing tuner device, fd=%d\n", tuner_fd);
+               BtDriver_CloseDevice();
+            }
+         }
       }
    }
 #endif // __NetBSD__
@@ -1076,6 +1072,8 @@ static void BtDriver_CheckParent( void )
 static void BtDriver_OpenVbiBuf( void )
 {
    #ifndef __NetBSD__
+   dprintf1("BTTV driver version 0x%X\n", ioctl(vbi_fdin, BTTV_VERSION));
+
    bufSize = ioctl(vbi_fdin, BTTV_VBISIZE);
    if (bufSize == -1)
    {
@@ -1136,6 +1134,10 @@ static void BtDriver_DecodeFrame( void )
    else if ((stat < 0) && (errno != EINTR) && (errno != EAGAIN))
    {
       debug0("vbi decode: read");
+   }
+   else if (stat >= 0)
+   {
+      debug2("vbi decode: short read: %ld of %d", stat, bufSize);
    }
 }
 
@@ -1356,10 +1358,23 @@ static void * BtDriver_Main( void * foo )
 
       if (pVbiBuf->doQueryFreq && (vbi_fdin != -1))
       {
+         struct video_channel vchan;
          ulong lfreq;
+
          if (ioctl(vbi_fdin, VIDIOCGFREQ, &lfreq) == 0)
          {
             dprintf1("BtDriver-Main: QueryChannel got %.2f MHz\n", (double)lfreq/16);
+
+            // get TV norm set in the tuner (channel #0)
+            memset(&vchan, 0, sizeof(vchan));
+            if (ioctl(vbi_fdin, VIDIOCGCHAN, &vchan) == 0)
+            {
+               dprintf1("BtDriver-Main: QueryChannel got norm %d\n", vchan.norm);
+               lfreq |= (uint)vchan.norm << 24;
+            }
+            else
+               debug1("BtDriver-Main: VIDIOCGCHAN error: %s", strerror(errno));
+
             pVbiBuf->vbiQueryFreq = lfreq;
          }
          else

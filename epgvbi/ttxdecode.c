@@ -32,7 +32,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: ttxdecode.c,v 1.51 2002/08/24 13:54:38 tom Exp tom $
+ *  $Id: ttxdecode.c,v 1.52 2002/09/14 19:01:50 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -748,6 +748,15 @@ const VBI_LINE * TtxDecode_GetPacket( bool freePrevPkg )
       if (pVbiBuf->reader_idx != pVbiBuf->writer_idx)
       {
          pVbl = (const VBI_LINE *) &pVbiBuf->line[pVbiBuf->reader_idx];
+
+         #if DUMP_TTX_PACKETS == ON
+         {  // dump the complete parity decoded content of the TTX packet
+            char tmparr[46];
+            UnHamParityArray(pVbl->data, tmparr, 42);
+            tmparr[41] = 0;
+            printf("TTX frame=%d line %2d: pkg=%2d page=%03X sub=%04X '%s' BP=0x%02x\n", pVbl->frame, pVbl->line, pVbl->pkgno, pVbl->pageno, pVbl->sub, tmparr, pVbl->data[0]);
+         }
+         #endif
       }
    }
    return pVbl;
@@ -797,7 +806,7 @@ bool TtxDecode_CheckForPackets( bool * pStopped )
 // ---------------------------------------------------------------------------
 // Append a packet to the VBI buffer
 //
-static void TtxDecode_BufferAdd( uint pageNo, uint sub, uchar pkgno, const uchar * data )
+static void TtxDecode_BufferAdd( uint pageNo, uint sub, uchar pkgno, const uchar * data, uint line )
 {
    DBGONLY(static int overflow = 0;)
 
@@ -805,6 +814,10 @@ static void TtxDecode_BufferAdd( uint pageNo, uint sub, uchar pkgno, const uchar
 
    if (pVbiBuf->reader_idx != ((pVbiBuf->writer_idx + 1) % EPGACQ_BUF_COUNT))
    {
+      #if DUMP_TTX_PACKETS == ON
+      pVbiBuf->line[pVbiBuf->writer_idx].frame  = acqSlaveState.frameSeqNo;
+      pVbiBuf->line[pVbiBuf->writer_idx].line   = line;
+      #endif
       pVbiBuf->line[pVbiBuf->writer_idx].pageno = pageNo;
       pVbiBuf->line[pVbiBuf->writer_idx].sub    = sub;
       pVbiBuf->line[pVbiBuf->writer_idx].pkgno  = pkgno;
@@ -954,7 +967,7 @@ bool TtxDecode_NewVbiFrame( uint frameSeqNo )
 //   and hence can not access the state variables of the EPG process/thread
 //   except for the shared buffer
 //
-void TtxDecode_AddPacket( const uchar * data )
+void TtxDecode_AddPacket( const uchar * data, uint line )
 {
    sint  tmp1, tmp2, tmp3;
    uchar mag, pkgno;
@@ -972,6 +985,7 @@ void TtxDecode_AddPacket( const uchar * data )
       {
          mag   = tmp1 & 7;
          pkgno = (tmp1 >> 3) & 0x1f;
+         pageNo= sub = 0;
 
          if (pkgno == 0)
          {  // new teletext page header
@@ -985,7 +999,7 @@ void TtxDecode_AddPacket( const uchar * data )
                if ((pVbiBuf->isEnabled) && (pageNo == pVbiBuf->epgPageNo))
                {
                   acqSlaveState.isEpgPage = TRUE;
-                  TtxDecode_BufferAdd(pageNo, sub, 0, data + 2);
+                  TtxDecode_BufferAdd(pageNo, sub, 0, data + 2, line);
 
                   pVbiBuf->ttxStats.epgPkgCount += 1;
                   pVbiBuf->ttxStats.epgPagCount += 1;
@@ -1038,7 +1052,7 @@ void TtxDecode_AddPacket( const uchar * data )
                  (mag == (pVbiBuf->epgPageNo >> 8)) &&
                  (pkgno < 26) )
             {  // new EPG packet
-               TtxDecode_BufferAdd(0, 0, pkgno, data + 2);
+               TtxDecode_BufferAdd(0, 0, pkgno, data + 2, line);
                pVbiBuf->ttxStats.epgPkgCount += 1;
             }
             else if ( acqSlaveState.isMipPage & (1 << mag) )
@@ -1055,6 +1069,15 @@ void TtxDecode_AddPacket( const uchar * data )
                if (TtxDecode_EpgScanPacket(mag, pkgno, data + 2))
                   pVbiBuf->dataPageCount += 1;
          }
+
+         #if DUMP_TTX_PACKETS == ON
+         {  // dump all TTX packets, even non-EPG ones
+            char tmparr[46];
+            UnHamParityArray(data+2, tmparr, 42);
+            tmparr[41] = 0;
+            printf("SLAVE frame=%d line %2d: pkg=%2d page=%03X sub=%04X %d '%s'\n", acqSlaveState.frameSeqNo, line, pkgno, pageNo, sub, acqSlaveState.isEpgPage, tmparr);
+         }
+         #endif
       }
       else
          pVbiBuf->ttxStats.ttxPkgDrop += 1;

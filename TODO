@@ -4,6 +4,7 @@ Your feedback is always welcome, so feel free to mail me if you want to
 boost any item's priority, find more points that need to be fixed or if
 you have ideas for additional features.
 
+
 daemon:
 - make concurrent updates of shared rc file safe (e.g. daemon writes provider freq)
   or use a different rc for acq parameters; currently data can be lost!
@@ -35,6 +36,7 @@ nxtvepg xawtv.c:
 WIN32 port fixes:
 - Bt8x8 driver: make video input matrix configurable
 - Btx8x8 card auto-detection from bttv driver
+- support for Secam/PAL multi-norm TV tuners
 - use TV app directory in shm for auto-configuration
 - dump stream feature: must use window or file instead of stdout
   note: output to stdout works when started inside a GNU/Cygwin bash

@@ -29,7 +29,7 @@
  *    so their respective copyright applies too. Please see the notes in
  *    functions headers below.
  *
- *  $Id: wintvcfg.c,v 1.8 2002/08/17 19:22:57 tom Exp tom $
+ *  $Id: wintvcfg.c,v 1.9 2002/09/17 14:40:12 tom Exp tom $
  */
 
 #ifndef WIN32
@@ -1129,122 +1129,6 @@ static bool WintvCfg_GetMultidecIni( Tcl_Interp * interp, TVAPP_NAME appIdx, con
 }
 
 // ----------------------------------------------------------------------------
-// Definitions for K!TV INI file
-//
-// map K!TV tuner indices to nxtvepg indices
-static const uchar KtvTunerMapping[] =
-{
-   1,2,3,4,0,5,6,7,8
-};
-#define KTV_TUNER_COUNT (sizeof(KtvTunerMapping) / sizeof(*KtvTunerMapping))
-#define KTV_TUNER_MANUAL  8
-
-// ----------------------------------------------------------------------------
-// Read K!TV INI file
-// 
-static bool WintvCfg_GetKtvIni( Tcl_Interp * interp, TVAPP_NAME appIdx, const char * pTvappPath )
-{
-   char   line[256];
-   char   section[100];
-   char   tag[64];
-   int    value;
-   bool   isHwSect, isTunerSect;
-   int    pllType, tunerType, inputIdx;
-   int    thresh1, thresh2, VHF_L, VHF_H, UHF, config, IFPCoff;
-   char * pPath;
-   FILE * fp;
-   bool   result = FALSE;
-
-   pPath = WintvCfg_GetPath(pTvappPath, INI_FILE_KTV);
-   if (pPath != NULL)
-   {
-      fp = WinTvCfg_OpenIni(interp, pPath);
-      if (fp != NULL)
-      {
-         isHwSect    = FALSE;
-         isTunerSect = FALSE;
-         pllType     = -1;
-         tunerType   = -1;
-         inputIdx    = -1;
-         thresh1 = thresh2 = VHF_L = VHF_H = UHF = config = IFPCoff = -1;
-
-         while (fgets(line, sizeof(line) - 1, fp) != NULL)
-         {
-            if (sscanf(line,"[%99[^]]]", section) == 1)
-            {
-               isHwSect    = ((strcmp(section, "Carte") == 0) || (strcmp(section, "Card") == 0));
-               isTunerSect = (strcmp(section, "Tuner") == 0);
-            }
-            else if (isHwSect)
-            {  // current line is in "Hardware" section
-               if (sscanf(line," %63[^= ] = %d", tag, &value) == 2)
-               {
-                  if (strcmp(tag, "BT848_PLL") == 0)
-                  {
-                     pllType = value;
-                  }
-                  else if (strcmp(tag, "TUNER_TYPE") == 0)
-                  {
-                     tunerType = value;
-                  }
-                  else if (strcmp(tag, "VIDEO_SOURCE") == 0)
-                  {
-                     inputIdx = value;
-                  }
-               }
-            }
-            else if (isTunerSect)
-            {
-               if (strcmp(tag, "TUNER_THRESH1") == 0)
-                  thresh1 = value;
-               else if (strcmp(tag, "TUNER_THRESH2") == 0)
-                  thresh2 = value;
-               else if (strcmp(tag, "TUNER_VHF_L") == 0)
-                  VHF_L = value;
-               else if (strcmp(tag, "TUNER_VHF_H") == 0)
-                  VHF_H = value;
-               else if (strcmp(tag, "TUNER_UHF") == 0)
-                  UHF = value;
-               else if (strcmp(tag, "TUNER_CONFIG") == 0)
-                  config = value;
-               else if (strcmp(tag, "TUNER_IFPCOFF") == 0)
-                  IFPCoff = value;
-            }
-         }
-         fclose(fp);
-         result = TRUE;
-
-         if ((pllType == -1) && (tunerType == -1) && (inputIdx == -1))
-         {
-            eval_check(interp, "tk_messageBox -type ok -icon warning -parent .hwcfg -message {"
-                  "None of the expected hardware settings found. Sorry, you'll have to set them manually.}");
-         }
-         else
-         {
-            pllType = WinTvCfg_UpdatePll(interp, pllType, "PLL initialization");
-            if (tunerType == KTV_TUNER_MANUAL)
-            {
-               tunerType = BtDriver_MatchTunerByParams(thresh1, thresh2, VHF_L, VHF_H, UHF, config, IFPCoff);
-               if (tunerType == 0)
-                  eval_check(interp, "tk_messageBox -type ok -icon warning -parent .hwcfg -message {"
-                        "Manual tuner setting did not match any known tuner type. Sorry, you'll have to choose a tuner manually.}");
-
-               // already converted tuner index, so no mapping is required
-               tunerType = WinTvCfg_UpdateTuner(interp, tunerType, NULL, -1);
-            }
-            else
-               tunerType = WinTvCfg_UpdateTuner(interp, tunerType, KtvTunerMapping, KTV_TUNER_COUNT);
-            inputIdx = WinTvCfg_UpdateInputIdx(interp, inputIdx);
-
-            WintvCfg_IniSummary(interp, pllType, tunerType, inputIdx);
-         }
-      }
-      xfree(pPath);
-   }
-   return result;
-}
-
-// ----------------------------------------------------------------------------
 // Definitions for DScaler INI file
 //
 enum ePLLFreq
@@ -1357,6 +1241,141 @@ static bool WintvCfg_GetDscalerIni( Tcl_Interp * interp, TVAPP_NAME appIdx, cons
             }
 
             tunerType = WinTvCfg_UpdateTuner(interp, tunerType, DScalerTunerMapping, DSCALER_TUNER_COUNT);
+            inputIdx = WinTvCfg_UpdateInputIdx(interp, inputIdx);
+
+            WintvCfg_IniSummary(interp, pllType, tunerType, inputIdx);
+         }
+      }
+      xfree(pPath);
+   }
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Definitions for K!TV INI file
+//
+// map K!TV tuner indices to nxtvepg indices
+static const uchar KtvTunerMapping[] =
+{
+   1,2,3,4,0,5,6,7,8
+};
+#define KTV_TUNER_COUNT (sizeof(KtvTunerMapping) / sizeof(*KtvTunerMapping))
+#define KTV_TUNER_MANUAL  8
+#define KTV_TUNER_MANUAL_NEW  40
+
+// ----------------------------------------------------------------------------
+// Read K!TV INI file
+// 
+static bool WintvCfg_GetKtvIni( Tcl_Interp * interp, TVAPP_NAME appIdx, const char * pTvappPath )
+{
+   char   line[256];
+   char   section[100];
+   char   tag[64];
+   int    value;
+   bool   isHwSect, isTunerSect, isMiscSect;
+   int    pllType, tunerType, inputIdx;
+   int    thresh1, thresh2, VHF_L, VHF_H, UHF, config, IFPCoff;
+   bool   isNewTunerTable;
+   char * pPath;
+   FILE * fp;
+   bool   result = FALSE;
+
+   pPath = WintvCfg_GetPath(pTvappPath, INI_FILE_KTV);
+   if (pPath != NULL)
+   {
+      fp = WinTvCfg_OpenIni(interp, pPath);
+      if (fp != NULL)
+      {
+         isHwSect    = FALSE;
+         isTunerSect = FALSE;
+         isMiscSect  = FALSE;
+         pllType     = -1;
+         tunerType   = -1;
+         inputIdx    = -1;
+         thresh1 = thresh2 = VHF_L = VHF_H = UHF = config = IFPCoff = -1;
+         isNewTunerTable = FALSE;
+
+         while (fgets(line, sizeof(line) - 1, fp) != NULL)
+         {
+            if (sscanf(line,"[%99[^]]]", section) == 1)
+            {
+               isHwSect    = ((strcmp(section, "Carte") == 0) || (strcmp(section, "Card") == 0));
+               isTunerSect = (strcmp(section, "Tuner") == 0);
+               isMiscSect  = (strcmp(section, "Misc") == 0);
+            }
+            else if (isHwSect)
+            {  // current line is in "Hardware" section
+               if (sscanf(line," %63[^= ] = %d", tag, &value) == 2)
+               {
+                  if (strcmp(tag, "BT848_PLL") == 0)
+                  {
+                     pllType = value;
+                  }
+                  else if (strcmp(tag, "TUNER_TYPE") == 0)
+                  {
+                     tunerType = value;
+                  }
+                  else if (strcmp(tag, "VIDEO_SOURCE") == 0)
+                  {
+                     inputIdx = value;
+                  }
+               }
+            }
+            else if (isTunerSect)
+            {
+               if (sscanf(line," %63[^= ] = %d", tag, &value) == 2)
+               {
+                  if (strcmp(tag, "TUNER_THRESH1") == 0)
+                     thresh1 = value;
+                  else if (strcmp(tag, "TUNER_THRESH2") == 0)
+                     thresh2 = value;
+                  else if (strcmp(tag, "TUNER_VHF_L") == 0)
+                     VHF_L = value;
+                  else if (strcmp(tag, "TUNER_VHF_H") == 0)
+                     VHF_H = value;
+                  else if (strcmp(tag, "TUNER_UHF") == 0)
+                     UHF = value;
+                  else if (strcmp(tag, "TUNER_CONFIG") == 0)
+                     config = value;
+                  else if (strcmp(tag, "TUNER_IFPCOFF") == 0)
+                     IFPCoff = value;
+               }
+            }
+            else if (isMiscSect)
+            {
+               if (sscanf(line," VERSION = %63s", tag) == 1)
+               {
+                  // version entry was introduced with K!TV version 1.2.0.3
+                  isNewTunerTable = TRUE;
+               }
+            }
+         }
+         fclose(fp);
+         result = TRUE;
+
+         if ((pllType == -1) && (tunerType == -1) && (inputIdx == -1))
+         {
+            eval_check(interp, "tk_messageBox -type ok -icon warning -parent .hwcfg -message {"
+                  "None of the expected hardware settings found. Sorry, you'll have to set them manually.}");
+         }
+         else
+         {
+            pllType = WinTvCfg_UpdatePll(interp, pllType, "PLL initialization");
+            if (tunerType == ((isNewTunerTable == FALSE) ? KTV_TUNER_MANUAL : KTV_TUNER_MANUAL_NEW))
+            {
+               tunerType = BtDriver_MatchTunerByParams(thresh1, thresh2, VHF_L, VHF_H, UHF, config, IFPCoff);
+               if (tunerType == 0)
+                  eval_check(interp, "tk_messageBox -type ok -icon warning -parent .hwcfg -message {"
+                        "Manual tuner setting did not match any known tuner type. Sorry, you'll have to choose a tuner manually.}");
+
+               // already converted tuner index, so no mapping is required
+               tunerType = WinTvCfg_UpdateTuner(interp, tunerType, NULL, -1);
+            }
+            else if (isNewTunerTable == FALSE)
+               tunerType = WinTvCfg_UpdateTuner(interp, tunerType, KtvTunerMapping, KTV_TUNER_COUNT);
+            else  // starting with version 1.2.0.3 K!TV uses the same tuner table as DScaler >= 3.0 with 40 entries + manual
+               tunerType = WinTvCfg_UpdateTuner(interp, tunerType, DScalerTunerMapping, DSCALER_TUNER_COUNT);
+
             inputIdx = WinTvCfg_UpdateInputIdx(interp, inputIdx);
 
             WintvCfg_IniSummary(interp, pllType, tunerType, inputIdx);

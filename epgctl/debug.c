@@ -22,7 +22,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: debug.c,v 1.14 2002/07/27 13:41:47 tom Exp tom $
+ *  $Id: debug.c,v 1.16 2002/09/17 16:16:04 tom Exp tom $
  */
 
 #define __DEBUG_C
@@ -33,13 +33,10 @@
 # define DEBUG_SWITCH OFF
 #endif
 
-#include "epgctl/mytypes.h"
-#include "epgctl/debug.h"
-
 #include <malloc.h>
 #ifdef WIN32
 #include <process.h>
-#ifdef HALT_ON_FAILED_ASSERTION
+#if defined(HALT_ON_FAILED_ASSERTION) || (CHK_MALLOC == OFF)
 #include <windows.h>
 #endif
 #endif
@@ -60,6 +57,12 @@
 #include <time.h>
 #include <errno.h>
 #include <string.h>
+
+#endif  // DEBUG_SWITCH == ON
+
+#include "epgctl/mytypes.h"
+#include "epgctl/debug.h"
+
 
 // ---------------------------------------------------------------------------
 // definitions and globals vars for Malloc verification
@@ -94,8 +97,10 @@ static MALLOC_CHAIN * pMallocChain = NULL;
 // globals that allow to monitor memory usage
 static ulong malUsage = 0L;
 static ulong malPeak  = 0L;
-#endif
+#endif  // CHK_MALLOC == ON
 
+
+#if DEBUG_SWITCH == ON
 // ---------------------------------------------------------------------------
 // global that contains the string to be logged
 //
@@ -286,6 +291,5 @@ void * xmalloc( size_t size )
    }
    return ptr;
 }
-
 #endif //CHK_MALLOC == OFF
 

@@ -21,7 +21,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: epgui.tcl,v 1.171 2002/08/24 13:56:58 tom Exp tom $
+#  $Id: epgui.tcl,v 1.180 2002/09/16 19:28:37 tom Exp tom $
 #
 
 set is_unix [expr [string compare $tcl_platform(platform) "unix"] == 0]
@@ -77,8 +77,11 @@ proc CreateMainWindow {} {
 
    listbox   .all.shortcuts.list -exportselection false -height 12 -width 0 -selectmode extended \
                                  -relief ridge -cursor top_left_arrow -background $default_bg
-   bind      .all.shortcuts.list <ButtonRelease-1> {+ SelectShortcut}
-   bind      .all.shortcuts.list <space> {+ SelectShortcut}
+   bind      .all.shortcuts.list <ButtonRelease-1> {SelectShortcut}
+   bind      .all.shortcuts.list <Key-space>  {SelectShortcut}
+   bind      .all.shortcuts.list <Key-Return> {SelectShortcut}
+   bind      .all.shortcuts.list <Key-Escape> {.all.shortcuts.list selection clear 0 end; SelectShortcut}
+   bind      .all.shortcuts.list <FocusOut> {SelectShortcut}
    pack      .all.shortcuts.list -fill x
    pack      .all.shortcuts -anchor nw -side left
 
@@ -87,8 +90,11 @@ proc CreateMainWindow {} {
                                -relief ridge -cursor top_left_arrow -background $default_bg
    .all.netwops.list insert end "-all-"
    .all.netwops.list selection set 0
-   bind      .all.netwops.list <ButtonRelease-1> {+ SelectNetwop}
-   bind      .all.netwops.list <space> {+ SelectNetwop}
+   bind      .all.netwops.list <ButtonRelease-1> {SelectNetwop}
+   bind      .all.netwops.list <Key-space> {SelectNetwop}
+   bind      .all.netwops.list <Key-Return> {SelectNetwop}
+   bind      .all.netwops.list <Key-Escape> {.all.netwops.list selection clear 0 end; SelectNetwop}
+   bind      .all.netwops.list <FocusOut> {SelectNetwop}
    pack      .all.netwops.list -side left -anchor n
    pack      .all.netwops -side left -anchor n -pady 2 -padx 2
 
@@ -99,7 +105,7 @@ proc CreateMainWindow {} {
    pack      .all.pi.colheads -side top -anchor w
 
    frame     .all.pi.list
-   scrollbar .all.pi.list.sc -orient vertical -command {C_PiListBox_Scroll}
+   scrollbar .all.pi.list.sc -orient vertical -command {C_PiListBox_Scroll} -takefocus 0
    pack      .all.pi.list.sc -fill y -side left
    text      .all.pi.list.text -width 50 -height 25 -wrap none \
                                -font $textfont -exportselection false \
@@ -110,7 +116,7 @@ proc CreateMainWindow {} {
    bind      .all.pi.list.text <Button-1> {SelectPi %x %y}
    bind      .all.pi.list.text <ButtonRelease-1> {SelectPiRelease}
    bind      .all.pi.list.text <Double-Button-1> {C_PopupPi %x %y}
-   bind      .all.pi.list.text <Button-3> {CreateContextMenu %x %y}
+   bind      .all.pi.list.text <Button-3> {CreateContextMenu mouse %x %y}
    bind      .all.pi.list.text <Button-4> {C_PiListBox_Scroll scroll -5 units}
    bind      .all.pi.list.text <Button-5> {C_PiListBox_Scroll scroll 5 units}
    bind      .all.pi.list.text <Up>    {C_PiListBox_CursorUp}
@@ -119,6 +125,21 @@ proc CreateMainWindow {} {
    bind      .all.pi.list.text <Next>  {C_PiListBox_Scroll scroll 1 pages}
    bind      .all.pi.list.text <Home>  {C_PiListBox_Scroll moveto 0.0; C_PiListBox_SelectItem 0}
    bind      .all.pi.list.text <End>   {C_PiListBox_Scroll moveto 1.0; C_PiListBox_Scroll scroll 1 pages}
+   bind      .all.pi.list.text <Key-1> {ToggleShortcut 0}
+   bind      .all.pi.list.text <Key-2> {ToggleShortcut 1}
+   bind      .all.pi.list.text <Key-3> {ToggleShortcut 2}
+   bind      .all.pi.list.text <Key-4> {ToggleShortcut 3}
+   bind      .all.pi.list.text <Key-5> {ToggleShortcut 4}
+   bind      .all.pi.list.text <Key-6> {ToggleShortcut 5}
+   bind      .all.pi.list.text <Key-7> {ToggleShortcut 6}
+   bind      .all.pi.list.text <Key-8> {ToggleShortcut 7}
+   bind      .all.pi.list.text <Key-9> {ToggleShortcut 8}
+   bind      .all.pi.list.text <Key-0> {ToggleShortcut 9}
+   bind      .all.pi.list.text <Return> {if {[string length [info commands .all.shortcuts.tune]] > 0} {tkButtonInvoke .all.shortcuts.tune}}
+   bind      .all.pi.list.text <Escape> {tkButtonInvoke .all.shortcuts.reset}
+   bind      .all.pi.list.text <Control-Key-f> {SubStrPopup}
+   bind      .all.pi.list.text <Control-Key-c> {CreateContextMenu key 0 0}
+   #bind    .all.pi.list.text <Control-Key-n> {tk_popup .all.pi.colheads.col_netname.b.men %X %Y 0}
    bind      .all.pi.list.text <Enter> {focus %W}
    .all.pi.list.text tag configure cur -foreground black -relief raised -borderwidth 1
    .all.pi.list.text tag configure now -background #c9c9df
@@ -141,9 +162,10 @@ proc CreateMainWindow {} {
                                -background $default_bg \
                                -yscrollcommand {.all.pi.info.sc set} \
                                -insertofftime 0
-   .all.pi.info.text tag configure title -font $font_pl2_bold -justify center -spacing3 3
-   .all.pi.info.text tag configure bold -font $font_bold
+   .all.pi.info.text tag configure title -font $font_pl2_bold -justify center -spacing1 2 -spacing3 4
    .all.pi.info.text tag configure features -font $font_bold -justify center -spacing3 6
+   .all.pi.info.text tag configure bold -font $font_bold -spacing3 4
+   .all.pi.info.text tag configure paragraph -font $textfont -spacing3 4
    bind      .all.pi.info.text <Configure> ShortInfoResized
    pack      .all.pi.info.text -side left -fill both -expand 1
    pack      .all.pi.info -side top -fill both -expand 1
@@ -154,6 +176,8 @@ proc CreateMainWindow {} {
                              -textvariable dbstatus_line
    pack      .all.statusline -side bottom -fill x
    pack      .all -side left -fill y -expand 1
+
+   focus     .all.pi.list.text
 
 
    # create a bitmap of an horizontal line for use as separator in the info window
@@ -274,7 +298,8 @@ proc CreateMenubar {} {
    }
    .menubar.filter add command -label "Text search..." -command SubStrPopup
    .menubar.filter add command -label "Start Time..." -command PopupTimeFilterSelection
-   .menubar.filter add command -label "Sorting Criterions..." -command PopupSortCritSelection
+   .menubar.filter add command -label "Duration..." -command PopupDurationFilterSelection
+   .menubar.filter add command -label "Sorting Criteria..." -command PopupSortCritSelection
    .menubar.filter add separator
    .menubar.filter add command -label "Add filter shortcut..." -command AddFilterShortcut
    .menubar.filter add command -label "Update filter shortcut..." -command UpdateFilterShortcut
@@ -441,7 +466,7 @@ proc CreateTuneTvButton {} {
    global is_unix
 
    if {[string length [info commands .all.shortcuts.tune]] == 0} {
-      button .all.shortcuts.tune -text "Tune TV" -relief ridge -command TuneTV
+      button .all.shortcuts.tune -text "Tune TV" -relief ridge -command TuneTV -takefocus 0
       bind   .all.shortcuts.tune <Button-3> {TuneTvPopupMenu 1 %x %y}
 
       menu .tunetvcfg -tearoff 0
@@ -625,7 +650,7 @@ proc ToggleStatusLine {} {
 proc ToggleColumnHeader {} {
    global showColumnHeader
 
-   ApplySelectedColumnList initial
+   UpdatePiListboxColumns
    UpdateRcFile
 }
 
@@ -848,6 +873,13 @@ proc ResetTimSel {} {
    set timsel_enabled 0
 }
 
+proc ResetMinMaxDuration {} {
+   global dursel_min dursel_max
+
+   set dursel_min 0
+   set dursel_max 0
+}
+
 proc ResetParentalRating {} {
    global parental_rating editorial_rating
 
@@ -886,6 +918,7 @@ proc ResetFilterState {} {
    ResetSeries
    ResetProgIdx
    ResetTimSel
+   ResetMinMaxDuration
    ResetParentalRating
    ResetEditorialRating
    ResetSubstr
@@ -1334,11 +1367,28 @@ proc PiMotionScrollTimer {} {
 }
 
 ##  ---------------------------------------------------------------------------
-##  Callback for right-click on a PiListBox item
+##  Callback for opening the context menu
+##  invoked either after click with right mouse button or CTRL-C
 ##
-proc CreateContextMenu {xcoo ycoo} {
-   global contextMenuItem
+proc CreateContextMenu {mode xcoo ycoo} {
 
+   if {[string compare $mode key] == 0} {
+      # context menu to be opened via keypress
+
+      # get position of the text cursor in the PI listbox
+      set curpos [.all.pi.list.text tag nextrange cur 1.0]
+      if {[llength $curpos] > 0} {
+         set dli [.all.pi.list.text dlineinfo [lindex $curpos 0]]
+         # calculate position of menu: in the middle of the selected line
+         set xcoo [expr [lindex $dli 0] + ([lindex $dli 2] / 2)]
+         set ycoo [lindex $dli 1]
+      } else {
+         # currently no item selected -> abort
+         return
+      }
+   }
+
+   # calculate absolute on-screen position from relative position in the text widget
    set xcoo [expr $xcoo + [winfo rootx .all.pi.list.text]]
    set ycoo [expr $ycoo + [winfo rooty .all.pi.list.text]]
 
@@ -1455,33 +1505,40 @@ proc CreateSeriesNetworksMenu {w} {
    # fetch a list of CNIs of netwops which broadcast series programmes
    set series_nets [C_GetNetwopsWithSeries]
 
-   # fetch all network names from AI into an array
-   C_GetAiNetwopList 0 netsel_names
-   ApplyUserNetnameCfg netsel_names
+   if {[llength $series_nets] != 0} {
 
-   # get the CNI of the currently selected db
-   set prov [C_GetCurrentDatabaseCni]
-   if {$prov != 0} {
+      # fetch all network names from AI into an array
+      C_GetAiNetwopList 0 netsel_names
+      ApplyUserNetnameCfg netsel_names
 
-      # sort the cni list according to the user network selection
-      if [info exists cfnetwops($prov)] {
-         set tmp {}
-         foreach cni [lindex $cfnetwops($prov) 0] {
-            if {[lsearch -exact $series_nets $cni] >= 0} {
-               lappend tmp $cni
+      # get the CNI of the currently selected db
+      set prov [C_GetCurrentDatabaseCni]
+      if {$prov != 0} {
+
+         # sort the cni list according to the user network selection
+         if [info exists cfnetwops($prov)] {
+            set tmp {}
+            foreach cni [lindex $cfnetwops($prov) 0] {
+               if {[lsearch -exact $series_nets $cni] >= 0} {
+                  lappend tmp $cni
+               }
+            }
+            set series_nets $tmp
+         }
+
+         # insert the names into the menu
+         foreach cni $series_nets {
+            set child "$w.net_${cni}_off_0"
+            $w add cascade -label $netsel_names($cni) -menu $child
+            if {[string length [info commands $child]] == 0} {
+               menu $child -postcommand [list PostDynamicMenu $child CreateSeriesMenu]
             }
          }
-         set series_nets $tmp
       }
+   }
 
-      # insert the names into the menu
-      foreach cni $series_nets {
-         set child "$w.net_${cni}_off_0"
-         $w add cascade -label $netsel_names($cni) -menu $child
-         if {[string length [info commands $child]] == 0} {
-            menu $child -postcommand [list PostDynamicMenu $child CreateSeriesMenu]
-         }
-      }
+   if {[llength $series_nets] == 0} {
+      $w add command -label "none" -state disabled
    }
 }
 
@@ -1705,7 +1762,7 @@ proc PanningMotion {w state ypos} {
    }
 }
 
-# callback for button press an release on the panning button
+# callback for button press and release on the panning button
 # sets up or stops the panning
 proc PanningControl {start} {
    global panning_root_y1 panning_root_y2 panning_list_height panning_info_height
@@ -1728,7 +1785,8 @@ proc PanningControl {start} {
       bind .all.pi.panner <Motion> {}
 
       # save the new listbox and shortinfo geometry to the rc/ini file
-      set shortinfo_height [expr int([winfo height .all.pi.info.text] / [font metrics $textfont -linespace])]
+      set shortinfo_height [expr int([winfo height .all.pi.info.text] / \
+                                     [font metrics $textfont -linespace])]
       UpdateRcFile
    }
 }
@@ -1737,7 +1795,8 @@ proc PanningControl {start} {
 proc ShortInfoResized {} {
    global textfont shortinfo_height
 
-   set new_height [expr int([winfo height .all.pi.info.text] / [font metrics $textfont -linespace])]
+   set new_height [expr int([winfo height .all.pi.info.text] / \
+                            [font metrics $textfont -linespace])]
 
    if {$new_height != $shortinfo_height} {
       set shortinfo_height $new_height
@@ -1789,6 +1848,19 @@ proc TuneTvPopupMenu {state xcoo ycoo} {
    set ycoo [expr $ycoo + [winfo rooty .all.shortcuts.tune]]
 
    tk_popup .tunetvcfg $xcoo $ycoo 0
+}
+
+##  --------------------------------------------------------------------------
+##  Callback for <Enter> event on entry fields
+##  - select the entire text in the widget so that the user needs not select
+##    and clear the old text, but can just start typing
+##  - only useful for small fields where the old content is frequently discarded
+##
+proc SelectTextOnFocus {wid} {
+   if {[string compare [focus -displayof $wid] $wid] != 0} {
+      $wid selection range 0 end
+      focus $wid
+   }
 }
 
 ##  --------------------------------------------------------------------------
@@ -1869,9 +1941,14 @@ proc SubStrPopup {} {
       pack .substr.all.name.prompt -side left
       entry .substr.all.name.str -textvariable substr_pattern -width 30
       pack .substr.all.name.str -side left -fill x -expand 1
-      bind .substr.all.name.str <Enter> {focus %W}
-      bind .substr.all.name.str <Return> SubstrUpdateFilter
-      bind .substr.all.name.str <Escape> {destroy .substr}
+      bind .substr.all.name.str <Enter> {SelectTextOnFocus %W}
+      bind .substr.all.name.str <Return> {tkButtonInvoke .substr.all.cmd.apply}
+      bind .substr.all.name.str <Escape> {tkButtonInvoke .substr.all.cmd.dismiss}
+      bind .substr.all.name.str <Key-Up> SubStrPopupHistoryMenu
+      bind .substr.all.name.str <Key-Down> SubStrPopupHistoryMenu
+      menu .substr.all.name.hist -tearoff 0
+      button .substr.all.name.but -bitmap "bitmap_ptr_down" -command SubStrPopupHistoryMenu
+      pack .substr.all.name.but -side left
       pack .substr.all.name -side top -pady 10 -fill x -expand 1
 
       frame .substr.all.opt
@@ -1899,11 +1976,37 @@ proc SubStrPopup {} {
       pack .substr.all -padx 10 -pady 10 -fill x -expand 1
       bind .substr.all <Destroy> {+ set substr_popup 0}
 
+      focus .substr.all.name.str
       wm resizable .substr 1 0
       update
       wm minsize .substr [winfo reqwidth .substr] [winfo reqheight .substr]
    } else {
       raise .substr
+   }
+}
+
+# callback for up/down keys in entry widget: open search history menu
+proc SubStrPopupHistoryMenu {} {
+   global substr_history
+
+   # check if the history list is empty
+   if {[llength $substr_history] > 0} {
+      set widget .substr.all.name.hist
+
+      # remove the previous content (in case the history changed since the last open)
+      $widget delete 0 end
+
+      # insert the previous search strings as menu commands
+      foreach item $substr_history {
+         $widget add command -label [lindex $item 4] -command [concat SubstrSetFilter $item]
+      }
+
+      # post (i.e. display) the menu
+      tk_popup $widget [winfo rootx .substr.all.name.str] \
+                       [expr [winfo rooty .substr.all.name.str] + [winfo reqheight .substr.all.name.str]]
+
+      # set the cursor onto the first menu element
+      $widget entryconfigure 0 -state active
    }
 }
 
@@ -1952,11 +2055,17 @@ proc ProgIdxPopup {} {
       frame .progidx.cmd
       button .progidx.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Filtering) "Program index"}
       button .progidx.cmd.clear -text "Undo" -width 5 -command {set filter_progidx 0; C_SelectProgIdx; C_RefreshPiListbox; destroy .progidx}
-      button .progidx.cmd.dismiss -text "Dismiss" -width 5 -command {destroy .progidx}
+      button .progidx.cmd.dismiss -text "Dismiss" -width 5 -command {destroy .progidx} -default active
       pack .progidx.cmd.help .progidx.cmd.clear .progidx.cmd.dismiss -side left -padx 10
       pack .progidx.cmd -side top -pady 10
 
       bind .progidx.cmd <Destroy> {+ set progidx_popup 0}
+
+      # define key stroke bindings
+      bind .progidx.cmd.dismiss <Return> {tkButtonInvoke %W}
+      bind .progidx.cmd.dismiss <Escape> {tkButtonInvoke .progidx.cmd.clear}
+      focus .progidx.cmd.dismiss
+
    } else {
       raise .progidx
    }
@@ -1988,9 +2097,9 @@ proc PopupTimeFilterSelection {} {
       frame .timsel.all.start -bd 1 -relief ridge
       label .timsel.all.start.lab -text "Start time:" -width 12
       entry .timsel.all.start.str -width 7 -textvariable timsel_startstr
-      bind  .timsel.all.start.str <Enter> {focus %W}
+      bind  .timsel.all.start.str <Enter> {SelectTextOnFocus %W}
       bind  .timsel.all.start.str <Return> {SelectTimeFilterEntry timsel_start $timsel_startstr}
-      bind  .timsel.all.start.str <Escape> {destroy .timsel}
+      bind  .timsel.all.start.str <Escape> {tkButtonInvoke .timsel.cmd.dismiss}
       scale .timsel.all.start.val -orient hor -length 200 -command {SelectTimeFilter 1} -variable timsel_start -from 0 -to 1439 -showvalue 0
       pack  .timsel.all.start.lab .timsel.all.start.str .timsel.all.start.val -side left
       pack  .timsel.all.start -side top -pady 10
@@ -2001,9 +2110,9 @@ proc PopupTimeFilterSelection {} {
       frame .timsel.all.stop -bd 1 -relief ridge
       label .timsel.all.stop.lab -text "Time span:" -width 12
       entry .timsel.all.stop.str -text "00:00" -width 7 -textvariable timsel_stopstr
-      bind  .timsel.all.stop.str <Enter> {focus %W}
+      bind  .timsel.all.stop.str <Enter> {SelectTextOnFocus %W}
       bind  .timsel.all.stop.str <Return> {SelectTimeFilterEntry timsel_stop $timsel_stopstr}
-      bind  .timsel.all.stop.str <Escape> {destroy .timsel}
+      bind  .timsel.all.stop.str <Escape> {tkButtonInvoke .timsel.cmd.dismiss}
       scale .timsel.all.stop.val -orient hor -length 200 -command {SelectTimeFilter 2} -variable timsel_stop -from 0 -to 1439 -showvalue 0
       pack  .timsel.all.stop.lab .timsel.all.stop.str .timsel.all.stop.val -side left
       pack  .timsel.all.stop -side top -pady 10
@@ -2024,6 +2133,7 @@ proc PopupTimeFilterSelection {} {
       pack .timsel.cmd -side top -pady 5
 
       bind .timsel.all <Destroy> {+ set timsel_popup 0}
+      focus .timsel.all.start.str
 
       set $timsel_enabled 1
       if {$timsel_relative} {
@@ -2064,7 +2174,7 @@ proc SelectTimeFilterEntry {varname val} {
    global timsel_stop timsel_stopstr
    upvar $varname timspec
 
-   if {[scan $val "%d:%d" hour minute] == 2} {
+   if {[scan $val "%u:%u" hour minute] == 2} {
       set timspec [expr $hour * 60 + $minute]
       SelectTimeFilter 0
    } else {
@@ -2111,6 +2221,7 @@ proc SelectTimeFilter { round {val 0} } {
    CheckShortcutDeselection
 }
 
+# callback for "undo" button
 proc UndoTimeFilter {} {
    global timsel_enabled
 
@@ -2120,6 +2231,115 @@ proc UndoTimeFilter {} {
    C_RefreshPiListbox
    CheckShortcutDeselection
 }
+
+##  --------------------------------------------------------------------------
+##  Duration filter selection popup
+##
+set dursel_popup 0
+set dursel_min 0
+set dursel_max 0
+
+proc PopupDurationFilterSelection {} {
+   global dursel_min dursel_max
+   global dursel_popup
+
+   if {$dursel_popup == 0} {
+      CreateTransientPopup .dursel "Duration filter selection"
+      set dursel_popup 1
+
+      frame .dursel.all
+      label .dursel.all.min_lab -text "Minimum:"
+      grid  .dursel.all.min_lab -row 0 -column 0 -sticky w
+      entry .dursel.all.min_str -text "00:00" -width 7 -textvariable dursel_minstr
+      bind  .dursel.all.min_str <Enter> {SelectTextOnFocus %W}
+      bind  .dursel.all.min_str <Return> {SelectDurationFilterEntry dursel_min $dursel_minstr}
+      bind  .dursel.all.min_str <Escape> {tkButtonInvoke .dursel.cmd.dismiss}
+      grid  .dursel.all.min_str -row 0 -column 1 -sticky we
+      scale .dursel.all.min_val -orient hor -length 200 -command {SelectDurationFilter 1} -variable dursel_min -from 0 -to 1439 -showvalue 0
+      grid  .dursel.all.min_val -row 0 -column 2 -sticky we
+
+      label .dursel.all.max_lab -text "Maximum:"
+      grid  .dursel.all.max_lab -row 1 -column 0 -sticky w
+      entry .dursel.all.max_str -text "00:00" -width 7 -textvariable dursel_maxstr
+      bind  .dursel.all.max_str <Enter> {SelectTextOnFocus %W}
+      bind  .dursel.all.max_str <Return> {SelectDurationFilterEntry dursel_max $dursel_maxstr}
+      bind  .dursel.all.max_str <Escape> {tkButtonInvoke .dursel.cmd.dismiss}
+      grid  .dursel.all.max_str -row 1 -column 1 -sticky we
+      scale .dursel.all.max_val -orient hor -length 200 -command {SelectDurationFilter 2} -variable dursel_max -from 0 -to 1439 -showvalue 0
+      grid  .dursel.all.max_val -row 1 -column 2 -sticky we
+      pack  .dursel.all -side top -pady 5 -padx 5
+
+      frame .dursel.cmd
+      button .dursel.cmd.help -text "Help" -command {PopupHelp $helpIndex(Filtering) "Duration"}
+      button .dursel.cmd.undo -text "Undo" -command {destroy .dursel; UndoDurationFilter}
+      button .dursel.cmd.dismiss -text "Dismiss" -command {destroy .dursel}
+      pack .dursel.cmd.help .dursel.cmd.undo .dursel.cmd.dismiss -side left -padx 10
+      pack .dursel.cmd -side top -pady 5
+
+      bind .dursel.all <Destroy> {+ set dursel_popup 0}
+      focus .dursel.all.min_str
+
+   } else {
+      raise .dursel
+   }
+}
+
+# callback for <Return> key in min and max duration entry widgets
+proc SelectDurationFilterEntry {varname val} {
+   upvar $varname timspec
+
+   if {([scan $val "%2u:%2u%n" hour minute len] == 3) && ($len == [string length $val])} {
+      set timspec [expr $hour * 60 + $minute]
+      SelectDurationFilter 0
+   } elseif {([scan $val "%2u%n" minute len] == 2) && ($len == [string length $val])} {
+      set timspec $minute
+      SelectDurationFilter 0
+   } else {
+      tk_messageBox -type ok -default ok -icon error -parent .dursel \
+                    -message "Invalid input format in \"$val\"; use \"HH:MM\""
+   }
+}
+
+# small helper function to convert time format from "minutes of day" to HH:MM
+proc Motd2HHMM {motd} {
+   return [format "%02d:%02d" [expr $motd / 60] [expr $motd % 60]]
+}
+
+proc SelectDurationFilter { round {val 0} } {
+   global dursel_minstr dursel_maxstr
+   global dursel_min dursel_max
+
+   if {$round == 1} {
+      set dursel_min [expr $dursel_min - ($dursel_min % 5)]
+      if {$dursel_min > $dursel_max} {
+         set dursel_max $dursel_min
+      }
+   } elseif {$round == 2} {
+      set dursel_max  [expr $dursel_max  - ($dursel_max  % 5)]
+      if {$dursel_max < $dursel_min} {
+         set dursel_min $dursel_max
+      }
+   }
+   set dursel_minstr [Motd2HHMM $dursel_min]
+   set dursel_maxstr [Motd2HHMM $dursel_max]
+
+   C_SelectMinMaxDuration $dursel_min $dursel_max
+   C_RefreshPiListbox
+   CheckShortcutDeselection
+}
+
+# callback for "undo" button
+proc UndoDurationFilter {} {
+   global dursel_min dursel_max
+
+   set dursel_min 0
+   set dursel_max 0
+
+   C_SelectMinMaxDuration 0 0
+   C_RefreshPiListbox
+   CheckShortcutDeselection
+}
+
 
 ##  --------------------------------------------------------------------------
 ##  Sorting criterion selection popup
@@ -2135,10 +2355,12 @@ proc PopupSortCritSelection {} {
       set sortcrit_popup 1
 
       frame .sortcrit.fl
-      listbox .sortcrit.fl.list -exportselection false -height 15 -width 10 -selectmode extended -relief ridge -yscrollcommand {.sortcrit.fl.sb set}
-      scrollbar .sortcrit.fl.sb -orient vertical -command {.sortcrit.fl.list yview}
+      listbox .sortcrit.fl.list -exportselection false -height 15 -width 10 -relief ridge \
+                                -yscrollcommand {.sortcrit.fl.sb set} -selectmode extended
+      bind .sortcrit.fl.list <Key-Delete> DeleteSortCritSelection
+      scrollbar .sortcrit.fl.sb -orient vertical -command {.sortcrit.fl.list yview} -takefocus 0
       pack .sortcrit.fl.sb .sortcrit.fl.list -side left -expand 1 -fill y
-      pack .sortcrit.fl -padx 5 -pady 5 -side left
+      pack .sortcrit.fl -padx 5 -pady 5 -side left -fill y
 
       # entry field for additions
       frame .sortcrit.all
@@ -2146,11 +2368,11 @@ proc PopupSortCritSelection {} {
       label .sortcrit.all.inp.lab -text "0x"
       pack  .sortcrit.all.inp.lab -side left
       entry .sortcrit.all.inp.str -width 14 -textvariable sortcrit_str
-      bind  .sortcrit.all.inp.str <Enter> {focus %W}
+      bind  .sortcrit.all.inp.str <Enter> {SelectTextOnFocus %W}
       bind  .sortcrit.all.inp.str <Return> AddSortCritSelection
-      bind  .sortcrit.all.inp.str <Escape> {destroy .sortcrit}
+      bind  .sortcrit.all.inp.str <Escape> {tkButtonInvoke .sortcrit.all.dismiss}
       pack  .sortcrit.all.inp.str -side left -fill x -expand 1
-      pack  .sortcrit.all.inp -side top -pady 10 -anchor nw -fill x -expand 1
+      pack  .sortcrit.all.inp -side top -pady 10 -anchor nw -fill x
 
       # buttons Add and Delete below entry field
       button .sortcrit.all.scadd -text "Add" -command AddSortCritSelection -width 5
@@ -2176,14 +2398,20 @@ proc PopupSortCritSelection {} {
       pack .sortcrit.all.sccl.t .sortcrit.all.sccl.b -side top
       pack .sortcrit.all.sccl -side top -anchor w -pady 5
 
-      # Buttons at bottom: Clear and Dismiss
-      button .sortcrit.all.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Filtering) "Sorting Criterions"}
+      # Special command button
+      button .sortcrit.all.load -text "Load all used" -command LoadAllUsedSortCrits
+      pack .sortcrit.all.load -side top -anchor w
+
+      # Buttons at bottom: Help, Clear and Dismiss
+      button .sortcrit.all.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Filtering) "Sorting Criteria"}
       button .sortcrit.all.clear -text "Clear" -width 5 -command ClearSortCritSelection
       button .sortcrit.all.dismiss -text "Dismiss" -width 5 -command {destroy .sortcrit}
       pack .sortcrit.all.dismiss .sortcrit.all.clear .sortcrit.all.help -side bottom -anchor w
       pack .sortcrit.all -side left -anchor n -fill y -expand 1 -padx 5 -pady 5
 
       bind .sortcrit.all <Destroy> {+ set sortcrit_popup 0}
+      focus .sortcrit.all.inp.str
+      wm resizable .sortcrit 0 1
 
       UpdateSortCritListbox
    } else {
@@ -2191,7 +2419,7 @@ proc PopupSortCritSelection {} {
    }
 }
 
-# Clear all sorting criterion selections (all classes)
+# callback for "Clear" button: Clear all sorting criterion selections (all classes)
 proc ClearSortCritSelection {} {
    # clear sort-crit entry field
    .sortcrit.all.inp.str delete 0 end
@@ -2203,6 +2431,7 @@ proc ClearSortCritSelection {} {
    C_RefreshPiListbox
 }
 
+# callback for "Add" button: parse the entry field and add the given index to the selection
 proc AddSortCritSelection {} {
    global sortcrit_str
    global sortcrit_class sortcrit_class_sel
@@ -2216,12 +2445,12 @@ proc AddSortCritSelection {} {
       switch -exact [scan $item "%x-%x" from to] {
          1 {set to $from}
          2 {}
-         default {tk_messageBox -type ok -default ok -icon error -parent .sortcrit -message "Invalid entry item \"$item\"; expected format: nn\[-nn\]{,nn-...}"}
+         default {tk_messageBox -type ok -default ok -icon error -parent .sortcrit -message "Invalid entry item \"$item\"; expected format: nn\[-nn\]{,nn-...} with <nn> hexadecimal numbers (i.e. digits 0-9,a-f)"}
       }
       if {$to != -1} {
          if {$to < $from} {set swap $to; set to $from; set from $swap}
          if {$to >= 256} {
-            tk_messageBox -type ok -default ok -icon error -parent .sortcrit -message "Invalid range; values must be lower than 0x100"
+            tk_messageBox -type ok -default ok -icon error -parent .sortcrit -message "Invalid range; values must be lower than hexadecimal 100"
          } else {
             for {} {$from <= $to} {incr from} {
                set all($from) 1
@@ -2241,6 +2470,7 @@ proc AddSortCritSelection {} {
    C_RefreshPiListbox
 }
 
+# callback for "Delete" button: remove the selected index from the selection
 proc DeleteSortCritSelection {} {
    global sortcrit_class sortcrit_class_sel
 
@@ -2257,13 +2487,42 @@ proc DeleteSortCritSelection {} {
    # build new list from temporary array
    set sortcrit_class_sel($sortcrit_class) [lsort -integer [array names all]]
 
-   .sortcrit.all.inp.str delete 0 end
+   #.sortcrit.all.inp.str delete 0 end
    UpdateSortCritListbox
 
    C_SelectSortCrits $sortcrit_class $sortcrit_class_sel($sortcrit_class)
    C_RefreshPiListbox
 }
 
+# callback for "Load all used" button: replace selection of current class with all possible crits
+proc LoadAllUsedSortCrits {} {
+   global sortcrit_class sortcrit_class_sel
+
+   # query the database for a list of all found sorting criteria
+   set all [C_GetAllUsedSortCrits]
+
+   if {[llength $all] == 0} {
+      # no crits found -> abort
+      tk_messageBox -type ok -default ok -icon info -parent .sortcrit \
+         -message "There are no programmes which have a sorting criterion attached in the database."
+   } else {
+      if {[llength $sortcrit_class_sel($sortcrit_class)] > 0} {
+         # ask the user if the current list should really be discarded
+         set answer [tk_messageBox -type okcancel -default ok -icon warning -parent .sortcrit \
+                        -message "This will replace your current selection with the [llength $all] sorting criteria found in the database."]
+         if {[string compare $answer ok] != 0} return;
+      }
+
+      # replace the current selection with the generated list
+      set sortcrit_class_sel($sortcrit_class) $all
+
+      UpdateSortCritListbox
+      C_SelectSortCrits $sortcrit_class $sortcrit_class_sel($sortcrit_class)
+      C_RefreshPiListbox
+   }
+}
+
+# helper proc to insert all indices in the selection list into the listbox
 proc UpdateSortCritListbox {} {
    global sortcrit_popup
    global sortcrit_class sortcrit_class_sel
@@ -2310,9 +2569,9 @@ proc PopupDumpDatabase {} {
       pack .dumpdb.all.name.prompt -side left
       entry .dumpdb.all.name.filename -textvariable dumpdb_filename -font $font_fixed -width 30
       pack .dumpdb.all.name.filename -side left -padx 5
-      bind .dumpdb.all.name.filename <Enter> {focus %W}
-      bind .dumpdb.all.name.filename <Return> DoDbDump
-      bind .dumpdb.all.name.filename <Escape> {destroy .dumpdb}
+      bind .dumpdb.all.name.filename <Enter> {SelectTextOnFocus %W}
+      bind .dumpdb.all.name.filename <Return> {tkButtonInvoke .dumpdb.all.cmd.apply}
+      bind .dumpdb.all.name.filename <Escape> {tkButtonInvoke .dumpdb.all.cmd.clear}
       button .dumpdb.all.name.dlgbut -image $fileImage -command {
          set tmp [tk_getSaveFile -parent .dumpdb \
                      -initialfile [file tail $dumpdb_filename] \
@@ -2354,12 +2613,13 @@ proc PopupDumpDatabase {} {
       pack .dumpdb.all.cmd.help -side left -padx 10
       button .dumpdb.all.cmd.clear -text "Dismiss" -width 5 -command {destroy .dumpdb}
       pack .dumpdb.all.cmd.clear -side left -padx 10
-      button .dumpdb.all.cmd.apply -text "Start" -width 5 -command DoDbRawDump
+      button .dumpdb.all.cmd.apply -text "Start" -width 5 -command DoDbRawDump -default active
       pack .dumpdb.all.cmd.apply -side left -padx 10
       pack .dumpdb.all.cmd -side top
 
       pack .dumpdb.all -padx 10 -pady 10
       bind .dumpdb.all <Destroy> {+ set dumpdb_popup 0}
+      focus .dumpdb.all.name.filename
    } else {
       raise .dumpdb
    }
@@ -2409,9 +2669,9 @@ proc PopupDumpDbTabs {} {
       pack .dumptabs.all.name.prompt -side left
       entry .dumptabs.all.name.filename -textvariable dumptabs_filename -font $font_fixed -width 30
       pack .dumptabs.all.name.filename -side left -padx 5
-      bind .dumptabs.all.name.filename <Enter> {focus %W}
-      bind .dumptabs.all.name.filename <Return> DoDbDump
-      bind .dumptabs.all.name.filename <Escape> {destroy .dumptabs}
+      bind .dumptabs.all.name.filename <Enter> {SelectTextOnFocus %W}
+      bind .dumptabs.all.name.filename <Return> {tkButtonInvoke .dumptabs.all.cmd.apply}
+      bind .dumptabs.all.name.filename <Escape> {tkButtonInvoke .dumptabs.all.cmd.clear}
       button .dumptabs.all.name.dlgbut -image $fileImage -command {
          set tmp [tk_getSaveFile -parent .dumptabs \
                      -initialfile [file tail $dumptabs_filename] \
@@ -2440,12 +2700,13 @@ proc PopupDumpDbTabs {} {
       pack .dumptabs.all.cmd.help -side left -padx 10
       button .dumptabs.all.cmd.clear -text "Dismiss" -width 5 -command {destroy .dumptabs}
       pack .dumptabs.all.cmd.clear -side left -padx 10
-      button .dumptabs.all.cmd.apply -text "Export" -width 5 -command DoDbTabsDump
+      button .dumptabs.all.cmd.apply -text "Export" -width 5 -command DoDbTabsDump -default active
       pack .dumptabs.all.cmd.apply -side left -padx 10
       pack .dumptabs.all.cmd -side top
 
       pack .dumptabs.all -padx 10 -pady 10
       bind .dumptabs.all <Destroy> {+ set dumptabs_popup 0}
+      focus .dumptabs.all.name.filename
    } else {
       raise .dumptabs
    }
@@ -2496,9 +2757,9 @@ proc PopupDumpHtml {} {
       pack .dumphtml.opt1.name.prompt -side left
       entry .dumphtml.opt1.name.filename -textvariable dumphtml_filename -font $font_fixed -width 30
       pack .dumphtml.opt1.name.filename -side left -padx 5
-      bind .dumphtml.opt1.name.filename <Enter> {focus %W}
-      bind .dumphtml.opt1.name.filename <Return> DoDumpHtml
-      bind .dumphtml.opt1.name.filename <Escape> {destroy .dumphtml}
+      bind .dumphtml.opt1.name.filename <Enter> {SelectTextOnFocus %W}
+      bind .dumphtml.opt1.name.filename <Return> {tkButtonInvoke .dumphtml.cmd.write}
+      bind .dumphtml.opt1.name.filename <Escape> {tkButtonInvoke .dumphtml.cmd.dismiss}
       button .dumphtml.opt1.name.dlgbut -image $fileImage -command {
          set tmp [tk_getSaveFile -parent .dumphtml \
                      -initialfile [file tail $dumphtml_filename] \
@@ -2535,11 +2796,12 @@ proc PopupDumpHtml {} {
       pack .dumphtml.cmd.help -side left -padx 10
       button .dumphtml.cmd.dismiss -text "Dismiss" -width 5 -command {destroy .dumphtml}
       pack .dumphtml.cmd.dismiss -side left -padx 10
-      button .dumphtml.cmd.write -text "Export" -width 5 -command DoDumpHtml
+      button .dumphtml.cmd.write -text "Export" -width 5 -command DoDumpHtml -default active
       pack .dumphtml.cmd.write -side left -padx 10
       pack .dumphtml.cmd -side top -pady 10
 
       bind .dumphtml.cmd <Destroy> {+ set dumphtml_popup 0}
+      focus .dumphtml.opt1.name.filename
    } else {
       raise .dumphtml
    }
@@ -2626,6 +2888,7 @@ proc PopupHelp {index {subheading {}}} {
       bind   .help.disp.text <Home>  {.help.disp.text yview moveto 0.0}
       bind   .help.disp.text <End>   {.help.disp.text yview moveto 1.0}
       bind   .help.disp.text <Enter> {focus %W}
+      bind   .help.disp.text <Escape> {tkButtonInvoke .help.cmd.dismiss}
       # allow to scroll the text with a wheel mouse
       bind   .help.disp.text <Button-4> {.help.disp.text yview scroll -3 units}
       bind   .help.disp.text <Button-5> {.help.disp.text yview scroll 3 units}
@@ -2759,10 +3022,15 @@ This program is free software; you can redistribute it and/or modify it under th
 THIS PROGRAM IS DISTRIBUTED IN THE HOPE THAT IT WILL BE USEFUL, BUT WITHOUT ANY WARRANTY; WITHOUT EVEN THE IMPLIED WARRANTY OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more details.
       }
       pack .about.m -side top
-      bind .about.m <Destroy> {+ set about_popup 0}
 
-      button .about.dismiss -text "Dismiss" -command {destroy .about}
+      button .about.dismiss -text "Dismiss" -command {destroy .about} -default active
       pack .about.dismiss -pady 10
+
+      bind  .about.dismiss <Destroy> {+ set about_popup 0}
+      bind  .about.dismiss <Return> {tkButtonInvoke .about.dismiss}
+      bind  .about.dismiss <Escape> {tkButtonInvoke .about.dismiss}
+      focus .about.dismiss
+
    } else {
       raise .about
    }
@@ -2827,7 +3095,7 @@ proc ProvWin_Create {} {
       frame .provwin.n.info.net
       label .provwin.n.info.net.header -text "List of networks"
       pack .provwin.n.info.net.header -side top -anchor nw
-      text .provwin.n.info.net.list -width 45 -height 4 -wrap word \
+      text .provwin.n.info.net.list -width 45 -height 5 -wrap word \
                                     -font $textfont -background $default_bg \
                                     -insertofftime 0 -state disabled -exportselection 1
       pack .provwin.n.info.net.list -side top -anchor nw -fill both -expand 1
@@ -2847,11 +3115,14 @@ proc ProvWin_Create {} {
       frame .provwin.cmd
       button .provwin.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Configuration) "Select provider"}
       button .provwin.cmd.abort -text "Abort" -width 5 -command {destroy .provwin}
-      button .provwin.cmd.ok -text "Ok" -width 5 -command ProvWin_Exit
+      button .provwin.cmd.ok -text "Ok" -width 5 -command ProvWin_Exit -default active
+      bind .provwin.cmd.ok <Return> {tkButtonInvoke .provwin.cmd.ok}
+      bind .provwin.cmd.ok <Escape> {tkButtonInvoke .provwin.cmd.abort}
       pack .provwin.cmd.help .provwin.cmd.abort .provwin.cmd.ok -side left -padx 10
+      pack .provwin.cmd -side top -pady 5
 
-      pack .provwin.cmd -side top -pady 10
       bind .provwin.n <Destroy> {+ set provwin_popup 0}
+      focus .provwin.cmd.ok
 
       # fill the listbox with the provider's network names
       foreach cni $provwin_ailist {
@@ -2925,7 +3196,7 @@ set epgscan_opt_refresh 0
 set epgscan_opt_xawtv 1
 
 proc PopupEpgScan {} {
-   global hwcfg hwcfg_default is_unix env font_bold
+   global hwcfg hwcfg_default is_unix env font_fixed font_bold
    global prov_freqs
    global tvapp_name
    global epgscan_popup
@@ -2971,7 +3242,7 @@ proc PopupEpgScan {} {
 
       # message window to inform about the scanning state
       frame .epgscan.all.fmsg
-      text .epgscan.all.fmsg.msg -width 60 -height 20 -yscrollcommand {.epgscan.all.fmsg.sb set} -wrap none
+      text .epgscan.all.fmsg.msg -width 60 -height 20 -yscrollcommand {.epgscan.all.fmsg.sb set} -wrap none -font $font_fixed
       pack .epgscan.all.fmsg.msg -side left -expand 1 -fill both
       .epgscan.all.fmsg.msg tag configure bold -font $font_bold
       scrollbar .epgscan.all.fmsg.sb -orient vertical -command {.epgscan.all.fmsg.msg yview}
@@ -2993,14 +3264,20 @@ proc PopupEpgScan {} {
 
       # check if provider frequencies are available
       UpdateProvFrequency [C_LoadProvFreqsFromDbs]
-      if {[llength $prov_freqs] == 0} {
+      if {[llength $prov_freqs] > 0} {
+         .epgscan.all.fmsg.msg insert end "To remove obsolete providers or fix database problems\nenable the "
+         checkbutton .epgscan.all.fmsg.msg.refresh -text "Refresh only" -variable epgscan_opt_refresh \
+                                                   -font $font_fixed -cursor top_left_arrow
+         .epgscan.all.fmsg.msg window create end -window .epgscan.all.fmsg.msg.refresh 
+         .epgscan.all.fmsg.msg insert end "option.\n\n"
+      } else {
          .epgscan.all.opt.refresh configure -state disabled
       }
 
       pack .epgscan.all -side top -fill both -expand 1
       bind .epgscan.all <Destroy> {+ set epgscan_popup 0; C_StopEpgScan}
 
-      .epgscan.all.fmsg.msg insert end "Press the <Start scan> button\n"
+      .epgscan.all.fmsg.msg insert end "Press the <Start scan> button"
 
       wm resizable .epgscan 1 1
       update
@@ -3044,6 +3321,10 @@ proc EpgScanButtonControl {is_start} {
       .epgscan.cmd.dismiss configure -state disabled
       .epgscan.all.opt.refresh configure -state disabled
       .epgscan.all.opt.xawtv configure -state disabled
+      # destroy all "Remove provider" buttons
+      foreach w [info commands .epgscan.all.fmsg.msg.del_prov_*] {
+         destroy $w
+      }
    } else {
       # check if the popup window still exists
       if {[string length [info commands .epgscan.cmd]] > 0} {
@@ -3061,6 +3342,49 @@ proc EpgScanButtonControl {is_start} {
          if {[C_Tvapp_Enabled]} {
             .epgscan.all.opt.xawtv configure -state normal
          }
+         # enable "Remove provider" buttons
+         foreach w [info commands .epgscan.all.fmsg.msg.del_prov_*] {
+            $w configure -state normal
+         }
+      }
+   }
+}
+
+# callback for "Remove provider" button in the scan message window
+proc EpgScanDeleteProvider {cni} {
+   global prov_selection prov_freqs cfnetwops
+
+   if {[string compare [.epgscan.cmd.start cget -state] normal] != 0} {
+      return
+   }
+   set answer [tk_messageBox -type okcancel -icon info -parent .epgscan \
+                  -message "You're about to remove the provider's database and all it's configuration information."]
+   if {[string compare $answer ok] == 0} {
+      # remove the database file
+      set err_str [C_RemoveProviderDatabase $cni]
+
+      if {[string length $err_str] > 0} {
+         # failed to remove the (existing) file
+         tk_messageBox -type ok -icon error -parent .epgscan \
+            -message "Failed to remove the database file: $err_str"
+      } else {
+         #warn prov_merge_cnis
+         #warn acq_mode_cnis
+
+         set idx [lsearch -exact $prov_selection $cni]
+         if {$idx != -1} {
+            set prov_selection [lreplace $prov_selection $idx $idx]
+         }
+         set idx [lsearch -exact $prov_freqs $cni]
+         if {$idx != -1} {
+            set prov_freqs [lreplace $prov_freqs $idx [expr $idx + 1]]
+         }
+         array unset cfnetwops $cni
+
+         UpdateRcFile
+
+         # disable the button so that the user can't invoke it again
+         catch [.epgscan.all.fmsg.msg.del_prov_$cni configure -state disabled]
       }
    }
 }
@@ -3084,13 +3408,15 @@ proc SelBoxCreate {lbox arr_ailist arr_selist arr_names} {
 
    ## first column: listbox with all netwops in AI order
    frame $lbox.ai
-   scrollbar $lbox.ai.sb -orient vertical -command [list $lbox.ai.ailist yview]
+   scrollbar $lbox.ai.sb -orient vertical -command [list $lbox.ai.ailist yview] -takefocus 0
    if $do_scrollbar { pack $lbox.ai.sb -fill y -side left }
    listbox $lbox.ai.ailist -exportselection false -height $lbox_height -width 12 \
                            -selectmode extended -relief ridge -yscrollcommand [list $lbox.ai.sb set]
    pack $lbox.ai.ailist -side left -fill both -expand 1
    pack $lbox.ai -anchor nw -side left -pady 10 -padx 10 -fill both -expand 1
-   bind $lbox.ai.ailist <ButtonPress-1> [list + after idle [list SelBoxButtonPress $lbox orig]]
+   bind $lbox.ai.ailist <<ListboxSelect>> [list + after idle [list SelBoxButtonPress $lbox orig]]
+   bind $lbox.ai.ailist <Return> [list tkButtonInvoke $lbox.cmd.add]
+   bind $lbox.ai.ailist <Enter> {focus %W}
 
    ## second column: command buttons
    frame $lbox.cmd
@@ -3108,13 +3434,17 @@ proc SelBoxCreate {lbox arr_ailist arr_selist arr_names} {
 
    ## third column: selected providers in selected order
    frame $lbox.sel
-   scrollbar $lbox.sel.sb -orient vertical -command [list $lbox.sel.selist yview]
+   scrollbar $lbox.sel.sb -orient vertical -command [list $lbox.sel.selist yview] -takefocus 0
    listbox $lbox.sel.selist -exportselection false -height $lbox_height -width 12 \
                             -selectmode extended -relief ridge -yscrollcommand [list $lbox.sel.sb set]
    if $do_scrollbar { pack $lbox.sel.sb -fill y -side left }
    pack $lbox.sel.selist -side left -fill both -expand 1
    pack $lbox.sel -anchor nw -side left -pady 10 -padx 10 -fill both -expand 1
-   bind $lbox.sel.selist <ButtonPress-1> [list + after idle [list SelBoxButtonPress $lbox sel]]
+   bind $lbox.sel.selist <<ListboxSelect>> [list + after idle [list SelBoxButtonPress $lbox sel]]
+   bind $lbox.sel.selist <Key-Delete> [list tkButtonInvoke $lbox.cmd.delnet]
+   bind $lbox.sel.selist <Control-Key-Up> [concat tkButtonInvoke $lbox.cmd.updown.up {;} break]
+   bind $lbox.sel.selist <Control-Key-Down> [concat tkButtonInvoke $lbox.cmd.updown.down {;} break]
+   bind $lbox.sel.selist <Enter> {focus %W}
 
    # fill the listboxes
    foreach item $ailist { $lbox.ai.ailist insert end $names($item) }
@@ -3259,7 +3589,7 @@ proc PopupNetwopSelection {} {
          frame .netsel.lb
          SelBoxCreate .netsel.lb netsel_ailist netsel_selist netsel_names
 
-         menubutton .netsel.lb.cmd.copy -text "copy" -menu .netsel.lb.cmd.copy.men -relief raised -borderwidth 2
+         menubutton .netsel.lb.cmd.copy -text "copy" -menu .netsel.lb.cmd.copy.men -relief raised -borderwidth 2 -underline 0
          pack .netsel.lb.cmd.copy -side top -anchor nw -pady 20 -fill x
          menu .netsel.lb.cmd.copy.men -tearoff 0 -postcommand {PostDynamicMenu .netsel.lb.cmd.copy.men NetselCreateCopyMenu}
 
@@ -3267,7 +3597,6 @@ proc PopupNetwopSelection {} {
          button .netsel.lb.cmd.abort -text "Abort" -width 7 -command {destroy .netsel}
          button .netsel.lb.cmd.save -text "Save" -width 7 -command {SaveSelectedNetwopList}
          pack .netsel.lb.cmd.help .netsel.lb.cmd.abort .netsel.lb.cmd.save -side bottom -anchor sw
-         bind .netsel.lb.cmd <Destroy> {+ set netsel_popup 0}
          pack  .netsel.lb -side top -fill both -expand 1
 
          global netsel_off_name
@@ -3283,19 +3612,23 @@ proc PopupNetwopSelection {} {
          frame .netsel.bottom.frm_time
          label .netsel.bottom.frm_time.lab_start -text "from"
          entry .netsel.bottom.frm_time.ent_start -textvariable netsel_start -font $font_fixed -width 5
+         bind  .netsel.bottom.frm_time.ent_start <Enter> {SelectTextOnFocus %W}
          label .netsel.bottom.frm_time.lab_stop  -text "until"
          entry .netsel.bottom.frm_time.ent_stop  -textvariable netsel_stop -font $font_fixed -width 5
+         bind  .netsel.bottom.frm_time.ent_stop  <Enter> {SelectTextOnFocus %W}
          pack  .netsel.bottom.frm_time.lab_start .netsel.bottom.frm_time.ent_start .netsel.bottom.frm_time.lab_stop .netsel.bottom.frm_time.ent_stop -side left -padx 5 -anchor w
          grid  .netsel.bottom.frm_time -row 1 -column 1 -sticky we
          grid  columnconfigure .netsel.bottom 1 -weight 1
          pack  .netsel.bottom -side top -padx 10 -pady 10 -fill x
 
-         bind  .netsel.lb.ai.ailist <ButtonRelease-1> [list + after idle [list NetselUpdateCni orig]]
-         bind  .netsel.lb.sel.selist <ButtonRelease-1> [list + after idle [list NetselUpdateCni sel]]
+         bind  .netsel.lb.ai.ailist <<ListboxSelect>> [list + after idle [list NetselUpdateCni orig]]
+         bind  .netsel.lb.sel.selist <<ListboxSelect>> [list + after idle [list NetselUpdateCni sel]]
          array unset netsel_times
          array set netsel_times [array get cfnettimes]
          set netsel_cni 0
          NetselUpdateCni orig
+
+         bind .netsel.lb.cmd <Destroy> {+ set netsel_popup 0}
 
          wm resizable .netsel 1 1
          update
@@ -3557,13 +3890,18 @@ proc UpdateNetwopFilterBar {} {
    .all.netwops.list selection set 0
    .menubar.filter.netwops delete 1 end
 
-   set nlidx 0
-   foreach cni $ailist {
-      .all.netwops.list insert end $netnames($cni)
-      .menubar.filter.netwops add checkbutton -label $netnames($cni) -variable netselmenu($nlidx) -command [list SelectNetwopMenu $nlidx]
-      incr nlidx
+   if {[llength $ailist] != 0} {
+      set nlidx 0
+      foreach cni $ailist {
+         .all.netwops.list insert end $netnames($cni)
+         .menubar.filter.netwops add checkbutton -label $netnames($cni) -variable netselmenu($nlidx) -command [list SelectNetwopMenu $nlidx]
+         incr nlidx
+      }
+      .all.netwops.list configure -height [expr [llength $ailist] + 1]
+   } else {
+      # no provider selected yet or empty network list
+      .menubar.filter.netwops add command -label "none" -state disabled
    }
-   .all.netwops.list configure -height [expr [llength $ailist] + 1]
 }
 
 # remove elements from a list that are not member of a reference list
@@ -3595,7 +3933,6 @@ proc NetworkNamingPopup {} {
    global tvapp_name
 
    if {$netname_popup == 0} {
-      set netname_popup 1
 
       # build list of available providers
       set netname_prov_cnis {}
@@ -3700,6 +4037,7 @@ proc NetworkNamingPopup {} {
       }
 
       CreateTransientPopup .netname "Network name configuration"
+      set netname_popup 1
 
       ## first column: listbox with sorted listing of all netwops
       frame .netname.list
@@ -3709,7 +4047,7 @@ proc NetworkNamingPopup {} {
       pack .netname.list.sc -side left -fill y
       pack .netname.list -side left -pady 10 -padx 10 -fill both -expand 1
       bind .netname.list.ailist <ButtonPress-1> [list + after idle NetworkNameSelection]
-      bind .netname.list.ailist <space>         [list + after idle NetworkNameSelection]
+      bind .netname.list.ailist <Key-space>     [list + after idle NetworkNameSelection]
 
       ## second column: info and commands for the selected network
       frame .netname.cmd
@@ -3755,7 +4093,7 @@ proc NetworkNamingPopup {} {
       listbox .netname.cmd.provnams -exportselection false -height [llength $netname_prov_cnis] -width 0 -selectmode single
       pack .netname.cmd.provnams -side top -anchor n -fill both -expand 1
       bind .netname.cmd.provnams <ButtonPress-1> [list + after idle NetworkNameProvSelection]
-      bind .netname.cmd.provnams <space>         [list + after idle NetworkNameProvSelection]
+      bind .netname.cmd.provnams <Key-space>     [list + after idle NetworkNameProvSelection]
 
       # bottom row: command buttons
       button .netname.cmd.save -text "Save" -width 7 -command NetworkNamesSave
@@ -3994,9 +4332,6 @@ proc NetworkNamesSave {} {
    # update the network menus with the new names
    UpdateNetwopFilterBar
 
-   # update the PI listbox network name column header width
-   C_PiOutput_SetNetnameColumnWidth
-
    # Redraw the PI listbox with the new network names
    C_RefreshPiListbox
 
@@ -4105,7 +4440,7 @@ proc ApplyUserNetnameCfg {name_arr} {
 array set colsel_tabs {
    title          {266 Title    FilterMenuAdd_Title      "Title"} \
    netname        {60  Network  FilterMenuAdd_Networks   "Network name"} \
-   time           {83  Time     FilterMenuAdd_Time       "Running time"} \
+   time           {78  Time     FilterMenuAdd_Time       "Running time"} \
    weekday        {30  Day      FilterMenuAdd_Date       "Day of week"} \
    day            {27  Date     FilterMenuAdd_Date       "Day of month"} \
    day_month      {41  Date     FilterMenuAdd_Date       "Day and month"} \
@@ -4132,27 +4467,6 @@ set pilistbox_cols [list \
 
 set colsel_popup 0
 
-# update width of network name column (after provider change)
-proc UpdateNetnameColumnWidth {width isInitial} {
-   global colsel_tabs pilistbox_cols
-
-   # check minimum width of 60 (= 55 + 5) pixels so that header text remains readable
-   if {$width < 55} {set width 55}
-
-   # add 5 pixels as distance to the following column
-   incr width 5
-
-   # check if the same width is already set
-   if {($width != [lindex $colsel_tabs(netname) 0]) || $isInitial} {
-      set colsel_tabs(netname) [concat $width [lrange $colsel_tabs(netname) 1 end]]
-
-      # check if the column is currently visible
-      if {([lsearch -exact $pilistbox_cols netname] != -1) || $isInitial} {
-         ApplySelectedColumnList initial
-      }
-   }
-}
-
 # callback for configure menu: create the configuration dialog
 proc PopupColumnSelection {} {
    global colsel_tabs colsel_ailist colsel_selist colsel_names
@@ -4175,34 +4489,45 @@ proc PopupColumnSelection {} {
       .colsel.sel.selist configure -width 20
 
       button .colsel.cmd.help -text "Help" -width 7 -command {PopupHelp $helpIndex(Configuration) "Select columns"}
-      button .colsel.cmd.apply -text "Apply" -width 7 -command {ApplySelectedColumnList normal}
+      button .colsel.cmd.apply -text "Apply" -width 7 -command ApplyColumnSelection
       button .colsel.cmd.quit -text "Dismiss" -width 7 -command {destroy .colsel}
       pack .colsel.cmd.help .colsel.cmd.quit .colsel.cmd.apply -side bottom -anchor sw
+
       bind .colsel.cmd <Destroy> {+ set colsel_popup 0}
+      bind  .colsel.cmd.apply <Return> {tkButtonInvoke .colsel.cmd.apply}
+      bind  .colsel.cmd.apply <Escape> {tkButtonInvoke .colsel.cmd.quit}
+      focus .colsel.cmd.apply
    } else {
       raise .colsel
    }
 }
 
-##
+# callback for "Apply" button in the config dialog
+proc ApplyColumnSelection {} {
+   global colsel_selist pilistbox_cols
+
+   # save the config to the rc-file
+   set pilistbox_cols $colsel_selist
+   UpdateRcFile
+
+   # redraw the PI listbox with the new settings
+   UpdatePiListboxColumns
+   C_RefreshPiListbox
+}
+
+##  ---------------------------------------------------------------------------
 ##  Apply the settings to the PI browser listbox
 ##
-proc ApplySelectedColumnList {mode} {
-   global colsel_selist colsel_names colsel_tabs
+proc UpdatePiListboxColumns {} {
+   global colsel_tabs
    global showColumnHeader font_small
    global pilistbox_cols
    global is_unix
 
-   if {[string compare $mode "initial"] == 0} {
-      # not called from the popup -> load the current config into the temp var
-      set colsel_selist $pilistbox_cols
-   } elseif {![info exists colsel_selist]} {
-      set colsel_selist $pilistbox_cols
-   }
-
    # remove previous colum headers
    foreach head [info commands .all.pi.colheads.c*] {
-      if [regexp {.all.pi.colheads.col_[^.]*$} $head] {
+      if { [regexp {.all.pi.colheads.col_[^.]*$} $head]  || \
+           ([string compare $head ".all.pi.colheads.c0"] == 0)} {
          pack forget $head
          destroy $head
       }
@@ -4212,7 +4537,7 @@ proc ApplySelectedColumnList {mode} {
    set tabs {}
    if {$showColumnHeader} {
       # create colum header menu buttons
-      foreach col $colsel_selist {
+      foreach col $pilistbox_cols {
          frame .all.pi.colheads.col_$col -width [lindex $colsel_tabs($col) 0] -height 14
          menubutton .all.pi.colheads.col_${col}.b -width 1 -cursor top_left_arrow \
                                                   -text [lindex $colsel_tabs($col) 1] -font $font_small
@@ -4228,9 +4553,13 @@ proc ApplySelectedColumnList {mode} {
          if {[string compare [lindex $colsel_tabs($col) 2] "none"] != 0} {
             # create the drop-down menu below the header (the menu items are added dynamically)
             .all.pi.colheads.col_${col}.b configure -menu .all.pi.colheads.col_${col}.b.men
-            .all.pi.colheads.col_${col}.b configure -menu .all.pi.colheads.col_${col}.b.men
             menu .all.pi.colheads.col_${col}.b.men -postcommand [list PostDynamicMenu .all.pi.colheads.col_${col}.b.men [lindex $colsel_tabs($col) 2]]
          }
+
+         # add bindings to allow manual resizing
+         bind .all.pi.colheads.col_${col}.b <Motion> [concat ColumnHeaderMotion $col %s %x {;} {if {$colsel_resize_phase > 0} break}]
+         bind .all.pi.colheads.col_${col}.b <ButtonPress-1> [concat ColumnHeaderButtonPress $col {;} {if {$colsel_resize_phase > 0} break}]
+         bind .all.pi.colheads.col_${col}.b <ButtonRelease-1> [concat ColumnHeaderButtonRel $col]
 
          incr tab_pos [lindex $colsel_tabs($col) 0]
          lappend tabs ${tab_pos}
@@ -4241,7 +4570,7 @@ proc ApplySelectedColumnList {mode} {
       }
    } else {
       # create an invisible frame to set the width of the text widget
-      foreach col $colsel_selist {
+      foreach col $pilistbox_cols {
          incr tab_pos [lindex $colsel_tabs($col) 0]
          lappend tabs ${tab_pos}
       }
@@ -4256,13 +4585,6 @@ proc ApplySelectedColumnList {mode} {
 
    # update the settings in the listbox module
    C_PiOutput_CfgColumns
-
-   if {[string compare $mode "initial"] != 0} {
-      C_RefreshPiListbox
-      # save the config to the rc-file
-      set pilistbox_cols $colsel_selist
-      UpdateRcFile
-   }
 }
 
 ##
@@ -4277,7 +4599,7 @@ proc FilterMenuAdd_Time {widget} {
    set hour       [expr ($start_time % (24*60*60)) / (60*60)]
 
    for {set i 0} {$i < 24} {incr i 2} {
-      $widget add command -label "$hour:00" -command [list C_PiListBox_GotoTime $start_time]
+      $widget add command -label [clock format $start_time -format {%H:%M}] -command [list C_PiListBox_GotoTime $start_time]
       incr start_time [expr 2*60*60]
       set hour [expr ($hour + 2) % 24]
    }
@@ -4355,6 +4677,99 @@ proc FilterMenuAdd_Title {widget} {
    }
 }
 
+##  ---------------------------------------------------------------------------
+##  Callbacks for PI listbox column resizing
+##
+set colsel_resize_phase 0
+
+proc ColumnHeaderMotion {col state xcoo} {
+   global pilistbox_cols colsel_tabs
+   global colsel_resize_phase
+
+   set wid .all.pi.colheads.col_$col
+
+   set cur_width [$wid cget -width]
+
+   if {$colsel_resize_phase == 0} {
+      # cursor was not yet in proximity
+      if {$xcoo + 7 >= $cur_width} {
+         # check if popdown menu is currently displayed
+         if {([string length [info commands .all.pi.colheads.col_${col}.b.men]] == 0) || \
+             ([winfo ismapped .all.pi.colheads.col_${col}.b.men] == 0)} {
+            # mouse pointer entered proximity (7 pixels) of right margin -> change cursor form
+            ${wid}.b configure -cursor right_side
+            # set flag for phase #1: waiting for button press
+            set colsel_resize_phase 1
+         }
+      }
+   } elseif {$colsel_resize_phase == 1} {
+      # cursor was in proximity
+      if {$xcoo + 7 < $cur_width} {
+         # left the area (and currently not in resize mode)
+         ${wid}.b configure -cursor top_left_arrow
+         set colsel_resize_phase 0
+      }
+   } elseif {$colsel_resize_phase == 2} {
+      # mouse button is pressed and in resize mode
+
+      # restrict to minimum column width
+      if {$xcoo < 15} {set xcoo 15}
+
+      if {$xcoo != [lindex $colsel_tabs($col) 0]} {
+
+         # configure width of the column header
+         $wid configure -width $xcoo
+
+         # configure tab-stops in text widget
+         set colsel_tabs($col) [concat $xcoo [lrange $colsel_tabs($col) 1 end]]
+         set tab_pos 0
+         set tabs {}
+         foreach col $pilistbox_cols {
+            incr tab_pos [lindex $colsel_tabs($col) 0]
+            lappend tabs ${tab_pos}
+         }
+         .all.pi.list.text tag configure past -tab $tabs
+         .all.pi.list.text tag configure now -tab $tabs
+         .all.pi.list.text tag configure then -tab $tabs
+
+         # redraw the PI listbox in case strings must be shortened
+         C_PiOutput_CfgColumns
+         C_RefreshPiListbox
+      }
+   }
+}
+
+
+# callback for mouse button release event
+proc ColumnHeaderButtonPress {col} {
+   global colsel_resize_phase
+
+   if {$colsel_resize_phase == 1} {
+      # button was pressed while in proximity of the right button border
+      # set flag for phase #2: the actual resize (until button is released)
+      set colsel_resize_phase 2
+   } else {
+      # button was pressed outside of proximity -> forward events to popdown menu
+      # set flag that resizing is locked until button release
+      set colsel_resize_phase -1
+   }
+}
+
+# callback for mouse button release event
+proc ColumnHeaderButtonRel {col} {
+   global colsel_resize_phase colsel_tabs
+
+   if {$colsel_resize_phase == 2} {
+      # save the configuration into the rc/ini file
+      UpdateRcFile
+   }
+
+   set wid .all.pi.colheads.col_$col
+   ${wid}.b configure -cursor top_left_arrow
+   set colsel_resize_phase 0
+}
+
+
 ##  --------------------------------------------------------------------------
 ##  Provider merge popup
 ##
@@ -4423,7 +4838,7 @@ proc PopupProviderMerge {} {
          cfmisc "misc. features"
          cfvps "VPS/PDC label"
       }
-      menubutton .provmerge.mb -menu .provmerge.mb.men -relief raised -borderwidth 1 -text "Configure"
+      menubutton .provmerge.mb -menu .provmerge.mb.men -relief raised -borderwidth 1 -text "Configure" -underline 0
       pack .provmerge.mb -side top
       menu .provmerge.mb.men -tearoff 0
       .provmerge.mb.men add command -command {PopupProviderMergeOpt cftitle} -label $ProvmergeOptLabels(cftitle)
@@ -4446,10 +4861,14 @@ proc PopupProviderMerge {} {
       frame .provmerge.cmd
       button .provmerge.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Merged databases)}
       button .provmerge.cmd.abort -text "Abort" -width 5 -command {ProvMerge_Quit Abort}
-      button .provmerge.cmd.ok -text "Ok" -width 5 -command {ProvMerge_Quit Ok}
+      button .provmerge.cmd.ok -text "Ok" -width 5 -command {ProvMerge_Quit Ok} -default active
       pack .provmerge.cmd.help .provmerge.cmd.abort .provmerge.cmd.ok -side left -padx 10
       pack .provmerge.cmd -side top -pady 10
+
       bind .provmerge.cmd <Destroy> {+ set provmerge_popup 0; ProvMerge_Quit Abort}
+      bind .provmerge.cmd.ok <Return> {tkButtonInvoke .provmerge.cmd.ok}
+      bind .provmerge.cmd.ok <Escape> {tkButtonInvoke .provmerge.cmd.abort}
+      focus .provmerge.cmd.ok
    } else {
       raise .provmerge
    }
@@ -4483,10 +4902,15 @@ proc PopupProviderMergeOpt {cfoption} {
 
          # create cmd buttons at bottom
          frame .provmergeopt.cb
-         button .provmergeopt.cb.ok -text "Ok" -width 7 -command {destroy .provmergeopt}
+         button .provmergeopt.cb.ok -text "Ok" -width 7 -command {destroy .provmergeopt} -default active
          pack .provmergeopt.cb.ok -side left -padx 10
          pack .provmergeopt.cb -side top -pady 10
+
          bind .provmergeopt.cb <Destroy> {+ set provmergeopt_popup {}}
+         focus .provmergeopt.cb.ok
+         bind  .provmergeopt.cb.ok <Return> {tkButtonInvoke .provmergeopt.cb.ok}
+         bind  .provmergeopt.cb.ok <Escape> {tkButtonInvoke .provmergeopt.cb.ok}
+
       } else {
          # the popup is already opened -> just exchange the contents
          wm title .provmergeopt "Database Selection for $ProvmergeOptLabels($cfoption)"
@@ -4505,6 +4929,7 @@ proc PopupProviderMergeOpt {cfoption} {
 
          # make the sure the popup is not obscured by other windows
          raise .provmergeopt
+         focus .provmergeopt.cb.ok
       }
    }
 }
@@ -4703,10 +5128,14 @@ proc PopupAcqMode {} {
       frame .acqmode.cmd
       button .acqmode.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Acquisition modes)}
       button .acqmode.cmd.abort -text "Abort" -width 5 -command {destroy .acqmode}
-      button .acqmode.cmd.apply -text "Ok" -width 5 -command {QuitAcqModePopup}
-      pack .acqmode.cmd.help .acqmode.cmd.abort .acqmode.cmd.apply -side left -padx 10
+      button .acqmode.cmd.ok -text "Ok" -width 5 -command {QuitAcqModePopup} -default active
+      pack .acqmode.cmd.help .acqmode.cmd.abort .acqmode.cmd.ok -side left -padx 10
       pack .acqmode.cmd -side top -pady 10
+
       bind .acqmode.cmd <Destroy> {+ set acqmode_popup 0}
+      bind .acqmode.cmd.ok <Return> {tkButtonInvoke %W}
+      bind .acqmode.cmd.ok <Escape> {tkButtonInvoke .acqmode.cmd.abort}
+      focus .acqmode.cmd.ok
    } else {
       raise .acqmode
    }
@@ -4883,7 +5312,7 @@ proc PopupHardwareConfig {} {
          pack .hwcfg.opt1.name.prompt -side left
          entry .hwcfg.opt1.name.filename -textvariable hwcfg_tmp_tvapp_path -font {courier -12 normal} -width 33
          pack .hwcfg.opt1.name.filename -side left -padx 5
-         bind .hwcfg.opt1.name.filename <Enter> {focus %W}
+         bind .hwcfg.opt1.name.filename <Enter> {SelectTextOnFocus %W}
          button .hwcfg.opt1.name.dlgbut -image $fileImage -command {
             set tmp [tk_chooseDirectory -parent .hwcfg \
                         -initialdir $hwcfg_tmp_tvapp_path \
@@ -4977,7 +5406,8 @@ proc PopupHardwareConfig {} {
          label .hwcfg.opt3.card.label -text "TV card: "
          pack .hwcfg.opt3.card.label -side left -padx 10
 
-         menubutton .hwcfg.opt3.card.mb -text "Configure" -menu .hwcfg.opt3.card.mb.menu -relief raised -borderwidth 1 -indicatoron 1
+         menubutton .hwcfg.opt3.card.mb -text "Configure" -menu .hwcfg.opt3.card.mb.menu \
+                                        -relief raised -borderwidth 1 -indicatoron 1
          menu .hwcfg.opt3.card.mb.menu -tearoff 0
          pack .hwcfg.opt3.card.mb -side right -padx 10 -anchor e
          set idx 0
@@ -5000,10 +5430,15 @@ proc PopupHardwareConfig {} {
       frame .hwcfg.cmd
       button .hwcfg.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Configuration) "TV card input"}
       button .hwcfg.cmd.abort -text "Abort" -width 5 -command {destroy .hwcfg}
-      button .hwcfg.cmd.ok -text "Ok" -width 5 -command {HardwareConfigQuit}
+      button .hwcfg.cmd.ok -text "Ok" -width 5 -command {HardwareConfigQuit} -default active
       pack .hwcfg.cmd.help .hwcfg.cmd.abort .hwcfg.cmd.ok -side left -padx 10
       pack .hwcfg.cmd -side top -pady 10
+
       bind .hwcfg.cmd <Destroy> {+ set hwcfg_popup 0}
+      bind .hwcfg.cmd.ok <Return> {tkButtonInvoke .hwcfg.cmd.ok}
+      bind .hwcfg.cmd.ok <Escape> {tkButtonInvoke .hwcfg.cmd.abort}
+      focus .hwcfg.cmd.ok
+
    } else {
       raise .hwcfg
    }
@@ -5187,8 +5622,8 @@ the correct value."
       frame .timezone.f2.ft
       label .timezone.f2.ft.l1 -text "Local time offset: "
       entry .timezone.f2.ft.entry -width 4 -textvariable tz_lto_sel $entry_disabledforeground black
-      bind  .timezone.f2.ft.entry <Enter> {focus %W}
-      bind  .timezone.f2.ft.entry <Return> ApplyTimeZone
+      bind  .timezone.f2.ft.entry <Enter> {SelectTextOnFocus %W}
+      bind  .timezone.f2.ft.entry <Return> {tkButtonInvoke .timezone.cmd.ok}
       label .timezone.f2.ft.l2 -text " minutes"
       pack .timezone.f2.ft.l1 .timezone.f2.ft.entry .timezone.f2.ft.l2 -side left
       checkbutton .timezone.f2.daylight -text "Daylight saving time (+60 minutes)" -variable tz_daylight_sel
@@ -5198,9 +5633,11 @@ the correct value."
       frame .timezone.cmd
       button .timezone.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Configuration)}
       button .timezone.cmd.abort -text "Abort" -width 5 -command {destroy .timezone}
-      button .timezone.cmd.ok -text "Ok" -width 5 -command ApplyTimeZone
+      button .timezone.cmd.ok -text "Ok" -width 5 -command ApplyTimeZone -default active
       pack .timezone.cmd.help .timezone.cmd.abort .timezone.cmd.ok -side left -padx 10
+
       bind .timezone.cmd <Destroy> {+ set timezone_popup 0}
+      focus .timezone.f2.ft.entry
 
       pack .timezone.cmd -side top -pady 10
 
@@ -5390,7 +5827,7 @@ proc XawtvConfigPopup {} {
          pack   .xawtvcf.tvapp.name.prompt -side left -anchor w
          entry  .xawtvcf.tvapp.name.filename -textvariable xawtv_tmpcf(tvapp_path) -font {courier -12 normal} -width 33
          pack   .xawtvcf.tvapp.name.filename -side left -padx 5 -fill x -expand 1
-         bind   .xawtvcf.tvapp.name.filename <Enter> {focus %W}
+         bind   .xawtvcf.tvapp.name.filename <Enter> {SelectTextOnFocus %W}
          button .xawtvcf.tvapp.name.dlgbut -image $fileImage -command {
             set tmp [tk_chooseDirectory -parent .xawtvcf \
                         -initialdir $xawtv_tmpcf(tvapp_path) \
@@ -5414,11 +5851,14 @@ proc XawtvConfigPopup {} {
       frame .xawtvcf.cmd
       button .xawtvcf.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Configuration) "TV application interaction"}
       button .xawtvcf.cmd.abort -text "Abort" -width 5 -command {array unset xawtv_tmpcf; destroy .xawtvcf}
-      button .xawtvcf.cmd.save -text "Ok" -width 5 -command XawtvConfigSave
+      button .xawtvcf.cmd.save -text "Ok" -width 5 -command XawtvConfigSave -default active
       pack .xawtvcf.cmd.help .xawtvcf.cmd.abort .xawtvcf.cmd.save -side left -padx 10
       pack .xawtvcf.cmd -side top -pady 10
 
       bind .xawtvcf.cmd <Destroy> {+ set xawtvcf_popup 0}
+      bind .xawtvcf.cmd.save <Return> {tkButtonInvoke %W}
+      bind .xawtvcf.cmd.save <Escape> {tkButtonInvoke .xawtvcf.cmd.abort}
+      focus .xawtvcf.cmd.save
    } else {
       raise .xawtvcf
    }
@@ -5438,7 +5878,7 @@ proc XawtvConfigPopupSelected {} {
    .xawtvcf.all.poptype.t2 configure -state $state
    .xawtvcf.all.poptype.t3 configure -state $state
 
-   if {$xawtv_tmpcf(dopop) && ($xawtv_tmpcf(poptype) != 2)} {
+   if {$xawtv_tmpcf(dopop) && ($xawtv_tmpcf(poptype) != 3)} {
       set state "normal"
       set fg black
    } else {
@@ -5678,11 +6118,15 @@ proc PopupNetAcqConfig {} {
       frame .netacqcf.cmd
       button .netacqcf.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Configuration) "Client/Server"}
       button .netacqcf.cmd.abort -text "Abort" -width 5 -command {NetAcqConfigQuit 0}
-      button .netacqcf.cmd.save -text "Ok" -width 5 -command {NetAcqConfigQuit 1}
+      button .netacqcf.cmd.save -text "Ok" -width 5 -command {NetAcqConfigQuit 1} -default active
       pack .netacqcf.cmd.help .netacqcf.cmd.abort .netacqcf.cmd.save -side left -padx 10
       pack .netacqcf.cmd -side top -pady 5
 
+      # key bindings
       bind .netacqcf.cmd <Destroy> {+ set netacqcf_popup 0}
+      bind .netacqcf.cmd.save <Return> {tkButtonInvoke %W}
+      bind .netacqcf.cmd.save <Escape> {tkButtonInvoke .netacqcf.cmd.abort}
+      focus .netacqcf.cmd.save
 
       NetAcqChangeView
 
@@ -5921,6 +6365,7 @@ proc ContextMenuConfigPopup {} {
       pack .ctxmencf.cmd -side top -pady 5
 
       bind .ctxmencf.cmd <Destroy> {+ set ctxmencf_popup 0}
+      focus .ctxmencf.all.edit.title_ent
 
       # display the entries in the listbox
       foreach idx $ctxmencf_ord {
@@ -6215,9 +6660,12 @@ proc ContextMenuAddWintvVcr {} {
 ## ---------------------------------------------------------------------------
 ## Open or update a timescale popup window
 ##
-proc TimeScale_Open {w cni key isMerged} {
+proc TimeScale_Open {w cni key isMerged scaleWidth} {
    global default_bg
    global tsc_tail
+
+   # add space for Now & Next boxes to scale width
+   incr scaleWidth 40
 
    # fetch network list from AI block in database
    set netsel_ailist [C_GetAiNetwopList $cni netnames]
@@ -6235,8 +6683,21 @@ proc TimeScale_Open {w cni key isMerged} {
       wm group $w .
 
       frame $w.top
+      # create a frame in the top left which holds command buttons: help, zoom +/-
+      frame  $w.top.cmd
+      button $w.top.cmd.qmark -bitmap bitmap_qmark -cursor top_left_arrow -takefocus 0 -relief ridge \
+                              -command {PopupHelp $helpIndex(Statistics) "Timescale popup windows"}
+      pack   $w.top.cmd.qmark -side left -fill y
+      button $w.top.cmd.zoom_in -bitmap bitmap_zoom_in -cursor top_left_arrow -takefocus 0 -relief ridge \
+                                -command [list C_TimeScale_Zoom $key 1]
+      pack   $w.top.cmd.zoom_in -side left
+      button $w.top.cmd.zoom_out -bitmap bitmap_zoom_out -cursor top_left_arrow -takefocus 0 -relief ridge \
+                                 -command [list C_TimeScale_Zoom $key -1]
+      pack   $w.top.cmd.zoom_out -side left
+      grid   $w.top.cmd -sticky we -column 0 -row 0
+
       # create a canvas at the top which holds markers for current time and date breaks
-      canvas $w.top.now -bg $default_bg -height 12 -width 298
+      canvas $w.top.now -bg $default_bg -height 12 -width $scaleWidth
       grid $w.top.now -sticky we -column 1 -row 0
       grid columnconfigure $w.top 1 -weight 1
 
@@ -6244,7 +6705,7 @@ proc TimeScale_Open {w cni key isMerged} {
       # instead of CNIs to be able to reuse the scales for another provider
       set idx 0
       foreach cni $netsel_ailist {
-         TimeScale_CreateCanvas $w $idx $netnames($cni) $isMerged
+         TimeScale_CreateCanvas $w $idx $netnames($cni) $isMerged $scaleWidth
          incr idx
       }
       pack $w.top -padx 5 -pady 5 -side top -fill x
@@ -6267,7 +6728,7 @@ proc TimeScale_Open {w cni key isMerged} {
 
       set idx 0
       foreach cni $netsel_ailist {
-         TimeScale_CreateCanvas $w $idx $netnames($cni) $isMerged
+         TimeScale_CreateCanvas $w $idx $netnames($cni) $isMerged $scaleWidth
          incr idx
       }
 
@@ -6294,7 +6755,7 @@ proc TimeScale_Open {w cni key isMerged} {
 ## ---------------------------------------------------------------------------
 ## Create or update the n'th timescale
 ##
-proc TimeScale_CreateCanvas {w netwop netwopName isMerged} {
+proc TimeScale_CreateCanvas {w netwop netwopName isMerged scaleWidth} {
    global tscnowid default_bg
 
    set w $w.top.n$netwop
@@ -6311,7 +6772,7 @@ proc TimeScale_CreateCanvas {w netwop netwopName isMerged} {
       label ${w}_name -text $netwopName -anchor w
       grid ${w}_name -sticky we -column 0 -row [expr $netwop + 1]
 
-      canvas ${w}_stream -bg $default_bg -height 12 -width 298
+      canvas ${w}_stream -bg $default_bg -height 13 -width $scaleWidth -cursor top_left_arrow
       grid ${w}_stream -sticky we -column 1 -row [expr $netwop + 1]
       bind ${w}_stream <Button-1> [list TimeScale_GotoTime $netwop ${w}_stream %x]
 
@@ -6322,13 +6783,17 @@ proc TimeScale_CreateCanvas {w netwop netwopName isMerged} {
       set tscnowid(3) [${w}_stream create rect 22 4 26 12 -outline "" -fill $now_bg]
       set tscnowid(4) [${w}_stream create rect 29 4 33 12 -outline "" -fill $now_bg]
 
-      set tscnowid(bg) [${w}_stream create rect 40 4 298 12 -outline "" -fill black]
+      set tscnowid(bg) [${w}_stream create rect 40 4 $scaleWidth 12 -outline "" -fill black]
 
    } else {
       # timescale already exists -> just update it
 
       # update the network name and undo highlighting
       ${w}_name configure -text $netwopName -bg $default_bg
+
+      # update the canvas width
+      ${w}_stream configure -width $scaleWidth
+      ${w}_stream coords $tscnowid(bg) 40 4 $scaleWidth 12
 
       # reset the Now & Next boxes
       for {set idx 0} {$idx < 5} {incr idx} {
@@ -6337,7 +6802,7 @@ proc TimeScale_CreateCanvas {w netwop netwopName isMerged} {
 
       # clear all PI range info in the scale
       set id_bg $tscnowid(bg)
-      foreach id [${w}_stream find overlapping 39 0 296 12] {
+      foreach id [${w}_stream find overlapping 39 0 9999 12] {
          if {$id != $id_bg} {
             ${w}_stream delete $id
          }
@@ -6363,7 +6828,7 @@ proc TimeScale_AddRange {w netwop pos1 pos2 color hasShort hasLong isLast} {
       # this was the last block as defined in the AI block
       # -> remove any remaining blocks to the right, esp. the "PI missing" range
       set id_bg $tscnowid(bg)
-      foreach id [$wc find overlapping [expr 41 + $pos2] 0 296 12] {
+      foreach id [$wc find overlapping [expr 41 + $pos2] 0 9999 12] {
          if {$id != $id_bg} {
             $wc delete $id
          }
@@ -6439,7 +6904,7 @@ proc TimeScale_ShiftRight {w dist} {
       set wc $w.top.n$idx_stream
       set id_bg $tscnowid(bg)
 
-      foreach id [$wc find overlapping 40 0 296 12] {
+      foreach id [$wc find overlapping 40 0 9999 12] {
          if {$id != $id_bg} {
             $wc move $id $dist 0
          }
@@ -6477,21 +6942,45 @@ proc TimeScale_GotoTime {netwop w xcoo} {
 ## Move the "NOW" slider to the position which reflects the current time
 ## - the slider is drawn as a small arrow which points downwards
 ##
-proc TimeScale_DrawDateScale {frame nowoff daybrklist} {
+proc TimeScale_DrawDateScale {frame scaleWidth nowoff daybrklist} {
    global font_bold font_small
 
-   catch [ $frame.top.now delete all ]
+   TimeScale_ClearDateScale $frame $scaleWidth
+   incr scaleWidth 40
 
    # draw daybreak markers
-   foreach {xcoo lab} $daybrklist {
+   for {set idx 0} {$idx < [llength $daybrklist]} {incr idx 2} {
+      set xcoo [lindex $daybrklist $idx]
+      set lab  [lindex $daybrklist [expr $idx + 1]]
+
+      # calculate the space between the current and next markers, or end of canvas
+      if {$idx + 2 < [llength $daybrklist]} {
+         set labspace [expr [lindex $daybrklist [expr $idx + 2]] - $xcoo]
+      } else {
+         set labspace [expr $scaleWidth - ($xcoo + 40)]
+      }
+
+      # check if the designated label text fits in the allocated space
+      if {[font measure $font_small $lab] + 2 > $labspace} {
+         # too long -> remove the month number from the date string (starting with the dot between day and month)
+         regsub {\..*} $lab {} lab2
+         set lab $lab2
+
+         if {[font measure $font_small $lab] >= $labspace} {
+            # still too long -> discard text completely
+            set lab {}
+         }
+      }
+
+      # finally draw the elements
       incr xcoo 40
       $frame.top.now create line $xcoo 1 $xcoo 12 -arrow none
-      if {$xcoo < 296 - 50} {
-        $frame.top.now create text [expr $xcoo + 25] 6 -anchor c -text $lab -font $font_small
-      }
+      $frame.top.now create text [expr $xcoo + ($labspace / 2)] 6 -anchor c -text $lab -font $font_small
    }
 
+   # draw "now" label and arrow
    if {[string compare "off" $nowoff] != 0} {
+      # now lies somewhere in the displayed time range -> draw vertical arrow
       set x1 [expr 40 + $nowoff - 5]
       set x2 [expr 40 + $nowoff]
       set id_lab [$frame.top.now create text $x1 1 -anchor ne -text "now" -font $font_bold]
@@ -6499,17 +6988,29 @@ proc TimeScale_DrawDateScale {frame nowoff daybrklist} {
 
    } else {
       # "now" lies beyond the end of the scale
-      set id_arr [$frame.top.now create line 280 6 296 6 -arrow last]
-      set id_lab [$frame.top.now create text 275 0 -anchor ne -text "now" -font $font_bold]
+      # -> draw horizontal arrow, pointing outside of the window
+      set x1 [expr $scaleWidth - 18]
+      set x2 [expr $scaleWidth - 2]
+      set id_arr [$frame.top.now create line $x1 6 $x2 6 -arrow last]
+
+      set x1 [expr $scaleWidth - 25]
+      set id_lab [$frame.top.now create text $x1 0 -anchor ne -text "now" -font $font_bold]
    }
 
-   # remove daybreak markers which are overlapped by "now" and the arrow
+   # remove daybreak markers which are overlapped by "now" text or the arrow
    set bbox [$frame.top.now bbox $id_arr $id_lab]
    foreach id [$frame.top.now find overlapping [lindex $bbox 0] 0 [lindex $bbox 2] 12] {
       if {($id != $id_arr) && ($id != $id_lab)} {
          $frame.top.now delete $id
       }
    }
+}
+
+proc TimeScale_ClearDateScale {frame scaleWidth} {
+   catch [ $frame.top.now delete all ]
+
+   incr scaleWidth 40
+   $frame.top.now configure -width $scaleWidth
 }
 
 ## ---------------------------------------------------------------------------
@@ -6817,6 +7318,9 @@ proc ShortcutPrettyPrint {filter} {
                }
             }
          }
+         dursel {
+            append out "Duration: from [Motd2HHMM [lindex $valist 0]] to [Motd2HHMM [lindex $valist 1]]"
+         }
          substr {
             set grep_title [lindex $valist 0]
             set grep_descr [lindex $valist 1]
@@ -6856,6 +7360,7 @@ proc CheckShortcutDeselection {} {
    global progidx_first progidx_last filter_progidx
    global substr_pattern substr_grep_title substr_grep_descr substr_match_case substr_match_full
    global timsel_enabled timsel_start timsel_stop timsel_date timsel_relative timsel_absstop
+   global dursel_min dursel_max
    global fsc_prevselection
 
    foreach index [.all.shortcuts.list curselection] {
@@ -6959,6 +7464,10 @@ proc CheckShortcutDeselection {} {
                               ($timsel_stop     != [lindex $valist 3]) || \
                               ($timsel_date     != [lindex $valist 4]) ]
             }
+            dursel {
+               set undo [expr ($dursel_min != [lindex $valist 0]) || \
+                              ($dursel_max != [lindex $valist 1]) ]
+            }
             substr {
                set undo [expr ($substr_grep_title != [lindex $valist 0]) || \
                               ($substr_grep_descr != [lindex $valist 1]) || \
@@ -6989,6 +7498,7 @@ proc SelectShortcut {} {
    global progidx_first progidx_last filter_progidx
    global substr_pattern substr_grep_title substr_grep_descr substr_match_case substr_match_full
    global timsel_enabled timsel_start timsel_stop timsel_date timsel_relative timsel_absstop
+   global dursel_min dursel_max
    global fsc_prevselection
 
    # determine which shortcuts are no longer selected
@@ -7018,6 +7528,7 @@ proc SelectShortcut {} {
             editorial  {ResetEditorialRating; set reset(editorial) 1}
             progidx    {ResetProgIdx;         set reset(progidx) 1}
             timsel     {ResetTimSel;          set reset(timsel) 1}
+            dursel     {ResetMinMaxDuration;  set reset(dursel) 1}
             substr     {ResetSubstr;          set reset(substr) 1}
             netwops    {ResetNetwops;         set reset(netwops) 1}
          }
@@ -7077,6 +7588,11 @@ proc SelectShortcut {} {
                timsel {
                   set timsel_enabled 0
                   C_SelectStartTime
+               }
+               dursel {
+                  set dursel_min 0
+                  set dursel_max 0
+                  C_SelectMinMaxDuration 0 0
                }
                series {
                   foreach index $valist {
@@ -7166,6 +7682,16 @@ proc SelectShortcut {} {
                set timsel_stop     [lindex $valist 3]
                set timsel_date     [lindex $valist 4]
                C_SelectStartTime $timsel_relative $timsel_absstop $timsel_start $timsel_stop $timsel_date
+            }
+            dursel {
+               if {$dursel_max == 0} {
+                  set dursel_min [lindex $valist 0]
+                  set dursel_max [lindex $valist 1]
+               } else {
+                  if {[lindex $valist 0] < $dursel_min} {set dursel_min [lindex $valist 0]}
+                  if {[lindex $valist 1] > $dursel_max} {set dursel_max [lindex $valist 1]}
+               }
+               C_SelectMinMaxDuration $dursel_min $dursel_max
             }
             series {
                foreach series $valist {
@@ -7282,6 +7808,22 @@ proc SelectShortcut {} {
    C_RefreshPiListbox
 }
 
+##
+##  Toggle shortcut between active / inactive
+##  - used for key bindings on 0-9 digit keys in main window
+##
+proc ToggleShortcut {index} {
+   if {! [.all.shortcuts.list selection includes $index]} {
+      # item is not yet selected -> select it
+      .all.shortcuts.list selection set $index
+   } else {
+      # deselect the item
+      .all.shortcuts.list selection clear $index
+   }
+   # update filter settings
+   SelectShortcut
+}
+
 ##  --------------------------------------------------------------------------
 ##  Generate a list that describes all current filter settings
 ##
@@ -7295,6 +7837,7 @@ proc DescribeCurrentFilter {} {
    global substr_grep_title substr_grep_descr substr_match_case substr_match_full substr_pattern
    global filter_progidx progidx_first progidx_last
    global timsel_enabled timsel_start timsel_stop timsel_date timsel_relative timsel_absstop
+   global dursel_min dursel_max
 
    # save the setting of the current theme class into the array
    set all {}
@@ -7373,6 +7916,12 @@ proc DescribeCurrentFilter {} {
    if {$timsel_enabled} {
       lappend all "timsel" [list $timsel_relative $timsel_absstop $timsel_start $timsel_stop $timsel_date]
       lappend mask timsel
+   }
+
+   # dump duration filter
+   if {$dursel_max > 0} {
+      lappend all "dursel" [list $dursel_min $dursel_max]
+      lappend mask dursel
    }
 
    # dump CNIs of selected netwops
@@ -7703,11 +8252,13 @@ proc PopupFilterShortcuts {} {
       checkbutton .fscedit.flags.mask.one.editorial -text "Editorial rating" -variable fscedit_mask(editorial)
       checkbutton .fscedit.flags.mask.one.progidx   -text "Program index" -variable fscedit_mask(progidx)
       checkbutton .fscedit.flags.mask.one.timsel    -text "Start time" -variable fscedit_mask(timsel)
+      checkbutton .fscedit.flags.mask.one.dursel    -text "Duration" -variable fscedit_mask(dursel)
       pack .fscedit.flags.mask.one.features  -side top -anchor nw
       pack .fscedit.flags.mask.one.parental  -side top -anchor nw
       pack .fscedit.flags.mask.one.editorial -side top -anchor nw
       pack .fscedit.flags.mask.one.progidx   -side top -anchor nw
       pack .fscedit.flags.mask.one.timsel    -side top -anchor nw
+      pack .fscedit.flags.mask.one.dursel    -side top -anchor nw
       pack .fscedit.flags.mask.one -side left -anchor nw -padx 5
 
       frame .fscedit.flags.mask.two
@@ -7994,6 +8545,7 @@ proc LoadRcFile {filename isDefault} {
    global dumptabs dumptabs_filename
    global dumphtml_filename dumphtml_type dumphtml_sel_only
    global dumphtml_hyperlinks dumphtml_file_append dumphtml_file_overwrite
+   global colsel_tabs
    global EPG_VERSION_NO is_unix
    global myrcfile
 
@@ -8071,6 +8623,12 @@ proc LoadRcFile {filename isDefault} {
    }
    .all.shortcuts.list configure -height $shortcut_count
 
+   if {[info exists pilistbox_col_widths]} {
+      foreach {col width} $pilistbox_col_widths {
+         set colsel_tabs($col) [concat $width [lrange $colsel_tabs($col) 1 end]]
+      }
+   }
+
    if {[info exists EPG_VERSION_NO] && [info exists nxtvepg_version]} {
       if {$nxtvepg_version > $EPG_VERSION_NO} {
          tk_messageBox -type ok -default ok -icon warning -message "The config file is from a newer version of nxtvepg. Some settings may get lost."
@@ -8097,6 +8655,7 @@ proc UpdateRcFile {} {
    global dumptabs dumptabs_filename
    global dumphtml_filename dumphtml_type dumphtml_sel_only
    global dumphtml_hyperlinks dumphtml_file_append dumphtml_file_overwrite
+   global colsel_tabs
    global EPG_VERSION EPG_VERSION_NO
    global myrcfile
 
@@ -8153,9 +8712,16 @@ proc UpdateRcFile {} {
       if {[info exists prov_merge_cf]} {puts $rcfile [list set prov_merge_cf $prov_merge_cf]}
 
       # dump browser listbox configuration
+      if {[info exists shortinfo_height]} {puts $rcfile [list set shortinfo_height $shortinfo_height]}
       if {[info exists pibox_height]} {puts $rcfile [list set pibox_height $pibox_height]}
       if {[info exists pilistbox_cols]} {puts $rcfile [list set pilistbox_cols $pilistbox_cols]}
-      if {[info exists shortinfo_height]} {puts $rcfile [list set shortinfo_height $shortinfo_height]}
+
+      # dump browser listbox column widths
+      set pilistbox_col_widths {}
+      foreach col [array names colsel_tabs] {
+         lappend pilistbox_col_widths $col [lindex $colsel_tabs($col) 0]
+      }
+      puts $rcfile [list set pilistbox_col_widths $pilistbox_col_widths]
 
       # dump acquisition mode and provider CNIs
       if {[info exists acq_mode]} { puts $rcfile [list set acq_mode $acq_mode] }

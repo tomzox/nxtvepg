@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="de">
-<!-- $Id: index-de.html,v 1.35 2002/08/24 15:47:15 tom Exp $ -->
+<!-- $Id: index-de.html,v 1.38 2002/09/22 18:56:21 tom Exp $ -->
 <HEAD>
 <TITLE>nexTView EPG Dekoder Software Download</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
@@ -47,7 +47,9 @@
 
 <P class="navhead"><B>News</B>
 <P class="navsect">
-24.8.2002: <A HREF="#download">release 2.2.1</A></P>
+17.9.2002: <A HREF="#download">release 2.3.0</A></P>
+<HR width=70%><P class="navsect">
+24.8.2002: <FONT COLOR="red">Wichtiger bugfix release 2.2.1</FONT></P>
 <HR width=70%><P class="navsect">
 18.8.2002: release 2.2.0</P>
 <HR width=70%><P class="navsect">
@@ -100,10 +102,12 @@ einen der Sender empfangen können auf dem nexTView übertragen wird.
 Momentan wird nexTView auf den folgenden Sendern ausgestrahlt:
 </P>
 <UL>
-<LI>in Deutschland und Österreich: Kabel1, 3Sat, RTL-II (Abdeckung: ca. 31 Sender)
-<LI>in der Schweiz: SF1, TSR1, TSI1, EuroNews (Abdeckung: ca. 37 Sender)
+<LI>in Deutschland und Österreich: Kabel1, 3Sat, RTL-II, EuroNews
+   (Abdeckung: ca. 31 Sender)
+<LI>in der Schweiz: SF1, TSR1, TSI1, EuroNews, 3sat, Kabel1
+   (Abdeckung: ca. 37 Sender)
 <LI>in Frankreich: Canal+, M6 (Abdeckung: ca. 8 Sender)
-<LI>in der Türkei: TRT-1 (TRT-int, Abdeckung: 23 Sender)
+<LI>in der Türkei: TRT-1 (TRT-int, Abdeckung: 17 Sender)
 </UL>
 <P>
 Nährere Details finden sich in der <A HREF="provnets.html">Anbietertabelle</A>.
@@ -122,12 +126,13 @@ Programm zu zeigen, den Sender von nxtvepg aus zu wechseln,
 Falls nxtvepg Ihr Interesse geweckt haben sollte und Sie nun an einem
 TV mit integriertem nexTView interessiert sind, schauen Sie doch auf
 den Seiten der Hersteller vorbei:
-<A HREF="http://www.grundig.com">Grundig</A>,
+<A HREF="http://www.grundig.de">Grundig</A>,
 <A HREF="http://www.loewe.de">Loewe</A>,
 <A HREF="http://www.metz.de">Metz</A>,
 <A HREF="http://www.philips.com">Philips</A>,
-<A HREF="http://www.sony-europe.com">Sony</A> or
-<A HREF="http://www.thompson.com">Thomson</A>.
+<A HREF="http://www.sony-europe.com">Sony</A>,
+<A HREF="http://www.thompson.com">Thomson</A> oder
+<A HREF="http://www.quelle.de">Quelle Universum</A>.
 </P>
 
 
@@ -177,15 +182,16 @@ Es werden alle Windows Versionen ab Windows 95 unterstützt.
 <H2>Download</H2>
 </A>
 <P>
-Die neueste stabile Distribution ist Version 2.2.1 vom 24.8.2002.
-<STRONG>Neu in Version 2.2.x: </STRONG>
-Eine Reihe kleinerer Verbesserungen, z.B.: das Programm ausgewählter Sender
-kann auf den Zeitraum beschränkt werden in dem der Sender tatsächlich empfangen
-wird (z.B. ARTE nur 19:00 - 7:00 Uhr); die Sprache der Themenbezeichner ist
-nun deutsch für deutsche EPG Anbieter; die Datenbank kann in eine Textdatei
-exportiert werden, die wiederum in andere Applikationen importiert werden
-kann. <B>Version 2.2.1</B> behebt mehrere bugs und wird dringend empfohlen (auch
-Benutzern älterer Versionen)
+Die letzte stabile Distribution ist Version is 2.3.0.
+</P><P>
+<B><FONT color="red">Achtung:</FONT></B> In allen nxtvepg Versionen bis einschließlich
+2.2.0 ist leider ein Fehler der seit August 2002 für Benutzer des Nextview EPG
+Anbieters Kabel1 zu häufigen Programmabstürzen beim Scrolling durch die
+TV Programmanzeige führt.  Falls Sie von dem Fehler betroffen sind, können Sie
+den Programmquellcode von den Versionen
+<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/patch-nxtvepg-0.6.4.txt">0.6.4</A> und
+<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/patch-nxtvepg-0.7.0.txt">0.7.0</A>
+patchen, oder laden Sie einfach eine neuere Version herunter.
 </P><P>
 Mehr Details und alle früheren Änderungen sind im
 <A HREF="changelog.html">Change-Log</A> dokumentiert. Falls mit der Software
@@ -200,16 +206,17 @@ das nxtvepg Projekt abonnieren auf <A HREF="http://freshmeat.net/projects/nxtvep
 <A NAME="download_unix">
 <H3>Source Distribution</H3>
 </A>
-Download der aktuellen Source Distribution für Linux und NetBSD:
-<A HREF=http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-2.2.1.tar.gz>nxtvepg-2.2.1.tar.gz</A>
-(661 kB)
+Download der letzten stabilen Source Distribution für Linux und NetBSD:
+<A HREF=http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-2.3.0.tar.gz>nxtvepg-2.3.0.tar.gz</A>
+(680 kB)
 </P><P>
 Aus dem source tarball läßt sich auch ein RPM package bauen mit dem
-Kommando: <KBD>rpm -ta nxtvepg-2.2.1.tar.gz</KBD>. Das erzeugte package
+Kommando: <KBD>rpm -ta nxtvepg-2.3.0.tar.gz</KBD>. Das erzeugte package
 kann dann wie üblich mit <KBD>rpm -i</KBD> installiert werden. Alternativ
 sind auch fertige packages verfügbar (jedoch nicht notwendigerweise
 immer die neueste Version):
 für Linux von <A HREF="http://rpmfind.net/linux/rpm2html/search.php?query=nxtvepg">rpmfind.net</A>
+oder <A HREF="http://packages.debian.org/stable/utils/nxtvepg.html">Debian</A>
 und für NetBSD von <A HREF="ftp://ftp.netbsd.org/pub/NetBSD/packages/pkgsrc/misc/nxtvepg/README.html">netbsd.org</A>
 </P>
 
@@ -217,13 +224,13 @@ und für NetBSD von <A HREF="ftp://ftp.netbsd.org/pub/NetBSD/packages/pkgsrc/misc
 <H3>Binärdistribution für M$ Windows</H3>
 </A>
 <P>
-Windows executable:
-<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-2.2.1-win.zip">nxtvepg-2.2.1-win.zip</A>
-(1039 kB)
+Windows executable der letzten stabilen Version:
+<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-2.3.0-win.zip">nxtvepg-2.3.0-win.zip</A>
+(1048 kB)
 </P><P>
 Demo für Interaktion mit TV Applikationen:
-<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-2.2.0-tvsim.zip">nxtvepg-2.2.0-tvsim.zip</A>
-(245 kB; kein update für 2.2.1)<BR>
+<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-2.3.0-tvsim.zip">nxtvepg-2.3.0-tvsim.zip</A>
+(245 kB)<BR>
 (siehe auch <A HREF="tvsim.html">tvsim</A>,
 <A HREF="vbirec.html">vbirec</A> oder
 <A HREF="vbiplay.html">vbiplay</A> manuals, oder
@@ -231,7 +238,9 @@ Demo für Interaktion mit TV Applikationen:
 <A HREF="screenshot-vbirec.gif">tvsim &amp; vbirec screenshot</A>)
 </P><P>
 Das nxtvepg ZIP Archiv muß lediglich in ein leeres Verzeichnis entpackt werden,
-dann kann nxtvepg.exe direkt gestartet werden. Das tvsim ZIP file kann optional
+dann kann nxtvepg.exe direkt gestartet werden.  Ihr INI file und die
+Datenbanken von älteren nxtvepg Installationen können Sie ins neue Verzeichnis
+übernehmen. Das tvsim ZIP file kann optional
 danach in dasselbe Verzeichnis entpackt werden. Eine Beschreibung der
 initialen Konfiguration findet sich im Hilfe Menü bzw. in der HTML
 Benutzeranleitung, Abschnitt <A HREF="man.html#getting started">Getting Started</A>

@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pioutput.h,v 1.8 2002/08/24 13:58:16 tom Exp tom $
+ *  $Id: pioutput.h,v 1.9 2002/09/06 15:09:10 tom Exp tom $
  */
 
 #ifndef __PIOUTPUT_H
@@ -53,12 +53,8 @@ typedef void (PiOutput_AppendInfoTextCb_Type) ( void *fp, const char * pShortInf
 const char * PiOutput_DictifyTitle( const char * pTitle, uchar lang, char * outbuf, uint maxLen );
 void PiOutput_CtxMenuAddUserDef( const char * pMenu, bool addSeparator );
 
-// Interface to menus
-void PiOutput_CacheThemesMaxLen( void );
-void PiOutput_SetNetnameColumnWidth( bool isInitial );
-
 // Interface to PI listbox and HTML dump
-int  PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES type, char * outstr );
+void PiOutput_PrintColumnItems( const PI_BLOCK * pPiBlock, char * outstr, uint maxLen );
 void PiOutput_AppendShortAndLongInfoText( const PI_BLOCK *pPiBlock,
                                           PiOutput_AppendInfoTextCb_Type AppendInfoTextCb,
                                           void *fp, bool isMerged );

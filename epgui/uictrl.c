@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: uictrl.c,v 1.32 2002/08/24 13:59:08 tom Exp $
+ *  $Id: uictrl.c,v 1.34 2002/09/06 15:09:35 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -279,10 +279,6 @@ void UiControl_AiStateChange( ClientData clientData )
          sprintf(comm, "wm title . {Nextview EPG: %s}\n", AI_GET_SERVICENAME(pAiBlock));
          eval_check(interp, comm);
 
-         // create the column headers above the PI browser text widget
-         // (note: called before filter update, because that one does a screen refresh)
-         PiOutput_SetNetnameColumnWidth(FALSE);
-
          // update the netwop filter bar and the netwop prefilter
          PiFilter_UpdateNetwopList();
 
@@ -293,6 +289,9 @@ void UiControl_AiStateChange( ClientData clientData )
       {  // no AI block in db -> reset window title to empty
          sprintf(comm, "wm title . {Nextview EPG}\n");
          eval_check(interp, comm);
+
+         // clear the netwop filter menus
+         PiFilter_UpdateNetwopList();
       }
       EpgDbLockDatabase(pUiDbContext, FALSE);
    }

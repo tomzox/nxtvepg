@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbsav.h,v 1.32 2002/05/11 15:43:36 tom Exp tom $
+ *  $Id: epgdbsav.h,v 1.33 2002/09/14 18:17:46 tom Exp tom $
  */
 
 #ifndef __EPGDBSAV_H
@@ -151,6 +151,7 @@ EPGDB_CONTEXT * EpgDbPeek( uint cni, EPGDB_RELOAD_RESULT * pResult );
 bool EpgDbDumpUpdateHeader( uint cni, uint freq );
 uint EpgDbReadFreqFromDefective( uint cni );
 time_t EpgReadAiUpdateTime( uint cni );
+uint EpgDbRemoveDatabaseFile( uint cni );
 
 
 #endif  // __EPGDBSAV_H

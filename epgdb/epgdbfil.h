@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbfil.h,v 1.19 2002/06/15 12:07:05 tom Exp tom $
+ *  $Id: epgdbfil.h,v 1.20 2002/09/02 19:47:43 tom Exp tom $
  */
 
 #ifndef __EPGDBFIL_H
@@ -38,13 +38,14 @@
 #define FILTER_PROGIDX       0x0100
 #define FILTER_TIME_BEG      0x0200
 #define FILTER_TIME_END      0x0400
+#define FILTER_DURATION     0x20000
 #define FILTER_PAR_RAT       0x0800
 #define FILTER_EDIT_RAT      0x1000
 #define FILTER_FEATURES      0x2000
 #define FILTER_LANGUAGES     0x4000
 #define FILTER_SUBTITLES     0x8000
 // sum of all filter bitmasks
-#define FILTER_ALL          0x1FFFF
+#define FILTER_ALL          0x3FFFF
 // sum of permanent "pre"-filters
 #define FILTER_PERM          (FILTER_EXPIRE_TIME | FILTER_NETWOP_PRE | FILTER_AIR_TIMES)
 
@@ -85,6 +86,8 @@ typedef struct
    uchar  firstProgIdx, lastProgIdx;
    time_t expireTime;
    time_t timeBegin, timeEnd;
+   uint   duration_min;
+   uint   duration_max;
    uchar  netwopFilterField[MAX_NETWOP_COUNT];
    uchar  netwopPreFilterField[MAX_NETWOP_COUNT];
    uint   netwopAirTimeStart[MAX_NETWOP_COUNT];
@@ -125,6 +128,7 @@ void   EpgDbFilterSetAirTimesFilter( FILTER_CONTEXT *fc, uchar netwopNo, uint st
 void   EpgDbFilterSetExpireTime( FILTER_CONTEXT *fc, ulong newExpireTime );
 void   EpgDbFilterSetDateTimeBegin( FILTER_CONTEXT *fc, ulong newTimeBegin );
 void   EpgDbFilterSetDateTimeEnd( FILTER_CONTEXT *fc, ulong newTimeEnd );
+void   EpgDbFilterSetMinMaxDuration( FILTER_CONTEXT *fc, uint dur_min, uint dur_max );
 uchar  EpgDbFilterInitThemes( FILTER_CONTEXT *fc, uchar themeClassBitField );
 void   EpgDbFilterSetThemes( FILTER_CONTEXT *fc, uchar firstTheme, uchar lastTheme, uchar themeClassBitField );
 void   EpgDbFilterInitSeries( FILTER_CONTEXT *fc );

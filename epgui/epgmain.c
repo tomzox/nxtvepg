@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgmain.c,v 1.94 2002/08/24 13:55:43 tom Exp tom $
+ *  $Id: epgmain.c,v 1.98 2002/09/16 11:57:33 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -86,6 +86,8 @@
 #include "epgui/ptr_down.xbm"
 #include "epgui/pan_updown.xbm"
 #include "epgui/qmark.xbm"
+#include "epgui/zoom_in.xbm"
+#include "epgui/zoom_out.xbm"
 
 #include "epgvbi/btdrv.h"
 #include "epgvbi/winshmsrv.h"
@@ -109,8 +111,8 @@ extern char help_tcl_script[];
 extern char tcl_init_scripts[];
 extern char tk_init_scripts[];
 
-Tcl_Interp *interp;          // Interpreter for application
-char comm[2048];             // Command buffer
+Tcl_Interp * interp;               // Interpreter for application
+char comm[TCL_COMM_BUF_SIZE + 1];  // Command buffer (one extra byte for overflow detection)
 
 // command line options
 #ifdef WIN32
@@ -157,57 +159,6 @@ typedef struct MAIN_IDLE_EVENT_STRUCT
 static MAIN_IDLE_EVENT * pMainIdleEventQueue = NULL;
 
 EPGDB_CONTEXT * pUiDbContext;
-
-// ---------------------------------------------------------------------------
-// Execute a Tcl/Tk command line and check the result
-//
-int eval_check(Tcl_Interp *interp, char *cmd)
-{
-   int result;
-
-   result = Tcl_Eval(interp, cmd);
-
-   #if DEBUG_SWITCH == ON
-   if (result != TCL_OK)
-   {
-      if (strlen(cmd) > 256)
-         cmd[256] = 0;
-      #if (DEBUG_SWITCH_TCL_BGERR == ON)
-      {
-         char *errbuf = xmalloc(strlen(cmd) + strlen(interp->result) + 20);
-         sprintf(errbuf, "bgerror {%s: %s}", cmd, interp->result);
-         Tcl_Eval(interp, errbuf);
-         xfree(errbuf);
-      }
-      #else
-      debug2("Command: %s\nError: %s", cmd, interp->result);
-      #endif
-   }
-   #endif
-
-   return result;
-}
-
-// ---------------------------------------------------------------------------
-// Execute a Tcl/Tk command line and check the result
-//
-int eval_global(Tcl_Interp *interp, char *cmd)
-{
-   int result;
-
-   result = Tcl_GlobalEval(interp, cmd);
-
-   #if DEBUG_SWITCH == ON
-   if (result != TCL_OK)
-   {
-      if (strlen(cmd) > 256)
-         cmd[256] = 0;
-      debug2("Command: %s\nError: %s", cmd, interp->result);
-   }
-   #endif
-
-   return result;
-}
 
 // ---------------------------------------------------------------------------
 // Append a main idle event to the FIFO queue
@@ -377,7 +328,7 @@ static void EventHandler_UpdateClock( ClientData clientData )
    {
       //  Update the clock every second with the current time
       now = time(NULL);
-      strftime(comm, sizeof(comm) - 1, ".all.shortcuts.clock configure -text {%a %H:%M:%S}\n", localtime(&now));
+      strftime(comm, TCL_COMM_BUF_SIZE, ".all.shortcuts.clock configure -text {%a %H:%M:%S}\n", localtime(&now));
       eval_check(interp, comm);
 
       if (EpgScan_IsActive() == FALSE)
@@ -1372,7 +1323,7 @@ bool EpgMain_StartDaemon( void )
       sprintf(comm, "tk_messageBox -type ok -icon error -message {%s: ", pErrMsg);
       // append system error message to the message box output
       FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, errCode, LANG_USER_DEFAULT,
-                    comm + strlen(comm), sizeof(comm) - strlen(comm) - 2, NULL);
+                    comm + strlen(comm), TCL_COMM_BUF_SIZE - strlen(comm) - 2, NULL);
       strcat(comm, "}");
       eval_check(interp, comm);
       Tcl_ResetResult(interp);
@@ -1436,20 +1387,22 @@ static int AsyncHandler_AppTerminate( ClientData clientData, Tcl_Interp *interp,
 #ifndef WIN32
 static void signal_handler( int sigval )
 {
-   char str_buf[10];
-
    if ((sigval == SIGHUP) && (optDaemonMode == FALSE) && (optDumpMode == EPGTAB_DUMP_NONE))
    {  // toggle acquisition on/off (unless in daemon mode)
       AddMainIdleEvent(EventHandler_SigHup, NULL, TRUE);
    }
    else
    {
+      #ifdef USE_DAEMON
       if (optDaemonMode)
       {
+         char str_buf[10];
+
          sprintf(str_buf, "%d", sigval);
          EpgNetIo_Logger(LOG_NOTICE, -1, 0, "terminated by signal ", str_buf, NULL);
       }
       else
+      #endif
       {
          if (sigval != SIGINT)
             fprintf(stderr, "nxtvepg caught deadly signal %d\n", sigval);
@@ -1519,21 +1472,34 @@ extern TCL_STORAGE_CLASS void Tk_RegisterMainDestructionHandler( Tcl_CloseProc *
 #ifndef ICON_PATCHED_INTO_DLL
 static void SetWindowsIcon( HINSTANCE hInstance )
 {
+   Tcl_Obj * pId;
    HICON hIcon;
-   HWND  hWnd;
+   int   hWnd;
 
    hIcon = LoadIcon(hInstance, "NXTVEPG_ICON");
-   if(hIcon != NULL)
+   if (hIcon != NULL)
    {
       sprintf(comm, "wm frame .\n");
-      if (Tcl_Eval(interp, comm) == TCL_OK)
+      if (Tcl_EvalEx(interp, comm, -1, 0) == TCL_OK)
       {
-         if (sscanf(interp->result, "0x%x", (int *)&hWnd) == 1)
+         pId = Tcl_GetObjResult(interp)
+         if (pId != NULL)
          {
-            SendMessage(hWnd, WM_SETICON, ICON_BIG, (LPARAM)hIcon);
+            if (Tcl_GetIntFromObj(interp, pId, &hWnd) == TCL_OK)
+            {
+               SendMessage((HWND)hWnd, WM_SETICON, ICON_BIG, (LPARAM)hIcon);
+            }
+            else
+               debug1("SetWindowsIcon: frame ID has invalid format '%s'", Tcl_GetStringResult(interp));
          }
+         else
+            debug0("SetWindowsIcon: Tcl error: frame ID result missing");
       }
+      else
+         debugTclErr(interp, "SetWindowsIcon");
    }
+   else
+      debug0("SetWindowsIcon: NXTVEPG-ICON resource not found");
 }
 #endif  // ICON_PATCHED_INTO_DLL
 
@@ -1960,7 +1926,7 @@ static void Usage( const char *argv0, const char *argvn, const char * reason )
                    "       -noacq              \t: disable acquisition\n"
                    #ifdef USE_DAEMON
                    "       -daemon             \t: no GUI; acquisition only\n"
-                   "       -nodetach           \t: daemon stays in the foreground\n"
+                   "       -nodetach           \t: daemon remains connected to tty\n"
                    "       -acqpassive         \t: force daemon to passive acquisition mode\n"
                    #endif
                    "       -dump pi|ai|pdc     \t: dump database (schedules, networks or themes)\n"
@@ -2201,6 +2167,11 @@ static int ui_init( int argc, char **argv, bool withTk )
       Tcl_FindExecutable(argv[0]);
    }
 
+   #if DEBUG_SWITCH == ON
+   // set last byte of command buffer to zero to detect overflow
+   comm[sizeof(comm) - 1] = 0;
+   #endif
+
    interp = Tcl_CreateInterp();
 
    if (argc > 1)
@@ -2222,22 +2193,25 @@ static int ui_init( int argc, char **argv, bool withTk )
       if (Tk_Init(interp) != TCL_OK)
       {
          #ifndef USE_PRECOMPILED_TCL_LIBS
-         fprintf(stderr, "%s\n", interp->result);
+         fprintf(stderr, "Failed to initialise the Tk library at '%s' - exiting.\nTk error message: %s\n",
+                         TK_LIBRARY_PATH, Tcl_GetStringResult(interp));
          exit(1);
          #endif
       }
    }
 
    #ifdef USE_PRECOMPILED_TCL_LIBS
-   if (Tcl_VarEval(interp, tcl_init_scripts, NULL) != TCL_OK)
+   if (Tcl_EvalEx(interp, tcl_init_scripts, -1, TCL_EVAL_GLOBAL) != TCL_OK)
    {
-      debug1("tcl_init_scripts error: %s\n", interp->result);
+      debug1("tcl_init_scripts error: %s\n", Tcl_GetStringResult(interp));
+      debugTclErr(interp, "tcl_init_scripts");
    }
    if (withTk)
    {
-      if (Tcl_VarEval(interp, tk_init_scripts, NULL) != TCL_OK)
+      if (Tcl_EvalEx(interp, tk_init_scripts, -1, TCL_EVAL_GLOBAL) != TCL_OK)
       {
-         debug1("tk_init_scripts error: %s\n", interp->result);
+         debug1("tk_init_scripts error: %s\n", Tcl_GetStringResult(interp));
+         debugTclErr(interp, "tk_init_scripts");
       }
    }
    #endif
@@ -2258,6 +2232,8 @@ static int ui_init( int argc, char **argv, bool withTk )
       Tk_DefineBitmap(interp, Tk_GetUid("bitmap_ptr_down"), ptr_down_bits, ptr_down_width, ptr_down_height);
       Tk_DefineBitmap(interp, Tk_GetUid("bitmap_pan_updown"), pan_updown_bits, pan_updown_width, pan_updown_height);
       Tk_DefineBitmap(interp, Tk_GetUid("bitmap_qmark"), qmark_bits, qmark_width, qmark_height);
+      Tk_DefineBitmap(interp, Tk_GetUid("bitmap_zoom_in"), zoom_in_bits, zoom_in_width, zoom_in_height);
+      Tk_DefineBitmap(interp, Tk_GetUid("bitmap_zoom_out"), zoom_out_bits, zoom_out_width, zoom_out_height);
       Tk_DefineBitmap(interp, Tk_GetUid("nxtv_logo"), nxtv_logo_bits, nxtv_logo_width, nxtv_logo_height);
 
       #ifdef WIN32

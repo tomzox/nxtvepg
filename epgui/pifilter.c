@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pifilter.c,v 1.60 2002/08/24 14:17:45 tom Exp tom $
+ *  $Id: pifilter.c,v 1.66 2002/09/16 16:28:07 tom Exp tom $
  */
 
 #define __PIFILTER_C
@@ -60,16 +60,16 @@ FILTER_CONTEXT *pPiFilterContext = NULL;
 // Update the themes filter setting
 // - special value 0x80 is extended to cover all series codes 0x80...0xff
 //
-static int SelectThemes( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+static int SelectThemes( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {  
    const char * const pUsage = "Usage: C_SelectThemes <class 1..8> <themes-list>";
-   CONST84 char ** pThemes;
+   Tcl_Obj ** pThemes;
    uchar usedClasses;
    int themeCount;
    int class, theme, idx;
    int result; 
    
-   if ( (argc != 3)  || Tcl_GetInt(interp, argv[1], &class) ||
+   if ( (objc != 3)  || Tcl_GetIntFromObj(interp, objv[1], &class) ||
         (class == 0) || ((uint)class > THEME_CLASS_COUNT) )
    {  // illegal parameter count, format or value
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
@@ -77,7 +77,7 @@ static int SelectThemes( ClientData ttp, Tcl_Interp *interp, int argc, char *arg
    }  
    else
    {
-      result = Tcl_SplitList(interp, argv[2], &themeCount, &pThemes);
+      result = Tcl_ListObjGetElements(interp, objv[2], &themeCount, &pThemes);
       if (result == TCL_OK)
       {
          class = 1 << (class - 1);
@@ -85,7 +85,7 @@ static int SelectThemes( ClientData ttp, Tcl_Interp *interp, int argc, char *arg
 
          for (idx=0; idx < themeCount; idx++)
          {
-            result = Tcl_GetInt(interp, pThemes[idx], &theme);
+            result = Tcl_GetIntFromObj(interp, pThemes[idx], &theme);
             if (result == TCL_OK)
             {
                if (theme == 0x80)
@@ -101,8 +101,6 @@ static int SelectThemes( ClientData ttp, Tcl_Interp *interp, int argc, char *arg
             EpgDbFilterEnable(pPiFilterContext, FILTER_THEMES);
          else
             EpgDbFilterDisable(pPiFilterContext, FILTER_THEMES);
-
-         Tcl_Free((char *) pThemes);
       }
    }
 
@@ -112,15 +110,15 @@ static int SelectThemes( ClientData ttp, Tcl_Interp *interp, int argc, char *arg
 // ----------------------------------------------------------------------------
 // Callback for sorting criteria
 //
-static int SelectSortCrits( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+static int SelectSortCrits( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {  
    const char * const pUsage = "Usage: C_SelectSortCrits <class 1..8> <list>";
-   CONST84 char **pSortCritArgv;
+   Tcl_Obj **pSortCritArgv;
    uchar usedClasses;
    int class, sortcrit, sortcritCount, idx;
    int result; 
    
-   if ( (argc != 3)  || Tcl_GetInt(interp, argv[1], &class) ||
+   if ( (objc != 3)  || Tcl_GetIntFromObj(interp, objv[1], &class) ||
         (class == 0) || ((uint)class > THEME_CLASS_COUNT) )
    {  // illegal parameter count, format or value
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
@@ -128,7 +126,7 @@ static int SelectSortCrits( ClientData ttp, Tcl_Interp *interp, int argc, char *
    }  
    else
    {
-      result = Tcl_SplitList(interp, argv[2], &sortcritCount, &pSortCritArgv);
+      result = Tcl_ListObjGetElements(interp, objv[2], &sortcritCount, &pSortCritArgv);
       if (result == TCL_OK)
       {
          class = 1 << (class - 1);
@@ -136,7 +134,7 @@ static int SelectSortCrits( ClientData ttp, Tcl_Interp *interp, int argc, char *
 
          for (idx=0; idx < sortcritCount; idx++)
          {
-            result = Tcl_GetInt(interp, pSortCritArgv[idx], &sortcrit);
+            result = Tcl_GetIntFromObj(interp, pSortCritArgv[idx], &sortcrit);
             if (result == TCL_OK)
             {
                EpgDbFilterSetSortCrit(pPiFilterContext, sortcrit, sortcrit, class);
@@ -149,8 +147,6 @@ static int SelectSortCrits( ClientData ttp, Tcl_Interp *interp, int argc, char *
             EpgDbFilterEnable(pPiFilterContext, FILTER_SORTCRIT);
          else
             EpgDbFilterDisable(pPiFilterContext, FILTER_SORTCRIT);
-
-         Tcl_Free((char *) pSortCritArgv);
       }
    }
 
@@ -160,19 +156,19 @@ static int SelectSortCrits( ClientData ttp, Tcl_Interp *interp, int argc, char *
 // ----------------------------------------------------------------------------
 // callback for series checkbuttons
 //
-static int SelectSeries( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+static int SelectSeries( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {  
    const char * const pUsage = "Usage: C_SelectSeries <series-code> <enable=0/1>";
    int series, enable;
    int result; 
    
-   if (argc != 3)
+   if (objc != 3)
    {  // illegal parameter count (the themes must be passed as list, not separate items)
-      interp->result = (char *) pUsage;
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR; 
    }  
-   else if ( (Tcl_GetInt(interp, argv[1], &series) != TCL_OK) ||
-             (Tcl_GetBoolean(interp, argv[2], &enable) != TCL_OK) )
+   else if ( (Tcl_GetIntFromObj(interp, objv[1], &series) != TCL_OK) ||
+             (Tcl_GetBooleanFromObj(interp, objv[2], &enable) != TCL_OK) )
    {  // illegal parameter format
       result = TCL_ERROR; 
    }
@@ -194,22 +190,22 @@ static int SelectSeries( ClientData ttp, Tcl_Interp *interp, int argc, char *arg
 // ----------------------------------------------------------------------------
 // callback for netwop listbox: update the netwop filter setting
 //
-static int SelectNetwops( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+static int SelectNetwops( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {  
    const char * const pUsage = "Usage: C_SelectNetwops <netwop-list>";
-   CONST84 char ** pNetwops;
+   Tcl_Obj ** pNetwops;
    int netwopCount;
    int netwop, idx;
    int result; 
    
-   if (argc != 2) 
+   if (objc != 2) 
    {  // wrong parameter count
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR; 
    }  
    else
    {
-      result = Tcl_SplitList(interp, argv[1], &netwopCount, &pNetwops);
+      result = Tcl_ListObjGetElements(interp, objv[1], &netwopCount, &pNetwops);
       if (result == TCL_OK)
       {
          if (netwopCount > 0)
@@ -217,7 +213,7 @@ static int SelectNetwops( ClientData ttp, Tcl_Interp *interp, int argc, char *ar
             EpgDbFilterInitNetwop(pPiFilterContext);
             for (idx=0; idx < netwopCount; idx++)
             {
-               result = Tcl_GetInt(interp, pNetwops[idx], &netwop);
+               result = Tcl_GetIntFromObj(interp, pNetwops[idx], &netwop);
                if (result == TCL_OK)
                {
                   EpgDbFilterSetNetwop(pPiFilterContext, netwop);
@@ -231,8 +227,6 @@ static int SelectNetwops( ClientData ttp, Tcl_Interp *interp, int argc, char *ar
          {  // no netwops selected -> disable filter
             EpgDbFilterDisable(pPiFilterContext, FILTER_NETWOP);
          }
-
-         Tcl_Free((char *) pNetwops);
       }
    }
 
@@ -242,43 +236,46 @@ static int SelectNetwops( ClientData ttp, Tcl_Interp *interp, int argc, char *ar
 // ----------------------------------------------------------------------------
 // callback for features menu: update the feature filter setting
 //
-static int SelectFeatures( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+static int SelectFeatures( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {  
    const char * const pUsage = "Usage: C_SelectFeatures (<mask> <value>){0..6}";
-   int class, mask, value;
-   char *p, *n;
+   Tcl_Obj ** pFeatures;
+   int idx, featureCount;
+   int mask, value;
    int result; 
    
-   if (argc != 2)
+   if (objc != 2)
    {  // illegal parameter count
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR; 
    }  
    else
    {
-      result = TCL_OK; 
-      class = 0;
-      p = argv[1];
-      while(class < FEATURE_CLASS_COUNT)
+      result = Tcl_ListObjGetElements(interp, objv[1], &featureCount, &pFeatures);
+      if (result == TCL_OK)
       {
-         mask = strtol(p, &n, 0);
-         if (p == n)
-            break;
-         value = strtol(n, &p, 0);
-         if (n == p)
-            break;
+         for (idx=0; idx < featureCount; idx += 2)
+         {
+            if ( (Tcl_GetIntFromObj(interp, pFeatures[idx], &mask) == TCL_OK) &&
+                 (Tcl_GetIntFromObj(interp, pFeatures[idx + 1], &value) == TCL_OK) )
+            {
+               EpgDbFilterSetFeatureFlags(pPiFilterContext, idx / 2, value, mask);
+            }
+            else
+            {  // parse error -> abort
+               result = TCL_ERROR;
+               break;
+            }
+         }
 
-         EpgDbFilterSetFeatureFlags(pPiFilterContext, class, value, mask);
-         class += 1;
+         if (featureCount > 0)
+         {
+            EpgDbFilterSetNoFeatures(pPiFilterContext, featureCount / 2);
+            EpgDbFilterEnable(pPiFilterContext, FILTER_FEATURES);
+         }
+         else
+            EpgDbFilterDisable(pPiFilterContext, FILTER_FEATURES);
       }
-
-      if (class > 0)
-      {
-         EpgDbFilterSetNoFeatures(pPiFilterContext, class);
-         EpgDbFilterEnable(pPiFilterContext, FILTER_FEATURES);
-      }
-      else
-         EpgDbFilterDisable(pPiFilterContext, FILTER_FEATURES);
    }
 
    return result;
@@ -287,13 +284,13 @@ static int SelectFeatures( ClientData ttp, Tcl_Interp *interp, int argc, char *a
 // ----------------------------------------------------------------------------
 // Update the editorial rating filter setting
 //
-static int SelectParentalRating( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+static int SelectParentalRating( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {  
    const char * const pUsage = "Usage: C_SelectParentalRating <value>";
    int rating;
    int result; 
    
-   if ( (argc != 2)  || Tcl_GetInt(interp, argv[1], &rating) )
+   if ( (objc != 2) || Tcl_GetIntFromObj(interp, objv[1], &rating) )
    {
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR; 
@@ -317,13 +314,13 @@ static int SelectParentalRating( ClientData ttp, Tcl_Interp *interp, int argc, c
 // ----------------------------------------------------------------------------
 // Update the parental rating filter setting
 //
-static int SelectEditorialRating( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+static int SelectEditorialRating( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {  
    const char * const pUsage = "Usage: C_SelectEditorialRating <value>";
    int rating;
    int result; 
    
-   if ( (argc != 2)  || Tcl_GetInt(interp, argv[1], &rating) )
+   if ( (objc != 2) || Tcl_GetIntFromObj(interp, objv[1], &rating) )
    {
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR; 
@@ -347,32 +344,34 @@ static int SelectEditorialRating( ClientData ttp, Tcl_Interp *interp, int argc, 
 // ----------------------------------------------------------------------------
 // callback for entry widget: update the sub-string filter setting
 //
-static int SelectSubStr( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+static int SelectSubStr( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {  
    const char * const pUsage = "Usage: C_SelectSubStr <bTitle=0/1> <bDescr=0/1> <bCase=0/1> <bFull=0/1> <substring>";
    int scope_title, scope_descr, match_case, match_full;
+   const char * subStr;
    char *native;
    Tcl_DString ds;
+   int subStrLen;
    int result; 
    
-   if (argc != 6) 
+   if (objc != 6) 
    {  // wrong parameter count
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR; 
    }  
-   else if ( (Tcl_GetBoolean(interp, argv[1], &scope_title) != TCL_OK) ||
-             (Tcl_GetBoolean(interp, argv[2], &scope_descr) != TCL_OK) ||
-             (Tcl_GetBoolean(interp, argv[3], &match_case)  != TCL_OK) ||
-             (Tcl_GetBoolean(interp, argv[4], &match_full)  != TCL_OK) )
+   else if ( (Tcl_GetBooleanFromObj(interp, objv[1], &scope_title) != TCL_OK) ||
+             (Tcl_GetBooleanFromObj(interp, objv[2], &scope_descr) != TCL_OK) ||
+             (Tcl_GetBooleanFromObj(interp, objv[3], &match_case)  != TCL_OK) ||
+             (Tcl_GetBooleanFromObj(interp, objv[4], &match_full)  != TCL_OK) )
    {  // one parameter is not a boolean
-      interp->result = (char *) pUsage;
       result = TCL_ERROR; 
    }
    else
    {
       EpgDbFilterDisable(pPiFilterContext, FILTER_SUBSTR_TITLE|FILTER_SUBSTR_DESCR);
 
-      if ((argv[5] != NULL) && (argv[5][0] != 0))
+      subStr = Tcl_GetStringFromObj(objv[5], &subStrLen);
+      if ((subStr != NULL) && (subStrLen > 0))
       {
          if (scope_title)
             EpgDbFilterEnable(pPiFilterContext, FILTER_SUBSTR_TITLE);
@@ -380,7 +379,7 @@ static int SelectSubStr( ClientData ttp, Tcl_Interp *interp, int argc, char *arg
             EpgDbFilterEnable(pPiFilterContext, FILTER_SUBSTR_DESCR);
 
          // convert the String from Tcl internal format to Latin-1
-         native = Tcl_UtfToExternalDString(NULL, argv[5], -1, &ds);
+         native = Tcl_UtfToExternalDString(NULL, subStr, -1, &ds);
 
          EpgDbFilterSetSubStr(pPiFilterContext, native, match_case, match_full);
          Tcl_DStringFree(&ds);
@@ -395,7 +394,7 @@ static int SelectSubStr( ClientData ttp, Tcl_Interp *interp, int argc, char *arg
 // ----------------------------------------------------------------------------
 // callback for time selection popup
 //
-static int SelectStartTime( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+static int SelectStartTime( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {  
    const char * const pUsage = "Usage: C_SelectStartTime <start-rel:0/1> <stop-midnight:0/1> "
                                "<start time> <stop time> <rel.date>";
@@ -404,23 +403,22 @@ static int SelectStartTime( ClientData ttp, Tcl_Interp *interp, int argc, char *
    NI_FILTER_STATE nifs;
    int result; 
    
-   if (argc == 1) 
+   if (objc == 1) 
    {  // no parameters -> disabled filter
       EpgDbFilterDisable(pPiFilterContext, FILTER_TIME_BEG | FILTER_TIME_END);
       result = TCL_OK; 
    }
-   else if (argc != 6) 
+   else if (objc != 6) 
    {  // wrong parameter count
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR; 
    }  
-   else if ( Tcl_GetBoolean(interp, argv[1], &isRelStart) ||
-             Tcl_GetBoolean(interp, argv[2], &isAbsStop) ||
-             Tcl_GetInt(interp, argv[3], &startTime) || ((uint)startTime > 23*60+59) ||
-             Tcl_GetInt(interp, argv[4], &stopTime)  || ((uint)stopTime > 23*60+59) ||
-             Tcl_GetInt(interp, argv[5], &relDate) )
-   {  // one parameter has an invalid value
-      interp->result = (char *) pUsage;
+   else if ( (Tcl_GetBooleanFromObj(interp, objv[1], &isRelStart) != TCL_OK) ||
+             (Tcl_GetBooleanFromObj(interp, objv[2], &isAbsStop) != TCL_OK) ||
+             (Tcl_GetIntFromObj(interp, objv[3], &startTime) != TCL_OK) || ((uint)startTime > 23*60+59) ||
+             (Tcl_GetIntFromObj(interp, objv[4], &stopTime) != TCL_OK)  || ((uint)stopTime > 23*60+59) ||
+             (Tcl_GetIntFromObj(interp, objv[5], &relDate) != TCL_OK) )
+   {  // one parameter has an invalid format or value
       result = TCL_ERROR; 
    }
    else
@@ -445,23 +443,58 @@ static int SelectStartTime( ClientData ttp, Tcl_Interp *interp, int argc, char *
 }
 
 // ----------------------------------------------------------------------------
+// Callback for duration selection popup
+//
+static int SelectMinMaxDuration( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+{  
+   const char * const pUsage = "Usage: SelectMinMaxDuration <min> <max>";
+   int dur_min, dur_max;
+   int result; 
+   
+   if (objc != 1+2) 
+   {  // wrong parameter count
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR; 
+   }  
+   else if ( (Tcl_GetIntFromObj(interp, objv[1], &dur_min) != TCL_OK) || ((uint)dur_min > 23*60+59) ||
+             (Tcl_GetIntFromObj(interp, objv[2], &dur_max) != TCL_OK) || ((uint)dur_max > 23*60+59) )
+   {  // one parameter has an invalid value
+      result = TCL_ERROR; 
+   }
+   else
+   {
+      if (dur_max > 0)
+      {
+         EpgDbFilterSetMinMaxDuration(pPiFilterContext, dur_min * 60, dur_max * 60);
+         EpgDbFilterEnable(pPiFilterContext, FILTER_DURATION);
+      }
+      else
+         EpgDbFilterDisable(pPiFilterContext, FILTER_DURATION);
+
+      result = TCL_OK; 
+   }
+
+   return result;
+}
+
+// ----------------------------------------------------------------------------
 // Callback for Program-Index radio buttons
 //
-static int SelectProgIdx( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+static int SelectProgIdx( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {  
    const char * const pUsage = "Usage: C_SelectProgIdx <first-index> <last-index>";
    int first, last;
    int result; 
    
-   if ( (argc == 3)  &&
-        !Tcl_GetInt(interp, argv[1], &first) &&
-        !Tcl_GetInt(interp, argv[2], &last) )
+   if ( (objc == 3)  &&
+        (Tcl_GetIntFromObj(interp, objv[1], &first) == TCL_OK) &&
+        (Tcl_GetIntFromObj(interp, objv[2], &last) == TCL_OK) )
    {  // set min and max index boundaries
       EpgDbFilterEnable(pPiFilterContext, FILTER_PROGIDX);
       EpgDbFilterSetProgIdx(pPiFilterContext, first, last);
       result = TCL_OK; 
    }
-   else if (argc == 1) 
+   else if (objc == 1) 
    {  // no parameters -> disable filter
       EpgDbFilterDisable(pPiFilterContext, FILTER_PROGIDX);
       result = TCL_OK; 
@@ -478,49 +511,50 @@ static int SelectProgIdx( ClientData ttp, Tcl_Interp *interp, int argc, char *ar
 // ----------------------------------------------------------------------------
 // Disable all given filter types
 //
-static int PiFilter_Reset( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+static int PiFilter_Reset( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_ResetFilter {mask-list}";
-   int  mask;
-   char *p;
+   Tcl_Obj   ** pKeywords;
+   const char * p;
+   int  idx, keywordCount;
+   int  strLen;
+   uint mask;
    int  result; 
    
-   if (argc != 2)
+   if (objc != 2)
    {  // illegal parameter count
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR; 
    }  
    else
    {
-      p = argv[1];
-      mask = 0;
-      while (p != NULL)
+      result = Tcl_ListObjGetElements(interp, objv[1], &keywordCount, &pKeywords);
+      if (result == TCL_OK)
       {
-         while (*p == ' ')
-            p++;
-         if (*p == 0)
-            break;
+         mask = 0;
+         for (idx=0; idx < keywordCount; idx++)
+         {
+            p = Tcl_GetStringFromObj(pKeywords[idx], &strLen);
 
-              if (!strncmp(p, "all", 3))       mask |= FILTER_ALL & ~FILTER_PERM;
-         else if (!strncmp(p, "netwops", 7))   mask |= FILTER_NETWOP;
-         else if (!strncmp(p, "themes", 6))    mask |= FILTER_THEMES;
-         else if (!strncmp(p, "sortcrits", 9)) mask |= FILTER_SORTCRIT;
-         else if (!strncmp(p, "series", 6))    mask |= FILTER_SERIES;
-         else if (!strncmp(p, "substr", 6))    mask |= FILTER_SUBSTR_TITLE | FILTER_SUBSTR_DESCR;
-         else if (!strncmp(p, "progidx", 7))   mask |= FILTER_PROGIDX;
-         else if (!strncmp(p, "timsel", 6))    mask |= FILTER_TIME_BEG | FILTER_TIME_END;
-         else if (!strncmp(p, "parental", 8))  mask |= FILTER_PAR_RAT;
-         else if (!strncmp(p, "editorial", 9)) mask |= FILTER_EDIT_RAT;
-         else if (!strncmp(p, "features", 8))  mask |= FILTER_FEATURES;
-         else if (!strncmp(p, "languages", 9)) mask |= FILTER_LANGUAGES;
-         else if (!strncmp(p, "subtitles", 9)) mask |= FILTER_SUBTITLES;
-         else debug1("PiFilter-Reset: unknown keyword at %s", p);
+                 if (!strncmp(p, "all", 3))       mask |= FILTER_ALL & ~FILTER_PERM;
+            else if (!strncmp(p, "netwops", 7))   mask |= FILTER_NETWOP;
+            else if (!strncmp(p, "themes", 6))    mask |= FILTER_THEMES;
+            else if (!strncmp(p, "sortcrits", 9)) mask |= FILTER_SORTCRIT;
+            else if (!strncmp(p, "series", 6))    mask |= FILTER_SERIES;
+            else if (!strncmp(p, "substr", 6))    mask |= FILTER_SUBSTR_TITLE | FILTER_SUBSTR_DESCR;
+            else if (!strncmp(p, "progidx", 7))   mask |= FILTER_PROGIDX;
+            else if (!strncmp(p, "timsel", 6))    mask |= FILTER_TIME_BEG | FILTER_TIME_END;
+            else if (!strncmp(p, "dursel", 6))    mask |= FILTER_DURATION;
+            else if (!strncmp(p, "parental", 8))  mask |= FILTER_PAR_RAT;
+            else if (!strncmp(p, "editorial", 9)) mask |= FILTER_EDIT_RAT;
+            else if (!strncmp(p, "features", 8))  mask |= FILTER_FEATURES;
+            else if (!strncmp(p, "languages", 9)) mask |= FILTER_LANGUAGES;
+            else if (!strncmp(p, "subtitles", 9)) mask |= FILTER_SUBTITLES;
+            else debug1("PiFilter-Reset: unknown keyword at %s", p);
+         }
 
-         p = strchr(p, ' ');
+         EpgDbFilterDisable(pPiFilterContext, mask);
       }
-      EpgDbFilterDisable(pPiFilterContext, mask);
-
-      result = TCL_OK; 
    }
 
    return result; 
@@ -529,7 +563,7 @@ static int PiFilter_Reset( ClientData ttp, Tcl_Interp *interp, int argc, char *a
 // ----------------------------------------------------------------------------
 // return the name according to a PDC theme index
 //
-static int GetPdcString( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+static int GetPdcString( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {  
    const char * const pUsage = "Usage: C_GetPdcString <index>";
    const uchar * pGeneralStr;
@@ -537,7 +571,7 @@ static int GetPdcString( ClientData ttp, Tcl_Interp *interp, int argc, char *arg
    int index;
    int result; 
    
-   if ( (argc != 2) || Tcl_GetInt(interp, argv[1], &index) )
+   if ( (objc != 2) || (Tcl_GetIntFromObj(interp, objv[1], &index) != TCL_OK) )
    {  // wrong parameter count or no integer parameter
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR; 
@@ -558,17 +592,68 @@ static int GetPdcString( ClientData ttp, Tcl_Interp *interp, int argc, char *arg
 }
 
 // ----------------------------------------------------------------------------
+// Return a list of sorting criterion codes which are used in the database
+//
+static int GetAllUsedSortCrits( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+{
+   const char * const pUsage = "Usage: C_GetAllUsedSortCrits";
+   const PI_BLOCK * pPiBlock;
+   bool sortCritBuf[256];
+   Tcl_Obj * pResultList;
+   uint  idx;
+   int   result;
+
+   if (objc != 1) 
+   {  // wrong # of args for this TCL cmd -> display error msg
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR; 
+   }  
+   else
+   {
+      memset(sortCritBuf, FALSE, sizeof(sortCritBuf));
+
+      EpgDbLockDatabase(dbc, TRUE);
+      // loop across all PI in the database
+      pPiBlock = EpgDbSearchFirstPi(dbc, NULL);
+      while (pPiBlock != NULL)
+      {
+         for (idx=0; idx < pPiBlock->no_sortcrit; idx++)
+         {
+            sortCritBuf[pPiBlock->sortcrits[idx]] = TRUE;
+         }
+         pPiBlock = EpgDbSearchNextPi(dbc, NULL, pPiBlock);
+      }
+      EpgDbLockDatabase(dbc, FALSE);
+
+      // generate Tcl result list with all found sortcrit indices
+      pResultList = Tcl_NewListObj(0, NULL);
+      for (idx=0; idx < 256; idx++)
+      {
+         if (sortCritBuf[idx])
+            Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewIntObj(idx));
+      }
+      Tcl_SetObjResult(interp, pResultList);
+
+      result = TCL_OK; 
+   }  
+
+   return result;
+}
+
+// ----------------------------------------------------------------------------
 // Return a list of CNIs of all networks that have PI of theme "series"
 //
-static int GetNetwopsWithSeries( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+static int GetNetwopsWithSeries( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_GetNetwopsWithSeries";
+   Tcl_Obj * pNetwopList;
    const AI_BLOCK *pAiBlock;
    FILTER_CONTEXT *fc;
+   char  strbuf[10];
    int netwop;
    int result;
 
-   if (argc != 1) 
+   if (objc != 1) 
    {  // wrong # of args for this TCL cmd -> display error msg
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR; 
@@ -586,17 +671,24 @@ static int GetNetwopsWithSeries( ClientData ttp, Tcl_Interp *interp, int argc, c
       pAiBlock = EpgDbGetAi(dbc);
       if (pAiBlock != NULL)
       {
+         // create an empty list object
+         pNetwopList = Tcl_NewListObj(0, NULL);
+
          for ( netwop = 0; netwop < pAiBlock->netwopCount; netwop++ ) 
          {
             EpgDbFilterInitNetwop(fc);
             EpgDbFilterSetNetwop(fc, netwop);
+
             if (EpgDbSearchFirstPi(dbc, fc) != NULL)
             {
                // append the CNI in the format "0x0D94" to the TCL result list
-               sprintf(comm, "0x%04X", AI_GET_NETWOP_N(pAiBlock, netwop)->cni);
-               Tcl_AppendElement(interp, comm);
+               sprintf(strbuf, "0x%04X", AI_GET_NETWOP_N(pAiBlock, netwop)->cni);
+               Tcl_ListObjAppendElement(interp, pNetwopList,
+                                        Tcl_NewStringObj(strbuf, -1));
             }
          }
+
+         Tcl_SetObjResult(interp, pNetwopList);
       }
       EpgDbFilterDestroyContext(fc);
       EpgDbLockDatabase(dbc, FALSE);
@@ -609,24 +701,25 @@ static int GetNetwopsWithSeries( ClientData ttp, Tcl_Interp *interp, int argc, c
 // Get a list of all series codes and titles on a given network
 // - returns a 'paired list': series code followed by title
 //
-static int GetNetwopSeriesList( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+static int GetNetwopSeriesList( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_GetNetwopSeriesList <cni>";
    const AI_BLOCK * pAiBlock;
    const PI_BLOCK * pPiBlock;
    const char     * pTitle;
+   Tcl_Obj * pResultList;
    bool usedSeries[0x80];
    FILTER_CONTEXT *fc;
    uchar netwop, series, lang;
    uint index, cni;
    int result;
 
-   if (argc != 2)
+   if (objc != 2)
    {  // wrong # of args for this TCL cmd -> display error msg
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR; 
    }  
-   else if (Tcl_GetInt(interp, argv[1], &cni) != TCL_OK)
+   else if (Tcl_GetIntFromObj(interp, objv[1], &cni) != TCL_OK)
    {
       result = TCL_ERROR; 
    }
@@ -644,6 +737,9 @@ static int GetNetwopSeriesList( ClientData ttp, Tcl_Interp *interp, int argc, ch
          if (netwop < pAiBlock->netwopCount)
          {
             lang = AI_GET_NETWOP_N(pAiBlock, netwop)->alphabet;
+
+            // create an empty list object to hold the result
+            pResultList = Tcl_NewListObj(0, NULL);
 
             memset(usedSeries, FALSE, sizeof(usedSeries));
 
@@ -667,12 +763,13 @@ static int GetNetwopSeriesList( ClientData ttp, Tcl_Interp *interp, int argc, ch
                      {
                         usedSeries[series - 0x80] = TRUE;
 
-                        sprintf(comm, "%d", (netwop << 8) | series);
-                        Tcl_AppendElement(interp, comm);
+                        Tcl_ListObjAppendElement(interp, pResultList,
+                                                 Tcl_NewIntObj((netwop << 8) | series));
 
-                        pTitle = PiOutput_DictifyTitle(PI_GET_TITLE(pPiBlock), lang, comm, sizeof(comm));
-                        Tcl_AppendElement(interp, pTitle);
                         //printf("%s 0x%02x - %s\n", netname, series, PI_GET_TITLE(pPiBlock));
+                        pTitle = PiOutput_DictifyTitle(PI_GET_TITLE(pPiBlock), lang, comm, TCL_COMM_BUF_SIZE);
+                        Tcl_ListObjAppendElement(interp, pResultList,
+                                                 Tcl_NewStringObj(pTitle, -1));
                         break;
                      }
                   }
@@ -681,6 +778,8 @@ static int GetNetwopSeriesList( ClientData ttp, Tcl_Interp *interp, int argc, ch
                while (pPiBlock != NULL);
             }
             EpgDbFilterDestroyContext(fc);
+
+            Tcl_SetObjResult(interp, pResultList);
          }
          else
             debug1("Get-NetwopSeriesList: CNI 0x%04X not found in AI", cni);
@@ -702,19 +801,23 @@ static int GetNetwopSeriesList( ClientData ttp, Tcl_Interp *interp, int argc, ch
 //   if the same series is broadcast by multiple networks
 // - returns a 'paired list': network number followed by title
 //
-static int GetSeriesByLetter( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+static int GetSeriesByLetter( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_GetSeriesByLetter <letter>";
    const AI_BLOCK *pAiBlock;
    const PI_BLOCK * pPiBlock;
    const char * pTitle;
-   char numbuf[20];
+   const char * pLetter;
+   const char * pCfNetname;
+   uchar cni_str[7];
+   Tcl_Obj * pResultList;
+   Tcl_Obj * pTitleObj;
    FILTER_CONTEXT *fc;
    uchar lang, series, letter, c;
    uint index;
    int result;
 
-   if (argc != 2)
+   if (objc != 2)
    {  // wrong # of args for this TCL cmd -> display error msg
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR; 
@@ -725,6 +828,9 @@ static int GetSeriesByLetter( ClientData ttp, Tcl_Interp *interp, int argc, char
       pAiBlock = EpgDbGetAi(dbc);
       if (pAiBlock != NULL)
       {
+         // create an empty list object to hold the result
+         pResultList = Tcl_NewListObj(0, NULL);
+
          // copy the pre-filters from the current filter context
          // to exclude series from suppressed networks
          fc = EpgDbFilterCopyContext(pPiFilterContext);
@@ -733,11 +839,13 @@ static int GetSeriesByLetter( ClientData ttp, Tcl_Interp *interp, int argc, char
          EpgDbFilterEnable(fc, FILTER_THEMES);
          EpgDbFilterInitThemes(fc, 0xff);
          EpgDbFilterSetThemes(fc, 0x81, 0xff, 1);
+
          // get the starting letter from the parameters; "other" means non-alpha chars, e.g. digits
-         if (strcmp(argv[1], "other") == 0)
+         pLetter = Tcl_GetString(objv[1]);
+         if ((pLetter == NULL) || (strcmp(pLetter, "other") == 0))
             letter = 0;
          else
-            letter = tolower(argv[1][0]);
+            letter = tolower(pLetter[0]);
 
          pPiBlock = EpgDbSearchFirstPi(dbc, fc);
          if (pPiBlock != NULL)
@@ -745,7 +853,7 @@ static int GetSeriesByLetter( ClientData ttp, Tcl_Interp *interp, int argc, char
             do
             {
                lang = AI_GET_NETWOP_N(pAiBlock, pPiBlock->netwop_no)->alphabet;
-               pTitle = PiOutput_DictifyTitle(PI_GET_TITLE(pPiBlock), lang, comm, sizeof(comm));
+               pTitle = PiOutput_DictifyTitle(PI_GET_TITLE(pPiBlock), lang, comm, TCL_COMM_BUF_SIZE);
                // check if the starting letter matches
                c = tolower(pTitle[0]);
                if ( (c == letter) ||
@@ -757,13 +865,17 @@ static int GetSeriesByLetter( ClientData ttp, Tcl_Interp *interp, int argc, char
                      series = pPiBlock->themes[index];
                      if (series > 0x80)
                      {
-                        sprintf(numbuf, "%d", (pPiBlock->netwop_no << 8) | series);
-                        Tcl_AppendElement(interp, numbuf);
+                        Tcl_ListObjAppendElement(interp, pResultList,
+                                                 Tcl_NewIntObj((pPiBlock->netwop_no << 8) | series));
+
+                        pTitleObj = Tcl_NewStringObj(pTitle, -1);
                         // append network name to series title
-                        if (pTitle != comm)
-                           strcpy(comm, pTitle);
-                        sprintf(comm + strlen(comm), " (%s)", AI_GET_NETWOP_NAME(pAiBlock, pPiBlock->netwop_no));
-                        Tcl_AppendElement(interp, comm);
+                        sprintf(cni_str, "0x%04X", AI_GET_NETWOP_N(pAiBlock, pPiBlock->netwop_no)->cni);
+                        pCfNetname = Tcl_GetVar2(interp, "cfnetnames", cni_str, TCL_GLOBAL_ONLY);
+                        if (pCfNetname == NULL)
+                           pCfNetname = AI_GET_NETWOP_NAME(pAiBlock, pPiBlock->netwop_no);
+                        Tcl_AppendStringsToObj(pTitleObj, " (", pCfNetname, ")", NULL);
+                        Tcl_ListObjAppendElement(interp, pResultList, pTitleObj);
                         break;
                      }
                   }
@@ -774,6 +886,8 @@ static int GetSeriesByLetter( ClientData ttp, Tcl_Interp *interp, int argc, char
             while (pPiBlock != NULL);
          }
          EpgDbFilterDestroyContext(fc);
+
+         Tcl_SetObjResult(interp, pResultList);
       }
       else
          debug0("Get-NetwopSeriesList: no AI in db");
@@ -789,26 +903,29 @@ static int GetSeriesByLetter( ClientData ttp, Tcl_Interp *interp, int argc, char
 // - used by the shortcut config menu to pretty-print the filter settings
 // - returns a 'paired list': title followed by netwop name
 //
-static int GetSeriesTitles( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+static int GetSeriesTitles( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_GetSeriesTitles <series-list>";
    const AI_BLOCK * pAiBlock;
    const PI_BLOCK * pPiBlock;
    const char     * pTitle;
    FILTER_CONTEXT *fc;
-   CONST84 char ** seriesArgv;
+   Tcl_Obj   * pCfNetnameObj;
+   Tcl_Obj  ** pSeriesCodes;
+   Tcl_Obj   * pResultList;
+   uchar cni_str[7];
    uchar lang;
    int seriesCount, series, idx;
    int result;
 
-   if (argc != 2) 
+   if (objc != 2) 
    {  // wrong # of args for this TCL cmd -> display error msg
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR; 
    }  
    else
    {
-      result = Tcl_SplitList(interp, argv[1], &seriesCount, &seriesArgv);
+      result = Tcl_ListObjGetElements(interp, objv[1], &seriesCount, &pSeriesCodes);
       if (result == TCL_OK)
       {
          fc = EpgDbFilterCreateContext();
@@ -818,10 +935,13 @@ static int GetSeriesTitles( ClientData ttp, Tcl_Interp *interp, int argc, char *
          pAiBlock = EpgDbGetAi(dbc);
          if (pAiBlock != NULL)
          {
+            // create an empty list object to hold the result
+            pResultList = Tcl_NewListObj(0, NULL);
+
             // loop across all series passed as arguments
             for (idx=0; (idx < seriesCount) && (result == TCL_OK); idx++)
             {
-               result = Tcl_GetInt(interp, seriesArgv[idx], &series);
+               result = Tcl_GetIntFromObj(interp, pSeriesCodes[idx], &series);
                if ((result == TCL_OK) && ((series >> 8) < pAiBlock->netwopCount))
                {
                   // determine series title by searching a PI in the database
@@ -830,25 +950,34 @@ static int GetSeriesTitles( ClientData ttp, Tcl_Interp *interp, int argc, char *
                   if (pPiBlock != NULL)
                   {
                      lang = AI_GET_NETWOP_N(pAiBlock, pPiBlock->netwop_no)->alphabet;
-                     pTitle = PiOutput_DictifyTitle(PI_GET_TITLE(pPiBlock), lang, comm, sizeof(comm));
-                     Tcl_AppendElement(interp, pTitle);
+                     pTitle = PiOutput_DictifyTitle(PI_GET_TITLE(pPiBlock), lang, comm, TCL_COMM_BUF_SIZE);
+
+                     Tcl_ListObjAppendElement(interp, pResultList,
+                                              Tcl_NewStringObj(pTitle, -1));
                   }
                   else
                   {  // no PI of that series in the db (this will happen quite often
                      // unfortunately since most databases do not cover full 7 days)
                      sprintf(comm, "[0x%02X - no instance in database]", series & 0xff);
-                     Tcl_AppendElement(interp, comm);
+                     Tcl_ListObjAppendElement(interp, pResultList,
+                                              Tcl_NewStringObj(comm, -1));
                   }
                   // append network name from AI block
-                  Tcl_AppendElement(interp, AI_GET_NETWOP_NAME(pAiBlock, series >> 8));
+                  sprintf(cni_str, "0x%04X", AI_GET_NETWOP_N(pAiBlock, series >> 8)->cni);
+                  pCfNetnameObj = Tcl_GetVar2Ex(interp, "cfnetnames", cni_str, TCL_GLOBAL_ONLY);
+                  if (pCfNetnameObj != NULL)
+                     Tcl_ListObjAppendElement(interp, pResultList, pCfNetnameObj);
+                  else
+                     Tcl_ListObjAppendElement(interp, pResultList,
+                                              Tcl_NewStringObj(AI_GET_NETWOP_NAME(pAiBlock, series >> 8), -1));
                   EpgDbFilterSetSeries(fc, series >> 8, series & 0xff, FALSE);
                }
             }
+            Tcl_SetObjResult(interp, pResultList);
          }
 
          EpgDbLockDatabase(dbc, FALSE);
          EpgDbFilterDestroyContext(fc);
-         Tcl_Free((char *)seriesArgv);
       }
    }
    return result;
@@ -858,14 +987,16 @@ static int GetSeriesTitles( ClientData ttp, Tcl_Interp *interp, int argc, char *
 // Retrieve netwop filter setting for shortcut addition
 // - returns CNIs, to be independant of AI netwop table ordering
 //
-static int GetNetwopFilterList( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+static int GetNetwopFilterList( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_GetNetwopFilterList";
    const AI_BLOCK *pAiBlock;
+   Tcl_Obj * pResultList;
+   uchar strbuf[10];
    uchar netwop;
    int result;
 
-   if (argc != 1) 
+   if (objc != 1) 
    {  // wrong # of args for this TCL cmd -> display error msg
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR; 
@@ -878,14 +1009,17 @@ static int GetNetwopFilterList( ClientData ttp, Tcl_Interp *interp, int argc, ch
          pAiBlock = EpgDbGetAi(dbc);
          if (pAiBlock != NULL)
          {
+            pResultList = Tcl_NewListObj(0, NULL);
             for ( netwop = 0; netwop < pAiBlock->netwopCount; netwop++ ) 
             {
                if (pPiFilterContext->netwopFilterField[netwop])
                {
-                  sprintf(comm, "0x%04X", AI_GET_NETWOP_N(pAiBlock, netwop)->cni);
-                  Tcl_AppendElement(interp, comm);
+                  sprintf(strbuf, "0x%04X", AI_GET_NETWOP_N(pAiBlock, netwop)->cni);
+                  Tcl_ListObjAppendElement(interp, pResultList,
+                                           Tcl_NewStringObj(strbuf, -1));
                }
             }
+            Tcl_SetObjResult(interp, pResultList);
          }
          EpgDbLockDatabase(dbc, FALSE);
       }
@@ -1047,13 +1181,13 @@ static void UpdateFilterContextMenuState( const NI_FILTER_STATE * pNiState )
 // ----------------------------------------------------------------------------
 // Check if any NI are in the database
 //
-static int IsNavigateMenuEmpty( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+static int IsNavigateMenuEmpty( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_IsNavigateMenuEmpty";
    bool isEmpty;
    int  result;
 
-   if (argc != 1)
+   if (objc != 1)
    {  // wrong # of args for this TCL cmd -> display error msg
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR; 
@@ -1064,7 +1198,7 @@ static int IsNavigateMenuEmpty( ClientData ttp, Tcl_Interp *interp, int argc, ch
       isEmpty = (EpgDbGetNi(dbc, 1) == NULL);
       EpgDbLockDatabase(dbc, FALSE);
 
-      Tcl_SetResult(interp, isEmpty ? "1" : "0", TCL_STATIC);
+      Tcl_SetObjResult(interp, Tcl_NewBooleanObj((int) isEmpty));
       result = TCL_OK; 
    }
 
@@ -1277,36 +1411,41 @@ static void PiFilter_UpdateAirTime( void )
 //
 void PiFilter_UpdateNetwopList( void )
 {
-   CONST84 char **argv;
-   int idx, netwop;
-   int argc;
+   Tcl_Obj ** pNetwops;
+   Tcl_Obj  * pNetwopListObj;
+   int   idx, netwopCount;
+   int   netwop;
 
    if (pPiFilterContext != NULL)
    {
       // remove the old list; set cursor on first element
       sprintf(comm, "UpdateProvCniTable 0x%04X\n", EpgDbContextGetCni(pUiDbContext));
-      if ( (eval_check(interp, comm) == TCL_OK) &&
-           (Tcl_SplitList(interp, interp->result, &argc, &argv) == TCL_OK) )
+      if (Tcl_EvalEx(interp, comm, -1, 0) == TCL_OK)
       {
-         EpgDbFilterInitNetwopPreFilter(pPiFilterContext);
-         EpgDbFilterEnable(pPiFilterContext, FILTER_NETWOP_PRE);
+         pNetwopListObj = Tcl_GetObjResult(interp);
 
-         for (idx = 0; idx < argc; idx++) 
+         if (Tcl_ListObjGetElements(interp, pNetwopListObj, &netwopCount, &pNetwops) == TCL_OK)
          {
-            if (Tcl_GetInt(interp, argv[idx], &netwop) == TCL_OK)
-            {
-               EpgDbFilterSetNetwopPreFilter(pPiFilterContext, netwop);
-            }
-         }
-         Tcl_Free((char *) argv);
+            EpgDbFilterInitNetwopPreFilter(pPiFilterContext);
+            EpgDbFilterEnable(pPiFilterContext, FILTER_NETWOP_PRE);
 
-         PiFilter_UpdateAirTime();
+            for (idx = 0; idx < netwopCount; idx++) 
+            {
+               if (Tcl_GetIntFromObj(interp, pNetwops[idx], &netwop) == TCL_OK)
+               {
+                  EpgDbFilterSetNetwopPreFilter(pPiFilterContext, netwop);
+               }
+            }
+
+            PiFilter_UpdateAirTime();
+         }
       }
+      Tcl_ResetResult(interp);
 
       // check if browser is empty due to network prefilters
       UiControl_CheckDbState();
 
-      // removed pre-filtered networks from the browser, or add them back
+      // remove pre-filtered networks from the browser, or add them back
       PiListBox_Refresh();
    }
 }
@@ -1315,7 +1454,7 @@ void PiFilter_UpdateNetwopList( void )
 // Set netwop prefilters and update network listbox
 // - called by GUI after change of user network selection (netsel popup)
 //
-static int UpdateNetwopList( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+static int UpdateNetwopList( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    PiFilter_UpdateNetwopList();
    return TCL_OK;
@@ -1330,9 +1469,11 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, char
    const AI_BLOCK * pAiBlock;
    const PI_BLOCK * pPiBlock;
    const uchar * pThemeStr;
-   int idx, entryCount;
+   const uchar * pCfNetname;
+   uchar cni_str[7];
+   int   idx, entryCount;
    uchar theme, themeCat, netwop;
-   int result;
+   int   result;
 
    if (argc != 2) 
    {  // wrong # of args for this TCL cmd -> display error msg
@@ -1349,6 +1490,17 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, char
 
          // query listbox for user-selected PI, if any
          pPiBlock = PiListBox_GetSelectedPi();
+
+         // get user-configured name for that network
+         if (pPiBlock != NULL)
+         {
+            sprintf(cni_str, "0x%04X", AI_GET_NETWOP_N(pAiBlock, pPiBlock->netwop_no)->cni);
+            pCfNetname = Tcl_GetVar2(interp, "cfnetnames", cni_str, TCL_GLOBAL_ONLY);
+            if (pCfNetname == NULL)
+               pCfNetname = AI_GET_NETWOP_NAME(pAiBlock, pPiBlock->netwop_no);
+         }
+         else
+            pCfNetname = NULL;
 
          // undo substring filter
          if (pPiFilterContext->enabledFilters & (FILTER_SUBSTR_TITLE|FILTER_SUBSTR_DESCR))
@@ -1374,8 +1526,9 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, char
             }
             if (idx > 1)
             {  // more than one network -> offer to remove only the selected one
+               assert(pPiBlock != NULL);  // idx only > 0 if PI selected
                sprintf(comm, "%s add command -label {Remove network %s} -command {SelectNetwopByIdx %d 0}\n",
-                             argv[1], AI_GET_NETWOP_NAME(pAiBlock, pPiBlock->netwop_no), pPiBlock->netwop_no);
+                             argv[1], pCfNetname, pPiBlock->netwop_no);
                eval_check(interp, comm);
 
                // offer to remove all network filters
@@ -1715,7 +1868,7 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, char
             if ( (pPiFilterContext->enabledFilters & FILTER_NETWOP) == FALSE )
             {  // no network filter yet -> offer to filter for the currently selected
                sprintf(comm, "%s add command -label {Filter network %s} -command {SelectNetwopByIdx %d 1}\n",
-                             argv[1], AI_GET_NETWOP_NAME(pAiBlock, pPiBlock->netwop_no), pPiBlock->netwop_no);
+                             argv[1], pCfNetname, pPiBlock->netwop_no);
                eval_check(interp, comm);
                entryCount += 1;
             }
@@ -1728,7 +1881,7 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, char
                if (netwop < pAiBlock->netwopCount)
                {
                   sprintf(comm, "%s add command -label {Filter only network %s} -command {ResetNetwops; SelectNetwopByIdx %d 1}\n",
-                                argv[1], AI_GET_NETWOP_NAME(pAiBlock, pPiBlock->netwop_no), pPiBlock->netwop_no);
+                                argv[1], pCfNetname, pPiBlock->netwop_no);
                   eval_check(interp, comm);
                   entryCount += 1;
                }
@@ -1775,29 +1928,31 @@ void PiFilter_Create( void )
 
    if (Tcl_GetCommandInfo(interp, "C_SelectThemes", &cmdInfo) == 0)
    {
-      Tcl_CreateCommand(interp, "C_SelectThemes", SelectThemes, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_SelectSortCrits", SelectSortCrits, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_SelectSeries", SelectSeries, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_SelectNetwops", SelectNetwops, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_SelectFeatures", SelectFeatures, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_SelectParentalRating", SelectParentalRating, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_SelectEditorialRating", SelectEditorialRating, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_SelectSubStr", SelectSubStr, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_SelectProgIdx", SelectProgIdx, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_SelectStartTime", SelectStartTime, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_ResetFilter", PiFilter_Reset, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_SelectThemes", SelectThemes, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_SelectSortCrits", SelectSortCrits, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_SelectSeries", SelectSeries, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_SelectNetwops", SelectNetwops, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_SelectFeatures", SelectFeatures, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_SelectParentalRating", SelectParentalRating, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_SelectEditorialRating", SelectEditorialRating, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_SelectSubStr", SelectSubStr, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_SelectProgIdx", SelectProgIdx, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_SelectStartTime", SelectStartTime, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_SelectMinMaxDuration", SelectMinMaxDuration, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_ResetFilter", PiFilter_Reset, (ClientData) NULL, NULL);
 
-      Tcl_CreateCommand(interp, "C_GetPdcString", GetPdcString, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_GetNetwopsWithSeries", GetNetwopsWithSeries, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_GetNetwopSeriesList", GetNetwopSeriesList, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_IsNavigateMenuEmpty", IsNavigateMenuEmpty, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_GetPdcString", GetPdcString, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_GetAllUsedSortCrits", GetAllUsedSortCrits, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_GetNetwopsWithSeries", GetNetwopsWithSeries, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_GetNetwopSeriesList", GetNetwopSeriesList, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_GetSeriesByLetter", GetSeriesByLetter, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_GetSeriesTitles", GetSeriesTitles, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_IsNavigateMenuEmpty", IsNavigateMenuEmpty, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_CreateNi", CreateNi, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_SelectNi", SelectNi, (ClientData) NULL, NULL);
 
-      Tcl_CreateCommand(interp, "C_UpdateNetwopList", UpdateNetwopList, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_GetNetwopFilterList", GetNetwopFilterList, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_GetSeriesByLetter", GetSeriesByLetter, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_GetSeriesTitles", GetSeriesTitles, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_UpdateNetwopList", UpdateNetwopList, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_GetNetwopFilterList", GetNetwopFilterList, (ClientData) NULL, NULL);
 
       Tcl_CreateCommand(interp, "C_CreateContextMenu", CreateContextMenu, (ClientData) NULL, NULL);
 

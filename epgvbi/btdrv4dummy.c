@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: btdrv4dummy.c,v 1.11 2002/07/27 13:41:18 tom Exp tom $
+ *  $Id: btdrv4dummy.c,v 1.12 2002/09/14 19:03:45 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -64,17 +64,12 @@ bool BtDriver_IsVideoPresent( void )
    return FALSE;
 }
 
-bool BtDriver_TuneChannel( uint freq, bool keepOpen )
-{
-   return FALSE;
-}
-
 uint BtDriver_QueryChannel( void )
 {
    return 0;
 }
 
-bool BtDriver_SetInputSource( int inputIdx, bool keepOpen, bool * pIsTuner )
+bool BtDriver_TuneChannel( int inputIdx, uint freq, bool keepOpen, bool * pIsTuner )
 {
    if (pIsTuner != NULL)
    {
@@ -82,7 +77,6 @@ bool BtDriver_SetInputSource( int inputIdx, bool keepOpen, bool * pIsTuner )
    }
    return FALSE;
 }
-
 
 void BtDriver_CloseDevice( void )
 {

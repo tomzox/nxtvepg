@@ -23,7 +23,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbfil.c,v 1.34 2002/06/15 12:06:57 tom Exp tom $
+ *  $Id: epgdbfil.c,v 1.35 2002/09/02 19:47:35 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -500,6 +500,18 @@ void EpgDbFilterSetDateTimeEnd( FILTER_CONTEXT *fc, ulong newTimeEnd )
 }
 
 // ---------------------------------------------------------------------------
+// Set minimum and maximum programme duration values
+//
+void EpgDbFilterSetMinMaxDuration( FILTER_CONTEXT *fc, uint dur_min, uint dur_max )
+{
+   assert(dur_max >= dur_min);
+   assert(dur_max < 24*60*60);
+
+   fc->duration_min = dur_min;
+   fc->duration_max = dur_max;
+}
+
+// ---------------------------------------------------------------------------
 // Set value for prog-no filter
 // - i.e the range of indices relative to the start block no in AI
 // - 0 refers to the currently running programme
@@ -927,6 +939,15 @@ bool EpgDbFilterMatches( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT *fc, con
       if (fc->enabledFilters & FILTER_TIME_END)
       {
          if (pPi->start_time >= fc->timeEnd)
+            goto failed;
+      }
+
+      if (fc->enabledFilters & FILTER_DURATION)
+      {
+         uint duration = pPi->stop_time - pPi->start_time;
+
+         if ( (duration < fc->duration_min) ||
+              (duration > fc->duration_max) )
             goto failed;
       }
 

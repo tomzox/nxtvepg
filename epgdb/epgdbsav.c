@@ -29,7 +29,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbsav.c,v 1.47 2002/05/11 15:43:36 tom Exp tom $
+ *  $Id: epgdbsav.c,v 1.48 2002/09/14 18:17:46 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -1351,5 +1351,30 @@ uint EpgDbReadFreqFromDefective( uint cni )
 
    xfree(pFilename);
    return tunerFreq;
+}
+
+// ---------------------------------------------------------------------------
+// Remove a provider database
+// - returns 0 on success, else an POSIX error code
+//
+uint EpgDbRemoveDatabaseFile( uint cni )
+{
+   uchar * pFilename;
+   uint result;
+
+   pFilename = xmalloc(strlen(epgDbDirPath) + 1 + DUMP_NAME_MAX);
+   sprintf(pFilename, "%s/" DUMP_NAME_FMT, epgDbDirPath, cni);
+
+   if ( unlink(pFilename) != 0 )
+   {
+      debug2("EpgDb-RemoveDatabaseFile: failed to remove db file '%s': %s", pFilename, strerror(errno));
+      result = errno;
+   }
+   else
+      result = 0;
+
+   xfree(pFilename);
+
+   return result;
 }
 

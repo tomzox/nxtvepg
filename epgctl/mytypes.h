@@ -19,7 +19,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: mytypes.h,v 1.16 2002/07/27 13:42:04 tom Exp tom $
+ *  $Id: mytypes.h,v 1.17 2002/09/14 18:13:33 tom Exp tom $
  */
 
 #ifndef __MYTYPES_H
@@ -77,6 +77,9 @@ typedef   signed long  slong;    // >=32 bit signed
 
 // enable memory leak detection for debugging
 #define CHK_MALLOC               OFF
+
+// enable dump of all incoming TTX packets
+#define DUMP_TTX_PACKETS         OFF
 
 // Macro to cast (void *) to (int) and backwards without compiler warning
 // (note: 64-bit compilers warn when casting a pointer to an int)

@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: menucmd.c,v 1.84 2002/08/24 13:57:35 tom Exp $
+ *  $Id: menucmd.c,v 1.91 2002/09/14 18:11:59 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -75,14 +75,14 @@ static bool IsRemoteAcqDefault( Tcl_Interp * interp );
 // ----------------------------------------------------------------------------
 // Set the states of the entries in Control menu
 //
-static int MenuCmd_SetControlMenuStates(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+static int MenuCmd_SetControlMenuStates( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_SetControlMenuStates";
    EPGACQ_DESCR acqState;
    uint uiCni;
    int result;
 
-   if (argc != 1)
+   if (objc != 1)
    {  // parameter count is invalid
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
@@ -156,18 +156,18 @@ static int MenuCmd_SetControlMenuStates(ClientData ttp, Tcl_Interp *interp, int 
 // ----------------------------------------------------------------------------
 // Toggle dump of incoming PI
 //
-static int MenuCmd_ToggleDumpStream(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+static int MenuCmd_ToggleDumpStream( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_ToggleDumpStream <boolean>";
-   uint value;
+   int value;
    int result;
 
-   if (argc != 2)
+   if (objc != 2)
    {  // parameter count is invalid
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
    }
-   else if (Tcl_GetBoolean(interp, argv[1], &value))
+   else if (Tcl_GetBooleanFromObj(interp, objv[1], &value))
    {  // string parameter is not a decimal integer
       result = TCL_ERROR;
    }
@@ -308,7 +308,7 @@ static void MenuCmd_StartLocalAcq( Tcl_Interp * interp )
                       "-message {Failed to start acquisition: the daemon seems to be running. "
                                 "Do you want to stop the daemon now?}\n");
          eval_check(interp, comm);
-         if (strcmp(interp->result, "ok") == 0)
+         if (strcmp(Tcl_GetStringResult(interp), "ok") == 0)
          {
             // if acq mode changed, update the rc/ini file
             if (wasNetAcq == FALSE)
@@ -366,9 +366,13 @@ static void MenuCmd_StartRemoteAcq( Tcl_Interp * interp )
                                 "for details.}\n"
                 "}\n"
                 "set tmp");  // use set command to generate result value
-   eval_check(interp, comm);
-   if (strcmp(interp->result, "0") == 0)
-      return;
+   if (Tcl_EvalEx(interp, comm, -1, 0) == TCL_OK)
+   {
+      if (strcmp(Tcl_GetStringResult(interp), "0") == 0)
+         return;
+   }
+   else
+      debugTclErr(interp, "MenuCmd-StartRemoteAcq");
    #endif
 
    // save previous acq mode to detect mode changes
@@ -397,7 +401,7 @@ static void MenuCmd_StartRemoteAcq( Tcl_Interp * interp )
                       "-message {The daemon seems not to be running. "
                                 "Do you want to start it now?}\n");
          eval_check(interp, comm);
-         if (strcmp(interp->result, "ok") == 0)
+         if (strcmp(Tcl_GetStringResult(interp), "ok") == 0)
          {
             // if acq mode changed, update the rc/ini file
             if (wasNetAcq == FALSE)
@@ -421,20 +425,20 @@ static void MenuCmd_StartRemoteAcq( Tcl_Interp * interp )
 // Toggle acquisition on/off
 // - acquisition may be started either locally or via a network connection
 //
-static int MenuCmd_ToggleAcq(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+static int MenuCmd_ToggleAcq( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_ToggleAcq <enable-acq> <enable-daemon>";
    EPGACQ_DESCR acqState;
    int  enableAcq, enableDaemon;
    int  result;
 
-   if (argc != 3)
+   if (objc != 3)
    {  // parameter count is invalid
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
    }
-   else if ( (Tcl_GetBoolean(interp, argv[1], &enableAcq) != TCL_OK) ||
-             (Tcl_GetBoolean(interp, argv[2], &enableDaemon) != TCL_OK) )
+   else if ( (Tcl_GetBooleanFromObj(interp, objv[1], &enableAcq) != TCL_OK) ||
+             (Tcl_GetBooleanFromObj(interp, objv[2], &enableDaemon) != TCL_OK) )
    {  // parameter is not a decimal integer
       result = TCL_ERROR;
    }
@@ -496,7 +500,7 @@ static int MenuCmd_ToggleAcq(ClientData ttp, Tcl_Interp *interp, int argc, char 
 // ----------------------------------------------------------------------------
 // Query if acq is currently enabled and in remote acq mode
 //
-static int MenuCmd_IsNetAcqActive(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+static int MenuCmd_IsNetAcqActive( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_IsNetAcqActive {clear_errors|default}";
    #ifdef USE_DAEMON
@@ -505,7 +509,7 @@ static int MenuCmd_IsNetAcqActive(ClientData ttp, Tcl_Interp *interp, int argc, 
    bool isActive;
    int  result;
 
-   if (argc != 2)
+   if (objc != 2)
    {  // parameter count is invalid
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
@@ -516,7 +520,7 @@ static int MenuCmd_IsNetAcqActive(ClientData ttp, Tcl_Interp *interp, int argc, 
       EpgAcqCtl_DescribeAcqState(&acqState);
       isActive = acqState.isNetAcq;
 
-      if (strcmp(argv[1], "clear_errors") == 0)
+      if (strcmp(Tcl_GetString(objv[1]), "clear_errors") == 0)
       {
          // stop acq if network acquisition is in error state
          if ( (acqState.isNetAcq) && (acqState.state == ACQDESCR_DISABLED) )
@@ -547,42 +551,51 @@ static int MenuCmd_IsNetAcqActive(ClientData ttp, Tcl_Interp *interp, int argc, 
 // ----------------------------------------------------------------------------
 // Dump the complete database
 //
-static int MenuCmd_DumpRawDatabase(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+static int MenuCmd_DumpRawDatabase( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_DumpRawDatabase <file-name> <pi=0/1> <xi=0/1> <ai=0/1>"
                                                  " <ni=0/1> <oi=0/1> <mi=0/1> <li=0/1> <ti=0/1>";
    int do_pi, do_xi, do_ai, do_ni, do_oi, do_mi, do_li, do_ti;
+   const char * pFileName;
+   Tcl_DString ds;
    FILE *fp;
    int result;
 
-   if (argc != 1+1+8)
+   if (objc != 1+1+8)
    {  // parameter count is invalid
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
    }
-   else if ( (Tcl_GetBoolean(interp, argv[2], &do_pi) != TCL_OK) || 
-             (Tcl_GetBoolean(interp, argv[3], &do_xi) != TCL_OK) || 
-             (Tcl_GetBoolean(interp, argv[4], &do_ai) != TCL_OK) || 
-             (Tcl_GetBoolean(interp, argv[5], &do_ni) != TCL_OK) || 
-             (Tcl_GetBoolean(interp, argv[6], &do_oi) != TCL_OK) || 
-             (Tcl_GetBoolean(interp, argv[7], &do_mi) != TCL_OK) || 
-             (Tcl_GetBoolean(interp, argv[8], &do_li) != TCL_OK) || 
-             (Tcl_GetBoolean(interp, argv[9], &do_ti) != TCL_OK) )
+   else if ( (pFileName = Tcl_GetString(objv[1])) == NULL )
+   {  // internal error: can not get filename string
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else if ( (Tcl_GetBooleanFromObj(interp, objv[2], &do_pi) != TCL_OK) || 
+             (Tcl_GetBooleanFromObj(interp, objv[3], &do_xi) != TCL_OK) || 
+             (Tcl_GetBooleanFromObj(interp, objv[4], &do_ai) != TCL_OK) || 
+             (Tcl_GetBooleanFromObj(interp, objv[5], &do_ni) != TCL_OK) || 
+             (Tcl_GetBooleanFromObj(interp, objv[6], &do_oi) != TCL_OK) || 
+             (Tcl_GetBooleanFromObj(interp, objv[7], &do_mi) != TCL_OK) || 
+             (Tcl_GetBooleanFromObj(interp, objv[8], &do_li) != TCL_OK) || 
+             (Tcl_GetBooleanFromObj(interp, objv[9], &do_ti) != TCL_OK) )
    {  // one of the params is not boolean; error msg is already set
       result = TCL_ERROR;
    }
    else
    {
-      if ((argv[1] != NULL) && (argv[1][0] != 0))
+      if (Tcl_GetCharLength(objv[1]) > 0)
       {
-         fp = fopen(argv[1], "w");
+         pFileName = Tcl_UtfToExternalDString(NULL, pFileName, -1, &ds);
+         fp = fopen(pFileName, "w");
          if (fp == NULL)
          {  // access, create or truncate failed -> inform the user
             sprintf(comm, "tk_messageBox -type ok -icon error -parent .dumpdb -message \"Failed to open file '%s' for writing: %s\"",
-                          argv[1], strerror(errno));
+                          Tcl_GetString(objv[1]), strerror(errno));
             eval_check(interp, comm);
             Tcl_ResetResult(interp);
          }
+         Tcl_DStringFree(&ds);
       }
       else
          fp = stdout;
@@ -603,26 +616,34 @@ static int MenuCmd_DumpRawDatabase(ClientData ttp, Tcl_Interp *interp, int argc,
 // ----------------------------------------------------------------------------
 // Dump the database in TAB-separated format
 //
-static int MenuCmd_DumpTabsDatabase(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+static int MenuCmd_DumpTabsDatabase( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_DumpTabsDatabase <file-name> <type>";
    EPGTAB_DUMP_MODE mode;
+   const char * pFileName;
+   Tcl_DString ds;
    FILE *fp;
    int result;
 
-   if (argc != 1+2)
+   if (objc != 1+2)
    {  // parameter count is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else if ( (pFileName = Tcl_GetString(objv[1])) == NULL )
+   {  // internal error: can not get filename string
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
    }
    else
    {
-      mode = EpgTabDump_GetMode(argv[2]);
+      mode = EpgTabDump_GetMode(Tcl_GetString(objv[2]));
       if (mode != EPGTAB_DUMP_NONE)
       {
-         if (argv[1][0] != 0)
+         if (Tcl_GetCharLength(objv[1]) > 0)
          {
-            fp = fopen(argv[1], "w");
+            pFileName = Tcl_UtfToExternalDString(NULL, pFileName, -1, &ds);
+            fp = fopen(pFileName, "w");
             if (fp != NULL)
             {  // file created successfully -> start dump
                EpgTabDump_Database(pUiDbContext, fp, mode);
@@ -632,10 +653,11 @@ static int MenuCmd_DumpTabsDatabase(ClientData ttp, Tcl_Interp *interp, int argc
             else
             {  // access, create or truncate failed -> inform the user
                sprintf(comm, "tk_messageBox -type ok -icon error -parent .dumptabs -message \"Failed to open file '%s' for writing: %s\"",
-                             argv[1], strerror(errno));
+                             Tcl_GetString(objv[1]), strerror(errno));
                eval_check(interp, comm);
                Tcl_ResetResult(interp);
             }
+            Tcl_DStringFree(&ds);
          }
          else
          {  // no file name given -> dump to stdout
@@ -693,7 +715,6 @@ void SetUserLanguage( Tcl_Interp *interp )
          {
             // rebuild the themes filter menu
             eval_check(interp, "FilterMenuAdd_Themes .menubar.filter.themes");
-            PiOutput_CacheThemesMaxLen();
          }
          last_lang = lang;
       }
@@ -707,7 +728,7 @@ void SetUserLanguage( Tcl_Interp *interp )
 // ----------------------------------------------------------------------------
 // Trigger update of user configured language after menu selection
 //
-static int MenuCmd_UpdateLanguage(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+static int MenuCmd_UpdateLanguage( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    // load the new language setting from the Tcl config variable
    SetUserLanguage(interp);
@@ -720,14 +741,14 @@ static int MenuCmd_UpdateLanguage(ClientData ttp, Tcl_Interp *interp, int argc, 
 // - only used for the provider selection popup,
 //   not for the initial selection nor for provider merging
 //
-static int MenuCmd_ChangeProvider(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+static int MenuCmd_ChangeProvider( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_ChangeProvider <cni>";
    EPGDB_CONTEXT * pDbContext;
    int cni;
    int result;
 
-   if (argc != 2)
+   if (objc != 2)
    {  // parameter count is invalid
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
@@ -735,7 +756,7 @@ static int MenuCmd_ChangeProvider(ClientData ttp, Tcl_Interp *interp, int argc, 
    else
    {
       // get the CNI of the selected provider
-      if (Tcl_GetInt(interp, argv[1], &cni) == TCL_OK)
+      if (Tcl_GetIntFromObj(interp, objv[1], &cni) == TCL_OK)
       {
          // note: illegal CNIs 0 and 0x00ff are caught in the open function
          pDbContext = EpgContextCtl_Open(cni, CTX_FAIL_RET_NULL, CTX_RELOAD_ERR_REQ);
@@ -763,7 +784,7 @@ static int MenuCmd_ChangeProvider(ClientData ttp, Tcl_Interp *interp, int argc, 
       }
       else
       {
-         sprintf(comm, "C_ChangeProvider: expected hex CNI but got: %s", argv[1]);
+         sprintf(comm, "C_ChangeProvider: expected hex CNI but got: %s", Tcl_GetString(objv[1]));
          Tcl_SetResult(interp, comm, TCL_VOLATILE);
          result = TCL_ERROR;
       }
@@ -775,19 +796,20 @@ static int MenuCmd_ChangeProvider(ClientData ttp, Tcl_Interp *interp, int argc, 
 // ----------------------------------------------------------------------------
 // Return descriptive text for a given 16-bit network code
 //
-static int MenuCmd_GetCniDescription(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+static int MenuCmd_GetCniDescription( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_GetCniDescription <cni>";
    const char * pName, * pCountry;
+   Tcl_Obj * pCniDesc;
    int cni;
    int result;
 
-   if (argc != 2)
+   if (objc != 2)
    {  // parameter count is invalid
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
    }
-   else if ( Tcl_GetInt(interp, argv[1], &cni) )
+   else if ( Tcl_GetIntFromObj(interp, objv[1], &cni) )
    {  // the parameter is not an integer
       result = TCL_ERROR;
    }
@@ -796,13 +818,13 @@ static int MenuCmd_GetCniDescription(ClientData ttp, Tcl_Interp *interp, int arg
       pName = CniGetDescription(cni, &pCountry);
       if (pName != NULL)
       {
+         pCniDesc = Tcl_NewStringObj(pName, -1);
+
          if ((pCountry != NULL) && (strstr(pName, pCountry) == NULL))
          {
-            sprintf(comm, "%s (%s)", pName, pCountry);
-            Tcl_SetResult(interp, comm, TCL_VOLATILE);
+            Tcl_AppendStringsToObj(pCniDesc, " (", pCountry, ")", NULL);
          }
-         else
-            Tcl_SetResult(interp, (char *)pName, TCL_STATIC);
+         Tcl_SetObjResult(interp, pCniDesc);
       }
       result = TCL_OK;
    }
@@ -814,21 +836,22 @@ static int MenuCmd_GetCniDescription(ClientData ttp, Tcl_Interp *interp, int arg
 // Return service name and list of networks of the given database
 // - used by provider selection popup
 //
-static int MenuCmd_GetProvServiceInfos(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+static int MenuCmd_GetProvServiceInfos( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_GetProvServiceInfos <cni>";
    const AI_BLOCK * pAi;
    const OI_BLOCK * pOi;
    EPGDB_CONTEXT  * pPeek;
+   Tcl_Obj * pResultList;
    int cni, netwop;
    int result;
 
-   if (argc != 2)
+   if (objc != 2)
    {  // parameter count is invalid
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
    }
-   else if ( Tcl_GetInt(interp, argv[1], &cni) )
+   else if ( Tcl_GetIntFromObj(interp, objv[1], &cni) )
    {  // the parameter is not an integer
       result = TCL_ERROR;
    }
@@ -843,26 +866,30 @@ static int MenuCmd_GetProvServiceInfos(ClientData ttp, Tcl_Interp *interp, int a
 
          if (pAi != NULL)
          {
+            pResultList = Tcl_NewListObj(0, NULL);
+
             // first element in return list is the service name
-            Tcl_AppendElement(interp, AI_GET_SERVICENAME(pAi));
+            Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(AI_GET_SERVICENAME(pAi), -1));
 
             // second element is OI header
             if ((pOi != NULL) && OI_HAS_HEADER(pOi))
-               Tcl_AppendElement(interp, OI_GET_HEADER(pOi));
+               Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(OI_GET_HEADER(pOi), -1));
             else
-               Tcl_AppendElement(interp, "");
+               Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj("", -1));
 
             // third element is OI message
             if ((pOi != NULL) && OI_HAS_MESSAGE(pOi))
-               Tcl_AppendElement(interp, OI_GET_MESSAGE(pOi));
+               Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(OI_GET_MESSAGE(pOi), -1));
             else
-               Tcl_AppendElement(interp, "");
+               Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj("", -1));
 
             // append names of all netwops
             for ( netwop = 0; netwop < pAi->netwopCount; netwop++ ) 
             {
-               Tcl_AppendElement(interp, AI_GET_NETWOP_NAME(pAi, netwop));
+               Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(AI_GET_NETWOP_NAME(pAi, netwop), -1));
             }
+
+            Tcl_SetObjResult(interp, pResultList);
          }
          EpgDbLockDatabase(pPeek, FALSE);
 
@@ -878,13 +905,14 @@ static int MenuCmd_GetProvServiceInfos(ClientData ttp, Tcl_Interp *interp, int a
 // Return the CNI of the database currently open for the browser
 // - result is 0 if none is opened or 0x00ff for the merged db
 //
-static int MenuCmd_GetCurrentDatabaseCni(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+static int MenuCmd_GetCurrentDatabaseCni( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_GetCurrentDatabaseCni";
+   uchar buf[10];
    uint dbCni;
    int result;
 
-   if (argc != 1)
+   if (objc != 1)
    {  // parameter count is invalid
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
@@ -893,8 +921,8 @@ static int MenuCmd_GetCurrentDatabaseCni(ClientData ttp, Tcl_Interp *interp, int
    {  // return the CNI of the currently used browser database
       dbCni = EpgDbContextGetCni(pUiDbContext);
 
-      sprintf(comm, "0x%04X", dbCni);
-      Tcl_SetResult(interp, comm, TCL_VOLATILE);
+      sprintf(buf, "0x%04X", dbCni);
+      Tcl_SetObjResult(interp, Tcl_NewStringObj(buf, -1));
 
       result = TCL_OK;
    }
@@ -906,22 +934,26 @@ static int MenuCmd_GetCurrentDatabaseCni(ClientData ttp, Tcl_Interp *interp, int
 // Get list of provider CNIs and names
 // - for provider selection and merge popup
 //
-static int MenuCmd_GetProvCnisAndNames(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+static int MenuCmd_GetProvCnisAndNames( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_GetProvCnisAndNames";
    const AI_BLOCK * pAi;
    const uint * pCniList;
    EPGDB_CONTEXT  * pPeek;
+   Tcl_Obj * pResultList;
+   uchar buf[10];
    uint idx, cniCount;
    int result;
 
-   if (argc != 1)
+   if (objc != 1)
    {  // parameter count is invalid
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
    }
    else
    {
+      pResultList = Tcl_NewListObj(0, NULL);
+
       pCniList = EpgContextCtl_GetProvList(&cniCount);
       for (idx=0; idx < cniCount; idx++)
       {
@@ -932,9 +964,10 @@ static int MenuCmd_GetProvCnisAndNames(ClientData ttp, Tcl_Interp *interp, int a
             pAi = EpgDbGetAi(pPeek);
             if (pAi != NULL)
             {
-               sprintf(comm, "0x%04X", pCniList[idx]);
-               Tcl_AppendElement(interp, comm);
-               Tcl_AppendElement(interp, AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop));
+               sprintf(buf, "0x%04X", pCniList[idx]);
+               Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(buf, -1));
+
+               Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop), -1));
             }
             EpgDbLockDatabase(pPeek, FALSE);
 
@@ -943,6 +976,8 @@ static int MenuCmd_GetProvCnisAndNames(ClientData ttp, Tcl_Interp *interp, int a
       }
       if (pCniList != NULL)
          xfree((void *) pCniList);
+
+      Tcl_SetObjResult(interp, pResultList);
       result = TCL_OK;
    }
 
@@ -953,7 +988,8 @@ static int MenuCmd_GetProvCnisAndNames(ClientData ttp, Tcl_Interp *interp, int a
 // Append list of networks in a AI to the result
 // - as a side-effect the netwop names are stored into a TCL array
 //
-static void MenuCmd_AppendNetwopList( Tcl_Interp *interp, const AI_BLOCK * pAiBlock, char * pArrName, bool unify )
+static void MenuCmd_AppendNetwopList( Tcl_Interp *interp, Tcl_Obj * pList,
+                                      const AI_BLOCK * pAiBlock, char * pArrName, bool unify )
 {
    uchar strbuf[15];
    uint  netwop;
@@ -970,7 +1006,7 @@ static void MenuCmd_AppendNetwopList( Tcl_Interp *interp, const AI_BLOCK * pAiBl
               (Tcl_GetVar2(interp, pArrName, strbuf, 0) == NULL) )
          {
             // append the CNI in the format "0x0D94" to the TCL result list
-            Tcl_AppendElement(interp, strbuf);
+            Tcl_ListObjAppendElement(interp, pList, Tcl_NewStringObj(strbuf, -1));
 
             // as a side-effect the netwop names are stored into a TCL array
             if (pArrName[0] != 0)
@@ -988,32 +1024,40 @@ static void MenuCmd_AppendNetwopList( Tcl_Interp *interp, const AI_BLOCK * pAiBl
 // - optional 3rd argument may be "allmerged" if in case of a merged database
 //   all CNIs of all source databases shall be returned
 //
-static int MenuCmd_GetAiNetwopList( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+static int MenuCmd_GetAiNetwopList( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_GetAiNetwopList <CNI> <varname> [allmerged]";
    EPGDB_CONTEXT  * pPeek;
    const AI_BLOCK * pAi;
+   char * pVarName;
+   Tcl_Obj * pResultList;
    int result, cni;
 
-   if ((argc != 3) && ((argc != 4) || strcmp(argv[3], "allmerged")))
-   {  // wrong # of args for this TCL cmd -> display error msg
+   if ((objc != 2+1) && ((objc != 3+1) || strcmp(Tcl_GetString(objv[3]), "allmerged")))
+   {  // wrong # of parameters for this TCL cmd -> display error msg
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR; 
    }  
    else
    {
-      result = Tcl_GetInt(interp, argv[1], &cni);
+      result = Tcl_GetIntFromObj(interp, objv[1], &cni);
       if (result == TCL_OK)
       {
+         pResultList = Tcl_NewListObj(0, NULL);
+
          // clear the network names result array
-         if (argv[2][0] != 0)
-            Tcl_UnsetVar(interp, argv[2], 0);
+         pVarName = Tcl_GetString(objv[2]);
+         if (Tcl_GetCharLength(objv[2]) != 0)
+            Tcl_UnsetVar(interp, pVarName, 0);
 
          // special case: CNI 0 refers to the current browser db
          if (cni == 0)
             cni = EpgDbContextGetCni(pUiDbContext);
 
-         if (cni != 0x00FF)
+         if (cni == 0)
+         {  // no provider selected -> return empty list (no error)
+         }
+         else if (cni != 0x00FF)
          {  // regular (non-merged) database -> get "peek" with (at least) AI and OI
             pPeek = EpgContextCtl_Peek(cni, CTX_RELOAD_ERR_ANY);
             if (pPeek != NULL)
@@ -1021,7 +1065,7 @@ static int MenuCmd_GetAiNetwopList( ClientData ttp, Tcl_Interp *interp, int argc
                EpgDbLockDatabase(pPeek, TRUE);
                pAi = EpgDbGetAi(pPeek);
                if (pAi != NULL)
-                  MenuCmd_AppendNetwopList(interp, pAi, argv[2], FALSE);
+                  MenuCmd_AppendNetwopList(interp, pResultList, pAi, pVarName, FALSE);
                else
                   debug1("MenuCmd-GetAiNetwopList: no AI in peek of %04X", cni);
                EpgDbLockDatabase(pPeek, FALSE);
@@ -1035,12 +1079,12 @@ static int MenuCmd_GetAiNetwopList( ClientData ttp, Tcl_Interp *interp, int argc
          {
             assert(EpgDbContextIsMerged(pUiDbContext));
 
-            if (argc < 4)
+            if (objc < 4)
             {  // merged db -> use the merged AI with the user-configured netwop list
                EpgDbLockDatabase(pUiDbContext, TRUE);
                pAi = EpgDbGetAi(pUiDbContext);
                if (pAi != NULL)
-                  MenuCmd_AppendNetwopList(interp, pAi, argv[2], FALSE);
+                  MenuCmd_AppendNetwopList(interp, pResultList, pAi, pVarName, FALSE);
                else
                   debug0("MenuCmd-GetAiNetwopList: no AI in merged db");
                EpgDbLockDatabase(pUiDbContext, FALSE);
@@ -1060,7 +1104,7 @@ static int MenuCmd_GetAiNetwopList( ClientData ttp, Tcl_Interp *interp, int argc
                         EpgDbLockDatabase(pPeek, TRUE);
                         pAi = EpgDbGetAi(pPeek);
                         if (pAi != NULL)
-                           MenuCmd_AppendNetwopList(interp, pAi, argv[2], TRUE);
+                           MenuCmd_AppendNetwopList(interp, pResultList, pAi, pVarName, TRUE);
                         else
                            debug1("MenuCmd-GetAiNetwopList: no AI in peek of %04X (merge source)", cni);
                         EpgDbLockDatabase(pPeek, FALSE);
@@ -1071,6 +1115,7 @@ static int MenuCmd_GetAiNetwopList( ClientData ttp, Tcl_Interp *interp, int argc
                }
             }
          }
+         Tcl_SetObjResult(interp, pResultList);
       }
    }
    return result;
@@ -1081,39 +1126,35 @@ static int MenuCmd_GetAiNetwopList( ClientData ttp, Tcl_Interp *interp, int argc
 //
 static int ProvMerge_ParseNetwopList( Tcl_Interp * interp, uint * pCniCount, uint * pCniTab )
 {
-   CONST84 char ** pCniArgv;
-   CONST84 char ** pSubLists;
-   const char    * pTmpStr;
+   Tcl_Obj  ** pCniArgv;
+   Tcl_Obj  ** pSubLists;
+   Tcl_Obj   * pNetwopObj;
    int  * pCni, count;
    uint idx;
    int  result;
 
-   pTmpStr = Tcl_GetVar2(interp, "cfnetwops", "0x00FF", TCL_GLOBAL_ONLY);
-   if (pTmpStr != NULL)
+   pNetwopObj = Tcl_GetVar2Ex(interp, "cfnetwops", "0x00FF", TCL_GLOBAL_ONLY);
+   if (pNetwopObj != NULL)
    {
       // parse list of 2 lists, e.g. {{0x0dc1 0x0dc2} {0x0AC1 0x0AC2}}
-      result = Tcl_SplitList(interp, pTmpStr, &count, &pSubLists);
+      result = Tcl_ListObjGetElements(interp, pNetwopObj, &count, &pSubLists);
       if (result == TCL_OK)
       {
          if (count == 2)
          {
             // parse CNI list, e.g. {0x0dc1 0x0dc2}
-            result = Tcl_SplitList(interp, pSubLists[0], pCniCount, &pCniArgv);
+            result = Tcl_ListObjGetElements(interp, pSubLists[0], pCniCount, &pCniArgv);
             if (result == TCL_OK)
             {
                pCni = (int *) pCniTab;
                for (idx=0; (idx < *pCniCount) && (idx < MAX_NETWOP_COUNT) && (result == TCL_OK); idx++)
                {
-                  result = Tcl_GetInt(interp, pCniArgv[idx], pCni++);
+                  result = Tcl_GetIntFromObj(interp, pCniArgv[idx], pCni++);
                }
-
-               Tcl_Free((char *) pCniArgv);
             }
          }
          else
             result = TCL_ERROR;
-
-         Tcl_Free((char *) pSubLists);
       }
    }
    else
@@ -1135,18 +1176,19 @@ static int ProvMerge_ParseNetwopList( Tcl_Interp * interp, uint * pCniCount, uin
 static int
 ProvMerge_ParseConfigString( Tcl_Interp *interp, uint *pCniCount, uint * pCniTab, MERGE_ATTRIB_VECTOR_PTR pMax )
 {
-   CONST84 char ** pCniArgv;
-   CONST84 char ** pAttrArgv;
-   CONST84 char ** pIdxArgv;
+   Tcl_Obj       ** pCniObjv;
+   Tcl_Obj        * pTmpObj;
+   CONST84 char  ** pAttrArgv;
+   CONST84 char  ** pIdxArgv;
+   const char     * pTmpStr;
    uint attrCount, idxCount, idx, idx2, ati, matIdx, cni;
-   const char * pTmpStr;
    int result;
 
-   pTmpStr = Tcl_GetVar(interp, "prov_merge_cnis", TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG);
-   if (pTmpStr != NULL)
+   pTmpObj = Tcl_GetVar2Ex(interp, "prov_merge_cnis", NULL, TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG);
+   if (pTmpObj != NULL)
    {
       // parse CNI list, format: {0x0d94 ...}
-      result = Tcl_SplitList(interp, pTmpStr, pCniCount, &pCniArgv);
+      result = Tcl_ListObjGetElements(interp, pTmpObj, pCniCount, &pCniObjv);
       if (result == TCL_OK)
       {
          if (*pCniCount > MAX_MERGED_DB_COUNT)
@@ -1154,9 +1196,8 @@ ProvMerge_ParseConfigString( Tcl_Interp *interp, uint *pCniCount, uint * pCniTab
 
          for (idx=0; (idx < *pCniCount) && (result == TCL_OK); idx++)
          {
-            result = Tcl_GetInt(interp, pCniArgv[idx], pCniTab + idx);
+            result = Tcl_GetIntFromObj(interp, pCniObjv[idx], pCniTab + idx);
          }
-         Tcl_Free((char *) pCniArgv);
 
          if ((result == TCL_OK) && (*pCniCount > 0))
          {  // continue only if all CNIs could be parsed
@@ -1233,6 +1274,7 @@ ProvMerge_ParseConfigString( Tcl_Interp *interp, uint *pCniCount, uint * pCniTab
                               result = TCL_ERROR;
                               break;
                            }
+                           Tcl_Free((char *) pIdxArgv);
                         }
                      }
                      else
@@ -1291,13 +1333,13 @@ EPGDB_CONTEXT * MenuCmd_MergeDatabases( void )
 // - parameters are taken from global Tcl variables, because the same
 //   update is required at startup
 //
-static int ProvMerge_Start(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+static int ProvMerge_Start( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_ProvMerge_Start";
    EPGDB_CONTEXT * pDbContext;
    int  result;
 
-   if (argc != 1)
+   if (objc != 1)
    {  // parameter count is invalid
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
@@ -1341,21 +1383,17 @@ static int ProvMerge_Start(ClientData ttp, Tcl_Interp *interp, int argc, char *a
 //
 void OpenInitialDb( uint startUiCni )
 {
-   CONST84 char ** pCniArgv;
-   const char    * pTmpStr;
+   Tcl_Obj ** pCniObjv;
+   Tcl_Obj  * pTmpObj;
    uint cni, provIdx, provCount;
 
    // prepare list of previously opened databases
-   provCount = 0;
-   pCniArgv = NULL;
-   pTmpStr = Tcl_GetVar(interp, "prov_selection", TCL_GLOBAL_ONLY);
-   if (pTmpStr != NULL)
+   pTmpObj = Tcl_GetVar2Ex(interp, "prov_selection", NULL, TCL_GLOBAL_ONLY);
+   if ( (pTmpObj == NULL) ||
+        (Tcl_ListObjGetElements(interp, pTmpObj, &provCount, &pCniObjv) != TCL_OK) )
    {
-      if (Tcl_SplitList(interp, pTmpStr, &provCount, &pCniArgv) != TCL_OK)
-      {
-         provCount = 0;
-         pCniArgv  = NULL;
-      }
+      provCount = 0;
+      pCniObjv  = NULL;
    }
 
    cni = 0;
@@ -1368,9 +1406,9 @@ void OpenInitialDb( uint startUiCni )
       }
       else if (provIdx < provCount)
       {  // then try all providers given in the list of previously loaded databases
-         if (Tcl_GetInt(interp, pCniArgv[provIdx], &cni) != TCL_OK)
+         if (Tcl_GetIntFromObj(interp, pCniObjv[provIdx], &cni) != TCL_OK)
          {
-            debug2("OpenInitialDb: Tcl var prov_selection, elem #%d: '%s' invalid CNI", provIdx, pCniArgv[provIdx]);
+            debug2("OpenInitialDb: Tcl var prov_selection, elem #%d: '%s' invalid CNI", provIdx, Tcl_GetString(pCniObjv[provIdx]));
             provIdx += 1;
             continue;
          }
@@ -1403,9 +1441,6 @@ void OpenInitialDb( uint startUiCni )
    }
    while (pUiDbContext == NULL);
 
-   if (pCniArgv != NULL)
-      Tcl_Free((char *) pCniArgv);
-
    // update rc/ini file with new CNI order
    if ((cni != 0) && (EpgDbContextIsMerged(pUiDbContext) == FALSE))
    {
@@ -1421,7 +1456,8 @@ void OpenInitialDb( uint startUiCni )
 //
 static EPGACQ_MODE GetAcquisitionModeParams( uint * pCniCount, uint * cniTab )
 {
-   CONST84 char **pCniArgv;
+   Tcl_Obj     ** pCniObjv;
+   Tcl_Obj      * pTmpObj;
    CONST84 char * pTmpStr;
    uint cniIdx, dbIdx;
    EPGACQ_MODE mode;
@@ -1451,10 +1487,10 @@ static EPGACQ_MODE GetAcquisitionModeParams( uint * pCniCount, uint * cniTab )
          case ACQMODE_CYCLIC_02:
          case ACQMODE_CYCLIC_12:
             // cyclic mode -> expect list of CNIs in format: {0x0d94, ...}
-            pTmpStr = Tcl_GetVar(interp, "acq_mode_cnis", TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG);
-            if (pTmpStr != NULL)
+            pTmpObj = Tcl_GetVar2Ex(interp, "acq_mode_cnis", NULL, TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG);
+            if (pTmpObj != NULL)
             {
-               if (Tcl_SplitList(interp, pTmpStr, pCniCount, &pCniArgv) == TCL_OK)
+               if (Tcl_ListObjGetElements(interp, pTmpObj, pCniCount, &pCniObjv) == TCL_OK)
                {
                   if (*pCniCount > MAX_MERGED_DB_COUNT)
                   {
@@ -1465,16 +1501,15 @@ static EPGACQ_MODE GetAcquisitionModeParams( uint * pCniCount, uint * cniTab )
                   dbIdx = 0;
                   for (cniIdx=0; cniIdx < *pCniCount; cniIdx++)
                   {
-                     if ( (Tcl_GetInt(interp, pCniArgv[cniIdx], cniTab + dbIdx) == TCL_OK) &&
+                     if ( (Tcl_GetIntFromObj(interp, pCniObjv[cniIdx], cniTab + dbIdx) == TCL_OK) &&
                           (cniTab[dbIdx] != 0) &&
                           (cniTab[dbIdx] != 0x00FF) )
                      {
                         dbIdx++;
                      }
                      else
-                        debug2("GetAcquisitionModeParams: arg #%d in '%s' is not a valid CNI", cniIdx, pCniArgv[cniIdx]);
+                        debug2("GetAcquisitionModeParams: arg #%d in '%s' is not a valid CNI", cniIdx, Tcl_GetString(pCniObjv[cniIdx]));
                   }
-                  Tcl_Free((char *) pCniArgv);
 
                   if (dbIdx == 0)
                   {
@@ -1666,9 +1701,9 @@ void SetAcquisitionMode( NETACQ_SET_MODE netAcqSetMode )
 bool SetDaemonAcquisitionMode( uint cmdLineCni, bool forcePassive )
 {
    EPGACQ_MODE   mode;
-   const char  * pTmpStr;
+   Tcl_Obj     * pTmpObj;
+   Tcl_Obj    ** pCniObjv;
    const uint  * pProvList;
-   CONST84 char ** pCniArgv;
    uint cniCount, cniTab[MAX_MERGED_DB_COUNT];
    bool result = FALSE;
 
@@ -1690,18 +1725,17 @@ bool SetDaemonAcquisitionMode( uint cmdLineCni, bool forcePassive )
       if (mode == ACQMODE_FOLLOW_UI)
       {
          // fetch CNI from list of last used providers
-         pTmpStr = Tcl_GetVar(interp, "prov_selection", TCL_GLOBAL_ONLY);
+         pTmpObj = Tcl_GetVar2Ex(interp, "prov_selection", NULL, TCL_GLOBAL_ONLY);
          cniCount = 0;
-         if (pTmpStr != NULL)
+         if (pTmpObj != NULL)
          {
-            if (Tcl_SplitList(interp, pTmpStr, &cniCount, &pCniArgv) == TCL_OK)
+            if (Tcl_ListObjGetElements(interp, pTmpObj, &cniCount, &pCniObjv) == TCL_OK)
             {
                if ( (cniCount > 0) &&
-                    (Tcl_GetInt(interp, pCniArgv[0], cniTab) == TCL_OK) )
+                    (Tcl_GetIntFromObj(interp, pCniObjv[0], cniTab) == TCL_OK) )
                {
                   cniCount = 1;
                }
-               Tcl_Free((char *) pCniArgv);
             }
          }
          if (cniCount == 0)
@@ -1755,12 +1789,12 @@ bool SetDaemonAcquisitionMode( uint cmdLineCni, bool forcePassive )
 // - parameters are taken from global Tcl variables, because the same
 //   update is required at startup
 //
-static int MenuCmd_UpdateAcquisitionMode(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+static int MenuCmd_UpdateAcquisitionMode( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_UpdateAcquisitionMode";
    int  result;
 
-   if (argc != 1)
+   if (objc != 1)
    {  // parameter count is invalid
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
@@ -1778,6 +1812,39 @@ static int MenuCmd_UpdateAcquisitionMode(ClientData ttp, Tcl_Interp *interp, int
 }
 
 // ----------------------------------------------------------------------------
+// Remove the database file of a provider on disk
+// - invoked on user-request for providers on which an EPG scan "refresh" failed
+// - the rc/ini configuration parameters are removed on Tcl level
+//
+static int RemoveProviderDatabase( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+{
+   const char * const pUsage = "Usage: C_RemoveProviderDatabase <cni>";
+   int   cni;
+   int   result;
+
+   if (objc != 2)
+   {  // wrong parameter count
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else if (Tcl_GetIntFromObj(interp, objv[1], &cni) != TCL_OK)
+   {
+      result = TCL_ERROR;
+   }
+   else
+   {
+      result = EpgContextCtl_Remove(cni);
+      if (result == EBUSY)
+         Tcl_SetResult(interp, "The database is still opened for the browser or acquisition", TCL_STATIC);
+      else if (result != 0)
+         Tcl_SetResult(interp, strerror(result), TCL_STATIC);
+
+      result = TCL_OK;
+   }
+   return result;
+}
+
+// ----------------------------------------------------------------------------
 // Fetch the list of provider frequencies from all available databases
 // - called when the EPG scan dialog is opened
 // - returns a flat list of CNIs and frequencies;
@@ -1785,9 +1852,10 @@ static int MenuCmd_UpdateAcquisitionMode(ClientData ttp, Tcl_Interp *interp, int
 // - required only in case the user deleted the rc file and the prov_freqs list
 //   is gone; else all frequencies should alo be available in the rc/ini file
 //
-static int MenuCmd_LoadProvFreqsFromDbs(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+static int MenuCmd_LoadProvFreqsFromDbs( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_LoadProvFreqsFromDbs";
+   Tcl_Obj * pResultList;
    uint  * pDbFreqTab;
    uint  * pDbCniTab;
    uint    dbCount;
@@ -1795,13 +1863,15 @@ static int MenuCmd_LoadProvFreqsFromDbs(ClientData ttp, Tcl_Interp *interp, int 
    uchar   strbuf[30];
    int     result;
 
-   if (argc != 1)
+   if (objc != 1)
    {  // no arguments expected
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
    }
    else
    {
+      pResultList = Tcl_NewListObj(0, NULL);
+
       pDbCniTab  = NULL;
       pDbFreqTab = NULL;
       // extract frequencies from databases, even if incompatible version
@@ -1812,9 +1882,10 @@ static int MenuCmd_LoadProvFreqsFromDbs(ClientData ttp, Tcl_Interp *interp, int 
       {
          sprintf(strbuf, "0x%04X", pDbCniTab[idx]);
          Tcl_AppendElement(interp, strbuf);
+         Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(strbuf, -1));
 
          sprintf(strbuf, "%d", pDbFreqTab[idx]);
-         Tcl_AppendElement(interp, strbuf);
+         Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(strbuf, -1));
       }
 
       // free the intermediate arrays
@@ -1823,6 +1894,7 @@ static int MenuCmd_LoadProvFreqsFromDbs(ClientData ttp, Tcl_Interp *interp, int 
       if (pDbFreqTab != NULL)
          xfree(pDbFreqTab);
 
+      Tcl_SetObjResult(interp, pResultList);
       result = TCL_OK;
    }
 
@@ -1948,6 +2020,25 @@ static uint GetProvFreqTab( uint ** ppFreqTab, uint ** ppCniTab )
 }
 
 // ----------------------------------------------------------------------------
+// Insert "Remove provider" button into EPG scan message output text
+//
+static void MenuCmd_AddProvDelButton( uint cni )
+{
+   uchar strbuf[10];
+
+   sprintf(strbuf, "0x%04X", cni);
+   if (Tcl_VarEval(interp, "button .epgscan.all.fmsg.msg.del_prov_", strbuf,
+                           " -text {Remove this provider} -command {EpgScanDeleteProvider ", strbuf,
+                           "} -state disabled -cursor left_ptr\n",
+                           ".epgscan.all.fmsg.msg window create end -window .epgscan.all.fmsg.msg.del_prov_", strbuf, "\n",
+                           ".epgscan.all.fmsg.msg insert end {\n\n}\n",
+                           ".epgscan.all.fmsg.msg see {end linestart - 2 lines}\n",
+                           NULL
+                  ) != TCL_OK)
+      debugTclErr(interp, "MenuCmd-AddProvDelButton");
+}
+
+// ----------------------------------------------------------------------------
 // Append a line to the EPG scan messages
 //
 static void MenuCmd_AddEpgScanMsg( const char * pMsg, bool bold )
@@ -1956,14 +2047,14 @@ static void MenuCmd_AddEpgScanMsg( const char * pMsg, bool bold )
                            "\n.epgscan.all.fmsg.msg see {end linestart - 2 lines}\n",
                            NULL
                   ) != TCL_OK)
-      debug0("MenuCmd-AddEpgScanMsg: Tcl/Tk cmd failed");
+      debugTclErr(interp, "MenuCmd-AddEpgScanMsg");
 }
 
 // ----------------------------------------------------------------------------
 // Start EPG scan
 // - during the scan the focus is forced into the .epgscan popup
 //
-static int MenuCmd_StartEpgScan(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+static int MenuCmd_StartEpgScan( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_StartEpgScan <input source> <slow=0/1> <refresh=0/1> <xawtv=0/1>";
    EPGSCAN_START_RESULT scanResult;
@@ -1974,17 +2065,17 @@ static int MenuCmd_StartEpgScan(ClientData ttp, Tcl_Interp *interp, int argc, ch
    uint rescheduleMs;
    int result;
 
-   if (argc != 5)
+   if (objc != 5)
    {  // parameter count is invalid
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
    }
    else
    {
-      if ( (Tcl_GetInt(interp, argv[1], &inputSource) == TCL_OK) &&
-           (Tcl_GetInt(interp, argv[2], &isOptionSlow) == TCL_OK) &&
-           (Tcl_GetInt(interp, argv[3], &isOptionRefresh) == TCL_OK) &&
-           (Tcl_GetInt(interp, argv[4], &isOptionXawtv) == TCL_OK) )
+      if ( (Tcl_GetIntFromObj(interp, objv[1], &inputSource) == TCL_OK) &&
+           (Tcl_GetIntFromObj(interp, objv[2], &isOptionSlow) == TCL_OK) &&
+           (Tcl_GetIntFromObj(interp, objv[3], &isOptionRefresh) == TCL_OK) &&
+           (Tcl_GetIntFromObj(interp, objv[4], &isOptionXawtv) == TCL_OK) )
       {
          freqCount = 0;
          freqTab = NULL;
@@ -2019,8 +2110,8 @@ static int MenuCmd_StartEpgScan(ClientData ttp, Tcl_Interp *interp, int argc, ch
          eval_check(interp, comm);
 
          scanResult = EpgScan_Start(inputSource, isOptionSlow, isOptionXawtv, isOptionRefresh,
-                                    cniTab, freqTab, freqCount,
-                                    &rescheduleMs, &MenuCmd_AddEpgScanMsg);
+                                    cniTab, freqTab, freqCount, &rescheduleMs,
+                                    &MenuCmd_AddEpgScanMsg, &MenuCmd_AddProvDelButton);
          switch (scanResult)
          {
             case EPGSCAN_ACCESS_DEV_VBI:
@@ -2036,15 +2127,34 @@ static int MenuCmd_StartEpgScan(ClientData ttp, Tcl_Interp *interp, int argc, ch
                // Win32: fall-through!
 
             case EPGSCAN_ACCESS_DEV_VIDEO:
-               sprintf(comm, "tk_messageBox -type ok -icon error -parent .epgscan -message \""
-                             "Failed to open the video device"
-                             #ifndef WIN32
-                             " (/dev/video[expr {[info exists hwcfg] ? [lindex $hwcfg 4] : 0}]). "
-                             "Close all other video or teletext related applications and try again"
-                             #endif
-                             ".\"");
+            {
+               #ifdef WIN32
+               bool isEnabled, hasDriver;
+
+               if ( BtDriver_GetState(&isEnabled, &hasDriver, NULL) &&
+                    (isEnabled != FALSE) && (hasDriver == FALSE) )
+               {
+                  sprintf(comm, "tk_messageBox -type ok -icon error -parent .epgscan -message \""
+                                "Cannot start the EPG scan while the TV application is blocking "
+                                "the TV card.  Terminate the TV application and try again.\"");
+               }
+               else
+               #endif
+               {
+                  sprintf(comm, "tk_messageBox -type ok -icon error -parent .epgscan -message \""
+                                #ifndef WIN32
+                                "Failed to open the video device"
+                                " (/dev/video[expr {[info exists hwcfg] ? [lindex $hwcfg 4] : 0}]). "
+                                "Close all other video or teletext related applications and try again"
+                                #else
+                                "Failed to start the EPG scan due to a TV card driver problem. "
+                                "Press 'Help' for more information."
+                                #endif
+                                ".\"");
+               }
                eval_check(interp, comm);
                break;
+            }
 
             case EPGSCAN_NO_TUNER:
                sprintf(comm, "tk_messageBox -type ok -icon error -parent .epgscan "
@@ -2090,9 +2200,9 @@ static int MenuCmd_StartEpgScan(ClientData ttp, Tcl_Interp *interp, int argc, ch
 // - called from UI after Abort button or when popup is destroyed
 // - also called from scan handler when scan has finished
 //
-static int MenuCmd_StopEpgScan(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+static int MenuCmd_StopEpgScan( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
-   if (argc > 0)
+   if (objc > 0)
    {  // called from UI -> stop scan handler
       EpgScan_Stop();
    }
@@ -2110,18 +2220,18 @@ static int MenuCmd_StopEpgScan(ClientData ttp, Tcl_Interp *interp, int argc, cha
 // Modify speed of EPG scan while scan is running
 // - ignored if called otherwise (speed is also passed in start command)
 //
-static int MenuCmd_SetEpgScanSpeed(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+static int MenuCmd_SetEpgScanSpeed( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_SetEpgScanSpeed <slow=0/1>";
    int isOptionSlow;
    int result;
 
-   if (argc != 2)
+   if (objc != 2)
    {  // parameter count is invalid
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
    }
-   else if ( Tcl_GetInt(interp, argv[1], &isOptionSlow) )
+   else if ( Tcl_GetIntFromObj(interp, objv[1], &isOptionSlow) )
    {  // the parameter is not an integer
       result = TCL_ERROR;
    }
@@ -2169,22 +2279,25 @@ static void MenuCmd_EpgScanHandler( ClientData clientData )
 // Get list of all tuner types
 // - on Linux the tuner is already configured in the bttv driver
 //
-static int MenuCmd_GetTunerList(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+static int MenuCmd_GetTunerList( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    #ifdef WIN32
    const char * pName;
+   Tcl_Obj * pResultList;
    uint idx;
 
+   pResultList = Tcl_NewListObj(0, NULL);
    idx = 0;
    while (1)
    {
       pName = BtDriver_GetTunerName(idx);
       if (pName != NULL)
-         Tcl_AppendElement(interp, (char *) pName);
+         Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(pName, -1));
       else
          break;
       idx += 1;
    }
+   Tcl_SetObjResult(interp, pResultList);
    #endif
    return TCL_OK;
 }
@@ -2192,14 +2305,15 @@ static int MenuCmd_GetTunerList(ClientData ttp, Tcl_Interp *interp, int argc, ch
 // ----------------------------------------------------------------------------
 // Get list of all TV card names
 //
-static int MenuCmd_GetTvCardList(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+static int MenuCmd_GetTvCardList( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_HwCfgGetTvCardList";
    const char * pName;
+   Tcl_Obj * pResultList;
    uint idx;
    int  result;
 
-   if (argc != 1)
+   if (objc != 1)
    {  // parameter count is invalid
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
@@ -2211,17 +2325,19 @@ static int MenuCmd_GetTvCardList(ClientData ttp, Tcl_Interp *interp, int argc, c
       BtDriver_ScanDevices(TRUE);
       #endif
 
+      pResultList = Tcl_NewListObj(0, NULL);
       idx = 0;
       do
       {
          pName = BtDriver_GetCardName(idx);
          if (pName != NULL)
-            Tcl_AppendElement(interp, (char *) pName);
+            Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(pName, -1));
 
          idx += 1;
       }
       while (pName != NULL);
 
+      Tcl_SetObjResult(interp, pResultList);
       result = TCL_OK;
    }
    return result;
@@ -2230,33 +2346,36 @@ static int MenuCmd_GetTvCardList(ClientData ttp, Tcl_Interp *interp, int argc, c
 // ----------------------------------------------------------------------------
 // Get list of all input types
 //
-static int MenuCmd_GetInputList(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+static int MenuCmd_GetInputList( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_GetInputList <card index>";
    const char * pName;
+   Tcl_Obj * pResultList;
    int  cardIndex;
    uint idx;
    int  result;
 
-   if ( (argc != 2) || (Tcl_GetInt(interp, argv[1], &cardIndex) != TCL_OK) )
+   if ( (objc != 2) || (Tcl_GetIntFromObj(interp, objv[1], &cardIndex) != TCL_OK) )
    {  // parameter count is invalid
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
    }
    else
    {
+      pResultList = Tcl_NewListObj(0, NULL);
       idx = 0;
       while (1)
       {
          pName = BtDriver_GetInputName(cardIndex, idx);
 
          if (pName != NULL)
-            Tcl_AppendElement(interp, (char *) pName);
+            Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(pName, -1));
          else
             break;
          idx += 1;
       }
 
+      Tcl_SetObjResult(interp, pResultList);
       result = TCL_OK;
    }
    return result;
@@ -2344,12 +2463,12 @@ int SetHardwareConfig( Tcl_Interp *interp, int newCardIndex )
 // Apply the user-configured hardware configuration
 // - called when hwcfg popup was closed
 //
-static int MenuCmd_UpdateHardwareConfig(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+static int MenuCmd_UpdateHardwareConfig( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_UpdateHardwareConfig";
    int  result;
 
-   if (argc != 1)
+   if (objc != 1)
    {  // parameter count is invalid
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
@@ -2369,21 +2488,21 @@ static int MenuCmd_UpdateHardwareConfig(ClientData ttp, Tcl_Interp *interp, int 
 //
 static bool IsRemoteAcqDefault( Tcl_Interp * interp )
 {
-   CONST84 char * pTmpStr;
+   Tcl_Obj * pTmpObj;
    int    is_enabled;
 
-   pTmpStr = Tcl_GetVar(interp, "netacq_enable", TCL_GLOBAL_ONLY);
-   if (pTmpStr != NULL)
+   pTmpObj = Tcl_GetVar2Ex(interp, "netacq_enable", NULL, TCL_GLOBAL_ONLY);
+   if (pTmpObj != NULL)
    {
-      if (Tcl_GetBoolean(interp, pTmpStr, &is_enabled) != TCL_OK)
+      if (Tcl_GetBooleanFromObj(interp, pTmpObj, &is_enabled) != TCL_OK)
       {
-         debug1("IsRemoteAcq-Enabled: parse error in '%s'", pTmpStr);
+         debug1("IsRemoteAcq-Enabled: parse error in '%s'", Tcl_GetString(pTmpObj));
          is_enabled = FALSE;
       }
    }
    else
    {
-      debug0("IsRemoteAcq-Enabled: Tcl var menuStatusDaemon undefined");
+      debug0("IsRemoteAcq-Enabled: Tcl var netacq-enable undefined");
       is_enabled = FALSE;
    }
 
@@ -2398,6 +2517,7 @@ void SetNetAcqParams( Tcl_Interp * interp, bool isServer )
 #ifdef USE_DAEMON
    CONST84 char ** cfArgv;
    const char    * pTmpStr;
+   Tcl_DString ds1, ds2, ds3;
    int  cfArgc, cf_idx;
    const char *pHostName, *pPort, *pIpStr, *pLogfileName;
    int  do_tcp_ip, max_conn, fileloglev, sysloglev, remote_ctl;
@@ -2464,6 +2584,13 @@ void SetNetAcqParams( Tcl_Interp * interp, bool isServer )
                debug1("SetNetAcqParams: unknown keyword: '%s'", cfArgv[cf_idx]);
          }
 
+         if (pLogfileName != NULL)
+            pLogfileName = Tcl_UtfToExternalDString(NULL, pLogfileName, -1, &ds1);
+         if (pIpStr != NULL)
+            pIpStr = Tcl_UtfToExternalDString(NULL, pIpStr, -1, &ds2);
+         if (pPort != NULL)
+            pPort = Tcl_UtfToExternalDString(NULL, pPort, -1, &ds3);
+
          // apply the parameters: pass them to the client/server module
          if (isServer)
          {
@@ -2474,6 +2601,13 @@ void SetNetAcqParams( Tcl_Interp * interp, bool isServer )
          }
          else
             EpgAcqClient_SetAddress(pHostName, pPort);
+
+         if (pLogfileName != NULL)
+            Tcl_DStringFree(&ds1);
+         if (pIpStr != NULL)
+            Tcl_DStringFree(&ds2);
+         if (pPort != NULL)
+            Tcl_DStringFree(&ds3);
 
          Tcl_Free((char *) cfArgv);
       }
@@ -2487,12 +2621,12 @@ void SetNetAcqParams( Tcl_Interp * interp, bool isServer )
 // Apply the user-configured client/server configuration
 // - called when client/server configuration dialog is closed
 //
-static int MenuCmd_UpdateNetAcqConfig(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+static int MenuCmd_UpdateNetAcqConfig( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_UpdateNetAcqConfig";
    int  result;
 
-   if (argc != 1)
+   if (objc != 1)
    {  // parameter count is invalid: none expected
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
@@ -2508,12 +2642,12 @@ static int MenuCmd_UpdateNetAcqConfig(ClientData ttp, Tcl_Interp *interp, int ar
 // ----------------------------------------------------------------------------
 // Return information about the system time zone
 //
-static int MenuCmd_GetTimeZone(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+static int MenuCmd_GetTimeZone( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_GetTimeZone";
    int  result;
 
-   if (argc != 1)
+   if (objc != 1)
    {  // parameter count is invalid
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
@@ -2544,36 +2678,37 @@ void MenuCmd_Init( bool isDemoMode )
 
    if (Tcl_GetCommandInfo(interp, "C_ToggleAcq", &cmdInfo) == 0)
    {  // Create callback functions
-      Tcl_CreateCommand(interp, "C_ToggleAcq", MenuCmd_ToggleAcq, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_IsNetAcqActive", MenuCmd_IsNetAcqActive, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_ToggleDumpStream", MenuCmd_ToggleDumpStream, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_DumpRawDatabase", MenuCmd_DumpRawDatabase, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_DumpTabsDatabase", MenuCmd_DumpTabsDatabase, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_SetControlMenuStates", MenuCmd_SetControlMenuStates, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_ToggleAcq", MenuCmd_ToggleAcq, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_IsNetAcqActive", MenuCmd_IsNetAcqActive, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_ToggleDumpStream", MenuCmd_ToggleDumpStream, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_DumpRawDatabase", MenuCmd_DumpRawDatabase, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_DumpTabsDatabase", MenuCmd_DumpTabsDatabase, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_SetControlMenuStates", MenuCmd_SetControlMenuStates, (ClientData) NULL, NULL);
 
-      Tcl_CreateCommand(interp, "C_ChangeProvider", MenuCmd_ChangeProvider, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_ChangeProvider", MenuCmd_ChangeProvider, (ClientData) NULL, NULL);
 
-      Tcl_CreateCommand(interp, "C_UpdateLanguage", MenuCmd_UpdateLanguage, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_GetCniDescription", MenuCmd_GetCniDescription, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_GetProvServiceInfos", MenuCmd_GetProvServiceInfos, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_GetCurrentDatabaseCni", MenuCmd_GetCurrentDatabaseCni, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_GetProvCnisAndNames", MenuCmd_GetProvCnisAndNames, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_GetAiNetwopList", MenuCmd_GetAiNetwopList, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_ProvMerge_Start", ProvMerge_Start, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_UpdateAcquisitionMode", MenuCmd_UpdateAcquisitionMode, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_UpdateLanguage", MenuCmd_UpdateLanguage, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_GetCniDescription", MenuCmd_GetCniDescription, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_GetProvServiceInfos", MenuCmd_GetProvServiceInfos, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_GetCurrentDatabaseCni", MenuCmd_GetCurrentDatabaseCni, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_GetProvCnisAndNames", MenuCmd_GetProvCnisAndNames, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_GetAiNetwopList", MenuCmd_GetAiNetwopList, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_ProvMerge_Start", ProvMerge_Start, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_UpdateAcquisitionMode", MenuCmd_UpdateAcquisitionMode, (ClientData) NULL, NULL);
 
-      Tcl_CreateCommand(interp, "C_StartEpgScan", MenuCmd_StartEpgScan, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_StopEpgScan", MenuCmd_StopEpgScan, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_SetEpgScanSpeed", MenuCmd_SetEpgScanSpeed, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_LoadProvFreqsFromDbs", MenuCmd_LoadProvFreqsFromDbs, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_StartEpgScan", MenuCmd_StartEpgScan, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_StopEpgScan", MenuCmd_StopEpgScan, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_SetEpgScanSpeed", MenuCmd_SetEpgScanSpeed, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_LoadProvFreqsFromDbs", MenuCmd_LoadProvFreqsFromDbs, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_RemoveProviderDatabase", RemoveProviderDatabase, (ClientData) NULL, NULL);
 
-      Tcl_CreateCommand(interp, "C_HwCfgGetTvCardList", MenuCmd_GetTvCardList, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_HwCfgGetInputList", MenuCmd_GetInputList, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_HwCfgGetTunerList", MenuCmd_GetTunerList, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_UpdateHardwareConfig", MenuCmd_UpdateHardwareConfig, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_UpdateNetAcqConfig", MenuCmd_UpdateNetAcqConfig, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_HwCfgGetTvCardList", MenuCmd_GetTvCardList, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_HwCfgGetInputList", MenuCmd_GetInputList, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_HwCfgGetTunerList", MenuCmd_GetTunerList, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_UpdateHardwareConfig", MenuCmd_UpdateHardwareConfig, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_UpdateNetAcqConfig", MenuCmd_UpdateNetAcqConfig, (ClientData) NULL, NULL);
 
-      Tcl_CreateCommand(interp, "C_GetTimeZone", MenuCmd_GetTimeZone, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_GetTimeZone", MenuCmd_GetTimeZone, (ClientData) NULL, NULL);
 
       if (isDemoMode)
       {  // create menu with warning labels and disable some menu commands

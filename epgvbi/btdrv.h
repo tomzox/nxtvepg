@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: btdrv.h,v 1.23 2002/07/20 16:26:50 tom Exp tom $
+ *  $Id: btdrv.h,v 1.24 2002/09/14 19:03:38 tom Exp tom $
  */
 
 #ifndef __BTDRV_H
@@ -54,6 +54,16 @@ struct Card
 };
 #endif  //__NetBSD__
 
+#ifdef linux
+# include "linux/videodev.h"
+#else
+# ifndef VIDEO_MODE_SECAM
+#  define VIDEO_MODE_PAL          0   // from videodev.h
+#  define VIDEO_MODE_NTSC         1
+#  define VIDEO_MODE_SECAM        2
+# endif
+#endif
+
 // ---------------------------------------------------------------------------
 // number of teletext packets that can be stored in ring buffer
 // - Nextview maximum data rate is 5 pages per second (200ms min distance)
@@ -64,10 +74,16 @@ struct Card
 // ring buffer element, contains one teletext packet
 typedef struct
 {
+   #if DEBUG_SWITCH_DUMP_TTX_PACKETS == ON
+   uint32_t  frame;             // frame in which the packet was received (for debugging only)
+   uint8_t   line;              // VBI line index in the frame in which the data was received
+   uint8_t   reserved2[3];      // unused; undefined
+   #endif
+
    uint16_t  pageno;            // teletext magazine (0..7 << 8) and page number
    uint16_t  sub;               // teletext sub-page number (BCD encoded)
    uint8_t   pkgno;             // teletext packet number (0..31)
-   uint8_t   reserved;          // unused; set to 0
+   uint8_t   reserved;          // unused; undefined
    uint8_t   data[40];          // raw teletext data starting at offset 2 (i.e. after mag/pkgno)
 } VBI_LINE;
 
@@ -183,9 +199,8 @@ void BtDriver_Exit( void );
 bool BtDriver_StartAcq( void );
 void BtDriver_StopAcq( void );
 bool BtDriver_IsVideoPresent( void );
-bool BtDriver_TuneChannel( uint freq, bool keepOpen );
 uint BtDriver_QueryChannel( void );
-bool BtDriver_SetInputSource( int inputIdx, bool keepOpen, bool * pIsTuner );
+bool BtDriver_TuneChannel( int inputIdx, uint freq, bool keepOpen, bool * pIsTuner );
 
 #ifndef WIN32
 int BtDriver_GetDeviceOwnerPid( void );

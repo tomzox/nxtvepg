@@ -36,7 +36,7 @@
  *
  *     Additional code and adaptions to nxtvepg by Tom Zoerner
  *
- *  $Id: xawtv.c,v 1.25 2002/08/14 19:56:55 tom Exp tom $
+ *  $Id: xawtv.c,v 1.26 2002/09/14 18:11:34 tom Exp tom $
  */
 
 #ifdef WIN32
@@ -76,8 +76,20 @@
 #include "epgui/xawtv.h"
 
 
+// ----------------------------------------------------------------------------
+// Structure that holds frequency count & table
+// - dynamically growing if more channels than fit the default max. table size
+//
 // default allocation size for frequency table (will grow if required)
 #define CHAN_CLUSTER_SIZE  50
+
+typedef struct
+{
+   uint    * pFreqTab;
+   uint      maxCount;
+   uint      fillCount;
+} DYN_FREQ_BUF;
+
 
 Atom xawtv_station_atom = None;
 Atom xawtv_remote_atom = None;
@@ -206,13 +218,47 @@ static FILE * Xawtv_OpenRcFile( void )
 }
 
 // ----------------------------------------------------------------------------
-// Extract all channels from $HOME/.xawtv
+// Helper func to append frequency values to a growing list
+// - the list grows automatically when required
+//
+static void Xawtv_AddFreqToBuf( DYN_FREQ_BUF * pFreqBuf, uint freq )
+{
+   uint * pOldFreqTab;
+
+   assert(pFreqBuf->fillCount <= pFreqBuf->maxCount);
+
+   // ignore zero frequencies (e.g. the TV app channel table may contain non-tuner input sources)
+   if (freq != 0)
+   {
+      if (pFreqBuf->fillCount == pFreqBuf->maxCount)
+      {
+         pOldFreqTab = pFreqBuf->pFreqTab;
+         pFreqBuf->maxCount += CHAN_CLUSTER_SIZE;
+         pFreqBuf->pFreqTab = xmalloc(pFreqBuf->maxCount * sizeof(uint));
+
+         if (pOldFreqTab != NULL)
+         {
+            memcpy(pFreqBuf->pFreqTab, pOldFreqTab, pFreqBuf->fillCount * sizeof(uint));
+            xfree(pOldFreqTab);
+         }
+      }
+
+      pFreqBuf->pFreqTab[pFreqBuf->fillCount] = freq;
+      pFreqBuf->fillCount += 1;
+   }
+}
+
+// ----------------------------------------------------------------------------
+// Extract all TV frequencies & norms from $HOME/.xawtv for the EPG scan
 //
 bool Xawtv_GetFreqTab( Tcl_Interp * interp, uint ** ppFreqTab, uint * pCount )
 {
-   uint *freqTab;
-   int freqCount, freqTabLen;
+   DYN_FREQ_BUF freqBuf;
    char line[256], tag[64], value[192];
+   uint defaultNorm, attrNorm;
+   sint defaultFine, attrFine;
+   bool defaultIsTvInput, isTvInput;
+   bool isDefault;
    uint freq;
    FILE * fp;
    bool result = FALSE;
@@ -220,57 +266,102 @@ bool Xawtv_GetFreqTab( Tcl_Interp * interp, uint ** ppFreqTab, uint * pCount )
    fp = Xawtv_OpenRcFile();
    if (fp != NULL)
    {
-      freqTabLen  = CHAN_CLUSTER_SIZE;
-      freqTab     = xmalloc(freqTabLen * sizeof(*freqTab));
-      freqCount   = 0;
+      memset(&freqBuf, 0, sizeof(freqBuf));
+
+      isDefault = TRUE;
+      defaultNorm = attrNorm = VIDEO_MODE_PAL;
+      defaultFine = attrFine = 0;
+      defaultIsTvInput = isTvInput = TRUE;
+      freq = 0;
 
       // read all lines of the file (ignoring section structure)
       while (fgets(line, 255, fp) != NULL)
       {
-         // search for channel assignment lines, e.g. " channel = SE15"
-         if (sscanf(line," %63[^= ] = %191[^\n]", tag, value) == 2)
+         if (line[0] == '\n' || line[0] == '#' || line[0] == '%')
+            continue;
+
+         // search for section headers, i.e. "[station]"
+         if (sscanf(line,"[%99[^]]]", value) == 1)
          {
-            if (strcmp(tag, "channel") == 0)
+            // add the last section's data to the output list
+            dprintf4("Xawtv channel: freq=%d fine=%d norm=%d, isTvInput=%d\n", freq, attrFine, attrNorm, isTvInput);
+            if ((freq != 0) && (isDefault == FALSE) && isTvInput)
+               Xawtv_AddFreqToBuf(&freqBuf, (attrNorm << 24) | (freq + attrFine));
+
+            // initialize variables for the new section
+            freq = 0;
+            attrFine = defaultFine;
+            attrNorm = defaultNorm;
+            isTvInput = defaultIsTvInput;
+            dprintf1("Xawtv channel: name=%s\n", value);
+            isDefault = ((strcmp(value, "defaults") == 0) || (strcmp(value, "global") == 0));
+         }
+         else if (sscanf(line," %63[^= ] = %191[^\n]", tag, value) == 2)
+         {
+            // search for channel assignment lines, e.g. " channel = SE15"
+            if (strcasecmp(tag, "channel") == 0)
             {
-               // convert channel name to frequency and append it to the list
                freq = TvChannels_NameToFreq(value);
-               if (freq != 0)
-               {
-                  if (freqCount == freqTabLen)
-                  {  // table is full -> allocate and copy
-                     uint * oldFreqTab = freqTab;
-                     freqTab = xmalloc((freqTabLen + CHAN_CLUSTER_SIZE) * sizeof(*freqTab));
-                     memcpy(freqTab, oldFreqTab, freqTabLen * sizeof(*freqTab));
-                     freqTabLen += CHAN_CLUSTER_SIZE;
-                     xfree(oldFreqTab);
-                  }
-                  dprintf2("CHANNEL \"%s\" -> FREQ %f\n", value, (double)freq/16.0);
-                  freqTab[freqCount] = freq;
-                  freqCount += 1;
-               }
+            }
+            else if (strcasecmp(tag, "norm") == 0)
+            {
+               if (strcasecmp(value, "pal") == 0)
+                  attrNorm = VIDEO_MODE_PAL;
+               else if (strcasecmp(value, "secam") == 0)
+                  attrNorm = VIDEO_MODE_SECAM;
+               else if (strcasecmp(value, "ntsc") == 0)
+                  attrNorm = VIDEO_MODE_NTSC;
                else
-                  debug1("Xawtv-GetFreqTab: parse error channel value \"%s\"", value);
+                  debug1("Xawtv-GetFreqTab: unknown norm '%s' in .xawtvrc", value);
+               if (isDefault)
+                  defaultNorm = attrNorm;
+            }
+            else if (strcasecmp(tag, "fine") == 0)
+            {
+               attrFine = atoi(value);
+               if (isDefault)
+                  defaultFine = attrFine;
+            }
+            else if (strcasecmp(tag, "isTvInput") == 0)
+            {
+               isTvInput = (strcasecmp(value, "television") == 0);
+               if (isDefault)
+                  defaultIsTvInput = isTvInput;
             }
          }
+         else
+            debug1("Xawtv-GetFreqTab: parse error line \"%s\"", line);
       }
       fclose(fp);
 
-      if (freqCount == 0)
-      {  // no channel assignments found in the file -> warn the user and abort
-         sprintf(comm, "tk_messageBox -type ok -icon error -message {No channel assignments found in ~/.xawtv\nPlease disable option 'Use .xawtv'}\n");
-         eval_check(interp, comm);
-
-         xfree(freqTab);
-         freqTab = NULL;
+      // add the last section's data to the output list
+      if ((freq != 0) && (isDefault == FALSE) && isTvInput)
+      {
+         dprintf4("Xawtv channel: freq=%d fine=%d norm=%d, isTvInput=%d\n", freq, attrFine, attrNorm, isTvInput);
+         Xawtv_AddFreqToBuf(&freqBuf, (attrNorm << 24) | (freq + attrFine));
       }
 
-      *ppFreqTab = freqTab;
-      *pCount = freqCount;
+      if (freqBuf.fillCount == 0)
+      {  // no channel assignments found in the file -> warn the user and abort
+         sprintf(comm, "tk_messageBox -type ok -icon error -parent .epgscan -message {"
+                          "No channel assignments found in ~/.xawtv - "
+                          "Please disable option 'Use .xawtv'}\n");
+         eval_check(interp, comm);
+
+         if (freqBuf.pFreqTab != NULL)
+            xfree(freqBuf.pFreqTab);
+         freqBuf.pFreqTab = NULL;
+      }
+
+      *ppFreqTab = freqBuf.pFreqTab;
+      *pCount    = freqBuf.fillCount;
       result = TRUE;
    }
    else
    {
-      sprintf(comm, "tk_messageBox -type ok -icon error -message {Could not open file ~/.xawtv\nMake the file readable or disable option 'Use .xawtv'}\n");
+      sprintf(comm, "tk_messageBox -type ok -icon error -parent .epgscan -message {"
+                       "Could not open file ~/.xawtv - "
+                       "Make the file readable or disable option 'Use .xawtv'}\n");
       eval_check(interp, comm);
    }
    return result;

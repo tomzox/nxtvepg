@@ -23,7 +23,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: debug.h,v 1.12 2002/04/06 15:34:46 tom Exp tom $
+ *  $Id: debug.h,v 1.15 2002/09/17 15:22:12 tom Exp tom $
  */
 
 #ifndef __DEBUG_H
@@ -199,7 +199,7 @@ void DebugLogLine( bool doHalt );
 void DebugSetError( void );
 #endif
 
-
+// memory allocation debugging
 #if CHK_MALLOC == ON
 void * chk_malloc( size_t size, const char * pFileName, int line );
 void chk_free( void * ptr );
@@ -210,6 +210,53 @@ void chk_memleakage( void );
 #include <malloc.h>
 void * xmalloc( size_t size );
 #define xfree(PTR)     free(PTR)
+#endif
+
+
+#ifdef _TK
+// Tcl/Tk script failure debugging
+#if DEBUG_SWITCH == ON
+#if DEBUG_SWITCH_TCL_BGERR == ON
+#define eval_check(INTERP,CMD) \
+   do { \
+      assert(comm[sizeof(comm) - 1] == 0); \
+      if (Tcl_EvalEx((INTERP), (CMD), -1, 0) != TCL_OK) \
+         Tcl_BackgroundError(INTERP); \
+   } while(0)
+#define eval_global(INTERP,CMD) \
+   do { \
+      assert(comm[sizeof(comm) - 1] == 0); \
+      if (Tcl_EvalEx((INTERP), (CMD), -1, TCL_EVAL_GLOBAL) != TCL_OK) \
+         Tcl_BackgroundError(INTERP); \
+   } while(0)
+#define debugTclErr(INTERP,STR) \
+   do { \
+      debug2("Tcl/Tk error: %s: %s", (STR), Tcl_GetStringResult(INTERP)); \
+      Tcl_BackgroundError(INTERP); \
+   } while (0)
+#else  // DEBUG_SWITCH_TCL_BGERR != ON
+#define eval_check(INTERP,CMD) \
+   do { \
+      assert(comm[sizeof(comm) - 1] == 0); \
+      if (Tcl_EvalEx((INTERP), (CMD), -1, 0) != TCL_OK) \
+         debug2("Command: %s\nError: %s", (CMD), Tcl_GetStringResult(interp)); \
+   } while(0)
+#define eval_global(INTERP,CMD) \
+   do { \
+      assert(comm[sizeof(comm) - 1] == 0); \
+      if (Tcl_EvalEx((INTERP), (CMD), -1, TCL_EVAL_GLOBAL) != TCL_OK) \
+         debug2("Command: %s\nError: %s", (CMD), Tcl_GetStringResult(interp)); \
+   } while(0)
+#define debugTclErr(INTERP,STR) \
+   debug2("Tcl/Tk error: %s: %s", (STR), Tcl_GetStringResult(INTERP));
+#endif
+#else  // DEBUG_SWITCH != ON
+#define eval_check(INTERP,CMD) \
+   Tcl_Eval((INTERP), (CMD))
+#define eval_global(INTERP,CMD) \
+   Tcl_GlobalEval((INTERP), (CMD))
+#define debugTclErr(INTERP,STR)
+#endif
 #endif
 
 #endif  /* not __DEBUG_H */

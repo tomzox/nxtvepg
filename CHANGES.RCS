@@ -9595,3 +9595,552 @@ www/index.html [rev:1.46, 2002-08-24T15:47:15]:
 nxtvepg.spec [rev:1.7, 2002-08-24T15:49:09]:
 - set version to 2.2.1
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_2_1 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+epgui/epgmain.c [rev:1.95, 2002-08-28T17:23:30]:
+- syntax fix function signal_handler():
+- missing #ifdef USE_DAEMON around call to EpgNetIo_Logger()
+epgui/menucmd.c [rev:1.85, 2002-08-28T18:43:40]:
+- fixed MenuCmd_GetAiNetwopList() for the case that UI db has no AI
+- return empty list
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.172, 2002-08-28T18:43:57]:
+- bugfix network name dialog: $netname_popup was set too early, and remained
+    set if dialog was aborted with error message
+- added "none" to empty filter menus (when no provider available):
+    CreateSeriesNetworksMenu, UpdateNetwopFilterBar
+epgui/uictrl.c [rev:1.33, 2002-08-28T18:44:04]:
+- UiControl_AiStateChange():
+- clear filter menus if no provider available:
+    added call to PiFilter_UpdateNetwopList()
+epgui/pifilter.c [rev:1.61, 2002-08-31T12:34:37]:
+- Implemented new filter type "duration"
+- new function SelectMinMaxDuration()
+- PiFilter_Reset(): added reset for filter type "dursel"
+- added new Tcl proc C_SelectMinMaxDuration
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.173, 2002-08-31T13:25:34]:
+- Implemented new filter type "duration"
+- new filter menu entry: call new proc PopupDurationFilterSelection
+- new shortcut filter type "dursel"
+epgui/menucmd.c [rev:1.86, 2002-08-31T18:00:59]:
+- MenuCmd_StartEpgScan(): improved WIN32 error message
+- when Bt8x8 driver is in slave mode (due to connected TV app) and
+    tuner not granted, suggest to quit the TV app
+- else display the generic "device open failed" message
+epgui/pioutput.c [rev:1.21, 2002-08-31T18:03:47]:
+- bugfix PiOutput_ExtCmdVariable()
+- copy of modifier string was not zero terminated
+    due to misunderstanding of strncpy()
+epgui/pilistbox.c [rev:1.71, 2002-09-01T09:05:03]:
+- Optimizations
+- converted all Tcl procs to obj interface
+- split scroll function into line up/down, page up/down and moveto
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.174, 2002-09-01T09:17:34]:
+- Post-fix new duration filter: add duration reset to proc ResetFilterState
+epgctl/debug.c [rev:1.15, 2002-09-01T10:58:13]:
+- internal reorg only:
+- moved #include debug.h below #include of std headers
+- consequently moved/split #if DEBUG_SWITCH == ON
+epgctl/debug.h [rev:1.13, 2002-09-01T10:59:17]:
+- Added macros for Tcl/Tk script background error handling
+- new macros (formerly functions in epgmain.c)
+    eval_check, eval_global, debugTclErr
+- controlled by debug switch DEBUG_SWITCH_TCL_BGERR == ON
+epgui/epgmain.c [rev:1.96, 2002-09-01T11:02:17]:
+- reduced size of comm buffer back down to 1000 bytes
+    the handling of long textx is solved cleanly now in pilistbox.c
+- removed global functions eval_check(), eval_global()
+    now defined as macros around Tcl_Eval() in debug.h
+epgui/epgmain.h [rev:1.21, 2002-09-01T11:02:17]:
+- reduced size of comm buffer back down to 1000 bytes
+    the handling of long textx is solved cleanly now in pilistbox.c
+- removed global functions eval_check(), eval_global()
+    now defined as macros around Tcl_Eval() in debug.h
+epgui/menucmd.c [rev:1.87, 2002-09-01T11:36:04]:
+- Optimizations:
+- converted all Tcl procs to object based interface
+- pass results in objects (esp. lists)
+epgui/pifilter.c [rev:1.62, 2002-09-01T11:36:04]:
+- Optimizations:
+- converted all Tcl procs to object based interface
+- pass results in objects (esp. lists)
+epgdb/epgdbfil.c [rev:1.35, 2002-09-02T19:47:35]:
+- Implemented new filter type FILTER_DURATION
+- added new interface function EpgDbFilterSetMinMaxDuration()
+- handle filter in EpgDbFilterMatches()
+epgdb/epgdbfil.h [rev:1.20, 2002-09-02T19:47:43]:
+- Implemented new filter type FILTER_DURATION
+- added new interface function EpgDbFilterSetMinMaxDuration()
+- added #define FILTER_DURATION; adapted FILTER_ALL
+- added state vars duration_min, duration_max
+tvsim/tvsim_main.c [rev:1.12, 2002-09-02T19:50:23]:
+- Adapted eval_check() and comm buffer equivalently to epgmain.c:
+- made eval_check() into a macro, defined in debug.h
+- use new macro debugTclErr() to report Tcl_Eval() failure
+- added overflow check for comm buffer
+- removed direct access to interp->result: use Tcl_GetStringResult instead
+tvsim/vbirec_main.c [rev:1.14, 2002-09-02T19:50:31]:
+- Adapted eval_check() and comm buffer equivalently to epgmain.c:
+- made eval_check() into a macro, defined in debug.h
+- use new macro debugTclErr() to report Tcl_Eval() failure
+- added overflow check for comm buffer
+- removed direct access to interp->result: use Tcl_GetStringResult instead
+epgctl/debug.h [rev:1.14, 2002-09-02T19:50:46]:
+- added overflow check for comm buffer in eval_check macros
+- fixed/improved debugTclErr macro
+epgui/epgmain.c [rev:1.97, 2002-09-02T20:00:08]:
+- Additional fixes/improvements in Tcl command evaluation:
+- added overflow check for comm buffer: last byte set to 0
+    hence now use TCL_COMM_BUF_SIZE instead of sizeof(comm)
+- use new macro debugTclErr() to report Tcl_Eval() failure
+- removed direct access to interp->result: use Tcl_GetStringResult() instead
+    because eval_check now uses Tvl_EvalEx() which doesn't copy the result
+epgui/epgmain.h [rev:1.22, 2002-09-02T20:00:14]:
+- Additional fixes/improvements in Tcl command evaluation:
+- added overflow check for comm buffer
+    #define TCL_COMM_BUF_SIZE, to be used instead of sizeof(comm)
+epgui/pioutput.c [rev:1.22, 2002-09-05T11:02:37]:
+- bugfix PiOutput_CacheThemesMaxLen() for columns width smaller < 3 chars
+- use object based Tcl_GetVar2Ex() to access Tcl var "pilistbox_cols"
+- use TCL_COMM_BUF_SIZE instead of sizeof(comm) due to overflow check byte
+epgui/pilistbox.c [rev:1.72, 2002-09-05T11:04:39]:
+- Use object based Tcl interface for insertions into text widgets
+- new module global array tcl_obj[] to cache objects
+    allocated in Create(), freed in Destroy()
+- new function PiListBox_InsertText() for text insertions
+epgui/pifilter.c [rev:1.63, 2002-09-05T11:05:09]:
+- More fixes in Tcl command evaluation:
+- use TCL_COMM_BUF_SIZE instead of sizeof(comm) due to overflow check byte
+- removed direct access to interp->result: use Tcl_GetStringResult() instead
+    because eval_check now uses Tcl_EvalEx() which doesn't copy the result
+epgui/menucmd.c [rev:1.88, 2002-09-05T11:08:43]:
+- More fixes in Tcl command evaluation:
+- use TCL_COMM_BUF_SIZE instead of sizeof(comm) due to overflow check byte
+- use new macro debugTclErr() to report Tcl_Eval() failure
+- removed direct access to interp->result: use Tcl_GetStringResult() instead
+    because eval_check now uses Tcl_EvalEx() which doesn't copy the result
+- use object based Tcl_GetVar2Ex() to access frequently used Tcl variables
+    cfnetwops, prov_merge_cnis, prov_selection, acq_mode_cnis
+- Fix ProvMerge_ParseConfigString():
+- added missing Tcl_Free() after Tcl_SplitList()
+epgvbi/btdrv4linux.c [rev:1.31, 2002-09-06T10:11:02]:
+- BtDriver_DecodeFrame(): added debug output in case of short reads on /dev/vbi
+epgdb/epgstream.c [rev:1.22, 2002-09-06T10:29:11]:
+- EpgStreamDecodePacket():
+- [changes done at the occasion of decoding errors on Kabel1]
+- if packet < lastPackNo is encounterd, discard all following packets
+    because probably a page header was missed
+- after the end of a block don't start decoding at the index given by BP
+    instead continue directly behind the block
+- accept filler bytes not only behind a block; moved the FB decoding to the
+    front of the while (BP < 40) loop.
+- improved many debug output strings
+epgdb/epgblock.c [rev:1.45, 2002-09-06T13:17:51]:
+- bugfix ApplyEscapes:
+- need to handle more than one ESCAPE per text index
+- e.g. on Kabel1 multiple Newlines are inserted at one position
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.175, 2002-09-06T15:07:13]:
+- Allow to manually resize PI listbox columns
+- columns can now be resized
+    new procs ColumnHeaderMotion, ColumnHeaderResize
+- removed proc UpdateNetnameColumnWidth: dropped auto-resize for network column
+- proc ApplySelectedColumnList: removed "mode" parameter
+    proc PopupColumnSelection now uses new wrapper proc instead:
+    ApplyColumnSelection
+- added new elem "pilistbox_col_widths" to rc/ini file
+- bugfix ApplySelectedColumnList: when re-enabling display of "header buttons"
+    via the Configure menu the old pseudo-frame was not destroyed, hence the
+    window had twice the requested size
+- bugfix xawtv config dialog: duration setting was suppressed for popup
+    type #2 (VTX*2) instead of #3 (TITLE_MSG)
+epgui/menucmd.c [rev:1.89, 2002-09-06T15:07:57]:
+- Allow to manually resize PI listbox columns
+- SetUserLanguage(): removed call to obsolete PiOutput_CacheThemesMaxLen()
+epgui/pilistbox.c [rev:1.73, 2002-09-06T15:08:59]:
+- PiListBox_InsertItem(): adapted for resizable listbox columns
+- moved loop across columns into pioutput.c
+    because that module caches the module width internally and handles
+    cutting off the text it it's too wide
+- call new function PiOutput_PrintColumnItems():
+    wrapper for PiOutput_PrintColumnItem()
+epgui/pioutput.c [rev:1.23, 2002-09-06T15:09:05]:
+- Allow to manually resize PI listbox columns
+- declared new type PIBOX_COL_CFG to hold column configuration:
+    contains both type and width for each column
+- replaced config cache variable pPiboxCols with pPiboxColCfg
+- new function PiOutput_PrintColumnItems() for PI listbox module:
+    checks pixel width of column text, cuts off if neccessary
+- fix PiOutput_PrintColumnItem: removed shortening of theme strings for column
+    width: must not be done here because the same func is used for HTML output
+- PiOutput_CfgColumns(): added caching of column widths from Tcl var colsel_tabs
+    fetch col types from pilistbox_cols instead of colsel_selist
+- removed obsolete function PiOutput_SetNetnameColumnWidth():
+    auto-resizeing was dropped; user must set netname col width manually now
+- removed obsolete function PiOutput_CacheThemesMaxLen():
+    width is now determined dynamically for all columns; cache is obsolete;
+    removed use of cache in PiOutput_PrintColumnItem()
+- adapted to changed interface to Tcl proc ApplySelectedColumnList:
+    removed mode parameter, renamed into UpdatePiListboxColumns
+epgui/pioutput.h [rev:1.9, 2002-09-06T15:09:10]:
+- Allow to manually resize PI listbox columns
+- removed declaration of obsolete functions PiOutput_CacheThemesMaxLen
+    and PiOutput_SetNetnameColumnWidth
+- replaced PiOutput_PrintColumnItem() with PiOutput_PrintColumnItems()
+    which i a wrapper for the former one
+epgui/uictrl.c [rev:1.34, 2002-09-06T15:09:35]:
+- Allow to manually resize PI listbox columns
+- dropped automatic resizing of netname column
+- UiControl_AiStateChange(): removed call to obsolete function
+    PiOutput_SetNetnameColumnWidth()
+epgui/pifilter.c [rev:1.64, 2002-09-07T11:12:25]:
+- bugfix SelectProgIdx():
+- check for TCL_OK was inverted in a2i conversion
+- function always failed (when used correctly)
+epgctl/epgscan.c [rev:1.29, 2002-09-07T17:41:34]:
+- Bugfix "refresh" mode:
+- providers that were identified via AI reception were not counted
+- i.e. provider count in summary was wrong
+epgdb/epgblock.c [rev:1.46, 2002-09-08T18:52:50]:
+- Changed ApplyEscapes: do not remove all instances of '\n' anymore
+- if there's two NL escapes or a completely empty line, a paragraph break
+    is inserted in the output
+- note that this requires adaptions in the downstream processing function
+epgui/epgtabdump.c [epgui/dumptext.c, rev:1.2, 2002-09-08T18:54:22]:
+- EpgTabDumpPiInfoTextCb():
+- PI description output adapted for policy change in database:
+- both short and long info strings may now contain newline control characters
+    (even if database is not merged) -> now replaced with " // "
+epgui/pioutput.c [rev:1.24, 2002-09-08T18:54:32]:
+- PiOutput_HtmlAppendInfoTextCb()
+- PI description output adapted for policy change in database:
+- both short and long info strings may now contain newline control characters
+    (even if database is not merged): insert HTML paragraph break: </p><p>
+epgui/pioutput.c [rev:1.25, 2002-09-08T19:55:59]:
+- Tcl/Tk optimization: converted Tcl procs to object based interface
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.176, 2002-09-10T18:35:01]:
+- Added various key bindings in main window:
+- CTRL-F, CTRL-C, Esc, Return, digits 0-9
+- Added key bindings for shortcut and network listboxes
+- Return : same as spcae, i.e. activate the filter
+- Escape : clear selection
+- FocusOut: set the selected item as filter
+    this is a fix! before the state was inconsistent after a selection via keybd.
+- Improved key binding and focus in dialog popup windows:
+- focus always set to entry widget, if present;
+    else to Ok button - mark Ok button as default
+- bind Return and Escape button to Ok and Abort, or equivalent
+- new proc SelectTextOnFocus: for small entry fields select the complete
+    old content to simplify replacing it
+- use Tcl internal proc tkButtonInvoke for key bindings:
+    this gives the user visual feedback which button's functionality is executed
+- network selection and merge dialogs: provide access to popup menus via ALT
+- proc SelBoxCreate:
+- use virtual event <<ListboxSelect>> to trigger updates
+- allow CTRL-Up/down to change ordering in right list by keyboard
+- Column header resizing:
+- moved binding from Button #2 to #1
+- Also:
+- new tag "paragraph" for short-info text widget: enable pargraph spacing
+- Provider selection dialog:
+    enlarged text widget for network list from 4 to 5 lines because of Kabel1
+epgui/menucmd.c [rev:1.90, 2002-09-11T12:40:38]:
+- Fixes & improvements in Tcl interface
+- convert file names for dumps and logs from UTF8 to local encoding
+- read netacq_enable as object (writes are still strings; TODO)
+epgui/epgtabdump.c [epgui/dumptext.c, rev:1.3, 2002-09-11T12:40:46]:
+- Fix AI export: use user-configured network names
+epgui/pifilter.c [rev:1.65, 2002-09-11T12:40:52]:
+- Fix use user-configured network names in Tcl var "cfnetnames"
+- as appendix to series names
+- in context menu
+epgui/pioutput.c [rev:1.26, 2002-09-11T12:41:01]:
+- HTML dump: convert file name from UTF8 to local encoding
+- context menu: convert command line from UTF8 to local before processing it;
+    use object based functions for Tcl variable "ctxmencf"
+epgui/pilistbox.c [rev:1.74, 2002-09-11T12:41:07]:
+- Improved formatting in short-info text widget:
+- for plain paragraphs use new tag "paragraph" (has -spacing3 4)
+- added new string object TCLOBJ_STR_PARAGRAPH for text insertions
+epgdb/epgstream.c [rev:1.23, 2002-09-13T08:36:44]:
+- added \n to one dprintf
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.177, 2002-09-14T18:10:58]:
+- EPG scan:
+- upon dialog open insert text into message window that explains the
+    refresh option (in addition to "Press start")
+- added proc EpgScanDeleteProvider: callback for "Remove provider" button
+    in the scan message window, which are now inserted by the scan handler
+    for "dead" providers
+- Timescale window width is now automatically adapted to max. day count in AI
+- proc TimeScale_Open and others: additional param scaleWidth
+- proc TimeScale_CreateCanvas: in update mode, adapt canvas width
+- all "overlap" checks use max X coord 9999
+- split off new proc TimeScale_ClearDateScale from TimeScale_DrawDateScale:
+    used to clear and resize canvas when no PI are in the db
+- Bugfixes
+- timescale canvas height was one pixel too small (long-info was cut off)
+- in column resizing proc ColumnHeaderMotion: resizing columns of <15 pixels;
+    check for header button popup menu was broken
+- proc FilterMenuAdd_Time: must convert hour values to local time for menu text
+    (note: there also a bugfix in C_PiListBox_GotoTime: did assume absolute time
+    parameters were local, but actually are UTC)
+epgui/pilistbox.c [rev:1.75, 2002-09-14T18:11:07]:
+- branches:  1.75.1;
+- Bugfix PiListBox_GotoTime():
+- did assume absolute time parameters were local, but actually are UTC
+- also changed: search first PI *around* the given time, not starting after
+epgui/timescale.c [rev:1.8, 2002-09-14T18:11:27]:
+- Timescale window width is now automatically adapted to max. day count in AI
+- removed constant decls TSC_WIDTH_IN_PIXELS, TSC_WIDTH_IN_SECS;
+    added new elements widthPixels and widthSecs to tscaleState
+- use TSC_SECS_PER_PIXEL for conversions between time and pixel position
+- pass scale width to Tcl procs TimeScale_Open and others
+- new helper func TimeScale_GetDayCount, used by TimeScale_CreateOrRebuild()
+- Also: converted command params & results to object-based Tcl interface
+epgui/xawtv.c [rev:1.26, 2002-09-14T18:11:34]:
+- Improved parsing of .xawtv Xawtv_GetFreqTab()
+- split config files by section headers
+- additionally evaluate input, norm and fine parameters
+- split off freq list handling into separate function:
+    Xawtv_AddFreqToBuf(), copied from wintvcfg.c
+- error messages: added param -parent .epgscan
+epgui/menucmd.c [rev:1.91, 2002-09-14T18:11:59]:
+- Added possibility to remove provider databases after EPG scan in refresh mode:
+- new Tcl callback function RemoveProviderDatabase(): invoked when user
+    presses the "Remove provider" button in the EPG scan output window
+- new EPG scan handler callback function MenuCmd_AddProvDelButton():
+    Insert "Remove provider" button into EPG scan message output text
+- added ptr param MenuCmd_AddProvDelButton() to EpgScan_Start()
+epgctl/epgacqctl.c [rev:1.76, 2002-09-14T18:13:00]:
+- Adapted for changed interface to btdrv:
+- merged BtDriver_SetInputSource() into BtDriver_TuneChannel()
+- to support Secam TV norm handling
+epgctl/epgscan.c [rev:1.30, 2002-09-14T18:13:12]:
+- adapted for changed interface to btdrv: merged BtDriver_SetInputSource()
+    into BtDriver_TuneChannel(): to support Secam TV norm handling
+- refresh mode: always wait for AI, never skip with "known CNI"
+- refresh mode: in case of timeout (no AI) offer to remove the provider db;
+    added EpgScan_Start() parameter pDelCallback() and type EPGSCAN_DELCB:
+    add "Remove this provider button" to message output window
+- improved debug output in case tuner frequency is updated
+epgctl/epgscan.h [rev:1.12, 2002-09-14T18:13:19]:
+- Refresh mode: in case of timeout (no AI) offer to remove the provider db:
+- new callback type EPGSCAN_DELCB to add "Remove this provider button" to
+    message output window
+- EpgScan_Start(): added parameter pDelCallback()
+epgctl/mytypes.h [rev:1.17, 2002-09-14T18:13:33]:
+- Added debug switch DUMP_TTX_PACKETS: enable dump of all incoming TTX packets
+epgctl/epgctxctl.c [rev:1.22, 2002-09-14T18:13:43]:
+- Added new interface function EpgContextCtl_Remove():
+- Remove a provider from the cache and remove the database
+- used by the EPG scan in refresh mode: "Remove this provider" buttons
+epgctl/epgctxctl.h [rev:1.15, 2002-09-14T18:13:43]:
+- Added new interface function EpgContextCtl_Remove():
+- Remove a provider from the cache and remove the database
+- used by the EPG scan in refresh mode: "Remove this provider" buttons
+epgdb/epgdbsav.c [rev:1.48, 2002-09-14T18:17:46]:
+- Added new function EpgDbRemoveDatabaseFile( uint cni )
+epgdb/epgdbsav.h [rev:1.33, 2002-09-14T18:17:46]:
+- Added new function EpgDbRemoveDatabaseFile( uint cni )
+nxtvepg.pod [rev:1.75, 2002-09-14T18:18:33]:
+- added description for Secam TV norm in EPG scan ("getting started" and "scan")
+    and TV card input config dialog
+- added description of key bindings in "Basic browsing" and "Seöect networks"
+- Statistics, timescales: removed remark that scale cover only 5 days;
+    added explanation of short & long info
+- added description of new duration filter type
+- added remark how to remove obsolete providers in EPG scan "refresh" mode and
+    network selection dialog
+- added note how to resize PI listbox columns;
+    removed note about automatic resizing of the network name column
+epgdb/epgdbmerge.c [rev:1.25, 2002-09-14T18:22:50]:
+- Improved EpgDbMergeAiBlocks:
+- set dayCount field for each netwop to max. between merged netwops
+- (needed to determine timescale window width)
+epgvbi/vbidecode.c [rev:1.31, 2002-09-14T19:00:36]:
+- Adapted for new debug option DEBUG_SWITCH_DUMP_TTX_PACKETS
+- pass VBI line number to TtxDecode_AddPacket()
+epgvbi/tvchan.c [rev:1.8, 2002-09-14T19:00:48]:
+- Adapted for new multi-norm support:
+- TvChannels_GetNext(): encode VIDEO_MODE_SECAM in high-byte of frequency word
+    if the French channel table is used; the TV norm is evaluated in the btdrv
+- TvChannels_NameToFreq(): added loop across both tables:
+    before, French channel IDs were not recognized when the other freq.table
+    was selected for the scan and vice-versa, which was confusing.
+- added new enum TVCHAN_FREQ_TAB_IDX for the 2 frequency tables
+epgvbi/ttxdecode.h [rev:1.27, 2002-09-14T19:01:47]:
+- Added debug option DEBUG_SWITCH_DUMP_TTX_PACKETS:
+- TtxDecode_AddPacket(): added VBI line number as parameter
+epgvbi/ttxdecode.c [rev:1.52, 2002-09-14T19:01:50]:
+- Added debug option DEBUG_SWITCH_DUMP_TTX_PACKETS:
+- if enabled, all incoming teletext packets are dumped by the slave
+- all packets are dumped (again) when extracted from the ring buffer
+    by the master
+- line and frame number are additionally saved for packets in the ring buffer
+    in TtxDecode_BufferAdd()
+epgvbi/btdrv4win.c [rev:1.25, 2002-09-14T19:03:05]:
+- Added debug option DEBUG_SWITCH_DUMP_TTX_PACKETS:
+- if enabled, all incoming teletext packets are dumped by the slave
+- all packets are dumped (again) when extracted from the ring buffer
+    by the master
+- line and frame number are additionally saved for packets in the ring buffer
+    in TtxDecode_BufferAdd()
+tvsim/tvsim_main.c [rev:1.13, 2002-09-14T19:03:12]:
+- Adapted for changed interface to btdrv:
+- BtDriver_SetInputSource() was merged into BtDriver_TuneChannel()
+- to support Secam TV norm handling (multi-norm tuners)
+epgvbi/btdrv.h [rev:1.24, 2002-09-14T19:03:38]:
+- merged BtDriver_SetInputSource() into BtDriver_TuneChannel()
+- added definition of VIDEO_MODE_SECAM etc. for non-Linux systems
+- added debug option DEBUG_SWITCH_DUMP_TTX_PACKETS:
+    if enabled, add elems frame and line to VBI ring buffer
+epgvbi/btdrv4dummy.c [rev:1.12, 2002-09-14T19:03:45]:
+- Adapted for changed interface to (Linux) btdrv:
+- merged BtDriver_SetInputSource() into BtDriver_TuneChannel()
+- to support Secam TV norm handling
+epgvbi/btdrv4linux.c [rev:1.32, 2002-09-14T19:03:59]:
+- Added support for multi-norm PAL/SECAM tuners:
+- made BtDriver_SetInputSource() local only, called by BtDriver_TuneChannel()
+- video norm is encoded in high-byte of frequency parameter
+    currently only used for linux; discarded in NetBSD
+- NOTE: removed workaround for bttv bug: setting of VIDEO_MODE_NTSC
+    in VIDIOCSCHAN, because it's only needed when the module is given a PLL=#
+    parameter in modules.conf
+- keepOpen flag semantic changed: the device is no longer closed upon
+    isTuner==FALSE, i.e. the caller must call the close function.
+- BtDriver_QueryChannel(): now queries also the TV norm and returns it
+    in the high-byte of the frequency result
+epgui/pioutput.c [rev:1.27, 2002-09-16T11:56:50]:
+- branches:  1.27.1;
+- Added output buffer overflow check in PiOutput_PrintColumnItem():
+- added param maxLen
+- revised output string handling: column types with static text output
+    now simply assign to pResult, which is appended at the end of the function;
+    only types with sprintf still print directly into the output buffer and
+    need to check the maxLen individually
+- PiOutput_PrintColumnItems(): check maxLen before appending \t and \n
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.178, 2002-09-16T11:57:21]:
+- EPG scan: suppress hint about "refresh mode" in output message text widget
+    if there are no providers yet, i.e. if the mode is disabled
+- fixed PI listbox column resizing for WIN32: check where the mouse button
+    was pressed; if outside proximity, disable resize mode until button release;
+    this is to avoid that resize mode is entered while the user is using the
+    popdown menu
+- also: globally renamed variable "column_head_ptr" into "colsel_resize_phase"
+- also: gloabbly replaced cursor "left_ptr" with "top_left_arrow"
+- Implemented Zoom capability for timescale windows
+    + added buttons to the first row, left to the date scale
+      use new callback function C_TimeScale_Zoom
+    + calculate position of date labels dynamically depending on available space
+    + shorten the date labels if neccessary
+epgui/timescale.c [rev:1.9, 2002-09-16T11:57:25]:
+- Implemented Zoom capability for timescale windows
+- removed constant TSC_SECS_PER_PIXEL; replaced with min/default/max definitions
+- added new element secsPerPixel to tscale states
+- added new Tcl callback function TimeScale_Zoom()
+epgui/epgmain.c [rev:1.98, 2002-09-16T11:57:33]:
+- Added bitmaps "zoom_in" and "zoom_out" for timescale windows
+epgui/pifilter.c [rev:1.66, 2002-09-16T16:28:07]:
+- branches:  1.66.1;
+- Added new Tcl callback function GetAllUsedSortCrits()
+- Return a list of sorting criterion codes which are used in the database
+- used by new "Load all used" button in sorting criterion filter dialog
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.179, 2002-09-16T17:03:08]:
+- Added "Load all used" button to sorting criterion filter dialog
+- new callback proc LoadAllUsedSortCrits
+- also added comments to existing callback procs & improved key bindings
+- made dialog resizable & fixed use of pack -fill and -expand option
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.180, 2002-09-16T19:28:37]:
+- branches:  1.180.1;
+- Implemented search hisotry access in text search filter dialog
+- history menu is posted below the search text entry field
+    by up/down cursor keys or new arrow button at the right
+- new proc SubStrPopupHistoryMenu
+nxtvepg.pod [rev:1.76, 2002-09-16T19:30:41]:
+- chapter on filters: added description of:
+- search text history access in text search filter dialog
+- classes in respect to sorting criteria
+- "Load all used" button in sort crit filter dialog
+epgui/wintvcfg.c [rev:1.9, 2002-09-17T14:40:12]:
+- Adapted for new tuner table in K!TV 1.2.0.3:
+- K!TV now uses the same table as DScaler
+- swapped K!TV INI and DScaler INI parsing functions to avoid fwd reference
+- also: bugfix in manual tuner setting parsing (sscanf call was missing)
+nxtvepg.spec [rev:1.8, 2002-09-17T15:05:17]:
+- set version to 2.3.0
+epgctl/epgversion.h [rev:1.26, 2002-09-17T15:06:50]:
+- set version to 2.3.0
+epgctl/debug.h [rev:1.15, 2002-09-17T15:22:12]:
+- fixed debugTclErr() macro for non-debug modes:
+- 2nd formal arg STR was missing in 2 declarations
+README [rev:1.27, 2002-09-17T16:15:39]:
+- Updated win32 driver error section
+- revised "another app may already be using the driver" point
+- nxtvepg now comes with DSdrv 4.01 which allows multiple clients
+- however for compatibility reasons nxtvepg does not insist on the
+    latest driver, hence the problem may still occur; since it's
+    unlikely though, the point was moved from 3. to 6.
+epgctl/debug.c [rev:1.16, 2002-09-17T16:16:04]:
+- Fix for Win32 w/ debugging off
+- requires #include windows.h for MessageBox
+www/pre-releases.html [rev:1.13, 2002-09-17T16:32:55]:
+- added alpha release of 2.3.0
+CHANGES [rev:1.27, 2002-09-17T17:58:27]:
+- updated for release 2.3.0
+TODO [rev:1.21, 2002-09-17T17:58:44]:
+- updated for release 2.3.0
+www/changelog.html [rev:1.36, 2002-09-17T18:00:01]:
+- added release note for version 2.3.0
+www/pre-releases.html [rev:1.14, 2002-09-17T18:00:19]:
+- removed 2.3.0a1 after release of 2.3.0 -> nothing available currently
+www/index-de.html [rev:1.36, 2002-09-17T18:00:58]:
+- updated for release 2.3.0
+- no description of new features in 2.3.0 tis time (nothing exciting)
+- kept links to 2.2.1 as "last stable version"
+www/index.html [rev:1.47, 2002-09-17T18:00:58]:
+- updated for release 2.3.0
+- no description of new features in 2.3.0 tis time (nothing exciting)
+- kept links to 2.2.1 as "last stable version"
+www/man.html [rev:1.20, 2002-09-17T18:02:16]:
+- updated for version 2.3.0
+www/nefkom-src-index.html [rev:1.9, 2002-09-17T18:02:36]:
+- added release 2.3.0
+- removed win and tvsim packages for 2.1.x and 2.2.0
+www/tripod-src-index.html [rev:1.10, 2002-09-17T18:04:02]:
+- added release 2.3.0
+- removed win packages 1.10 through 1.12 due to quota
+www/provnets.html [rev:1.17, 2002-09-17T18:04:34]:
+- updated network lists of Kabel1, RTL2 and 3sat
+images/zoom_in.xbm [rev:1.1, 2002-09-17T18:06:44]:
+- Initial revision
+images/zoom_out.xbm [rev:1.1, 2002-09-17T18:06:48]:
+- Initial revision
+www/index-de.html [rev:1.37, 2002-09-22T18:04:47]:
+- added EuroNewsto list of German providers; added Kabel1 and 3sat to Swiss
+    providers; they are not really new but the users did not understand why
+    my separation concept (I wanted to list each provider only once, and for
+    the "main target" country)
+- added Quelle to TV manufacturer list (hint by Michael.Fuchs@tv-server.de)
+- added hint that INI and database files can be copied across version updates
+    on Win32 systems
+www/index.html [rev:1.48, 2002-09-22T18:04:47]:
+- added EuroNewsto list of German providers; added Kabel1 and 3sat to Swiss
+    providers; they are not really new but the users did not understand why
+    my separation concept (I wanted to list each provider only once, and for
+    the "main target" country)
+- added Quelle to TV manufacturer list (hint by Michael.Fuchs@tv-server.de)
+- added hint that INI and database files can be copied across version updates
+    on Win32 systems
+www/nefkom-src-index.html [rev:1.10, 2002-09-22T18:56:13]:
+- Added patches for the long-info overwrite-bug for 0.6.4 and 0.7.0
+www/tripod-src-index.html [rev:1.11, 2002-09-22T18:56:13]:
+- Added patches for the long-info overwrite-bug for 0.6.4 and 0.7.0
+www/index-de.html [rev:1.38, 2002-09-22T18:56:21]:
+- added notice about the long-info overwrite-bug in all versions up to 2.2.1;
+    added links to patches for versions 0.6.4 and 0.7.0
+- removed link to 2.2.1 in download section; upgraded 2.3.0 to stable.
+www/index.html [rev:1.49, 2002-09-22T18:56:21]:
+- added notice about the long-info overwrite-bug in all versions up to 2.2.1;
+    added links to patches for versions 0.6.4 and 0.7.0
+- removed link to 2.2.1 in download section; upgraded 2.3.0 to stable.
+www/changelog.html [rev:1.37, 2002-09-22T18:56:34]:
+- version 2.2.1: added links to patches for the long-info overwrite-bug
+    for versions 0.6.4 and 0.7.0
+- added one known bug for 2.3.0 (not analyzed yet)
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_3_0 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

@@ -1,16 +1,18 @@
 epgctl/debug.o: epgctl/debug.c epgctl/mytypes.h epgctl/debug.h
 epgctl/epgacqctl.o: epgctl/epgacqctl.c epgctl/mytypes.h epgctl/debug.h \
- epgvbi/btdrv.h epgvbi/ttxdecode.h epgdb/epgblock.h epgdb/epgdbif.h \
- epgdb/epgstream.h epgdb/epgqueue.h epgdb/epgtscqueue.h \
- epgdb/epgdbsav.h epgdb/epgdbmgmt.h epgdb/epgdbmerge.h epgui/uictrl.h \
- epgui/epgmain.h epgctl/epgctxmerge.h epgctl/epgctxctl.h \
- epgctl/epgscan.h epgctl/epgacqctl.h epgctl/epgacqsrv.h \
- epgdb/epgnetio.h epgctl/epgacqclnt.h
+ epgvbi/btdrv.h /usr/include/linux/videodev.h epgvbi/ttxdecode.h \
+ epgdb/epgblock.h epgdb/epgdbif.h epgdb/epgstream.h epgdb/epgqueue.h \
+ epgdb/epgtscqueue.h epgdb/epgdbsav.h epgdb/epgdbmgmt.h \
+ epgdb/epgdbmerge.h epgui/uictrl.h epgui/epgmain.h \
+ epgctl/epgctxmerge.h epgctl/epgctxctl.h epgctl/epgscan.h \
+ epgctl/epgacqctl.h epgctl/epgacqsrv.h epgdb/epgnetio.h \
+ epgctl/epgacqclnt.h
 epgctl/epgscan.o: epgctl/epgscan.c epgctl/mytypes.h epgctl/debug.h \
  epgvbi/cni_tables.h epgvbi/vbidecode.h epgvbi/tvchan.h epgvbi/btdrv.h \
- epgvbi/ttxdecode.h epgdb/epgblock.h epgdb/epgdbif.h epgdb/epgdbsav.h \
- epgdb/epgstream.h epgdb/epgqueue.h epgdb/epgdbmgmt.h epgui/uictrl.h \
- epgctl/epgctxctl.h epgctl/epgacqctl.h epgctl/epgscan.h
+ /usr/include/linux/videodev.h epgvbi/ttxdecode.h epgdb/epgblock.h \
+ epgdb/epgdbif.h epgdb/epgdbsav.h epgdb/epgstream.h epgdb/epgqueue.h \
+ epgdb/epgdbmgmt.h epgui/uictrl.h epgctl/epgctxctl.h \
+ epgctl/epgacqctl.h epgctl/epgscan.h
 epgctl/epgctxctl.o: epgctl/epgctxctl.c epgctl/mytypes.h epgctl/debug.h \
  epgdb/epgblock.h epgdb/epgdbif.h epgdb/epgdbsav.h epgdb/epgdbmgmt.h \
  epgui/uictrl.h epgui/epgmain.h epgctl/epgctxmerge.h \
@@ -32,8 +34,9 @@ epgctl/epgacqsrv.o: epgctl/epgacqsrv.c epgctl/mytypes.h epgctl/debug.h \
  epgdb/epgdbsav.h epgdb/epgnetio.h epgui/uictrl.h epgctl/epgacqctl.h \
  epgctl/epgacqsrv.h epgctl/epgctxctl.h
 epgdb/epgstream.o: epgdb/epgstream.c epgctl/mytypes.h epgctl/debug.h \
- epgvbi/btdrv.h epgvbi/ttxdecode.h epgvbi/hamming.h epgdb/epgblock.h \
- epgui/epgtxtdump.h epgdb/epgqueue.h epgdb/epgstream.h
+ epgvbi/btdrv.h /usr/include/linux/videodev.h epgvbi/ttxdecode.h \
+ epgvbi/hamming.h epgdb/epgblock.h epgui/epgtxtdump.h epgdb/epgqueue.h \
+ epgdb/epgstream.h
 epgdb/epgdbmerge.o: epgdb/epgdbmerge.c epgctl/mytypes.h epgctl/debug.h \
  epgdb/epgblock.h epgui/epgmain.h epgdb/epgdbmgmt.h \
  epgdb/epgtscqueue.h epgdb/epgstream.h epgui/pilistbox.h \
@@ -67,8 +70,8 @@ epgui/uictrl.o: epgui/uictrl.c epgctl/mytypes.h epgctl/debug.h \
  epgctl/epgctxmerge.h epgctl/epgacqctl.h epgctl/epgscan.h \
  epgctl/epgacqsrv.h epgdb/epgnetio.h epgdb/epgtscqueue.h \
  epgdb/epgdbmerge.h epgctl/epgctxctl.h epgctl/epgacqclnt.h \
- epgui/epgmain.h epgui/pifilter.h epgui/pilistbox.h epgui/uictrl.h \
- epgui/menucmd.h epgui/statswin.h epgui/timescale.h epgdb/epgswap.h
+ epgui/epgmain.h epgui/pifilter.h epgui/pilistbox.h epgui/pioutput.h \
+ epgui/uictrl.h epgui/menucmd.h epgui/statswin.h epgui/timescale.h
 epgui/pilistbox.o: epgui/pilistbox.c epgctl/mytypes.h epgctl/debug.h \
  epgdb/epgblock.h epgdb/epgdbfil.h epgdb/epgdbif.h epgctl/epgacqctl.h \
  epgui/epgmain.h epgui/uictrl.h epgctl/epgctxctl.h epgui/pifilter.h \
@@ -77,7 +80,8 @@ epgui/pioutput.o: epgui/pioutput.c epgctl/mytypes.h epgctl/debug.h \
  epgctl/epgversion.h epgdb/epgblock.h epgdb/epgdbfil.h epgdb/epgdbif.h \
  epgdb/epgtscqueue.h epgdb/epgdbmerge.h epgui/epgmain.h \
  epgui/pdc_themes.h epgui/pifilter.h epgui/pilistbox.h \
- epgui/pioutput.h epgvbi/btdrv.h epgvbi/winshm.h epgvbi/winshmsrv.h
+ epgui/pioutput.h epgvbi/btdrv.h /usr/include/linux/videodev.h \
+ epgvbi/winshm.h epgvbi/winshmsrv.h
 epgui/pifilter.o: epgui/pifilter.c epgctl/mytypes.h epgctl/debug.h \
  epgdb/epgblock.h epgdb/epgdbfil.h epgdb/epgdbif.h epgui/epgmain.h \
  epgui/pdc_themes.h epgui/pilistbox.h epgui/pioutput.h \
@@ -102,7 +106,7 @@ epgui/menucmd.o: epgui/menucmd.c epgctl/mytypes.h epgctl/debug.h \
  epgui/epgtabdump.h epgui/pilistbox.h epgui/pioutput.h \
  epgui/pifilter.h epgui/pdc_themes.h epgui/menucmd.h epgui/uictrl.h \
  epgui/xawtv.h epgui/wintvcfg.h epgvbi/vbidecode.h epgvbi/cni_tables.h \
- epgvbi/tvchan.h epgvbi/btdrv.h
+ epgvbi/tvchan.h epgvbi/btdrv.h /usr/include/linux/videodev.h
 epgui/epgmain.o: epgui/epgmain.c epgctl/mytypes.h epgctl/epgversion.h \
  epgctl/debug.h epgdb/epgblock.h epgdb/epgdbfil.h epgdb/epgdbif.h \
  epgdb/epgdbmgmt.h epgdb/epgdbsav.h epgdb/epgnetio.h \
@@ -112,19 +116,20 @@ epgui/epgmain.o: epgui/epgmain.c epgctl/mytypes.h epgctl/epgversion.h \
  epgui/menucmd.h epgui/pilistbox.h epgui/pioutput.h epgui/pifilter.h \
  epgui/xawtv.h epgui/wintv.h epgui/wintvcfg.h epgui/epgtabdump.h \
  epgui/nxtv_logo.xbm epgui/ptr_up.xbm epgui/ptr_down.xbm \
- epgui/pan_updown.xbm epgui/qmark.xbm epgvbi/btdrv.h \
+ epgui/pan_updown.xbm epgui/qmark.xbm epgui/zoom_in.xbm \
+ epgui/zoom_out.xbm epgvbi/btdrv.h /usr/include/linux/videodev.h \
  epgvbi/winshmsrv.h epgui/epgmain.h
 epgui/xawtv.o: epgui/xawtv.c epgctl/mytypes.h epgctl/debug.h epgvbi/tvchan.h \
- epgvbi/btdrv.h epgvbi/ttxdecode.h epgdb/epgblock.h epgdb/epgdbfil.h \
- epgdb/epgdbif.h epgctl/epgacqctl.h epgui/epgmain.h epgui/pilistbox.h \
- epgui/xawtv.h
+ epgvbi/btdrv.h /usr/include/linux/videodev.h epgvbi/ttxdecode.h \
+ epgdb/epgblock.h epgdb/epgdbfil.h epgdb/epgdbif.h epgctl/epgacqctl.h \
+ epgui/epgmain.h epgui/pilistbox.h epgui/xawtv.h
 epgui/epgtxtdump.o: epgui/epgtxtdump.c epgctl/mytypes.h epgctl/debug.h \
  epgdb/epgblock.h epgdb/epgdbfil.h epgdb/epgdbif.h epgui/epgtxtdump.h \
  epgui/pdc_themes.h
 epgui/epgtabdump.o: epgui/epgtabdump.c epgctl/mytypes.h epgctl/debug.h \
  epgdb/epgblock.h epgdb/epgdbfil.h epgdb/epgdbif.h epgctl/epgctxctl.h \
- epgui/pdc_themes.h epgui/uictrl.h epgui/menucmd.h epgui/pioutput.h \
- epgui/epgtabdump.h
+ epgui/pdc_themes.h epgui/epgmain.h epgui/uictrl.h epgui/menucmd.h \
+ epgui/pioutput.h epgui/epgtabdump.h
 epgvbi/btdrv4linux.o: epgvbi/btdrv4linux.c epgctl/mytypes.h epgctl/debug.h \
  epgvbi/vbidecode.h epgvbi/btdrv.h /usr/include/linux/videodev.h
 epgvbi/vbidecode.o: epgvbi/vbidecode.c epgctl/mytypes.h epgctl/debug.h \
@@ -132,10 +137,10 @@ epgvbi/vbidecode.o: epgvbi/vbidecode.c epgctl/mytypes.h epgctl/debug.h \
  epgvbi/vbidecode.h
 epgvbi/ttxdecode.o: epgvbi/ttxdecode.c epgctl/mytypes.h epgctl/debug.h \
  epgvbi/cni_tables.h epgvbi/hamming.h epgvbi/btdrv.h \
- epgvbi/ttxdecode.h
+ /usr/include/linux/videodev.h epgvbi/ttxdecode.h
 epgvbi/hamming.o: epgvbi/hamming.c epgctl/mytypes.h epgctl/debug.h \
  epgvbi/hamming.h
 epgvbi/tvchan.o: epgvbi/tvchan.c epgctl/mytypes.h epgctl/debug.h \
- epgvbi/tvchan.h
+ epgvbi/btdrv.h /usr/include/linux/videodev.h epgvbi/tvchan.h
 epgvbi/cni_tables.o: epgvbi/cni_tables.c epgctl/mytypes.h epgctl/debug.h \
  epgvbi/cni_tables.h

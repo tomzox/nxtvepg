@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgblock.c,v 1.44 2002/05/02 16:51:19 tom Exp tom $
+ *  $Id: epgblock.c,v 1.46 2002/09/08 18:52:50 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -347,7 +347,7 @@ static const char g2map_latin2[] =
 // ----------------------------------------------------------------------------
 // Return a de-nationalized character from the G0 set
 // - the G0 charset is basically ASCII, but at a few places the ASCII chars
-//   are replace by special chars, depending on the country
+//   are replaced by special chars, depending on the country
 // - in the following table -1 stands for ASCII chars, the other values
 //   are to be taken as index in the national options table
 // - note: declared as signed char to allow use of negative values; ANSI-C
@@ -386,9 +386,9 @@ static uchar GetG0Char(uchar val, uchar alphabeth)
 // ----------------------------------------------------------------------------
 // Apply escape sequence to a string
 // - only language-specific escapes and newlines are evaluated
-// - at the same time white space is compressed
-// - newline (explicit and implicit) is replaced by blank;
-//   line breaks are inserted at time of output, depending on window width
+// - at the same time white space (multiple blanks etc.) is compressed
+// - newline (explicit and implicit) is also replaced by blank, except for two
+//   subsequent newlines or a completely empty line (indicates paragraph break)
 //
 static uchar * ApplyEscapes(const uchar *pText, uint textLen, const uchar *pEscapes, uchar escCount, uchar netwop)
 {
@@ -396,6 +396,7 @@ static uchar * ApplyEscapes(const uchar *pText, uint textLen, const uchar *pEsca
    uint  escIdx, nextEsc;
    uint  i, linePos, strLen;
    bool  lastWhite;
+   uchar newLine;
    uchar data, alphabet;
 
    // get default alphabet for the actual netwop
@@ -412,7 +413,9 @@ static uchar * ApplyEscapes(const uchar *pText, uint textLen, const uchar *pEsca
    {
       po = pout;
       lastWhite = TRUE;  //suppress blank at start of line
+      newLine = 0;
       linePos = 0;
+
       escIdx = 0;
       if (escCount > 0)
          nextEsc = pEscapes[0] | ((pEscapes[1] & 0x03) << 8);
@@ -426,7 +429,7 @@ static uchar * ApplyEscapes(const uchar *pText, uint textLen, const uchar *pEsca
          else
             *po = GetG0Char(pText[i], alphabet);
       
-         if (i == nextEsc)
+         while (i == nextEsc)
          {
             data = pEscapes[2];
             switch (pEscapes[1] >> 2)
@@ -447,23 +450,39 @@ static uchar * ApplyEscapes(const uchar *pText, uint textLen, const uchar *pEsca
                      *po = ' ';
                   break;
                case 0x0A:  // CR/NL
-                  // the newline is inserted in front of the current character
-                  if (!lastWhite)
+                  if (newLine == 1)
+                  {  // current line empty -> insert paragraph break into output
+                     if (lastWhite && (po > pout))
+                     {  // overwrite blank at the end of the line
+                        *(po - 1) = '\n';
+                     }
+                     else if (strLen > 1)
+                     {
+                        po[1] = *po;
+                        *(po++) = '\n';
+                        strLen -= 1;
+                     }
+                     else
+                        debug0("Apply-Escapes: output string length exceeded");
+                     // set flag to avoid inserting multiple newlines (i.e. generating empty lines)
+                     newLine = 2;
+                  }
+                  else if (lastWhite == FALSE)
                   {
                      if (strLen > 1)
-                     {
+                     {  // the blank (instead of newline) is inserted in front of the current character
                         po[1] = *po;
                         *po++ = ' ';
                         strLen -= 1;
                      }
                      else
-                     {
                         debug0("Apply-Escapes: output string length exceeded");
-                        *po = ' ';
-                     }
                   }
                   lastWhite = TRUE;
                   linePos = 0;
+                  // set flag to indicate that the new line is still empty
+                  if (newLine == 0)
+                     newLine = 1;
                   break;
                case 0x0F:  // G2 character
                   if ((data >= 0x20) && (data < 0x80))
@@ -507,25 +526,43 @@ static uchar * ApplyEscapes(const uchar *pText, uint textLen, const uchar *pEsca
 
          if (*po == ' ')
          {
-            if (!lastWhite)
+            if (lastWhite == FALSE)
             {
                po++;
                strLen -= 1;
+               lastWhite = TRUE;
             }
-            lastWhite = TRUE;
          }
          else
          {
             po++;
             strLen -= 1;
             lastWhite = FALSE;
+            // set flag to indicate this line is not empty
+            newLine = 0;
          }
          linePos += 1;
 
          if (linePos == 40)
-         {  // add blank after last character of line
-            if (lastWhite == FALSE)
-            {
+         {
+            if (newLine == 1)
+            {  // current line empty -> insert paragraph break into output
+               if (lastWhite && (po > pout))
+               {  // overwrite blank at the end of the line
+                  *(po - 1) = '\n';
+               }
+               else if (strLen > 0)
+               {
+                  *(po++) = '\n';
+                  strLen -= 1;
+               }
+               else
+                  debug0("Apply-Escapes: output string length exceeded");
+               // set flag to avoid inserting multiple newlines (i.e. generating empty lines)
+               newLine = 2;
+            }
+            else if (lastWhite == FALSE)
+            {  // add blank after last character of line
                if (strLen > 0)
                {
                   *(po++) = ' ';
@@ -534,12 +571,15 @@ static uchar * ApplyEscapes(const uchar *pText, uint textLen, const uchar *pEsca
                else
                   debug0("Apply-Escapes: output string length exceeded");
             }
+            if (newLine == 0)
+               newLine = 1;
             lastWhite = TRUE;
             linePos = 0;
          }
       }
 
       ifdebug1((strLen == 0) && (i < textLen), "Apply-Escapes: output string length exceeded: %d bytes remaining", textLen - i);
+      ifdebug6((escIdx < escCount), "Apply-Escapes: only %d of %d escapes applied: nextExc=%d textIdx=%d escType=0x%x data=0x%x", escIdx, escCount, nextEsc, i, pEscapes[1] >> 2, pEscapes[2]);
 
       if ( (po > pout) && (*(po - 1) == ' ') )
       {  // remove blank from end of line

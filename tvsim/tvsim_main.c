@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: tvsim_main.c,v 1.11.1.1 2002/08/17 19:19:17 tom Exp $
+ *  $Id: tvsim_main.c,v 1.13 2002/09/14 19:03:12 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_TVSIM
@@ -67,7 +67,9 @@ extern char tcl_init_scripts[];
 extern char tk_init_scripts[];
 
 Tcl_Interp *interp;          // Interpreter for application
-char comm[1000];             // Command buffer
+#define TCL_COMM_BUF_SIZE  1000
+// add one extra byte at the end of the comm buffer for overflow detection
+char comm[TCL_COMM_BUF_SIZE + 1];
 
 static Tcl_AsyncHandler asyncThreadHandler = NULL;
 static Tcl_TimerToken   popDownEvent       = NULL;
@@ -77,6 +79,8 @@ static bool             haveIdleHandler    = FALSE;
 // (note that in contrary to the other TV card parameters this value is not
 // taken from the nxtvepg rc/ini file; can be overriden with -card option)
 #define TVSIM_CARD_IDX   0
+// input source index of the TV tuner with btdrv4win.c
+#define TVSIM_INPUT_IDX  0
 
 // select English language for PDC theme output
 #define TVSIM_PDC_THEME_LANGUAGE  0
@@ -86,39 +90,6 @@ static const char * const defaultRcFile = "nxtvepg.ini";
 static const char * rcfile = NULL;
 static uint videoCardIndex = TVSIM_CARD_IDX;
 static bool startIconified = FALSE;
-
-// used by wintvcfg.c; declare here to avoid compiler warning
-int eval_check(Tcl_Interp *interp, char *cmd);
-
-// ---------------------------------------------------------------------------
-// Execute a Tcl/Tk command line and check the result
-//
-int eval_check(Tcl_Interp *interp, char *cmd)
-{
-   int result;
-
-   result = Tcl_Eval(interp, cmd);
-
-   #if DEBUG_SWITCH == ON
-   if (result != TCL_OK)
-   {
-      if (strlen(cmd) > 256)
-         cmd[256] = 0;
-      #if (DEBUG_SWITCH_TCL_BGERR == ON)
-      {
-         char *errbuf = xmalloc(strlen(cmd) + strlen(interp->result) + 20);
-         sprintf(errbuf, "bgerror {%s: %s}", cmd, interp->result);
-         Tcl_Eval(interp, errbuf);
-         xfree(errbuf);
-      }
-      #else
-      debug2("Command: %s\nError: %s", cmd, interp->result);
-      #endif
-   }
-   #endif
-
-   return result;
-}
 
 // ---------------------------------------------------------------------------
 // Open messagebox with system error string (e.g. "invalid path")
@@ -404,7 +375,6 @@ static void SetHardwareConfig( Tcl_Interp *interp, uint cardIdx )
                  (Tcl_GetInt(interp, pParamsArgv[5], &ftable) == TCL_OK) )    // unused
             {
                // pass the hardware config params to the driver
-               BtDriver_SetInputSource(input, FALSE, NULL);
                BtDriver_Configure(cardIdx, tuner, pll, prio);
             }
             else
@@ -477,18 +447,12 @@ static void TvSimuMsg_ReqTuner( void )
 {
    uint  inputSrc;
    uint  freq;
-   bool  isTuner;
+   bool  dummy;
 
    if (WinSharedMemClient_GetInpFreq(&inputSrc, &freq))
    {
-      // set the TV input source: tuner, composite, S-video, ...
-      BtDriver_SetInputSource(inputSrc, TRUE, &isTuner);
-      if (isTuner)
-      {  // TV tuner is input source -> also set tuner frequency
-         BtDriver_TuneChannel(freq, FALSE);
-      }
-      else
-         BtDriver_CloseDevice();
+      // set the TV input source (tuner, composite, S-video) and frequency
+      BtDriver_TuneChannel(inputSrc, freq, FALSE, &dummy);
 
       // inform EPG app that the frequency has been set (note: this function is a
       // variant of _SetStation which does not request EPG info for the new channel)
@@ -805,6 +769,7 @@ static int TclCb_TuneChan( ClientData ttp, Tcl_Interp *interp, int argc, char *a
    uint  * pFreqTab;
    uint    freqCount;
    int     freqIdx;
+   bool    isTuner;
    int     result;
 
    if (argc != 3)
@@ -823,7 +788,7 @@ static int TclCb_TuneChan( ClientData ttp, Tcl_Interp *interp, int argc, char *a
             if ((freqIdx < freqCount) && (freqIdx >= 0))
             {
                // Change the tuner frequency via the BT8x8 driver
-               BtDriver_TuneChannel(pFreqTab[freqIdx], FALSE);
+               BtDriver_TuneChannel(TVSIM_INPUT_IDX, pFreqTab[freqIdx], FALSE, &isTuner);
 
                // Request EPG info & update frequency info
                // - input source is hard-wired to TV tuner in this simulation
@@ -863,6 +828,11 @@ static int ui_init( int argc, char **argv )
       Tcl_FindExecutable(argv[0]);
    }
 
+   #if DEBUG_SWITCH == ON
+   // set last byte of command buffer to zero to detect overflow
+   comm[sizeof(comm) - 1] = 0;
+   #endif
+
    interp = Tcl_CreateInterp();
 
    if (argc > 1)
@@ -883,7 +853,8 @@ static int ui_init( int argc, char **argv )
    if (Tk_Init(interp) != TCL_OK)
    {
       #ifndef USE_PRECOMPILED_TCL_LIBS
-      fprintf(stderr, "%s\n", interp->result);
+      fprintf(stderr, "Failed to initialise the Tk library at '%s' - exiting.\nTk error message: %s\n",
+                      TK_LIBRARY_PATH, Tcl_GetStringResult(interp));
       exit(1);
       #endif
    }
@@ -891,11 +862,13 @@ static int ui_init( int argc, char **argv )
    #ifdef USE_PRECOMPILED_TCL_LIBS
    if (Tcl_VarEval(interp, tcl_init_scripts, NULL) != TCL_OK)
    {
-      debug1("tcl_init_scripts error: %s\n", interp->result);
+      debug1("tcl_init_scripts error: %s\n", Tcl_GetStringResult(interp));
+      debugTclErr(interp, "tcl_init_scripts");
    }
    if (Tcl_VarEval(interp, tk_init_scripts, NULL) != TCL_OK)
    {
-      debug1("tk_init_scripts error: %s\n", interp->result);
+      debug1("tk_init_scripts error: %s\n", Tcl_GetStringResult(interp));
+      debugTclErr(interp, "tk_init_scripts");
    }
    #endif
 
@@ -939,7 +912,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
    WintvCfg_Init(FALSE);
 
    BtDriver_Init();
-   if (WinSharedMemClient_Init(&tvSimuInfo, TVAPP_CARD_REQ_ALL, &attachEvent))
+   if (WinSharedMemClient_Init(&tvSimuInfo, videoCardIndex, &attachEvent))
    {
       // set up callback to catch shutdown messages (requires tk83.dll patch!)
       Tk_RegisterMainDestructionHandler(WinApiDestructionHandler);

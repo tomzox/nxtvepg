@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pioutput.c,v 1.20 2002/08/24 13:58:13 tom Exp tom $
+ *  $Id: pioutput.c,v 1.27 2002/09/16 11:56:50 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -60,18 +60,27 @@
 #define USERCMD_PREFIX_WINTV  "!wintv!"
 #define USERCMD_PREFIX_WINTV_LEN  7
 
+
+// cache for PI listbox column configuration
+typedef struct
+{
+   PIBOX_COL_TYPES  type;
+   uint             width;
+} PIBOX_COL_CFG;
+
 // Emergency fallback for column configuration
 // (should never be used because tab-stops and column header buttons will not match)
-static const PIBOX_COL_TYPES defaultPiboxCols[] =
+static const PIBOX_COL_CFG defaultPiboxCols[] =
 {
-   PIBOX_COL_NETNAME,
-   PIBOX_COL_TIME,
-   PIBOX_COL_WEEKDAY,
-   PIBOX_COL_TITLE,
-   PIBOX_COL_COUNT
+   { PIBOX_COL_NETNAME,  60 },
+   { PIBOX_COL_TIME,     83 },
+   { PIBOX_COL_WEEKDAY,  30 },
+   { PIBOX_COL_TITLE,   266 },
+   { PIBOX_COL_COUNT,     0 }
 };
+
 // pointer to a list of the currently configured column types
-static const PIBOX_COL_TYPES * pPiboxCols = defaultPiboxCols;
+static const PIBOX_COL_CFG * pPiboxColCfg = defaultPiboxCols;
 
 // struct to hold dynamically growing char buffer
 typedef struct
@@ -81,9 +90,6 @@ typedef struct
    uint     off;            // number of already used bytes
    bool     quoteShell;     // TRUE to enable UNIX quoting of spaces etc.
 } DYN_CHAR_BUF;
-
-// cache for max. char counts to fit theme strings into the theme column
-static uchar themeStrMaxLen[128 + 1];
 
 // ----------------------------------------------------------------------------
 // Table to implement isalnum() for all latin fonts
@@ -273,263 +279,134 @@ const char * PiOutput_DictifyTitle( const char * pTitle, uchar lang, char * outb
 }
 
 // ----------------------------------------------------------------------------
-// Determine the required width for the network name column and update the display
-//
-void PiOutput_SetNetnameColumnWidth( bool isInitial )
-{
-   const AI_BLOCK *pAiBlock;
-   Tk_Font tkfont;
-   const uchar * pName;
-   const char * fontName;
-   uchar  buf[20];
-   int    pixels;
-   uint   maxLen;
-   uint   netwop;
-
-   maxLen = 0;
-
-   fontName = Tcl_GetVar(interp, "textfont", TCL_GLOBAL_ONLY);
-   if (fontName != NULL)
-   {
-      tkfont = Tk_GetFont(interp, Tk_MainWindow(interp), fontName);
-      if (tkfont != NULL)
-      {
-         EpgDbLockDatabase(pUiDbContext, TRUE);
-         pAiBlock = EpgDbGetAi(pUiDbContext);
-         if (pAiBlock != NULL)
-         {
-            for (netwop = 0; netwop < pAiBlock->netwopCount; netwop++)
-            {
-               sprintf(buf, "0x%04X", AI_GET_NETWOP_N(pAiBlock, netwop)->cni);
-               pName = Tcl_GetVar2(interp, "cfnetnames", buf, TCL_GLOBAL_ONLY);
-               if (pName == NULL)
-                  pName = AI_GET_NETWOP_NAME(pAiBlock, netwop);
-
-               Tk_MeasureChars(tkfont, pName, strlen(pName), 200, -1, &pixels);
-               if (pixels > maxLen)
-                  maxLen = pixels;
-            }
-         }
-         EpgDbLockDatabase(pUiDbContext, FALSE);
-      }
-      else
-         debug1("PiOutput-SetNetnameColumnWidth: font '%s' unknown", fontName);
-
-      Tk_FreeFont(tkfont);
-   }
-   else
-      debug0("PiOutput-SetNetnameColumnWidth: Tcl var 'textfont' undefined");
-
-   // apply the width to the listbox
-   sprintf(comm, "UpdateNetnameColumnWidth %d %d", maxLen, (int)isInitial);
-   eval_check(interp, comm);
-}
-
-// ----------------------------------------------------------------------------
-// Tcl interface to the network name column width update function
-// - called after the user configured network names
-//
-static int PiOutput_TclCb_SetNetnameColumnWidth( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
-{
-   PiOutput_SetNetnameColumnWidth(FALSE);
-   return TCL_OK;
-}
-
-// ----------------------------------------------------------------------------
-// Build cache of theme string max lengths to fit in the column
-// - required because a proportional (non fixed width) font is used
-// - must be called once during startup and whenever the theme language changes
-//
-void PiOutput_CacheThemesMaxLen( void )
-{
-   Tk_Font tkfont;
-   const uchar * pThemeStr;
-   const uchar * p;
-   const char * fontName;
-   uint   len, dummy;
-   uint   idx;
-
-   memset(themeStrMaxLen, 0, sizeof(themeStrMaxLen));
-
-   fontName = Tcl_GetVar(interp, "textfont", TCL_GLOBAL_ONLY);
-   if (fontName != NULL)
-   {
-      tkfont = Tk_GetFont(interp, Tk_MainWindow(interp), fontName);
-      if (tkfont != NULL)
-      {
-         for (idx=0; idx <= 128; idx++)
-         {
-            pThemeStr = PdcThemeGet(idx);
-            if (pThemeStr != NULL)
-            {
-               len = strlen(pThemeStr);
-               themeStrMaxLen[idx] = Tk_MeasureChars(tkfont, pThemeStr, len, 64, -1, &dummy);
-
-               if (len > themeStrMaxLen[idx])
-               {  // remove single chars or separators from the end of the truncated string
-                  p = pThemeStr + themeStrMaxLen[idx] - 1;
-                  if (alphaNumTab[*(p - 1)] == ALNUM_NONE)
-                     p -= 2;
-                  while (alphaNumTab[*(p--)] == ALNUM_NONE)
-                     ;
-                  themeStrMaxLen[idx] = (p + 2) - pThemeStr;
-               }
-            }
-         }
-      }
-      else
-         debug1("PiOutput-CacheThemesMaxLen: font '%s' unknown", fontName);
-
-      Tk_FreeFont(tkfont);
-   }
-   else
-      debug0("PiOutput-CacheThemesMaxLen: Tcl var 'textfont' undefined");
-}
-
-// ----------------------------------------------------------------------------
 // Print PI listing table element into string
 //
-int PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, uint idx, char * outstr )
+static uint PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES type, uchar * pOutBuffer, uint maxLen )
 {
+   const uchar * pResult;
    const AI_BLOCK *pAiBlock;
    struct tm ttm;
-   PIBOX_COL_TYPES type;
-   int off;
+   uint outlen;
 
-   outstr[0] = 0;
-   off = 0;
-   type = pPiboxCols[idx];
-   if (type < PIBOX_COL_COUNT)
+   assert(EpgDbIsLocked(pUiDbContext));
+   outlen = 0;
+
+   if ((pOutBuffer != NULL) && (pPiBlock != NULL))
    {
+      pResult = NULL;
+
       switch (type)
       {
          case PIBOX_COL_NETNAME:
-            EpgDbLockDatabase(pUiDbContext, TRUE);
             pAiBlock = EpgDbGetAi(pUiDbContext);
             if ((pAiBlock != NULL) && (pPiBlock->netwop_no < pAiBlock->netwopCount))
             {
-               const uchar *p;
                uchar buf[7];
                sprintf(buf, "0x%04X", AI_GET_NETWOP_N(pAiBlock, pPiBlock->netwop_no)->cni);
-               p = Tcl_GetVar2(interp, "cfnetnames", buf, TCL_GLOBAL_ONLY);
-               if (p != NULL)
-                  strcpy(outstr + off, p);
-               else
-                  strcpy(outstr + off, AI_GET_NETWOP_NAME(pAiBlock, pPiBlock->netwop_no));
+               pResult = Tcl_GetVar2(interp, "cfnetnames", buf, TCL_GLOBAL_ONLY);
+               if (pResult == NULL)
+                  pResult = AI_GET_NETWOP_NAME(pAiBlock, pPiBlock->netwop_no);
             }
             else
-            {
-               debug0("PiOutput-PrintColumnItem: no AI block");
-               strcpy(outstr + off, "??");
-            }
-            EpgDbLockDatabase(pUiDbContext, FALSE);
-            off += strlen(outstr + off);
+               debug1("PiOutput-PrintColumnItem: no AI block or invalid netwop #%d", pPiBlock->netwop_no);
             break;
             
          case PIBOX_COL_TIME:
             memcpy(&ttm, localtime(&pPiBlock->start_time), sizeof(struct tm));
-            strftime(outstr + off,     19, "%H:%M-", &ttm);
-            strftime(outstr + off + 6, 19, "%H:%M",  localtime(&pPiBlock->stop_time));
-            off += 11;
+            outlen  = strftime(pOutBuffer, maxLen, "%H:%M-", &ttm);
+            outlen += strftime(pOutBuffer + outlen, maxLen - outlen, "%H:%M",  localtime(&pPiBlock->stop_time));
             break;
 
          case PIBOX_COL_WEEKDAY:
             memcpy(&ttm, localtime(&pPiBlock->start_time), sizeof(struct tm));
-            strftime(outstr + off, 19, "%a", &ttm);
-            off += strlen(outstr + off);
+            outlen = strftime(pOutBuffer, maxLen, "%a", &ttm);
             break;
 
          case PIBOX_COL_DAY:
             memcpy(&ttm, localtime(&pPiBlock->start_time), sizeof(struct tm));
-            strftime(outstr + off, 19, "%d.", &ttm);
-            off += strlen(outstr + off);
+            outlen = strftime(pOutBuffer, maxLen, "%d.", &ttm);
             break;
 
          case PIBOX_COL_DAY_MONTH:
             memcpy(&ttm, localtime(&pPiBlock->start_time), sizeof(struct tm));
-            strftime(outstr + off, 19, "%d.%m.", &ttm);
-            off += strlen(outstr + off);
-            outstr[off] = 0;
+            outlen = strftime(pOutBuffer, maxLen, "%d.%m.", &ttm);
             break;
 
          case PIBOX_COL_DAY_MONTH_YEAR:
             memcpy(&ttm, localtime(&pPiBlock->start_time), sizeof(struct tm));
-            strftime(outstr + off, 19, "%d.%m.%Y", &ttm);
-            off += strlen(outstr + off);
+            outlen = strftime(pOutBuffer, maxLen, "%d.%m.%Y", &ttm);
             break;
 
          case PIBOX_COL_TITLE:
-            strcpy(outstr + off, PI_GET_TITLE(pPiBlock));
-            off += strlen(outstr + off);
+            pResult = PI_GET_TITLE(pPiBlock);
             break;
 
          case PIBOX_COL_DESCR:
-            outstr[off++] = (PI_HAS_LONG_INFO(pPiBlock) ? 'l' : 
-                          (PI_HAS_SHORT_INFO(pPiBlock) ? 's' : '-'));
+            pResult = (PI_HAS_LONG_INFO(pPiBlock) ? "l" : 
+                         (PI_HAS_SHORT_INFO(pPiBlock) ? "s" : "-"));
             break;
 
          case PIBOX_COL_PIL:
-            if (pPiBlock->pil != 0x7fff)
+            if ((pPiBlock->pil != 0x7fff) && (maxLen >= 12+1))
             {
-               sprintf(outstr + off, "%02d:%02d/%02d.%02d.",
+               sprintf(pOutBuffer, "%02d:%02d/%02d.%02d.",
                        (pPiBlock->pil >>  6) & 0x1F,
                        (pPiBlock->pil      ) & 0x3F,
                        (pPiBlock->pil >> 15) & 0x1F,
                        (pPiBlock->pil >> 11) & 0x0F);
-               off += strlen(outstr + off);
+               outlen = 12;
             }
             break;
 
          case PIBOX_COL_SOUND:
             switch(pPiBlock->feature_flags & 0x03)
             {
-               case 1: strcpy(outstr + off, "2-chan"); break;
-               case 2: strcpy(outstr + off, "stereo"); break;
-               case 3: strcpy(outstr + off, "surr."); break;
+               case 1: pResult = "2-channel"; break;
+               case 2: pResult = "stereo"; break;
+               case 3: pResult = "surround"; break;
             }
-            off += strlen(outstr + off);
             break;
 
          case PIBOX_COL_FORMAT:
             if (pPiBlock->feature_flags & 0x08)
-               strcpy(outstr + off, "PAL+");
+               pResult = "PAL+";
             else if (pPiBlock->feature_flags & 0x04)
-               strcpy(outstr + off, "wide");
-            off += strlen(outstr + off);
+               pResult = "wide";
             break;
 
          case PIBOX_COL_ED_RATING:
-            if (pPiBlock->editorial_rating > 0)
+            if ((pPiBlock->editorial_rating > 0) && (maxLen >= 3+1))
             {
-               sprintf(outstr + off, " %d", pPiBlock->editorial_rating);
-               off += strlen(outstr + off);
+               sprintf(pOutBuffer, "%2d", pPiBlock->editorial_rating);
+               outlen = strlen(pOutBuffer);
             }
             break;
 
          case PIBOX_COL_PAR_RATING:
             if (pPiBlock->parental_rating == 1)
-               strcpy(outstr + off, "all");
-            else if (pPiBlock->parental_rating > 0)
-               sprintf(outstr + off, ">%2d", pPiBlock->parental_rating * 2);
-            off += strlen(outstr + off);
+               pResult = "all";
+            else if ((pPiBlock->parental_rating > 0) && (maxLen >= 3+1))
+            {
+               sprintf(pOutBuffer, "%2d", pPiBlock->parental_rating * 2);
+               outlen = strlen(pOutBuffer);
+            }
             break;
 
          case PIBOX_COL_LIVE_REPEAT:
             if (pPiBlock->feature_flags & 0x40)
-               strcpy(outstr + off, "live");
+               pResult = "live";
             else if (pPiBlock->feature_flags & 0x80)
-               strcpy(outstr + off, "repeat");
-            off += strlen(outstr + off);
+               pResult = "repeat";
             break;
 
          case PIBOX_COL_SUBTITLES:
-            outstr[off++] = ((pPiBlock->feature_flags & 0x100) ? 't' : '-');
+            if (pPiBlock->feature_flags & 0x100)
+               pResult = "ST";
             break;
 
          case PIBOX_COL_THEME:
             if (pPiBlock->no_themes > 0)
             {
-               const uchar * pThemeStr;
                uchar theme;
                uint  themeIdx;
 
@@ -579,83 +456,209 @@ int PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, uint idx, char * outstr
                {  // replace individual series code with general series code
                   theme = PDC_THEME_SERIES;
                }
-               pThemeStr = PdcThemeGet(theme);
-               if (pThemeStr != NULL)
-               {
-                  uint maxlen = themeStrMaxLen[theme];
-                  strncpy(outstr + off, pThemeStr, maxlen);
-                  outstr[off + maxlen] = 0;
-                  off += maxlen;
-               }
+               pResult = PdcThemeGet(theme);
             }
             break;
 
          default:
-            SHOULD_NOT_BE_REACHED;
+            fatal1("PiOutput-PrintColumnItem: invalid type %d", type);
             break;
       }
+
+      // copy the result into the output buffer (& limit to max. buffer length)
+      if ((pResult != NULL) && (maxLen > 0))
+      {
+         strncpy(pOutBuffer, pResult, maxLen);
+
+         outlen = strlen(pResult);
+         if (maxLen < outlen)
+         {
+            debug3("PiOutput-PrintColumnItem: output buffer too small: %d, need %d for '%s'", maxLen, outlen, pResult);
+            pOutBuffer[maxLen - 1] = 0;
+            outlen = maxLen - 1;
+         }
+      }
+      else if (outlen < maxLen)
+      {
+         // make sure the output buffer is 0 terminated
+         // (note: cannot determine here if the string was truncated above, hence no debug output)
+         pOutBuffer[outlen] = 0;
+      }
+      else if (maxLen > 0)
+      {
+         pOutBuffer[maxLen - 1] = 0;
+         outlen = maxLen - 1;
+      }
+      else
+         outlen = 0;
    }
    else
-      off = -1;
+      fatal0("PiOutput-PrintColumnItem: illegal NULL ptr param");
 
-   return off;
+   return outlen;
 }
 
 // ----------------------------------------------------------------------------
 // Configure browser listing columns
 // - Additionally the tab-stops in the text widget must be defined for the
-//   width of the respective columns: Tcl/Tk proc ApplySelectedColumnList
+//   width of the respective columns: Tcl/Tk proc UpdatePiListboxColumns
 // - Also, the listbox must be refreshed
 //
-static int PiOutput_CfgColumns( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+static int PiOutput_CfgColumns( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
-   PIBOX_COL_TYPES * pColTab;
-   CONST84 char **pColArgv;
-   uint colCount, colIdx, idx;
-   const char * pTmpStr;
-   int result;
+   PIBOX_COL_CFG * pColTab;
+   Tcl_Obj ** pColObjv;
+   Tcl_Obj  * pTmpObj;
+   Tcl_Obj  * pTabObj;
+   Tcl_Obj  * pColObj;
+   char * pKeyword;
+   uint  colIdx;
+   int   colCount, idx;
+   int   width;
+   int   result;
 
-   pTmpStr = Tcl_GetVar(interp, "colsel_selist", TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG);
-   if (pTmpStr != NULL)
+   pTmpObj = Tcl_GetVar2Ex(interp, "pilistbox_cols", NULL, TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG);
+   if (pTmpObj != NULL)
    {
-      result = Tcl_SplitList(interp, pTmpStr, &colCount, &pColArgv);
+      result = Tcl_ListObjGetElements(interp, pTmpObj, &colCount, &pColObjv);
       if (result == TCL_OK)
       {
-         pColTab = xmalloc((colCount + 1) * sizeof(PIBOX_COL_TYPES));
+         pColTab = xmalloc((colCount + 1) * sizeof(PIBOX_COL_CFG));
 
          for (idx=0; idx < colCount; idx++)
          {
-            if      (strcmp(pColArgv[idx], "netname") == 0) colIdx = PIBOX_COL_NETNAME;
-            else if (strcmp(pColArgv[idx], "time") == 0) colIdx = PIBOX_COL_TIME;
-            else if (strcmp(pColArgv[idx], "weekday") == 0) colIdx = PIBOX_COL_WEEKDAY;
-            else if (strcmp(pColArgv[idx], "day") == 0) colIdx = PIBOX_COL_DAY;
-            else if (strcmp(pColArgv[idx], "day_month") == 0) colIdx = PIBOX_COL_DAY_MONTH;
-            else if (strcmp(pColArgv[idx], "day_month_year") == 0) colIdx = PIBOX_COL_DAY_MONTH_YEAR;
-            else if (strcmp(pColArgv[idx], "title") == 0) colIdx = PIBOX_COL_TITLE;
-            else if (strcmp(pColArgv[idx], "description") == 0) colIdx = PIBOX_COL_DESCR;
-            else if (strcmp(pColArgv[idx], "pil") == 0) colIdx = PIBOX_COL_PIL;
-            else if (strcmp(pColArgv[idx], "theme") == 0) colIdx = PIBOX_COL_THEME;
-            else if (strcmp(pColArgv[idx], "sound") == 0) colIdx = PIBOX_COL_SOUND;
-            else if (strcmp(pColArgv[idx], "format") == 0) colIdx = PIBOX_COL_FORMAT;
-            else if (strcmp(pColArgv[idx], "ed_rating") == 0) colIdx = PIBOX_COL_ED_RATING;
-            else if (strcmp(pColArgv[idx], "par_rating") == 0) colIdx = PIBOX_COL_PAR_RATING;
-            else if (strcmp(pColArgv[idx], "live_repeat") == 0) colIdx = PIBOX_COL_LIVE_REPEAT;
-            else if (strcmp(pColArgv[idx], "subtitles") == 0) colIdx = PIBOX_COL_SUBTITLES;
+            pKeyword = Tcl_GetString(pColObjv[idx]);
+
+            if      (strcmp(pKeyword, "netname") == 0) colIdx = PIBOX_COL_NETNAME;
+            else if (strcmp(pKeyword, "time") == 0) colIdx = PIBOX_COL_TIME;
+            else if (strcmp(pKeyword, "weekday") == 0) colIdx = PIBOX_COL_WEEKDAY;
+            else if (strcmp(pKeyword, "day") == 0) colIdx = PIBOX_COL_DAY;
+            else if (strcmp(pKeyword, "day_month") == 0) colIdx = PIBOX_COL_DAY_MONTH;
+            else if (strcmp(pKeyword, "day_month_year") == 0) colIdx = PIBOX_COL_DAY_MONTH_YEAR;
+            else if (strcmp(pKeyword, "title") == 0) colIdx = PIBOX_COL_TITLE;
+            else if (strcmp(pKeyword, "description") == 0) colIdx = PIBOX_COL_DESCR;
+            else if (strcmp(pKeyword, "pil") == 0) colIdx = PIBOX_COL_PIL;
+            else if (strcmp(pKeyword, "theme") == 0) colIdx = PIBOX_COL_THEME;
+            else if (strcmp(pKeyword, "sound") == 0) colIdx = PIBOX_COL_SOUND;
+            else if (strcmp(pKeyword, "format") == 0) colIdx = PIBOX_COL_FORMAT;
+            else if (strcmp(pKeyword, "ed_rating") == 0) colIdx = PIBOX_COL_ED_RATING;
+            else if (strcmp(pKeyword, "par_rating") == 0) colIdx = PIBOX_COL_PAR_RATING;
+            else if (strcmp(pKeyword, "live_repeat") == 0) colIdx = PIBOX_COL_LIVE_REPEAT;
+            else if (strcmp(pKeyword, "subtitles") == 0) colIdx = PIBOX_COL_SUBTITLES;
             else colIdx = PIBOX_COL_COUNT;
 
-            pColTab[idx] = colIdx;
-         }
-         pColTab[idx] = PIBOX_COL_COUNT;
+            // determine width of the theme column from the global Tcl list
+            width = 64;
+            pTabObj = Tcl_GetVar2Ex(interp, "colsel_tabs", pKeyword, TCL_GLOBAL_ONLY);
+            if (pTabObj != NULL)
+            {
+               if ( (Tcl_ListObjIndex(interp, pTabObj, 0, &pColObj) == TCL_OK) &&
+                    (Tcl_GetIntFromObj(interp, pColObj, &width) == TCL_OK) )
+               {
+                  // width retrieved from Tcl list -> substract 5 pixels as gap to next column
+                  width -= 5;
+               }
+               else
+                  debugTclErr(interp, "PiOutput-CfgColumns: lindex or GetInt colsel-tabs(keyword)");
+            }
+            else
+               debug1("PiOutput-CfgColumns: Tcl var 'colsel_tabs(%s)' undefined", pKeyword);
 
-         if (pPiboxCols != defaultPiboxCols)
-            xfree((void *)pPiboxCols);
-         pPiboxCols = pColTab;
+            pColTab[idx].type  = colIdx;
+            pColTab[idx].width = width;
+         }
+         // terminate list
+         pColTab[idx].type  = PIBOX_COL_COUNT;
+         pColTab[idx].width = 0;
+
+         if (pPiboxColCfg != defaultPiboxCols)
+            xfree((void *)pPiboxColCfg);
+         pPiboxColCfg = pColTab;
       }
+      else
+         debugTclErr(interp, "PiOutput-CfgColumns: GetElem #0 pilistbox-cols");
    }
    else
+   {
+      debugTclErr(interp, "PiOutput-CfgColumns: GetVar pilistbox-cols");
       result = TCL_ERROR;
+   }
 
    return result;
+}
+
+// ----------------------------------------------------------------------------
+// Build a PI listbox row with the configured column types and widths
+// - check width of each column text - cut chars off if too wide
+//
+void PiOutput_PrintColumnItems( const PI_BLOCK * pPiBlock, char * outstr, uint maxRowLen )
+{
+   Tk_Font   piboxFont;
+   Tcl_Obj * fontNameObj;
+   uint dummy;
+   uint len, off, maxlen;
+   uint idx;
+
+   off = 0;
+
+   // open the (proportional) font which is used to display the text
+   fontNameObj = Tcl_GetVar2Ex(interp, "textfont", NULL, TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG);
+   if (fontNameObj != NULL)
+   {
+      piboxFont = Tk_AllocFontFromObj(interp, Tk_MainWindow(interp), fontNameObj);
+      if (piboxFont != NULL)
+      {
+         // loop across all configured columns
+         idx = 0;
+         while ((pPiboxColCfg[idx].type < PIBOX_COL_COUNT) && (off < maxRowLen))
+         {
+            len = PiOutput_PrintColumnItem(pPiBlock, pPiboxColCfg[idx].type, outstr + off, maxRowLen - off);
+
+            // check how many chars of the string fit the column width
+            maxlen = Tk_MeasureChars(piboxFont, outstr + off, len, pPiboxColCfg[idx].width, 0, &dummy);
+
+            // strip word fragements from the end of shortened theme strings
+            if ((pPiboxColCfg[idx].type == PIBOX_COL_THEME) && (maxlen < len) && (maxlen > 3))
+            {
+               if (alphaNumTab[(uint)outstr[off + maxlen - 1]] == ALNUM_NONE)
+                  maxlen -= 1;
+               else if (alphaNumTab[(uint)outstr[off + maxlen - 2]] == ALNUM_NONE)
+                  maxlen -= 2;
+               else if (alphaNumTab[(uint)outstr[off + maxlen - 3]] == ALNUM_NONE)
+                  maxlen -= 3;
+            }
+
+            off += maxlen;
+            if (off < maxRowLen)
+               outstr[off++] = '\t';
+            idx += 1;
+         }
+
+         // remove trailing tab character ater the last column
+         if (off > 0)
+            off -= 1;
+
+         Tk_FreeFont(piboxFont);
+      }
+      else
+         debug0("PiOutput-PrintColumnItems: textfont alloc failed");
+   }
+   else
+      debugTclErr(interp, "PiOutput-PrintColumnItems: variable 'textfont' undefined");
+
+   // terminate string with newline and 0-byte
+   if ((off + 1 >= maxRowLen) && (maxRowLen >= 2))
+      off = maxRowLen - 2;
+
+   if (off < maxRowLen)
+      outstr[off++] = '\n';
+
+   if (off < maxRowLen)
+      outstr[off++] = 0;
+   else if (maxRowLen >= 1)
+      outstr[maxRowLen - 1] = 0;
+
+   assert(off <= maxRowLen);
 }
 
 // ----------------------------------------------------------------------------
@@ -1068,24 +1071,40 @@ static void PiOutput_HtmlWriteString( FILE *fp, const char * pText )
 static void PiOutput_HtmlAppendInfoTextCb( void *vp, const char * pShortInfo, bool insertSeparator, const char * pLongInfo )
 {
    FILE * fp = (FILE *) vp;
+   const char * pText;
+   char * pNewline;
+   uint  idx;
 
    if ((fp != NULL) && (pShortInfo != NULL))
    {
-      if (pLongInfo != NULL)
+      fprintf(fp, "<tr>\n<td colspan=3 CLASS=\"textrow\">\n<p>\n");
+
+      // use a pseudo-loop to process both the short and long info texts in the same way
+      pText = pShortInfo;
+      for (idx=0; idx < 2; idx++)
       {
-         fprintf(fp, "<tr>\n<td colspan=3 CLASS=\"textrow\">\n<p>\n");
-         PiOutput_HtmlWriteString(fp, pShortInfo);
+         // check for newline chars, they must be replaced, because one PI must
+         // occupy exactly one line in the output file
+         while ( (pNewline = strchr(pText, '\n')) != NULL )
+         {
+            // print text up to (and excluding) the newline
+            *pNewline = 0;
+            PiOutput_HtmlWriteString(fp, pText);
+            fprintf(fp, "\n</p><p>\n");
+            // skip to text following the newline
+            pText = pNewline + 1;
+         }
+         PiOutput_HtmlWriteString(fp, pText);
+
          if (insertSeparator)
-            fprintf(fp, "\n<br>\n");
-         PiOutput_HtmlWriteString(fp, pLongInfo);
-         fprintf(fp, "</p>\n</td>\n</tr>\n\n");
+            fprintf(fp, "\n</p><p>\n");
+
+         if (pLongInfo != NULL)
+            pText = pLongInfo;
+         else
+            break;
       }
-      else
-      {
-         fprintf(fp, "<tr>\n<td colspan=3 CLASS=\"textrow\">\n<p>\n");
-         PiOutput_HtmlWriteString(fp, pShortInfo);
-         fprintf(fp, "\n</p>\n</td>\n</tr>\n\n");
-      }
+      fprintf(fp, "\n</p>\n</td>\n</tr>\n\n");
    }
 }
 
@@ -1137,7 +1156,7 @@ static void PiOutput_HtmlDesc( FILE *fp, const PI_BLOCK * pPiBlock, const AI_BLO
    fprintf(fp, "<tr><td colspan=3 CLASS=\"featurerow\">\n");
 
    // append theme list
-   PiOutput_AppendCompressedThemes(pPiBlock, comm, sizeof(comm));
+   PiOutput_AppendCompressedThemes(pPiBlock, comm, TCL_COMM_BUF_SIZE);
    PiOutput_HtmlWriteString(fp, comm);
 
    // append features list
@@ -1401,26 +1420,33 @@ static void HtmlFileClose( FILE * fpSrc, FILE * fpDst, const AI_BLOCK * pAiBlock
 // ----------------------------------------------------------------------------
 // Dump programme titles and/or descriptions into file in HTML format
 //
-static int PiOutput_DumpHtml( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+static int PiOutput_DumpHtml( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {  
    const char * const pUsage = "Usage: C_DumpHtml <file-name> <doTitles=0/1> <doDesc=0/1> <append=0/1> <sel-only=0/1> <hyperlinks=0/1>";
    const AI_BLOCK *pAiBlock;
    const PI_BLOCK *pPiBlock;
    uint idx;
+   const char * pFileName;
+   Tcl_DString ds;
    FILE *fpSrc, *fpDst;
    int doTitles, doDesc, optAppend, optSelOnly, optHyperlinks;
    int result;
 
-   if (argc != 1+6)
+   if (objc != 1+6)
    {  // parameter count is invalid
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
    }
-   else if ( (Tcl_GetBoolean(interp, argv[2], &doTitles) != TCL_OK) ||
-             (Tcl_GetBoolean(interp, argv[3], &doDesc) != TCL_OK) ||
-             (Tcl_GetBoolean(interp, argv[4], &optAppend) != TCL_OK) ||
-             (Tcl_GetBoolean(interp, argv[5], &optSelOnly) != TCL_OK) ||
-             (Tcl_GetBoolean(interp, argv[6], &optHyperlinks) != TCL_OK) )
+   else if ( (pFileName = Tcl_GetString(objv[1])) == NULL )
+   {  // internal error: can not get filename string
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else if ( (Tcl_GetBooleanFromObj(interp, objv[2], &doTitles) != TCL_OK) ||
+             (Tcl_GetBooleanFromObj(interp, objv[3], &doDesc) != TCL_OK) ||
+             (Tcl_GetBooleanFromObj(interp, objv[4], &optAppend) != TCL_OK) ||
+             (Tcl_GetBooleanFromObj(interp, objv[5], &optSelOnly) != TCL_OK) ||
+             (Tcl_GetBooleanFromObj(interp, objv[6], &optHyperlinks) != TCL_OK) )
    {  // one of the params is not boolean
       result = TCL_ERROR;
    }
@@ -1430,7 +1456,8 @@ static int PiOutput_DumpHtml( ClientData ttp, Tcl_Interp *interp, int argc, char
       pAiBlock = EpgDbGetAi(pUiDbContext);
       if (pAiBlock != NULL)
       {
-         HtmlFileCreate(argv[1], optAppend, &fpSrc, &fpDst, pAiBlock);
+         pFileName = Tcl_UtfToExternalDString(NULL, pFileName, -1, &ds);
+         HtmlFileCreate(pFileName, optAppend, &fpSrc, &fpDst, pAiBlock);
          if (fpDst != NULL)
          {
             // add or skip & copy HTML page header
@@ -1449,18 +1476,18 @@ static int PiOutput_DumpHtml( ClientData ttp, Tcl_Interp *interp, int argc, char
                   fprintf(fpDst, "<tr>\n");
 
                   // add table columns in the same configuration as for the internal listbox
-                  while (pPiboxCols[idx] < PIBOX_COL_COUNT)
+                  while (pPiboxColCfg[idx].type < PIBOX_COL_COUNT)
                   {
                      fprintf(fpDst, "<td>\n");
-                     if (optHyperlinks && (pPiboxCols[idx] == PIBOX_COL_TITLE))
+                     if (optHyperlinks && (pPiboxColCfg[idx].type == PIBOX_COL_TITLE))
                      {  // if requested add hyperlink to the description on the title
                         uchar label_str[50];
                         strftime(label_str, sizeof(label_str), "%Y%d%m%H%M", localtime(&pPiBlock->start_time));
                         fprintf(fpDst, "<A HREF=\"#TITLE_0x%04X_%s\">\n", AI_GET_NETWOP_N(pAiBlock, pPiBlock->netwop_no)->cni, label_str);
                      }
-                     PiOutput_PrintColumnItem(pPiBlock, idx, comm);
+                     PiOutput_PrintColumnItem(pPiBlock, pPiboxColCfg[idx].type, comm, TCL_COMM_BUF_SIZE);
                      PiOutput_HtmlWriteString(fpDst, comm);
-                     fprintf(fpDst, "%s\n</td>\n", ((optHyperlinks && (pPiboxCols[idx] == PIBOX_COL_TITLE)) ? "</a>\n" : ""));
+                     fprintf(fpDst, "%s\n</td>\n", ((optHyperlinks && (pPiboxColCfg[idx].type == PIBOX_COL_TITLE)) ? "</a>\n" : ""));
                      idx += 1;
                   }
 
@@ -1500,6 +1527,7 @@ static int PiOutput_DumpHtml( ClientData ttp, Tcl_Interp *interp, int argc, char
             HtmlFileSkip(fpSrc, fpDst, HTML_DUMP_DESC, HTML_DUMP_END);
             HtmlFileClose(fpSrc, fpDst, pAiBlock);
          }
+         Tcl_DStringFree(&ds);
       }
       EpgDbLockDatabase(pUiDbContext, FALSE);
       result = TCL_OK;
@@ -1511,7 +1539,7 @@ static int PiOutput_DumpHtml( ClientData ttp, Tcl_Interp *interp, int argc, char
 // ----------------------------------------------------------------------------
 // show info about the currently selected item in pop-up window
 //
-static int PiOutput_PopupPi( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+static int PiOutput_PopupPi( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_PopupPi <xcoo> <ycoo>";
    const AI_BLOCK * pAiBlock;
@@ -1524,14 +1552,20 @@ static int PiOutput_PopupPi( ClientData ttp, Tcl_Interp *interp, int argc, char 
    uchar *p;
    uchar start_str[50], stop_str[50], cni_str[7];
    uchar ident[50];
+   int xcoo, ycoo;
    int index;
    int result;
 
-   if (argc != 3) 
+   if (objc != 3)
    {  // parameter count is invalid
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR; 
    }  
+   else if ( (Tcl_GetIntFromObj(interp, objv[1], &xcoo) != TCL_OK) ||
+             (Tcl_GetIntFromObj(interp, objv[2], &ycoo) != TCL_OK) )
+   {  // parameter type invalid
+      result = TCL_ERROR; 
+   }
    else
    {
       result = TCL_OK; 
@@ -1550,7 +1584,7 @@ static int PiOutput_PopupPi( ClientData ttp, Tcl_Interp *interp, int argc, char 
 
          sprintf(ident, ".poppi_%d_%ld", pPiBlock->netwop_no, pPiBlock->start_time);
 
-         sprintf(comm, "Create_PopupPi %s %s %s\n", ident, argv[1], argv[2]);
+         sprintf(comm, "Create_PopupPi %s %d %d\n", ident, xcoo, ycoo);
          eval_check(interp, comm);
 
          sprintf(comm, "%s.text insert end {%s\n} title\n", ident, PI_GET_TITLE(pPiBlock));
@@ -1643,6 +1677,9 @@ static int PiOutput_PopupPi( ClientData ttp, Tcl_Interp *interp, int argc, char 
             }
             eval_check(interp, comm);
          }
+
+         sprintf(comm, "%s.text insert end {Acq. stream:\t%d\n} body\n", ident, EpgDbGetStream(pPiBlock));
+         eval_check(interp, comm);
 
          sprintf(comm, "global poppedup_pi\n"
                        "$poppedup_pi.text configure -state disabled\n"
@@ -1761,23 +1798,28 @@ static void PiOutput_ExtCmdVariable( const PI_BLOCK *pPiBlock, const AI_BLOCK * 
 
    if (modifierLen >= sizeof(modbuf))
       modifierLen = sizeof(modbuf) - 1;
-   modbuf[sizeof(modbuf) - 1] = 0;
 
    if (strncmp(pKeyword, "start", keywordLen) == 0)
    {  // start time
-      if (pModifier == NULL)
-         strcpy(modbuf, "%H:%M-%d.%m.%Y");
-      else
+      if (pModifier != NULL)
+      {
          strncpy(modbuf, pModifier, modifierLen);
+         modbuf[modifierLen] = 0;
+      }
+      else
+         strcpy(modbuf, "%H:%M-%d.%m.%Y");
       strftime(strbuf, sizeof(strbuf), modbuf, localtime(&pPiBlock->start_time));
       PiOutput_ExtCmdAppend(pCmdBuf, strbuf);
    }
    else if (strncmp(pKeyword, "stop", keywordLen) == 0)
    {  // stop time
-      if (pModifier == NULL)
-         strcpy(modbuf, "%H:%M-%d.%m.%Y");
-      else
+      if (pModifier != NULL)
+      {
          strncpy(modbuf, pModifier, modifierLen);
+         modbuf[modifierLen] = 0;
+      }
+      else
+         strcpy(modbuf, "%H:%M-%d.%m.%Y");
       strftime(strbuf, sizeof(strbuf), modbuf, localtime(&pPiBlock->stop_time));
       PiOutput_ExtCmdAppend(pCmdBuf, strbuf);
    }
@@ -1861,10 +1903,13 @@ static void PiOutput_ExtCmdVariable( const PI_BLOCK *pPiBlock, const AI_BLOCK * 
            (vpsTime.tm_mon >= 0) && (vpsTime.tm_mon < 12) &&
            (vpsTime.tm_mday >= 1) && (vpsTime.tm_mday <= 31) )
       {
-         if (pModifier == NULL)
-            strcpy(modbuf, "%H:%M-%d.%m.%Y");
-         else
+         if (pModifier != NULL)
+         {
             strncpy(modbuf, pModifier, modifierLen);
+            modbuf[modifierLen] = 0;
+         }
+         else
+            strcpy(modbuf, "%H:%M-%d.%m.%Y");
          strftime(strbuf, sizeof(strbuf), modbuf, &vpsTime);
          PiOutput_ExtCmdAppend(pCmdBuf, strbuf);
       }
@@ -2003,24 +2048,25 @@ static void PiOutput_CmdSubstitute( const char * pUserCmd, DYN_CHAR_BUF * pCmdBu
 // Execute a user-defined command on the currently selected PI
 // - invoked from the context menu
 //
-static int PiOutput_ExecUserCmd( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+static int PiOutput_ExecUserCmd( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_ExecUserCmd <index>";
    const AI_BLOCK * pAiBlock;
    const PI_BLOCK * pPiBlock;
-   const char * pTmpStr;
+   Tcl_Obj    * pCtxVarObj;
+   Tcl_Obj    * pCtxItemObj;
    const char * pUserCmd;
-   CONST84 char ** userCmds;
+   Tcl_DString  ds;
    DYN_CHAR_BUF cmdbuf;
-   int  idx, userCmdCount;
+   int  userCmdIndex;
    int  result;
 
-   if (argc != 2) 
+   if (objc != 2) 
    {  // parameter count is invalid
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR; 
    }  
-   else if (Tcl_GetInt(interp, argv[1], &idx) != TCL_OK)
+   else if (Tcl_GetIntFromObj(interp, objv[1], &userCmdIndex) != TCL_OK)
    {  // illegal parameter format
       result = TCL_ERROR; 
    }
@@ -2039,13 +2085,12 @@ static int PiOutput_ExecUserCmd( ClientData ttp, Tcl_Interp *interp, int argc, c
       pPiBlock = PiListBox_GetSelectedPi();
       if ((pAiBlock != NULL) && (pPiBlock != NULL))
       {
-         pTmpStr = Tcl_GetVar(interp, "ctxmencf", TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG);
-         if ( (pTmpStr != NULL) &&
-              (Tcl_SplitList(interp, pTmpStr, &userCmdCount, &userCmds) == TCL_OK) )
+         pCtxVarObj = Tcl_GetVar2Ex(interp, "ctxmencf", NULL, TCL_GLOBAL_ONLY);
+         if (pCtxVarObj != NULL)
          {
-            if (idx * 2 + 1 < userCmdCount)
+            if (Tcl_ListObjIndex(interp, pCtxVarObj, userCmdIndex * 2 + 1, &pCtxItemObj) == TCL_OK)
             {
-               pUserCmd = userCmds[idx * 2 + 1];
+               pUserCmd = Tcl_UtfToExternalDString(NULL, Tcl_GetString(pCtxItemObj), -1, &ds);
                #ifdef WIN32
                if (strncmp(USERCMD_PREFIX_WINTV, pUserCmd, USERCMD_PREFIX_WINTV_LEN) == 0)
                {  // substitute and break strings apart at spaces, then pass argv to TV app
@@ -2103,10 +2148,10 @@ static int PiOutput_ExecUserCmd( ClientData ttp, Tcl_Interp *interp, int argc, c
                   // execute the command
                   system(cmdbuf.strbuf);
                }
+               Tcl_DStringFree(&ds);
             }
             else
-               debug1("PiOutput-ExecUserCmd: user cmd #%d not found", idx);
-            Tcl_Free((char *) userCmds);
+               debug1("PiOutput-ExecUserCmd: user cmd #%d not found", userCmdIndex);
          }
       }
       EpgDbLockDatabase(pUiDbContext, FALSE);
@@ -2120,9 +2165,9 @@ static int PiOutput_ExecUserCmd( ClientData ttp, Tcl_Interp *interp, int argc, c
 //
 void PiOutput_CtxMenuAddUserDef( const char * pMenu, bool addSeparator )
 {
-   const char * pTmpStr;
-   CONST84 char ** userCmds;
-   int userCmdCount;
+   Tcl_Obj  * pCtxVarObj;
+   Tcl_Obj ** pCtxList;
+   int  userCmdCount;
    uint idx;
    #ifdef WIN32
    bool isConnected;
@@ -2130,9 +2175,9 @@ void PiOutput_CtxMenuAddUserDef( const char * pMenu, bool addSeparator )
    isConnected = WintvSharedMem_IsConnected(NULL, 0, NULL);
    #endif
 
-   pTmpStr = Tcl_GetVar(interp, "ctxmencf", TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG);
-   if ( (pTmpStr != NULL) &&
-        (Tcl_SplitList(interp, pTmpStr, &userCmdCount, &userCmds) == TCL_OK) &&
+   pCtxVarObj = Tcl_GetVar2Ex(interp, "ctxmencf", NULL, TCL_GLOBAL_ONLY);
+   if ( (pCtxVarObj != NULL) &&
+        (Tcl_ListObjGetElements(interp, pCtxVarObj, &userCmdCount, &pCtxList) == TCL_OK) &&
         (userCmdCount > 0) )
    {
       if (addSeparator)
@@ -2141,13 +2186,13 @@ void PiOutput_CtxMenuAddUserDef( const char * pMenu, bool addSeparator )
          eval_check(interp, comm);
       }
 
-      for (idx=0; idx < userCmdCount; idx += 2)
+      for (idx=0; idx + 1 < userCmdCount; idx += 2)
       {
          sprintf(comm, "%s add command -label {%s} -command {C_ExecUserCmd %d}",
-                       pMenu, userCmds[idx], idx / 2);
+                       pMenu, Tcl_GetString(pCtxList[idx]), idx / 2);
 
          #ifdef WIN32
-         if ( (strncmp(USERCMD_PREFIX_WINTV, userCmds[idx + 1], USERCMD_PREFIX_WINTV_LEN) == 0) &&
+         if ( (strncmp(USERCMD_PREFIX_WINTV, Tcl_GetString(pCtxList[idx + 1]), USERCMD_PREFIX_WINTV_LEN) == 0) &&
               (isConnected == FALSE) )
          {
             strcat(comm, " -state disabled");
@@ -2163,8 +2208,11 @@ void PiOutput_CtxMenuAddUserDef( const char * pMenu, bool addSeparator )
 //
 void PiOutput_Destroy( void )
 {
-   if (pPiboxCols != defaultPiboxCols)
-      xfree((void *)pPiboxCols);
+   if (pPiboxColCfg != defaultPiboxCols)
+   {
+      xfree((void *)pPiboxColCfg);
+      pPiboxColCfg = defaultPiboxCols;
+   }
 }
 
 // ----------------------------------------------------------------------------
@@ -2177,19 +2225,14 @@ void PiOutput_Create( void )
 
    if (Tcl_GetCommandInfo(interp, "C_PiOutput_CfgColumns", &cmdInfo) == 0)
    {
-      Tcl_CreateCommand(interp, "C_PiOutput_CfgColumns", PiOutput_CfgColumns, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_PiOutput_SetNetnameColumnWidth", PiOutput_TclCb_SetNetnameColumnWidth, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_DumpHtml", PiOutput_DumpHtml, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_PopupPi", PiOutput_PopupPi, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_ExecUserCmd", PiOutput_ExecUserCmd, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_PiOutput_CfgColumns", PiOutput_CfgColumns, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_DumpHtml", PiOutput_DumpHtml, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_PopupPi", PiOutput_PopupPi, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_ExecUserCmd", PiOutput_ExecUserCmd, (ClientData) NULL, NULL);
 
-      // set the column configuration
-      PiOutput_CacheThemesMaxLen();
-
-      // create the column headers & set TAB stops in PI listbox
-      PiOutput_SetNetnameColumnWidth(TRUE);
+      eval_check(interp, "UpdatePiListboxColumns");
    }
    else
-      debug0("PiOutput-Create: commands were already created");
+      fatal0("PiOutput-Create: commands were already created");
 }
 

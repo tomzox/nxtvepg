@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: timescale.c,v 1.7 2002/05/14 19:22:12 tom Exp tom $
+ *  $Id: timescale.c,v 1.9 2002/09/16 11:57:25 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -59,6 +59,9 @@ static struct
    uchar  lastStream;        // index of last received stream
    int    highlighted;       // index of last network marked by acq
    time_t startTime;         // for DisplayPi: start time of time scales, equal start time of oldest PI in db
+   uint   widthPixels;       // width of the PI scales in pixels
+   uint   widthSecs;         // width in seconds (i.e. time span covered by the entire scale)
+   uint   secsPerPixel;      // scale factor for zooming
 } tscaleState[2];
 
 static Tcl_TimerToken scaleUpdateHandler = NULL;  // for "now" arrow in date scales
@@ -100,9 +103,13 @@ const char * const streamColors[STREAM_COLOR_COUNT] =
 
 // timescale popup configuration (must match Tcl source)
 #define NOW_NEXT_BLOCK_COUNT    5
-#define TSC_WIDTH_IN_PIXELS     256
-#define TSC_WIDTH_IN_DAYS       5
-#define TSC_WIDTH_IN_SECS       (TSC_WIDTH_IN_DAYS * 24*60*60)
+// minimum width of the scale canvas in days
+#define TSC_SCALE_MIN_DAY_COUNT       2
+// conversion factor between canvas and time offsets (minimum, default, maximum)
+// note: the actual factor can be changed by the zoom function
+#define TSC_MIN_SECS_PER_PIXEL       (5 * 60)  // must be > 0
+#define TSC_DEF_SECS_PER_PIXEL      (30 * 60)
+#define TSC_MAX_SECS_PER_PIXEL      (60 * 60)
 
 
 // ----------------------------------------------------------------------------
@@ -213,14 +220,14 @@ static void TimeScale_UpdateDateScale( ClientData dummy )
          if (now >= tscaleState[target].startTime)
          {
             toff = now - tscaleState[target].startTime;
-            if (toff < TSC_WIDTH_IN_SECS - 7)
+            if (toff < tscaleState[target].widthSecs - 7)
             {
-               sprintf(comm, "TimeScale_DrawDateScale %s %ld {", tscn[target],
-                             (toff * TSC_WIDTH_IN_PIXELS) / TSC_WIDTH_IN_SECS);
+               sprintf(comm, "TimeScale_DrawDateScale %s %d %ld {", tscn[target],
+                             tscaleState[target].widthPixels, toff / tscaleState[target].secsPerPixel);
             }
             else
             {  // "now" is off the scale -> draw a vertical arrow pointing out of the window
-               sprintf(comm, "TimeScale_DrawDateScale %s off {", tscn[target]);
+               sprintf(comm, "TimeScale_DrawDateScale %s %d off {", tscn[target], tscaleState[target].widthPixels);
             }
 
             // generate list of pixel positions of daybreaks (note: cannot use constant
@@ -242,9 +249,9 @@ static void TimeScale_UpdateDateScale( ClientData dummy )
 
                toff = mktime(pTm) - tscaleState[target].startTime;
 
-               if (toff < TSC_WIDTH_IN_SECS)
-                  sprintf(comm + strlen(comm), "%ld %d.%d. ",
-                          (toff * TSC_WIDTH_IN_PIXELS) / TSC_WIDTH_IN_SECS,
+               if (toff < tscaleState[target].widthSecs)
+                  sprintf(comm + strlen(comm), "%u %d.%d. ",
+                          (uint)(toff / tscaleState[target].secsPerPixel),
                           pTm->tm_mday, pTm->tm_mon + 1);
                else
                   break;
@@ -253,12 +260,11 @@ static void TimeScale_UpdateDateScale( ClientData dummy )
             eval_check(interp, comm);
          }
 
-         // install timer to update the position of the NOW array;
-         // the interval is calculated as half of the number of seconds that are represented
-         // by one pixel (with a width of 256 pixel the interval is apx. 14 minutes)
+         // install timer to update the position of the NOW array; the interval is
+         // calculated as half of the number of seconds that are represented by one pixel
          if (scaleUpdateHandler == NULL)  // condition required because of loop
             scaleUpdateHandler =
-               Tcl_CreateTimerHandler(1000 * TSC_WIDTH_IN_SECS / (TSC_WIDTH_IN_PIXELS * 2),
+               Tcl_CreateTimerHandler(1000 * tscaleState[target].secsPerPixel / 2,
                                       TimeScale_UpdateDateScale, NULL);
       }
    }
@@ -270,7 +276,7 @@ static void TimeScale_UpdateDateScale( ClientData dummy )
 //   the given network and start time
 // - return 0 upon error or if the given scale does not refer to the UI db
 //
-static int TimeScale_GetTime( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+static int TimeScale_GetTime( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_TimeScale_GetTime <window> <offset>";
    time_t reqtime;
@@ -278,18 +284,18 @@ static int TimeScale_GetTime( ClientData ttp, Tcl_Interp *interp, int argc, char
    int poff;
    int result;
 
-   if (argc != 3)
+   if (objc != 3)
    {  // parameter count is invalid
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
    }
-   else if (Tcl_GetInt(interp, argv[2], &poff) != TCL_OK)
+   else if (Tcl_GetIntFromObj(interp, objv[2], &poff) != TCL_OK)
    {  // string parameter is not a decimal integer
       result = TCL_ERROR;
    }
    else
    {
-      if (strncmp(tscn[DB_TARGET_UI], argv[1], strlen(tscn[DB_TARGET_UI])) == 0)
+      if (strncmp(tscn[DB_TARGET_UI], Tcl_GetString(objv[1]), strlen(tscn[DB_TARGET_UI])) == 0)
         target = DB_TARGET_UI;
       else
         target = DB_TARGET_ACQ;
@@ -298,7 +304,7 @@ static int TimeScale_GetTime( ClientData ttp, Tcl_Interp *interp, int argc, char
       {
         if ((target == DB_TARGET_UI) || (pUiDbContext == pAcqDbContext))
         {
-           reqtime = tscaleState[target].startTime + (poff * TSC_WIDTH_IN_SECS) / TSC_WIDTH_IN_PIXELS;
+           reqtime  = tscaleState[target].startTime + (poff * tscaleState[target].secsPerPixel);
         }
         else
         {  // not the UI database -> return error code
@@ -307,12 +313,11 @@ static int TimeScale_GetTime( ClientData ttp, Tcl_Interp *interp, int argc, char
       }
       else
       {
-        debug1("TimeScale-GetTime: scale %s not open", argv[1]);
+        debug1("TimeScale-GetTime: scale %s not open", Tcl_GetString(objv[1]));
         reqtime = 0;
       }
 
-      sprintf(comm, "%ld", reqtime);
-      Tcl_SetResult(interp, comm, TCL_VOLATILE);
+      Tcl_SetObjResult(interp, Tcl_NewIntObj(reqtime));
 
       result = TCL_OK;
    }
@@ -422,29 +427,29 @@ static void TimeScale_DisplayPi( int target, STREAM_COLOR streamCol, uchar netwo
       else if (start < tscaleState[target].startTime)
       {  // this PI starts before the current beginning of the scales -> shift to the right
          // convert start time difference to pixel correction offset, rounding up
-         corrOff = ((tscaleState[target].startTime - start) * TSC_WIDTH_IN_PIXELS + TSC_WIDTH_IN_SECS - 1) / TSC_WIDTH_IN_SECS;
+         corrOff = ((tscaleState[target].startTime - start) + tscaleState[target].secsPerPixel-1) / tscaleState[target].secsPerPixel;
          debug2("TimeScale-DisplayPi: shift timescale by %ld minutes = %d pixels", (tscaleState[target].startTime - start) / 60, corrOff);
 
          sprintf(comm, "TimeScale_ShiftRight %s %d\n", tscn[target], corrOff);
          eval_check(interp, comm);
 
          // set start time to the exact equivalence of the pixel offset
-         tscaleState[target].startTime -= (corrOff * TSC_WIDTH_IN_SECS + TSC_WIDTH_IN_PIXELS/2) / TSC_WIDTH_IN_PIXELS;
+         tscaleState[target].startTime -= corrOff * tscaleState[target].secsPerPixel;
          TimeScale_UpdateDateScale(NULL);
       }
 
       start -= tscaleState[target].startTime;
 
       // check if the PI lies inside the visible range
-      if ( (start < TSC_WIDTH_IN_SECS) &&
+      if ( (start < tscaleState[target].widthSecs) &&
            (stop > tscaleState[target].startTime) )
       {
          stop -= tscaleState[target].startTime;
-         if (stop > TSC_WIDTH_IN_SECS)
-            stop = TSC_WIDTH_IN_SECS;
+         if (stop > tscaleState[target].widthSecs)
+            stop = tscaleState[target].widthSecs;
 
-         startOff = (start * TSC_WIDTH_IN_PIXELS) / TSC_WIDTH_IN_SECS;
-         stopOff  = (stop  * TSC_WIDTH_IN_PIXELS) / TSC_WIDTH_IN_SECS;
+         startOff = (start + tscaleState[target].secsPerPixel/2) / tscaleState[target].secsPerPixel;
+         stopOff  = (stop + tscaleState[target].secsPerPixel/2)  / tscaleState[target].secsPerPixel;
 
          sprintf(comm, "TimeScale_AddRange %s %d %d %d %s %d %d %d\n",
                  tscn[target], netwop, startOff, stopOff,
@@ -467,7 +472,7 @@ static void TimeScale_DisplayPi( int target, STREAM_COLOR streamCol, uchar netwo
          }
       }
       else
-         dprintf1("TimeScale-DisplayPi: PI is beyond the scale by %ld minutes\n", (start - TSC_WIDTH_IN_SECS) / 60);
+         dprintf1("TimeScale-DisplayPi: PI is beyond the scale by %ld minutes\n", (start - tscaleState[target].widthSecs) / 60);
    }
    else
       fatal2("TimeScale-DisplayPi: illegal target=%d or color idx=%d", target, streamCol);
@@ -716,6 +721,34 @@ static void TimeScale_ProcessAcqQueue( ClientData dummy )
 }
 
 // ----------------------------------------------------------------------------
+// Helper function: determine the max. day count of all networks in AI
+// - determines the width of the timescale window
+//
+static uint TimeScale_GetMaxDayCount( EPGDB_CONTEXT * dbc )
+{
+   const AI_BLOCK * pAi;
+   uint  days, maxDays;
+   uint  idx;
+
+   maxDays = TSC_SCALE_MIN_DAY_COUNT;
+
+   EpgDbLockDatabase(dbc, TRUE);
+   pAi = EpgDbGetAi(dbc);
+   if (pAi != NULL)
+   {
+      for (idx = 0; idx < pAi->netwopCount; idx++)
+      {
+         days = AI_GET_NETWOP_N(pAi, idx)->dayCount;
+         if (days > maxDays)
+            maxDays = days;
+      }
+   }
+   EpgDbLockDatabase(dbc, FALSE);
+
+   return maxDays;
+}
+
+// ----------------------------------------------------------------------------
 // Update time scale popup window for new provider or AI version
 // - the network table is updated; rows added or deleted if required
 // - all scales are cleared and refilled (this is required even when the
@@ -741,18 +774,22 @@ static void TimeScale_CreateOrRebuild( ClientData dummy )
 
          if (EpgDbContextGetCni(dbc) != 0)
          {
-            // create (or update) network table: each row has a label and scale
-            sprintf(comm, "TimeScale_Open %s 0x%04X %s %d\n",
-                          tscn[target], EpgDbContextGetCni(dbc),
-                          ((target == DB_TARGET_UI) ? "ui" : "acq"),
-                          EpgDbContextIsMerged(dbc));
-            eval_check(interp, comm);
-
             // initialize/reset state struct
+            // (note: conversion factor secsPerPixel is reset only upon initial display or prov change)
             tscaleState[target].highlighted = 0xff;
             tscaleState[target].lastStream  = 0xff;
             tscaleState[target].filled      = FALSE;
             tscaleState[target].isForAcq    = (target == DB_TARGET_ACQ);
+            tscaleState[target].widthSecs   = (TimeScale_GetMaxDayCount(dbc) + 1) * 24*60*60;
+            tscaleState[target].widthPixels = tscaleState[target].widthSecs / tscaleState[target].secsPerPixel;
+
+            // create (or update) network table: each row has a label and scale
+            sprintf(comm, "TimeScale_Open %s 0x%04X %s %d %d\n",
+                          tscn[target], EpgDbContextGetCni(dbc),
+                          ((target == DB_TARGET_UI) ? "ui" : "acq"),
+                          EpgDbContextIsMerged(dbc),
+                          tscaleState[target].widthPixels);
+            eval_check(interp, comm);
 
             EpgDbLockDatabase(dbc, TRUE);
             pPi = EpgDbSearchFirstPi(dbc, NULL);
@@ -784,6 +821,9 @@ static void TimeScale_CreateOrRebuild( ClientData dummy )
             {
                dprintf1("TimeScale-InitialFill: no PI for %s scale - wait for acq\n", ((target == DB_TARGET_UI) ? "ui" : "acq"));
                tscaleState[target].startTime = 0;
+
+               sprintf(comm, "TimeScale_ClearDateScale %s %d\n", tscn[target], tscaleState[target].widthPixels);
+               eval_check(interp, comm);
             }
 
             EpgDbLockDatabase(dbc, FALSE);
@@ -815,9 +855,10 @@ static void TimeScale_CreateOrRebuild( ClientData dummy )
 // - can not be opened until an AI block has been received
 //   because we need to know the number and names of netwops in the EPG
 //
-static int TimeScale_Toggle( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+static int TimeScale_Toggle( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_TimeScale_Toggle ui|acq [0|1]";
+   const char * pKey;
    EPGDB_CONTEXT *dbc;
    int target, newState;
    int result;
@@ -826,15 +867,16 @@ static int TimeScale_Toggle( ClientData ttp, Tcl_Interp *interp, int argc, char 
    target = 0;
    result = TCL_OK;
 
-   if ((argc == 2) || (argc == 3))
+   pKey = Tcl_GetString(objv[1]);
+   if (((objc == 2) || (objc == 3)) && (pKey != NULL))
    {
       // determine target from first parameter: ui or acq db context
-      if (strcmp(argv[1], "ui") == 0)
+      if (strcmp(pKey, "ui") == 0)
       {
          dbc = pUiDbContext;
          target = DB_TARGET_UI;
       }
-      else if (strcmp(argv[1], "acq") == 0)
+      else if (strcmp(pKey, "acq") == 0)
       {
          dbc = pAcqDbContext;
          target = DB_TARGET_ACQ;
@@ -848,14 +890,13 @@ static int TimeScale_Toggle( ClientData ttp, Tcl_Interp *interp, int argc, char 
    if (result == TCL_OK)
    {
       // determine new state from optional second parameter: 0, 1 or toggle
-      if (argc == 2)
+      if (objc == 2)
       {  // no parameter -> toggle current state
          newState = ! tscaleState[target].open;
       }
       else
       {
-         if (Tcl_GetBoolean(interp, argv[2], &newState))
-            result = TCL_ERROR;
+         result = Tcl_GetBooleanFromObj(interp, objv[2], &newState);
       }
    }
 
@@ -872,6 +913,7 @@ static int TimeScale_Toggle( ClientData ttp, Tcl_Interp *interp, int argc, char 
                tscaleState[target].highlighted = 0xff;
                tscaleState[target].open   = TRUE;
                tscaleState[target].locked = TRUE;
+               tscaleState[target].secsPerPixel = TSC_DEF_SECS_PER_PIXEL;
 
                // create the window and its content
                TimeScale_CreateOrRebuild(NULL);
@@ -889,7 +931,7 @@ static int TimeScale_Toggle( ClientData ttp, Tcl_Interp *interp, int argc, char 
             // update connection between timescale windows and acq
             TimeScale_RequestAcq();
          }
-         sprintf(comm, "set menuStatusTscaleOpen(%s) %d\n", argv[1], tscaleState[target].open);
+         sprintf(comm, "set menuStatusTscaleOpen(%s) %d\n", Tcl_GetString(objv[1]), tscaleState[target].open);
          eval_check(interp, comm);
       }
    }
@@ -897,6 +939,70 @@ static int TimeScale_Toggle( ClientData ttp, Tcl_Interp *interp, int argc, char 
    {  // error of any kind -> display usage
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
    }
+
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Zoom a timescale window horizontally
+//
+static int TimeScale_Zoom( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+{
+   const char * const pUsage = "Usage: C_TimeScale_Zoom ui|acq <step>";
+   const char * pKey;
+   uint target;
+   uint  newFac;
+   int   step;
+   int   result = TCL_ERROR;
+
+   if (objc != 3)
+   {  // parameter count is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else if (Tcl_GetIntFromObj(interp, objv[2], &step) != TCL_OK)
+   {  // string parameter is not a decimal integer
+      result = TCL_ERROR;
+   }
+   else if ( (pKey = Tcl_GetString(objv[1])) != NULL)
+   {
+      result = TCL_OK;
+      // determine target from first parameter: ui or acq db window
+      if (strcmp(pKey, "ui") == 0)
+         target = DB_TARGET_UI;
+      else if (strcmp(pKey, "acq") == 0)
+         target = DB_TARGET_ACQ;
+      else
+         target = TCL_ERROR;
+
+      if (result == TCL_OK)
+      {
+         newFac = tscaleState[target].secsPerPixel;
+         if (step > 0)
+            newFac = (newFac * 2) / 3;
+         else if (step < 0)
+            newFac = (newFac * 3 + 1) / 2;
+         // round up/down to the closest minute
+         newFac = newFac - ((newFac + 30) % 60);
+
+         if (newFac < TSC_MIN_SECS_PER_PIXEL)
+            newFac = TSC_MIN_SECS_PER_PIXEL;
+         else if (newFac > TSC_MAX_SECS_PER_PIXEL)
+             newFac = TSC_MAX_SECS_PER_PIXEL;
+
+         if (newFac != tscaleState[target].secsPerPixel)
+         {
+            tscaleState[target].secsPerPixel = newFac;
+
+            tscaleState[target].locked = TRUE;
+            AddMainIdleEvent(TimeScale_CreateOrRebuild, NULL, TRUE);
+         }
+      }
+      else
+         debug1("TimeScale-Zoom: illegal target window keyword '%s'", pKey);
+   }
+   else
+      debug0("TimeScale-Zoom: failed to get string from Tcl objv[1]");
 
    return result;
 }
@@ -918,6 +1024,7 @@ void TimeScale_ProvChange( int target )
       if (tscaleState[target].open)
       {
          tscaleState[target].locked = TRUE;
+         tscaleState[target].secsPerPixel = TSC_DEF_SECS_PER_PIXEL;
          AddMainIdleEvent(TimeScale_CreateOrRebuild, NULL, TRUE);
       }
 
@@ -1031,8 +1138,9 @@ void TimeScale_Create( void )
 
    if (Tcl_GetCommandInfo(interp, "C_TimeScale_Toggle", &cmdInfo) == 0)
    {
-      Tcl_CreateCommand(interp, "C_TimeScale_Toggle", TimeScale_Toggle, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_TimeScale_GetTime", TimeScale_GetTime, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_TimeScale_Toggle", TimeScale_Toggle, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_TimeScale_GetTime", TimeScale_GetTime, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_TimeScale_Zoom", TimeScale_Zoom, (ClientData) NULL, NULL);
    }
    else
       fatal0("TimeScale-Create: commands are already created");

@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: hamming.c,v 1.8 2002/05/12 20:19:13 tom Exp tom $
+ *  $Id: hamming.c,v 1.8 2002/05/12 20:19:13 tom Exp $
  */
 
 #define __HAMMING_C

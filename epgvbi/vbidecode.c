@@ -26,7 +26,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: vbidecode.c,v 1.30 2002/05/10 14:59:31 tom Exp tom $
+ *  $Id: vbidecode.c,v 1.31 2002/09/14 19:00:36 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -150,7 +150,7 @@ void VbiDecodeLine(const uchar * lbuf, int line, bool doVps)
                case 0x27:
                   for (i = 3; i < 45; i++)
                      data[i] = vtscan(lbuf, &spos, off);
-                  TtxDecode_AddPacket(data + 3);
+                  TtxDecode_AddPacket(data + 3, line);
                   break;
                default:
                   //printf("****** line=%d  [2]=%x != 0x27 && 0xd8\n", line, data[2]);

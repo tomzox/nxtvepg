@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgscan.h,v 1.11 2002/05/30 14:01:28 tom Exp tom $
+ *  $Id: epgscan.h,v 1.12 2002/09/14 18:13:19 tom Exp tom $
  */
 
 #ifndef __EPGSCAN_H
@@ -50,13 +50,14 @@ typedef enum
 
 // callback function which is used by the scan handler to give user feedback
 typedef void (EPGSCAN_MSGCB) ( const char * pMsg, bool bold );
+typedef void (EPGSCAN_DELCB) ( uint cni );
 
 // ---------------------------------------------------------------------------
 // Interface to main control module and user interface
 //
 EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv, bool doRefresh,
-                                    uint *cniTab, uint *freqTab, uint freqCount,
-                                    uint * pRescheduleMs, EPGSCAN_MSGCB * MsgCallback );
+                                    uint *cniTab, uint *freqTab, uint freqCount, uint * pRescheduleMs,
+                                    EPGSCAN_MSGCB * pMsgCallback, EPGSCAN_DELCB * pProvDelCallback  );
 uint EpgScan_EvHandler( void );
 void EpgScan_Stop( void );
 void EpgScan_SetSpeed( bool doFast );

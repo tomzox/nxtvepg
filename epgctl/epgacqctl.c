@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqctl.c,v 1.75 2002/08/24 13:54:56 tom Exp tom $
+ *  $Id: epgacqctl.c,v 1.76 2002/09/14 18:13:00 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -736,31 +736,20 @@ static bool EpgAcqCtl_TuneProvider( uint freq, uint cni )
    // remember time of channel change
    acqCtl.chanChangeTime = time(NULL);
 
+   // tune onto the provider's channel (before starting acq, to avoid catching false data)
    // always set the input source - may have been changed externally (since we don't hog the video device permanently)
-   if ( BtDriver_SetInputSource(acqCtl.inputSource, TRUE, &isTuner) )
+   if ( BtDriver_TuneChannel(acqCtl.inputSource, freq, FALSE, &isTuner) )
    {
       if (isTuner)
       {
          if (freq != 0)
          {
-            // tune onto the provider's channel (before starting acq, to avoid catching false data)
-            if (BtDriver_TuneChannel(freq, FALSE))
-            {
-               BtDriver_CloseDevice();
-               result = TRUE;
-            }
-            else
-            {
-               dprintf0("EpgAcqCtl-TuneProv: failed to tune channel -> force to passive mode\n");
-               acqCtl.mode = ACQMODE_FORCED_PASSIVE;
-               acqCtl.passiveReason = ACQPASSIVE_ACCESS_DEVICE;
-            }
+            result = TRUE;
          }
          else
          {
             dprintf0("EpgAcqCtl-TuneProv: no freq in db\n");
             // close the device, which was kept open after setting the input source
-            BtDriver_CloseDevice();
             if (cni != 0)
             {  // inform the user that acquisition will not be possible
                UiControlMsg_MissingTunerFreq(cni);
@@ -919,7 +908,7 @@ static bool EpgAcqCtl_UpdateProvider( bool changeDb )
       {  // no provider to be tuned onto -> set at least the input source
          if (acqCtl.mode != ACQMODE_PASSIVE)
          {
-            result = EpgAcqCtl_TuneProvider(0L, 0);
+            result = EpgAcqCtl_TuneProvider(0, 0);
             inputChanged = ((acqCtl.mode != ACQMODE_FORCED_PASSIVE) || (acqCtl.passiveReason != ACQPASSIVE_ACCESS_DEVICE));
          }
       }
@@ -1394,7 +1383,7 @@ static bool EpgAcqCtl_AiCallback( const AI_BLOCK *pNewAi )
             pAcqDbContext->tunerFreq = BtDriver_QueryChannel();
             if (pAcqDbContext->tunerFreq != 0)
             {  // store the provider channel frequency in the rc/ini file
-               debug2("EpgAcqCtl: setting current tuner frequency %.2f for CNI 0x%04X", (double)pAcqDbContext->tunerFreq/16, ai_cni);
+               debug2("EpgAcqCtl: setting current tuner frequency %.2f for CNI 0x%04X", (double)(pAcqDbContext->tunerFreq & 0xffffff)/16, ai_cni);
                UiControlMsg_NewProvFreq(ai_cni, pAcqDbContext->tunerFreq);
             }
          }
@@ -1511,7 +1500,7 @@ static bool EpgAcqCtl_AiCallback( const AI_BLOCK *pNewAi )
             pAcqDbContext->tunerFreq = BtDriver_QueryChannel();
             if (pAcqDbContext->tunerFreq != 0)
             {  // store the provider channel frequency in the rc/ini file
-               debug2("EpgAcqCtl: setting current tuner frequency %.2f for CNI 0x%04X", (double)pAcqDbContext->tunerFreq/16, ai_cni);
+               debug2("EpgAcqCtl: setting current tuner frequency %.2f for CNI 0x%04X", (double)(pAcqDbContext->tunerFreq & 0xffffff)/16, ai_cni);
                UiControlMsg_NewProvFreq(ai_cni, pAcqDbContext->tunerFreq);
             }
          }

@@ -70,7 +70,7 @@ DEFS   += -DEPG_DB_DIR=\"$(DB_DIR)\"
 INST_DB_DIR = $(ROOT)$(DB_DIR)
 
 WARN    = -Wall -Wnested-externs -Wstrict-prototypes -Wmissing-prototypes
-#WARN   += -Wpointer-arith -Werror
+#WARN  += -Wpointer-arith -Werror
 CC      = gcc
 CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -O6
 #LDLIBS += -pg
