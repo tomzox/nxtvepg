@@ -4,13 +4,14 @@ In this software package you find a decoder for Nextview - an Electronic
 TV Programme Guide for the analog domain (as opposed to the various digital
 EPGs that come with most digital broadcasts). It allows you to decode and
 browse TV programme listings for most of the major networks in Germany,
-Austria, France and Switzerland.
+Austria, France, Belgium and Switzerland.
 
 Currently Nextview EPG is transmitted by:
-- in Germany and Austria: Kabel1, RTL-II.
-- in Switzerland: SF1, TSR1, TSI1, EuroNews.
-- in France: Canal+, M6, TV5, EuroNews.
-- in Turkey: TRT.
+- in Germany and Austria: Kabel1, RTL-II (coverage: apx. 32 networks)
+- in Switzerland: SF1, TSR1, TSI1, EuroNews (coverage: apx. 37 networks)
+- in France: Canal+, M6, TV5, EuroNews (coverage: 8 networks)
+- in Belgium: VT4 (coverage: 32 networks)
+- in Turkey: TRT (coverage: apx. 17 networks)
 
 If you don't receive any of those, then this software unfortunately is
 almost useless to you, except for a demo mode. For more details please
@@ -25,30 +26,42 @@ distribution will be kindly tolerated.
 
 System requirements:
 
-Hardware requirements are a PC or workstation with a 90 MHz Intel Pentium
-or equivalently (or more) powerful CPU, and a TV tuner card (analog, i.e.
-not DVB).  The Windows version supports all TV cards based either on the
-capture chips Brooktree Fusion Bt878/Bt848 or Philips SAA7134 (Support for
-Conexant CX23881 is currently under construction).  The Linux version
-supports all cards for which a "video4linux" compatible driver exists
-(e.g. bttv or saa7134, including even USB TV boxes).  The NetBSD and FreeBSD
-versions support all cards which are supported by the bktr driver.
+Hardware minimum requirements are a PC or workstation with performance
+equivalent to a 90 MHz Intel Pentium CPU and 64 MB of RAM (note nxtvepg
+is also known to work fine on Power-PC and Ultra-Sparc platforms.)
+Additionaly a TV tuner card (analog, i.e. not DVB) is required.
+
+The Windows version supports all TV cards based either on the capture
+chips Brooktree Fusion Bt878/Bt848, sucessor Conexant CX23881 or
+Philips SAA7134.
+
+The Linux version supports all cards for which a "video4linux" or v4l2
+compatible driver exists (e.g. bttv, saa7134, cx8800, possibly even USB
+TV boxes.)  NetBSD and FreeBSD versions supports all cards which are
+supported by the bktr driver.
 
 Linux software requirements:
-- kernel >= 2.0.35 (upgrade to 2.2.x highly recommended for bttv users)
-- video4linux and bttv drivers, bttv version >= 0.7.35 recommended;
-  (note: SAA7134 support requires at least kernel 2.4.20 plus some v4l2
-  patches, see http://www.bytesex.org/)
-- GNU C Compiler, unless you got nxtvepg precompiled for your platform
-- Tcl/Tk version 8.3 or later (note version 8.4.0 to .3 were slow, use 8.4.4)
-  available from http://www.scriptics.com/
+- for bttv kernel >= 2.0.35 (2.0.x was prone to freezes with bttv though,
+  hence upgrade to at least 2.2.x is highly recommended)
+- SAA7134 and CX23881 cards require at least kernel 2.4.x plus some v4l2
+  kernel patches (your Linux distribution may already include those if it
+  comes with saa7134 support), see http://www.bytesex.org/; alternatively
+  use kernel 2.6.2 or later, which works without patches.
+- video4linux and bttv drivers, bttv version >= 0.7.55 recommended;
+  saa7134 version >= 0.2.9 required; cx88xx driver (for cards with Conexant
+  CX23881 aka Bt881 capture chip) has no official release as of writing this,
+  use snapshot video4linux-20040330 or later from http://www.bytesex.org/
+- GNU C Compiler 2.93.3 or later, unless you got nxtvepg precompiled for
+  your platform
+- Tcl/Tk version 8.3 or later (note version 8.4.0 to 8.4.3 were slow,
+  use 8.4.4); sources available for download from http://www.tcl.tk/
 
 NetBSD software requirements:
 - kernel >= 1.5 including the bktr driver 2.17 or later,
   available from http://vulture.dmem.strath.ac.uk/bt848/
 - GNU C Compiler, unless you got nxtvepg in a precompiled NetBSD package
-- Tcl/Tk version 8.0 or later (8.3 recommended)
-  available from http://www.scriptics.com/
+- Tcl/Tk version 8.3 or later (8.4 recommended)
+  available from http://www.tcl.tk/
 
 Windows software requirements:
 - Nothing actually: nxtvepg is shipped with all the required components.
@@ -62,20 +75,43 @@ Windows software requirements:
 
 UNIX installation procedure (when compiling from source):
 
-- Recommended: first install a TV application like "xawtv" and a teletext
-  decoder like "alevt" to be sure the video and vbi drivers work fine.
-- Check the path definitions at the top of the Makefile, esp. for Tcl/Tk
-- make
-  if compilation fails, check the type definitions in epgctl/mytypes.h first.
-  Required types are: schar, uchar, sint, uint, slong, ulong.
+- Recommended: first install a TV application like "xawtv" to make sure
+  sure your drivers work correctly.
+
+- There's currently no "configure" script, so you have to manually check
+  path definitions at the top of the Makefile, esp. for the Tcl/Tk libraries,
+  include path and script libraries.
+
+- There are also several compile-time options in the Makefile which you
+  might want to consider, however the defaults should work everywhere.
+
 - If you compile on a non-supported operating system or if you don't have a
-  TV card or a supported driver, then compile epgvbi/btdrv4dummy instead of
-  btdrv4linux (you still can use network acquisition mode to receive data
-  from a supported platform)
+  TV card or a supported driver, then replace epgvbi/btdrv4linux with module
+  epgvbi/btdrv4dummy in the Makefiles (you still can use network acquisition
+  mode to receive data from a supported platform)
+
+- make
+  + Note: typing "make nxtvepg" will not work since there are other targets
+    which need to be built first.  Hence just start make without parameters.
+  + If compilation fails with massive syntay errors, check the type
+    definitions in epgctl/mytypes.h first.  Required types are: bool,
+    schar, uchar, sint, uint, slong, ulong.  Compilation may fail if these
+    are already defined in system header files; in this case you probably
+    have to comment out nxtvepg's definition.
+  + To compile the tvsim test & development suite too, invoke "make all"
+  + Intermediate objects and the binaries are generated in a subdirectory
+    named build-<platform> (e.g. build-i386 for an Intel compatible)
+
 - make install
+  This will copy the nxtvepg executable into system directories and set up
+  a directory where the databases are stored.  Usually you need to "su root"
+  to have permission to do so.
+
 - Invoke the application and start a provider scan from the Configure menu.
-  Further details can be found in the man page or help menu, section
-  "Getting Started"
+  Alternatively, tune a Nextview provider's TV channel with a TV application
+  (see provider list at the top of this file) and let nxtvepg run in parallel,
+  it should automatically pick up incoming Nextview EPG data.  Further
+  details can be found in the man page or help menu, section "Getting Started"
 
 If the GUI shows up but does not react to any input, you probably
 need to tell Tcl/Tk where to find it's libraries. To do so, correct
@@ -125,7 +161,7 @@ Compilation procedure for Windows
 - The source package as provided in the release distributions does not
   contain the Tcl/Tk libraries (DLLs).  You can simply copy those from
   the Windows binary package into the source root directory.  You could
-  also use the original DLLs as available from http://www.scriptics.com/,
+  also use the original DLLs as available from http://www.tcl.tk/,
   but you'd miss a few patches (see README.tcl*; patches were made
   (1) to catch shutdown messages (2) to disable use of the Windows
   MessageBox() in tk_messageBox because it crashed the program and
@@ -272,7 +308,8 @@ debug.out log file.
 The latest version of this software is available at:
 http://nxtvepg.sourceforge.net/
 
-You can reach me at: tomzo (at) users.sourceforge.net
+Best way to provide feedback is via the discussion forum at the above site,
+but you can also contact me personally at: tomzo (at) users.sourceforge.net
 
 have fun.
 

@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqctl.c,v 1.78 2003/04/09 20:44:17 tom Exp tom $
+ *  $Id: epgacqctl.c,v 1.83 2004/03/28 13:40:49 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -64,12 +64,15 @@ typedef struct
    EPGACQ_MODE    userMode;
    EPGACQ_PASSIVE passiveReason;
    EPGACQ_PHASE   cyclePhase;
+   EPGACQ_PHASE   stopPhase;
    uint           cycleIdx;
    uint           cniCount;
    uint           cniTab[MAX_MERGED_DB_COUNT];
    time_t         dumpTime;
    time_t         chanChangeTime;
    uint           inputSource;
+   uint           currentSlicerType;
+   bool           autoSlicerType;
    bool           haveWarnedInpSrc;
 } EPGACQCTL_STATE;
 
@@ -257,6 +260,9 @@ const EPGDB_STATS * EpgAcqCtl_GetAcqStats( void )
       {  // retrieve additional data from TTX packet decoder
          TtxDecode_GetStatistics(&acqStats.ttx.ttxPkgCount,
                                  &acqStats.ttx.epgPkgCount, &acqStats.ttx.epgPagCount);
+         EpgStreamGetStatistics(&acqStats.stream);
+
+         acqStats.lastStatsUpdate = time(NULL);
       }
 
       pAcqStats = &acqStats;
@@ -347,7 +353,7 @@ void EpgAcqCtl_UpdateNetProvList( uint cniCount, const uint * pCniList )
    if ( (acqCtl.userMode == ACQMODE_FOLLOW_UI) ||
         (acqCtl.userMode == ACQMODE_FOLLOW_MERGED) )
    {
-      EpgAcqCtl_SelectMode(ACQMODE_FOLLOW_UI, cniCount, pCniList);
+      EpgAcqCtl_SelectMode(ACQMODE_FOLLOW_UI, ACQMODE_PHASE_COUNT, cniCount, pCniList);
    }
 }
 #endif  // USE_DAEMON
@@ -785,6 +791,12 @@ static bool EpgAcqCtl_TuneProvider( uint freq, uint cni )
          acqCtl.mode = ACQMODE_FORCED_PASSIVE;
          acqCtl.passiveReason = ACQPASSIVE_NO_TUNER;
       }
+
+      if (acqCtl.autoSlicerType)
+      {  // in auto-mode fall back to default slicer for every channel change
+         acqCtl.currentSlicerType = VBI_SLICER_TRIVIAL;
+         BtDriver_SelectSlicer(acqCtl.currentSlicerType);
+      }
    }
    else
    {
@@ -981,6 +993,12 @@ static void EpgAcqCtl_InitCycle( void )
          break;
    }
 
+   // limit to max phase (because acq. will stop upon advance from this phase)
+   if (acqCtl.cyclePhase > acqCtl.stopPhase)
+   {
+      acqCtl.cyclePhase = acqCtl.stopPhase;
+   }
+
    // use the first provider in the list
    acqCtl.cycleIdx = 0;
 }
@@ -1045,8 +1063,10 @@ static void EpgAcqCtl_AdvanceCyclePhase( bool forceAdvance )
         (wrongCni == FALSE) &&
         (EpgScan_IsActive() == FALSE) &&
         ( ACQMODE_IS_CYCLIC(acqCtl.mode) ||
+          (acqCtl.stopPhase != ACQMODE_PHASE_COUNT) ||
           ((acqCtl.mode == ACQMODE_FORCED_PASSIVE) && ACQMODE_IS_CYCLIC(acqCtl.userMode) && (acqCtl.passiveReason == ACQPASSIVE_ACCESS_DEVICE)) ) &&
-        (acqCtl.cniCount > 1) )
+        ( (acqCtl.cniCount > 1) ||
+          (acqCtl.stopPhase != ACQMODE_PHASE_COUNT) ) )
    {
       // determine if acq for the current phase is complete
       // note: all criteria must have a decent timeout to catch abnormal cases
@@ -1093,6 +1113,10 @@ static void EpgAcqCtl_AdvanceCyclePhase( bool forceAdvance )
             acqCtl.cycleIdx += 1;
             dprintf2("EpgAcqCtl: advance to CNI #%d of %d\n", acqCtl.cycleIdx, acqCtl.cniCount);
          }
+         else if (acqCtl.cyclePhase >= acqCtl.stopPhase)
+         {  // max. phase reached -> stop acq.
+            EpgAcqCtl_Stop();
+         }
          else
          {  // phase complete for all databases -> switch to next
             // determine next phase
@@ -1127,9 +1151,11 @@ static void EpgAcqCtl_AdvanceCyclePhase( bool forceAdvance )
             acqCtl.cycleIdx = 0;
          }
 
-         // note about parameter "TRUE": open the new db immediately because
-         // it may need to be accessed, e.g. to reset rep counters
-         EpgAcqCtl_UpdateProvider(TRUE);
+         if (acqCtl.state != ACQSTATE_OFF)
+         { // note about parameter "TRUE": open the new db immediately because
+           // it may need to be accessed, e.g. to reset rep counters
+            EpgAcqCtl_UpdateProvider(TRUE);
+         }
       }
    }
    assert((acqCtl.userMode != ACQMODE_FORCED_PASSIVE) && (acqCtl.userMode < ACQMODE_COUNT));
@@ -1165,7 +1191,8 @@ bool EpgAcqCtl_CheckDeviceAccess( void )
 // ---------------------------------------------------------------------------
 // Select acquisition mode and provider list
 //
-bool EpgAcqCtl_SelectMode( EPGACQ_MODE newAcqMode, uint cniCount, const uint * pCniTab )
+bool EpgAcqCtl_SelectMode( EPGACQ_MODE newAcqMode, EPGACQ_PHASE maxPhase,
+                           uint cniCount, const uint * pCniTab )
 {
    bool restart;
    bool result = FALSE;
@@ -1187,6 +1214,7 @@ bool EpgAcqCtl_SelectMode( EPGACQ_MODE newAcqMode, uint cniCount, const uint * p
          // check if the same parameters are already set -> if yes skip
          // note: compare actual mode instead of user mode, to reset if acq is stalled
          if ( (newAcqMode != acqCtl.mode) ||
+              (maxPhase   != acqCtl.stopPhase) ||
               (cniCount   != acqCtl.cniCount) ||
               (memcmp(acqCtl.cniTab, pCniTab, cniCount * sizeof(*pCniTab)) != 0) )
          {
@@ -1203,6 +1231,7 @@ bool EpgAcqCtl_SelectMode( EPGACQ_MODE newAcqMode, uint cniCount, const uint * p
             acqCtl.cniCount         = cniCount;
             acqCtl.userMode         = newAcqMode;
             acqCtl.mode             = newAcqMode;
+            acqCtl.stopPhase        = maxPhase;
             memcpy(acqCtl.cniTab, pCniTab, sizeof(acqCtl.cniTab));
 
             // reset acquisition and start with the new parameters
@@ -1248,23 +1277,41 @@ bool EpgAcqCtl_SelectMode( EPGACQ_MODE newAcqMode, uint cniCount, const uint * p
 }
 
 // ---------------------------------------------------------------------------
-// Select input source: tuner or composite
-// - this info is very important to the acq control, since only when a
-//   tuner is the input source, the channel can be controlled; else only
-//   passive acq mode is possible
-// - not used in passive and network acq modes
+// TV card config: select input source and slicer type
+// - distinguishing tuner/external is important to acq control, because
+//   + when a tuner is input source, the channel can be controlled
+//   + else only passive acq mode is possible
+//   note: parameter is not used in passive and network acq modes
+// - slicer type is passed through to driver, except for "automatic"
 //
-bool EpgAcqCtl_SetInputSource( uint inputIdx )
+bool EpgAcqCtl_SetInputSource( uint inputIdx, uint slicerType )
 {
    bool result;
 
    acqCtl.inputSource = inputIdx;
+
+   // save slicer type; if automatic start with "trivial"
+   if (slicerType == VBI_SLICER_AUTO)
+   {
+      acqCtl.autoSlicerType = TRUE;
+      acqCtl.currentSlicerType = VBI_SLICER_TRIVIAL;
+   }
+   else
+   {
+      acqCtl.autoSlicerType = FALSE;
+      acqCtl.currentSlicerType = slicerType;
+   }
 
    if ( (acqCtl.state != ACQSTATE_OFF) &&
         (acqCtl.mode != ACQMODE_PASSIVE) &&
         (acqCtl.mode != ACQMODE_NETWORK) )
    {
       acqCtl.haveWarnedInpSrc = FALSE;
+
+      if (acqCtl.autoSlicerType == FALSE)
+      {
+         BtDriver_SelectSlicer(acqCtl.currentSlicerType);
+      }
 
       EpgAcqCtl_InitCycle();
       result = EpgAcqCtl_UpdateProvider(TRUE);
@@ -1309,7 +1356,12 @@ void EpgAcqCtl_DescribeAcqState( EPGACQ_DESCR * pAcqState )
          if (acqCtl.state != ACQSTATE_RUNNING)
          {
             if (now - lastAi > ACQ_DESCR_STALLED_TIMEOUT)
-               pAcqState->state = ACQDESCR_NO_RECEPTION;
+            {
+               if (acqCtl.state >= ACQSTATE_WAIT_AI)
+                  pAcqState->state = ACQDESCR_DEC_ERRORS;
+               else
+                  pAcqState->state = ACQDESCR_NO_RECEPTION;
+            }
             else
                pAcqState->state = ACQDESCR_STARTING;
          }
@@ -1391,12 +1443,14 @@ static bool EpgAcqCtl_AiCallback( const AI_BLOCK *pNewAi )
          // store the tuner frequency if none is known yet
          if ( (pAcqDbContext->tunerFreq == 0) && (acqCtl.mode != ACQMODE_NETWORK) )
          {
+            uint  freq, chan;
+            bool  isTuner;
             // try to obtain the frequency from the driver (not supported by all drivers)
-            pAcqDbContext->tunerFreq = BtDriver_QueryChannel();
-            if (pAcqDbContext->tunerFreq != 0)
+            if ( BtDriver_QueryChannel(&freq, &chan, &isTuner) && (isTuner) && (freq != 0) )
             {  // store the provider channel frequency in the rc/ini file
-               debug2("EpgAcqCtl: setting current tuner frequency %.2f for CNI 0x%04X", (double)(pAcqDbContext->tunerFreq & 0xffffff)/16, ai_cni);
-               UiControlMsg_NewProvFreq(ai_cni, pAcqDbContext->tunerFreq);
+               debug2("EpgAcqCtl: setting current tuner frequency %.2f for CNI 0x%04X", (double)(freq & 0xffffff)/16, ai_cni);
+               pAcqDbContext->tunerFreq = freq;
+               UiControlMsg_NewProvFreq(ai_cni, freq);
             }
          }
 
@@ -1508,12 +1562,14 @@ static bool EpgAcqCtl_AiCallback( const AI_BLOCK *pNewAi )
               (acqCtl.state == ACQSTATE_RUNNING) &&
               (acqCtl.mode != ACQMODE_NETWORK) )
          {
+            uint  freq, chan;
+            bool  isTuner;
             // try to obtain the frequency from the driver (not supported by all drivers)
-            pAcqDbContext->tunerFreq = BtDriver_QueryChannel();
-            if (pAcqDbContext->tunerFreq != 0)
+            if ( BtDriver_QueryChannel(&freq, &chan, &isTuner) && (isTuner) && (freq != 0) )
             {  // store the provider channel frequency in the rc/ini file
-               debug2("EpgAcqCtl: setting current tuner frequency %.2f for CNI 0x%04X", (double)(pAcqDbContext->tunerFreq & 0xffffff)/16, ai_cni);
-               UiControlMsg_NewProvFreq(ai_cni, pAcqDbContext->tunerFreq);
+               debug2("EpgAcqCtl: setting current tuner frequency %.2f for CNI 0x%04X", (double)(freq & 0xffffff)/16, ai_cni);
+               pAcqDbContext->tunerFreq = freq;
+               UiControlMsg_NewProvFreq(ai_cni, freq);
             }
          }
       }
@@ -1768,6 +1824,7 @@ bool EpgAcqCtl_ProcessPackets( void )
 {
    uint pageNo;
    bool stopped;
+   time_t now;
    bool result = FALSE;
 
    if (pAcqDbContext != NULL)
@@ -1782,6 +1839,21 @@ bool EpgAcqCtl_ProcessPackets( void )
                dprintf0("EpgAcqCtl: uncontrolled channel change detected\n");
                EpgAcqCtl_ChannelChange(TRUE);
                EpgAcqCtl_StatisticsUpdate();
+            }
+
+            // check if the current slicer type is adequate
+            if ( (acqCtl.autoSlicerType) &&
+                 (acqCtl.currentSlicerType + 1 < VBI_SLICER_COUNT) )
+            {
+               now = time(NULL);
+               if ( (now >= acqCtl.chanChangeTime +
+                     (acqCtl.currentSlicerType - VBI_SLICER_TRIVIAL + 1) * EPGACQCTL_SLICER_INTV) &&
+                    (EpgStreamCheckSlicerQuality() == FALSE) )
+               {
+                  debug4("EpgAcqCtl: upgrading slicer type to #%d after %d secs (provider #%d of %d)", acqCtl.currentSlicerType + 1, (int)(now - acqCtl.chanChangeTime), acqCtl.cycleIdx, acqCtl.cniCount);
+                  acqCtl.currentSlicerType += 1;
+                  BtDriver_SelectSlicer(acqCtl.currentSlicerType);
+               }
             }
             result = TRUE;
          }

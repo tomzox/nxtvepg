@@ -16,12 +16,13 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqctl.h,v 1.40 2002/11/17 18:19:54 tom Exp tom $
+ *  $Id: epgacqctl.h,v 1.43 2004/03/11 22:22:20 tom Exp tom $
  */
 
 #ifndef __EPGACQCTL_H
 #define __EPGACQCTL_H
 
+#include "epgdb/epgstream.h"
 
 extern EPGDB_CONTEXT * pAcqDbContext;
 
@@ -79,6 +80,7 @@ typedef enum
 } EPGACQ_PASSIVE;
 
 
+#define EPGACQCTL_SLICER_INTV    20   // check slicer after X secs
 #define EPGACQCTL_DUMP_INTV      60   // interval between db dumps
 #define EPGACQCTL_MODIF_INTV  (2*60)  // max. interval without reception
 
@@ -111,6 +113,7 @@ typedef enum
    ACQDESCR_SCAN,
    ACQDESCR_STARTING,
    ACQDESCR_NO_RECEPTION,
+   ACQDESCR_DEC_ERRORS,
    ACQDESCR_STALLED,
    ACQDESCR_RUNNING,
 } ACQDESCR_STATE;
@@ -179,19 +182,22 @@ typedef struct
 typedef struct
 {
    time_t              acqStartTime;
+   time_t              lastStatsUpdate;
 
    EPGDB_ACQ_AI_STATS  ai;
    EPGDB_ACQ_TTX_STATS ttx;
+   EPG_STREAM_STATS    stream;
 
    EPGDB_HIST          hist[STATS_HIST_WIDTH];
    uint16_t            histIdx;
+   uint8_t             resvd_0[6];       // for 64-bit alignment (Sun-Sparc)
 
    EPGDB_BLOCK_COUNT   count[2];
    EPGDB_VAR_HIST      varianceHist[2];
    uint32_t            nowNextMaxAcqRepCount;
 
    EPGDB_ACQ_VPS_PDC   vpsPdc;
-   uint32_t            resv_align;  // for 64-bit alignment (Sun-Sparc)
+   uint8_t             resvd_1[4];
 
 } EPGDB_STATS;
 
@@ -210,8 +216,9 @@ void EpgAcqCtl_InitDaemon( void );
 bool EpgAcqCtl_Start( void );
 void EpgAcqCtl_Stop( void );
 const char * EpgAcqCtl_GetLastError( void );
-bool EpgAcqCtl_SelectMode( EPGACQ_MODE newAcqMode, uint cniCount, const uint * pCniTab );
-bool EpgAcqCtl_SetInputSource( uint inputIdx );
+bool EpgAcqCtl_SelectMode( EPGACQ_MODE newAcqMode, EPGACQ_PHASE maxPhase,
+                           uint cniCount, const uint * pCniTab );
+bool EpgAcqCtl_SetInputSource( uint inputIdx, uint slicerType );
 bool EpgAcqCtl_CheckDeviceAccess( void );
 void EpgAcqCtl_DescribeAcqState( EPGACQ_DESCR * pAcqState );
 void EpgAcqCtl_Suspend( bool suspend );

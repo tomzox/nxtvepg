@@ -19,7 +19,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: winshmsrv.c,v 1.9 2002/10/19 17:32:25 tom Exp tom $
+ *  $Id: winshmsrv.c,v 1.10 2004/03/28 13:18:49 tom Exp tom $
  */
 
 #ifndef WIN32
@@ -237,7 +237,7 @@ bool WintvSharedMem_IsConnected( char * pAppName, uint maxNameLen, uint * pFeatu
 
 // ---------------------------------------------------------------------------
 // Send argument vector to TV app, i.e. list of strings
-// - the command is a list of strings separated by 0; terminated by two 0
+// - the command is a list of strings separated by 0
 //
 bool WintvSharedMem_SetEpgCommand( uint argc, const char * pArgStr, uint cmdlen )
 {
@@ -245,7 +245,7 @@ bool WintvSharedMem_SetEpgCommand( uint argc, const char * pArgStr, uint cmdlen 
 
    if (pTvShm != NULL)
    {
-      if (cmdlen < EPG_CMD_MAX_LEN)
+      if (cmdlen <= EPG_CMD_MAX_LEN)
       {
          // wait for the semaphore and request "ownership"
          if (WaitForSingleObject(shmMutexHandle, INFINITE) != WAIT_FAILED)
@@ -255,6 +255,7 @@ bool WintvSharedMem_SetEpgCommand( uint argc, const char * pArgStr, uint cmdlen 
                // copy the command into SHM - must not use strcpy because of zeros inside
                memcpy((char *) pTvShm->epgCommand, pArgStr, cmdlen);
                pTvShm->epgCmdArgc = argc;
+               pTvShm->epgCmdArgLen = cmdlen;
 
                pTvShm->epgCommandIdx += 1;
 

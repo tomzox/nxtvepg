@@ -1,0 +1,238 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
+<HTML lang="en">
+<!-- $Id: changelog-2.6.0pre.html,v 1.5 2004/04/03 13:10:16 tom Exp $ -->
+<HEAD>
+<TITLE>2.6.0 pre-releases change log</TITLE>
+<META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<META name="language" content="en">
+<META name="author" content="Tom Zoerner">
+<META name="copyright" content="Tom Zoerner">
+<META name="keywords" lang="en" content="Bt848, video capture, capture, browser, Pro7, RTL2, Canal+, EuroNews, nexTView, EPG, nxtvepg, teletext, Bt878, Brooktree, electronic program guide, TV-Guide, Premiere, TV program listing, TV schedule, Nextview decoder, Linux, software download, bttv, video4linux, VBI, vertical blanking interval, multimedia, data service, subscription free, TV tuner card">
+<META name="description" content="History of releases and changes inbetween for the nxtvepg decoder software">
+<META name="robots" content="index, follow">
+<META name="revisit-after" content="01 month">
+<LINK rel="stylesheet" type="text/css" href="nxtvepg.css">
+<LINK rel="shortcut icon" type="image/x-icon" href="nxtvepg.ico">
+<LINK rel="top" href="//nxtvepg.sourceforge.net/" title="nexTView EPG Dekoder Homepage">
+</HEAD>
+<BODY>
+
+<DIV CLASS="navBar">
+<P><SMALL>
+<IMG ALT="" SRC="nxtv_icon.gif">&nbsp;nxtvepg&nbsp;
+<A HREF="index.html">home</A> &nbsp;|&nbsp;
+<A HREF="intro.html">about</A>
+</SMALL></P></DIV>
+
+<DIV class="navBlock">
+<H2 class="navhead">Language</H2>
+<P>
+<IMG ALT="" SRC="en.png" WIDTH=16 HEIGHT=10> English<BR>
+<IMG ALT="" SRC="de.png" WIDTH=16 HEIGHT=10> <SPAN class="navDisabled">Deutsch</SPAN><BR>
+<IMG ALT="" SRC="fr.png" WIDTH=16 HEIGHT=10> <SPAN class="navDisabled">Français</SPAN><BR>
+</P>
+
+<H2 class="navhead">News</H2>
+<P>
+Apr/2/2004: <A HREF="changelog.html#release_2_7_0">Release 2.7.0</A>
+</P>
+
+<H2 class="navhead">Documentation</H2>
+<P>
+<A HREF="index.html">Homepage</A><BR>
+<A HREF="intro.html">Introduction</A><BR>
+<A HREF="provnets.html">Providers list</A><BR>
+<A HREF="help-wanted.html">Help Wanted</A><BR>
+<A HREF="links.html">Links</A><BR>
+<A HREF="faq.html">FAQ</A><BR>
+<BR>
+<A HREF="man.html">nxtvepg manual</A><BR>
+</P>
+
+<H2 class="navhead">Download</H2>
+<P>
+<A HREF="download.html">Download</A><BR>
+<A HREF="download.html#requirements">System requirements</A><BR>
+<A HREF="changelog.html">Change log</A><BR>
+</P>
+
+<H2 class="navhead">Screenshots</H2>
+<P>
+<A HREF="screenshot-shortcuts.gif">New 2.7.0 feature</A><BR>
+<A HREF="screenshot-reminder.gif">New 2.6.0 features</A><BR>
+<A HREF="screenshot-grid1.png">New 2.5.0 features</A><BR>
+<A HREF="screenshot-win.gif">Windows screenshot</A><BR>
+<A HREF="screenshot-series.gif">Series menu</A><BR>
+<A HREF="screenshot-xawtv.jpg">xawtv with EPG OSD</A><BR>
+</P>
+<span class="center"><span class="logo"><a href="http://sourceforge.net"><img
+src="http://sourceforge.net/sflogo.php?group_id=64430&amp;type=4"
+width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
+</DIV>
+
+<DIV class="mainBlock">
+
+<H1>2.6.0 pre-releases change log</H1>
+<P>
+This page summarizes changes between pre-releases which led to the 2.6.0 release.
+It's only kept for historical interest as the main change log summarizes all changes
+that finally went into 2.6.0.  See also the nxtvepg
+<A HREF="http://sourceforge.net/mailarchive/forum.php?forum_id=14102">mailing list archives</A>.
+</P><P>
+Note the format of rc/ini file has changed in 2.6.0pre0, 2.6.0pre3 and 2.6.0pre4;
+it will be automatically upgraded (upgrade from pre2 to pre3 was broken though,
+sorry) upon the first start when using an rc/ini file written by an
+older version.  Make a copy before so you can still use it with older versions.
+</P><P>
+Note: due to changes in the acquisition statistics structures
+in versions 2.6.0pre2 and pre7 the daemon is no longer compatible with
+repective earlier versions of the nxtvepg GUI and vice versa.
+</P>
+
+<H3>Changes between 2.6.0pre6 and 2.6.0pre7 (RC3)</H3>
+<UL>
+<LI>Fixed two sloppy bugs in Windows port of pre6: Tcl errors occurred
+  when the new datescale format configuration was used and whenever
+  a reminder message popup was displayed.
+  Thanks to Peter for reporting these bugs.
+<LI>Added configuration dialog for expire "cut-off" time (i.e. delay
+  after which expired programmes are removed from the database):
+  as sub-dialog to expire time filter dialog
+<LI>Fixed timescales: enlarge length of scales according to configured
+  expire removal delay
+<LI>Windows: fixed bug in database directory handling: startup was
+  aborted if the directory was the root of a mounted share
+  (e.g. //remotehost/share)  Thanks to Manuel for reporting this bug.
+<LI>Fixed compatibility of client/server protocol for different compiler
+  versions (e.g. between gcc-3.3 and gcc-2.95)
+<LI>Improved auto-start capabilities for daemon via control menu: also
+  offer to start daemon if server hostname matches local host name,
+  i.e. not only if server hostname is "localhost"
+<LI>Cleaned up handling of start of a 2nd instance of nxtvepg: display
+  only one message instead of multiple meaningless warnings.
+  Thanks to Thierry for suggesting this improvement.
+<LI>Windows: added auto-detection of Hauppauge WinTV GO
+</UL>
+
+<H3>Changes between 2.6.0pre5 and 2.6.0pre6 (RC2)</H3>
+<UL>
+<LI>Reminder popup window was invisible (placed off-screen) when nxtvepg
+  main window was minimized at the time of the event
+<LI>Reminder message popup window did not stay on top
+<LI>Bold text format in user-defined columns disappeared during upgrade
+  from nxtvepg versions &lt;= 2.5.2
+<LI>Allow to specify date format and scale width in weekday scale
+  via resource file (see nxtvepg.ad)
+<LI>Windows: suppress DOS console when starting commands from context
+  menus or as reminder script
+</UL>
+
+<H3>Changes between 2.6.0pre4 and 2.6.0pre5 (RC1)</H3>
+<UL>
+<LI>Added new programme list attribute type "weekday color", i.e. use
+  colors (same as in weekday scale) to mark programmes instead of words
+  "Fri" etc.  Thanks to Peter Rolf for the idea.  Note: for the grid
+  layout this attribute isn't supported very well yet. Suggestions for
+  improvement are welcome.
+<LI>Extended start time filter: in addition to "daily" and "relative day
+  offset" new modes "weekly" and "monthly" are supported; also date
+  range for relative offsets was extended from 1 to 2 weeks.
+<LI>Added new command line option -daemonstop: terminate daemon process
+  to simplify controlling acquisition by use of scripts, esp. on Win32
+<LI>Partly reverted pre3 change for context menu commands: on UNIX always
+  use quotes because there are many special chars (e.g. &amp;, $, etc.)
+  On Win32 use backslash before blanks instead of quotes.
+<LI>Removed debug output for teletext reception errors on request by
+  Thierry (based on new compile switch DEBUG_SWITCH_STREAM)
+<LI>Fixed compatibility of btdrv4linux.c with libzvbi (Linux only)
+<LI>Internal changes in Tcl script compilation (tcl2c.c preprocessor)
+</UL>
+
+<H3>Changes between 2.6.0pre3 and 2.6.0pre4</H3>
+<UL>
+<LI>fixed upgrade of rc/ini files from pre2 release (error message about
+  missing "rempilist_colsize" variable)
+<LI>bugfix in reminder message popup handling: if there was more than one
+  event due for display, only the first (oldest) was actually displayed
+<LI>fixed reminder group config: changes in group order or group deletions
+  don't have unexpected side-effects anymore
+<LI>plus some fixes in reminder handling (one might have caused a crash,
+  i.e. Tcl internal panic, others caused Tcl error messages)
+</UL>
+
+<H3>Changes between 2.6.0pre2 and 2.6.0pre3</H3>
+<UL>
+<LI>implemented "repeat" and "suppress" controls for reminder messages
+<LI>added "state" column to "edit reminders" dialog to display suppress
+  and repeat status, and a context menu to manipulate the state
+<LI>extended reminder main menu: allow to select reminder group for
+  additions, or change the group for existing reminders
+<LI>added weekday scale to the right of the programme list (note colors
+  are configurable via the nxtvepg.ad file or X resources on UNIX)
+<LI>user-configured commands in context menu: omit quotes around command
+  substitutions unless there's whitespace (requested by "progro")
+</UL>
+
+<H3>Changes between 2.6.0pre1 and 2.6.0pre2</H3>
+<UL>
+<LI>bugfix in aquisition statistics for new expire time handling (should
+  be back to max. 100% now); also fixed "today" and "now" in date/time
+  pulldown menus for use while expired programmes are listed.
+<LI>optimized text search filter for case insensitive searches; also
+  optimized programme list in general for complex filters (single list
+  layout only; grid should be less problematic anyways since the listing
+  is usually restricted to a few networks)
+<LI>increased length of search text history in text search filter dialog
+<LI>improved search text "paste" dialog; allow to read text from a file
+<LI>compound attribute configuration dialog: added possibility to change
+  background color for a single column only.
+<LI>bugfix: suppressed reminders are no longer deleted when saving a new
+  reminder group config.
+</UL>
+
+<H3>Changes between 2.6.0pre0 and 2.6.0pre1</H3>
+<UL>
+<LI>"Tune TV" button in reminder message popup windows;
+<LI>allow background color setting for images in compund attributes;
+<LI>added shortcut combination modes "OR" and "AND" which keep filter of
+  these shortcuts separately instead of merging them all into one as
+  before.  This allows logical OR or AND between complex shortcuts,
+  i.e. "movies on net A" OR "series on network B".  With merge you'd
+  have got "movies or series on network A or B"; see manual chapter
+  "Filter shortcuts" for more details.
+<LI>improved text search dialog (yet again): active searches are now
+  displayed in a list above the test entry field. There's also a
+  sub-dialog which allows to paste multiple search texts at once
+  (i.e. a list of movie titles)
+</UL>
+
+<H3>Changes between 2.5.2 and 2.6.0pre0</H3>
+<UL>
+<LI>implemented reminders, i.e. bookmarking and message/command dispatch for
+  selected programmes or shortcuts (see TODO list for open points)
+<LI>free choice of colors in "compound attributes" (user-defined columns and
+  grid elements).  Thanks to Peter Rolf for suggesting this improvement.
+  Also added a new format type "background color" which changes the
+  background of the entire column/grid element.  Possible extension is
+  a format spec for background definition of the given column only.
+  Also note that background colors given on image elements are currently
+  ignored.
+<LI>added possibility to invoke Xawtv remote commands via the programme list's
+  context menu, by use of prefix !xawtv!  (e.g. switch the channel to the
+  selected title with command: !xawtv! setstation ${network})
+<LI>added new key binding for key "i": display EPG info just like upon a
+  channel change in a connected TV application.
+<LI>added an expire time filter to the filter menu, i.e. the possibility to
+  display descriptions of TV shows which have already finished.  Still TODO
+  is a possibility to configure the cut-off time when expired PI are removed
+  from the database.  Currently this value can be changed in the rc/ini file
+  by assigning a value (in minutes) to piexpire_cutoff; default: 4 hours.
+  Note large values introduce performance penalities.
+<LI>bugfix for possible crash when opening the alphabetical series list in
+  the filter menu (mainly a problem on 64bit platforms.)
+  Thanks to Helge Kreutzmann for the bug report.
+</UL>
+
+</DIV>
+</BODY>
+</HTML>

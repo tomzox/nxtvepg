@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: uictrl.c,v 1.39 2003/10/05 19:36:50 tom Exp $
+ *  $Id: uictrl.c,v 1.43 2004/04/02 12:21:36 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -49,6 +49,7 @@
 #include "epgui/epgmain.h"
 #include "epgui/pifilter.h"
 #include "epgui/pibox.h"
+#include "epgui/piremind.h"
 #include "epgui/uictrl.h"
 #include "epgui/menucmd.h"
 #include "epgui/statswin.h"
@@ -422,11 +423,22 @@ void UiControl_AiStateChange( ClientData clientData )
          // update network prefilters (restrict to user-selected networks)
          PiFilter_SetNetwopPrefilter();
 
+         // adapt reminder list to database (network index cache)
+         PiRemind_CheckDb();
+
+         // update filter cache (network indices may have changed)
+         eval_check(interp, "DownloadUserDefinedColumnFilters");
+         eval_check(interp, "UpdatePiListboxColumParams");
+
          // update the language (if in automatic mode)
          SetUserLanguage(interp);
 
          // update the netwop prefilter and refresh the display
          PiBox_AiStateChange();
+
+         // apply new filter cache to reminders (done after PI-box refresh to reduce delay)
+         sprintf(comm, "Reminder_UpdateTimer");
+         eval_check(interp, comm);
       }
       else
       {  // no AI block in db -> reset window title to empty
@@ -506,6 +518,10 @@ void UiControl_ReloadError( ClientData clientData )
          pReason = "the database file does not exist";
          pHint = "You should start an EPG scan from the Configure menu. ";
          break;
+      case EPGDB_RELOAD_MERGE:
+         pReason = "databases could not be merged";
+         pHint = "You should check your database selection in the merge configuration dialog. ";
+         break;
       case EPGDB_RELOAD_OK:
          SHOULD_NOT_BE_REACHED;
          break;
@@ -541,10 +557,15 @@ void UiControl_ReloadError( ClientData clientData )
             break;
 
          case CTX_RELOAD_ERR_REQ:
-            sprintf(comm2, "tk_messageBox -type ok -icon error -message {"
-                             "Failed to load the database of provider %X because %s. "
-                             "%s"
-                             "}\n", pMsg->cni, pReason, pHint);
+            if (pMsg->cni == 0x00FF)
+               sprintf(comm2, "tk_messageBox -type ok -icon error -message {"
+                                "Failed to create a merged database. %s"
+                                "}\n", pHint);
+            else
+               sprintf(comm2, "tk_messageBox -type ok -icon error -message {"
+                                "Failed to load the database of provider %X because %s. "
+                                "%s"
+                                "}\n", pMsg->cni, pReason, pHint);
             eval_check(interp, comm2);
             break;
 
@@ -626,7 +647,10 @@ void UiControlMsg_ReloadError( uint cni, EPGDB_RELOAD_RESULT dberr, CONTEXT_RELO
          if ( (errHand != CTX_RELOAD_ERR_ANY) ||
               ((isNewDb == FALSE) && (dberr != EPGDB_RELOAD_EXIST)) )
          {
-            fprintf(stderr, "nxtvepg: warning: failed to load database 0x%04X\n", cni);
+            if (cni == 0x00ff)
+               fprintf(stderr, "nxtvepg: warning: database merge failed: check configuration\n");
+            else
+               fprintf(stderr, "nxtvepg: warning: failed to load database 0x%04X\n", cni);
          }
       }
    }
@@ -722,7 +746,7 @@ void UiControlMsg_AcqPassive( void )
    if (uiControlInitialized)
       AddMainIdleEvent(UiControl_AcqPassive, (ClientData) NULL, TRUE);
    else
-      fprintf(stderr, "nxtvepg: fatal: invalid acquisition mode for the selected input source\n");
+      fprintf(stderr, "nxtvepg: warning: invalid acquisition mode for the selected input source\n");
 }
 
 // ----------------------------------------------------------------------------
@@ -737,7 +761,10 @@ void UiControlMsg_AcqEvent( ACQ_EVENT acqEvent )
          case ACQ_EVENT_PROV_CHANGE:
             TimeScale_ProvChange(DB_TARGET_ACQ);
             StatsWin_StatsUpdate(DB_TARGET_ACQ);
-            AddMainIdleEvent(UiControl_AiStateChange, (ClientData) DB_TARGET_ACQ, FALSE);
+            if (EpgDbContextGetCni(pUiDbContext) == 0)
+            {
+               AddMainIdleEvent(UiControl_AiStateChange, (ClientData) DB_TARGET_ACQ, FALSE);
+            }
             break;
 
          case ACQ_EVENT_AI_VERSION_CHANGE:

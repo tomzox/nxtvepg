@@ -23,11 +23,11 @@
  *      "This code is based on a version of dTV modified by Michael Eskin and
  *      others at Connexant.  Those parts are probably (c) Connexant 2002"
  *
- *  DScaler #Id: CX2388xCard.cpp,v 1.39 2003/01/29 18:24:49 adcockj Exp #
+ *  DScaler #Id: CX2388xCard.cpp,v 1.56 2004/03/07 17:34:48 to_see Exp #
  *  DScaler #Id: CX2388xSource.cpp,v 1.42 2003/01/25 23:46:25 laurentg Exp #
  *  DScaler #Id: CX2388xProvider.cpp,v 1.3 2002/11/02 09:47:36 adcockj Exp #
  *
- *  $Id: cx2388x.c,v 1.12 2003/07/06 17:47:35 tom Exp tom $
+ *  $Id: cx2388x.c,v 1.16 2004/03/22 17:22:35 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -37,6 +37,7 @@
 #define DISABLE_PCI_REGISTER_DUMP
 
 #include <windows.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -60,9 +61,6 @@
 #include "dsdrv/cx2388x_typ.h"
 #include "dsdrv/cx2388x.h"
 
-#ifdef ZVBI_DECODER
-static vbi_raw_decoder zvbi_rd;
-#endif
 
 // ----------------------------------------------------------------------------
 // Declaration of internal variables
@@ -90,6 +88,10 @@ static DWORD m_I2CRegister;
 static ULONG m_I2CSleepCycle;
 static bool  m_I2CInitialized;
 static bool  CardConflictDetected;
+static bool  m_WdmDriverStopped;
+
+
+static vbi_raw_decoder zvbi_rd;
 
 
 // ----------------------------------------------------------------------------
@@ -222,6 +224,9 @@ static void Cx2388x_DumpRegisters( const char * pHeader )
 //
 static void Cx2388x_ManageMyState( void )
 {
+    // This function doesn't seem to work properly for some
+    // reason.  It causes crashes so don't bother trying.
+    #if 0
     DWORD i;
 
     // save and restore the whole of the SRAM
@@ -248,6 +253,193 @@ static void Cx2388x_ManageMyState( void )
     ManageDword(MO_DMA26_PTR2);
     ManageDword(MO_DMA26_CNT1);
     ManageDword(MO_DMA26_CNT2);
+    #endif
+}
+
+///////////////////////////////////////////////////////////////////////
+// In   NewState = DICS_DISABLE - disable  the device
+//      NewState = DICS_ENABLE  - enable   the device
+//
+// Out  TRUE:   driver is found & stopped
+//      FALSE:	an error occured when:
+//				- Card not found on this computer
+//				- Card is used from other software		
+//				- User has no rights to disable it
+//
+// Need to add "setupapi.lib" to project setttings
+//
+// this code based on DDK, see scr/setup/enable & scr/setup/devcon
+//
+// anti-greetings to conexant WDM-developers:
+// why you make our life so hard?
+///////////////////////////////////////////////////////////////////////
+
+#include <setupapi.h>
+#include "dsdrv/debuglog.h"
+
+// from devguid.h (PlatformSDK)
+//DEFINE_GUID( GUID_DEVCLASS_MEDIA, 0x4d36e96cL, 0xe325, 0x11ce, 0xbf, 0xc1, 0x08, 0x00, 0x2b, 0xe1, 0x03, 0x18 );
+static const GUID GUID_DEVCLASS_MEDIA = { 0x4d36e96cL, 0xe325, 0x11ce, { 0xbf, 0xc1, 0x08, 0x00, 0x2b, 0xe1, 0x03, 0x18 } };
+
+static BOOL Cx2388x_StartStopDriver(DWORD NewState, DWORD vendorId, DWORD devId)
+{
+    HINSTANCE hInstance;
+    HDEVINFO (WINAPI *pSetupDiGetClassDevs) (CONST GUID*,PCSTR,HWND,DWORD);
+    BOOL (WINAPI *pSetupDiEnumDeviceInfo) (HDEVINFO,DWORD,PSP_DEVINFO_DATA);
+    BOOL (WINAPI *pSetupDiGetDeviceRegistryProperty) (HDEVINFO,PSP_DEVINFO_DATA,DWORD,PDWORD,PBYTE,DWORD,PDWORD);
+    BOOL (WINAPI *pSetupDiSetClassInstallParams) (HDEVINFO,PSP_DEVINFO_DATA,PSP_CLASSINSTALL_HEADER,DWORD);
+    BOOL (WINAPI *pSetupDiCallClassInstaller) (DI_FUNCTION,HDEVINFO,PSP_DEVINFO_DATA);
+    BOOL (WINAPI *pSetupDiDestroyDeviceInfoList) (HDEVINFO);
+
+    SP_DEVINFO_DATA DeviceInfoData;
+    HDEVINFO hDevInfo;
+    char CardIdStr[30];
+    BOOL bFound = FALSE;
+    int i;
+
+    // all CX2388x-Cards have
+    // VendorID = 0x14F1
+    // DeviceID = 0x8800 (first sub-device)
+    // we are only searching for this...
+    sprintf(CardIdStr, "PCI\\VEN_%04lX&DEV_%04lX", vendorId, devId);
+
+    LOG(2,"Attempt WDM driver %s for card %s", ((NewState == DICS_DISABLE) ? "Stop" : "Start"), CardIdStr);
+
+    hInstance = LoadLibrary("setupapi.dll");
+    if (hInstance == NULL)
+    {
+       LOG(1,"Service control DLL 'setupapi.dll' not found");
+       goto error;
+    }
+    pSetupDiGetClassDevs = (void *) GetProcAddress(hInstance, "SetupDiGetClassDevsA");
+    pSetupDiEnumDeviceInfo = (void *) GetProcAddress(hInstance, "SetupDiEnumDeviceInfo");
+    pSetupDiGetDeviceRegistryProperty = (void *) GetProcAddress(hInstance, "SetupDiGetDeviceRegistryPropertyA");
+    pSetupDiSetClassInstallParams = (void *) GetProcAddress(hInstance, "SetupDiSetClassInstallParamsA");
+    pSetupDiCallClassInstaller = (void *) GetProcAddress(hInstance, "SetupDiCallClassInstaller");
+    pSetupDiDestroyDeviceInfoList = (void *) GetProcAddress(hInstance, "SetupDiDestroyDeviceInfoList");
+
+    if ( (pSetupDiGetClassDevs == NULL) ||
+         (pSetupDiEnumDeviceInfo == NULL) ||
+         (pSetupDiGetDeviceRegistryProperty == NULL) ||
+         (pSetupDiSetClassInstallParams == NULL) ||
+         (pSetupDiCallClassInstaller == NULL) ||
+         (pSetupDiDestroyDeviceInfoList == NULL) )
+    {
+        debug0("CX2388x failed to load symbols from SETUPAPI.DLL");
+        LOG(1,"Failed to load all required symbols from SETUPAPI.DLL");
+        goto error;
+    }
+
+    // scan only Media-Classes
+    hDevInfo = pSetupDiGetClassDevs((LPGUID)&GUID_DEVCLASS_MEDIA, NULL, NULL, DIGCF_PRESENT);
+    if (hDevInfo == INVALID_HANDLE_VALUE)
+    {
+        LOG(1,"Media device class not found.");
+        goto error;
+    }
+    
+    memset(&DeviceInfoData, 0, sizeof(DeviceInfoData));
+    DeviceInfoData.cbSize = sizeof(SP_DEVINFO_DATA);
+
+    for(i=0; pSetupDiEnumDeviceInfo(hDevInfo, i, &DeviceInfoData); i++)
+    {
+        DWORD   DataT       = 0;
+        LPTSTR  buffer      = NULL;
+        DWORD   buffersize  = 0;
+
+        // see DDK src/setup/enable
+        while (!pSetupDiGetDeviceRegistryProperty(hDevInfo, &DeviceInfoData, SPDRP_HARDWAREID,
+                                                &DataT, (PBYTE)buffer, buffersize, &buffersize))
+        {
+            if (GetLastError() == ERROR_INSUFFICIENT_BUFFER)
+            {
+                if (buffer)
+                {
+                    LocalFree(buffer);
+                }
+
+                buffer = (LPTSTR)LocalAlloc(LPTR, buffersize);
+            }
+
+            else
+            {
+                LOG(1,"Failed to query registry for service #%d (error %ld)", i, GetLastError());
+                goto error;
+            }
+        }
+        LOG(2,"Found service #%d: %s", i, buffer);
+
+        if(strncmp(buffer, CardIdStr, strlen(CardIdStr)) == 0)
+        {
+            bFound = TRUE;
+        }
+        
+        if(buffer)
+        {
+            LocalFree(buffer);
+        }
+
+        if(bFound == TRUE)
+        {
+            break;
+        }
+    }
+
+    if(bFound == TRUE)
+    {
+        SP_PROPCHANGE_PARAMS PropChangeParams;
+
+        dprintf0("CX2388x WDM-Driver found\n");
+        LOG(2,"Card WDM driver found, trying to start/stop...");
+        
+        // see DDK src/setup/devcon
+        memset(&PropChangeParams, 0, sizeof(PropChangeParams));
+        PropChangeParams.ClassInstallHeader.cbSize = sizeof(SP_CLASSINSTALL_HEADER);
+        PropChangeParams.ClassInstallHeader.InstallFunction = DIF_PROPERTYCHANGE;
+        PropChangeParams.Scope = DICS_FLAG_GLOBAL;
+        PropChangeParams.StateChange = NewState; 
+        PropChangeParams.HwProfile = 0;
+    
+        if (!pSetupDiSetClassInstallParams(hDevInfo,&DeviceInfoData,
+            (SP_CLASSINSTALL_HEADER *)&PropChangeParams,sizeof(PropChangeParams)))
+        {
+            LOG(1,"Failed to start/stop driver (global) (error %ld)", GetLastError());
+            debug1("Unable to %s CX2388x WDM-Driver in DICS_FLAG_GLOBAL", (NewState == DICS_DISABLE) ? "Stop" : "Start");
+            goto error;
+        }
+
+        PropChangeParams.ClassInstallHeader.cbSize = sizeof(SP_CLASSINSTALL_HEADER);
+        PropChangeParams.ClassInstallHeader.InstallFunction = DIF_PROPERTYCHANGE;
+        PropChangeParams.Scope = DICS_FLAG_CONFIGSPECIFIC;
+        PropChangeParams.StateChange = NewState; 
+        PropChangeParams.HwProfile = 0;
+
+        if (!pSetupDiSetClassInstallParams(hDevInfo,&DeviceInfoData,
+            (SP_CLASSINSTALL_HEADER *)&PropChangeParams,sizeof(PropChangeParams))
+            || !pSetupDiCallClassInstaller(DIF_PROPERTYCHANGE,hDevInfo,&DeviceInfoData))
+        {
+            LOG(1,"Failed to start/stop driver (specific) (error %ld)", GetLastError());
+            debug1("Unable to %s CX2388x WDM-Driver in DICS_FLAG_CONFIGSPECIFIC", (NewState == DICS_DISABLE) ? "Stop" : "Start");
+            goto error;
+        }
+        
+        LOG(2,"WDM driver successfully started/stopped");
+        dprintf1("CX2388x WDM-Driver %s\n", (NewState == DICS_DISABLE) ? "Stop" : "Start");
+    }
+    else
+    {
+        LOG(2,"No matching service found (Maybe no WDM driver installed?)");
+        debug0("CX2388x: OK: No WDM driver found which needs to be stopped");
+    }
+
+    pSetupDiDestroyDeviceInfoList(hDevInfo);
+
+error:
+    if (hInstance != NULL)
+    {
+       FreeLibrary(hInstance);
+    }
+    return bFound;
 }
 
 // ----------------------------------------------------------------------------
@@ -449,6 +641,8 @@ static void Cx2388x_SetGeoSize( TVCARD * pTvCard, uint nInput, uint TVFormat )
    RegValue = (DWORD)((8.0 * 4.406250 / PLL) * (double)(1<<22));
    WriteDword( CX2388X_SUBCARRIERSTEPDR, RegValue);
 
+   WriteDword(CX2388X_SAMPLERATECONV, 0x00021f07);
+
    // set up burst gate delay and AGC gate delay
    RegValue = (DWORD)(6.8 * PLL / 2.0 + 15.5);
    RegValue |= (DWORD)(6.5 * PLL / 2.0 + 21.5) << 8;
@@ -489,11 +683,9 @@ static void Cx2388x_VideoInit( void )
 // ----------------------------------------------------------------------------
 // Initialize all PCI registers
 //
-static void Cx2388x_ResetHardware( DWORD m_BusNumber, DWORD m_SlotNumber )
+static void Cx2388x_ResetChip( DWORD m_BusNumber, DWORD m_SlotNumber )
 {
    PCI_COMMON_CONFIG PCI_Config;
-   int  i;
-   int  j;
 
    // try and switch on the card using the PCI Command value
    // this is to try and solve problems when a driver hasn't been
@@ -541,6 +733,12 @@ static void Cx2388x_ResetHardware( DWORD m_BusNumber, DWORD m_SlotNumber )
 
    // wait a bit so that everything has cleared through
    Sleep(200);
+}
+
+static void Cx2388x_ResetHardware( void )
+{
+   int  i;
+   int  j;
 
    // Clear out the SRAM Channel Management data structures
    // for all 12 devices
@@ -919,13 +1117,13 @@ static DWORD WINAPI Cx2388x_VbiThread( LPVOID dummy )
    BYTE *pVBI;
    uint  OldFrame;
    uint  CurFrame;
+   bool  acceptFrame;
 
    dprintf0("Cx2388x-VbiThread: VBI thread started\n");
 
    //SetAcqPriority(GetCurrentThread(), btCfg.threadPrio);
-   #ifndef ZVBI_DECODER
    VbiDecodeSetSamplingRate(27000000L, 7);
-   #else
+
    memset(&zvbi_rd, 0, sizeof(zvbi_rd));
    zvbi_rd.sampling_rate    = 27000000L;
    zvbi_rd.bytes_per_line   = VBI_LINE_SIZE;
@@ -938,7 +1136,6 @@ static DWORD WINAPI Cx2388x_VbiThread( LPVOID dummy )
    zvbi_rd.sampling_format  = VBI_PIXFMT_YUV420;
    zvbi_rd.scanning         = 625;
    vbi_raw_decoder_add_services(&zvbi_rd, VBI_SLICED_TELETEXT_B | VBI_SLICED_VPS, 1);
-   #endif
 
    Cx2388x_StartCapture();
 
@@ -970,20 +1167,25 @@ static DWORD WINAPI Cx2388x_VbiThread( LPVOID dummy )
 
                // notify teletext decoder about start of new frame; since we don't have a
                // frame counter (no frame interrupt) we always pass 0 as frame sequence number
-               #ifndef ZVBI_DECODER
-               if ( VbiDecodeStartNewFrame(0) )
+               if (pVbiBuf->slicerType != VBI_SLICER_ZVBI)
                {
-                  uint  row;
-
-                  for (row = 0; row < VBI_LINES_PER_FRAME; row++, pVBI += VBI_LINE_SIZE)
+                  acceptFrame = VbiDecodeStartNewFrame(0);
+                  if (acceptFrame)
                   {
-                     VbiDecodeLine(pVBI, row, TRUE);
+                     uint  row;
+
+                     for (row = 0; row < VBI_LINES_PER_FRAME; row++, pVBI += VBI_LINE_SIZE)
+                     {
+                        VbiDecodeLine(pVBI, row, TRUE);
+                     }
                   }
                }
                else
-               #else  // ZVBI_DECODER
-               if (ZvbiSliceAndProcess(&zvbi_rd, pVBI, 0) == FALSE)
-               #endif
+               {
+                  acceptFrame = ZvbiSliceAndProcess(&zvbi_rd, pVBI, 0);
+               }
+
+               if (acceptFrame == FALSE)
                {  // discard all VBI frames in the buffer
                   OldFrame = CurFrame;
                   break;
@@ -1000,10 +1202,8 @@ static DWORD WINAPI Cx2388x_VbiThread( LPVOID dummy )
    }
    Cx2388x_StopCapture();
 
-   #ifdef ZVBI_DECODER
    ZvbiSliceAndProcess(NULL, NULL, 0);
    vbi_raw_decoder_destroy(&zvbi_rd);
-   #endif
 
    dprintf0("Cx2388x-VbiThread: VBI thread stopped\n");
 
@@ -1090,7 +1290,7 @@ static bool Cx2388x_Configure( uint threadPrio, uint pllType )
 // ---------------------------------------------------------------------------
 // Free I/O resources and close the driver device
 //
-static void Cx2388x_Close( void )
+static void Cx2388x_Close( TVCARD * pTvCard )
 {
    dprintf0("Cx2388x-Close: closing card\n");
 
@@ -1104,12 +1304,17 @@ static void Cx2388x_Close( void )
    }
 
    Cx2388x_FreeDmaMemory();
+
+   if (m_WdmDriverStopped)
+   {
+      Cx2388x_StartStopDriver(DICS_ENABLE, pTvCard->params.VendorId, pTvCard->params.DeviceId);
+   }
 }
 
 // ---------------------------------------------------------------------------
 // Allocate resources and initialize PCI registers
 //
-static bool Cx2388x_Open( TVCARD * pTvCard )
+static bool Cx2388x_Open( TVCARD * pTvCard, bool wdmStop )
 {
    DWORD RiscEn;
    DWORD DmaCtl;
@@ -1151,8 +1356,16 @@ static bool Cx2388x_Open( TVCARD * pTvCard )
             HwPci_InitStateBuf();
             Cx2388x_ManageMyState();
 
-            // Initialize PCI registers
-            Cx2388x_ResetHardware(pTvCard->params.BusNumber, pTvCard->params.SlotNumber);
+            if (wdmStop)
+            {
+               m_WdmDriverStopped = Cx2388x_StartStopDriver(DICS_DISABLE, pTvCard->params.VendorId, pTvCard->params.DeviceId);
+            }
+            else
+               m_WdmDriverStopped = FALSE;
+
+            Cx2388x_ResetChip(pTvCard->params.BusNumber, pTvCard->params.SlotNumber);
+            Cx2388x_ResetHardware();
+
             Cx2388x_VideoInit();
 
             // Set up DMA in the card

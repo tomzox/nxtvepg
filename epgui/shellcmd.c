@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: shellcmd.c,v 1.6 2003/10/05 19:43:16 tom Exp tom $
+ *  $Id: shellcmd.c,v 1.8 2004/03/28 13:18:06 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -189,16 +189,20 @@ static void PiOutput_ExtCmdVariable( const PI_BLOCK *pPiBlock, const AI_BLOCK * 
    const char * pConst;
    char  modbuf[100];
    char  strbuf[200];
-   uint   idx;
+   char  timeOpBuf[1+1];
+   uint  idx;
+   int   timeOpVal;
    struct tm vpsTime;
    time_t tdiff;
    time_t now = time(NULL);
 
    if (modifierLen >= sizeof(modbuf))
       modifierLen = sizeof(modbuf) - 1;
+   timeOpVal = 0;
 
-   if (strncmp(pKeyword, "start", keywordLen) == 0)
-   {  // start time
+   if ( (strncmp(pKeyword, "start", keywordLen) == 0) ||
+        (sscanf(pKeyword, "start%1[+-]%d", timeOpBuf, &timeOpVal) == 2) )
+   {  // start time, possible +/- a given offset
       if (pModifier != NULL)
       {
          strncpy(modbuf, pModifier, modifierLen);
@@ -206,11 +210,18 @@ static void PiOutput_ExtCmdVariable( const PI_BLOCK *pPiBlock, const AI_BLOCK * 
       }
       else
          strcpy(modbuf, "%H:%M-%d.%m.%Y");
-      strftime(strbuf, sizeof(strbuf), modbuf, localtime(&pPiBlock->start_time));
+
+      if (timeOpBuf[0] == '+')
+         tdiff = pPiBlock->start_time + (timeOpVal * 60);
+      else
+         tdiff = pPiBlock->start_time - (timeOpVal * 60);
+
+      strftime(strbuf, sizeof(strbuf), modbuf, localtime(&tdiff));
       ShellCmd_AppendString(pCmdBuf, strbuf);
    }
-   else if (strncmp(pKeyword, "stop", keywordLen) == 0)
-   {  // stop time
+   else if ( (strncmp(pKeyword, "stop", keywordLen) == 0) ||
+             (sscanf(pKeyword, "stop%1[+-]%d", timeOpBuf, &timeOpVal) == 2) )
+   {  // stop time, possible +/- a given offset
       if (pModifier != NULL)
       {
          strncpy(modbuf, pModifier, modifierLen);
@@ -218,10 +229,17 @@ static void PiOutput_ExtCmdVariable( const PI_BLOCK *pPiBlock, const AI_BLOCK * 
       }
       else
          strcpy(modbuf, "%H:%M-%d.%m.%Y");
-      strftime(strbuf, sizeof(strbuf), modbuf, localtime(&pPiBlock->stop_time));
+
+      if (timeOpBuf[0] == '+')
+         tdiff = pPiBlock->stop_time + (timeOpVal * 60);
+      else
+         tdiff = pPiBlock->stop_time - (timeOpVal * 60);
+
+      strftime(strbuf, sizeof(strbuf), modbuf, localtime(&tdiff));
       ShellCmd_AppendString(pCmdBuf, strbuf);
    }
-   else if (strncmp(pKeyword, "duration", keywordLen) == 0)
+   else if ( (strncmp(pKeyword, "duration", keywordLen) == 0) ||
+             (sscanf(pKeyword, "duration%1[+-]%d", timeOpBuf, &timeOpVal) == 2) )
    {  // duration = stop - start time; by default in minutes
       if (now >= pPiBlock->stop_time)
          tdiff = 0;
@@ -229,12 +247,20 @@ static void PiOutput_ExtCmdVariable( const PI_BLOCK *pPiBlock, const AI_BLOCK * 
          tdiff = pPiBlock->stop_time - now;
       else
          tdiff = pPiBlock->stop_time - pPiBlock->start_time;
+
       if ((pModifier == NULL) || (*pModifier == 'm'))
          tdiff /= 60;
+
+      if (timeOpBuf[0] == '+')
+         tdiff += timeOpVal;
+      else
+         tdiff -= timeOpVal;
+
       sprintf(strbuf, "%d", (int) tdiff);
       ShellCmd_AppendString(pCmdBuf, strbuf);
    }
-   else if (strncmp(pKeyword, "relstart", keywordLen) == 0)
+   else if ( (strncmp(pKeyword, "relstart", keywordLen) == 0) ||
+             (sscanf(pKeyword, "relstart%1[+-]%d", timeOpBuf, &timeOpVal) == 2) )
    {  // relative start = start time - now; by default in minutes
       if (now >= pPiBlock->start_time)
          tdiff = 0;
@@ -242,6 +268,12 @@ static void PiOutput_ExtCmdVariable( const PI_BLOCK *pPiBlock, const AI_BLOCK * 
          tdiff = pPiBlock->start_time - now;
       if ((pModifier == NULL) || (*pModifier == 'm'))
          tdiff /= 60;
+
+      if (timeOpBuf[0] == '+')
+         tdiff += timeOpVal;
+      else
+         tdiff -= timeOpVal;
+
       sprintf(strbuf, "%d", (int) tdiff);
       ShellCmd_AppendString(pCmdBuf, strbuf);
    }
@@ -586,7 +618,7 @@ Tcl_Obj * PiOutput_ParseScript( Tcl_Interp *interp, Tcl_Obj * pCmdObj,
    {
       pUserCmd = Tcl_UtfToExternalDString(NULL, Tcl_GetString(pCmdObj), -1, &ds);
       if (strncmp(USERCMD_PREFIX_TVAPP, pUserCmd, USERCMD_PREFIX_TVAPP_LEN) == 0)
-      {  // substitute and break strings apart at spaces, then pass argv to TV app
+      {  // substitute and break strings apart at spaces
 
          // skip !wintv! keyword and following white space
          pUserCmd += USERCMD_PREFIX_TVAPP_LEN;
@@ -600,13 +632,12 @@ Tcl_Obj * PiOutput_ParseScript( Tcl_Interp *interp, Tcl_Obj * pCmdObj,
          Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj("tvapp", -1));
       }
       else
-      {  // substitute and quote variables in UNIX style, then execute the command
+      {  // substitute variables and quote spaces etc.
          cmdbuf.quoteShell = TRUE;
          PiOutput_CmdSubstitute(pUserCmd, &cmdbuf, FALSE, pPiBlock, pAiBlock);
 
          // append a '&' to have the shell execute the command asynchronously
          // in the background; else we would hang until the command finishes.
-         // XXX TODO must be adapted for WIN API
          #ifndef WIN32
          ShellCmd_AppendChar('&', &cmdbuf);
          #endif

@@ -21,11 +21,11 @@
  *  Authors:
  *      Copyright (c) 2002 Atsushi Nakagawa.  All rights reserved.
  *
- *  DScaler #Id: SAA7134Card.cpp,v 1.35 2003/03/02 17:03:48 atnak Exp #
+ *  DScaler #Id: SAA7134Card.cpp,v 1.42 2003/10/27 10:39:53 adcockj Exp #
  *  DScaler #Id: SAA7134Source.cpp,v 1.69 2003/01/27 22:04:12 laurentg Exp #
  *  DScaler #Id: SAA7134Provider.cpp,v 1.10 2002/12/24 08:22:14 atnak Exp #
  *
- *  $Id: saa7134.c,v 1.17 2003/07/06 17:47:29 tom Exp tom $
+ *  $Id: saa7134.c,v 1.20 2004/03/22 17:35:32 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -56,9 +56,6 @@
 #include "dsdrv/saa7134_typ.h"
 #include "dsdrv/saa7134.h"
 
-#ifdef ZVBI_DECODER
-static vbi_raw_decoder zvbi_rd[2];
-#endif
 
 // ----------------------------------------------------------------------------
 // Declaration of internal variables
@@ -112,6 +109,8 @@ enum
    FIELDID_SECONDFIELD     = FIELDID_FIELDMASK
 };
 typedef char TFieldID;
+
+static vbi_raw_decoder zvbi_rd[2];
 
 
 // ----------------------------------------------------------------------------
@@ -228,6 +227,7 @@ static void SAA7134_ManageMyState( void )
     ManageByte(SAA7134_CLIP_GREEN);
     ManageByte(SAA7134_CLIP_BLUE);
 
+    #if 0  // We don't really need to save these
     for (i = 0; i < 16; i++)
     {
         ManageByte(SAA7134_CLIP_H_ACTIVE(i));
@@ -239,6 +239,7 @@ static void SAA7134_ManageMyState( void )
         ManageByte(SAA7134_CLIP_V_POS(i));
         ManageByte(SAA7134_CLIP_V_POS_HIBYTE(i));
     }
+    #endif
 
     ManageByte(SAA7134_DCXO_IDENT_CTRL);
     ManageByte(SAA7134_DEMODULATOR);
@@ -259,9 +260,16 @@ static void SAA7134_ManageMyState( void )
     ManageByte(SAA7134_I2S_OUTPUT_SELECT);
     ManageByte(SAA7134_I2S_OUTPUT_LEVEL);
     ManageByte(SAA7134_DSP_OUTPUT_SELECT);
-    ManageByte(SAA7134_AUDIO_MUTE_CTRL);
+
+    // This stops unmuting on exit
+    // ManageByte(SAA7134_AUDIO_MUTE_CTRL);
+
     ManageByte(SAA7134_SIF_SAMPLE_FREQ);
-    ManageByte(SAA7134_ANALOG_IO_SELECT);
+
+    // Managing this causes problems for cards that
+    // use audio line for muting
+    //ManageByte(SAA7134_ANALOG_IO_SELECT);
+
     ManageDword(SAA7134_AUDIO_CLOCK);
     ManageByte(SAA7134_AUDIO_PLL_CTRL);
     ManageDword(SAA7134_AUDIO_CLOCKS_PER_FIELD);
@@ -288,6 +296,7 @@ static void SAA7134_ManageMyState( void )
     ManageByte(SAA7134_SPECIAL_MODE);
 
     // do these ones last
+    #if 0  // It is probably safer if we leave DMA and IRQ stuff zeroed when we're done.
     ManageWord(SAA7134_SOURCE_TIMING);
     //ManageByte(SAA7134_REGION_ENABLE);  // NO!
 
@@ -309,6 +318,7 @@ static void SAA7134_ManageMyState( void )
 
     //ManageDword(SAA7134_IRQ1);
     //ManageDword(SAA7134_IRQ2);
+    #endif
 }
 
 // ----------------------------------------------------------------------------
@@ -824,12 +834,12 @@ static DWORD WINAPI SAA7134_VbiThread( LPVOID dummy )
 {
    BYTE * pVbiLine;
    bool  overflow;
+   bool  acceptFrame;
    uint  curIdx;
    uint  oldIdx;
 
-   #ifndef ZVBI_DECODER
    VbiDecodeSetSamplingRate(6750000 * 4, VBI_VSTART + 3);
-   #else
+
    memset(&zvbi_rd[0], 0, sizeof(zvbi_rd[0]));
    zvbi_rd[0].sampling_rate    = 6750000 * 4;
    zvbi_rd[0].bytes_per_line   = VBI_LINE_SIZE;
@@ -848,7 +858,6 @@ static DWORD WINAPI SAA7134_VbiThread( LPVOID dummy )
    zvbi_rd[1].count[1]         = VBI_LINES_PER_FIELD;
    vbi_raw_decoder_add_services(&zvbi_rd[0], VBI_SLICED_TELETEXT_B | VBI_SLICED_VPS, 1);
    vbi_raw_decoder_add_services(&zvbi_rd[1], VBI_SLICED_TELETEXT_B, 1);
-   #endif
 
    for (oldIdx = 0; oldIdx < VBI_FIELD_CAPTURE_COUNT; oldIdx++)
       WriteFieldMarker(oldIdx);
@@ -884,20 +893,25 @@ static DWORD WINAPI SAA7134_VbiThread( LPVOID dummy )
 
                // notify teletext decoder about start of new field; since we don't have a
                // field counter (no capture interrupt) we always pass 0 as sequence number
-               #ifndef ZVBI_DECODER
-               if ( VbiDecodeStartNewFrame(0) )
+               if (pVbiBuf->slicerType != VBI_SLICER_ZVBI)
                {
-                  uint  row;
-
-                  for (row = 0; row < VBI_LINES_PER_FIELD; row++, pVbiLine += VBI_LINE_SIZE)
+                  acceptFrame = VbiDecodeStartNewFrame(0);
+                  if (acceptFrame)
                   {
-                     VbiDecodeLine(pVbiLine, row, TRUE);
+                     uint  row;
+
+                     for (row = 0; row < VBI_LINES_PER_FIELD; row++, pVbiLine += VBI_LINE_SIZE)
+                     {
+                        VbiDecodeLine(pVbiLine, row, TRUE);
+                     }
                   }
                }
                else
-               #else  // ZVBI_DECODER
-               if (ZvbiSliceAndProcess(&zvbi_rd[oldIdx % 2], pVbiLine, 0) == FALSE)
-               #endif
+               {
+                  acceptFrame = ZvbiSliceAndProcess(&zvbi_rd[oldIdx % 2], pVbiLine, 0);
+               }
+
+               if (acceptFrame == FALSE)
                {  // channel change -> discard all previously captured data in the buffer
                   for (oldIdx = 0; oldIdx < VBI_FIELD_CAPTURE_COUNT; oldIdx++)
                      WriteFieldMarker(oldIdx);
@@ -926,11 +940,9 @@ static DWORD WINAPI SAA7134_VbiThread( LPVOID dummy )
    }
    StopCapture();
 
-   #ifdef ZVBI_DECODER
    ZvbiSliceAndProcess(NULL, NULL, 0);
    vbi_raw_decoder_destroy(&zvbi_rd[0]);
    vbi_raw_decoder_destroy(&zvbi_rd[1]);
-   #endif
 
    return 0;  // dummy
 }
@@ -1010,7 +1022,7 @@ static bool SAA7134_Configure( uint threadPrio, uint pllType )
 // ---------------------------------------------------------------------------
 // Allocate resources and initialize PCI registers
 //
-static bool SAA7134_Open( TVCARD * pTvCard )
+static bool SAA7134_Open( TVCARD * pTvCard, bool wdmStop )
 {
    BYTE  CapCtl;
    DWORD DmaCtl;
@@ -1061,7 +1073,7 @@ static bool SAA7134_Open( TVCARD * pTvCard )
 // ---------------------------------------------------------------------------
 // Free I/O resources and close the driver device
 //
-static void SAA7134_Close( void )
+static void SAA7134_Close( TVCARD * pTvCard )
 {
    // skip reset if conflict was detected earlier to avoid crashing the other app
    if (CardConflictDetected == FALSE)

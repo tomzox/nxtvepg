@@ -24,7 +24,7 @@
 #
 #  Author: Tom Zoerner
 #
-# $Id: nxtvepg.pod,v 1.99 2003/10/05 19:50:47 tom Exp tom $
+# $Id: nxtvepg.pod,v 1.109 2004/04/02 17:27:19 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME
@@ -49,7 +49,7 @@ card and are lucky enough to have a Nextview content provider in your country.
 
 B<nxtvepg>
 enables you to obtain free TV programme listings for all of the major
-networks in Germany, Austria, France and Switzerland. Currently
+networks in Germany, Austria, France, Belgium and Switzerland. Currently
 Nextview EPG is transmitted by the following TV networks (note that each
 of these EPGs cover not only the provider's programme but also that of
 many other networks):
@@ -58,19 +58,23 @@ many other networks):
 
 =item *
 
-In Germany and Austria: Kabel1, RTL-II.
+In Germany and Austria: Kabel1, RTL-II (coverage: apx. 32 networks)
 
 =item *
 
-In Switzerland: SF1, TSR1, TSI1, EuroNews.
+In Switzerland: SF1, TSR1, TSI1, EuroNews (coverage: apx. 37 networks)
 
 =item *
 
-In France: Canal+, M6, TV5, EuroNews.
+In France: Canal+, M6, TV5, EuroNews (coverage: 8 networks)
 
 =item *
 
-In Turkey: TRT.
+In Belgium: VT4 (coverage: 32 networks)
+
+=item *
+
+In Turkey: TRT (coverage: apx. 17 networks)
 
 =back
 
@@ -149,9 +153,9 @@ but still constant (i.e. the order is determined by the driver, not nxtvepg)
 Select a provider by its hexadecimal CNI (Country and Network Identifier),
 e.g. I<-provider d92> for B<Kabel1>. You can find out the provider's CNI
 during a provider scan or from the database file names.
-Use the code I<FF> for the merged database
-(in the last used configuration as saved in the rc/ini file).
-
+Use keyword I<merged> to dump a merged database (or use code I<FF> as required
+by earlier versions of nxtvepg.)  Note before you can use a merged
+database you have to configure it, see L<"MERGED DATABASES">.
 Default if this option is omitted: the last provider selected during
 the previous session.
 
@@ -214,17 +218,23 @@ For more details see L<"CONTROL"> and L<"FILES">.
 UNIX only:
 In daemon mode this option prevents the process actually making itself a
 daemon, i.e. it doesn't fork and stays connected to the terminal. Also
-all log messages starting with level
-.I warning
+all log messages starting with level I<warning>
 are sent to standard error out (e.g. configuration errors that lead to
 an immediate exit).  This mode is intended for debugging purposes only.
 
 =item B<-acqpassive>
 
-In daemon mode this option overrides the acquisition mode setting in the
-configuration file and forces the acquisition into passive mode (see
+In daemon mode this option overrides the acquisition mode setting in
+the configuration file and forces acquisition into passive mode (see
 L<"ACQUISITION MODES">).  The configuration file is not changed, so that
 you can use different acquisition strategies for daemon and GUI.
+
+=item B<-acqonce> I<phase>
+
+In daemon mode this option will automatically stop acquisition and
+terminate the daemon after the given phase has been completed for all
+providers.  Phases are the same as defined in L<"ACQUISITION MODES">,
+i.e. I<now>, I<near> and I<full>.
 
 =item B<-dump> I<mode>
 
@@ -247,11 +257,26 @@ will be discarded by the operating system unless you redirect it.
 For example you could enter the following command in the shell
 (or "MS-DOS prompt"):
 
-  nxtvepg -dump ai -prov dc7 > networks.txt
+  nxtvepg -dump ai -prov d92 > networks.txt
 
 to write the network table of provider I<Kabel1> (CNI I<0xd92>) into a file
 called I<networks.txt>.
 
+
+=item B<-remctrl> I<command>
+
+Windows only: This option can be used to remote control an other,
+previously started GUI instance of nxtvepg, i.e. to send the given
+command to the other process and then exit.
+
+The following commands are available:
+I<quit> to terminate the other nxtvepg process;
+I<iconify> to minimize the window;
+I<deiconify> to undo a previous minimization;
+I<raise> to deiconify the other window and to bring it to the top
+(in case it's obscured by other windows);
+I<acqon> to start acquisition;
+I<acqoff> to stop acquisition.
 
 =item B<-demo> I<path>
 
@@ -857,12 +882,12 @@ the browser database, and one for the acquisition database. The
 acquisition window is updated whenenever new EPG blocks are received.
 
 The timescale windows have one scale for each network covered by the
-selected provider. Left side of the scales refer to with the start time
+selected provider. The left end of the scales refers to the start time
 of the oldest TV programme in the database.  Depending on how long ago
 the database was updated and the current expiry removal delay
 (see L<"FILTERING: Expired Programmes Display">),
 some or all TV programmes may lie in the past.
-The exact dates are printed in the date scale at top of the window,
+The exact dates are printed in the date scale at the top of the window,
 the current time is additionally marked with a small arrow labeled "now".
 
 Ranges that are covered by programmes of the respective network in the
@@ -928,7 +953,7 @@ Now cycle is expired (marked orange).  If all 5 are orange, it's time
 to update the database.
 
 
-=head2 Database statistics popup windows
+=head2 Database statistics
 
 There are two popup windows available from the Control menu which contain
 statistical information about the browser database and the acquisition
@@ -1021,6 +1046,8 @@ that expired PI are not accessible from the user interface, however they
 are included in the database dump from the I<Control> menu.
 
 
+=head2 Acquisition statistics
+
 =over 4
 
 =item I<Acq. runtime:>
@@ -1041,7 +1068,8 @@ together with the CNI it is appended after the CNI in decoded format
 (i.e. DD.MM HH:MM with day, month, hour and minute).  Note: the VPS/PDC
 codes are used to uniquely identify the current programme on a given
 network.  You can display the codes for all programmes in the database
-if you enable them (see L<"CONFIGURATION: Select attributes">).
+(if you enable them in L<"CONFIGURATION: Select attributes">) or pass them
+to external applications (see L<"CONFIGURATION: Context menu extensions">)
 
 =item I<TTX data rate:>
 
@@ -1079,6 +1107,30 @@ The average of the number of times each block in the AI was received
 since start of the acquisition.  Divided in Now, stream 1 and stream 2.
 This value is used by acquisition control in the termination criterium
 for acquisition phases, if the acquisition mode is cyclic.
+
+=item I<Decoder quality:>
+
+Reception and loss statistics: Count of received EPG teletext pages and
+count of complete EPG pages missing in the sequence.  Count of received
+teletext packets (usually 23 per page) and missing packets.  Note: page
+and packet loss is usually caused by decoding errors in packet and page
+headers (which carry a 50% redundancy so this is a strong indication of
+weak signal quality) or when a TV application running in parallel
+interferes with capture configuration (i.e. when not all required lines
+in VBI can be received)
+
+Next is the number of received and dropped blocks.  Blocks are usually
+assembled from data received in several teletext packets and have to
+be dropped if packets or pages inbetween are missing. Blocks may also
+be dropped due to decoding or check-sum errors (above note regarding
+these errors applies here too)
+
+The final line lists the number of decoded text characters (e.g. programme
+titles and descriptions) and how many decoding errors were detected.
+Forward error protection used for text is pretty weak, so you may see
+errors here even with relatively good signal quality.  With bad signal
+quality the actual error rate might be higher then displayed, since the
+protection cannot detect double-bit errors.
 
 =item I<Acq mode:>
 
@@ -1506,11 +1558,10 @@ below) with your new shortcut at the start of the list at the left. You
 should change the shortcut label in the field at the top right; by default
 it's just "new shortcut".  The label will be displayed in the shortcut list
 in the main window.
-
 When you're done press I<Save>, or I<Abort> if you've changed your mind
 and don't want to add this shortcut after all.  If you want to define
 multiple shortcuts you can leave the Edit dialog open and save just once
-when you're done completely.
+when you're done with all changes.
 
 You can invoke several shortcuts in parallel by moving the mouse with
 the left button pressed or by pressing the I<CTRL> or I<SHIFT> keys when
@@ -1533,22 +1584,22 @@ safely press "Yes".
 
 =head2 Editing Filter Shortcuts
 
-To change names and/or order of your shortcuts you can invoke the edit
-dialog either via the main menu or the context menu. On the left of the
+To change names and/or organisation of your shortcuts, open the edit
+dialog (e.g. via the main menu.)  On the left of the
 dialog window there's a list of all your shortcuts. In the middle there's
 a row of command buttons which operate on the shortcut selected at the
 left (explained below).  At the right there's an editable field with
 shortcut name, a read-only display of the filter settings currently
-assigned to the shortcut, a popup list with the editable filter mask
-and a button which allows to hide the shortcut from the list in the
-main window.
+assigned to the shortcut, and popup menus to change the filter's mask
+and combination rules (also explained in detail below.)
 
-The buttons with up/down arrows will move the shortcut selected in the
-list up or down. Note that shortcuts marked as "hidden" will always be
-moved to the end of the list once you save it, so it's not useful to
-change their order. The I<Delete> button removes the selected shortcut
-from the list.  The shortcut is not deleted from the main window until
-you press save; leave the dialog with I<Abort> to undo the operation.
+The buttons with up/down arrows will move the selected shortcut up or down. 
+The buttons with arrows pointing to the upper left and lower right are
+used to move a shortcut entry out of or into a sub-folder respectively.
+
+The I<Delete> button removes the selected shortcut from the list (the
+deletion won't affect the main window until you press I<Save>, so you
+can leave the dialog with I<Abort> to undo the operation.)
 
 The I<Invoke> button will apply the shortcut's filter setting to the
 main window just as selecting the shortcut in the main window's list.
@@ -1561,12 +1612,6 @@ overwrite the wrong shortcut.  If you notice such a mistake, you can
 undo the change either by leaving the edit dialog with the I<Abort>
 button or selecting the respecting shortcut in the main window and
 assigning the original settings via I<Update>.
-
-At the bottom of the edit menu there's a checkbutton labeled
-I<Hide from main window>.  When it's enabled the currently selected shortcut will
-not be included with the shortcut list in the main window. This is
-useful for shortcuts which you only intend to use in user-defined
-columns (see L<"COMPOSITE ATTRIBUTES">)
 
 =head2 Filter Masks
 
@@ -1649,31 +1694,47 @@ menu, since it allows to skip this intermediate dialog.
 
 =head1 COMPOSITE ATTRIBUTES
 
-By default the TV schedule contains for each programme the start time,
-title, TV network and possibly additional "basic" attributes.  By using
-composite attributes you can customize the TV schedule according to your
-personal preferences.  For example you could (1) alter the display format
-(e.g. use colors), (2) add text or images as markers for favorite
-programmes and/or (3) compact display by combining several attributes
-into one.
+By default the TV schedule contains for each programme "basic" attributes
+like its date, starting time, title, TV network in a pre-defined textual format.
+By using composite attributes you can customize the TV schedule according
+to your personal preferences.  For example you could (1) alter the display
+format of pre-defined attributes (e.g. use colors for highlighting),
+(2) add new attributes, for example with images as markers for favorite
+programmes and/or (3) compact display by combining several attributes into one.
+
+Composite attributes replace single attributes in the display (e.g. only
+the theme category column.)  Newly created composite attributes will be
+appended to the list of pre-defined attributes.  You can then configure
+your programme list as a mixture of pre-defined and composite attributes
+(see L<"CONFIGURATION: Select attributes">)
 
 Composite attributes are created and edited via the
 I<Attribute composition> dialog in the I<Configure> menu
 (see L<"CONFIGURATION: Attribute composition">)
 
-The "heart" of attribute composition is a list of filter shortcuts.
-You build this list as a subset of your personal filter shortcuts
-(which usually is displayed at the very left of the browser window;
-see also L<"FILTER SHORTCUTS">).
+The "heart" of attribute composition is a list of filter shortcuts
+and reminder groups, which you build as a subset of your personal
+filter shortcuts and/or reminder groups (see also L<"FILTER SHORTCUTS">
+and L<"REMINDERS">.)
 
-Whenever nxtvepg displays a programme in the browser, it matches for
-each column/row (depending on your list layout) which contains compound
-attributes the programme's attributes against the shortctus associated
-which the respective compound attribute, in the given order (top to bottom
-in the dialog's list - so shortcut order is important).  If a match is
-found, the text, image or attribute which
-was assigned to that specific shortcut match is displayed in the column.
-If no shortcut matches, the column remains empty in that programme's row.
+Whenever nxtvepg displays a composite attribute in the browser, it
+matches the programme's actual attributes (e.g. theme categories or
+assigned reminders) against the shortcuts and reminder groups associated
+which the respective composite attribute, in the given order
+(top to bottom in the dialog's list - so order is important).
+If a match is found, the text, image or attribute which was assigned
+to that specific shortcut match is displayed in the column with the
+format specified for this match.  If none match (and there's no
+I<*no match*> entry, see below), nothing is displayed in place of
+the composite attribute.
+
+Note in this context I<matching> means that a shortcut's filters are
+tried against the TV programme, i.e. a programme "matches" a filter when
+it would remain displayed when you enable that filter shortcut in the
+main window.  A reminder group is considered matching when the
+respective TV show is programmed as a reminder in that group (or matches
+a shortcut which is assigned to the given reminder group - but let's
+ignore that for now to avoid confusion.)
 
 Example: to create a personalized version of the I<Editorial rating>
 (ER) column, you could create three shortcuts: one with the ER filter
@@ -1844,13 +1905,24 @@ but will re-appear afterwards.
 =head1 CONTEXT MENU
 
 Another quick way to select and deselect filters is by using the
-context menu, which is popped up with the right mouse button in
-the browser window.
+context menu, which is opened by clicking with the right mouse button
+onto a programme entry in the main browser window.
 
-This menu consists of three parts: the first entries allow to undo the
-previously selected filters - either one by one or globally (reset).
+This menu consists of several parts, separated by horizontal lines,
+which depend on the currently selected programme and hence are not
+always present.
 
-The second part offers a number of possible new filter options, which
+=over 4
+
+=item B<Undo currently selected filters>
+
+The first section holds entries which allow disable currently
+selected filters either one by one or globally (reset).
+See also L<"FILTERING: Filter Types">
+
+=item B<Add new filters>
+
+The second section offers a number of possible new filter options, which
 depend on the currently selected title and the already selected filters.
 The offered filter types include: themes and network of the selected
 programme title, it's series code, repeat or original transmission
@@ -1860,14 +1932,25 @@ and last but not least the title text.
 The title text and series filters allow to check very quickly for
 repeats of a programme. These filter options are included only if
 there is a match, i.e. if there's another programme with the same
-title or series code repectively.
+title or series code respectively.
 
-The optional third part is empty by default, but can be used to invoke
+=item B<Add reminder>
+
+This menu entry will add a reminder for the currently selected
+programme.  The reminder will have the default reminder group.
+To create reminders in different groups use I<Add reminder into group>
+in the reminder main menu (see also L<"REMINDERS">)
+
+=item B<User-defined entries>
+
+The optional fourth section is empty by default, but can be used to invoke
 user-defined external commands on the selected programme. More precisely,
 you can execute any command with properties of the selected programme
 (like title or start time) on its command line. The user commands
 can be added via the Configure menu
 (see L<"CONFIGURATION: Context menu extensions">).
+
+=back
 
 
 =head1 CONTROL
@@ -2036,10 +2119,24 @@ For I<MySQL> you could create the following tables:
 =item B<Export as XMLTV>
 
 Open a dialog that allows to export the complete database in XML format,
-as defined by the xmltv.dtd (see "xmltv" project on sourceforge.net).
+as defined by the B<xmltv.dtd> version 0.5 (see I<xmltv> project on
+http://sourceforge.net/)
 The generated file contains both the channel table and the complete
-schedule, including any networks you might have suppressed from the
+TV schedule, including any networks you might have suppressed from the
 listing inside nxtvepg.
+
+B<Hint:> If you want to restrict the amount of exported data, configure
+a merged database.  This is possible even for a single provider.
+This way you can exclude certain networks or attributes, e.g. to omit
+theme categories from the output (see the "Configure" sub-menu in the
+merge configuration dialog.)
+
+Some TV applcations are known to not parse XMLTV timestamps correctly.
+As a work-around for such buggy applications, there's an option which
+allows to export dates and times in local time instead of UTC (also
+known as I<Greenwhich Mean Time> or GMT.)  If all programme data
+appears shifted by one or two hours in your TV app's schedule, try
+this option.
 
 Note that the database can also be exported directly from the command
 line by using the B<-dump xml> switch (see L<"OPTIONS">).
@@ -2159,9 +2256,10 @@ more details.)
 
 To remove obsolete providers (i.e. such which have ceased to provide
 Nextview service or which you can no longer receive), you should start a
-provider scan in I<refresh> mode.  You cannot remove active providers
-because nxtvepg would add them back automatically in the next scan or
-when their TV channel is tuned externally.
+provider scan in I<refresh> mode (see L<"CONFIGURATION: Provider scan">)
+You cannot remove active providers even if you're not interested in their
+EPG information, because nxtvepg would add them back automatically in
+the next scan or when their TV channel is tuned externally.
 
 
 =head2 Merge providers
@@ -2181,16 +2279,17 @@ See L<"ACQUISITION MODES"> for more details.
 Open a dialog that allows to start a scan across all TV channels for
 Nextview transmissions.  You should perform this search at least once,
 firstly to find out which providers are available in your area, and
-secondly to determine the frequencies of all provider's TV channels. They
+secondly to determine the frequencies of all provider's TV channels. Those
 are required for most acquisition modes, and due to driver limitations
 often not available without a scan (e.g. on Windows or Linux with bttv
 driver <= 0.7.50). See also L<"GETTING STARTED"> and the subsequent
 chapter on TV card configuration.
 
-If you live in France, select the French frequency table (which implies
-the I<Secam L> TV norm) to be used for the EPG scan; the default is a
-frequency table for Germany, Austria and Switzerland and the PAL B/G/I
-TV norm. Other countries are not supported, since there currently
+If you live in France or Belgium, select the French frequency table
+(which implies the I<Secam L> TV norm) to be used for the EPG scan;
+else use the default frequency table which covers common cable network
+frequencies in Western Europe with the PAL TV norm.
+Other countries are not supported, since there currently
 are no Nextview providers.  If you live in an area where you receive
 both PAL and SECAM stations, you should perform the EPG scan twice
 with different channel tables.
@@ -2200,25 +2299,29 @@ configuration file is found in your home directory (on UNIX) or
 a TV application was set up in the I<TV app. interaction> dialog
 (or initially in the I<TV card input> dialog).  Instead of searching
 all possible TV channels or frequencies in all bands, nxtvepg then just
-checks the TV channels defined there, which saves a lot of time.
+checks the TV channels defined there, which usually saves a lot of time.
 
 Check the I<Slow> button if you have bad reception on some channels.
-In slow mode the scanner will not require a stable video signal and wait
+In slow mode the scanner will not skip channels with "unstable"
+video signal (i.e. no PLL H-lock within 0.150 seconds) and wait
 twice as long as normal for everything, i.e. up to 4 seconds for a
 VPS/PDC channel identification and up to 90 seconds for EPG for known
-providers or if potential data packets were found.  Note that you can
-change this setting while the scan is running.
+providers or if potential EPG data packets were found.  Note that you
+can change this setting while the scan is running.
 
 Use the I<Refresh only> mode if you deleted your database files (or if you
-upgrade from an incompatible software version) or if you want to find and
+upgrade from an incompatible software version) or if you want to identify or
 remove obsolete providers. In this mode only the channels on which Nextview
 data was received before are checked (the frequencies are kept both in the
-databases and your rc/ini file). This allows you to regain your complete
-provider list very quickly. If no data transmission is found on a
-provider's channel, a I<Remove this provider> will be added to the
+databases and your rc/ini file). This allows to regain your complete
+provider selection very quickly. If no data transmission is found on a
+provider's channel, a I<Remove this provider> button will be added to the
 output window, which you can use after the scan has finished to remove
-the database and any information recorded about the provider.
+the database and any information recorded about the provider.  Note that
+removal will fail if the database is currently in use, so you may have to
+stop acquisition and select a different provider.
 
+Technical background information on how the EPG scan works:
 The scan will visit every physical TV frequency (or subsets thereof if
 you use one of the options described above) and check for a TV signal.
 If one is detected within 150 ms or if at least one teletext packet
@@ -2235,17 +2338,18 @@ Even though the scan tries very hard, it can not warrent that every
 EPG provider is found every time. For example some providers do have
 pauses of more than 45 seconds in their EPG transmission; or they
 might have technical problems.  So the safest way is to check the
-nxtvepg WWW homepage (see I<About> in the Help menu) for a list of known
-EPG providers. If you receive the channels where they transmit, repeat
-the scan until they are found, e.g. at different times of the day.
-If you find new providers not listed on the web site, please let me know.
+nxtvepg web site (see I<About> in the Help menu) for a list of known
+Nextview EPG providers. If you receive TV channels for which a provider
+is listed, repeat the scan until they are found, e.g. at different times
+of the day.  If you find new providers not listed on the web site,
+please let me know.
 
 
 =head2 TV card input
 
 Open a dialog where the TV card hardware parameters can be configured.
 
-This dialog contains more options on Windows than on UNIX platforms,
+This dialog contains more options on Windows than on UNIX platforms
 because on UNIX the driver is part of the operating system, whereas
 on Windows it's part of the application and has to be configured
 separately for every application.  Hence, before you can use nxtvepg
@@ -2265,17 +2369,38 @@ Depending o your hardware you may only see a sub-set of these
 input types, or additional ones (e.g. I<Radio>, which will obviously
 not work as input for nxtvepg.)
 
-See also L<"DATA ACQUISITION"> about the disadvantages of not using
-the TV tuner as input.
+Note if you don't choose a TV tuner as input nxtvepg will not be able
+to automatically switch to your EPG provider's channel.
+See also L<"DATA ACQUISITION">.
 
 If you have more than one TV tuner card, you can also choose which
-one to use, just like with the B<-card> command line option. The
-popup menu will list all card types as configured in the driver.
+one to use, just like with the B<-card> command line option
+(see L<"OPTIONS">)
+The popup menu will list all card types as configured in the driver.
 Note that changing the card may also affect the input selection,
 in particular if the cards use a different ordering for input types.
 
-Windows only: at the very bottom of the dialog window there's a
-checkbutton which allows to enable logging during driver startup and
+The slicer quality option selects between different algorithms by which
+teletext is extracted from the analog video signal.  The I<simple>
+algorithm works only for excellent TV reception, but has the advantage
+of using very little CPU resources.  The I<elaborate> algorithm
+(copied from zapping's libzvbi and originally developed for the Linux
+teletext viewer I<alevt>) is much more error tolerant.  When you select
+I<automatic> acquisition will always start with the simple algorithmm
+but switch to the elaborate one when the transmission error rate is
+above recommended limits (see also
+L<"STATISTICS: Acquisition statistics">).
+
+B<Windows only:> at the bottom of the dialog window there are additional
+options, which you only need to try if acquisition does not work
+correctly.
+
+If you experience data loss due to heavy system load, you can raise
+the acquisition thread priority (may require special privileges on
+certain Windows versions.)  Default is I<normal>, i.e. the same as
+for all user applications.
+
+The second checkbutton allows to enable logging during driver startup and
 shutdown. The output is appended to a file named I<dsdrv.log> in the
 nxtvepg working directory.  Enable this option if you're not able to
 start the driver and cannot find out why.  But first see the explanation
@@ -2284,10 +2409,18 @@ option is not remembered across program starts, i.e. to make use of it
 you have to enable the acquisition via the Control menu and not by
 restarting nxtvepg.
 
-Windows only: if you experience data loss due to heavy system load,
-you can raise the acquisition thread priority.  Default is I<normal>,
-i.e. the same as for all user applications.
-
+The third option currently only applies to CX23881 based cards: it
+allows to disable a vendor's WDM driver for the same card.  This is a
+work-around for the fact that CX23881 WDM drivers are known to access
+the TV card even while no application is using them.  You should only
+use it as a last resort, i.e. when you can't get the card to work
+at all.  It's still an experimental feature, some users have reported
+that their card configuration was lost or WDM drivers remained
+disabled even after nxtvepg was stopped (in both cases other applications
+will probably not work properly anymore.) You can verify if the WDM
+drivers are cause of acquisition problems by de-installing them,
+rebooting and then trying nxtvepg again (note nxtvepg doesn't require
+any vendor supplied drivers.)  
 
 
 =head2 Client/Server
@@ -2581,14 +2714,16 @@ and "Theme") as described in the previous chapter.
 
 For a general description of composite attributes see
 L<"COMPOSITE ATTRIBUTES">.  This chapter only describes usage
-of the configuration dialog.
+of the configuration dialog.  This chapter also assumes you're familiar
+with the concept of filter shortcuts (see L<"FILTER SHORTCUTS">) and
+reminders (see L<"REMINDERS">)
 
 The dialog consists of three sections: at the top to the right there is a
-drop-down menu which lists all currently defined compound attributes. Here you
+drop-down menu which lists all currently defined composite attributes. Here you
 select which attribute definition you want to edit.  Below to the left is a
-list of shortcuts and reminders and 4 buttons to edit the list.  On
-the right side of the shortcut list there are various controls for
-defining how programmes matching shortcuts or reminders should be displayed.
+list of shortcuts and reminder groups and 4 buttons to edit the list.  On
+the right side of the shortcut list there are various controls for defining
+how programmes matching shortcuts or reminder groups should be displayed.
 
 Note that there are dependencies between those sections: when you change
 to a different attribute definition with the drop-down menu at the top,
@@ -2606,13 +2741,15 @@ layout), which will appear above the programme list in the main windiw;
 you'll probably use a shorter text here than in the label.
 
 Then you add one or more filters to the list by use of the I<Add shortcut>
-or I<Add reminder> drop-down menus to the left of the listbox. New entries
-are always appended at the end, but you can change the ordering by use of
-the up/down arrow buttons.  To remove a shortcut or reminder from the list,
+or I<Add reminder>
+drop-down menus to the left of the listbox. New entries are always appended
+at the end of the list, but you can change the ordering by use of the
+up/down arrow buttons.  To remove a shortcut or reminder group from the list,
 first select it then click the I<Delete> button or key.  Note: ordering is
-important when a programme is matched by more than one shortcut or reminder,
-because the display format is determined by the first match (see also
-L<"COMPOSITE ATTRIBUTES">.)
+important when a programme is matched by more than one shortcut, or if you
+mix shortcuts with reminder groups, because the display format will be
+determined by the first matching entry in the list, strting at the top
+(see also L<"COMPOSITE ATTRIBUTES">.)
 
 At the right of the shortcut list there are controls which defines what's
 displayed in the programme list depending on a shortcut or reminder match
@@ -2750,10 +2887,8 @@ Below the list there are two text input fields which allow to modify or
 create new commands. The field labeled B<Title> defines the text which will
 be included to the popup menu.  The field labeled B<Command> defines the
 command line to be executed when the entry is selected in the popup menu, with
-possible placeholders enclosed in ${} which are replaced by parameters of the
-currently selected programme in the browser listbox. After the substitution
-and after appending an ampersand '&' sign to allow asynchronous execution
-(UNIX only), the command line is passed to a shell via the system(3) function.
+possible placeholders enclosed in ${} which are replaced by attributes of the
+currently selected programme in the browser listbox.
 
 When you press the menu button I<Copy Example> a list pops up which contains
 a few example commands which can be copied into the title and command entry
@@ -2789,17 +2924,41 @@ and e/p_rating which are editorial and parental rating respectively.
   ${repeat}
   ${subtitle}
 
-The keywords can be followed by a colon and an output format specification.
-In case of the start, stop and VPS/PDC times, all options defined in the
-B<strftime(3)> manpage are available; default is %H:%M-%d.%m.%Y (hour, minute,
-day, month, year). In case of relative start time and duration, you can choose
-between minutes (default) and seconds by appending "m" or "s". For themes
-you can choose between numerical and textual output by appending "n" or "t".
-For all other variables the modifiers are currently ignored.
+Start and stop time related keywords can optionally be followed by either
+a plus or minus sign and a time offset.  The offset value is assumed to be
+given as minutes.  For relstart and duration the precision can be changed
+by means of the format (see below.)  Example: to print the start time
+minus 5 minutes (e.g. to start a recording 5 minutes earlier)
+use C<${start-5:%H:%M}>
 
-On UNIX the substrings which replace the formal variables are enclosed in
-single quotes to protect them from interpretation by the shell. Single quotes
-inside the substituted string are correctly escaped.
+The keywords can optionally be followed by a colon and an output format
+specification.  Options depend on the type of variable substitution:
+
+=over 4
+
+=item I<Start, stop and VPS/PDC times>
+
+All options defined in the B<strftime(3)> manpage are available;
+default is %H:%M-%d.%m.%Y (hour, minute, day, month, year).
+
+=item I<Relative start time and duration>
+
+You can choose between minutes (default) and seconds by appending "m" or "s".
+
+=item I<Themes>
+
+You can choose between numerical and textual output by appending "n" or "t".
+
+=back
+
+For all other variables modifiers are currently ignored.
+
+On UNIX the resulting substrings which replace the formal variables are
+always enclosed in single quotes, because the command line is passed
+to a system shell for execution (/bin/sh, i.e. the I<Bourne Shell> by means
+of the I<system> function; see also system man pages B<sh> or B<bash>)
+and there are many characters with special meaning.  Single quotes inside 
+he substituted string are correctly escaped.
 
 Example: The command line
 
@@ -2809,7 +2968,16 @@ could for example result in
 
   plan '22.08.2001 13:05' 'Käpt'\''n Blaubärs Seemannsgarn'
 
-to be passed to the Bourne Shell (F</bin/sh>).
+On Windows only single- and double quotes and spaces characters are
+escaped with a backslash. Hence the above example would result in:
+
+  plan 22.08.2001\ 13:05 Käpt\'n\ Blaubärs\ Seemannsgarn
+
+Note if you want to prevent the backslash inbetween date and time (if
+the called program doesn't understand it), you can simply use two
+separate substitutions for date and time. Example:
+
+  plan ${start:%d.%m.%Y} ${start:%H:%M} ${title}
 
 There are special prefixes C<!xawtv!> and C<!wintv!> which tell nxtvepg
 to send this command line to a connected TV application (see
@@ -2819,8 +2987,9 @@ L<"CONFIGURATION: TV application interaction">).  For example
 
 would create a command that switches the TV app's channel to that of
 the currently selected programme (i.e. the same what the I<Tune TV>
-button does).  When no TV application is connected, such entries are
-automatically disabled.
+button does).  You should refer to the documentation of your TV app
+to see which commands it supports.  When no TV application is connected,
+such entries are automatically disabled.
 
 
 =head2 Themes language
@@ -2971,7 +3140,9 @@ which has access to the devices or create such a group.
 
 =item B</dev/video0>, B</dev/video1>, etc.
 
-Device files which are needed to set input source (e.g. TV tuner or one of
+On Linux kernel series 2.4 and earlier (i.e. before revision #2 of the
+video4linux API) these device files
+are used to select the input source (e.g. TV tuner or one of
 the composite or S-Video sockets) and tuner frequency for VBI reception,
 unless you choose the passive acquisition mode. The index postfix can be
 specified with the B<-card> command line option. This device must be
@@ -3091,7 +3262,7 @@ are stored. By default this is created in the working directory, but a
 different path and file name can be specified with the B<-rcfile> option
 (see L<"OPTIONS">).
 
-=item B<nxtvepg.ad>
+=item B<Nxtvepg.ad>
 
 Allows to change the application's appearance, i.e. colors and text fonts.
 The format and content of the file is identical to the F<.Xdefaults> file
@@ -3150,9 +3321,11 @@ for instructions on which information must be included in a bug report.
 
 =head1 AUTHOR
 
-T. Zoerner, Erlangen, Germany.
+T. Zoerner, Nuremberg, Germany.
 
-Email: tomzo (at) users (dot) sourceforge (dot) net
+Best way to provide feedback is via the discussion forum at the nxtvepg
+homepage, but you can also contact me personally via email:
+C<tomzo (at) users (dot) sourceforge (dot) net>
 
 Many thanks to Thierry Ménétrier and Peter Rolf
 for their valuable feedback and suggestions;
@@ -3173,7 +3346,7 @@ would never have been ported to M$ Windows.
 
 =head1 COPYRIGHT
 
-Copyright (C) 1999 - 2003 by T. Zoerner.
+Copyright (C) 1999 - 2004 by T. Zoerner.
 All rights reserved.
 
 Additional copyrights apply to portions of the code herein.

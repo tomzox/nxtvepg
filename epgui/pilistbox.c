@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pilistbox.c,v 1.92 2003/10/05 19:34:37 tom Exp tom $
+ *  $Id: pilistbox.c,v 1.94 2004/02/28 21:38:40 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -44,7 +44,6 @@
 #include "epgdb/epgblock.h"
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
-#include "epgctl/epgacqctl.h"
 #include "epgui/epgmain.h"
 #include "epgui/uictrl.h"
 #include "epgctl/epgctxctl.h"
@@ -82,6 +81,8 @@ int         pibox_max;           // total number of matching items
 int         pibox_off;           // number of currently invisible items above the window
 bool        pibox_resync;        // if TRUE, need to evaluate off and max
 bool        pibox_lock;          // if TRUE, refuse additions from acq
+time_t      pibox_req_time;      // start time of last directly selected item
+time_t      pibox_req_net;       // network of last directly selected item
 PIBOX_STATE pibox_state = PIBOX_NOT_INIT;  // listbox state
 
 #define dbc pUiDbContext         // internal shortcut
@@ -352,6 +353,8 @@ void PiListBox_Reset( void )
    pibox_count = 0;
    pibox_max = 0;
    pibox_off = 0;
+   pibox_req_time = 0;
+   pibox_req_net = 0;
    if (pPiBlock != NULL)
    {
       while ((pPiBlock != NULL) && (pibox_count < pibox_height))
@@ -394,14 +397,14 @@ void PiListBox_Refresh( void )
 {
    const PI_BLOCK *pPiBlock, *pPrev, *pNext;
    uchar last_netwop;
-   time_t min_time;
+   time_t last_start_time;
    int i;
 
    if (pibox_state != PIBOX_LIST)
    {
       // do nothing
    }
-   else if ((pibox_off == 0) && (pibox_curpos <= 0))
+   else if ((pibox_off == 0) && (pibox_curpos <= 0) && (pibox_req_time == 0))
    {  // listing starts with the very first item -> keep that unchanged
       PiListBox_Reset();
    }
@@ -410,7 +413,7 @@ void PiListBox_Refresh( void )
       sprintf(comm, ".all.pi.list.text delete 1.0 end\n");
       eval_check(interp, comm);
 
-      min_time    = pibox_list[pibox_curpos].start_time;
+      last_start_time = pibox_list[pibox_curpos].start_time;
       last_netwop = pibox_list[pibox_curpos].netwop_no;
       pibox_resync = FALSE;
       pibox_off = 0;
@@ -419,13 +422,13 @@ void PiListBox_Refresh( void )
       pPiBlock = EpgDbSearchFirstPi(dbc, pPiFilterContext);
       if (pPiBlock != NULL)
       {
-         while ( (pPiBlock->start_time < min_time) ||
-                 ((pPiBlock->start_time == min_time) && (pPiBlock->netwop_no < last_netwop)) )
+         while ( (pPiBlock->start_time < pibox_req_time) ||
+                 ((pPiBlock->start_time == pibox_req_time) && (pPiBlock->netwop_no < pibox_req_net)) )
          {
             pNext = EpgDbSearchNextPi(dbc, pPiFilterContext, pPiBlock);
             if ( (pNext == NULL) ||
-                 (pNext->start_time > min_time) ||
-                 ((pNext->start_time == min_time) && (pNext->netwop_no > last_netwop)) )
+                 (pNext->start_time > pibox_req_time) ||
+                 ((pNext->start_time == pibox_req_time) && (pNext->netwop_no > pibox_req_net)) )
                break;
 
             pPiBlock = pNext;
@@ -492,7 +495,7 @@ void PiListBox_Refresh( void )
          PiListBox_ShowCursor();
 
          // display short and long info
-         if ( (min_time    == pibox_list[pibox_curpos].start_time) &&
+         if ( (last_start_time == pibox_list[pibox_curpos].start_time) &&
               (last_netwop == pibox_list[pibox_curpos].netwop_no) )
          {  // still the same PI under the cursor -> keep the short-info view unchanged
             PiListBox_UpdateInfoText(TRUE);
@@ -655,6 +658,8 @@ static void PiListBox_ScrollMoveto( int newpos )
             else
                pibox_curpos = 0;
             pibox_off = newpos;
+            pibox_req_time = pibox_list[pibox_curpos].start_time;
+            pibox_req_net  = pibox_list[pibox_curpos].netwop_no;
             PiListBox_ShowCursor();
 
             // display short and long info
@@ -737,6 +742,8 @@ static void PiListBox_ScrollPageDown( int delta )
       {  // selected item still visible -> keep cursor on it
          pibox_curpos -= new_count;
       }
+      pibox_req_time = pibox_list[pibox_curpos].start_time;
+      pibox_req_net  = pibox_list[pibox_curpos].netwop_no;
       PiListBox_UpdateInfoText(FALSE);
 
       // inform the vertical scrollbar about the start offset and viewable fraction
@@ -747,6 +754,8 @@ static void PiListBox_ScrollPageDown( int delta )
       sprintf(comm, ".all.pi.list.text tag remove cur %d.0 %d.0\n", pibox_curpos + 1, pibox_curpos + 2);
       eval_check(interp, comm);
       pibox_curpos = pibox_count - 1;
+      pibox_req_time = pibox_list[pibox_curpos].start_time;
+      pibox_req_net  = pibox_list[pibox_curpos].netwop_no;
       PiListBox_ShowCursor();
       PiListBox_UpdateInfoText(FALSE);
    }
@@ -813,6 +822,8 @@ static void PiListBox_ScrollPageUp( int delta )
             {  // selected item still visible -> keep cursor on it
                pibox_curpos += new_count;
             }
+            pibox_req_time = pibox_list[pibox_curpos].start_time;
+            pibox_req_net  = pibox_list[pibox_curpos].netwop_no;
             PiListBox_UpdateInfoText(FALSE);
 
             // inform the vertical scrollbar about the start offset and viewable fraction
@@ -823,6 +834,8 @@ static void PiListBox_ScrollPageUp( int delta )
             sprintf(comm, ".all.pi.list.text tag remove cur %d.0 %d.0\n", pibox_curpos + 1, pibox_curpos + 2);
             eval_check(interp, comm);
             pibox_curpos = 0;
+            pibox_req_time = pibox_list[pibox_curpos].start_time;
+            pibox_req_net  = pibox_list[pibox_curpos].netwop_no;
             PiListBox_ShowCursor();
             PiListBox_UpdateInfoText(FALSE);
          }
@@ -870,6 +883,8 @@ static void PiListBox_ScrollLineDown( int delta )
             }
             else
                pibox_curpos -= 1;
+            pibox_req_time = pibox_list[pibox_curpos].start_time;
+            pibox_req_net  = pibox_list[pibox_curpos].netwop_no;
             PiListBox_UpdateInfoText(FALSE);
 
             // adjust the vertical scrollbar
@@ -884,6 +899,8 @@ static void PiListBox_ScrollLineDown( int delta )
          pibox_curpos += delta;
          if (pibox_curpos >= pibox_count)
             pibox_curpos = pibox_count - 1;
+         pibox_req_time = pibox_list[pibox_curpos].start_time;
+         pibox_req_net  = pibox_list[pibox_curpos].netwop_no;
          PiListBox_ShowCursor();
          PiListBox_UpdateInfoText(FALSE);
       }
@@ -929,6 +946,8 @@ static void PiListBox_ScrollLineUp( int delta )
             }
             else
                pibox_curpos += 1;
+            pibox_req_time = pibox_list[pibox_curpos].start_time;
+            pibox_req_net  = pibox_list[pibox_curpos].netwop_no;
             PiListBox_UpdateInfoText(FALSE);
 
             // inform the vertical scrollbar about the start offset and viewable fraction
@@ -944,6 +963,8 @@ static void PiListBox_ScrollLineUp( int delta )
             pibox_curpos += delta;
          else
             pibox_curpos = 0;
+         pibox_req_time = pibox_list[pibox_curpos].start_time;
+         pibox_req_net  = pibox_list[pibox_curpos].netwop_no;
          PiListBox_ShowCursor();
          PiListBox_UpdateInfoText(FALSE);
       }
@@ -1027,6 +1048,8 @@ static int PiListBox_CursorDown( ClientData ttp, Tcl_Interp *interp, int objc, T
 	    sprintf(comm, ".all.pi.list.text tag remove cur %d.0 %d.0\n", pibox_curpos + 1, pibox_curpos + 2);
 	    eval_check(interp, comm);
 	    pibox_curpos += 1;
+            pibox_req_time = pibox_list[pibox_curpos].start_time;
+            pibox_req_net  = pibox_list[pibox_curpos].netwop_no;
 	    PiListBox_ShowCursor();
             PiListBox_UpdateInfoText(FALSE);
 	 }
@@ -1036,6 +1059,8 @@ static int PiListBox_CursorDown( ClientData ttp, Tcl_Interp *interp, int objc, T
 	 sprintf(comm, ".all.pi.list.text tag remove cur %d.0 %d.0\n", pibox_curpos + 1, pibox_curpos + 2);
 	 eval_check(interp, comm);
 	 pibox_curpos += 1;
+         pibox_req_time = pibox_list[pibox_curpos].start_time;
+         pibox_req_net  = pibox_list[pibox_curpos].netwop_no;
 	 PiListBox_ShowCursor();
 	 PiListBox_UpdateInfoText(FALSE);
       }
@@ -1062,6 +1087,8 @@ static int PiListBox_CursorUp( ClientData ttp, Tcl_Interp *interp, int objc, Tcl
 	    sprintf(comm, ".all.pi.list.text tag remove cur %d.0 %d.0\n", pibox_curpos + 1, pibox_curpos + 2);
 	    eval_check(interp, comm);
 	    pibox_curpos = 0;
+            pibox_req_time = pibox_list[pibox_curpos].start_time;
+            pibox_req_net  = pibox_list[pibox_curpos].netwop_no;
 	    PiListBox_ShowCursor();
             PiListBox_UpdateInfoText(FALSE);
 	 }
@@ -1071,6 +1098,8 @@ static int PiListBox_CursorUp( ClientData ttp, Tcl_Interp *interp, int objc, Tcl
 	 sprintf(comm, ".all.pi.list.text tag remove cur %d.0 %d.0\n", pibox_curpos + 1, pibox_curpos + 2);
 	 eval_check(interp, comm);
 	 pibox_curpos -= 1;
+         pibox_req_time = pibox_list[pibox_curpos].start_time;
+         pibox_req_net  = pibox_list[pibox_curpos].netwop_no;
 	 PiListBox_ShowCursor();
 	 PiListBox_UpdateInfoText(FALSE);
       }
@@ -1211,6 +1240,8 @@ static int PiListBox_GotoTime( ClientData ttp, Tcl_Interp *interp, int objc, Tcl
          {  // set the cursor on the first item
             pibox_curpos = 0;
          }
+         pibox_req_time = pibox_list[pibox_curpos].start_time;
+         pibox_req_net  = pibox_list[pibox_curpos].netwop_no;
          PiListBox_ShowCursor();
 
          // display short and long info
@@ -1274,9 +1305,8 @@ void PiListBox_GotoPi( const PI_BLOCK * pPiBlock )
             // ugly hack: overwrite the first item with where we want to jump to
             //            then set the cursor on if and force a refresh
             //            the refresh will fill the window around the cursor with the correct items
-            pibox_list[0].start_time = pPiBlock->start_time;
-            pibox_list[0].netwop_no  = pPiBlock->netwop_no;
-            pibox_curpos = 0;
+            pibox_req_time = pPiBlock->start_time;
+            pibox_req_net  = pPiBlock->netwop_no;
             PiListBox_Refresh();
             doRefresh = FALSE;
          }
@@ -1285,9 +1315,8 @@ void PiListBox_GotoPi( const PI_BLOCK * pPiBlock )
               ((pPiBlock->start_time == pibox_list[pibox_count - 1].start_time) && (pPiBlock->netwop_no > pibox_list[pibox_count - 1].netwop_no)) )
          {  // PI lies behind the visible area
             // ugly hack: overwrite the last item with where we want to jump to
-            pibox_list[pibox_count - 1].start_time = pPiBlock->start_time;
-            pibox_list[pibox_count - 1].netwop_no  = pPiBlock->netwop_no;
-            pibox_curpos = pibox_count - 1;
+            pibox_req_time = pPiBlock->start_time;
+            pibox_req_net  = pPiBlock->netwop_no;
             PiListBox_Refresh();
             doRefresh = FALSE;
          }
@@ -1308,6 +1337,8 @@ void PiListBox_GotoPi( const PI_BLOCK * pPiBlock )
                eval_check(interp, comm);
 
                pibox_curpos = idx;
+               pibox_req_time = pibox_list[pibox_curpos].start_time;
+               pibox_req_net  = pibox_list[pibox_curpos].netwop_no;
 
                // skip GUI redraw if complete refresh follows
                if (doRefresh == FALSE)
@@ -1349,6 +1380,8 @@ static int PiListBox_SelectItem( ClientData ttp, Tcl_Interp *interp, int objc, T
 	 eval_check(interp, comm);
 
 	 pibox_curpos = newRow;
+         pibox_req_time = pibox_list[pibox_curpos].start_time;
+         pibox_req_net  = pibox_list[pibox_curpos].netwop_no;
 	 PiListBox_ShowCursor();
 
 	 // display short and long info

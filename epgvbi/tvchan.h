@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: tvchan.h,v 1.6 2002/05/11 15:42:50 tom Exp tom $
+ *  $Id: tvchan.h,v 1.6 2002/05/11 15:42:50 tom Exp $
  */
 
 #ifndef __TVCHAN_H

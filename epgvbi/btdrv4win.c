@@ -40,7 +40,7 @@
  *      Tom Zoerner
  *
  *
- *  $Id: btdrv4win.c,v 1.42 2003/03/19 16:17:42 tom Exp tom $
+ *  $Id: btdrv4win.c,v 1.48 2004/03/27 15:08:16 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -119,6 +119,7 @@ static struct
    uint        cardId;
    uint        tunerType;
    uint        pllType;
+   uint        wdmStop;
    uint        threadPrio;
    uint        inputSrc;
    uint        tunerFreq;
@@ -224,7 +225,7 @@ static bool BtDriver_SetInputSource( uint inputIdx, uint norm, bool * pIsTuner )
    else
    {  // slave mode -> set param in shared memory
       result = WintvSharedMem_SetInputSrc(inputIdx);
-      isTuner = TRUE;
+      isTuner = TRUE;  // XXX TODO
    }
 
    if (pIsTuner != NULL)
@@ -599,7 +600,7 @@ static void BtDriver_Unload( void )
 {
    if (drvLoaded)
    {
-      cardif.ctl->Close();
+      cardif.ctl->Close(&cardif);
       UnloadDriver();
 
       drvLoaded = FALSE;
@@ -628,7 +629,7 @@ static bool BtDriver_Load( void )
       {
          cardif.params.cardId = btCfg.cardId;
 
-         result = cardif.ctl->Open(&cardif);
+         result = cardif.ctl->Open(&cardif, btCfg.wdmStop);
          if (result)
          {
             drvLoaded = TRUE;
@@ -679,33 +680,89 @@ static bool BtDriver_Load( void )
 }
 
 // ----------------------------------------------------------------------------
+// Check if the parameters are valid for the given source
+// - this function is used to warn the user abour parameter mismatch after
+//   hardware or driver configuration changes
+//
+bool BtDriver_CheckCardParams( int cardIdx, int chipId,
+                               int cardType, int tunerType, int pll, int input )
+{
+   TVCARD tmpCardIf;
+   bool   result = FALSE;
+
+   if (btCardCount != CARD_COUNT_UNINITIALIZED)
+   {
+      if (cardIdx < btCardCount)
+      {
+         if (((btCardList[cardIdx].VendorId << 16) |
+               btCardList[cardIdx].DeviceId) == chipId)
+         {
+            if (BtDriver_GetCardInterface(&tmpCardIf, (chipId >> 16), CARD_COUNT_UNINITIALIZED) )
+            {
+               result = (tmpCardIf.cfg->GetCardName(&tmpCardIf, cardType) != NULL) &&
+                        (tmpCardIf.cfg->GetNumInputs(&tmpCardIf) > input) &&
+                         (Tuner_GetName(tunerType) != NULL);
+            }
+         }
+      }
+      else
+         debug2("BtDriver-CheckCardParams: source index %d no longer valid (>= %d)", cardIdx, btCardCount);
+   }
+   else
+   {  // no PCI scan yet: just do rudimentary checks
+      if (cardIdx < CAPTURE_CHIP_COUNT)
+      {
+         if (chipId != 0)
+         {
+            if (BtDriver_GetCardInterface(&tmpCardIf, (chipId >> 16), CARD_COUNT_UNINITIALIZED) )
+            {
+               tmpCardIf.params.cardId = cardType;
+
+               result = (tmpCardIf.cfg->GetCardName(&tmpCardIf, cardType) != NULL) &&
+                        (tmpCardIf.cfg->GetNumInputs(&tmpCardIf) > input) &&
+                        (Tuner_GetName(tunerType) != NULL);
+            }
+            else
+               debug1("BtDriver-CheckCardParams: unknown PCI ID 0x%X", chipId);
+         }
+      }
+      else
+         fatal2("BtDriver-CheckCardParams: illegal source index %d (>= %d)", cardIdx, CAPTURE_CHIP_COUNT);
+   }
+   return result;
+}
+
+// ----------------------------------------------------------------------------
 // Set user-configurable hardware parameters
 // - called at program start and after config change
 // - Important: input source and tuner freq must be set afterwards
 //
-bool BtDriver_Configure( int cardIdx, int prio, int chipType, int cardType, int tunerType, int pllType )
+bool BtDriver_Configure( int cardIdx, int prio, int chipType, int cardType,
+                         int tunerType, int pllType, bool wdmStop )
 {
    bool cardChange;
    bool cardTypeChange;
    bool pllChange;
    bool tunerChange;
    bool prioChange;
-   int  chipIdx;
    bool result = TRUE;
 
    prio = BtDriver_GetAcqPriority(prio);
 
    if (btCardCount != CARD_COUNT_UNINITIALIZED)
    {  // check if the configuration data still matches the hardware
-      chipIdx  = btCardList[cardIdx].chipIdx;
-      if (chipType != ((CaptureChips[chipIdx].VendorId << 16) | CaptureChips[chipIdx].DeviceId))
+      if ( (cardIdx >= btCardCount) ||
+           (chipType != ((btCardList[cardIdx].VendorId << 16) |
+                         btCardList[cardIdx].DeviceId)) )
       {
-         cardType = tunerType = pllType = 0;
+         ifdebug3(cardIdx < btCardCount, "BtDriver-Configure: PCI chip type of card #%d changed from 0x%X to 0x%X", cardIdx, ((btCardList[cardIdx].VendorId << 16) | btCardList[cardIdx].DeviceId), chipType);
+         cardType = tunerType = pllType = wdmStop = 0;
       }
    }
 
    // check which values change
-   cardChange     = (cardIdx   != btCfg.cardIdx);
+   cardChange     = ((cardIdx   != btCfg.cardIdx) ||
+                     (wdmStop  != btCfg.wdmStop));
    cardTypeChange = (cardType  != btCfg.cardId);
    tunerChange    = (tunerType != btCfg.tunerType);
    pllChange      = (pllType   != btCfg.pllType);
@@ -717,6 +774,7 @@ bool BtDriver_Configure( int cardIdx, int prio, int chipType, int cardType, int 
    btCfg.cardId     = cardType;
    btCfg.tunerType  = tunerType;
    btCfg.pllType    = pllType;
+   btCfg.wdmStop    = wdmStop;
 
    if (shmSlaveMode == FALSE)
    {
@@ -776,6 +834,24 @@ bool BtDriver_Configure( int cardIdx, int prio, int chipType, int cardType, int 
    return result;
 }
 
+// ---------------------------------------------------------------------------
+// Set slicer type
+// - note: slicer type "automatic" not allowed here:
+//   type must be decided by upper layers
+//
+void BtDriver_SelectSlicer( VBI_SLICER_TYPE slicerType )
+{
+   if ((slicerType != VBI_SLICER_AUTO) && (slicerType < VBI_SLICER_COUNT))
+   {
+      dprintf1("BtDriver-SelectSlicer: slicer %d\n", slicerType);
+
+      if (pVbiBuf != NULL)
+         pVbiBuf->slicerType = slicerType;
+   }
+   else
+      debug1("BtDriver-SelectSlicer: invalid slicer type %d", slicerType);
+}
+
 // ----------------------------------------------------------------------------
 // Change the tuner frequency
 // - makes only sense if TV tuner is input source
@@ -822,20 +898,36 @@ bool BtDriver_TuneChannel( int inputIdx, uint freq, bool keepOpen, bool * pIsTun
 // ----------------------------------------------------------------------------
 // Get the current tuner frequency
 //
-uint BtDriver_QueryChannel( void )
+bool BtDriver_QueryChannel( uint * pFreq, uint * pInput, bool * pIsTuner )
 {
-   uint freq = 0;
+   bool result = FALSE;
 
-   if (shmSlaveMode == FALSE)
+   if ((pFreq != NULL) && (pInput != NULL) && (pIsTuner != NULL))
    {
-      freq = btCfg.tunerFreq | (btCfg.tunerNorm << 24);
+      if (shmSlaveMode == FALSE)
+      {
+         *pFreq = btCfg.tunerFreq | (btCfg.tunerNorm << 24);
+         *pInput = btCfg.inputSrc;
+         if (drvLoaded)
+            *pIsTuner = cardif.cfg->IsInputATuner(&cardif, btCfg.inputSrc);
+         else
+            *pIsTuner = TRUE;
+         result = TRUE;
+      }
+      else
+      {
+         *pFreq = WintvSharedMem_GetTunerFreq();
+         *pInput = WintvSharedMem_GetInputSource();
+         *pIsTuner = TRUE;  // XXX TODO
+
+         result = (*pInput != EPG_REQ_INPUT_NONE) &&
+                  (*pFreq != EPG_REQ_FREQ_NONE);
+      }
    }
    else
-   {
-      freq = WintvSharedMem_GetTunerFreq();
-   }
+      debug0("BtDriver-QueryChannel: invalid NULL ptr params");
 
-   return freq;
+   return result;
 }
 
 // ----------------------------------------------------------------------------

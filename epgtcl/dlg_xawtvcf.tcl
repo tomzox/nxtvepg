@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_xawtvcf.tcl,v 1.6 2003/04/01 20:52:51 tom Exp tom $
+#  $Id: dlg_xawtvcf.tcl,v 1.7 2004/02/29 18:21:04 tom Exp tom $
 #
 set xawtvcf_popup 0
 
@@ -52,7 +52,7 @@ proc UpdateTvappName {} {
 }
 
 # callback invoked when a TV app attaches or detaches in the background
-proc XawtvConfigShmAttach {} {
+proc XawtvConfigShmAttach {attach} {
    global is_unix
 
    if {!$is_unix} {
@@ -61,6 +61,10 @@ proc XawtvConfigShmAttach {} {
          XawtvConfigDisplayShmAttach
       }
    }
+}
+
+# callback invoked when TV station is changed - unused by nxtvepg
+proc XawtvConfigShmChannelChange {station freq} {
 }
 
 #=LOAD=XawtvConfigPopup

@@ -19,7 +19,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_prov.tcl,v 1.9 2003/03/31 19:17:24 tom Exp tom $
+#  $Id: dlg_prov.tcl,v 1.11 2004/04/02 13:47:41 tom Exp tom $
 #
 set provwin_popup 0
 set provmerge_popup 0
@@ -72,14 +72,14 @@ proc ProvWin_Create {} {
       # list of providers at the left side of the window
       frame .provwin.n
       frame .provwin.n.b
-      scrollbar .provwin.n.b.sb -orient vertical -command {.provwin.n.b.list yview}
+      scrollbar .provwin.n.b.sb -orient vertical -command {.provwin.n.b.list yview} -takefocus 0
       pack .provwin.n.b.sb -side left -fill y
       listbox .provwin.n.b.list -relief ridge -selectmode single -exportselection 0 \
                                 -width 12 -height 5 -yscrollcommand {.provwin.n.b.sb set}
       pack .provwin.n.b.list -side left -fill both -expand 1
       pack .provwin.n.b -side left -fill both -expand 1
-      bind .provwin.n.b.list <ButtonRelease-1> {+ ProvWin_Select}
-      bind .provwin.n.b.list <KeyRelease-space> {+ ProvWin_Select}
+      bind .provwin.n.b.list <<ListboxSelect>> ProvWin_Select
+      bind .provwin.n.b.list <Double-Button-1> ProvWin_Exit
 
       # provider info at the right side of the window
       if {[info exists provwin_servicename]} {unset provwin_servicename}
@@ -115,7 +115,7 @@ proc ProvWin_Create {} {
       button .provwin.cmd.abort -text "Abort" -width 5 -command {destroy .provwin}
       button .provwin.cmd.ok -text "Ok" -width 5 -command ProvWin_Exit -default active
       bind .provwin.cmd.ok <Return> {tkButtonInvoke .provwin.cmd.ok}
-      bind .provwin.cmd.ok <Escape> {tkButtonInvoke .provwin.cmd.abort}
+      bind .provwin <Escape> {tkButtonInvoke .provwin.cmd.abort}
       pack .provwin.cmd.help .provwin.cmd.abort .provwin.cmd.ok -side left -padx 10
       pack .provwin.cmd -side top -pady 5
 
@@ -213,7 +213,7 @@ proc PopupProviderMerge {} {
          set provmerge_selist $provmerge_ailist
       }
       if {[info exists prov_merge_cf]} {
-         array set provmerge_cf $prov_merge_cf
+         catch {array set provmerge_cf $prov_merge_cf}
       }
 
       if {[llength $provmerge_ailist] == 0} {
@@ -626,12 +626,22 @@ proc EpgScanButtonControl {is_start} {
 # callback for "Remove provider" button in the scan message window
 proc EpgScanDeleteProvider {cni} {
    global prov_selection prov_freqs cfnetwops
+   global prov_merge_cnis prov_merge_cf acq_mode_cnis
 
    if {[string compare [.epgscan.cmd.start cget -state] normal] != 0} {
+      # EPG scan not finished yet
       return
    }
+   if {([lsearch -exact $prov_merge_cnis $cni] != -1) &&
+       ([C_GetCurrentDatabaseCni] == 0x00FF)} {
+      tk_messageBox -type ok -icon error -parent .epgscan \
+                    -message "You're still using this provider in the merged database. Please adapt your merge configuration first or select a single provider."
+      return
+   }
+
    set answer [tk_messageBox -type okcancel -icon info -parent .epgscan \
                   -message "You're about to remove the provider's database and all it's configuration information."]
+
    if {[string compare $answer ok] == 0} {
       # remove the database file
       set err_str [C_RemoveProviderDatabase $cni]
@@ -641,8 +651,6 @@ proc EpgScanDeleteProvider {cni} {
          tk_messageBox -type ok -icon error -parent .epgscan \
             -message "Failed to remove the database file: $err_str"
       } else {
-         #warn prov_merge_cnis
-         #warn acq_mode_cnis
 
          set idx [lsearch -exact $prov_selection $cni]
          if {$idx != -1} {
@@ -653,6 +661,33 @@ proc EpgScanDeleteProvider {cni} {
             set prov_freqs [lreplace $prov_freqs $idx [expr $idx + 1]]
          }
          array unset cfnetwops $cni
+
+         # remove from manual/cyclic acquisition mode provider list
+         set idx [lsearch -exact $acq_mode_cnis $cni]
+         if {$idx != -1} {
+            set acq_mode_cnis [lreplace $acq_mode_cnis $idx $idx]
+            C_UpdateAcquisitionMode
+         }
+         # remove from merge configuration
+         set idx [lsearch -exact $prov_merge_cnis $cni]
+         if {$idx != -1} {
+            set prov_merge_cnis [lreplace $prov_merge_cnis $idx $idx]
+
+            if [info exists prov_merge_cf] {
+               set tmp_cf {}
+               foreach {name vlist} $prov_merge_cf {
+                  set idx [lsearch -exact $vlist $cni]
+                  if {$idx != -1} {
+                     set vlist [lreplace $vlist $idx $idx]
+                  }
+                  if {[llength $vlist] > 0} {
+                     lappend tmp_cf $name $vlist
+                  }
+               }
+               set prov_merge_cf $tmp_cf
+            }
+            # already checked above that merged db is not open, so no need to re-merge here
+         }
 
          UpdateRcFile
 

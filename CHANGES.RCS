@@ -15147,3 +15147,1353 @@ www/index.html [rev:1.74, 2003-10-12T10:41:33]:
 epgui/wmhooks.h [rev:NONE - MISSING CHECKIN]
 - Initial revision
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_6_0 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+www/index-de.html [rev:1.62, 2003-10-23T18:21:35]:
+- Updated FreeBSD system requirements (via email from Simon Barner)
+www/index.html [rev:1.75, 2003-10-23T18:21:35]:
+- Updated FreeBSD system requirements (via email from Simon Barner)
+Makefile.bsd [rev:1.4, 2003-10-23T18:29:48]:
+- minor fixes via email from Simon Barner
+tcl2c.c [rev:1.10, 2003-10-23T18:48:16]:
+- fix for missing 0 after strncpy via mail from Simon Barner
+- fixed typos, added command line switches in intro
+www/download.html [rev:1.1, 2003-10-26T17:40:47]:
+- Initial revision
+www/download-de.html [rev:1.1, 2003-10-26T17:40:52]:
+- Initial revision
+www/intro-de.html [rev:1.1, 2003-10-26T17:40:52]:
+- Initial revision
+www/intro.html [rev:1.1, 2003-10-26T17:40:52]:
+- Initial revision
+www/index-de.html [rev:1.63, 2003-10-26T18:31:55]:
+- Split off Nextview intro, download and system requirements
+- new ducuments intro[-de].html, download[-de].html
+- improved layout: use CSS blocks instead of tables
+- Also: extended copyright notice to mention content copyright
+www/index.html [rev:1.76, 2003-10-26T18:31:55]:
+- Split off Nextview intro, download and system requirements
+- new ducuments intro[-de].html, download[-de].html
+- improved layout: use CSS blocks instead of tables
+- Also: extended copyright notice to mention content copyright
+www/nxtvepg.css [rev:1.6, 2003-10-26T18:32:07]:
+- added definition for body background color
+- added definitions for navigation blocks to the top and right side
+- added main block with 75% width to fit next to navigation bar
+- added box block definition for download page
+- removed H3 definition: now block-specific format is used
+- removed obsolete/unused definitions (originally copied from w3c.org)
+www/changelog.html [rev:1.48, 2003-10-26T18:32:32]:
+- New layout: added navigation blocks to the top and right side
+www/help-wanted.html [rev:1.3, 2003-10-26T18:32:32]:
+- New layout: added navigation blocks to the top and right side
+www/man.html [rev:1.28, 2003-10-26T18:32:32]:
+- New layout: added navigation blocks to the top and right side
+www/pre-releases.html [rev:1.34, 2003-10-26T18:32:32]:
+- New layout: added navigation blocks to the top and right side
+www/provnets.html [rev:1.25, 2003-10-26T18:32:32]:
+- New layout: added navigation blocks to the top and right side
+www/tvsim-faq.html [rev:1.2, 2003-10-26T18:33:06]:
+- New layout: added navigation blocks to the top and right side
+www/changelog.html [rev:1.49, 2003-10-26T19:06:36]:
+- Added section for known bugs in 2.6.0
+www/index-de.html [rev:1.64, 2003-10-26T19:06:36]:
+- renamed HREF NAME for feedback section from "questions" to "feedback"
+- clarified use of mailing list; added not about subscription requirement
+www/index.html [rev:1.77, 2003-10-26T19:06:36]:
+- renamed HREF NAME for feedback section from "questions" to "feedback"
+- clarified use of mailing list; added not about subscription requirement
+www/nxtvepg.css [rev:1.7, 2003-10-26T19:06:36]:
+- Removed font size and weight specifications for H1 and H2
+tcl2c.c [rev:1.11, 2003-10-29T21:09:49]:
+- Bugfix IncludeConstants(): wrote past the end of allocated block
+www/download-de.html [rev:1.2, 2003-11-02T11:17:01]:
+- added hint that more install instrcutions can be found in README file
+- added hint that windows can be compiled from sources too
+www/download.html [rev:1.2, 2003-11-02T11:17:01]:
+- added hint that more install instrcutions can be found in README file
+- added hint that windows can be compiled from sources too
+epgtcl/htree.tcl [rev:1.1, 2003-11-09T13:04:59]:
+- Initial revision
+www/download-de.html [rev:1.3, 2003-11-11T19:50:20]:
+- fixed German page title
+- fixed link to Tcl/Tk download: scriptics.com is gone
+- applied patch for FreeBSD from Simon Barner (email 2003/11/11)
+www/download.html [rev:1.3, 2003-11-11T19:50:20]:
+- fixed German page title
+- fixed link to Tcl/Tk download: scriptics.com is gone
+- applied patch for FreeBSD from Simon Barner (email 2003/11/11)
+www/download-de.html [rev:1.4, 2003-11-11T21:03:07]:
+- syntax fix in prev. FreeBSD change
+www/download.html [rev:1.4, 2003-11-11T21:03:07]:
+- syntax fix in prev. FreeBSD change
+epgtcl/htree.tcl [rev:1.2, 2003-11-20T18:40:12]:
+- added tcl2c pre-processor directives for dynamic loading
+- added multi-line selection capability
+- copied & adapted bindings from listbox widget
+    generate cirtual <<TreeSelect>> for selection changes
+- implemented commands: see, anchor, "index" (labelat), activate
+    extended selection sub-commands
+- removed -image option
+- adapted demo code
+epgtcl/htree.tcl [rev:1.3, 2003-11-21T20:12:15]:
+- bind mouse events to canvas, not the text items -> use new bindtag HTree
+- click to the left or right of a text item also selects it
+- added -label option
+- use selectwhenidle instead of immediate redraw after selection changes
+- sort list of selected elements bottom-upwards to avoid borders inbetween
+epgtcl/htree.tcl [rev:1.4, 2003-11-22T12:22:43]:
+- bugfix bindtags: must not remove widget name from list
+- added -separator and -diropen parameters
+- clean-up proc buildlayer: pass yoff param by ref' instead of using global var
+- fixed drawselection: white left/upper border was obscured by rectangle
+    lower selection frames below selection rectangles -> solves adj.sel. problem
+    need no longer to reverse-sort selected elements
+www/changelog.html [rev:1.50, 2003-11-23T18:39:18]:
+- Added hyperlink to "Links" page in navigation bar.
+www/download-de.html [rev:1.5, 2003-11-23T18:39:18]:
+- Added hyperlink to "Links" page in navigation bar.
+www/download.html [rev:1.5, 2003-11-23T18:39:18]:
+- Added hyperlink to "Links" page in navigation bar.
+www/help-wanted.html [rev:1.4, 2003-11-23T18:39:18]:
+- Added hyperlink to "Links" page in navigation bar.
+www/index-de.html [rev:1.65, 2003-11-23T18:39:18]:
+- Added hyperlink to "Links" page in navigation bar.
+www/index.html [rev:1.78, 2003-11-23T18:39:18]:
+- Added hyperlink to "Links" page in navigation bar.
+www/intro-de.html [rev:1.2, 2003-11-23T18:39:18]:
+- Added hyperlink to "Links" page in navigation bar.
+www/intro.html [rev:1.2, 2003-11-23T18:39:18]:
+- Added hyperlink to "Links" page in navigation bar.
+www/man.html [rev:1.29, 2003-11-23T18:39:18]:
+- Added hyperlink to "Links" page in navigation bar.
+www/pre-releases.html [rev:1.35, 2003-11-23T18:39:18]:
+- Added hyperlink to "Links" page in navigation bar.
+www/provnets.html [rev:1.26, 2003-11-23T18:39:18]:
+- Added hyperlink to "Links" page in navigation bar.
+www/tvsim-faq.html [rev:1.3, 2003-11-23T18:39:18]:
+- Added hyperlink to "Links" page in navigation bar.
+www/links.html [rev:1.1, 2003-11-23T18:39:45]:
+- Initial revision
+epgtcl/htree.tcl [rev:1.5, 2003-11-30T12:15:39]:
+- Tree:labelat: use "first" instead of "0" to refer to first element in tree;
+    allow node tag as identifier (as alternative to full path)
+- added -selectmode "browse" and "multiple" in key bindings
+- generate virtual event <<TreeOpenClose>>
+- added -state options "disabled" and "noselect" (for dirs and separators);
+    selection and activation (up/down keys) skip disabled elements
+- implemented widget options -selectmode, -selectbackground, -font
+    added Tree:itemconfigure and Tree:itemcget
+- changed Tree($w:...) array parameter structure
+    + only "tags" is created for all elements
+    + tags "children" and "diropen" only dor directory nodes
+epgtcl/htree.tcl [rev:1.6, 2003-12-02T21:36:09]:
+- fix tkHTreeMotion: check if prevSel and anchor are defined
+- Tree:itemcget fix: send id arg through Tree:labelat
+- improved error output messages
+epgtcl/htree.tcl [rev:1.7, 2003-12-06T15:29:21]:
+- added auto-sizing options -maxwidth, -minwidth, -maxheight, -minheight
+- Tree:build: adjust separator width after all elements are drawn
+- bugfix Tree:see: didn't work because :tags was checked instead of :tag
+    also: delay operation until after build: for newly inserted elements
+- Button-2 binding: drag horizontally only if not all visible
+dsdrv/bt8x8.c [rev:1.10, 2003-12-06T17:50:01]:
+- Removed switch -DZVBI_DECODER: include both slicers, select at runtime
+- replaced by new variable pVbiBuf->slicerType
+dsdrv/cx2388x.c [rev:1.13, 2003-12-06T17:50:01]:
+- Removed switch -DZVBI_DECODER: include both slicers, select at runtime
+- replaced by new variable pVbiBuf->slicerType
+dsdrv/saa7134.c [rev:1.18, 2003-12-06T17:50:01]:
+- Removed switch -DZVBI_DECODER: include both slicers, select at runtime
+- replaced by new variable pVbiBuf->slicerType
+dsdrv/wintuner.c [rev:1.16, 2003-12-06T17:50:10]:
+- Added support for MT2050
+- from patch vs. bttv-0.7.109 by Gunther Mayer (v4l ML 30 Nov 2003 18:47:50)
+    Gerd Knorr snapshot video4linux-20031204,
+    fix by Brett Gersekowski (v4l ML 5 Dec 2003 23:26:50)
+- extended existing MT2032 tuner type: MT2050 is dynamically detected
+- added module-global variable MicrotuneType to hold sub-type
+epgvbi/btdrv4linux.c [rev:1.49, 2003-12-06T18:45:18]:
+- Removed switch -DZVBI_DECODER: include both slicers, select at runtime
+- BtDriver_Configure(): save new param slicerType in EPGACQ_BUF
+- BtDriver_DecodeFrame(): use either vbidecode.c or zvbidecoder.c
+- Also:
+- prepared support for v4l2 ioctl VIDIOC_S_PRIORITY
+epgvbi/btdrv.h [rev:1.33, 2003-12-06T18:51:19]:
+- Removed switch -DZVBI_DECODER: include both slicers, select at runtime
+- new enum type VBI_SLICER_TYPE and EPGACQ_BUF elem slicerType
+- added param slicerType to BtDriver_Configure()
+epgvbi/btdrv4dummy.c [rev:1.16, 2003-12-06T18:53:41]:
+- Removed switch -DZVBI_DECODER: include both slicers, select at runtime
+- added param slicerType to BtDriver_Configure()
+epgvbi/btdrv4win.c [rev:1.43, 2003-12-06T18:54:58]:
+- Removed switch -DZVBI_DECODER: include both slicers, select at runtime
+- BtDriver_Configure(): save new param slicerType in EPGACQ_BUF
+epgvbi/vbidecode.c [rev:1.37, 2003-12-06T18:55:54]:
+- Removed switch -DZVBI_DECODER: include both slicers, select at runtime
+epgvbi/zvbidecoder.c [rev:1.5, 2003-12-06T18:55:54]:
+- Removed switch -DZVBI_DECODER: include both slicers, select at runtime
+epgui/pilistbox.c [rev:1.93, 2003-12-06T19:06:21]:
+- Removed unused #include epgacqctl.h
+epgui/xawtv.c [rev:1.38, 2003-12-06T19:08:28]:
+- Removed redundant #include Xlib.h and Xatom.h
+epgui/menucmd.c [rev:1.107, 2003-12-06T19:12:05]:
+- SetHardwareConfig(): pass Tcl var hwcf_slicer_type to BtDriver_Configure()
+- fix GetAcquisitionModeParams(): fall-back if acq_mode config var missing
+    changed from error val to ACQMODE_FOLLOW_UI to allow use without rcfile
+epgtcl/dlg_hwcfg.tcl [rev:1.12, 2003-12-06T20:09:16]:
+- Removed switch -DZVBI_DECODER: include both slicers, select at runtime
+- added new config option "Slicer quality" to TV card input dialog
+- saved in new rc/ini variable hwcf_slicer_type
+www/changelog-2.6.0pre.html [rev:1.1, 2003-12-07T11:20:02]:
+- Initial revision
+www/changelog.html [rev:1.51, 2003-12-07T11:20:40]:
+- Added link to new document changelog-2.6.0pre.html
+www/tvsim-faq.html [rev:1.4, 2003-12-07T11:21:39]:
+- Added link to nxtvepg support request in DScaler support forum
+epgtcl/htree.tcl [rev:1.8, 2003-12-09T22:04:09]:
+- added new config option -selectforeground
+- bugfix Tree:drawactive: referred to Tree(*:tags) instead of :tag
+- bugfix Tree:drawactive: added safeguard in case active elem is deleted
+    (which always occurs when the element is deleted by use of a key binding)
+www/links.html [rev:1.2, 2003-12-25T12:39:29]:
+- Added link to new Linux video recorder/scheduler
+www/nxtvepg.css [rev:1.8, 2003-12-25T12:40:20]:
+- Added SPAN.red for "New" tags
+epgui/loadtcl.c [rev:1.7, 2003-12-27T17:27:44]:
+- Added new Tcl/Tk module "htree" (hierarchical tree, used for shortcuts)
+epgui/epgmain.c [rev:1.128, 2003-12-27T17:28:30]:
+- Added bitmaps ptr_down_right.xbm and ptr_up_left.xbm for shortcuts edit dialog
+epgui/piremind.c [rev:1.14, 2003-12-27T17:31:55]:
+- Removed unnecessary debug output for "missing AI"
+epgtcl/dlg_remind.tcl [rev:1.16, 2003-12-27T20:11:59]:
+- Changed shortcut structure from flat list to hierarchical tree
+- adapted proc RemScList_PostScMenu: use new proc ShortcutTree_MenuFill
+epgtcl/dlg_udefcols.tcl [rev:1.15, 2003-12-27T20:12:14]:
+- Changed shortcut structure from flat list to hierarchical tree
+- adapted proc UserColsDlg_FillShortcutMenu: use new proc ShortcutTree_MenuFill
+- removed use of obsolete proc CompleteShortcutOrder: there are no "hidden"
+    shortcuts anymore, i.e. all are referenced by shortcut_tree
+epgtcl/dlg_shortcuts.tcl [rev:1.13, 2003-12-27T20:12:24]:
+- Changed shortcut structure from flat list to hierarchical tree
+- removed obsolete proc CompleteShortcutOrder: there are no "hidden"
+    shortcuts anymore, i.e. all are referenced by shortcut_tree
+- globally replaced use of list sc order list index with sc array tag
+- changed widget command invocation: use "Tree:XXX" procedures
+- edit dialog:
+    + added "up_left" and "down_right" buttons
+    + use new tree widget instead of listbox in main window
+    + removed "hide" checkbutton
+- added new helper funcs to shift, delete and add shortcuts
+epgtcl/mainwin.tcl [rev:1.231, 2003-12-27T20:12:31]:
+- Changed shortcut structure from flat list to hierarchical tree
+- use new tree widget instead of listbox in main window
+- adapted shortcut context menu
+- Bugfixes:
+- maximize shortcuts list vertically, so it isn't cut off;
+    before list could not be scrolled with right mouse button
+- PiDateScale_Redraw: use noon instead of midnight, because midnight+24 is
+    still the same day for summer->winter daylight saving time switch
+epgtcl/rcfile.tcl [rev:1.19, 2003-12-27T20:12:39]:
+- Changed shortcut structure from flat list to hierarchical tree
+- replaced variable shortcut_order by shortcut_tree
+- added auto-conversion for load of older versions
+    automatically convert "---" entries into separator node types
+- set backwards compatibility version to 2.6.0pre0
+- Removed switch -DZVBI_DECODER: include both slicers, select at runtime
+- added new config variable shortcut_tree
+epgtcl/shortcuts.tcl [rev:1.16, 2003-12-27T20:12:46]:
+- Changed shortcut structure from flat list to hierarchical tree
+- change semantics of 5th elem in "shortcuts" array: new node type (was "hide")
+- adapted default shortcuts
+- changed widget command invocation: use "Tree:XXX" procedures
+- added interface funcs to tree widget: _Fill, _MenuFill, _Curselection etc.
+dsdrv/bt8x8_typ.c [rev:1.1.1.5, 2003-12-28T10:51:41]:
+-r1.39: Added Nebula DigiTV
+-r1.38: Added preliminary support for PMS PDI Deluxe card
+-r1.37: Updated files for better doxygen compatability
+-r1.36: Pinnacle PCTV Studio Pro renamed into Pinnacle PCTV Pro
+dsdrv/cx2388x.c [rev:1.1.1.3, 2003-12-28T11:29:55]:
+-r1.43: Updated files for better doxygen compatability
+-r1.42: Solution to crashin problem with some cards
+dsdrv/cx2388x_typ.c [rev:1.1.1.4, 2003-12-28T11:30:09]:
+-r1.14: Added Leadtek Winfast Expert (Thanks to Tom Zoerner)
+-r1.13: Updated files for better doxygen compatability
+-r1.12: Added PDI input to holo3d (doesn't yet work)
+dsdrv/cx2388x_reg.h [rev:1.1.1.4, 2003-12-28T11:47:48]:
+-r1.13-1.15: new card + new AGC defines
+dsdrv/bt8x8_reg.h [rev:1.1.1.4, 2003-12-28T11:49:40]:
+-r1.24-1.28: added 4 new card IDs
+dsdrv/saa7134_reg.h [rev:1.1.1.3, 2003-12-28T11:52:21]:
+-r1.11: Updated files for better doxygen compatability
+dsdrv/saa7134_typ.c [rev:1.1.1.9, 2003-12-28T11:55:36]:
+-r1.35: Updated files for better doxygen compatability
+-r1.34: Added a missing break in a switch statement
+dsdrv/saa7134.c [rev:1.1.1.5, 2003-12-28T12:10:05]:
+-r1.42: Updated files for better doxygen compatability
+-r1.41: Fix to mute lining and audio channel clush
+-r1.40: Minor fixes
+-r1.39: Fix for initial muting of SAA7130 cards
+-r1.38: Fixes card might not mute on exit
+-r1.37: PRESET tweak
+-r1.36: Removed state management for DMA and IRQ registers
+dsdrv/saa7134.c [rev:1.19, 2003-12-28T12:32:12]:
+- Imported from DScaler CVS rev 1.36-1.42:
+- removed 2 registers from ManageByte: AUDIO_MUTE_CTRL, ANALOG_IO_SELECT
+- removed all DMA setup from management
+dsdrv/cx2388x_reg.h [rev:1.6, 2003-12-28T12:32:26]:
+- Imported from DScaler CVS rev 1.13-1.15: new AGC defines
+dsdrv/cx2388x_typ.c [rev:1.10, 2003-12-28T12:32:34]:
+- Imported from DScaler CVS rev 1.12-1.14:
+- Added new card "Leadtek WinFast TV2000 XP Expert"
+- Update for "Holo 3d Graph" card
+dsdrv/cx2388x.c [rev:1.14, 2003-12-28T12:33:53]:
+- Imported from DScaler CVS rev 1.43:
+- Disabled ManageMyState(): crashes Leadtek
+dsdrv/bt8x8_typ.c [rev:1.11, 2003-12-28T12:34:06]:
+- imported from DScaler CVS rev 1.36-1.39: Added 2 new cards, Pinnacle name fix
+- added note to "Pinnacle PCTV Sat" card name: "external inputs only"
+dsdrv/wintuner.c [rev:1.17, 2003-12-28T12:39:53]:
+- Support Philips FM1216 MK3 tuner (requires IF demodulator TDA9887)
+- Tuner_Init(): probe for TDA9887 for MK3 too
+- Tuner_SetFrequency(): serve TDA9887 independently of tuner type
+epgvbi/zvbidecoder.c [rev:1.6, 2003-12-30T14:43:02]:
+- Removed \n from debugX() output strings
+COPYRIGHT [rev:1.11, 2003-12-30T19:21:42]:
+- Added copyright for hierarchical tree widget
+www/pre-releases.html [rev:1.36, 2004-01-01T16:38:07]:
+- updated for pre-release 2.7.0pre0-pre2
+epgui/shellcmd.c [rev:1.7, 2004-01-24T18:29:19]:
+- Added time offset modifiers to start and stop time substitutions
+- requested in forum 2004/Jan/12 by ZoomOut user
+epgui/wintv.c [rev:1.18, 2004-01-24T18:54:21]:
+- Added station to CNI mapping for multi-network channels
+- idea posted to forum by salokyn, thread "TV App. interaction ..."
+    use air-times configuration to decide which network is currently on air
+- call new function in wintvcfg.c: WintvCfg_StationNameToCni() for mapping
+- Implemented work-around for Arte/Fr5 in France:
+- Arte VPS is sent even while Fr5 is aired and transmits Fr5 PDC
+    this did cause flip-flops between Arte and Fr5 EPG popups
+- to solve this, filter all VPS/PDC CNIs with air times config in new function
+    WintvCfg_CheckAirTimes -> user can suppress Arte CNI during given times
+epgui/xawtv.c [rev:1.39, 2004-01-24T18:54:21]:
+- Added station to CNI mapping for multi-network channels
+- idea posted to forum by salokyn, thread "TV App. interaction ..."
+    use air-times configuration to decide which network is currently on air
+- call new function in wintvcfg.c: WintvCfg_StationNameToCni() for mapping
+- Implemented work-around for Arte/Fr5 in France:
+- Arte VPS is sent even while Fr5 is aired and transmits Fr5 PDC
+    this did cause flip-flops between Arte and Fr5 EPG popups
+- to solve this, filter all VPS/PDC CNIs with air times config in new function
+    WintvCfg_CheckAirTimes -> user can suppress Arte CNI during given times
+epgui/wintvcfg.c [rev:1.16, 2004-01-24T18:54:34]:
+- Added station to CNI mapping for multi-network channels
+- idea posted to forum by salokyn, thread "TV App. interaction ..."
+- added new functions WintvCfg_StationNameToCni()
+- Implemented work-around for Arte/Fr5 in France:
+- added new function WintvCfg_CheckAirTimes() to filter out unwanted CNIs
+epgui/wintvcfg.h [rev:1.4, 2004-01-24T18:54:34]:
+- Added station to CNI mapping for multi-network channels
+- idea posted to forum by salokyn, thread "TV App. interaction ..."
+- added new functions WintvCfg_StationNameToCni()
+- Implemented work-around for Arte/Fr5 in France:
+- added new function WintvCfg_CheckAirTimes() to filter out unwanted CNIs
+epgtcl/htree.tcl [rev:1.9, 2004-01-24T18:58:22]:
+- Fixed debug message in Tree:see
+Makefile.solaris [rev:1.8, 2004-01-24T19:13:24]:
+- added new Tcl/Tk module htree.tcl (new widget for hierarchical trees)
+- removed ZVBI_DECODER compile option: obsolete, switching at runtime
+Makefile.win32 [rev:1.45, 2004-01-24T19:13:24]:
+- added new Tcl/Tk module htree.tcl (new widget for hierarchical trees)
+- removed ZVBI_DECODER compile option: obsolete, switching at runtime
+Makefile [rev:1.66, 2004-01-24T19:14:51]:
+- added new Tcl/Tk module htree.tcl (new widget for hierarchical trees)
+- removed ZVBI_DECODER compile option: obsolete, switching at runtime
+- added new tcl -> h rule to print warning when calling "make nxtvepg"
+nxtvepg.pod [rev:1.100, 2004-01-24T19:19:57]:
+- Context menu commands:
+- added description of start/stop time offsets
+- improved description of modifiers
+epgtcl/mainwin.tcl [rev:1.232, 2004-02-01T16:53:22]:
+- Fixed previous bugfix in proc PiDateScale_Redraw: complete scale was shifted
+- by 12 hours, i.e. clicking on Wednesday would often have got you to Thursday.
+COPYRIGHT [rev:1.12, 2004-02-13T18:41:18]:
+- extended copyright to 2004
+Makefile [rev:1.67, 2004-02-13T18:42:18]:
+- extended copyright to 2004
+Makefile.solaris [rev:1.9, 2004-02-13T18:42:18]:
+- extended copyright to 2004
+Makefile.win32 [rev:1.46, 2004-02-13T18:42:18]:
+- extended copyright to 2004
+nxtvepg.pod [rev:1.101, 2004-02-13T18:47:33]:
+- extended copyright to 2004
+- added explanation of "automatic" slicer type in TV card config dialog
+- adapted FILES chapter on /dev/video: no longer used for v4l2 drivers
+- plus some minor fixes
+dsdrv/wintuner.c [rev:1.18, 2004-02-13T18:57:40]:
+- Split off MT2050 tuner type from MT2032
+- to keep tuner list in sync with DScaler which has separate types too
+- adapted automatic Microtune type detection: default to selected type
+dsdrv/wintuner.h [rev:1.8, 2004-02-13T18:57:40]:
+- Split off MT2050 tuner type from MT2032
+- to keep tuner list in sync with DScaler which has separate types too
+- adapted automatic Microtune type detection: default to selected type
+epgvbi/zvbidecoder.c [rev:1.7, 2004-02-13T19:25:34]:
+- Bugfix offset handling in vbi_raw_decoder_add_services():
+- slicer didn't work with saa7134 due to too large offset
+- Also: put #ifndef USE_LIBZVBI around all code
+epgtcl/dlg_shortcuts.tcl [rev:1.14, 2004-02-13T19:36:12]:
+- Bugfix proc EditFilterShortcuts:
+- check if sc_tag in fsc_prevselection still exists was missing
+- reported via email by Rami 2004-02-11
+epgvbi/btdrv4linux.c [rev:1.50, 2004-02-14T19:10:22]:
+- use new macro IOCTL() instead of direct syscall to catch EINTR
+- optionally #include internal copy of videodev.h (switch PATH_VIDEODEV_H)
+- cleanly detect v4l2 drivers via QUERYCAP ioctl -> new element in shm struct
+    + for v4l2 drivers use /dev/vbi to change channels
+    + use G_FMT instead of v4l1 and BTTV ioctl
+    + attempt to set channel priority only for v4l2 drivers
+- split off slicer type configuration from general config func
+    i.e. removed param slicerType again from BtDriver_Configure()
+epgvbi/btdrv.h [rev:1.34, 2004-02-14T19:13:47]:
+- optionally #include internal copy of videodev.h (switch PATH_VIDEODEV_H)
+- cleanly detect v4l2 drivers via QUERYCAP ioctl -> new element in shm struct
+- split off slicer type configuration from general config func: _SelectSlicer()
+    i.e. removed param slicerType again from BtDriver_Configure()
+epgvbi/btdrv4dummy.c [rev:1.17, 2004-02-14T19:15:22]:
+- Split off slicer type configuration from general config func:
+- added new interface function BtDriver_SelectSlicer
+- removed param slicerType from BtDriver_Configure()
+epgvbi/btdrv4win.c [rev:1.44, 2004-02-14T19:15:22]:
+- Split off slicer type configuration from general config func:
+- added new interface function BtDriver_SelectSlicer
+- removed param slicerType from BtDriver_Configure()
+epgvbi/hamming.h [rev:1.9, 2004-02-14T19:17:12]:
+- Added new macro ByteBitDistance() and table byteBitDistTable
+epgdb/epgnetio.h [rev:1.23, 2004-02-14T19:23:05]:
+- Set PROTOCOL_COMPAT from 2.6.0pre6 to 2.7.0pre4
+- due to addition of decoder quality struct to acq stats
+epgdb/epgstream.h [rev:1.16, 2004-02-14T19:28:53]:
+- Added statistics compilation (to deduce signal quality)
+- define new struct EPG_STREAM_STATS
+- new interface function EpgStreamGetStatistics(), CheckSlicerQuality()
+epgdb/epgstream.c [rev:1.29, 2004-02-14T19:28:56]:
+- added statistics compilation (to deduce signal quality)
+    + maintain new struct EPG_STREAM_STATS
+    + new interface function EpgStreamGetStatistics(), CheckSlicerQuality()
+- improved ttx header change detection: count bit errors, not byte errors
+epgctl/epgacqclnt.c [rev:1.12, 2004-02-14T19:33:07]:
+- Adapted for addition of decoder statistics to acq stats
+- EpgAcqClient_GetNetStats: copy EPG_STREAM_STATS for UPD_TYPE_UPDATE
+epgctl/epgacqsrv.h [rev:1.7, 2004-02-14T19:40:19]:
+- Adapted for addition of decoder statistics to acq stats
+- added new element EPG_STREAM_STATS to UPD_TYPE_UPDATE struct
+epgctl/epgacqsrv.c [rev:1.13, 2004-02-14T19:42:51]:
+- Adapted for addition of decoder quality to acq stats
+- EpgAcqServer_BuildStatsMsg(): copy EPG_STREAM_STATS for UPD_TYPE_UPDATE
+epgui/menucmd.c [rev:1.108, 2004-02-14T19:57:37]:
+- Implemented automatic slicer type selection
+- split off slicer type configuration from BtDriver_Configure()
+- instead pass slicer type to EpgAcqCtl_SetInputSource()
+epgui/statswin.c [rev:1.66, 2004-02-14T19:58:09]:
+- added decoder quality statistics to acq statistics
+- split off new acq description type ACQDESCR_DEC_ERRORS from NO_RECEPTION
+epgtcl/draw_stats.tcl [rev:1.4, 2004-02-14T20:00:03]:
+- Changed help link for statistics window: removed "popup windows" from name
+epgtcl/mainwin.tcl [rev:1.233, 2004-02-14T20:03:34]:
+- extended copyrigt to 2004
+- replace &copy; character with "(C)" because it was not displayed correctly
+nxtvepg.pod [rev:1.102, 2004-02-14T20:05:17]:
+- Added description of decoder quality statistics
+epgctl/epgacqctl.c [rev:1.79, 2004-02-14T20:17:41]:
+- Implemented automatic slicer type selection
+- added new param slicerType to EpgAcqCtl_SetInputSource()
+    and new state struct elements currentSlicerType, autoSlicerType
+- added new element EPG_STREAM_STATS to acq stats struct and _GetAcqStats()
+- periodically check decoder quality in _ProcessPackets()
+- Also: split off new acq description type ACQDESCR_DEC_ERRORS from NO_RECEPTION
+epgctl/epgacqctl.h [rev:1.41, 2004-02-14T20:17:41]:
+- Implemented automatic slicer type selection
+- added new param slicerType to EpgAcqCtl_SetInputSource()
+    and new state struct elements currentSlicerType, autoSlicerType
+- added new element EPG_STREAM_STATS to acq stats struct and _GetAcqStats()
+- periodically check decoder quality in _ProcessPackets()
+- Also: split off new acq description type ACQDESCR_DEC_ERRORS from NO_RECEPTION
+Makefile [rev:1.68, 2004-02-18T20:55:35]:
+- Added -DPATH_VIDEODEV_H: (commented out by default)
+- optionally specifies alternate v4l header file
+epgvbi/videodev.h [rev:1.1, 2004-02-21T11:32:43]:
+- Initial revision
+epgvbi/videodev2.h [rev:1.1, 2004-02-21T11:32:44]:
+- Initial revision
+epgvbi/btdrv4linux.c [rev:1.51, 2004-02-21T14:50:21]:
+- improved channel query for v4l2: query directly in master process
+- bugfix: master did not wait for slave (inverted if for "doQueryFreq")
+- fixed one use of new IOCTL macro
+www/pre-releases.html [rev:1.37, 2004-02-22T12:35:40]:
+- updated for pre-release 2.7.0pre3-pre5
+tvsim/tvsim_main.c [rev:1.18, 2004-02-22T12:49:46]:
+- Adapted for btdrv extension: added calls to BtDriver_SelectSlicer()
+epgdb/epgdbsav.c [rev:1.52, 2004-02-28T20:41:04]:
+- Added compatibility between DOS and UNIX file name formats
+- new function EpgDbBuildFileName(): when reading try both file names
+- save filename format used during read in database context
+- in scan search for two patterns
+epgdb/epgdbsav.h [rev:1.36, 2004-02-28T20:41:08]:
+- Added compatibility between DOS and UNIX file name formats
+- added new type for file name format: DB_FMT_TYPE
+- removed #ifdef WIN32: define names both for WIN32 and UNIX
+epgdb/epgblock.h [rev:1.47, 2004-02-28T20:42:32]:
+- Compatibility between DOS and UNIX file name formats
+- added file anme format type to struct EPGDB_CONTEXT (used upon db write)
+epgctl/epgacqclnt.c [rev:1.13, 2004-02-28T20:51:42]:
+- Added endian-swap for new statistics struct elem EPG_STREAM_STATS
+epgctl/epgacqctl.c [rev:1.80, 2004-02-28T21:15:15]:
+- Added support for -acqonce command line option
+- added maxPhase parameter to EpgAcqCtl_SelectMode()
+- EpgAcqCtl_AdvanceCyclePhase(): stop acq when stopPhase is reached
+epgctl/epgacqctl.h [rev:1.42, 2004-02-28T21:15:15]:
+- Added support for -acqonce command line option
+- added maxPhase parameter to EpgAcqCtl_SelectMode()
+- EpgAcqCtl_AdvanceCyclePhase(): stop acq when stopPhase is reached
+nxtvepg.pod [rev:1.103, 2004-02-28T21:19:23]:
+- Added descriptions of new -acqonce -remctrl command line options
+tvsim/tvsim.pod [rev:1.8, 2004-02-28T21:20:22]:
+- Extended copyright to 2004
+tvsim/vbirec.pod [rev:1.7, 2004-02-28T21:20:22]:
+- Extended copyright to 2004
+tvsim/tvsim_gui.tcl [rev:1.8, 2004-02-28T21:22:07]:
+- extended copyright to 2004
+- adapted for Tcl/Tk 8.4 and UNIX rc parameters
+tvsim/vbirec_gui.tcl [rev:1.8, 2004-02-28T21:22:07]:
+- extended copyright to 2004
+- adapted for Tcl/Tk 8.4 and UNIX rc parameters
+tvsim/tvsim_version.h [rev:1.5, 2004-02-28T21:22:25]:
+- Set version to 2.0 due to UNIX/Xawtv port
+epgui/uictrl.c [rev:1.40, 2004-02-28T21:29:00]:
+- Bugfix UiControl_AiStateChange():
+- download shortcuts upon provider and AI version changes
+- in case of netwop index changes CNIs must be mapped newly
+epgui/menucmd.c [rev:1.109, 2004-02-28T21:32:18]:
+- Added support for new -acqonce command line option
+- added maxPhase parameter to SetDaemonAcquisitionMode(), passed through
+    to EpgAcqCtl_SelectMode()
+epgui/menucmd.h [rev:1.23, 2004-02-28T21:32:18]:
+- Added support for new -acqonce command line option
+- added maxPhase parameter to SetDaemonAcquisitionMode(), passed through
+    to EpgAcqCtl_SelectMode()
+epgui/pilistbox.c [rev:1.94, 2004-02-28T21:38:40]:
+- Keep track of last manually selected PI to jump back there upon refresh
+- i.e. remember last selected PI across filter changes: when a filter is
+    added and revoked (without scrolling or moving the cursor inbetween)
+    the cursor jumps back onto the previously selected item
+- maintain new elements pibox_req_time, pibox_req_net in all cursor funcs
+epgui/epgmain.c [rev:1.129, 2004-02-28T21:50:24]:
+- Added new -acqonce and -remctrl command line options
+- WIN32: for -remctrl: re-use code for -daemonstop option
+- also adapted RaiseNxtvepgGuiWindow(): detect nxtvepg by existance of
+    message window nxtvepg_remctrl
+- fix UNIX signal_handler(): use async trigger instead of calling
+    AddMainIdleEvent() directly
+- for -acqonce: pass stop phase to SetDaemonAcquisitionMode()
+epgdb/epgdbsav.c [rev:1.53, 2004-02-29T12:56:31]:
+- Fixed WIN32 gcc warning: removed decl. of unused variable
+tvsim/tvsim_main.c [rev:1.19, 2004-02-29T15:18:18]:
+- Ported to UNIX for Xawtv: UNIX specific changes/additions:
+- create pseudo Xawtv window with station and remote atoms
+- #ifdef WIN32 around WinShm interface handling
+tvsim/vbirec_main.c [rev:1.17, 2004-02-29T15:18:18]:
+- Ported to UNIX for Xawtv: UNIX specific changes/additions:
+- include xawtv module to query remote station & frequency
+- open VBI device to query decoder statistics
+- #ifdef WIN32 around WinShm interface handling
+epgvbi/btdrv4linux.c [rev:1.52, 2004-02-29T17:45:16]:
+- fixed IOCTL() macro: added acqShouldExit flag to loop condition
+- BtDriver_QueryChannel(): added query of input source and isTuner flag
+    adapted v4l2, BSD bktr, v4l and libzvbi (latter two on slave process side)
+epgvbi/btdrv.h [rev:1.35, 2004-02-29T18:04:46]:
+- BtDriver_QueryChannel(): added query of input source and isTuner flag
+- added 2 elements to shared memory struct
+epgvbi/btdrv4dummy.c [rev:1.18, 2004-02-29T18:05:18]:
+- BtDriver_QueryChannel(): added query of input source and isTuner flag
+epgvbi/btdrv4win.c [rev:1.45, 2004-02-29T18:05:26]:
+- BtDriver_QueryChannel(): added query of input source and isTuner flag
+epgui/wintv.c [rev:1.19, 2004-02-29T18:10:59]:
+- Pass additional boolean "enable" param to XawtvConfigShmAttach
+- (used in UNIX port of vbirec only)
+epgui/xawtv.c [rev:1.40, 2004-02-29T18:18:48]:
+- Extensions and adaptions to support UNIX port of tvsim and vbirec
+- call Tcl proc XawtvConfigShmAttach when xawtv window is found or destroyed
+    split off new sub-func Xawtv_TvAttach() to handle attach/detach
+- changed Xawtv_QueryRemoteStation() to return frequency too
+- call new Tcl proc XawtvConfigShmChannelChange upon Xawtv channel changes
+    only used to pass station name and freq to vbirec
+epgtcl/dlg_xawtvcf.tcl [rev:1.7, 2004-02-29T18:21:04]:
+- Adaptions due to added support UNIX port of tvsim and vbirec
+- added boolean "enable" param to XawtvConfigShmAttach
+    (ignored here, used in UNIX port of vbirec only)
+- added dummy proc XawtvConfigShmChannelChange: called by xawtv.c
+    (non-dummy version is defined in vbirec to update TV channel data)
+epgtcl/mainwin.tcl [rev:1.234, 2004-03-02T20:25:05]:
+- mousewheel additions for date scale and PI listbox scrollbar
+    bugfix dscale button bindings: were lacking "-1" postfix
+- fix date scale: use "running at" for start time positioning instead of
+    "starting after" because the latter was blocked by extra-long programmes
+    (esp. by Arte 02:00-14:00 "Sendeschluss")
+epgui/xawtv.c [rev:1.41, 2004-03-02T20:26:44]:
+- fixed memory leak in Xawtv_QueryClass()
+- improved debug output in Xawtv_X11ErrorHandler()
+tvsim/tvsim_gui.tcl [rev:1.9, 2004-03-02T20:40:25]:
+- use <<ListboxSelect>> pseudo event for channel table selections
+- added <Enter> binding on channel table to allow cursor up/down
+tvsim/tvsim_main.c [rev:1.20, 2004-03-02T20:40:32]:
+- Xawtv simulation: removed separate window, use main window instead
+- set WM_CLASS for main window to "Xawtv"
+- place station and remote atoms on main window
+- adapted type of event handler to catch property events
+tvsim/vbirec_main.c [rev:1.18, 2004-03-02T20:41:28]:
+- Compile fix
+epgctl/epgacqclnt.c [rev:1.14, 2004-03-06T21:43:21]:
+- Bugfix EpgAcqClient_SwapEpgdbBlockCount():
+- struct element extra was not swapped
+- element was added Sep/2003 for expire time handling (version 2.6.0)
+tvsim/tvsim_main.c [rev:1.21, 2004-03-09T21:12:58]:
+- UNIX improvements
+- suppress VBI acquisition on UNIX (causes conflict with vbirec which
+    also wants to read from /dev/vbi) -> copied copde to tune channels here
+    from btdrv4linux.c
+- include TclCb_GrantTuner() callback func on UNIX too, however as dummy
+- minor fix in Usage output: removed "[database]"
+tvsim/tvsim_gui.tcl [rev:1.10, 2004-03-09T21:15:39]:
+- fixed font for message box on UNIX
+- disable "connected" and "grant tuner" checkboxes on UNIX
+tvsim/vbirec.pod [rev:1.8, 2004-03-09T21:16:02]:
+- Added descriptions of (all new) command line options
+- those were added because -card param is required for UNIX
+tvsim/vbirec_gui.tcl [rev:1.9, 2004-03-09T21:16:12]:
+- fixed font for message box on UNIX
+tvsim/vbirec_main.c [rev:1.19, 2004-03-09T21:16:21]:
+- added command line parsing: added because -card param is required for UNIX
+- added error message output for driver failures on UNIX
+dsdrv/wintuner.c [rev:1.19, 2004-03-09T22:42:45]:
+- Imported new MT2050 code from DScaler's MT2050.cpp, rev. 1.4
+dsdrv/wintuner.c [rev:1.20, 2004-03-09T23:08:35]:
+- Added support for TDA9887 at new I2c address
+- merged from DScaler BT848Card_Tuner.cpp rev. 1.15
+epgui/epgmain.c [rev:1.130, 2004-03-11T21:36:17]:
+- allow keyword "merged" after -prov instead of CNI 0xff
+- skip setup of UNIX signal handlers for -dump mode so that dump can be
+    terminated with CTRL-C
+- print message to stdout (i.e. into output file) when -dump fails;
+    also bugfix in error case of -dump: NULL ptr was passed to db close func
+epgui/dumpxml.c [rev:1.3, 2004-03-11T21:38:06]:
+- Omit provider network name output for merged database
+- because "thisNetwork" is not applicable for merged databases
+    and names of all provider networks are already in service name
+epgtcl/dlg_shortcuts.tcl [rev:1.15, 2004-03-11T21:43:57]:
+- Added "-indicator on" to filter mask and logic "Select" menu buttons
+epgtcl/mainwin.tcl [rev:1.235, 2004-03-11T21:44:03]:
+- Added new entry "Show EPG info" at top of "Tune TV" context menu
+epgui/uictrl.c [rev:1.41, 2004-03-11T21:46:45]:
+- Added new reload error type "EPGDB_RELOAD_MERGE"
+- esp. intended for -dump mode to give feedback why no output is written
+epgui/menucmd.c [rev:1.110, 2004-03-11T21:48:08]:
+- MenuCmd_MergeDatabases(): report merge config and database errors via uictrl
+- esp. intended for -dump mode to give feedback why no output is written
+epgdb/epgnetio.h [rev:1.24, 2004-03-11T21:51:23]:
+- Set PROTOCOL_COMPAT to 2.7.0pre7
+- (due to addition of "lastStatsUpdate" timestamp in statistics messages)
+epgdb/epgdbsav.h [rev:1.37, 2004-03-11T21:52:54]:
+- Added new element "EPGDB_RELOAD_MERGE" to enum EPGDB_RELOAD_RESULT
+epgctl/epgacqclnt.c [rev:1.15, 2004-03-11T22:12:01]:
+- Added new element "lastStatsUpdate" to acq stats messages
+epgctl/epgacqctl.c [rev:1.81, 2004-03-11T22:13:43]:
+- Added new element "lastStatsUpdate" to acqStats struct
+- as a work-around to allow use of stats even despite client/server clock skew
+- updated with current time after TTX and stream stats have been fetched
+epgctl/epgacqctl.h [rev:1.43, 2004-03-11T22:22:20]:
+- Added new element "lastStatsUpdate" to struct EPGDB_STATS
+- as a work-around to allow use of stats even despite client/server clock skew
+epgctl/epgacqsrv.h [rev:1.8, 2004-03-11T22:24:20]:
+- Added new element "lastStatsUpdate" to struct EPGDB_STATS
+- added to message MSG_STRUCT_STATS_IND.u.update
+epgctl/epgacqsrv.c [rev:1.14, 2004-03-11T22:26:32]:
+- Added new element "lastStatsUpdate" to struct EPGDB_STATS
+- added to message MSG_STRUCT_STATS_IND.u.update
+epgui/statswin.c [rev:1.67, 2004-03-11T22:27:40]:
+- Added new element "lastStatsUpdate" to acqStats struct
+- use the timestamp instead of "now" for bandwidth & freq. calculation
+nxtvepg.pod [rev:1.104, 2004-03-12T20:31:43]:
+- Updated cmd line option -prov for new keyword "merged"
+dsdrv/bt8x8_typ.c [rev:1.1.1.6, 2004-03-12T21:22:37]:
+-r1.41 Added TDA9873 patch from Sven Grothklags
+-r1.40 Added patch for Diamond DTV2000 from Robert Milharcic
+dsdrv/cx2388x.c [rev:1.1.1.4, 2004-03-12T21:22:47]:
+-r1.56 moved CCX2388xCard::AutoDetectTuner ...
+-r1.55 audio & tuner autodetect related changes...
+-r1.54 Added AutodetectTuner for Hauppauge
+-r1.53 more A2-code (audio)
+-r1.52 Support multiple locations of TDA9887 (thanks to Pityu)
+-r1.51 SECAM changes suggested by MidiMaker
+-r1.50 Fixed a couple of minor issues with Torsten's changes
+-r1.49 Starting/Stopping connexant-drivers while dscaler is running.
+-r1.48 Fix for chip setup with no driver
+-r1.47 CX2388x sound fixes suggested by MidiMaker
+-r1.46 Patch from MidiMaker to fix issue with PAL comb filter
+-r1.45 Added patch from Lavrenov Dmitrij (midimaker)
+-r1.44 Added MT2050 tuner type support (untested)
+dsdrv/cx2388x_typ.c [rev:1.1.1.5, 2004-03-12T21:22:58]:
+-r1.21 moved CCX2388xCard::AutoDetectTuner away
+-r1.20 added 2 Cards; working Nicam-Sound; "Autodetect" is now working
+-r1.19 Added AutodetectTuner for Hauppauge
+-r1.18 Use correct GPIO settings for TV@nywhere Master.
+-r1.17 Test code for Hauppauge cards inspired by Torsten's diagram
+-r1.16 Added setting GPIO pins for sound support and added ATI card
+-r1.15 Added patch from Lavrenov Dmitrij (midimaker)
+dsdrv/saa7134_typ.c [rev:1.1.1.10, 2004-03-12T21:23:07]:
+-r1.44 Renamed Much TV Plus
+-r1.43 Renamed Much TV Plus IT005
+-r1.42 Added new card Manli M-TV005
+-r1.41 Changed Setup Card / Tuner (...)
+-r1.40 Updated Compro VideoMate TV Gold Plus
+-r1.39 Added 4 new cards
+-r1.38 Added 4 new cards
+-r1.37 Updated card Medion MD-2819 PC-TV-radio card
+-r1.36 Put GPIO settings and AutoDetect IDs into the main card definition
+         Added card Medion Philips 7134 Chipset
+dsdrv/cx2388x_reg.h [rev:1.1.1.5, 2004-03-12T21:25:02]:
+- updated audio defines
+- added new cards
+- changed SRAM FIFO queues for audio
+dsdrv/bt8x8_typ.c [rev:1.12, 2004-03-12T21:31:16]:
+- Imported DScaler CVS rev 1.40-1.41 (nothing relevant)
+dsdrv/cx2388x.c [rev:1.15, 2004-03-12T21:31:24]:
+- Imported DScaler CVS rev 1.44-1.56:
+-r1.52 Support multiple locations of TDA9887 (thanks to Pityu)
+-r1.49 Starting/Stopping connexant-drivers while dscaler is running.
+dsdrv/cx2388x_typ.c [rev:1.11, 2004-03-12T21:31:31]:
+- Imported DScaler CVS rev 1.15-1.21:
+-r1.20 added 2 Cards; working Nicam-Sound; "Autodetect" is now working
+-r1.16 Added setting GPIO pins for sound support and added ATI card
+dsdrv/saa7134_typ.c [rev:1.14, 2004-03-12T21:31:41]:
+- Imported DScaler CVS rev 1.36-1.44:
+-r1.42 Added new card Manli M-TV005
+-r1.41 Changed Setup Card / Tuner (...)
+-r1.40 Updated Compro VideoMate TV Gold Plus
+-r1.39 Added 4 new cards
+-r1.38 Added 4 new cards
+-r1.37 Updated card Medion MD-2819 PC-TV-radio card
+-r1.36 Put GPIO settings and AutoDetect IDs into the main card definition
+         Added card Medion Philips 7134 Chipset
+dsdrv/cx2388x_reg.h [rev:1.7, 2004-03-12T21:31:47]:
+- Imported DScaler CVS rev 1.15-23 (nothing relevant)
+www/index-fr.html [rev:1.1, 2004-03-15T22:42:19]:
+- branches:  1.1.1;
+- Initial revision
+www/index-fr.html [rev:1.1.1.1, 2004-03-15T22:42:58]:
+- Original version provided by Néo (neojudgment@hotmail.com)
+www/changelog-2.6.0pre.html [rev:1.2, 2004-03-15T23:00:15]:
+- Navigation bar update
+- added French language flag & link (homepage only)
+- added 2.7.0 screenshot, redirected link to new 2.6.0 features to changelog
+www/download-de.html [rev:1.6, 2004-03-15T23:00:29]:
+- Navigation bar update
+- added French language flag & link (homepage only)
+    made alternate language link to point to download doc, not index
+- added 2.7.0 screenshot, redirected link to new 2.6.0 features to changelog
+www/download.html [rev:1.6, 2004-03-15T23:00:29]:
+- Navigation bar update
+- added French language flag & link (homepage only)
+    made alternate language link to point to download doc, not index
+- added 2.7.0 screenshot, redirected link to new 2.6.0 features to changelog
+www/help-wanted.html [rev:1.5, 2004-03-15T23:00:40]:
+- Navigation bar update
+- added French language flag & link (homepage only)
+- added 2.7.0 screenshot, redirected link to new 2.6.0 features to changelog
+www/links.html [rev:1.3, 2004-03-15T23:00:40]:
+- Navigation bar update
+- added French language flag & link (homepage only)
+- added 2.7.0 screenshot, redirected link to new 2.6.0 features to changelog
+www/index-de.html [rev:1.66, 2004-03-15T23:00:52]:
+- navigation bar update
+    + news section: added note about new provider VT4 in Belgium
+    + added French language flag & link (homepage only)
+    + added 2.7.0 screenshot, redirected link to new 2.6.0 features to changelog
+- Added link to DVB section of intro page in intro section
+- Replaced description of new 2.6.0 features with 2.7.0
+- Updated copyright for 2004
+www/index.html [rev:1.79, 2004-03-15T23:00:52]:
+- navigation bar update
+    + news section: added note about new provider VT4 in Belgium
+    + added French language flag & link (homepage only)
+    + added 2.7.0 screenshot, redirected link to new 2.6.0 features to changelog
+- Added link to DVB section of intro page in intro section
+- Replaced description of new 2.6.0 features with 2.7.0
+- Updated copyright for 2004
+www/intro-de.html [rev:1.3, 2004-03-15T23:01:02]:
+- navigation bar update
+    + added French language flag & link (homepage only)
+    + added 2.7.0 screenshot, redirected link to new 2.6.0 features to changelog
+- added new provider VT4 in Belgium to provider list
+- added new section on DVB
+www/intro.html [rev:1.3, 2004-03-15T23:01:02]:
+- navigation bar update
+    + added French language flag & link (homepage only)
+    + added 2.7.0 screenshot, redirected link to new 2.6.0 features to changelog
+- added new provider VT4 in Belgium to provider list
+- added new section on DVB
+www/man.html [rev:1.30, 2004-03-15T23:01:12]:
+- navigation bar update
+    + added French language flag & link (homepage only)
+    + added 2.7.0 screenshot, redirected link to new 2.6.0 features to changelog
+- Replaced description of new 2.6.0 features with 2.7.0
+www/nxtvepg.css [rev:1.9, 2004-03-15T23:01:19]:
+- added SPAN.navDisabled: for disabled language links in navigation bar
+- added div.footer: for footnotes
+www/pre-releases.html [rev:1.38, 2004-03-15T23:01:26]:
+- updated for pre6-pre7
+- navigation bar update
+    + added French language flag & link (homepage only)
+    + added 2.7.0 screenshot, redirected link to new 2.6.0 features to changelog
+www/provnets.html [rev:1.27, 2004-03-15T23:01:33]:
+- added new provider VT4 in Belgium (email by neojudgment@hotmail.com)
+- navigation bar update
+    + added French language flag & link (homepage only)
+    + added 2.7.0 screenshot, redirected link to new 2.6.0 features to changelog
+www/tvsim-faq.html [rev:1.5, 2004-03-15T23:01:40]:
+- Navigation bar update
+- added French language flag & link (homepage only)
+- added 2.7.0 screenshot, redirected link to new 2.6.0 features to changelog
+README [rev:1.37, 2004-03-15T23:05:09]:
+- added new provider VT4 (Belgium)
+- added number of supported networks per country to provider list
+nxtvepg.pod [rev:1.105, 2004-03-15T23:05:09]:
+- added new provider VT4 (Belgium)
+- added number of supported networks per country to provider list
+nxtvepg.spec [rev:1.18, 2004-03-15T23:05:09]:
+- added new provider VT4 (Belgium)
+- added number of supported networks per country to provider list
+www/pre-releases.html [rev:1.39, 2004-03-15T23:09:31]:
+- Added RCS ID
+www/changelog.html [rev:1.52, 2004-03-21T16:09:01]:
+- Navigation bar update
+- added French language flag & link (homepage only)
+- added 2.7.0 screenshot, redirected link to new 2.6.0 features to changelog
+- HTML bugfix: superfluous </P> in navigation bar's news section
+www/changelog-2.6.0pre.html [rev:1.3, 2004-03-21T16:14:12]:
+- HTML syntax fixes for W3C validation
+www/download-de.html [rev:1.7, 2004-03-21T16:14:12]:
+- HTML syntax fixes for W3C validation
+www/download.html [rev:1.7, 2004-03-21T16:14:12]:
+- HTML syntax fixes for W3C validation
+www/help-wanted.html [rev:1.6, 2004-03-21T16:14:12]:
+- HTML syntax fixes for W3C validation
+www/index-de.html [rev:1.67, 2004-03-21T16:14:12]:
+- HTML syntax fixes for W3C validation
+www/index.html [rev:1.80, 2004-03-21T16:14:12]:
+- HTML syntax fixes for W3C validation
+www/intro-de.html [rev:1.4, 2004-03-21T16:14:12]:
+- HTML syntax fixes for W3C validation
+www/intro.html [rev:1.4, 2004-03-21T16:14:12]:
+- HTML syntax fixes for W3C validation
+www/links.html [rev:1.4, 2004-03-21T16:14:12]:
+- HTML syntax fixes for W3C validation
+www/man.html [rev:1.31, 2004-03-21T16:14:12]:
+- HTML syntax fixes for W3C validation
+www/tvsim-faq.html [rev:1.6, 2004-03-21T16:14:12]:
+- HTML syntax fixes for W3C validation
+www/index-fr.html [rev:1.2, 2004-03-21T16:14:47]:
+- HTML syntax fixes for W3C validation
+www/nxtvepg.css [rev:1.10, 2004-03-21T16:16:03]:
+- HTML syntax fixes for W3C validation
+- removed ":" after HTML, BODY
+- type font "monospace"
+- added "sans-serif" to font lists as fallback
+www/pre-releases.html [rev:1.40, 2004-03-21T16:20:51]:
+- updated for pre-release 2.7.0pre8
+- HTML syntax fixes for W3C validation
+www/provnets.html [rev:1.28, 2004-03-21T16:41:45]:
+- updated channel lists
+    + added "Tele5" to Kabel1 channel list
+    +  Kabel1 & RTL2: replaced names of ORB/SFB1 with "RBB"
+    + RTL2 removed ORB (ORB and SFB networks air the same programme now)
+- use <STRIKE> to mark networks for which no content is transmitted
+- replaced blanks in channel names with &nbsp;
+- HTML syntax fixes for W3C validation
+epgui/dumpraw.c [rev:1.28, 2004-03-21T16:48:15]:
+- Fixed OI and MI dump:
+- dump one more block than given by count
+- else OI#0 and MI#0 were not dumped
+epgui/epgmain.c [rev:1.131, 2004-03-21T16:50:01]:
+- ParseArgv: abort with error if -prov is used more than once
+epgtcl/dlg_ctxmencf.tcl [rev:1.6, 2004-03-21T17:33:52]:
+- Minor cleanup: use <<ListboxSelect>> event instead of button & key events
+epgtcl/dlg_filter.tcl [rev:1.12, 2004-03-21T17:34:19]:
+- Globally replaced clock format with new C proc C_ClockFormat
+- because Tcl's "clock" proc does not use locale setting on Windows
+epgtcl/dlg_remind.tcl [rev:1.17, 2004-03-21T17:34:19]:
+- Globally replaced clock format with new C proc C_ClockFormat
+- because Tcl's "clock" proc does not use locale setting on Windows
+epgtcl/mainwin.tcl [rev:1.236, 2004-03-21T17:34:19]:
+- Globally replaced clock format with new C proc C_ClockFormat
+- because Tcl's "clock" proc does not use locale setting on Windows
+epgtcl/dlg_prov.tcl [rev:1.10, 2004-03-21T17:34:28]:
+- Minor cleanup: use <<ListboxSelect>> event instead of button & key events
+- added binding for double mouse-click onto provider name: equals OK button
+- moved binding for "ESC" onto toplevel -> made indep of current focus
+epgui/menucmd.c [rev:1.111, 2004-03-21T17:37:04]:
+- Globally replaced clock format with new C proc C_ClockFormat
+- because Tcl's "clock" proc does not use locale setting on Windows
+- added new func MenuCmd_ClockFormat()
+epgui/uictrl.c [rev:1.42, 2004-03-21T17:38:30]:
+- Fixed acq passive message: replaced "fatal" with "warning"
+epgctl/epgctxctl.c [rev:1.25, 2004-03-21T17:39:46]:
+- Removed redundant #include "epgdb/epgdbsav.h"
+epgctl/epgacqctl.c [rev:1.82, 2004-03-21T17:53:05]:
+- Adapted/extended for change in BtDriver_QueryChannel():
+- now also returns input source and isTuner flag
+- update prov freq only for tuner sources (esp. to avoid overwriting frequency
+    with invalid setting while receiving an external source)
+epgdb/epgdbsav.c [rev:1.54, 2004-03-21T17:59:29]:
+- Fixes for new compatibility between DOS and UNIX file name formats
+- bugfix: new databases were always given UNIX name format because db context
+    was simply initialized with 0 -> fixed by switching meaning of 0 inbetween
+    UNIX and Windows
+- EpgDbReloadScan(): prevent that same CNI is used twice (which is now
+    possible since both name formats can be used)
+epgdb/epgdbsav.h [rev:1.38, 2004-03-21T17:59:50]:
+- Fixes for new compatibility between DOS and UNIX file name formats
+- bugfix: new databases were always given UNIX name format because db context
+    was simply initialized with 0 -> fixed by switching meaning of 0 inbetween
+    UNIX and Windows
+epgdb/epgnetio.h [rev:1.25, 2004-03-21T18:04:33]:
+- EpgNetIo_HandleIO(): replaced use of type ssize_t with int
+- type is appearently missing in some cygwin installations (says Gérard)
+- obsolete anyways, since return type of send() is "int"
+epgdb/epgnetio.c [rev:1.36, 2004-03-21T18:04:44]:
+- EpgNetIo_HandleIO(): replaced use of type ssize_t with int
+- type is appearently missing in some cygwin installations (says Gérard)
+- obsolete anyways, since return type of send() is "int"
+epgvbi/cni_tables.c [rev:1.23, 2004-03-21T18:07:31]:
+- Added "VT4" to list of known providers
+Makefile [rev:1.69, 2004-03-21T18:42:53]:
+- added module lists and targets to build tvsim and vbirec
+- default target is now "devel" (which excludes tvsim)
+- improved check of $(TCL_LIBRARY_PATH) so it doesn't fail if tclIndex
+    file has newer timestamp than loadtcl.c
+- split off rule for helptexts.tcl from manual pages
+- merged in rules for tvsim manual pages: these rules are shared with
+    the Windows Makefile; also shared are clean and dpend rules
+Makefile.win32 [rev:1.47, 2004-03-21T18:43:41]:
+- added separate targets for tvsim (split off from tvsim), equiv. to UNIX make
+- renamed variable SRCS into  NXTV_SRCS
+- moved rules for manual pages, clean and depend into UNIX makefile
+epgvbi/btdrv4linux.c [rev:1.53, 2004-03-21T19:17:25]:
+- fixed card name query: overwrite last char in string with 0 byte instead
+    off appending zero after n: because bttv only write n-1 bytes into string
+- use v4l2 for input and card name query functions: work-around for a bug
+    in bttv9 CGCAP implementation for VBI device
+- cleaned up a compiler warning in NetBSD code
+dsdrv/cx2388x.c [rev:1.16, 2004-03-22T17:22:35]:
+- Fixes and cleanup in Cx2388x_StartStopDriver():
+- bugfix crash (stack corruption): cast to "WINAPI" was missing in declaration
+    of dynamically loaded function pointers
+- simplified declaration of GUID_DEVCLASS_MEDIA: don't use DEFINE_GUID macro
+- added logging into "dsdrv.log"
+- added new config param "wdmStop": do WDM stop only if it's TRUE
+- pass PCI vendor and device IDs to WDM handler to make it independent of CX88
+- Also:
+- Bugfix SetGeoSize(): register CX2388X_SAMPLERATECONV was not initialized,
+    hence nxtvepg did not work when started after DScaler
+dsdrv/wintuner.c [rev:1.21, 2004-03-22T17:30:37]:
+- Added special handling for CX23881 based card "TV@nywhere Master"
+- use new tvcard config query function GetI2cScanRange() for I2C scan
+- else the card's EEPROM might get erased (it's located at I2C port 0xC0)
+dsdrv/hwdrv.c [rev:1.13, 2004-03-22T17:30:53]:
+- Fixed handling of function pointers dynamically loaded from advapi32.dll
+- added "WINAPI" in type declaration of these pointers
+dsdrv/tvcard.h [rev:1.6, 2004-03-22T17:35:20]:
+- added new card config query function GetI2cScanRange():
+    as workaround for TV card "TV@nywhere Master": exclude 0xC0 from I2C scan
+- added new param "wdmStop" to Open(): if TRUE, try to stop WDM drivers
+    working on the same card
+dsdrv/bt8x8.c [rev:1.11, 2004-03-22T17:35:32]:
+- Interface change in tvcard.h: card open/close funcs can stop/restart WDM drvs.
+- currently unused for Bt8x8 and SAA7134
+dsdrv/saa7134.c [rev:1.20, 2004-03-22T17:35:32]:
+- Interface change in tvcard.h: card open/close funcs can stop/restart WDM drvs.
+- currently unused for Bt8x8 and SAA7134
+dsdrv/bt8x8_typ.c [rev:1.13, 2004-03-22T17:35:46]:
+- Interface change in tvcard.h: added new config query func GetI2cScanRange
+- currently unused for Bt8x8 and SAA7134
+dsdrv/saa7134_typ.c [rev:1.15, 2004-03-22T17:35:46]:
+- Interface change in tvcard.h: added new config query func GetI2cScanRange
+- currently unused for Bt8x8 and SAA7134
+dsdrv/cx2388x_typ.c [rev:1.12, 2004-03-22T17:35:58]:
+- Interface change in tvcard.h: added new config query func GetI2cScanRange
+- workaround for TV card "TV@nywhere Master": exclude 0xC0 from I2C scan
+- else the card's EEPROM might get erased (it's located at I2C port 0xC0)
+tvsim/vbirec_main.c [rev:1.20, 2004-03-22T21:43:55]:
+- pass additional dummy for new param "wdmStop" to BtDriver_Configure()
+- fixed WIN32 compiler warning
+tvsim/tvsim_main.c [rev:1.22, 2004-03-22T21:44:10]:
+- Adapted for btdrv4win interface changes:
+- added new param "wdmStop" to BtDriver_Configure()
+- extract value for this param from Tcl var hwcf_wdm_stop (loaded from rc/ini)
+tvsim/tvsim_gui.tcl [rev:1.11, 2004-03-22T21:44:22]:
+- Extract new param "hwcf_wdm_stop" from rcfile
+epgvbi/btdrv4linux.c [rev:1.54, 2004-03-22T21:48:58]:
+- BtDriver_Configure(): added new boolean param "wdmStop" (used for Win32 only)
+epgvbi/btdrv4dummy.c [rev:1.19, 2004-03-22T21:49:33]:
+- BtDriver_Configure(): added new boolean param "wdmStop" (used for Win32 only)
+epgvbi/btdrv.h [rev:1.36, 2004-03-22T21:50:11]:
+- BtDriver_Configure(): added new boolean param "wdmStop" (used for Win32 only)
+epgvbi/btdrv4win.c [rev:1.46, 2004-03-22T22:14:27]:
+- BtDriver_Configure(): added new boolean param "wdmStop"
+- stored in btCfg struct
+- passed through to TV card open function
+Makefile [rev:1.70, 2004-03-23T14:25:13]:
+- big revamp: all generated files now placed in build-<platform> tree
+    to allow building for different platforms without make clean inbetween
+- removed depend target, instead generate dependencies while compiling
+- removed legacy "rm nxtvepg.1x" from install rule
+- added automatic detection of Tcl/Tk headers below /usr/include/tk$TCL_VER
+- fixed copyright year and TVSIM_VERSION_STR extraction for tvsim man pages
+Makefile.win32 [rev:1.48, 2004-03-23T14:26:50]:
+- big revamp: place all generated files below build-<platform> directory
+- removed depend target, instead generate dependencies while compiling
+    -> removed all source module lists, i.e. *_SRCS macros
+www/download-de.html [rev:1.8, 2004-03-23T15:07:37]:
+- improved hardware requirements description
+- updated & detailed linux kernel requiremenets for saa7134 and cx8800
+www/download.html [rev:1.8, 2004-03-23T15:07:37]:
+- improved hardware requirements description
+- updated & detailed linux kernel requiremenets for saa7134 and cx8800
+nxtvepg.pod [rev:1.106, 2004-03-23T15:54:32]:
+- added new "local time zone" xmltv export option
+- added new "wdm stop" Windows driver config option
+- updated my home city in author section
+tvsim/vbiplay.pod [rev:1.5, 2004-03-23T15:54:54]:
+- updated my home city in author section
+tvsim/vbirec.pod [rev:1.9, 2004-03-23T15:54:54]:
+- updated my home city in author section
+tvsim/tvsim.pod [rev:1.9, 2004-03-23T15:59:54]:
+- more adaptions for added Xawtv/UNIX support
+- extended interaction feature description
+    + TV app granting tuner
+    + remote commands in Tune-TV and context menu via !xawtv! and !winshm!
+    + note about XMLTV vs. EPG info queries
+- added "KNOWN BUGS" section to warn about crashes
+- updated my home city in author section
+README [rev:1.38, 2004-03-23T16:02:26]:
+- improved hardware requirements description
+- updated & detailed linux kernel requiremenets for saa7134 and cx8800
+- updated URL for Tcl/Tk (was still referring to scriptics.com)
+- improved Linux installation description
+tcl2c.c [rev:1.12, 2004-03-23T16:06:07]:
+- Added new command line option -p <path>
+- given path prefix is pre-pended to all output file names to allow that
+    output is in different directory than input file
+- to support new make system: all generated files below build-* directory
+Makefile [rev:1.71, 2004-03-23T20:08:07]:
+- bugfix: tvsim executable was not generated because the dependency referred
+    to tvsim (the directory), not tvsimu
+- work-around for vim syntax parser bug: replaced use of cut -d\" with sed
+    expression (vim assumed a string was opened by the double-quote)
+Makefile.win32 [rev:1.49, 2004-03-23T20:09:23]:
+- adapted "zip" target for new build structure
+- work-around for vim syntax parser bug: replaced use of cut -d\" with sed
+    expression (vim assumed a string was opened by the double-quote)
+epgvbi/btdrv4linux.c [rev:1.55, 2004-03-26T20:21:41]:
+- Added libzvbi and proxy support
+- #ifdef USE_LIBZVBI: use libzvbi for raw capture and slicer
+- #ifdef USE_LIBZVBI_PROXY: use proxy & switch channels via libzvbi
+epgvbi/btdrv.h [rev:1.37, 2004-03-26T20:49:38]:
+- Added libzvbi and proxy support
+- #ifdef USE_LIBZVBI: use libzvbi for raw capture and slicer
+- #ifdef USE_LIBZVBI_PROXY: use proxy & switch channels via libzvbi
+tvsim/tvsim_main.c [rev:1.23, 2004-03-26T20:53:15]:
+- Win32: added call to SetWorkingDirectoryFromExe() during startup
+- required to find nxtvepg.ini when from within a different directory
+- (for new build system where tvsim.exe is in build-win32 sub-directory)
+epgvbi/btdrv4win.c [rev:1.47, 2004-03-26T21:07:28]:
+- added new function BtDriver_CheckCardParams(): replaces trivial check for
+    PCI ID == 0 in menucmd.c (used to query if acq fails due to config problem)
+- BtDriver_Configure(): added check if card index is in valid range
+epgvbi/btdrv.h [rev:1.38, 2004-03-26T21:09:52]:
+- added new function BtDriver_CheckCardParams(): replaces trivial check for
+    PCI ID == 0 in menucmd.c (used to query if acq fails due to config problem)
+epgui/menucmd.c [rev:1.112, 2004-03-26T21:21:54]:
+- MenuCmd_GetTvCards(), SetHardwareConfig(), MenuCmd_CheckTvCardConfig():
+    use new constants from dlg_hwcfg.tcl as indices into tvcard_popup() list;
+    also use EPGTCL_PCI_ID_UNKNOWN instead of 0
+- pass new config param "hwcf_wdm_stop" to BtDriver_Configure()
+- MenuCmd_CheckTvCardConfig(): use new func BtDriver_CheckCardParams()
+    instead of "trivial" check for zero PCI ID
+- MenuCmd_ClockFormat(): removed gcc-3 compiler warning
+epgtcl/dlg_hwcfg.tcl [rev:1.13, 2004-03-26T22:12:39]:
+- added new WIN32 config param in main dialog (CX23881 only): wdmStop;
+    display a warning message upon "OK" when it's newly enabled
+- added constant definitions for indices into tvcard()
+    also added constants for PCI IDs (note: both used for WIN32 config only)
+- added work-around: don't disable device selection menu if there's only one
+    device, but selected index is invalid (e.g. -card 10)
+- fix HardwareConfigCard: check for invalid card index
+- HardwareConfigQuit: display instructions how to use dsdrv.log
+- fix PopupTvCardConfig: title was always "card #1"
+Makefile [rev:1.72, 2004-03-26T22:21:06]:
+- Added libzvbi and proxy support
+- #ifdef USE_LIBZVBI: use libzvbi for raw capture and slicer
+- #ifdef USE_LIBZVBI_PROXY: use proxy & switch channels via libzvbi
+www/faq.html [rev:1.1, 2004-03-26T22:32:31]:
+- Initial revision
+www/index-de.html [rev:1.68, 2004-03-26T22:38:47]:
+www/index-fr.html [rev:1.3, 2004-03-26T22:38:47]:
+www/index.html [rev:1.81, 2004-03-26T22:38:47]:
+- added link to new FAQ document in navigation bar
+- clean-up: replaced border=0 for sourceforge logo with <SPAN class="logo">
+- clean-up: <SPAN CLASS="center"> must not span across <IMG> and <H1>
+www/changelog-2.6.0pre.html [rev:1.4, 2004-03-26T22:39:33]:
+www/changelog.html [rev:1.53, 2004-03-26T22:39:33]:
+www/download-de.html [rev:1.9, 2004-03-26T22:39:33]:
+www/download.html [rev:1.9, 2004-03-26T22:39:33]:
+www/help-wanted.html [rev:1.7, 2004-03-26T22:39:33]:
+www/intro-de.html [rev:1.5, 2004-03-26T22:39:33]:
+www/intro.html [rev:1.5, 2004-03-26T22:39:33]:
+www/links.html [rev:1.5, 2004-03-26T22:39:33]:
+www/man.html [rev:1.32, 2004-03-26T22:39:33]:
+www/provnets.html [rev:1.29, 2004-03-26T22:39:33]:
+- added link to new FAQ document in navigation bar
+- clean-up: replaced border=0 for sourceforge logo with <SPAN class="logo">
+www/nxtvepg.css [rev:1.11, 2004-03-26T22:40:40]:
+- added new span "logo": border none: used for sourceforge logo
+- added rule for DT: bold font
+www/pre-releases.html [rev:1.41, 2004-03-26T22:43:28]:
+- added link to new FAQ document in navigation bar
+- clean-up: replaced border=0 for sourceforge logo with <SPAN class="logo">
+- added new pre-release 2.7.0pre9 (RC3)
+www/tvsim-faq.html [rev:1.7, 2004-03-26T22:45:23]:
+- added link to new FAQ document in navigation bar
+- clean-up: replaced border=0 for sourceforge logo with <SPAN class="logo">
+- clean-up: replaced ampersand sign in META description
+- removed <B> tags after <DT>: bold font now selected by CSS rule
+epgvbi/btdrv4win.c [rev:1.48, 2004-03-27T15:08:16]:
+- Compile fix: function name BtDriver_PciCardGetInterface()
+epgvbi/ttxdecode.c [rev:1.57, 2004-03-28T12:39:13]:
+- Added several dprintf to improve debug output for EPG scan
+epgui/wintv.c [rev:1.20, 2004-03-28T13:16:45]:
+- Fix Wintv_SendCmdArgv(): reported argc was wrong (!wintv! setstation failed)
+- no longer ignore last zero: caller do NOT append 2nd 0 after last sub-string
+- also added check to make sure last sub-string is zero-terminated
+    because that's essential for correctness of calculated argument count
+- Also: changed assert(stationPoll == 0) into debug in Wintv_StationTimer()
+- assert was reported to fail by Rami, email 11 Feb 2004
+epgui/shellcmd.c [rev:1.8, 2004-03-28T13:18:06]:
+- A few comments updated
+tvsim/tvsim_main.c [rev:1.24, 2004-03-28T13:18:17]:
+- TvSimuMsg_HandleEpgCmd(): adapted for change in winshm.h
+- retrieve "arglen" param from WinSharedMemClient_GetCmdArgv()
+- new element is recommended replacement for epgCmdArgc (more fail-safe)
+tvsim/winshmclnt.c [rev:1.10, 2004-03-28T13:18:27]:
+tvsim/winshmclnt.h [rev:1.6, 2004-03-28T13:18:27]:
+- WinSharedMemClient_GetCmdArgv(): retrieve new param "arglen"
+- new element is recommended replacement for epgCmdArgc (more fail-safe)
+epgvbi/winshm.h [rev:1.10, 2004-03-28T13:18:41]:
+- Added new element epgCmdArgLen (recommended replacement for epgCmdArgc)
+epgvbi/winshmsrv.c [rev:1.10, 2004-03-28T13:18:49]:
+- WintvSharedMem_SetEpgCommand(): initialize new winshm.h elem epgCmdArgLen
+- new element is recommended replacement for epgCmdArgc (more fail-safe)
+- also removed note that argv is terminated by two zeros
+- also fix: allow "cmdlen <= EPG_CMD_MAX_LEN" instead of just "<"
+epgtcl/dlg_dump.tcl [rev:1.4, 2004-03-28T13:36:21]:
+- Added new config parameter for XMLTV export: dumpxml_format
+- currently only used to allow export of date and times in local timezone
+- prepared to allow export in new XMLTV DTD 0.6
+epgtcl/rcfile.tcl [rev:1.20, 2004-03-28T13:36:31]:
+- added new config param dumpxml_format: select DTD to use for XMLTV export
+- added new config param hwcf_wdm_stop: disable WDM drivers for CX23881 (WIN32)
+epgui/dumpxml.c [rev:1.4, 2004-03-28T13:38:46]:
+- Allow export of dates and times in XMLTV in local time zone
+- use new Tcl config var "dumpxml_format"
+- split off new helper function EpgDumpXml_PrintTimestamp()
+- prepared to allow export in new XMLTV DTD 0.6 (not implemented yet)
+epgctl/epgacqctl.c [rev:1.83, 2004-03-28T13:40:49]:
+- Bugfix slicer type handling in EpgAcqCtl_SetInputSource()
+- wrong variable used in if() for passing slicer type to btdrv
+- type would never have been set for non-auto type
+dsdrv/cx2388x_typ.c [rev:1.1.1.6, 2004-03-29T22:22:15]:
+-r1.22: corrected GPIO and default tuner for "PixelView PlayTV Ultra"
+dsdrv/saa7134_typ.c [rev:1.1.1.11, 2004-03-29T22:22:39]:
+-r1.45-46: tuner fixes, update Tevion MD 9717
+dsdrv/saa7134_typ.c [rev:1.16, 2004-03-29T22:23:03]:
+- DScaler CVS import:
+-r1.45-46: tuner fixes, update Tevion MD 9717
+dsdrv/cx2388x_typ.c [rev:1.13, 2004-03-29T22:23:17]:
+- DScaler CVS import:
+-r1.22: corrected GPIO and default tuner for "PixelView PlayTV Ultra"
+www/faq.html [rev:1.2, 2004-03-30T21:34:16]:
+- added index aka "contents" section
+    hence added NAME anchors to all questions
+- added new answer to time zone trouble
+- added tip for air times configuration
+- added tip for changing colors and fonts
+www/pre-releases.html [rev:1.42, 2004-03-30T21:34:44]:
+- updated for pre-release 2.7.0pre10 (RC#4)
+libtcl83.def [rev:1.1, 2004-04-02T10:27:39]:
+- Initial revision
+libtk83.def [rev:1.1, 2004-04-02T10:27:42]:
+- Initial revision
+epgvbi/btdrv.h [rev:1.39, 2004-04-02T10:48:22]:
+- Minor cleanup: regrouped some function declarations
+epgvbi/btdrv4linux.c [rev:1.56, 2004-04-02T10:48:30]:
+- bugfix BtDriver_GetCardName() and BtDriver_GetInputName() used is_v4l2
+    flag although different device was queried -> use VIDIOC_QUERYCAP instead
+- also BtDriver_GetCardName(): must use video device because the card scan
+    aborts upon ENODEV which might occur if device #0 doesn't support VBI
+- undid one of the changes in r1.50: switch channels via /dev/video again
+    for v4l too, else we're inconsistant with card scan (the best solution
+    for v4l2 might be to use video devices exclusively)
+epgtcl/mainwin.tcl [rev:1.237, 2004-04-02T11:09:02]:
+- more improvements of wheelmouse support
+    + added wheelmouse bindings to TextReadOnly bind tag
+    + bindings for help text are hence obsolete
+- changed binding for right mouse button (context menu) in main window:
+    + update PI selection to current mouse position prior to opening menu
+    + requested in discussion forum 2004-03-31
+epgui/pifilter.c [rev:1.86, 2004-04-02T11:27:13]:
+- Added new Tcl callback proc C_PiFilter_SelectAirTimes:
+- add air-times prefilter to the current filter context
+- used for reminder filter context caches
+epgtcl/dlg_remind.tcl [rev:1.18, 2004-04-02T11:27:33]:
+- Added "network air times" pre-filter for reminder event filter caches
+- no reminders should be shown for TV shows which cannot be received
+- note: this change affects the configuration "dependency tree", i.e.
+    filter caches need to be updated after changes in network list;
+    also initialization sequency was adapted
+- requested via email by Jörk Behrends, 2004-03-24
+epgtcl/dlg_hwcfg.tcl [rev:1.14, 2004-04-02T11:30:17]:
+- Cleanup WIN32 card config dialog window header text:
+- use proc DeriveFont instead of card-coded font
+epgui/menucmd.c [rev:1.113, 2004-04-02T12:08:46]:
+- bugfix MenuCmd_ClockFormat:
+    + did output times as GMT instead of local time
+- optimization:
+    + removed SetUserLanguage() and PiRemind_CheckDb() from provider change
+      and merge because they are already part of UiControl_AiStateChange()
+    + removed PiBox_Refresh() from MenuCmd_UpdatePiExpireDelay():
+      already done in UiControl_AiStateChange()
+epgui/uictrl.c [rev:1.43, 2004-04-02T12:21:36]:
+- UiControl_AiStateChange() update/fix:
+- added call to PiRemind_CheckDb() and Tcl proc Reminder_UpdateTimer: the
+    latter is required because timer events may have to be added/removed
+    after netwop list (config) changes
+- bugfix: UpdatePiListboxColumParams must be called after filter context
+    cache changes (to update cache indices in pioutput.c)
+- Optimization:
+- ACQ_EVENT_PROV_CHANGE: suppress call to UiControl_AiStateChange
+    (else PI box was refreshed twice during application startup)
+epgui/epgmain.c [rev:1.132, 2004-04-02T12:22:10]:
+- Adapted/optimized initialization sequence
+- moved call to Reminder_UpdateTimer into UiControl_AiStateChange
+    (because reminder events may be affected by changes in netwop list)
+- moved UiControl_AiStateChange below mapping of main window to speed
+    up initialization (esp. due to addition of reminder event handling)
+    NOTE: main window now is mapped before PI are displayed
+epgui/pibox.c [rev:1.3, 2004-04-02T12:22:17]:
+- Optimization of initialization control flow
+- supress call to UiControl_AiStateChange() in PI box toggle during startup
+    (previously PI box was refreshed twice)
+- use client data to indicate "isInitial" to Tcl callback proc PiBox_Toggle()
+epgui/pioutput.c [rev:1.52, 2004-04-02T12:22:24]:
+- Optimization of initialization control flow
+- removed DownloadUserDefinedColumnFilters from PiOutput_Init()
+- note: this call is already part of UiControl_AiStateChange() which is
+    called at the end of initialization
+README [rev:1.39, 2004-04-02T12:27:28]:
+- improved UNIX installation description
+- updated Linux driver version minimum requirements
+README.tcl83 [rev:1.4, 2004-04-02T12:30:01]:
+- Added section on generating .def from .a and .a from .def
+- .def files are now included with releases so that user can generate
+    .a from Tcl/Tk DLLs, which are required for linking
+nxtvepg.pod [rev:1.107, 2004-04-02T12:34:33]:
+- updated filter shortcuts edit dialog description:
+    + removed descriptions of obsolete "hide" flag
+    + added description of "up left" and "down right" arrow buttons
+- EPG scan: review & improvements
+- TV card config: added warning about CX23881's "WDM stop" option
+Makefile.win32 [rev:1.50, 2004-04-02T12:54:46]:
+- Added rules fo Tcl/Tk linker libraries
+- added rules to recover linker libraries from .def and .dll
+- added rules to generate .def files from linker libraries
+www/faq.html [rev:1.3, 2004-04-02T12:59:54]:
+- updated linux device index question due to change in btdrv4linux.c:
+    /dev/video is still used for v4l2 drivers -> removed note that this Q
+    applies to v4l1 only
+- added new tip: sharing database and config between Linux and windows
+epgctl/epgversion.h [rev:1.52, 2004-04-02T13:04:32]:
+- set version to 2.7.0
+Makefile [rev:1.73, 2004-04-02T13:08:13]:
+- Added dependency to epgversion.h and tvsim_version.h for manual pages
+nxtvepg.spec [rev:1.19, 2004-04-02T13:19:30]:
+- set version to 2.7.0
+epgtcl/dlg_prov.tcl [rev:1.11, 2004-04-02T13:47:41]:
+- Improved proc EpgScanDeleteProvider
+- check & abort if CNI to be removed is part of currently open merged db
+    (might not have been caught before if acq was disabled; even if acq
+    enabled the message would have warned about "db open" only)
+- remove CNI from manual/cyclic acquisition mode provider list
+- remove CNI from merge configuration
+CHANGES.version [rev:1.17, 2004-04-02T14:17:54]:
+- updated for release 2.7.0
+TODO [rev:1.33, 2004-04-02T14:48:19]:
+- updated for release 2.7.0
+nxtvepg.pod [rev:1.108, 2004-04-02T17:17:24]:
+- context menu: slight adaption for the fact that click with right mouse
+    changes cursor position before opening the context menu;
+    also added missing reference to "add reminder" menu entry;
+    formatted the description as an =item list
+- Composite attribute section: added missing mention of reminders
+- Composite attribute configuration section: globally replaced mention
+    of "reminder" with "reminder group"
+Makefile [rev:1.74, 2004-04-02T17:23:49]:
+- Added missing dependency on pod2help.pl to helptexts.tcl
+nxtvepg.pod [rev:1.109, 2004-04-02T17:27:19]:
+- Bugfix: temporary "cut&paste" from provider list in README was left inside
+CHANGES [rev:1.39, 2004-04-02T19:33:25]:
+- updated for release 2.7.0
+www/changelog-2.7.0pre.html [rev:1.1, 2004-04-03T13:09:45]:
+- Initial revision
+www/changelog-2.6.0pre.html [rev:1.5, 2004-04-03T13:10:16]:
+www/help-wanted.html [rev:1.8, 2004-04-03T13:10:16]:
+www/intro.html [rev:1.6, 2004-04-03T13:10:16]:
+www/links.html [rev:1.6, 2004-04-03T13:10:16]:
+www/provnets.html [rev:1.30, 2004-04-03T13:10:16]:
+www/tvsim-faq.html [rev:1.8, 2004-04-03T13:10:16]:
+www/faq.html [rev:1.4, 2004-04-03T13:12:02]:
+www/intro-de.html [rev:1.6, 2004-04-03T13:12:02]:
+- Added release 2.7.0 to news section in navigation bar.
+www/nxtvepg.css [rev:1.12, 2004-04-03T13:10:38]:
+- Added SPAN.green (used in release announcement on front page)
+www/man.html [rev:1.33, 2004-04-03T13:12:36]:
+- updated for release 2.7.0
+www/changelog.html [rev:1.54, 2004-04-03T13:13:25]:
+- Added change-log for release 2.7.0
+www/download-de.html [rev:1.10, 2004-04-03T13:14:32]:
+www/download.html [rev:1.10, 2004-04-03T13:14:32]:
+- Updated for release 2.7.0
+www/index-de.html [rev:1.69, 2004-04-03T13:16:39]:
+www/index.html [rev:1.82, 2004-04-03T13:16:39]:
+- updated announcements of version 2.7.0 on occasion of the actual release
+- added link to download section below announcement
+- added one more new feature: v4l2 channel priorities
+www/index-fr.html [rev:1.4, 2004-04-03T13:16:44]:
+- updated announcements of version 2.7.0 on occasion of the actual release
+- added link to download section below announcement
+www/pre-releases.html [rev:1.43, 2004-04-03T13:31:25]:
+- removed 2.7.0 pre-releases on occasion of the actual release
+- nothing for 2.8.0 yet
+www/nefkom-src-index.html [rev:1.20, 2004-04-03T13:32:18]:
+- added 2.7.0 releases
+- removed link to tripod.com source archive (no longer exists)
+www/index-de.html [rev:1.70, 2004-04-03T22:52:18]:
+- Fixed text for newly added link to download below 2.7.0 news
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_7_0 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

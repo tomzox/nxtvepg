@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <html lang="en">
-<!-- $Id: provnets.html,v 1.23 2003/04/06 19:23:59 tom Exp $ -->
+<!-- $Id: provnets.html,v 1.30 2004/04/03 13:10:16 tom Exp $ -->
 <head>
 <title>nexTView Provider Table</title>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -14,9 +14,63 @@
 <LINK rel="shortcut icon" type="image/x-icon" href="nxtvepg.ico">
 <LINK rel="top" href="//nxtvepg.sourceforge.net/" title="nexTView EPG Decoder Homepage">
 </head>
-<body bgcolor="#F8F8F8">
+<BODY>
 
-<H1>nexTView providers and supported networks</H1>
+<DIV CLASS="navBar">
+<P><SMALL>
+<IMG ALT="" SRC="nxtv_icon.gif">&nbsp;nxtvepg&nbsp;
+<A HREF="index.html">home</A> &nbsp;|&nbsp;
+<A HREF="intro.html">about</A>
+</SMALL></P></DIV>
+
+<DIV class="navBlock">
+<H2 class="navhead">Language</H2>
+<P>
+<IMG ALT="" SRC="en.png" WIDTH=16 HEIGHT=10> English<BR>
+<IMG ALT="" SRC="de.png" WIDTH=16 HEIGHT=10> <SPAN class="navDisabled">Deutsch</SPAN><BR>
+<IMG ALT="" SRC="fr.png" WIDTH=16 HEIGHT=10> <SPAN class="navDisabled">Français</SPAN><BR>
+</P>
+
+<H2 class="navhead">News</H2>
+<P>
+Apr/2/2004: <A HREF="changelog.html#release_2_7_0">Release 2.7.0</A>
+</P>
+
+<H2 class="navhead">Documentation</H2>
+<P>
+<A HREF="index.html">Homepage</A><BR>
+<A HREF="intro.html">Introduction</A><BR>
+<SPAN CLASS="navPointer">Providers list</SPAN><BR>
+<A HREF="help-wanted.html">Help Wanted</A><BR>
+<A HREF="links.html">Links</A><BR>
+<A HREF="faq.html">FAQ</A><BR>
+<BR>
+<A HREF="man.html">nxtvepg manual</A><BR>
+</P>
+
+<H2 class="navhead">Download</H2>
+<P>
+<A HREF="download.html">Download</A><BR>
+<A HREF="download.html#requirements">System requirements</A><BR>
+<A HREF="changelog.html">Changelog</A><BR>
+</P>
+
+<H2 class="navhead">Screenshots</H2>
+<P>
+<A HREF="screenshot-shortcuts.gif">New 2.7.0 feature</A><BR>
+<A HREF="screenshot-reminder.gif">New 2.6.0 features</A><BR>
+<A HREF="screenshot-grid1.png">New 2.5.0 features</A><BR>
+<A HREF="screenshot-win.gif">Windows screenshot</A><BR>
+<A HREF="screenshot-series.gif">Series menu</A><BR>
+<A HREF="screenshot-xawtv.jpg">xawtv with EPG OSD</A><BR>
+</P>
+<span class="center"><span class="logo"><a href="http://sourceforge.net"><img
+src="http://sourceforge.net/sflogo.php?group_id=64430&amp;type=4"
+width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
+</DIV>
+
+<DIV class="mainBlock">
+<H1>Nextview EPG providers and supported networks</H1>
 
 <P>The following table lists which networks are covered by each of the
 nexTView provider's programme guide. Note that several EPGs use the same
@@ -43,9 +97,13 @@ content provider; they differ only in their network selection.
 
 <td VALIGN=TOP>Germany</td>
 
-<td>ARD, ZDF, RTL, SAT.1, Pro7, BR3, HR3, NDR, SW BW, WDR, MDR, ORB, 3sat,
-VIVA, Kabel 1, Super RTL, VOX, RTL 2, 9 Live, DSF, Eurosport,
-KiKa, Arte, n-tv, ORF2, SFB1, MTV, BR Alpha, TRTint, N24, Phoenix</td>
+<td>ARD, ZDF, RTL, SAT.1, Pro7, BR3, HR3, NDR, SW&nbsp;BW, WDR, MDR,
+RBB&nbsp;Brandenburg&nbsp;(ORB), 3sat,
+VIVA, Kabel&nbsp;1, Super&nbsp;RTL, VOX, RTL&nbsp;2, 9&nbsp;Live,
+DSF, Eurosport, KiKa, Arte, n-tv, ORF2,
+<STRIKE>RBB&nbsp;Berlin&nbsp;(SFB1)</STRIKE>,
+MTV, BR&nbsp;alpha, TRT-int., N24, Phoenix, Tele5
+</td>
 
 <td>4 - 9 days</td>
 </tr>
@@ -57,24 +115,11 @@ KiKa, Arte, n-tv, ORF2, SFB1, MTV, BR Alpha, TRTint, N24, Phoenix</td>
 
 <td VALIGN=TOP>Germany</td>
 
-<td>ARD, ZDF, RTL, Sat 1, Pro7, RTL 2, Kabel 1, VOX, N3, BR, WDR, MDR,
+<td>ARD, ZDF, RTL, Sat.1, Pro7, RTL&nbsp;2, Kabel&nbsp;1, VOX, N3, BR, WDR, MDR,
 3Sat, ARTE, SuperRTL, Kinderkanal, 9LIVE, DSF, EuroSport, MTV, VIVA, MTV2,
-H3, B1, ORB, SW</td>
+H3, RBB&nbsp;Berlin&nbsp;(SFB1), SW</td>
 
 <td>3 days</td>
-</tr>
-
-<tr>
-<td VALIGN=TOP><b>3Sat</b></td>
-
-<td VALIGN=TOP><A HREF="http://www.swisstxt.ch/">Swiss Teletext</A></td>
-
-<td VALIGN=TOP>Germany, Austria, Switzerland</td>
-
-<td>ARD, ZDF, 3sat, ORF1, ORF2, SF1, SF2, Arte, KiKa, Phoenix, SAT.1, Pro7,
-RTL, WDR, BR, NDR, SWR, MDR, ORB, HR, tm3, VOX</td>
-
-<td>2 - 4 days</td>
 </tr>
 
 <tr>
@@ -85,7 +130,8 @@ RTL, WDR, BR, NDR, SWR, MDR, ORB, HR, tm3, VOX</td>
 <td VALIGN=TOP>Switzerland, Austria, Germany, France</td>
 
 <td>EURONEWS, SF1, ARD, ZDF, 3sat, Arte, Pro7, RTL, RTL2, SAT.1, VOX, ORF1,
-ORF2, TSR, France 2, France 3, M 6, TF 1, TV5, TSI, RAI 1, RAI 2, BBC1</td>
+ORF2, TSR, France&nbsp;2, France&nbsp;3, M&nbsp;6, TF&nbsp;1, TV5,
+TSI, RAI&nbsp;1, RAI&nbsp;2, BBC1</td>
 
 <td></td>
 </tr>
@@ -134,7 +180,7 @@ ORF1, ORF2, TSR1, TSR2, TSI</td>
 
 <td VALIGN=TOP>France</td>
 
-<td>Canal+, arte, La Cinquième, M6, TF1, France 2, France 3</td>
+<td>Canal+, arte, La&nbsp;Cinquième, M6, TF1, France&nbsp;2, France&nbsp;3</td>
 
 <td>7 days</td>
 </tr>
@@ -147,7 +193,7 @@ ORF1, ORF2, TSR1, TSR2, TSI</td>
 
 <td VALIGN=TOP>France</td>
 
-<td>M6, arte, La Cinquième, TF1, France 2, France 3, Canal+</td>
+<td>M6, arte, La&nbsp;Cinquième, TF1, France&nbsp;2, France&nbsp;3, Canal+</td>
 
 <td>3 days</td>
 </tr>
@@ -166,30 +212,59 @@ ORF1, ORF2, TSR1, TSR2, TSI</td>
 </tr>
 
 <tr>
+<td VALIGN=TOP><b>VT4</b>
+<br><B><SPAN class="red">Started March 2004</SPAN></B></td>
+
+<td VALIGN=TOP><A HREF="http://www.tvtv.de/">tvtv</A></td>
+
+<td VALIGN=TOP>Belgium</td>
+
+<td>
+VT4, BRTN1, BRTN2, Ned1, Ned2, Ned3, RTBF1, RTBF2, TVi, ClubRTL, Arte&nbsp;(French), MTVCE,
+Eurosport, ARD, ZDF, WDR, RTL, RTL2,
+TV5, M6, TF1, F2, F3,
+C+Belgique, C+Belgique&nbsp;jaune, C+Belgique&nbsp;bleu,
+CNN, BBC1, BBC2, BBC&nbsp;World,
+RAI1,
+TVE 
+</td>
+
+<td>3 days</td>
+</tr>
+
+<tr>
 <td VALIGN=TOP><b>TRT family</b>
 <br><a href="#TRT-note">see note below</a></td>
 
-<td VALIGN=TOP>unknown</td>
+<td VALIGN=TOP>Promedya</td>
 
 <td VALIGN=TOP>Turkey</td>
 
-<td>DISC, GENC, N1, FTV, NBC, TV5, KNL7, CNN, EURO, ATV, SHOW, KNLD, STAR,
-KNL6, TGRT, C5, KNLE, NTV, CNNT, TRT1, TRT2, TRT3, TRT4</td>
+<td>
+<STRIKE>DISC, GENC, N1, FTV, NBC, TV5</STRIKE>,
+KNL7, CNN, EURO, ATV, SHOW, KNLD, STAR,
+<STRIKE>KNL6</STRIKE>,
+TGRT, C5, KNLE, NTV, CNNT, TRT1, TRT2, TRT3, TRT4
+</td>
 
-<td>7 days</td>
+<td>5 - 6 days</td>
 </tr>
 </table></center>
 
 <P>
+Note: networks which have their name striked out (<STRIKE>like this</STRIKE>)
+are in the provider's network list, but no programme content is transmitted.
+</P><P>
 If you know a provider that's missing in this list or if you find the
 information not to be up to date, please let me know (for my mail address
 see the About popup in the Help menu of nxtvepg).
 </P>
 
 
+
 <h2>Former nexTView providers</h2>
 <P>
-These providers have terminated their nexTView service:
+These providers have terminated their nexTView EPG service:
 </P>
 <center><table BORDER=2 CELLPADDING=4>
 <tr VALIGN=TOP>
@@ -213,13 +288,26 @@ These providers have terminated their nexTView service:
 
 <td VALIGN=TOP>Stopped service at April/14/2002; service moved to Kabel 1</td>
 
-<td>ARD, ZDF, RTL, SAT.1, Pro7, BR, HR 3, Nord 3, SWR, WDR, MDR, ORB, 3sat,
-Viva, ORF1, Kabel 1, Super RTL, VOX, RTL 2, tm3, DSF, Eurosport, ORF2,
+<td>ARD, ZDF, RTL, SAT.1, Pro7, BR, HR&nbsp;3, Nord&nbsp;3, SWR, WDR, MDR, ORB, 3sat,
+Viva, ORF1, Kabel&nbsp;1, Super&nbsp;RTL, VOX, RTL&nbsp;2, tm3, DSF, Eurosport, ORF2,
 KiKa, Arte, Premiere, n-tv</td>
 </tr>
 
-</table></center>
+<tr>
+<td VALIGN=TOP><b>3Sat</b></td>
 
+<td VALIGN=TOP><A HREF="http://www.swisstxt.ch/">Swiss Teletext</A></td>
+
+<td VALIGN=TOP>Germany, Austria, Switzerland</td>
+
+<td VALIGN=TOP>Stopped service at May/31/2003, when Swiss Text was
+replaced by ZDF as teletext provider.</td>
+
+<td>ARD, ZDF, 3sat, ORF1, ORF2, SF1, SF2, Arte, KiKa, Phoenix, SAT.1, Pro7,
+RTL, WDR, BR, NDR, SWR, MDR, ORB, HR, tm3, VOX</td>
+</tr>
+
+</table></center>
 
 <h2><A NAME="TRT-note">Notes about TRT:</A></h2>
 <P>
@@ -253,9 +341,6 @@ Stopped service after December/31/2002. Re-surfaced end of March 2003,
 however reduced from 7 days preview to 3 days only.
 </P>
 
-<P><BR></P><P>
-Back to the <A HREF="http://nxtvepg.sourceforge.net/">nxtvepg homepage</A>.
-</P>
-
-</body>
-</html>
+</DIV>
+</BODY>
+</HTML>

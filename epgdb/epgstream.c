@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgstream.c,v 1.28 2003/09/20 19:08:10 tom Exp tom $
+ *  $Id: epgstream.c,v 1.29 2004/02/14 19:28:56 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_STREAM
@@ -67,7 +67,7 @@ typedef struct
 //
 #define HEADER_CHECK_LEN         12
 #define HEADER_CHECK_LEN_STR    "12"   // for debug output
-#define HEADER_CHECK_MAX_ERRORS   2
+#define HEADER_CHECK_MAX_ERR_BITS  2*3
 
 static struct
 {
@@ -85,6 +85,7 @@ static uchar       streamOfPage;
 static EPGDB_QUEUE * pBlockQueue = NULL;
 static uint        epgStreamAppId;
 static bool        enableAllTypes;
+static EPG_STREAM_STATS streamStats;
 
 
 // ----------------------------------------------------------------------------
@@ -201,7 +202,10 @@ static void EpgStreamCheckBlock( NXTV_STREAM * const psd, uchar stream )
             EpgStreamConvertBlock(psd->blockBuf, psd->blockLen/2, stream, 0, EPGDBACQ_TYPE_BI);
          }
          else
+         {
             debug3("BI block chksum error: my %x != %x, len=%d", myChkSum, chkSum, psd->blockLen);
+            streamStats.epgBlkErr += 1;
+         }
       }
       else
          debug0("BI block hamming error");
@@ -224,6 +228,8 @@ static void EpgStreamCheckBlock( NXTV_STREAM * const psd, uchar stream )
                errCnt = UnHamParityArray(psd->blockBuf + (ctrlLen+2)*2, psd->blockBuf + ctrlLen+2, strLen);
                DBGONLY(if (errCnt))
                   dprintf1("PARITY errors: %d\n", errCnt);
+               streamStats.epgStrSum += strLen;
+               streamStats.epgParErr += errCnt;
 
                chkSum = psd->blockBuf[2];
                psd->blockBuf[2] = 0;  // chksum does not include itself
@@ -235,16 +241,28 @@ static void EpgStreamCheckBlock( NXTV_STREAM * const psd, uchar stream )
                   EpgStreamConvertBlock(psd->blockBuf, 2 + ctrlLen + strLen, stream, errCnt, type);
                }
                else
+               {
                   debug2("block chksum error: my %x != %x", myChkSum, chkSum);
+                  streamStats.epgBlkErr += 1;
+               }
             }
             else
+            {
                debug0("block content hamming error");
+               streamStats.epgBlkErr += 1;
+            }
          }
          else
+         {
             debug2("block ctrl length error block=%d ctrl=%d", psd->blockLen, ctrlLen);
+            streamStats.epgBlkErr += 1;
+         }
       }
       else
+      {
          debug0("block header hamming error");
+         streamStats.epgBlkErr += 1;
+      }
    }
    else
       debug1("unknown appID=%d", psd->appID);
@@ -262,7 +280,11 @@ static uint EpgStreamAddData( const uchar * dat, uint restLine, bool isNewBlock 
    if (isNewBlock)
    {
       if (psd->haveBlock && (psd->recvLen > 0))
+      {
          debug1("missing data for last block with recvLen=%d - discard block", psd->recvLen);
+         if (psd->haveHeader)
+            streamStats.epgBlkErr += 1;
+      }
 
       psd->haveBlock  = TRUE;
       psd->haveHeader = FALSE;
@@ -289,6 +311,7 @@ static uint EpgStreamAddData( const uchar * dat, uint restLine, bool isNewBlock 
          dat      += usedLen;
          restLine -= usedLen;
          psd->recvLen = 4;
+         streamStats.epgBlkCount += 1;
 
          if ( UnHam84Nibble(psd->blockBuf + 0, &c1) &&
               UnHam84Nibble(psd->blockBuf + 1, &c2) &&
@@ -299,11 +322,14 @@ static uint EpgStreamAddData( const uchar * dat, uint restLine, bool isNewBlock 
             psd->blockLen = ((c2 >> 1) | (c3 << 3) | (c4 << 7)) + 4;  // + length of block len itself
             psd->haveHeader = TRUE;
 
+            if (psd->appID == 0)
+               streamStats.epgBiCount += 1;
             dprintf4("               start block recv stream %d, appID=%d, len=4+%d, startlen=4+%d\n", /*packNo, blockPtr,*/ streamOfPage+1, psd->appID, psd->blockLen - 4, restLine);
          }
          else
          {  // hamming error
             debug0("structure header hamming error - skipping block");
+            streamStats.epgBlkErr += 1;
             psd->haveBlock = FALSE;
          }
       }
@@ -358,11 +384,16 @@ static void EpgStreamDecodePacket( uchar packNo, const uchar * dat )
 
    if (streamOfPage < NXTV_NO_STREAM)
    {
-      if ( psd->haveBlock &&
-          (packNo != psd->lastPkg + 1))
+      if (packNo != psd->lastPkg + 1)
       {  // packet missing
-         debug4("missing packet %d of %d (have %d) - discard block in stream %d", psd->lastPkg + 1, streamData[streamOfPage].pkgCount, packNo, streamOfPage);
-         psd->haveBlock = FALSE;
+         if (psd->haveBlock)
+         {
+            debug6("missing packet %d of %d (have %d) - discard block in stream %d (have-head=%d,len=%d)", psd->lastPkg + 1, streamData[streamOfPage].pkgCount, packNo, streamOfPage, psd->haveHeader, psd->blockLen);
+            if (psd->haveHeader)
+               streamStats.epgBlkErr += 1;
+            psd->haveBlock = FALSE;
+         }
+         streamStats.epgPkgMissing += packNo - (psd->lastPkg + 1);
       }
       psd->lastPkg = packNo;
 
@@ -410,6 +441,8 @@ static void EpgStreamDecodePacket( uchar packNo, const uchar * dat )
       else
       {
          debug2("pkg=%2d: BP hamming error on value 0x%02x - discard pkg", packNo, dat[0]);
+         if (psd->haveHeader)
+            streamStats.epgBlkErr += 1;
          psd->haveBlock = FALSE;
       }
    }
@@ -451,23 +484,33 @@ static bool EpgStreamNewPage( uint sub )
          newCi = sub & 0xf;
          firstPkg = 0;
 
-         if (streamData[streamOfPage].haveBlock)
-         {  // partial EPG block in the buffer -> check continuity
+         if (streamData[streamOfPage].ci != 0xff)
+         {  // skip continuity check for the very first page
 
             if ( streamData[streamOfPage].ci == newCi )
             {  // fragmented page transmission -> continue normally with pkg-no +1
-               dprintf2("repetition of CI=%d in stream %d\n", newCi, streamOfPage);
-               firstPkg = streamData[streamOfPage].lastPkg;
+               if (streamData[streamOfPage].pkgCount != newPkgCount)
+               {  // mismatch in packet count per page -> not same page after all
+                  debug4("EpgStream-NewPage: packet count error for continued page CI=%d (%d -> %d) stream %d", streamData[streamOfPage].ci, streamData[streamOfPage].pkgCount, newPkgCount, streamOfPage);
+                  streamData[streamOfPage].haveBlock = FALSE;
+               }
+               else
+               {
+                  dprintf2("repetition of CI=%d in stream %d\n", newCi, streamOfPage);
+                  firstPkg = streamData[streamOfPage].lastPkg;
+               }
             }
             else if ( ((streamData[streamOfPage].ci + 1) & 0xf) != newCi )
             {  // continuity is broken -> discard partial EPG block in the buffer
-               debug3("EpgStream-NewPage: page continuity error (%d -> %d) - discard current block in stream %d", streamData[streamOfPage].ci, newCi, streamOfPage);
+               debug3("EpgStream-NewPage: page continuity error (%d -> %d) stream %d", streamData[streamOfPage].ci, newCi, streamOfPage);
                streamData[streamOfPage].haveBlock = FALSE;
+               streamStats.epgPagMissing += 1;
             }
             else if (streamData[streamOfPage].lastPkg != streamData[streamOfPage].pkgCount)
             {  // packets missing at the end of the last page -> discard partial block
                debug2("EpgStream-NewPage: packets missing at page end: %d < %d", streamData[streamOfPage].lastPkg, streamData[streamOfPage].pkgCount);
                streamData[streamOfPage].haveBlock = FALSE;
+               streamStats.epgPkgMissing += 1;
             }
          }
 
@@ -475,6 +518,7 @@ static bool EpgStreamNewPage( uint sub )
          streamData[streamOfPage].ci = newCi;
          streamData[streamOfPage].pkgCount = newPkgCount;
          streamData[streamOfPage].lastPkg = firstPkg;
+         streamStats.epgPagCount += 1;
          result = TRUE;
       }
       else
@@ -509,14 +553,14 @@ static bool EpgStreamPageHeaderCheck( const uchar * curPageHeader )
       {
          dec = (schar)parityTab[curPageHeader[i]];
          if ( (dec >= 0) && (dec != ttxState.lastPageHeader[i]) )
-         {  // count the number of differing characters
-            err += 1;
+         {  // add the number of differing bits
+            err += ByteBitDistance(curPageHeader[i] & 0x7f, ttxState.lastPageHeader[i]);
          }
       }
 
-      if (err > HEADER_CHECK_MAX_ERRORS)
+      if (err >= HEADER_CHECK_MAX_ERR_BITS)
       {
-         debug2("EpgStream-PageHeaderCheck: %d diffs from header \"%" HEADER_CHECK_LEN_STR "s\" - stop acq", err, ttxState.lastPageHeader);
+         debug2("EpgStream-PageHeaderCheck: %d bits differ from header \"%" HEADER_CHECK_LEN_STR "s\" - stop acq", err, ttxState.lastPageHeader);
          result = FALSE;
       }
    }
@@ -564,6 +608,7 @@ bool EpgStreamProcessPackets( void )
       while ( (pVbl = TtxDecode_GetPacket(freePrevPkg)) != NULL )
       {
          freePrevPkg = TRUE;
+         streamStats.epgPkgCount += 1;
 
          //dprintf4("Process idx=%d: pkg=%d pg=%03X.%04X\n", pVbiBuf->reader_idx, pVbl->pkgno, pVbl->pageno, pVbl->sub);
          if (pVbl->pkgno == 0)
@@ -603,11 +648,49 @@ bool EpgStreamProcessPackets( void )
 }
 
 // ---------------------------------------------------------------------------
+// Check number of lost packets and block decoding errors
+// - returns FALSE if type should be changed
+//
+bool EpgStreamCheckSlicerQuality( void )
+{
+   bool result = TRUE;
+
+   if ( (streamStats.epgPkgCount != 0) &&
+        (streamStats.epgBiCount != 0) &&
+        (streamStats.epgBlkCount != 0) )
+   {
+      if ( ((double)streamStats.epgBlkErr / streamStats.epgBlkCount >= 0.008) ||
+           ((double)streamStats.epgParErr / streamStats.epgStrSum >= 0.005) )
+      {
+         debug4("EpgStream-CheckSlicerQuality: dropped %d of %d blocks, blanked %d of %d chars", streamStats.epgBlkErr, streamStats.epgBlkCount, streamStats.epgParErr, streamStats.epgStrSum);
+         // reset stream statistics to give the new slicer a "clean slate"
+         memset(&streamStats, 0, sizeof(streamStats));
+         result = FALSE;
+      }
+   }
+   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Fill struct with statistics data
+//
+void EpgStreamGetStatistics( EPG_STREAM_STATS * pStats )
+{
+   if (pStats != NULL)
+   {
+      *pStats = streamStats;
+   }
+}
+
+// ---------------------------------------------------------------------------
 // Initialize the internal decoder state
 //
 void EpgStreamInit( EPGDB_QUEUE *pDbQueue, bool bWaitForBiAi, uint appId, uint pageNo )
 {
    memset(&streamData, 0, sizeof(streamData));
+   memset(&streamStats, 0, sizeof(streamStats));
+   streamData[0].ci = 0xff;
+   streamData[1].ci = 0xff;
    streamOfPage   = NXTV_NO_STREAM;
    epgStreamAppId = appId;
    enableAllTypes = !bWaitForBiAi;

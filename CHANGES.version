@@ -1,4 +1,4 @@
-## $Id: CHANGES.version,v 1.16 2003/09/22 20:51:42 tom Exp $ ##
+## $Id: CHANGES.version,v 1.17 2004/04/02 14:17:54 tom Exp $ ##
 
 Steps to prepare new distribution:
 
@@ -24,19 +24,16 @@ RCS
 - after the release: increment version in epgversion.h
 
 Makefile AND Makefile.win
-- test compile with -g, -O2, -O6
-- set CFLAGS optimization to -O6
-- replace constant assignment to TCL_VER with dynamic query
 - remove -Werr
+- set CFLAGS optimization to -O2
+- replace constant assignment to TCL_VER with dynamic query
 - enable USE_THREADS
-- empty Makefile.dep AND Makefile.depwin
-- disable ZVBI?
+- comment out rules for libt*.def in Makefile.win32
 
 adapt epgctl/mytypes.h
-- all debug options from ON to OFF
-
-pre-releases:
-- switch DEBUG_SWITCH_STREAM and HALT_ON_FAILED_ASSERTION to OFF
+- for pre-releases:
+  switch DEBUG_SWITCH_STREAM and HALT_ON_FAILED_ASSERTION to OFF
+- production releases: all debug options from ON to OFF
 
 remove CHANGES.version
 remove .nroff .gdbinit

@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: wintv.c,v 1.17 2003/10/05 19:31:41 tom Exp tom $
+ *  $Id: wintv.c,v 1.20 2004/03/28 13:16:45 tom Exp tom $
  */
 
 #ifndef WIN32
@@ -93,16 +93,18 @@ static struct
 } followTvState = {INVALID_VPS_PIL, 0, FALSE, 0, 0, 0, 0};
 
 // ----------------------------------------------------------------------------
-// Convert station name to CNI
+// Compare given name with all network names in AI
+// - names in AI can be overridden by network name user-config
+// - returns 0 if the given name doesn't match any known networks
 //
-static uint Wintv_StationNametoCni( const char * station )
+static uint Wintv_MapName2Cni( const char * station )
 {
    const AI_BLOCK *pAiBlock;
    const char * name;
-   const char *cfgn;
+   const char * cfgn;
    uchar cni_str[7];
    uchar netwop;
-   uint cni;
+   uint  cni;
 
    cni = 0;
    EpgDbLockDatabase(pUiDbContext, TRUE);
@@ -113,6 +115,7 @@ static uint Wintv_StationNametoCni( const char * station )
       {
          name = AI_GET_NETWOP_NAME(pAiBlock, netwop);
          cni  = AI_GET_NETWOP_N(pAiBlock, netwop)->cni;
+         // check if there's a user-configured name for this CNI
          sprintf(cni_str, "0x%04X", cni);
          cfgn = Tcl_GetVar2(interp, "cfnetnames", cni_str, TCL_GLOBAL_ONLY);
 
@@ -174,10 +177,8 @@ static const PI_BLOCK * Wintv_SearchCurrentPi( uint cni, uint pil )
             EpgDbFilterSetNetwop(fc, netwop);
             EpgDbFilterEnable(fc, FILTER_NETWOP);
 
-            EpgDbFilterSetExpireTime(fc, now);
-            EpgDbPreFilterEnable(fc, FILTER_EXPIRE_TIME);
+            pPiBlock = EpgDbSearchFirstPiAfter(pUiDbContext, now, RUNNING_AT, fc);
 
-            pPiBlock = EpgDbSearchFirstPi(pUiDbContext, fc);
             if ((pPiBlock != NULL) && (pPiBlock->start_time > now))
             {  // found one, but it's in the future
                debug2("Wintv-SearchCurrentPi: first PI on netwop %d is %d minutes in the future", netwop, (int)(pPiBlock->start_time - now));
@@ -213,19 +214,24 @@ void Wintv_SendCmdArgv( Tcl_Interp *interp, const char * pCmdStr, uint cmdLen )
 
    if ( Wintv_IsConnected() )
    {
-      // count command arguments: count zero bytes except for the extra 0 after the last arg
-      cmdArgCount = 0;
-      for (idx=0; idx < cmdLen - 1; idx++)
-         if (pCmdStr[idx] == '\0')
-            cmdArgCount += 1;
-
-      if (WintvSharedMem_SetEpgCommand(cmdArgCount, pCmdStr, cmdLen) == FALSE)
+      if ((cmdLen > 0) && (pCmdStr[cmdLen - 1] == 0))
       {
-         sprintf(comm, "tk_messageBox -type ok -icon error -parent . "
-                       "-message \"Failed to send the command to the TV app.\"");
-         eval_check(interp, comm);
-         Tcl_ResetResult(interp);
+         // count command arguments: count zero bytes
+         cmdArgCount = 0;
+         for (idx=0; idx < cmdLen; idx++)
+            if (pCmdStr[idx] == '\0')
+               cmdArgCount += 1;
+
+         if (WintvSharedMem_SetEpgCommand(cmdArgCount, pCmdStr, cmdLen) == FALSE)
+         {
+            sprintf(comm, "tk_messageBox -type ok -icon error -parent . "
+                          "-message \"Failed to send the command to the TV app.\"");
+            eval_check(interp, comm);
+            Tcl_ResetResult(interp);
+         }
       }
+      else
+         fatal1("Wintv-SendCmdArgv: command length zero (%d) or not 0-terminated", cmdLen);
    }
    else
    {
@@ -339,7 +345,7 @@ static void Wintv_FollowTvNetwork( void )
 // ----------------------------------------------------------------------------
 // Poll VPS/PDC for channel changes
 // - invoked by a timer every 200 ms
-// - if CNI or PIL changed, EPG info for the channel is sent to the TV app
+// - if CNI or PIL has changed, EPG info for the channel is sent to the TV app
 //
 static void Wintv_PollVpsPil( ClientData clientData )
 {
@@ -350,7 +356,8 @@ static void Wintv_PollVpsPil( ClientData clientData )
 
    if ((wintvcf.follow || wintvcf.doPop) && (followTvState.stationPoll == 0))
    {
-      if (WintvSharedMem_GetCniAndPil(&cni, &pil))
+      if ( WintvSharedMem_GetCniAndPil(&cni, &pil) &&
+           WintvCfg_CheckAirTimes(cni) )
       {
          if ( (followTvState.cni != cni) ||
               ((pil != followTvState.pil) && VPS_PIL_IS_VALID(pil)) )
@@ -386,10 +393,11 @@ static void Wintv_StationTimer( ClientData clientData )
    uint  pil;
 
    pollVpsEvent = NULL;
-   assert(followTvState.stationPoll > 0);
+   ifdebug0(followTvState.stationPoll == 0, "Wintv-StationTimer: station timer is zero");  // XXX FIXME was an assert, but reportedly failed sometimes
 
-   if (WintvSharedMem_GetCniAndPil(&cni, &pil) && (cni != 0))
-   {  // VPS data received - check if it's the expected CNI
+   if ( WintvSharedMem_GetCniAndPil(&cni, &pil) &&
+        WintvCfg_CheckAirTimes(cni) )
+   {  // channel ID received - check if it's the expected one
       if ( (cni == followTvState.stationCni) || (followTvState.stationCni == 0) ||
            (followTvState.stationPoll >= 360) )
       {
@@ -447,11 +455,11 @@ static void Wintv_StationSelected( void )
          followTvState.stationPoll = 0;
       }
 
-      // there definately was a station change -> remove suppression of popup
+      // there definitly was a station change -> remove suppression of popup
       followTvState.lastCni = 0;
 
       // translate the station name to a CNI by searching the network table
-      followTvState.stationCni = Wintv_StationNametoCni(station);
+      followTvState.stationCni = WintvCfg_StationNameToCni(station, Wintv_MapName2Cni);
       if (followTvState.stationCni != 0)
       {
          // wait for VPS/PDC to determine PIL (and confirm CNI)
@@ -479,7 +487,7 @@ static void Wintv_StationSelected( void )
 }
 
 // ---------------------------------------------------------------------------
-// Tcl callback to send a command to connected Xawtv application
+// Tcl callback to send a command to connected TV application
 //
 static int Wintv_ShowEpg(ClientData ttp, Tcl_Interp *interp, int argc, CONST84 char *argv[])
 {
@@ -571,7 +579,7 @@ static int Wintv_ReadConfig( Tcl_Interp *interp, WINTVCF *pNewWintvcf )
                   pNewWintvcf->doPop     = doPop;
                 }
                else
-                  debug0("Xawtv-ReadConfig: illegal NULL param");
+                  debug0("Wintv-ReadConfig: illegal NULL param");
             }
          }
          else
@@ -759,7 +767,8 @@ static void Wintv_CbAttachTv( bool enable, bool acqEnabled, bool slaveStateChang
       eval_check(interp, "RemoveTuneTvButton\n");
 
    // update TV app name in TV interaction config dialog (if currently open)
-   eval_check(interp, "XawtvConfigShmAttach\n");
+   sprintf(comm, "XawtvConfigShmAttach %d\n", enable);
+   eval_check(interp, comm);
 }
 
 // ----------------------------------------------------------------------------

@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: piremind.c,v 1.13 2003/10/09 18:39:20 tom Exp tom $
+ *  $Id: piremind.c,v 1.14 2003/12/27 17:31:55 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -1330,8 +1330,6 @@ void PiRemind_CheckDb( void )
       else
          debug1("PiRemind-CheckDb: reminders variable undefined (%d) or not a list", (int)(pRemListObj==NULL));
    }
-   else
-      debug0("PiRemind-CheckDb: no AI block in db");
 
 tcl_error:
    EpgDbLockDatabase(dbc, FALSE);

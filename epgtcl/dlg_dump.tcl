@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_dump.tcl,v 1.3 2002/11/17 19:41:06 tom Exp tom $
+#  $Id: dlg_dump.tcl,v 1.4 2004/03/28 13:36:21 tom Exp tom $
 #
 set dumpdb_pi 1
 set dumpdb_xi 1
@@ -48,7 +48,12 @@ set dumphtml_popup 0
 set htmlcols_popup 0
 
 set dumpxml_filename {}
+set dumpxml_format 0
 set dumpxml_popup 0
+
+#=CONST= ::xmltv_dtd_5      0
+#=CONST= ::xmltv_dtd_5_ltz  1
+#=CONST= ::xmltv_dtd_6      2
 
 
 # notification by user-defined columns config dialog: columns addition or deletion
@@ -476,7 +481,7 @@ proc HtmlDump_Start {} {
 ##  Create dialog to export the database into TAB-separated text file
 ##
 proc PopupDumpXml {} {
-   global dumpxml_popup dumpxml_filename
+   global dumpxml_popup dumpxml_filename dumpxml_format
    global font_fixed fileImage
 
    if {$dumpxml_popup == 0} {
@@ -504,6 +509,9 @@ proc PopupDumpXml {} {
       }
       pack   .dumpxml.all.name.dlgbut -side left -padx 5
       pack   .dumpxml.all.name -side top -pady 10
+      checkbutton .dumpxml.all.local_tz -text "Export times in local time zone" \
+                     -variable dumpxml_format -offvalue $::xmltv_dtd_5 -onvalue $::xmltv_dtd_5_ltz
+      pack   .dumpxml.all.local_tz -side top -pady 10 -anchor w
 
       frame  .dumpxml.all.cmd
       button .dumpxml.all.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Control) "Export as XMLTV"}
@@ -525,7 +533,7 @@ proc PopupDumpXml {} {
 
 # callback for Ok button
 proc DoDbXmlDump {} {
-   global dumpxml_popup dumpxml_filename
+   global dumpxml_popup dumpxml_filename dumpxml_format
 
    if [DlgDump_CheckOutputFile .dumpxml dumpxml_filename .xml 0 0] {
 

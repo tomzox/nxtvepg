@@ -25,7 +25,7 @@
  *    so their respective copyright applies too. Please see the notes in
  *    functions headers below.
  *
- *  $Id: wintvcfg.c,v 1.15 2003/04/12 13:37:13 tom Exp tom $
+ *  $Id: wintvcfg.c,v 1.16 2004/01/24 18:54:34 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -262,6 +262,109 @@ static void WintvCfg_AddChannelName( Tcl_Interp * interp, char * pName )
       }
    }
 }
+
+// ----------------------------------------------------------------------------
+// Checks if the given time is outside or air times restrictions for the given CNI
+// - returns TRUE if the time is inside contraints
+//
+bool WintvCfg_CheckAirTimes( uint cni )
+{
+   const char * pAirStr;
+   char  cnibuf[12];
+   time_t now;
+   uint  nowMoD, startMoD, stopMoD;
+   struct tm * pTm;
+   bool  result = TRUE;
+
+   sprintf(cnibuf, "0x%04X", cni);
+   pAirStr = Tcl_GetVar2(interp, "cfnettimes", cnibuf, TCL_GLOBAL_ONLY);
+   if (pAirStr != NULL)
+   {
+      if (sscanf(pAirStr, "%u,%u", &startMoD, &stopMoD) == 2)
+      {
+         now = time(NULL);
+         pTm = localtime(&now);
+         nowMoD = pTm->tm_min + (pTm->tm_hour * 60);
+
+         if (startMoD < stopMoD)
+         {
+            result = (nowMoD >= startMoD) && (nowMoD < stopMoD);
+         }
+         else if (startMoD > stopMoD)
+         {
+            result = (nowMoD >= startMoD) || (nowMoD < stopMoD);
+         }
+         // else: start==stop: not filtered
+      }
+   }
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Iterate across multiple network names in a channel name, separated by slashes
+// - gets pointer to a callback function which searches names in a database
+//   (callback required to avoid dependency of this module on the EPG database
+//   since the module is also used by tvsim)
+//
+uint WintvCfg_StationNameToCni( char * pName, uint MapName2Cni(const char * station) )
+{
+   char * ps, * pe, * pc;
+   char  c;
+   uint  cni;
+
+   if (pName != NULL)
+   {
+      // append the name as-is to the result
+      cni = MapName2Cni(pName);
+      if ((cni != 0) && WintvCfg_CheckAirTimes(cni))
+         goto found;
+
+      ps = pName;
+      pe = strchr(ps, '/');
+      if (pe != NULL)
+      {
+         do
+         {
+            pc = pe;
+            // remove trailing white space
+            while ((pc > ps) && (*(pc - 1) == ' '))
+                pc--;
+            if (pc > ps)
+            {
+               c = *pc;
+               *pc = 0;
+
+               cni = MapName2Cni(ps);
+               if ((cni != 0) && WintvCfg_CheckAirTimes(cni))
+                  goto found;
+               *pc = c;
+            }
+            ps = pe + 1;
+            // skip whitespace following the separator
+            while (*ps == ' ')
+                ps++;
+         }
+         while ((pe = strchr(ps, '/')) != NULL);
+
+         // add the segment after the last separator
+         while (*ps == ' ')
+            ps++;
+         if (*ps != 0)
+         {
+            cni = MapName2Cni(ps);
+            if ((cni != 0) && WintvCfg_CheckAirTimes(cni))
+               goto found;
+         }
+      }
+   }
+   else
+      debug0("WintvCfg-StationNameToCni: illegal NULL param");
+
+   cni = 0;
+found:
+   return cni;
+}
+
 
 #ifdef WIN32
 // ---------------------------------------------------------------------------

@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: btdrv4dummy.c,v 1.15 2003/02/03 21:22:45 tom Exp tom $
+ *  $Id: btdrv4dummy.c,v 1.19 2004/03/22 21:49:33 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -69,9 +69,9 @@ bool BtDriver_IsVideoPresent( void )
    return FALSE;
 }
 
-uint BtDriver_QueryChannel( void )
+bool BtDriver_QueryChannel( uint * pFreq, uint * pInput, bool * pIsTuner )
 {
-   return 0;
+   return FALSE;
 }
 
 bool BtDriver_TuneChannel( int inputIdx, uint freq, bool keepOpen, bool * pIsTuner )
@@ -126,8 +126,13 @@ const char * BtDriver_GetInputName( uint cardIdx, uint cardType, uint inputIdx )
       return NULL;
 }
 
-bool BtDriver_Configure( int cardIndex, int prio, int chipType, int cardType, int tunerType, int pllType )
+bool BtDriver_Configure( int cardIndex, int prio, int chipType, int cardType,
+                         int tuner, int pll, bool wdmStop )
 {
    return TRUE;
+}
+
+void BtDriver_SelectSlicer( VBI_SLICER_TYPE slicerType )
+{
 }
 

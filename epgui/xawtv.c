@@ -31,7 +31,7 @@
  *     xawtv-remote.c by Gerd Knorr (kraxel@bytesex.org).  Some source code
  *     is directly derived from xawtv.
  *
- *  $Id: xawtv.c,v 1.37 2003/09/28 18:24:35 tom Exp tom $
+ *  $Id: xawtv.c,v 1.41 2004/03/02 20:26:44 tom Exp tom $
  */
 
 #ifdef WIN32
@@ -51,11 +51,8 @@
 #include <X11/Xatom.h>
 #include <X11/Xmu/WinUtil.h>	/* for XmuClientWindow() */
 
-
 #include <tcl.h>
 #include <tk.h>
-#include <X11/Xlib.h>
-#include <X11/Xatom.h>
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
@@ -67,6 +64,7 @@
 #include "epgctl/epgacqctl.h"
 #include "epgui/epgmain.h"
 #include "epgui/pibox.h"
+#include "epgui/wintvcfg.h"
 #include "epgui/xawtv.h"
 
 
@@ -112,8 +110,9 @@ static XAWTVCF xawtvcf = {1, 1, 1, POP_EXT, 7};
 
 // forward declaration
 static void Xawtv_StationSelected( ClientData clientData );
-static bool Xawtv_QueryRemoteStation( Window wid, char * pBuffer, int bufLen );
+static bool Xawtv_QueryRemoteStation( Window wid, char * pBuffer, int bufLen, int * pTvFreq );
 static void Xawtv_PopDownNowNext( ClientData clientData );
+static void Xawtv_TvAttach( ClientData clientData );
 
 // ----------------------------------------------------------------------------
 // define struct to hold state of CNI & PIL supervision
@@ -136,7 +135,12 @@ static struct
 #ifdef DEBUG_SWITCH
 static int Xawtv_X11ErrorHandler( ClientData clientData, XErrorEvent *errEventPtr )
 {
-   debug5("X11 error: type=%d serial=%lu err=%d req=%d res=0x%lX", errEventPtr->type, errEventPtr->serial, errEventPtr->error_code, errEventPtr->request_code, errEventPtr->resourceid);
+   char msgBuf[256];
+
+   msgBuf[0] = 0;
+   XGetErrorText(errEventPtr->display, errEventPtr->error_code, msgBuf, sizeof(msgBuf));
+
+   debug7("X11 error: type=%d serial=%lu err=%d '%s' req=%d,%d res=0x%lX", errEventPtr->type, errEventPtr->serial, errEventPtr->error_code, msgBuf, errEventPtr->request_code, errEventPtr->minor_code, errEventPtr->resourceid);
    return 0;
 }
 #else
@@ -210,6 +214,7 @@ static bool Xawtv_QueryClass( Display * dpy, Window wid )
          parent_wid = None;
          result = TRUE;
       }
+      XFree(args);
    }
 
    // remove the dummy error handler
@@ -282,6 +287,7 @@ static int Xawtv_EventNotification( ClientData clientData, XEvent *eventPtr )
          XSelectInput(eventPtr->xcreatewindow.display, xawtv_wid, StructureNotifyMask | PropertyChangeMask);
          // check if the tuner device is busy upon the first property event
          followTvState.newXawtvStarted = TRUE;
+         AddMainIdleEvent(Xawtv_TvAttach, NULL, TRUE);
       }
       result = TRUE;
    }
@@ -294,10 +300,8 @@ static int Xawtv_EventNotification( ClientData clientData, XEvent *eventPtr )
       parent_wid = None;
       // install a create notification handler to wait for a new xawtv window
       XSelectInput(eventPtr->xdestroywindow.display, root_wid, SubstructureNotifyMask);
-      // have the acq control update it's device state
-      EpgAcqCtl_CheckDeviceAccess();
       // destroy the nxtvepg-controlled xawtv popup window
-      AddMainIdleEvent(Xawtv_PopDownNowNext, NULL, TRUE);
+      AddMainIdleEvent(Xawtv_TvAttach, NULL, TRUE);
       result = TRUE;
    }
    else if ( (eventPtr->type == UnmapNotify) &&
@@ -345,6 +349,7 @@ static bool Xawtv_FindWindow( Display * dpy, Atom atom )
                parent_wid = kids[n];
                // check if the tuner device is busy upon the next property event
                followTvState.newXawtvStarted = TRUE;
+               AddMainIdleEvent(Xawtv_TvAttach, NULL, TRUE);
                result = TRUE;
                break;   // NOTE: there might be more than window
             }
@@ -400,6 +405,7 @@ static void Xawtv_Popup( float rperc, const char *rtime, const char * ptitle )
                if (Xawtv_QueryParent(dpy, xawtv_wid) == FALSE)
                {
                   xawtv_wid = None;
+                  AddMainIdleEvent(Xawtv_TvAttach, NULL, TRUE);
                }
             }
 
@@ -413,6 +419,7 @@ static void Xawtv_Popup( float rperc, const char *rtime, const char * ptitle )
             {
                xawtv_wid = None;
                parent_wid = None;
+               AddMainIdleEvent(Xawtv_TvAttach, NULL, TRUE);
             }
 
             retry -= 1;
@@ -470,7 +477,10 @@ void Xawtv_SendCmdArgv(Tcl_Interp *interp, const char * pCmdStr, uint cmdLen )
             XFree(args);
          }
          else
+         {
             xawtv_wid = None;
+            AddMainIdleEvent(Xawtv_TvAttach, NULL, TRUE);
+         }
       }
 
       // try to find a new xawtv window
@@ -510,7 +520,7 @@ void Xawtv_SendCmdArgv(Tcl_Interp *interp, const char * pCmdStr, uint cmdLen )
 // ---------------------------------------------------------------------------
 // Query the station name from the xawtv property
 //
-static bool Xawtv_QueryRemoteStation( Window wid, char * pBuffer, int bufLen )
+static bool Xawtv_QueryRemoteStation( Window wid, char * pBuffer, int bufLen, int * pTvFreq )
 {
    Tk_ErrorHandler errHandler;
    Display *dpy;
@@ -535,11 +545,22 @@ static bool Xawtv_QueryRemoteStation( Window wid, char * pBuffer, int bufLen )
             // argument list is: frequency, channel, name
             for (off=0, argc=0; off < nitems; off += strlen(args + off) + 1, argc++)
             {
-               if (argc == 2)
+               if (argc == 0)
                {
-                  dprintf2("Xawtv-Query: window 0x%lX: station name: %s\n", (ulong)wid, args + off);
+                  if (pTvFreq != NULL)
+                  {
+                     char * p;
+                     p = strchr(args + off, ',');
+                     if (p != NULL)
+                        *p = '.';
+                     *pTvFreq = (int)(strtod(args + off, NULL) * 16);
+                  }
+               }
+               else if (argc == 2)
+               {
                   if (pBuffer != NULL)
                   {
+                     dprintf2("Xawtv-Query: window 0x%lX: station name: %s\n", (ulong)wid, args + off);
                      strncpy(pBuffer, args + off, bufLen);
                      pBuffer[bufLen - 1] = 0;
                   }
@@ -561,9 +582,11 @@ static bool Xawtv_QueryRemoteStation( Window wid, char * pBuffer, int bufLen )
 }
 
 // ----------------------------------------------------------------------------
-// Convert station name to CNI
+// Compare given name with all network names in AI
+// - names in AI can be overridden by network name user-config
+// - returns 0 if the given name doesn't match any known networks
 //
-static uint Xawtv_StationNametoCni( const char * station )
+static uint Xawtv_MapName2Cni( const char * station )
 {
    const AI_BLOCK *pAiBlock;
    const char * name;
@@ -581,6 +604,7 @@ static uint Xawtv_StationNametoCni( const char * station )
       {
          name = AI_GET_NETWOP_NAME(pAiBlock, netwop);
          cni  = AI_GET_NETWOP_N(pAiBlock, netwop)->cni;
+         // check if there's a user-configured name for this CNI
          sprintf(cni_str, "0x%04X", cni);
          cfgn = Tcl_GetVar2(interp, "cfnetnames", cni_str, TCL_GLOBAL_ONLY);
 
@@ -642,10 +666,8 @@ static const PI_BLOCK * Xawtv_SearchCurrentPi( uint cni, uint pil )
             EpgDbFilterSetNetwop(fc, netwop);
             EpgDbFilterEnable(fc, FILTER_NETWOP);
 
-            EpgDbFilterSetExpireTime(fc, now);
-            EpgDbPreFilterEnable(fc, FILTER_EXPIRE_TIME);
+            pPiBlock = EpgDbSearchFirstPiAfter(pUiDbContext, now, RUNNING_AT, fc);
 
-            pPiBlock = EpgDbSearchFirstPi(pUiDbContext, fc);
             if ((pPiBlock != NULL) && (pPiBlock->start_time > now))
             {  // found one, but it's in the future
                debug2("Xawtv-SearchCurrentPi: first PI on netwop %d is %d minutes in the future", netwop, (int)(pPiBlock->start_time - now));
@@ -741,8 +763,8 @@ static void Xawtv_NowNext( const PI_BLOCK *pPiBlock )
 
          case POP_MSG:
             // send a command to xawtv to display the info in the xawtv window title
-            cmdLen = sprintf(comm, "message%c%s-%s %s%c%c", 0,
-                             start_str, stop_str, PI_GET_TITLE(pPiBlock), 0, 0);
+            cmdLen = sprintf(comm, "message%c%s-%s %s%c", 0,
+                             start_str, stop_str, PI_GET_TITLE(pPiBlock), 0);
             Xawtv_SendCmdArgv(NULL, comm, cmdLen);
             break;
 
@@ -811,7 +833,8 @@ static void Xawtv_PollVpsPil( ClientData clientData )
    if ((xawtvcf.follow || xawtvcf.doPop) && (followTvState.stationPoll == 0))
    {
       pVpsPdc = EpgAcqCtl_GetVpsPdc(VPSPDC_REQ_TVAPP);
-      if (pVpsPdc != NULL)
+      if ( (pVpsPdc != NULL) &&
+           WintvCfg_CheckAirTimes(pVpsPdc->cni) )
       {
          if ( (followTvState.cni != pVpsPdc->cni) ||
               ((pVpsPdc->pil != followTvState.pil) && VPS_PIL_IS_VALID(pVpsPdc->pil)) )
@@ -860,7 +883,8 @@ static void Xawtv_StationTimer( ClientData clientData )
    assert(followTvState.stationPoll > 0);
 
    pVpsPdc = EpgAcqCtl_GetVpsPdc(VPSPDC_REQ_TVAPP);
-   if ((pVpsPdc != NULL) && (pVpsPdc->cni != 0))
+   if ( (pVpsPdc != NULL) && (pVpsPdc->cni != 0) &&
+        WintvCfg_CheckAirTimes(pVpsPdc->cni) )
    {  // VPS data received - check if it's the expected CNI
       if ( (pVpsPdc->cni == followTvState.stationCni) || (followTvState.stationCni == 0) ||
            (followTvState.stationPoll >= 360) )
@@ -908,12 +932,13 @@ static void Xawtv_StationSelected( ClientData clientData )
 {
    EPGACQ_DESCR acqState;
    char station[50];
+   sint tvCurFreq;
    uint cni;
 
    if (xawtv_wid != None)
    {
       // query xawtv property, i.e. which station was selected
-      if ( Xawtv_QueryRemoteStation(xawtv_wid, station, sizeof(station)) )
+      if ( Xawtv_QueryRemoteStation(xawtv_wid, station, sizeof(station), &tvCurFreq) )
       {
          if (pollVpsEvent != NULL)
          {
@@ -921,12 +946,14 @@ static void Xawtv_StationSelected( ClientData clientData )
             pollVpsEvent = NULL;
             followTvState.stationPoll = 0;
          }
+         sprintf(comm, "XawtvConfigShmChannelChange {%s} %d\n", station, tvCurFreq);
+         eval_check(interp, comm);
 
          // there definately was a station change -> remove suppression of popup
          followTvState.lastCni = 0;
 
          // translate the station name to a CNI by searching the network table
-         cni = Xawtv_StationNametoCni(station);
+         cni = WintvCfg_StationNameToCni(station, Xawtv_MapName2Cni);
 
          if (followTvState.newXawtvStarted)
          {  // have the acq control update it's device state
@@ -966,6 +993,28 @@ static void Xawtv_StationSelected( ClientData clientData )
 
    if (pollVpsEvent == NULL)
       pollVpsEvent = Tcl_CreateTimerHandler(200, Xawtv_PollVpsPil, NULL);
+}
+
+// ----------------------------------------------------------------------------
+// Notification about creation or destruction of xawtv window
+//
+static void Xawtv_TvAttach( ClientData clientData )
+{
+   if (xawtv_wid != None)
+   {
+      eval_check(interp, "XawtvConfigShmAttach 1\n");
+
+      // note: device access is checked upon first property event
+      // to give the other app enough time to open the video device
+   }
+   else
+   {
+      AddMainIdleEvent(Xawtv_PopDownNowNext, NULL, TRUE);
+      eval_check(interp, "XawtvConfigShmAttach 0\n");
+
+      // have the acq control update it's device state
+      EpgAcqCtl_CheckDeviceAccess();
+   }
 }
 
 // ---------------------------------------------------------------------------
@@ -1115,7 +1164,12 @@ static int Xawtv_ReadConfig( Tcl_Interp *interp, XAWTVCF *pNewXawtvcf )
          }
          Tcl_Free((char *) cfArgv);
       }
+      else
+         debugTclErr(interp, "Parse error on xawtvcf");
    }
+   else
+      dprintf0("Xawtv-ReadConfig: xawtvcf variable not defined\n");
+
    return result;
 }
 
@@ -1229,6 +1283,7 @@ static int Xawtv_InitConfig(ClientData ttp, Tcl_Interp *interp, int argc, CONST8
                   XSelectInput(dpy, root_wid, 0);
                xawtv_wid = None;
                parent_wid = None;
+               AddMainIdleEvent(Xawtv_TvAttach, NULL, TRUE);
             }
          }
       }

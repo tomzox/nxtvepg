@@ -19,7 +19,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: winshm.h,v 1.9 2002/11/19 20:58:06 tom Exp tom $
+ *  $Id: winshm.h,v 1.10 2004/03/28 13:18:41 tom Exp tom $
  */
 
 #ifndef __WINSHM_H
@@ -75,7 +75,8 @@ typedef struct
    uint32_t  epgCmdArgc;      // number of arguments in 0-separated command string list
    uint32_t  epgCommandIdx;   // value to be incremented after command changes
    uint32_t  tvCommandIdx;    // last EPG cmd processed by TV app (EPG app must wait for this before sending next cmd)
-   uint8_t   reserved2[256];  // unused, set to 0
+   uint32_t  epgCmdArgLen;    // overall length of the argument string, including all 0-bytes
+   uint8_t   reserved2[252];  // unused, set to 0
 
    EPGACQ_BUF vbiBuf;
 

@@ -20,7 +20,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: mainwin.tcl,v 1.230 2003/10/05 19:47:31 tom Exp tom $
+#  $Id: mainwin.tcl,v 1.237 2004/04/02 11:09:02 tom Exp tom $
 #
 # import constants from other modules
 #=INCLUDE= "epgtcl/shortcuts.h"
@@ -38,6 +38,7 @@ proc LoadWidgetOptions {} {
    global pi_cursor_bg pi_cursor_bg_now pi_cursor_bg_past
    global xawtv_font xawtv_overlay_fg xawtv_overlay_bg
    global dscale_cols dscale_font dscale_width dscale_scwidth dscale_date_fmt
+   global sctree_font sctree_selfg sctree_selbg
    global entry_disabledforeground x11_appdef_path
    global tcl_version is_unix
 
@@ -99,6 +100,13 @@ proc LoadWidgetOptions {} {
       # WIN32: load resources from local file
       catch {option readfile nxtvepg.ad userDefault}
    }
+   # create temporary listbox widget to query parameters for the shortcut tree widget
+   listbox .tmp_lb
+   set sctree_font [.tmp_lb cget -font]
+   set sctree_selfg [.tmp_lb cget -selectforeground]
+   set sctree_selbg [.tmp_lb cget -selectbackground]
+   destroy .tmp_lb
+
    # create temporary widget to check syntax of configuration options
    label .test_opt
    # load and check all color resources
@@ -141,7 +149,7 @@ proc LoadWidgetOptions {} {
    # date format and width of weekday scale
    set value [option get . dscale_date_fmt userDefault]
    if {([string length $value] > 0) && \
-       ([catch {clock format 0 -format $value}] == 0)} {
+       ([string length [C_ClockFormat 0 $value]] > 0)} {
       regsub -all {\\n} $value "\n" dscale_date_fmt
    }
    set value [option get . dscale_width userDefault]
@@ -206,6 +214,7 @@ proc CreateMainWindow {} {
    global is_unix entry_disabledforeground
    global text_bg pi_bg_now pi_bg_past default_bg
    global font_normal pi_font pi_bold_font
+   global sctree_font sctree_selfg sctree_selbg
    global fileImage pi_img
    global pibox_type pinetbox_col_count pinetbox_col_width
    global dscale_width
@@ -219,6 +228,10 @@ proc CreateMainWindow {} {
                   <Key-Home> <Key-End> <Shift-Key-Home> <Shift-Key-End> <Control-Key-slash>} {
       bind TextReadOnly $event [bind Text $event]
    }
+   # allow to scroll the text with a wheel mouse
+   bind TextReadOnly <Button-4>     {%W yview scroll -3 units}
+   bind TextReadOnly <Button-5>     {%W yview scroll 3 units}
+   bind TextReadOnly <MouseWheel>   {%W yview scroll [expr {- (%D / 120) * 3}] units}
    bind TextReadOnly <Key-Tab> [bind Text <Control-Key-Tab>]
    bind TextReadOnly <Control-Key-c> [bind Text <<Copy>>]
 
@@ -238,6 +251,7 @@ proc CreateMainWindow {} {
    #grid     .all.shortcuts.reset -row 2 -column 0 -sticky nwe
 
    menu      .tunetvcfg -tearoff 0
+   .tunetvcfg add command -label "Show EPG info" -command {C_Tvapp_ShowEpg}
    .tunetvcfg add command -label "Start Capturing" -command {C_Tvapp_SendCmd capture on}
    .tunetvcfg add command -label "Stop Capturing" -command {C_Tvapp_SendCmd capture off}
    .tunetvcfg add command -label "Toggle mute" -command {C_Tvapp_SendCmd volume mute}
@@ -251,19 +265,24 @@ proc CreateMainWindow {} {
 
    menu      .ctx_shortcuts -tearoff 0
    .ctx_shortcuts add command -label name -state disabled
-   .ctx_shortcuts add command -label "Update" -command {UpdateFilterShortcutByContext $ctxmen_selidx}
-   .ctx_shortcuts add command -label "Delete" -command {DeleteFilterShortcut $ctxmen_selidx}
+   .ctx_shortcuts add command -label "Update" -command {UpdateFilterShortcutByContext $ctxmen_sctag}
+   .ctx_shortcuts add command -label "Delete" -command {DeleteFilterShortcut $ctxmen_sctag}
    .ctx_shortcuts add separator
-   .ctx_shortcuts add command -label "Edit..." -command {EditFilterShortcuts $ctxmen_selidx}
-   .ctx_shortcuts add command -label "Add new..." -command {AddFilterShortcut $ctxmen_selidx}
+   .ctx_shortcuts add command -label "Edit..." -command {EditFilterShortcuts $ctxmen_sctag}
+   .ctx_shortcuts add command -label "Add new..." -command {AddFilterShortcut $ctxmen_sctag}
 
-   listbox   .all.shortcuts.list -exportselection false -height 12 -width 0 -selectmode extended \
-                                 -relief ridge -cursor top_left_arrow
-   bind      .all.shortcuts.list <<ListboxSelect>> {InvokeSelectedShortcuts}
-   bind      .all.shortcuts.list <Key-Return> {InvokeSelectedShortcuts}
-   bind      .all.shortcuts.list <Key-Escape> {.all.shortcuts.list selection clear 0 end; InvokeSelectedShortcuts}
-   bind      .all.shortcuts.list <FocusOut> {InvokeSelectedShortcuts}
-   bind      .all.shortcuts.list <Button-3> {CreateListboxContextMenu .ctx_shortcuts .all.shortcuts.list %x %y}
+   Tree:create .all.shortcuts.list -width 0 -cursor top_left_arrow \
+                                   -font $sctree_font -selectbackground $sctree_selbg \
+                                   -selectmode extended -selectforeground $sctree_selfg \
+                                   -background $text_bg -relief ridge -borderwidth 2
+
+   bind      .all.shortcuts.list <<TreeSelect>> {ShortcutTree_Invoke}
+   bind      .all.shortcuts.list <<TreeOpenClose>> {ShortcutTree_OpenCloseEvent .all.shortcuts.list shortcuts $shortcut_tree}
+   bind      .all.shortcuts.list <Key-Escape> {Tree:selection .all.shortcuts.list clear first end; ShortcutTree_Invoke}
+   #bind      .all.shortcuts.list <Key-Return> {ShortcutTree_Invoke}
+   #bind      .all.shortcuts.list <FocusOut> {ShortcutTree_Invoke}
+   bind      .all.shortcuts.list <Button-3> {CreateShortcutContextMenu %x %y}
+   #pack     .all.shortcuts.list -side left -fill y
    #grid     .all.shortcuts.list -row 3 -column 0 -sticky nwe
 
    frame     .all.netwops
@@ -296,6 +315,9 @@ proc CreateMainWindow {} {
 
    scrollbar .all.pi.list.sc -orient vertical -command {C_PiBox_Scroll} -takefocus 0
    grid      .all.pi.list.sc -row 3 -column 0 -sticky ns
+   bind      .all.pi.list.sc <Button-4>        {C_PiBox_Scroll scroll -1 pages; break}
+   bind      .all.pi.list.sc <Button-5>        {C_PiBox_Scroll scroll 1 pages; break}
+   bind      .all.pi.list.sc <MouseWheel>      {C_PiBox_Scroll scroll [expr int(%D / %D)] pages; break}
    text      .all.pi.list.text -width 50 -height 25 -wrap none \
                                -font $pi_font -exportselection false \
                                -cursor top_left_arrow \
@@ -307,7 +329,7 @@ proc CreateMainWindow {} {
    bind      TextPiBox <ButtonPress-2>   {DragListboxStart %W %X %Y}
    bind      TextPiBox <ButtonRelease-2> {DragListboxStop %W}
    bind      TextPiBox <Double-Button-2> {C_PopupPi %W %x %y}
-   bind      TextPiBox <Button-3>        {CreateContextMenu mouse %W %x %y}
+   bind      TextPiBox <Button-3>        {SelectPi %W %x %y; CreateContextMenu mouse %W %x %y}
    bind      TextPiBox <Button-4>        {C_PiBox_Scroll scroll -3 units}
    bind      TextPiBox <Button-5>        {C_PiBox_Scroll scroll 3 units}
    bind      TextPiBox <MouseWheel>      {C_PiBox_Scroll scroll [expr int((%D + 20) / -40)] units}
@@ -350,8 +372,11 @@ proc CreateMainWindow {} {
       grid   .all.pi.list.text -row 1 -rowspan 3 -column 1 -columnspan 2 -sticky news
    }
    canvas    .all.pi.list.dscale -width $dscale_width -background $default_bg -cursor top_left_arrow
-   bind      .all.pi.list.dscale <ButtonPress>   {PiDateScale_Goto %y 0x100}
-   bind      .all.pi.list.dscale <ButtonRelease> {PiDateScale_Goto %y 0}
+   bind      .all.pi.list.dscale <ButtonPress-1>   {PiDateScale_Goto %y 0x100}
+   bind      .all.pi.list.dscale <ButtonRelease-1> {PiDateScale_Goto %y 0}
+   bind      .all.pi.list.dscale <Button-4>        {C_PiBox_Scroll scroll -1 pages; break}
+   bind      .all.pi.list.dscale <Button-5>        {C_PiBox_Scroll scroll 1 pages; break}
+   bind      .all.pi.list.dscale <MouseWheel>      {C_PiBox_Scroll scroll [expr int(%D / %D)] pages; break}
    grid      .all.pi.list.dscale -row 1 -rowspan 3 -column 3 -sticky n -pady 2
 
 
@@ -823,7 +848,7 @@ proc CreateMenubar {} {
 proc ApplyRcSettingsToMenu {} {
    global showColumnHeader showStatusLine showDateScale hideOnMinimize
    global pibox_type pibox_height shortinfo_height dscale_width
-   global shortcuts shortcut_order
+   global shortcuts shortcut_tree
    global usercols
 
    ShowOrHideShortcutList
@@ -864,10 +889,7 @@ proc ApplyRcSettingsToMenu {} {
    }
 
    # fill the shortcut listbox
-   foreach index $shortcut_order {
-      .all.shortcuts.list insert end [lindex $shortcuts($index) $::fsc_name_idx]
-   }
-   .all.shortcuts.list configure -height [llength $shortcut_order]
+   ShortcutTree_Fill .all.shortcuts.list {} $shortcut_tree shortcuts 0
 
    Reminder_InitData
 
@@ -1201,6 +1223,7 @@ proc ShowOrHideShortcutList {} {
    }
    if $showShortcutListbox {
       grid .all.shortcuts.list -row 3 -column 0 -sticky news
+      grid rowconfigure .all.shortcuts 3 -weight 1
    }
    if $showNetwopListbox {
       grid .all.shortcuts.netwops -row 3 -column 1 -rowspan 2 -sticky news
@@ -1210,7 +1233,7 @@ proc ShowOrHideShortcutList {} {
    }
 
    if {$showShortcutListbox || $showNetwopListboxLeft || $showNetwopListbox} {
-      pack .all.shortcuts -anchor nw -side left -before .all.pi
+      pack .all.shortcuts -anchor nw -fill y -side left -before .all.pi -expand 1
    }
 }
 
@@ -1703,7 +1726,7 @@ proc ResetFilterState {} {
    array unset filter_invert all
 
    # reset the filter shortcut bar
-   .all.shortcuts.list selection clear 0 end
+   Tree:selection .all.shortcuts.list clear first end
    set fsc_prevselection {}
    set remgroup_filter {}
 
@@ -2457,14 +2480,25 @@ proc CreateContextMenu {mode wid xcoo ycoo} {
 ##  ---------------------------------------------------------------------------
 ##  Open a context menu below the current listbox entry
 ##
-proc CreateListboxContextMenu {wmen wlist coord_x coord_y} {
-   global shortcuts shortcut_order
-   global ctxmen_selidx
+proc CreateShortcutContextMenu {coord_x coord_y} {
+   global shortcuts
+   global ctxmen_sctag
 
-   set ctxmen_selidx [$wlist index @$coord_x,$coord_y]
-   if {$ctxmen_selidx < [llength $shortcut_order]} {
-      set sc_tag [lindex $shortcut_order $ctxmen_selidx]
-      $wmen entryconfigure 0 -label "Shortcut '[lindex $shortcuts($sc_tag) $::fsc_name_idx]'"
+   set wmen .ctx_shortcuts
+   set wlist .all.shortcuts.list 
+
+   set ctxmen_sctag [ShortcutTree_Element $wlist @$coord_x,$coord_y]
+   if [info exists shortcuts($ctxmen_sctag)] {
+      set name [lindex $shortcuts($ctxmen_sctag) $::fsc_name_idx]
+      set node [lindex $shortcuts($ctxmen_sctag) $::fsc_node_idx]
+      switch -glob -- $node {
+         separator {set title "Separator"; set state disabled}
+         ?dir {set title "Folder '$name'"; set state disabled}
+         default {set title "Shortcut '$name'"; set state normal}
+      }
+      $wmen entryconfigure 0 -label $title
+
+      .ctx_shortcuts entryconfigure "Update" -state $state
 
       set rooty [expr [winfo rooty $wlist] + $coord_y]
       set rootx [expr [winfo rootx $wlist] + $coord_x]
@@ -2975,7 +3009,7 @@ proc PiDateScale_Redraw {t_first t_last lto} {
       .all.pi.list.dscale configure -height $dscale_height
 
       set t_root [expr $t_first - (($t_first + $lto) % (24*60*60))]
-      set first_wday [expr ([clock format $t_first -format {%u}] + 1) % 7]
+      set first_wday [expr ([C_ClockFormat $t_first {%u}] + 1) % 7]
 
       set dscale_tfirst $t_first
       set dscale_tlen [expr $t_last - $t_first]
@@ -2987,7 +3021,8 @@ proc PiDateScale_Redraw {t_first t_last lto} {
          set base_y 0
          set t_cur $t_root
          while {$t_cur < $t_last} {
-            set date_str [clock format $t_cur -format $dscale_date_fmt]
+            # determine weekday name (add 12h to avoid problems with DST change)
+            set date_str [C_ClockFormat [expr $t_cur + 12*60*60] $dscale_date_fmt]
             set t_cur [expr $t_cur + (24*60*60)]
             if {$dscale_tlen != 0} {
                set next_y [expr double($t_cur - $t_first) * $dscale_height / $dscale_tlen]
@@ -3066,8 +3101,10 @@ proc PiDateScale_Goto {ycoo_rel but_state} {
       set dscale_button_state 0
    }
 
-   # jump in the programme list to the first PI running at the selected time
-   C_PiBox_GotoTime 0 [expr $dscale_tfirst + ($ycoo_rel * $dscale_tlen / $dscale_height)]
+   # jump in the programme list to the first PI starting after the selected time
+   # note: intentionally not using "running at" mode because then very long
+   # transmission cause large "jumps" (e.g. Arte "Sendeschluss" 2:35 - 14:00)
+   C_PiBox_GotoTime 1 [expr $dscale_tfirst + ($ycoo_rel * $dscale_tlen / $dscale_height)]
 }
 
 
@@ -3201,10 +3238,6 @@ proc PopupHelp {index {subheading {}} {subrange {}}} {
       bind   .help.disp.text <End>   [concat .help.disp.text yview moveto 1.0 {;} break]
       bind   .help.disp.text <Enter> {focus %W}
       bind   .help.disp.text <Escape> {tkButtonInvoke .help.cmd.dismiss}
-      # allow to scroll the text with a wheel mouse
-      bind   .help.disp.text <Button-4> {.help.disp.text yview scroll -3 units}
-      bind   .help.disp.text <Button-5> {.help.disp.text yview scroll 3 units}
-      bind   .help.disp.text <MouseWheel> {%W yview scroll [expr {- (%D / 120) * 3}] units}
       # save width and height when the window is resized by the user
       bind   .help <Configure> {HelpWindowResized %W}
 
@@ -3360,7 +3393,7 @@ proc CreateAbout {} {
       #label .about.tcl_version -text " Tcl/Tk version $tcl_patchLevel"
       #pack .about.tcl_version -side top
 
-      label .about.copyr1 -text "Copyright © 1999 - 2003 by Thorsten \"Tom\" Zörner"
+      label .about.copyr1 -text "Copyright (C) 1999 - 2004 by Thorsten \"Tom\" Zörner"
       label .about.copyr2 -text $NXTVEPG_MAILTO
       label .about.copyr3 -text $NXTVEPG_URL -font $font_fixed -foreground blue
       pack .about.copyr1 .about.copyr2 -side top
@@ -3721,7 +3754,7 @@ proc FilterMenuAdd_Time {widget is_stand_alone} {
    set hour       [expr ($start_time % (24*60*60)) / (60*60)]
 
    for {set i 0} {$i < 24} {incr i 2} {
-      $widget add command -label [clock format $start_time -format {%H:%M}] -command [list C_PiBox_GotoTime 1 $start_time]
+      $widget add command -label [C_ClockFormat $start_time {%H:%M}] -command [list C_PiBox_GotoTime 1 $start_time]
       incr start_time [expr 2*60*60]
       set hour [expr ($hour + 2) % 24]
    }
@@ -3741,13 +3774,13 @@ proc FilterMenuAdd_Date {widget is_stand_alone} {
    set start_time [clock seconds]
    set last_time [C_GetLastPiTime]
 
-   $widget add command -label "Today, [clock format $start_time -format {%d. %b. %Y}]" -command {C_PiBox_GotoTime 1 now}
+   $widget add command -label "Today, [C_ClockFormat $start_time {%d. %b. %Y}]" -command {C_PiBox_GotoTime 1 now}
    incr start_time [expr 24*60*60]
-   $widget add command -label "Tomorrow, [clock format $start_time -format {%d. %b. %Y}]" -command [list C_PiBox_GotoTime 1 $start_time]
+   $widget add command -label "Tomorrow, [C_ClockFormat $start_time {%d. %b. %Y}]" -command [list C_PiBox_GotoTime 1 $start_time]
    incr start_time [expr 24*60*60]
 
    while {$start_time <= $last_time} {
-      $widget add command -label [clock format $start_time -format {%A, %d. %b. %Y}] -command [list C_PiBox_GotoTime 1 $start_time]
+      $widget add command -label [C_ClockFormat $start_time {%A, %d. %b. %Y}] -command [list C_PiBox_GotoTime 1 $start_time]
       incr start_time [expr 24*60*60]
    }
 }
@@ -4326,7 +4359,7 @@ proc PiBox_DisplayErrorMessage {text} {
       $wid insert end "Nextview EPG\n" bold24Tag
       $wid insert end "An Electronic TV Programme Guide for Your PC\n" bold16Tag
       $wid window create end -window ${wid}.nxtvlogo
-      $wid insert end "\n\nCopyright © 1999 - 2003 by Thorsten \"Tom\" Zörner\n" bold12Tag
+      $wid insert end "\n\nCopyright (C) 1999 - 2004 by Thorsten \"Tom\" Zörner\n" bold12Tag
       $wid insert end "tomzo@nefkom.net\n\n" bold12Tag
       $wid tag add centerTag 1.0 {end - 1 lines}
       $wid insert end "This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License Version 2 as published by the Free Software Foundation. This program is distributed in the hope that it will be useful, but without any warranty. See the GPL2 for more details.\n\n" wrapTag

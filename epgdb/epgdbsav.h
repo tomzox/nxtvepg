@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbsav.h,v 1.35 2003/09/19 22:08:36 tom Exp tom $
+ *  $Id: epgdbsav.h,v 1.38 2004/03/21 17:59:50 tom Exp tom $
  */
 
 #ifndef __EPGDBSAV_H
@@ -34,20 +34,42 @@
 #define ENDIAN_MAGIC   0xAA55
 #define WRONG_ENDIAN   (((ENDIAN_MAGIC>>8)&0xFF)|((ENDIAN_MAGIC&0xFF)<<8))
 
-#ifdef WIN32
-#define PATH_SEPARATOR '\\'
-#define PATH_ROOT      "\\"
-#define DUMP_NAME_FMT  "NXTV%04X.EPG"
-#define DUMP_NAME_PAT  "NXTV*.EPG"
-#define DUMP_NAME_LEN  (8+1+3)
+typedef enum
+{
+#ifndef WIN32                // note: first value is default name format for new databases
+   DB_FMT_UNIX,
+   DB_FMT_DOS,
 #else
-#define PATH_SEPARATOR '/'
-#define PATH_ROOT      "/"
-#define DUMP_NAME_FMT  "nxtvdb-%04x"
-#define DUMP_NAME_TMP  ".tmp"
-#define DUMP_NAME_LEN  (6+1+4)
+   DB_FMT_DOS,
+   DB_FMT_UNIX,
 #endif
-#define DUMP_NAME_MAX  25
+   DB_FMT_COUNT
+} DB_FMT_TYPE;
+
+#ifdef WIN32
+#define PATH_SEPARATOR       '\\'
+#define PATH_SEPARATOR_STR   "\\"
+#define PATH_ROOT            "\\"
+#define DUMP_NAME_DEF_FMT    DB_FMT_DOS
+#else
+#define PATH_SEPARATOR       '/'
+#define PATH_SEPARATOR_STR   "/"
+#define PATH_ROOT            "/"
+#define DUMP_NAME_TMP_SUFX   ".tmp"
+#define DUMP_NAME_DEF_FMT    DB_FMT_UNIX
+#endif
+
+#define DUMP_NAME_EXP_DOS   "%*[nN]%*[xX]%*[tT]%*[vV]%04X.%*[eE]%*[pP]%*[gG]"
+#define DUMP_NAME_FMT_DOS    "nxtv%04x.epg"
+#define DUMP_NAME_PAT_DOS    "nxtv*.epg"
+#define DUMP_NAME_LEN_DOS    (8+1+3)         // for sscanf() only - for malloc use MAX_LEN!
+
+#define DUMP_NAME_EXP_UNIX  "%*[nN]%*[xX]%*[tT]%*[vV]%*[dD]%*[bB]-%04X"
+#define DUMP_NAME_FMT_UNIX   "nxtvdb-%04x"
+#define DUMP_NAME_PAT_UNIX   "nxtvdb-*."
+#define DUMP_NAME_LEN_UNIX   (6+1+4)
+
+#define DUMP_NAME_MAX_LEN    25   // = MAX(LEN_WIN32,LEN_UNIX) + DUMP_NAME_TMP_SUFX
 
 #ifndef O_BINARY
 #define O_BINARY       0          // for M$-Windows only
@@ -95,6 +117,7 @@ typedef enum
    EPGDB_RELOAD_ACCESS,        // file open failed
    EPGDB_RELOAD_ENDIAN,        // big/little endian conflict
    EPGDB_RELOAD_VERSION,       // incompatible version
+   EPGDB_RELOAD_MERGE,         // invalid merge config
    EPGDB_RELOAD_EXIST          // file does not exist
 } EPGDB_RELOAD_RESULT;
 
@@ -129,6 +152,7 @@ typedef struct
 {
    uint   cni;
    time_t mtime;
+   DB_FMT_TYPE nameFormat;
 } EPGDB_SCAN_BUF_ELEM;
 
 typedef struct

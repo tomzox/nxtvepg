@@ -166,3 +166,25 @@ diff orig/tk8.3.2/generic/tkWindow.c tk8.3.2/generic/tkWindow.c
 
 make install
 
+
+
+Generate .a files from DLL
+--------------------------
+
+When the Tcl/Tk libraries are compiled from source, both DLLs and linker
+libraries are generated.  The latter are required because when building
+executables ld cannot link directly against DLLs.  To avoid having to
+include both DLL and linker libraries with nxtvepg releases, only .def
+files are included with which .a libraries can be generated from the DLLs
+with help of dlltool.
+
+Generating .def from .a:  (to be done before releases)
+
+/usr/local/i386-pc-cygwin32/bin/i386-pc-cygwin32-nm libtcl83.a |
+grep '^........ [T] _' | sed 's/[^_]*_//' > libtcl83.def
+/usr/local/i386-pc-cygwin32/bin/i386-pc-cygwin32-nm libtk83.a | grep '^........ [T] _' | sed 's/[^_]*_//' > libtk83.def
+
+Generating .a from .dll with help of .def:  (for end user)
+
+/usr/local/i386-pc-cygwin32/bin/i386-pc-cygwin32-dlltool --as=/usr/local/i386-pc-cygwin32/bin/i386-pc-cygwin32-as --def libtcl83.def --dllname tcl83.dll -v --output-lib libtcl83.a
+/usr/local/i386-pc-cygwin32/bin/i386-pc-cygwin32-dlltool --as=/usr/local/i386-pc-cygwin32/bin/i386-pc-cygwin32-as --def libtk83.def --dllname tk83.dll -v --output-lib libtk83.a

@@ -32,7 +32,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: ttxdecode.c,v 1.56 2003/09/20 19:08:20 tom Exp tom $
+ *  $Id: ttxdecode.c,v 1.57 2004/03/28 12:39:13 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -83,6 +83,8 @@ static int             lastMagIdx[8];
 //
 void TtxDecode_StartEpgAcq( uint epgPageNo, bool isEpgScan )
 {
+   dprintf2("TtxDecode-StartEpgAcq: page=%03X, isEpgScan=%d\n", epgPageNo, isEpgScan);
+
    // pass the configuration variables to the ttx process via shared memory
    pVbiBuf->epgPageNo = epgPageNo;
    pVbiBuf->isEpgScan = isEpgScan;
@@ -103,6 +105,8 @@ void TtxDecode_StartEpgAcq( uint epgPageNo, bool isEpgScan )
 //
 void TtxDecode_StopAcq( void )
 {
+   dprintf0("TtxDecode-StopAcq\n");
+
    // inform writer process/thread
    pVbiBuf->isEnabled = FALSE;
    pVbiBuf->isEpgScan = FALSE;
@@ -129,6 +133,9 @@ void TtxDecode_GetScanResults( uint *pCni, bool *pNiWait, uint *pDataPageCnt, uc
    if (textMaxLen > PDC_TEXT_LEN + 1)
       textMaxLen = PDC_TEXT_LEN + 1;
 
+   if (pDispText != NULL)
+      pDispText[0] = 0;
+
    // check if initialization for the current channel is complete
    if (pVbiBuf->chanChangeReq == pVbiBuf->chanChangeCnf)
    {
@@ -150,7 +157,6 @@ void TtxDecode_GetScanResults( uint *pCni, bool *pNiWait, uint *pDataPageCnt, uc
 
       if (pDispText != NULL)
       {
-         pDispText[0] = 0;
          for (type=0; type < CNI_TYPE_COUNT; type++)
          {
             if (pVbiBuf->cnis[type].haveText)
@@ -183,6 +189,9 @@ void TtxDecode_GetScanResults( uint *pCni, bool *pNiWait, uint *pDataPageCnt, uc
       *pNiWait = niWait;
    if (pDataPageCnt != NULL)
       *pDataPageCnt = pageCnt;
+
+   if ((cni != 0) || (niWait) || (pageCnt > 0) || ((pDispText != NULL) && (pDispText[0] != 0)))
+      dprintf4("TtxDecode-GetScanResults: cni=%04X niWait=%d pageCnt=%d text=%s\n", cni, niWait, pageCnt, pDispText);
 }
 
 // ---------------------------------------------------------------------------

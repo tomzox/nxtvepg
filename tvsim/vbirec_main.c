@@ -15,31 +15,44 @@
  *  Description:
  *
  *    This module is the main module of the small standalone tool
- *    "vbirec.exe".  It's purpose is in debugging the shared memory
- *    interface of TV applications.  The tool takes the place of
- *    nxtvepg, i.e. it creates a shared memory and waits for a TV app
+ *    "vbirec".  It's purpose is in debugging the EPG interface
+ *    of TV applications.  The tool takes the place of nxtvepg,
+ *    i.e. it sets up communication channels and waits for a TV app
  *    to connect.  While a TV application is connected, all TV app
  *    controled values are displayed and constantly updated in the
- *    GUI.  It also offers the possibility to record all teletext
- *    packets that are forwarded by the TV app into a file, which
- *    later can be played back with vbiplay.exe
+ *    GUI.
+ *
+ *    It also offers the possibility to record all EPG teletext packets
+ *    into a file.  In case of Windows teletext data is forwarded by
+ *    the TV app, in case of UNIX it's read from the VBI device. On
+ *    Windows the recorded data can later be played back with vbiplay,
+ *    on UNIX it requires patching of ttxdecode.c  (Plackback is meant
+ *    for debugging by developers only anyways.)
  *
  *  Author: Thorsten Zoerner
  *
- *  $Id: vbirec_main.c,v 1.16 2002/11/03 12:16:26 tom Exp tom $
+ *  $Id: vbirec_main.c,v 1.20 2004/03/22 21:43:55 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_TVSIM
 //#define DPRINTF_OFF
 
+#ifdef WIN32
 #include <windows.h>
-#include <locale.h>
+#endif
 
 #include <stdio.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <unistd.h>
+#include <time.h>
+#include <locale.h>
+#ifndef WIN32
+#include <signal.h>
+#endif
 
 #include <tcl.h>
 #include <tk.h>
@@ -75,6 +88,10 @@
 # include "epgtcl/tk_libs.h"
 #endif
 
+#ifndef O_BINARY
+#define O_BINARY       0          // for M$-Windows only
+#endif
+
 char tvsim_rcs_id_str[] = TVSIM_VERSION_RCS_ID;
 
 Tcl_Interp *interp;          // Interpreter for application
@@ -82,11 +99,18 @@ Tcl_Interp *interp;          // Interpreter for application
 // add one extra byte at the end of the comm buffer for overflow detection
 char comm[TCL_COMM_BUF_SIZE + 1];
 
+#ifdef WIN32
 static Tcl_AsyncHandler asyncThreadHandler = NULL;
-static Tcl_TimerToken   clockHandler       = NULL;
 static bool             haveIdleHandler    = FALSE;
+#else
+static Tcl_AsyncHandler exitAsyncHandler   = NULL;
+#endif
+static Tcl_TimerToken   clockHandler       = NULL;
+static bool should_exit;
 
+#ifdef WIN32
 volatile EPGACQ_BUF * pVbiBuf = NULL;
+#endif
 static int fdTtxFile = -1;
 
 typedef struct
@@ -106,6 +130,127 @@ typedef struct
 static TTX_DEC_STATS ttxStats;
 static CNI_DEC_STATS cniStats;
 static uint          epgPageNo;
+
+// Default TV card index - identifies which TV card is used by the simulator
+// (note that in contrary to the other TV card parameters this value is not
+// taken from the nxtvepg rc/ini file; can be overriden with -card option)
+#define TVSIM_CARD_IDX   0
+// input source index of the TV tuner with btdrv4win.c
+#define TVSIM_INPUT_IDX  0
+
+#ifndef WIN32
+static uint videoCardIndex = TVSIM_CARD_IDX;
+#endif
+static bool startIconified = FALSE;
+
+#ifndef WIN32
+// ---------------------------------------------------------------------------
+// Dummies for xawtv module
+//
+#include "epgdb/epgdbfil.h"
+#include "epgctl/epgacqctl.h"
+#include "epgdb/epgdbif.h"
+#include "epgui/epgmain.h"
+#include "epgui/pibox.h"
+#include "epgui/wintvcfg.h"
+#include "epgui/xawtv.h"
+void  EpgDbLockDatabase( EPGDB_CONTEXT * dbc, uchar enable ) {}
+bool  EpgDbIsLocked( const EPGDB_CONTEXT * dbc ) { return TRUE; }
+const AI_BLOCK * EpgDbGetAi( const EPGDB_CONTEXT * dbc ) { return NULL; }
+const PI_BLOCK * EpgDbSearchPiByPil( const EPGDB_CONTEXT * dbc, uchar netwop_no, uint pil ) { return NULL; }
+const PI_BLOCK * EpgDbSearchFirstPiAfter( const EPGDB_CONTEXT * dbc, time_t min_time, EPGDB_TIME_SEARCH_MODE startOrStop, const FILTER_CONTEXT *fc ) { return NULL; }
+
+FILTER_CONTEXT * EpgDbFilterCreateContext( void ) { return NULL; }
+void   EpgDbFilterDestroyContext( FILTER_CONTEXT * fc ) {}
+void   EpgDbFilterEnable( FILTER_CONTEXT *fc, uint mask ) {}
+void   EpgDbFilterInitNetwop( FILTER_CONTEXT *fc ) {}
+void   EpgDbFilterSetNetwop( FILTER_CONTEXT *fc, uchar netwopNo ) {}
+
+void AddMainIdleEvent( Tcl_IdleProc *IdleProc, ClientData clientData, bool unique )
+{
+   Tcl_CancelIdleCall(IdleProc, clientData);
+   Tcl_DoWhenIdle(IdleProc, clientData);
+}
+bool RemoveMainIdleEvent( Tcl_IdleProc * IdleProc, ClientData clientData, bool matchData )
+{
+   Tcl_CancelIdleCall(IdleProc, clientData);
+   return FALSE;
+}
+EPGDB_CONTEXT * pUiDbContext = NULL;
+EPGDB_CONTEXT * pAcqDbContext = NULL;
+
+void EpgAcqCtl_DescribeAcqState( EPGACQ_DESCR * pAcqState ) {}
+const EPGDB_ACQ_VPS_PDC * EpgAcqCtl_GetVpsPdc( VPSPDC_REQ_ID clientId ) { return NULL; }
+bool EpgAcqCtl_CheckDeviceAccess( void ) { return TRUE; }
+void EpgAcqCtl_ResetVpsPdc( void ) {}
+
+void PiBox_GotoPi( const PI_BLOCK * pPiBlock ) {}
+uint WintvCfg_StationNameToCni( char * pName, uint MapName2Cni(const char * station) ) { return 0; }
+bool WintvCfg_CheckAirTimes( uint cni ) { return TRUE; }
+
+
+// ---------------------------------------------------------------------------
+// called by interrupt handlers when the application should exit
+//
+static int AsyncHandler_AppTerminate( ClientData clientData, Tcl_Interp *interp, int code )
+{
+   // do nothing - the only purpose was to wake up the event handler,
+   // so that we can leave the main loop after this NOP was processed
+   return code;
+}
+
+// ---------------------------------------------------------------------------
+// graceful exit upon signals
+//
+static void signal_handler( int sigval )
+{
+   should_exit = TRUE;
+
+   if (exitAsyncHandler != NULL)
+   {  // trigger an event, so that the Tcl/Tk event handler immediately wakes up
+      Tcl_AsyncMark(exitAsyncHandler);
+   }
+}
+
+// ----------------------------------------------------------------------------
+// TV application changed the input channel
+//
+static int Xawtv_CbStationChange(ClientData ttp, Tcl_Interp *interp, int argc, CONST84 char *argv[])
+{
+   const char * const pUsage = "Usage: XawtvConfigShmChannelChange <name> <freq>";
+   int tvCurFreq;
+   int result;
+
+   if ( (argc != 3) ||
+        (Tcl_GetInt(interp, argv[2], &tvCurFreq) != TCL_OK) )
+   {  // parameter count is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else
+   {
+      // channel change -> reset results & state machine
+      pVbiBuf->chanChangeReq += 1;
+      memset(&cniStats, 0, sizeof(cniStats));
+
+      eval_check(interp, "InitGuiVars");
+
+      epgPageNo = pVbiBuf->epgPageNo = 0x1DF;
+      Tcl_SetVar(interp, "ttx_pgno", "1DF", TCL_GLOBAL_ONLY);
+
+      Tcl_SetVar(interp, "tvChanName", argv[1], TCL_GLOBAL_ONLY);
+
+      if (tvCurFreq != 0)
+      {
+         sprintf(comm, "%d = %.2f MHz", tvCurFreq, (double)tvCurFreq / 16);
+         Tcl_SetVar(interp, "tvCurFreq", comm, TCL_GLOBAL_ONLY);
+      }
+      result = TCL_OK;
+   }
+   return result;
+}
+
+#else // WIN32
 
 // ---------------------------------------------------------------------------
 // Callback to deal with Windows shutdown
@@ -380,6 +525,7 @@ static void VbiRec_CbAttachTv( bool enable, bool acqEnabled, bool slaveStateChan
 
    eval_check(interp, comm);
 }
+#endif  // WIN32
 
 // ---------------------------------------------------------------------------
 // Update a CNI/PIL/text and network variable
@@ -574,7 +720,7 @@ static void SecTimerEvent( ClientData clientData )
 // ---------------------------------------------------------------------------
 // Toggle teletext dump on/off
 //
-static char * TclCb_EnableDump( ClientData clientData, Tcl_Interp * interp, char * name1, CONST84 char * name2, int flags )
+static char * TclCb_EnableDump( ClientData clientData, Tcl_Interp * interp, CONST84 char * name1, CONST84 char * name2, int flags )
 {
    const char * pFileName;
    CONST84 char * pTmpStr;
@@ -614,6 +760,7 @@ static char * TclCb_EnableDump( ClientData clientData, Tcl_Interp * interp, char
 // ---------------------------------------------------------------------------
 // Dummy functions for winshmsrv.c
 //
+#ifdef WIN32
 bool BtDriver_Init( void ) { return TRUE; }
 void BtDriver_Exit( void ) {}
 bool BtDriver_StartAcq( void ) { return TRUE; }
@@ -638,6 +785,7 @@ static const WINSHMSRV_CB vbiRecCb =
    VbiRec_CbTunerGrant,
    VbiRec_CbAttachTv
 };
+#endif
 
 // ---------------------------------------------------------------------------
 // Initialize the Tcl/Tk interpreter and load our scripts
@@ -675,6 +823,13 @@ static int ui_init( int argc, char **argv )
    Tcl_SetVar(interp, "tcl_interactive", "0", TCL_GLOBAL_ONLY);
    Tcl_SetVar(interp, "TVSIM_VERSION", TVSIM_VERSION_STR, TCL_GLOBAL_ONLY);
 
+   #ifndef WIN32
+   Tcl_SetVar(interp, "x11_appdef_path", X11_APP_DEFAULTS, TCL_GLOBAL_ONLY);
+   Tcl_SetVar2Ex(interp, "is_unix", NULL, Tcl_NewIntObj(1), TCL_GLOBAL_ONLY);
+   #else
+   Tcl_SetVar2Ex(interp, "is_unix", NULL, Tcl_NewIntObj(0), TCL_GLOBAL_ONLY);
+   #endif
+
    Tcl_Init(interp);
    if (Tk_Init(interp) != TCL_OK)
    {
@@ -704,8 +859,13 @@ static int ui_init( int argc, char **argv )
    eval_check(interp, comm);
    #endif
 
+   #ifdef WIN32
    // create an asynchronous event source that allows to receive triggers from the EPG message receptor thread
    asyncThreadHandler = Tcl_AsyncCreate(VbiRec_AsyncThreadHandler, NULL);
+   #else
+   exitAsyncHandler = Tcl_AsyncCreate(AsyncHandler_AppTerminate, NULL);
+   Tcl_CreateCommand(interp, "XawtvConfigShmChannelChange", Xawtv_CbStationChange, (ClientData) NULL, NULL);
+   #endif
 
    if (TCL_EVAL_CONST(interp, vbirec_gui_tcl_static) != TCL_OK)
    {
@@ -720,24 +880,123 @@ static int ui_init( int argc, char **argv )
 }
 
 // ---------------------------------------------------------------------------
+// Print Usage and exit
+//
+static void Usage( const char *argv0, const char *argvn, const char * reason )
+{
+#ifndef WIN32
+   fprintf(stderr, "%s: %s: %s\n"
+#else
+   sprintf(comm, "%s: %s: %s\n"
+#endif
+                   "Usage: %s [options]\n"
+                   "       -help       \t\t: this message\n"
+                   "       -geometry <geometry>\t: window position\n"
+                   "       -iconic     \t\t: iconify window\n"
+#ifndef WIN32
+                   "       -card <digit>       \t: index of TV card for acq (starting at 0)\n"
+#endif
+                   , argv0, reason, argvn, argv0);
+#if 0
+      /*balance brackets for syntax highlighting*/  )
+#endif
+#ifdef WIN32
+   MessageBox(NULL, comm, "VbiRec usage", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+#endif
+
+   exit(1);
+}
+
+// ---------------------------------------------------------------------------
+// Parse command line options
+//
+static void ParseArgv( int argc, char * argv[] )
+{
+   int argIdx = 1;
+
+   while (argIdx < argc)
+   {
+      if (argv[argIdx][0] == '-')
+      {
+         if (!strcmp(argv[argIdx], "-help"))
+         {
+            char versbuf[50];
+            sprintf(versbuf, "(version %s)", TVSIM_VERSION_STR);
+            Usage(argv[0], versbuf, "the following command line options are available");
+         }
+         else if (!strcmp(argv[argIdx], "-card"))
+         {
+#ifndef WIN32
+            if (argIdx + 1 < argc)
+            {  // read index of TV card device
+               char *pe;
+               ulong cardIdx = strtol(argv[argIdx + 1], &pe, 0);
+               if ((pe != (argv[argIdx + 1] + strlen(argv[argIdx + 1]))) || (cardIdx > 9))
+                  Usage(argv[0], argv[argIdx+1], "invalid index (range 0-9)");
+               videoCardIndex = (uint) cardIdx;
+               argIdx += 2;
+            }
+            else
+               Usage(argv[0], argv[argIdx], "missing card index after");
+#else
+            Usage(argv[0], argv[argIdx], "only supported on UNIX systems");
+#endif
+         }
+         else if ( !strcmp(argv[argIdx], "-iconic") )
+         {  // start with iconified main window
+            startIconified = TRUE;
+            argIdx += 1;
+         }
+         else if ( !strcmp(argv[argIdx], "-geometry")
+                   #ifndef WIN32
+                   || !strcmp(argv[argIdx], "-display")
+                   || !strcmp(argv[argIdx], "-name")
+                   #endif
+                 )
+         {  // ignore arguments that are handled by Tk
+            if (argIdx + 1 >= argc)
+               Usage(argv[0], argv[argIdx], "missing argument after");
+            argIdx += 2;
+         }
+         else
+            Usage(argv[0], argv[argIdx], "unknown option");
+      }
+      else
+         Usage(argv[0], argv[argIdx], "unexpected argument");
+   }
+}
+
+// ---------------------------------------------------------------------------
 // entry point
 //
+#ifdef WIN32
 int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow )
+#else
+int main( int argc, char *argv[] )
+#endif
 {
+   #ifdef WIN32
    int argc;
    char ** argv;
+
+   // initialize Tcl/Tk interpreter and compile all scripts
+   SetArgv(&argc, &argv);
+   #endif
+   ParseArgv(argc, argv);
 
    // mark Tcl/Tk interpreter as uninitialized
    interp = NULL;
    memset(&ttxStats, 0, sizeof(ttxStats));
    memset(&cniStats, 0, sizeof(cniStats));
 
-   // initialize Tcl/Tk interpreter and compile all scripts
-   SetArgv(&argc, &argv);
+   should_exit = FALSE;
    ui_init(argc, argv);
 
+   #ifdef WIN32
    if (WintvSharedMem_Init())
+   #endif
    {
+      #ifdef WIN32
       // set up callback to catch shutdown messages (requires tk83.dll patch!)
       Tk_RegisterMainDestructionHandler(WinApiDestructionHandler);
       #ifndef __MINGW32__
@@ -748,8 +1007,25 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 
       WintvSharedMem_SetCallbacks(&vbiRecCb);
       if (WintvSharedMem_StartStop(TRUE, NULL))
+
+      #else  // not WIN32
+      signal(SIGINT, signal_handler);
+      signal(SIGTERM, signal_handler);
+      signal(SIGHUP, signal_handler);
+      BtDriver_Init();
+      eval_check(interp, "set xawtvcf {tunetv 1 follow 0 dopop 0 poptype 0 duration 7}");
+      eval_check(interp, "proc CreateTuneTvButton {} {}\n");
+      eval_check(interp, "proc RemoveTuneTvButton {} {}\n");
+      eval_check(interp, "proc XawtvConfigShmAttach {ena} {ConnectEpg $ena Xawtv}\n");
+      Xawtv_Init(NULL);
+      // pass bt8x8 driver parameters to the driver
+      BtDriver_Configure(videoCardIndex, 0 /*prio*/, 0, 0, 0, 0, 0);
+      if ( BtDriver_StartAcq() )
+      #endif
       {
+         #ifdef WIN32
          pVbiBuf = WintvSharedMem_GetVbiBuf();
+         #endif
          if (pVbiBuf != NULL)
          {
             // skip first VBI frame, reset ttx decoder, then set reader idx to writer idx
@@ -764,21 +1040,25 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
             pVbiBuf->chanChangeReq = pVbiBuf->chanChangeCnf + 2;
             pVbiBuf->isEnabled = TRUE;
 
+            #ifdef WIN32
             VbiRec_CbStationSelected();
+            #endif
 
             // trigger second event for the first time to install the timer
             SecTimerEvent(NULL);
 
             // set window title & disable resizing
             eval_check(interp, "wm title . {VBI recorder " TVSIM_VERSION_STR "}\nwm resizable . 0 0\n");
+            if (startIconified)
+               eval_check(interp, "wm iconify .");
 
             // wait until window is open and everything displayed
-            while ( (Tk_GetNumMainWindows() > 0) &&
+            while ( (Tk_GetNumMainWindows() > 0) && (should_exit == FALSE) &&
                     Tcl_DoOneEvent(TCL_ALL_EVENTS | TCL_DONT_WAIT) )
                ;
 
             // process GUI events & callbacks until the main window is closed
-            while (Tk_GetNumMainWindows() > 0)
+            while ((Tk_GetNumMainWindows() > 0) && (should_exit == FALSE))
             {
                Tcl_DoOneEvent(TCL_ALL_EVENTS);
             }
@@ -789,10 +1069,15 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
             Tcl_UntraceVar(interp, "dumpttx_enable", TCL_TRACE_WRITES|TCL_GLOBAL_ONLY, TclCb_EnableDump, NULL);
             if (fdTtxFile != -1)
                close(fdTtxFile);
+
+            #ifndef WIN32
+            BtDriver_StopAcq();
+            #endif
          }
       }
       else
-      {
+      #ifdef WIN32
+      {  // Win32: failed to setup shared memory
          const char * pShmErrMsg;
          char * pErrBuf;
 
@@ -808,6 +1093,19 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
             xfree((void *) pShmErrMsg);
          }
       }
+      #else // WIN32
+      {  // failed to start VBI acquisition -> display error message
+         const char * pErrStr;
+         strcpy(comm, "tk_messageBox -type ok -icon error -parent . -message {Failed to start acquisition: ");
+         pErrStr = BtDriver_GetLastError();
+         if (pErrStr != NULL)
+            strcat(comm, pErrStr);
+         else
+            strcat(comm, "(Internal error, please report. Try to restart the application.)\n");
+         strcat(comm, "}\n");
+         eval_check(interp, comm);
+      }
+      #endif
 
       #if defined(WIN32) && !defined(__MINGW32__)
       }
@@ -819,7 +1117,12 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
       }
       #endif
 
+      #ifdef WIN32
       WintvSharedMem_Exit();
+      #else
+      BtDriver_Exit();
+      Xawtv_Destroy();
+      #endif
    }
 
    exit(0);

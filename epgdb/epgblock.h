@@ -25,7 +25,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgblock.h,v 1.46 2003/10/05 19:12:47 tom Exp tom $
+ *  $Id: epgblock.h,v 1.47 2004/02/28 20:42:32 tom Exp tom $
  */
 
 #ifndef __EPGBLOCK_H
@@ -509,6 +509,7 @@ typedef struct EPGDB_CONTEXT_STRUCT
    uint   pageNo;                   // Teletext page for acq
    uint   tunerFreq;                // Frequency for acq
    uint   appId;                    // BI block ID
+   uint   fileNameFormat;           // DOS or UNIX file name format
 
    EPGDB_BLOCK *pAiBlock;
    EPGDB_BLOCK *pFirstPi, *pLastPi;

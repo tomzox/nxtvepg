@@ -29,7 +29,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbsav.c,v 1.51 2003/10/05 18:59:17 tom Exp tom $
+ *  $Id: epgdbsav.c,v 1.54 2004/03/21 17:59:29 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -119,7 +119,7 @@ static bool EpgDbDumpHeader( CPDBC dbc, int fd )
          size = write(fd, p, rest);
          if (size < 0)
          {
-            perror("write header");
+            fprintf(stderr, "Error writing database header: %s\n", strerror(errno));
             return FALSE;
          }
          p += size;
@@ -148,7 +148,7 @@ static bool EpgDbDumpAppendBlock( const EPGDB_BLOCK * pBlock, int fd )
       size = write(fd, p, rest);
       if (size < 0)
       {
-         perror("write dump");
+         fprintf(stderr, "Error writing in database: %s\n", strerror(errno));
          return FALSE;
       }
       p += size;
@@ -157,6 +157,39 @@ static bool EpgDbDumpAppendBlock( const EPGDB_BLOCK * pBlock, int fd )
    while (rest > 0);
 
    return TRUE;
+}
+
+// ---------------------------------------------------------------------------
+// Returns file name format and path for the given CNI
+// - only for reading databases; for writing the same name is used as was found
+//   for read; for new databases always use the default format
+//
+static DB_FMT_TYPE EpgDbBuildFileName( uint cni, char * pFilename )
+{
+   DB_FMT_TYPE firstFmt;
+   DB_FMT_TYPE curFmt;
+
+   curFmt = firstFmt = DUMP_NAME_DEF_FMT;
+   do
+   {
+      // first assemble a path with the default format
+      if (curFmt == DB_FMT_UNIX)
+         sprintf(pFilename, "%s" PATH_SEPARATOR_STR DUMP_NAME_FMT_UNIX, epgDbDirPath, cni);
+      else
+         sprintf(pFilename, "%s" PATH_SEPARATOR_STR DUMP_NAME_FMT_DOS, epgDbDirPath, cni);
+
+      // check if a file with this path exists
+      if (access(pFilename, F_OK) == 0)
+         break;
+
+      // not found -> try next format
+      curFmt = (curFmt + 1) % DB_FMT_COUNT;
+   }
+   while (curFmt != firstFmt);
+
+   dprintf2("EpgDb-BuildFileName: file name format %d for %04X\n", curFmt, cni);
+
+   return curFmt;
 }
 
 // ---------------------------------------------------------------------------
@@ -172,15 +205,20 @@ bool EpgDbDump( PDBC dbc )
    EPGDB_BLOCK *pWalk;
    BLOCK_TYPE type;
    int  fd;
+   uint cni;
    bool result = FALSE;
 
    EpgDbLockDatabase(dbc, TRUE);
    if ((dbc->pAiBlock != NULL) && (dbc->modified))
    {
-      pFilename = xmalloc(strlen(epgDbDirPath) + 1 + DUMP_NAME_MAX);
-      sprintf(pFilename, "%s/" DUMP_NAME_FMT, epgDbDirPath, AI_GET_NETWOP_N(&dbc->pAiBlock->blk.ai, dbc->pAiBlock->blk.ai.thisNetwop)->cni);
+      pFilename = xmalloc(strlen(epgDbDirPath) + 1 + DUMP_NAME_MAX_LEN);
+      cni = AI_GET_NETWOP_N(&dbc->pAiBlock->blk.ai, dbc->pAiBlock->blk.ai.thisNetwop)->cni;
+      if (dbc->fileNameFormat == DB_FMT_UNIX)
+         sprintf(pFilename, "%s" PATH_SEPARATOR_STR DUMP_NAME_FMT_UNIX, epgDbDirPath, cni);
+      else
+         sprintf(pFilename, "%s" PATH_SEPARATOR_STR DUMP_NAME_FMT_DOS, epgDbDirPath, cni);
       #ifdef DUMP_NAME_TMP
-      pTmpname = xmalloc(strlen(epgDbDirPath) + 1 + DUMP_NAME_MAX);
+      pTmpname = xmalloc(strlen(epgDbDirPath) + 1 + DUMP_NAME_MAX_LEN);
       strcpy(pTmpname, pFilename);
       strcat(pFilename, DUMP_NAME_TMP);
       #endif
@@ -236,7 +274,7 @@ bool EpgDbDump( PDBC dbc )
          #endif
       }
       else
-         perror("EpgDb-Dump: open/create");
+         fprintf(stderr, "Failed to write database %s: %s\n", pFilename, strerror(errno));
 
       xfree(pFilename);
       #ifdef DUMP_NAME_TMP
@@ -586,14 +624,15 @@ PDBC EpgDbReload( uint cni, EPGDB_RELOAD_RESULT * pResult )
    uchar * pFilename;
    time_t  piStartOff;
    BLOCK_TYPE type, lastType;
+   DB_FMT_TYPE nameFmt;
    EPGDB_RELOAD_RESULT result;
 
    dbc = EpgDbCreate();
 
    if (epgDemoDb == NULL)
    {  // append database file name to db directory (from -dbdir argument)
-      pFilename = xmalloc(strlen(epgDbDirPath) + 1 + DUMP_NAME_MAX);
-      sprintf(pFilename, "%s/" DUMP_NAME_FMT, epgDbDirPath, cni);
+      pFilename = xmalloc(strlen(epgDbDirPath) + 1 + DUMP_NAME_MAX_LEN);
+      nameFmt = EpgDbBuildFileName(cni, pFilename);
    }
    else
    {  // demo mode: database file name is taken from command line argument
@@ -601,6 +640,7 @@ PDBC EpgDbReload( uint cni, EPGDB_RELOAD_RESULT * pResult )
       pFilename = xmalloc(strlen(epgDemoDb) + 1);
       strcpy(pFilename, epgDemoDb);
       cni = RELOAD_ANY_CNI;
+      nameFmt = DB_FMT_UNIX;  // dummy, never used
    }
 
    fd = open(pFilename, O_RDONLY|O_BINARY);
@@ -612,6 +652,7 @@ PDBC EpgDbReload( uint cni, EPGDB_RELOAD_RESULT * pResult )
          dbc->pageNo       = head.pageNo;
          dbc->tunerFreq    = head.tunerFreq;
          dbc->appId        = head.appId;
+         dbc->fileNameFormat = nameFmt;
          dbc->expireDelayPi = epgDbReloadExpireDelayPi;
 
          if (epgDemoDb != NULL)
@@ -850,11 +891,12 @@ EPGDB_CONTEXT * EpgDbPeek( uint cni, EPGDB_RELOAD_RESULT * pResult )
    int     fd;
    bool    swapEndian;
    uchar * pFilename;
+   DB_FMT_TYPE nameFmt;
    EPGDB_RELOAD_RESULT result;
 
    pDbContext = NULL;
-   pFilename = xmalloc(strlen(epgDbDirPath) + 1 + DUMP_NAME_MAX);
-   sprintf(pFilename, "%s/" DUMP_NAME_FMT, epgDbDirPath, cni);
+   pFilename = xmalloc(strlen(epgDbDirPath) + 1 + DUMP_NAME_MAX_LEN);
+   nameFmt = EpgDbBuildFileName(cni, pFilename);
    fd = open(pFilename, O_RDONLY|O_BINARY);
    if (fd >= 0)
    {
@@ -867,6 +909,7 @@ EPGDB_CONTEXT * EpgDbPeek( uint cni, EPGDB_RELOAD_RESULT * pResult )
          pDbContext->pageNo       = head.pageNo;
          pDbContext->tunerFreq    = head.tunerFreq;
          pDbContext->appId        = head.appId;
+         pDbContext->fileNameFormat = nameFmt;
          pDbContext->expireDelayPi = epgDbReloadExpireDelayPi;
 
          if (read(fd, buffer, BLK_UNION_OFF) == BLK_UNION_OFF)
@@ -949,27 +992,44 @@ EPGDB_CONTEXT * EpgDbPeek( uint cni, EPGDB_RELOAD_RESULT * pResult )
 // Append one element to the dynamically growing output buffer
 // - helper function for the dbdir scan
 //
-static EPGDB_SCAN_BUF * EpgDbReloadScanAddCni( EPGDB_SCAN_BUF * pBuf, uint cni, time_t mtime )
+static EPGDB_SCAN_BUF * EpgDbReloadScanAddCni( EPGDB_SCAN_BUF * pBuf,
+                                               uint cni, time_t mtime, DB_FMT_TYPE nameFormat )
 {
    EPGDB_SCAN_BUF  * pNewBuf;
+   uint   idx;
 
-   if (pBuf->count >= pBuf->size)
-   {  // buffer is full -> allocate larger one and copy the old content into it
-      assert(pBuf->count == pBuf->size);
+   for (idx = 0; idx < pBuf->count; idx++)
+   {
+      if (pBuf->list[idx].cni == cni)
+      {
+         fprintf(stderr, "WARNING: found two database files for provider %04X in %s\n", cni, epgDbDirPath);
 
-      pNewBuf = xmalloc(EPGDB_SCAN_BUFSIZE(pBuf->size + EPGDB_SCAN_BUFSIZE_INCREMENT));
-      memcpy(pNewBuf, pBuf, EPGDB_SCAN_BUFSIZE(pBuf->size));
-      xfree(pBuf);
-      pBuf = pNewBuf;
-
-      pBuf->size  += EPGDB_SCAN_BUFSIZE_INCREMENT;
+         if (mtime > pBuf->list[idx].mtime)
+            pBuf->list[idx].nameFormat = nameFormat;
+         break;
+      }
    }
+   // don't add element if same CNI already in list
+   if (idx >= pBuf->count)
+   {
+      if (pBuf->count >= pBuf->size)
+      {  // buffer is full -> allocate larger one and copy the old content into it
+         assert(pBuf->count == pBuf->size);
 
-   // append the new element
-   pBuf->list[pBuf->count].cni   = cni;
-   pBuf->list[pBuf->count].mtime = mtime;
-   pBuf->count += 1;
+         pNewBuf = xmalloc(EPGDB_SCAN_BUFSIZE(pBuf->size + EPGDB_SCAN_BUFSIZE_INCREMENT));
+         memcpy(pNewBuf, pBuf, EPGDB_SCAN_BUFSIZE(pBuf->size));
+         xfree(pBuf);
+         pBuf = pNewBuf;
 
+         pBuf->size  += EPGDB_SCAN_BUFSIZE_INCREMENT;
+      }
+
+      // append the new element
+      pBuf->list[pBuf->count].cni   = cni;
+      pBuf->list[pBuf->count].mtime = mtime;
+      pBuf->list[pBuf->count].nameFormat = nameFormat;
+      pBuf->count += 1;
+   }
    return pBuf;
 }
 
@@ -988,6 +1048,7 @@ const EPGDB_SCAN_BUF * EpgDbReloadScan( void )
    uint   cni;
    int    scanLen;
    char   *pFilePath;
+   DB_FMT_TYPE fileFmt;
    EPGDB_SCAN_BUF  * pBuf;
 
    pBuf = xmalloc(EPGDB_SCAN_BUFSIZE(EPGDB_SCAN_BUFSIZE_DEFAULT));
@@ -999,19 +1060,32 @@ const EPGDB_SCAN_BUF * EpgDbReloadScan( void )
    {
       while ((entry = readdir(dir)) != NULL)
       {
-         if ( (strlen(entry->d_name) == DUMP_NAME_LEN) &&
-              (sscanf(entry->d_name, DUMP_NAME_FMT "%n", &cni, &scanLen) == 1) &&
-              (scanLen == DUMP_NAME_LEN) )
+         if      ( (strlen(entry->d_name) == DUMP_NAME_LEN_UNIX) &&
+                   (sscanf(entry->d_name, DUMP_NAME_EXP_UNIX "%n", &cni, &scanLen) == 1) &&
+                   (scanLen == DUMP_NAME_LEN_UNIX) )
+         {
+            fileFmt = DB_FMT_UNIX;
+         }
+         else if ( (strlen(entry->d_name) == DUMP_NAME_LEN_DOS) &&
+                   (sscanf(entry->d_name, DUMP_NAME_EXP_DOS "%n", &cni, &scanLen) == 1) &&
+                   (scanLen == DUMP_NAME_LEN_DOS) )
+         {
+            fileFmt = DB_FMT_DOS;
+         }
+         else
+            fileFmt = DB_FMT_COUNT;
+
+         if (fileFmt < DB_FMT_COUNT)
          {  // file name matched (complete match is forced by %n)
             pFilePath = xmalloc(strlen(epgDbDirPath) + 1 + strlen(entry->d_name) + 1);
-            sprintf(pFilePath, "%s/%s", epgDbDirPath, entry->d_name);
+            sprintf(pFilePath, "%s" PATH_SEPARATOR_STR "%s", epgDbDirPath, entry->d_name);
 
             // get file status
             if (lstat(pFilePath, &st) == 0)
             {
                // check if it's a regular file; reject directories, devices, pipes etc.
                if (S_ISREG(st.st_mode))
-                  pBuf = EpgDbReloadScanAddCni(pBuf, cni, st.st_mtime);
+                  pBuf = EpgDbReloadScanAddCni(pBuf, cni, st.st_mtime, fileFmt);
                else
                   fprintf(stderr, "dbdir scan: not a regular file: %s (skipped)\n", pFilePath);
             }
@@ -1033,44 +1107,50 @@ const EPGDB_SCAN_BUF * EpgDbReloadScan( void )
    WIN32_FIND_DATA finddata;
    SYSTEMTIME  systime;
    uint cni;
-   uchar *p, *pDirPath;
+   uchar *pDirPath;
    struct tm tm;
    bool bMore;
+   DB_FMT_TYPE fileFmt;
    EPGDB_SCAN_BUF  * pBuf;
 
    pBuf = xmalloc(EPGDB_SCAN_BUFSIZE(EPGDB_SCAN_BUFSIZE_DEFAULT));
    pBuf->size  = EPGDB_SCAN_BUFSIZE_DEFAULT;
    pBuf->count = 0;
 
-   pDirPath = xmalloc(strlen(epgDbDirPath) + 1 + DUMP_NAME_MAX);
-   sprintf(pDirPath, "%s\\%s", epgDbDirPath, DUMP_NAME_PAT);
-   hFind = FindFirstFile(pDirPath, &finddata);
-   bMore = (hFind != (HANDLE) -1);
-   while (bMore)
+   pDirPath = xmalloc(strlen(epgDbDirPath) + 1 + DUMP_NAME_MAX_LEN);
+   for (fileFmt = 0; fileFmt < DB_FMT_COUNT; fileFmt++)
    {
-      for (p=finddata.cFileName; *p; p++)
-      {  // convert file name to upper case for comparison
-         *p = toupper(*p);
-      }
+      if (fileFmt == DB_FMT_UNIX)
+         sprintf(pDirPath, "%s\\%s", epgDbDirPath, DUMP_NAME_PAT_UNIX);
+      else
+         sprintf(pDirPath, "%s\\%s", epgDbDirPath, DUMP_NAME_PAT_DOS);
 
-      if ( (strlen(finddata.cFileName) == DUMP_NAME_LEN) &&
-           (sscanf(finddata.cFileName, DUMP_NAME_FMT, &cni) == 1) )
-      {  // file name matched
-         FileTimeToSystemTime(&finddata.ftLastWriteTime, &systime);
-         dprintf7("DB 0x%04X:  %02d:%02d:%02d - %02d.%02d.%04d\n", cni, systime.wHour, systime.wMinute, systime.wSecond, systime.wDay, systime.wMonth, systime.wYear);
-         memset(&tm, 0, sizeof(tm));
-         tm.tm_sec   = systime.wSecond;
-         tm.tm_min   = systime.wMinute;
-         tm.tm_hour  = systime.wHour;
-         tm.tm_mday  = systime.wDay;
-         tm.tm_mon   = systime.wMonth - 1;
-         tm.tm_year  = systime.wYear - 1900;
+      hFind = FindFirstFile(pDirPath, &finddata);
+      bMore = (hFind != (HANDLE) -1);
+      while (bMore)
+      {
+         if ( (strlen(finddata.cFileName) ==
+                      ((fileFmt == DB_FMT_UNIX) ? DUMP_NAME_LEN_UNIX : DUMP_NAME_LEN_DOS)) &&
+              (sscanf(finddata.cFileName,
+                      ((fileFmt == DB_FMT_UNIX) ? DUMP_NAME_EXP_UNIX : DUMP_NAME_EXP_DOS),
+                      &cni) == 1) )
+         {  // file name matched
+            FileTimeToSystemTime(&finddata.ftLastWriteTime, &systime);
+            dprintf7("DB 0x%04X:  %02d:%02d:%02d - %02d.%02d.%04d\n", cni, systime.wHour, systime.wMinute, systime.wSecond, systime.wDay, systime.wMonth, systime.wYear);
+            memset(&tm, 0, sizeof(tm));
+            tm.tm_sec   = systime.wSecond;
+            tm.tm_min   = systime.wMinute;
+            tm.tm_hour  = systime.wHour;
+            tm.tm_mday  = systime.wDay;
+            tm.tm_mon   = systime.wMonth - 1;
+            tm.tm_year  = systime.wYear - 1900;
 
-         pBuf = EpgDbReloadScanAddCni(pBuf, cni, mktime(&tm));
+            pBuf = EpgDbReloadScanAddCni(pBuf, cni, mktime(&tm), fileFmt);
+         }
+         bMore = FindNextFile(hFind, &finddata);
       }
-      bMore = FindNextFile(hFind, &finddata);
+      FindClose(hFind);
    }
-   FindClose(hFind);
    xfree(pDirPath);
 
    return pBuf;
@@ -1219,9 +1299,12 @@ void EpgDbDumpGetDirAndCniFromArg( char * pArg, const char ** ppDirPath, uint * 
 
       // retrieve the hex CNI from the file name
       // %n is required to check for garbage behind the CNI
-      if ( (strlen(pNamePath) == DUMP_NAME_LEN) &&
-           (sscanf(pNamePath, DUMP_NAME_FMT "%n", pCni, &scanLen) == 1) &&
-           (scanLen == DUMP_NAME_LEN) )
+      if ( ( (strlen(pNamePath) == DUMP_NAME_LEN_UNIX) &&
+             (sscanf(pNamePath, DUMP_NAME_EXP_UNIX "%n", pCni, &scanLen) == 1) &&
+             (scanLen == DUMP_NAME_LEN_UNIX) ) ||
+           ( (strlen(pNamePath) == DUMP_NAME_LEN_DOS) &&
+             (sscanf(pNamePath, DUMP_NAME_EXP_DOS "%n", pCni, &scanLen) == 1) &&
+             (scanLen == DUMP_NAME_LEN_DOS) ) )
       {  // this seems to be a regular database file -> set dbdir path
          *ppDirPath = (const char *) pDirPath;
       }
@@ -1252,8 +1335,8 @@ bool EpgDbDumpUpdateHeader( uint cni, uint freq )
    uint32_t headCni;
    bool     result = FALSE;
 
-   pFilename = xmalloc(strlen(epgDbDirPath) + 1 + DUMP_NAME_MAX);
-   sprintf(pFilename, "%s/" DUMP_NAME_FMT, epgDbDirPath, cni);
+   pFilename = xmalloc(strlen(epgDbDirPath) + 1 + DUMP_NAME_MAX_LEN);
+   EpgDbBuildFileName(cni, pFilename);
    fd = open(pFilename, O_RDWR|O_BINARY);
    if (fd >= 0)
    {
@@ -1318,8 +1401,8 @@ time_t EpgReadAiUpdateTime( uint cni )
    int     fd;
    time_t  aiUpdateTime = (time_t) 0;
 
-   pFilename = xmalloc(strlen(epgDbDirPath) + 1 + DUMP_NAME_MAX);
-   sprintf(pFilename, "%s/" DUMP_NAME_FMT, epgDbDirPath, cni);
+   pFilename = xmalloc(strlen(epgDbDirPath) + 1 + DUMP_NAME_MAX_LEN);
+   EpgDbBuildFileName(cni, pFilename);
    fd = open(pFilename, O_RDONLY|O_BINARY);
    if (fd >= 0)
    {
@@ -1362,8 +1445,8 @@ uint EpgDbReadFreqFromDefective( uint cni )
    int     fd;
    uint    tunerFreq = 0;
 
-   pFilename = xmalloc(strlen(epgDbDirPath) + 1 + DUMP_NAME_MAX);
-   sprintf(pFilename, "%s/" DUMP_NAME_FMT, epgDbDirPath, cni);
+   pFilename = xmalloc(strlen(epgDbDirPath) + 1 + DUMP_NAME_MAX_LEN);
+   EpgDbBuildFileName(cni, pFilename);
    fd = open(pFilename, O_RDONLY|O_BINARY);
    if (fd >= 0)
    {
@@ -1402,16 +1485,23 @@ uint EpgDbRemoveDatabaseFile( uint cni )
    uchar * pFilename;
    uint result;
 
-   pFilename = xmalloc(strlen(epgDbDirPath) + 1 + DUMP_NAME_MAX);
-   sprintf(pFilename, "%s/" DUMP_NAME_FMT, epgDbDirPath, cni);
+   result = 0;
 
-   if ( unlink(pFilename) != 0 )
+   pFilename = xmalloc(strlen(epgDbDirPath) + 1 + DUMP_NAME_MAX_LEN);
+
+   sprintf(pFilename, "%s/" DUMP_NAME_FMT_UNIX, epgDbDirPath, cni);
+   if ( (unlink(pFilename) != 0) && (access(pFilename, F_OK) != 0) )
    {
       debug2("EpgDb-RemoveDatabaseFile: failed to remove db file '%s': %s", pFilename, strerror(errno));
       result = errno;
    }
-   else
-      result = 0;
+
+   sprintf(pFilename, "%s/" DUMP_NAME_FMT_DOS, epgDbDirPath, cni);
+   if ( (unlink(pFilename) != 0) && (access(pFilename, F_OK) != 0) )
+   {
+      debug2("EpgDb-RemoveDatabaseFile: failed to remove db file '%s': %s", pFilename, strerror(errno));
+      result = errno;
+   }
 
    xfree(pFilename);
 

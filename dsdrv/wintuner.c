@@ -27,12 +27,13 @@
  *      also Ralph Metzler, Gunther Mayer and others; see also btdrv4win.c
  *      DScaler parts are copyleft 2001 itt@myself.com
  *
- *  DScaler #Id: GenericTuner.cpp,v 1.11 2002/10/08 20:43:16 kooiman Exp #
- *  DScaler #Id: TunerID.cpp,v 1.1 2003/02/06 21:26:37 ittarnavsky Exp #
- *  DScaler #Id: MT2032.cpp,v 1.11 2002/10/31 21:42:56 adcockj Exp #
- *  DScaler #Id: TDA9887.cpp,v 1.2 Sat Feb 22 10:07:10 2003 unknown Exp #
+ *  DScaler #Id: GenericTuner.cpp,v 1.13 2003/10/27 10:39:51 adcockj Exp #
+ *  DScaler #Id: TunerID.cpp,v 1.3 2003/12/18 15:57:41 adcockj Exp #
+ *  DScaler #Id: MT2032.cpp,v 1.12 2003/10/27 10:39:52 adcockj Exp #
+ *  DScaler #Id: MT2050.cpp,v 1.4 2004/02/11 15:29:52 robmuller Exp #
+ *  DScaler #Id: TDA9887.cpp,v 1.3 2003/10/27 10:39:54 adcockj Exp #
  *
- *  $Id: wintuner.c,v 1.15 2003/09/02 19:48:39 tom Exp tom $
+ *  $Id: wintuner.c,v 1.21 2004/03/22 17:30:37 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -42,6 +43,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
@@ -54,9 +56,11 @@
 
 static BYTE TunerDeviceI2C = 0;
 static CRITICAL_SECTION m_cCrit;    //semaphore for I2C access
+static uint MicrotuneType;
 static bool haveTda9887Standard;
 static bool haveTda9887Pinnacle;
 static bool isTda9887PinnacleMono;
+static BYTE Tda9887DeviceI2C = 0;
 static uint m_LastVideoFormat = 0xff;
 static TVCARD * pTvCard = NULL;
 
@@ -110,6 +114,8 @@ static const char * TunerNames[TUNER_LASTONE] =
    "LG TAPC-new   [NTSC]",                      // TUNER_LG_TAPCNEW_NTSC
    "MT2032 universal [PAL default]",            // TUNER_MT2032_PAL
    "Philips FI1286 [NTCS M-J]",                 // TUNER_PHILIPS_FI1286_NTSC_M_J
+   "MT2050 [SECAM default]",                    // TUNER_MT2050
+   "MT2050 [PAL default]",                      // TUNER_MT2050_PAL
 };
 
 // ---------------------------------------------------------------------------
@@ -151,6 +157,11 @@ static const char * TunerNames[TUNER_LASTONE] =
 #define PHILIPS_MF_SET_BG		0x01 /* Bit 2 must be zero, Bit 3 is system output */
 #define PHILIPS_MF_SET_PAL_L	0x03
 #define PHILIPS_MF_SET_PAL_L2	0x02
+
+#define MT2032 0x04
+#define MT2030 0x06
+#define MT2040 0x07
+#define MT2050 0x42
 
 
 typedef struct
@@ -475,25 +486,40 @@ static BOOL I2CBus_Write( const BYTE * writeBuffer, size_t writeBufferSize )
 }
 
 // ---------------------------------------------------------------------------
-// TDA9887 "IF demodulator" (whatever that might be ;-)
-// The following code for TDA9887 was taken verbatim from DScaler 4.01
+// Support for TDA9887 "IF demodulator"
+//
+// Explanation about functions of MT2032/MT2050 and TDA9887:
+//
+//   From:   "MIDIMaker" <midimaker@yandex.ru>
+//   Date:   Sat, 20 Mar 2004 23:40:26 +0400
+//
+//   MT2050 does only High Frequencies to first intermediate frequency (38,9 MHz
+//   for PAL and 45,75 MHz for NTSC) conversion. All other work done by TDA9887
+//   wich is multistandard IF demodulatior. It can be programmed for all
+//   standards used worldwide so it will produce composite signal, intermediate
+//   sound carrier and demodulated mono sound.
+//
+// The following code for TDA9887 was taken verbatim from DScaler,
+// however stripped down to support PAL/SECAM only:
 //
 
+#define I2C_TDA9887_x         0           // placehoder only
 #define I2C_TDA9887_0      0x86
+#define I2C_TDA9887_1      0x96
 
-static const BYTE tda9887detect[] =       {I2C_TDA9887_0, 0x00, 0x54, 0x70, 0x44};
+static const BYTE tda9887detect[] =       {I2C_TDA9887_x, 0x00, 0x54, 0x70, 0x44};
 
-static const BYTE tda9887set_pal_bg[] =   {I2C_TDA9887_0, 0x00, 0x96, 0x70, 0x49};
-static const BYTE tda9887set_pal_l[] =    {I2C_TDA9887_0, 0x00, 0x86, 0x50, 0x4b};
-static const BYTE tda9887set_ntsc[] =     {I2C_TDA9887_0, 0x00, 0x96, 0x70, 0x44};
-//static const BYTE tda9887set_pal_i[] =    {I2C_TDA9887_0, 0x00, 0x96, 0x70, 0x4a};
-//static const BYTE tda9887set_pal_dk[] =   {I2C_TDA9887_0, 0x00, 0x96, 0x70, 0x4b};
-//static const BYTE tda9887set_ntsc_jp[] =  {I2C_TDA9887_0, 0x00, 0x96, 0x70, 0x40};
-//static const BYTE tda9887set_fm_radio[] = {I2C_TDA9887_0, 0x00, 0x8e, 0x0d, 0x77};
+static const BYTE tda9887set_pal_bg[] =   {I2C_TDA9887_x, 0x00, 0x96, 0x70, 0x49};
+static const BYTE tda9887set_pal_l[] =    {I2C_TDA9887_x, 0x00, 0x86, 0x50, 0x4b};
+static const BYTE tda9887set_ntsc[] =     {I2C_TDA9887_x, 0x00, 0x96, 0x70, 0x44};
+//static const BYTE tda9887set_pal_i[] =    {I2C_TDA9887_x, 0x00, 0x96, 0x70, 0x4a};
+//static const BYTE tda9887set_pal_dk[] =   {I2C_TDA9887_x, 0x00, 0x96, 0x70, 0x4b};
+//static const BYTE tda9887set_ntsc_jp[] =  {I2C_TDA9887_x, 0x00, 0x96, 0x70, 0x40};
+//static const BYTE tda9887set_fm_radio[] = {I2C_TDA9887_x, 0x00, 0x8e, 0x0d, 0x77};
 
 static void Tda9887_TunerSet( bool bPreSet, uint norm /* eVideoFormat videoFormat */ )
 {
-   const BYTE * tda9887set;
+   BYTE tda9887set[5];
 
    dprintf2("Tda9887-TunerSet: preset=%d, norm=%d", bPreSet, norm);
    if (bPreSet)
@@ -501,30 +527,25 @@ static void Tda9887_TunerSet( bool bPreSet, uint norm /* eVideoFormat videoForma
        switch (norm)
        {
           case VIDEO_MODE_PAL:
-             tda9887set = tda9887set_pal_bg;
+             memcpy(tda9887set, tda9887set_pal_bg, sizeof(tda9887set));
              break;
 
           case VIDEO_MODE_SECAM:
-             tda9887set = tda9887set_pal_l;
+             memcpy(tda9887set, tda9887set_pal_l, sizeof(tda9887set));
              break;
 
           case VIDEO_MODE_NTSC:
-             tda9887set = tda9887set_ntsc;
+             memcpy(tda9887set, tda9887set_ntsc, sizeof(tda9887set));
              break;
 
           default:
              debug1("TDA9887: Invalid video format %d", norm);
-             tda9887set = NULL;
-             break;
+             return;
        }
 
-       if (tda9887set != NULL)
-       {
-          dprintf3("Tda9887-TunerSet: 0x%02x 0x%02x 0x%02x", tda9887set[2], tda9887set[3], tda9887set[4]);
-          I2CBus_Write(tda9887set, 5);
-       }
-       else
-          debug1("Tda9887-TunerSet: unsupported norm %d", norm);
+       dprintf3("Tda9887-TunerSet: 0x%02x 0x%02x 0x%02x", tda9887set[2], tda9887set[3], tda9887set[4]);
+       tda9887set[0] = Tda9887DeviceI2C;
+       I2CBus_Write(tda9887set, 5);
    }
 }
 
@@ -533,13 +554,18 @@ static void Tda9887_Init( bool bPreInit, uint norm /* eVideoFormat videoFormat *
    Tda9887_TunerSet(bPreInit, norm);
 }
 
-static bool Tda9887_Detect( void )
+static bool Tda9887_Detect( BYTE Addr )
 {
+   BYTE tda9887set[5];
    bool result;
 
-   dprintf0("Tda9887-Detect: query I2C bus...");
+   dprintf1("Tda9887-Detect: query I2C bus @%02X...", Addr);
+   Tda9887DeviceI2C = Addr;
 
-   result = I2CBus_Write(tda9887detect, 5);
+   memcpy(tda9887set, tda9887detect, sizeof(tda9887set));
+   tda9887set[0] = Tda9887DeviceI2C;
+
+   result = I2CBus_Write(tda9887set, 5);
 
    dprintf1("Tda9887-Detect: ...result: %d", result);
    return result;
@@ -711,7 +737,7 @@ static void TDA9887Pinnacle_TunerSet(bool bPreSet, uint norm /* eVideoFormat vid
             //break;
         }
 
-        bData[0] =  I2C_TDA9887_0;
+        bData[0] =  Tda9887DeviceI2C;
         bData[1] =  0;
 
         bData[2] =  bVideoTrap                   |  // B0: video trap bypass
@@ -790,25 +816,209 @@ static void MT2032_SetRegister( BYTE regNum, BYTE data )
     I2CBus_Write(buffer, 3);
 }
 
-static bool MT2032_Initialize( uint defaultNorm )
+static bool MT2050_Initialize( void )
 {
-    BYTE rdbuf[22];
-    int  xogc, xok = 0;
-    int  i;
+    /* Initialize Registers per spec. */
+    MT2032_SetRegister(1, 0x2F);
+    MT2032_SetRegister(2, 0x25);
+    MT2032_SetRegister(3, 0xC1);
+    MT2032_SetRegister(4, 0x00);
+    MT2032_SetRegister(5, 0x63);
+    MT2032_SetRegister(6, 0x11);
+    MT2032_SetRegister(10, 0x85);
+    MT2032_SetRegister(13, 0x28);
+    MT2032_SetRegister(15, 0x0F);
+    MT2032_SetRegister(16, 0x24);
 
-    dprintf1("MT2032-Initialize: default norm %d\n", defaultNorm);
-
-    if (haveTda9887Standard)
-       Tda9887_Init(TRUE, defaultNorm);
-    else if (haveTda9887Pinnacle)
-       TDA9887Pinnacle_Init(TRUE, defaultNorm);
-
-    for (i = 0; i < 21; i++)
+#ifndef DPRINTF_OFF
     {
-       rdbuf[i] = MT2032_GetRegister(i);
+       BYTE rdbuf[2];
+       rdbuf[0] = MT2032_GetRegister(13);
+       dprintf1("mt2050 sro is %x\n", rdbuf[0]);
+       if ((rdbuf[0] & 0x40) != 0)
+           debug0("MT2050-Initialize: SRO Crystal problem - tuner will not function!");
     }
+#endif
 
-    dprintf4("MT2032: Companycode=%02x%02x Part=%02x Revision=%02x\n", rdbuf[0x11],rdbuf[0x12],rdbuf[0x13],rdbuf[0x14]);
+    return TRUE;
+}
+
+static int MT2050_SpurCheck(int flos1, int flos2, int fifbw, int fout)
+{
+    int n1 = 1, n2, f, nmax = 11;
+    long Band;
+
+    flos1 = flos1 / 1000;     /* scale to kHz to avoid 32bit overflows */
+    flos2 = flos2 / 1000;
+    fifbw /= 1000;
+    fout /= 1000;
+
+    Band = fout + fifbw / 2;
+
+    do {
+        n2 = -n1;
+        f = n1 * (flos1 - flos2);
+        do {
+            n2--;
+            f = f - flos2;
+            if (abs((abs(f) - fout)) < (fifbw >> 1))
+            {
+                return 1;
+            }
+        } while ((f > (flos2 - fout - (fifbw >> 1))) && (n2 > -nmax));
+        n1++;
+    } while (n1 < nmax);
+
+    return 0;
+}
+
+static bool MT2050_SetIFFreq(int rfin)
+{
+    static const uint if1=1218*1000*1000;
+    static const uint if2=38900 * 1000;
+    unsigned char   buf[5];
+
+    long flo1, flo2;
+    int n = 0;
+    long flos1, flos2, fifbw, fif1_bw;
+    long ftest;
+    char SpurInBand;
+
+    long LO1I, LO2I, flo1step, flo2step;
+    long flo1rem, flo2rem, flo1tune, flo2tune;
+    int num1, num2, Denom1, Denom2;
+    int div1a, div1b, div2a, div2b;
+
+    dprintf1("MT2050-SetIFFreq: freq=%d if2=%d\n", freq);
+
+    //3.1 Calculate LO frequencies
+    flo1 = rfin + if1;
+    flo1 = flo1 / 1000000;
+    flo1 = flo1 * 1000000;
+    flo2 = flo1 - rfin - if2;
+
+    //3.2 Avoid spurs
+    flos1 = flo1;
+    flos2 = flo2;
+    fif1_bw = 16000000;
+    fifbw = 8750000;  /* PAL */
+
+    do {
+        if ((n & 1) == 0)
+        {
+            flos1 = flos1 - 1000000 * n;
+            flos2 = flos2 - 1000000 * n;
+        }
+        else
+        {
+            flos1 = flos1 + 1000000 * n;
+            flos2 = flos2 + 1000000 * n;
+        }
+        //check we are still in bandwidth
+        ftest = abs(flos1 - rfin - if1 + (fifbw >> 1));
+        if (ftest > (fif1_bw >> 1))
+        {
+            flos1 = flo1;
+            flos2 = flo2;
+            debug0("MT2050-SetIFFreq: No spur");
+            break;
+        }
+        n++;
+        SpurInBand = MT2050_SpurCheck(flos1, flos2, fifbw, if2);
+    } while(SpurInBand != 0);
+
+    flo1 = flos1;
+    flo2 = flos2;
+
+    //3.3 Calculate LO registers
+
+    flo1step = 1000000;
+    flo2step = 50000;
+    LO1I = floor(flo1 / 4000000.0);
+    LO2I = floor(flo2 / 4000000.0);
+    flo1rem = flo1 % 4000000;
+    flo2rem = flo2 % 4000000;
+    flo1tune = flo1step * floor((flo1rem + flo1step / 2.0) / flo1step);
+    flo2tune = flo2step * floor((flo2rem + flo2step / 2.0) / flo2step);
+    Denom1 = 4;
+    Denom2 = 4095;
+    num1 = floor(flo1tune / (4000000.0 / Denom1) + 0.5);
+    num2 = floor(flo2tune / (4000000.0 / Denom2) + 0.5);
+    if (num1 >= Denom1)
+    {
+        num1 = 0;
+        LO1I++;
+    }
+    if (num2 >= Denom2)
+    {
+        num2 = 0;
+        LO2I++;
+    }
+    div1a = floor(LO1I / 12) - 1;
+    div1b = LO1I % 12;
+    div2a = floor(LO2I / 8) - 1;
+    div2b = LO2I % 8;
+
+    //3.4 Writing registers
+    if (rfin < 277000000)
+    {
+        buf[0] = 128 + 4 * div1b + num1;
+    }
+    else
+    {
+        buf [0] = 4 * div1b + num1;
+    }
+    buf [1] = div1a;
+    buf [2] = 32 * div2b + floor(num2 / 256.0);
+    buf [3] = num2 % 256;
+    if (num2 == 0)
+    {
+        buf [4] = div2a;
+    }
+    else
+    {
+        buf [4] = 64 + div2a;
+    }
+#ifndef DPRINTF_OFF
+    { 
+        int i;
+        dprintf0("MT2050 registers #1-5 write: ");
+        for (i=0; i<=4; i++)
+            dprintf1("%x ", buf[i]);
+        dprintf0("\n");
+    }
+#endif
+
+    MT2032_SetRegister(1, buf[0x00]);
+    MT2032_SetRegister(2, buf[0x01]);
+    MT2032_SetRegister(3, buf[0x02]);
+    MT2032_SetRegister(4, buf[0x03]);
+    MT2032_SetRegister(5, buf[0x04]);
+
+    {   //3.5 Allow LO to lock
+        int nlock = 0, Status;
+        bool m_Locked;
+
+        m_Locked = FALSE;
+        Sleep(50);
+        do {
+            Status = MT2032_GetRegister(7);
+            Status &= 0x88;
+            if (Status == 0x88)
+            {
+                m_Locked = TRUE;
+                break;
+            }
+            Sleep(2);
+            nlock++;
+        } while(nlock < 100);
+    }
+    return TRUE;
+}
+
+static bool MT2032_Initialize( void )
+{
+    int  xogc, xok = 0;
 
     /* Initialize Registers per spec. */
     MT2032_SetRegister(2, 0xff);
@@ -840,16 +1050,65 @@ static bool MT2032_Initialize( uint defaultNorm )
         MT2032_SetRegister(7, 0x88 + xogc);
     } while (xok != 1);
 
-
-    // detect external IF demodulator
-    if (haveTda9887Standard)
-       Tda9887_Init(FALSE, defaultNorm);
-    else if (haveTda9887Pinnacle)
-       TDA9887Pinnacle_Init(FALSE, defaultNorm);
-
     MT2032_XOGC = xogc;
-
     return TRUE;
+}
+
+
+static bool Microtune_Initialize( TUNER_TYPE type, uint defaultNorm )
+{
+    BYTE rdbuf[22];
+    int  i;
+    uint company_code;
+    bool result;
+
+    dprintf1("Microtune-Initialize: default norm %d\n", defaultNorm);
+
+    if (haveTda9887Standard)
+        Tda9887_Init(TRUE, defaultNorm);
+    else if (haveTda9887Pinnacle)
+        TDA9887Pinnacle_Init(TRUE, defaultNorm);
+
+    for (i = 0; i < 21; i++)
+    {
+        rdbuf[i] = MT2032_GetRegister(i);
+    }
+
+    dprintf4("Microtune: Companycode=%02x%02x Part=%02x Revision=%02x\n", rdbuf[0x11],rdbuf[0x12],rdbuf[0x13],rdbuf[0x14]);
+
+    company_code = (rdbuf[0x11] << 8) | rdbuf[0x12];
+    if ((company_code != 0x4d54) && (company_code != 0x3cbf))
+        debug1("Microtune-Initialize: unknown company code 0x%04x", company_code);
+
+    MicrotuneType = rdbuf[0x13];
+    switch (MicrotuneType)
+    {
+        case MT2032:
+            dprintf0("tuner: MT2032 detected.\n");
+            result = MT2032_Initialize();
+            break;
+
+        case MT2050:
+            dprintf0("tuner: MT2050 detected.\n");
+            result = MT2050_Initialize();
+            break;
+
+        default:
+            debug1("Microtune-Initialize: unknown tuner type 0x%02x", MicrotuneType);
+            MicrotuneType = ((type == TUNER_MT2050) || (type == TUNER_MT2050_PAL)) ? MT2050 : MT2032;
+            if (MicrotuneType == MT2032)
+                result = MT2032_Initialize();
+            else
+                result = MT2050_Initialize();
+            break;
+    }
+
+    if (haveTda9887Standard)
+        Tda9887_Init(FALSE, defaultNorm);
+    else if (haveTda9887Pinnacle)
+        TDA9887Pinnacle_Init(FALSE, defaultNorm);
+
+    return result;
 }
 
 static int MT2032_SpurCheck(int f1, int f2, int spectrum_from, int spectrum_to)
@@ -1086,16 +1345,9 @@ static bool MT2032_SetIFFreq(int rfin, int if1, int if2, int from, int to, uint 
     int     lint_try, sel, lock = 0;
     bool    result = FALSE;
 
-    I2CBus_Lock();
-
     if ( MT2032_ComputeFreq(rfin, if1, if2, from, to, &buf[0], &sel, MT2032_XOGC) )
     {
-        if (haveTda9887Standard)
-            Tda9887_TunerSet(TRUE, norm);
-        else if (haveTda9887Pinnacle)
-            TDA9887Pinnacle_TunerSet(TRUE, norm);
-
-         dprintf4("MT2032-SetIFFreq: 0x%02X%02X%02X%02X...\n", buf[0x00], buf[0x01], buf[0x02], buf[0x03]);
+        dprintf4("MT2032-SetIFFreq: 0x%02X%02X%02X%02X...\n", buf[0x00], buf[0x01], buf[0x02], buf[0x03]);
 
         /* send only the relevant registers per Rev. 1.2 */
         MT2032_SetRegister(0, buf[0x00]);
@@ -1134,14 +1386,8 @@ static bool MT2032_SetIFFreq(int rfin, int if1, int if2, int from, int to, uint 
 
         MT2032_Locked = (lock == 6);
 
-        if (haveTda9887Standard)
-            Tda9887_TunerSet(FALSE, norm);
-        else if (haveTda9887Pinnacle)
-            TDA9887Pinnacle_TunerSet(FALSE, norm);
-
         result = TRUE;
     }
-    I2CBus_Unlock();
 
     return result;
 }
@@ -1169,85 +1415,105 @@ bool Tuner_SetFrequency( TUNER_TYPE type, uint wFrequency, uint norm )
    {
       dprintf4("Tuner-SetFrequency: type=%d, freq=%d (last=%d), norm=%d\n", type, wFrequency, lastWFreq, norm);
 
-      if ((type == TUNER_MT2032) || (type == TUNER_MT2032_PAL))
+      I2CBus_Lock();
+
+      if (haveTda9887Standard)
+         Tda9887_TunerSet(TRUE, norm);
+      else if (haveTda9887Pinnacle)
+         TDA9887Pinnacle_TunerSet(TRUE, norm);
+
+      if ( (type == TUNER_MT2032) || (type == TUNER_MT2032_PAL) ||
+           (type == TUNER_MT2050) || (type == TUNER_MT2050_PAL) )
       {
          // XXX TODO: norm handling: use initial norm for now
          norm = m_LastVideoFormat;
 
-         return MT2032_SetIFFreq(wFrequency * 1000 / 16 * 1000, 1090 * 1000 * 1000, 38900 * 1000, 32900 * 1000, 39900 * 1000, norm);
-      }
-
-      if ((wFrequency < 44*16) || (wFrequency > 958*16))
-         debug1("Tuner-SetFrequency: freq %d/16 is out of range", wFrequency);
-
-      Tuner_GetParams(type, &tun);
-      dFrequency = (double) wFrequency;
-
-      if (dFrequency < tun.thresh1)
-         config = tun.vhf_l;
-      else if (dFrequency < tun.thresh2)
-         config = tun.vhf_h;
-      else
-         config = tun.uhf;
-
-      // tv norm specification for multi-norm tuners
-      switch (type)
-      {
-         case TUNER_PHILIPS_SECAM:
-            /* XXX TODO: disabled until norm is provided by TV channel file parsers
-            if (norm == VIDEO_MODE_SECAM)
-               config |= 0x02;
-            else
-               config &= ~0x02;
-            */
-            break;
-         case TUNER_TEMIC_4046FM5_MULTI:
-            config &= ~0x0f;
-            /*
-            if (norm == VIDEO_MODE_SECAM)
-               config |= TEMIC_SET_PAL_L;
-            else
-            */
-               config |= TEMIC_SET_PAL_BG;
-            break;
-         case TUNER_PHILIPS_MULTI:
-            config &= ~0x0f;
-            /*
-            if (norm == VIDEO_MODE_SECAM)
-               config |= PHILIPS_SET_PAL_L;
-            else
-            */
-               config |= PHILIPS_SET_PAL_BGDK;
-            break;
-         default:
-            break;
-      }
-
-      div = (WORD)dFrequency + tun.IfpCoff;
-
-      if ((type == TUNER_PHILIPS_SECAM) && (wFrequency < lastWFreq))
-      {
-         /* Philips specification says to send config data before
-         ** frequency in case (wanted frequency < current frequency) */
-         buffer[0] = TunerDeviceI2C;
-         buffer[1] = tun.config;
-         buffer[2] = config;
-         buffer[3] = (div>>8) & 0x7f;
-         buffer[4] = div      & 0xff;
+         if (MicrotuneType == MT2032)
+         {
+            result = MT2032_SetIFFreq(wFrequency * 62500, 1090 * 1000 * 1000, 38900 * 1000, 32900 * 1000, 39900 * 1000, norm);
+         }
+         else
+         {
+            result = MT2050_SetIFFreq(wFrequency * 62500);
+         }
       }
       else
       {
-         buffer[0] = TunerDeviceI2C;
-         buffer[1] = (div>>8) & 0x7f;
-         buffer[2] = div      & 0xff;
-         buffer[3] = tun.config;
-         buffer[4] = config;
+         if ((wFrequency < 44*16) || (wFrequency > 958*16))
+            debug1("Tuner-SetFrequency: freq %d/16 is out of range", wFrequency);
+
+         Tuner_GetParams(type, &tun);
+         dFrequency = (double) wFrequency;
+
+         if (dFrequency < tun.thresh1)
+            config = tun.vhf_l;
+         else if (dFrequency < tun.thresh2)
+            config = tun.vhf_h;
+         else
+            config = tun.uhf;
+
+         // tv norm specification for multi-norm tuners
+         switch (type)
+         {
+            case TUNER_PHILIPS_SECAM:
+               /* XXX TODO: disabled until norm is provided by TV channel file parsers
+               if (norm == VIDEO_MODE_SECAM)
+                  config |= 0x02;
+               else
+                  config &= ~0x02;
+               */
+               break;
+            case TUNER_TEMIC_4046FM5_MULTI:
+               config &= ~0x0f;
+               /*
+               if (norm == VIDEO_MODE_SECAM)
+                  config |= TEMIC_SET_PAL_L;
+               else
+               */
+                  config |= TEMIC_SET_PAL_BG;
+               break;
+            case TUNER_PHILIPS_MULTI:
+               config &= ~0x0f;
+               /*
+               if (norm == VIDEO_MODE_SECAM)
+                  config |= PHILIPS_SET_PAL_L;
+               else
+               */
+                  config |= PHILIPS_SET_PAL_BGDK;
+               break;
+            default:
+               break;
+         }
+
+         div = (WORD)dFrequency + tun.IfpCoff;
+
+         if ((type == TUNER_PHILIPS_SECAM) && (wFrequency < lastWFreq))
+         {
+            /* Philips specification says to send config data before
+            ** frequency in case (wanted frequency < current frequency) */
+            buffer[0] = TunerDeviceI2C;
+            buffer[1] = tun.config;
+            buffer[2] = config;
+            buffer[3] = (div>>8) & 0x7f;
+            buffer[4] = div      & 0xff;
+         }
+         else
+         {
+            buffer[0] = TunerDeviceI2C;
+            buffer[1] = (div>>8) & 0x7f;
+            buffer[2] = div      & 0xff;
+            buffer[3] = tun.config;
+            buffer[4] = config;
+         }
+         lastWFreq = wFrequency;
+
+         result = I2CBus_Write(buffer, 5);
       }
-      lastWFreq = wFrequency;
 
-      I2CBus_Lock();
-
-      result = I2CBus_Write(buffer, 5);
+      if (haveTda9887Standard)
+         Tda9887_TunerSet(FALSE, norm);
+      else if (haveTda9887Pinnacle)
+         TDA9887Pinnacle_TunerSet(FALSE, norm);
 
       I2CBus_Unlock();
    }
@@ -1286,7 +1552,8 @@ void Tuner_Close( void )
 //
 bool Tuner_Init( TUNER_TYPE type, TVCARD * pNewTvCardIf )
 {
-   BYTE port;
+   uint i2cStart, i2cStop;
+   BYTE i2cPort;
    uint defaultNorm = 0;
    bool result = FALSE;
 
@@ -1304,18 +1571,27 @@ bool Tuner_Init( TUNER_TYPE type, TVCARD * pNewTvCardIf )
 
       if (type < TUNERS_COUNT)
       {
-         if ((type == TUNER_MT2032) || (type == TUNER_MT2032_PAL))
+         I2CBus_Lock();
+
+         if ((type == TUNER_MT2032) || (type == TUNER_MT2032_PAL) ||
+             (type == TUNER_MT2050) || (type == TUNER_MT2050_PAL) ||
+             (type == TUNER_PHILIPS_FM1216ME_MK3))
          {
-            defaultNorm = (type == TUNER_MT2032_PAL) ? VIDEO_MODE_PAL : VIDEO_MODE_SECAM;
-            dprintf1("Tuner-Init: detecting IFF demodulator for MT2032, norm %d\n", defaultNorm);
+            if ((type != TUNER_MT2032_PAL) && (type != TUNER_MT2050_PAL))
+               defaultNorm = VIDEO_MODE_SECAM;
+            else
+               defaultNorm = VIDEO_MODE_PAL;
+            dprintf1("Tuner-Init: detecting IF demodulator, norm %d\n", defaultNorm);
 
             // detect and initialize external IF demodulator (must be done before port scan)
-            if (pTvCard->cfg->GetIffType(pTvCard, &isTda9887PinnacleMono) && Tda9887_Detect() )
+            if (pTvCard->cfg->GetIffType(pTvCard, &isTda9887PinnacleMono) &&
+                Tda9887_Detect(I2C_TDA9887_0) )
             {
                haveTda9887Pinnacle = TRUE;
                TDA9887Pinnacle_Init(TRUE, defaultNorm);
             }
-            else if ( Tda9887_Detect() )
+            else if ( Tda9887_Detect(I2C_TDA9887_0) ||
+                      Tda9887_Detect(I2C_TDA9887_1) )
             {
                haveTda9887Standard  = TRUE;
                Tda9887_Init(TRUE, defaultNorm);
@@ -1323,25 +1599,25 @@ bool Tuner_Init( TUNER_TYPE type, TVCARD * pNewTvCardIf )
          }
 
          // scan the I2C bus for devices
-         I2CBus_Lock();
-         for (port = 0xc0; port <= 0xce; port += 2)
+         pTvCard->cfg->GetI2cScanRange(pTvCard, &i2cStart, &i2cStop);
+         for (i2cPort = i2cStart; i2cPort <= i2cStop; i2cPort += 2)
          {
-            dprintf1("Tuner-Init: check for tuner at 0x%02X\n", port);
-            if ( pTvCard->i2cBus->I2cWrite(pTvCard, &port, 1) )
+            dprintf1("Tuner-Init: check for tuner at 0x%02X\n", i2cPort);
+            if ( pTvCard->i2cBus->I2cWrite(pTvCard, &i2cPort, 1) )
             {
-               dprintf1("Tuner-Init: found tuner at 0x%02X\n", port);
+               dprintf1("Tuner-Init: found tuner at 0x%02X\n", i2cPort);
                break;
             }
          }
-         I2CBus_Unlock();
 
-         if (port <= 0xce)
+         if (i2cPort <= i2cStop)
          {
-            TunerDeviceI2C = port;
+            TunerDeviceI2C = i2cPort;
 
-            if ((type == TUNER_MT2032) || (type == TUNER_MT2032_PAL))
+            if ( (type == TUNER_MT2032) || (type == TUNER_MT2032_PAL) ||
+                 (type == TUNER_MT2050) || (type == TUNER_MT2050_PAL) )
             {
-               MT2032_Initialize(defaultNorm);
+               Microtune_Initialize(type, defaultNorm);
             }
             result = TRUE;
          }
@@ -1351,6 +1627,7 @@ bool Tuner_Init( TUNER_TYPE type, TVCARD * pNewTvCardIf )
             MessageBox(NULL, "Warning: no tuner found on I2C bus\nin address range 0xc0 - 0xce", "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
             debug0("Tuner-Init: no tuner found - disabling module");
          }
+         I2CBus_Unlock();
       }
       else
          debug1("Tuner-Init: illegal tuner idx %d", type);

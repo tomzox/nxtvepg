@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: wintvcfg.h,v 1.3 2002/05/11 15:52:12 tom Exp tom $
+ *  $Id: wintvcfg.h,v 1.4 2004/01/24 18:54:34 tom Exp tom $
  */
 
 #ifndef __WINTVCFG_H
@@ -26,6 +26,10 @@
 // Interface to GUI
 bool WintvCfg_GetFreqTab( Tcl_Interp * interp, uint ** pFreqTab, uint * pCount );
 bool WintvCfg_IsEnabled( void );
+
+// Interface to TV application interaction
+uint WintvCfg_StationNameToCni( char * pName, uint MapName2Cni(const char * station) );
+bool WintvCfg_CheckAirTimes( uint cni );
 
 // Initialisation
 void WintvCfg_Init( bool enableChanTabFilter );

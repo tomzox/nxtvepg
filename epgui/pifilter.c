@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pifilter.c,v 1.85 2003/09/23 19:26:15 tom Exp tom $
+ *  $Id: pifilter.c,v 1.86 2004/04/02 11:27:13 tom Exp tom $
  */
 
 #define __PIFILTER_C
@@ -1844,6 +1844,31 @@ static void PiFilter_UpdateAirTime( void )
 }
 
 // ----------------------------------------------------------------------------
+// Add air-times prefilter to the current filter context
+// - required for contexts which are cached for reminders; not required for
+//   browser or shortcut cache because air-times are always part of the GUI
+//   filter context
+//
+static int PiFilter_SelectAirTimes( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+{
+   const char * const pUsage = "Usage: C_PiFilter_SelectAirTimes";
+   int   result;
+
+   if (objc != 1)
+   {  // wrong # of args for this TCL cmd -> display error msg
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR; 
+   }  
+   else
+   {
+      PiFilter_UpdateAirTime();
+
+      result = TCL_OK; 
+   }
+   return result;
+}
+
+// ----------------------------------------------------------------------------
 // Fill listbox widget with names of all netwops
 // - the min and max parameters allows to restrict networks to a sub-set
 //   (used by the pinetbox, where only a sub-set of all networks is visible)
@@ -2397,6 +2422,7 @@ void PiFilter_Create( void )
 
       Tcl_CreateObjCommand(interp, "C_PiFilter_ForkContext", PiFilter_ForkContext, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_PiFilter_ContextCacheCtl", PiFilter_ContextCacheCtl, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_PiFilter_SelectAirTimes", PiFilter_SelectAirTimes, (ClientData) NULL, NULL);
 
       Tcl_CreateObjCommand(interp, "C_GetPdcString", GetPdcString, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetAllUsedSortCrits", GetAllUsedSortCrits, (ClientData) NULL, NULL);

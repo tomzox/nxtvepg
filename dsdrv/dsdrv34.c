@@ -17,7 +17,7 @@
 // PCICard.cpp, HardwareDriver.cpp, HardwareMemory is from Dscaler
 // Copyright (c) 2001 John Adcock.  All rights reserved.
 /////////////////////////////////////////////////////////////////////////////
-// nxtvepg $Id: dsdrv34.c,v 1.9 2003/03/19 16:18:14 tom Exp tom $
+// nxtvepg $Id: dsdrv34.c,v 1.9 2003/03/19 16:18:14 tom Exp $
 /////////////////////////////////////////////////////////////////////////////
 
 // What's this ?

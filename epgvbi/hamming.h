@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: hamming.h,v 1.8 2002/05/28 20:02:09 tom Exp tom $
+ *  $Id: hamming.h,v 1.9 2004/02/14 19:17:12 tom Exp tom $
  */
 
 #ifndef __HAMMING_H
@@ -116,6 +116,7 @@ EXT const uchar parityTab[256]
 
 // ----------------------------------------------------------------------------
 // Table to reverse order of bits in one "nibble" (i.e. 4-bit integer)
+// - used to decode P8/30/2 (PDC) which has different bit order than teletext
 //
 EXT const uchar reverse4Bits[16]
 #ifdef __HAMMING_C
@@ -125,6 +126,36 @@ EXT const uchar reverse4Bits[16]
 }
 #endif  //__HAMMING_C
 ;
+
+// ----------------------------------------------------------------------------
+// Table to count number of bits in a byte
+// - used to calculate bit distance between two byte values (after XOR)
+// - i.e. used to count number of differing/erronous bits in a value
+//
+EXT const uchar byteBitDistTable[256]
+#ifdef __HAMMING_C
+= {
+   0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4,
+   1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
+   1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
+   2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+   1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
+   2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+   2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+   3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+   1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5,
+   2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+   2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+   3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+   2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
+   3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+   3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
+   4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8
+}
+#endif  //__HAMMING_C
+;
+
+#define ByteBitDistance(X,Y) (byteBitDistTable[(uchar)((X)^(Y))])
 
 // ----------------------------------------------------------------------------
 // declaration of service interface functions

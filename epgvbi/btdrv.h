@@ -37,7 +37,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: btdrv.h,v 1.32 2003/02/22 19:29:32 tom Exp $
+ *  $Id: btdrv.h,v 1.39 2004/04/02 10:48:22 tom Exp tom $
  */
 
 #ifndef __BTDRV_H
@@ -78,7 +78,11 @@ struct Card
 #endif  //__NetBSD__ || __FreeBSD__
 
 #ifdef linux
-# include "linux/videodev.h"
+# ifndef PATH_VIDEODEV_H
+#  include "epgvbi/videodev.h"
+# else
+#  include PATH_VIDEODEV_H
+# endif
 #else
 # ifndef VIDEO_MODE_SECAM
 #  define VIDEO_MODE_PAL          0   // from videodev.h
@@ -86,6 +90,14 @@ struct Card
 #  define VIDEO_MODE_SECAM        2
 # endif
 #endif
+
+typedef enum
+{
+   VBI_SLICER_AUTO,
+   VBI_SLICER_TRIVIAL,
+   VBI_SLICER_ZVBI,
+   VBI_SLICER_COUNT
+} VBI_SLICER_TYPE;
 
 // ---------------------------------------------------------------------------
 // number of teletext packets that can be stored in ring buffer
@@ -193,21 +205,33 @@ typedef struct
    #ifndef WIN32
    pid_t     vbiPid;
    pid_t     epgPid;
+   bool      is_v4l2;
    int       failureErrno;
    # ifndef USE_THREADS
    bool      freeDevice;        // In:  TRUE when acq is stopped
    # endif
 
    bool      doQueryFreq;
+   bool      vbiQueryIsTuner;
+   uint      vbiQueryInput;
    uint      vbiQueryFreq;
 
    uchar     cardIndex;
+   uint      slicerType;
    # if defined(__NetBSD__) || defined(__FreeBSD__)
    uchar     inputIndex;
    struct Card tv_cards[MAX_CARDS];
    # endif
+   # if defined(USE_LIBZVBI) && defined(USE_LIBZVBI_PROXY)
+   uint      slaveChnSwitch;
+   int       chnIdx;
+   uint      chnFreq;
+   bool      chnHasTuner;
+   char      chnErrorMsg[128];
+   # endif
    #else  // WIN32
-   uchar     reserved3[128];    // reserved for future additions; set to 0
+   uint32_t  slicerType;
+   uchar     reserved3[128 - sizeof(uint32_t)];    // reserved for future additions; set to 0
    #endif
 } EPGACQ_BUF;
 
@@ -224,31 +248,34 @@ bool BtDriver_StartAcq( void );
 void BtDriver_StopAcq( void );
 const char * BtDriver_GetLastError( void );
 bool BtDriver_IsVideoPresent( void );
-uint BtDriver_QueryChannel( void );
+bool BtDriver_QueryChannel( uint * pFreq, uint * pInput, bool * pIsTuner );
 bool BtDriver_TuneChannel( int inputIdx, uint freq, bool keepOpen, bool * pIsTuner );
 
 #ifndef WIN32
 int BtDriver_GetDeviceOwnerPid( void );
 #else
 bool BtDriver_Restart( void );
+bool BtDriver_GetState( bool * pEnabled, bool * pHasDriver, uint * pCardIdx );
 #endif
 bool BtDriver_CheckDevice( void );
 void BtDriver_CloseDevice( void );
+
+// configuration interface
 #if defined(__NetBSD__) || defined(__FreeBSD__)
 void BtDriver_ScanDevices( bool isMasterProcess );
 #endif
-
-// configuration interface
-const char * BtDriver_GetTunerName( uint tunerIdx );
 const char * BtDriver_GetInputName( uint cardIdx, uint cardType, uint inputIdx );
-bool BtDriver_Configure( int cardIdx, int prio, int chipType, int cardType, int tuner, int pll );
+bool BtDriver_Configure( int cardIndex, int prio, int chipType, int cardType,
+                         int tuner, int pll, bool wdmStop );
+void BtDriver_SelectSlicer( VBI_SLICER_TYPE slicerType );
 #ifndef WIN32
 const char * BtDriver_GetCardName( uint cardIdx );
 #else
 const char * BtDriver_GetCardNameFromList( uint cardIdx, uint listIdx );
+const char * BtDriver_GetTunerName( uint tunerIdx );
 bool BtDriver_EnumCards( uint cardIdx, uint cardType, uint * pChipType, const char ** pName, bool showDrvErr );
 bool BtDriver_QueryCardParams( uint cardIdx, sint * pCardType, sint * pTunerType, sint * pPllType );
-bool BtDriver_GetState( bool * pEnabled, bool * pHasDriver, uint * pCardIdx );
+bool BtDriver_CheckCardParams( int cardIdx, int chipId, int cardType, int tunerType, int pll, int input );
 #endif
 
 

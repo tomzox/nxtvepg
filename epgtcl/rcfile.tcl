@@ -18,15 +18,15 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: rcfile.tcl,v 1.18 2003/10/03 10:33:06 tom Exp tom $
+#  $Id: rcfile.tcl,v 1.20 2004/03/28 13:36:31 tom Exp tom $
 #
 set myrcfile ""
 set is_daemon 0
 # define limit for forwards compatibility
-set nxtvepg_rc_compat 0x020594
+set nxtvepg_rc_compat 0x020690
 
 proc LoadRcFile {filename isDefault isDaemon} {
-   global shortcuts shortcut_order
+   global shortcuts shortcut_tree
    global prov_selection prov_freqs cfnetwops cfnetnames cfnettimes cfnetjoin
    global showNetwopListbox showNetwopListboxLeft showShortcutListbox
    global showLayoutButton showStatusLine showColumnHeader showDateScale
@@ -37,7 +37,7 @@ proc LoadRcFile {filename isDefault isDaemon} {
    global pibox_type pinetbox_col_count pinetbox_col_width
    global pinetbox_rows pinetbox_rows_nonl
    global netacqcf xawtvcf wintvcf ctxmencf ctxmencf_wintv_vcr
-   global hwcf_cardidx hwcf_input hwcf_acq_prio tvcardcf
+   global hwcf_cardidx hwcf_input hwcf_acq_prio hwcf_slicer_type hwcf_wdm_stop tvcardcf
    global epgscan_opt_ftable
    global wintvapp_idx wintvapp_path
    global substr_history
@@ -47,7 +47,7 @@ proc LoadRcFile {filename isDefault isDaemon} {
    global dumphtml_filename dumphtml_file_append dumphtml_file_overwrite
    global dumphtml_sel dumphtml_sel_count dumphtml_type
    global dumphtml_hyperlinks dumphtml_use_colsel dumphtml_colsel
-   global dumpxml_filename
+   global dumpxml_filename dumpxml_format
    global colsel_tabs usercols
    global piexpire_cutoff
    global remgroups remgroup_order reminders rem_msg_cnf_time rem_cmd_cnf_time
@@ -57,7 +57,7 @@ proc LoadRcFile {filename isDefault isDaemon} {
 
    set myrcfile $filename
    set is_daemon $isDaemon
-   set shortcut_order {}
+   set shortcut_tree {}
    set error 0
    set ver_check 0
    set line_no 0
@@ -245,6 +245,31 @@ proc LoadRcFile {filename isDefault isDaemon} {
             set pilistbox_cols [concat weekcol $pilistbox_cols]
          }
       }
+      if {[info exists nxtvepg_version] && ($nxtvepg_version <= 0x020600)} {
+         if [info exists shortcut_order] {
+            set shortcut_tree {}
+            foreach sc_tag $shortcut_order {
+               lappend shortcut_tree $sc_tag
+            }
+            # append sub-directory with hidden shortcuts ($::fsc_hide_idx)
+            set tmpl {}
+            foreach sc_tag [array names shortcuts] {
+               if [lindex $shortcuts($sc_tag) 5] {
+                  lappend tmpl $sc_tag
+               }
+               set shortcuts($sc_tag) [lreplace $shortcuts($sc_tag) 5 5 ""]
+               if {[regexp {^-*$} [lindex $shortcuts($sc_tag) 0]] &&
+                   ([llength [lindex $shortcuts($sc_tag) 1]] == 0)} {
+                  set shortcuts($sc_tag) [list {} {} {} {} "merge" "separator"]
+               }
+            }
+            if {[llength $tmpl] > 0} {
+               set sc_tag [GenerateShortcutTag]
+               set shortcuts($sc_tag) [list "Hidden" {} {} {} merge "-dir"]
+               lappend shortcut_tree [concat $sc_tag $tmpl]
+            }
+         }
+      }
    } elseif {!$isDefault} {
       # warn if rc/ini file could not be loaded
       if $is_unix {
@@ -256,6 +281,18 @@ proc LoadRcFile {filename isDefault isDaemon} {
 
    # skip the rest if GUI was not loaded
    if {$is_daemon == 0} {
+
+      # check consistancy of shortcuts
+      #set ltmp {}
+      #foreach sc_tag $shortcut_order {
+      #   if [info exists shortcuts($sc_tag)] {
+      #      lappend ltmp $sc_tag
+      #   } elseif $is_unix {
+      #      puts stderr "Warning: unresolved ref. to shortcut tag $sc_tag"
+      #   }
+      #}
+      #set shortcut_order $ltmp
+      # XXX TODO
 
       # build user-defined column definitions from compact lists in rc file
       if {[info exists pilistbox_col_widths]} {
@@ -331,7 +368,7 @@ proc LoadRcFile {filename isDefault isDaemon} {
 ##  Write all config variables into the rc/ini file
 ##
 proc UpdateRcFile {} {
-   global shortcuts shortcut_order
+   global shortcuts shortcut_tree
    global prov_selection prov_freqs cfnetwops cfnetnames cfnettimes cfnetjoin
    global showNetwopListbox showNetwopListboxLeft showShortcutListbox
    global showLayoutButton showStatusLine showColumnHeader showDateScale
@@ -342,7 +379,7 @@ proc UpdateRcFile {} {
    global pibox_type pinetbox_col_count pinetbox_col_width
    global pinetbox_rows pinetbox_rows_nonl
    global netacqcf xawtvcf wintvcf ctxmencf ctxmencf_wintv_vcr
-   global hwcf_cardidx hwcf_input hwcf_acq_prio tvcardcf
+   global hwcf_cardidx hwcf_input hwcf_acq_prio hwcf_slicer_type hwcf_wdm_stop tvcardcf
    global epgscan_opt_ftable
    global wintvapp_idx wintvapp_path
    global substr_history
@@ -352,7 +389,7 @@ proc UpdateRcFile {} {
    global dumphtml_filename dumphtml_file_append dumphtml_file_overwrite
    global dumphtml_sel dumphtml_sel_count dumphtml_type
    global dumphtml_hyperlinks dumphtml_use_colsel dumphtml_colsel
-   global dumpxml_filename
+   global dumpxml_filename dumpxml_format
    global colsel_tabs usercols colsel_ailist_predef
    global piexpire_cutoff
    global remgroups remgroup_order reminders rem_msg_cnf_time rem_cmd_cnf_time
@@ -388,7 +425,7 @@ proc UpdateRcFile {} {
       foreach index [lsort -integer [array names shortcuts]] {
          puts $rcfile [list set shortcuts($index) $shortcuts($index)]
       }
-      puts $rcfile [list set shortcut_order $shortcut_order]
+      puts $rcfile [list set shortcut_tree $shortcut_tree]
 
       # dump provider selection order
       puts $rcfile [list set prov_selection $prov_selection]
@@ -462,6 +499,8 @@ proc UpdateRcFile {} {
       puts $rcfile [list set hwcf_cardidx $hwcf_cardidx]
       puts $rcfile [list set hwcf_input $hwcf_input]
       puts $rcfile [list set hwcf_acq_prio $hwcf_acq_prio]
+      puts $rcfile [list set hwcf_slicer_type $hwcf_slicer_type]
+      puts $rcfile [list set hwcf_wdm_stop $hwcf_wdm_stop]
       foreach cardidx [array names tvcardcf] {
          puts $rcfile [list set tvcardcf($cardidx) $tvcardcf($cardidx)]
       }
@@ -501,6 +540,7 @@ proc UpdateRcFile {} {
       puts $rcfile [list set dumphtml_colsel $dumphtml_colsel]
 
       puts $rcfile [list set dumpxml_filename $dumpxml_filename]
+      puts $rcfile [list set dumpxml_format $dumpxml_format]
 
       puts $rcfile [list set piexpire_cutoff $piexpire_cutoff]
 

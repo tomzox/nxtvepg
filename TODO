@@ -16,14 +16,19 @@ Possible future reminder options:
   (cumbersome since it requires to be updated every minute)
 - snooze (i.e. repeat) for user-confirmed commands?
 - include clock in reminder popup?
+- allow to specify format (attribute selection) for reminder event popup (Jörk)
 - use VPS/PDC to detect actual programme's start time
   problem: only possible while TV display switched off or on the same channel
   unless the user has multiple cards; even then coord. with acq. is required
 - don't suppress outdated message for new reminder if it's the last one? (Peter)
+- pass reminders to external scheduler immediately upon creation (Steffen)
+  note: probably also pass removals and changes to external scheduler
 
-Misc. fixes & changes recently suggested/planned for the near future:
+Recently suggested fixes & changes:
 - TV app shm: resend info for same channel (req. by zoomin)
   also: add more EPG info to shared memory; add video norm to shm
+  also: synchronize timer list with ZoomOut
+  also: slicer type selection or better slicer in K!TV
 - single click on short-info size slider: resize by one line
 - start time search: abs. stop time val "23:10" excludes titles starting at 23:10
 - improve text search: keywords (google style AND), parity-safe/fuzzy
@@ -32,7 +37,6 @@ Misc. fixes & changes recently suggested/planned for the near future:
   possibly allow manually maintained series list (i.e.title/CNIs couples)
 - allow provider channel names at the -prov command line arg
 - HTML dump: allow to specify which column to use for hyperlink?
-- user-def column: background color (maybe of complete row?)
 - context menu config menu: remove need for "update" button: save automatically
 - new PI column type which displays full weekday name (Thierry)
 - different background colors for PI, alternating by date (Ronceval)
@@ -41,7 +45,7 @@ Misc. fixes & changes recently suggested/planned for the near future:
 - marking attributes which match current filter in the description window,
   esp. for text search (Volker Moell)
 - localize language for date drop-down menu (Thierry)
-- allow multiple, non-continguous selections in shortcut & networks menu
+- allow multiple, non-continguous selections in shortcut & networks listbox
   without use of the keyboard (like in -selectmode multiple)
   (suggested via discussion forum by "Philippe")
 - optionally hide short-info window -> display with double-click
@@ -53,6 +57,16 @@ Misc. fixes & changes recently suggested/planned for the near future:
 - timescale bug: when acq running in daemon for non-UI database, display is
   cleared but not refilled after zoom +/-
 - weekday scale for grid layout: additional column (Thierry)
+- import data from XMLTV files (e.g. from internet sources; 2003-11-1 in forum)
+- split network prefilter into 2 parts: excluded and unlisted: latter ones are
+  still part of filter menus and used for reminder shortcut matches
+- delayed rc/ini save after shortcut tree changes (e.g. folder open/close)
+- vertical scrollbar for timescale window (forum 2003-12-31)
+- update system time with time from teletext (forum 2004-03-12)
+- allow user to override provider's network CNIs (e.g. to allow to merge
+  different providers' data for MTV, RBB and SW3; suggested by Jörk)
+- fix LTO handling during acquisition for TRT and dalight saving time changes
+
 
 VBI slicer:
 - vbidecode: handle interlaced data and non-symmetric start lines
@@ -100,9 +114,6 @@ WIN32 port fixes:
   note: output to stdout works when started inside a GNU/Cygwin bash
 - need to debug source of main window crash in Windows MessageBox()
 - better workaround for dynamic menus (e.g. "Navigate" filer menu) needed
-- fill context menu config dialog with useful examples for Windows;
-  do not use DOS shell to start applications, use CreateProcess instead;
-  do not use Bourne shell quoting
 - allow manual horizontal resizing for grid layout
 - menubutton popups does not work when invoked for the 2nd time via
   ALT key binding (Thierry)
@@ -163,4 +174,5 @@ possible new features: (in order of decreasing priority)
   and fuzzy-matching actor's names in the description
 - provider selection: display db age & fill percentage
   save stats and start time of 1st PI in db header
+- wizard for initial configuration (esp. in Windows; suggested by "zoomin")
 

@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_udefcols.tcl,v 1.14 2003/09/23 19:20:29 tom Exp tom $
+#  $Id: dlg_udefcols.tcl,v 1.15 2003/12/27 20:12:14 tom Exp tom $
 #
 # import constants from other modules
 #=INCLUDE= "epgtcl/dlg_remind.h"
@@ -147,7 +147,7 @@ proc UserColsDlg_IsReminderPseudoTag {sc_tag} {
 ##  Load filter cache with shortcuts used in user-defined columns
 ##
 proc UserCols_GetShortcuts {cache_var cache_idx} {
-   global shortcuts shortcut_order
+   global shortcuts
    global usercols usercol_count
    global remgroups remgroup_order
 
@@ -187,7 +187,7 @@ proc UserCols_ShortcutsChanged {} {
 
    if $usercol_popup {
       # add new shortcuts
-      foreach sc_tag [CompleteShortcutOrder] {
+      foreach sc_tag [array names shortcuts] {
          set usercol_scnames($sc_tag) [lindex $shortcuts($sc_tag) $::fsc_name_idx]
       }
       # note: obsolete shortcuts not removed here (done upon save)
@@ -201,7 +201,7 @@ proc UserCols_ShortcutsChanged {} {
 ## Callback for configure menu: create the configuration dialog
 ##
 proc PopupUserDefinedColumns {} {
-   global shortcuts shortcut_order
+   global shortcuts
    global remgroups remgroup_order
    global usercols colsel_tabs colsel_ailist_predef
    global usercol_scnames usercol_cf_tag usercol_cf_filt_idx
@@ -428,7 +428,7 @@ proc PopupUserDefinedColumns {} {
                                              -command {.usercol.txt.hmenu configure -text "none"}
 
       # load cache variables with shortcut names
-      foreach sc_tag [CompleteShortcutOrder] {
+      foreach sc_tag [array names shortcuts] {
          set usercol_scnames($sc_tag) [lindex $shortcuts($sc_tag) $::fsc_name_idx]
       }
       foreach gtag $remgroup_order {
@@ -486,15 +486,24 @@ proc UserColsDlg_FillColumnSelectionMenu {} {
 
 # dynamically fill popup menu with all currently defined shortcuts (including "hidden" ones)
 proc UserColsDlg_FillShortcutMenu {wid is_stand_alone} {
-   global shortcuts
+   global shortcuts shortcut_tree
 
-   foreach sc_tag [CompleteShortcutOrder] {
-      .usercol.all.selcmd.scadd.men add command -label [lindex $shortcuts($sc_tag) $::fsc_name_idx] \
-         -command [list UserColsDlg_AddShortcut $sc_tag]
-   }
+   ShortcutTree_MenuFill .all.shortcuts.list $wid $shortcut_tree shortcuts \
+                         UserColsDlg_AddShortcut UserColsDlg_AddShortcut_StateCb
+
    # append menu entry and pseudo-shortcut name for "no match"
-   .usercol.all.selcmd.scadd.men add separator
-   .usercol.all.selcmd.scadd.men add command -label "*no match*" -command {UserColsDlg_AddShortcut -1}
+   $wid add separator
+   $wid add command -label "*no match*" -command {UserColsDlg_AddShortcut -1}
+}
+
+proc UserColsDlg_AddShortcut_StateCb {sc_tag} {
+   global usercol_cf_filt
+
+   if [info exists usercol_cf_filt($sc_tag)] {
+      return "disabled"
+   } else {
+      return "normal"
+   }
 }
 
 # dynamically fill popup menu with all currently defined reminder groups
@@ -600,8 +609,11 @@ proc UserColsDlg_SelectColumn {tag} {
    array unset usercol_cf_filt
    if [info exists usercols($usercol_cf_tag)] {
       foreach filt $usercols($usercol_cf_tag) {
-         lappend usercol_cf_selist [lindex $filt $::ucf_sctag_idx]
-         set usercol_cf_filt([lindex $filt $::ucf_sctag_idx]) $filt
+         set sc_tag [lindex $filt $::ucf_sctag_idx]
+         if [info exists usercol_scnames($sc_tag)] {
+            lappend usercol_cf_selist $sc_tag
+            set usercol_cf_filt($sc_tag) $filt
+         }
       }
    }
 

@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumpraw.c,v 1.27 2003/02/27 18:58:18 tom Exp tom $
+ *  $Id: dumpraw.c,v 1.28 2004/03/21 16:48:15 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -521,7 +521,9 @@ static void EpgDumpRaw_Database( EPGDB_CONTEXT *pDbContext, FILE *fp,
       if (do_oi)
       {
          count = pAi->oiCount + pAi->oiCountSwo;
-         for (blockno=1; blockno <= count; blockno++)
+         // note: block #0 has a special meaning and may not be transmitted
+         //       hence it may not be included in the count, hence the <=
+         for (blockno=0; blockno <= count; blockno++)
          {
             pOi = EpgDbGetOi(pDbContext, blockno);
             if (pOi != NULL)
@@ -533,7 +535,7 @@ static void EpgDumpRaw_Database( EPGDB_CONTEXT *pDbContext, FILE *fp,
       if (do_mi)
       {
          count = pAi->miCount + pAi->miCountSwo;
-         for (blockno=1; blockno <= count; blockno++)
+         for (blockno=0; blockno <= count; blockno++)
          {
             pMi = EpgDbGetMi(pDbContext, blockno);
             if (pMi != NULL)

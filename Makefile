@@ -28,7 +28,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile,v 1.65 2003/09/28 18:31:31 tom Exp tom $
+#  $Id: Makefile,v 1.74 2004/04/02 17:23:49 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -57,6 +57,10 @@ PERL    = /usr/bin/perl
 TCL_VER := $(shell echo 'puts [package require Tcl]' | tclsh)
 #TCL_VER = 8.4
 
+ifeq ($(shell test -d /usr/include/tcl$(TCL_VER) && echo YES),YES)
+INCS   += -I/usr/include/tcl$(TCL_VER)
+endif
+
 LDLIBS  = -ltk$(TCL_VER) -ltcl$(TCL_VER) -L/usr/X11R6/lib -lX11 -lXmu -lm -ldl
 
 # use static libraries for debugging only
@@ -67,7 +71,7 @@ DEFS   += -DX11_APP_DEFAULTS=\"$(resdir)/app-defaults/Nxtvepg\"
 # path to Tcl/Tk headers, if not properly installed
 #INCS   += -I/usr/local/tcl/tcl8.0/generic -I/usr/local/tcl/tk8.0/generic
 
-# path to Tcl/Tk script library (Tk is usually in X11/lib/tk#.#)
+# path to Tcl/Tk script library (note Tk is sometimes in X11/lib/tk#.#)
 TK_LIBRARY_PATH  = /usr/lib/tk$(TCL_VER)
 TCL_LIBRARY_PATH = /usr/lib/tcl$(TCL_VER)
 DEFS   += -DTK_LIBRARY_PATH=\"$(TK_LIBRARY_PATH)\"
@@ -80,8 +84,16 @@ LDLIBS += -lpthread
 # enable use of daemon and client/server connection
 DEFS   += -DUSE_DAEMON
 
-# enable use of zvbi slicer (does not require the zvbi library)
-#DEFS   += -DZVBI_DECODER
+# specify path to header file for video4linux device driver (default: use internal copy)
+#DEFS  += -DPATH_VIDEODEV_H=\"/usr/include/linux/videodev.h\"
+
+# enable use of libzvbi
+#DEFS   += -DUSE_LIBZVBI
+# enable use of VBI proxy via libzvbi (requires proxy branch of libzvbi)
+# (note proxy API is still subject to change as of March-2004)
+#DEFS   += -DUSE_LIBZVBI_PROXY
+#LDLIBS += -lzvbi -lpthread -lpng
+#LDLIBS += /tom/work/tv/cvs/vbi/src/.libs/libzvbi.a
 
 # enable workarounds for linux saa7134 driver: up to version 0.2.6
 # - change VBI default sampling rate (because the driver doesn't support ioctl VIDIOCGVBIFMT)
@@ -105,9 +117,12 @@ WARN    = -Wall -Wnested-externs -Wstrict-prototypes -Wmissing-prototypes
 #WARN  += -Wpointer-arith -Werror
 CC      = gcc
 # the following flags can be overridden by an environment variable with the same name
-CFLAGS ?= -pipe -O
+CFLAGS ?= -pipe -O2
 CFLAGS += $(WARN) $(INCS) $(DEFS)
 #LDLIBS += -pg
+
+BUILD_DIR  = build-$(shell uname -m | sed -e 's/i.86/i386/' -e 's/ppc/powerpc/')
+INCS      += -I$(BUILD_DIR)
 
 # end Linux specific part
 endif
@@ -135,17 +150,38 @@ TCLSRC  = epgtcl/mainwin epgtcl/helptexts epgtcl/dlg_hwcfg epgtcl/dlg_xawtvcf \
           epgtcl/shortcuts epgtcl/dlg_shortcuts epgtcl/draw_stats \
           epgtcl/dlg_filter epgtcl/dlg_substr epgtcl/dlg_remind \
           epgtcl/dlg_prov epgtcl/rcfile \
-          epgtcl/mclistbox epgtcl/combobox epgtcl/rnotebook
+          epgtcl/mclistbox epgtcl/combobox epgtcl/rnotebook epgtcl/htree
 
-OBJS    = $(addsuffix .o, $(CSRC)) $(addsuffix .o, $(TCLSRC))
+TVSIM_CSRC    = tvsim/tvsim_main
+TVSIM_CSRC2   = epgctl/debug epgui/pdc_themes epgvbi/tvchan epgui/wintvcfg
+TVSIM_TCLSRC  = tvsim/tvsim_gui
+VBIREC_CSRC   = tvsim/vbirec_main
+VBIREC_CSRC2  = epgvbi/btdrv4linux epgvbi/vbidecode epgvbi/zvbidecoder \
+                epgvbi/ttxdecode epgvbi/hamming epgvbi/cni_tables \
+                epgvbi/syserrmsg epgctl/debug epgui/xawtv
+VBIREC_TCLSRC = tvsim/vbirec_gui
 
-.PHONY: all
-all :: tcl_headers nxtvepg nxtvepg.1
+NXTV_OBJS     = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(CSRC) $(TCLSRC)))
+TVSIM_OBJS    = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(TVSIM_CSRC) $(TVSIM_CSRC2) $(TVSIM_TCLSRC)))
+VBIREC_OBJS   = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(VBIREC_CSRC) $(VBIREC_CSRC2) $(VBIREC_TCLSRC)))
 
-nxtvepg: $(OBJS)
-	$(CC) $(LDFLAGS) -o nxtvepg $(OBJS) $(LDLIBS)
+.PHONY: devel tvsim tvmans all
+devel   :: $(BUILD_DIR) tcl_headers $(BUILD_DIR)/nxtvepg nxtvepg.1
+tvsim   :: $(BUILD_DIR) tcl_headers_tvsim $(BUILD_DIR)/tvsimu $(BUILD_DIR)/vbirec tvmans
+tvmans  :: $(BUILD_DIR) tvsim/tvsim.html tvsim/vbirec.html tvsim/vbiplay.html
+all     :: devel tvsim tvmans
 
-install: nxtvepg nxtvepg.1 Nxtvepg.ad
+$(BUILD_DIR)/nxtvepg: $(NXTV_OBJS)
+	$(CC) $(LDFLAGS) -o $@ $(NXTV_OBJS) $(LDLIBS)
+
+$(BUILD_DIR)/tvsimu: $(TVSIM_OBJS)
+	$(CC) $(LDFLAGS) $(TVSIM_OBJS) $(LDLIBS) -o $@
+
+$(BUILD_DIR)/vbirec: $(VBIREC_OBJS)
+	$(CC) $(LDFLAGS) $(VBIREC_OBJS) $(LDLIBS) -o $@
+
+.PHONY: install
+install: devel Nxtvepg.ad
 	test -d $(bindir) || install -d $(bindir)
 	test -d $(mandir) || install -d $(mandir)
 	test -d $(resdir)/app-defaults || install -d $(resdir)/app-defaults
@@ -153,15 +189,19 @@ ifndef USER_DBDIR
 	test -d $(INST_DB_DIR) || install -d $(INST_DB_DIR)
 	chmod $(INST_DB_PERM) $(INST_DB_DIR)
 endif
-	install -c -m 0755 nxtvepg     $(bindir)
+	install -c -m 0755 $(BUILD_DIR)/nxtvepg $(bindir)
 	install -c -m 0644 nxtvepg.1   $(mandir)
 	install -c -m 0644 Nxtvepg.ad  $(resdir)/app-defaults/Nxtvepg
-	rm -f $(mandir)/nxtvepg.1x
 
 .SUFFIXES: .c .o .tcl
 
-%.c: %.tcl tcl2c
-	./tcl2c -d -c -h $*.tcl
+$(BUILD_DIR)/%.o: %.c
+	$(CC) $(CFLAGS) -Wp,-MMD,$(BUILD_DIR)/deps.tmp -c -o $@ $<
+	@sed -e "s#^[^ \t].*\.o:#$@:#" < $(BUILD_DIR)/deps.tmp > $@.dep && \
+	   rm -f $(BUILD_DIR)/deps.tmp
+
+$(BUILD_DIR)/%.c: %.tcl $(BUILD_DIR)/tcl2c
+	$(BUILD_DIR)/tcl2c -d -c -h -p $(BUILD_DIR) $*.tcl
 
 # %.h rule disabled because tcl2c doesn't update timestamp of generated headers
 # unless they changed, to avoid excessive re-compilation after internal script
@@ -169,33 +209,67 @@ endif
 # of objects and depend targets to make sure all headers are already generated
 # when required, since there's no rule to generate them from Tcl scripts.
 #
-.PHONY: tcl_headers
-tcl_headers: $(addsuffix .c, $(TCLSRC))
-##%.h: %.tcl tcl2c
-##	./tcl2c -d -c -h $*.tcl
+%.h: %.tcl $(BUILD_DIR)/tcl2c
+	@if [ ! -e epgtcl/dlg_remind.h ] ; then \
+	  echo "Appearently you typed 'make nxtvepg'" ; \
+	  echo "Don't do that. Instead use simply 'make'" ; \
+          false ; \
+	fi
 
-tcl2c: tcl2c.c
-	$(CC) $(CFLAGS) -o tcl2c tcl2c.c
+.PHONY: tcl_headers tcl_headers_tvsim
+tcl_headers: $(addprefix $(BUILD_DIR)/, $(addsuffix .c, $(TCLSRC)))
+tcl_headers_tvsim: $(addprefix $(BUILD_DIR)/, $(addsuffix .c, $(TVSIM_TCLSRC) $(VBIREC_TCLSRC)))
+##%.h: %.tcl $(BUILD_DIR)/tcl2c
+##	$(BUILD_DIR)/tcl2c -d -c -h $*.tcl
+
+$(BUILD_DIR)/tcl2c: tcl2c.c
+	$(CC) $(CFLAGS) -o $(BUILD_DIR)/tcl2c tcl2c.c
 
 $(TCL_LIBRARY_PATH)/tclIndex $(TK_LIBRARY_PATH)/tclIndex :
-	@echo "$(@D) is not a valid Tcl/Tk library directory"
-	@echo "Check the definitions of TCL_LIBRARY_PATH and TK_LIBRARY_PATH"
-	@false
+	@if [ ! -f $(TCL_LIBRARY_PATH) -o ! -f $(TK_LIBRARY_PATH) ] ; then \
+	  echo "$(@D) is not a valid Tcl/Tk library directory"; \
+	  echo "Check the definitions of TCL_LIBRARY_PATH and TK_LIBRARY_PATH"; \
+	  false; \
+	fi
 
 epgui/loadtcl.c :: $(TCL_LIBRARY_PATH)/tclIndex $(TK_LIBRARY_PATH)/tclIndex
 
-nxtvepg.1 manual.html epgtcl/helptexts.tcl: nxtvepg.pod pod2help.pl
+.PHONY: bak
+bak:
+	cd .. && tar cf /c/transfer/pc.tar pc -X pc/tar-ex-win
+#	cd .. && tar cf pc1.tar pc -X pc/tar-ex && bzip2 -f -9 pc1.tar
+#	tar cf ../pc2.tar www ATTIC dsdrv?* tk8* tcl8* && bzip2 -f -9 ../pc2.tar
+
+$(BUILD_DIR):
+	if [ ! -d $@ ] ; then \
+	  mkdir $@; \
+	  mkdir $@/epgvbi $@/epgdb $@/epgctl $@/epgui $@/epgtcl; \
+	  mkdir $@/tvsim; \
+	fi
+
+# include dependencies (each object has one dependency file)
+-include $(BUILD_DIR)/*/*.dep
+
+# end UNIX specific part
+endif
+
+# ----- shared between all platforms -----------------------------------------
+
+.PHONY: clean
+clean:
+	-rm -rf build-*
+	-rm -f core a.out *.exe *.o
+	-rm -f epgui/tkwinico.res
+
+.PHONY: depend
+depend:
+	@echo "'make depend' is no longer required:"
+	@echo "dependencies are generated and updated while compiling."
+
+epgtcl/helptexts.tcl: nxtvepg.pod pod2help.pl
 	@if test -x $(PERL); then \
-	  EPG_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*EPG_VERSION_STR' epgctl/epgversion.h | head -1 | cut -d\" -f2`; \
 	  echo "$(PERL) pod2help.pl nxtvepg.pod > epgtcl/helptexts.tcl"; \
 	  $(PERL) pod2help.pl nxtvepg.pod > epgtcl/helptexts.tcl; \
-	  echo "pod2man nxtvepg.pod > nxtvepg.1"; \
-	  pod2man -date " " -center "Nextview EPG Decoder" -section "1" \
-	          -release "nxtvepg "$$EPG_VERSION_STR" (C) 1999-2003 Tom Zoerner" \
-	     nxtvepg.pod > nxtvepg.1; \
-	  echo "pod2html nxtvepg.pod > manual.html"; \
-	  pod2html nxtvepg.pod | $(PERL) -p -e 's/HREF="#[^:]+: +/HREF="#/g;' > manual.html; \
-	  rm -f pod2htm?.x~~ pod2html-{dircache,itemcache}; \
 	elif test -f epgtcl/helptexts.tcl; then \
 	  touch epgtcl/helptexts.tcl; \
 	else \
@@ -203,29 +277,63 @@ nxtvepg.1 manual.html epgtcl/helptexts.tcl: nxtvepg.pod pod2help.pl
 	  false; \
 	fi
 
-.PHONY: clean depend bak
-clean:
-	-rm -f *.o epg*/*.o dsdrv/*.[oa] tvsim/*.o
-	-rm -f core a.out *.exe tcl2c nxtvepg
-	-rm -f epgtcl/*.[ch] epgtcl/tcl_libs.tcl epgtcl/tk_libs.tcl
-	-rm -f tvsim/tvsim_gui.[ch] tvsim/vbirec_gui.[ch]
+nxtvepg.1 manual.html: nxtvepg.pod pod2help.pl epgctl/epgversion.h
+	@if test -x $(PERL); then \
+	  EPG_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*EPG_VERSION_STR' epgctl/epgversion.h | head -1 | sed -e 's#.*"\(.*\)".*#\1#'`; \
+	  echo "pod2man nxtvepg.pod > nxtvepg.1"; \
+	  pod2man -date " " -center "Nextview EPG Decoder" -section "1" \
+	          -release "nxtvepg "$$EPG_VERSION_STR" (C) 1999-2004 Tom Zoerner" \
+	     nxtvepg.pod > nxtvepg.1; \
+	  echo "pod2html nxtvepg.pod > manual.html"; \
+	  pod2html nxtvepg.pod | $(PERL) -p -e 's/HREF="#[^:]+: +/HREF="#/g;' > manual.html; \
+	  rm -f pod2htm?.x~~ pod2html-{dircache,itemcache}; \
+	else \
+	  echo "ERROR: cannot generate manual page without Perl"; \
+	  false; \
+	fi
 
-depend: tcl_headers
-	-:>Makefile.dep
-	DIRLIST=`(for cmod in $(CSRC) $(TCLSRC); do echo $$cmod; done) | cut -d/ -f1 | sort -u`; \
-	for dir in $$DIRLIST; do \
-	  CLIST=`(for src in $(addsuffix .c, $(CSRC)) $(addsuffix .c, $(TCLSRC)); do echo $$src; done) | grep $$dir/`; \
-	  gcc -MM $(INCS) $(DEFS) $$CLIST | \
-	  sed -e 's#^.*\.o#'$$dir/'&#g' >> Makefile.dep; \
-	done
+tvsim/tvsim.1 tvsim/tvsim.html: tvsim/tvsim.pod tvsim/tvsim_version.h
+	@if test -x $(PERL); then \
+	  TVSIM_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*TVSIM_VERSION_STR' tvsim/tvsim_version.h | head -1 | sed -e 's#.*"\(.*\)".*#\1#'`; \
+	  echo "pod2man tvsim/tvsim.pod > tvsim/tvsim.1"; \
+	  pod2man -date " " -center "TV app interaction simulator" -section "1" \
+	          -release "tvsim "$$TVSIM_VERSION_STR" (C) 2002,2004 Tom Zoerner" \
+	          tvsim/tvsim.pod > tvsim/tvsim.1; \
+	  echo "pod2html tvsim/tvsim.pod > tvsim/tvsim.html"; \
+	  pod2html tvsim/tvsim.pod | $(PERL) -p -e 's/HREF="#[^:]+: +/HREF="#/g;' > tvsim/tvsim.html; \
+	  rm -f pod2htm?.x~~ pod2html-{dircache,itemcache}; \
+	else \
+	  echo "ERROR: cannot generate tvsim HTML or nroff manuals without Perl"; \
+	  false; \
+	fi
 
-bak:
-	cd .. && tar cf /c/transfer/pc.tar pc -X pc/tar-ex-win
-#	cd .. && tar cf pc1.tar pc -X pc/tar-ex && bzip2 -f -9 pc1.tar
-#	tar cf ../pc2.tar www ATTIC dsdrv?* tk8* tcl8* && bzip2 -f -9 ../pc2.tar
+tvsim/vbirec.1 tvsim/vbirec.html: tvsim/vbirec.pod tvsim/tvsim_version.h
+	@if test -x $(PERL); then \
+	  TVSIM_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*TVSIM_VERSION_STR' tvsim/tvsim_version.h | head -1 | sed -e 's#.*"\(.*\)".*#\1#'`; \
+	  echo "pod2man tvsim/vbirec.pod > tvsim/vbirec.1"; \
+	  pod2man -date " " -center "VBI recorder" -section "1" \
+	          -release "vbirec (C) 2002,2004 Tom Zoerner" \
+	          tvsim/vbirec.pod > tvsim/vbirec.1; \
+	  echo "pod2html tvsim/vbirec.pod > tvsim/vbirec.html"; \
+	  pod2html tvsim/vbirec.pod | $(PERL) -p -e 's/HREF="#[^:]+: +/HREF="#/g;' > tvsim/vbirec.html; \
+	  rm -f pod2htm?.x~~ pod2html-{dircache,itemcache}; \
+	else \
+	  echo "ERROR: cannot generate vbirec HTML or nroff manuals without Perl"; \
+	  false; \
+	fi
 
-include Makefile.dep
-
-# end UNIX specific part
-endif
+tvsim/vbiplay.1 tvsim/vbiplay.html: tvsim/vbiplay.pod tvsim/tvsim_version.h
+	@if test -x $(PERL); then \
+	  TVSIM_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*TVSIM_VERSION_STR' tvsim/tvsim_version.h | head -1 | sed -e 's#.*"\(.*\)".*#\1#'`; \
+	  echo "pod2man tvsim/vbiplay.pod > tvsim/vbiplay.1"; \
+	  pod2man -date " " -center "VBI playback tool" -section "1" \
+	          -release "vbiplay (C) 2002 Tom Zoerner" \
+	          tvsim/vbiplay.pod > tvsim/vbiplay.1; \
+	  echo "pod2html tvsim/vbiplay.pod > tvsim/vbiplay.html"; \
+	  pod2html tvsim/vbiplay.pod | $(PERL) -p -e 's/HREF="#[^:]+: +/HREF="#/g;' > tvsim/vbiplay.html; \
+	  rm -f pod2htm?.x~~ pod2html-{dircache,itemcache}; \
+	else \
+	  echo "ERROR: cannot generate vbiplay HTML or nroff manuals without Perl"; \
+	  false; \
+	fi
 
