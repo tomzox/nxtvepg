@@ -5,6 +5,75 @@ features).  For patchlevel releases also internal changes might be listed in
 case they may fix bugs (or cause new ones)
 
 
+from 2.6.0 to 2.7.0 (2004-Apr-02)
+
+- changed shortcut presentation from flat list into hierarchical tree, i.e.
+  added possibility to use nested folders and also separator lines.
+- bugfix for shortcut lists which are too long to fit into the main window:
+  scrolling with middle mouse button did not work. Since there's no scrollbar
+  lower shortcuts were inacessible. Thanks to Udo for pointing this out in the
+  discussion forum and for providing feedback.
+- added improved "teletext slicer" to reduce decoding errors on TV channels
+  with weak reception: was available since 2.5.2, but had to be selected at
+  compile time by -DZVBI_DECODER switch. Now configurable in TV card input
+  configuration dialog.  (The slicer is derived from libzvbi and alevt.)
+  Also extended acquisition statistics output with decoding errors.
+- improved TV app EPG OSD for channels with multiple networks (Arte/Fr5):
+  using user-configured "air times" in network selection configuration dialog
+  to determine which network is currently received in case VPS/PDC is not
+  available (suggested by "salokyn" in forum)
+- added work-around for flip-flopping of program title popups on Arte/Fr5
+  in France: appearently Fr5 sends Fr5 PDC code, but Arte VPS. Solved by
+  allowing to suppress false EPG popups by means of air times configuration.
+  Thanks to Simon for test and debugging support.
+- extended variable substitution for user-defined commands in context menu
+  configuration: an optional time offset can be added to start and stop times,
+  e.g. to start a recording 5 minutes before the official start time.
+- Added new command line option -acqonce for daemon mode: automatically
+  stop acquisition and terminate the daemon after the given phase has been
+  completed for all providers.
+- Linux: set channel change priority to "background" to prevent channel changes
+  while TV app is running (for v4l2 drivers, e.g. saa7134 or bttv9; requires
+  kernel >= 2.6.2 or recent v4l2 modules snapshots from http://bytesex.org/)
+- Windows: added new command line option -remctrl: can be used to remote
+  control an other, previously started GUI instance (i.e. non-daemon) of
+  nxtvepg. Currently supported are commands to start/stop acquisition,
+  close/raise/iconify the other instance's main window. See the manual
+  for details.
+- Windows: extended hardware support to include new Microtune tuner MT2050
+  (e.g. used in new Pinnacle PCTV Rave and MSI TV @anywhere TV cards) and
+  Philips MK3 tuner in combination with TDA9887 (used in Leadtek's CX23881
+  card; Thanks to Gerard Chevalier for debugging support; Thanks to Gunther
+  Mayer for the MT2050 code which was originally posted to the v4l ML)
+- introduced compatibility between database file names on Windows and Linux,
+  i.e. Windows can load databases written by Linux and vice versa without
+  renaming the files (note: use -dbdir command line option to specify the
+  path to the directory with the alternate OS's databases)
+- bugfix in user-defined context menu commands based on !wintv! and !xawtv!:
+  argument count which was reported to the external program was wrong, hence
+  some apps did not accept the command.
+- compile and build process improvements: added warning message to Makefile
+  make is started with "make nxtvepg" (you should type only "make") to prevent
+  make failure due to missing header files.  Also note the build process was
+  restructured so that all generated files are placed into a sub-directory
+  called "build-<platform>" to allow building on multiple platforms in parallel
+- bugfix in build procedure: tcl2c.c crashed on 64bit platforms
+  Thanks to Simon Barner and Gerd Knorr for the bug reports.
+- fixed memory leak in Xawtv window detection (for every newly created
+  toplevel with a WM_CLASS property a few bytes were not freed)
+- bugfix date scale: shows Sunday twice during switch from daylight saving
+  time back to regular time (00:00 localtime + 24h is still the same day at
+  that special day :)   Note that wrong start times for TV programmes
+  after the time switch are faults on side if the content providers. Also
+  weekdays in the scale are now printed in the local language.
+- added new EPG provider "VT4" (Belgium) as of March 2004.
+  Thanks to "Néo" for providing the info.
+- UNIX: added support for libzvbi: requires change in Makefile (add compiler
+  switch -DUSE_LIBZVBI) and re-compilation; also added preliminary support
+  for VBI proxy (add compiler switch -DUSE_LIBZVBI_PROXY; note the proxy API
+  is still subject to change)
+
+
 from 2.5.2 to 2.6.0 (2003-Oct-11)
 
 - implemented reminders, i.e. bookmarking and message/command dispatch for

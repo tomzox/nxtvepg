@@ -21,7 +21,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgacqclnt.c,v 1.11 2003/10/05 19:16:43 tom Exp $
+ *  $Id: epgacqclnt.c,v 1.15 2004/03/11 22:12:01 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -192,6 +192,7 @@ static void EpgAcqClient_SwapEpgdbBlockCount( EPGDB_BLOCK_COUNT * pCounts )
       swap32(&pCounts->allVersions);
       swap32(&pCounts->expired);
       swap32(&pCounts->defective);
+      swap32(&pCounts->extra);
       swap32(&pCounts->sinceAcq);
 
       swap64(&pCounts->variance);
@@ -399,10 +400,12 @@ static bool EpgAcqClient_CheckMsg( uint len, EPGNETIO_MSG_HEADER * pHead, EPGDBS
                      if (clientState.endianSwap)
                      {
                         swap32(&pBody->stats_ind.u.initial.stats.acqStartTime);
+                        swap32(&pBody->stats_ind.u.initial.stats.lastStatsUpdate);
                         EpgAcqClient_SwapEpgdbAcqAiStats(&pBody->stats_ind.u.initial.stats.ai);
-                        swap32(&pBody->stats_ind.u.initial.stats.ttx.ttxPkgCount);
-                        swap32(&pBody->stats_ind.u.initial.stats.ttx.epgPkgCount);
-                        swap32(&pBody->stats_ind.u.initial.stats.ttx.epgPagCount);
+                        for (idx=0; idx < sizeof(pBody->stats_ind.u.initial.stats.ttx) / sizeof(uint32_t); idx++)
+                           swap32(((uint32_t *)&pBody->stats_ind.u.initial.stats.ttx) + idx);
+                        for (idx=0; idx < sizeof(pBody->stats_ind.u.initial.stats.stream) / sizeof(uint32_t); idx++)
+                           swap32(((uint32_t *)&pBody->stats_ind.u.initial.stats.stream) + idx);
                         swap16(&pBody->stats_ind.u.initial.stats.histIdx);
                         EpgAcqClient_SwapEpgdbBlockCount(pBody->stats_ind.u.initial.stats.count);
                         EpgAcqClient_SwapEpgdbVarHist(pBody->stats_ind.u.initial.stats.varianceHist);
@@ -422,13 +425,15 @@ static bool EpgAcqClient_CheckMsg( uint len, EPGNETIO_MSG_HEADER * pHead, EPGDBS
                      {
                         EpgAcqClient_SwapEpgdbBlockCount(pBody->stats_ind.u.update.count);
                         EpgAcqClient_SwapEpgdbAcqAiStats(&pBody->stats_ind.u.update.ai);
-                        swap32(&pBody->stats_ind.u.update.ttx.ttxPkgCount);
-                        swap32(&pBody->stats_ind.u.update.ttx.epgPkgCount);
-                        swap32(&pBody->stats_ind.u.update.ttx.epgPagCount);
                         swap32(&pBody->stats_ind.u.update.vpsPdc.cni);
                         swap32(&pBody->stats_ind.u.update.vpsPdc.pil);
                         swap16(&pBody->stats_ind.u.update.histIdx);
                         swap32(&pBody->stats_ind.u.update.nowNextMaxAcqRepCount);
+                        swap32(&pBody->stats_ind.u.update.lastStatsUpdate);
+                        for (idx=0; idx < sizeof(pBody->stats_ind.u.update.ttx) / sizeof(uint32_t); idx++)
+                           swap32(((uint32_t *)&pBody->stats_ind.u.update.ttx) + idx);
+                        for (idx=0; idx < sizeof(pBody->stats_ind.u.update.stream) / sizeof(uint32_t); idx++)
+                           swap32(((uint32_t *)&pBody->stats_ind.u.update.stream) + idx);
                      }
                      result = TRUE;
                   }
@@ -1223,8 +1228,10 @@ bool EpgAcqClient_GetNetStats( EPGDB_STATS * pAcqStats, EPGACQ_DESCR * pAcqDescr
 
             pAcqStats->ai      = pUpd->u.update.ai;
             pAcqStats->ttx     = pUpd->u.update.ttx;
+            pAcqStats->stream  = pUpd->u.update.stream;
             pAcqStats->vpsPdc  = pUpd->u.update.vpsPdc;
             pAcqStats->nowNextMaxAcqRepCount = pUpd->u.update.nowNextMaxAcqRepCount;
+            pAcqStats->lastStatsUpdate = pUpd->u.update.lastStatsUpdate;
             lastAiAcqTime = pUpd->u.update.ai.lastAiTime;
 
             histIdx = pAcqStats->histIdx;

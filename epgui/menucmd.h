@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: menucmd.h,v 1.22 2003/10/05 19:24:42 tom Exp tom $
+ *  $Id: menucmd.h,v 1.23 2004/02/28 21:32:18 tom Exp tom $
  */
 
 #ifndef __MENUCMD_H
@@ -42,7 +42,7 @@ void MenuCmd_SetPiExpireDelay( void );
 
 void SetUserLanguage( Tcl_Interp *interp );
 void SetAcquisitionMode( NETACQ_SET_MODE netAcqSetMode );
-bool SetDaemonAcquisitionMode( uint cmdLineCni, bool forcePassive );
+bool SetDaemonAcquisitionMode( uint cmdLineCni, bool forcePassive, int maxPhase );
 int  SetHardwareConfig( Tcl_Interp *interp, int cardIndex );
 void SetNetAcqParams( Tcl_Interp * interp, bool isServer );
 void AutoStartAcq( Tcl_Interp * interp );

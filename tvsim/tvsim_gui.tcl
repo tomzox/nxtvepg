@@ -23,7 +23,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: tvsim_gui.tcl,v 1.7 2003/02/08 14:28:42 tom Exp tom $
+#  $Id: tvsim_gui.tcl,v 1.11 2004/03/22 21:44:22 tom Exp tom $
 #
 
 set program_title {}
@@ -36,7 +36,11 @@ set prev_chan 0
 
 set text_bg    #E9E9EC
 
-option add *Dialog.msg.font [list ansi -12 normal] userDefault
+if $is_unix {
+   option add *Dialog.msg.font {Helvetica -12 normal} userDefault
+} else {
+   option add *Dialog.msg.font [list ansi -12 normal] userDefault
+}
 option add *Listbox.background $text_bg userDefault
 option add *Entry.background $text_bg userDefault
 option add *Text.background $text_bg userDefault
@@ -44,8 +48,8 @@ option add *Text.background $text_bg userDefault
 # create a listbox for the channel name list
 frame     .chan
 listbox   .chan.cl -relief ridge -yscrollcommand {.chan.sb set}
-bind      .chan.cl <ButtonRelease-1> {+ TuneChan}
-bind      .chan.cl <KeyRelease-space> {+ TuneChan}
+bind      .chan.cl <<ListboxSelect>> {+ TuneChan}
+bind      .chan.cl <Enter> {focus %W}
 pack      .chan.cl -side left -fill both -expand 1
 scrollbar .chan.sb -orient vertical -command {.chan.cl yview}
 pack      .chan.sb -side left -fill y
@@ -71,6 +75,11 @@ checkbutton .connect -text "" -disabledforeground black
 pack      .connect -side top -padx 10
 bindtags  .connect {.connect .}
 
+if $is_unix {
+   .granttv configure -state disabled
+   .connect configure -state disabled -disabledforeground [.granttv cget -disabledforeground]
+}
+
 # create command buttons at the bottom of the window
 frame     .cmd
 button    .cmd.about -text "About" -width 5 -command CreateAbout
@@ -87,7 +96,7 @@ proc TuneChan {} {
    global cur_chan prev_chan
 
    set idx [.chan.cl curselection]
-   if {[llength $idx] == 1} {
+   if {([llength $idx] == 1) && ($idx < [llength $chan_table])} {
 
       if {$grant_tuner} {
          # tuner was granted before -> clear grant
@@ -199,7 +208,7 @@ proc ConnectEpg {enable} {
       # request name for the current channel
       if {$grant_tuner == 0} {
          set idx [.chan.cl curselection]
-         if {[llength $idx] == 1} {
+         if {([llength $idx] == 1) && ($idx < [llength $chan_table])} {
             C_TuneChan $idx [lindex $chan_table $idx]
          }
       }
@@ -212,7 +221,7 @@ ConnectEpg 0
 
 # read channel table from TV app ini file during startup
 proc LoadChanTable {} {
-   global tvcardcf hwcf_cardidx
+   global is_unix tvcardcf hwcf_cardidx
    global chan_table
 
    # clear the listbox
@@ -229,10 +238,10 @@ proc LoadChanTable {} {
       .chan.cl selection set 0
       TuneChan
 
-      if {![info exists tvcardcf($hwcf_cardidx)] } {
+      if {!$is_unix && ![info exists tvcardcf($hwcf_cardidx)] } {
          # tuner type has not been configured yet -> abort
          append msg \
-            "You haven't configured the selected TV card. "
+            "You haven't configured the selected TV card. " \
             "Please do configure your TV card type and parameters " \
             "in the 'TV card input' dialog of the Configure menu " \
             "in nxtvepg and make sure to use the same INI file here."
@@ -246,7 +255,7 @@ proc LoadChanTable {} {
          "can't do anything useful with this program. You should " \
          "configure which TV app's channel table to load with " \
          "nxtvepg in the TV app. interaction dialog (in the 'Configure' " \
-         "menu) and make sure to use the same INI file here."
+         "menu) and make sure to use the same rc/INI file here."
       tk_messageBox -type ok -icon info -message $msg
    }
 }
@@ -260,7 +269,7 @@ proc UpdateTvappName {} {
 ##  INI file handling
 ##
 proc Tvsim_LoadRcFile {filename} {
-   global tvcardcf hwcf_cardidx hwcf_input hwcf_acq_prio
+   global tvcardcf hwcf_cardidx hwcf_acq_prio hwcf_wdm_stop
    global wintvapp_path wintvapp_idx
 
    set error 0
@@ -303,7 +312,7 @@ proc CreateAbout {} {
       label .about.name -text "TV application interaction simulator - tvsim v$TVSIM_VERSION"
       pack .about.name -side top -pady 8
 
-      label .about.copyr1 -text "Copyright © 2002 by Tom Zörner"
+      label .about.copyr1 -text "Copyright (C) 2002,2004 by Tom Zörner"
       label .about.copyr2 -text "tomzo@users.sourceforge.net"
       label .about.copyr3 -text "http://nxtvepg.sourceforge.net/" -font {courier -12 normal} -foreground blue
       pack .about.copyr1 .about.copyr2 -side top

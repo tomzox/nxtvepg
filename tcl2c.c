@@ -19,22 +19,22 @@
  *    To reduce file size, comment-only lines are skipped.
  *
  *    These strings are then sourced into the Tcl interpreter at program
- *    start.  To reduce startup time, the scripts can by divided into a
+ *    start.  To reduce startup time, the scripts can be divided into a
  *    static and dynamic part: the static part is loaded upon startup,
- *    the dynamic part is only loaded when one of it's pre-defined entry
+ *    the dynamic part is only loaded when one of it's pre-defined stub
  *    procedures is referenced (usually when a dialog window is opened)
  *
- *    As performance optimization the tool includes a pre-processor which
- *    can replace global constant variables with an assigned integer value.
+ *    For performance optimization the tool includes a pre-processor which
+ *    can replace occurences of global Tcl variables with integer constants.
  *    The constant definitions are also written to a header file to make
- *    them available to all Tcl/Tk modules and also in as integer defines
- *    to C modules.
+ *    them available to all Tcl/Tk and C modules.
  *
- *    Usage:  tcl2c script.tcl
+ *    Usage:  tcl2c [-d] [-h] [-c] [-p path-prefix] script.tcl
  *
  *    The input filename must have the .tcl ending, because  the file names
  *    for the C And H output files are derived from the input file name by
- *    replacing .tcl with .c and .h respectively.
+ *    replacing .tcl with .c and .h respectively.  Use option -? for short
+ *    explanations of command line switches.
  *
  *  Author:
  *
@@ -44,22 +44,23 @@
  *
  *    Completely rewritten and functionality added by Tom Zoerner
  *
- *  $Id: tcl2c.c,v 1.9 2003/09/23 19:49:30 tom Exp tom $
+ *  $Id: tcl2c.c,v 1.12 2004/03/23 16:06:07 tom Exp tom $
  */
 
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <errno.h>
 #include <time.h>
+#include <errno.h>
 #include <ctype.h>
 #include <signal.h>
 #include <unistd.h>
 
 // command line options
-int optStubsForDynamic = 0;
-int optSubstConsts = 0;
-int optPreserveHeaders = 0;
+static int optStubsForDynamic = 0;
+static int optSubstConsts = 0;
+static int optPreserveHeaders = 0;
+static char * optOutPrefix = "";
 
 // struct to hold a substitution list member
 typedef struct
@@ -201,7 +202,6 @@ static void IncludeConstants( const char * hFileName )
     tclFileName = malloc(fileNameLen + 2 + 1);
     strncpy(tclFileName, hFileName + 1, fileNameLen - 2);
     strcpy(tclFileName + fileNameLen - (1 + 2 + 1), ".tcl");
-    tclFileName[fileNameLen - 1 + 4] = 0;
 
     fpTcl = fopen(tclFileName, "r");
     if (fpTcl == NULL)
@@ -276,7 +276,7 @@ static void RemoveOutputHtmp( void )
 #ifndef WIN32
 static void TermSignal( int sigval )
 {
-   RemoveOutputHtmp();
+    RemoveOutputHtmp();
 }
 #endif
 
@@ -339,7 +339,8 @@ static void Usage( const char *argv0, const char *argvn, const char * reason )
                    "       -?\t: this message\n"
                    "       -d\t: generate stubs for procs in =DYNAMIC= tags\n"
                    "       -c\t: generate cpp macros for =CONST= assignments\n"
-                   "       -h\t: write header file only if changed\n",
+                   "       -h\t: write header file only if changed\n"
+                   "       -p <prefix>\t: prepend this to output file names\n",
                    argv0, reason, argvn, argv0);
 
    exit(1);
@@ -373,6 +374,25 @@ static void ParseArgv( int argc, char * argv[] )
             optSubstConsts = 1;
             argIdx++;
         }
+        else if (!strcmp(argv[argIdx], "-p"))
+        {
+            if (argIdx + 1 < argc)
+            {
+                int len;
+
+                optOutPrefix = argv[argIdx + 1];
+                len = strlen(optOutPrefix);
+                if ((len > 0) && (optOutPrefix[len - 1] != '/'))
+                {
+                    optOutPrefix = malloc(len + 1 + 1);
+                    strcpy(optOutPrefix, argv[argIdx + 1]);
+                    strcat(optOutPrefix, "/");
+                }
+                argIdx += 2;
+            }
+            else
+                Usage(argv[0], argv[argIdx], "missing prefix argument after");
+        }
         else
             Usage(argv[0], argv[argIdx], "unknown option");
     }
@@ -405,6 +425,7 @@ int main(int argc, char **argv)
     char var_name[128];
     int comments;
     int fileNameLen;
+    int prefixLen;
     int inBody;
 
     ParseArgv(argc, argv);
@@ -424,11 +445,19 @@ int main(int argc, char **argv)
 	exit(1);
     }
 
-    outNameC = malloc(fileNameLen + 1);
-    outNameH = malloc(fileNameLen + 1);
+    /* build paths for .c and .h output files */
+    prefixLen = strlen(optOutPrefix);
+    outNameC = malloc(prefixLen + fileNameLen + 1);
+    outNameH = malloc(prefixLen + fileNameLen + 1);
+    strcpy(outNameC, optOutPrefix);
+    strcpy(outNameH, optOutPrefix);
+    strcpy(outNameC + prefixLen, inFileName);
+    strcpy(outNameH + prefixLen, inFileName);
+    strcpy(outNameC + prefixLen + fileNameLen - 4, ".c");
+    strcpy(outNameH + prefixLen + fileNameLen - 4, ".h");
+
+    /* derive name of char array from input file name (excluding the path) */
     scriptName = malloc(fileNameLen + 1);
-    strncpy(outNameC, inFileName, fileNameLen - 4);
-    strncpy(outNameH, inFileName, fileNameLen - 4);
     baseName = (char *)strrchr(inFileName, '/');
     if (baseName != NULL)
     {
@@ -439,10 +468,9 @@ int main(int argc, char **argv)
     else
     {
         strncpy(scriptName, inFileName, fileNameLen - 4);
+        scriptName[fileNameLen - 4] = 0;
         baseName = inFileName;
     }
-    strcat(outNameC, ".c");
-    strcat(outNameH, ".h");
     strcat(scriptName, "_tcl");
 
     fpC = fopen(outNameC, "w");
@@ -454,7 +482,7 @@ int main(int argc, char **argv)
 
     if (optPreserveHeaders)
     {
-        outNameHtmp = malloc(fileNameLen + 1 + 4);
+        outNameHtmp = malloc(prefixLen + fileNameLen + 1 + 4);
         strcpy(outNameHtmp, outNameH);
         strcat(outNameHtmp, ".tmp");
 

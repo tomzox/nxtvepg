@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqsrv.h,v 1.6 2003/06/28 10:25:57 tom Exp tom $
+ *  $Id: epgacqsrv.h,v 1.8 2004/03/11 22:24:20 tom Exp tom $
  */
 
 #ifndef __EPGACQSRV_H
@@ -77,11 +77,12 @@ typedef struct MSG_STRUCT_STATS_IND_STRUCT
          EPGDB_BLOCK_COUNT    count[2];
          EPGDB_ACQ_AI_STATS   ai;
          EPGDB_ACQ_TTX_STATS  ttx;
+         EPG_STREAM_STATS     stream;
          EPGDB_ACQ_VPS_PDC    vpsPdc;
          EPGDB_HIST           hist;
          uint16_t             histIdx;
          uint32_t             nowNextMaxAcqRepCount;
-         uint32_t             resv_align3; // 64-bit alignment for Sparc
+         time_t               lastStatsUpdate;
       } update;
    } u;
 } MSG_STRUCT_STATS_IND;

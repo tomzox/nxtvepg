@@ -31,7 +31,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgctxctl.c,v 1.24 2003/10/05 19:14:28 tom Exp tom $
+ *  $Id: epgctxctl.c,v 1.25 2004/03/21 17:39:46 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -47,7 +47,6 @@
 #include "epgdb/epgdbif.h"
 #include "epgdb/epgdbsav.h"
 #include "epgdb/epgdbmgmt.h"
-#include "epgdb/epgdbsav.h"
 #include "epgdb/epgdbif.h"
 #include "epgui/uictrl.h"
 #include "epgui/epgmain.h"
@@ -585,7 +584,9 @@ EPGDB_CONTEXT * EpgContextCtl_Open( uint cni, CTX_FAIL_RET_MODE failRetMode, int
             {
                assert(pContext->state == CTX_CACHE_ERROR);
                if (pContext->pDbContext == NULL)
+               {
                   pContext->pDbContext = EpgDbCreate();
+               }
             }
             pContext->state         = CTX_CACHE_OPEN;
             pContext->openRefCount  = 1;

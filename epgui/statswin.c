@@ -33,7 +33,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: statswin.c,v 1.65 2003/10/05 19:32:09 tom Exp tom $
+ *  $Id: statswin.c,v 1.67 2004/03/11 22:27:40 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -154,7 +154,6 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
    uint32_t  total, allVersionsCount, curVersionCount, obsolete;
    time_t acqMinTime[2];
    time_t lastAiUpdate;
-   time_t now = time(NULL);
    uint target;
 
    target = PVOID2UINT(clientData);
@@ -315,9 +314,9 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
 
          EpgAcqCtl_DescribeAcqState(&acqState);
 
-         if ((sv->acqStartTime > 0) && (sv->acqStartTime <= now))
+         if ((sv->acqStartTime > 0) && (sv->acqStartTime <= sv->lastStatsUpdate))
          {
-            duration = now - sv->acqStartTime;
+            duration = sv->lastStatsUpdate - sv->acqStartTime;
             if (duration == 0)
                duration = 1;
          }
@@ -383,7 +382,10 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
                        "EPG page rate:    %1.2f pages/sec\n"
                        "AI recv. count:   %d\n"
                        "AI min/avg/max:   %d/%2.2f/%d sec\n"
-                       "PI rx repetition: %d/%.2f/%.2f now/s1/s2\n",
+                       "PI rx repetition: %d/%.2f/%.2f now/s1/s2\n"
+                       "Decoder quality:  lost/got %d/%d pages, %d/%d pkg\n"
+                       "                  dropped %d of %d blocks (%d%%),\n"
+                       "                  blanked %d of %d chars (%d%%)\n",
                        ((duration > 0) ? (int)((sv->ttx.ttxPkgCount*45*8)/duration) : 0),
                        ((duration > 0) ? (int)((sv->ttx.epgPkgCount*45*8)/duration) : 0),
                        ((sv->ttx.ttxPkgCount > 0) ? ((double)sv->ttx.epgPkgCount*100.0/sv->ttx.ttxPkgCount) : 0.0),
@@ -392,7 +394,13 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
                        (int)sv->ai.minAiDistance,
                           ((sv->ai.aiCount > 1) ? ((double)sv->ai.sumAiDistance / (sv->ai.aiCount - 1)) : 0),
                           (int)sv->ai.maxAiDistance,
-                       sv->nowNextMaxAcqRepCount, sv->count[0].avgAcqRepCount, sv->count[1].avgAcqRepCount
+                       sv->nowNextMaxAcqRepCount, sv->count[0].avgAcqRepCount, sv->count[1].avgAcqRepCount,
+                       sv->stream.epgPagMissing, sv->stream.epgPagCount,
+                       sv->stream.epgPkgMissing, sv->stream.epgPkgCount,
+                       sv->stream.epgBlkErr, sv->stream.epgBlkCount,
+                       ((sv->stream.epgBlkCount > 0) ? (sv->stream.epgBlkErr * 100 / sv->stream.epgBlkCount) : 0),
+                       sv->stream.epgParErr, sv->stream.epgStrSum,
+                       ((sv->stream.epgStrSum > 0) ? (sv->stream.epgParErr * 100 / sv->stream.epgStrSum) : 0)
                 );
 
          switch (acqState.mode)
@@ -745,6 +753,9 @@ static void StatsWin_UpdateDbStatusLine( ClientData clientData )
          }
          else
             strcat(comm, "Acquisition: no reception");
+         break;
+      case ACQDESCR_DEC_ERRORS:
+         strcat(comm, "Acquisition: too many decoding errors");
          break;
       case ACQDESCR_STALLED:
          strcat(comm, "Acquisition stalled");

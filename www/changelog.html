@@ -1,8 +1,8 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: changelog.html,v 1.47 2003/10/11 09:52:32 tom Exp $ -->
+<!-- $Id: changelog.html,v 1.54 2004/04/03 13:13:25 tom Exp $ -->
 <HEAD>
-<TITLE>Nextview EPG Decoder Change-Log</TITLE>
+<TITLE>Nextview EPG Decoder Change Log</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
 <META name="language" content="en">
 <META name="author" content="Tom Zoerner">
@@ -15,8 +15,62 @@
 <LINK rel="shortcut icon" type="image/x-icon" href="nxtvepg.ico">
 <LINK rel="top" href="//nxtvepg.sourceforge.net/" title="nexTView EPG Dekoder Homepage">
 </HEAD>
-<BODY BGCOLOR="#f8f8f8">
+<BODY>
 
+<DIV CLASS="navBar">
+<P><SMALL>
+<IMG ALT="" SRC="nxtv_icon.gif">&nbsp;nxtvepg&nbsp;
+<A HREF="index.html">home</A> &nbsp;|&nbsp;
+<A HREF="intro.html">about</A>
+</SMALL></P></DIV>
+
+<DIV class="navBlock">
+<H2 class="navhead">Language</H2>
+<P>
+<IMG ALT="" SRC="en.png" WIDTH=16 HEIGHT=10> English<BR>
+<IMG ALT="" SRC="de.png" WIDTH=16 HEIGHT=10> <SPAN class="navDisabled">Deutsch</SPAN><BR>
+<IMG ALT="" SRC="fr.png" WIDTH=16 HEIGHT=10> <SPAN class="navDisabled">Français</SPAN><BR>
+</P>
+
+<H2 class="navhead">News</H2>
+<P>
+Apr/2/2004: <A HREF="changelog.html#release_2_7_0">Release 2.7.0</A>
+</P>
+
+<H2 class="navhead">Documentation</H2>
+<P>
+<A HREF="index.html">Homepage</A><BR>
+<A HREF="intro.html">Introduction</A><BR>
+<A HREF="provnets.html">Providers list</A><BR>
+<A HREF="help-wanted.html">Help Wanted</A><BR>
+<A HREF="links.html">Links</A><BR>
+<A HREF="faq.html">FAQ</A><BR>
+<BR>
+<A HREF="man.html">nxtvepg manual</A><BR>
+</P>
+
+<H2 class="navhead">Download</H2>
+<P>
+<A HREF="download.html">Download</A><BR>
+<A HREF="download.html#requirements">System requirements</A><BR>
+<SPAN CLASS="navPointer">Changelog</SPAN><BR>
+</P>
+
+<H2 class="navhead">Screenshots</H2>
+<P>
+<A HREF="screenshot-shortcuts.gif">New 2.7.0 feature</A><BR>
+<A HREF="screenshot-reminder.gif">New 2.6.0 features</A><BR>
+<A HREF="screenshot-grid1.png">New 2.5.0 features</A><BR>
+<A HREF="screenshot-win.gif">Windows screenshot</A><BR>
+<A HREF="screenshot-series.gif">Series menu</A><BR>
+<A HREF="screenshot-xawtv.jpg">xawtv with EPG OSD</A><BR>
+</P>
+<span class="center"><span class="logo"><a href="http://sourceforge.net"><img
+src="http://sourceforge.net/sflogo.php?group_id=64430&amp;type=4"
+width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
+</DIV>
+
+<DIV class="mainBlock">
 <H1>Nextview EPG Decoder Change-Log</H1>
 
 <P>
@@ -25,6 +79,102 @@ of the <A HREF="http://nxtvepg.sourceforge.net/">nxtvepg</A>
 nexTView EPG decoder software.
 For details on work in progress please refer to
 <A HREF="http://sourceforge.net/mailarchive/forum.php?forum_id=14102">mailing list archives</A>.
+</P>
+
+
+<H2><A NAME="release_2_7_0">From 2.6.0 to 2.7.0 (Apr/02/2004)</A></H2>
+<P>
+This release contains the following feature improvements:
+</P>
+<UL>
+<LI>Changed shortcut presentation from flat list into hierarchical tree, i.e.
+  added possibility to use nested folders and also separator lines.
+  (<A HREF="man.html#filter%20shortcuts">Read man page</A>.)
+<LI>Added improved "teletext slicer" to reduce decoding errors on TV channels
+  with weak reception: was available since 2.5.2, but had to be selected at
+  compile time by -DZVBI_DECODER switch. Now configurable in TV card input
+  configuration dialog.  (The slicer is derived from libzvbi and alevt.)
+  (<A HREF="man.html#tv%20card%20input">Read man page</A>.)
+  Also extended acquisition statistics output with decoding errors.
+  (<A HREF="man.html#acquisition%20statistics">Read man page</A>.)
+<LI>Improved TV app EPG OSD for channels with multiple networks (Arte/Fr5):
+  using user-configured "air times" in network selection configuration dialog
+  to determine which network is currently received in case VPS/PDC is not
+  available.  Thanks to salokyn for the suggestion.
+  (<A HREF="man.html#select%20networks">Read man page</A>,
+  <A HREF="screenshot-shortcuts.gif">see screenshot</A>.)
+<LI>Added work-around for flip-flopping of program title popups on Arte/Fr5
+  in France: appearently Fr5 sends Fr5 PDC code, but Arte VPS. Solved by
+  allowing to suppress false EPG popups by means of air times configuration.
+  Thanks to Simon for test and debugging support.
+<LI>Extended variable substitution for user-defined commands in context menu
+  configuration: an optional time offset can be added to start and stop times,
+  e.g. to start a recording 5 minutes before the official start time.
+  (<A HREF="man.html#context%20menu%20extensions">Read man page</A>.)
+<LI>Added new command line option -acqonce for daemon mode: automatically
+  stop acquisition and terminate the daemon after the given phase has been
+  completed for all providers.
+  (<A HREF="man.html#options">Read man page</A>.)
+<LI>Windows: added new command line option -remctrl: can be used to remote
+  control an other, previously started GUI instance (i.e. non-daemon) of
+  nxtvepg. Currently supported are commands to start/stop acquisition,
+  close/raise/iconify the other instance's main window.
+  (<A HREF="man.html#options">Read man page</A>.)
+<LI>Windows: extended hardware support to include new Microtune tuner MT2050
+  (e.g. used in new Pinnacle PCTV Rave and MSI TV @anywhere TV cards) and
+  Philips MK3 tuner in combination with TDA9887 (used in Leadtek's CX23881
+  card; Thanks to Gérard Chevalier for debugging support; Thanks to Gunther
+  Mayer for the MT2050 code which was originally posted to the v4l ML)
+  (See also <A NAME="download.html#requirements">system requirements</A>)
+<LI>Introduced compatibility between database file names on Windows and Linux,
+  i.e. Windows can load databases written by Linux and vice versa without
+  renaming the files (note: use -dbdir command line option to specify the
+  path to the directory with the alternate OS's databases)
+<LI>Right mouse button in main window now selects the programme entry below
+  the mouse before opening the context menu. Thanks to Jörg for the suggestion.
+  (<A HREF="man.html#context menu">Read man page</A>.)
+<LI>Added new EPG provider "VT4" (Belgium) as of March 2004.
+  Thanks to "Néo" for providing the info.
+  (See <A HREF="provnets.html">provider list</A>)
+<LI>UNIX: added support for <A HREF="http://zapping.sourceforge.net/">zvbi library</A>:
+  requires change in Makefile (add compiler
+  switch -DUSE_LIBZVBI) and re-compilation; also added preliminary support
+  for VBI proxy (add compiler switch -DUSE_LIBZVBI_PROXY; note the proxy API
+  is still subject to change)
+</UL><P>
+Plus the following fixes:
+</P><UL>
+<LI>Linux: set channel change priority to "background" to prevent channel changes
+  while TV app is running (for v4l2 drivers, e.g. saa7134 or bttv9; requires
+  kernel &gt;= 2.6.2 or recent v4l2 modules snapshots from
+  <A HREF="http://bytesex.org/">bytesex.org</A>)
+  Thanks to Gerd Knorr for accepting <A HREF="http://nxtvepg.sourceforge.net/v4l2/">my proposal</A>
+  for his video4linux drivers.
+<LI>Bugfix for shortcut lists which are too long to fit into the main window:
+  scrolling with middle mouse button did not work. Since there's no scrollbar
+  lower shortcuts were inacessible. Thanks to Udo for pointing this out in the
+  discussion forum and for providing feedback.
+<LI>Bugfix in user-defined context menu commands based on !wintv! and !xawtv!:
+  argument count which was reported to the external program was wrong, hence
+  some apps did not accept the command. Thanks to Rami for debugging support.
+<LI>Bugfix date scale: shows Sunday twice during switch from daylight saving
+  time back to regular time (00:00 localtime + 24h is still the same day at
+  that special day :)   Note that wrong start times for TV programmes
+  after the time switch are faults on side if the content providers. Also
+  weekdays in the scale are now printed in the local language.
+<LI>Compile and build process improvements: added warning message to Makefile
+  make is started with "make nxtvepg" (you should type only "make") to prevent
+  make failure due to missing header files.  Also note the build process was
+  restructured so that all generated files are placed into a sub-directory
+  called "build-<platform>" to allow building on multiple platforms in parallel
+<LI>Bugfix in build procedure: tcl2c.c crashed on 64bit platforms
+  Thanks to Simon Barner and Gerd Knorr for the bug reports.
+<LI>Fixed memory leak in Xawtv window detection (for every newly created
+  toplevel with a WM_CLASS property a few bytes were not freed)
+</UL>
+<P>
+There'a also a more detailed change log of all ten
+<A HREF="changelog-2.7.0pre.html">2.7.0 pre-releases</A>.
 </P>
 
 
@@ -83,6 +233,11 @@ Plus the following fixes:
 <LI>Windows: user-configured commands in context menu: omit quotes around
   command substitutions, use escape instead (requested by "progro")
 </UL>
+<P>
+There'a also a more detailed change log of all seven
+<A HREF="changelog-2.6.0pre.html">2.6.0 pre-releases</A>.
+</P>
+
 
 <H2><A NAME="release_2_5_2">From 2.5.1 to 2.5.2 (July/1/2003)</A></H2>
 <P>
@@ -1086,3 +1241,6 @@ For a detailed description of these new features please refer to the
   acquired.
 </UL>
 
+</DIV>
+</BODY>
+</HTML>

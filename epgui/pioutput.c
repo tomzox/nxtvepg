@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pioutput.c,v 1.51 2003/09/23 19:27:32 tom Exp tom $
+ *  $Id: pioutput.c,v 1.52 2004/04/02 12:22:24 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -1153,8 +1153,6 @@ void PiOutput_Init( void )
 
       for (idx=0; idx < TCLOBJ_COUNT; idx++)
          Tcl_IncrRefCount(tcl_obj[idx]);
-
-      eval_check(interp, "DownloadUserDefinedColumnFilters");
    }
    else
       fatal0("PiOutput-Create: commands were already created");

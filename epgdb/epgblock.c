@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgblock.c,v 1.49 2003/03/09 19:29:53 tom Exp tom $
+ *  $Id: epgblock.c,v 1.49 2003/03/09 19:29:53 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB

@@ -19,7 +19,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_ctxmencf.tcl,v 1.5 2003/03/31 19:15:21 tom Exp tom $
+#  $Id: dlg_ctxmencf.tcl,v 1.6 2004/03/21 17:33:52 tom Exp tom $
 #
 set ctxmencf_popup 0
 set ctxmencf {}
@@ -76,13 +76,12 @@ proc ContextMenuConfigPopup {} {
 
       # section #1: listbox with overview of all defined titles
       frame .ctxmencf.all.lbox 
-      scrollbar .ctxmencf.all.lbox.sc -orient vertical -command {.ctxmencf.all.lbox.cmdlist yview}
+      scrollbar .ctxmencf.all.lbox.sc -orient vertical -command {.ctxmencf.all.lbox.cmdlist yview} -takefocus 0
       pack .ctxmencf.all.lbox.sc -side left -fill y
       listbox .ctxmencf.all.lbox.cmdlist -exportselection false -height 5 -width 0 \
                                          -selectmode single -relief ridge \
                                          -yscrollcommand {.ctxmencf.all.lbox.sc set}
-      bind .ctxmencf.all.lbox.cmdlist <ButtonRelease-1> {ContextMenuConfigSelection 1}
-      bind .ctxmencf.all.lbox.cmdlist <KeyRelease-space> {ContextMenuConfigSelection 1}
+      bind .ctxmencf.all.lbox.cmdlist <<ListboxSelect>> {ContextMenuConfigSelection 1}
       pack .ctxmencf.all.lbox.cmdlist -side left -fill both -expand 1
       pack .ctxmencf.all.lbox -side top -fill both -expand 1
 

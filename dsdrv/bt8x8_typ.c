@@ -26,9 +26,9 @@
  *
  *      Copyright (c) 2001 John Adcock.  All rights reserved.
  *
- *  DScaler #Id: BT848Card_Types.cpp,v 1.35 2003/07/14 19:17:35 adcockj Exp #
+ *  DScaler #Id: BT848Card_Types.cpp,v 1.41 2004/01/29 15:14:41 adcockj Exp #
  *
- *  $Id: bt8x8_typ.c,v 1.10 2003/09/02 19:54:08 tom Exp tom $
+ *  $Id: bt8x8_typ.c,v 1.13 2004/03/22 17:35:46 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -154,6 +154,8 @@ typedef enum
     TVCARD_APAC_VIEWCOMP,
     TVCARD_PMSVIDEO_PDI,
     TVCARD_PMSVIDEO_SDI,
+    TVCARD_PMSDELUXE,
+    TVCARD_NEBULA_DIGITV,
     TVCARD_LASTONE,
 } eTVCardId;
 
@@ -214,6 +216,7 @@ typedef enum
 {
     SOUNDCHIP_NONE,
     SOUNDCHIP_MSP,
+    SOUNDCHIP_TDA9875,
 } eSoundChip;
 
 /// Does the card have a PLL generator - used for PAL & SECAM
@@ -484,7 +487,7 @@ static const TCardType m_TVCards[TVCARD_LASTONE] =
         },
         PLL_NONE,
         TUNER_USER_SETUP,
-        SOUNDCHIP_NONE,
+        SOUNDCHIP_TDA9875,
         NULL,
         StandardBT848InputSelect,
         //CAudioDecoder::AUDIODECODERTYPE_DETECT,
@@ -2471,9 +2474,9 @@ static const TCardType m_TVCards[TVCARD_LASTONE] =
         0x7,
         {0, 0x1, 0x2, 0x3, 0x4, 0, }
     },
-    // Card Number 62 - Pinnacle PCTV Studio Pro
+    // Card Number 62 - Pinnacle PCTV Pro
     {
-        "Pinnacle PCTV Studio Pro",
+        "Pinnacle PCTV Pro",
         4,
         {
             {
@@ -2888,7 +2891,7 @@ static const TCardType m_TVCards[TVCARD_LASTONE] =
     },
     // Card Number 74 - Pinnacle PCTV Sat
     {
-        "Pinnacle PCTV Sat",
+        "Pinnacle PCTV Sat (external inputs only)",
         3,
         {
             {
@@ -3776,6 +3779,111 @@ static const TCardType m_TVCards[TVCARD_LASTONE] =
         0x1F800,
         {0xD, 0xE, 0xB, 0x7, 0, 0, }
     },
+    {
+        "PMS PDI Deluxe (unsupported)",
+        6,  // 12,
+        {
+            {
+                "Component",
+                INPUTTYPE_CCIR,
+                0
+            },
+            {
+                "S-Video 1",
+                INPUTTYPE_CCIR,
+                0,
+            },
+            {
+                "S-Video 2",
+                INPUTTYPE_CCIR,
+                0,
+            },
+            {
+                "Composite 1 (Red)",
+                INPUTTYPE_CCIR,
+                0,
+            },
+            {
+                "Composite 2 (Green)",
+                INPUTTYPE_CCIR,
+                0,
+            },
+            {
+                "Composite 3 (Blue)",
+                INPUTTYPE_CCIR,
+                0,
+            },
+            #if 0  // not supported by nxtvepg  //TZ
+            {
+                "PDI",
+                INPUTTYPE_CCIR,
+                0,
+            },
+            {
+                "Composite 1 over S-video 1",
+                INPUTTYPE_CCIR,
+                0,
+            },
+            {
+                "Composite 2 over S-video 1",
+                INPUTTYPE_CCIR,
+                0,
+            },
+            {
+                "Composite 1 over S-video 2",
+                INPUTTYPE_CCIR,
+                0,
+            },
+            {
+                "Composite 2 over S-video 2",
+                INPUTTYPE_CCIR,
+                0,
+            },
+            {
+                "RGBS / RGsB",
+                INPUTTYPE_CCIR,
+                0,
+            },
+            #endif
+        },
+        PLL_28,
+        TUNER_ABSENT,
+        SOUNDCHIP_NONE,
+        NULL,  // InitPMSDeluxe,
+        StandardBT848InputSelect,  // PMSDeluxeInputSelect,
+        //SetPMSDeluxeContrastBrightness,
+        //SetPMSDeluxeSaturationU,
+        //SetPMSDeluxeSaturationV,
+        //SetPMSDeluxeHue,
+        //SetPMSDeluxeFormat,
+        //CAudioDecoder::AUDIODECODERTYPE_DETECT,
+        0,
+        {0, 0, 0, 0, 0, 0, }
+    },
+    {
+        "Nebula DigiTV (Analogue In)",
+        1,
+        {
+            {
+                "Composite",
+                INPUTTYPE_COMPOSITE,
+                2,
+            },
+        }, 
+        PLL_28,
+        TUNER_ABSENT,
+        SOUNDCHIP_NONE,
+        NULL,
+        StandardBT848InputSelect,
+        //SetAnalogContrastBrightness,
+        //SetAnalogSaturationU,
+        //SetAnalogSaturationV,
+        //SetAnalogHue,
+        //StandardSetFormat,
+        //CAudioDecoder::AUDIODECODERTYPE_NONE,
+        0x7,
+        {0, 0x1, 0x2, 0x3, 0x4, 0, }
+    },
 };
 
 static const TAutoDectect878 m_AutoDectect878[] =
@@ -4234,7 +4342,7 @@ static uint AutoDetectTuner( TVCARD * pTvCard, uint CardId )
 // ---------------------------------------------------------------------------
 // Query how IF demodulator TDA9887 needs to be programmed
 //   Derived from CBT848Card::InitTuner
-//   DScaler CVS #Id: BT848Card_Tuner.cpp,v 1.12 2002/10/16 21:42:36 kooiman Exp #
+//   DScaler CVS #Id: BT848Card_Tuner.cpp,v 1.13 2003/10/27 10:39:50 adcockj Exp #
 //
 static bool GetIffType( TVCARD * pTvCard, bool * pIsMono )
 {
@@ -4307,6 +4415,17 @@ static uint GetPllType( TVCARD * pTvCard, uint CardId )
         fatal0("Bt8x8-GetPllType:illegal NULL ptr param");
 
     return pll;
+}
+
+static void GetI2cScanRange( struct TVCARD_struct * pTvCard, uint * pStart, uint * pStop )
+{
+   if ((pTvCard != NULL) && (pStart != NULL) && (pStop != NULL))
+   {
+      *pStart = 0xC0;
+      *pStop  = 0xCE;
+   }
+   else
+      fatal0("Bt8x8-GetI2cScanRange: illegal NULL ptr param");
 }
 
 // ---------------------------------------------------------------------------
@@ -4768,6 +4887,7 @@ static const TVCARD_CFG Bt8x8Typ_Interface =
    AutoDetectTuner,
    GetIffType,
    GetPllType,
+   GetI2cScanRange,
    SupportsAcpi,
    GetNumInputs,
    GetInputName,

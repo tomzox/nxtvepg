@@ -28,7 +28,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: tvchan.c,v 1.8 2002/09/14 19:00:48 tom Exp tom $
+ *  $Id: tvchan.c,v 1.8 2002/09/14 19:00:48 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI

@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgversion.h,v 1.51 2003/10/11 06:34:53 tom Exp tom $
+ *  $Id: epgversion.h,v 1.52 2004/04/02 13:04:32 tom Exp tom $
  */
 
 
@@ -30,18 +30,14 @@
 #define NXTVEPG_MAILTO      "tomzo@nefkom.net"
 
 #define EPG_VERSION_MAJOR   2   // major revision
-#define EPG_VERSION_MINOR   6   // minor revision
+#define EPG_VERSION_MINOR   7   // minor revision
 #define EPG_VERSION_PL      0   // bugfix revision / patch level
 
-#ifndef WIN32
-#define EPG_VERSION_STR     "2.6.0"
-#else
-#define EPG_VERSION_STR     "2.6.0"
-#endif
+#define EPG_VERSION_STR     "2.7.0"
 
 
 // RCS id to be included to the object code for ident(1)
-#define EPG_VERSION_RCS_ID  "$Id: epgversion.h,v 1.51 2003/10/11 06:34:53 tom Exp $" "$Compiledate: " __DATE__ " " __TIME__" $";
+#define EPG_VERSION_RCS_ID  "$Id: epgversion.h,v 1.52 2004/04/02 13:04:32 tom Exp tom $" "$Compiledate: " __DATE__ " " __TIME__" $";
 
 // version in integer format for internal purposes
 #define EPG_VERSION_TO_INT(MAJ,MIN,PL) (((MAJ)<<16) | ((MIN)<<8) | (PL))

@@ -22,7 +22,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgnetio.c,v 1.35 2003/10/05 19:03:28 tom Exp tom $
+ *  $Id: epgnetio.c,v 1.36 2004/03/21 18:04:44 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -362,7 +362,7 @@ bool EpgNetIo_CheckTimeout( EPGNETIO_STATE * pIO, time_t now )
 bool EpgNetIo_HandleIO( EPGNETIO_STATE * pIO, bool * pBlocked, bool closeOnZeroRead )
 {
    time_t   now;
-   ssize_t  len;
+   int      len;
    bool     err = FALSE;
    bool     result = TRUE;
 

@@ -20,7 +20,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgacqsrv.c,v 1.12 2003/10/05 19:19:37 tom Exp $
+ *  $Id: epgacqsrv.c,v 1.14 2004/03/11 22:26:32 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -218,7 +218,9 @@ static void EpgAcqServer_BuildStatsMsg( EPGDBSRV_STATE * req, bool aiFollows )
             req->msgBuf.stats_ind.u.update.histIdx = pAcqStats->histIdx;
             req->msgBuf.stats_ind.u.update.vpsPdc  = pAcqStats->vpsPdc;
             req->msgBuf.stats_ind.u.update.ttx     = pAcqStats->ttx;
+            req->msgBuf.stats_ind.u.update.stream  = pAcqStats->stream;
             req->msgBuf.stats_ind.u.update.nowNextMaxAcqRepCount = pAcqStats->nowNextMaxAcqRepCount;
+            req->msgBuf.stats_ind.u.update.lastStatsUpdate = pAcqStats->lastStatsUpdate;
          }
       }
 

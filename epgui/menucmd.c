@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: menucmd.c,v 1.106 2003/10/05 19:25:37 tom Exp $
+ *  $Id: menucmd.c,v 1.113 2004/04/02 12:08:46 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -61,6 +61,7 @@
 #include "epgvbi/cni_tables.h"
 #include "epgvbi/tvchan.h"
 #include "epgvbi/btdrv.h"
+#include "epgtcl/dlg_hwcfg.h"
 #ifdef WIN32
 #include "dsdrv/debuglog.h"
 #endif
@@ -311,7 +312,7 @@ static void MenuCmd_StartLocalAcq( Tcl_Interp * interp )
          if (pErrStr != NULL)
             strcat(comm, pErrStr);
          else
-            strcat(comm, "(Internal error, please report. Try to restart the application.)}\n");
+            strcat(comm, "(Internal error, please report. Try to restart the application.)\n");
          strcat(comm, "}\n");
          eval_check(interp, comm);
       }
@@ -619,10 +620,6 @@ static int MenuCmd_ChangeProvider( ClientData ttp, Tcl_Interp *interp, int objc,
 
             // in case follow-ui acq mode is used, change the acq db too
             SetAcquisitionMode(NETACQ_KEEP);
-            // in case automatic language selection is used, update the theme language
-            SetUserLanguage(interp);
-            // adapt reminder list for new database
-            PiRemind_CheckDb();
 
             UiControl_AiStateChange(DB_TARGET_UI);
             eval_check(interp, "ResetFilterState");
@@ -1169,14 +1166,15 @@ EPGDB_CONTEXT * MenuCmd_MergeDatabases( void )
    uint netwopCniTab[MAX_NETWOP_COUNT];
    uint provCount, netwopCount;
 
-   pDbContext = NULL;
-
-   if (ProvMerge_ParseConfigString(interp, &provCount, pProvCniTab, &max[0]) == TCL_OK)
+   if ( (ProvMerge_ParseConfigString(interp, &provCount, pProvCniTab, &max[0]) == TCL_OK) &&
+        (ProvMerge_ParseNetwopList(interp, &netwopCount, netwopCniTab) == TCL_OK) )
    {
-      if (ProvMerge_ParseNetwopList(interp, &netwopCount, netwopCniTab) == TCL_OK)
-      {
-         pDbContext = EpgContextMerge(provCount, pProvCniTab, max, netwopCount, netwopCniTab);
-      }
+      pDbContext = EpgContextMerge(provCount, pProvCniTab, max, netwopCount, netwopCniTab);
+   }
+   else
+   {
+      UiControlMsg_ReloadError(0x00ff, EPGDB_RELOAD_MERGE, CTX_RELOAD_ERR_REQ, FALSE);
+      pDbContext = NULL;
    }
    return pDbContext;
 }
@@ -1207,12 +1205,6 @@ static int ProvMerge_Start( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Ob
          pUiDbContext = pDbContext;
 
          SetAcquisitionMode(NETACQ_KEEP);
-
-         // set language and rebuild the theme filter menu
-         SetUserLanguage(interp);
-
-         // adapt reminder list for new database
-         PiRemind_CheckDb();
 
          UiControl_AiStateChange(DB_TARGET_UI);
          eval_check(interp, "ResetFilterState");
@@ -1347,8 +1339,6 @@ static int MenuCmd_UpdatePiExpireDelay( ClientData ttp, Tcl_Interp *interp, int 
    else
    {
       MenuCmd_SetPiExpireDelay();
-
-      PiBox_Refresh();
 
       UiControlMsg_AcqEvent(ACQ_EVENT_PI_EXPIRED);
       UiControl_AiStateChange(DB_TARGET_UI);
@@ -1486,7 +1476,7 @@ static EPGACQ_MODE GetAcquisitionModeParams( uint * pCniCount, uint * cniTab )
    else
    {
       debug0("GetAcquisitionModeParams: Tcl var acq_mode not defined - using default mode");
-      mode = ACQMODE_COUNT;
+      mode = ACQMODE_FOLLOW_UI;
    }
 
    return mode;
@@ -1637,7 +1627,7 @@ void SetAcquisitionMode( NETACQ_SET_MODE netAcqSetMode )
    SortAcqCniList(cniCount, cniTab);
 
    // pass the params to the acquisition control module
-   EpgAcqCtl_SelectMode(mode, cniCount, cniTab);
+   EpgAcqCtl_SelectMode(mode, ACQMODE_COUNT, cniCount, cniTab);
 }
 
 #ifdef USE_DAEMON
@@ -1646,7 +1636,7 @@ void SetAcquisitionMode( NETACQ_SET_MODE netAcqSetMode )
 // - in Follow-UI mode the browser CNI must be determined here since
 //   no db is opened for the browser
 //
-bool SetDaemonAcquisitionMode( uint cmdLineCni, bool forcePassive )
+bool SetDaemonAcquisitionMode( uint cmdLineCni, bool forcePassive, int maxPhase )
 {
    EPGACQ_MODE   mode;
    Tcl_Obj     * pTmpObj;
@@ -1721,7 +1711,7 @@ bool SetDaemonAcquisitionMode( uint cmdLineCni, bool forcePassive )
       // pass the params to the acquisition control module
       if (mode < ACQMODE_COUNT)
       {
-         result = EpgAcqCtl_SelectMode(mode, cniCount, cniTab);
+         result = EpgAcqCtl_SelectMode(mode, maxPhase, cniCount, cniTab);
       }
       else
          result = FALSE;
@@ -2282,14 +2272,14 @@ static int MenuCmd_GetTvCards( ClientData ttp, Tcl_Interp *interp, int objc, Tcl
          pCardCfList = Tcl_GetVar2Ex(interp, "tvcardcf", idx_str, TCL_GLOBAL_ONLY);
          if ( (pCardCfList != NULL) &&
               (Tcl_ListObjGetElements(interp, pCardCfList, &llen, &pCardCfObjv) == TCL_OK) &&
-              (llen == 4) &&
-              (Tcl_GetIntFromObj(interp, pCardCfObjv[0], &chipType) == TCL_OK) &&
-              (Tcl_GetIntFromObj(interp, pCardCfObjv[1], &cardType) == TCL_OK) )
+              (llen == EPGTCL_TVCF_IDX_COUNT) &&
+              (Tcl_GetIntFromObj(interp, pCardCfObjv[EPGTCL_TVCF_CHIP_IDX], &chipType) == TCL_OK) &&
+              (Tcl_GetIntFromObj(interp, pCardCfObjv[EPGTCL_TVCF_CARD_IDX], &cardType) == TCL_OK) )
             ;  // ok - do nothing
          else
          {
+            chipType = EPGTCL_PCI_ID_UNKNOWN;
             cardType = 0;
-            chipType = 0;
          }
 
          pName = NULL;
@@ -2473,12 +2463,14 @@ int SetHardwareConfig( Tcl_Interp *interp, int newCardIndex )
    int        llen;
    #endif
    char idx_str[10];
-   int  cardIdx, input, prio;
-   int  chipType, cardType, tuner, pll;
+   int  cardIdx, input, prio, slicer;
+   int  chipType, cardType, tuner, pll, wdmStop;
 
    cardIdx = MenuCmd_ReadTclInt(interp, "hwcf_cardidx", 0);
    input   = MenuCmd_ReadTclInt(interp, "hwcf_input", 0);
    prio    = MenuCmd_ReadTclInt(interp, "hwcf_acq_prio", 0);
+   slicer  = MenuCmd_ReadTclInt(interp, "hwcf_slicer_type", 0);
+   wdmStop = MenuCmd_ReadTclInt(interp, "hwcf_wdm_stop", 0);
 
    if ((newCardIndex >= 0) && (newCardIndex != cardIdx))
    {
@@ -2500,23 +2492,24 @@ int SetHardwareConfig( Tcl_Interp *interp, int newCardIndex )
    pCardCfList = Tcl_GetVar2Ex(interp, "tvcardcf", idx_str, TCL_GLOBAL_ONLY);
    if ( (pCardCfList != NULL) &&
         (Tcl_ListObjGetElements(interp, pCardCfList, &llen, &pCardCfObjv) == TCL_OK) &&
-        (llen == 4) &&
-        (Tcl_GetIntFromObj(interp, pCardCfObjv[0], &chipType) == TCL_OK) &&
-        (Tcl_GetIntFromObj(interp, pCardCfObjv[1], &cardType) == TCL_OK) &&
-        (Tcl_GetIntFromObj(interp, pCardCfObjv[2], &tuner) == TCL_OK) &&
-        (Tcl_GetIntFromObj(interp, pCardCfObjv[3], &pll) == TCL_OK) )
+        (llen == EPGTCL_TVCF_IDX_COUNT) &&
+        (Tcl_GetIntFromObj(interp, pCardCfObjv[EPGTCL_TVCF_CHIP_IDX], &chipType) == TCL_OK) &&
+        (Tcl_GetIntFromObj(interp, pCardCfObjv[EPGTCL_TVCF_CARD_IDX], &cardType) == TCL_OK) &&
+        (Tcl_GetIntFromObj(interp, pCardCfObjv[EPGTCL_TVCF_TUNER_IDX], &tuner) == TCL_OK) &&
+        (Tcl_GetIntFromObj(interp, pCardCfObjv[EPGTCL_TVCF_PLL_IDX], &pll) == TCL_OK) )
       ;
    else
    #endif
    {
-      chipType = cardType = tuner = pll = 0;
+      chipType = EPGTCL_PCI_ID_UNKNOWN;
+      cardType = tuner = pll = 0;
    }
 
    // pass the hardware config params to the driver
-   if (BtDriver_Configure(cardIdx, prio, chipType, cardType, tuner, pll))
+   if (BtDriver_Configure(cardIdx, prio, chipType, cardType, tuner, pll, wdmStop))
    {
       // pass the input selection to acquisition control
-      EpgAcqCtl_SetInputSource(input);
+      EpgAcqCtl_SetInputSource(input, slicer);
    }
    else
       EpgAcqCtl_Stop();
@@ -2569,13 +2562,13 @@ bool MenuCmd_CheckTvCardConfig( void )
    pCardCfList = Tcl_GetVar2Ex(interp, "tvcardcf", idx_str, TCL_GLOBAL_ONLY);
    if ( (pCardCfList != NULL) &&
         (Tcl_ListObjGetElements(interp, pCardCfList, &llen, &pCardCfObjv) == TCL_OK) &&
-        (llen == 4) &&
-        (Tcl_GetIntFromObj(interp, pCardCfObjv[0], &chipType) == TCL_OK) &&
-        (Tcl_GetIntFromObj(interp, pCardCfObjv[1], &cardType) == TCL_OK) &&
-        (Tcl_GetIntFromObj(interp, pCardCfObjv[2], &tuner) == TCL_OK) &&
-        (Tcl_GetIntFromObj(interp, pCardCfObjv[3], &pll) == TCL_OK) )
+        (llen == EPGTCL_TVCF_IDX_COUNT) &&
+        (Tcl_GetIntFromObj(interp, pCardCfObjv[EPGTCL_TVCF_CHIP_IDX], &chipType) == TCL_OK) &&
+        (Tcl_GetIntFromObj(interp, pCardCfObjv[EPGTCL_TVCF_CARD_IDX], &cardType) == TCL_OK) &&
+        (Tcl_GetIntFromObj(interp, pCardCfObjv[EPGTCL_TVCF_TUNER_IDX], &tuner) == TCL_OK) &&
+        (Tcl_GetIntFromObj(interp, pCardCfObjv[EPGTCL_TVCF_PLL_IDX], &pll) == TCL_OK) )
    {
-      result = ((cardType > 0) && (tuner > 0));
+      result = BtDriver_CheckCardParams(cardIdx, chipType, cardType, tuner, pll, input);
    }
 
    return result;
@@ -2769,6 +2762,37 @@ static int MenuCmd_GetTimeZone( ClientData ttp, Tcl_Interp *interp, int objc, Tc
 }
 
 // ----------------------------------------------------------------------------
+// Format time in the given format
+// - workaround for Tcl library on Windows: current locale is not used for weekdays etc.
+//
+static int MenuCmd_ClockFormat( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+{
+   const char * const pUsage = "Usage: C_ClockFormat <time> <format>";
+   long reqTimeVal;
+   time_t reqTime;
+   int  result;
+
+   if ( (objc != 1+2) ||
+        (Tcl_GetLongFromObj(interp, objv[1], &reqTimeVal) != TCL_OK) ||
+        (Tcl_GetString(objv[2]) == NULL) )
+   {  // parameter count or format is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else
+   {
+      reqTime = (time_t) reqTimeVal;
+      if (strftime(comm, sizeof(comm) - 1, Tcl_GetString(objv[2]), localtime(&reqTime)) == 0)
+      {  // error
+         comm[0] = 0;
+      }
+      Tcl_SetObjResult(interp, Tcl_NewStringObj(comm, -1));
+      result = TCL_OK;
+   }
+   return result;
+}
+
+// ----------------------------------------------------------------------------
 // Initialize the module
 //
 void MenuCmd_Init( bool isDemoMode )
@@ -2809,6 +2833,7 @@ void MenuCmd_Init( bool isDemoMode )
       Tcl_CreateObjCommand(interp, "C_UpdateNetAcqConfig", MenuCmd_UpdateNetAcqConfig, (ClientData) NULL, NULL);
 
       Tcl_CreateObjCommand(interp, "C_GetTimeZone", MenuCmd_GetTimeZone, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_ClockFormat", MenuCmd_ClockFormat, (ClientData) NULL, NULL);
 
       if (isDemoMode)
       {  // create menu with warning labels and disable some menu commands

@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: help-wanted.html,v 1.2 2003/10/12 09:59:08 tom Exp $ -->
+<!-- $Id: help-wanted.html,v 1.8 2004/04/03 13:10:16 tom Exp $ -->
 <HEAD>
 <TITLE>Software developers help wanted for nxtvepg project</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -14,12 +14,64 @@
 <LINK rel="shortcut icon" type="image/x-icon" href="nxtvepg.ico">
 <LINK rel="top" href="//nxtvepg.sourceforge.net/" title="nexTView EPG Decoder Homepage">
 </HEAD>
-<BODY bgcolor="#F8F8F8">
+<BODY>
 
-<P><BR></P>
+<DIV CLASS="navBar">
+<P><SMALL>
+<IMG ALT="" SRC="nxtv_icon.gif">&nbsp;nxtvepg&nbsp;
+<A HREF="index.html">home</A> &nbsp;|&nbsp;
+<A HREF="intro.html">about</A>
+</SMALL></P></DIV>
+
+<DIV class="navBlock">
+<H2 class="navhead">Language</H2>
+<P>
+<IMG ALT="" SRC="en.png" WIDTH=16 HEIGHT=10> English<BR>
+<IMG ALT="" SRC="de.png" WIDTH=16 HEIGHT=10> <SPAN class="navDisabled">Deutsch</SPAN><BR>
+<IMG ALT="" SRC="fr.png" WIDTH=16 HEIGHT=10> <SPAN class="navDisabled">Français</SPAN><BR>
+</P>
+
+<H2 class="navhead">News</H2>
+<P>
+Apr/2/2004: <A HREF="changelog.html#release_2_7_0">Release 2.7.0</A>
+</P>
+
+<H2 class="navhead">Documentation</H2>
+<P>
+<A HREF="index.html">Homepage</A><BR>
+<A HREF="intro.html">Introduction</A><BR>
+<A HREF="provnets.html">Providers list</A><BR>
+<SPAN CLASS="navPointer">Help Wanted</SPAN><BR>
+<A HREF="links.html">Links</A><BR>
+<A HREF="faq.html">FAQ</A><BR>
+<BR>
+<A HREF="man.html">nxtvepg manual</A><BR>
+</P>
+
+<H2 class="navhead">Download</H2>
+<P>
+<A HREF="download.html">Download</A><BR>
+<A HREF="download.html#requirements">System requirements</A><BR>
+<A HREF="changelog.html">Changelog</A><BR>
+</P>
+
+<H2 class="navhead">Screenshots</H2>
+<P>
+<A HREF="screenshot-shortcuts.gif">New 2.7.0 feature</A><BR>
+<A HREF="screenshot-reminder.gif">New 2.6.0 features</A><BR>
+<A HREF="screenshot-grid1.png">New 2.5.0 features</A><BR>
+<A HREF="screenshot-win.gif">Windows screenshot</A><BR>
+<A HREF="screenshot-series.gif">Series menu</A><BR>
+<A HREF="screenshot-xawtv.jpg">xawtv with EPG OSD</A><BR>
+</P>
+<span class="center"><span class="logo"><a href="http://sourceforge.net"><img
+src="http://sourceforge.net/sflogo.php?group_id=64430&amp;type=4"
+width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
+</DIV>
+
+<DIV class="mainBlock">
 <H1>Software Developers Help Wanted</H1>
-<P></P>
-<P CLASS="marg">
+<P>
 The nxtvepg project is sort-of my pet project since 2000.  Development
 was mostly driven by how interesing the topic seemed to implement, or
 how much I liked to have it for myself.  Of course I also have honored
@@ -28,7 +80,7 @@ have a job to pay for my living) and I'm a UNIX hacker and not skilled
 in Microsoft specifics, I often see myself unable to comply to requests
 even when wholeheartedly agreeing that nxtvepg direly needs improvements
 in some areas.
-</P><P CLASS="marg">
+</P><P>
 Since during the last year the number of users appears to have grown
 considerably I feel a responsibility to address at least the most urgent
 topics which I have listed below.  There are of course a lot more open
@@ -36,8 +88,8 @@ points and possible feature enhancements (see TODO list in the nxtvepg
 releases), but those below also have the advantage that they can be
 tackled without digging too deep into nxtvepg internals.
 If you feel like contributing in any way to these, or if you think
-there are even more pressing open issues in nxtvepg, please send me an
-email (see nxtvepg <I>Help -> About</I> for my address).
+there are even more pressing open issues in nxtvepg, please contact
+me at the address given in nxtvepg's <I>Help -> About</I> dialog.
 </P>
 <P><BR></P>
 
@@ -73,9 +125,9 @@ email (see nxtvepg <I>Help -> About</I> for my address).
     be used.<BR>
     I do receive requests to suport one or other TV application almost
     on a regular basis, but I cannot do much here since for the most
-    part the work is on side of the TV application;  I've already written
-    a prototype client in the
-    <A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.6.0-tvsim.zip?download">tvsim package</A>
+    part the work is on side of the TV application.  For the Windows
+    platform I've already written a prototype client in the
+    <A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.7.0-tvsim.zip?download">tvsim package</A>
     which contains all the code necessary for interaction, but it would
     need to be included on side of the TV apps.  Please refer to this
     <A HREF="tvsim-faq.html">Questions &amp; answers</A> for more details.
@@ -127,7 +179,7 @@ email (see nxtvepg <I>Help -> About</I> for my address).
 </DL>
 
 <H2>Disclaimer</H2>
-<P CLASS="marg">
+<P>
 Finally it should be noted
 since nxtvepg is <A HREF="http://www.fsf.org/copyleft/gpl.html">GPL Freeware</A>,
 there's no money to be earned.  The users don't pay me, so I cannot pay you.
@@ -136,13 +188,9 @@ fame to be earned, esp. outside central Europe where Nextview EPG is largely
 unknown.
 
 So I guess this opportunity is mostly aimed at people who code for
-the fun of it, or for people who use the nxtvepg themselves and want
+the fun of it, or for people who use nxtvepg themselves and want
 to improve on it.
 </P>
-
-<P><BR></P><HR>
-<P>
-Back to the <A HREF="http://nxtvepg.sourceforge.net/">nxtvepg homepage</A>
-</P>
+</DIV>
 </BODY>
 </HTML>

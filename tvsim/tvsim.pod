@@ -24,7 +24,7 @@
 #
 #  Author: Tom Zoerner
 #
-# $Id: tvsim.pod,v 1.7 2003/02/22 19:09:21 tom Exp tom $
+# $Id: tvsim.pod,v 1.9 2004/03/23 15:59:54 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME
@@ -39,10 +39,19 @@ B<tvsim> S<[ options ]>
 
 B<tvsim>
 is a demo application that shows in which ways nxtvepg can cooperate
-with TV applications on the Micro$oft Windows operating system.
-It's also a reference implementation of the communication protocol
+with TV applications.
+It's also a reference implementation of the communication protocols
 and offers most of the source code (under the GPL license) that would
-be required to add EPG support to a TV application.
+be required to add EPG support to a TV application.  If you want to
+add nxtvepg to a TV application, it's recommended to start with the
+code of tvsim's source modules, remove everthing you don't need (esp.
+the Tcl/Tk GUI and support for all but one protocols), put it in a
+library and link it to your TV app.
+
+In the current version two protocols are supported: On UNIX an X11 atoms
+based protocol which allows interaction with I<xawtv> and I<xawdecode>.
+On Windows a shared memory based protocol which allows interaction
+with I<K!TV>.
 
 =head1 OPTIONS
 
@@ -63,10 +72,14 @@ Start with the main window iconified (i.e. minimized).
 
 =item B<-rcfile> I<path>
 
-Specify an alternate configuration file.
-Default: I<nxtvepg.ini> in the current directory.
-tvsim only loads the TV card configuration from this file
-(with the exception of the card index)
+Specify an alternate path to the nxtvepg configuration file.
+Default: B<$HOME/.nxtvepgrc> on UNIX,
+B<nxtvepg.ini> in the current directory on Windows.
+tvsim uses this file only to get the path to a TV channel table
+(you need to configure this in nxtvepg's I<TV app interaction> dialog
+first) and TV card configuration (the latter on Windows only).
+Note the TV card index is not read from the rc/ini file, use the
+option below instead.  See L<"GETTING STARTED"> for more details.
 
 =item B<-card> I<index>
 
@@ -98,6 +111,7 @@ which currently are supported by B<nxtvepg>:
 
 =item B<Automatically freeing the TV card>
 
+Windows only:
 When nxtvepg is running with acquisition enabled when the TV application
 is started, it automatically frees the TV card to allow the TV application
 to access to the hardware.  When the TV application is stopped, nxtvepg
@@ -106,13 +120,32 @@ nxtvepg permanently running in the background without bothering to
 remember to switch acquisition off manually before starting the
 TV application.
 
+Note this feature is not required on UNIX since concurrent access to
+video and VBI devices by independent processes is supported by the
+drivers.
+
+The TV application has the possibility to B<grant> the tuner to EPG,
+e.g. when capturing is stopped of the TV window is minimized.  nxtvepg
+will then ask the TV app to tune it's provider's channel and forward
+it's teletext data.  However the driver still remains in control of the
+TV app and can revoke the "grant" at any time without having to wait
+for nxtvepg.
+
 =item B<Look-up of program info in the EPG database>
 
 The TV application can pass a network name to nxtvepg to look up the title,
 start and stop times and PDC theme codes of the current programme on that
 network.  Usually the TV application will display that information on screen
 or in a popup windows next to the live TV image.  In tvsim it's displayed
-in the three text fields below that channel table.
+in the three text fields below that channel table.  Since Xawtv doesn't
+have EPG support, there's also the option that nxtvepg by itself opens a
+small popup window next to the TV image.
+
+Some third-party TV viewing and scheduling applications use I<XMLTV>
+instead of this feature, but it's less efficient because the application
+has to read the entire database which is not only time consuming but also
+consumes a significant amount of RAM, and long-running apps will also not
+benefit from constant updates provided by Nextview acquisition.
 
 =item B<nxtvepg following channel changes>
 
@@ -130,12 +163,26 @@ in the main window that allows to tune in the network of the program that's
 currently selected in nxtvepg.  This allows the user to comfortably select
 his/her favorite program inside nxtvepg.
 
+There's also a small context menu behind the Tune-TV button which can be
+opened by clicking on it with the right mouse button.  There's commands to
+start/stop capturing, muting audio and toggle channels.  Additionally the
+user can send arbitrary commands to the connected TV app via user-defined
+entries in nxtvepg's programme schedule context menu and reminder scripts
+(by using prefix C<!xawtv!> or C<!winshm!>, see nxtvepg manual chapter
+I<Context menu extensions>.)  These entries may include parameters of the
+currently selected programme, e.g. start time and network.
+
+
 =item B<EPG data acquisition while watching TV>
 
+Windows only:
 Even while the TV card is "owned" by the TV application, it's possible
 for nxtvepg to keep acquiring EPG information if it's connected to a
 TV application that forwards incoming teletext packets on the designated
 EPG page. 
+
+Note this feature is not required on UNIX for the same reasons already
+mentioned above for the first item.
 
 =back
 
@@ -147,13 +194,13 @@ image.  But still it does read in a channel table and tune in the
 respective TV channels when they are selected in the channel table;
 this is required to demonstrate forwarding of VPS/PDC and EPG packets.
 
-tvsim does not have its own INI file, instead it uses the nxtvepg
-INI file.  Hence you should configure nxtvepg first before using
-tvsim.  Please refer to the nxtvepg manual, section "GETTING STARTED"
+tvsim does not have its own rc/INI file, instead it uses the nxtvepg
+configuration file.  Hence you should configure nxtvepg first before using
+tvsim.  Please refer to the nxtvepg manual, section I<GETTING STARTED>
 for detailed documentation of the initial configuration process.
 tvsim only uses the configuration settings of the I<TV card input>
 and I<TV app. interaction> dialogs, with the exception of the
-card index.
+TV card index.
 
 If your TV application's channel table format is not supported by
 nxtvepg and you don't have any of the supported freeware TV applications,
@@ -179,9 +226,14 @@ Your channels should appear in the tvsim channel table.
 
 =over 4
 
+=item B<$HOME/.nxtvepgrc>
+
+Configuration file on UNIX systems. Per default it'is expected in your
+home directory; for more details see below and L<"GETTING STARTED">.
+
 =item B<nxtvepg.ini>
 
-Configuration file from which TV card setup and TV application interaction
+Windows configuration file from which TV card setup and TV application interaction
 settings are read.  By default it is expected in the working directory,
 but a different path and file name can be specified with the B<-rcfile>
 option.  tvsim never writes to this file;  configuration changes have
@@ -196,21 +248,40 @@ Please refer to the manual of B<nxtvepg> for information on TV card and
 TV application interaction configuration.  See also the manuals for
 B<vbirec> and B<vbiplay> for further debugging possibilities.
 
+Please refer to the homepage of nxtvepg on the Internet for up-to-date
+information which protocols and TV applications are currently supported.
+You'll also find links to the respective applications homepages.  See
+I<About> in the I<Help> menu for a link to the nxtvepg homepage.
+
+
+=head1 KNOWN BUGS
+
+Under Windows there's a risk of system crash ("blue screen") when the
+application is terminated by force, e.g. via the task manager. This
+is unavoidable because in this case there's no chance to stop the
+driver and hence the TV card continues to capure data into RAM.
+In normal operation this should be very unlikely because all software
+exceptions (e.g. page faults) and shutdown messages are caught and the
+driver then stopped before the exit.
+
 
 =head1 AUTHOR
 
-T. Zoerner, Erlangen, Germany.
+T. Zoerner, Nuremberg, Germany.
 
 Email: tomzo (at) users (dot) sourceforge (dot) net
 
-Thanks to I<e-nek> for reviewing the design of the communication
-protocol, alpha testing and most importantly for being the first
-to implement interaction with nxtvepg in a TV application.
+Thanks to I<e-nek> for reviewing the design of the Windows communication
+protocol, alpha testing and most importantly for being the first one to
+implement support specifically for interaction between nxtvepg and a
+TV application (the Xawtv solution predates K!TV, however it was based
+on already existing remote control mechanisms, i.e. no changes were
+made to Xawtv.)
 
 
 =head1 COPYRIGHT
 
-Copyright (C) 2002 by T. Zoerner.
+Copyright (C) 2002,2004 by T. Zoerner.
 All rights reserved.
 
 This program is free software; you can redistribute it and/or modify

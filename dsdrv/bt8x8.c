@@ -37,7 +37,7 @@
  *    WinDriver replaced with DSdrv (DScaler driver)
  *      March 2002 by E-Nek (e-nek@netcourrier.com)
  *
- *  $Id: bt8x8.c,v 1.9 2003/07/06 17:47:21 tom Exp tom $
+ *  $Id: bt8x8.c,v 1.11 2004/03/22 17:35:32 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -65,9 +65,6 @@
 #include "dsdrv/bt8x8_typ.h"
 #include "dsdrv/bt8x8.h"
 
-#ifdef ZVBI_DECODER
-static vbi_raw_decoder zvbi_rd;
-#endif
 
 // ----------------------------------------------------------------------------
 // Declaration of internal variables
@@ -98,6 +95,8 @@ static BOOL    CardConflictDetected;
 static DWORD m_I2CRegister;
 static ULONG m_I2CSleepCycle;
 static BOOL  m_I2CInitialized;
+
+static vbi_raw_decoder zvbi_rd;
 
 // ---------------------------------------------------------------------------
 // Bt8x8 I2C bus access
@@ -587,14 +586,14 @@ static DWORD WINAPI Bt8x8_VbiThread( LPVOID dummy )
    int  OldFrame;
    int  CurFrame;
    uint riscError;
+   bool acceptFrame;
    BYTE *pVBI;
 
    //SetAcqPriority(GetCurrentThread(), btCfg.threadPrio);
 
    // pass parameters to VBI slicer
-   #ifndef ZVBI_DECODER
    VbiDecodeSetSamplingRate(0, 0);
-   #else
+
    memset(&zvbi_rd, 0, sizeof(zvbi_rd));
    zvbi_rd.sampling_rate    = 35468950L;
    zvbi_rd.bytes_per_line   = VBI_LINE_SIZE;
@@ -607,7 +606,6 @@ static DWORD WINAPI Bt8x8_VbiThread( LPVOID dummy )
    zvbi_rd.sampling_format  = VBI_PIXFMT_YUV420;
    zvbi_rd.scanning         = 625;
    vbi_raw_decoder_add_services(&zvbi_rd, VBI_SLICED_TELETEXT_B | VBI_SLICED_VPS, 1);
-   #endif
 
    Bt8x8_SetCapture(TRUE);
 
@@ -647,20 +645,25 @@ static DWORD WINAPI Bt8x8_VbiThread( LPVOID dummy )
 
                // notify teletext decoder about start of new frame; since we don't have a
                // frame counter (no frame interrupt) we always pass 0 as frame sequence number
-               #ifndef ZVBI_DECODER
-               if ( VbiDecodeStartNewFrame(0) )
+               if (pVbiBuf->slicerType != VBI_SLICER_ZVBI)
                {
-                  int  row;
-
-                  for (row = 0; row < VBI_LINES_PER_FRAME; row++, pVBI += VBI_LINE_SIZE)
+                  acceptFrame = VbiDecodeStartNewFrame(0);
+                  if (acceptFrame)
                   {
-                     VbiDecodeLine(pVBI, row, TRUE);
+                     int  row;
+
+                     for (row = 0; row < VBI_LINES_PER_FRAME; row++, pVBI += VBI_LINE_SIZE)
+                     {
+                        VbiDecodeLine(pVBI, row, TRUE);
+                     }
                   }
                }
                else
-               #else  // ZVBI_DECODER
-               if (ZvbiSliceAndProcess(&zvbi_rd, pVBI, 0) == FALSE)
-               #endif
+               {
+                  acceptFrame = ZvbiSliceAndProcess(&zvbi_rd, pVBI, 0);
+               }
+
+               if (acceptFrame == FALSE)
                {  // discard all VBI frames in the buffer
                   OldFrame = CurFrame;
                   break;
@@ -677,10 +680,8 @@ static DWORD WINAPI Bt8x8_VbiThread( LPVOID dummy )
    }
    Bt8x8_SetCapture(FALSE);
 
-   #ifdef ZVBI_DECODER
    ZvbiSliceAndProcess(NULL, NULL, 0);
    vbi_raw_decoder_destroy(&zvbi_rd);
-   #endif
 
    return 0;  // dummy
 }
@@ -753,7 +754,7 @@ static bool Bt8x8_Configure( uint threadPrio, uint pllType )
 // ---------------------------------------------------------------------------
 // Free I/O resources and close the driver device
 //
-static void Bt8x8_Close( void )
+static void Bt8x8_Close( TVCARD * pTvCard )
 {
    // skip reset if conflict was detected earlier to avoid crashing the other app
    if (CardConflictDetected == FALSE)
@@ -771,7 +772,7 @@ static void Bt8x8_Close( void )
 // ---------------------------------------------------------------------------
 // Allocate resources and initialize PCI registers
 //
-static bool Bt8x8_Open( TVCARD * pTvCard )
+static bool Bt8x8_Open( TVCARD * pTvCard, bool wdmStop )
 {
    WORD DmaCtl;
    BYTE CapCtl;

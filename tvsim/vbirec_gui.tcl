@@ -26,7 +26,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: vbirec_gui.tcl,v 1.7 2002/12/08 21:40:16 tom Exp tom $
+#  $Id: vbirec_gui.tcl,v 1.9 2004/03/09 21:16:12 tom Exp tom $
 #
 
 set dumpttx_filename {ttx.dat}
@@ -57,12 +57,26 @@ proc InitGuiVars {} {
 InitGuiVars
 
 # set font type and size for message popups
-option add *Dialog.msg.font [list ansi -12 normal] userDefault
+if $is_unix {
+   option add *Dialog.msg.font {Helvetica -12 normal} userDefault
+} else {
+   option add *Dialog.msg.font [list ansi -12 normal] userDefault
+}
 # set background color for input widgets
 set text_bg    #E9E9EC
 option add *Listbox.background $text_bg userDefault
 option add *Entry.background $text_bg userDefault
 option add *Text.background $text_bg userDefault
+
+# starting with Tk8.4 an entry's text is grey when disabled and
+# this new option must be used where this is not desirable
+if {$tcl_version >= 8.4} {
+   set ::entry_disabledforeground "-disabledforeground"
+   set ::entry_disabledbackground "-disabledbackground"
+} else {
+   set ::entry_disabledforeground "-foreground"
+   set ::entry_disabledbackground "-background"
+}
 
 # create an image of a folder
 set fileImage [image create photo -data {
@@ -114,7 +128,8 @@ grid      .stats.lab_ttx_head .stats.val_ttx_head -sticky w -padx 5
 
 label     .stats.lab_cni_name -text "Network by VPS/PDC/NI:"
 entry     .stats.val_cni_name -textvariable cni_name -width 32 -state disabled \
-             -borderwidth 0 -background [.stats.lab_cni_name cget -background] -cursor arrow
+             -borderwidth 0 -background [.stats.lab_cni_name cget -background] \
+             -cursor circle $entry_disabledforeground black
 grid      .stats.lab_cni_name .stats.val_cni_name -sticky w -padx 5
 
 label     .stats.separate -text ""
@@ -208,7 +223,7 @@ proc CreateAbout {} {
       label .about.name -text "VBI recoder - vbirec v$TVSIM_VERSION"
       pack .about.name -side top -pady 8
 
-      label .about.copyr1 -text "Copyright © 2002 by Tom Zörner"
+      label .about.copyr1 -text "Copyright (C) 2002,2004 by Tom Zörner"
       label .about.copyr2 -text "tomzo@users.sourceforge.net"
       label .about.copyr3 -text "http://nxtvepg.sourceforge.net/" -font {courier -12 normal} -foreground blue
       pack .about.copyr1 .about.copyr2 -side top

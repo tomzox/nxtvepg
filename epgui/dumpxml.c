@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumpxml.c,v 1.2 2003/06/28 11:00:37 tom Exp tom $
+ *  $Id: dumpxml.c,v 1.4 2004/03/28 13:38:46 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -49,6 +49,7 @@
 #include "epgui/pioutput.h"
 #include "epgui/dumphtml.h"
 #include "epgui/dumpxml.h"
+#include "epgtcl/dlg_dump.h"
 
 
 // ----------------------------------------------------------------------------
@@ -82,6 +83,68 @@ static void EpgDumpXml_AppendInfoTextCb( void *vp, const char * pDesc, bool addS
 }
 
 // ----------------------------------------------------------------------------
+// Helper func: read integer from global Tcl var
+// - DTD version constants are defined at Tcl script level
+//
+static bool EpgDumpXml_QueryLocaltimeSetting( Tcl_Interp *interp )
+{
+   Tcl_Obj  * pVarObj;
+   int  value;
+
+   pVarObj = Tcl_GetVar2Ex(interp, "dumpxml_format", NULL, TCL_GLOBAL_ONLY);
+   if ( (pVarObj == NULL) ||
+        (Tcl_GetBooleanFromObj(interp, pVarObj, &value) != TCL_OK) )
+   {
+      debug1("EpgDumpXml-QueryLocaltimeSetting: failed to parse Tcl var 'dumpxml_format': %s", ((pVarObj != NULL) ? Tcl_GetString(pVarObj) : "*undef*"));
+      value = EPGTCL_XMLTV_DTD_5;
+   }
+   return (value == EPGTCL_XMLTV_DTD_5_LTZ);
+}
+
+// ----------------------------------------------------------------------------
+// Write timestamp into string
+// - definition of date/time format in XMLTV DTD 0.5:
+//   "All dates and times in this DTD follow the same format, loosely based
+//   on ISO 8601.  They can be 'YYYYMMDDhhmmss' or some initial
+//   substring, for example if you only know the year and month you can
+//   have 'YYYYMM'.  You can also append a timezone to the end; if no
+//   explicit timezone is given, UTC is assumed.  Examples:
+//   '200007281733 BST', '200209', '19880523083000 +0300'.  (BST == +0100.)"
+// - unfortunately the authors of some XMLTV parsers have overlooked this
+//   paragraph, so we need as a work-around the possibility to export times
+//   in the local time zone
+//
+static void EpgDumpXml_PrintTimestamp( char * pBuf, uint maxLen,
+                                       time_t then, bool useLocaltime )
+{
+   size_t len;
+   sint   lto;
+   char   ltoSign;
+
+   if (useLocaltime)
+   {  // print times in localtime
+      lto = EpgLtoGet(then) / 60;
+      if (lto < 0)
+      {
+         lto = 0 - lto;
+         ltoSign = '-';
+      }
+      else
+         ltoSign = '+';
+
+      len = strftime(pBuf, maxLen, "%Y%m%d%H%M%S", localtime(&then));
+      if (len + 1 + 6 <= maxLen)
+      {
+         sprintf(pBuf + len, " %c%04d", ltoSign, lto);
+      }
+   }
+   else
+   {  // print all times in GMT
+      strftime(pBuf, maxLen, "%Y%m%d%H%M%S +0000", gmtime(&then));
+   }
+}
+
+// ----------------------------------------------------------------------------
 // Dump programme titles and/or descriptions into file in XMLTV format
 //
 void EpgDumpXml_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp )
@@ -95,12 +158,15 @@ void EpgDumpXml_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp )
    Tcl_DString       ds;
    time_t            lastAiUpdate;
    struct tm         vpsTime;
+   bool  useLocaltime;
    uint  netwop;
    uint  themeIdx, langIdx;
    uchar start_str[50];
    uchar stop_str[50];
    uchar vps_str[50];
    uchar cni_str[10];
+
+   useLocaltime = EpgDumpXml_QueryLocaltimeSetting(interp);
 
    if (fp != NULL)
    {
@@ -115,13 +181,17 @@ void EpgDumpXml_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp )
                      "<tv generator-info-name=\"nxtvepg/" EPG_VERSION_STR "\" "
                           "generator-info-url=\"" NXTVEPG_URL "\" "
                           "source-info-name=\"nexTView ");
-         EpgDumpHtml_RemoveQuotes(AI_GET_NETWOP_NAME(pAiBlock, pAiBlock->thisNetwop), comm, TCL_COMM_BUF_SIZE - 2);
-         strcat(comm, "/");
+         comm[0] = 0;
+         if (EpgDbContextIsMerged(pDbContext) == FALSE)
+         {
+            EpgDumpHtml_RemoveQuotes(AI_GET_NETWOP_NAME(pAiBlock, pAiBlock->thisNetwop), comm, TCL_COMM_BUF_SIZE - 2);
+            strcat(comm, "/");
+         }
          EpgDumpHtml_RemoveQuotes(AI_GET_SERVICENAME(pAiBlock), comm + strlen(comm), TCL_COMM_BUF_SIZE - strlen(comm));
          EpgDumpHtml_WriteString(fp, comm);
 
          lastAiUpdate = EpgDbGetAiUpdateTime(pDbContext);
-         strftime(start_str, sizeof(start_str), "%Y%m%d%H%M%S +0000", gmtime(&lastAiUpdate));
+         EpgDumpXml_PrintTimestamp(start_str, sizeof(start_str), lastAiUpdate, useLocaltime);
          fprintf(fp, "\" date=\"%s\">\n", start_str);
 
          // dump the network table
@@ -152,8 +222,8 @@ void EpgDumpXml_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp )
          while (pPiBlock != NULL)
          {
             // start & stop times, channel ID
-            strftime(start_str, sizeof(start_str), "%Y%m%d%H%M%S +0000", gmtime(&pPiBlock->start_time));
-            strftime(stop_str, sizeof(stop_str), "%Y%m%d%H%M%S +0000", gmtime(&pPiBlock->stop_time));
+            EpgDumpXml_PrintTimestamp(start_str, sizeof(start_str), pPiBlock->start_time, useLocaltime);
+            EpgDumpXml_PrintTimestamp(stop_str, sizeof(stop_str), pPiBlock->stop_time, useLocaltime);
             if (EpgDbGetVpsTimestamp(&vpsTime, pPiBlock->pil, pPiBlock->start_time))
             {
                int lto = EpgLtoGet(pPiBlock->start_time);

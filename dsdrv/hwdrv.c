@@ -15,7 +15,7 @@
 //  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 //  GNU General Public License for more details
 /////////////////////////////////////////////////////////////////////////////
-// nxtvepg $Id: hwdrv.c,v 1.12 2003/03/16 22:52:19 tom Exp tom $
+// nxtvepg $Id: hwdrv.c,v 1.13 2004/03/22 17:30:53 tom Exp tom $
 //////////////////////////////////////////////////////////////////////////////
 
 #define WIN32_LEAN_AND_MEAN
@@ -466,8 +466,8 @@ static BOOL AdjustAccessRights( void )
     PACL                    pacl = NULL;
     EXPLICIT_ACCESS         ea;
     HINSTANCE               hInstance;
-    VOID  (*BuildExplicitAccessWithName)(PEXPLICIT_ACCESS_A,LPSTR,DWORD,ACCESS_MODE,DWORD);
-    DWORD (*SetEntriesInAcl)(ULONG,PEXPLICIT_ACCESS_A,PACL,PACL*);
+    VOID  (WINAPI *BuildExplicitAccessWithName)(PEXPLICIT_ACCESS_A,LPSTR,DWORD,ACCESS_MODE,DWORD);
+    DWORD (WINAPI *SetEntriesInAcl)(ULONG,PEXPLICIT_ACCESS_A,PACL,PACL*);
 
     if(m_bWindows95)
     {
@@ -480,10 +480,8 @@ static BOOL AdjustAccessRights( void )
 
     //http://groups.google.de/groups?hl=de&lr=&threadm=u4WzwtCQBHA.1564%40tkmsftngp03&rnum=2&prev=/groups%3Fq%3DBuildExplicitAccessWithName%2Bwindows-95%26hl%3Dde
     hInstance = LoadLibrary("advapi32.dll");
-    BuildExplicitAccessWithName = (VOID (WINAPI *)(PEXPLICIT_ACCESS_A,LPSTR,DWORD,ACCESS_MODE,DWORD))
-                                  GetProcAddress(hInstance, "BuildExplicitAccessWithNameA");
-    SetEntriesInAcl = (DWORD (WINAPI *)(ULONG,PEXPLICIT_ACCESS_A,PACL,PACL*))
-                      GetProcAddress(hInstance, "SetEntriesInAclA");
+    BuildExplicitAccessWithName = (void *) GetProcAddress(hInstance, "BuildExplicitAccessWithNameA");
+    SetEntriesInAcl = (void *) GetProcAddress(hInstance, "SetEntriesInAclA");
 
     if ( (BuildExplicitAccessWithName == NULL) ||
          (SetEntriesInAcl == NULL) )

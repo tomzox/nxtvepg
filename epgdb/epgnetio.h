@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgnetio.h,v 1.22 2003/10/05 19:03:18 tom Exp $
+ *  $Id: epgnetio.h,v 1.25 2004/03/21 18:04:33 tom Exp $
  */
 
 #ifndef __EPGNETIO_H
@@ -25,7 +25,7 @@
 #include "epgdb/epgtscqueue.h"
 #include "epgdb/epgdbmerge.h"
 
-#define PROTOCOL_COMPAT          EPG_VERSION_TO_INT(2,5,0x96)
+#define PROTOCOL_COMPAT          EPG_VERSION_TO_INT(2,6,0x97)
 #define PROTOCOL_ENDIAN_MAGIC    0xAA55
 #define PROTOCOL_WRONG_ENDIAN    (((PROTOCOL_ENDIAN_MAGIC>>8)&0xFF)|((PROTOCOL_ENDIAN_MAGIC&0xFF)<<8))
 
@@ -39,7 +39,6 @@ enum
    LOG_NOTICE,
    LOG_INFO,
 };
-typedef int ssize_t;
 #else
 #include <sys/syslog.h>
 #endif

@@ -17,7 +17,7 @@
 // Extracted from Dscaler 
 // Copyright (c) 2000 John Adcock.  All rights reserved.
 /////////////////////////////////////////////////////////////////////////////
-// nxtvepg $Id: dsdrvlib.h,v 1.9 2003/02/22 14:58:05 tom Exp tom $
+// nxtvepg $Id: dsdrvlib.h,v 1.9 2003/02/22 14:58:05 tom Exp $
 /////////////////////////////////////////////////////////////////////////////
 
 #ifndef DSDRV43_HELPER

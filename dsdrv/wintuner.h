@@ -19,7 +19,7 @@
  *  DScaler #Id: TunerID.h,v 1.2 2003/02/06 21:27:05 ittarnavsky Exp #
  *  DScaler #Id: TVFormats.h,v 1.6 2003/01/07 16:49:08 adcockj Exp #
  *
- *  $Id: wintuner.h,v 1.7 2003/02/22 14:58:33 tom Exp tom $
+ *  $Id: wintuner.h,v 1.8 2004/02/13 18:57:40 tom Exp tom $
  */
 
 #ifndef __WINTUNER_H
@@ -79,6 +79,8 @@ typedef enum
     TUNER_LG_TAPCNEW_NTSC,
     TUNER_MT2032_PAL,
     TUNER_PHILIPS_FI1286_NTSC_M_J,
+    TUNER_MT2050,
+    TUNER_MT2050_PAL,
     TUNER_LASTONE,
 } eTunerId;
 

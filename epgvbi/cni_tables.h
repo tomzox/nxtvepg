@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: cni_tables.h,v 1.4 2002/01/13 18:46:04 tom Exp tom $
+ *  $Id: cni_tables.h,v 1.4 2002/01/13 18:46:04 tom Exp $
  */
 
 #ifndef __CNI_TABLES_H

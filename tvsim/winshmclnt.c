@@ -45,7 +45,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: winshmclnt.c,v 1.9 2002/10/19 17:20:32 tom Exp tom $
+ *  $Id: winshmclnt.c,v 1.10 2004/03/28 13:18:27 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_TVSIM
@@ -421,7 +421,7 @@ bool WinSharedMemClient_GetProgInfo( time_t * pStart, time_t * pStop,
 // ---------------------------------------------------------------------------
 // Fetch EPG command vector from shared memory
 //
-bool WinSharedMemClient_GetCmdArgv( uint * pArgc, char * pCmdBuf, uint cmdMaxLen )
+bool WinSharedMemClient_GetCmdArgv( uint * pArgc, uint * pArgLen, char * pCmdBuf, uint cmdMaxLen )
 {
    bool result = FALSE;
 
@@ -435,6 +435,8 @@ bool WinSharedMemClient_GetCmdArgv( uint * pArgc, char * pCmdBuf, uint cmdMaxLen
       }
       if (pArgc != NULL)
          *pArgc = pTvShm->epgCmdArgc;
+      if (pArgLen != NULL)
+         *pArgLen = pTvShm->epgCmdArgLen;
 
       // signal EPG app that command is processed and we're ready for the next command
       pTvShm->tvCommandIdx = pTvShm->epgCommandIdx;
@@ -445,7 +447,7 @@ bool WinSharedMemClient_GetCmdArgv( uint * pArgc, char * pCmdBuf, uint cmdMaxLen
          debug1("WinSharedMemClient-GetCmdArgv: ReleaseMutex: %ld", GetLastError());
 
       if ((pArgc != NULL) && (pCmdBuf != NULL) && (cmdMaxLen > 0))
-         dprintf2("EPG command received (argc=%d): \"%s\"\n", *pArgc, pCmdBuf);
+         dprintf3("EPG command received (len=%d argc=%d): \"%s\"\n", *pArgLen, *pArgc, pCmdBuf);
 
       // notify EPG app that shared memory content has changed
       if (SetEvent(epgEventHandle) == 0)

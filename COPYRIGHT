@@ -1,6 +1,6 @@
 This message applies to all files within this release:
 
-    Copyright (C) 1999 - 2003 Tom Zoerner
+    Copyright (C) 1999 - 2004 Tom Zoerner
     All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
@@ -81,6 +81,11 @@ This message applies to all files within this release:
     Resizable Notebook widget for Tcl/Tk (revision 1.1)
        Copyright (C) 1999 Daniel Roche
        http://www.multimania.com/droche/
+
+    Hierarchical Tree widget for Tcl/Tk (revision 1.7)
+       Copyright (C) 1997,1998 D. Richard Hipp (drh@acm.org)
+       Released into the public domain January 31, 2001.
+       http://www.hwaci.com/drh/
 
 
 Have fun.

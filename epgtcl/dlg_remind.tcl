@@ -51,7 +51,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_remind.tcl,v 1.15 2003/10/05 19:46:11 tom Exp tom $
+#  $Id: dlg_remind.tcl,v 1.18 2004/04/02 11:27:33 tom Exp tom $
 #
 # import constants from other modules
 #=INCLUDE= "epgtcl/dlg_udefcols.h"
@@ -209,6 +209,9 @@ proc Reminder_SetShortcuts {} {
 
       C_PiFilter_ContextCacheCtl set $group
 
+      # supress masekd out air times for each network
+      C_PiFilter_SelectAirTimes
+
       # add filter to suppress unwanted shortcut reminders
       C_PiFilter_ForkContext and
       C_SelectReminderFilter [expr 1 << 31]
@@ -235,6 +238,8 @@ proc Reminder_SetShortcuts {} {
    # finally make a cache entry for an OR of all reminder groups
    set group [llength $remgroup_order]
    C_PiFilter_ContextCacheCtl set $group
+
+   C_PiFilter_SelectAirTimes
 
    C_PiFilter_ForkContext and
    C_SelectReminderFilter [expr 1 << 31]
@@ -374,8 +379,8 @@ proc Reminder_DisplayMessage {topwid msg_list} {
 
    foreach ev_desc $msg_list {
       set this_msg {}
-      append this_msg [clock format [lindex $ev_desc $::rev_start_idx] -format {%a %e.%m. %H:%M - }] \
-                      [clock format [lindex $ev_desc $::rev_stop_idx] -format {%H:%M}] { } \
+      append this_msg [C_ClockFormat [lindex $ev_desc $::rev_start_idx] {%a %e.%m. %H:%M - }] \
+                      [C_ClockFormat [lindex $ev_desc $::rev_stop_idx] {%H:%M}] { } \
                       [lindex $ev_desc $::rev_title_idx] \
                       " (" [RemAlarm_GetNetname [lindex $ev_desc $::rev_netwop_idx]] ")\n"
 
@@ -1230,9 +1235,9 @@ proc RemPiList_FillPi {mode} {
          ${frm1}.selist insert end [list \
                    $ev_state \
                    $group_name \
-                   [clock format [lindex $elem $::rpi_start_idx] -format {%a %e.%m.}] \
-                   [concat [clock format [lindex $elem $::rpi_start_idx] -format {%H:%M -}] \
-                           [clock format [lindex $elem $::rpi_stop_idx] -format {%H:%M}]] \
+                   [C_ClockFormat [lindex $elem $::rpi_start_idx] {%a %e.%m.}] \
+                   [concat [C_ClockFormat [lindex $elem $::rpi_start_idx] {%H:%M -}] \
+                           [C_ClockFormat [lindex $elem $::rpi_stop_idx] {%H:%M}]] \
                    [lindex $elem $::rpi_title_idx] \
                    $netname]
          # (note: display order affects updates by goup selection callback)
@@ -1627,15 +1632,22 @@ proc RemScList_Select {} {
 # helper function to fill popup menu with list of all shortcuts
 proc RemScList_PostScMenu {wid is_stand_alone} {
    global remlist_sclist remlist_scgrplist
+   global shortcuts shortcut_tree
+
+   ShortcutTree_MenuFill .all.shortcuts.list $wid $shortcut_tree shortcuts \
+                         RemScList_AddShortcut RemScList_PostScMenu_StateCb
+}
+
+# callback for filling shortcut menu: disable shortcuts which are already in the list
+proc RemScList_PostScMenu_StateCb {sc_tag} {
+   global remlist_sclist
    global shortcuts
 
-   foreach sc_tag [CompleteShortcutOrder] {
-      if {[lsearch $remlist_sclist $sc_tag] == -1} {
-         if [info exists shortcuts($sc_tag)] {
-            $wid add command -label [lindex $shortcuts($sc_tag) $::fsc_name_idx] \
-                             -command [list RemScList_AddShortcut $sc_tag]
-         }
-      }
+   if {[info exists shortcuts($sc_tag)] &&
+       ([lsearch $remlist_sclist $sc_tag] == -1)} {
+      return "normal"
+   } else {
+      return "disabled"
    }
 }
 

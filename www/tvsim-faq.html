@@ -1,0 +1,169 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
+<HTML lang="en">
+<!-- $Id: tvsim-faq.html,v 1.8 2004/04/03 13:10:16 tom Exp $ -->
+<HEAD>
+<TITLE>Questions &amp; answers on TV app. interaction</TITLE>
+<META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<META name="language" content="en">
+<META name="keywords" lang="en" content="DScaler,MoreTV,FreeTV,Showshifter,VCR,interaction,OSD,programming,open source,interface">
+<META name="description" content="Q&amp;A on interaction between nxtvepg and TV applications">
+<META name="author" content="Tom Zoerner">
+<META name="copyright" content="Tom Zoerner">
+<META name="robots" content="index, follow">
+<LINK rel="stylesheet" type="text/css" href="nxtvepg.css">
+<LINK rel="shortcut icon" type="image/x-icon" href="nxtvepg.ico">
+<LINK rel="top" href="//nxtvepg.sourceforge.net/" title="nexTView EPG Decoder Homepage">
+<LINK rel="related" href="//nxtvepg.sourceforge.net/help-wanted.html" title="More topics where help is wanted">
+</HEAD>
+<BODY>
+
+<DIV CLASS="navBar">
+<P><SMALL>
+<IMG ALT="" SRC="nxtv_icon.gif">&nbsp;nxtvepg&nbsp;
+<A HREF="index.html">home</A> &nbsp;|&nbsp;
+<A HREF="intro.html">about</A>
+</SMALL></P></DIV>
+
+<DIV class="navBlock">
+<H2 class="navhead">Language</H2>
+<P>
+<IMG ALT="" SRC="en.png" WIDTH=16 HEIGHT=10> English<BR>
+<IMG ALT="" SRC="de.png" WIDTH=16 HEIGHT=10> <SPAN class="navDisabled">Deutsch</SPAN><BR>
+<IMG ALT="" SRC="fr.png" WIDTH=16 HEIGHT=10> <SPAN class="navDisabled">Français</SPAN><BR>
+</P>
+
+<H2 class="navhead">News</H2>
+<P>
+Apr/2/2004: <A HREF="changelog.html#release_2_7_0">Release 2.7.0</A>
+</P>
+
+<H2 class="navhead">Documentation</H2>
+<P>
+<A HREF="index.html">Homepage</A><BR>
+<A HREF="intro.html">Introduction</A><BR>
+<A HREF="provnets.html">Providers list</A><BR>
+<A HREF="help-wanted.html">Help Wanted</A><BR>
+<A HREF="links.html">Links</A><BR>
+<A HREF="faq.html">FAQ</A><BR>
+<BR>
+<A HREF="man.html">nxtvepg manual</A><BR>
+</P>
+
+<H2 class="navhead">Download</H2>
+<P>
+<A HREF="download.html">Download</A><BR>
+<A HREF="download.html#requirements">System requirements</A><BR>
+<A HREF="changelog.html">Changelog</A><BR>
+</P>
+
+<H2 class="navhead">Screenshots</H2>
+<P>
+<A HREF="screenshot-shortcuts.gif">New 2.7.0 feature</A><BR>
+<A HREF="screenshot-reminder.gif">New 2.6.0 features</A><BR>
+<A HREF="screenshot-grid1.png">New 2.5.0 features</A><BR>
+<A HREF="screenshot-win.gif">Windows screenshot</A><BR>
+<A HREF="screenshot-series.gif">Series menu</A><BR>
+<A HREF="screenshot-xawtv.jpg">xawtv with EPG OSD</A><BR>
+</P>
+<span class="center"><span class="logo"><a href="http://sourceforge.net"><img
+src="http://sourceforge.net/sflogo.php?group_id=64430&amp;type=4"
+width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
+</DIV>
+
+<DIV class="mainBlock">
+
+<H1>Questions &amp; answers on Windows TV app. interaction</H1>
+<P>
+The following is from a mail I sent to DScaler developers (see also this
+<A HREF="http://sourceforge.net/tracker/index.php?func=detail&aid=727665&group_id=7420&atid=357420">RFE</A>),
+but since I did not hear back from them and this will apply equivalently to all
+M$ Windows TV applications I've included it here.
+</P>
+
+<DL>
+<DT>Q: How much effort is involved on the side of TV applications?
+<DD><P>
+It should be fairly easy, since there's demo/reference
+clients and test applications (tvsim, vbirec) with all the necessary
+interface code, as well as the <A HREF="http://www.kastortv.com/">K!TV</A>
+Nextview plugin as an example. The protocol between TV app and nxtvepg
+is not complex at all - based on shared memory and event triggers - so
+you'll probably be able to understand it almost immediately.
+</P><P>
+The source code for the demo interface isn't cleanly packaged yet (most
+of it is in one file: tvsim/winshmclnt.c, but VBI acquisition code is
+shared with the nxtvepg sources in epgvbi and epgdb subdirectories), but
+I can provide you with that and also write more documentation.  In
+essence, you would need to add a few function calls at the right places
+in the TV app (e.g. one during startup, one for every channel change, one
+for every VBI line) and an event handler which processes incoming
+messages, most importantly EPG information (see WINSHMCLNT_EVENT in
+winshmclnt.h)  Note the TV app does not need to deal with the shared
+memory directly, as there are interface functions to update or query
+contents.
+</P><P>
+The effort depends on how many features you want to support and how
+well. A few hours only is probably unrealistic, but it shouldn't take
+more than a few days, including testing. The full set of features would be:
+</P>
+<UL>
+<LI>nxtvepg attach/detach (mandatory): upon application startup the TV app
+triggers an event and waits for nxtvepg to free the TV card if necessary
+
+<LI>VBI forwarding: allows Nextview acquisition when a provider channel
+is tuned in (Canal+ in F, Kabel1 and RTL2 in D (available on ASTRA
+satellite), SF1 in CH); also supports channel identification for
+EPG OSD.
+
+<LI>EPG OSD in the TV picture: after each channel change the EPG app is
+triggered to provide programme title, running times etc. for display in
+TV app's OSD; nxtvepg will also highlight the current programme in its
+TV schedules.
+
+<LI>remote control of the TV app by the EPG app: supports channel switches
+by double-clicking an entry in the TV schedules plus further optional
+commands which can be hooked into nxtvepg's context menu or reminder
+scripts, e.g. to start a recording.
+
+<LI>granting tuner: while the TV app is minimized or paused it can grant
+the TV tuner to nxtvepg to allow to switch to the Nextview provider
+channel to update the EPG database.
+</UL>
+<P>
+Most of these features can be demonstrated by <A HREF="tvsim.html">tvsim</A>.
+</P>
+
+<DT>Q: How much adaptions are required for VBI forwarding?
+<DD><P>
+Note that VBI forwarding is optional.  But since the effort is low
+and it makes EPG OSD more reliable (at least for channels which
+support VPS/PDC) I'd highly recommend to include it.
+</P><P>
+The simplest way would be to include the nxtvepg slicer and pass it
+every VBI scan line. The interface module would then slice the data,
+filter for EPG teletext packets and VPS/PDC and pass that to nxtvepg
+through a ring buffer in shared memory.  Alternatively you can pass
+already sliced data, e.g. for teletext a 40 byte array plus decoded
+page/packet number.  I don't think any special conversions would be
+required in the TV app.  You can use the
+<A HREF="vbirec.html">vbirec tool</A>
+to test if VPS/PDC and teletext are decoded and received correctly
+at the remote side of shared memory.
+</P>
+
+<DT>Q: What information does nxtvepg provide in return?
+<DD><P>
+nxtvepg fills a structure in shared memory with the current
+channel's program title, start/stop time and theme codes (movie, series
+etc.)  This info is intended for OSD. nxtvepg can also provide it's
+entire database in XMLTV or plain text format.
+</P>
+</DL>
+
+<P>
+If you have additional questions feel free to mail to "tomzo" at
+users.sourceforge.net
+</P>
+</DIV>
+</BODY>
+</HTML>

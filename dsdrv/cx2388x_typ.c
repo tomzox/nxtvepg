@@ -25,9 +25,9 @@
  *  Authors:
  *    Copyright (c) 2002 John Adcock.  All rights reserved.
  *
- *  DScaler #Id: CX2388xCard_Types.cpp,v 1.11 2003/06/17 12:45:19 adcockj Exp #
+ *  DScaler #Id: CX2388xCard_Types.cpp,v 1.22 2004/03/10 17:44:03 to_see Exp #
  *
- *  $Id: cx2388x_typ.c,v 1.9 2003/10/04 19:40:32 tom Exp tom $
+ *  $Id: cx2388x_typ.c,v 1.13 2004/03/29 22:23:17 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_DSDRV
@@ -64,7 +64,7 @@ typedef enum
 } eInputType;
 
 static void StandardInputSelect( TVCARD * pTvCard, uint nInput);
-static void MSIInputSelect( TVCARD * pTvCard, uint nInput);
+static void MSIPalInputSelect( TVCARD * pTvCard, uint nInput);
 static void PlayHDInputSelect( TVCARD * pTvCard, uint nInput);
 static void AsusInputSelect( TVCARD * pTvCard, uint nInput);
 static void StandardSetFormat( TVCARD * pTvCard, uint nInput, eVideoFormat Format, BOOL IsProgressive);
@@ -78,10 +78,12 @@ typedef struct
     eInputType InputType;
     /// Which mux on the card is to be used
     BYTE MuxSelect;
+    /// Audio input mux
+    DWORD GPIOFlags;
 } TInputType;
 
 /// Defines the specific settings for a given card
-#define CT_INPUTS_PER_CARD 8
+#define CT_INPUTS_PER_CARD 9
 typedef struct
 {
     LPCSTR szName;
@@ -124,6 +126,12 @@ typedef enum
     CX2388xCARD_PLAYHD,
     CX2388xCARD_HAUPPAUGE_PCI_FM,
     CX2388xCARD_PIXELVIEW_XCAPTURE_PDIMOD,
+    CX2388xCARD_LEADTEK_WINFAST_EXPERT,
+    CX2388xCARD_MSI_TV_ANYWHERE_MASTER_PAL,
+    CX2388xCARD_ATI_WONDER_PRO,
+    CX2388xCARD_HAUPPAUGE_PCI_FM_TUNERSOUND,
+    CX2388xCARD_PIXELVIEW_PLAYTV_ULTRA,
+    CX2388xCARD_KWORLD_TV_STEREO,
     CX2388xCARD_LASTONE,
 } eCX2388xCardId;
 
@@ -135,7 +143,7 @@ typedef struct
     char* szName;
 } TAutoDectect;
 
-static const TCardType m_TVCards[CX2388xCARD_LASTONE] = 
+static const TCardType m_TVCards[CX2388xCARD_LASTONE] =
 {
     // Card Number 0 - Unknown
     {
@@ -146,21 +154,25 @@ static const TCardType m_TVCards[CX2388xCARD_LASTONE] =
                 "Tuner",
                 INPUTTYPE_TUNER,
                 0,
+                0x00000000,
             },
             {
                 "Composite",
                 INPUTTYPE_COMPOSITE,
                 1,
+                0x00000000,
             },
             {
                 "S-Video",
                 INPUTTYPE_SVIDEO,
                 2,
+                0x00000000,
             },
             {
                 "Colour Bars",
                 INPUTTYPE_COLOURBARS,
                 0,
+                0x00000000,
             },
         },
         NULL,
@@ -182,21 +194,25 @@ static const TCardType m_TVCards[CX2388xCARD_LASTONE] =
                 "Tuner",
                 INPUTTYPE_TUNER,
                 0,
+                0x00000000,
             },
             {
                 "Composite",
                 INPUTTYPE_COMPOSITE,
                 1,
+                0x00000000,
             },
             {
                 "S-Video",
                 INPUTTYPE_SVIDEO,
                 2,
+                0x00000000,
             },
             {
                 "Colour Bars",
                 INPUTTYPE_COLOURBARS,
                 0,
+                0x00000000,
             },
         },
         NULL,
@@ -218,21 +234,25 @@ static const TCardType m_TVCards[CX2388xCARD_LASTONE] =
                 "Tuner",
                 INPUTTYPE_TUNER,
                 0,
+                0x00000000,
             },
             {
                 "Composite",
                 INPUTTYPE_COMPOSITE,
                 1,
+                0x00000000,
             },
             {
                 "S-Video",
                 INPUTTYPE_SVIDEO,
                 2,
+                0x00000000,
             },
             {
                 "Colour Bars",
                 INPUTTYPE_COLOURBARS,
                 0,
+                0x00000000,
             },
         },
         NULL,
@@ -248,47 +268,61 @@ static const TCardType m_TVCards[CX2388xCARD_LASTONE] =
     },
     {
         "Holo 3d Graph",
-        8,
+        9,
         {
             {
                 "Component",
                 INPUTTYPE_CCIR,
                 3,
+                0x00000000,
             },
             {
                 "RGsB",
                 INPUTTYPE_CCIR,
                 3,
+                0x00000000,
             },
             {
                 "S-Video",
                 INPUTTYPE_CCIR,
                 3,
+                0x00000000,
             },
             {
                 "SDI",
                 INPUTTYPE_CCIR,
                 3,
+                0x00000000,
             },
             {
                 "Composite G",
                 INPUTTYPE_CCIR,
                 3,
+                0x00000000,
             },
             {
                 "Composite B",
                 INPUTTYPE_CCIR,
                 3,
+                0x00000000,
             },
             {
                 "Composite R",
                 INPUTTYPE_CCIR,
                 3,
+                0x00000000,
             },
             {
                 "Composite BNC",
                 INPUTTYPE_CCIR,
                 3,
+                0x00000000,
+            },
+            {
+                "PDI",
+                INPUTTYPE_CCIR,
+                3,
+                0x00000000,
             },
         },
         NULL,  //InitH3D,
@@ -310,11 +344,13 @@ static const TCardType m_TVCards[CX2388xCARD_LASTONE] =
                 "Composite",
                 INPUTTYPE_COMPOSITE,
                 1,
+                0x00000000,
             },
             {
                 "S-Video",
                 INPUTTYPE_SVIDEO,
                 2,
+                0x00000000,
             },
         },
         NULL,
@@ -336,26 +372,30 @@ static const TCardType m_TVCards[CX2388xCARD_LASTONE] =
                 "Tuner",
                 INPUTTYPE_TUNER,
                 0,
+                0x00000000,
             },
             {
                 "Composite",
                 INPUTTYPE_COMPOSITE,
                 1,
+                0x00000000,
             },
             {
                 "S-Video",
                 INPUTTYPE_SVIDEO,
                 2,
+                0x00000000,
             },
             {
                 "Composite Over S-Video",
                 INPUTTYPE_COMPOSITE,
                 2,
+                0x00000000,
             },
         },
         NULL,
         //NULL,
-        MSIInputSelect,
+        MSIPalInputSelect,
         //SetAnalogContrastBrightness,
         //SetAnalogHue,
         //SetAnalogSaturationU,
@@ -372,26 +412,30 @@ static const TCardType m_TVCards[CX2388xCARD_LASTONE] =
                 "Tuner",
                 INPUTTYPE_TUNER,
                 0,
+                0x00000000,
             },
             {
                 "Composite",
                 INPUTTYPE_COMPOSITE,
                 1,
+                0x00000000,
             },
             {
                 "S-Video",
                 INPUTTYPE_SVIDEO,
                 2,
+                0x00000000,
             },
             {
                 "Composite Over S-Video",
                 INPUTTYPE_COMPOSITE,
                 2,
+                0x00000000,
             },
         },
         NULL,
         //NULL,
-        MSIInputSelect,
+        MSIPalInputSelect,
         //SetAnalogContrastBrightness,
         //SetAnalogHue,
         //SetAnalogSaturationU,
@@ -408,16 +452,19 @@ static const TCardType m_TVCards[CX2388xCARD_LASTONE] =
                 "Tuner",
                 INPUTTYPE_TUNER,
                 0,
+                0x00000000,
             },
             {
                 "S-Video",
                 INPUTTYPE_SVIDEO,
                 2,
+                0x00000000,
             },
             {
                 "Composite Over S-Video",
                 INPUTTYPE_COMPOSITE,
                 2,
+                0x00000000,
             },
         },
         NULL,
@@ -439,16 +486,19 @@ static const TCardType m_TVCards[CX2388xCARD_LASTONE] =
                 "Tuner",
                 INPUTTYPE_TUNER,
                 0,
+                0x00000000,
             },
             {
                 "S-Video",
                 INPUTTYPE_SVIDEO,
                 2,
+                0x00000000,
             },
             {
                 "Composite Over S-Video",
                 INPUTTYPE_COMPOSITE,
                 2,
+                0x00000000,
             },
         },
         NULL,
@@ -462,25 +512,37 @@ static const TCardType m_TVCards[CX2388xCARD_LASTONE] =
         TUNER_USER_SETUP,
         //IDC_CX2388X,
     },
+    // Card info from Tom Zoerner
     {
-        "Hauppauge WinTV GO/PCI-FM",
-        3,
+        "Hauppauge WinTV 34xxx models",
+        4,
         {
             {
                 "Tuner",
                 INPUTTYPE_TUNER,
                 0,
+                0x0000ff00,
+
+            },
+            {
+                "Composite",
+                INPUTTYPE_COMPOSITE,
+                1,
+                0x0000ff02,
             },
             {
                 "S-Video",
                 INPUTTYPE_SVIDEO,
                 2,
+                0x0000ff02,
             },
-            {
+            {   // card has no composite in, but comes with a Cinch to S-Video adapter
                 "Composite Over S-Video",
                 INPUTTYPE_COMPOSITE,
                 2,
+                0x0000ff02,
             },
+            // FM radio input omitted
         },
         NULL,
         //NULL,
@@ -490,6 +552,10 @@ static const TCardType m_TVCards[CX2388xCARD_LASTONE] =
         //SetAnalogSaturationU,
         //SetAnalogSaturationV,
         StandardSetFormat,
+        // \todo add eeprom read functionality
+        // these cards seem similar to the bt848 except that
+        // the contents are shifted by 8 bytes
+		// ...fixed 21.02.2004 to_see
         TUNER_AUTODETECT,
         //IDC_CX2388X,
     },
@@ -501,16 +567,19 @@ static const TCardType m_TVCards[CX2388xCARD_LASTONE] =
                 "Composite",
                 INPUTTYPE_COMPOSITE,
                 1,
+                0x00000000,
             },
             {
                 "S-Video",
                 INPUTTYPE_SVIDEO,
                 2,
+                0x00000000,
             },
             {
                 "PDI",
                 INPUTTYPE_CCIR,
                 3,
+                0x00000000,
             },
         },
         NULL,
@@ -524,16 +593,255 @@ static const TCardType m_TVCards[CX2388xCARD_LASTONE] =
         TUNER_ABSENT,
         //IDC_CX2388X,
     },
+    // CX2388xCARD_LEADTEK_WINFAST_EXPERT
+    // video and audio input switching is not yet verified.
+    {
+        "Leadtek WinFast TV2000 XP Expert",
+        3,
+        {
+            {
+                "Tuner",
+                INPUTTYPE_TUNER,
+                0,
+                0x00000000,
+            },
+            {
+                "Composite",
+                INPUTTYPE_COMPOSITE,
+                1,
+                0x00000000,
+            },
+            {
+                "S-Video",
+                INPUTTYPE_SVIDEO,
+                2,
+                0x00000000,
+            },
+        },
+        NULL,
+        //NULL,
+        StandardInputSelect,
+        //SetAnalogContrastBrightness,
+        //SetAnalogHue,
+        //SetAnalogSaturationU,
+        //SetAnalogSaturationV,
+        StandardSetFormat,
+        TUNER_PHILIPS_FM1216ME_MK3,
+        //IDC_CX2388X,
+    },
+    {
+        "MSI TV@nywhere Master",
+        4,
+        {
+            {
+                "Tuner",
+                INPUTTYPE_TUNER,
+                0,
+                0x00000000,
+            },
+            {
+                "Composite",
+                INPUTTYPE_COMPOSITE,
+                1,
+                0x00000000,
+            },
+            {
+                "S-Video",
+                INPUTTYPE_SVIDEO,
+                2,
+                0x00000000,
+            },
+            {
+                "Composite Over S-Video",
+                INPUTTYPE_COMPOSITE,
+                2,
+                0x00000000,
+            },
+        },
+        NULL,
+        //NULL,
+        MSIPalInputSelect,
+        //SetAnalogContrastBrightness,
+        //SetAnalogHue,
+        //SetAnalogSaturationU,
+        //SetAnalogSaturationV,
+        StandardSetFormat,
+        TUNER_MT2050_PAL,
+        //IDC_CX2388X,
+    },
+    {
+        "ATI TV Wonder Pro",
+        3,
+        {
+            {
+                "Tuner",
+                INPUTTYPE_TUNER,
+                0,
+                0x00000000,
+            },
+            {
+                "Composite",
+                INPUTTYPE_COMPOSITE,
+                1,
+                0x00000000,
+            },
+            {
+                "S-Video",
+                INPUTTYPE_SVIDEO,
+                2,
+                0x00000000,
+            },
+        },
+        NULL,
+        //NULL,
+        StandardInputSelect,
+        //SetAnalogContrastBrightness,
+        //SetAnalogHue,
+        //SetAnalogSaturationU,
+        //SetAnalogSaturationV,
+        StandardSetFormat,
+        TUNER_USER_SETUP,
+        //IDC_CX2388X,
+    },
+    // Card info from Tom Zoerner
+    {
+        "Hauppauge WinTV 34xxx models (Mono Tuner Sound)",
+        4,
+        {
+            {
+                "Tuner",
+                INPUTTYPE_TUNER,
+                0,
+                0x0000ff01,
+
+            },
+            {
+                "Composite",
+                INPUTTYPE_COMPOSITE,
+                1,
+                0x0000ff02,
+            },
+            {
+                "S-Video",
+                INPUTTYPE_SVIDEO,
+                2,
+                0x0000ff02,
+            },
+            {   // card has no composite in, but comes with a Cinch to S-Video adapter
+                "Composite Over S-Video",
+                INPUTTYPE_COMPOSITE,
+                2,
+                0x0000ff02,
+            },
+            // FM radio input omitted
+        },
+        NULL,
+        //NULL,
+        StandardInputSelect,
+        //SetAnalogContrastBrightness,
+        //SetAnalogHue,
+        //SetAnalogSaturationU,
+        //SetAnalogSaturationV,
+        StandardSetFormat,
+        // \todo add eeprom read functionality
+        // these cards seem similar to the bt848 except that
+        // the contents are shifted by 8 bytes
+        // ...fixed 21.02.2004 to_see
+        TUNER_AUTODETECT,
+        //IDC_CX2388X,
+    },
+    
+    // Card info from Denis Love
+    {
+        "PixelView PlayTV Ultra",
+        3,
+        {
+            {
+                "Tuner",
+                INPUTTYPE_TUNER,
+                0,
+                0x0000ff00,
+
+            },
+            {
+                "Composite",
+                INPUTTYPE_COMPOSITE,
+                1,
+                0x00000ff1,
+            },
+            {
+                "S-Video",
+                INPUTTYPE_SVIDEO,
+                2,
+                0x00000ff1,
+            },
+            // FM radio input omitted
+        },
+        NULL,
+        //NULL,
+        StandardInputSelect,
+        //SetAnalogContrastBrightness,
+        //SetAnalogHue,
+        //SetAnalogSaturationU,
+        //SetAnalogSaturationV,
+        StandardSetFormat,
+        TUNER_PHILIPS_PAL,
+        //IDC_CX2388X,
+    },
+    
+    // Card Info from trfillos@...
+    {
+        "K-World DV/AV Expert TV Stereo",
+        3,
+        {
+            {
+                "Tuner",
+                INPUTTYPE_TUNER,
+                0,
+                0x000007f8,
+
+            },
+            {
+                "Composite",
+                INPUTTYPE_COMPOSITE,
+                1,
+                0x000004ff,
+            },
+            {
+                "S-Video",
+                INPUTTYPE_SVIDEO,
+                2,
+                0x000004ff,
+            },
+            // FM radio input omitted
+        },
+        NULL,
+        //NULL,
+        StandardInputSelect,
+        //SetAnalogContrastBrightness,
+        //SetAnalogHue,
+        //SetAnalogSaturationU,
+        //SetAnalogSaturationV,
+        StandardSetFormat,
+        TUNER_PHILIPS_FM1216ME_MK3,
+        //IDC_CX2388X,
+    },
 };
 
 static const TAutoDectect m_AutoDectect[] =
 {
     { 0x006614F1, CX2388xCARD_CONEXANT_EVK, "Conexant CX23880 TV/FM EVK" },
+    { 0x00f81002, CX2388xCARD_ATI_WONDER_PRO, "ATI Wonder Pro"},
     //Tee Added support for PAL EVK and also added support for SSVID
     { 0x016614F1, CX2388xCARD_CONEXANT_EVK_PAL, "Conexant CX23880 PAL TV/FM EVK" },
     { 0x48201043, CX2388xCARD_ASUS, "Asus 880" },
-    { 0x34000070, CX2388xCARD_HAUPPAUGE_PCI_FM, "Hauppauge WinTV Go" },
-    { 0x34010070, CX2388xCARD_HAUPPAUGE_PCI_FM, "Hauppauge WinTV PCI-FM" },
+    { 0x34010070, CX2388xCARD_HAUPPAUGE_PCI_FM, "Hauppauge" },
+    { 0x34000070, CX2388xCARD_HAUPPAUGE_PCI_FM, "Hauppauge" },
+    { 0x6611107D, CX2388xCARD_LEADTEK_WINFAST_EXPERT, "Leadtek WinFast TV2000 XP Expert" },
+    { 0x86061462, CX2388xCARD_MSI_TV_ANYWHERE_MASTER_PAL, "MSI TV@nywhere Master"},
+    { 0x48111554, CX2388xCARD_PIXELVIEW_PLAYTV_ULTRA, "PixelView PlayTV Ultra" },
+    { 0x088317DE, CX2388xCARD_KWORLD_TV_STEREO, "K-World DV/AV Expert TV Stereo" }, // NTSC
+    { 0x088217DE, CX2388xCARD_KWORLD_TV_STEREO, "K-World DV/AV Expert TV Stereo" }, // PAL
     { 0, (eCX2388xCardId)-1, NULL }
 };
 
@@ -635,6 +943,22 @@ static uint GetPllType( TVCARD * pTvCard, uint CardId )
         fatal0("Cx2388x-GetPllType: illegal NULL ptr param");
 
     return 0;
+}
+
+static void GetI2cScanRange( struct TVCARD_struct * pTvCard, uint * pStart, uint * pStop )
+{
+   if ((pTvCard != NULL) && (pStart != NULL) && (pStop != NULL))
+   {
+      // check if it's TV@nywhere Master, which has TEA5767 at 0xC0
+      if (pTvCard->params.cardId == CX2388xCARD_MSI_TV_ANYWHERE_MASTER_PAL)
+         *pStart = 0xC2;
+      else
+         *pStart = 0xC0;
+
+      *pStop  = 0xCE;
+   }
+   else
+      fatal0("Cx2388x-GetI2cScanRange: illegal NULL ptr param");
 }
 
 // ---------------------------------------------------------------------------
@@ -806,6 +1130,7 @@ static uint AutoDetectTuner( TVCARD * pTvCard, uint CardId )
         switch(CardId)
         {
           case CX2388xCARD_HAUPPAUGE_PCI_FM:
+          case CX2388xCARD_HAUPPAUGE_PCI_FM_TUNERSOUND:
             {
                 // Read EEPROM
                 BYTE Eeprom[128];
@@ -912,27 +1237,28 @@ static void StandardInputSelect( TVCARD * pTvCard, uint nInput)
         
         WriteDword(CX2388X_VIDEO_INPUT, VideoInput);
     }
+
+    // set up any sound stuff
+    WriteDword(MO_GP0_IO, m_TVCards[m_CardType].Inputs[nInput].GPIOFlags);
 }
 
-static void MSIInputSelect( TVCARD * pTvCard, uint nInput)
+static void MSIPalInputSelect( TVCARD * pTvCard, uint nInput)
 {
     StandardInputSelect(pTvCard, nInput);
     if(nInput == 0)
     {
-        // GPIO pins set according to values supplied by
-        // Ryan Griffin - Stegink
-        WriteDword(MO_GP0_IO, 0x000000ff);
-        WriteDword(MO_GP1_IO, 0x00008040);
-        WriteDword(MO_GP2_IO, 0x0000fc1f); 
-        WriteDword(MO_GP3_IO, 0x00000000); 
+        WriteDword(MO_GP0_IO, 0x000040bf);
+        WriteDword(MO_GP1_IO, 0x000080c0);
+        WriteDword(MO_GP2_IO, 0x0000ff40); 
+        WriteDword(MO_GP3_IO, 0x00000000);
     }
     else
     {
         // Turn off anything audio if we're not the tuner
-        WriteDword(MO_GP0_IO, 0x00000000);
-        WriteDword(MO_GP1_IO, 0x00008000);
-        WriteDword(MO_GP2_IO, 0x0000ff80); 
-        WriteDword(MO_GP3_IO, 0x00000000); 
+        WriteDword(MO_GP0_IO, 0x000040bf);
+        WriteDword(MO_GP1_IO, 0x000080c0);
+        WriteDword(MO_GP2_IO, 0x0000ff20); 
+        WriteDword(MO_GP3_IO, 0x00000000);
     }
 }
 
@@ -989,6 +1315,7 @@ static const TVCARD_CFG Cx2388xTyp_Interface =
    AutoDetectTuner,
    GetIffType,
    GetPllType,
+   GetI2cScanRange,
    SupportsAcpi,
    GetNumInputs,
    GetInputName,

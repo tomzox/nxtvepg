@@ -18,79 +18,79 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: shortcuts.tcl,v 1.15 2003/09/23 19:20:46 tom Exp tom $
+#  $Id: shortcuts.tcl,v 1.16 2003/12/27 20:12:46 tom Exp tom $
 #
 #=CONST= ::fsc_name_idx 0
 #=CONST= ::fsc_mask_idx 1
 #=CONST= ::fsc_filt_idx 2
 #=CONST= ::fsc_inv_idx  3
 #=CONST= ::fsc_logi_idx 4
-#=CONST= ::fsc_hide_idx 5
+#=CONST= ::fsc_node_idx 5
 
 ##
 ##  Predefined filter shortcuts
 ##
 proc PreloadShortcuts {} {
-   global shortcuts shortcut_order
+   global shortcuts shortcut_tree
    global user_language
 
    if {([string compare -nocase -length 2 $user_language de] == 0) || \
        ([string compare -nocase -length 3 $user_language ger] == 0)} {
       # Germany
-      set shortcuts(10000) {Spielfilme themes {theme_class1 16} {} merge 0}
-      set shortcuts(10010) {Sport themes {theme_class1 64} {} merge 0}
-      set shortcuts(10011) {{Ohne Sport} themes {theme_class1 64} theme_class1 and 0}
-      set shortcuts(10020) {Serien themes {theme_class1 128} {} merge 0}
-      set shortcuts(10030) {Kinder themes {theme_class1 80} {} merge 0}
-      set shortcuts(10040) {Shows themes {theme_class1 48} {} merge 0}
-      set shortcuts(10050) {News themes {theme_class1 32} {} merge 0}
-      set shortcuts(10060) {Sozial themes {theme_class1 37} {} merge 0}
-      set shortcuts(10070) {Wissen themes {theme_class1 86} {} merge 0}
-      set shortcuts(10080) {Hobby themes {theme_class1 52} {} merge 0}
-      set shortcuts(10090) {Musik themes {theme_class1 96} {} merge 0}
-      set shortcuts(10100) {Kultur themes {theme_class1 112} {} merge 0}
-      set shortcuts(10110) {Adult themes {theme_class1 24} {} merge 0}
-      set shortcuts(10120) {Abends timsel {timsel {0 0 1215 1410 -1}} {} merge 0}
-      set shortcuts(10130) {{>15 min.} dursel {dursel {16 1435}} {} merge 0}
-      set shortcut_order [lsort -integer [array names shortcuts]]
+      set shortcuts(10000) {Spielfilme themes {theme_class1 16} {} merge {}}
+      set shortcuts(10010) {Sport themes {theme_class1 64} {} merge {}}
+      set shortcuts(10011) {{Ohne Sport} themes {theme_class1 64} theme_class1 and {}}
+      set shortcuts(10020) {Serien themes {theme_class1 128} {} merge {}}
+      set shortcuts(10030) {Kinder themes {theme_class1 80} {} merge {}}
+      set shortcuts(10040) {Shows themes {theme_class1 48} {} merge {}}
+      set shortcuts(10050) {News themes {theme_class1 32} {} merge {}}
+      set shortcuts(10060) {Sozial themes {theme_class1 37} {} merge {}}
+      set shortcuts(10070) {Wissen themes {theme_class1 86} {} merge {}}
+      set shortcuts(10080) {Hobby themes {theme_class1 52} {} merge {}}
+      set shortcuts(10090) {Musik themes {theme_class1 96} {} merge {}}
+      set shortcuts(10100) {Kultur themes {theme_class1 112} {} merge {}}
+      set shortcuts(10110) {Adult themes {theme_class1 24} {} merge {}}
+      set shortcuts(10120) {Abends timsel {timsel {0 0 1215 1410 -1}} {} merge {}}
+      set shortcuts(10130) {{>15 min.} dursel {dursel {16 1435}} {} merge {}}
+      set shortcut_tree [lsort -integer [array names shortcuts]]
    } elseif {[string compare -nocase -length 2 $user_language fr] == 0} {
       # France
-      set shortcuts(10000) {Films themes {theme_class1 {16 24}} {} merge 0}
-      set shortcuts(10010) {{Films de + 2heures} {themes dursel} {theme_class1 {16 24} dursel {120 1435}} {} merge 0}
-      set shortcuts(10020) {{Films pour Adulte} themes {theme_class1 24} {} merge 0}
-      set shortcuts(10030) {Sports themes {theme_class1 64} {} merge 0}
-      set shortcuts(10031) {{pas de sports} themes {theme_class1 64} theme_class1 and 0}
-      set shortcuts(10040) {Jeunesse themes {theme_class1 80} {} merge 0}
-      set shortcuts(10050) {Spectacle/Jeu themes {theme_class1 48} {} merge 0}
-      set shortcuts(10060) {Journal themes {theme_class1 32} {} merge 0}
-      set shortcuts(10070) {Documentaire themes {theme_class1 38} {} merge 0}
-      set shortcuts(10080) {Musique themes {theme_class1 96} {} merge 0}
-      set shortcuts(10090) {Religion themes {theme_class1 112} {} merge 0}
-      set shortcuts(10100) {Variétés themes {theme_class1 50} {} merge 0}
-      set shortcuts(10110) {Météo substr {substr {{Météo 1 0 0 0 0 0}}} {} merge 0}
-      set shortcuts(10120) {{12 ans et +} parental {parental 5} parental merge 0}
-      set shortcuts(10130) {{16 ans et +} parental {parental 7} parental merge 0}
-      set shortcuts(10140) {{45 minutes et +} dursel {dursel {45 1435}} {} merge 0}
-      set shortcuts(10150) {{3h00 et +} dursel {dursel {180 1435}} {} merge 0}
-      set shortcut_order [lsort -integer [array names shortcuts]]
+      set shortcuts(10000) {Films themes {theme_class1 {16 24}} {} merge {}}
+      set shortcuts(10010) {{Films de + 2heures} {themes dursel} {theme_class1 {16 24} dursel {120 1435}} {} merge {}}
+      set shortcuts(10020) {{Films pour Adulte} themes {theme_class1 24} {} merge {}}
+      set shortcuts(10030) {Sports themes {theme_class1 64} {} merge {}}
+      set shortcuts(10031) {{pas de sports} themes {theme_class1 64} theme_class1 and {}}
+      set shortcuts(10040) {Jeunesse themes {theme_class1 80} {} merge {}}
+      set shortcuts(10050) {Spectacle/Jeu themes {theme_class1 48} {} merge {}}
+      set shortcuts(10060) {Journal themes {theme_class1 32} {} merge {}}
+      set shortcuts(10070) {Documentaire themes {theme_class1 38} {} merge {}}
+      set shortcuts(10080) {Musique themes {theme_class1 96} {} merge {}}
+      set shortcuts(10090) {Religion themes {theme_class1 112} {} merge {}}
+      set shortcuts(10100) {Variétés themes {theme_class1 50} {} merge {}}
+      set shortcuts(10110) {Météo substr {substr {{Météo 1 0 0 0 0 0}}} {} merge {}}
+      set shortcuts(10120) {{12 ans et +} parental {parental 5} parental merge {}}
+      set shortcuts(10130) {{16 ans et +} parental {parental 7} parental merge {}}
+      set shortcuts(10140) {{45 minutes et +} dursel {dursel {45 1435}} {} merge {}}
+      set shortcuts(10150) {{3h00 et +} dursel {dursel {180 1435}} {} merge {}}
+      set shortcut_tree [lsort -integer [array names shortcuts]]
    } else {
       # generic
-      set shortcuts(10000) {movies themes {theme_class1 16} {} merge 0}
-      set shortcuts(10010) {sports themes {theme_class1 64} {} merge 0}
-      set shortcuts(10011) {{no sports} themes {theme_class1 64} theme_class1 and 0}
-      set shortcuts(10020) {series themes {theme_class1 128} {} merge 0}
-      set shortcuts(10030) {kids themes {theme_class1 80} {} merge 0}
-      set shortcuts(10040) {shows themes {theme_class1 48} {} merge 0}
-      set shortcuts(10050) {news themes {theme_class1 32} {} merge 0}
-      set shortcuts(10060) {social themes {theme_class1 37} {} merge 0}
-      set shortcuts(10070) {science themes {theme_class1 86} {} merge 0}
-      set shortcuts(10080) {hobbies themes {theme_class1 52} {} merge 0}
-      set shortcuts(10090) {music themes {theme_class1 96} {} merge 0}
-      set shortcuts(10100) {culture themes {theme_class1 112} {} merge 0}
-      set shortcuts(10110) {adult themes {theme_class1 24} {} merge 0}
-      set shortcuts(10120) {evening timsel {timsel {0 0 1215 1410 -1}} {} merge 0}
-      set shortcuts(10130) {{>15 minutes} dursel {dursel {16 1435}} {} merge 0}
-      set shortcut_order [lsort -integer [array names shortcuts]]
+      set shortcuts(10000) {movies themes {theme_class1 16} {} merge {}}
+      set shortcuts(10010) {sports themes {theme_class1 64} {} merge {}}
+      set shortcuts(10011) {{no sports} themes {theme_class1 64} theme_class1 and {}}
+      set shortcuts(10020) {series themes {theme_class1 128} {} merge {}}
+      set shortcuts(10030) {kids themes {theme_class1 80} {} merge {}}
+      set shortcuts(10040) {shows themes {theme_class1 48} {} merge {}}
+      set shortcuts(10050) {news themes {theme_class1 32} {} merge {}}
+      set shortcuts(10060) {social themes {theme_class1 37} {} merge {}}
+      set shortcuts(10070) {science themes {theme_class1 86} {} merge {}}
+      set shortcuts(10080) {hobbies themes {theme_class1 52} {} merge {}}
+      set shortcuts(10090) {music themes {theme_class1 96} {} merge {}}
+      set shortcuts(10100) {culture themes {theme_class1 112} {} merge {}}
+      set shortcuts(10110) {adult themes {theme_class1 24} {} merge {}}
+      set shortcuts(10120) {evening timsel {timsel {0 0 1215 1410 -1}} {} merge {}}
+      set shortcuts(10130) {{>15 minutes} dursel {dursel {16 1435}} {} merge {}}
+      set shortcut_tree [lsort -integer [array names shortcuts]]
    }
 }
 
@@ -99,11 +99,19 @@ proc PreloadShortcuts {} {
 ##
 proc GenerateShortcutTag {} {
    global shortcuts
+   global fscedit_sclist
 
    set tag [clock seconds]
    foreach stag [array names shortcuts] {
       if {$tag <= $stag} {
          set tag [expr $stag + 1]
+      }
+   }
+   if [info exists fscedit_sclist] {
+      foreach stag [array names fscedit_sclist] {
+         if {$tag <= $stag} {
+            set tag [expr $stag + 1]
+         }
       }
    }
    return $tag
@@ -144,7 +152,7 @@ proc DownloadUserDefinedColumnFilters {} {
 ##  Check if shortcut should be deselected after manual filter modification
 ##
 proc CheckShortcutDeselection {} {
-   global shortcuts shortcut_order
+   global shortcuts
    global parental_rating editorial_rating
    global theme_sel theme_class_sel current_theme_class theme_class_count
    global sortcrit_class sortcrit_class_sel
@@ -159,8 +167,7 @@ proc CheckShortcutDeselection {} {
    global filter_invert
    global fsc_prevselection
 
-   foreach sc_index [.all.shortcuts.list curselection] {
-      set sc_tag [lindex $shortcut_order $sc_index]
+   foreach sc_tag [ShortcutTree_Curselection .all.shortcuts.list] {
       set undo 0
       foreach {ident valist} [lindex $shortcuts($sc_tag) $::fsc_filt_idx] {
          switch -glob $ident {
@@ -320,7 +327,7 @@ proc CheckShortcutDeselection {} {
 
       if $undo {
          # clear the selection in the main window's shortcut listbox
-         .all.shortcuts.list selection clear $sc_index
+         Tree:selection .all.shortcuts.list clear $sc_tag
 
          # remove the shortcut from the list of selected shortcuts
          if {[info exists fsc_prevselection]} {
@@ -849,20 +856,28 @@ proc SelectShortcuts {sc_tag_list shortcuts_arr} {
    set fsc_prevselection $sc_tag_list
 }
 
+##  --------------------------------------------------------------------------
+##  Tree widget interface functions
+
 ##
 ##  Toggle shortcut between active / inactive
 ##  - used for key bindings on 0-9 digit keys in main window
 ##
 proc ToggleShortcut {index} {
-   if {! [.all.shortcuts.list selection includes $index]} {
+   global shortcuts shortcut_tree
+
+   # get flat list of shortcuts (unfold visible parts of tree)
+   set sc_tag [lindex [Tree:unfold .all.shortcuts.list /] $index]
+
+   if {! [Tree:selection .all.shortcuts.list includes $sc_tag]} {
       # item is not yet selected -> select it
-      .all.shortcuts.list selection set $index
+      Tree:selection .all.shortcuts.list set $sc_tag
    } else {
       # deselect the item
-      .all.shortcuts.list selection clear $index
+      Tree:selection .all.shortcuts.list clear $sc_tag
    }
    # update filter settings
-   InvokeSelectedShortcuts
+   ShortcutTree_Invoke
 }
 
 ##
@@ -871,7 +886,7 @@ proc ToggleShortcut {index} {
 ##  - if the single shortcut is already selected, it's deselected
 ##
 proc SelectShortcutFromTagList {tag_list sc_tag} {
-   global shortcuts shortcut_order
+   global shortcuts
    global fsc_prevselection
 
    if [info exists fsc_prevselection] {
@@ -888,10 +903,7 @@ proc SelectShortcutFromTagList {tag_list sc_tag} {
          if {[lsearch -exact $tag_list $prev_tag] != -1} {
             # shortcut selected & in the given list -> deselect in listbox
             # (the shortcut's filters are implicitly disabled by not passing the tag to select below)
-            set idx [lsearch -exact $shortcut_order $prev_tag]
-            if {$idx != -1} {
-               .all.shortcuts.list selection clear $idx
-            }
+            Tree:selection .all.shortcuts.list clear $prev_tag
          } else {
             # shortcut is not in the list -> leave it selected
             lappend sc_tag_list $prev_tag
@@ -907,13 +919,10 @@ proc SelectShortcutFromTagList {tag_list sc_tag} {
       set undo 0
    }
 
-   set idx [lsearch -exact $shortcut_order $sc_tag]
-   if {$idx != -1} {
-      if {$undo == 0} {
-         .all.shortcuts.list selection set $idx
-      } else {
-         .all.shortcuts.list selection clear $idx
-      }
+   if {$undo == 0} {
+      Tree:selection .all.shortcuts.list set $sc_tag
+   } else {
+      Tree:selection .all.shortcuts.list clear $sc_tag
    }
 
    SelectShortcuts $sc_tag_list shortcuts
@@ -924,7 +933,7 @@ proc SelectShortcutFromTagList {tag_list sc_tag} {
 ##  - all other shortcuts remain unaffected
 ##
 #proc ToggleShortcutByTag {sc_tag} {
-#   global shortcuts shortcut_order
+#   global shortcuts
 #   global fsc_prevselection
 #
 #   if [info exists fsc_prevselection] {
@@ -944,28 +953,159 @@ proc SelectShortcutFromTagList {tag_list sc_tag} {
 #      set undo 0
 #   }
 #
-#   set idx [lsearch -exact $shortcut_order $sc_tag]
-#   if {$idx != -1} {
-#      if {$undo == 0} {
-#         .all.shortcuts.list selection set $idx
-#      } else {
-#         .all.shortcuts.list selection clear $idx
-#      }
+#   if {$undo == 0} {
+#      Tree:selection .all.shortcuts.list set $sc_tag
+#   } else {
+#      Tree:selection .all.shortcuts.list clear $sc_tag
 #   }
 #
 #   SelectShortcuts $sc_tag_list shortcuts
 #}
 
-proc InvokeSelectedShortcuts {} {
-   global shortcuts shortcut_order
+proc ShortcutTree_Invoke {} {
+   global shortcuts
 
-   set sc_tag_list {}
-   foreach index [.all.shortcuts.list curselection] {
-      lappend sc_tag_list [lindex $shortcut_order $index]
-   }
+   set sc_tag_list [ShortcutTree_Curselection .all.shortcuts.list]
    SelectShortcuts $sc_tag_list shortcuts
 }
 
+##
+##  Feed all elements in the shortcut tree into the tree widget
+##  - tree structure is defined by "node" member in shortcut array elements:
+##    leafs have type {}; nodes type "+dir" or "-dir" where +/- says if the
+##    elements are visible or not; node type "separator" is a horizontal line
+##  - calls itself recursively for all sub-nodes
+##
+proc ShortcutTree_Fill {w dir sc_tags sc_ref edit_mode} {
+   upvar $sc_ref sc_arr
+
+   if {$dir == {}} {
+      Tree:delitem $w /
+   }
+
+   foreach elem $sc_tags {
+      if {[llength $elem] == 1} {
+         if [info exists sc_arr($elem)] {
+            if {[string length [lindex $sc_arr($elem) $::fsc_node_idx]] == 0} {
+               Tree:insert $w $dir/$elem -label [lindex $sc_arr($elem) $::fsc_name_idx]
+            } elseif {[string compare [lindex $sc_arr($elem) $::fsc_node_idx] separator] == 0} {
+               if $edit_mode {
+                  Tree:insert $w $dir/$elem -separator 1
+               } else {
+                  Tree:insert $w $dir/$elem -separator 1 -state disabled
+               }
+            } elseif {[string match "?dir" [lindex $sc_arr($elem) $::fsc_node_idx]] == 1} {
+               set diropen [expr [string compare -length 1 [lindex $sc_arr($elem) $::fsc_node_idx] "+"] == 0]
+               if $edit_mode {
+                  Tree:insert $w $dir/$elem -label [lindex $sc_arr($elem) $::fsc_name_idx] -diropen $diropen
+               } else {
+                  Tree:insert $w $dir/$elem -label [lindex $sc_arr($elem) $::fsc_name_idx] -diropen $diropen -state noselect
+               }
+            } else {
+               error "unknown shortcut node type '[lindex $sc_arr($elem) $::fsc_node_idx]' for tag $elem"
+            }
+         }
+      } else {
+         set dir_tag [lindex $elem 0]
+         if [info exists sc_arr($dir_tag)] {
+            set dflag [lindex $sc_arr($dir_tag) $::fsc_node_idx]
+            if {[string match "?dir" $dflag] == 1} {
+               set diropen [expr [string compare -length 1 $dflag "+"] == 0]
+               if $edit_mode {
+                  Tree:insert $w $dir/$dir_tag -label [lindex $sc_arr($dir_tag) $::fsc_name_idx] -diropen $diropen
+               } else {
+                  Tree:insert $w $dir/$dir_tag -label [lindex $sc_arr($dir_tag) $::fsc_name_idx] -diropen $diropen -state noselect
+               }
+               ShortcutTree_Fill $w $dir/$dir_tag [lrange $elem 1 end] sc_arr $edit_mode
+            } else {
+               error "unknown shortcut sub-node type '[lindex $sc_arr($elem) $::fsc_node_idx]' for tag $dir_tag"
+            }
+         }
+      }
+   }
+}
+
+##
+##  Hierarchically fill a menu with all shortcuts
+##  - invokes a callback proc for each shortcut to determine it's menu entrie's state
+##
+proc ShortcutTree_MenuFill {wtree wmenu sc_tags sc_ref menu_cmd state_proc} {
+   upvar $sc_ref sc_arr
+
+   foreach elem $sc_tags {
+      if {[llength $elem] == 1} {
+         if {[string length [lindex $sc_arr($elem) $::fsc_node_idx]] == 0} {
+            $wmenu add command -label [lindex $sc_arr($elem) $::fsc_name_idx] \
+                               -command [concat $menu_cmd $elem] -state [$state_proc $elem]
+         } else {
+            $wmenu add separator
+         }
+      } else {
+         set dir_tag [lindex $elem 0]
+         if [info exists sc_arr($dir_tag)] {
+            if {[string match "?dir" [lindex $sc_arr($dir_tag) $::fsc_node_idx]] == 1} {
+               $wmenu add cascade -label [lindex $sc_arr($dir_tag) $::fsc_name_idx] -menu ${wmenu}.dir$dir_tag
+               menu ${wmenu}.dir$dir_tag -tearoff 0 
+
+               ShortcutTree_MenuFill $wtree ${wmenu}.dir$dir_tag [lrange $elem 1 end] sc_arr $menu_cmd $state_proc
+            }
+         }
+      }
+   }
+}
+
+##
+##  Query which shortcuts are selected in the tree widget
+##
+proc ShortcutTree_Curselection {w} {
+
+   set ltmp {}
+   foreach el [Tree:curselection $w] {
+      lappend ltmp [file tail $el]
+   }
+   return $ltmp
+}
+
+##
+##  Translate an X,Y coordinate in the tree widget into a shortcut tag
+##
+proc ShortcutTree_Element {w coo} {
+   set w .all.shortcuts.list
+   set el [Tree:labelat $w $coo]
+   return [file tail $el]
+}
+
+##
+##  Handler for virtual "TreeOpenClose" event
+##  - invoked by tree widget when directory +/- button is clicked
+##  - used to track which directories are open in the rc/ini file
+##
+proc ShortcutTree_OpenCloseEvent {wid sc_arr_ref sc_tree} {
+   upvar $sc_arr_ref sc_arr
+
+   foreach elem $sc_tree {
+      if {[llength $elem] > 1} {
+         # this is a sub-directory
+         set dir_tag [lindex $elem 0]
+         if {[info exists sc_arr($dir_tag)] &&
+             ([string match "?dir" [lindex $sc_arr($dir_tag) $::fsc_node_idx]] == 1)} {
+            # query if this directory node is open or closed
+            if [Tree:itemcget $wid $dir_tag -diropen] {
+               set dflag "+dir"
+            } else {
+               set dflag "-dir"
+            }
+            # update open/close status in the node's shortcut array element, if changed
+            if {[string compare [lindex $sc_arr($dir_tag) $::fsc_node_idx] $dflag] != 0} {
+               set sc_arr($dir_tag) [lreplace $sc_arr($dir_tag) $::fsc_node_idx $::fsc_node_idx $dflag]
+            }
+
+            # traverse sub-directory (to process for sub-sub directories)
+            ShortcutTree_OpenCloseEvent $wid sc_arr [lrange $elem 1 end]
+         }
+      }
+   }
+}
 
 #=LOAD=DescribeCurrentFilter
 #=LOAD=ShortcutPrettyPrint
@@ -1345,5 +1485,4 @@ proc ShortcutPrettyPrint {filter inv_list} {
    }
    return $out
 }
-
 

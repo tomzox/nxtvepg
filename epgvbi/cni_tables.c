@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: cni_tables.c,v 1.22 2003/06/09 15:30:23 tom Exp tom $
+ *  $Id: cni_tables.c,v 1.23 2004/03/21 18:07:31 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -741,6 +741,8 @@ static const uint cni_prov_table[] =
    0x2F04,  // Canal+ (France)
    0x33F4,
    0x2F06,  // M6 (France)
+   0x1604,  // VT4 (Belgium)
+   0x0404,
    0x9001,  // TRT-1 (Turkey)
    0
 };

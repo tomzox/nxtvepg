@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pibox.c,v 1.2 2003/02/09 17:36:44 tom Exp tom $
+ *  $Id: pibox.c,v 1.3 2004/04/02 12:22:17 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -188,11 +188,14 @@ void PiBox_Destroy( void )
 
 // ----------------------------------------------------------------------------
 // Link the listbox commands with this box type
+// - client data <ttp> is a boolean parameter: "isInitial": TRUE when called
+//   during application start -> suppress PI box reset
 //
 static int PiBox_Toggle( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    Tcl_Obj * pTmpObj;
    int       newType;
+   bool      isInitial = PVOID2INT(ttp);
 
    pTmpObj = Tcl_GetVar2Ex(interp, "pibox_type", NULL, TCL_GLOBAL_ONLY);
    if ((pTmpObj != NULL) && (Tcl_GetIntFromObj(interp, pTmpObj, &newType) == TCL_OK))
@@ -207,8 +210,10 @@ static int PiBox_Toggle( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *
 
             pibox_type = PIBOX_TYPE_LISTBOX;
 
-            // if in database exception state, re-display the message
-            UiControl_AiStateChange(DB_TARGET_UI);
+            if (isInitial == FALSE)
+            {  // if in database exception state, re-display the message
+               UiControl_AiStateChange(DB_TARGET_UI);
+            }
          }
       }
       else if (newType == 1)
@@ -221,8 +226,10 @@ static int PiBox_Toggle( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *
 
             pibox_type = PIBOX_TYPE_NETBOX;
 
-            // if in database exception state, re-display the message
-            UiControl_AiStateChange(DB_TARGET_UI);
+            if (isInitial == FALSE)
+            {  // if in database exception state, re-display the message
+               UiControl_AiStateChange(DB_TARGET_UI);
+            }
          }
       }
       else
@@ -237,12 +244,12 @@ static int PiBox_Toggle( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *
 //
 void PiBox_Create( void )
 {
-   Tcl_CreateObjCommand(interp, "C_PiBox_Toggle", PiBox_Toggle, (ClientData) NULL, NULL);
+   Tcl_CreateObjCommand(interp, "C_PiBox_Toggle", PiBox_Toggle, INT2PVOID(FALSE), NULL);
 
    PiDescription_Init();
    PiOutput_Init();
 
    // check if the widget is enabled; if yes allocate memory and initialize
-   PiBox_Toggle(NULL, interp, 0, NULL);
+   PiBox_Toggle(INT2PVOID(TRUE), interp, 0, NULL);
 }
 

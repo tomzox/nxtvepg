@@ -22,7 +22,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: loadtcl.c,v 1.6 2003/09/15 20:40:11 tom Exp tom $
+ *  $Id: loadtcl.c,v 1.7 2003/12/27 17:27:44 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -59,6 +59,7 @@
 #include "epgtcl/dlg_filter.h"
 #include "epgtcl/dlg_substr.h"
 #include "epgtcl/dlg_remind.h"
+#include "epgtcl/htree.h"
 #ifdef USE_PRECOMPILED_TCL_LIBS
 #include "epgtcl/tcl_libs.h"
 #include "epgtcl/tk_libs.h"
@@ -109,6 +110,7 @@ static const TCL_LOAD_TAB pLoadTab[] =
    {mclistbox_tcl_static, mclistbox_tcl_dynamic, "mclistbox_tcl"},
    {combobox_tcl_static, combobox_tcl_dynamic, "combobox_tcl"},
    {rnotebook_tcl_static, rnotebook_tcl_dynamic, "rnotebook_tcl"},
+   {htree_tcl_static, NULL, NULL},
    {NULL, NULL, NULL}
 };
 

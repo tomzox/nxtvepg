@@ -26,9 +26,9 @@
  *      " This code is based on a version of dTV modified by Michael Eskin and
  *        others at Connexant.  Those parts are probably (c) Connexant 2002 "
  *
- *  DScaler #Id: CX2388x_Defines.h,v 1.10 2002/12/15 13:54:13 adcockj Exp #
+ *  DScaler #Id: CX2388x_Defines.h,v 1.23 2004/03/07 12:20:12 to_see Exp #
  *
- *  $Id: cx2388x_reg.h,v 1.5 2003/03/09 19:28:59 tom Exp tom $
+ *  $Id: cx2388x_reg.h,v 1.7 2004/03/12 21:31:47 tom Exp tom $
  */
 
 #ifndef __CX2388X_REG_H
@@ -360,9 +360,9 @@
 #define AUD_PDF_DDS_CNST_BYTE2   0x320d01
 #define AUD_PDF_DDS_CNST_BYTE1   0x320d02
 #define AUD_PDF_DDS_CNST_BYTE0   0x320d03
-#define AUD_PHACC_FREQ_8MSB      0x320d2a
-#define AUD_PHACC_FREQ_8LSB      0x320d23
 #define AUD_QAM_MODE             0x320d04
+#define AUD_PHACC_FREQ_8MSB      0x320d2a
+#define AUD_PHACC_FREQ_8LSB      0x320d2b
 
 // ************************** Transport Stream **************************************
 #define MO_TS_DMA           0x330000 // {64}RWp Transport stream downstream
@@ -450,6 +450,7 @@
 #define MO_GPHST_MUX16      0x380064 // Host muxed 16-bit transfer parameters
 #define MO_GPHST_MODE       0x380068 // Host mode select
 
+#define MAP_EEPROM_DATA     0x365000 // Begin of EEPROM-Data
 
 // AUD_INIT
 
@@ -498,10 +499,16 @@
 #define EN_I2SIN_STR2DAC        0x00004000
 #define EN_I2SIN_ENABLE         0x00008000
 
-#define EN_DMTRX_SUMDIFF        0x00000800
-#define EN_DMTRX_SUMR           0x00000880
-#define EN_DMTRX_LR             0x00000900
-#define EN_DMTRX_MONO           0x00000980
+#define EN_DMTRX_SUMDIFF        (0 << 7)
+#define EN_DMTRX_SUMR           (1 << 7)
+#define EN_DMTRX_LR             (2 << 7)
+#define EN_DMTRX_MONO           (3 << 7)
+#define EN_DMTRX_BYPASS         (1 << 11)
+
+#define EN_SRC_MUTE_EN          0x00000040
+#define EN_I2S_MUTE_EN          0x00000080
+#define EN_DAC_MUTE_EN          0x00000100
+
 
 #if 0  // WRONG acc. to data sheet
 // Video 
@@ -614,6 +621,11 @@
 #define CX2388X_AGC_SYNC_SLICE  0x00310204
 #define CX2388X_AGC_SYNC_TIP1   0x00310208
 #define CX2388X_AGC_SYNC_TIP2   0x0031020C
+#define CX2388X_AGC_SYNC_TIP3   0x00310210
+#define CX2388X_AGC_GAIN1       0x00310214
+#define CX2388X_AGC_GAIN2       0x00310218
+#define CX2388X_AGC_GAIN3       0x0031021C
+#define CX2388X_AGC_GAIN4       0x00310220
 #define CX2388X_VIDY_GP_CNT     0x0031C020
 #define CX2388X_VIDU_GP_CNT     0x0031C024
 #define CX2388X_VIDV_GP_CNT     0x0031C028

@@ -26,7 +26,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: vbidecode.c,v 1.36 2003/04/12 17:51:13 tom Exp tom $
+ *  $Id: vbidecode.c,v 1.37 2003/12/06 18:55:54 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -39,7 +39,6 @@
 #include "epgvbi/hamming.h"
 #include "epgvbi/vbidecode.h"
 
-#ifndef ZVBI_DECODER
 
 // use fixpoint arithmetic for scanning steps
 #define FPSHIFT 16
@@ -272,4 +271,3 @@ void VbiDecodeLine(const uchar * lbuf, int line, bool doVps)
    //printf("****** line=%d  [0]=%x != 0x54\n", line, data[0]);
 }
 
-#endif  // not ZVBI_DECODER

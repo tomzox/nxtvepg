@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: draw_stats.tcl,v 1.3 2002/12/28 13:08:14 tom Exp tom $
+#  $Id: draw_stats.tcl,v 1.4 2004/02/14 20:00:03 tom Exp tom $
 #
 
 #=LOAD=TimeScale_Open
@@ -422,9 +422,9 @@ proc DbStatsWin_Create {wname} {
    #pack $wname.acq -side top -anchor nw -fill both
 
    button $wname.browser.qmark -bitmap bitmap_qmark -cursor top_left_arrow -takefocus 0 -relief ridge
-   bind   $wname.browser.qmark <ButtonRelease-1> {PopupHelp $helpIndex(Statistics) "Database statistics popup windows"}
+   bind   $wname.browser.qmark <ButtonRelease-1> {PopupHelp $helpIndex(Statistics) "Database statistics"}
    pack   $wname.browser.qmark -side top
-   bind   $wname <Key-F1> {PopupHelp $helpIndex(Statistics) "Database statistics popup windows"}
+   bind   $wname <Key-F1> {PopupHelp $helpIndex(Statistics) "Database statistics"}
 
    # inform the control code when the window is destroyed
    bind $wname.browser <Destroy> [list + C_StatsWin_ToggleDbStats $wname 0]

@@ -1,0 +1,431 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
+<HTML lang="en">
+<!-- $Id: faq.html,v 1.4 2004/04/03 13:12:02 tom Exp $ -->
+<HEAD>
+<TITLE>Nxtvepg Frequently Asked Questions (with Answers)</TITLE>
+<META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<META name="language" content="en">
+<META name="keywords" lang="en" content="nxtvepg,software,FAQ,frequently asked questions,feedback,problems,usage,help,configuration,tips,tricks">
+<META name="description" lang="en" content="Links to application related to the nxtvepg Nextview EPG decoder">
+<META name="author" content="Tom Zoerner">
+<META name="copyright" content="Tom Zoerner">
+<META name="robots" content="index, follow">
+<META name="revisit-after" content="01 month">
+<LINK rel="stylesheet" type="text/css" href="nxtvepg.css">
+<!--
+<LINK rel="alternate" type="text/html" href="faq-de.html" hreflang="de" lang="en" title="German nxtvepg FAQ">
+-->
+<LINK rel="shortcut icon" type="image/x-icon" href="nxtvepg.ico">
+<LINK rel="top" href="http://nxtvepg.sourceforge.net/" title="nexTView EPG Decoder Homepage">
+</HEAD>
+<BODY>
+
+<DIV CLASS="navBar">
+<P><SMALL>
+<IMG ALT="" SRC="nxtv_icon.gif">&nbsp;nxtvepg&nbsp;
+<A HREF="index.html">home</A> &nbsp;|&nbsp;
+<A HREF="intro.html">about</A>
+</SMALL></P></DIV>
+
+<DIV class="navBlock">
+<H2 class="navhead">Language</H2>
+<P>
+<IMG ALT="" SRC="en.png" WIDTH=16 HEIGHT=10> English<BR>
+<IMG ALT="" SRC="de.png" WIDTH=16 HEIGHT=10> <SPAN class="navDisabled">Deutsch</SPAN><BR>
+<IMG ALT="" SRC="fr.png" WIDTH=16 HEIGHT=10> <SPAN class="navDisabled">Français</SPAN><BR>
+</P>
+
+<H2 class="navhead">News</H2>
+<P>
+Apr/2/2004: <A HREF="changelog.html#release_2_7_0">Release 2.7.0</A>
+</P>
+
+<H2 class="navhead">Documentation</H2>
+<P>
+<A HREF="index.html">Homepage</A><BR>
+<A HREF="intro.html">Introduction</A><BR>
+<A HREF="provnets.html">Providers list</A><BR>
+<A HREF="help-wanted.html">Help Wanted</A><BR>
+<A HREF="links.html">Links</A><BR>
+<SPAN CLASS="navPointer">FAQ</SPAN><BR>
+<BR>
+<A HREF="man.html">nxtvepg manual</A><BR>
+</P>
+
+<H2 class="navhead">Download</H2>
+<P>
+<A HREF="download.html">Download</A><BR>
+<A HREF="download.html#requirements">System requirements</A><BR>
+<A HREF="changelog.html">Changelog</A><BR>
+</P>
+
+<H2 class="navhead">Screenshots</H2>
+<P>
+<A HREF="screenshot-shortcuts.gif">New 2.7.0 feature</A><BR>
+<A HREF="screenshot-reminder.gif">New 2.6.0 features</A><BR>
+<A HREF="screenshot-grid1.png">New 2.5.0 features</A><BR>
+<A HREF="screenshot-win.gif">Windows screenshot</A><BR>
+<A HREF="screenshot-series.gif">Series menu</A><BR>
+<A HREF="screenshot-xawtv.jpg">xawtv with EPG OSD</A><BR>
+</P>
+<span class="center"><span class="logo"><a href="http://sourceforge.net"><img
+src="http://sourceforge.net/sflogo.php?group_id=64430&amp;type=4"
+width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
+</DIV>
+
+<DIV class="mainBlock">
+<H1>Frequently Asked Questions</H1>
+
+<DIV CLASS="box">
+<H2>Contents</H2>
+<UL>
+<LI>Linux specific
+    <UL>
+    <LI><A HREF="#linux_channel_switch">
+        Q: How do I keep nxtvepg from changing the channel while I'm watching TV?</A>
+    <LI><A HREF="#linux_video_index">
+        Q: How do I tell nxtvepg to switch channels via /dev/video1</A>
+    </UL>
+<LI>Windows specific
+    <UL>
+    <LI><A HREF="#win32_card_config">
+        Q: My TV card does not work. Help?</A>
+    <LI><A HREF="#win32_agp_usb">
+        Q: Can I use my AGP card or USB box with nxtvepg?</A>
+    <LI><A HREF="#win32_wdm">
+        Q: Can I use my card's WDM drivers with nxtvepg?</A>
+    <LI><A HREF="#win32_cx23881">
+        Q: Why does my "CX23881" based card not work although it's even auto-detected?</A>
+    </UL>
+<LI>General
+    <UL>
+    <LI><A HREF="#tv_app_interaction">
+        Q: When will TV application X be supported?</A>
+    <LI><A HREF="#acquisition_problems">
+        Q: Nextview EPG acquisition suddenly doesn't work anymore.
+           Is provider X dead?</A>
+    <LI><A HREF="#time_zone">
+        Q: All times are wrong by one or two hours.  How do I fix that?</A>
+    </UL>
+<LI>Tips and Tricks
+    <UL>
+    <LI><A HREF="#tip_attribute_composition">
+        Tip: Using <I>Highlights</I> and <I>Movie Star</I> categories
+             provided by Fast-TV on Kabel1 in Germany</A>
+    <LI><A HREF="#tip_xmltv_export">
+        Tip: Restricting XMLTV export</A>
+    <LI><A HREF="#tip_air_times_config">
+        Tip: Air times restriction</A>
+    <LI><A HREF="#tip_resources">
+        Tip: Changing colors and fonts</A>
+    <LI><A HREF="#tip_database_sharing">
+        Tip: Using the same database for Windows as for Linux</A>
+    </UL>
+</UL>
+</DIV>
+
+<DIV CLASS="box">
+<H2>Linux specific</H2>
+<DL>
+<DT><A NAME="linux_channel_switch">
+    Q: How do I keep nxtvepg from changing the channel while I'm watching TV?
+<DD><P>
+This is a problem which should only occur with <I>v4l2</I> drivers
+(2nd generation of the video4linux driver API), i.e. saa7134 and cx8800
+- which only support v4l2 - or bttv version 9.
+</P><P>
+<B>Explanation:</B>
+The reason is that v4l2 allows multiple opens on the /dev/video device, hence
+the old v4l1 trick of switching channels through the video device (which would
+only succeed if no TV app had already opened it) does not work anymore. The
+problem was already adressed early 2003 by designing a new driver interface
+which allows background data harvesting applications to lower their priority
+beneath that of interactive applications like TV watching. You can check if
+your kernel or video4linux module supports that feature by looking for ioctl
+VIDIOC_S_PRIORITY in <KBD>videodev2.h</KBD>.  However it took quite a while
+until the new feature was merged into the main kernel line.
+</P><P>
+<B>Solution:</B>
+Upgrade to nxtvepg 2.7.0 and linux kernel 2.6.2 (e.g. from
+<A HREF="http://kernel.org/">kernel.org</A> or check your distribution's
+upgrade options).  Experienced users may alternatively upgrade video4linux
+by downloading the latest module releases or snapshots from
+<A HREF="http://bytesex.org/">bytesex.org</A>. Caution: this may require
+to patch your kernel, check out the <I>patches</I> section at the bytesex
+site.
+</P>
+<DT><A NAME="linux_video_index">
+    Q: How do I tell nxtvepg to switch channels via /dev/video1
+       while my VBI device is /dev/vbi0?
+<DD><P>
+The problem occurs when your first video device does not support VBI.
+Subsequent video devices will have mismatching video and vbi device
+indices because the drivers usually allocate the first free device index.
+</P><P>
+nxtvepg uses /dev/video<I>N</I> both for the device scan (in the TV card
+input configuration dialog) and to switch TV channels.  However for
+Nextview EPG acquisition /dev/vbi<I>N</I> is used.   nxtvepg will only
+work properly if video and vbi devices which refer to the hardware which
+you want to use for acquisition have the same index <I>N</I>.  There is no
+way to change that, however you can avoid the problem as explained below.
+</P><P>
+<B>Solution:</B>
+Force the driver to assign device index #1 to the VBI device.
+This is possible for video4linux drivers
+by using <KBD>modprobe</KBD> parameters in <KBD>/etc/modules.conf</KBD>,
+e.g. for bttv:
+</P>
+<PRE>
+options bttv video_nr=1 vbi_nr=1
+</PRE>
+</DL>
+</DIV>
+
+<!-- ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ -->
+
+<DIV CLASS="box">
+<H2>Windows specific</H2>
+<DL>
+<DT><A NAME="win32_card_config">
+    Q: My TV card does not work. Help?
+<DD><P>
+Unfortunately it's not possible to provide help for a question like this
+one, because it fails to provide any context.  Remember the person(s)
+who you're asking are doing this on a voluntary basis in their spare
+time, so you should not put the additional burden onto them to guess
+what you might have been referring to with your question.  Also consider
+that any time spent on support cannot be used to implement or improve
+features.
+</P><P>
+The minimum information you should provide is
+</P>
+<UL>
+<LI>Your operating system, including version (e.g. "Windows ME")
+<LI>Your TV card brand and model number
+<LI>What did you already try to make the card work.  You can refer to
+    the description in <A HREF="man.html#getting_started">Getting Started</A>
+<LI>If there are any error messages displayed by nxtvepg, quote them
+    <B>exactly</B> as printed on-screen.
+<LI>If there are no error messages, please explain what exactly
+    "does not work", e.g. is your card not auto-detected, does the
+    EPG provider scan find no channels or no providers, or is a provider
+    found but reception does not work etc.
+</UL>
+<P>
+<B>Important:</B> You can save yourself a lot of time if you try to
+find out which model and tuner setting your card requires if you
+use <A HREF="http://dscaler.org">DScaler</A> (make sure to use a
+version from the <I>alpha</I> branch, e.g. 4.19)  because it's so
+much easier when you see a TV image.  If your card can't be made to
+work with DScaler (excluding WDM sources, see below) it won't work
+with nxtvepg either.
+</P>
+
+<DT><A NAME="win32_agp_usb">
+    Q: Can I use my AGP card or USB box with nxtvepg?
+<DD><P>
+Under windows no, you can't.  Only PCI cards are supported.
+See also next question.
+</P>
+
+<DT><A NAME="win32_wdm">
+    Q: Can I use my card's WDM drivers with nxtvepg?
+<DD><P>
+As of writing this work on this area is underway, but there probably
+won't be a release until mid-2004 (very rough estimate, not counting
+unforseeable events which might even make the release not happen
+at all)
+</P>
+
+<DT><A NAME="win32_cx23881">
+    Q: Why does my "CX23881" based card not work although it's even auto-detected?
+<DD><P>
+With cards based on the Conexant CX23881 (also known as Bt881) capture chip
+there are still unsolved problems with interference between the dsdrv and
+the vendor's WDM drivers.  These WDM drivers are known to access the TV card
+even while no application is using them.  Note: You can verify that this
+is the cause of acquisition problems by de-installing the WDM drivers,
+reboot and then try nxtvepg again (note nxtvepg doesn't require any vendor
+supplied drivers.)
+</P><P>
+<B>Solution:</B> none yet.  As of nxtvepg 2.7.0 there's an option in
+the TV card input configuration dialog which allows to stop a vendor's
+WDM driver for the same card.  However this is still experimental.
+Feel free to try it, but be prepared that you have to manually re-enable
+the WDM driver via the service control center in case nxtvepg fails
+to re-enable it.
+</P>
+</DL>
+</DIV>
+
+<!-- ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ -->
+
+<DIV CLASS="box">
+<H2>General</H2>
+<DL>
+<DT><A NAME="tv_app_interaction">
+    Q: When will TV application X be supported?
+<DD><P>
+nxtvepg already offers multiple ways for TV applications to interact
+with it, hence it's generally up to the TV application's authors to
+show some interest in cooperation.  In other words: first make the
+TV app's author interested.
+</P><P>
+Also check out the
+<A HREF="links.html">list of already supported applications</A>
+</P>
+
+<DT><A NAME="acquisition_problems">
+    Q: Nextview EPG acquisition suddenly doesn't work anymore.
+       Is provider X dead?
+<DD><P>
+Please check the <A HREF="provnets.html">provider list</A>.  If your
+provider is listed as being active there, it's probably not dead.
+</P><P>
+As a general rule: try to remember what you changed since nxtvepg
+last worked, and temporarily undo it.  This includes software
+installation or upgrades, hardware configuration changes (new PCI
+cards etc.) or changes in cabling (esp. TV antenna cables)
+</P><P>
+If this doesn't help, try an EPG provider scan.  If the scan doesn't
+show any channels check your antenna cable again and check your TV image
+quality and teletext reception (e.g. for missing characters or lines.)
+Note that even if your TV image still looks sort-of OK, some kinds of
+"systematic" errors will make Nextview EPG reception impossible.
+As of 2.7.0 decoding statistics have been added to nxtvepg's "acquisition
+statistics" (Control menu).  You can use them to analyze the root of your
+reception problems:
+</P>
+<UL>
+<LI>Check acquisition status: if it says "passive" nxtvepg failed to
+    switch to the provider's channel.  If the reason is "no tuner"
+    make sure you have tuned a provider channel at your external
+    receiver; if the reason is "frequency missing" re-run a provider scan;
+    if the reason is "device busy" stop any other video or teletext
+    applications.
+<LI>Check VPS/PDC label and network name: should display your provider's
+    network name.  If not, your reception may be generally too bad.
+<LI>Check the teletext data rate: should be at least 150 kBaud for most
+    providers (up to 230 kBaud for some)
+<LI>Check if EPG data is detected: should be one every 1 or 1.5 seconds
+    in average.
+<LI>Check if "AI blocks" are received: usually one should be received every
+    10 seconds.
+</UL>
+<P>
+If that's to complicated, feel free to ask in the forum, but make sure
+to include an copy of the statistics output.
+</P>
+
+<DT><A NAME="time_zone">
+    Q: All times are wrong by one or two hours.  How do I fix that?
+<DD><P>
+Dates and times in Nextview EPG are transmitted by the content providers
+in UTC (<I>Universal Coordinated Time</I> also known as
+<I>Greenwhich Mean Time</I> aka GMT.)  Hence to display them correctly,
+dates and times need to be converted into your local time zone, which will
+only work correctly if you configure your PC's time zone and daylight
+saving time (i.e. summer/winter time) settings.  Especially after daylight
+saving time changes you should not only change your wall clock time, but
+also make sure your system's daylight saving time and/or time zone setting
+have been adapted.
+</P><P>
+nxtvepg also evaluates environment variable <I>TZ</I>, which allows to
+override the system's time zone setting.  Usually this variable should
+not be defined, unless you know what you're doing.
+</P>
+</DL>
+</DIV>
+
+<!-- ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ -->
+
+<DIV CLASS="box">
+<H2>Tips and Tricks</H2>
+<DL>
+<DT><A NAME="tip_attribute_composition">
+    Tip: Using <I>Highlights</I> and <I>Movie Star</I> categories
+         provided by FAST-TV on Kabel1 in Germany
+<DD><P>
+When you select provider Kabel1 and open the <I>Navigate</I> menu
+(on Windows this is a sub-menu in the <I>Filter</I> menu)
+you'll find two entries called <I>Highlights</I> and <I>Movie Star</I>
+which are an editoral rating by content provider
+<A HREF="http://www.tvtv.de/">FAST-TV</A>.
+</P><P>
+You can copy these navigation entries into a shortcut simply by
+selecting them and then calling <I>Add shortcut</I> in the shortcuts
+menu.  After that you can use these shortcuts also for a merged database
+(where you don't have a Navigate menu)  You can also use them in the
+<I>Attribute composition</I> configuration dialog to mark the respective
+programmes (e.g. mark highlights by adding a small yellow dot and movie
+highlights with by a small red dot, like in this
+<A HREF="screenshot-grid2.png">screenshot</A>)
+</P>
+
+<DT><A NAME="tip_xmltv_export">
+    Tip: Restricting XMLTV export
+<DD><P>
+To reduce the number of networks in exported XMLTV files, create
+a merged database and remove unwanted networks with the
+<I>Network selection</I> configuration dialog.  You can also remove
+unnecessary categories (e.g. themes) by using the <I>Configure</I>
+sub-menu inside the merge dialog window.  For example choose entry
+<I>Themes</I> in said menu, then in the small dialog which pops up
+remove all providers from the right list and press OK.
+</P><P>
+If you don't want to override your merge configuration when you
+browse programmes inside nxtvepg, you can use a different nxtvepg.ini
+or .nxtvepgrc file by using the <KBD>-rcfile name</KBD> option on the
+command line when starting nxtvepg.
+</P>
+
+<DT><A NAME="tip_air_times_config">
+    Tip: Air times restriction
+<DD><P>
+For networks which you cannot receive the entire day (e.g. because
+several networks share the same channel like Arte and France&nbsp;5),
+you can configure a restricted air time in the network selection
+configuration dialog, so that programmes which you cannot receive are
+automatically excluded from the listing.
+</P>
+
+<DT><A NAME="tip_resources">
+    Tip: Changing colors and fonts
+<DD><P>
+There's no configuration dialog to change colors or fonts.  Instead
+these options are determined from a <I>resource file</I> (this is a
+concept of the UNIX <I>X Window system</I>) which needs to be edited
+by hand.  Refer to manual section <A HREF="man.html#files">Files</A>,
+section <KBD>.Xdefaults</KBD> for details.
+</P>
+
+<DT><A NAME="tip_database_sharing">
+    Tip: Sharing databases and configuation between Windows and Linux
+<DD><P>
+If you dual-boot your PC you'll probably want to use the same databases
+under both operating systems, to avoid having to load everything twice.
+By default nxtvepg stores the programme databases at different places and
+with different file names under UNIX and Windows, however since nxtvepg
+version 0.2.7 it's possible to load data which was acquired under the
+respective other OS.  Just use the <KBD>-dbdir <I>path</I></KBD> command
+line option to point nxtvepg at the right directory.  You can share your
+<KBD>nxtvepg.ini</KBD> aka <KBD>.nxtvepgrc</KBD> file the same way by using
+the <KBD>-rcfile <I>path</I></KBD> command line option.
+</P><P>
+Since you cannot easily mount a UNIX filesystem under Windows it's recommended
+to use a Windows (FAT, FAT32 or network share) filesystem as shared directory.
+Note you need read and write access to that directory, unless you're using
+network acquisition mode only.
+</P>
+</DL>
+</DIV>
+
+<P>
+If this page didn't answer your question, please check the
+<A HREF="http://sourceforge.net/forum/forum.php?forum_id=217872">Discussion forum</A>:
+if it's not answered in any of the latest posts, feel free to ask your question
+there.
+</P>
+</DIV>
+</BODY>
+</HTML>

@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_filter.tcl,v 1.11 2003/10/05 19:45:08 tom Exp tom $
+#  $Id: dlg_filter.tcl,v 1.12 2004/03/21 17:34:19 tom Exp tom $
 #
 set progidx_first 0
 set progidx_last  0
@@ -72,12 +72,12 @@ proc GetNameForWeekday {wday fmt} {
   set anytime [clock seconds]
   # shift to 0:00 to avoid problems with daylight saving gaps at 2:00
   set anytime [expr $anytime - ($anytime % (60*60*24))]
-  # calculate weekday index for the arbitrary timestampt
-  set anyday [expr ([clock format $anytime -format {%u}] + 1) % 7]
+  # calculate weekday index for the arbitrary timestamp
+  set anyday [expr ([C_ClockFormat $anytime {%u}] + 1) % 7]
   # substract offset to the requested weekday index from the time
   set anytime [expr $anytime + (($wday - $anyday) * (24*60*60))]
   # finally return name of the resulting timestamp
-  return [clock format $anytime -format $fmt]
+  return [C_ClockFormat $anytime $fmt]
 }
 
 #=LOAD=ProgIdxPopup
@@ -284,7 +284,7 @@ proc Timsel_UpdateEntryText {} {
    switch -exact $timsel_datemode {
       ignore {set vtext "any day"}
       rel    {set vtext [format "+%d days" $timsel_date]}
-      wday   {set vtext [GetNameForWeekday $timsel_date {%a}]}
+      wday   {set vtext [GetNameForWeekday $timsel_date {%A}]}
       mday   {set vtext $timsel_date}
    }
    .timsel.all.date.str configure -text $vtext
@@ -761,7 +761,7 @@ proc UpdateExpiryFilter { round {val 0} } {
 
    set frm1 [Rnotebook:frame .piexpire.nb 1]
    set threshold [expr [clock seconds] - ($piexpire_display * 60)]
-   ${frm1}.time_frm.str configure -text [clock format $threshold -format {%a %d.%m. %H:%M}]
+   ${frm1}.time_frm.str configure -text [C_ClockFormat $threshold {%A %d.%m. %H:%M}]
 
    SelectExpireDelayFilter
 }

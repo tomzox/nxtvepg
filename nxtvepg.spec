@@ -1,5 +1,5 @@
 %define    prefix    /usr/local
-%define    version   2.6.0
+%define    version   2.7.0
 
 Summary:   nexTView EPG decoder and browser
 Name:      nxtvepg
@@ -16,14 +16,15 @@ BuildRoot: /tmp/nxtvepg-build
 This is a decoder and browser for nexTView - an Electronic TV Programme Guide
 for the analog domain (as opposed to the various digital EPGs that come with
 most digital broadcasts). It allows you to decode and browse TV programme
-listings for most of the major networks in Germany, Austria, France and
-Switzerland.
+listings for most of the major networks in Germany, Austria, France, Belgium
+and Switzerland.
 
 Currently Nextview EPG is transmitted by:
-- in Germany and Austria: Kabel1, RTL-II.
-- in Switzerland: SF1, TSR1, TSI1, EuroNews.
-- in France: Canal+, M6, TV5.
-- in Turkey: TRT.
+- in Germany and Austria: Kabel1, RTL-II (coverage: apx. 32 networks)
+- in Switzerland: SF1, TSR1, TSI1, EuroNews (coverage: apx. 37 networks)
+- in France: Canal+, M6, TV5, EuroNews (coverage: 8 networks)
+- in Belgium: VT4 (coverage: 32 networks)
+- in Turkey: TRT (coverage: apx. 17 networks)
 
 If you don't receive any of those, then this software unfortunately is
 almost useless to you, except for a demo mode. For more details please
