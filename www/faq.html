@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: faq.html,v 1.4 2004/04/03 13:12:02 tom Exp $ -->
+<!-- $Id: faq.html,v 1.8 2004/07/24 13:45:35 tom Exp $ -->
 <HEAD>
 <TITLE>Nxtvepg Frequently Asked Questions (with Answers)</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -37,7 +37,7 @@
 
 <H2 class="navhead">News</H2>
 <P>
-Apr/2/2004: <A HREF="changelog.html#release_2_7_0">Release 2.7.0</A>
+Jul/17/2004: <A HREF="changelog.html#release_2_7_1">Release 2.7.1</A>
 </P>
 
 <H2 class="navhead">Documentation</H2>
@@ -96,6 +96,8 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
         Q: Can I use my card's WDM drivers with nxtvepg?</A>
     <LI><A HREF="#win32_cx23881">
         Q: Why does my "CX23881" based card not work although it's even auto-detected?</A>
+    <LI><A HREF="#win32_hardware_conflict">
+        Q: Why can't I run nxtvepg in parallel to my TV application?</A>
     </UL>
 <LI>General
     <UL>
@@ -110,7 +112,7 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 <LI>Tips and Tricks
     <UL>
     <LI><A HREF="#tip_attribute_composition">
-        Tip: Using <I>Highlights</I> and <I>Movie Star</I> categories
+        Tip: Using <I>Tages-Tipp</I> and <I>Movie-Star</I> categories
              provided by Fast-TV on Kabel1 in Germany</A>
     <LI><A HREF="#tip_xmltv_export">
         Tip: Restricting XMLTV export</A>
@@ -120,6 +122,8 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
         Tip: Changing colors and fonts</A>
     <LI><A HREF="#tip_database_sharing">
         Tip: Using the same database for Windows as for Linux</A>
+    <LI><A HREF="#tip_printing">
+        Tip: How to print programme descriptions</A>
     </UL>
 </UL>
 </DIV>
@@ -128,7 +132,7 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 <H2>Linux specific</H2>
 <DL>
 <DT><A NAME="linux_channel_switch">
-    Q: How do I keep nxtvepg from changing the channel while I'm watching TV?
+    Q: How do I keep nxtvepg from changing the channel while I'm watching TV?</A>
 <DD><P>
 This is a problem which should only occur with <I>v4l2</I> drivers
 (2nd generation of the video4linux driver API), i.e. saa7134 and cx8800
@@ -156,7 +160,7 @@ site.
 </P>
 <DT><A NAME="linux_video_index">
     Q: How do I tell nxtvepg to switch channels via /dev/video1
-       while my VBI device is /dev/vbi0?
+       while my VBI device is /dev/vbi0?</A>
 <DD><P>
 The problem occurs when your first video device does not support VBI.
 Subsequent video devices will have mismatching video and vbi device
@@ -187,7 +191,7 @@ options bttv video_nr=1 vbi_nr=1
 <H2>Windows specific</H2>
 <DL>
 <DT><A NAME="win32_card_config">
-    Q: My TV card does not work. Help?
+    Q: My TV card does not work. Help?</A>
 <DD><P>
 Unfortunately it's not possible to provide help for a question like this
 one, because it fails to provide any context.  Remember the person(s)
@@ -222,14 +226,14 @@ with nxtvepg either.
 </P>
 
 <DT><A NAME="win32_agp_usb">
-    Q: Can I use my AGP card or USB box with nxtvepg?
+    Q: Can I use my AGP card or USB box with nxtvepg?</A>
 <DD><P>
 Under windows no, you can't.  Only PCI cards are supported.
 See also next question.
 </P>
 
 <DT><A NAME="win32_wdm">
-    Q: Can I use my card's WDM drivers with nxtvepg?
+    Q: Can I use my card's WDM drivers with nxtvepg?</A>
 <DD><P>
 As of writing this work on this area is underway, but there probably
 won't be a release until mid-2004 (very rough estimate, not counting
@@ -238,7 +242,7 @@ at all)
 </P>
 
 <DT><A NAME="win32_cx23881">
-    Q: Why does my "CX23881" based card not work although it's even auto-detected?
+    Q: Why does my "CX23881" based card not work although it's even auto-detected?</A>
 <DD><P>
 With cards based on the Conexant CX23881 (also known as Bt881) capture chip
 there are still unsolved problems with interference between the dsdrv and
@@ -255,6 +259,26 @@ Feel free to try it, but be prepared that you have to manually re-enable
 the WDM driver via the service control center in case nxtvepg fails
 to re-enable it.
 </P>
+
+<DT><A NAME="win32_hardware_conflict">
+    Q: Why can't I run nxtvepg in parallel to my TV application?</A>
+<DD><P>
+This problem occurs because nxtvepg accesses the TV card hardware directly,
+but only one application can control the hardware at the same time.
+<B>Warning:</B> Hardware access conflicts may crash your system, so you
+should take care to avoid such conflicts.  If you mistakenly create
+such a conflict, immediately quit both applications; especially do not
+attempt to re-start capturing in either of them.
+</P><P>
+<B>Solution:</B>
+If you want to run nxtvepg in parallel to a TV app you only have the option
+to either use a <A HREF="links.html">supported TV application</A> or to
+disable Nextview data acquisition while running the TV app.  The latter
+can be done either at start time by adding the
+<A HREF="man.html#options">-noacq</A> option on the command line or
+at run time by unchecking <I>Enable acquisition</I> in the
+<A HREF="man.html#control">Control menu</A>.
+</P>
 </DL>
 </DIV>
 
@@ -264,7 +288,7 @@ to re-enable it.
 <H2>General</H2>
 <DL>
 <DT><A NAME="tv_app_interaction">
-    Q: When will TV application X be supported?
+    Q: When will TV application X be supported?</A>
 <DD><P>
 nxtvepg already offers multiple ways for TV applications to interact
 with it, hence it's generally up to the TV application's authors to
@@ -276,7 +300,7 @@ Also check out the
 </P>
 
 <DT><A NAME="acquisition_problems">
-    Q: Nextview EPG acquisition suddenly doesn't work anymore.
+    Q: Nextview EPG acquisition suddenly doesn't work anymore.</A>
        Is provider X dead?
 <DD><P>
 Please check the <A HREF="provnets.html">provider list</A>.  If your
@@ -299,26 +323,45 @@ reception problems:
 <UL>
 <LI>Check acquisition status: if it says "passive" nxtvepg failed to
     switch to the provider's channel.  If the reason is "no tuner"
-    make sure you have tuned a provider channel at your external
-    receiver; if the reason is "frequency missing" re-run a provider scan;
+    you have selected an external source as input instead of the internal
+    tuner, so you must make sure you have tuned a provider channel at your
+    external source (e.g. SAT receiver);
+    if the reason is "frequency missing" re-run a provider scan;
     if the reason is "device busy" stop any other video or teletext
-    applications.
+    applications so that nxtvepg can tune a provider channel.
 <LI>Check VPS/PDC label and network name: should display your provider's
-    network name.  If not, your reception may be generally too bad.
+    network name.  If not, re-run the EPG provider scan and check if your
+    provider's network is identified at all.  If not, your reception may
+    be generally too bad.
 <LI>Check the teletext data rate: should be at least 150 kBaud for most
-    providers (up to 230 kBaud for some)
-<LI>Check if EPG data is detected: should be one every 1 or 1.5 seconds
-    in average.
+    providers (up to 230 kBaud for some.)  If it's much less your reception
+    is too weak to receive Nextview EPG.
+<LI>Check if EPG data is detected: the EPG page rate should be 1 to 1.5 per
+    second.  If you don't get any pages although teletext data rate is OK,
+    your provider may have temporarily suspended transmission. Try again later.
 <LI>Check if "AI blocks" are received: usually one should be received every
-    10 seconds.
+    10 seconds.  If you do get a good EPG page rate but still no AI blocks,
+    there may be "systematic" packet loss, e.g. the first or last line on
+    every page missing.  Since AI blocks are very large and hence span many
+    teletext packets, such losses can completely prohibit Nextview EPG
+    reception.  If your teletext reception is otherwise OK, these losses may
+    be caused by driver problems or sometimes by hardware problems (e.g.
+    "overload" on a PCI bus, or interrupt problems.)  Check that you have
+    the latest drivers, or try to move the TV card to a different PCI slot.
 </UL>
 <P>
+Note if the statistics are resetted every couple seconds, i.e. the
+acquisition runtime restarts at zero, this is just another indication of
+decoding errors (i.e. nxtvepg falsely assumes there's been a channel change
+when there are too many changes in teletext headers.)
+</P><P>
 If that's to complicated, feel free to ask in the forum, but make sure
-to include an copy of the statistics output.
+to include an copy of the statistics output and describe what you already
+checked or tried to make acquisition work.
 </P>
 
 <DT><A NAME="time_zone">
-    Q: All times are wrong by one or two hours.  How do I fix that?
+    Q: All times are wrong by one or two hours.  How do I fix that?</A>
 <DD><P>
 Dates and times in Nextview EPG are transmitted by the content providers
 in UTC (<I>Universal Coordinated Time</I> also known as
@@ -343,27 +386,33 @@ not be defined, unless you know what you're doing.
 <H2>Tips and Tricks</H2>
 <DL>
 <DT><A NAME="tip_attribute_composition">
-    Tip: Using <I>Highlights</I> and <I>Movie Star</I> categories
-         provided by FAST-TV on Kabel1 in Germany
+    Tip: Using <I>Tages-Tipp</I> and <I>Movie-Star</I> categories
+         provided by FAST-TV on Kabel1 in Germany</A>
 <DD><P>
 When you select provider Kabel1 and open the <I>Navigate</I> menu
 (on Windows this is a sub-menu in the <I>Filter</I> menu)
-you'll find two entries called <I>Highlights</I> and <I>Movie Star</I>
-which are an editoral rating by content provider
+you'll find two entries called <I>Tages-Tipp</I> and <I>Movie-Star</I>
+which are editoral ratings by content provider
 <A HREF="http://www.tvtv.de/">FAST-TV</A>.
 </P><P>
-You can copy these navigation entries into a shortcut simply by
-selecting them and then calling <I>Add shortcut</I> in the shortcuts
-menu.  After that you can use these shortcuts also for a merged database
+You can copy these navigation entries into a filter shortcut simply by
+selecting them in the menu and then calling <I>Add shortcut</I> in the
+shortcuts menu.  You may want to remove the start time filter (e.g. "today")
+beforehand by de-selecting this filter in <I>Filter->Start time...</I>
+Afterwards you can use these shortcuts even for a merged database
 (where you don't have a Navigate menu)  You can also use them in the
 <I>Attribute composition</I> configuration dialog to mark the respective
 programmes (e.g. mark highlights by adding a small yellow dot and movie
 highlights with by a small red dot, like in this
 <A HREF="screenshot-grid2.png">screenshot</A>)
+</P><P>
+Note this provider also makes extensive use of
+<A HREF="man.html#filter types">sorting criterions</A>, but you have
+to figure out for yourself which categories they are meant to represent.
 </P>
 
 <DT><A NAME="tip_xmltv_export">
-    Tip: Restricting XMLTV export
+    Tip: Restricting XMLTV export</A>
 <DD><P>
 To reduce the number of networks in exported XMLTV files, create
 a merged database and remove unwanted networks with the
@@ -380,7 +429,7 @@ command line when starting nxtvepg.
 </P>
 
 <DT><A NAME="tip_air_times_config">
-    Tip: Air times restriction
+    Tip: Air times restriction</A>
 <DD><P>
 For networks which you cannot receive the entire day (e.g. because
 several networks share the same channel like Arte and France&nbsp;5),
@@ -390,7 +439,7 @@ automatically excluded from the listing.
 </P>
 
 <DT><A NAME="tip_resources">
-    Tip: Changing colors and fonts
+    Tip: Changing colors and fonts</A>
 <DD><P>
 There's no configuration dialog to change colors or fonts.  Instead
 these options are determined from a <I>resource file</I> (this is a
@@ -400,7 +449,7 @@ section <KBD>.Xdefaults</KBD> for details.
 </P>
 
 <DT><A NAME="tip_database_sharing">
-    Tip: Sharing databases and configuation between Windows and Linux
+    Tip: Sharing databases and configuation between Windows and Linux</A>
 <DD><P>
 If you dual-boot your PC you'll probably want to use the same databases
 under both operating systems, to avoid having to load everything twice.
@@ -417,6 +466,14 @@ to use a Windows (FAT, FAT32 or network share) filesystem as shared directory.
 Note you need read and write access to that directory, unless you're using
 network acquisition mode only.
 </P>
+
+<DT><A NAME="tip_printing">
+    Tip: How to print programme descriptions</A>
+<DD><P>
+nxtvepg does not support sending listings to a printer, however you can
+export single programmes or entire lists into a HTML file and then load
+the document into a web browser and print it from there. For details refer to
+manual section <A HREF="man.html#item_Export_as_HTML">Export as HTML</A>.
 </DL>
 </DIV>
 

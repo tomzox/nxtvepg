@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: menucmd.c,v 1.113 2004/04/02 12:08:46 tom Exp $
+ *  $Id: menucmd.c,v 1.116 2004/07/10 19:25:03 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -42,7 +42,6 @@
 #include "epgdb/epgdbif.h"
 #include "epgdb/epgtscqueue.h"
 #include "epgdb/epgdbmerge.h"
-#include "epgdb/epgnetio.h"
 #include "epgctl/epgacqsrv.h"
 #include "epgctl/epgacqclnt.h"
 #include "epgctl/epgacqctl.h"
@@ -451,12 +450,12 @@ static int MenuCmd_ToggleAcq( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_
          {
             if (EpgAcqClient_IsLocalServer())
             {  // stop acquisition in the daemon -> kill the daemon
-               EpgAcqCtl_Stop();
                if (EpgMain_StopDaemon() == FALSE)
                {  // failed to stop the daemon -> inform the user
                   strcpy(comm, "tk_messageBox -type ok -icon error -message {Failed to stop the daemon - you're disconnected but acquisition continues in the background.}");
                   eval_check(interp, comm);
                }
+               EpgAcqCtl_Stop();
             }
             else
                debug0("MenuCmd-ToggleAcq: illegal stop params: requested to stop remote acq");
@@ -1643,6 +1642,7 @@ bool SetDaemonAcquisitionMode( uint cmdLineCni, bool forcePassive, int maxPhase 
    Tcl_Obj    ** pCniObjv;
    const uint  * pProvList;
    uint cniCount, cniTab[MAX_MERGED_DB_COUNT];
+   MERGE_ATTRIB_MATRIX max;
    bool result = FALSE;
 
    if (cmdLineCni != 0)
@@ -1651,6 +1651,14 @@ bool SetDaemonAcquisitionMode( uint cmdLineCni, bool forcePassive, int maxPhase 
       mode      = ACQMODE_CYCLIC_2;
       cniCount  = 1;
       cniTab[0] = cmdLineCni;
+
+      // Merged database -> retrieve CNI list
+      if ( (cniTab[0] == 0x00ff) &&
+           (ProvMerge_ParseConfigString(interp, &cniCount, cniTab, &max[0]) != TCL_OK) )
+      {
+         EpgNetIo_Logger(LOG_ERR, -1, 0, "no network list found for merged database", NULL);
+         mode = ACQMODE_COUNT;
+      }
    }
    else if (forcePassive)
    {  // -acqpassive given on command line
@@ -1691,31 +1699,29 @@ bool SetDaemonAcquisitionMode( uint cmdLineCni, bool forcePassive, int maxPhase 
                cniCount = 0;
             }
          }
+         if ((cniCount > 0) && (cniTab[0] == 0x00ff))
+         {
+            // Merged database -> retrieve CNI list
+            if (ProvMerge_ParseConfigString(interp, &cniCount, cniTab, &max[0]) != TCL_OK)
+            {
+               EpgNetIo_Logger(LOG_ERR, -1, 0, "no network list found for merged database", NULL);
+               mode = ACQMODE_COUNT;
+            }
+         }
       }
       else if (mode >= ACQMODE_COUNT)
+      {
          EpgNetIo_Logger(LOG_ERR, -1, 0, "acqmode parameters error", NULL);
+      }
    }
 
    if (mode < ACQMODE_COUNT)
    {
-      if ((mode == ACQMODE_FOLLOW_UI) && (cniTab[0] == 0x00ff))
-      {  // Merged database -> retrieve CNI list
-         MERGE_ATTRIB_MATRIX max;
-         if (ProvMerge_ParseConfigString(interp, &cniCount, cniTab, &max[0]) != TCL_OK)
-         {
-            EpgNetIo_Logger(LOG_ERR, -1, 0, "no network list found for merged database", NULL);
-            mode = ACQMODE_COUNT;
-         }
-      }
-
       // pass the params to the acquisition control module
-      if (mode < ACQMODE_COUNT)
-      {
-         result = EpgAcqCtl_SelectMode(mode, maxPhase, cniCount, cniTab);
-      }
-      else
-         result = FALSE;
+      result = EpgAcqCtl_SelectMode(mode, maxPhase, cniCount, cniTab);
    }
+   else
+      result = FALSE;
 
    return result;
 }
@@ -1819,7 +1825,6 @@ static int MenuCmd_LoadProvFreqsFromDbs( ClientData ttp, Tcl_Interp *interp, int
       for (idx = 0; idx < dbCount; idx++)
       {
          sprintf(strbuf, "0x%04X", pDbCniTab[idx]);
-         Tcl_AppendElement(interp, strbuf);
          Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(strbuf, -1));
 
          sprintf(strbuf, "%d", pDbFreqTab[idx]);

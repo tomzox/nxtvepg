@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgblock.c,v 1.49 2003/03/09 19:29:53 tom Exp $
+ *  $Id: epgblock.c,v 1.51 2004/05/31 14:38:47 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -31,12 +31,15 @@
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
+#include "epgvbi/cni_tables.h"
 #include "epgdb/epgblock.h"
 #include "epgdb/epgswap.h"
 
 
 static uchar netwopAlphabets[MAX_NETWOP_COUNT];
 static uchar providerAlphabet;
+static sint  provLtoDelta;
+static bool  provLtoDaily;
 
 static time_t unixTimeBase1982;         // 1.1.1982 in UNIX time format
 #define JULIAN_DATE_1982  (45000-30)    // 1.1.1982 in Julian date format
@@ -50,19 +53,46 @@ static time_t unixTimeBase1982;         // 1.1.1982 in UNIX time format
 
 
 // ----------------------------------------------------------------------------
-// Save the alphabets of all networks for string decoding
+// Save LTO and alphabets of all networks in provider's AI
 //
 void EpgBlockSetAlphabets( const AI_BLOCK *pAiBlock )
 {
+   const AI_NETWOP  * pNetwops;
+   struct tm *pTm;
+   time_t now;
+   uint  maxDayCount;
+   sint  provTimeZone;
    uchar netwop;
 
    if (pAiBlock != NULL)
    {
-      for (netwop=0; netwop < pAiBlock->netwopCount; netwop++)
+      pNetwops = AI_GET_NETWOPS(pAiBlock);
+      maxDayCount = 0;
+
+      for (netwop=0; netwop < pAiBlock->netwopCount; netwop++, pNetwops++)
       {
-         netwopAlphabets[netwop] = AI_GET_NETWOP_N(pAiBlock, netwop)->alphabet;
+         netwopAlphabets[netwop] = pNetwops->alphabet;
+
+         if (pNetwops->dayCount > maxDayCount)
+            maxDayCount = pNetwops->dayCount;
       }
       providerAlphabet = AI_GET_NETWOP_N(pAiBlock, pAiBlock->thisNetwop)->alphabet;
+
+      // set global flag if there's a daylight saving time change during the preview period
+      now = time(NULL);
+      provLtoDaily = (EpgLtoGet(now) != EpgLtoGet(now + (maxDayCount + 2) * 24*60*60));
+
+      if ( CniGetProviderLto(AI_GET_NETWOP_N(pAiBlock, pAiBlock->thisNetwop)->cni, &provTimeZone) == FALSE )
+      {  // unknown CNI -> assume times are UTC, 
+         provTimeZone = AI_GET_NETWOP_N(pAiBlock, pAiBlock->thisNetwop)->lto;
+      }
+
+      // calculate how much provider's times differ from UTC
+      // - formula: delta = "expected LTO" minus "LTO declared in AI"
+      // - in case a DST change is close, it's excluded and calculated for each incoming PI block
+      pTm = localtime(&now);
+      provLtoDelta = provTimeZone + (provLtoDaily ? 0 : (pTm->tm_isdst * 60*60))
+                   - AI_GET_NETWOP_N(pAiBlock, pAiBlock->thisNetwop)->lto * 15*60;
    }
    else
       debug0("EpgBlock-SetAlphabets: illegal NULL ptr param");
@@ -188,6 +218,21 @@ static void SetStartAndStopTime(uint bcdStart, uint julian, uint bcdStop, PI_BLO
 
    pPiBlock->start_time = startDate + startMoD * 60;
    pPiBlock->stop_time  = startDate + stopMoD  * 60;
+
+   if (provLtoDaily)
+   {
+      struct tm *pTm;
+      // provider times are not real UTC: they use a constant LTO across the complete
+      // preview duration, regardless of daylight saving time changes
+      pTm = localtime(&pPiBlock->start_time);
+      pPiBlock->start_time -= provLtoDelta + (pTm->tm_isdst * 60*60);
+      pPiBlock->stop_time  -= provLtoDelta + (pTm->tm_isdst * 60*60);
+   }
+   else
+   {
+      pPiBlock->start_time -= provLtoDelta;
+      pPiBlock->stop_time  -= provLtoDelta;
+   }
 }
 
 // ----------------------------------------------------------------------------
@@ -876,6 +921,8 @@ static bool EpgBlockCheckPi( EPGDB_BLOCK * pBlock )
    else
       result = TRUE;
 
+   ifdebug5(result == FALSE, "EpgBlock-CheckPi: inconsistancy detected: network=%d start=%d size=%d acq-time=%d acq-rep=%d", pPi->netwop_no, (int)pPi->start_time, pBlock->size, (int)pBlock->acqTimestamp, pBlock->acqRepCount);
+
    return result;
 }
 
@@ -941,7 +988,9 @@ EPGDB_BLOCK * EpgBlockConvertAi(const uchar *pCtrl, uint ctrlLen, uint strLen)
       if ((i & 1) == 0)
       {
          pNetwops[i].cni         = psd[0] | (psd[1] << 8);
-         pNetwops[i].lto         = psd[2];
+         pNetwops[i].lto         = psd[2] & 0x7f;
+         if (psd[2] & 0x80)
+            pNetwops[i].lto      = 0 - pNetwops[i].lto;
          pNetwops[i].dayCount    = psd[3] & 0x1f;
          netNameLen[i]           = (psd[3] >> 5) | ((psd[4] & 3) << 3);
          pNetwops[i].alphabet    = (psd[4] >> 2) | ((psd[5] & 1) << 6);
@@ -954,7 +1003,9 @@ EPGDB_BLOCK * EpgBlockConvertAi(const uchar *pCtrl, uint ctrlLen, uint strLen)
       else
       {
          pNetwops[i].cni         = (psd[0] >> 4) | (psd[1] << 4) | ((psd[2] & 0x0f) << 12);
-         pNetwops[i].lto         = (psd[2] >> 4) | (psd[3] << 4);
+         pNetwops[i].lto         = (psd[2] >> 4) | ((psd[3] & 7) << 4);
+         if (psd[3] & 0x8)
+            pNetwops[i].lto      = 0 - pNetwops[i].lto;
          pNetwops[i].dayCount    = (psd[3] >> 4) | ((psd[4] & 1) << 4);
          netNameLen[i]           = (psd[4] >> 1) & 0x1f;
          pNetwops[i].alphabet    = (psd[4] >> 6) | ((psd[5] & 0x1f) << 2);

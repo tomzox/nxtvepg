@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: piremind.c,v 1.14 2003/12/27 17:31:55 tom Exp tom $
+ *  $Id: piremind.c,v 1.15 2004/06/19 18:58:39 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -1103,44 +1103,82 @@ static int PiRemind_SetControl( ClientData ttp, Tcl_Interp *interp, int objc, Tc
 
 // ----------------------------------------------------------------------------
 // Add reminder control commands to the PI listbox context menu
-// - XXX TODO allow to select group?
+// - note: two Tcl commands implemented by the same function: distinguished by ttp
+// - returns the number of added menu entries
 //
-uint PiReminder_CtxMenuAdd( Tcl_Interp *interp, const PI_BLOCK * pPiBlock,
-                            const uchar * pMenu, bool addSeparator )
+static int PiRemind_ContextMenu( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
-   uint  entryCount;
+   const char * const pUsage = "Usage: C_PiRemind_ContextMenu{Short|Extended} <menu>";
+   const char * pMenu;
+   const PI_BLOCK * pPiBlock;
+   uint  entryCount = 0;
+   bool  isExtended = PVOID2INT(ttp);
+   sint  remIdx;
+   int   result;
 
-   if (addSeparator > 0)
+   if (objc != 2)
    {
-      sprintf(comm, "%s add separator", pMenu);
-      eval_check(interp, comm);
-   }
-   entryCount = 0;
-
-   if (PiRemind_SearchRemPiMatch(dbc, pPiBlock, MATCH_ALL_REM_GROUPS) != -1)
-   {  // there's already a "single-PI" reminder for this PI -> offer to remove it
-      sprintf(comm, "%s add command -label {Remove reminder} -command {C_PiRemind_RemovePi}\n", pMenu);
-   }
-   else if (PiRemind_SearchRemPiMatch(dbc, pPiBlock, SUPRESS_REM_MASK) != -1)
-   {  // there's a "suppress single PI" reminder for this PI -> offer to remove it
-      sprintf(comm, "%s add command -label {Un-suppress reminder} -command {C_PiRemind_RemovePi}\n", pMenu);
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
    }
    else
-   {  // no match on any single reminder: check for groups
-      if (PiRemind_SearchRemGroupMatch(dbc, pPiBlock) != -1)
-      {  // group match -> offer to suppress it
-         sprintf(comm, "%s add command -label {Suppress reminder} -command "
-                                       "{C_PiRemind_AddPi " SUPRESS_REM_GRPTAG_STR "}\n", pMenu);
-         eval_check(interp, comm);
-         entryCount += 1;
-      }
-      // offer single reminder (may be set in addition to group match)
-      sprintf(comm, "%s add command -label {Add reminder} -command {C_PiRemind_AddPi}\n", pMenu);
-   }
-   eval_check(interp, comm);
-   entryCount += 1;
+   {
+      EpgDbLockDatabase(dbc, TRUE);
+      pPiBlock = PiBox_GetSelectedPi();
+      if (pPiBlock != NULL)
+      {
+         pMenu = Tcl_GetString(objv[1]);
 
-   return entryCount;
+         remIdx = PiRemind_SearchRemPiMatch(dbc, pPiBlock, MATCH_ALL_REM_GROUPS);
+         if (remIdx != -1)
+         {  // there's already a "single-PI" reminder for this PI -> offer to remove it
+            sprintf(comm, "%s add command -label {Remove reminder} -command {C_PiRemind_RemovePi}\n", pMenu);
+            eval_check(interp, comm);
+            entryCount += 1;
+            if (isExtended)
+            {
+               sprintf(comm, "%s add cascade -label {Change reminder group} -menu %s.reminder_group\n"
+                             "menu %s.reminder_group -tearoff 0 -postcommand {PostDynamicMenu %s.reminder_group Reminder_PostGroupMenu %d}\n",
+                             pMenu, pMenu, pMenu, pMenu, remIdx);
+               eval_check(interp, comm);
+               entryCount += 1;
+            }
+         }
+         else if (PiRemind_SearchRemPiMatch(dbc, pPiBlock, SUPRESS_REM_MASK) != -1)
+         {  // there's a "suppress single PI" reminder for this PI -> offer to remove it
+            sprintf(comm, "%s add command -label {Un-suppress reminder} -command {C_PiRemind_RemovePi}\n", pMenu);
+            eval_check(interp, comm);
+            entryCount += 1;
+         }
+         else
+         {  // no match on any single reminder: check for groups
+            if (PiRemind_SearchRemGroupMatch(dbc, pPiBlock) != -1)
+            {  // group match -> offer to suppress it
+               sprintf(comm, "%s add command -label {Suppress reminder} -command "
+                                             "{C_PiRemind_AddPi " SUPRESS_REM_GRPTAG_STR "}\n", pMenu);
+               eval_check(interp, comm);
+               entryCount += 1;
+            }
+            // offer single reminder (may be set in addition to group match)
+            sprintf(comm, "%s add command -label {Add reminder} -command {C_PiRemind_AddPi}\n", pMenu);
+            eval_check(interp, comm);
+            entryCount += 1;
+            if (isExtended)
+            {
+               sprintf(comm, "%s add cascade -label {Add reminder into group} -menu %s.reminder_group\n"
+                             "menu %s.reminder_group -tearoff 0 -postcommand {PostDynamicMenu %s.reminder_group Reminder_PostGroupMenu -1}\n",
+                             pMenu, pMenu, pMenu, pMenu);
+               eval_check(interp, comm);
+               entryCount += 1;
+            }
+         }
+      }
+      EpgDbLockDatabase(dbc, FALSE);
+
+      Tcl_SetObjResult(interp, Tcl_NewIntObj(entryCount));
+      result = TCL_OK;
+   }
+   return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -1382,6 +1420,8 @@ void PiRemind_Create( void )
       Tcl_CreateObjCommand(interp, "C_PiRemind_MatchFirstReminder", PiRemind_MatchFirstReminder, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_PiRemind_GetReminderEvents", PiRemind_GetReminderEvents, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_SetReminderMenuStates", PiRemind_SetReminderMenuStates, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_PiRemind_ContextMenuShort", PiRemind_ContextMenu, (ClientData) INT2PVOID(FALSE), NULL);
+      Tcl_CreateObjCommand(interp, "C_PiRemind_ContextMenuExtended", PiRemind_ContextMenu, (ClientData) INT2PVOID(TRUE), NULL);
 
       Tcl_CreateObjCommand(interp, "C_PiRemind_AddPi", PiRemind_AddPi, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_PiRemind_RemovePi", PiRemind_RemovePi, (ClientData) NULL, NULL);

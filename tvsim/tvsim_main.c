@@ -880,7 +880,9 @@ static bool SetHardwareConfig( Tcl_Interp *interp, uint cardIdx )
    }
    else
    {
-      MessageBox(NULL, "Failed to load TV card configuration from nxtvepg INI file\nUse the -rcfile command line option to specify it's location.", "TV App. Interaction Simulator", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+      MessageBox(NULL, "Failed to load TV card configuration from nxtvepg INI file. "
+                 "Configure this card first in nxtvepg's TV card input configuration dialog.",
+                 "TV App. Interaction Simulator", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
       result = FALSE;
    }
 #else

@@ -19,11 +19,76 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_ctxmencf.tcl,v 1.6 2004/03/21 17:33:52 tom Exp tom $
+#  $Id: dlg_ctxmencf.tcl,v 1.8 2004/06/19 19:07:22 tom Exp tom $
 #
 set ctxmencf_popup 0
 set ctxmencf {}
 set ctxmencf_wintv_vcr 0
+
+
+# Configuration data is stored in a list of triplets
+# triplets consist of: type, title, command (if applicable)
+#=CONST= ::ctxcf_type_idx        0
+#=CONST= ::ctxcf_title_idx       1
+#=CONST= ::ctxcf_cmd_idx         2
+#=CONST= ::ctxcf_idx_count       3
+
+## ---------------------------------------------------------------------------
+## Create the context menu (after click with the right mouse button onto a PI)
+##
+proc PopupDynamicContextMenu {w unused} {
+   global ctxmencf
+   global is_unix
+
+   set entry_count 0
+   set idx 0
+   foreach elem $ctxmencf {
+      set type [lindex $elem $::ctxcf_type_idx]
+      switch -exact $type {
+         menu_separator {
+            if {$entry_count > 0} {
+               $w add separator
+               set entry_count 0
+            }
+         }
+         menu_title {
+            $w add command -label [lindex $elem $::ctxcf_title_idx] -state disabled
+         }
+         pi_context.addfilt {
+            incr entry_count [C_PiFilter_ContextMenuAddFilter $w]
+         }
+         pi_context.undofilt {
+            incr entry_count [C_PiFilter_ContextMenuUndoFilter $w]
+         }
+         pi_context.reminder_short {
+            incr entry_count [C_PiRemind_ContextMenuShort $w]
+         }
+         pi_context.reminder_ext {
+            incr entry_count [C_PiRemind_ContextMenuExtended $w]
+         }
+         tvapp.wintv {
+            if {!$is_unix && [C_Tvapp_IsConnected]} {
+               $w add command -label [lindex $elem $::ctxcf_title_idx] \
+                              -command [list C_ExecUserCmd $type [lindex $elem $::ctxcf_cmd_idx]]
+            }
+         }
+         exec.win32 {
+            if {!$is_unix} {
+               $w add command -label [lindex $elem $::ctxcf_title_idx] \
+                              -command [list C_ExecUserCmd $type [lindex $elem $::ctxcf_cmd_idx]]
+            }
+         }
+         tvapp.xawtv -
+         exec.unix {
+            if $is_unix {
+               $w add command -label [lindex $elem $::ctxcf_title_idx] \
+                              -command [list C_ExecUserCmd $type [lindex $elem $::ctxcf_cmd_idx]]
+            }
+         }
+      }
+      incr idx
+   }
+}
 
 ## ---------------------------------------------------------------------------
 ## Add "record" menu entry to context menu
@@ -33,7 +98,9 @@ proc ContextMenuAddWintvVcr {} {
    global ctxmencf ctxmencf_wintv_vcr
 
    if {$ctxmencf_wintv_vcr == 0} {
-      lappend ctxmencf {Record this show} {!wintv! record ${network} ${CNI} ${start} ${stop} ${VPS} ${title} ${themes:n}}
+      lappend ctxmencf [list wintv \
+                             {Record this show} \
+                             {record ${network} ${CNI} ${start} ${stop} ${VPS} ${title} ${themes:n}}]
 
       # remember that this entry was automatically added
       # it will not be added again in the future (to allow the user to remove it)
@@ -52,7 +119,7 @@ proc ContextMenuAddWintvVcr {} {
 proc ContextMenuConfigPopup {} {
    global ctxmencf_popup
    global default_bg font_fixed is_unix
-   global ctxmencf_selidx ctxmencf_title ctxmencf_cmd
+   global ctxmencf_selidx ctxmencf_title ctxmencf_cmd ctxmencf_type
    global ctxmencf ctxmencf_ord ctxmencf_arr
 
    if {$ctxmencf_popup == 0} {
@@ -64,89 +131,106 @@ proc ContextMenuConfigPopup {} {
       #       do not represent the order in the listbox (only initially)
       set ctxmencf_ord {}
       set idx 0
-      foreach {title cmd} $ctxmencf {
-         set ctxmencf_arr($idx) [list $title $cmd]
+      foreach elem $ctxmencf {
+         set ctxmencf_arr($idx) $elem
          lappend ctxmencf_ord $idx
          incr idx
       }
 
       frame .ctxmencf.all
-      label .ctxmencf.all.lab_main -text "Add user-defined commands:"
+      label .ctxmencf.all.lab_main -text "Select commands to include in the context menu:"
       pack .ctxmencf.all.lab_main -side top -anchor w -pady 5
 
       # section #1: listbox with overview of all defined titles
       frame .ctxmencf.all.lbox 
       scrollbar .ctxmencf.all.lbox.sc -orient vertical -command {.ctxmencf.all.lbox.cmdlist yview} -takefocus 0
       pack .ctxmencf.all.lbox.sc -side left -fill y
-      listbox .ctxmencf.all.lbox.cmdlist -exportselection false -height 5 -width 0 \
+      listbox .ctxmencf.all.lbox.cmdlist -exportselection false -height 10 -width 0 \
                                          -selectmode single -relief ridge \
                                          -yscrollcommand {.ctxmencf.all.lbox.sc set}
-      bind .ctxmencf.all.lbox.cmdlist <<ListboxSelect>> {ContextMenuConfigSelection 1}
+      bind .ctxmencf.all.lbox.cmdlist <<ListboxSelect>> {+ ContextMenuConfigSelection}
       pack .ctxmencf.all.lbox.cmdlist -side left -fill both -expand 1
       pack .ctxmencf.all.lbox -side top -fill both -expand 1
 
       # section #2: command buttons to manipulate the list
       frame  .ctxmencf.all.cmd
-      button .ctxmencf.all.cmd.new -text "new" -command ContextMenuConfigAddNew -width 7
-      pack   .ctxmencf.all.cmd.new -side left -anchor nw
-      button .ctxmencf.all.cmd.upd -text "update" -command ContextMenuConfigUpdate -width 7
-      pack   .ctxmencf.all.cmd.upd -side left -anchor nw
-      button .ctxmencf.all.cmd.delcmd -text "delete" -command ContextMenuConfigDelete -width 7
-      pack   .ctxmencf.all.cmd.delcmd -side left -anchor nw
+      menubutton .ctxmencf.all.cmd.new -takefocus 1 -relief raised -borderwidth 2 -indicatoron 1 \
+                                       -highlightthickness 1 -highlightcolor $::win_frm_fg \
+                                       -text "Add new" -menu .ctxmencf.all.cmd.new.men 
+      menu   .ctxmencf.all.cmd.new.men -tearoff 0
+      pack   .ctxmencf.all.cmd.new -side left -fill y
+      menubutton .ctxmencf.all.cmd.examples -takefocus 1 -relief raised -borderwidth 2 -indicatoron 1 \
+                                            -highlightthickness 1 -highlightcolor $::win_frm_fg \
+                                            -text "Add example" -menu .ctxmencf.all.cmd.examples.men
+      menu   .ctxmencf.all.cmd.examples.men -tearoff 0
+      pack   .ctxmencf.all.cmd.examples -side left -fill y
+      button .ctxmencf.all.cmd.delcmd -text "Delete" -command ContextMenuConfigDelete -width 7
+      pack   .ctxmencf.all.cmd.delcmd -side left
       button .ctxmencf.all.cmd.up -bitmap "bitmap_ptr_up" -command ContextMenuConfigShiftUp
       pack   .ctxmencf.all.cmd.up -side left -fill y
       button .ctxmencf.all.cmd.down -bitmap "bitmap_ptr_down" -command ContextMenuConfigShiftDown
       pack   .ctxmencf.all.cmd.down -side left -fill y
-      button .ctxmencf.all.cmd.clear -text "clear" -command ContextMenuConfigClearEntry -width 7
-      pack   .ctxmencf.all.cmd.clear -side left -fill y
+      pack   .ctxmencf.all.cmd -side top -pady 10
 
-      menubutton .ctxmencf.all.cmd.examples -text "Copy example" -menu .ctxmencf.all.cmd.examples.men \
-                                            -borderwidth 2 -relief raised -underline 0
-      pack .ctxmencf.all.cmd.examples -side left -fill y
-      pack .ctxmencf.all.cmd -side top -pady 10
+      # fill the type selection menu
+      foreach type [C_ContextMenu_GetTypeList] {
+         .ctxmencf.all.cmd.new.men add command -label [ContextMenuGetTypeDescription $type] \
+                                               -command [concat ContextMenuConfigAddNew $type]
+      }
 
-      # create popup-menu with example commands
-      menu .ctxmencf.all.cmd.examples.men -tearoff 0
+      # fill the example selection menu
       set idx 0
       foreach example [ContextMenuGetExamples] {
-         .ctxmencf.all.cmd.examples.men add command -label [lindex $example 2] \
-                                                    -command [list ContextMenuCopyExample $idx]
+         .ctxmencf.all.cmd.examples.men add command -label [lindex $example $::ctxcf_idx_count] \
+                                                    -command [list ContextMenuAddExample $idx]
          incr idx
       }
 
       # section #3: entry field to modify or create commands
+      set row 0
       frame .ctxmencf.all.edit -borderwidth 2 -relief ridge
+      label .ctxmencf.all.edit.type_lab -text "Type:"
+      label .ctxmencf.all.edit.type_sel
+      grid  .ctxmencf.all.edit.type_lab .ctxmencf.all.edit.type_sel -sticky w -row $row
+      incr row
       label .ctxmencf.all.edit.title_lab -text "Title:"
+      grid  .ctxmencf.all.edit.title_lab -sticky w -column 0 -row $row
       entry .ctxmencf.all.edit.title_ent -textvariable ctxmencf_title -width 50 -font $font_fixed
-      grid  .ctxmencf.all.edit.title_lab .ctxmencf.all.edit.title_ent -sticky we
+      bind  .ctxmencf.all.edit.title_ent <Enter> {SelectTextOnFocus %W}
+      bind  .ctxmencf.all.edit.title_ent <Return> ContextMenuConfigUpdate
+      grid  .ctxmencf.all.edit.title_ent -sticky we -column 1 -row $row
+      incr row
       label .ctxmencf.all.edit.cmd_lab -text "Command:"
+      grid  .ctxmencf.all.edit.cmd_lab -sticky w -column 0 -row $row
       entry .ctxmencf.all.edit.cmd_ent -textvariable ctxmencf_cmd -width 50 -font $font_fixed
-      grid  .ctxmencf.all.edit.cmd_lab .ctxmencf.all.edit.cmd_ent -sticky we
+      bind  .ctxmencf.all.edit.cmd_ent <Enter> {SelectTextOnFocus %W}
+      bind  .ctxmencf.all.edit.cmd_ent <Return> ContextMenuConfigUpdate
+      grid  .ctxmencf.all.edit.cmd_ent -sticky we -column 1 -row $row
       grid  columnconfigure .ctxmencf.all.edit 1 -weight 1
       pack  .ctxmencf.all.edit -side top -pady 5 -fill x
       pack  .ctxmencf.all -side top -pady 5 -padx 5 -fill both -expand 1
 
       # section #4: standard dialog buttons: Ok, Abort, Help
       frame .ctxmencf.cmd
-      button .ctxmencf.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Configuration) "Context menu"}
+      button .ctxmencf.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Configuration) "Context menu configuration"}
       button .ctxmencf.cmd.abort -text "Abort" -width 5 -command {ContextMenuConfigQuit 1}
       button .ctxmencf.cmd.save -text "Ok" -width 5 -command {ContextMenuConfigQuit 0}
       pack .ctxmencf.cmd.help .ctxmencf.cmd.abort .ctxmencf.cmd.save -side left -padx 10
       pack .ctxmencf.cmd -side top -pady 5
 
-      bind .ctxmencf <Key-F1> {PopupHelp $helpIndex(Configuration) "Context menu"}
+      bind .ctxmencf <Key-F1> {PopupHelp $helpIndex(Configuration) "Context menu configuration"}
       bind .ctxmencf <Alt-KeyPress> [bind Menubutton <Alt-KeyPress>]
       bind .ctxmencf.cmd <Destroy> {+ set ctxmencf_popup 0}
       wm protocol .ctxmencf WM_DELETE_WINDOW {ContextMenuConfigQuit 1}
       focus .ctxmencf.all.edit.title_ent
 
       # display the entries in the listbox
-      foreach idx $ctxmencf_ord {
-        .ctxmencf.all.lbox.cmdlist insert end [lindex $ctxmencf_arr($idx) 0]
+      foreach tag $ctxmencf_ord {
+        .ctxmencf.all.lbox.cmdlist insert end [ContextMenuGetListTitle $tag]
       }
-      set ctxmencf_title {}
-      set ctxmencf_cmd {}
       set ctxmencf_selidx -1
+      .ctxmencf.all.lbox.cmdlist selection set 0
+      ContextMenuConfigSelection
 
       wm resizable .ctxmencf 1 1
       update
@@ -161,175 +245,246 @@ proc ContextMenuGetExamples {} {
    global is_unix
 
    set examples [list \
-      [list "Set reminder in plan" \
+      [list exec.unix "Set reminder in plan" \
             {plan ${start:%d.%m.%Y %H:%M} ${title}\ \(${network}\)} \
             "Plan reminder"] \
-      [list "Set alarm timer" \
+      [list exec.unix "Set alarm timer" \
             {xalarm -time ${start:%H:%M} -date ${start:%b %d %Y} ${title}\ \(${network}\)} \
             "XAlarm timer"] \
-      [list "Demo: echo all variables" \
+      [list exec.unix "Demo: echo all variables" \
             {echo title=${title} network=${network} start=${start} stop=${stop} VPS/PDC=${VPS} duration=${duration} relstart=${relstart} CNI=${CNI} description=${description} themes=${themes} e_rating=${e_rating} p_rating=${p_rating} sound=${sound} format=${format} digital=${digital} encrypted=${encrypted} live=${live} repeat=${repeat} subtitle=${subtitle}} \
             "All variables"] \
    ]
-   if {!$is_unix} {
+   if $is_unix {
       lappend examples \
-         [list "Record this show" \
-               {!wintv! record ${network} ${CNI} ${start} ${stop} ${VPS} ${title} ${themes:n}} \
+         [list tvapp.xawtv "Tune this channel" \
+               {setstation ${network}} \
+               "Change channel in connected TV app."]
+   } else {
+      lappend examples \
+         [list tvapp.wintv "Record this show" \
+               {record ${network} ${CNI} ${start} ${stop} ${VPS} ${title} ${themes:n}} \
                "Send 'record' command to TV app."] \
-         [list "Tune this channel" \
-               {!wintv! setstation ${network}} \
+         [list tvapp.wintv "Tune this channel" \
+               {setstation ${network}} \
                "Change channel in connected TV app."]
    }
    return $examples
 }
 
 # callback for example popup menu: copy title and setting into entry fields
-proc ContextMenuCopyExample {index} {
-   global ctxmencf_title ctxmencf_cmd
+proc ContextMenuAddExample {index} {
+   global ctxmencf_title ctxmencf_cmd ctxmencf_type
+   global ctxmencf_arr ctxmencf_ord
+   global ctxmencf_selidx
 
-   # check for unsaved changes in the entry fields
-   if [ContextMenuCompareInput] return
+   ContextMenuConfigUpdate
 
    set examples [ContextMenuGetExamples]
    if {$index < [llength $examples]} {
       set example [lindex $examples $index]
 
-      set ctxmencf_title [lindex $example 0]
-      set ctxmencf_cmd   [lindex $example 1]
+      set tag [ContextMenuConfigAddNew [lindex $example $::ctxcf_type_idx]]
+
+      set ctxmencf_arr($tag) [lrange $example 0 [expr $::ctxcf_idx_count - 1]]
+
+      set ctxmencf_selidx -1
+      ContextMenuConfigSelection
+
+      .ctxmencf.all.lbox.cmdlist insert $ctxmencf_selidx [ContextMenuGetListTitle $tag]
+      .ctxmencf.all.lbox.cmdlist delete [expr $ctxmencf_selidx + 1]
+      .ctxmencf.all.lbox.cmdlist selection set $ctxmencf_selidx
    }
 }
 
-# helper function: check if there are unsaved changes in the entry fields
-# returns TRUE if user wants to cancel the operation
-proc ContextMenuCompareInput {} {
-   global ctxmencf_selidx ctxmencf_title ctxmencf_cmd
-   global ctxmencf_arr ctxmencf_ord
+# get description for the given type
+proc ContextMenuGetTypeDescription {type} {
+   switch -exact $type {
+      exec.unix {return "External command (UNIX)"}
+      exec.win32 {return "External command (Windows)"}
+      tvapp.xawtv {return "TV app. remote command (UNIX)"}
+      tvapp.wintv {return "TV app. remote command (Windows)"}
+      menu_separator {return "Menu separator"}
+      menu_title {return "Menu title"}
+      pi_context.addfilt {return "Add programme filters"}
+      pi_context.undofilt {return "Undo programme filters"}
+      pi_context.reminder_short {return "Add/remove reminder (short)"}
+      pi_context.reminder_ext {return "Add/remove reminder (extended)"}
+   }
+}
 
-   set result 0
+# derive a title for the config menu selection listbox
+proc ContextMenuGetListTitle {tag} {
+   global ctxmencf_arr
 
-   if {([string length $ctxmencf_title] != 0) ||
-       ([string length $ctxmencf_cmd] != 0)} {
-      set idx $ctxmencf_selidx
-      if {($idx >= 0) && ($idx < [llength $ctxmencf_ord])} {
-         # one item is selected -> compare entry fiels content with its title and cmd
-         set id [lindex $ctxmencf_ord $idx]
-         if [info exists ctxmencf_arr($id)] {
-            if {([string compare $ctxmencf_title [lindex $ctxmencf_arr($id) 0]] != 0) ||
-                ([string compare $ctxmencf_cmd [lindex $ctxmencf_arr($id) 1]] != 0)} {
-               # title and/or command string have been changed
-               set answer [tk_messageBox -type okcancel -icon question -parent .ctxmencf \
-                             -message "Discard unsaved changes in the title and command entry fields?\nNote: You can use button 'Update' to save them into the selected context menu entry."]
-               set result [expr [string compare $answer "ok"] != 0]
-            }
-         }
-      } else {
-         # no item is currently selected
-         set answer [tk_messageBox -type okcancel -icon question -parent .ctxmencf \
-                       -message "Discard unsaved changes in the title and command entry fields?\nNote: You can use button 'New' to create a new context menu entry."]
-         set result [expr [string compare $answer "ok"] != 0]
+   set type [lindex $ctxmencf_arr($tag) $::ctxcf_type_idx]
+   set title [lindex $ctxmencf_arr($tag) $::ctxcf_title_idx]
+
+   switch -glob $type {
+      menu_separator {
+         return "-- Separator --"
       }
-   }
-   return $result
-}
-
-# callback for selection -> display title and command in the entry widgets
-proc ContextMenuConfigSelection {do_check} {
-   global ctxmencf_selidx ctxmencf_title ctxmencf_cmd
-   global ctxmencf_arr ctxmencf_ord
-
-   if {$do_check && [ContextMenuCompareInput]} return
-
-   set idx [.ctxmencf.all.lbox.cmdlist curselection]
-   if {([llength $idx] > 0) && ($idx < [llength $ctxmencf_ord])} {
-      set id [lindex $ctxmencf_ord $idx]
-      if [info exists ctxmencf_arr($id)] {
-         set ctxmencf_selidx $idx
-         set ctxmencf_title  [lindex $ctxmencf_arr($id) 0]
-         set ctxmencf_cmd    [lindex $ctxmencf_arr($id) 1]
+      menu_title {
+         return "-- $title --"
+      }
+      pi_context.* {
+         return [ContextMenuGetTypeDescription $type]
+      }
+      default {
+         return $title
       }
    }
 }
 
-# helper function for add and update: check if the input in the entry fields are ok
-proc ContextMenuConfigCheckInput {is_update} {
-   global ctxmencf_selidx ctxmencf_title ctxmencf_cmd
-   global ctxmencf_arr ctxmencf_ord
-   set result 1
-
-   if {([string length $ctxmencf_title] == 0) || \
-       ([string length $ctxmencf_cmd] == 0)} {
-      tk_messageBox -type ok -default ok -icon error -parent .ctxmencf \
-                    -message "You need to type a title and command into the entry fields."
-      set result 0
-   } elseif {!$is_update} {
-      set found 0
-      foreach id $ctxmencf_ord {
-         if {[info exists ctxmencf_arr($id)] &&
-             ([string compare $ctxmencf_title [lindex $ctxmencf_arr($id) 0]] == 0)} {
-            incr found
-         }
-      }
-      if $found {
-         set answer [tk_messageBox -type okcancel -default ok -icon warning -parent .ctxmencf \
-                        -message "You already have defined an entry with the same title!"]
-         set result [expr [string compare $answer "ok"] == 0]
-      }
-   }
-   return $result
-}
-
-# callback for "Update" button -> replace the selected entry witht the entry's content
+# save options for the currently selected item
 proc ContextMenuConfigUpdate {} {
-   global ctxmencf_selidx ctxmencf_title ctxmencf_cmd
+   global ctxmencf_selidx ctxmencf_title ctxmencf_cmd ctxmencf_type
    global ctxmencf_arr ctxmencf_ord
 
    set idx $ctxmencf_selidx
    if {($idx >= 0) && ($idx < [llength $ctxmencf_ord])} {
-      set id [lindex $ctxmencf_ord $idx]
-      if [info exists ctxmencf_arr($id)] {
-         if [ContextMenuConfigCheckInput 1] {
-            set ctxmencf_arr($id) [list $ctxmencf_title $ctxmencf_cmd]
-            .ctxmencf.all.lbox.cmdlist delete $idx
-            .ctxmencf.all.lbox.cmdlist insert $idx $ctxmencf_title
-            .ctxmencf.all.lbox.cmdlist selection set $idx
+      set tag [lindex $ctxmencf_ord $idx]
+
+      if {([string compare $ctxmencf_title [lindex $ctxmencf_arr($tag) $::ctxcf_title_idx]] != 0) ||
+          ([string compare $ctxmencf_cmd [lindex $ctxmencf_arr($tag) $::ctxcf_cmd_idx]] != 0)} {
+         if [info exists ctxmencf_arr($tag)] {
+            switch -exact $ctxmencf_type {
+               exec.win32 -
+               exec.unix -
+               tvapp.xawtv -
+               tvapp.wintv {
+                  if [regexp {^!(xawtv|wintv)! *(.*)} $ctxmencf_cmd foo type_str cmd_str] {
+                     set answer [tk_messageBox -type okcancel -icon warning -parent .ctxmencf \
+                                               -message "Note use of prefixes such as !$type_str! is obsolete: select 'TV app. remote command' instead when creating new entries. Automatically remove the prefix now?"]
+                     if {[string compare $answer "ok"] == 0} {
+                        set ctxmencf_cmd $cmd_str
+                        set ctxmencf_type "tvapp.$type_str"
+                        set ctxmencf_arr($tag) [lreplace $ctxmencf_arr($tag) \
+                                                         $::ctxcf_type_idx $::ctxcf_type_idx \
+                                                         $ctxmencf_type]
+                        .ctxmencf.all.edit.type_sel configure -text [ContextMenuGetTypeDescription $ctxmencf_type]
+                     }
+                  }
+                  set ctxmencf_arr($tag) [lreplace $ctxmencf_arr($tag) \
+                                                   $::ctxcf_title_idx $::ctxcf_title_idx \
+                                                   $ctxmencf_title]
+                  set ctxmencf_arr($tag) [lreplace $ctxmencf_arr($tag) \
+                                                   $::ctxcf_cmd_idx $::ctxcf_cmd_idx \
+                                                   $ctxmencf_cmd]
+               }
+               menu_title {
+                  set ctxmencf_arr($tag) [lreplace $ctxmencf_arr($tag) \
+                                                   $::ctxcf_title_idx $::ctxcf_title_idx \
+                                                   $ctxmencf_title]
+               }
+            }
+
+            set oldsel [.ctxmencf.all.lbox.cmdlist curselection]
+            .ctxmencf.all.lbox.cmdlist insert $idx [ContextMenuGetListTitle $tag]
+            .ctxmencf.all.lbox.cmdlist delete [expr $idx + 1]
+            .ctxmencf.all.lbox.cmdlist selection set $oldsel
          }
       }
    }
 }
 
-# callback for "New" button -> append the text from the entry fields to the list
-proc ContextMenuConfigAddNew {} {
-   global ctxmencf_selidx ctxmencf_title ctxmencf_cmd
+# callback for selection -> display title and command in the entry widgets
+proc ContextMenuConfigSelection {} {
+   global ctxmencf_selidx ctxmencf_title ctxmencf_cmd ctxmencf_type
    global ctxmencf_arr ctxmencf_ord
 
-   if [ContextMenuConfigCheckInput 0] {
+   ContextMenuConfigUpdate
 
-      # search an unique ID for the new element
-      set new_id 0
-      foreach id [array names ctxmencf_arr] {
-         if {$id >= $new_id} {
-            set new_id [expr $id + 1]
+   if {[llength $ctxmencf_ord] != 0} {
+      set idx [.ctxmencf.all.lbox.cmdlist curselection]
+      if {([llength $idx] > 0) && ($idx < [llength $ctxmencf_ord])} {
+         set tag [lindex $ctxmencf_ord $idx]
+         if [info exists ctxmencf_arr($tag)] {
+            set ctxmencf_selidx $idx
+            set ctxmencf_type   [lindex $ctxmencf_arr($tag) $::ctxcf_type_idx]
+            set ctxmencf_title  [lindex $ctxmencf_arr($tag) $::ctxcf_title_idx]
+            set ctxmencf_cmd    [lindex $ctxmencf_arr($tag) $::ctxcf_cmd_idx]
+
+            .ctxmencf.all.edit.type_sel configure -text [ContextMenuGetTypeDescription $ctxmencf_type]
+
+            switch -glob $ctxmencf_type {
+               menu_separator -
+               pi_context.* {
+                  .ctxmencf.all.edit.title_ent configure -state disabled
+                  .ctxmencf.all.edit.cmd_ent configure -state disabled
+               }
+               menu_title {
+                  .ctxmencf.all.edit.title_ent configure -state normal
+                  .ctxmencf.all.edit.cmd_ent configure -state disabled
+               }
+               default {
+                  .ctxmencf.all.edit.title_ent configure -state normal
+                  .ctxmencf.all.edit.cmd_ent configure -state normal
+               }
+            }
          }
       }
-      lappend ctxmencf_ord $new_id
-
-      set ctxmencf_arr($new_id) [list $ctxmencf_title $ctxmencf_cmd]
-      .ctxmencf.all.lbox.cmdlist insert end $ctxmencf_title
-      .ctxmencf.all.lbox.cmdlist selection clear 0 end
-      .ctxmencf.all.lbox.cmdlist selection set $new_id
-      set ctxmencf_selidx [expr [llength $ctxmencf_ord] - 1]
+   } else {
+      set ctxmencf_selidx -1
+      set ctxmencf_title {}
+      set ctxmencf_cmd {}
+      .ctxmencf.all.edit.title_ent configure -state disabled
+      .ctxmencf.all.edit.cmd_ent configure -state disabled
    }
+}
+
+# callback for "New" button -> append new, empty entry of the given type
+proc ContextMenuConfigAddNew {type} {
+   global ctxmencf_selidx ctxmencf_title ctxmencf_cmd ctxmencf_type
+   global ctxmencf_arr ctxmencf_ord
+
+   # search an unique ID for the new element
+   set new_tag 0
+   foreach tag [array names ctxmencf_arr] {
+      if {$tag >= $new_tag} {
+         set new_tag [expr $tag + 1]
+      }
+   }
+
+   set ctxmencf_type $type
+   set ctxmencf_title {}
+   set ctxmencf_cmd {}
+   set ctxmencf_arr($new_tag) [list $ctxmencf_type $ctxmencf_title $ctxmencf_cmd]
+
+   # get current cursor position
+   set idx [.ctxmencf.all.lbox.cmdlist curselection]
+   if {([llength $idx] != 1) || ($idx < 0) || ($idx >= [llength $ctxmencf_ord])} {
+      set idx [llength $ctxmencf_ord]
+   } else {
+      incr idx
+   }
+
+   if {$idx >= [llength $ctxmencf_ord]} {
+      .ctxmencf.all.lbox.cmdlist insert end [ContextMenuGetListTitle $new_tag]
+      lappend ctxmencf_ord $new_tag
+   } else {
+      .ctxmencf.all.lbox.cmdlist insert $idx [ContextMenuGetListTitle $new_tag]
+      set ctxmencf_ord [linsert $ctxmencf_ord $idx $new_tag]
+   }
+   .ctxmencf.all.lbox.cmdlist selection clear 0 end
+   .ctxmencf.all.lbox.cmdlist selection set $idx
+   .ctxmencf.all.lbox.cmdlist see $idx
+
+   set ctxmencf_selidx -1
+   ContextMenuConfigSelection
+
+   return $new_tag
 }
 
 # callback for "Delete" button -> remove the selected entry
 proc ContextMenuConfigDelete {} {
    global ctxmencf_selidx ctxmencf_arr ctxmencf_ord
 
-   set idx $ctxmencf_selidx
+   set idx [.ctxmencf.all.lbox.cmdlist curselection]
    if {($idx >= 0) && ($idx < [llength $ctxmencf_ord])} {
-      set id [lindex $ctxmencf_ord $idx]
-      if [info exists ctxmencf_arr($id)] {
-         unset ctxmencf_arr($id)
+      set tag [lindex $ctxmencf_ord $idx]
+      if [info exists ctxmencf_arr($tag)] {
+         unset ctxmencf_arr($tag)
       }
       set ctxmencf_ord [lreplace $ctxmencf_ord $idx $idx]
       .ctxmencf.all.lbox.cmdlist delete $idx
@@ -340,12 +495,9 @@ proc ContextMenuConfigDelete {} {
             set idx [expr [llength $ctxmencf_ord] - 1]
          }
          .ctxmencf.all.lbox.cmdlist selection set $idx
-         set ctxmencf_selidx $idx
-         ContextMenuConfigSelection 0
-      } else {
-         # no item left to select -> clear the entry fields
-         ContextMenuConfigClearEntry
       }
+      set ctxmencf_selidx -1
+      ContextMenuConfigSelection
    }
 }
 
@@ -353,24 +505,24 @@ proc ContextMenuConfigDelete {} {
 proc ContextMenuConfigShiftUp {} {
    global ctxmencf_selidx ctxmencf_arr ctxmencf_ord
 
-   if [ContextMenuCompareInput] return
+   ContextMenuConfigUpdate
 
-   set idx $ctxmencf_selidx
+   set idx [.ctxmencf.all.lbox.cmdlist curselection]
    if {($idx >= 0) && ($idx < [llength $ctxmencf_ord])} {
-      set id [lindex $ctxmencf_ord $idx]
+      set tag [lindex $ctxmencf_ord $idx]
       set swap_idx [expr $idx - 1]
-      set swap_id [lindex $ctxmencf_ord $swap_idx]
+      set swap_tag [lindex $ctxmencf_ord $swap_idx]
       if {($swap_idx >= 0) && ($swap_idx < [llength $ctxmencf_ord]) &&
-          [info exists ctxmencf_arr($id)] && [info exists ctxmencf_arr($swap_id)]} {
+          [info exists ctxmencf_arr($tag)] && [info exists ctxmencf_arr($swap_tag)]} {
          # remove the item in the listbox widget above the shifted one
          .ctxmencf.all.lbox.cmdlist delete $swap_idx
          # re-insert the just removed title below the shifted one
-         .ctxmencf.all.lbox.cmdlist insert $idx [lindex $ctxmencf_arr($swap_id) 0]
-         .ctxmencf.all.lbox.cmdlist selection set $swap_idx
+         .ctxmencf.all.lbox.cmdlist insert $idx [ContextMenuGetListTitle $swap_tag]
+         .ctxmencf.all.lbox.cmdlist see $swap_idx
          set ctxmencf_selidx $swap_idx
 
          # perform the same exchange in the associated list
-         set ctxmencf_ord [lreplace $ctxmencf_ord $swap_idx $idx $id $swap_id]
+         set ctxmencf_ord [lreplace $ctxmencf_ord $swap_idx $idx $tag $swap_tag]
       }
    }
 }
@@ -379,52 +531,41 @@ proc ContextMenuConfigShiftUp {} {
 proc ContextMenuConfigShiftDown {} {
    global ctxmencf_selidx ctxmencf_arr ctxmencf_ord
 
-   if [ContextMenuCompareInput] return
+   ContextMenuConfigUpdate
 
-   set idx $ctxmencf_selidx
+   set idx [.ctxmencf.all.lbox.cmdlist curselection]
    if {($idx >= 0) && ($idx < [llength $ctxmencf_ord])} {
-      set id [lindex $ctxmencf_ord $idx]
+      set tag [lindex $ctxmencf_ord $idx]
       set swap_idx [expr $idx + 1]
-      set swap_id [lindex $ctxmencf_ord $swap_idx]
+      set swap_tag [lindex $ctxmencf_ord $swap_idx]
       if {($swap_idx < [llength $ctxmencf_ord]) &&
-          [info exists ctxmencf_arr($id)] && [info exists ctxmencf_arr($swap_id)]} {
+          [info exists ctxmencf_arr($tag)] && [info exists ctxmencf_arr($swap_tag)]} {
          # remove the item in the listbox widget
-         .ctxmencf.all.lbox.cmdlist delete $idx
+         .ctxmencf.all.lbox.cmdlist delete $swap_idx
          # re-insert the just removed title below the shifted one
-         .ctxmencf.all.lbox.cmdlist insert $swap_idx [lindex $ctxmencf_arr($id) 0]
-         .ctxmencf.all.lbox.cmdlist selection clear 0 end
-         .ctxmencf.all.lbox.cmdlist selection set $swap_idx
+         .ctxmencf.all.lbox.cmdlist insert $idx [ContextMenuGetListTitle $swap_tag]
+         .ctxmencf.all.lbox.cmdlist see $swap_idx
          set ctxmencf_selidx $swap_idx
 
          # perform the same exchange in the associated list
-         set ctxmencf_ord [lreplace $ctxmencf_ord $idx $swap_idx $swap_id $id]
+         set ctxmencf_ord [lreplace $ctxmencf_ord $idx $swap_idx $swap_tag $tag]
       }
    }
-}
-
-# callback for "Clear" button -> clear the entry fields
-proc ContextMenuConfigClearEntry {} {
-   global ctxmencf_selidx ctxmencf_title ctxmencf_cmd
-
-   set ctxmencf_title {}
-   set ctxmencf_cmd   {}
-   set ctxmencf_selidx -1
-   .ctxmencf.all.lbox.cmdlist selection clear 0 end
 }
 
 # callback for Abort and OK buttons
 proc ContextMenuConfigQuit {is_abort} {
    global ctxmencf ctxmencf_ord ctxmencf_arr
-   global ctxmencf_selidx ctxmencf_title ctxmencf_cmd
+   global ctxmencf_selidx ctxmencf_title ctxmencf_cmd ctxmencf_type
 
-   if [ContextMenuCompareInput] return
+   ContextMenuConfigUpdate
 
    set do_quit 1
    # create config array from the listbox content
    set newcf {}
    foreach idx $ctxmencf_ord {
       if [info exists ctxmencf_arr($idx)] {
-         lappend newcf [lindex $ctxmencf_arr($idx) 0] [lindex $ctxmencf_arr($idx) 1]
+         lappend newcf $ctxmencf_arr($idx)
       }
    }
 
@@ -446,9 +587,8 @@ proc ContextMenuConfigQuit {is_abort} {
 
    if $do_quit {
       # free memory of global variables
-      if [info exists ctxmencf_arr] {unset ctxmencf_arr}
-      unset ctxmencf_ord
-      unset ctxmencf_title ctxmencf_cmd
+      catch {unset ctxmencf_arr ctxmencf_ord}
+      catch {unset ctxmencf_title ctxmencf_cmd ctxmencf_type}
       # close the dialog window
       destroy .ctxmencf
    }

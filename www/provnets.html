@@ -1,12 +1,12 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <html lang="en">
-<!-- $Id: provnets.html,v 1.30 2004/04/03 13:10:16 tom Exp $ -->
+<!-- $Id: provnets.html,v 1.33 2004/07/24 13:46:18 tom Exp $ -->
 <head>
 <title>nexTView Provider Table</title>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
 <META name="language" content="en">
-<META name="keywords" lang="en" content="Decoder, Canal+, Pro7, RTL2, 3Sat, TV5, Euronews, nexTView, EPG, teletext, nxtvepg, provider, TV">
-<META name="description" content="Table of nexTView providers and supported networks.">
+<META name="keywords" lang="en" content="Decoder, Canal+, Kabel1, RTL2, TV5, VT4, nexTView, EPG, teletext, nxtvepg, provider, TV">
+<META name="description" content="List of nexTView providers networks covered by their electronic programme guides">
 <META name="author" content="Tom Zoerner">
 <META name="copyright" content="Tom Zoerner">
 <META name="robots" content="index, follow">
@@ -33,7 +33,7 @@
 
 <H2 class="navhead">News</H2>
 <P>
-Apr/2/2004: <A HREF="changelog.html#release_2_7_0">Release 2.7.0</A>
+Jul/17/2004: <A HREF="changelog.html#release_2_7_1">Release 2.7.1</A>
 </P>
 
 <H2 class="navhead">Documentation</H2>
@@ -71,13 +71,13 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 
 <DIV class="mainBlock">
 <H1>Nextview EPG providers and supported networks</H1>
-
-<P>The following table lists which networks are covered by each of the
+<P>
+The following table lists which networks are covered by each of the
 nexTView provider's programme guide. Note that several EPGs use the same
 content provider; they differ only in their network selection.
 </P>
 
-<center><table BORDER=2 CELLPADDING=4>
+<table BORDER=2 CELLPADDING=4>
 <tr VALIGN=TOP>
 <th>Provider's network</th>
 
@@ -101,7 +101,7 @@ content provider; they differ only in their network selection.
 RBB&nbsp;Brandenburg&nbsp;(ORB), 3sat,
 VIVA, Kabel&nbsp;1, Super&nbsp;RTL, VOX, RTL&nbsp;2, 9&nbsp;Live,
 DSF, Eurosport, KiKa, Arte, n-tv, ORF2,
-<STRIKE>RBB&nbsp;Berlin&nbsp;(SFB1)</STRIKE>,
+<SPAN class="strike">RBB&nbsp;Berlin&nbsp;(SFB1)</SPAN>,
 MTV, BR&nbsp;alpha, TRT-int., N24, Phoenix, Tele5
 </td>
 
@@ -120,20 +120,6 @@ MTV, BR&nbsp;alpha, TRT-int., N24, Phoenix, Tele5
 H3, RBB&nbsp;Berlin&nbsp;(SFB1), SW</td>
 
 <td>3 days</td>
-</tr>
-
-<tr>
-<td VALIGN=TOP><b>Euronews</b></td>
-
-<td VALIGN=TOP><A HREF="http://www.swisstxt.ch/">Swiss Teletext</A></td>
-
-<td VALIGN=TOP>Switzerland, Austria, Germany, France</td>
-
-<td>EURONEWS, SF1, ARD, ZDF, 3sat, Arte, Pro7, RTL, RTL2, SAT.1, VOX, ORF1,
-ORF2, TSR, France&nbsp;2, France&nbsp;3, M&nbsp;6, TF&nbsp;1, TV5,
-TSI, RAI&nbsp;1, RAI&nbsp;2, BBC1</td>
-
-<td></td>
 </tr>
 
 <tr>
@@ -241,18 +227,18 @@ TVE
 <td VALIGN=TOP>Turkey</td>
 
 <td>
-<STRIKE>DISC, GENC, N1, FTV, NBC, TV5</STRIKE>,
+<SPAN class="strike">DISC, GENC, N1, FTV, NBC, TV5</SPAN>,
 KNL7, CNN, EURO, ATV, SHOW, KNLD, STAR,
-<STRIKE>KNL6</STRIKE>,
+<SPAN class="strike">KNL6</SPAN>,
 TGRT, C5, KNLE, NTV, CNNT, TRT1, TRT2, TRT3, TRT4
 </td>
 
 <td>5 - 6 days</td>
 </tr>
-</table></center>
+</table>
 
 <P>
-Note: networks which have their name striked out (<STRIKE>like this</STRIKE>)
+Note: networks which have their name striked out (<SPAN class="strike">like this</SPAN>)
 are in the provider's network list, but no programme content is transmitted.
 </P><P>
 If you know a provider that's missing in this list or if you find the
@@ -264,9 +250,9 @@ see the About popup in the Help menu of nxtvepg).
 
 <h2>Former nexTView providers</h2>
 <P>
-These providers have terminated their nexTView EPG service:
+These networks are no longer providing nexTView EPG:
 </P>
-<center><table BORDER=2 CELLPADDING=4>
+<table BORDER=2 CELLPADDING=4>
 <tr VALIGN=TOP>
 <th>Provider's network</th>
 
@@ -307,7 +293,21 @@ replaced by ZDF as teletext provider.</td>
 RTL, WDR, BR, NDR, SWR, MDR, ORB, HR, tm3, VOX</td>
 </tr>
 
-</table></center>
+<tr>
+<td VALIGN=TOP><b>Euronews</b></td>
+
+<td VALIGN=TOP><A HREF="http://www.swisstxt.ch/">Swiss Teletext</A></td>
+
+<td VALIGN=TOP>Switzerland, Austria, Germany, France</td>
+
+<td VALIGN=TOP>No longer transmitting teletext since 2004</td>
+
+<td>EURONEWS, SF1, ARD, ZDF, 3sat, Arte, Pro7, RTL, RTL2, SAT.1, VOX, ORF1,
+ORF2, TSR, France&nbsp;2, France&nbsp;3, M&nbsp;6, TF&nbsp;1, TV5,
+TSI, RAI&nbsp;1, RAI&nbsp;2, BBC1</td>
+</tr>
+
+</table>
 
 <h2><A NAME="TRT-note">Notes about TRT:</A></h2>
 <P>

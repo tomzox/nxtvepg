@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumptext.c,v 1.7 2003/02/26 21:53:56 tom Exp tom $
+ *  $Id: dumptext.c,v 1.8 2004/05/31 14:34:43 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -125,12 +125,12 @@ static void DumpText_Pi( FILE *fp, const PI_BLOCK * pPi, const EPGDB_CONTEXT * p
       else
          strcpy(pilStr, "\\N");  // MySQL NULL
 
-      switch(pPi->feature_flags & 0x03)
+      switch (pPi->feature_flags & PI_FEATURE_SOUND_MASK)
       {
-        case  0: pStrSoundFormat = "mono"; break;
-        case  1: pStrSoundFormat = "2-chan"; break;
-        case  2: pStrSoundFormat = "stereo"; break;
-        case  3: pStrSoundFormat = "surround"; break;
+        case  PI_FEATURE_SOUND_MONO: pStrSoundFormat = "mono"; break;
+        case  PI_FEATURE_SOUND_2CHAN: pStrSoundFormat = "2-chan"; break;
+        case  PI_FEATURE_SOUND_STEREO: pStrSoundFormat = "stereo"; break;
+        case  PI_FEATURE_SOUND_SURROUND: pStrSoundFormat = "surround"; break;
         default: pStrSoundFormat = ""; break;  // MySQL error value
       }
 
@@ -155,13 +155,13 @@ static void DumpText_Pi( FILE *fp, const PI_BLOCK * pPi, const EPGDB_CONTEXT * p
               pPi->parental_rating *2,
               pPi->editorial_rating,
               pStrSoundFormat,
-              ((pPi->feature_flags & 0x04) ? 1 : 0),  // wide
-              ((pPi->feature_flags & 0x08) ? 1 : 0),  // PAL+
-              ((pPi->feature_flags & 0x10) ? 1 : 0),  // digital
-              ((pPi->feature_flags & 0x20) ? 1 : 0),  // encrypted
-              ((pPi->feature_flags & 0x40) ? 1 : 0),  // live
-              ((pPi->feature_flags & 0x80) ? 1 : 0),  // repeat
-              ((pPi->feature_flags & 0x100) ? 1 : 0),  // subtitled
+              ((pPi->feature_flags & PI_FEATURE_FMT_WIDE) ? 1 : 0),
+              ((pPi->feature_flags & PI_FEATURE_PAL_PLUS) ? 1 : 0),
+              ((pPi->feature_flags & PI_FEATURE_DIGITAL) ? 1 : 0),
+              ((pPi->feature_flags & PI_FEATURE_ENCRYPTED) ? 1 : 0),
+              ((pPi->feature_flags & PI_FEATURE_LIVE) ? 1 : 0),
+              ((pPi->feature_flags & PI_FEATURE_REPEAT) ? 1 : 0),
+              ((pPi->feature_flags & PI_FEATURE_SUBTITLES) ? 1 : 0),
               ((pPi->no_themes > 0) ? pPi->themes[0] : 0),
               ((pPi->no_themes > 1) ? pPi->themes[1] : 0),
               ((pPi->no_themes > 2) ? pPi->themes[2] : 0),

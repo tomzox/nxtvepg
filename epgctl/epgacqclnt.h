@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqclnt.h,v 1.3 2002/05/19 21:53:54 tom Exp tom $
+ *  $Id: epgacqclnt.h,v 1.4 2004/06/20 18:51:08 tom Exp tom $
  */
 
 #ifndef __EPGACQCLNT_H
@@ -73,6 +73,7 @@ bool EpgAcqClient_StartAcq( uint * pCniTab, uint cniCount,
                            EPGDB_QUEUE * pDbQueue, EPGDB_PI_TSC *pTscQueue );
 #endif
 void EpgAcqClient_StopAcq( void );
+bool EpgAcqClient_TerminateDaemon( char ** pErrorMsg );
 void EpgAcqClient_HandleSocket( EPGACQ_EVHAND * pAcqEv );
 bool EpgAcqClient_CheckTimeouts( void );
 bool EpgAcqClient_ChangeProviders( const uint * pCniTab, uint cniCount );

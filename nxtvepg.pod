@@ -24,7 +24,7 @@
 #
 #  Author: Tom Zoerner
 #
-# $Id: nxtvepg.pod,v 1.109 2004/04/02 17:27:19 tom Exp tom $
+# $Id: nxtvepg.pod,v 1.113 2004/07/18 12:42:50 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME
@@ -234,7 +234,9 @@ you can use different acquisition strategies for daemon and GUI.
 In daemon mode this option will automatically stop acquisition and
 terminate the daemon after the given phase has been completed for all
 providers.  Phases are the same as defined in L<"ACQUISITION MODES">,
-i.e. I<now>, I<near> and I<full>.
+i.e. I<now>, I<near> and I<full>.  Note it's not useful to use this
+option in acquisition mode I<follow-ui>, i.e. it's only useful with
+a fixed list of providers.
 
 =item B<-dump> I<mode>
 
@@ -501,8 +503,8 @@ nxtvepg can cooperate in the following ways with TV applications:
 =item *
 
 Loading the TV application's channel table: use of the TV tuner frequencies
-can significantly speed up the EPG scan (already mentioned above);
-the channel names are used by the  I<Network name> dialog in the
+can significantly speed up the EPG scan (already mentioned above.)
+The TV app's channel names are used by the  I<Network name> dialog in the
 Configure menu (see L<"CONFIGURATION: Network names">) to synchronize
 network names between nxtvepg and the TV application.
 
@@ -514,17 +516,17 @@ programme title after channel changes, changing the channel from
 inside nxtvepg with the I<TuneTV> button, and background Nextview
 data acquisition while you're watching TV.
 
-=back 4
+=back
 
-The first two are passive features, i.e. only nxtvepg needs to be
-adapted to the respective TV applications.  The third one however
+The first one is a passive feature, i.e. only nxtvepg needs to be
+adapted to the respective TV applications.  The secind one however
 requires cooperation of both sides.  For this reason the number
 of TV applications for which the passive features are supported
 will always be much larger.  On Windows the interaction features
 are currently only supported by K!TV.
 
 On UNIX only I<xawtv> and I<xawdecode> are supported currently.
-With both all the features listed above are supported.
+With both all the features listed above do work.
 
 On Windows several freeware TV applications are supported for the
 passive features; you must select which one you're using.
@@ -534,7 +536,7 @@ is already configured.  Else, or if you want to use a different app as
 source for the channel table, open the I<TV app. interaction> dialog
 (see also L<"CONFIGURATION: TV application interaction">).
 
-Regarding the third, the active feature:
+Regarding the second feature, i.e. the "active" one:
 You can check if nxtvepg is able to interact with a specific TV application
 by starting both, and then opening the TV application interaction
 dialog in  the Configure menu.  The connection status is indicated in
@@ -1069,7 +1071,7 @@ together with the CNI it is appended after the CNI in decoded format
 codes are used to uniquely identify the current programme on a given
 network.  You can display the codes for all programmes in the database
 (if you enable them in L<"CONFIGURATION: Select attributes">) or pass them
-to external applications (see L<"CONFIGURATION: Context menu extensions">)
+to external applications (see L<"CONFIGURATION: Context menu configuration">)
 
 =item I<TTX data rate:>
 
@@ -1948,7 +1950,7 @@ user-defined external commands on the selected programme. More precisely,
 you can execute any command with properties of the selected programme
 (like title or start time) on its command line. The user commands
 can be added via the Configure menu
-(see L<"CONFIGURATION: Context menu extensions">).
+(see L<"CONFIGURATION: Context menu configuration">).
 
 =back
 
@@ -1958,9 +1960,7 @@ can be added via the Configure menu
 Summary of commands available from the Control menu:
 
 
-=over 4
-
-=item B<Enable acquisition>
+=head2 Enable acquisition
 
 Toggles acquisition on or off.  When you start the browser, acquisition
 is automatically enabled (although failure to do so is silently ignored).
@@ -1989,7 +1989,7 @@ which needs to be signalled is stored in F</tmp/.vbi.pid> while the device
 is in use.
 
 
-=item B<Connect to acq. daemon>
+=head2 Connect to acq. daemon
 
 Connect to or disconnect from an acquisition daemon, running in the
 background on the same host, or somewhere else in the network.  The
@@ -2016,7 +2016,7 @@ daemon is running on the same host and with the same user id as the
 browser process.
 
 
-=item B<Dump stream>
+=head2 Dump stream
 
 UNIX only: All incoming Nextview blocks are dumped to I<stdout>
 in an ASCII format. This is mainly intended for developers, but
@@ -2031,7 +2031,7 @@ they are new to the database or their content changed (because only
 those are forwarded by the daemon to the client.)
 
 
-=item B<Dump raw database>
+=head2 Dump raw database
 
 Open a dialog that allows to dump all blocks in the database to
 I<stdout> (UNIX only) or into the named file in a raw text format,
@@ -2048,7 +2048,7 @@ like a zero or overlapping running time. For an explanation of the
 other block types please see the ETSI specification 707.
 
 
-=item B<Export as text>
+=head2 Export as text
 
 Open a dialog that allows to export the complete database into a text
 file.  Each line in the file will represent one item in the database.
@@ -2116,7 +2116,7 @@ For I<MySQL> you could create the following tables:
    );
 
 
-=item B<Export as XMLTV>
+=head2 Export as XMLTV
 
 Open a dialog that allows to export the complete database in XML format,
 as defined by the B<xmltv.dtd> version 0.5 (see I<xmltv> project on
@@ -2142,7 +2142,7 @@ Note that the database can also be exported directly from the command
 line by using the B<-dump xml> switch (see L<"OPTIONS">).
 
 
-=item B<Export as HTML>
+=head2 Export as HTML
 
 Opens a dialog that allows to export the complete database or selected
 programmes into a file in HTML format (Hypertext Markup Language) which can
@@ -2192,13 +2192,22 @@ you have to put them into a subdirectory called F<images>; also your
 browser has to support the B<PNG> image format.
 
 
+=head2 View statistics/timescales
+
+The following four commands are used to open windows with statistics
+about the databases and acquisition progress.
+See L<"STATISTICS"> for details.
+
+=over 4
+
 =item B<View timescales>
 
 Toggles the timescale window for the browser database. The window
 reflects for each network included in the selected database, which
 time ranges are covered by programme information. If acquisition
 is working on the database, you can watch how more and more of the
-scales get covered.  See L<"STATISTICS"> for details.
+scales get covered.
+See also L<"STATISTICS: Status line">
 
 
 =item B<View statistics>
@@ -2207,14 +2216,16 @@ Toggles the browser database statistics window, which informs you about
 number of program entries in the database, fill percentage, expiration
 percentage, date of last update etc.  If the acquisition is working on
 the same database, it also contains information about state and progress
-of acquisition.  See L<"STATISTICS"> for details.
+of acquisition.
+See also L<"STATISTICS: Timescale popup windows">.
 
 
 =item B<View acq timescales>
 
 Toggles the timescale window for the acquisition database. This entry
 is only available if the acquisition uses a different database than
-the browser.
+the browser (e.g. when using a manual or cyclic acquisition mode, see
+L<"DATA ACQUISITION">)
 
 
 =item B<View acq statistics>
@@ -2222,16 +2233,15 @@ the browser.
 Toggles the acquisition statistics window, which informs you about
 state and progress of acquisition. If the acquisition control mechanism
 switches to a different database, the acq statistics window will
-automatically follow.  See L<"DATA ACQUISITION"> for details.
+automatically follow.
 
+=back
 
-=item B<Quit>
+=head2 Quit
 
 Close all windows and terminate the application.
 If you have started acquisition as a daemon, it will not be terminated
 (see L<"CONTROL: Connect to acq. daemon">).
-
-=back
 
 
 
@@ -2574,8 +2584,8 @@ TV application is started, and nxtvepg will fail to start acquisition
 when a TV appliaction is running.  Use this option only if you suspect
 compatibility problems between the TV app and nxtvepg, e.g.  if one
 application hangs or crashes during startup if the other is already
-running (I'm not saying such behavior is to be expected, but it's
-better to be prepared for everything)
+running. (Not that such behavior is to be expected, but it's better
+to be prepared for anything.)
 
 =item I<Tune TV button>
 
@@ -2637,15 +2647,17 @@ A duration of zero means the display will never be removed.
 
 Windows only: in the middle of the dialog there's one line that
 indicates the current TV application connection status.  It contains
-the name of the connected application or I<not connected>. You
-can connect to different applications than configured below, but if
+the name of the connected application, or I<not connected> wither if
+no TV application is running or if it doesn't support interaction with
+nxtvepg (see also L<"GETTING STARTED: Configuring a TV application">.)
+You can connect to different applications than configured below, but if
 the network names are not synchronized with nxtvepg, the interaction
 will not work optimally (i.e. nxtvepg might not be able to identify
 all networks, and hence not be able to provide programme titles).
 
 
-Windows only: in the lower part of the dialog window you can configure
-the type and path of your preferred TV application.  This information
+In the lower part of the dialog window you can configure
+type and path of your preferred TV application.  This information
 is used to access the TV app's channel table (i.e. TV tuner frequencies
 and station names) during an EPG provider scan
 (see L<"CONFIGURATION: Provider scan">) and in the network name
@@ -2735,7 +2747,7 @@ shortcut in the listbox, the display attributes at the right are updated.
 To create a new composite attribute, you will start by selecting the
 I<Create new definition> command in the menu at the top right of the dialog
 window. You should give the label right away, so that you can keep your
-definitions apart, see L<"CONFIGURATION: Attribute selection">.
+definitions apart, see L<"CONFIGURATION: Select attributes">.
 You should also assign a column header text (only used in the "single list"
 layout), which will appear above the programme list in the main windiw;
 you'll probably use a shorter text here than in the label.
@@ -2776,7 +2788,7 @@ button at the bottom.  The definition is saved and the browser content
 is updated.  If the attribute is not currently used in the browser,
 you're offered in a popup message to automatically append the attribute
 to the TV schedule.  You can later change it's position by using
-the I<Attribute selection> configuration dialog.
+the I<Select attributes> configuration dialog.
 
 There's also a I<Delete> button at the bottom which allows to remove
 obsolete definitions.  If the composite attribute is still displayed in
@@ -2874,35 +2886,93 @@ separated by a slash.  The slash is recognized as separator by nxtvepg
 and all resulting segments can be used as network names.
 
 
-=head2 Context menu extensions
+=head2 Context menu configuration
 
-Open the context menu configuration dialog which allows to extend the popup
+Open the context menu configuration dialog which allows to change the
+order of automatically generated menu entries or to extend the popup
 menu with user-defined external commands (for a general description of
 the context menu see L<"CONTEXT MENU">).
 
-At the top of the dialog window there is a list of all currently defined
-command titles. When you open the dialog for the first time, it'll be empty.
+The dialog window there is a list of all currently defined command
+titles.  When you open the dialog for the first time, you'll see only
+pre-defined "pseudo commands."  They don't show up like that in the
+context menu, they just represent commands which are automatically
+inserted in their place at run-time, depending on the currently
+selected programme entries and current filter settings.
 
-Below the list there are two text input fields which allow to modify or
-create new commands. The field labeled B<Title> defines the text which will
+As usual, you can change the ordering by selecting an entry and then
+clicking the buttons with up/down arrows. To remove an entry, select
+it and press I<Delete>.  If you make an error you can leave the dialog
+with I<Abort>; changes aren't applied and saved until you leave the
+dialog with I<Ok>.
+
+The I<Add new> menu button allows to insert a new menu item:
+
+=over 4
+
+=item B<External command>
+
+Start an external application with the given command line parameters.
+This is equivalent to typing a command into a UNIX shell or using
+I<Run command> in the Windows Start menu.  Command line parameters
+may use variable substitution as described below.  To allow sharing
+the same nxtvepg configuration file on UNIX and Windows, there are
+different types, i.e. UNIX or Windows.  Commands are only included
+in the context menu if the platform matches the command type.
+
+The dialog's entry field labeled B<Title> defines the text which will
 be included to the popup menu.  The field labeled B<Command> defines the
-command line to be executed when the entry is selected in the popup menu, with
-possible placeholders enclosed in ${} which are replaced by attributes of the
-currently selected programme in the browser listbox.
+command line
 
-When you press the menu button I<Copy Example> a list pops up which contains
-a few example commands which can be copied into the title and command entry
-fields.  To save a new or modified title and command, you have to press either
-the I<New> or I<Update> button and leave the popup with I<Ok>.  Use I<Delete>
-to remove an entry from the listbox; the buttons with up/down arrows to change
-the ordering.  Use I<Clear> to clear the entry fields, e.g. before you create
-a new entry.
+=item B<TV application remote command>
 
-The following is a list of formal variables (i.e. placeholders) which
-are substituted in the command line with parameters of the selected title upon
-invocation of the external command. The meaning of the variables should be
-self-explanatory, except possibly for CNI, which is a hexadecimal network code;
-and e/p_rating which are editorial and parental rating respectively.
+Send the given command line to an attached TV application, e.g. to
+switch TV channels.  Variable substitution can be used here, too.
+How the command is sent depends on the TV application; when no TV app.
+is connected, such entries are automatically disabled
+(see also L<"CONFIGURATION: TV application interaction">)
+For example
+
+  setstation ${network}
+
+would create a command that switches the TV app's channel to that of
+the currently selected programme (i.e. the same what the I<Tune TV>
+button does).  You should refer to the documentation of your TV app
+to see which commands it supports.  When no TV application is connected,
+such entries are automatically disabled.
+
+=item B<Menu title> and B<Menu separator>
+
+These can be used to organize the menu contents into groups.
+In case of menu titles, the dialog's entry field labeled B<Title>
+defines the text which will be included to the popup menu.
+
+=item B<Add/Undo programme filters>
+
+This menu entry will be replaced by automatically generated commands
+to manipulate filter settings. See L<"CONTEXT MENU"> for details.
+
+=item B<Add/remove reminder>
+
+This menu entry will be replaced by automatically generated commands
+to manipulate the reminder list. There are two versions of the entry:
+if you select the extended version, an additional entry will be
+included which allows to select reminder groups (only useful if you're
+using multiple groups, see also L<"REMINDERS">.)
+
+=back
+
+When you press the menu button I<Add Example> a list pops up which
+contains a few example commands which can be copied into the title and
+command entry fields.
+
+As mentioned above, external commands and TV app. remote commands allow
+to include placeholders enclosed in ${} which are replaced by attributes
+of the programme selected in the browser listbox at the time the context
+menu command is invoked.  The following is a list of such formal variables
+The meaning of the variables should be self-explanatory, except possibly
+for CNI: this is a hexadecimal network code, and e/p_rating: these are
+editorial and parental ratings respectively.
 
   ${title}
   ${network}
@@ -2957,14 +3027,14 @@ On UNIX the resulting substrings which replace the formal variables are
 always enclosed in single quotes, because the command line is passed
 to a system shell for execution (/bin/sh, i.e. the I<Bourne Shell> by means
 of the I<system> function; see also system man pages B<sh> or B<bash>)
-and there are many characters with special meaning.  Single quotes inside 
+and there are many characters with special meaning.  Single quotes inside
 he substituted string are correctly escaped.
 
 Example: The command line
 
   plan ${start:%d.%m.%Y %H:%M} ${title}
 
-could for example result in
+could for example on UNIX systems result in
 
   plan '22.08.2001 13:05' 'Käpt'\''n Blaubärs Seemannsgarn'
 
@@ -2979,17 +3049,6 @@ separate substitutions for date and time. Example:
 
   plan ${start:%d.%m.%Y} ${start:%H:%M} ${title}
 
-There are special prefixes C<!xawtv!> and C<!wintv!> which tell nxtvepg
-to send this command line to a connected TV application (see
-L<"CONFIGURATION: TV application interaction">).  For example
-
-  !wintv! setstation ${network}
-
-would create a command that switches the TV app's channel to that of
-the currently selected programme (i.e. the same what the I<Tune TV>
-button does).  You should refer to the documentation of your TV app
-to see which commands it supports.  When no TV application is connected,
-such entries are automatically disabled.
 
 
 =head2 Themes language

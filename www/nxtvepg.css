@@ -1,4 +1,4 @@
-HTML, BODY: {
+HTML, BODY {
         background: #f8f8f8;
         font-family: helvetica,arial,sans-serif;
         color: #000;
@@ -62,7 +62,7 @@ div.box H2 {
         PADDING-LEFT: 0.5em;
         COLOR: #333333;
         BACKGROUND: #dcdcdc;
-        FONT-FAMILY: Verdana,Geneva,Arial,Helvetica;
+        FONT-FAMILY: Verdana,Geneva,Arial,sans-serif;
         FONT-SIZE: 14pt;
         FONT-WEIGHT: bold;
 }
@@ -81,6 +81,12 @@ div.footer P {
 SPAN.red {
         COLOR: #ff0000;
 }
+SPAN.green {
+        COLOR: green;
+}
+SPAN.blue {
+        COLOR: #336699;
+}
 TABLE BODY {
 	BACKGROUND-COLOR: #f8f8f8;
 }
@@ -90,7 +96,7 @@ PRE {
         BORDER-LEFT: #bebebe 2pt solid;
         BORDER-RIGHT: #bebebe 2pt solid;
         BORDER-TOP: #bebebe 2pt solid;
-        FONT-FAMILY: mono-space;
+        FONT-FAMILY: monospace;
         FONT-SIZE: 9pt;
         FONT-WEIGHT: 100;
         PADDING-BOTTOM: 5pt;
@@ -104,12 +110,24 @@ UL LI A.link {
 	COLOR: #336699;
         TEXT-DECORATION: none
 }
+span.logo IMG {
+        BORDER: none;
+        text-align: center;
+}
+span.strike {
+        TEXT-DECORATION: line-through;
+}
+DT {
+        FONT-WEIGHT: bold;
+        PADDING-LEFT: 0.5em;
+        PADDING-RIGHT: 0.5em;
+}
 H1 {
 	COLOR: #336699;
-        FONT-FAMILY: Verdana,Geneva,Arial,Helvetica;
+        FONT-FAMILY: Verdana,Geneva,Arial,sans-serif;
 }
 H2 {
 	COLOR: #333333;
-        FONT-FAMILY: Verdana,Geneva,Arial,Helvetica;
+        FONT-FAMILY: Verdana,Geneva,Arial,sans-serif;
         PADDING-TOP: 30pt
 }

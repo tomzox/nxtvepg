@@ -34,7 +34,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgscan.c,v 1.35 2003/06/27 20:27:40 tom Exp tom $
+ *  $Id: epgscan.c,v 1.36 2004/07/11 18:49:01 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -696,6 +696,8 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv,
       scanCtl.channel = 0;
       if (EpgScan_NextChannel(&freq))
       {
+         BtDriver_SetChannelProfile(VBI_CHANNEL_PRIO_INTERACTIVE, 0, 0, 0);
+
          if ( BtDriver_TuneChannel(scanCtl.inputSrc, freq, TRUE, &isTuner) )
          {
             if (isTuner)

@@ -22,7 +22,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile.win32,v 1.50 2004/04/02 12:54:46 tom Exp $
+#  $Id: Makefile.win32,v 1.50 2004/04/02 12:54:46 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)

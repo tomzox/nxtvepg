@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: help-wanted.html,v 1.8 2004/04/03 13:10:16 tom Exp $ -->
+<!-- $Id: help-wanted.html,v 1.9 2004/05/20 14:20:25 tom Exp $ -->
 <HEAD>
 <TITLE>Software developers help wanted for nxtvepg project</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -95,23 +95,12 @@ me at the address given in nxtvepg's <I>Help -> About</I> dialog.
 
 <DL>
 <DT><B>Teletext acquisition via DirectShow &reg; on Microsoft Windows &reg;</B>
-<DD><P>This is certainly the most important point of all, since many
-    Windows users cannot use nxtvepg at all because their TV card is
-    not supported by the driver.  This is because currently VBI
-    acquisition in nxtvepg is based exclusively on the
-    <A HREF="http://dscaler.org/">DScaler</A> "dsdrv4" driver, which
-    supports only cards based on Conexant BT878, CX23881 or Philips
-    SAA7134 (and even among these only the ones with supported tuners.)
-    Cards with chip sets from vendors which do not disclose specifications
-    to support open source driver implementations cannot be supported
-    this way.</P><P>
-    A solution around this is to use vendor supplied WDM drivers via
-    DirectShow. This is already implemented in DScaler and just would
-    need to be adapted/reduced for nxtvepg.  This task requires a MSVC
-    compiler though and a recent version of Windows with Direct X
-    version 8 or later.  Since I only have Windows NT and cannot even
-    compile against the DirectShow API, the prefered solution would
-    be a DLL with an interface compatible with epgvbi/btdrv.h in nxtvepg.
+<DD><P>Currently in development.<BR>
+    <!--  commented out on request of GV
+    But you can still help in form of alpha-testing, see the
+    <A HREF="WDMpre-releases.html">WDM support development download page</A>
+    -->
+    Please refer to mailing list for release announcements.
     </P>
 
 <DT><B>TV application interaction</B>

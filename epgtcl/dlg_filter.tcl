@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_filter.tcl,v 1.12 2004/03/21 17:34:19 tom Exp tom $
+#  $Id: dlg_filter.tcl,v 1.13 2004/05/29 17:32:10 tom Exp tom $
 #
 set progidx_first 0
 set progidx_last  0
@@ -73,7 +73,7 @@ proc GetNameForWeekday {wday fmt} {
   # shift to 0:00 to avoid problems with daylight saving gaps at 2:00
   set anytime [expr $anytime - ($anytime % (60*60*24))]
   # calculate weekday index for the arbitrary timestamp
-  set anyday [expr ([C_ClockFormat $anytime {%u}] + 1) % 7]
+  set anyday [expr ([C_ClockFormat $anytime {%w}] + 1) % 7]
   # substract offset to the requested weekday index from the time
   set anytime [expr $anytime + (($wday - $anyday) * (24*60*60))]
   # finally return name of the resulting timestamp

@@ -44,7 +44,7 @@
  *
  *    Completely rewritten and functionality added by Tom Zoerner
  *
- *  $Id: tcl2c.c,v 1.12 2004/03/23 16:06:07 tom Exp tom $
+ *  $Id: tcl2c.c,v 1.13 2004/05/22 17:07:36 tom Exp tom $
  */
 
 #include <stdlib.h>
@@ -76,6 +76,11 @@ typedef struct
 static SUBST_DEF SubstList[SUBST_MAX];
 static int       SubstCount = 0;
 static char    * outNameHtmp = NULL;
+
+#define IS_TCL_ALNUM(C) ( (((C) >= 'A') && ((C) <= 'Z')) || \
+                          (((C) >= 'a') && ((C) <= 'z')) || \
+                          (((C) >= '0') && ((C) <= '9')) || \
+                          ((C) == '_') )
 
 // ---------------------------------------------------------------------------
 // Convert a text string and append it to a C string or array
@@ -141,10 +146,7 @@ static void AddSubstitution( char *var_name,  char *subst, FILE * fpH )
         s = SubstList[SubstCount].define;
         while (*p != 0)
         {
-            if ( ((*p >= 'A') && (*p <= 'Z')) ||
-                 ((*p >= 'a') && (*p <= 'z')) ||
-                 ((*p >= '0') && (*p <= '9')) ||
-                 (*p == '_') )
+            if ( IS_TCL_ALNUM(*p) )
             {
                 *(s++) = toupper(*p);
             }
@@ -238,7 +240,8 @@ static void PrintLine( FILE * fp, const char * pLine )
        {
            for (subIdx = 0; subIdx < SubstCount; subIdx++)
            {
-               if (strncmp(pMatch + 1, SubstList[subIdx].str, SubstList[subIdx].len) == 0)
+               if ( (strncmp(pMatch + 1, SubstList[subIdx].str, SubstList[subIdx].len) == 0) &&
+                    !IS_TCL_ALNUM(pMatch[1 + SubstList[subIdx].len]) )
                {
                   // print the text before the substitution
                   *pMatch = 0;

@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pifilter.c,v 1.86 2004/04/02 11:27:13 tom Exp tom $
+ *  $Id: pifilter.c,v 1.87 2004/06/19 18:58:25 tom Exp tom $
  */
 
 #define __PIFILTER_C
@@ -44,10 +44,8 @@
 #include "epgdb/epgdbif.h"
 #include "epgui/epgmain.h"
 #include "epgui/pdc_themes.h"
-#include "epgui/shellcmd.h"
 #include "epgui/pibox.h"
 #include "epgui/pidescr.h"
-#include "epgui/piremind.h"
 #include "epgui/pifilter.h"
 #include "epgui/uictrl.h"
 
@@ -1917,33 +1915,36 @@ static int UpdateNetwopList( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_O
 }
 
 // ----------------------------------------------------------------------------
-// Create the context menu (after click with the right mouse button onto a PI)
+// Append to the context menu: "Undo Filters" section
+// - returns the number of added menu entries
 //
-static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, CONST84 char *argv[] )
+static int PiFilter_ContextMenuUndoFilter( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
-   const char * const pUsage = "Usage: C_CreateContextMenu <menu-path> <dummy>";
+   const char * const pUsage = "Usage: C_PiFilter_ContextMenuUndoFilter <menu>";
+   const char * pMenu;
    const AI_BLOCK * pAiBlock;
    const PI_BLOCK * pPiBlock;
    const uchar * pThemeStr;
    const uchar * pCfNetname;
    uchar cni_str[7];
    uint  idx, entryCount;
-   uchar theme, themeCat, netwop;
+   uchar theme, netwop;
    int   result;
 
-   if (argc != 3) 
-   {  // wrong # of args for this TCL cmd -> display error msg
+   if (objc != 2)
+   {
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR; 
-   }  
+      result = TCL_ERROR;
+   }
    else
    {
+      pMenu = Tcl_GetString(objv[1]);
+      entryCount = 0;
+
       EpgDbLockDatabase(dbc, TRUE);
       pAiBlock = EpgDbGetAi(dbc);
       if (pAiBlock != NULL)
       {
-         entryCount = 0;
-
          // query listbox for user-selected PI, if any
          pPiBlock = PiBox_GetSelectedPi();
 
@@ -1964,9 +1965,9 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, CONS
          {
             if (pPiFilterContext->act.pSubStrCtx->pNext == NULL)
                sprintf(comm, "%s add command -label {Undo text filter '%s'}",
-                             argv[1], pPiFilterContext->act.pSubStrCtx->str);
+                             pMenu, pPiFilterContext->act.pSubStrCtx->str);
             else
-               sprintf(comm, "%s add command -label {Undo text filters} ", argv[1]);
+               sprintf(comm, "%s add command -label {Undo text filters} ", pMenu);
 
             strcat(comm, " -command {ResetSubstr; SubstrUpdateFilter 0}\n");
             eval_check(interp, comm);
@@ -1989,11 +1990,11 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, CONS
             {  // more than one network -> offer to remove only the selected one
                assert(pPiBlock != NULL);  // idx only > 0 if PI selected
                sprintf(comm, "%s add command -label {Remove network %s} -command {SelectNetwopByIdx %d 0}\n",
-                             argv[1], pCfNetname, pPiBlock->netwop_no);
+                             pMenu, pCfNetname, pPiBlock->netwop_no);
                eval_check(interp, comm);
 
                // offer to remove all network filters
-               sprintf(comm, "%s add command -label {Undo all network filters} -command {C_SelectNetwops {}; ResetNetwops; C_PiBox_Refresh; CheckShortcutDeselection}\n", argv[1]);
+               sprintf(comm, "%s add command -label {Undo all network filters} -command {C_SelectNetwops {}; ResetNetwops; C_PiBox_Refresh; CheckShortcutDeselection}\n", pMenu);
                eval_check(interp, comm);
 
                // increase count only by one, since both entries have the same type
@@ -2001,7 +2002,7 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, CONS
             }
             else
             {  // just one network selected -> offer to remove it
-               sprintf(comm, "%s add command -label {Undo network filter} -command {C_SelectNetwops {}; ResetNetwops; C_PiBox_Refresh; CheckShortcutDeselection}\n", argv[1]);
+               sprintf(comm, "%s add command -label {Undo network filter} -command {C_SelectNetwops {}; ResetNetwops; C_PiBox_Refresh; CheckShortcutDeselection}\n", pMenu);
                eval_check(interp, comm);
                entryCount += 1;
             }
@@ -2010,7 +2011,7 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, CONS
          // undo editorial rating
          if (EpgDbFilterIsEnabled(pPiFilterContext, FILTER_EDIT_RAT))
          {
-            sprintf(comm, "%s add command -label {Undo editorial rating filter} -command {set editorial_rating 0; SelectEditorialRating}", argv[1]);
+            sprintf(comm, "%s add command -label {Undo editorial rating filter} -command {set editorial_rating 0; SelectEditorialRating}", pMenu);
             eval_check(interp, comm);
             entryCount += 1;
          }
@@ -2018,7 +2019,7 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, CONS
          // undo parental rating
          if (EpgDbFilterIsEnabled(pPiFilterContext, FILTER_PAR_RAT))
          {
-            sprintf(comm, "%s add command -label {Undo parental rating filter} -command {set parental_rating 0; SelectParentalRating}", argv[1]);
+            sprintf(comm, "%s add command -label {Undo parental rating filter} -command {set parental_rating 0; SelectParentalRating}", pMenu);
             eval_check(interp, comm);
             entryCount += 1;
          }
@@ -2026,7 +2027,7 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, CONS
          // undo feature filters
          if (EpgDbFilterIsEnabled(pPiFilterContext, FILTER_FEATURES))
          {
-            sprintf(comm, "%s add command -label {Undo feature filters} -command {C_SelectFeatures {}; ResetFeatures; C_PiBox_Refresh; CheckShortcutDeselection}", argv[1]);
+            sprintf(comm, "%s add command -label {Undo feature filters} -command {C_SelectFeatures {}; ResetFeatures; C_PiBox_Refresh; CheckShortcutDeselection}", pMenu);
             eval_check(interp, comm);
             entryCount += 1;
          }
@@ -2034,7 +2035,7 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, CONS
          // undo progidx
          if (EpgDbFilterIsEnabled(pPiFilterContext, FILTER_PROGIDX))
          {
-            sprintf(comm, "%s add command -label {Undo program index filter} -command {set filter_progidx 0; SelectProgIdx -1 -1}", argv[1]);
+            sprintf(comm, "%s add command -label {Undo program index filter} -command {set filter_progidx 0; SelectProgIdx -1 -1}", pMenu);
             eval_check(interp, comm);
             entryCount += 1;
          }
@@ -2042,7 +2043,7 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, CONS
          // undo start time filter
          if ( EpgDbFilterIsEnabled(pPiFilterContext, FILTER_TIME_ALL) )
          {
-            sprintf(comm, "%s add command -label {Undo start time filter} -command {set timsel_enabled 0; SelectTimeFilter}", argv[1]);
+            sprintf(comm, "%s add command -label {Undo start time filter} -command {set timsel_enabled 0; SelectTimeFilter}", pMenu);
             eval_check(interp, comm);
             entryCount += 1;
          }
@@ -2091,14 +2092,14 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, CONS
                   {
                      series |= pPiBlock->netwop_no << 8;
                      sprintf(comm, "%s add command -label {Remove this series only} -command {set series_sel(%d) 0; SelectSeries %d; C_PiBox_Refresh}",
-                                   argv[1], series, series);
+                                   pMenu, series, series);
                      eval_check(interp, comm);
                   }
                   EpgDbFilterSetSeries(pPiFilterContext, pPiBlock->netwop_no, series, TRUE);
                }
             }
 
-            sprintf(comm, "%s add command -label {Undo series filter} -command {C_ResetFilter series; ResetSeries; C_PiBox_Refresh; CheckShortcutDeselection}", argv[1]);
+            sprintf(comm, "%s add command -label {Undo series filter} -command {C_ResetFilter series; ResetSeries; C_PiBox_Refresh; CheckShortcutDeselection}", pMenu);
             eval_check(interp, comm);
             entryCount += 1;
          }
@@ -2125,7 +2126,7 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, CONS
             {
                pThemeStr = PdcThemeGet(theme);
                sprintf(comm, "%s add command -label {Undo themes filter %s} -command {",
-                             argv[1], (((theme > 0) && (pThemeStr == NULL)) ? "" : (char*)pThemeStr));
+                             pMenu, (((theme > 0) && (pThemeStr == NULL)) ? "" : (char*)pThemeStr));
                for (class=0; class < THEME_CLASS_COUNT; class++)
                {
                   if (pPiFilterContext->act.themeFilterField[theme] & (1 << class))
@@ -2141,7 +2142,7 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, CONS
                   if ( ((pPiFilterContext->act.themeFilterField[idx] & pPiFilterContext->act.usedThemeClasses) != 0) &&
                        ((pThemeStr = PdcThemeGet(idx)) != NULL) )
                   {
-                     sprintf(comm, "%s add command -label {Undo themes filter %s} -command {", argv[1], pThemeStr);
+                     sprintf(comm, "%s add command -label {Undo themes filter %s} -command {", pMenu, pThemeStr);
                      for (class=0; class < THEME_CLASS_COUNT; class++)
                      {
                         // only offer to undo this theme if it is in exactly one class
@@ -2160,7 +2161,7 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, CONS
          // undo sorting criteria filters
          if (EpgDbFilterIsEnabled(pPiFilterContext, FILTER_SORTCRIT))
          {
-            sprintf(comm, "%s add command -label {Undo sorting criteria filter} -command {for {set idx 1} {$idx <= $theme_class_count} {incr idx} {C_SelectSortCrits $idx {}}; ResetSortCrits; C_PiBox_Refresh; CheckShortcutDeselection}", argv[1]);
+            sprintf(comm, "%s add command -label {Undo sorting criteria filter} -command {for {set idx 1} {$idx <= $theme_class_count} {incr idx} {C_SelectSortCrits $idx {}}; ResetSortCrits; C_PiBox_Refresh; CheckShortcutDeselection}", pMenu);
             eval_check(interp, comm);
             entryCount += 1;
          }
@@ -2168,29 +2169,68 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, CONS
          // undo global invert
          if (EpgDbFilterIsEnabled(pPiFilterContext, FILTER_INVERT))
          {
-            sprintf(comm, "%s add command -label {Undo global inversion} -command {ResetGlobalInvert; InvertFilter}", argv[1]);
+            sprintf(comm, "%s add command -label {Undo global inversion} -command {ResetGlobalInvert; InvertFilter}", pMenu);
             eval_check(interp, comm);
             entryCount += 1;
          }
 
          if (entryCount > 1)
          {
-            sprintf(comm, "%s add command -label {Reset all filters} -command {ResetFilterState; C_PiBox_Refresh}\n", argv[1]);
+            sprintf(comm, "%s add command -label {Reset all filters} -command {ResetFilterState; C_PiBox_Refresh}\n", pMenu);
             eval_check(interp, comm);
          }
+      }
+      EpgDbLockDatabase(dbc, FALSE);
 
-         if (entryCount >= 1)
-         {
-            sprintf(comm, "%s add separator\n", argv[1]);
-            eval_check(interp, comm);
-            entryCount = 0;
-         }
+      Tcl_SetObjResult(interp, Tcl_NewIntObj(entryCount));
+      result = TCL_OK;
+   }
+   return result;
+}
 
-         // ---------------------------------------------------------------------
-         // Offer filter addition
+// ----------------------------------------------------------------------------
+// Append to the context menu: "Add Filters" section
+// - returns the number of added menu entries
+//
+static int PiFilter_ContextMenuAddFilter( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+{
+   const char * const pUsage = "Usage: C_PiFilter_ContextMenuAddFilter <menu>";
+   const char * pMenu;
+   const AI_BLOCK * pAiBlock;
+   const PI_BLOCK * pPiBlock;
+   const uchar * pThemeStr;
+   const uchar * pCfNetname;
+   uchar cni_str[7];
+   uint  idx, entryCount;
+   uchar theme, themeCat, netwop;
+   int   result;
+
+   if (objc != 2)
+   {
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else
+   {
+      pMenu = Tcl_GetString(objv[1]);
+      entryCount = 0;
+
+      entryCount = 0;
+      EpgDbLockDatabase(dbc, TRUE);
+      pAiBlock = EpgDbGetAi(dbc);
+      if (pAiBlock != NULL)
+      {
+         // query listbox for user-selected PI, if any
+         pPiBlock = PiBox_GetSelectedPi();
 
          if (pPiBlock != NULL)
          {
+            // get user-configured name for that network
+            sprintf(cni_str, "0x%04X", AI_GET_NETWOP_N(pAiBlock, pPiBlock->netwop_no)->cni);
+            pCfNetname = Tcl_GetVar2(interp, "cfnetnames", cni_str, TCL_GLOBAL_ONLY);
+            if (pCfNetname == NULL)
+               pCfNetname = AI_GET_NETWOP_NAME(pAiBlock, pPiBlock->netwop_no);
+
             // substring filter
             if (EpgDbFilterIsEnabled(pPiFilterContext, FILTER_SUBSTR) == FALSE)
             {
@@ -2206,7 +2246,7 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, CONS
                        (EpgDbSearchNextPi(pUiDbContext, pPiFilterContext, pPiBlock) != NULL) )
                   {
                      sprintf(comm, "%s add command -label {Filter title '%s'} -command {SubstrSetFilter {{%s} 1 0 1 1 0 0}}\n",
-                                   argv[1], pTitle, pTitle);
+                                   pMenu, pTitle, pTitle);
                      eval_check(interp, comm);
                      entryCount += 1;
                   }
@@ -2231,13 +2271,13 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, CONS
                           (pPiFilterContext->act.themeFilterField[themeCat] != FALSE) )
                      {  // special case: undo general theme before sub-theme is enabled, else filter would have no effect (due to OR)
                         sprintf(comm, "%s add command -label {Filter theme %s} -command {set theme_sel(%d) 0; set theme_sel(%d) 1; SelectTheme %d}\n",
-                                      argv[1], pThemeStr, themeCat, theme, theme);
+                                      pMenu, pThemeStr, themeCat, theme, theme);
                         eval_check(interp, comm);
                      }
                      else
                      {
                         sprintf(comm, "%s add command -label {Filter theme %s} -command {set theme_sel(%d) 1; SelectTheme %d}\n",
-                                      argv[1], pThemeStr, theme, theme);
+                                      pMenu, pThemeStr, theme, theme);
                         eval_check(interp, comm);
                      }
                      entryCount += 1;
@@ -2266,7 +2306,7 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, CONS
                           (EpgDbSearchNextPi(pUiDbContext, pPiFilterContext, pPiBlock) != NULL) )
                      {
                         sprintf(comm, "%s add command -label {Filter this series} -command {set series_sel(%d) 1; SelectSeries %d}\n",
-                                      argv[1], theme | (pPiBlock->netwop_no << 8), theme | (pPiBlock->netwop_no << 8));
+                                      pMenu, theme | (pPiBlock->netwop_no << 8), theme | (pPiBlock->netwop_no << 8));
                         eval_check(interp, comm);
                         entryCount += 1;
                      }
@@ -2305,7 +2345,7 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, CONS
                              ((oldMask & 0x80) == 0) ||
                              ((oldFlags & 0x80) == 0x80) )
                         {
-                           sprintf(comm, "%s add command -label {Filter for original transmissions} -command {SelectFeaturesAllClasses 0xc0 0 0}\n", argv[1]);
+                           sprintf(comm, "%s add command -label {Filter for original transmissions} -command {SelectFeaturesAllClasses 0xc0 0 0}\n", pMenu);
                            eval_check(interp, comm);
                            entryCount += 1;
                         }
@@ -2313,7 +2353,7 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, CONS
                              ((oldMask & 0x80) == 0) ||
                              ((oldFlags & 0x80) == 0) )
                         {
-                           sprintf(comm, "%s add command -label {Filter for repeats} -command {SelectFeaturesAllClasses 0x80 0x80 0x40}\n", argv[1]);
+                           sprintf(comm, "%s add command -label {Filter for repeats} -command {SelectFeaturesAllClasses 0x80 0x80 0x40}\n", pMenu);
                            eval_check(interp, comm);
                            entryCount += 1;
                         }
@@ -2330,7 +2370,7 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, CONS
             if ( EpgDbFilterIsEnabled(pPiFilterContext, FILTER_NETWOP) == FALSE )
             {  // no network filter yet -> offer to filter for the currently selected
                sprintf(comm, "%s add command -label {Filter network %s} -command {SelectNetwopByIdx %d 1}\n",
-                             argv[1], pCfNetname, pPiBlock->netwop_no);
+                             pMenu, pCfNetname, pPiBlock->netwop_no);
                eval_check(interp, comm);
                entryCount += 1;
             }
@@ -2343,26 +2383,17 @@ static int CreateContextMenu( ClientData ttp, Tcl_Interp *interp, int argc, CONS
                if (netwop < pAiBlock->netwopCount)
                {
                   sprintf(comm, "%s add command -label {Filter only network %s} -command {ResetNetwops; SelectNetwopByIdx %d 1}\n",
-                                argv[1], pCfNetname, pPiBlock->netwop_no);
+                                pMenu, pCfNetname, pPiBlock->netwop_no);
                   eval_check(interp, comm);
                   entryCount += 1;
                }
             }
-
-            // ---------------------------------------------------------------------
-            // Add reminder addition/removal
-
-            entryCount += PiReminder_CtxMenuAdd(interp, pPiBlock, argv[1], (entryCount >= 1));
-
-            // ---------------------------------------------------------------------
-            // Add user-defined entries
-
-            ShellCmd_CtxMenuAddUserDef(interp, argv[1], (entryCount >= 1));
          }
       }
       EpgDbLockDatabase(dbc, FALSE);
 
-      result = TCL_OK; 
+      Tcl_SetObjResult(interp, Tcl_NewIntObj(entryCount));
+      result = TCL_OK;
    }
    return result;
 }
@@ -2438,7 +2469,8 @@ void PiFilter_Create( void )
       Tcl_CreateObjCommand(interp, "C_UpdateNetwopList", UpdateNetwopList, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_GetNetwopFilterList", GetNetwopFilterList, (ClientData) NULL, NULL);
 
-      Tcl_CreateCommand(interp, "C_CreateContextMenu", CreateContextMenu, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_PiFilter_ContextMenuUndoFilter", PiFilter_ContextMenuUndoFilter, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_PiFilter_ContextMenuAddFilter", PiFilter_ContextMenuAddFilter, (ClientData) NULL, NULL);
 
       sprintf(comm, "GenerateFilterMenues %d %d\n", THEME_CLASS_COUNT, FEATURE_CLASS_COUNT);
       eval_check(interp, comm);

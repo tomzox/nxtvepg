@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pioutput.c,v 1.52 2004/04/02 12:22:24 tom Exp tom $
+ *  $Id: pioutput.c,v 1.53 2004/05/31 14:34:43 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -311,18 +311,18 @@ uint PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES type,
             break;
 
          case PIBOX_COL_SOUND:
-            switch(pPiBlock->feature_flags & 0x03)
+            switch(pPiBlock->feature_flags & PI_FEATURE_SOUND_MASK)
             {
-               case 1: pResult = "2-channel"; break;
-               case 2: pResult = "stereo"; break;
-               case 3: pResult = "surround"; break;
+               case PI_FEATURE_SOUND_2CHAN: pResult = "2-channel"; break;
+               case PI_FEATURE_SOUND_STEREO: pResult = "stereo"; break;
+               case PI_FEATURE_SOUND_SURROUND: pResult = "surround"; break;
             }
             break;
 
          case PIBOX_COL_FORMAT:
-            if (pPiBlock->feature_flags & 0x08)
+            if (pPiBlock->feature_flags & PI_FEATURE_PAL_PLUS)
                pResult = "PAL+";
-            else if (pPiBlock->feature_flags & 0x04)
+            else if (pPiBlock->feature_flags & PI_FEATURE_FMT_WIDE)
                pResult = "wide";
             break;
 
@@ -345,14 +345,14 @@ uint PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES type,
             break;
 
          case PIBOX_COL_LIVE_REPEAT:
-            if (pPiBlock->feature_flags & 0x40)
+            if (pPiBlock->feature_flags & PI_FEATURE_LIVE)
                pResult = "live";
-            else if (pPiBlock->feature_flags & 0x80)
+            else if (pPiBlock->feature_flags & PI_FEATURE_REPEAT)
                pResult = "repeat";
             break;
 
          case PIBOX_COL_SUBTITLES:
-            if (pPiBlock->feature_flags & 0x100)
+            if (pPiBlock->feature_flags & PI_FEATURE_SUBTITLES)
                pResult = "ST";
             break;
 

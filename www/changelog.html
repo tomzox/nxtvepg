@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: changelog.html,v 1.54 2004/04/03 13:13:25 tom Exp $ -->
+<!-- $Id: changelog.html,v 1.56 2004/07/24 13:45:30 tom Exp $ -->
 <HEAD>
 <TITLE>Nextview EPG Decoder Change Log</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -34,7 +34,7 @@
 
 <H2 class="navhead">News</H2>
 <P>
-Apr/2/2004: <A HREF="changelog.html#release_2_7_0">Release 2.7.0</A>
+Jul/17/2004: <A HREF="changelog.html#release_2_7_1">Release 2.7.1</A>
 </P>
 
 <H2 class="navhead">Documentation</H2>
@@ -82,26 +82,86 @@ For details on work in progress please refer to
 </P>
 
 
+<H2><A NAME="release_2_7_1">From 2.7.0 to 2.7.1 (Jul/17/2004)</A></H2>
+<P>
+This release contains the following feature improvements and bugfixes:
+</P>
+<UL>
+<LI>Bugfix in <I>local time</I> option for
+  <A HREF="man.html#export_as_xmltv">XML database export</A>
+  (times were still in GMT only, regardless if the option was enabled or not)
+<LI>Added support for the
+  <A HREF="http://membled.com/work/apps/xmltv/">new XMLTV DTD 0.6</A>
+  (note command line option
+  <A HREF="man.html#item__2ddump_mode">-dump xml</A>
+  uses the format which was used last in the
+  <A HREF="man.html#export_as_xmltv">Export as XMLTV</A> dialog)
+<LI>Fixed
+  <A HREF="man.html#item__2ddaemonstop">-daemonstop option</A>
+  for Linux and <A HREF="http://bytesex.org/">v4l2</A> devices
+  (2.6 kernels): did sometimes not work after the user interface was used.
+<LI>Added support for new UNIX TV app:
+  <A HREF="http://zapping.sourceforge.net/">Zapping</A>,
+  i.e. reading channel table from <KBD>zapping.conf</KBD>.
+  (Note: interaction with nxtvepg was implemented in
+  zapping too: you can check it out from CVS at zapping.sf.net)
+<LI>Bugfix in <A HREF="man.html#statistics">acq stats</A>: when connected to
+  <A HREF="man.html#item__2ddaemon">acquisition daemon</A> VPS/PDC info was
+  not displayed
+<LI>Added work-around for daylight saving time changes and local time zone
+  handling specifically for <A HREF="provnets.html">Turkish provider TRT</A>.
+<LI>Made programme list's <A HREF="man.html#context_menu">context menu</A>
+  fully configurable: pre-defined
+  commands for filter and reminder control can be re-ordered now too
+  (in addition to external commands); also removed the need to press the
+  dialog's "Update" button after changes (which was a long standing entry
+  in the TODO list)
+  (<A HREF="man.html#context_menu_configuration">Read man page</A>.)
+<LI>UNIX/X11: display Nextview logo in main window title bar (only works for
+  window managers which support the
+  <A HREF="http://freedesktop.org/">WM_ICON feature</A>, e.g. fvwm2 or Gnome)
+<LI>Bugfix: columns in the main programme list were not resizable, i.e.
+  the pull-down menu appeared even when clicking onto the column header
+  button's right border (<A HREF="man.html#list_layout">single list layout</A> only)
+<LI>Bugfix: option <A HREF="man.html#item__2dprovider_cni">-provider merged</A>
+  did not work in daemon mode (acq for merged database did work though,
+  if pre-configured as default in the
+  .nxtvepgrc or INI file)  Thanks to Georg for reporting this bug.
+<LI>Linux: bugfix in <A HREF="http://bytesex.org/">v4l2</A> support
+  (fixes problems with PVR-350 cards.)
+  Thanks to Urs Schaufelberger and Hans Verkuil for the patch.
+<LI>Windows only: fixed weekday colors in the
+  <A HREF="man.html#item_show_weekday_scale">weekday scale</A>:
+  colors did not match those in the "weekday color"
+  <A HREF="man.html#select_attributes">attribute</A> in the
+  programme list; thanks to everyone who reported this bug in the forum.
+</UL>
+<P>
+There'a also a more detailed change log of all four
+<A HREF="changelog-2.7.0pre.html">2.7.0 and 2.7.1 pre-releases</A>.
+</P>
+
+
 <H2><A NAME="release_2_7_0">From 2.6.0 to 2.7.0 (Apr/02/2004)</A></H2>
 <P>
 This release contains the following feature improvements:
 </P>
 <UL>
 <LI>Changed shortcut presentation from flat list into hierarchical tree, i.e.
-  added possibility to use nested folders and also separator lines.
-  (<A HREF="man.html#filter%20shortcuts">Read man page</A>.)
+added possibility to use nested folders and also separator lines.
+(<A HREF="man.html#filter_shortcuts">Read man page</A>.)
 <LI>Added improved "teletext slicer" to reduce decoding errors on TV channels
-  with weak reception: was available since 2.5.2, but had to be selected at
+with weak reception: was available since 2.5.2, but had to be selected at
   compile time by -DZVBI_DECODER switch. Now configurable in TV card input
   configuration dialog.  (The slicer is derived from libzvbi and alevt.)
-  (<A HREF="man.html#tv%20card%20input">Read man page</A>.)
+  (<A HREF="man.html#tv_card_input">Read man page</A>.)
   Also extended acquisition statistics output with decoding errors.
-  (<A HREF="man.html#acquisition%20statistics">Read man page</A>.)
+  (<A HREF="man.html#acquisition_statistics">Read man page</A>.)
 <LI>Improved TV app EPG OSD for channels with multiple networks (Arte/Fr5):
   using user-configured "air times" in network selection configuration dialog
   to determine which network is currently received in case VPS/PDC is not
   available.  Thanks to salokyn for the suggestion.
-  (<A HREF="man.html#select%20networks">Read man page</A>,
+  (<A HREF="man.html#select_networks">Read man page</A>,
   <A HREF="screenshot-shortcuts.gif">see screenshot</A>.)
 <LI>Added work-around for flip-flopping of program title popups on Arte/Fr5
   in France: appearently Fr5 sends Fr5 PDC code, but Arte VPS. Solved by
@@ -110,7 +170,7 @@ This release contains the following feature improvements:
 <LI>Extended variable substitution for user-defined commands in context menu
   configuration: an optional time offset can be added to start and stop times,
   e.g. to start a recording 5 minutes before the official start time.
-  (<A HREF="man.html#context%20menu%20extensions">Read man page</A>.)
+  (<A HREF="man.html#context_menu_extensions">Read man page</A>.)
 <LI>Added new command line option -acqonce for daemon mode: automatically
   stop acquisition and terminate the daemon after the given phase has been
   completed for all providers.
@@ -132,7 +192,7 @@ This release contains the following feature improvements:
   path to the directory with the alternate OS's databases)
 <LI>Right mouse button in main window now selects the programme entry below
   the mouse before opening the context menu. Thanks to Jörg for the suggestion.
-  (<A HREF="man.html#context menu">Read man page</A>.)
+  (<A HREF="man.html#context_menu">Read man page</A>.)
 <LI>Added new EPG provider "VT4" (Belgium) as of March 2004.
   Thanks to "Néo" for providing the info.
   (See <A HREF="provnets.html">provider list</A>)
@@ -166,7 +226,7 @@ Plus the following fixes:
   make is started with "make nxtvepg" (you should type only "make") to prevent
   make failure due to missing header files.  Also note the build process was
   restructured so that all generated files are placed into a sub-directory
-  called "build-<platform>" to allow building on multiple platforms in parallel
+  called "build-&lt;platform&gt;" to allow building on multiple platforms in parallel
 <LI>Bugfix in build procedure: tcl2c.c crashed on 64bit platforms
   Thanks to Simon Barner and Gerd Knorr for the bug reports.
 <LI>Fixed memory leak in Xawtv window detection (for every newly created
@@ -443,7 +503,7 @@ This release contains the following new features and improvements:
   to define the column content depending on matches against a number of filter
   shortcuts; the content can consist of static text, pre-defined images or
   a standard attribute.
-  See the <A HREF="man.html#userdefined columns">manual</A> or this
+  See the <A HREF="man.html#attribute_composition">manual</A> or this
   <A HREF="screenshot-linux.gif">screenshot</A> for details.
 <LI>Implemented inverted filters, i.e. you can now search for all programmes
   which do not match one or more of given filter criteria or simply invert

@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: index.html,v 1.82 2004/04/03 13:16:39 tom Exp $ -->
+<!-- $Id: index.html,v 1.83 2004/07/24 13:46:55 tom Exp $ -->
 <HEAD>
 <TITLE>nexTView EPG Decoder Software Download Page</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -29,11 +29,11 @@
 
 <H2 class="navhead">News</H2>
 <P>
-Apr/2/2004: <A HREF="changelog.html#release_2_7_0">Release 2.7.0</A>
+Jul/17/2004: <A HREF="changelog.html#release_2_7_1">Release 2.7.1</A>
 </P><P>
-<SPAN class="red">
+Apr/2/2004: Release 2.7.0
+</P><P>
 March 2004: New provider <A HREF="provnets.html"><I>VT4</I> in Belgium</A>
-</SPAN>
 </P>
 
 <H2 class="navhead">Documentation</H2>
@@ -96,43 +96,42 @@ analog TV card, without access to the internet.
 <LI><A HREF="download.html">Software download</A>
 <LI><A HREF="download.html#requirements">System Requirements</A>
 <P></P>
-<LI><A HREF="index.html#new_2_7_0">About the new release 2.7.0</A>
+<LI><A HREF="index.html#new_2_7_1">About the new release 2.7.1</A>
 <LI><A HREF="index.html#feedback">Questions and feedback</A>
 <LI><A HREF="index.html#help_wanted">Help wanted</A>
 <LI><A HREF="index.html#copyright">Copyright notice</A>
 </UL>
 
 
-<H2><A NAME="new_2_7_0"><SPAN class="green">New release 2.7.0 (April/2/2004)</SPAN></A></H2>
+<H2><A NAME="new_2_7_1"><SPAN class="blue">New release 2.7.1 (July/17/2004)</SPAN></A></H2>
 <P>
-Main focus of the new release 2.7.0 was maintenance, hence there's
-not much big news, but lots of bug fixes and minor improvements.
+This release fixes various minor bugs in the previous release 2.7.0:
 </P>
 <UL>
-<LI>The only major new feature is a change in shortcut presentation
-    from the previous flat list into a hierarchical tree, i.e. now you can
-    organize your shortcuts in nested folders and separator lines
-    (see <A HREF="screenshot-shortcuts.gif">screenshot</A>)
-<LI>Improved <I>VBI</I> (teletext signal) decoder for weak or distorted antenna
-    signals to reduce data loss due to decoding errors during acquisition.
-<LI>Added work-arounds for problems with channel identification on
-    French Arte and France5.
-<LI>Extended command line interface for the <I>-daemon</I> and <I>dump</I>
-    modes, i.e. for users who use nxtvepg mainly for background data acquisition
-    and want to control it by scripts or batch files.
-<LI>Improved support for the latest generation of <I>video4linux</I> drivers (v4l2),
-    esp. to avoid interruptions during recording or TV viewing by channel changes
-    for Nextview EPG acquisition.
-<LI>Windows only: extended support for new TV cards and tuners (e.g. tuners MT2050
-    and MK3) and added work-around for conflicts with the card vendors' drivers for
-    CX23881 based cards (as always, thanks to the
-    <A HREF="http://dscaler.org">DScaler</A> team)
-<LI>...plus too many fixes to list them all here.
+<LI>Fixed <I>local time</I> option in
+  <A HREF="man.html#export_as_xmltv">XML database export</A>
+  and added support for the
+  <A HREF="http://membled.com/work/apps/xmltv/">new XMLTV DTD 0.6</A>
+<LI>Added support for interaction with new UNIX TV app:
+  <A HREF="http://zapping.sourceforge.net/">Zapping</A>,
+  (e.g. reading channel table from "zapping.conf")
+<LI>Work-around for daylight saving time changes and local time zone
+  handling specifically for <A HREF="provnets.html">Turkish provider TRT</A>.
+<LI>Made programme list's context menu
+  <A HREF="man.html#context_menu_configuration">fully configurable</A>:
+  pre-defined commands for filter and reminder control can be re-ordered now, too.
+<LI>Display Nextview logo in main window title bar on X11, too
+<LI>Fixed bugs in
+  <A HREF="man.html#item__2ddaemonstop">-daemonstop</A> and
+  <A HREF="man.html#item__2dprovider_cni">-provider merged</A>
+  command line options.
+<LI>Windows only: fixed weekday colors in the
+  <A HREF="man.html#item_show_weekday_scale">weekday scale</A>
 </UL>
 <P>
 Get the new release from the <A HREF="download.html">download section</A>.
-For a complete list, including more details and a list of bug fixes and
-improvements see the <A HREF="changelog.html">changelog</A>.
+For a more detailed list of changes
+see the <A HREF="changelog.html">changelog</A>.
 </P>
 
 

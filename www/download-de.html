@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="de">
-<!-- $Id: download-de.html,v 1.9 2004/03/26 22:39:33 tom Exp $ -->
+<!-- $Id: download-de.html,v 1.12 2004/07/24 13:45:02 tom Exp $ -->
 <HEAD>
 <TITLE>nexTView EPG Software Download</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -35,7 +35,7 @@
 
 <H2 class="navhead">News</H2>
 <P>
-11.10.2003: <A HREF="changelog.html#release_2_6_0">Release 2.6.0</A>
+17.7.2004: <A HREF="changelog.html#release_2_7_1">Release 2.7.1</A>
 </P>
 
 <H2 class="navhead">Dokumentation</H2>
@@ -74,9 +74,11 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 <DIV class="mainBlock">
 <H1>Download</H1>
 <P>
-Die letzte stabile Distribution ist Version 2.6.0 vom 11. Oktober 2003.
-Sie enthält mehrere neue Features und Verbesserungen,
-siehe <A HREF="changelog.html#release_2_6_0">Change-Log 2.6.0</A>.
+Die letzte stabile Distribution ist Version 2.7.1 vom 17. Juli 2004.
+Sie enthält mehrere bugfixes und kleinere Verbesserungen, siehe
+<A HREF="index-de.html#new_2_7_1">Zusammenfassung</A> auf der homepage oder
+die detaillierte Liste im <A HREF="changelog.html#release_2_7_1">Change-Log</A>.
+</P><P>
 Ältere Distributionen sind über die
 <A HREF="http://sourceforge.net/project/showfiles.php?group_id=64430">SourceForge File List</A>
 verfügbar.
@@ -85,9 +87,9 @@ verfügbar.
 <DIV CLASS="box">
 <H2 class="navhead"><A NAME="download_unix">Source Distribution</A></H2>
 <P>
-<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.6.0.tar.gz?download">nxtvepg-2.6.0.tar.gz</A>
+<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.7.1.tar.gz?download">nxtvepg-2.7.1.tar.gz</A>
 </P><P>
-Neueste stabile Source Distribution für Linux, NetBSD und FreeBSD: entpacken
+Source Distribution für Linux, NetBSD und FreeBSD: entpacken
 Sie das Archiv, wechseln Sie in das angelegte Verzeichnis mit einer Shell und
 geben Sie die Kommandos "make" und "make install" ein.  Detailliertere Infos
 können Sie der README Datei entnehmen.  Die Windows Version kann natürlich
@@ -95,29 +97,30 @@ auch aus den Sourcen compiliert werden; eine Anleitung dazu findet sich auch
 im README.
 </P><P>
 Aus dem source tarball läßt sich auch ein RPM package bauen mit dem
-Kommando: <KBD>rpm -ta nxtvepg-2.6.0.tar.gz</KBD>. Das erzeugte package
+Kommando: <KBD>rpm -ta nxtvepg-2.7.1.tar.gz</KBD>. Das erzeugte package
 kann dann wie üblich mit <KBD>rpm -i</KBD> installiert werden.
 Alternativ sind auch fertige packages verfügbar (jedoch nicht
 unbedingt immer die neueste Version):</P>
 <UL>
-<LI>
-Für Linux von <A HREF="http://rpmfind.net/linux/rpm2html/search.php?query=nxtvepg">rpmfind.net</A>
-oder
-<A HREF="http://packages.debian.org/stable/utils/nxtvepg.html">Debian</A></LI>
+<LI>Für Linux Red Hat/Fedora Core von
+    <A HREF="http://atrpms.physik.fu-berlin.de/name/nxtvepg/">ATrpms.net</A>,<BR>
+    für Debian von
+    <A HREF="http://packages.debian.org/stable/utils/nxtvepg.html">debian.org</A>,<BR>
+    für alle anderen Linux Distributionen
+    <A HREF="http://rpmfind.net/linux/rpm2html/search.php?query=nxtvepg">rpmfind.net</A>
 <LI>Für NetBSD von
-<A HREF="ftp://ftp.netbsd.org/pub/NetBSD/packages/pkgsrc/misc/nxtvepg/README.html">netbsd.org</A></LI>
+    <A HREF="ftp://ftp.netbsd.org/pub/NetBSD/packages/pkgsrc/misc/nxtvepg/README.html">netbsd.org</A>
 <LI>Für FreeBSD von
-<A HREF="http://www.freebsd.org/cgi/cvsweb.cgi/ports/multimedia/nxtvepg/">freebsd.org</A>
-</LI>
+    <A HREF="http://www.freebsd.org/cgi/cvsweb.cgi/ports/multimedia/nxtvepg/">freebsd.org</A>
 </UL>
 </DIV>
 
 <DIV CLASS="box">
 <H2 class="navhead"><A NAME="download_windows">Binärdistribution für M$ Windows</A></H2>
 <P>
-<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.6.0-win.zip?download">nxtvepg-2.6.0-win.zip</A>
+<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.7.1-win.zip?download">nxtvepg-2.7.1-win.zip</A>
 </P><P>
-Windows executable der letzten stabilen Version:
+Windows executable:
 Das nxtvepg ZIP Archiv muß lediglich in ein leeres Verzeichnis entpackt werden,
 dann kann nxtvepg.exe direkt gestartet werden.  Ihr INI file und die
 Datenbanken von älteren nxtvepg Installationen können Sie ins neue Verzeichnis
@@ -129,7 +132,7 @@ Benutzeranleitung, Abschnitt <A HREF="man.html#getting_started">Getting Started<
 </P><P>
 Für Entwickler: Demo zur Interaktion mit TV Applikationen
 (siehe auch <A HREF="help-wanted.html">help wanted</A>):
-<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.6.0-tvsim.zip?download">nxtvepg-2.6.0-tvsim.zip</A>
+<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.7.1-tvsim.zip?download">nxtvepg-2.7.1-tvsim.zip</A>
 (siehe auch <A HREF="tvsim.html">tvsim</A>,
 <A HREF="vbirec.html">vbirec</A> oder
 <A HREF="vbiplay.html">vbiplay</A> manuals, oder

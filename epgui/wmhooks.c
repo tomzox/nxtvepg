@@ -21,7 +21,7 @@
  *  Author: X11 code by Gerd Knorr (code copied from xawtv-3.87/x11/wmhooks.c)
  *          Win32 version and Tcl interface by Tom Zoerner
  *
- *  $Id: wmhooks.c,v 1.2 2003/09/28 18:28:22 tom Exp tom $
+ *  $Id: wmhooks.c,v 1.3 2004/06/13 14:38:39 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -50,15 +50,102 @@
 #include "epgui/wmhooks.h"
 
 #ifndef WIN32
+#include "images/nxtv_wm_ico.h"
+
 static Atom _NET_SUPPORTED;
 static Atom _NET_WM_STATE;
 static Atom _NET_WM_STATE_STAYS_ON_TOP;
 static Atom _NET_WM_STATE_ABOVE;
+static Atom _NET_WM_ICON;
 static Atom _WIN_SUPPORTING_WM_CHECK;
 static Atom _WIN_PROTOCOLS;
 static Atom _WIN_LAYER;
 
 static void (*wm_stay_on_top)(Display *dpy, Window win, int state) = NULL;
+static void (*wm_set_icon)(Display *dpy, Window win) = NULL;
+
+// ----------------------------------------------------------------------------
+// Find the uppermost parent of the xawtv window beneath the root
+// - direct child of the root window is needed to query dimensions
+// - error handler must be installed by caller!
+//
+static Window Xawtv_QueryParent( Display * dpy, Window wid )
+{
+   Window root_ret, parent, *kids;
+   uint   nkids;
+   Window root_wid;
+   Window parent_wid = None;
+
+   root_wid = RootWindowOfScreen(DefaultScreenOfDisplay(dpy));
+
+   while ( (wid != root_wid) &&
+           XQueryTree(dpy, wid, &root_ret, &parent, &kids, &nkids))
+   {
+      dprintf3("Xawtv-QueryParent: wid=0x%lX parent=0x%lx root=0x%lx\n", wid, parent, root_ret);
+      if (kids != NULL)
+         XFree(kids);
+
+      if (parent == root_ret)
+      {  // parent is the root window -> done.
+         parent_wid = wid;
+         break;
+      }
+      wid = parent;
+   }
+   return parent_wid;
+}
+
+// ---------------------------------------------------------------------------
+// Set icon hint for X11 window manager
+//
+static void netwm_set_icon(Display *dpy, Window wid)
+{
+   long * pIconArr;
+   long * pCardinal;
+   uint  size;
+   int   idx;
+
+   if ((wid != None) && (_NET_WM_ICON != None))
+   {
+      // allocate memory for icon data: width + height + w*h pixels
+      // note: sizeof(long) shall be used acc. to XChangeProperty() man page
+      size = 2 + (NXTV_16X16_WIDTH * NXTV_16X16_HEIGHT) +
+             2 + (NXTV_32X32_WIDTH * NXTV_32X32_HEIGHT);
+      pIconArr = xmalloc(size * sizeof(pIconArr[0]));
+      pCardinal = pIconArr;
+
+      // insert first icon: 16x16
+      *(pCardinal++) = NXTV_16X16_WIDTH;
+      *(pCardinal++) = NXTV_16X16_HEIGHT;
+      for (idx=0; idx < NXTV_16X16_WIDTH * NXTV_16X16_HEIGHT; idx++)
+      {
+         // convert 8-bit grayscale image & mask to 32-bit ARGB
+         *(pCardinal++) = (nxtv_16x16_mask_pgm[idx] << 24) |
+                          (nxtv_16x16_pgm[idx]      << 16) |
+                          (nxtv_16x16_pgm[idx]      <<  8) |
+                          (nxtv_16x16_pgm[idx]           );
+      }
+
+      // insert second icon: 32x32
+      *(pCardinal++) = NXTV_32X32_WIDTH;
+      *(pCardinal++) = NXTV_32X32_HEIGHT;
+      for (idx=0; idx < NXTV_32X32_WIDTH * NXTV_32X32_HEIGHT; idx++)
+      {
+         *(pCardinal++) = (nxtv_32x32_mask_pgm[idx] << 24) |
+                          (nxtv_32x32_pgm[idx]      << 16) |
+                          (nxtv_32x32_pgm[idx]      <<  8) |
+                          (nxtv_32x32_pgm[idx]           );
+      }
+      assert(pCardinal == pIconArr + size);
+
+      XChangeProperty(dpy, wid, _NET_WM_ICON, XA_CARDINAL, 32,
+                      PropModeReplace, (uchar *)pIconArr, size);
+
+      xfree(pIconArr);
+   }
+   else
+      debug2("netwm-set_icon: bad window ID (%lX) or atom (%lx)", (long)wid, (long)_NET_WM_ICON);
+}
 
 /* ------------------------------------------------------------------------ */
 
@@ -170,6 +257,7 @@ wm_detect(Display *dpy)
     INIT_ATOM(dpy, _NET_WM_STATE);
     INIT_ATOM(dpy, _NET_WM_STATE_STAYS_ON_TOP);
     INIT_ATOM(dpy, _NET_WM_STATE_ABOVE);
+    INIT_ATOM(dpy, _NET_WM_ICON);
     INIT_ATOM(dpy, _WIN_SUPPORTING_WM_CHECK);
     INIT_ATOM(dpy, _WIN_PROTOCOLS);
     INIT_ATOM(dpy, _WIN_LAYER);
@@ -194,6 +282,14 @@ wm_detect(Display *dpy)
         dprintf0("wmhooks: gnome layer\n");
 	wm_stay_on_top = gnome_stay_on_top;
     }
+
+    /* netwm check for icon capability */
+    if (NULL == wm_set_icon &&
+	0 == wm_check_capability(dpy,root,_NET_SUPPORTED,
+				 _NET_WM_ICON)) {
+        dprintf0("wmhooks: netwm icon\n");
+	wm_set_icon = netwm_set_icon;
+    } 
 }
 
 // ---------------------------------------------------------------------------
@@ -226,7 +322,7 @@ static int WmHooks_StayOnTop(ClientData ttp, Tcl_Interp *interp, int argc, CONST
             {
                if (Tcl_GetIntFromObj(interp, pId, &wid) == TCL_OK)
                {
-                  dprintf2("WmHooks_StayOnTop: window %s ID=0x%X\n", argv[1], wid);
+                  dprintf2("WmHooks-StayOnTop: window %s ID=0x%X\n", argv[1], wid);
                   if (wid != 0)
                   {
                      tkwin = Tk_MainWindow(interp);
@@ -261,7 +357,65 @@ static int WmHooks_StayOnTop(ClientData ttp, Tcl_Interp *interp, int argc, CONST
    return result;
 }
 
+// ---------------------------------------------------------------------------
+// Set icon hint for X11 window manager
+//
+static int WmHooks_SetIcon(ClientData ttp, Tcl_Interp *interp, int argc, CONST84 char *argv[])
+{
+   const char * const pUsage = "Usage: C_Wm_SetIcon <toplevel>";
+   Display  * dpy;
+   Tk_Window  tkwin;
+   int  wid;
+   int  result;
+
+   if (argc != 2)
+   {  // parameter count is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else
+   {
+      if (wm_set_icon != NULL)
+      {
+         tkwin = Tk_MainWindow(interp);
+         if (tkwin != NULL)
+         {
+            dpy = Tk_Display(tkwin);
+            if (dpy != NULL)
+            {
+               wid = Xawtv_QueryParent(dpy, Tk_WindowId(tkwin));
+               if (wid != None)
+               {
+                  dprintf2("WmHooks-SetIcon: window '%s' ID=0x%X\n", argv[1], wid);
+
+                  wm_set_icon(dpy, wid);
+               }
+               else
+                  debug0("WmHooks-SetIcon: cannot find WM frame window");
+            }
+            else
+               debug0("WmHooks-SetIcon: failed to determine display");
+         }
+         else
+            debug0("WmHooks-SetIcon: failed to determine main window");
+      }
+
+      result = TCL_OK;
+   }
+   return result;
+}
+
 #else //  WIN32
+
+// ---------------------------------------------------------------------------
+// Set window icon for WIN32
+//
+static int WmHooks_SetIcon(ClientData ttp, Tcl_Interp *interp, int argc, CONST84 char *argv[])
+{
+#ifndef ICON_PATCHED_INTO_DLL
+# error "not implemented for WIN32: see SetWindowsIcon() in epgui/epgmain.c"
+#endif
+}
 
 // ---------------------------------------------------------------------------
 // WIN32 Tcl interface for stay on top hook
@@ -304,6 +458,7 @@ static int WmHooks_StayOnTop(ClientData ttp, Tcl_Interp *interp, int argc, CONST
    }
    return result;
 }
+
 #endif  // WIN32
 
 // ----------------------------------------------------------------------------
@@ -334,5 +489,6 @@ void WmHooks_Init( Tcl_Interp * interp )
 #endif
 
    Tcl_CreateCommand(interp, "C_Wm_StayOnTop", WmHooks_StayOnTop, (ClientData) NULL, NULL);
+   Tcl_CreateCommand(interp, "C_Wm_SetIcon", WmHooks_SetIcon, (ClientData) NULL, NULL);
 }
 

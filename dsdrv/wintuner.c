@@ -33,7 +33,7 @@
  *  DScaler #Id: MT2050.cpp,v 1.4 2004/02/11 15:29:52 robmuller Exp #
  *  DScaler #Id: TDA9887.cpp,v 1.3 2003/10/27 10:39:54 adcockj Exp #
  *
- *  $Id: wintuner.c,v 1.21 2004/03/22 17:30:37 tom Exp tom $
+ *  $Id: wintuner.c,v 1.22 2004/05/22 19:50:27 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -889,7 +889,7 @@ static bool MT2050_SetIFFreq(int rfin)
     int num1, num2, Denom1, Denom2;
     int div1a, div1b, div2a, div2b;
 
-    dprintf1("MT2050-SetIFFreq: freq=%d if2=%d\n", freq);
+    dprintf1("MT2050-SetIFFreq: rfin=%d\n", rfin);
 
     //3.1 Calculate LO frequencies
     flo1 = rfin + if1;
@@ -1062,7 +1062,7 @@ static bool Microtune_Initialize( TUNER_TYPE type, uint defaultNorm )
     uint company_code;
     bool result;
 
-    dprintf1("Microtune-Initialize: default norm %d\n", defaultNorm);
+    dprintf2("Microtune-Initialize: default type=%d, norm %d\n", type, defaultNorm);
 
     if (haveTda9887Standard)
         Tda9887_Init(TRUE, defaultNorm);
@@ -1253,6 +1253,7 @@ static bool MT2032_ComputeFreq(
         lo2n < 17 ||  
         lo2n > 30)
     {
+        debug5("MT2032-ComputeFreq: rfin=%d: invalid LO: %d,%d,%d,%d", rfin, lo1a, lo1n, lo2a, lo2n);
         return FALSE;
     }
 
@@ -1336,6 +1337,8 @@ static int MT2032_OptimizeVCO(int sel, int lock)
     lo1a = MT2032_GetRegister(0x01) & 0x07;
     MT2032_SetRegister(0x01, lo1a | (sel << 4));
     lock = MT2032_CheckLOLock();
+
+    dprintf1("MT2032-OptimizeVCO: lock=%d\n", lock);
     return lock;
 }
 

@@ -1,8 +1,8 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: changelog-2.7.0pre.html,v 1.1 2004/04/03 13:09:45 tom Exp $ -->
+<!-- $Id: changelog-2.7.0pre.html,v 1.2 2004/07/24 13:45:19 tom Exp $ -->
 <HEAD>
-<TITLE>2.7.0 pre-releases change log</TITLE>
+<TITLE>2.7.0 and 2.7.1 pre-releases change-log</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
 <META name="language" content="en">
 <META name="author" content="Tom Zoerner">
@@ -34,7 +34,7 @@
 
 <H2 class="navhead">News</H2>
 <P>
-Apr/2/2004: <A HREF="changelog.html#release_2_7_0">Release 2.7.0</A>
+Jul/17/2004: <A HREF="changelog.html#release_2_7_1">Release 2.7.1</A>
 </P>
 
 <H2 class="navhead">Documentation</H2>
@@ -72,13 +72,85 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 
 <DIV class="mainBlock">
 
-<H1>2.7.0 pre-releases change log</H1>
+<H1>2.7.0 and 2.7.1 pre-releases change-log</H1>
 <P>
-This page summarizes changes between pre-releases which led to the 2.7.0 release.
-It's only kept for historical interest as the main change log summarizes all changes
-that finally went into 2.7.0.  See also the nxtvepg
+This page summarizes changes between pre-releases which led from 2.6.0 to the 2.7.0
+and 2.7.1 releases.  It's only kept for historical interest as the main change log
+summarizes all changes that finally went into 2.7.0 and then 2.7.1.  See also the nxtvepg
 <A HREF="http://sourceforge.net/mailarchive/forum.php?forum_id=14102">mailing list archives</A>.
+</P>
+
+<H2>2.7.1 pre-releases change-log</H2>
+<P>
+Note the format of rc/ini file has changed in 2.7.1pre2;
+it will be automatically upgraded upon the first start when using an rc/ini file
+written by an older version.  Make a copy before so you can still use it with
+older versions.
 </P><P>
+The acquisition daemon protocol has also changed in 2.7.1pre1, hence you cannot
+connect with a 2.7.1 client to 2.7.0 or older daemons.
+</P>
+
+<H3>Changes between 2.7.1pre3 and 2.7.1 (2004-07-17)</H3>
+<UL>
+<LI>Bugfix: option "-provider merged" did not work in daemon mode (acq for
+  merged database did work though, if pre-configured as default in the
+  .nxtvepgrc or INI file)  Thanks to Georg for reporting this bug.
+<LI>Several fixes in XMLTV DTD 0.6 export
+</UL>
+
+<H3>Changes between 2.7.1pre2 and 2.7.1pre3 (2004-06-26)</H3>
+<UL>
+<LI>UNIX/X11: display Nextview logo in main window title bar (only works for
+  window managers which support the WM_ICON feature, e.g. fvwm2 or Gnome)
+<LI>Bugfix: columns in the main programme list were not resizable, i.e.
+  the pull-down menu appeared even when clicking onto the column header
+  button's right border ("single list" layout only)
+</UL>
+
+<H3>Changes between 2.7.1pre1 and 2.7.1pre2 (2004-06-10)</H3>
+<UL>
+<LI>Made programme list's context menu fully configurable: pre-defined
+  commands for filter and reminder control can be re-ordered now too
+  (in addition to external commands); also removed the need to press the
+  dialog's "Update" button after changes (which was a long standing entry
+  in the TODO list)
+<LI>Added support for new XMLTV DTD 0.6 (note command line option -dump xml
+  uses the format which was used last in Control-&gt;"Export as XMLTV")
+<LI>Linux: bugfix in v4l2 support (fixes problems with PVR-350 cards.)
+  Thanks to Urs Schaufelberger and Hans Verkuil for the patch.
+<LI>Bugfix acq stats when connected to acquisition daemon: VPS/PDC info was
+  not displayed
+<LI>Further internal improvements in the handling of -daemonstop for Linux
+  (since pre1): the command will now wait until the daemon process is dead
+  or print an error message if it takes too long.
+</UL>
+
+<H3>Changes between 2.7.1pre0 and 2.7.1pre1 (2004-05-22)</H3>
+<UL>
+<LI>Bugfix in "local time" option for XML database export (times were still
+  in GMT only, regardless if the option was enabled or not)
+<LI>Fixed -daemonstop option for Linux and v4l2 devices (2.6 kernels): did
+  sometimes not work after the user interface was used.
+<LI>Added support for new UNIX TV app: Zapping, i.e. reading channel table
+  from zapping.conf.  (Note: interaction with nxtvepg was implemented in
+  zapping too: you can check it out from CVS at
+  <A HREF="http://zapping.sourceforge.net/">zapping.sourceforge.net</A>)
+<LI>Windows only: fixed weekday colors in datescale: should now match those
+  in the "weekday color" attribute in the programme list
+</UL>
+
+<H3>Changes between 2.7.0 and 2.7.1pre0 (2004-04-17)</H3>
+<UL>
+<LI>Added work-around for daylight saving time changes and LTO handling
+    for Turkish provider TRT.
+<LI>Linux: adapted for API changes to the
+    <A HREF="tmp/README-proxy.txt">VBI proxy daemon</A>.
+    This is still work in progress and should be used by developers only.
+</UL>
+
+<H2>2.7.0 pre-releases change-log</H2>
+<P>
 Note the format of rc/ini file has changed in 2.7.0pre0;
 it will be automatically upgraded upon the first start when using an rc/ini file
 written by an older version.  Make a copy before so you can still use it with

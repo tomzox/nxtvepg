@@ -25,7 +25,7 @@
  *  DScaler #Id: SAA7134Source.cpp,v 1.69 2003/01/27 22:04:12 laurentg Exp #
  *  DScaler #Id: SAA7134Provider.cpp,v 1.10 2002/12/24 08:22:14 atnak Exp #
  *
- *  $Id: saa7134.c,v 1.20 2004/03/22 17:35:32 tom Exp tom $
+ *  $Id: saa7134.c,v 1.21 2004/05/22 19:48:49 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -460,7 +460,7 @@ static void SetPageTable( uint frameIdx )
 //
 static bool CreatePageTable( uint frameIdx )
 {
-   const WORD PAGE_MASK = (DMA_PAGE_SIZE - 1);
+   const DWORD PAGE_MASK = (DMA_PAGE_SIZE - 1);
    DWORD * pPageTable;
    DWORD   pPhysical;
    BYTE  * pUser;

@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: wintv.h,v 1.4 2003/10/05 19:31:44 tom Exp tom $
+ *  $Id: wintv.h,v 1.5 2004/06/19 19:07:10 tom Exp tom $
  */
 
 #ifndef __WINTV_H
@@ -29,7 +29,6 @@
 void Wintv_Init( bool enable );
 void Wintv_Destroy( void );
 
-bool Wintv_IsConnected( void );
 void Wintv_SendCmdArgv(Tcl_Interp *interp, const char * pCmdStr, uint strLen );
 
 

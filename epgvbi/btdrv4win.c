@@ -40,7 +40,7 @@
  *      Tom Zoerner
  *
  *
- *  $Id: btdrv4win.c,v 1.48 2004/03/27 15:08:16 tom Exp $
+ *  $Id: btdrv4win.c,v 1.49 2004/07/11 19:13:11 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -931,9 +931,19 @@ bool BtDriver_QueryChannel( uint * pFreq, uint * pInput, bool * pIsTuner )
 }
 
 // ----------------------------------------------------------------------------
-// Dummy - not used for Windows
+// Dummies - not used for Windows
 //
 void BtDriver_CloseDevice( void )
+{
+}
+
+bool BtDriver_QueryChannelToken( void )
+{
+   return FALSE;
+}
+
+void BtDriver_SetChannelProfile( VBI_CHANNEL_PRIO_TYPE prio,
+                                 int subPrio, int duration, int minDuration )
 {
 }
 

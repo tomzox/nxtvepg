@@ -21,7 +21,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgacqclnt.c,v 1.15 2004/03/11 22:12:01 tom Exp $
+ *  $Id: epgacqclnt.c,v 1.16 2004/06/20 18:51:00 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -30,8 +30,16 @@
 #ifdef USE_DAEMON
 
 #include <stdio.h>
+#include <errno.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
+#ifndef WIN32
+#include <signal.h>
+#include <sys/select.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#endif
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
@@ -73,6 +81,7 @@ typedef struct
 {
    CLNT_STATE               state;
    EPGNETIO_STATE           io;
+   int                      daemonPid;
    bool                     endianSwap;
    ulong                    rxTotal;
    ulong                    rxStartTime;
@@ -496,6 +505,7 @@ static bool EpgAcqClient_TakeMessage( EPGACQ_EVHAND * pAcqEv, EPGDBSRV_MSG_BODY 
             }
             else
             {  // version ok -> request block forwarding
+               clientState.daemonPid = pMsg->con_cnf.daemon_pid;
                memcpy(&clientMsg.fwd_req.provCnis, clientState.provCnis, sizeof(clientMsg.fwd_req.provCnis));
                for (dbIdx=0; dbIdx < clientState.cniCount; dbIdx++)
                   clientMsg.fwd_req.dumpStartTimes[dbIdx] = EpgContextCtl_GetAiUpdateTime(clientState.provCnis[dbIdx]);
@@ -695,8 +705,11 @@ static void EpgAcqClient_Close( bool removeHandler )
    clientState.io.lastIoTime = time(NULL);
 
    // free all EPG blocks in the input queue
-   EpgDbQueue_Clear(clientState.pDbQueue);
-   EpgTscQueue_Clear(clientState.pTscQueue);
+   if (clientState.pDbQueue != NULL)
+   {
+      EpgDbQueue_Clear(clientState.pDbQueue);
+      EpgTscQueue_Clear(clientState.pTscQueue);
+   }
 
    EpgAcqClient_FreeStats();
 
@@ -927,6 +940,191 @@ void EpgAcqClient_StopAcq( void )
    else
       debug0("EpgDbClient-StopAcq: acq not enabled");
 }
+
+#ifndef WIN32
+// ----------------------------------------------------------------------------
+// Connect and query daemon for it's process ID, then kill the process
+//
+bool EpgAcqClient_TerminateDaemon( char ** ppErrorMsg )
+{
+   EPGDBSRV_MSG_BODY * pMsg;
+   struct timeval  timeout;
+   struct timeval  tv;
+   struct timeval  selectStart;
+   fd_set  fds;
+   bool    ioBlocked;
+   sint    selSockCnt;
+   pid_t   pid;
+
+   *ppErrorMsg = NULL;
+   selSockCnt = 0;
+   pid = -1;
+
+   // overall timeout until response has arrived
+   timeout.tv_sec  = 2;
+   timeout.tv_usec = 0;
+
+   if (clientState.state == CLNT_STATE_OFF)
+   {
+      EpgAcqClient_ConnectServer();
+      if (clientState.io.sock_fd != -1)
+      {
+         // wait for the connect to complete
+         FD_ZERO(&fds);
+         FD_SET(clientState.io.sock_fd, &fds);
+         gettimeofday(&selectStart, NULL);
+         tv = timeout;
+         selSockCnt = select(clientState.io.sock_fd + 1, NULL, &fds, NULL, &tv);
+         if (selSockCnt > 0)
+         {
+            EpgNetIo_UpdateTimeout(&selectStart, &timeout);
+
+            if (EpgNetIo_FinishConnect(clientState.io.sock_fd, ppErrorMsg))
+            {
+               // the message contains a magic to allow the server to immediately drop
+               // unintended (e.g. wrong service or port) or malicious (e.g. port scanner) connections
+               memcpy(clientMsg.con_req.magic, MAGIC_STR, MAGIC_STR_LEN);
+               memset(clientMsg.con_req.reserved, 0, sizeof(clientMsg.con_req.reserved));
+               clientMsg.con_req.endianMagic = PROTOCOL_ENDIAN_MAGIC;
+               EpgNetIo_WriteMsg(&clientState.io, MSG_TYPE_CONNECT_REQ, sizeof(clientMsg.con_req), &clientMsg.con_req, FALSE);
+
+               // write message to the socket
+               do
+               {
+                  FD_ZERO(&fds);
+                  FD_SET(clientState.io.sock_fd, &fds);
+                  gettimeofday(&selectStart, NULL);
+                  tv = timeout;
+
+                  selSockCnt = select(clientState.io.sock_fd + 1, NULL, &fds, NULL, &tv);
+                  if (selSockCnt <= 0)
+                     goto socket_error;
+
+                  if (EpgNetIo_HandleIO(&clientState.io, &ioBlocked, FALSE) == FALSE)
+                     goto failure;
+
+                  EpgNetIo_UpdateTimeout(&selectStart, &timeout);
+
+               } while (clientState.io.writeLen != 0);
+
+               // wait for the reply message
+               clientState.io.waitRead = TRUE;
+               do
+               {
+                  FD_ZERO(&fds);
+                  FD_SET(clientState.io.sock_fd, &fds);
+                  gettimeofday(&selectStart, NULL);
+                  tv = timeout;
+
+                  selSockCnt = select(clientState.io.sock_fd + 1, &fds, NULL, NULL, &tv);
+                  if (selSockCnt <= 0)
+                     goto socket_error;
+
+                  if (EpgNetIo_HandleIO(&clientState.io, &ioBlocked, TRUE) == FALSE)
+                     goto failure;
+
+               } while ( (clientState.io.waitRead) ||
+                         (clientState.io.readLen != clientState.io.readOff) );
+
+               pMsg = (EPGDBSRV_MSG_BODY *) clientState.io.pReadBuf;
+               if ( (pMsg->con_cnf.blockCompatVersion != DUMP_COMPAT) ||
+                    (pMsg->con_cnf.protocolCompatVersion != PROTOCOL_COMPAT) ||
+                    (pMsg->con_cnf.daemon_pid <= 0) )
+               {
+                  SystemErrorMessage_Set(ppErrorMsg, 0, "Incompatible server version", NULL);
+               }
+               else
+               { // retrieve pid from message
+                  pid = pMsg->con_cnf.daemon_pid;
+               }
+
+               xfree(clientState.io.pReadBuf);
+               clientState.io.pReadBuf = NULL;
+               clientState.io.readLen = 0;
+               clientState.io.readOff = 0;
+            }
+         }
+         else
+            goto socket_error;
+      }
+   }
+   else if (clientState.state >= CLNT_STATE_WAIT_FWD_CNF)
+   {
+      if (clientState.daemonPid > 0)
+      {
+         pid = clientState.daemonPid;
+      }
+   }
+
+   // note: not only check -1: must make sure not to kill entire process groups
+   if (pid > 0)
+   {
+      if (kill(pid, SIGTERM) == 0)
+      {
+         // wait for daemon to close the socket, i.e. for socket to become readable
+         clientState.io.waitRead = TRUE;
+         while (clientState.io.sock_fd != -1)
+         {
+            FD_ZERO(&fds);
+            FD_SET(clientState.io.sock_fd, &fds);
+            gettimeofday(&selectStart, NULL);
+            tv = timeout;
+
+            selSockCnt = select(clientState.io.sock_fd + 1, &fds, NULL, NULL, &tv);
+            if (selSockCnt <= 0)
+               goto socket_error;
+
+            if (EpgNetIo_HandleIO(&clientState.io, &ioBlocked, TRUE) == FALSE)
+            {  // connection lost -> daemon is dead -> done (not an error here)
+               EpgAcqClient_Close(FALSE);
+               break;
+            }
+            else if (clientState.io.readLen == clientState.io.readOff)
+            {  // discard any messages which arrive
+               xfree(clientState.io.pReadBuf);
+               clientState.io.pReadBuf = NULL;
+               clientState.io.readLen = 0;
+               clientState.io.readOff = 0;
+               clientState.io.waitRead = TRUE;
+            }
+         }
+      }
+      else
+      {
+         SystemErrorMessage_Set(ppErrorMsg, errno, "Failed to terminate the daemon process", NULL);
+         pid = -1;
+      }
+   }
+
+   if (clientState.pErrorText != NULL)
+   {
+      if (ppErrorMsg != NULL)
+      {
+         *ppErrorMsg = clientState.pErrorText;
+         clientState.pErrorText = NULL;
+      }
+      else
+         SystemErrorMessage_Set(&clientState.pErrorText, 0, NULL);
+   }
+
+   return (pid > 0);
+
+socket_error:
+   if (selSockCnt == 0)
+   {
+      SystemErrorMessage_Set(ppErrorMsg, 0, "Lost connection (I/O timeout)", NULL);
+      debug0("EpgAcqClient-GetDaemonPid: timeout waiting for connect");
+   }
+   else
+   {
+      SystemErrorMessage_Set(ppErrorMsg, errno, "Lost connection (I/O error)", NULL);
+      debug1("EpgAcqClient-GetDaemonPid: connect failed: error=%d", errno);
+   }
+failure:
+   EpgAcqClient_Close(FALSE);
+   return -1;
+}
+#endif
 
 // ----------------------------------------------------------------------------
 // Update the list of requested providers

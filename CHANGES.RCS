@@ -16497,3 +16497,365 @@ www/nefkom-src-index.html [rev:1.20, 2004-04-03T13:32:18]:
 www/index-de.html [rev:1.70, 2004-04-03T22:52:18]:
 - Fixed text for newly added link to download below 2.7.0 news
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_7_0 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+epgui/epgmain.c [rev:1.133, 2004-04-11T20:03:23]:
+- Fixed Win32 compiler warning:
+- #ifndef WIN32 around function AsyncHandler_AppTerminate()
+www/faq.html [rev:1.5, 2004-04-13T21:27:05]:
+- Added new Q:  Why can't I run nxtvepg in parallel to my TV app?
+www/links.html [rev:1.7, 2004-04-13T21:27:57]:
+- Added new link: nxtvepg2web (Webfrontend for nxtvepg, based on MySQL & PHP)
+www/provnets.html [rev:1.31, 2004-04-13T21:28:55]:
+- Moved EuroNews to "deceased" section (stopped transmitting teletext in 2003)
+www/download-de.html [rev:1.11, 2004-04-17T13:11:50]:
+- Added link to ATrpms.net for Linux Red Hat/Fedora Core
+www/download.html [rev:1.11, 2004-04-17T13:11:50]:
+- Added link to ATrpms.net for Linux Red Hat/Fedora Core
+www/faq.html [rev:1.6, 2004-04-17T13:11:57]:
+- Improved tip for "Tages-Tipp" on Kabel1 (removing start time filter)
+www/pre-releases.html [rev:1.44, 2004-04-17T13:12:03]:
+- Released 2.7.1pre0
+nxtvepg.pod [rev:1.110, 2004-04-25T12:28:47]:
+- Minor fixes & improvements in "TV app interaction" config description
+- trigerred by user questions in discussion forum
+www/changelog.html [rev:1.55, 2004-05-20T14:17:53]:
+- syntax fix: replaced <>
+www/faq.html [rev:1.7, 2004-05-20T14:19:49]:
+- syntax fix: added </A> after <A NAME...>
+www/help-wanted.html [rev:1.9, 2004-05-20T14:20:25]:
+- removed text to WDM segment: replaced with link to WDMpre-releases.html
+www/links.html [rev:1.8, 2004-05-20T14:22:43]:
+- updated "new" tag for nxtvepg2web: updated MAy 2004
+- on request by author, via email 10-May-2004
+www/nxtvepg.css [rev:1.13, 2004-05-20T14:24:35]:
+- Added new span class "strike":
+- to replace non-HTML4-strict compliant <strict> tags
+www/pre-releases.html [rev:1.45, 2004-05-20T14:25:21]:
+- Added note about 2.8.0 development branch
+www/provnets.html [rev:1.32, 2004-05-20T14:25:44]:
+- syntax fix: replaced <strike> tags with <span class="strike">
+- for HTML4 compliance
+epgui/dumpxml.c [rev:1.5, 2004-05-22T16:22:03]:
+- Renamed constant xmltv_dtd_5 into xmltv_dtd_5_gmt
+- originally as work-around for XML dump format bug: the old name was a
+    prefix of another constant xmltv_dtd_5_lto, hence the latter one was not
+    substituted correctly
+- no longer necessary since tcl2c was fixed, but kept anyways for clarity
+epgtcl/dlg_dump.tcl [rev:1.5, 2004-05-22T16:22:17]:
+- Renamed constant xmltv_dtd_5 into xmltv_dtd_5_gmt
+- originally as work-around for XML dump format bug: the old name was a
+    prefix of another constant xmltv_dtd_5_lto, hence the latter one was not
+    substituted correctly
+- no longer necessary since tcl2c was fixed, but kept anyways for clarity
+epgui/menucmd.c [rev:1.114, 2004-05-22T16:48:30]:
+- Removed superfluous line from MenuCmd_LoadProvFreqsFromDbs()
+- probably left-over from conversion to object based result handling
+tcl2c.c [rev:1.13, 2004-05-22T17:07:36]:
+- Bugfix constant substitution in PrintLine()
+- used strncmp() to compare constant's name without checking if the
+    length of both variable names was identical
+- caused wrong substitution when one constant was another's prefix,
+    e.g. xmltv_dtd_5 and xmltv_dtd_5_ltz (bug detected after posting
+    in sourceforge forum, 20-May-2004)
+- added check that non-alphanum char follows after variable name
+epgui/xawtv.c [rev:1.42, 2004-05-22T17:42:20]:
+- Added support for Zapping in Xawtv_QueryClass()
+epgui/wintvcfg.c [rev:1.17, 2004-05-22T17:43:16]:
+- added support for Zapping: parse XML config file
+- made xawtv parser more tolerant for TV norms: allow PAL-BG
+epgui/wintvcfg.c [rev:1.18, 2004-05-22T17:51:31]:
+- Adapted for change in dlg_xawtvcf.tcl for channel table "Test" button
+- WintvCfg_TestChanTab(): moved message after sucessfully parsing the table
+    into Tcl layer; return the number of channels found
+- Also: converted all Tcl procs from argv to objv interface
+epgtcl/dlg_xawtvcf.tcl [rev:1.8, 2004-05-22T17:56:30]:
+- Improved message for "Test" button (TV app channel table reading test)
+- do not display hint about network name dialog if names have already been
+    configured (did confuse user, forum post 24-Apr-2004)
+- split off new proc XawtvConfigTestPathAndType to handle the button callback
+    moved message after sucessfully parsing the table here from wintvcfg.c
+epgtcl/mainwin.tcl [rev:1.238, 2004-05-22T18:06:51]:
+- Fix "Show/hide" behaviour for network filter listbox selection:
+- when both "left" and "middle" were enabled, always "left" was disabled
+    even when the user just tried to switch from middle to left (without
+    de-selecting middle first)
+- added "changed" param to proc ShowOrHideShortcutList -> do not disable
+    the newly selected mode button
+epgvbi/btdrv4linux.c [rev:1.57, 2004-05-22T18:32:10]:
+- adapted VBI proxy support to new API (0.1.0)
+    also simplified use of #defines: use only one: USE_VBI_PROXY
+- fixed non-thread communication with slave for acq start and channel change
+    commands: wait 5*200ms instead of once 1sec
+epgvbi/btdrv.h [rev:1.40, 2004-05-22T18:42:11]:
+- Adapted VBI proxy support to new API (0.1.0)
+- added new elements to shared memory for passing commands to slave
+- also simplified use of #defines: use only one: USE_VBI_PROXY
+- added new interface functions for channel scheduling
+epgvbi/cni_tables.c [rev:1.24, 2004-05-22T18:54:12]:
+- Added LTO to country table to support providers which don't transmit in GMT
+- added "lto" element to cni_country_table
+- split off common functionality into new helper functions
+- added new interface function CniGetProviderLto()
+epgvbi/cni_tables.h [rev:1.5, 2004-05-22T18:54:22]:
+- Added LTO to country table to support providers which don't transmit in GMT
+- added new interface function CniGetProviderLto()
+epgdb/epgblock.c [rev:1.50, 2004-05-22T19:31:58]:
+- Added support for providers which don't transmit in GMT (e.g. TRT)
+- also fixed daylight saving handling: LTO is constant across all db
+- extended EpgBlockSetAlphabets(): determine provider LTO
+    SetStartAndStopTime(): add pre-calculated LTO
+- bugfix EpgBlockConvertAi(): LTO sign was not decoded correctly
+dsdrv/saa7134.c [rev:1.21, 2004-05-22T19:48:49]:
+- Minor fix CreatePageTable(): changed type of PAGE_MASK from WORD to DWORD
+dsdrv/saa7134_typ.c [rev:1.17, 2004-05-22T19:50:01]:
+- Minor fix AutoDetectCardType(): changed type of SubSystemId from WORD to DWORD
+dsdrv/wintuner.c [rev:1.22, 2004-05-22T19:50:27]:
+- Fixed/extended dprintf trace output
+epgctl/epgversion.h [rev:1.53, 2004-05-22T20:23:32]:
+- set version to 2.7.1pre1
+epgctl/epgacqctl.c [rev:1.84, 2004-05-23T20:00:11]:
+- bugfix VPS stats handling in network acquisition mode (client side):
+    update flags not set in EpgAcqCtl_GetVpsPdc() when new VPS data arrived
+- bugfix cyclic modes: while in "forced passive" mode phases were never
+    considered complete because acq mode was checked instead of userMode
+CHANGES [rev:1.40, 2004-05-24T20:58:30]:
+- updated for release 2.7.1pre1
+epgtcl/dlg_filter.tcl [rev:1.13, 2004-05-29T17:32:10]:
+- Replaced C_ClockFormat param %u with %w for POSIX compliance
+epgtcl/mainwin.tcl [rev:1.239, 2004-05-29T17:32:10]:
+- Replaced C_ClockFormat param %u with %w for POSIX compliance
+epgui/wintvcfg.c [rev:1.19, 2004-05-30T20:31:20]:
+- Fix WintvCfg_GetXawtvFreqTab: accept freq= in addition to channel=
+epgtcl/dlg_dump.tcl [rev:1.6, 2004-05-31T14:33:16]:
+- Added support for new XMLTV DTD version 0.6
+epgtcl/dlg_ctxmencf.tcl [rev:1.7, 2004-05-31T14:33:28]:
+- Added new exmaple for UNIX: !xawtv! setstation
+epgui/dumpxml.c [rev:1.6, 2004-05-31T14:34:06]:
+- Added support for new XMLTV DTD version 0.6
+epgui/dumptext.c [rev:1.8, 2004-05-31T14:34:43]:
+- Replaced numeric contants with new macros in epgblock.h for PI feature_flags
+epgui/pioutput.c [rev:1.53, 2004-05-31T14:34:43]:
+- Replaced numeric contants with new macros in epgblock.h for PI feature_flags
+epgdb/epgblock.c [rev:1.51, 2004-05-31T14:38:47]:
+- Added more debug output for consistance errors in PI blocks
+epgdb/epgdbsav.c [rev:1.55, 2004-05-31T14:38:47]:
+- Added more debug output for consistance errors in PI blocks
+epgdb/epgblock.h [rev:1.48, 2004-05-31T14:38:57]:
+- Added macros "PI_FEATURE_*" for PI block "feature_flags" bitmask
+www/WDMpre-releases.html [rev:1.2, 2004-06-03T19:59:12]:
+- Added section on known problems
+epgctl/epgversion.h [rev:1.54, 2004-06-13T14:27:14]:
+- set version to 2.7.1pre2
+epgui/wmhooks.c [rev:1.3, 2004-06-13T14:38:39]:
+- Added new Tcl command "C_Wm_SetIcon" to set _NET_WM_ICON atom on toplevels
+- include 16x16 and 32x32 nexTView logos from new header "nxtv_wm_ico.h"
+    (grayscale images and masks)
+- added capability detection during start-up
+images/nxtv_32x32.pgm [rev:1.1, 2004-06-13T14:39:00]:
+- Initial revision
+images/nxtv_32x32_mask.pgm [rev:1.1, 2004-06-13T14:39:00]:
+- Initial revision
+images/nxtv_wm_ico.h [rev:1.1, 2004-06-13T14:39:00]:
+- Initial revision
+images/nxtv_16x16_mask.pgm [rev:1.1, 2004-06-13T14:39:08]:
+- Initial revision
+images/nxtv_16x16.pgm [rev:1.1, 2004-06-13T14:39:13]:
+- Initial revision
+epgui/epgmain.c [rev:1.134, 2004-06-13T14:55:01]:
+- GUI startup: added call to Tcl proc C_Wm_SetIcon to add Nextview logo
+- XML dump mode: added call to SetUserLanguage():
+    theme categories are dumped in one language only now
+epgui/menucmd.c [rev:1.115, 2004-06-19T18:40:00]:
+- MenuCmd_ToggleAcq() adapted for new daemon stop handling:
+- moved local acq stop beneath daemon stop
+- because connection is used to query PID and wait for daemon to decease
+epgui/pifilter.c [rev:1.87, 2004-06-19T18:58:25]:
+- Extended configurability of context menu
+- split function CreateContextMenu() into 2 Tcl callback procs: filter add/undo
+- removed call to piremind.c and shellcmd.c to add other menu content
+- procs are now called by new Tcl proc PopupDynamicContextMenu
+epgui/piremind.c [rev:1.15, 2004-06-19T18:58:39]:
+- Extended configurability of context menu
+- changed function PiReminder_CtxMenuAdd() into Tcl procedure:
+    now called by new Tcl proc PopupDynamicContextMenu instead of pifilter.c
+- also added "extended" mode which includes group configuration
+epgui/piremind.h [rev:1.3, 2004-06-19T18:58:51]:
+- Extended configurability of context menu
+- removed declaration for PiReminder_CtxMenuAdd(): is now a Tcl procedure
+epgui/shellcmd.c [rev:1.9, 2004-06-19T19:06:48]:
+- Extended configurability of context menu
+- added new Tcl proc C_ContextMenu_GetTypeList
+- removed function ShellCmd_CtxMenuAddUserDef(): implemented in Tcl instead
+- changed proc C_ExecUserCmd: gets type and command string instead of index
+epgui/wintv.c [rev:1.21, 2004-06-19T19:07:03]:
+- Extended configurability of context menu
+- added new Tcl proc C_Tvapp_IsConnected: used to disable TV app entries
+    in context menu when none is connected
+- made C function Wintv_IsConnected() static: Tcl proc is now used instead
+epgui/wintv.h [rev:1.5, 2004-06-19T19:07:10]:
+- Extended configurability of context menu
+- removed declaration of Wintv_IsConnected(): now called from Tcl
+epgtcl/dlg_ctxmencf.tcl [rev:1.8, 2004-06-19T19:07:22]:
+- Extended configurability of context menu
+- change configuration storage from plain "paired" list into list of lists;
+    added "type" element for each entry: used instead of !xawtv! and !wintv!
+- context menu now filled by new proc PopupDynamicContextMenu instead of C func
+- removed "Update" command button: now done automatically
+epgtcl/mainwin.tcl [rev:1.240, 2004-06-19T19:11:15]:
+- Extended configurability of context menu
+- PI listbox context menu now filled by new proc PopupDynamicContextMenu
+    instead of pifilter.c's C_CreateContextMenu
+epgtcl/rcfile.tcl [rev:1.21, 2004-06-19T19:12:03]:
+- Extended configurability of context menu
+- raised compat version no to 2.7.0x92
+- added auto-upgrade for ctxmencf: changed from plain "paired" list into
+    list of 3-element lists: 1st element is type
+nxtvepg.pod [rev:1.111, 2004-06-19T19:12:29]:
+- Extended configurability of context menu
+- adapted "Context menu configuration" chapter (renamed from "Context menu
+    extensions"): replaced description of !wintv! prefix with new type categories
+epgvbi/btdrv4linux.c [rev:1.58, 2004-06-19T19:42:06]:
+- Bugfix in v4l2 support (fixes problems with PVR-350 cards)
+- sent via email 30 May 2004; patch by hverkuil@xs4all.nl
+epgctl/epgacqsrv.c [rev:1.15, 2004-06-19T19:52:26]:
+- Changed -daemonstop for UNIX: query daemon for PID instead of /tmp pid file
+- added daemon process PID to CONNECT_CNF message (unused on WIN32)
+epgctl/epgacqsrv.h [rev:1.9, 2004-06-19T19:52:42]:
+- Changed -daemonstop for UNIX: query daemon for PID instead of /tmp pid file
+- added daemon process PID to CONNECT_CNF message (unused on WIN32)
+epgdb/epgnetio.c [rev:1.37, 2004-06-19T19:55:28]:
+- Changed -daemonstop for UNIX: query daemon for PID instead of /tmp pid file
+- added new function EpgNetIo_UpdateTimeout()
+epgdb/epgnetio.h [rev:1.26, 2004-06-19T19:55:28]:
+- Changed -daemonstop for UNIX: query daemon for PID instead of /tmp pid file
+- added new function EpgNetIo_UpdateTimeout()
+epgctl/epgacqclnt.c [rev:1.16, 2004-06-20T18:51:00]:
+- Changed -daemonstop for UNIX: query daemon for PID instead of /tmp pid file
+- added new function EpgAcqClient_TerminateDaemon()
+- added daemon process PID to CONNECT_CNF message (unused on WIN32)
+    (backwards compatible change)
+epgctl/epgacqclnt.h [rev:1.4, 2004-06-20T18:51:08]:
+- Changed -daemonstop for UNIX: query daemon for PID instead of /tmp pid file
+- added new function EpgAcqClient_TerminateDaemon()
+epgui/epgmain.c [rev:1.135, 2004-06-20T18:53:13]:
+- Changed -daemonstop for UNIX: query daemon for PID instead of /tmp pid file
+- UNIX EpgMain_StopDaemon()'s code replaced with call to new function
+    epgacqclnt.c::EpgAcqClient_TerminateDaemon()
+www/WDMpre-releases.html [rev:1.3, 2004-06-26T09:43:46]:
+- Change by Gerard: added new VBIAcqWDMDrv.DLL (3/June/2004)
+- Also added list of cards which are known to work
+www/WDMpre-releases.html [rev:1.4, 2004-06-26T09:53:24]:
+- added note that dsdrv is disabled in 2.8.0pre0
+- added note to mail traces to Gerard
+epgtcl/mainwin.tcl [rev:1.241, 2004-06-26T14:10:20]:
+- Added work-around to make PI listbox column headers resizable again
+- menubutton receives <Leave> event before button press!?
+- (don't know since when it didn't work anymore)
+epgctl/epgversion.h [rev:1.55, 2004-06-26T19:04:17]:
+- set version to 2.7.1pre3
+epgui/menucmd.c [rev:1.116, 2004-07-10T19:25:03]:
+- Bugfix SetDaemonAcquisitionMode()
+- merged database was not mapped to CNI list when passed via -prov
+- reported via forum by "georgb" 2004-06-26
+nxtvepg.pod [rev:1.112, 2004-07-10T19:46:08]:
+- Added note to -acqonce: should not be combined with follow-ui acq mode
+epgui/dumpxml.c [rev:1.7, 2004-07-11T18:22:30]:
+- Bugfixes in output for new XMLTV 0.6 DTD
+- (after validation with http://www.stg.brown.edu/service/xmlvalid/)
+- added <p> around content description
+    also use </p><p> inside description for paragraph breaks
+- enclose <copying> text in <p>
+    moved <source-info> into <copying>: only links allowed inside source info
+- moved link text from atrribute into enclosed <text> tags
+- escape possible "&" in network names
+images/nxtv_wm_ico.h [rev:1.2, 2004-07-11T18:33:58]:
+- Added file header with module description and RCS ID
+epgctl/epgscan.c [rev:1.36, 2004-07-11T18:49:01]:
+- Added call to new function BtDriver_SetChannelProfile() during start of scan
+- set channel prio to "interactive" to be able to compete with TV apps
+epgctl/epgacqctl.c [rev:1.85, 2004-07-11T19:02:59]:
+- Added call to new function BtDriver_SetChannelProfile() during acq start
+- set channel prio to "background" to avoid interfering with TV apps
+- prepared for VBI proxy: can use different bg. prios in diff. phases
+- also query periodically if device was unblocked
+epgvbi/btdrv.h [rev:1.41, 2004-07-11T19:07:20]:
+- Moved declarations for recently added profile/token functions
+- to make them available for WIN32 too
+epgvbi/btdrv4dummy.c [rev:1.20, 2004-07-11T19:11:27]:
+- Added dummies for recently added profile/token functions
+epgvbi/btdrv4win.c [rev:1.49, 2004-07-11T19:13:11]:
+- Added dummies for recently added profile/token functions
+- currently only used for UNIX
+epgvbi/btdrv4linux.c [rev:1.59, 2004-07-11T19:28:41]:
+- Added function header comments for new channel profile functions
+epgctl/epgversion.h [rev:1.56, 2004-07-17T14:03:15]:
+- set version to 2.7.1
+nxtvepg.pod [rev:1.113, 2004-07-18T12:42:50]:
+- Control menu: switched from =item to =head2 so that the headings appear
+    in the main index; gather 4 acq stats/timescales items under one title
+- fixed one link to "Select attributes"
+Makefile [rev:1.75, 2004-07-18T12:48:23]:
+- Adapted perl reg-exp for pod2html post-filter
+- new version of pod2html replaces special chars like ":" in links with "_"
+- this is just a temporary work-around; proper solution should search for
+    ":" in link text and remove text up the "_" at the same pos. in the URL
+    (currently too many chars may be removed if other blanks or special chars
+    appear in the link, i.e. "__" in the URL for other reason than ":")
+Makefile [rev:1.76, 2004-07-18T12:58:31]:
+- Updated options for zvbi proxy (still commented out by default)
+- renamed compile-switch from USE_LIBZVBI_PROXY into USE_VBI_PROXY;
+    with the intention that the proxy should be usable without libzvbi
+- added -pthreads and -lpng to LDLIBS for libzvbi
+CHANGES [rev:1.41, 2004-07-24T13:31:10]:
+- updated for release 2.7.1
+TODO [rev:1.34, 2004-07-24T13:31:20]:
+- updated for release 2.7.1
+tvsim/tvsim_main.c [rev:1.25, 2004-07-24T13:34:03]:
+- WIN32: clarified error message for missing hardware config
+images/nxtv_16x16.pgm [rev:1.2, 2004-12-24T10:32:23]:
+- long forgotten check-in: reduced to only 2 grayscale levels: 0, 188
+- (change was included already in the very first release of the logo)
+www/download-de.html [rev:1.12, 2004-07-24T13:45:02]:
+- Updated for release 2.7.1
+www/download.html [rev:1.12, 2004-07-24T13:45:02]:
+- Updated for release 2.7.1
+www/changelog-2.7.0pre.html [rev:1.2, 2004-07-24T13:45:19]:
+- Added change-log for 2.7.1preX pre-releases
+www/pre-releases.html [rev:1.46, 2004-07-24T13:45:23]:
+- Moved 2.7.1 pre-releases into changelog-2.7.0pre.html
+www/changelog.html [rev:1.56, 2004-07-24T13:45:30]:
+- added change-log for release 2.7.1
+- updated hyperlinks into manual page (new po2html version)
+www/faq.html [rev:1.8, 2004-07-24T13:45:35]:
+- added new tip: printing
+- improved section on acquisition problems
+- updated news section for release 2.7.1
+www/links.html [rev:1.9, 2004-07-24T13:45:42]:
+- added link to Zapping
+- updated link to K!TV homepage
+- updated news section for release 2.7.1
+www/man.html [rev:1.34, 2004-07-24T13:45:49]:
+- Updated for release 2.7.1
+www/nxtvepg.css [rev:1.14, 2004-07-24T13:45:59]:
+- Added new SPAN "blue": to mark header for 2.7.1 news on frontpage
+www/WDMpre-releases.html [rev:1.5, 2004-07-24T13:46:18]:
+- Updated news section for release 2.7.1
+www/changelog-2.6.0pre.html [rev:1.6, 2004-07-24T13:46:18]:
+- Updated news section for release 2.7.1
+www/help-wanted.html [rev:1.10, 2004-07-24T13:46:18]:
+- Updated news section for release 2.7.1
+www/intro-de.html [rev:1.7, 2004-07-24T13:46:18]:
+- Updated news section for release 2.7.1
+www/intro.html [rev:1.7, 2004-07-24T13:46:18]:
+- Updated news section for release 2.7.1
+www/provnets.html [rev:1.33, 2004-07-24T13:46:18]:
+- Updated news section for release 2.7.1
+www/tvsim-faq.html [rev:1.9, 2004-07-24T13:46:28]:
+- updated link to K!TV homepage
+- updated news section for release 2.7.1
+www/index-de.html [rev:1.71, 2004-07-24T13:46:55]:
+- Updated for release 2.7.1
+www/index-fr.html [rev:1.5, 2004-07-24T13:46:55]:
+- Updated for release 2.7.1
+www/index.html [rev:1.83, 2004-07-24T13:46:55]:
+- Updated for release 2.7.1
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_7_1 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

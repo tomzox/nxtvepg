@@ -18,12 +18,12 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: rcfile.tcl,v 1.20 2004/03/28 13:36:31 tom Exp tom $
+#  $Id: rcfile.tcl,v 1.21 2004/06/19 19:12:03 tom Exp tom $
 #
 set myrcfile ""
 set is_daemon 0
 # define limit for forwards compatibility
-set nxtvepg_rc_compat 0x020690
+set nxtvepg_rc_compat 0x020792
 
 proc LoadRcFile {filename isDefault isDaemon} {
    global shortcuts shortcut_tree
@@ -269,6 +269,23 @@ proc LoadRcFile {filename isDefault isDaemon} {
                lappend shortcut_tree [concat $sc_tag $tmpl]
             }
          }
+      }
+      if {[info exists nxtvepg_version] && ($nxtvepg_version < 0x020792)} {
+         set tmpl [list {pi_context.undofilt {} {}} {menu_separator {} {}} \
+                        {pi_context.addfilt {} {}} {menu_separator {} {}} \
+                        {pi_context.reminder_short {} {}} {menu_separator {} {}}]
+         foreach {title cmd} $ctxmencf {
+            if [regexp {^!(xawtv|wintv)! *(.*)} $cmd foo type_str cmd_str] {
+               lappend tmpl [list "tvapp.$type_str" $title $cmd_str]
+            } else {
+               if $is_unix {
+                  lappend tmpl [list exec.unix $title $cmd]
+               } else {
+                  lappend tmpl [list exec.win32 $title $cmd]
+               }
+            }
+         }
+         set ctxmencf $tmpl
       }
    } elseif {!$isDefault} {
       # warn if rc/ini file could not be loaded

@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: pre-releases.html,v 1.43 2004/04/03 13:31:25 tom Exp $ -->
+<!-- $Id: pre-releases.html,v 1.46 2004/07/24 13:45:23 tom Exp $ -->
 <HEAD>
 <TITLE>Developers and alpha testers download page</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -32,7 +32,7 @@
 
 <H2 class="navhead">News</H2>
 <P>
-Apr/2/2004: <A HREF="changelog.html#release_2_7_0">Release 2.7.0</A>
+Jul/17/2004: <A HREF="changelog.html#release_2_7_1">Release 2.7.1</A>
 </P>
 
 <H2 class="navhead">Documentation</H2>
@@ -78,6 +78,12 @@ The software which is available here is only intended for developers
 and alpha/beta testers.  If you're searching for the regular release
 visit the <A HREF="download.html">download page</A>.
 </P>
+<P>
+<B>Note:</B> currently there are two development branches: besides this
+2.7.0 maintanance branch there's also a
+<A HREF="WDMpre-releases.html">WDM support development</A> branch.
+The two branches will be merged for release 2.8.0.
+</P>
 
 <H2>Downloads</H2>
 <P>
@@ -122,15 +128,17 @@ pre-releases, hence you cannot connect with a 2.7.0 client to 2.6.0 or older
 daemons.
 </P>
 -->
-<!--
 <P>
-<B>Last update: April 2nd 2004: release 2.7.0</B>
+<B>Last update: June 26th 2004: release 2.7.1pre3</B>
 </P>
--->
 <UL>
-<LI><I>no downloads are currently available</I>
+<LI>Latest release is 2.7.1 on the regular <A HREF="download.html">download</A> page.
 <!--
-<LI>Sources: <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.7.0pre10.tar.gz">nxtvepg-2.7.0pre10.tar.gz</A>
+<LI><I>no downloads are currently available</I>
+-->
+<LI>Sources:
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.7.1pre3.tar.gz">nxtvepg-2.7.1pre3.tar.gz</A>
+<!--
 <BR>Note: if you want to test nxtvepg with
 <A HREF="http://nxtvepg.sourceforge.net/tmp/README-proxy.txt">VBI proxy</A>
 (allows multiple simultanuous VBI device users) then enable -DUSE_LIBZVBI in the
@@ -138,9 +146,10 @@ nxtvepg Makefile and get libzvbi from CVS at
 <A HREF="http://zapping.sourceforge.net">zapping.sourceforge.net</A>.
 <B>Important</B>: proxy support is no longer on the main branch. You have to
 select branch "proxy" during checkout.
-<LI>Win32 executable: <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.7.0pre10-win.zip">nxtvepg-2.7.0pre10-win.zip</A>
-<BR>(does not contain the Tcl/Tk libraries; please copy them from the last release)
 -->
+<LI>Win32 executable:
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.7.1pre3-win.zip">nxtvepg-2.7.1pre3-win.zip</A>
+<BR>(does not contain the Tcl/Tk libraries; please copy them from the last release)
 <!--
 <BR><B>Attention:</B> Please note that Win32 TV card configuration parameters
 and driver version have changed in pre7.
@@ -151,13 +160,65 @@ before you report them.
 -->
 </UL>
 
-<!--
 <H2>Change history</H2>
 
-<H3>Changes between 2.7.0 and 2.8.0pre0 (2004-04-02)</H3>
+<H3>Changes between 2.7.1pre3 and 2.7.1 (2004-07-17)</H3>
 <UL>
+<LI>Bugfix: option "-provider merged" did not work in daemon mode (acq for
+  merged database did work though, if pre-configured as default in the
+  .nxtvepgrc or INI file)  Thanks to Georg for reporting this bug.
+<LI>Several fixes in XMLTV DTD 0.6 export
 </UL>
--->
+
+<H3>Changes between 2.7.1pre2 and 2.7.1pre3 (2004-06-26)</H3>
+<UL>
+<LI>UNIX/X11: display Nextview logo in main window title bar (only works for
+  window managers which support the WM_ICON feature, e.g. fvwm2 or Gnome)
+<LI>Bugfix: columns in the main programme list were not resizable, i.e.
+  the pull-down menu appeared even when clicking onto the column header
+  button's right border ("single list" layout only)
+</UL>
+
+<H3>Changes between 2.7.1pre1 and 2.7.1pre2 (2004-06-10)</H3>
+<UL>
+<LI>Made programme list's context menu fully configurable: pre-defined
+  commands for filter and reminder control can be re-ordered now too
+  (in addition to external commands); also removed the need to press the
+  dialog's "Update" button after changes (which was a long standing entry
+  in the TODO list)
+<LI>Added support for new XMLTV DTD 0.6 (note command line option -dump xml
+  uses the format which was used last in Control-&gt;"Export as XMLTV")
+<LI>Linux: bugfix in v4l2 support (fixes problems with PVR-350 cards.)
+  Thanks to Urs Schaufelberger and Hans Verkuil for the patch.
+<LI>Bugfix acq stats when connected to acquisition daemon: VPS/PDC info was
+  not displayed
+<LI>Further internal improvements in the handling of -daemonstop for Linux
+  (since pre1): the command will now wait until the daemon process is dead
+  or print an error message if it takes too long.
+</UL>
+
+<H3>Changes between 2.7.1pre0 and 2.7.1pre1 (2004-05-22)</H3>
+<UL>
+<LI>Bugfix in "local time" option for XML database export (times were still
+  in GMT only, regardless if the option was enabled or not)
+<LI>Fixed -daemonstop option for Linux and v4l2 devices (2.6 kernels): did
+  sometimes not work after the user interface was used.
+<LI>Added support for new UNIX TV app: Zapping, i.e. reading channel table
+  from zapping.conf.  (Note: interaction with nxtvepg was implemented in
+  zapping too: you can check it out from CVS at
+  <A HREF="http://zapping.sourceforge.net/">zapping.sourceforge.net</A>)
+<LI>Windows only: fixed weekday colors in datescale: should now match those
+  in the "weekday color" attribute in the programme list
+</UL>
+
+<H3>Changes between 2.7.0 and 2.7.1pre0 (2004-04-17)</H3>
+<UL>
+<LI>Added work-around for daylight saving time changes and LTO handling
+    for Turkish provider TRT.
+<LI>Linux: adapted for API changes to the
+    <A HREF="tmp/README-proxy.txt">VBI proxy daemon</A>.
+    This is still work in progress and should be used by developers only.
+</UL>
 
 
 <H2>Copyright &amp; Disclaimer</H2>

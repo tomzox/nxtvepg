@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="fr">
-<!-- $Id: index-fr.html,v 1.4 2004/04/03 13:16:44 tom Exp $ -->
+<!-- $Id: index-fr.html,v 1.5 2004/07/24 13:46:55 tom Exp $ -->
 <!-- Translated by Néo (hotmail's neojudgment, 2004-03-15) -->
 <HEAD>
 <TITLE>nexTView EPG Decoder Software Download Page</TITLE>
@@ -30,11 +30,12 @@
 
 <H2 class="navhead">News</H2>
 <P>
-2.4.2004: <A HREF="changelog.html#release_2_7_0">Release 2.7.0</A>
+17.7.2004: <A HREF="changelog.html#release_2_7_1">Release 2.7.1</A>
 </P><P>
-<SPAN class="red">
+2.4.2004: Release 2.7.0
+</P><P>
 Mars 2004: Nouveau fournisseur <A HREF="provnets.html"><I>VT4</I> en Belgique</A>
-</SPAN></P>
+</P>
 
 <H2 class="navhead">Documentation</H2>
 <P>
@@ -104,31 +105,30 @@ par l'intermédiaire d'une carte de TV analogique, sans accès à Internet.
 </UL>
 
 
-<H2><A NAME="new_2_7_0"><SPAN class="green">Nouvelle Version 2.7.0 (2.4.2004)</SPAN></A></H2>
+<H2><A NAME="new_2_7_1"><SPAN class="blue">Nouvelle Version 2.7.1 (17.7.2004)</SPAN></A></H2>
 <P>
-Le centre principal de la version 2.7.0 était un entretien, par
-conséquent il n'y a pas beaucoup de nouveautés marquantes, mais un bon nombre de 
-bogues ont été supprimés et apporte également quelques améliorations mineures.
+This release fixes various minor bugs in the previous release 2.7.0:
 </P>
 <UL>
-<LI>Le seul nouveau dispositif principal est un changement de présentation de
-    raccourci de la liste dans un arbre hiérarchique, c.-à-d. maintenant vous 
-    pouvez organiser vos raccourcis dans des répertoires et séparateurs
-    (voir <a href="screenshot-shortcuts.gif">capture</a>)
-<LI>Décodeur amélioré <i>de VBI </i> (signal de télétexte) pour antenne à
-    faible signal pour réduire la perte de données due aux erreurs de décodage
-    pendant l'acquisition.
-<LI>Work-arounds supplémentaires pour des problèmes d'identification de canal
-    sur Arte et France5.
-<LI>Ligne de commande étendue pour <i>-daemon</i> et <i>dump</i>, c.-à-d. pour
-    les utilisateurs qui emploient nxtvepg principalement pour l'acquisition de
-    données en arrière plan et veulent la commander par des scripts ou des
-    fichiers batch.
-<LI>Windows seulement: le support étendu à de nouvelles cartes TV et tuners
-    (par exemple tuners MT2050 et MK3) et le work-around supplémentaire pour
-    des conflits avec les pilotes de carte basées sur le CX23881 (comme
-    toujours, merci à l'équipe de <a href="http://dscaler.org/">DScaler</a>)
-<LI>... plus trop de fautes réparées pour les énumérer toutes ici.
+<LI>Fixed <I>local time</I> option in
+  <A HREF="man.html#export_as_xmltv">XML database export</A>
+  and added support for the
+  <A HREF="http://membled.com/work/apps/xmltv/">new XMLTV DTD 0.6</A>
+<LI>Added support for interaction with new UNIX TV app:
+  <A HREF="http://zapping.sourceforge.net/">Zapping</A>,
+  (e.g. reading channel table from "zapping.conf")
+<LI>Work-around for daylight saving time changes and local time zone
+  handling specifically for <A HREF="provnets.html">Turkish provider TRT</A>.
+<LI>Made programme list's context menu
+  <A HREF="man.html#context_menu_configuration">fully configurable</A>:
+  pre-defined commands for filter and reminder control can be re-ordered now, too.
+<LI>Display Nextview logo in main window title bar on X11, too
+<LI>Fixed bugs in
+  <A HREF="man.html#item__2ddaemonstop">-daemonstop</A> and
+  <A HREF="man.html#item__2dprovider_cni">-provider merged</A>
+  command line options.
+<LI>Windows only: fixed weekday colors in the
+  <A HREF="man.html#item_show_weekday_scale">weekday scale</A>
 </UL>
 <P>
 Regardez aussi la liste détaillée des

@@ -25,7 +25,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgblock.h,v 1.47 2004/02/28 20:42:32 tom Exp tom $
+ *  $Id: epgblock.h,v 1.48 2004/05/31 14:38:57 tom Exp tom $
  */
 
 #ifndef __EPGBLOCK_H
@@ -167,6 +167,19 @@ typedef struct {
 
 #define PI_MAX_THEME_COUNT      7
 #define PI_MAX_SORTCRIT_COUNT   7
+
+#define PI_FEATURE_SUBTITLES       0x100
+#define PI_FEATURE_REPEAT          0x080
+#define PI_FEATURE_LIVE            0x040
+#define PI_FEATURE_ENCRYPTED       0x020
+#define PI_FEATURE_DIGITAL         0x010
+#define PI_FEATURE_PAL_PLUS        0x008
+#define PI_FEATURE_FMT_WIDE        0x004
+#define PI_FEATURE_SOUND_MASK      0x003
+#define PI_FEATURE_SOUND_MONO      0x000
+#define PI_FEATURE_SOUND_2CHAN     0x001
+#define PI_FEATURE_SOUND_STEREO    0x002
+#define PI_FEATURE_SOUND_SURROUND  0x003
 
 typedef struct
 {

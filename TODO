@@ -16,19 +16,23 @@ Possible future reminder options:
   (cumbersome since it requires to be updated every minute)
 - snooze (i.e. repeat) for user-confirmed commands?
 - include clock in reminder popup?
-- allow to specify format (attribute selection) for reminder event popup (Jörk)
+- allow to specify format (attribute selection) for reminder event popup and
+  optionally include "short info" window in popups (i.e. description) (Jörk)
 - use VPS/PDC to detect actual programme's start time
   problem: only possible while TV display switched off or on the same channel
   unless the user has multiple cards; even then coord. with acq. is required
 - don't suppress outdated message for new reminder if it's the last one? (Peter)
 - pass reminders to external scheduler immediately upon creation (Steffen)
   note: probably also pass removals and changes to external scheduler
+- simplify use of shortcuts in reminders (e.g. combine shortcut creation
+  with reminder addition in "Add reminder for filter" menu entry)
 
 Recently suggested fixes & changes:
 - TV app shm: resend info for same channel (req. by zoomin)
   also: add more EPG info to shared memory; add video norm to shm
   also: synchronize timer list with ZoomOut
   also: slicer type selection or better slicer in K!TV
+  also: display reminders in K!TV (esp. in fullscreen mode; Denis Witt)
 - single click on short-info size slider: resize by one line
 - start time search: abs. stop time val "23:10" excludes titles starting at 23:10
 - improve text search: keywords (google style AND), parity-safe/fuzzy
@@ -37,14 +41,11 @@ Recently suggested fixes & changes:
   possibly allow manually maintained series list (i.e.title/CNIs couples)
 - allow provider channel names at the -prov command line arg
 - HTML dump: allow to specify which column to use for hyperlink?
-- context menu config menu: remove need for "update" button: save automatically
 - new PI column type which displays full weekday name (Thierry)
-- different background colors for PI, alternating by date (Ronceval)
 - WIN32: save main window position in INI file (when manually changed; Thierry)
 - graying out filtered programmes instead of removing them
 - marking attributes which match current filter in the description window,
   esp. for text search (Volker Moell)
-- localize language for date drop-down menu (Thierry)
 - allow multiple, non-continguous selections in shortcut & networks listbox
   without use of the keyboard (like in -selectmode multiple)
   (suggested via discussion forum by "Philippe")
@@ -60,17 +61,23 @@ Recently suggested fixes & changes:
 - import data from XMLTV files (e.g. from internet sources; 2003-11-1 in forum)
 - split network prefilter into 2 parts: excluded and unlisted: latter ones are
   still part of filter menus and used for reminder shortcut matches
+- add flag to shortcuts which enables "auto-selection" after filter reset: will
+  allow pre-filtering for other criteria than networks (e.g. remove all sports)
 - delayed rc/ini save after shortcut tree changes (e.g. folder open/close)
 - vertical scrollbar for timescale window (forum 2003-12-31)
+- option to ask before quitting nxtvepg with "X" window title bar button
+  or to send to systray instead (forum 2004-01-16)
+- bayesian filter to highlight programmes (forum 2004-03-20)
 - update system time with time from teletext (forum 2004-03-12)
 - allow user to override provider's network CNIs (e.g. to allow to merge
   different providers' data for MTV, RBB and SW3; suggested by Jörk)
-- fix LTO handling during acquisition for TRT and dalight saving time changes
+- free configuration of key and mouse bindings
 
 
 VBI slicer:
 - vbidecode: handle interlaced data and non-symmetric start lines
 - libzvbi: don't skip frames after channel change, already done by lib
+- support for VBI proxy daemon (as part of libzvbi support)
 
 New "NetBox" layout: open issues/known problems:
 - refresh may leave excessive gaps between items
@@ -83,7 +90,7 @@ New "NetBox" layout: open issues/known problems:
 Acquisition daemon:
 - make concurrent updates of shared rc file safe (e.g. daemon writes provider
   list in follow ui mode) or use a different rc for acq parameters; currently
-  data can be lost!
+  data can be lost
 - when dump is aborted, keep the old modification time on client-side
 - VPS: trigger check device access via remove cmd (upon xawtv start/exit)
 - limit queue max length on server side (e.g. when bandwidth too low
@@ -96,6 +103,7 @@ win32 port:
 - install daemon as a service, possibly with helper app. in the systray
   to check acquisition status.
 - add support for named pipes as alternative to TCP/IP
+- TV app interaction, at least to free the driver and use TV app for acq
 
 xawtv TV app interaction:
 - add option for TV app connections via socket, to allow the daemon serving
@@ -120,6 +128,7 @@ WIN32 port fixes:
 - start with main window maximized when requested in Windows shortcut properties
   (requested by Thierry; I've no idea how to query these properties though)
 - systray popup menu should close by any mouse click outside of it
+- support for WDM drivers (esp. for capture chips not supported by dsdrv)
 
 merged database fixes:
 - fine control for provider merge
@@ -162,9 +171,10 @@ other required fixes:
 
 possible new features: (in order of decreasing priority)
 - series management based on titles only, across all networks
-- use GTK+ or Tix library to improve GUI
-- allow multiple acquisition and GUI clients, possibly on different hosts
-- export database content to mysql server
+- use GTK library instead of Tk to make GUI more pretty
+  main problem: much filter shortcut and configuration is implemented in Tcl
+- allow acquisition from multiple TV cards and remote daemons
+- export database content to mysql server (with updates during acquisition)
 - dialogs, menus and help texts in German and French
 - wish list: maintain list of search filters that are applied each time new
   data has been acquired; notify the user when a matching programme is found

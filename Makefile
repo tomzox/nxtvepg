@@ -28,7 +28,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile,v 1.74 2004/04/02 17:23:49 tom Exp tom $
+#  $Id: Makefile,v 1.76 2004/07/18 12:58:31 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -91,9 +91,9 @@ DEFS   += -DUSE_DAEMON
 #DEFS   += -DUSE_LIBZVBI
 # enable use of VBI proxy via libzvbi (requires proxy branch of libzvbi)
 # (note proxy API is still subject to change as of March-2004)
-#DEFS   += -DUSE_LIBZVBI_PROXY
+#DEFS   += -DUSE_VBI_PROXY
 #LDLIBS += -lzvbi -lpthread -lpng
-#LDLIBS += /tom/work/tv/cvs/vbi/src/.libs/libzvbi.a
+#LDLIBS += /tom/work/tv/cvs/vbi/src/.libs/libzvbi.a -lpthread -lpng
 
 # enable workarounds for linux saa7134 driver: up to version 0.2.6
 # - change VBI default sampling rate (because the driver doesn't support ioctl VIDIOCGVBIFMT)
@@ -285,7 +285,7 @@ nxtvepg.1 manual.html: nxtvepg.pod pod2help.pl epgctl/epgversion.h
 	          -release "nxtvepg "$$EPG_VERSION_STR" (C) 1999-2004 Tom Zoerner" \
 	     nxtvepg.pod > nxtvepg.1; \
 	  echo "pod2html nxtvepg.pod > manual.html"; \
-	  pod2html nxtvepg.pod | $(PERL) -p -e 's/HREF="#[^:]+: +/HREF="#/g;' > manual.html; \
+	  pod2html nxtvepg.pod | $(PERL) -p -e 's/(HREF=\"#)([^:"]+: |[^_"]+(_[^_"]+)?__)+/$$1/gi;' > manual.html; \
 	  rm -f pod2htm?.x~~ pod2html-{dircache,itemcache}; \
 	else \
 	  echo "ERROR: cannot generate manual page without Perl"; \
@@ -300,7 +300,7 @@ tvsim/tvsim.1 tvsim/tvsim.html: tvsim/tvsim.pod tvsim/tvsim_version.h
 	          -release "tvsim "$$TVSIM_VERSION_STR" (C) 2002,2004 Tom Zoerner" \
 	          tvsim/tvsim.pod > tvsim/tvsim.1; \
 	  echo "pod2html tvsim/tvsim.pod > tvsim/tvsim.html"; \
-	  pod2html tvsim/tvsim.pod | $(PERL) -p -e 's/HREF="#[^:]+: +/HREF="#/g;' > tvsim/tvsim.html; \
+	  pod2html tvsim/tvsim.pod | $(PERL) -p -e 's/(HREF=\"#)([^:"]+: |[^_"]+(_[^_"]+)?__)+/$$1/gi;' > tvsim/tvsim.html; \
 	  rm -f pod2htm?.x~~ pod2html-{dircache,itemcache}; \
 	else \
 	  echo "ERROR: cannot generate tvsim HTML or nroff manuals without Perl"; \
@@ -315,7 +315,7 @@ tvsim/vbirec.1 tvsim/vbirec.html: tvsim/vbirec.pod tvsim/tvsim_version.h
 	          -release "vbirec (C) 2002,2004 Tom Zoerner" \
 	          tvsim/vbirec.pod > tvsim/vbirec.1; \
 	  echo "pod2html tvsim/vbirec.pod > tvsim/vbirec.html"; \
-	  pod2html tvsim/vbirec.pod | $(PERL) -p -e 's/HREF="#[^:]+: +/HREF="#/g;' > tvsim/vbirec.html; \
+	  pod2html tvsim/vbirec.pod | $(PERL) -p -e 's/(HREF=\"#)([^:"]+: |[^_"]+(_[^_"]+)?__)+/$$1/gi;' > tvsim/vbirec.html; \
 	  rm -f pod2htm?.x~~ pod2html-{dircache,itemcache}; \
 	else \
 	  echo "ERROR: cannot generate vbirec HTML or nroff manuals without Perl"; \
@@ -330,7 +330,7 @@ tvsim/vbiplay.1 tvsim/vbiplay.html: tvsim/vbiplay.pod tvsim/tvsim_version.h
 	          -release "vbiplay (C) 2002 Tom Zoerner" \
 	          tvsim/vbiplay.pod > tvsim/vbiplay.1; \
 	  echo "pod2html tvsim/vbiplay.pod > tvsim/vbiplay.html"; \
-	  pod2html tvsim/vbiplay.pod | $(PERL) -p -e 's/HREF="#[^:]+: +/HREF="#/g;' > tvsim/vbiplay.html; \
+	  pod2html tvsim/vbiplay.pod | $(PERL) -p -e 's/(HREF=\"#)([^:"]+: |[^_"]+(_[^_"]+)?__)+/$$1/gi;' > tvsim/vbiplay.html; \
 	  rm -f pod2htm?.x~~ pod2html-{dircache,itemcache}; \
 	else \
 	  echo "ERROR: cannot generate vbiplay HTML or nroff manuals without Perl"; \

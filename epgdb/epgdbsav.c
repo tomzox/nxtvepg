@@ -29,7 +29,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbsav.c,v 1.54 2004/03/21 17:59:29 tom Exp tom $
+ *  $Id: epgdbsav.c,v 1.55 2004/05/31 14:38:47 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -676,7 +676,7 @@ PDBC EpgDbReload( uint cni, EPGDB_RELOAD_RESULT * pResult )
             size = ((EPGDB_BLOCK *)buffer)->size;
             if (swapEndian)
                swap32(&size);
-            // plausibility check for block size (avoid malloc failure, which reults in program abort)
+            // plausibility check for block size (avoid malloc failure, which results in program abort)
             if (size <= EPGDBSAV_MAX_BLOCK_SIZE)
             {
                result = EPGDB_RELOAD_CORRUPT;
@@ -764,6 +764,7 @@ PDBC EpgDbReload( uint cni, EPGDB_RELOAD_RESULT * pResult )
             result = EPGDB_RELOAD_CORRUPT;
          }
       }
+      ifdebug2((result == EPGDB_RELOAD_CORRUPT), "EpgDb-Reload: db %04X corrupt at file offset %ld", cni, (long)lseek(fd, 0, SEEK_CUR));
       close(fd);
    }
    else

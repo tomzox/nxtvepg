@@ -31,7 +31,7 @@
  *     xawtv-remote.c by Gerd Knorr (kraxel@bytesex.org).  Some source code
  *     is directly derived from xawtv.
  *
- *  $Id: xawtv.c,v 1.41 2004/03/02 20:26:44 tom Exp tom $
+ *  $Id: xawtv.c,v 1.42 2004/05/22 17:42:20 tom Exp tom $
  */
 
 #ifdef WIN32
@@ -207,7 +207,8 @@ static bool Xawtv_QueryClass( Display * dpy, Window wid )
    {
       dprintf1("Xawtv-Query: wm-class: %s\n", args);
       if ( (strcasecmp(args, "XAWTV") == 0) ||
-           (strcasecmp(args, "XAWDECODE") == 0) )
+           (strcasecmp(args, "XAWDECODE") == 0) ||
+           (strcasecmp(args, "ZAPPING") == 0) )
       {
          xawtv_wid = wid;
          // parent is unknown, because the window is not managed by the wm yet

@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: btdrv4dummy.c,v 1.19 2004/03/22 21:49:33 tom Exp tom $
+ *  $Id: btdrv4dummy.c,v 1.20 2004/07/11 19:11:27 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -84,6 +84,16 @@ bool BtDriver_TuneChannel( int inputIdx, uint freq, bool keepOpen, bool * pIsTun
 }
 
 void BtDriver_CloseDevice( void )
+{
+}
+
+bool BtDriver_QueryChannelToken( void )
+{
+   return FALSE;
+}
+
+void BtDriver_SetChannelProfile( VBI_CHANNEL_PRIO_TYPE prio,
+                                 int subPrio, int duration, int minDuration )
 {
 }
 

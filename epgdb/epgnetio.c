@@ -22,7 +22,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgnetio.c,v 1.36 2004/03/21 18:04:44 tom Exp tom $
+ *  $Id: epgnetio.c,v 1.37 2004/06/19 19:55:28 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -43,6 +43,7 @@
 #include <time.h>
 #include <signal.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #ifndef WIN32
 #include <sys/signal.h>
 #include <sys/utsname.h>
@@ -1559,6 +1560,56 @@ bool EpgNetIo_FinishConnect( int sock_fd, char ** ppErrorText )
 
    return result;
 }
+
+#ifndef WIN32
+// ----------------------------------------------------------------------------
+// Substract time spent waiting in select from a given max. timeout struct
+// - This function is intended for functions which call select() repeatedly
+//   but need to implement an overall timeout.  After each select() call the
+//   time already spent in waiting has to be substracted from the timeout.
+// - Note we don't use the Linux select(2) feature to return the time not
+//   slept in the timeout struct, because that's not portable.)
+//
+void EpgNetIo_UpdateTimeout( struct timeval * pStartTime, struct timeval * pTimeout )
+{
+   struct timeval delta;
+   struct timeval tv_stop;
+   int            errno_saved;
+
+   errno_saved = errno;
+   gettimeofday(&tv_stop, NULL);
+   errno = errno_saved;
+
+   // first calculate difference between start and current time
+   delta.tv_sec = tv_stop.tv_sec - pStartTime->tv_sec;
+   if (tv_stop.tv_usec < pStartTime->tv_usec)
+   {
+      delta.tv_usec = 1000000 + tv_stop.tv_usec - pStartTime->tv_usec;
+      delta.tv_sec += 1;
+   }
+   else
+      delta.tv_usec = tv_stop.tv_usec - pStartTime->tv_usec;
+
+   assert((delta.tv_sec >= 0) && (delta.tv_usec >= 0));
+
+   // substract delta from the given max. timeout
+   pTimeout->tv_sec -= delta.tv_sec;
+   if (pTimeout->tv_usec < delta.tv_usec)
+   {
+      pTimeout->tv_usec = 1000000 + pTimeout->tv_usec - delta.tv_usec;
+      pTimeout->tv_sec -= 1;
+   }
+   else
+      pTimeout->tv_usec -= delta.tv_usec;
+
+   // check if timeout was underrun -> set rest timeout to zero
+   if ( (pTimeout->tv_sec < 0) || (pTimeout->tv_usec < 0) )
+   {
+      pTimeout->tv_sec  = 0;
+      pTimeout->tv_usec = 0;
+   }
+}
+#endif  // WIN32
 
 // ----------------------------------------------------------------------------
 // Initialize the module

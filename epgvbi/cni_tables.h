@@ -16,13 +16,14 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: cni_tables.h,v 1.4 2002/01/13 18:46:04 tom Exp $
+ *  $Id: cni_tables.h,v 1.5 2004/05/22 18:54:22 tom Exp tom $
  */
 
 #ifndef __CNI_TABLES_H
 #define __CNI_TABLES_H
 
 const char * CniGetDescription( uint cni, const char ** ppCountry );
+bool CniGetProviderLto( uint cni, sint * pLto );
 uint CniConvertP8301ToVps( uint cni );
 uint CniConvertPdcToVps( uint cni );
 bool CniIsKnownProvider( uint cni );

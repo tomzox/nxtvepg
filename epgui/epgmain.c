@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgmain.c,v 1.132 2004/04/02 12:22:10 tom Exp tom $
+ *  $Id: epgmain.c,v 1.135 2004/06/20 18:53:13 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -1245,37 +1245,17 @@ bool EpgMain_StartDaemon( void )
 //
 bool EpgMain_StopDaemon( void )
 {
-   bool result = FALSE;
-   struct timeval tv;
-   uint idx;
-   int  pid;
+   char * pErrMsg;
+   bool  result;
 
-   pid = BtDriver_GetDeviceOwnerPid();
-   if (pid != -1)
+   result = EpgAcqClient_TerminateDaemon(&pErrMsg);
+
+   if (pErrMsg != NULL)
    {
-      if (kill(pid, SIGTERM) == 0)
-      {
-         // wait until the daemon process is gone
-         for (idx=0; idx < 5; idx++)
-         {
-            // terminate loop if the process is gone
-            if (kill(pid, 0) != 0)
-            {
-               result = TRUE;
-               break;
-            }
-
-            tv.tv_sec  = 0;
-            tv.tv_usec = 50 * 1000L;
-            select(0, NULL, NULL, NULL, &tv);
-         }
-         ifdebug1(result==FALSE, "EpgMain-StopDaemon: VBI user pid %d still alive after signal TERM", pid);
-      }
-      else
-         debug1("EpgMain-StopDaemon: could not signal VBI user pid %d", pid);
+      if (optDaemonMode == DAEMON_STOP)
+         fprintf(stderr, "%s\n", pErrMsg);
+      xfree(pErrMsg);
    }
-   else
-      debug0("EpgMain-StopDaemon: could not determine pid of VBI user");
 
    return result;
 }
@@ -1520,6 +1500,7 @@ bool EpgMain_CheckDaemon( void )
 #endif  // WIN32
 #endif  // USE_DAEMON
 
+#ifndef WIN32
 // ---------------------------------------------------------------------------
 // called by interrupt handlers when the application should exit
 //
@@ -1530,7 +1511,6 @@ static int AsyncHandler_AppTerminate( ClientData clientData, Tcl_Interp *interp,
    return code;
 }
 
-#ifndef WIN32
 // ---------------------------------------------------------------------------
 // called by signal handler when HUP arrives
 //
@@ -2736,6 +2716,8 @@ int main( int argc, char *argv[] )
 
       if (pUiDbContext != NULL)
       {
+         SetUserLanguage(interp);
+
          if (optDumpMode == EPGTAB_DUMP_XML)
             EpgDumpXml_Standalone(pUiDbContext, stdout);
          else
@@ -2816,6 +2798,8 @@ int main( int argc, char *argv[] )
       #if defined(WIN32) && !defined(ICON_PATCHED_INTO_DLL)
       // set app icon in window title bar - note: must be called *after* the window is mapped!
       SetWindowsIcon(hInstance);
+      #elif !defined(WIN32)
+      eval_check(interp, "C_Wm_SetIcon .");
       #endif
       sprintf(comm, "DisplayMainWindow %d", startIconified);
       eval_check(interp, comm);
@@ -2883,11 +2867,13 @@ int main( int argc, char *argv[] )
    #ifdef USE_DAEMON
    else if (optDaemonMode == DAEMON_STOP)
    {
+      EpgAcqClient_Init(NULL);
+      SetNetAcqParams(interp, FALSE);
       SetHardwareConfig(interp, videoCardIndex);
-      if ( EpgMain_StopDaemon() )
-         exit(0);
-      else
-         exit(1);
+
+      EpgMain_StopDaemon();
+
+      EpgAcqClient_Destroy();
    }
    else if (optDaemonMode == DAEMON_START)
    {  // Daemon mode: no GUI - just do acq and handle requests from GUI via sockets

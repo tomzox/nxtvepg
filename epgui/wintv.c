@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: wintv.c,v 1.20 2004/03/28 13:16:45 tom Exp tom $
+ *  $Id: wintv.c,v 1.21 2004/06/19 19:07:03 tom Exp tom $
  */
 
 #ifndef WIN32
@@ -196,10 +196,19 @@ static const PI_BLOCK * Wintv_SearchCurrentPi( uint cni, uint pil )
 // ----------------------------------------------------------------------------
 // Query if a TV app is connected
 //
-bool Wintv_IsConnected( void )
+static bool Wintv_IsConnected( void )
 {
    return ( (wintvcf.shmEnable) &&
             (WintvSharedMem_IsConnected(NULL, 0, NULL)) );
+}
+
+// ----------------------------------------------------------------------------
+// Query which TV app we're connected to, if any
+//
+static int Wintv_IsConnected_TclCb( ClientData ttp, Tcl_Interp *interp, int argc, CONST84 char *argv[] )
+{
+   Tcl_SetObjResult(interp, Tcl_NewIntObj(Wintv_IsConnected() ? 1 : 0));
+   return TCL_OK;
 }
 
 // ---------------------------------------------------------------------------
@@ -816,6 +825,7 @@ void Wintv_Init( bool enable )
    Tcl_CreateCommand(interp, "C_Tvapp_SendCmd", Wintv_SendCmd, (ClientData) NULL, NULL);
    Tcl_CreateCommand(interp, "C_Tvapp_ShowEpg", Wintv_ShowEpg, (ClientData) NULL, NULL);
    Tcl_CreateCommand(interp, "C_Tvapp_QueryTvapp", Wintv_QueryTvapp, (ClientData) NULL, NULL);
+   Tcl_CreateCommand(interp, "C_Tvapp_IsConnected", Wintv_IsConnected_TclCb, (ClientData) NULL, NULL);
 
    WintvSharedMem_SetCallbacks(&winShmSrvCb);
 

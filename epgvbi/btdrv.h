@@ -37,7 +37,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: btdrv.h,v 1.39 2004/04/02 10:48:22 tom Exp tom $
+ *  $Id: btdrv.h,v 1.41 2004/07/11 19:07:20 tom Exp tom $
  */
 
 #ifndef __BTDRV_H
@@ -98,6 +98,13 @@ typedef enum
    VBI_SLICER_ZVBI,
    VBI_SLICER_COUNT
 } VBI_SLICER_TYPE;
+
+typedef enum
+{
+   VBI_CHANNEL_PRIO_UNSET,
+   VBI_CHANNEL_PRIO_BACKGROUND,
+   VBI_CHANNEL_PRIO_INTERACTIVE
+} VBI_CHANNEL_PRIO_TYPE;
 
 // ---------------------------------------------------------------------------
 // number of teletext packets that can be stored in ring buffer
@@ -222,13 +229,17 @@ typedef struct
    uchar     inputIndex;
    struct Card tv_cards[MAX_CARDS];
    # endif
-   # if defined(USE_LIBZVBI) && defined(USE_LIBZVBI_PROXY)
+   # ifdef USE_VBI_PROXY
    uint      slaveChnSwitch;
-   int       chnIdx;
-   uint      chnFreq;
-   bool      chnHasTuner;
-   char      chnErrorMsg[128];
+   bool      slaveChnToken;
+   bool      slaveChnTokenGrant;
+   bool      slaveVbiProxy;
+   int       chnProfValid;
+   int       chnSubPrio;
+   int       chnMinDuration;
+   int       chnExpDuration;
    # endif
+   int       chnPrio;
    #else  // WIN32
    uint32_t  slicerType;
    uchar     reserved3[128 - sizeof(uint32_t)];    // reserved for future additions; set to 0
@@ -257,6 +268,8 @@ int BtDriver_GetDeviceOwnerPid( void );
 bool BtDriver_Restart( void );
 bool BtDriver_GetState( bool * pEnabled, bool * pHasDriver, uint * pCardIdx );
 #endif
+void BtDriver_SetChannelProfile( VBI_CHANNEL_PRIO_TYPE prio, int subPrio, int duration, int minDuration );
+bool BtDriver_QueryChannelToken( void );
 bool BtDriver_CheckDevice( void );
 void BtDriver_CloseDevice( void );
 

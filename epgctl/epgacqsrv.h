@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqsrv.h,v 1.8 2004/03/11 22:24:20 tom Exp tom $
+ *  $Id: epgacqsrv.h,v 1.9 2004/06/19 19:52:42 tom Exp tom $
  */
 
 #ifndef __EPGACQSRV_H
@@ -104,7 +104,8 @@ typedef struct
    uint32_t  blockCompatVersion;      // version of EPG database block format
    uint32_t  protocolCompatVersion;   // protocol version
    uint32_t  swVersion;               // software version (informative only)
-   uint8_t   reserved[64];            // reserved for future additions
+   int32_t   daemon_pid;
+   uint8_t   reserved[60];            // reserved for future additions
 } MSG_STRUCT_CONNECT_CNF;
 
 typedef struct

@@ -28,7 +28,7 @@
  *
  *  DScaler #Id: SAA7134Card_Types.cpp,v 1.46 2004/03/26 14:17:52 atnak Exp #
  *
- *  $Id: saa7134_typ.c,v 1.16 2004/03/29 22:23:03 tom Exp tom $
+ *  $Id: saa7134_typ.c,v 1.17 2004/05/22 19:50:01 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_DSDRV
@@ -1446,8 +1446,8 @@ static const TCardType m_SAA7134Cards[] =
 
 static uint AutoDetectCardType( TVCARD * pTvCard )
 {
-    WORD DeviceId;
-    WORD SubSystemId;
+    WORD  DeviceId;
+    DWORD SubSystemId;
     uint i;
 
     if (pTvCard != NULL)
@@ -1465,6 +1465,8 @@ static uint AutoDetectCardType( TVCARD * pTvCard )
                 return i;
             }
         }
+
+        ifdebug2(SubSystemId != 0, "SAA713x: unknown card 0x%04X %08lX", DeviceId, SubSystemId);
 
         #if 0
         LOG(0, "SAA713x: Autodetect found an unknown card with the following");

@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_xawtvcf.tcl,v 1.7 2004/02/29 18:21:04 tom Exp tom $
+#  $Id: dlg_xawtvcf.tcl,v 1.8 2004/05/22 17:56:30 tom Exp tom $
 #
 set xawtvcf_popup 0
 
@@ -169,10 +169,7 @@ proc XawtvConfigPopup {} {
       }
       pack   .xawtvcf.tvapp.apptype.mb -side left -padx 10 -fill x -expand 1
 
-      button .xawtvcf.tvapp.apptype.load -text "Test" \
-                -command {C_Tvapp_TestChanTab $xawtv_tmpcf(tvapp_idx) $xawtv_tmpcf(tvapp_path); \
-                          set xawtv_tmpcf(chk_tvapp_idx) $xawtv_tmpcf(tvapp_idx); \
-                          set xawtv_tmpcf(chk_tvapp_path) $xawtv_tmpcf(tvapp_path)}
+      button .xawtvcf.tvapp.apptype.load -text "Test" -command XawtvConfigTestPathAndType
       pack   .xawtvcf.tvapp.apptype.load -side right -padx 10 -fill x -expand 1
       pack   .xawtvcf.tvapp.apptype -side top -fill x
 
@@ -264,6 +261,33 @@ proc XawtvConfigSetTvapp {} {
    } else {
       .xawtvcf.tvapp.name.filename configure -state normal -background $text_bg -textvariable xawtv_tmpcf(tvapp_path)
       .xawtvcf.tvapp.name.dlgbut configure -state normal
+   }
+}
+
+# callback for "Test" button next to TV app type and path selection
+proc XawtvConfigTestPathAndType {} {
+   global xawtv_tmpcf xawtv_tmp_tvapp_list
+   global cfnetnames
+
+   set name [lindex $xawtv_tmp_tvapp_list $xawtv_tmpcf(tvapp_idx)]
+   set chn_count [C_Tvapp_TestChanTab $xawtv_tmpcf(tvapp_idx) $xawtv_tmpcf(tvapp_path)]
+
+   if {$chn_count > 0} {
+      # OK
+      if {[array size cfnetnames] > 0} {
+         tk_messageBox -type ok -icon info -parent .xawtvcf \
+                       -message "Test sucessful: found $chn_count names in the $name channel table."
+      } else {
+         tk_messageBox -type ok -icon info -parent .xawtvcf \
+                       -message "Test sucessful: found $chn_count channels. You can now use the network name dialog in the configure menu to synchronize names between nxtvepg and $name"
+      }
+      set xawtv_tmpcf(chk_tvapp_idx) $xawtv_tmpcf(tvapp_idx)
+      set xawtv_tmpcf(chk_tvapp_path) $xawtv_tmpcf(tvapp_path)
+
+   } elseif {$chn_count == 0} {
+      # opened ok, but no channels found
+      tk_messageBox -type ok -icon warning -parent .xawtvcf \
+                    -message "No channels found in the $name channel table!"
    }
 }
 

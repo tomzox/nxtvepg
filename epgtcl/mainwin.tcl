@@ -20,7 +20,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: mainwin.tcl,v 1.237 2004/04/02 11:09:02 tom Exp tom $
+#  $Id: mainwin.tcl,v 1.241 2004/06/26 14:10:20 tom Exp $
 #
 # import constants from other modules
 #=INCLUDE= "epgtcl/shortcuts.h"
@@ -576,7 +576,7 @@ proc CreateListboxNetCol {idx} {
    pack      propagate .all.pi.list.nets.h_${idx} 0
    # add bindings to allow manual resizing
    bind      .all.pi.list.nets.h_${idx}.b <Motion> [concat ColumnHeaderMotion $idx %s %x {;} {if {$colsel_resize_phase > 0} break}]
-   bind      .all.pi.list.nets.h_${idx}.b <ButtonPress-1> [concat ColumnHeaderButtonPress $idx {;} {if {$colsel_resize_phase > 0} break}]
+   bind      .all.pi.list.nets.h_${idx}.b <ButtonPress-1> [concat ColumnHeaderButtonPress $idx %s %x {;} {if {$colsel_resize_phase > 0} break}]
    bind      .all.pi.list.nets.h_${idx}.b <ButtonRelease-1> [concat ColumnHeaderButtonRel $idx]
    bind      .all.pi.list.nets.h_${idx}.b <Leave> [concat ColumnHeaderLeave $idx]
 
@@ -686,10 +686,10 @@ proc CreateMenubar {} {
    .menubar.config.lang add radiobutton -label "German" -command UpdateUserLanguage -variable menuUserLanguage -value 1
    .menubar.config.lang add radiobutton -label "French" -command UpdateUserLanguage -variable menuUserLanguage -value 4
    menu .menubar.config.show_hide
-   .menubar.config.show_hide add checkbutton -label "Show shortcuts" -command {ShowOrHideShortcutList; UpdateRcFile} -variable showShortcutListbox
-   .menubar.config.show_hide add checkbutton -label "Show networks (left)" -command {ShowOrHideShortcutList; UpdateRcFile} -variable showNetwopListboxLeft
-   .menubar.config.show_hide add checkbutton -label "Show networks (middle)" -command {ShowOrHideShortcutList; UpdateRcFile} -variable showNetwopListbox
-   .menubar.config.show_hide add checkbutton -label "Show layout button" -command {ShowOrHideShortcutList; UpdateRcFile} -variable showLayoutButton
+   .menubar.config.show_hide add checkbutton -label "Show shortcuts" -command {ShowOrHideShortcutList showShortcutListbox; UpdateRcFile} -variable showShortcutListbox
+   .menubar.config.show_hide add checkbutton -label "Show networks (left)" -command {ShowOrHideShortcutList showNetwopListboxLeft; UpdateRcFile} -variable showNetwopListboxLeft
+   .menubar.config.show_hide add checkbutton -label "Show networks (middle)" -command {ShowOrHideShortcutList showNetwopListbox; UpdateRcFile} -variable showNetwopListbox
+   .menubar.config.show_hide add checkbutton -label "Show layout button" -command {ShowOrHideShortcutList showLayoutButton; UpdateRcFile} -variable showLayoutButton
    .menubar.config.show_hide add checkbutton -label "Show status line" -command ToggleStatusLine -variable showStatusLine
    .menubar.config.show_hide add checkbutton -label "Show column headers" -command ToggleColumnHeader -variable showColumnHeader
    .menubar.config.show_hide add checkbutton -label "Show weekday scale" -command ToggleDateScale -variable showDateScale
@@ -699,6 +699,7 @@ proc CreateMenubar {} {
    if {!$is_unix} {
       .menubar.config.show_hide add checkbutton -label "Hide on minimize" -command ToggleHideOnMinimize -variable hideOnMinimize
    }
+
    # Reminder menu
    # (note: first three entries' label, state and command binding are overridden by post command)
    menu .menubar.reminder -tearoff 0 -postcommand C_SetReminderMenuStates
@@ -829,7 +830,7 @@ proc CreateMenubar {} {
    .menubar.help add command -label "About..." -command CreateAbout
 
    # Context Menu
-   menu .contextmenu -tearoff 0 -postcommand {PostDynamicMenu .contextmenu C_CreateContextMenu {}}
+   menu .contextmenu -tearoff 0 -postcommand {PostDynamicMenu .contextmenu PopupDynamicContextMenu {}}
 
    # System tray popup menu (only used if "hide on minimize" is enabled)
    menu .systray -tearoff 0 -postcommand C_SetControlMenuStates
@@ -1186,12 +1187,16 @@ set showDateScale 1
 set hideOnMinimize 1
 set menuUserLanguage 7
 
-proc ShowOrHideShortcutList {} {
+proc ShowOrHideShortcutList {{changed {}}} {
    global showShortcutListbox showNetwopListbox showNetwopListboxLeft
    global showTuneTvButton showLayoutButton
 
    if {$showNetwopListboxLeft && $showNetwopListbox} {
-      set showNetwopListboxLeft 0
+      if {[string compare $changed showNetwopListbox] == 0} {
+         set showNetwopListboxLeft 0
+      } else {
+         set showNetwopListbox 0
+      }
    }
 
    # first unmap everything
@@ -3009,7 +3014,7 @@ proc PiDateScale_Redraw {t_first t_last lto} {
       .all.pi.list.dscale configure -height $dscale_height
 
       set t_root [expr $t_first - (($t_first + $lto) % (24*60*60))]
-      set first_wday [expr ([C_ClockFormat $t_first {%u}] + 1) % 7]
+      set first_wday [expr ([C_ClockFormat $t_first {%w}] + 1) % 7]
 
       set dscale_tfirst $t_first
       set dscale_tlen [expr $t_last - $t_first]
@@ -3694,7 +3699,7 @@ proc UpdatePiListboxColumns {} {
 
          # add bindings to allow manual resizing
          bind .all.pi.list.colheads.col_${col}.b <Motion> [concat ColumnHeaderMotion $col %s %x {;} {if {$colsel_resize_phase > 0} break}]
-         bind .all.pi.list.colheads.col_${col}.b <ButtonPress-1> [concat ColumnHeaderButtonPress $col {;} {if {$colsel_resize_phase > 0} break}]
+         bind .all.pi.list.colheads.col_${col}.b <ButtonPress-1> [concat ColumnHeaderButtonPress $col %s %x {;} {if {$colsel_resize_phase > 0} break}]
          bind .all.pi.list.colheads.col_${col}.b <ButtonRelease-1> [concat ColumnHeaderButtonRel $col]
          bind .all.pi.list.colheads.col_${col}.b <Leave> [concat ColumnHeaderLeave $col]
 
@@ -4235,8 +4240,12 @@ proc ColumnHeaderLeave {col} {
 }
 
 # callback for mouse button release event
-proc ColumnHeaderButtonPress {col} {
+proc ColumnHeaderButtonPress {col state xcoo} {
    global colsel_resize_phase
+
+   # work-around for either tcl/tk 8.4.* or XFree 4.4: sends Leave event before button press!?
+   # so we have to check here if the pointer is actually still inside the resizable area
+   ColumnHeaderMotion $col $state $xcoo
 
    if {$colsel_resize_phase == 1} {
       # button was pressed while in proximity of the right button border

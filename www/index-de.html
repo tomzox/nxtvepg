@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="de">
-<!-- $Id: index-de.html,v 1.70 2004/04/03 22:52:18 tom Exp $ -->
+<!-- $Id: index-de.html,v 1.71 2004/07/24 13:46:55 tom Exp $ -->
 <HEAD>
 <TITLE>nexTView EPG Dekoder Software Download</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -29,11 +29,12 @@
 
 <H2 class="navhead">News</H2>
 <P>
-2.4.2004: <A HREF="changelog.html#release_2_7_0">Release 2.7.0</A>
+17.7.2004: <A HREF="changelog.html#release_2_7_1">Release 2.7.1</A>
 </P><P>
-<SPAN class="red">
+2.4.2004: Release 2.7.0
+</P><P>
 März 2004: Neuer Anbieter <A HREF="provnets.html"><I>VT4</I> in Belgien</A>
-</SPAN></P>
+</P>
 
 <H2 class="navhead">Dokumentation</H2>
 <P>
@@ -94,40 +95,46 @@ und Belgien, ohne Zugriff auf's Internet.  <A HREF="intro-de.html">Weiter...</A>
 <LI><A HREF="download-de.html">Software Download</A>
 <LI><A HREF="download-de.html#requirements">SystemAnforderungen</A>
 <P></P>
-<LI><A HREF="index.html#new_2_7_0">Neuer release 2.7.0</A>
+<LI><A HREF="index.html#new_2_7_1">Neuer release 2.7.1</A>
 <LI><A HREF="index.html#feedback">Fragen und feedback</A>
 <LI><A HREF="index.html#help_wanted">Entwickler gesucht</A>
 <LI><A HREF="index.html#copyright">Copyright</A>
 </UL>
 
-<H2><A NAME="new_2_7_0"><SPAN class="green">Neuer release 2.7.0 (2.4.2004)</SPAN></A></H2>
+<H2><A NAME="new_2_7_1"><SPAN class="blue">Neuer release 2.7.1 (17.7.2004)</SPAN></A></H2>
 <P>
-Fokus des neuesten release 2.7.0 ist Wartung, d.h. die meisten
-Änderungen betreffen bug fixes und kleinere Verbesserungen bzw. Anpassungen
-an Benutzerwünsche:
+Dieser Release behebt unter anderem die folgenden Fehler
+in der letzten Version 2.7.0:
 </P>
 <UL>
-<LI>Das einizge größere neue Feature ist der Umbau der shortcuts von
-    einer flachen Liste in eine Baumstruktur, so daß seltener gebrauchte
-    shortcuts in Unterverzeichnisse verlegt werden können und Trennlinien
-    eingefügt werden können
-    (siehe <A HREF="screenshot-shortcuts.gif">screenshot</A>)
-<LI>Der <I>VBI</I> (Teletext) Dekoder wurde für schwache Antennensignale
-    verbessert, um die Ausfallrate während der Akquisition zu verringern.
-<LI>Die Kommandozeilenparameter wurden um neue Optionen erweitert um nxtvepg
-    besser von Skripten und Batch files aus steuern zu können.
-<LI>Unterstützung für die neue Generation der <I>video4linux</I> Treiber (v4l2)
-    wurde ausgebaut, insbesondere ungewollte Programmwechsel während Aufnahme
-    oder TV-Sehens werden unterbunden.
-<LI>Für Windows wurde der Hardware support für neue TV-Karten und Tuner
-    erweitert (z.B. MT2050 und MK3) als auch Konflikte mit WDM Treibern der
-    Hersteller von CX23881 Karten reduziert (Windows Treiber support ist
-    abgeleitet von <A HREF="http://dscaler.org">DScaler</A>)
-<LI>...plus zu viele fixes um sie alls hier aufzlisten.
+<LI>Option <I>local time</I> im
+  <A HREF="man.html#export_as_xmltv">XML Database Export</A>
+  funktioniert jetzt korrek; außerdem wird die neue
+  <A HREF="http://membled.com/work/apps/xmltv/">Version 0.6 der XMLTV DTD</A>
+  jetzt unterstützt.
+<LI>Interaktion mit TV-Applikation
+  <A HREF="http://zapping.sourceforge.net/">Zapping</A>
+  (z.B. Einlesen der Kanaltabelle für den EPG scan)
+<LI>Verbesserung des Umgangs mit Wechsel zwischen Sommer- und Winterzeit
+  als auch EPG Providern die Programmdaten in örtlicher Lokalzeit senden
+  (z.B. <A HREF="provnets.html">TRT</A>)
+<LI>Erweiterung der Konfigurierbarkeit des
+  <A HREF="man.html#context_menu_configuration">Kontextmenüs</A>
+  in der Programmliste.
+<LI>Das Nextview Logo wird jetzt auch unter X11 in der Fenstertitelleiste
+  dargestellt.
+<LI>Bugs behoben in den
+  <A HREF="man.html#item__2ddaemonstop">-daemonstop</A> und
+  <A HREF="man.html#item__2dprovider_cni">-provider merged</A>
+  Kommandozeilenoptionen.
+<LI>Auf Windows stimmem nun die Wochentagsfarben in der Programmliste
+  mit denen in der
+  <A HREF="man.html#item_show_weekday_scale">Wochentagsskala</A> überein.
 </UL>
 <P>
 Zum Herunterladen in der <A HREF="download-de.html">Download Sektion</A>.
-Siehe auch <A HREF="changelog.html">change log</A>.
+Siehe auch die detaillierte Liste aller Änderungen im
+<A HREF="changelog.html">changelog</A>.
 </P>
 
 <H2><A NAME="feedback">Feedback</A></H2>

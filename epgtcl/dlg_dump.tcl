@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_dump.tcl,v 1.4 2004/03/28 13:36:21 tom Exp tom $
+#  $Id: dlg_dump.tcl,v 1.6 2004/05/31 14:33:16 tom Exp tom $
 #
 set dumpdb_pi 1
 set dumpdb_xi 1
@@ -51,7 +51,7 @@ set dumpxml_filename {}
 set dumpxml_format 0
 set dumpxml_popup 0
 
-#=CONST= ::xmltv_dtd_5      0
+#=CONST= ::xmltv_dtd_5_gmt  0
 #=CONST= ::xmltv_dtd_5_ltz  1
 #=CONST= ::xmltv_dtd_6      2
 
@@ -509,9 +509,13 @@ proc PopupDumpXml {} {
       }
       pack   .dumpxml.all.name.dlgbut -side left -padx 5
       pack   .dumpxml.all.name -side top -pady 10
-      checkbutton .dumpxml.all.local_tz -text "Export times in local time zone" \
-                     -variable dumpxml_format -offvalue $::xmltv_dtd_5 -onvalue $::xmltv_dtd_5_ltz
-      pack   .dumpxml.all.local_tz -side top -pady 10 -anchor w
+
+      frame       .dumpxml.all.xml_fmt
+      radiobutton .dumpxml.all.xml_fmt.fmt0 -text "XML DTD 0.5 (UTC)" -variable dumpxml_format -value $::xmltv_dtd_5_gmt
+      radiobutton .dumpxml.all.xml_fmt.fmt1 -text "XML DTD 0.5 (local time zone)" -variable dumpxml_format -value $::xmltv_dtd_5_ltz
+      radiobutton .dumpxml.all.xml_fmt.fmt2 -text "XML DTD 0.6" -variable dumpxml_format -value $::xmltv_dtd_6
+      pack   .dumpxml.all.xml_fmt.fmt0 .dumpxml.all.xml_fmt.fmt1 .dumpxml.all.xml_fmt.fmt2 -side top -anchor w
+      pack   .dumpxml.all.xml_fmt -side top -pady 10 -anchor w
 
       frame  .dumpxml.all.cmd
       button .dumpxml.all.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Control) "Export as XMLTV"}

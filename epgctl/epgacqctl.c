@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqctl.c,v 1.83 2004/03/28 13:40:49 tom Exp tom $
+ *  $Id: epgacqctl.c,v 1.85 2004/07/11 19:02:59 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -79,6 +79,7 @@ typedef struct
 static EPGACQCTL_STATE  acqCtl = {ACQSTATE_OFF, ACQMODE_FOLLOW_UI, ACQMODE_FOLLOW_UI};
 static EPGDB_STATS      acqStats;
 static bool             acqStatsUpdate;
+static bool             acqVpsPdcUpdate[VPSPDC_REQ_COUNT];
 static EPGACQ_DESCR     acqNetDescr;
 static bool             acqContextIsPeek;
 static EPGDB_QUEUE      acqDbQueue;
@@ -116,6 +117,7 @@ static void EpgAcqCtl_StatisticsReset( void )
    memset(&acqStats, 0, sizeof(acqStats));
 
    memset(&acqNetDescr, 0, sizeof(acqNetDescr));
+   memset(&acqVpsPdcUpdate, FALSE, sizeof(acqVpsPdcUpdate));
 
    acqStats.acqStartTime  = time(NULL);
    acqStats.histIdx       = STATS_HIST_WIDTH - 1;
@@ -198,24 +200,20 @@ static void EpgAcqCtl_StatisticsUpdate( void )
       else
          memset(pHist, 0, sizeof(*pHist));
 
-      // maintain history of netwop coverage variance for cycle state machine
-      if (ACQMODE_IS_CYCLIC(acqCtl.mode))
+      for (stream=0; stream <= 1; stream++)
       {
-         for (stream=0; stream <= 1; stream++)
-         {
-            if (acqStats.varianceHist[stream].count < VARIANCE_HIST_COUNT)
-            {  // history buffer not yet filled -> just append the new sample
-               idx = acqStats.varianceHist[stream].count;
-               acqStats.varianceHist[stream].count += 1;
-            }
-            else
-            {  // history buffer filled -> insert into ring buffer after the last written sample
-               acqStats.varianceHist[stream].lastIdx = (acqStats.varianceHist[stream].lastIdx + 1) % VARIANCE_HIST_COUNT;
-               idx = acqStats.varianceHist[stream].lastIdx;
-            }
-
-            acqStats.varianceHist[stream].buf[idx] = acqStats.count[stream].variance;
+         if (acqStats.varianceHist[stream].count < VARIANCE_HIST_COUNT)
+         {  // history buffer not yet filled -> just append the new sample
+            idx = acqStats.varianceHist[stream].count;
+            acqStats.varianceHist[stream].count += 1;
          }
+         else
+         {  // history buffer filled -> insert into ring buffer after the last written sample
+            acqStats.varianceHist[stream].lastIdx = (acqStats.varianceHist[stream].lastIdx + 1) % VARIANCE_HIST_COUNT;
+            idx = acqStats.varianceHist[stream].lastIdx;
+         }
+
+         acqStats.varianceHist[stream].buf[idx] = acqStats.count[stream].variance;
       }
    }
 }
@@ -281,8 +279,8 @@ const EPGDB_STATS * EpgAcqCtl_GetAcqStats( void )
 //
 const EPGDB_ACQ_VPS_PDC * EpgAcqCtl_GetVpsPdc( VPSPDC_REQ_ID clientId )
 {
-   static bool updateVect[VPSPDC_REQ_COUNT] = {FALSE};
    EPGDB_ACQ_VPS_PDC * result = NULL;
+   uint idx;
 
    if (clientId < VPSPDC_REQ_COUNT)
    {
@@ -291,13 +289,16 @@ const EPGDB_ACQ_VPS_PDC * EpgAcqCtl_GetVpsPdc( VPSPDC_REQ_ID clientId )
          // poll for new VPS/PDC data
          if (EpgAcqCtl_ProcessVps())
          {
-            memset(updateVect, FALSE, sizeof(updateVect));
+            for (idx = 0; idx < VPSPDC_REQ_COUNT; idx++)
+            {
+               acqVpsPdcUpdate[idx] = TRUE;
+            }
          }
 
-         // if there are reults which have not been given yet to the client, return them
-         if ( (updateVect[clientId] == FALSE) || (clientId == VPSPDC_REQ_DAEMON) )
+         // if there are results which have not been given yet to the client, return them
+         if ( acqVpsPdcUpdate[clientId] || (clientId == VPSPDC_REQ_DAEMON) )
          {
-            updateVect[clientId] = TRUE;
+            acqVpsPdcUpdate[clientId] = FALSE;
             result = &acqStats.vpsPdc;
          }
       }
@@ -319,12 +320,17 @@ const EPGDB_ACQ_VPS_PDC * EpgAcqCtl_GetVpsPdc( VPSPDC_REQ_ID clientId )
 //
 static void EpgAcqCtl_NetStatsUpdate( void )
 {
+   uint idx;
    bool aiFollows;
 
    if (EpgAcqClient_GetNetStats(&acqStats, &acqNetDescr, &aiFollows))
    {
       ifdebug2(acqNetDescr.dbCni != EpgDbContextGetCni(pAcqDbContext), "EpgAcqCtl-NetStatsUpdate: stats dbCni=0x%04X != acq db CNI=0x%04X", acqNetDescr.dbCni, EpgDbContextGetCni(pAcqDbContext));
 
+      for (idx = 0; idx < VPSPDC_REQ_COUNT; idx++)
+      {
+         acqVpsPdcUpdate[idx] = TRUE;
+      }
       if (aiFollows == FALSE)
       {  // no AI transmitted (no reception, or AI unchanged) -> trigger status update from here
          UiControlMsg_AcqEvent(ACQ_EVENT_STATS_UPDATE);
@@ -337,8 +343,14 @@ static void EpgAcqCtl_NetStatsUpdate( void )
 //
 void EpgAcqCtl_AddNetVpsPdc( const EPGDB_ACQ_VPS_PDC * pVpsPdcUpd )
 {
+   uint idx;
+
    acqStats.vpsPdc = *pVpsPdcUpd;
 
+   for (idx = 0; idx < VPSPDC_REQ_COUNT; idx++)
+   {
+      acqVpsPdcUpdate[idx] = TRUE;
+   }
    UiControlMsg_AcqEvent(ACQ_EVENT_VPS_PDC);
 
    dprintf5("EpgAcqCtl-VpsPdcCallback: %02d.%02d. %02d:%02d (0x%04X)\n", (acqStats.vpsPdc.pil >> 15) & 0x1F, (acqStats.vpsPdc.pil >> 11) & 0x0F, (acqStats.vpsPdc.pil >>  6) & 0x1F, (acqStats.vpsPdc.pil      ) & 0x3F, acqStats.vpsPdc.cni);
@@ -754,6 +766,16 @@ static bool EpgAcqCtl_TuneProvider( uint freq, uint cni )
    // remember time of channel change
    acqCtl.chanChangeTime = time(NULL);
 
+#ifdef USE_PROXY
+   // XXX FIXME
+   BtDriver_SetChannelProfile( VBI_CHANNEL_PRIO_BACKGROUND,
+                               ((acqCtl.cyclePhase == ACQMODE_PHASE_MONITOR) ? VBI_CHN_SUBPRIO_INITIAL : VBI_CHN_SUBPRIO_CHECK),
+                               ((acqCtl.cyclePhase == ACQMODE_PHASE_NOWNEXT) ? 3*60 : 25*60),
+                               ((acqCtl.cyclePhase == ACQMODE_PHASE_MONITOR) ? 60 : 10) );
+#else
+   BtDriver_SetChannelProfile(VBI_CHANNEL_PRIO_BACKGROUND, 0, 0, 0);
+#endif
+
    // tune onto the provider's channel (before starting acq, to avoid catching false data)
    // always set the input source - may have been changed externally (since we don't hog the video device permanently)
    if ( BtDriver_TuneChannel(acqCtl.inputSource, freq, FALSE, &isTuner) )
@@ -1089,8 +1111,8 @@ static void EpgAcqCtl_AdvanceCyclePhase( bool forceAdvance )
          case ACQMODE_PHASE_STREAM2:
          case ACQMODE_PHASE_MONITOR:
             quote   = (((acqStats.count[0].ai + acqStats.count[1].ai) > 0) ?
-                       (((double)acqStats.count[0].sinceAcq + (double)acqStats.count[1].sinceAcq) /
-                        (acqStats.count[0].ai + acqStats.count[1].ai)) : 100.0);
+                       (((double)acqStats.count[0].sinceAcq + acqStats.count[1].sinceAcq) /
+                        ((double)acqStats.count[0].ai + acqStats.count[1].ai)) : 100.0);
             advance = (quote >= MIN_CYCLE_QUOTE) &&
                       (acqStats.count[0].variance < MIN_CYCLE_VARIANCE) &&
                       (acqStats.count[1].variance < MIN_CYCLE_VARIANCE) &&
@@ -1120,7 +1142,7 @@ static void EpgAcqCtl_AdvanceCyclePhase( bool forceAdvance )
          else
          {  // phase complete for all databases -> switch to next
             // determine next phase
-            switch (acqCtl.mode)
+            switch (acqCtl.userMode)
             {
                case ACQMODE_CYCLIC_012:
                   if (acqCtl.cyclePhase < ACQMODE_PHASE_MONITOR)
@@ -1831,6 +1853,10 @@ bool EpgAcqCtl_ProcessPackets( void )
    {
       if (acqCtl.mode != ACQMODE_NETWORK)
       {
+         // query if VBI device has been freed by higher-prio users
+         if (BtDriver_QueryChannelToken())
+            EpgAcqCtl_CheckDeviceAccess();
+
          // check if new data is available in the VBI ringbuffer
          if (TtxDecode_CheckForPackets(&stopped))
          {  // assemble VBI lines, i.e. TTX packets to EPG blocks and put them in the queue

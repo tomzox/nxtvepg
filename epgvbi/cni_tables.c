@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: cni_tables.c,v 1.23 2004/03/21 18:07:31 tom Exp $
+ *  $Id: cni_tables.c,v 1.24 2004/05/22 18:54:12 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -43,6 +43,7 @@ typedef struct
 typedef struct
 {
    uchar        code;
+   short        lto;
    const char * name;
 } CNI_COUNTRY_DESC;
 
@@ -525,45 +526,129 @@ static const CNI_PDC_DESC cni_pdc_desc_table[] =
 
 // ---------------------------------------------------------------------------
 // Table to translate PDC country codes to a name
-// - the country code is taken from the upper 16-bit of a PDC code
+// - the country code is taken from the upper 8-bit of a PDC code
 //
 static const CNI_COUNTRY_DESC cni_country_table[] =
 {
-   {0x1A, "Austria"},
-   {0x16, "Belgium"},
-   {0x28, "Bulgaria"},
-   {0x46, "Croatia"},
-   {0x32, "Czech Republic"},
-   {0x29, "Denmark"},
-   {0x26, "Finland"},
-   {0x2F, "France"},
-   {0x1D, "Germany"},
-   {0x21, "Greece"},
-   {0x1B, "Hungary"},
-   //{0x00, "Iceland"},        // PDC country code unknown
-   {0x42, "Ireland"},
-   {0x14, "Israel"},
-   {0x15, "Italy"},
-   //{0x00, "Luxembourg"},
-   {0x48, "Netherlands"},
-   {0x3F, "Norway"},
-   {0x33, "Poland"},
-   {0x58, "Portugal"},
-   {0x2E, "Romania"},
-   {0x57, "Russia"},
-   {0x22, "San Marino"},
-   {0x35, "Slovakia"},
-   //{0x00, "Slovenia"},
-   {0x3E, "Spain"},
-   {0x4E, "Sweden"},
-   {0x24, "Switzerland"},
-   {0x43, "Turkey"},
-   {0x2C, "UK"},
-   {0x5B, "UK"},
-   //{0x00, "Ukraine"},
-   {0x01, "USA"},
-   {0, NULL},
+   {0x1A,  60, "Austria"},
+   {0x16,  60, "Belgium"},
+   {0x28, 120, "Bulgaria"},
+   {0x46,  60, "Croatia"},
+   {0x32,  60, "Czech Republic"},
+   {0x29,  60, "Denmark"},
+   {0x26, 120, "Finland"},
+   {0x2F,  60, "France"},
+   {0x1D,  60, "Germany"},
+   {0x21, 120, "Greece"},
+   {0x1B,  60, "Hungary"},
+// {0x00,   0, "Iceland"},        // PDC country code unknown
+   {0x42,   0, "Ireland"},
+   {0x14, 120, "Israel"},
+   {0x15,  60, "Italy"},
+// {0x00,  60, "Luxembourg"},
+   {0x48,  60, "Netherlands"},
+   {0x3F,  60, "Norway"},
+   {0x33,  60, "Poland"},
+   {0x58,  60, "Portugal"},
+   {0x2E, 120, "Romania"},
+   {0x57, 180, "Russia"},
+   {0x22,  60, "San Marino"},
+   {0x35,  60, "Slovakia"},
+// {0x00,  60, "Slovenia"},
+   {0x3E,  60, "Spain"},
+   {0x4E,  60, "Sweden"},
+   {0x24,  60, "Switzerland"},
+   {0x43, 120, "Turkey"},
+   {0x2C,   0, "UK"},
+   {0x5B,   0, "UK"},
+// {0x00, 180, "Ukraine"},
+   {0x01,  60, "USA"},            // for CNN-Int only, uses CET
+   {0, 0, NULL},
 };
+
+// ---------------------------------------------------------------------------
+// Look up the given CNI's country entry
+// - given CNI must be a PDC CNI (i.e. NI must be converted to PDC before)
+//
+static const CNI_COUNTRY_DESC * CniSearchCountryTable( uint pdcCni )
+{
+   const CNI_COUNTRY_DESC * pCountry;
+   uint country;
+
+   pCountry = cni_country_table;
+   country  = pdcCni >> 8;
+
+   while (pCountry->name != NULL)
+   {
+      if (pCountry->code == country)
+      {
+         break;
+      }
+      pCountry += 1;
+   }
+
+   if (pCountry->name == NULL)
+   {
+      pCountry = NULL;
+   }
+   return pCountry;
+}
+
+// ---------------------------------------------------------------------------
+// Convert VPS codes to PDC
+// - VPS originally allowed only 4 bits country code; although it supports
+//   8 bits today, all networks still transmit only 4 bits
+//
+static uint CniConvertVpsToPdc( uint vpsCni )
+{
+   uint pdcCni;
+
+   switch (vpsCni >> 8)
+   {
+      case 0x0D:  // Germany
+      case 0x0A:  // Austria
+         pdcCni = vpsCni | 0x1000;
+         break;
+
+      case 0x04:  // Switzerland
+         pdcCni = vpsCni | 0x2000;
+         break;
+
+      default:
+         pdcCni = vpsCni;
+         break;
+   }
+   return pdcCni;
+}
+
+// ---------------------------------------------------------------------------
+// Look up the given CNI's table entry
+// - given CNI may be either PDC or P8/30/1 CNI
+//
+static const CNI_PDC_DESC * CniSearchNiPdcTable( uint cni )
+{
+   const CNI_PDC_DESC * pPdc;
+
+   pPdc = cni_pdc_desc_table;
+
+   // convert VPS codes to PDC
+   cni = CniConvertVpsToPdc(cni);
+
+   while (pPdc->name != NULL)
+   {
+      if ( (pPdc->pdc == cni) || (pPdc->ni == cni) )
+      {
+         break;
+      }
+      pPdc += 1;
+   }
+
+   if (pPdc->name == NULL)
+   {
+      pPdc = NULL;
+   }
+   return pPdc;
+}
 
 // ---------------------------------------------------------------------------
 // Search a description for the given CNI
@@ -576,64 +661,30 @@ const char * CniGetDescription( uint cni, const char ** ppCountry )
    const CNI_COUNTRY_DESC * pCountry;
    const char * pName;
    const char * pCountryName;
-   uchar country;
+
+   pName = NULL;
+   pCountryName = NULL;
 
    if (cni == 0)
    {
       debug0("Cni-GetDescription: illegal CNI 0");
-      pName = NULL;
-      pCountryName = NULL;
    }
    else if ((cni & 0xff00) == 0xff00)
    {
       pName = "unknown network (temporary network code, not officially registered)";
-      pCountryName = NULL;
    }
    else
    {
-      // convert VPS codes to PDC
-      switch (cni >> 8)
-      {
-         case 0x0D:
-         case 0x0A:
-            cni |= 0x1000;
-            break;
-         case 0x04:
-            cni |= 0x2000;
-            break;
-         default:
-            break;
-      }
-
       // search PDC/NI table for the given code
-      pName = NULL;
-      country = 0;
-      pPdc = cni_pdc_desc_table;
-
-      while (pPdc->name != NULL)
+      pPdc = CniSearchNiPdcTable(cni);
+      if (pPdc != NULL)
       {
-         if ( (pPdc->pdc == cni) || (pPdc->ni == cni) )
-         {
-            pName   = pPdc->name;
-            country = pPdc->pdc >> 8;
-            break;
-         }
-         pPdc += 1;
-      }
+         pName = pPdc->name;
 
-      // search country name
-      pCountryName = NULL;
-      if (country != 0)
-      {
-         pCountry = cni_country_table;
-         while (pCountry->name != NULL)
+         pCountry = CniSearchCountryTable(pPdc->pdc);
+         if (pCountry != NULL)
          {
-            if (pCountry->code == country)
-            {
-               pCountryName = pCountry->name;
-               break;
-            }
-            pCountry += 1;
+            pCountryName = pCountry->name;
          }
       }
    }
@@ -642,6 +693,40 @@ const char * CniGetDescription( uint cni, const char ** ppCountry )
       *ppCountry = pCountryName;
 
    return pName;
+}
+
+// ---------------------------------------------------------------------------
+// Retrieve LTO for given provider
+//
+bool CniGetProviderLto( uint cni, sint * pLto )
+{
+   const CNI_PDC_DESC * pPdc;
+   const CNI_COUNTRY_DESC * pCountry;
+   bool result = FALSE;
+
+   if (pLto != NULL)
+   {
+      if ( (cni != 0) && ((cni & 0xff00) != 0xff00) )
+      {
+         // search PDC/NI table to map NI codes to PDC
+         pPdc = CniSearchNiPdcTable(cni);
+         if (pPdc != NULL)
+         {
+            pCountry = CniSearchCountryTable(pPdc->pdc);
+            if (pCountry->name != NULL)
+            {
+               *pLto = pCountry->lto * 60;
+               result = TRUE;
+            }
+         }
+      }
+      else
+         debug1("Cni-GetProviderLto: invalid CNI 0x%04X\n", cni);
+   }
+   else
+      debug0("Cni-GetProviderLto: illegal NULL ptr param\n");
+
+   return result;
 }
 
 // ---------------------------------------------------------------------------

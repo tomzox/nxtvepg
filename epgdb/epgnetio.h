@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgnetio.h,v 1.25 2004/03/21 18:04:33 tom Exp $
+ *  $Id: epgnetio.h,v 1.26 2004/06/19 19:55:28 tom Exp $
  */
 
 #ifndef __EPGNETIO_H
@@ -131,6 +131,9 @@ bool EpgNetIo_IsLocalHost( char * pHostname );
 bool EpgNetIo_CheckConnect( void );
 int  EpgNetIo_ConnectToServer( bool use_tcp_ip, const char * pSrvHost, const char * pSrvPort, char ** ppErrorText );
 bool EpgNetIo_FinishConnect( int sock_fd, char ** ppErrorText );
+#ifndef WIN32
+void EpgNetIo_UpdateTimeout( struct timeval * pStartTime, struct timeval * pTimeout );
+#endif
 bool EpgNetIo_Init( char ** ppErrorText );
 void EpgNetIo_Destroy( void );
 

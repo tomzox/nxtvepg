@@ -20,7 +20,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgacqsrv.c,v 1.14 2004/03/11 22:26:32 tom Exp $
+ *  $Id: epgacqsrv.c,v 1.15 2004/06/19 19:52:26 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -31,6 +31,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
+#ifndef WIN32
+#include <sys/types.h>
+#endif
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
@@ -521,6 +525,11 @@ static bool EpgAcqServer_TakeMessage( EPGDBSRV_STATE *req, EPGDBSRV_MSG_BODY * p
             req->msgBuf.con_cnf.blockCompatVersion    = DUMP_COMPAT;
             req->msgBuf.con_cnf.protocolCompatVersion = PROTOCOL_COMPAT;
             req->msgBuf.con_cnf.swVersion             = EPG_VERSION_NO;
+#ifndef WIN32
+            req->msgBuf.con_cnf.daemon_pid            = getpid();
+#else
+            req->msgBuf.con_cnf.daemon_pid            = 0;
+#endif
             EpgNetIo_WriteMsg(&req->io, MSG_TYPE_CONNECT_CNF, sizeof(req->msgBuf.con_cnf), &req->msgBuf.con_cnf, FALSE);
 
             req->state = SRV_STATE_WAIT_FWD_REQ;

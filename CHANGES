@@ -5,6 +5,41 @@ features).  For patchlevel releases also internal changes might be listed in
 case they may fix bugs (or cause new ones)
 
 
+from 2.7.0 to 2.7.1 (2004-Jul-17)
+
+- bugfix in "local time" option for XML database export (times were still
+  in GMT only, regardless if the option was enabled or not)
+- added support for new XMLTV DTD 0.6 (note command line option -dump xml
+  uses the format which was used last in Control->"Export as XMLTV")
+- fixed -daemonstop option for Linux and v4l2 devices (2.6 kernels): did
+  sometimes not work after the user interface was used.
+- added support for new UNIX TV app: Zapping, i.e. reading channel table
+  from zapping.conf.  (Note: interaction with nxtvepg was implemented in
+  zapping too: you can check it out from CVS at zapping.sourceforge.net)
+- bugfix in acq stats (control menu): when connected to acquisition daemon
+  VPS/PDC info was not displayed
+- added work-around for daylight saving time changes and local time zone
+  handling specifically for Turkish provider TRT.
+- made programme list's context menu fully configurable: pre-defined
+  commands for filter and reminder control can be re-ordered now too
+  (in addition to external commands); also removed the need to press the
+  dialog's "Update" button after changes (which was a long standing entry
+  in the TODO list)
+- UNIX/X11: display Nextview logo in main window title bar (only works for
+  window managers which support the WM_ICON feature, e.g. fvwm2 or Gnome)
+- bugfix: columns in the main programme list were not resizable, i.e.
+  the pull-down menu appeared even when clicking onto the column header
+  button's right border ("single list" layout only)
+- bugfix: option "-provider merged" did not work in daemon mode (acq for
+  merged database did work though, if pre-configured as default in the
+  .nxtvepgrc or INI file)  Thanks to Georg for reporting this bug.
+- Linux: bugfix in v4l2 support (fixes problems with PVR-350 cards.)
+  Thanks to Urs Schaufelberger and Hans Verkuil for the patch.
+- Windows only: fixed weekday colors in datescale: did not match those
+  in the "weekday color" attribute in the programme list; thanks to
+  everyone who reported this bug in the forum.
+
+
 from 2.6.0 to 2.7.0 (2004-Apr-02)
 
 - changed shortcut presentation from flat list into hierarchical tree, i.e.
@@ -21,7 +56,7 @@ from 2.6.0 to 2.7.0 (2004-Apr-02)
 - improved TV app EPG OSD for channels with multiple networks (Arte/Fr5):
   using user-configured "air times" in network selection configuration dialog
   to determine which network is currently received in case VPS/PDC is not
-  available (suggested by "salokyn" in forum)
+  available. Thanks to salokyn for the suggestion.
 - added work-around for flip-flopping of program title popups on Arte/Fr5
   in France: appearently Fr5 sends Fr5 PDC code, but Arte VPS. Solved by
   allowing to suppress false EPG popups by means of air times configuration.
@@ -35,6 +70,7 @@ from 2.6.0 to 2.7.0 (2004-Apr-02)
 - Linux: set channel change priority to "background" to prevent channel changes
   while TV app is running (for v4l2 drivers, e.g. saa7134 or bttv9; requires
   kernel >= 2.6.2 or recent v4l2 modules snapshots from http://bytesex.org/)
+  Thanks to Gerd Knorr for accepting this feature in his video4linux drivers.
 - Windows: added new command line option -remctrl: can be used to remote
   control an other, previously started GUI instance (i.e. non-daemon) of
   nxtvepg. Currently supported are commands to start/stop acquisition,
@@ -49,9 +85,12 @@ from 2.6.0 to 2.7.0 (2004-Apr-02)
   i.e. Windows can load databases written by Linux and vice versa without
   renaming the files (note: use -dbdir command line option to specify the
   path to the directory with the alternate OS's databases)
+- right mouse button in main window now selects the programme entry below
+  the mouse before opening the context menu; Previously the selection was not
+  changed. Thanks to Jörg for the suggestion.
 - bugfix in user-defined context menu commands based on !wintv! and !xawtv!:
   argument count which was reported to the external program was wrong, hence
-  some apps did not accept the command.
+  some apps did not accept the command. Thanks to Rami for debugging support.
 - compile and build process improvements: added warning message to Makefile
   make is started with "make nxtvepg" (you should type only "make") to prevent
   make failure due to missing header files.  Also note the build process was
