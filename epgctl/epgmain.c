@@ -19,9 +19,9 @@
  *    GUI main loop.
  *    See README in the top level directory for a general description.
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: epgmain.c,v 1.53 2001/02/10 15:22:15 tom Exp tom $
+ *  $Id: epgmain.c,v 1.54 2001/02/25 16:03:08 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL

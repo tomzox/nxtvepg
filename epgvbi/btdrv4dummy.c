@@ -16,9 +16,9 @@
  *
  *    This is a dummy interface for systems without a Bt8x8 driver.
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: btdrv4dummy.c,v 1.2 2000/12/30 15:38:45 tom Exp tom $
+ *  $Id: btdrv4dummy.c,v 1.3 2001/02/25 15:59:43 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI

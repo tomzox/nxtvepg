@@ -32,9 +32,9 @@
  *    any provider that's found, a database is created and the frequency
  *    saved in its header.
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: epgscan.c,v 1.7 2001/02/04 20:15:21 tom Exp tom $
+ *  $Id: epgscan.c,v 1.10 2001/02/26 22:07:14 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -120,6 +120,7 @@ static void EventHandler_EpgScan( ClientData clientData )
    const EPGDBSAV_PEEK *pPeek;
    const AI_BLOCK *pAi;
    time_t now = time(NULL);
+   uchar chanName[10];
    ulong freq;
    ulong ttxPkgCount, epgPkgCount, epgPageCount;
    uint cni, dataPageCnt;
@@ -197,7 +198,11 @@ static void EventHandler_EpgScan( ClientData clientData )
          if ((cni != 0) && ((scanCtl.state <= SCAN_STATE_WAIT_NI) || (scanCtl.state == SCAN_STATE_WAIT_NI_OR_EPG)))
          {
             dprintf2("Found CNI 0x%04X on channel %d\n", cni, scanCtl.channel);
-            sprintf(comm, "Channel %d: network id 0x%04X", scanCtl.channel, cni);
+            if (scanCtl.doRefresh == FALSE)
+               TvChannels_GetName(scanCtl.channel, chanName, 10);
+            else
+               sprintf(chanName, "#%d", scanCtl.channel);
+            sprintf(comm, "Channel %s: network id 0x%04X", chanName, cni);
             MenuCmd_AddEpgScanMsg(comm);
             pPeek = EpgDbPeek(cni, NULL);
             if (pPeek != NULL)
@@ -357,6 +362,7 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool doRefresh
    ulong freq;
    bool  isTuner;
    EPGSCAN_START_RESULT result;
+   uchar chanName[10];
 
    scanCtl.doRefresh     = doRefresh;
    scanCtl.doSlow        = doSlow;
@@ -406,7 +412,10 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool doRefresh
                scanCtl.signalFound = 0;
 
                if (scanCtl.doRefresh == FALSE)
-                  sprintf(comm, "Starting scan on channel %d", scanCtl.channel);
+               {
+                  TvChannels_GetName(scanCtl.channel, chanName, 10);
+                  sprintf(comm, "Starting scan on channel %s", chanName);
+               }
                else
                   sprintf(comm, "Starting scan on %d known channels", scanCtl.provFreqCount);
                MenuCmd_AddEpgScanMsg(comm);

@@ -11,11 +11,12 @@
  *  MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
+ *
  *  Description: see according C source file.
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: menucmd.h,v 1.6 2000/12/11 18:48:41 tom Exp tom $
+ *  $Id: menucmd.h,v 1.7 2001/02/25 16:03:47 tom Exp tom $
  */
 
 #ifndef __MENUCMD_H

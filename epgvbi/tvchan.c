@@ -23,14 +23,18 @@
  *    which is (was) part of the bttv driver package for Linux.
  *    Copyright (C) 1996,97 Ralph Metzler  (rjkm@thp.uni-koeln.de)
  *                        & Marcus Metzler (mocm@thp.uni-koeln.de)
+ *    Updated from xawtv-3.21,
+ *    Copyright (C) Gerd Knorr <kraxel@goldbach.in-berlin.de>
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: tvchan.c,v 1.1 2000/12/09 14:03:38 tom Exp tom $
+ *  $Id: tvchan.c,v 1.4 2001/02/26 20:33:40 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
 #define DPRINTF_OFF
+
+#include <string.h>
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
@@ -47,35 +51,93 @@ typedef struct
    double  freqOffset;     // freq offset between two channels in this band
    uint    firstChannel;
    uint    lastChannel;
+   const uchar * prefix;   // prefix for the channel name
+   uint    idxOffset;      // start index of a band namespace
 } FREQ_TABLE;
 
-// channel table for Europe
-#define FIRST_CHANNEL   2
-const FREQ_TABLE freqTable[] =
-{  // must be sorted by channel numbers
-   { 48.25,   66.25, 7.0,   2,   4},
-   {175.25,  228.25, 7.0,   5,  12},
-   {471.25,  859.25, 8.0,  21,  69},
-   {112.25,  172.25, 7.0,  72,  80},
-   {231.25,  298.25, 7.0,  81,  90},
-   {303.25,  451.25, 8.0,  91, 109},
-   {455.25,  471.25, 8.0, 110, 112},
-   {859.25, 1175.25, 8.0, 161, 200}
-};
-#define FREQ_TABLE_COUNT  (sizeof(freqTable)/sizeof(FREQ_TABLE))
 
+// channel table for Western Europe
+const FREQ_TABLE freqTableEurope[] =
+{  // must be sorted by channel numbers
+   { 48.25,   66.25, 7.0,   2,   4,  "E",   0},   // CCIR I/III (2-4)
+   {175.25,  228.25, 7.0,   5,  12,  "E",   0},   // CCIR I/III (5-12)
+   {471.25,  859.25, 8.0,  21,  69,   "",   0},   // UHF (21-69)
+   {105.25,  172.25, 7.0,  71,  80, "SE",  70},   // CCIR SL/SH (S1-10)
+   {231.25,  298.25, 7.0,  81,  90, "SE",  70},   // CCIR SL/SH (S11-20)
+   {303.25,  467.25, 8.0,  91, 111,  "S",  70},   // CCIR H (S21-41)
+   { 69.25,  101.25, 7.0, 112, 116, "S0", 111},   // CCIR I/III (S42-46, Belgium only)
+   {     0,       0, 0.0,   0,   0,   "",   0}
+};
+
+// channel table for France
+const FREQ_TABLE freqTableFrance[] =
+{  // must be sorted by channel numbers
+   { 47.75,   51.75, 0.0,   1,   1,  "K",   0},   // K1
+   { 55.75,   58.50, 0.0,   2,   2,  "K",   0},   // K2
+   { 60.50,   62.25, 0.0,   3,   3,  "K",   0},   // K3
+   { 63.75,   69.50, 0.0,   4,   4,  "K",   0},   // K4
+   {176.00,  220.00, 8.0,   5,  10,  "K",   0},   // K5 - K10
+   {471.25,  859.25, 8.0,  21,  69,   "",   0},   // UHF (21-69)
+   {303.25,  451.25, 8.0,  71,  89,  "H",  70},   // H01 - H19
+   {116.75,  302.75,12.0, 102, 117,  "K",  91},   // KB - KQ
+   {     0,       0, 0.0,   0,   0,   "",   0}
+};
+
+const FREQ_TABLE * const freqTableList[] =
+{
+   freqTableEurope,
+   freqTableFrance
+};
+
+
+// index of the frequency table currently in use
+static uint freqTabIdx = 0;
+
+// ---------------------------------------------------------------------------
+// Builds the name for a given channel number
+//
+void TvChannels_GetName( uint channel, uchar * pName, uint maxNameLen )
+{
+   const uchar *prefix;
+   const FREQ_TABLE *ft;
+   uchar buf[20];
+
+   prefix = "";
+   ft = freqTableList[freqTabIdx];
+   while (ft->firstChannel > 0)
+   {
+      if (channel <= ft->lastChannel)
+      {
+         if (channel >= ft->firstChannel)
+         {
+            prefix   = ft->prefix;
+            channel -= ft->idxOffset;
+         }
+         else
+            prefix = "?";
+         break;
+      }
+      ft += 1;
+   }
+
+   sprintf(buf, "%s%d", prefix, channel);
+   strncpy(pName, buf, maxNameLen);
+}
 
 // ---------------------------------------------------------------------------
 // Get number of channels in table (for EPG scan progress bar)
 //
 int TvChannels_GetCount( void )
 {
-   int band, count;
+   const FREQ_TABLE *ft;
+   int count;
 
    count = 0;
-   for (band=0; band < FREQ_TABLE_COUNT; band++)
+   ft = freqTableList[freqTabIdx];
+   while (ft->firstChannel > 0)
    {
-      count += freqTable[band].lastChannel - freqTable[band].firstChannel + 1;
+      count += ft->lastChannel - ft->firstChannel + 1;
+      ft += 1;
    }
    return count;
 }
@@ -85,29 +147,43 @@ int TvChannels_GetCount( void )
 //
 bool TvChannels_GetNext( uint *pChan, ulong *pFreq )
 {
-   int band;
+   const FREQ_TABLE *ft;
 
-   if (*pChan < FIRST_CHANNEL)
-      *pChan = FIRST_CHANNEL;
+   ft = freqTableList[freqTabIdx];
+
+   if (*pChan == 0)
+      *pChan = ft->firstChannel;
    else
       *pChan = *pChan + 1;
 
-   for (band=0; band < FREQ_TABLE_COUNT; band++)
+   // search the channel in the channel bands table
+   while (ft->firstChannel > 0)
    {
       // assume that the table is sorted by channel numbers
-      if (*pChan < freqTable[band].lastChannel)
+      if (*pChan <= ft->lastChannel)
       {
          // skip possible channel gap between bands
-         if (*pChan < freqTable[band].firstChannel)
-            *pChan = freqTable[band].firstChannel;
+         if (*pChan < ft->firstChannel)
+            *pChan = ft->firstChannel;
 
          // get the frequency of this channel
-         *pFreq = (ulong) (16.0 * (freqTable[band].freqStart +
-                                  (*pChan - freqTable[band].firstChannel) * freqTable[band].freqOffset));
+         *pFreq = (ulong) (16.0 * (ft->freqStart + (*pChan - ft->firstChannel) * ft->freqOffset));
          break;
       }
+      ft += 1;
    }
 
-   return (band < FREQ_TABLE_COUNT);
+   return (ft->firstChannel > 0);
+}
+
+// ---------------------------------------------------------------------------
+// Select the channel table
+//
+void TvChannels_SelectFreqTable( uint tableIdx )
+{
+   if (tableIdx <= 1)
+      freqTabIdx = tableIdx;
+   else
+      debug1("TvChannels-SelectFreqTable: illegal index %d - ignored", tableIdx);
 }
 

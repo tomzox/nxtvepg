@@ -14,9 +14,9 @@
  *
  *  Description: see according C source file.
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: epgctxctl.h,v 1.3 2001/01/21 12:29:46 tom Exp tom $
+ *  $Id: epgctxctl.h,v 1.4 2001/02/25 16:03:08 tom Exp tom $
  */
 
 #ifndef __EPGCTXCTL_H

@@ -14,9 +14,9 @@
  *
  *  Description: see according C source file.
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: vbidecode.h,v 1.13 2000/12/09 16:50:51 tom Exp tom $
+ *  $Id: vbidecode.h,v 1.15 2001/02/25 15:59:43 tom Exp tom $
  */
 
 #ifndef __VBIDECODE_H
@@ -27,6 +27,7 @@
 // Declaration of service interface functions
 //
 void VbiDecodeLine( const uchar *lbuf, int line, bool doVps );
+void VbiDecodeLostFrame( void );
 
 
 #endif // __VBIDECODE_H

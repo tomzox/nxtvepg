@@ -11,11 +11,12 @@
  *  MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
+ *
  *  Description: see according C source file.
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: pdc_themes.h,v 1.2 2000/09/26 13:56:48 tom Exp tom $
+ *  $Id: pdc_themes.h,v 1.3 2001/02/25 16:03:47 tom Exp tom $
  */
 
 #ifndef __PDC_THEMES_H

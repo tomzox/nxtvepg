@@ -11,6 +11,7 @@
  *  MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
+ *
  *  Description:
  *
  *    Implements pop-up windows with statistics about the current
@@ -21,9 +22,9 @@
  *    a history diagram reflects the percentage of received blocks,
  *    separated in stream 1 (red) and 2 (blue).
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: statswin.c,v 1.31 2001/02/07 17:54:52 tom Exp tom $
+ *  $Id: statswin.c,v 1.32 2001/02/25 16:03:47 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI

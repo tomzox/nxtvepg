@@ -22,9 +22,9 @@
 #    should contain the converted files, so that the user is not forced
 #    to install Perl.
 #
-#  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+#  Author: Tom Zoerner
 #
-# $Id: nxtvepg.pod,v 1.27 2001/02/14 21:26:41 tom Exp tom $
+# $Id: nxtvepg.pod,v 1.31 2001/02/26 21:45:41 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME
@@ -198,15 +198,17 @@ menu and specify the type of your tuner. In Germany, Austria and
 Switzerland it should be either Philips PAL or Temic PAL. In France
 it's one of the SECAM types. Then select how your card's I<PLL> needs
 to be set up. On most cards it's either I<No init> or I<28 MHz>.
-If you're not sure about your configuration, try them one by one and
-run an EPG scan inbetween to check if the tuner works.
+If you're not sure about your configuration, start with the topmost and
+then try them one after each other and start an EPG scan inbetween to
+check if the tuner works. If this seems too much work, open your PC
+and read the manufacturer from the metal tuner box on the TV tuner card.
 
 If you don't have an antenna connected to your PC, you can select an
 external source for video input. If you have problems see F<README>
 for more details and a list of error messages from the Windows driver.
 
-UNIX users just need to check if the correct input source is selected
-in the TV card input popup menu.
+UNIX users just need to check if the correct input source and
+frequency table are selected in the TV card input popup menu.
 
 In the next step - if you chose to use the TV tuner - run a provider
 scan from the Configure menu.  During the scan all TV channels are
@@ -670,7 +672,7 @@ I<now or next> (range 0-1).
 =item B<Networks>
 
 Restrict the listing to programmes of the given networks. Note that the
-order and selection of networks can be configured (see I<Configure> menu).
+order and selection of networks can be configured (see L<"CONFIGURATION">).
 
 
 =item B<Text search>
@@ -806,19 +808,37 @@ Windows: When acquisition is switched off, the driver is unloaded.
 =item B<Dump stream>
 
 UNIX only: All incoming Nextview blocks are dumped to I<stdout>
-in an ASCII format. This is intended for developers only.
+in an ASCII format. This is mainly intended for developers, but
+it may also help to debug reception problems, because in the dump
+you'll find any block that could be decoded without hamming errors,
+even before an inventory block (AI) has been received. This may help
+if you have very bad reception, because it may take a long time
+until a error-free copy of the usually large AI block is received.
 
 
 =item B<Dump database>
 
 Allows to dump all blocks of selected types in the database to
-I<stdout> (UNIX only) or into the given file.  Also for developers only.
+I<stdout> (UNIX only) or into the given file.  Also intended for
+developers mainly.
 
 
 =item B<View timescales>
 
-Toggles the timescale window for the browser database.
-See L<"STATISTICS"> for details.
+Toggles the timescale window for the browser database. The window
+reflects for each network included in the selected database, which
+time ranges are covered by programme information. If acquisition
+is working on the database, you can watch how more and more of the
+scales get covered.  See L<"STATISTICS"> for details.
+
+
+=item B<View statistics>
+
+Toggles the browser database statistics window, which informs you about
+number of program entries in the database, fill percentage, expiration
+percentage, date of last update etc.  If the acquisition is working on
+the same database, it also contains information about state and progress
+of acquisition.  See L<"STATISTICS"> for details.
 
 
 =item B<View acq timescales>
@@ -828,17 +848,12 @@ is only available if the acquisition uses a different database than
 the browser.
 
 
-=item B<Statistics>
-
-Toggles the browser database statistics window, which informs you about
-number of entries in the database, fill percentage, expiration percentage,
-date of last update etc.  See L<"Data Acquisition"> for details.
-
-
-=item B<Acq statistics>
+=item B<View acq statistics>
 
 Toggles the acquisition statistics window, which informs you about
-state and progress of acquisition. See L<"Data Acquisition"> for details.
+state and progress of acquisition. If the acquisition control mechanism
+switches to a different database, the acq statistics window will
+automatically follow.  See L<"DATA ACQUISITION"> for details.
 
 
 =item B<Quit>
@@ -906,19 +921,20 @@ complete provider list very quickly.
 
 Open a popup where the driver for the TV card can be configured.
 On Windows systems you must at least specify which type of tuner
-is on your card, and if the PLL needs to be initialized. You can
+is on your card, and how the PLL needs to be initialized. You can
 check your setting by starting an EPG scan: if nothing is found,
 try a different setting (or check the antenna cable). For more
 details see F<README>, particularily if you get error messages
 from the Bt8x8 driver. If you experience data loss due to heavy
-system load, you should raise the acquisition thread priority.
+system load, you can raise the acquisition thread priority.
 
-On Linux systems only the remaining two configuration options
-apply: you may choose which video input source to use. See
-L<"DATA ACQUISITION"> about the consequences of not using the
-TV tuner as input.  If you have more than one TV tuner card,
-you can also choose which one to use, just like with the B<-card>
-command line option.
+On Linux systems only the remaining three configuration options
+apply: firstly you may choose which video input source to use.
+See L<"DATA ACQUISITION"> about the consequences of not using the
+TV tuner as input. If you live in France, select the French
+frequency table to be used for the EPG scan.
+If you have more than one TV tuner card, you can also choose which
+one to use, just like with the B<-card> command line option.
 
 
 =item B<Select columns...>
@@ -1097,7 +1113,7 @@ for instructions on which information must be included in a bug report.
 
 Tom Zoerner, Erlangen, Germany.
 
-Email: Tom.Zoerner (at) informatik.uni-erlangen.de
+Email: tomzo (at) nefkom (dot) net
 
 Many thanks to Mario Kemper for the NetBSD port and beta testing;
 to "Mario's brother" for beta testing the Windows port;

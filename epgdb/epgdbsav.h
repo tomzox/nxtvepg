@@ -11,11 +11,12 @@
  *  MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
+ *
  *  Description: see according C source file.
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: epgdbsav.h,v 1.24 2001/02/06 19:06:02 tom Exp tom $
+ *  $Id: epgdbsav.h,v 1.25 2001/02/25 16:00:45 tom Exp tom $
  */
 
 #ifndef __EPGDBSAV_H

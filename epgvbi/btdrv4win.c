@@ -38,15 +38,16 @@
  *                             & Marcus Metzler (mocm@thp.uni-koeln.de)
  *
  *    Tuner and I2C bus (from bttv driver for Linux)
- *      Copyright (C) 1997,1998 Gerd Knorr <kraxel@goldbach.in-berlin.de>
+ *      Copyright (C) 1997 Markus Schroeder (schroedm@uni-duesseldorf.de)
+ *      Copyright (C) 1997,1998 Gerd Knorr (kraxel@goldbach.in-berlin.de)
  *
  *    WinDriver adaption (from MultiDec)
- *      Copyright (C) 2000 Espresso <echter_espresso@hotmail.com>
+ *      Copyright (C) 2000 Espresso (echter_espresso@hotmail.com)
  *
  *    VBI only adaption and nxtvepg integration
- *      Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *      Tom Zoerner
  *
- *  $Id: btdrv4win.c,v 1.11 2001/02/03 20:29:34 tom Exp tom $
+ *  $Id: btdrv4win.c,v 1.13 2001/02/26 21:40:36 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -92,7 +93,7 @@ static WD_DMA Vbi_dma;
 #define I2C_COMMAND (I2C_TIMING | BT848_I2C_SCL | BT848_I2C_SDA)
 
 
-static BYTE TunerDeviceWrite, TunerDeviceRead;
+static BYTE TunerDeviceI2C;
 
 
 static HANDLE Bt_Device_Handle;
@@ -106,35 +107,87 @@ static CRITICAL_SECTION m_cCrit;    //semaphore for I2C access
 
 struct TTunerType
 {
-  const char * name;
-  WORD thresh1;         // frequency range for UHF, VHF-L, VHF_H
-  WORD thresh2;
-  BYTE VHF_L;
-  BYTE VHF_H;
-  BYTE UHF;
-  BYTE config;
-  BYTE I2C;
-  WORD IFPCoff;
+   uchar  *name;
+   uchar  vendor;
+   uchar  type;
+
+   double thresh1;       // frequency range for UHF, VHF-L, VHF_H
+   double thresh2;
+   uchar  VHF_L;
+   uchar  VHF_H;
+   uchar  UHF;
+   uchar  config;
+   ushort IFPCoff;
 };
 
+// Tuner type table, copied from bttv tuner driver
+static const struct TTunerType Tuners[] = {
+   // Note: order must be identical to enum in header file!
+   { "none", NoTuner, NOTUNER,
+     0,0,0x00,0x00,0x00,0x00,0x00},
 
-static struct TTunerType Tuners[] =
-{
-   { "none",          0                ,0                ,0x00,0x00,0x00,0x00,0x00,  0},
-   { "Temic PAL",     2244/*16*140.25*/,7412/*16*463.25*/,0x02,0x04,0x01,0x8e,0xc2,623},
-   { "Philips Pal I", 2244/*16*140.25*/,7412/*16*463.25*/,0xa0,0x90,0x30,0x8e,0xc0,623},
-   { "Philips NTSC",  2516/*16*157.25*/,7220/*16*451.25*/,0xA0,0x90,0x30,0x8e,0xc0,732},
-   { "Philips SECAM", 2692/*16*168.25*/,7156/*16*447.25*/,0xA7,0x97,0x37,0x8e,0xc0,623},
-   { "Philips PAL",   2692/*16*168.25*/,7156/*16*447.25*/,0xA0,0x90,0x30,0x8e,0xc0,623},
-   { "Temic NTSC",    2516/*16*157.25*/,7412/*16*463.25*/,0x02,0x04,0x01,0x8e,0xc2,732},
-   { "Temic PAL I",   2720/*16*170.00*/,7200/*16*450.00*/,0xa0,0x90,0x30,0x8e,0xc2,623},
+   { "Temic PAL (4002 FH5)", TEMIC, PAL,
+     16*140.25,16*463.25,0x02,0x04,0x01,0x8e,623},
+   { "Philips PAL_I", Philips, PAL_I,
+     16*140.25,16*463.25,0xa0,0x90,0x30,0x8e,623},
+   { "Philips NTSC", Philips, NTSC,
+     16*157.25,16*451.25,0xA0,0x90,0x30,0x8e,732},
+
+   { "Philips SECAM", Philips, SECAM,
+     16*168.25,16*447.25,0xA7,0x97,0x37,0x8e,623},
+   { "Philips PAL", Philips, PAL,
+     16*168.25,16*447.25,0xA0,0x90,0x30,0x8e,623},
+   { "Temic NTSC (4032 FY5)", TEMIC, NTSC,
+     16*157.25,16*463.25,0x02,0x04,0x01,0x8e,732},
+   { "Temic PAL_I (4062 FY5)", TEMIC, PAL_I,
+     16*170.00,16*450.00,0x02,0x04,0x01,0x8e,623},
+
+   { "Temic NTSC (4036 FY5)", TEMIC, NTSC,
+     16*157.25,16*463.25,0xa0,0x90,0x30,0x8e,732},
+   { "Alps HSBH1", TEMIC, NTSC,
+     16*137.25,16*385.25,0x01,0x02,0x08,0x8e,732},
+   { "Alps TSBE1",TEMIC,PAL,
+     16*137.25,16*385.25,0x01,0x02,0x08,0x8e,732},
+   { "Alps TSBB5", Alps, PAL_I, /* tested (UK UHF) with Modtec MM205 */
+     16*133.25,16*351.25,0x01,0x02,0x08,0x8e,632},
+
+   { "Alps TSBE5", Alps, PAL, /* untested - data sheet guess. Only IF differs. */
+     16*133.25,16*351.25,0x01,0x02,0x08,0x8e,622},
+   { "Alps TSBC5", Alps, PAL, /* untested - data sheet guess. Only IF differs. */
+     16*133.25,16*351.25,0x01,0x02,0x08,0x8e,608},
+   { "Temic PAL_I (4006FH5)", TEMIC, PAL_I,
+     16*170.00,16*450.00,0xa0,0x90,0x30,0x8e,623}, 
+   { "Alps TSCH6",Alps,NTSC,
+     16*137.25,16*385.25,0x14,0x12,0x11,0x8e,732},
+
+   { "Temic PAL_DK (4016 FY5)",TEMIC,PAL,
+     16*136.25,16*456.25,0xa0,0x90,0x30,0x8e,623},
+   { "Philips NTSC_M (MK2)",Philips,NTSC,
+     16*160.00,16*454.00,0xa0,0x90,0x30,0x8e,732},
+   { "Temic PAL_I (4066 FY5)", TEMIC, PAL_I,
+     16*169.00, 16*454.00, 0xa0,0x90,0x30,0x8e,623},
+   { "Temic PAL* auto (4006 FN5)", TEMIC, PAL,
+     16*169.00, 16*454.00, 0xa0,0x90,0x30,0x8e,623},
+
+   { "Temic PAL (4009 FR5)", TEMIC, PAL,
+     16*141.00, 16*464.00, 0xa0,0x90,0x30,0x8e,623},
+   { "Temic NTSC (4039 FR5)", TEMIC, NTSC,
+     16*158.00, 16*453.00, 0xa0,0x90,0x30,0x8e,732},
+   { "Temic PAL/SECAM multi (4046 FM5)", TEMIC, PAL,
+     16*169.00, 16*454.00, 0xa0,0x90,0x30,0x8e,623},
+   { "Philips PAL_DK", Philips, PAL,
+     16*170.00,16*450.00,0xa0,0x90,0x30,0x8e,623},
+
+   { "Philips PAL/SECAM multi (FQ1216ME)", Philips, PAL,
+     16*170.00,16*450.00,0xa0,0x90,0x30,0x8e,623}
 };
+
 #define TUNERS_COUNT (sizeof(Tuners) / sizeof(struct TTunerType))
 #define INVALID_INPUT_SOURCE  4
 
 static int TvCardIndex = 0;
 static int TvCardCount = 0;
-static int TunerType = 0;
+static TUNER_TYPE TunerType = TUNER_NONE;
 static int ThreadPrio = 0;
 static int PllType = 0;
 static int InputSource = INVALID_INPUT_SOURCE;
@@ -830,35 +883,53 @@ I2CBus_AddDevice (BYTE I2C_Port)
 }
 
 // ---------------------------------------------------------------------------
-// Set TSA5522 synthesizer frequency
+// Set TV tuner synthesizer frequency
 //
-static BOOL Tuner_SetFrequency( int TunerTyp, int wFrequency )
+static BOOL Tuner_SetFrequency( int type, int wFrequency )
 {
+   const struct TTunerType *pTun;
+   double dFrequency;
    BYTE config;
    WORD div;
    BOOL bAck;
 
-   if (TunerTyp < TUNERS_COUNT)
+   if ((type < TUNERS_COUNT) && (type != TUNER_NONE))
    {
-      if (wFrequency < Tuners[TunerTyp].thresh1)
-         config = Tuners[TunerTyp].VHF_L;
-      else if (wFrequency < Tuners[TunerTyp].thresh2)
-         config = Tuners[TunerTyp].VHF_H;
-      else
-         config = Tuners[TunerTyp].UHF;
+      pTun = Tuners + type;
+      dFrequency = (double) wFrequency;
 
-      div = wFrequency + Tuners[TunerTyp].IFPCoff;
+      if (dFrequency < pTun->thresh1)
+         config = pTun->VHF_L;
+      else if (dFrequency < pTun->thresh2)
+         config = pTun->VHF_H;
+      else
+         config = pTun->UHF;
+
+      // tv norm specification for multi-norm tuners
+      switch (type)
+      {
+         case TUNER_TEMIC_4046FM5:
+            config |= TEMIC_SET_PAL_BG;
+            break;
+         case PHILIPS_SET_PAL_BGDK:
+            config |= PHILIPS_SET_PAL_BGDK;
+            break;
+         default:
+            break;
+      }
+
+      div = (WORD)dFrequency + pTun->IFPCoff;
 
       div &= 0x7fff;
       I2CBus_Lock ();              // Lock/wait
 
-      if (!I2CBus_Write ((BYTE) TunerDeviceWrite, (BYTE) ((div >> 8) & 0x7f), (BYTE) (div & 0xff), TRUE))
+      if (!I2CBus_Write ((BYTE) TunerDeviceI2C, (BYTE) ((div >> 8) & 0x7f), (BYTE) (div & 0xff), TRUE))
       {
          Sleep (1);
-         if (!I2CBus_Write ((BYTE) TunerDeviceWrite, (BYTE) ((div >> 8) & 0x7f), (BYTE) (div & 0xff), TRUE))
+         if (!I2CBus_Write ((BYTE) TunerDeviceI2C, (BYTE) ((div >> 8) & 0x7f), (BYTE) (div & 0xff), TRUE))
          {
             Sleep (1);
-            if (!I2CBus_Write ((BYTE) TunerDeviceWrite, (BYTE) ((div >> 8) & 0x7f), (BYTE) (div & 0xff), TRUE))
+            if (!I2CBus_Write ((BYTE) TunerDeviceI2C, (BYTE) ((div >> 8) & 0x7f), (BYTE) (div & 0xff), TRUE))
             {
                debug0("Tuner_SetFrequency: i2c write failed for word #1");
                I2CBus_Unlock ();   // Unlock
@@ -867,13 +938,13 @@ static BOOL Tuner_SetFrequency( int TunerTyp, int wFrequency )
             }
          }
       }
-      if (!(bAck = I2CBus_Write (TunerDeviceWrite, Tuners[TunerTyp].config, config, TRUE)))
+      if (!(bAck = I2CBus_Write (TunerDeviceI2C, pTun->config, config, TRUE)))
       {
          Sleep (1);
-         if (!(bAck = I2CBus_Write (TunerDeviceWrite, Tuners[TunerTyp].config, config, TRUE)))
+         if (!(bAck = I2CBus_Write (TunerDeviceI2C, pTun->config, config, TRUE)))
          {
             Sleep (1);
-            if (!(bAck = I2CBus_Write (TunerDeviceWrite, Tuners[TunerTyp].config, config, TRUE)))
+            if (!(bAck = I2CBus_Write (TunerDeviceI2C, pTun->config, config, TRUE)))
             {
                debug0("Tuner_SetFrequency: i2c write failed for word #2");
             }
@@ -884,8 +955,8 @@ static BOOL Tuner_SetFrequency( int TunerTyp, int wFrequency )
       if (!bAck)
          return FALSE;
    }
-   else
-      debug1("Tuner_SetFrequency: illegal tuner idx %d", TunerTyp);
+   else if (type != TUNER_NONE)
+      debug1("Tuner_SetFrequency: illegal tuner idx %d", type);
 
    return TRUE;
 }
@@ -903,14 +974,12 @@ BOOL Init_Tuner( int TunerNr )
       InitializeCriticalSection (&m_cCrit);
 
       j = 0xc0;
-      TunerDeviceRead = Tuners[TunerNr].I2C = j;
-      TunerDeviceWrite = Tuners[TunerNr].I2C = j;
+      TunerDeviceI2C = j;
 
       while ((j <= 0xce) && (I2CBus_AddDevice ((BYTE) j) == FALSE))
       {
          j++;
-         TunerDeviceRead = Tuners[TunerNr].I2C = j;
-         TunerDeviceWrite = Tuners[TunerNr].I2C = j;
+         TunerDeviceI2C = j;
       }
 
       if (j <= 0xce)

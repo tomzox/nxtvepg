@@ -14,9 +14,9 @@
  *
  *  Description: see according C source file.
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: epgdbacq.h,v 1.10 2001/01/20 15:43:51 tom Exp tom $
+ *  $Id: epgdbacq.h,v 1.12 2001/02/25 16:00:45 tom Exp tom $
  */
 
 #ifndef __EPGDBACQ_H
@@ -50,6 +50,7 @@ void EpgDbAcqEnableVpsPdc( bool enable );
 // interface to the teletext packet decoder
 bool EpgDbAcqAddPacket( uint pageNo, uint sub, uchar pkgno, const uchar * data );
 void EpgDbAcqAddVpsCode( uint cni );
+void EpgDbAcqLostFrame( void );
 
 // interface to the main event control - should be called every 40 ms in average
 void EpgDbAcqProcessPackets( EPGDB_CONTEXT * const * pdbc );

@@ -11,11 +11,12 @@
  *  MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
+ *
  *  Description: see according C source file.
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: epgacqctl.h,v 1.23 2001/01/28 11:34:55 tom Exp tom $
+ *  $Id: epgacqctl.h,v 1.24 2001/02/25 16:03:08 tom Exp tom $
  */
 
 #ifndef __EPGACQCTL_H

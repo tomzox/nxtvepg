@@ -18,9 +18,9 @@
  *    as defined in epgblock.h.  See ETS 300 707 (Nextview Spec.),
  *    chapters 10 to 11 for details.
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: epgblock.c,v 1.31 2001/02/06 19:00:07 tom Exp tom $
+ *  $Id: epgblock.c,v 1.32 2001/02/25 16:00:45 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB

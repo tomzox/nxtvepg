@@ -22,9 +22,9 @@
  *    matching criteria given in a filter context. For a list of
  *    blocks and their content, see ETS 300 707 (Nextview spec.)
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: epgdbif.c,v 1.22 2001/01/20 15:49:09 tom Exp tom $
+ *  $Id: epgdbif.c,v 1.23 2001/02/25 16:00:45 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB

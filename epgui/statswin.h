@@ -11,11 +11,12 @@
  *  MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
+ *
  *  Description: see according C source file.
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: statswin.h,v 1.7 2001/01/21 20:43:16 tom Exp tom $
+ *  $Id: statswin.h,v 1.8 2001/02/25 16:03:47 tom Exp tom $
  */
 
 #ifndef __STATSWIN_H

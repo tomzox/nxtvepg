@@ -19,9 +19,9 @@
  *    debugging the transmitted data (which often contains errors
  *    or inconsistancies, like overlapping running times)
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: epgtxtdump.c,v 1.14 2001/02/06 19:00:07 tom Exp tom $
+ *  $Id: epgtxtdump.c,v 1.15 2001/02/25 16:00:45 tom Exp tom $
  */
 
 #define __EPGTXTDUMP_C

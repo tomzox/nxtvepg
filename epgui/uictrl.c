@@ -11,6 +11,7 @@
  *  MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
+ *
  *  Description:
  *
  *    This module takes background messages from lower layers for the GUI,
@@ -18,9 +19,9 @@
  *    message box.  The module also manages side-effects from switching the
  *    browser database.
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: uictrl.c,v 1.8 2001/02/04 20:22:35 tom Exp tom $
+ *  $Id: uictrl.c,v 1.9 2001/02/25 16:03:47 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI

@@ -23,7 +23,7 @@ WIN32 port fixes:
 
 required bttv driver fixes:
 - setting input source via /dev/vbi is not possible
-- need to use frame counter to check for lost frames
+  (waiting for answer from Gerd Knorr to mail from Feb/21/2001)
 
 merged database fixes:
 - fine control for provider merge
@@ -37,7 +37,6 @@ other required fixes:
 - short info text view is set to line 1.0 during every update
 - cmd line option "predatory": in this mode the tuner is set via /dev/vbi
   regardless of other /dev/video users
-- use frame counter at the end of the frame buffer
 - do not tune channel if vbi busy
 - filter shortcut combination logic modes: OR,AND
 - provider-specific shortcuts: are listed only for one provider
@@ -50,13 +49,13 @@ other required fixes:
 
 possible new features: (in order of decreasing priority)
 - Use Tix library to improve GUI
-- add hyperlinks in the online help menus for all section references
+- add hyperlinks in the online help menus for all cross-references
 - TV channel switching for NOW programmes
 - timezone popup (GUI already implemented)
 - timer programming and invocation or external dispatch
-- long-term search: maintain list of search filters that are applied each time
-  new data has been acquired; notify the user when a matching PI arrives. This
-  can be used for a list of favourite movies or actors
+- wish list: maintain list of search filters that are applied each time new
+  data has been acquired; notify the user when a matching programme is found
+  for the first time. This can be used for a list of favourite movies or actors
 - links to Internet Movie Database from titles and actor's names
   main difficulties: finding out the original title from the national AKA
   and fuzzy-matching actor's names in the description

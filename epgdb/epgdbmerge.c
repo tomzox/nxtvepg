@@ -29,9 +29,9 @@
  *    successfully handed over to this module.
  *
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: epgdbmerge.c,v 1.13 2001/02/04 21:11:34 tom Exp tom $
+ *  $Id: epgdbmerge.c,v 1.14 2001/02/25 16:00:45 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB

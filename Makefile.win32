@@ -18,9 +18,9 @@
 #    Windows systems using MVC. This make file requires GNU make by Cygwin.
 #    Tcl/Tk source is converted to a C string by tcl2c.
 #
-#  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+#  Author: Tom Zoerner
 #
-#  $Id: Makefile.win32,v 1.4 2001/02/03 21:21:34 tom Exp tom $
+#  $Id: Makefile.win32,v 1.5 2001/02/25 16:06:08 tom Exp tom $
 #
 
 TCLSH   = /gnu/tcl/bin/tclsh83.exe

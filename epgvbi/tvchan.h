@@ -14,9 +14,9 @@
  *
  *  Description: see according C source file.
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: tvchan.h,v 1.1 2000/12/09 14:03:40 tom Exp tom $
+ *  $Id: tvchan.h,v 1.3 2001/02/26 20:35:50 tom Exp tom $
  */
 
 #ifndef __TVCHAN_H
@@ -28,6 +28,8 @@
 //
 bool TvChannels_GetNext( uint *pChan, ulong *pFreq );
 int  TvChannels_GetCount( void );
+void TvChannels_GetName( uint channel, uchar * pName, uint maxNameLen );
+void TvChannels_SelectFreqTable( uint tableIdx );
 
 
 #endif  // __TVCHAN_H

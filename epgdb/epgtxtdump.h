@@ -14,9 +14,9 @@
  *
  *  Description: see according C source file.
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: epgtxtdump.h,v 1.8 2000/12/13 18:45:01 tom Exp tom $
+ *  $Id: epgtxtdump.h,v 1.9 2001/02/25 16:00:45 tom Exp tom $
  */
 
 #ifndef __EPGTXTDUMP_H

@@ -14,9 +14,9 @@
  *
  *  Description: see according C source file.
  *
- *  Author: see according C source file.
+ *  Author: Tom Zoerner
  *
- *  $Id: bt848.h,v 1.2 2001/01/21 11:55:54 tom Exp tom $
+ *  $Id: bt848.h,v 1.4 2001/02/26 21:39:41 tom Exp tom $
  */
 
 #ifndef __BT848_H
@@ -432,6 +432,62 @@ typedef enum
 #define PCI_DEVICE_ID_BT849     0x351
 #define PCI_DEVICE_ID_BT878     0x36e
 #define PCI_DEVICE_ID_BT879     0x36f
+
+// ---------------------------------------------------------------------------
+// Declarations for tuner control, copied from bttv tuner driver
+// Copyright (C) 1997 Markus Schroeder (schroedm@uni-duesseldorf.de)
+//
+typedef enum
+{  // must be the same order as in the table!
+   TUNER_NONE,
+   TUNER_TEMIC_PAL,
+   TUNER_PHILIPS_PAL_I,
+   TUNER_PHILIPS_NTSC,
+   TUNER_PHILIPS_SECAM,
+   TUNER_PHILIPS_PAL,
+   TUNER_TEMIC_NTSC,
+   TUNER_TEMIC_PAL_I,
+   TUNER_TEMIC_4036FY5_NTSC,
+   TUNER_ALPS_TSBH1_NTSC,
+   TUNER_ALPS_TSBE1_PAL,
+   TUNER_ALPS_TSBB5_PAL_I,
+   TUNER_ALPS_TSBE5_PAL,
+   TUNER_ALPS_TSBC5_PAL,
+   TUNER_TEMIC_4006FH5_PAL,
+   TUNER_ALPS_TSHC6_NTSC,
+   TUNER_TEMIC_PAL_DK,
+   TUNER_PHILIPS_NTSC_M,
+   TUNER_TEMIC_4066FY5_PAL_I,
+   TUNER_TEMIC_4006FN5_MULTI_PAL,
+   TUNER_TEMIC_4009FR5_PAL,
+   TUNER_TEMIC_4039FR5_NTSC,
+   TUNER_TEMIC_4046FM5,
+   TUNER_PHILIPS_PAL_DK,
+   TUNER_PHILIPS_FQ1216ME,
+} TUNER_TYPE;
+
+#define NOTUNER 0
+#define PAL     1
+#define PAL_I   2
+#define NTSC    3
+#define SECAM   4
+
+#define NoTuner 0
+#define Philips 1
+#define TEMIC   2
+#define Sony    3
+#define Alps    4
+
+#define TEMIC_SET_PAL_I         0x05
+#define TEMIC_SET_PAL_DK        0x09
+#define TEMIC_SET_PAL_L         0x0a // SECAM ?
+#define TEMIC_SET_PAL_L2        0x0b // change IF !
+#define TEMIC_SET_PAL_BG        0x0c
+
+#define PHILIPS_SET_PAL_I       0x01 /* Bit 2 always zero !*/
+#define PHILIPS_SET_PAL_BGDK    0x09
+#define PHILIPS_SET_PAL_L2      0x0a
+#define PHILIPS_SET_PAL_L       0x0b    
 
 
 // ---------------------------------------------------------------------------

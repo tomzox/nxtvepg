@@ -18,9 +18,9 @@
  *    detect hamming and parity errors. The syntax of the stream
  *    is defined in ETS 300 708, chapter 4: "Page Format - Clear"
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: epgstream.c,v 1.12 2001/02/10 14:49:02 tom Exp tom $
+ *  $Id: epgstream.c,v 1.13 2001/02/25 16:00:45 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB

@@ -14,9 +14,9 @@
  *
  *  Description: see below.
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: debug.h,v 1.7 2000/12/25 13:48:01 tom Exp tom $
+ *  $Id: debug.h,v 1.8 2001/02/25 16:03:08 tom Exp tom $
  */
 
 #ifndef __DEBUG_H

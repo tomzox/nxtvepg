@@ -14,9 +14,9 @@
  *
  *  Description: see according C source file.
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: epgstream.h,v 1.10 2000/12/02 18:22:59 tom Exp tom $
+ *  $Id: epgstream.h,v 1.11 2001/02/25 16:00:45 tom Exp tom $
  */
 
 #ifndef __EPGSTREAM_H

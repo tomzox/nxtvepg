@@ -11,11 +11,12 @@
  *  MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
+ *
  *  Description: see according C source file.
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: pifilter.h,v 1.5 2001/01/09 20:05:13 tom Exp tom $
+ *  $Id: pifilter.h,v 1.6 2001/02/25 16:03:47 tom Exp tom $
  */
 
 #ifndef __PIFILTER_H

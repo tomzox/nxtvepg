@@ -22,9 +22,9 @@
  *    simple (compared to the normal insertion after acquisition),
  *    because the blocks are already checked and sorted.
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: epgdbsav.c,v 1.32 2001/02/06 19:06:02 tom Exp tom $
+ *  $Id: epgdbsav.c,v 1.34 2001/02/26 20:01:19 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -650,7 +650,7 @@ PDBC EpgDbReload( uint cni, EPGDB_RELOAD_RESULT * pResult )
    int fd;
    uchar * pFilename;
    time_t piStartOff;
-   BLOCK_TYPE lastType;
+   BLOCK_TYPE type, lastType;
    EPGDB_RELOAD_RESULT result;
 
    dbc = EpgDbCreate();
@@ -707,6 +707,9 @@ PDBC EpgDbReload( uint cni, EPGDB_RELOAD_RESULT * pResult )
                size = read(fd, (uchar *)pBlock + BLK_UNION_OFF, pBlock->size);
                if (size == pBlock->size)
                {
+                  // save the type in temp var in case the block gets freed
+                  type = pBlock->type;
+
                   switch (pBlock->type)
                   {
                      case BLOCK_TYPE_AI:
@@ -749,7 +752,7 @@ PDBC EpgDbReload( uint cni, EPGDB_RELOAD_RESULT * pResult )
                         xfree(pBlock);
                         break;
                   }
-                  lastType = pBlock->type;
+                  lastType = type;
                }
                else
                {

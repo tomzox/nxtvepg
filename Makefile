@@ -22,9 +22,9 @@
 #    Perl is not required to install the package.  Dependencies are
 #    generated into a separate file.
 #
-#  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+#  Author: Tom Zoerner
 #
-#  $Id: Makefile,v 1.22 2001/02/14 21:18:12 tom Exp tom $
+#  $Id: Makefile,v 1.23 2001/02/25 16:06:08 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -52,9 +52,11 @@ DEFS   += -DTK_LIBRARY_PATH=\"/usr/lib/tk8.3\"
 DEFS   += -DTCL_LIBRARY_PATH=\"/usr/lib/tcl8.3\"
 
 
+#WARN    = -Wall -Wpointer-arith -Wnested-externs \
+#          -Werror -Wstrict-prototypes -Wmissing-prototypes
 WARN    = -Wall
 CC      = gcc
-CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -g -O
+CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -O
 
 # ----- don't change anything below ------------------------------------------
 

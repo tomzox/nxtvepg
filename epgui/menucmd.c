@@ -11,13 +11,14 @@
  *  MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
+ *
  *  Description:
  *
  *    Provide callbacks for various commands in the menu bar.
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: menucmd.c,v 1.37 2001/02/07 16:19:51 tom Exp tom $
+ *  $Id: menucmd.c,v 1.39 2001/02/26 20:23:05 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -51,6 +52,7 @@
 #include "epgui/uictrl.h"
 #include "epgctl/epgctxctl.h"
 #include "epgvbi/vbidecode.h"
+#include "epgvbi/tvchan.h"
 #include "epgvbi/btdrv.h"
 
 
@@ -1100,6 +1102,7 @@ static int MenuCmd_GetInputList(ClientData ttp, Tcl_Interp *interp, int argc, ch
 
 // ----------------------------------------------------------------------------
 // Set the hardware config params
+// - called at startup or after user configuration via the GUI
 // - the card index can also be set via command line and is passed here
 //   from main; a value of -1 means don't care
 //
@@ -1107,7 +1110,7 @@ int SetHardwareConfig( Tcl_Interp *interp, int newCardIndex )
 {
    char **pParamsArgv;
    char * pTmpStr;
-   int idxCount, input, tuner, pll, prio, cardidx;
+   int idxCount, input, tuner, pll, prio, cardidx, ftable;
    int result;
 
    pTmpStr = Tcl_GetVar(interp, "hwcfg", TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG);
@@ -1118,13 +1121,14 @@ int SetHardwareConfig( Tcl_Interp *interp, int newCardIndex )
       result = Tcl_SplitList(interp, pTmpStr, &idxCount, &pParamsArgv);
       if (result == TCL_OK)
       {
-         if (idxCount == 5)
+         if (idxCount == 6)
          {
             if ( (Tcl_GetInt(interp, pParamsArgv[0], &input) == TCL_OK) &&
                  (Tcl_GetInt(interp, pParamsArgv[1], &tuner) == TCL_OK) &&
                  (Tcl_GetInt(interp, pParamsArgv[2], &pll) == TCL_OK) &&
                  (Tcl_GetInt(interp, pParamsArgv[3], &prio) == TCL_OK) &&
-                 (Tcl_GetInt(interp, pParamsArgv[4], &cardidx) == TCL_OK) )
+                 (Tcl_GetInt(interp, pParamsArgv[4], &cardidx) == TCL_OK) &&
+                 (Tcl_GetInt(interp, pParamsArgv[5], &ftable) == TCL_OK) )
             {
                if ((newCardIndex >= 0) && (newCardIndex != cardidx))
                {
@@ -1133,6 +1137,8 @@ int SetHardwareConfig( Tcl_Interp *interp, int newCardIndex )
                   eval_check(interp, comm);
                }
 
+               // pass the frequency table selection to the TV-channel module
+               TvChannels_SelectFreqTable(ftable);
                // pass the hardware config params to the driver
                BtDriver_Configure(cardidx, tuner, pll, prio);
                // pass the input selection to acquisition control
@@ -1143,7 +1149,7 @@ int SetHardwareConfig( Tcl_Interp *interp, int newCardIndex )
          }
          else
          {
-            Tcl_SetResult(interp, "SetHardwareConfig: must get 5 params", TCL_STATIC);
+            Tcl_SetResult(interp, "SetHardwareConfig: must get 6 params", TCL_STATIC);
             result = TCL_ERROR;
          }
       }

@@ -22,9 +22,9 @@
  *    current filter settings (which are managed by the PiFilter
  *    module)
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: pilistbox.c,v 1.43 2001/02/11 11:50:01 tom Exp tom $
+ *  $Id: pilistbox.c,v 1.44 2001/02/25 16:03:47 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI

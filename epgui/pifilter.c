@@ -18,9 +18,9 @@
  *    Allows to control the selection of items displayed in the PI
  *    listbox.
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: pifilter.c,v 1.36 2001/02/14 20:29:48 tom Exp tom $
+ *  $Id: pifilter.c,v 1.37 2001/02/25 16:03:47 tom Exp tom $
  */
 
 #define __PIFILTER_C

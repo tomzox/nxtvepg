@@ -14,9 +14,9 @@
  *
  *  Description: see according C source file.
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: epgdbfil.h,v 1.14 2000/12/21 19:21:49 tom Exp tom $
+ *  $Id: epgdbfil.h,v 1.15 2001/02/25 16:00:45 tom Exp tom $
  */
 
 #ifndef __EPGDBFIL_H

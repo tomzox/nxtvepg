@@ -14,9 +14,9 @@
  *
  *  Description: see according C source file.
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: btdrv.h,v 1.8 2001/01/21 11:56:39 tom Exp tom $
+ *  $Id: btdrv.h,v 1.10 2001/02/25 15:59:43 tom Exp tom $
  */
 
 #ifndef __BTDRV_H
@@ -95,6 +95,7 @@ typedef struct
    uint       writer_idx;
    uint       reader_idx;
    VBI_LINE   line[EPGACQ_BUF_COUNT];
+   u32        frameSeqNo;
 
    ulong      ttxPkgCount;
    ulong      epgPkgCount;

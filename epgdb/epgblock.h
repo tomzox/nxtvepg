@@ -23,9 +23,9 @@
  *    by offsets to the start of the structure. Do always use
  *    the provided macros to access them.
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: epgblock.h,v 1.24 2001/02/06 19:00:07 tom Exp tom $
+ *  $Id: epgblock.h,v 1.25 2001/02/25 16:00:45 tom Exp tom $
  */
 
 #ifndef __EPGBLOCK_H

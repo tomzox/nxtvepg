@@ -21,9 +21,9 @@
  *    interface module, the match function will be used to return
  *    only PI blocks that match the filter settings.
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: epgdbfil.c,v 1.23 2001/02/06 19:00:07 tom Exp tom $
+ *  $Id: epgdbfil.c,v 1.24 2001/02/25 16:00:45 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB

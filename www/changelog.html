@@ -12,14 +12,31 @@
 <META name="robots" content="index, follow">
 <META name="revisit-after" content="01 month">
 </HEAD>
-<BODY>
+<BODY BGCOLOR=#f8f8f8>
 
 <P><HR><P>
 <H1>Nextview EPG Decoder Change-Log</H1>
 
-The following new features have been added between release 0.3 and 0.4
+This document contains a list of all changes between releases
 of the <A HREF="http://nxtvepg.tripod.com">nxtvepg</A>
-nexTView EPG decoder software:
+nexTView EPG decoder software.
+
+<H2>From 0.4.3 to 0.4.4 (Feb/27/2001)</H2>
+<UL>
+<LI>Please note my new email address: tomzo <I>at</I> nefkom.net
+<LI>Fixed severe bug in database reload (reference to freed memory;
+  Curiously this led to crashes under Windows only)
+<LI>Fixed compatibility with old bttv driver versions (versions &lt;= 0.6.x produced
+  error "VIDIOCSCHAN: operation not supported" during TV channel changes)
+<LI>Added detection of lost VBI frames (Linux, for debugging/optimization only)
+<LI>Added frequency table for France; Minor fixes in Western Europe table;
+  Tables can be selected via the TV card input popup.
+<LI>Updated tuner type table for Windows Bt8x8 driver -&gt; support for new tuners
+<LI>Implemented hyperlinks in help pages for references between chapters
+</UL>
+
+<P><HR><P>
+<H3>New features between release 0.3 and 0.4</H3>
 
 <DL>
 <DT><STRONG>Database Merging</STRONG>
@@ -49,18 +66,29 @@ have at least the title, running time and channel name, and then add
 whatever you need most often, e.g. the major theme (movie/series/show etc.),
 rating, picture format, ...
 </P>
+<DT><STRONG>Improved database and acquisition statistics</STRONG>
+<DD><P>
+(1) Database statistics are now available independently of acquisition,
+and include new catagories, e.g. percentage of expired program blocks.
+(2) Acquisition stats can be invoked before a provider was found, and
+contain an regularily updated VPS/PDC and teletext reception summary,
+to allow debugging of reception problems.
+(3) Added a status line at the bottom of the browser window to give a
+quick overview of the database and acquisition state.
+</P>
 <DT><STRONG>Support for other operating systems</STRONG>
 <DD><P>
 Last but not least, nxtvepg has been ported to NetBSD (many Thanks to
 Mario Kemper, who's also my valued beta tester) and to Micro$oft Windows
-(thanks to "Espresso", from whose MultiDec software the driver was derived)
+(thanks to "Es/presso", from whose Multi-Dec the driver was derived)
 </P>
 </DL>
 
 For a detailed description of these new features please refer to the
 <A HREF="man.html">Manual</A>.
-<P>
-Below is a history of additions and bug fixes inbetween releases:
+
+<P><HR><P>
+<H3>History of additions and bug fixes inbetween previous releases</H3>
 
 <H2>From 0.4.pre2 to 0.4.3 (Feb. 2001)</H2>
 <UL>

@@ -11,11 +11,12 @@
  *  MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
+ *
  *  Description: see according C source file.
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: pilistbox.h,v 1.7 2001/02/10 16:02:07 tom Exp tom $
+ *  $Id: pilistbox.h,v 1.8 2001/02/25 16:03:47 tom Exp tom $
  */
 
 #ifndef __PILISTBOX_H

@@ -1,5 +1,5 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
-<HTML>
+<HTML lang="en">
 <HEAD>
 <TITLE>Nextview EPG Decoder Documentation</TITLE>
 <LINK href="nxtvepg.css" rel=stylesheet type=text/css>
@@ -12,13 +12,13 @@
 <META name="robots" content="index, follow">
 <META name="revisit-after" content="01 month">
 </HEAD>
-<BODY>
+<BODY BGCOLOR=#f8f8f8>
 
 <P><HR><P>
 <H1>Nextview EPG Decoder Documentation</H1>
 
-This is the manual page for release 0.4.3 of
-<A HREF="http://nxtvepg.tripod.com">nxtvepg</A>.
+This is the manual page for release 0.4.4 of
+<A HREF="http://nxtvepg.tripod.com/">nxtvepg</A>.
 
 <!-- INDEX BEGIN -->
 
@@ -61,6 +61,7 @@ This is the manual page for release 0.4.3 of
 <P>
 nxtvepg - Decoder, Browser and Analyzer for the Nextview Electronic
 Programme Guide
+
 
 <P>
 <HR>
@@ -218,8 +219,10 @@ Windows users first have to configure the driver for their TV card.
 Therefore please invoke the 'TV card input' popup from the Configure menu
 and specify the type of your tuner. In Germany, Austria and Switzerland it
 should be either Philips PAL or Temic PAL. In France it's one of the SECAM
-types. Then select how your card's <EM>PLL</EM> needs to be set up. On most cards it's either <EM>No init</EM> or <EM>28 MHz</EM>. If you're not sure about your configuration, try them one by one and run
-an EPG scan inbetween to check if the tuner works.
+types. Then select how your card's <EM>PLL</EM> needs to be set up. On most cards it's either <EM>No init</EM> or <EM>28 MHz</EM>. If you're not sure about your configuration, start with the topmost and
+then try them one after each other and start an EPG scan inbetween to check
+if the tuner works. If this seems too much work, open your PC and read the
+manufacturer from the metal tuner box on the TV tuner card.
 
 <P>
 If you don't have an antenna connected to your PC, you can select an
@@ -227,8 +230,8 @@ external source for video input. If you have problems see <EM>README</EM>
 for more details and a list of error messages from the Windows driver.
 
 <P>
-UNIX users just need to check if the correct input source is selected in
-the TV card input popup menu.
+UNIX users just need to check if the correct input source and frequency
+table are selected in the TV card input popup menu.
 
 <P>
 In the next step - if you chose to use the TV tuner - run a provider scan
@@ -355,7 +358,7 @@ for details.
 <HR>
 <H1><A NAME="ACQUISITION_MODES">ACQUISITION MODES</A></H1>
 <P>
-The acquisition mode configuration allows you to control for which providers
+The acquiition mode configuration allows you to control for which providers
 data is collected, and in which order. It's mainly intended for users who
 use more than one provider's database, i.e. in a merged database, or want
 to optimize startup time. If you're happy with a single provider or don't
@@ -700,7 +703,7 @@ combinations are available as radio buttons:
 <DT><STRONG><A NAME="item_Networks">Networks</A></STRONG><DD>
 <P>
 Restrict the listing to programmes of the given networks. Note that the
-order and selection of networks can be configured (see <EM>Configure</EM> menu).
+order and selection of networks can be configured (see <A HREF="#CONFIGURATION">CONFIGURATION</A>).
 
 <DT><STRONG><A NAME="item_Text">Text search</A></STRONG><DD>
 <P>
@@ -835,16 +838,32 @@ driver is unloaded.
 <DT><STRONG><A NAME="item_Dump">Dump stream</A></STRONG><DD>
 <P>
 UNIX only: All incoming Nextview blocks are dumped to <EM>stdout</EM>
-in an ASCII format. This is intended for developers only.
+in an ASCII format. This is mainly intended for developers, but it may also
+help to debug reception problems, because in the dump you'll find any block
+that could be decoded without hamming errors, even before an inventory
+block (AI) has been received. This may help if you have very bad reception,
+because it may take a long time until a error-free copy of the usually
+large AI block is received.
 
 <DT><STRONG>Dump database</STRONG><DD>
 <P>
 Allows to dump all blocks of selected types in the database to
-<EM>stdout</EM> (UNIX only) or into the given file. Also for developers only.
+<EM>stdout</EM> (UNIX only) or into the given file. Also intended for developers mainly.
 
 <DT><STRONG><A NAME="item_View">View timescales</A></STRONG><DD>
 <P>
-Toggles the timescale window for the browser database. See <A HREF="#STATISTICS">STATISTICS</A> for details.
+Toggles the timescale window for the browser database. The window reflects
+for each network included in the selected database, which time ranges are
+covered by programme information. If acquisition is working on the
+database, you can watch how more and more of the scales get covered. See <A HREF="#STATISTICS">STATISTICS</A> for details.
+
+<DT><STRONG>View statistics</STRONG><DD>
+<P>
+Toggles the browser database statistics window, which informs you about
+number of program entries in the database, fill percentage, expiration
+percentage, date of last update etc. If the acquisition is working on the
+same database, it also contains information about state and progress of
+acquisition. See <A HREF="#STATISTICS">STATISTICS</A> for details.
 
 <DT><STRONG>View acq timescales</STRONG><DD>
 <P>
@@ -852,16 +871,12 @@ Toggles the timescale window for the acquisition database. This entry is
 only available if the acquisition uses a different database than the
 browser.
 
-<DT><STRONG><A NAME="item_Statistics">Statistics</A></STRONG><DD>
-<P>
-Toggles the browser database statistics window, which informs you about
-number of entries in the database, fill percentage, expiration percentage,
-date of last update etc. See <A HREF="#Data_Acquisition">Data Acquisition</A> for details.
-
-<DT><STRONG><A NAME="item_Acq">Acq statistics</A></STRONG><DD>
+<DT><STRONG>View acq statistics</STRONG><DD>
 <P>
 Toggles the acquisition statistics window, which informs you about state
-and progress of acquisition. See <A HREF="#Data_Acquisition">Data Acquisition</A> for details.
+and progress of acquisition. If the acquisition control mechanism switches
+to a different database, the acq statistics window will automatically
+follow. See <A HREF="#DATA_ACQUISITION">DATA ACQUISITION</A> for details.
 
 <DT><STRONG><A NAME="item_Quit">Quit</A></STRONG><DD>
 <P>
@@ -920,19 +935,18 @@ very quickly.
 <P>
 Open a popup where the driver for the TV card can be configured. On Windows
 systems you must at least specify which type of tuner is on your card, and
-if the PLL needs to be initialized. You can check your setting by starting
+how the PLL needs to be initialized. You can check your setting by starting
 an EPG scan: if nothing is found, try a different setting (or check the
 antenna cable). For more details see <EM>README</EM>, particularily if you get error messages from the Bt8x8 driver. If you
-experience data loss due to heavy system load, you should raise the
+experience data loss due to heavy system load, you can raise the
 acquisition thread priority.
 
 <P>
-On Linux systems only the remaining two configuration options apply: you
-may choose which video input source to use. See
-<A HREF="#DATA_ACQUISITION">DATA ACQUISITION</A> about the consequences of not using the TV tuner as input. If you have more
-than one TV tuner card, you can also choose which one to use, just like
-with the <STRONG>-card</STRONG>
-command line option.
+On Linux systems only the remaining three configuration options apply:
+firstly you may choose which video input source to use. See <A HREF="#DATA_ACQUISITION">DATA ACQUISITION</A> about the consequences of not using the TV tuner as input. If you live in
+France, select the French frequency table to be used for the EPG scan. If
+you have more than one TV tuner card, you can also choose which one to use,
+just like with the <STRONG>-card</STRONG> command line option.
 
 <DT><STRONG>Select columns...</STRONG><DD>
 <P>
@@ -1096,7 +1110,7 @@ instructions on which information must be included in a bug report.
 Thorsten ``Tom'' Zoerner, Erlangen, Germany.
 
 <P>
-Email: Tom.Zoerner (at) informatik.uni-erlangen.de
+Email: tomzo (at) nefkom (dot) net
 
 <P>
 Many thanks to Mario Kemper for the NetBSD port and beta testing; to

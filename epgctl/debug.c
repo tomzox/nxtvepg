@@ -20,9 +20,9 @@
  *    that the extent of debugging can easily be controlled, e.g.
  *    debug output easily be turned off in the final release.
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: debug.c,v 1.9 2000/12/25 13:46:48 tom Exp tom $
+ *  $Id: debug.c,v 1.11 2001/02/25 16:03:08 tom Exp tom $
  */
 
 #define __DEBUG_C
@@ -257,10 +257,16 @@ void * xmalloc( size_t size )
 {
    void * ptr = malloc(size);
    if (ptr == NULL)
-   {  // malloc failed - should never happen on systems with a virtual address room
-      SHOULD_NOT_BE_REACHED;
+   {  // malloc failed - should never happen
+      #ifndef WIN32
       fprintf(stderr, "malloc failed (%d bytes) - abort.\n", size);
+      SHOULD_NOT_BE_REACHED;
       exit(-1);
+      #else
+      MessageBox(NULL, "Memory allocation failure - Terminating", "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+      // force an exception that will be caught and shut down the process properly
+      *(uchar *)ptr = 0;
+      #endif
    }
    return ptr;
 }

@@ -14,9 +14,9 @@
  *
  *  Description: see according C source file.
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: hamming.h,v 1.5 2001/02/03 20:28:37 tom Exp tom $
+ *  $Id: hamming.h,v 1.6 2001/02/25 15:59:43 tom Exp tom $
  */
 
 #ifndef __HAMMING_H

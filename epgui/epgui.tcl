@@ -19,9 +19,9 @@
 #    Additional Tcl code is dynamically created by the C code
 #    in the epgui directory.
 #
-#  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+#  Author: Tom Zoerner
 #
-#  $Id: epgui.tcl,v 1.73 2001/02/14 21:43:32 tom Exp tom $
+#  $Id: epgui.tcl,v 1.76 2001/02/26 20:21:59 tom Exp tom $
 #
 
 frame     .all -relief flat -borderwidth 0
@@ -1766,6 +1766,8 @@ proc PopupHelp {index {subheading {}}} {
       .help.disp.text tag configure indent -lmargin1 40 -lmargin2 40
       .help.disp.text tag configure bold -font $font_bold
       .help.disp.text tag configure underlined -underline 1
+      .help.disp.text tag configure href -underline 1 -foreground blue
+      .help.disp.text tag bind href <Button-1> {FollowHelpHyperlink}
 
       # allow to scroll the text with the cursor keys
       bindtags .help.disp.text {.help.disp.text . all}
@@ -1813,6 +1815,23 @@ proc PopupHelp {index {subheading {}}} {
    }
 }
 
+proc FollowHelpHyperlink {} {
+   global helpIndex
+
+   # the text under the mouse carries the mark 'current'
+   set curidx [.help.disp.text index {current + 1 char}]
+
+   # determine the range of the 'href' tag under the mouse
+   set range [.help.disp.text tag prevrange href $curidx]
+
+   # cut out the text in that range
+   set hlink [eval [concat .help.disp.text get $range]]
+
+   if {[info exists helpIndex($hlink)]} {
+      PopupHelp $helpIndex($hlink)
+   }
+}
+
 ##  --------------------------------------------------------------------------
 ##  Handling of the About pop-up
 ##
@@ -1832,7 +1851,7 @@ proc CreateAbout {} {
       #pack .about.tcl_version -side top
 
       label .about.copyr1 -text "Copyright © 1999, 2000, 2001 by Thorsten \"Tom\" Zörner"
-      label .about.copyr2 -text "Tom.Zoerner@informatik.uni-erlangen.de"
+      label .about.copyr2 -text "tomzo@nefkom.net"
       label .about.copyr3 -text "http://nxtvepg.tripod.com/" -font $font_fixed -foreground blue
       pack .about.copyr1 .about.copyr2 -side top
       pack .about.copyr3 -side top -padx 10 -pady 10
@@ -3043,7 +3062,7 @@ proc PiListBox_PrintHelpHeader {text} {
    .all.pi.list.text insert end "An Electronic TV Programme Guide for Your PC\n" bold16Tag
    .all.pi.list.text window create end -window .all.pi.list.text.nxtvlogo
    .all.pi.list.text insert end "\n\nCopyright © 1999, 2000, 2001 by Thorsten \"Tom\" Zörner\n" bold12Tag
-   .all.pi.list.text insert end "Tom.Zoerner@informatik.uni-erlangen.de\n\n" bold12Tag
+   .all.pi.list.text insert end "tomzo@nefkom.net\n\n" bold12Tag
    .all.pi.list.text tag add centerTag 1.0 {end - 1 lines}
    .all.pi.list.text insert end "This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License Version 2 as published by the Free Software Foundation. This program is distributed in the hope that it will be useful, but without any warranty. See the GPL2 for more details.\n\n" wrapTag
 
@@ -3056,15 +3075,16 @@ proc PiListBox_PrintHelpHeader {text} {
 ##  - PLL init 0/1
 ##  - thread priority normal/high/real-time
 ##  - card index 0-4
+##  - frequency table index (Western Europe/France)
 ##
-set hwcfg_default {0 0 0 0 0}
+set hwcfg_default {0 0 0 0 0 0}
 set hwcfg_popup 0
 
 proc PopupHardwareConfig {} {
    global is_unix
    global hwcfg_input_sel
    global hwcfg_tuner_sel hwcfg_tuner_list hwcfg_card_list
-   global hwcfg_pll_sel hwcfg_prio_sel hwcfg_cardidx_sel
+   global hwcfg_pll_sel hwcfg_prio_sel hwcfg_cardidx_sel hwcfg_ftable_sel
    global hwcfg_popup hwcfg hwcfg_default
 
    if {$hwcfg_popup == 0} {
@@ -3081,6 +3101,7 @@ proc PopupHardwareConfig {} {
       set hwcfg_pll_sel [lindex $hwcfg 2]
       set hwcfg_prio_sel [lindex $hwcfg 3]
       set hwcfg_cardidx_sel [lindex $hwcfg 4]
+      set hwcfg_ftable_sel [lindex $hwcfg 5]
 
       # create menu to select video input
       frame .hwcfg.input
@@ -3126,6 +3147,15 @@ proc PopupHardwareConfig {} {
          pack .hwcfg.prio -side top -anchor w
       }
 
+      # create checkbuttons to select frequency table
+      frame .hwcfg.ftable
+      label .hwcfg.ftable.label -text "Frequency table:"
+      radiobutton .hwcfg.ftable.tab0 -text "Western Europe" -variable hwcfg_ftable_sel -value 0
+      radiobutton .hwcfg.ftable.tab1 -text "France" -variable hwcfg_ftable_sel -value 1
+      pack .hwcfg.ftable.label -side left -padx 10
+      pack .hwcfg.ftable.tab0 .hwcfg.ftable.tab1 -side left
+      pack .hwcfg.ftable -side top -anchor w
+
       # create menu or checkbuttons to select TV card
       frame .hwcfg.card
       label .hwcfg.card.label -text "TV card: "
@@ -3153,7 +3183,7 @@ proc PopupHardwareConfig {} {
 
       # create standard command buttons
       frame .hwcfg.cmd
-      button .hwcfg.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Configuration) "Aquisition mode"}
+      button .hwcfg.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Configuration) "TV card input"}
       button .hwcfg.cmd.abort -text "Abort" -width 5 -command {destroy .hwcfg}
       button .hwcfg.cmd.ok -text "Ok" -width 5 -command {HardwareConfigQuit}
       pack .hwcfg.cmd.help .hwcfg.cmd.abort .hwcfg.cmd.ok -side left -padx 10
@@ -3209,7 +3239,7 @@ proc HardwareCreateInputMenu {widget} {
 proc HardwareConfigQuit {} {
    global is_unix
    global hwcfg_input_sel hwcfg_tuner_sel
-   global hwcfg_pll_sel hwcfg_prio_sel hwcfg_cardidx_sel
+   global hwcfg_pll_sel hwcfg_prio_sel hwcfg_cardidx_sel hwcfg_ftable_sel
    global hwcfg hwcfg_default
 
    if { !$is_unix && ($hwcfg_input_sel == 0) && ($hwcfg_tuner_sel == 0) } {
@@ -3219,7 +3249,7 @@ proc HardwareConfigQuit {} {
    }
 
    if {[string compare $answer "ok"] == 0} {
-      set hwcfg [list $hwcfg_input_sel $hwcfg_tuner_sel $hwcfg_pll_sel $hwcfg_prio_sel $hwcfg_cardidx_sel]
+      set hwcfg [list $hwcfg_input_sel $hwcfg_tuner_sel $hwcfg_pll_sel $hwcfg_prio_sel $hwcfg_cardidx_sel $hwcfg_ftable_sel]
       UpdateRcFile
 
       C_UpdateHardwareConfig
@@ -4444,6 +4474,9 @@ proc LoadRcFile {filename} {
          }
       }
       close $rcfile
+
+      # for backwards compatibility append freq table index to hw cfg
+      if {[llength $hwcfg] == 5} {lappend hwcfg 0}
    }
 
    if {$showShortcutListbox == 0} {pack forget .all.shortcuts}

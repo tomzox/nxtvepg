@@ -19,9 +19,9 @@
  *    contains only functions that modify the database; queries are
  *    implemented in the epgdbif.c module.
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: epgdbmgmt.c,v 1.27 2001/02/03 21:02:51 tom Exp tom $
+ *  $Id: epgdbmgmt.c,v 1.28 2001/02/25 16:00:45 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB

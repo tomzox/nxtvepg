@@ -18,11 +18,12 @@
 #    Reads the manpage in POD format and creates a Tcl/Tk script
 #    that inserts command buttons to the help menu and defines the
 #    texts for the help popups. The script will be compiled into the
-#    executable and eval'ed upon program start.
+#    executable and eval'ed upon program start. See the Perl manual
+#    page 'perlpod' for details on the POD syntax.
 #
-#  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+#  Author: Tom Zoerner
 #
-#  $Id: pod2help.pl,v 1.8 2000/12/30 23:08:00 tom Exp tom $
+#  $Id: pod2help.pl,v 1.10 2001/02/25 16:06:24 tom Exp tom $
 #
 
 require "ctime.pl";
@@ -41,6 +42,7 @@ print ".menubar.help insert 0 separator\n";
 while(1)
 {
    $line = "";
+   # read the complete paragraph, i.e. until an empty line
    do
    {
       $_ = <>;
@@ -51,34 +53,42 @@ while(1)
 
    die "ran into EOF - where's section 'FILES'?" if ($line eq "");
 
+   # compress white space
    $line =~ s/\s\s+$//;
 
+   # check for command paragraphs and process its command
    if ($line =~ /^\=head1 (.*)/)
    {
       $title = $1;
 
-      # skip UNIX manpage specific part
+      # skip UNIX manpage specific until 'DESCRIPTION' chapter
       if ($started || ($title eq "DESCRIPTION"))
       {
          if ($started)
          {
-            #$chapter = "{$chapter}";
+            # Pre-process POD formatting expressions, e.g. I<some text>: replace pair
+            # of opening and closing bracket with uniform separation character '#' and
+            # appended format mode, which will be replaced with a tag later
             $chapter =~ s/S<([^>]*)>/$1/g;
             $chapter =~ s/T<([^>]*)>/##$1##T##/g;
             $chapter =~ s/[IF]<([^>]*)>/##$1##I##/g;
-            $chapter =~ s/L<"([^>]*)">/##$1##B##/g;
-            $chapter =~ s/[BL]<([^>]*)>/##$1##B##/g;
+            $chapter =~ s/L<"([^>]*)">/##$1##L##/g;
+            $chapter =~ s/L<([^>]*)>/##$1##L##/g;
+            $chapter =~ s/B<([^>]*)>/##$1##B##/g;
             $chapter .= "####";
             $chapter =~ s/^#+//;
 
-            # save the text of the last chapter
-            #print $chapter;
+            # save the text of the last chapter into the help text array
             print "set helpTexts($index) {";
-            while ($chapter =~ /([\x00-\xff]*?)##+(([IBT])#+)?/sg)
+
+            # replace preprocessed format description with pairs of text and tags:
+            # [list "text" underlined] to be inserted into a text widget
+            while ($chapter =~ /([\x00-\xff]*?)##+(([IBTL])#+)?/sg)
             {
                if    ($3 eq "B") { print "{$1} bold "; }
                elsif ($3 eq "I") { print "{$1} underlined "; }
                elsif ($3 eq "T") { print "{$1} title "; }
+               elsif ($3 eq "L") { my $tmp = $1; $tmp =~ s/(.)(.*)/$1\L$2/; print "{$tmp} href "; }
                elsif ($1 ne "")  { print "{$1} {} "; }
             }
             print "}\n";
@@ -106,19 +116,19 @@ while(1)
       }
    }
    elsif ($line =~ /^\=over/)
-   {
+   {  # start of an indented paragraph or a list
       $over = 1;
    }
    elsif ($line =~ /^\=back/)
-   {
+   {  # end of an indented paragraph or list
       $over = 0;
    }
    elsif ($line =~ /^\=item (.*)/)
-   {
+   {  # start a new list item, with a bullet at start of line or a title
       $chapter .= "$1\n" if ($1 ne "*");
    }
    else
-   {
+   {  # append text of an ordinary paragraph to the current chapter
       $chapter .= "$line\n" if ($line =~ /\S/);
    }
 }

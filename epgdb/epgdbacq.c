@@ -26,9 +26,9 @@
  *    to start and stop acquisition, get statistics values and detect
  *    channel changes.
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: epgdbacq.c,v 1.23 2001/02/04 20:11:56 tom Exp tom $
+ *  $Id: epgdbacq.c,v 1.25 2001/02/25 16:00:45 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -622,6 +622,24 @@ static void EpgDbAcqBufferAdd( uint pageNo, uint sub, uchar pkgno, const uchar *
       }
       overflow += 1;
    }
+}
+
+// ---------------------------------------------------------------------------
+// Notification of a lost frame
+// - executed inside the teletext slave process/thread
+// - when a complete frame is lost, it's quite likely that a page header
+//   was lost, so we cannot assume that the following packets still belong
+//   to the current page
+// - reset the ttx page state machine
+// - there's no need to reset the EPG decoder (i.e. to throw away the current
+//   block) because the next processed packet will be an header, which carries
+//   a continuation index (CI) which will detect if an EPG page was lost
+//
+void EpgDbAcqLostFrame( void )
+{
+   debug1("EpgDbAcq-LostFrame: lost vbi frame %u", pVbiBuf->frameSeqNo + 1);
+   pVbiBuf->isEpgPage = FALSE;
+   pVbiBuf->isMipPage = 0;
 }
 
 // ---------------------------------------------------------------------------

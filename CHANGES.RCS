@@ -3435,3 +3435,210 @@ www/man.html [rev:1.2, 2001-02-16T17:53:21]:
 - update for release 0.4.3:
 - see nxtvepg.pod for log history
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_4_3 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+epgvbi/btdrv4linux.c [rev:1.10, 2001-02-16T17:45:38]:
+- removed unused variable "done" from BtDriver_ScanDevices()
+- to avoid compiler warning (mail from Mario)
+nxtvepg.pod [rev:1.28, 2001-02-19T20:45:16]:
+- corrected order of control menu for timescale and stats toggle commands
+- fleshed out description for timescales and statistics
+- added description of possible use of Dump command
+pod2help.pl [rev:1.9, 2001-02-21T19:31:22]:
+- added comments
+- generate new tag href for L<> to be used as hyperlink in help text
+epgvbi/btdrv4linux.c [rev:1.11, 2001-02-21T19:37:05]:
+- fixed BtDriver_SetInputSource()
+- must not use vchan.norm = VIDEO_MODE_AUTO,
+    is not compatible with old bttv driver versions
+- extended norm-switch workaround for non-tuner inputs
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.74, 2001-02-21T19:41:56]:
+- added hyperlinks to help texts via href tag
+- new proc FollowHelpHyperlink as callback for href button press
+epgvbi/tvchan.c [rev:1.2, 2001-02-25T14:27:17]:
+- slight fixes in channel tables:
+- added band descriptions from xawtv (CCIR)
+- use channel numbering according to Grundig
+- added channel 71 (S1)
+- added Belgium channels 69.25MHz-101.25MHz)
+- removed channel 112 (band CCIR H)
+epgvbi/btdrv4linux.c [rev:1.12, 2001-02-25T15:01:00]:
+- added detection of lost VBI frames (Linux only)
+epgvbi/btdrv.h [rev:1.9, 2001-02-25T15:01:37]:
+- added frame sequence number to struct EPGACQ_BUF
+- for detection of dropped frames
+epgvbi/vbidecode.c [rev:1.24, 2001-02-25T15:02:01]:
+- added VbiDecodeLostFrame() - notification about dropped VBI frames
+epgvbi/vbidecode.h [rev:1.14, 2001-02-25T15:02:18]:
+- added VbiDecodeLostFrame() - notification about dropped VBI frames
+epgdb/epgdbacq.c [epgvbi/ttxdecode.c, rev:1.24, 2001-02-25T15:02:49]:
+- added EpgDbAcqLostFrame()
+- notification about lost frames from BT driver
+- executed inside the VBI slave proces/thread
+- resets the TTX page decoder state machine
+epgdb/epgdbacq.h [epgvbi/ttxdecode.h, rev:1.11, 2001-02-25T15:02:49]:
+- added EpgDbAcqLostFrame()
+- notification about lost frames from BT driver
+- executed inside the VBI slave proces/thread
+- resets the TTX page decoder state machine
+epgctl/debug.c [rev:1.10, 2001-02-25T15:12:31]:
+- changed malloc failure handling for Windows:
+- first display a MEssageBox, since fprintf is invisible
+- then terminate with SEGV instead of exit() to invoke exception handler
+    (bt driver must be properly shut down)
+epgvbi/bt848.h [dsdrv/bt8x8_reg.h, rev:1.3, 2001-02-25T15:59:43]:
+epgvbi/btdrv.h [rev:1.10, 2001-02-25T15:59:43]:
+epgvbi/btdrv4dummy.c [rev:1.3, 2001-02-25T15:59:43]:
+epgvbi/btdrv4linux.c [rev:1.13, 2001-02-25T15:59:43]:
+epgvbi/btdrv4win.c [rev:1.12, 2001-02-25T15:59:43]:
+epgvbi/hamming.c [rev:1.7, 2001-02-25T15:59:43]:
+epgvbi/hamming.h [rev:1.6, 2001-02-25T15:59:43]:
+epgvbi/tvchan.c [rev:1.3, 2001-02-25T15:59:43]:
+epgvbi/tvchan.h [rev:1.2, 2001-02-25T15:59:43]:
+epgvbi/vbidecode.c [rev:1.25, 2001-02-25T15:59:43]:
+epgvbi/vbidecode.h [rev:1.15, 2001-02-25T15:59:43]:
+epgdb/epgblock.c [rev:1.32, 2001-02-25T16:00:45]:
+epgdb/epgblock.h [rev:1.25, 2001-02-25T16:00:45]:
+epgdb/epgdbfil.c [rev:1.24, 2001-02-25T16:00:45]:
+epgdb/epgdbfil.h [rev:1.15, 2001-02-25T16:00:45]:
+epgdb/epgdbif.c [rev:1.23, 2001-02-25T16:00:45]:
+epgdb/epgdbif.h [rev:1.17, 2001-02-25T16:00:45]:
+epgdb/epgdbmerge.c [rev:1.14, 2001-02-25T16:00:45]:
+epgdb/epgdbmerge.h [rev:1.5, 2001-02-25T16:00:45]:
+epgdb/epgdbmgmt.c [rev:1.28, 2001-02-25T16:00:45]:
+epgdb/epgdbmgmt.h [rev:1.12, 2001-02-25T16:00:45]:
+epgdb/epgdbsav.c [rev:1.33, 2001-02-25T16:00:45]:
+epgdb/epgdbsav.h [rev:1.25, 2001-02-25T16:00:45]:
+epgdb/epgstream.c [rev:1.13, 2001-02-25T16:00:45]:
+epgdb/epgstream.h [rev:1.11, 2001-02-25T16:00:45]:
+epgdb/epgtxtdump.c [epgui/dumpraw.c, rev:1.15, 2001-02-25T16:00:45]:
+epgdb/epgtxtdump.h [epgui/dumpraw.h, rev:1.9, 2001-02-25T16:00:45]:
+epgdb/epgdbacq.c [epgvbi/ttxdecode.c, rev:1.25, 2001-02-25T16:00:45]:
+epgdb/epgdbacq.h [epgvbi/ttxdecode.h, rev:1.12, 2001-02-25T16:00:45]:
+epgctl/mytypes.h [rev:1.10, 2001-02-25T16:02:26]:
+- added typedef u32 for VBI frame sequence counter
+epgctl/debug.c [rev:1.11, 2001-02-25T16:03:08]:
+epgctl/debug.h [rev:1.8, 2001-02-25T16:03:08]:
+epgctl/epgacqctl.c [rev:1.39, 2001-02-25T16:03:08]:
+epgctl/epgacqctl.h [rev:1.24, 2001-02-25T16:03:08]:
+epgctl/epgctxctl.c [rev:1.4, 2001-02-25T16:03:08]:
+epgctl/epgctxctl.h [rev:1.4, 2001-02-25T16:03:08]:
+epgctl/epgscan.c [rev:1.8, 2001-02-25T16:03:08]:
+epgctl/epgscan.h [rev:1.4, 2001-02-25T16:03:08]:
+epgctl/epgversion.h [rev:1.8, 2001-02-25T16:03:08]:
+epgctl/mytypes.h [rev:1.11, 2001-02-25T16:03:08]:
+epgctl/epgmain.c [epgui/epgmain.c, rev:1.54, 2001-02-25T16:03:08]:
+epgctl/epgmain.h [epgui/epgmain.h, rev:1.15, 2001-02-25T16:03:08]:
+epgui/menucmd.c [rev:1.38, 2001-02-25T16:03:47]:
+epgui/menucmd.h [rev:1.7, 2001-02-25T16:03:47]:
+epgui/pdc_themes.c [rev:1.5, 2001-02-25T16:03:47]:
+epgui/pdc_themes.h [rev:1.3, 2001-02-25T16:03:47]:
+epgui/pifilter.c [rev:1.37, 2001-02-25T16:03:47]:
+epgui/pifilter.h [rev:1.6, 2001-02-25T16:03:47]:
+epgui/pilistbox.c [rev:1.44, 2001-02-25T16:03:47]:
+epgui/pilistbox.h [rev:1.8, 2001-02-25T16:03:47]:
+epgui/statswin.c [rev:1.32, 2001-02-25T16:03:47]:
+epgui/statswin.h [rev:1.8, 2001-02-25T16:03:47]:
+epgui/uictrl.c [rev:1.9, 2001-02-25T16:03:47]:
+epgui/uictrl.h [rev:1.5, 2001-02-25T16:03:47]:
+Makefile [rev:1.23, 2001-02-25T16:06:08]:
+Makefile.win32 [rev:1.5, 2001-02-25T16:06:08]:
+pod2help.pl [rev:1.10, 2001-02-25T16:06:24]:
+- removed my obsolete mail address from author reference
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.75, 2001-02-25T16:04:56]:
+nxtvepg.pod [rev:1.29, 2001-02-25T16:06:31]:
+README [rev:1.14, 2001-02-25T16:06:51]:
+- changed my mail address to the new nefkom address
+- removed the disclaimer about uni-erlangen
+COPYRIGHT [rev:1.3, 2001-02-25T16:08:06]:
+- removed my obsolete mail address from author reference
+- added aka note about "Tom Zoerner"
+- improved reference to "other" authors
+epgdb/epgdbsav.c [rev:1.34, 2001-02-26T20:01:19]:
+- severe bug fix: EpgDbReload()
+- reference to possible freed pBlock->type
+- led to SIGSEGV under Windows during reload of old db
+nxtvepg.pod [rev:1.30, 2001-02-26T20:19:37]:
+- added description of new frequency table selection
+- in TV input configuration
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.76, 2001-02-26T20:21:59]:
+- added frequency table selection in TV card input popup
+- added 2 radio buttons to popup (both Linux and Windows)
+- appended one item to list $hwcfg: hwcfg_ftable_sel
+- rc/ini load: upgrade $hwcfg from 5 to 6 items
+- fix: Help in hwcfg popup referred to wrong subheading
+epgui/menucmd.c [rev:1.39, 2001-02-26T20:23:05]:
+- SetHardwareConfig: added frequency table selection
+- now 6 instead of 5 params expected in global hwcfg
+- new param is passed to new func TvChannels_SelectFreqTable()
+epgctl/epgscan.c [rev:1.9, 2001-02-26T20:24:36]:
+- improved output of channel indices in scan message window
+- now print prefix E and/or S in front of extended/special channels
+- name is delivered by new func TvChannels_GetName()
+epgvbi/tvchan.c [rev:1.4, 2001-02-26T20:33:40]:
+- updated frequency table (from xawtv-3.21)
+- added frequency table for France
+- added func TvChannels_SelectFreqTable(), called from hwcfg popup
+- added prefix to channel table
+- for index to name conversion in new func TvChannels_GetName()
+- used for EPG scan message window
+- named are identical to those used in xawtv-3.21
+epgvbi/tvchan.h [rev:1.3, 2001-02-26T20:35:50]:
+- added TvChannels_GetName()
+- added TvChannels_SelectFreqTable()
+epgvbi/bt848.h [dsdrv/bt8x8_reg.h, rev:1.4, 2001-02-26T21:39:41]:
+- added decls for tuner types and norms
+- copied here from bttv-0.7.57/driver/tuner.h
+epgvbi/btdrv4win.c [rev:1.13, 2001-02-26T21:40:36]:
+- updated tuner table, copied from bttv-0.7.57
+- added many new tuner types
+- Tuner_SetFrequency(): do nothing if type == none
+- Tuner_SetFrequency(): use ptr pTun to current tuner table entry
+- Init_Tuner(): use only one global var to keep I2C addr
+    do no longer save I2C addr in tuner table (it's const now)
+epgctl/epgversion.h [rev:1.9, 2001-02-26T21:44:28]:
+- set version to 0.4.4
+nxtvepg.pod [rev:1.31, 2001-02-26T21:45:41]:
+- added hint about tuner type in TV card input popup in Getting Started
+- now there are a lot more tuner types available
+- the user should try the topmst ones first
+CHANGES [rev:1.10, 2001-02-26T21:51:25]:
+- updated for release 0.4.4
+TODO [rev:1.10, 2001-02-26T21:51:30]:
+- updated for release 0.4.4
+epgctl/epgscan.c [rev:1.10, 2001-02-26T22:07:14]:
+- fix: in refresh mode, do not use TvChannels_GetName() to print channel no.
+www/index-de.html [rev:1.5, 2001-03-01T19:16:07]:
+- update for release 0.4.4 (minor bugfixes)
+- added link to NetBSD package tree
+- fixed broken links to screenshots in navbar: was .html instead .gif
+- added WIDTH and HEIGHT to all IMG links to improve loading speed
+- moved counter below the main table, so that the table is displayed
+    even if the counter is not yet available
+www/index.html [rev:1.16, 2001-03-01T19:16:07]:
+- update for release 0.4.4 (minor bugfixes)
+- added link to NetBSD package tree
+- fixed broken links to screenshots in navbar: was .html instead .gif
+- added WIDTH and HEIGHT to all IMG links to improve loading speed
+- moved counter below the main table, so that the table is displayed
+    even if the counter is not yet available
+www/changelog.html [rev:1.3, 2001-03-01T19:17:21]:
+- added one more new feature to the "0.3 -> 0.4" list:
+    improved db stats
+- splitted words "MultiDec" and "Espresso" to hide them from web spiders
+- added new release 0.4.4 (minor bugfixes)
+www/man.html [rev:1.3, 2001-03-01T19:19:06]:
+- update for release 0.4.4 -> see nxtvepg.pod
+www/index-de.html [rev:1.6, 2001-03-10T18:51:33]:
+- added BGCOLOR=#f8f8f8 to BODY, else bg was gray in Netscape
+- removed BASE tags from all html pages
+- tar and zip archives now available from NEFkom server
+    removed warning about Tripod intermediate download pages
+www/index.html [rev:1.17, 2001-03-10T18:51:33]:
+- added BGCOLOR=#f8f8f8 to BODY, else bg was gray in Netscape
+- removed BASE tags from all html pages
+- tar and zip archives now available from NEFkom server
+    removed warning about Tripod intermediate download pages
+www/changelog.html [rev:1.4, 2001-03-10T18:53:21]:
+- added BGCOLOR=#f8f8f8 to BODY, else bg was gray in Netscape
+www/man.html [rev:1.4, 2001-03-10T18:53:21]:
+- added BGCOLOR=#f8f8f8 to BODY, else bg was gray in Netscape
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_4_4 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

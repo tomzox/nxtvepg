@@ -1,7 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="de">
-<BASE HREF="http://nxtvepg.tripod.com/">
-<!-- $Id: index-de.html,v 1.4 2001/02/16 17:49:34 tom Exp $ -->
+<!-- $Id: index-de.html,v 1.6 2001/03/10 18:51:33 tom Exp $ -->
 <HEAD>
 <TITLE>nexTView EPG Dekoder Software Download</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
@@ -15,7 +14,7 @@
 <LINK rel="stylesheet" type="text/css" href="nxtvepg.css">
 <LINK rel="alternate" type="text/html" href="index.html" hreflang="en" lang="en" title="nexTView Decoder Download Page">
 </HEAD>
-<BODY>
+<BODY BGCOLOR=#f8f8f8>
 <P><HR><P>
 
 <table summary="Layouttabelle: Die erste Zelle enthält Links zur Navigation, die zweite die Informationen"
@@ -25,15 +24,15 @@
 <td valign="top" class="navbar" width="15%">
 <P class="navhead"><B>Sprache</B>
 <P class="navsect">
-<IMG ALT="" SRC="en.png"> <A HREF="index.html">Englisch</A><BR>
-<IMG ALT="" SRC="de.png"> Deutsch
+<IMG ALT="" SRC="de.png" WIDTH=16 HEIGHT=10> Deutsch<BR>
+<IMG ALT="" SRC="en.png" WIDTH=16 HEIGHT=10> <A HREF="index.html">Englisch</A>
 
 <P class="navhead"><B>Infos</B>
 <P class="navsect">
 <A HREF="man.html">Dokumentation</A><BR>
-<A HREF="screenshot-linux.html">Bild 1</A><BR>
-<A HREF="screenshot-win.html">Bild 2</A><BR>
-<A HREF="screenshot-series.html">Bild 3</A><BR>
+<A HREF="screenshot-linux.gif">Bild 1</A><BR>
+<A HREF="screenshot-win.gif">Bild 2</A><BR>
+<A HREF="screenshot-series.gif">Bild 3</A><BR>
 
 <P class="navhead"><A HREF="#download"><B>Download</B></A><BR>
 <P class="navsect">
@@ -45,6 +44,8 @@
 
 <P class="navhead"><B>News</B>
 <P class="navsect">
+27.2.2001:<BR>release 0.4.4</P>
+<HR width=70%><P class="navsect">
 15.2.2001:<BR>release 0.4.3</P>
 <HR width=70%><P class="navsect">
 22.1.2001: beta^2 release 0.4.pre2</P>
@@ -56,7 +57,7 @@
 <td valign="top" class="main" width="85%">
 
 <CENTER>
-<IMG ALT="" SRC="nxtv_logo.gif">
+<IMG ALT="" SRC="nxtv_logo.gif" WIDTH=66 HEIGHT=66>
 <H1> nexTView <BR>EPG Dekoder Software</H1>
 </CENTER>
 Die hier zum Download erhältliche Software ermöglicht die Nutzung von
@@ -144,35 +145,30 @@ für die TV-Tuner-Karte beim Programmstart zu laden)
 <A NAME="download">
 <H2>Download</H2>
 </A>
-
-Die neueste Distribution 0.4.3 (Unix) bzw. 1.3-win (Windows) wurde am 15.2.2001
-veröffentlicht. Eine Übersicht der seit der letzten "offiziellen" Version 0.3.4
-hinzugekommenen Features und Bug-Fixes befindet sich im
-<A HREF="changelog.html">ChangeLog</A>. Falls mit der Software Probleme
-auftauchen, bitte melden. Ältere Distributionen befinden sich noch im
-<A HREF="src/">Source Verzeichnis</A>.
-<P>
-<B>Wichtiger Hinweis:</B> Die folgenden Links verweisen nicht direkt auf
-die Zieldateien, sondern auf Tripod Downloadpages (zu Werbezwecken; bitte um
-Entschuldigung). Sie sollten <B>nicht</B> versuchen die Datei mittels "Ziel
-speichern" herunterzuladen, sondern die Links einfach anclicken. Ihr
-WWW-Browser bietet dann von alleine die Speicherung der Datei an.
+Die neueste Distribution 0.4.4 (Unix) bzw. 1.4-win (Windows) wurde am 27.2.2001
+veröffentlicht. Sie beinhaltet haupsächlich bugfixes und Unterstützung für weitere
+Plattformen. Ein Update von 0.4.3 ist nur erforderlich wenn zuvor Probleme bestanden.
+Eine Zusammenfassung aller bugfixes als auch der seit Version 0.3.4 hinzugekommenen
+Features befindet sich im <A HREF="changelog.html">Change-Log</A>. Falls mit der
+Software Probleme auftauchen, bitte melden. Ältere Distributionen befinden sich noch im
+<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/">Source Verzeichnis</A>.
 
 
 <A NAME="download_unix">
 <H3>Source Distribution</H3>
 </A>
 Download der aktuellen Source Distribution für Linux und NetBSD:
-<A HREF=src/nxtvepg-0.4.3.tar.gz>nxtvepg-0.4.3.tar.gz</A> (283 kB)
+<A HREF=http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-0.4.4.tar.gz>nxtvepg-0.4.4.tar.gz</A> (287 kB)
 <P>
-Diese Version ist brandneu und deshalb noch nicht vorkompiliert verfügbar.
-Die Vorgängerversion 0.3.4 ist als Linux RPM-Archiv erhältlich bei:
-<A HREF="http://rpmfind.net/linux/rpm2html/search.php?query=nxtvepg">rpmfind.net</A>
+Die Software is auch als package verfügbar (jedoch nicht notwendigerweise
+immer die neueste Version):
+für Linux von <A HREF="http://rpmfind.net/linux/rpm2html/search.php?query=nxtvepg">rpmfind.net</A>
+und für NetBSD von <A HREF="ftp://ftp.netbsd.org/pub/NetBSD/packages/pkgsrc/misc/nxtvepg/README.html">netbsd.org</A>
 
 <A NAME="download_windows">
 <H3>Binärdistribution für M$ Windows</H3>
 </A>
-<A HREF="src/nxtvepg-1.3-win.zip">nxtvepg-1.3-win.zip</A> (858 kB)
+<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-1.4-win.zip">nxtvepg-1.4-win.zip</A> (860 kB)
 <P>
 Bitte beachten daß ein weiterer Treiber benötigt wird, der nicht in diesem
 Paket enthalten ist und separat heruntergeladen werden muß. In manchen Fällen
@@ -185,7 +181,7 @@ Infos dazu finden sich im README.txt im ZIP file.
 </A>
 Falls Sie keine der oben genannten nexTView Programmanbieter empfangen,
 können Sie die Software dennoch im Demo-Modus ausprobieren.
-Dazu können Sie diese <A HREF=src/nxdemodb.epg.gz>Demo Datenbank</A> (57 kB)
+Dazu können Sie diese <A HREF=http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxdemodb.epg.gz>Demo Datenbank</A> (57 kB)
 downloaden, dekomprimieren und dann mit den Kommandozeilenargumenten
 <CODE>-demo nxdemodb.epg</CODE> laden oder im Windows-Explorer einfach per
 Drag-and-Drop auf das nxtvepg Executable fallen lassen.
@@ -194,7 +190,7 @@ Das Urheberrecht am Inhalt dieser Datenbank liegt bei Swiss Tele text,
 deshalb bitte nicht weiterverbreiten.
 
 <H2>Copyright</H2>
-&copy; Copyright 1999, 2000, 2001 Thorsten <I>"Tom"</I> Zörner (und andere).
+&copy; Copyright 1999, 2000, 2001 Thorsten <I>"Tom"</I> Z&ouml;rner (und andere).
 Alle Rechte vorbehalten.
 <P>
 Der Autor dieser Software ist kein Mitglied der
@@ -208,10 +204,12 @@ veröffentlicht von der <A HREF="http://www.fsf.org/">Free Software Foundation.</
 beachten. Die Software wurde mit bestem Wissen und Gewissen erstellt.Es
 wird jedoch <B>keinerlei Garantie</B> für deren Funktionstauglichkeit oder
 eventuelle Folgeschäden aus Fehlfunktionen übernommen. Näheres regelt die GPL.
-
 <P>
-<HR class="hide" />
 
+</TD>
+</TBODY></TABLE>
+
+<P ALIGN=RIGHT>
 <!-- Start of TheCounter.com Code -->
 <SCRIPT TYPE="text/javascript" LANGUAGE="javascript">
 s="na";c="na";j="na";f=""+escape(document.referrer)
@@ -230,14 +228,13 @@ navigator.appVersion.charAt(0) == "2") {NS2Ch=1}
 if (NS2Ch == 0) {
 r="&size="+s+"&colors="+c+"&referer="+f+"&java="+j+""
 pr("<A HREF=\"http://www.TheCounter.com\" TARGET=\"_top\"><IMG"+
-" BORDER=0 SRC=\"http://c1.thecounter.com/id=733874"+r+"\"><\/A>")}
+" BORDER=0 WIDTH=42 HEIGTH=13 SRC=\"http://c1.thecounter.com/id=733874"+r+"\"><\/A>")}
 </SCRIPT>
 <NOSCRIPT><A HREF="http://www.TheCounter.com" TARGET="_top"><IMG
-SRC="http://c1.thecounter.com/id=733874" ALT="TC" BORDER=0></A>
+SRC="http://c1.thecounter.com/id=733874" WIDTH=42 HEIGTH=13 ALT="" BORDER=0></A>
 </NOSCRIPT>
 <!-- End of TheCounter.com Code -->
+</P>
 
-</TD>
-</TBODY></TABLE>
 </BODY>
 </HTML>

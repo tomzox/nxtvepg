@@ -40,10 +40,10 @@
  *
  *  Authors:
  *
- *    Linux:  Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *    Linux:  Tom Zoerner
  *    NetBSD: Mario Kemper <magick@bundy.zhadum.de>
  *
- *  $Id: btdrv4linux.c,v 1.9 2001/01/21 13:04:17 tom Exp tom $
+ *  $Id: btdrv4linux.c,v 1.13 2001/02/25 15:59:43 tom Exp tom $
  */
 
 #if !defined(linux) && !defined(__NetBSD__)
@@ -95,6 +95,9 @@
 #ifndef __NetBSD__
 # define VIDEONAME    "/dev/video"
 # define TUNERNAME    VIDEONAME
+# define BASE_VIDIOCPRIVATE      192
+# define BTTV_VERSION            _IOR('v' , BASE_VIDIOCPRIVATE+6, int)
+# define BTTV_VBISIZE            _IOR('v' , BASE_VIDIOCPRIVATE+8, int)
 #else
 # define VIDEONAME    "/dev/bktr"
 # define TUNERNAME    "/dev/tuner"
@@ -121,6 +124,8 @@ static bool freeDevice;
 static int vbiCardIndex;
 static int vbi_fdin;
 static int shmId;
+static int bufSize;
+static uchar *rawbuf = NULL;
 
 // vars used in the control process
 static int video_fd = -1;
@@ -145,7 +150,6 @@ void BtDriver_ScanDevices( bool master )
   int input_id;
   char *input_name;
   char devName[DEV_MAX_NAME_LEN];
-  int done=0;
   
   for (i=0;i<MAX_CARDS;i++) {
     if (master) {
@@ -254,11 +258,9 @@ bool BtDriver_SetInputSource( int inputIdx, bool keepOpen, bool * pIsTuner )
 
          // select the channel as input
          vchan.channel = inputIdx;
-         // XXX don't really know why I have to set norm AUTO here
-         // XXX but else I have no VBI reception after booting
-         // XXX must not use this with non-tuner inputs, or acq is always dead
-         if (inputIdx == 0)
-            vchan.norm = VIDEO_MODE_AUTO;
+         // XXX don't really know why I have to set the wrong norm first
+         // XXX but if I set PAL here I have no VBI reception after booting
+         vchan.norm = VIDEO_MODE_NTSC;
          if (ioctl(video_fd, VIDIOCSCHAN, &vchan) == 0)
          {
             if ( (vchan.type & VIDEO_TYPE_TV) && (vchan.flags & VIDEO_VC_TUNER) )
@@ -285,8 +287,16 @@ bool BtDriver_SetInputSource( int inputIdx, bool keepOpen, bool * pIsTuner )
                   perror("VIDIOCGTUNER");
             }
             else
-            {  // not a tuner -> already done
-               result = TRUE;
+            {  // not a tuner -> don't need to set the frequency
+
+               // XXX workaround continued: now set the correct norm PAL
+               vchan.norm = VIDEO_MODE_PAL;
+               if (ioctl(video_fd, VIDIOCSCHAN, &vchan) == 0)
+               {
+                  result = TRUE;
+               }
+               else
+                  perror("VIDIOCSCHAN");
             }
          }
          else
@@ -350,6 +360,7 @@ bool BtDriver_TuneChannel( ulong freq, bool keepOpen )
       {
          //printf("Vbi-TuneChannel: set to %.2f\n", (double)freq/16);
 
+         pVbiBuf->frameSeqNo = 0;
          result = TRUE;
       }
       else
@@ -380,6 +391,7 @@ bool BtDriver_TuneChannel( ulong freq, bool keepOpen )
       {
          //printf("Vbi-TuneChannel: set to %.2f\n", (double)freq/16);
 
+         pVbiBuf->frameSeqNo = 0;
          result = TRUE;
       }
       else
@@ -689,6 +701,8 @@ static void BtDriver_SignalAlarm( int sigval )
   if (vbi_fdin!=-1) {
     close(vbi_fdin);
     vbi_fdin=-1;
+    xfree(rawbuf);
+    rawbuf = NULL;
   }
   if (video_fd!=-1) {
     close(video_fd);
@@ -791,11 +805,41 @@ void BtDriver_CheckParent( void )
 }
 
 // ---------------------------------------------------------------------------
+// Determine the size of the VBI buffer
+// - the buffer size depends on the number of VBI lines that are captured
+//   for each frame; each read on the vbi device should request all the lines
+//   of one frame, else the rest will be overwritten by the next frame
+//
+static void BtDriver_OpenVbiBuf( void )
+{
+   #ifndef __NetBSD__
+   bufSize = ioctl(vbi_fdin, BTTV_VBISIZE);
+   if (bufSize == -1)
+   {
+      perror("ioctl BTTV_VBISIZE");
+      bufSize = VBI_BPF;
+   }
+   else if ((bufSize > VBI_BPL*100) || ((bufSize % VBI_BPL) != 0))
+   {
+      fprintf(stderr, "BTTV_VBISIZE: illegal buffer size %d\n", bufSize);
+      bufSize = VBI_BPF;
+   }
+
+   #else  // __NetBSD__
+   bufSize = VBI_BPF;
+   #endif
+
+   rawbuf = xmalloc(bufSize);
+
+   pVbiBuf->frameSeqNo = 0;
+}
+
+// ---------------------------------------------------------------------------
 // Decode all VBI lines of the last seen frame
 //
 static void BtDriver_DecodeFrame( void )
 {
-   uchar data[VBI_BPF], *pData;
+   uchar *pData;
    slong stat;
    uint  line;
 
@@ -805,21 +849,37 @@ static void BtDriver_DecodeFrame( void )
    alarm(10);
    #endif
 
-   stat = read(vbi_fdin, data, VBI_BPF);
+   stat = read(vbi_fdin, rawbuf, bufSize);
 
    #ifdef __NetBSD__
    alarm(0);
    #endif
 
-   if ( stat > 0 )
+   if ( stat >= VBI_BPL )
    {
-      pData = data;
-      for (line=0; line < stat/VBI_BPL; line++)
-      {
-         VbiDecodeLine(pData, line, pVbiBuf->doVpsPdc);
-         pData += VBI_BPL;
-         //printf("%02d: %08lx\n", line, *((ulong*)pData-4));  /* frame counter */
+      #ifndef __NetBSD__
+      // retrieve frame sequence counter from the end of the buffer
+      u32 seqno = *(u32 *)(rawbuf + stat - 4);
+      if ((seqno != pVbiBuf->frameSeqNo + 1) && (pVbiBuf->frameSeqNo != 0))
+      {  // report mising frame to the teletext decoder
+         VbiDecodeLostFrame();
       }
+
+      // skip the first frame, since it could contain data from the previous channel
+      if (pVbiBuf->frameSeqNo > 0)
+      #endif
+      {
+         pData = rawbuf;
+         for (line=0; line < stat/VBI_BPL; line++)
+         {
+            VbiDecodeLine(pData, line, pVbiBuf->doVpsPdc);
+            pData += VBI_BPL;
+            //printf("%02d: %08lx\n", line, *((ulong*)pData-4));  /* frame counter */
+         }
+      }
+      #ifndef __NetBSD__
+      pVbiBuf->frameSeqNo = seqno;
+      #endif
    }
    else if ((stat < 0) && (errno != EINTR) && (errno != EAGAIN))
    {
@@ -969,6 +1029,8 @@ static void BtDriver_Main( void )
 
             close(vbi_fdin);
             vbi_fdin = -1;
+            xfree(rawbuf);
+            rawbuf = NULL;
             #ifdef __NetBSD__
             if (video_fd != -1)
             {
@@ -1006,7 +1068,10 @@ static void BtDriver_Main( void )
                   fprintf(fp, "%d", pVbiBuf->vbiPid);
                   fclose(fp);
                }
+               // allocate memory for the VBI data buffer
+               BtDriver_OpenVbiBuf();
             }
+            // notify the parent that the operation is completed
             kill(pVbiBuf->epgPid, SIGUSR1);
          }
          else
@@ -1023,6 +1088,8 @@ static void BtDriver_Main( void )
 
             close(vbi_fdin);
             vbi_fdin = -1;
+            xfree(rawbuf);
+            rawbuf = NULL;
             #ifdef __NetBSD__
             if (video_fd != -1)
             {
@@ -1060,6 +1127,8 @@ static void BtDriver_Main( void )
       close(vbi_fdin);
       vbi_fdin = -1;
 
+      xfree(rawbuf);
+      rawbuf = NULL;
       #ifdef __NetBSD__
       if (video_fd != -1)
       {
@@ -1146,6 +1215,7 @@ bool BtDriver_Init( void )
       #ifdef __NetBSD__
       video_fd = -1;
       #endif
+
       acqShouldExit = FALSE;
       freeDevice = FALSE;
       // notify parent that child is ready

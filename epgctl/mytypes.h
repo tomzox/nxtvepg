@@ -11,14 +11,15 @@
  *  MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
+ *
  *  Description:
  *
  *    Platform and compiler independent type definitions
  *    and other global definitions.
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: mytypes.h,v 1.9 2001/02/03 21:04:06 tom Exp tom $
+ *  $Id: mytypes.h,v 1.11 2001/02/25 16:03:08 tom Exp tom $
  */
 
 #include <sys/types.h>
@@ -37,6 +38,7 @@ typedef unsigned int   uint;     // 32 bit unsigned
 typedef unsigned long  ulong;    // >=32 bit unsigned
 #endif
 typedef   signed long  slong;    // >=32 bit signed
+typedef unsigned int   u32;      // 32 bit unsigned
 
 // boolean values
 #define FALSE 0

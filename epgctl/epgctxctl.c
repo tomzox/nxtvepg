@@ -24,9 +24,9 @@
  *      then the db is opened once by the epgacqctl module and
  *      once by the epgdbmerge module
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: epgctxctl.c,v 1.3 2001/01/21 12:28:35 tom Exp tom $
+ *  $Id: epgctxctl.c,v 1.4 2001/02/25 16:03:08 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL

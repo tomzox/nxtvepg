@@ -11,15 +11,16 @@
  *  MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
+ *
  *  Description: see according C source file.
  *
  *    This table conforms to the programme type principle of classification
  *    as defined in in ETS 300 231 (PDC) and ETS 300 707 (Nextview EPG)
  *    See http://www.etsi.org/
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: pdc_themes.c,v 1.4 2000/09/28 20:28:58 tom Exp tom $
+ *  $Id: pdc_themes.c,v 1.5 2001/02/25 16:03:47 tom Exp tom $
  */
 
 #define __PDC_THEMES_C

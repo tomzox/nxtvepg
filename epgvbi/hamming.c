@@ -16,9 +16,9 @@
  *
  *    Decodes Hamming and Parity error protection.
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: hamming.c,v 1.6 2001/02/03 20:28:37 tom Exp tom $
+ *  $Id: hamming.c,v 1.7 2001/02/25 15:59:43 tom Exp tom $
  */
 
 #define __HAMMING_C

@@ -24,9 +24,9 @@
  *    Copyright (C) 1996,97 Ralph Metzler  (rjkm@thp.uni-koeln.de)
  *                        & Marcus Metzler (mocm@thp.uni-koeln.de)
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: vbidecode.c,v 1.23 2000/12/09 16:50:11 tom Exp tom $
+ *  $Id: vbidecode.c,v 1.25 2001/02/25 15:59:43 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -49,6 +49,15 @@
 #define VTSTEP  ((int)((35.468950/6.9375)*FPFAC+0.5))
 #define VPSSTEP ((int)(7.1 * FPFAC + 0.5))
 
+
+// ---------------------------------------------------------------------------
+// Handle loss of a frame
+// - just pass the info to the ttx page decoder state machine
+//
+void VbiDecodeLostFrame( void )
+{
+   EpgDbAcqLostFrame();
+}
 
 // ---------------------------------------------------------------------------
 // Decode teletext packet header

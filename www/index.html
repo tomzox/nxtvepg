@@ -1,7 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<BASE HREF="http://nxtvepg.tripod.com/">
-<!-- $Id: index.html,v 1.15 2001/02/16 17:49:34 tom Exp $ -->
+<!-- $Id: index.html,v 1.17 2001/03/10 18:51:33 tom Exp $ -->
 <HEAD>
 <TITLE>nexTView EPG Decoder Software Download Page</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
@@ -15,7 +14,7 @@
 <LINK rel="stylesheet" type="text/css" href="nxtvepg.css">
 <LINK rel="alternate" type="text/html" href="index-de.html" hreflang="de" lang="de" title="nexTView Dekoder Download">
 </HEAD>
-<BODY>
+<BODY BGCOLOR=#f8f8f8>
 <P><HR><P>
 
 <table summary="Layout table: The first cell contains a navigation bar, the second contains the main content"
@@ -25,15 +24,15 @@
 <td valign="top" class="navbar" width="15%">
 <P class="navhead"><B>Language</B>
 <P class="navsect">
-<IMG ALT="" SRC="en.png"> English<BR>
-<IMG ALT="" SRC="de.png"> <A HREF="index-de.html">German</A>
+<IMG ALT="" SRC="en.png" WIDTH=16 HEIGHT=10> English<BR>
+<IMG ALT="" SRC="de.png" WIDTH=16 HEIGHT=10> <A HREF="index-de.html">German</A>
 
 <P class="navhead"><B>Infos</B>
 <P class="navsect">
 <A HREF="man.html">Manual</A><BR>
-<A HREF="screenshot-linux.html">Screenshot 1</A><BR>
-<A HREF="screenshot-win.html">Screenshot 2</A><BR>
-<A HREF="screenshot-series.html">Screenshot 3</A><BR>
+<A HREF="screenshot-linux.gif">Screenshot 1</A><BR>
+<A HREF="screenshot-win.gif">Screenshot 2</A><BR>
+<A HREF="screenshot-series.gif">Screenshot 3</A><BR>
 
 <P class="navhead"><A HREF="#download"><B>Download</B></A><BR>
 <P class="navsect">
@@ -45,6 +44,8 @@
 
 <P class="navhead"><B>News</B>
 <P class="navsect">
+Feb/27/2001: release 0.4.4</P>
+<HR width=70%><P class="navsect">
 Feb/15/2001: release 0.4.3</P>
 <HR width=70%><P class="navsect">
 Jan/22/2001: 2nd beta release 0.4.pre2</P>
@@ -57,7 +58,7 @@ Dec/27/2000: alpha release 0.4.pre0</P>
 
 
 <CENTER>
-<IMG ALT="" SRC="nxtv_logo.gif">
+<IMG ALT="" SRC="nxtv_logo.gif" WIDTH=66 HEIGHT=66>
 <H1> nexTView <BR>EPG Decoder Software</H1>
 </CENTER>
 In this software package you find a decoder for nexTView - an Electronic TV
@@ -140,34 +141,27 @@ TV tuner card.
 <A NAME="download">
 <H2>Download</H2>
 </A>
-
-This distribution was released Feb/15/2001. For a description of new
-features and a detailed history of changes and additions see the
-<A HREF="changelog.html">ChangeLog</A>. If there are any problems with
-this new release, please let me know. For previous releases, see the
-<A HREF="src/">source directory</A>.
-<P>
-<B>Important note:</B> The links in this section lead to Tripod download pages:
-Just click on the hyper-link on these pages and wait for your browser to offer
-to save the file. Do <B>not</B> attempt to save the URL target before clicking
-on the link - you'd probably only download the download HTML page again. Sorry
-for this inconvenience.
+This distribution was released Feb/27/2001. It comprises mainly bugfixes and
+support for new platforms. An update from 0.4.3 is required only if you
+experienced problems.  For a detailed history of fixes and new features
+refer to the <A HREF="changelog.html">Change-Log</A>. If there are
+any problems with this new release, please let me know. For previous releases,
+see the <A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/">source directory</A>.
 
 <A NAME="download_unix">
 <H3>Source distribution</H3>
 </A>
 Download the latest source distribution for Linux and NetBSD:
-<A HREF=src/nxtvepg-0.4.3.tar.gz>nxtvepg-0.4.3.tar.gz</A> (283 kB)
+<A HREF=http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-0.4.4.tar.gz>nxtvepg-0.4.4.tar.gz</A> (287 kB)
 <P>
-This version is brand-new and not yet available as pre-compiled
-distribution. However you can get the previous release 0.3.4
-as Linux RPM archive at
-<A HREF="http://rpmfind.net/linux/rpm2html/search.php?query=nxtvepg">rpmfind.net</A>
+The software is also available as packages (not necessarily the latest version):
+for Linux at <A HREF="http://rpmfind.net/linux/rpm2html/search.php?query=nxtvepg">rpmfind.net</A>
+and for NetBSD at <A HREF="ftp://ftp.netbsd.org/pub/NetBSD/packages/pkgsrc/misc/nxtvepg/README.html">netbsd.org</A>
 
 <A NAME="download_windows">
 <H3>Binary distribution for M$ Windows</H3>
 </A>
-<A HREF="src/nxtvepg-1.3-win.zip">nxtvepg-1.3-win.zip</A> (858 kB)
+<A HREF="http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxtvepg-1.4-win.zip">nxtvepg-1.4-win.zip</A> (860 kB)
 <P>
 Note that you need an additional driver that is not included in this
 package. You may be able to use the driver from other TV applications.
@@ -179,7 +173,7 @@ For detailed instructions see README.txt inside the zip file.
 </A>
 If you do not receive any of the nexTView provider channels listed at the
 top of this page, download the demo database
-<A HREF=src/nxdemodb.epg.gz>nxdemodb.epg.gz</A>,
+<A HREF=http://www.nefkom.net/tomzo/prj/nxtvepg/src/nxdemodb.epg.gz>nxdemodb.epg.gz</A>,
 which will allow you to check out the main features of the browser,
 so that you can see what you're missing.
 <P>
@@ -206,10 +200,12 @@ as published by the <A HREF="http://www.fsf.org/">Free Software Foundation.</A>
 This program is distributed in the hope that it will be useful,
 but <B>without any warranty</B>; without even the implied warranty of
 merchantability or fitness for a particular purpose.
-
 <P>
-<HR class="hide" />
 
+</TD>
+</TBODY></TABLE>
+
+<P ALIGN=RIGHT>
 <!-- Start of TheCounter.com Code -->
 <SCRIPT TYPE="text/javascript" LANGUAGE="javascript">
 s="na";c="na";j="na";f=""+escape(document.referrer)
@@ -228,14 +224,13 @@ navigator.appVersion.charAt(0) == "2") {NS2Ch=1}
 if (NS2Ch == 0) {
 r="&size="+s+"&colors="+c+"&referer="+f+"&java="+j+""
 pr("<A HREF=\"http://www.TheCounter.com\" TARGET=\"_top\"><IMG"+
-" BORDER=0 SRC=\"http://c1.thecounter.com/id=733874"+r+"\"><\/A>")}
+" BORDER=0 WIDTH=42 HEIGTH=13 SRC=\"http://c1.thecounter.com/id=733874"+r+"\"><\/A>")}
 </SCRIPT>
 <NOSCRIPT><A HREF="http://www.TheCounter.com" TARGET="_top"><IMG
-SRC="http://c1.thecounter.com/id=733874" ALT="TC" BORDER=0></A>
+SRC="http://c1.thecounter.com/id=733874" ALT="" WIDTH=42 HEIGHT=13 BORDER=0></A>
 </NOSCRIPT>
 <!-- End of TheCounter.com Code -->
+</P>
 
-</TD>
-</TBODY></TABLE>
 </BODY>
 </HTML>

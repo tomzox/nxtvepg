@@ -16,9 +16,9 @@
  *
  *    Controls the acquisition process.
  *
- *  Author: Tom Zoerner <Tom.Zoerner@informatik.uni-erlangen.de>
+ *  Author: Tom Zoerner
  *
- *  $Id: epgacqctl.c,v 1.38 2001/02/04 20:14:32 tom Exp tom $
+ *  $Id: epgacqctl.c,v 1.39 2001/02/25 16:03:08 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
