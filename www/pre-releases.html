@@ -26,10 +26,58 @@ page, please visit the <A HREF="http://nxtvepg.sourceforge.net/">homepage</A>.
 <P>
 The following packages contain
 a developer's snapshot of the ongoing development.
-Please refer to the
+
+</P><P>Pre-release pre0 contains following fixes and improvements:
+</P>
+<UL>
+<LI>Fixed French default shortcut "Météo" (did pop up an error message when
+  invoked.  At first start of 2.5.1 the broken shortcut is replaced in the
+  rc file; if that does not work remove and re-define the shortcut manually
+  via the "Shortcuts" menu)
+<LI>Experimentally replaced VBI (Teletext) slicer with code from libzvbi which
+  performs better on channels with weak reception (UNIX and WIN32/Bt8x8 only);
+  sometimes this slicer seems to eat up a lot of CPU (up to 25% on my 400MHz
+  K6-2) you can disable it by commenting out -DZVBI_DECODER in the Makefile.
+<LI>Improved resizing: status line no longer vanishes when reducing
+  (however the window bottom now "jitters" during vertical resizing)
+<LI>Allow horizontal resizing of main window when in "grid" layout (UNIX only)
+<LI>Display warning about "lost changes" when the window is closed via it's
+  title bar "close" button, same as with the "Abort" button
+<LI>TV app interaction configuration dialog: added TV app selection for UNIX,
+  to select which channel table to use, i.e. select between xawtv or xawdecode
+<LI>Don't require existance of .xawtv for TV app interaction on UNIX
+  <BR>Thanks to "Sir Pingus" for suggesting this fix.
+<LI>Programme list can now be scrolled by dragging with the middle mouse button
+<LI>Grid layout: added +/- buttons to control column count;
+  <BR>Thanks to Thorsten for suggesting these features in the discussion forum
+<LI>Disabled "Show column headers" option for the grid layout
+<LI>Grid layout: refresh no longer brings scrolled-out elements back into view
+<LI>Added French network "M6" back to the EPG scan's list of "known providers"
+  and documentation.<BR>Thanks to Thierry for pointing this out first.
+</UL>
+<P>Pre-release pre1 contains following fixes and improvements:</P>
+<UL>
+<LI>fixed pre0 bugs in VBI decoder; ZVBI slicer is now disabled by default
+  because it will not be in 2.5.1 yet
+<LI>Major bugfix in grid layout: when scrolling horizontally one programme
+  could be inserted into the wrong network column under certain conditions
+<LI>Bugfix EPG provider scan in non-TV-app-assisted mode: channels without
+  signal often were not skipped due to uninitialized variable (bug was
+  introduced in nxtvepg version 0.7.2).  Thanks to Florian Zierer for
+  indirectly triggering discovery of this bug.
+<LI>UNIX: added new command line option "-tvdisplay" to allow communication
+  with a TV app running on a different X11 server (e.g. a remote host).
+  Thanks to Stefan Zoller for suggesting this feature.
+</UL>
+<P>
+Please also refer to the
 <A HREF="http://sourceforge.net/mailarchive/forum.php?forum_id=14102">mailing list archives</A>
+and <A HREF="http://sourceforge.net/forum/forum.php?forum_id=217872">forum</A>
+for background information.
+<!--
 for information about changes; the changelog in the package may not
 list all changes or not reflect the actual status of completion.
+-->
 <!--
 a release candidate (beta #1) of the upcoming release.
 Please refer to the
@@ -57,11 +105,8 @@ to be able to switch back to 2.4.0 in case you find any severe bugs in 2.4.1
 <!--
 <LI><I>nothing currently</I>
 -->
-<!--
-<LI>Sources: <A HREF="nxtvepg-2.5.0pre16.tar.gz">nxtvepg-2.5.0pre16.tar.gz</A>
--->
-<LI>Win32 executable: <A HREF="nxtvepg-2.5.0-win-dbg.zip">nxtvepg-2.5.0-win-dbg.zip</A>
-<BR>(identical to the regular release except for additional debugging features)
+<LI>Sources: <A HREF="nxtvepg-2.5.1pre1.tar.gz">nxtvepg-2.5.1pre1.tar.gz</A>
+<LI>Win32 executable: <A HREF="nxtvepg-2.5.1pre1-win.zip">nxtvepg-2.5.1pre1-win.zip</A>
 <BR>(does not contain the Tcl/Tk libraries; please copy them from the last release)
 <!--
 <BR><B>Attention:</B> Please note that Win32 TV card configuration parameters

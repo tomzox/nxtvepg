@@ -14,14 +14,10 @@
  *
  *  Description:
  *
- *    This module reads channel tables, INI files and registry of well-known
- *    Windows TV applications.  It's used to extract TV card configuration
- *    parameters as well as a frequency list for the EPG scan and a network
- *    name list for the network name configuration dialog.
- *
- *    See the enum below for a list of supported TV applications.  Not all
- *    of them are supported equally well (in particular closed-sources ones
- *    are not supported well very in regard to their TV card config).
+ *    This module reads TV programme tables of well-known TV applications.
+ *    It's used to extract TV channel lists for the EPG scan and a network
+ *    name list for the network name configuration dialog.  See the enum
+ *    below for a list of supported TV applications.
  *
  *  Author: Tom Zoerner
  *
@@ -29,17 +25,19 @@
  *    so their respective copyright applies too. Please see the notes in
  *    functions headers below.
  *
- *  $Id: wintvcfg.c,v 1.13 2003/01/29 22:10:35 tom Exp tom $
+ *  $Id: wintvcfg.c,v 1.15 2003/04/12 13:37:13 tom Exp tom $
  */
-
-#ifndef WIN32
-#error "This module is intended only for Win32 systems"
-#else
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
 #define DPRINTF_OFF
 
+#ifdef WIN32
 #include <windows.h>
+#else
+#include <errno.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -53,11 +51,14 @@
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
 
-#include "dsdrv/tvcard.h"
-#include "dsdrv/wintuner.h"
 #include "epgvbi/btdrv.h"
-#include "epgvbi/winshm.h"
 #include "epgdb/epgblock.h"
+#include "epgvbi/tvchan.h"
+#ifdef WIN32
+#include "dsdrv/tvcard.h"
+#include "epgvbi/winshm.h"
+#include "dsdrv/wintuner.h"
+#endif
 #include "epgui/epgmain.h"
 #include "epgui/wintvcfg.h"
 
@@ -69,17 +70,19 @@ static bool doChanTabFilter;
 // ----------------------------------------------------------------------------
 // File names to load config files of supported TV applications
 //
-#define INI_FILE_DSCALER         "DScaler.ini"
-#define INI_FILE_KTV             "k!tv-xp.ini"
-#define INI_FILE_MULTIDEC        "Multidec.ini"
-
-#define CHANTAB_FILE_DSCALER     "program.txt"
-#define CHANTAB_FILE_KTV         "program.set"
-#define CHANTAB_FILE_MULTIDEC    "Programm.set"
-
 #define REG_KEY_MORETV  "Software\\Feuerstein\\MoreTV"
 #define REG_KEY_FREETV  "Software\\Free Software\\FreeTV"
 #define REG_KEY_FREETV_CHANTAB  "Software\\Free Software\\FreeTV\\Tuner\\Stations"
+
+#ifndef WIN32
+typedef enum
+{
+   TVAPP_NONE,
+   TVAPP_XAWTV,
+   TVAPP_XAWDECODE,
+   TVAPP_COUNT
+} TVAPP_NAME;
+#endif
 
 
 // ----------------------------------------------------------------------------
@@ -135,7 +138,7 @@ bool WintvCfg_IsEnabled( void )
 }
 
 // ----------------------------------------------------------------------------
-// Get path of the TV app configuration file
+// Assemble path to the TV app configuration file
 // - string must be freed by caller!
 //
 static char * WintvCfg_GetPath( const char * pBase, const char * pFileName )
@@ -144,6 +147,10 @@ static char * WintvCfg_GetPath( const char * pBase, const char * pFileName )
 
    if (pFileName != NULL)
    {
+      // on UNIX config files are usually located in the home directory
+      if ((pBase == NULL) || (*pBase == 0))
+         pBase = getenv("HOME");
+
       if ((pBase != NULL) && (*pBase != 0))
       {
          pPath = xmalloc(strlen(pBase) + strlen(pFileName) + 2);
@@ -256,10 +263,11 @@ static void WintvCfg_AddChannelName( Tcl_Interp * interp, char * pName )
    }
 }
 
+#ifdef WIN32
 // ---------------------------------------------------------------------------
 // Read frequency table from MoreTV registry keys
 //
-static bool WintvCfg_GetMoretvFreqTab( Tcl_Interp * interp, DYN_FREQ_BUF * pFreqBuf, const char * pTvappPath )
+static bool WintvCfg_GetMoretvFreqTab( Tcl_Interp * interp, DYN_FREQ_BUF * pFreqBuf, const char * pChanTabPath )
 {
    HKEY  hKey;
    DWORD dwSize, dwType;
@@ -302,7 +310,7 @@ static bool WintvCfg_GetMoretvFreqTab( Tcl_Interp * interp, DYN_FREQ_BUF * pFreq
 // ---------------------------------------------------------------------------
 // Read channel names from MoreTV registry keys
 //
-static void WintvCfg_GetMoretvStationNames( Tcl_Interp * interp, const char * pTvappPath )
+static void WintvCfg_GetMoretvStationNames( Tcl_Interp * interp, const char * pChanTabPath )
 {
    HKEY  hKey;
    DWORD dwSize, dwType;
@@ -337,7 +345,7 @@ static void WintvCfg_GetMoretvStationNames( Tcl_Interp * interp, const char * pT
 // ---------------------------------------------------------------------------
 // Read channel names from FreeTV registry keys
 //
-static bool WintvCfg_GetFreetvFreqTab( Tcl_Interp * interp, DYN_FREQ_BUF * pFreqBuf, const char * pTvappPath )
+static bool WintvCfg_GetFreetvFreqTab( Tcl_Interp * interp, DYN_FREQ_BUF * pFreqBuf, const char * pChanTabPath )
 {
    HKEY  hKey;
    DWORD dwSize, dwType;
@@ -381,7 +389,7 @@ static bool WintvCfg_GetFreetvFreqTab( Tcl_Interp * interp, DYN_FREQ_BUF * pFreq
 // ---------------------------------------------------------------------------
 // Read channel names from FreeTV registry keys
 //
-static void WintvCfg_GetFreetvStationNames( Tcl_Interp * interp, const char * pTvappPath )
+static void WintvCfg_GetFreetvStationNames( Tcl_Interp * interp, const char * pChanTabPath )
 {
    HKEY  hKey;
    DWORD dwSize, dwType;
@@ -512,19 +520,17 @@ struct TProgramm
 // Extract all channels from Multidec channel table file
 // - code taken from multidec 6.4 by echter_espresso@hotmail.com
 //
-static bool WintvCfg_GetMultidecFreqTab( Tcl_Interp * interp, DYN_FREQ_BUF * pFreqBuf, const char * pTvappPath )
+static bool WintvCfg_GetMultidecFreqTab( Tcl_Interp * interp, DYN_FREQ_BUF * pFreqBuf, const char * pChanTabPath )
 {
    struct TProgrammAlt ProgrammAlt;
    struct TProgramm    Programm;
-   char * pPath;
    size_t len;
    int  fd;
    bool result = FALSE;
 
-   pPath = WintvCfg_GetPath(pTvappPath, CHANTAB_FILE_MULTIDEC);
-   if (pPath != NULL)
+   if (pChanTabPath != NULL)
    {
-      fd = open(pPath, _O_RDONLY | _O_BINARY);
+      fd = open(pChanTabPath, _O_RDONLY | _O_BINARY);
       if (fd != -1)
       {
          len = read(fd, &Programm, sizeof(Programm));
@@ -555,10 +561,9 @@ static bool WintvCfg_GetMultidecFreqTab( Tcl_Interp * interp, DYN_FREQ_BUF * pFr
          sprintf(comm, "tk_messageBox -type ok -icon error -message {"
                        "Could not open the MultiDec channel table '%s': %s."
                        "Check your settings in the TV interaction configuration dialog.}",
-                       pPath, strerror(errno));
+                       pChanTabPath, strerror(errno));
          eval_check(interp, comm);
       }
-      xfree(pPath);
    }
 
    return result;
@@ -568,18 +573,16 @@ static bool WintvCfg_GetMultidecFreqTab( Tcl_Interp * interp, DYN_FREQ_BUF * pFr
 // Build list of all channel names defined in the TV app configuration file
 // - code taken from multidec 6.4 by echter_espresso@hotmail.com
 //
-static void WintvCfg_GetMultidecStationNames( Tcl_Interp * interp, const char * pTvappPath )
+static void WintvCfg_GetMultidecStationNames( Tcl_Interp * interp, const char * pChanTabPath )
 {
    struct TProgrammAlt ProgrammAlt;
    struct TProgramm    Programm;
-   char * pPath;
    size_t len;
    int    fd;
 
-   pPath = WintvCfg_GetPath(pTvappPath, CHANTAB_FILE_MULTIDEC);
-   if (pPath != NULL)
+   if (pChanTabPath != NULL)
    {
-      fd = open(pPath, _O_RDONLY | _O_BINARY);
+      fd = open(pChanTabPath, _O_RDONLY | _O_BINARY);
       if (fd != -1)
       {
          len = read(fd, &Programm, sizeof(Programm));
@@ -605,7 +608,6 @@ static void WintvCfg_GetMultidecStationNames( Tcl_Interp * interp, const char * 
          }
          close(fd);
       }
-      xfree(pPath);
    }
 }
 
@@ -614,18 +616,16 @@ static void WintvCfg_GetMultidecStationNames( Tcl_Interp * interp, const char * 
 // - Parser code derived from QuenotteTV_XP_1103_Sources.zip
 //   K!TV is Copyright (c) 2000-2002 Quenotte
 //
-static bool WintvCfg_GetKtvFreqTab( Tcl_Interp * interp, DYN_FREQ_BUF * pFreqBuf, const char * pTvappPath )
+static bool WintvCfg_GetKtvFreqTab( Tcl_Interp * interp, DYN_FREQ_BUF * pFreqBuf, const char * pChanTabPath )
 {
    char   sbuf[256];
-   char * pPath;
    FILE * fp;
    long   freq;
    bool   result = FALSE;
 
-   pPath = WintvCfg_GetPath(pTvappPath, CHANTAB_FILE_KTV);
-   if (pPath != NULL)
+   if (pChanTabPath != NULL)
    {
-      fp = fopen(pPath, "r");
+      fp = fopen(pChanTabPath, "r");
       if (fp != NULL)
       {
          while (fgets(sbuf, sizeof(sbuf) - 1, fp) != NULL)
@@ -644,10 +644,9 @@ static bool WintvCfg_GetKtvFreqTab( Tcl_Interp * interp, DYN_FREQ_BUF * pFreqBuf
          sprintf(comm, "tk_messageBox -type ok -icon error -message {"
                        "Could not open the K!TV channel table '%s': %s."
                        "Check your settings in the TV interaction configuration dialog.}",
-                       pPath, strerror(errno));
+                       pChanTabPath, strerror(errno));
          eval_check(interp, comm);
       }
-      xfree(pPath);
    }
    return result;
 }
@@ -657,18 +656,16 @@ static bool WintvCfg_GetKtvFreqTab( Tcl_Interp * interp, DYN_FREQ_BUF * pFreqBuf
 // - Parser code derived from QuenotteTV_XP_1103_Sources.zip
 //   K!TV is Copyright (c) 2000-2002 Quenotte
 //
-static void WintvCfg_GetKtvStationNames( Tcl_Interp * interp, const char * pTvappPath )
+static void WintvCfg_GetKtvStationNames( Tcl_Interp * interp, const char * pChanTabPath )
 {
    char   sbuf[256];
-   char * pPath;
    FILE * fp;
    int    ch;
    uint   j;
 
-   pPath = WintvCfg_GetPath(pTvappPath, CHANTAB_FILE_KTV);
-   if (pPath != NULL)
+   if (pChanTabPath != NULL)
    {
-      fp = fopen(pPath, "r");
+      fp = fopen(pChanTabPath, "r");
       if (fp != NULL)
       {
          while (fscanf(fp, "%255s ", sbuf) != EOF)
@@ -698,7 +695,6 @@ static void WintvCfg_GetKtvStationNames( Tcl_Interp * interp, const char * pTvap
          error:
          fclose(fp);
       }
-      xfree(pPath);
    }
 }
 
@@ -713,19 +709,17 @@ static void WintvCfg_GetKtvStationNames( Tcl_Interp * interp, const char * pTvap
 //   Freq <frequency_KHz>
 //   ...
 //
-static bool WintvCfg_GetDscalerFreqTab( Tcl_Interp * interp, DYN_FREQ_BUF * pFreqBuf, const char * pTvappPath )
+static bool WintvCfg_GetDscalerFreqTab( Tcl_Interp * interp, DYN_FREQ_BUF * pFreqBuf, const char * pChanTabPath )
 {
    char sbuf[256];
    uint   freq;
-   char * pPath;
    FILE * fp;
    char * eol_ptr;
    bool result = FALSE;
 
-   pPath = WintvCfg_GetPath(pTvappPath, CHANTAB_FILE_DSCALER);
-   if (pPath != NULL)
+   if (pChanTabPath != NULL)
    {
-      fp = fopen(pPath, "r");
+      fp = fopen(pChanTabPath, "r");
       if (fp != NULL)
       {
          while (feof(fp) == FALSE)
@@ -762,10 +756,9 @@ static bool WintvCfg_GetDscalerFreqTab( Tcl_Interp * interp, DYN_FREQ_BUF * pFre
          sprintf(comm, "tk_messageBox -type ok -icon error -message {"
                        "Could not open the DScaler channel table '%s': %s."
                        "Check your settings in the TV interaction configuration dialog.}",
-                       pPath, strerror(errno));
+                       pChanTabPath, strerror(errno));
          eval_check(interp, comm);
       }
-      xfree(pPath);
    }
    return result;
 }
@@ -775,17 +768,15 @@ static bool WintvCfg_GetDscalerFreqTab( Tcl_Interp * interp, DYN_FREQ_BUF * pFre
 // - Parser code taken from DScaler 3.10  (see http://dscaler.org/)
 //   Copyright: 9 Novemeber 2000 - Michael Eskin, Conexant Systems
 //
-static void WintvCfg_GetDscalerStationNames( Tcl_Interp * interp, const char * pTvappPath )
+static void WintvCfg_GetDscalerStationNames( Tcl_Interp * interp, const char * pChanTabPath )
 {
    char sbuf[256];
-   char * pPath;
    FILE * fp;
    char * eol_ptr;
 
-   pPath = WintvCfg_GetPath(pTvappPath, CHANTAB_FILE_DSCALER);
-   if (pPath != NULL)
+   if (pChanTabPath != NULL)
    {
-      fp = fopen(pPath, "r");
+      fp = fopen(pChanTabPath, "r");
       if (fp != NULL)
       {
          while (feof(fp) == FALSE)
@@ -807,9 +798,153 @@ static void WintvCfg_GetDscalerStationNames( Tcl_Interp * interp, const char * p
          }
          fclose(fp);
       }
-      xfree(pPath);
    }
 }
+#else  // not WIN32
+
+// ----------------------------------------------------------------------------
+// Extract all TV frequencies & norms from $HOME/.xawtv for the EPG scan
+//
+static bool WintvCfg_GetXawtvFreqTab( Tcl_Interp * interp, DYN_FREQ_BUF * pFreqBuf, const char * pChanTabPath )
+{
+   char line[256], tag[64], value[192];
+   uint defaultNorm, attrNorm;
+   sint defaultFine, attrFine;
+   bool defaultIsTvInput, isTvInput;
+   bool isDefault;
+   uint freq;
+   FILE * fp;
+   bool result = FALSE;
+
+   if (pChanTabPath != NULL)
+   {
+      fp = fopen(pChanTabPath, "r");
+      if (fp != NULL)
+      {
+         isDefault = TRUE;
+         defaultNorm = attrNorm = VIDEO_MODE_PAL;
+         defaultFine = attrFine = 0;
+         defaultIsTvInput = isTvInput = TRUE;
+         freq = 0;
+
+         // read all lines of the file (ignoring section structure)
+         while (fgets(line, 255, fp) != NULL)
+         {
+            if (line[0] == '\n' || line[0] == '#' || line[0] == '%')
+               continue;
+
+            // search for section headers, i.e. "[station]"
+            if (sscanf(line,"[%99[^]]]", value) == 1)
+            {
+               // add the last section's data to the output list
+               dprintf4("Xawtv channel: freq=%d fine=%d norm=%d, isTvInput=%d\n", freq, attrFine, attrNorm, isTvInput);
+               if ((freq != 0) && (isDefault == FALSE) && isTvInput)
+                  WintvCfg_AddFreqToBuf(pFreqBuf, (attrNorm << 24) | (freq + attrFine));
+
+               // initialize variables for the new section
+               freq = 0;
+               attrFine = defaultFine;
+               attrNorm = defaultNorm;
+               isTvInput = defaultIsTvInput;
+               dprintf1("Xawtv channel: name=%s\n", value);
+               isDefault = ((strcmp(value, "defaults") == 0) || (strcmp(value, "global") == 0));
+            }
+            else if (sscanf(line," %63[^= ] = %191[^\n]", tag, value) == 2)
+            {
+               // search for channel assignment lines, e.g. " channel = SE15"
+               if (strcasecmp(tag, "channel") == 0)
+               {
+                  freq = TvChannels_NameToFreq(value);
+               }
+               else if (strcasecmp(tag, "norm") == 0)
+               {
+                  if (strcasecmp(value, "pal") == 0)
+                     attrNorm = VIDEO_MODE_PAL;
+                  else if (strcasecmp(value, "secam") == 0)
+                     attrNorm = VIDEO_MODE_SECAM;
+                  else if (strcasecmp(value, "ntsc") == 0)
+                     attrNorm = VIDEO_MODE_NTSC;
+                  else
+                     debug1("Xawtv-GetFreqTab: unknown norm '%s' in .xawtvrc", value);
+                  if (isDefault)
+                     defaultNorm = attrNorm;
+               }
+               else if (strcasecmp(tag, "fine") == 0)
+               {
+                  attrFine = atoi(value);
+                  if (isDefault)
+                     defaultFine = attrFine;
+               }
+               else if (strcasecmp(tag, "isTvInput") == 0)
+               {
+                  isTvInput = (strcasecmp(value, "television") == 0);
+                  if (isDefault)
+                     defaultIsTvInput = isTvInput;
+               }
+            }
+            else
+               debug1("Xawtv-GetFreqTab: parse error line \"%s\"", line);
+         }
+         fclose(fp);
+
+         // add the last section's data to the output list
+         if ((freq != 0) && (isDefault == FALSE) && isTvInput)
+         {
+            dprintf4("Xawtv channel: freq=%d fine=%d norm=%d, isTvInput=%d\n", freq, attrFine, attrNorm, isTvInput);
+            WintvCfg_AddFreqToBuf(pFreqBuf, (attrNorm << 24) | (freq + attrFine));
+         }
+
+         result = TRUE;
+      }
+      else
+      {  // file open failed -> warn the user
+         sprintf(comm, "tk_messageBox -type ok -icon error -message {"
+                       "Could not open channel table '%s': %s."
+                       "Check your settings in the TV interaction configuration dialog.}",
+                       pChanTabPath, strerror(errno));
+         eval_check(interp, comm);
+      }
+   }
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Build list of all channel names defined in the .xawtv configuration file
+// - the parsing pattern used here is lifted directly from xawtv-3.41
+// - station names are defined on single lines in brackets, e.g. [ARD]
+// - names containing '/' characters are assumed to be multi-network channels,
+//   e.g. "[arte / kinderkanal]". Those are broken up around the separator and
+//   each segment added separately to the output list
+//
+static void WintvCfg_GetXawtvStationNames( Tcl_Interp * interp, const char * pChanTabPath )
+{
+   char line[256], section[100];
+   FILE * fp;
+
+   if (pChanTabPath != NULL)
+   {
+      fp = fopen(pChanTabPath, "r");
+      if (fp != NULL)
+      {
+         // read all lines of the file (ignoring section structure)
+         while (fgets(line, 255, fp) != NULL)
+         {
+            // search for section headers, i.e. "[station]"
+            if (sscanf(line,"[%99[^]]]", section) == 1)
+            {
+               if ( (strcmp(section, "global") != 0) &&
+                    (strcmp(section, "defaults") != 0) &&
+                    (strcmp(section, "launch") != 0) )
+               {
+                  WintvCfg_AddChannelName(interp, section);
+               }
+            }
+         }
+         fclose(fp);
+      }
+   }
+}
+#endif  // not WIN32
 
 // ----------------------------------------------------------------------------
 //
@@ -817,18 +952,24 @@ typedef struct
 {
    const char  * pName;
    bool          needPath;
-   void       (* pGetStationNames) ( Tcl_Interp * interp, const char * pTvappPath );
-   bool       (* pGetFreqTab) ( Tcl_Interp * interp, DYN_FREQ_BUF * pFreqBuf, const char * pTvappPath );
+   void       (* pGetStationNames) ( Tcl_Interp * interp, const char * pChanTabPath );
+   bool       (* pGetFreqTab) ( Tcl_Interp * interp, DYN_FREQ_BUF * pFreqBuf, const char * pChanTabPath );
+   const char  * pChanTabFile;
 } TVAPP_LIST;
 
 static const TVAPP_LIST tvAppList[TVAPP_COUNT] =
 {
-   { "none",     FALSE, NULL, NULL },
-   { "DScaler",  TRUE,  WintvCfg_GetDscalerStationNames,  WintvCfg_GetDscalerFreqTab  },
-   { "K!TV",     TRUE,  WintvCfg_GetKtvStationNames,      WintvCfg_GetKtvFreqTab      }, 
-   { "MultiDec", TRUE,  WintvCfg_GetMultidecStationNames, WintvCfg_GetMultidecFreqTab }, 
-   { "MoreTV",   FALSE, WintvCfg_GetMoretvStationNames,   WintvCfg_GetMoretvFreqTab   }, 
-   { "FreeTV",   FALSE, WintvCfg_GetFreetvStationNames,   WintvCfg_GetFreetvFreqTab   }, 
+   { "none",     FALSE, NULL, NULL, "" },
+#ifdef WIN32
+   { "DScaler",  TRUE,  WintvCfg_GetDscalerStationNames,  WintvCfg_GetDscalerFreqTab,  "program.txt" },
+   { "K!TV",     TRUE,  WintvCfg_GetKtvStationNames,      WintvCfg_GetKtvFreqTab,      "program.set" }, 
+   { "MultiDec", TRUE,  WintvCfg_GetMultidecStationNames, WintvCfg_GetMultidecFreqTab, "Programm.set" }, 
+   { "MoreTV",   FALSE, WintvCfg_GetMoretvStationNames,   WintvCfg_GetMoretvFreqTab,   "" }, 
+   { "FreeTV",   FALSE, WintvCfg_GetFreetvStationNames,   WintvCfg_GetFreetvFreqTab,   "" }, 
+#else
+   { "Xawtv",    FALSE, WintvCfg_GetXawtvStationNames,    WintvCfg_GetXawtvFreqTab,    ".xawtv" },
+   { "XawDecode",FALSE, WintvCfg_GetXawtvStationNames,    WintvCfg_GetXawtvFreqTab,    ".xawdecode/xawdecoderc" },
+#endif
 };
 
 // ----------------------------------------------------------------------------
@@ -858,12 +999,70 @@ static int WintvCfg_GetTvappList( ClientData ttp, Tcl_Interp * interp, int argc,
 }
 
 // ----------------------------------------------------------------------------
+// Return default TV application
+// - searches for the first TV app in table for which a config file is present
+//
+static int WintvCfg_GetDefaultApp( ClientData ttp, Tcl_Interp * interp, int argc, CONST84 char *argv[] )
+{
+#ifndef WIN32
+   const char * pChanTabPath;
+   struct stat fstat;
+   time_t max_ts;
+   uint   max_idx;
+   uint   appIdx;
+#endif
+   int   result;
+
+   if (argc != 1)
+   {  // parameter count is invalid
+      #if (DEBUG_SWITCH_TCL_BGERR == ON)
+      Tcl_SetResult(interp, "C_Tvapp_GetDefaultApp: no parameters expected", TCL_STATIC);
+      #endif
+      result = TCL_ERROR;
+   }
+   else
+   {
+#ifndef WIN32
+      max_idx = TVAPP_NONE;
+      max_ts = 0;
+      for (appIdx=0; appIdx < TVAPP_COUNT; appIdx++)
+      {
+         pChanTabPath = WintvCfg_GetPath(NULL, tvAppList[appIdx].pChanTabFile);
+         if (pChanTabPath != NULL)
+         {
+            if ( (stat(pChanTabPath, &fstat) == 0) &&
+                 S_ISREG(fstat.st_mode) &&
+                 (fstat.st_mtime > max_ts) )
+            {
+               max_ts  = fstat.st_mtime;
+               max_idx = appIdx;
+            }
+            xfree((void *)pChanTabPath);
+         }
+      }
+
+      if (max_idx != TVAPP_NONE)
+      {
+         sprintf(comm, "%d", max_idx);
+         Tcl_AppendElement(interp, comm);
+      }
+      else
+#endif
+         Tcl_AppendElement(interp, "0");
+
+      result = TCL_OK;
+   }
+   return result;
+}
+
+// ----------------------------------------------------------------------------
 // Extract channel names listed in TV app configuration file
 //
 static int WintvCfg_GetStationNames( ClientData ttp, Tcl_Interp * interp, int argc, CONST84 char *argv[] )
 {
    const char * const pUsage = "Usage: C_Tvapp_GetStationNames";
    const char * pTvAppPath;
+   const char * pChanTabPath;
    int     appIdx;
    int     result;
 
@@ -877,9 +1076,14 @@ static int WintvCfg_GetStationNames( ClientData ttp, Tcl_Interp * interp, int ar
       appIdx = WintvCfg_GetAppIdx();
       if (appIdx != TVAPP_NONE)
       {
-         pTvAppPath = Tcl_GetVar(interp, "wintvapp_path", TCL_GLOBAL_ONLY);
+         pTvAppPath   = Tcl_GetVar(interp, "wintvapp_path", TCL_GLOBAL_ONLY);
+         pChanTabPath = WintvCfg_GetPath(pTvAppPath, tvAppList[appIdx].pChanTabFile);
+         if (pChanTabPath != NULL)
+         {
+            tvAppList[appIdx].pGetStationNames(interp, pChanTabPath);
 
-         tvAppList[appIdx].pGetStationNames(interp, pTvAppPath);
+            xfree((void *)pChanTabPath);
+         }
       }
 
       result = TCL_OK;
@@ -894,19 +1098,22 @@ bool WintvCfg_GetFreqTab( Tcl_Interp * interp, uint ** ppFreqTab, uint * pCount 
 {
    DYN_FREQ_BUF freqBuf;
    const char * pTvAppPath;
+   const char * pChanTabPath;
    int     appIdx;
    bool    result = FALSE;
 
    appIdx = WintvCfg_GetAppIdx();
    if (appIdx != TVAPP_NONE)
    {
-      pTvAppPath = Tcl_GetVar(interp, "wintvapp_path", TCL_GLOBAL_ONLY);
+      pTvAppPath   = Tcl_GetVar(interp, "wintvapp_path", TCL_GLOBAL_ONLY);
 
       if ( (tvAppList[appIdx].needPath == FALSE) ||
            ((pTvAppPath != NULL) && (pTvAppPath[0] != 0)) )
       {
+         pChanTabPath = WintvCfg_GetPath(pTvAppPath, tvAppList[appIdx].pChanTabFile);
+
          memset(&freqBuf, 0, sizeof(freqBuf));
-         if (tvAppList[appIdx].pGetFreqTab(interp, &freqBuf, pTvAppPath))
+         if (tvAppList[appIdx].pGetFreqTab(interp, &freqBuf, pChanTabPath))
          {
             if (freqBuf.fillCount == 0)
             {  // no channel assignments found in the file -> warn the user and abort
@@ -925,6 +1132,9 @@ bool WintvCfg_GetFreqTab( Tcl_Interp * interp, uint ** ppFreqTab, uint * pCount 
             result = TRUE;
          }
          // else: file open failed -> user already informed
+
+         if (pChanTabPath != NULL)
+            xfree((void *)pChanTabPath);
       }
       else
       {  // no TV app dir specified -> abort with error msg
@@ -1004,6 +1214,7 @@ static int WintvCfg_Enabled( ClientData ttp, Tcl_Interp *interp, int argc, CONST
 static int WintvCfg_TestChanTab( ClientData ttp, Tcl_Interp * interp, int argc, CONST84 char *argv[] )
 {
    DYN_FREQ_BUF freqBuf;
+   const char * pChanTabPath;
    int    newAppIdx;
    int    result;
 
@@ -1029,12 +1240,14 @@ static int WintvCfg_TestChanTab( ClientData ttp, Tcl_Interp * interp, int argc, 
          {
             memset(&freqBuf, 0, sizeof(freqBuf));
 
-            if ( tvAppList[newAppIdx].pGetFreqTab(interp, &freqBuf, argv[2]) )
+            pChanTabPath = WintvCfg_GetPath(argv[2], tvAppList[newAppIdx].pChanTabFile);
+            if ( (pChanTabPath != NULL) &&
+                 (tvAppList[newAppIdx].pGetFreqTab(interp, &freqBuf, pChanTabPath)) )
             {
                if (freqBuf.fillCount > 0)
                {
                   sprintf(comm, "tk_messageBox -type ok -icon info -parent .xawtvcf -message {"
-                                "Found %d channel names; please use the network name dialog in the "
+                                "Found %d channels; please use the network name dialog in the "
                                 "Configure menu to synchronize names between nxtvepg and %s}",
                                 freqBuf.fillCount, tvAppList[newAppIdx].pName);
                   eval_check(interp, comm);
@@ -1050,6 +1263,8 @@ static int WintvCfg_TestChanTab( ClientData ttp, Tcl_Interp * interp, int argc, 
 
             if (freqBuf.pFreqTab != NULL)
                xfree(freqBuf.pFreqTab);
+            if (pChanTabPath != NULL)
+               xfree((void *)pChanTabPath);
          }
          else
          {  // no TV app directory specified -> abort with error msg
@@ -1088,10 +1303,9 @@ void WintvCfg_Init( bool enableChanTabFilter )
    Tcl_CreateCommand(interp, "C_Tvapp_GetTvappList", WintvCfg_GetTvappList, (ClientData) NULL, NULL);
    Tcl_CreateCommand(interp, "C_Tvapp_TestChanTab", WintvCfg_TestChanTab, (ClientData) NULL, NULL);
    Tcl_CreateCommand(interp, "C_Tvapp_CfgNeedsPath", WintvCfg_CfgNeedsPath, (ClientData) NULL, NULL);
+   Tcl_CreateCommand(interp, "C_Tvapp_GetDefaultApp", WintvCfg_GetDefaultApp, (ClientData) NULL, NULL);
 
    // pass the name of the configured (not the actually connected) app to GUI
    eval_check(interp, "UpdateTvappName");
 }
-
-#endif  //WIN32
 

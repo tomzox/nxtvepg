@@ -26,7 +26,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: vbidecode.c,v 1.35 2003/01/19 08:15:27 tom Exp tom $
+ *  $Id: vbidecode.c,v 1.36 2003/04/12 17:51:13 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -39,6 +39,8 @@
 #include "epgvbi/hamming.h"
 #include "epgvbi/vbidecode.h"
 
+#ifndef ZVBI_DECODER
+
 // use fixpoint arithmetic for scanning steps
 #define FPSHIFT 16
 #define FPFAC (1<<FPSHIFT)
@@ -47,10 +49,12 @@
 // (no Nextview exists in any NTSC countries)
 #define BTTV_VT_RATE            35468950L
 #define BTTV_PEAK_SEARCH_OFF    50
+#define BTTV_START_LINE         7
 
 // the SAA7134 chip has a different offset and sampling rate than the Bt8x8 chips
 #define SAA7134_VT_RATE         (6750000L * 4)
 #define SAA7134_PEAK_SEARCH_OFF 0
+#define SAA7134_START_LINE      7
 
 #define VT_RATE_CONV            6937500L
 #define VPS_RATE_CONV           4995627L
@@ -62,6 +66,7 @@
 
 static uint vtstep  = ((uint)((double)FPFAC * BTTV_VT_RATE / VT_RATE_CONV));
 static uint vpsstep = ((uint)((double)FPFAC * BTTV_VT_RATE / VPS_RATE_CONV));
+static uint vbiStartLine = BTTV_START_LINE;
 
 
 //#define DUMP_VBI_LINE
@@ -88,21 +93,25 @@ static void VbiDecodeDumpLine( int line, const uchar * lbuf, int thresh, int off
 // Set the raw sampling rate for VBI data
 // - may differ between different hardware
 //
-void VbiDecodeSetSamplingRate( ulong sampling_rate )
+void VbiDecodeSetSamplingRate( ulong sampling_rate, uint startLine )
 {
    if (sampling_rate == 0)
-   {  // default sampling rate: BT8x8 rate
+   {  // set default sampling rate if driver doesn't support VBI format query
 #ifdef SAA7134_0_2_2
       sampling_rate = SAA7134_VT_RATE;
+      vbiStartLine  = SAA7134_START_LINE;
 #else
       sampling_rate = BTTV_VT_RATE;
+      vbiStartLine  = BTTV_START_LINE;
 #endif
    }
+   else
+      vbiStartLine  = startLine;
 
    vtstep  = (uint) ((double)FPFAC * sampling_rate / VT_RATE_CONV);
    vpsstep = (uint) ((double)FPFAC * sampling_rate / VPS_RATE_CONV);
 
-   //printf("rate=%ld -> vtstep=%.2f, vpsstep=%.2f\n", sampling_rate, (double)vtstep/FPFAC, (double)vpsstep/FPFAC);
+   dprintf4("startline=%d, rate=%ld -> vtstep=%.2f, vpsstep=%.2f\n", startLine, sampling_rate, (double)vtstep/FPFAC, (double)vpsstep/FPFAC);
 }
 
 // ---------------------------------------------------------------------------
@@ -158,6 +167,8 @@ void VbiDecodeLine(const uchar * lbuf, int line, bool doVps)
    int i, p;
    int thresh, off, min = 255, max = 0;
    ulong spos, dpos;
+
+   line += vbiStartLine;
 
    /* automatic gain control */
    for (i = AGC_START_OFF; i < AGC_START_OFF + AGC_LENGTH; i++)
@@ -222,7 +233,7 @@ void VbiDecodeLine(const uchar * lbuf, int line, bool doVps)
             break;
       }
    }
-   else if ((line == 9) && doVps)
+   else if ((line == 16) && doVps)
    {
 #ifdef DUMP_VPS_LINE
       VbiDecodeDumpLine(line, lbuf, thresh, p);
@@ -261,3 +272,4 @@ void VbiDecodeLine(const uchar * lbuf, int line, bool doVps)
    //printf("****** line=%d  [0]=%x != 0x54\n", line, data[0]);
 }
 
+#endif  // not ZVBI_DECODER

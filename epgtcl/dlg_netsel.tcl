@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_netsel.tcl,v 1.8 2003/03/14 14:57:24 tom Exp tom $
+#  $Id: dlg_netsel.tcl,v 1.9 2003/03/31 19:14:32 tom Exp tom $
 #
 set netsel_popup 0
 
@@ -337,7 +337,7 @@ proc NetselCreateCopyMenu {widget dummy} {
    }
    # if the menu is empty, add a note
    if {$count == 0} {
-      $widget add command -label "No other providers available" -state disabled
+      $widget add command -label "No providers available for copying" -state disabled
    }
 }
 

@@ -18,14 +18,14 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_xawtvcf.tcl,v 1.5 2003/02/26 21:59:20 tom Exp tom $
+#  $Id: dlg_xawtvcf.tcl,v 1.6 2003/04/01 20:52:51 tom Exp tom $
 #
 set xawtvcf_popup 0
 
 # option defaults
 set xawtvcf {tunetv 1 follow 1 dopop 1 poptype 0 duration 7}
 set wintvcf {shm 1 tunetv 1 follow 1 dopop 1}
-set wintvapp_idx 0
+set wintvapp_idx -1
 set wintvapp_path {}
 
 # name of TV app which is configured for channel table
@@ -38,14 +38,16 @@ proc UpdateTvappName {} {
    global wintvapp_idx
    global is_unix
 
+   if {$wintvapp_idx == -1} {
+      set wintvapp_idx [C_Tvapp_GetDefaultApp]
+   }
+
    # note: in UNIX there is only one name, and it's set on C level
-   if {!$is_unix} {
-      if {$wintvapp_idx > 0} {
-         set name_list [C_Tvapp_GetTvappList]
-         set tvapp_name [lindex $name_list $wintvapp_idx]
-      } else {
-         set tvapp_name "TV app."
-      }
+   if {$wintvapp_idx > 0} {
+      set name_list [C_Tvapp_GetTvappList]
+      set tvapp_name [lindex $name_list $wintvapp_idx]
+   } else {
+      set tvapp_name "TV app."
    }
 }
 
@@ -105,7 +107,7 @@ proc XawtvConfigPopup {} {
 
          label .xawtvcf.all.lab_poptype -text "How to display EPG info:"
          pack .xawtvcf.all.lab_poptype -side top -anchor w -pady 5
-         frame .xawtvcf.all.poptype -borderwidth 2 -relief ridge
+         frame .xawtvcf.all.poptype -borderwidth 2 -relief raised
          radiobutton .xawtvcf.all.poptype.t0 -text "Separate popup" -variable xawtv_tmpcf(poptype) -value 0 -command XawtvConfigPopupSelected
          radiobutton .xawtvcf.all.poptype.t1 -text "Video overlay" -variable xawtv_tmpcf(poptype) -value 1 -command XawtvConfigPopupSelected
          radiobutton .xawtvcf.all.poptype.t2 -text "Video overlay, 2 lines" -variable xawtv_tmpcf(poptype) -value 2 -command XawtvConfigPopupSelected
@@ -134,73 +136,76 @@ proc XawtvConfigPopup {} {
          XawtvConfigDisplayShmAttach
       }
 
+      # load TV app config into temporary variables
+      set xawtv_tmpcf(tvapp_idx) $wintvapp_idx
+      set xawtv_tmpcf(tvapp_path) $wintvapp_path
+      set xawtv_tmp_tvapp_list [C_Tvapp_GetTvappList]
+      set xawtv_tmpcf(chk_tvapp_idx) $wintvapp_idx
+      set xawtv_tmpcf(chk_tvapp_path) $wintvapp_path
+
+      # create TV app selection popdown menu and "Test" command button
+      frame  .xawtvcf.tvapp -borderwidth 1 -relief raised
+      label  .xawtvcf.tvapp.lab -text "Specify from where to load the channel table:" -justify left
+      pack   .xawtvcf.tvapp.lab -side top -anchor w -padx 5 -pady 5
+
+      frame  .xawtvcf.tvapp.apptype
+      label  .xawtvcf.tvapp.apptype.lab -text "TV application:"
+      pack   .xawtvcf.tvapp.apptype.lab -side left -padx 5
+      menubutton .xawtvcf.tvapp.apptype.mb -text [lindex $xawtv_tmp_tvapp_list $xawtv_tmpcf(tvapp_idx)] \
+                      -justify center -relief raised -borderwidth 2 -menu .xawtvcf.tvapp.apptype.mb.men \
+                      -indicatoron 1 -takefocus 1 -highlightthickness 1 -highlightcolor $win_frm_fg
+      menu   .xawtvcf.tvapp.apptype.mb.men -tearoff 0
+      set cmd {.xawtvcf.tvapp.apptype.mb configure -text [lindex $xawtv_tmp_tvapp_list $xawtv_tmpcf(tvapp_idx)]}
+      set idx 0
+      foreach name $xawtv_tmp_tvapp_list {
+         .xawtvcf.tvapp.apptype.mb.men add radiobutton -label $name \
+                      -variable xawtv_tmpcf(tvapp_idx) -value $idx \
+                      -command XawtvConfigSetTvapp
+         incr idx
+      }
+      pack   .xawtvcf.tvapp.apptype.mb -side left -padx 10 -fill x -expand 1
+
+      button .xawtvcf.tvapp.apptype.load -text "Test" \
+                -command {C_Tvapp_TestChanTab $xawtv_tmpcf(tvapp_idx) $xawtv_tmpcf(tvapp_path); \
+                          set xawtv_tmpcf(chk_tvapp_idx) $xawtv_tmpcf(tvapp_idx); \
+                          set xawtv_tmpcf(chk_tvapp_path) $xawtv_tmpcf(tvapp_path)}
+      pack   .xawtvcf.tvapp.apptype.load -side right -padx 10 -fill x -expand 1
+      pack   .xawtvcf.tvapp.apptype -side top -fill x
+
+      # WIN32: create entry field and command button to configure TV app directory
+      # (note: created on UNIX too, but not displayed)
+      frame  .xawtvcf.tvapp.name
+      label  .xawtvcf.tvapp.name.prompt -text "Path:"
+      pack   .xawtvcf.tvapp.name.prompt -side left -anchor w
+      entry  .xawtvcf.tvapp.name.filename -textvariable xawtv_tmpcf(tvapp_path) -font {courier -12 normal} -width 33
+      pack   .xawtvcf.tvapp.name.filename -side left -padx 5 -fill x -expand 1
+      bind   .xawtvcf.tvapp.name.filename <Enter> {SelectTextOnFocus %W}
+      button .xawtvcf.tvapp.name.dlgbut -image $fileImage -command {
+         set tmp [tk_chooseDirectory -parent .xawtvcf \
+                     -initialdir $xawtv_tmpcf(tvapp_path) \
+                     -mustexist 1]
+         if {[string length $tmp] > 0} {
+            set xawtv_tmpcf(tvapp_path) $tmp
+         }
+         unset tmp
+      }
+      pack   .xawtvcf.tvapp.name.dlgbut -side left -padx 5
       if {!$is_unix} {
-         # load TV app config into temporary variables
-         set xawtv_tmpcf(tvapp_idx) $wintvapp_idx
-         set xawtv_tmpcf(tvapp_path) $wintvapp_path
-         set xawtv_tmp_tvapp_list [C_Tvapp_GetTvappList]
-         set xawtv_tmpcf(chk_tvapp_idx) $wintvapp_idx
-         set xawtv_tmpcf(chk_tvapp_path) $wintvapp_path
-
-         # create TV app selection popdown menu and "Test" command button
-         frame  .xawtvcf.tvapp -borderwidth 1 -relief raised
-         label  .xawtvcf.tvapp.lab -text "Specify from where to load the channel table:" -justify left
-         pack   .xawtvcf.tvapp.lab -side top -anchor w -padx 5 -pady 5
-
-         frame  .xawtvcf.tvapp.apptype
-         label  .xawtvcf.tvapp.apptype.lab -text "TV application:"
-         pack   .xawtvcf.tvapp.apptype.lab -side left -padx 5
-         menubutton .xawtvcf.tvapp.apptype.mb -text [lindex $xawtv_tmp_tvapp_list $xawtv_tmpcf(tvapp_idx)] \
-                         -justify center -relief raised -borderwidth 2 -menu .xawtvcf.tvapp.apptype.mb.men \
-                         -indicatoron 1 -takefocus 1 -highlightthickness 1 -highlightcolor $win_frm_fg
-         menu   .xawtvcf.tvapp.apptype.mb.men -tearoff 0
-         set cmd {.xawtvcf.tvapp.apptype.mb configure -text [lindex $xawtv_tmp_tvapp_list $xawtv_tmpcf(tvapp_idx)]}
-         set idx 0
-         foreach name $xawtv_tmp_tvapp_list {
-            .xawtvcf.tvapp.apptype.mb.men add radiobutton -label $name \
-                         -variable xawtv_tmpcf(tvapp_idx) -value $idx \
-                         -command XawtvConfigSetTvapp
-            incr idx
-         }
-         pack   .xawtvcf.tvapp.apptype.mb -side left -padx 10 -fill x -expand 1
-
-         button .xawtvcf.tvapp.apptype.load -text "Test" \
-                   -command {C_Tvapp_TestChanTab $xawtv_tmpcf(tvapp_idx) $xawtv_tmpcf(tvapp_path); \
-                             set xawtv_tmpcf(chk_tvapp_idx) $xawtv_tmpcf(tvapp_idx); \
-                             set xawtv_tmpcf(chk_tvapp_path) $xawtv_tmpcf(tvapp_path)}
-         pack   .xawtvcf.tvapp.apptype.load -side right -padx 10 -fill x -expand 1
-         pack   .xawtvcf.tvapp.apptype -side top -fill x
-
-         # create entry field and command button to configure TV app directory
-         frame  .xawtvcf.tvapp.name
-         label  .xawtvcf.tvapp.name.prompt -text "Path:"
-         pack   .xawtvcf.tvapp.name.prompt -side left -anchor w
-         entry  .xawtvcf.tvapp.name.filename -textvariable xawtv_tmpcf(tvapp_path) -font {courier -12 normal} -width 33
-         pack   .xawtvcf.tvapp.name.filename -side left -padx 5 -fill x -expand 1
-         bind   .xawtvcf.tvapp.name.filename <Enter> {SelectTextOnFocus %W}
-         button .xawtvcf.tvapp.name.dlgbut -image $fileImage -command {
-            set tmp [tk_chooseDirectory -parent .xawtvcf \
-                        -initialdir $xawtv_tmpcf(tvapp_path) \
-                        -mustexist 1]
-            if {[string length $tmp] > 0} {
-               set xawtv_tmpcf(tvapp_path) $tmp
-            }
-            unset tmp
-         }
-         pack   .xawtvcf.tvapp.name.dlgbut -side left -padx 5
          pack   .xawtvcf.tvapp.name -side top -padx 5 -pady 5 -anchor w -fill x -expand 1
-         # set state and text of the entry field and button
-         XawtvConfigSetTvapp
+      }
+      # set state and text of the entry field and button
+      XawtvConfigSetTvapp
 
-         pack   .xawtvcf.tvapp -side top -anchor w -fill x
+      pack   .xawtvcf.tvapp -side top -anchor w -fill x -pady 5
 
-         # if "general enable" is off, disable the other buttons
+      # if "general enable" is off, disable the other buttons
+      if {!$is_unix} {
          XawtvConfigGeneralEnable
       }
 
       frame .xawtvcf.cmd
       button .xawtvcf.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Configuration) "TV application interaction"}
-      button .xawtvcf.cmd.abort -text "Abort" -width 5 -command {array unset xawtv_tmpcf; destroy .xawtvcf}
+      button .xawtvcf.cmd.abort -text "Abort" -width 5 -command XawtvConfigQuit
       button .xawtvcf.cmd.save -text "Ok" -width 5 -command XawtvConfigSave -default active
       pack .xawtvcf.cmd.help .xawtvcf.cmd.abort .xawtvcf.cmd.save -side left -padx 10
       pack .xawtvcf.cmd -side top -pady 10
@@ -209,6 +214,7 @@ proc XawtvConfigPopup {} {
       bind .xawtvcf.cmd <Destroy> {+ set xawtvcf_popup 0}
       bind .xawtvcf.cmd.save <Return> {tkButtonInvoke %W}
       bind .xawtvcf.cmd.save <Escape> {tkButtonInvoke .xawtvcf.cmd.abort}
+      wm protocol .xawtvcf WM_DELETE_WINDOW XawtvConfigQuit
       focus .xawtvcf.cmd.save
    } else {
       raise .xawtvcf
@@ -290,13 +296,25 @@ proc XawtvConfigDisplayShmAttach {} {
    }
 }
 
+# clean up temporary variables ans close main window
+proc XawtvConfigQuit {} {
+   global xawtv_tmp_tvapp_list xawtv_tmpcf
+
+   # free memory in temporary variables
+   unset xawtv_tmp_tvapp_list
+   array unset xawtv_tmpcf
+
+   # close the dialog window
+   destroy .xawtvcf
+}
+
 # callback for OK button: save config into variables
 proc XawtvConfigSave {} {
    global xawtvcf wintvcf xawtv_tmpcf
-   global wintvapp_idx wintvapp_path xawtv_tmp_tvapp_list
+   global wintvapp_idx wintvapp_path
    global is_unix
 
-   if {!$is_unix && ($xawtv_tmpcf(tvapp_idx) != 0)} {
+   if {($xawtv_tmpcf(tvapp_idx) != 0)} {
       if {($xawtv_tmpcf(tvapp_idx) != $wintvapp_idx) && \
           ($xawtv_tmpcf(tvapp_idx) != $xawtv_tmpcf(chk_tvapp_idx))} {
          set answer [tk_messageBox -type okcancel -default cancel -icon warning -parent .xawtvcf \
@@ -322,11 +340,9 @@ proc XawtvConfigSave {} {
                         "tunetv" $xawtv_tmpcf(tunetv) \
                         "follow" $xawtv_tmpcf(follow) \
                         "dopop" $xawtv_tmpcf(dopop)]
-      set wintvapp_idx $xawtv_tmpcf(tvapp_idx)
-      set wintvapp_path $xawtv_tmpcf(tvapp_path)
-      unset xawtv_tmp_tvapp_list
    }
-   array unset xawtv_tmpcf
+   set wintvapp_idx $xawtv_tmpcf(tvapp_idx)
+   set wintvapp_path $xawtv_tmpcf(tvapp_path)
 
    # save options
    UpdateRcFile
@@ -335,7 +351,6 @@ proc XawtvConfigSave {} {
    # update the TV app name
    UpdateTvappName
 
-   # close the dialog window
-   destroy .xawtvcf
+   XawtvConfigQuit
 }
 

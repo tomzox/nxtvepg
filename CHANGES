@@ -5,6 +5,39 @@ features).  For patchlevel releases also internal changes might be listed in
 case they may fix bugs (or cause new ones)
 
 
+from 2.5.0 to 2.5.1 (2003-April-21)
+
+- fixed French default shortcut "Météo" (did pop up an error message when
+  invoked.  At first start of 2.5.1 the broken shortcut is replaced in the
+  rc file; if that does not work remove and re-define the shortcut manually
+  via the "Shortcuts" menu)
+- improved resizing: status line no longer vanishes when reducing
+  (however the window bottom now "jitters" during vertical resizing)
+- allow horizontal resizing of main window when in "grid" layout (UNIX only)
+- display warning about "lost changes" when the window is closed via it's
+  title bar "close" button, same as with the "Abort" button
+- TV app interaction configuration dialog: added TV app selection for UNIX,
+  to select which channel table to use, i.e. select between xawtv or xawdecode
+- don't require existance of .xawtv for TV app interaction on UNIX
+  Thanks to "Sir Pingus" for suggesting this fix.
+- programme list can now be scrolled by dragging with the middle mouse button
+- grid layout: added +/- buttons to control column count;
+  Thanks to Thorsten for suggesting these features in the discussion forum
+- disabled "Show column headers" option for the grid layout
+- grid layout: refresh no longer brings scrolled-out elements back into view
+- Added French network "M6" back to the EPG scan's list of "known providers"
+  and documentation. Thanks to Thierry for pointing this out first.
+- major bugfix in grid layout: when scrolling horizontally one programme
+  could be inserted into the wrong network column under certain conditions
+- bugfix EPG provider scan in non-TV-app-assisted mode: channels without
+  signal often were not skipped due to uninitialized variable (bug was
+  introduced in nxtvepg version 0.7.2).  Thanks to Florian Zierer for
+  indirectly triggering discovery of this bug.
+- UNIX: added new command line option "-tvdisplay" to allow communication
+  with a TV app running on a different X11 server (e.g. a remote host).
+  Thanks to Stefan Zoller for suggesting this feature.
+
+
 from 2.4.2 to 2.5.0 (2003-March-22)
 
 - Added an alternate layout for GUI: programmes are still sorted by start

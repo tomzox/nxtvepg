@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_netname.tcl,v 1.3 2002/12/28 13:07:39 tom Exp tom $
+#  $Id: dlg_netname.tcl,v 1.4 2003/03/31 19:15:21 tom Exp tom $
 #
 set netname_popup 0
 
@@ -225,6 +225,7 @@ proc NetworkNamingPopup {} {
 
       bind .netname <Key-F1> {PopupHelp $helpIndex(Configuration) "Network names"}
       bind .netname.cmd <Destroy> {+ set netname_popup 0}
+      wm protocol .netname WM_DELETE_WINDOW NetworkNamesAbort
       focus .netname.cmd.myname
 
       if {[array exists netname_xawtv]} {

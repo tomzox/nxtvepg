@@ -13665,3 +13665,304 @@ www/pre-releases.html [rev:1.22, 2003-03-22T18:34:16]:
 - removed beta release links
 - added 2.5.0-win-dbg: executable with debugging enabled
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_5_0 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+Makefile.solaris [rev:1.1, 2003-03-22T18:38:56]:
+- Initial revision
+epgtcl/dlg_netsel.tcl [rev:1.9, 2003-03-31T19:14:32]:
+- Network selection dialog:
+- improved message for "Copy" menu when no providers available
+- "no other providers available" was confusing for users
+epgtcl/dlg_acqmode.tcl [rev:1.4, 2003-03-31T19:15:21]:
+- Added WM_DELETE_WINDOW handler for dialogs with "Abort" warning
+- handler is invoked when user closes window with "X" button in window titlebar
+- call the same proc as with "Abort" button
+epgtcl/dlg_ctxmencf.tcl [rev:1.5, 2003-03-31T19:15:21]:
+- Added WM_DELETE_WINDOW handler for dialogs with "Abort" warning
+- handler is invoked when user closes window with "X" button in window titlebar
+- call the same proc as with "Abort" button
+epgtcl/dlg_hwcfg.tcl [rev:1.10, 2003-03-31T19:15:21]:
+- Added WM_DELETE_WINDOW handler for dialogs with "Abort" warning
+- handler is invoked when user closes window with "X" button in window titlebar
+- call the same proc as with "Abort" button
+epgtcl/dlg_netname.tcl [rev:1.4, 2003-03-31T19:15:21]:
+- Added WM_DELETE_WINDOW handler for dialogs with "Abort" warning
+- handler is invoked when user closes window with "X" button in window titlebar
+- call the same proc as with "Abort" button
+epgtcl/dlg_shortcuts.tcl [rev:1.9, 2003-03-31T19:15:21]:
+- Added WM_DELETE_WINDOW handler for dialogs with "Abort" warning
+- handler is invoked when user closes window with "X" button in window titlebar
+- call the same proc as with "Abort" button
+epgtcl/dlg_udefcols.tcl [rev:1.11, 2003-03-31T19:15:21]:
+- Added WM_DELETE_WINDOW handler for dialogs with "Abort" warning
+- handler is invoked when user closes window with "X" button in window titlebar
+- call the same proc as with "Abort" button
+epgtcl/dlg_prov.tcl [rev:1.9, 2003-03-31T19:17:24]:
+- Added WM_DELETE_WINDOW handler for dialogs with "Abort" warning
+- handler is invoked when user closes window with "X" button in window titlebar
+- call the same proc as with "Abort" button
+- Win32 EPG scan: TV app interaction improved
+- when TV app is configured, auto-enable "use TV app" channel table option
+epgtcl/dlg_xawtvcf.tcl [rev:1.6, 2003-04-01T20:52:51]:
+- Use WIN32 TV app selection popdown for UNIX too
+- to select between xawtv and xawdecode
+- initialize wintvapp_idx with -1 instead of 0: overwritten by RC file, else
+    proc UpdateTvappName selects TV app with new proc C_Tvapp_GetDefaultApp
+- proc XawtvConfigPopup: moved "if !$is_unix" to add TV app menu for UNIX
+    except for the path entry field
+- proc XawtvConfigSave: moved "if !$is_unix" to enable tv app checks for UNIX
+- Also:
+- added WM_DELETE_WINDOW handler for dialogs with "Abort" warning
+- split off new proc XawtvConfigQuit for cleanup upon abort
+epgtcl/rcfile.tcl [rev:1.15, 2003-04-01T20:56:00]:
+- Added workaround for default shortcuts bug on 2.5.0:
+- search & replace defective default shortcut
+epgtcl/shortcuts.tcl [rev:1.12, 2003-04-01T20:56:03]:
+- bugfix French default shortcut: format for substr filter was wrong
+epgtcl/mainwin.tcl [rev:1.217, 2003-04-01T20:56:10]:
+- disabled show/hide option "Show column headers" for netbox layout
+- moved "wm deiconify" from epgmain.c into new proc DisplayMainWindow
+- change .all.pi to expand horizontally too
+- proc Toggle_PiBoxType:
+    + added "update" to prevent X11 errors
+    + make window horizontally resizable in netbox layout
+- proc ShortInfoResized:
+    + fixed "disappearing status line" problem: added wm geometry . ""
+      window is now resized only by changing widget -height and -width
+    + added detection for WIN32 maximized windows
+    + added prevention for recursion; do update inside protextion
+    + added horizontal resizing (grid layout only) (UNIX only)
+- WIN32 bugfix NetboxColumnHeaderMenu: check if sub-menu already exists
+epgui/epgmain.c [rev:1.119, 2003-04-01T20:56:50]:
+- fix WIN32: DEBUG_SWITCH_TCL_BGERR proc bgerror moved below LoadTcl_Init()
+- wm deiconify moved into new Tcl proc DisplayMainWindow
+- added WintvCfg_Init() for UNIX too (xawtv rc file handling moved there)
+epgui/menucmd.c [rev:1.101, 2003-04-01T20:59:10]:
+- Xawtv rc file handling moved from xawtv.c into wintvcfg.c
+- removed Xawtv_GetFreqTab(), use WIN32 WintvCfg_GetFreqTab() for all platforms
+epgui/wintvcfg.c [rev:1.14, 2003-04-01T20:59:51]:
+- Added xawtv rc file handling -> added TV app selection for UNIX too
+- added TV apps xawtv and xawdecode to list;
+    moved INI file names from #defines into TV app list struct
+- WintvCfg_GetPath(): paths can be relative $HOME
+- changed all channel freq and name handlers: get already assembled path
+    -> adapted shells GetStationNames(), GetFreqTab(), TestChanTab()
+- added WintvCfg_GetXawtvFreqTab() and WintvCfg_GetXawtvStationNames():
+    used both for xawtv and xawdecode
+- UNIX only: added new func WintvCfg_GetDefaultApp()
+epgui/xawtv.c [rev:1.31, 2003-04-01T21:00:01]:
+- Split off rc file handling: moved into wintvcfg.c
+- removed obsolete Xawtv_Enabled(), Xawtv_OpenRcFile(), Xawtv_AddFreqToBuf()
+- moved Xawtv_GetFreqTab(), Xawtv_GetStationNames into wintvcfg.c
+- Removed pre-condition for TV app interaction
+- Xawtv_Init() and Xawtv_InitConfig(): removed call to Xawtv_Check()
+- removed obsolete functions Xawtv_Check() and Xawtv_Enabled()
+epgui/pinetbox.c [rev:1.35, 2003-04-03T20:06:50]:
+- Prevent that scrolled-out elements come back into view upon refresh
+- PiNetBox_MoveTextUp() and PiNetBox_MoveTextDown() leave one invisible element
+epgtcl/mainwin.tcl [rev:1.218, 2003-04-03T20:30:35]:
+- Grid layout: added +/- buttons to control column count
+- as suggested in sourceforge.net forum March/25/2003
+- below column selection "colcfg" button, callback proc NetboxColumnRecount
+- adjusted grid rows in all other .all.pi.* widgets >= row 1
+epgtcl/mainwin.tcl [rev:1.219, 2003-04-04T21:02:01]:
+- Added bindings for middle mouse button in TextPiBox
+- for scrolling the listbox by dragging with the middle mouse button
+- new procs DragListboxStart, DragListboxMotion and DragListboxStop
+www/index-de.html [rev:1.55, 2003-04-05T12:19:31]:
+- Added "M6" back into list of French providers.
+www/index.html [rev:1.68, 2003-04-05T12:19:31]:
+- Added "M6" back into list of French providers.
+www/provnets.html [rev:1.22, 2003-04-05T12:22:28]:
+- Moved "M6" back from list of "dead" providers into list of actives
+- re-surfaced end of March 2003, reported by Thierry 29 Mar 2003
+www/nefkom-src-index.html [rev:1.15, 2003-04-05T12:22:47]:
+- updated date and file size of nxdemodb.epg.gz
+README [rev:1.34, 2003-04-05T12:31:27]:
+- Added "M6" back into list of French providers.
+nxtvepg.pod [rev:1.96, 2003-04-05T12:31:27]:
+- Added "M6" back into list of French providers.
+epgvbi/cni_tables.c [rev:1.21, 2003-04-05T12:32:45]:
+- Added "M6" back into list of known providers
+epgvbi/ttxdecode.c [rev:1.53, 2003-04-05T12:33:56]:
+- Added one line of debug output in TtxDecode_AddVpsData()
+epgtcl/mainwin.tcl [rev:1.220, 2003-04-05T13:03:06]:
+- PI Listbox "panning" improved
+- proc DisplayMainWindow: set min window minsize for min. short-info height
+- proc PanningMotion: removed obsolete workaround for UNIX window management
+    + no longer required since we clear the user-changed geometry now
+    + UNIX and WIN32 now behave the same (panning only shifts the border between
+      listbox and short-info; total window height is unchanged)
+CHANGES [rev:1.33, 2003-04-05T13:47:58]:
+- updated for release 2.5.1pre0
+TODO [rev:1.27, 2003-04-05T13:47:58]:
+- updated for release 2.5.1pre0
+epgctl/epgversion.h [rev:1.43, 2003-04-05T13:48:23]:
+- set version to 2.5.1pre0
+www/pre-releases.html [rev:1.23, 2003-04-05T13:51:02]:
+- updated for pre-release 2.5.1pre0
+- added changelog; added link to discussion forum
+- added source tarball and win-zip
+www/provnets.html [rev:1.23, 2003-04-06T19:23:59]:
+- added "Preview" column which notes how many days are covered in advance
+- extended note for M6: preview was reduced from 7 to 3 days
+epgui/epgmain.c [rev:1.120, 2003-04-06T19:30:00]:
+- Added +/- bitmaps: displayed below "colcfg" bitmap in grid layout
+- include images/col_plus.xbm and col_minus.xbm
+epgui/pinetbox.c [rev:1.36, 2003-04-06T19:42:24]:
+- Major bugfix: reference PI inserted in wrong column when scrolling horizontally
+- when the column with the cursor was scrolled out, the element selected
+    as "reference" was inserted into the wrong column because it wasn't
+    corrected by the column delta: affected PiNetBox_ScrollRight() and
+    PiNetBox_ScrollLeft()
+- fix: moved "colIdx -= delta" behind (former) PickCurPi() function
+- split off new function PiNetBox_PickCurPi() from the above two functions;
+    globally renamed previous PickCurPi function into PiNetBox_PickVisiblePi()
+- added an assertion to consistancy check func to check if elements are in
+    the wrong column (i.e. check if netwop is mapped to the column)
+- Also:
+- added some debug output in FillDown and FillUp functions
+- replaced WithdrawCursor() in PiNetBox_Resize() with cur_type=INVISIBLE
+epgvbi/ttxdecode.c [rev:1.54, 2003-04-09T20:44:05]:
+- bugfix TtxDecode_GetStatistics():
+- result value *pVbiLineCount was not initialized
+- removed this function parameter (not useful)
+epgvbi/ttxdecode.h [rev:1.28, 2003-04-09T20:44:05]:
+- bugfix TtxDecode_GetStatistics():
+- result value *pVbiLineCount was not initialized
+- removed this function parameter (not useful)
+epgctl/epgacqctl.c [rev:1.78, 2003-04-09T20:44:17]:
+- bugfix TtxDecode_GetStatistics():
+- result value *pVbiLineCount was not initialized
+- removed this function parameter (not useful)
+epgctl/epgscan.c [rev:1.34, 2003-04-09T20:45:37]:
+- bugfix full-band scan (i.e. w/o TV app)
+- TtxDecode_GetStatistics()'s return value vbiLineCount was used
+    although it was never implemented
+- removed this function parameter and it's use (not useful)
+epgtcl/mainwin.tcl [rev:1.221, 2003-04-12T13:33:43]:
+- Allow alternate X11 display for TV application
+- proc Create_XawtvPopup: additional first arg: X11 display name
+COPYRIGHT [rev:1.8, 2003-04-12T13:34:25]:
+- added copyright for zvbi slicer: by Michael H. Schimek
+- added copyright for "column selection" icon
+nxtvepg.pod [rev:1.97, 2003-04-12T13:35:17]:
+- Allow alternate X11 display for TV application
+- describe -tvdisplay option in OPTIONS section
+- improved -display description
+epgui/menucmd.c [rev:1.102, 2003-04-12T13:36:05]:
+- removed obsolete include xawtv.h (forgotten in last check-in)
+epgui/epgmain.c [rev:1.121, 2003-04-12T13:36:58]:
+- Allow alternate X11 display for TV application
+- added command line option -tvdisplay
+- option string is passed to Xawtv_Init()
+epgui/wintvcfg.c [rev:1.15, 2003-04-12T13:37:13]:
+- Updated module header description:
+- removed reference to obsolete INI file parsers
+epgui/xawtv.c [rev:1.32, 2003-04-12T13:37:20]:
+- Allow alternate X11 display for TV application
+- Xawtv_Init() optionally gets display name: calls Tk_CreateWindow()
+- added new halper function Xawtv_GetTvDisplay(): selects between alternate
+    TV app display or main window's display -> gloabally used in all funcs
+- pass display name to Tcl proc Create_XawtvPopup
+- updated module header description: removed ref. to obsolete INI file parsers;
+    also removed obsolete typedef DYN_FREQ_BUF
+epgui/xawtv.h [rev:1.6, 2003-04-12T13:37:28]:
+- Allow alternate X11 display for TV application
+- Xawtv_Init() optionally gets display name: calls Tk_CreateWindow()
+- Also:
+- removed obsolete function declaration Xawtv_GetFreqTab()
+epgvbi/zvbidecoder.c [rev:1.1, 2003-04-12T13:59:00]:
+- Initial revision
+epgvbi/zvbidecoder.h [rev:1.1, 2003-04-12T13:59:02]:
+- Initial revision
+Makefile [rev:1.58, 2003-04-12T17:50:35]:
+- added support for NetBSD by Mario Kemper;
+    renamed Makefile.freebsd to Makefile.bsd
+- added -DZVBI_DECODER: new alternative VBI slicer from libzvbi-0.2.4
+    added new module epgvbi/zvbidecoder
+- added new module epgui/wintvcfg: xawtv rc file parser split off from xawtv.c
+- improved documentation for -DSAA7134_0_2_2
+Makefile.bsd [rev:1.2, 2003-04-12T17:50:42]:
+- Added support for NetBSD by Mario Kemper
+- renamed Makefile.freebsd to Makefile.bsd
+- Also: added new define -DX11_APP_DEFAULTS
+Makefile.win32 [rev:1.38, 2003-04-12T17:50:48]:
+- added -DZVBI_DECODER: new alternative VBI slicer from libzvbi-0.2.4
+- added new module epgvbi/zvbidecoder for nxtvepg.exe and tvsim.exe
+epgvbi/btdrv4linux.c [rev:1.46, 2003-04-12T17:51:05]:
+- Added support for new VBI slicer from libzvbi-0.2.4
+- enabled by preprocessor switch -DZVBI_DECODER
+- Also:
+- pass VBI start line index to VBI slicers: 2nd arg to VbiDecodeSetSamplingRate
+- ignore failure of VIDIOCSTUNER (for compatibility with saa7134 driver)
+epgvbi/vbidecode.c [rev:1.36, 2003-04-12T17:51:13]:
+- VbiDecodeSetSamplingRate(): added new arg startLine: VBI start line index
+    changed VPS line from 9 to (9 + vbiStartLine) = 16
+- disable module is #define ZVBI_DECODER is set (new VBI slicer)
+epgvbi/vbidecode.h [rev:1.18, 2003-04-12T17:51:21]:
+- VbiDecodeSetSamplingRate(): added new arg startLine: VBI start line index
+dsdrv/saa7134.c [rev:1.16, 2003-04-12T17:52:19]:
+- VbiDecodeSetSamplingRate(): added new arg startLine: VBI start line index
+dsdrv/cx2388x.c [rev:1.11, 2003-04-12T17:52:27]:
+- VbiDecodeSetSamplingRate(): added new arg startLine: VBI start line index
+dsdrv/bt8x8.c [rev:1.6, 2003-04-12T17:53:31]:
+- Added support for new VBI slicer from libzvbi-0.2.4
+- enabled by preprocessor switch -DZVBI_DECODER
+- VbiDecodeSetSamplingRate(): added new arg startLine: VBI start line index
+CHANGES [rev:1.34, 2003-04-12T19:24:40]:
+- updated for release 2.5.1pre1
+TODO [rev:1.28, 2003-04-12T19:24:40]:
+- updated for release 2.5.1pre1
+epgctl/epgversion.h [rev:1.44, 2003-04-12T19:28:22]:
+- set version to 2.5.1pre1
+www/pre-releases.html [rev:1.24, 2003-04-12T19:30:16]:
+- updated for pre-release 2.5.1pre1
+Makefile [rev:1.59, 2003-04-20T22:10:19]:
+- Added rule to check TCL_LIBRARY_PATH and TK_LIBRARY_PATH
+- else a wrong tcl library path causes only a runtime error in epgmain.c:
+    invalid command name "tcl_findLibrary"
+- define a make variable TCL_LIBRARY_PATH instead of a string in DEFS only
+Makefile.bsd [rev:1.3, 2003-04-20T22:10:19]:
+- Added rule to check TCL_LIBRARY_PATH and TK_LIBRARY_PATH
+- else a wrong tcl library path causes only a runtime error in epgmain.c:
+    invalid command name "tcl_findLibrary"
+- define a make variable TCL_LIBRARY_PATH instead of a string in DEFS only
+epgctl/epgversion.h [rev:1.45, 2003-04-21T10:16:31]:
+- set version to 2.5.1
+epgtcl/mainwin.tcl [rev:1.222, 2003-04-21T10:27:38]:
+- Fixed proc PiBox_DisplayErrorMessage for grid layout:
+- rowspan for "overlay" text widget had to be increased by 2
+- to accomodate for the addition of +/- buttons
+epgui/pifilter.c [rev:1.82, 2003-04-21T10:31:20]:
+- fixed PiFilter_Expire():
+- rounding expire time down to full minute, in case the handler is called late
+- so that programmes which end in that minute do always expire
+epgtcl/mainwin.tcl [rev:1.223, 2003-04-21T18:57:55]:
+- fix proc AdjustTextWidgetProportions:
+- must set new listbox height for both layouts ($pibox_height)
+    i.e. even the invisible ones
+- else after a layout toggle the listbox text widget will have a wrong size
+    but the C level will use the new height
+CHANGES [rev:1.35, 2003-04-21T19:35:08]:
+- updated for release 2.5.1
+- took out ZVBI decoder for the release
+TODO [rev:1.29, 2003-04-21T19:35:37]:
+- updated for release 2.5.1
+nxtvepg.spec [rev:1.14, 2003-04-21T19:35:58]:
+- updated for release 2.5.1
+images/col_minus.xbm [rev:1.1, 2003-04-21T19:37:59]:
+- Initial revision
+images/col_plus.xbm [rev:1.1, 2003-04-21T19:38:02]:
+- Initial revision
+www/changelog.html [rev:1.45, 2003-04-21T19:40:14]:
+- updated for release 2.5.1
+www/index-de.html [rev:1.56, 2003-04-21T19:40:14]:
+- updated for release 2.5.1
+www/index.html [rev:1.69, 2003-04-21T19:40:14]:
+- updated for release 2.5.1
+www/man.html [rev:1.26, 2003-04-21T19:40:14]:
+- updated for release 2.5.1
+www/nefkom-src-index.html [rev:1.16, 2003-04-21T19:40:14]:
+- updated for release 2.5.1
+www/tripod-src-index.html [rev:1.14, 2003-04-21T19:40:14]:
+- updated for release 2.5.1
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_5_1 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_udefcols.tcl,v 1.10 2003/03/14 15:06:40 tom Exp tom $
+#  $Id: dlg_udefcols.tcl,v 1.11 2003/03/31 19:15:21 tom Exp tom $
 #
 set ucf_type_idx 0
 set ucf_value_idx 1
@@ -223,6 +223,7 @@ proc PopupUserDefinedColumns {} {
       #bind    .usercol.cmd.ok <Return> {tkButtonInvoke .usercol.cmd.ok}
       #bind    .usercol.cmd.ok <Escape> {tkButtonInvoke .usercol.cmd.abort}
       bind    .usercol <Alt-KeyPress> [bind Menubutton <Alt-KeyPress>]
+      wm protocol .usercol WM_DELETE_WINDOW {if [UserColsDlg_CheckDiscard] {destroy .usercol}}
 
 
       # create drop-down menu with all images

@@ -1,0 +1,4 @@
+#define col_minus_width 6
+#define col_minus_height 6
+static unsigned char col_minus_bits[] = {
+   0x00, 0x00, 0x3f, 0x3f, 0x00, 0x00};

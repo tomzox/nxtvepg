@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: vbidecode.h,v 1.17 2003/01/10 20:38:18 tom Exp tom $
+ *  $Id: vbidecode.h,v 1.18 2003/04/12 17:51:21 tom Exp tom $
  */
 
 #ifndef __VBIDECODE_H
@@ -28,7 +28,7 @@
 //
 void VbiDecodeLine( const uchar *lbuf, int line, bool doVps );
 bool VbiDecodeStartNewFrame( uint frameSeqNo );
-void VbiDecodeSetSamplingRate( ulong sampling_rate );
+void VbiDecodeSetSamplingRate( ulong sampling_rate, uint startLine );
 
 
 #endif // __VBIDECODE_H
