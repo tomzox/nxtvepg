@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqctl.c,v 1.76 2002/09/14 18:13:00 tom Exp tom $
+ *  $Id: epgacqctl.c,v 1.77 2002/11/17 18:19:46 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -704,10 +704,23 @@ void EpgAcqCtl_Suspend( bool suspend )
    else
    {
       EpgAcqCtl_CloseDb();
+      EpgStreamClear();
       EpgTscQueue_Clear(&acqTsc);
 
       acqCtl.state = ACQSTATE_OFF;
    }
+}
+
+// ---------------------------------------------------------------------------
+// Query cause for the last acquisition failure
+// - must only be called when acq start failed
+//
+const char * EpgAcqCtl_GetLastError( void )
+{
+   if (acqCtl.mode != ACQMODE_NETWORK)
+      return BtDriver_GetLastError();
+   else
+      return NULL;
 }
 
 // ---------------------------------------------------------------------------

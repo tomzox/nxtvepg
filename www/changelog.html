@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: changelog.html,v 1.40 2002/10/13 19:02:13 tom Exp $ -->
+<!-- $Id: changelog.html,v 1.41 2002/11/19 22:21:11 tom Exp $ -->
 <HEAD>
 <TITLE>Nextview EPG Decoder Change-Log</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
@@ -17,7 +17,6 @@
 </HEAD>
 <BODY BGCOLOR=#f8f8f8>
 
-<P><HR><P>
 <H1>Nextview EPG Decoder Change-Log</H1>
 
 <P>
@@ -45,22 +44,78 @@ improvements for the M$ Windows platform (see changelog for 0.7.1):
 -->
 
 
-<H2>Changes in 2.4.0 (not yet released)</H2>
+<A NAME="release_2_4_0">
+<H2>From 2.3.1 to 2.4.0 (November/19/2992)</H2>
+</A>
 <P>
-The following changes will be in the next release:
+This release contains the following new features and improvements:
 </P>
 <UL>
-<LI>Implemented user-defined columns, which allow to define the column content
-  depending on matches against a number of filter shortcuts; the content can
-  consist of static text, pre-defined images or a standard attribute.
-  <!-- See the <A HREF="man.html#userdefined columns">manual</A> for details.
-  -->
+<LI>Implemented user-defined columns in TV schedule output, which allow
+  to define the column content depending on matches against a number of filter
+  shortcuts; the content can consist of static text, pre-defined images or
+  a standard attribute.
+  See the <A HREF="man.html#userdefined columns">manual</A> or this
+  <A HREF="screenshot-linux-2.4.0.gif">screenshot</A> for details.
 <LI>Implemented inverted filters, i.e. you can now search for all programmes
-  which do not match a given criterium
-<LI>New pre-defined column: duration (suggested by Thierry)
+  which do not match one or more of given filter criteria or simply invert
+  the outcome of a complete filter setting.
+<LI>Improved filter shortcut edit dialog: added "invoke" and "update" buttons
+  to transfer a shortcut's filter setting to and from the programme browser
+  for easier management of filter settings. Also fixed several bugs in
+  the filter decription output for the "feature" filter type.
+<LI>Changed background color of text output elements to a lighter gray (note:
+  if you don't like the new colors you can change them by adding resource
+  definitions to your .Xdefaults file on UNIX or by editing Nxtvepg.ad
+  on Windows; details see FILES section in the HTML manual page or help)
+<LI>New pre-defined column type: duration (suggested by Thierry)
 <LI>Fixed copy &amp; paste in short-info window for Win32 (Thierry)
-<LI>Added VPS/PDC search filter: all, only with VPS, only with VPS!=start
+<LI>Added a new filter type: "VPS/PDC" which allows to search for programmes
+  with a VPS/PDC timestamp attached, and/or whose VPS/PDC start time differs
+  from the actual start time (i.e. shifted or newly added programmes)
+<LI>Enhanced start time filter: added an option "ignore date" which allows to
+  search for programmes in a daily time window (e.g. restrict a search for
+  German new magazine "Tagesschau" to 20:00-20:10)
+<LI>Added key binding for F1 key in all dialog windows and added a context menu
+  to the shortcut list (Thierry); also changed some bindings in the main
+  window: a double-click on a programme now invokes the "TuneTV" function;
+  CTRL-up/down scroll the list +/- 1 line.
+<LI>Added a new option to the "Show/Hide" configuration menu, which allows to
+  map the network filter list below the shortcut list (Thierry)
+<LI>Localized shortcut defaults for Germany and France (Thierry)
+<LI>Weekday names are now printed in the local language (defined by the locale
+  setting)  (This change was formerly listed for version 2.3.1 but missing)
+<LI>Added database export in XML format (according to xmltv.dtd),
+  provided by Massis Sirapian.
+<LI>Extended wheel-mouse support for M$ Windows (appearently before it worked
+  only with a few mouse driver configurations)
+<LI>Improved help text formatting: now bulleted items are indented.
+<LI>Added support for FreeBSD; Thanks to Simon Barner for providing the patch.
+<LI>Fixed database directory and files mode handling on UNIX:
+  1-  do not "repair" dbdir mode to 777 upon every start,
+  2-  create db files with mode 644,
+  3-  allow to put dbdir into each user's $HOME via the Makefile.
+  Thanks to Matthias Brill for the suggestions.
+<LI>HTML export improved: in addition to support for user-defined columns,
+  different columns than the main window is using can be specified for the
+  title table.
+<LI>Added "TV5" back to the list of active providers; Thanks to Anthony
+  for pointing out that TV5 is providing Nextview service again.
+<LI>Windows: implemented workaround for Hauppauge "WinTV2000" app: TV image was
+  too dark when the app was started after nxtvepg; Thanks to Peter Rolf for
+  debugging the problem.
+<LI>Windows Bt8x8 driver: fixed parameters for several TV tuners
+<LI>UNIX: improved error messages upon failure to access /dev/vbi or /dev/vbi
+  at start of acquisition and EPG scan: now the system error mesage is included
+  (e.g. "permission denied"); the previous message was misleading.
+  Thanks to Thomas Hartmann for reporting this problem.
+<LI>Bugfix for Power-PC architecture in pioutput.c; Thanks to Gerhard Tonn
+<LI>Internal changes: split Tcl/Tk script for GUI into modules (the daemon only
+  loads the script which manages the rcfile - saves apx. 400 kB RAM)
 </UL>
+
+Thanks to everyone who provided feedback and suggestions, especially to
+Thierry Ménétrier.
 
 
 <A NAME="release_2_3_1">

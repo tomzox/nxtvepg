@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: wintv.c,v 1.11 2002/08/03 14:42:53 tom Exp tom $
+ *  $Id: wintv.c,v 1.12 2002/09/29 17:16:49 tom Exp tom $
  */
 
 #ifndef WIN32
@@ -194,7 +194,7 @@ static const PI_BLOCK * Wintv_SearchCurrentPi( uint cni, uint pil )
 // ---------------------------------------------------------------------------
 // Send a command to the remote TV application
 //
-static int Wintv_SendCmd(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+static int Wintv_SendCmd(ClientData ttp, Tcl_Interp *interp, int argc, CONST84 char *argv[])
 {
    const char * const pUsage = "Usage: C_Tvapp_SendCmd <command> [<args> [<...>]]";
    Tcl_DString *pass_dstr, *tmp_dstr;
@@ -434,7 +434,7 @@ static void Wintv_StationSelected( void )
 // ----------------------------------------------------------------------------
 // Query which TV app we're connected to, if any
 //
-static int Wintv_QueryTvapp( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+static int Wintv_QueryTvapp( ClientData ttp, Tcl_Interp *interp, int argc, CONST84 char *argv[] )
 {
    char  tvAppName[100];
 
@@ -523,7 +523,7 @@ static int Wintv_ReadConfig( Tcl_Interp *interp, WINTVCF *pNewWintvcf )
 // - called during init and after user config changes
 // - loads config from rc/ini file
 //
-static int Wintv_InitConfig( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+static int Wintv_InitConfig( ClientData ttp, Tcl_Interp *interp, int argc, CONST84 char *argv[] )
 {
    const char * pShmErrMsg;
    char * pErrBuf;

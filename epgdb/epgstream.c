@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgstream.c,v 1.23 2002/09/13 08:36:44 tom Exp tom $
+ *  $Id: epgstream.c,v 1.25 2002/10/19 15:31:13 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -262,7 +262,7 @@ static uint EpgStreamAddData( const uchar * dat, uint restLine, bool isNewBlock 
    if (isNewBlock)
    {
       if (psd->haveBlock && (psd->recvLen > 0))
-         debug1("missing data for last block with recvLen=%d - discard block\n", psd->recvLen);
+         debug1("missing data for last block with recvLen=%d - discard block", psd->recvLen);
 
       psd->haveBlock  = TRUE;
       psd->haveHeader = FALSE;
@@ -396,13 +396,13 @@ static void EpgStreamDecodePacket( uchar packNo, const uchar * dat )
                }
                else
                {  // unexpected content (lost sync) -> skip this packet
-                  debug3("pkg=%2d, BP=%2d: %02X: neither BS nor FB - skipping\n", packNo, blockPtr, c1);
+                  debug3("pkg=%2d, BP=%2d: %02X: neither BS nor FB - skipping", packNo, blockPtr, c1);
                   blockPtr = 40;
                }
             }
             else
             {  // decoding error - skip this packet
-               debug3("BS marker hamming error atBP=%d: BP=%d != 3; appID=%x", blockPtr, c1, psd->appID);
+               debug4("pkg=%2d, BP=%2d: BS marker hamming error: BS=0x%02x; appID=%x", packNo, blockPtr, dat[blockPtr], psd->appID);
                blockPtr = 40;
             }
          }
@@ -437,7 +437,7 @@ static bool EpgStreamNewPage( uint sub )
          streamOfPage = NXTV_STREAM_NO_2;
          break;
       default:
-         debug1("EpgStream-NewPage: unexpected stream number %d - ignoring page", sub & 0xf00);
+         debug1("EpgStream-NewPage: unexpected stream number %d - ignoring page", (sub >> 8) & 0xf);
          streamOfPage = NXTV_NO_STREAM;
          break;
    }

@@ -23,7 +23,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbfil.c,v 1.35 2002/09/02 19:47:35 tom Exp tom $
+ *  $Id: epgdbfil.c,v 1.38 2002/10/27 18:48:36 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -37,6 +37,7 @@
 #include "epgctl/debug.h"
 
 #include "epgdb/epgblock.h"
+#include "epgvbi/ttxdecode.h"
 #include "epgdb/epgstream.h"
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
@@ -525,6 +526,16 @@ void EpgDbFilterSetProgIdx( FILTER_CONTEXT *fc, uchar newFirstProgIdx, uchar new
 }
 
 // ---------------------------------------------------------------------------
+// Set minimum and maximum programme duration values
+//
+void EpgDbFilterSetVpsPdcMode( FILTER_CONTEXT *fc, uint mode )
+{
+   assert(mode <= 2);
+
+   fc->vps_pdc_mode = mode;
+}
+
+// ---------------------------------------------------------------------------
 // Set string for sub-string search in title, short- and long info
 //
                                      //"ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞß"
@@ -639,12 +650,24 @@ void EpgDbFilterDisable( FILTER_CONTEXT *fc, uint searchFilter )
 }
 
 // ----------------------------------------------------------------------------
+// Invert the result of goven filters
+//
+void EpgDbFilterInvert( FILTER_CONTEXT *fc, uint mask, uchar themeClass, uchar sortCritClass )
+{
+   fc->invertedFilters         = mask;
+   fc->invertedThemeClasses    = themeClass;
+   fc->invertedSortCritClasses = sortCritClass;
+}
+
+// ----------------------------------------------------------------------------
 // Initialize a filter context and time slot for NI stack processing
 //
 void EpgDbFilterInitNi( FILTER_CONTEXT *fc, NI_FILTER_STATE *pNiState )
 {
    pNiState->flags = NI_DATE_NONE;
-   fc->enabledFilters = 0;
+
+   // reset all filter settings except pre-filters
+   fc->enabledFilters &= FILTER_PERM;
 }
 
 // ----------------------------------------------------------------------------
@@ -799,11 +822,6 @@ void EpgDbFilterFinishNi( FILTER_CONTEXT *fc, NI_FILTER_STATE *pNiState )
    if (pNiState->flags != NI_DATE_NONE)
    {  // at least one time related filter is in the NI stack
 
-      if ((pNiState->flags & NI_DATE_RELDATE) == 0)
-      {  // no date given -> assume today
-         pNiState->reldate = 0;
-      }
-
       if ((pNiState->flags & NI_DATE_START) == 0)
       {  // no start time given -> take current time
          pNiState->startMoD = nowMoD;
@@ -823,22 +841,31 @@ void EpgDbFilterFinishNi( FILTER_CONTEXT *fc, NI_FILTER_STATE *pNiState )
          pNiState->stopMoD = 23*60 + 59;
       }
 
-      if (pNiState->startMoD > pNiState->stopMoD)
-      {  // time slot crosses date border
-         pNiState->stopMoD += 24*60;
-      }
-      else if ((pNiState->stopMoD <= nowMoD) && (pNiState->reldate == 0))
-      {  // time slot has completely elapsed today -> use tomorrow
-         pNiState->reldate += 1;
-      }
+      if ((pNiState->flags & NI_DATE_RELDATE) != 0)
+      {
+         if (pNiState->startMoD > pNiState->stopMoD)
+         {  // time slot crosses date border
+            pNiState->stopMoD += 24*60;
+         }
+         else if ((pNiState->stopMoD <= nowMoD) && (pNiState->reldate == 0))
+         {  // time slot has completely elapsed today -> use tomorrow
+            pNiState->reldate += 1;
+         }
 
-      // time base is today, midnight
-      // substract LTO because the added filters are in local time
-      now = now - (now % (60*60*24)) - lto;
-      fc->timeBegin = now + pNiState->startMoD * 60L + pNiState->reldate * 60L*60*24;
-      fc->timeEnd   = now + pNiState->stopMoD  * 60L + pNiState->reldate * 60L*60*24;
+         // time base is today, midnight
+         // substract LTO because the added filters are in local time
+         now = now - (now % (60*60*24)) - lto;
+         fc->timeBegin = now + pNiState->startMoD * 60 + pNiState->reldate * 60*60*24;
+         fc->timeEnd   = now + pNiState->stopMoD  * 60 + pNiState->reldate * 60*60*24;
 
-      fc->enabledFilters |= FILTER_TIME_BEG | FILTER_TIME_END;
+         fc->enabledFilters |= FILTER_TIME_ONCE;
+      }
+      else
+      {  // no date given -> allow given time window on any day
+         fc->timeBegin       = pNiState->startMoD * 60;
+         fc->timeEnd         = pNiState->stopMoD  * 60;
+         fc->enabledFilters |= FILTER_TIME_DAILY;
+      }
    }
 }
 
@@ -850,20 +877,37 @@ bool EpgDbFilterMatches( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT *fc, con
 {
    uchar class;
    uint  index;
+   bool  fail, invert;
    bool  skipThemes = FALSE;
+   bool  orSeriesThemes = FALSE;
    
    if ((fc != NULL) && (pPi != NULL))
    {
       if (fc->enabledFilters & FILTER_NETWOP)
       {
-         if (fc->netwopFilterField[pPi->netwop_no] == FALSE)
-            goto failed;
+         fail   = (fc->netwopFilterField[pPi->netwop_no] == FALSE);
+
+         invert = ((fc->invertedFilters & FILTER_NETWOP) != FALSE);
+         if (fail ^ invert)
+         {
+            // if the network is also excluded by pre-filter, it's excluded from global inversion
+            if ( (fc->enabledFilters & FILTER_NETWOP_PRE) &&
+                 (fc->netwopPreFilterField[pPi->netwop_no] == FALSE) )
+               goto failed_pre;
+            else
+               goto failed;
+         }
+
+         // do not include pre-filtered netwops with inverted network selection
+         if ( invert && (fc->enabledFilters & FILTER_NETWOP_PRE) &&
+              (fc->netwopPreFilterField[pPi->netwop_no] == FALSE) )
+            goto failed_pre;
       }
       else if (fc->enabledFilters & FILTER_NETWOP_PRE)
       {  // netwop pre-filter is only activated when netwop is unused
          // this way also netwops outside of the prefilter can be explicitly requested, e.g. by a NI menu
          if (fc->netwopPreFilterField[pPi->netwop_no] == FALSE)
-            goto failed;
+            goto failed_pre;
       }
 
       if (fc->enabledFilters & FILTER_AIR_TIMES)
@@ -882,12 +926,12 @@ bool EpgDbFilterMatches( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT *fc, con
                if (piStartMoD < airStartMoD)
                {
                   if ((piStopMoD <= airStartMoD) && (piStopMoD > piStartMoD))
-                     goto failed;
+                     goto failed_pre;
                }
                else if (piStartMoD >= airStopMoD)
                {
                   if ((piStopMoD > piStartMoD) || (piStopMoD <= airStartMoD))
-                     goto failed;
+                     goto failed_pre;
                }
 
                if (fc->enabledFilters & FILTER_EXPIRE_TIME)
@@ -895,12 +939,12 @@ bool EpgDbFilterMatches( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT *fc, con
                   if (piStopMoD > airStopMoD)
                   {
                      if (pPi->stop_time - (piStopMoD - airStopMoD)*60 <= fc->expireTime)
-                        goto failed;
+                        goto failed_pre;
                   }
                   else if (piStopMoD <= airStartMoD)
                   {
                      if (pPi->stop_time - (piStopMoD + 24*60 - airStopMoD)*60 <= fc->expireTime)
-                        goto failed;
+                        goto failed_pre;
                   }
                }
             }
@@ -909,7 +953,7 @@ bool EpgDbFilterMatches( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT *fc, con
                if ((piStartMoD < airStartMoD) && (piStartMoD >= airStopMoD))
                {
                   if ((piStopMoD > piStartMoD) && (piStopMoD <= airStartMoD))
-                     goto failed;
+                     goto failed_pre;
                }
 
                if (fc->enabledFilters & FILTER_EXPIRE_TIME)
@@ -917,7 +961,7 @@ bool EpgDbFilterMatches( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT *fc, con
                   if ((piStopMoD <= airStartMoD) && (piStopMoD > airStopMoD))
                   {
                      if (pPi->stop_time - (piStopMoD - airStopMoD)*60 <= fc->expireTime)
-                        goto failed;
+                        goto failed_pre;
                   }
                }
             }
@@ -927,46 +971,75 @@ bool EpgDbFilterMatches( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT *fc, con
       if (fc->enabledFilters & FILTER_EXPIRE_TIME)
       {
          if (pPi->stop_time <= fc->expireTime)
-            goto failed;
+            goto failed_pre;
       }
 
-      if (fc->enabledFilters & FILTER_TIME_BEG)
+      if (fc->enabledFilters & FILTER_TIME_ONCE)
       {
-         if (pPi->start_time < fc->timeBegin)
-            goto failed;
-      }
+         fail   = ((pPi->start_time < fc->timeBegin) || (pPi->start_time >= fc->timeEnd));
 
-      if (fc->enabledFilters & FILTER_TIME_END)
+         invert = ((fc->invertedFilters & FILTER_TIME_ONCE) != FALSE);
+         if (fail ^ invert)
+            goto failed_pre;
+      }
+      else if (fc->enabledFilters & FILTER_TIME_DAILY)
       {
-         if (pPi->start_time >= fc->timeEnd)
-            goto failed;
+         sint    lto       = EpgLtoGet(pPi->start_time);
+         time_t  timeOfDay = (pPi->start_time + lto) % (24*60*60);
+
+         if (fc->timeBegin < fc->timeEnd)
+            fail   = ((timeOfDay < fc->timeBegin) || (timeOfDay >= fc->timeEnd));
+         else
+            fail   = ((timeOfDay < fc->timeBegin) && (timeOfDay >= fc->timeEnd));
+
+         invert = ((fc->invertedFilters & FILTER_TIME_DAILY) != FALSE);
+         if (fail ^ invert)
+            goto failed_pre;
       }
 
       if (fc->enabledFilters & FILTER_DURATION)
       {
          uint duration = pPi->stop_time - pPi->start_time;
 
-         if ( (duration < fc->duration_min) ||
-              (duration > fc->duration_max) )
+         fail   = ((duration < fc->duration_min) || (duration > fc->duration_max));
+
+         invert = ((fc->invertedFilters & FILTER_DURATION) != FALSE);
+         if (fail ^ invert)
             goto failed;
       }
 
       if (fc->enabledFilters & FILTER_PAR_RAT)
       {
-         if ((pPi->parental_rating == 0) || (pPi->parental_rating > fc->parentalRating))
-            goto failed;
+         if (pPi->parental_rating != 0)
+         {
+            fail   = (pPi->parental_rating > fc->parentalRating);
+
+            invert = ((fc->invertedFilters & FILTER_PAR_RAT) != FALSE);
+            if (fail ^ invert)
+               goto failed;
+         }
+         else
+         {  // do not include unrated programmes via global inversion
+            goto failed_pre;
+         }
       }
 
       if (fc->enabledFilters & FILTER_EDIT_RAT)
       {
-         if (pPi->editorial_rating < fc->editorialRating)
+         fail   = (pPi->editorial_rating < fc->editorialRating);
+
+         invert = ((fc->invertedFilters & FILTER_EDIT_RAT) != FALSE);
+         if (fail ^ invert)
             goto failed;
       }
 
       if (fc->enabledFilters & FILTER_PROGIDX)
       {
          uint progNo = EpgDbGetProgIdx(dbc, pPi);
-         if ((progNo < fc->firstProgIdx) || (progNo > fc->lastProgIdx))
+         fail   = ((progNo < fc->firstProgIdx) || (progNo > fc->lastProgIdx));
+
+         invert = ((fc->invertedFilters & FILTER_PROGIDX) != FALSE);
+         if (fail ^ invert)
             goto failed;
       }
 
@@ -977,26 +1050,43 @@ bool EpgDbFilterMatches( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT *fc, con
             if ((pPi->feature_flags & fc->featureFilterMaskField[index]) == fc->featureFilterFlagField[index])
                break;
          }
-         if (index >= fc->featureFilterCount)
+         fail   = (index >= fc->featureFilterCount);
+
+         invert = ((fc->invertedFilters & FILTER_FEATURES) != FALSE);
+         if (fail ^ invert)
             goto failed;
+      }
+
+      if ( ((fc->enabledFilters & (FILTER_SERIES | FILTER_THEMES)) == (FILTER_SERIES | FILTER_THEMES)) &&
+           (((fc->invertedFilters & (FILTER_SERIES | FILTER_THEMES)) == 0) ||
+            ((fc->invertedFilters & (FILTER_SERIES | FILTER_THEMES)) == (FILTER_SERIES | FILTER_THEMES)) ) )
+      {  // both themes and series filters are used -> logical OR (unless only one of theme is inverted)
+         orSeriesThemes = TRUE;
       }
 
       if (fc->enabledFilters & FILTER_SERIES)
       {
+         fail = TRUE;
          for (index=0; index < pPi->no_themes; index++)
          {
             register uchar theme = pPi->themes[index];
             if ((theme > 0x80) &&
                 (fc->seriesFilterMatrix[pPi->netwop_no][theme - 0x80]))
+            {
+               fail = FALSE;
                break;
+            }
          }
+         invert = ((fc->invertedFilters & FILTER_SERIES) != FALSE);
+         fail  ^= invert;
+
          // logical OR between series and themes filter (same filter type)
-         if (index < pPi->no_themes)
-         {  // series matched -> skip themes filter
-            skipThemes = TRUE;
+         if (fail == FALSE)
+         {  // series matched -> skip themes filter (unless asymetrical inversion)
+            skipThemes = orSeriesThemes;
          }
-         else if ((fc->enabledFilters & FILTER_THEMES) == FALSE)
-         {  // series did not match -> failed only, if themes disabled
+         else if (orSeriesThemes == FALSE)
+         {  // series did not match -> failed only, if logical AND between themes and series
             goto failed;
          }
       }
@@ -1007,19 +1097,26 @@ bool EpgDbFilterMatches( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT *fc, con
          {  // AND across all classes
             if (fc->usedThemeClasses & class)
             {
+               fail = TRUE;
                for (index=0; index < pPi->no_themes; index++)
                {  // OR across all themes in a class
                   if (fc->themeFilterField[pPi->themes[index]] & class)
                   {  // ignore theme series codes if series filter is used
                      // (or a "series - general" selection couldn't be reduced by selecting particular series)
-                     if ((pPi->themes[index] < 0x80) || ((fc->enabledFilters & FILTER_SERIES) == FALSE))
+                     if ( (pPi->themes[index] < 0x80) ||
+                          ((fc->enabledFilters & FILTER_SERIES) == FALSE) ||
+                          ((fc->invertedFilters & FILTER_SERIES) != FALSE) /* ||
+                          ((fc->invertedFilters & (FILTER_THEMES | FILTER_SERIES)) != FALSE)*/ )
+                     {
+                        fail = FALSE;
                         break;
+                     }
                   }
                }
-               if (index >= pPi->no_themes)
-               {  // no match for this class -> abort (because of AND)
+
+               invert = ((fc->invertedThemeClasses & class) != FALSE);
+               if (fail ^ invert)
                   goto failed;
-               }
             }
          }
       }
@@ -1030,15 +1127,19 @@ bool EpgDbFilterMatches( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT *fc, con
          {  // AND across all classes
             if (fc->usedSortCritClasses & class)
             {
+               fail = TRUE;
                for (index=0; index < pPi->no_sortcrit; index++)
                {  // OR across all sorting criteria in a class
                   if (fc->sortCritFilterField[pPi->sortcrits[index]] & class)
+                  {
+                     fail = FALSE;
                      break;
+                  }
                }
-               if (index >= pPi->no_sortcrit)
-               {  // no match for this class -> abort (because of AND)
+
+               invert = ((fc->invertedSortCritClasses & class) != FALSE);
+               if (fail ^ invert)
                   goto failed;
-               }
             }
          }
       }
@@ -1055,10 +1156,12 @@ bool EpgDbFilterMatches( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT *fc, con
             }
             pDesc += 1;
          }
-         if (class >= pPi->no_descriptors)
-         {  // none of the searched for IDs is contained in this PI
+         // failed if none of the searched for IDs is contained in this PI
+         fail   = (class >= pPi->no_descriptors);
+
+         invert = ((fc->invertedFilters & FILTER_LANGUAGES) != FALSE);
+         if (fail ^ invert)
             goto failed;
-         }
       }
 
       if (fc->enabledFilters & FILTER_SUBTITLES)
@@ -1072,38 +1175,80 @@ bool EpgDbFilterMatches( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT *fc, con
                break;
             }
          }
-         if (class >= pPi->no_descriptors)
-         {  // none of the searched for IDs is contained in this PI
+         // failed if none of the searched for IDs is contained in this PI
+         fail   = (class >= pPi->no_descriptors);
+
+         invert = ((fc->invertedFilters & FILTER_SUBTITLES) != FALSE);
+         if (fail ^ invert)
             goto failed;
-         }
       }
 
       if ((fc->enabledFilters & (FILTER_SUBSTR_TITLE|FILTER_SUBSTR_DESCR)) == (FILTER_SUBSTR_TITLE|FILTER_SUBSTR_DESCR))
       {
-         if ( (!xstrcmp(fc, PI_GET_TITLE(pPi))) &&
-              (!PI_HAS_SHORT_INFO(pPi) || !xstrcmp(fc, PI_GET_SHORT_INFO(pPi))) &&
-              (!PI_HAS_LONG_INFO(pPi) || !xstrcmp(fc, PI_GET_LONG_INFO(pPi))) )
+         fail = ( (!xstrcmp(fc, PI_GET_TITLE(pPi))) &&
+                  (!PI_HAS_SHORT_INFO(pPi) || !xstrcmp(fc, PI_GET_SHORT_INFO(pPi))) &&
+                  (!PI_HAS_LONG_INFO(pPi) || !xstrcmp(fc, PI_GET_LONG_INFO(pPi))) );
+
+         invert = ((fc->invertedFilters & (FILTER_SUBSTR_TITLE|FILTER_SUBSTR_DESCR)) != FALSE);
+         if (fail ^ invert)
             goto failed;
       }
       else if (fc->enabledFilters & FILTER_SUBSTR_TITLE)
       {
-         if (!xstrcmp(fc, PI_GET_TITLE(pPi)))
+         fail   = (!xstrcmp(fc, PI_GET_TITLE(pPi)));
+         invert = ((fc->invertedFilters & FILTER_SUBSTR_TITLE) != FALSE);
+         if (fail ^ invert)
             goto failed;
       }
       else if (fc->enabledFilters & FILTER_SUBSTR_DESCR)
       {
-         if ( (!PI_HAS_SHORT_INFO(pPi) || !xstrcmp(fc, PI_GET_SHORT_INFO(pPi))) &&
-              (!PI_HAS_SHORT_INFO(pPi) || !xstrcmp(fc, PI_GET_LONG_INFO(pPi))) )
+         fail   = ( (!PI_HAS_SHORT_INFO(pPi) || !xstrcmp(fc, PI_GET_SHORT_INFO(pPi))) &&
+                    (!PI_HAS_SHORT_INFO(pPi) || !xstrcmp(fc, PI_GET_LONG_INFO(pPi))) );
+         invert = ((fc->invertedFilters & FILTER_SUBSTR_DESCR) != FALSE);
+         if (fail ^ invert)
+            goto failed;
+      }
+
+      if (fc->enabledFilters & FILTER_VPS_PDC)
+      {
+         if (fc->vps_pdc_mode == 1)
+         {
+            fail = (pPi->pil == INVALID_VPS_PIL);
+         }
+         else if (fc->vps_pdc_mode == 2)
+         {
+            struct tm * pTm = localtime(&pPi->start_time);
+            if (pPi->pil == INVALID_VPS_PIL)
+               fail = TRUE;
+            else if ( (pTm->tm_min == (pPi->pil & 0x3f)) &&
+                      (pTm->tm_hour == ((pPi->pil >>  6) & 0x1f)) &&
+                      (pTm->tm_mday == ((pPi->pil >> 15) & 0x1f)) &&
+                      (pTm->tm_mon + 1 == ((pPi->pil >> 11) & 0x0f)) )
+               fail = TRUE;
+            else
+               fail = FALSE;
+         }
+         else  // illegal mode
+            fail = TRUE;
+
+         invert = ((fc->invertedFilters & FILTER_VPS_PDC) != FALSE);
+         if (fail ^ invert)
             goto failed;
       }
 
       // all tests have passed -> match ok
-      return TRUE;
+      if (fc->enabledFilters & FILTER_INVERT)
+         return FALSE;
+      else
+         return TRUE;
    }
    else
       fatal0("EpgDbFilter-Matches: illegal NULL ptr param");
 
 failed:
-   return FALSE;
+   if (fc->enabledFilters & FILTER_INVERT)
+      return TRUE;
+failed_pre:
+      return FALSE;
 }
 

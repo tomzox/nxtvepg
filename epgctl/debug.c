@@ -22,7 +22,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: debug.c,v 1.16 2002/09/17 16:16:04 tom Exp tom $
+ *  $Id: debug.c,v 1.18 2002/11/04 19:04:21 tom Exp tom $
  */
 
 #define __DEBUG_C
@@ -33,7 +33,7 @@
 # define DEBUG_SWITCH OFF
 #endif
 
-#include <malloc.h>
+#include <stdlib.h>
 #ifdef WIN32
 #include <process.h>
 #if defined(HALT_ON_FAILED_ASSERTION) || (CHK_MALLOC == OFF)
@@ -45,7 +45,6 @@
 #if DEBUG_SWITCH == ON
 
 #ifdef WIN32
-#include <stdlib.h>
 #include <io.h>
 #else
 #include <unistd.h>
@@ -263,6 +262,31 @@ void chk_free( void * ptr )
 //
 void chk_memleakage( void )
 {
+#if DEBUG_SWITCH == ON
+   MALLOC_CHAIN * pWalk;
+   uint  count, sum;
+
+   if (pMallocChain != NULL)
+   {
+      pWalk = pMallocChain;
+      sum = count = 0;
+      while (pWalk != NULL)
+      {
+         sum   += pWalk->size;
+         count += 1;
+         pWalk = pWalk->next;
+      }
+      debug2("chk-memleakage: %d elements not freed, total %d bytes", count, sum);
+
+      pWalk = pMallocChain;
+      for (count=0; count < 10; count++)
+      {
+         debug3("chk-memleakage: not freed: %s, line %d, size %d", pWalk->fileName, pWalk->line, pWalk->size);
+         pWalk = pWalk->next;
+      }
+   }
+#endif
+
    assert(pMallocChain == NULL);
    assert(malUsage == 0);
 

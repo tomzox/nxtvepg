@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="de">
-<!-- $Id: index-de.html,v 1.42 2002/10/13 19:01:48 tom Exp $ -->
+<!-- $Id: index-de.html,v 1.45 2002/11/19 22:21:26 tom Exp $ -->
 <HEAD>
 <TITLE>nexTView EPG Dekoder Software Download</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
@@ -50,7 +50,9 @@ width="125" height="37" border="0" alt="SourceForge.net Logo"></a>
 
 <P class="navhead"><B>News</B>
 <P class="navsect">
-13.10.2002: <A HREF="#download">release 2.3.1</A></P>
+19.11.2002: <A HREF="#download">release 2.4.0</A></P>
+<HR width=70%><P class="navsect">
+13.10.2002: release 2.3.1</P>
 <HR width=70%><P class="navsect">
 17.9.2002: release 2.3.0</P>
 <HR width=70%><P class="navsect">
@@ -85,7 +87,8 @@ zusammen mit dem Teletext (Videotext) im analogen TV-Signal übertragen
 wird. Mit dem Dekoder erhalten Sie das Fernsehprogramm aller überregionalen
 Sender in Deutschland, Österreich, der Schweiz und Frankreich. Einen ersten
 Eindruck können Sie sich mit diesem
-<A HREF="screenshot-linux.gif">Linux screenshot</A>, oder diesem
+<A HREF="screenshot-linux.gif">Linux screenshot</A>
+(<B><FONT COLOR="red">neu mit Version 2.4.0</FONT></B>), oder diesem
 <A HREF="screenshot-win.gif">Windows screenshot</A> verschaffen.
 </P><P>
 Der nexTView Standard wurde von den führenden TV Herstellern
@@ -121,22 +124,6 @@ Software mit Ausnahme des Demo-Modus leider nichts anfangen. Mehr Infos dazu
 und zu allen weiteren Sofware-Features in der
 <A HREF="man.html">nxtvepg Dokumentation</A> (nur in englisch verfügbar).
 </P><P>
-<B>Neu:</B>
-Die <B>Windows TV software <A HREF="http://www.kastortv.com/">K!TV</A></B>
-kann jetzt mit nxtvepg kommunizieren (genau wie <I>xawtv</I> auf UNIX),
-z.B. um beim Programmwechsel eine Einblendung mit dem aktuell laufenden
-Programm zu zeigen, den Sender von nxtvepg aus zu wechseln,
-<A HREF="tvsim.html#interaction features">uvm.</A>
-</P>
-<P>
-<B><FONT COLOR="red">Aktuell:</FONT></B>
-nxtvpepg wurde die Ehre einer Erwähnung in der Share- &amp; Freeware-Sektion von
-Ausgabe 21 des <A HREF="http://www.heise.de/ct/shareware/">c't Magazins</A> zuteil.
-Um den dadurch signifikant angestiegenen Traffic bewältigen zu können mußte die
-website nach sourceforge.net umziehen.  An dieser Stelle vielen Dank an das
-SourceForge Team; vielen Dank auch an Thomas Schlebusch und Peter Schumacher
-dafür daß sie während der Übergangszeit die packages gespiegelt haben.
-<P></P>
 Falls nxtvepg Ihr Interesse geweckt haben sollte und Sie nun an einem
 TV mit integriertem nexTView interessiert sind, schauen Sie doch auf
 den Seiten der Hersteller vorbei:
@@ -153,8 +140,9 @@ den Seiten der Hersteller vorbei:
 <H2>Systemanforderungen</H2>
 <P>
 Harwarevoraussetzungen sind ein PC oder Workstation mit mindestens einer
-90 Mhz Intel Pentium oder leistungsstärkeren CPU
-und eine TV-Karte mit dem Booktree Chip Bt848 oder Bt878.
+90 Mhz Intel Pentium oder leistungsstärkeren CPU und eine TV-Karte mit dem
+Booktree Chip Bt848 oder Bt878 (ATI TV-Wonder und Aldi-Karten mit SAA7134
+werden derzeit nicht unterstützt)
 </P>
 
 <H3>Linux Softwareanforderungen</H3>
@@ -196,35 +184,37 @@ Es werden alle Windows Versionen ab Windows 95 unterstützt.
 <H2>Download</H2>
 </A>
 <P>
-Die letzte stabile Distribution ist Version is 2.3.1 vom 13. Oktober 2002.
-<BR>Die neue Version behebt eine Reihe von Fehlern in der Vorgängerversion
-(Details siehe <A HREF="changelog.html#release_2_3_1">Change-Log 2.3.1</A>)
-</P><P>
-<B><FONT color="red">Achtung:</FONT></B> In allen nxtvepg Versionen bis einschließlich
-2.2.0 ist leider ein Fehler der seit August 2002 für Benutzer des Nextview EPG
-Anbieters Kabel1 zu häufigen Programmabstürzen beim Scrolling durch die
-TV Programmanzeige führt.  Falls Sie von dem Fehler betroffen sind, können Sie
-den Programmquellcode von den Versionen
-<A HREF="patches/patch-nxtvepg-0.6.4.txt">0.6.4</A> und
-<A HREF="patches/patch-nxtvepg-0.7.0.txt">0.7.0</A>
-patchen, oder laden Sie einfach eine neuere Version herunter.
+Die letzte stabile Distribution ist Version ist 2.3.1 vom 13. Oktober 2002.
+Die neueste Version ist 2.4.0 vom 19. November 2002.
+<BR>Die neue Version bringt eine Reihe neuer Features, u.a.
+benutzerdefinierte Darstellung ausgewähler Programme (z.B. um die Titel Ihrer
+Lieblingsserien in fettem rot herauszuheben), invertiertes Suchen (Sie können
+z.B. nach allen Spielfilmen suchen, außer auf RTL2), Export in XML uvm.
+(Details siehe <A HREF="changelog.html#release_2_4_0">Change-Log 2.4.0</A>)
 </P><P>
 Mehr Details und alle früheren Änderungen sind im
 <A HREF="changelog.html">Change-Log</A> dokumentiert. Falls mit der Software
-Probleme auftauchen, bitte melden.
+Probleme auftauchen, bitte melden.  Ältere Distributionen sind über die
+<A HREF="http://sourceforge.net/project/showfiles.php?group_id=64430">SourceForge File List</A>
+verfügbar.
 </P><P>
 Wenn Sie über zukünftige releases auf dem Laufenden bleiben wollen, können Sie
-das nxtvepg Projekt abonnieren auf <A HREF="http://freshmeat.net/projects/nxtvepg/">freshmeat.net</A>
+das nxtvepg Projekt abonnieren auf <A HREF="http://freshmeat.net/projects/nxtvepg/">freshmeat.net</A>.
+Ich freue mich auch über jegliche Art von Feedback im (derzeit noch leeren)
+<A HREF="http://sourceforge.net/forum/forum.php?forum_id=217872">Diskussionsforum</A>.
 </P>
 
 <A NAME="download_unix">
 <H3>Source Distribution</H3>
 </A>
 Download der letzten stabilen Source Distribution für Linux und NetBSD:
-<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.3.1.tar.gz">nxtvepg-2.3.1.tar.gz</A>
+<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.3.1.tar.gz?download">nxtvepg-2.3.1.tar.gz</A>
+</P><P>
+Download der neuesten (möglicherweise instabilen) Source Distribution:
+<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.4.0.tar.gz?download">nxtvepg-2.4.0.tar.gz</A>
 </P><P>
 Aus dem source tarball läßt sich auch ein RPM package bauen mit dem
-Kommando: <KBD>rpm -ta nxtvepg-2.3.1.tar.gz</KBD>. Das erzeugte package
+Kommando: <KBD>rpm -ta nxtvepg-2.4.0.tar.gz</KBD>. Das erzeugte package
 kann dann wie üblich mit <KBD>rpm -i</KBD> installiert werden. Alternativ
 sind auch fertige packages verfügbar (jedoch nicht notwendigerweise
 immer die neueste Version):
@@ -238,10 +228,13 @@ und für NetBSD von <A HREF="ftp://ftp.netbsd.org/pub/NetBSD/packages/pkgsrc/misc
 </A>
 <P>
 Windows executable der letzten stabilen Version:
-<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.3.1-win.zip">nxtvepg-2.3.1-win.zip</A>
+<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.3.1-win.zip?download">nxtvepg-2.3.1-win.zip</A>
+</P><P>
+Windows executable der neuesten (möglicherweise instabilen) Version:
+<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.4.0-win.zip?download">nxtvepg-2.4.0-win.zip</A>
 </P><P>
 Demo für Interaktion mit TV Applikationen:
-<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.3.1-tvsim.zip">nxtvepg-2.3.1-tvsim.zip</A>
+<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.4.0-tvsim.zip?download">nxtvepg-2.4.0-tvsim.zip</A>
 <BR>(siehe auch <A HREF="tvsim.html">tvsim</A>,
 <A HREF="vbirec.html">vbirec</A> oder
 <A HREF="vbiplay.html">vbiplay</A> manuals, oder
@@ -275,7 +268,7 @@ deshalb bitte nicht weiterverbreiten.
 
 <H2>Copyright</H2>
 <P>
-&copy; Copyright 1999, 2000, 2001, 2002 Th. <I>"Tom"</I> Z&ouml;rner (und andere).
+&copy; Copyright 1999, 2000, 2001, 2002 T. Z&ouml;rner (und andere).
 Alle Rechte vorbehalten.
 </P><P>
 Der Autor dieser Software ist kein Mitglied der

@@ -22,7 +22,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgnetio.c,v 1.30 2002/05/30 14:00:01 tom Exp tom $
+ *  $Id: epgnetio.c,v 1.31 2002/11/17 18:14:14 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -56,6 +56,7 @@
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
+#include "epgvbi/syserrmsg.h"
 #include "epgdb/epgblock.h"
 #include "epgdb/epgqueue.h"
 #include "epgdb/epgtscqueue.h"
@@ -129,80 +130,6 @@ static const char * WinSocketStrError( DWORD errCode )
    return msg;
 }
 #endif  // WIN32 && DEBUG_SWITCH==ON
-
-// ----------------------------------------------------------------------------
-// Save text describing network error cause
-// - argument list has to be terminated with NULL pointer
-// - to be displayed by the GUI to help the user fixing the problem
-//
-void EpgNetIo_SetErrorText( char ** ppErrorText, int errCode, const char * pText, ... )
-{
-   #ifndef WIN32
-   uchar * sysErrStr = NULL;  // init to avoid compiler warning
-   #else
-   uchar   sysErrStr[160];
-   #endif
-   va_list argl;
-   const char *argv[20];
-   uint argc, sumlen, off, idx;
-
-   // free the previous error text
-   if (*ppErrorText != NULL)
-   {
-      xfree(*ppErrorText);
-      *ppErrorText = NULL;
-   }
-
-   // collect all given strings
-   if (pText != NULL)
-   {
-      argc    = 1;
-      argv[0] = pText;
-      sumlen  = strlen(pText);
-
-      if (errCode != 0)
-      {
-         #ifndef WIN32
-         sysErrStr = strerror(errCode);
-         #else
-         FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, errCode, LANG_USER_DEFAULT, sysErrStr, sizeof(sysErrStr) - 1, NULL);
-         #endif
-         sumlen += strlen(sysErrStr);
-      }
-
-      va_start(argl, pText);
-      while (argc < 20 - 1)
-      {
-         argv[argc] = va_arg(argl, char *);
-         if (argv[argc] == NULL)
-            break;
-
-         sumlen += strlen(argv[argc]);
-         argc += 1;
-      }
-      va_end(argl);
-
-      if (argc > 0)
-      {
-         // allocate memory for sum of all strings length
-         *ppErrorText = xmalloc(sumlen + 1);
-
-         // concatenate the strings
-         off = 0;
-         for (idx=0; idx < argc; idx++)
-         {
-            strcpy(*ppErrorText + off, argv[idx]);
-            off += strlen(argv[idx]);
-         }
-
-         if (errCode != 0)
-         {
-            strcpy(*ppErrorText + off, sysErrStr);
-            //off += strlen(sysErrStr);
-         }
-      }
-   }
-}
 
 #ifdef WIN32
 // ----------------------------------------------------------------------------
@@ -1485,13 +1412,13 @@ int EpgNetIo_ConnectToServer( bool use_tcp_ip, const char * pSrvHost, const char
          if (sock_fd == -1)
          {
             debug1("socket (ipv4): %s", sockStrError(sockErrno));
-            EpgNetIo_SetErrorText(ppErrorText, sockErrno, "Cannot create network socket: ", NULL);
+            SystemErrorMessage_Set(ppErrorText, sockErrno, "Cannot create network socket: ", NULL);
          }
       }
       else
       {
          debug1("getaddrinfo (ipv4): %s", gai_strerror(rc));
-         EpgNetIo_SetErrorText(ppErrorText, 0, "Invalid hostname or service/port: ", gai_strerror(rc), NULL);
+         SystemErrorMessage_Set(ppErrorText, 0, "Invalid hostname or service/port: ", gai_strerror(rc), NULL);
       }
    }
 
@@ -1519,9 +1446,9 @@ int EpgNetIo_ConnectToServer( bool use_tcp_ip, const char * pSrvHost, const char
          {
             debug1("connect: %s", sockStrError(sockErrno));
             if (use_tcp_ip)
-               EpgNetIo_SetErrorText(ppErrorText, sockErrno, "Server not running or not reachable: connect via TCP/IP failed: ", NULL);
+               SystemErrorMessage_Set(ppErrorText, sockErrno, "Server not running or not reachable: connect via TCP/IP failed: ", NULL);
             else
-               EpgNetIo_SetErrorText(ppErrorText, sockErrno, "Server not running: connect via " SRV_CLNT_SOCK_PATH " failed: ", NULL);
+               SystemErrorMessage_Set(ppErrorText, sockErrno, "Server not running: connect via " SRV_CLNT_SOCK_PATH " failed: ", NULL);
             closesocket(sock_fd);
             sock_fd = -1;
          }
@@ -1529,7 +1456,7 @@ int EpgNetIo_ConnectToServer( bool use_tcp_ip, const char * pSrvHost, const char
       else
       {
          debug1("fcntl (F_SETFL=O_NONBLOCK): %s", sockStrError(sockErrno));
-         EpgNetIo_SetErrorText(ppErrorText, sockErrno, "Failed to set socket non-blocking: ", NULL);
+         SystemErrorMessage_Set(ppErrorText, sockErrno, "Failed to set socket non-blocking: ", NULL);
          closesocket(sock_fd);
          sock_fd = -1;
       }
@@ -1564,13 +1491,13 @@ bool EpgNetIo_FinishConnect( int sock_fd, char ** ppErrorText )
       else
       {  // failed to establish a connection to the server
          debug1("EpgNetIo-FinishConnect: connect failed: %s", sockStrError(sockerr));
-         EpgNetIo_SetErrorText(ppErrorText, sockerr, "Connect failed: ", NULL);
+         SystemErrorMessage_Set(ppErrorText, sockerr, "Connect failed: ", NULL);
       }
    }
    else
    {
       debug1("EpgNetIo-FinishConnect: getsockopt: %s", sockStrError(sockErrno));
-      EpgNetIo_SetErrorText(ppErrorText, sockErrno, "Failed to query socket connect result: ", NULL);
+      SystemErrorMessage_Set(ppErrorText, sockErrno, "Failed to query socket connect result: ", NULL);
    }
 
 #else  // WIN32
@@ -1607,7 +1534,7 @@ bool EpgNetIo_Init( char ** ppErrorText )
       if (ppErrorText == NULL)
          EpgNetIo_Logger(LOG_ERR, -1, sockErrno, "winsock2 DLL init failed: ", NULL);
       else
-         EpgNetIo_SetErrorText(ppErrorText, sockErrno, "Failed to initialize winsock2 DLL: ", NULL);
+         SystemErrorMessage_Set(ppErrorText, sockErrno, "Failed to initialize winsock2 DLL: ", NULL);
    }
 
    return result;

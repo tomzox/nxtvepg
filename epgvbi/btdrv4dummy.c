@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: btdrv4dummy.c,v 1.12 2002/09/14 19:03:45 tom Exp tom $
+ *  $Id: btdrv4dummy.c,v 1.13 2002/11/17 18:12:45 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -57,6 +57,11 @@ bool BtDriver_StartAcq( void )
 
 void BtDriver_StopAcq( void )
 {
+}
+
+const char * BtDriver_GetLastError( void )
+{
+   return "application was compiled without VBI device support";
 }
 
 bool BtDriver_IsVideoPresent( void )

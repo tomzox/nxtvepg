@@ -19,7 +19,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: winshm.h,v 1.8 2002/08/03 14:36:13 tom Exp tom $
+ *  $Id: winshm.h,v 1.9 2002/11/19 20:58:06 tom Exp tom $
  */
 
 #ifndef __WINSHM_H
@@ -58,7 +58,7 @@ typedef struct
    uint8_t   reserved1;       // unused; set to 0
    uint32_t  epgReqFreq;      // TV tuner frequency requested by acq control; 0 if none
    uint32_t  epgReqInput;     // TV input source requested by EPG user (0=tuner; 1,2,3=ext.inp., 4=none)
-   uint32_t  tvCurFreq;       // tuner freq. from which VBI is currently captured
+   uint32_t  tvCurFreq;       // tuner freq. and norm from which VBI is currently captured
    uint32_t  tvCurInput;      // input source from which video is received (0=tuner, ...)
 
    uint8_t   tvChanName[CHAN_NAME_MAX_LEN];  // name of currently tuned TV channel

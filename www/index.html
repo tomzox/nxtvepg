@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: index.html,v 1.54 2002/10/13 19:01:48 tom Exp $ -->
+<!-- $Id: index.html,v 1.58 2002/11/19 22:21:26 tom Exp $ -->
 <HEAD>
 <TITLE>nexTView EPG Decoder Software Download Page</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
@@ -50,7 +50,9 @@ width="125" height="37" border="0" alt="SourceForge.net Logo"></a>
 
 <P class="navhead"><B>News</B>
 <P class="navsect">
-Oct/13/2002: <A HREF="#download">release 2.3.1</A></P>
+Nov/19/2002: <A HREF="#download">release 2.4.0</A></P>
+<HR width=70%><P class="navsect">
+Oct/13/2002: release 2.3.1</P>
 <HR width=70%><P class="navsect">
 Sep/17/2002: release 2.3.0</P>
 <HR width=70%><P class="navsect">
@@ -84,7 +86,8 @@ Programme Guide for the analog domain (as opposed to the various digital EPGs
 that come with most digital broadcasts). It enables you to receive and browse
 free TV programme listings for all of the major networks in Germany, Austria,
 France and Switzerland. You can have a look at it in this
-<A HREF="screenshot-linux.gif">Linux screenshot</A>, or this
+<A HREF="screenshot-linux.gif">Linux screenshot</A>
+(<B><FONT COLOR="red">new for version 2.4.0</FONT></B>), or this
 <A HREF="screenshot-win.gif">Windows screenshot</A>.
 <P></P>
 The nexTView standard was developed by the major European consumer electronics
@@ -117,22 +120,6 @@ For more details see the <A HREF="provnets.html">provider table</A>.
 If you don't receive any of these, then unfortunately this software is
 useless to you, except for a demo mode. For detailed information please
 refer to the <A HREF="man.html">nxtvepg manual page</A>.
-<P></P>
-<B>New:</B>
-Check out the <B>Windows TV app <A HREF="http://www.kastortv.com/">K!TV</A></B>
-which now interacts seemlessly with nxtvepg (exactly like <I>xawtv</I>
-does on UNIX), e.g. you get an EPG info popup with every channel change,
-you can switch the TV channel from inside nxtvepg,
-<A HREF="tvsim.html#interaction features">and more</A>.
-<P></P>
-<B><FONT COLOR="red">News:</FONT></B>
-The nxtvepg software has earned a mention in the share- and freeware
-section of edition 21 of the German
-<A HREF="http://www.heise.de/ct/shareware/">c't magazine</A>.
-Due to the significantly increased traffic to the homepage, it had to
-be loacated to sourceforge.  Many thanks to the sourceforge team for
-accepting the project and to Thomas Schlebusch and Peter Schumacher
-for providing a temporary mirror during the transition period.
 <P></P>
 If you're interested in buying a TV with nexTView inside, look for it
 at one of the following manufacturers:
@@ -190,25 +177,23 @@ account with special privileges (you must be allowed to install &amp; start a se
 <H2>Download</H2>
 </A>
 <P>
-The latest stable release is version 2.3.1.
-<BR>This release fixes a number of minor bugs in the previous version
-(details see <A HREF="changelog.html#release_2_3_1">change log 2.3.1</A>).
-</P><P>
-<B><FONT color="red">Important announcement:</FONT></B> Unfortunately there was a bug in all
-versions up to (and including) 2.2.0 which led to frequent crashes since August 2002
-for users of the German provider Kabel1.  If you experience crashes when scrolling
-through programme listings read from Kabel1, then please either apply one of the
-patches against the source code, which are available for versions
-<A HREF="patches/patch-nxtvepg-0.6.4.txt">0.6.4</A> and
-<A HREF="patches/patch-nxtvepg-0.7.0.txt">0.7.0</A>
-or upgrade to the latest stable version.
+The latest stable release is version 2.3.1; the newest release is 2.4.0.
+<BR>The latest release offers major improvements, including
+user defined programme display (e.g. print titles of your favorite series
+in bold red text), inverting searches (e.g. show all programmes that do
+NOT have adult content), export in XML format, and many more
+(details see <A HREF="changelog.html#release_2_4_0">change log 2.4.0</A>).
 </P><P>
 For a detailed history of new features and fixes in previous releases
 refer to the <A HREF="changelog.html">change log</A>.
 If there are any problems with this new release, please let me know.
+For previous releases see the
+<A HREF="http://sourceforge.net/project/showfiles.php?group_id=64430">SourceForge File List</A>.
 </P><P>
 If you want to be kept up to date about future new releases, you can subscribe
-to the nxtvepg project on <A HREF="http://freshmeat.net/projects/nxtvepg/">freshmeat.net</A>
+to the nxtvepg project on <A HREF="http://freshmeat.net/projects/nxtvepg/">freshmeat.net</A>.
+I also appreciate all kind of feed-back in my (yet empty)
+<A HREF="http://sourceforge.net/forum/forum.php?forum_id=217872">discussion forum</A>.
 </P>
 
 <A NAME="download_unix">
@@ -216,10 +201,13 @@ to the nxtvepg project on <A HREF="http://freshmeat.net/projects/nxtvepg/">fresh
 </A>
 <P>
 Download the latest stable source distribution for Linux and NetBSD:
-<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.3.1.tar.gz">nxtvepg-2.3.1.tar.gz</A>
+<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.3.1.tar.gz?download">nxtvepg-2.3.1.tar.gz</A>
+</P><P>
+Download the newest (possibly unstable) source distribution:
+<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.4.0.tar.gz?download">nxtvepg-2.4.0.tar.gz</A>
 </P><P>
 You can build a RPM package from the source tarball simply by running
-<KBD>rpm -ta nxtvepg-2.3.1.tar.gz</KBD> and install it as usual with
+<KBD>rpm -ta nxtvepg-2.4.0.tar.gz</KBD> and install it as usual with
 <KBD>rpm -i</KBD>.  You can also donwload directly installable packages
 (not necessarily the latest version)
 for Linux at <A HREF="http://rpmfind.net/linux/rpm2html/search.php?query=nxtvepg">rpmfind.net</A>
@@ -232,10 +220,13 @@ and for NetBSD at <A HREF="ftp://ftp.netbsd.org/pub/NetBSD/packages/pkgsrc/misc/
 </A>
 <P>
 Windows executable of the latest stable version:
-<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.3.1-tvsim.zip">nxtvepg-2.3.1-win.zip</A>
+<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.3.1-win.zip?download">nxtvepg-2.3.1-win.zip</A>
+</P><P>
+Windows executable of the newest (possibly unstable) version:
+<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.4.0-win.zip?download">nxtvepg-2.4.0-win.zip</A>
 </P><P>
 Demo application for TV application interaction:
-<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.3.1-tvsim.zip">nxtvepg-2.3.1-tvsim.zip</A>
+<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.4.0-tvsim.zip?download">nxtvepg-2.4.0-tvsim.zip</A>
 <BR>(see <A HREF="tvsim.html">tvsim</A>,
 <A HREF="vbirec.html">vbirec</A> or
 <A HREF="vbiplay.html">vbiplay</A> manuals, or
@@ -272,7 +263,7 @@ please do not redistribute.
 
 <H2>Copyright</H2>
 <P>
-&copy; Copyright 1999, 2000, 2001, 2002 by Th. <I>"Tom"</I> Zoerner (and others).
+&copy; Copyright 1999, 2000, 2001, 2002 by T. Zoerner (and others).
 All rights reserved.
 </P><P>
 The author of this site's software is not a member of the

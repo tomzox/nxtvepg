@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: btdrv.h,v 1.24 2002/09/14 19:03:38 tom Exp tom $
+ *  $Id: btdrv.h,v 1.26 2002/11/17 18:12:34 tom Exp tom $
  */
 
 #ifndef __BTDRV_H
@@ -31,7 +31,7 @@
 // cards; the currently used card is scanned by the slave when acq is started
 // or when the card index is changed.
 
-#ifdef __NetBSD__
+#if defined(__NetBSD__) || defined(__FreeBSD__)
 
 # define MAX_CARDS    4  // max number of supported cards
 # define MAX_INPUTS   4  // max number of supported inputs
@@ -52,7 +52,7 @@ struct Card
   int isBusy;             // the device is already open
   int inUse;              // device is used by the vbi slave
 };
-#endif  //__NetBSD__
+#endif  //__NetBSD__ || __FreeBSD__
 
 #ifdef linux
 # include "linux/videodev.h"
@@ -74,7 +74,7 @@ struct Card
 // ring buffer element, contains one teletext packet
 typedef struct
 {
-   #if DEBUG_SWITCH_DUMP_TTX_PACKETS == ON
+   #if DUMP_TTX_PACKETS == ON
    uint32_t  frame;             // frame in which the packet was received (for debugging only)
    uint8_t   line;              // VBI line index in the frame in which the data was received
    uint8_t   reserved2[3];      // unused; undefined
@@ -170,19 +170,20 @@ typedef struct
    #ifndef WIN32
    pid_t     vbiPid;
    pid_t     epgPid;
-   #ifndef USE_THREADS
+   int       failureErrno;
+   # ifndef USE_THREADS
    bool      freeDevice;        // In:  TRUE when acq is stopped
-   #endif
+   # endif
 
    bool      doQueryFreq;
    uint      vbiQueryFreq;
 
    uchar     cardIndex;
-   # ifdef __NetBSD__
+   # if defined(__NetBSD__) || defined(__FreeBSD__)
    uchar     inputIndex;
    struct Card tv_cards[MAX_CARDS];
    # endif
-   #else
+   #else  // WIN32
    uchar     reserved3[128];    // reserved for future additions; set to 0
    #endif
 } EPGACQ_BUF;
@@ -198,6 +199,7 @@ bool BtDriver_Init( void );
 void BtDriver_Exit( void );
 bool BtDriver_StartAcq( void );
 void BtDriver_StopAcq( void );
+const char * BtDriver_GetLastError( void );
 bool BtDriver_IsVideoPresent( void );
 uint BtDriver_QueryChannel( void );
 bool BtDriver_TuneChannel( int inputIdx, uint freq, bool keepOpen, bool * pIsTuner );
@@ -209,7 +211,7 @@ bool BtDriver_Restart( void );
 #endif
 bool BtDriver_CheckDevice( void );
 void BtDriver_CloseDevice( void );
-#ifdef __NetBSD__
+#if defined(__NetBSD__) || defined(__FreeBSD__)
 void BtDriver_ScanDevices( bool isMasterProcess );
 #endif
 

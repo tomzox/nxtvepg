@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgmain.c,v 1.99 2002/10/13 17:55:27 tom Exp tom $
+ *  $Id: epgmain.c,v 1.108 2002/11/10 20:35:33 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -80,14 +80,16 @@
 #include "epgui/wintv.h"
 #include "epgui/wintvcfg.h"
 #include "epgui/epgtabdump.h"
+#include "epgui/loadtcl.h"
 
-#include "epgui/nxtv_logo.xbm"
-#include "epgui/ptr_up.xbm"
-#include "epgui/ptr_down.xbm"
-#include "epgui/pan_updown.xbm"
-#include "epgui/qmark.xbm"
-#include "epgui/zoom_in.xbm"
-#include "epgui/zoom_out.xbm"
+#include "images/nxtv_logo.xbm"
+#include "images/ptr_up.xbm"
+#include "images/ptr_down.xbm"
+#include "images/pan_updown.xbm"
+#include "images/qmark.xbm"
+#include "images/zoom_in.xbm"
+#include "images/zoom_out.xbm"
+#include "images/colsel.xbm"
 
 #include "epgvbi/btdrv.h"
 #include "epgvbi/winshmsrv.h"
@@ -106,11 +108,6 @@
 char *epg_version_str = EPG_VERSION_STR;
 char epg_rcs_id_str[] = EPG_VERSION_RCS_ID;
 
-extern char epgui_tcl_script[];
-extern char help_tcl_script[];
-extern char tcl_init_scripts[];
-extern char tk_init_scripts[];
-
 Tcl_Interp * interp;               // Interpreter for application
 char comm[TCL_COMM_BUF_SIZE + 1];  // Command buffer (one extra byte for overflow detection)
 
@@ -119,8 +116,8 @@ char comm[TCL_COMM_BUF_SIZE + 1];  // Command buffer (one extra byte for overflo
 static const char * const defaultRcFile = "nxtvepg.ini";
 static const char * const defaultDbDir  = ".";
 #else
-static const char * defaultRcFile = "~/.nxtvepgrc";
-static const char * defaultDbDir  = EPG_DB_DIR;
+static char * defaultRcFile = "~/.nxtvepgrc";
+static char * defaultDbDir  = NULL;
 #endif
 static const char * rcfile = NULL;
 static const char * dbdir  = NULL;
@@ -1915,21 +1912,32 @@ static void Usage( const char *argv0, const char *argvn, const char * reason )
                    "Usage: %s [options] [database]\n"
                    "       -help       \t\t: this message\n"
                    #ifndef WIN32
-                   "       -display <display>  \t: X11 display\n"
+                   "       -display <display>  \t: X11 server, if different from $DISPLAY\n"
                    #endif
-                   "       -geometry <geometry>\t: window position\n"
-                   "       -iconic     \t\t: iconify window\n"
+                   "       -geometry <geometry>\t: initial window position\n"
+                   #ifndef WIN32
+                   "       -iconic     \t\t: start with window iconified\n"
+                   #else
+                   "       -iconic     \t\t: start with window minimized\n"
+                   #endif
                    "       -rcfile <path>      \t: path and file name of setup file\n"
                    "       -dbdir <path>       \t: directory where to store databases\n"
+                   #ifndef WIN32
+                   #ifdef EPG_DB_ENV
+                   "                           \t: default: $" EPG_DB_ENV "/" EPG_DB_DIR "\n"
+                   #else
+                   "                           \t: default: " EPG_DB_DIR "\n"
+                   #endif
+                   #endif
                    "       -card <digit>       \t: index of TV card for acq (starting at 0)\n"
                    "       -provider <cni>     \t: network id of EPG provider (hex)\n"
-                   "       -noacq              \t: disable acquisition\n"
+                   "       -noacq              \t: don't start acquisition automatically\n"
                    #ifdef USE_DAEMON
-                   "       -daemon             \t: no GUI; acquisition only\n"
+                   "       -daemon             \t: don't open any windows; acquisition only\n"
                    "       -nodetach           \t: daemon remains connected to tty\n"
                    "       -acqpassive         \t: force daemon to passive acquisition mode\n"
                    #endif
-                   "       -dump pi|ai|pdc     \t: dump database (schedules, networks or themes)\n"
+                   "       -dump pi|ai|pdc|xml     \t: dump database\n"
                    "       -demo <db-file>     \t: load database in demo mode\n",
                    argv0, reason, argvn, argv0);
 #if 0
@@ -1949,6 +1957,23 @@ static void ParseArgv( int argc, char * argv[] )
 {
    struct stat st;
    int argIdx = 1;
+
+#ifndef WIN32
+#ifdef EPG_DB_ENV
+   char * pEnvPath = getenv(EPG_DB_ENV);
+   if (pEnvPath != NULL)
+   {
+      defaultDbDir = xmalloc(strlen(pEnvPath) + strlen(EPG_DB_DIR) + 1+1);
+      strcpy(defaultDbDir, pEnvPath);
+      strcat(defaultDbDir, "/" EPG_DB_DIR);
+   }
+   else
+#endif
+   {
+      defaultDbDir = xmalloc(strlen(EPG_DB_DIR) + 1);
+      strcpy(defaultDbDir, EPG_DB_DIR);
+   }
+#endif
 
    rcfile = defaultRcFile;
    dbdir  = defaultDbDir;
@@ -2148,19 +2173,12 @@ static void ParseArgv( int argc, char * argv[] )
 //
 static int ui_init( int argc, char **argv, bool withTk )
 {
+   CONST84 char * pLanguage;
    char *args;
 
-   // set up the default locale to be standard "C" locale so parsing is performed correctly
-   setlocale(LC_ALL, "C");
-
-   #ifdef WIN32
-   // Increase the application queue size from default value of 8.
-   // At the default value, cross application SendMessage of WM_KILLFOCUS
-   // will fail because the handler will not be able to do a PostMessage!
-   // This is only needed for Windows 3.x, since NT dynamically expands
-   // the queue.
-   //SetMessageQueue(64);
-   #endif
+   // set up the user-configured locale
+   setlocale(LC_ALL, "C");  // required for Tcl or parsing of floating point numbers fails
+   pLanguage = setlocale(LC_TIME, "");
 
    if (argc >= 1)
    {
@@ -2187,6 +2205,20 @@ static int ui_init( int argc, char **argv, bool withTk )
    Tcl_SetVar(interp, "tk_library", TK_LIBRARY_PATH, TCL_GLOBAL_ONLY);
    Tcl_SetVar(interp, "tcl_interactive", "0", TCL_GLOBAL_ONLY);
 
+   #ifndef WIN32
+   Tcl_SetVar(interp, "is_unix", "1", TCL_GLOBAL_ONLY);
+   #else
+   Tcl_SetVar(interp, "is_unix", "0", TCL_GLOBAL_ONLY);
+   #endif
+
+   Tcl_SetVar(interp, "user_language", ((pLanguage != NULL) ? pLanguage : ""), TCL_GLOBAL_ONLY);
+
+   sprintf(comm, "0x%06X", EPG_VERSION_NO);
+   Tcl_SetVar(interp, "EPG_VERSION_NO", comm, TCL_GLOBAL_ONLY);
+   Tcl_SetVar(interp, "EPG_VERSION", epg_version_str, TCL_GLOBAL_ONLY);
+   Tcl_SetVar(interp, "NXTVEPG_URL", NXTVEPG_URL, TCL_GLOBAL_ONLY);
+   Tcl_SetVar(interp, "NXTVEPG_MAILTO", NXTVEPG_MAILTO, TCL_GLOBAL_ONLY);
+
    Tcl_Init(interp);
    if (withTk)
    {
@@ -2200,31 +2232,14 @@ static int ui_init( int argc, char **argv, bool withTk )
       }
    }
 
-   #ifdef USE_PRECOMPILED_TCL_LIBS
-   if (Tcl_EvalEx(interp, tcl_init_scripts, -1, TCL_EVAL_GLOBAL) != TCL_OK)
-   {
-      debug1("tcl_init_scripts error: %s\n", Tcl_GetStringResult(interp));
-      debugTclErr(interp, "tcl_init_scripts");
-   }
-   if (withTk)
-   {
-      if (Tcl_EvalEx(interp, tk_init_scripts, -1, TCL_EVAL_GLOBAL) != TCL_OK)
-      {
-         debug1("tk_init_scripts error: %s\n", Tcl_GetStringResult(interp));
-         debugTclErr(interp, "tk_init_scripts");
-      }
-   }
-   #endif
-
    #if (DEBUG_SWITCH_TCL_BGERR != ON)
    // switch off Tcl/Tk background error reports for release version
    sprintf(comm, "proc bgerror foo {}\n");
    eval_check(interp, comm);
    #endif
 
-   sprintf(comm, "0x%06X", EPG_VERSION_NO);
-   Tcl_SetVar(interp, "EPG_VERSION_NO", comm, TCL_GLOBAL_ONLY);
-   Tcl_SetVar(interp, "EPG_VERSION", epg_version_str, TCL_GLOBAL_ONLY);
+   // load all Tcl/Tk scripts which handle toplevel window, menus and dialogs
+   LoadTcl_Init(withTk);
 
    if (withTk)
    {
@@ -2234,30 +2249,23 @@ static int ui_init( int argc, char **argv, bool withTk )
       Tk_DefineBitmap(interp, Tk_GetUid("bitmap_qmark"), qmark_bits, qmark_width, qmark_height);
       Tk_DefineBitmap(interp, Tk_GetUid("bitmap_zoom_in"), zoom_in_bits, zoom_in_width, zoom_in_height);
       Tk_DefineBitmap(interp, Tk_GetUid("bitmap_zoom_out"), zoom_out_bits, zoom_out_width, zoom_out_height);
+      Tk_DefineBitmap(interp, Tk_GetUid("bitmap_colsel"), colsel_bits, colsel_width, colsel_height);
       Tk_DefineBitmap(interp, Tk_GetUid("nxtv_logo"), nxtv_logo_bits, nxtv_logo_width, nxtv_logo_height);
 
       #ifdef WIN32
       Tcl_CreateCommand(interp, "C_SystrayIcon", TclCbWinSystrayIcon, (ClientData) NULL, NULL);
       #endif
 
-      sprintf(comm, "wm withdraw .\n"
-                    "wm title . {Nextview EPG Decoder}\n"
+      sprintf(comm, "wm title . {Nextview EPG Decoder}\n"
                     "wm resizable . 0 1\n"
                     "wm iconbitmap . nxtv_logo\n"
                     "wm iconname . {Nextview EPG}\n");
       eval_check(interp, comm);
    }
-   eval_check(interp, epgui_tcl_script);
-
-   if (withTk)
-      eval_check(interp, "CreateMainWindow; CreateMenubar\n");
-
-   eval_check(interp, help_tcl_script);
 
    Tcl_ResetResult(interp);
    return (TRUE);
 }
-
 
 // ---------------------------------------------------------------------------
 // entry point
@@ -2360,14 +2368,23 @@ int main( int argc, char *argv[] )
          pUiDbContext = MenuCmd_MergeDatabases();
       else
          pUiDbContext = EpgContextCtl_Open(startUiCni, CTX_FAIL_RET_NULL, CTX_RELOAD_ERR_REQ);
+
       if (pUiDbContext != NULL)
       {
-         EpgTabDump_Database(pUiDbContext, stdout, optDumpMode);
+         if (optDumpMode == EPGTAB_DUMP_XML)
+            PiOutput_DumpDatabaseXml(pUiDbContext, stdout);
+         else
+            EpgTabDump_Database(pUiDbContext, stdout, optDumpMode);
       }
       EpgContextCtl_Close(pUiDbContext);
    }
    else if (optDaemonMode == FALSE)
    {  // normal GUI mode
+
+      eval_check(interp, "LoadWidgetOptions\n"
+                         "CreateMainWindow\n"
+                         "CreateMenubar\n"
+                         "ApplyRcSettingsToMenu\n");
 
       UiControl_Init();
 
@@ -2400,10 +2417,10 @@ int main( int argc, char *argv[] )
       // initialize the GUI control modules
       StatsWin_Create();
       TimeScale_Create();
+      MenuCmd_Init(pDemoDatabase != NULL);
       PiFilter_Create();
       PiOutput_Create();
       PiListBox_Create();
-      MenuCmd_Init(pDemoDatabase != NULL);
       #ifndef WIN32
       Xawtv_Init();
       #else
@@ -2416,8 +2433,6 @@ int main( int argc, char *argv[] )
 
       if (startIconified)
          eval_check(interp, "wm iconify .");
-      else
-         eval_check(interp, "wm deiconify .");
 
       // init main window title, PI listbox state and status line
       UiControl_AiStateChange(DB_TARGET_UI);
@@ -2569,6 +2584,8 @@ int main( int argc, char *argv[] )
    EpgContextCtl_ClearCache();
    #ifdef WIN32
    xfree(argv);
+   #else
+   xfree((char*)defaultDbDir);
    #endif
    // check for allocated memory that was not freed
    chk_memleakage();

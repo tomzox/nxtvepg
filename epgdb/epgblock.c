@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgblock.c,v 1.46 2002/09/08 18:52:50 tom Exp $
+ *  $Id: epgblock.c,v 1.47 2002/10/19 17:42:01 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -101,7 +101,7 @@ sint EpgLtoGet( time_t when )
    struct tm *pTm;
    sint lto;
 
-   #ifndef __NetBSD__
+   #if !defined(__NetBSD__) && !defined(__FreeBSD__)
    pTm = localtime(&when);
    lto = 60*60 * pTm->tm_isdst - timezone;
    #else
@@ -137,7 +137,7 @@ void EpgLtoInit( void )
    unixTimeBase1982 = mktime(&tm);
 
    // undo the local->UTC conversion that mktime unwantedly always does
-   #ifndef __NetBSD__
+   #if !defined(__NetBSD__) && !defined(__FreeBSD__)
    pTm = localtime(&unixTimeBase1982);
    unixTimeBase1982 += 60*60 * pTm->tm_isdst - timezone;
    #else

@@ -24,7 +24,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile,v 1.46 2002/08/24 14:15:22 tom Exp tom $
+#  $Id: Makefile,v 1.49 2002/11/10 19:57:05 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -37,6 +37,7 @@ prefix  = /usr/local
 exec_prefix = ${prefix}
 bindir  = $(ROOT)${exec_prefix}/bin
 mandir  = $(ROOT)${prefix}/man/man1
+resdir  = $(ROOT)/usr/X11R6/lib/X11
 
 # if you have perl set the path here, else just leave it alone
 PERL    = /usr/bin/perl
@@ -64,10 +65,17 @@ LDLIBS += -lpthread
 # enable use of daemon and client/server connection
 DEFS   += -DUSE_DAEMON
 
-# path to the directory where the provider database files are kept
-DB_DIR  = /usr/tmp/nxtvdb
-DEFS   += -DEPG_DB_DIR=\"$(DB_DIR)\"
-INST_DB_DIR = $(ROOT)$(DB_DIR)
+# The database directory can be either in the user's $HOME (or relative to any
+# other env variable) or at a global place like /var/spool (world-writable)
+# -> uncomment 2 lines below to put the databases in the user's home
+#USER_DBDIR  = .nxtvdb
+#DEFS       += -DEPG_DB_ENV=\"HOME\" -DEPG_DB_DIR=\"$(USER_DBDIR)\"
+ifndef USER_DBDIR
+SYS_DBDIR    = /usr/tmp/nxtvdb
+DEFS        += -DEPG_DB_DIR=\"$(SYS_DBDIR)\"
+INST_DB_DIR  = $(ROOT)$(SYS_DBDIR)
+INST_DB_PERM = 0777
+endif
 
 WARN    = -Wall -Wnested-externs -Wstrict-prototypes -Wmissing-prototypes
 #WARN  += -Wpointer-arith -Werror
@@ -78,7 +86,7 @@ CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -O6
 # ----- don't change anything below ------------------------------------------
 
 CSRC    = epgvbi/btdrv4linux epgvbi/vbidecode epgvbi/ttxdecode epgvbi/hamming \
-          epgvbi/tvchan epgvbi/cni_tables \
+          epgvbi/tvchan epgvbi/cni_tables epgvbi/syserrmsg \
           epgctl/debug epgctl/epgacqctl epgctl/epgscan epgctl/epgctxctl \
           epgctl/epgctxmerge epgctl/epgacqclnt epgctl/epgacqsrv \
           epgdb/epgstream epgdb/epgdbmerge epgdb/epgdbsav \
@@ -86,11 +94,14 @@ CSRC    = epgvbi/btdrv4linux epgvbi/vbidecode epgvbi/ttxdecode epgvbi/hamming \
           epgdb/epgnetio epgdb/epgqueue epgdb/epgtscqueue \
           epgui/uictrl epgui/pilistbox epgui/pioutput epgui/pifilter \
           epgui/statswin epgui/timescale epgui/pdc_themes epgui/menucmd \
-          epgui/epgmain epgui/xawtv epgui/epgtxtdump epgui/epgtabdump
-CGEN    = epgui/epgui epgui/help
+          epgui/epgmain epgui/loadtcl epgui/xawtv epgui/epgtxtdump epgui/epgtabdump
+TCLSRC  = epgtcl/mainwin epgtcl/helptexts epgtcl/dlg_hwcfg epgtcl/dlg_xawtvcf \
+          epgtcl/dlg_ctxmencf epgtcl/dlg_acqmode epgtcl/dlg_netsel \
+          epgtcl/dlg_dump epgtcl/dlg_netname epgtcl/dlg_udefcols \
+          epgtcl/shortcuts epgtcl/dlg_shortcuts epgtcl/draw_stats \
+          epgtcl/dlg_filter epgtcl/dlg_prov epgtcl/rcfile
 
-SRCS    = $(addsuffix .c, $(CSRC)) $(addsuffix .c, $(CGEN))
-OBJS    = $(addsuffix .o, $(CSRC)) $(addsuffix .o, $(CGEN))
+OBJS    = $(addsuffix .o, $(CSRC)) $(addsuffix .o, $(TCLSRC))
 
 all: nxtvepg nxtvepg.1
 .PHONY: all
@@ -101,29 +112,32 @@ nxtvepg: $(OBJS)
 install: nxtvepg nxtvepg.1
 	test -d $(bindir) || mkdirhier $(bindir)
 	test -d $(mandir) || mkdirhier $(mandir)
+ifndef USER_DBDIR
 	test -d $(INST_DB_DIR) || mkdirhier $(INST_DB_DIR)
-	chmod 0777 $(INST_DB_DIR)
+	chmod $(INST_DB_PERM) $(INST_DB_DIR)
+endif
 	install -c -m 0755 nxtvepg     $(bindir)
 	install -c -m 0644 nxtvepg.1   $(mandir)
+	install -c -m 0644 Nxtvepg.ad  $(resdir)/app-defaults/Nxtvepg
 	rm -f $(mandir)/nxtvepg.1x
 
-##%.o: %.c
-##	$(CC) $(CFLAGS) -c *.c -o *.o
+.SUFFIXES: .c .o .tcl
+
+%.c: %.tcl tcl2c
+	./tcl2c $*.tcl
 
 tcl2c: tcl2c.c
 	$(CC) -O -o tcl2c tcl2c.c
 
-epgui/epgui.c: epgui/epgui.tcl tcl2c
-	egrep -v '^ *#' epgui/epgui.tcl | ./tcl2c epgui_tcl_script > epgui/epgui.c
+epgui/loadtcl.c :: $(addsuffix .c, $(TCLSRC))
 
-epgui/help.c: epgui/help.tcl tcl2c
-	egrep -v '^ *#' epgui/help.tcl | ./tcl2c help_tcl_script > epgui/help.c
+epgui/loadtcl.c :: $(addsuffix .h, $(TCLSRC))
 
-nxtvepg.1 manual.html epgui/help.tcl: nxtvepg.pod pod2help.pl
+nxtvepg.1 manual.html epgtcl/helptexts.tcl: nxtvepg.pod pod2help.pl
 	@if test -x $(PERL); then \
 	  EPG_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*EPG_VERSION_STR' epgctl/epgversion.h | head -1 | cut -d\" -f2`; \
-	  echo "$(PERL) pod2help.pl nxtvepg.pod > epgui/help.tcl"; \
-	  $(PERL) pod2help.pl nxtvepg.pod > epgui/help.tcl; \
+	  echo "$(PERL) pod2help.pl nxtvepg.pod > epgtcl/helptexts.tcl"; \
+	  $(PERL) pod2help.pl nxtvepg.pod > epgtcl/helptexts.tcl; \
 	  echo "pod2man nxtvepg.pod > nxtvepg.1"; \
 	  pod2man -date " " -center "Nextview EPG Decoder" -section "1" \
 	          -release "nxtvepg "$$EPG_VERSION_STR" (C) 1999-2002 Tom Zoerner" \
@@ -131,17 +145,17 @@ nxtvepg.1 manual.html epgui/help.tcl: nxtvepg.pod pod2help.pl
 	  echo "pod2html nxtvepg.pod > manual.html"; \
 	  pod2html nxtvepg.pod | $(PERL) -p -e 's/HREF="#[^:]+: +/HREF="#/g;' > manual.html; \
 	  rm -f pod2htm?.x~~ pod2html-{dircache,itemcache}; \
-	elif test -f epgui/help.tcl; then \
-	  touch epgui/help.tcl; \
+	elif test -f epgtcl/helptexts.tcl; then \
+	  touch epgtcl/helptexts.tcl; \
 	else \
-	  echo "ERROR: cannot generate epgui/help.tcl or nxtvepg.1 without Perl"; \
+	  echo "ERROR: cannot generate epgtcl/helptexts.tcl or nxtvepg.1 without Perl"; \
 	  false; \
 	fi
 
 .PHONY: clean depend bak
 clean:
 	-rm -f *.o epg*/*.o core a.out tcl2c nxtvepg
-	-rm -f epgui/epgui.c epgui/help.c
+	-rm -f epgtcl/*.[ch]
 
 depend:
 	-:>Makefile.dep
@@ -153,9 +167,9 @@ depend:
 	done
 
 bak:
+	cd .. && tar cf /c/pc.tar pc -X pc/tar-ex-win
 	cd .. && tar cf pc1.tar pc -X pc/tar-ex && bzip2 -f -9 pc1.tar
 	tar cf ../pc2.tar www ATTIC dsdrv?* tk8* tcl8* && bzip2 -f -9 ../pc2.tar
-	cd .. && tar cf /e/pc.tar pc -X pc/tar-ex-win
 
 include Makefile.dep
 

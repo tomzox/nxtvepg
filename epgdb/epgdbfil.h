@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbfil.h,v 1.20 2002/09/02 19:47:43 tom Exp tom $
+ *  $Id: epgdbfil.h,v 1.23 2002/10/27 18:48:42 tom Exp tom $
  */
 
 #ifndef __EPGDBFIL_H
@@ -36,16 +36,18 @@
 #define FILTER_SUBSTR_TITLE  0x0040
 #define FILTER_SUBSTR_DESCR  0x0080
 #define FILTER_PROGIDX       0x0100
-#define FILTER_TIME_BEG      0x0200
-#define FILTER_TIME_END      0x0400
+#define FILTER_TIME_ONCE     0x0200
+#define FILTER_TIME_DAILY    0x0400
 #define FILTER_DURATION     0x20000
 #define FILTER_PAR_RAT       0x0800
 #define FILTER_EDIT_RAT      0x1000
 #define FILTER_FEATURES      0x2000
 #define FILTER_LANGUAGES     0x4000
 #define FILTER_SUBTITLES     0x8000
+#define FILTER_VPS_PDC      0x40000
+#define FILTER_INVERT       0x80000
 // sum of all filter bitmasks
-#define FILTER_ALL          0x3FFFF
+#define FILTER_ALL          0xFFFFF
 // sum of permanent "pre"-filters
 #define FILTER_PERM          (FILTER_EXPIRE_TIME | FILTER_NETWOP_PRE | FILTER_AIR_TIMES)
 
@@ -82,6 +84,7 @@ typedef struct
 typedef struct
 {
    uint   enabledFilters;
+   uint   invertedFilters;
 
    uchar  firstProgIdx, lastProgIdx;
    time_t expireTime;
@@ -95,8 +98,10 @@ typedef struct
    uchar  themeFilterField[256];
    uchar  seriesFilterMatrix[MAX_NETWOP_COUNT][128];
    uchar  usedThemeClasses;
+   uchar  invertedThemeClasses;
    uchar  sortCritFilterField[256];
    uchar  usedSortCritClasses;
+   uchar  invertedSortCritClasses;
    uchar  parentalRating;
    uchar  editorialRating;
    uint   featureFilterFlagField[FEATURE_CLASS_COUNT];
@@ -106,6 +111,7 @@ typedef struct
    uchar  subtDescrTable[MAX_NETWOP_COUNT][TI_DESCR_BUFFER_SIZE];
    uchar  subStrFilter[SUBSTR_FILTER_MAXLEN+1];
    bool   strMatchCase, strMatchFull;
+   uint   vps_pdc_mode;
 } FILTER_CONTEXT;
 
 
@@ -118,6 +124,7 @@ void   EpgDbFilterDestroyContext( FILTER_CONTEXT * fc );
 
 void   EpgDbFilterEnable( FILTER_CONTEXT *fc, uint searchFilter );
 void   EpgDbFilterDisable( FILTER_CONTEXT *fc, uint searchFilter );
+void   EpgDbFilterInvert( FILTER_CONTEXT *fc, uint mask, uchar themeClass, uchar sortCritClass );
 
 void   EpgDbFilterInitNetwop( FILTER_CONTEXT *fc );
 void   EpgDbFilterSetNetwop( FILTER_CONTEXT *fc, uchar netwopNo );
@@ -145,6 +152,7 @@ void   EpgDbFilterSetLangDescr( const EPGDB_CONTEXT *dbc, FILTER_CONTEXT *fc, co
 void   EpgDbFilterInitSubtDescr( FILTER_CONTEXT *fc );
 void   EpgDbFilterSetSubtDescr( const EPGDB_CONTEXT *dbc, FILTER_CONTEXT *fc, const uchar *lg );
 void   EpgDbFilterSetProgIdx( FILTER_CONTEXT *fc, uchar firstProgIdx, uchar lastProgIdx );
+void   EpgDbFilterSetVpsPdcMode( FILTER_CONTEXT *fc, uint mode );
 void   EpgDbFilterSetSubStr( FILTER_CONTEXT *fc, const uchar *pStr, bool matchCase, bool matchFull );
 
 void   EpgDbFilterInitNi( FILTER_CONTEXT *fc, NI_FILTER_STATE *pNiState );

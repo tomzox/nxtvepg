@@ -4,13 +4,77 @@ changes or additions.
 
 Before you submit any feature requests, please read the TODO file.
 
+from 2.3.1 to 2.4.0 (2002-November-19)
+
+- implemented user-defined columns in TV schedule output, which allow to
+  define the column content depending on matches against a number of filter
+  shortcuts; the content can consist of static text, pre-defined images or
+  a standard attribute. See the manual for details.
+- implemented inverted filters, i.e. you can now search for all programmes
+  which do not match one or more of given filter criteria or simply invert
+  the outcome of a complete filter setting.
+- improved filter shortcut edit dialog: added "invoke" and "update" buttons
+  to transfer a shortcut's filter setting to and from the programme browser
+  for easier management of filter settings. Also fixed several bugs in
+  the filter decription output for the "feature" filter type.
+- changed background color of text output elements to a lighter gray (note:
+  if you don't like the new colors you can change them by adding resource
+  definitions to your .Xdefaults file on UNIX or by editing Nxtvepg.ad
+  on Windows; details see FILES section in the HTML manual page or help)
+- new pre-defined column type: duration (suggested by Thierry)
+- fixed copy & paste in short-info window for Win32 (Thierry)
+- added a new filter type: "VPS/PDC" which allows to search for programmes
+  with a VPS/PDC timestamp attached, and/or whose VPS/PDC start time differs
+  from the actual start time (i.e. shifted or newly added programmes)
+- enhanced start time filter: added an option "ignore date" which allows to
+  search for programmes in a daily time window (e.g. restrict a search for
+  German new magazine "Tagesschau" to 20:00-20:10)
+- added key binding for F1 key in all dialog windows and added a context menu
+  to the shortcut list (Thierry); also changed some bindings in the main
+  window: a double-click on a programme now invokes the "TuneTV" function;
+  CTRL-up/down scroll the list +/- 1 line
+- added a new option to the "Show/Hide" configuration menu, which allows to
+  map the network filter list below the shortcut list (Thierry)
+- localized shortcut defaults for Germany and France (Thierry)
+- weekday names are now printed in the local language (defined by the locale
+  setting)  (This change was formerly listed for version 2.3.1 but missing)
+- added database export in XML format (according to xmltv.dtd),
+  provided by Massis Sirapian.
+- extended wheel-mouse support for M$ Windows (appearently before it worked
+  only with a few mouse driver configurations)
+- improved help text formatting: now bulleted items are indented
+- added support for FreeBSD; Thanks to Simon Barner for providing the patch.
+- fixed database directory and files mode handling on UNIX:
+  1-  do not "repair" dbdir mode to 777 upon every start,
+  2-  create db files with mode 644,
+  3-  allow to put dbdir into each user's $HOME via the Makefile.
+  Thanks to Matthias Brill for the suggestions.
+- HTML export improved: in addition to support for user-defined columns,
+  different columns than the main window is using can be specified for the
+  title table.
+- added "TV5" back to the list of active providers; Thanks to Anthony
+  for pointing out that TV5 is providing Nextview service again.
+- Windows: implemented workaround for Hauppauge "WinTV2000" app: TV image was
+  too dark when the app was started after nxtvepg; Thanks to Peter Rolf for
+  debugging the problem.
+- Windows Bt8x8 driver: fixed parameters for several TV tuners
+- UNIX: improved error messages upon failure to access /dev/vbi or /dev/vbi at
+  start of acquisition and EPG scan: now the system error mesage is included
+  (e.g. "permission denied"); the previous message was misleading.
+  Thanks to Thomas Hartmann for reporting this problem.
+- bugfix for Power-PC architecture in pioutput.c; Thanks to Gerhard Tonn
+- internal changes: split Tcl/Tk script for GUI into modules (the daemon only
+  loads the script which manages the rcfile - saves apx. 400 kB RAM)
+
+Thanks to everyone who provided feedback and suggestions, especially to
+Thierry Ménétrier.
+
+
 from 2.3.0 to 2.3.1 (2002-October-13)
 
 - bugfix: crash when selecting a network with unknown ID in the network
   selection configuration dialog (uninitialized pointer variable; crashes
   not on all platforms). Thanks to Udo A. Steinberg for reporting this bug.
-- weekday names are now printed in the local language (defined ba the locale
-  setting on UNIX).  Thanks to Thierry for the suggestion.
 - fixed the case of French theme names: first character is now upper case
 - fixed "Time" column header drop-down menu (was broken with 2.3.0): the NEXT
   entry behaved like NOW, discrete times used to jumped to the first programme

@@ -52,7 +52,20 @@ This is the manual page for the
 	<LI><A HREF="#merged databases">MERGED DATABASES</A></LI>
 	<LI><A HREF="#navigate">NAVIGATE</A></LI>
 	<LI><A HREF="#filtering">FILTERING</A></LI>
+	<UL>
+
+		<LI><A HREF="#filter types">Filter Types</A></LI>
+		<LI><A HREF="#inverting filters">Inverting filters</A></LI>
+	</UL>
+
 	<LI><A HREF="#filter shortcuts">FILTER SHORTCUTS</A></LI>
+	<UL>
+
+		<LI><A HREF="#editing filter shortcuts">Editing Filter Shortcuts</A></LI>
+		<LI><A HREF="#filter masks">Filter Masks</A></LI>
+		<LI><A HREF="#shortcut update dialog">Shortcut update dialog</A></LI>
+	</UL>
+
 	<LI><A HREF="#context menu">CONTEXT MENU</A></LI>
 	<LI><A HREF="#control">CONTROL</A></LI>
 	<LI><A HREF="#configuration">CONFIGURATION</A></LI>
@@ -66,16 +79,12 @@ This is the manual page for the
 		<LI><A HREF="#client/server">Client/Server</A></LI>
 		<LI><A HREF="#tv application interaction">TV application interaction</A></LI>
 		<LI><A HREF="#select columns">Select columns</A></LI>
+		<LI><A HREF="#userdefined columns">User-defined columns</A></LI>
 		<LI><A HREF="#select networks">Select networks</A></LI>
 		<LI><A HREF="#network names">Network names</A></LI>
 		<LI><A HREF="#context menu">Context menu</A></LI>
-		<LI><A HREF="#filter shortcuts">Filter shortcuts</A></LI>
 		<LI><A HREF="#themes language">Themes language</A></LI>
-		<LI><A HREF="#show shortcuts">Show shortcuts</A></LI>
-		<LI><A HREF="#show networks">Show networks</A></LI>
-		<LI><A HREF="#show status line">Show status line</A></LI>
-		<LI><A HREF="#show column headers">Show column headers</A></LI>
-		<LI><A HREF="#hide on minimize">Hide on minimize</A></LI>
+		<LI><A HREF="#show/hide">Show/Hide</A></LI>
 	</UL>
 
 	<LI><A HREF="#files">FILES</A></LI>
@@ -192,7 +201,10 @@ but still constant (i.e. the order is determined by the driver, not nxtvepg)
 Select a provider by its hexadecimal CNI (Country and Network Identifier),
 e.g. <EM>-provider dc7</EM> for <STRONG>3sat</STRONG>. You can find out the provider's CNI
 during a provider scan or from the database file names.
-Default: the last provider selected during the previous session.
+Use the code <EM>FF</EM> for the merged database
+(in the last used configuration as saved in the rc/ini file).
+<P>Default if this option is omitted: the last provider selected during
+the previous session.</P>
 <P></P>
 <DT><STRONG><A NAME="item_%2Dnoacq"><STRONG>-noacq</STRONG></A></STRONG><BR>
 <DD>
@@ -250,10 +262,9 @@ you can use different acquisition strategies for daemon and GUI.
 <DT><STRONG><A NAME="item_%2Ddump_mode"><STRONG>-dump</STRONG> <EM>mode</EM></A></STRONG><BR>
 <DD>
 With this argument, nxtvepg will only export the database in a fixed text
-format (see also <A HREF="#export as text">CONFIGURATION: Export as text</A>), then exit.
+format (see also <A HREF="#export as text">CONTROL: Export as text</A>), then exit.
 This argument must be combined with <EM>-provider</EM> to specify which database
-is to be exported. Use the code <STRONG>0x00FF</STRONG> to export the merged database
-(in the last used configuration as saved in the rc/ini file).
+is to be exported.
 <P>Three mode keywords are understood:
 <EM>pi</EM> to dump programmes (i.e. the complete schedules),
 <EM>ai</EM> to dump the provider's network table,
@@ -1037,7 +1048,9 @@ attribute will be listed (logical OR).</P>
 If you want to see all programmes listed for either network ARD or
 ZDF, simply select both networks. If you want to see all movies
 scheduled on Arte, select network=Arte and theme=movies.</P>
-<P>Summary of filter options:</P>
+<P>
+<H2><A NAME="filter types">Filter Types</A></H2>
+<P>The following filter types are available:</P>
 <DL>
 <DT><STRONG><A NAME="item_Features"><STRONG>Features</STRONG></A></STRONG><BR>
 <DD>
@@ -1045,37 +1058,45 @@ Restrict the listing to programmes that match all given attributes
 (logical AND), i.e. sound format, picture format, analog/digital,
 encrypted yes/no, live/new/repeat and subtitles yes/no. If you want
 to allow more than one value of the same attribute (e.g. picture format
-wide OR Pal+) you have to put them into different feature classes.
+wide OR Pal+) you have to put them into different feature classes
+(e.g. first select format wide, then set the filter class to 2,
+then select format PAL+)
 <P></P>
 <DT><STRONG><A NAME="item_Parental_Rating"><STRONG>Parental Rating</STRONG></A></STRONG><BR>
 <DD>
 Restrict the listing to programmes that are suitable for children
-of the given age or elder.
+of the given age or elder, e.g. when you select 14, you get all
+programmes that are rated general or between 4 and 14.
 <P></P>
 <DT><STRONG><A NAME="item_Editorial_Rating"><STRONG>Editorial Rating</STRONG></A></STRONG><BR>
 <DD>
 Restrict the listing to programmes that are rated (by the content
 provider) to have at least the given quality. The range of rating
 values is 1 to 7. Note that some providers do not use all values,
-e.g. only 1 to 5, or e.g. just 3, 5 and 7.
+e.g. only 1, 3, 5 (thumb down, middle, thumb up)
 <P></P>
-<DT><STRONG><A NAME="item_Themes"><STRONG>Themes</STRONG></A></STRONG><BR>
+<DT><STRONG><A NAME="item_Theme_categories"><STRONG>Theme categories</STRONG></A></STRONG><BR>
 <DD>
 Restrict the listing to programmes that have any of the given theme
 categories attached to them (logical OR). The Nextview standard
 contains a list of 76 predefined themes, which are structured into
 11 main categories and subcategories. A programme can have up to
-7 theme descriptors attached. If you want to restrict the listing to
-programmes that have more than one of the given themes (logical AND)
-you need to specify them in different theme classes.
+7 theme descriptors attached.
+<P>If you want to restrict the listing to programmes that have more than
+one of the given themes (logical AND) you need to specify them in
+different theme classes. For example: to get a listing of all programmes
+which are both Sci-Fi and Comedy, select theme category Sci-Fi, then
+switch to a different theme class, and select theme category Comedy.
+The actual class numbers do not matter, you just need to use two
+different ones (i.e. you can use either #1 and #2 or #5 and #6 etc.)</P>
 <P></P>
 <DT><STRONG><A NAME="item_Series"><STRONG>Series</STRONG></A></STRONG><BR>
 <DD>
-Restrict the listing to programmes that belong to any of the given
+Restrict the listing to programmes that belong to any of the selected
 series. A series code always implies a network specification (even if the
-same programme is transmitted on different networks). This filter type is
-only available for providers that assign series codes; for the other ones
-you can use text search among programme titles.
+same programme is transmitted on different networks).
+<P>Note: This filter type is only available for providers that assign series
+codes; for the other ones you can use text search among programme titles.</P>
 <P></P>
 <DT><STRONG><A NAME="item_Program_index"><STRONG>Program index</STRONG></A></STRONG><BR>
 <DD>
@@ -1092,10 +1113,12 @@ important combinations are available as radio buttons:
 <DD>
 Restrict the listing to programmes of one or more given networks.
 The filter is disabled when all checkbuttons are deactivated.
-<P>You can also permanently add an equivalent network filter menu to
-the main window by enabling <EM>Show networks</EM> at the end of the
-<A HREF="#configuration">CONFIGURATION</A> menu. Note that selection, order and names of
-networks are all configurable.</P>
+<P>You can also add a network filter listbox to the main window by enabling
+one of the <EM>Show networks</EM> checkbuttons in the <EM>Show/Hide</EM> sub-menu of
+the Configuration menu (See <A HREF="#show/hide">CONFIGURATION: Show/Hide</A>).
+Also note that selection, order and names of networks are all configurable,
+in particular you can permanently suppress uninteresting networks from
+the list.</P>
 <P></P>
 <DT><STRONG><A NAME="item_Text_search"><STRONG>Text search</STRONG></A></STRONG><BR>
 <DD>
@@ -1111,15 +1134,17 @@ available in the drop-down menu below the search text entry field (opened
 with the arrow button at the left or one of the up/down cursor keys)
 and the <EM>Title</EM> column header menu in the browser.</P>
 <P></P>
-<DT><STRONG><A NAME="item_Start_Time"><STRONG>Start Time</STRONG></A></STRONG><BR>
+<DT><STRONG><A NAME="item_Start_time"><STRONG>Start time</STRONG></A></STRONG><BR>
 <DD>
-Restrict the listing to programmes who's start time lies in the given
-interval. There are two special modes for the interval specification:
-If you enable <EM>Start at current time</EM>
+Restrict the listing to programmes who's start time lies in the
+interval specified by start, stop time and relative date.
+<P>There are three options: If you enable <EM>Start at current time</EM>
 the interval start is fixed to the actual time when the filter is
-applied and the value given as stop time is interpreted as duration, i.e.
+set and the value given as stop time is interpreted as duration, i.e.
 it's added to the interval start. If you enable <EM>Stop at end of day</EM>
-the interval end is fixed to 23:59 of the same day.
+the interval end is fixed to 23:59 of the same day. If you enable
+<EM>Ignore date</EM> the filter allows programmes that start in the given
+time window on any day.</P>
 <P>Note that the main intention of this filter is to support time
 restrictions in the provider's navigation menus (see <A HREF="#navigate">NAVIGATE</A>).
 For manual navigation there are more practical alternatives, e.g.
@@ -1130,6 +1155,9 @@ the scrollbar and drop-down menus in the main browser window.</P>
 Restrict the listing to programmes whose duration (i.e. difference
 between start and stop time) lies in the given range.  When the
 maxium is set to zero, the filter is switched off.
+<P>You can specify the time values either by use of the scales or by
+entering a value in the format MM:HH into the text fields and
+pressing the Return key.</P>
 <P></P>
 <DT><STRONG><A NAME="item_Sorting_Criteria"><STRONG>Sorting Criteria</STRONG></A></STRONG><BR>
 <DD>
@@ -1154,6 +1182,17 @@ by a-f.</P>
 fills the selection listbox with a list of all codes that are actually
 used in the current database.  This allows a quick overview which filter
 criteria will produce any matches.</P>
+<P></P>
+<DT><STRONG><A NAME="item_VPS%2FPDC"><STRONG>VPS/PDC</STRONG></A></STRONG><BR>
+<DD>
+Restrict the listing to programmes that have a valid VPS/PDC start
+time label attached (VPS/PDC allow to start a video recording at
+the exact time a programme starts even when delayed; the labels are
+broadcasted currently in Germany, Austria, Switzerland and England).
+Additionally you can filter for programmes with a label which differs
+from the actual start time; these are usually programmes whose
+start time changed or which were scheduled later (usually the VPS/PDC
+label then is the actual start time minus one minute)
 <P></P></DL>
 <P>Note that the interpretation of two filter types depends on the
 provider: sorting criterion and series. That's because those are
@@ -1163,29 +1202,115 @@ the provider's navigation menu.</P>
 the filter menu can also be used to examine the filter options
 that are invoked by the entries in the Navigate menu.</P>
 <P>
+<H2><A NAME="inverting filters">Inverting filters</A></H2>
+<P>Near the end of the filter menu there's the <EM>Invert</EM> sub-menu which allows
+to invert the outcome of filtering.  There are two levels of inversion:
+global and individual.</P>
+<P>When you select global inversion, you'll get exactly the programmes that
+otherwise would have been filtered out (except for programmes which are
+permanently filtered out by your network and air-time selection). In other
+words, all programmes which match your current filter setting are removed
+from the list. Note: due to the way filter shortcuts are merged when more
+than one is selected at the same time, it's in most cases not recommended
+to use global invert for filter shortcuts.</P>
+<P>The invert menu also allows to individually negate certain filter types
+(there are also invert buttons in some filter sub-menus which have the
+same function).  The logic of combining flters is the same as without
+inverting, i.e. there's a logical OR between filters of the same type
+(e.g. network A OR network B) and a logical AND between different filter
+types (e.g. network A AND theme category movie).</P>
+<P><STRONG>Example 1:</STRONG> If you want all programmes which are neither categorized
+as sports nor as children's programmes, select theme filters sport
+and children's and then invert the current theme filter (usually class #1;
+you can equivalently use the global invert if themes are the only filter).</P>
+<P>For the theme and sorting criterion filters it's possible to invert
+only parts of the selection, so that you can require that a programme
+has a certain attribute and at the same time require that it doesn't
+have another attribute.</P>
+<P><STRONG>Example 2:</STRONG> If you want all programmes which are movies but NOT adult
+movies, select theme category Movie, switch the theme class to 2,
+select theme adult and then invert theme class 2.</P>
+<P>Note: although the Feature filter offers the use of different classes
+so support a logical OR, the inversion is not based on classes. This is
+due to the fact that there's a logical OR between feature classes (in
+contrast to the logical AND between theme classes).</P>
+<P>
 <HR>
 <H1><A NAME="filter shortcuts">FILTER SHORTCUTS</A></H1>
 <P>There's a number of predefined filter options in the main window below
 the clock. These shortcuts enable you to invoke filters by a single click
-of the mouse. You can freely add or remove entries from this list.</P>
-<P>When you want to add a shortcut, either choose an entry from the
-Navigate menu or define your own filters via the Filter menu, possibly
-based on one or more already defined shortcuts. When you have found an
-interesting selection, call <EM>Add filter shortcut</EM> from the Filter
-menu. You'll find a new shortcut appended to the list of existing
-shortcuts. First you'll probably want to enter a description in the
-entry field at the top of the dialog; default is just ``shortcut #xx''.
-When you're done just press <EM>Save</EM>, or <EM>Abort</EM> if you've changed
-your mind and don't want to add this shortcut after all.</P>
-<P>You can also change descriptions or ordering of existing shortcuts
-in this dialog.  If you want to modify the shortcut list without adding
-a new one, you can also access the dialog from the <EM>Configure</EM> menu.</P>
-<P>If you want to change the filter settings of an existing shortcut,
-then invoke the shortcut, modify the settings as you need and then
-use the <EM>Update filter shortcut</EM> dialog in the Filter menu to save
-the new settings of any existing shortcut. You can use the
-<EM>Update &amp; Edit</EM> Button to jump to the filter configuration dialog,
-e.g. if you want to fine-tune the description or ordering.</P>
+of the mouse. You can freely add, change or remove entries in this list.</P>
+<P>When you want to add a shortcut, first set the filters up in
+the way you want to save them, i.e. either choose existing shortcuts or
+select an entry from the Navigate menu and/or add filters from the main or
+context menus.  When you have found an interesting selection, invoke
+<EM>Add filter shortcut</EM> from the shortcuts menu.</P>
+<P>This will open the shortcut edit dialog (which will be described in detail
+below) with your new shortcut at the start of the list at the left. You
+should change the shortcut label in the field at the top right; by default
+it's just ``new shortcut''.  The label will be displayed in the shortcut list
+in the main window.</P>
+<P>When you're done press <EM>Save</EM>, or <EM>Abort</EM> if you've changed your mind
+and don't want to add this shortcut after all.  If you want to define
+multiple shortcuts you can leave the Edit dialog open and save just once
+when you're done completely.</P>
+<P>You can invoke several shortcuts in parallel by pressing the <EM>CTRL</EM>
+or <EM>SHIFT</EM> keys when selecting in the main winddow's shortcut listbox.
+When combining filters with different combinations of filter categories
+the behavior is slightly subtle and sometimes suprising.  That's because
+currently filter shortcuts are not separated when processed.
+Instead all filters of all selected shortcuts are thrown together and
+then processed as if they belonged all to one shortcut in the way
+described in <A HREF="#filtering">FILTERING</A>. For example, if one shortcut searches for
+movies, another one subtitles, the combination will search for programmes
+which are movies AND have subtitles. There's currently no way to omplement
+a logical OR.  (This might change in the future.)</P>
+<P>The shortcut list has a small context menu which shows when you click with
+the right mouse button into the  shortcut list.  If offers faster access
+to the same commands which are available in the main menu plus a <EM>Delete</EM>
+command; the shortcut above which you press the mouse button is
+pre-selected for the chosen operation.</P>
+<P>When you <EM>Update</EM> a shortcut and your current filter setting contains
+different filters than the previously stored setting, you'll be asked if
+the filter mask should be automatically adapted (e.g. if your filter
+previously searched for theme category 'movie' but your current filter
+consists of a text search).  See below for more details on filter masks;
+unless you have manually edited this shortcut's mask before, you can
+safely press ``Yes''.</P>
+<P>
+<H2><A NAME="editing filter shortcuts">Editing Filter Shortcuts</A></H2>
+<P>To change names and/or order of your shortcuts you can invoke the edit
+dialog either via the main menu or the context menu. On the left of the
+dialog window there's a list of all your shortcuts. In the middle there's
+a row of command buttons which operate on the shortcut selected at the
+left (explained below).  At the right there's an editable field with
+shortcut name, a read-only display of the filter settings currently
+assigned to the shortcut, a popup list with the editable filter mask
+and a button which allows to hide the shortcut from the list in the
+main window.</P>
+<P>The buttons with up/down arrows will move the shortcut selected in the
+list up or down. Note that shortcuts marked as ``hidden'' will always be
+moved to the end of the list once you save it, so it's not useful to
+change their order. The <EM>Delete</EM> button removes the selected shortcut
+from the list.  The shortcut is not deleted from the main window until
+you press save; leave the dialog with <EM>Abort</EM> to undo the operation.</P>
+<P>The <EM>Invoke</EM> button will apply the shortcut's filter setting to the
+main window just as selecting the shortcut in the main window's list.
+You can then change the filter settings via the filter menus.  Use the
+<EM>Update</EM> button to assign the main window's filter settings to the
+edited shortcut.</P>
+<P>You should be careful with the update button since it's easy to
+overwrite the wrong shortcut.  If you notice such a mistake, you can
+undo the change either by leaving the edit dialog with the <EM>Abort</EM>
+button or selecting the respecting shortcut in the main window and
+assigning the original settings via <EM>Update</EM>.</P>
+<P>At the bottom of the edit menu there's a checkbutton labeled <EM>Hide from
+main window</EM>.  When it's enabled the currently selected shortcut will
+not be included with the shortcut list in the main window. This is
+useful for shortcuts which you only intend to use in user-defined
+columns (see <A HREF="#userdefined columns">CONFIGURATION: User-defined columns</A>)</P>
+<P>
+<H2><A NAME="filter masks">Filter Masks</A></H2>
 <P>When you deselect a shortcut, either by selecting another shortcut
 or clicking on it a second time with <EM>CTRL</EM> held down, all it's
 filters will automatically be undone. Hence when you have two themes
@@ -1197,28 +1322,34 @@ get all programmes of theme movies OR sports.  Since that is usually
 not what one expects, a filter mask has been introduced to the shortcut
 setting.</P>
 <P>The filter mask is defined in the shortcuts dialog with a checkbutton
-for each filter type. By default, the mask is enabled for every filter
-type you've included in the shortcut filter setting.  When you invoke
-the shortcut from the main window later, all filters of the given types
+for each filter category. By default, the mask is enabled for every filter
+category you've included in the shortcut filter setting.  When you invoke
+the shortcut from the main window later, all filters of the given categories
 will be cleared (masked out) before the shortcut filters are added.
 To return to the above example: if the ``Sports'' shortcut is defined
 with a themes mask, the manually set movies filter would be cleared
 before the theme filter is set to sports.</P>
-<P>The masking can also be enabled when no filter of that type has been
+<P>The masking can also be enabled when no filter of that category has been
 chosen. This can be used to define <EM>undo</EM> shortcuts. E.g. choose the
 mask 'Themes' if you want a shortcut that allows to clear all
 theme-related filters at once. Or enabled all masks for a <EM>Reset</EM>
 button (the only difference to the pre-defined Reset button would
 be that the cursor does not jump to the first Now programme.)</P>
-<P>You can invoke several shortcuts in parallel by pressing the <EM>CTRL</EM>
-or <EM>SHIFT</EM> keys when selecting in the listbox - just as you know it
-from other applications. However the behavior of the combined shortcuts
-is slightly subtle and might not always match your expectations.
-That's because the shortcuts are not cleanly separated when processed.
-Instead all filters of all selected shortcuts are thrown together and
-then processed as if they belonged all to one shortcut in the way
-described in <A HREF="#filtering">FILTERING</A>. This might change in the future
-if someone convices me there's a real need to.</P>
+<P>
+<H2><A NAME="shortcut update dialog">Shortcut update dialog</A></H2>
+<P>When you select the <EM>Shortcut Update</EM> command in the main menu, there
+will be a small dialog with a list of all shortcuts.  The filter settings
+of the shortcut you select in this list will be overwritten with the
+currently active filter setting once you press the <EM>Update</EM> button.
+You can also use the <EM>Update &amp; Edit</EM> button to jump directly into the
+filter edit dialog (see further above in this chapter)</P>
+<P>Note that while the shortcut edit dialog window is open, updates (as well
+as deletions or additions) will only affect the temporary list in the
+edit dialog window until you press the it's <EM>Save</EM> button.  Also the
+list offered for shortcut updates consists of the shortcuts as they are
+defined in the temporary list.</P>
+<P>Note that a faster way to change a single shortcut is to use the context
+menu, since it allows to skip this intermediate dialog.</P>
 <P>
 <HR>
 <H1><A NAME="context menu">CONTEXT MENU</A></H1>
@@ -1251,9 +1382,19 @@ can be added via the Configure menu (see <A HREF="#context menu">CONFIGURATION: 
 <DD>
 Toggles acquisition on or off.  When you start the browser, acquisition
 is automatically enabled (although failure to do so is silently ignored).
+You can suppress automatic start with the <STRONG>-noacq</STRONG> command line switch.
 Switching off acquisition allows other applications (e.g. a teletext
 decoder) to use the TV card while you browse the database, if you have
 only one TV card.
+<P>You will get an error message if the device is already busy by a
+different application (there are some applications which cooperate
+well with nxtvepg, but if in doubt you should quit all other video
+related applications before starting acquisition) or if you don't have
+permission to access the device (UNIX, see also <A HREF="#files">FILES</A>) or to start
+the driver (Windows).  If you're experiencing problems that might be
+hardware or Operating System related, test with a TV application or
+teletext decoder first, because these usually allow for easier debugging
+(e.g. due to the visible TV image). See also <A HREF="#getting started">GETTING STARTED</A>.</P>
 <P>UNIX: When acquisition is switched off, the <EM>/dev/vbi</EM> device is freed.
 Acquisition can also been switched on and off automatically (i.e. from a
 shell script) by sending signal HUP (e.g. with the <CODE>kill(1)</CODE> command) to
@@ -1262,9 +1403,6 @@ acquisition (see the next command) you have to send the signal to one of
 the daemon processes/threads.  To simplify this, the pid of the process
 which needs to be signalled is stored in <EM>/tmp/.vbi.pid</EM> while the device
 is in use.</P>
-<P>Windows: When acquisition is switched off, the driver is unloaded so
-that other programs can access the TV card.  Note that most Windows
-driver implementations do not allow for more than one TV card in the PC.</P>
 <P></P>
 <DT><STRONG><A NAME="item_Connect_to_acq%2E_daemon"><STRONG>Connect to acq. daemon</STRONG></A></STRONG><BR>
 <DD>
@@ -1383,37 +1521,58 @@ a database, you need to export them into different files.</P>
       UNIQUE theme_idx (theme_idx)
    );</PRE>
 <P></P>
+<DT><STRONG><A NAME="item_Export_as_XMLTV"><STRONG>Export as XMLTV</STRONG></A></STRONG><BR>
+<DD>
+Open a dialog that allows to export the complete database in XML format,
+as defined by the xmltv.dtd (see ``xmltv'' project on sourceforge.net).
+The generated file contains both the channel table and the complete
+schedule, including any networks you might have suppressed from the
+listing inside nxtvepg.
+<P>Note that the database can also be exported directly from the command
+line by using the <STRONG>-dump xml</STRONG> switch (see <A HREF="#options">OPTIONS</A>).</P>
+<P></P>
 <DT><STRONG><A NAME="item_Export_as_HTML"><STRONG>Export as HTML</STRONG></A></STRONG><BR>
 <DD>
-Open a dialog that allows to export the complete database or selected
+Opens a dialog that allows to export the complete database or selected
 programmes into a file in HTML format (Hypertext Markup Language) which can
-then be loaded into a WWW browser, e.g. <EM>Netscape</EM>. This is particularily
-useful if you want to print out TV descriptions.
-<P>At the top of the dialog window you have to enter the output file name.
-Click on the little folder button for a file selection dialog.</P>
-<P>By default the checkbutton <EM>Selected programme only</EM> is enabled. In this
-mode only info on the programme which is currently selected with the cursor
-will be written. In combination with the <EM>Append to file</EM> mode this
-allows to build a document with the programmes that interest you step by
-step. If you deselect <EM>Selected programme only</EM>, info on all programmes
-that match your current filter will be written. Note that this can generate
-very large files which may take a long time to load into your Web browser.
-In this mode you may want to set an additional start time filter
-(see <A HREF="#filtering">FILTERING</A>) to restrict the number of programmes written.</P>
-<P>In the bottommost box you see three radio buttons with which
-you select the format in which the information will be written. If you
-select <EM>titles</EM> you'll get a table in the same configuration as in the
-titles list in the upper part of the main window. If you select
-<EM>descriptions</EM> you'll get roughly the same as in the lower part of the
-main window. Obviously, if you select <EM>titles and descriptions</EM> you'll
-get both, in form of one table with all the titles on top and all
-descriptions separately below. If you select <EM>Add hyperlinks</EM> the
-titles in the table will be linked to the descriptions.</P>
+then be loaded into a WWW browser, e.g. <EM>Netscape</EM> or <EM>Opera</EM>. This is
+particularily useful if you want to print out TV descriptions.
+<P>At the top of the dialog window you have to enter the output file name;
+if you don't include an extension, <EM>.html</EM> is automatically appended.
+Click on the little folder button to the right for a file selection dialog.
+Press the <EM>Export</EM> button to create the HTML document and <EM>Dismiss</EM> to
+close the dialog window.</P>
+<P>By default the checkbutton <EM>All matching programmes, but max ...</EM> is
+enabled.  In this mode all programmes that match current filter setting will
+be exported, but only up the given number of programmes. It's recommended
+to limit the number of programmes because else very large HTML documents
+are created which may take a long time to load into your Web browser.</P>
+<P>Use mode <EM>Selected programme only</EM> to export only the programme which
+is currently selected in the main window. In combination with the
+<EM>Append to file</EM> mode this allows to incrementally build a document
+with exactly your programmes of interest.</P>
+<P>In the box below there are three radio buttons with which you can select
+the output format. If you choose <EM>Write titles</EM> you'll get a table in the
+same configuration as in the programme title list in the main window.
+If you want to have different column types, you can build a separate column
+configuration by selection <EM>Different columns than main window</EM> and then
+pressing the <EM>Configure</EM> button to select which column types to display.</P>
+<P>If you select <EM>Write descriptions</EM> you'll get for each exported programme
+a feature summary and description, similiar to the info in the lower part
+of the main window.</P>
+<P>If you select <EM>Write titles and descriptions</EM> you'll get the title table
+on top and all descriptions separately below.  In this mode you can select
+<EM>Add hyperlinks to titles</EM> to add hyperlinks from titles in the table
+to the descriptions.</P>
 <P>The look of the generated document is almost entirely determined by use
 of an internal CSS stylesheet. If you don't like the look you can override
 it with your own stylesheet. Save it to a file named <EM>nxtvhtml.css</EM> and
 put it in the same directory as the generated HTML file. For more
-information on HTML and style sheets see <EM><A HREF="http://www.w3.org/">http://www.w3.org/</A></EM></P>
+information on HTML and style sheets see <EM><A HREF="http://www.w3.org/">http://www.w3.org/</A></EM>.  If your
+column configurations contains user defined columns which use markers
+(see <A HREF="#userdefined columns">CONFIGURATION: User-defined columns</A>), you have to put the images
+into a subdirectory called <EM>images</EM>; also your browser has to support
+the <STRONG>PNG</STRONG> image format.</P>
 <P></P>
 <DT><STRONG><A NAME="item_View_timescales"><STRONG>View timescales</STRONG></A></STRONG><BR>
 <DD>
@@ -1447,6 +1606,8 @@ automatically follow.  See <A HREF="#data acquisition">DATA ACQUISITION</A> for 
 <DT><STRONG><A NAME="item_Quit"><STRONG>Quit</STRONG></A></STRONG><BR>
 <DD>
 Close all windows and terminate the application.
+If you have started acquisition as a daemon, it will not be terminated
+(see <A HREF="#connect to acq. daemon">CONTROL: Connect to acq. daemon</A>).
 <P></P></DL>
 <P>
 <HR>
@@ -1832,6 +1993,91 @@ headers have not been disabled in the Configure menu) and then dragging
 the border to a new position while keeping the left mouse button pressed
 down.</P>
 <P>
+<H2><A NAME="userdefined columns">User-defined columns</A></H2>
+<P>Open the configuration dialog for user-defined browser listbox columns.
+This allows you to create new column types in addition to the predefined
+types (e.g. ``Title'' and ``Theme''), which can even contain images or
+formatted text (i.e. bold or colored text) and have freely defined header
+text and menu.  This manual section first describes the basic principles
+and then the usage of the configuration dialog.</P>
+<P>The ``heart'' of user-defined column definitions is a list of filter
+shortcuts.  You build this list as a subset of your personal
+filter shortcuts (usually displayed at the very left of the browser
+window; see also <A HREF="#filter shortcuts">FILTER SHORTCUTS</A>).</P>
+<P>Whenever nxtvepg displays a programme in the browser, it matches for
+each user-defined column the programme's attributes against the shortctus
+given for the respective column, in the given order (top to bottom in the
+dialog's list).  If a match is found, the text, image or attribute which
+was assigned to that specific shortcut match is displayed in the column.
+If no shortcut matches, the column remains empty in that programme's row.</P>
+<P>Example: to create a personalized version of the <EM>Editorial rating</EM>
+(ER) column, you could create three shortcuts: one with the ER filter
+set to ``&gt;=6'', one with ``&gt;=4'' and one with ``&gt;=2''; then you'd create a
+new user-defined column and insert the three shortcuts in this order;
+to the first shortcut match you'd assign the text ``great'', to the
+second ``ok'' and to the third ``bad''.  As a result you'd have a column
+where the numerical ratings are replaced with your texts.</P>
+<P>There is also a special entry at the end of the dialog's shortcut list
+called <EM>*no match*</EM>. It acts as a catch-all (i.e. wildcard) if none of
+the shortcuts in the column matches the current programme entry.  In the
+above example this would be all programmes with an ER below 2 or without
+a rating.</P>
+<P>The catch-all is particularily useful to overlay standard columns with
+alternate  texts for selected programmes. To stay with the ER example,
+you could define a column with two shortcut entries: ``&gt;=6'' and
+``*no-match*''.  To the ``&gt;=6'' shortcut match you could assign an image
+marker; to all other the ``ER'' attribute.  Hence programmes with an
+ER &gt;=6 (i.e. all ``great'' programmes) would have an image displayed and
+hence clearly stand out from all other programmes, which get the
+regular content of the ER column (i.e. the numerical rating or an
+empty column for unrated programmes).</P>
+<P>You can also use this machanism to combine several columns into one,
+to keep the listing compact.  For example you can combine the ER column
+with the theme column, so that for movies with ER &gt;= 6 the text
+``great movie'' is displayed, for all others the regular theme description.</P>
+<P>In the following the usage of the configuration dialog is described:</P>
+<P>The dialog consists of three sections: at the top to the right is a
+drop-down menu which lists all previously user-defined columns. Here you
+select which column definition you want to edit.  Below to the left is the
+list of shortcuts and 4 buttons to edit the list.  On the right side of
+the shortcut list there are various controls for defining how a shortcut
+match should be displayed.</P>
+<P>Note that there are dependencies between those sections: when you change
+to a different column with the drop-down menu at the top, the rest of the
+dialog is immediately updated to display the current definition of the
+column (you'll get a warning if there any unsaved changes in the
+previously edited column).  Also, when you select a shortcut in the
+listbox, the display attribtes at the right are updated.</P>
+<P>To create a new column, you will start by selecting <EM>Create new column</EM>
+in the menu at the top right. You should give the column a label right
+away, so that you can keep your columns apart in the <EM>Column selection</EM>
+configuration dialog.  You should also assign a column header text,
+which will be used in the browser; you probably will use a shorter text
+here than in the label.</P>
+<P>Then you add one or more shortcuts to the list by use of the <EM>add</EM>
+drop-down menu to the left of the box. You can change the order of the
+shortcuts by use of the arrow buttons, or delete them again with
+the <EM>delete</EM> button.</P>
+<P>By default a shortcut match is displayed as the name of the shortcut.
+You can change that with the controls to the right of the listbox.
+The choices are: freely defined text, one of the pre-defined images or
+one of the programme's attributes (i.e. if you select <EM>Time</EM> the
+programme's start time will be displayed).  For textual output you can
+additionally select a format below: either bold, underlined or colored.
+All these display options can be configured separately for every
+shortcut match.</P>
+<P>When you want to try out your column-definition, press the <EM>Apply</EM>
+button at the bottom.  The column definition is saved and the browser
+content is updated.  However if the column is not currently used in the
+browser, nothing will happen. You have to use the <EM>Column selection</EM>
+configuration dialog to insert the column at your preferred position.
+For newly created columns the apply function offers to automatically
+append the column to the browser window.</P>
+<P>There's also a <EM>Delete</EM> button at the bottom which allows to remove
+obsolete column definitions.  If the column is still displayed in the
+browser, it's automatically removed.  Note that a deletion cannot be
+undone.</P>
+<P>
 <H2><A NAME="select networks">Select networks</A></H2>
 <P>Open the network selection dialog. It allows to permanently suppress
 TV networks in a provider's listing, e.g. if you can not receive the
@@ -1980,12 +2226,6 @@ the currently selected programme (i.e. the same what the <EM>Tune TV</EM>
 button does).  When no TV application is connected, such entries are
 automatically disabled.</P>
 <P>
-<H2><A NAME="filter shortcuts">Filter shortcuts</A></H2>
-<P>Open the filter shortcut dialog to rename, reorder or delete shortcuts. 
-You have to press the <EM>Update</EM> button to save any changes for a shortcut
-and then close the dialog with <EM>Save</EM>.
-See <A HREF="#filter shortcuts">FILTER SHORTCUTS</A> for more details.</P>
-<P>
 <H2><A NAME="themes language">Themes language</A></H2>
 <P>Select the language for programme themes (i.e. content category, see
 <A HREF="#filtering">FILTERING</A>) in the main window and the filter menu.  By default
@@ -1993,27 +2233,46 @@ it's set to default, in which case the language is derived from the
 selected provider's database.  Please note that the language of the
 menus, help etc. currently can not be changed from English.</P>
 <P>
-<H2><A NAME="show shortcuts">Show shortcuts</A></H2>
-<P>Toggle visibility of the shortcut listbox.</P>
-<P>
-<H2><A NAME="show networks">Show networks</A></H2>
-<P>Toggle visibility of the network filter listbox.</P>
-<P>
-<H2><A NAME="show status line">Show status line</A></H2>
-<P>Toggle visibility of the status line at the bottom of the browser window.</P>
-<P>
-<H2><A NAME="show column headers">Show column headers</A></H2>
-<P>Toggle visibility of the browser listbox column header menu bar.</P>
-<P>
-<H2><A NAME="hide on minimize">Hide on minimize</A></H2>
-<P>Windows only:
+<H2><A NAME="show/hide">Show/Hide</A></H2>
+<P>Toggle visibility of various components in the main window:</P>
+<DL>
+<DT><STRONG><A NAME="item_Show_shortcuts"><EM>Show shortcuts</EM></A></STRONG><BR>
+<DD>
+Toggle visibility of the shortcut listbox at the left of the programme list.
+When you unmap both the shortcuts list and the network list below, the clock
+and reset buttons are also unmapped so that you get only the programme list.
+<P></P>
+<DT><STRONG><A NAME="item_networks"><EM>Show networks (left)</EM></A></STRONG><BR>
+<DD>
+Maps or unmaps the network filter listbox below the shortcuts list,
+or below the clock if you've unmapped the shortcuts list.
+<P></P>
+<DT><STRONG><EM>Show networks (middle)</EM></STRONG><BR>
+<DD>
+Maps or unmaps the network filter listbox between shortcuts listbox and
+programme list.
+<P></P>
+<DT><STRONG><A NAME="item_Show_status_line"><EM>Show status line</EM></A></STRONG><BR>
+<DD>
+Maps or unmaps the database and acquisition status line at the bottom
+of the browser window.
+<P></P>
+<DT><STRONG><A NAME="item_Show_column_headers"><EM>Show column headers</EM></A></STRONG><BR>
+<DD>
+Maps or unmaps the browser listbox column header menubar, i.e. the row
+of menu buttons above the programme list.
+<P></P>
+<DT><STRONG><A NAME="item_Hide_on_minimize"><EM>Hide on minimize</EM></A></STRONG><BR>
+<DD>
+Windows only:
 When this option is enabled, the main window's entry in the task bar
 is removed when it's minimized or when the program is started with
 the <EM>-iconic</EM> command line switch.  Instead an icon is added to the
 system tray in the task bar.  A double-click on the tray icon deiconifies
 the main window.  A click with the right mouse button opens a little
 popup menu.  The entries in this menu have the same meaning as the
-equally named ones in the control menu (see <A HREF="#control">CONTROL</A>).</P>
+equally named ones in the control menu (see <A HREF="#control">CONTROL</A>).
+<P></P></DL>
 <P>
 <HR>
 <H1><A NAME="files">FILES</A></H1>
@@ -2029,21 +2288,35 @@ name can be specified with the <STRONG>-rcfile</STRONG> option.
 <DT><STRONG><A NAME="item_%2Fusr%2Ftmp%2Fnxtvdb%2Fnxtvdb%2D%23%23%23%23"><STRONG>/usr/tmp/nxtvdb/nxtvdb-####</STRONG></A></STRONG><BR>
 <DD>
 Directory containing one file for each provider's database.
-Can be changed with the <STRONG>-dbdir</STRONG> command line option.
-The last 4 digits of the file names are the hexadecimal CNI (Country
-and Network Identifier) of the provider.
+Can be changed with the <STRONG>-dbdir</STRONG> command line option.  Note that the
+path can also be configured during compilation of the software, so if
+you downloaded a binary version of this package the path may be
+different.  The current default setting can be queried with the
+<STRONG>-help</STRONG> command line switch.
+<P>The last 4 digits of the file names are the hexadecimal CNI (Country
+and Network Identifier) of the provider.</P>
 <P></P>
 <DT><STRONG><A NAME="item_%2Fdev%2Fvbi0%2C_%2Fdev%2Fvbi1%2C_etc%2E"><STRONG>/dev/vbi0</STRONG>, <STRONG>/dev/vbi1</STRONG>, etc.</A></STRONG><BR>
 <DD>
 Device files from which Nextview data is being read during acquisition.
 The index postfix can be specified with the <STRONG>-card</STRONG> command line option.
+You must have read/write access to these files; by default this is not
+the case for many Linux distributions for security reasons (since you
+might have connected a WebCam and mike and someone could spy on you from
+remote).  However on a single-user system it's safe to make them
+world-readable and writable, i.e. in a root shell enter:
+<PRE>
+  chmod 666 /dev/vbi</PRE>
+<P>Alternatively you can make yourself a member of a group in <EM>/etc/groups</EM>
+which has access to the devices or create such a group.</P>
 <P></P>
 <DT><STRONG><A NAME="item_%2Fdev%2Fvideo0%2C_%2Fdev%2Fvideo1%2C_etc%2E"><STRONG>/dev/video0</STRONG>, <STRONG>/dev/video1</STRONG>, etc.</A></STRONG><BR>
 <DD>
 Device files which are needed to set input source (e.g. TV tuner or one of
 the composite or S-Video sockets) and tuner frequency for VBI reception,
 unless you choose the passive acquisition mode. The index postfix can be
-specified with the <STRONG>-card</STRONG> command line option.
+specified with the <STRONG>-card</STRONG> command line option. This device must be
+readable and writable too.
 <P>The device is only kept open during a provider search. Else, it's just
 opened shortly to set the input source and tuner frequency. If the device
 is busy (e.g. while you watch TV), acquisition starts on the currently
@@ -2074,15 +2347,38 @@ This non-regular file (socket) is created by the daemon to allow
 local client connections via UNIX domain sockets.  The same socket
 can be used for more than one client connection.  It's deleted when
 the daemon terminates (unless the daemon crashes or receives an
-uncatchable signal like KILL).
+uncatchable signal like the infamous signal 9 aka KILL).
 <P></P>
-<DT><STRONG><A NAME="item_%24HOME%2F%2Exawtv%2C_etc%2E"><STRONG>$HOME/.xawtv</STRONG>, etc.</A></STRONG><BR>
+<DT><STRONG><A NAME="item_%24HOME%2F%2Exawtv"><STRONG>$HOME/.xawtv</STRONG></A></STRONG><BR>
 <DD>
 This file belongs to the TV viewer <EM>xawtv</EM>. It's not required or
 created by nxtvepg. But if it exists, it will be used in the
 EPG scan (for a fast scan mode where only the channels defined in
 this file will be checked) and in the network name configuration
 dialog.
+<P></P>
+<DT><STRONG><A NAME="item_%24HOME%2F%2EXdefaults"><STRONG>$HOME/.Xdefaults</STRONG></A></STRONG><BR>
+<DD>
+This file is usually loaded into the X server at startup (or during
+login) by use of the <EM>xrdb</EM> command.  It contains a series of parameter
+assignments called <EM>X resource definitions</EM> for any number of applications.
+Note: depending on your X11 startup scripts this file may have a different name,
+e.g. <EM>.Xresources</EM>.  The file could be used to change the ``look'' of almost
+every element in every dialog window (within limits, because some options
+are hard-coded) or the look of entire widget classes, like menus or buttons.
+However that's highly implementation dependent and generally not very useful,
+hence depreciated.
+<P>Defaults for all officially supported options are listed in the app-defauls
+file <EM>Nxtvepg.ad</EM> which is usually installed in <EM>/usr/X11/lib/X11/app-defaults</EM>
+(without the .ad extension).  You should not change valus there however,
+because they would be overwritten when you install new versions.  Instead copy
+changed lines into your .Xdefaults file (without the leading comment ! sign.)</P>
+<P>Color values can specified either symbolically (e.g. ``red'') or as hexadecimal
+RGB values in #RRGGBB format. Fonts must be specified as triplets of family,
+size (use negative values to specify the size in pixels and positive values
+for sizes given in points) and appearance (only ``normal'' or ``bold'' are
+recommended).  Lines starting with a ! sign are treated as comment and hence
+ignored.  Entries that do not adhere to this syntax are silently discarded.</P>
 <P></P></DL>
 <P>
 <H2><A NAME="files used on windows systems">Files used on Windows systems</A></H2>
@@ -2093,7 +2389,13 @@ Configuration file where all configuration and personal preference settings
 are stored. By default this is created in the working directory, but a
 different path and file name can be specified with the <STRONG>-rcfile</STRONG> option.
 <P></P>
-<DT><STRONG><A NAME="item_nxtv%23%23%23%23%2Eepg"><STRONG>nxtv####.epg</STRONG></A></STRONG><BR>
+<DT><STRONG><A NAME="item_nxtvepg%2Ead"><STRONG>nxtvepg.ad</STRONG></A></STRONG><BR>
+<DD>
+Allows to change the application's appearance, i.e. colors and text fonts.
+The format and content of the file is identical to the <EM>.Xdefaults</EM> file
+described in the UNIX section.
+<P></P>
+<DT><STRONG><A NAME="item_nxtv____%2Eepg"><STRONG>nxtv____.epg</STRONG></A></STRONG><BR>
 <DD>
 One file for each provider's database is created in the working directory
 or the one given with the <STRONG>-dbdir</STRONG> command line option.
@@ -2143,9 +2445,10 @@ for instructions on which information must be included in a bug report.</P>
 <P>
 <HR>
 <H1><A NAME="author">AUTHOR</A></H1>
-<P>Tom Zoerner, Erlangen, Germany.</P>
+<P>T. Zoerner, Erlangen, Germany.</P>
 <P>Email: tomzo (at) users (dot) sourceforge (dot) net</P>
 <P>Many thanks to Thierry Ménétrier for his valuable feedback;
+to Simon Barner for the FreeBSD port;
 to Matthieu for the French translation of PDC theme descriptors;
 to E-nek for the DScaler driver port and cooperation
 in develepment of the TV application interaction;
@@ -2162,7 +2465,7 @@ would never have been ported to M$ Windows.</P>
 <P>
 <HR>
 <H1><A NAME="copyright">COPYRIGHT</A></H1>
-<P>Copyright (C) 1999, 2000, 2001, 2002 by Tom Zoerner.
+<P>Copyright (C) 1999, 2000, 2001, 2002 by T. Zoerner.
 All rights reserved.</P>
 <P>This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License Version 2 as

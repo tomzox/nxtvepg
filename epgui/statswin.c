@@ -33,7 +33,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: statswin.c,v 1.61 2002/07/27 13:45:50 tom Exp tom $
+ *  $Id: statswin.c,v 1.62 2002/09/28 18:15:56 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -844,7 +844,7 @@ static void StatsWin_UpdateDbStatusLine( ClientData clientData )
 // - called by the "View (acq) statistics" menu entries (toggle mode, argc=2)
 //   or as a callback when a statistics window is destroyed
 //
-static int StatsWin_ToggleDbStats( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+static int StatsWin_ToggleDbStats( ClientData ttp, Tcl_Interp *interp, int argc, CONST84 char *argv[] )
 {
    const char * const pUsage = "Usage: C_StatsWin_ToggleDbStats ui|acq [0|1]";
    EPGDB_CONTEXT * dbc;

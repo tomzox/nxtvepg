@@ -46,7 +46,7 @@
  *    WinDriver replaced with DSdrv (DScaler driver)
  *      March 2002 by E-Nek (e-nek@netcourrier.com)
  *
- *  $Id: btdrv4win.c,v 1.25 2002/09/14 19:03:05 tom Exp tom $
+ *  $Id: btdrv4win.c,v 1.28 2002/11/19 20:57:48 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -54,7 +54,7 @@
 
 #include <windows.h>
 #include <stdio.h>
-#include <malloc.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "epgctl/mytypes.h"
@@ -116,14 +116,14 @@ static const struct TTunerType Tuners[TUNER_COUNT] =
 
    { "Temic PAL (4002 FH5)", TEMIC, PAL,
      16*140.25,16*463.25,0x02,0x04,0x01,0x8e,623},
-   { "Philips PAL_I", Philips, PAL_I,
+   { "Philips PAL_I (FI1246 and compatibles)", Philips, PAL_I,
      16*140.25,16*463.25,0xa0,0x90,0x30,0x8e,623},
-   { "Philips NTSC", Philips, NTSC,
+   { "Philips NTSC (FI1236 and compatibles)", Philips, NTSC,
      16*157.25,16*451.25,0xA0,0x90,0x30,0x8e,732},
 
-   { "Philips SECAM", Philips, SECAM,
+   { "Philips (SECAM+PAL_BG) (FI1216MF, FM1216MF, FR1216MF)", Philips, SECAM,
      16*168.25,16*447.25,0xA7,0x97,0x37,0x8e,623},
-   { "Philips FY5 PAL", Philips, PAL,
+   { "Philips PAL_BG (FI1216 and compatibles)", Philips, PAL,
      16*168.25,16*447.25,0xA0,0x90,0x30,0x8e,623},
    { "Temic NTSC (4032 FY5)", TEMIC, NTSC,
      16*157.25,16*463.25,0x02,0x04,0x01,0x8e,732},
@@ -136,20 +136,20 @@ static const struct TTunerType Tuners[TUNER_COUNT] =
      16*137.25,16*385.25,0x01,0x02,0x08,0x8e,732},
    { "Alps TSBE1",TEMIC,PAL,
      16*137.25,16*385.25,0x01,0x02,0x08,0x8e,732},
-   { "Alps TSBB5", Alps, PAL_I, /* tested (UK UHF) with Modtec MM205 */
+   { "Alps TSBB5", Alps, PAL_I, /* tested (UK UHF) with Modulartech MM205 */
      16*133.25,16*351.25,0x01,0x02,0x08,0x8e,632},
 
    { "Alps TSBE5", Alps, PAL, /* untested - data sheet guess. Only IF differs. */
      16*133.25,16*351.25,0x01,0x02,0x08,0x8e,622},
    { "Alps TSBC5", Alps, PAL, /* untested - data sheet guess. Only IF differs. */
      16*133.25,16*351.25,0x01,0x02,0x08,0x8e,608},
-   { "Temic PAL_I (4006FH5)", TEMIC, PAL_I,
+   { "Temic PAL_BG (4006FH5)", TEMIC, PAL,
      16*170.00,16*450.00,0xa0,0x90,0x30,0x8e,623},
    { "Alps TSCH6",Alps,NTSC,
      16*137.25,16*385.25,0x14,0x12,0x11,0x8e,732},
 
    { "Temic PAL_DK (4016 FY5)",TEMIC,PAL,
-     16*136.25,16*456.25,0xa0,0x90,0x30,0x8e,623},
+     16*168.25,16*456.25,0xa0,0x90,0x30,0x8e,623},
    { "Philips NTSC_M (MK2)",Philips,NTSC,
      16*160.00,16*454.00,0xa0,0x90,0x30,0x8e,732},
    { "Temic PAL_I (4066 FY5)", TEMIC, PAL_I,
@@ -157,13 +157,13 @@ static const struct TTunerType Tuners[TUNER_COUNT] =
    { "Temic PAL* auto (4006 FN5)", TEMIC, PAL,
      16*169.00, 16*454.00, 0xa0,0x90,0x30,0x8e,623},
 
-   { "Temic PAL (4009 FR5)", TEMIC, PAL,
+   { "Temic PAL_BG (4009 FR5) or PAL_I (4069 FR5)", TEMIC, PAL,
      16*141.00, 16*464.00, 0xa0,0x90,0x30,0x8e,623},
    { "Temic NTSC (4039 FR5)", TEMIC, NTSC,
      16*158.00, 16*453.00, 0xa0,0x90,0x30,0x8e,732},
    { "Temic PAL/SECAM multi (4046 FM5)", TEMIC, PAL,
      16*169.00, 16*454.00, 0xa0,0x90,0x30,0x8e,623},
-   { "Philips PAL_DK", Philips, PAL,
+   { "Philips PAL_DK (FI1256 and compatibles)", Philips, PAL,
      16*170.00,16*450.00,0xa0,0x90,0x30,0x8e,623},
 
    { "Philips PAL/SECAM multi (FQ1216ME)", Philips, PAL,
@@ -182,7 +182,7 @@ static const struct TTunerType Tuners[TUNER_COUNT] =
    { "Temic PAL* auto + FM (4009 FN5)", TEMIC, PAL,
      16*141.00, 16*464.00, 0xa0,0x90,0x30,0x8e,623},
    { "SHARP NTSC_JP (2U5JF5540)", SHARP, NTSC, /* 940=16*58.75 NTSC@Japan */
-     16*137.25,16*317.25,0x01,0x02,0x08,0x8e,940},
+     16*137.25,16*317.25,0x01,0x02,0x08,0x8e,732 }, // Corrected to NTSC=732 (was:940)
 
    { "Samsung PAL TCPM9091PD27", Samsung, PAL,  /* from sourceforge v3tv */
      16*169,16*464,0xA0,0x90,0x30,0x8e,623},
@@ -190,10 +190,17 @@ static const struct TTunerType Tuners[TUNER_COUNT] =
      0,0,0,0,0,0,0},
    { "Temic PAL_BG (4106 FH5)", TEMIC, PAL,
      16*141.00, 16*464.00, 0xa0,0x90,0x30,0x8e,623},
-   { "Temic PAL_DK (4012 FY5)", TEMIC, PAL,
+   { "Temic PAL_DK/SECAM_L (4012 FY5)", TEMIC, PAL,
      16*140.25, 16*463.25, 0x02,0x04,0x01,0x8e,623},
+
    { "Temic NTSC (4136 FY5)", TEMIC, NTSC,
      16*158.00, 16*453.00, 0xa0,0x90,0x30,0x8e,732},
+   { "LG PAL (newer TAPC series)", LGINNOTEK, PAL,
+     16*170.00, 16*450.00, 0x01,0x02,0x08,0x8e,623},
+   { "Philips PAL/SECAM multi (FM1216ME MK3)", Philips, PAL,
+     16*160.00,16*442.00,0x01,0x02,0x04,0x8e,623 },
+   { "LG NTSC (newer TAPC series)", LGINNOTEK, NTSC,
+     16*170.00, 16*450.00, 0x01,0x02,0x08,0x8e,732},
 };
 
 #define TUNERS_COUNT (sizeof(Tuners) / sizeof(struct TTunerType))
@@ -241,6 +248,7 @@ static struct
    uint        cardIdx;
    uint        inputSrc;
    uint        tunerFreq;
+   uint        tunerNorm;
 } btCfg;
 
 static HANDLE vbiThreadHandle = NULL;
@@ -875,10 +883,10 @@ static bool Init_BT_HardWare( void )
    BT8X8_WriteByte (BT848_O_VDELAY_LO, 0x20);
 
    BT8X8_WriteWord (BT848_GPIO_DMA_CTL, BT848_GPIO_DMA_CTL_PKTP_32 |
-                                                               BT848_GPIO_DMA_CTL_PLTP1_16 |
-                                                               BT848_GPIO_DMA_CTL_PLTP23_16 |
-                                                               BT848_GPIO_DMA_CTL_GPINTC |
-                                                               BT848_GPIO_DMA_CTL_GPINTI);
+                                        BT848_GPIO_DMA_CTL_PLTP1_16 |
+                                        BT848_GPIO_DMA_CTL_PLTP23_16 |
+                                        BT848_GPIO_DMA_CTL_GPINTC |
+                                        BT848_GPIO_DMA_CTL_GPINTI);
    BT8X8_WriteByte (BT848_GPIO_REG_INP, 0x00);
    // input format (PAL, NTSC etc.) and input source
    BT8X8_WriteByte (BT848_IFORM, BT848_IFORM_MUX1 | BT848_IFORM_XTBOTH | BT848_IFORM_PAL_BDGHI);
@@ -1138,16 +1146,22 @@ I2CBus_AddDevice (BYTE I2C_Port)
 // ---------------------------------------------------------------------------
 // Set TV tuner synthesizer frequency
 //
-static BOOL Tuner_SetFrequency( int type, int wFrequency )
+static BOOL Tuner_SetFrequency( TUNER_TYPE type, uint wFrequency, uint norm )
 {
    const struct TTunerType *pTun;
    double dFrequency;
+   BYTE buffer[4];
    BYTE config;
    WORD div;
    BOOL bAck;
 
+   static uint lastWFreq = 0;
+
    if ((type < TUNERS_COUNT) && (type != TUNER_NONE))
    {
+      if ((wFrequency < 44*16) || (wFrequency > 958*16))
+         debug1("Tuner-SetFrequency: freq %d/16 is out of range", wFrequency);
+
       pTun = Tuners + type;
       dFrequency = (double) wFrequency;
 
@@ -1161,10 +1175,23 @@ static BOOL Tuner_SetFrequency( int type, int wFrequency )
       // tv norm specification for multi-norm tuners
       switch (type)
       {
+         case TUNER_PHILIPS_SECAM:
+            /* XXX TODO: disabled until norm is provided by TV channel file parsers
+            if (norm == VIDEO_MODE_SECAM)
+               config |= 0x02;
+            else
+               config &= ~0x02;
+            */
+            break;
          case TUNER_TEMIC_4046FM5:
+            /*
+            if (norm == VIDEO_MODE_SECAM)
+               config |= TEMIC_SET_PAL_L;
+            else
+            */
             config |= TEMIC_SET_PAL_BG;
             break;
-         case PHILIPS_SET_PAL_BGDK:
+         case TUNER_PHILIPS_FQ1216ME:
             config |= PHILIPS_SET_PAL_BGDK;
             break;
          default:
@@ -1173,33 +1200,49 @@ static BOOL Tuner_SetFrequency( int type, int wFrequency )
 
       div = (WORD)dFrequency + pTun->IFPCoff;
 
-      div &= 0x7fff;
+      if ((type == TUNER_PHILIPS_SECAM) && (wFrequency < lastWFreq))
+      {
+         /* Philips specification says to send config data before
+         ** frequency in case (wanted frequency < current frequency) */
+         buffer[0] = pTun->config;
+         buffer[1] = config;
+         buffer[2] = (div>>8) & 0x7f;
+         buffer[3] = div      & 0xff;
+      }
+      else
+      {
+         buffer[0] = (div>>8) & 0x7f;
+         buffer[1] = div      & 0xff;
+         buffer[2] = pTun->config;
+         buffer[3] = config;
+      }
+
       I2CBus_Lock ();              // Lock/wait
 
-      if (!I2CBus_Write ((BYTE) TunerDeviceI2C, (BYTE) ((div >> 8) & 0x7f), (BYTE) (div & 0xff), TRUE))
+      if (!I2CBus_Write ((BYTE) TunerDeviceI2C, buffer[0], buffer[1], TRUE))
       {
          Sleep (1);
-         if (!I2CBus_Write ((BYTE) TunerDeviceI2C, (BYTE) ((div >> 8) & 0x7f), (BYTE) (div & 0xff), TRUE))
+         if (!I2CBus_Write ((BYTE) TunerDeviceI2C, buffer[0], buffer[1], TRUE))
          {
             Sleep (1);
-            if (!I2CBus_Write ((BYTE) TunerDeviceI2C, (BYTE) ((div >> 8) & 0x7f), (BYTE) (div & 0xff), TRUE))
+            if (!I2CBus_Write ((BYTE) TunerDeviceI2C, buffer[0], buffer[1], TRUE))
             {
-               debug0("Tuner_SetFrequency: i2c write failed for word #1");
+               debug4("Tuner-SetFrequency: i2c write failed for word #1: type=%d, dev=0x%X, val1=0x%x, val2=0x%x", type, TunerDeviceI2C, buffer[0], buffer[1]);
                I2CBus_Unlock ();   // Unlock
 
                return (FALSE);
             }
          }
       }
-      if (!(bAck = I2CBus_Write (TunerDeviceI2C, pTun->config, config, TRUE)))
+      if (!(bAck = I2CBus_Write (TunerDeviceI2C, buffer[2], buffer[3], TRUE)))
       {
          Sleep (1);
-         if (!(bAck = I2CBus_Write (TunerDeviceI2C, pTun->config, config, TRUE)))
+         if (!(bAck = I2CBus_Write (TunerDeviceI2C, buffer[2], buffer[3], TRUE)))
          {
             Sleep (1);
-            if (!(bAck = I2CBus_Write (TunerDeviceI2C, pTun->config, config, TRUE)))
+            if (!(bAck = I2CBus_Write (TunerDeviceI2C, buffer[2], buffer[3], TRUE)))
             {
-               debug0("Tuner_SetFrequency: i2c write failed for word #2");
+               debug4("Tuner-SetFrequency: i2c write failed for word #2: type=%d, dev=0x%X, val1=0x%x, val2=0x%x", type, TunerDeviceI2C, buffer[2], buffer[3]);
             }
          }
       }
@@ -1209,7 +1252,7 @@ static BOOL Tuner_SetFrequency( int type, int wFrequency )
          return FALSE;
    }
    else if (type != TUNER_NONE)
-      debug1("Tuner_SetFrequency: illegal tuner idx %d", type);
+      debug1("Tuner-SetFrequency: illegal tuner idx %d", type);
 
    return TRUE;
 }
@@ -1286,6 +1329,14 @@ static void BT8X8_Close( void )
    int idx;
 
    BT8X8_WriteByte(BT848_SRESET, 0);
+
+   // Workaround for Hauppauge "WinTV2000" TV application:
+   // - without this workaround the TV image is too dark when started after nxtvepg
+   // - appearently this TV app does neither initialize this register nor do a reset
+   //   upon start and hence depends on gamma control to be pre-enabled; this happens
+   //   to be the case after a PCI reset, but not after a soft-reset
+   Sleep(50);
+   BT8X8_WriteByte(BT848_COLOR_CTL, BT848_COLOR_CTL_GAMMA);
 
    Free_DMA(&Risc_dma);
    for (idx=0; idx < VBI_FRAME_CAPTURE_COUNT; idx++)
@@ -1418,7 +1469,7 @@ static bool BtDriver_Load( void )
 
             if (btCfg.tunerFreq != 0)
             {  // if freq already set, apply it now
-               Tuner_SetFrequency(btCfg.tunerType, btCfg.tunerFreq);
+               Tuner_SetFrequency(btCfg.tunerType, btCfg.tunerFreq, btCfg.tunerNorm);
             }
             if (btCfg.inputSrc != INVALID_INPUT_SOURCE)
             {  // if source already set, apply it now
@@ -1575,23 +1626,25 @@ bool BtDriver_Configure( int cardIndex, int tunerType, int pllType, int prio )
 //
 bool BtDriver_TuneChannel( int inputIdx, uint freq, bool keepOpen, bool * pIsTuner )
 {
+   uint norm;
    bool result = FALSE;
 
    if (BtDriver_SetInputSource(inputIdx, pIsTuner))
    {
-      // XXX discard TV norm info in the high-byte
+      norm  = freq >> 24;
       freq &= 0xffffff;
 
       if (*pIsTuner && (freq != 0))
       {
          // remember frequency for later
          btCfg.tunerFreq = freq;
+         btCfg.tunerNorm = norm;
 
          if (shmSlaveMode == FALSE)
          {
             if (btDrvLoaded)
             {
-               result = Tuner_SetFrequency(btCfg.tunerType, freq);
+               result = Tuner_SetFrequency(btCfg.tunerType, freq, norm);
             }
             else
             {  // driver not loaded -> freq will be tuned upon acq start
@@ -1599,7 +1652,7 @@ bool BtDriver_TuneChannel( int inputIdx, uint freq, bool keepOpen, bool * pIsTun
             }
          }
          else
-         {  // even in slave mode the TV app may have granted the tuner tu us
+         {  // even in slave mode the TV app may have granted the tuner to us
             result = WintvSharedMem_SetTunerFreq(freq);
          }
       }
@@ -1619,7 +1672,7 @@ uint BtDriver_QueryChannel( void )
 
    if (shmSlaveMode == FALSE)
    {
-      freq = btCfg.tunerFreq;
+      freq = btCfg.tunerFreq | (btCfg.tunerNorm << 24);
    }
    else
    {
@@ -1736,16 +1789,18 @@ bool BtDriver_GetState( bool * pEnabled, bool * pHasDriver, uint * pCardIdx )
 bool BtDriver_Restart( void )
 {
    bool result;
-   uint prevFreq, prevInput;
+   uint prevFreq, prevNorm, prevInput;
 
    // save current input settings into temporary variables
    prevFreq  = btCfg.tunerFreq;
+   prevNorm  = btCfg.tunerNorm;
    prevInput = btCfg.inputSrc;
 
    BtDriver_StopAcq();
 
    // restore input params
    btCfg.tunerFreq = prevFreq;
+   btCfg.tunerNorm = prevNorm;
    btCfg.inputSrc  = prevInput;
 
    // start acquisition
@@ -1865,7 +1920,17 @@ void BtDriver_StopAcq( void )
    }
 
    btCfg.tunerFreq  = 0;
+   btCfg.tunerNorm  = VIDEO_MODE_PAL;
    btCfg.inputSrc   = INVALID_INPUT_SOURCE;
+}
+
+// ---------------------------------------------------------------------------
+// Query error description for last failed operation
+// - currently unused because errors are already reported by the driver in WIN32
+//
+const char * BtDriver_GetLastError( void )
+{
+   return NULL;
 }
 
 // ---------------------------------------------------------------------------

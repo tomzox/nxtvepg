@@ -9,7 +9,7 @@ Austria, France and Switzerland.
 Currently Nextview EPG is transmitted by:
 - in Germany and Austria: Kabel1, 3Sat, RTL-II.
 - in Switzerland: SF1, TSR1, TSI1, EuroNews.
-- in France: Canal+, M6.
+- in France: Canal+, M6, TV5.
 - in Turkey: TRT.
 
 If you don't receive any of those, then this software unfortunately is
@@ -28,7 +28,8 @@ System requirements:
 Hardware requirements are a PC or workstation with a 90 MHz Intel Pentium
 or equivalently (or more) powerful CPU, and a TV tuner card based on the
 Booktree chip Bt848 or Bt878. Almost all TV cards nowadays except the
-ATI "TV Wonder" are built around one of the Booktree chips.
+ATI "TV Wonder" and some cheap cards sold by Aldi (e.g. Tevion MD9717)
+are built around one of the Booktree chips.
 
 Linux software requirements:
 - kernel >= 2.0.35 (upgrade to 2.2.x highly recommended for bttv users!)
