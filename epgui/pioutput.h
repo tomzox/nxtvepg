@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pioutput.h,v 1.12 2002/12/08 19:25:34 tom Exp tom $
+ *  $Id: pioutput.h,v 1.15 2003/03/04 21:31:40 tom Exp tom $
  */
 
 #ifndef __PIOUTPUT_H
@@ -24,25 +24,61 @@
 
 
 // ----------------------------------------------------------------------------
+// Definition of PI listbox column types - must match keyword list in source
+//
+typedef enum
+{
+   PIBOX_COL_DAY,
+   PIBOX_COL_DAY_MONTH,
+   PIBOX_COL_DAY_MONTH_YEAR,
+   PIBOX_COL_DESCR,
+   PIBOX_COL_DURATION,
+   PIBOX_COL_ED_RATING,
+   PIBOX_COL_FORMAT,
+   PIBOX_COL_LIVE_REPEAT,
+   PIBOX_COL_NETNAME,
+   PIBOX_COL_PAR_RATING,
+   PIBOX_COL_PIL,
+   PIBOX_COL_SOUND,
+   PIBOX_COL_SUBTITLES,
+   PIBOX_COL_THEME,
+   PIBOX_COL_TIME,
+   PIBOX_COL_TITLE,
+   PIBOX_COL_WEEKDAY,
+   PIBOX_COL_USER_DEF,
+   PIBOX_COL_INVALID
+} PIBOX_COL_TYPES;
+
+// cache for PI listbox column configuration
+typedef struct
+{
+   PIBOX_COL_TYPES  type;
+   uint             width;
+   bool             skipNewline;
+   Tcl_Obj        * pDefObj;
+} PIBOX_COL_CFG;
+
+
+// ----------------------------------------------------------------------------
 // Interface functions declaration
 
-typedef void (PiOutput_AppendInfoTextCb_Type) ( void *fp, const char * pDesc, bool addSeparator );
-
-// Interface to filter module (series title lists)
-const char * PiOutput_DictifyTitle( const char * pTitle, uchar lang, char * outbuf, uint maxLen );
-void PiOutput_CtxMenuAddUserDef( const char * pMenu, bool addSeparator );
-
-// Interface to PI listbox
-void PiOutput_PiListboxInsert( const PI_BLOCK *pPiBlock, uint textrow );
-void PiOutput_AppendShortAndLongInfoText( const PI_BLOCK *pPiBlock,
-                                          PiOutput_AppendInfoTextCb_Type AppendInfoTextCb,
-                                          void *fp, bool isMerged );
-void PiOutput_AppendCompressedThemes( const PI_BLOCK *pPiBlock, char * outstr, uint maxlen );
-void PiOutput_AppendFeatureList( const PI_BLOCK *pPiBlock, char * outstr );
-
 // Interface to main module
-void PiOutput_Create( void );
+void PiOutput_Init( void );
 void PiOutput_Destroy( void );
-void PiOutput_DumpDatabaseXml( EPGDB_CONTEXT * pDbContext, FILE * fp );
+
+// interface to PI listboxes
+void PiOutput_PiListboxInsert( const PI_BLOCK *pPiBlock, uint textrow );
+uint PiOutput_PiNetBoxInsert( const PI_BLOCK * pPiBlock, uint colIdx, sint textRow );
+
+// Interface to HTML dump
+#ifdef _TCL
+PIBOX_COL_TYPES PiOutput_GetPiColumnType( Tcl_Obj * pKeyObj );
+uint PiOutput_MatchUserCol( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES * pType, Tcl_Obj * pMarkObj,
+                            uchar * pOutBuffer, uint maxLen, Tcl_Obj ** ppImageObj, Tcl_Obj ** ppFmtObj );
+uint PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES type,
+                               uchar * pOutBuffer, uint maxLen );
+const PIBOX_COL_CFG * PiOutput_CfgColumnsCache( uint colCount, Tcl_Obj ** pColObjv );
+void PiOutput_CfgColumnsClear( const PIBOX_COL_CFG * pColTab, uint colCount );
+#endif
 
 #endif  // __PIOUTPUT_H

@@ -26,7 +26,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: vbidecode.c,v 1.31 2002/09/14 19:00:36 tom Exp tom $
+ *  $Id: vbidecode.c,v 1.35 2003/01/19 08:15:27 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -45,9 +45,65 @@
 
 // use standard frequency for Bt848 and PAL
 // (no Nextview exists in any NTSC countries)
-#define VTSTEP  ((int)((35.468950/6.9375)*FPFAC+0.5))
-#define VPSSTEP ((int)(7.1 * FPFAC + 0.5))
+#define BTTV_VT_RATE            35468950L
+#define BTTV_PEAK_SEARCH_OFF    50
 
+// the SAA7134 chip has a different offset and sampling rate than the Bt8x8 chips
+#define SAA7134_VT_RATE         (6750000L * 4)
+#define SAA7134_PEAK_SEARCH_OFF 0
+
+#define VT_RATE_CONV            6937500L
+#define VPS_RATE_CONV           4995627L
+#define AGC_START_OFF           120
+#define AGC_LENGTH              300
+#define PEAK_SEARCH_LEN         AGC_LENGTH
+
+#define PEAK_SEARCH_OFF         0
+
+static uint vtstep  = ((uint)((double)FPFAC * BTTV_VT_RATE / VT_RATE_CONV));
+static uint vpsstep = ((uint)((double)FPFAC * BTTV_VT_RATE / VPS_RATE_CONV));
+
+
+//#define DUMP_VBI_LINE
+//#define DUMP_VPS_LINE
+#if defined(DUMP_VBI_LINE) || defined(DUMP_VPS_LINE)
+// ---------------------------------------------------------------------------
+// Debugging: dump the line as input to gnuplot
+//
+static void VbiDecodeDumpLine( int line, const uchar * lbuf, int thresh, int off )
+{
+   static int count = 0;
+   uint idx;
+
+   if (count++ < 100)
+   {
+      printf("# LINE %d - THRESH %d - OFF %d\n", line, thresh, off);
+      for (idx=0; idx < 2048; idx++)
+         printf("%d %d\n", idx, (int)*(lbuf++));
+   }
+}
+#endif
+
+// ---------------------------------------------------------------------------
+// Set the raw sampling rate for VBI data
+// - may differ between different hardware
+//
+void VbiDecodeSetSamplingRate( ulong sampling_rate )
+{
+   if (sampling_rate == 0)
+   {  // default sampling rate: BT8x8 rate
+#ifdef SAA7134_0_2_2
+      sampling_rate = SAA7134_VT_RATE;
+#else
+      sampling_rate = BTTV_VT_RATE;
+#endif
+   }
+
+   vtstep  = (uint) ((double)FPFAC * sampling_rate / VT_RATE_CONV);
+   vpsstep = (uint) ((double)FPFAC * sampling_rate / VPS_RATE_CONV);
+
+   //printf("rate=%ld -> vtstep=%.2f, vpsstep=%.2f\n", sampling_rate, (double)vtstep/FPFAC, (double)vpsstep/FPFAC);
+}
 
 // ---------------------------------------------------------------------------
 // Start of VBI data for a new frame
@@ -67,7 +123,7 @@ static uchar vtscan(const uchar * lbuf, ulong * spos, int off)
    uchar theByte;
 
    theByte = 0;
-   for (j = 7; j >= 0; j--, *spos += VTSTEP)
+   for (j = 7; j >= 0; j--, *spos += vtstep)
    {
       theByte |= ((lbuf[*spos >> FPSHIFT] + off) & 0x80) >> j;
    }
@@ -85,7 +141,7 @@ static uchar vps_scan(const uchar * lbuf, ulong * spos, int off)
    uchar theByte;
 
    theByte = 0;
-   for (j = 7; j >= 0; j--, *spos += VPSSTEP)
+   for (j = 7; j >= 0; j--, *spos += vpsstep)
    {
       theByte |= ((lbuf[*spos >> FPSHIFT] + off) & 0x80) >> j;
    }
@@ -104,7 +160,7 @@ void VbiDecodeLine(const uchar * lbuf, int line, bool doVps)
    ulong spos, dpos;
 
    /* automatic gain control */
-   for (i = 120; i < 450; i++)
+   for (i = AGC_START_OFF; i < AGC_START_OFF + AGC_LENGTH; i++)
    {
       if (lbuf[i] < min)
          min = lbuf[i];
@@ -115,13 +171,17 @@ void VbiDecodeLine(const uchar * lbuf, int line, bool doVps)
    off = 128 - thresh;
 
    // search for first 1 bit (VT always starts with 55 55 27)
-   p = 50;
-   while ((lbuf[p] < thresh) && (p < 350))
+   p = PEAK_SEARCH_OFF;
+   while ((lbuf[p] < thresh) && (p < PEAK_SEARCH_OFF + PEAK_SEARCH_LEN))
       p++;
    // search for maximum of 1st peak
-   while ((lbuf[p + 1] >= lbuf[p]) && (p < 350))
+   while ((lbuf[p + 1] >= lbuf[p]) && (p < PEAK_SEARCH_OFF + PEAK_SEARCH_LEN))
       p++;
    spos = dpos = (p << FPSHIFT);
+
+#ifdef DUMP_VBI_LINE
+   VbiDecodeDumpLine(line, lbuf, thresh, p);
+#endif
 
    /* ignore first bit for now */
    data[0] = vtscan(lbuf, &spos, off);
@@ -133,11 +193,11 @@ void VbiDecodeLine(const uchar * lbuf, int line, bool doVps)
       {
          case 0x75:             /* missed first two 1-bits, TZ991230++ */
             //printf("****** step back by 2\n");
-            spos -= 2 * VTSTEP;
+            spos -= 2 * vtstep;
             data[1] = 0xd5;
          case 0xd5:             /* oops, missed first 1-bit: backup 2 bits */
             //printf("****** step back by 1\n");
-            spos -= 2 * VTSTEP;
+            spos -= 2 * vtstep;
             data[1] = 0x55;
          case 0x55:
             data[2] = vtscan(lbuf, &spos, off);
@@ -164,6 +224,9 @@ void VbiDecodeLine(const uchar * lbuf, int line, bool doVps)
    }
    else if ((line == 9) && doVps)
    {
+#ifdef DUMP_VPS_LINE
+      VbiDecodeDumpLine(line, lbuf, thresh, p);
+#endif
       if ( (vps_scan(lbuf, &dpos, off) == 0x55) &&       // VPS run in
            (vps_scan(lbuf, &dpos, off) == 0x55) &&
            (vps_scan(lbuf, &dpos, off) == 0x51) &&       // VPS start code
@@ -173,11 +236,11 @@ void VbiDecodeLine(const uchar * lbuf, int line, bool doVps)
          {
             int bit, j;
             data[i] = 0;
-            for (j = 0; j < 8; j++, dpos += VPSSTEP * 2)
+            for (j = 0; j < 8; j++, dpos += vpsstep * 2)
             {  // decode bi-phase data bit: 1='10', 0='01'
 
                bit = (lbuf[dpos >> FPSHIFT] + off) & 0x80;
-               if (bit == ((lbuf[(dpos + VPSSTEP) >> FPSHIFT] + off) & 0x80))
+               if (bit == ((lbuf[(dpos + vpsstep) >> FPSHIFT] + off) & 0x80))
                   break;  // bit error
 
                data[i] |= bit >> j;

@@ -1,6 +1,11 @@
-## $Id: CHANGES.version,v 1.13 2002/05/20 18:56:52 tom Exp $ ##
+## $Id: CHANGES.version,v 1.14 2003/02/09 16:24:14 tom Exp $ ##
 
 Steps to prepare new distribution:
+
+general:
+- check if all changes for WIN32 are included (or more generally:
+  make sure all changes listed in CHANGES made it into the release)
+- check that file permissions are 644/755 (for files copied from NT)
 
 update web pages:
 - fix intro section in manual.html and tvsim/*.html
@@ -21,6 +26,7 @@ RCS
 Makefile AND Makefile.win
 - test compile with -g, -O2, -O6
 - set CFLAGS optimization to -O6
+- replace constant assignment to TCL_VER with dynamic query
 - remove -Werr
 - enable USE_THREADS
 - empty Makefile.dep AND Makefile.depwin

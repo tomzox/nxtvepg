@@ -24,7 +24,7 @@
  *    packets that are forwarded by the TV app into a file, which
  *    later can be played back with vbiplay.exe
  *
- *  Author: Tom Zoerner
+ *  Author: Thorsten Zoerner
  *
  *  $Id: vbirec_main.c,v 1.16 2002/11/03 12:16:26 tom Exp tom $
  */

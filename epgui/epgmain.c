@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgmain.c,v 1.109 2002/12/08 20:23:39 tom Exp $
+ *  $Id: epgmain.c,v 1.118 2003/03/16 21:40:53 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -73,13 +73,17 @@
 #include "epgui/statswin.h"
 #include "epgui/timescale.h"
 #include "epgui/menucmd.h"
-#include "epgui/pilistbox.h"
+#include "epgui/pibox.h"
 #include "epgui/pioutput.h"
 #include "epgui/pifilter.h"
 #include "epgui/xawtv.h"
 #include "epgui/wintv.h"
 #include "epgui/wintvcfg.h"
-#include "epgui/epgtabdump.h"
+#include "epgui/dumpraw.h"
+#include "epgui/dumptext.h"
+#include "epgui/dumphtml.h"
+#include "epgui/dumpxml.h"
+#include "epgui/shellcmd.h"
 #include "epgui/loadtcl.h"
 
 #include "images/nxtv_logo.xbm"
@@ -90,6 +94,7 @@
 #include "images/zoom_in.xbm"
 #include "images/zoom_out.xbm"
 #include "images/colsel.xbm"
+#include "images/hatch.xbm"
 
 #include "epgvbi/btdrv.h"
 #include "epgvbi/winshmsrv.h"
@@ -217,9 +222,9 @@ bool RemoveMainIdleEvent( Tcl_IdleProc * IdleProc, ClientData clientData, bool m
          if ((matchData == FALSE) || (pWalk->clientData == clientData))
          {
             if (pLast != NULL)
-               pMainIdleEventQueue = pWalk->pNext;
-            else
                pLast->pNext = pWalk->pNext;
+            else
+               pMainIdleEventQueue = pWalk->pNext;
             xfree(pWalk);
             found = TRUE;
             break;
@@ -1973,6 +1978,8 @@ static void ParseArgv( int argc, char * argv[] )
       defaultDbDir = xmalloc(strlen(EPG_DB_DIR) + 1);
       strcpy(defaultDbDir, EPG_DB_DIR);
    }
+#else  // WIN32
+   SetWorkingDirectoryFromExe(argv[0]);
 #endif
 
    rcfile = defaultRcFile;
@@ -2025,7 +2032,7 @@ static void ParseArgv( int argc, char * argv[] )
          {  // dump database and exit
             if (argIdx + 1 < argc)
             {
-               optDumpMode = EpgTabDump_GetMode(argv[argIdx + 1]);
+               optDumpMode = EpgDumpText_GetMode(argv[argIdx + 1]);
                if (optDumpMode == EPGTAB_DUMP_NONE)
                   Usage(argv[argIdx + 1], argv[argIdx], "illegal mode keyword for");
                argIdx += 2;
@@ -2088,8 +2095,7 @@ static void ParseArgv( int argc, char * argv[] )
                pDemoDatabase = argv[argIdx + 1];
                if (stat(pDemoDatabase, &st) != 0)
                {
-                  perror("demo database");
-                  exit(-1);
+                  Usage(argv[0], strerror(errno), "cannot open demo database");
                }
                argIdx += 2;
             }
@@ -2132,9 +2138,6 @@ static void ParseArgv( int argc, char * argv[] )
          if (startUiCni == 0)
             pDemoDatabase = argv[argIdx];
          //printf("dbdir=%s CNI=%04X\n", dbdir, startUiCni);
-         #ifdef WIN32
-         SetWorkingDirectoryFromExe(argv[0]);
-         #endif
          argIdx += 1;
       }
       else
@@ -2206,6 +2209,8 @@ static int ui_init( int argc, char **argv, bool withTk )
    Tcl_SetVar(interp, "tcl_interactive", "0", TCL_GLOBAL_ONLY);
 
    #ifndef WIN32
+   Tcl_SetVar(interp, "x11_appdef_path", X11_APP_DEFAULTS, TCL_GLOBAL_ONLY);
+
    Tcl_SetVar(interp, "is_unix", "1", TCL_GLOBAL_ONLY);
    #else
    Tcl_SetVar(interp, "is_unix", "0", TCL_GLOBAL_ONLY);
@@ -2250,6 +2255,7 @@ static int ui_init( int argc, char **argv, bool withTk )
       Tk_DefineBitmap(interp, Tk_GetUid("bitmap_zoom_in"), zoom_in_bits, zoom_in_width, zoom_in_height);
       Tk_DefineBitmap(interp, Tk_GetUid("bitmap_zoom_out"), zoom_out_bits, zoom_out_width, zoom_out_height);
       Tk_DefineBitmap(interp, Tk_GetUid("bitmap_colsel"), colsel_bits, colsel_width, colsel_height);
+      Tk_DefineBitmap(interp, Tk_GetUid("bitmap_hatch"), hatch_bits, hatch_width, hatch_height);
       Tk_DefineBitmap(interp, Tk_GetUid("nxtv_logo"), nxtv_logo_bits, nxtv_logo_width, nxtv_logo_height);
 
       #ifdef WIN32
@@ -2259,13 +2265,18 @@ static int ui_init( int argc, char **argv, bool withTk )
       sprintf(comm, "wm title . {Nextview EPG Decoder}\n"
                     "wm resizable . 0 1\n"
                     "wm iconbitmap . nxtv_logo\n"
-                    "wm iconname . {Nextview EPG}\n");
+                    "wm iconname . {Nextview EPG}\n"
+                    "wm withdraw .\n");
       eval_check(interp, comm);
 
       #ifdef WIN32
-      eval_check(interp, "wm withdraw .\n"
-                         "update\n");
+      eval_check(interp, "update\n");
       #endif
+
+      // set font for error messages
+      // (for messages during startup, is overridden later with user-configured value)
+      sprintf(comm, "option add *Dialog.msg.font {helvetica -12 bold} userDefault");
+      eval_check(interp, comm);
    }
 
    Tcl_ResetResult(interp);
@@ -2364,7 +2375,9 @@ int main( int argc, char *argv[] )
    exitHandler = Tcl_AsyncCreate(AsyncHandler_AppTerminate, NULL);
 
    // load the user configuration from the rc/ini file
-   sprintf(comm, "LoadRcFile {%s} %d", rcfile, (strcmp(defaultRcFile, rcfile) == 0));
+   sprintf(comm, "LoadRcFile {%s} %d %d",
+                 rcfile, (strcmp(defaultRcFile, rcfile) == 0),
+                 ((optDaemonMode != FALSE) || (optDumpMode != EPGTAB_DUMP_NONE)));
    eval_check(interp, comm);
 
    if (optDumpMode != EPGTAB_DUMP_NONE)
@@ -2377,9 +2390,9 @@ int main( int argc, char *argv[] )
       if (pUiDbContext != NULL)
       {
          if (optDumpMode == EPGTAB_DUMP_XML)
-            PiOutput_DumpDatabaseXml(pUiDbContext, stdout);
+            EpgDumpXml_Standalone(pUiDbContext, stdout);
          else
-            EpgTabDump_Database(pUiDbContext, stdout, optDumpMode);
+            EpgDumpText_Standalone(pUiDbContext, stdout, optDumpMode);
       }
       EpgContextCtl_Close(pUiDbContext);
    }
@@ -2397,9 +2410,9 @@ int main( int argc, char *argv[] )
       {  // demo mode -> open the db given by -demo cmd line arg
          pUiDbContext = EpgContextCtl_OpenDemo();
          if (EpgDbContextGetCni(pUiDbContext) == 0)
-         {
+         {  // failed to load the demo database (no AI in db) -> start up with empty db
             pDemoDatabase = NULL;
-            if (EpgDbSavSetupDir(dbdir, pDemoDatabase) == FALSE)
+            if (EpgDbSavSetupDir(dbdir, NULL) == FALSE)
             {  // failed to create dir: message was already issued, so just exit
                exit(-1);
             }
@@ -2424,8 +2437,13 @@ int main( int argc, char *argv[] )
       TimeScale_Create();
       MenuCmd_Init(pDemoDatabase != NULL);
       PiFilter_Create();
-      PiOutput_Create();
-      PiListBox_Create();
+      PiBox_Create();
+
+      EpgDumpText_Init();
+      EpgDumpHtml_Init();
+      EpgDumpXml_Init();
+      EpgDumpRaw_Init();
+      ShellCmd_Init();
       #ifndef WIN32
       Xawtv_Init();
       #else
@@ -2451,10 +2469,8 @@ int main( int argc, char *argv[] )
       // set app icon in window title bar - note: must be called *after* the window is mapped!
       SetWindowsIcon(hInstance);
       #endif
-      #ifdef WIN32
       if (startIconified == FALSE)
          eval_check(interp, "wm deiconify .");
-      #endif
 
       if (disableAcq == FALSE)
       {  // enable EPG acquisition
@@ -2534,7 +2550,9 @@ int main( int argc, char *argv[] )
             }
          }
          else
-            EpgNetIo_Logger(LOG_ERR, -1, 0, "failed to start acquisition", NULL);
+         {  // failed to start acq -> error logging
+            EpgNetIo_Logger(LOG_ERR, -1, 0, "failed to start acquisition: ", EpgAcqCtl_GetLastError(), NULL);
+         }
       }
       EpgAcqServer_Destroy();
    }
@@ -2565,9 +2583,14 @@ int main( int argc, char *argv[] )
       EpgContextCtl_Close(pUiDbContext);
       pUiDbContext = NULL;
 
+      EpgDumpText_Destroy();
+      EpgDumpHtml_Destroy();
+      EpgDumpXml_Destroy();
+      EpgDumpRaw_Destroy();
+      ShellCmd_Destroy();
+
       PiFilter_Destroy();
-      PiListBox_Destroy();
-      PiOutput_Destroy();
+      PiBox_Destroy();
       #ifndef WIN32
       Xawtv_Destroy();
       #else

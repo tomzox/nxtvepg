@@ -1,5 +1,5 @@
 /*
- *  Nextview block ASCII dump
+ *  M$ Windows Bt8x8 I2C line driver
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
@@ -14,31 +14,19 @@
  *
  *  Description: see according C source file.
  *
- *  Author: Tom Zoerner
+ *  Author: see C file
  *
- *  $Id: epgtabdump.h,v 1.2 2002/10/20 17:35:02 tom Exp tom $
+ *  $Id: bt8x8_i2c.h,v 1.3 2003/01/19 08:08:17 tom Exp tom $
  */
 
-#ifndef __EPGTABDUMP_H
-#define __EPGTABDUMP_H
-
-
-typedef enum
-{
-   EPGTAB_DUMP_AI,
-   EPGTAB_DUMP_PI,
-   EPGTAB_DUMP_PDC,
-   EPGTAB_DUMP_XML,
-   EPGTAB_DUMP_COUNT,
-   EPGTAB_DUMP_NONE = EPGTAB_DUMP_COUNT
-} EPGTAB_DUMP_MODE;
+#ifndef __BT8X8_I2C_H
+#define __BT8X8_I2C_H
 
 
 // ---------------------------------------------------------------------------
-// declaration of service interface functions
+// Interface declaration
 //
+void Bt8x8I2c_GetInterface( TVCARD * pTvCard );
 
-EPGTAB_DUMP_MODE EpgTabDump_GetMode( const char * pModeStr );
-void EpgTabDump_Database( EPGDB_CONTEXT * pDbContext, FILE * fp, EPGTAB_DUMP_MODE mode );
+#endif  // __BT8X8_I2C_H
 
-#endif  // __EPGTABDUMP_H

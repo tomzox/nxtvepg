@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_filter.tcl,v 1.6 2002/12/08 19:59:00 tom Exp tom $
+#  $Id: dlg_filter.tcl,v 1.8 2003/03/16 22:28:16 tom Exp tom $
 #
 set substr_grep_title 1
 set substr_grep_descr 1
@@ -26,6 +26,7 @@ set substr_match_full 0
 set substr_match_case 0
 set substr_popup 0
 set substr_pattern {}
+set substr_stack {}
 set substr_history {}
 
 set progidx_first 0
@@ -120,8 +121,8 @@ proc SubStrPopup {} {
 
       frame .substr.all.cmd
       button .substr.all.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Filtering) "Text search"}
-      button .substr.all.cmd.clear -text "Clear" -width 5 -command {set substr_pattern {}; SubstrUpdateFilter}
-      button .substr.all.cmd.apply -text "Apply" -width 5 -command SubstrUpdateFilter
+      button .substr.all.cmd.clear -text "Clear" -width 5 -command {ResetSubstr; SubstrUpdateFilter 0}
+      button .substr.all.cmd.apply -text "Apply" -width 5 -command {SubstrUpdateFilter 1}
       button .substr.all.cmd.dismiss -text "Dismiss" -width 5 -command {destroy .substr}
       pack .substr.all.cmd.help .substr.all.cmd.clear .substr.all.cmd.apply .substr.all.cmd.dismiss -side left -padx 10
       pack .substr.all.cmd -side top
@@ -150,18 +151,32 @@ proc SubstrCheckOptScope {varname} {
 
 # callback for up/down keys in entry widget: open search history menu
 proc SubStrPopupHistoryMenu {} {
-   global substr_history
+   global substr_stack substr_history
+   global substr_hist_arr1
 
    # check if the history list is empty
-   if {[llength $substr_history] > 0} {
+   if {[llength $substr_history] + [llength $substr_stack] > 0} {
       set widget .substr.all.name.hist
 
       # remove the previous content (in case the history changed since the last open)
       $widget delete 0 end
 
-      # insert the previous search strings as menu commands
+      # add the search stack as menu commands
+      array unset substr_hist_arr1
+      foreach item $substr_stack {
+         set substr_hist_arr1($item) 1
+
+         $widget add checkbutton -label [lindex $item 0] -variable substr_hist_arr1($item) \
+                                 -command [list SubstrUndoFilter $item]
+      }
+
+      # add the search history as menu commands, if not in the stack
       foreach item $substr_history {
-         $widget add command -label [lindex $item 4] -command [concat SubstrSetFilter $item]
+         if {! [info exists substr_hist_arr1($item)]} {
+            set substr_hist_arr1($item) 0
+            $widget add checkbutton -label [lindex $item 0] -variable substr_hist_arr1($item) \
+                                    -command [list SubstrSetFilter $item]
+         }
       }
 
       # post (i.e. display) the menu
@@ -198,7 +213,7 @@ proc ProgIdxPopup {} {
 
       frame .progidx.cmd
       button .progidx.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Filtering) "Program index"}
-      button .progidx.cmd.clear -text "Undo" -width 5 -command {set filter_progidx 0; C_SelectProgIdx; C_RefreshPiListbox; destroy .progidx}
+      button .progidx.cmd.clear -text "Undo" -width 5 -command {set filter_progidx 0; C_SelectProgIdx; C_PiBox_Refresh; destroy .progidx}
       button .progidx.cmd.dismiss -text "Dismiss" -width 5 -command {destroy .progidx} -default active
       pack .progidx.cmd.help .progidx.cmd.clear .progidx.cmd.dismiss -side left -padx 10
       pack .progidx.cmd -side top -pady 10
@@ -228,7 +243,7 @@ proc ProgIdxSelection {which val} {
    }
    C_SelectProgIdx $progidx_first $progidx_last
    UpdateProgIdxMenuState
-   C_RefreshPiListbox
+   C_PiBox_Refresh
 }
 
 ##  --------------------------------------------------------------------------
@@ -710,7 +725,7 @@ proc ClearSortCritSelection {} {
    # disable database filters
    C_ResetFilter sortcrits
    # redisplay PI with new filter setting
-   C_RefreshPiListbox
+   C_PiBox_Refresh
 }
 
 # callback for "Add" button: parse the entry field and add the given index to the selection
@@ -749,7 +764,7 @@ proc AddSortCritSelection {} {
 
    # apply the new filter and redisplay the PI
    C_SelectSortCrits $sortcrit_class $sortcrit_class_sel($sortcrit_class)
-   C_RefreshPiListbox
+   C_PiBox_Refresh
 }
 
 # callback for "Delete" button: remove the selected index from the selection
@@ -773,7 +788,7 @@ proc DeleteSortCritSelection {} {
    UpdateSortCritListbox
 
    C_SelectSortCrits $sortcrit_class $sortcrit_class_sel($sortcrit_class)
-   C_RefreshPiListbox
+   C_PiBox_Refresh
 }
 
 # callback for "Load all used" button: replace selection of current class with all possible crits
@@ -800,7 +815,7 @@ proc LoadAllUsedSortCrits {} {
 
       UpdateSortCritListbox
       C_SelectSortCrits $sortcrit_class $sortcrit_class_sel($sortcrit_class)
-      C_RefreshPiListbox
+      C_PiBox_Refresh
    }
 }
 

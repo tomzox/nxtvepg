@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgblock.c,v 1.47 2002/10/19 17:42:01 tom Exp tom $
+ *  $Id: epgblock.c,v 1.49 2003/03/09 19:29:53 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -40,6 +40,13 @@ static uchar providerAlphabet;
 
 static time_t unixTimeBase1982;         // 1.1.1982 in UNIX time format
 #define JULIAN_DATE_1982  (45000-30)    // 1.1.1982 in Julian date format
+
+// when cross-compiling for WIN32 on Linux "timezone" is undefined
+#if !defined(__NetBSD__) && !defined(__FreeBSD__)
+# if defined(WIN32) && !defined(timezone)
+#  define timezone _timezone
+# endif
+#endif
 
 
 // ----------------------------------------------------------------------------
@@ -104,7 +111,7 @@ sint EpgLtoGet( time_t when )
    #if !defined(__NetBSD__) && !defined(__FreeBSD__)
    pTm = localtime(&when);
    lto = 60*60 * pTm->tm_isdst - timezone;
-   #else
+   #else  // BSD
    pTm = gmtime(&when);
    pTm->tm_isdst = -1;
    lto = when - mktime(pTm);
@@ -140,7 +147,7 @@ void EpgLtoInit( void )
    #if !defined(__NetBSD__) && !defined(__FreeBSD__)
    pTm = localtime(&unixTimeBase1982);
    unixTimeBase1982 += 60*60 * pTm->tm_isdst - timezone;
-   #else
+   #else  // BSD
    pTm = gmtime(&unixTimeBase1982);
    pTm->tm_isdst = -1;
    unixTimeBase1982 += (unixTimeBase1982 - mktime(pTm));
@@ -508,7 +515,7 @@ static uchar * ApplyEscapes(const uchar *pText, uint textLen, const uchar *pEsca
                case 0x1f:
                {
                   uint c = (pEscapes[1]>>2)&0x0f;
-                  const char *pd = strchr(diacrits[c].g0, *po);
+                  const char *pd = strchr(diacrits[c].g0, pEscapes[2]);
                   if (pd != NULL)
                      *po = diacrits[c].latin1[pd - diacrits[c].g0];
                   break;

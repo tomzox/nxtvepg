@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgstream.c,v 1.25 2002/10/19 15:31:13 tom Exp tom $
+ *  $Id: epgstream.c,v 1.27 2003/03/19 16:17:28 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -36,7 +36,7 @@
 #include "epgvbi/ttxdecode.h"
 #include "epgvbi/hamming.h"
 #include "epgdb/epgblock.h"
-#include "epgui/epgtxtdump.h"
+#include "epgui/dumpraw.h"
 #include "epgdb/epgqueue.h"
 #include "epgdb/epgstream.h"
 
@@ -139,7 +139,7 @@ static void EpgStreamConvertBlock( const uchar *pBuffer, uint blockLen, uchar st
       pBlock->origChkSum    = pBuffer[2];
       pBlock->origBlkLen    = blockLen;
 
-      EpgTxtDump_Block(&pBlock->blk, pBlock->type, stream);
+      EpgDumpRaw_IncomingBlock(&pBlock->blk, pBlock->type, stream);
 
       if (enableAllTypes || (type <= EPGDBACQ_TYPE_AI))
       {
@@ -156,7 +156,7 @@ static void EpgStreamConvertBlock( const uchar *pBuffer, uint blockLen, uchar st
       }
    }
    else
-      EpgTxtDump_UnknownBlock(type, blockLen, stream);
+      EpgDumpRaw_IncomingUnknown(type, blockLen, stream);
 }
 
 // ---------------------------------------------------------------------------
@@ -409,7 +409,7 @@ static void EpgStreamDecodePacket( uchar packNo, const uchar * dat )
       }
       else
       {
-         debug2("hamming error in BP=%x - discard packet %d", c1, packNo);
+         debug2("pkg=%2d: BP hamming error on value 0x%02x - discard pkg", packNo, dat[0]);
          psd->haveBlock = FALSE;
       }
    }

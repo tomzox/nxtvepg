@@ -11471,3 +11471,2197 @@ tvsim/vbirec_gui.tcl [rev:1.7, 2002-12-08T21:40:16]:
 - Adapted to nxtvepg-2.4.0 color scheme for listboxes and entry widgets
 - set text_bg #E9E9EC via option command
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_4_2 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+epgui/pinetbox.c [rev:1.1, 2002-12-05T21:00:28]:
+- Initial revision
+epgui/pinetbox.h [rev:1.1, 2002-12-05T21:00:30]:
+- Initial revision
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_5_0_pre0 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+www/pre-releases.html [rev:1.18, 2002-12-08T21:29:56]:
+- added 2.5.0pre0: announced on mailing list
+tcl2c.c [rev:1.5, 2002-12-08T22:21:12]:
+- Fixed debian bug #172263: "FTBFS: seg fault"
+- added missing #include <string.h> for strchr()
+epgui/pioutput.c [rev:1.45, 2002-12-10T20:25:38]:
+- bugfix short-info redundancy removal:
+- PiOutput_SearchLongInfo(): check for len>30 was done before checking if
+    len>shortInfoLen, hence short short-infos were never removed
+- reported by Thierry
+epgui/pinetbox.c [rev:1.2, 2002-12-14T09:46:15]:
+- Further progress in basic implementation, but still very incomplete
+- added consistancy check function, called afer all mod's of content
+- made column count and listbox height configurable:
+    danymic allocation memory for PI table
+- renamed func PiNetBox_ScrollDown() into PiNetBox_MoveTextUp()
+- fixed PiNetBox_ScrollPageDown()
+- fixed PiNetBox_SelectItem(): can select column too now
+- added PiNetBox_GetSelectedNetwop()
+- added shells for missing functions
+- added new func PiNetBox_Toggle() both to pilistbox and pinetbox
+    dynamically changes Tcl callback procs for the selected layout type;
+    note: globally renamed C_PiListbox_* into C_PiBox_* and renamed reset and
+    refresh funcs from C_Reset_PiListbox into C_PiBox_Reset
+epgui/pinetbox.h [rev:1.2, 2002-12-14T09:48:13]:
+- Removed declarations for all Tcl callback functions
+- invocations are no longer routed via pilistbox.c
+- instead the Tcl callback procs are dynamically re-assigned upon layout change
+epgui/pinetbox.c [rev:1.3, 2002-12-14T13:09:56]:
+- introduced #define NETBOX_ELEM_GAP for scrolling:
+- struct NETBOX_ELEM: replaced char with short
+- bugfix cur_req_row handling in PiNetBox_MoveTextUp()
+- fixed PiNetBox_SelectItem(): check if different elem is selected
+epgui/pinetbox.c [rev:1.4, 2002-12-15T16:33:28]:
+- Implemented scrolling horizontally though network list
+- implemented use of netwop mapping tables
+    + new internal PiNetBox_UpdateNetwopMap(): copy Tcl vars
+    + new interface PiNetBox_AiStateChange(): notifications about mapping changes
+- split off function PiNetbox_FillDownwards() from Reset and CursorDown:
+    to be used by all downwards scrolling functions
+- implemented PiNetBox_GotoPi(): for following TV channel changes
+- moved PiNetBox_Toggle() into Create: toggling is now controlled by
+    new meta-module pibox.c
+- globally renamed state struct "netbox_state" into "netbox"
+epgui/pinetbox.h [rev:1.3, 2002-12-15T16:34:28]:
+- Implemented scrolling horizontally though network list
+- new interface PiNetBox_AiStateChange(): notifications about mapping changes
+- implemented PiNetBox_GotoPi(): for following TV channel changes
+- added PiNetBox_GetSelectedPi(): called via new meta-module pibox.c
+epgui/pidescr.c [rev:1.1, 2002-12-15T16:34:55]:
+- Initial revision
+epgui/pidescr.h [rev:1.1, 2002-12-15T16:34:57]:
+- Initial revision
+epgui/pinetbox.c [rev:1.5, 2002-12-15T19:09:03]:
+- fixed PI block consistancy check for netwop mapping  (Still disabled though
+    due to missing refresh function)
+- implemented PiNetBox_AdjustScrollBar(): netbox.pi_count not correctly
+    maintained by the other funcs though; added calls to the function after
+    every call to Fill function
+- fixed PiNetbox_FillDownwards(): limit delta when the last PI is reached
+    (i.e. do not allow empty space at the bottom)
+- buxfix in max arg passed to PiFilter_UpdateNetwopList()
+epgui/pinetbox.c [rev:1.6, 2002-12-21T16:22:48]:
+- Implemented upwards scrolling
+- changed handling of partially visible elements at the top: text is no longer
+    deleted, instead visible area in text widget is shifted down by
+    new function PiNetBox_SetVisible()
+- added new elem start_off to struct NETBOX_COL: used when 1st elem is partial
+- changed PiNetbox_InsertSpace(), PiNetbox_InsertPi() etc. to use start_off
+- new funcs PiNetBox_FillUpwards() and PiNetBox_MoveTextDown()
+- prelimiary refresh by PiNetBox_FillAroundPi()
+- Also:
+- split off func PiNetBox_PickCursorRow() from cursor left/right
+- blue background for "NOW" items
+epgui/pinetbox.c [rev:1.7, 2002-12-21T19:40:25]:
+- Added horizontal scrollbar
+- new functions PiNetBox_AdjustHorizontalScrollBar() and
+    PiNetBox_ScrollHorizontal() (still empty)
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_5_0_pre1 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+epgui/pinetbox.c [rev:1.8, 2002-12-22T20:58:04]:
+- Policy fix: prevent gaps in PI sequence after scrolling
+- before, when an overlong PI was at top, some later but less tall PI could
+    already be scrolled out at the top; now we avoid such gaps, even if it means
+    keeping invisible PI in the database (those were generated already anyways
+    when scrolling upwards)
+- PiNetBox_MoveTextUp(): added scan for top-most non-deleted element
+- increased max_elems from 2 to 3 times the netbox height/3
+- vertical scrollbar calc: add invisible elements to pi_off
+- More fixes:
+- enabled database consistancy check (i.e. compare PI db sequence with listbox)
+- fix in consistancy check max_row calculation for empty columns
+- PiNetBox_MoveTextDown(): removed wrong assertion
+- PiNetBox_FillUpwards(): remove empty lines at listbox top for tighter packing
+- PiNetBox_FillAroundPi(): added work-around: start insertion with the oldest
+    PI with the same start-time (or the older overall, if in NOW area) to avoid
+    obscure placement (esp. in NOW area)
+- PiNetBox_ScrollPageDown() and Up(): prevent that delta gets 0
+- PiNetBox_Resize() bug: initialize pCol->netwop
+epgvbi/btdrv4linux.c [rev:1.36, 2002-12-24T09:14:48]:
+- Fixed several error message strings: added spaces and ":" before strerr()
+epgui/pinetbox.c [rev:1.9, 2002-12-24T09:55:03]:
+- added consistancy check for cursor position
+- fix PiNetBox_WithdrawCursor() and PiNetBox_ShowCursor():
+    removed obsolete folding of start_row < 0 to 0
+- split off new func PiNetBox_RemoveSpace() from _FillUpwards()
+- new func PiNetBox_AlignNowItems(): used by _FillUpwards()
+- fix PiNetBox_FillDownwards(): call MoveUp even for pPiBlock == NULL
+    in case the last PI is visible only partially
+- pulled calls of PiNetBox_ShowCursor() and consistancy check
+    out of fill functions and one level up (avoids redundant calls in many cases)
+- bugfix PiNetBox_PickCursorRow(): used cur_col instead of colIdx func arg
+epgui/pinetbox.c [rev:1.10, 2002-12-24T11:44:54]:
+- Fixed netwop mapping for special case net_count < col_count
+epgui/pinetbox.c [rev:1.11, 2002-12-25T22:50:44]:
+- added cur_req_time to struct NETBOX_STATE: updated in cursor up/down, select
+- pseudo cursor: place at cur_req_row instead of row 0
+- PiNetBox_FillDownwards() improvements:
+    + don't put non-NOW items at same height as NOW items
+    + make sure elements are placed lower than any other which *ended* earlier;
+      before only the directly previous element was compared: not enough, since
+      there may have been a shorter programme inbetween
+- PiNetBox_FillUpwards() improvements:
+    + equiv to downwards fill, place elems higher than any which start later
+      than the stop time of the current PI
+    + bugfix: cur_idx increment only if < entry count
+- PiNetBox_FillAroundPi(): handle cur_req_row; update vert. scrollbar
+- Implemented horizontal scrolling:
+- added PiNetBox_PickCurPi() and PiNetBox_PickNewPi() to select a PI
+    for _FillAround()
+- added PiNetBox_ScrollRight() and _ScrollLeft() for _ScrollHorizontal()
+epgui/pinetbox.c [rev:1.12, 2002-12-26T21:59:41]:
+- Fixed cursor placement (no longer select partially displayed items)
+- introduced #define INVALID_CUR_IDX
+- added typedef PARTIAL_HANDLING for PiNetBox_PickCursorRow()
+- consistancy check: added pi_off and pi_count checks & cursor placement
+- PiNetBox_AdjustVerticalScrollBar(): handle invisible elements
+- PiNetBox_FillUpwards(): added NOW items offset (forgotten before)
+- PiNetBox_FillAroundPi(): included handling of NULL PI
+- functions moved (used by refresh & vertical scrolling funcs too):
+    PiNetBox_PickCursorRow(), _PickCurPi(), _PickNewPi()
+- new func _ScrollIfPartial(): split off from PiNetBox_SelectItem()
+- added arg PARTIAL_HANDLING to PiNetBox_PickCursorRow():
+    + don't select partials unless allowed
+    + this func is now called from all scroll functions (to avoid partial elems)
+- new func PiNetBox_ScrollIfPartial(): if partial item selected, scroll
+- PiNetBox_PickCurPi(): more lax: allow start <=req.time<stop
+- moved _ScrollVertical(), to be close to other vert. scroll funcs
+- Also:
+- fixed PiNetBox_UpdateNetwopMap() for db without AI block
+epgui/pinetbox.c [rev:1.13, 2002-12-27T15:45:58]:
+- Completed the last two external interface functions
+- implemented PiNetBox_GotoTime()
+    -> added new param to EpgDbSearchFirstPiAfter(): time search mode
+       as used by the timescale windows (min_start == FALSE)
+- completed PiNetBox_GotoPi() for the case that the given PI is from a
+    different network than currently displayed
+- Also:
+- PiNetBox_UpdateInfoText(): clear text widget if no PI is selected
+- source code clean-up: globally removed space frome line ends
+- PiNetBox_AiStateChange(): removed preliminary work-around: replaced "reset"
+    with "refresh" function
+epgui/pinetbox.c [rev:1.14, 2002-12-27T19:26:32]:
+- Improved cursor placement after scolling
+- PiNetBox_ShowCursor(): new param CUR_UPD_HANDLING: save cursor pos and
+    selected time in cur_req_row -> done after all vertical movements
+- fixed PiNetBox_ShowCursor() for pseudo cursor: must add start_off
+- fixed handling of invisible elements in _CursorUp() and _CursorDown():
+    new functions _IsPartialElemAtTop(), _IsPartialElemAtBottom()
+- changed PiNetBox_PickNewPi() to use RUNNING_AT search mode
+- PiNetBox_Refresh() fixed: currently selected element has highest prio to
+    be used for FillAround (before the cursor was moved to different elem when
+    cur_req_time did not match the selected element)
+epgui/pinetbox.c [rev:1.15, 2002-12-27T20:15:49]:
+- small fix: rounding fractions delivered by scrollbar
+- esp. for the horizontal, because else the slider jumps too much when
+    moved leftwards
+TODO [rev:1.25, 2002-12-27T20:52:32]:
+- update for pre-release 2.5.0pre2
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_5_0_pre2 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+epgui/pinetbox.c [rev:1.16, 2002-12-28T11:29:43]:
+- bugfix NOW placement in PiNetBox_FillDownwards():
+    time comparison used ">= now" instead of "> now"
+- globally replaced use of time(NULL) with new epgdbfil.h function (macro)
+    EpgDbFilterGetExpireTime(pPiFilterContext)
+epgui/epgmain.c [rev:1.110, 2002-12-28T11:36:30]:
+- WIN32: always call SetWorkingDirectoryFromExe() instead of only when demo
+    db path is given on command line (requested by Ronceval)
+- if demo db does not exist call Usage() instead of fprintf(stderr)
+    for WIN32 compatibility
+epgui/epgmain.c [rev:1.111, 2002-12-28T12:31:05]:
+- Implemented alternate layout for PI listbox
+- adapted init & destroy: call new funcs PiBox_Create(), PiBox_Destroy()
+    which then initialize/destroy the currently active modules
+epgui/dumptext.c [rev:1.6, 2002-12-28T12:31:15]:
+- Implemented alternate layout for PI listbox
+- split off pidescr.c from pilistbox.c and pioutput.c
+-> adapted prefix in function call: PiOutput_ -> PiDescription_
+epgui/menucmd.c [rev:1.95, 2002-12-28T12:31:40]:
+- Implemented alternate layout for PI listbox
+- globally replaced calls to pilistbox.c with new "meta-module" pibox.c
+epgui/pidescr.c [rev:1.2, 2002-12-28T12:32:13]:
+- added spaces around "-" between start and stop time in description text
+epgui/pifilter.c [rev:1.75, 2002-12-28T12:32:39]:
+- Implemented alternate layout for PI listbox
+- globally replaced calls to pilistbox.c with new "meta-module" pibox.c
+- renamed C_ResetPiListbox() into C_PiBox_Reset()
+    renamed PiListBox_Refresh() into PiBox_Refresh()
+- adapted PiFilter_UpdateNetwopList():
+    + read Tcl global var netwop_ai2sel instead of using return from
+      Tcl proc UpdateProvCniTable
+    + added arguments minIdx, maxIdx: used by pinetwbox to limit network range
+epgui/pifilter.h [rev:1.9, 2002-12-28T12:32:46]:
+- Implemented alternate layout for PI listbox
+- adapted PiFilter_UpdateNetwopList():
+    + added arguments minIdx, maxIdx: used by pinetwbox to limit network range
+epgui/pilistbox.c [rev:1.84, 2002-12-28T12:32:53]:
+- Implemented alternate layout for PI listbox
+- split off short/long info output into new module pidescr.c
+    + use new func PiDescription_ClearText() instead of widget .all.pi.list.text
+- moved EPGDB_STATE into uictrl.c -> renamed PiListBox_UpdateState() into
+    PiListBox_ErrorMessage(): gets char string to display
+- added new interface func PiListBox_AiStateChange()
+- PiListBox_Scroll(): added rounding of fract value passed by scrollbar
+- renamed Tcl callback prefixes from C_PiListBox_ into C_PiBox_;
+    added dummies for procs only supported by pinetbox.c
+- PiListBox_SelectItem(): added wiget name as 3rd argument
+    (not used here; only for pinetbox.c)
+- removed obsolete func PiListBox_UpdateNowItems() (replaced with use of
+    regular refresh func already long ago)
+epgui/pilistbox.h [rev:1.15, 2002-12-28T12:32:56]:
+- Implemented alternate layout for PI listbox
+- split off short/long info output into new module pidescr.c
+- moved EPGDB_STATE into uictrl.c -> renamed PiListBox_UpdateState() into
+    PiListBox_ErrorMessage(): gets char string to display
+- added new interface func PiListBox_AiStateChange()
+- removed obsolete func decl PiListBox_UpdateNowItems()
+epgui/pioutput.c [rev:1.46, 2002-12-28T12:33:03]:
+- Implemented alternate layout for PI listbox
+- split off short/long info output into new module pidescr.c
+    -> adapted prefix in function calls: PiOutput_ -> PiDescription_
+- also split off alphaNumTab: declared global, also used by pioutput.c
+- renamed calls to PiListBox_GetSelectedPi() into PiBox_GetSelectedPi()
+- Tcl callback proc C_PopupPi: added widget name as argument:
+    required for pinetbox.c; simply passed through to Tcl proc CreatePopupPi
+- renamed PiOutput_Create() into PiOutput_Init()
+epgui/pioutput.h [rev:1.13, 2002-12-28T12:33:07]:
+- Implemented alternate layout for PI listbox
+- split off short/long info output into new module pidescr.c
+    -> removed decls for PiOutput_Append...() funcs
+- renamed PiOutput_Create() into PiOutput_Init()
+epgui/uictrl.c [rev:1.35, 2002-12-28T12:33:52]:
+- Implemented alternate layout for PI listbox
+- moved EPGDB_STATE here from pilistbox.cinto uictrl.c
+    + added new func UiControl_GetDbStateMsg(): code from PiListBox_UpdateState()
+    + moved enum EPGDB_STATE here from pilistbox.h
+- adapted UiControl_AiStateChange():
+    + call several Tcl procs directly which were before implicitly called
+      by PiFilter_UpdateNetwopList()
+    + added call to PiBox_AiStateChange(): update netwop list in pinetbox
+- adapted function prefixes in calls: changed PiListBox_ into PiBox_
+epgui/wintv.c [rev:1.13, 2002-12-28T12:34:27]:
+- Implemented alternate layout for PI listbox
+- adapted function prefixes in calls: changed PiListBox_ into PiBox_
+epgui/xawtv.c [rev:1.29, 2002-12-28T12:34:31]:
+- Implemented alternate layout for PI listbox
+- adapted function prefixes in calls: changed PiListBox_ into PiBox_
+- Also bugfix:
+- keep the database locked while calling PiListBox_GotoPi() since
+    a pointer to a PI block in the db is passed
+epgtcl/dlg_filter.tcl [rev:1.7, 2002-12-28T13:07:30]:
+- Implemented alternate layout for PI listbox
+- renamed C_RefreshPiListbox into C_PiBox_Refresh
+epgtcl/dlg_netname.tcl [rev:1.3, 2002-12-28T13:07:39]:
+- Implemented alternate layout for PI listbox
+- renamed C_RefreshPiListbox into C_PiBox_Refresh
+epgtcl/dlg_netsel.tcl [rev:1.6, 2002-12-28T13:07:48]:
+- Implemented alternate layout for PI listbox
+- proc UpdateProvCniTable:
+    + save mapping tables in netwop_ai2sel netwop_sel2ai instead of netwop_map
+    + call proc UpdateRcFile only upon changes
+    + no longer return mapping list (C level uses global Tcl vars instead)
+- renamed C_RefreshPiListbox into C_PiBox_Refresh
+epgtcl/dlg_shortcuts.tcl [rev:1.7, 2002-12-28T13:07:56]:
+- Implemented alternate layout for PI listbox
+- renamed C_RefreshPiListbox into C_PiBox_Refresh
+epgtcl/dlg_udefcols.tcl [rev:1.8, 2002-12-28T13:08:05]:
+- Implemented alternate layout for PI listbox
+- renamed C_RefreshPiListbox into C_PiBox_Refresh
+epgtcl/draw_stats.tcl [rev:1.3, 2002-12-28T13:08:14]:
+- Implemented alternate layout for PI listbox
+- renamed C_PiListBox_GotoTime into C_PiBox_GotoTime
+epgtcl/rcfile.tcl [rev:1.7, 2002-12-28T13:08:33]:
+- Implemented alternate layout for PI listbox
+- added pibox_type pinetbox_col_count pinetbox_col_width
+epgtcl/shortcuts.tcl [rev:1.8, 2002-12-28T13:08:54]:
+- Implemented alternate layout for PI listbox
+- renamed C_RefreshPiListbox into C_PiBox_Refresh
+epgdb/epgdbif.c [rev:1.42, 2002-12-28T13:11:24]:
+- Implemented alternate layout for PI listbox
+- added new interface funcs EpgDbSearchFirstPiAfter(),
+    EpgDbSearchFirstPiBefore(), EpgDbCountPi(), EpgDbCountPrevPi()
+epgdb/epgdbif.h [rev:1.26, 2002-12-28T13:11:29]:
+- Implemented alternate layout for PI listbox
+- added declarations for new interface funcs EpgDbSearchFirstPiAfter(),
+    EpgDbSearchFirstPiBefore(), EpgDbCountPi(), EpgDbCountPrevPi()
+- added typedef enum EPGDB_TIME_SEARCH_MODE for EpgDbSearchFirstPiAfter()
+epgdb/epgdbfil.h [rev:1.24, 2002-12-28T13:11:37]:
+- added macro EpgDbFilterGetExpireTime()
+    used to replace now = time(NULL) in PI listboxes
+epgvbi/btdrv4linux.c [rev:1.37, 2002-12-29T19:24:13]:
+- Added workaround for bugs in saa7134-0.2.2 driver
+- only enabled when #define SAA7134_0_2_2 is set
+- BtDriver_SetInputSource(): skip check for PAL norm and norm change via
+    CSTUNER: in the current v4l1-compat module vtuner.flags lackts the video
+    norm capability flags & VIDIOCSTUNER always returns an error code
+- BtDriver_DecodeFrame(): the 2nd field of every frame is one buffer late
+epgvbi/vbidecode.c [rev:1.32, 2002-12-29T19:24:19]:
+- Added preliminary support for SAA7134 chip
+- only enabled when #define SAA7134 is set
+- SAA7134 chip has a different offset and sampling rate than the Bt8x8 chips
+- also added debugging support, disabled by compiler switch
+www/pre-releases.html [rev:1.19, 2002-12-30T20:52:41]:
+- added intro and link to homepage
+- added all META tags & DOCTYPE
+- updated 2.5.0pre0 to (pre1 and then) pre2
+- added patch-saa7134-0.2.2.txt.gz
+- added warrany disclaimer & copyright
+www/index.html [rev:1.62, 2002-12-30T20:52:46]:
+- added Nedstat Basic code (moved here from tripod-moved.html)
+www/index-de.html [rev:1.49, 2002-12-30T20:52:53]:
+- added Nedstat Basic code (moved here from tripod-moved-de.html)
+- fixed date in download intro from 1.12. to 8.12.2002
+- fix in feedback section: removed redundant link to forum (copy error)
+www/man.html [rev:1.24, 2002-12-30T20:53:05]:
+- removed <HR> at page top
+www/tripod-moved-de.html [rev:1.2, 2002-12-30T20:53:13]:
+- removed Nedstat Basic code (moved to index-de.html)
+www/tripod-moved.html [rev:1.2, 2002-12-30T20:53:18]:
+- removed Nedstat Basic code (moved to index.html)
+epgui/epgmain.c [rev:1.112, 2003-01-03T14:25:40]:
+- Severe bugfix RemoveMainIdleEvent():
+- SEGV due to logically inverted NULL pointer check for clientData comparison
+epgui/pinetbox.c [rev:1.17, 2003-01-03T14:28:15]:
+- Implemented refresh functions (NOT complete yet!)
+- added new function PiNetBox_RefreshDownwards() and _Upwards()
+    + added element upd_time to struct NETBOX_ELEM
+      initialized by EpgDbGetPiUpdateTime() in Fill and Refresh funcs
+    + added element pi_resync to struct NETBOX_COL: set by PI acq callback
+- added hook to PI acq: added new callback func PiNetBox_RefreshEvent()
+    + callback is installed with new func EpgDbSetPiAcqCallback() during init
+      and AI state change (but never uninstalled - XXX better solution required)
+- call PiNetBox_RefreshEvent() from every Tcl func when pi_resync is TRUE
+epgui/pinetbox.c [rev:1.18, 2003-01-04T10:57:39]:
+- Continued implementation of refresh funcs
+- added consistancy assertion to check for gaps > 1 line between elements
+- scroll listbox upwards if empty space at top
+    new helper funcs: PiNetBox_AppendSpace() [split off from _FillDownwards()],
+    PiNetBox_CountEmptyRows()
+- skip first PI in upwards refresh (already done by downwards);
+- align NOW items (still TODO: tag new NOW items)
+    func PiNetBox_TopDownAlign() generalized
+- replaced printf()'s with dprintfX()
+- upwards refresh: fixed pi_off handling
+- upwards refresh: bugfix: adapt pCol->text_rows when elements are removed
+    or inserted which are partly beyond netbox.height
+- removed unused func PiNetBox_DbRecount()
+epgui/pinetbox.c [rev:1.19, 2003-01-04T20:49:41]:
+- Continued implementation of refresh funcs
+- scroll listbox downwards if empty space at bottom
+    added new func PiNetBox_CountEmptyRowsAtBottom()
+- added alignment of NOW items for upwards refresh
+    + greatly extended PiNetBox_AlignNowItems()
+    + when aligning, make sure no gaps remain below NOW items
+- improved isMovie flag determination in _InsertPi() [temporary feature only]
+- fix PiNetBox_PickCurPi(): make sure PI still matches filter
+    improved handling of start_time: handle < expireTime separately
+- PiNetBox_PickNewPi(): additionally return info if the selected item is visible
+- -> improved refresh: only do fill-around anymore if PI is invisible
+    also removed cases where reset is done: only if netbox is empty
+- bugfix PiNetBox_RefreshUpwards(): failed to remove expired PI
+    if they directly preceded the reference PI
+epgui/pinetbox.c [rev:1.20, 2003-01-05T19:15:45]:
+- cleaned up global declarations, added comments
+    moved nameless structs from refresh funcs to global, named REFRESH_VECT
+- bugfix PiNetBox_PickCurPi(): loop across columns did not terminate when
+    PI block was found and returned invalid column index
+- fix refresh funcs: check if column index is valid (else: was SEGV)
+- downwards refresh: added %+d start_off for all dprintf
+epgui/pinetbox.c [rev:1.21, 2003-01-05T22:04:03]:
+- bugfix PiNetBox_AlignNowItems(): bug in handling start_off < 0
+- bugfix PiNetBox_PickCurPi(): last fix was not correct
+    use goto to break outer loop too, else colIdx is incremented once too often
+epgui/pinetbox.c [rev:1.22, 2003-01-06T13:58:48]:
+- Redesigned delta vector handling in refresh functions
+- before "curDelta" was the minimum delta vecor of all columns, and it
+    was reduced as soon as a column was encountered where items could not
+    be shifted by the full delta; also it never became negative.
+- now it's been replaced by "maxDelta" which is simply the maximum delta
+    vector of all columns; it's no longer reduced when shifting fails due to
+    lack of space. It can become negative when items are inserted.
+- rationale: sometimes there are cases where a removal influences placement
+    more than one item ahead in a different column, i.e. it may be that the
+    very next element in a different column cannot be shifted, but the
+    following could - or must be shifted, or an excessive gap would result.
+dsdrv/saa7134.c [rev:1.1, 2003-01-07T22:06:31]:
+- branches:  1.1.1;  1.1.2;  1.1.3;
+- Initial revision
+dsdrv/saa7134.h [rev:1.1, 2003-01-07T22:06:31]:
+- Initial revision
+dsdrv/saa7134_reg.h [rev:1.1, 2003-01-07T22:06:31]:
+- branches:  1.1.1;
+- Initial revision
+dsdrv/saa7134_reg.h [rev:1.2, 2003-01-08T21:46:06]:
+- Switched RS_CONTROL register access from byte-wise to dword-wise
+- added #define SAA7134_RS_CONTROL
+- #if 0'ed the SAA7134_RS_CONTROL_0..3 #defines
+dsdrv/saa7134.c [rev:1.2, 2003-01-08T21:46:12]:
+- Bugfixes: DMA now works (but crashes the machine -> TODO)
+- added DumpRegisters() for debugging
+- bugfix SAA7134_MAIN_CTRL in SetPageTable(): lower 8 bits must not be cleared
+- switched handling of SAA7134_RS_CONTROL from byte-wise to dword-wise
+- merged SetBaseOffsets() into SetPageTable()
+- initialize more registers to same values as Linux driver
+- SAA7134_Init(): totally disabled module by #if 0 #else return FALSE
+dsdrv/saa7134.c [rev:1.3, 2003-01-09T06:16:32]:
+- bugfix CreatePageTable(): don't divide physical addresses / PAGE_SIZE
+- XXX DMA still crashes the machine, but less hard and quick :)
+dsdrv/hwmem.c [rev:1.1, 2003-01-09T06:28:45]:
+- branches:  1.1.1;
+- Initial revision
+dsdrv/hwmem.h [rev:1.1, 2003-01-09T06:28:45]:
+- Initial revision
+dsdrv/hwmem.c [rev:1.2, 2003-01-09T14:42:37]:
+- converted from C++ to C
+- in difference to other dsdrv modules, this one supports multiple instances;
+    therefore a structure is passed as first function arg and used to hold
+    static data
+dsdrv/hwmem.h [rev:1.2, 2003-01-09T14:42:37]:
+- converted from C++ to C
+- in difference to other dsdrv modules, this one supports multiple instances;
+    therefore a structure is passed as first function arg and used to hold
+    static data
+dsdrv/saa7134.c [rev:1.4, 2003-01-09T14:50:34]:
+- Converted DMA memory alloc from to new hwmem.c interface -> DMA works now!
+- hwmem.c was newly imported from DScaler (however not the latest version)
+- removed obsolete funcs GetPhysicalAddress(), GetFirstFullPage()
+- renamed SAA7134_MemoryInit() into SAA7134_AllocDmaMemory()
+    added new func SAA7134_FreeDmaMemory()
+dsdrv/saa7134_i2c.c [rev:1.1, 2003-01-09T15:52:34]:
+- branches:  1.1.1;
+- Initial revision
+dsdrv/saa7134_i2c.h [rev:1.1, 2003-01-09T15:52:34]:
+- Initial revision
+dsdrv/saa7134_i2c.c [rev:1.2, 2003-01-09T21:17:49]:
+- ported from C++ to C
+dsdrv/saa7134_i2c.h [rev:1.2, 2003-01-09T21:17:49]:
+- ported from C++ to C
+dsdrv/wintuner.c [rev:1.4, 2003-01-09T21:24:39]:
+- Added support for SAA7134 I2C bus:
+- Tuner_Init now gets boolean flag: TRUE for SAA7134
+- added wrapper functions around I2CBus_Read, _Write, _Probe:
+    either call Bt8x8 I2C functions (same module) or SAA7134 (separate module)
+- added prefix "Bt8x8" to all Bt8x8 specific I2C functions
+epgtcl/dlg_hwcfg.tcl [rev:1.5, 2003-01-09T21:28:11]:
+- changed text for hwcf_dsdrv_log checkbutton:
+- from "Bt8x8 driver" into "Driver startup"
+- because now SAA7134 is supported too next to Bt8x8
+dsdrv/saa7134.c [rev:1.5, 2003-01-10T19:57:49]:
+- More capture fixes & work-arounds -> works quite well now (w/ good reception)
+- added work-around for "line 16" hardware bug: capture 17 lines in each field,
+    use lines 0-15 in the top field, lines 1-16 in the lower field
+    -> increased VBI_VSTOP to 23-3, VBI_LINES_PER_FIELD to 17
+- removed ReadByte() et.al. macros: renamed functions in dsdrv library
+- removed I2C related funcs: split off new module saa7134_i2c.c
+- added switch ENABLE_CAPTURING to allow disabling capturing for debugging
+- changed a few more PCI register settings to match the Linux driver
+- ResetHardware(): wait until WASRST flag goes down (guessed flag meaning)
+- SAA7134_VbiThread()
+    + work-around for "line 16" hardware bug
+    + process all fields between last and current (instead of last only)
+    + clear processed data with memset() to avoid multiply processing it
+    + reduced sleep from 5 to 1 ms
+- TODO (XXX)
+- there's still only one field per task coming in (upper field in A, lower
+    field in B at the correct position); if only one task is used both fields
+    arrive in the same task
+- find a way to configure a line number offset for field B to avoid
+    capturing 17 lines when only 16 are needed
+dsdrv/bt8x8_i2c.c [rev:1.1, 2003-01-10T19:58:21]:
+- Initial revision
+dsdrv/bt8x8_i2c.h [rev:1.1, 2003-01-10T19:58:21]:
+- Initial revision
+dsdrv/wintuner.c [rev:1.5, 2003-01-10T20:09:31]:
+- Split off Bt8x8 I2C functions into new modules bt8x8_i2c.c
+- just left the read, write and probe interface funcs, which route the call
+    to the appropriate driver module
+- Tuner_SetFrequency(): pass an array with all values to be written instead
+    of calling write multiply (which didn't work with the SAA7134 driver)
+- also: do probe for MT2032 just as for other tuner chips
+dsdrv/wintuner.h [rev:1.2, 2003-01-10T20:09:37]:
+- Added support for SAA7134 I2C bus:
+- Tuner_Init() now gets boolean flag: TRUE for SAA7134
+epgvbi/btdrv4win.c [rev:1.31, 2003-01-10T20:15:35]:
+- Added support for Philips SAA7134 chip
+- the actual driver is in a separate module saa7134.c
+- added Philips chip to PCI id list, i.e. they are counted along with BT chips,
+    hence renamed BT8X8_CountCards() into BtDriver_CountCards()
+- added separate module-global boolean flag "saaDrvLoaded", equiv. btDrvLoaded;
+    added else cases for saaDrvLoaded in parallel to btDrvLoaded everywhere:
+    call functions in saa7134 driver module
+- pass saaDrvLoaded flag to tuner module
+- Also:
+- moved MaskDataByte() et.al. into dsdrv library
+- for Bt8x8: call VbiDecodeSetSamplingRate(0)
+epgvbi/btdrv4linux.c [rev:1.38, 2003-01-10T20:38:01]:
+- Added support for dynamic adaption of sampling rate (for SAA7134)
+- renamed VBI_MAXLINES into VBI_DEFAULT_LINES
+- replaced global bufSize with bufLineSize and bufLines;
+    adapted BtDriver_DecodeFrame() accordingly
+- BtDriver_OpenVbiBuf(): use ioctl VIDIOCGVBIFMT to query for sampling rate
+    (equiv. to G_FMT in v4l2; note: ioctl unsupported as of bttv-0.7.100 and
+    saa7134-0.2.2, but patch was acceppted by Gerd Knorr at 2002-01-10)
+epgvbi/vbidecode.c [rev:1.33, 2003-01-10T20:38:11]:
+- Added support for dynamic adaption of sampling rate (for SAA7134)
+- removed preliminary SAA7134 switch: obsolete now
+- added new function VbiDecodeSetSamplingRate(): sets new global vars
+    vtstep and vpsstep; special param 0 sets BTTV sampling rate
+- vtscan(), vpsscan(), VbiDecodeLine(): use variables instead of defines
+epgvbi/vbidecode.h [rev:1.17, 2003-01-10T20:38:18]:
+- Added support for dynamic adaption of sampling rate (for SAA7134)
+- added declaration of new func VbiDecodeSetSamplingRate()
+dsdrv/bt8x8_reg.h [rev:1.10, 2003-01-10T20:39:51]:
+- Changed #defines BT8X8_ReadByte() et.al. for PCI register access
+- renamed memoryReadBYTE() into ReadByte(): functions were renamed in libdsdrv
+dsdrv/dsdrv34.c [rev:1.5, 2003-01-10T20:45:49]:
+- Adapted PCI register access funcs for new SAA7134 driver
+- renamed functions memoryReadBYTE() et.al. into ReadByte()
+    to avoid that macros have to be used in new SAA7134 driver
+- fixed parameter types for some PCI register access funcs
+    there were some copy & paste errors: WORD instead DWORD for data param etc.
+- added MaskDataByte(), AndDataByte() and OrDataByte(), ...Word(), ...Dword()
+    to support SAA7134 driver (removed equiv. fincs from Bt8x8 driver)
+dsdrv/dsdrvlib.h [rev:1.6, 2003-01-10T20:45:49]:
+- Adapted PCI register access funcs for new SAA7134 driver
+- renamed functions memoryReadBYTE() et.al. into ReadByte()
+    to avoid that macros have to be used in new SAA7134 driver
+- fixed parameter types for some PCI register access funcs
+    there were some copy & paste errors: WORD instead DWORD for data param etc.
+- added MaskDataByte(), AndDataByte() and OrDataByte(), ...Word(), ...Dword()
+    to support SAA7134 driver (removed equiv. fincs from Bt8x8 driver)
+dsdrv/hwpci.c [rev:1.3, 2003-01-10T20:46:07]:
+- Fixed parameter types for some PCI register access funcs
+- there were some copy & paste errors: WORD instead DWORD for data param etc.
+dsdrv/hwpci.h [rev:1.3, 2003-01-10T20:46:07]:
+- Fixed parameter types for some PCI register access funcs
+- there were some copy & paste errors: WORD instead DWORD for data param etc.
+epgdb/epgblock.c [rev:1.48, 2003-01-10T21:00:54]:
+- Added work-around for cross-compiling WIN32 executables on Linux
+- "timezone" is undefined: add #define to map it onto _timezone
+COPYRIGHT [rev:1.6, 2003-01-11T11:48:51]:
+- updated copyright for 2003
+- added copyrights of new SAA7134 and updated I2C support
+nxtvepg.pod [rev:1.86, 2003-01-11T11:49:34]:
+- Updated copyright for 2003
+Makefile [rev:1.51, 2003-01-11T11:49:39]:
+- Implemented alternate layout for PI listbox:
+    + split off new modules pibox, pinetbox from pilistbox
+    + split off new modules pidescr from pioutput
+- added temporary #define SAA7134_0_2_2
+    to enable workarounds for linux saa7134 driver version 0.2.2
+- fixed mkdirhier $(resdir)/app-defaults
+- updated "clean" rule (remove win32 cross-compile objects too)
+Makefile.win32 [rev:1.31, 2003-01-11T11:49:45]:
+- added cross-compile support for Linux
+- Implemented alternate layout for PI listbox:
+    + split off new modules pibox, pinetbox from pilistbox
+    + split off new modules pidescr from pioutput
+- added driver support for SAA7134
+    + added new module dsdrv/hwmem (DMA memory alloc)
+    + added new module saa7134, saa7134_i2c
+    + split off new module bt8x8_i2c from wintuner
+- changed default target from "all" to "devel", which build only nxtvepg.exe
+    and not tvsim.exe et.al.
+- updated "clean" rule for epgtcl/
+Makefile [rev:1.52, 2003-01-11T13:02:05]:
+- Applied Debian patches (from Gerd Knorr, via email 2002-12-09)
+- use tclsh to query for version of installed Tcl/Tk libraries
+- allow to override some CFLAGS by environment var
+- use CFLAGS to compile tcl2c (instead of only -O)
+- install rule: replaced mkdirhier with install -d
+tcl2c.c [rev:1.6, 2003-01-11T13:02:16]:
+- Syntax fixes (some reported by Gerd Knorr, via email 2002-12-09)
+- added #include <time.h>, else SEGV on 64-bit architectures
+- fixed many typos in description in file header
+- removed obsolete typedef bool and defines for TRUE and FALSE
+- removed obsolete variable declarations in main
+epgui/loadtcl.c [rev:1.5, 2003-01-11T13:02:52]:
+- Applied Debian patches (from Gerd Knorr, via email 2002-12-09)
+- added #include <string.h>, else SEGV on 64-bit architectures
+epgvbi/btdrv4linux.c [rev:1.39, 2003-01-11T14:26:01]:
+- NetBSD/FreeBSD ONLY: merged patch from Simon Barner (email 2002-01-07)
+- bugfix BtDriver_ScanDevices(): strncpy() used wrong constant
+- NetBSD/FreeBSDBtDriver_DecodeFrame(): increased time for alarm
+    from 10 to 180: else the app (allegedly) terminated during the EPG scan
+    during unused channels between E12 and S2
+- BtDriver_TuneChannel(): mute audio after opening /dev/tuner
+    BtDriver_CloseDevice(): undo audio mute (ioctl BT848_SAUDIO)
+epgvbi/btdrv.h [rev:1.28, 2003-01-11T14:26:44]:
+- NetBSD/FreeBSD ONLY:
+- added #define MAX_BSD_CARD_NAME_LEN 20 for name of input
+epgvbi/vbidecode.c [rev:1.34, 2003-01-11T14:31:20]:
+- Work-around until saa7134 driver supports ioctl VIDIOCGVBIFMT:
+- VbiDecodeSetSamplingRate(): added #ifdef SAA7134_0_2_2 to set default
+    sampling_rate to SAA7134_VT_RATE (when arg 0 is given)
+epgdb/epgnetio.c [rev:1.32, 2003-01-11T14:34:36]:
+- NetBSD/FreeBSD ONLY: merged patch from Simon Barner (email 2002-01-07)
+- added defined(__FreeBSD__) behind defined(__NetBSD__)
+epgui/menucmd.c [rev:1.96, 2003-01-11T14:36:19]:
+- NetBSD/FreeBSD ONLY: merged patch from Simon Barner (email 2002-01-07)
+- added defined(__FreeBSD__) behind defined(__NetBSD__)
+epgctl/debug.h [rev:1.16, 2003-01-11T14:37:02]:
+- NetBSD/FreeBSD ONLY: merged patch from Simon Barner (email 2002-01-07)
+- replaced #include malloc.h with stdlib.h
+epgtcl/shortcuts.tcl [rev:1.9, 2003-01-11T15:07:59]:
+- fix proc SelectShortcuts:
+- before, C_PiBox_Refresh was called twice upon shortcut selections
+--> use proc C_InvertFilter directly instead of proc InvertFilter
+epgtcl/mainwin.tcl [rev:1.205, 2003-01-11T15:13:09]:
+- Implemented alternate layout for PI listbox
+- new global config vars pibox_type, pinetbox_col_count, pinetbox_col_width
+- renamed all C_PiListBox_ procs into C_PiBox_
+    renamed C_RefreshPiListbox into C_PiBox_Refresh; same for Reset
+- added preliminary "New layout" button to main window, below shortcuts list
+    callback new proc Toggle_PiBoxType
+- created new bind tag "TextPiBox": common bindings for listbox and netbox
+- added new frame .all.pi.list.nets and horizontal scrollbar .all.pi.list.hsc
+    to main window: only mapped when pibox_type != 0
+- redesigned network mapping
+    + now use two global lists netwop_ai2sel, netwop_sel2ai
+- PiBox callbacks get widget as parameter (to identify the current netbox col)
+    + proc SelectPi, SelectPiRelease, CreateContextMenu, Create_PopupPi
+    + UpdatePiMotionScrollTimer supports scrolling in X and Y direction
+    + plus many more specific changes to support netbox
+epgtcl/mainwin.tcl [rev:1.206, 2003-01-11T15:15:20]:
+- Updated copyright for 2003
+dsdrv/bt8x8_i2c.c [rev:1.2, 2003-01-11T19:29:46]:
+- Completely replaced the implementation with current DScaler code
+- taken from I2CBusForLineInterface.cpp
+- adapted interface functions:
+    + Bt8x8_I2cWrite(): removed nAddr param, now part of array
+    + Bt8x8_I2cProbe(): removed, use write instead
+dsdrv/bt8x8_i2c.h [rev:1.2, 2003-01-11T19:29:51]:
+- Completely replaced the implementation with current DScaler code
+- taken from I2CBusForLineInterface.cpp
+- adapted interface functions:
+    + Bt8x8_I2cWrite(): removed nAddr param, now part of array
+    + Bt8x8_I2cProbe(): removed, use write instead
+dsdrv/wintuner.c [rev:1.6, 2003-01-11T19:29:56]:
+- added support for TDA9887 "IF demodulator"
+    + copied from DScaler, however without the special Pinnacle version
+    + only used in conjunction with MT2032
+    + new global boolean haveTda9887
+- adapted I2C interface functions for changes in bt8x8_i2c.c
+    (removed nAddr param from write func, removed probe func altogether)
+epgvbi/btdrv4win.c [rev:1.32, 2003-01-11T19:30:05]:
+- tiny fix: removed "== TRUE" from boolean expression
+dsdrv/saa7134.c [rev:1.6, 2003-01-11T19:30:13]:
+- bugfix (SEGV) SAA7134_SetInputSource():
+- did not check if pIsTuner == NULL (which is legal!)
+- crashed tvsim.exe
+epgdb/epgblock.h [rev:1.43, 2003-01-11T19:39:48]:
+- Changed the way the PI listbox is notified about incoming PI
+- added new enum EPGDB_PI_ACQ_EVENT
+- added function pointer EPGDB_PI_ACQ_CB to db context
+epgdb/epgdbif.c [rev:1.43, 2003-01-11T19:39:58]:
+- Extended interface (again) for alternate PI listbox layout
+- added new function EpgDbGetPiUpdateTime
+- also: fixed EpgDb_GetStream(): check for NULL pointer param
+- Changed the way the PI listbox is notified about incoming PI
+- added new function EpgDbSetPiAcqCallback()
+epgdb/epgdbif.h [rev:1.27, 2003-01-11T19:40:03]:
+- Extended interface (again) for alternate PI listbox layout
+- added new function EpgDbGetPiUpdateTime
+- Changed the way the PI listbox is notified about incoming PI
+- added new function EpgDbSetPiAcqCallback()
+epgdb/epgdbmerge.c [rev:1.26, 2003-01-11T19:40:14]:
+- Changed the way the PI listbox is notified about incoming PI
+- EpgDbMergeInsertPi(): instead of obsolete direct function call to
+    PiListBox_DbRecount(), use function pointer pPiAcqCb() in db context stuct
+- removed #include "epgui/pilistbox.h"
+epgdb/epgdbmgmt.c [rev:1.44, 2003-01-11T19:40:20]:
+- Changed the way the PI listbox is notified about incoming PI
+- global change: instead of obsolete direct function calls to PiListBox_Db*(),
+    use function pointer pPiAcqCb(enum EPGDB_PI_ACQ_EVENT) in db context stuct
+- removed #include "epgui/pilistbox.h"
+epgctl/mytypes.h [rev:1.19, 2003-01-11T19:41:31]:
+- Added typedef sshort: used in pinetbox.c
+epgctl/epgversion.h [rev:1.31, 2003-01-11T19:42:23]:
+- *** empty log message ***
+epgui/pilistbox.c [rev:1.85, 2003-01-11T19:52:24]:
+- Changed the way the PI listbox is notified about incoming PI
+- added new function PiListBox_HandleAcqEvent()
+- made PiListBox_Db* functions static, called by PiListBox_HandleAcqEvent()
+- call new func EpgDbSetPiAcqCallback() in _Init() and _AiStateChange()
+- Also:
+- use new func/macro EpgDbFilterGetExpireTime() instead of time(NULL)
+- bugfix PiListBox_GotoTime(): if there were not enough PI to fill the
+    listbox and the min_time was > the last PI, the cursor was placed behind
+    the last PI
+epgui/pilistbox.h [rev:1.16, 2003-01-11T19:52:30]:
+- Changed the way the PI listbox is notified about incoming PI
+- replaced direct func calls with callbacks (due to alternate PI listbox layout)
+- removed declarations for former directly called funcs PiListBox_Db*
+epgui/pinetbox.c [rev:1.23, 2003-01-11T19:52:38]:
+- Small cleanup: replaced pUiDbContext with macro dbc for consistancy
+www/pre-releases.html [rev:1.20, 2003-01-11T20:37:03]:
+- updated to 2.5.0pre3
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_5_0_pre3 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+epgvbi/btdrv4win.c [rev:1.33, 2003-01-15T22:02:13]:
+- Added PCI IDs for SAA7133 and SAA7135
+dsdrv/bt8x8_i2c.c [rev:1.3, 2003-01-19T08:08:05]:
+- Adapted to new card interfaces "tvcard.h"
+- moved Bt8x8 hardware specific functions into new module bt8x8.c;
+    since this module is now used by new TV card module cx2388x.c
+- fixed/extended Bt8x8I2c_Read(): did not use nAddr parameter;
+    replaced nAddr with writeBuffer which contains device address and maybe more
+- changed interface: instead of read/write funcs there's only one new func:
+    Bt8x8I2c_GetInterface(): fills struct with function pointers to r/w funcs
+    -> added new include tvcard.h
+dsdrv/bt8x8_i2c.h [rev:1.3, 2003-01-19T08:08:17]:
+- Adapted to new card interfaces "tvcard.h"
+- changed interface: instead of read/write funcs there's only one new func:
+    Bt8x8I2c_GetInterface(): fills struct with function pointers to r/w funcs
+dsdrv/bt8x8_reg.h [rev:1.11, 2003-01-19T08:08:26]:
+- renamed module from bt848.h into bt8x8_reg.h
+    + to match naming scheme of other cards
+- removed macros BT8X8_ReadByte() et.al.: modules now use ReadByte() directly
+dsdrv/dsdrv34.c [rev:1.6, 2003-01-19T08:08:35]:
+- Removed obsolete DMA functions
+- memoryAlloc(), memoryFree()
+- switched bt8x8 card river to use new hwmem.c module
+dsdrv/dsdrvlib.h [rev:1.7, 2003-01-19T08:08:41]:
+- Removed obsolete DMA functions
+- memoryAlloc(), memoryFree()
+- switched bt8x8 card river to use new hwmem.c module
+dsdrv/saa7134.c [rev:1.7, 2003-01-19T08:08:55]:
+- fixed odd-field line offset problem & removed old "17-line" workaround:
+    solution was to set SAA7134_SOURCE_TIMING to SAA7134_SOURCE_TIMING_DVED
+- set SAA7134_MISC_VGATE_MSB to 0x1c as suggested by Gerd Knorr
+    (no appearent change in VBI captureing though)
+- SAA7134_SetInputSource(): added "norm" param: needed for new Cx2388x card
+- changed interface: export only one new func: SAA7134_GetInterface()
+    fills struct with function pointers -> added new include tvcard.h (btdrv4win
+    now dispatches all calls to card specific functions through these pointers)
+dsdrv/saa7134.h [rev:1.2, 2003-01-19T08:09:01]:
+- Adapted to new card interfaces "tvcard.h"
+- changed interface: export only one new func: SAA7134_GetInterface()
+- all previous interface funcs removed (are static now, accessed via func ptrs)
+dsdrv/saa7134_i2c.c [rev:1.3, 2003-01-19T08:09:07]:
+- Adapted to new card interfaces "tvcard.h"
+- changed interface: instead of read/write funcs there's only one new func:
+    SAA7134_I2cGetInterface(): fills struct with function pointers to r/w funcs
+- made previous interface func static; added new include tvcard.h
+dsdrv/saa7134_i2c.h [rev:1.3, 2003-01-19T08:09:12]:
+- Adapted to new card interfaces "tvcard.h"
+- changed interface: instead of read/write funcs there's only one new func:
+    SAA7134_I2cGetInterface(): fills struct with function pointers to r/w funcs
+- all previous interface funcs removed (are static now, accessed via func ptrs)
+dsdrv/wintuner.c [rev:1.7, 2003-01-19T08:09:21]:
+- Adapted to new card interfaces "tvcard.h"
+- changed params for Tuner_Init() to support new card Cx2388x:
+    replaced bool isSaa7134 with struct TVCARD: pointers to r/w functions
+- I2C wrappers: use function pointers instead direct calls to SAA7134
+    and Bt8x8 I2C funcs
+dsdrv/wintuner.h [rev:1.3, 2003-01-19T08:09:27]:
+- Adapted to new card interfaces "tvcard.h"
+- changed params for Tuner_Init() to support new card Cx2388x:
+    replaced bool isSaa7134 with struct TVCARD: pointers to r/w functions
+epgvbi/btdrv4win.c [rev:1.34, 2003-01-19T08:15:13]:
+- Split off Bt8x8 hardware specific code into new module bt8x8.c
+- this module now just manages the different drivers
+- changed interface to drivers to function pointers from include tvcard.h:
+    instead of calling BT8x8 and SAA7134 functions directly
+- added new driver to card list: Conexant CX23881 (aka Bt811)
+- changed SetAcqPriority() into BtDriver_GetAcqPriority();
+    added new card interface func XXX_Configure() to pass threadPrio and pllType
+- changed params for Tuner_Init() to support new card Cx2388x:
+    replaced bool isSaa7134 with struct TVCARD: pointers to r/w functions
+- added norm param to BtDriver_SetInputSource()
+epgvbi/vbidecode.c [rev:1.35, 2003-01-19T08:15:27]:
+- fixed function header comment for VbiDecodeSetSamplingRate()
+epgvbi/btdrv4linux.c [rev:1.40, 2003-01-19T08:15:48]:
+- Fixes for FreeBSD/NetBSD by Simon Barner (mail 2003-01-14)
+- reduced VBI_DEFAULT_LINES from 19 to 16 (bktr driver doesn't deliver more)
+- BtDriver_SignalAlarm(): use BtDriver_CloseVbi() to close device
+- install alarm signal handler for thread mode too (else: exit upon signal)
+- reduced alarm timer back to 10 from 180
+- General
+- fix BtDriver_DecodeFrame() short read handling: accept buffers > line size
+    (i.e. at least one line) again instead of insisting on full frame's data
+dsdrv/bt8x8.c [rev:1.1, 2003-01-19T08:16:26]:
+- Initial revision
+dsdrv/bt8x8.h [rev:1.1, 2003-01-19T08:16:28]:
+- Initial revision
+dsdrv/cx2388x.c [rev:1.1, 2003-01-19T08:16:37]:
+- branches:  1.1.1;  1.1.2;  1.1.3;
+- Initial revision
+dsdrv/cx2388x.h [rev:1.1, 2003-01-19T08:16:37]:
+- Initial revision
+dsdrv/cx2388x_reg.h [rev:1.1, 2003-01-19T08:16:37]:
+- branches:  1.1.1;
+- Initial revision
+dsdrv/tvcard.h [rev:1.1, 2003-01-19T08:18:47]:
+- Initial revision
+Makefile.win32 [rev:1.32, 2003-01-19T08:26:32]:
+- moved all windows specific, driver related modules from epgvbi/ into dsdrv/
+    and build a library from them: libtvcard.a
+- added new source modules to dsdrv: bt8x8, cx2388x
+dsdrv/bt8x8_reg.h [rev:1.12, 2003-01-19T10:50:09]:
+- Fixed module header description:
+- replaced "see according C source file" with actual description for all
+    xxx_reg.h files, since these have no corresponding c source file
+dsdrv/cx2388x_reg.h [rev:1.2, 2003-01-19T10:50:09]:
+- Fixed module header description:
+- replaced "see according C source file" with actual description for all
+    xxx_reg.h files, since these have no corresponding c source file
+dsdrv/saa7134_reg.h [rev:1.3, 2003-01-19T10:50:09]:
+- Fixed module header description:
+- replaced "see according C source file" with actual description for all
+    xxx_reg.h files, since these have no corresponding c source file
+dsdrv/hwpci.c [rev:1.4, 2003-01-19T10:50:24]:
+- Added special case for Cx2388x card in HwPci_OpenPCICard()
+- need to map larger I/O area
+dsdrv/cx2388x.c [rev:1.2, 2003-01-19T11:03:51]:
+- added debug feature to disable capturing via (otherwise unused) PLL setting
+- added #define RISC_CODE_LENGTH: allocate only 4096 instead of 83968 Bytes
+- fixed Cx2388x_GetRiscPos() to work equiv to Bt8x8 module
+Makefile [rev:1.53, 2003-01-19T11:06:40]:
+- set CFLAGS optimization level back to 2 from 6
+    (was accidentially increased due to patch)
+- added tvsim/*_gui.h files to clean rule
+Makefile.freebsd [Makefile.freebsd, rev:1.1, 2003-01-19T11:48:12]:
+- Initial revision
+Makefile [rev:1.54, 2003-01-19T11:50:25]:
+- Added support for FreeBSD: supplied by Simon Barner mail 2003-01-14
+- include Makefile.freebsd when uname indicates FreeBSD;
+    only variable setup is platform specific, module lists not
+- changed add target to use :: to allow FreeBSD to defined additional
+    dependencies (printconfig)
+dsdrv/saa7134.c [rev:1.8, 2003-01-19T20:51:56]:
+- Implemented work-around for "only one VBI field per task" problem:
+- capture one dummy video line per task -> now we get 2 VBI fields per task
+    (seems like a firmware bug)
+- put video data at the end of the VBI buffer; use the VBI page table too
+- TODO: improve field query; currently still requires polling with 1 ms
+epgctl/epgversion.h [rev:1.32, 2003-01-19T20:52:31]:
+- set version to 2.5.0pre5
+www/provnets.html [rev:1.20, 2003-01-19T21:10:37]:
+- Moved French provider M6 into the "former providers" section
+- stopped service after Dec/31/2002
+www/index-de.html [rev:1.50, 2003-01-19T21:11:31]:
+- Removed dead provider M6 from list for France
+www/index.html [rev:1.63, 2003-01-19T21:11:31]:
+- Removed dead provider M6 from list for France
+www/pre-releases.html [rev:1.21, 2003-01-19T22:03:45]:
+- set version to 2.5.0pre5
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_5_0_pre5 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+dsdrv/cx2388x.c [rev:1.3, 2003-01-21T21:48:19]:
+- bugfix Cx2388x_VbiThread():
+- VbiDecodeSetSamplingRate(): rate was wrong: multiply FSC_PAL by 1000000
+epgctl/epgversion.h [rev:1.33, 2003-01-21T21:52:03]:
+- set version to 2.5.0pre6
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_5_0_pre6 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+dsdrv/bt8x8_typ.c [rev:1.1, 2003-01-29T20:11:38]:
+- branches:  1.1.1;
+- Initial revision
+dsdrv/bt8x8_typ.h [rev:1.1, 2003-01-29T20:11:38]:
+- Initial revision
+dsdrv/cx2388x_typ.c [rev:1.1, 2003-01-29T20:11:38]:
+- branches:  1.1.1;
+- Initial revision
+dsdrv/cx2388x_typ.h [rev:1.1, 2003-01-29T20:11:38]:
+- Initial revision
+dsdrv/saa7134_typ.c [rev:1.1, 2003-01-29T20:11:38]:
+- branches:  1.1.1;
+- Initial revision
+dsdrv/saa7134_typ.h [rev:1.1, 2003-01-29T20:11:38]:
+- Initial revision
+dsdrv/cx2388x_reg.h [rev:1.3, 2003-01-29T20:21:22]:
+- Imported card type modules from DScaler & TV card config dialog
+- removed enum eCX2388xCardId: moved to "typ" module
+dsdrv/bt8x8.c [rev:1.2, 2003-01-29T20:36:09]:
+- Imported card type modules from DScaler & TV card config dialog
+- added include dsdrv/bt8x8_typ.h: added query to Bt8x8Typ_GetInterface()
+- removed obsolete Bt8x8_SetInputSource() & interface entry
+dsdrv/bt8x8_i2c.c [rev:1.4, 2003-01-29T20:36:16]:
+- Imported card type modules from DScaler & TV card config dialog
+- pass pTvCard pointer through for calls to pI2cLineBus
+- removed global variable I2C_LINE_BUS: to allow support for multiple cards
+dsdrv/cx2388x.c [rev:1.4, 2003-01-29T20:36:24]:
+- Imported card type modules from DScaler & TV card config dialog
+- added include dsdrv/cx2388x_typ.h: added query to Cx2388xTyp_GetInterface()
+- removed obsolete Cx2388x_StandardInputSelect() & interface entry
+dsdrv/saa7134.c [rev:1.9, 2003-01-29T20:36:47]:
+- Imported card type modules from DScaler & TV card config dialog
+- added include dsdrv/cx2388x_typ.h: added query to Cx2388xTyp_GetInterface()
+- removed obsolete Cx2388x_StandardInputSelect() & interface entry
+dsdrv/saa7134_i2c.c [rev:1.4, 2003-01-29T20:37:24]:
+- Imported card type modules from DScaler & TV card config dialog
+- added pTvCard pointer arg to Read and Write funcs: adapted to interface
+    change for Bt8x8 I2C driver (to support multiple cards)
+dsdrv/tvcard.h [rev:1.2, 2003-01-29T20:37:31]:
+- Imported card type modules from DScaler & TV card config dialog
+- added new sub struct TVCARD_CFG: interface to card list module
+- removed obsolete SetInputSource() ptr from hw interface
+- added new sub struct TVCARD_PARAMS: card ID and PCI IDs
+- I2C interface: added pTvCard pointer arg: to support multiple cards
+dsdrv/wintuner.c [rev:1.8, 2003-01-29T20:37:38]:
+- Imported card type modules from DScaler & TV card config dialog
+- replaced bttv tuner table with DScaler func Tuner_GetParams()
+- pass pTvCard pointer through to I2C funcs (to support multiple cards)
+dsdrv/wintuner.h [rev:1.4, 2003-01-29T20:37:40]:
+- Imported card type modules from DScaler & TV card config dialog
+- replaced bttv tuner enum with DScaler enum
+- added enum eVideoFormat
+epgvbi/btdrv4win.c [rev:1.35, 2003-01-29T21:17:07]:
+- WIN32: imported card type modules from DScaler & TV card config dialog
+- added cardId to struct btCfg
+- added VendorId and DeviceId to struct TVCARD_ID for convenience
+- BtDriver_SetInputSource(): replaced cardif.ctl->SetInputSource() with
+    cardif.cfg->SetVideoSource(); added call to cardif.cfg->IsInputATuner()
+- BtDriver_GetInputName(): call tmpCardIf.cfg->GetInputName()
+- added new func BtDriver_QueryCardParams(), BtDriver_EnumCards()
+- replaced BtDriver_GetCardName() with BtDriver_GetCardNameFromList()
+- BtDriver_Configure(): added card & chip type args
+epgvbi/btdrv.h [rev:1.29, 2003-01-29T21:17:15]:
+- WIN32: imported card type modules from DScaler & TV card config dialog
+- BtDriver_Configure(): added card & chip type args
+- made BtDriver_GetCardName() for UNIX only
+- added BtDriver_GetCardNameFromList(): retrieve card types list for chip type
+- added BtDriver_EnumCards(): PCI scan
+- added BtDriver_QueryCardParams(): for manual and automatic card config
+epgvbi/btdrv4dummy.c [rev:1.14, 2003-01-29T21:17:22]:
+- WIN32: imported card type modules from DScaler & TV card config dialog
+- adapted BtDriver_Configure(): added dummy card & chip type args
+epgvbi/btdrv4linux.c [rev:1.41, 2003-01-29T21:17:29]:
+- WIN32: imported card type modules from DScaler & TV card config dialog
+- adapted BtDriver_Configure(): added dummy card & chip type args
+epgtcl/mainwin.tcl [rev:1.207, 2003-01-29T22:01:04]:
+- proc CreateTransientPopup: added optional arg parent
+- to be used for sub-dialogs invoked from inside another dialog
+epgtcl/dlg_hwcfg.tcl [rev:1.6, 2003-01-29T22:09:49]:
+- WIN32: imported card type modules from DScaler & TV card config dialog
+- split off card config params into sub-dialog ".tvcard"
+- replaced config var "hwcf" with discrete hwcf_cardidx et.al.
+    split off card config into new array tvcardcf(cardidx)
+- removed hwcfg_tvapp_* cfg vars & dialog elems: INI file parsing is obsolete
+epgtcl/dlg_prov.tcl [rev:1.6, 2003-01-29T22:09:59]:
+- WIN32: imported card type modules from DScaler & TV card config dialog
+- proc PopupEpgScan et.al.: replaced 2-radio xawtv with 3-radio ftable1/2/tvapp
+epgtcl/rcfile.tcl [rev:1.8, 2003-01-29T22:10:07]:
+- WIN32: imported card type modules from DScaler & TV card config dialog
+- removed obsolete vars: hwcfg_tvapp_idx hwcfg_tvapp_path
+- replaced hwcfg list with discrete vars: hwcf_cardidx hwcf_input hwcf_acq_prio
+- added WIN32 TV card config: array tvcardcf(cardidx)
+- added epgscan_opt_ftable
+epgui/wintv.c [rev:1.14, 2003-01-29T22:10:27]:
+- Bugfix Wintv_FollowTvNetwork():
+- keep the database locked while calling PiBox_GotoPi() since
+    a pointer to a PI block in the db is passed
+epgui/wintvcfg.c [rev:1.13, 2003-01-29T22:10:35]:
+- WIN32: imported card type modules from DScaler & TV card config dialog
+- removed INI file handling: obsolete due to card config dialog
+- removed Tcl callback C_Tvapp_LoadHwConfig
+epgui/menucmd.c [rev:1.97, 2003-01-29T22:13:39]:
+- WIN32: imported card type modules from DScaler & TV card config dialog
+- adapted C_StartEpgScan(): replaced boolean arg xawtv with ftable;
+    call TvChannels_SelectFreqTable() here instead of SetHardwareConfig()
+- added new WIN32 callbacks C_HwCfgGetTvCardList(), C_HwCfgQueryCardParams()
+- changed callback C_HwCfgGetTvCards() for WIN32: return chip type too
+Makefile.win32 [rev:1.33, 2003-01-29T22:21:31]:
+- Imported card type modules from DScaler & TV card config dialog
+- added new modules to TVCARD_CSRC: bt8x8_typ, saa7134_typ, cx2388x_typ
+epgdb/epgdbfil.c [rev:1.39, 2003-02-01T14:59:17]:
+- Fixed netwop filter handling of PI "netbox"
+- added new permanent filter type FILTER_NETWOP_PRE2
+    and interface funcs EpgDbFilterInitNetwopPreFilter2(), SetNetwopPreFilter2()
+- added query func EpgDbFilterGetNetwopFilter():
+    Query which netwops are filtered out after combining & inverting
+- added network match cache to filter context struct: netwopCache[]
+    maintained by internal func EpgDbFilterUpdateNetwopCache():
+    network match logic split off from match func -> performance gain
+- EpgDbFilterMatches(): removed "const" from filter context pointer arg
+    because the context struct may now be modified due to network match caching
+epgdb/epgdbfil.h [rev:1.25, 2003-02-01T15:00:24]:
+- Fixed netwop filter handling of PI "netbox"
+- added new permanent filter type FILTER_NETWOP_PRE2
+    and interface funcs EpgDbFilterInitNetwopPreFilter2(), SetNetwopPreFilter2()
+- added query func EpgDbFilterGetNetwopFilter():
+    Query which netwops are filtered out after combining & inverting
+- added network match cache to filter context struct: netwopCache[]
+    maintained by internal func EpgDbFilterUpdateNetwopCache():
+    network match logic split off from match func -> performance gain
+- also changed type of netwopFilterField[] from uchar to bool
+- EpgDbFilterMatches(): removed "const" from filter context pointer arg
+    because the context struct may now be modified due to network match caching
+epgdb/epgdbif.c [rev:1.44, 2003-02-01T15:00:31]:
+- Adapted for interface change in epgdbfil.h
+- in all funcs: removed "const" from filter context pointer args
+    because it was removed from EpgDbFilterMatches()
+epgdb/epgdbif.h [rev:1.28, 2003-02-01T15:00:35]:
+- Adapted for interface change in epgdbfil.h
+- in all funcs: removed "const" from filter context pointer args
+    because it was removed from EpgDbFilterMatches()
+epgui/pifilter.c [rev:1.76, 2003-02-01T15:02:54]:
+- Fixed netwop filter handling of PI "netbox"
+- pinetbox now uses a separate network pre-filter FILTER_NETWOP_PRE2
+- PiFilter_UpdateNetwopList(): removed minIdx, maxIdx args
+- renamed func into PiFilter_SetNetwopPrefilter(): now called by uictrl.c
+epgui/pifilter.h [rev:1.10, 2003-02-01T15:03:00]:
+- Fixed netwop filter handling of PI "netbox"
+- PiFilter_UpdateNetwopList(): removed minIdx, maxIdx args and
+    renamed func into PiFilter_SetNetwopPrefilter()
+- removed "const" from decl. of pPiFilterContext
+    because the context struct may now be modified in the "match" func (caching)
+epgui/pilistbox.c [rev:1.86, 2003-02-01T15:03:06]:
+- Fixed netwop filter handling of PI "netbox"
+- PiListBox_AiStateChange(): removed call to PiFilter_UpdateNetwopList():
+    now called by uictrl.c
+- PiListBox_Create(): disable FILTER_NETWOP_PRE2 filter type
+epgui/uictrl.c [rev:1.36, 2003-02-01T15:03:52]:
+- Fixed netwop filter handling of PI "netbox"
+- UiControl_AiStateChange(): added call to PiFilter_SetNetwopPrefilter():
+    was previously called from inside PI listboxes, but now those are using
+    a separate network pre-filter FILTER_NETWOP_PRE2
+epgui/pinetbox.c [rev:1.24, 2003-02-01T15:14:39]:
+- Fixed netwop filter handling
+- PiNetBox_UpdateNetwopMap(): skips networks which are filtered out,
+    appends pre-filtered networks which are added via netwop filter
+- added new func PiNetBox_CheckNetwopFilterChange() to check for filter
+    chane in reset and refresh funcs
+- removed calls to PiFilter_UpdateNetwopList(): now called in uictrl.c;
+    instead PiNetBox_UpdateNetwopNames() uses new filter type FILTER_NETWOP_PRE2
+    to suppress networks outside of the currently visible range
+dsdrv/bt8x8_i2c.c [rev:1.5, 2003-02-01T16:31:53]:
+- Added DScaler RCS/CVS IDs from which source code was copied.
+dsdrv/bt8x8_reg.h [rev:1.13, 2003-02-01T16:31:53]:
+- Added DScaler RCS/CVS IDs from which source code was copied.
+dsdrv/cx2388x.c [rev:1.5, 2003-02-01T16:31:53]:
+- Added DScaler RCS/CVS IDs from which source code was copied.
+dsdrv/saa7134_reg.h [rev:1.4, 2003-02-01T16:31:53]:
+- Added DScaler RCS/CVS IDs from which source code was copied.
+dsdrv/bt8x8_typ.c [rev:1.2, 2003-02-01T16:32:16]:
+- added DScaler RCS/CVS IDs from which source code was copied
+- added module header description
+dsdrv/cx2388x_typ.c [rev:1.2, 2003-02-01T16:32:16]:
+- added DScaler RCS/CVS IDs from which source code was copied
+- added module header description
+dsdrv/saa7134_typ.c [rev:1.2, 2003-02-01T16:32:16]:
+- added DScaler RCS/CVS IDs from which source code was copied
+- added module header description
+dsdrv/bt8x8_typ.h [rev:1.2, 2003-02-01T16:32:33]:
+- Improved module header comment
+dsdrv/saa7134_typ.h [rev:1.2, 2003-02-01T16:32:54]:
+- Improved module header comment
+dsdrv/cx2388x_reg.h [rev:1.4, 2003-02-01T16:33:39]:
+- #if 0'ed some incorrect definitions (inconsistant with data sheet)
+dsdrv/saa7134_i2c.c [rev:1.5, 2003-02-01T16:35:33]:
+- Replaced module header with nxtvepg format
+- copyright messages left intact, also DScaler CVS Id
+dsdrv/bt8x8_typ.c [rev:1.3, 2003-02-01T23:05:45]:
+- Added NULL pointer argument checks to all interface functions
+dsdrv/cx2388x_typ.c [rev:1.3, 2003-02-01T23:05:45]:
+- Added NULL pointer argument checks to all interface functions
+dsdrv/saa7134_typ.c [rev:1.3, 2003-02-01T23:05:45]:
+- Added NULL pointer argument checks to all interface functions
+dsdrv/wintuner.c [rev:1.9, 2003-02-01T23:15:09]:
+- Added DScaler CVS Ids to module header
+dsdrv/wintuner.h [rev:1.5, 2003-02-01T23:15:09]:
+- Added DScaler CVS Ids to module header
+dsdrv/saa7134_i2c.c [rev:1.6, 2003-02-01T23:15:54]:
+- Added NULL pointer check to interface functions
+dsdrv/cx2388x.c [rev:1.6, 2003-02-01T23:16:18]:
+- Cx2388x_AllocDmaMemory(): appended "driver problem" to error message box title
+- added err msg to NULL ptr check in interface func
+dsdrv/bt8x8.c [rev:1.3, 2003-02-01T23:17:47]:
+- Implemented TV app conflict detection
+- Bt8x8_GetRISCPosAsInt(): removed while() loop to poll RISC counter;
+    instead return error code to VBI thread main loop
+- Bt8x8_GetRISCPosAsInt(): check if RISC start addr has changed -> return error
+- Bt8x8_VbiThread(): abort loop if TV has overwritten RISC addr pointer
+- Bt8x8_Close(): skip card reset if conflict was detected earlier
+- Bt8x8_Open(): abort with err message if capturing & DMA is already enabled
+- appended "driver problem" to all driver error message box titles
+epgvbi/btdrv4win.c [rev:1.36, 2003-02-01T23:21:56]:
+- bugfix BtDriver_Load(): must not call BtDriver_Unload() after card open failed
+    because card close func must not be called (accesses the card)
+- BtDriver_StartAcq(): initialize pVbiBuf->hasFailed to FALSE;
+    added check for pVbiBuf != NULL
+- appended "driver problem" to all driver error message box titles
+dsdrv/hwdrv.c [rev:1.9, 2003-02-01T23:38:37]:
+- Merged in changes from DScaler CVS
+- changed definition of IOCTLs (adapted for new DSdrv version 4.02)
+- HwDrv_SendCommandEx(): suppress debug message for IOCTL_DSDRV_GETPCIINFO:
+    i.e. when HwDrv_DoesThisPCICardExist() probes for a non-existing cards
+- HwDrv_LoadDriver(): fixed service start error check: added check for
+    error code ERROR_PATH_NOT_FOUND to ERROR_FILE_NOT_FOUND
+dsdrv/hwmem.c [rev:1.3, 2003-02-01T23:38:51]:
+- Merged in changes from DScaler CVS
+- changed definition of IOCTLs (adapted for new DSdrv version 4.02)
+dsdrv/hwpci.c [rev:1.5, 2003-02-01T23:38:51]:
+- Merged in changes from DScaler CVS
+- changed definition of IOCTLs (adapted for new DSdrv version 4.02)
+dsdrv/hwdrv.c [rev:1.1.1.4, 2003-02-01T23:43:21]:
+- r1.15: Suppress error in log file when DoesThisPCICardExist()
+         probes for a non-existing card.
+- r1.16: Unload the driver when uninstalling.
+- r1.17: Changed definition of IOCTLs
+dsdrv/hwpci.c [rev:1.1.1.1, 2003-02-01T23:48:37]:
+- Original DScaler version
+dsdrv/hwmem.c [rev:1.1.1.1, 2003-02-01T23:50:48]:
+- Original DScaler version
+dsdrv/saa7134.c [rev:1.10, 2003-02-02T12:10:24]:
+- appended "driver problem" to error message box titles
+- added err msg to NULL ptr check in interface func
+- prepended "DScaler" to CVS IDs
+dsdrv/bt8x8_typ.c [rev:1.1.1.1, 2003-02-02T12:23:10]:
+- Original DScaler BT848Card_Types.cpp Revision 1.30
+dsdrv/cx2388x_typ.c [rev:1.1.1.1, 2003-02-02T12:23:27]:
+- Original DScaler CX2388xCard_Types.cpp Revision 1.7
+dsdrv/saa7134_typ.c [rev:1.1.1.1, 2003-02-02T12:23:36]:
+- Original DScaler SAA7134Card_Types.cpp Revision 1.18
+dsdrv/saa7134_typ.c [rev:1.1.1.2, 2003-02-02T12:28:51]:
+- r1.22: fixed the autodetect
+- r1.21: Updated MEDION TV-TUNER 7134 MK2/3
+- r1.20: Updated Medion TV-Tuner 7134 MK2/3
+- r1.19: Added card support for "MEDION TV-TUNER 7134 MK2/3"
+dsdrv/saa7134_typ.c [rev:1.4, 2003-02-02T12:34:48]:
+- Merged in changes from DScaler revisions 1.19-1.22:
+- bugfix AutoDetectCardType(): SubSystemId was shifted in wrong direction
+- added card support for "MEDION TV-TUNER 7134 MK2/3"
+dsdrv/saa7134.c [rev:1.1.1.1, 2003-02-02T13:08:39]:
+- Original DScaler SAA7134Card.cpp Revision 1.29
+dsdrv/saa7134.c [rev:1.1.1.2, 2003-02-02T13:11:31]:
+- Upgrade to DScaler Revision 1.33: GUI stuff only
+dsdrv/saa7134.c [rev:1.1.2.1, 2003-02-02T13:14:19]:
+- Original DScaler SAA7134Source.cpp Revision 1.51
+dsdrv/saa7134.c [rev:1.1.2.2, 2003-02-02T13:19:09]:
+- Import of SAA7134Source.cpp Revision 1.69
+dsdrv/saa7134.c [rev:1.1.3.1, 2003-02-02T13:21:19]:
+- Original DScaler SAA7134Provider.cpp Revision 1.10
+dsdrv/saa7134_i2c.c [rev:1.1.1.1, 2003-02-02T13:23:49]:
+- Original DScaler SAA7134I2CBus.cpp Revision 1.3
+dsdrv/cx2388x.c [rev:1.1.1.1, 2003-02-02T13:25:16]:
+- Original DScaler CX2388xCard.cpp Revision 1.28
+dsdrv/cx2388x.c [rev:1.1.1.2, 2003-02-02T14:12:11]:
+- Upgrade to DScaler CX2388xCard.cpp Revision 1.39
+dsdrv/cx2388x.c [rev:1.1.2.1, 2003-02-02T14:15:28]:
+- Original DScaler CX2388xSource.cpp Revision 1.20
+dsdrv/cx2388x.c [rev:1.1.2.2, 2003-02-02T14:21:24]:
+- Upgrade to DScaler CX2388xSource.cpp Revision 1.42
+dsdrv/cx2388x.c [rev:1.1.3.1, 2003-02-02T14:22:13]:
+- Original DScaler CX2388xProvider.cpp Revision 1.3
+dsdrv/cx2388x_reg.h [rev:1.1.1.1, 2003-02-02T14:24:27]:
+- Original DScaler CX2388x_Defines.h Revision 1.10
+dsdrv/saa7134_reg.h [rev:1.1.1.1, 2003-02-02T14:25:59]:
+- Original DScaler SAA7134_Defines.h Revision 1.9
+dsdrv/cx2388x.c [rev:1.7, 2003-02-02T14:28:51]:
+- Imported changes from original DScaler CX2388xCard.cpp Revision 1.39
+- StopCapture() made more safe
+- updated DScaler CVS tags in the module header
+epgtcl/rcfile.tcl [rev:1.9, 2003-02-02T17:36:50]:
+- Removed obsolete config variables
+- removed tvcard_tvapp_idx tvcard_tvapp_path
+- were used in WIN32 TV card input dialog to load INI files of TV apps, now our
+    own card config dialog should be comfortable enough, this option is obsolete
+epgtcl/dlg_prov.tcl [rev:1.7, 2003-02-02T17:38:26]:
+- EPG scan: added variable trace on $tvapp_name while dialog is open
+- new proc EpgScan_CheckTvAppStatus: updates status and text of
+    "Load from $tvapp_name" freq. tab radio button
+- added new proc EpgScan_Quit to clean up
+README [rev:1.31, 2003-02-02T19:48:02]:
+- updated list of WIN32 driver error messages.
+- added SAA7134 to list of supported cards
+- added note that Tcl/Tk 8.4. is depreciated
+- replaced an obsolete reference to MultiDec with DScaler/K!TV
+dsdrv/cx2388x.c [rev:1.8, 2003-02-03T20:03:03]:
+- Added debugging features
+- added #define DISABLE_PCI_REGISTER_DUMP & new func Cx2388x_DumpRegisters()
+- added dprintf in various functions
+- Merged changes from DScaler
+- Cx2388x_StopCapture(): clear address for the DMA RISC code upon stop
+- Cx2388x_ResetHardware(): added HwPci_GetPCIConfig()
+- Cx2388x_VbiThread(): check pRiscBasePhysical to detect conflict with TV app
+- Cx2388x_Open(): abort with error msg if capturing is already enabled;
+    added arg TVCARD to pass through to Cx2388x_ResetHardware()
+dsdrv/hwdrv.c [rev:1.10, 2003-02-03T20:03:21]:
+- Updated DScaler CVS tag (after earlier diff/merge)
+dsdrv/hwmem.c [rev:1.4, 2003-02-03T20:03:21]:
+- Updated DScaler CVS tag (after earlier diff/merge)
+dsdrv/hwpci.c [rev:1.6, 2003-02-03T20:03:35]:
+- merged in HwPci_GetPCIConfig(), HwPci_SetPCIConfig() from DScaler
+- updated DScaler CVS tag (after earlier diff/merge)
+dsdrv/hwpci.h [rev:1.4, 2003-02-03T20:03:35]:
+- merged in HwPci_GetPCIConfig(), HwPci_SetPCIConfig() from DScaler
+- updated DScaler CVS tag (after earlier diff/merge)
+dsdrv/saa7134.c [rev:1.11, 2003-02-03T20:03:49]:
+- updated DScaler CVS tags (after earlier diff/merge)
+- SAA7134_Open(): added arg TVCARD (req. for CX23881)
+dsdrv/saa7134_typ.c [rev:1.5, 2003-02-03T20:04:12]:
+- added new card: Typhoon TV+Radio (DScaler SAA7134Card_Types.cpp r1.23)
+- updated DScaler CVS tag (after earlier diff/merge 1.19-1.22)
+dsdrv/tvcard.h [rev:1.3, 2003-02-03T20:04:18]:
+- TVCARD.TVCARD_CTL.open(): added arg TVCARD (req. for CX23881)
+- TVCARD.TVCARD_PARAMS: added elems BusNumber, SlotNumber for CX23881
+dsdrv/bt8x8.c [rev:1.4, 2003-02-03T20:04:28]:
+- Bt8x8_SetCapture(): clear address for the DMA RISC code upon stop
+    to prevent another app from using it and doing DMA to random memory pages
+- Bt8x8_Open(): added arg TVCARD (req. for CX23881)
+dsdrv/saa7134_typ.c [rev:1.1.1.3, 2003-02-03T20:49:44]:
+- r1.23: Added Typhoon TV-Radio 90031
+epgctl/epgversion.h [rev:1.34, 2003-02-03T21:00:59]:
+- set version to 2.5.0pre7
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_5_0_pre7 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+epgui/menucmd.c [rev:1.98, 2003-02-03T21:07:29]:
+- Fix for WIN32 TV card config dialog
+- proc C_HwCfgGetInputList: added cardType argument: passed through to
+    BtDriver_GetInputName(): used by WIN32 driver only
+epgtcl/mainwin.tcl [rev:1.208, 2003-02-03T21:12:25]:
+- proc Toggle_PiBoxType: call UpdateRcFile to save $pibox_type
+epgtcl/dlg_hwcfg.tcl [rev:1.7, 2003-02-03T21:21:38]:
+- Various fixes in new WIN32 TV card configuration
+- split off new proc HardwareConfigLoad: also called when card config
+    sub-dialog is closed to updated card name and input list
+- disable card menu if there's only one card
+- HardwareConfigCard and HardwareCreateInputMenu: pass additional card_type
+    argument to proc C_HwCfgGetInputList
+- TvCardConfigAuto and TvCardConfigManual: update tuner name display
+epgvbi/btdrv.h [rev:1.30, 2003-02-03T21:22:45]:
+- BtDriver_GetInputName(): added arg cardType for WIN32 driver
+epgvbi/btdrv4dummy.c [rev:1.15, 2003-02-03T21:22:45]:
+- BtDriver_GetInputName(): added arg cardType for WIN32 driver
+epgvbi/btdrv4linux.c [rev:1.42, 2003-02-03T21:22:45]:
+- BtDriver_GetInputName(): added arg cardType for WIN32 driver
+epgvbi/btdrv4win.c [rev:1.37, 2003-02-03T21:23:17]:
+- BtDriver_GetCardInterface(): added BusNumber, SlotNumber to pTvCard->params
+- BtDriver_GetInputName(): added arg cardType, passed through to XXX_typ.c
+    in tmpCardIf.params.cardId
+epgui/pidescr.h [rev:1.2, 2003-02-04T19:53:02]:
+- removed declaration for PiDescription_PiListboxInsert()
+- function never was in this module: belongs into pioutput.c
+dsdrv/saa7134.c [rev:1.1.2.3, 2003-02-07T20:55:37]:
+- r1.70: removed dependency on BT848_Defines.h:
+         replaced TVCARD_UNKNOWN with SAA7134CARDID_UNKNOWN
+dsdrv/saa7134.c [rev:1.1.1.3, 2003-02-07T20:57:06]:
+- r1.34: changes to support primetv 7133
+dsdrv/saa7134_reg.h [rev:1.5, 2003-02-07T21:00:22]:
+- added PCI_DEVICE_ID_PHILIPS_SAA7133
+dsdrv/saa7134_reg.h [rev:1.1.1.2, 2003-02-07T21:02:18]:
+- r1.10: changes to support primetv 7133: added PCI_DEVICE_ID_PHILIPS_SAA7133
+tvsim/tvsim.pod [rev:1.6, 2003-02-08T14:28:01]:
+- Added newly supported chips to -card list.
+tvsim/tvsim_main.c [rev:1.17, 2003-02-08T14:28:16]:
+- Adapted for TV card config change in SetHardwareConfig():
+- imported SetHardwareConfig() from menucmd.c: replaced var hwcfg with tvcardcf
+    which is an array(cardidx) instead of a scalar
+- abort with err msg if configuration invalid or missing
+- Also:
+- TCL_EVAL_CONST: added uplevel #0, same as in debug.h
+- renamed proc LoadRcFile into Tvsim_LoadRcFile to avoid confusion
+tvsim/tvsim_version.h [rev:1.4, 2003-02-08T14:28:24]:
+- Set version to 1.11 due to change in TV cad config (in nxtvepg)
+tvsim/tvsim_gui.tcl [rev:1.7, 2003-02-08T14:28:42]:
+- adapted for TV card config change: replaced hwcfg with tvcardcf
+- renamed proc LoadRcFile into Tvsim_LoadRcFile to avoid confusion with
+    nxtvepg's proc of the same name
+dsdrv/wintuner.c [rev:1.10, 2003-02-08T14:29:58]:
+- removed obsolete #include files (bt8x8_i2c and saa7134_i2c)
+dsdrv/dsdrv34.c [rev:1.7, 2003-02-08T14:30:32]:
+- Added GetDriverErrorMsg(): moved here from btdrv4win.c
+dsdrv/dsdrvlib.h [rev:1.8, 2003-02-08T14:30:32]:
+- Added GetDriverErrorMsg(): moved here from btdrv4win.c
+dsdrv/hwdrv.c [rev:1.11, 2003-02-08T14:30:46]:
+- HwDrv_UnInstallNTDriver: first unload the driver [from DScaler rev. 1.16]
+- else installation of a new driver failed if an old version was still running
+- ERROR_SERVICE_MARKED_FOR_DELETE
+dsdrv/saa7134.c [rev:1.12, 2003-02-08T14:30:55]:
+- Fixed field status polling
+- before, the slicer status bits were polled, but those were unreliable, b/c
+    only set while the 16 lines were sliced (i.e. only for a tiny fraction of
+    the field duration)
+- now magics are writen into the video DMA buffer in new func ClearFieldMarker()
+- SAA7134_VbiThread() loop: use CheckFieldMarkers() for polling for new data
+epgvbi/btdrv.h [rev:1.31, 2003-02-08T14:34:21]:
+- WIN32 BtDriver_EnumCards(): added arg bool showDrvErr
+epgui/menucmd.c [rev:1.99, 2003-02-08T14:35:48]:
+- fix C_SetControlMenuStates: disable XMLTV same time as HTML
+- proc C_HwCfgGetTvCards: added arg show-drv-err=0/1,
+    passed through to BtDriver_EnumCards()
+- WIN32: added new func MenuCmd_CheckTvCardConfig(): for statswin.c
+    Check if the selected TV card is configured properly
+epgui/menucmd.h [rev:1.20, 2003-02-08T14:35:48]:
+- WIN32: added new func MenuCmd_CheckTvCardConfig(): for statswin.c
+    Check if the selected TV card is configured properly
+epgui/pioutput.c [rev:1.47, 2003-02-08T14:37:01]:
+- Bugfix PiListBox_ShowCursor():
+- replaced use of time(NULL) with new epgdbfil.h function (macro)
+    EpgDbFilterGetExpireTime(pPiFilterContext)
+- solves bug: more than one PI could be marked "now" under certain circumstances
+epgui/statswin.c [rev:1.63, 2003-02-08T14:37:01]:
+- WIN32: display warning if TV card not configured
+- StatsWin_UpdateDbStatsWin() and StatsWin_UpdateDbStatusLine():
+    use new function MenuCmd_CheckTvCardConfig()
+Makefile.win32 [rev:1.34, 2003-02-08T14:40:46]:
+- Fixed dependencies for tvsim and vbirec
+- replaced .c dependencies with TVSIM_TCLSRC/.h
+- added rule .tcl -> .h
+epgvbi/btdrv4win.c [rev:1.38, 2003-02-08T14:47:51]:
+- Bugixes in new TV card configuration:
+- bugfix crash BtDriver_SetInputSource(): must not call
+    cardif.cfg->IsInputATuner() unless drvLoaded
+- BtDriver_QueryCardParams(): added error messages upon failures;
+    cleaned up driver loading
+- BtDriver_EnumCards(): added arg bool showDrvErr: display driver errors
+- BtDriver_Load(): split off loadError, moved into dsdrv34.c
+epgvbi/btdrv4win.c [rev:1.39, 2003-02-08T14:51:18]:
+- Enabled support for Philips SAA7133 and SAA7130
+- cards are supported and already included in saa7134_typ.c
+dsdrv/saa7134_typ.c [rev:1.1.1.4, 2003-02-08T14:53:08]:
+- r1.24: changes to support primetv 7133: (fixed tuner type and audio crystal)
+epgui/pinetbox.c [rev:1.25, 2003-02-08T18:59:37]:
+- Fixed "jumping" when cursor was in empty column during refresh
+- split off cur_req_time/row handling from PiNetBox_ShowCursor() into new
+    function PiNetBox_UpdateCursorReq(): are is new enum CUR_UPD_HANDLING:
+    searches suitable PI in other columns if current is empty
+- bugfix PiNetBox_PickCurPi(): inverted term in boolean expression prevented
+    that any PI were selected from non-selected columns, ever.
+- Also: PiNetBox_InsertPi(): added weekday name to output in first row
+    (requested by Thierry)
+dsdrv/saa7134_typ.c [rev:1.6, 2003-02-09T16:22:42]:
+- from DScaler r1.24:
+- changes to support primetv 7133 (fixed tuner type and audio crystal)
+dsdrv/wintuner.c [rev:1.11, 2003-02-09T16:22:49]:
+- DScaler split off tuner enum from Bt848_Defines.h into new module TunerID
+    updated DScaler CVS tags
+- added new tuner TUNER_PHILIPS_FI1286_NTSC_M_J
+dsdrv/wintuner.h [rev:1.6, 2003-02-09T16:22:55]:
+- DScaler split off tuner enum from Bt848_Defines.h into new module TunerID
+    updated DScaler CVS tags
+- added new tuner TUNER_PHILIPS_FI1286_NTSC_M_J
+Makefile [rev:1.55, 2003-02-09T16:23:59]:
+- added -g to CFLAGS
+- added rule .tcl -> .h
+- added usage hints to module header (type "make" to compile etc.)
+Makefile.win32 [rev:1.35, 2003-02-09T16:24:02]:
+- added macro for windres; use different path for cross-compiling
+CHANGES.version [rev:1.14, 2003-02-09T16:24:14]:
+- added hint to check file permissions & if WIN32 fixes are merged from /d
+- added hint for TCL_VER
+epgui/pibox.c [rev:1.1, 2003-02-09T17:34:55]:
+- Initial revision
+epgui/pibox.h [rev:1.1, 2003-02-09T17:34:56]:
+- Initial revision
+epgui/pibox.c [rev:1.2, 2003-02-09T17:36:44]:
+- Implemented error message handling ("db empty" et.al.) in pinetbox.c
+- PiBox_ErrorMessage(): replaced debug message with call to new func
+    PiNetBox_ErrorMessage()
+epgui/pilistbox.c [rev:1.87, 2003-02-09T17:36:51]:
+- adapted for pinetbox error message handling
+    + durint init: clear possible error message overlay
+    + renamed proc PiListBox_PrintHelpHeader into PiBox_DisplayErrorMessage
+- bugfix PiListBox_HandleAcqEvent(): call UiControl_CheckDbState() upon
+    PI insertion when in error state; was in PiListBox_DbInserted(), but never
+    reached there
+epgui/pinetbox.h [rev:1.4, 2003-02-09T17:37:03]:
+- Implemented error message handling ("db empty" et.al.)
+- added declaration for new function PiNetBox_ErrorMessage()
+epgtcl/dlg_hwcfg.tcl [rev:1.8, 2003-02-09T18:34:29]:
+- WIN32 TV card configuration dialog fixes & improvements
+- added param showDrvErr to proc HardwareConfigLoad: passed through to btdrv4win
+    to display driver error messages; message is displayed in all cases except
+    the automatic PCI scan when the top-level TV card input dialog is opened
+- proc PopupTvCardConfig: start another PCI scan if none done yet;
+    check config params validity (e.g. tuner index beyond list length)
+- close .tvcard sub-dialog when .hwcfg dialog is closed
+- bugfix procs TvCardConfigAuto/Manual: check for empty list in result from
+    called C interfac proc; display warning if tuner was not identified
+epgtcl/mainwin.tcl [rev:1.209, 2003-02-09T19:21:45]:
+- Implemented error message handling ("db empty" et.al.) in pinetbox.c
+- renamed proc PiListBox_PrintHelpHeader into PiBox_DisplayErrorMessage
+- for pibox_type != use create "overlay" text widget .all.pi.list.net_err_text
+    which is packed above the netbox widgets; replaced
+- added special value {} to text param: destroy overlay text widget
+epgui/pinetbox.c [rev:1.26, 2003-02-09T19:36:57]:
+- Implemented error message handling ("db empty" et.al.)
+- changed boolean variable netbox_init into NETBOX_INIT_STATE netbox_init_state
+- added new func PiNetBox_ErrorMessage() called by pibox.c
+    uses Tcl proc PiBox_DisplayErrorMessage (former PiListBox_PrintHelpHeader)
+- PiNetBox_HandleAcqEvent(): added call to UiControl_CheckDbState()
+    if PI inserted and listbox is in error state
+- Also:
+- bugfix PiNetBox_SelectItem(): don't allow to plce the cursor into an
+    unused column when net_count < col_count
+epgctl/epgversion.h [rev:1.35, 2003-02-09T19:44:20]:
+- set version to 2.5.0pre8
+www/index-de.html [rev:1.51, 2003-02-09T22:10:06]:
+- Applied patch for FreeBSD from Simon Barner (Sun Feb 9 23:07:30 MET 2003)
+- currently only for index-de.html, english translation to follow
+- added FreeBSD to keyword list, download links, software requirements,
+    RPM links
+- prepended filename to all # HREFs to current document
+- appended </LI>
+- Also:
+- replaced Pro7 with Kabel1 in keywords
+- extended copyright to 2003
+www/index.html [rev:1.64, 2003-02-10T22:07:22]:
+- Applied patch for FreeBSD from Simon Barner (Mon Feb 10 01:22:55 2003)
+- added FreeBSD to keyword list, download links, software requirements,
+    RPM links
+- prepended filename to all # HREFs to current document
+- appended </LI>
+- changed "Booktree" to "Brooktree"
+- Also:
+- replaced Pro7 with Kabel1 in keywords
+- extended copyright to 2003
+dsdrv/saa7134_typ.c [rev:1.1.1.5, 2003-02-15T21:32:23]:
+- r1.25-1.27: added & updated Manli M-TV002
+dsdrv/saa7134_typ.c [rev:1.7, 2003-02-15T21:35:35]:
+- From DScaler CVS r1.25-1.27: added & updated Manli M-TV002
+epgui/pinetbox.c [rev:1.27, 2003-02-19T20:13:41]:
+- Bugfix PiNetBox_Resize():
+- must call PiNetBox_UpdateNetwopMap() et.al.
+- bug occured when adding support for dynamic addition/removal of columns
+dsdrv/bt8x8_reg.h [rev:1.1.1.1, 2003-02-22T10:39:04]:
+- Original DScaler Bt848_Defines.h Revision 1.19
+dsdrv/bt8x8_reg.h [rev:1.1.1.2, 2003-02-22T10:42:28]:
+- DScaler CVS import 1.22
+- moved tuner type enum into separate module
+- added new Bt8x8 card TVCARD_KWORLD_MPEGTV
+dsdrv/bt8x8_typ.c [rev:1.4, 2003-02-22T14:56:59]:
+- Added support for ACPI power-up upon card open:
+- added new interface function Bt8x8_SupportsAcpi():
+    return TRUE for Bt878 and Bt878A
+- Added support for MT2032 on Pinnacle cards
+- added new interface func GetIffType(): from
+- added interface func pointer to TVCARD.cfg struct
+dsdrv/cx2388x.c [rev:1.9, 2003-02-22T14:57:07]:
+- Added state "management": save/restore PCI register content
+- based on new funcs HwPci_InitStateBuf()/HwPci_RestoreState() in dsdrv lib
+- added new func Cx2388x_ManageMyState(): save/restore "interesting" registers
+dsdrv/cx2388x_typ.c [rev:1.4, 2003-02-22T14:57:23]:
+- Added support for ACPI power-up upon card open:
+- added dummy interface func SupportsAcpi(): always returns TRUE [Bt8x8 only]
+- Added support for MT2032 on Pinnacle cards
+- added dummy interface func GetIffType() [used only on Bt8x8 for now]
+dsdrv/saa7134.c [rev:1.13, 2003-02-22T14:57:29]:
+- Added state "management": save/restore PCI register content
+- based on new funcs HwPci_InitStateBuf()/HwPci_RestoreState() in dsdrv lib
+- added new func SAA7134_ManageMyState(): save/restore "interesting" registers
+dsdrv/saa7134_typ.c [rev:1.8, 2003-02-22T14:57:41]:
+- Added support for ACPI power-up upon card open:
+- added dummy interface func SupportsAcpi(): always returns TRUE [Bt8x8 only]
+- Added support for MT2032 on Pinnacle cards
+- added dummy interface func GetIffType() [used only on Bt8x8 for now]
+dsdrv/tvcard.h [rev:1.4, 2003-02-22T14:57:47]:
+- Added support for ACPI and MT2032 on Pinnacle cards
+- struct TVCard.cfg: added interface func GetIffType()
+- struct TVCard.cfg: added interface func SupportsAcpi()
+dsdrv/dsdrv34.c [rev:1.8, 2003-02-22T14:57:57]:
+- Added support for ACPI power-up upon card open:
+- pass boolean parameter supportsAcpi through to HwPci_OpenPCICard()
+- Added state "management": save/restore PCI register content
+- added new funcs HwPci_InitStateBuf()/HwPci_RestoreState()
+    maitain copy of register content in internal struct CARD_STATE_BUF
+- added ManageDword(), ManageWord(), ManageByte(): derived from DScaler
+    PCICard.cpp (however there a FILE is used for storage)
+dsdrv/dsdrvlib.h [rev:1.9, 2003-02-22T14:58:05]:
+- Added support for ACPI power-up upon card open:
+- pass boolean parameter supportsAcpi through to HwPci_OpenPCICard()
+- Added state "management": save/restore PCI register content
+- added decl for new funcs HwPci_InitStateBuf()/HwPci_RestoreState()
+- added decl for new ManageDword(), ManageWord(), ManageByte()
+dsdrv/hwpci.c [rev:1.7, 2003-02-22T14:58:13]:
+- Added support for ACPI power-up upon card open:
+- HwPci_OpenPCICard(): added boolean parameter supportsAcpi:
+    query ACPI Status and wake up the card if neccessary
+- HwPci_ClosePCICard(): automatically shut down card again
+    depending on m_InitialACPIStatus
+- added new internal funcs HwPci_GetACPIStatus(), HwPci_SetACPIStatus()
+    imported from DScaler CVS
+- Added state "management": save/restore PCI register content
+- note: this functionality was implemented one level up in dsdrv34.c
+dsdrv/hwpci.h [rev:1.5, 2003-02-22T14:58:19]:
+- Added support for ACPI power-up upon card open:
+- HwPci_OpenPCICard(): added boolean parameter supportsAcpi
+dsdrv/wintuner.c [rev:1.12, 2003-02-22T14:58:27]:
+- Added support for MT2032 on Pinnacle cards
+- added new funcs TDA9887Pinnacle_TunerSet(), TDA9887Pinnacle_Init()
+- Tuner_Init(): check for Pinnacle cards with new TVCARD.cfg function
+    GetIffType -> set haveTda9887Pinnacle and isTda9887PinnacleMono
+- changed semantics of tuner type TUNER_MT2032: use default norm SECAM
+    instead of NTSC; adapted tuner name accordingly
+- MT2032_Initialize() and MT2032_SetIFFreq(): call different TDA9887 handlers
+    for standard and Pinnacle cards
+- Also: removed obsolete func Tuner_MatchByParams()
+dsdrv/wintuner.h [rev:1.7, 2003-02-22T14:58:33]:
+- Tuner_Init(): removed const from TVCARD pointer
+- removed obsolete func Tuner_MatchByParams() [TV app INI import was removed]
+epgvbi/btdrv4win.c [rev:1.40, 2003-02-22T14:58:51]:
+- Added support for ACPI power-up upon card open:
+- BtDriver_OpenCard(): use new func cardif.cfg->SupportsAcpi() to query for
+    ACPI and pass result to pciGetHardwareResources()
+tvsim/tvsim.pod [rev:1.7, 2003-02-22T19:09:21]:
+dsdrv/bt8x8.c [rev:1.5, 2003-02-22T19:11:59]:
+dsdrv/bt8x8_reg.h [rev:1.14, 2003-02-22T19:11:59]:
+dsdrv/bt8x8_typ.c [rev:1.5, 2003-02-22T19:11:59]:
+dsdrv/bt8x8_typ.h [rev:1.3, 2003-02-22T19:11:59]:
+epgvbi/btdrv4win.c [rev:1.41, 2003-02-22T19:29:16]:
+- Corrected "Booktree" into "Brooktree"
+epgvbi/btdrv.h [rev:1.32, 2003-02-22T19:29:32]:
+- corrected "Booktree" into "Brooktree"
+- added module header description
+nxtvepg.pod [rev:1.87, 2003-02-22T20:57:52]:
+- Updated GETTING STARTED and CONFIGURATION: EPG scan and TV card inupt
+- chapters for the new Win32 TV card configuration dialog (including
+- card type and tuner auto-detection and SAA7134 support)
+README [rev:1.32, 2003-02-22T20:58:22]:
+- Corrected "Booktree" into "Brooktree"
+epgctl/epgversion.h [rev:1.36, 2003-02-23T20:19:08]:
+- set version to 2.5.0pre10
+epgui/pdc_themes.c [rev:1.11, 2003-02-24T22:05:09]:
+- Corrected French translation for "Winter sports"
+- from "Sports hivernales" into "Sports d'hiver"
+- provided by Thierry 2003-02-24
+epgtcl/mainwin.tcl [rev:1.210, 2003-02-26T20:34:06]:
+- New implementation of xawtv EPG display in POP_VTX and POP_VTX2 modes
+- extended proc Create_XawtvPopup to support 1- and 2-line overlay modes
+- added new app-defaults config vars xawtv_overlay_bg & xawtv_overlay_fg
+- proc LoadWidgetOptions: app-defaults file is now loaded by UNIX clients too
+    (before only ./Nxtvepg.ad on Win32) because users did not understand they
+    had to copy settings to ~/.Xdefaults
+epgui/xawtv.c [rev:1.30, 2003-02-26T20:35:01]:
+- New implementation of xawtv EPG display in POP_VTX and POP_VTX2 modes
+- replaced use of xawtv "vtx" handler with nxtvepg generated overlay popup
+    POP_VTX and POP_VTX2; appearence remains unchanged (because the vtx handler
+    was removed from xawtv aruond 3.74 when libzvbi was added; replacing vtx
+    with a nxtvepg popup was suggested by Gerd Knorr 2002-12-09)
+- additional "mode" parameter is passed to Tcl proc Create_XawtvPopup
+    which before was used only for POP_EXT
+Nxtvepg.ad [rev:1.2, 2003-02-26T20:35:12]:
+- New implementation of xawtv EPG display in POP_VTX and POP_VTX2 modes
+- added new config vars xawtv_overlay_bg & xawtv_overlay_fg (black & white)
+Makefile [rev:1.56, 2003-02-26T20:35:59]:
+- New implementation of xawtv EPG display in POP_VTX and POP_VTX2 modes
+- added CC define -DX11_APP_DEFAULTS: app-defaults file is now loaded
+    by UNIX clients too (before only ./Nxtvepg.ad on Win32) because users
+    did not understand they had to copy settings to ~/.Xdefaults
+epgui/epgmain.c [rev:1.113, 2003-02-26T20:40:28]:
+- ui_init(): UNIX only: added assignment of new #define -DX11_APP_DEFAULTS to
+    global Tcl var x11_appdef_path: app-defaults file is now loaded by UNIX
+    clients too (before only ./Nxtvepg.ad on Win32) because users
+    did not understand they had to copy settings to ~/.Xdefaults
+epgui/uictrl.c [rev:1.37, 2003-02-26T21:21:10]:
+- added #include <time.h> for newly used time_t in epgdbif.h
+- removed obsolete #include "pioutput.h"
+epgui/dumpraw.h [rev:1.11, 2003-02-26T21:53:49]:
+- Split off all export functions into separate dump*.c modules
+- renamed module from epgtxtdump.c into dumpraw.c
+- removed declaration of Tcl interface procs: now installed internally
+    added new funcs EpgDumpRaw_Init() to install the procs
+- renamed EpgTxtDump_Block(), EpgTxtDump_UnknownBlock() into
+    EpgDumpRaw_IncomingBlock(), EpgDumpRaw_IncomingUnknown()
+epgui/dumptext.c [rev:1.7, 2003-02-26T21:53:56]:
+- Split off all export functions into separate dump*.c modules
+- renamed module from epgtabdump.c into dumptext.c
+    -> globally replaced function prefixes into EpgDumpRaw_...
+- added Tcl interface function EpgDumpText_Database(): moved here from menucmd.c
+    added new funcs EpgDumpRaw_Init() to install the proc
+epgui/dumptext.h [rev:1.3, 2003-02-26T21:54:01]:
+- Split off all export functions into separate dump*.c modules
+- renamed module from epgtabdump.c into dumptext.c
+    -> globally replaced function prefixes into EpgDumpRaw_...
+- added new funcs EpgDumpRaw_Init() to install the Tcl callback proc
+epgui/epgmain.c [rev:1.114, 2003-02-26T21:54:13]:
+- Split off all export functions into separate dump*.c modules
+- call init funcs of all new modules
+- changed prefixes of some funcs into EpgDumpXXX_
+epgui/menucmd.c [rev:1.100, 2003-02-26T21:54:58]:
+- Split off all export functions into separate dump*.c modules
+- moved MenuCmd_ToggleDumpStream() and MenuCmd_DumpRawDatabase()
+    into dumpraw.c (renamed from epgtxtdump.c)
+- moved MenuCmd_DumpTabsDatabase() into dumptext.c (former epgtabdump.c)
+epgui/pidescr.c [rev:1.3, 2003-02-26T21:55:32]:
+- Added func PiDescription_DictifyTitle(): moved here from pioutput.c
+- adapted function prefix
+epgui/pidescr.h [rev:1.3, 2003-02-26T21:55:32]:
+- Added func PiDescription_DictifyTitle(): moved here from pioutput.c
+- adapted function prefix
+epgui/pifilter.c [rev:1.77, 2003-02-26T21:55:39]:
+- Changed function names in calls:
+- functions were moved because pioutput.c was split
+- renamed PiOutput_DictifyTitle() into PiDescription_...
+    renamed PiOutput_CtxMenuAddUserDef() into ShellCmd_...
+epgui/pioutput.c [rev:1.48, 2003-02-26T21:55:49]:
+- Split off all export functions into separate dump*.c modules
+- pioutput.c keeps only pilistbox.c element output functions
+    made some of the functions and types global to allow access from dumphtml.c
+- moved PiOutput_DictifyTitle() into pidescr.c
+- moved PiOutput_GetVpsTimestamp() into epgdbif.c
+- split off HTML & XML export into new modules dumphtml.c & dumpxml.c
+- split off PiOutput_PopupPi() into dumpraw.c (renamed from epgtxtdump.c)
+- split off user-defined context menu entries handling into new shellcmd.c
+epgui/pioutput.h [rev:1.14, 2003-02-26T21:55:57]:
+- Split off all export functions into separate dump*.c modules
+- pioutput.c keeps only pilistbox.c element output functions
+    made some of the functions and types global to allow access from dumphtml.c
+- moved PiOutput_DumpDatabaseXml() into new module dumpxml.c
+    moved PiOutput_CtxMenuAddUserDef() into new module shellcmd.c
+    moved PiOutput_DictifyTitle() into pidescr.c
+epgtcl/dlg_xawtvcf.tcl [rev:1.5, 2003-02-26T21:59:20]:
+- New implementation of xawtv EPG display in POP_VTX and POP_VTX2 modes
+- [replaced use of xawtv "vtx" handler with nxtvepg generated overlay popup
+    POP_VTX and POP_VTX2; appearence remains unchanged]
+- removed obsolete "(subtitles)" from overlay option
+epgui/dumphtml.c [rev:1.1, 2003-02-26T21:59:29]:
+epgui/dumphtml.h [rev:1.1, 2003-02-26T21:59:31]:
+- Initial revision
+epgui/dumpxml.c [rev:1.1, 2003-02-26T21:59:34]:
+epgui/dumpxml.h [rev:1.1, 2003-02-26T21:59:35]:
+- Initial revision
+epgui/shellcmd.c [rev:1.1, 2003-02-26T22:00:03]:
+epgui/shellcmd.h [rev:1.1, 2003-02-26T22:00:04]:
+- Initial revision
+epgtcl/mainwin.tcl [rev:1.211, 2003-02-26T22:17:59]:
+- proc CreateMainWindow: split off pinetbox column creation into
+    new proc CreateListBoxCol: used for dynamic col count changes
+- added new proc NetboxColumnHeaderMenu: create drop-down menu for pinetbox
+    added new proc NetboxColumnRecount: increase/decrease pinetbox_colcount
+    added new procs NetboxColumnJoin/..Dejoin: join pinetbox columns
+- proc ColumnHeaderMotion et.al.: added preliminary support for pinetbox resize
+    XXX works very bad (jerky) esp. for columns > 1
+epgtcl/rcfile.tcl [rev:1.10, 2003-02-26T22:18:04]:
+- Implemented network column joining for PI netbox
+- added new config var cfnetjoin
+epgui/pinetbox.c [rev:1.28, 2003-02-26T22:18:20]:
+- Implemented network column joining for PI netbox
+- moved "netwop" element from struct NETBOX_COL into NETBOX_ELEM
+- removed netbox.net_sel2ai: AI <-> sel mapping is no longer 1:1
+- globally replaced pCol->netwop with pElem->netwop
+- UpdateNetwopNames(): can include multiple network names in header
+- AlignNowItems(): skip alignment if one column has more than 1 NOW elem
+- refresh funcs:
+- added Tcl callback proc "C_PiNetBox_GetCniList" for configuration
+- UpdateNetwopMap(): added handling of new Tcl config var "cfnetjoin"
+    based on new helper func BuildJoinMap()
+- Also: Refresh(): check if cursor column has become invalid
+Makefile [rev:1.57, 2003-02-26T22:38:12]:
+- Split off all export functions from pioutput.c into separate dump*.c modules
+- split off HTML & XML export into new modules dumphtml.c & dumpxml.c
+- split off user-defined context menu entries handling into new shellcmd.c
+- renamed epgtxtdump.c into dumpraw.c, epgtabdump.c into dumptext.c
+Makefile.win32 [rev:1.36, 2003-02-26T22:38:12]:
+- Split off all export functions from pioutput.c into separate dump*.c modules
+- split off HTML & XML export into new modules dumphtml.c & dumpxml.c
+- split off user-defined context menu entries handling into new shellcmd.c
+- renamed epgtxtdump.c into dumpraw.c, epgtabdump.c into dumptext.c
+nxtvepg.pod [rev:1.88, 2003-02-26T22:43:18]:
+- New implementation of xawtv EPG display in POP_VTX and POP_VTX2 modes
+- [replaced use of xawtv "vtx" handler with nxtvepg generated overlay popup
+    POP_VTX and POP_VTX2; appearence remains unchanged]
+- adapted "TV app. interaction" description
+- added example how to dynamically change X11 app-defaults with xrdb -merge
+- Also: removed "M6" from French provider list (pointed out by Thierry)
+epgdb/epgdbif.c [rev:1.45, 2003-02-27T18:43:07]:
+- Added new function EpgDbGetVpsTimestamp()
+- Decode VPS/PDC timestamp from Nextview EPG format into standard struct
+- moved here from epgui/pioutput.c
+epgdb/epgdbif.h [rev:1.29, 2003-02-27T18:43:07]:
+- Added new function EpgDbGetVpsTimestamp()
+- Decode VPS/PDC timestamp from Nextview EPG format into standard struct
+- moved here from epgui/pioutput.c
+epgdb/epgstream.c [rev:1.26, 2003-02-27T18:43:22]:
+- Split off all export functions into separate dump*.c modules
+- renamed epgtxtdump.c into dumpraw.c -> adapted function names
+epgctl/debug.h [rev:1.17, 2003-02-27T18:44:21]:
+- Replaced #ifdef _TK with _TCL: some modules only use Tcl, but not Tk
+epgui/dumpraw.c [rev:1.27, 2003-02-27T18:58:18]:
+- Split off all export functions into separate dump*.c modules
+- renamed module from epgtxtdump.c into dumpraw.c
+    -> globally replaced function prefixes into EpgDumpRaw_...
+- added Tcl interface functions: moved here from menucmd.c
+    added new funcs EpgDumpRaw_Init() to install the procs
+- replaced helper func DecodePil() with new epgdbif.c::EpgDbGetVpsTimestamp()
+- moved PiOutput_PopupPi() here from pioutput.c
+epgui/epgmain.c [rev:1.115, 2003-02-27T19:33:40]:
+- main() daemon mode: added EpgAcqCtl_GetLastError() output if acq start fails
+epgvbi/btdrv4linux.c [rev:1.43, 2003-02-27T19:45:29]:
+- Added compatibility with devfs where v4l devices are below /dev/v4l/
+- added new function BtDriver_GetDevicePath(), new enum type BTDRV_DEV_TYPE
+- globally replaced sprintf(devName, VIDEONAME "%u", i) with new function
+- Also: BtDriver_GetLastError(): improved VBI device access error messages
+nxtvepg.pod [rev:1.89, 2003-02-27T20:17:55]:
+- FILES UNIX: added note that /dev/vbi #s must be same as video #s
+    and example how to use bttv insmod params to do this
+- FILES UNIX: added item /dev/v4l/vbi0: used with devfs
+- added lots of hyperlinks to FILES section
+nxtvepg.spec [rev:1.12, 2003-02-27T20:40:59]:
+- Improved by copying from xawtv-3.85
+- added app-defaults/Nxtvepg
+- set permissions for /usr/tmp/nxtvdb to 777
+- set "Release" to 0 instead of 1 (it's probably a build index for distribs)
+- change keyword Copyright into License
+epgtcl/mainwin.tcl [rev:1.212, 2003-03-02T10:26:43]:
+- PopupHelp: added "chapters" menu to the help popup
+- NetboxColumnHeaderMenu: moved control functions into sub-menu;
+    added time & date sub-menus
+- fixed ColumnHeaderMotion: cursor stayed in "right border" shape after moving
+    the pointer out of the header box through the right border
+    -> added new proc ColumnHeaderLeave, bound to <Leave> event
+- fixed ColumnHeaderMotion for PI netbox: resize only one column during motion;
+    other columns are resized upon button release event -> avoid jittering
+epgui/pidescr.c [rev:1.4, 2003-03-02T10:32:41]:
+- Bugfix PiDescription_SearchLongInfo:
+- func result type was bool instead of uint
+- symptom: short-info was sometimes truncated
+epgui/pidescr.h [rev:1.4, 2003-03-02T10:33:15]:
+- indentation fix
+epgctl/epgversion.h [rev:1.37, 2003-03-02T20:55:32]:
+- set version to 2.5.0pre12
+nxtvepg.pod [rev:1.90, 2003-03-03T18:56:20]:
+- added more hyperlinks to the OPTIONS chapter
+- renamed "Context menu" section in Configuration chapter into
+    "Context menu extensions" because there were two headers with the same name
+    which produced broken HTML hyperlinks (bug was reported by Thierry)
+epgtcl/dlg_prov.tcl [rev:1.8, 2003-03-03T20:05:51]:
+- dlg_prov.tcl
+- Bugfix PopupProviderMergeOpt:
+- wrong toplevel window path was given to CreateTransientPopup
+epgtcl/rcfile.tcl [rev:1.11, 2003-03-04T21:29:52]:
+- Implemented user-configurable PI netbox elements
+- added I/O of config list pinetbox_rows
+- added I/O of array pinetbox_rows_nonl: stored in list pinetbox_rows_nonl_l
+epgtcl/mainwin.tcl [rev:1.213, 2003-03-04T21:30:16]:
+- Implemented user-configurable PI netbox elements
+- proc CreateMainWindow: split off pi listbox text tag definitions into new
+    proc AssignPiTextTags, now also used for pinetbox column widgets
+- use PopupColumnSelection for link from pinetbox column header config button,
+    i.e. now pilistbox and pinetbox are identical
+- define config var pinetbox_rows together with pilistbox_cols
+- PopupColumnSelection: extended to allow working on pinetbox_rows
+    if pibox_type == 1; added "join row" checkbutton
+- added new proc UpdatePiListboxColumParams as wrapper to C_PiOutput_CfgColumns
+    additionally calls C_PiNetBox_Invalidate for pibox_type == 1
+epgtcl/dlg_netsel.tcl [rev:1.7, 2003-03-04T21:30:26]:
+- proc SelBoxCreate improved:
+- reduced padding between command buttons from 10 to 5 px
+- replaced "after idle [list SelBoxButtonPress $lbox none]" with
+    generated <<ListboxSelect>> events (used in init, add and remove)
+    -> this allows these events to be caught by the upper layer
+epgtcl/dlg_shortcuts.tcl [rev:1.8, 2003-03-04T21:30:34]:
+- Implemented user-configurable PI netbox elements
+- replaced calls to proc C_PiOutput_CfgColumns with wrapper
+    UpdatePiListboxColumParams: differes betwwen pibox_type internally
+epgtcl/dlg_udefcols.tcl [rev:1.9, 2003-03-04T21:30:41]:
+- Implemented user-configurable PI netbox elements
+- added handling for pinetbox_rows in parallel to pilistbox_cols (and
+    dumphtml_colsel) depending on pibox_type
+- replaced calls to proc C_PiOutput_CfgColumns with wrapper
+    UpdatePiListboxColumParams: differes betwwen pibox_type internally
+epgui/pilistbox.c [rev:1.88, 2003-03-04T21:30:58]:
+- Implemented user-configurable PI netbox elements
+- PiListBox_Create: added call to Tcl proc UpdatePiListboxColumns
+    moved here from PiOutput_Init() because it has to be repeated after
+    box type changes
+epgui/pinetbox.c [rev:1.29, 2003-03-04T21:31:24]:
+- Implemented user-configurable PI netbox elements
+- PiNetBox_InsertPi(): moved content into pioutput.c::PiOutput_PiNetBoxInsert()
+- added new func PiNetBox_Invalidate(): forces a subsequent refresh to
+    redraw all elements
+- PiNetBox_GetCniList(): added check for netbox_init_state;
+    changed Tcl proc name from PiBox_GetCniList() into PiNetBox_...
+- PiNetBox_Create(): added call to Tcl proc UpdatePiListboxColumns:
+    moved here from PiOutput_Init() because it has to be repeated after
+    box type changes
+epgui/pioutput.c [rev:1.49, 2003-03-04T21:31:34]:
+- Implemented user-configurable PI netbox elements
+- added new interface func PiOutput_PiNetBoxInsert():
+    derived from equiv. listbox func PiOutput_PiListboxInsert()
+- added TCLOBJ_WID_NET to pre-defined Tcl objects
+- added new element skipNewline to struct PIBOX_COL_CFG
+- PiOutput_CfgColumnsCache() and PiOutput_CfgPiColumns(): added handling for
+    config vars pibox_type, pinetbox_rows and pinetbox_rows_nonl
+- PiOutput_Init(): moved call to Tcl proc UpdatePiListboxColumns into pi##box.c
+    because it has to be repeated after box type changes
+epgui/pioutput.h [rev:1.15, 2003-03-04T21:31:40]:
+- Implemented user-configurable PI netbox elements
+- added declaration for new function PiOutput_PiNetBoxInsert()
+- added new element skipNewline to struct PIBOX_COL_CFG
+dsdrv/saa7134.c [rev:1.1.1.4, 2003-03-09T11:12:48]:
+- r1.35: Fixed broken manage state lines
+tvsim/vbiplay.c [rev:1.7, 2003-03-09T19:27:50]:
+- in call to WinSharedMemClient_Init(): replace TV card index param value
+    #0 with TVAPP_CARD_REQ_ALL so that nxtvepg catches the output regardless
+    of it's card setting
+- added more debug output
+dsdrv/bt8x8_i2c.c [rev:1.6, 2003-03-09T19:28:10]:
+- Bt8x8I2c_Read(): fixed declaration of "idx": from uint to (signed) size_t
+- Read and Write: added check for NULL pointer params
+dsdrv/bt8x8_typ.c [rev:1.6, 2003-03-09T19:28:26]:
+- Added new interface func IsInputSVideo() [used by CX23881]
+dsdrv/saa7134_typ.c [rev:1.9, 2003-03-09T19:28:30]:
+- Added new interface func IsInputSVideo() [used by CX23881]
+dsdrv/cx2388x.c [rev:1.10, 2003-03-09T19:28:49]:
+- First working version
+- fix VBI_PACKET_SIZE: from 511 to apx. 1500/4
+    else data from two physical lines were packed into one 2044 bytes line buffer
+- fix Cx2388x_GetRiscPos(): use CX2388X_VBI_GP_CNT instead of VIDY counter
+- Cx2388x_SetGeoSize(): replaced with "720 pixels" code branch from DScaler
+- increased CX2388X_VERT_DELAY_EVEN from 0x24 to 0x44
+    fixed more settings according to DScaler register dump
+- Cx2388x_ResetHardware(): removed audio setup, also from CX23881's SRAM
+    -> use freed space to enlarge VBI FIFO buffers (in cx23881_reg.h)
+- removed ENABLE_CAPTURING_VIA_PLL_CONFIG debug feature
+dsdrv/cx2388x_reg.h [rev:1.5, 2003-03-09T19:28:59]:
+- added define CX2388X_VBI_GP_CNT
+- removed audio SRAM setup
+    -> use freed space to enlarge VBI FIFO buffers from 5 to 8
+- increased SRAM_INSTRUCTION_QUEUE_SIZE from 0xC0 to 0x100
+dsdrv/cx2388x_typ.c [rev:1.5, 2003-03-09T19:29:07]:
+- added new card CX2388xCARD_HAUPPAUGE_PCI_FM
+- changed label of card #0 from "Unknown" into "*Unknown*"
+- AutoDetectTuner: added Hauppauge tuner detection
+    copied array m_Tuners_hauppauge[] from bt8x8_typ.c
+- added new interface func IsInputSVideo()
+dsdrv/saa7134.c [rev:1.14, 2003-03-09T19:29:37]:
+- Updated DScaler SAA7134Card.cpp CVS id
+dsdrv/wintuner.c [rev:1.13, 2003-03-09T19:29:44]:
+- moved content of I2CBus_Read() and I2CBus_Probe() into calling functions
+    + this should fix MT2032_GetRegister()
+    + only Write function remains (to keep debug output)
+- Init() and SetFrequency(): added check for NULL pointers
+epgdb/epgblock.c [rev:1.49, 2003-03-09T19:29:53]:
+- Bugfix ApplyEscapes():
+- diacritical mark handling was broken: used character from "under" the escape,
+    i.e. from the regular text string, but should have used the character
+    supplied with the escape data payload
+- symptom was in France: text "D'CONSEILL'" instead of "DÉCONSEILLÉ"
+    because provider "M6" sends space chars at the position of the esc codes
+epgui/pidescr.c [rev:1.5, 2003-03-09T19:30:03]:
+- PiDescription_UpdateText():
+- always include weekday in output (before only if start > 12h from now)
+- was requested by Thierry
+epgtcl/dlg_hwcfg.tcl [rev:1.9, 2003-03-09T19:30:16]:
+- Sorted and splitted tuner type menu in WIN32 TV card dialog
+- save tuner names from proc C_HwCfgGetTunerList in array tvcard_tuner_names
+- split off tuner type menu creation into new proc CreateTunerMenu
+    + use sub-menus for different vendors (Philips, Temic etc.)
+    + new helper proc SortTunerNames
+- removed duplicate check for parameter validity
+dsdrv/tvcard.h [rev:1.5, 2003-03-09T19:31:22]:
+- struct TVCARD_CFG: added new interface func IsInputSVideo() [used by CX23881]
+epgctl/epgversion.h [rev:1.38, 2003-03-09T20:37:11]:
+- set version to 2.5.0pre13
+dsdrv/cx2388x_typ.c [rev:1.6, 2003-03-11T12:32:47]:
+- Fixed assert conditions in dummy functions
+dsdrv/saa7134_typ.c [rev:1.10, 2003-03-11T12:32:47]:
+- Fixed assert conditions in dummy functions
+dsdrv/bt8x8_typ.c [rev:1.7, 2003-03-11T12:32:54]:
+- Bugfix last check-in:
+- added new interface func IsInputSVideo() to interface struct
+- was forgotten in pre-release 2.5.0pre15
+epgctl/epgversion.h [rev:1.39, 2003-03-11T12:47:21]:
+- set version to 2.5.0pre14
+epgvbi/cni_tables.c [rev:1.19, 2003-03-13T09:26:23]:
+- removed French channel "M6" from list of known providers
+    was reported to haved ceased Nextview EPG transmission after 2002-12-31
+epgvbi/cni_tables.c [rev:1.20, 2003-03-13T13:11:51]:
+- updated according to EBU TR 231 v12a/2002 (tech_info_tr231_12a_02.pdf)
+- bugfix: some Italian channels had duplicates in Ireland section
+- changed 3sat NI from ETSI value 0x49C7 to current broadcast value 0xD107
+epgctl/epgscan.c [rev:1.33, 2003-03-13T13:13:00]:
+- Bugfix state WAIT_NI_OR_EPG:
+- state wasn't changed to WAIT_EPG after NI arrived
+epgctl/epgacqclnt.c [rev:1.10, 2003-03-14T12:33:58]:
+- Split off all export functions into separate dump*.c modules
+- renamed epgtxtdump.c into dumpraw.c -> adapted function names
+nxtvepg.pod [rev:1.91, 2003-03-14T13:03:30]:
+- Updated description of "column" config for new network column layout
+- renamed "Select columns" menu into "Select attributes"
+- renamed "user-defined columns" into "Compound attributes"
+- moved general description from config section into a separate chapter
+- Added description of "List layout" configuration option
+epgui/pinetbox.c [rev:1.30, 2003-03-14T13:28:55]:
+- Implemented pseudo-cursor for empty columns
+- added new column type enum: NETBOX_CURTYPE
+- PiNetBox_ShowCursor(): if column empty search nearest PI around cursor pos.
+    with new helper func PiNetBox_SearchPrevNext() -> display prev/next
+- PiNetBox_WithdrawCursor(): undo all different cursor types
+- Other fixes:
+- PiNetBox_ScrollIfPartial(), IsPartialElemAtTop(), IsPartialElemAtBottom():
+    + search for first partial or invisble element
+    + before the cursor could "jump over" a partially visible onto an invisible
+    + PiNetBox_FillUpwards(): param TRUE replaced by FALSE since we know the
+      exact number of lines that must be scrolled to make the elem visible
+- PiNetBox_ScrollMoveto(): added special handling of partially visible elems
+    for (newPiOff == 0) && (netbox.pi_off == 0)
+- PiNetBox_ScrollVertical(): use CUR_REQ_DOWN/UP instead of GOTO
+- PiNetBox_GotoPi(): improved handling of scrolling to the right
+images/hatch.xbm [rev:1.1, 2003-03-14T14:05:46]:
+- Initial revision
+epgtcl/dlg_netsel.tcl [rev:1.8, 2003-03-14T14:57:24]:
+- Adapted proc SelBoxCreate button packing:
+- use anchor "c" instead of "nw" to allow wider buttons in the same row
+epgtcl/dlg_udefcols.tcl [rev:1.10, 2003-03-14T15:06:40]:
+- "Usability" adaptions for use in new netbox layout:
+- removed mention of "column" from title and labels
+    + renamed the dialog into "Attribute composition & display format"
+    + renamed help link into "Attribute composition"
+- always offer to append newly defined element to listbox, not only new ones
+- added new proc PreloadUserDefinedColumns: called during start-up if usercols
+    array is empty to create an example
+epgtcl/mainwin.tcl [rev:1.214, 2003-03-14T15:06:51]:
+- proc AssignPiTextTags: added tags cur_pseudo, cur_pseudo_overlay
+- renamed config menus "Select columns...", "User-defined columns..." for use
+    in netbox layout into "Select attributes...", ""Attribute composition..."
+- added new "List layout" config menu entry;
+    added show/hide checkbutton to hide layout switch button
+- improved default settings:
+    + added "weekday" to default pinetbox_rows & pinetbox_rows_nonl(weekday)
+    + proc ApplyRcSettingsToMenu: call new proc PreloadUserDefinedColumns
+- PopupColumnSelection:
+    + renamed "join row" button into "No new line after element"
+    + added hint and link to PopupUserDefinedColumns
+    + made dialog resizable
+epgui/epgmain.c [rev:1.116, 2003-03-14T15:06:56]:
+- Implemented pseudo-cursor for empty columns
+- added loading of bitmap hatch.xbm
+epgdb/epgdbfil.c [rev:1.40, 2003-03-14T18:53:11]:
+- Added possibility for multiple text search filters in filter context
+- moved substring search params into dynamically allocated struct:
+    new type EPGDB_FILT_SUBSTR, used to build a simple linked list
+- merged filter types FILTER_SUBSTR_TITLE and FILTER_SUBSTR_DESCR;
+    replaced by boolean search options scopeTitle, scopeDesc
+- added new EpgDbFilterDestroySubstrContext(): free linked list,
+    called in DestroyContext() and EpgDbFilterDisable(FILTER_SUBSTR)
+- EpgDbFilterCopyContext(): copy linked substr param list
+- EpgDbFilterMatches(): implement OR across all links substr searches
+epgdb/epgdbfil.h [rev:1.26, 2003-03-14T18:53:53]:
+- Added possibility for multiple text search filters in filter context
+- moved substring search params into dynamically allocated struct:
+    new type EPGDB_FILT_SUBSTR, used to build a simple linked list
+- merged filter types FILTER_SUBSTR_TITLE and FILTER_SUBSTR_DESCR;
+    replaced by boolean search options scopeTitle, scopeDesc
+    added to EpgDbFilterSetSubStr()
+epgui/pifilter.c [rev:1.78, 2003-03-14T18:54:00]:
+- Added possibility for multiple text search filters in filter context
+- merged filter types FILTER_SUBSTR_TITLE and FILTER_SUBSTR_DESCR
+- SelectSubStr(): pass scope_title, scope_descr as params
+- CreateContextMenu(): Adapted "undo": print substr text only if just one
+    substr filter is active
+epgui/pifilter.c [rev:1.79, 2003-03-14T19:59:19]:
+- CreateContextMenu: added "undo global invert" option
+epgtcl/mainwin.tcl [rev:1.215, 2003-03-14T19:59:58]:
+- Added new proc ResetGlobalInvert
+epgdb/epgdbfil.c [rev:1.41, 2003-03-14T20:01:14]:
+- Fixed global inversion in EpgDbFilterMatches()
+- use variable to temporarily keep track of failed matches, because matches
+    cannot be aborted with "goto failed" until all possible "failed_pre"
+    matches are through
+- before, even expired PI could appear
+- FILTER_EDIT_RAT: goto failed_pre if no editorial rating given for PI,
+    to make handling equivalent with parental rating
+nxtvepg.pod [rev:1.92, 2003-03-15T13:46:21]:
+- added description of config option "Show layout button"
+- added link to "air times" restriction from "List layout" switch
+epgtcl/rcfile.tcl [rev:1.12, 2003-03-15T18:17:46]:
+- LoadRcFile: added flag "isDaemon":
+    + skip UI config variable post-processing in daemon mode
+    + UpdateRcFile: invoke separate proc for daemon
+- UpdateRcFile: use temporary file for new data -> moved on top of old one
+    to lower the risk of trashing the rc file if there's an error
+- added new proc UpdateDaemonRcFile: merge changed settings into rc file
+- added new config variable showLayoutButton in load and store
+epgui/epgmain.c [rev:1.117, 2003-03-15T18:21:44]:
+- Pass additional argument "isDaemon" to Tcl proc LoadRcFile
+- to skip UI config variable post-processing in daemon mode and
+    to invoke new proc UpdateDaemonRcFile instead of regular one
+dsdrv/cx2388x_typ.c [rev:1.1.1.2, 2003-03-16T18:25:09]:
+- r1.10: Added support for Hauppauge WinTV PCI-FM : patch from Tom Zoerner
+- r1.8+9: Fixes for PlayHD
+dsdrv/cx2388x_reg.h [rev:1.1.1.2, 2003-03-16T18:25:17]:
+- CVS import r1.11: added card type CX2388xCARD_HAUPPAUGE_PCI_FM
+dsdrv/cx2388x_typ.c [rev:1.7, 2003-03-16T18:26:31]:
+- Update with DScaler CVS CX2388xCard_Types.cpp,v 1.10
+- [already in main branch] Added support for Hauppauge WinTV PCI-FM
+- Fixes for PlayHD
+epgui/pifilter.c [rev:1.80, 2003-03-16T21:33:05]:
+- Bugfix SelectNi: must not enable all FILTER_PERM filters
+- because not all perms are used all the time (e.g. FILTER_NETWOP_PRE2)
+- also not needed because perm filters are not reset in EpgDbFilterInitNi()
+epgui/epgmain.c [rev:1.118, 2003-03-16T21:40:53]:
+- Improved error msg display during start-up
+- ui_init(): set font for tk_messageBox (overridden later)
+- withdraw main window for UNIX too
+epgui/pinetbox.c [rev:1.31, 2003-03-16T21:44:49]:
+- Fix: call PiNetBox_WithdrawCursor before clearing the listbox's data
+- i.e. before calling PiNetBox_ClearRows() and PiNetBox_UpdateNetwopMap()
+epgtcl/shortcuts.tcl [rev:1.10, 2003-03-16T22:27:52]:
+- Added control for multiple substr searches in GUI level
+- globally adapted for new substr param format in shortcuts: vargs is now a
+    list of param sets instead of a single set of 5 params (also changed param
+    order and added 2 params for future extensions)
+- adapted for proc interface changes:
+    + C_SelectSubStr now gets params in a list (to simplify passing history el.s)
+    + C_SelectSubStr now gets the complete stack of substr searches instead
+      of each substr set one by one
+    + to disable/reset filter: reset substr_stack instead of pattern
+epgtcl/rcfile.tcl [rev:1.13, 2003-03-16T22:28:03]:
+- Added control for multiple substr searches in GUI level
+- format of substr params in shortcuts & substr_history changed -> added
+    auto-conversion: vargs is now a list of param sets instead of a simple list
+    of 5 params; also changed order and added 2 params for future extensions
+- Also:
+- added nxtvepg_rc_compat: refuse to load rc files from newer, incompatible
+    versions in LoadRcFile
+epgtcl/mainwin.tcl [rev:1.216, 2003-03-16T22:28:09]:
+- Added control for multiple substr searches in GUI level
+- handle new global substr_stack: holds all currently enabled substr param sets
+- SubstrUpdateFilter: push new param set onto the stack
+- SubstrSetFilter: gets params as list, to simplify passing an stack member
+- added new func SubstrUndoFilter: bound to checkbuttons in substr history
+    popup menus
+- FilterMenuAdd_Title: append substr_stack contents, add checkbutton
+    in front to display if this string is currently used or not
+epgtcl/dlg_filter.tcl [rev:1.8, 2003-03-16T22:28:16]:
+- Added control for multiple substr searches in GUI level
+- added new global substr_stack: holds all currently enabled substr param sets
+- adapted params to procs:
+    + use ResetSubstr to clear the substr filter (clears substr_stack)
+    + added boolean param to SubstrUpdateFilter
+- SubStrPopupHistoryMenu: append substr_stack contents, add checkbutton
+    in front to display if this string is currently used or not
+epgui/pifilter.c [rev:1.81, 2003-03-16T22:28:30]:
+- Added control for multiple substr searches in GUI level
+- params for C_SelectSubStr changed: now gets list of all substr param sets
+    instead of just one; passing zero string disables the substr filter
+- also changed param order (test ist now at first pos.) and added 2 dummies
+    for future extensions in TODO
+- adapted call to Tcl proc SubstrSetFilter in CreateContextMenu():
+    now gets params in a list (to simplify passing an substr_stack member)
+epgvbi/btdrv4linux.c [rev:1.44, 2003-03-16T22:29:42]:
+- BtDriver_DecodeFrame() adapted for v4l2 API:
+- if read on VBI device returns EBUSY, abort acquisition
+nxtvepg.pod [rev:1.93, 2003-03-16T22:31:35]:
+- Updated filter chapter for new multi-substring search capability
+epgctl/epgversion.h [rev:1.40, 2003-03-16T22:32:41]:
+- set version to 2.5.0pre15
+dsdrv/hwdrv.c [rev:1.12, 2003-03-16T22:52:19]:
+- Syntax fix:
+- removed "WINAPI" in declarations for pointers to hold function addresses
+    loaded from advapi32.dll -> no more compiler warning
+epgui/pinetbox.c [rev:1.32, 2003-03-19T16:16:56]:
+- Bugfix PiNetBox_SearchPrevNext()
+- make sure that pPrevPi and pNextPi don't point to the same PI
+epgdb/epgdbfil.c [rev:1.42, 2003-03-19T16:17:12]:
+- Matches against both FILTER_SERIES and FILTER_SUBSTR are combined with OR
+epgdb/epgstream.c [rev:1.27, 2003-03-19T16:17:28]:
+- Improved debug output for hamming errors in BP
+epgvbi/btdrv4win.c [rev:1.42, 2003-03-19T16:17:42]:
+- Bugfix BtDriver_QueryCardParams():
+- did not set btCfg.cardIdx before opening the card -> card could be opened
+    with wrong device params -> kernel crash with "page fault in unmapped area"
+    when switching from Bt8x8 to Cx23881 because the latter required larger
+    memory map
+- changed BtDriver_OpenCard(): use new arg cardIdx instead of global btCfg
+    same change for BtDriver_GetCardInterface()
+- Also: replaced "Bt8x8" with "TV card" in error messages
+dsdrv/dsdrv34.c [rev:1.9, 2003-03-19T16:18:14]:
+- replaced "Bt8x8" with "TV card" in error messages
+- UnloadDriver(): reset boolean CardOpened to FALSE
+epgvbi/hamming.c [rev:1.9, 2003-03-19T16:18:24]:
+- Replace parity errors with 0xA0 instead of 0x20
+epgtcl/rcfile.tcl [rev:1.14, 2003-03-19T16:18:58]:
+- Bugfix proc UpdateRcFile and UpdateDaemonRcFile for WIN32
+- file rename fails with "file not found" for WIN32, reason unknown
+    -> do rename only for UNIX; on WIN32 back to simple overwrite
+epgtcl/shortcuts.tcl [rev:1.11, 2003-03-19T16:19:16]:
+- Bugfix proc SelectShortcuts
+- before adding new substr params, remove identical ones from the stack
+nxtvepg.pod [rev:1.94, 2003-03-19T16:19:32]:
+- reordered filter menu description: order by importance, not menu order
+- added note that SERIES and THEME or SUBSTR are combined by logical OR
+README [rev:1.33, 2003-03-19T16:21:29]:
+- improved description of compilation procedure for Windows
+    also moved beneath installation procedure
+- updated WIN32 driver error message descriptions; removed remaining "Bt8x8"
+- added note for ws2_32.dll on Windows 95
+epgctl/epgversion.h [rev:1.41, 2003-03-19T16:51:40]:
+- set version to 2.5.0pre16
+www/index-de.html [rev:1.52, 2003-03-19T18:33:55]:
+- added note about Windows support for saa7134 and cx23881 in upcoming 2.5.0
+- fixed some of the HTML4.01 syntax errors reported by
+    http://validator.w3.org/check
+www/index.html [rev:1.65, 2003-03-19T18:33:55]:
+- added note about Windows support for saa7134 and cx23881 in upcoming 2.5.0
+- fixed some of the HTML4.01 syntax errors reported by
+    http://validator.w3.org/check
+www/index-de.html [rev:1.53, 2003-03-19T18:46:17]:
+- More syntax fixes
+- changed order of <A NAME=...><H3>: <H3> must be outside acc. to HTML4.01
+www/index.html [rev:1.66, 2003-03-19T18:46:17]:
+- More syntax fixes
+- changed order of <A NAME=...><H3>: <H3> must be outside acc. to HTML4.01
+www/provnets.html [rev:1.21, 2003-03-19T19:12:47]:
+- fixed some of the HTML4.01 syntax errors reported by
+    http://validator.w3.org/check
+www/nxtvepg.css [rev:1.4, 2003-03-19T19:13:08]:
+- fixed some of the CSS syntax errors reported by
+    http://jigsaw.w3.org/css-validator/validator
+- removed redundant PRE rule
+- removed foreground color for PRE (didn't apply before due to misspelling)
+COPYRIGHT [rev:1.7, 2003-03-22T14:37:05]:
+- added Tcl/Tk library license.terms
+    due to inclusion of script libraries in source tarball
+- updated driver copyrights for cx23881 and saa7134
+Makefile.win32 [rev:1.37, 2003-03-22T14:42:25]:
+- small fix in epgtcl/tcl_libs.tcl target: replaced * with *.tcl
+dsdrv/saa7134.c [rev:1.15, 2003-03-22T14:42:37]:
+- added conflict detection (with other TV apps): equiv. bt8x8 driver
+    + in VBI thread: use new func CheckDmaConflict()
+    + in open: check DMA and REGION bits
+- design fix DMA buffer organization: swapped fields SAA7134_RS_BA1/BA2
+    + possible due to change in SAA7134_TASK_CONDITIONS from 0xd to 0xe
+    + obsoletes work-around for VBI line indices which are passed to decoder
+epgvbi/btdrv4linux.c [rev:1.45, 2003-03-22T14:43:23]:
+- debug output improved:
+- suppress VIDIOCGVBIFMT if errno == EINVAL (for v4l1 bttv)
+epgvbi/syserrmsg.c [rev:1.2, 2003-03-22T14:44:25]:
+- WIN32 fix for socket error messages displayed to user
+- FormatMessage() does not handle those error codes, use switch instead
+epgdb/epgnetio.c [rev:1.33, 2003-03-22T14:44:41]:
+- WIN32 debug output improved in WinSocketStrError()
+- FormatMessage() does not handle those error codes -> suppress warning
+- return error # in string if FormatMessage() fails
+epgctl/epgversion.h [rev:1.42, 2003-03-22T14:46:10]:
+- set version to 2.5.0
+CHANGES [rev:1.32, 2003-03-22T15:52:55]:
+- updated for release 2.5.0
+TODO [rev:1.26, 2003-03-22T15:53:22]:
+- updated for release 2.5.0
+nxtvepg.spec [rev:1.13, 2003-03-22T15:53:42]:
+- updated for release 2.5.0
+epgui/pinetbox.c [rev:1.33, 2003-03-22T16:03:03]:
+- switched DEBUG_PINETBOX_CONSISTANCY OFF for 2.5.0 release
+epgui/pinetbox.c [rev:1.34, 2003-03-22T17:14:37]:
+- fix PiNetBox_ErrorMessage():
+- update pos. of horizontal slider when switching from error to normal state
+nxtvepg.pod [rev:1.95, 2003-03-22T17:14:41]:
+- fix: removed obsolete references to WIN32 TV app config loading
+- both in "Getting Started" and "TV app. interaction" config
+www/changelog.html [rev:1.44, 2003-03-22T18:29:05]:
+- updated for release 2.5.0
+- fixed some HTML4.01 syntax errors reported by http://validator.w3.org/check
+    + changed order of <A NAME=...><H3>: <H3> must be outside acc. to HTML4.01
+    + enclose attribute parameters in quotes ""
+    + fixed unbalanced <P></P>, enclosed all text in <P>...</P>
+www/index-de.html [rev:1.54, 2003-03-22T18:29:15]:
+- updated for release 2.5.0
+- added link to new screenshot-grid1.png (warning: PNG not GIF)
+- updated link to linux bttv driver, added saa7134
+www/index.html [rev:1.67, 2003-03-22T18:29:15]:
+- updated for release 2.5.0
+- added link to new screenshot-grid1.png (warning: PNG not GIF)
+- updated link to linux bttv driver, added saa7134
+www/man.html [rev:1.25, 2003-03-22T18:29:31]:
+- updated for release 2.5.0
+www/tripod-src-index.html [rev:1.13, 2003-03-22T18:32:40]:
+- updated for releases 2.4.2 & 2.5.0
+- fixed charset in META tags acc. to HTML4.01 validator
+- removed obsolete release source tarballs and win32 zip files
+www/nefkom-src-index.html [rev:1.14, 2003-03-22T18:32:51]:
+- updated for release 2.5.0
+- fixed charset in META tags acc. to HTML4.01 validator
+- removed obsolete release source tarballs and win32 zip files
+www/pre-releases.html [rev:1.22, 2003-03-22T18:34:16]:
+- updated for release 2.5.0
+- removed beta release links
+- added 2.5.0-win-dbg: executable with debugging enabled
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_5_0 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

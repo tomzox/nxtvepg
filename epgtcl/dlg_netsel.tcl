@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_netsel.tcl,v 1.5 2002/12/08 19:59:00 tom Exp tom $
+#  $Id: dlg_netsel.tcl,v 1.8 2003/03/14 14:57:24 tom Exp tom $
 #
 set netsel_popup 0
 
@@ -28,7 +28,7 @@ set netsel_popup 0
 ## - note: all CNIs have to be in the format 0x%04X
 ##
 proc UpdateProvCniTable {prov} {
-   global cfnetwops netwop_map netselmenu
+   global cfnetwops netwop_ai2sel netwop_sel2ai netselmenu
 
    # fetch CNI list from AI block in database
    set ailist [C_GetAiNetwopList 0 {}]
@@ -41,7 +41,8 @@ proc UpdateProvCniTable {prov} {
       set suplist {}
    }
 
-   if {[info exists netwop_map]} { unset netwop_map }
+   set netwop_ai2sel {}
+   set netwop_sel2ai {}
    set index 0
    foreach cni $ailist {
       set order($cni) $index
@@ -54,7 +55,8 @@ proc UpdateProvCniTable {prov} {
    foreach cni $selist {
       if {[info exists unused($cni)]} {
          # CNI still exists in actual AI -> add it
-         set netwop_map($nlidx) $order($cni)
+         lappend netwop_sel2ai $order($cni)
+         set rev_order($cni) $nlidx
          unset unused($cni)
          # increment index (only when item is not deleted)
          incr nlidx
@@ -80,24 +82,26 @@ proc UpdateProvCniTable {prov} {
    foreach cni $ailist {
       if [info exists unused($cni)] {
          lappend selist $cni
-         set netwop_map($nlidx) $order($cni)
+         lappend netwop_sel2ai $order($cni)
+         lappend netwop_ai2sel $nlidx
          incr nlidx
+      } else {
+         if [info exists rev_order($cni)] {
+            lappend netwop_ai2sel $rev_order($cni)
+         } else {
+            lappend netwop_ai2sel 255
+         }
       }
    }
 
    # save the new config to the rc file
-   set cfnetwops($prov) [list $selist $suplist]
-   UpdateRcFile
+   if {(![info exists cfnetwops($prov)]) || \
+       ($selist != [lindex $cfnetwops($prov) 0]) || \
+       ($suplist != [lindex $cfnetwops($prov) 1])} {
 
-   # fill network filter menus according to the new network list
-   UpdateNetwopFilterBar
-
-   # return list of indices of suppressed netwops
-   set supidx {}
-   foreach cni $suplist {
-      lappend supidx $order($cni)
+      set cfnetwops($prov) [list $selist $suplist]
+      UpdateRcFile
    }
-   return $supidx
 }
 
 # remove elements from a list that are not member of a reference list
@@ -213,6 +217,10 @@ proc SaveSelectedNetwopList {} {
    global cfnetwops
    global cfnettimes netsel_times
 
+   # close popup
+   destroy .netsel
+   update
+
    # make list of CNIs from AI which are missing in the user selection
    set sup {}
    foreach cni $netsel_ailist {
@@ -235,10 +243,12 @@ proc SaveSelectedNetwopList {} {
 
    # save list into rc/ini file
    UpdateRcFile
-   after idle C_UpdateNetwopList
 
-   # close popup
-   destroy .netsel
+   # update network mapping table AI->selection and reverse
+   # fill network filter menus according to the new network list
+   # set network pre-filters
+   # remove pre-filtered networks from the browser, or add them back
+   C_UpdateNetwopList
 }
 
 # callback for selection in left or right list -> update description at the dialog bottom
@@ -389,15 +399,15 @@ proc SelBoxCreate {lbox arr_ailist arr_selist arr_names} {
    ## second column: command buttons
    frame $lbox.cmd
    button $lbox.cmd.add -text "add" -command [list SelBoxAddItem $lbox $arr_ailist $arr_selist $arr_names] -width 7
-   pack $lbox.cmd.add -side top -anchor nw -pady 10
+   pack $lbox.cmd.add -side top -anchor c -pady 5
    frame $lbox.cmd.updown
    button $lbox.cmd.updown.up -bitmap "bitmap_ptr_up" -command [list SelBoxShiftUpItem $lbox.sel.selist $arr_selist $arr_names]
    pack $lbox.cmd.updown.up -side left -fill x -expand 1
    button $lbox.cmd.updown.down -bitmap "bitmap_ptr_down" -command [list SelBoxShiftDownItem $lbox.sel.selist $arr_selist $arr_names]
    pack $lbox.cmd.updown.down -side left -fill x -expand 1
-   pack $lbox.cmd.updown -side top -anchor nw -fill x
+   pack $lbox.cmd.updown -side top -anchor c -fill x
    button $lbox.cmd.delnet -text "delete" -command [list SelBoxRemoveItem $lbox $arr_selist] -width 7
-   pack $lbox.cmd.delnet -side top -anchor nw -pady 10
+   pack $lbox.cmd.delnet -side top -anchor c -pady 5
    pack $lbox.cmd -side left -anchor nw -pady 10 -padx 5 -fill y
 
    ## third column: selected providers in selected order
@@ -420,7 +430,7 @@ proc SelBoxCreate {lbox arr_ailist arr_selist arr_names} {
 
    # initialize command button state
    # (all disabled until an item is selected from either the left or right list)
-   after idle [list SelBoxButtonPress $lbox none]
+   event generate $lbox.sel.selist <<ListboxSelect>>
 }
 
 # selected items in the AI CNI list are appended to the selection list
@@ -441,7 +451,7 @@ proc SelBoxAddItem {lbox arr_ailist arr_selist arr_names} {
    }
 
    # update command button states and clear selection in the left listbox
-   after idle [list SelBoxButtonPress $lbox sel]
+   event generate $lbox.sel.selist <<ListboxSelect>>
 }
 
 # all selected items are removed from the list
@@ -454,7 +464,7 @@ proc SelBoxRemoveItem {lbox arr_selist} {
    }
 
    # update command button states (no selection -> all disabled)
-   after idle [list SelBoxButtonPress $lbox none]
+   event generate $lbox.sel.selist <<ListboxSelect>>
 }
 
 # move all selected items up by one row

@@ -1,5 +1,5 @@
 /*
- *  Nextview block ASCII dump
+ *  Export Nextview database as "TAB-separated" text file
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
@@ -16,25 +16,33 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgtxtdump.h,v 1.10 2001/04/04 18:47:12 tom Exp tom $
+ *  $Id: dumptext.h,v 1.3 2003/02/26 21:54:01 tom Exp tom $
  */
 
-#ifndef __EPGTXTDUMP_H
-#define __EPGTXTDUMP_H
+#ifndef __DUMPTEXT_H
+#define __DUMPTEXT_H
+
+
+typedef enum
+{
+   EPGTAB_DUMP_AI,
+   EPGTAB_DUMP_PI,
+   EPGTAB_DUMP_PDC,
+   EPGTAB_DUMP_XML,
+   EPGTAB_DUMP_COUNT,
+   EPGTAB_DUMP_NONE = EPGTAB_DUMP_COUNT
+} EPGTAB_DUMP_MODE;
 
 
 // ---------------------------------------------------------------------------
 // declaration of service interface functions
 //
 
-// interface to GUI
-void EpgTxtDump_Toggle( void );
-void EpgTxtDump_Database( EPGDB_CONTEXT *pDbContext, FILE *fp,
-                          bool do_pi, bool do_xi, bool do_ai, bool do_ni,
-                          bool do_oi, bool do_mi, bool do_li, bool do_ti );
+EPGTAB_DUMP_MODE EpgDumpText_GetMode( const char * pModeStr );
+void EpgDumpText_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp, EPGTAB_DUMP_MODE mode );
 
-// interface to stream decoder
-void EpgTxtDump_Block( const EPGDB_BLOCK_UNION * pUnion, BLOCK_TYPE type, uchar stream );
-void EpgTxtDump_UnknownBlock( BLOCK_TYPE type, uint size, uchar stream );
+void EpgDumpText_Destroy( void );
+void EpgDumpText_Init( void );
 
-#endif  // __EPGTXTDUMP_H
+
+#endif  // __DUMPTEXT_H

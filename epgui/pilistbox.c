@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pilistbox.c,v 1.83 2002/12/08 19:25:16 tom Exp $
+ *  $Id: pilistbox.c,v 1.88 2003/03/04 21:30:58 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -50,6 +50,7 @@
 #include "epgctl/epgctxctl.h"
 #include "epgui/pifilter.h"
 #include "epgui/pioutput.h"
+#include "epgui/pidescr.h"
 #include "epgui/pilistbox.h"
 
 
@@ -81,26 +82,13 @@ int         pibox_off;           // number of currently invisible items above th
 bool        pibox_resync;        // if TRUE, need to evaluate off and max
 bool        pibox_lock;          // if TRUE, refuse additions from acq
 PIBOX_STATE pibox_state = PIBOX_NOT_INIT;  // listbox state
-EPGDB_STATE pibox_dbstate;       // database state
 
 #define dbc pUiDbContext         // internal shortcut
 
-// ----------------------------------------------------------------------------
-// Array which keeps pre-allocated Tcl/Tk string objects
-//
-typedef enum
-{
-   TCLOBJ_WID_INFO,
-   TCLOBJ_STR_INSERT,
-   TCLOBJ_STR_END,
-   TCLOBJ_STR_TITLE,
-   TCLOBJ_STR_FEATURES,
-   TCLOBJ_STR_BOLD,
-   TCLOBJ_STR_PARAGRAPH,
-   TCLOBJ_COUNT
-} PIBOX_TCLOBJ;
-
-static Tcl_Obj * tcl_obj[TCLOBJ_COUNT];
+// forward declarations
+static void PiListBox_DbRemoved( const PI_BLOCK *pPiBlock );
+static bool PiListBox_HandleAcqEvent( const EPGDB_CONTEXT * usedDbc, EPGDB_PI_ACQ_EVENT event,
+                                      const PI_BLOCK * pPiBlock, const PI_BLOCK * pObsolete );
 
 // ----------------------------------------------------------------------------
 // Check the consistancy of the listbox state with the database and text widget
@@ -195,234 +183,31 @@ static bool PiListBox_ConsistancyCheck( void )
 // ----------------------------------------------------------------------------
 // Update the listbox state according to database and acq state
 //
-void PiListBox_UpdateState( EPGDB_STATE newDbState )
+void PiListBox_ErrorMessage( const uchar * pMessage )
 {
-   assert(pUiDbContext != NULL);
+   assert(dbc != NULL);
 
-   if (pibox_dbstate != newDbState)
+   if (pMessage != NULL)
    {
-      pibox_dbstate = newDbState;
+      pibox_state = PIBOX_MESSAGE;
 
-      switch (pibox_dbstate)
-      {
-         case EPGDB_WAIT_SCAN:
-            pibox_state = PIBOX_MESSAGE;
-            sprintf(comm, "PiListBox_PrintHelpHeader {"
-                          "Please wait until the provider scan has finished."
-                          "\n}\n");
-            eval_check(interp, comm);
-            break;
+      sprintf(comm, "PiBox_DisplayErrorMessage {%s\n}\n", pMessage);
+      eval_check(interp, comm);
 
-         case EPGDB_PROV_SCAN:
-            pibox_state = PIBOX_MESSAGE;
-            sprintf(comm, "PiListBox_PrintHelpHeader {"
-                          "There are no providers for Nextview data known yet. "
-                          "Please start a provider scan from the Configure menu "
-                          "(you only have to do this once). "
-                          "During the scan all TV channels are checked for Nextview "
-                          "transmissions. Among the found ones you then can select your "
-                          "favorite provider and start reading in its TV programme database."
-                          "\n}\n");
-            eval_check(interp, comm);
-            break;
+      // reset the listbox scrollbar and clear the short-info text field
+      sprintf(comm, ".all.pi.list.sc set 0.0 1.0\n");
+      eval_check(interp, comm);
 
-         case EPGDB_PROV_WAIT:
-            pibox_state = PIBOX_MESSAGE;
-            sprintf(comm, "PiListBox_PrintHelpHeader {"
-                          "There are no providers for Nextview data known yet. "
-                          "Since you do not use the TV tuner as video input source, "
-                          "you have to select a provider's channel at the external "
-                          "video source by yourself. For a list of possible channels "
-                          "see the README file or the nxtvepg Internet Homepage."
-                          "\n}\n");
-            eval_check(interp, comm);
-            break;
-
-         case EPGDB_PROV_SEL:
-            pibox_state = PIBOX_MESSAGE;
-            sprintf(comm, "PiListBox_PrintHelpHeader {"
-                          "Please select your favorite provider from the Configure menu."
-                          "\n}\n");
-            eval_check(interp, comm);
-            break;
-
-         case EPGDB_ACQ_NO_FREQ:
-            pibox_state = PIBOX_MESSAGE;
-            sprintf(comm, "PiListBox_PrintHelpHeader {"
-                          "The database of the currently selected provider is empty "
-                          "and the provider's TV channel is unknown. Please do start "
-                          "a provider scan from the Configure menu to find out the frequency "
-                          "(this has to be done only this one time). Else, please make sure "
-                          "you have tuned the TV channel of the selected Nextview provider "
-                          "or select a different provider from the Configure menu."
-                          "\n}\n");
-            eval_check(interp, comm);
-            break;
-
-         case EPGDB_ACQ_NO_TUNER:
-            pibox_state = PIBOX_MESSAGE;
-            sprintf(comm, "PiListBox_PrintHelpHeader {"
-                          "The database of the currently selected provider is empty. "
-                          "Since you have not selected the internal TV tuner as input source, "
-                          "you have to make sure yourself that "
-                          "you have tuned the TV channel of the this provider "
-                          "or select a different provider from the Configure menu."
-                          "\n}\n");
-            eval_check(interp, comm);
-            break;
-
-         case EPGDB_ACQ_ACCESS_DEVICE:
-            pibox_state = PIBOX_MESSAGE;
-            sprintf(comm, "PiListBox_PrintHelpHeader {"
-                          "The database of the currently selected provider is empty. "
-                          "The TV channel could not be changed because the video device is "
-                          "kept busy by another application. Therefore you have to make sure "
-                          "you have tuned the TV channel of the selected Nextview provider "
-                          "or select a different provider from the Configure menu."
-                          "\n}\n");
-            eval_check(interp, comm);
-            break;
-
-         case EPGDB_ACQ_PASSIVE:
-            pibox_state = PIBOX_MESSAGE;
-            sprintf(comm, "PiListBox_PrintHelpHeader {"
-                          "The database of the currently selected provider is empty. "
-                          "You have configured acquisition mode to passive, so data for "
-                          "this provider can only be acquired if you use another application "
-                          "to tune to it's TV channel."
-                          "\n}\n");
-            eval_check(interp, comm);
-            break;
-
-         case EPGDB_ACQ_WAIT:
-            pibox_state = PIBOX_MESSAGE;
-            sprintf(comm, "PiListBox_PrintHelpHeader {"
-                          "The database of the currently selected provider is empty. "
-                          "Please wait a few seconds until Nextview data is received "
-                          "or select a different provider from the Configure menu."
-                          "\n}\n");
-            eval_check(interp, comm);
-            break;
-
-         case EPGDB_ACQ_WAIT_DAEMON:
-            pibox_state = PIBOX_MESSAGE;
-            sprintf(comm, "PiListBox_PrintHelpHeader {"
-                          "The database of the currently selected provider is empty. "
-                          "The acquisition daemon is currently working on a different provider. "
-                          "Either change the daemon's acquisition mode to \"Follow-UI\" "
-                          "or select a different provider from the Configure menu."
-                          "\n}\n");
-            eval_check(interp, comm);
-            break;
-
-         case EPGDB_ACQ_OTHER_PROV:
-            pibox_state = PIBOX_MESSAGE;
-            sprintf(comm, "PiListBox_PrintHelpHeader {"
-                          "The database of the currently selected provider is empty. "
-                          "This provider is not in your selection for acquisition! "
-                          "Please choose a different provider, or change the "
-                          "acquisition mode from the Configure menu."
-                          "\n}\n");
-            eval_check(interp, comm);
-            break;
-
-         case EPGDB_EMPTY:
-            pibox_state = PIBOX_MESSAGE;
-            sprintf(comm, "PiListBox_PrintHelpHeader {"
-                          "The database of the currently selected provider is empty. "
-                          "Start the acquisition from the Control menu or select a "
-                          "different provider from the Configure menu."
-                          "\n}\n");
-            eval_check(interp, comm);
-            break;
-
-         case EPGDB_PREFILTERED_EMPTY:
-            pibox_state = PIBOX_MESSAGE;
-            sprintf(comm, "PiListBox_PrintHelpHeader {"
-                          "None of the programmes in this database match your network "
-                          "preselection. Either add more networks for this provider or "
-                          "select a different one in the Configure menus. Starting the "
-                          "acquisition might also help."
-                          "\n}\n");
-            eval_check(interp, comm);
-            break;
-
-         case EPGDB_OK:
-            // db is now ready -> display the data
-            pibox_state = PIBOX_LIST;
-            PiListBox_Reset();
-            break;
-
-         default:
-            SHOULD_NOT_BE_REACHED;
-            break;
-      }
-
-      if (pibox_dbstate != EPGDB_OK)
-      {  // reset the listbox scrollbar and clear the short-info text field
-         sprintf(comm, ".all.pi.list.sc set 0.0 1.0\n"
-                       ".all.pi.info.text delete 1.0 end\n");
-         eval_check(interp, comm);
-      }
+      PiDescription_ClearText();
    }
-}
-
-// ----------------------------------------------------------------------------
-// Insert a character string into a text widget at a given line
-// - could be done simpler by Tcl_Eval() but using objects has the advantage
-//   that no command line needs to be parsed so that a '}' in the string
-//   does no harm.
-//
-static void PiListBox_InsertText( PIBOX_TCLOBJ widgetObjIdx, int trow, const char * pStr, PIBOX_TCLOBJ tagObjIdx )
-{
-   Tcl_Obj * objv[10];
-   char   linebuf[15];
-   uint   objc;
-
-   // assemble a command vector, starting with the widget name/command
-   objv[0] = tcl_obj[widgetObjIdx];
-   objv[1] = tcl_obj[TCLOBJ_STR_INSERT];
-   if (trow >= 0)
-   {  // line number was specified; add 1 because first line is 1.0
-      sprintf(linebuf, "%d.0", trow + 1);
-      objv[2] = Tcl_NewStringObj(linebuf, -1);
-      Tcl_IncrRefCount(objv[2]);
-   }
-   else
-      objv[2] = tcl_obj[TCLOBJ_STR_END];
-   objv[3] = Tcl_NewStringObj(pStr, -1);
-   Tcl_IncrRefCount(objv[3]);
-   objv[4] = tcl_obj[tagObjIdx];
-   objc = 5;
-
-   // execute the command vector
-   if (Tcl_EvalObjv(interp, objc, objv, 0) != TCL_OK)
-      debugTclErr(interp, "PiListBox-InsertText");
-
-   // free temporary objects
-   if (trow >= 0)
-      Tcl_DecrRefCount(objv[2]);
-   Tcl_DecrRefCount(objv[3]);
-}
-
-// ----------------------------------------------------------------------------
-// Callback function for PiOutput-AppendShortAndLongInfoText
-//
-static void PiListBox_AppendInfoTextCb( void *fp, const char * pDesc, bool addSeparator )
-{
-   assert(fp == NULL);
-
-   if (pDesc != NULL)
+   else if (pibox_state != PIBOX_LIST)
    {
-      if (addSeparator)
-      {  // separator between info texts of different providers
-         sprintf(comm, ".all.pi.info.text insert end {\n\n} title\n"
-                       ".all.pi.info.text image create {end - 2 line} -image bitmap_line\n");
-         eval_check(interp, comm);
-      }
+      pibox_state = PIBOX_LIST;
 
-      //Tcl_VarEval(interp, ".all.pi.info.text insert end {", pShortInfo, "}", NULL);
-      PiListBox_InsertText(TCLOBJ_WID_INFO, -1, pDesc, TCLOBJ_STR_PARAGRAPH);
+      sprintf(comm, "PiBox_DisplayErrorMessage {}\n");
+      eval_check(interp, comm);
+
+      PiListBox_Reset();
    }
 }
 
@@ -430,81 +215,21 @@ static void PiListBox_AppendInfoTextCb( void *fp, const char * pDesc, bool addSe
 // Display short and long info for currently selected item
 //
 static void PiListBox_UpdateInfoText( bool keepView )
-{  
-   const AI_BLOCK *pAiBlock;
-   const PI_BLOCK *pPiBlock;
-   const uchar *pCfNetname;
-   uchar date_str[20], start_str[20], stop_str[20], cni_str[7];
-   uchar view_buf[20];
-   int len;
-   
-   if (keepView)
-   {  // remember the viewable fraction of the text
-      sprintf(comm, "lindex [.all.pi.info.text yview] 0\n");
-      eval_check(interp, comm);
-      strncpy(view_buf, Tcl_GetStringResult(interp), sizeof(view_buf));
-      view_buf[sizeof(view_buf) - 1] = 0;
-   }
-
-   sprintf(comm, ".all.pi.info.text delete 1.0 end\n");
-   eval_check(interp, comm);
+{
+   const PI_BLOCK * pPiBlock;
 
    if (pibox_curpos >= 0)
    {
       EpgDbLockDatabase(dbc, TRUE);
-      pAiBlock = EpgDbGetAi(dbc);
       pPiBlock = EpgDbSearchPi(dbc, pibox_list[pibox_curpos].start_time, pibox_list[pibox_curpos].netwop_no);
-
-      if ((pAiBlock != NULL) && (pPiBlock != NULL) && (pPiBlock->netwop_no < pAiBlock->netwopCount))
+      if (pPiBlock != NULL)
       {
-         // top of the info window: programme title text
-         strcpy(comm, PI_GET_TITLE(pPiBlock));
-         strcat(comm, "\n");
-         PiListBox_InsertText(TCLOBJ_WID_INFO, -1, comm, TCLOBJ_STR_TITLE);
-
-         // now add a feature summary: start with theme list
-         PiOutput_AppendCompressedThemes(pPiBlock, comm, TCL_COMM_BUF_SIZE);
-
-         // append features list
-         strcat(comm, " (");
-         PiOutput_AppendFeatureList(pPiBlock, comm + strlen(comm));
-         // remove opening bracket if nothing follows
-         len = strlen(comm);
-         if ((comm[len - 2] == ' ') && (comm[len - 1] == '('))
-            strcpy(comm + len - 2, "\n");
-         else
-            strcpy(comm + len, ")\n");
-         // append the feature string to the text widget content
-         PiListBox_InsertText(TCLOBJ_WID_INFO, -1, comm, TCLOBJ_STR_FEATURES);
-
-         // print network name, start- & stop-time, short info
-         strftime(date_str, 19, " %a %d.%m", localtime(&pPiBlock->start_time));
-         strftime(start_str, 19, "%H:%M", localtime(&pPiBlock->start_time));
-         strftime(stop_str, 19, "%H:%M", localtime(&pPiBlock->stop_time));
-
-         sprintf(cni_str, "0x%04X", AI_GET_NETWOP_N(pAiBlock, pPiBlock->netwop_no)->cni);
-         pCfNetname = Tcl_GetVar2(interp, "cfnetnames", cni_str, TCL_GLOBAL_ONLY);
-         if (pCfNetname == NULL)
-            pCfNetname = AI_GET_NETWOP_NAME(pAiBlock, pPiBlock->netwop_no);
-
-         sprintf(comm, "%s, %s-%s%s: ",
-                       pCfNetname,
-                       start_str, stop_str,
-                       (((pPiBlock->start_time - time(NULL)) > 12*60*60) ? (char *)date_str : "") );
-         PiListBox_InsertText(TCLOBJ_WID_INFO, -1, comm, TCLOBJ_STR_BOLD);
-
-         PiOutput_AppendShortAndLongInfoText(pPiBlock, PiListBox_AppendInfoTextCb, NULL, EpgDbContextIsMerged(pUiDbContext));
+         PiDescription_UpdateText(pPiBlock, keepView);
       }
       else
-         debug2("PiListBox-UpdateInfoText: selected block start=%ld netwop=%d not found\n", pibox_list[pibox_count-1].start_time, pibox_list[pibox_count-1].netwop_no);
+         debug2("PiListBox-UpdateInfoText: selected block start=%ld netwop=%d not found", pibox_list[pibox_count-1].start_time, pibox_list[pibox_count-1].netwop_no);
 
       EpgDbLockDatabase(dbc, FALSE);
-   }
-
-   if (keepView)
-   {  // set the view back to its previous position
-      sprintf(comm, ".all.pi.info.text yview moveto %s\n", view_buf);
-      eval_check(interp, comm);
    }
 }
 
@@ -525,13 +250,15 @@ static void PiListBox_AdjustScrollBar( void )
 //
 static void PiListBox_ShowCursor( void )
 {
-   time_t now = time(NULL);
    const char * pColor;
+   time_t  expireTime;
 
-   //if (pibox_list[pibox_curpos].stop_time <= now)
+   expireTime = EpgDbFilterGetExpireTime(pPiFilterContext);
+
+   //if (pibox_list[pibox_curpos].stop_time <= expireTime)
    //   pColor = "pi_cursor_bg_past";
    //else
-   if (pibox_list[pibox_curpos].start_time <= now)
+   if (pibox_list[pibox_curpos].start_time <= expireTime)
       pColor = "pi_cursor_bg_now";
    else
       pColor = "pi_cursor_bg";
@@ -552,9 +279,9 @@ void PiListBox_Reset( void )
    if (pibox_state != PIBOX_LIST)
       return;
 
-   sprintf(comm, ".all.pi.list.text delete 1.0 end\n"
-                 ".all.pi.info.text delete 1.0 end\n");
+   sprintf(comm, ".all.pi.list.text delete 1.0 end\n");
    eval_check(interp, comm);
+   PiDescription_ClearText();
 
    EpgDbLockDatabase(dbc, TRUE);
    pPiBlock = EpgDbSearchFirstPi(dbc, pPiFilterContext);
@@ -692,7 +419,7 @@ void PiListBox_Refresh( void )
                assert((pibox_count >= pibox_height) || ((pibox_off == 0) && (pPiBlock == NULL)));
             }
             else
-               debug2("PiListBox-Refresh: first listed block start=%ld netwop=%d not found\n", pibox_list[0].start_time, pibox_list[0].netwop_no);
+               debug2("PiListBox-Refresh: first listed block start=%ld netwop=%d not found", pibox_list[0].start_time, pibox_list[0].netwop_no);
          }
 
          if (pibox_curpos >= pibox_count)
@@ -716,8 +443,7 @@ void PiListBox_Refresh( void )
          pibox_count = 0;
          pibox_max = 0;
          // clear the short-info window
-         sprintf(comm, ".all.pi.info.text delete 1.0 end\n");
-         eval_check(interp, comm);
+         PiDescription_ClearText();
       }
 
       EpgDbLockDatabase(dbc, FALSE);
@@ -726,6 +452,16 @@ void PiListBox_Refresh( void )
       // inform the vertical scrollbar about the viewable fraction
       PiListBox_AdjustScrollBar();
    }
+}
+
+// ----------------------------------------------------------------------------
+// Possible change in network list -> refresh
+//
+void PiListBox_AiStateChange( void )
+{
+   PiListBox_Refresh();
+
+   EpgDbSetPiAcqCallback(dbc, PiListBox_HandleAcqEvent);
 }
 
 // ----------------------------------------------------------------------------
@@ -746,9 +482,9 @@ static void PiListBox_ScrollMoveto( int newpos )
       else if (newpos > pibox_max - pibox_height)
          newpos = pibox_max - pibox_height;
 
-      sprintf(comm, ".all.pi.list.text delete 1.0 end\n"
-                    ".all.pi.info.text delete 1.0 end\n");
+      sprintf(comm, ".all.pi.list.text delete 1.0 end\n");
       eval_check(interp, comm);
+      PiDescription_ClearText();
 
       if (pibox_curpos >= 0)
       {
@@ -845,7 +581,7 @@ static void PiListBox_ScrollPageDown( int delta )
          }
       }
       else
-         debug2("PiListBox-ScrollPageDown: last listed block start=%ld netwop=%d not found\n", pibox_list[pibox_count-1].start_time, pibox_list[pibox_count-1].netwop_no);
+         debug2("PiListBox-ScrollPageDown: last listed block start=%ld netwop=%d not found", pibox_list[pibox_count-1].start_time, pibox_list[pibox_count-1].netwop_no);
    }
    else
       new_count = 0;
@@ -966,7 +702,7 @@ static void PiListBox_ScrollPageUp( int delta )
          }
       }
       else
-         debug2("PiListBox-ScrollPageUp: first listed block start=%ld netwop=%d not found\n", pibox_list[pibox_count-1].start_time, pibox_list[pibox_count-1].netwop_no);
+         debug2("PiListBox-ScrollPageUp: first listed block start=%ld netwop=%d not found", pibox_list[pibox_count-1].start_time, pibox_list[pibox_count-1].netwop_no);
       EpgDbLockDatabase(dbc, FALSE);
       assert(PiListBox_ConsistancyCheck());
    }
@@ -985,7 +721,7 @@ static void PiListBox_ScrollLineDown( int delta )
    {
       EpgDbLockDatabase(dbc, TRUE);
       pPiBlock = EpgDbSearchPi(dbc, pibox_list[pibox_count-1].start_time, pibox_list[pibox_count-1].netwop_no);
-      ifdebug2((pPiBlock==NULL), "PiListBox-ScrollLineDown: last listed block start=%ld netwop=%d not found\n", pibox_list[pibox_count-1].start_time, pibox_list[pibox_count-1].netwop_no);
+      ifdebug2((pPiBlock==NULL), "PiListBox-ScrollLineDown: last listed block start=%ld netwop=%d not found", pibox_list[pibox_count-1].start_time, pibox_list[pibox_count-1].netwop_no);
       while ((pPiBlock != NULL) && (delta > 0))
       {
          pPiBlock = EpgDbSearchNextPi(dbc, pPiFilterContext, pPiBlock);
@@ -1045,7 +781,7 @@ static void PiListBox_ScrollLineUp( int delta )
    {
       EpgDbLockDatabase(dbc, TRUE);
       pPiBlock = EpgDbSearchPi(dbc, pibox_list[0].start_time, pibox_list[0].netwop_no);
-      ifdebug2((pPiBlock==NULL), "PiListBox-ScrollLineUp: first listed block start=%ld netwop=%d not found\n", pibox_list[0].start_time, pibox_list[0].netwop_no);
+      ifdebug2((pPiBlock==NULL), "PiListBox-ScrollLineUp: first listed block start=%ld netwop=%d not found", pibox_list[0].start_time, pibox_list[0].netwop_no);
       while ((pPiBlock != NULL) && (delta < 0))
       {
          pPiBlock = EpgDbSearchPrevPi(dbc, pPiFilterContext, pPiBlock);
@@ -1095,7 +831,7 @@ static void PiListBox_ScrollLineUp( int delta )
 //
 static int PiListBox_Scroll( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {  
-   const char * const pUsage = "Usage: C_PiListBox_Scroll {moveto <fract>|scroll <delta> {pages|unit}}";
+   const char * const pUsage = "Usage: C_PiBox_Scroll {moveto <fract>|scroll <delta> {pages|unit}}";
    uchar * pOption;
    double  fract;
    int     delta;
@@ -1107,7 +843,7 @@ static int PiListBox_Scroll( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_O
       result = Tcl_GetDoubleFromObj(interp, objv[2], &fract);
       if (result == TCL_OK)
       {
-         PiListBox_ScrollMoveto((int)(pibox_max * fract));
+         PiListBox_ScrollMoveto((int)(0.5 + (double)pibox_max * fract));
       }
    }
    else if ((objc == 3+1) && (strcmp(pOption, "scroll") == 0))
@@ -1219,6 +955,14 @@ static int PiListBox_CursorUp( ClientData ttp, Tcl_Interp *interp, int objc, Tcl
 }
 
 // ----------------------------------------------------------------------------
+// Function for callbacks which are not supported by this layout
+//
+static int PiListBox_Dummy( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+{
+   return TCL_OK;
+}
+
+// ----------------------------------------------------------------------------
 // Jump to the first PI running at the given start time
 // - Scrolls the listing so that the first PI that's running at or after the given
 //   time is in the first row; if there are not enough PI to fill the listbox,
@@ -1250,7 +994,8 @@ static int PiListBox_GotoTime( ClientData ttp, Tcl_Interp *interp, int objc, Tcl
       }
       else if (strcmp(pArg, "next") == 0)
       {  // start with the first that's not yet running -> start the next second
-         startTime = time(NULL) + 1;
+         // (note: only works in min_start=1 mode)
+         startTime = 1 + EpgDbFilterGetExpireTime(pPiFilterContext);
       }
       else if (Tcl_GetIntFromObj(interp, objv[2], &param) == TCL_OK)
       {  // absolute time given (UTC)
@@ -1260,9 +1005,9 @@ static int PiListBox_GotoTime( ClientData ttp, Tcl_Interp *interp, int objc, Tcl
          startTime = 0;
 
       // Clear the listbox and the description window
-      sprintf(comm, ".all.pi.list.text delete 1.0 end\n"
-                    ".all.pi.info.text delete 1.0 end\n");
+      sprintf(comm, ".all.pi.list.text delete 1.0 end\n");
       eval_check(interp, comm);
+      PiDescription_ClearText();
 
       pibox_resync = FALSE;
       pibox_count = 0;
@@ -1329,19 +1074,21 @@ static int PiListBox_GotoTime( ClientData ttp, Tcl_Interp *interp, int objc, Tcl
                   pPiBlock = EpgDbSearchPrevPi(dbc, pPiFilterContext, pPiBlock);
                else
                   debug2("PiListBox-GotoTime: first listed block start=%ld netwop=%d not found", pibox_list[0].start_time, pibox_list[0].netwop_no);
-            }
 
-            // shift down the existing PI in the listbox
-            for (i = pibox_count - 1; i >= 0; i--)
-               pibox_list[i + delta] = pibox_list[i];
+               // shift down the existing PI in the listbox
+               for (i = pibox_count - 1; i >= 0; i--)
+                  pibox_list[i + delta] = pibox_list[i];
+            }
 
             // set the cursor on the first item that matched the start time, or the last PI if none matched
             pibox_off   -= delta;
             pibox_count += delta;
             if (delta >= pibox_height)
                pibox_curpos = pibox_height - 1;
-            else
+            else if (delta < pibox_count)
                pibox_curpos = delta;
+            else
+               pibox_curpos = pibox_count - 1;
 
             // fill the listbox backwards with the missing PI
             for (delta -= 1; (delta >= 0) && (pPiBlock != NULL); delta--)
@@ -1386,13 +1133,11 @@ static int PiListBox_GotoTime( ClientData ttp, Tcl_Interp *interp, int objc, Tcl
 void PiListBox_GotoPi( const PI_BLOCK * pPiBlock )
 {
    FILTER_CONTEXT *fc;
-   time_t now;
    int idx;
    bool doRefresh;
    
    if (pibox_state == PIBOX_LIST)
    {
-      now = time(NULL);
       doRefresh = FALSE;
 
       if ((pPiFilterContext->enabledFilters & ~FILTER_PERM) == FILTER_NETWOP)
@@ -1476,53 +1221,49 @@ void PiListBox_GotoPi( const PI_BLOCK * pPiBlock )
 }
 
 // ----------------------------------------------------------------------------
-// set cursor onto specified item (after single mouse click)
+// Set cursor onto the given row (after single mouse click)
+// - note: arg #2 is not used by this layout (specifies column)
 //
 static int PiListBox_SelectItem( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {  
-   int newLine;
+   int newRow;
+   int result;
 
-   if ((objc == 2) && (Tcl_GetIntFromObj(interp, objv[1], &newLine) == TCL_OK))
+   if ( (objc == 3) &&
+        (Tcl_GetIntFromObj(interp, objv[1], &newRow) == TCL_OK) )
    {
       if ( (pibox_state == PIBOX_LIST) &&
-           (newLine < pibox_count) && (newLine != pibox_curpos))
+           (newRow < pibox_count) && (newRow != pibox_curpos))
       {  
          // set cursor to new line (text widget line count starts at 1)
 	 sprintf(comm, ".all.pi.list.text tag remove cur %d.0 %d.0\n", pibox_curpos + 1, pibox_curpos + 2);
 	 eval_check(interp, comm);
-	 pibox_curpos = newLine;
+
+	 pibox_curpos = newRow;
 	 PiListBox_ShowCursor();
 
 	 // display short and long info
 	 PiListBox_UpdateInfoText(FALSE);
       }
+      result = TCL_OK; 
    }
+   else
+      result = TCL_ERROR; 
 
-   return TCL_OK; 
+   return result; 
 }
 
 // ----------------------------------------------------------------------------
 // Insert a newly acquired item into the listbox
 //
-void PiListBox_DbInserted( const EPGDB_CONTEXT *usedDbc, const PI_BLOCK *pPiBlock )
+static void PiListBox_DbInserted( const PI_BLOCK *pPiBlock )
 {
    int pos;
    int i;
 
-   if (usedDbc != dbc)
-   {  // acquisition is using a different database from the UI
-      return;
-   }
-
-   if ((pPiFilterContext->enabledFilters & FILTER_PROGIDX) || pibox_lock)
+   if (pPiFilterContext->enabledFilters & FILTER_PROGIDX)
    {  // when progidx filter is used insertion is too complicated, hence do complete refresh
       pibox_resync = TRUE;
-      return;
-   }
-
-   if (pibox_state != PIBOX_LIST)
-   {  // listbox was in an error state -> switch to normal mode
-      UiControl_CheckDbState();
       return;
    }
 
@@ -1647,17 +1388,16 @@ void PiListBox_DbInserted( const EPGDB_CONTEXT *usedDbc, const PI_BLOCK *pPiBloc
 // - It's attributes may have changed, so that it no longer matches the filters
 //   and has to be removed from the listing or max count
 //
-bool PiListBox_DbPreUpdate( const EPGDB_CONTEXT *usedDbc, const PI_BLOCK *pObsolete, const PI_BLOCK *pPiBlock )
+static bool PiListBox_DbPreUpdate( const PI_BLOCK *pObsolete, const PI_BLOCK *pPiBlock )
 {
    bool result = FALSE;
 
-   if ((pibox_state == PIBOX_LIST) && (usedDbc == dbc))
    {
       if ( (EpgDbFilterMatches(dbc, pPiFilterContext, pObsolete) != FALSE) &&
            (EpgDbFilterMatches(dbc, pPiFilterContext, pPiBlock) == FALSE) )
       {
          dprintf2("item no longer matches the filter: start=%ld, netwop=%d\n", pPiBlock->start_time, pPiBlock->netwop_no);
-         PiListBox_DbRemoved(dbc, pPiBlock);
+         PiListBox_DbRemoved(pPiBlock);
 
          //assert(PiListBox_ConsistancyCheck());  //cannot check since item is not yet removed from db
 
@@ -1676,13 +1416,12 @@ bool PiListBox_DbPreUpdate( const EPGDB_CONTEXT *usedDbc, const PI_BLOCK *pObsol
 //   and has to be inserted to the text widget
 // - else, if it's visible it's simply newls displayed
 //
-void PiListBox_DbPostUpdate( const EPGDB_CONTEXT *usedDbc, const PI_BLOCK *pObsolete, const PI_BLOCK *pPiBlock )
+static void PiListBox_DbPostUpdate( const PI_BLOCK *pObsolete, const PI_BLOCK *pPiBlock )
 {
    int pos;
 
-   if ((pibox_state == PIBOX_LIST) && (usedDbc == dbc))
    {
-      if ((pPiFilterContext->enabledFilters & FILTER_PROGIDX) || pibox_lock)
+      if (pPiFilterContext->enabledFilters & FILTER_PROGIDX)
       {  // when progidx filter is used check is too complicated, hence do complete refresh
          pibox_resync = TRUE;
       }
@@ -1720,7 +1459,7 @@ void PiListBox_DbPostUpdate( const EPGDB_CONTEXT *usedDbc, const PI_BLOCK *pObso
             {  // item is listed, but does not match the filter anymore -> remove it
                dprintf3("PiListBox-DbUpdated: item %d no longer matches the filter: start=%ld netwop=%d\n", pos, pPiBlock->start_time, pPiBlock->netwop_no);
                assert(EpgDbFilterMatches(dbc, pPiFilterContext, pObsolete));
-               PiListBox_DbRemoved(usedDbc, pPiBlock);
+               PiListBox_DbRemoved(pPiBlock);
                assert(PiListBox_ConsistancyCheck());
             }
          }
@@ -1732,7 +1471,7 @@ void PiListBox_DbPostUpdate( const EPGDB_CONTEXT *usedDbc, const PI_BLOCK *pObso
                if ( EpgDbFilterMatches(dbc, pPiFilterContext, pPiBlock) != FALSE )
                {  // the new item matches -> need to insert it or at least add it to the max count
                   dprintf2("invisible item now matches the filter: start=%ld netwop=%d\n", pPiBlock->start_time, pPiBlock->netwop_no);
-                  PiListBox_DbInserted(usedDbc, pPiBlock);
+                  PiListBox_DbInserted(pPiBlock);
                   assert(PiListBox_ConsistancyCheck());
                }
             }
@@ -1741,7 +1480,7 @@ void PiListBox_DbPostUpdate( const EPGDB_CONTEXT *usedDbc, const PI_BLOCK *pObso
                //if ( EpgDbFilterMatches(dbc, pPiFilterContext, pPiBlock) == FALSE )
                //{  // the new item does not match -> remove it
                //   dprintf2("invisible item no longer matches the filter: start=%ld netwop=%d\n", pPiBlock->start_time, pPiBlock->netwop_no);
-               //   PiListBox_DbRemoved(usedDbc, pPiBlock);
+               //   PiListBox_DbRemoved(pPiBlock);
                //   assert(PiListBox_ConsistancyCheck());
                //}
             }
@@ -1753,12 +1492,12 @@ void PiListBox_DbPostUpdate( const EPGDB_CONTEXT *usedDbc, const PI_BLOCK *pObso
 // ----------------------------------------------------------------------------
 // Delete an item, that's about to be removed from the database, from the listbox
 //
-void PiListBox_DbRemoved( const EPGDB_CONTEXT *usedDbc, const PI_BLOCK *pPiBlock )
+static void PiListBox_DbRemoved( const PI_BLOCK *pPiBlock )
 {
    const PI_BLOCK *pTemp, *pPrev, *pNext;
    int i, pos;
 
-   if ((pibox_state == PIBOX_LIST) && (usedDbc == dbc) && (pibox_count > 0))
+   if (pibox_count > 0)
    {
       for (pos=0; pos < pibox_count; pos++)
       {
@@ -1850,11 +1589,11 @@ void PiListBox_DbRemoved( const EPGDB_CONTEXT *usedDbc, const PI_BLOCK *pPiBlock
 // ----------------------------------------------------------------------------
 // Recount number of items before and after the visible area
 //
-void PiListBox_DbRecount( const EPGDB_CONTEXT *usedDbc )
+static void PiListBox_DbRecount( void )
 {
    const PI_BLOCK *pPrev, *pNext;
 
-   if ((pibox_state == PIBOX_LIST) && (usedDbc == dbc) && pibox_resync && (pibox_lock == FALSE))
+   if (pibox_resync)
    {
       pibox_resync = FALSE;
 
@@ -1903,72 +1642,51 @@ void PiListBox_DbRecount( const EPGDB_CONTEXT *usedDbc )
 }
 
 // ----------------------------------------------------------------------------
-// Check if any items are expired or started running
-// - currently simply does a refresh (resync with the db to remove expired PI)
-// - could be improved by checking if any PI have expired. If not, only new
-//   NOW PI would have to be marked
+// Process changes in the PI database for the PI listbox
+// - invoked by the mgmt module as a callback (function pointer is set during init)
 //
-void PiListBox_UpdateNowItems( void )
+static bool PiListBox_HandleAcqEvent( const EPGDB_CONTEXT * usedDbc, EPGDB_PI_ACQ_EVENT event,
+                                      const PI_BLOCK * pPiBlock, const PI_BLOCK * pObsolete )
 {
-   #if 0
-   ulong now;
-   uint  pos;
-   bool refresh;
-   #endif
+   bool result = FALSE;
 
-   if (pibox_state == PIBOX_LIST)
+   if ( (pibox_state == PIBOX_LIST) && (usedDbc == dbc) && (pibox_lock == FALSE) )
    {
-      #if 0
-      if (pPiFilterContext->enabledFilters & FILTER_PROGIDX)
-      {  // prog-no filter -> set flag so that listbox is resync'ed with db
-         pibox_resync = TRUE;
-      }
-
-      refresh = TRUE; //XXX TODO
-      now = time(NULL);
-
-      for (pos=0; pos < pibox_count; pos++)
+      switch (event)
       {
-         //XXX TODO: stop_time is not saved, so we have to search the DB
-	 //if (pibox_list[pos].stop_time <= now)
-            //refresh = TRUE;
-	 if (pibox_list[pos].start_time > now)
-	    break;
+         case EPGDB_PI_INSERTED:
+            PiListBox_DbInserted(pPiBlock);
+            break;
+         case EPGDB_PI_PRE_UPDATE:
+            result = PiListBox_DbPreUpdate(pObsolete, pPiBlock);
+            break;
+         case EPGDB_PI_POST_UPDATE:
+            PiListBox_DbPostUpdate(pObsolete, pPiBlock);
+            break;
+         case EPGDB_PI_REMOVED:
+            PiListBox_DbRemoved(pPiBlock);
+            break;
+         case EPGDB_PI_RECOUNT:
+            PiListBox_DbRecount();
+            break;
+         default:
+            fatal1("PiListBox-HandleAcqEvent: unknown event %d received", event);
+            break;
       }
-
-      if (refresh)
-      {
-         #endif
-         PiListBox_Refresh();
-         #if 0
-      }
-      else if (pos > 0)
-      {
-	 sprintf(comm, ".all.pi.list.text tag ranges now\n");
-	 if (Tcl_Eval(interp, comm) == TCL_OK)
-	 {
-	    sprintf(comm, "1.0 %d.0", pos + 1);
-	    if (strcmp(interp->result, comm) != 0)
-	    {
-	       dprintf2("updating now items: was (%s), now (%s)\n", interp->result, comm);
-	       sprintf(comm, ".all.pi.list.text tag remove now 1.0 end\n"
-	                     ".all.pi.list.text tag add now 1.0 %d.0\n", pos + 1);
-	       eval_check(interp, comm);
-	    }
-	    if (pibox_curpos < pos)
-	    {  // change cursor color to NOW coloring
-	       PiListBox_ShowCursor();
-	    }
-	 }
-         PiListBox_DbRecount(dbc);
-      }
-      #endif
    }
+   else if ( (pibox_state != PIBOX_LIST) && (usedDbc == dbc) && (event == EPGDB_PI_INSERTED) )
+   {  // listbox was in an error state -> switch to normal mode
+      UiControl_CheckDbState();
+      return TRUE;
+   }
+
+   return result;
 }
 
 // ----------------------------------------------------------------------------
 // Lock/Unlock the direct link between listbox and acquisition
 //
+#if 0
 void PiListBox_Lock( bool lock )
 {
    if (lock)
@@ -1981,6 +1699,7 @@ void PiListBox_Lock( bool lock )
       PiListBox_Refresh();
    }
 }
+#endif
 
 // ----------------------------------------------------------------------------
 // Refresh the listbox after filter change
@@ -2023,7 +1742,7 @@ const PI_BLOCK * PiListBox_GetSelectedPi( void )
 //
 static int PiListBox_GetSelectedNetwop( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
-   const char * const pUsage = "Usage: C_PiListBox_GetSelectedNetwop";
+   const char * const pUsage = "Usage: C_PiBox_GetSelectedNetwop";
    const AI_BLOCK *pAiBlock;
    Tcl_Obj * pResultList;
    uchar strbuf[10];
@@ -2120,14 +1839,14 @@ static int PiListBox_Resize( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_O
 //
 void PiListBox_Destroy( void )
 {
-   uint  idx;
+   pibox_state = PIBOX_NOT_INIT;
 
    if (pibox_list != NULL)
       xfree(pibox_list);
+   pibox_list = NULL;
 
-   for (idx=0; idx < TCLOBJ_COUNT; idx++)
-      Tcl_DecrRefCount(tcl_obj[idx]);
-   memset(tcl_obj, 0, sizeof(tcl_obj));
+   if (dbc != NULL)
+      EpgDbSetPiAcqCallback(dbc, NULL);
 }
 
 // ----------------------------------------------------------------------------
@@ -2136,40 +1855,31 @@ void PiListBox_Destroy( void )
 //
 void PiListBox_Create( void )
 {
-   Tcl_CmdInfo cmdInfo;
-   uint  idx;
-
    pibox_state = PIBOX_NOT_INIT;
-   pibox_dbstate = EPGDB_NOT_INIT;
 
-   if (Tcl_GetCommandInfo(interp, "C_PiListBox_Scroll", &cmdInfo) == 0)
-   {
-      Tcl_CreateObjCommand(interp, "C_PiListBox_Scroll", PiListBox_Scroll, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_PiListBox_CursorDown", PiListBox_CursorDown, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_PiListBox_CursorUp", PiListBox_CursorUp, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_PiListBox_GotoTime", PiListBox_GotoTime, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_PiListBox_SelectItem", PiListBox_SelectItem, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_RefreshPiListbox", PiListBox_RefreshCmd, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_ResetPiListbox", PiListBox_ResetCmd, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_ResizePiListbox", PiListBox_Resize, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_PiListBox_GetSelectedNetwop", PiListBox_GetSelectedNetwop, (ClientData) NULL, NULL);
+   // clear possible error message overlay
+   sprintf(comm, "PiBox_DisplayErrorMessage {}");
+   eval_check(interp, comm);
 
-      memset(&tcl_obj, 0, sizeof(tcl_obj));
-      tcl_obj[TCLOBJ_WID_INFO]      = Tcl_NewStringObj(".all.pi.info.text", -1);
-      tcl_obj[TCLOBJ_STR_INSERT]    = Tcl_NewStringObj("insert", -1);
-      tcl_obj[TCLOBJ_STR_END]       = Tcl_NewStringObj("end", -1);
-      tcl_obj[TCLOBJ_STR_TITLE]     = Tcl_NewStringObj("title", -1);
-      tcl_obj[TCLOBJ_STR_FEATURES]  = Tcl_NewStringObj("features", -1);
-      tcl_obj[TCLOBJ_STR_BOLD]      = Tcl_NewStringObj("bold", -1);
-      tcl_obj[TCLOBJ_STR_PARAGRAPH] = Tcl_NewStringObj("paragraph", -1);
+   Tcl_CreateObjCommand(interp, "C_PiBox_Scroll", PiListBox_Scroll, (ClientData) NULL, NULL);
+   Tcl_CreateObjCommand(interp, "C_PiBox_ScrollHorizontal", PiListBox_Dummy, (ClientData) NULL, NULL);
+   Tcl_CreateObjCommand(interp, "C_PiBox_CursorDown", PiListBox_CursorDown, (ClientData) NULL, NULL);
+   Tcl_CreateObjCommand(interp, "C_PiBox_CursorUp", PiListBox_CursorUp, (ClientData) NULL, NULL);
+   Tcl_CreateObjCommand(interp, "C_PiBox_CursorLeft", PiListBox_Dummy, (ClientData) NULL, NULL);
+   Tcl_CreateObjCommand(interp, "C_PiBox_CursorRight", PiListBox_Dummy, (ClientData) NULL, NULL);
+   Tcl_CreateObjCommand(interp, "C_PiBox_GotoTime", PiListBox_GotoTime, (ClientData) NULL, NULL);
+   Tcl_CreateObjCommand(interp, "C_PiBox_SelectItem", PiListBox_SelectItem, (ClientData) NULL, NULL);
+   Tcl_CreateObjCommand(interp, "C_PiBox_Refresh", PiListBox_RefreshCmd, (ClientData) NULL, NULL);
+   Tcl_CreateObjCommand(interp, "C_PiBox_Reset", PiListBox_ResetCmd, (ClientData) NULL, NULL);
+   Tcl_CreateObjCommand(interp, "C_PiBox_Resize", PiListBox_Resize, (ClientData) NULL, NULL);
+   Tcl_CreateObjCommand(interp, "C_PiBox_GetSelectedNetwop", PiListBox_GetSelectedNetwop, (ClientData) NULL, NULL);
 
-      for (idx=0; idx < TCLOBJ_COUNT; idx++)
-         Tcl_IncrRefCount(tcl_obj[idx]);
+   eval_check(interp, "UpdatePiListboxColumns");
 
-      // set the initial listbox height
-      PiListBox_Resize(NULL, interp, 0, NULL);
-   }
-   else
-      debug0("PiListBox-Create: commands were already created");
+   // set the initial listbox height
+   PiListBox_Resize(NULL, interp, 0, NULL);
+
+   EpgDbFilterDisable(pPiFilterContext, FILTER_NETWOP_PRE2);
+   EpgDbSetPiAcqCallback(dbc, PiListBox_HandleAcqEvent);
 }
 

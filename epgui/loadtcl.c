@@ -22,12 +22,13 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: loadtcl.c,v 1.4 2002/11/23 15:12:58 tom Exp tom $
+ *  $Id: loadtcl.c,v 1.5 2003/01/11 13:02:52 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
 #define DPRINTF_OFF
 
+#include <string.h>
 #include <tcl.h>
 #include <tk.h>
 

@@ -1,5 +1,5 @@
 /*
- *  Win32 VBI capture driver for the Booktree 848/849/878/879 family
+ *  Win32 VBI capture driver management
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
@@ -14,35 +14,33 @@
  *
  *  Description:
  *
- *    This module is a "user-space driver" for the Booktree Bt8x8 chips on
- *    Win32 systems. It uses DSdrv by Mathias Ellinger and John Adcock:
- *    a free open-source driver for the BT8x8 chipset. The driver offers
- *    generic I/O functions to directly access the BT8x8 chip via PCI bus.
- *    This module provides an abstraction layer with higher-level functions,
- *    e.g. to tune a given TV channel or start/stop acquisition.
+ *    This module manages M$ Windows drivers for all supported TV cards.
+ *    It provides an abstraction layer with higher-level functions,
+ *    e.g. to start/stop acquisition or change the channel.
  *
- *    The code in this module is heavily based upon the Linux bttv driver
- *    and has been adapted for WinDriver by someone who calls himself
- *    "Espresso".  I stripped it down for VBI decoding only.  1.5 years later
- *    WinDriver was replaced with the free DSdrv BT8x8 driver by E-Nek.
+ *    It's based on DSdrv by Mathias Ellinger and John Adcock: a free open-source
+ *    driver for PCI cards. The driver offers generic I/O functions to directly
+ *    access the hardware (memory map PCI registers, allocate memory for DMA
+ *    etc.)  Much of the code to control the specific cards was also taken from
+ *    DScaler, although a large part (if not the most) originally came from the
+ *    Linux bttv and saa7134 drivers (see also copyrights below).  Linux bttv
+ *    was originally ported to Windows by "Espresso".
  *
  *
  *  Authors:
  *
- *    BT8x8-Parts (from bttv driver for Linux)
- *      Copyright (C) 1996,97,98 Ralph  Metzler (rjkm@thp.uni-koeln.de)
- *                             & Marcus Metzler (mocm@thp.uni-koeln.de)
- *
  *    WinDriver adaption (from MultiDec)
  *      Copyright (C) 2000 Espresso (echter_espresso@hotmail.com)
  *
- *    VBI only adaption and nxtvepg integration
- *      Tom Zoerner
- *
- *    WinDriver replaced with DSdrv (DScaler driver)
+ *    WinDriver replaced with DSdrv Bt8x8 code (DScaler driver)
  *      March 2002 by E-Nek (e-nek@netcourrier.com)
  *
- *  $Id: btdrv4win.c,v 1.30 2002/11/26 19:13:37 tom Exp tom $
+ *    Support for multiple cards on the PCI bus & different drivers,
+ *    and "slave mode" when connected to a TV app
+ *      Tom Zoerner
+ *
+ *
+ *  $Id: btdrv4win.c,v 1.42 2003/03/19 16:17:42 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -62,47 +60,47 @@
 #include "epgvbi/winshmsrv.h"
 
 #include "dsdrv/dsdrvlib.h"
-#include "epgvbi/bt848.h"
-#include "epgvbi/wintuner.h"
+#include "dsdrv/tvcard.h"
+#include "dsdrv/bt8x8.h"
+#include "dsdrv/saa7134.h"
+#include "dsdrv/cx2388x.h"
+#include "dsdrv/wintuner.h"
 
 
 // ----------------------------------------------------------------------------
 // Declaration of internal variables
-
-#define VBI_LINES_PER_FIELD   16
-#define VBI_LINES_PER_FRAME  (VBI_LINES_PER_FIELD * 2)
-#define VBI_LINE_SIZE         2048
-#define VBI_DATA_SIZE        (VBI_LINE_SIZE * VBI_LINES_PER_FRAME)
-#define VBI_SPL               2044
-
-#define VBI_FRAME_CAPTURE_COUNT   5
-#define VBI_FIELD_CAPTURE_COUNT  (VBI_FRAME_CAPTURE_COUNT * 2)
-
-
-#define RISC_CODE_LENGTH     (512 * sizeof(DWORD))
-typedef DWORD PHYS;
-
 
 typedef struct
 {
    WORD   VendorId;
    WORD   DeviceId;
    char * szName;
-} TBT848Chip;
+} TCaptureChip;
 
-static const TBT848Chip BT848Chips[] =
+#define PCI_ID_BROOKTREE  0x109e
+#define PCI_ID_PHILIPS    0x1131
+#define PCI_ID_CONEXANT   0x14F1
+
+static const TCaptureChip CaptureChips[] =
 {
-   { 0x109e, 0x036e, "BT878" },
-   { 0x109e, 0x036f, "BT878A"},
-   { 0x109e, 0x0350, "BT848" },
-   { 0x109e, 0x0351, "BT849" }
+   { PCI_ID_BROOKTREE, 0x036e, "Brooktree Bt878"  },
+   { PCI_ID_BROOKTREE, 0x036f, "Brooktree Bt878A" },
+   { PCI_ID_BROOKTREE, 0x0350, "Brooktree Bt848"  },
+   { PCI_ID_BROOKTREE, 0x0351, "Brooktree Bt849"  },
+   { PCI_ID_PHILIPS,   0x7134, "Philips SAA7134" },
+   { PCI_ID_PHILIPS,   0x7133, "Philips SAA7133" },
+   { PCI_ID_PHILIPS,   0x7130, "Philips SAA7130" },
+   //{ PCI_ID_PHILIPS,  0x7135, "Philips SAA7135" },
+   { PCI_ID_CONEXANT,  0x8800, "Conexant CX23881 (Bt881)" }
 };
-#define TV_CHIP_COUNT (sizeof(BT848Chips) / sizeof(BT848Chips[0]))
+#define CAPTURE_CHIP_COUNT (sizeof(CaptureChips) / sizeof(CaptureChips[0]))
 
 typedef struct
 {
    uint  chipIdx;
    uint  chipCardIdx;
+   WORD  VendorId;
+   WORD  DeviceId;
    DWORD dwSubSystemID;
    DWORD dwBusNumber;
    DWORD dwSlotNumber;
@@ -113,39 +111,34 @@ typedef struct
 static TVCARD_ID btCardList[MAX_CARD_COUNT];
 static uint      btCardCount;
 
-#define INVALID_INPUT_SOURCE  4
+#define INVALID_INPUT_SOURCE  0xff
 
 static struct
 {
-   TUNER_TYPE  tunerType;
+   uint        cardIdx;
+   uint        cardId;
+   uint        tunerType;
    uint        pllType;
    uint        threadPrio;
-   uint        cardIdx;
    uint        inputSrc;
    uint        tunerFreq;
    uint        tunerNorm;
 } btCfg;
 
-static HANDLE vbiThreadHandle = NULL;
-static BOOL StopVbiThread;
-static BOOL btDrvLoaded;
+static TVCARD cardif;
+static BOOL drvLoaded;
 static BOOL shmSlaveMode = FALSE;
 
 volatile EPGACQ_BUF * pVbiBuf;
 static EPGACQ_BUF vbiBuf;
 
-PMemStruct Risc_dma;
-PMemStruct Vbi_dma[VBI_FRAME_CAPTURE_COUNT];
-
-PHYS RiscBasePhysical;
-BYTE *pVBILines[VBI_FRAME_CAPTURE_COUNT] = { NULL,NULL,NULL,NULL,NULL };
-long BytesPerRISCField=1;
-
+static void BtDriver_CountCards( void );
+static BOOL BtDriver_OpenCard( uint cardIdx );
 
 // ----------------------------------------------------------------------------
 // Helper function to set user-configured priority in IRQ and VBI threads
 //
-static void SetAcqPriority( HANDLE thr, int level )
+static int BtDriver_GetAcqPriority( int level )
 {
    int prio;
 
@@ -157,400 +150,51 @@ static void SetAcqPriority( HANDLE thr, int level )
       // skipping HIGHEST by (arbitrary) choice
       case 2: prio = THREAD_PRIORITY_TIME_CRITICAL; break;
    }
-   if (SetThreadPriority(thr, prio) == 0)
-      debug1("SetAcqPriority: SetThreadPriority returned %ld", GetLastError());
+
+   return prio;
 }
 
-// ----------------------------------------------------------------------------
-// Utility functions to address the memory mapped Bt8x8 I/O registers
-
-static void MaskDataByte (int Offset, BYTE d, BYTE m)
-{
-   BYTE a;
-   BYTE b;
-   a = BT8X8_ReadByte (Offset);
-   b = (a & ~(m)) | ((d) & (m));
-   BT8X8_WriteByte (Offset, b);
-}
-
-
-#if 0  // unused code
-static void MaskDataWord (int Offset, WORD d, WORD m)
-{
-   WORD a;
-   WORD b;
-   a = BT8X8_ReadWord (Offset);
-   b = (a & ~(m)) | ((d) & (m));
-   BT8X8_WriteWord (Offset, b);
-}
-#endif
-
-
-static void AndDataByte (int Offset, BYTE d)
-{
-   BYTE a;
-   BYTE b;
-   a = BT8X8_ReadByte (Offset);
-   b = a & d;
-   BT8X8_WriteByte (Offset, b);
-}
-
-
-static void AndDataWord (int Offset, short d)
-{
-   WORD a;
-   WORD b;
-   a = BT8X8_ReadWord (Offset);
-   b = a & d;
-   BT8X8_WriteWord (Offset, b);
-}
-
-
-static void OrDataByte (int Offset, BYTE d)
-{
-   BYTE a;
-   BYTE b;
-   a = BT8X8_ReadByte (Offset);
-   b = a | d;
-   BT8X8_WriteByte (Offset, b);
-}
-
-
-static void OrDataWord (int Offset, unsigned short d)
-{
-   WORD a;
-   WORD b;
-   a = BT8X8_ReadWord (Offset);
-   b = a | d;
-   BT8X8_WriteWord (Offset, b);
-}
-
-
-
-// ----------------------------------------------------------------------------
-// Allocate memory for DMA
-// - The difference to normal malloc is that you have to know the
-//   physical address in RAM and that the memory must not be swapped out.
+// ---------------------------------------------------------------------------
+// Get interface functions for a TV card
 //
-static BOOL Alloc_DMA(DWORD dwSize, PMemStruct * ppDma, int Option)
+static bool BtDriver_GetCardInterface( TVCARD * pTvCard, DWORD VendorId, uint cardIdx )
 {
-   *ppDma = NULL;
+   bool result = TRUE;
 
-   memoryAlloc(dwSize, Option, ppDma);
+   memset(pTvCard, 0, sizeof(* pTvCard));
 
-   return (*ppDma != NULL);
-}
-
-
-static void Free_DMA(PMemStruct * ppDma)
-{
-   memoryFree(*ppDma);
-}
-
-
-static PHYS GetPhysicalAddress(PMemStruct pMem, LPBYTE pLinear, DWORD dwSizeWanted, DWORD * pdwSizeAvailable)
-{
-   PPageStruct pPages = (PPageStruct)(pMem + 1);
-   DWORD Offset;
-   DWORD i;
-   DWORD sum;
-   DWORD pRetVal = 0;
-
-   Offset = (DWORD)pLinear - (DWORD)pMem->dwUser;
-   sum = 0;
-   i = 0;
-   while (i < pMem->dwPages)
+   switch (VendorId)
    {
-      if (sum + pPages[i].dwSize > (unsigned)Offset)
-      {
-         Offset -= sum;
-         pRetVal = pPages[i].dwPhysical + Offset;
-         if ( pdwSizeAvailable != NULL )
-         {
-            *pdwSizeAvailable = pPages[i].dwSize - Offset;
-         }
+      case PCI_ID_BROOKTREE:
+         Bt8x8_GetInterface(pTvCard);
          break;
-      }
-      sum += pPages[i].dwSize;
-      i++;
+
+      case PCI_ID_PHILIPS:
+         SAA7134_GetInterface(pTvCard);
+         break;
+
+      case PCI_ID_CONEXANT:
+         Cx2388x_GetInterface(pTvCard);
+         break;
+
+      default:
+         result = FALSE;
+         break;
    }
-   if(pRetVal == 0)
+
+   // copy card parameters into the struct
+   if ((btCardCount != CARD_COUNT_UNINITIALIZED) && (cardIdx < btCardCount))
    {
-      sum++;
-   }
-   if ( pdwSizeAvailable != NULL )
-   {
-      if (*pdwSizeAvailable < dwSizeWanted)
-      {
-         sum++;
-      }
-   }
+      assert(btCardList[cardIdx].VendorId == VendorId);
 
-   return pRetVal;
-}
-
-
-static void * GetFirstFullPage( PMemStruct pMem )
-{
-   PPageStruct pPages = (PPageStruct)(pMem + 1);
-   DWORD pRetVal;
-
-   pRetVal = (DWORD)pMem->dwUser;
-
-   if(pPages[0].dwSize != 4096)
-   {
-      pRetVal += pPages[0].dwSize;
+      pTvCard->params.BusNumber   = btCardList[cardIdx].dwBusNumber;
+      pTvCard->params.SlotNumber  = btCardList[cardIdx].dwSlotNumber;
+      pTvCard->params.VendorId    = btCardList[cardIdx].VendorId;
+      pTvCard->params.DeviceId    = btCardList[cardIdx].DeviceId;
+      pTvCard->params.SubSystemId = btCardList[cardIdx].dwSubSystemID;
    }
 
-   return (void *) pRetVal;
-}
-
-// ----------------------------------------------------------------------------
-// Allocate the required DMA memory areas
-// - one area is for the VBI buffer
-// - one area is for the RISC code that is executed in the DMA controller
-//
-static BOOL BT8X8_MemoryInit(void)
-{
-   int i;
-
-   if (!Alloc_DMA(83968, &Risc_dma, ALLOC_MEMORY_CONTIG))
-   {
-      MessageBox(NULL, "Risc Memory (83 KB Contiguous) not Allocated", "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
-      return FALSE;
-   }
-
-   RiscBasePhysical = GetPhysicalAddress(Risc_dma, (BYTE *)Risc_dma->dwUser, 83968, NULL);
-
-   for (i = 0; i < VBI_FRAME_CAPTURE_COUNT; i++)
-   {
-      // JA 02/01/2001
-      // Allocate some extra memory so that we can skip
-      // start of buffer that is not page aligned
-      if (!Alloc_DMA(2048 * 19 * 2 + 4095, &Vbi_dma[i], 0))
-      {
-         MessageBox(NULL, "VBI Memory for DMA not Allocated", "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
-         return FALSE;
-      }
-      pVBILines[i] = (BYTE *) GetFirstFullPage(Vbi_dma[i]);
-   }
-   return TRUE;
-}
-
-// ----------------------------------------------------------------------------
-// Generate RISC program to control DMA transfer
-// - This program is executed by the DMA controller in the Booktree chip.
-// - It controls which of the captured data is written whereto.
-// - In our case it's very simple: all VBI lines are written into one
-//   consecutive buffer (actually there's a gap of 4 bytes between lines)
-//
-#if 0
-static void MakeVbiTable ( void )
-{
-   int idx;
-   DWORD *po = Risc_dma.pUserAddr;
-   PHYS pPhysVBI = (PHYS) Vbi_dma.Page[0].pPhysicalAddr;
-
-   // Sync to end of even field
-   *(po++) = (DWORD) (BT848_RISC_SYNC | BT848_RISC_RESYNC | BT848_FIFO_STATUS_VRE);
-   *(po++) = 0;
-
-   // enable packed mode
-   *(po++) = (BT848_RISC_SYNC | BT848_FIFO_STATUS_FM1);
-   *(po++) = 0;
-
-   for (idx = 0; idx < VBI_LINES_PER_FIELD; idx++)
-   {  // read 16 lines of VBI into the host memory
-      *(po++) = BT848_RISC_WRITE | BT848_RISC_SOL | BT848_RISC_EOL | VBI_SPL;
-      *(po++) = pPhysVBI;
-      pPhysVBI += VBI_LINE_SIZE;
-   }
-
-   // Sync to end of odd field
-   *(po++) = (DWORD) (BT848_RISC_SYNC | BT848_RISC_RESYNC | BT848_FIFO_STATUS_VRO);
-   *(po++) = 0;
-
-   // enable packed mode
-   *(po++) = (BT848_RISC_SYNC | BT848_FIFO_STATUS_FM1);
-   *(po++) = 0;
-
-   for (idx = VBI_LINES_PER_FIELD; idx < VBI_LINES_PER_FRAME; idx++)
-   {  // read 16 lines of VBI into the host memory
-      *(po++) = BT848_RISC_WRITE | BT848_RISC_SOL | BT848_RISC_EOL | VBI_SPL;
-      *(po++) = pPhysVBI;
-      pPhysVBI += VBI_LINE_SIZE;
-   }
-
-   // jump back to the start of the loop and raise the RISCI interrupt
-   *(po++) = BT848_RISC_JUMP | (0xf0<<16) | BT848_RISC_IRQ;
-   *(po++) = RiscLogToPhys (Risc_dma.pUserAddr);
-}
-
-
-static void MakeVbiTable ( void )
-{
-   int idx;
-   DWORD *po, GotBytesPerLine;
-   PHYS pPhysical;
-   LPBYTE pUser;
-
-   po = (DWORD *)Risc_dma->dwUser;
-   pUser = pVBILines[0];
-
-   // Sync to end of even field
-   *(po++) = (DWORD) (BT848_RISC_SYNC | BT848_RISC_RESYNC | BT848_FIFO_STATUS_VRE);
-   *(po++) = 0;
-
-   // enable packed mode
-   *(po++) = (BT848_RISC_SYNC | BT848_FIFO_STATUS_FM1);
-   *(po++) = 0;
-
-   for (idx = 0; idx < VBI_LINES_PER_FIELD; idx++)
-   {
-      pPhysical = GetPhysicalAddress(Vbi_dma[0], pUser, VBI_SPL, &GotBytesPerLine);
-      if(pPhysical == 0 || VBI_SPL > GotBytesPerLine)
-         return;
-
-      // read 16 lines of VBI into the host memory
-      *(po++) = BT848_RISC_WRITE | BT848_RISC_SOL | BT848_RISC_EOL | VBI_SPL;
-      *(po++) = pPhysical;
-      pUser += VBI_LINE_SIZE;
-   }
-
-  pUser += VBI_LINES_PER_FRAME * VBI_LINE_SIZE;
-
-   // Sync to end of odd field
-   *(po++) = (DWORD) (BT848_RISC_SYNC | BT848_RISC_RESYNC | BT848_FIFO_STATUS_VRO);
-   *(po++) = 0;
-
-   // enable packed mode
-   *(po++) = (BT848_RISC_SYNC | BT848_FIFO_STATUS_FM1);
-   *(po++) = 0;
-
-   for (idx = VBI_LINES_PER_FIELD; idx < VBI_LINES_PER_FRAME; idx++)
-   {
-      pPhysical = GetPhysicalAddress(Vbi_dma[1], pUser, VBI_SPL, &GotBytesPerLine);
-      if(pPhysical == 0 || VBI_SPL > GotBytesPerLine)
-         return;
-      // read 16 lines of VBI into the host memory
-      *(po++) = BT848_RISC_WRITE | BT848_RISC_SOL | BT848_RISC_EOL | VBI_SPL;
-      *(po++) = pPhysical;
-      pUser += VBI_LINE_SIZE;
-   }
-
-   // jump back to the start of the loop and raise the RISCI interrupt
-   *(po++) = BT848_RISC_JUMP;
-   *(po++) = RiscBasePhysical;
-}
-#endif
-
-static void MakeVbiTable( void )
-{
-   DWORD *pRiscCode;
-   int nField;
-   int nLine;
-   LPBYTE pUser;
-   PHYS pPhysical;
-   DWORD GotBytesPerLine;
-   //DWORD BytesPerLine = 0;
-
-   pRiscCode = (DWORD *)Risc_dma->dwUser;
-
-   // create the RISC code for 10 fields
-   // the first one (0) is even, last one (9) is odd
-   for (nField = 0; nField < VBI_FIELD_CAPTURE_COUNT; nField++)
-   {
-      // First we sync onto either the odd or even field
-      if (nField & 1)
-      {
-         *(pRiscCode++) = (DWORD) (BT848_RISC_SYNC | BT848_RISC_RESYNC | BT848_FIFO_STATUS_VRO);
-      }
-      else
-      {
-         *(pRiscCode++) = (DWORD) (BT848_RISC_SYNC | BT848_RISC_RESYNC | BT848_FIFO_STATUS_VRE  | ((0xF1 + nField / 2) << 16));
-      }
-      *(pRiscCode++) = 0;
-
-      *(pRiscCode++) = (DWORD) (BT848_RISC_SYNC | BT848_FIFO_STATUS_FM1);
-      *(pRiscCode++) = 0;
-
-      pUser = pVBILines[nField / 2];
-
-      if (nField & 1)
-         pUser += VBI_LINES_PER_FIELD * VBI_LINE_SIZE;
-
-      for (nLine = 0; nLine < VBI_LINES_PER_FIELD; nLine++)
-      {
-         pPhysical = GetPhysicalAddress(Vbi_dma[nField / 2], pUser, VBI_SPL, &GotBytesPerLine);
-         if (pPhysical == 0 || VBI_SPL > GotBytesPerLine)
-            return;
-         *(pRiscCode++) = BT848_RISC_WRITE | BT848_RISC_SOL | BT848_RISC_EOL | VBI_SPL;
-         *(pRiscCode++) = pPhysical;
-         pUser += VBI_LINE_SIZE;
-      }
-   }
-
-   BytesPerRISCField = ((long)pRiscCode - (long)Risc_dma->dwUser) / VBI_FIELD_CAPTURE_COUNT;
-   *(pRiscCode++) = BT848_RISC_JUMP;
-   *(pRiscCode++) = RiscBasePhysical;
-}
-
-
-// ---------------------------------------------------------------------------
-// Determine which frame has been completed last
-// - returns frame index: 0 to 4 (the VBI buffer contains 5 frames)
-//
-static int BT8X8_GetRISCPosAsInt( void )
-{
-   DWORD CurrentRiscPos;
-   int   CurrentPos = VBI_FIELD_CAPTURE_COUNT;
-   int   CurrentFrame;
-
-   while (CurrentPos >= VBI_FIELD_CAPTURE_COUNT)
-   {
-      // read the RISC program counter, i.e. pointer into the RISC code
-      CurrentRiscPos = BT8X8_ReadDword(BT848_RISC_COUNT);
-      CurrentPos = (CurrentRiscPos - RiscBasePhysical) / BytesPerRISCField;
-   }
-
-   // the current position lies in the field which is currently being filled
-   // calculate the index of the previous (i.e. completed) frame
-   if (CurrentPos < 2)
-      CurrentFrame = ((CurrentPos + VBI_FIELD_CAPTURE_COUNT) - 2) / 2;
-   else
-      CurrentFrame = (CurrentPos - 2) / 2;
-
-   return CurrentFrame;
-}
-
-
-// ---------------------------------------------------------------------------
-// En- or disable VBI capturing
-// - when enabling, set up the RISC program and also enable DMA transfer
-//
-static BOOL Set_Capture(BOOL enable)
-{
-   // disable capturing while the RISC program is changed to avoid a crash
-   MaskDataByte (BT848_CAP_CTL, 0, 0x0f);
-
-   if (enable)
-   {
-      // set up a RISC program loop that controls DMA from the Bt8x8 to RAM
-      MakeVbiTable();
-
-      // enable capturing VBI in even and odd field; video is not captured
-      MaskDataByte(BT848_CAP_CTL, BT848_CAP_CTL_CAPTURE_VBI_EVEN | BT848_CAP_CTL_CAPTURE_VBI_ODD, 0x0f);
-
-      // enable DMA
-      OrDataWord (BT848_GPIO_DMA_CTL, 3);
-   }
-   else
-   {
-      // disable DMA
-      AndDataWord (BT848_GPIO_DMA_CTL, ~3);
-   }
-
-   return TRUE;
+   return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -558,58 +202,33 @@ static BOOL Set_Capture(BOOL enable)
 // - which input is tuner and which composite etc. is completely up to the
 //   card manufacturer, but it seems that almost all use the 2,3,1,1 muxing
 // - returns TRUE in *pIsTuner if the selected source is the TV tuner
-//   XXX currently index 0 is hardwired as TV tuner input
 //
-static bool BtDriver_SetInputSource( int inputIdx, bool * pIsTuner )
+static bool BtDriver_SetInputSource( uint inputIdx, uint norm, bool * pIsTuner )
 {
+   bool isTuner = FALSE;
    bool result = FALSE;
 
-   // 0= Video_Tuner,
-   // 1= Video_Ext1,
-   // 2= Video_Ext2,
-   // 3= Video_Ext3
-   // 4= INVALID_INPUT_SOURCE
+   // remember the input source for later
+   btCfg.inputSrc = inputIdx;
 
-   if (inputIdx < 4)
+   if (shmSlaveMode == FALSE)
    {
-      // remember the input source for later
-      btCfg.inputSrc = inputIdx;
-
-      if (shmSlaveMode == FALSE)
+      if (drvLoaded)
       {
-         if (btDrvLoaded)
-         {
-            AndDataByte (BT848_IFORM, ~(3 << 5));
+         // XXX TODO norm switch
+         result = cardif.cfg->SetVideoSource(&cardif, inputIdx);
 
-            switch (inputIdx)
-            {
-               case 0:
-               case 1:
-               case 2:  // configure composite input
-                  AndDataByte (BT848_E_CONTROL, ~BT848_CONTROL_COMP);
-                  AndDataByte (BT848_O_CONTROL, ~BT848_CONTROL_COMP);
-                  break;
-
-               case 3:  // configure s-video input
-                  OrDataByte (BT848_E_CONTROL, BT848_CONTROL_COMP);
-                  OrDataByte (BT848_O_CONTROL, BT848_CONTROL_COMP);
-                  break;
-            }
-
-            MaskDataByte (BT848_IFORM, (BYTE)(((inputIdx + 2) & 3) << 5), (3 << 5));
-         }
-         result = TRUE;
-      }
-      else
-      {  // slave mode -> set param in shared memory
-         result = WintvSharedMem_SetInputSrc(inputIdx);
+         isTuner = cardif.cfg->IsInputATuner(&cardif, inputIdx);
       }
    }
    else
-      debug1("BtDriver-SetInputSource: invalid input source %d", inputIdx);
+   {  // slave mode -> set param in shared memory
+      result = WintvSharedMem_SetInputSrc(inputIdx);
+      isTuner = TRUE;
+   }
 
    if (pIsTuner != NULL)
-      *pIsTuner = (inputIdx == 0);
+      *pIsTuner = isTuner;
 
    return result;
 }
@@ -618,45 +237,246 @@ static bool BtDriver_SetInputSource( int inputIdx, bool * pIsTuner )
 // Return name for given input source index
 // - has to be called repeatedly with incremented indices until NULL is returned
 //
-const char * BtDriver_GetInputName( uint cardIdx, uint inputIdx )
+const char * BtDriver_GetInputName( uint cardIdx, uint cardType, uint inputIdx )
 {
-   switch (inputIdx)
+   const char * pName = NULL;
+   TVCARD tmpCardIf;
+   uint   chipIdx;
+
+   if ((btCardCount != CARD_COUNT_UNINITIALIZED) && (cardIdx < btCardCount))
    {
-      case 0:  return "Tuner"; break;
-      case 1:  return "Composite 1"; break;
-      case 2:  return "Composite 2"; break;
-      case 3:  return "S-Video (Y/C)"; break;
-      default: return NULL;
+      chipIdx = btCardList[cardIdx].chipIdx;
+
+      if (BtDriver_GetCardInterface(&tmpCardIf, CaptureChips[chipIdx].VendorId, CARD_COUNT_UNINITIALIZED) )
+      {
+         tmpCardIf.params.cardId = cardType;
+
+         if (inputIdx < tmpCardIf.cfg->GetNumInputs(&tmpCardIf))
+            pName = tmpCardIf.cfg->GetInputName(&tmpCardIf, inputIdx);
+         else
+            pName = NULL;
+      }
    }
+   return pName;
 }
 
 // ---------------------------------------------------------------------------
-// Return name for given TV card
+// Auto-detect card type and return parameters from config table
+// - card type may also be set manually, in which case only params are returned
 //
-const char * BtDriver_GetCardName( uint cardIdx )
+bool BtDriver_QueryCardParams( uint cardIdx, sint * pCardType, sint * pTunerType, sint * pPllType )
 {
-   #define MAX_CARD_NAME_LEN 32
-   static char name[MAX_CARD_NAME_LEN + 1];
-   const char * result = NULL;
+   TVCARD tmpCardIf;
+   uint   chipIdx;
+   bool   drvWasLoaded;
+   uint   loadError;
+   bool   result = FALSE;
+
+   if ((pCardType != NULL) && (pTunerType != NULL) && (pPllType != NULL))
+   {
+      if ((btCardCount != CARD_COUNT_UNINITIALIZED) && (cardIdx < btCardCount))
+      {
+         if (shmSlaveMode)
+         {  // error
+            debug0("BtDriver-QueryCardParams: driver is in slave mode");
+            MessageBox(NULL, "Cannot query the TV card while connected to a TV application.\nTerminated the TV application and try again.", "Nextview EPG driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+         }
+         else if (drvLoaded && (btCfg.cardIdx != cardIdx))
+         {  // error
+            debug2("BtDriver-QueryCardParams: acq running for different card %d instead req. %d", btCfg.cardIdx, cardIdx);
+            MessageBox(NULL, "Acquisition is running for a different TV card.\nStop acquisition and try again.", "Nextview EPG driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+         }
+         else
+         {
+            drvWasLoaded = drvLoaded;
+            if (drvLoaded == FALSE)
+            {
+               shmSlaveMode = (WintvSharedMem_ReqTvCardIdx(cardIdx) == FALSE);
+               if (shmSlaveMode == FALSE)
+               {
+                  loadError = LoadDriver();
+                  if (loadError == HWDRV_LOAD_SUCCESS)
+                  {
+                     // scan the PCI bus for known cards
+                     BtDriver_CountCards();
+
+                     drvLoaded = BtDriver_OpenCard(cardIdx);
+                     if (drvLoaded == FALSE)
+                        UnloadDriver();
+                  }
+                  else
+                  {
+                     MessageBox(NULL, GetDriverErrorMsg(loadError), "Nextview EPG driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+                  }
+               }
+            }
+
+            if (drvLoaded)
+            {
+               chipIdx = btCardList[cardIdx].chipIdx;
+               if ( BtDriver_GetCardInterface(&tmpCardIf, CaptureChips[chipIdx].VendorId, cardIdx) )
+               {
+                  if (*pCardType <= 0)
+                     *pCardType  = tmpCardIf.cfg->AutoDetectCardType(&tmpCardIf);
+
+                  if (*pCardType > 0)
+                  {
+                     *pTunerType = tmpCardIf.cfg->AutoDetectTuner(&tmpCardIf, *pCardType);
+                     *pPllType   = tmpCardIf.cfg->GetPllType(&tmpCardIf, *pCardType);
+                  }
+                  else
+                     *pTunerType = *pPllType = 0;
+
+                  result = TRUE;
+               }
+
+               if (drvWasLoaded == FALSE)
+               {
+                  UnloadDriver();
+                  drvLoaded = FALSE;
+               }
+            }
+
+            if (drvWasLoaded == FALSE)
+            {
+               WintvSharedMem_FreeTvCard();
+               shmSlaveMode = FALSE;
+            }
+         }
+      }
+      else
+         debug2("BtDriver-QueryCardParams: PCI bus not scanned or invalid card idx %d >= count %d", cardIdx, btCardCount);
+   }
+   else
+      fatal3("BtDriver-QueryCardParams: illegal NULL ptr params %lx,%lx,%lx", (long)pCardType, (long)pTunerType, (long)pPllType);
+
+   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Return name from card list for a given chip
+//
+const char * BtDriver_GetCardNameFromList( uint cardIdx, uint listIdx )
+{
+   const char * pName = NULL;
+   TVCARD tmpCardIf;
    uint chipIdx;
 
-   if (btCardCount == CARD_COUNT_UNINITIALIZED)
-   {  // no PCI scan done yet -> return numerical indices for the max. number of cards
-      if (cardIdx < MAX_CARD_COUNT)
+   if ((btCardCount != CARD_COUNT_UNINITIALIZED) && (cardIdx < btCardCount))
+   {
+      chipIdx = btCardList[cardIdx].chipIdx;
+
+      if ( BtDriver_GetCardInterface(&tmpCardIf, CaptureChips[chipIdx].VendorId, CARD_COUNT_UNINITIALIZED) )
       {
-         sprintf(name, "%d", cardIdx);
-         result = name;
+         pName = tmpCardIf.cfg->GetCardName(&tmpCardIf, listIdx);
+      }
+   }
+   return pName;
+}
+
+// ---------------------------------------------------------------------------
+// Return name & chip type for given TV card
+// - if the driver was never loaded before the PCI bus is scanned now;
+//   no error message displayed if the driver fails to load, but result set to FALSE
+// - end of enumeration is indicated by a FALSE result or NULL name pointer
+//
+bool BtDriver_EnumCards( uint cardIdx, uint cardType, uint * pChipType, const char ** pName, bool showDrvErr )
+{
+   static char cardName[50];
+   TVCARD tmpCardIf;
+   uint   chipIdx;
+   uint   chipType;
+   uint   loadError;
+   bool   result = FALSE;
+
+   if ((pChipType != NULL) && (pName != NULL))
+   {
+      // note: only try to load driver for the first query
+      if ( (cardIdx == 0) && (btCardCount == CARD_COUNT_UNINITIALIZED) &&
+           (drvLoaded == FALSE) && (shmSlaveMode == FALSE) )
+      {
+         shmSlaveMode = (WintvSharedMem_ReqTvCardIdx(cardIdx) == FALSE);
+         if (shmSlaveMode == FALSE)
+         {
+            loadError = LoadDriver();
+            if (loadError == HWDRV_LOAD_SUCCESS)
+            {
+               // scan the PCI bus for known cards, but don't open any
+               BtDriver_CountCards();
+               UnloadDriver();
+            }
+            else if (showDrvErr)
+            {
+               MessageBox(NULL, GetDriverErrorMsg(loadError), "Nextview EPG driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+            }
+
+         }
+         else if (showDrvErr)
+         {
+            MessageBox(NULL, "Cannot query the TV card while connected to a TV application.\nTerminated the TV application and try again.", "Nextview EPG driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+         }
+         WintvSharedMem_FreeTvCard();
+         shmSlaveMode = FALSE;
+      }
+
+      if (btCardCount != CARD_COUNT_UNINITIALIZED)
+      {
+         if (cardIdx < btCardCount)
+         {
+            chipIdx  = btCardList[cardIdx].chipIdx;
+            chipType = (CaptureChips[chipIdx].VendorId << 16) | CaptureChips[chipIdx].DeviceId;
+
+            if ((cardType != 0) && (chipType == *pChipType))
+            {
+               if ( BtDriver_GetCardInterface(&tmpCardIf, CaptureChips[chipIdx].VendorId, CARD_COUNT_UNINITIALIZED) )
+               {
+                  *pName = tmpCardIf.cfg->GetCardName(&tmpCardIf, cardType);
+               }
+               else
+                  *pName = "unknown chip type";
+            }
+            else
+            {
+               sprintf(cardName, "unknown %s card", CaptureChips[chipIdx].szName);
+               *pName = cardName;
+            }
+            *pChipType = chipType;
+         }
+         else
+         {  // end of enumeration
+            *pName = NULL;
+         }
+         result = TRUE;
+      }
+      else
+      {  // failed to load driver for PCI scan -> just return names for already known cards
+         if (*pChipType != 0)
+         {
+            if ( BtDriver_GetCardInterface(&tmpCardIf, *pChipType >> 16, CARD_COUNT_UNINITIALIZED) )
+            {
+               *pName = tmpCardIf.cfg->GetCardName(&tmpCardIf, cardType);
+            }
+            else
+               *pName = "unknown card";
+
+            // return 0 as chip type to indicate driver failure
+            *pChipType = 0;
+         }
+         else
+         {  // end of enumeration
+            if (shmSlaveMode && showDrvErr && (cardIdx == 0))
+            {
+               MessageBox(NULL, "Cannot scan PCI bus for TV cards while connected to a TV application.\nTerminated the TV application and try again.", "Nextview EPG driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+            }
+            *pName = NULL;
+         }
+
+         result = TRUE;
       }
    }
    else
-   {
-      if (cardIdx < btCardCount)
-      {
-         chipIdx = btCardList[cardIdx].chipIdx;
-         sprintf(name, "%d (%s)", cardIdx, BT848Chips[chipIdx].szName);
-         result = name;
-      }
-   }
+      fatal2("BtDriver-EnumCards: illegal NULL ptr params %lx,%lx", (long)pChipType, (long)pName);
+
    return result;
 }
 
@@ -667,9 +487,9 @@ bool BtDriver_IsVideoPresent( void )
 {
    bool result;
 
-   if (btDrvLoaded)
+   if (drvLoaded)
    {
-      result = ((BT8X8_ReadByte (BT848_DSTATUS) & (BT848_DSTATUS_PRES | BT848_DSTATUS_HLOC)) == (BT848_DSTATUS_PRES | BT848_DSTATUS_HLOC)) ? TRUE : FALSE;
+      result = cardif.ctl->IsVideoPresent();
    }
    else if (shmSlaveMode)
    {  // this operation is currently not supported by the TV app interaction protocol
@@ -683,134 +503,9 @@ bool BtDriver_IsVideoPresent( void )
 }
 
 // ---------------------------------------------------------------------------
-// Start the PLL (required on some cards only)
-//
-static void InitPll( int type )
-{
-   int i;
-
-   if (type == 0)
-   {
-      BT8X8_WriteByte (BT848_TGCTRL, BT848_TGCTRL_TGCKI_NOPLL);
-      BT8X8_WriteByte (BT848_PLL_XCI, 0x00);
-   }
-   else
-   {
-      if (type == 1)
-      {
-         BT8X8_WriteByte (BT848_PLL_F_LO, 0xf9);
-         BT8X8_WriteByte (BT848_PLL_F_HI, 0xdc);
-         BT8X8_WriteByte (BT848_PLL_XCI, 0x8E);
-      }
-      else
-      {
-         BT8X8_WriteByte (BT848_PLL_F_LO, 0x39);
-         BT8X8_WriteByte (BT848_PLL_F_HI, 0xB0);
-         BT8X8_WriteByte (BT848_PLL_XCI, 0x89);
-      }
-
-      for (i = 0; i < 100; i++)
-      {
-         if (BT8X8_ReadByte (BT848_DSTATUS) & BT848_DSTATUS_CSEL)
-         {
-            BT8X8_WriteByte (BT848_DSTATUS, 0x00);
-         }
-         else
-         {
-            BT8X8_WriteByte (BT848_TGCTRL, BT848_TGCTRL_TGCKI_PLL);
-            break;
-         }
-         Sleep (10);
-      }
-
-      // these settings do not work with my cards
-      //BT8X8_WriteByte (BT848_WC_UP, 0xcf);
-      //BT8X8_WriteByte (BT848_VTOTAL_LO, 0x00);
-      //BT8X8_WriteByte (BT848_VTOTAL_HI, 0x00);
-      //BT8X8_WriteByte (BT848_DVSIF, 0x00);
-   }
-}
-
-// ----------------------------------------------------------------------------
-// Reset the Bt8x8 and program all relevant registers with constants
-//
-static bool Init_BT_HardWare( void )
-{
-   // software reset, sets all registers to reset default values
-   BT8X8_WriteByte (BT848_SRESET, 0);
-   Sleep(50);
-
-   // start address for the DMA RISC code
-   BT8X8_WriteDword (BT848_RISC_STRT_ADD, RiscBasePhysical);
-   BT8X8_WriteByte (BT848_TDEC, 0x00);
-   BT8X8_WriteByte (BT848_COLOR_CTL, BT848_COLOR_CTL_GAMMA);
-   BT8X8_WriteByte (BT848_ADELAY, 0x7f);
-   BT8X8_WriteByte (BT848_BDELAY, 0x72);
-   // disable capturing
-   BT8X8_WriteByte (BT848_CAP_CTL, 0x00);
-   // max length of a VBI line
-   BT8X8_WriteByte (BT848_VBI_PACK_SIZE, 0xff);
-   BT8X8_WriteByte (BT848_VBI_PACK_DEL, 1);
-
-   // vertical delay for image data in the even and odd fields
-   // IMPORTANT!  This defines the end of VBI capturing, i.e. the number of max. captured lines!
-   BT8X8_WriteByte (BT848_E_VDELAY_LO, 0x20);
-   BT8X8_WriteByte (BT848_O_VDELAY_LO, 0x20);
-
-   BT8X8_WriteWord (BT848_GPIO_DMA_CTL, BT848_GPIO_DMA_CTL_PKTP_32 |
-                                        BT848_GPIO_DMA_CTL_PLTP1_16 |
-                                        BT848_GPIO_DMA_CTL_PLTP23_16 |
-                                        BT848_GPIO_DMA_CTL_GPINTC |
-                                        BT848_GPIO_DMA_CTL_GPINTI);
-   BT8X8_WriteByte (BT848_GPIO_REG_INP, 0x00);
-   // input format (PAL, NTSC etc.) and input source
-   BT8X8_WriteByte (BT848_IFORM, BT848_IFORM_MUX1 | BT848_IFORM_XTBOTH | BT848_IFORM_PAL_BDGHI);
-
-   BT8X8_WriteByte (BT848_CONTRAST_LO, 0xd8);
-   BT8X8_WriteByte (BT848_BRIGHT, 0x10);
-   BT8X8_WriteByte (BT848_E_VSCALE_HI, 0x20);
-   BT8X8_WriteByte (BT848_O_VSCALE_HI, 0x20);
-
-   BT8X8_WriteByte (BT848_ADC, BT848_ADC_RESERVED | BT848_ADC_CRUSH);
-   BT8X8_WriteByte (BT848_E_CONTROL, BT848_CONTROL_LDEC);
-   BT8X8_WriteByte (BT848_O_CONTROL, BT848_CONTROL_LDEC);
-
-   BT8X8_WriteByte (BT848_E_SCLOOP, 0x00);
-   BT8X8_WriteByte (BT848_O_SCLOOP, 0x00);
-
-   // interrupt mask; reset the status before enabling the interrupts
-   BT8X8_WriteDword (BT848_INT_STAT, (DWORD) 0x0fffffffUL);
-   BT8X8_WriteDword (BT848_INT_MASK, (1 << 23) | BT848_INT_RISCI);
-
-   return (TRUE);
-}
-
-// ---------------------------------------------------------------------------
-// Free I/O resources and close the driver device
-//
-static void BT8X8_Close( void )
-{
-   int idx;
-
-   BT8X8_WriteByte(BT848_SRESET, 0);
-
-   // Workaround for Hauppauge "WinTV2000" TV application:
-   // - without this workaround the TV image is too dark when started after nxtvepg
-   // - appearently this TV app does neither initialize this register nor do a reset
-   //   upon start and hence depends on gamma control to be pre-enabled; this happens
-   //   to be the case after a PCI reset, but not after a soft-reset
-   Sleep(50);
-   BT8X8_WriteByte(BT848_COLOR_CTL, BT848_COLOR_CTL_GAMMA);
-
-   Free_DMA(&Risc_dma);
-   for (idx=0; idx < VBI_FRAME_CAPTURE_COUNT; idx++)
-      Free_DMA(&Vbi_dma[idx]);
-}
-
-// ---------------------------------------------------------------------------
 // Generate a list of available cards
 //
-static void BT8X8_CountCards( void )
+static void BtDriver_CountCards( void )
 {
    uint  chipIdx, cardIdx;
 
@@ -818,18 +513,20 @@ static void BT8X8_CountCards( void )
    if (btCardCount == CARD_COUNT_UNINITIALIZED)
    {
       btCardCount = 0;
-      for (chipIdx=0; (chipIdx < TV_CHIP_COUNT) && (btCardCount < MAX_CARD_COUNT); chipIdx++)
+      for (chipIdx=0; (chipIdx < CAPTURE_CHIP_COUNT) && (btCardCount < MAX_CARD_COUNT); chipIdx++)
       {
          cardIdx = 0;
          while (btCardCount < MAX_CARD_COUNT)
          {
-            if (DoesThisPCICardExist(BT848Chips[chipIdx].VendorId, BT848Chips[chipIdx].DeviceId,
+            if (DoesThisPCICardExist(CaptureChips[chipIdx].VendorId, CaptureChips[chipIdx].DeviceId,
                                      cardIdx,
                                      &btCardList[btCardCount].dwSubSystemID,
                                      &btCardList[btCardCount].dwBusNumber,
                                      &btCardList[btCardCount].dwSlotNumber) == ERROR_SUCCESS)
             {
-               dprintf4("PCI scan: found Booktree chip %s, ID=%lx, bus=%ld, slot=%ld\n", BT848Chips[chipIdx].szName, btCardList[btCardCount].dwSubSystemID, btCardList[btCardCount].dwBusNumber, btCardList[btCardCount].dwSlotNumber);
+               dprintf4("PCI scan: found capture chip %s, ID=%lx, bus=%ld, slot=%ld\n", CaptureChips[chipIdx].szName, btCardList[btCardCount].dwSubSystemID, btCardList[btCardCount].dwBusNumber, btCardList[btCardCount].dwSlotNumber);
+               btCardList[btCardCount].VendorId    = CaptureChips[chipIdx].VendorId;
+               btCardList[btCardCount].DeviceId    = CaptureChips[chipIdx].DeviceId;
                btCardList[btCardCount].chipIdx     = chipIdx;
                btCardList[btCardCount].chipCardIdx = cardIdx;
                btCardCount += 1;
@@ -848,34 +545,47 @@ static void BT8X8_CountCards( void )
 // ---------------------------------------------------------------------------
 // Open the driver device and allocate I/O resources
 //
-static BOOL BT8X8_Open( void )
+static BOOL BtDriver_OpenCard( uint cardIdx )
 {
    char msgbuf[200];
    int  ret;
    int  chipIdx, chipCardIdx;
+   BOOL supportsAcpi;
    BOOL result = FALSE;
 
-   if (btCfg.cardIdx < btCardCount)
+   if (cardIdx < btCardCount)
    {
-      chipIdx     = btCardList[btCfg.cardIdx].chipIdx;
-      chipCardIdx = btCardList[btCfg.cardIdx].chipCardIdx;
+      chipIdx     = btCardList[cardIdx].chipIdx;
+      chipCardIdx = btCardList[cardIdx].chipCardIdx;
 
-      ret = pciGetHardwareResources(BT848Chips[chipIdx].VendorId, BT848Chips[chipIdx].DeviceId, chipCardIdx);
-
-      if (ret == ERROR_SUCCESS)
+      if ( BtDriver_GetCardInterface(&cardif, CaptureChips[chipIdx].VendorId, cardIdx) )
       {
-         result = TRUE;
-      }
-      else if (ret == 3)
-      {  // card found, but failed to open -> abort
-         sprintf(msgbuf, "PCI-Card #%d (with %s chip) cannot be locked!", btCfg.cardIdx, BT848Chips[chipIdx].szName);
-         MessageBox(NULL, msgbuf, "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+         supportsAcpi = cardif.cfg->SupportsAcpi(&cardif);
+
+         ret = pciGetHardwareResources(CaptureChips[chipIdx].VendorId,
+                                       CaptureChips[chipIdx].DeviceId,
+                                       chipCardIdx,
+                                       supportsAcpi);
+
+         if (ret == ERROR_SUCCESS)
+         {
+            dprintf2("BtDriver-OpenCard: %s driver loaded, card #%d opened\n", CaptureChips[chipIdx].szName, cardIdx);
+            result = TRUE;
+         }
+         else if (ret == 3)
+         {  // card found, but failed to open -> abort
+            sprintf(msgbuf, "Capture card #%d (with %s chip) cannot be locked!", cardIdx, CaptureChips[chipIdx].szName);
+            MessageBox(NULL, msgbuf, "Nextview EPG driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+         }
       }
    }
    else
    {
-      sprintf(msgbuf, "Bt8x8 TV card #%d not found! (Found %d Bt8x8 TV cards on PCI bus)", btCfg.cardIdx, btCardCount);
-      MessageBox(NULL, msgbuf, "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+      if (cardIdx > 0)
+         sprintf(msgbuf, "Capture card #%d not found! (Found %d cards on PCI bus)", cardIdx, btCardCount);
+      else
+         sprintf(msgbuf, "No supported capture cards found on PCI bus!");
+      MessageBox(NULL, msgbuf, "Nextview EPG driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
    }
 
    return result;
@@ -887,14 +597,14 @@ static BOOL BT8X8_Open( void )
 //
 static void BtDriver_Unload( void )
 {
-   if (btDrvLoaded)
+   if (drvLoaded)
    {
-      BT8X8_Close ();
+      cardif.ctl->Close();
       UnloadDriver();
 
-      dprintf0("BtDriver-Unload: Bt8x8 driver unloaded\n");
-      btDrvLoaded = FALSE;
+      drvLoaded = FALSE;
    }
+   dprintf0("BtDriver-Unload: driver unloaded\n");
 }
 
 // ----------------------------------------------------------------------------
@@ -903,7 +613,6 @@ static void BtDriver_Unload( void )
 static bool BtDriver_Load( void )
 {
 #ifndef WITHOUT_TVCARD
-   const uchar * errmsg;
    DWORD loadError;
    bool result;
 
@@ -912,87 +621,51 @@ static bool BtDriver_Load( void )
    loadError = LoadDriver();
    if (loadError == HWDRV_LOAD_SUCCESS)
    {
-      BT8X8_CountCards();
+      BtDriver_CountCards();
 
-      result = BT8X8_Open();
-      if (result != FALSE)
+      result = BtDriver_OpenCard(btCfg.cardIdx);
+      if (result)
       {
-         if ( BT8X8_MemoryInit() )
+         cardif.params.cardId = btCfg.cardId;
+
+         result = cardif.ctl->Open(&cardif);
+         if (result)
          {
-            // must be set to TRUE before the set funcs are called
-            dprintf1("BtDriver-Load: Bt8x8 driver loaded, card #%d opened\n", btCfg.cardIdx);
-            btDrvLoaded = TRUE;
+            drvLoaded = TRUE;
 
-            // initialize all bt848 registers
-            Init_BT_HardWare();
+            result = cardif.ctl->Configure(btCfg.threadPrio, btCfg.pllType);
+            if (result)
+            {
+               // initialize tuner module for the configured tuner type
+               Tuner_Init(btCfg.tunerType, &cardif);
 
-            InitPll(btCfg.pllType);
-
-            // auto-detect the tuner on the I2C bus
-            Tuner_Init(btCfg.tunerType);
-
-            if (btCfg.tunerFreq != 0)
-            {  // if freq already set, apply it now
-               Tuner_SetFrequency(btCfg.tunerType, btCfg.tunerFreq, btCfg.tunerNorm);
+               if (btCfg.tunerFreq != 0)
+               {  // if freq already set, apply it now
+                  Tuner_SetFrequency(btCfg.tunerType, btCfg.tunerFreq, btCfg.tunerNorm);
+               }
+               if (btCfg.inputSrc != INVALID_INPUT_SOURCE)
+               {  // if source already set, apply it now
+                  BtDriver_SetInputSource(btCfg.inputSrc, VIDEO_MODE_PAL, NULL);
+               }
             }
-            if (btCfg.inputSrc != INVALID_INPUT_SOURCE)
-            {  // if source already set, apply it now
-               BtDriver_SetInputSource(btCfg.inputSrc, NULL);
+            else
+            {  // driver boot failed - abort
+               BtDriver_Unload();
             }
-
-            result = TRUE;
          }
          else
-         {  // driver boot failed - abort
-            BtDriver_Unload();
+         {  // card init failed -> unload driver (do not call card close function)
+            UnloadDriver();
          }
       }
-      // else: user message already generated by open function
-
-      if (result == FALSE)
+      else
+      {  // else: user message already generated by open function
          UnloadDriver();
+      }
    }
    else
    {  // failed to load the driver
-      switch (loadError)
-      {
-         case HWDRV_LOAD_NOPERM:
-            errmsg = "Failed to load the Bt8x8 driver: access denied.\n"
-                     "On WinNT and Win2K you need admin permissions\n"
-                     "to start the driver.  See README.txt for more info.";
-            break;
-         case HWDRV_LOAD_MISSING:
-            errmsg = "Failed to load the Bt8x8 driver: could not start the service.\n"
-                     "The the driver files dsdrv4.sys and dsdrv4.vxd may not be\n"
-                     "in the nxtvepg directory. See README.txt for more info.";
-            break;
-         case HWDRV_LOAD_START:
-            errmsg = "Failed to load the Bt8x8 driver: could not start the service.\n"
-                     "See README.txt for more info.";
-            break;
-         case HWDRV_LOAD_INSTALL:
-            errmsg = "Failed to load the Bt8x8 driver: could not install\n"
-                     "the service.  See README.txt for more info.";
-            break;
-         case HWDRV_LOAD_CREATE:
-            errmsg = "Failed to load the Bt8x8 driver: Another application may\n"
-                     "already be using the driver. See README.txt for more info.\n";
-            break;
-         case HWDRV_LOAD_REMOTE_DRIVE:
-            errmsg = "Failed to load the Bt8x8 driver: Cannot install the driver\n"
-                     "on a network drive. See README.txt for more info.\n";
-            break;
-         case HWDRV_LOAD_VERSION:
-            errmsg = "Failed to load the Bt8x8 driver: it's is an incompatible\n"
-                     "version. See README.txt for more info.\n";
-            break;
-         case HWDRV_LOAD_OTHER:
-         default:
-            errmsg = "Failed to load the Bt8x8 driver.\n"
-                     "See README.txt for more info.";
-            break;
-      }
-      MessageBox(NULL, errmsg, "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+      MessageBox(NULL, GetDriverErrorMsg(loadError), "Nextview EPG driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
       result = FALSE;
    }
 
@@ -1000,7 +673,7 @@ static bool BtDriver_Load( void )
 
 #else  // WITHOUT_TVCARD
    assert(shmSlaveMode == FALSE);
-   btDrvLoaded = FALSE;
+   drvLoaded = FALSE;
    return TRUE;
 #endif
 }
@@ -1010,35 +683,52 @@ static bool BtDriver_Load( void )
 // - called at program start and after config change
 // - Important: input source and tuner freq must be set afterwards
 //
-bool BtDriver_Configure( int cardIndex, int tunerType, int pllType, int prio )
+bool BtDriver_Configure( int cardIdx, int prio, int chipType, int cardType, int tunerType, int pllType )
 {
    bool cardChange;
+   bool cardTypeChange;
    bool pllChange;
    bool tunerChange;
    bool prioChange;
+   int  chipIdx;
    bool result = TRUE;
 
+   prio = BtDriver_GetAcqPriority(prio);
+
+   if (btCardCount != CARD_COUNT_UNINITIALIZED)
+   {  // check if the configuration data still matches the hardware
+      chipIdx  = btCardList[cardIdx].chipIdx;
+      if (chipType != ((CaptureChips[chipIdx].VendorId << 16) | CaptureChips[chipIdx].DeviceId))
+      {
+         cardType = tunerType = pllType = 0;
+      }
+   }
+
    // check which values change
-   cardChange  = (cardIndex != btCfg.cardIdx);
-   tunerChange = (tunerType != btCfg.tunerType);
-   pllChange   = (pllType   != btCfg.pllType);
-   prioChange  = (prio      != btCfg.threadPrio);
+   cardChange     = (cardIdx   != btCfg.cardIdx);
+   cardTypeChange = (cardType  != btCfg.cardId);
+   tunerChange    = (tunerType != btCfg.tunerType);
+   pllChange      = (pllType   != btCfg.pllType);
+   prioChange     = (prio      != btCfg.threadPrio);
 
    // save the new values
-   btCfg.tunerType  = tunerType;
+   btCfg.cardIdx    = cardIdx;
    btCfg.threadPrio = prio;
+   btCfg.cardId     = cardType;
+   btCfg.tunerType  = tunerType;
    btCfg.pllType    = pllType;
-   btCfg.cardIdx    = cardIndex;
 
    if (shmSlaveMode == FALSE)
    {
-      if (btDrvLoaded)
+      if (drvLoaded)
       {  // acquisition already running -> must change parameters on the fly
+         cardif.params.cardId = btCfg.cardId;
 
          if (cardChange)
          {  // change of TV card -> unload and reload driver
 #ifndef WITHOUT_TVCARD
             BtDriver_StopAcq();
+
             if (BtDriver_StartAcq() == FALSE)
             {
                if (pVbiBuf != NULL)
@@ -1051,17 +741,18 @@ bool BtDriver_Configure( int cardIndex, int tunerType, int pllType, int prio )
          {  // same card index: just update tuner type and PLL
             if (tunerChange && (btCfg.tunerType != 0) && (btCfg.inputSrc == 0))
             {
-               Tuner_Init(btCfg.tunerType);
+               Tuner_Init(btCfg.tunerType, &cardif);
             }
-            if (pllChange)
-            {
-               InitPll(btCfg.pllType);
-            }
-         }
 
-         if (prioChange && (vbiThreadHandle != NULL))
-         {
-            SetAcqPriority(vbiThreadHandle, btCfg.threadPrio);
+            if (prioChange || pllChange)
+            {
+               cardif.ctl->Configure(btCfg.threadPrio, btCfg.pllType);
+            }
+
+            if (cardTypeChange)
+            {
+               BtDriver_SetInputSource(btCfg.inputSrc, btCfg.tunerNorm, NULL);
+            }
          }
       }
    }
@@ -1071,6 +762,7 @@ bool BtDriver_Configure( int cardIndex, int tunerType, int pllType, int prio )
       {
 #ifndef WITHOUT_TVCARD
          BtDriver_StopAcq();
+
          if (BtDriver_StartAcq() == FALSE)
          {
             if (pVbiBuf != NULL)
@@ -1093,11 +785,11 @@ bool BtDriver_TuneChannel( int inputIdx, uint freq, bool keepOpen, bool * pIsTun
    uint norm;
    bool result = FALSE;
 
-   if (BtDriver_SetInputSource(inputIdx, pIsTuner))
-   {
-      norm  = freq >> 24;
-      freq &= 0xffffff;
+   norm  = freq >> 24;
+   freq &= 0xffffff;
 
+   if (BtDriver_SetInputSource(inputIdx, norm, pIsTuner))
+   {
       if (*pIsTuner && (freq != 0))
       {
          // remember frequency for later
@@ -1106,7 +798,7 @@ bool BtDriver_TuneChannel( int inputIdx, uint freq, bool keepOpen, bool * pIsTun
 
          if (shmSlaveMode == FALSE)
          {
-            if (btDrvLoaded)
+            if (drvLoaded)
             {
                result = Tuner_SetFrequency(btCfg.tunerType, freq, norm);
             }
@@ -1171,74 +863,15 @@ const char * BtDriver_GetTunerName( uint idx )
 }
 
 // ---------------------------------------------------------------------------
-// VBI Driver Thread
-//
-static DWORD WINAPI BtDriver_VbiThread( LPVOID dummy )
-{
-   int  OldFrame;
-   int  CurFrame;
-   int  row;
-   BYTE *pVBI;
-
-   SetAcqPriority(GetCurrentThread(), btCfg.threadPrio);
-
-   Set_Capture(TRUE);
-   OldFrame = BT8X8_GetRISCPosAsInt();
-
-   for (;;)
-   {
-      if (StopVbiThread == TRUE)
-         break;
-
-      if (pVbiBuf != NULL)
-      {
-         CurFrame = BT8X8_GetRISCPosAsInt();
-         if (CurFrame != OldFrame)
-         {
-            do
-            {
-               OldFrame = (OldFrame + 1) % VBI_FRAME_CAPTURE_COUNT;
-               pVBI = (LPBYTE) pVBILines[OldFrame];
-
-               // notify teletext decoder about start of new frame; since we don't have a
-               // frame counter (no frame interrupt) we always pass 0 as frame sequence number
-               if ( VbiDecodeStartNewFrame(0) )
-               {
-                  for (row = 0; row < VBI_LINES_PER_FRAME; row++, pVBI += VBI_LINE_SIZE)
-                  {
-                     VbiDecodeLine(pVBI, row, TRUE);
-                  }
-               }
-               else
-               {  // discard all VBI frames in the buffer
-                  OldFrame = CurFrame;
-                  break;
-               }
-            } while (OldFrame != CurFrame);
-         }
-         else
-            Sleep(5);
-      }
-      else
-      {  // acq ctl is currently not interested in VBI data
-         Sleep(10);
-      }
-   }
-   Set_Capture(FALSE);
-
-   return 0;  // dummy
-}
-
-// ---------------------------------------------------------------------------
 // Query if acquisition is currently enabled and in which mode
 // - return value pointers may be NULL if value not required
 //
 bool BtDriver_GetState( bool * pEnabled, bool * pHasDriver, uint * pCardIdx )
 {
    if (pEnabled != NULL)
-      *pEnabled = (shmSlaveMode | btDrvLoaded);
+      *pEnabled = (shmSlaveMode | drvLoaded);
    if (pHasDriver != NULL)
-      *pHasDriver = btDrvLoaded;
+      *pHasDriver = drvLoaded;
    if (pCardIdx != NULL)
       *pCardIdx = btCfg.cardIdx;
 
@@ -1283,32 +916,34 @@ bool BtDriver_Restart( void )
 //
 bool BtDriver_StartAcq( void )
 {
-   DWORD LinkThreadID;
    bool result = FALSE;
 
-   if ( (shmSlaveMode == FALSE) && (btDrvLoaded == FALSE) )
+   if ( (shmSlaveMode == FALSE) && (drvLoaded == FALSE) )
    {
       // check if the configured card is currently free
       shmSlaveMode = (WintvSharedMem_ReqTvCardIdx(btCfg.cardIdx) == FALSE);
       if (shmSlaveMode == FALSE)
       {
-         if (BtDriver_Load())
+         if (pVbiBuf != NULL)
          {
-            StopVbiThread = FALSE;
+            // load driver & initialize driver for selected TV card
+            if (BtDriver_Load())
+            {
 #ifndef WITHOUT_TVCARD
-            vbiThreadHandle = CreateThread(NULL, 0, BtDriver_VbiThread, NULL, 0, &LinkThreadID);
-            if (vbiThreadHandle != NULL)
-            {
-               result = TRUE;
-            }
-            else
-            {
-               debug1("BtDriver-StartAcq: failed to create VBI thread: %ld", GetLastError());
-               UnloadDriver();
-            }
+               if (drvLoaded)
+               {
+                  pVbiBuf->hasFailed = FALSE;
+                  result = cardif.ctl->StartAcqThread();
+               }
+               else
+                  result = FALSE;
+
+               if (result == FALSE)
+                  UnloadDriver();
 #else
-            result = TRUE;
+               result = TRUE;
 #endif
+            }
          }
 
          if (result == FALSE)
@@ -1323,6 +958,7 @@ bool BtDriver_StartAcq( void )
          if (pVbiBuf != NULL)
          {
             memcpy((char *)pVbiBuf, &vbiBuf, sizeof(*pVbiBuf));
+            pVbiBuf->hasFailed = FALSE;
             result = TRUE;
          }
          else
@@ -1346,22 +982,15 @@ void BtDriver_StopAcq( void )
 {
    if (shmSlaveMode == FALSE)
    {
-      if (btDrvLoaded)
+      if (drvLoaded)
       {
-         if (vbiThreadHandle != NULL)
-         {
-            StopVbiThread = TRUE;
-            WaitForSingleObject(vbiThreadHandle, 200);
-            CloseHandle(vbiThreadHandle);
-            vbiThreadHandle = NULL;
-         }
-         Set_Capture(FALSE);     // now stop the capture safely
-
-         BtDriver_Unload();
-
-         // notify connected TV app that card & driver are now free
-         WintvSharedMem_FreeTvCard();
+         cardif.ctl->StopAcqThread();
       }
+
+      BtDriver_Unload();
+
+      // notify connected TV app that card & driver are now free
+      WintvSharedMem_FreeTvCard();
    }
    else
    {
@@ -1407,9 +1036,10 @@ bool BtDriver_Init( void )
    pVbiBuf = &vbiBuf;
 
    memset(&btCfg, 0, sizeof(btCfg));
-   btCfg.tunerType = TUNER_NONE;
+   btCfg.tunerType = TUNER_ABSENT;
    btCfg.inputSrc  = INVALID_INPUT_SOURCE;
    btCardCount = CARD_COUNT_UNINITIALIZED;
+   drvLoaded = FALSE;
 
    return TRUE;
 }
@@ -1420,7 +1050,7 @@ bool BtDriver_Init( void )
 //
 void BtDriver_Exit( void )
 {
-   if (btDrvLoaded)
+   if (drvLoaded)
    {  // acq is still running - should never happen
       BtDriver_StopAcq();
    }

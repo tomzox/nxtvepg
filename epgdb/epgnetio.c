@@ -22,7 +22,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgnetio.c,v 1.31 2002/11/17 18:14:14 tom Exp tom $
+ *  $Id: epgnetio.c,v 1.33 2003/03/22 14:44:41 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -65,7 +65,7 @@
 #include "epgdb/epgdbsav.h"
 #include "epgdb/epgnetio.h"
 
-#if defined(linux) || defined(__NetBSD__)
+#if defined(linux) || defined(__NetBSD__) || defined(__FreeBSD__)
 #define HAVE_GETADDRINFO
 #endif
 
@@ -123,8 +123,13 @@ static const char * WinSocketStrError( DWORD errCode )
    if (FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, errCode, LANG_USER_DEFAULT,
                      msg, strlen(msg) - 1, NULL) == 0)
    {
-      debug1("WinSocketStrError: FormatMessage failed for errCode %ld", errCode);
-      sprintf(msg, "System error #%ld", errCode);
+      if ((errCode < WSABASEERR) || (errCode > WSABASEERR + 2000))
+      {
+         debug1("WinSocketStrError: FormatMessage failed for errCode %ld", errCode);
+         sprintf(msg, "System error #%ld", errCode);
+      }
+      else
+         sprintf(msg, "WinSock error #%ld", errCode);
    }
 
    return msg;

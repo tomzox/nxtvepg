@@ -5,10 +5,7 @@ TD.navbar {
 	BACKGROUND-COLOR: #e8e8e8;
 }
 PRE {
-	BACKGROUND-COLOR: #eeeeee; BORDER-BOTTOM: #bebebe 2pt solid; BORDER-LEFT: #bebebe 2pt solid; BORDER-RIGHT: #bebebe 2pt solid; BORDER-TOP: #bebebe 2pt solid; FONT-FAMILY: mono-space; FONT-SIZE: 9pt; FONT-WEIGHT: 100; PADDING-BOTTOM: 5pt; PADDING-LEFT: 5pt; PADDING-RIGHT: 5pt; PADDING-TOP: 5pt; WHITE-SPACE: pre; WIDTH: 90%; font-color: #333333
-}
-PRE {
-	BACKGROUND-COLOR: #eeeeee; BORDER-BOTTOM: #bebebe 2pt solid; BORDER-LEFT: #bebebe 2pt solid; BORDER-RIGHT: #bebebe 2pt solid; BORDER-TOP: #bebebe 2pt solid; FONT-FAMILY: mono-space; FONT-SIZE: 9pt; FONT-WEIGHT: 100; PADDING-BOTTOM: 5pt; PADDING-LEFT: 5pt; PADDING-RIGHT: 5pt; PADDING-TOP: 5pt; WHITE-SPACE: pre; WIDTH: 90%; font-color: #333333
+	BACKGROUND-COLOR: #eeeeee; BORDER-BOTTOM: #bebebe 2pt solid; BORDER-LEFT: #bebebe 2pt solid; BORDER-RIGHT: #bebebe 2pt solid; BORDER-TOP: #bebebe 2pt solid; FONT-FAMILY: mono-space; FONT-SIZE: 9pt; FONT-WEIGHT: 100; PADDING-BOTTOM: 5pt; PADDING-LEFT: 5pt; PADDING-RIGHT: 5pt; PADDING-TOP: 5pt; WHITE-SPACE: pre; WIDTH: 90%;
 }
 P {
 	
@@ -92,5 +89,5 @@ A.link {
 	FONT-FAMILY: Arial,Helvetica; FONT-SIZE: 11px
 }
 .hitlink2 {
-	COLOR: #336699; FONT-SIZE: small; FONT-STYLE: italic; TEXT-DECORATION: none; font-wieght: bold
+	COLOR: #336699; FONT-SIZE: small; FONT-STYLE: italic; TEXT-DECORATION: none; font-weight: bold
 }

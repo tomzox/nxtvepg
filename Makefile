@@ -22,14 +22,23 @@
 #    Perl is not required to install the package.  Dependencies are
 #    generated into a separate file.
 #
+#    To compile the package simply type "make", to compile and install
+#    type "make install" (without the quotes).  If compilation fails
+#    you may have to adapt some paths below.
+#
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile,v 1.50 2002/12/08 20:15:25 tom Exp tom $
+#  $Id: Makefile,v 1.57 2003/02/26 22:38:12 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)
 # for Windows a separate makefile is used
 include Makefile.win32
+else
+OS = $(shell uname)
+ifeq ($(OS), FreeBSD)
+# for FreeBSD 
+include Makefile.freebsd
 else
 
 ROOT    =
@@ -42,8 +51,9 @@ resdir  = $(ROOT)/usr/X11R6/lib/X11
 # if you have perl set the path here, else just leave it alone
 PERL    = /usr/bin/perl
 
-# select Tcl/Tk version
-TCL_VER = 8.3
+# select Tcl/Tk version (8.3 recommended; text widget in 8.4. is slower)
+TCL_VER := $(shell echo 'puts [package require Tcl]' | tclsh)
+#TCL_VER = 8.3
 
 LDLIBS  = -ltk$(TCL_VER) -ltcl$(TCL_VER) -L/usr/X11R6/lib -lX11 -lXmu -lm -ldl
 
@@ -51,6 +61,7 @@ LDLIBS  = -ltk$(TCL_VER) -ltcl$(TCL_VER) -L/usr/X11R6/lib -lX11 -lXmu -lm -ldl
 #LDLIBS += -Ldbglib -static
 
 INCS   += -I. -I/usr/X11R6/include
+DEFS   += -DX11_APP_DEFAULTS=\"$(resdir)/app-defaults/Nxtvepg\"
 # path to Tcl/Tk headers, if not properly installed
 #INCS   += -I/usr/local/tcl/tcl8.0/generic -I/usr/local/tcl/tk8.0/generic
 
@@ -64,6 +75,11 @@ LDLIBS += -lpthread
 
 # enable use of daemon and client/server connection
 DEFS   += -DUSE_DAEMON
+
+# enable workarounds for linux saa7134 driver version 0.2.2
+# - set SAA7134 sampling rate (because the driver doesn't support ioctl VIDIOCGVBIFMT)
+# - wrong field sequence
+#DEFS   += -DSAA7134_0_2_2
 
 # The database directory can be either in the user's $HOME (or relative to any
 # other env variable) or at a global place like /var/spool (world-writable)
@@ -80,8 +96,13 @@ endif
 WARN    = -Wall -Wnested-externs -Wstrict-prototypes -Wmissing-prototypes
 #WARN  += -Wpointer-arith -Werror
 CC      = gcc
-CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -O6
+# the following flags can be overridden by an environment variable with the same name
+CFLAGS ?= -pipe -O6
+CFLAGS += $(WARN) $(INCS) $(DEFS)
 #LDLIBS += -pg
+
+# end Linux specific part
+endif
 
 # ----- don't change anything below ------------------------------------------
 
@@ -92,9 +113,11 @@ CSRC    = epgvbi/btdrv4linux epgvbi/vbidecode epgvbi/ttxdecode epgvbi/hamming \
           epgdb/epgstream epgdb/epgdbmerge epgdb/epgdbsav \
           epgdb/epgdbmgmt epgdb/epgdbif epgdb/epgdbfil epgdb/epgblock \
           epgdb/epgnetio epgdb/epgqueue epgdb/epgtscqueue \
-          epgui/uictrl epgui/pilistbox epgui/pioutput epgui/pifilter \
+          epgui/pibox epgui/pilistbox epgui/pinetbox \
+          epgui/uictrl epgui/pioutput epgui/pidescr epgui/pifilter \
           epgui/statswin epgui/timescale epgui/pdc_themes epgui/menucmd \
-          epgui/epgmain epgui/loadtcl epgui/xawtv epgui/epgtxtdump epgui/epgtabdump
+          epgui/epgmain epgui/loadtcl epgui/xawtv epgui/dumptext epgui/dumpraw \
+          epgui/dumphtml epgui/dumpxml epgui/shellcmd
 TCLSRC  = epgtcl/mainwin epgtcl/helptexts epgtcl/dlg_hwcfg epgtcl/dlg_xawtvcf \
           epgtcl/dlg_ctxmencf epgtcl/dlg_acqmode epgtcl/dlg_netsel \
           epgtcl/dlg_dump epgtcl/dlg_netname epgtcl/dlg_udefcols \
@@ -103,18 +126,18 @@ TCLSRC  = epgtcl/mainwin epgtcl/helptexts epgtcl/dlg_hwcfg epgtcl/dlg_xawtvcf \
 
 OBJS    = $(addsuffix .o, $(CSRC)) $(addsuffix .o, $(TCLSRC))
 
-all: nxtvepg nxtvepg.1
+all :: nxtvepg nxtvepg.1
 .PHONY: all
 
 nxtvepg: $(OBJS)
 	$(CC) $(LDFLAGS) -o nxtvepg $(OBJS) $(LDLIBS)
 
 install: nxtvepg nxtvepg.1 Nxtvepg.ad
-	test -d $(bindir) || mkdirhier $(bindir)
-	test -d $(mandir) || mkdirhier $(mandir)
-	test -d $(resdir) || mkdirhier $(resdir)
+	test -d $(bindir) || install -d $(bindir)
+	test -d $(mandir) || install -d $(mandir)
+	test -d $(resdir)/app-defaults || install -d $(resdir)/app-defaults
 ifndef USER_DBDIR
-	test -d $(INST_DB_DIR) || mkdirhier $(INST_DB_DIR)
+	test -d $(INST_DB_DIR) || install -d $(INST_DB_DIR)
 	chmod $(INST_DB_PERM) $(INST_DB_DIR)
 endif
 	install -c -m 0755 nxtvepg     $(bindir)
@@ -127,8 +150,11 @@ endif
 %.c: %.tcl tcl2c
 	./tcl2c $*.tcl
 
+%.h: %.tcl tcl2c.exe
+	./tcl2c.exe $*.tcl
+
 tcl2c: tcl2c.c
-	$(CC) -O -o tcl2c tcl2c.c
+	$(CC) $(CFLAGS) -o tcl2c tcl2c.c
 
 epgui/loadtcl.c :: $(addsuffix .c, $(TCLSRC))
 
@@ -155,8 +181,10 @@ nxtvepg.1 manual.html epgtcl/helptexts.tcl: nxtvepg.pod pod2help.pl
 
 .PHONY: clean depend bak
 clean:
-	-rm -f *.o epg*/*.o core a.out tcl2c nxtvepg
-	-rm -f epgtcl/*.[ch]
+	-rm -f *.o epg*/*.o dsdrv/*.[oa] tvsim/*.o
+	-rm -f core a.out *.exe tcl2c nxtvepg
+	-rm -f epgtcl/*.[ch] epgtcl/tcl_libs.tcl epgtcl/tk_libs.tcl
+	-rm -f tvsim/tvsim_gui.[ch] tvsim/vbirec_gui.[ch]
 
 depend:
 	-:>Makefile.dep
@@ -169,8 +197,8 @@ depend:
 
 bak:
 	cd .. && tar cf /c/transfer/pc.tar pc -X pc/tar-ex-win
-	cd .. && tar cf pc1.tar pc -X pc/tar-ex && bzip2 -f -9 pc1.tar
-	tar cf ../pc2.tar www ATTIC dsdrv?* tk8* tcl8* && bzip2 -f -9 ../pc2.tar
+#	cd .. && tar cf pc1.tar pc -X pc/tar-ex && bzip2 -f -9 pc1.tar
+#	tar cf ../pc2.tar www ATTIC dsdrv?* tk8* tcl8* && bzip2 -f -9 ../pc2.tar
 
 include Makefile.dep
 

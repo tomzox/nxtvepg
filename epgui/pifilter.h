@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pifilter.h,v 1.8 2002/09/28 12:52:07 tom Exp tom $
+ *  $Id: pifilter.h,v 1.10 2003/02/01 15:03:00 tom Exp tom $
  */
 
 #ifndef __PIFILTER_H
@@ -25,7 +25,7 @@
 
 #ifndef __PIFILTER_C
 // search context for pi listbox
-extern const FILTER_CONTEXT *pPiFilterContext;
+extern FILTER_CONTEXT *pPiFilterContext;
 #endif
 
 // Initialization and destruction - Interface to the EPG main module
@@ -33,7 +33,7 @@ void PiFilter_Create( void );
 void PiFilter_Destroy( void );
 
 // Interface to ui control module
-void PiFilter_UpdateNetwopList( void );
+void PiFilter_SetNetwopPrefilter( void );
 void PiFilter_Expire( void );
 
 // Interface to PI listbox column output

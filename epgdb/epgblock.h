@@ -25,7 +25,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgblock.h,v 1.42 2002/05/11 15:43:36 tom Exp tom $
+ *  $Id: epgblock.h,v 1.43 2003/01/11 19:39:48 tom Exp tom $
  */
 
 #ifndef __EPGBLOCK_H
@@ -476,6 +476,23 @@ typedef struct EPGDB_BLOCK_STRUCT
 #define BLK_UNION_OFF    (sizeof(EPGDB_BLOCK) - sizeof(EPGDB_BLOCK_UNION))
 
 // ----------------------------------------------------------------------------
+// Event callback for handling incoming PI in the GUI
+//
+typedef enum
+{
+   EPGDB_PI_INSERTED,
+   EPGDB_PI_PRE_UPDATE,
+   EPGDB_PI_POST_UPDATE,
+   EPGDB_PI_REMOVED,
+   EPGDB_PI_RECOUNT
+} EPGDB_PI_ACQ_EVENT;
+
+struct EPGDB_CONTEXT_STRUCT;  // forward declaration only for following pointer reference
+
+typedef bool (EPGDB_PI_ACQ_CB) ( const struct EPGDB_CONTEXT_STRUCT * usedDbc, EPGDB_PI_ACQ_EVENT event,
+                                 const PI_BLOCK * pPiBlock, const PI_BLOCK * pObsolete );
+
+// ----------------------------------------------------------------------------
 // declaration of database context, which keeps lists of all blocks
 //
 
@@ -496,6 +513,8 @@ typedef struct EPGDB_CONTEXT_STRUCT
    EPGDB_BLOCK *pObsoletePi;
    EPGDB_BLOCK *pFirstNetwopPi[MAX_NETWOP_COUNT];
    EPGDB_BLOCK *pFirstGenericBlock[BLOCK_TYPE_GENERIC_COUNT];
+
+   EPGDB_PI_ACQ_CB *pPiAcqCb;
 } EPGDB_CONTEXT;
 
 typedef struct

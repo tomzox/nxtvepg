@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_netname.tcl,v 1.2 2002/12/08 19:59:00 tom Exp tom $
+#  $Id: dlg_netname.tcl,v 1.3 2002/12/28 13:07:39 tom Exp tom $
 #
 set netname_popup 0
 
@@ -454,7 +454,7 @@ proc NetworkNamesSave {} {
    UpdateNetwopFilterBar
 
    # Redraw the PI listbox with the new network names
-   C_RefreshPiListbox
+   C_PiBox_Refresh
 
    # close the window
    destroy .netname

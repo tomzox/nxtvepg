@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: wintv.c,v 1.12 2002/09/29 17:16:49 tom Exp tom $
+ *  $Id: wintv.c,v 1.14 2003/01/29 22:10:27 tom Exp tom $
  */
 
 #ifndef WIN32
@@ -53,7 +53,7 @@
 #include "epgdb/epgdbif.h"
 #include "epgctl/epgacqctl.h"
 #include "epgui/epgmain.h"
-#include "epgui/pilistbox.h"
+#include "epgui/pibox.h"
 #include "epgui/wintvcfg.h"
 #include "epgui/wintv.h"
 
@@ -144,10 +144,10 @@ static const PI_BLOCK * Wintv_SearchCurrentPi( uint cni, uint pil )
    time_t now;
    uchar netwop;
    
+   assert(EpgDbIsLocked(pUiDbContext));
    pPiBlock = NULL;
    now = time(NULL);
 
-   EpgDbLockDatabase(pUiDbContext, TRUE);
    pAiBlock = EpgDbGetAi(pUiDbContext);
    if (pAiBlock != NULL)
    {
@@ -186,7 +186,6 @@ static const PI_BLOCK * Wintv_SearchCurrentPi( uint cni, uint pil )
          }
       }
    }
-   EpgDbLockDatabase(pUiDbContext, FALSE);
 
    return pPiBlock;
 }
@@ -259,6 +258,7 @@ static void Wintv_FollowTvNetwork( void )
 {
    const PI_BLOCK *pPiBlock;
    
+   EpgDbLockDatabase(pUiDbContext, TRUE);
    pPiBlock = Wintv_SearchCurrentPi(followTvState.cni, followTvState.pil);
    if (pPiBlock != NULL)
    {
@@ -280,13 +280,14 @@ static void Wintv_FollowTvNetwork( void )
 
          // jump with the cursor on the current programme
          if (wintvcf.follow)
-            PiListBox_GotoPi(pPiBlock);
+            PiBox_GotoPi(pPiBlock);
       }
    }
    else
    {  // unsupported network or no appropriate PI found -> remove popup
       WintvSharedMem_SetEpgInfo(0, 0, "", 0, NULL, followTvState.chanQueryIdx);
    }
+   EpgDbLockDatabase(pUiDbContext, FALSE);
 }
 
 // ----------------------------------------------------------------------------

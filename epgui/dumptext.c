@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgtabdump.c,v 1.5 2002/12/08 19:25:42 tom Exp tom $
+ *  $Id: dumptext.c,v 1.7 2003/02/26 21:53:56 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -29,12 +29,14 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <errno.h>
 #include <time.h>
 
 #include <tcl.h>
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
+
 #include "epgdb/epgblock.h"
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
@@ -43,8 +45,8 @@
 #include "epgui/epgmain.h"
 #include "epgui/uictrl.h"
 #include "epgui/menucmd.h"
-#include "epgui/pioutput.h"
-#include "epgui/epgtabdump.h"
+#include "epgui/pidescr.h"
+#include "epgui/dumptext.h"
 
 
 #define NETNAME_LENGTH 6
@@ -54,7 +56,7 @@
 // ----------------------------------------------------------------------------
 // Print Short- and Long-Info texts or separators
 //
-static void EpgTabDumpPiInfoTextCb( void * vp, const char * pDesc, bool addSeparator )
+static void DumpText_PiInfoTextCb( void * vp, const char * pDesc, bool addSeparator )
 {
    FILE * fp = (FILE *) vp;
    char * pNewline;
@@ -85,7 +87,7 @@ static void EpgTabDumpPiInfoTextCb( void * vp, const char * pDesc, bool addSepar
 // ---------------------------------------------------------------------------
 // Export PI block to MySQL
 //
-static void EpgTabDumpPi( FILE *fp, const PI_BLOCK * pPi, const EPGDB_CONTEXT * pDbContext )
+static void DumpText_Pi( FILE *fp, const PI_BLOCK * pPi, const EPGDB_CONTEXT * pDbContext )
 {
    const uchar * pShort;
    const uchar * pLong;
@@ -170,7 +172,7 @@ static void EpgTabDumpPi( FILE *fp, const PI_BLOCK * pPi, const EPGDB_CONTEXT * 
               ((char*) (pPi->off_title != 0) ? PI_GET_TITLE(pPi) : (uchar *) "")
       );
 
-      PiOutput_AppendShortAndLongInfoText(pPi, EpgTabDumpPiInfoTextCb, fp, EpgDbContextIsMerged(pDbContext));
+      PiDescription_AppendShortAndLongInfoText(pPi, DumpText_PiInfoTextCb, fp, EpgDbContextIsMerged(pDbContext));
       fprintf(fp, "\n");
    }
 }
@@ -178,7 +180,7 @@ static void EpgTabDumpPi( FILE *fp, const PI_BLOCK * pPi, const EPGDB_CONTEXT * 
 // ---------------------------------------------------------------------------
 // Export network table to MySQL
 //
-static void EpgTabDumpAi( FILE *fp, const AI_BLOCK * pAi )
+static void DumpText_Ai( FILE *fp, const AI_BLOCK * pAi )
 {
    const AI_NETWOP *pNetwop;
    const uchar * pCfNetname;
@@ -223,7 +225,7 @@ static void EpgTabDumpAi( FILE *fp, const AI_BLOCK * pAi )
 // ---------------------------------------------------------------------------
 // Export PDC themes table to MySQL
 //
-static void EpgTabDumpPdcThemes( FILE *fp )
+static void DumpText_PdcThemes( FILE *fp )
 {
    const uchar * pThemeStr_eng;
    const uchar * pThemeStr_ger;
@@ -247,7 +249,7 @@ static void EpgTabDumpPdcThemes( FILE *fp )
 // ---------------------------------------------------------------------------
 // Translate string into dump mode
 //
-EPGTAB_DUMP_MODE EpgTabDump_GetMode( const char * pModeStr )
+EPGTAB_DUMP_MODE EpgDumpText_GetMode( const char * pModeStr )
 {
    EPGTAB_DUMP_MODE  mode = EPGTAB_DUMP_COUNT;
 
@@ -262,10 +264,10 @@ EPGTAB_DUMP_MODE EpgTabDump_GetMode( const char * pModeStr )
       else if (strcasecmp("xml", pModeStr) == 0)
          mode = EPGTAB_DUMP_XML;
       else
-         debug1("EpgTabDump-GetMode: unknown mode: %s", pModeStr);
+         debug1("DumpText_-GetMode: unknown mode: %s", pModeStr);
    }
    else
-      debug0("EpgTabDump-GetMode: illegal NULL ptr param");
+      debug0("DumpText_-GetMode: illegal NULL ptr param");
 
    return mode;
 }
@@ -273,7 +275,7 @@ EPGTAB_DUMP_MODE EpgTabDump_GetMode( const char * pModeStr )
 // ---------------------------------------------------------------------------
 // Export the complete database in "tab-seprarated" format for SQL import
 //
-void EpgTabDump_Database( EPGDB_CONTEXT * pDbContext, FILE * fp, EPGTAB_DUMP_MODE mode )
+void EpgDumpText_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp, EPGTAB_DUMP_MODE mode )
 {
    const AI_BLOCK * pAi;
    const PI_BLOCK * pPi;
@@ -283,7 +285,7 @@ void EpgTabDump_Database( EPGDB_CONTEXT * pDbContext, FILE * fp, EPGTAB_DUMP_MOD
    // Dump PDC theme list
    if (mode == EPGTAB_DUMP_PDC)
    {
-      EpgTabDumpPdcThemes(fp);
+      DumpText_PdcThemes(fp);
    }
    else
    {
@@ -292,7 +294,7 @@ void EpgTabDump_Database( EPGDB_CONTEXT * pDbContext, FILE * fp, EPGTAB_DUMP_MOD
          pAi = EpgDbGetAi(pDbContext);
          if (pAi != NULL)
          {
-            EpgTabDumpAi(fp, pAi);
+            DumpText_Ai(fp, pAi);
          }
       }
       else
@@ -300,12 +302,91 @@ void EpgTabDump_Database( EPGDB_CONTEXT * pDbContext, FILE * fp, EPGTAB_DUMP_MOD
          pPi = EpgDbSearchFirstPi(pDbContext, NULL);
          while (pPi != NULL)
          {
-            EpgTabDumpPi(fp, pPi, pDbContext);
+            DumpText_Pi(fp, pPi, pDbContext);
 
             pPi = EpgDbSearchNextPi(pDbContext, NULL, pPi);
          }
       }
    }
    EpgDbLockDatabase(pDbContext, FALSE);
+}
+
+// ----------------------------------------------------------------------------
+// Dump the database in TAB-separated format
+//
+static int EpgDumpText_Database( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+{
+   const char * const pUsage = "Usage: C_DumpTabsDatabase <file-name> <type>";
+   EPGTAB_DUMP_MODE mode;
+   const char * pFileName;
+   Tcl_DString ds;
+   FILE *fp;
+   int result;
+
+   if (objc != 1+2)
+   {  // parameter count is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else if ( (pFileName = Tcl_GetString(objv[1])) == NULL )
+   {  // internal error: can not get filename string
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else
+   {
+      mode = EpgDumpText_GetMode(Tcl_GetString(objv[2]));
+      if (mode != EPGTAB_DUMP_NONE)
+      {
+         if (Tcl_GetCharLength(objv[1]) > 0)
+         {
+            pFileName = Tcl_UtfToExternalDString(NULL, pFileName, -1, &ds);
+            fp = fopen(pFileName, "w");
+            if (fp != NULL)
+            {  // file created successfully -> start dump
+               EpgDumpText_Standalone(pUiDbContext, fp, mode);
+
+               fclose(fp);
+            }
+            else
+            {  // access, create or truncate failed -> inform the user
+               sprintf(comm, "tk_messageBox -type ok -icon error -parent .dumptabs -message \"Failed to open file '%s' for writing: %s\"",
+                             Tcl_GetString(objv[1]), strerror(errno));
+               eval_check(interp, comm);
+               Tcl_ResetResult(interp);
+            }
+            Tcl_DStringFree(&ds);
+         }
+         else
+         {  // no file name given -> dump to stdout
+            EpgDumpText_Standalone(pUiDbContext, stdout, mode);
+         }
+
+         result = TCL_OK;
+      }
+      else
+      {  // unsupported mode (internal error, since the GUI should use radio buttons)
+         Tcl_SetResult(interp, "C_DumpTabsDatabase: illegal type keyword", TCL_STATIC);
+         result = TCL_ERROR;
+      }
+   }
+
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Free resources allocated by this module (cleanup during program exit)
+//
+void EpgDumpText_Destroy( void )
+{
+}
+
+// ----------------------------------------------------------------------------
+// Create the Tcl/Tk commands provided by this module
+// - this should be called only once during start-up
+//
+void EpgDumpText_Init( void )
+{
+   Tcl_CreateObjCommand(interp, "C_DumpTabsDatabase", EpgDumpText_Database, (ClientData) NULL, NULL);
 }
 

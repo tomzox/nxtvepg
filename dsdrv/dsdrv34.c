@@ -17,7 +17,7 @@
 // PCICard.cpp, HardwareDriver.cpp, HardwareMemory is from Dscaler
 // Copyright (c) 2001 John Adcock.  All rights reserved.
 /////////////////////////////////////////////////////////////////////////////
-// nxtvepg $Id: dsdrv34.c,v 1.4 2002/10/19 17:20:12 tom Exp tom $
+// nxtvepg $Id: dsdrv34.c,v 1.9 2003/03/19 16:18:14 tom Exp tom $
 /////////////////////////////////////////////////////////////////////////////
 
 // What's this ?
@@ -61,9 +61,9 @@
 
 
 
-BOOL  Pcicard = FALSE;
-BOOL  HardwareDriver = FALSE;
-BOOL  CardOpened = FALSE;     // BT Card has been opened ?
+static BOOL  Pcicard = FALSE;
+static BOOL  HardwareDriver = FALSE;
+static BOOL  CardOpened = FALSE;     // BT Card has been opened ?
 
 #define SERVICE_KEY "SYSTEM\\CurrentControlSet\\Services\\"
 
@@ -107,6 +107,51 @@ static BOOL CheckDriverImagePath( void )
    return result;
 }
 
+
+const char * GetDriverErrorMsg( DWORD loadError )
+{
+   const char * errmsg;
+
+   switch (loadError)
+   {
+      case HWDRV_LOAD_NOPERM:
+         errmsg = "Failed to load the TV card driver: access denied.\n"
+                  "On WinNT and Win2K you need admin permissions\n"
+                  "to start the driver.  See README.txt for more info.";
+         break;
+      case HWDRV_LOAD_MISSING:
+         errmsg = "Failed to load the TV card driver: could not start the service.\n"
+                  "The the driver files dsdrv4.sys and dsdrv4.vxd may not be\n"
+                  "in the nxtvepg directory. See README.txt for more info.";
+         break;
+      case HWDRV_LOAD_START:
+         errmsg = "Failed to load the TV card driver: could not start the service.\n"
+                  "See README.txt for more info.";
+         break;
+      case HWDRV_LOAD_INSTALL:
+         errmsg = "Failed to load the TV card driver: could not install\n"
+                  "the service.  See README.txt for more info.";
+         break;
+      case HWDRV_LOAD_CREATE:
+         errmsg = "Failed to load the TV card driver: Another application may\n"
+                  "already be using the driver. See README.txt for more info.\n";
+         break;
+      case HWDRV_LOAD_REMOTE_DRIVE:
+         errmsg = "Failed to load the TV card driver: Cannot install the driver\n"
+                  "on a network drive. See README.txt for more info.\n";
+         break;
+      case HWDRV_LOAD_VERSION:
+         errmsg = "Failed to load the TV card driver: it's is an incompatible\n"
+                  "version. See README.txt for more info.\n";
+         break;
+      case HWDRV_LOAD_OTHER:
+      default:
+         errmsg = "Failed to load the TV card driver.\n"
+                  "See README.txt for more info.";
+         break;
+   }
+   return errmsg;
+}
 
 
 DWORD LoadDriver( void )
@@ -165,6 +210,7 @@ void UnloadDriver( void )
         //delete Pcicard;
         //Pcicard = NULL;
         HwPci_Destroy();
+        CardOpened = FALSE;
         Pcicard = FALSE;
     }
     
@@ -196,8 +242,9 @@ DWORD DoesThisPCICardExist(DWORD dwVendorID, DWORD dwDeviceID, DWORD dwCardIndex
 // Note :
 // New parameter : dwCardIndex
 DWORD pciGetHardwareResources(DWORD   dwVendorID,
-                                      DWORD   dwDeviceID,
-                                      DWORD   dwCardIndex )
+                              DWORD   dwDeviceID,
+                              DWORD   dwCardIndex,
+                              BOOL    supportsAcpi )
 {
     BOOL ret;
 
@@ -208,7 +255,7 @@ DWORD pciGetHardwareResources(DWORD   dwVendorID,
     if ( !ret )
         return 2;
 
-    ret = HwPci_OpenPCICard(dwVendorID, dwDeviceID, dwCardIndex);
+    ret = HwPci_OpenPCICard(dwVendorID, dwDeviceID, dwCardIndex, supportsAcpi);
     if ( !ret )
         return 3;
 
@@ -221,127 +268,210 @@ DWORD pciGetHardwareResources(DWORD   dwVendorID,
 }
 
 
-void memoryWriteBYTE(DWORD Offset, BYTE Data)  
+void WriteByte(DWORD Offset, BYTE Data)
 { 
     if (Pcicard == FALSE || !CardOpened) return;
     HwPci_WriteByte(Offset, Data); 
 }
-void memoryWriteWORD(DWORD Offset, WORD Data)  
+void WriteWord(DWORD Offset, WORD Data)
 { 
     if (Pcicard == FALSE || !CardOpened) return;
     HwPci_WriteWord(Offset, Data); 
 }
-void memoryWriteDWORD(DWORD Offset, DWORD Data)
+void WriteDword(DWORD Offset, DWORD Data)
 { 
     if (Pcicard == FALSE || !CardOpened) return;
     HwPci_WriteDword(Offset, Data); 
 }
 
-BYTE memoryReadBYTE(DWORD Offset)       
+BYTE ReadByte(DWORD Offset)
 { 
     if (Pcicard == FALSE || !CardOpened) return 0;
     return HwPci_ReadByte(Offset); 
 }
-WORD memoryReadWORD(DWORD Offset)       
+WORD ReadWord(DWORD Offset)
 { 
     if (Pcicard == FALSE || !CardOpened) return 0;
     return HwPci_ReadWord(Offset); 
 }
-DWORD memoryReadDWORD(DWORD Offset) 
+DWORD ReadDword(DWORD Offset)
 { 
     if (Pcicard == FALSE || !CardOpened) return 0;
     return HwPci_ReadDword(Offset); 
 }
 
-// Functions From DSDrv v3.11
-//
-// We should use CContigMemory & CUserMemory (newer code)
-// but that's too complicated.
-DWORD memoryAlloc(DWORD dwLength, DWORD dwFlags, PMemStruct* ppMemStruct)
+void MaskDataByte(DWORD Offset, BYTE Data, BYTE Mask)
 {
-    TDSDrvParam paramIn;
-    DWORD dwReturnedLength;
-    DWORD status;
-    DWORD nPages = 0;
-    DWORD dwOutParamLength;
+    if (Pcicard == FALSE || !CardOpened) return;
+    HwPci_MaskDataByte(Offset, Data, Mask);
+}
+void MaskDataWord(DWORD Offset, WORD Data, WORD Mask)
+{
+    if (Pcicard == FALSE || !CardOpened) return;
+    HwPci_MaskDataWord(Offset, Data, Mask);
+}
+void MaskDataDword(DWORD Offset, DWORD Data, DWORD Mask)
+{
+    if (Pcicard == FALSE || !CardOpened) return;
+    HwPci_MaskDataDword(Offset, Data, Mask);
+}
+void AndDataByte(DWORD Offset, BYTE Data)
+{
+    if (Pcicard == FALSE || !CardOpened) return;
+    HwPci_AndDataByte(Offset, Data);
+}
+void AndDataWord (DWORD Offset, WORD Data)
+{
+    if (Pcicard == FALSE || !CardOpened) return;
+    HwPci_AndDataWord(Offset, Data);
+}
+void AndDataDword (DWORD Offset, DWORD Data)
+{
+    if (Pcicard == FALSE || !CardOpened) return;
+    HwPci_AndDataDword(Offset, Data);
+}
 
-    if(dwFlags & ALLOC_MEMORY_CONTIG)
-    {
-        nPages = 1;
-    }
-    else
-    {
-        nPages = (dwLength + 4095) / 4096 + 1;
-    }
-    
-    dwOutParamLength = sizeof(TMemStruct) + nPages * sizeof(TPageStruct);
-    *ppMemStruct = (PMemStruct) malloc(dwOutParamLength);
-
-    paramIn.dwValue = dwLength;
-    paramIn.dwFlags = dwFlags;
-    if(dwFlags & ALLOC_MEMORY_CONTIG)
-    {
-        paramIn.dwAddress = 0;
-    }
-    else
-    {
-        paramIn.dwAddress = (ULONG)malloc(dwLength);
-        memset((void*)paramIn.dwAddress, 0, dwLength);
-        if(paramIn.dwAddress == 0)
-        {
-            free(*ppMemStruct);
-            return ERROR_NOT_ENOUGH_MEMORY;
-        }
-    }
-    status = HwDrv_SendCommandEx(ioctlAllocMemory,
-                            &paramIn,
-                            sizeof(paramIn),
-                            *ppMemStruct,
-                            dwOutParamLength,
-                            &dwReturnedLength);
-
-    if(status != ERROR_SUCCESS || ppMemStruct == NULL || (*ppMemStruct)->dwUser == 0)
-    {
-        if(!(dwFlags & ALLOC_MEMORY_CONTIG))
-        {
-            free((void*)paramIn.dwAddress);
-        }
-        free(*ppMemStruct);
-        *ppMemStruct = NULL;
-    }
-
-    return status;
+void OrDataByte(DWORD Offset, BYTE Data)
+{
+    if (Pcicard == FALSE || !CardOpened) return;
+    HwPci_OrDataByte(Offset, Data);
+}
+void OrDataWord (DWORD Offset, WORD Data)
+{
+    if (Pcicard == FALSE || !CardOpened) return;
+    HwPci_OrDataWord(Offset, Data);
+}
+void OrDataDword (DWORD Offset, DWORD Data)
+{
+    if (Pcicard == FALSE || !CardOpened) return;
+    HwPci_OrDataDword(Offset, Data);
 }
 
 
-DWORD memoryFree(PMemStruct pMemStruct)
+// ----------------------------------------------------------------------------
+// Structure that holds register state array
+// - dynamically growing if more elements than fit the default max. table size
+//
+// default allocation size for buffer size
+#define STATE_CLUSTER_SIZE  100
+
+typedef struct
 {
-    DWORD status = ERROR_SUCCESS;
-    if(pMemStruct != NULL)
-    {
-        DWORD dwInParamLength = sizeof(TMemStruct) + pMemStruct->dwPages * sizeof(TPageStruct);
-        status = HwDrv_SendCommand(ioctlFreeMemory, pMemStruct, dwInParamLength);
-        if(!(pMemStruct->dwFlags & ALLOC_MEMORY_CONTIG))
-        {
-            free(pMemStruct->dwUser);
-        }
-        free(pMemStruct);
-    }
-    return status;
+   DWORD  * pValues;
+   int      maxCount;
+   int      fillCount;
+} CARD_STATE_BUF;
+
+static CARD_STATE_BUF cardStateBuf = {NULL, 0, 0};
+static BOOL           cardStateReading;
+static unsigned       cardStateReadIdx;
+
+// ----------------------------------------------------------------------------
+// Helper func to append register value values to a growing list
+// - the list grows automatically when required
+//
+static void DsDrv_AddElement( CARD_STATE_BUF * pStateBuf, DWORD value )
+{
+   DWORD * pPrevValues;
+
+   if (pStateBuf->fillCount > pStateBuf->maxCount)
+      LOG(1,"DsDrv-AddElement: illegal fill count %d >= %d", pStateBuf->fillCount, pStateBuf->maxCount);
+
+   if (pStateBuf->fillCount == pStateBuf->maxCount)
+   {
+      pPrevValues = pStateBuf->pValues;
+      pStateBuf->maxCount += STATE_CLUSTER_SIZE;
+      pStateBuf->pValues = malloc(pStateBuf->maxCount * sizeof(*pStateBuf->pValues));
+
+      if (pPrevValues != NULL)
+      {
+         memcpy(pStateBuf->pValues, pPrevValues, pStateBuf->fillCount * sizeof(*pStateBuf->pValues));
+         free(pPrevValues);
+      }
+   }
+
+   pStateBuf->pValues[pStateBuf->fillCount] = value;
+   pStateBuf->fillCount += 1;
 }
 
-/*
+// ----------------------------------------------------------------------------
+// Prepare the state buffer for writing
+// - discard the previous content (but keep the allocated memory)
+// - note: do not overwrite pointer with NULL because buffer is not freed by restore
 //
-// These functions are useless so they are not implemented ...
-//
+void HwPci_InitStateBuf( void )
+{
+   cardStateBuf.fillCount = 0;
+   cardStateBuf.maxCount  = 0;
+   cardStateReading = FALSE;
+   cardStateReadIdx = 0;
+}
 
-int isDriverOpened (void);
-BYTE readPort(WORD address);
-WORD readPortW(WORD address);
-DWORD readPortL(WORD address);
-void writePort(WORD address, BYTE bValue);
-void writePortW(WORD address, WORD uValue);
-void writePortL(WORD address, DWORD dwValue);
-DWORD memoryMap  (DWORD dwAddress, DWORD dwLength) 
-void memoryUnmap(DWORD dwAddress, DWORD dwLength) 
-*/
+// ----------------------------------------------------------------------------
+// Prepare the state buffer for retrieving previously written content
+//
+void HwPci_RestoreState( void )
+{
+   cardStateReading = TRUE;
+   cardStateReadIdx = 0;
+}
+
+// ----------------------------------------------------------------------------
+// Write to or read from the buffer
+// - note: in the buffer each write uses a DWORD, even if only a BYTE is written
+//   the caller must retrieve the elements in the same order and width
+//
+void ManageDword( DWORD Offset )
+{
+   if (cardStateReading)
+   {
+      if (cardStateReadIdx < cardStateBuf.fillCount)
+      {
+         WriteDword(Offset, cardStateBuf.pValues[cardStateReadIdx]);
+         cardStateReadIdx += 1;
+      }
+      else
+         LOG(1, "Manage-Dword: illegal read index %d >= %d", cardStateReadIdx, cardStateBuf.fillCount);
+   }
+   else
+   {
+      DsDrv_AddElement(&cardStateBuf, ReadDword(Offset));
+   }
+}
+
+void ManageWord( DWORD Offset )
+{
+   if (cardStateReading)
+   {
+      if (cardStateReadIdx < cardStateBuf.fillCount)
+      {
+         WriteWord(Offset, (WORD)cardStateBuf.pValues[cardStateReadIdx]);
+         cardStateReadIdx += 1;
+      }
+      else
+         LOG(1, "Manage-Word: illegal read index %d >= %d", cardStateReadIdx, cardStateBuf.fillCount);
+   }
+   else
+   {
+      DsDrv_AddElement(&cardStateBuf, (DWORD)ReadWord(Offset));
+   }
+}
+
+void ManageByte( DWORD Offset )
+{
+   if (cardStateReading)
+   {
+      if (cardStateReadIdx < cardStateBuf.fillCount)
+      {
+         WriteByte(Offset, (BYTE)cardStateBuf.pValues[cardStateReadIdx]);
+         cardStateReadIdx += 1;
+      }
+      else
+         LOG(1, "Manage-Byte: illegal read index %d >= %d", cardStateReadIdx, cardStateBuf.fillCount);
+   }
+   else
+   {
+      DsDrv_AddElement(&cardStateBuf, (DWORD)ReadByte(Offset));
+   }
+}
+

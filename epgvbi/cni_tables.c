@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: cni_tables.c,v 1.18 2002/11/17 20:30:53 tom Exp tom $
+ *  $Id: cni_tables.c,v 1.20 2003/03/13 13:11:51 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -73,8 +73,10 @@ static const CNI_PDC_DESC cni_pdc_desc_table[] =
    {0x1605, 0x3205, "VTM"},
    {0x1606, 0x3206, "Kanaal2"},
    {0x1600, 0x3207, "RTBF Sat"},
-   {0x1600, 0x3208, "RTBF future use"},
    {0x1600, 0x3209, "RTL-TVI"},
+   {0x1600, 0x320A, "CLUB-RTL"},
+   {0x1600, 0x320C, "AB3"},
+   {0x1600, 0x320F, "JIM.tv"},
    {0x1604, 0x0404, "VT4"},
    // Croatia
    {0x4600, 0x0385, "HRT"},
@@ -93,6 +95,7 @@ static const CNI_PDC_DESC cni_pdc_desc_table[] =
    {0x2902, 0x4502, "TV2"},
    {0x2903, 0x49CF, "DR2"},
    {0x2904, 0x4503, "TV2 Zulu"},
+   {0x2900, 0x4504, "Discovery"},
    // Finland
    {0x260F, 0x358F, "OWL3"},
    {0x2601, 0x3581, "YLE1"},
@@ -118,6 +121,7 @@ static const CNI_PDC_DESC cni_pdc_desc_table[] =
    {0x2FC9, 0x33C9, "Planète"},
    {0x2F11, 0x3311, "RFO1"},
    {0x2F12, 0x3312, "RFO2"},
+   {0x2F00, 0x33B2, "Sailing Channel"},
    {0x2FCA, 0x33CA, "Série Club"},
    {0x2FCB, 0x33CB, "Télétoon"},
    {0x2FCC, 0x33CC, "Téva"},
@@ -126,13 +130,12 @@ static const CNI_PDC_DESC cni_pdc_desc_table[] =
    {0x2FC7, 0x33C7, "TMC Monte-Carlo"},
    {0x2FE5, 0xF500, "TV5"},
    // Germany
-   {0x1D00, 0x49C1, "ARD (future use)"},
    {0x1D41, 0x4941, "Festival"},
    {0x1D42, 0x4942, "MUXX"},
    {0x1D43, 0x4943, "EXTRA"},
    {0x1D44, 0x4944, "BR-Alpha: Bildungskanal des Bayerischen Rundfunks"},
    {0x1D7A, 0x0000, "n24"},
-   {0x1D7B, 0x0000, "Tele-5"},
+   {0x1D7B, 0x49BE, "Tele-5"},
    {0x1D7C, 0x0000, "ONYX-TV"},
    {0x1D7D, 0x5C49, "QVC-Teleshopping"},
    {0x1D7E, 0x0000, "Nickelodeon"},
@@ -197,14 +200,14 @@ static const CNI_PDC_DESC cni_pdc_desc_table[] =
    {0x1DBF, 0x0000, "Berlin-Mix-Channel I"},
    {0x1DC1, 0x4901, "ARD: Erstes Deutsches Fernsehen"},
    {0x1DC2, 0x4902, "ZDF: Zweites Deutsches Fernsehen"},
-   {0x1DC7, 0x49C7, "3sat (ARD/ZDF/ORF/SRG common programme)"},
-   {0x1DC8, 0x4918, "Phoenix: Ereignis und Dokumentationskanal (ARD/ZDF)"},
+   {0x1DC7, 0xD107, "3sat (ARD/ZDF/ORF/SRG common programme)"},  // 0x49C7 in ETSI TR
+   {0x1DC8, 0x4918, "Phoenix: Ereignis und Dokumentationskanal (ARD/ZDF)"},  // 0x4908 in ETSI TR
    {0x1DC9, 0x49C9, "Kinderkanal (ARD/ZDF)"},
    {0x1DCA, 0x0000, "BR-1: Regionalprogramm"},
    {0x1DCB, 0x49CB, "BR-3: Bayerischer Rundfunk"},
    {0x1DCC, 0x0000, "BR-3: Süd"},
    {0x1DCD, 0x0000, "BR-3: Nord"},
-   {0x1DCE, 0x0000, "HR-1: Regionalprogramm"},
+   {0x1DCE, 0x49FF, "HR-1: Regionalprogramm"},
    {0x1DCF, 0x4915, "HR-3: Hessischer Rundfunk"},
    {0x1DD0, 0x0000, "NDR-1: Landesprogramm dreiländerweit"},
    {0x1DD1, 0x0000, "NDR-1: Landesprogramm Hamburg"},
@@ -270,25 +273,15 @@ static const CNI_PDC_DESC cni_pdc_desc_table[] =
    {0x1B00, 0x3622, "tv2"},
    // Iceland
    {0x4200, 0x3541, "Rikisutvarpid-Sjonvarp"},
+   // Ireland
    {0x4202, 0x3532, "Network 2"},
    {0x4201, 0x3531, "RTE1"},
    {0x4203, 0x3533, "Teilifis na Gaeilge"},
-   // Ireland
    {0x4200, 0x3333, "TV3"},
-   {0x4200, 0x3901, "RAI 1"},
-   {0x4200, 0x3902, "RAI 2"},
-   {0x4200, 0x3903, "RAI 3"},
-   {0x4200, 0x3904, "Rete A"},
-   {0x4200, 0x3938, "RTV38"},
-   {0x4200, 0x3997, "Tele+1"},
-   {0x4200, 0x3998, "Tele+2"},
-   {0x4200, 0x3999, "Tele+3"},
-   {0x4200, 0x3910, "TRS TV"},
-   // Luxembourg
-   {0x0000, 0x4000, "RTL Télé Lëtzebuerg"},
    // Italy
    {0x1500, 0x390A, "Arte"},
    {0x1500, 0xFA05, "Canale 5"},
+   {0x1500, 0x3939, "GAY TV"},
    {0x1500, 0xFA06, "Italia 1"},
    {0x1500, 0x3933, "MTV Italia"},
    {0x1500, 0x3901, "RAI 1"},
@@ -296,25 +289,45 @@ static const CNI_PDC_DESC cni_pdc_desc_table[] =
    {0x1500, 0x3903, "RAI 3"},
    {0x1500, 0xFA04, "Rete 4"},
    {0x1500, 0x3904, "Rete A"},
+   {0x1500, 0x3920, "RaiNews24"},
+   {0x1500, 0x3921, "Rai Med"},
+   {0x1500, 0x3922, "Rai Sport"},
+   {0x1500, 0x3923, "Rai Educational"},
+   {0x1500, 0x3924, "Rai Edu Lab"},
+   {0x1500, 0x3925, "Rai Nettuno 1"},
+   {0x1500, 0x3926, "Rai Nettuno 2"},
+   {0x1500, 0x3927, "Camera Deputati"},
+   {0x1500, 0x3928, "Rai Mosaico"},
+   {0x1500, 0x3950, "RaiSat Album"},
+   {0x1500, 0x3951, "RaiSat Art"},
+   {0x1500, 0x3952, "RaiSat Cinema"},
+   {0x1500, 0x3953, "RaiSat Fiction"},
+   {0x1500, 0x3954, "RaiSat GamberoRosso channel"},
+   {0x1500, 0x3955, "RaiSat Ragazzi"},
+   {0x1500, 0x3956, "RaiSat Show"},
+   {0x1500, 0x3957, "RaiSat G. Rosso interattivo"},
    {0x1500, 0x3938, "RTV38"},
+   {0x1500, 0x39B1, "Sailing Channel"},
    {0x1500, 0x3997, "Tele+1"},
    {0x1500, 0x3998, "Tele+2"},
    {0x1500, 0x3999, "Tele+3"},
    {0x1500, 0xFA08, "TMC"},
    {0x1500, 0x3910, "TRS TV"},
    {0x1500, 0x3940, "Video Italia"},
+   // Luxembourg
+   {0x0000, 0x4000, "RTL Télé Lëtzebuerg"},
    // Netherlands
    {0x4801, 0x3101, "Nederland 1"},
    {0x4802, 0x3102, "Nederland 2"},
    {0x4803, 0x3103, "Nederland 3"},
    {0x4804, 0x3104, "RTL 4"},
    {0x4805, 0x3105, "RTL 5"},
-   {0x4806, 0x3106, "Veronica"},
+   {0x4806, 0x3106, "Yorin"},
    {0x4820, 0x3120, "The BOX"},
    {0x4800, 0x3121, "Discovery Netherlands"},
+   {0x4822, 0x3122, "Kindernet/Veronica"},
    {0x4800, 0x3125, "NET5"},
    {0x4800, 0x3126, "SBS6"},
-   {0x4800, 0x3127, "SBS future use"},
    {0x4800, 0x3128, "V8"},
    // Norway
    {0x3F00, 0x4701, "NRK1"},
@@ -326,6 +339,21 @@ static const CNI_PDC_DESC cni_pdc_desc_table[] =
    {0x3300, 0x4810, "TV Polonia"},
    {0x3300, 0x4801, "TVP1"},
    {0x3300, 0x4802, "TVP2"},
+   {0x3300, 0x4880, "TVP Warszawa"},
+   {0x3300, 0x4881, "TVP Bialystok"},
+   {0x3300, 0x4882, "TVP Bydgoszcz"},
+   {0x3300, 0x4883, "TVP Gdansk"},
+   {0x3300, 0x4884, "TVP Katowice"},
+   {0x3300, 0x4886, "TVP Krakow"},
+   {0x3300, 0x4887, "TVP Lublin"},
+   {0x3300, 0x4888, "TVP Lodz"},
+   {0x3300, 0x4890, "TVP Rzeszow"},
+   {0x3300, 0x4891, "TVP Poznan"},
+   {0x3300, 0x4892, "TVP Szczecin"},
+   {0x3300, 0x4893, "TVP Wroclaw"},
+   {0x3300, 0x4820, "TVN"},
+   {0x3300, 0x4821, "TVN Siedem"},
+   {0x3300, 0x4822, "TVN24"},
    // Portugal
    {0x5800, 0x3510, "RTP1"},
    {0x5800, 0x3511, "RTP2"},
@@ -393,8 +421,16 @@ static const CNI_PDC_DESC cni_pdc_desc_table[] =
    {0x4300, 0x900F, "GALAKSI TV"},
    {0x4300, 0x9010, "FUN TV"},
    {0x4300, 0x9011, "TEMPO TV"},
-   {0x4300, 0x9014, "TGRT"},      // codes 9014-90FE taken from TRT-1 Nextview
-   {0x4300, 0x90EA, "CNNT"},
+   {0x4300, 0x9014, "TGRT"},
+   {0x4300, 0x9020, "STAR TV"},
+   {0x4300, 0x9021, "STARMAX"},
+   {0x4300, 0x9022, "Kanal 6"},
+   {0x4300, 0x9023, "STAR 4"},
+   {0x4300, 0x9024, "STAR 5"},
+   {0x4300, 0x9025, "STAR 6"},
+   {0x4300, 0x9026, "STAR 7"},
+   {0x4300, 0x9027, "STAR 8"},
+   {0x4300, 0x90EA, "CNNT"},      // codes 90EA-90FE taken from TRT-1 Nextview
    {0x4300, 0x90EB, "NTV"},
    {0x4300, 0x90EC, "Kanal E"},
    {0x4300, 0x90ED, "Kanal 6"},
@@ -452,6 +488,7 @@ static const CNI_PDC_DESC cni_pdc_desc_table[] =
    {0x2C1B, 0xFCFB, "MOVIE CHANNEL"},
    {0x2C14, 0x4D54, "MTV"},
    {0x2C31, 0x8E71, "NBC Europe"},
+   {0x2C35, 0x8E72, "CNBC Europe"},
    {0x2C00, 0xA460, "Nickelodeon UK"},
    {0x2C00, 0xA465, "Paramount Comedy Channel UK"},
    {0x2C00, 0x5C44, "QVC UK"},
@@ -478,6 +515,9 @@ static const CNI_PDC_DESC cni_pdc_desc_table[] =
    {0x2C30, 0x25D0, "WESTCOUNTRY TV"},
    {0x2C3C, 0x4403, "WIRE TV"},
    {0x2C2D, 0xFA2C, "YORKSHIRE TV"},
+   // Ukraine
+   {0x7700, 0x7700, "1+1"},
+   {0x7700, 0x7705, "M1"},
    // USA
    {0x0100, 0x01fa, "CNN International"},
    {0,      0,      NULL},
@@ -520,6 +560,7 @@ static const CNI_COUNTRY_DESC cni_country_table[] =
    {0x43, "Turkey"},
    {0x2C, "UK"},
    {0x5B, "UK"},
+   //{0x00, "Ukraine"},
    {0x01, "USA"},
    {0, NULL},
 };
@@ -699,7 +740,7 @@ static const uint cni_prov_table[] =
    0xF500,
    0x2F04,  // Canal+ (France)
    0x33F4,
-   0x2F06,  // M6 (France)
+   //0x2F06,  // M6 (France) - deceased Dec/31/2002
    0x9001,  // TRT-1 (Turkey)
    0
 };

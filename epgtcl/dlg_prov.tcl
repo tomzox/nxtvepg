@@ -19,16 +19,15 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_prov.tcl,v 1.5 2002/12/08 19:59:00 tom Exp tom $
+#  $Id: dlg_prov.tcl,v 1.8 2003/03/03 20:05:51 tom Exp tom $
 #
 set provwin_popup 0
 set provmerge_popup 0
 
 set epgscan_popup 0
-set epgscan_timeout 2
 set epgscan_opt_slow 0
 set epgscan_opt_refresh 0
-set epgscan_opt_xawtv 1
+set epgscan_opt_ftable 0
 
 set tzcfg_default {1 60 0}
 set timezone_popup 0
@@ -300,7 +299,7 @@ proc PopupProviderMergeOpt {cfoption} {
 
    if {$provmerge_popup == 1} {
       if {[string length $provmergeopt_popup] == 0} {
-         CreateTransientPopup .provmergeopt "Database Selection for $ProvmergeOptLabels($cfoption)"
+         CreateTransientPopup .provmergeopt "Database Selection for $ProvmergeOptLabels($cfoption)" .provmerge
          set provmergeopt_popup $cfoption
 
          # initialize the result array: default is all databases
@@ -437,11 +436,12 @@ proc ProvMerge_Quit {cause} {
 ##  Create EPG scan popup-window
 ##
 proc PopupEpgScan {} {
-   global hwcfg hwcfg_default is_unix env font_fixed font_normal text_bg
+   global is_unix env font_fixed font_normal text_bg
    global prov_freqs
    global tvapp_name
+   global hwcf_cardidx tvcardcf
    global epgscan_popup
-   global epgscan_opt_slow epgscan_opt_refresh epgscan_opt_xawtv
+   global epgscan_opt_slow epgscan_opt_refresh epgscan_opt_ftable
 
    if {$epgscan_popup == 0} {
       if [C_IsNetAcqActive clear_errors] {
@@ -449,13 +449,9 @@ proc PopupEpgScan {} {
          tk_messageBox -type ok -icon error -message "EPG scan cannot be started: you must disconnect from the acquisition daemon via the Control menu first."
          return
       } elseif {!$is_unix} {
-         if {![info exists hwcfg] || (([lindex $hwcfg 0] == 0) && ([lindex $hwcfg 1] == 0))} {
-            # tuner type has not been configured yet -> abort
-            tk_messageBox -type ok -icon info -message "Before you start the scan, please do configure your card's tuner type in the 'TV card input' sub-menu of the Configure menu.\nIf no channels are found during the scan, try to enable the tuner PLL initialization in that menu."
-            return
-         } elseif {[lindex $hwcfg 0] != 0} {
-            # tuner not configured as input -> no scan possible or needed
-            tk_messageBox -type ok -icon info -message "You have not selected the TV tuner as video input source. Hence a scan is neither needed nor possible.\nIf you want to use the TV tuner for input, you can change this setting in the 'TV card input' menu."
+         if {![info exists tvcardcf($hwcf_cardidx)]} {
+            # TV card has not been configured yet -> abort
+            tk_messageBox -type ok -icon info -message "Before you start the scan, please do configure your card type in the 'TV card input' sub-menu of the Configure menu."
             return
          }
       }
@@ -490,18 +486,32 @@ proc PopupEpgScan {} {
       pack .epgscan.all.fmsg.sb -side left -fill y
       pack .epgscan.all.fmsg -side top -padx 10 -fill both -expand 1
 
+      # frequency table radio buttons
+      frame .epgscan.all.ftable -borderwidth 2 -relief sunken
+      label .epgscan.all.ftable.label -text "Channel table:"
+      radiobutton .epgscan.all.ftable.tab1 -text "Western Europe" -variable epgscan_opt_ftable -value 1
+      radiobutton .epgscan.all.ftable.tab2 -text "France" -variable epgscan_opt_ftable -value 2
+      radiobutton .epgscan.all.ftable.tab0 -variable epgscan_opt_ftable -value 0
+      pack .epgscan.all.ftable.label -side left -padx 5
+      pack .epgscan.all.ftable.tab1 .epgscan.all.ftable.tab2 .epgscan.all.ftable.tab0 -side left -expand 1 -pady 3
+      pack .epgscan.all.ftable -side top -padx 10 -fill x
+
+      trace variable tvapp_name w EpgScan_CheckTvAppStatus
+      EpgScan_CheckTvAppStatus foo bar bar2
+
       # mode buttons
-      frame .epgscan.all.opt
-      checkbutton .epgscan.all.opt.slow -text "Slow" -variable epgscan_opt_slow -command {C_SetEpgScanSpeed $epgscan_opt_slow}
+      frame   .epgscan.all.opt -borderwidth 2 -relief sunken
       checkbutton .epgscan.all.opt.refresh -text "Refresh only" -variable epgscan_opt_refresh
-      pack .epgscan.all.opt.slow .epgscan.all.opt.refresh -side left -padx 5
-      checkbutton .epgscan.all.opt.xawtv -text "Use $tvapp_name freq.table" -variable epgscan_opt_xawtv
-      pack .epgscan.all.opt.xawtv -side left -padx 5
-      if {![C_Tvapp_Enabled]} {
-         set epgscan_opt_xawtv 0
-         .epgscan.all.opt.xawtv configure -state disabled
+      checkbutton .epgscan.all.opt.slow -text "Slow" -variable epgscan_opt_slow -command {C_SetEpgScanSpeed $epgscan_opt_slow}
+      pack    .epgscan.all.opt.refresh .epgscan.all.opt.slow -side left -padx 5
+      if {!$is_unix} {
+         button .epgscan.all.opt.cfgtvcard -text "Card setup" -command PopupHardwareConfig
+         button .epgscan.all.opt.cfgtvpp -text "Select TV app" -command XawtvConfigPopup
+         pack   .epgscan.all.opt.cfgtvpp -side right -pady 3
+         pack   .epgscan.all.opt.cfgtvcard -side right -pady 3
       }
-      pack .epgscan.all.opt -side top -padx 10 -pady 5
+      pack   .epgscan.all.opt -side top -padx 10 -fill x
+
 
       # check if provider frequencies are available
       UpdateProvFrequency [C_LoadProvFreqsFromDbs]
@@ -516,7 +526,7 @@ proc PopupEpgScan {} {
       }
 
       pack .epgscan.all -side top -fill both -expand 1
-      bind .epgscan.all <Destroy> {+ set epgscan_popup 0; C_StopEpgScan}
+      bind .epgscan.all <Destroy> EpgScan_Quit
       bind .epgscan <Key-F1> {PopupHelp $helpIndex(Configuration) "Provider scan"}
 
       .epgscan.all.fmsg.msg insert end "Press the <Start scan> button"
@@ -531,8 +541,8 @@ proc PopupEpgScan {} {
 
 # callback for "Start" button
 proc EpgScan_Start {} {
-   global epgscan_opt_slow epgscan_opt_refresh epgscan_opt_xawtv
-   global hwcfg hwcfg_default
+   global epgscan_opt_slow epgscan_opt_refresh epgscan_opt_ftable
+   global hwcf_input
    global is_unix
 
    if {[C_IsNetAcqActive clear_errors]} {
@@ -541,12 +551,20 @@ proc EpgScan_Start {} {
       return
    }
 
-   if {[info exists hwcfg]} {
-      set input_src [lindex $hwcfg 0]
-   } else {
-      set input_src [lindex $hwcfg_default 0]
-   }
-   C_StartEpgScan $input_src $epgscan_opt_slow $epgscan_opt_refresh $epgscan_opt_xawtv
+   UpdateRcFile
+
+   C_StartEpgScan $hwcf_input $epgscan_opt_slow $epgscan_opt_refresh $epgscan_opt_ftable
+}
+
+# callback for dialog destruction (including "Dismiss" button)
+proc EpgScan_Quit {} {
+   global tvapp_name
+   global epgscan_popup
+
+   set epgscan_popup 0
+   trace vdelete tvapp_name w EpgScan_CheckTvAppStatus
+
+   C_StopEpgScan
 }
 
 # called after start or stop of EPG scan to update button states
@@ -562,7 +580,13 @@ proc EpgScanButtonControl {is_start} {
       .epgscan.cmd.help configure -state disabled
       .epgscan.cmd.dismiss configure -state disabled
       .epgscan.all.opt.refresh configure -state disabled
-      .epgscan.all.opt.xawtv configure -state disabled
+      .epgscan.all.ftable.tab0 configure -state disabled
+      .epgscan.all.ftable.tab1 configure -state disabled
+      .epgscan.all.ftable.tab2 configure -state disabled
+      if {!$is_unix} {
+         .epgscan.all.opt.cfgtvcard configure -state disabled
+         .epgscan.all.opt.cfgtvpp configure -state disabled
+      }
       # destroy all "Remove provider" buttons
       foreach w [info commands .epgscan.all.fmsg.msg.del_prov_*] {
          destroy $w
@@ -577,13 +601,19 @@ proc EpgScanButtonControl {is_start} {
          .epgscan.cmd.stop configure -state disabled
          .epgscan.cmd.help configure -state normal
          .epgscan.cmd.dismiss configure -state normal
+         if {!$is_unix} {
+            .epgscan.all.opt.cfgtvcard configure -state normal
+            .epgscan.all.opt.cfgtvpp configure -state normal
+         }
          # enable option checkboxes only if they were enabled before the scan
          if {[llength $prov_freqs] > 0} {
             .epgscan.all.opt.refresh configure -state normal
          }
          if {[C_Tvapp_Enabled]} {
-            .epgscan.all.opt.xawtv configure -state normal
+            .epgscan.all.ftable.tab0 configure -state normal
          }
+         .epgscan.all.ftable.tab1 configure -state normal
+         .epgscan.all.ftable.tab2 configure -state normal
          # enable "Remove provider" buttons
          foreach w [info commands .epgscan.all.fmsg.msg.del_prov_*] {
             $w configure -state normal
@@ -628,6 +658,25 @@ proc EpgScanDeleteProvider {cni} {
          # disable the button so that the user can't invoke it again
          catch [.epgscan.all.fmsg.msg.del_prov_$cni configure -state disabled]
       }
+   }
+}
+
+# trace callback for variable tvapp_name to update freq. table options
+proc EpgScan_CheckTvAppStatus {n1 n1 v} {
+   global tvapp_name
+   global epgscan_opt_ftable
+   global epgscan_popup
+
+   if $epgscan_popup {
+      if {![C_Tvapp_Enabled]} {
+         .epgscan.all.ftable.tab0 configure -state disabled
+         if {$epgscan_opt_ftable == 0} {
+            set epgscan_opt_ftable 1
+         }
+      } else {
+         .epgscan.all.ftable.tab0 configure -state normal
+      }
+      .epgscan.all.ftable.tab0 configure -text "Load from $tvapp_name"
    }
 }
 

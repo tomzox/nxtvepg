@@ -1,26 +1,49 @@
-<HTML>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
+<HTML lang="en">
 <HEAD>
-<META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
+<TITLE>Developers and alpha testers download page</TITLE>
+<META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<META name="language" content="en">
+<META name="author" content="Tom Zoerner">
+<META name="copyright" content="Tom Zoerner">
+<META name="description" content="Software download of alpha and beta software releases of the nxtvepg Nextview EPG decoder software for Windows and Linux.">
 <META name="robots" content="noindex">
 <LINK rel="stylesheet" type="text/css" href="../nxtvepg.css">
-<TITLE>Developer's directory</TITLE>
+<LINK rel="shortcut icon" type="image/x-icon" href="nxtvepg.ico">
+<LINK rel="top" href="http://nxtvepg.sourceforge.net/" title="nexTView EPG Dekoder Homepage">
 </HEAD>
 <BODY BGCOLOR=#f8f8f8>
-<H1>Developer's directory</H1>
+<H1>Nextview EPG developers and alpha testers download page</H1>
 <P>
+This page lists the latest updates for the
+<A HREF="http://nxtvepg.sourceforge.net/">nxtvepg</A> software package.
+The software which is available here is only intended for developers
+and alpha/beta testers.  If you're searching for the regular download
+page, please visit the <A HREF="http://nxtvepg.sourceforge.net/">homepage</A>.
 </P>
+
 <H2>Downloads</H2>
 <P>
 The following packages contain
-a developer's snapshot of the ongoing development
+a developer's snapshot of the ongoing development.
+Please refer to the
+<A HREF="http://sourceforge.net/mailarchive/forum.php?forum_id=14102">mailing list archives</A>
+for information about changes; the changelog in the package may not
+list all changes or not reflect the actual status of completion.
 <!--
-a release candidate (rc1) of the upcoming release.
+a release candidate (beta #1) of the upcoming release.
+Please refer to the
+<A HREF="http://nxtvepg.sourceforge.net/changelog.html">changelog</A> and the
+<A HREF="http://sourceforge.net/mailarchive/forum.php?forum_id=14102">mailing list archives</A>
+for a history of changes.
+-->
+<!--
 For a list of bug fixes (and a few new features) see the
 <A HREF="http://nxtvepg.sourceforge.net/changelog.html">changelog</A>.
 -->
 </P><P>
-This release comes with debugging enabled and should be used for
-evaluation only.  Please do not redistribute.
+This release comes with internal consistany checks and debug output enabled
+and should be used for evaluation only.  Please do not redistribute.
 </P>
 <!--
 <P>
@@ -31,19 +54,48 @@ to be able to switch back to 2.4.0 in case you find any severe bugs in 2.4.1
 </P>
 -->
 <UL>
-<LI><I>nothing currently</I>
 <!--
-<LI>Sources: <A HREF="nxtvepg-2.4.1pre1.tar.gz">nxtvepg-2.4.1pre1.tar.gz</A>
-<LI>Win32 binaries: <A HREF="nxtvepg-2.4.1pre1-win.zip">nxtvepg-2.4.1pre1-win.zip</A>
+<LI><I>nothing currently</I>
 -->
 <!--
-<BR>(does not contain the Tcl/Tk libraries; please copy them from 2.3.0)
+<LI>Sources: <A HREF="nxtvepg-2.5.0pre16.tar.gz">nxtvepg-2.5.0pre16.tar.gz</A>
+-->
+<LI>Win32 executable: <A HREF="nxtvepg-2.5.0-win-dbg.zip">nxtvepg-2.5.0-win-dbg.zip</A>
+<BR>(identical to the regular release except for additional debugging features)
+<BR>(does not contain the Tcl/Tk libraries; please copy them from the last release)
+<!--
+<BR><B>Attention:</B> Please note that Win32 TV card configuration parameters
+and driver version have changed in pre7.
+See the above link to the mailing list archive for details.
+<LI>Win32 TV simulator: <A HREF="nxtvepg-2.5.0pre16-tvsim.zip">nxtvepg-2.5.0pre16-tvsim.zip</A><BR>
+Please try to reproduce any K!TV related problems with tvsim.exe
+before you report them.
+
+<LI><P>Patch against nxtvepg-2.4.2 to add support for SAA7134 based cards with the
+    Linux saa7134 driver version 0.2.2 and earlier.  Note that this patch should
+    <B>not</B> be used with any later driver versions since it contains workarounds
+    for specific bugs in version 0.2.2.  It also does not help Windows users.
+    <A HREF="patch-saa7134-0.2.2.txt.gz">patch-saa7134-0.2.2.txt.gz</A>
+    (To apply this patch open a shell, change to the nxtvepg-2.4.2 source
+    directory, type "<KBD>zcat patch-saa7134-0.2.2.txt.gz | patch -p1</KBD>"
+    and then <KBD>make clean</KBD> and <KBD>make</KBD>)</P>
 -->
 </UL>
 <P>
 Note: Please use "SHIFT + click" or "save link as..." for .bz2 files
 (i.e. files compressed with bzip2),
 as these are not given correct MIME types by the NEFkom server.
+</P>
+
+<H2>Copyright &amp; Disclaimer</H2>
+<P>
+This program is free software; you can redistribute it and/or modify
+it under the terms of the
+<A HREF="http://www.fsf.org/copyleft/gpl.html">GNU General Public License</A>
+as published by the <A HREF="http://www.fsf.org/">Free Software Foundation.</A>
+This program is distributed in the hope that it will be useful,
+but <B>without any warranty</B>; without even the implied warranty of
+merchantability or fitness for a particular purpose.
 </P>
 </BODY>
 </HTML>

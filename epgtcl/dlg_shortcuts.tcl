@@ -19,7 +19,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_shortcuts.tcl,v 1.6 2002/12/08 19:59:00 tom Exp tom $
+#  $Id: dlg_shortcuts.tcl,v 1.8 2003/03/04 21:30:34 tom Exp tom $
 #
 set fscupd_popup 0
 
@@ -322,8 +322,8 @@ proc SaveUpdatedFilterShortcut {call_edit {edit_idx -1}} {
 
             # update filter & column cache with user-defined columns, then redisplay
             DownloadUserDefinedColumnFilters
-            C_PiOutput_CfgColumns
-            C_RefreshPiListbox
+            UpdatePiListboxColumParams
+            C_PiBox_Refresh
 
             # save the shortcuts config into the rc/ini file
             UpdateRcFile
@@ -651,7 +651,7 @@ proc InvokeEditedShortcutFilter {} {
       }
 
       SelectShortcuts $sc_tag fscedit_sclist
-      C_RefreshPiListbox
+      C_PiBox_Refresh
    }
 }
 
@@ -779,8 +779,8 @@ proc SaveEditedShortcuts {} {
 
    # update filter & column cache with user-defined columns, then redisplay
    DownloadUserDefinedColumnFilters
-   C_PiOutput_CfgColumns
-   C_RefreshPiListbox
+   UpdatePiListboxColumParams
+   C_PiBox_Refresh
 }
 
 # selection of a shortcut in the listbox - update all displayed info in the popup
