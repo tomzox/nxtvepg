@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: changelog.html,v 1.19 2001/09/07 21:18:31 tom Exp $ -->
+<!-- $Id: changelog.html,v 1.20 2001/09/16 11:31:31 tom Exp $ -->
 <HEAD>
 <TITLE>Nextview EPG Decoder Change-Log</TITLE>
 <LINK href="nxtvepg.css" rel=stylesheet type=text/css>
@@ -27,6 +27,21 @@ It also contains information about the next release and is regularily
 updated while work is in progress and new bugs are fixed or features added.
 If you're interested in beta testing pre-releases, just send me a mail.
 </P>
+
+<H2>From 0.6.2 to 0.6.3 (2001-September-16)</H2>
+<P>
+This release contains the following fixes and improvements;
+note that all of them are available in the UNIX version only:
+</P>
+<UL>
+<LI>Added daemon mode to allow background acquisition without GUI.
+  Added new command line options <KBD>-daemon</KBD> and <KBD>-acqpassive</KBD>
+<LI>Signal HUP can now be used to toggle acquisition on and off (with GUI only;
+  the daemon terminates when acquisition is disabled). Before, the signal
+  used to disable acquisition only.
+<LI>Fix: catch death of acquisition slave process (i.e. after deadly signal)
+  and mark acquisition as disabled in the master process.
+</UL>
 
 <H2>From 0.6.1 to 0.6.2 (September/07/2001)</H2>
 <P>

@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqctl.c,v 1.49 2001/09/02 17:02:58 tom Exp tom $
+ *  $Id: epgacqctl.c,v 1.50 2001/09/12 18:24:01 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -285,9 +285,9 @@ void EpgAcqCtl_Stop( void )
 // Start or stop the acquisition (called from UI button callback)
 // - returns the new status of acq: TRUE=running, FALSE=stopped
 //
-int EpgAcqCtl_Toggle( int newState )
+bool EpgAcqCtl_Toggle( bool enable )
 {
-   if (newState != acqCtl.state)
+   if (enable ^ (acqCtl.state != ACQSTATE_OFF))
    {
       if (acqCtl.state == ACQSTATE_OFF)
       {
@@ -300,10 +300,10 @@ int EpgAcqCtl_Toggle( int newState )
    }
    else
    {  // no change
-      debug1("EpgAcqCtl-Toggle: requested state %d already set", newState);
+      debug1("EpgAcqCtl-Toggle: requested state %d already set", enable);
    }
 
-   return acqCtl.state;
+   return (acqCtl.state != ACQSTATE_OFF);
 }
 
 // ---------------------------------------------------------------------------

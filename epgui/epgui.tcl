@@ -21,33 +21,10 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: epgui.tcl,v 1.134 2001/09/02 17:15:16 tom Exp tom $
+#  $Id: epgui.tcl,v 1.135 2001/09/12 18:43:17 tom Exp tom $
 #
 
 set is_unix [expr [string compare $tcl_platform(platform) "unix"] == 0]
-
-frame     .all -relief flat -borderwidth 0
-frame     .all.shortcuts -borderwidth 2
-label     .all.shortcuts.clock -borderwidth 1 -text {}
-pack      .all.shortcuts.clock -fill x -pady 5
-
-button    .all.shortcuts.reset -text "Reset" -relief ridge -command {ResetFilterState; C_ResetFilter all; C_ResetPiListbox}
-pack      .all.shortcuts.reset -side top -fill x
-
-listbox   .all.shortcuts.list -exportselection false -height 12 -width 0 -selectmode extended -relief ridge -cursor top_left_arrow
-bind      .all.shortcuts.list <ButtonRelease-1> {+ SelectShortcut}
-bind      .all.shortcuts.list <space> {+ SelectShortcut}
-pack      .all.shortcuts.list -fill x
-pack      .all.shortcuts -anchor nw -side left
-
-frame     .all.netwops
-listbox   .all.netwops.list -exportselection false -height 25 -width 0 -selectmode extended -relief ridge -cursor top_left_arrow
-.all.netwops.list insert end "-all-"
-.all.netwops.list selection set 0
-bind      .all.netwops.list <ButtonRelease-1> {+ SelectNetwop}
-bind      .all.netwops.list <space> {+ SelectNetwop}
-pack      .all.netwops.list -side left -anchor n
-pack      .all.netwops -side left -anchor n -pady 2 -padx 2
 
 if {$is_unix} {
    set font_pt_size  12
@@ -73,286 +50,117 @@ set font_pl6_bold   [list helvetica [expr  -6 - $font_pt_size] bold]
 set font_pl12_bold  [list helvetica [expr -12 - $font_pt_size] bold]
 set font_fixed      [list courier   [expr   0 - $font_pt_size] normal]
 
-option add *Dialog.msg.font $font_pl2_bold userDefault
-set default_bg [.all cget -background]
-
-frame     .all.pi
-frame     .all.pi.colheads
-frame     .all.pi.colheads.spacer -width [expr $is_unix ? 22 : 16]
-pack      .all.pi.colheads.spacer -side left
-pack      .all.pi.colheads -side top -anchor w
-
-frame     .all.pi.list
-scrollbar .all.pi.list.sc -orient vertical -command {C_PiListBox_Scroll}
-pack      .all.pi.list.sc -fill y -side left
-text      .all.pi.list.text -width 50 -height 25 -wrap none \
-                            -font $textfont -exportselection false \
-                            -background $default_bg \
-                            -cursor top_left_arrow \
-                            -insertofftime 0
-bindtags  .all.pi.list.text {.all.pi.list.text . all}
-bind      .all.pi.list.text <Button-1> {SelectPi %x %y}
-bind      .all.pi.list.text <Double-Button-1> {C_PopupPi %x %y}
-bind      .all.pi.list.text <Button-3> {CreateContextMenu %x %y}
-bind      .all.pi.list.text <Up>    {C_PiListBox_CursorUp}
-bind      .all.pi.list.text <Down>  {C_PiListBox_CursorDown}
-bind      .all.pi.list.text <Prior> {C_PiListBox_Scroll scroll -1 pages}
-bind      .all.pi.list.text <Next>  {C_PiListBox_Scroll scroll 1 pages}
-bind      .all.pi.list.text <Home>  {C_PiListBox_Scroll moveto 0.0; C_PiListBox_SelectItem 0}
-bind      .all.pi.list.text <End>   {C_PiListBox_Scroll moveto 1.0; C_PiListBox_Scroll scroll 1 pages}
-bind      .all.pi.list.text <Enter> {focus %W}
-.all.pi.list.text tag configure sel -foreground black -relief raised -borderwidth 1
-.all.pi.list.text tag configure now -background #c9c9df
-.all.pi.list.text tag configure past -background #dfc9c9
-.all.pi.list.text tag lower now
-.all.pi.list.text tag lower past
-pack      .all.pi.list.text -side left -fill x -expand 1
-pack      .all.pi.list -side top -fill x
-
-button    .all.pi.panner -bitmap bitmap_pan_updown -cursor top_left_arrow -takefocus 0
-bind      .all.pi.panner <ButtonPress-1> {+ PanningControl 1}
-bind      .all.pi.panner <ButtonRelease-1> {+ PanningControl 0}
-pack      .all.pi.panner -side top -anchor e
-
-frame     .all.pi.info
-scrollbar .all.pi.info.sc -orient vertical -command {.all.pi.info.text yview}
-pack      .all.pi.info.sc -side left -fill y -anchor e
-text      .all.pi.info.text -width 50 -height 10 -wrap word \
-                            -font $textfont \
-                            -background $default_bg \
-                            -yscrollcommand {.all.pi.info.sc set} \
-                            -insertofftime 0
-.all.pi.info.text tag configure title -font $font_pl2_bold -justify center -spacing3 3
-.all.pi.info.text tag configure bold -font $font_bold
-.all.pi.info.text tag configure features -font $font_bold -justify center -spacing3 6
-bind      .all.pi.info.text <Configure> ShortInfoResized
-pack      .all.pi.info.text -side left -fill both -expand 1
-pack      .all.pi.info -side top -fill both -expand 1
-pack      .all.pi -side top -fill y -expand 1
-
-entry     .all.statusline -state disabled -relief flat -borderwidth 1 \
-                          -font $font_small -background $default_bg \
-                          -textvariable dbstatus_line
-pack      .all.statusline -side bottom -fill x
-pack      .all -side left -fill y -expand 1
-
-
-# create a bitmap of an horizontal line for use as separator in the info window
-# inserted here manually from the file epgui/line.xbm
-image create bitmap bitmap_line -data "#define line_width 200\n#define line_height 2\n
-static unsigned char line_bits[] = {
-   0xe7, 0xe7, 0x3f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-   0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xf3, 0xcf,
-   0xe7, 0xe7, 0xe7, 0x3f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-   0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xf3,
-   0xcf, 0xe7};";
-# create an image of a folder
-set fileImage [image create photo -data {
-R0lGODlhEAAMAKEAAAD//wAAAPD/gAAAACH5BAEAAAAALAAAAAAQAAwAAAIghINhyycvVFsB
-QtmS3rjaH1Hg141WaT5ouprt2HHcUgAAOw==}]
-
-
-menu .menubar -relief ridge
-. config -menu .menubar
-.menubar add cascade -label "Control" -menu .menubar.ctrl -underline 0
-.menubar add cascade -label "Configure" -menu .menubar.config -underline 1
-#.menubar add cascade -label "Reminder" -menu .menubar.timer -underline 0
-.menubar add cascade -label "Filter" -menu .menubar.filter -underline 0
-if {$is_unix} {
-   .menubar add cascade -label "Navigate" -menu .menubar.ni_1 -underline 0
+if [info exists tk_version] {
+   set default_bg [. cget -background]
 }
-#.menubar add command -label "" -activebackground $default_bg -command {} -foreground #2e2e37
-.menubar add cascade -label "Help" -menu .menubar.help -underline 0
-# Control menu
-menu .menubar.ctrl -tearoff 0 -postcommand C_SetControlMenuStates
-.menubar.ctrl add checkbutton -label "Enable acquisition" -variable menuStatusStartAcq -command {C_ToggleAcq $menuStatusStartAcq}
-.menubar.ctrl add checkbutton -label "Dump stream" -variable menuStatusDumpStream -command {C_ToggleDumpStream $menuStatusDumpStream}
-.menubar.ctrl add command -label "Dump raw database..." -command PopupDumpDatabase
-.menubar.ctrl add command -label "Dump in HTML..." -command PopupDumpHtml
-.menubar.ctrl add separator
-.menubar.ctrl add checkbutton -label "View timescales..." -command {C_StatsWin_ToggleTimescale ui} -variable menuStatusTscaleOpen(ui)
-.menubar.ctrl add checkbutton -label "View statistics..." -command {C_StatsWin_ToggleDbStats ui} -variable menuStatusStatsOpen(ui)
-.menubar.ctrl add checkbutton -label "View acq timescales..." -command {C_StatsWin_ToggleTimescale acq} -variable menuStatusTscaleOpen(acq)
-.menubar.ctrl add checkbutton -label "View acq statistics..." -command {C_StatsWin_ToggleDbStats acq} -variable menuStatusStatsOpen(acq)
-.menubar.ctrl add separator
-.menubar.ctrl add command -label "Quit" -command {destroy .; update}
-# Config menu
-menu .menubar.config -tearoff 0
-.menubar.config add command -label "Select provider..." -command ProvWin_Create
-.menubar.config add command -label "Merge providers..." -command PopupProviderMerge
-.menubar.config add command -label "Acquisition mode..." -command PopupAcqMode
-.menubar.config add separator
-.menubar.config add command -label "Provider scan..." -command PopupEpgScan
-.menubar.config add command -label "TV card input..." -command PopupHardwareConfig
-#.menubar.config add command -label "Time zone..." -command PopupTimeZone
-.menubar.config add separator
-.menubar.config add command -label "Select columns..." -command PopupColumnSelection
-.menubar.config add command -label "Select networks..." -command PopupNetwopSelection
-.menubar.config add command -label "Network names..." -command NetworkNamingPopup
-.menubar.config add command -label "Context menu..." -command ContextMenuConfigPopup
-.menubar.config add command -label "Filter shortcuts..." -command EditFilterShortcuts
-.menubar.config add separator
-.menubar.config add checkbutton -label "Show shortcuts" -command ToggleShortcutListbox -variable showShortcutListbox
-.menubar.config add checkbutton -label "Show networks" -command ToggleNetwopListbox -variable showNetwopListbox
-.menubar.config add checkbutton -label "Show status line" -command ToggleStatusLine -variable showStatusLine
-.menubar.config add checkbutton -label "Show column headers" -command ToggleColumnHeader -variable showColumnHeader
-# Reminder menu
-#menu .menubar.timer -tearoff 0
-#.menubar.timer add command -label "Add selected title" -state disabled
-#.menubar.timer add command -label "Add selected series" -state disabled
-#.menubar.timer add command -label "Add filter selection" -state disabled
-#.menubar.timer add separator
-#.menubar.timer add command -label "List reminders..." -state disabled
-# Filter menu
-menu .menubar.filter
-.menubar.filter add cascade -menu .menubar.filter.features -label Features
-.menubar.filter add cascade -menu .menubar.filter.p_rating -label "Parental Rating"
-.menubar.filter add cascade -menu .menubar.filter.e_rating -label "Editorial Rating"
-.menubar.filter add separator
-.menubar.filter add cascade -menu .menubar.filter.themes -label Themes
-if {$is_unix} {
-   .menubar.filter add cascade -menu .menubar.filter.series_bynet -label "Series by network..."
-   .menubar.filter add cascade -menu .menubar.filter.series_alpha -label "Series alphabetically..."
-}
-.menubar.filter add cascade -menu .menubar.filter.progidx -label "Program index"
-.menubar.filter add cascade -menu .menubar.filter.netwops -label "Networks"
-if {!$is_unix} {
-   .menubar.filter add command -label "Series by network..." -command {PostSeparateMenu .menubar.filter.series_bynet CreateSeriesNetworksMenu}
-   .menubar.filter add command -label "Series alphabetically..." -command {PostSeparateMenu .menubar.filter.series_alpha undef}
-}
-.menubar.filter add command -label "Text search..." -command SubStrPopup
-.menubar.filter add command -label "Start Time..." -command PopupTimeFilterSelection
-.menubar.filter add command -label "Sorting Criterions..." -command PopupSortCritSelection
-.menubar.filter add separator
-.menubar.filter add command -label "Add filter shortcut..." -command AddFilterShortcut
-.menubar.filter add command -label "Update filter shortcut..." -command UpdateFilterShortcut
-if {!$is_unix} {
-   .menubar.filter add command -label "Navigate" -command {PostSeparateMenu .menubar.filter.ni_1 C_CreateNi}
-}
-.menubar.filter add command -label "Reset" -command {ResetFilterState; C_ResetFilter all; C_ResetPiListbox}
 
-proc FilterMenuAdd_EditorialRating {widget} {
-   $widget add radio -label any -command SelectEditorialRating -variable editorial_rating -value 0
-   $widget add radio -label "all rated programmes" -command SelectEditorialRating -variable editorial_rating -value 1
-   $widget add radio -label "at least 2 of 7" -command SelectEditorialRating -variable editorial_rating -value 2
-   $widget add radio -label "at least 3 of 7" -command SelectEditorialRating -variable editorial_rating -value 3
-   $widget add radio -label "at least 4 of 7" -command SelectEditorialRating -variable editorial_rating -value 4
-   $widget add radio -label "at least 5 of 7" -command SelectEditorialRating -variable editorial_rating -value 5
-   $widget add radio -label "at least 6 of 7" -command SelectEditorialRating -variable editorial_rating -value 6
-   $widget add radio -label "7 of 7" -command SelectEditorialRating -variable editorial_rating -value 7
+proc CreateMainWindow {} {
+   global is_unix default_bg
+   global textfont font_small font_bold font_pl2_bold
+   global fileImage
+
+   frame     .all -relief flat -borderwidth 0
+   frame     .all.shortcuts -borderwidth 2
+   label     .all.shortcuts.clock -borderwidth 1 -text {}
+   pack      .all.shortcuts.clock -fill x -pady 5
+
+   button    .all.shortcuts.reset -text "Reset" -relief ridge -command {ResetFilterState; C_ResetFilter all; C_ResetPiListbox}
+   pack      .all.shortcuts.reset -side top -fill x
+
+   listbox   .all.shortcuts.list -exportselection false -height 12 -width 0 -selectmode extended -relief ridge -cursor top_left_arrow
+   bind      .all.shortcuts.list <ButtonRelease-1> {+ SelectShortcut}
+   bind      .all.shortcuts.list <space> {+ SelectShortcut}
+   pack      .all.shortcuts.list -fill x
+   pack      .all.shortcuts -anchor nw -side left
+
+   frame     .all.netwops
+   listbox   .all.netwops.list -exportselection false -height 25 -width 0 -selectmode extended -relief ridge -cursor top_left_arrow
+   .all.netwops.list insert end "-all-"
+   .all.netwops.list selection set 0
+   bind      .all.netwops.list <ButtonRelease-1> {+ SelectNetwop}
+   bind      .all.netwops.list <space> {+ SelectNetwop}
+   pack      .all.netwops.list -side left -anchor n
+   pack      .all.netwops -side left -anchor n -pady 2 -padx 2
+
+   frame     .all.pi
+   frame     .all.pi.colheads
+   frame     .all.pi.colheads.spacer -width [expr $is_unix ? 22 : 16]
+   pack      .all.pi.colheads.spacer -side left
+   pack      .all.pi.colheads -side top -anchor w
+
+   frame     .all.pi.list
+   scrollbar .all.pi.list.sc -orient vertical -command {C_PiListBox_Scroll}
+   pack      .all.pi.list.sc -fill y -side left
+   text      .all.pi.list.text -width 50 -height 25 -wrap none \
+                               -font $textfont -exportselection false \
+                               -background $default_bg \
+                               -cursor top_left_arrow \
+                               -insertofftime 0
+   bindtags  .all.pi.list.text {.all.pi.list.text . all}
+   bind      .all.pi.list.text <Button-1> {SelectPi %x %y}
+   bind      .all.pi.list.text <Double-Button-1> {C_PopupPi %x %y}
+   bind      .all.pi.list.text <Button-3> {CreateContextMenu %x %y}
+   bind      .all.pi.list.text <Up>    {C_PiListBox_CursorUp}
+   bind      .all.pi.list.text <Down>  {C_PiListBox_CursorDown}
+   bind      .all.pi.list.text <Prior> {C_PiListBox_Scroll scroll -1 pages}
+   bind      .all.pi.list.text <Next>  {C_PiListBox_Scroll scroll 1 pages}
+   bind      .all.pi.list.text <Home>  {C_PiListBox_Scroll moveto 0.0; C_PiListBox_SelectItem 0}
+   bind      .all.pi.list.text <End>   {C_PiListBox_Scroll moveto 1.0; C_PiListBox_Scroll scroll 1 pages}
+   bind      .all.pi.list.text <Enter> {focus %W}
+   .all.pi.list.text tag configure sel -foreground black -relief raised -borderwidth 1
+   .all.pi.list.text tag configure now -background #c9c9df
+   .all.pi.list.text tag configure past -background #dfc9c9
+   .all.pi.list.text tag lower now
+   .all.pi.list.text tag lower past
+   pack      .all.pi.list.text -side left -fill x -expand 1
+   pack      .all.pi.list -side top -fill x
+
+   button    .all.pi.panner -bitmap bitmap_pan_updown -cursor top_left_arrow -takefocus 0
+   bind      .all.pi.panner <ButtonPress-1> {+ PanningControl 1}
+   bind      .all.pi.panner <ButtonRelease-1> {+ PanningControl 0}
+   pack      .all.pi.panner -side top -anchor e
+
+   frame     .all.pi.info
+   scrollbar .all.pi.info.sc -orient vertical -command {.all.pi.info.text yview}
+   pack      .all.pi.info.sc -side left -fill y -anchor e
+   text      .all.pi.info.text -width 50 -height 10 -wrap word \
+                               -font $textfont \
+                               -background $default_bg \
+                               -yscrollcommand {.all.pi.info.sc set} \
+                               -insertofftime 0
+   .all.pi.info.text tag configure title -font $font_pl2_bold -justify center -spacing3 3
+   .all.pi.info.text tag configure bold -font $font_bold
+   .all.pi.info.text tag configure features -font $font_bold -justify center -spacing3 6
+   bind      .all.pi.info.text <Configure> ShortInfoResized
+   pack      .all.pi.info.text -side left -fill both -expand 1
+   pack      .all.pi.info -side top -fill both -expand 1
+   pack      .all.pi -side top -fill y -expand 1
+
+   entry     .all.statusline -state disabled -relief flat -borderwidth 1 \
+                             -font $font_small -background $default_bg \
+                             -textvariable dbstatus_line
+   pack      .all.statusline -side bottom -fill x
+   pack      .all -side left -fill y -expand 1
+
+
+   # create a bitmap of an horizontal line for use as separator in the info window
+   # inserted here manually from the file epgui/line.xbm
+   image create bitmap bitmap_line -data "#define line_width 200\n#define line_height 2\n
+   static unsigned char line_bits[] = {
+      0xe7, 0xe7, 0x3f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+      0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xf3, 0xcf,
+      0xe7, 0xe7, 0xe7, 0x3f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+      0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xf3,
+      0xcf, 0xe7};";
+
+   # create an image of a folder
+   set fileImage [image create photo -data {
+   R0lGODlhEAAMAKEAAAD//wAAAPD/gAAAACH5BAEAAAAALAAAAAAQAAwAAAIghINhyycvVFsB
+   QtmS3rjaH1Hg141WaT5ouprt2HHcUgAAOw==}]
+
+   option add *Dialog.msg.font $font_pl2_bold userDefault
 }
-menu .menubar.filter.e_rating
-FilterMenuAdd_EditorialRating .menubar.filter.e_rating
 
-proc FilterMenuAdd_ParentalRating {widget} {
-   $widget add radio -label any -command SelectParentalRating -variable parental_rating -value 0
-   $widget add radio -label "ok for all ages" -command SelectParentalRating -variable parental_rating -value 1
-   $widget add radio -label "ok for 4 years or elder" -command SelectParentalRating -variable parental_rating -value 2
-   $widget add radio -label "ok for 6 years or elder" -command SelectParentalRating -variable parental_rating -value 3
-   $widget add radio -label "ok for 8 years or elder" -command SelectParentalRating -variable parental_rating -value 4
-   $widget add radio -label "ok for 10 years or elder" -command SelectParentalRating -variable parental_rating -value 5
-   $widget add radio -label "ok for 12 years or elder" -command SelectParentalRating -variable parental_rating -value 6
-   $widget add radio -label "ok for 14 years or elder" -command SelectParentalRating -variable parental_rating -value 7
-   $widget add radio -label "ok for 16 years or elder" -command SelectParentalRating -variable parental_rating -value 8
-}
-menu .menubar.filter.p_rating
-FilterMenuAdd_ParentalRating .menubar.filter.p_rating
-
-menu .menubar.filter.features
-.menubar.filter.features add cascade -menu .menubar.filter.features.sound -label Sound
-.menubar.filter.features add cascade -menu .menubar.filter.features.format -label Format
-.menubar.filter.features add cascade -menu .menubar.filter.features.digital -label Digital
-.menubar.filter.features add cascade -menu .menubar.filter.features.encryption -label Encryption
-.menubar.filter.features add cascade -menu .menubar.filter.features.live -label "Live/Repeat"
-.menubar.filter.features add cascade -menu .menubar.filter.features.subtitles -label Subtitles
-.menubar.filter.features add separator
-.menubar.filter.features add cascade -menu .menubar.filter.features.featureclass -label "Feature class"
-
-proc FilterMenuAdd_Sound {widget} {
-   $widget add radio -label any -command {SelectFeatures 0 0 0x03} -variable feature_sound -value 0
-   $widget add radio -label mono -command {SelectFeatures 0x03 0x00 0} -variable feature_sound -value 1
-   $widget add radio -label stereo -command {SelectFeatures 0x03 0x02 0} -variable feature_sound -value 3
-   $widget add radio -label "2-channel" -command {SelectFeatures 0x03 0x01 0} -variable feature_sound -value 2
-   $widget add radio -label surround -command {SelectFeatures 0x03 0x03 0} -variable feature_sound -value 4
-}
-menu .menubar.filter.features.sound
-FilterMenuAdd_Sound .menubar.filter.features.sound
-
-proc FilterMenuAdd_Format {widget} {
-   $widget add radio -label any -command {SelectFeatures 0 0 0x0c} -variable feature_format -value 0
-   $widget add radio -label full -command {SelectFeatures 0x0c 0x00 0x00} -variable feature_format -value 1
-   $widget add radio -label widescreen -command {SelectFeatures 0x04 0x04 0x08} -variable feature_format -value 2
-   $widget add radio -label "PAL+" -command {SelectFeatures 0x08 0x08 0x04} -variable feature_format -value 3
-}
-menu .menubar.filter.features.format
-FilterMenuAdd_Format .menubar.filter.features.format
-
-proc FilterMenuAdd_Digital {widget} {
-   $widget add radio -label any -command {SelectFeatures 0 0 0x10} -variable feature_digital -value 0
-   $widget add radio -label analog -command {SelectFeatures 0x10 0x00 0} -variable feature_digital -value 1
-   $widget add radio -label digital -command {SelectFeatures 0x10 0x10 0} -variable feature_digital -value 2
-}
-menu .menubar.filter.features.digital
-FilterMenuAdd_Digital .menubar.filter.features.digital
-
-proc FilterMenuAdd_Encryption {widget} {
-   $widget add radio -label any -command {SelectFeatures 0 0 0x20} -variable feature_encryption -value 0
-   $widget add radio -label free -command {SelectFeatures 0x20 0 0} -variable feature_encryption -value 1
-   $widget add radio -label encrypted -command {SelectFeatures 0x20 0x20 0} -variable feature_encryption -value 2
-}
-menu .menubar.filter.features.encryption
-FilterMenuAdd_Encryption .menubar.filter.features.encryption
-
-proc FilterMenuAdd_LiveRepeat {widget} {
-   $widget add radio -label any -command {SelectFeatures 0 0 0xc0} -variable feature_live -value 0
-   $widget add radio -label live -command {SelectFeatures 0x40 0x40 0x80} -variable feature_live -value 2
-   $widget add radio -label new -command {SelectFeatures 0xc0 0 0} -variable feature_live -value 1
-   $widget add radio -label repeat -command {SelectFeatures 0x80 0x80 0x40} -variable feature_live -value 3
-}
-menu .menubar.filter.features.live
-FilterMenuAdd_LiveRepeat .menubar.filter.features.live
-
-proc FilterMenuAdd_Subtitles {widget} {
-   $widget add radio -label any -command {SelectFeatures 0 0 0x100} -variable feature_subtitles -value 0
-   $widget add radio -label untitled -command {SelectFeatures 0x100 0 0} -variable feature_subtitles -value 1
-   $widget add radio -label subtitle -command {SelectFeatures 0x100 0x100 0} -variable feature_subtitles -value 2
-}
-menu .menubar.filter.features.subtitles
-FilterMenuAdd_Subtitles .menubar.filter.features.subtitles
-
-menu .menubar.filter.features.featureclass
-menu .menubar.filter.themes
-
-menu .menubar.filter.series_bynet -postcommand {PostDynamicMenu .menubar.filter.series_bynet CreateSeriesNetworksMenu}
-menu .menubar.filter.series_alpha
-if {!$is_unix} {
-   .menubar.filter.series_bynet configure -tearoff 0
-   .menubar.filter.series_alpha configure -tearoff 0
-}
-foreach letter {A B C D E F G H I J K L M N O P Q R S T U V W X Y Z Other} {
-   set w letter_[string tolower $letter]_off_0
-   .menubar.filter.series_alpha add cascade -label $letter -menu .menubar.filter.series_alpha.$w
-   menu .menubar.filter.series_alpha.$w -postcommand [list PostDynamicMenu .menubar.filter.series_alpha.$w CreateSeriesLetterMenu]
-}
-unset letter w
-
-menu .menubar.filter.progidx
-.menubar.filter.progidx add radio -label "any" -command {SelectProgIdx -1 -1} -variable filter_progidx -value 0
-.menubar.filter.progidx add radio -label "running now" -command {SelectProgIdx 0 0} -variable filter_progidx -value 1
-.menubar.filter.progidx add radio -label "running next" -command {SelectProgIdx 1 1} -variable filter_progidx -value 2
-.menubar.filter.progidx add radio -label "running now or next" -command {SelectProgIdx 0 1} -variable filter_progidx -value 3
-.menubar.filter.progidx add radio -label "other..." -command ProgIdxPopup -variable filter_progidx -value 4
-menu .menubar.filter.netwops
-# Navigation menu
-if {$is_unix} {
-   menu .menubar.ni_1 -postcommand {PostDynamicMenu .menubar.ni_1 C_CreateNi}
-}
-# Help menu
-menu .menubar.help -tearoff 0
-.menubar.help add command -label "About..." -command CreateAbout
-
-# Context Menu
-menu .contextmenu -tearoff 0 -postcommand {PostDynamicMenu .contextmenu C_CreateContextMenu}
 
 # initialize menu state
 set menuStatusStartAcq 0
@@ -362,6 +170,156 @@ set menuStatusTscaleOpen(ui) 0
 set menuStatusTscaleOpen(acq) 0
 set menuStatusStatsOpen(ui) 0
 set menuStatusStatsOpen(acq) 0
+
+proc CreateMenubar {} {
+   global is_unix
+
+   menu .menubar -relief ridge
+   . config -menu .menubar
+   .menubar add cascade -label "Control" -menu .menubar.ctrl -underline 0
+   .menubar add cascade -label "Configure" -menu .menubar.config -underline 1
+   #.menubar add cascade -label "Reminder" -menu .menubar.timer -underline 0
+   .menubar add cascade -label "Filter" -menu .menubar.filter -underline 0
+   if {$is_unix} {
+      .menubar add cascade -label "Navigate" -menu .menubar.ni_1 -underline 0
+   }
+   #.menubar add command -label "" -activebackground $default_bg -command {} -foreground #2e2e37
+   .menubar add cascade -label "Help" -menu .menubar.help -underline 0
+   # Control menu
+   menu .menubar.ctrl -tearoff 0 -postcommand C_SetControlMenuStates
+   .menubar.ctrl add checkbutton -label "Enable acquisition" -variable menuStatusStartAcq -command {C_ToggleAcq $menuStatusStartAcq}
+   .menubar.ctrl add checkbutton -label "Dump stream" -variable menuStatusDumpStream -command {C_ToggleDumpStream $menuStatusDumpStream}
+   .menubar.ctrl add command -label "Dump raw database..." -command PopupDumpDatabase
+   .menubar.ctrl add command -label "Dump in HTML..." -command PopupDumpHtml
+   .menubar.ctrl add separator
+   .menubar.ctrl add checkbutton -label "View timescales..." -command {C_StatsWin_ToggleTimescale ui} -variable menuStatusTscaleOpen(ui)
+   .menubar.ctrl add checkbutton -label "View statistics..." -command {C_StatsWin_ToggleDbStats ui} -variable menuStatusStatsOpen(ui)
+   .menubar.ctrl add checkbutton -label "View acq timescales..." -command {C_StatsWin_ToggleTimescale acq} -variable menuStatusTscaleOpen(acq)
+   .menubar.ctrl add checkbutton -label "View acq statistics..." -command {C_StatsWin_ToggleDbStats acq} -variable menuStatusStatsOpen(acq)
+   .menubar.ctrl add separator
+   .menubar.ctrl add command -label "Quit" -command {destroy .; update}
+   # Config menu
+   menu .menubar.config -tearoff 0
+   .menubar.config add command -label "Select provider..." -command ProvWin_Create
+   .menubar.config add command -label "Merge providers..." -command PopupProviderMerge
+   .menubar.config add command -label "Acquisition mode..." -command PopupAcqMode
+   .menubar.config add separator
+   .menubar.config add command -label "Provider scan..." -command PopupEpgScan
+   .menubar.config add command -label "TV card input..." -command PopupHardwareConfig
+   #.menubar.config add command -label "Time zone..." -command PopupTimeZone
+   .menubar.config add separator
+   .menubar.config add command -label "Select columns..." -command PopupColumnSelection
+   .menubar.config add command -label "Select networks..." -command PopupNetwopSelection
+   .menubar.config add command -label "Network names..." -command NetworkNamingPopup
+   .menubar.config add command -label "Context menu..." -command ContextMenuConfigPopup
+   .menubar.config add command -label "Filter shortcuts..." -command EditFilterShortcuts
+   .menubar.config add separator
+   .menubar.config add checkbutton -label "Show shortcuts" -command ToggleShortcutListbox -variable showShortcutListbox
+   .menubar.config add checkbutton -label "Show networks" -command ToggleNetwopListbox -variable showNetwopListbox
+   .menubar.config add checkbutton -label "Show status line" -command ToggleStatusLine -variable showStatusLine
+   .menubar.config add checkbutton -label "Show column headers" -command ToggleColumnHeader -variable showColumnHeader
+   # Reminder menu
+   #menu .menubar.timer -tearoff 0
+   #.menubar.timer add command -label "Add selected title" -state disabled
+   #.menubar.timer add command -label "Add selected series" -state disabled
+   #.menubar.timer add command -label "Add filter selection" -state disabled
+   #.menubar.timer add separator
+   #.menubar.timer add command -label "List reminders..." -state disabled
+   # Filter menu
+   menu .menubar.filter
+   .menubar.filter add cascade -menu .menubar.filter.features -label Features
+   .menubar.filter add cascade -menu .menubar.filter.p_rating -label "Parental Rating"
+   .menubar.filter add cascade -menu .menubar.filter.e_rating -label "Editorial Rating"
+   .menubar.filter add separator
+   .menubar.filter add cascade -menu .menubar.filter.themes -label Themes
+   if {$is_unix} {
+      .menubar.filter add cascade -menu .menubar.filter.series_bynet -label "Series by network..."
+      .menubar.filter add cascade -menu .menubar.filter.series_alpha -label "Series alphabetically..."
+   }
+   .menubar.filter add cascade -menu .menubar.filter.progidx -label "Program index"
+   .menubar.filter add cascade -menu .menubar.filter.netwops -label "Networks"
+   if {!$is_unix} {
+      .menubar.filter add command -label "Series by network..." -command {PostSeparateMenu .menubar.filter.series_bynet CreateSeriesNetworksMenu}
+      .menubar.filter add command -label "Series alphabetically..." -command {PostSeparateMenu .menubar.filter.series_alpha undef}
+   }
+   .menubar.filter add command -label "Text search..." -command SubStrPopup
+   .menubar.filter add command -label "Start Time..." -command PopupTimeFilterSelection
+   .menubar.filter add command -label "Sorting Criterions..." -command PopupSortCritSelection
+   .menubar.filter add separator
+   .menubar.filter add command -label "Add filter shortcut..." -command AddFilterShortcut
+   .menubar.filter add command -label "Update filter shortcut..." -command UpdateFilterShortcut
+   if {!$is_unix} {
+      .menubar.filter add command -label "Navigate" -command {PostSeparateMenu .menubar.filter.ni_1 C_CreateNi}
+   }
+   .menubar.filter add command -label "Reset" -command {ResetFilterState; C_ResetFilter all; C_ResetPiListbox}
+
+   menu .menubar.filter.e_rating
+   FilterMenuAdd_EditorialRating .menubar.filter.e_rating
+
+   menu .menubar.filter.p_rating
+   FilterMenuAdd_ParentalRating .menubar.filter.p_rating
+
+   menu .menubar.filter.features
+   .menubar.filter.features add cascade -menu .menubar.filter.features.sound -label Sound
+   .menubar.filter.features add cascade -menu .menubar.filter.features.format -label Format
+   .menubar.filter.features add cascade -menu .menubar.filter.features.digital -label Digital
+   .menubar.filter.features add cascade -menu .menubar.filter.features.encryption -label Encryption
+   .menubar.filter.features add cascade -menu .menubar.filter.features.live -label "Live/Repeat"
+   .menubar.filter.features add cascade -menu .menubar.filter.features.subtitles -label Subtitles
+   .menubar.filter.features add separator
+   .menubar.filter.features add cascade -menu .menubar.filter.features.featureclass -label "Feature class"
+
+   menu .menubar.filter.features.sound
+   FilterMenuAdd_Sound .menubar.filter.features.sound
+
+   menu .menubar.filter.features.format
+   FilterMenuAdd_Format .menubar.filter.features.format
+
+   menu .menubar.filter.features.digital
+   FilterMenuAdd_Digital .menubar.filter.features.digital
+
+   menu .menubar.filter.features.encryption
+   FilterMenuAdd_Encryption .menubar.filter.features.encryption
+
+   menu .menubar.filter.features.live
+   FilterMenuAdd_LiveRepeat .menubar.filter.features.live
+
+   menu .menubar.filter.features.subtitles
+   FilterMenuAdd_Subtitles .menubar.filter.features.subtitles
+
+   menu .menubar.filter.features.featureclass
+   menu .menubar.filter.themes
+
+   menu .menubar.filter.series_bynet -postcommand {PostDynamicMenu .menubar.filter.series_bynet CreateSeriesNetworksMenu}
+   menu .menubar.filter.series_alpha
+   if {!$is_unix} {
+      .menubar.filter.series_bynet configure -tearoff 0
+      .menubar.filter.series_alpha configure -tearoff 0
+   }
+   foreach letter {A B C D E F G H I J K L M N O P Q R S T U V W X Y Z Other} {
+      set w letter_[string tolower $letter]_off_0
+      .menubar.filter.series_alpha add cascade -label $letter -menu .menubar.filter.series_alpha.$w
+      menu .menubar.filter.series_alpha.$w -postcommand [list PostDynamicMenu .menubar.filter.series_alpha.$w CreateSeriesLetterMenu]
+   }
+
+   menu .menubar.filter.progidx
+   .menubar.filter.progidx add radio -label "any" -command {SelectProgIdx -1 -1} -variable filter_progidx -value 0
+   .menubar.filter.progidx add radio -label "running now" -command {SelectProgIdx 0 0} -variable filter_progidx -value 1
+   .menubar.filter.progidx add radio -label "running next" -command {SelectProgIdx 1 1} -variable filter_progidx -value 2
+   .menubar.filter.progidx add radio -label "running now or next" -command {SelectProgIdx 0 1} -variable filter_progidx -value 3
+   .menubar.filter.progidx add radio -label "other..." -command ProgIdxPopup -variable filter_progidx -value 4
+   menu .menubar.filter.netwops
+   # Navigation menu
+   if {$is_unix} {
+      menu .menubar.ni_1 -postcommand {PostDynamicMenu .menubar.ni_1 C_CreateNi}
+   }
+   # Help menu
+   menu .menubar.help -tearoff 0
+   .menubar.help add command -label "About..." -command CreateAbout
+
+   # Context Menu
+   menu .contextmenu -tearoff 0 -postcommand {PostDynamicMenu .contextmenu C_CreateContextMenu}
+}
 
 proc FilterMenuAdd_Themes {widget} {
    # create the themes and sub-themes menues from the PDC table
@@ -602,6 +560,73 @@ proc ToggleColumnHeader {} {
    ApplySelectedColumnList initial
    UpdateRcFile
 }
+
+##  ---------------------------------------------------------------------------
+##  Create the features filter menus
+##
+proc FilterMenuAdd_EditorialRating {widget} {
+   $widget add radio -label any -command SelectEditorialRating -variable editorial_rating -value 0
+   $widget add radio -label "all rated programmes" -command SelectEditorialRating -variable editorial_rating -value 1
+   $widget add radio -label "at least 2 of 7" -command SelectEditorialRating -variable editorial_rating -value 2
+   $widget add radio -label "at least 3 of 7" -command SelectEditorialRating -variable editorial_rating -value 3
+   $widget add radio -label "at least 4 of 7" -command SelectEditorialRating -variable editorial_rating -value 4
+   $widget add radio -label "at least 5 of 7" -command SelectEditorialRating -variable editorial_rating -value 5
+   $widget add radio -label "at least 6 of 7" -command SelectEditorialRating -variable editorial_rating -value 6
+   $widget add radio -label "7 of 7" -command SelectEditorialRating -variable editorial_rating -value 7
+}
+
+proc FilterMenuAdd_ParentalRating {widget} {
+   $widget add radio -label any -command SelectParentalRating -variable parental_rating -value 0
+   $widget add radio -label "ok for all ages" -command SelectParentalRating -variable parental_rating -value 1
+   $widget add radio -label "ok for 4 years or elder" -command SelectParentalRating -variable parental_rating -value 2
+   $widget add radio -label "ok for 6 years or elder" -command SelectParentalRating -variable parental_rating -value 3
+   $widget add radio -label "ok for 8 years or elder" -command SelectParentalRating -variable parental_rating -value 4
+   $widget add radio -label "ok for 10 years or elder" -command SelectParentalRating -variable parental_rating -value 5
+   $widget add radio -label "ok for 12 years or elder" -command SelectParentalRating -variable parental_rating -value 6
+   $widget add radio -label "ok for 14 years or elder" -command SelectParentalRating -variable parental_rating -value 7
+   $widget add radio -label "ok for 16 years or elder" -command SelectParentalRating -variable parental_rating -value 8
+}
+
+proc FilterMenuAdd_Sound {widget} {
+   $widget add radio -label any -command {SelectFeatures 0 0 0x03} -variable feature_sound -value 0
+   $widget add radio -label mono -command {SelectFeatures 0x03 0x00 0} -variable feature_sound -value 1
+   $widget add radio -label stereo -command {SelectFeatures 0x03 0x02 0} -variable feature_sound -value 3
+   $widget add radio -label "2-channel" -command {SelectFeatures 0x03 0x01 0} -variable feature_sound -value 2
+   $widget add radio -label surround -command {SelectFeatures 0x03 0x03 0} -variable feature_sound -value 4
+}
+
+proc FilterMenuAdd_Format {widget} {
+   $widget add radio -label any -command {SelectFeatures 0 0 0x0c} -variable feature_format -value 0
+   $widget add radio -label full -command {SelectFeatures 0x0c 0x00 0x00} -variable feature_format -value 1
+   $widget add radio -label widescreen -command {SelectFeatures 0x04 0x04 0x08} -variable feature_format -value 2
+   $widget add radio -label "PAL+" -command {SelectFeatures 0x08 0x08 0x04} -variable feature_format -value 3
+}
+
+proc FilterMenuAdd_Digital {widget} {
+   $widget add radio -label any -command {SelectFeatures 0 0 0x10} -variable feature_digital -value 0
+   $widget add radio -label analog -command {SelectFeatures 0x10 0x00 0} -variable feature_digital -value 1
+   $widget add radio -label digital -command {SelectFeatures 0x10 0x10 0} -variable feature_digital -value 2
+}
+
+proc FilterMenuAdd_Encryption {widget} {
+   $widget add radio -label any -command {SelectFeatures 0 0 0x20} -variable feature_encryption -value 0
+   $widget add radio -label free -command {SelectFeatures 0x20 0 0} -variable feature_encryption -value 1
+   $widget add radio -label encrypted -command {SelectFeatures 0x20 0x20 0} -variable feature_encryption -value 2
+}
+
+proc FilterMenuAdd_LiveRepeat {widget} {
+   $widget add radio -label any -command {SelectFeatures 0 0 0xc0} -variable feature_live -value 0
+   $widget add radio -label live -command {SelectFeatures 0x40 0x40 0x80} -variable feature_live -value 2
+   $widget add radio -label new -command {SelectFeatures 0xc0 0 0} -variable feature_live -value 1
+   $widget add radio -label repeat -command {SelectFeatures 0x80 0x80 0x40} -variable feature_live -value 3
+}
+
+proc FilterMenuAdd_Subtitles {widget} {
+   $widget add radio -label any -command {SelectFeatures 0 0 0x100} -variable feature_subtitles -value 0
+   $widget add radio -label untitled -command {SelectFeatures 0x100 0 0} -variable feature_subtitles -value 1
+   $widget add radio -label subtitle -command {SelectFeatures 0x100 0x100 0} -variable feature_subtitles -value 2
+}
+
 
 ##  ---------------------------------------------------------------------------
 ##  Set the feature radio button states according to the mask/value pair of the current class

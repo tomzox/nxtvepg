@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: menucmd.h,v 1.9 2001/09/02 17:21:10 tom Exp tom $
+ *  $Id: menucmd.h,v 1.10 2001/09/12 19:23:46 tom Exp tom $
  */
 
 #ifndef __MENUCMD_H
@@ -26,8 +26,9 @@
 void MenuCmd_Init( bool isDemoMode );
 void OpenInitialDb( uint startUiCni );
 
-int SetAcquisitionMode( void );
-int SetHardwareConfig( Tcl_Interp *interp, int cardIndex );
+int  SetAcquisitionMode( void );
+bool SetDaemonAcquisitionMode( uint startUiCni, bool forcePassive );
+int  SetHardwareConfig( Tcl_Interp *interp, int cardIndex );
 
 
 #endif  // __MENUCMD_H

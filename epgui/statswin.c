@@ -29,7 +29,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: statswin.c,v 1.40 2001/09/07 20:26:49 tom Exp tom $
+ *  $Id: statswin.c,v 1.41 2001/09/12 18:44:07 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -1382,6 +1382,12 @@ void StatsWin_ProvChange( int target )
       if (dbStatsWinState[target].open)
       {
          AddMainIdleEvent(StatsWin_UpdateDbStatsWin, (ClientData)target, TRUE);
+      }
+
+      // update the status line when acq is stopped through the driver (e.g. signal HUP)
+      if ((target == DB_TARGET_ACQ) && (pAcqDbContext == NULL))
+      {
+         AddMainIdleEvent(StatsWin_UpdateDbStatusLine, NULL, TRUE);
       }
    }
    else

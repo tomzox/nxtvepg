@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: menucmd.c,v 1.49 2001/09/02 17:30:58 tom Exp tom $
+ *  $Id: menucmd.c,v 1.50 2001/09/12 19:23:40 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -64,7 +64,7 @@ static void MenuCmd_EpgScanHandler( ClientData clientData );
 // ----------------------------------------------------------------------------
 // Set the states of the entries in Control menu
 //
-static int SetControlMenuStates(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+static int MenuCmd_SetControlMenuStates(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
 {
    const char * const pUsage = "Usage: C_SetControlMenuStates";
    uint acqCni, uiCni;
@@ -151,7 +151,7 @@ static int MenuCmd_ToggleDumpStream(ClientData ttp, Tcl_Interp *interp, int argc
 static int MenuCmd_ToggleAcq(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
 {
    const char * const pUsage = "Usage: C_ToggleAcq <boolean>";
-   int value;
+   int value, doEnable;
    int result;
 
    if (argc != 2)
@@ -165,13 +165,14 @@ static int MenuCmd_ToggleAcq(ClientData ttp, Tcl_Interp *interp, int argc, char 
    }
    else
    {
-      if (EpgAcqCtl_Toggle(value) != value)
+      doEnable = (bool) value;
+      if (EpgAcqCtl_Toggle(doEnable) != doEnable)
       {
          #ifndef WIN32  //is handled by bt-driver in win32
          sprintf(comm, "tk_messageBox -type ok -icon error "
                        "-message {Failed to %s acquisition. "
                                  "Close all other video applications and try again.}\n",
-                       (value ? "start" : "stop"));
+                       (doEnable ? "start" : "stop"));
          eval_check(interp, comm);
          #endif
       }
@@ -789,10 +790,15 @@ void OpenInitialDb( uint startUiCni )
 
    // prepare list of previously opened databases
    provCount = 0;
+   pCniArgv = NULL;
    pTmpStr = Tcl_GetVar(interp, "prov_selection", TCL_GLOBAL_ONLY);
    if (pTmpStr != NULL)
    {
-      Tcl_SplitList(interp, pTmpStr, &provCount, &pCniArgv);
+      if (Tcl_SplitList(interp, pTmpStr, &provCount, &pCniArgv) != TCL_OK)
+      {
+         provCount = 0;
+         pCniArgv  = NULL;
+      }
    }
 
    cni = 0;
@@ -848,6 +854,9 @@ void OpenInitialDb( uint startUiCni )
    }
    while (pUiDbContext == NULL);
 
+   if (pCniArgv != NULL)
+      Tcl_Free((char *) pCniArgv);
+
    // update rc/ini file with new CNI order
    if (cni != 0)
    {
@@ -859,16 +868,14 @@ void OpenInitialDb( uint startUiCni )
 }
 
 // ----------------------------------------------------------------------------
-// Fetch the acquisition mode parameters from Tcl vars and pass then to acq control
-// - if no valid config is found, the default mode is used: Follow-UI
+// Fetch the acquisition mode and CNI list from global Tcl variables
 //
-int SetAcquisitionMode( void )
+static EPGACQ_MODE GetAcquisitionModeParams( uint * pCniCount, uint * cniTab )
 {
-   EPGACQ_MODE mode;
    char **pCniArgv;
-   char * pTmpStr;
-   uint idx, cniCount, cniTab[MAX_MERGED_DB_COUNT];
-   int  result;
+   const char * pTmpStr;
+   uint cniIdx, dbIdx;
+   EPGACQ_MODE mode;
 
    pTmpStr = Tcl_GetVar(interp, "acq_mode", TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG);
    if (pTmpStr != NULL)
@@ -887,8 +894,7 @@ int SetAcquisitionMode( void )
          case ACQMODE_PASSIVE:
          case ACQMODE_EXTERNAL:
          case ACQMODE_FOLLOW_UI:
-            EpgAcqCtl_SelectMode(mode, 0, NULL);
-            result = TCL_OK;
+            *pCniCount = 0;
             break;
 
          case ACQMODE_CYCLIC_2:
@@ -899,48 +905,151 @@ int SetAcquisitionMode( void )
             pTmpStr = Tcl_GetVar(interp, "acq_mode_cnis", TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG);
             if (pTmpStr != NULL)
             {
-               result = Tcl_SplitList(interp, pTmpStr, &cniCount, &pCniArgv);
-               if (result == TCL_OK)
+               if (Tcl_SplitList(interp, pTmpStr, pCniCount, &pCniArgv) == TCL_OK)
                {
-                  if (cniCount > MAX_MERGED_DB_COUNT)
+                  if (*pCniCount > MAX_MERGED_DB_COUNT)
                   {
-                     debug2("SetAcquisitionMode: too many CNIs: %d - limiting to %d", cniCount, MAX_MERGED_DB_COUNT);
-                     cniCount = MAX_MERGED_DB_COUNT;
+                     debug2("GetAcquisitionModeParams: too many CNIs: %d - limiting to %d", *pCniCount, MAX_MERGED_DB_COUNT);
+                     *pCniCount = MAX_MERGED_DB_COUNT;
                   }
 
-                  for (idx=0; (idx < cniCount) && (result == TCL_OK); idx++)
+                  dbIdx = 0;
+                  for (cniIdx=0; cniIdx < *pCniCount; cniIdx++)
                   {
-                     result = Tcl_GetInt(interp, pCniArgv[idx], cniTab + idx);
-                     ifdebug2(result!=TCL_OK, "SetAcquisitionMode: arg #%d in '%s' is not a CNI", idx, pCniArgv[idx]);
+                     if ( (Tcl_GetInt(interp, pCniArgv[cniIdx], cniTab + dbIdx) == TCL_OK) &&
+                          (cniTab[dbIdx] != 0) &&
+                          (cniTab[dbIdx] != 0x00FF) )
+                     {
+                        dbIdx++;
+                     }
+                     else
+                        debug2("GetAcquisitionModeParams: arg #%d in '%s' is not a valid CNI", cniIdx, pCniArgv[cniIdx]);
                   }
                   Tcl_Free((char *) pCniArgv);
 
-                  if (result == TCL_OK)
+                  if (dbIdx == 0)
                   {
-                     EpgAcqCtl_SelectMode(mode, cniCount, cniTab);
+                     debug1("GetAcquisitionModeParams: mode %d: no valid CNIs found - illegal mode setting", mode);
+                     mode = ACQMODE_COUNT;
                   }
+               }
+               else
+               {
+                  debug2("GetAcquisitionModeParams: mode %d: Tcl cni list is not a valid Tcl list: %s", mode, pTmpStr);
+                  mode = ACQMODE_COUNT;
                }
             }
             else
-               result = TCL_ERROR;
+            {
+               debug1("GetAcquisitionModeParams: mode %d: Tcl cni list variable not found", mode);
+               mode = ACQMODE_COUNT;
+            }
             break;
 
          default:
-            sprintf(comm, "SetAcquisitionMode: illegal mode: %s", pTmpStr);
-            Tcl_SetResult(interp, comm, TCL_VOLATILE);
-            result = TCL_ERROR;
+            debug1("GetAcquisitionModeParams: illegal mode string: %s", pTmpStr);
             break;
       }
    }
    else
    {
-      debug0("SetAcquisitionMode: Tcl var acq_mode not defined - using default mode");
-      result = TCL_ERROR;
+      debug0("GetAcquisitionModeParams: Tcl var acq_mode not defined - using default mode");
+      mode = ACQMODE_COUNT;
    }
 
-   if (result == TCL_ERROR)
-   {  // silently ignore the error and set the default acquisition mode
-      EpgAcqCtl_SelectMode(ACQMODE_FOLLOW_UI, 0, NULL);
+   return mode;
+}
+
+// ----------------------------------------------------------------------------
+// Pass acq mode and CNI list to acquisition control
+// - if no valid config is found, the default mode is used: Follow-UI
+//
+int SetAcquisitionMode( void )
+{
+   uint cniCount, cniTab[MAX_MERGED_DB_COUNT];
+   EPGACQ_MODE mode;
+
+   mode = GetAcquisitionModeParams(&cniCount, cniTab);
+   if (mode >= ACQMODE_COUNT)
+   {  // unrecognized mode or other param error -> fall back to default mode
+      mode = ACQMODE_FOLLOW_UI;
+      cniCount = 0;
+   }
+
+   // pass the params to the acquisition control module
+   EpgAcqCtl_SelectMode(mode, cniCount, cniTab);
+
+   return TCL_OK;
+}
+
+// ----------------------------------------------------------------------------
+// For Daemon mode only: Pass acq mode and CNI list to acquisition control
+// - in Follow-UI mode the browser CNI must be determined here since
+//   no db is opened for the browser
+//
+bool SetDaemonAcquisitionMode( uint startUiCni, bool forcePassive )
+{
+   EPGACQ_MODE  mode;
+   const char * pTmpStr;
+   char      ** pCniArgv;
+   uint cniCount, cniTab[MAX_MERGED_DB_COUNT];
+   bool result = FALSE;
+
+   if (startUiCni != 0)
+   {  // CNI given on command line with -provider option
+      assert(forcePassive == FALSE);  // checked by argv parser
+      mode = ACQMODE_CYCLIC_2;
+      cniCount = 1;
+      cniTab[0] = startUiCni;
+   }
+   else if (forcePassive)
+   {  // -acqpassive given on command line
+      mode = ACQMODE_PASSIVE;
+      cniCount = 0;
+   }
+   else
+   {  // else use acq mode from rc/ini file
+      mode = GetAcquisitionModeParams(&cniCount, cniTab);
+      if (mode == ACQMODE_FOLLOW_UI)
+      {
+         // fetch CNI from list of last used providers
+         pTmpStr = Tcl_GetVar(interp, "prov_selection", TCL_GLOBAL_ONLY);
+         if (pTmpStr != NULL)
+         {
+            if (Tcl_SplitList(interp, pTmpStr, &cniCount, &pCniArgv) == TCL_OK)
+            {
+               if (Tcl_GetInt(interp, pCniArgv[0], cniTab) == TCL_OK)
+               {
+                  mode = ACQMODE_CYCLIC_2;
+                  cniCount = 1;
+               }
+               Tcl_Free((char *) pCniArgv);
+            }
+         }
+         if (mode == ACQMODE_FOLLOW_UI)
+         {  // no valid CNI found -> abort
+            fprintf(stderr, "nxtvepg: no provider found for Follow-UI acq mode\n");
+            mode = ACQMODE_COUNT;
+         }
+      }
+      else if (mode >= ACQMODE_COUNT)
+         fprintf(stderr, "nxtvepg: acqmode parameters error - abort\n");
+   }
+
+   if (mode < ACQMODE_COUNT)
+   {
+      if (ACQMODE_IS_CYCLIC(mode) && (cniTab[0] == 0x00ff))
+      {  // Merged database -> retrieve CNI list
+         MERGE_ATTRIB_MATRIX max;
+         if (ProvMerge_ParseConfigString(interp, &cniCount, cniTab, &max[0]) != TCL_OK)
+         {
+            fprintf(stderr, "nxtvepg: no network list found for merged database\n");
+            mode = ACQMODE_COUNT;
+         }
+      }
+
+      // pass the params to the acquisition control module
+      result = EpgAcqCtl_SelectMode(mode, cniCount, cniTab);
    }
 
    return result;
@@ -952,7 +1061,7 @@ int SetAcquisitionMode( void )
 // - parameters are taken from global Tcl variables, because the same
 //   update is required at startup
 //
-static int UpdateAcquisitionMode(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
+static int MenuCmd_UpdateAcquisitionMode(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
 {
    const char * const pUsage = "Usage: C_UpdateAcquisitionMode";
    int  result;
@@ -1442,7 +1551,7 @@ void MenuCmd_Init( bool isDemoMode )
       Tcl_CreateCommand(interp, "C_ToggleAcq", MenuCmd_ToggleAcq, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_ToggleDumpStream", MenuCmd_ToggleDumpStream, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_DumpDatabase", MenuCmd_DumpDatabase, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_SetControlMenuStates", SetControlMenuStates, (ClientData) NULL, NULL);
+      Tcl_CreateCommand(interp, "C_SetControlMenuStates", MenuCmd_SetControlMenuStates, (ClientData) NULL, NULL);
 
       Tcl_CreateCommand(interp, "C_ChangeProvider", MenuCmd_ChangeProvider, (ClientData) NULL, NULL);
 
@@ -1451,7 +1560,7 @@ void MenuCmd_Init( bool isDemoMode )
       Tcl_CreateCommand(interp, "C_GetProvCnisAndNames", MenuCmd_GetProvCnisAndNames, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_GetAiNetwopList", MenuCmd_GetAiNetwopList, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_ProvMerge_Start", ProvMerge_Start, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_UpdateAcquisitionMode", UpdateAcquisitionMode, (ClientData) NULL, NULL);
+      Tcl_CreateCommand(interp, "C_UpdateAcquisitionMode", MenuCmd_UpdateAcquisitionMode, (ClientData) NULL, NULL);
 
       Tcl_CreateCommand(interp, "C_StartEpgScan", MenuCmd_StartEpgScan, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_StopEpgScan", MenuCmd_StopEpgScan, (ClientData) NULL, NULL);

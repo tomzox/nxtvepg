@@ -5261,3 +5261,64 @@ CHANGES [rev:1.17, 2001-09-07T21:25:42]:
 TODO [rev:1.14, 2001-09-07T21:27:32]:
 - updated for release 0.6.2
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_6_2 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+epgctl/epgacqctl.c [rev:1.50, 2001-09-12T18:24:01]:
+- fix EpgAcqCtl_Toggle: compared bool arg with acq state enum
+epgctl/epgacqctl.h [rev:1.30, 2001-09-12T18:24:50]:
+- EpgAcqCtl_Toggle: change type for arg from int to bool
+epgvbi/btdrv4linux.c [rev:1.16, 2001-09-12T18:34:43]:
+- BtDriver_SignalHangup: added possibility to enable acq per SIGHUP
+    removed SIG_IGN for SIGHUP from master process
+- BtDriver_SignalDeathOfChild: master catches SIGCHLD to detect death of slave
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.135, 2001-09-12T18:43:17]:
+- Put all code into procedures
+- new procs CreateMainWindow and CreateMenubar
+- to allow to load the script without Tk support too -> daemon mode
+epgui/statswin.c [rev:1.41, 2001-09-12T18:44:07]:
+- StatsWin_ProvChange:
+- catch pAcqDbContext==NULL (when acq has been disabled)
+- to update status line more quickly
+epgui/uictrl.h [rev:1.6, 2001-09-12T18:48:27]:
+- Added new func UiControl_Init()
+epgui/epgmain.c [rev:1.67, 2001-09-12T19:14:03]:
+- added new options: -daemon -acqpassive (UNIX only) -> var optDaemonMode
+    + do no set up Tk; skip GUI and browser db initializations
+    + fork & setsid; separate main loop
+    + SetDaemonAcquisitionMode
+- added handler for SIGHUP to allow to enable acquisition
+    new func EventHandler_StartAcq() invoked as AddMainIdleEvent
+epgui/uictrl.c [rev:1.13, 2001-09-12T19:14:47]:
+- Added UiControl_Init(): for new daemon mode
+- sets global var uiControlInitialized
+- if FALSE use fprintf instead of Tk messagebox for error messages
+epgui/menucmd.c [rev:1.50, 2001-09-12T19:23:40]:
+- Added support for daemon mode
+- split off new func GetAcquisitionModeParams() from SetAcquisitionMode()
+- added new func SetDaemonAcquisitionMode
+- MenuCmd_ToggleAcq: change arg type from int to bool
+- Added prefix "MenuCmd_" two 2 static funcs
+epgui/menucmd.h [rev:1.10, 2001-09-12T19:23:46]:
+- Added support for daemon mode
+- split off new func GetAcquisitionModeParams() from SetAcquisitionMode()
+- added new func SetDaemonAcquisitionMode
+- MenuCmd_ToggleAcq: change arg type from int to bool
+- Added prefix "MenuCmd_" two 2 static funcs
+epgui/pioutput.c [rev:1.9, 2001-09-12T19:26:54]:
+- PiOutput_ExecUserCmd: modified to support daemon mode
+- ignore SIGCHLD for system() call, i.e. disabled signal handler
+nxtvepg.pod [rev:1.52, 2001-09-12T19:28:50]:
+- Added description for new options: -daemon and -acqpassive
+nxtvepg.pod [rev:1.53, 2001-09-16T10:47:19]:
+- corrected typo
+epgctl/epgversion.h [rev:1.17, 2001-09-16T11:04:02]:
+- set to version 0.6.3
+CHANGES [rev:1.18, 2001-09-16T11:31:31]:
+- updated for release 0.6.3
+www/changelog.html [rev:1.20, 2001-09-16T11:31:31]:
+- update for release 0.6.3
+www/man.html [rev:1.12, 2001-09-16T11:31:31]:
+- update for release 0.6.3
+www/index-de.html [rev:1.18, 2001-09-16T11:31:42]:
+- update for release 0.6.3
+www/index.html [rev:1.30, 2001-09-16T11:31:42]:
+- update for release 0.6.3
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_6_3 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

@@ -24,7 +24,7 @@
 #
 #  Author: Tom Zoerner
 #
-# $Id: nxtvepg.pod,v 1.51 2001/09/02 15:11:34 tom Exp tom $
+# $Id: nxtvepg.pod,v 1.53 2001/09/16 10:47:19 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME
@@ -145,6 +145,35 @@ Default: the last provider selected during the previous session.
 
 Start with acquisition disabled.
 The acquisition can still be started later from the Control menu.
+
+=item B<-daemon>
+
+Start without the graphical user interface (UNIX only). The process will
+detach from the terminal and perform background acquisition. If no other
+options are given the same provider and acquisition mode as configured with
+the GUI will be used. If the -provider option is given acquisition will work
+for this provider only (note the difference to non-daemon mode, where that
+option selects the browser database). The -daemon option cannot be combined
+with the -noacq or -demo options.
+
+The only way to stop the process in this mode is to send it a signal, i.e.
+kill it with SIGTERM. This can simply be done with:
+
+   kill `cat /tmp/.vbi0.pid`
+
+Note that it is not advisable to run the daemon while the GUI is in use,
+because incoming data will not be forwarded from the daemon to the GUI
+process (such a feature may be added in the future).  If you plan on using
+the daemon on a regular basis, put a little wrapper script around nxtvepg
+that automatically terminates the daemon when the GUI is started and
+restarts it afterwards.
+
+=item B<-acqpassive>
+
+In daemon mode this option overrides the acquisition mode setting in the
+configuration file and forces the acquisition into passive mode (see
+L<"ACQUISITION MODES">).  The configuration file is not changed, so that
+you can use different acquisition strategies for daemon and GUI.
 
 =item B<-demo> I<path>
 
@@ -800,7 +829,7 @@ I<Reset> menu entry or the reset button in the main window.
 =head1 FILTERING
 
 Similar to I<Navigate>,
-this menu enables to control which of the programmes in the database
+this menu allows to control which of the programmes in the database
 are presented in the listing.  However here, you are not limited to a
 preselection of filter options.  There's a filter for every kind of
 attributes that can be attached to a program, e.g. it's network,
@@ -1035,10 +1064,13 @@ Toggles acquisition on or off. Switching off allows other applications
 (e.g. a teletext decoder) to use the TV card while you browse the database.
 If you have more than one card, it's always possible to use one for
 watching TV and the other for loading data.
-UNIX: When acquisition is switched off, the I</dev/vbi>
-device is freed.  Acquisition can also been turned off automatically
-by sending the process the signal HUP.  The process id is stored in
-F</tmp/.vbi.pid> while the device is in use.
+
+UNIX: When acquisition is switched off, the I</dev/vbi> device is freed.
+Acquisition can also been switched on and off automatically by sending the
+process the signal HUP. Note: the signal must be sent to the acquisition
+slave process, the pid of which is stored in F</tmp/.vbi.pid> while the
+device is in use.
+
 Windows: When acquisition is switched off, the driver is unloaded.
 
 
@@ -1203,7 +1235,7 @@ though).
 Use the I<Refresh only> mode if you deleted your database files or if you
 upgrade from an incompatible software version. In this mode only the
 channels on which Nextview data was received before are checked (the
-requencies are kept in the rc/ini file). This enables you to regain your
+frequencies are kept in the rc/ini file). This enables you to regain your
 complete provider list very quickly.
 
 

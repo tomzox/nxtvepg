@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pioutput.c,v 1.8 2001/09/02 17:20:32 tom Exp tom $
+ *  $Id: pioutput.c,v 1.9 2001/09/12 19:26:54 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -33,6 +33,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#ifndef WIN32
+#include <signal.h>
+#endif
 
 #include <tcl.h>
 #include <tk.h>
@@ -1776,6 +1779,9 @@ static int PiOutput_ExecUserCmd( ClientData ttp, Tcl_Interp *interp, int argc, c
    char ** userCmds;
    char *ps, *pe, *pa;
    int  idx, userCmdCount;
+   #ifndef WIN32
+   void (*oldSigHandler)(int);
+   #endif
    int  result;
 
    if (argc != 2) 
@@ -1850,12 +1856,17 @@ static int PiOutput_ExecUserCmd( ClientData ttp, Tcl_Interp *interp, int argc, c
                // XXX how does this work on Windows?
                #ifndef WIN32
                PiOutput_ExtCmdAppendChar('&', &cmdbuf);
+               oldSigHandler = signal(SIGCHLD, SIG_IGN);
                #endif
                // finally null-terminate the string
                PiOutput_ExtCmdAppendChar('\0', &cmdbuf);
 
                // execute the command
                system(cmdbuf.strbuf);
+
+               #ifndef WIN32
+               signal(SIGCHLD, oldSigHandler);
+               #endif
             }
             else
                debug1("PiOutput-ExecUserCmd: user cmd #%d not found", idx);

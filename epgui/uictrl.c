@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: uictrl.c,v 1.12 2001/05/19 15:04:08 tom Exp tom $
+ *  $Id: uictrl.c,v 1.13 2001/09/12 19:14:47 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -56,6 +56,9 @@ typedef struct
    EPGDB_RELOAD_RESULT      dberr;
    CONTEXT_RELOAD_ERR_HAND  errHand;
 } MSG_RELOAD_ERR;
+
+
+static bool uiControlInitialized = FALSE;
 
 
 // ---------------------------------------------------------------------------
@@ -177,7 +180,8 @@ void UiControl_AiStateChange( ClientData clientData )
 //
 void UiControlMsg_AiStateChange( void )
 {
-   AddMainIdleEvent( UiControl_AiStateChange, (ClientData) ((int)TRUE), FALSE );
+   if (uiControlInitialized)
+      AddMainIdleEvent( UiControl_AiStateChange, (ClientData) ((int)TRUE), FALSE );
 }
 
 // ----------------------------------------------------------------------------
@@ -298,42 +302,52 @@ void UiControlMsg_ReloadError( uint cni, EPGDB_RELOAD_RESULT dberr, CONTEXT_RELO
 
    if (errHand != CTX_RELOAD_ERR_NONE)
    {
-      pMsg          = xmalloc(sizeof(MSG_RELOAD_ERR));
-      pMsg->cni     = cni;
-      pMsg->dberr   = dberr;
-      pMsg->errHand = errHand;
+      if (uiControlInitialized)
+      {
+         pMsg          = xmalloc(sizeof(MSG_RELOAD_ERR));
+         pMsg->cni     = cni;
+         pMsg->dberr   = dberr;
+         pMsg->errHand = errHand;
 
-      if (errHand == CTX_RELOAD_ERR_REQ)
-      {  // display the message immediately (as reply to user interaction)
+         if (errHand == CTX_RELOAD_ERR_REQ)
+         {  // display the message immediately (as reply to user interaction)
 
-         // have to save the Tcl interpreter's result string, so that the caller's result is not destroyed
-         pTmpStr = Tcl_GetStringResult(interp);
-         if (pTmpStr != NULL)
-         {
-            pSavedResult = xmalloc(strlen(pTmpStr) + 1);
-            memcpy(pSavedResult, pTmpStr, strlen(pTmpStr) + 1);
+            // have to save the Tcl interpreter's result string, so that the caller's result is not destroyed
+            pTmpStr = Tcl_GetStringResult(interp);
+            if (pTmpStr != NULL)
+            {
+               pSavedResult = xmalloc(strlen(pTmpStr) + 1);
+               memcpy(pSavedResult, pTmpStr, strlen(pTmpStr) + 1);
+            }
+            else
+               pSavedResult = NULL;
+
+            // make sure that the window is mapped
+            eval_check(interp, "update");
+
+            // display the message and wait for the user's confirmation
+            UiControl_ReloadError((ClientData) pMsg);
+
+            // restore the Tcl interpreter's result
+            if (pSavedResult != NULL)
+            {
+               Tcl_SetResult(interp, pSavedResult, TCL_VOLATILE);
+               xfree(pSavedResult);
+            }
+            else
+               Tcl_ResetResult(interp);
          }
          else
-            pSavedResult = NULL;
-
-         // make sure that the window is mapped
-         eval_check(interp, "update");
-
-         // display the message and wait for the user's confirmation
-         UiControl_ReloadError((ClientData) pMsg);
-
-         // restore the Tcl interpreter's result
-         if (pSavedResult != NULL)
-         {
-            Tcl_SetResult(interp, pSavedResult, TCL_VOLATILE);
-            xfree(pSavedResult);
+         {  // display the message from the main loop
+            AddMainIdleEvent(UiControl_ReloadError, (ClientData) pMsg, FALSE);
          }
-         else
-            Tcl_ResetResult(interp);
       }
       else
-      {  // display the message from the main loop
-         AddMainIdleEvent(UiControl_ReloadError, (ClientData) pMsg, FALSE);
+      {
+         if ( (errHand != CTX_RELOAD_ERR_ANY) || (dberr != EPGDB_RELOAD_EXIST) )
+         {
+            fprintf(stderr, "nxtvepg: warning: failed to load database 0x%04X\n", cni);
+         }
       }
    }
 }
@@ -361,7 +375,10 @@ static void UiControl_MissingTunerFreq( ClientData clientData )
 //
 void UiControlMsg_MissingTunerFreq( uint cni )
 {
-   AddMainIdleEvent(UiControl_MissingTunerFreq, (ClientData) cni, FALSE);
+   if (uiControlInitialized)
+      AddMainIdleEvent(UiControl_MissingTunerFreq, (ClientData) cni, FALSE);
+   else
+      fprintf(stderr, "nxtvepg: warning: cannot tune channel for provider 0x%04X: frequency unknown\n", cni);
 }
 
 // ----------------------------------------------------------------------------
@@ -389,6 +406,17 @@ static void UiControl_AcqPassive( ClientData clientData )
 //
 void UiControlMsg_AcqPassive( void )
 {
-   AddMainIdleEvent(UiControl_AcqPassive, (ClientData) NULL, TRUE);
+   if (uiControlInitialized)
+      AddMainIdleEvent(UiControl_AcqPassive, (ClientData) NULL, TRUE);
+   else
+      fprintf(stderr, "nxtvepg: fatal: invalid acquisition mode for the selected input source\n");
+}
+
+// ----------------------------------------------------------------------------
+// Initialize module
+//
+void UiControl_Init( void )
+{
+   uiControlInitialized = TRUE;
 }
 

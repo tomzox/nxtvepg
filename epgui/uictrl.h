@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: uictrl.h,v 1.5 2001/02/25 16:03:47 tom Exp tom $
+ *  $Id: uictrl.h,v 1.6 2001/09/12 18:48:27 tom Exp tom $
  */
 
 #ifndef __UICTRL_H
@@ -52,5 +52,6 @@ void UiControlMsg_NewProvFreq( uint cni, ulong freq );
 void UiControlMsg_ReloadError( uint cni, EPGDB_RELOAD_RESULT dberr, CONTEXT_RELOAD_ERR_HAND errHand );
 #endif
 
+void UiControl_Init( void );
 
 #endif  // __UICTRL_H

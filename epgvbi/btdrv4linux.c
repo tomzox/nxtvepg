@@ -43,7 +43,7 @@
  *    Linux:  Tom Zoerner
  *    NetBSD: Mario Kemper <magick@bundy.zhadum.de>
  *
- *  $Id: btdrv4linux.c,v 1.15 2001/06/09 19:01:16 tom Exp tom $
+ *  $Id: btdrv4linux.c,v 1.16 2001/09/12 18:34:43 tom Exp tom $
  */
 
 #if !defined(linux) && !defined(__NetBSD__)
@@ -69,13 +69,10 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <sys/resource.h>
-//# define _WAITFLAGS_H              // conflicts with linux/wait.h
 #include <sys/wait.h>
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
-#include "epgdb/epgblock.h"
-#include "epgdb/epgdbacq.h"
 #include "epgvbi/vbidecode.h"
 #include "epgvbi/btdrv.h"
 
@@ -684,8 +681,57 @@ static void BtDriver_SignalWakeUp( int sigval )
 //
 static void BtDriver_SignalHangup( int sigval )
 {
-   freeDevice = TRUE;
+   if (pVbiBuf != NULL)
+   {
+      if (pVbiBuf->isEnabled)
+      {  // stop acquisition
+
+         if (vbi_fdin != -1)
+         {
+            freeDevice = TRUE;
+         }
+      }
+      else
+      {  // start acquisition
+
+         if (isVbiProcess && (pVbiBuf->epgPid != -1))
+         {  // just pass the signal through to the master process
+            kill(pVbiBuf->epgPid, SIGHUP);
+         }
+      }
+   }
    signal(sigval, BtDriver_SignalHangup);
+}
+
+// ---------------------------------------------------------------------------
+// Check upon the acq slave after being signaled for death of a child
+//
+static void BtDriver_SignalDeathOfChild( int sigval )
+{
+   pid_t pid;
+   int   status;
+
+   assert(isVbiProcess == FALSE);
+
+   pid = wait(&status);
+   if ((pid != -1) && (WIFEXITED(status) || WIFSIGNALED(status)))
+   {
+      if (pVbiBuf != NULL)
+      {
+         if (pid == pVbiBuf->vbiPid)
+         {  // slave died without catching the signal (e.g. SIGKILL)
+            debug1("acq slave pid %d is dead - disable acq", pVbiBuf->vbiPid);
+            pVbiBuf->vbiPid = -1;
+            pVbiBuf->isEnabled = FALSE;
+         }
+         else if ((pVbiBuf->vbiPid == -1) && pVbiBuf->isEnabled)
+         {  // slave caught deadly signal and cleared his pid already
+            debug0("acq slave terminated - disable acq");
+            pVbiBuf->isEnabled = FALSE;
+         }
+      }
+   }
+   signal(sigval, BtDriver_SignalDeathOfChild);
 }
 
 // ---------------------------------------------------------------------------
@@ -1125,6 +1171,9 @@ static void BtDriver_Main( void )
       }
    }
 
+   // notify the parent that acq has stopped (e.g. after SIGTERM)
+   pVbiBuf->isEnabled = FALSE;
+
    if (vbi_fdin != -1)
    {
       sprintf(devName, PIDFILENAME, vbiCardIndex);
@@ -1179,8 +1228,8 @@ bool BtDriver_Init( void )
    #endif
 
    recvWakeUpSig = FALSE;
-   signal(SIGHUP,  SIG_IGN);
    signal(SIGUSR1, BtDriver_SignalWakeUp);
+   signal(SIGCHLD, BtDriver_SignalDeathOfChild);
 
    dbTaskPid = fork();
    if (dbTaskPid == -1)
@@ -1200,7 +1249,7 @@ bool BtDriver_Init( void )
       }
       // slightly lower priority to relatively raise prio of the acq process
       setpriority(PRIO_PROCESS, getpid(), getpriority(PRIO_PROCESS, getpid()) + 1);
-      // install handler for HUP signal - notification to free vbi device
+      // return TRUE if slave signaled USR1
       return recvWakeUpSig;
    }
    else

@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgmain.c,v 1.66 2001/09/02 17:06:03 tom Exp tom $
+ *  $Id: epgmain.c,v 1.67 2001/09/12 19:14:03 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -113,6 +113,8 @@ static const char *dbdir  = EPG_DB_DIR;
 #endif
 static int  videoCardIndex = -1;
 static bool disableAcq = FALSE;
+static bool optDaemonMode = FALSE;
+static bool optAcqPassive = FALSE;
 static bool startIconified = FALSE;
 static uint startUiCni = 0;
 static const char *pDemoDatabase = NULL;
@@ -341,6 +343,16 @@ static void EventHandler_TimerVPSPolling( ClientData clientData )
 #endif
 
 // ---------------------------------------------------------------------------
+// Invoked from main loop after SIGHUP to start acquisition
+//
+#ifndef WIN32
+static void EventHandler_StartAcq( ClientData clientData )
+{
+   eval_check(interp, "C_ToggleAcq 1\n");
+}
+#endif
+
+// ---------------------------------------------------------------------------
 // called by interrupt handlers when the application should exit
 //
 static int AsyncHandler_AppTerminate( ClientData clientData, Tcl_Interp *interp, int code)
@@ -354,19 +366,27 @@ static int AsyncHandler_AppTerminate( ClientData clientData, Tcl_Interp *interp,
 // graceful exit upon signals
 //
 #ifndef WIN32
-static void signal_handler(int sigval)
+static void signal_handler( int sigval )
 {
-   if (sigval != SIGINT)
+   if (sigval == SIGHUP)
+   {  // schedule restart of acquisition
+      AddMainIdleEvent(EventHandler_StartAcq, NULL, TRUE);
+   }
+   else
    {
-      printf("Caught signal %d\n", sigval);
-   }
-   DBGONLY(fflush(stdout));
+      if (sigval != SIGINT)
+      {
+         fprintf(stderr, "nxtvepg caught deadly signal %d\n", sigval);
+      }
+      // flush debug output
+      DBGONLY(fflush(stdout); fflush(stderr));
 
-   if (exitHandler != NULL)
-   {  // trigger an event, so that the Tcl/Tk event handler immediately wakes up
-      Tcl_AsyncMark(exitHandler);
+      if (exitHandler != NULL)
+      {  // trigger an event, so that the Tcl/Tk event handler immediately wakes up
+         Tcl_AsyncMark(exitHandler);
+      }
+      should_exit = TRUE;
    }
-   should_exit = TRUE;
 
    signal(sigval, signal_handler);
 }
@@ -409,6 +429,7 @@ static LONG WINAPI WinApiExceptionHandler(struct _EXCEPTION_POINTERS *exc_info)
 extern TCL_STORAGE_CLASS void Tk_RegisterMainDestructionHandler( Tcl_CloseProc * handler );
 
 #endif
+
 
 #ifdef WIN32
 // ---------------------------------------------------------------------------
@@ -599,6 +620,10 @@ static void Usage( const char *argv0, const char *argvn, const char * reason )
                    "       -card <digit>       \t: index of TV card for acq (starting at 0)\n"
                    "       -provider <cni>     \t: network id of EPG provider (hex)\n"
                    "       -noacq              \t: disable acquisition\n"
+                   #ifndef WIN32
+                   "       -daemon             \t: no GUI; acquisition only\n"
+                   "       -acqpassive         \t: force daemon to passive acquisition mode\n"
+                   #endif
                    "       -demo <db-file>     \t: load database in demo mode\n",
                    argv0, reason, argvn);
 #if 0
@@ -634,6 +659,18 @@ static void ParseArgv( int argc, char * argv[] )
             disableAcq = TRUE;
             argIdx += 1;
          }
+         #ifndef WIN32
+         else if (!strcmp(argv[argIdx], "-daemon"))
+         {  // suppress GUI
+            optDaemonMode = TRUE;
+            argIdx += 1;
+         }
+         else if (!strcmp(argv[argIdx], "-acqpassive"))
+         {  // set passive acquisition mode (not saved to rc/ini file)
+            optAcqPassive = TRUE;
+            argIdx += 1;
+         }
+         #endif
          else if (!strcmp(argv[argIdx], "-rcfile"))
          {
             if (argIdx + 1 < argc)
@@ -670,7 +707,8 @@ static void ParseArgv( int argc, char * argv[] )
             else
                Usage(argv[0], argv[argIdx], "missing card index after");
          }
-         else if (!strcmp(argv[argIdx], "-provider"))
+         else if ( !strcmp(argv[argIdx], "-provider") ||
+                   !strcmp(argv[argIdx], "-prov") )
          {
             if (argIdx + 1 < argc)
             {  // read hexadecimal CNI of selected provider
@@ -731,6 +769,22 @@ static void ParseArgv( int argc, char * argv[] )
       else
          Usage(argv[0], argv[argIdx], "Too many arguments");
    }
+
+   // Check for disallowed option combinations
+   if (optDaemonMode)
+   {
+      if (disableAcq)
+         Usage(argv[0], "-daemon", "Cannot combine with -noacq");
+      else if (pDemoDatabase != NULL)
+         Usage(argv[0], "-daemon", "Cannot combine with -demo mode");
+      else if ((startUiCni != 0) && optAcqPassive)
+         Usage(argv[0], "-provider", "Cannot combine with -acqpassive");
+   }
+   else
+   {
+      if (optAcqPassive)
+         Usage(argv[0], "-acqpassive", "Only meant for -daemon mode");
+   }
 }
 
 // ---------------------------------------------------------------------------
@@ -773,12 +827,15 @@ static int ui_init( int argc, char **argv )
    Tcl_SetVar(interp, "tcl_interactive", "0", TCL_GLOBAL_ONLY);
 
    Tcl_Init(interp);
-   if (Tk_Init(interp) != TCL_OK)
+   if (optDaemonMode == FALSE)
    {
-      #ifndef USE_PRECOMPILED_TCL_LIBS
-      fprintf(stderr, "%s\n", interp->result);
-      exit(1);
-      #endif
+      if (Tk_Init(interp) != TCL_OK)
+      {
+         #ifndef USE_PRECOMPILED_TCL_LIBS
+         fprintf(stderr, "%s\n", interp->result);
+         exit(1);
+         #endif
+      }
    }
 
    #ifdef USE_PRECOMPILED_TCL_LIBS
@@ -798,22 +855,29 @@ static int ui_init( int argc, char **argv )
    Tcl_SetVar(interp, "EPG_VERSION_NO", comm, TCL_GLOBAL_ONLY);
    Tcl_SetVar(interp, "EPG_VERSION", epg_version_str, TCL_GLOBAL_ONLY);
 
-   Tk_DefineBitmap(interp, Tk_GetUid("bitmap_ptr_up"), ptr_up_bits, ptr_up_width, ptr_up_height);
-   Tk_DefineBitmap(interp, Tk_GetUid("bitmap_ptr_down"), ptr_down_bits, ptr_down_width, ptr_down_height);
-   Tk_DefineBitmap(interp, Tk_GetUid("bitmap_pan_updown"), pan_updown_bits, pan_updown_width, pan_updown_height);
-   Tk_DefineBitmap(interp, Tk_GetUid("bitmap_qmark"), qmark_bits, qmark_width, qmark_height);
-   Tk_DefineBitmap(interp, Tk_GetUid("nxtv_logo"), nxtv_logo_bits, nxtv_logo_width, nxtv_logo_height);
+   if (optDaemonMode == FALSE)
+   {
+      Tk_DefineBitmap(interp, Tk_GetUid("bitmap_ptr_up"), ptr_up_bits, ptr_up_width, ptr_up_height);
+      Tk_DefineBitmap(interp, Tk_GetUid("bitmap_ptr_down"), ptr_down_bits, ptr_down_width, ptr_down_height);
+      Tk_DefineBitmap(interp, Tk_GetUid("bitmap_pan_updown"), pan_updown_bits, pan_updown_width, pan_updown_height);
+      Tk_DefineBitmap(interp, Tk_GetUid("bitmap_qmark"), qmark_bits, qmark_width, qmark_height);
+      Tk_DefineBitmap(interp, Tk_GetUid("nxtv_logo"), nxtv_logo_bits, nxtv_logo_width, nxtv_logo_height);
 
-   sprintf(comm, "wm title . {Nextview EPG Decoder}\n"
-                 "wm resizable . 0 1\n"
-                 "wm iconbitmap . nxtv_logo\n"
-                 "wm iconname . {Nextview EPG}\n");
-   eval_check(interp, comm);
+      sprintf(comm, "wm title . {Nextview EPG Decoder}\n"
+                    "wm resizable . 0 1\n"
+                    "wm iconbitmap . nxtv_logo\n"
+                    "wm iconname . {Nextview EPG}\n");
+      eval_check(interp, comm);
 
-   if (startIconified)
-      eval_check(interp, "wm iconify .");
+      if (startIconified)
+         eval_check(interp, "wm iconify .");
 
+   }
    eval_check(interp, epgui_tcl_script);
+
+   if (optDaemonMode == FALSE)
+      eval_check(interp, "CreateMainWindow; CreateMenubar\n");
+
    eval_check(interp, help_tcl_script);
 
    Tcl_ResetResult(interp);
@@ -845,6 +909,7 @@ int main( int argc, char *argv[] )
    #ifndef WIN32
    signal(SIGINT, signal_handler);
    signal(SIGTERM, signal_handler);
+   signal(SIGHUP, signal_handler);
    #else
    // set up callback to catch shutdown messages (requires tk83.dll patch!)
    Tk_RegisterMainDestructionHandler(WinApiDestructionHandler);
@@ -857,7 +922,21 @@ int main( int argc, char *argv[] )
    SetArgv(&argc, &argv);
    #endif
    ParseArgv(argc, argv);
-   
+
+   #ifndef WIN32
+   if (optDaemonMode)
+   {  // deamon mode -> detach from tty
+      if (fork() > 0)
+         exit(0);
+      close(0);
+      #ifndef DEBUG_SWITCH
+      close(1);
+      close(2);
+      #endif
+      setsid();
+   }
+   #endif
+
    // set up the directory for the databases (unless in demo mode)
    if (EpgDbSavSetupDir(dbdir, pDemoDatabase) == FALSE)
    {  // failed to create dir: message was already issued, so just exit
@@ -878,101 +957,120 @@ int main( int argc, char *argv[] )
 
    // pass TV card hardware parameters to the driver
    SetHardwareConfig(interp, videoCardIndex);
-   SetAcquisitionMode();
 
-   if (pDemoDatabase != NULL)
-   {  // demo mode -> open the db given by -demo cmd line arg
-      pUiDbContext = EpgContextCtl_Open(0x00f1, CTX_RELOAD_ERR_DEMO);  //dummy CNI
-      if (EpgDbContextGetCni(pUiDbContext) == 0)
-      {
-         pDemoDatabase = NULL;
-         if (EpgDbSavSetupDir(dbdir, pDemoDatabase) == FALSE)
-         {  // failed to create dir: message was already issued, so just exit
-            exit(-1);
-         }
-      }
-      disableAcq = TRUE;
-   }
-   else
-   {  // open the database given by -prov or the last one used
-      OpenInitialDb(startUiCni);
-   }
-
-   // initialize the GUI control modules
-   StatsWin_Create(pDemoDatabase != NULL);
-   PiFilter_Create();
-   PiOutput_Create();
-   PiListBox_Create();
-   MenuCmd_Init(pDemoDatabase != NULL);
-   #ifndef WIN32
-   Xawtv_Init();
-   #endif
-
-   // draw the clock and update it every second afterwords
-   EventHandler_UpdateClock(NULL);
-
-   // wait until window is open and everthing displayed
-   while ( (Tk_GetNumMainWindows() > 0) &&
-           Tcl_DoOneEvent(TCL_ALL_EVENTS | TCL_DONT_WAIT) )
-      ;
-
-   #if defined(WIN32) && !defined(ICON_PATCHED_INTO_DLL)
-   // set app icon in window title bar - note: must be called *after* the window is mapped!
-   SetWindowsIcon(hInstance);
-   #endif
-
-   if (disableAcq == FALSE)
+   if (optDaemonMode == FALSE)
    {
-      EpgAcqCtl_Start();
-   }
-   UiControl_AiStateChange(NULL);
+      UiControl_Init();
+      SetAcquisitionMode();
 
-   if (Tk_GetNumMainWindows() > 0)
-   {
-      // remove expired items from database and listbox every minute
-      expirationHandler = Tcl_CreateTimerHandler(1000 * (60 - time(NULL) % 60), EventHandler_TimerDbSetDateTime, NULL);
-      #ifndef WIN32
-      // poll VPS PIL to follow channel changes made by an external TV app
-      vpsPollingHandler = Tcl_CreateTimerHandler(200, EventHandler_TimerVPSPolling, NULL);
-      #endif
-
-      while (Tk_GetNumMainWindows() > 0)
-      {
-         if (pMainIdleEventQueue == NULL)
+      if (pDemoDatabase != NULL)
+      {  // demo mode -> open the db given by -demo cmd line arg
+         pUiDbContext = EpgContextCtl_Open(0x00f1, CTX_RELOAD_ERR_DEMO);  //dummy CNI
+         if (EpgDbContextGetCni(pUiDbContext) == 0)
          {
-            Tcl_DoOneEvent(0);
-         }
-         else
-         {
-            if (Tcl_DoOneEvent(TCL_DONT_WAIT) == 0)
-            {  // no events pending -> schedule my idle events
-               ProcessMainIdleEvent();
+            pDemoDatabase = NULL;
+            if (EpgDbSavSetupDir(dbdir, pDemoDatabase) == FALSE)
+            {  // failed to create dir: message was already issued, so just exit
+               exit(-1);
             }
          }
-
-         if (should_exit)
-         {
-            break;
-         }
+         disableAcq = TRUE;
       }
+      else
+      {  // open the database given by -prov or the last one used
+         OpenInitialDb(startUiCni);
+      }
+
+      // initialize the GUI control modules
+      StatsWin_Create(pDemoDatabase != NULL);
+      PiFilter_Create();
+      PiOutput_Create();
+      PiListBox_Create();
+      MenuCmd_Init(pDemoDatabase != NULL);
+      #ifndef WIN32
+      Xawtv_Init();
+      #endif
+
+      // draw the clock and update it every second afterwords
+      EventHandler_UpdateClock(NULL);
+
+      // wait until window is open and everthing displayed
+      while ( (Tk_GetNumMainWindows() > 0) &&
+              Tcl_DoOneEvent(TCL_ALL_EVENTS | TCL_DONT_WAIT) )
+         ;
+
+      #if defined(WIN32) && !defined(ICON_PATCHED_INTO_DLL)
+      // set app icon in window title bar - note: must be called *after* the window is mapped!
+      SetWindowsIcon(hInstance);
+      #endif
+
+      if (disableAcq == FALSE)
+      {
+         EpgAcqCtl_Start();
+      }
+      UiControl_AiStateChange(NULL);
 
       if (Tk_GetNumMainWindows() > 0)
       {
-         // remove handlers to prevent invokation after death of main window
-         if (clockHandler != NULL)
-            Tcl_DeleteTimerHandler(clockHandler);
-         if (expirationHandler != NULL)
-            Tcl_DeleteTimerHandler(expirationHandler);
-         if (vpsPollingHandler != NULL)
-            Tcl_DeleteTimerHandler(vpsPollingHandler);
-         Tcl_AsyncDelete(exitHandler);
-         // execute pending updates and close main window
-         sprintf(comm, "update; destroy .");
-         eval_check(interp, comm);
+         // remove expired items from database and listbox every minute
+         expirationHandler = Tcl_CreateTimerHandler(1000 * (60 - time(NULL) % 60), EventHandler_TimerDbSetDateTime, NULL);
+         #ifndef WIN32
+         // poll VPS PIL to follow channel changes made by an external TV app
+         vpsPollingHandler = Tcl_CreateTimerHandler(200, EventHandler_TimerVPSPolling, NULL);
+         #endif
+
+         while (Tk_GetNumMainWindows() > 0)
+         {
+            if (pMainIdleEventQueue == NULL)
+            {
+               Tcl_DoOneEvent(0);
+            }
+            else
+            {
+               if (Tcl_DoOneEvent(TCL_DONT_WAIT) == 0)
+               {  // no events pending -> schedule my idle events
+                  ProcessMainIdleEvent();
+               }
+            }
+
+            if (should_exit)
+            {
+               break;
+            }
+         }
+
+         if (Tk_GetNumMainWindows() > 0)
+         {
+            // remove handlers to prevent invokation after death of main window
+            if (clockHandler != NULL)
+               Tcl_DeleteTimerHandler(clockHandler);
+            if (expirationHandler != NULL)
+               Tcl_DeleteTimerHandler(expirationHandler);
+            if (vpsPollingHandler != NULL)
+               Tcl_DeleteTimerHandler(vpsPollingHandler);
+            Tcl_AsyncDelete(exitHandler);
+            // execute pending updates and close main window
+            sprintf(comm, "update; destroy .");
+            eval_check(interp, comm);
+         }
       }
+      else
+         debug0("could not open the main window - exiting.");
    }
    else
-      debug0("could not open the main window - exiting.");
+   {
+      // Daemon mode: acq only
+      if ( SetDaemonAcquisitionMode(startUiCni, optAcqPassive) &&
+           EpgAcqCtl_Start() )
+      {
+         while ((should_exit == FALSE) && (pAcqDbContext != NULL))
+         {
+            EpgAcqCtl_ProcessPackets();
+            EpgAcqCtl_Idle();
+            sleep(1);
+         }
+      }
+   }
 
    #if defined(WIN32) && !defined(__MINGW32__)
    }
@@ -987,14 +1085,19 @@ int main( int argc, char *argv[] )
 
    EpgAcqCtl_Stop();
    BtDriver_Exit();
-   EpgContextCtl_Close(pUiDbContext);
-   pUiDbContext = NULL;
-   PiFilter_Destroy();
-   PiListBox_Destroy();
-   PiOutput_Destroy();
-   #ifndef WIN32
-   Xawtv_Destroy();
-   #endif
+
+   if (optDaemonMode == FALSE)
+   {
+      EpgContextCtl_Close(pUiDbContext);
+      pUiDbContext = NULL;
+
+      PiFilter_Destroy();
+      PiListBox_Destroy();
+      PiOutput_Destroy();
+      #ifndef WIN32
+      Xawtv_Destroy();
+      #endif
+   }
 
    #if CHK_MALLOC == ON
    DiscardAllMainIdleEvents();

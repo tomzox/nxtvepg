@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqctl.h,v 1.29 2001/09/02 17:03:02 tom Exp tom $
+ *  $Id: epgacqctl.h,v 1.30 2001/09/12 18:24:50 tom Exp tom $
  */
 
 #ifndef __EPGACQCTL_H
@@ -196,7 +196,7 @@ typedef struct
 //
 bool EpgAcqCtl_Start( void );
 void EpgAcqCtl_Stop( void );
-int  EpgAcqCtl_Toggle( int newState );
+bool EpgAcqCtl_Toggle( bool enable );
 bool EpgAcqCtl_SelectMode( EPGACQ_MODE newAcqMode, uint cniCount, const uint * pCniTab );
 bool EpgAcqCtl_SetInputSource( uint inputIdx );
 bool EpgAcqCtl_UiProvChange( void );
