@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_hwcfg.tcl,v 1.3 2002/11/10 20:30:35 tom Exp tom $
+#  $Id: dlg_hwcfg.tcl,v 1.4 2002/12/08 19:59:00 tom Exp tom $
 #
 
 ##  - Video input
@@ -53,7 +53,7 @@ proc HardwareConfigUpdateCardIdx {cardidx} {
 #=DYNAMIC=
 
 proc PopupHardwareConfig {} {
-   global is_unix netacq_enable fileImage
+   global is_unix netacq_enable fileImage win_frm_fg
    global hwcfg_input_sel
    global hwcfg_tuner_sel hwcfg_tuner_list hwcfg_card_list
    global hwcfg_pll_sel hwcfg_prio_sel hwcfg_cardidx_sel hwcfg_ftable_sel
@@ -104,7 +104,7 @@ proc PopupHardwareConfig {} {
          pack   .hwcfg.opt1.apptype.lab -side left -padx 5
          menubutton .hwcfg.opt1.apptype.mb -text [lindex $hwcfg_tmp_tvapp_list $hwcfg_tmp_tvapp_idx] \
                          -justify center -relief raised -borderwidth 2 -menu .hwcfg.opt1.apptype.mb.men \
-                         -indicatoron 1
+                         -indicatoron 1 -takefocus 1 -highlightthickness 1 -highlightcolor $win_frm_fg
          menu  .hwcfg.opt1.apptype.mb.men -tearoff 0
          set cmd {.hwcfg.opt1.apptype.mb configure -text [lindex $hwcfg_tmp_tvapp_list $hwcfg_tmp_tvapp_idx]}
          set idx 0
@@ -146,7 +146,7 @@ proc PopupHardwareConfig {} {
       # create menu to select video input
       frame .hwcfg.opt2.input
       label .hwcfg.opt2.input.curname -text "Video source: "
-      menubutton .hwcfg.opt2.input.mb -text "Configure" -menu .hwcfg.opt2.input.mb.menu -relief raised -borderwidth 1 -indicatoron 1
+      menubutton .hwcfg.opt2.input.mb -text "Configure" -menu .hwcfg.opt2.input.mb.menu -relief raised -borderwidth 1 -indicatoron 1 -underline 0
       menu .hwcfg.opt2.input.mb.menu -tearoff 0 -postcommand {PostDynamicMenu .hwcfg.opt2.input.mb.menu HardwareCreateInputMenu {}}
       pack .hwcfg.opt2.input.curname -side left -padx 10 -anchor w -expand 1
       pack .hwcfg.opt2.input.mb -side left -padx 10 -anchor e
@@ -156,7 +156,7 @@ proc PopupHardwareConfig {} {
          # create menu for tuner selection
          frame .hwcfg.opt2.tuner
          label .hwcfg.opt2.tuner.curname -text "Tuner: [lindex $hwcfg_tuner_list $hwcfg_tuner_sel]"
-         menubutton .hwcfg.opt2.tuner.mb -text "Configure" -menu .hwcfg.opt2.tuner.mb.menu -relief raised -borderwidth 1 -indicatoron 1
+         menubutton .hwcfg.opt2.tuner.mb -text "Configure" -menu .hwcfg.opt2.tuner.mb.menu -relief raised -borderwidth 1 -indicatoron 1 -underline 1
          menu .hwcfg.opt2.tuner.mb.menu -tearoff 0
          set idx 0
          foreach name $hwcfg_tuner_list {
@@ -220,7 +220,7 @@ proc PopupHardwareConfig {} {
          pack .hwcfg.opt3.card.label -side left -padx 10
 
          menubutton .hwcfg.opt3.card.mb -text "Configure" -menu .hwcfg.opt3.card.mb.menu \
-                                        -relief raised -borderwidth 1 -indicatoron 1
+                                        -relief raised -borderwidth 1 -indicatoron 1 -underline 2
          menu .hwcfg.opt3.card.mb.menu -tearoff 0
          pack .hwcfg.opt3.card.mb -side right -padx 10 -anchor e
          set idx 0
@@ -248,6 +248,7 @@ proc PopupHardwareConfig {} {
       pack .hwcfg.cmd -side top -pady 10
 
       bind .hwcfg <Key-F1> {PopupHelp $helpIndex(Configuration) "TV card input"}
+      bind .hwcfg <Alt-KeyPress> [bind Menubutton <Alt-KeyPress>]
       bind .hwcfg.cmd <Destroy> {+ set hwcfg_popup 0}
       bind .hwcfg.cmd.ok <Return> {tkButtonInvoke .hwcfg.cmd.ok}
       bind .hwcfg.cmd.ok <Escape> {tkButtonInvoke .hwcfg.cmd.abort}

@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_udefcols.tcl,v 1.6 2002/11/30 22:00:55 tom Exp tom $
+#  $Id: dlg_udefcols.tcl,v 1.7 2002/12/08 19:59:00 tom Exp tom $
 #
 set ucf_type_idx 0
 set ucf_value_idx 1
@@ -80,7 +80,7 @@ proc PopupUserDefinedColumns {} {
    global shortcuts shortcut_order
    global usercols colsel_tabs colsel_ailist_predef
    global usercol_scnames usercol_cf_tag usercol_cf_filt_idx
-   global usercol_popup text_bg pi_img
+   global usercol_popup text_bg pi_img win_frm_fg
 
    if {$usercol_popup == 0} {
       CreateTransientPopup .usercol "User-defined columns"
@@ -107,8 +107,9 @@ proc PopupUserDefinedColumns {} {
       pack    .usercol.txt.ent_head -side left -padx 5 -fill x -expand 1
       label   .usercol.txt.lab_lab -text "Header menu:"
       pack    .usercol.txt.lab_lab -side left -padx 5
-      menubutton .usercol.txt.hmenu -text "none" -indicatoron 1 -borderwidth 2 -relief raised -width 22 -menu .usercol.txt.hmenu.men
-      menu    .usercol.txt.hmenu.men -tearoff 0
+      menubutton .usercol.txt.hmenu -text "none" -indicatoron 1 -borderwidth 2 -relief raised -width 22 -menu .usercol.txt.hmenu.men \
+                                    -takefocus 1 -highlightthickness 1 -highlightcolor $win_frm_fg
+      menu    .usercol.txt.hmenu.men -tearoff 0 -takefocus 1
       pack    .usercol.txt.hmenu -side left -padx 5
       pack    .usercol.txt -side top -fill x -pady 5
 
@@ -161,12 +162,16 @@ proc PopupUserDefinedColumns {} {
       grid    .usercol.all.disp.attr.ent_text -sticky we -column 1 -row 1
       radiobutton .usercol.all.disp.attr.type_image -text "Image" -variable usercol_cf_type -value 1
       grid    .usercol.all.disp.attr.type_image -sticky w -column 0 -row 2
-      menubutton  .usercol.all.disp.attr.img -text "Image" -indicatoron 1 -borderwidth 2 -relief raised -menu .usercol.all.disp.attr.img.men -height 20
+      menubutton  .usercol.all.disp.attr.img -text "Image" -indicatoron 1 -borderwidth 2 -relief raised \
+                                             -menu .usercol.all.disp.attr.img.men -height 20 \
+                                             -takefocus 1 -highlightthickness 1 -highlightcolor $win_frm_fg
       menu    .usercol.all.disp.attr.img.men -tearoff 0
       grid    .usercol.all.disp.attr.img -sticky we -column 1 -row 2
       radiobutton .usercol.all.disp.attr.type_attr -text "Attribute" -variable usercol_cf_type -value 2
       grid    .usercol.all.disp.attr.type_attr -sticky w -column 0 -row 3
-      menubutton  .usercol.all.disp.attr.att -text "Attribute" -indicatoron 1 -borderwidth 2 -relief raised -menu .usercol.all.disp.attr.att.men
+      menubutton  .usercol.all.disp.attr.att -text "Attribute" -indicatoron 1 -borderwidth 2 -relief raised \
+                                             -menu .usercol.all.disp.attr.att.men \
+                                             -takefocus 1 -highlightthickness 1 -highlightcolor $win_frm_fg
       menu    .usercol.all.disp.attr.att.men -tearoff 0
       grid    .usercol.all.disp.attr.att -sticky we -column 1 -row 3
       grid    columnconfigure .usercol.all.disp.attr 1 -weight 1
@@ -181,6 +186,7 @@ proc PopupUserDefinedColumns {} {
       checkbutton .usercol.all.disp.fmt.chk_underline -text "underline" -variable usercol_cf_underline
       grid    .usercol.all.disp.fmt.chk_underline -sticky w -row 2 -column 0
       tk_optionMenu .usercol.all.disp.fmt.mb_color usercol_cf_color black red blue green yellow pink cyan
+      .usercol.all.disp.fmt.mb_color configure -takefocus 1 -highlightthickness 1 -highlightcolor $win_frm_fg
       grid    .usercol.all.disp.fmt.mb_color -sticky we -row 1 -column 1
       grid    columnconfigure .usercol.all.disp.fmt 0 -weight 1
       grid    columnconfigure .usercol.all.disp.fmt 1 -weight 1

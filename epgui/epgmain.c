@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgmain.c,v 1.108 2002/11/10 20:35:33 tom Exp tom $
+ *  $Id: epgmain.c,v 1.109 2002/12/08 20:23:39 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -2261,6 +2261,11 @@ static int ui_init( int argc, char **argv, bool withTk )
                     "wm iconbitmap . nxtv_logo\n"
                     "wm iconname . {Nextview EPG}\n");
       eval_check(interp, comm);
+
+      #ifdef WIN32
+      eval_check(interp, "wm withdraw .\n"
+                         "update\n");
+      #endif
    }
 
    Tcl_ResetResult(interp);
@@ -2445,6 +2450,10 @@ int main( int argc, char *argv[] )
       #if defined(WIN32) && !defined(ICON_PATCHED_INTO_DLL)
       // set app icon in window title bar - note: must be called *after* the window is mapped!
       SetWindowsIcon(hInstance);
+      #endif
+      #ifdef WIN32
+      if (startIconified == FALSE)
+         eval_check(interp, "wm deiconify .");
       #endif
 
       if (disableAcq == FALSE)

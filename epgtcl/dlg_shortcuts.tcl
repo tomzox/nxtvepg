@@ -19,7 +19,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_shortcuts.tcl,v 1.5 2002/11/15 19:31:19 tom Exp tom $
+#  $Id: dlg_shortcuts.tcl,v 1.6 2002/12/08 19:59:00 tom Exp tom $
 #
 set fscupd_popup 0
 
@@ -552,6 +552,7 @@ proc PopupFilterShortcuts {} {
 
       pack .fscedit.cmd -side left -anchor nw -pady 10 -padx 5 -fill y
       bind .fscedit.cmd <Destroy> {+ set fscedit_popup 0}
+      bind .fscedit <Alt-KeyPress> [bind Menubutton <Alt-KeyPress>]
       bind .fscedit <Key-F1> {PopupHelp $helpIndex(Filter shortcuts)}
 
       ## third column: attributes

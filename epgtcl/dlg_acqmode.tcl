@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_acqmode.tcl,v 1.2 2002/11/10 20:30:27 tom Exp tom $
+#  $Id: dlg_acqmode.tcl,v 1.3 2002/12/08 19:59:00 tom Exp tom $
 #
 set acqmode_popup 0
 set acq_mode "follow-ui"
@@ -171,7 +171,7 @@ proc PopupNetAcqConfig {} {
    global netacqcf netacqcf_tmpcf
    global netacqcf_remctl_names
    global netacqcf_view
-   global fileImage font_normal
+   global fileImage font_normal win_frm_fg
    global netacqcf_popup
 
    if {$netacqcf_popup == 0} {
@@ -198,7 +198,7 @@ proc PopupNetAcqConfig {} {
       grid  .netacqcf.all.remote_lab -row $gridrow -column 0 -sticky w -padx 5
       menubutton .netacqcf.all.remote_mb -text [lindex $netacqcf_remctl_names $netacqcf_tmpcf(remctl)] \
                       -width 22 -justify center -relief raised -borderwidth 2 -menu .netacqcf.all.remote_mb.men \
-                      -indicatoron 1
+                      -indicatoron 1 -takefocus 1 -highlightthickness 1 -highlightcolor $win_frm_fg
       menu  .netacqcf.all.remote_mb.men -tearoff 0
       set cmd {.netacqcf.all.remote_mb configure -text [lindex $netacqcf_remctl_names $netacqcf_tmpcf(remctl)]}
       set idx 0
@@ -390,6 +390,7 @@ proc NetAcqChangeView {} {
 
 # create popdown menu to allow choosing log levels (for file logging and syslog)
 proc NetAcqCreateLogLevMenu {wmen logtype} {
+   global win_frm_fg
    global netacqcf_loglev_names
    global netacqcf_tmpcf
 
@@ -400,7 +401,7 @@ proc NetAcqCreateLogLevMenu {wmen logtype} {
 
    menubutton $wmen -text [lindex $netacqcf_loglev_names $netacqcf_tmpcf($logtype)] \
                    -width 22 -justify center -relief raised -borderwidth 2 -menu $wmen.men \
-                   -indicatoron 1
+                   -indicatoron 1 -takefocus 1 -highlightthickness 1 -highlightcolor $win_frm_fg
    menu  $wmen.men -tearoff 0
    set idx 0
    foreach name $netacqcf_loglev_names {

@@ -11348,3 +11348,126 @@ CHANGES [rev:1.30, 2002-12-01T19:22:54]:
 TODO [rev:1.23, 2002-12-01T19:22:54]:
 - updated for release 2.4.1
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_4_1 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+www/tripod-src-index.html [rev:1.12, 2002-12-01T19:43:10]:
+- added releases 2.3.1, 2.4.0 and 2.4.1
+- removed all tvsim packages except the new 2.4.1
+- removed .0 win packages except 2.4.0
+www/nefkom-src-index.html [rev:1.12, 2002-12-01T19:45:11]:
+- added releases 2.4.0 and 2.4.1
+- removed some old stuff
+www/tripod-moved.html [rev:1.1, 2002-12-02T20:59:24]:
+- Initial revision
+www/tripod-moved-de.html [rev:1.1, 2002-12-02T20:59:27]:
+- Initial revision
+epgui/pilistbox.c [rev:1.83, 2002-12-08T19:25:16]:
+- Adapted for change in typedef PiOutput_AppendInfoTextCb_Type
+- PiListBox_AppendInfoTextCb(): gets only one pointer instead of up to two
+- only one text pointer instead of two:
+    short and long info are now separated by a newline character
+- semantics change, hence renamed insertSeparator into addSeparator:
+    separators are now inserted before printing the text, instead of inbetween
+    short and long info: used for multiple texts in merged database instead of
+    inbetween short/long info.
+epgui/pioutput.c [rev:1.44, 2002-12-08T19:25:28]:
+- Implemented redundancy removal for French providers
+- Added new functions PiOutput_UnifyShortLong() and PiOutput_SearchLongInfo():
+    use to compare each paragraph in short-info with each in long-info
+- RTL2 redundancy check was split off and integrated into
+    PiOutput_SearchLongInfo()
+- Changed typedef PiOutput_AppendInfoTextCb_Type
+--> adapted all callbacks of that type: PiOutput_HtmlAppendInfoTextCb(),
+    PiOutput_XmlAppendInfoTextCb(), PiOutput_ExtCmdAppendInfoTextCb()
+- only one text pointer instead of two:
+    short and long info are now separated by a newline character
+- semantics change, hence renamed insertSeparator into addSeparator:
+    separators are now inserted before printing the text, instead of inbetween
+    short and long info: used for multiple texts in merged database instead of
+    inbetween short/long info.
+- Also fix in PiOutput_ExtCmdAppendInfoTextCb():
+- did not replace newline characters; now use "//" between short/long info
+    and "////" between different provider's texts
+epgui/pioutput.h [rev:1.12, 2002-12-08T19:25:34]:
+- Changed typedef PiOutput_AppendInfoTextCb_Type:
+- only one text pointer instead of two:
+    short and long info are now separated by a newline character
+- semantics change, hence renamed insertSeparator into addSeparator:
+    separators are now inserted before printing the text, instead of inbetween
+    short and long info: used for multiple texts in merged database instead of
+    inbetween short/long info.
+epgui/epgtabdump.c [epgui/dumptext.c, rev:1.5, 2002-12-08T19:25:42]:
+- Adapted for change in typedef PiOutput_AppendInfoTextCb_Type
+- EpgTabDumpPiInfoTextCb(): gets only one pointer instead of up to two
+- note: short and long info are now separated by a newline character;
+    handling newline chars was already implemented, i.e. no change required
+- separators are now inserted before printing the text, instead of
+    inbetween short and long info - due to semantics change: used for multiple
+    texts in merged database instead of short/long info.
+epgvbi/wintuner.c [dsdrv/wintuner.c, rev:1.3, 2002-12-08T19:29:15]:
+- Bugfix Tuner_SetFrequency() for tuner type TUNER_PHILIPS_SECAM
+- config byte was masked, but SECAM value not ORed due to preliminary #if 0
+- reported multiply in forum on sourceforge.net
+tvsim/tvsim_gui.tcl [rev:1.6, 2002-12-08T19:32:04]:
+- Adapted to nxtvepg-2.4.0 color scheme for listboxes and entry widgets
+- set text_bg #E9E9EC via option command
+epgtcl/dlg_acqmode.tcl [rev:1.3, 2002-12-08T19:59:00]:
+epgtcl/dlg_ctxmencf.tcl [rev:1.4, 2002-12-08T19:59:00]:
+epgtcl/dlg_filter.tcl [rev:1.6, 2002-12-08T19:59:00]:
+epgtcl/dlg_hwcfg.tcl [rev:1.4, 2002-12-08T19:59:00]:
+epgtcl/dlg_netname.tcl [rev:1.2, 2002-12-08T19:59:00]:
+epgtcl/dlg_netsel.tcl [rev:1.5, 2002-12-08T19:59:00]:
+epgtcl/dlg_prov.tcl [rev:1.5, 2002-12-08T19:59:00]:
+epgtcl/dlg_shortcuts.tcl [rev:1.6, 2002-12-08T19:59:00]:
+epgtcl/dlg_udefcols.tcl [rev:1.7, 2002-12-08T19:59:00]:
+epgtcl/dlg_xawtvcf.tcl [rev:1.4, 2002-12-08T19:59:00]:
+- Global WIN32 fix for menubuttons:
+- 1. make sure every menubutton has the -underline option OR
+     if it's label is dynamically changed add -takefocus and -highlightcolor
+- 2. if -underline is used add key binding for Alt-KeyPress to the dialog toplevel
+- 3. new global variable win_frm_fg to hold highlightcolor
+- x. TODO: there's a bug in WIN32: popup can only be opened once; before the
+     2nd time a different popup must be opened
+epgtcl/mainwin.tcl [rev:1.204, 2002-12-08T19:59:15]:
+- Global WIN32 fix for menubuttons:
+- 1. make sure every menubutton has the -underline option OR
+     if it's label is dynamically changed add -takefocus and -highlightcolor
+- 2. if -underline is used add key binding for Alt-KeyPress to the dialog toplevel
+- 3. new global variable win_frm_fg to hold highlightcolor
+- x. TODO: there's a bug in WIN32: popup can only be opened once; before the
+     2nd time a different popup must be opened
+- Also:
+- use bold font for clock (Thierry)
+Makefile [rev:1.50, 2002-12-08T20:15:25]:
+- fixes for Nxtvepg.ad: added dependency to install target, added mkdirhier
+    pointed out by pingus77@ifrance.com (via mail and 2x forum)
+- moved win32 pc.tar from /c/. into /c/transfer/.
+epgui/epgmain.c [rev:1.109, 2002-12-08T20:23:39]:
+- WIN32 fix for maximizing the main window:
+- before, the main window was maximized horizontally too, even though it
+    was suppressed via "wm resizable" -> ugly gray space left & right of content
+- workaround: do an "update" *before* filling the window with widgets;
+    this required to withdraw it any deiconify directly before entering
+    the main loop
+epgctl/epgversion.h [rev:1.30, 2002-12-08T20:27:37]:
+- set version to 2.4.2
+www/changelog.html [rev:1.43, 2002-12-08T21:25:53]:
+- updated for release 2.4.2
+www/index-de.html [rev:1.48, 2002-12-08T21:29:31]:
+- updated for release 2.4.2
+- fixed link for Thompson web site (pointed out by Thierry)
+- feedback section: added more links to mailing
+www/index.html [rev:1.61, 2002-12-08T21:29:31]:
+- updated for release 2.4.2
+- fixed link for Thompson web site (pointed out by Thierry)
+- feedback section: added more links to mailing
+www/nefkom-src-index.html [rev:1.13, 2002-12-08T21:31:14]:
+- updated for release 2.4.2
+CHANGES [rev:1.31, 2002-12-08T21:31:41]:
+- updated for release 2.4.2
+TODO [rev:1.24, 2002-12-08T21:31:51]:
+- updated for release 2.4.2
+nxtvepg.spec [rev:1.11, 2002-12-08T21:32:01]:
+- updated for release 2.4.2
+tvsim/vbirec_gui.tcl [rev:1.7, 2002-12-08T21:40:16]:
+- Adapted to nxtvepg-2.4.0 color scheme for listboxes and entry widgets
+- set text_bg #E9E9EC via option command
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_4_2 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

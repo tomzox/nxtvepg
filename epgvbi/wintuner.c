@@ -26,7 +26,7 @@
  *      Copyright (C) 1997,1998 Gerd Knorr (kraxel@goldbach.in-berlin.de)
  *      also Ralph Metzler, Gunther Mayer and others; see also btdrv4win.c
  *
- *  $Id: wintuner.c,v 1.2 2002/11/30 20:28:11 tom Exp tom $
+ *  $Id: wintuner.c,v 1.3 2002/12/08 19:29:15 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -878,11 +878,10 @@ bool Tuner_SetFrequency( TUNER_TYPE type, uint wFrequency, uint norm )
       {
          case TUNER_PHILIPS_SECAM:
             /* XXX TODO: disabled until norm is provided by TV channel file parsers
+            config &= ~0x02;
             if (norm == VIDEO_MODE_SECAM)
                config |= 0x02;
-            else
             */
-               config &= ~0x02;
             break;
          case TUNER_TEMIC_4046FM5:
             config &= ~0x0f;

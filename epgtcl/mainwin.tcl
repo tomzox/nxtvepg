@@ -20,7 +20,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: mainwin.tcl,v 1.203 2002/12/01 12:47:04 tom Exp $
+#  $Id: mainwin.tcl,v 1.204 2002/12/08 19:59:15 tom Exp tom $
 #
 
 ##  ---------------------------------------------------------------------------
@@ -30,7 +30,7 @@
 ##
 proc LoadWidgetOptions {} {
    global font_normal font_fixed pi_font pi_bold_font xawtv_font help_font
-   global text_bg default_bg pi_bg_now pi_bg_past help_bg
+   global text_bg default_bg win_frm_fg pi_bg_now pi_bg_past help_bg
    global pi_cursor_bg pi_cursor_bg_now pi_cursor_bg_past
    global entry_disabledforeground
    global tcl_version is_unix
@@ -43,6 +43,7 @@ proc LoadWidgetOptions {} {
       set pi_cursor_bg_now  #b8b8df
       # background for cursor when above an expired programme
       set pi_cursor_bg_past #dfb8b8
+      # color for frame which marks menubuttons with input focus
    } else {
       if {$tcl_version >= 8.3} {
          set font_pt_size  12
@@ -115,6 +116,7 @@ proc LoadWidgetOptions {} {
    }
 
    set default_bg [. cget -background]
+   set win_frm_fg [. cget -highlightcolor]
 
    # map "artifical" resources onto internal Tk resources
    option add *Dialog.msg.font $msgbox_font userDefault
@@ -161,6 +163,9 @@ proc CreateMainWindow {} {
    frame     .all.shortcuts -borderwidth 2
    label     .all.shortcuts.clock -padx 7 -text {}
    #grid     .all.shortcuts.clock -row 0 -column 0 -pady 5 -sticky nwe
+   if {!$is_unix} {
+      .all.shortcuts.clock configure -font [DeriveFont $font_normal 0 bold]
+   }
 
    button    .all.shortcuts.tune -text "Tune TV" -relief ridge -command TuneTV -takefocus 0
    bind      .all.shortcuts.tune <Button-3> {TuneTvPopupMenu 1 %x %y}
@@ -2595,7 +2600,7 @@ proc CreateAbout {} {
       #label .about.tcl_version -text " Tcl/Tk version $tcl_patchLevel"
       #pack .about.tcl_version -side top
 
-      label .about.copyr1 -text "Copyright © 1999 - 2002 by Tom Zörner"
+      label .about.copyr1 -text "Copyright © 1999 - 2002 by Thorsten \"Tom\" Zörner"
       label .about.copyr2 -text $NXTVEPG_MAILTO
       label .about.copyr3 -text $NXTVEPG_URL -font $font_fixed -foreground blue
       pack .about.copyr1 .about.copyr2 -side top
@@ -3148,7 +3153,7 @@ proc PiListBox_PrintHelpHeader {text} {
    .all.pi.list.text insert end "Nextview EPG\n" bold24Tag
    .all.pi.list.text insert end "An Electronic TV Programme Guide for Your PC\n" bold16Tag
    .all.pi.list.text window create end -window .all.pi.list.text.nxtvlogo
-   .all.pi.list.text insert end "\n\nCopyright © 1999, 2000, 2001, 2002 by Tom Zörner\n" bold12Tag
+   .all.pi.list.text insert end "\n\nCopyright © 1999, 2000, 2001, 2002 by Thorsten \"Tom\" Zörner\n" bold12Tag
    .all.pi.list.text insert end "tomzo@nefkom.net\n\n" bold12Tag
    .all.pi.list.text tag add centerTag 1.0 {end - 1 lines}
    .all.pi.list.text insert end "This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License Version 2 as published by the Free Software Foundation. This program is distributed in the hope that it will be useful, but without any warranty. See the GPL2 for more details.\n\n" wrapTag

@@ -24,7 +24,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile,v 1.49 2002/11/10 19:57:05 tom Exp tom $
+#  $Id: Makefile,v 1.50 2002/12/08 20:15:25 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -109,9 +109,10 @@ all: nxtvepg nxtvepg.1
 nxtvepg: $(OBJS)
 	$(CC) $(LDFLAGS) -o nxtvepg $(OBJS) $(LDLIBS)
 
-install: nxtvepg nxtvepg.1
+install: nxtvepg nxtvepg.1 Nxtvepg.ad
 	test -d $(bindir) || mkdirhier $(bindir)
 	test -d $(mandir) || mkdirhier $(mandir)
+	test -d $(resdir) || mkdirhier $(resdir)
 ifndef USER_DBDIR
 	test -d $(INST_DB_DIR) || mkdirhier $(INST_DB_DIR)
 	chmod $(INST_DB_PERM) $(INST_DB_DIR)
@@ -167,7 +168,7 @@ depend:
 	done
 
 bak:
-	cd .. && tar cf /c/pc.tar pc -X pc/tar-ex-win
+	cd .. && tar cf /c/transfer/pc.tar pc -X pc/tar-ex-win
 	cd .. && tar cf pc1.tar pc -X pc/tar-ex && bzip2 -f -9 pc1.tar
 	tar cf ../pc2.tar www ATTIC dsdrv?* tk8* tcl8* && bzip2 -f -9 ../pc2.tar
 

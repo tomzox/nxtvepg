@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_netsel.tcl,v 1.4 2002/10/27 14:52:11 tom Exp tom $
+#  $Id: dlg_netsel.tcl,v 1.5 2002/12/08 19:59:00 tom Exp tom $
 #
 set netsel_popup 0
 
@@ -151,7 +151,8 @@ proc PopupNetwopSelection {} {
          frame .netsel.lb
          SelBoxCreate .netsel.lb netsel_ailist netsel_selist netsel_names
 
-         menubutton .netsel.lb.cmd.copy -text "copy" -menu .netsel.lb.cmd.copy.men -relief raised -borderwidth 2 -underline 0
+         menubutton .netsel.lb.cmd.copy -text "copy" -menu .netsel.lb.cmd.copy.men \
+                                        -relief raised -borderwidth 2 -underline 0
          pack .netsel.lb.cmd.copy -side top -anchor nw -pady 20 -fill x
          menu .netsel.lb.cmd.copy.men -tearoff 0 -postcommand {PostDynamicMenu .netsel.lb.cmd.copy.men NetselCreateCopyMenu {}}
 
@@ -191,6 +192,7 @@ proc PopupNetwopSelection {} {
          NetselUpdateCni orig
 
          bind .netsel <Key-F1> {PopupHelp $helpIndex(Configuration) "Select networks"}
+         bind .netsel <Alt-KeyPress> [bind Menubutton <Alt-KeyPress>]
          bind .netsel.lb.cmd <Destroy> {+ set netsel_popup 0}
 
          wm resizable .netsel 1 1

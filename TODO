@@ -12,18 +12,21 @@ Misc. changes planned for the near future:
 - single click on short-info size slider: resize by one line
 - start time search: abs. stop time val "23:10" excludes titles starting at 23:10
 - improved text search: keywords (google style), multi-line (OR), parity-safe/fuzzy
+- parity-safe short/long info redundancy removal
 - series search via title
 - allow provider channel names at the -prov command line arg
 - refuse to load rcfile from newer versions
-  (include backwards compat flag in rcfile?)
+  (include backwards compat flag in rcfile)
 - HTML dump: allow to specify which column to use for hyperlink
 - user-def column: background color (maybe of complete row?)
 - context menu config menu: remove need for "update" button: save automatically
 - new PI column type which displays full weekday name (Thierry)
 - help text hyperlink error in chapter "Context menu" (Thierry)
-- WIN32: -underline doesn't work for menubuttons in dialogs
-  (cannot invoke menu with ALT-x)
-- improve short/long info redundancy handling for French providers
+- different background colors for PI, alternating by date (Ronceval)
+- WIN32: menubutton popups does not work when invoked for the 2nd time via
+  ALT key binding (Thierry)
+- WIN32: status line hidden by task bar when maximized (not on NT?) (Ronceval)
+- localize language for date drop-down menu (Thierry)
 
 daemon:
 - make concurrent updates of shared rc file safe (e.g. daemon writes provider freq)
