@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbif.h,v 1.18 2001/04/28 09:16:40 tom Exp tom $
+ *  $Id: epgdbif.h,v 1.21 2001/08/31 16:55:36 tom Exp tom $
  */
 
 #ifndef __EPGDBIF_H
@@ -42,7 +42,7 @@ const PI_BLOCK * EpgDbSearchObsoletePi( const EPGDB_CONTEXT * dbc, uchar netwop_
 const PI_BLOCK * EpgDbSearchPiByPil( const EPGDB_CONTEXT * dbc, uchar netwop_no, uint pil );
 
 #ifdef __EPGDBFIL_H
-const PI_BLOCK * EpgDbSearchPi( const EPGDB_CONTEXT * dbc, const FILTER_CONTEXT *fc, time_t start_time, uchar netwop_no );
+const PI_BLOCK * EpgDbSearchPi( const EPGDB_CONTEXT * dbc, time_t start_time, uchar netwop_no );
 const PI_BLOCK * EpgDbSearchFirstPi( const EPGDB_CONTEXT * dbc, const FILTER_CONTEXT *fc );
 const PI_BLOCK * EpgDbSearchLastPi( const EPGDB_CONTEXT * dbc, const FILTER_CONTEXT *fc );
 const PI_BLOCK * EpgDbSearchNextPi( const EPGDB_CONTEXT * dbc, const FILTER_CONTEXT *fc, const PI_BLOCK * pPiBlock );
@@ -54,10 +54,11 @@ uchar EpgDbGetStream( const void * pBlock );
 uchar EpgDbGetVersion( const void * pBlock );
 ulong EpgDbGetPiBlockCount( uint startNo, uint stopNo );
 ulong EpgDbGetPiBlockIndex( uint startNo, uint blockNo );
+uchar EpgDbGetStreamByBlockNo( const EPGDB_CONTEXT * dbc, uint block_no, uchar netwop );
 uint  EpgDbContextGetCni( const EPGDB_CONTEXT * dbc );
 bool  EpgDbContextIsMerged( const EPGDB_CONTEXT * dbc );
 
-bool  EpgDbGetStat( const EPGDB_CONTEXT * dbc, EPGDB_BLOCK_COUNT * pCount, time_t acqMinTime );
+bool  EpgDbGetStat( const EPGDB_CONTEXT * dbc, EPGDB_BLOCK_COUNT * pCount, time_t * acqMinTime, uint maxNowRepCount );
 void  EpgDbResetAcqRepCounters( EPGDB_CONTEXT * dbc );
 uint  EpgDbGetNowCycleMaxRepCounter( const EPGDB_CONTEXT * dbc );
 

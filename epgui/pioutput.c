@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pioutput.c,v 1.7 2001/08/25 11:52:41 tom Exp tom $
+ *  $Id: pioutput.c,v 1.8 2001/09/02 17:20:32 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -1499,9 +1499,10 @@ static int PiOutput_PopupPi( ClientData ttp, Tcl_Interp *interp, int argc, char 
          {
             switch (pDesc[index].type)
             {
-               case 7:  sprintf(comm, "%s.text insert end {Descriptor:\tlanguage ID %d\n} body\n", ident, pDesc[index].id); break;
-               case 8:  sprintf(comm, "%s.text insert end {Descriptor:\tsubtitle ID %d\n} body\n", ident, pDesc[index].id); break;
-               default: sprintf(comm, "%s.text insert end {Descriptor:\tunknown type=%d, ID=%d\n} body\n", ident, pDesc[index].type, pDesc[index].id); break;
+               case LI_DESCR_TYPE:    sprintf(comm, "%s.text insert end {Descriptor:\tlanguage ID %d\n} body\n", ident, pDesc[index].id); break;
+               case TI_DESCR_TYPE:    sprintf(comm, "%s.text insert end {Descriptor:\tsubtitle ID %d\n} body\n", ident, pDesc[index].id); break;
+               case MERGE_DESCR_TYPE: sprintf(comm, "%s.text insert end {Descriptor:\tmerged from db #%d\n} body\n", ident, pDesc[index].id); break;
+               default:               sprintf(comm, "%s.text insert end {Descriptor:\tunknown type=%d, ID=%d\n} body\n", ident, pDesc[index].type, pDesc[index].id); break;
             }
             eval_check(interp, comm);
          }

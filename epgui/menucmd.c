@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: menucmd.c,v 1.47 2001/06/16 10:27:15 tom Exp tom $
+ *  $Id: menucmd.c,v 1.49 2001/09/02 17:30:58 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -95,7 +95,7 @@ static int SetControlMenuStates(ClientData ttp, Tcl_Interp *interp, int argc, ch
 
       // enable "acq timescales" only if acq running on different db than ui
       sprintf(comm, ".menubar.ctrl entryconfigure \"View acq timescales...\" -state %s\n",
-                    (((acqCni != 0) && (acqCni != uiCni)) ? "normal" : "disabled"));
+                    ((acqCni != 0) ? "normal" : "disabled"));
       eval_check(interp, comm);
 
       // enable "db stats" only if UI db has AI block
@@ -103,7 +103,7 @@ static int SetControlMenuStates(ClientData ttp, Tcl_Interp *interp, int argc, ch
                     ((uiCni != 0) ? "normal" : "disabled"));
       eval_check(interp, comm);
 
-      // enable "acq stats" only if acq running on different db than ui
+      // enable "acq stats" only if acq running
       sprintf(comm, ".menubar.ctrl entryconfigure \"View acq statistics...\" -state %s\n",
                     ((pAcqDbContext != 0) ? "normal" : "disabled"));
       eval_check(interp, comm);
@@ -250,7 +250,6 @@ static int MenuCmd_DumpDatabase(ClientData ttp, Tcl_Interp *interp, int argc, ch
 static int MenuCmd_ChangeProvider(ClientData ttp, Tcl_Interp *interp, int argc, char *argv[])
 {
    const char * const pUsage = "Usage: C_ChangeProvider <cni>";
-   uint oldAcqCni;
    int cni;
    int result;
 
@@ -264,8 +263,6 @@ static int MenuCmd_ChangeProvider(ClientData ttp, Tcl_Interp *interp, int argc, 
       // get the CNI of the selected provider
       if (Tcl_GetInt(interp, argv[1], &cni) == TCL_OK)
       {
-         oldAcqCni = EpgDbContextGetCni(pAcqDbContext);
-
          EpgContextCtl_Close(pUiDbContext);
          pUiDbContext = EpgContextCtl_Open(cni, CTX_RELOAD_ERR_REQ);
 
@@ -273,12 +270,6 @@ static int MenuCmd_ChangeProvider(ClientData ttp, Tcl_Interp *interp, int argc, 
          EpgAcqCtl_UiProvChange();
 
          StatsWin_ProvChange(DB_TARGET_UI);
-
-         // note that acq db may change in parallel, if there is no EPG
-         // reception on the current channel; this is to avoid uselessly
-         // keeping a 2nd db open
-         if (oldAcqCni != EpgDbContextGetCni(pAcqDbContext))
-            StatsWin_ProvChange(DB_TARGET_ACQ);
 
          UiControl_AiStateChange(NULL);
          eval_check(interp, "C_ResetFilter all; ResetFilterState");
@@ -434,21 +425,54 @@ static int MenuCmd_GetProvCnisAndNames(ClientData ttp, Tcl_Interp *interp, int a
 }
 
 // ----------------------------------------------------------------------------
+// Append list of networks in a AI to the result
+// - as a side-effect the netwop names are stored into a TCL array
+//
+static void MenuCmd_AppendNetwopList( Tcl_Interp *interp, const AI_BLOCK * pAiBlock, char * pArrName, bool unify )
+{
+   uchar strbuf[15];
+   uint  netwop;
+
+   if (pAiBlock != NULL)
+   {
+      for ( netwop = 0; netwop < pAiBlock->netwopCount; netwop++ ) 
+      {
+         sprintf(strbuf, "0x%04X", AI_GET_NETWOP_N(pAiBlock, netwop)->cni);
+
+         // if requested check if the same CNI is already in the result
+         // XXX hack: only works if name array is given
+         if ( (unify == FALSE) || (pArrName[0] == 0) ||
+              (Tcl_GetVar2(interp, pArrName, strbuf, 0) == NULL) )
+         {
+            // append the CNI in the format "0x0D94" to the TCL result list
+            Tcl_AppendElement(interp, strbuf);
+
+            // as a side-effect the netwop names are stored into a TCL array
+            if (pArrName[0] != 0)
+               Tcl_SetVar2(interp, pArrName, strbuf, AI_GET_NETWOP_NAME(pAiBlock, netwop), 0);
+         }
+      }
+   }
+}
+
+// ----------------------------------------------------------------------------
 // Get List of netwop CNIs and array of names from AI for netwop selection
 // - 1st argument selects the provider; 0 for the current browser database
 // - 2nd argument names a Tcl array where to store the network names;
 //   may be 0-string if not needed
+// - optional 3rd argument may be "allmerged" if in case of a merged database
+//   all CNIs of all source databases shall be returned
 //
 static int MenuCmd_GetAiNetwopList( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
 {
-   const char * const pUsage = "Usage: C_GetAiNetwopList <CNI> <varname>";
+   const char * const pUsage = "Usage: C_GetAiNetwopList <CNI> <varname> [allmerged]";
    const EPGDBSAV_PEEK *pPeek;
+   EPGDB_CONTEXT * pDbContext;
    EPGDB_RELOAD_RESULT dberr;
    const AI_BLOCK *pAiBlock;
-   uchar netwop;
    int result, cni;
 
-   if (argc != 3) 
+   if ((argc != 3) && ((argc != 4) || strcmp(argv[3], "allmerged")))
    {  // wrong # of args for this TCL cmd -> display error msg
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR; 
@@ -458,41 +482,58 @@ static int MenuCmd_GetAiNetwopList( ClientData ttp, Tcl_Interp *interp, int argc
       result = Tcl_GetInt(interp, argv[1], &cni);
       if (result == TCL_OK)
       {
-         if ((cni == 0) || (cni == EpgDbContextGetCni(pUiDbContext)))
-         {
-            EpgDbLockDatabase(pUiDbContext, TRUE);
-            pAiBlock = EpgDbGetAi(pUiDbContext);
-            if (pAiBlock != NULL)
-            {
-               for ( netwop = 0; netwop < pAiBlock->netwopCount; netwop++ ) 
-               {
-                  // append the CNI in the format "0x0D94" to the TCL result list
-                  sprintf(comm, "0x%04X", AI_GET_NETWOP_N(pAiBlock, netwop)->cni);
-                  Tcl_AppendElement(interp, comm);
+         // clear the network names result array
+         if (argv[2][0] != 0)
+            Tcl_UnsetVar(interp, argv[2], 0);
 
-                  // as a side-effect the netwop names are stored into a TCL array
-                  if (argv[2][0] != 0)
-                     Tcl_SetVar2(interp, argv[2], comm, AI_GET_NETWOP_NAME(pAiBlock, netwop), 0);
+         if ((cni == 0) || (cni == EpgDbContextGetCni(pUiDbContext)))
+            pDbContext = pUiDbContext;
+         else if (cni == EpgDbContextGetCni(pAcqDbContext))
+            pDbContext = pAcqDbContext;
+         else
+            pDbContext = NULL;
+
+         if ((pDbContext != NULL) && EpgDbContextIsMerged(pDbContext) && (argc == 4))
+         {
+            // special mode for merged db: return all CNIs from all source dbs
+            uint dbIdx, provCount, provCniTab[MAX_MERGED_DB_COUNT];
+
+            if (EpgContextMergeGetCnis(pUiDbContext, &provCount, provCniTab))
+            {
+               // peek into all merged dbs
+               for (dbIdx=0; dbIdx < provCount; dbIdx++)
+               {
+                  pPeek = EpgDbPeek(provCniTab[dbIdx], &dberr);
+                  if (pPeek != NULL)
+                  {
+                     pAiBlock = &pPeek->pAiBlock->blk.ai;
+                     MenuCmd_AppendNetwopList(interp, pAiBlock, argv[2], TRUE);
+
+                     EpgDbPeekDestroy(pPeek);
+                  }
+                  else
+                  {  // failed to peek into the db -> inform the user
+                     UiControlMsg_ReloadError(cni, dberr, CTX_RELOAD_ERR_ANY);
+                  }
                }
             }
-            EpgDbLockDatabase(pUiDbContext, FALSE);
+         }
+         else if (pDbContext != NULL)
+         {
+            // db is already open -> just take the AI block from it
+            EpgDbLockDatabase(pDbContext, TRUE);
+            pAiBlock = EpgDbGetAi(pDbContext);
+            MenuCmd_AppendNetwopList(interp, pAiBlock, argv[2], FALSE);
+            EpgDbLockDatabase(pDbContext, FALSE);
          }
          else
          {
+            // db is not open -> peek into it
             pPeek = EpgDbPeek(cni, &dberr);
             if (pPeek != NULL)
             {
                pAiBlock = &pPeek->pAiBlock->blk.ai;
-               for ( netwop = 0; netwop < pAiBlock->netwopCount; netwop++ ) 
-               {
-                  // append the CNI in the format "0x0D94" to the TCL result list
-                  sprintf(comm, "0x%04X", AI_GET_NETWOP_N(pAiBlock, netwop)->cni);
-                  Tcl_AppendElement(interp, comm);
-
-                  // as a side-effect the netwop names are stored into a TCL array
-                  if (argv[2][0] != 0)
-                     Tcl_SetVar2(interp, argv[2], comm, AI_GET_NETWOP_NAME(pAiBlock, netwop), 0);
-               }
+               MenuCmd_AppendNetwopList(interp, pAiBlock, argv[2], FALSE);
 
                EpgDbPeekDestroy(pPeek);
             }
@@ -507,9 +548,55 @@ static int MenuCmd_GetAiNetwopList( ClientData ttp, Tcl_Interp *interp, int argc
 }
 
 // ----------------------------------------------------------------------------
+// Retrieve CNI list from the merged database's user network selection
+//
+static int ProvMerge_ParseNetwopList( Tcl_Interp * interp, uint * pCniCount, uint * pCniTab )
+{
+   char **pCniArgv, **pSubLists;
+   char * pTmpStr;
+   int  * pCni;
+   uint idx;
+   int  result;
+
+   pTmpStr = Tcl_GetVar2(interp, "cfnetwops", "0x00FF", TCL_GLOBAL_ONLY);
+   if (pTmpStr != NULL)
+   {
+      // parse list of 2 lists, e.g. {{0x0dc1 0x0dc2} {0x0AC1 0x0AC2}}
+      result = Tcl_SplitList(interp, pTmpStr, pCniCount, &pSubLists);
+      if (result == TCL_OK)
+      {
+         if (*pCniCount == 2)
+         {
+            // parse CNI list, e.g. {0x0dc1 0x0dc2}
+            result = Tcl_SplitList(interp, pSubLists[0], pCniCount, &pCniArgv);
+            if (result == TCL_OK)
+            {
+               pCni = (int *) pCniTab;
+               for (idx=0; (idx < *pCniCount) && (idx < MAX_NETWOP_COUNT) && (result == TCL_OK); idx++)
+               {
+                  result = Tcl_GetInt(interp, pCniArgv[idx], pCni++);
+               }
+
+               Tcl_Free((char *) pCniArgv);
+            }
+         }
+         else
+            result = TCL_ERROR;
+
+         Tcl_Free((char *) pSubLists);
+      }
+   }
+   else
+      result = TCL_ERROR;
+
+   return result;
+}
+
+// ----------------------------------------------------------------------------
 // Parse the Tcl provider merge config string and convert it to attribute matrix
 //
-int ProvMerge_ParseConfigString( Tcl_Interp *interp, uint *pCniCount, uint * pCniTab, MERGE_ATTRIB_VECTOR_PTR pMax )
+static int
+ProvMerge_ParseConfigString( Tcl_Interp *interp, uint *pCniCount, uint * pCniTab, MERGE_ATTRIB_VECTOR_PTR pMax )
 {
    char **pCniArgv, **pAttrArgv, **pIdxArgv;
    uint attrCount, idxCount, idx, idx2, ati, matIdx, cni;
@@ -519,7 +606,7 @@ int ProvMerge_ParseConfigString( Tcl_Interp *interp, uint *pCniCount, uint * pCn
    pTmpStr = Tcl_GetVar(interp, "prov_merge_cnis", TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG);
    if (pTmpStr != NULL)
    {
-      // parse CNI list, format: {0x0d94, ...}
+      // parse CNI list, format: {0x0d94 ...}
       result = Tcl_SplitList(interp, pTmpStr, pCniCount, &pCniArgv);
       if (result == TCL_OK)
       {
@@ -646,8 +733,9 @@ static int ProvMerge_Start(ClientData ttp, Tcl_Interp *interp, int argc, char *a
 {
    const char * const pUsage = "Usage: C_ProvMerge_Start";
    MERGE_ATTRIB_MATRIX max;
-   uint pCniTab[MAX_MERGED_DB_COUNT];
-   uint cniCount;
+   uint provCniTab[MAX_MERGED_DB_COUNT];
+   uint netwopCniTab[MAX_NETWOP_COUNT];
+   uint provCount, netwopCount;
    int  result;
 
    if (argc != 1)
@@ -657,11 +745,12 @@ static int ProvMerge_Start(ClientData ttp, Tcl_Interp *interp, int argc, char *a
    }
    else
    {
-      result = ProvMerge_ParseConfigString(interp, &cniCount, pCniTab, &max[0]);
-      if (result == TCL_OK)
+      if (ProvMerge_ParseConfigString(interp, &provCount, provCniTab, &max[0]) == TCL_OK)
       {
+         ProvMerge_ParseNetwopList(interp, &netwopCount, netwopCniTab);
+
          EpgContextCtl_Close(pUiDbContext);
-         pUiDbContext = EpgContextMerge(cniCount, pCniTab, max);
+         pUiDbContext = EpgContextMerge(provCount, provCniTab, max, netwopCount, netwopCniTab);
 
          EpgAcqCtl_UiProvChange();
 
@@ -676,7 +765,11 @@ static int ProvMerge_Start(ClientData ttp, Tcl_Interp *interp, int argc, char *a
          // put the new CNI at the front of the selection order and update the config file
          sprintf(comm, "UpdateProvSelection 0x00FF\n");
          eval_check(interp, comm);
+
+         result = TCL_OK;
       }
+      else
+         result = TCL_ERROR;
    }
 
    return result;
@@ -729,12 +822,14 @@ void OpenInitialDb( uint startUiCni )
       if (cni == 0x00ff)
       {  // special case: merged db
          MERGE_ATTRIB_MATRIX max;
-         uint pCniTab[MAX_MERGED_DB_COUNT];
-         uint cniCount;
+         uint pProvCniTab[MAX_MERGED_DB_COUNT];
+         uint netwopCniTab[MAX_NETWOP_COUNT];
+         uint provCount, netwopCount;
 
-         if (ProvMerge_ParseConfigString(interp, &cniCount, pCniTab, &max[0]) == TCL_OK)
+         if (ProvMerge_ParseConfigString(interp, &provCount, pProvCniTab, &max[0]) == TCL_OK)
          {
-            pUiDbContext = EpgContextMerge(cniCount, pCniTab, max);
+            ProvMerge_ParseNetwopList(interp, &netwopCount, netwopCniTab);
+            pUiDbContext = EpgContextMerge(provCount, pProvCniTab, max, netwopCount, netwopCniTab);
          }
       }
       else
@@ -1326,7 +1421,7 @@ static int MenuCmd_GetTimeZone(ClientData ttp, Tcl_Interp *interp, int argc, cha
 
       tzset();
       tm = localtime(&now);
-      lto = EpgLtoGet();
+      lto = EpgLtoGet(now);
 
       sprintf(comm, "%d %d {%s}", lto/60, tm->tm_isdst, (tm->tm_isdst ? tzname[1] : tzname[0]));
       Tcl_SetResult(interp, comm, TCL_VOLATILE);

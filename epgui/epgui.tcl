@@ -21,7 +21,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: epgui.tcl,v 1.130 2001/08/30 08:41:56 tom Exp tom $
+#  $Id: epgui.tcl,v 1.134 2001/09/02 17:15:16 tom Exp tom $
 #
 
 set is_unix [expr [string compare $tcl_platform(platform) "unix"] == 0]
@@ -2868,7 +2868,7 @@ proc PopupNetwopSelection {} {
 
          # fetch CNI list from AI block in database
          # as a side effect this function stores all netwop names into the array netsel_names
-         set netsel_ailist [C_GetAiNetwopList 0 netsel_names]
+         set netsel_ailist [C_GetAiNetwopList 0 netsel_names allmerged]
          ApplyUserNetnameCfg netsel_names
          # initialize list of user-selected CNIs
          if {[info exists cfnetwops($netsel_prov)]} {
@@ -2910,6 +2910,11 @@ proc SaveSelectedNetwopList {} {
       }
    }
    set cfnetwops($netsel_prov) [list $netsel_selist $sup]
+
+   # merged database: merge the requested networks
+   if {$netsel_prov == 0x00FF} {
+      C_ProvMerge_Start
+   }
 
    # save list into rc/ini file
    UpdateRcFile
@@ -5053,42 +5058,141 @@ proc ContextMenuConfigQuit {is_abort} {
 ## ---------------------------------------------------------------------------
 
 ## ---------------------------------------------------------------------------
-## Create the timescale for one network
-## - for merged databases do not display checkboxes for Now & Next PI blocks
+## Open or update a timescale popup window
 ##
-proc TimeScale_Create {frame netwopName isMerged} {
-   global tscnowid
+proc TimeScale_Open {w cni key isMerged} {
 
-   frame $frame
-   set default_bg [$frame cget -background]
+   # fetch network list from AI block in database
+   set netsel_ailist [C_GetAiNetwopList $cni netnames]
 
-   label $frame.name -text $netwopName -anchor w
-   pack $frame.name -side left -fill x -expand true
+   if {[string length [info commands $w]] == 0} {
+      if {[string compare $key ui] == 0} {
+         set wtitle "Nextview browser database time scales"
+      } else {
+         set wtitle "Nextview acquisition database time scales"
+      }
 
-   canvas $frame.stream -bg $default_bg -height 12 -width 298
-   pack $frame.stream -side left
-   $frame.stream create rect 40 4 298 12 -outline "" -fill black
+      toplevel $w
+      wm title $w $wtitle
+      wm resizable $w 0 0
+      wm group $w .
 
-   if {!$isMerged} {
-      set tscnowid(0) [$frame.stream create rect  1 4  5 12 -outline "" -fill black]
-      set tscnowid(1) [$frame.stream create rect  8 4 12 12 -outline "" -fill black]
-      set tscnowid(2) [$frame.stream create rect 15 4 19 12 -outline "" -fill black]
-      set tscnowid(3) [$frame.stream create rect 22 4 26 12 -outline "" -fill black]
-      set tscnowid(4) [$frame.stream create rect 29 4 33 12 -outline "" -fill black]
+      # create a time scale for each network;  note: use numerical indices
+      # instead of CNIs to be able to reuse the scales for another provider
+      frame $w.top
+      set idx 0
+      foreach cni $netsel_ailist {
+         TimeScale_Create $w $idx $netnames($cni) $isMerged
+         incr idx
+      }
+      pack $w.top -padx 5 -pady 5 -side top -fill x
+
+      # create frame with label for status line
+      frame $w.bottom -borderwidth 2 -relief sunken
+      label $w.bottom.l -text {}
+      pack $w.bottom.l -side left -anchor w
+      pack $w.bottom -side top -fill x
+
+      # create notification callback in case the window is closed
+      bind $w.bottom <Destroy> [list + C_StatsWin_ToggleTimescale $key 0]
+
+   } else {
+
+      # popup already open -> just update the scales
+
+      set idx 0
+      foreach cni $netsel_ailist {
+         TimeScale_Create $w $idx $netnames($cni) $isMerged
+         incr idx
+      }
+
+      # remove obsolete timescales at the bottom
+      # e.g. after an AI update in case the new AI has less networks
+      while {[string length [info commands $w.top.n$idx]] != 0} {
+         pack forget $w.top.n$idx
+         destroy $w.top.n$idx
+         incr idx
+      }
+   }
+}
+
+## ---------------------------------------------------------------------------
+## Create or update the n'th timescale
+##
+proc TimeScale_Create {w netwop netwopName isMerged} {
+   global tscnowid default_bg
+
+   set w $w.top.n$netwop
+
+   # for merged databases make Now & Next boxes invisible
+   if $isMerged {
+      set now_bg $default_bg
+   } else {
+      set now_bg black
    }
 
-   pack $frame -fill x -expand true
+   if {[string length [info commands $w]] == 0} {
+      frame $w
+
+      label $w.name -text $netwopName -anchor w
+      pack $w.name -side left -fill x -expand true
+
+      canvas $w.stream -bg $default_bg -height 12 -width 298
+      pack $w.stream -side left
+
+      set tscnowid(0) [$w.stream create rect  1 4  5 12 -outline "" -fill $now_bg]
+      set tscnowid(1) [$w.stream create rect  8 4 12 12 -outline "" -fill $now_bg]
+      set tscnowid(2) [$w.stream create rect 15 4 19 12 -outline "" -fill $now_bg]
+      set tscnowid(3) [$w.stream create rect 22 4 26 12 -outline "" -fill $now_bg]
+      set tscnowid(4) [$w.stream create rect 29 4 33 12 -outline "" -fill $now_bg]
+
+      set tscnowid(bg) [$w.stream create rect 40 4 298 12 -outline "" -fill black]
+
+      pack $w -fill x -expand true
+
+   } else {
+      # timescale already exists -> just update it
+
+      # update the network name
+      $w.name configure -text $netwopName
+
+      # reset the "Now" buttons
+      for {set idx 0} {$idx < 5} {incr idx} {
+         $w.stream itemconfigure $tscnowid($idx) -fill $now_bg
+      }
+
+      # clear the scale
+      set id_bg $tscnowid(bg)
+      foreach id [$w.stream find overlapping 39 0 299 12] {
+         if {$id != $id_bg} {
+            $w.stream delete $id
+         }
+      }
+   }
 }
 
 ## ---------------------------------------------------------------------------
 ## Display the timespan covered by a PI in its network timescale
 ##
-proc TimeScale_AddPi {frame pos1 pos2 color hasShort hasLong} {
+proc TimeScale_AddPi {w pos1 pos2 color hasShort hasLong isLast} {
+   global tscnowid
+
    set y0 4
    set y1 12
    if {$hasShort} {set y0 [expr $y0 - 2]}
    if {$hasLong}  {set y1 [expr $y1 + 2]}
-   $frame.stream create rect [expr 40 + $pos1] $y0 [expr 40 + $pos2] $y1 -fill $color -outline ""
+   $w.stream create rect [expr 40 + $pos1] $y0 [expr 40 + $pos2] $y1 -fill $color -outline ""
+
+   if $isLast {
+      # this was the last block as defined in the AI block
+      # -> remove any remaining blocks to the right, esp. the "PI missing" range
+      set id_bg $tscnowid(bg)
+      foreach id [$w.stream find overlapping [expr 41 + $pos2] 0 299 12] {
+         if {$id != $id_bg} {
+            $w.stream delete $id
+         }
+      }
+   }
 }
 
 ## ---------------------------------------------------------------------------
@@ -5128,6 +5232,10 @@ proc DbStatsWin_Create {wname} {
    # this frame is intentionally not packed
    #pack $wname.acq -side top -anchor nw -fill both
 
+   button $wname.browser.qmark -bitmap bitmap_qmark -cursor top_left_arrow -takefocus 0 -relief ridge
+   bind   $wname.browser.qmark <ButtonRelease-1> {PopupHelp $helpIndex(Statistics) "Database statistics popup windows"}
+   pack   $wname.browser.qmark -side top
+
    # inform the control code when the window is destroyed
    bind $wname.browser <Destroy> [list + C_StatsWin_ToggleDbStats $wname 0]
 }
@@ -5137,7 +5245,7 @@ proc DbStatsWin_Create {wname} {
 ##
 proc DbStatsWin_PaintPie {wname val1exp val1cur val1all val1total val2exp val2cur val2all} {
 
-   catch [ $wname.pie delete all ]
+   catch [ $wname.browser.pie delete all ]
 
    if {$val1total > 0} {
       # paint the slice of stream 1 in red
@@ -5180,7 +5288,7 @@ proc DbStatsWin_PaintPie {wname val1exp val1cur val1all val1total val2exp val2cu
 ## Clear the pie chart for an empty database
 ##
 proc DbStatsWin_ClearPie {wname} {
-   catch [ $wname.pie delete all ]
+   catch [ $wname.browser.pie delete all ]
    $wname.browser.pie create oval 1 1 127 127 -outline black -fill white
 }
 

@@ -28,7 +28,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbacq.c,v 1.30 2001/06/10 08:09:05 tom Exp tom $
+ *  $Id: epgdbacq.c,v 1.31 2001/09/02 16:12:39 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -802,13 +802,10 @@ void EpgDbAcqProcessPackets( EPGDB_CONTEXT * const * pdbc )
             dprintf2("EpgDbAcq-ProcessPackets: Offer AI block 0x%04X to acq ctl (0x%lx)\n", AI_GET_CNI(&pBlock->blk.ai), (long)pBlock);
             if (pEpgDbAcqCb->pAiCallback(&pBlock->blk.ai))
             {  // AI has been accepted -> start full acquisition
-               if ( EpgDbAddBlock(*pdbc, pBlock) )
-               {
-                  bScratchAcqMode = FALSE;
-                  EpgStreamEnableAllTypes();
-               }
-               else
+               if (EpgDbAddBlock(*pdbc, pBlock) == FALSE)
                   xfree(pBlock);
+               bScratchAcqMode = FALSE;
+               EpgStreamEnableAllTypes();
             }
             else
                xfree(pBlock);

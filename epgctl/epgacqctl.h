@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqctl.h,v 1.28 2001/06/10 08:29:15 tom Exp tom $
+ *  $Id: epgacqctl.h,v 1.29 2001/09/02 17:03:02 tom Exp tom $
  */
 
 #ifndef __EPGACQCTL_H
@@ -78,6 +78,7 @@ typedef enum
    ACQMODE_PHASE_NOWNEXT,
    ACQMODE_PHASE_STREAM1,
    ACQMODE_PHASE_STREAM2,
+   ACQMODE_PHASE_MONITOR,
    ACQMODE_PHASE_COUNT
 } EPGACQ_PHASE;
 
@@ -101,7 +102,6 @@ enum
 #define EPGACQCTL_DUMP_INTV      60   // interval between db dumps
 #define EPGACQCTL_MODIF_INTV  (2*60)  // max. interval without reception
 
-#define EPGACQCTL_NOWNEXT_UPD_INTV      (45*60)
 #define EPGACQCTL_STREAM1_UPD_INTV    (1*60*60)
 #define EPGACQCTL_STREAM2_UPD_INTV   (14*60*60)
 
@@ -109,7 +109,12 @@ enum
 #define MIN_CYCLE_VARIANCE  0.25
 #define MAX_CYCLE_VAR_DIFF  0.01
 
+#define MAX_CYCLE_ACQ_REP_COUNT   1.1
+
 #define NOWNEXT_TIMEOUT_AI_COUNT  5
+#define NOWNEXT_TIMEOUT          (5*60)
+#define STREAM1_TIMEOUT         (30*60)
+#define STREAM2_TIMEOUT         (30*60)
 
 // ---------------------------------------------------------------------------
 // Structure to keep statistics about the current acq db
@@ -130,20 +135,25 @@ typedef struct
 
 typedef struct
 {
+   double buf[VARIANCE_HIST_COUNT];   // ring buffer for variance
+   uint   count;                      // number of valid entries in the buffer
+   uint   lastIdx;                    // last written index
+} EPGDB_VAR_HIST;
+
+typedef struct
+{
    time_t acqStartTime;
    time_t lastAiTime;
    time_t minAiDistance;
    time_t maxAiDistance;
-   double avgAiDistance;
+   ulong  sumAiDistance;
    uint   aiCount;
    EPGDB_HIST hist[STATS_HIST_WIDTH];
    uchar  histIdx;
 
-   double varianceHist[VARIANCE_HIST_COUNT];  // ring buffer for variance
-   uint   varianceHistCount;      // number of valid entries in the buffer
-   uint   varianceHistIdx;        // last written index
-
    EPGDB_BLOCK_COUNT count[2];
+   EPGDB_VAR_HIST    varianceHist[2];
+   uint              nowNextMaxAcqRepCount;
 
    ulong  ttxPkgCount;       // copied here from epgdbacq module
    ulong  epgPkgCount;
@@ -175,6 +185,7 @@ typedef struct
    EPGACQ_MODE    mode;
    EPGACQ_PHASE   cyclePhase;
    EPGACQ_PASSIVE passiveReason;
+   uint           cniCount;
    uint           dbCni;
    uint           cycleCni;
 

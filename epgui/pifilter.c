@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pifilter.c,v 1.50 2001/08/19 11:11:32 tom Exp tom $
+ *  $Id: pifilter.c,v 1.51 2001/08/31 16:59:39 tom Exp tom $
  */
 
 #define __PIFILTER_C
@@ -1008,8 +1008,9 @@ static void UpdateFilterContextMenuState( const NI_FILTER_STATE * pNiState )
 
    if (pNiState->flags != NI_DATE_NONE)
    {
-      sint lto = EpgLtoGet();
-      uint nowMoD = ((time(NULL) + lto) % (60*60*24)) / 60;
+      time_t now  = time(NULL);
+      sint lto    = EpgLtoGet(now);
+      uint nowMoD = ((now + lto) % (60*60*24)) / 60;
 
       if ((pNiState->flags & NI_DATE_RELDATE) == 0)
          sprintf(comm, "set timsel_date 0\n");
@@ -1185,8 +1186,8 @@ static int SelectNi( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] 
       UpdateFilterContextMenuState(&niState);
       // apply time filter settings to filter context
       EpgDbFilterFinishNi(pPiFilterContext, &niState);
-      // add network pre-filter
-      EpgDbFilterEnable(pPiFilterContext, FILTER_NETWOP_PRE);
+      // add network and expire pre-filters
+      EpgDbFilterEnable(pPiFilterContext, FILTER_PERM);
 
       PiListBox_Refresh();
 

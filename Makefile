@@ -62,7 +62,7 @@ INST_DB_DIR = $(ROOT)$(DB_DIR)
 #          -Werror -Wstrict-prototypes -Wmissing-prototypes
 WARN    = -Wall
 CC      = gcc
-CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -O2
+CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -O3
 
 # ----- don't change anything below ------------------------------------------
 

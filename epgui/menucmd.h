@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: menucmd.h,v 1.8 2001/04/03 20:07:13 tom Exp tom $
+ *  $Id: menucmd.h,v 1.9 2001/09/02 17:21:10 tom Exp tom $
  */
 
 #ifndef __MENUCMD_H
@@ -26,9 +26,6 @@
 void MenuCmd_Init( bool isDemoMode );
 void OpenInitialDb( uint startUiCni );
 
-#ifdef __EPGDBMERGE_H
-int  ProvMerge_ParseConfigString( Tcl_Interp *interp, uint *pCniCount, uint * pCniTab, MERGE_ATTRIB_VECTOR_PTR pMax );
-#endif
 int SetAcquisitionMode( void );
 int SetHardwareConfig( Tcl_Interp *interp, int cardIndex );
 

@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgblock.c,v 1.37 2001/08/19 09:11:58 tom Exp tom $
+ *  $Id: epgblock.c,v 1.38 2001/08/31 16:43:33 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -36,7 +36,9 @@
 
 static uchar netwopAlphabets[MAX_NETWOP_COUNT];
 static uchar providerAlphabet;
-static sint lto = 0;
+
+static time_t unixTimeBase1982;         // 1.1.1982 in UNIX time format
+#define JULIAN_DATE_1982  (45000-30)    // 1.1.1982 in Julian date format
 
 
 // ----------------------------------------------------------------------------
@@ -85,126 +87,66 @@ EPGDB_BLOCK * EpgBlockCreate( uchar type, uint size )
    return pBlock;
 }
 
-// ---------------------------------------------------------------------------
-// Determine local time offset to UTC
+// ----------------------------------------------------------------------------
+// Retrieve the Local Time Offset (LTO) at the given time
+// - the LTO at the given time may be different from the current one
+//   due to a change in daylight saving time inbetween
+// - hence we compute it anew upon every invocation. Since it should only be
+//   required for interactive GUI stuff performance is not considered
 //
-void EpgLtoInit( void )
+sint EpgLtoGet( time_t when )
 {
-   struct tm *tm;
-   time_t now;
-
-   tzset();
-   time(&now);
+   struct tm *pTm;
+   sint lto;
 
    #ifndef __NetBSD__
-   tm = localtime(&now);
-   lto = 60*60 * tm->tm_isdst - timezone;
+   pTm = localtime(&when);
+   lto = 60*60 * pTm->tm_isdst - timezone;
    #else
-   tm = gmtime(&now);
-   tm->tm_isdst = -1;
-   lto = now - mktime(tm);
+   pTm = gmtime(&when);
+   pTm->tm_isdst = -1;
+   lto = when - mktime(pTm);
    #endif
 
    //printf("LTO = %d min, %s/%s, off=%ld, daylight=%d\n", lto/60, tzname[0], tzname[1], timezone/60, tm->tm_isdst);
-}
 
-// ----------------------------------------------------------------------------
-// Retrieve the LTO
-//
-sint EpgLtoGet( void )
-{
    return lto;
 }
 
-// ----------------------------------------------------------------------------
-// Check if a given year was a leap year
-// - simplified, since 16-bit Julian works only up to year 2038 anyways
+// ---------------------------------------------------------------------------
+// Initialize timer conversion variables
 //
-static bool IsLeapYear( uint year )
+void EpgLtoInit( void )
 {
-   return (((year % 100) % 4) == 0);
+   struct tm tm, *pTm;
+
+   // initialize time variables in the standard C library
+   tzset();
+
+   // determine UNIX time format of "January 1st 1982, 0:00 am"
+   // (required for conversion from Julian date to UNIX epoch)
+   tm.tm_mday  = 1;
+   tm.tm_mon   = 1 - 1;
+   tm.tm_year  = 1982 - 1900;
+   tm.tm_sec   = 0;
+   tm.tm_min   = 0;
+   tm.tm_hour  = 0;
+   tm.tm_isdst = FALSE;
+   unixTimeBase1982 = mktime(&tm);
+
+   // undo the local->UTC conversion that mktime unwantedly always does
+   #ifndef __NetBSD__
+   pTm = localtime(&unixTimeBase1982);
+   unixTimeBase1982 += 60*60 * pTm->tm_isdst - timezone;
+   #else
+   pTm = gmtime(&unixTimeBase1982);
+   pTm->tm_isdst = -1;
+   unixTimeBase1982 += (unixTimeBase1982 - mktime(pTm));
+   #endif
 }
 
 // ----------------------------------------------------------------------------
-// Gets number of days of a month
-//
-static const uchar DAYS_PER_MONTH[12] = {31,28,31,30,31,30,31,31,30,31,30,31};
-
-static uchar GetDaysPerMonth(uchar month, uint year)
-{
-   uchar days;
-
-   if ( (month >= 1) && (month <= 12) )
-   {
-      if ( IsLeapYear(year) == TRUE )
-      {
-         if ( month == 2 )
-         {
-            days = DAYS_PER_MONTH[month-1] + 1;
-         }
-         else
-         {
-            days = DAYS_PER_MONTH[month-1];
-         }
-      }
-      else
-      {
-         days = DAYS_PER_MONTH[month-1];
-      }
-   }
-   else
-      days = 0;
-
-   return days;
-}
-
-// ----------------------------------------------------------------------------
-// Convert Julian date to Gregorian, i.e. day, month, year
-//
-static void GetDateFromJulian(struct tm *tm, uint julian)
-{
-   uint  year, daysPerYear;
-   uchar month, daysPerMonth;
-   
-   julian -= (45000L-31);      // 1.1.1982
-   
-   year = 1982;
-   while (1)  // must finish b/c of constant substraction in loop
-   {
-      if ( IsLeapYear(year) )
-         daysPerYear = 366;
-      else
-         daysPerYear = 365;
-
-      if (julian > daysPerYear)
-         julian -= daysPerYear;
-      else
-         break;
-      year += 1;
-   }
-
-   // Get the month and day of month from the day of year (starting 0 at Jan 1st)
-   // - e.g. day #76 -> 16th March in leap year
-   month = 1;
-   while (1)
-   {
-      daysPerMonth = GetDaysPerMonth(month, year);
-
-      if (julian > daysPerMonth)
-         julian -= daysPerMonth;
-      else
-         break;
-      month += 1;
-   }
-   assert(month <= 12);
-
-   tm->tm_mday = julian;
-   tm->tm_mon  = month - 1;     // -1 for mktime()
-   tm->tm_year = year - 1900;   // -1900 for mktime()
-}
-
-// ----------------------------------------------------------------------------
-// Cinvert a BCD coded time to MoD, i.e. "minutes of day"
+// Convert a BCD coded time to "minutes since daybreak" (MoD)
 //
 uint EpgBlockBcdToMoD( uint BCD )
 {
@@ -218,11 +160,11 @@ uint EpgBlockBcdToMoD( uint BCD )
 //   violation of the Nextview spec, however that's how several EPG
 //   providers transmit it (and assuming 24h duration would tear a
 //   large hole into the database)
-//  - XXX TODO check validity
+//  - XXX TODO check validity?
 //
-static void SetStartAndStopTime(uint bcdStart, uint julian, uint bcdStop, time_t *pStartTime, time_t *pStopTime)
+static void SetStartAndStopTime(uint bcdStart, uint julian, uint bcdStop, PI_BLOCK * pPiBlock )
 {
-   struct tm tm;
+   time_t startDate;
    uint startMoD, stopMoD;
 
    startMoD = EpgBlockBcdToMoD(bcdStart);
@@ -230,25 +172,14 @@ static void SetStartAndStopTime(uint bcdStart, uint julian, uint bcdStop, time_t
    if (stopMoD < startMoD)
       stopMoD += 60*24;
 
-   tm.tm_sec   = 0;
-   tm.tm_min   = startMoD % 60;
-   tm.tm_hour  = startMoD / 60;
-   tm.tm_isdst = -1;           // let mktime() determine daylight at this date
+   if (julian > JULIAN_DATE_1982)
+      startDate = unixTimeBase1982 + (julian - JULIAN_DATE_1982) * (24*60*60L);
+   else
+      startDate = unixTimeBase1982;
 
-   GetDateFromJulian(&tm, julian);
-
-   // add UTC offset because mktime expects localtime but gets UTC
-   // this is a gross hack that's only needed because there's no pendant to gmtime()
-   #ifndef __NetBSD__ 
-   *pStartTime = mktime(&tm) - timezone + 60*60 * tm.tm_isdst;
-   #else 
-   /* Seems like gmtoff already includes the dst offset, so we do not add tm.tm_isdst *60*60 */
-   *pStartTime = mktime(&tm) + tm.tm_gmtoff;
-   #endif 
-
-   *pStopTime  = *pStartTime + (stopMoD - startMoD) * 60;
+   pPiBlock->start_time = startDate + startMoD * 60;
+   pPiBlock->stop_time  = startDate + stopMoD  * 60;
 }
-
 
 // ----------------------------------------------------------------------------
 // The following character tables were taken from ALEVT-1.5.1
@@ -691,7 +622,7 @@ EPGDB_BLOCK * EpgBlockConvertPi(const uchar *pCtrl, uint ctrlLen, uint strLen)
    SetStartAndStopTime(       psd[10] | (psd[11]<<8),
                               psd[12] | (psd[13]<<8),
                               psd[14] | (psd[15]<<8),
-                              &pi.start_time, &pi.stop_time);
+                              &pi);
    pi.pil                   = psd[16] | (psd[17]<<8) | ((psd[18]&0x0f)<<16);
    pi.parental_rating       = psd[18] >> 4;;
    pi.editorial_rating      = psd[19] & 0x07;

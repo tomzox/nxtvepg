@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqctl.c,v 1.48 2001/08/23 20:01:17 tom Exp tom $
+ *  $Id: epgacqctl.c,v 1.49 2001/09/02 17:02:58 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -97,14 +97,13 @@ static void EpgAcqCtl_StatisticsReset( void )
    memset(&acqStats, 0, sizeof(acqStats));
 
    acqStats.acqStartTime  = time(NULL);
-   acqStats.lastAiTime    = acqStats.acqStartTime;
-   acqStats.minAiDistance = 0;
-   acqStats.maxAiDistance = 0;
-   acqStats.aiCount       = 0;
    acqStats.histIdx       = STATS_HIST_WIDTH - 1;
 
-   acqStats.varianceHistCount = 0;
-   acqStats.varianceHistIdx   = 0;
+   // reset acquisition repetition counters for all PI
+   if (pAcqDbContext != NULL)
+   {
+      EpgDbResetAcqRepCounters(pAcqDbContext);
+   }
 
    acqStatsUpdate = TRUE;
 }
@@ -118,33 +117,37 @@ static void EpgAcqCtl_StatisticsReset( void )
 static void EpgAcqCtl_StatisticsUpdate( void )
 {
    ulong total, obsolete;
-   time_t intv, now = time(NULL);
+   time_t acqMinTime[2], aiDiff;
+   time_t now = time(NULL);
    EPGDB_HIST * pHist;
-   uint idx;
+   uint stream, idx;
 
    acqStatsUpdate = FALSE;
 
+   acqStats.nowNextMaxAcqRepCount = EpgDbGetNowCycleMaxRepCounter(pAcqDbContext);
+
+   if (acqCtl.cyclePhase == ACQMODE_PHASE_MONITOR)
+   {
+      acqMinTime[0] = now - EPGACQCTL_STREAM1_UPD_INTV;
+      acqMinTime[1] = now - EPGACQCTL_STREAM2_UPD_INTV;
+   }
+   else
+      memset(acqMinTime, 0, sizeof(acqMinTime));
+
    // determine block counts in current database
-   intv = ((acqCtl.cyclePhase == ACQMODE_PHASE_STREAM1) ? EPGACQCTL_STREAM1_UPD_INTV : EPGACQCTL_STREAM2_UPD_INTV);
-   EpgDbGetStat(pAcqDbContext, acqStats.count, intv);
+   EpgDbGetStat(pAcqDbContext, acqStats.count, acqMinTime, acqStats.nowNextMaxAcqRepCount);
 
    if (acqCtl.state == ACQSTATE_RUNNING)
    {
       // compute minimum and maximum distance between AI blocks (in seconds)
-      if (acqStats.aiCount > 0)
+      if ((acqStats.lastAiTime != 0) && (now > acqStats.lastAiTime))
       {
-         if ((now - acqStats.lastAiTime < acqStats.minAiDistance) || (acqStats.aiCount == 1))
-            acqStats.minAiDistance = now - acqStats.lastAiTime;
-         if (now - acqStats.lastAiTime > acqStats.maxAiDistance)
-            acqStats.maxAiDistance = now - acqStats.lastAiTime;
-         acqStats.avgAiDistance = ((double)acqStats.lastAiTime - acqStats.acqStartTime) / acqStats.aiCount;
-
-      }
-      else
-      {
-         acqStats.avgAiDistance =
-         acqStats.minAiDistance =
-         acqStats.maxAiDistance = now - acqStats.lastAiTime;
+         aiDiff = now - acqStats.lastAiTime;
+         if ((aiDiff < acqStats.minAiDistance) || (acqStats.minAiDistance == 0))
+            acqStats.minAiDistance = aiDiff;
+         if (aiDiff > acqStats.maxAiDistance)
+            acqStats.maxAiDistance = aiDiff;
+         acqStats.sumAiDistance += aiDiff;
       }
       acqStats.lastAiTime = now;
       acqStats.aiCount += 1;
@@ -157,30 +160,36 @@ static void EpgAcqCtl_StatisticsUpdate( void )
 
       acqStats.histIdx = (acqStats.histIdx + 1) % STATS_HIST_WIDTH;
       pHist = &acqStats.hist[acqStats.histIdx];
-      pHist->expir = (uchar)((double)obsolete / total * 128.0);
-      pHist->s1cur = (uchar)((double)(acqStats.count[0].curVersion + obsolete) / total * 128.0);
-      pHist->s1old = (uchar)((double)(acqStats.count[0].allVersions + obsolete) / total * 128.0);
-      pHist->s2cur = (uchar)((double)(acqStats.count[0].allVersions + obsolete + acqStats.count[1].curVersion) / total * 128.0);
-      pHist->s2old = (uchar)((double)(acqStats.count[0].allVersions + obsolete + acqStats.count[1].allVersions) / total * 128.0);
+
+      if (total > 0)
+      {
+         pHist->expir = (uchar)((double)obsolete / total * 128.0);
+         pHist->s1cur = (uchar)((double)(acqStats.count[0].curVersion + obsolete) / total * 128.0);
+         pHist->s1old = (uchar)((double)(acqStats.count[0].allVersions + obsolete) / total * 128.0);
+         pHist->s2cur = (uchar)((double)(acqStats.count[0].allVersions + obsolete + acqStats.count[1].curVersion) / total * 128.0);
+         pHist->s2old = (uchar)((double)(acqStats.count[0].allVersions + obsolete + acqStats.count[1].allVersions) / total * 128.0);
+      }
+      else
+         memset(pHist, 0, sizeof(*pHist));
 
       // maintain history of netwop coverage variance for cycle state machine
       if (ACQMODE_IS_CYCLIC(acqCtl.mode))
       {
-         if (acqStats.varianceHistCount < VARIANCE_HIST_COUNT)
+         for (stream=0; stream <= 1; stream++)
          {
-            idx = acqStats.varianceHistCount;
-            acqStats.varianceHistCount += 1;
-         }
-         else
-         {
-            acqStats.varianceHistIdx = (acqStats.varianceHistIdx + 1) % VARIANCE_HIST_COUNT;
-            idx = acqStats.varianceHistIdx;
-         }
+            if (acqStats.varianceHist[stream].count < VARIANCE_HIST_COUNT)
+            {  // history buffer not yet filled -> just append the new sample
+               idx = acqStats.varianceHist[stream].count;
+               acqStats.varianceHist[stream].count += 1;
+            }
+            else
+            {  // history buffer filled -> insert into ring buffer after the last written sample
+               acqStats.varianceHist[stream].lastIdx = (acqStats.varianceHist[stream].lastIdx + 1) % VARIANCE_HIST_COUNT;
+               idx = acqStats.varianceHist[stream].lastIdx;
+            }
 
-         if (acqCtl.cyclePhase == ACQMODE_PHASE_STREAM1)
-            acqStats.varianceHist[idx] = acqStats.count[0].variance;
-         else if (acqCtl.cyclePhase == ACQMODE_PHASE_STREAM2)
-            acqStats.varianceHist[idx] = acqStats.count[1].variance;
+            acqStats.varianceHist[stream].buf[idx] = acqStats.count[stream].variance;
+         }
       }
    }
 }
@@ -469,11 +478,6 @@ static bool EpgAcqCtl_UpdateProvider( bool changeDb )
          dbChanged = TRUE;
          if (EpgDbContextGetCni(pAcqDbContext) == cni)
             warnInputError = TRUE;
-         // reset acquisition repetition counters for all PI
-         if (ACQMODE_IS_CYCLIC(acqCtl.mode) && (acqCtl.cyclePhase == ACQMODE_PHASE_NOWNEXT))
-         {
-            EpgDbResetAcqRepCounters(pAcqDbContext);
-         }
          freq = pAcqDbContext->tunerFreq;
          acqCtl.dumpTime = time(NULL);
       }
@@ -576,22 +580,26 @@ static void EpgAcqCtl_InitCycle( void )
 // ---------------------------------------------------------------------------
 // Determine if netwop coverage variance is stable enough
 //
-static bool EpgAcqCtl_CheckVarianceStable( void )
+static bool EpgAcqCtl_CheckVarianceStable( uint stream )
 {
+   EPGDB_VAR_HIST  * pHist;
    double min, max;
    uint idx;
    bool result;
 
-   if (acqStats.varianceHistCount >= VARIANCE_HIST_COUNT)
+   assert(stream < 2);
+
+   pHist = acqStats.varianceHist + stream;
+   if (pHist->count >= VARIANCE_HIST_COUNT)
    {
       // get min and max variance from the history list
-      min = max = acqStats.varianceHist[0];
+      min = max = pHist->buf[0];
       for (idx=1; idx < VARIANCE_HIST_COUNT; idx++)
       {
-         if (acqStats.varianceHist[idx] < min)
-            min = acqStats.varianceHist[idx];
-         if (acqStats.varianceHist[idx] > max)
-            max = acqStats.varianceHist[idx];
+         if (pHist->buf[idx] < min)
+            min = pHist->buf[idx];
+         if (pHist->buf[idx] > max)
+            max = pHist->buf[idx];
       }
       // variance slope has to be below threshold
       result = ((max - min) <= MAX_CYCLE_VAR_DIFF);
@@ -607,9 +615,10 @@ static bool EpgAcqCtl_CheckVarianceStable( void )
 //
 static void EpgAcqCtl_AdvanceCyclePhase( bool forceAdvance )
 {
-   double quote1, quote2;
+   time_t now = time(NULL);
+   double quote;
    bool advance, wrongCni;
-   uint cni, maxRep;
+   uint cni;
 
    wrongCni = FALSE;
    if ( (acqCtl.mode != ACQMODE_PASSIVE) && (acqCtl.mode != ACQMODE_EXTERNAL) &&
@@ -632,24 +641,35 @@ static void EpgAcqCtl_AdvanceCyclePhase( bool forceAdvance )
         (acqCtl.cniCount > 1) )
    {
       // determine if acq for the current phase is complete
+      // note: all criteria must have a decent timeout to catch abnormal cases
       switch (acqCtl.cyclePhase)
       {
          case ACQMODE_PHASE_NOWNEXT:
-            maxRep = EpgDbGetNowCycleMaxRepCounter(pAcqDbContext);
-            advance = (maxRep >= 2) ||
-                      ((maxRep == 0) && (acqStats.aiCount >= NOWNEXT_TIMEOUT_AI_COUNT));
+            advance = (acqStats.nowNextMaxAcqRepCount >= 2) ||
+                      ((acqStats.nowNextMaxAcqRepCount == 0) && (acqStats.aiCount >= NOWNEXT_TIMEOUT_AI_COUNT));
+            advance |= (now >= acqStats.acqStartTime + NOWNEXT_TIMEOUT);
             break;
          case ACQMODE_PHASE_STREAM1:
-            quote1 = (double)acqStats.count[0].sinceAcq / acqStats.count[0].ai;
-            advance = ((acqStats.count[0].variance < MIN_CYCLE_VARIANCE) && (quote1 >= MIN_CYCLE_QUOTE)) &&
-                      (EpgAcqCtl_CheckVarianceStable() || (acqStats.count[0].variance == 0.0));
+            quote   = ((acqStats.count[0].ai > 0) ? ((double)acqStats.count[0].sinceAcq / acqStats.count[0].ai) : 100.0);
+            advance = (quote >= MIN_CYCLE_QUOTE) &&
+                      (acqStats.count[0].variance < MIN_CYCLE_VARIANCE) &&
+                      (EpgAcqCtl_CheckVarianceStable(0) || (acqStats.count[0].variance == 0.0));
+            advance |= ((acqStats.count[0].avgAcqRepCount >= MAX_CYCLE_ACQ_REP_COUNT) ||
+                        (acqStats.count[1].avgAcqRepCount >= MAX_CYCLE_ACQ_REP_COUNT));
+            advance |= (now >= acqStats.acqStartTime + STREAM1_TIMEOUT);
             break;
          case ACQMODE_PHASE_STREAM2:
-            quote1 = (double)acqStats.count[0].sinceAcq / acqStats.count[0].ai;
-            quote2 = (double)acqStats.count[1].sinceAcq / acqStats.count[1].ai;
-            advance = ((acqStats.count[0].variance < MIN_CYCLE_VARIANCE) && (quote1 >= MIN_CYCLE_QUOTE)) &&
-                      ((acqStats.count[1].variance < MIN_CYCLE_VARIANCE) && (quote2 >= MIN_CYCLE_QUOTE)) &&
-                      EpgAcqCtl_CheckVarianceStable();
+         case ACQMODE_PHASE_MONITOR:
+            quote   = (((acqStats.count[0].ai + acqStats.count[1].ai) > 0) ?
+                       (((double)acqStats.count[0].sinceAcq + (double)acqStats.count[1].sinceAcq) /
+                        (acqStats.count[0].ai + acqStats.count[1].ai)) : 100.0);
+            advance = (quote >= MIN_CYCLE_QUOTE) &&
+                      (acqStats.count[0].variance < MIN_CYCLE_VARIANCE) &&
+                      (acqStats.count[1].variance < MIN_CYCLE_VARIANCE) &&
+                      EpgAcqCtl_CheckVarianceStable(0) &&
+                      EpgAcqCtl_CheckVarianceStable(1);
+            advance |= (acqStats.count[1].avgAcqRepCount >= MAX_CYCLE_ACQ_REP_COUNT);
+            advance |= (now >= acqStats.acqStartTime + STREAM2_TIMEOUT);
             break;
          default:
             SHOULD_NOT_BE_REACHED;
@@ -671,23 +691,24 @@ static void EpgAcqCtl_AdvanceCyclePhase( bool forceAdvance )
             switch (acqCtl.mode)
             {
                case ACQMODE_CYCLIC_012:
-                  acqCtl.cyclePhase = (acqCtl.cyclePhase + 1) % ACQMODE_PHASE_COUNT;
+                  if (acqCtl.cyclePhase < ACQMODE_PHASE_MONITOR)
+                     acqCtl.cyclePhase += 1;
                   break;
                case ACQMODE_CYCLIC_02:
                   if (acqCtl.cyclePhase == ACQMODE_PHASE_NOWNEXT)
                      acqCtl.cyclePhase = ACQMODE_PHASE_STREAM2;
                   else
-                     acqCtl.cyclePhase = ACQMODE_PHASE_NOWNEXT;
+                     acqCtl.cyclePhase = ACQMODE_PHASE_MONITOR;
                   break;
                case ACQMODE_CYCLIC_12:
                   if (acqCtl.cyclePhase == ACQMODE_PHASE_STREAM1)
                      acqCtl.cyclePhase = ACQMODE_PHASE_STREAM2;
                   else
-                     acqCtl.cyclePhase = ACQMODE_PHASE_STREAM1;
+                     acqCtl.cyclePhase = ACQMODE_PHASE_MONITOR;
                   break;
                case ACQMODE_FOLLOW_MERGED:
                case ACQMODE_CYCLIC_2:
-                  assert(acqCtl.cyclePhase == ACQMODE_PHASE_STREAM2);
+                  acqCtl.cyclePhase = ACQMODE_PHASE_MONITOR;
                   break;
                case ACQMODE_FORCED_PASSIVE:
                default:
@@ -1006,6 +1027,7 @@ void EpgAcqCtl_DescribeAcqState( EPGACQ_DESCR * pAcqState )
       pAcqState->mode          = acqCtl.mode;
       pAcqState->passiveReason = acqCtl.passiveReason;
       pAcqState->cyclePhase    = acqCtl.cyclePhase;
+      pAcqState->cniCount      = acqCtl.cniCount;
       pAcqState->dbCni         = EpgDbContextGetCni(pAcqDbContext);
       pAcqState->cycleCni      = EpgAcqCtl_GetProvider();
    }
@@ -1095,14 +1117,28 @@ static bool EpgAcqCtl_AiCallback( const AI_BLOCK *pNewAi )
                dprintf2("EpgAcqCtl: version number has changed, was: %d/%d\n", pOldAi->version, pOldAi->version_swo);
                UiControlMsg_AiStateChange();
                StatsWin_VersionChange();
-               EpgAcqCtl_StatisticsReset();
-               acqCtl.dumpTime = 0;  // dump asap
             }
             else
-            {  // just a regular AI repetition, no news
-               acqStatsUpdate = TRUE;
+            {  // same AI version
+               const AI_NETWOP *pOldNets, *pNewNets;
+               uint netwop;
+
+               // check if PI range of any network has changed
+               pOldNets = AI_GET_NETWOPS(pOldAi);
+               pNewNets = AI_GET_NETWOPS(pNewAi);
+               for (netwop=0; netwop < pNewAi->netwopCount; netwop++)
+               {
+                  if ( (pOldNets[netwop].startNo != pNewNets[netwop].startNo) ||
+                       (pOldNets[netwop].stopNoSwo != pNewNets[netwop].stopNoSwo) )
+                  {
+                     // new PI added at the end -> redraw timescales to mark ranges with missing PI
+                     StatsWin_VersionChange();
+                     break;
+                  }
+               }
             }
 
+            acqStatsUpdate = TRUE;
             acqCtl.state = ACQSTATE_RUNNING;
             accept = TRUE;
          }

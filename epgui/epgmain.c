@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgmain.c,v 1.65 2001/06/16 15:02:04 tom Exp tom $
+ *  $Id: epgmain.c,v 1.66 2001/09/02 17:06:03 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -78,6 +78,7 @@
 #include "epgui/ptr_up.xbm"
 #include "epgui/ptr_down.xbm"
 #include "epgui/pan_updown.xbm"
+#include "epgui/qmark.xbm"
 
 #include "epgvbi/btdrv.h"
 #include "epgui/epgmain.h"
@@ -800,6 +801,7 @@ static int ui_init( int argc, char **argv )
    Tk_DefineBitmap(interp, Tk_GetUid("bitmap_ptr_up"), ptr_up_bits, ptr_up_width, ptr_up_height);
    Tk_DefineBitmap(interp, Tk_GetUid("bitmap_ptr_down"), ptr_down_bits, ptr_down_width, ptr_down_height);
    Tk_DefineBitmap(interp, Tk_GetUid("bitmap_pan_updown"), pan_updown_bits, pan_updown_width, pan_updown_height);
+   Tk_DefineBitmap(interp, Tk_GetUid("bitmap_qmark"), qmark_bits, qmark_width, qmark_height);
    Tk_DefineBitmap(interp, Tk_GetUid("nxtv_logo"), nxtv_logo_bits, nxtv_logo_width, nxtv_logo_height);
 
    sprintf(comm, "wm title . {Nextview EPG Decoder}\n"

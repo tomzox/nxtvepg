@@ -23,7 +23,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbfil.c,v 1.27 2001/06/13 17:47:42 tom Exp tom $
+ *  $Id: epgdbfil.c,v 1.28 2001/08/31 16:47:31 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -750,7 +750,7 @@ void EpgDbFilterFinishNi( FILTER_CONTEXT *fc, NI_FILTER_STATE *pNiState )
    sint lto;
 
    now = time(NULL);
-   lto = EpgLtoGet();
+   lto = EpgLtoGet(now);
    // number of minutes that have elapsed since last midnight (Minutes-of-Day)
    nowMoD = ((now + lto) % (60*60*24)) / 60;
 

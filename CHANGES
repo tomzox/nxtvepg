@@ -4,20 +4,68 @@ changes or additions.
 
 Before you submit any feature requests, please read the TODO file.
 
+from 0.6.1 to 0.6.2 (2001-September-07)
+- the merged database now only contains those networks that were selected by
+  the user in the network configuration dialog, and in the same order.
+  The first change reduces memory and CPU consumption; the second ensures
+  that programmes with identical start time are presented in order of your
+  network preference (particularily useful e.g. at 20:15 in Germany)
+- fixed daylight saving time handling for Linux: got rid of mktime() in
+  Julian date to UNIX epoch conversion for incoming PI blocks, so the LTO is
+  out of the equation. Before the fix, all blocks that were acquired before
+  a DST change appeared shifted by one hour after the DST had changed.
+- fixed "program index" filter: index calculation was broken since an
+  internal change in the database in release 0.5.1
+- fixed Navigate menu: due to a bug the "expire time" filter was undone so
+  that expired TV programmes showed up in the listing and could not be removed
+  even by pressing the Reset button.
+- improved acquisition strategies for multiple databases in "manual" and
+  "cyclic" modes by adding a new phase which is entered after one pass over
+  all databases. 
+- fixed several possible acquisition cycle "hangups" (i.e. acquisition never
+  switched to the following provider) which could occur in abnormal situations,
+  e.g. when a provider did not transmit all blocks that were listed in his AI
+  inventory, or when the AI was completely empty. Also added a global timeout
+  of 30 minutes for all acquisition phases.
+- added documentation for main window status line in chapter STATISTICS.
+  Added "?" button to database statistics popup to link to the new description.
+- improved timescale popup ("control" menu): time ranges with missing PI blocks
+  (TV programmes) are now marked gray. Note that the ranges can only be
+  estimated, as the time range a block covers is not known until the actual
+  block is available.  This is useful when a provider enlarges the preview
+  range for selected networks only; now you can see which these are.
+- improved timescale popup ("control" menu): upon provider or version change
+  the old content is no longer destroyed before the new one is filled in
+  so that the popup doesn't flash as much anymore.
+- timescales popup: removed restriction that only one time scale popup window
+  could be opened per database, i.e. the acq time scale popup now remains open
+  even when the acquisition works on the browser database.
+- new item in acq statistics output: added "PI rx repetition", i.e. how often
+  each block in both streams have been received in average since start of
+  acquisition.
+- fixed bug in database statistics popup: when the popup remained open for
+  a long time it ate up a lot of CPU, because the refresh every 10 secs
+  did not correctly delete the previous content.
+- added transmission error handling for AI block (as already done for PI):
+  check if a new block is a equivalent; if yes refuse it if the string segment
+  (service and network names) has more parity errors than the previous copy.
+
 from 0.6.0 to 0.6.1 (2001-August-30)
 - fixed bug in GUI: when programme listbox column headers were disabled,
   the main window was much too wide (calculated width as pixels, but applied
-  as if millimeters).
+  as if millimeters). Thanks to Peter Suetterlin for the bug report.
 - fixed bug in block management which allowed for PI blocks to remain in the
   database although the valid network block range was declared void in the AI.
   This could result in fill percentages > 100 in the statistic output.
 
 from 0.5.2 to 0.6.0 (2001-August-25)
-- possibility to invoke user-defined external commands from the context
-  menu in the browser listbox, e.g. to program a timer for the selected
-  programme.
-- new dialog in the control menu to dump of the entire programme list or
-  selected programme descriptions into a file in HTML format.
+- possibility to add references to external applications to the context
+  popup menu in the browser listbox, e.g. to program an alarm timer for the
+  selected TV show in your favourite scheduler.
+- new dialog in the control menu to dump the complete programme list or
+  selected descriptions into a file in HTML format, from where they can be
+  loaded by any WWW browser. This may be of interest for people who want to
+  print out TV schedules.
 - added option Match full to the text search dialog to allow exact
   title matches, e.g. a search for "heute" will no longer match on
   "heute journal" when full match is enabled.
@@ -25,6 +73,8 @@ from 0.5.2 to 0.6.0 (2001-August-25)
 - internal change only: separated the EPG scan cleanly from the acq control
   state machine.
 - added RPM spec which allows to install directly from the source tarball
+- bugfix Windows-95: the browser listbox cursor always followed movements of
+  the mouse pointer, even when no button was pressed.
 - bugfix in epgblock.c for Power-PC platform; thanks to Gerd Knorr.
 
 from 0.5.1 to 0.5.2 (2001-June-14)

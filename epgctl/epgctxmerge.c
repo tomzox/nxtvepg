@@ -36,7 +36,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgctxmerge.c,v 1.3 2001/05/19 14:32:06 tom Exp tom $
+ *  $Id: epgctxmerge.c,v 1.4 2001/09/02 16:30:54 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -50,11 +50,13 @@
 #include "epgdb/epgblock.h"
 #include "epgui/epgmain.h"
 #include "epgui/uictrl.h"
+#include "epgui/statswin.h"
 #include "epgctl/epgctxctl.h"
 #include "epgdb/epgdbif.h"
 #include "epgdb/epgdbsav.h"
 #include "epgdb/epgdbmgmt.h"
 #include "epgdb/epgdbmerge.h"
+#include "epgctl/epgacqctl.h"
 #include "epgctl/epgctxmerge.h"
 
 
@@ -219,45 +221,47 @@ void EpgContextMergeInsertPi( CPDBC pAcqContext, EPGDB_BLOCK * pNewBlock )
 }
 
 // ---------------------------------------------------------------------------
-// Remove blocks that fall outside the valid AI range
-//
-void EpgContextMergeAiCheckBlockRange( CPDBC pAcqContext )
-{
-   // XXX TODO
-}
-
-// ---------------------------------------------------------------------------
 // Update AI block when an AI in one of the dbs has changed
 // - Only called after change of version number in one of the blocks.
 //   More frequent updates are not required because changes of blockno range
-//   are not of any interest for the merged database.
+//   are not of any interest to the merged database.
+// - when this func is called the new AI is already part of the context
 //
-void EpgContextMergeAiUpdate( CPDBC pAcqContext, EPGDB_BLOCK * pAiBlock )
+void EpgContextMergeAiUpdate( CPDBC pAcqContext )
 {
-   AI_BLOCK *pAi;
-   uchar old_version, old_version_swo;
+   EPGDB_MERGE_CONTEXT * dbmc;
+   const AI_NETWOP *pNetwops;
+   uint  netwopCount, netwopCniTab[MAX_NETWOP_COUNT];
+   uint  idx;
 
-   if (EpgDbMergeOpenAcqContext(pAcqContext, AI_GET_CNI(&pAiBlock->blk.ai)))
+   if ( EpgDbMergeOpenAcqContext(pAcqContext, AI_GET_CNI(&pAcqContext->pAiBlock->blk.ai)) )
    {
-      pAi = (AI_BLOCK *) &pAiBlock->blk.ai;  //remove const
-      old_version     = pAi->version;
-      old_version_swo = pAi->version_swo;
+      // copy the network list from the previously merged AI block as it will not be changed
+      pNetwops    = AI_GET_NETWOPS(&pUiDbContext->pAiBlock->blk.ai);
+      netwopCount = pUiDbContext->pAiBlock->blk.ai.netwopCount;
+      for (idx=0; idx < netwopCount; idx++)
+         netwopCniTab[idx] = (pNetwops++)->cni;
 
+      // free the old AI block in the merged context
       xfree(pUiDbContext->pAiBlock);
       pUiDbContext->pAiBlock = NULL;
+
+      EpgDbMergeAiBlocks(pUiDbContext, netwopCount, netwopCniTab);
+
       pUiDbContext->lastAiUpdate = time(NULL);
 
-      EpgDbMergeAiBlocks(pUiDbContext);
-
-      pAi->version     = old_version;
-      pAi->version_swo = old_version_swo;
+      // reset version bit for all PI merged from this db
+      dbmc = pUiDbContext->pMergeContext;
+      EpgDbMerge_ResetPiVersion(pUiDbContext, dbmc->acqIdx);
+      StatsWin_ProvChange(DB_TARGET_UI);
    }
 }
 
 // ---------------------------------------------------------------------------
 // Start complete merge
 //
-EPGDB_CONTEXT * EpgContextMerge( uint dbCount, const uint * pCni, MERGE_ATTRIB_VECTOR_PTR pMax )
+EPGDB_CONTEXT * EpgContextMerge( uint dbCount, const uint * pCni, MERGE_ATTRIB_VECTOR_PTR pMax,
+                                 uint netwopCount, uint * pNetwopList )
 {
    EPGDB_CONTEXT * pDbContext;
    EPGDB_MERGE_CONTEXT * pMergeContext;
@@ -286,7 +290,7 @@ EPGDB_CONTEXT * EpgContextMerge( uint dbCount, const uint * pCni, MERGE_ATTRIB_V
       pDbContext->pMergeContext = pMergeContext;
 
       // create AI block
-      EpgDbMergeAiBlocks(pDbContext);
+      EpgDbMergeAiBlocks(pDbContext, netwopCount, pNetwopList);
       pDbContext->lastAiUpdate = time(NULL);
 
       // merge all PI from all databases into the new one

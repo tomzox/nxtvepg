@@ -4999,3 +4999,265 @@ www/changelog.html [rev:1.17, 2001-08-30T15:55:57]:
 CHANGES [rev:1.16, 2001-08-30T16:04:05]:
 - updated for bugfix release 0.6.1
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_6_1 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+epgdb/epgdbif.c [rev:1.30, 2001-08-29T13:50:28]:
+- stats funcs: curversion handling changed:
+- now the block must not only have the current AI version but also
+    have been received in the stream the PI block currently is assigned to
+-> check stream in EpgDbGetStat both for curVersion and sinceAcq
+-> added new func EpgDbGetStreamByBlockNo() for timescale GUI
+     to do the same comparison there
+- added 2nd minTime arg to EpgDbGetStat()
+- both stream's variance history is now monitored by acqctl
+epgdb/epgdbif.h [rev:1.19, 2001-08-29T13:54:54]:
+- Added new func EpgDbGetStreamByBlockNo()
+- to detect not up-to-date PI in the timescales GUI
+- added 2nd minTime arg to EpgDbGetStat()
+- both stream's variance history is now monitored by acqctl
+epgui/statswin.c [rev:1.36, 2001-08-29T13:58:39]:
+- handle new acq phase ACQMODE_PHASE_MONITOR in acq state output
+- StatsWin_Load(): changed current version check
+- now the block must not only have the current AI version but also
+    have been received in the stream the PI block currently is assigned to
+- current stream assignment is calculated by new func EpgDbGetStreamByBlockNo
+epgdb/epgdbif.c [rev:1.31, 2001-08-30T09:30:24]:
+- fix EpgDbGetStreamByBlockNo()
+- must check for special case that stream 1 is empty
+- this might occur even when stream 2 is not empty
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.131, 2001-08-31T07:27:20]:
+- bugfix proc DbStatsWin_PaintPie and DbStatsWin_ClearPie
+- wrong widget path in clear command
+- old content was never deleted
+epgdb/epgdbif.c [rev:1.32, 2001-08-31T12:38:55]:
+- EpgDbGetStat:
+- added calculation of avgAcqRepCount from pBlock->acqRepCount
+- added maxNowRepCount as function param; required to filter
+    Now & Next blocks from stream 1 for avgAcqRepCount
+- stream 1 and 2 handling merged -> use arrays for all temp vars
+    also param acqMinTime is now array[2]; this was required to
+    avoid excessive code duplication
+- EpgDbGetStreamByBlockNo: changed params
+- now pass block_no and netwop instead of PI_BLOCK ptr
+- preferrable since it's now also used by EpgDbGetStat
+epgdb/epgdbif.h [rev:1.20, 2001-08-31T12:42:38]:
+- EpgDbGetStat:
+- added param maxNowRepCount: required for avgAcqRepCount calc.
+- merged both acqMinTime1/2 params into array acqMinTime[2]
+- EpgDbGetStreamByBlockNo:
+- now pass block_no and netwop instead of PI_BLOCK ptr
+- preferrable since it's now also used by EpgDbGetStat
+epgdb/epgblock.c [rev:1.38, 2001-08-31T16:43:33]:
+- Removed all Julian->Discrete date conversion func
+- instead Julian is now directly transformed to UNIX Epoch
+- therefore in init the UNIX base unixTimeBase1982 is calculated
+- Removed static var lto
+- instead EpgLtoGet calculatis is dynamically
+- new param timme_t when, since LTO is not constant due to daylight saving t.
+epgdb/epgblock.h [rev:1.29, 2001-08-31T16:45:38]:
+- EpgLtoGet: added param time_t when
+- lto is now calculated dynamically for the given timestamp
+- Added acqRepCount to struct EPGDB_BLOCK
+- required for acq cycle timeout criterium
+epgdb/epgdbfil.c [rev:1.28, 2001-08-31T16:47:31]:
+- Adapted for changed EpgLtoGet(): added arg "now"
+epgdb/epgdbif.c [rev:1.33, 2001-08-31T16:50:27]:
+- bugfix EpgDbGetProgIdx()
+- caused by the change that expired PI are kept in the db
+-> must search through the PI network chain for the first
+    non-expired PI; that one has index 0 or 1
+epgdb/epgdbif.c [rev:1.34, 2001-08-31T16:52:26]:
+- Optimizations (after gperf analysis)
+- in SearchNext/Prv/First/Last funcs: pulled condition (fc == NULL)
+    out of the search loop
+- EpgDbSearchPi(): removed param FILTER_CONTEXT *fc: was used by
+    pilistbox (in some calls), however not required -> saves a lot of
+    calls to EpgDbFilterMatches() in listbox management
+epgdb/epgdbif.h [rev:1.21, 2001-08-31T16:55:36]:
+- Simplified EpgDbSearchPi
+- removed param FILTER_CONTEXT *fc
+- was used by pilistbox (in some calls), however not required
+epgui/pifilter.c [rev:1.51, 2001-08-31T16:59:39]:
+- bugfix SelectNi: EXPIRE prefilter was disabled
+- Adapted for changed EpgLtoGet(): added arg "now"
+epgui/pilistbox.c [rev:1.62, 2001-08-31T17:00:44]:
+- Adapted for changed EpgLtoGet(): added arg "now"
+- Safety fix: added checks for pPiBlock != NULL at several places
+- Removed arg FILTER_CONTEXT *fc from EpgDbSearchPi()
+- was used in some calls, but never required
+- performance improvement: saves calls to match function
+- in consistancy check func: added extra call to match func
+epgui/statswin.c [rev:1.37, 2001-08-31T17:25:19]:
+- StatsWin_Load() improved: added gray ranges to mark missing PI blocks
+- StatsWin_DisplayPi() new arg: bool isLast
+    to remove rest of estimated "missing range" at the end of the scale
+- added new enum STREAM_COLOR -> cleaned up stream color handling
+    all accesses to color table use the enums
+- StatsWin_HighlightNetwop: use new defines for colors
+- calls to EpgDbGetStat(): dummy params adapted
+- StatsWin_UpdateDbStatsWin: new element "PI rx repetition",
+    i.e. new elem avgAcqRepCount in struct EPGDB_BLOCK_COUNT
+- StatsWin_RebuildCanvas() improved: no longer destroys all canvas before
+    rebuilding -> changed proc TimeScale_Create -> does create or update
+    only if new # of netwops is smaller, the remaining scales are destroyed
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.132, 2001-08-31T17:28:46]:
+- TimeScale_Create semantics changed: can now also be called when the scale
+    already exists; then it's cleared and the label adapted
+- added proc TimeScale_Remove to removed obsolete scales from the popup
+    e.g. after change to a provider with less networks
+- added arg isLast to proc TimeScale_AddPi
+    remove any remaining blocks to the right, esp. the "PI missing" range
+www/changelog.html [rev:1.18, 2001-08-31T20:25:52]:
+- started with log for 0.6.2
+- added Thanks to Peter Suetterlin for the bug report
+epgui/menucmd.c [rev:1.48, 2001-09-01T10:04:09]:
+- Removed restriction that acq timescale is available only when ui-db != acq-db
+- MenuCmd_ChangeProvider: removed call to StatsWin_ProvChange(DB_TARGET_ACQ)
+    this is handled by epgacqctl already
+- MenuCmd_GetAiNetwopList: extended to check also if given CNI happens
+    to be the same as the acq db; used by new proc TimeScale_Open
+- Adapted call to EpgLtoGet(): additional arg "now"
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.133, 2001-09-01T10:14:11]:
+- Added new proc TimeScale_Open
+- functionality moved here from C funcs StatsWin_BuildCanvas()
+    and StatsWin_RebuildCanvas()
+- merged with proc TimeScale_Remove
+epgui/statswin.c [rev:1.38, 2001-09-01T10:18:04]:
+- Removed restriction that acq timescale is available only when ui-db != acq-db
+    -> all acq input has to be offered to both scales
+    -> put for() loops into these functions
+- removed StatsWin_BuildCanvas(): now done on Tcl level by
+    new proc TimeScale_Open; also used by StatsWin_RebuildCanvas()
+- updated global description in file header
+nxtvepg.pod [rev:1.51, 2001-09-02T15:11:34]:
+- extended & updated statistics chapter
+- new intro & split up in three level 2 sections
+- added section on status line
+- added 2 lists with explanations of every single statistic output line
+pod2help.pl [rev:1.12, 2001-09-02T15:12:57]:
+- added handling of =head2 command: equivalently to B<...>
+epgdb/epgdbacq.c [epgvbi/ttxdecode.c, rev:1.31, 2001-09-02T16:12:39]:
+- AI blocks are now checked for parity errors
+-> EpgDbAcqProcessPackets: when result from EpgDbAddBlock() is FALSE
+     free the block; however other processing is done in any case
+epgdb/epgdbfil.h [rev:1.18, 2001-09-02T16:13:45]:
+- defined LI_DESCR_TYPE and TI_DESCR_TYPE as 7 and 8
+- commented out references to EPGDBACQ_TYPE_LI and EPGDBACQ_TYPE_TI
+- so these can be used without including epgstream.h
+epgdb/epgdbmgmt.c [rev:1.35, 2001-09-02T16:21:40]:
+- EpgDbAddAiBlock: AI blocks are now checked for parity errors
+epgdb/epgdbmerge.c [rev:1.16, 2001-09-02T16:23:11]:
+- Merged db now contains only user-selected netwops, in the correct order
+- additional args to EpgDbMergeAiBlocks: netwopCount, pNetwopList
+- all PI merge funcs must check if the PI's network is enabled
+    i.e. netwopMap[dbIdx][netwop] can be 0xff
+- Fixed version handling
+- added descriptor array to all PI blocks with list of merged db indices
+- AI version is constantly 1; PI set to 1 if all merged PI have cur. version
+- added new func EpgDbMerge_ResetPiVersion to reset versions after a
+    version change in one of the merged dbs
+epgdb/epgdbmerge.h [rev:1.7, 2001-09-02T16:28:04]:
+- Merged db now contains only user-selected netwops, in the correct order
+- additional args to EpgDbMergeAiBlocks: netwopCount, pNetwopList
+- Fixed version handling
+- added descriptor array to all PI blocks with list of merged db indices
+    added define MERGE_DESCR_TYPE
+- added new func EpgDbMerge_ResetPiVersion to reset versions after a
+    version change in one of the merged dbs
+epgctl/epgctxmerge.c [rev:1.4, 2001-09-02T16:30:54]:
+- Merged db now contains only user-selected netwops, in the correct order
+- additional args to EpgContextMerge: netwopCount, netwopCniTab
+    directly passed on to EpgDbMergeAiBlocks
+- EpgContextMergeAiUpdate compied CNI list from old AI block
+- Fixed version handling
+- call EpgDbMerge_ResetPiVersion and StatsWin_ProvChange
+    when the version of a merged AI changes
+epgctl/epgctxmerge.h [rev:1.3, 2001-09-02T16:33:28]:
+- Merged db now contains only user-selected netwops, in the correct order
+- additional args to EpgContextMerge: netwopCount, netwopCniTab
+- Also removed redundant arg pAiBlock from EpgContextMergeAiUpdate()
+- Also removed empty func EpgContextMergeAiCheckBlockRange()
+epgctl/epgacqctl.c [rev:1.49, 2001-09-02T17:02:58]:
+- Added final cycle phase ACQMODE_PHASE_MONITOR
+- after stream 2 the acq state remains in monitor instead of restarting at NOW
+- maintain variance history for both streams
+- Fixed possible cycle hangups in abnormal cases
+- added overall timeout for each phase: 5 mins for now, 30 mins for stream 1 & 2
+- added timeout criterium based on cycle pass, i.e. avg. PI repetition
+- check for ai count == 0 -> set fill percentage to 100 instead of 0
+- AI callback: checks for stream 1/2 PI range changes
+- PI that moved from stream 2 to 1 are considered not to have the cur.version
+- call StatsWin_VersionChange() to rebuild the timescales
+- do not reset stats (esp. acq runtime) upon AI version change; do normal update
+- Required changes in statistics handling:
+- added EpgDbGetNowCycleMaxRepCounter() to EpgAcqCtl_StatisticsUpdate
+- replaced avgAiDistance with sumAiDistance
+    since acq runtime now starts before the first AI is received
+- check for division by 0 in case ai count == 0
+- moved call to EpgDbResetAcqRepCounters() into EpgAcqCtl_StatisticsReset
+epgctl/epgacqctl.h [rev:1.29, 2001-09-02T17:03:02]:
+- Added final cycle phase ACQMODE_PHASE_MONITOR
+- added overall timeout for each phase: 5 mins for now, 30 mins for stream 1,2
+- maintain variance history for both streams in new struct EPGDB_VAR_HIST
+- added nowNextMaxAcqRepCount to struct EPGDB_STATS
+- added cniCount to struct EPGACQ_DESCR for stats win.
+- added MAX_CYCLE_ACQ_REP_COUNT for cycle tmimeout
+- replaced avgAiDistance with sumAiDistance
+epgui/epgmain.c [rev:1.66, 2001-09-02T17:06:03]:
+- added bitmap qmark.xbm for the new Help button in the db stats popup
+images/qmark.xbm [rev:1.1, 2001-09-02T17:06:40]:
+- Initial revision
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.134, 2001-09-02T17:15:16]:
+- Merged db now contains only user-selected netwops, in the correct order
+- network selection dialog must give additional arg "allmerged"
+    to C_GetAiNetwopList()
+- after commiting a new network selection, call C_ProvMerge_Start
+- Added help button with new bitmap qmark.xbm to db stats popup window
+epgui/pioutput.c [rev:1.8, 2001-09-02T17:20:32]:
+- PiOutput_PopupPi: handle new descriptor type MERGE_DESCR_TYPE
+epgui/menucmd.h [rev:1.9, 2001-09-02T17:21:10]:
+- removed decl of ProvMerge_ParseConfigString: was already static
+epgui/menucmd.c [rev:1.49, 2001-09-02T17:30:58]:
+- Merged db now contains only user-selected netwops, in the correct order
+- C_GetAiNetwopList Tcl operator has additional arg "allmerged"
+    used by network selection dialog to retrieve all CNIs of all merged dbs
+    instead of the ones included in the last merge
+    uses new func MenuCmd_AppendNetwopList() now to generate the result
+- new func ProvMerge_ParseNetwopList(): reads Tcl var cfnetwops(0x00FF)
+    called by ProvMerge_Start() and OpenInitialDb()
+epgui/statswin.c [rev:1.39, 2001-09-02T17:39:55]:
+- StatsWin_UpdateDbStatsWin
+- Fixed possible division by 0 (ai count) at several places
+- fill count is assigned 100% when AI count == 0
+- fix: expire percentage: checked for cur-vers-count > 0 but div. by all-vers.
+- ai distance: replaced avgAiDistance with sumAiDistance in EPGDB_STATS
+- use separate label 'Complete' for phase ACQMODE_PHASE_MONITOR
+- Added dprintf for debugging ext. calls to stats update trigger funcs
+- Fixed version handling for merged db timescales
+- do not use EpgDbGetStreamByBlockNo() for merged db: use rx_stream
+- Fixed timescale update triggers
+- to allow merge timescale update upon AI version change
+    this is called in addition to _VersionChange, which is triggered by acqctl
+-> must not use arg unique=TRUE to AddMainIdleEvent(StatsWin_RebuildCanvas)
+- removed hack target==3 in StatsWin_RebuildCanvas()
+epgdb/epgdbif.c [rev:1.35, 2001-09-07T18:50:57]:
+- EpgDbContextIsMerged(): added NULL ptr check
+epgctl/epgversion.h [rev:1.16, 2001-09-07T19:56:32]:
+- set to version 0.6.2
+epgui/statswin.c [rev:1.40, 2001-09-07T20:26:49]:
+- two more fixes for AI-total == 0
+www/index-de.html [rev:1.17, 2001-09-07T21:17:22]:
+- update for new release 0.6.2
+- added note that tripod.com has more old distribs than nefkom (10MB vs. 50MB)
+www/index.html [rev:1.29, 2001-09-07T21:17:22]:
+- update for new release 0.6.2
+- added note that tripod.com has more old distribs than nefkom (10MB vs. 50MB)
+www/changelog.html [rev:1.19, 2001-09-07T21:18:31]:
+- update for release 0.6.2
+- added 3 missing items to 0.6.0
+www/man.html [rev:1.11, 2001-09-07T21:18:58]:
+- update for release 0.6.2
+CHANGES [rev:1.17, 2001-09-07T21:25:42]:
+- updated for release 0.6.2
+- added missing fix for 0.6.0: Win-95 cursor
+TODO [rev:1.14, 2001-09-07T21:27:32]:
+- updated for release 0.6.2
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_6_2 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

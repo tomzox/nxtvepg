@@ -17,6 +17,8 @@
 This is the manual page for the
 <A HREF="http://nxtvepg.tripod.com/">nxtvepg</A> software package.
 
+<BODY>
+
 <!-- INDEX BEGIN -->
 
 <UL>
@@ -30,6 +32,13 @@ This is the manual page for the
 	<LI><A HREF="#DATA_ACQUISITION">DATA ACQUISITION</A>
 	<LI><A HREF="#ACQUISITION_MODES">ACQUISITION MODES</A>
 	<LI><A HREF="#STATISTICS">STATISTICS</A>
+	<UL>
+
+		<LI><A HREF="#Status_line">Status line</A>
+		<LI><A HREF="#Timescale_popup_windows">Timescale popup windows</A>
+		<LI><A HREF="#Database_statistics_popup_window">Database statistics popup windows</A>
+	</UL>
+
 	<LI><A HREF="#MERGED_DATABASES">MERGED DATABASES</A>
 	<LI><A HREF="#NAVIGATE">NAVIGATE</A>
 	<LI><A HREF="#FILTERING">FILTERING</A>
@@ -498,10 +507,76 @@ anything by selecting a mode that contains a Near stage.
 <HR>
 <H1><A NAME="STATISTICS">STATISTICS</A></H1>
 <P>
+There are currently three ways to obtain information about the state of the
+databases and the acquisition process: the first and most obvious is the
+status line at the bottom of the main window (only if enabled, see see <A HREF="#CONFIGURATION">CONFIGURATION</A>). The second one are the timescale popup windows, which visualize for each
+TV network the time ranges which are covered with TV programme data. The
+third one are the database statistics popup windows which offer technical
+details about the database, e.g. which percentage of entries is already
+loaded etc., both in textual form and as a pie chart.
+
+<P>
+The latter two windows are available separately for the browser and
+acquisition databases. (By default these are identical, but you can
+configure background acquisition on multiple databases, see <A HREF="#ACQUISITION_MODES">ACQUISITION MODES</A>). All types of statistics are regularily updated while acquisition is
+running.
+
+<P>
+<HR>
+<H2><A NAME="Status_line">Status line</A></H2>
+<P>
+The status line separately summarizes the state of the browser database
+(unless it's a merged database) and the acquisition process. Since there's
+not much room only the most relevant information is included there, i.e.
+kind of information presented depends on the current state.
+
+<P>
+For the browser database you'll normally just see the name of the content
+provider network and a percentage that describes how many of the blocks
+(i.e. TV programmes) in the provider database already have been received.
+
+<P>
+If more than 10% of the blocks in the database lie in the past, you'll
+additionally see a note about this percentage of expired blocks. Note that
+a 100% loaded database may appear completely empty when all blocks are
+expired. As soon as you start acquisition the fill percentage will drop to
+0 because a new inventory will have been loaded which no longer contains
+the expired blocks.
+
+<P>
+When acquisition for the browser database stopped more than 60 minutes ago,
+a note is added to the status line. In this case it may be advisable to
+start acquisition for this database to load descriptions for programmes
+that are now included in the ``Near'' time range (see <A HREF="#DATA_ACQUISITION">DATA ACQUISITION</A>).
+
+<P>
+If acquisition is currently not active you'll see a note about that, often
+together with a reason, e.g. ``no reception'' when you've manually tuned a
+station that doesn't transmit Nextview.
+
+<P>
+Else you'll see the name of the content provider network and a percentage
+that describes the progress of acquisition. Note that this percentage may
+be different from the overall fill percentage given with the browser
+database, as it also reflects blocks that have to be reloaded due to
+version changes.
+
+<P>
+Additionally there may be a note about the current mode of acquisition,
+like the current phase for cyclic acquisition modes or ``forced passive''
+when nxtvepg is not able to change the channel, maybe due to a TV
+application running in parallel. See <A HREF="#ACQUISITION_MODES">ACQUISITION MODES</A> for details.
+
+<P>
+<HR>
+<H2><A NAME="Timescale_popup_windows">Timescale popup windows</A></H2>
+<P>
 You can monitor the progress of acquisition with the timescale windows
 which can be opened from the Control menu. There's one window for the
-browser database, and one for the acquisition database, if it's a different
-one. The timescale windows have one scale for each network covered by the
+browser database, and one for the acquisition database.
+
+<P>
+The timescale windows have one scale for each network covered by the
 selected provider. Each scale covers the next 5 days, starting with the
 current time. Ranges that are covered by programmes in the database are
 marked in red or blue, uncovered ranges are left black.
@@ -528,6 +603,16 @@ PI blocks from an earlier database version.
 expired or invalid PI blocks (overlapping or zero run-time, block number
 not in the range given in inventory, etc.)
 
+<DT><STRONG><A NAME="item_gray">gray:</A></STRONG><DD>
+<P>
+missing PI blocks. Note that the range can only be roughly estimated, as
+the time range a block covers is not known until the actual block is
+available.
+
+<DT><STRONG><A NAME="item_black">black:</A></STRONG><DD>
+<P>
+time range which is not covered by the provider.
+
 </DL>
 <P>
 In front of the scales there are 5 separate boxes, which refer to the first
@@ -539,41 +624,142 @@ the data from the Now cycle is expired (marked yellow). If all 5 are
 yellow, it's time to update the database.
 
 <P>
-There are also statistics windows available from the Control menu which
-inform you about the browser database and the acquisition progress. The
-acquisition statistics are updated every time a new AI block is received
-and reset when the database version changes.
+<HR>
+<H2><A NAME="Database_statistics_popup_window">Database statistics popup windows</A></H2>
+<P>
+There are two popup windows available from the Control menu which contain
+statistical information about the browser database and the acquisition
+database and progress. The window is horizontally divided in two parts: the
+upper part lists static information; the lower part lists dynamic info and
+is available only while acquisition is active.
 
 <P>
-The diagram at the left displays a history of fill percentages for stream 1
-and 2; the meaning of the colors is the same as in the timescale windows.
-The baud rates are computed as avarage of received bits during the total
-acquisition runtime; every teletext packet is counted as 45 * 8 Bits.
-<EM>AI min/avg/max</EM>
-describes the frequency of AI packet reception as: minimum, average and
-maximum interval length between AI blocks. The last 3 lines reflect the PI
-(programme information) block counts in the database.
+The acquisition statistics are updated every time a new AI block (inventory
+which lists all covered networks and block counts per network; usually
+transmitted every 10 seconds) is received.
+
+<DL>
+<DT><STRONG><A NAME="item_Last">Last AI update:</A></STRONG><DD>
+<P>
+The (local) time when the last inventory block was received. Since this
+block has to be transmitted on a regular basis it tells you when
+acquisition was active for this database.
+
+<DT><STRONG><A NAME="item_Database">Database version:</A></STRONG><DD>
+<P>
+The version number is incremented by the provider every day or after
+content changes. A version change forces a complete reload of the database.
+
+<DT><STRONG><A NAME="item_Blocks">Blocks in AI:</A></STRONG><DD>
+<P>
+How many blocks are transmitted in total. This number is taken from the
+provider's AI block, i.e. the inventory. Additionally listed separately for
+stream 1 and 2 (swo).
+
+<DT><STRONG><A NAME="item_Block">Block count db:</A></STRONG><DD>
+<P>
+How many blocks are in the local database. At maximum this can be the
+number of blocks given in the AI block.
+
+<DT><STRONG><A NAME="item_Current">Current version:</A></STRONG><DD>
+<P>
+How many blocks are in the local database and have the latest version.
+
+<DT><STRONG><A NAME="item_Filled">Filled:</A></STRONG><DD>
+<P>
+Percentage of blocks in the database in respect to the total given in the
+AI block, i.e. ``Block count db'' divided by ``Blocks in AI''. The second
+percentage in the line only reflects blocks of the current version and
+hence the degree of completeness of acquisition.
+
+<DT><STRONG><A NAME="item_Expired">Expired blocks:</A></STRONG><DD>
+<P>
+Number of blocks which have a stop time that's in the past, i.e. which no
+longer show up in the browser. The percentage given here is in respect to
+the actual number of blocks in the local database (all versions), not the
+AI.
+
+<DT><STRONG><A NAME="item_Defective">Defective blocks:</A></STRONG><DD>
+<P>
+Number of blocks with invalid or overlapping start time. These blocks do
+not show up in the browser (as it would be impossible to handle if there is
+more than one ``now'' entry for a network). The percentage given here is in
+respect to the actual number of blocks in the local database (all
+versions), not the AI.
+
+</DL>
+<P>
+The pie chart on the left on the window visualizes these numbers. The
+circle represents 100% of the blocks listed in AI. It's divided in stream 1
+(red) and stream 2 (blue). The shaded segments represent the blocks that
+are still missing in the local database. The yellow segments the percentage
+of expired and/or defective blocks.
 
 <P>
-<EM>Block count db</EM>
-gives the total number of PI blocks; in the brackets the sum is broken up
-into stream 1, stream 2 and expired &amp; obsolete (colors red, blue and
-yellow in the graphics). The next line has the same meaning, but only PI
-blocks of the current database version are counted. The last line gives the
-number of PI blocks that are transmitted in the current Nextview cycle.
-This value is computed from the block ranges given in the AI block. The
-percentages behind the total express how many of the blocks already are
-available in the database; the second of the percentages only considers PI
-of the current version.
-
-<P>
-When you interpret those values, please remember that PI blocks may be
+When you interpret those values, please remember that blocks may be
 appended to the transmission cycle when programmes have expired (in a
 slight violation of the Nextview standard this is done even without
 changing the database version). So you might see from time to time that the
 fill percentages take a step back down during acquisition. Also note that
 expired PI are not accessible from the user interface, however they are
 included in the database dump from the <EM>Control</EM> menu.
+
+<DL>
+<DT><STRONG><A NAME="item_Acq">Acq. runtime:</A></STRONG><DD>
+<P>
+How long the acquisition has been continuously running for this database.
+
+<DT><STRONG><A NAME="item_Channel">Channel VPS/PDC:</A></STRONG><DD>
+<P>
+The VPS/PDC code that has last been received on the currently tuned
+channel. Usually this will be the same as the provider CNI given in the
+database statistics, but you might see different values here when you
+manually tune in a different channel with an external application.
+
+<DT><STRONG><A NAME="item_TTX">TTX data rate:</A></STRONG><DD>
+<P>
+The rate at which teletext data lines are received on the current channel
+in baud, i.e. bits per second. Each teletext line counts as 45 bytes.
+
+<DT><STRONG><A NAME="item_EPG">EPG data rate:</A></STRONG><DD>
+<P>
+Same as TTX data rate, however only teletext lines that belong to the page
+which transmits Nextview are counted.
+
+<DT><STRONG>EPG page rate:</STRONG><DD>
+<P>
+The per second average of received teletext pages with carry Nextview data.
+
+<DT><STRONG><A NAME="item_AI">AI recv. count:</A></STRONG><DD>
+<P>
+The number of AI blocks received since acquisition start.
+
+<DT><STRONG>AI min/avg/max:</STRONG><DD>
+<P>
+The minimum, average and maximum distance between reception of AI blocks.
+The average should usually be 10 seconds. The maximum should not be much
+higher or else an EPG scan might have a hard time finding this provider;
+also the acquisition start-up time would be higher because at first an AI
+block must be awaited.
+
+<DT><STRONG><A NAME="item_PI">PI rx repetition:</A></STRONG><DD>
+<P>
+The average how often each block in the AI was received since start of the
+acquisition. Divided in Now, stream 1 and stream 2.
+
+<DT><STRONG><A NAME="item_Acq">Acq mode:</A></STRONG><DD>
+<P>
+The current acquisition mode as configured by the user, or forced passive
+if nxtvepg failed to switch the channel.
+
+<DT><STRONG><A NAME="item_Network">Network variance:</A></STRONG><DD>
+<P>
+The variance of block coverage across all networks.
+
+</DL>
+<P>
+The diagram at the left displays a history of fill percentages for stream 1
+and 2; the meaning of the colors is the same as in the timescale windows.
 
 <P>
 <HR>
@@ -1144,7 +1330,7 @@ networks and pressing the <EM>up</EM> or <EM>down</EM> arrows. If you want the s
 simply copy your selection with the <EM>copy</EM>
 menu.
 
-<DT><STRONG><A NAME="item_Network">Network names...</A></STRONG><DD>
+<DT><STRONG>Network names...</STRONG><DD>
 <P>
 Open the network names configuration dialog. It's main purpose is to
 synchronize the network names with <EM>xawtv</EM> (UNIX TV application), i.e. the <EM>~/.xawtv</EM> configuration file. This is required because the network name is used in

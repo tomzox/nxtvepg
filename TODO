@@ -12,22 +12,11 @@ xawtv patches (Gerd Knorr)
 - split multi-network station names prior to comparison in setstation_handler
 
 nxtvepg xawtv.c:
-- Netname Config Dialog: warn if Tune-TV if name is unknown
-- allow obsolete PI in the browser window (for VPS)
+- allow expired PI in the browser window (for VPS)
+- Tune-TV: warn if station name is not in .xawtv
 - Tune-TV: offer to start xawtv if not running
   may not work if xawtv requires command line options
 - VPS empty/pause codes display
-- multi-network channel name splitting in property event handling
-  NO - leads to annoying false guesses
-
-acq mode ctl. & cyclic acq fixes:
-- documentation for browser status line and 2 stats wins
-- acq timebase for cycle stats in EpgDbGetStat()
-- 2nd stage after dbs are (almost) complete: concentrate on reaching
-  100%, then sleep and just wake up to check AI, e.g. every 5 minutes
-- check if version is incompatible before recommending prov selection
-- limit number of error/warning popups for database errors
-  or combine several CNIs into one popup
 
 WIN32 port fixes:
 - input source naming needs to be configurable for exotic cards
@@ -39,15 +28,17 @@ WIN32 port fixes:
 merged database fixes:
 - fine control for provider merge
   (e.g. average editorial rating instead of first)
-- merged database: version & block index handling (for statistics)
+- database statistics popup: need some estimation for % of completeness
+- merged database: block index handling (for statistics)
 - more intelligent redundancy check for merged descriptions:
   break up into substrings at any non-alnum except space
 
 other required fixes:
-- fix: programmes that lie past a daylight saving time border are assigned
-  a wrong start time on Linux (Linux lacks tm_isdst in struct tm)
 - fix: obsolete series codes can not be deleted, because only series which
   have an instance in the db are listed in the series menu
+- startup: if nxtvepg version is incompatible don't recommend prov selection
+- limit number of error/warning popups for database reload errors
+  or combine several CNIs into one popup
 - allow to set input source via /dev/vbi (bttv version >= 0.7.5x)
 - cmd line option "predatory": in this mode the tuner is set via /dev/vbi
   regardless of other /dev/video users
@@ -66,6 +57,7 @@ possible new features: (in order of decreasing priority)
   an adjustable priority level (raise popup or dispatch external app.)
 - series management based on titles only, across all networks
 - use GTK+ or Tix library to improve GUI
+- daemon mode without GUI (for background acq while all users are logged out)
 - allow multiple acquisition and GUI clients, possibly on different hosts
 - export database content via HTTP
 - export database content to mysql server

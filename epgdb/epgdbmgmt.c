@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbmgmt.c,v 1.34 2001/08/29 08:58:21 tom Exp tom $
+ *  $Id: epgdbmgmt.c,v 1.35 2001/09/02 16:21:40 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -472,50 +472,65 @@ static bool EpgDbAddAiBlock( PDBC dbc, EPGDB_BLOCK * pBlock )
    EPGDB_BLOCK *pOldAiBlock;
    const AI_NETWOP *pOldNets, *pNewNets;
    uchar netwop;
+   bool result;
 
    pOldAiBlock = dbc->pAiBlock;
 
-   dbc->pAiBlock = pBlock;
-
-   if (pOldAiBlock != NULL)
+   if ( (pOldAiBlock != NULL) &&
+        (pOldAiBlock->parityErrCnt < pBlock->parityErrCnt) &&
+        (pOldAiBlock->origBlkLen == pBlock->origBlkLen) &&
+        (pOldAiBlock->origChkSum == pBlock->origChkSum) &&
+        (memcmp(&pOldAiBlock->blk.ai, &pBlock->blk.ai, sizeof(AI_BLOCK)) == 0) &&
+        (memcmp(AI_GET_NETWOPS(&pOldAiBlock->blk.ai), AI_GET_NETWOPS(&pBlock->blk.ai),
+                pBlock->blk.ai.netwopCount * sizeof(AI_NETWOP)) == 0) )
    {
-      if ((pOldAiBlock->blk.ai.version != dbc->pAiBlock->blk.ai.version) ||
-          (pOldAiBlock->blk.ai.version_swo != dbc->pAiBlock->blk.ai.version_swo) )
+      // refuse block if it has more errors than the already available copy
+      debug2("PARITY refuse AI block: error counts new=%d old=%d", pBlock->parityErrCnt, pOldAiBlock->parityErrCnt);
+      result = FALSE;
+   }
+   else
+   {
+      dbc->pAiBlock = pBlock;
+
+      if (pOldAiBlock != NULL)
       {
-         EpgDbRemoveAllDefectPi(dbc, dbc->pAiBlock->blk.ai.version);
-         EpgDbFilterIncompatiblePi(dbc, &pOldAiBlock->blk.ai, &dbc->pAiBlock->blk.ai);
-         EpgDbRemoveObsoleteGenericBlocks(dbc);
-
-         EpgContextMergeAiUpdate(dbc, pBlock);
-      }
-      else
-      {  // same version, but block start numbers might still have changed
-         // (this should happen max. once per cycle, i.e. every 10-20 minutes)
-         pOldNets = AI_GET_NETWOPS(&pOldAiBlock->blk.ai);
-         pNewNets = AI_GET_NETWOPS(&pBlock->blk.ai);
-
-         for (netwop=0; netwop < pBlock->blk.ai.netwopCount; netwop++)
+         if ((pOldAiBlock->blk.ai.version != dbc->pAiBlock->blk.ai.version) ||
+             (pOldAiBlock->blk.ai.version_swo != dbc->pAiBlock->blk.ai.version_swo) )
          {
-            if ( (pOldNets[netwop].startNo != pNewNets[netwop].startNo) ||
-                 (pOldNets[netwop].stopNoSwo != pNewNets[netwop].stopNoSwo) )
-            {  // at least one start/stop number changed -> check all PI
-               debug5("EpgDb-AddAiBlock: PI block range changed: net=%d %d-%d -> %d-%d", netwop, pOldNets[netwop].startNo, pOldNets[netwop].stopNoSwo, pNewNets[netwop].startNo, pNewNets[netwop].stopNoSwo);
-               EpgDbFilterIncompatiblePi(dbc, &pOldAiBlock->blk.ai, &dbc->pAiBlock->blk.ai);
-               EpgDbCheckDefectPiBlocknos(dbc);
+            EpgDbRemoveAllDefectPi(dbc, dbc->pAiBlock->blk.ai.version);
+            EpgDbFilterIncompatiblePi(dbc, &pOldAiBlock->blk.ai, &dbc->pAiBlock->blk.ai);
+            EpgDbRemoveObsoleteGenericBlocks(dbc);
 
-               EpgContextMergeAiCheckBlockRange(dbc);
-               break;
+            EpgContextMergeAiUpdate(dbc);
+         }
+         else
+         {  // same version, but block start numbers might still have changed
+            // (this should happen max. once per cycle, i.e. every 10-20 minutes)
+            pOldNets = AI_GET_NETWOPS(&pOldAiBlock->blk.ai);
+            pNewNets = AI_GET_NETWOPS(&pBlock->blk.ai);
+
+            for (netwop=0; netwop < pBlock->blk.ai.netwopCount; netwop++)
+            {
+               if ( (pOldNets[netwop].startNo != pNewNets[netwop].startNo) ||
+                    (pOldNets[netwop].stopNoSwo != pNewNets[netwop].stopNoSwo) )
+               {  // at least one start/stop number changed -> check all PI
+                  debug5("EpgDb-AddAiBlock: PI block range changed: net=%d %d-%d -> %d-%d", netwop, pOldNets[netwop].startNo, pOldNets[netwop].stopNoSwo, pNewNets[netwop].startNo, pNewNets[netwop].stopNoSwo);
+                  EpgDbFilterIncompatiblePi(dbc, &pOldAiBlock->blk.ai, &dbc->pAiBlock->blk.ai);
+                  EpgDbCheckDefectPiBlocknos(dbc);
+                  break;
+               }
             }
          }
+
+         // free previous block
+         xfree(pOldAiBlock);
       }
 
-      // free previous block
-      xfree(pOldAiBlock);
+      assert(EpgDbCheckChains(dbc));
+      result = TRUE;
    }
 
-   assert(EpgDbCheckChains(dbc));
-
-   return TRUE;
+   return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -1343,11 +1358,10 @@ bool EpgDbAddBlock( PDBC dbc, EPGDB_BLOCK * pBlock )
             case BLOCK_TYPE_AI:
                pBlock->version = pBlock->blk.ai.version;
                result = EpgDbAddAiBlock(dbc, pBlock);
-               if (result)
-               {
-                  dbc->lastAiUpdate = time(NULL);
-                  StatsWin_NewAi(dbc);
-               }
+               // further processing is independent of result
+               dbc->lastAiUpdate = time(NULL);
+               dbc->modified = TRUE;
+               StatsWin_NewAi(dbc);
                break;
             case BLOCK_TYPE_NI:
             case BLOCK_TYPE_OI:

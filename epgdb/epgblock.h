@@ -25,7 +25,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgblock.h,v 1.28 2001/05/19 14:21:57 tom Exp tom $
+ *  $Id: epgblock.h,v 1.29 2001/08/31 16:45:38 tom Exp tom $
  */
 
 #ifndef __EPGBLOCK_H
@@ -509,6 +509,7 @@ typedef struct
    ulong  defective;
    ulong  sinceAcq;
    double variance;
+   double avgAcqRepCount;
 } EPGDB_BLOCK_COUNT;
 
 // ----------------------------------------------------------------------------
@@ -527,6 +528,6 @@ EPGDB_BLOCK * EpgBlockCreate( uchar type, uint size );
 uint EpgBlockBcdToMoD( uint BCD );
 void EpgBlockSetAlphabets( const AI_BLOCK *pAiBlock );
 void EpgLtoInit( void );
-sint EpgLtoGet( void );
+sint EpgLtoGet( time_t when );
 
 #endif // __EPGBLOCK_H

@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbmerge.h,v 1.6 2001/04/04 18:24:33 tom Exp tom $
+ *  $Id: epgdbmerge.h,v 1.7 2001/09/02 16:28:04 tom Exp tom $
  */
 
 #ifndef __EPGDBMERGE_H
@@ -25,6 +25,9 @@
 
 // max number of databases that can be merged into one
 #define MAX_MERGED_DB_COUNT  10
+
+// descriptor type for dbIdx info which is inserted into merged PI blocks
+#define MERGE_DESCR_TYPE     0x3c
 
 // list of PI attributes that can be configured separately
 typedef enum
@@ -68,8 +71,9 @@ typedef struct
 // Declaration of interface functions
 //
 void EpgDbMergeInsertPi( EPGDB_MERGE_CONTEXT * dbmc, EPGDB_BLOCK * pNewBlock );
-void EpgDbMergeAiBlocks( EPGDB_CONTEXT * dbc );
+void EpgDbMergeAiBlocks( EPGDB_CONTEXT * dbc, uint netwopCount, uint * pNetwopList );
 void EpgDbMergeAllPiBlocks( EPGDB_CONTEXT * dbc );
+void EpgDbMerge_ResetPiVersion( EPGDB_CONTEXT * dbc, uint dbIdx );
 
 
 #endif  // __EPGDBMERGE_H

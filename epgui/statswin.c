@@ -1,5 +1,5 @@
 /*
- *  Nextview EPG GUI: Statistics window
+ *  Nextview EPG GUI: Statistics output
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
@@ -15,16 +15,21 @@
  *  Description:
  *
  *    Implements pop-up windows with statistics about the current
- *    state of the EPG database. In the timescale windows, for each
- *    network in the database five buttons reflect the availability
- *    of the first five PI blocks and a bar shows the time spans
- *    covered by all blocks.  In the acquisition statistics window,
- *    a history diagram reflects the percentage of received blocks,
- *    separated in stream 1 (red) and 2 (blue).
+ *    state of the databases and the acquisition process. There are
+ *    two different popup types: The timescale popups have one scale
+ *    for each network covered by the provider which represent the
+ *    next five days; the ranges which are actually covered by PI
+ *    blocks in the database are marked red or blue in the scales.
+ *    The database statistics popups contain statistic summaries
+ *    for the database, both in textual format and as a pie chart.
+ *
+ *    Both popup types are updated dynamically while acquisition is
+ *    running. They can be opened separately for the browser and
+ *    acquisition database.
  *
  *  Author: Tom Zoerner
  *
- *  $Id: statswin.c,v 1.35 2001/05/06 17:49:00 tom Exp tom $
+ *  $Id: statswin.c,v 1.40 2001/09/07 20:26:49 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -78,15 +83,32 @@ const char * const tscn[2] =
    ".tscale_acq"
 };
 
-#define STREAM_COLOR_COUNT  5
+typedef enum
+{
+   STREAM_COLOR_CURRENT_V1,
+   STREAM_COLOR_CURRENT_V2,
+   STREAM_COLOR_OLD_V1,
+   STREAM_COLOR_OLD_V2,
+   STREAM_COLOR_DEFECTIVE,
+   STREAM_COLOR_EXPIRED,
+   STREAM_COLOR_MISSING,
+   STREAM_COLOR_COUNT
+} STREAM_COLOR;
+
 const char * const streamColors[STREAM_COLOR_COUNT] =
 {
    "red",           // stream 1, current version -> red
    "#4040ff",       // stream 1, current version -> blue
    "#A52A2A",       // stream 2, obsolete version -> brown
    "#483D8B",       // stream 2, obsolete version -> DarkSlate
-   "yellow"         // defect block -> yellow
+   "yellow",        // defect block -> yellow
+   "yellow",        // expired block -> yellow too
+   "#888888"        // missing block -> gray
 };
+
+// colors to mark the name of the network which currently receives PI in the timescales popup
+#define HIGHILIGHT_BG_COL_1     "#ffc0c0"      // light red
+#define HIGHILIGHT_BG_COL_2     "#c0c0ff"      // light blue
 
 static bool isStatsDemoMode;
 
@@ -96,12 +118,12 @@ static void StatsWin_UpdateDbStatsWinTimeout( ClientData clientData );
 // ----------------------------------------------------------------------------
 // display PI time range and Now box
 //
-static void StatsWin_DisplayPi( int target, uchar netwop, uchar stream,
-                                time_t start, time_t stop, uchar hasShortInfo, uchar hasLongInfo )
+static void StatsWin_DisplayPi( int target, uchar netwop, STREAM_COLOR streamCol,
+                                time_t start, time_t stop, uchar hasShortInfo, uchar hasLongInfo, bool isLast )
 {
    uint startOff, stopOff;
 
-   if ((stop > tscaleState[target].startTime) && (stream < STREAM_COLOR_COUNT))
+   if ((stop > tscaleState[target].startTime) && (streamCol < STREAM_COLOR_COUNT))
    {
       if (start < tscaleState[target].startTime)
          start = 0;
@@ -115,10 +137,10 @@ static void StatsWin_DisplayPi( int target, uchar netwop, uchar stream,
       startOff = start * 256 / (5*60*60*24);
       stopOff  = stop  * 256 / (5*60*60*24);
 
-      sprintf(comm, "TimeScale_AddPi %s.top.n%d %d %d %s %d %d\n",
+      sprintf(comm, "TimeScale_AddPi %s.top.n%d %d %d %s %d %d %d\n",
               tscn[target], netwop, startOff, stopOff,
-              streamColors[stream],
-              hasShortInfo, hasLongInfo);
+              streamColors[streamCol],
+              hasShortInfo, hasLongInfo, isLast);
       eval_check(interp, comm);
    }
 }
@@ -139,13 +161,14 @@ static void StatsWin_HighlightNetwop( int target, uchar netwop, uchar stream )
          eval_global(interp, comm);
 
          tscaleState[target].highlighted = 0xff;
+         tscaleState[target].lastStream  = 0xff;
       }
 
       // highlight the new netwop
       if (stream < 2)
       {
          sprintf(comm, "%s.top.n%d.name config -bg %s\n",
-                       tscn[target], netwop, (stream == 0) ? "#ffc0c0" : "#c0c0ff");
+                       tscn[target], netwop, (stream == 0) ? HIGHILIGHT_BG_COL_1 : HIGHILIGHT_BG_COL_2);
          eval_check(interp, comm);
 
          tscaleState[target].highlighted = netwop;
@@ -170,48 +193,46 @@ void StatsWin_NewPi( EPGDB_CONTEXT * dbc, const PI_BLOCK *pPi, uchar stream )
    uint blockOff;
    time_t now = time(NULL);
    int target;
-   bool isMerged;
+   bool isMerged, isLast;
 
-   if (tscaleState[DB_TARGET_UI].open && (dbc == pUiDbContext))
-      target = DB_TARGET_UI;
-   else if (tscaleState[DB_TARGET_ACQ].open && (dbc == pAcqDbContext))
-      target = DB_TARGET_ACQ;
-   else
-      target = -1;
-
-   if (target != -1)
+   for (target=0; target < 2; target++)
    {
-      isMerged = EpgDbContextIsMerged(dbc);
-      EpgDbLockDatabase(dbc, TRUE);
-      pAi = EpgDbGetAi(dbc);
-      if ((pAi != NULL) && (pPi->netwop_no < pAi->netwopCount))
+      if ( tscaleState[target].open &&
+           (dbc == ((target == DB_TARGET_UI) ? pUiDbContext : pAcqDbContext)) )
       {
-         if (isMerged == FALSE)
+         isMerged = EpgDbContextIsMerged(dbc);
+         EpgDbLockDatabase(dbc, TRUE);
+         pAi = EpgDbGetAi(dbc);
+         if ((pAi != NULL) && (pPi->netwop_no < pAi->netwopCount))
          {
             pNetwop = AI_GET_NETWOP_N(pAi, pPi->netwop_no);
-            blockOff = EpgDbGetPiBlockIndex(pNetwop->startNo, pPi->block_no);
-            if (blockOff < 5)
+            if (isMerged == FALSE)
             {
-               sprintf(comm, "TimeScale_MarkNow %s.top.n%d %d %s\n",
-                             tscn[target], pPi->netwop_no, blockOff,
-                             (pPi->stop_time >= now) ? streamColors[0] : streamColors[4]);
-               eval_check(interp, comm);
+               blockOff = EpgDbGetPiBlockIndex(pNetwop->startNo, pPi->block_no);
+               if (blockOff < 5)
+               {
+                  sprintf(comm, "TimeScale_MarkNow %s.top.n%d %d %s\n",
+                                tscn[target], pPi->netwop_no, blockOff,
+                                (pPi->stop_time >= now) ? streamColors[STREAM_COLOR_CURRENT_V1] : streamColors[STREAM_COLOR_EXPIRED]);
+                  eval_check(interp, comm);
+               }
             }
-         }
 
-         if (EpgDbSearchObsoletePi(dbc, pPi->netwop_no, pPi->start_time, pPi->stop_time) != NULL)
-         {  // conflict with other block -> mark as faulty
-            StatsWin_DisplayPi(target, pPi->netwop_no, 4, pPi->start_time, pPi->stop_time, TRUE, TRUE);
-         }
-         else
-         {
-            StatsWin_DisplayPi(target, pPi->netwop_no, stream, pPi->start_time, pPi->stop_time,
-                               PI_HAS_SHORT_INFO(pPi), PI_HAS_LONG_INFO(pPi));
-         }
+            isLast = (!isMerged && (pPi->block_no == pNetwop->stopNoSwo));
+            if (EpgDbSearchObsoletePi(dbc, pPi->netwop_no, pPi->start_time, pPi->stop_time) != NULL)
+            {  // conflict with other block -> mark as faulty
+               StatsWin_DisplayPi(target, pPi->netwop_no, STREAM_COLOR_DEFECTIVE, pPi->start_time, pPi->stop_time, TRUE, TRUE, isLast);
+            }
+            else
+            {
+               StatsWin_DisplayPi(target, pPi->netwop_no, stream, pPi->start_time, pPi->stop_time,
+                                  PI_HAS_SHORT_INFO(pPi), PI_HAS_LONG_INFO(pPi), isLast);
+            }
 
-         StatsWin_HighlightNetwop(target, pPi->netwop_no, stream);
+            StatsWin_HighlightNetwop(target, pPi->netwop_no, stream);
+         }
+         EpgDbLockDatabase(dbc, FALSE);
       }
-      EpgDbLockDatabase(dbc, FALSE);
    }
 }
 
@@ -237,6 +258,7 @@ void StatsWin_UpdateDbStatsWin( ClientData clientData )
    uint  cni, foo;
    bool  waitNi;
    ulong total, allVersionsCount, curVersionCount, obsolete;
+   time_t acqMinTime[2];
    time_t now = time(NULL);
    int target;
 
@@ -257,7 +279,8 @@ void StatsWin_UpdateDbStatsWin( ClientData clientData )
       }
       if (sv == NULL)
       {  // acq not running for this database -> display db stats only
-         EpgDbGetStat(dbc, myCount, 0);
+         memset(acqMinTime, 0, sizeof(acqMinTime));
+         EpgDbGetStat(dbc, myCount, acqMinTime, 0);
          count = myCount;
       }
       else
@@ -314,11 +337,11 @@ void StatsWin_UpdateDbStatsWin( ClientData clientData )
                        curVersionCount,
                           count[0].curVersion + count[0].expired + count[0].defective,
                           count[1].curVersion + count[1].expired + count[1].defective,
-                       ((total > 0) ? (int)((double)allVersionsCount * 100.0 / total) : 0),
-                       ((total > 0) ? (int)((double)curVersionCount * 100.0 / total) : 0),
-                       ((curVersionCount > 0) ? ((int)((double)(count[0].expired + count[1].expired) * 100.0 / allVersionsCount)) : 0),
+                       ((total > 0) ? (int)((double)allVersionsCount * 100.0 / total) : 100),
+                       ((total > 0) ? (int)((double)curVersionCount * 100.0 / total) : 100),
+                       ((allVersionsCount > 0) ? ((int)((double)(count[0].expired + count[1].expired) * 100.0 / allVersionsCount)) : 0),
                           count[0].expired + count[1].expired, count[0].expired, count[1].expired,
-                       ((curVersionCount > 0) ? ((int)((double)(count[0].defective + count[1].defective) * 100.0 / allVersionsCount)) : 0),
+                       ((allVersionsCount > 0) ? ((int)((double)(count[0].defective + count[1].defective) * 100.0 / allVersionsCount)) : 0),
                           count[0].defective + count[1].defective, count[0].defective, count[1].defective
                 );
          eval_check(interp, comm);
@@ -412,13 +435,17 @@ void StatsWin_UpdateDbStatsWin( ClientData clientData )
                        "EPG data rate:    %d baud (%1.1f%% of TTX)\n"
                        "EPG page rate:    %1.2f pages/sec\n"
                        "AI recv. count:   %d\n"
-                       "AI min/avg/max:   %d/%2.2f/%d sec\n",
+                       "AI min/avg/max:   %d/%2.2f/%d sec\n"
+                       "PI rx repetition: %d/%.2f/%.2f now/s1/s2\n",
                        ((duration > 0) ? (int)((sv->ttxPkgCount*45*8)/duration) : 0),
                        ((duration > 0) ? (int)((sv->epgPkgCount*45*8)/duration) : 0),
                        ((sv->ttxPkgCount > 0) ? ((double)sv->epgPkgCount*100.0/sv->ttxPkgCount) : 0.0),
                        ((duration > 0) ? ((double)sv->epgPagCount / duration) : 0),
                        sv->aiCount,
-                       (int)sv->minAiDistance, sv->avgAiDistance, (int)sv->maxAiDistance
+                       (int)sv->minAiDistance,
+                          ((sv->aiCount > 1) ? ((double)sv->sumAiDistance / (sv->aiCount - 1)) : 0),
+                          (int)sv->maxAiDistance,
+                       sv->nowNextMaxAcqRepCount, sv->count[0].avgAcqRepCount, sv->count[1].avgAcqRepCount
                 );
 
          switch (acqState.mode)
@@ -457,7 +484,15 @@ void StatsWin_UpdateDbStatsWin( ClientData clientData )
                strcat(comm, "Acq mode:         merged database\n");
                break;
             case ACQMODE_CYCLIC_2:
-               strcat(comm, "Acq mode:         manual\n");
+               if (acqState.cniCount <= 1)
+                  strcat(comm, "Acq mode:         manual\n");
+               else
+               {
+                  if (acqState.cyclePhase == ACQMODE_PHASE_STREAM2)
+                     strcat(comm, "Acq mode:         manual, phase 'All'\n");
+                  else
+                     strcat(comm, "Acq mode:         manual, phase 'Complete'\n");
+               }
                break;
             default:
                switch (acqState.cyclePhase)
@@ -470,6 +505,9 @@ void StatsWin_UpdateDbStatsWin( ClientData clientData )
                      break;
                   case ACQMODE_PHASE_STREAM2:
                      strcat(comm, "Acq mode:         cyclic, phase 'All'\n");
+                     break;
+                  case ACQMODE_PHASE_MONITOR:
+                     strcat(comm, "Acq mode:         cyclic, phase 'Complete'\n");
                      break;
                   default:
                      break;
@@ -530,7 +568,8 @@ static void StatsWin_UpdateDbStatsWinTimeout( ClientData clientData )
 
 // ----------------------------------------------------------------------------
 // Update status line at the bottom of timescale windows
-// - It contains the provider's network name and
+// - only called when acquisition is running for the respective database
+// - status line contains the provider's network name and
 //   PI fill percentages for stream 1 and stream 1+2
 //
 static void StatsWin_UpdateTimescaleStatusLine( ClientData clientData )
@@ -541,45 +580,45 @@ static void StatsWin_UpdateTimescaleStatusLine( ClientData clientData )
    uint nearPerc;
    int target;
 
-   if (tscaleState[DB_TARGET_UI].open && (pAcqDbContext == pUiDbContext))
-      target = DB_TARGET_UI;
-   else if (tscaleState[DB_TARGET_ACQ].open)
-      target = DB_TARGET_ACQ;
-   else
-      target = -1;
-
-   if (target != -1)
+   for (target=0; target < 2; target++)
    {
-      sv = EpgAcqCtl_GetStatistics();
-      if ((sv != NULL) && (sv->aiCount > 0))
+      if ( tscaleState[target].open && (pAcqDbContext != NULL) &&
+           ((target == DB_TARGET_ACQ) || (pUiDbContext == pAcqDbContext)) )
       {
-         total = sv->count[0].ai + sv->count[1].ai;
-         curVersionCount  = sv->count[0].curVersion + sv->count[0].expired + sv->count[0].defective +
-                            sv->count[1].curVersion + sv->count[1].expired + sv->count[1].defective;
-
-         EpgDbLockDatabase(pAcqDbContext, TRUE);
-         pAi = EpgDbGetAi(pAcqDbContext);
-         if (pAi != NULL)
+         sv = EpgAcqCtl_GetStatistics();
+         if ((sv != NULL) && (sv->aiCount > 0))
          {
-            if (curVersionCount < total)
-            {  // db not complete -> print percentage for far & near
+            total = sv->count[0].ai + sv->count[1].ai;
+            curVersionCount  = sv->count[0].curVersion + sv->count[0].expired + sv->count[0].defective +
+                               sv->count[1].curVersion + sv->count[1].expired + sv->count[1].defective;
 
-               nearPerc = (int)((double)(sv->count[0].expired + sv->count[0].defective + sv->count[0].curVersion) * 100.0 / sv->count[0].ai);
-
-               sprintf(comm, "%s.bottom.l configure -text {%s database %d%% complete, near data %d%%.}\n",
-                             tscn[target],
-                             AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop),
-                             (int)((double)curVersionCount * 100.0 / total), nearPerc);
-            }
-            else
+            EpgDbLockDatabase(pAcqDbContext, TRUE);
+            pAi = EpgDbGetAi(pAcqDbContext);
+            if (pAi != NULL)
             {
-               sprintf(comm, "%s.bottom.l configure -text {%s database 100%% complete.}\n",
-                             tscn[target],
-                             AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop));
+               if (curVersionCount < total)
+               {  // db not complete -> print percentage for far & near
+
+                  if (sv->count[0].ai > 0)
+                     nearPerc = (int)((double)(sv->count[0].expired + sv->count[0].defective + sv->count[0].curVersion) * 100.0 / sv->count[0].ai);
+                  else
+                     nearPerc = 100;
+
+                  sprintf(comm, "%s.bottom.l configure -text {%s database %d%% complete, near data %d%%.}\n",
+                                tscn[target],
+                                AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop),
+                                (int)((double)curVersionCount * 100.0 / total), nearPerc);
+               }
+               else
+               {
+                  sprintf(comm, "%s.bottom.l configure -text {%s database 100%% complete.}\n",
+                                tscn[target],
+                                AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop));
+               }
+               eval_global(interp, comm);
             }
-            eval_global(interp, comm);
+            EpgDbLockDatabase(pAcqDbContext, FALSE);
          }
-         EpgDbLockDatabase(pAcqDbContext, FALSE);
       }
    }
 }
@@ -603,7 +642,7 @@ void StatsWin_UpdateDbStatusLine( ClientData clientData )
    EPGACQ_DESCR acqState;
    const AI_BLOCK *pAi;
    ulong aiTotal, nearCount, allCount, expiredCount;
-   time_t dbAge;
+   time_t dbAge, acqMinTime[2];
 
    strcpy(comm, "set dbstatus_line {");
 
@@ -621,7 +660,8 @@ void StatsWin_UpdateDbStatusLine( ClientData clientData )
       }
       if (sv == NULL)
       {  // not the same db or acq not ready yet -> compute statistics now
-         EpgDbGetStat(pUiDbContext, myCount, 0);
+         memset(acqMinTime, 0, sizeof(acqMinTime));
+         EpgDbGetStat(pUiDbContext, myCount, acqMinTime, 0);
          count = myCount;
       }
       else
@@ -816,6 +856,12 @@ void StatsWin_UpdateDbStatusLine( ClientData clientData )
                else
                   strcat(comm, ", phase 'All'");
                break;
+            case ACQMODE_PHASE_MONITOR:
+               if (sv != NULL)
+                  sprintf(comm + strlen(comm), " phase 'Complete', %d%% complete", ACQ_COUNT_TO_PERCENT(allCount, aiTotal));
+               else
+                  strcat(comm, ", phase 'Complete'");
+               break;
             default:
                break;
          }
@@ -838,7 +884,7 @@ void StatsWin_UpdateDbStatusLine( ClientData clientData )
 //
 void StatsWin_NewAi( EPGDB_CONTEXT * dbc )
 {
-   dprintf1("StatsWin-NewAi: called for %s\n", (dbc==pUiDbContext)?"ui" : ((dbc==pAcqDbContext)?"acq":"?"));
+   dprintf1("StatsWin-NewAi: called for %s\n", ((dbc==pUiDbContext) && (dbc==pAcqDbContext)) ? "ui=acq" : ((dbc==pUiDbContext) ? "ui" : ((dbc==pAcqDbContext)?"acq":"?")));
 
    if (dbStatsWinState[DB_TARGET_ACQ].open)
    {
@@ -868,14 +914,16 @@ static void StatsWin_Load( int target, EPGDB_CONTEXT *dbc )
    const AI_NETWOP *pNetwops;
    time_t start_time[MAX_NETWOP_COUNT];
    time_t stop_time[MAX_NETWOP_COUNT];
-   time_t now;
+   time_t now, max_time;
    bool   has_short_info[MAX_NETWOP_COUNT];
    bool   has_long_info[MAX_NETWOP_COUNT];
-   uchar  stream[MAX_NETWOP_COUNT], this_stream, this_version;
+   uchar  this_version, cur_stream, rx_stream;
+   STREAM_COLOR  streamCol[MAX_NETWOP_COUNT], this_streamCol;
+   uint   block_no[MAX_NETWOP_COUNT];
    uchar  netwop_no;
-   ulong  bsum, total;
+   ulong  bcnt, bsum, total;
    int    idx;
-   bool   isMerged;
+   bool   isMerged, isLast;
 
    EpgDbLockDatabase(dbc, TRUE);
    memset(start_time, 0, sizeof(start_time));
@@ -887,16 +935,22 @@ static void StatsWin_Load( int target, EPGDB_CONTEXT *dbc )
    pPi = EpgDbSearchFirstPi(dbc, NULL);
    if ((pAi != NULL) && (pPi != NULL))
    {
+      // loop over all PI in the database (i.e. in parallel across all netwops)
       do
       {
-         netwop_no = pPi->netwop_no;
-         this_stream = EpgDbGetStream(pPi);
-         this_version = EpgDbGetVersion(pPi);
-         if ((this_stream == 0) && (this_version != pAi->version))
-            this_stream = 2;
-         else if ((this_stream == 1) && (this_version != pAi->version_swo))
-            this_stream = 3;
-         if (this_version == pAi->version)
+         netwop_no     = pPi->netwop_no;
+         this_version  = EpgDbGetVersion(pPi);
+         rx_stream     = EpgDbGetStream(pPi);
+         cur_stream    = (isMerged ? rx_stream : EpgDbGetStreamByBlockNo(dbc, pPi->block_no, pPi->netwop_no));
+
+         // determine color of the current PI: depends on its stream and version
+         this_streamCol = cur_stream;
+         if ((cur_stream == 0) && ((this_version != pAi->version) || (rx_stream != cur_stream)))
+            this_streamCol = STREAM_COLOR_OLD_V1;
+         else if ((rx_stream == 1) && ((this_version != pAi->version_swo) || (rx_stream != cur_stream)))
+            this_streamCol = STREAM_COLOR_OLD_V2;
+
+         if ((this_version == pAi->version) && (rx_stream == cur_stream))
             bsum += 1;
 
          if (isMerged == FALSE)
@@ -904,52 +958,84 @@ static void StatsWin_Load( int target, EPGDB_CONTEXT *dbc )
             idx = EpgDbGetPiBlockIndex(AI_GET_NETWOP_N(pAi, netwop_no)->startNo, pPi->block_no);
             if (idx < 5)
             {
-               sprintf(comm, "TimeScale_MarkNow %s.top.n%d %d red\n", tscn[target], netwop_no, idx);
+               sprintf(comm, "TimeScale_MarkNow %s.top.n%d %d %s\n", tscn[target], netwop_no, idx,
+                             (pPi->stop_time >= now) ? streamColors[STREAM_COLOR_CURRENT_V1] : streamColors[STREAM_COLOR_EXPIRED]);
                eval_check(interp, comm);
             }
          }
 
+         // check if there's a PI in the cache for this network
          if (start_time[netwop_no] != 0)
          {
+            // check if the parameters of the current PI match the one in the cache
             if ((pPi->start_time == stop_time[netwop_no]) &&
                 ((PI_HAS_SHORT_INFO(pPi) ^ has_short_info[netwop_no]) == FALSE) &&
                 ((PI_HAS_LONG_INFO(pPi) ^ has_long_info[netwop_no]) == FALSE) &&
-                (this_stream == stream[netwop_no]) )
+                (this_streamCol == streamCol[netwop_no]) )
             {
+               // match -> just enlarge the time range of the cached PI
                stop_time[netwop_no] = pPi->stop_time;
+               block_no[netwop_no]  = pPi->block_no;
             }
             else
-            {
-               StatsWin_DisplayPi(target, netwop_no, stream[netwop_no], start_time[netwop_no], stop_time[netwop_no], has_short_info[netwop_no], has_long_info[netwop_no]);
+            {  // no match -> draw the cached PI
+               StatsWin_DisplayPi(target, netwop_no, streamCol[netwop_no], start_time[netwop_no], stop_time[netwop_no], has_short_info[netwop_no], has_long_info[netwop_no], FALSE);
+               if ((pPi->block_no != ((block_no[netwop_no] + 1) % 0x10000)) && !isMerged)
+               {  // block missing between the previous and the last -> mark gray
+                  StatsWin_DisplayPi(target, netwop_no, STREAM_COLOR_MISSING, stop_time[netwop_no], pPi->start_time, FALSE, FALSE, FALSE);
+               }
+               // mark the cache as empty
                start_time[netwop_no] = 0L;
             }
          }
 
          if (start_time[netwop_no] == 0)
          {
+            // place the current item in the cache
             start_time[netwop_no]     = pPi->start_time;
             stop_time[netwop_no]      = pPi->stop_time;
             has_short_info[netwop_no] = PI_HAS_SHORT_INFO(pPi);
             has_long_info[netwop_no]  = PI_HAS_LONG_INFO(pPi);
-            stream[netwop_no]         = this_stream;
+            streamCol[netwop_no]      = this_streamCol;
+            block_no[netwop_no]       = pPi->block_no;
          }
+
          pPi = EpgDbSearchNextPi(dbc, NULL, pPi);
       }
       while (pPi != NULL);
 
+      // display the last (cached) PI of all networks
       pNetwops = AI_GET_NETWOPS(pAi);
       for (netwop_no=0; netwop_no < pAi->netwopCount; netwop_no++)
       {
+         // calculate sum of all PI listed in AI for all networks
+         bcnt = EpgDbGetPiBlockCount(pNetwops[netwop_no].startNo, pNetwops[netwop_no].stopNoSwo);
+         total += bcnt;
+
          if (start_time[netwop_no] != 0)
          {
-            StatsWin_DisplayPi(target, netwop_no, stream[netwop_no], start_time[netwop_no], stop_time[netwop_no], has_short_info[netwop_no], has_long_info[netwop_no]);
+            StatsWin_DisplayPi(target, netwop_no, streamCol[netwop_no], start_time[netwop_no], stop_time[netwop_no], has_short_info[netwop_no], has_long_info[netwop_no], FALSE);
+
+            if ((block_no[netwop_no] != pNetwops[netwop_no].stopNoSwo) && !isMerged)
+            {  // at least one block missing at the end -> mark estimated range as missing
+               max_time = dbc->lastAiUpdate + pNetwops[netwop_no].dayCount * (24*60*60);
+               if (max_time <= stop_time[netwop_no])
+                  max_time = stop_time[netwop_no] + 60*60;
+               StatsWin_DisplayPi(target, netwop_no, STREAM_COLOR_MISSING, stop_time[netwop_no], max_time, FALSE, FALSE, FALSE);
+            }
          }
-
-         total += EpgDbGetPiBlockCount(pNetwops[netwop_no].startNo, pNetwops[netwop_no].stopNoSwo);
+         else
+         {  // no PI at all found for this network
+            if ((bcnt > 0) && !isMerged)
+            {  // however there should be some -> mark as missing
+               max_time = dbc->lastAiUpdate + pNetwops[netwop_no].dayCount * (24*60*60);
+               StatsWin_DisplayPi(target, netwop_no, STREAM_COLOR_MISSING, 0, max_time, FALSE, FALSE, FALSE);
+            }
+         }
       }
-
    }
 
+   // loop over all defective PI in the database and mark them yellow
    pPi = EpgDbGetFirstObsoletePi(dbc);
    if ((pAi != NULL) && (pPi != NULL))
    {
@@ -960,13 +1046,15 @@ static void StatsWin_Load( int target, EPGDB_CONTEXT *dbc )
          {
             idx = EpgDbGetPiBlockIndex(AI_GET_NETWOP_N(pAi, pPi->netwop_no)->startNo, pPi->block_no);
             if (idx < 5)
-            {  // mark NOW button as expired
-               sprintf(comm, "TimeScale_MarkNow %s.top.n%d %d yellow\n", tscn[target], pPi->netwop_no, idx);
+            {  // mark NOW button as defective/expired
+               sprintf(comm, "TimeScale_MarkNow %s.top.n%d %d %s\n", tscn[target],
+                             pPi->netwop_no, idx, streamColors[STREAM_COLOR_EXPIRED]);
                eval_check(interp, comm);
             }
          }
-         StatsWin_DisplayPi(target, pPi->netwop_no, 4, pPi->start_time, pPi->stop_time,
-                            PI_HAS_SHORT_INFO(pPi), PI_HAS_LONG_INFO(pPi));
+         isLast = (!isMerged && (pPi->block_no == AI_GET_NETWOP_N(pAi, pPi->netwop_no)->stopNoSwo));
+         StatsWin_DisplayPi(target, pPi->netwop_no, STREAM_COLOR_DEFECTIVE, pPi->start_time, pPi->stop_time,
+                            PI_HAS_SHORT_INFO(pPi), PI_HAS_LONG_INFO(pPi), isLast);
 
          pPi = EpgDbGetNextObsoletePi(dbc, pPi);
       }
@@ -979,7 +1067,7 @@ static void StatsWin_Load( int target, EPGDB_CONTEXT *dbc )
       sprintf(comm, "%s.bottom.l configure -text {%s database %d%% complete.}\n",
                     tscn[target],
                     ((pAi != NULL) ? (char*)AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop) : ""),
-                    ((total > 0) ? (int)((double)bsum * 100 / total) : 0));
+                    ((total > 0) ? (int)((double)bsum * 100 / total) : 100));
       eval_check(interp, comm);
    }
    else
@@ -990,50 +1078,40 @@ static void StatsWin_Load( int target, EPGDB_CONTEXT *dbc )
 }
 
 // ----------------------------------------------------------------------------
-// update history diagram and stats text
+// Update time scale popup window for new provider or AI version
 //
 static void StatsWin_RebuildCanvas( ClientData clientData )
 {
-   const AI_BLOCK  *pAi;
-   const AI_NETWOP *pNetwops;
    EPGDB_CONTEXT   *dbc;
-   uchar netwop;
-   uint  target;
-   bool  isMerged;
+   uint  target = (uint) clientData;
 
-   target = (int) clientData;
-   if (target < 2)
+   dprintf2("StatsWin-RebuildCanvas: called for %d: %s\n", target, ((target == DB_TARGET_UI) ? "ui" : ((target == DB_TARGET_ACQ) ? "acq" : "unknown")));
+
+   if ( tscaleState[target].open )
    {
-      if (tscaleState[target].open)
+      dbc = ((target == DB_TARGET_UI) ? pUiDbContext : pAcqDbContext);
+
+      if (dbc != NULL)
       {
-         dbc = ((target == 0) ? pUiDbContext : pAcqDbContext);
+         // reset the highlight index
+         StatsWin_HighlightNetwop(target, 0xff, 0xff);
 
-         // remove the previous timescales
-         sprintf(comm, "foreach temp [info command %s.top.n*] {pack forget $temp; destroy $temp}\n", tscn[target]);
+         // update the network labels in the popup window
+         sprintf(comm, "TimeScale_Open %s 0x%04X %s %d\n",
+                       tscn[target], EpgDbContextGetCni(dbc),
+                       ((target == DB_TARGET_UI) ? "ui" : "acq"),
+                       EpgDbContextIsMerged(dbc));
          eval_check(interp, comm);
-         tscaleState[target].highlighted = 0xff;
-
-         // create the timescales anew
-         isMerged = EpgDbContextIsMerged(dbc);
-         EpgDbLockDatabase(dbc, TRUE);
-         pAi = EpgDbGetAi(dbc);
-         if (pAi != NULL)
-         {
-            pNetwops = AI_GET_NETWOPS(pAi);
-            for (netwop=0; netwop < pAi->netwopCount; netwop++)
-            {
-               sprintf(comm, "TimeScale_Create %s.top.n%d {%s} %d\n", tscn[target], netwop, AI_GET_STR_BY_OFF(pAi, pNetwops[netwop].off_name), isMerged);
-               eval_check(interp, comm);
-            }
-         }
-         EpgDbLockDatabase(dbc, FALSE);
 
          // preload the timescales
          StatsWin_Load(target, dbc);
       }
+      else
+      {  // context no longer exists (e.g. acq stopped) -> close the popup
+         sprintf(comm, "destroy %s", tscn[target]);
+         eval_check(interp, comm);
+      }
    }
-   else
-      debug1("StatsWin_RebuildCanvas: illegal target: %d", target);
 }
 
 // ----------------------------------------------------------------------------
@@ -1044,64 +1122,28 @@ static void StatsWin_RebuildCanvas( ClientData clientData )
 //
 void StatsWin_VersionChange( void )
 {
-   // determine in which of the opened timescale windows acq is running
-   if ( tscaleState[DB_TARGET_ACQ].open )
+   dprintf0("StatsWin-VersionChange: called\n");
+
+   if ( tscaleState[DB_TARGET_ACQ].open &&
+        tscaleState[DB_TARGET_UI].open && (pAcqDbContext == pUiDbContext) )
    {
-      AddMainIdleEvent(StatsWin_RebuildCanvas, (ClientData) DB_TARGET_ACQ, TRUE);
+      // browser timescales refer to acq db too -> update both timescale popups
+      // note: connections to merged db are not detected here
+      AddMainIdleEvent(StatsWin_RebuildCanvas, (ClientData) DB_TARGET_UI, FALSE);
+      AddMainIdleEvent(StatsWin_RebuildCanvas, (ClientData) DB_TARGET_ACQ, FALSE);
+   }
+   else if ( tscaleState[DB_TARGET_ACQ].open )
+   {
+      AddMainIdleEvent(StatsWin_RebuildCanvas, (ClientData) DB_TARGET_ACQ, FALSE);
    }
    else if ( tscaleState[DB_TARGET_UI].open && (pAcqDbContext == pUiDbContext) )
    {
-      AddMainIdleEvent(StatsWin_RebuildCanvas, (ClientData) DB_TARGET_UI, TRUE);
+      AddMainIdleEvent(StatsWin_RebuildCanvas, (ClientData) DB_TARGET_UI, FALSE);
    }
 }
 
 // ----------------------------------------------------------------------------
-// build the sclaes for each network in the current EPG
-//
-static void StatsWin_BuildCanvas( int target, EPGDB_CONTEXT *dbc )
-{
-   const AI_BLOCK  *pAi;
-   const AI_NETWOP *pNetwops;
-   uchar netwop;
-   bool  isMerged;
-
-   isMerged = EpgDbContextIsMerged(dbc);
-
-   EpgDbLockDatabase(dbc, TRUE);
-   pAi = EpgDbGetAi(dbc);
-   if (pAi != NULL)
-   {
-      sprintf(comm, "toplevel %s\n"
-                    "wm title %s {Nextview database timescales}\n"
-                    "wm resizable %s 0 0\n"
-                    "wm group %s .\n"
-                    "frame %s.top\n",
-                    tscn[target], tscn[target], tscn[target], tscn[target], tscn[target]);
-      eval_check(interp, comm);
-
-      pNetwops = AI_GET_NETWOPS(pAi);
-
-      for (netwop=0; netwop < pAi->netwopCount; netwop++)
-      {
-         sprintf(comm, "TimeScale_Create %s.top.n%d {%s} %d\n", tscn[target], netwop, AI_GET_STR_BY_OFF(pAi, pNetwops[netwop].off_name), isMerged);
-         eval_check(interp, comm);
-      }
-      sprintf(comm, "pack %s.top -padx 5 -pady 5 -side top -fill x\n"
-                    "frame %s.bottom -borderwidth 2 -relief sunken\n"
-                    "label %s.bottom.l -text {}\n"
-                    "pack %s.bottom.l -side left -anchor w\n"
-                    "pack %s.bottom -side top -fill x\n"
-                    "bind %s.bottom <Destroy> {+ C_StatsWin_ToggleTimescale %s 0}\n",
-                    tscn[target], tscn[target], tscn[target], tscn[target], tscn[target], tscn[target],
-                    ((target == DB_TARGET_UI) ? "ui" : "acq"));
-      eval_check(interp, comm);
-
-   }
-   EpgDbLockDatabase(dbc, FALSE);
-}
-
-// ----------------------------------------------------------------------------
-// open or close the window
+// Open or close the timescales popup window
 // - called by the "Statistics" button in the main window
 // - also called when the window is destroyed (e.g. by the wm)
 // - can not be opened until an AI block has been received
@@ -1109,7 +1151,7 @@ static void StatsWin_BuildCanvas( int target, EPGDB_CONTEXT *dbc )
 //
 static int StatsWin_ToggleTimescale( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
 {
-   const char * const pUsage = "Usage: C_StatsWin_ToggleTimescaleUi ui|acq [0|1]";
+   const char * const pUsage = "Usage: C_StatsWin_ToggleTimescale ui|acq [0|1]";
    EPGDB_CONTEXT *dbc = NULL;
    int target, newState;
    int result = TCL_OK;
@@ -1120,12 +1162,12 @@ static int StatsWin_ToggleTimescale( ClientData ttp, Tcl_Interp *interp, int arg
    if ((argc == 2) || (argc == 3))
    {
       // determine target from first parameter: ui or acq db context
-      if (!strcmp(argv[1], "ui"))
+      if (strcmp(argv[1], "ui") == 0)
       {
          dbc = pUiDbContext;
          target = DB_TARGET_UI;
       }
-      else if (!strcmp(argv[1], "acq"))
+      else if (strcmp(argv[1], "acq") == 0)
       {
          dbc = pAcqDbContext;
          target = DB_TARGET_ACQ;
@@ -1164,7 +1206,11 @@ static int StatsWin_ToggleTimescale( ClientData ttp, Tcl_Interp *interp, int arg
                   tscaleState[target].startTime   = time(NULL);
                   tscaleState[target].highlighted = 0xff;
                   // create the window with a timescale for each network
-                  StatsWin_BuildCanvas(target, dbc);
+                  sprintf(comm, "TimeScale_Open %s 0x%04X %s %d\n",
+                                tscn[target], EpgDbContextGetCni(dbc),
+                                ((target == DB_TARGET_UI) ? "ui" : "acq"),
+                                EpgDbContextIsMerged(dbc));
+                  eval_check(interp, comm);
                   // mark all time spans covered by PI in the current db
                   StatsWin_Load(target, dbc);
 
@@ -1315,30 +1361,24 @@ static int StatsWin_ToggleDbStats( ClientData ttp, Tcl_Interp *interp, int argc,
 //
 void StatsWin_ProvChange( int target )
 {
+   dprintf2("StatsWin-ProvChange: called for %d: %s\n", target, ((target == DB_TARGET_UI) ? "ui" : ((target == DB_TARGET_ACQ) ? "acq" : "unknown")));
+
    if (target < 2)
    {
-      // close separate acq timescale window, if ui now has the same db
-      if ( (tscaleState[DB_TARGET_ACQ].open) &&
-           ((pAcqDbContext == pUiDbContext) || (pAcqDbContext == NULL)) )
-      {
-         sprintf(comm, "destroy %s", tscn[DB_TARGET_ACQ]);
-         eval_check(interp, comm);
-      }
-
-      // rebuild network timescales
+      // update & reload the respective network timescale popup
+      // when the context is closed the popup window is destroyed
       if (tscaleState[target].open)
       {
-         AddMainIdleEvent(StatsWin_RebuildCanvas, (ClientData) target, TRUE);
+         AddMainIdleEvent(StatsWin_RebuildCanvas, (ClientData) target, FALSE);
       }
 
       // if a network in the inactive UI window is still marked, unmark it
-      if ( (tscaleState[DB_TARGET_UI].open) &&
-           (tscaleState[DB_TARGET_UI].highlighted != 0xff) )
+      if (tscaleState[DB_TARGET_UI].open)
       {
-         StatsWin_HighlightNetwop(DB_TARGET_UI, 0, 3);
+         StatsWin_HighlightNetwop(DB_TARGET_UI, 0xff, 0xff);
       }
 
-      // if the acq stats window is open, update its content
+      // if the respective db stats window is open, update its content
       if (dbStatsWinState[target].open)
       {
          AddMainIdleEvent(StatsWin_UpdateDbStatsWin, (ClientData)target, TRUE);

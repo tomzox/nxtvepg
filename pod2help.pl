@@ -23,7 +23,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: pod2help.pl,v 1.11 2001/08/23 20:13:46 tom Exp tom $
+#  $Id: pod2help.pl,v 1.12 2001/09/02 15:12:57 tom Exp tom $
 #
 
 require "ctime.pl";
@@ -114,6 +114,10 @@ while(1)
          # put chapter heading at the front of the chapter
          $chapter = "T<$title>\n";
       }
+   }
+   elsif ($line =~ /^\=head2 (.*)/)
+   {  # sub-header: handle like a regular paragraph, just in bold
+      $chapter .= "B<$1>\n";
    }
    elsif ($line =~ /^\=over/)
    {  # start of an indented paragraph or a list

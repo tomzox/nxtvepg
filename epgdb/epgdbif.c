@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbif.c,v 1.29 2001/08/29 08:59:49 tom Exp tom $
+ *  $Id: epgdbif.c,v 1.35 2001/09/07 18:50:57 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -109,7 +109,10 @@ uint EpgDbContextGetCni( CPDBC dbc )
 //
 bool EpgDbContextIsMerged( CPDBC dbc )
 {
-   return dbc->merged;
+   if (dbc != NULL)
+      return dbc->merged;
+   else
+      return FALSE;
 }
 
 // ---------------------------------------------------------------------------
@@ -348,7 +351,7 @@ const PI_BLOCK * EpgDbSearchObsoletePi( CPDBC dbc, uchar netwop_no, time_t start
 //   these settings are considered; see the epgdbfil module on how to
 //   create a filter context
 //
-const PI_BLOCK * EpgDbSearchPi( CPDBC dbc, const FILTER_CONTEXT *fc, time_t start_time, uchar netwop_no )
+const PI_BLOCK * EpgDbSearchPi( CPDBC dbc, time_t start_time, uchar netwop_no )
 {
    EPGDB_BLOCK * pBlock;
 
@@ -364,11 +367,7 @@ const PI_BLOCK * EpgDbSearchPi( CPDBC dbc, const FILTER_CONTEXT *fc, time_t star
          {
             assert(pBlock->blk.pi.netwop_no == netwop_no);
 
-            if ( (fc == NULL) || EpgDbFilterMatches(dbc, fc, &pBlock->blk.pi) )
-            {
-               return &pBlock->blk.pi;
-            }
-            break;
+            return &pBlock->blk.pi;
          }
          pBlock = pBlock->pNextNetwopBlock;
       }
@@ -387,25 +386,28 @@ const PI_BLOCK * EpgDbSearchPi( CPDBC dbc, const FILTER_CONTEXT *fc, time_t star
 //
 const PI_BLOCK * EpgDbSearchFirstPi( CPDBC dbc, const FILTER_CONTEXT *fc )
 {
-   const EPGDB_BLOCK * pBlock;
+   const EPGDB_BLOCK * pBlock = NULL;
 
    if ( EpgDbIsLocked(dbc) )
    {
       pBlock = dbc->pFirstPi;
 
-      while (pBlock != NULL)
-      {
-         if ( (fc == NULL) || EpgDbFilterMatches(dbc, fc, &pBlock->blk.pi) )
+      if (fc != NULL)
+      {  // skip forward until a matching block is found
+         while ( (pBlock != NULL) &&
+                 (EpgDbFilterMatches(dbc, fc, &pBlock->blk.pi) == FALSE) )
          {
-            return &pBlock->blk.pi;
+            pBlock = pBlock->pNextBlock;
          }
-         pBlock = pBlock->pNextBlock;
       }
    }
    else
       debug0("EpgDb-SearchFirstPi: DB not locked");
 
-   return NULL;
+   if (pBlock != NULL)
+      return &pBlock->blk.pi;
+   else
+      return NULL;
 }
 
 // ---------------------------------------------------------------------------
@@ -413,25 +415,28 @@ const PI_BLOCK * EpgDbSearchFirstPi( CPDBC dbc, const FILTER_CONTEXT *fc )
 //
 const PI_BLOCK * EpgDbSearchLastPi( CPDBC dbc, const FILTER_CONTEXT *fc )
 {
-   const EPGDB_BLOCK * pBlock;
+   const EPGDB_BLOCK * pBlock = NULL;
 
    if ( EpgDbIsLocked(dbc) )
    {
       pBlock = dbc->pLastPi;
 
-      while (pBlock != NULL)
+      if (fc != NULL)
       {
-         if ( (fc == NULL) || EpgDbFilterMatches(dbc, fc, &pBlock->blk.pi) )
+         while ( (pBlock != NULL) &&
+                 (EpgDbFilterMatches(dbc, fc, &pBlock->blk.pi) == FALSE) )
          {
-            return &pBlock->blk.pi;
+            pBlock = pBlock->pPrevBlock;
          }
-         pBlock = pBlock->pPrevBlock;
       }
    }
    else
       debug0("EpgDb-SearchLastPi: DB not locked");
 
-   return NULL;
+   if (pBlock != NULL)
+      return &pBlock->blk.pi;
+   else
+      return NULL;
 }
 
 // ---------------------------------------------------------------------------
@@ -443,7 +448,7 @@ const PI_BLOCK * EpgDbSearchLastPi( CPDBC dbc, const FILTER_CONTEXT *fc )
 //
 const PI_BLOCK * EpgDbSearchNextPi( CPDBC dbc, const FILTER_CONTEXT *fc, const PI_BLOCK * pPiBlock )
 {
-   const EPGDB_BLOCK * pBlock;
+   const EPGDB_BLOCK * pBlock = NULL;
 
    if ( EpgDbIsLocked(dbc) )
    {
@@ -452,13 +457,13 @@ const PI_BLOCK * EpgDbSearchNextPi( CPDBC dbc, const FILTER_CONTEXT *fc, const P
          pBlock = (const EPGDB_BLOCK *)((ulong)pPiBlock - BLK_UNION_OFF);
          pBlock = pBlock->pNextBlock;
 
-         while (pBlock != NULL)
-         {
-            if ( (fc == NULL) || EpgDbFilterMatches(dbc, fc, &pBlock->blk.pi) )
+         if (fc != NULL)
+         {  // skip forward until a matching block is found
+            while ( (pBlock != NULL) &&
+                    (EpgDbFilterMatches(dbc, fc, &pBlock->blk.pi) == FALSE) )
             {
-               return &pBlock->blk.pi;
+               pBlock = pBlock->pNextBlock;
             }
-            pBlock = pBlock->pNextBlock;
          }
       }
       else
@@ -467,7 +472,10 @@ const PI_BLOCK * EpgDbSearchNextPi( CPDBC dbc, const FILTER_CONTEXT *fc, const P
    else
       debug0("EpgDb-SearchNextPi: DB not locked");
 
-   return NULL;
+   if (pBlock != NULL)
+      return &pBlock->blk.pi;
+   else
+      return NULL;
 }
 
 // ---------------------------------------------------------------------------
@@ -476,7 +484,7 @@ const PI_BLOCK * EpgDbSearchNextPi( CPDBC dbc, const FILTER_CONTEXT *fc, const P
 //
 const PI_BLOCK * EpgDbSearchPrevPi( CPDBC dbc, const FILTER_CONTEXT *fc, const PI_BLOCK * pPiBlock )
 {
-   const EPGDB_BLOCK * pBlock;
+   const EPGDB_BLOCK * pBlock = NULL;
 
    if ( EpgDbIsLocked(dbc) )
    {
@@ -485,13 +493,13 @@ const PI_BLOCK * EpgDbSearchPrevPi( CPDBC dbc, const FILTER_CONTEXT *fc, const P
          pBlock = (const EPGDB_BLOCK *)((ulong)pPiBlock - BLK_UNION_OFF);
          pBlock = pBlock->pPrevBlock;
 
-         while (pBlock != NULL)
+         if (fc != NULL)
          {
-            if ( (fc == NULL) || EpgDbFilterMatches(dbc, fc, &pBlock->blk.pi) )
+            while ( (pBlock != NULL) &&
+                    (EpgDbFilterMatches(dbc, fc, &pBlock->blk.pi) == FALSE) )
             {
-               return &pBlock->blk.pi;
+               pBlock = pBlock->pPrevBlock;
             }
-            pBlock = pBlock->pPrevBlock;
          }
       }
       else
@@ -500,7 +508,10 @@ const PI_BLOCK * EpgDbSearchPrevPi( CPDBC dbc, const FILTER_CONTEXT *fc, const P
    else
       debug0("EpgDb-SearchPrevPi: DB not locked");
 
-   return NULL;
+   if (pBlock != NULL)
+      return &pBlock->blk.pi;
+   else
+      return NULL;
 }
 
 // ---------------------------------------------------------------------------
@@ -540,32 +551,41 @@ const PI_BLOCK * EpgDbSearchPiByPil( CPDBC dbc, uchar netwop_no, uint pil )
 //
 uint EpgDbGetProgIdx( CPDBC dbc, uint iBlockNo, uchar netwop )
 {
+   EPGDB_BLOCK * pBlock;
    ulong blockNo, startNo, firstBlockNo;
    uint  nowIdx;
+   time_t now = time(NULL);
    uint  result = 0xffff;
 
    if (dbc->pAiBlock != NULL)
    {
       if (netwop < dbc->pAiBlock->blk.ai.netwopCount)
       {
-         if (dbc->pFirstNetwopPi[netwop] != NULL)
+         pBlock = dbc->pFirstNetwopPi[netwop];
+         // scan forward for the first unexpired block on that network
+         while ((pBlock != NULL) && (pBlock->blk.pi.stop_time <= now))
          {
-            if (dbc->pFirstNetwopPi[netwop]->blk.pi.start_time <= time(NULL))
-            {  // first block of that network is currently running -> that block is #0
+            pBlock = pBlock->pNextNetwopBlock;
+         }
+
+         if (pBlock != NULL)
+         {
+            if (pBlock->blk.pi.start_time <= now)
+            {  // found a currently running block -> that block is #0
                nowIdx = 0;
             }
             else
             {  // 1. there is no current programme on this netwop OR
                // 2. there is a block missing in the database
-               // We could try to differentiate these two cases, but there's
-               // really no advantage because we couldn't do any better guess
+               // We could try to distinguish these two cases, but there's
+               // really no advantage because we couldn't find a better guess
                // than giving the first present block #1, i.e. NEXT
                nowIdx = 1;
             }
 
             startNo = AI_GET_NETWOP_N(&dbc->pAiBlock->blk.ai, netwop)->startNo;
 
-            firstBlockNo = dbc->pFirstNetwopPi[netwop]->blk.pi.block_no;
+            firstBlockNo = pBlock->blk.pi.block_no;
             if (firstBlockNo < startNo)
                firstBlockNo += 0x10000;
 
@@ -581,7 +601,7 @@ uint EpgDbGetProgIdx( CPDBC dbc, uint iBlockNo, uchar netwop )
                debug4("EpgDb-GetProgIdx: block #%d,net#%d should already have expired; start=%ld,first=%ld", iBlockNo, netwop, startNo, firstBlockNo);
          }
          else
-            debug1("EpgDb-GetProgIdx: no blocks in db for netwop %d", netwop);
+            debug1("EpgDb-GetProgIdx: no unexpired blocks in db for netwop %d", netwop);
       }
       else
          debug2("EpgDb-GetProgIdx: invalid netwop #%d of %d", netwop, dbc->pAiBlock->blk.ai.netwopCount);
@@ -593,7 +613,7 @@ uint EpgDbGetProgIdx( CPDBC dbc, uint iBlockNo, uchar netwop )
 }
 
 // ---------------------------------------------------------------------------
-// Returns the stream number of a PI block
+// Returns the stream a block was received in
 //
 uchar EpgDbGetStream( const void * pUnion )
 {
@@ -602,6 +622,63 @@ uchar EpgDbGetStream( const void * pUnion )
 
    pBlock = (const EPGDB_BLOCK *)((ulong)pUnion - BLK_UNION_OFF);
    stream = pBlock->stream;
+
+   return stream;
+}
+
+// ---------------------------------------------------------------------------
+// Returns the stream a PI block belongs to according to the current AI
+// - since the AI allocation may have changed since receiving the block,
+//   the result is not neccessarily the same as the stream the block was
+//   received in
+//
+uchar EpgDbGetStreamByBlockNo( CPDBC dbc, uint block_no, uchar netwop )
+{
+   const AI_NETWOP *pNetwop;
+   uchar stream;
+
+   if (dbc->pAiBlock != NULL)
+   {
+      if (netwop < dbc->pAiBlock->blk.ai.netwopCount)
+      {
+         pNetwop = AI_GET_NETWOP_N(&dbc->pAiBlock->blk.ai, netwop);
+
+         if (pNetwop->startNo <= pNetwop->stopNo)
+         {
+            if ((pNetwop->startNo == 0x0000) && (pNetwop->stopNo == 0xffff))
+            {  // case 1: stream 1 empty (startNo == stopNo + 1 modulo 2^16)
+               stream = NXTV_STREAM_NO_2;
+            }
+            else
+            {  // case 2: no block sequence overflow -> simple comparison
+               stream = ((block_no <= pNetwop->stopNo) ? NXTV_STREAM_NO_1 : NXTV_STREAM_NO_2);
+            }
+         }
+         else
+         {
+            if (pNetwop->startNo == pNetwop->stopNo + 1)
+            {  // case 3: stream 1 empty (as defined in ETS 300 707)
+               stream = NXTV_STREAM_NO_2;
+            }
+            else
+            {  // case 4: block sequence overflow -> range of stream 1 block numbers consists of
+               //         two separate ranges at the top and bottom of the 16-bit number space
+               stream = (( (block_no >= pNetwop->startNo) ||
+                           (block_no <= pNetwop->stopNo) ) ? NXTV_STREAM_NO_1 : NXTV_STREAM_NO_2);
+            }
+         }
+      }
+      else
+      {
+         debug2("EpgDb-GetStreamByBlockNo: invalid netwop=%d >= count %d", netwop, dbc->pAiBlock->blk.ai.netwopCount);
+         stream = NXTV_STREAM_NO_1;
+      }
+   }
+   else
+   {
+      SHOULD_NOT_BE_REACHED;
+      stream = NXTV_STREAM_NO_1;
+   }
 
    return stream;
 }
@@ -626,29 +703,32 @@ uchar EpgDbGetVersion( const void * pUnion )
 //   and no pointers into the db are returned
 // - returns counts separately for both streams - pCount points to array[2] !!
 //
-bool EpgDbGetStat( CPDBC dbc, EPGDB_BLOCK_COUNT * pCount, time_t acqMinTime )
+bool EpgDbGetStat( CPDBC dbc, EPGDB_BLOCK_COUNT * pCount, time_t * acqMinTime, uint maxNowRepCount )
 {
    const EPGDB_BLOCK * pBlock;
    const AI_NETWOP *pNetwops;
-   uint blockCount1[MAX_NETWOP_COUNT];
-   uint blockCount2[MAX_NETWOP_COUNT];
-   ulong count1, count2;
-   uchar version1, version2;
+   uint blockCount[2][MAX_NETWOP_COUNT];
+   register uint cur_stream;
+   ulong  count1, count2;
+   uchar  ai_version[2];
    double avgPercentage1, avgPercentage2, variance1, variance2;
+   uint   acqRepSum[2];
    time_t now;
-   uchar netwop;
-   bool result;
+   uchar  netwop;
+   bool   result;
 
    memset(pCount, 0, 2 * sizeof(EPGDB_BLOCK_COUNT));
-   memset(blockCount1, 0, sizeof(blockCount1));
-   memset(blockCount2, 0, sizeof(blockCount2));
+   memset(blockCount, 0, sizeof(blockCount));
+   acqRepSum[0] = acqRepSum[1] = 0;
    now = time(NULL);
+
+   maxNowRepCount = ((maxNowRepCount > 3) ? (maxNowRepCount - 3) : 1);
 
    if (dbc->pAiBlock != NULL)
    {
       pNetwops = AI_GET_NETWOPS(&dbc->pAiBlock->blk.ai);
-      version1 = dbc->pAiBlock->blk.ai.version;
-      version2 = dbc->pAiBlock->blk.ai.version_swo;
+      ai_version[0] = dbc->pAiBlock->blk.ai.version;
+      ai_version[1] = dbc->pAiBlock->blk.ai.version_swo;
 
       pBlock = dbc->pFirstPi;
       while (pBlock != NULL)
@@ -657,45 +737,42 @@ bool EpgDbGetStat( CPDBC dbc, EPGDB_BLOCK_COUNT * pCount, time_t acqMinTime )
          // Cannot use the stream number from the block header because that's the stream
          // in which the block was received; However here we need the up-to-date stream
          // or the block counts will be inconsistent with the AI counts!
-         if (EpgDbPiCmpBlockNoGt(dbc, pBlock->blk.pi.block_no, pNetwops[pBlock->blk.pi.netwop_no].stopNo, pBlock->blk.pi.netwop_no) == FALSE)
+         cur_stream = EpgDbGetStreamByBlockNo(dbc, pBlock->blk.pi.block_no, pBlock->blk.pi.netwop_no);
+         if (pBlock->blk.pi.stop_time > now)
          {
-            if (pBlock->blk.pi.stop_time > now)
+            pCount[cur_stream].allVersions += 1;
+            // note about the stream comparison:
+            // the borderline between stream 1 and 2 may change without a version change.
+            // since with a move from stream 2 to 1 more information may have been added
+            // we then consider the block out of date.
+            if ( (pBlock->version == ai_version[cur_stream]) &&
+                 (pBlock->stream == cur_stream) )
             {
-               pCount[0].allVersions += 1;
-               if (pBlock->version == version1)
-               {
-                  pCount[0].curVersion += 1;
-               }
-            }
-            else
-               pCount[0].expired += 1;
-
-            if ( (pBlock->acqTimestamp >= acqMinTime) &&
-                 (pBlock->version == version1) )
-            {
-               pCount[0].sinceAcq += 1;
-               blockCount1[pBlock->blk.pi.netwop_no] += 1;
+               pCount[cur_stream].curVersion += 1;
             }
          }
          else
-         {
-            if (pBlock->blk.pi.stop_time > now)
-            {
-               pCount[1].allVersions += 1;
-               if (pBlock->version == version2)
-               {
-                  pCount[1].curVersion += 1;
-               }
-            }
-            else
-               pCount[1].expired += 1;
+            pCount[cur_stream].expired += 1;
 
-            if ( (pBlock->acqTimestamp >= acqMinTime) &&
-                 (pBlock->version == version2) )
-            {
-               pCount[1].sinceAcq += 1;
-               blockCount2[pBlock->blk.pi.netwop_no] += 1;
-            }
+         if ( (pBlock->acqTimestamp >= acqMinTime[cur_stream]) &&
+              (pBlock->version == ai_version[cur_stream]) &&
+              (pBlock->stream == cur_stream) )
+         {
+            pCount[cur_stream].sinceAcq += 1;
+            blockCount[cur_stream][pBlock->blk.pi.netwop_no] += 1;
+         }
+
+         if (cur_stream == 1)
+         {  // stream 2
+            acqRepSum[cur_stream] += pBlock->acqRepCount;
+         }
+         else
+         {  // stream 1 needs special handling to split off rep counts from Now & Next
+            // PI in now & next sub-stream count exactly once; other PI may count more often
+            if (pBlock->acqRepCount >= maxNowRepCount)
+               acqRepSum[0] += 1;
+            else
+               acqRepSum[0] += pBlock->acqRepCount;
          }
 
          pBlock = pBlock->pNextBlock;
@@ -706,24 +783,28 @@ bool EpgDbGetStat( CPDBC dbc, EPGDB_BLOCK_COUNT * pCount, time_t acqMinTime )
       pBlock = dbc->pObsoletePi;
       while (pBlock != NULL)
       {
-         if (EpgDbPiCmpBlockNoGt(dbc, pBlock->blk.pi.block_no, pNetwops[pBlock->blk.pi.netwop_no].stopNo, pBlock->blk.pi.netwop_no) == FALSE)
+         cur_stream = EpgDbGetStreamByBlockNo(dbc, pBlock->blk.pi.block_no, pBlock->blk.pi.netwop_no);
+
+         pCount[cur_stream].defective += 1;
+         if ( (pBlock->acqTimestamp >= acqMinTime[cur_stream]) &&
+              (pBlock->stream == cur_stream) )
          {
-            pCount[0].defective += 1;
-            if (pBlock->acqTimestamp >= acqMinTime)
-            {
-               pCount[0].sinceAcq += 1;
-               blockCount1[pBlock->blk.pi.netwop_no] += 1;
-            }
+            pCount[cur_stream].sinceAcq += 1;
+            blockCount[cur_stream][pBlock->blk.pi.netwop_no] += 1;
+         }
+
+         if (cur_stream == 1)
+         {  // stream 2
+            acqRepSum[cur_stream] += pBlock->acqRepCount;
          }
          else
-         {
-            pCount[1].defective += 1;
-            if (pBlock->acqTimestamp >= acqMinTime)
-            {
-               pCount[1].sinceAcq += 1;
-               blockCount2[pBlock->blk.pi.netwop_no] += 1;
-            }
+         {  // stream 1 needs special handling to split off rep counts from Now & Next
+            if (pBlock->acqRepCount >= maxNowRepCount)
+               acqRepSum[0] += 1;
+            else
+               acqRepSum[0] += pBlock->acqRepCount;
          }
+
          pBlock = pBlock->pNextBlock;
       }
 
@@ -738,16 +819,16 @@ bool EpgDbGetStat( CPDBC dbc, EPGDB_BLOCK_COUNT * pCount, time_t acqMinTime )
          pCount[1].ai += count2;
 
          if (count1 > 0)
-            blockCount1[netwop] = (uint)((ulong)1000L * blockCount1[netwop] / count1);
+            blockCount[0][netwop] = (uint)((ulong)1000L * blockCount[0][netwop] / count1);
          else
-            blockCount1[netwop] = 1000L;
-         avgPercentage1 += blockCount1[netwop];
+            blockCount[0][netwop] = 1000L;
+         avgPercentage1 += blockCount[0][netwop];
 
          if (count2 > 0)
-            blockCount2[netwop] = (uint)((ulong)1000L * blockCount2[netwop] / count2);
+            blockCount[1][netwop] = (uint)((ulong)1000L * blockCount[1][netwop] / count2);
          else
-            blockCount2[netwop] = 1000L;
-         avgPercentage2 += blockCount2[netwop];
+            blockCount[1][netwop] = 1000L;
+         avgPercentage2 += blockCount[1][netwop];
       }
       avgPercentage1 /= (double) dbc->pAiBlock->blk.ai.netwopCount;
       avgPercentage2 /= (double) dbc->pAiBlock->blk.ai.netwopCount;
@@ -756,11 +837,21 @@ bool EpgDbGetStat( CPDBC dbc, EPGDB_BLOCK_COUNT * pCount, time_t acqMinTime )
       variance1 = variance2 = 0.0;
       for (netwop=0; netwop < dbc->pAiBlock->blk.ai.netwopCount; netwop++)
       {
-         variance1 += pow(fabs(blockCount1[netwop] - avgPercentage1) / 1000L, 2.0);
-         variance2 += pow(fabs(blockCount2[netwop] - avgPercentage2) / 1000L, 2.0);
+         variance1 += pow(fabs(blockCount[0][netwop] - avgPercentage1) / 1000L, 2.0);
+         variance2 += pow(fabs(blockCount[1][netwop] - avgPercentage2) / 1000L, 2.0);
       }
       pCount[0].variance = sqrt(variance1);
       pCount[1].variance = sqrt(variance2);
+
+      // calculate average acquisition repetition count in both streams
+      if (pCount[0].ai > 0)
+         pCount[0].avgAcqRepCount = (double)acqRepSum[0] / (double)pCount[0].ai;
+      else
+         pCount[0].avgAcqRepCount = 0.0;
+      if (pCount[1].ai > 0)
+         pCount[1].avgAcqRepCount = (double)acqRepSum[1] / (double)pCount[1].ai;
+      else
+         pCount[1].avgAcqRepCount = 0.0;
 
       result = TRUE;
    }

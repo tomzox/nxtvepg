@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pilistbox.c,v 1.61 2001/08/21 19:46:59 tom Exp tom $
+ *  $Id: pilistbox.c,v 1.62 2001/08/31 17:00:44 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -134,7 +134,8 @@ static bool PiListBox_ConsistancyCheck( void )
          }
          else
          {  // current off and max counts are marked invalid -> only check visible items
-            pPiBlock = EpgDbSearchPi(dbc, pPiFilterContext, pibox_list[0].start_time, pibox_list[0].netwop_no);
+            pPiBlock = EpgDbSearchPi(dbc, pibox_list[0].start_time, pibox_list[0].netwop_no);
+            assert(EpgDbFilterMatches(dbc, pPiFilterContext, pPiBlock));
             for (i=0; (i < pibox_count) && (pPiBlock != NULL); i++)
             {
                assert( (pibox_list[i].netwop_no  == pPiBlock->netwop_no) &&
@@ -420,7 +421,7 @@ static void PiListBox_UpdateInfoText( bool keepView )
    {
       EpgDbLockDatabase(dbc, TRUE);
       pAiBlock = EpgDbGetAi(dbc);
-      pPiBlock = EpgDbSearchPi(dbc, NULL, pibox_list[pibox_curpos].start_time, pibox_list[pibox_curpos].netwop_no);
+      pPiBlock = EpgDbSearchPi(dbc, pibox_list[pibox_curpos].start_time, pibox_list[pibox_curpos].netwop_no);
 
       if ((pAiBlock != NULL) && (pPiBlock != NULL) && (pPiBlock->netwop_no < pAiBlock->netwopCount))
       {
@@ -649,23 +650,28 @@ void PiListBox_Refresh( void )
 
          if ((pibox_count < pibox_height) && (pibox_max > pibox_count))
          {  // not enough items found after the cursor -> shift window upwards
-            pPiBlock = EpgDbSearchPi(dbc, pPiFilterContext, pibox_list[0].start_time, pibox_list[0].netwop_no);
-            while ( (pibox_count < pibox_height) &&
-                    ((pPiBlock = EpgDbSearchPrevPi(dbc, pPiFilterContext, pPiBlock)) != NULL) )
+            pPiBlock = EpgDbSearchPi(dbc, pibox_list[0].start_time, pibox_list[0].netwop_no);
+            if (pPiBlock != NULL)
             {
-               dprintf4("shift up: count=%d, max=%d: insert block start=%ld net=%d\n", pibox_count, pibox_max, pPiBlock->start_time, pPiBlock->netwop_no);
-               for (i=pibox_count-1; i>=0; i--)
-                  pibox_list[i + 1] = pibox_list[i];
-               pibox_list[0].netwop_no  = pPiBlock->netwop_no;
-               pibox_list[0].start_time = pPiBlock->start_time;
-               PiListBox_InsertItem(pPiBlock, 0);
+               while ( (pibox_count < pibox_height) &&
+                       ((pPiBlock = EpgDbSearchPrevPi(dbc, pPiFilterContext, pPiBlock)) != NULL) )
+               {
+                  dprintf4("shift up: count=%d, max=%d: insert block start=%ld net=%d\n", pibox_count, pibox_max, pPiBlock->start_time, pPiBlock->netwop_no);
+                  for (i=pibox_count-1; i>=0; i--)
+                     pibox_list[i + 1] = pibox_list[i];
+                  pibox_list[0].netwop_no  = pPiBlock->netwop_no;
+                  pibox_list[0].start_time = pPiBlock->start_time;
+                  PiListBox_InsertItem(pPiBlock, 0);
 
-               assert(pibox_off > 0);
-               pibox_off -= 1;
-               pibox_curpos += 1;
-               pibox_count += 1;
+                  assert(pibox_off > 0);
+                  pibox_off -= 1;
+                  pibox_curpos += 1;
+                  pibox_count += 1;
+               }
+               assert((pibox_count >= pibox_height) || ((pibox_off == 0) && (pPiBlock == NULL)));
             }
-            assert((pibox_count >= pibox_height) || ((pibox_off == 0) && (pPiBlock == NULL)));
+            else
+               debug2("PiListBox-Refresh: first listed block start=%ld netwop=%d not found\n", pibox_list[0].start_time, pibox_list[0].netwop_no);
          }
 
          if (pibox_curpos >= pibox_count)
@@ -811,7 +817,7 @@ static int PiListBox_Scroll( ClientData ttp, Tcl_Interp *interp, int argc, char 
 	    EpgDbLockDatabase(dbc, TRUE);
             if (pibox_count >= pibox_height)
             {
-               pPiBlock = EpgDbSearchPi(dbc, pPiFilterContext, pibox_list[pibox_count-1].start_time, pibox_list[pibox_count-1].netwop_no);
+               pPiBlock = EpgDbSearchPi(dbc, pibox_list[pibox_count-1].start_time, pibox_list[pibox_count-1].netwop_no);
                if (pPiBlock != NULL)
                {
                   while ( (new_count < pibox_height) &&
@@ -887,7 +893,7 @@ static int PiListBox_Scroll( ClientData ttp, Tcl_Interp *interp, int argc, char 
 	    //  ----  Scroll one page up  ----
 
 	    EpgDbLockDatabase(dbc, TRUE);
-	    pPiBlock = EpgDbSearchPi(dbc, pPiFilterContext, pibox_list[0].start_time, pibox_list[0].netwop_no);
+	    pPiBlock = EpgDbSearchPi(dbc, pibox_list[0].start_time, pibox_list[0].netwop_no);
 	    if (pPiBlock != NULL)
 	    {
 	       new_count = 0;
@@ -967,7 +973,7 @@ static int PiListBox_Scroll( ClientData ttp, Tcl_Interp *interp, int argc, char 
 	    //  ----  Scroll one item down  ----
 
 	    EpgDbLockDatabase(dbc, TRUE);
-	    pPiBlock = EpgDbSearchPi(dbc, pPiFilterContext, pibox_list[pibox_count-1].start_time, pibox_list[pibox_count-1].netwop_no);
+	    pPiBlock = EpgDbSearchPi(dbc, pibox_list[pibox_count-1].start_time, pibox_list[pibox_count-1].netwop_no);
 	    if (pPiBlock != NULL)
 	    {
 	       pPiBlock = EpgDbSearchNextPi(dbc, pPiFilterContext, pPiBlock);
@@ -1004,7 +1010,7 @@ static int PiListBox_Scroll( ClientData ttp, Tcl_Interp *interp, int argc, char 
 	    //  ----  Scroll one item up  ----
 
 	    EpgDbLockDatabase(dbc, TRUE);
-	    pPiBlock = EpgDbSearchPi(dbc, pPiFilterContext, pibox_list[0].start_time, pibox_list[0].netwop_no);
+	    pPiBlock = EpgDbSearchPi(dbc, pibox_list[0].start_time, pibox_list[0].netwop_no);
 	    if (pPiBlock != NULL)
 	    {
 	       pPiBlock = EpgDbSearchPrevPi(dbc, pPiFilterContext, pPiBlock);
@@ -1139,7 +1145,7 @@ static int PiListBox_GotoTime( ClientData ttp, Tcl_Interp *interp, int argc, cha
       }
       else if (Tcl_GetInt(interp, argv[1], &param) == TCL_OK)
       {  // absolute time given: convert parameter from local time to UTC
-         startTime = param - EpgLtoGet();
+         startTime = param - EpgLtoGet(param);
       }
       else  // internal error
          startTime = 0;
@@ -1200,9 +1206,12 @@ static int PiListBox_GotoTime( ClientData ttp, Tcl_Interp *interp, int argc, cha
                pPiBlock = EpgDbSearchLastPi(dbc, pPiFilterContext);
             }
             else
-            {  // at least one PI was found -> scn backwards from there
-               pPiBlock = EpgDbSearchPi(dbc, pPiFilterContext, pibox_list[0].start_time, pibox_list[0].netwop_no);
-               pPiBlock = EpgDbSearchPrevPi(dbc, pPiFilterContext, pPiBlock);
+            {  // at least one PI was found -> scan backwards from there
+               pPiBlock = EpgDbSearchPi(dbc, pibox_list[0].start_time, pibox_list[0].netwop_no);
+               if (pPiBlock != NULL)
+                  pPiBlock = EpgDbSearchPrevPi(dbc, pPiFilterContext, pPiBlock);
+               else
+                  debug2("PiListBox-GotoTime: first listed block start=%ld netwop=%d not found", pibox_list[0].start_time, pibox_list[0].netwop_no);
             }
 
             // shift down the existing PI in the listbox
@@ -1218,7 +1227,7 @@ static int PiListBox_GotoTime( ClientData ttp, Tcl_Interp *interp, int argc, cha
                pibox_curpos = delta;
 
             // fill the listbox backwards with the missing PI
-            for (delta -= 1; delta >= 0; delta--)
+            for (delta -= 1; (delta >= 0) && (pPiBlock != NULL); delta--)
             {
                pibox_list[delta].netwop_no  = pPiBlock->netwop_no;
                pibox_list[delta].start_time = pPiBlock->start_time;
@@ -1651,7 +1660,7 @@ void PiListBox_DbRemoved( const EPGDB_CONTEXT *usedDbc, const PI_BLOCK *pPiBlock
 	 pPrev = pNext = NULL;
 
          // need to search by start time too, else we might catch the newly-inserted block (at a different position in the list)
-	 pTemp = EpgDbSearchPi(dbc, NULL, pibox_list[0].start_time, pibox_list[0].netwop_no);
+	 pTemp = EpgDbSearchPi(dbc, pibox_list[0].start_time, pibox_list[0].netwop_no);
 	 if (pTemp != NULL)
          {
 	    pPrev = EpgDbSearchPrevPi(dbc, pPiFilterContext, pTemp);
@@ -1660,7 +1669,7 @@ void PiListBox_DbRemoved( const EPGDB_CONTEXT *usedDbc, const PI_BLOCK *pPiBlock
 	 else
 	    debug2("PiListBox-DbRemoved: first listed block start=%ld netwop=%d not found", pibox_list[0].start_time, pibox_list[0].netwop_no);
 
-	 pTemp = EpgDbSearchPi(dbc, NULL, pibox_list[pibox_count - 1].start_time, pibox_list[pibox_count - 1].netwop_no);
+	 pTemp = EpgDbSearchPi(dbc, pibox_list[pibox_count - 1].start_time, pibox_list[pibox_count - 1].netwop_no);
 	 if (pTemp != NULL)
          {
 	    pNext = EpgDbSearchNextPi(dbc, pPiFilterContext, pTemp);
@@ -1740,8 +1749,8 @@ void PiListBox_DbRecount( const EPGDB_CONTEXT *usedDbc )
       {
          dprintf2("recount items: old values: off=%d,max=%d\n", pibox_off, pibox_max);
          EpgDbLockDatabase(dbc, TRUE);
-         pPrev = EpgDbSearchPi(dbc, pPiFilterContext, pibox_list[0].start_time, pibox_list[0].netwop_no);
-         pNext = EpgDbSearchPi(dbc, pPiFilterContext, pibox_list[pibox_count - 1].start_time, pibox_list[pibox_count - 1].netwop_no);
+         pPrev = EpgDbSearchPi(dbc, pibox_list[0].start_time, pibox_list[0].netwop_no);
+         pNext = EpgDbSearchPi(dbc, pibox_list[pibox_count - 1].start_time, pibox_list[pibox_count - 1].netwop_no);
          if ((pPrev != NULL) && (pNext != NULL))
          {
             pibox_off = 0;
@@ -1867,7 +1876,7 @@ const PI_BLOCK * PiListBox_GetSelectedPi( void )
    if ( (pibox_state == PIBOX_LIST) &&
         (pibox_curpos >= 0) && (pibox_curpos < pibox_count) )
    {
-      pPiBlock = EpgDbSearchPi(dbc, NULL, pibox_list[pibox_curpos].start_time, pibox_list[pibox_curpos].netwop_no);
+      pPiBlock = EpgDbSearchPi(dbc, pibox_list[pibox_curpos].start_time, pibox_list[pibox_curpos].netwop_no);
    }
    else
       pPiBlock = NULL;

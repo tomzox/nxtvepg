@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgversion.h,v 1.15 2001/08/30 08:52:56 tom Exp tom $
+ *  $Id: epgversion.h,v 1.16 2001/09/07 19:56:32 tom Exp tom $
  */
 
 
@@ -28,17 +28,17 @@
 
 #define EPG_VERSION_MAJOR   0   // major revision
 #define EPG_VERSION_MINOR   6   // minor revision
-#define EPG_VERSION_PL      1   // bugfix revision / patch level
+#define EPG_VERSION_PL      2   // bugfix revision / patch level
 
 #ifndef WIN32
-#define EPG_VERSION_STR     "0.6.1"
+#define EPG_VERSION_STR     "0.6.2"
 #else
-#define EPG_VERSION_STR     "1.10-win"
+#define EPG_VERSION_STR     "1.11-win"
 #endif
 
 
 // RCS id to be included to the object code for ident(1)
-#define EPG_VERSION_RCS_ID  "$Id: epgversion.h,v 1.15 2001/08/30 08:52:56 tom Exp tom $" "$Compiledate: " __DATE__ " " __TIME__" $";
+#define EPG_VERSION_RCS_ID  "$Id: epgversion.h,v 1.16 2001/09/07 19:56:32 tom Exp tom $" "$Compiledate: " __DATE__ " " __TIME__" $";
 
 // version in integer format for internal purposes
 #define EPG_VERSION_TO_INT(MAJ,MIN,PL) (((MAJ)<<16) | ((MIN)<<8) | (PL))

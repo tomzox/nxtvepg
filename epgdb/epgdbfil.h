@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbfil.h,v 1.17 2001/06/13 17:49:07 tom Exp tom $
+ *  $Id: epgdbfil.h,v 1.18 2001/09/02 16:13:45 tom Exp tom $
  */
 
 #ifndef __EPGDBFIL_H
@@ -49,8 +49,8 @@
 
 #define FEATURES_ALL         0x01FF
 
-#define LI_DESCR_TYPE           EPGDBACQ_TYPE_LI
-#define TI_DESCR_TYPE           EPGDBACQ_TYPE_TI
+#define LI_DESCR_TYPE        7  //   EPGDBACQ_TYPE_LI
+#define TI_DESCR_TYPE        8  //   EPGDBACQ_TYPE_TI
 
 // ----------------------------------------------------------------------------
 // temporary structure for processing NI stacks
