@@ -21,13 +21,14 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: uictrl.c,v 1.34 2002/09/06 15:09:35 tom Exp $
+ *  $Id: uictrl.c,v 1.37 2003/02/26 21:21:10 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
 #define DPRINTF_OFF
 
 #include <stdio.h>
+#include <time.h>
 #include <string.h>
 
 #include <tcl.h>
@@ -47,14 +48,33 @@
 #include "epgctl/epgacqclnt.h"
 #include "epgui/epgmain.h"
 #include "epgui/pifilter.h"
-#include "epgui/pilistbox.h"
-#include "epgui/pioutput.h"
+#include "epgui/pibox.h"
 #include "epgui/uictrl.h"
 #include "epgui/menucmd.h"
 #include "epgui/statswin.h"
 #include "epgui/timescale.h"
 #include "epgctl/epgctxctl.h"
 
+
+// describing the state of the ui db
+typedef enum
+{
+   EPGDB_NOT_INIT,
+   EPGDB_WAIT_SCAN,
+   EPGDB_PROV_SCAN,
+   EPGDB_PROV_WAIT,
+   EPGDB_PROV_SEL,
+   EPGDB_ACQ_NO_FREQ,
+   EPGDB_ACQ_NO_TUNER,
+   EPGDB_ACQ_ACCESS_DEVICE,
+   EPGDB_ACQ_PASSIVE,
+   EPGDB_ACQ_WAIT,
+   EPGDB_ACQ_WAIT_DAEMON,
+   EPGDB_ACQ_OTHER_PROV,
+   EPGDB_EMPTY,
+   EPGDB_PREFILTERED_EMPTY,
+   EPGDB_OK
+} EPGDB_STATE;
 
 typedef struct
 {
@@ -67,6 +87,119 @@ typedef struct
 
 static bool uiControlInitialized = FALSE;
 
+
+// ---------------------------------------------------------------------------
+// Generate a help message for an db error state
+//
+static const uchar * UiControl_GetDbStateMsg( EPGDB_STATE state )
+{
+   const uchar * pMsg;
+
+   switch (state)
+   {
+      case EPGDB_WAIT_SCAN:
+         pMsg = "Please wait until the provider scan has finished.";
+         break;
+
+      case EPGDB_PROV_SCAN:
+         pMsg = "There are no providers for Nextview data known yet. "
+                "Please start a provider scan from the Configure menu "
+                "(you only have to do this once). "
+                "During the scan all TV channels are checked for Nextview "
+                "transmissions. Among the found ones you then can select your "
+                "favorite provider and start reading in its TV programme database.";
+         break;
+
+      case EPGDB_PROV_WAIT:
+         pMsg = "There are no providers for Nextview data known yet. "
+                "Since you do not use the TV tuner as video input source, "
+                "you have to select a provider's channel at the external "
+                "video source by yourself. For a list of possible channels "
+                "see the README file or the nxtvepg Internet Homepage.";
+         break;
+
+      case EPGDB_PROV_SEL:
+         pMsg = "Please select your favorite provider from the Configure menu.";
+         break;
+
+      case EPGDB_ACQ_NO_FREQ:
+         pMsg = "The database of the currently selected provider is empty "
+                "and the provider's TV channel is unknown. Please do start "
+                "a provider scan from the Configure menu to find out the frequency "
+                "(this has to be done only this one time). Else, please make sure "
+                "you have tuned the TV channel of the selected Nextview provider "
+                "or select a different provider from the Configure menu.";
+         break;
+
+      case EPGDB_ACQ_NO_TUNER:
+         pMsg = "The database of the currently selected provider is empty. "
+                "Since you have not selected the internal TV tuner as input source, "
+                "you have to make sure yourself that "
+                "you have tuned the TV channel of the this provider "
+                "or select a different provider from the Configure menu.";
+         break;
+
+      case EPGDB_ACQ_ACCESS_DEVICE:
+         pMsg = "The database of the currently selected provider is empty. "
+                "The TV channel could not be changed because the video device is "
+                "kept busy by another application. Therefore you have to make sure "
+                "you have tuned the TV channel of the selected Nextview provider "
+                "or select a different provider from the Configure menu.";
+         break;
+
+      case EPGDB_ACQ_PASSIVE:
+         pMsg = "The database of the currently selected provider is empty. "
+                "You have configured acquisition mode to passive, so data for "
+                "this provider can only be acquired if you use another application "
+                "to tune to it's TV channel.";
+         break;
+
+      case EPGDB_ACQ_WAIT:
+         pMsg = "The database of the currently selected provider is empty. "
+                "Please wait a few seconds until Nextview data is received "
+                "or select a different provider from the Configure menu.";
+         break;
+
+      case EPGDB_ACQ_WAIT_DAEMON:
+         pMsg = "The database of the currently selected provider is empty. "
+                "The acquisition daemon is currently working on a different provider. "
+                "Either change the daemon's acquisition mode to \"Follow-UI\" "
+                "or select a different provider from the Configure menu.";
+         break;
+
+      case EPGDB_ACQ_OTHER_PROV:
+         pMsg = "The database of the currently selected provider is empty. "
+                "This provider is not in your selection for acquisition! "
+                "Please choose a different provider, or change the "
+                "acquisition mode from the Configure menu.";
+         break;
+
+      case EPGDB_EMPTY:
+         pMsg = "The database of the currently selected provider is empty. "
+                "Start the acquisition from the Control menu or select a "
+                "different provider from the Configure menu.";
+         break;
+
+      case EPGDB_PREFILTERED_EMPTY:
+         pMsg = "None of the programmes in this database match your network "
+                "preselection. Either add more networks for this provider or "
+                "select a different one in the Configure menus. Starting the "
+                "acquisition might also help.";
+         break;
+
+      case EPGDB_OK:
+         // db is now ready -> clear message display
+         pMsg = NULL;
+         break;
+
+      default:
+         fatal1("UiControl-GetDbStateMsg: unknown state %d", state);
+         pMsg = "Internal error";
+         break;
+   }
+
+   return pMsg;
+}
 
 // ---------------------------------------------------------------------------
 // Determine state of UI database and acquisition
@@ -238,7 +371,7 @@ void UiControl_CheckDbState( void )
    else
       state = EPGDB_NOT_INIT;
 
-   PiListBox_UpdateState(state);
+   PiBox_ErrorMessage(UiControl_GetDbStateMsg(state));
 }
 
 // ----------------------------------------------------------------------------
@@ -264,7 +397,7 @@ void UiControl_AiStateChange( ClientData clientData )
       // update acq CNI list in case follow-ui acq mode is selected
       SetAcquisitionMode(NETACQ_KEEP);
       // display the data from the new db
-      PiListBox_Reset();
+      PiBox_Reset();
    }
 
    // check if the message relates to the browser db
@@ -279,19 +412,28 @@ void UiControl_AiStateChange( ClientData clientData )
          sprintf(comm, "wm title . {Nextview EPG: %s}\n", AI_GET_SERVICENAME(pAiBlock));
          eval_check(interp, comm);
 
-         // update the netwop filter bar and the netwop prefilter
-         PiFilter_UpdateNetwopList();
+         // generate the netwop mapping tables and update the netwop filter bar
+         sprintf(comm, "UpdateProvCniTable 0x%04X\n"
+                       "UpdateNetwopFilterBar\n",
+                       EpgDbContextGetCni(pUiDbContext));
+         eval_check(interp, comm);
+
+         // update network prefilters (restrict to user-selected networks)
+         PiFilter_SetNetwopPrefilter();
 
          // update the language (if in automatic mode)
          SetUserLanguage(interp);
+
+         // update the netwop prefilter and refresh the display
+         PiBox_AiStateChange();
       }
       else
       {  // no AI block in db -> reset window title to empty
          sprintf(comm, "wm title . {Nextview EPG}\n");
          eval_check(interp, comm);
 
-         // clear the netwop filter menus
-         PiFilter_UpdateNetwopList();
+         // clear the programme display
+         PiBox_Reset();
       }
       EpgDbLockDatabase(pUiDbContext, FALSE);
    }
@@ -663,7 +805,7 @@ bool UiControlMsg_AcqQueueOverflow( bool prepare )
       {
          if (EpgDbContextIsMerged(pUiDbContext))
             EpgContextMergeLockInsert(pUiDbContext, TRUE);
-         PiListBox_Lock(TRUE);
+         PiBox_Lock(TRUE);
       }
    }
    else
@@ -672,7 +814,7 @@ bool UiControlMsg_AcqQueueOverflow( bool prepare )
       {
          eval_check(interp, "C_ProvMerge_Start");
       }
-      PiListBox_Lock(FALSE);
+      PiBox_Lock(FALSE);
    }
 #endif
 

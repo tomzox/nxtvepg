@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: btdrv4dummy.c,v 1.13 2002/11/17 18:12:45 tom Exp tom $
+ *  $Id: btdrv4dummy.c,v 1.15 2003/02/03 21:22:45 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -118,7 +118,7 @@ const char * BtDriver_GetTunerName( uint tunerIdx )
       return NULL;
 }
 
-const char * BtDriver_GetInputName( uint cardIdx, uint inputIdx )
+const char * BtDriver_GetInputName( uint cardIdx, uint cardType, uint inputIdx )
 {
    if (inputIdx == 0)
       return "Dummy input";
@@ -126,7 +126,7 @@ const char * BtDriver_GetInputName( uint cardIdx, uint inputIdx )
       return NULL;
 }
 
-bool BtDriver_Configure( int cardIndex, int tunerType, int pll, int prio )
+bool BtDriver_Configure( int cardIndex, int prio, int chipType, int cardType, int tunerType, int pllType )
 {
    return TRUE;
 }

@@ -1,5 +1,5 @@
 /*
- *  VBI capture driver for the Booktree 848/849/878/879 family
+ *  VBI capture driver interface definition
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
@@ -12,11 +12,32 @@
  *  GNU General Public License for more details.
  *
  *
- *  Description: see according C source file.
+ *  Description:
+ *
+ *    This header file defines the interface between Nextview EPG
+ *    acquisition (including EPG scan) and the driver support module.
+ *    Except for configuration functions, the interface is platform,
+ *    driver and TV capture chip independent, i.e. the same functions
+ *    are provided for UNIX (v4l and bktr drivers) and M$ Windows
+ *    (DScaler driver)
+ *
+ *    Currently all UNIX platfors use the btdrv4linux implementation
+ *    of the driver support module, M$ Windows uses btdrv4win. For
+ *    other platforms there's a btdrv4dummy module (won't allow
+ *    acquisition from a TV card, however you can still receive data
+ *    from a daemon in the network).  Ports for additional platforms
+ *    are always welcome.
+ *
+ *    Note: the prefix "BtDriver" has only historical reasons: at the
+ *    time the driver was written there was only Linux bttv.  Even long
+ *    after, only cards with the Brooktree family of capture chips were
+ *    supported.
+ *
+ *    For an explanations of the functions see the C files.
  *
  *  Author: Tom Zoerner
  *
- *  $Id: btdrv.h,v 1.27 2002/11/26 19:13:43 tom Exp tom $
+ *  $Id: btdrv.h,v 1.32 2003/02/22 19:29:32 tom Exp tom $
  */
 
 #ifndef __BTDRV_H
@@ -24,8 +45,9 @@
 
 
 // ---------------------------------------------------------------------------
-// These structs are used by slave and master to keep record of the cards
-// and their input channels.
+// NetBSD/FreeBSD only: these structs are used by slave and master to keep record
+// of the cards and their input channels.
+//
 // In NetBSD we need to keep the bktr video device open by the slave process
 // all the time while acq is active.  Hence we can only scan the remaining
 // cards; the currently used card is scanned by the slave when acq is started
@@ -35,10 +57,11 @@
 
 # define MAX_CARDS    4  // max number of supported cards
 # define MAX_INPUTS   4  // max number of supported inputs
+# define MAX_BSD_CARD_NAME_LEN   20  // max. string length in struct
 
 struct Input
 {
-  char name [20];         // name of the input
+  char name [MAX_BSD_CARD_NAME_LEN];  // name of the input
   int inputID;            // id within the bktr-device
   int isTuner;            // input is a tuner
   int isAvailable;        // the hardware has this input-type
@@ -46,7 +69,7 @@ struct Input
 
 struct Card
 {
-  char name[20];
+  char name[MAX_BSD_CARD_NAME_LEN];
   struct Input inputs[MAX_INPUTS]; // the inputs, bktr currently knows only 4
   int isAvailable;        // the card is installed
   int isBusy;             // the device is already open
@@ -215,12 +238,16 @@ void BtDriver_CloseDevice( void );
 void BtDriver_ScanDevices( bool isMasterProcess );
 #endif
 
-// interface to GUI
-const char * BtDriver_GetCardName( uint cardIdx );
+// configuration interface
 const char * BtDriver_GetTunerName( uint tunerIdx );
-const char * BtDriver_GetInputName( uint cardIdx, uint inputIdx );
-bool BtDriver_Configure( int cardIndex, int tunerType, int pllType, int prio );
-#ifdef WIN32
+const char * BtDriver_GetInputName( uint cardIdx, uint cardType, uint inputIdx );
+bool BtDriver_Configure( int cardIdx, int prio, int chipType, int cardType, int tuner, int pll );
+#ifndef WIN32
+const char * BtDriver_GetCardName( uint cardIdx );
+#else
+const char * BtDriver_GetCardNameFromList( uint cardIdx, uint listIdx );
+bool BtDriver_EnumCards( uint cardIdx, uint cardType, uint * pChipType, const char ** pName, bool showDrvErr );
+bool BtDriver_QueryCardParams( uint cardIdx, sint * pCardType, sint * pTunerType, sint * pPllType );
 bool BtDriver_GetState( bool * pEnabled, bool * pHasDriver, uint * pCardIdx );
 #endif
 

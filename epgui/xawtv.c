@@ -36,7 +36,7 @@
  *
  *     Additional code and adaptions to nxtvepg by Tom Zoerner
  *
- *  $Id: xawtv.c,v 1.28 2002/10/19 15:31:28 tom Exp tom $
+ *  $Id: xawtv.c,v 1.30 2003/02/26 20:35:01 tom Exp tom $
  */
 
 #ifdef WIN32
@@ -72,7 +72,7 @@
 #include "epgdb/epgdbif.h"
 #include "epgctl/epgacqctl.h"
 #include "epgui/epgmain.h"
-#include "epgui/pilistbox.h"
+#include "epgui/pibox.h"
 #include "epgui/xawtv.h"
 
 
@@ -591,16 +591,14 @@ static int Xawtv_EventNotification( ClientData clientData, XEvent *eventPtr )
       // have the acq control update it's device state
       EpgAcqCtl_CheckDeviceAccess();
       // destroy the nxtvepg-controlled xawtv popup window
-      if (xawtvcf.popType == POP_EXT)
-         AddMainIdleEvent(Xawtv_PopDownNowNext, NULL, TRUE);
+      AddMainIdleEvent(Xawtv_PopDownNowNext, NULL, TRUE);
       result = TRUE;
    }
    else if ( (eventPtr->type == UnmapNotify) &&
              (eventPtr->xunmap.window == xawtv_wid) && (xawtv_wid != None) )
    {
       dprintf1("UnmapNotify event from window 0x%X\n", (int)eventPtr->xunmap.window);
-      if (xawtvcf.popType == POP_EXT)
-         AddMainIdleEvent(Xawtv_PopDownNowNext, NULL, TRUE);
+      AddMainIdleEvent(Xawtv_PopDownNowNext, NULL, TRUE);
       result = TRUE;
    }
    return result;
@@ -723,7 +721,8 @@ static void Xawtv_Popup( float rperc, const char *rtime, const char * ptitle )
 
          if ((xawtv_wid != None) && (wat.map_state == IsViewable))
          {
-            sprintf(comm, "Create_XawtvPopup %d %d %d %d %f {%s} {%s}\n",
+            sprintf(comm, "Create_XawtvPopup %d %d %d %d %d %f {%s} {%s}\n",
+                          xawtvcf.popType,
                           wat.x, wat.y, wat.width, wat.height, rperc, rtime, ptitle);
             eval_check(interp, comm);
 
@@ -968,10 +967,10 @@ static const PI_BLOCK * Xawtv_SearchCurrentPi( uint cni, uint pil )
    time_t now;
    uchar netwop;
    
+   assert(EpgDbIsLocked(pUiDbContext));
    pPiBlock = NULL;
    now = time(NULL);
 
-   EpgDbLockDatabase(pUiDbContext, TRUE);
    pAiBlock = EpgDbGetAi(pUiDbContext);
    if (pAiBlock != NULL)
    {
@@ -1010,7 +1009,6 @@ static const PI_BLOCK * Xawtv_SearchCurrentPi( uint cni, uint pil )
          }
       }
    }
-   EpgDbLockDatabase(pUiDbContext, FALSE);
 
    return pPiBlock;
 }
@@ -1020,8 +1018,6 @@ static const PI_BLOCK * Xawtv_SearchCurrentPi( uint cni, uint pil )
 //
 static void Xawtv_PopDownNowNext( ClientData clientData )
 {
-   CONST84 char *argv[10];
-
    if (popDownEvent != NULL)
    {  // if not called by the timer remove the timer event
       dprintf0("Xawtv-PopDownNowNext: remove timer handler\n");
@@ -1033,17 +1029,9 @@ static void Xawtv_PopDownNowNext( ClientData clientData )
    switch (xawtvcf.popType)
    {
       case POP_EXT:
-         eval_check(interp, "if {[string length [info commands .xawtv_epg]] > 0} {\n"
-                            "   destroy .xawtv_epg\n"
-                            "}\n");
-         break;
-
       case POP_VTX:
       case POP_VTX2:
-         argv[0] = "auto";
-         argv[1] = "vtx";
-         argv[2] = NULL;
-         Xawtv_SendCmd(NULL, interp, 2, argv);
+         eval_check(interp, "catch {destroy .xawtv_epg}");
          break;
 
       case POP_MSG:
@@ -1097,8 +1085,10 @@ static void Xawtv_NowNext( const PI_BLOCK *pPiBlock )
       switch (xawtvcf.popType)
       {
          case POP_EXT:
+         case POP_VTX:
+         case POP_VTX2:
             // generate popup window next to xawtv window
-            sprintf(time_str, "%s-%s", start_str, stop_str);
+            sprintf(time_str, "%s - %s", start_str, stop_str);
             Xawtv_Popup(percentage, time_str, PI_GET_TITLE(pPiBlock));
             break;
 
@@ -1110,28 +1100,6 @@ static void Xawtv_NowNext( const PI_BLOCK *pPiBlock )
             argv[2] = comm;
             argv[3] = NULL;
             Xawtv_SendCmd(NULL, interp, 3, argv);
-            break;
-
-         case POP_VTX:
-            // send a command to xawtv to display an overlay window with the EPG info
-            sprintf(comm, "%s-%s  %s", start_str, stop_str, PI_GET_TITLE(pPiBlock));
-            argv[0] = "auto";
-            argv[1] = "vtx";
-            argv[2] = comm;
-            argv[3] = NULL;
-            Xawtv_SendCmd(NULL, interp, 3, argv);
-            break;
-
-         case POP_VTX2:
-            // same as VTX, but 2 lines with additional percentage
-            sprintf(time_str, "%s-%s (%d%%)", start_str, stop_str, (int)(percentage*100.0));
-            sprintf(comm, "%s", PI_GET_TITLE(pPiBlock));
-            argv[0] = "auto";
-            argv[1] = "vtx";
-            argv[2] = time_str;
-            argv[3] = comm;
-            argv[4] = NULL;
-            Xawtv_SendCmd(NULL, interp, 4, argv);
             break;
 
          default:
@@ -1159,6 +1127,7 @@ static void Xawtv_FollowTvNetwork( void )
 {
    const PI_BLOCK *pPiBlock;
    
+   EpgDbLockDatabase(pUiDbContext, TRUE);
    pPiBlock = Xawtv_SearchCurrentPi(followTvState.cni, followTvState.pil);
    if (pPiBlock != NULL)
    {
@@ -1175,13 +1144,14 @@ static void Xawtv_FollowTvNetwork( void )
 
          // jump with the cursor on the current programme
          if (xawtvcf.follow)
-            PiListBox_GotoPi(pPiBlock);
+            PiBox_GotoPi(pPiBlock);
       }
    }
    else
    {  // unsupported network or no appropriate PI found -> remove popup
       Xawtv_PopDownNowNext(NULL);
    }
+   EpgDbLockDatabase(pUiDbContext, FALSE);
 }
 
 // ----------------------------------------------------------------------------
@@ -1347,7 +1317,7 @@ static void Xawtv_StationSelected( ClientData clientData )
          }
       }
       else
-         debug1("Xawtv-StationSelected: no atom found on window 0x%X\n", (int)xawtv_wid);
+         debug1("Xawtv-StationSelected: no atom found on window 0x%X", (int)xawtv_wid);
    }
 
    if (pollVpsEvent == NULL)

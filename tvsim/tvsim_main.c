@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: tvsim_main.c,v 1.16 2002/11/19 20:58:21 tom Exp tom $
+ *  $Id: tvsim_main.c,v 1.17 2003/02/08 14:28:16 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_TVSIM
@@ -56,7 +56,7 @@
 #if (TCL_MAJOR_VERSION > 8) || ((TCL_MAJOR_VERSION == 8) && (TCL_MINOR_VERSION >= 4))
 # define TCL_EVAL_CONST(INTERP, SCRIPT) Tcl_EvalEx(INTERP, SCRIPT, -1, TCL_EVAL_GLOBAL)
 #else
-# define TCL_EVAL_CONST(INTERP, SCRIPT) Tcl_VarEval(INTERP, (char *) SCRIPT, NULL)
+# define TCL_EVAL_CONST(INTERP, SCRIPT) Tcl_VarEval(INTERP, "uplevel #0 {", (char *) SCRIPT, "}", NULL)
 #endif
 
 #ifndef USE_PRECOMPILED_TCL_LIBS
@@ -115,7 +115,7 @@ static void DisplaySystemErrorMsg( char * message, DWORD code )
       FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, code, LANG_USER_DEFAULT,
                     buf + strlen(buf), 300 - strlen(buf) - 1, NULL);
       // open a small dialog window with the error message and an OK button
-      MessageBox(NULL, buf, "XTerm Launch", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+      MessageBox(NULL, buf, "TV App Simulator", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
 
       free(buf);
    }
@@ -352,48 +352,39 @@ static void ParseArgv( int argc, char * argv[] )
 }
 
 // ----------------------------------------------------------------------------
-// Set the Bt8x8 driver config params
+// Set the hardware config params
 // - the parameters must be loaded before from the nxtvepg rc/ini file,
 //   except for the TV card index, which is set by a command line switch only
 //
-static void SetHardwareConfig( Tcl_Interp *interp, uint cardIdx )
+static bool SetHardwareConfig( Tcl_Interp *interp, uint cardIdx )
 {
-   CONST84 char **pParamsArgv;
-   const char * pTmpStr;
-   int idxCount, input, tuner, pll, prio, cardidx, ftable;
-   int result;
+   Tcl_Obj  * pCardCfList;
+   Tcl_Obj ** pCardCfObjv;
+   char  idx_str[10];
+   int   llen;
+   int   chipType, cardType, tuner, pll;
+   bool  result;
 
-   pTmpStr = Tcl_GetVar(interp, "hwcfg", TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG);
-   if (pTmpStr == NULL)
-      pTmpStr = Tcl_GetVar(interp, "hwcfg_default", TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG);
-   if (pTmpStr != NULL)
+   // retrieve card specific parameters
+   sprintf(idx_str, "%d", cardIdx);
+   pCardCfList = Tcl_GetVar2Ex(interp, "tvcardcf", idx_str, TCL_GLOBAL_ONLY);
+   if ( (pCardCfList != NULL) &&
+        (Tcl_ListObjGetElements(interp, pCardCfList, &llen, &pCardCfObjv) == TCL_OK) &&
+        (llen == 4) &&
+        (Tcl_GetIntFromObj(interp, pCardCfObjv[0], &chipType) == TCL_OK) &&
+        (Tcl_GetIntFromObj(interp, pCardCfObjv[1], &cardType) == TCL_OK) &&
+        (Tcl_GetIntFromObj(interp, pCardCfObjv[2], &tuner) == TCL_OK) &&
+        (Tcl_GetIntFromObj(interp, pCardCfObjv[3], &pll) == TCL_OK) )
    {
-      result = Tcl_SplitList(interp, pTmpStr, &idxCount, &pParamsArgv);
-      if (result == TCL_OK)
-      {
-         if (idxCount == 6)
-         {
-            if ( (Tcl_GetInt(interp, pParamsArgv[0], &input) == TCL_OK) &&
-                 (Tcl_GetInt(interp, pParamsArgv[1], &tuner) == TCL_OK) &&
-                 (Tcl_GetInt(interp, pParamsArgv[2], &pll) == TCL_OK) &&
-                 (Tcl_GetInt(interp, pParamsArgv[3], &prio) == TCL_OK) &&
-                 (Tcl_GetInt(interp, pParamsArgv[4], &cardidx) == TCL_OK) &&  // unused
-                 (Tcl_GetInt(interp, pParamsArgv[5], &ftable) == TCL_OK) )    // unused
-            {
-               // pass the hardware config params to the driver
-               BtDriver_Configure(cardIdx, tuner, pll, prio);
-            }
-            else
-               debug1("Set-HardwareConfig: parse error in one of the integers in Tcl list hwcfg='%s'", pTmpStr);
-         }
-         else
-            debug2("Set-HardwareConfig: %d elements in Tcl list hwcfg='%s' (expected 6)", idxCount, pTmpStr);
-      }
-      else
-         debug1("Set-HardwareConfig: failed to split Tcl list hwcfg='%s'", pTmpStr);
+      // pass the hardware config params to the driver
+      result = BtDriver_Configure(cardIdx, 0, chipType, cardType, tuner, pll);
    }
    else
-      debug0("Set-HardwareConfig: TV card config var hwcfg and hwcfg_default undefined'");
+   {
+      MessageBox(NULL, "Failed to load TV card configuration from nxtvepg INI file\nUse the -rcfile command line option to specify it's location.", "TV App. Interaction Simulator", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+      result = FALSE;
+   }
+   return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -898,7 +889,7 @@ static int ui_init( int argc, char **argv )
       debugTclErr(interp, "tvsim_gui_tcl_static");
    }
 
-   sprintf(comm, "LoadRcFile {%s}", rcfile);
+   sprintf(comm, "Tvsim_LoadRcFile {%s}\n", rcfile);
    eval_check(interp, comm);
 
    Tcl_ResetResult(interp);
@@ -935,53 +926,54 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
       #endif
 
       // pass bt8x8 driver parameters to the driver
-      SetHardwareConfig(interp, videoCardIndex);
-
-      // select language for PDC theme text output
-      PdcThemeSetLanguage(TVSIM_PDC_THEME_LANGUAGE);
-
-      // fill channel listbox with names from TV app channel table
-      // a warning is issued if the table is empty (used during startup)
-      sprintf(comm, "LoadChanTable");
-      eval_check(interp, comm);
-
-      if (BtDriver_StartAcq())
+      if (SetHardwareConfig(interp, videoCardIndex))
       {
-         // set window title
-         eval_check(interp, "wm title . {TV app simulator " TVSIM_VERSION_STR "}\n");
-         if (startIconified)
-            eval_check(interp, "wm iconify .");
+         // select language for PDC theme text output
+         PdcThemeSetLanguage(TVSIM_PDC_THEME_LANGUAGE);
 
-         // wait until window is open and everything displayed
-         while ( (Tk_GetNumMainWindows() > 0) &&
-                 Tcl_DoOneEvent(TCL_ALL_EVENTS | TCL_DONT_WAIT) )
-            ;
-
-         // set window minimum size - cannot be set before the window is mapped
-         sprintf(comm, "wm minsize . [winfo reqwidth .] [winfo reqheight .]\n");
+         // fill channel listbox with names from TV app channel table
+         // a warning is issued if the table is empty (used during startup)
+         sprintf(comm, "LoadChanTable");
          eval_check(interp, comm);
 
-         // report attach failures during initialization
-         if (attachEvent == SHM_EVENT_ATTACH)
-            TvSimuMsg_Attach(TRUE);
-         else if (attachEvent == SHM_EVENT_ATTACH_ERROR)
-            TvSimuMsg_BackgroundError();
-
-         // process GUI events & callbacks until the main window is closed
-         while (Tk_GetNumMainWindows() > 0)
+         if (BtDriver_StartAcq())
          {
-            Tcl_DoOneEvent(TCL_ALL_EVENTS);
+            // set window title
+            eval_check(interp, "wm title . {TV app simulator " TVSIM_VERSION_STR "}\n");
+            if (startIconified)
+               eval_check(interp, "wm iconify .");
+
+            // wait until window is open and everything displayed
+            while ( (Tk_GetNumMainWindows() > 0) &&
+                    Tcl_DoOneEvent(TCL_ALL_EVENTS | TCL_DONT_WAIT) )
+               ;
+
+            // set window minimum size - cannot be set before the window is mapped
+            sprintf(comm, "wm minsize . [winfo reqwidth .] [winfo reqheight .]\n");
+            eval_check(interp, comm);
+
+            // report attach failures during initialization
+            if (attachEvent == SHM_EVENT_ATTACH)
+               TvSimuMsg_Attach(TRUE);
+            else if (attachEvent == SHM_EVENT_ATTACH_ERROR)
+               TvSimuMsg_BackgroundError();
+
+            // process GUI events & callbacks until the main window is closed
+            while (Tk_GetNumMainWindows() > 0)
+            {
+               Tcl_DoOneEvent(TCL_ALL_EVENTS);
+            }
+
+            BtDriver_StopAcq();
          }
+         else
+         {
+            debug0("Fatal: failed to start acq - quitting now");
 
-         BtDriver_StopAcq();
-      }
-      else
-      {
-         debug0("Fatal: failed to start acq - quitting now");
-
-         // this might have been the cause for failure, so display the message
-         if (attachEvent == SHM_EVENT_ATTACH_ERROR)
-            TvSimuMsg_BackgroundError();
+            // this might have been the cause for failure, so display the message
+            if (attachEvent == SHM_EVENT_ATTACH_ERROR)
+               TvSimuMsg_BackgroundError();
+         }
       }
 
       #if defined(WIN32) && !defined(__MINGW32__)

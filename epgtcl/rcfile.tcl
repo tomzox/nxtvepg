@@ -18,21 +18,28 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: rcfile.tcl,v 1.6 2002/11/30 21:56:05 tom Exp tom $
+#  $Id: rcfile.tcl,v 1.14 2003/03/19 16:18:58 tom Exp tom $
 #
 set myrcfile ""
+set is_daemon 0
+# define limit for forwards compatibility
+set nxtvepg_rc_compat 0x020500
 
-proc LoadRcFile {filename isDefault} {
+proc LoadRcFile {filename isDefault isDaemon} {
    global shortcuts shortcut_order
-   global prov_selection prov_freqs cfnetwops cfnetnames cfnettimes
+   global prov_selection prov_freqs cfnetwops cfnetnames cfnettimes cfnetjoin
    global showNetwopListbox showNetwopListboxLeft showShortcutListbox
-   global showStatusLine showColumnHeader
+   global showLayoutButton showStatusLine showColumnHeader
    global hideOnMinimize menuUserLanguage help_winsize
    global prov_merge_cnis prov_merge_cf
    global acq_mode acq_mode_cnis netacq_enable
    global pibox_height pilistbox_cols shortinfo_height
-   global hwcfg netacqcf xawtvcf wintvcf ctxmencf ctxmencf_wintv_vcr
-   global wintvapp_idx wintvapp_path hwcfg_tvapp_idx hwcfg_tvapp_path
+   global pibox_type pinetbox_col_count pinetbox_col_width
+   global pinetbox_rows pinetbox_rows_nonl
+   global netacqcf xawtvcf wintvcf ctxmencf ctxmencf_wintv_vcr
+   global hwcf_cardidx hwcf_input hwcf_acq_prio tvcardcf
+   global epgscan_opt_ftable
+   global wintvapp_idx wintvapp_path
    global substr_history
    global dumpdb_filename
    global dumpdb_pi dumpdb_xi dumpdb_ai dumpdb_ni dumpdb_oi dumpdb_mi dumpdb_li dumpdb_ti
@@ -43,11 +50,13 @@ proc LoadRcFile {filename isDefault} {
    global dumpxml_filename
    global colsel_tabs usercols
    global EPG_VERSION_NO is_unix
-   global myrcfile
+   global myrcfile is_daemon
 
    set myrcfile $filename
+   set is_daemon $isDaemon
    set shortcut_order {}
    set error 0
+   set ver_check 0
    set line_no 0
 
    if {[catch {set rcfile [open $filename "r"]} errmsg] == 0} {
@@ -56,12 +65,24 @@ proc LoadRcFile {filename isDefault} {
          if {([catch $line] != 0) && !$error} {
             tk_messageBox -type ok -default ok -icon error -message "Syntax error in rc/ini file, line #$line_no: $line"
             set error 1
+
+         } elseif {$ver_check == 0} {
+            # check if the given rc file is from a newer version
+            if {[info exists rc_compat_version] && [info exists nxtvepg_version_str]} {
+               if {$rc_compat_version > $EPG_VERSION_NO} {
+                  tk_messageBox -type ok -default ok -icon error \
+                     -message "rc/ini file '$myrcfile' is from an incompatible, newer version of nxtvepg ($nxtvepg_version_str) and cannot be loaded. Use -rcfile command line option to specify an alternate file name or use the newer nxtvepg executable."
+
+                  # change name of rc file so that the newer one isn't overwritten
+                  append myrcfile "." $nxtvepg_version_str
+                  # abort loading further data (would overwrite valid defaults)
+                  return
+               }
+               set ver_check 1
+            }
          }
       }
       close $rcfile
-
-      # for backwards compatibility append freq table index to hw cfg
-      if {[info exists hwcfg] && ([llength $hwcfg] == 5)} {lappend hwcfg 0}
 
       if {![info exists nxtvepg_version] || ($nxtvepg_version < 0x000600)} {
          set substr_history {}
@@ -103,6 +124,28 @@ proc LoadRcFile {filename isDefault} {
             }
          }
       }
+      if {![info exists nxtvepg_version] || ($nxtvepg_version < 0x020500) || \
+          ![info exists nxtvepg_version_str] || [string match "2.5.0pre*" $nxtvepg_version_str]} {
+         # starting with 2.5.0pre15 the substr param list was made a list of param lists
+         # and the param list was extended by two boolean parameters
+         foreach tag [array names shortcuts] {
+            set ltmp {}
+            foreach {ident valist} [lindex $shortcuts($tag) 2] {
+               if {([string compare $ident substr] == 0) && \
+                   ([llength $valist] == 5) && \
+                   ([llength [lindex $valist 0]] == 1) } {
+                  lappend ltmp $ident [list [concat [lrange $valist 4 4] [lrange $valist 0 3] 0 0]]
+               } else {
+                  lappend ltmp $ident $valist
+               }
+            }
+            set shortcuts($tag) [lreplace $shortcuts($tag) 2 2 $ltmp]
+         }
+         if {[info exists substr_history] && ([llength $substr_history] > 0) && \
+             ([llength [lindex $substr_history 0]] == 5)} { \
+            set substr_history {}
+         }
+      }
    } elseif {!$isDefault} {
       # warn if rc/ini file could not be loaded
       if $is_unix {
@@ -112,65 +155,75 @@ proc LoadRcFile {filename isDefault} {
       }
    }
 
-   # build user-defined column definitions from compact lists in rc file
-   if {[info exists pilistbox_col_widths]} {
-      foreach {col width} $pilistbox_col_widths {
-         set colsel_tabs($col) [concat $width [lrange $colsel_tabs($col) 1 end]]
-      }
-   }
-   foreach tag [array names pilistbox_usercol] {
-      set usercols($tag) [lindex $pilistbox_usercol($tag) 1]
-      set ltmp [lindex $pilistbox_usercol($tag) 0]
-      set htyp [lindex $ltmp 2]
-      if {([string compare $htyp none] != 0) && \
-          ([string compare $htyp "&user_def"] != 0)} {
-         if {([string compare -length 1 $htyp "&"] != 0) && \
-             [info exists nxtvepg_version] && ($nxtvepg_version <= 0x020400)} {
-            # backward compatibility: prepend "&" operator
-            set htyp "&$htyp"
-            set ltmp [lreplace $ltmp 2 2 $htyp]
-         }
-         if {[info exists colsel_tabs([string range $htyp 1 end])] == 0} {
-            # indirect function reference with unknown column keyword -> remove
-            set ltmp [lreplace $ltmp 2 2 none]
+   # skip the rest if GUI was not loaded
+   if {$is_daemon == 0} {
+
+      # build user-defined column definitions from compact lists in rc file
+      if {[info exists pilistbox_col_widths]} {
+         foreach {col width} $pilistbox_col_widths {
+            set colsel_tabs($col) [concat $width [lrange $colsel_tabs($col) 1 end]]
          }
       }
-      set colsel_tabs(user_def_$tag) $ltmp
-   }
+      foreach tag [array names pilistbox_usercol] {
+         set usercols($tag) [lindex $pilistbox_usercol($tag) 1]
+         set ltmp [lindex $pilistbox_usercol($tag) 0]
+         set htyp [lindex $ltmp 2]
+         if {([string compare $htyp none] != 0) && \
+             ([string compare $htyp "&user_def"] != 0)} {
+            if {([string compare -length 1 $htyp "&"] != 0) && \
+                [info exists nxtvepg_version] && ($nxtvepg_version <= 0x020400)} {
+               # backward compatibility: prepend "&" operator
+               set htyp "&$htyp"
+               set ltmp [lreplace $ltmp 2 2 $htyp]
+            }
+            if {[info exists colsel_tabs([string range $htyp 1 end])] == 0} {
+               # indirect function reference with unknown column keyword -> remove
+               set ltmp [lreplace $ltmp 2 2 none]
+            }
+         }
+         set colsel_tabs(user_def_$tag) $ltmp
+      }
 
-   # check consistancy of references from PI column selection to user-defined columns
-   set ltmp {}
-   foreach col $pilistbox_cols {
-      set exists [info exists colsel_tabs($col)]
-      if {$exists && ([scan $col "user_def_%d" tag] == 1)} {
-         set exists [info exists usercols($tag)]
+      # check consistancy of references from PI column selection to user-defined columns
+      set ltmp {}
+      foreach col $pilistbox_cols {
+         set exists [info exists colsel_tabs($col)]
+         if {$exists && ([scan $col "user_def_%d" tag] == 1)} {
+            set exists [info exists usercols($tag)]
+         }
+         if $exists {
+            lappend ltmp $col
+         } elseif $is_unix {
+            puts stderr "Warning: unresolved ref. to user-defined column '$col' in rc file deleted"
+         }
       }
-      if $exists {
-         lappend ltmp $col
-      } elseif $is_unix {
-         puts stderr "Warning: unresolved ref. to user-defined column '$col' in rc file deleted"
-      }
-   }
-   set pilistbox_cols $ltmp
+      set pilistbox_cols $ltmp
 
-   # check consistancy of references from HTML column selection to user-defined columns
-   set ltmp {}
-   foreach col $dumphtml_colsel {
-      set exists [info exists colsel_tabs($col)]
-      if {$exists && ([scan $col "user_def_%d" tag] == 1)} {
-         set exists [info exists usercols($tag)]
+      # check consistancy of references from HTML column selection to user-defined columns
+      set ltmp {}
+      foreach col $dumphtml_colsel {
+         set exists [info exists colsel_tabs($col)]
+         if {$exists && ([scan $col "user_def_%d" tag] == 1)} {
+            set exists [info exists usercols($tag)]
+         }
+         if $exists {
+            lappend ltmp $col
+         } elseif $is_unix {
+            puts stderr "Warning: unresolved ref. to user-defined column '$col' in rc file deleted"
+         }
       }
-      if $exists {
-         lappend ltmp $col
-      } elseif $is_unix {
-         puts stderr "Warning: unresolved ref. to user-defined column '$col' in rc file deleted"
-      }
-   }
-   set dumphtml_colsel $ltmp
+      set dumphtml_colsel $ltmp
 
-   if {[info exists EPG_VERSION_NO] && [info exists nxtvepg_version]} {
-      if {$nxtvepg_version > $EPG_VERSION_NO} {
-         tk_messageBox -type ok -default ok -icon warning -message "The config file is from a newer version of nxtvepg. Some settings may get lost."
+      # build PI netbox row join array from list & check consistancy
+      if [info exists pinetbox_rows_nonl_l] {
+         array unset pinetbox_rows_nonl
+         foreach tag $pinetbox_rows_nonl_l {
+            if [info exists colsel_tabs($tag)] {
+               set pinetbox_rows_nonl($tag) 1
+            } elseif $is_unix {
+               puts stderr "Warning: unresolved ref. column '$tag' (by netbox-row-join) in rc file deleted"
+            }
+         }
       }
    }
 }
@@ -180,15 +233,19 @@ proc LoadRcFile {filename isDefault} {
 ##
 proc UpdateRcFile {} {
    global shortcuts shortcut_order
-   global prov_selection prov_freqs cfnetwops cfnetnames cfnettimes
+   global prov_selection prov_freqs cfnetwops cfnetnames cfnettimes cfnetjoin
    global showNetwopListbox showNetwopListboxLeft showShortcutListbox
-   global showStatusLine showColumnHeader
+   global showLayoutButton showStatusLine showColumnHeader
    global hideOnMinimize menuUserLanguage help_winsize
    global prov_merge_cnis prov_merge_cf
    global acq_mode acq_mode_cnis netacq_enable
    global pibox_height pilistbox_cols shortinfo_height
-   global hwcfg netacqcf xawtvcf wintvcf ctxmencf ctxmencf_wintv_vcr
-   global wintvapp_idx wintvapp_path hwcfg_tvapp_idx hwcfg_tvapp_path
+   global pibox_type pinetbox_col_count pinetbox_col_width
+   global pinetbox_rows pinetbox_rows_nonl
+   global netacqcf xawtvcf wintvcf ctxmencf ctxmencf_wintv_vcr
+   global hwcf_cardidx hwcf_input hwcf_acq_prio tvcardcf
+   global epgscan_opt_ftable
+   global wintvapp_idx wintvapp_path
    global substr_history
    global dumpdb_filename
    global dumpdb_pi dumpdb_xi dumpdb_ai dumpdb_ni dumpdb_oi dumpdb_mi dumpdb_li dumpdb_ti
@@ -198,10 +255,20 @@ proc UpdateRcFile {} {
    global dumphtml_hyperlinks dumphtml_use_colsel dumphtml_colsel
    global dumpxml_filename
    global colsel_tabs usercols colsel_ailist_predef
-   global EPG_VERSION EPG_VERSION_NO
-   global myrcfile
+   global EPG_VERSION EPG_VERSION_NO nxtvepg_rc_compat
+   global myrcfile is_unix is_daemon
 
-   if {[catch {set rcfile [open $myrcfile "w"]}] == 0} {
+   if $is_daemon {
+      UpdateDaemonRcFile
+      return
+   }
+   if $is_unix {
+      set tmpfile ${myrcfile}.tmp
+   } else {
+      set tmpfile ${myrcfile}
+   }
+
+   if {[catch {set rcfile [open $tmpfile "w"]} errstr] == 0} {
       puts $rcfile "#"
       puts $rcfile "# Nextview EPG configuration file"
       puts $rcfile "#"
@@ -212,6 +279,8 @@ proc UpdateRcFile {} {
       # dump software version
       puts $rcfile [list set nxtvepg_version $EPG_VERSION_NO]
       puts $rcfile [list set nxtvepg_version_str $EPG_VERSION]
+      puts $rcfile [list set rc_compat_version $nxtvepg_rc_compat]
+      puts $rcfile [list set rc_timestamp [clock seconds]]
 
       # dump filter shortcuts
       foreach index [lsort -integer [array names shortcuts]] {
@@ -237,11 +306,14 @@ proc UpdateRcFile {} {
       if [array exists cfnettimes] {
          puts $rcfile [list array set cfnettimes [array get cfnettimes]]
       }
+      # dump network join lists
+      puts $rcfile [list set cfnetjoin $cfnetjoin]
 
       # dump shortcuts & network listbox visibility
       puts $rcfile [list set showNetwopListbox $showNetwopListbox]
       puts $rcfile [list set showNetwopListboxLeft $showNetwopListboxLeft]
       puts $rcfile [list set showShortcutListbox $showShortcutListbox]
+      puts $rcfile [list set showLayoutButton $showLayoutButton]
       puts $rcfile [list set showStatusLine $showStatusLine]
       puts $rcfile [list set showColumnHeader $showColumnHeader]
       puts $rcfile [list set hideOnMinimize $hideOnMinimize]
@@ -258,6 +330,11 @@ proc UpdateRcFile {} {
       if {[info exists shortinfo_height]} {puts $rcfile [list set shortinfo_height $shortinfo_height]}
       if {[info exists pibox_height]} {puts $rcfile [list set pibox_height $pibox_height]}
       if {[info exists pilistbox_cols]} {puts $rcfile [list set pilistbox_cols $pilistbox_cols]}
+      puts $rcfile [list set pibox_type $pibox_type]
+      puts $rcfile [list set pinetbox_col_count $pinetbox_col_count]
+      puts $rcfile [list set pinetbox_col_width $pinetbox_col_width]
+      puts $rcfile [list set pinetbox_rows $pinetbox_rows]
+      puts $rcfile [list set pinetbox_rows_nonl_l [array names pinetbox_rows_nonl]]
 
       # dump browser listbox column widths
       set pilistbox_col_widths {}
@@ -278,11 +355,16 @@ proc UpdateRcFile {} {
       if {[info exists acq_mode_cnis]} {puts $rcfile [list set acq_mode_cnis $acq_mode_cnis]}
       puts $rcfile [list set netacq_enable $netacq_enable]
 
-      if {[info exists hwcfg]} {puts $rcfile [list set hwcfg $hwcfg]}
+      # dump video input and TV card configuration
+      puts $rcfile [list set hwcf_cardidx $hwcf_cardidx]
+      puts $rcfile [list set hwcf_input $hwcf_input]
+      puts $rcfile [list set hwcf_acq_prio $hwcf_acq_prio]
+      foreach cardidx [array names tvcardcf] {
+         puts $rcfile [list set tvcardcf($cardidx) $tvcardcf($cardidx)]
+      }
       puts $rcfile [list set wintvapp_path $wintvapp_path]
       puts $rcfile [list set wintvapp_idx $wintvapp_idx]
-      puts $rcfile [list set hwcfg_tvapp_path $hwcfg_tvapp_path]
-      puts $rcfile [list set hwcfg_tvapp_idx $hwcfg_tvapp_idx]
+      puts $rcfile [list set epgscan_opt_ftable $epgscan_opt_ftable]
 
       puts $rcfile [list set netacqcf $netacqcf]
       puts $rcfile [list set xawtvcf $xawtvcf]
@@ -318,8 +400,76 @@ proc UpdateRcFile {} {
       puts $rcfile [list set dumpxml_filename $dumpxml_filename]
 
       close $rcfile
+
+      # move the new file over the old one
+      # - don't use temp file on win32 because Tcl rename func fails with "file not found"
+      #   (library bug or some obscure working directory problem?)
+      if $is_unix {
+         if {[catch {file rename -force $tmpfile ${myrcfile}} errstr] != 0} {
+
+            tk_messageBox -type ok -default ok -icon error -message "Could not replace rc/ini file $myrcfile\n$errstr"
+         }
+      }
+
    } else {
-      tk_messageBox -type ok -default ok -icon error -message "could not write to ini file $myrcfile"
+      tk_messageBox -type ok -default ok -icon error -message "Could not create temporary rc/ini file $tmpfile\n$errstr"
+   }
+}
+
+##
+##  Daemon RC file update: merge chaned settings into rc/ini file
+##  - daemon must nor use normal update func, because post-processing stage
+##    was skipped during load, i.e. not global variables are initialized
+##  - usefulness of this function is questionable, because the frequency
+##    should be updated only in an EPG scan or if no freq is in the DB yet
+##
+proc UpdateDaemonRcFile {} {
+   global myrcfile is_unix
+
+   if $is_unix {
+      set tmpfile ${myrcfile}.tmp
+   } else {
+      set tmpfile ${myrcfile}
+   }
+   set error 0
+   if {[catch {set new_rcfile [open $tmpfile "w"]}] == 0} {
+
+      # open the old ini file to copy it line by line
+      if {[catch {set rcfile [open $myrcfile "r"]} errmsg] == 0} {
+         while {[gets $rcfile line] >= 0} {
+
+            if {([catch $line] != 0) && !$error} {
+               set error 1
+               break;
+            }
+
+            # eval this line to check if it contains the search variable
+            catch $line
+
+            if [info exists prov_freqs] {
+               # this line contains the variable -> skip it
+               unset prov_freqs
+            } else {
+               # copy this line unchanged from input to output
+               puts $new_rcfile $line
+            }
+         }
+
+         # write the new value (copied from global variable, which must not
+         # be declared global here or it would have been overwritten above)
+         puts $new_rcfile [list set prov_freqs $::prov_freqs]
+
+         close $rcfile
+         close $new_rcfile
+
+         if $is_unix {
+            if {$error == 0} {
+               catch [list file rename -force $tmpfile $myrcfile]
+            } else {
+               catch [list file delete $tmpfile]
+            }
+         }
+      }
    }
 }
 

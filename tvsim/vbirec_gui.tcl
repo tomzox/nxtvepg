@@ -26,7 +26,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: vbirec_gui.tcl,v 1.6 2002/10/13 10:34:23 tom Exp tom $
+#  $Id: vbirec_gui.tcl,v 1.7 2002/12/08 21:40:16 tom Exp tom $
 #
 
 set dumpttx_filename {ttx.dat}

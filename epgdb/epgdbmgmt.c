@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbmgmt.c,v 1.43 2002/02/16 11:35:00 tom Exp tom $
+ *  $Id: epgdbmgmt.c,v 1.44 2003/01/11 19:40:20 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -35,7 +35,6 @@
 #include "epgctl/debug.h"
 
 #include "epgdb/epgblock.h"
-#include "epgui/pilistbox.h"
 #include "epgdb/epgqueue.h"
 #include "epgdb/epgtscqueue.h"
 #include "epgdb/epgdbmgmt.h"
@@ -337,7 +336,8 @@ static void EpgDbRemoveObsoleteNetwops( PDBC dbc, uchar netwopCount, uchar filte
       {
          dprintf3("free obsolete PI ptr=%lx, netwop=%d >= %d or filtered\n", (ulong)pWalk, pWalk->blk.pi.netwop_no, netwopCount);
          // notify the GUI
-         PiListBox_DbRemoved(dbc, &pWalk->blk.pi);
+         if (dbc->pPiAcqCb != NULL)
+            dbc->pPiAcqCb(dbc, EPGDB_PI_REMOVED, &pWalk->blk.pi, NULL);
 
          pPrev = pWalk->pPrevBlock;
          pNext = pWalk->pNextBlock;
@@ -373,7 +373,8 @@ static void EpgDbRemoveObsoleteNetwops( PDBC dbc, uchar netwopCount, uchar filte
 
    assert(EpgDbMgmtCheckChains(dbc));
 
-   PiListBox_DbRecount(dbc);
+   if (dbc->pPiAcqCb != NULL)
+      dbc->pPiAcqCb(dbc, EPGDB_PI_RECOUNT, NULL, NULL);
 }
 
 // ---------------------------------------------------------------------------
@@ -739,7 +740,8 @@ void EpgDbPiRemove( PDBC dbc, EPGDB_BLOCK * pObsolete )
    EPGDB_BLOCK *pPrev, *pNext;
 
    // notify the GUI
-   PiListBox_DbRemoved(dbc, &pObsolete->blk.pi);
+   if (dbc->pPiAcqCb != NULL)
+      dbc->pPiAcqCb(dbc, EPGDB_PI_REMOVED, &pObsolete->blk.pi, NULL);
 
    // remove from network pointer chain
    pNext = pObsolete->pNextNetwopBlock;
@@ -787,7 +789,10 @@ void EpgDbReplacePi( PDBC dbc, EPGDB_BLOCK * pObsolete, EPGDB_BLOCK * pBlock )
    bool uiUpdated;
 
    // notify the GUI
-   uiUpdated = PiListBox_DbPreUpdate(dbc, &pObsolete->blk.pi, &pBlock->blk.pi);
+   if (dbc->pPiAcqCb != NULL)
+      uiUpdated = dbc->pPiAcqCb(dbc, EPGDB_PI_PRE_UPDATE, &pBlock->blk.pi, &pObsolete->blk.pi);
+   else
+      uiUpdated = FALSE;
 
    // insert into the network pointer chain
    pPrev = pObsolete->pPrevNetwopBlock;
@@ -819,8 +824,8 @@ void EpgDbReplacePi( PDBC dbc, EPGDB_BLOCK * pObsolete, EPGDB_BLOCK * pBlock )
       dbc->pLastPi = pBlock;
 
    // notify the GUI
-   if (uiUpdated == FALSE)
-      PiListBox_DbPostUpdate(dbc, &pObsolete->blk.pi, &pBlock->blk.pi);
+   if ((dbc->pPiAcqCb != NULL) && (uiUpdated == FALSE))
+      dbc->pPiAcqCb(dbc, EPGDB_PI_POST_UPDATE, &pBlock->blk.pi, &pObsolete->blk.pi);
 
    // remove the obsolete block
    xfree(pObsolete);
@@ -892,7 +897,8 @@ void EpgDbLinkPi( PDBC dbc, EPGDB_BLOCK * pBlock, EPGDB_BLOCK * pPrev, EPGDB_BLO
       dbc->pLastPi = pBlock;
 
    // notify the GUI
-   PiListBox_DbInserted(dbc, &pBlock->blk.pi);
+   if (dbc->pPiAcqCb != NULL)
+      dbc->pPiAcqCb(dbc, EPGDB_PI_INSERTED, &pBlock->blk.pi, NULL);
 }
 
 // ---------------------------------------------------------------------------
@@ -1346,7 +1352,8 @@ static bool EpgDbAddPiBlock( PDBC dbc, EPGDB_BLOCK *pBlock )
 
          // notify the GUI that insertion and implied removals are done
          // (the GUI may have to count PI to calculate scrollbar positions)
-         PiListBox_DbRecount(dbc);
+         if (dbc->pPiAcqCb != NULL)
+            dbc->pPiAcqCb(dbc, EPGDB_PI_RECOUNT, NULL, NULL);
       }
       else
       {  // invalid duration

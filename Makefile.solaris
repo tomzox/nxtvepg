@@ -75,20 +75,25 @@ CFLAGS  = -pipe $(WARN) $(INCS) $(DEFS) -g -O2
 
 # ----- don't change anything below ------------------------------------------
 
-CSRC    = epgvbi/vbidecode epgvbi/tvchan epgvbi/btdrv4dummy epgvbi/hamming \
-          epgvbi/ttxdecode epgvbi/cni_tables \
+CSRC    = epgvbi/btdrv4dummy epgvbi/vbidecode epgvbi/ttxdecode epgvbi/hamming \
+          epgvbi/tvchan epgvbi/cni_tables epgvbi/syserrmsg \
           epgctl/debug epgctl/epgacqctl epgctl/epgscan epgctl/epgctxctl \
           epgctl/epgctxmerge epgctl/epgacqclnt epgctl/epgacqsrv \
           epgdb/epgstream epgdb/epgdbmerge epgdb/epgdbsav \
           epgdb/epgdbmgmt epgdb/epgdbif epgdb/epgdbfil epgdb/epgblock \
           epgdb/epgnetio epgdb/epgqueue epgdb/epgtscqueue \
-          epgui/uictrl epgui/pilistbox epgui/pioutput epgui/pifilter \
+          epgui/pibox epgui/pilistbox epgui/pinetbox \
+          epgui/uictrl epgui/pioutput epgui/pidescr epgui/pifilter \
           epgui/statswin epgui/timescale epgui/pdc_themes epgui/menucmd \
-          epgui/epgmain epgui/xawtv epgui/epgtxtdump epgui/epgtabdump
-CGEN    = epgui/epgui epgui/help
+          epgui/epgmain epgui/loadtcl epgui/xawtv epgui/epgtxtdump epgui/epgtabdump
+TCLSRC  = epgtcl/mainwin epgtcl/helptexts epgtcl/dlg_hwcfg epgtcl/dlg_xawtvcf \
+          epgtcl/dlg_ctxmencf epgtcl/dlg_acqmode epgtcl/dlg_netsel \
+          epgtcl/dlg_dump epgtcl/dlg_netname epgtcl/dlg_udefcols \
+          epgtcl/shortcuts epgtcl/dlg_shortcuts epgtcl/draw_stats \
+          epgtcl/dlg_filter epgtcl/dlg_prov epgtcl/rcfile
 
-SRCS    = $(addsuffix .c, $(CSRC)) $(addsuffix .c, $(CGEN))
-OBJS    = $(addsuffix .o, $(CSRC)) $(addsuffix .o, $(CGEN))
+SRCS    = $(addsuffix .c, $(CSRC)) $(addsuffix .c, $(TCLSRC))
+OBJS    = $(addsuffix .o, $(CSRC)) $(addsuffix .o, $(TCLSRC))
 
 all: nxtvepg nxtvepg.1
 
@@ -104,17 +109,15 @@ install: nxtvepg nxtvepg.1
 	install -c -m 0644 nxtvepg.1   $(mandir)
 	rm -f $(mandir)/nxtvepg.1x
 
-##%.o: %.c
-##	$(CC) $(CFLAGS) -c *.c -o *.o
+%.c: %.tcl tcl2c
+	./tcl2c $*.tcl
 
 tcl2c: tcl2c.c
 	$(CC) -O -o tcl2c tcl2c.c
 
-epgui/epgui.c: epgui/epgui.tcl tcl2c
-	egrep -v '^ *#' epgui/epgui.tcl | ./tcl2c epgui_tcl_script > epgui/epgui.c
+epgui/loadtcl.c :: $(addsuffix .c, $(TCLSRC))
 
-epgui/help.c: epgui/help.tcl tcl2c
-	egrep -v '^ *#' epgui/help.tcl | ./tcl2c help_tcl_script > epgui/help.c
+epgui/loadtcl.c :: $(addsuffix .h, $(TCLSRC))
 
 nxtvepg.1 man.html epgui/help.tcl: nxtvepg.pod pod2help.pl
 	@if test -x $(PERL); then \

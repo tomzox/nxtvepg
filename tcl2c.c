@@ -15,14 +15,14 @@
  *  Description:
  *
  *    This tool is used to convert a Tcl/Tk script file into a character
- *    array (i.e. a string) which can then by compiled into a C program.
- *    The reduce file size, comment-only lines are skipped.
+ *    array (i.e. a string) which can then be compiled into a C program.
+ *    To reduce file size, comment-only lines are skipped.
  *
  *    These strings are then sourced into the Tcl interpreter at program
  *    start.  To reduce startup time, the scripts can by divided into a
- *    static and dynamic part: only the static part is loaded upon startup,
- *    the dynamic part is only loaded when one of the procedured in it is
- *    referenced (e.g. when a config dialog is opened)
+ *    static and dynamic part: the static part is loaded upon startup,
+ *    the dynamic part is only loaded when one of it's pre-defined entry
+ *    procedures is referenced (usually when a dialog window is opened)
  *
  *    Usage:  tcl2c script.tcl
  *
@@ -38,16 +38,15 @@
  *
  *    Completely rewritten and functionality added by Tom Zoerner
  *
- *  $Id: tcl2c.c,v 1.4 2002/11/03 12:15:10 tom Exp tom $
+ *  $Id: tcl2c.c,v 1.6 2003/01/11 13:02:16 tom Exp tom $
  */
 
 #include <stdlib.h>
+#include <string.h>
 #include <stdio.h>
 #include <errno.h>
+#include <time.h>
 
-#define FALSE 0
-#define TRUE  1
-typedef unsigned char  bool;
 
 static void PrintLine( FILE * fp, const char * pLine )
 {
@@ -93,10 +92,8 @@ int main(int argc, char **argv)
     time_t now;
     char line[1024];
     char proc_name[128];
-    char * p;
     int comments;
     int fileNameLen;
-    int c;
 
     if (argc < 2)
     {

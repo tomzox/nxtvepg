@@ -18,50 +18,30 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_hwcfg.tcl,v 1.4 2002/12/08 19:59:00 tom Exp tom $
+#  $Id: dlg_hwcfg.tcl,v 1.9 2003/03/09 19:30:16 tom Exp tom $
 #
 
-##  - Video input
-##  - Tuner
-##  - PLL init 0/1
-##  - thread priority normal/high/real-time
-##  - card index 0-4
-##  - frequency table index (Western Europe/France)
-##
-set hwcfg_default {0 0 0 0 0 0}
+set hwcf_cardidx 0
+set hwcf_input 0
+set hwcf_acq_prio 0
 set hwcf_dsdrv_log 0
+
 set hwcfg_popup 0
+set tvcard_popup 0
 
-set hwcfg_tvapp_idx 0
-set hwcfg_tvapp_path {}
-
-
-# save a TV card index that was selected via the command line
-proc HardwareConfigUpdateCardIdx {cardidx} {
-   global hwcfg hwcfg_default
-
-   if {![info exists hwcfg]} {
-      set hwcfg $hwcfg_default
-   }
-   if {[lindex $hwcfg 4] != $cardidx} {
-      set hwcfg [lreplace $hwcfg 4 4 $cardidx]
-      UpdateRcFile
-   }
-}
 
 #=LOAD=PopupHardwareConfig
 #=DYNAMIC=
 
+##  --------------------------------------------------------------------------
+##  Video input configuration dialog
+##
 proc PopupHardwareConfig {} {
-   global is_unix netacq_enable fileImage win_frm_fg
-   global hwcfg_input_sel
-   global hwcfg_tuner_sel hwcfg_tuner_list hwcfg_card_list
-   global hwcfg_pll_sel hwcfg_prio_sel hwcfg_cardidx_sel hwcfg_ftable_sel
-   global hwcfg_popup hwcfg hwcfg_default
-   global hwcfg_tmp_tvapp_list hwcfg_tmp_tvapp_idx hwcfg_tmp_tvapp_path
-   global hwcfg_chk_tvapp_idx hwcfg_chk_tvapp_path
-   global hwcfg_tvapp_path hwcfg_tvapp_idx
-   global hwcf_dsdrv_log
+   global is_unix netacq_enable
+   global hwcf_cardidx hwcf_input hwcf_acq_prio hwcf_dsdrv_log
+   global hwcfg_cardidx_sel hwcfg_input_sel hwcfg_prio_sel
+   global hwcfg_card_list hwcfg_chip_list
+   global hwcfg_popup
 
    if {$hwcfg_popup == 0} {
       if {[C_IsNetAcqActive default]} {
@@ -72,125 +52,48 @@ proc PopupHardwareConfig {} {
          }
       }
 
-      CreateTransientPopup .hwcfg "TV card input configuration"
+      CreateTransientPopup .hwcfg "Video input configuration"
       set hwcfg_popup 1
 
-      set hwcfg_tuner_list [C_HwCfgGetTunerList]
-      set hwcfg_card_list [C_HwCfgGetTvCardList]
-      if {![info exists hwcfg]} {
-         set hwcfg $hwcfg_default
-      }
-      set hwcfg_input_sel [lindex $hwcfg 0]
-      set hwcfg_tuner_sel [lindex $hwcfg 1]
-      set hwcfg_pll_sel [lindex $hwcfg 2]
-      set hwcfg_prio_sel [lindex $hwcfg 3]
-      set hwcfg_cardidx_sel [lindex $hwcfg 4]
-      set hwcfg_ftable_sel [lindex $hwcfg 5]
+      set hwcfg_cardidx_sel $hwcf_cardidx
+      set hwcfg_input_sel $hwcf_input
+      set hwcfg_prio_sel $hwcf_acq_prio
+      # scan PCI bus an retrieve card names (must be called before other driver queries)
+      HardwareConfigLoad 0
 
-      if {!$is_unix} {
-         set hwcfg_tmp_tvapp_path $hwcfg_tvapp_path
-         set hwcfg_tmp_tvapp_idx $hwcfg_tvapp_idx
-         set hwcfg_tmp_tvapp_list [C_Tvapp_GetTvappList]
-         set hwcfg_chk_tvapp_idx $hwcfg_tvapp_idx
-         set hwcfg_chk_tvapp_path $hwcfg_tvapp_path
 
-         # create TV app selection popdown menu and "Load config" command button
-         frame .hwcfg.opt1 -borderwidth 1 -relief raised
-         label  .hwcfg.opt1.lab -text "Select a TV application from which the\nTV card configuration can be copied:" -justify left
-         pack   .hwcfg.opt1.lab -side top -anchor w -padx 5
-
-         frame  .hwcfg.opt1.apptype
-         label  .hwcfg.opt1.apptype.lab -text "TV application:"
-         pack   .hwcfg.opt1.apptype.lab -side left -padx 5
-         menubutton .hwcfg.opt1.apptype.mb -text [lindex $hwcfg_tmp_tvapp_list $hwcfg_tmp_tvapp_idx] \
-                         -justify center -relief raised -borderwidth 2 -menu .hwcfg.opt1.apptype.mb.men \
-                         -indicatoron 1 -takefocus 1 -highlightthickness 1 -highlightcolor $win_frm_fg
-         menu  .hwcfg.opt1.apptype.mb.men -tearoff 0
-         set cmd {.hwcfg.opt1.apptype.mb configure -text [lindex $hwcfg_tmp_tvapp_list $hwcfg_tmp_tvapp_idx]}
-         set idx 0
-         foreach name $hwcfg_tmp_tvapp_list {
-            .hwcfg.opt1.apptype.mb.men add radiobutton -label $name \
-                         -variable hwcfg_tmp_tvapp_idx -value $idx \
-                         -command HardwareSetTvappCfg
-            incr idx
-         }
-         pack   .hwcfg.opt1.apptype.mb -side left -padx 10 -fill x -expand 1
-         button .hwcfg.opt1.apptype.load -text "Load config" -command HardwareConfigLoadFromTvapp
-         pack   .hwcfg.opt1.apptype.load -side right -padx 10 -fill x -expand 1
-         pack   .hwcfg.opt1.apptype -side top -pady 5 -fill x
-
-         # create entry field and command button to configure TV app directory
-         frame .hwcfg.opt1.name
-         label .hwcfg.opt1.name.prompt -text "TV app. directory:"
-         pack .hwcfg.opt1.name.prompt -side left
-         entry .hwcfg.opt1.name.filename -textvariable hwcfg_tmp_tvapp_path -font {courier -12 normal} -width 33
-         pack .hwcfg.opt1.name.filename -side left -padx 5
-         bind .hwcfg.opt1.name.filename <Enter> {SelectTextOnFocus %W}
-         button .hwcfg.opt1.name.dlgbut -image $fileImage -command {
-            set tmp [tk_chooseDirectory -parent .hwcfg \
-                        -initialdir $hwcfg_tmp_tvapp_path \
-                        -mustexist 1]
-            if {[string length $tmp] > 0} {
-               set hwcfg_tmp_tvapp_path $tmp
-            }
-            unset tmp
-         }
-         pack .hwcfg.opt1.name.dlgbut -side left -padx 5
-         pack .hwcfg.opt1.name -side top -padx 5 -pady 5
-         pack .hwcfg.opt1 -side top -anchor w -fill x
-         # set state and text of the entry field and button
-         HardwareSetTvappCfg
-      }
-
-      frame .hwcfg.opt2 -borderwidth [expr ($is_unix ? 0 : 1)] -relief raised
+      frame .hwcfg.opt1
       # create menu to select video input
-      frame .hwcfg.opt2.input
-      label .hwcfg.opt2.input.curname -text "Video source: "
-      menubutton .hwcfg.opt2.input.mb -text "Configure" -menu .hwcfg.opt2.input.mb.menu -relief raised -borderwidth 1 -indicatoron 1 -underline 0
-      menu .hwcfg.opt2.input.mb.menu -tearoff 0 -postcommand {PostDynamicMenu .hwcfg.opt2.input.mb.menu HardwareCreateInputMenu {}}
-      pack .hwcfg.opt2.input.curname -side left -padx 10 -anchor w -expand 1
-      pack .hwcfg.opt2.input.mb -side left -padx 10 -anchor e
-      pack .hwcfg.opt2.input -side top -pady 5 -anchor w -fill x
+      frame .hwcfg.opt1.input
+      label .hwcfg.opt1.input.curname -text "Video source: "
+      menubutton .hwcfg.opt1.input.mb -text "Select" -menu .hwcfg.opt1.input.mb.menu \
+                                      -relief raised -borderwidth 2 -indicatoron 1 -underline 0
+      menu .hwcfg.opt1.input.mb.menu -tearoff 0 -postcommand {PostDynamicMenu .hwcfg.opt1.input.mb.menu HardwareCreateInputMenu {}}
+      pack .hwcfg.opt1.input.curname -side left -padx 10 -anchor w -expand 1
+      pack .hwcfg.opt1.input.mb -side left -padx 10 -anchor e
+      pack .hwcfg.opt1.input -side top -pady 5 -anchor w -fill x
+      pack .hwcfg.opt1 -side top -fill x
 
+      # create menu to select TV card
+      frame .hwcfg.opt2
+      frame .hwcfg.opt2.card
+      label .hwcfg.opt2.card.label -text "TV card: "
+      pack .hwcfg.opt2.card.label -side left -padx 10
+
+      menubutton .hwcfg.opt2.card.mb -text "Select" -menu .hwcfg.opt2.card.mb.menu \
+                                     -relief raised -borderwidth 2 -indicatoron 1 -underline 1
+      menu .hwcfg.opt2.card.mb.menu -tearoff 0
+      pack .hwcfg.opt2.card.mb -side right -padx 10 -anchor e
+      pack .hwcfg.opt2.card -side top -anchor w -pady 5 -fill x
+      pack .hwcfg.opt2 -side top -fill x
+
+      # WIN32 specials
       if {!$is_unix} {
-         # create menu for tuner selection
-         frame .hwcfg.opt2.tuner
-         label .hwcfg.opt2.tuner.curname -text "Tuner: [lindex $hwcfg_tuner_list $hwcfg_tuner_sel]"
-         menubutton .hwcfg.opt2.tuner.mb -text "Configure" -menu .hwcfg.opt2.tuner.mb.menu -relief raised -borderwidth 1 -indicatoron 1 -underline 1
-         menu .hwcfg.opt2.tuner.mb.menu -tearoff 0
-         set idx 0
-         foreach name $hwcfg_tuner_list {
-            .hwcfg.opt2.tuner.mb.menu add radiobutton -variable hwcfg_tuner_sel -value $idx -label $name \
-                                                 -command {.hwcfg.opt2.tuner.curname configure -text "Tuner: [lindex $hwcfg_tuner_list $hwcfg_tuner_sel]"}
-            incr idx
-         }
-         pack .hwcfg.opt2.tuner.curname -side left -padx 10 -anchor w -expand 1
-         pack .hwcfg.opt2.tuner.mb -side left -padx 10 -anchor e
-         pack .hwcfg.opt2.tuner -side top -pady 5 -anchor w -fill x
-
-         # create radiobuttons to choose PLL initialization
-         frame .hwcfg.opt2.pll
-         radiobutton .hwcfg.opt2.pll.pll_none -text "No PLL" -variable hwcfg_pll_sel -value 0
-         radiobutton .hwcfg.opt2.pll.pll_28 -text "PLL 28 MHz" -variable hwcfg_pll_sel -value 1
-         radiobutton .hwcfg.opt2.pll.pll_35 -text "PLL 35 MHz" -variable hwcfg_pll_sel -value 2
-         pack .hwcfg.opt2.pll.pll_none .hwcfg.opt2.pll.pll_28 .hwcfg.opt2.pll.pll_35 -side left
-         pack .hwcfg.opt2.pll -side top -padx 10 -anchor w
-         pack .hwcfg.opt2 -side top -fill x
-
-         # create menu or checkbuttons to select TV card
-         frame .hwcfg.opt3 -borderwidth 1 -relief raised
-         frame .hwcfg.opt3.card
-         label .hwcfg.opt3.card.label -text "TV card: "
-         pack .hwcfg.opt3.card.label -side left -padx 10
-         set idx 0
-         foreach name $hwcfg_card_list {
-            radiobutton .hwcfg.opt3.card.idx$idx -text $name -variable hwcfg_cardidx_sel -value $idx -command HardwareConfigCard
-            pack .hwcfg.opt3.card.idx$idx -side left
-            incr idx
-         }
-         pack .hwcfg.opt3.card -side top -anchor w -pady 5
+         button .hwcfg.tvcardcfg -text "Configure card" -command PopupTvCardConfig
+         pack   .hwcfg.tvcardcfg -side top -padx 10 -pady 5
 
          # create checkbuttons to select acquisition priority
+         frame .hwcfg.opt3
          frame .hwcfg.opt3.prio
          label .hwcfg.opt3.prio.label -text "Priority:"
          radiobutton .hwcfg.opt3.prio.normal -text "normal" -variable hwcfg_prio_sel -value 0
@@ -199,57 +102,37 @@ proc PopupHardwareConfig {} {
          pack .hwcfg.opt3.prio.label -side left -padx 10
          pack .hwcfg.opt3.prio.normal .hwcfg.opt3.prio.high .hwcfg.opt3.prio.crit -side left
          pack .hwcfg.opt3.prio -side top -anchor w
-      } else {
-         pack .hwcfg.opt2 -side top -fill x
-         frame .hwcfg.opt3
+
+         # create checkbutton to enable DScaler driver debug logging
+         checkbutton .hwcfg.opt3.dsdrv_log -text "Driver startup logging into file 'dsdrv.log'" -variable hwcf_dsdrv_log
+         pack .hwcfg.opt3.dsdrv_log -side top -anchor w -padx 10
+         pack .hwcfg.opt3 -side top -pady 5 -fill x
       }
 
-      # create checkbuttons to select frequency table
-      frame .hwcfg.opt3.ftable
-      label .hwcfg.opt3.ftable.label -text "Frequency table:"
-      radiobutton .hwcfg.opt3.ftable.tab0 -text "Western Europe" -variable hwcfg_ftable_sel -value 0
-      radiobutton .hwcfg.opt3.ftable.tab1 -text "France" -variable hwcfg_ftable_sel -value 1
-      pack .hwcfg.opt3.ftable.label -side left -padx 10
-      pack .hwcfg.opt3.ftable.tab0 .hwcfg.opt3.ftable.tab1 -side left
-      pack .hwcfg.opt3.ftable -side top -anchor w
-
-      # create menu to select TV card
-      if {$is_unix} {
-         frame .hwcfg.opt3.card
-         label .hwcfg.opt3.card.label -text "TV card: "
-         pack .hwcfg.opt3.card.label -side left -padx 10
-
-         menubutton .hwcfg.opt3.card.mb -text "Configure" -menu .hwcfg.opt3.card.mb.menu \
-                                        -relief raised -borderwidth 1 -indicatoron 1 -underline 2
-         menu .hwcfg.opt3.card.mb.menu -tearoff 0
-         pack .hwcfg.opt3.card.mb -side right -padx 10 -anchor e
+      # add card names list to menu
+      if {[llength $hwcfg_card_list] > 1} {
          set idx 0
          foreach name $hwcfg_card_list {
-            .hwcfg.opt3.card.mb.menu add radiobutton -variable hwcfg_cardidx_sel -value $idx -label $name -command HardwareConfigCard
+            .hwcfg.opt2.card.mb.menu add radiobutton -variable hwcfg_cardidx_sel -value $idx -label $name -command HardwareConfigCard
             incr idx
          }
-         pack .hwcfg.opt3.card -side top -anchor w -pady 5 -fill x
       } else {
-         # create checkbutton to enable Bt8x8 driver debug logging
-         checkbutton .hwcfg.opt3.dsdrv_log -text "Bt8x8 driver logging into file 'dsdrv.log'" -variable hwcf_dsdrv_log
-         pack .hwcfg.opt3.dsdrv_log -side top -anchor w -padx 10
+         .hwcfg.opt2.card.mb configure -state disabled
       }
-      pack .hwcfg.opt3 -side top -fill x
-
       # display current card name and input source
       HardwareConfigCard
 
       # create standard command buttons
       frame .hwcfg.cmd
       button .hwcfg.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Configuration) "TV card input"}
-      button .hwcfg.cmd.abort -text "Abort" -width 5 -command {destroy .hwcfg}
-      button .hwcfg.cmd.ok -text "Ok" -width 5 -command {HardwareConfigQuit} -default active
+      button .hwcfg.cmd.abort -text "Abort" -width 5 -command {HardwareConfigQuit 0}
+      button .hwcfg.cmd.ok -text "Ok" -width 5 -command {HardwareConfigQuit 1} -default active
       pack .hwcfg.cmd.help .hwcfg.cmd.abort .hwcfg.cmd.ok -side left -padx 10
       pack .hwcfg.cmd -side top -pady 10
 
       bind .hwcfg <Key-F1> {PopupHelp $helpIndex(Configuration) "TV card input"}
       bind .hwcfg <Alt-KeyPress> [bind Menubutton <Alt-KeyPress>]
-      bind .hwcfg.cmd <Destroy> {+ set hwcfg_popup 0}
+      bind .hwcfg.cmd <Destroy> {+ set hwcfg_popup 0 ; catch {destroy .tvcard}}
       bind .hwcfg.cmd.ok <Return> {tkButtonInvoke .hwcfg.cmd.ok}
       bind .hwcfg.cmd.ok <Escape> {tkButtonInvoke .hwcfg.cmd.abort}
       focus .hwcfg.cmd.ok
@@ -259,127 +142,425 @@ proc PopupHardwareConfig {} {
    }
 }
 
-# Card index has changed - update video source name
+# Query the driver for a list of available TV cards
+proc HardwareConfigLoad {showDrvErr} {
+   global hwcfg_card_list hwcfg_chip_list
+   global is_unix
+
+   if $is_unix {
+      set hwcfg_card_list [C_HwCfgGetTvCards $showDrvErr]
+   } else {
+
+      set hwcfg_card_list {}
+      set hwcfg_chip_list {}
+
+      # note: this call loads the driver temporarily for a PCI scan
+      # if that fails, card IDs are taken from the config variables, but chip IDs are set to 0
+      foreach {chip name} [C_HwCfgGetTvCards $showDrvErr] {
+         lappend hwcfg_card_list $name
+         lappend hwcfg_chip_list $chip
+      }
+   }
+
+   # update card type names in the card selection menu
+   if {([llength [info commands .hwcfg.opt2.card.mb.menu]] > 0) && \
+       ([llength $hwcfg_card_list] > 1)} {
+      set idx 0
+      foreach name $hwcfg_card_list {
+         .hwcfg.opt2.card.mb.menu entryconfigure $idx -label $name
+         incr idx
+      }
+   }
+}
+
+# Card index has changed - update card and video input names
 proc HardwareConfigCard {} {
    global is_unix
-   global hwcfg_input_sel hwcfg_input_list
-   global hwcfg_cardidx_sel hwcfg_card_list
+   global hwcfg_input_sel hwcfg_cardidx_sel
+   global hwcfg_input_list hwcfg_card_list
+   global tvcardcf
 
-   set hwcfg_input_list [C_HwCfgGetInputList $hwcfg_cardidx_sel]
+   .hwcfg.opt2.card.label configure -text "TV card: [lindex $hwcfg_card_list $hwcfg_cardidx_sel]"
 
-   if {$is_unix} {
-      .hwcfg.opt3.card.label configure -text "TV card: [lindex $hwcfg_card_list $hwcfg_cardidx_sel]"
+   # get list of video input names directly from the driver
+   if {!$is_unix && [info exists tvcardcf($hwcfg_cardidx_sel)]} {
+      set card_type [lindex $tvcardcf($hwcfg_cardidx_sel) 1]
+   } else {
+      set card_type 0
    }
+   set hwcfg_input_list [C_HwCfgGetInputList $hwcfg_cardidx_sel $card_type]
 
    if {$hwcfg_input_sel >= [lindex $hwcfg_input_list $hwcfg_input_sel]} {
       set hwcfg_input_sel 0
    }
 
    if {[llength $hwcfg_input_list] > 0} {
-      .hwcfg.opt2.input.curname configure -text "Video source: [lindex $hwcfg_input_list $hwcfg_input_sel]"
+      .hwcfg.opt1.input.curname configure -text "Video source: [lindex $hwcfg_input_list $hwcfg_input_sel]"
    } else {
-      .hwcfg.opt2.input.curname configure -text "Video source: #$hwcfg_input_sel (video device busy)"
+      .hwcfg.opt1.input.curname configure -text "Video source: #$hwcfg_input_sel (video device busy)"
    }
 }
 
 # callback for dynamic input source menu
 proc HardwareCreateInputMenu {widget dummy} {
-   global hwcfg_input_sel hwcfg_input_list hwcfg_cardidx_sel
+   global is_unix
+   global hwcfg_input_sel hwcfg_cardidx_sel
+   global hwcfg_input_list
+   global tvcardcf
 
-   # get list of source names directly from the driver
-   set hwcfg_input_list [C_HwCfgGetInputList $hwcfg_cardidx_sel]
+   # get list of video input names directly from the driver
+   if {!$is_unix && [info exists tvcardcf($hwcfg_cardidx_sel)]} {
+      set card_type [lindex $tvcardcf($hwcfg_cardidx_sel) 1]
+   } else {
+      set card_type 0
+   }
+   set hwcfg_input_list [C_HwCfgGetInputList $hwcfg_cardidx_sel $card_type]
 
    if {[llength $hwcfg_input_list] > 0} {
       set idx 0
       foreach name $hwcfg_input_list {
-         .hwcfg.opt2.input.mb.menu add radiobutton -variable hwcfg_input_sel -value $idx -label $name \
-                                              -command {.hwcfg.opt2.input.curname configure -text "Video source: [lindex $hwcfg_input_list $hwcfg_input_sel]"}
+         .hwcfg.opt1.input.mb.menu add radiobutton -variable hwcfg_input_sel -value $idx -label $name \
+                                                   -command {.hwcfg.opt1.input.curname configure -text "Video source: [lindex $hwcfg_input_list $hwcfg_input_sel]"}
          incr idx
       }
    } else {
-      .hwcfg.opt2.input.mb.menu add command -label "Video device not available:" -state disabled
-      .hwcfg.opt2.input.mb.menu add command -label "cannot switch video source" -state disabled
+      .hwcfg.opt1.input.mb.menu add command -label "Video device not available:" -state disabled
+      .hwcfg.opt1.input.mb.menu add command -label "cannot switch video source" -state disabled
    }
 }
 
 # Leave popup with OK button
-proc HardwareConfigQuit {} {
+proc HardwareConfigQuit {is_ok} {
    global is_unix
-   global hwcfg_input_sel hwcfg_tuner_sel
-   global hwcfg_pll_sel hwcfg_prio_sel hwcfg_cardidx_sel hwcfg_ftable_sel
-   global hwcfg hwcfg_default
-   global hwcfg_tmp_tvapp_idx hwcfg_tmp_tvapp_path hwcfg_tmp_tvapp_list
-   global hwcfg_chk_tvapp_idx hwcfg_chk_tvapp_path
-   global hwcfg_tvapp_path hwcfg_tvapp_idx
-   global wintvapp_idx wintvapp_path
+   global hwcf_cardidx hwcf_input hwcf_acq_prio hwcf_dsdrv_log
+   global hwcfg_cardidx_sel hwcfg_input_sel hwcfg_prio_sel
+   global hwcfg_card_list hwcfg_input_list
+   global tvcardcf
 
-   if { !$is_unix && ($hwcfg_input_sel == 0) && ($hwcfg_tuner_sel == 0) } {
+   if { !$is_unix && ![info exists tvcardcf($hwcfg_cardidx_sel)] } {
       set answer [tk_messageBox -type okcancel -default cancel -icon warning -parent .hwcfg \
-                     -message "You haven't selected a tuner - acquisition will not be possible!"]
-   } elseif { !$is_unix && ($hwcfg_tmp_tvapp_idx != 0) && \
-              ($hwcfg_tmp_tvapp_idx != $hwcfg_tvapp_idx) && \
-              ($hwcfg_tmp_tvapp_idx != $hwcfg_chk_tvapp_idx)} {
-      set answer [tk_messageBox -type okcancel -default cancel -icon warning -parent .hwcfg \
-                     -message "You have selected a TV app. but not loaded it's TV card configuration. This setting will have no effect!"]
-   } elseif { !$is_unix && ($hwcfg_tmp_tvapp_idx != 0) && \
-              ([string compare $hwcfg_tmp_tvapp_path $hwcfg_tvapp_path] != 0) && \
-              ([string compare $hwcfg_tmp_tvapp_path $hwcfg_chk_tvapp_path] != 0)} {
-      set answer [tk_messageBox -type okcancel -default cancel -icon warning -parent .hwcfg \
-                     -message "You have changed the TV app. path but not loaded the TV card configuration. This setting will have no effect!"]
+                     -message "You haven't configured the selected TV card - acquisition will not be possible!"]
    } else {
       set answer "ok"
    }
 
    if {[string compare $answer "ok"] == 0} {
-      # save config into the global variables
-      set hwcfg [list $hwcfg_input_sel $hwcfg_tuner_sel $hwcfg_pll_sel $hwcfg_prio_sel $hwcfg_cardidx_sel $hwcfg_ftable_sel]
 
-      if {!$is_unix} {
-         set hwcfg_tvapp_idx $hwcfg_tmp_tvapp_idx
-         set hwcfg_tvapp_path $hwcfg_tmp_tvapp_path
-         # copy the TV app config for the channel table, if not yet configured
-         if {$wintvapp_idx == 0} {
-            set wintvapp_idx $hwcfg_tmp_tvapp_idx
-            set wintvapp_path $hwcfg_tmp_tvapp_path
-            # update the TV app name which is used in dialogs
-            UpdateTvappName
+      if $is_ok {
+         # OK button -> save config into the global variables
+         set hwcf_cardidx $hwcfg_cardidx_sel
+         set hwcf_input $hwcfg_input_sel
+         set hwcf_acq_prio $hwcfg_prio_sel
+
+         C_UpdateHardwareConfig
+         UpdateRcFile
+      }
+
+      # free memory
+      unset hwcfg_card_list hwcfg_input_list
+      unset hwcfg_cardidx_sel hwcfg_input_sel hwcfg_prio_sel
+
+      # close config dialogs
+      destroy .hwcfg
+      catch {destroy .tvcard}
+   }
+}
+
+
+##  --------------------------------------------------------------------------
+##  WIN32 TV card configuration dialog
+##
+proc PopupTvCardConfig {} {
+   global is_unix netacq_enable fileImage win_frm_fg
+   global hwcfg_cardidx_sel hwcfg_chip_list
+   global tvcard_cardtype_names tvcard_cardtype_idxlist
+   global tvcard_tuner_names
+   global tvcard_cardtyp_sel tvcard_tuner_sel tvcard_pll_sel
+   global tvcardcf
+   global tvcard_popup
+
+   if {$tvcard_popup == 0} {
+      # check if the card was identified by a PCI scan
+      if {([llength $hwcfg_chip_list] == 0) || \
+          ([lindex $hwcfg_chip_list $hwcfg_cardidx_sel] == 0)} {
+         # no PCI scan yet -> try again
+         HardwareConfigLoad 1
+
+         if {[lindex $hwcfg_chip_list $hwcfg_cardidx_sel] == 0} {
+
+            tk_messageBox -type ok -default ok -icon error -parent .hwcfg \
+                          -message "PCI scan failed. Close all other video apps, then try again."
+            return
+         } else {
+            # PCI scan successful -> refresh card & input list
+            HardwareConfigCard
          }
       }
+      # check card index (esp. if 0 cards found)
+      if {$hwcfg_cardidx_sel >= [llength $hwcfg_chip_list]} {
+         return
+      }
+
+      CreateTransientPopup .tvcard "TV card hardware configuration" .hwcfg
+      set tvcard_popup 1
+
+      array unset tvcard_cardtype_names
+      set idx 0
+      foreach name [C_HwCfgGetTvCardList $hwcfg_cardidx_sel] {
+         set tvcard_cardtype_names($idx) $name
+         incr idx
+      }
+      set tvcard_cardtype_idxlist [lsort -command SortCardNames [array names tvcard_cardtype_names]]
+
+      array unset tvcard_tuner_names
+      set idx 0
+      foreach name [C_HwCfgGetTunerList] {
+         set tvcard_tuner_names($idx) $name
+         incr idx
+      }
+
+      if [info exists tvcardcf($hwcfg_cardidx_sel)] {
+         set tvcard_cardtyp_sel [lindex $tvcardcf($hwcfg_cardidx_sel) 1]
+         set tvcard_tuner_sel [lindex $tvcardcf($hwcfg_cardidx_sel) 2]
+         set tvcard_pll_sel [lindex $tvcardcf($hwcfg_cardidx_sel) 3]
+
+         # check parameter validity
+         if {![info exists tvcard_cardtype_names($tvcard_cardtyp_sel)]} {
+            set tvcard_cardtyp_sel 0
+         }
+         if {! [info exists tvcard_tuner_names($tvcard_tuner_sel)]} {
+            set tvcard_tuner_sel 0
+         }
+         if {$tvcard_pll_sel > 2} {
+            set tvcard_pll_sel 0
+         }
+      } else {
+         set tvcard_cardtyp_sel 0
+         set tvcard_tuner_sel 0
+         set tvcard_pll_sel 0
+      }
+
+
+      # header
+      frame  .tvcard.opt0 -borderwidth 1 -relief raised
+      label  .tvcard.opt0.curcard -text "Configure card #1 parameters" -font {Helvetica -14 bold}
+      label  .tvcard.opt0.curname -text "Card type: $tvcard_cardtype_names($tvcard_cardtyp_sel)"
+      pack   .tvcard.opt0.curcard .tvcard.opt0.curname -side top -pady 5 -padx 5 -fill x -anchor w
+      pack   .tvcard.opt0 -side top -fill both -anchor nw
+
+      # create menu for card selection
+      frame  .tvcard.opt1 -borderwidth 1 -relief raised
+      scrollbar .tvcard.opt1.sv -orient vertical -command {.tvcard.opt1.lnames yview}
+      listbox .tvcard.opt1.lnames -selectmode browse -width 40 -height 10 -yscrollcommand {.tvcard.opt1.sv set}
+      bind    .tvcard.opt1.lnames <Double-Button-1> TvCardConfigManual
+      foreach idx $tvcard_cardtype_idxlist {
+         .tvcard.opt1.lnames insert end $tvcard_cardtype_names($idx)
+      }
+      set tmp [lsearch $tvcard_cardtype_idxlist $tvcard_cardtyp_sel]
+      if {$tmp != -1} {
+         .tvcard.opt1.lnames selection set $tmp
+         .tvcard.opt1.lnames see $tmp
+      }
+      pack   .tvcard.opt1.sv -side left -fill y
+      pack   .tvcard.opt1.lnames -side left -anchor w -expand 1
+      frame  .tvcard.opt1.cmd
+      button .tvcard.opt1.cmd.auto -text "Autodetect" -width 10 -command TvCardConfigAuto
+      button .tvcard.opt1.cmd.manual -text "Pick from list" -width 10 -command TvCardConfigManual
+      pack   .tvcard.opt1.cmd.auto .tvcard.opt1.cmd.manual -side top
+      pack   .tvcard.opt1.cmd -side left -anchor n
+      pack   .tvcard.opt1 -side top -fill x
+
+      # create menu for tuner selection
+      frame .tvcard.opt2 -borderwidth 1 -relief raised
+      frame .tvcard.opt2.tuner
+      label .tvcard.opt2.tuner.curname -text "Tuner type: $tvcard_tuner_names($tvcard_tuner_sel)"
+      menubutton .tvcard.opt2.tuner.mb -text "Select" -menu .tvcard.opt2.tuner.mb.menu \
+                                       -relief raised -borderwidth 2 -indicatoron 1 -underline 0
+      CreateTunerMenu .tvcard.opt2.tuner.mb.menu
+      pack .tvcard.opt2.tuner.curname -side left -padx 10 -anchor w -expand 1
+      pack .tvcard.opt2.tuner.mb -side left -padx 10 -anchor e
+      pack .tvcard.opt2.tuner -side top -pady 5 -anchor w -fill x
+
+      # create radiobuttons to choose PLL initialization
+      frame .tvcard.opt2.pll
+      radiobutton .tvcard.opt2.pll.pll_none -text "No PLL" -variable tvcard_pll_sel -value 0
+      radiobutton .tvcard.opt2.pll.pll_28 -text "PLL 28 MHz" -variable tvcard_pll_sel -value 1
+      radiobutton .tvcard.opt2.pll.pll_35 -text "PLL 35 MHz" -variable tvcard_pll_sel -value 2
+      pack .tvcard.opt2.pll.pll_none .tvcard.opt2.pll.pll_28 .tvcard.opt2.pll.pll_35 -side left -fill x -expand 1
+      pack .tvcard.opt2.pll -side top -padx 10 -fill x -pady 5
+      pack .tvcard.opt2 -side top -fill x
+
+      if {([lindex $hwcfg_chip_list $hwcfg_cardidx_sel] >> 16) != 0x109e} {
+         .tvcard.opt2.pll.pll_none configure -state disabled
+         .tvcard.opt2.pll.pll_28 configure -state disabled
+         .tvcard.opt2.pll.pll_35 configure -state disabled
+      }
+
+      # create standard command buttons
+      frame .tvcard.cmd
+      button .tvcard.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Configuration) "TV card input"}
+      button .tvcard.cmd.abort -text "Abort" -width 5 -command {destroy .tvcard}
+      button .tvcard.cmd.ok -text "Ok" -width 5 -command {TvCardConfigQuit} -default active
+      pack .tvcard.cmd.help .tvcard.cmd.abort .tvcard.cmd.ok -side left -padx 10
+      pack .tvcard.cmd -side top -pady 10
+
+      bind .tvcard <Key-F1> {PopupHelp $helpIndex(Configuration) "TV card input"}
+      bind .tvcard <Alt-KeyPress> [bind Menubutton <Alt-KeyPress>]
+      bind .tvcard.cmd <Destroy> {+ set tvcard_popup 0}
+      bind .tvcard.cmd.ok <Return> {tkButtonInvoke .tvcard.cmd.ok}
+      bind .tvcard.cmd.ok <Escape> {tkButtonInvoke .tvcard.cmd.abort}
+      focus .tvcard.cmd.ok
+
+   } else {
+      raise .tvcard
+   }
+}
+
+# Leave popup with OK button
+proc TvCardConfigQuit {} {
+   global is_unix
+   global tvcard_cardtyp_sel tvcard_tuner_sel tvcard_pll_sel
+   global hwcfg_cardidx_sel hwcfg_chip_list
+   global tvcardcf
+   global hwcfg_popup
+
+   if { ($tvcard_tuner_sel == 0) } {
+      set answer [tk_messageBox -type okcancel -default cancel -icon warning -parent .tvcard \
+                     -message "You haven't selected a tuner - acquisition will not be possible!"]
+   } else {
+      set answer "ok"
+   }
+
+   if {[string compare $answer "ok"] == 0} {
+
+      set chip [lindex $hwcfg_chip_list $hwcfg_cardidx_sel]
+
+      # save config into the global variable
+      set tvcardcf($hwcfg_cardidx_sel) [list $chip $tvcard_cardtyp_sel $tvcard_tuner_sel $tvcard_pll_sel]
+
       UpdateRcFile
       C_UpdateHardwareConfig
-      destroy .hwcfg
+      destroy .tvcard
+
+      if $hwcfg_popup {
+         HardwareConfigLoad 0
+         HardwareConfigCard
+      }
    }
 }
 
-# callback for "Load Config" button
-proc HardwareConfigLoadFromTvapp {} {
-   global hwcfg_tmp_tvapp_idx hwcfg_tmp_tvapp_path
-   global hwcfg_chk_tvapp_idx hwcfg_chk_tvapp_path
+# attempt to auto-detect the card & tuner
+proc TvCardConfigAuto {} {
+   global menuStatusStartAcq hwcf_cardidx hwcfg_cardidx_sel
+   global tvcard_cardtyp_sel tvcard_tuner_sel tvcard_pll_sel
+   global tvcard_cardtype_idxlist tvcard_cardtype_names
+   global tvcard_tuner_names
 
-   # remember which config was loaded/tested
-   set hwcfg_chk_tvapp_idx $hwcfg_tmp_tvapp_idx
-   set hwcfg_chk_tvapp_path $hwcfg_tmp_tvapp_path
+   # if acquisition is active for a different card it has to be stopped
+   if {$menuStatusStartAcq && ($hwcfg_cardidx_sel != $hwcf_cardidx)} {
+      set answer [tk_messageBox -type okcancel -default ok -icon warning -parent .tvcard \
+                     -message "Nextview acquisition has to be stopped to allow auto-detection for a different TV card."]
+      if {[string compare $answer "ok"] != 0} {
+         return
+      }
+      C_ToggleAcq 0 0
+   }
 
-   # note: enclose cmd in list to avoid that zero-length params vanish due to concat
-   uplevel #0 [list C_Tvapp_LoadHwConfig $hwcfg_tmp_tvapp_idx $hwcfg_tmp_tvapp_path]
+   set tmpl [C_HwCfgQueryCardParams $hwcfg_cardidx_sel -1]
+   if {[llength $tmpl] == 3} {
+
+      if {[lindex $tmpl 0] > 0} {
+         set tvcard_cardtyp_sel [lindex $tmpl 0]
+         .tvcard.opt0.curname configure -text "Card type: $tvcard_cardtype_names($tvcard_cardtyp_sel)"
+
+         if {[lindex $tmpl 1] > 0} {
+            set tvcard_tuner_sel [lindex $tmpl 1]
+         } else {
+            tk_messageBox -type ok -default ok -icon warning -parent .tvcard \
+                          -message "TV card successfully identified, however TV tuner still unknown - please select a tuner type from the list below."
+         }
+         set tvcard_pll_sel [lindex $tmpl 2]
+
+         .tvcard.opt2.tuner.curname configure -text "Tuner type: $tvcard_tuner_names($tvcard_tuner_sel)"
+
+      } else {
+         tk_messageBox -type ok -default ok -icon warning -parent .tvcard \
+                       -message "TV card could not be identified - please select a card type from the list."
+      }
+   }
 }
 
-# callback for TV application type popup: disable or enable path entry field
-proc HardwareSetTvappCfg {} {
-   global hwcfg_tmp_tvapp_list
-   global hwcfg_tmp_tvapp_idx hwcfg_tmp_tvapp_path
-   global text_bg
+# retrieve tuner & misc. params for manually selected card
+proc TvCardConfigManual {} {
+   global tvcard_cardtyp_sel tvcard_tuner_sel tvcard_pll_sel
+   global tvcard_cardtype_idxlist tvcard_cardtype_names
+   global tvcard_tuner_names
+   global hwcfg_cardidx_sel
 
-   .hwcfg.opt1.apptype.mb configure -text [lindex $hwcfg_tmp_tvapp_list $hwcfg_tmp_tvapp_idx]
+   set sel [.tvcard.opt1.lnames curselection]
+   if {[llength $sel] == 1} {
+      set tvcard_cardtyp_sel [lindex $tvcard_cardtype_idxlist $sel]
 
-   if {[C_Tvapp_CfgNeedsPath $hwcfg_tmp_tvapp_idx] == 0} {
-      .hwcfg.opt1.name.filename configure -state normal -background #c0c0c0 -textvariable {}
-      .hwcfg.opt1.name.filename delete 0 end
-      .hwcfg.opt1.name.filename configure -state disabled
-      .hwcfg.opt1.name.dlgbut configure -state disabled
-   } else {
-      .hwcfg.opt1.name.filename configure -state normal -background $text_bg -textvariable hwcfg_tmp_tvapp_path
-      .hwcfg.opt1.name.dlgbut configure -state normal
+      set tmpl [C_HwCfgQueryCardParams $hwcfg_cardidx_sel $tvcard_cardtyp_sel]
+
+      if {[llength $tmpl] == 3} {
+         #set cardtyp [lindex $tmpl 0]
+         if {[lindex $tmpl 1] > 0} {
+            set tvcard_tuner_sel [lindex $tmpl 1]
+         } else {
+            tk_messageBox -type ok -default ok -icon warning -parent .tvcard \
+                          -message "TV tuner could not be identified - please select a tuner type from the list below."
+         }
+         set tvcard_pll_sel [lindex $tmpl 2]
+
+         .tvcard.opt0.curname configure -text "Card type: $tvcard_cardtype_names($tvcard_cardtyp_sel)"
+         .tvcard.opt2.tuner.curname configure -text "Tuner type: $tvcard_tuner_names($tvcard_tuner_sel)"
+      }
    }
+}
+
+# create a menu cascade with radio buttons for all tuner types
+proc CreateTunerMenu {wid} {
+   global tvcard_tuner_names
+
+   menu ${wid} -tearoff 0
+   menu ${wid}.philips -tearoff 0
+   menu ${wid}.temic -tearoff 0
+   menu ${wid}.alps -tearoff 0
+   menu ${wid}.lg -tearoff 0
+   menu ${wid}.misc -tearoff 0
+   ${wid} add cascade -menu ${wid}.philips -label "Philips"
+   ${wid} add cascade -menu ${wid}.temic -label "Temic"
+   ${wid} add cascade -menu ${wid}.alps -label "ALPS"
+   ${wid} add cascade -menu ${wid}.lg -label "LG"
+   ${wid} add cascade -menu ${wid}.misc -label "other"
+
+   foreach idx [lsort -command SortTunerNames [array names tvcard_tuner_names]] {
+      if {[string match -nocase "*philips*" $tvcard_tuner_names($idx)]} {
+         set mwid philips
+      } elseif {[string match -nocase "*temic*" $tvcard_tuner_names($idx)]} {
+         set mwid temic
+      } elseif {[string match -nocase "*alps*" $tvcard_tuner_names($idx)]} {
+         set mwid alps
+      } elseif {[string match -nocase "LG *" $tvcard_tuner_names($idx)]} {
+         set mwid lg
+      } else {
+         set mwid misc
+      }
+      ${wid}.$mwid add radiobutton -variable tvcard_tuner_sel -value $idx -label $tvcard_tuner_names($idx) \
+                                   -command {.tvcard.opt2.tuner.curname configure -text "Tuner: $tvcard_tuner_names($tvcard_tuner_sel)"}
+   }
+}
+
+proc SortCardNames {a b} {
+   global tvcard_cardtype_names
+
+   return [string compare -nocase $tvcard_cardtype_names($a) $tvcard_cardtype_names($b)]
+}
+
+proc SortTunerNames {a b} {
+   global tvcard_tuner_names
+
+   return [string compare -nocase $tvcard_tuner_names($a) $tvcard_tuner_names($b)]
 }
 

@@ -23,7 +23,7 @@
  *
  *    French translation by mat (mat100@ifrance.com) with help of nash bridges.
  *
- *  $Id: pdc_themes.c,v 1.10 2002/09/29 17:57:00 tom Exp tom $
+ *  $Id: pdc_themes.c,v 1.11 2003/02/24 22:05:09 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -262,7 +262,7 @@ static const uchar * const pdc_themes_fra[] =
    /*0x46*/ "Athlétisme",
    /*0x47*/ "Sports mécaniques",
    /*0x48*/ "Sports aquatiques",
-   /*0x49*/ "Sports hivernales",
+   /*0x49*/ "Sports d'hiver",
    /*0x4A*/ "Équitation",
    /*0x4B*/ "Arts martiaux",
    /*0x4C*/ "Sports locaux",

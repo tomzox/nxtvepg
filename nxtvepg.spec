@@ -1,14 +1,14 @@
 %define    prefix    /usr/local
-%define    version   2.4.2
+%define    version   2.5.0
 
 Summary:   nexTView EPG decoder and browser
 Name:      nxtvepg
 Version:   %{version}
-Release:   1
+Release:   0
 Requires:  tcl >= 8.3, tk >= 8.3
 Source0:   nxtvepg-%{version}.tar.gz
 Group:     Applications/Multimedia
-Copyright: GPL
+License:   GPL
 URL:       http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-%{version}.tar.gz
 BuildRoot: /tmp/nxtvepg-build
 
@@ -48,8 +48,10 @@ make ROOT="$RPM_BUILD_ROOT" install
 %defattr(-,root,root)
 %doc README CHANGES COPYRIGHT TODO manual.html
 %dir /usr/tmp/nxtvdb
+%attr(777,root,root) /usr/tmp/nxtvdb
 /%{prefix}/bin/nxtvepg
 /%{prefix}/man/man1/nxtvepg.1
+/usr/X11R6/lib/X11/app-defaults/Nxtvepg
 
 %clean
 make clean

@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_udefcols.tcl,v 1.7 2002/12/08 19:59:00 tom Exp tom $
+#  $Id: dlg_udefcols.tcl,v 1.10 2003/03/14 15:06:40 tom Exp tom $
 #
 set ucf_type_idx 0
 set ucf_value_idx 1
@@ -27,6 +27,17 @@ set ucf_ctxcache_idx 3
 set ucf_sctag_idx 4
 
 set usercol_popup 0
+
+##
+##  Create an example definition
+##  - called during start-up if usercols array is empty
+##
+proc PreloadUserDefinedColumns {} {
+   global colsel_tabs usercols
+
+   set colsel_tabs(user_def_0) {80  Example  &user_def  "Compound example"}
+   set usercols(0) {{0 Movie! {bold blue} 0 0} {2 theme {} -1 -1}}
+}
 
 ## ---------------------------------------------------------------------------
 ##  Load filter cache with shortcuts used in user-defined columns
@@ -83,16 +94,16 @@ proc PopupUserDefinedColumns {} {
    global usercol_popup text_bg pi_img win_frm_fg
 
    if {$usercol_popup == 0} {
-      CreateTransientPopup .usercol "User-defined columns"
+      CreateTransientPopup .usercol "Attribute composition & display format"
       set usercol_popup 1
 
       frame   .usercol.sel -relief ridge -borderwidth 2
-      label   .usercol.sel.lab -text "Currently editing column:"
+      label   .usercol.sel.lab -text "Currently editing:"
       pack    .usercol.sel.lab -side left
       entry   .usercol.sel.cur -width 20 -textvariable usercol_cf_lab
       bind    .usercol.sel.cur <Enter> {SelectTextOnFocus %W}
       pack    .usercol.sel.cur -side left -fill x -expand 1
-      menubutton .usercol.sel.mb -text "Select column" -direction below -indicatoron 1 -borderwidth 2 -relief raised \
+      menubutton .usercol.sel.mb -text "Select definition" -direction below -indicatoron 1 -borderwidth 2 -relief raised \
                                  -menu .usercol.sel.mb.men -underline 0
       menu    .usercol.sel.mb.men -tearoff 0
       pack    .usercol.sel.mb -side right
@@ -200,14 +211,14 @@ proc PopupUserDefinedColumns {} {
 
       # 4th row: main control
       frame   .usercol.cmd
-      button  .usercol.cmd.help -text "Help" -width 7 -command {PopupHelp $helpIndex(Configuration) "User-defined columns"}
+      button  .usercol.cmd.help -text "Help" -width 7 -command {PopupHelp $helpIndex(Configuration) "Attribute composition"}
       button  .usercol.cmd.del -text "Delete" -command {UserColsDlg_Delete} -width 7
       button  .usercol.cmd.dismiss -text "Dismiss" -width 7 -command {if [UserColsDlg_CheckDiscard] {destroy .usercol}}
       button  .usercol.cmd.apply -text "Apply" -width 7 -command {UserColsDlg_Apply}
       pack    .usercol.cmd.help .usercol.cmd.del .usercol.cmd.dismiss .usercol.cmd.apply -side left -padx 10
       pack    .usercol.cmd -side top -pady 5
 
-      bind    .usercol <Key-F1> {PopupHelp $helpIndex(Configuration) "User-defined columns"}
+      bind    .usercol <Key-F1> {PopupHelp $helpIndex(Configuration) "Attribute composition"}
       bind    .usercol.cmd <Destroy> {+ set usercol_popup 0}
       #bind    .usercol.cmd.ok <Return> {tkButtonInvoke .usercol.cmd.ok}
       #bind    .usercol.cmd.ok <Escape> {tkButtonInvoke .usercol.cmd.abort}
@@ -283,7 +294,7 @@ proc UserColsDlg_FillColumnSelectionMenu {} {
    # clear the old content
    .usercol.sel.mb.men delete 0 end
 
-   .usercol.sel.mb.men add command -label "Create new column" -command UserColsDlg_NewCol
+   .usercol.sel.mb.men add command -label "Create new definition" -command UserColsDlg_NewCol
    .usercol.sel.mb.men add separator
 
    set ailist [lsort -integer [array names usercols]]
@@ -364,7 +375,7 @@ proc UserColsDlg_CheckDiscard {} {
 
       if {!$ok} {
          set answer [tk_messageBox -icon warning -type okcancel -default ok -parent .usercol \
-                        -message "You're about to discard your changes in the column definition."]
+                        -message "You're about to discard your changes in the current definition."]
          set ok [expr [string compare $answer ok] == 0]
       }
    } else {
@@ -613,21 +624,22 @@ proc UserColsDlg_ShiftShortcut {is_up} {
 proc UserColsDlg_Apply {} {
    global usercol_cf_tag usercol_cf_selist usercol_cf_filt
    global usercol_cf_lab usercol_cf_head usercol_cf_hmenu
-   global usercols colsel_tabs pilistbox_cols
+   global usercols colsel_tabs pilistbox_cols pinetbox_rows pibox_type
+   global dumphtml_popup
 
    # save possible changes in the shortcut attributes
    UserColsDlg_UpdateShortcutAttribs
 
    if {[llength $usercol_cf_selist] == 0} {
       tk_messageBox -icon error -type ok -default ok -parent .usercol \
-                    -message "Refusing to save a column definition without shortcuts assigend - the column would always be empty."
+                    -message "Cannot save an empty shortcut list.  Add at least one shortcut or *no-match*"
       return
    }
    if {([string length $usercol_cf_lab] == 0) || \
        ([string compare $usercol_cf_lab "*unnamed*"] == 0)} {
       if {[string length $usercol_cf_head] == 0} {
          tk_messageBox -icon error -type ok -default ok -parent .usercol \
-                       -message "Please enter a description for this column in the 'Column header text' field. The text used in the programme list and the column selection configuration dialog."
+                       -message "Please enter a description for this definition in the 'Column header text' field. The text used in the programme list and the attribute selection dialog."
          return
       } else {
          set usercol_cf_lab $usercol_cf_head
@@ -646,15 +658,28 @@ proc UserColsDlg_Apply {} {
       set head_change [expr ([string compare [lindex $old 1] $usercol_cf_head] != 0) || \
                             ([string compare [lindex $old 2] $usercol_cf_hmenu] != 0) || \
                             ([string compare [lindex $old 3] $usercol_cf_lab] != 0)]
+      set is_new 0
    } else {
       set width [UserColsDlg_CalcDefaultWidth $usercol_cf_tag]
       set head_change 0
+      set is_new 1
+   }
 
-      set answer [tk_messageBox -icon question -type okcancel -default ok -parent .usercol \
-                     -message "Do you want to immediately insert the new column to into the programme listbox?"]
-      if {[string compare $answer ok] == 0} {
-         lappend pilistbox_cols user_def_$usercol_cf_tag
-         set head_change 1
+   # check if the definition is already part of the current column selection
+   if {($dumphtml_popup == 0) || $is_new} {
+      if {(($pibox_type == 0) && ([lsearch -exact $pilistbox_cols user_def_$usercol_cf_tag] == -1)) || \
+          (($pibox_type != 0) && ([lsearch -exact $pinetbox_rows user_def_$usercol_cf_tag] == -1)) } {
+
+         set answer [tk_messageBox -icon question -type okcancel -default ok -parent .usercol \
+                        -message "Do you want to append the attribute to the programme list?"]
+         if {[string compare $answer ok] == 0} {
+            if {$pibox_type == 0} {
+               lappend pilistbox_cols user_def_$usercol_cf_tag
+               set head_change 1
+            } else {
+               lappend pinetbox_rows user_def_$usercol_cf_tag
+            }
+         }
       }
    }
 
@@ -667,44 +692,56 @@ proc UserColsDlg_Apply {} {
    DumpHtml_ColUpdate
    # fill the shortcut cache with all referenced shortcuts
    DownloadUserDefinedColumnFilters
-   if $head_change {
+   if {$head_change && ($pibox_type == 0)} {
       UpdatePiListboxColumns
+   } else {
+      UpdatePiListboxColumParams
    }
-   C_PiOutput_CfgColumns
-   C_RefreshPiListbox
+   C_PiBox_Refresh
    UpdateRcFile
 }
 
 # callback for "delete" in main command row -> delete the entire column definition
 proc UserColsDlg_Delete {} {
    global usercol_cf_tag usercol_cf_selist
-   global usercols colsel_tabs pilistbox_cols
+   global usercols colsel_tabs pilistbox_cols pinetbox_rows pibox_type
    global dumphtml_colsel dumphtml_use_colsel
 
    if [info exists usercols($usercol_cf_tag)] {
       set pi_col_idx [lsearch $pilistbox_cols user_def_$usercol_cf_tag]
-      set msg "You're about to irrecoverably delete this column definition."
+      if {$pi_col_idx == -1} {
+         set pi_col_idx [lsearch $pinetbox_rows user_def_$usercol_cf_tag]
+      }
+      set msg "You're about to irrecoverably delete this definition."
       if {$pi_col_idx == -1} {
          if $dumphtml_use_colsel {
-            set html_col_idx [lsearch $dumphtml_colsel user_def_$usercol_cf_tag]
+            set pi_col_idx [lsearch $dumphtml_colsel user_def_$usercol_cf_tag]
          }
-         if {$html_col_idx == -1} {
+         if {$pi_col_idx == -1} {
             set answer [tk_messageBox -icon question -type okcancel -default ok -parent .usercol \
                            -message "$msg Do you want to proceed?"]
          } else {
             set answer [tk_messageBox -icon question -type okcancel -default ok -parent .usercol \
-                           -message "$msg This column is referenced by the HTML export configuration. Do you want to proceed?"]
+                           -message "$msg This definition is still referenced by the HTML export configuration. Do you want to proceed?"]
          }
       } else {
          set answer [tk_messageBox -icon question -type okcancel -default ok -parent .usercol \
-                        -message "$msg Do you want to proceed and remove this column from the programme listbox?"]
+                        -message "$msg Do you want to proceed and remove this definition from the programme listbox?"]
       }
       if {[string compare $answer ok] == 0} {
          unset usercols($usercol_cf_tag)
          unset colsel_tabs(user_def_$usercol_cf_tag)
 
+         set head_change 0
+         set pi_col_idx [lsearch $pilistbox_cols user_def_$usercol_cf_tag]
          if {$pi_col_idx != -1} {
             set pilistbox_cols [lreplace $pilistbox_cols $pi_col_idx $pi_col_idx]
+            set head_change 1
+         }
+
+         set pi_col_idx [lsearch $pinetbox_rows user_def_$usercol_cf_tag]
+         if {$pi_col_idx != -1} {
+            set pinetbox_rows [lreplace $pinetbox_rows $pi_col_idx $pi_col_idx]
          }
 
          set html_col_idx [lsearch $dumphtml_colsel user_def_$usercol_cf_tag]
@@ -713,11 +750,12 @@ proc UserColsDlg_Delete {} {
          }
 
          DownloadUserDefinedColumnFilters
-         if {$pi_col_idx != -1} {
+         if {$head_change && ($pibox_type == 0)} {
             UpdatePiListboxColumns
+         } else {
+            UpdatePiListboxColumParams
          }
-         C_PiOutput_CfgColumns
-         C_RefreshPiListbox
+         C_PiBox_Refresh
          UpdateRcFile
 
          # update this column's entry in the selection drop-down menu

@@ -1,5 +1,5 @@
 /*
- *  Nextview block ASCII dump
+ *  Nextview EPG database raw dump
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
@@ -14,14 +14,14 @@
  *
  *  Description:
  *
- *    Optionally dumps the information contained in every incoming
+ *    Dumps the information contained in every incoming
  *    Nextview block as ASCII to stdout. This is very useful for
  *    debugging the transmitted data (which often contains errors
  *    or inconsistancies, like overlapping running times)
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgtxtdump.c,v 1.26 2002/06/23 10:21:34 tom Exp tom $
+ *  $Id: dumpraw.c,v 1.27 2003/02/27 18:58:18 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -29,15 +29,24 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <errno.h>
 #include <time.h>
+
+#include <tcl.h>
+#include <tk.h>
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
+
 #include "epgdb/epgblock.h"
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
-#include "epgui/epgtxtdump.h"
+#include "epgdb/epgtscqueue.h"
+#include "epgdb/epgdbmerge.h"
+#include "epgui/epgmain.h"
 #include "epgui/pdc_themes.h"
+#include "epgui/pibox.h"
+#include "epgui/dumpraw.h"
 
 
 #define NETNAME_LENGTH 6
@@ -48,8 +57,8 @@
 // status variable: turns output on or off
 // - can be toggled by user interface or command line argument
 //
-static uchar epgTxtListBlocks = FALSE;
-static const char * const pEpgTxtDumpHeader = "Nextview ASCII Dump\n";
+static bool dumpRawIncoming;
+static const char * const pDumpRawHeader = "Nextview ASCII Dump\n";
 
 // ----------------------------------------------------------------------------
 // Print PI
@@ -57,77 +66,29 @@ static const char * const pEpgTxtDumpHeader = "Nextview ASCII Dump\n";
 // ----------------------------------------------------------------------------
 // Decode PIL code into date and time of day
 //
-static bool DecodePil(uint pil, uchar *pHour, uchar *pMinute, uchar *pDay, uchar *pMonth)
+static char * GetPiPilStr( const PI_BLOCK * pPi, uchar * pOutStr, uint maxlen )
 {
-   uint hour, minute, day, month;
-   bool result;
-   
-   /*
-   pil = (((ulong)(day & 0x1F)) << 15) +
-         (((ulong)(month & 0x0F)) << 11) +
-         (((ulong)(hour & 0x1F)) << 6) +
-         ((ulong)(minute & 0x3F));
-   */
+   struct tm vpsTime;
 
-   day    = (pil >> 15) & 0x1f;
-   month  = (pil >> 11) & 0x0f;
-   hour   = (pil >>  6) & 0x1f;
-   minute =  pil        & 0x3f;
-
-   if ((day > 0) && (month > 0) && (month <= 12) && (hour < 24) && (minute < 60))
+   if (EpgDbGetVpsTimestamp(&vpsTime, pPi->pil, pPi->start_time))
    {
-      *pHour   = hour;
-      *pMinute = minute;
-      *pDay    = day;
-      *pMonth  = month;
-      result = TRUE;
+      strftime(pOutStr, maxlen, "%Y-%m-%d.%H:%M:%S", &vpsTime);
    }
    else
-      result = FALSE;
+      strncpy(pOutStr, "INVAL", maxlen);
 
-   return result;
-}
-
-// ----------------------------------------------------------------------------
-//#define COMPARE_PIL
-#ifdef COMPARE_PIL
-static uchar * GetPiPilStr( uint pil, PI_BLOCK *pPi )
-#else
-static uchar * GetPiPilStr( uint pil )
-#endif
-{
-   uchar hour, minute, day, month;
-   static uchar pilStr[12];
-
-   if (DecodePil(pil, &hour, &minute, &day, &month))
-      sprintf(pilStr, "%02d:%02d/%02d.%02d", hour, minute, day, month);
-   else
-      strcpy(pilStr, "INVAL");
-
-   #ifdef COMPARE_PIL
-   {
-      struct tm *tm;
-      tm = localtime(&pPi->start_time);
-      if ((tm->tm_hour != hour) || (tm->tm_min != minute) ||
-          (tm->tm_mon+1 != month) || (tm->tm_mday != day))
-      {
-         fprintf(fp, "XXXSTART!=%02d:%02d/%02d.%02d",
-                     tm->tm_hour, tm->tm_min, tm->tm_mday, tm->tm_mon+1);
-      }
-   }
-   #endif
-
-   return pilStr;
+   return pOutStr;
 }
 
 // ---------------------------------------------------------------------------
 // Print Programme Information
 
-static void EpgTxtDumpPi( FILE *fp, const PI_BLOCK * pPi, uchar stream, uchar version, const AI_BLOCK * pAi )
+static void EpgDumpRaw_Pi( FILE *fp, const PI_BLOCK * pPi, uchar stream, uchar version, const AI_BLOCK * pAi )
 {
    const uchar * pThemeStr;
    const uchar * pGeneralStr;
    uchar start_str[40], stop_str[20];
+   uchar pilStr[50];
    uchar netname[NETNAME_LENGTH+1];
    uchar *pStrSoundFormat;
    struct tm *pStart, *pStop;
@@ -189,7 +150,7 @@ static void EpgTxtDumpPi( FILE *fp, const PI_BLOCK * pPi, uchar stream, uchar ve
                   ((pPi->feature_flags & 0x100) ? ",subtitles" : ""),
                   pPi->parental_rating *2,
                   pPi->editorial_rating,
-                  GetPiPilStr(pPi->pil),
+                  GetPiPilStr(pPi, pilStr, sizeof(pilStr)),
                   (PI_HAS_SHORT_INFO(pPi) ? strlen(PI_GET_SHORT_INFO(pPi)) : 0),
                   (PI_HAS_LONG_INFO(pPi) ? strlen(PI_GET_LONG_INFO(pPi)) : 0),
                   pPi->no_themes,
@@ -212,7 +173,7 @@ static void EpgTxtDumpPi( FILE *fp, const PI_BLOCK * pPi, uchar stream, uchar ve
 // ---------------------------------------------------------------------------
 // Print Application Information
 
-static void EpgTxtDumpAi( FILE *fp, const AI_BLOCK * pAi, uchar stream )
+static void EpgDumpRaw_Ai( FILE *fp, const AI_BLOCK * pAi, uchar stream )
 {
    uint blockSum1, blockSum2;
    uint i;
@@ -252,7 +213,7 @@ static void EpgTxtDumpAi( FILE *fp, const AI_BLOCK * pAi, uchar stream )
 // ---------------------------------------------------------------------------
 // Print OSD Information
 
-static void EpgTxtDumpOi( FILE *fp, const OI_BLOCK * pOi, uchar stream )
+static void EpgDumpRaw_Oi( FILE *fp, const OI_BLOCK * pOi, uchar stream )
 {
    if (pOi != NULL)
    {
@@ -274,7 +235,7 @@ static void EpgTxtDumpOi( FILE *fp, const OI_BLOCK * pOi, uchar stream )
 // ---------------------------------------------------------------------------
 // Print Navigation Information
 
-static void EpgTxtDumpNi( FILE *fp, const NI_BLOCK * pNi, uchar stream )
+static void EpgDumpRaw_Ni( FILE *fp, const NI_BLOCK * pNi, uchar stream )
 {
    const EVENT_ATTRIB *pEv;
    uchar off, pAts[400];
@@ -344,7 +305,7 @@ static void EpgTxtDumpNi( FILE *fp, const NI_BLOCK * pNi, uchar stream )
                      else if ((pEv[i].unit[j].kind >= EV_ATTRIB_KIND_SORTCRIT) && (pEv[i].unit[j].kind <= (EV_ATTRIB_KIND_SORTCRIT + 7)))
                         sprintf(pAts+off, "Sortcrit class #%d=%02x", pEv[i].unit[j].kind - EV_ATTRIB_KIND_SORTCRIT, (uint)pEv[i].unit[j].data);
                      else
-                        debug3("EpgTxtDumpNi: unknown kind %d in attrib %d of event %d", pEv[i].unit[j].kind, j, i);
+                        debug3("EpgDumpRaw_Ni: unknown kind %d in attrib %d of event %d", pEv[i].unit[j].kind, j, i);
                      break;
                }
                if (j+1 < pEv[i].no_attribs)
@@ -370,7 +331,7 @@ static void EpgTxtDumpNi( FILE *fp, const NI_BLOCK * pNi, uchar stream )
 // ---------------------------------------------------------------------------
 // Print Message Information
 
-static void EpgTxtDumpMi( FILE *fp, const MI_BLOCK * pMi, uchar stream )
+static void EpgDumpRaw_Mi( FILE *fp, const MI_BLOCK * pMi, uchar stream )
 {
    if (pMi != NULL)
    {
@@ -386,7 +347,7 @@ static void EpgTxtDumpMi( FILE *fp, const MI_BLOCK * pMi, uchar stream )
 // ---------------------------------------------------------------------------
 // Print Language Information
 
-static void EpgTxtDumpLi( FILE *fp, const LI_BLOCK * pLi, uchar stream )
+static void EpgDumpRaw_Li( FILE *fp, const LI_BLOCK * pLi, uchar stream )
 {
    const LI_DESC *pLd;
    uint desc, lang;
@@ -413,7 +374,7 @@ static void EpgTxtDumpLi( FILE *fp, const LI_BLOCK * pLi, uchar stream )
 // ---------------------------------------------------------------------------
 // Print Subtitle Information
 
-static void EpgTxtDumpTi( FILE *fp, const TI_BLOCK * pTi, uchar stream )
+static void EpgDumpRaw_Ti( FILE *fp, const TI_BLOCK * pTi, uchar stream )
 {
    const TI_DESC *pStd;
    uint desc, subt;
@@ -444,7 +405,7 @@ static void EpgTxtDumpTi( FILE *fp, const TI_BLOCK * pTi, uchar stream )
 // ---------------------------------------------------------------------------
 // Print Bundle Information
 
-static void EpgTxtDumpBi( FILE *fp, const BI_BLOCK * pBi, uchar stream )
+static void EpgDumpRaw_Bi( FILE *fp, const BI_BLOCK * pBi, uchar stream )
 {
    if (pBi != NULL)
    {
@@ -455,73 +416,73 @@ static void EpgTxtDumpBi( FILE *fp, const BI_BLOCK * pBi, uchar stream )
 // ---------------------------------------------------------------------------
 // Dump a single block of unknown type
 //
-void EpgTxtDump_UnknownBlock( BLOCK_TYPE type, uint size, uchar stream )
+void EpgDumpRaw_IncomingUnknown( BLOCK_TYPE type, uint size, uchar stream )
 {
-   if (epgTxtListBlocks)
+   if (dumpRawIncoming)
    {
       fprintf(stdout, "Other: block type 0x%02X, stream=%d, size=%d\n", type, (int)stream, size);
    }
 }
 
 // ---------------------------------------------------------------------------
-// Switch dump on or off
-//
-void EpgTxtDump_Toggle( void )
-{
-   epgTxtListBlocks = ! epgTxtListBlocks;
-}
-
-// ---------------------------------------------------------------------------
 // Dump a single block
 //
-void EpgTxtDump_Block( const EPGDB_BLOCK_UNION * pUnion, BLOCK_TYPE type, uchar stream )
+void EpgDumpRaw_IncomingBlock( const EPGDB_BLOCK_UNION * pUnion, BLOCK_TYPE type, uchar stream )
 {
    if (pUnion != NULL)
    {
-      if (epgTxtListBlocks)
+      if (dumpRawIncoming)
       {
          switch (type)
          {
             case BLOCK_TYPE_BI:
-               EpgTxtDumpBi(stdout, &pUnion->bi, stream);
+               EpgDumpRaw_Bi(stdout, &pUnion->bi, stream);
                break;
             case BLOCK_TYPE_AI:
-               EpgTxtDumpAi(stdout, &pUnion->ai, stream);
+               EpgDumpRaw_Ai(stdout, &pUnion->ai, stream);
                break;
             case BLOCK_TYPE_PI:
-               EpgTxtDumpPi(stdout, &pUnion->pi, stream, 0xff, NULL);
+               EpgDumpRaw_Pi(stdout, &pUnion->pi, stream, 0xff, NULL);
                break;
             case BLOCK_TYPE_NI:
-               EpgTxtDumpNi(stdout, &pUnion->ni, stream);
+               EpgDumpRaw_Ni(stdout, &pUnion->ni, stream);
                break;
             case BLOCK_TYPE_OI:
-               EpgTxtDumpOi(stdout, &pUnion->oi, stream);
+               EpgDumpRaw_Oi(stdout, &pUnion->oi, stream);
                break;
             case BLOCK_TYPE_MI:
-               EpgTxtDumpMi(stdout, &pUnion->mi, stream);
+               EpgDumpRaw_Mi(stdout, &pUnion->mi, stream);
                break;
             case BLOCK_TYPE_LI:
-               EpgTxtDumpLi(stdout, &pUnion->li, stream);
+               EpgDumpRaw_Li(stdout, &pUnion->li, stream);
                break;
             case BLOCK_TYPE_TI:
-               EpgTxtDumpTi(stdout, &pUnion->ti, stream);
+               EpgDumpRaw_Ti(stdout, &pUnion->ti, stream);
                break;
             default:
-               debug1("EpgTxtDump-Block: unknown block type %d\n", type);
+               debug1("EpgDumpRaw_-Block: unknown block type %d\n", type);
                break;
          }
       }
    }
    else
-      debug0("EpgTxtDump-Block: illegal NULL ptr param");
+      debug0("EpgDumpRaw_-Block: illegal NULL ptr param");
+}
+
+// ---------------------------------------------------------------------------
+// Switch dump on or off
+//
+static void EpgDumpRaw_Toggle( void )
+{
+   dumpRawIncoming = ! dumpRawIncoming;
 }
 
 // ---------------------------------------------------------------------------
 // Dump the complete database
 //
-void EpgTxtDump_Database( EPGDB_CONTEXT *pDbContext, FILE *fp,
-                          bool do_pi, bool do_xi, bool do_ai, bool do_ni,
-                          bool do_oi, bool do_mi, bool do_li, bool do_ti )
+static void EpgDumpRaw_Database( EPGDB_CONTEXT *pDbContext, FILE *fp,
+                                 bool do_pi, bool do_xi, bool do_ai, bool do_ni,
+                                 bool do_oi, bool do_mi, bool do_li, bool do_ti )
 {
    const AI_BLOCK * pAi;
    const NI_BLOCK * pNi;
@@ -536,14 +497,14 @@ void EpgTxtDump_Database( EPGDB_CONTEXT *pDbContext, FILE *fp,
    EpgDbLockDatabase(pDbContext, TRUE);
 
    // write file header
-   fprintf(fp, "%s", pEpgTxtDumpHeader);
+   fprintf(fp, "%s", pDumpRawHeader);
 
    pAi = EpgDbGetAi(pDbContext);
    if (pAi != NULL)
    {
       // Dump application information block
       if (do_ai)
-         EpgTxtDumpAi(fp, pAi, 0);
+         EpgDumpRaw_Ai(fp, pAi, 0);
 
       if (do_ni)
       {
@@ -552,7 +513,7 @@ void EpgTxtDump_Database( EPGDB_CONTEXT *pDbContext, FILE *fp,
          {
             pNi = EpgDbGetNi(pDbContext, blockno);
             if (pNi != NULL)
-               EpgTxtDumpNi(fp, pNi, EpgDbGetStream(pNi));
+               EpgDumpRaw_Ni(fp, pNi, EpgDbGetStream(pNi));
          }
       }
 
@@ -564,7 +525,7 @@ void EpgTxtDump_Database( EPGDB_CONTEXT *pDbContext, FILE *fp,
          {
             pOi = EpgDbGetOi(pDbContext, blockno);
             if (pOi != NULL)
-               EpgTxtDumpOi(fp, pOi, EpgDbGetStream(pOi));
+               EpgDumpRaw_Oi(fp, pOi, EpgDbGetStream(pOi));
          }
       }
 
@@ -576,7 +537,7 @@ void EpgTxtDump_Database( EPGDB_CONTEXT *pDbContext, FILE *fp,
          {
             pMi = EpgDbGetMi(pDbContext, blockno);
             if (pMi != NULL)
-               EpgTxtDumpMi(fp, pMi, EpgDbGetStream(pMi));
+               EpgDumpRaw_Mi(fp, pMi, EpgDbGetStream(pMi));
          }
       }
 
@@ -585,13 +546,13 @@ void EpgTxtDump_Database( EPGDB_CONTEXT *pDbContext, FILE *fp,
       {
          pLi = EpgDbGetLi(pDbContext, 0x8000, 0);
          if (pLi != NULL)
-            EpgTxtDumpLi(fp, pLi, EpgDbGetStream(pLi));
+            EpgDumpRaw_Li(fp, pLi, EpgDbGetStream(pLi));
 
          for (netwop=0; netwop < pAi->netwopCount; netwop++)
          {
             pLi = EpgDbGetLi(pDbContext, 0, netwop);
             if (pLi != NULL)
-               EpgTxtDumpLi(fp, pLi, EpgDbGetStream(pLi));
+               EpgDumpRaw_Li(fp, pLi, EpgDbGetStream(pLi));
          }
       }
 
@@ -600,13 +561,13 @@ void EpgTxtDump_Database( EPGDB_CONTEXT *pDbContext, FILE *fp,
       {
          pTi = EpgDbGetTi(pDbContext, 0x8000, 0);
          if (pTi != NULL)
-            EpgTxtDumpTi(fp, pTi, EpgDbGetStream(pTi));
+            EpgDumpRaw_Ti(fp, pTi, EpgDbGetStream(pTi));
 
          for (netwop=0; netwop < pAi->netwopCount; netwop++)
          {
             pTi = EpgDbGetTi(pDbContext, 0, netwop);
             if (pTi != NULL)
-               EpgTxtDumpTi(fp, pTi, EpgDbGetStream(pTi));
+               EpgDumpRaw_Ti(fp, pTi, EpgDbGetStream(pTi));
          }
       }
 
@@ -616,7 +577,7 @@ void EpgTxtDump_Database( EPGDB_CONTEXT *pDbContext, FILE *fp,
          pPi = EpgDbSearchFirstPi(pDbContext, NULL);
          while (pPi != NULL)
          {
-            EpgTxtDumpPi(fp, pPi, EpgDbGetStream(pPi), EpgDbGetVersion(pPi), pAi);
+            EpgDumpRaw_Pi(fp, pPi, EpgDbGetStream(pPi), EpgDbGetVersion(pPi), pAi);
             pPi = EpgDbSearchNextPi(pDbContext, NULL, pPi);
          }
       }
@@ -627,11 +588,275 @@ void EpgTxtDump_Database( EPGDB_CONTEXT *pDbContext, FILE *fp,
          pPi = EpgDbGetFirstObsoletePi(pDbContext);
          while (pPi != NULL)
          {
-            EpgTxtDumpPi(fp, pPi, EpgDbGetStream(pPi), EpgDbGetVersion(pPi), pAi);
+            EpgDumpRaw_Pi(fp, pPi, EpgDbGetStream(pPi), EpgDbGetVersion(pPi), pAi);
             pPi = EpgDbGetNextObsoletePi(pDbContext, pPi);
          }
       }
    }
    EpgDbLockDatabase(pDbContext, FALSE);
+}
+
+// ----------------------------------------------------------------------------
+// Dump the complete database
+//
+static int EpgDumpRaw_DumpRawDatabase( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+{
+   const char * const pUsage = "Usage: C_DumpRawDatabase <file-name> <pi=0/1> <xi=0/1> <ai=0/1>"
+                                                 " <ni=0/1> <oi=0/1> <mi=0/1> <li=0/1> <ti=0/1>";
+   int do_pi, do_xi, do_ai, do_ni, do_oi, do_mi, do_li, do_ti;
+   const char * pFileName;
+   Tcl_DString ds;
+   FILE *fp;
+   int result;
+
+   if (objc != 1+1+8)
+   {  // parameter count is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else if ( (pFileName = Tcl_GetString(objv[1])) == NULL )
+   {  // internal error: can not get filename string
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else if ( (Tcl_GetBooleanFromObj(interp, objv[2], &do_pi) != TCL_OK) || 
+             (Tcl_GetBooleanFromObj(interp, objv[3], &do_xi) != TCL_OK) || 
+             (Tcl_GetBooleanFromObj(interp, objv[4], &do_ai) != TCL_OK) || 
+             (Tcl_GetBooleanFromObj(interp, objv[5], &do_ni) != TCL_OK) || 
+             (Tcl_GetBooleanFromObj(interp, objv[6], &do_oi) != TCL_OK) || 
+             (Tcl_GetBooleanFromObj(interp, objv[7], &do_mi) != TCL_OK) || 
+             (Tcl_GetBooleanFromObj(interp, objv[8], &do_li) != TCL_OK) || 
+             (Tcl_GetBooleanFromObj(interp, objv[9], &do_ti) != TCL_OK) )
+   {  // one of the params is not boolean; error msg is already set
+      result = TCL_ERROR;
+   }
+   else
+   {
+      if (Tcl_GetCharLength(objv[1]) > 0)
+      {
+         pFileName = Tcl_UtfToExternalDString(NULL, pFileName, -1, &ds);
+         fp = fopen(pFileName, "w");
+         if (fp == NULL)
+         {  // access, create or truncate failed -> inform the user
+            sprintf(comm, "tk_messageBox -type ok -icon error -parent .dumpdb -message \"Failed to open file '%s' for writing: %s\"",
+                          Tcl_GetString(objv[1]), strerror(errno));
+            eval_check(interp, comm);
+            Tcl_ResetResult(interp);
+         }
+         Tcl_DStringFree(&ds);
+      }
+      else
+         fp = stdout;
+
+      if (fp != NULL)
+      {
+         EpgDumpRaw_Database(pUiDbContext, fp, (bool)do_pi, (bool)do_xi, (bool)do_ai, (bool)do_ni,
+                                               (bool)do_oi, (bool)do_mi, (bool)do_li, (bool)do_ti);
+         if (fp != stdout)
+            fclose(fp);
+      }
+      result = TCL_OK;
+   }
+
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Toggle dump of incoming PI
+//
+static int EpgDumpRaw_ToggleDumpStream( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+{
+   const char * const pUsage = "Usage: C_ToggleDumpStream <boolean>";
+   int value;
+   int result;
+
+   if (objc != 2)
+   {  // parameter count is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else if (Tcl_GetBooleanFromObj(interp, objv[1], &value))
+   {  // string parameter is not a decimal integer
+      result = TCL_ERROR;
+   }
+   else
+   {
+      EpgDumpRaw_Toggle();
+      result = TCL_OK;
+   }
+
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Show debug info about the currently selected item in pop-up window
+//
+static int EpgDumpRaw_PopupPi( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+{
+   const char * const pUsage = "Usage: C_PopupPi <widget> <xcoo> <ycoo>";
+   const AI_BLOCK * pAiBlock;
+   const AI_NETWOP *pNetwop;
+   const PI_BLOCK * pPiBlock;
+   const DESCRIPTOR *pDesc;
+   const char * pCfNetname;
+   const uchar * pThemeStr;
+   const uchar * pGeneralStr;
+   uchar *p;
+   uchar start_str[50], stop_str[50], cni_str[7];
+   uchar ident[50];
+   int index;
+   int result;
+
+   if (objc != 4)
+   {  // parameter count is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR; 
+   }  
+   else
+   {
+      result = TCL_OK; 
+
+      EpgDbLockDatabase(pUiDbContext, TRUE);
+      pAiBlock = EpgDbGetAi(pUiDbContext);
+      pPiBlock = PiBox_GetSelectedPi();
+      if ((pAiBlock != NULL) && (pPiBlock != NULL))
+      {
+         pNetwop = AI_GET_NETWOP_N(pAiBlock, pPiBlock->netwop_no);
+
+         sprintf(cni_str, "0x%04X", AI_GET_NETWOP_N(pAiBlock, pPiBlock->netwop_no)->cni);
+         pCfNetname = Tcl_GetVar2(interp, "cfnetnames", cni_str, TCL_GLOBAL_ONLY);
+         if (pCfNetname == NULL)
+            pCfNetname = AI_GET_NETWOP_NAME(pAiBlock, pPiBlock->netwop_no);
+
+         sprintf(ident, ".poppi_%d_%ld", pPiBlock->netwop_no, pPiBlock->start_time);
+
+         sprintf(comm, "Create_PopupPi %s %s %s %s\n", ident,
+                 Tcl_GetString(objv[1]), Tcl_GetString(objv[2]), Tcl_GetString(objv[3]));
+         eval_check(interp, comm);
+
+         sprintf(comm, "%s.text insert end {%s\n} title\n", ident, PI_GET_TITLE(pPiBlock));
+         eval_check(interp, comm);
+
+         sprintf(comm, "%s.text insert end {Network: \t%s\n} body\n", ident, pCfNetname);
+         eval_check(interp, comm);
+
+         sprintf(comm, "%s.text insert end {BlockNo:\t0x%04X in %04X-%04X-%04X\n} body\n", ident, pPiBlock->block_no, pNetwop->startNo, pNetwop->stopNo, pNetwop->stopNoSwo);
+         eval_check(interp, comm);
+
+         strftime(start_str, sizeof(start_str), "%a %d.%m %H:%M", localtime(&pPiBlock->start_time));
+         strftime(stop_str, sizeof(stop_str), "%a %d.%m %H:%M", localtime(&pPiBlock->stop_time));
+         sprintf(comm, "%s.text insert end {Start:\t%s\nStop:\t%s\n} body\n", ident, start_str, stop_str);
+         eval_check(interp, comm);
+
+         if (pPiBlock->pil != 0x7FFF)
+         {
+            sprintf(comm, "%s.text insert end {PIL:\t%02d.%02d. %02d:%02d\n} body\n", ident,
+                    (pPiBlock->pil >> 15) & 0x1F,
+                    (pPiBlock->pil >> 11) & 0x0F,
+                    (pPiBlock->pil >>  6) & 0x1F,
+                    (pPiBlock->pil      ) & 0x3F );
+         }
+         else
+            sprintf(comm, "%s.text insert end {PIL:\tnone\n} body\n", ident);
+         eval_check(interp, comm);
+
+         switch(pPiBlock->feature_flags & 0x03)
+         {
+           case  0: p = "mono"; break;
+           case  1: p = "2chan"; break;
+           case  2: p = "stereo"; break;
+           case  3: p = "surround"; break;
+           default: p = ""; break;
+         }
+         sprintf(comm, "%s.text insert end {Sound:\t%s\n} body\n", ident, p);
+         eval_check(interp, comm);
+         if (pPiBlock->feature_flags & ~0x03)
+         sprintf(comm, "%s.text insert end {Features:\t%s%s%s%s%s%s%s\n} body\n", ident,
+                        ((pPiBlock->feature_flags & 0x04) ? " wide" : ""),
+                        ((pPiBlock->feature_flags & 0x08) ? " PAL+" : ""),
+                        ((pPiBlock->feature_flags & 0x10) ? " digital" : ""),
+                        ((pPiBlock->feature_flags & 0x20) ? " encrypted" : ""),
+                        ((pPiBlock->feature_flags & 0x40) ? " live" : ""),
+                        ((pPiBlock->feature_flags & 0x80) ? " repeat" : ""),
+                        ((pPiBlock->feature_flags & 0x100) ? " subtitles" : "")
+                        );
+         else
+            sprintf(comm, "%s.text insert end {Features:\tnone\n} body\n", ident);
+         eval_check(interp, comm);
+
+         if (pPiBlock->parental_rating == 0)
+            sprintf(comm, "%s.text insert end {Parental rating:\tnone\n} body\n", ident);
+         else if (pPiBlock->parental_rating == 1)
+            sprintf(comm, "%s.text insert end {Parental rating:\tgeneral\n} body\n", ident);
+         else
+            sprintf(comm, "%s.text insert end {Parental rating:\t%d years and up\n} body\n", ident, pPiBlock->parental_rating * 2);
+         eval_check(interp, comm);
+
+         if (pPiBlock->editorial_rating == 0)
+            sprintf(comm, "%s.text insert end {Editorial rating:\tnone\n} body\n", ident);
+         else
+            sprintf(comm, "%s.text insert end {Editorial rating:\t%d of 1..7\n} body\n", ident, pPiBlock->editorial_rating);
+         eval_check(interp, comm);
+
+         for (index=0; index < pPiBlock->no_themes; index++)
+         {
+            pThemeStr = PdcThemeGetWithGeneral(pPiBlock->themes[index], &pGeneralStr, TRUE);
+            sprintf(comm, "%s.text insert end {Theme:\t0x%02X %s%s\n} body\n",
+                          ident, pPiBlock->themes[index], pThemeStr, pGeneralStr);
+            eval_check(interp, comm);
+         }
+
+         for (index=0; index < pPiBlock->no_sortcrit; index++)
+         {
+            sprintf(comm, "%s.text insert end {Sorting Criterion:\t0x%02X\n} body\n", ident, pPiBlock->sortcrits[index]);
+            eval_check(interp, comm);
+         }
+
+         pDesc = PI_GET_DESCRIPTORS(pPiBlock);
+         for (index=0; index < pPiBlock->no_descriptors; index++)
+         {
+            switch (pDesc[index].type)
+            {
+               case LI_DESCR_TYPE:    sprintf(comm, "%s.text insert end {Descriptor:\tlanguage ID %d\n} body\n", ident, pDesc[index].id); break;
+               case TI_DESCR_TYPE:    sprintf(comm, "%s.text insert end {Descriptor:\tsubtitle ID %d\n} body\n", ident, pDesc[index].id); break;
+               case MERGE_DESCR_TYPE: sprintf(comm, "%s.text insert end {Descriptor:\tmerged from db #%d\n} body\n", ident, pDesc[index].id); break;
+               default:               sprintf(comm, "%s.text insert end {Descriptor:\tunknown type=%d, ID=%d\n} body\n", ident, pDesc[index].type, pDesc[index].id); break;
+            }
+            eval_check(interp, comm);
+         }
+
+         sprintf(comm, "%s.text insert end {Acq. stream:\t%d\n} body\n", ident, EpgDbGetStream(pPiBlock));
+         eval_check(interp, comm);
+
+         sprintf(comm, "global poppedup_pi\n"
+                       "$poppedup_pi.text configure -state disabled\n"
+                       "$poppedup_pi.text configure -height [expr 1 + [$poppedup_pi.text index end]]\n"
+                       "pack $poppedup_pi.text\n");
+         eval_check(interp, comm);
+      }
+      EpgDbLockDatabase(pUiDbContext, FALSE);
+   }
+
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Free resources allocated by this module (cleanup during program exit)
+//
+void EpgDumpRaw_Destroy( void )
+{
+}
+
+// ----------------------------------------------------------------------------
+// Create the Tcl/Tk commands provided by this module
+//
+void EpgDumpRaw_Init( void )
+{
+   dumpRawIncoming = FALSE;
+
+   Tcl_CreateObjCommand(interp, "C_ToggleDumpStream", EpgDumpRaw_ToggleDumpStream, (ClientData) NULL, NULL);
+   Tcl_CreateObjCommand(interp, "C_DumpRawDatabase", EpgDumpRaw_DumpRawDatabase, (ClientData) NULL, NULL);
+
+   Tcl_CreateObjCommand(interp, "C_PopupPi", EpgDumpRaw_PopupPi, (ClientData) NULL, NULL);
 }
 

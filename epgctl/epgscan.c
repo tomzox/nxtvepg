@@ -34,7 +34,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgscan.c,v 1.32 2002/11/17 20:35:39 tom Exp tom $
+ *  $Id: epgscan.c,v 1.33 2003/03/13 13:13:00 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -412,6 +412,8 @@ uint EpgScan_EvHandler( void )
                {  // CNI not known as provider -> keep checking for data page
                   if (scanCtl.state <= SCAN_STATE_WAIT_NI)
                      scanCtl.state = SCAN_STATE_WAIT_DATA;
+                  else if (scanCtl.state == SCAN_STATE_WAIT_NI_OR_EPG)
+                     scanCtl.state = SCAN_STATE_WAIT_EPG;
                }
             }
          }
@@ -607,7 +609,7 @@ uint EpgScan_EvHandler( void )
       }
       else
       {  // continue scan on current channel
-         dprintf2("Continue waiting... waited %d of max. %d secs\n", (int)(now - scanCtl.startTime - scanCtl.extraWait), (int)delay);
+         dprintf3("Continue waiting... state %d waited %d of max. %d secs\n", scanCtl.state, (int)(now - scanCtl.startTime - scanCtl.extraWait), (int)delay);
          if (scanCtl.state == SCAN_STATE_WAIT_SIGNAL)
             rescheduleMs = 100;
          else

@@ -29,7 +29,7 @@
  *    so their respective copyright applies too. Please see the notes in
  *    functions headers below.
  *
- *  $Id: wintvcfg.c,v 1.12 2002/12/01 15:26:12 tom Exp tom $
+ *  $Id: wintvcfg.c,v 1.13 2003/01/29 22:10:35 tom Exp tom $
  */
 
 #ifndef WIN32
@@ -52,8 +52,10 @@
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
+
+#include "dsdrv/tvcard.h"
+#include "dsdrv/wintuner.h"
 #include "epgvbi/btdrv.h"
-#include "epgvbi/wintuner.h"
 #include "epgvbi/winshm.h"
 #include "epgdb/epgblock.h"
 #include "epgui/epgmain.h"
@@ -587,6 +589,7 @@ static void WintvCfg_GetMultidecStationNames( Tcl_Interp * interp, const char * 
             {
                while (read(fd, &Programm, sizeof(Programm)) == sizeof(Programm))
                {
+                  Programm.Name[sizeof(Programm.Name) - 1] = 0;
                   WintvCfg_AddChannelName(interp, Programm.Name);
                }
             }
@@ -595,6 +598,7 @@ static void WintvCfg_GetMultidecStationNames( Tcl_Interp * interp, const char * 
                _lseek(fd, 0, SEEK_SET);
                while (read(fd, &ProgrammAlt, sizeof(ProgrammAlt)) == sizeof(ProgrammAlt))
                {
+                  Programm.Name[sizeof(Programm.Name) - 1] = 0;
                   WintvCfg_AddChannelName(interp, Programm.Name);
                }
             }
@@ -808,589 +812,6 @@ static void WintvCfg_GetDscalerStationNames( Tcl_Interp * interp, const char * p
 }
 
 // ----------------------------------------------------------------------------
-// Open the INI file at the configured path or issue error message
-//
-static FILE * WinTvCfg_OpenIni( Tcl_Interp * interp, const char * pPath )
-{
-   char msg_buf[300];
-   FILE * fp = NULL;
-
-   if (pPath != NULL)
-   {
-      fp = fopen(pPath, "r");
-      if (fp == NULL)
-      {
-         sprintf(msg_buf, "tk_messageBox -type ok -icon error -parent .hwcfg -message {"
-                          "Failed to open the INI file '%s': %s}",
-                          pPath, strerror(errno));
-         eval_check(interp, msg_buf);
-      }
-   }
-   else
-      debug0("WinTvCfg-OpenIni: illegal NULL ptr param");
-
-   return fp;
-}
-
-// ----------------------------------------------------------------------------
-// Update PLL setting in HW config dialog window
-//
-static int WinTvCfg_UpdatePll( Tcl_Interp * interp, int pllType, const char * pSettingName )
-{
-   char msg_buf[300];
-
-   if (pllType == -1)
-   {  // no PLL defnition found in the INI file or registry
-      sprintf(msg_buf, "tk_messageBox -type ok -icon warning -parent .hwcfg -message {"
-              "%s setting not found.\nSorry, you'll have to set it manually.}", pSettingName);
-      eval_check(interp, msg_buf);
-   }
-   else if (pllType > 2)
-   {  // illegal PLL setting: only 0,1,2 allowed
-      sprintf(msg_buf, "tk_messageBox -type ok -icon warning -parent .hwcfg -message {"
-              "Unsupported %s setting found.\nSorry, you'll have to choose one manually.}", pSettingName);
-      eval_check(interp, msg_buf);
-      pllType = -1;
-   }
-   else
-   {  // value ok -> assign it to the Tcl variable which is tied to the radio buttons
-      sprintf(msg_buf, "%d", pllType);
-      Tcl_SetVar(interp, "hwcfg_pll_sel", msg_buf, TCL_GLOBAL_ONLY);
-   }
-   return pllType;
-}
-
-// ----------------------------------------------------------------------------
-// Update Tuner setting in HW config dialog window
-//
-static int WinTvCfg_UpdateTuner( Tcl_Interp * interp, int tunerType, const char * pMapping, int maxTunerType )
-{
-   char str_buf[300];
-
-   if (tunerType < 0)
-   {  // no tuner defnition found in the INI file or registry
-      eval_check(interp, "tk_messageBox -type ok -icon warning -parent .hwcfg -message {"
-            "Tuner type setting not found.\nSorry, you'll have to set it manually.}");
-   }
-   else if ((pMapping != NULL) && (tunerType >= maxTunerType))
-   {  // tuner index can not be mapped into nxtvepg's tuner table
-      eval_check(interp, "tk_messageBox -type ok -icon warning -parent .hwcfg -message {"
-            "Unknown tuner type found.\nSorry, you'll have to choose one manually.}");
-      tunerType = -1;
-   }
-   else
-   {  // index ok -> map the TV app index into nxtvepg's tuner table
-      if (pMapping != NULL)
-         tunerType = pMapping[tunerType];
-
-      if (tunerType == 0)
-      {  // unidentified tuner -> handle just as unknown tuner
-         eval_check(interp, "tk_messageBox -type ok -icon warning -parent .hwcfg -message {"
-               "Unknown tuner type found.\nSorry, you'll have to choose one manually.}");
-         tunerType = -1;
-      }
-      else
-      {
-         // assign the value to the Tcl variable which holds the tuner index during the life-time of the dialog
-         sprintf(str_buf, "%d", tunerType);
-         Tcl_SetVar(interp, "hwcfg_tuner_sel", str_buf, TCL_GLOBAL_ONLY);
-
-         // update the label in front of the popup menu with the name of the new tuner
-         sprintf(str_buf, ".hwcfg.opt2.tuner.curname configure -text \"Tuner: [lindex $hwcfg_tuner_list %d]\"", tunerType);
-         eval_check(interp, str_buf);
-      }
-   }
-   return tunerType;
-}
-
-// ----------------------------------------------------------------------------
-// Update input source setting in HW config dialog window
-//
-static int WinTvCfg_UpdateInputIdx( Tcl_Interp * interp, int inputIdx )
-{
-   char str_buf[200];
-
-   if ((inputIdx >= 0) && (inputIdx <= 2))
-   {
-      // assign the value to the Tcl variable which holds the input index during the life-time of the dialog
-      sprintf(str_buf, "%d", inputIdx);
-      Tcl_SetVar(interp, "hwcfg_input_sel", str_buf, TCL_GLOBAL_ONLY);
-
-      // update the label in front of the popup menu with the name of the new input source
-      sprintf(str_buf, ".hwcfg.opt2.input.curname configure -text \"Video source: [lindex $hwcfg_input_list %d]\"", inputIdx);
-      eval_check(interp, str_buf);
-   }
-   else
-      inputIdx = -1;
-
-   return inputIdx;
-}
-
-// ----------------------------------------------------------------------------
-// Generate summary ofter INI file was (at least partly) successfully loaded
-//
-static void WintvCfg_IniSummary( Tcl_Interp * interp, int pllType, int tunerType, int inputIdx )
-{
-   char msg_buf[250];
-
-   sprintf(msg_buf, "tk_messageBox -type ok -icon info -parent .hwcfg -message {"
-                       "The following parameters were set: ");
-   if (pllType != -1)
-      strcat(msg_buf, "PLL, ");
-   if (tunerType != -1)
-      strcat(msg_buf, "Tuner type, ");
-   if (inputIdx != -1)
-      strcat(msg_buf, "Input source, ");
-
-   if (msg_buf[strlen(msg_buf) - 2] == ',')
-      msg_buf[strlen(msg_buf) - 2] = 0;
-
-   strcat(msg_buf, "}");
-   eval_check(interp, msg_buf);
-}
-
-// ----------------------------------------------------------------------------
-// Definitions for MoreTV INI file
-//
-// map MoreTV tuner indices to nxtvepg indices
-// (since this program is not open source and tuner names are ambiguous,
-// I unfortunately could map only a few of the tuners)
-static const uchar MoretvTunerMapping[] =
-{
-   1, 14, 20, 0, 7, 0, 0, 0, 0, 0
-};
-#define MORETV_TUNER_COUNT (sizeof(MoretvTunerMapping) / sizeof(*MoretvTunerMapping))
-
-// ----------------------------------------------------------------------------
-// Read MoreTV or FreeTV config from registry
-// 
-static bool WintvCfg_GetMoretvIni( Tcl_Interp * interp, TVAPP_NAME appIdx, const char * pTvappPath )
-{
-   const char * pKeyName;
-   HKEY  hKey;
-   DWORD dwSize, dwType;
-   DWORD pllType, tunerType;
-   BOOL  result;
-
-   if (appIdx == TVAPP_MORETV)
-      pKeyName = REG_KEY_MORETV;
-   else
-      pKeyName = REG_KEY_FREETV;
-
-   if (RegOpenKeyEx(HKEY_CURRENT_USER, pKeyName, 0, KEY_READ, &hKey) == ERROR_SUCCESS)
-   {
-      dwSize = sizeof(pllType);
-      if ( (RegQueryValueEx(hKey, "PLL", 0, &dwType, (char *) &pllType, &dwSize) != ERROR_SUCCESS) ||
-           (dwType != REG_DWORD) || (dwSize != sizeof(pllType)) )
-      {
-         pllType = (DWORD) -1;
-      }
-
-      if (appIdx == TVAPP_MORETV)
-      {
-         dwSize = sizeof(tunerType);
-         if ( (RegQueryValueEx(hKey, "Tuner", 0, &dwType, (char *) &tunerType, &dwSize) != ERROR_SUCCESS) ||
-              (dwType != REG_DWORD) || (dwSize != sizeof(tunerType)) )
-         {
-            tunerType = (DWORD) -1;
-         }
-      }
-      else
-      {  // unfortunately FreeTV has a very obscure tuner handling; only MoreTV cfg is useful
-         tunerType = (DWORD) -1;
-      }
-
-      if ((pllType == -1) && (tunerType == -1))
-      {
-         eval_check(interp, "tk_messageBox -type ok -icon warning -parent .hwcfg -message {"
-               "None of the expected hardware settings found. Sorry, you'll have to set them manually.}");
-      }
-      else
-      {
-         pllType = WinTvCfg_UpdatePll(interp, pllType, "PLL initilization");
-         tunerType = WinTvCfg_UpdateTuner(interp, tunerType, MoretvTunerMapping, MORETV_TUNER_COUNT);
-
-         // input index is not defined in the registry -> always set to 0 (tuner)
-         WinTvCfg_UpdateInputIdx(interp, 0);
-
-         WintvCfg_IniSummary(interp, pllType, tunerType, -1);
-      }
-
-      RegCloseKey(hKey);
-
-      result = TRUE;
-   }
-   else
-      result = FALSE;
-
-   return result;
-}
-
-// ----------------------------------------------------------------------------
-// Definitions for MultiDec INI file
-//
-// map MultiDec TV tuner indices to nxtvepg indices
-static const uchar MultidecTunerMapping[] =
-{
-   1, 2, 3, 4, 0, 5, 6, 7, 0
-};
-#define MULTIDEC_TUNER_COUNT (sizeof(MultidecTunerMapping) / sizeof(*MultidecTunerMapping))
-#define MULTIDEC_TUNER_MANUAL  8
-
-// ----------------------------------------------------------------------------
-// Read Multidec INI file
-// 
-static bool WintvCfg_GetMultidecIni( Tcl_Interp * interp, TVAPP_NAME appIdx, const char * pTvappPath )
-{
-   char   line[256];
-   char   tag[64];
-   int    value;
-   int    pllType, tunerType, inputIdx;
-   int    thresh1, thresh2, VHF_L, VHF_H, UHF, config, IFPCoff;
-   char * pPath;
-   FILE * fp;
-   bool   result = FALSE;
-
-   pPath = WintvCfg_GetPath(pTvappPath, INI_FILE_MULTIDEC);
-   if (pPath != NULL)
-   {
-      fp = WinTvCfg_OpenIni(interp, pPath);
-      if (fp != NULL)
-      {
-         pllType   = -1;
-         tunerType = -1;
-         inputIdx  = -1;
-         thresh1 = thresh2 = VHF_L = VHF_H = UHF = config = IFPCoff = -1;
-
-         while (fgets(line, sizeof(line) - 1, fp) != NULL)
-         {
-            if (sscanf(line," %63[^= ] = %d", tag, &value) == 2)
-            {
-               if (strcmp(tag, "BT848-PLL") == 0)
-               {
-                  pllType = value;
-               }
-               else if (strcmp(tag, "TUNERTYP") == 0)
-               {
-                  tunerType = value;
-               }
-               else if (strcmp(tag, "VIDEOSOURCE") == 0)
-               {
-                  inputIdx = value;
-               }
-               else if (strcmp(tag, "TUNER_THRESH1") == 0)
-                  thresh1 = value;
-               else if (strcmp(tag, "TUNER_THRESH2") == 0)
-                  thresh2 = value;
-               else if (strcmp(tag, "TUNER_VHF_L") == 0)
-                  VHF_L = value;
-               else if (strcmp(tag, "TUNER_VHF_H") == 0)
-                  VHF_H = value;
-               else if (strcmp(tag, "TUNER_UHF") == 0)
-                  UHF = value;
-               else if (strcmp(tag, "TUNER_CONFIG") == 0)
-                  config = value;
-               else if (strcmp(tag, "TUNER_IFPCOFF") == 0)
-                  IFPCoff = value;
-            }
-         }
-         fclose(fp);
-         result = TRUE;
-
-         if ((pllType == -1) && (tunerType == -1) && (inputIdx == -1))
-         {
-            eval_check(interp, "tk_messageBox -type ok -icon warning -parent .hwcfg -message {"
-                  "None of the expected hardware settings found. Sorry, you'll have to set them manually.}");
-         }
-         else
-         {
-            pllType = WinTvCfg_UpdatePll(interp, pllType, "PLL initilization");
-
-            if (tunerType == MULTIDEC_TUNER_MANUAL)
-            {
-               tunerType = Tuner_MatchByParams(thresh1, thresh2, VHF_L, VHF_H, UHF, config, IFPCoff);
-               if (tunerType == 0)
-                  eval_check(interp, "tk_messageBox -type ok -icon warning -parent .hwcfg -message {"
-                        "Manual tuner setting did not match any known tuner type. Sorry, you'll have to choose a tuner manually.}");
-
-               // already converted tuner index, so no mapping is required
-               tunerType = WinTvCfg_UpdateTuner(interp, tunerType, NULL, -1);
-            }
-            else
-               tunerType = WinTvCfg_UpdateTuner(interp, tunerType, MultidecTunerMapping, MULTIDEC_TUNER_COUNT);
-
-            inputIdx = WinTvCfg_UpdateInputIdx(interp, inputIdx);
-
-            WintvCfg_IniSummary(interp, pllType, tunerType, inputIdx);
-         }
-      }
-      xfree(pPath);
-   }
-   return result;
-}
-
-// ----------------------------------------------------------------------------
-// Definitions for DScaler INI file
-//
-enum ePLLFreq
-{
-   PLL_NONE = 0,
-   PLL_28,
-   PLL_35,
-};
-
-// only the PLL setting is required from the DScaler TV card table
-static const uchar DScalerPllInit[] =
-{
-   PLL_28, PLL_NONE, PLL_NONE, PLL_NONE, PLL_NONE, PLL_NONE, PLL_NONE, PLL_NONE,
-   PLL_NONE, PLL_NONE, PLL_28, PLL_NONE, PLL_NONE, PLL_28, PLL_NONE, PLL_NONE,
-   PLL_28, PLL_NONE, PLL_NONE, PLL_NONE, PLL_NONE, PLL_28, PLL_NONE, PLL_NONE,
-   PLL_28, PLL_NONE, PLL_NONE, PLL_NONE, PLL_NONE, PLL_NONE, PLL_28, PLL_NONE,
-   PLL_NONE, PLL_28, PLL_28, PLL_28, PLL_28, PLL_28, PLL_28, PLL_28,
-   PLL_NONE, PLL_28, PLL_28, PLL_NONE, PLL_NONE, PLL_28, PLL_28, PLL_35,
-   PLL_28, PLL_NONE, PLL_NONE, PLL_NONE, PLL_NONE, PLL_NONE, PLL_28, PLL_NONE,
-   PLL_NONE, PLL_28, PLL_28, PLL_28, PLL_28, PLL_28, PLL_28, PLL_28,
-   PLL_28, PLL_28, PLL_28, PLL_35, PLL_NONE, PLL_28, PLL_NONE, PLL_28,
-   PLL_28, PLL_NONE, PLL_28, PLL_28, PLL_28, PLL_28, PLL_28, PLL_28,
-   PLL_28, PLL_28, PLL_28, PLL_28, PLL_28, PLL_28,
-};
-#define DSCALER_PLL_COUNT (sizeof(DScalerPllInit) / sizeof(*DScalerPllInit))
-
-// map DScaler TV tuner indices to nxtvepg indices
-static const uchar DScalerTunerMapping[] =
-{
-   /*  0 */ 0, 2, 3, 4, 5, 1,
-   /*  6 */ 6,7,8,9,10,11,12,13,14,
-   /* 15 */ 0, 0,
-   /* 17 */ 15,16,17,
-   /* 20 */ 18,19,20,21,22,23,24,25,26,27,28,29,30,
-   /* 33 */ 33,
-   /* 34 */ 31,0,32,34,35,36,37,38,39,
-   /* 43 */ 33
-};
-#define DSCALER_TUNER_COUNT (sizeof(DScalerTunerMapping) / sizeof(*DScalerTunerMapping))
-
-// ----------------------------------------------------------------------------
-// Read DScaler INI file
-// 
-static bool WintvCfg_GetDscalerIni( Tcl_Interp * interp, TVAPP_NAME appIdx, const char * pTvappPath )
-{
-   char   line[256];
-   char   section[100];
-   char   tag[64];
-   int    value;
-   bool   isHwSect;
-   int    cardType, pllType, tunerType, inputIdx;
-   char * pPath;
-   FILE * fp;
-   bool   result = FALSE;
-
-   pPath = WintvCfg_GetPath(pTvappPath, INI_FILE_DSCALER);
-   if (pPath != NULL)
-   {
-      fp = WinTvCfg_OpenIni(interp, pPath);
-      if (fp != NULL)
-      {
-         isHwSect  = FALSE;
-         cardType  = -1;
-         tunerType = -1;
-         inputIdx  = -1;
-
-         while (fgets(line, sizeof(line) - 1, fp) != NULL)
-         {
-            if (sscanf(line,"[%99[^]]]", section) == 1)
-            {
-               isHwSect = (strcmp(section, "Hardware") == 0);
-            }
-            else if (isHwSect)
-            {  // current line is in "Hardware" section
-               if (sscanf(line," %63[^= ] = %d", tag, &value) == 2)
-               {
-                  if (strcmp(tag, "CardType") == 0)
-                  {
-                     cardType = value;
-                  }
-                  else if (strcmp(tag, "TunerType") == 0)
-                  {
-                     tunerType = value;
-                  }
-                  else if (strcmp(tag, "VideoSource") == 0)
-                  {
-                     inputIdx = value;
-                  }
-               }
-            }
-         }
-         fclose(fp);
-         result = TRUE;
-
-         if ((cardType == -1) && (tunerType == -1) && (inputIdx == -1))
-         {
-            eval_check(interp, "tk_messageBox -type ok -icon warning -parent .hwcfg -message {"
-                  "None of the expected hardware settings found. Sorry, you'll have to set them manually.}");
-         }
-         else
-         {
-            if (cardType == -1)
-            {  // no card definition found in the INI file
-               pllType = WinTvCfg_UpdatePll(interp, -1, "TV card");
-            }
-            else if (cardType >= DSCALER_PLL_COUNT)
-            {  // invalid or unknown TV card -> map to invalid PLL code to trigger warning msg
-               pllType = WinTvCfg_UpdatePll(interp, 3, "TV card");
-            }
-            else
-            {  // card identified -> fetch PLL setting from table and update GUI
-               pllType = WinTvCfg_UpdatePll(interp, DScalerPllInit[cardType], "TV card");
-            }
-
-            tunerType = WinTvCfg_UpdateTuner(interp, tunerType, DScalerTunerMapping, DSCALER_TUNER_COUNT);
-            inputIdx = WinTvCfg_UpdateInputIdx(interp, inputIdx);
-
-            WintvCfg_IniSummary(interp, pllType, tunerType, inputIdx);
-         }
-      }
-      xfree(pPath);
-   }
-   return result;
-}
-
-// ----------------------------------------------------------------------------
-// Definitions for K!TV INI file
-//
-// map K!TV tuner indices to nxtvepg indices
-static const uchar KtvTunerMapping[] =
-{
-   1,2,3,4,0,5,6,7,8
-};
-#define KTV_TUNER_COUNT (sizeof(KtvTunerMapping) / sizeof(*KtvTunerMapping))
-#define KTV_TUNER_MANUAL  8
-#define KTV_TUNER_MANUAL_NEW  40
-
-// ----------------------------------------------------------------------------
-// Read K!TV INI file
-// 
-static bool WintvCfg_GetKtvIni( Tcl_Interp * interp, TVAPP_NAME appIdx, const char * pTvappPath )
-{
-   char   line[256];
-   char   section[100];
-   char   tag[64];
-   int    value;
-   bool   isHwSect, isTunerSect, isMiscSect;
-   int    pllType, tunerType, inputIdx;
-   int    thresh1, thresh2, VHF_L, VHF_H, UHF, config, IFPCoff;
-   bool   isNewTunerTable;
-   char * pPath;
-   FILE * fp;
-   bool   result = FALSE;
-
-   pPath = WintvCfg_GetPath(pTvappPath, INI_FILE_KTV);
-   if (pPath != NULL)
-   {
-      fp = WinTvCfg_OpenIni(interp, pPath);
-      if (fp != NULL)
-      {
-         isHwSect    = FALSE;
-         isTunerSect = FALSE;
-         isMiscSect  = FALSE;
-         pllType     = -1;
-         tunerType   = -1;
-         inputIdx    = -1;
-         thresh1 = thresh2 = VHF_L = VHF_H = UHF = config = IFPCoff = -1;
-         isNewTunerTable = FALSE;
-
-         while (fgets(line, sizeof(line) - 1, fp) != NULL)
-         {
-            if (sscanf(line,"[%99[^]]]", section) == 1)
-            {
-               isHwSect    = ((strcmp(section, "Carte") == 0) || (strcmp(section, "Card") == 0));
-               isTunerSect = (strcmp(section, "Tuner") == 0);
-               isMiscSect  = (strcmp(section, "Misc") == 0);
-            }
-            else if (isHwSect)
-            {  // current line is in "Hardware" section
-               if (sscanf(line," %63[^= ] = %d", tag, &value) == 2)
-               {
-                  if (strcmp(tag, "BT848_PLL") == 0)
-                  {
-                     pllType = value;
-                  }
-                  else if (strcmp(tag, "TUNER_TYPE") == 0)
-                  {
-                     tunerType = value;
-                  }
-                  else if (strcmp(tag, "VIDEO_SOURCE") == 0)
-                  {
-                     inputIdx = value;
-                  }
-               }
-            }
-            else if (isTunerSect)
-            {
-               if (sscanf(line," %63[^= ] = %d", tag, &value) == 2)
-               {
-                  if (strcmp(tag, "TUNER_THRESH1") == 0)
-                     thresh1 = value;
-                  else if (strcmp(tag, "TUNER_THRESH2") == 0)
-                     thresh2 = value;
-                  else if (strcmp(tag, "TUNER_VHF_L") == 0)
-                     VHF_L = value;
-                  else if (strcmp(tag, "TUNER_VHF_H") == 0)
-                     VHF_H = value;
-                  else if (strcmp(tag, "TUNER_UHF") == 0)
-                     UHF = value;
-                  else if (strcmp(tag, "TUNER_CONFIG") == 0)
-                     config = value;
-                  else if (strcmp(tag, "TUNER_IFPCOFF") == 0)
-                     IFPCoff = value;
-               }
-            }
-            else if (isMiscSect)
-            {
-               if (sscanf(line," VERSION = %63s", tag) == 1)
-               {
-                  // version entry was introduced with K!TV version 1.2.0.3
-                  isNewTunerTable = TRUE;
-               }
-            }
-         }
-         fclose(fp);
-         result = TRUE;
-
-         if ((pllType == -1) && (tunerType == -1) && (inputIdx == -1))
-         {
-            eval_check(interp, "tk_messageBox -type ok -icon warning -parent .hwcfg -message {"
-                  "None of the expected hardware settings found. Sorry, you'll have to set them manually.}");
-         }
-         else
-         {
-            pllType = WinTvCfg_UpdatePll(interp, pllType, "PLL initialization");
-            if (tunerType == ((isNewTunerTable == FALSE) ? KTV_TUNER_MANUAL : KTV_TUNER_MANUAL_NEW))
-            {
-               tunerType = Tuner_MatchByParams(thresh1, thresh2, VHF_L, VHF_H, UHF, config, IFPCoff);
-               if (tunerType == 0)
-                  eval_check(interp, "tk_messageBox -type ok -icon warning -parent .hwcfg -message {"
-                        "Manual tuner setting did not match any known tuner type. Sorry, you'll have to choose a tuner manually.}");
-
-               // already converted tuner index, so no mapping is required
-               tunerType = WinTvCfg_UpdateTuner(interp, tunerType, NULL, -1);
-            }
-            else if (isNewTunerTable == FALSE)
-               tunerType = WinTvCfg_UpdateTuner(interp, tunerType, KtvTunerMapping, KTV_TUNER_COUNT);
-            else  // starting with version 1.2.0.3 K!TV uses the same tuner table as DScaler >= 3.0 with 40 entries + manual
-               tunerType = WinTvCfg_UpdateTuner(interp, tunerType, DScalerTunerMapping, DSCALER_TUNER_COUNT);
-
-            inputIdx = WinTvCfg_UpdateInputIdx(interp, inputIdx);
-
-            WintvCfg_IniSummary(interp, pllType, tunerType, inputIdx);
-         }
-      }
-      xfree(pPath);
-   }
-   return result;
-}
-
-// ----------------------------------------------------------------------------
 //
 typedef struct
 {
@@ -1398,17 +819,16 @@ typedef struct
    bool          needPath;
    void       (* pGetStationNames) ( Tcl_Interp * interp, const char * pTvappPath );
    bool       (* pGetFreqTab) ( Tcl_Interp * interp, DYN_FREQ_BUF * pFreqBuf, const char * pTvappPath );
-   bool       (* pGetIni) ( Tcl_Interp * interp, TVAPP_NAME appIdx, const char * pTvappPath );
 } TVAPP_LIST;
 
 static const TVAPP_LIST tvAppList[TVAPP_COUNT] =
 {
-   { "none",     FALSE, NULL, NULL, NULL },
-   { "DScaler",  TRUE,  WintvCfg_GetDscalerStationNames,  WintvCfg_GetDscalerFreqTab,  WintvCfg_GetDscalerIni },
-   { "K!TV",     TRUE,  WintvCfg_GetKtvStationNames,      WintvCfg_GetKtvFreqTab,      WintvCfg_GetKtvIni }, 
-   { "MultiDec", TRUE,  WintvCfg_GetMultidecStationNames, WintvCfg_GetMultidecFreqTab, WintvCfg_GetMultidecIni }, 
-   { "MoreTV",   FALSE, WintvCfg_GetMoretvStationNames,   WintvCfg_GetMoretvFreqTab,   WintvCfg_GetMoretvIni }, 
-   { "FreeTV",   FALSE, WintvCfg_GetFreetvStationNames,   WintvCfg_GetFreetvFreqTab,   WintvCfg_GetMoretvIni }, 
+   { "none",     FALSE, NULL, NULL },
+   { "DScaler",  TRUE,  WintvCfg_GetDscalerStationNames,  WintvCfg_GetDscalerFreqTab  },
+   { "K!TV",     TRUE,  WintvCfg_GetKtvStationNames,      WintvCfg_GetKtvFreqTab      }, 
+   { "MultiDec", TRUE,  WintvCfg_GetMultidecStationNames, WintvCfg_GetMultidecFreqTab }, 
+   { "MoreTV",   FALSE, WintvCfg_GetMoretvStationNames,   WintvCfg_GetMoretvFreqTab   }, 
+   { "FreeTV",   FALSE, WintvCfg_GetFreetvStationNames,   WintvCfg_GetFreetvFreqTab   }, 
 };
 
 // ----------------------------------------------------------------------------
@@ -1648,55 +1068,6 @@ static int WintvCfg_TestChanTab( ClientData ttp, Tcl_Interp * interp, int argc, 
 }
 
 // ----------------------------------------------------------------------------
-// Load configuration params from TV app ini file into the TV card dialog
-// - the parameters are not applied to the driver yet, only loaded into Tcl vars
-//
-static int WintvCfg_LoadHwConfig( ClientData ttp, Tcl_Interp * interp, int argc, CONST84 char *argv[] )
-{
-   int    newAppIdx;
-   int    result;
-
-   if ( (argc != 3) ||
-        (Tcl_GetInt(interp, argv[1], &newAppIdx) != TCL_OK) )
-   {  // parameter count is invalid
-      #if (DEBUG_SWITCH_TCL_BGERR == ON)
-      Tcl_SetResult(interp, "Usage C_Tvapp_LoadConfig: <tvAppIdx> <path>", TCL_STATIC);
-      #endif
-      result = TCL_ERROR;
-   }
-   else
-   {
-      if (newAppIdx == TVAPP_NONE)
-      {  // no TV app selected yet (i.e. option "none" selected)
-         eval_check(interp, 
-            "tk_messageBox -type ok -icon error -parent .hwcfg -message {"
-               "Please select a TV application from which to load the config.}");
-      }
-      else if (newAppIdx < TVAPP_COUNT)
-      {
-         if ((tvAppList[newAppIdx].needPath == FALSE) || (argv[2][0] != 0))
-         {
-            // load TV card settings from INI files (e.g. tuner & PLL types)
-            // all user feedback messages are generated inside the parser functions
-            tvAppList[newAppIdx].pGetIni(interp, newAppIdx, argv[2]);
-         }
-         else
-         {  // no TV app dir specified -> abort with error msg
-            char msg_buf[250];
-            sprintf(msg_buf, "tk_messageBox -type ok -icon error -parent .hwcfg -message {"
-               "You must specify the directory where %s is installed.}", tvAppList[newAppIdx].pName);
-            eval_check(interp, msg_buf);
-         }
-      }
-      else
-         debug1("WintvCfg-LoadHwConfig: illegal app idx %d", newAppIdx);
-
-      result = TCL_OK;
-   }
-   return result;
-}
-
-// ----------------------------------------------------------------------------
 // Shut the module down: free resources
 //
 void WintvCfg_Destroy( void )
@@ -1715,7 +1086,6 @@ void WintvCfg_Init( bool enableChanTabFilter )
    Tcl_CreateCommand(interp, "C_Tvapp_GetStationNames", WintvCfg_GetStationNames, (ClientData) NULL, NULL);
 
    Tcl_CreateCommand(interp, "C_Tvapp_GetTvappList", WintvCfg_GetTvappList, (ClientData) NULL, NULL);
-   Tcl_CreateCommand(interp, "C_Tvapp_LoadHwConfig", WintvCfg_LoadHwConfig, (ClientData) NULL, NULL);
    Tcl_CreateCommand(interp, "C_Tvapp_TestChanTab", WintvCfg_TestChanTab, (ClientData) NULL, NULL);
    Tcl_CreateCommand(interp, "C_Tvapp_CfgNeedsPath", WintvCfg_CfgNeedsPath, (ClientData) NULL, NULL);
 

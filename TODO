@@ -1,36 +1,50 @@
-This file contains a list of changes that are planned for the future.
-No promises are made as to when I'll get to execute these changes.
+This file contains a list of possible changes that are planned for the
+future.  No promises are made as to when I'll get to implement them.
 Your feedback is always welcome, so feel free to mail me if you want to
 boost any item's priority, find more points that need to be fixed or if
 you have ideas for additional features.
 
 
-Misc. changes planned for the near future:
-- support for tuner MT2023 and related chipset
-- SECAM support for WIN32 wintvcfg parsers
-- optimize filtering for user-def columns
+Misc. fixes & changes recently suggested/planned for the near future:
+- WIN32 TV app shm: resend info for same channel (req. by zoomin)
+  also: add more EPG info to shared memory; add video norm to shm
+- WIN32: SECAM support for wintvcfg.c channel table parsers
 - single click on short-info size slider: resize by one line
 - start time search: abs. stop time val "23:10" excludes titles starting at 23:10
-- improved text search: keywords (google style), multi-line (OR), parity-safe/fuzzy
+- improve text search: keywords (google style AND), parity-safe/fuzzy
 - parity-safe short/long info redundancy removal
 - series search via title
 - allow provider channel names at the -prov command line arg
-- refuse to load rcfile from newer versions
-  (include backwards compat flag in rcfile)
 - HTML dump: allow to specify which column to use for hyperlink
 - user-def column: background color (maybe of complete row?)
 - context menu config menu: remove need for "update" button: save automatically
 - new PI column type which displays full weekday name (Thierry)
-- help text hyperlink error in chapter "Context menu" (Thierry)
 - different background colors for PI, alternating by date (Ronceval)
 - WIN32: menubutton popups does not work when invoked for the 2nd time via
   ALT key binding (Thierry)
-- WIN32: status line hidden by task bar when maximized (not on NT?) (Ronceval)
+- WIN32: save main window position in INI file (when manually changed; Thierry)
+- graying out filtered programmes instead of removing them
 - localize language for date drop-down menu (Thierry)
+- allow multiple, non-continguous selections in shortcut & networks menu
+  without use of the keyboard (like in -selectmode multiple)
+  (suggested via discussion forum by "Philippe")
+- allow expired PI in the database and browser window (at least for VPS)
 
-daemon:
-- make concurrent updates of shared rc file safe (e.g. daemon writes provider freq)
-  or use a different rc for acq parameters; currently data can be lost!
+New "NetBox" layout: open issues/known problems:
+- refresh may leave excessive gaps between items;
+  refresh brings scrolled-out elements back into view
+- special marker row between different days?
+- changing column count/width by resizing outer window?
+- possible additional formatting options:
+  + wrap text (e.g. for title, or even description)
+  + align text: left/center/right
+  + shortcut-specific background color
+  + general background color (for complete element)
+
+Acquisition daemon:
+- make concurrent updates of shared rc file safe (e.g. daemon writes provider
+  list in follow ui mode) or use a different rc for acq parameters; currently
+  data can be lost!
 - when dump is aborted, keep the old modification time on client-side
 - VPS: trigger check device access via remove cmd (upon xawtv start/exit)
 - limit queue max length on server side (e.g. when bandwidth too low
@@ -38,23 +52,18 @@ daemon:
 - client-side db mgmt during dump state: lock merge & PI listbox?
 optional:
 - cmdline option -nodbdir: suck the complete db through the pipe
-- avoid copying each forwarded EPG block for each client
+- avoid copying memory each forwarded EPG block for each connected client
 win32 port:
 - install daemon as a service, possibly with helper app. in the systray
   to check acquisition status.
-- load winsock DLL dynamically or provide dummy DLL for Win95
+- add support for named pipes as alternative to TCP/IP
 
-Bugs reported by Jan:
-- sometimes falsely detected "forced passive" after acq cycle advance
-
-nxtvepg xawtv.c:
-- allow expired PI in the browser window (for VPS)
-- Tune-TV: warn if station name is not in .xawtv
-- Tune-TV: offer to start xawtv if not running
+xawtv TV app interaction:
+- add option for TV app connections via socket
+- Tune-TV: warn if station name is not in .xawtv?
+- Tune-TV: offer to start xawtv if not running?
   may not work if xawtv requires command line options
 - VPS empty/pause codes display
-- if no PIL available, check if packet 8/30/x display status text
-  is available and match against EPG db titles
 
 WIN32 port fixes:
 - Bt8x8 driver: make video input matrix configurable
@@ -113,8 +122,9 @@ other required fixes:
 
 possible new features: (in order of decreasing priority)
 - filter for min/max duration of shows
-- bookmarks with multiple priority levels and reminders for bookmarks above
-  an adjustable priority level (raise popup or dispatch external app.)
+- bookmarks with multiple priority levels and reminders (popups, or automatic
+  TV channel change) for bookmarks above an adjustable priority level (raise
+  popup or dispatch external app.)
 - series management based on titles only, across all networks
 - use GTK+ or Tix library to improve GUI
 - allow multiple acquisition and GUI clients, possibly on different hosts

@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: draw_stats.tcl,v 1.2 2002/11/10 20:31:06 tom Exp tom $
+#  $Id: draw_stats.tcl,v 1.3 2002/12/28 13:08:14 tom Exp tom $
 #
 
 #=LOAD=TimeScale_Open
@@ -302,7 +302,7 @@ proc TimeScale_GotoTime {netwop w xcoo} {
       ResetFilterState
       SelectNetwopByIdx $netwop 1
       # set cursor onto the first PI starting after the selected time
-      C_PiListBox_GotoTime 0 $pi_time
+      C_PiBox_GotoTime 0 $pi_time
    }
 }
 

@@ -23,7 +23,7 @@
 !
 !  Author: Tom Zoerner
 !
-!  $Id: Nxtvepg.ad,v 1.1 2002/11/10 19:49:40 tom Exp tom $
+!  $Id: Nxtvepg.ad,v 1.2 2003/02/26 20:35:12 tom Exp tom $
 !
 
 ! Remove comment sign ! from values you want to change
@@ -49,6 +49,10 @@
 !nxtvepg*help_font: Helvetica -12 normal
 ! font for xawtv popup window
 !nxtvepg*xawtv_font: Helvetica -14 bold
+! foreground color for xawtv overlay
+!nxtvepg*xawtv_overlay_fg: white
+! background color for xawtv overlay
+!nxtvepg*xawtv_overlay_bg: black
 ! font for message popups (e.g. warnings and error messages)
 !nxtvepg*msgbox_font: Helvetica -14 bold
 

@@ -22,7 +22,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbmerge.c,v 1.25 2002/09/14 18:22:50 tom Exp tom $
+ *  $Id: epgdbmerge.c,v 1.26 2003/01/11 19:40:14 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -39,7 +39,6 @@
 #include "epgdb/epgdbmgmt.h"
 #include "epgdb/epgtscqueue.h"
 #include "epgdb/epgstream.h"
-#include "epgui/pilistbox.h"
 #include "epgdb/epgdbmerge.h"
 
 
@@ -730,7 +729,8 @@ void EpgDbMergeInsertPi( EPGDB_MERGE_CONTEXT * dbmc, EPGDB_BLOCK * pNewBlock )
 
       assert(EpgDbCheckChains(pUiDbContext));
       // if blocks were removed, re-evaluate scrollbar position
-      PiListBox_DbRecount(pUiDbContext);
+      if (pUiDbContext->pPiAcqCb != NULL)
+         pUiDbContext->pPiAcqCb(pUiDbContext, EPGDB_PI_RECOUNT, NULL, NULL);
 
       // append the block's covered time range to the PI timescale queue
       if (dbmc->tscEnable)

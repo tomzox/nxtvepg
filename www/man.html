@@ -2,7 +2,7 @@
 <HTML lang="en">
 <HEAD>
 <TITLE>Nextview EPG Decoder Documentation</TITLE>
-<META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
+<META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
 <META name="language" content="en">
 <META name="author" content="Tom Zoerner">
 <META name="copyright" content="Tom Zoerner">
@@ -15,10 +15,10 @@
 <LINK rel="top" href="http://nxtvepg.sourceforge.net/" title="nexTView EPG Dekoder Homepage">
 </HEAD>
 <BODY BGCOLOR=#f8f8f8>
-<P><HR><P>
 <H1>Nextview EPG Decoder Documentation</H1>
+<P>
 This is the manual page for the
-<A HREF="http://nxtvepg.sourceforge.net/">nxtvepg</A> software package.<P>
+<A HREF="http://nxtvepg.sourceforge.net/">nxtvepg</A> software package.</P>
 
 <A NAME="__index__"></A>
 <!-- INDEX BEGIN -->
@@ -66,6 +66,7 @@ This is the manual page for the
 		<LI><A HREF="#shortcut update dialog">Shortcut update dialog</A></LI>
 	</UL>
 
+	<LI><A HREF="#composite attributes">COMPOSITE ATTRIBUTES</A></LI>
 	<LI><A HREF="#context menu">CONTEXT MENU</A></LI>
 	<LI><A HREF="#control">CONTROL</A></LI>
 	<LI><A HREF="#configuration">CONFIGURATION</A></LI>
@@ -78,13 +79,14 @@ This is the manual page for the
 		<LI><A HREF="#tv card input">TV card input</A></LI>
 		<LI><A HREF="#client/server">Client/Server</A></LI>
 		<LI><A HREF="#tv application interaction">TV application interaction</A></LI>
-		<LI><A HREF="#select columns">Select columns</A></LI>
-		<LI><A HREF="#userdefined columns">User-defined columns</A></LI>
+		<LI><A HREF="#select attributes">Select attributes</A></LI>
+		<LI><A HREF="#attribute composition">Attribute composition</A></LI>
 		<LI><A HREF="#select networks">Select networks</A></LI>
 		<LI><A HREF="#network names">Network names</A></LI>
-		<LI><A HREF="#context menu">Context menu</A></LI>
+		<LI><A HREF="#context menu extensions">Context menu extensions</A></LI>
 		<LI><A HREF="#themes language">Themes language</A></LI>
 		<LI><A HREF="#show/hide">Show/Hide</A></LI>
+		<LI><A HREF="#list layout">List layout</A></LI>
 	</UL>
 
 	<LI><A HREF="#files">FILES</A></LI>
@@ -135,10 +137,10 @@ In Germany and Austria: Kabel1, 3Sat, RTL-II.
 In Switzerland: SF1, TSR1, TSI1, EuroNews.
 <P></P>
 <LI>
-In France: Canal+, M6.
+In France: Canal+, TV5, EuroNews.
 <P></P>
 <LI>
-In Turkey: TRT-1
+In Turkey: TRT.
 <P></P></UL>
 <P>For up-to-date information check the nxtvepg homepage in the Internet
 (see the About popup in the Help menu). If you don't receive any of the
@@ -166,7 +168,8 @@ Start with the main window iconified (i.e. minimized).
 <P>For M$ Windows users this option may be esp. helpful when nxtvepg is
 started from inside the <EM>Auto start</EM> group and <EM>Hide on minimize</EM> is
 enabled: nxtvepg then will start almost invisibly in the background,
-only with an icon in the system tray of the task bar.</P>
+only with an icon in the system tray of the task bar
+(see also <A HREF="#show/hide">CONFIGURATION: Show/Hide</A>).</P>
 <P></P>
 <DT><STRONG><A NAME="item_%2Drcfile_path"><STRONG>-rcfile</STRONG> <EM>path</EM></A></STRONG><BR>
 <DD>
@@ -177,7 +180,7 @@ on Windows nxtvepg.ini in the current directory.
 <DT><STRONG><A NAME="item_%2Ddbdir_directory"><STRONG>-dbdir</STRONG> <EM>directory</EM></A></STRONG><BR>
 <DD>
 Specify an alternate directory for the databases.
-Default: On UNIX /usr/tmp/nxtvdb, on Windows the current directory.
+Default: On UNIX <EM>/usr/tmp/nxtvdb</EM>, on Windows the current directory.
 Note that the database management is not equipped for concurrent writing,
 so if you have more than one TV tuner card in your system or network,
 relocate the directory into the users' homes.
@@ -190,9 +193,10 @@ a different host, you need to mount the remote directory, e.g. via NFS.</P>
 Specify which TV card hardware to use, if you have more than card.
 Default: index 0.
 On Linux the given index is appended to the device names,
-i.e. <EM>/dev/vbi</EM> and <EM>/dev/video</EM>.
+i.e. <EM>/dev/vbi</EM> and <EM>/dev/video</EM> (see also <A HREF="#files">FILES</A>).
 On Windows index ``n'' means the n-th card found while scanning the PCI
-bus for cards with a Bt878, Bt878A, Bt848 or Bt849 chip.  If you have more
+bus for cards with a supported capture chip (e.g. Brooktree Bt878, Bt878A,
+Bt848, Bt849, Philips SAA7134, Conexant 23881).  If you have more
 than one TV card with the same chip, the order between those is undefined,
 but still constant (i.e. the order is determined by the driver, not nxtvepg)
 <P></P>
@@ -209,7 +213,8 @@ the previous session.</P>
 <DT><STRONG><A NAME="item_%2Dnoacq"><STRONG>-noacq</STRONG></A></STRONG><BR>
 <DD>
 Start with acquisition disabled.
-The acquisition can still be started later from the Control menu.
+The acquisition can still be started later from the Control menu
+(see <A HREF="#enable acquisition">CONTROL: Enable acquisition</A>).
 <P></P>
 <DT><STRONG><A NAME="item_%2Ddaemon"><STRONG>-daemon</STRONG></A></STRONG><BR>
 <DD>
@@ -239,8 +244,10 @@ the $HOME environment variable  might not be (correctly) defined.  Example:</P>
 <PRE>
    su nobody -c &quot;/usr/local/bin/nxtvepg -daemon \
                  -rcfile /usr/local/etc/nxtvepgrc&quot;</PRE>
-<P>The only way to stop the daemon is to send it a signal, i.e. kill it with
-SIGTERM. For more details see <A HREF="#control">CONTROL</A> and <A HREF="#files">FILES</A>.</P>
+<P>The only way to stop the daemon is to send it a signal, i.e. kill
+it with SIGTERM.  If it's running on the same host and login, it can
+also be stopped by deselecting <EM>Enable acquisition</EM> in the <EM>Control</EM>
+menu.  For more details see <A HREF="#control">CONTROL</A> and <A HREF="#files">FILES</A>.</P>
 <P></P>
 <DT><STRONG><A NAME="item_%2Dnodetach"><STRONG>-nodetach</STRONG></A></STRONG><BR>
 <DD>
@@ -261,12 +268,13 @@ you can use different acquisition strategies for daemon and GUI.
 <P></P>
 <DT><STRONG><A NAME="item_%2Ddump_mode"><STRONG>-dump</STRONG> <EM>mode</EM></A></STRONG><BR>
 <DD>
-With this argument, nxtvepg will only export the database in a fixed text
-format (see also <A HREF="#export as text">CONTROL: Export as text</A>), then exit.
-This argument must be combined with <EM>-provider</EM> to specify which database
-is to be exported.
-<P>Three mode keywords are understood:
-<EM>pi</EM> to dump programmes (i.e. the complete schedules),
+With this argument, nxtvepg will only export the database in XML format
+(see <A HREF="#export as xmltv">CONTROL: Export as XMLTV</A>) or in a fixed text format (see also
+<A HREF="#export as text">CONTROL: Export as text</A>), then exit.  This argument must be combined
+with <EM>-provider</EM> to specify which database is to be exported.
+<P>To export the database in XML format, use keyword <EM>xml</EM> as mode.</P>
+<P>For text export three mode keywords are understood:
+<EM>pi</EM> to dump programmes (i.e. the complete TV schedules),
 <EM>ai</EM> to dump the provider's network table,
 <EM>pdc</EM> to dump the PDC theme table.</P>
 <P>The output is written to <EM>stdout</EM> unless you redirect it into a file
@@ -325,45 +333,61 @@ However it's recommended to skim at least through <A HREF="#basic browsing">BASI
 <P>
 <H2><A NAME="tv card setup on m$ windows">TV card Setup on M$ Windows</A></H2>
 <P>Windows users first have to configure the driver for their TV card
-in the 'TV card input' dialog from the Configure menu (for more
-in-depth information see also <A HREF="#tv card input">CONFIGURATION: TV card input</A>).
+in the 'TV card input' dialog from the Configure menu (for additional
+information see also <A HREF="#tv card input">CONFIGURATION: TV card input</A>).
 UNIX users can skip this section.</P>
-<P>The easiest way is to copy the values of your favorite TV application.
-nxtvepg can read the INI files or registry of the following freeware
-programs: DScaler, K!TV, MultiDec, MoreTV, FreeTV. After selecting a
-TV app in the drop-down menu, you need to specify the directory where
-the software is installed in the entry field below (i.e. the directory
-which contains the <EM>.INI</EM> file, except for MoreTV and FreeTV which use
-the central Windows registry to store their parameters); click the folder
-icon on the right to get a browser window for directory selection.</P>
-<P>Finally press the <EM>Load config</EM> button.  If loading succeeds, the three
-parameters in the middle box of the dialog window have been set,
-i.e. input source, tuner type and PLL initialization.  Note that the
-TV application type and directory configured here are also used by the
-EPG scan and the network name dialog to obtain a channel table.</P>
-<P>If nxtvepg cannot load your TV app's configuration, you should open your
-TV app's card configuration dialog and look up the tuner and PLL settings
-used there, and then set them manually in nxtvepg.  Otherwise the only
-way to figure out which tuner your card is using is to open your PC case
-and search for a label on the metal tuner box on the TV card, or try all
-the tuners in nxtvepg's list.</P>
-<P>Some hints for figuring out your settings: if you live in Germany,
-Austria or Switzerland you probably have a PAL tuner, in France it's
-one of the SECAM types. (If you select the wrong tuner, you can have
-either no reception at all or no reception just on a few channels.)
-The correct value for <EM>PLL initialization</EM> with PAL and SECAM cards
+<P>To start card configuration, press the <EM>Configure card</EM> button in the
+middle of the dialog window, which will open another dialog.  If no
+supported TV capture chips were found in your system, the button will
+be disabled.  In case you see a message claiming <EM>PCI scan failed</EM>,
+this means the TV card driver could not be loaded.  In this case close
+all other video applications and try again or look up a detailed
+description of driver error messages in the README file.</P>
+<P>First press the <EM>Autodetect</EM> button to the right of the dialog window;
+this will read certain parameter values from non-volatile memory on
+your card (EEPROM) to determine the manufacturer and model.  Optimally
+this will allow to derive all required parameters automatically.  If this
+succeeds, all your card's parameters will be set and you're done
+and can close the configuration dialog with Ok.  If you wish you can
+still override automatically derived values (e.g. tuner type) with the
+options described below.</P>
+<P>If you get a message that says the card, but not the tuner, could
+be determined you can skip the next paragraphs and continue with the
+manual tuner selection.</P>
+<P>If your card type could not be automatically determined, search and
+select your card type in the listbox at the left and then press the
+<EM>Pick from list</EM> button or double click on the listbox entry.
+Note: The card list is identical to the <STRONG>DScaler</STRONG> TV application (also
+very similar to <STRONG>K!TV</STRONG>); the same is true for the tuner list. Hence
+if you're unsure, the easiest way is to look up your configuration in
+DScaler and just copy it here.</P>
+<P>For certain card types, the card is queried for the tuner type after
+manual card selection.  If this fails, you'll get a message and have
+to select the tuner manually.</P>
+<P>To configure a tuner type, open the tuner selection popup menu by clicking
+on the <EM>Configure</EM> button and select one of the entries.  For many cards
+the tuner type is printed on the outside of the retail packaging. Yet a
+better way is to read the tuner type from the metal shielding box on the
+card itself.</P>
+<P>Some hints for figuring out your settings:  For many cards the selected
+card type is not relevant to nxtvepg (i.e. only tuner and for Bt878 cards
+the PLL).  Hence if you don't find your card in the list don't worry, just
+use any PAL or SECAM card entry in the list and set the other parameters
+manually.  To check your configuration start an EPG scan.  Before you do so
+you must leave the configuration sub-menu with OK so that the changes are
+applied.  For your convenience, you can open the card configuration dialog
+with a button in the EPG scan dialog window.</P>
+<P>Hints for tuner selection: If you live in Germany, Austria or Switzerland
+you probably have a PAL tuner, in France it's one of the SECAM types.
+If you select the wrong tuner, you can have either no reception at all
+(the EPG scan will just run through and suggest to check your antenna)
+all or no reception just on a few channels.</P>
+<P>For cards built around a Brooktree chip (Bt878 et.al.) the type of PLL
+initialization also needs to be set.  This setting is directly tied to your
+card selection, hence usually you will not need to set it manually.
+Usually the correct value for <EM>PLL initialization</EM> with PAL and SECAM cards
 is either <EM>No init</EM> or <EM>28 MHz</EM>. (If you select the wrong value
 you have no reception at all.)</P>
-<P>If you're not sure about your configuration, start with the topmost and
-then try them one after each other and start an EPG scan inbetween (see
-below) to
-check if the tuner works.  If you have one of the TV applications listed
-above make sure to keep the <EM>Use TV app freq.</EM> button enabled; this way
-only well known channels are visited, and you can monitor in the output
-window if there is reception on these channels (however only networks
-which transmit VPS/PDC can be identified with their network name).</P>
-<P>If you have problems see <EM>README</EM> for more details and a
-list of error messages from the Windows driver.</P>
 <P>
 <H2><A NAME="video input configuration">Video input configuration</A></H2>
 <P>Before nxtvepg can start acquiring EPG data, it must be told if the
@@ -418,10 +442,10 @@ is built from the result.</P>
 <P>You can speed up the scan by using a TV application's channel table;
 in this case the scan is limited to TV frequencies defined in the
 TV app's channel table. This mode is enabled with the
-<EM>Use TV app freq. table</EM> checkbutton. It's checked by default if
-you have loaded your TV card parameters from a TV application's INI
-file.  If you want to load the channel table from a different application
-use the <EM>TV app. interaction</EM> dialog described in the next chapter.</P>
+<EM>Use TV app freq. table</EM> checkbutton.  This button will be disabled
+until you've selected a TV application in the <EM>TV app. interaction</EM>
+dialog described in the next chapter.  You can open this dialog by
+pressing the button at the bottom of the EPG scan dialog window.</P>
 <P>At the end of the scan there's a short summary which tells you how many
 providers have been found.  If there were any, you can close the dialog
 window and open the provider selection dialog from the Configure menu
@@ -472,10 +496,9 @@ adapted to the respective TV applications.  The third one however
 requires cooperation of both sides.  For this reason the number
 of TV applications for which the passive features are supported
 will always be much larger.  On Windows the interaction features
-are still under development and currently only supported by a
-developer's version of K!TV.</P>
-<P>On UNIX only <EM>xawtv</EM> is supported currently.  With xawtv all
-the features listed above are supported.</P>
+are currently only supported by K!TV.</P>
+<P>On UNIX only <EM>xawtv</EM> and <EM>xawdecode</EM> are supported currently.
+With both all the features listed above are supported.</P>
 <P>On Windows several freeware TV applications are supported for the
 passive features; you must select which one you're using.
 If you've loaded TV card settings from
@@ -486,12 +509,18 @@ source for the channel table, open the <EM>TV app. interaction</EM> dialog
 <P>Regarding the third, the active feature:
 You can check if nxtvepg is able to interact with a specific TV application
 by starting both, and then opening the TV application interaction
-dialog in  the Configure menu. In the middle of the dialog window the
-connection status is indicated.  In most cases however unsupported TV
-application will already fail to start with a message like ``TV card
-already in use'' or ``Couldn't load Bt8x8 driver''. Only with cooperating
-TV apps nxtvepg is able to automatically free the card when the TV app
-is started (TV viewing is always given priority over EPG data acquisition.)</P>
+dialog in  the Configure menu.  The connection status is indicated in
+the middle of the dialog window.  Usually nxtvepg will already display
+an error message when it's started while an unsupported TV application
+is running, complaining ``Capturing is already enabled in the TV card''
+or another driver error message.  Only with cooperating TV apps nxtvepg
+is able to automatically free the card when the TV app is started
+(TV viewing is always given priority over EPG data acquisition.)</P>
+<P><STRONG>Important</STRONG>: On Windows you must not run nxtvepg with acquisition
+enabled at the same time as a TV application.  If you ever accidentially
+do that, immediately terminate both applications.  When two applications
+access the TV card hardware at the same time, the resulting conflicts
+can crash your system.</P>
 <P>After setting up the TV app type and path, you should open the
 <EM>Network name</EM> configuration dialog to synchronize
 network names between nxtvepg and the TV app.  Even if interaction is not
@@ -525,6 +554,13 @@ Control-C in the main window opens the context menu; Control-F opens
 the text search dialog; the Escape key is equivalent to the Reset
 button.  The menus can be accessed by pressing the ALT key together
 with the underlined character in the respective menu button.</P>
+<P>Since version 2.5.0 nxtvepg offers two different layouts for the TV
+schedules: By default programmes of all channels are combined in a
+single list sorted by start time, i.e. one big table.  Alternatively
+programmes can be separated so that each network has it's own column.
+This format is very similar to most paper-based TV magazines.  In this
+layout you can scroll both vertically by start-time and horizontally
+by networks.</P>
 <P>When you resize the main window vertically the difference in height
 will be added to the info text window at the bottom.  You can adjust
 the proportions between program listbox and the info text with the
@@ -717,10 +753,10 @@ as charts.</P>
 <P>The latter two windows are available separately for the browser and
 acquisition databases. (By default both are the same databases, but you
 can configure background acquisition on multiple databases,
-see <A HREF="#acquisition modes">ACQUISITION MODES</A>).
-All types of statistics are regularily updated while acquisition is running.
-While connected to an acquisition daemon, all statistics output refers to
-the acquisition running in the daemon.</P>
+see <A HREF="#acquisition modes">ACQUISITION MODES</A>).  All types of statistics are regularily
+updated while acquisition is running.  While connected to an acquisition
+daemon, all statistics output refers to the acquisition running in
+the daemon (see <A HREF="#connect to acq. daemon">CONTROL: Connect to acq. daemon</A>)</P>
 <P>
 <H2><A NAME="status line">Status line</A></H2>
 <P>The status line separately summarizes the state of the browser database
@@ -911,7 +947,7 @@ together with the CNI it is appended after the CNI in decoded format
 (i.e. DD.MM HH:MM with day, month, hour and minute).  Note: the VPS/PDC
 codes are used to uniquely identify the current programme on a given
 network.  You can display the codes for all programmes in the database
-if you enable them (see <A HREF="#select columns">CONFIGURATION: Select columns</A>).</P>
+if you enable them (see <A HREF="#select attributes">CONFIGURATION: Select attributes</A>).</P>
 <P></P>
 <DT><STRONG><A NAME="item_TTX_data_rate%3A"><EM>TTX data rate:</EM></A></STRONG><BR>
 <DD>
@@ -1052,29 +1088,6 @@ scheduled on Arte, select network=Arte and theme=movies.</P>
 <H2><A NAME="filter types">Filter Types</A></H2>
 <P>The following filter types are available:</P>
 <DL>
-<DT><STRONG><A NAME="item_Features"><STRONG>Features</STRONG></A></STRONG><BR>
-<DD>
-Restrict the listing to programmes that match all given attributes
-(logical AND), i.e. sound format, picture format, analog/digital,
-encrypted yes/no, live/new/repeat and subtitles yes/no. If you want
-to allow more than one value of the same attribute (e.g. picture format
-wide OR Pal+) you have to put them into different feature classes
-(e.g. first select format wide, then set the filter class to 2,
-then select format PAL+)
-<P></P>
-<DT><STRONG><A NAME="item_Parental_Rating"><STRONG>Parental Rating</STRONG></A></STRONG><BR>
-<DD>
-Restrict the listing to programmes that are suitable for children
-of the given age or elder, e.g. when you select 14, you get all
-programmes that are rated general or between 4 and 14.
-<P></P>
-<DT><STRONG><A NAME="item_Editorial_Rating"><STRONG>Editorial Rating</STRONG></A></STRONG><BR>
-<DD>
-Restrict the listing to programmes that are rated (by the content
-provider) to have at least the given quality. The range of rating
-values is 1 to 7. Note that some providers do not use all values,
-e.g. only 1, 3, 5 (thumb down, middle, thumb up)
-<P></P>
 <DT><STRONG><A NAME="item_Theme_categories"><STRONG>Theme categories</STRONG></A></STRONG><BR>
 <DD>
 Restrict the listing to programmes that have any of the given theme
@@ -1097,17 +1110,10 @@ series. A series code always implies a network specification (even if the
 same programme is transmitted on different networks).
 <P>Note: This filter type is only available for providers that assign series
 codes; for the other ones you can use text search among programme titles.</P>
-<P></P>
-<DT><STRONG><A NAME="item_Program_index"><STRONG>Program index</STRONG></A></STRONG><BR>
-<DD>
-Restrict the listing to programmes who's index is in the given range.
-The currently running programme of each network is given index zero,
-the following programme of each network index one etc. The three most
-important combinations are available as radio buttons:
-<EM>now</EM> (range 0-0),
-<EM>next</EM> (range 1-1) and
-<EM>now or next</EM> (range 0-1).
-<P>For merged databases only indices 0 and 1 are supported.</P>
+<P>When series and theme or likewise series and text searches are combined,
+programmes which match either of both filter types are listed.  This is
+an exception from the general rule of combining different filters with
+a logical AND.</P>
 <P></P>
 <DT><STRONG><A NAME="item_Networks"><STRONG>Networks</STRONG></A></STRONG><BR>
 <DD>
@@ -1115,7 +1121,7 @@ Restrict the listing to programmes of one or more given networks.
 The filter is disabled when all checkbuttons are deactivated.
 <P>You can also add a network filter listbox to the main window by enabling
 one of the <EM>Show networks</EM> checkbuttons in the <EM>Show/Hide</EM> sub-menu of
-the Configuration menu (See <A HREF="#show/hide">CONFIGURATION: Show/Hide</A>).
+the Configuration menu (see <A HREF="#show/hide">CONFIGURATION: Show/Hide</A>).
 Also note that selection, order and names of networks are all configurable,
 in particular you can permanently suppress uninteresting networks from
 the list.</P>
@@ -1129,10 +1135,40 @@ if both options are enabled) contain the given text.  If you enable
 title-only searches, as started from the context menu). If you enable
 <EM>match case</EM> character case is relevant in comparisons, i.e. a search
 for ``heute'' will not match on title ``Heute Abend''.
+<P>Note: use of this search filter type is depreciated for permanent series
+searches saved in shortcuts.  If your provider does support series
+identifiers (see above), you should use those instead because the numerical
+identifiers are protexted more strongly during transmission.  A text search
+can fail due to a single erronous character.</P>
 <P>A history of the last 10 searches, including options, are stored and
 available in the drop-down menu below the search text entry field (opened
 with the arrow button at the left or one of the up/down cursor keys)
-and the <EM>Title</EM> column header menu in the browser.</P>
+and the <EM>Title</EM> column header menu in the browser.  If you enter multiple
+texts, a logical OR is used.  You can undo single text searches by
+unchecking the button next to them in the history.</P>
+<P></P>
+<DT><STRONG><A NAME="item_Features"><STRONG>Features</STRONG></A></STRONG><BR>
+<DD>
+Restrict the listing to programmes that match all given attributes
+(logical AND), i.e. sound format, picture format, analog/digital,
+encrypted yes/no, live/new/repeat and subtitles yes/no.
+<P>If you want to allow more than one value of the same attribute
+(e.g. picture format wide OR Pal+) you have to put them into different
+feature classes (e.g. first select format wide, then set filter class
+to 2, then select format PAL+)</P>
+<P></P>
+<DT><STRONG><A NAME="item_Parental_Rating"><STRONG>Parental Rating</STRONG></A></STRONG><BR>
+<DD>
+Restrict the listing to programmes that are suitable for children
+of the given age or elder, e.g. when you select 14, you get all
+programmes that are rated general or between 4 and 14.
+<P></P>
+<DT><STRONG><A NAME="item_Editorial_Rating"><STRONG>Editorial Rating</STRONG></A></STRONG><BR>
+<DD>
+Restrict the listing to programmes that are rated (by the content
+provider) to have at least the given quality. The range of rating
+values is 1 to 7. Note that some providers do not use all values,
+e.g. only 1, 3, 5 (thumb down, middle, thumb up)
 <P></P>
 <DT><STRONG><A NAME="item_Start_time"><STRONG>Start time</STRONG></A></STRONG><BR>
 <DD>
@@ -1149,6 +1185,17 @@ time window on any day.</P>
 restrictions in the provider's navigation menus (see <A HREF="#navigate">NAVIGATE</A>).
 For manual navigation there are more practical alternatives, e.g.
 the scrollbar and drop-down menus in the main browser window.</P>
+<P></P>
+<DT><STRONG><A NAME="item_Program_index"><STRONG>Program index</STRONG></A></STRONG><BR>
+<DD>
+Restrict the listing to programmes who's index is in the given range.
+The currently running programme of each network is given index zero,
+the following programme of each network index one etc. The three most
+important combinations are available as radio buttons:
+<EM>now</EM> (range 0-0),
+<EM>next</EM> (range 1-1) and
+<EM>now or next</EM> (range 0-1).
+<P>For merged databases only indices 0 and 1 are supported.</P>
 <P></P>
 <DT><STRONG><A NAME="item_Duration"><STRONG>Duration</STRONG></A></STRONG><BR>
 <DD>
@@ -1308,7 +1355,7 @@ assigning the original settings via <EM>Update</EM>.</P>
 main window</EM>.  When it's enabled the currently selected shortcut will
 not be included with the shortcut list in the main window. This is
 useful for shortcuts which you only intend to use in user-defined
-columns (see <A HREF="#userdefined columns">CONFIGURATION: User-defined columns</A>)</P>
+columns (see <A HREF="#composite attributes">COMPOSITE ATTRIBUTES</A>)</P>
 <P>
 <H2><A NAME="filter masks">Filter Masks</A></H2>
 <P>When you deselect a shortcut, either by selecting another shortcut
@@ -1352,6 +1399,55 @@ defined in the temporary list.</P>
 menu, since it allows to skip this intermediate dialog.</P>
 <P>
 <HR>
+<H1><A NAME="composite attributes">COMPOSITE ATTRIBUTES</A></H1>
+<P>By default the TV schedule contains for each programme the start time,
+title, TV network and possibly additional ``basic'' attributes.  By using
+composite attributes you can customize the TV schedule according to your
+personal preferences.  For example you could (1) alter the display format
+(e.g. use colors), (2) add text or images as markers for favorite
+programmes and/or (3) compact display by combining several attributes
+into one.</P>
+<P>Composite attributes are created and edited via the
+<EM>Attribute composition</EM> dialog in the <EM>Configure</EM> menu
+(see <A HREF="#attribute composition">CONFIGURATION: Attribute composition</A>)</P>
+<P>The ``heart'' of attribute composition is a list of filter shortcuts.
+You build this list as a subset of your personal filter shortcuts
+(which usually is displayed at the very left of the browser window;
+see also <A HREF="#filter shortcuts">FILTER SHORTCUTS</A>).</P>
+<P>Whenever nxtvepg displays a programme in the browser, it matches for
+each column/row (depending on your list layout) which contains compound
+attributes the programme's attributes against the shortctus associated
+which the respective compound attribute, in the given order (top to bottom
+in the dialog's list).  If a match is found, the text, image or attribute which
+was assigned to that specific shortcut match is displayed in the column.
+If no shortcut matches, the column remains empty in that programme's row.</P>
+<P>Example: to create a personalized version of the <EM>Editorial rating</EM>
+(ER) column, you could create three shortcuts: one with the ER filter
+set to ``&gt;=6'', one with ``&gt;=4'' and one with ``&gt;=2''; then you'd create a
+new user-defined column and insert the three shortcuts in this order;
+to the first shortcut match you'd assign the text ``great'', to the
+second ``ok'' and to the third ``bad''.  As a result you'd have a column
+where the numerical ratings are replaced with your texts.</P>
+<P>There is also a special entry at the end of the dialog's shortcut list
+called <EM>*no match*</EM>. It acts as a catch-all (i.e. wildcard) if none of
+the shortcuts in the column matches the current programme entry.  In the
+above example this would be all programmes with an ER below 2 or without
+a rating.</P>
+<P>The catch-all is particularily useful to overlay standard columns with
+alternate  texts for selected programmes. To stay with the ER example,
+you could define a column with two shortcut entries: ``&gt;=6'' and
+``*no-match*''.  To the ``&gt;=6'' shortcut match you could assign an image
+marker; to all other the ``ER'' attribute.  Hence programmes with an
+ER &gt;=6 (i.e. all ``great'' programmes) would have an image displayed and
+hence clearly stand out from all other programmes, which get the
+regular content of the ER column (i.e. the numerical rating or an
+empty column for unrated programmes).</P>
+<P>You can also use this machanism to combine several columns into one,
+to keep the listing compact.  For example you can combine the ER column
+with the theme column, so that for movies with ER &gt;= 6 the text
+``great movie'' is displayed, for all others the regular theme description.</P>
+<P>
+<HR>
 <H1><A NAME="context menu">CONTEXT MENU</A></H1>
 <P>Another quick way to select and deselect filters is by using the
 context menu, which is popped up with the right mouse button in
@@ -1372,7 +1468,8 @@ title or series code repectively.</P>
 user-defined external commands on the selected programme. More precisely,
 you can execute any command with properties of the selected programme
 (like title or start time) on its command line. The user commands
-can be added via the Configure menu (see <A HREF="#context menu">CONFIGURATION: Context menu</A>).</P>
+can be added via the Configure menu
+(see <A HREF="#context menu extensions">CONFIGURATION: Context menu extensions</A>).</P>
 <P>
 <HR>
 <H1><A NAME="control">CONTROL</A></H1>
@@ -1569,10 +1666,9 @@ of an internal CSS stylesheet. If you don't like the look you can override
 it with your own stylesheet. Save it to a file named <EM>nxtvhtml.css</EM> and
 put it in the same directory as the generated HTML file. For more
 information on HTML and style sheets see <EM><A HREF="http://www.w3.org/">http://www.w3.org/</A></EM>.  If your
-column configurations contains user defined columns which use markers
-(see <A HREF="#userdefined columns">CONFIGURATION: User-defined columns</A>), you have to put the images
-into a subdirectory called <EM>images</EM>; also your browser has to support
-the <STRONG>PNG</STRONG> image format.</P>
+column configuration contains images (see <A HREF="#composite attributes">COMPOSITE ATTRIBUTES</A>),
+you have to put them into a subdirectory called <EM>images</EM>; also your
+browser has to support the <STRONG>PNG</STRONG> image format.</P>
 <P></P>
 <DT><STRONG><A NAME="item_View_timescales"><STRONG>View timescales</STRONG></A></STRONG><BR>
 <DD>
@@ -1648,18 +1744,25 @@ are required for most acquisition modes, and due to driver limitations
 often not available without a scan (e.g. on Windows or Linux with bttv
 driver &lt;= 0.7.50). See also <A HREF="#getting started">GETTING STARTED</A> and the subsequent
 chapter on TV card configuration.</P>
+<P>If you live in France, select the French frequency table (which implies
+the <EM>Secam L</EM> TV norm) to be used for the EPG scan; the default is a
+frequency table for Germany, Austria and Switzerland and the PAL B/G/I
+TV norm. Other countries are not supported, since there currently
+are no Nextview providers.  If you live in an area where you receive
+both PAL and SECAM stations, you should perform the EPG scan twice
+with different channel tables.</P>
+<P>The <EM>Use TV app.</EM> button is automatically checked if an <EM>xawtv</EM>
+configuration file is found in your home directory (on UNIX) or
+a TV application was set up in the <EM>TV app. interaction</EM> dialog
+(or initially in the <EM>TV card input</EM> dialog).  Instead of searching
+all possible TV channels or frequencies in all bands, nxtvepg then just
+checks the TV channels defined there, which saves a lot of time.</P>
 <P>Check the <EM>Slow</EM> button if you have bad reception on some channels.
 In slow mode the scanner will not require a stable video signal and wait
 twice as long as normal for everything, i.e. up to 4 seconds for a
 VPS/PDC channel identification and up to 90 seconds for EPG for known
 providers or if potential data packets were found.  Note that you can
 change this setting while the scan is running.</P>
-<P>The <EM>Use TV app.</EM> button is automatically checked if an <EM>xawtv</EM>
-configuration file is found in your home directory (on UNIX) or
-a TV application was set up in the <EM>TV app. interaction</EM> dialog
-(or initially in the <EM>TV card input</EM> dialog).  Instead of
-searching all possible channels in all bands, nxtvepg then just checks
-the TV channels defined there, which saves a lot of time.</P>
 <P>Use the <EM>Refresh only</EM> mode if you deleted your database files (or if you
 upgrade from an incompatible software version) or if you want to find and
 remove obsolete providers. In this mode only the channels on which Nextview
@@ -1690,52 +1793,32 @@ the scan until they are found, e.g. at different times of the day.
 If you find new providers not listed on the web site, please let me know.</P>
 <P>
 <H2><A NAME="tv card input">TV card input</A></H2>
-<P>Open a dialog where the driver for the TV card can be configured.
-This dialog looks very different on Windows and UNIX platforms,
+<P>Open a dialog where the TV card hardware parameters can be configured.</P>
+<P>This dialog contains more options on Windows than on UNIX platforms,
 because on UNIX the driver is part of the operating system, whereas
 on Windows it's part of the application and has to be configured
-separately for every application.</P>
-<P>On Windows systems you must at least specify which type of tuner
-is on your card, and how the PLL needs to be initialized. You can
-copy these settings from a number of supported TV applications,
-which can be selected at the top of this dialog (please note that
-the TV application selected here is not neccessarily used for TV app.
-interaction; see <A HREF="#tv application interaction">CONFIGURATION: TV application interaction</A>).
-Please refer to <A HREF="#getting started">GETTING STARTED</A> for a detailed description on
-how to configure these parameters.</P>
-<P>Windows only: if you experience data loss due to heavy system load,
-you can raise the acquisition thread priority.  Default is <EM>normal</EM>,
-i.e. the same as for all user applications.</P>
-<P>The remaining three configuration options apply to both UNIX and
-Windows: firstly choose which video input source to use, i.e. where
-you have connected an input signal cable to the TV card:
+separately for every application.  Hence, before you can use nxtvepg
+you must configure your card in the <EM>Configure card</EM> sub-dialog.
+Please refer to <A HREF="#getting started">GETTING STARTED</A> for a description of this dialog.</P>
+<P><EM>Video source</EM> allows to choose which video input source to use,
+i.e. where you have connected an video input cable to the TV card:
 <EM>Tuner</EM> or <EM>Television</EM> refer to input via antenna cable (also
 known as RF cable, i.e. terrestrial reception or cable TV);
 <EM>Composite</EM> refers to a cinch video cable as used by satellite
 receivers or cheap video records; <EM>S-Video</EM> is an variant of Composite
 with improved image quality (often wrongly called S-VHS cable since
 it's mostly used by S-VHS video recorders) and easily recognized
-by the Sub-D connectors (called ``Hosidenstecker'' in German).</P>
-<P>See <A HREF="#data acquisition">DATA ACQUISITION</A> about the consequences of not using the
-TV tuner as input.  On Windows: in rare cases the descriptions of
-input sources in the TV card popup may be wrong (due to creative
-wiring of the Bt8x8 chip on your TV card) so that you may find
-your TV tuner for example on ``Composite 1''.  This is an open point
-in the driver interface implementation; feel free to complain to me.</P>
-<P>If you live in France, select the French frequency table (which implies
-the <EM>Secam L</EM> TV norm) to be used for the EPG scan; the default is a
-frequency table for Germany, Austria and Switzerland and the PAL B/G/I
-TV norm. Other countries are not supported, since there currently
-are no Nextview providers.  If you live in an area where you receive
-both PAL and Secam stations, you should perform the EPG scan twice
-with different channel tables.</P>
+by the Sub-D connectors (called ``Hosidenstecker'' in German).
+Depending o your hardware you may only see a sub-set of these
+input types, or additional ones (e.g. <EM>Radio</EM>, which will obviously
+not work as input for nxtvepg.)</P>
+<P>See also <A HREF="#data acquisition">DATA ACQUISITION</A> about the disadvantages of not using
+the TV tuner as input.</P>
 <P>If you have more than one TV tuner card, you can also choose which
-one to use, just like with the <STRONG>-card</STRONG> command line option. On
-Linux you get a popup menu with TV card names as supplied by the
-driver. On Windows you only can choose cards by an index; the
-relation between index number and cards is undefined, i.e. which card
-has index 0 depends on the driver implementation and may differ between
-applications using different drivers.</P>
+one to use, just like with the <STRONG>-card</STRONG> command line option. The
+popup menu will list all card types as configured in the driver.
+Note that changing the card may also affect the input selection,
+in particular if the cards use a different ordering for input types.</P>
 <P>Windows only: at the very bottom of the dialog window there's a
 checkbutton which allows to enable logging during driver startup and
 shutdown. The output is appended to a file named <EM>dsdrv.log</EM> in the
@@ -1745,6 +1828,9 @@ of driver error messages in the README file.  Note that the logging
 option is not remembered across program starts, i.e. to make use of it
 you have to enable the acquisition via the Control menu and not by
 restarting nxtvepg.</P>
+<P>Windows only: if you experience data loss due to heavy system load,
+you can raise the acquisition thread priority.  Default is <EM>normal</EM>,
+i.e. the same as for all user applications.</P>
 <P>
 <H2><A NAME="client/server">Client/Server</A></H2>
 <P>Opens a dialog that allows to configure the connection between acquisition
@@ -1924,19 +2010,14 @@ is displayed.
 <P>With <EM>Separate popup</EM> nxtvepg will generate a small popup window and
 put it right beneath the xawtv window. The blue area in the small bar
 on top represents how much of the (nominal) running time lies in the past.
-With <EM>Video overlay</EM> the info will be handed to xawtv and displayed
-as subtitles (please note that this option only works properly with
-XFree86 version 4 and the XVideo extension). If you prefer a proportional
-font add the following line to <EM>~/.Xdefaults</EM>:</P>
-<PRE>
-  xawtv.vtx.label.font: -*-helvetica-bold-r-*--14-*-*-*-*-*-iso8859-*</PRE>
-<P>and execute <EM>xrdb -load ~/.Xdefaults</EM> afterwards. Note that this will
-affect subtitles too. Future versions of xawtv will hopefully allow for
-dynamic font selection.
+With <EM>Video overlay</EM> nxtvepg will generate a similar popup, however it's
+placed on top of the video image (please note that this option only works
+properly with XFree86 version 4 and the XVideo extension; use the <STRONG>xvinfo</STRONG>
+command to check if your server supports this feature).  You can change
+fonts and colors in this popup via X resources (see <A HREF="#files">FILES</A> for details.)
 <EM>Video overlay, 2 lines</EM> is the same except that it writes running time
 and title in separate lines and additionally contains the percentage of
-expired running time. (Not recommended with xawtv versions older than 3.48
-as there was a bug in displaying lines of different width.)
+expired running time.
 With <EM>Xawtv window title</EM> the info will be sent to xawtv and displayed
 in the window title. Except for this last option, you can configure the
 desired display duration with the slider at the bottom of the dialog.
@@ -1977,86 +2058,66 @@ during initial setup (i.e. when you press <EM>Load Config</EM> in that dialog).
 In most cases you'll use the same TV app for both purposes, but you
 don't have to.</P>
 <P>
-<H2><A NAME="select columns">Select columns</A></H2>
-<P>Open the browser listbox column configuration dialog. It allows to
-select which attributes are displayed for the listed programmes. In the
-listbox on the left you find a list of all available categories, e.g.
-title, running time &amp; date, TV network name, rating, sound and picture
-format, i.e. mostly the same attributes that are available for filtering.</P>
-<P>The listbox on the right contains the types currently selected for display.
-The topmost entry appears on the left side of the listbox.  Press <EM>Apply</EM>
-to refresh the browser listbox with the new column selection and save the
-new configuration to the config file.</P>
-<P>Note: you can change the width of each column by moving the mouse pointer
-to the very right of the menu button above each column (provided column
-headers have not been disabled in the Configure menu) and then dragging
-the border to a new position while keeping the left mouse button pressed
-down.</P>
+<H2><A NAME="select attributes">Select attributes</A></H2>
+<P>Open the programme attribute display configuration dialog, which allows
+to select which attributes are displayed for the listed TV programmes.
+In the listbox on the left of the dialog window there's a list of all
+available attribute categories, e.g. title, running time, weekday,
+TV network name, ratings, ... i.e. mostly the same which are available
+for filtering.  You can create your own attributes to extend this list
+with the dialog described in the next chapter.</P>
+<P>The listbox on the right contains the types currently selected for
+display.  The topmost entry appears on the left side of the listbox.
+Press <EM>Apply</EM> to refresh the browser listbox with the new column
+selection and save the new configuration to the config file.</P>
+<P>In the ``single list'' layout (see <A HREF="#list layout">CONFIGURATION: List layout</A>) each
+attribute has it's own column in the TV schedule and and associated
+filter menu in the button on top of the column (provided column headers
+have not been disabled, see <A HREF="#show/hide">CONFIGURATION: Show/Hide</A>.)  You can
+change the width of each column by moving the mouse pointer to the
+very right of the menu button and then dragging the border to a new
+position while keeping the left mouse button pressed down.</P>
+<P>In the ``spearate network columns'' layout attributes are printed beneath
+each other in separate lines in the TV schedule's network columns, unless
+you select <EM>No new line after element</EM> while the respective attribute
+is selected in the right listbox. Empty rows are automatically suppressed,
+e.g. in contrary to the ``single list'' layout the number of attributes actually
+displayed may vary.  This is particularily useful for user-defined
+attributes, e.g. you could specify that theme categories are only
+printed for movies to keep the listing more compact.</P>
 <P>
-<H2><A NAME="userdefined columns">User-defined columns</A></H2>
-<P>Open the configuration dialog for user-defined browser listbox columns.
-This allows you to create new column types in addition to the predefined
-types (e.g. ``Title'' and ``Theme''), which can even contain images or
-formatted text (i.e. bold or colored text) and have freely defined header
-text and menu.  This manual section first describes the basic principles
-and then the usage of the configuration dialog.</P>
-<P>The ``heart'' of user-defined column definitions is a list of filter
-shortcuts.  You build this list as a subset of your personal
-filter shortcuts (usually displayed at the very left of the browser
-window; see also <A HREF="#filter shortcuts">FILTER SHORTCUTS</A>).</P>
-<P>Whenever nxtvepg displays a programme in the browser, it matches for
-each user-defined column the programme's attributes against the shortctus
-given for the respective column, in the given order (top to bottom in the
-dialog's list).  If a match is found, the text, image or attribute which
-was assigned to that specific shortcut match is displayed in the column.
-If no shortcut matches, the column remains empty in that programme's row.</P>
-<P>Example: to create a personalized version of the <EM>Editorial rating</EM>
-(ER) column, you could create three shortcuts: one with the ER filter
-set to ``&gt;=6'', one with ``&gt;=4'' and one with ``&gt;=2''; then you'd create a
-new user-defined column and insert the three shortcuts in this order;
-to the first shortcut match you'd assign the text ``great'', to the
-second ``ok'' and to the third ``bad''.  As a result you'd have a column
-where the numerical ratings are replaced with your texts.</P>
-<P>There is also a special entry at the end of the dialog's shortcut list
-called <EM>*no match*</EM>. It acts as a catch-all (i.e. wildcard) if none of
-the shortcuts in the column matches the current programme entry.  In the
-above example this would be all programmes with an ER below 2 or without
-a rating.</P>
-<P>The catch-all is particularily useful to overlay standard columns with
-alternate  texts for selected programmes. To stay with the ER example,
-you could define a column with two shortcut entries: ``&gt;=6'' and
-``*no-match*''.  To the ``&gt;=6'' shortcut match you could assign an image
-marker; to all other the ``ER'' attribute.  Hence programmes with an
-ER &gt;=6 (i.e. all ``great'' programmes) would have an image displayed and
-hence clearly stand out from all other programmes, which get the
-regular content of the ER column (i.e. the numerical rating or an
-empty column for unrated programmes).</P>
-<P>You can also use this machanism to combine several columns into one,
-to keep the listing compact.  For example you can combine the ER column
-with the theme column, so that for movies with ER &gt;= 6 the text
-``great movie'' is displayed, for all others the regular theme description.</P>
-<P>In the following the usage of the configuration dialog is described:</P>
-<P>The dialog consists of three sections: at the top to the right is a
-drop-down menu which lists all previously user-defined columns. Here you
-select which column definition you want to edit.  Below to the left is the
+<H2><A NAME="attribute composition">Attribute composition</A></H2>
+<P>Open the configuration dialog for <EM>composite attributes</EM>, which allows
+to create new column types for the ``single list'' TV schedule layout
+(see <A HREF="#list layout">CONFIGURATION: List layout</A>) or new rows respectively
+in the ``spearate network columns'' layout, which can afterwards be
+selected in addition to the predefined attribute types (e.g. ``Title''
+and ``Theme'') as described in the previous chapter.</P>
+<P>For a general description of composite attributes see
+<A HREF="#composite attributes">COMPOSITE ATTRIBUTES</A>.  This chapter only describes usage
+of the configuration dialog.</P>
+<P>The dialog consists of three sections: at the top to the right there is a
+drop-down menu which lists all user-defined attributes. Here you
+select which attribute definition you want to edit.  Below to the left is the
 list of shortcuts and 4 buttons to edit the list.  On the right side of
 the shortcut list there are various controls for defining how a shortcut
 match should be displayed.</P>
 <P>Note that there are dependencies between those sections: when you change
-to a different column with the drop-down menu at the top, the rest of the
-dialog is immediately updated to display the current definition of the
-column (you'll get a warning if there any unsaved changes in the
-previously edited column).  Also, when you select a shortcut in the
-listbox, the display attribtes at the right are updated.</P>
-<P>To create a new column, you will start by selecting <EM>Create new column</EM>
-in the menu at the top right. You should give the column a label right
-away, so that you can keep your columns apart in the <EM>Column selection</EM>
-configuration dialog.  You should also assign a column header text,
-which will be used in the browser; you probably will use a shorter text
-here than in the label.</P>
+to a different attribute definition with the drop-down menu at the top,
+the rest of the dialog is immediately updated to display the current
+definition of the composite attribute (you'll get a warning if there any
+unsaved changes in the previous assignments).  Also, when you select a
+shortcut in the listbox, the display attributes at the right are updated.</P>
+<P>To create a new composite attribute, you will start by selecting the
+<EM>Create new definition</EM> command in the menu at the top right of the dialog
+window. You should give the label right away, so that you can keep your
+definitions apart in the <EM>Attribute selection</EM> configuration dialog.
+You should also assign a column header text (only used in the ``single list''
+layout), which will appear in the TV schedule browser; you'll probably
+use a shorter text here than in the label.</P>
 <P>Then you add one or more shortcuts to the list by use of the <EM>add</EM>
-drop-down menu to the left of the box. You can change the order of the
-shortcuts by use of the arrow buttons, or delete them again with
+drop-down menu to the left of the listbox. You can change the order of
+the shortcuts by use of the arrow buttons, or delete them again with
 the <EM>delete</EM> button.</P>
 <P>By default a shortcut match is displayed as the name of the shortcut.
 You can change that with the controls to the right of the listbox.
@@ -2066,17 +2127,16 @@ programme's start time will be displayed).  For textual output you can
 additionally select a format below: either bold, underlined or colored.
 All these display options can be configured separately for every
 shortcut match.</P>
-<P>When you want to try out your column-definition, press the <EM>Apply</EM>
-button at the bottom.  The column definition is saved and the browser
-content is updated.  However if the column is not currently used in the
-browser, nothing will happen. You have to use the <EM>Column selection</EM>
-configuration dialog to insert the column at your preferred position.
-For newly created columns the apply function offers to automatically
-append the column to the browser window.</P>
+<P>When you want to try out your attribute definition, press the <EM>Apply</EM>
+button at the bottom.  The definition is saved and the browser content
+is updated.  If the attribute is not currently used in the browser,
+you're offered in a popup message to automatically append the attribute
+to the TV schedule.  You can later change it's position by using
+the <EM>Attribute selection</EM> configuration dialog.</P>
 <P>There's also a <EM>Delete</EM> button at the bottom which allows to remove
-obsolete column definitions.  If the column is still displayed in the
-browser, it's automatically removed.  Note that a deletion cannot be
-undone.</P>
+obsolete definitions.  If the composite attribute is still displayed in
+the browser, it's automatically removed.  Note that a deletion cannot be
+undone, i.e. the information is lost irrecoverably.</P>
 <P>
 <H2><A NAME="select networks">Select networks</A></H2>
 <P>Open the network selection dialog. It allows to permanently suppress
@@ -2097,9 +2157,10 @@ contains a list of all known providers.  Note that if you copy from a
 provider with less (or different) networks, those networks that are
 missing in the other provider's database appear at the end of the network
 selection in the right listbox.</P>
-<P>At the bottom of the dialog window there's an entry field that allows to
-limit the program listing for a network to a given time frame. For example
-if you receive Arte only from 19:00 until 07:00 o'clock, select Arte either
+<P>At the bottom of the dialog window there's an entry field named
+<STRONG>Air times</STRONG> that allows to limit the program listing for a network
+to a given time frame. For example if you receive <EM>Arte</EM> only from
+19:00 until 07:00 o'clock, select ``Arte'' either
 in the left or right list, then enter ``19:00'' and ``07:00'' in the fields
 (make sure to always use 4 digits and the separating colon).  Programmes
 that fall completely outside that window will not appear in the browser
@@ -2154,10 +2215,11 @@ networks' names in the network name on side of the TV application,
 separated by a slash.  The slash is recognized as separator by nxtvepg
 and all resulting segments can be used as network names.</P>
 <P>
-<H2><A NAME="context menu">Context menu</A></H2>
-<P>Open the context menu configuration dialog which allows to add references
-to external commands to the context popup menu. (See also <A HREF="#context menu">CONTEXT MENU</A>.)
-At the top of the dialog window there is a list of all currently defined
+<H2><A NAME="context menu extensions">Context menu extensions</A></H2>
+<P>Open the context menu configuration dialog which allows to extend the popup
+menu with user-defined external commands (for a general description of
+the context menu see <A HREF="#context menu">CONTEXT MENU</A>).</P>
+<P>At the top of the dialog window there is a list of all currently defined
 command titles. When you open the dialog for the first time, it'll be empty.</P>
 <P>Below the list there are two text input fields which allow to modify or
 create new commands. The field labeled <STRONG>Title</STRONG> defines the text which will
@@ -2252,6 +2314,14 @@ or below the clock if you've unmapped the shortcuts list.
 Maps or unmaps the network filter listbox between shortcuts listbox and
 programme list.
 <P></P>
+<DT><STRONG><A NAME="item_Show_layout_button"><EM>Show layout button</EM></A></STRONG><BR>
+<DD>
+Maps or unmaps the <EM>Grid layout</EM> checkbutton below the shortcuts or
+network list in the main window (see also <A HREF="#list layout">CONFIGURATION: List layout</A>).
+If you're permanently using one or the other layout, you will probably
+want to unmap this button.  (It's mainly present to make users of older
+versions aware of this new option.)
+<P></P>
 <DT><STRONG><A NAME="item_Show_status_line"><EM>Show status line</EM></A></STRONG><BR>
 <DD>
 Maps or unmaps the database and acquisition status line at the bottom
@@ -2274,6 +2344,32 @@ popup menu.  The entries in this menu have the same meaning as the
 equally named ones in the control menu (see <A HREF="#control">CONTROL</A>).
 <P></P></DL>
 <P>
+<H2><A NAME="list layout">List layout</A></H2>
+<P>Select layout of the programme list in the main window:</P>
+<DL>
+<DT><STRONG><A NAME="item_Single_list_for_all_networks"><EM>Single list for all networks</EM></A></STRONG><BR>
+<DD>
+This is the original layout (the only layout until nxtvepg version 2.4)
+in which all programmes of all networks are presented in a single list,
+sorted by start time.
+<P></P>
+<DT><STRONG><A NAME="item_Separate_columns_for_each_network"><EM>Separate columns for each network</EM></A></STRONG><BR>
+<DD>
+In this layout programmes are still sorted by start time, but presented
+in separate columns for each network.  Schedules of different networks
+are aligned, so that programmes which run at the same time are approximately
+at the same height.
+<P>You can join several columns in a single column via the <EM>Control</EM>
+menu (meant for networks which share the same channel; use this in
+conjunction with <EM>air times restriction</EM> as described in
+<A HREF="#select networks">CONFIGURATION: Select networks</A>.)  The control menu is part of the
+drop-down menu below the button at the top of the column.  This menu also
+holds commands to increase or decrease the number of visible columns.</P>
+<P></P></DL>
+<P>In both layouts you can select which types of attributes are printed
+for each programme by clicking on the icon in the button row at the top
+of the list (unless column header buttons are hidden.)</P>
+<P>
 <HR>
 <H1><A NAME="files">FILES</A></H1>
 <P>
@@ -2283,23 +2379,24 @@ equally named ones in the control menu (see <A HREF="#control">CONTROL</A>).
 <DD>
 Configuration file where all personal settings are stored. Per default
 this is created in your home directory, but a different path and file
-name can be specified with the <STRONG>-rcfile</STRONG> option.
+name can be specified with the <STRONG>-rcfile</STRONG> option (see <A HREF="#options">OPTIONS</A>).
 <P></P>
 <DT><STRONG><A NAME="item_%2Fusr%2Ftmp%2Fnxtvdb%2Fnxtvdb%2D%23%23%23%23"><STRONG>/usr/tmp/nxtvdb/nxtvdb-####</STRONG></A></STRONG><BR>
 <DD>
-Directory containing one file for each provider's database.
-Can be changed with the <STRONG>-dbdir</STRONG> command line option.  Note that the
-path can also be configured during compilation of the software, so if
-you downloaded a binary version of this package the path may be
-different.  The current default setting can be queried with the
-<STRONG>-help</STRONG> command line switch.
+Directory containing one file for each provider's database.  The path
+can be changed with the <STRONG>-dbdir</STRONG> command line option (see <A HREF="#options">OPTIONS</A>).
+Note that the path can also be configured during compilation of the
+software, so if you downloaded a binary version of this package
+the path may be different.  The current default setting can be queried
+with the <STRONG>-help</STRONG> command line switch.
 <P>The last 4 digits of the file names are the hexadecimal CNI (Country
 and Network Identifier) of the provider.</P>
 <P></P>
 <DT><STRONG><A NAME="item_%2Fdev%2Fvbi0%2C_%2Fdev%2Fvbi1%2C_etc%2E"><STRONG>/dev/vbi0</STRONG>, <STRONG>/dev/vbi1</STRONG>, etc.</A></STRONG><BR>
 <DD>
 Device files from which Nextview data is being read during acquisition.
-The index postfix can be specified with the <STRONG>-card</STRONG> command line option.
+The index postfix can be specified with the <STRONG>-card</STRONG> command line option
+(see <A HREF="#options">OPTIONS</A>).
 You must have read/write access to these files; by default this is not
 the case for many Linux distributions for security reasons (since you
 might have connected a WebCam and mike and someone could spy on you from
@@ -2316,13 +2413,30 @@ Device files which are needed to set input source (e.g. TV tuner or one of
 the composite or S-Video sockets) and tuner frequency for VBI reception,
 unless you choose the passive acquisition mode. The index postfix can be
 specified with the <STRONG>-card</STRONG> command line option. This device must be
-readable and writable too.
-<P>The device is only kept open during a provider search. Else, it's just
+readable and writable.
+<P>The device is only kept open during a provider search
+(see <A HREF="#provider scan">CONFIGURATION: Provider scan</A>).  Else, it's just
 opened shortly to set the input source and tuner frequency. If the device
 is busy (e.g. while you watch TV), acquisition starts on the currently
 selected channel and automatically follows any externally controlled
 changes (this will be reported, e.g. in the status line at the bottom
-of the browser window, as <EM>forced passive</EM> acquisition mode).</P>
+of the browser window, as <EM>forced passive</EM> acquisition mode, see
+<A HREF="#status line">STATISTICS: Status line</A>).</P>
+<P>Note: it's mandatory that the video device has the same index as the
+VBI device.  If you have a video device at index 0 which does not
+support teletext (a webcam, for example) the VBI device belonging to
+video device #1 may appear at index 0.  You should force the driver
+to assign device index #1 to the VBI index.  On Linux this is possible
+by using <EM>insmod</EM> parameters in <EM>/etc/modules.conf</EM>, e.g. for bttv:</P>
+<PRE>
+   options bttv video_nr=1 vbi_nr=1</PRE>
+<P></P>
+<DT><STRONG><A NAME="item_%2Fdev%2Fv4l%2Fvbi0%2C_%2Fdev%2Fv4l%2Fvideo0"><STRONG>/dev/v4l/vbi0</STRONG>, <STRONG>/dev/v4l/video0</STRONG></A></STRONG><BR>
+<DD>
+If you have enabled <EM>devfs</EM> in your Linux kernel, the VBI and video
+devices will appear in a subdirectory.  nxtvepg automatically detects
+the existance of this directory and will search the devices there
+instead of the regular paths.
 <P></P>
 <DT><STRONG><A NAME="item_%2Ftmp%2F%2Evbi0%2Epid%2C_%2Ftmp%2F%2Evbi1%2Epid%2"><STRONG>/tmp/.vbi0.pid</STRONG>, <STRONG>/tmp/.vbi1.pid</STRONG>, etc.</A></STRONG><BR>
 <DD>
@@ -2348,6 +2462,7 @@ local client connections via UNIX domain sockets.  The same socket
 can be used for more than one client connection.  It's deleted when
 the daemon terminates (unless the daemon crashes or receives an
 uncatchable signal like the infamous signal 9 aka KILL).
+See also <A HREF="#connect to acq. daemon">CONTROL: Connect to acq. daemon</A>.
 <P></P>
 <DT><STRONG><A NAME="item_%24HOME%2F%2Exawtv"><STRONG>$HOME/.xawtv</STRONG></A></STRONG><BR>
 <DD>
@@ -2355,7 +2470,7 @@ This file belongs to the TV viewer <EM>xawtv</EM>. It's not required or
 created by nxtvepg. But if it exists, it will be used in the
 EPG scan (for a fast scan mode where only the channels defined in
 this file will be checked) and in the network name configuration
-dialog.
+dialog.  See also <A HREF="#tv application interaction">CONFIGURATION: TV application interaction</A>.
 <P></P>
 <DT><STRONG><A NAME="item_%24HOME%2F%2EXdefaults"><STRONG>$HOME/.Xdefaults</STRONG></A></STRONG><BR>
 <DD>
@@ -2372,7 +2487,10 @@ hence depreciated.
 file <EM>Nxtvepg.ad</EM> which is usually installed in <EM>/usr/X11/lib/X11/app-defaults</EM>
 (without the .ad extension).  You should not change valus there however,
 because they would be overwritten when you install new versions.  Instead copy
-changed lines into your .Xdefaults file (without the leading comment ! sign.)</P>
+changed lines into your .Xdefaults file (without the leading comment ! sign.)
+When X11 is already started you can override settings with xrdb like this:</P>
+<PRE>
+   echo &quot;nxtvepg*text_bg: #E9E9EC&quot; | xrdb -merge</PRE>
 <P>Color values can specified either symbolically (e.g. ``red'') or as hexadecimal
 RGB values in #RRGGBB format. Fonts must be specified as triplets of family,
 size (use negative values to specify the size in pixels and positive values
@@ -2387,7 +2505,8 @@ ignored.  Entries that do not adhere to this syntax are silently discarded.</P>
 <DD>
 Configuration file where all configuration and personal preference settings
 are stored. By default this is created in the working directory, but a
-different path and file name can be specified with the <STRONG>-rcfile</STRONG> option.
+different path and file name can be specified with the <STRONG>-rcfile</STRONG> option
+(see <A HREF="#options">OPTIONS</A>).
 <P></P>
 <DT><STRONG><A NAME="item_nxtvepg%2Ead"><STRONG>nxtvepg.ad</STRONG></A></STRONG><BR>
 <DD>
@@ -2398,7 +2517,7 @@ described in the UNIX section.
 <DT><STRONG><A NAME="item_nxtv____%2Eepg"><STRONG>nxtv____.epg</STRONG></A></STRONG><BR>
 <DD>
 One file for each provider's database is created in the working directory
-or the one given with the <STRONG>-dbdir</STRONG> command line option.
+or the one given with the <STRONG>-dbdir</STRONG> command line option (see <A HREF="#options">OPTIONS</A>).
 The last 4 digits of the file base names are the hexadecimal CNI (Country
 and Network Identifier) of the provider.  You must not change the name
 of this file, or nxtvepg will refuse to load the database.
@@ -2420,9 +2539,9 @@ ETS 300 707 (data structures and basic principles), ETS 300 708
 (transmission protocol) and ETR 288 (code of practice). These specs
 are available from <A HREF="http://www.etsi.org/">http://www.etsi.org/</A></P>
 <P>You can also have Nextview directly inside your television set - check
-out the catalogues of Grundig, Loewe, Metz, Sony, Philips, Thompson or
-Telefunken. However be aware that not all models do support the same
-set of Nextview features.</P>
+out the catalogues of Grundig, Loewe, Metz, Sony, Philips, Thompson,
+Telefunken or Quelle Universum. However be aware that not all models do
+support the same set of Nextview features.</P>
 <P>
 <HR>
 <H1><A NAME="known bugs">KNOWN BUGS</A></H1>
@@ -2439,8 +2558,8 @@ driver then stopped before the exit.</P>
 <P>Feel free to mail any bug reports to me, but please make sure that
 (a) you have the latest version of this software, (b) it's not already
 in the TODO file and (c) it's not just an error in your provider's EPG
-transmission. And please note that I've got no telepathic capabilities,
-so be comprehensive in describing your problem. See the README file
+transmission. And note that I've got no telepathic capabilities, so
+please be comprehensive in describing your problem. See the README file
 for instructions on which information must be included in a bug report.</P>
 <P>
 <HR>
@@ -2465,8 +2584,10 @@ would never have been ported to M$ Windows.</P>
 <P>
 <HR>
 <H1><A NAME="copyright">COPYRIGHT</A></H1>
-<P>Copyright (C) 1999, 2000, 2001, 2002 by T. Zoerner.
+<P>Copyright (C) 1999 - 2003 by T. Zoerner.
 All rights reserved.</P>
+<P>Additional copyrights apply to portions of the code herein.
+Please see file COPYRIGHT and source file headers for details.</P>
 <P>This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License Version 2 as
 published by the Free Software Foundation, e.g. at

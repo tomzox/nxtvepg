@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbif.c,v 1.41 2002/03/29 17:27:08 tom Exp tom $
+ *  $Id: epgdbif.c,v 1.45 2003/02/27 18:43:07 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -151,6 +151,20 @@ void EpgDbSetAiUpdateTime( const EPGDB_CONTEXT * dbc, time_t acqTimestamp )
    }
    else
       fatal0("EpgDb-SetAiUpdateTime: illegal NULL ptr param");
+}
+
+// ---------------------------------------------------------------------------
+// Install a callback for notifications about incoming PI blocks
+// - NULL may be passed as function pointer to remove a previous callback
+//
+void EpgDbSetPiAcqCallback( EPGDB_CONTEXT * dbc, EPGDB_PI_ACQ_CB * pCb )
+{
+   if (dbc != NULL)
+   {
+      dbc->pPiAcqCb = pCb;
+   }
+   else
+      fatal0("EpgDb-SetPiAcqCallback: illegal NULL ptr param");
 }
 
 // ---------------------------------------------------------------------------
@@ -417,12 +431,127 @@ const PI_BLOCK * EpgDbSearchPi( CPDBC dbc, time_t start_time, uchar netwop_no )
 }
 
 // ---------------------------------------------------------------------------
+// Search for a PI block in the database with a given minimum start time
+// - if the filter context parameter is not NULL, only blocks that match
+//   these settings are considered
+//
+const PI_BLOCK * EpgDbSearchFirstPiAfter( CPDBC dbc, time_t min_time, EPGDB_TIME_SEARCH_MODE startOrStop,
+                                          FILTER_CONTEXT *fc )
+{
+   EPGDB_BLOCK * pBlock;
+
+   if ( EpgDbIsLocked(dbc) )
+   {
+      pBlock = dbc->pFirstPi;
+
+      if (startOrStop == STARTING_AT)
+      {
+         while ( (pBlock != NULL) && (pBlock->blk.pi.start_time < min_time))
+         {
+            pBlock = pBlock->pNextBlock;
+         }
+
+         if (fc != NULL)
+         {  // skip forward until a matching block is found
+            while ( (pBlock != NULL) &&
+                    (EpgDbFilterMatches(dbc, fc, &pBlock->blk.pi) == FALSE) )
+            {
+               pBlock = pBlock->pNextBlock;
+            }
+         }
+      }
+      else if (startOrStop == RUNNING_AT)
+      {
+         while ((pBlock != NULL) && (pBlock->blk.pi.stop_time <= min_time))
+         {
+            pBlock = pBlock->pNextBlock;
+         }
+
+         if (fc != NULL)
+         {  // skip forward until a matching block is found
+            // note: must keep on checking stop time (unlike start time search PI may follow on
+            //       different networks which have an earlier stop time due to shorter running time)
+            while ( (pBlock != NULL) &&
+                    ( (pBlock->blk.pi.stop_time <= min_time) ||
+                      (EpgDbFilterMatches(dbc, fc, &pBlock->blk.pi) == FALSE) ))
+            {
+               pBlock = pBlock->pNextBlock;
+            }
+         }
+      }
+      else
+         fatal1("EpgDb-SearchFirstPiAfter: invalid time search mode %d", startOrStop);
+
+
+      if (pBlock != NULL)
+      {
+         return &pBlock->blk.pi;
+      }
+   }
+   else
+      fatal0("EpgDb-SearchFirstPiAfter: DB not locked");
+
+   return NULL;
+}
+
+// ---------------------------------------------------------------------------
+// Search for a PI block in the database with a given maximum start time
+// - if the filter context parameter is not NULL, only blocks that match
+//   these settings are considered
+//
+const PI_BLOCK * EpgDbSearchFirstPiBefore( CPDBC dbc, time_t min_time, EPGDB_TIME_SEARCH_MODE startOrStop,
+                                           FILTER_CONTEXT *fc )
+{
+   EPGDB_BLOCK * pBlock;
+
+   if ( EpgDbIsLocked(dbc) )
+   {
+      pBlock = dbc->pLastPi;
+
+      if (startOrStop == STARTING_AT)
+      {
+         while ((pBlock != NULL) && (pBlock->blk.pi.start_time >= min_time))
+         {
+            pBlock = pBlock->pPrevBlock;
+         }
+      }
+      else if (startOrStop == RUNNING_AT)
+      {
+         while ((pBlock != NULL) && (pBlock->blk.pi.stop_time > min_time))
+         {
+            pBlock = pBlock->pPrevBlock;
+         }
+      }
+      else
+         fatal1("EpgDb-SearchFirstPiBefore: invalid time search mode %d", startOrStop);
+
+      if (fc != NULL)
+      {  // skip forward until a matching block is found
+         while ( (pBlock != NULL) &&
+                 (EpgDbFilterMatches(dbc, fc, &pBlock->blk.pi) == FALSE) )
+         {
+            pBlock = pBlock->pPrevBlock;
+         }
+      }
+
+      if (pBlock != NULL)
+      {
+         return &pBlock->blk.pi;
+      }
+   }
+   else
+      fatal0("EpgDb-SearchFirstPiBefore: DB not locked");
+
+   return NULL;
+}
+
+// ---------------------------------------------------------------------------
 // Search for the first matching PI block in database
 // - The first is the the block with the lowest start time.
 //   The start time may lie in the past if the stop time is
 //   still in the future
 //
-const PI_BLOCK * EpgDbSearchFirstPi( CPDBC dbc, const FILTER_CONTEXT *fc )
+const PI_BLOCK * EpgDbSearchFirstPi( CPDBC dbc, FILTER_CONTEXT *fc )
 {
    const EPGDB_BLOCK * pBlock = NULL;
 
@@ -451,7 +580,7 @@ const PI_BLOCK * EpgDbSearchFirstPi( CPDBC dbc, const FILTER_CONTEXT *fc )
 // ---------------------------------------------------------------------------
 // Search for the last matching PI block in database
 //
-const PI_BLOCK * EpgDbSearchLastPi( CPDBC dbc, const FILTER_CONTEXT *fc )
+const PI_BLOCK * EpgDbSearchLastPi( CPDBC dbc, FILTER_CONTEXT *fc )
 {
    const EPGDB_BLOCK * pBlock = NULL;
 
@@ -484,7 +613,7 @@ const PI_BLOCK * EpgDbSearchLastPi( CPDBC dbc, const FILTER_CONTEXT *fc )
 //   and has a higher start time (or the same start time and a higher
 //   netwop index) as the given block.
 //
-const PI_BLOCK * EpgDbSearchNextPi( CPDBC dbc, const FILTER_CONTEXT *fc, const PI_BLOCK * pPiBlock )
+const PI_BLOCK * EpgDbSearchNextPi( CPDBC dbc, FILTER_CONTEXT *fc, const PI_BLOCK * pPiBlock )
 {
    const EPGDB_BLOCK * pBlock = NULL;
 
@@ -520,7 +649,7 @@ const PI_BLOCK * EpgDbSearchNextPi( CPDBC dbc, const FILTER_CONTEXT *fc, const P
 // Search for the next matching PI block before a given block
 // - same as SearchNext(), just reverse
 //
-const PI_BLOCK * EpgDbSearchPrevPi( CPDBC dbc, const FILTER_CONTEXT *fc, const PI_BLOCK * pPiBlock )
+const PI_BLOCK * EpgDbSearchPrevPi( CPDBC dbc, FILTER_CONTEXT *fc, const PI_BLOCK * pPiBlock )
 {
    const EPGDB_BLOCK * pBlock = NULL;
 
@@ -553,6 +682,75 @@ const PI_BLOCK * EpgDbSearchPrevPi( CPDBC dbc, const FILTER_CONTEXT *fc, const P
 }
 
 // ---------------------------------------------------------------------------
+// Count matching PI blocks starting with a given block
+// - note: the returned count includes the given block (if it matches)
+//
+uint EpgDbCountPi( CPDBC dbc, FILTER_CONTEXT *fc, const PI_BLOCK * pPiBlock )
+{
+   const EPGDB_BLOCK * pBlock = NULL;
+   uint  count = 0;
+
+   if ( EpgDbIsLocked(dbc) )
+   {
+      if (pPiBlock != NULL)
+      {
+         pBlock = (const EPGDB_BLOCK *)((ulong)pPiBlock - BLK_UNION_OFF);
+
+         while (pBlock != NULL)
+         {
+            if ( (fc == NULL) ||
+                 EpgDbFilterMatches(dbc, fc, &pBlock->blk.pi) )
+            {
+               count += 1;
+            }
+            pBlock = pBlock->pNextBlock;
+         }
+      }
+      else
+         fatal0("EpgDb-CountPi: illegal NULL ptr param");
+   }
+   else
+      fatal0("EpgDb-CountPi: DB not locked");
+
+   return count;
+}
+
+// ---------------------------------------------------------------------------
+// Count matching PI blocks before a given block
+// - note: the returned count does not include the given block
+//
+uint EpgDbCountPrevPi( CPDBC dbc, FILTER_CONTEXT *fc, const PI_BLOCK * pPiBlock )
+{
+   const EPGDB_BLOCK * pBlock = NULL;
+   uint  count = 0;
+
+   if ( EpgDbIsLocked(dbc) )
+   {
+      if (pPiBlock != NULL)
+      {
+         pBlock = (const EPGDB_BLOCK *)((ulong)pPiBlock - BLK_UNION_OFF);
+         pBlock = pBlock->pPrevBlock;
+
+         while (pBlock != NULL)
+         {
+            if ( (fc == NULL) ||
+                 EpgDbFilterMatches(dbc, fc, &pBlock->blk.pi) )
+            {
+               count += 1;
+            }
+            pBlock = pBlock->pPrevBlock;
+         }
+      }
+      else
+         fatal0("EpgDb-CountPrevPi: illegal NULL ptr param");
+   }
+   else
+      fatal0("EpgDb-CountPrevPi: DB not locked");
+
+   return count;
+}
+
+// ---------------------------------------------------------------------------
 // Search for the PI block with the given PIL
 // - also search through the obsolete blocks, because the planned program
 //   stop time might already have elapsed when the program is still running
@@ -580,6 +778,33 @@ const PI_BLOCK * EpgDbSearchPiByPil( CPDBC dbc, uchar netwop_no, uint pil )
       fatal0("EpgDb-SearchPiByPil: DB not locked");
 
    return NULL;
+}
+
+// ----------------------------------------------------------------------------
+// Decode VPS/PDC timestamp from Nextview EPG format into standard struct
+// - note: the VPS label represents local time (not UTC!)
+// - returns TRUE is the label did contain a valid time
+//
+bool EpgDbGetVpsTimestamp( struct tm * pVpsTime, uint pil, time_t startTime )
+{
+   bool result;
+
+   memcpy(pVpsTime, localtime(&startTime), sizeof(*pVpsTime));
+
+   pVpsTime->tm_sec  = 0;
+   pVpsTime->tm_min  =  (pil      ) & 0x3F;
+   pVpsTime->tm_hour =  (pil >>  6) & 0x1F;
+   pVpsTime->tm_mon  = ((pil >> 11) & 0x0F) - 1; // range 0-11
+   pVpsTime->tm_mday =  (pil >> 15) & 0x1F;
+   // the rest of the elements (year, day-of-week etc.) stay the same as in
+   // start_time; since a VPS label usually has the same date as the actual
+   // start time this should work out well.
+
+   result = ( (pVpsTime->tm_min < 60) && (pVpsTime->tm_hour < 24) &&
+              (pVpsTime->tm_mon >= 0) && (pVpsTime->tm_mon < 12) &&
+              (pVpsTime->tm_mday >= 1) && (pVpsTime->tm_mday <= 31) );
+
+   return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -670,12 +895,36 @@ uint EpgDbGetProgIdx( CPDBC dbc, const PI_BLOCK * pPiBlock )
 uchar EpgDbGetStream( const void * pUnion )
 {
    const EPGDB_BLOCK *pBlock;
-   uchar stream;
 
-   pBlock = (const EPGDB_BLOCK *)((ulong)pUnion - BLK_UNION_OFF);
-   stream = pBlock->stream;
+   if (pUnion != NULL)
+   {
+      pBlock = (const EPGDB_BLOCK *)((ulong)pUnion - BLK_UNION_OFF);
 
-   return stream;
+      return pBlock->stream;
+   }
+   else
+      fatal0("EpgDb-GetStream: illegal NULL ptr param");
+
+   return 0;
+}
+
+// ---------------------------------------------------------------------------
+// Returns the timestamp of last update for a PI block
+//
+time_t EpgDbGetPiUpdateTime( const PI_BLOCK * pPiBlock )
+{
+   const EPGDB_BLOCK *pBlock;
+
+   if (pPiBlock != NULL)
+   {
+      pBlock = (const EPGDB_BLOCK *)((ulong)pPiBlock - BLK_UNION_OFF);
+
+      return pBlock->updTimestamp;
+   }
+   else
+      fatal0("EpgDb-GetPiUpdateTime: illegal NULL ptr param");
+
+   return (time_t) 0;
 }
 
 // ---------------------------------------------------------------------------

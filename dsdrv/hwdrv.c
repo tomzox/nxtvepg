@@ -1,5 +1,5 @@
 /////////////////////////////////////////////////////////////////////////////
-// #Id: HardwareDriver.cpp,v 1.8 2002/02/13 16:37:16 tobbej Exp #
+// #Id: HardwareDriver.cpp,v 1.19 2002/12/04 14:15:06 adcockj Exp #
 /////////////////////////////////////////////////////////////////////////////
 // Copyright (c) 2001 John Adcock.  All rights reserved.
 /////////////////////////////////////////////////////////////////////////////
@@ -15,7 +15,7 @@
 //  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 //  GNU General Public License for more details
 /////////////////////////////////////////////////////////////////////////////
-// nxtvepg $Id: hwdrv.c,v 1.8 2002/10/13 17:45:56 tom Exp tom $
+// nxtvepg $Id: hwdrv.c,v 1.12 2003/03/16 22:52:19 tom Exp tom $
 //////////////////////////////////////////////////////////////////////////////
 
 #define WIN32_LEAN_AND_MEAN
@@ -132,7 +132,7 @@ DWORD HwDrv_LoadDriver( void )
             if(StartService(m_hService, 0, NULL) == FALSE)
             {
                 DWORD Err = GetLastError();
-                if (Err == ERROR_FILE_NOT_FOUND)
+                if ((Err == ERROR_PATH_NOT_FOUND) || (Err == ERROR_FILE_NOT_FOUND))
                 {
                     LOG(1, "StartService() failed: file not found");
                     loadError = HWDRV_LOAD_MISSING;
@@ -196,7 +196,7 @@ DWORD HwDrv_LoadDriver( void )
 
             LOG(2,"LoadDriver: Checking the driver version...");
             HwDrv_SendCommandEx(
-                        ioctlGetVersion,
+                        IOCTL_DSDRV_GETVERSION,
                         NULL,
                         0,
                         &dwVersion,
@@ -466,8 +466,8 @@ static BOOL AdjustAccessRights( void )
     PACL                    pacl = NULL;
     EXPLICIT_ACCESS         ea;
     HINSTANCE               hInstance;
-    VOID  (WINAPI *BuildExplicitAccessWithName)(PEXPLICIT_ACCESS_A,LPSTR,DWORD,ACCESS_MODE,DWORD);
-    DWORD (WINAPI *SetEntriesInAcl)(ULONG,PEXPLICIT_ACCESS_A,PACL,PACL*);
+    VOID  (*BuildExplicitAccessWithName)(PEXPLICIT_ACCESS_A,LPSTR,DWORD,ACCESS_MODE,DWORD);
+    DWORD (*SetEntriesInAcl)(ULONG,PEXPLICIT_ACCESS_A,PACL,PACL*);
 
     if(m_bWindows95)
     {
@@ -615,6 +615,8 @@ BOOL HwDrv_UnInstallNTDriver( void )
     }
     else
     {
+        HwDrv_UnloadDriver();
+
         // get handle of the Service Control Manager
         hSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
         if(hSCManager == NULL)
@@ -646,7 +648,10 @@ BOOL HwDrv_UnInstallNTDriver( void )
         if(!bError)
         {
             SERVICE_STATUS ServiceStatus;
-            ControlService(m_hService, SERVICE_CONTROL_STOP, &ServiceStatus );
+            if(ControlService(m_hService, SERVICE_CONTROL_STOP, &ServiceStatus) == FALSE)
+            {
+                LOG(1,"SERVICE_CONTROL_STOP failed, error 0x%X", GetLastError());
+            }
         }
 
         if(hSCManager != NULL)
@@ -712,7 +717,15 @@ DWORD HwDrv_SendCommandEx( DWORD dwIOCommand,
     }
     else
     {
-        LOG(1, "DeviceIoControl returned an error = 0x%X For Command 0x%X", GetLastError(), dwIOCommand);
+        // Suppress the error when DoesThisPCICardExist() probes for a non-existing card
+        if(dwIOCommand == IOCTL_DSDRV_GETPCIINFO)
+        {
+            LOG(2, "DeviceIoControl returned an error = 0x%X For Command GetPCIInfo. This is probably by design (PCI bus scan), do not worry.", GetLastError());
+        }
+        else
+        {
+            LOG(1, "DeviceIoControl returned an error = 0x%X For Command 0x%X", GetLastError(), dwIOCommand);
+        }
         return GetLastError();
     }
 }
@@ -757,7 +770,7 @@ BOOL HwDrv_DoesThisPCICardExist(WORD VendorID, WORD DeviceID, int DeviceIndex,
     hwParam.dwFlags = DeviceIndex;
 
     dwStatus = HwDrv_SendCommandEx(
-                            ioctlGetPCIInfo,
+                            IOCTL_DSDRV_GETPCIINFO,
                             &hwParam,
                             sizeof(hwParam),
                             &PCICardInfo,

@@ -1,5 +1,5 @@
 /////////////////////////////////////////////////////////////////////////////
-// #Id: PCICard.h,v 1.8 2002/02/12 02:29:40 ittarnavsky Exp #
+// #Id: PCICard.h,v 1.14 2002/11/07 20:33:17 adcockj Exp #
 /////////////////////////////////////////////////////////////////////////////
 // Copyright (c) 2001 John Adcock.  All rights reserved.
 /////////////////////////////////////////////////////////////////////////////
@@ -15,7 +15,7 @@
 //  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 //  GNU General Public License for more details
 /////////////////////////////////////////////////////////////////////////////
-// nxtvepg $Id: hwpci.h,v 1.2 2002/05/06 11:47:56 tom Exp tom $
+// nxtvepg $Id: hwpci.h,v 1.5 2003/02/22 14:58:19 tom Exp tom $
 /////////////////////////////////////////////////////////////////////////////
 
 #ifndef __PCICARD_H___
@@ -36,7 +36,7 @@ DWORD HwPci_GetMemoryLength( void );  // E-nek
 /**  Try to find card with given attributes on system
    @return TRUE is device is found
 */
-BOOL HwPci_OpenPCICard(WORD dwVendorID, WORD dwDeviceID, int dwDeviceIndex);
+BOOL HwPci_OpenPCICard(WORD VendorID, WORD DeviceID, DWORD DeviceIndex, BOOL supportsAcpi);
 
 // E-nek :
 // C crade mais j'en ai besoin en public ...
@@ -55,15 +55,18 @@ DWORD HwPci_ReadDword(DWORD Offset);
 
 void HwPci_MaskDataByte(DWORD Offset, BYTE Data, BYTE Mask);
 void HwPci_MaskDataWord(DWORD Offset, WORD Data, WORD Mask);
-void HwPci_MaskDataDword(DWORD Offset, WORD Data, WORD Mask);
-void HwPci_AndOrDataByte(DWORD Offset, DWORD Data, BYTE Mask);
-void HwPci_AndOrDataWord(DWORD Offset, DWORD Data, WORD Mask);
+void HwPci_MaskDataDword(DWORD Offset, DWORD Data, DWORD Mask);
+void HwPci_AndOrDataByte(DWORD Offset, BYTE Data, BYTE Mask);
+void HwPci_AndOrDataWord(DWORD Offset, WORD Data, WORD Mask);
 void HwPci_AndOrDataDword(DWORD Offset, DWORD Data, DWORD Mask);
 void HwPci_AndDataByte(DWORD Offset, BYTE Data);
 void HwPci_AndDataWord(DWORD Offset, WORD Data);
-void HwPci_AndDataDword(DWORD Offset, WORD Data);
+void HwPci_AndDataDword(DWORD Offset, DWORD Data);
 void HwPci_OrDataByte(DWORD Offset, BYTE Data);
 void HwPci_OrDataWord(DWORD Offset, WORD Data);
 void HwPci_OrDataDword(DWORD Offset, DWORD Data);
+
+BOOL HwPci_GetPCIConfig(PCI_COMMON_CONFIG* pPCI_COMMON_CONFIG, DWORD Bus, DWORD Slot);
+BOOL HwPci_SetPCIConfig(PCI_COMMON_CONFIG* pPCI_COMMON_CONFIG, DWORD Bus, DWORD Slot);
 
 #endif

@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: vbiplay.c,v 1.6 2002/07/20 16:26:04 tom Exp tom $
+ *  $Id: vbiplay.c,v 1.7 2003/03/09 19:27:50 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_TVSIM
@@ -57,6 +57,8 @@ static void EpgAttach( bool attach )
       // trigger an event to wake up the main loop from it's wait function
       SetEvent(playEventHandle);
    }
+   else
+      dprintf0("TvSimuMsg-Attach: detached\n");
 }
 
 // ---------------------------------------------------------------------------
@@ -203,6 +205,7 @@ static void PlaybackVbi( int fdTtxFile )
 
       if (pVbiBuf == NULL)
       {  // nxtvepg not attached -> wait for event
+         dprintf0("Playback-Vbi: waiting for attach\n");
          WaitForSingleObject(playEventHandle, INFINITE);
       }
       else if (doSleep)
@@ -230,7 +233,9 @@ int main( int argc, char ** argv )
       if (playEventHandle != NULL)
       {
          pVbiBuf = NULL;
-         if (WinSharedMemClient_Init(&tvSimuInfo, 0, &attachEvent))
+         dprintf0("VbiPlay-Main: init done, waiting for EPG app start\n");
+
+         if (WinSharedMemClient_Init(&tvSimuInfo, TVAPP_CARD_REQ_ALL, &attachEvent))
          {
             if (attachEvent != SHM_EVENT_ATTACH_ERROR)
             {

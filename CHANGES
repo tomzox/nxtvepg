@@ -1,4 +1,70 @@
-This file summarizes changes between releases.
+This file summarizes changes between releases.  It does not necessarily list
+every single change between two versions.  For major or minor version changes
+only modifications which are visible to the user will be included (e.g. added
+features).  For patchlevel releases also internal changes might be listed in
+case they may fix bugs (or cause new ones)
+
+
+from 2.4.2 to 2.5.0 (2003-March-22)
+
+- Added an alternate layout for GUI: programmes are still sorted by start
+  time, but presented in separate columns for each network.  Schedules of
+  different networks are aligned, so that programmes which run at the same
+  time are approximately at the same height.  The new layout also supports
+  user-defined presentation, i.e. free selection of all attributes which
+  are printed for each programme, possibly depending on filter shortcuts
+  (for example you can print more details for movies), plus marking selected
+  programmes by use of colors and icons.
+- Added support for Philips SAA7134 capture chip on Linux and M$ Windows.
+  This chip is used in Tevion MD9717, Medion 5044, Terratec Cinergy 400,
+  Typhoon TV+Radio 90031, LifeView FlyVIDEO3000 & 2000 and more.
+  Note: for Linux driver version saa7134-0.2.6 or newer is required.
+  (Thanks to Gerd Knorr and SuSE labs for the Linux saa7134 driver and to
+  the DScaler team for their SAA7134 support on M$ Windows - the driver in
+  nxtvepg is effectively a stripped-down version of the DScaler driver,
+  with some extensions to allow VBI-only acquisition)
+- Also added support for Conexant CX23881 on M$ Windows (Linux driver for
+  this chip is currently in development and should automatically work with
+  nxtvepg.)  This Chip is used in Hauppauge WinTV Go and PCI-FM (model 718)
+  cards since September 2002.  (Driver code was derived from DScaler, too)
+- Windows: Redesigned TV card configuration dialog to include lists of known
+  cards and auto-detection (for cards which support it).  This finally allows
+  to support cards with "special" hardware configurations, e.g. from  Pinnacle.
+  For convenience the dialog can be accessed from the EPG provider scan dialog.
+  Also updated Bt8x8 I2C bus code and improved support for tuner MT2032.
+- Windows: Added ACPI handling to prevent "freeze" with the btwincap driver
+  (http://btwincap.sourceforge.net/)
+- UNIX xawtv: implemented "overlay" EPG popup based on nxtvepg controlled
+  window (no longer uses "vtx" removed command, which was removed in xawtv-3.7x)
+  The colors can be configured via the new resources xawtv_overlay_fg and
+  xawtv_overlay_bg (see manual for details)
+- UNIX: the Nxtvepg app-defaults file is now loaded during startup because
+  most users didn't realize they should have copied modified entries into
+  their $HOME/.Xdefaults
+- Fixed bug in description text redundancy removal from 2.4.2: texts with
+  less than 30 characters length were not removed. Thanks to Thierry for
+  pointing this out.  Also fixed a bug which caused text truncation.
+- Fixed bug in text decoder which caused some national characters to be
+  displayed falsely, e.g. "D'ECONSEILL'" instead of "DÉCONSEILLÉ".
+- Fixed bug in "global invert" filter matching (depending on which filter
+  types were inverted, expired programmes could have shown up in the listing)
+- added possibility to combine several text searches (logical OR)
+- added fixes for FreeBSD and NetBSD provided by Simon Barner
+- added Linux "devfs" compatibility, i.e. find /dev/v4l/vbi
+- added Makefile fixes provided by Debian maintainer Gerd Knorr
+- fixed SEGV during build on IA64 due to missing include in tcl2c tool
+  (reported to Debian bug tracking by Bdale Garbee)
+
+Note that this version has a changed rc/ini file format.  Your previous
+rc/ini file will be automatically converted and can then no longer be loaded
+into older nxtvepg versions.
+
+Windows users should also note that this release comes with a new version
+of the DScaler TV card driver (files dsdrv4.sys and dsdrv4.vxd).  This
+driver version is backwards compatible, i.e. it will work with applications
+which expect an older version, unless these applications don't allow newer
+driver version numbers.
+
 
 from 2.4.1 to 2.4.2 (2002-December-08)
 

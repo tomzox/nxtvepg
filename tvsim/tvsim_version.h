@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: tvsim_version.h,v 1.3 2002/08/11 19:50:35 tom Exp tom $
+ *  $Id: tvsim_version.h,v 1.4 2003/02/08 14:28:24 tom Exp tom $
  */
 
 #ifndef __TVSIM_VERSION_H
@@ -26,13 +26,13 @@
 
 
 #define TVSIM_VERSION_MAJOR   1   // major revision
-#define TVSIM_VERSION_MINOR  10   // minor revision
+#define TVSIM_VERSION_MINOR  11   // minor revision
 
-#define TVSIM_VERSION_STR     "1.10"
+#define TVSIM_VERSION_STR     "1.11"
 
 
 // RCS id to be included to the object code for ident(1)
-#define TVSIM_VERSION_RCS_ID  "$Id: tvsim_version.h,v 1.3 2002/08/11 19:50:35 tom Exp tom $" "$Compiledate: " __DATE__ " " __TIME__" $";
+#define TVSIM_VERSION_RCS_ID  "$Id: tvsim_version.h,v 1.4 2003/02/08 14:28:24 tom Exp tom $" "$Compiledate: " __DATE__ " " __TIME__" $";
 
 // version in integer format for internal purposes
 #define TVSIM_VERSION_TO_INT(MAJ,MIN) (((MAJ)<<8) | (MIN))
