@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgmain.c,v 1.63 2001/05/19 14:34:26 tom Exp tom $
+ *  $Id: epgmain.c,v 1.65 2001/06/16 15:02:04 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -63,12 +63,14 @@
 #include "epgdb/epgdbacq.h"
 #include "epgdb/epgdbsav.h"
 #include "epgctl/epgacqctl.h"
+#include "epgctl/epgscan.h"
 #include "epgui/uictrl.h"
 #include "epgctl/epgctxctl.h"
 #include "epgui/uictrl.h"
 #include "epgui/statswin.h"
 #include "epgui/menucmd.h"
 #include "epgui/pilistbox.h"
+#include "epgui/pioutput.h"
 #include "epgui/pifilter.h"
 #include "epgui/xawtv.h"
 
@@ -270,6 +272,7 @@ static void ClockSecEvent( ClientData clientData )
 {
    // process teletext packets in the ring buffer
    EpgAcqCtl_ProcessPackets();
+   EpgScan_ProcessPackets();
 }
 
 // ---------------------------------------------------------------------------
@@ -896,6 +899,7 @@ int main( int argc, char *argv[] )
    // initialize the GUI control modules
    StatsWin_Create(pDemoDatabase != NULL);
    PiFilter_Create();
+   PiOutput_Create();
    PiListBox_Create();
    MenuCmd_Init(pDemoDatabase != NULL);
    #ifndef WIN32
@@ -985,6 +989,7 @@ int main( int argc, char *argv[] )
    pUiDbContext = NULL;
    PiFilter_Destroy();
    PiListBox_Destroy();
+   PiOutput_Destroy();
    #ifndef WIN32
    Xawtv_Destroy();
    #endif

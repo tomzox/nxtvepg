@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbfil.h,v 1.16 2001/05/19 14:24:05 tom Exp tom $
+ *  $Id: epgdbfil.h,v 1.17 2001/06/13 17:49:07 tom Exp tom $
  */
 
 #ifndef __EPGDBFIL_H
@@ -99,7 +99,7 @@ typedef struct
    uchar  langDescrTable[MAX_NETWOP_COUNT][LI_DESCR_BUFFER_SIZE];
    uchar  subtDescrTable[MAX_NETWOP_COUNT][TI_DESCR_BUFFER_SIZE];
    uchar  subStrFilter[SUBSTR_FILTER_MAXLEN+1];
-   uchar  ignoreCase;
+   bool   strMatchCase, strMatchFull;
 } FILTER_CONTEXT;
 
 
@@ -136,7 +136,7 @@ void   EpgDbFilterSetLangDescr( const EPGDB_CONTEXT *dbc, FILTER_CONTEXT *fc, co
 void   EpgDbFilterInitSubtDescr( FILTER_CONTEXT *fc );
 void   EpgDbFilterSetSubtDescr( const EPGDB_CONTEXT *dbc, FILTER_CONTEXT *fc, const uchar *lg );
 void   EpgDbFilterSetProgIdx( FILTER_CONTEXT *fc, uchar firstProgIdx, uchar lastProgIdx );
-void   EpgDbFilterSetSubStr( FILTER_CONTEXT *fc, const uchar *pStr, bool ignoreCase );
+void   EpgDbFilterSetSubStr( FILTER_CONTEXT *fc, const uchar *pStr, bool matchCase, bool matchFull );
 
 void   EpgDbFilterInitNi( FILTER_CONTEXT *fc, NI_FILTER_STATE *pNiState );
 void   EpgDbFilterApplyNi( const EPGDB_CONTEXT *dbc, FILTER_CONTEXT *fc, NI_FILTER_STATE *pNiState, uchar kind, ulong data );

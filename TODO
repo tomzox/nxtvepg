@@ -12,7 +12,6 @@ xawtv patches (Gerd Knorr)
 - split multi-network station names prior to comparison in setstation_handler
 
 nxtvepg xawtv.c:
-- move xawtv description from configuration sections to separate chapter
 - Netname Config Dialog: warn if Tune-TV if name is unknown
 - allow obsolete PI in the browser window (for VPS)
 - Tune-TV: offer to start xawtv if not running
@@ -68,6 +67,7 @@ possible new features: (in order of decreasing priority)
 - series management based on titles only, across all networks
 - use GTK+ or Tix library to improve GUI
 - allow multiple acquisition and GUI clients, possibly on different hosts
+- export database content via HTTP
 - export database content to mysql server
 - help texts in German
 - add hyperlinks in the online help menus for all cross-references

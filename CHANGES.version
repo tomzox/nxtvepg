@@ -1,4 +1,4 @@
-## $Id: CHANGES.version,v 1.6 2001/05/19 15:16:15 tom Exp $ ##
+## $Id: CHANGES.version,v 1.7 2001/08/25 12:48:10 tom Exp $ ##
 
 Steps to prepare new distribution:
 
@@ -7,6 +7,7 @@ update web pages:
 - link to tar ball in index.html and include CHANGES
 
 version no contained in:
+- nxtvepg.spec
 - epgctl/epgversion.h
 - nxtvepg.1
 

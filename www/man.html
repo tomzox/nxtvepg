@@ -1,5 +1,4 @@
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
-<HTML lang="en">
+<HTML>
 <HEAD>
 <TITLE>Nextview EPG Decoder Documentation</TITLE>
 <LINK href="nxtvepg.css" rel=stylesheet type=text/css>
@@ -13,12 +12,10 @@
 <META name="revisit-after" content="01 month">
 </HEAD>
 <BODY BGCOLOR=#f8f8f8>
-
 <P><HR><P>
 <H1>Nextview EPG Decoder Documentation</H1>
-
-This is the manual page for release 0.5.1 of
-<A HREF="http://nxtvepg.tripod.com/">nxtvepg</A>.
+This is the manual page for the
+<A HREF="http://nxtvepg.tripod.com/">nxtvepg</A> software package.
 
 <!-- INDEX BEGIN -->
 
@@ -848,7 +845,7 @@ Another quick way to select and deselect filters is by using the context
 menu, which is popped up with the right mouse button in the browser window.
 
 <P>
-This menu consists of two parts: the first entries allow to undo the
+This menu consists of three parts: the first entries allow to undo the
 previously selected filters - either one by one or globally (reset).
 
 <P>
@@ -857,12 +854,20 @@ depend on the currently selected title and the already selected filters.
 The offered filter types include: themes and network of the selected
 programme title, it's series code, repeat or original transmission
 suppression (only in cunjunction with series or title text filters) and
-last but not least the title text (as substring search).
+last but not least the title text.
 
 <P>
-The series and title text filters enable you to check very quickly for
-repeats of any programmes. If there is no match for these filters except
-for the already selected title, they are not offered.
+The title text and series filters allow to check very quickly for repeats
+of a programme. These filter options are included only if there is a match,
+i.e. if there's another programme with the same title or series code
+repectively.
+
+<P>
+The optional third part is empty by default, but can be used to invoke
+user-defined external commands on the selected programme. More precisely,
+you can execute any command with parameters of the selected programme (like
+title or start time) on its command line. The user commands and can be
+added via the Configure menu (see <A HREF="#CONFIGURATION">CONFIGURATION</A>).
 
 <P>
 <HR>
@@ -893,10 +898,54 @@ block (AI) has been received. This may help if you have very bad reception,
 because it may take a long time until a error-free copy of the usually
 large AI block is received.
 
-<DT><STRONG>Dump database</STRONG><DD>
+<DT><STRONG>Dump raw database</STRONG><DD>
 <P>
-Allows to dump all blocks of selected types in the database to
-<EM>stdout</EM> (UNIX only) or into the given file. Also intended for developers mainly.
+Open a dialog that allows to dump all blocks in the database to
+<EM>stdout</EM> (UNIX only) or into the named file in a raw text format, which is actually
+the same as with the <EM>Dump stream</EM> command. This feature is mainly intended for developers. To understand all
+the infos in the text dump, you'll have to look at the source in
+<EM>epgui/epgtxtdump.c</EM> in the nxtvepg source package.
+
+<P>
+The array of checkbuttons allows to control which kind of blocks will be
+written. The programme information blocks (PI) do contain the actual
+programme descriptions; <EM>Defective PI</EM> contains those PI which were not accepted into the database because of
+inconsistencies like a zero or overlapping running time. For an explanation
+of the other block types please see the ETSI specification 707.
+
+<DT><STRONG>Dump in HTML</STRONG><DD>
+<P>
+Open a dialog that allows to export the complete database or selected
+programmes into a file in HTML format (Hypertext Markup Language) which can
+then be loaded into a WWW browser, e.g. <EM>Netscape</EM>. This is particularily useful if you want to print out TV descriptions.
+
+<P>
+At the top of the dialog window you have to enter the output file name.
+Click on the little folder button for a file selection dialog.
+
+<P>
+By default the checkbutton <EM>Selected programme only</EM> is enabled. In this mode only info on the programme which is currently
+selected with the cursor will be written. In combination with the <EM>Append to file</EM> mode this allows to build a document with the programmes that interest you
+step by step. If you deselect <EM>Selected programme only</EM>, info on all programmes that match your current filter will be written.
+Note that this can generate very large files which may take a long time to
+load into your Web browser. In this mode you may want to set an additional
+start time filter (see <A HREF="#FILTERING">FILTERING</A>) to restrict the number of programmes written.
+
+<P>
+In the bottommost box you see three radio buttons with which you select the
+format in which the information will be written. If you select <EM>titles</EM> you'll get a table in the same configuration as in the titles list in the
+upper part of the main window. If you select
+<EM>descriptions</EM> you'll get roughly the same as in the lower part of the main window.
+Obviously, if you select <EM>titles and descriptions</EM> you'll get both, in form of one table with all the titles on top and all
+descriptions separately below. If you select <EM>Add hyperlinks</EM> the titles in the table will be linked to the descriptions.
+
+<P>
+The look of the generated document is almost entirely determined by use of
+an internal CSS stylesheet. If you don't like the look you can override it
+with your own stylesheet. Save it to a file named <EM>nxtvhtml.css</EM> and put it in the same directory as the generated HTML file. For more
+information on HTML and style sheets see <EM>http://www.w3.org/</EM>
+
+
 
 <DT><STRONG><A NAME="item_View">View timescales</A></STRONG><DD>
 <P>
@@ -1134,6 +1183,86 @@ the xawtv network name, separated by a slash. The slash is recognized as
 separator by nxtvepg (and hopefully future versions of xawtv) and all
 resulting segments can be used as network names.
 
+<DT><STRONG><A NAME="item_Context">Context menu...</A></STRONG><DD>
+<P>
+Open the context menu configuration dialog which allows to add references
+to external commands to the context popup menu. (See also <A HREF="#CONTEXT_MENU">CONTEXT MENU</A>.) At the top of the dialog window there is a list of all currently defined
+command titles. When you open the dialog for the first time, it'll be
+empty.
+
+<P>
+Below the list there are two text input fields which allow to modify or
+create new commands. The field labeled <STRONG>Title</STRONG> defines the text which will be included to the popup menu. The field
+labeled <STRONG>Command</STRONG> defines the command line to be executed when the entry is selected in the
+popup menu, with possible placeholders enclosed in ${} which are replaced
+by parameters of the currently selected programme in the browser listbox.
+After the substitution and after appending an ampersand '&amp;' sign to
+allow asynchronous execution (UNIX only), the command line is passed to a
+shell via the <CODE>system(3)</CODE> function.
+
+<P>
+When you press the menu button <EM>Copy Example</EM> a list pops up which contains a few example commands which can be copied
+into the title and command entry fields. To save a new or modified title
+and command, you have to press either the <EM>New</EM> or <EM>Update</EM> button and leave the popup with <EM>Ok</EM>. Use <EM>Delete</EM>
+to remove an entry from the listbox; the buttons with up/down arrows to
+change the ordering. Use <EM>Clear</EM> to clear the entry fields, e.g. before you create a new entry.
+
+<P>
+The following is a list of formal variables (i.e. placeholders) which are
+substituted in the command line with parameters of the selected title upon
+invocation of the external command. The meaning of the variables should be
+self-explanatory, except possibly for CNI, which is a hexadecimal network
+code; and e/p_rating which are editorial and parental rating respectively.
+
+<P>
+<PRE>  ${title}
+  ${network}
+  ${start}
+  ${stop}
+  ${relstart}
+  ${duration}
+  ${CNI}
+  ${description}
+  ${themes}
+  ${VPS}  or  ${PDC}
+  ${e_rating}
+  ${p_rating}
+  ${sound}
+  ${format}
+  ${digital}
+  ${encrypted}
+  ${live}
+  ${repeat}
+  ${subtitle}
+</PRE>
+<P>
+The keywords can be followed by a colon and an output format specification.
+In case of the start, stop and VPS/PDC times, all options defined in the
+<STRONG>strftime(3)</STRONG> manpage are available; default is %H:%M-%d.%m.%Y (hour, minute, day, month,
+year). In case of relative start time and duration, you can choose between
+minutes (default) and seconds by appending ``m'' or ``s''. For all other
+variables the modifiers are currently ignored.
+
+<P>
+The substrings which replace the formal variables are enclosed in single
+quotes to protect them from interpretation by the shell. Single quotes
+inside the substituted string are correctly escaped.
+
+<P>
+Example: The command line
+
+<P>
+<PRE>  plan ${start:%d.%m.%Y %H:%M} ${title}
+</PRE>
+<P>
+could for example result in
+
+<P>
+<PRE>  plan '22.08.2001 13:05' 'Käpt'\''n Blaubärs Seemannsgarn'
+</PRE>
+<P>
+to be passed to the Bourne Shell.
+
 <DT><STRONG><A NAME="item_Filter">Filter shortcuts...</A></STRONG><DD>
 <P>
 Open the filter shortcut dialog to rename, reorder or delete shortcuts. You
@@ -1268,7 +1397,7 @@ instructions on which information must be included in a bug report.
 <HR>
 <H1><A NAME="AUTHOR">AUTHOR</A></H1>
 <P>
-Thorsten ``Tom'' Zoerner, Erlangen, Germany.
+Tom Zoerner, Erlangen, Germany.
 
 <P>
 Email: tomzo (at) nefkom (dot) net
@@ -1284,7 +1413,7 @@ of bttv and v4l for their excellent work.
 <HR>
 <H1><A NAME="COPYRIGHT">COPYRIGHT</A></H1>
 <P>
-Copyright (C) 1999, 2000, 2001 by Thorsten Zoerner.
+Copyright (C) 1999, 2000, 2001 by Tom Zoerner.
 
 <P>
 This program is free software; you can redistribute it and/or modify it

@@ -21,7 +21,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: epgui.tcl,v 1.114 2001/06/05 20:00:40 tom Exp tom $
+#  $Id: epgui.tcl,v 1.129 2001/08/25 15:07:45 tom Exp tom $
 #
 
 set is_unix [expr [string compare $tcl_platform(platform) "unix"] == 0]
@@ -92,7 +92,7 @@ text      .all.pi.list.text -width 50 -height 25 -wrap none \
                             -insertofftime 0
 bindtags  .all.pi.list.text {.all.pi.list.text . all}
 bind      .all.pi.list.text <Button-1> {SelectPi %x %y}
-bind      .all.pi.list.text <Double-Button-1> {C_PiListBox_PopupPi %x %y}
+bind      .all.pi.list.text <Double-Button-1> {C_PopupPi %x %y}
 bind      .all.pi.list.text <Button-3> {CreateContextMenu %x %y}
 bind      .all.pi.list.text <Up>    {C_PiListBox_CursorUp}
 bind      .all.pi.list.text <Down>  {C_PiListBox_CursorDown}
@@ -146,6 +146,11 @@ static unsigned char line_bits[] = {
    0xe7, 0xe7, 0xe7, 0x3f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xf3,
    0xcf, 0xe7};";
+# create an image of a folder
+set fileImage [image create photo -data {
+R0lGODlhEAAMAKEAAAD//wAAAPD/gAAAACH5BAEAAAAALAAAAAAQAAwAAAIghINhyycvVFsB
+QtmS3rjaH1Hg141WaT5ouprt2HHcUgAAOw==}]
+
 
 menu .menubar -relief ridge
 . config -menu .menubar
@@ -162,7 +167,8 @@ if {$is_unix} {
 menu .menubar.ctrl -tearoff 0 -postcommand C_SetControlMenuStates
 .menubar.ctrl add checkbutton -label "Enable acquisition" -variable menuStatusStartAcq -command {C_ToggleAcq $menuStatusStartAcq}
 .menubar.ctrl add checkbutton -label "Dump stream" -variable menuStatusDumpStream -command {C_ToggleDumpStream $menuStatusDumpStream}
-.menubar.ctrl add command -label "Dump database..." -command PopupDumpDatabase
+.menubar.ctrl add command -label "Dump raw database..." -command PopupDumpDatabase
+.menubar.ctrl add command -label "Dump in HTML..." -command PopupDumpHtml
 .menubar.ctrl add separator
 .menubar.ctrl add checkbutton -label "View timescales..." -command {C_StatsWin_ToggleTimescale ui} -variable menuStatusTscaleOpen(ui)
 .menubar.ctrl add checkbutton -label "View statistics..." -command {C_StatsWin_ToggleDbStats ui} -variable menuStatusStatsOpen(ui)
@@ -183,6 +189,7 @@ menu .menubar.config -tearoff 0
 .menubar.config add command -label "Select columns..." -command PopupColumnSelection
 .menubar.config add command -label "Select networks..." -command PopupNetwopSelection
 .menubar.config add command -label "Network names..." -command NetworkNamingPopup
+.menubar.config add command -label "Context menu..." -command ContextMenuConfigPopup
 .menubar.config add command -label "Filter shortcuts..." -command EditFilterShortcuts
 .menubar.config add separator
 .menubar.config add checkbutton -label "Show shortcuts" -command ToggleShortcutListbox -variable showShortcutListbox
@@ -204,12 +211,14 @@ menu .menubar.filter
 .menubar.filter add separator
 .menubar.filter add cascade -menu .menubar.filter.themes -label Themes
 if {$is_unix} {
-   .menubar.filter add cascade -menu .menubar.filter.series -label Series
+   .menubar.filter add cascade -menu .menubar.filter.series_bynet -label "Series by network..."
+   .menubar.filter add cascade -menu .menubar.filter.series_alpha -label "Series alphabetically..."
 }
 .menubar.filter add cascade -menu .menubar.filter.progidx -label "Program index"
 .menubar.filter add cascade -menu .menubar.filter.netwops -label "Networks"
 if {!$is_unix} {
-   .menubar.filter add command -label "Series..." -command {PostSeparateMenu .menubar.filter.series CreateSeriesNetworksMenu}
+   .menubar.filter add command -label "Series by network..." -command {PostSeparateMenu .menubar.filter.series_bynet CreateSeriesNetworksMenu}
+   .menubar.filter add command -label "Series alphabetically..." -command {PostSeparateMenu .menubar.filter.series_alpha undef}
 }
 .menubar.filter add command -label "Text search..." -command SubStrPopup
 .menubar.filter add command -label "Start Time..." -command PopupTimeFilterSelection
@@ -313,9 +322,20 @@ FilterMenuAdd_Subtitles .menubar.filter.features.subtitles
 
 menu .menubar.filter.features.featureclass
 menu .menubar.filter.themes
-if {$is_unix} {
-   menu .menubar.filter.series -postcommand {PostDynamicMenu .menubar.filter.series CreateSeriesNetworksMenu}
+
+menu .menubar.filter.series_bynet -postcommand {PostDynamicMenu .menubar.filter.series_bynet CreateSeriesNetworksMenu}
+menu .menubar.filter.series_alpha
+if {!$is_unix} {
+   .menubar.filter.series_bynet configure -tearoff 0
+   .menubar.filter.series_alpha configure -tearoff 0
 }
+foreach letter {A B C D E F G H I J K L M N O P Q R S T U V W X Y Z Other} {
+   set w letter_[string tolower $letter]_off_0
+   .menubar.filter.series_alpha add cascade -label $letter -menu .menubar.filter.series_alpha.$w
+   menu .menubar.filter.series_alpha.$w -postcommand [list PostDynamicMenu .menubar.filter.series_alpha.$w CreateSeriesLetterMenu]
+}
+unset letter w
+
 menu .menubar.filter.progidx
 .menubar.filter.progidx add radio -label "any" -command {SelectProgIdx -1 -1} -variable filter_progidx -value 0
 .menubar.filter.progidx add radio -label "running now" -command {SelectProgIdx 0 0} -variable filter_progidx -value 1
@@ -1054,7 +1074,7 @@ proc SelectSeries {series} {
          }
       }
       array donesearch series_sel $id
-      if {$empty} {C_SelectSeries
+      if {$empty} {C_ResetFilter series
       } else      {C_SelectSeries $series 0}
    } else {
       C_SelectSeries $series 1
@@ -1109,7 +1129,7 @@ proc SelectPi {xcoo ycoo} {
 
 # callback for Motion event in the PI listbox while the first button is pressed
 proc SelectPiMotion {state xcoo ycoo} {
-   if {$state != 0} {
+   if {$state & 0x100} {
       # mouse position has changed -> check if new item is selected
       C_PiListBox_SelectItem [GetSelectedItem $xcoo $ycoo]
    } else {
@@ -1184,57 +1204,47 @@ proc CompareSeriesMenuEntries {a b} {
    return [string compare [lindex $a 0] [lindex $b 0]]
 }
 
-proc DictifySeriesTitle {title lang} {
-   # remove series instance number postfix
-   if {[regsub -- { +\([\d]+\)$} $title {} result] > 0} {
-      set title $result
-   }
-   # move attribs "Der, Die, Das" to the end of the title for sorting
-   switch $lang {
-      0 {
-         # English
-         regsub -nocase -- "^(the|a) (.*)" $title {\2, \1} result
-      }
-      1 {
-         # German
-         regsub -nocase -- "^(der|die|das|ein|eine) (.*)" $title {\2, \1} result
-      }
-      3 {
-         # Italian
-         regsub -nocase -- "^(una|uno|la) (.*)" $title {\2, \1} result
-      }
-      4 {
-         # French
-         regsub -nocase -- "^(un |une |la |le |les |l')(.*)" $title {\2, \1} result
-      }
-      default {
-         set result $title
-      }
-   }
-   # force the new first title character to be uppercase (for sorting)
-   return [string toupper [string index $result 0]][string range $result 1 end]
-}
-
 ##  ---------------------------------------------------------------------------
 ##  Create the series sub-menu for a given network
 ##  - with a list of all series on this network, sorted by title
 ## 
 proc CreateSeriesMenu {w} {
-   set idx [string first net_ $w]
-   if {$idx >= 0} {
+   regexp {net_(0x[A-Fa-f0-9]+)_off_(\d+)$} $w foo cni min_index
 
-      # fetch the list of series codes and titles
-      set slist [C_GetNetwopSeriesList [string range $w [expr $idx + 4] end] lang]
+   # fetch the list of series codes and titles
+   set slist [C_GetNetwopSeriesList $cni]
 
-      # sort the list of commands by series title and then create the entries in that order
-      set all {}
-      foreach {series title} $slist {
-         # force the new first title character to be uppercase (for sorting)
-         lappend all [list [DictifySeriesTitle $title $lang] $series]
+   # sort the list of commands by series title and then create the entries in that order
+   set all {}
+   foreach {series title} $slist {
+      lappend all [list $title $series]
+   }
+   set all [lsort -unique -command CompareSeriesMenuEntries $all]
+
+   set max_index [expr $min_index + 25]
+   if {[expr $max_index + 3] >= [llength $all]} {
+      incr max_index 3
+   }
+   set index 0
+   foreach item $all {
+      incr index
+      if {$index >= $min_index} {
+         if {$index <= $max_index} {
+            set series [lindex $item 1]
+            $w add checkbutton -label [lindex $item 0] -variable series_sel($series) -command [list SelectSeries $series]
+         } else {
+            set child "$w.net_${cni}_off_$index"
+            $w add separator
+            $w add cascade -label "more..." -menu $child
+            if {[string length [info commands $child]] == 0} {
+               menu $child -postcommand [list PostDynamicMenu $child CreateSeriesMenu]
+            }
+            break
+         }
       }
-      foreach item [lsort -command CompareSeriesMenuEntries $all] {
-         $w add checkbutton -label [lindex $item 0] -variable series_sel([lindex $item 1]) -command [list SelectSeries [lindex $item 1]]
-      }
+   }
+   if {$index == 0} {
+      $w add command -label "none" -state disabled
    }
 }
 
@@ -1271,12 +1281,54 @@ proc CreateSeriesNetworksMenu {w} {
 
       # insert the names into the menu
       foreach cni $series_nets {
-         set child $w.net_$cni
+         set child "$w.net_${cni}_off_0"
          $w add cascade -label $netsel_names($cni) -menu $child
          if {[string length [info commands $child]] == 0} {
             menu $child -postcommand [list PostDynamicMenu $child CreateSeriesMenu]
          }
       }
+   }
+}
+
+##  ---------------------------------------------------------------------------
+##  Create series title menu for one starting letter
+##
+proc CreateSeriesLetterMenu {w} {
+
+   regexp {letter_([^_]+)_off_(\d+)$} $w foo letter min_index
+
+   # sort the list of commands by series title and then create the entries in that order
+   set all {}
+   foreach {series title} [C_GetSeriesByLetter $letter] {
+      # force the new first title character to be uppercase (for sorting)
+      lappend all [list $title $series]
+   }
+   set all [lsort -unique -command CompareSeriesMenuEntries $all]
+
+   set max_index [expr $min_index + 25]
+   if {[expr $max_index + 3] >= [llength $all]} {
+      incr max_index 3
+   }
+   set index 0
+   foreach item $all {
+      incr index
+      if {$index >= $min_index} {
+         if {$index <= $max_index} {
+            set series [lindex $item 1]
+            $w add checkbutton -label [lindex $item 0] -variable series_sel($series) -command [list SelectSeries $series]
+         } else {
+            set child "${w}.letter_${letter}_off_$index"
+            $w add separator
+            $w add cascade -label "more..." -menu $child
+            if {[string length [info commands $child]] == 0} {
+               menu $child -postcommand [list PostDynamicMenu $child CreateSeriesLetterMenu]
+            }
+            break
+         }
+      }
+   }
+   if {$index == 0} {
+      $w add command -label "none" -state disabled
    }
 }
 
@@ -1548,7 +1600,8 @@ proc TuneTvPopupMenu {state xcoo ycoo} {
 ##
 set substr_grep_title 1
 set substr_grep_descr 1
-set substr_ignore_case 0
+set substr_match_full 0
+set substr_match_case 0
 set substr_popup 0
 set substr_pattern {}
 set substr_history {}
@@ -1564,19 +1617,19 @@ proc SubstrCheckOptScope {varname} {
 
 # update the filter context and refresh the PI listbox
 proc SubstrUpdateFilter {} {
-   global substr_grep_title substr_grep_descr substr_ignore_case
+   global substr_grep_title substr_grep_descr substr_match_case substr_match_full
    global substr_pattern
    global substr_history
 
-   C_SelectSubStr $substr_grep_title $substr_grep_descr $substr_ignore_case $substr_pattern
+   C_SelectSubStr $substr_grep_title $substr_grep_descr $substr_match_case $substr_match_full $substr_pattern
    C_RefreshPiListbox
    CheckShortcutDeselection
 
    if {[string length $substr_pattern] > 0} {
-      set new [list $substr_grep_title $substr_grep_descr $substr_ignore_case $substr_pattern]
+      set new [list $substr_grep_title $substr_grep_descr $substr_match_case $substr_match_full $substr_pattern]
       set idx 0
       foreach item $substr_history {
-         if {[string compare $substr_pattern [lindex $item 3]] == 0} {
+         if {[string compare $substr_pattern [lindex $item 4]] == 0} {
             set substr_history [lreplace $substr_history $idx $idx]
             break
          }
@@ -1591,13 +1644,14 @@ proc SubstrUpdateFilter {} {
 }
 
 # set the parameters saved in the history
-proc SubstrSetFilter {grep_title grep_descr ignore_case pattern} {
-   global substr_grep_title substr_grep_descr substr_ignore_case
+proc SubstrSetFilter {grep_title grep_descr match_case match_full pattern} {
+   global substr_grep_title substr_grep_descr substr_match_case substr_match_full
    global substr_pattern
 
    set substr_grep_title  $grep_title
    set substr_grep_descr  $grep_descr
-   set substr_ignore_case $ignore_case
+   set substr_match_case  $match_case
+   set substr_match_full  $match_full
    set substr_pattern     $pattern
    SubstrUpdateFilter
 }
@@ -1631,10 +1685,11 @@ proc SubStrPopup {} {
       checkbutton .substr.all.opt.scope.descr -text "descriptions" -variable substr_grep_descr -command {SubstrCheckOptScope substr_grep_title}
       pack .substr.all.opt.scope.descr -side top -anchor nw
       pack .substr.all.opt.scope -side left -padx 5
-      frame .substr.all.opt.case
-      checkbutton .substr.all.opt.case.ignore -text "ignore case" -variable substr_ignore_case
-      pack .substr.all.opt.case.ignore -anchor nw
-      pack .substr.all.opt.case -side left -anchor nw -padx 5
+      frame .substr.all.opt.match
+      checkbutton .substr.all.opt.match.full -text "match complete text" -variable substr_match_full
+      checkbutton .substr.all.opt.match.case -text "match case" -variable substr_match_case
+      pack .substr.all.opt.match.full .substr.all.opt.match.case -anchor nw
+      pack .substr.all.opt.match -side left -anchor nw -padx 5
       pack .substr.all.opt -side top -pady 10
 
       frame .substr.all.cmd
@@ -2035,27 +2090,39 @@ set dumpdb_oi 1
 set dumpdb_mi 1
 set dumpdb_li 1
 set dumpdb_ti 1
+set dumpdb_filename {}
 set dumpdb_popup 0
 
 proc PopupDumpDatabase {} {
-   global dumpdb_pi dumpdb_xi dumpdb_ai dumpdb_ni
+   global dumpdb_pi dumpdb_xi dumpdb_ai dumpdb_ni dumpdb_filename
    global dumpdb_oi dumpdb_mi dumpdb_li dumpdb_ti
+   global font_fixed fileImage
    global dumpdb_popup
 
    if {$dumpdb_popup == 0} {
-      CreateTransientPopup .dumpdb "Dump Database"
+      CreateTransientPopup .dumpdb "Dump raw database"
       set dumpdb_popup 1
 
       frame .dumpdb.all
 
       frame .dumpdb.all.name
-      label .dumpdb.all.name.prompt -text "Enter file name:"
-      pack .dumpdb.all.name.prompt -side left -padx 20
-      entry .dumpdb.all.name.filename -textvariable dumpdb_filename
-      pack .dumpdb.all.name.filename -side left
+      label .dumpdb.all.name.prompt -text "File name:"
+      pack .dumpdb.all.name.prompt -side left
+      entry .dumpdb.all.name.filename -textvariable dumpdb_filename -font $font_fixed -width 30
+      pack .dumpdb.all.name.filename -side left -padx 5
       bind .dumpdb.all.name.filename <Enter> {focus %W}
-      bind .dumpdb.all.name.filename <Return> {C_DumpDatabase $dumpdb_filename $dumpdb_pi $dumpdb_ai $dumpdb_bi $dumpdb_ni $dumpdb_oi $dumpdb_mi $dumpdb_li $dumpdb_ti; destroy .dumpdb}
+      bind .dumpdb.all.name.filename <Return> DoDbDump
       bind .dumpdb.all.name.filename <Escape> {destroy .dumpdb}
+      button .dumpdb.all.name.dlgbut -image $fileImage -command {
+         set tmp [tk_getSaveFile -parent .dumpdb \
+                     -initialfile [file tail $dumpdb_filename] \
+                     -initialdir [file dirname $dumpdb_filename]]
+         if {[string length $tmp] > 0} {
+            set dumpdb_filename $tmp
+         }
+         unset tmp
+      }
+      pack .dumpdb.all.name.dlgbut -side left -padx 5
       pack .dumpdb.all.name -side top -pady 10
 
       frame .dumpdb.all.opt
@@ -2083,11 +2150,11 @@ proc PopupDumpDatabase {} {
       pack .dumpdb.all.opt -side top -pady 10
 
       frame .dumpdb.all.cmd
-      button .dumpdb.all.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Control) "Dump database"}
+      button .dumpdb.all.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Control) "Dump raw database"}
       pack .dumpdb.all.cmd.help -side left -padx 10
       button .dumpdb.all.cmd.clear -text "Abort" -width 5 -command {destroy .dumpdb}
       pack .dumpdb.all.cmd.clear -side left -padx 10
-      button .dumpdb.all.cmd.apply -text "Ok" -width 5 -command {C_DumpDatabase $dumpdb_filename $dumpdb_pi $dumpdb_xi $dumpdb_ai $dumpdb_ni $dumpdb_oi $dumpdb_mi $dumpdb_li $dumpdb_ti; destroy .dumpdb}
+      button .dumpdb.all.cmd.apply -text "Ok" -width 5 -command DoDbDump
       pack .dumpdb.all.cmd.apply -side left -padx 10
       pack .dumpdb.all.cmd -side top
 
@@ -2095,6 +2162,134 @@ proc PopupDumpDatabase {} {
       bind .dumpdb.all <Destroy> {+ set dumpdb_popup 0}
    } else {
       raise .dumpdb
+   }
+}
+
+# callback for Ok button
+proc DoDbDump {} {
+   global dumpdb_pi dumpdb_xi dumpdb_ai dumpdb_ni dumpdb_filename
+   global dumpdb_oi dumpdb_mi dumpdb_li dumpdb_ti
+
+   if {([string length $dumpdb_filename] > 0) && [file exists $dumpdb_filename]} {
+
+      set answer [tk_messageBox -type okcancel -icon warning -parent .dumpdb \
+                                -message "This file already exists - overwrite it?"]
+      if {[string compare $answer "ok"] != 0} {
+         return
+      }
+   }
+   C_DumpDatabase $dumpdb_filename \
+                  $dumpdb_pi $dumpdb_xi $dumpdb_ai $dumpdb_ni \
+                  $dumpdb_oi $dumpdb_mi $dumpdb_li $dumpdb_ti
+
+   # close the popup window
+   destroy .dumpdb
+
+   # save the settings to the rc/ini file
+   UpdateRcFile
+}
+
+##  --------------------------------------------------------------------------
+##  Popup "Dump HTML" dialog
+##
+set dumphtml_filename {}
+set dumphtml_type 3
+set dumphtml_sel_only 1
+set dumphtml_hyperlinks 1
+set dumphtml_file_append 1
+set dumphtml_file_overwrite 0
+set dumphtml_popup 0
+
+proc PopupDumpHtml {} {
+   global dumphtml_filename dumphtml_type dumphtml_file_append dumphtml_file_overwrite
+   global dumphtml_sel_only dumphtml_hyperlinks
+   global font_fixed fileImage
+   global dumphtml_popup
+
+   if {$dumphtml_popup == 0} {
+      CreateTransientPopup .dumphtml "Dump database in HTML"
+      set dumphtml_popup 1
+
+      frame .dumphtml.opt1 -borderwidth 1 -relief raised
+      frame .dumphtml.opt1.name
+      label .dumphtml.opt1.name.prompt -text "File name:"
+      pack .dumphtml.opt1.name.prompt -side left
+      entry .dumphtml.opt1.name.filename -textvariable dumphtml_filename -font $font_fixed -width 30
+      pack .dumphtml.opt1.name.filename -side left -padx 5
+      bind .dumphtml.opt1.name.filename <Enter> {focus %W}
+      bind .dumphtml.opt1.name.filename <Return> DoDumpHtml
+      bind .dumphtml.opt1.name.filename <Escape> {destroy .dumphtml}
+      button .dumphtml.opt1.name.dlgbut -image $fileImage -command {
+         set tmp [tk_getSaveFile -parent .dumphtml \
+                     -initialfile [file tail $dumphtml_filename] \
+                     -initialdir [file dirname $dumphtml_filename] \
+                     -defaultextension html -filetypes {{HTML {*.html *.htm}} {all {*.*}}}]
+         if {[string length $tmp] > 0} {
+            set dumphtml_filename $tmp
+         }
+         unset tmp
+      }
+      pack .dumphtml.opt1.name.dlgbut -side left -padx 5
+      pack .dumphtml.opt1.name -side top -pady 10
+
+      checkbutton .dumphtml.opt1.sel0 -text "Append to file (if exists)" -variable dumphtml_file_append
+      checkbutton .dumphtml.opt1.sel1 -text "Overwrite without asking" -variable dumphtml_file_overwrite
+      pack .dumphtml.opt1.sel0 .dumphtml.opt1.sel1 -side top -anchor nw
+      pack .dumphtml.opt1 -side top -pady 5 -padx 10 -fill x
+
+      frame .dumphtml.opt2 -borderwidth 1 -relief raised
+      checkbutton .dumphtml.opt2.chk0 -text "Selected programme only" -variable dumphtml_sel_only
+      checkbutton .dumphtml.opt2.chk1 -text "Add hyperlinks to titles" -variable dumphtml_hyperlinks
+      pack .dumphtml.opt2.chk0 .dumphtml.opt2.chk1 -side top -anchor nw
+      pack .dumphtml.opt2 -side top -pady 5 -padx 10 -fill x
+
+      frame .dumphtml.opt3 -borderwidth 1 -relief raised
+      radiobutton .dumphtml.opt3.sel0 -text "Write titles and descriptions" -variable dumphtml_type -value 3
+      radiobutton .dumphtml.opt3.sel1 -text "Write titles only" -variable dumphtml_type -value 1
+      radiobutton .dumphtml.opt3.sel2 -text "Write descriptions only" -variable dumphtml_type -value 2
+      pack .dumphtml.opt3.sel0 .dumphtml.opt3.sel1 .dumphtml.opt3.sel2 -side top -anchor nw
+      pack .dumphtml.opt3 -side top -pady 5 -padx 10 -fill x
+
+      frame .dumphtml.cmd
+      button .dumphtml.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Control) "Dump in HTML"}
+      pack .dumphtml.cmd.help -side left -padx 10
+      button .dumphtml.cmd.dismiss -text "Dismiss" -width 5 -command {destroy .dumphtml}
+      pack .dumphtml.cmd.dismiss -side left -padx 10
+      button .dumphtml.cmd.write -text "Write" -width 5 -command DoDumpHtml
+      pack .dumphtml.cmd.write -side left -padx 10
+      pack .dumphtml.cmd -side top -pady 10
+
+      bind .dumphtml.cmd <Destroy> {+ set dumphtml_popup 0}
+   } else {
+      raise .dumphtml
+   }
+}
+
+# callback for Write button
+proc DoDumpHtml {} {
+   global dumphtml_filename dumphtml_type dumphtml_file_append dumphtml_file_overwrite
+   global dumphtml_sel_only dumphtml_hyperlinks
+
+   if {[string length $dumphtml_filename] > 0} {
+      if {!$dumphtml_file_append && !$dumphtml_file_overwrite && \
+         [file exists $dumphtml_filename]} {
+
+         set answer [tk_messageBox -type okcancel -icon warning -parent .dumphtml \
+                                   -message "This file already exists - overwrite it?"]
+         if {[string compare $answer "ok"] != 0} {
+            return
+         }
+      }
+      C_DumpHtml $dumphtml_filename \
+                 [expr ($dumphtml_type & 1) != 0] [expr ($dumphtml_type & 2) != 0] \
+                 $dumphtml_file_append $dumphtml_sel_only $dumphtml_hyperlinks
+
+      # save the settings to the rc/ini file
+      UpdateRcFile
+
+   } else {
+      # the file name entry field is still empty -> abort (stdout not allowed here)
+      tk_messageBox -type ok -icon error -parent .dumphtml -message "Please enter a file name."
    }
 }
 
@@ -3402,26 +3597,26 @@ proc ApplyUserNetnameCfg {name_arr} {
 ##  Browser columns selection popup
 ##
 
-# this array defines the width of the columns (in 1/1000 meters), the column
-# heading and the description in the config listbox.
+# this array defines the width of the columns (in pixels), the column
+# heading, dropdown menu and the description in the config listbox.
 
 array set colsel_tabs {
-   title          {90  75  Title    FilterMenuAdd_Title      "Title"} \
-   netname        {24  18  Network  FilterMenuAdd_Networks   "Network name"} \
-   time           {28  20  Time     FilterMenuAdd_Time       "Running time"} \
-   weekday        {10   8  Day      FilterMenuAdd_Date       "Day of week"} \
-   day            { 9   7  Date     FilterMenuAdd_Date       "Day of month"} \
-   day_month      {14  11  Date     FilterMenuAdd_Date       "Day and month"} \
-   day_month_year {24  20  Date     FilterMenuAdd_Date       "Day, month and year"} \
-   pil            {25  20  VPS/PDC  none                     "VPS/PDC code"} \
-   theme          {25  20  Theme    FilterMenuAdd_Themes     "Theme"} \
-   sound          {15  13  Sound    FilterMenuAdd_Sound      "Sound"} \
-   format         {14  12  Format   FilterMenuAdd_Format     "Format"} \
-   ed_rating      {10   8  ER       FilterMenuAdd_EditorialRating "Editorial rating"} \
-   par_rating     {10   8  PR       FilterMenuAdd_ParentalRating  "Parental rating"} \
-   live_repeat    {15  12  L/R      FilterMenuAdd_LiveRepeat "Live or repeat"} \
-   description    { 5   4  I        none                     "Flag description"} \
-   subtitles      { 5   4  ST       FilterMenuAdd_Subtitles  "Flag subtitles"} \
+   title          {266 Title    FilterMenuAdd_Title      "Title"} \
+   netname        {71  Network  FilterMenuAdd_Networks   "Network name"} \
+   time           {83  Time     FilterMenuAdd_Time       "Running time"} \
+   weekday        {30  Day      FilterMenuAdd_Date       "Day of week"} \
+   day            {27  Date     FilterMenuAdd_Date       "Day of month"} \
+   day_month      {41  Date     FilterMenuAdd_Date       "Day and month"} \
+   day_month_year {71  Date     FilterMenuAdd_Date       "Day, month and year"} \
+   pil            {74  VPS/PDC  none                     "VPS/PDC code"} \
+   theme          {74  Theme    FilterMenuAdd_Themes     "Theme"} \
+   sound          {44  Sound    FilterMenuAdd_Sound      "Sound"} \
+   format         {41  Format   FilterMenuAdd_Format     "Format"} \
+   ed_rating      {30  ER       FilterMenuAdd_EditorialRating "Editorial rating"} \
+   par_rating     {30  PR       FilterMenuAdd_ParentalRating  "Parental rating"} \
+   live_repeat    {44  L/R      FilterMenuAdd_LiveRepeat "Live or repeat"} \
+   description    {15  I        none                     "Flag description"} \
+   subtitles      {15  ST       FilterMenuAdd_Subtitles  "Flag subtitles"} \
 }
 
 # define presentation order for configuration listbox
@@ -3447,7 +3642,7 @@ proc PopupColumnSelection {} {
 
       if {![array exists colsel_names]} {
          foreach name [array names colsel_tabs] {
-            set colsel_names($name) [lindex $colsel_tabs($name) 4]
+            set colsel_names($name) [lindex $colsel_tabs($name) 3]
          }
       }
       set colsel_selist $pilistbox_cols
@@ -3492,9 +3687,9 @@ proc ApplySelectedColumnList {mode} {
    if {$showColumnHeader} {
       # create colum header menu buttons
       foreach col $colsel_selist {
-         frame .all.pi.colheads.col_$col -width "[lindex $colsel_tabs($col) [expr $is_unix ? 0 : 1]]m" -height 14
+         frame .all.pi.colheads.col_$col -width [lindex $colsel_tabs($col) 0] -height 14
          menubutton .all.pi.colheads.col_${col}.b -width 1 -cursor top_left_arrow \
-                                                  -text [lindex $colsel_tabs($col) 2] -font $font_small
+                                                  -text [lindex $colsel_tabs($col) 1] -font $font_small
          if {$is_unix} {
             .all.pi.colheads.col_${col}.b configure -borderwidth 1 -relief raised
          } else {
@@ -3504,15 +3699,15 @@ proc ApplySelectedColumnList {mode} {
          pack propagate .all.pi.colheads.col_${col} 0
          pack .all.pi.colheads.col_${col} -side left -anchor w
 
-         if {[string compare [lindex $colsel_tabs($col) 3] "none"] != 0} {
+         if {[string compare [lindex $colsel_tabs($col) 2] "none"] != 0} {
             # create the drop-down menu below the header (the menu items are added dynamically)
             .all.pi.colheads.col_${col}.b configure -menu .all.pi.colheads.col_${col}.b.men
             .all.pi.colheads.col_${col}.b configure -menu .all.pi.colheads.col_${col}.b.men
-            menu .all.pi.colheads.col_${col}.b.men -postcommand [list PostDynamicMenu .all.pi.colheads.col_${col}.b.men [lindex $colsel_tabs($col) 3]]
+            menu .all.pi.colheads.col_${col}.b.men -postcommand [list PostDynamicMenu .all.pi.colheads.col_${col}.b.men [lindex $colsel_tabs($col) 2]]
          }
 
-         incr tab_pos [lindex $colsel_tabs($col) [expr $is_unix ? 0 : 1]]
-         lappend tabs ${tab_pos}m
+         incr tab_pos [lindex $colsel_tabs($col) 0]
+         lappend tabs ${tab_pos}
       }
       if {[info exists col] && ([string length [info commands .all.pi.colheads.col_${col}]] > 0)} {
          # increase width of the last header button to accomodate for text widget borderwidth
@@ -3535,7 +3730,7 @@ proc ApplySelectedColumnList {mode} {
 
    if {[string compare $mode "initial"] != 0} {
       # unless suppressed, update the settings in the listbox module and then redraw the content
-      C_PiListBox_CfgColumns
+      C_PiOutput_CfgColumns
       C_RefreshPiListbox
       # save the config to the rc-file
       set pilistbox_cols $colsel_selist
@@ -3607,7 +3802,7 @@ proc FilterMenuAdd_Networks {widget} {
 }
 
 proc FilterMenuAdd_Title {widget} {
-   global substr_grep_title substr_grep_descr substr_ignore_case
+   global substr_grep_title substr_grep_descr substr_match_case substr_match_full
    global substr_pattern
    global substr_history
 
@@ -3626,10 +3821,10 @@ proc FilterMenuAdd_Title {widget} {
    if {[llength $substr_history] > 0} {
       $widget add separator
       foreach item $substr_history {
-         $widget add command -label [lindex $item 3] -command [concat SubstrSetFilter $item]
+         $widget add command -label [lindex $item 4] -command [concat SubstrSetFilter $item]
       }
       $widget add separator
-      $widget add command -label "Clear search history" -command {set substr_history {}}
+      $widget add command -label "Clear search history" -command {set substr_history {}; UpdateRcFile}
    }
 }
 
@@ -3803,14 +3998,16 @@ proc ProvMerge_Quit {cause} {
    global prov_merge_cnis prov_merge_cf
    global provmerge_names ProvmergeOptLabels
 
-   if {[llength $provmerge_selist] == 0} {
-      tk_messageBox -type ok -icon error -parent .provmerge -message "You have to add at least one provider from the left to the listbox on the right."
-      return
-   }
-
    # check the configuration parameters for consistancy
    if {[string compare $cause "Ok"] == 0} {
-      # save the configuration into global variables
+
+      # check if the provider list is empty
+      if {[llength $provmerge_selist] == 0} {
+         tk_messageBox -type ok -icon error -parent .provmerge -message "You have to add at least one provider from the left to the listbox on the right."
+         return
+      }
+
+      # compare the new configuration with the one stored in global variables
       set tmp_cf {}
       if {[info exists provmerge_cf]} {
          foreach {name vlist} [array get provmerge_cf] {
@@ -3835,13 +4032,12 @@ proc ProvMerge_Quit {cause} {
    # close database selection popup (main)
    if {$provmerge_popup} {
       set provmerge_popup 0
+      # undo binding to avoid recursive call to this proc
       bind .provmerge.cmd <Destroy> {}
       destroy .provmerge
    }
    # close attribute selection popup (slave)
    if {$provmergeopt_popup} {
-      set provmerge_popupopt 0
-      bind .provmergeopt.cb <Destroy> {}
       destroy .provmergeopt
    }
    # free space from arrays
@@ -4488,6 +4684,370 @@ proc XawtvConfigSave {} {
 }
 
 
+##  --------------------------------------------------------------------------
+##  Creates the Context menu popup configuration dialog
+##
+set ctxmencf_popup 0
+set ctxmencf {}
+
+proc ContextMenuConfigPopup {} {
+   global ctxmencf_popup
+   global default_bg font_fixed
+   global ctxmencf_selidx ctxmencf_title ctxmencf_cmd
+   global ctxmencf ctxmencf_ord ctxmencf_arr
+
+   if {$ctxmencf_popup == 0} {
+      CreateTransientPopup .ctxmencf "Context Menu Configuration"
+      set ctxmencf_popup 1
+
+      # load configuration into temporary array
+      # note: the indices generated here are used as unique IDs and
+      #       do not represent the order in the listbox (only initially)
+      set ctxmencf_ord {}
+      set idx 0
+      foreach {title cmd} $ctxmencf {
+         set ctxmencf_arr($idx) [list $title $cmd]
+         lappend ctxmencf_ord $idx
+         incr idx
+      }
+
+      frame .ctxmencf.all
+      label .ctxmencf.all.lab_main -text "Add user-defined commands:"
+      pack .ctxmencf.all.lab_main -side top -anchor w -pady 5
+
+      # section #1: listbox with overview of all defined titles
+      frame .ctxmencf.all.lbox 
+      scrollbar .ctxmencf.all.lbox.sc -orient vertical -command {.ctxmencf.all.lbox.cmdlist yview}
+      pack .ctxmencf.all.lbox.sc -side left -fill y
+      listbox .ctxmencf.all.lbox.cmdlist -exportselection false -height 5 -width 0 \
+                                         -selectmode single -relief ridge \
+                                         -yscrollcommand {.ctxmencf.all.lbox.sc set}
+      bind .ctxmencf.all.lbox.cmdlist <ButtonRelease-1> {ContextMenuConfigSelection 1}
+      bind .ctxmencf.all.lbox.cmdlist <KeyRelease-space> {ContextMenuConfigSelection 1}
+      pack .ctxmencf.all.lbox.cmdlist -side left -expand 1 -fill x
+      pack .ctxmencf.all.lbox  -fill x -side top
+
+      # section #2: command buttons to manipulate the list
+      frame  .ctxmencf.all.cmd
+      button .ctxmencf.all.cmd.new -text "new" -command ContextMenuConfigAddNew -width 7
+      pack   .ctxmencf.all.cmd.new -side left -anchor nw
+      button .ctxmencf.all.cmd.upd -text "update" -command ContextMenuConfigUpdate -width 7
+      pack   .ctxmencf.all.cmd.upd -side left -anchor nw
+      button .ctxmencf.all.cmd.delcmd -text "delete" -command ContextMenuConfigDelete -width 7
+      pack   .ctxmencf.all.cmd.delcmd -side left -anchor nw
+      button .ctxmencf.all.cmd.up -bitmap "bitmap_ptr_up" -command ContextMenuConfigShiftUp
+      pack   .ctxmencf.all.cmd.up -side left -fill y
+      button .ctxmencf.all.cmd.down -bitmap "bitmap_ptr_down" -command ContextMenuConfigShiftDown
+      pack   .ctxmencf.all.cmd.down -side left -fill y
+      button .ctxmencf.all.cmd.clear -text "clear" -command ContextMenuConfigClearEntry -width 7
+      pack   .ctxmencf.all.cmd.clear -side left -fill y
+
+      menubutton .ctxmencf.all.cmd.examples -text "Copy example" -menu .ctxmencf.all.cmd.examples.men -borderwidth 2 -relief raised
+      pack .ctxmencf.all.cmd.examples -side left -fill y
+      menu .ctxmencf.all.cmd.examples.men -tearoff 0
+      .ctxmencf.all.cmd.examples.men add command -label "Plan reminder" -command {
+         set ctxmencf_title "Set reminder in plan";
+         set ctxmencf_cmd   {plan ${start:%d.%m.%Y %H:%M} ${title}\ \(${network}\)}
+      }
+      .ctxmencf.all.cmd.examples.men add command -label "XAlarm timer" -command {
+         set ctxmencf_title "Set alarm timer";
+         set ctxmencf_cmd   {xalarm -time ${start} -date ${start:%b %d %Y} ${title}\ \(${network}\)}
+      }
+      .ctxmencf.all.cmd.examples.men add command -label "All variables" -command {
+         set ctxmencf_title "Demo: echo all variables";
+         set ctxmencf_cmd   {echo title=${title} network=${network} start=${start} stop=${stop} VPS/PDC=${VPS} duration=${duration} relstart=${relstart} CNI=${CNI} description=${description} themes=${themes} e_rating=${e_rating} p_rating=${p_rating} sound=${sound} format=${format} digital=${digital} encrypted=${encrypted} live=${live} repeat=${repeat} subtitle=${subtitle}}
+      }
+      pack .ctxmencf.all.cmd -side top -pady 10
+
+      # section #3: entry field to modify or create commands
+      frame .ctxmencf.all.edit -borderwidth 2 -relief ridge
+      frame .ctxmencf.all.edit.fr_title
+      entry .ctxmencf.all.edit.fr_title.ent -textvariable ctxmencf_title -width 55 -font $font_fixed
+      pack  .ctxmencf.all.edit.fr_title.ent -side right
+      label .ctxmencf.all.edit.fr_title.lab -text "Title:"
+      pack  .ctxmencf.all.edit.fr_title.lab -side right
+      pack  .ctxmencf.all.edit.fr_title -side top -fill x
+      frame .ctxmencf.all.edit.fr_cmd
+      entry .ctxmencf.all.edit.fr_cmd.ent -textvariable ctxmencf_cmd -width 55 -font $font_fixed
+      pack  .ctxmencf.all.edit.fr_cmd.ent -side right
+      label .ctxmencf.all.edit.fr_cmd.lab -text "Command:"
+      pack  .ctxmencf.all.edit.fr_cmd.lab -side right
+      pack  .ctxmencf.all.edit.fr_cmd -side top -fill x
+      pack  .ctxmencf.all.edit -side top -pady 5
+      pack  .ctxmencf.all -side top -pady 5 -padx 5
+
+      # section #4: standard dialog buttons: Ok, Abort, Help
+      frame .ctxmencf.cmd
+      button .ctxmencf.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Configuration) "Context menu"}
+      button .ctxmencf.cmd.abort -text "Abort" -width 5 -command {ContextMenuConfigQuit 1}
+      button .ctxmencf.cmd.save -text "Ok" -width 5 -command {ContextMenuConfigQuit 0}
+      pack .ctxmencf.cmd.help .ctxmencf.cmd.abort .ctxmencf.cmd.save -side left -padx 10
+      pack .ctxmencf.cmd -side top -pady 5
+
+      bind .ctxmencf.cmd <Destroy> {+ set ctxmencf_popup 0}
+
+      # display the entries in the listbox
+      foreach idx $ctxmencf_ord {
+        .ctxmencf.all.lbox.cmdlist insert end [lindex $ctxmencf_arr($idx) 0]
+      }
+      set ctxmencf_title {}
+      set ctxmencf_cmd {}
+      set ctxmencf_selidx -1
+   } else {
+      raise .ctxmencf
+   }
+}
+
+# helper function: check if there are unsaved changes in the entry fields
+# returns TRUE if user wants to cancel the operation
+proc ContextMenuCompareInput {} {
+   global ctxmencf_selidx ctxmencf_title ctxmencf_cmd
+   global ctxmencf_arr ctxmencf_ord
+
+   set title_change 0
+   set cmd_change 0
+   set result 0
+
+   if {([string length $ctxmencf_title] != 0) ||
+       ([string length $ctxmencf_cmd] != 0)} {
+      set idx $ctxmencf_selidx
+      if {($idx >= 0) && ($idx < [llength $ctxmencf_ord])} {
+         # one item is selected -> compare entry fiels content with its title and cmd
+         set id [lindex $ctxmencf_ord $idx]
+         if [info exists ctxmencf_arr($id)] {
+            if {([string compare $ctxmencf_title [lindex $ctxmencf_arr($id) 0]] != 0) ||
+                ([string compare $ctxmencf_cmd [lindex $ctxmencf_arr($id) 1]] != 0)} {
+               # title and/or command string have been changed
+               set answer [tk_messageBox -type okcancel -icon question -parent .ctxmencf \
+                             -message "Discard unsaved changes in the title and command entry fields?\nNote: You can use button 'Update' to save them into the selected context menu entry."]
+               set result [expr [string compare $answer "ok"] != 0]
+            }
+         }
+      } else {
+         # no item is currently selected
+         set answer [tk_messageBox -type okcancel -icon question -parent .ctxmencf \
+                       -message "Discard unsaved changes in the title and command entry fields?\nNote: You can use button 'New' to create a new context menu entry."]
+         set result [expr [string compare $answer "ok"] != 0]
+      }
+   }
+   return $result
+}
+
+# callback for selection -> display title and command in the entry widgets
+proc ContextMenuConfigSelection {do_check} {
+   global ctxmencf_selidx ctxmencf_title ctxmencf_cmd
+   global ctxmencf_arr ctxmencf_ord
+
+   if {$do_check && [ContextMenuCompareInput]} return
+
+   set idx [.ctxmencf.all.lbox.cmdlist curselection]
+   if {([llength $idx] > 0) && ($idx < [llength $ctxmencf_ord])} {
+      set id [lindex $ctxmencf_ord $idx]
+      if [info exists ctxmencf_arr($id)] {
+         set ctxmencf_selidx $idx
+         set ctxmencf_title  [lindex $ctxmencf_arr($id) 0]
+         set ctxmencf_cmd    [lindex $ctxmencf_arr($id) 1]
+      }
+   }
+}
+
+# helper function for add and update: check if the input in the entry fields are ok
+proc ContextMenuConfigCheckInput {is_update} {
+   global ctxmencf_selidx ctxmencf_title ctxmencf_cmd
+   global ctxmencf_arr ctxmencf_ord
+   set result 1
+
+   if {([string length $ctxmencf_title] == 0) || \
+       ([string length $ctxmencf_cmd] == 0)} {
+      tk_messageBox -type ok -default ok -icon error -parent .ctxmencf \
+                    -message "You need to type a title and command into the entry fields."
+      set result 0
+   } elseif {!$is_update} {
+      set found 0
+      foreach id $ctxmencf_ord {
+         if {[info exists ctxmencf_arr($id)] &&
+             ([string compare $ctxmencf_title [lindex $ctxmencf_arr($id) 0]] == 0)} {
+            incr found
+         }
+      }
+      if $found {
+         set answer [tk_messageBox -type okcancel -default ok -icon warning -parent .ctxmencf \
+                        -message "You already have defined an entry with the same title!"]
+         set result [expr [string compare $answer "ok"] == 0]
+      }
+   }
+   return $result
+}
+
+# callback for "Update" button -> replace the selected entry witht the entry's content
+proc ContextMenuConfigUpdate {} {
+   global ctxmencf_selidx ctxmencf_title ctxmencf_cmd
+   global ctxmencf_arr ctxmencf_ord
+
+   set idx $ctxmencf_selidx
+   if {($idx >= 0) && ($idx < [llength $ctxmencf_ord])} {
+      set id [lindex $ctxmencf_ord $idx]
+      if [info exists ctxmencf_arr($id)] {
+         if [ContextMenuConfigCheckInput 1] {
+            set ctxmencf_arr($id) [list $ctxmencf_title $ctxmencf_cmd]
+            .ctxmencf.all.lbox.cmdlist delete $idx
+            .ctxmencf.all.lbox.cmdlist insert $idx $ctxmencf_title
+            .ctxmencf.all.lbox.cmdlist selection set $idx
+         }
+      }
+   }
+}
+
+# callback for "New" button -> append the text from the entry fields to the list
+proc ContextMenuConfigAddNew {} {
+   global ctxmencf_selidx ctxmencf_title ctxmencf_cmd
+   global ctxmencf_arr ctxmencf_ord
+
+   if [ContextMenuConfigCheckInput 0] {
+      set id [llength $ctxmencf_ord]
+      lappend ctxmencf_ord $id
+      set ctxmencf_arr($id) [list $ctxmencf_title $ctxmencf_cmd]
+      .ctxmencf.all.lbox.cmdlist insert end $ctxmencf_title
+      .ctxmencf.all.lbox.cmdlist selection clear 0 end
+      .ctxmencf.all.lbox.cmdlist selection set $id
+      set ctxmencf_selidx $id
+   }
+}
+
+# callback for "Delete" button -> remove the selected entry
+proc ContextMenuConfigDelete {} {
+   global ctxmencf_selidx ctxmencf_arr ctxmencf_ord
+
+   set idx $ctxmencf_selidx
+   if {($idx >= 0) && ($idx < [llength $ctxmencf_ord])} {
+      set id [lindex $ctxmencf_ord $idx]
+      if [info exists ctxmencf_arr($id)] {
+         unset ctxmencf_arr($id)
+      }
+      set ctxmencf_ord [lreplace $ctxmencf_ord $idx $idx]
+      .ctxmencf.all.lbox.cmdlist delete $idx
+
+      # select the entry following the deleted one
+      if {[llength $ctxmencf_ord] > 0} {
+         if {$idx >= [llength $ctxmencf_ord]} {
+            set idx [expr [llength $ctxmencf_ord] - 1]
+         }
+         .ctxmencf.all.lbox.cmdlist selection set $idx
+         set ctxmencf_selidx $idx
+         ContextMenuConfigSelection 0
+      } else {
+         # no item left to select -> clear the entry fields
+         ContextMenuConfigClearEntry
+      }
+   }
+}
+
+# callback for "Up" button -> swap the selected entry with the one above it
+proc ContextMenuConfigShiftUp {} {
+   global ctxmencf_selidx ctxmencf_arr ctxmencf_ord
+
+   if [ContextMenuCompareInput] return
+
+   set idx $ctxmencf_selidx
+   if {($idx >= 0) && ($idx < [llength $ctxmencf_ord])} {
+      set id [lindex $ctxmencf_ord $idx]
+      set swap_idx [expr $idx - 1]
+      set swap_id [lindex $ctxmencf_ord $swap_idx]
+      if {($swap_idx >= 0) && ($swap_idx < [llength $ctxmencf_ord]) &&
+          [info exists ctxmencf_arr($id)] && [info exists ctxmencf_arr($swap_id)]} {
+         # remove the item in the listbox widget above the shifted one
+         .ctxmencf.all.lbox.cmdlist delete $swap_idx
+         # re-insert the just removed title below the shifted one
+         .ctxmencf.all.lbox.cmdlist insert $idx [lindex $ctxmencf_arr($swap_id) 0]
+         .ctxmencf.all.lbox.cmdlist selection set $swap_idx
+         set ctxmencf_selidx $swap_idx
+
+         # perform the same exchange in the associated list
+         set ctxmencf_ord [lreplace $ctxmencf_ord $swap_idx $idx $id $swap_id]
+      }
+   }
+}
+
+# callback for "Down" button -> swap the selected entry with the one below it
+proc ContextMenuConfigShiftDown {} {
+   global ctxmencf_selidx ctxmencf_arr ctxmencf_ord
+
+   if [ContextMenuCompareInput] return
+
+   set idx $ctxmencf_selidx
+   if {($idx >= 0) && ($idx < [llength $ctxmencf_ord])} {
+      set id [lindex $ctxmencf_ord $idx]
+      set swap_idx [expr $idx + 1]
+      set swap_id [lindex $ctxmencf_ord $swap_idx]
+      if {($swap_idx < [llength $ctxmencf_ord]) &&
+          [info exists ctxmencf_arr($id)] && [info exists ctxmencf_arr($swap_id)]} {
+         # remove the item in the listbox widget
+         .ctxmencf.all.lbox.cmdlist delete $idx
+         # re-insert the just removed title below the shifted one
+         .ctxmencf.all.lbox.cmdlist insert $swap_idx [lindex $ctxmencf_arr($id) 0]
+         .ctxmencf.all.lbox.cmdlist selection clear 0 end
+         .ctxmencf.all.lbox.cmdlist selection set $swap_idx
+         set ctxmencf_selidx $swap_idx
+
+         # perform the same exchange in the associated list
+         set ctxmencf_ord [lreplace $ctxmencf_ord $idx $swap_idx $swap_id $id]
+      }
+   }
+}
+
+# callback for "Clear" button -> clear the entry fields
+proc ContextMenuConfigClearEntry {} {
+   global ctxmencf_selidx ctxmencf_title ctxmencf_cmd
+
+   set ctxmencf_title {}
+   set ctxmencf_cmd   {}
+   set ctxmencf_selidx -1
+   .ctxmencf.all.lbox.cmdlist selection clear 0 end
+}
+
+# callback for Abort and OK buttons
+proc ContextMenuConfigQuit {is_abort} {
+   global ctxmencf ctxmencf_ord ctxmencf_arr
+   global ctxmencf_selidx ctxmencf_title ctxmencf_cmd
+
+   if [ContextMenuCompareInput] return
+
+   set do_quit 1
+   # create config array from the listbox content
+   set newcf {}
+   foreach idx $ctxmencf_ord {
+      if [info exists ctxmencf_arr($idx)] {
+         lappend newcf [lindex $ctxmencf_arr($idx) 0] [lindex $ctxmencf_arr($idx) 1]
+      }
+   }
+
+   if $is_abort {
+      # Abort button: compare the new config with the previous one
+      if {[string compare $ctxmencf $newcf] != 0} {
+         # ask the user for confirmation to discard any changes he made
+         set answer [tk_messageBox -type okcancel -icon warning -parent .ctxmencf \
+                                   -message "Discard changes?"]
+         if {[string compare $answer "ok"] != 0} {
+            set do_quit 0
+         }
+      }
+   } else {
+      # Ok button: save the new config into the global variable and the rc/ini file
+      set ctxmencf $newcf
+      UpdateRcFile
+   }
+
+   if $do_quit {
+      # free memory of global variables
+      if [info exists ctxmencf_arr] {unset ctxmencf_arr}
+      unset ctxmencf_ord
+      unset ctxmencf_title ctxmencf_cmd
+      # close the dialog window
+      destroy .ctxmencf
+   }
+}
+
+
 ## ---------------------------------------------------------------------------
 ##                 S T A T I S T I C S   W I N D O W S
 ## ---------------------------------------------------------------------------
@@ -4738,8 +5298,8 @@ proc ShortcutPrettyPrint {filter} {
          series {
             set titnet_list [C_GetSeriesTitles $valist]
             set title_list {}
-            foreach {title netwop lang} $titnet_list {
-               lappend title_list [list [DictifySeriesTitle $title $lang] $netwop]
+            foreach {title netwop} $titnet_list {
+               lappend title_list [list $title $netwop]
             }
             foreach title [lsort -command CompareSeriesMenuEntries $title_list] {
                append out "Series: '[lindex $title 0]' on [lindex $title 1]\n"
@@ -4842,9 +5402,13 @@ proc ShortcutPrettyPrint {filter} {
             } else {
                append out "Title or Description"
             }
-            append out " containing '[lindex $valist 3]'"
-            if [lindex $valist 2] {
-               append out " (case ignored)"
+            append out " containing '[lindex $valist 4]'"
+            if {[lindex $valist 2] && [lindex $valist 3]} {
+               append out " (match case & complete)"
+            } elseif [lindex $valist 2] {
+               append out " (match case)"
+            } elseif [lindex $valist 3] {
+               append out " (match complete)"
             }
             append out "\n"
          }
@@ -4865,7 +5429,7 @@ proc CheckShortcutDeselection {} {
    global series_sel
    global feature_class_count feature_class_mask feature_class_value
    global progidx_first progidx_last filter_progidx
-   global substr_pattern substr_grep_title substr_grep_descr substr_ignore_case
+   global substr_pattern substr_grep_title substr_grep_descr substr_match_case substr_match_full
    global timsel_enabled timsel_start timsel_stop timsel_date timsel_relative timsel_absstop
    global fsc_prevselection
 
@@ -4973,8 +5537,9 @@ proc CheckShortcutDeselection {} {
             substr {
                set undo [expr ($substr_grep_title != [lindex $valist 0]) || \
                               ($substr_grep_descr != [lindex $valist 1]) || \
-                              ($substr_ignore_case != [lindex $valist 2]) || \
-                              ([string compare $substr_pattern [lindex $valist 3]] != 0) ]
+                              ($substr_match_case != [lindex $valist 2]) || \
+                              ($substr_match_full != [lindex $valist 3]) || \
+                              ([string compare $substr_pattern [lindex $valist 4]] != 0) ]
             }
          }
          if {$undo} {
@@ -4997,7 +5562,7 @@ proc SelectShortcut {} {
    global series_sel
    global feature_class_count feature_class_mask feature_class_value
    global progidx_first progidx_last filter_progidx
-   global substr_pattern substr_grep_title substr_grep_descr substr_ignore_case
+   global substr_pattern substr_grep_title substr_grep_descr substr_match_case substr_match_full
    global timsel_enabled timsel_start timsel_stop timsel_date timsel_relative timsel_absstop
    global fsc_prevselection
 
@@ -5078,7 +5643,7 @@ proc SelectShortcut {} {
                }
                substr {
                   set substr_pattern {}
-                  C_SelectSubStr 0 0 0 {}
+                  C_SelectSubStr 0 0 0 0 {}
                }
                progidx {
                   set filter_progidx 0
@@ -5153,9 +5718,10 @@ proc SelectShortcut {} {
             substr {
                set substr_grep_title  [lindex $valist 0]
                set substr_grep_descr  [lindex $valist 1]
-               set substr_ignore_case [lindex $valist 2]
-               set substr_pattern     [lindex $valist 3]
-               C_SelectSubStr $substr_grep_title $substr_grep_descr $substr_ignore_case $substr_pattern
+               set substr_match_case  [lindex $valist 2]
+               set substr_match_full  [lindex $valist 3]
+               set substr_pattern     [lindex $valist 4]
+               C_SelectSubStr $substr_grep_title $substr_grep_descr $substr_match_case $substr_match_full $substr_pattern
             }
             progidx {
                if {($progidx_first > [lindex $valist 0]) || ($filter_progidx == 0)} {
@@ -5283,7 +5849,7 @@ proc SelectShortcut {} {
          }
       }
       if {$clearSeries} {
-         C_SelectSeries
+         C_ResetFilter series
       }
    }
 
@@ -5301,7 +5867,7 @@ proc DescribeCurrentFilter {} {
    global sortcrit_class sortcrit_class_sel
    global series_sel
    global feature_class_count current_feature_class
-   global substr_grep_title substr_grep_descr substr_ignore_case substr_pattern
+   global substr_grep_title substr_grep_descr substr_match_case substr_match_full substr_pattern
    global filter_progidx progidx_first progidx_last
    global timsel_enabled timsel_start timsel_stop timsel_date timsel_relative timsel_absstop
 
@@ -5356,7 +5922,7 @@ proc DescribeCurrentFilter {} {
 
    # dump text substring filter state
    if {[string length $substr_pattern] > 0} {
-      lappend all "substr" [list $substr_grep_title $substr_grep_descr $substr_ignore_case $substr_pattern]
+      lappend all "substr" [list $substr_grep_title $substr_grep_descr $substr_match_case $substr_match_full $substr_pattern]
       lappend mask substr
    }
 
@@ -5993,10 +6559,13 @@ proc LoadRcFile {filename} {
    global showNetwopListbox showShortcutListbox showStatusLine showColumnHeader
    global prov_merge_cnis prov_merge_cf
    global acq_mode acq_mode_cnis
-   global hwcfg
    global pibox_height pilistbox_cols shortinfo_height
+   global hwcfg xawtvcf ctxmencf
    global substr_history
-   global xawtvcf
+   global dumpdb_filename
+   global dumpdb_pi dumpdb_xi dumpdb_ai dumpdb_ni dumpdb_oi dumpdb_mi dumpdb_li dumpdb_ti
+   global dumphtml_filename dumphtml_type dumphtml_sel_only
+   global dumphtml_hyperlinks dumphtml_file_append dumphtml_file_overwrite
    global EPG_VERSION_NO
    global myrcfile
 
@@ -6017,6 +6586,31 @@ proc LoadRcFile {filename} {
 
       # for backwards compatibility append freq table index to hw cfg
       if {[info exists hwcfg] && ([llength $hwcfg] == 5)} {lappend hwcfg 0}
+
+      if {![info exists nxtvepg_version] || ($nxtvepg_version < 0x000600)} {
+         set substr_history {}
+         for {set index 0} {$index < $shortcut_count} {incr index} {
+            # starting with version 0.5.0 an ID tag was appended
+            if {[llength $shortcuts($index)] == 4} {
+               lappend shortcuts($index) [GenerateShortcutTag]
+            }
+            # since version 0.6.0 text search has an additional parameter "match full" and "ignore case" was inverted to "match case"
+            set filt [lindex $shortcuts($index) $fsc_filt_idx]
+            set newfilt {}
+            foreach {tag val} $filt {
+               if {([string compare $tag "substr"] == 0) && ([llength $val] == 4)} {
+                  set val [list [lindex $val 0] [lindex $val 1] [expr 1 - [lindex $val 2]] 0 [lindex $val 3]]
+               }
+               lappend newfilt $tag $val
+            }
+            set shortcuts($index) [list \
+               [lindex $shortcuts($index) $fsc_name_idx] \
+               [lindex $shortcuts($index) $fsc_mask_idx] \
+               $newfilt \
+               [lindex $shortcuts($index) $fsc_logi_idx] \
+               [lindex $shortcuts($index) $fsc_tag_idx] ]
+         }
+      }
    }
 
    if {$showShortcutListbox == 0} {pack forget .all.shortcuts}
@@ -6040,16 +6634,13 @@ proc LoadRcFile {filename} {
 
    # fill the shortcut listbox
    for {set index 0} {$index < $shortcut_count} {incr index} {
-      if {[llength $shortcuts($index)] < 5} {
-         lappend shortcuts($index) [GenerateShortcutTag]
-      }
       .all.shortcuts.list insert end [lindex $shortcuts($index) $fsc_name_idx]
    }
    .all.shortcuts.list configure -height $shortcut_count
 
    if {[info exists EPG_VERSION_NO] && [info exists nxtvepg_version]} {
       if {$nxtvepg_version > $EPG_VERSION_NO} {
-         set answer [tk_messageBox -type ok -default ok -icon warning -message "The config file is from a newer version of nxtvepg. Some settings may get lost."]
+         tk_messageBox -type ok -default ok -icon warning -message "The config file is from a newer version of nxtvepg. Some settings may get lost."
       }
    }
 }
@@ -6063,10 +6654,13 @@ proc UpdateRcFile {} {
    global showNetwopListbox showShortcutListbox showStatusLine showColumnHeader
    global prov_merge_cnis prov_merge_cf
    global acq_mode acq_mode_cnis
-   global hwcfg
    global pibox_height pilistbox_cols shortinfo_height
+   global hwcfg xawtvcf ctxmencf
    global substr_history
-   global xawtvcf
+   global dumpdb_filename
+   global dumpdb_pi dumpdb_xi dumpdb_ai dumpdb_ni dumpdb_oi dumpdb_mi dumpdb_li dumpdb_ti
+   global dumphtml_filename dumphtml_type dumphtml_sel_only
+   global dumphtml_hyperlinks dumphtml_file_append dumphtml_file_overwrite
    global EPG_VERSION EPG_VERSION_NO
    global myrcfile
 
@@ -6125,8 +6719,26 @@ proc UpdateRcFile {} {
       if {[info exists hwcfg]} {puts $rcfile [list set hwcfg $hwcfg]}
 
       puts $rcfile [list set xawtvcf $xawtvcf]
+      puts $rcfile [list set ctxmencf $ctxmencf]
 
       if {[info exists substr_history]} {puts $rcfile [list set substr_history $substr_history]}
+
+      puts $rcfile [list set dumpdb_filename $dumpdb_filename]
+      puts $rcfile [list set dumpdb_pi $dumpdb_pi]
+      puts $rcfile [list set dumpdb_xi $dumpdb_xi]
+      puts $rcfile [list set dumpdb_ai $dumpdb_ai]
+      puts $rcfile [list set dumpdb_ni $dumpdb_ni]
+      puts $rcfile [list set dumpdb_oi $dumpdb_oi]
+      puts $rcfile [list set dumpdb_mi $dumpdb_mi]
+      puts $rcfile [list set dumpdb_li $dumpdb_li]
+      puts $rcfile [list set dumpdb_ti $dumpdb_ti]
+
+      puts $rcfile [list set dumphtml_filename $dumphtml_filename]
+      puts $rcfile [list set dumphtml_type $dumphtml_type]
+      puts $rcfile [list set dumphtml_sel_only $dumphtml_sel_only]
+      puts $rcfile [list set dumphtml_hyperlinks $dumphtml_hyperlinks]
+      puts $rcfile [list set dumphtml_file_append $dumphtml_file_append]
+      puts $rcfile [list set dumphtml_file_overwrite $dumphtml_file_overwrite]
 
       close $rcfile
    } else {

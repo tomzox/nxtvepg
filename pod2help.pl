@@ -23,7 +23,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: pod2help.pl,v 1.10 2001/02/25 16:06:24 tom Exp tom $
+#  $Id: pod2help.pl,v 1.11 2001/08/23 20:13:46 tom Exp tom $
 #
 
 require "ctime.pl";
@@ -49,7 +49,7 @@ while(1)
       last unless defined $_;
       chomp;
       $line .= "$_ ";
-   } while (($_ ne "") || ($line eq ""));
+   } while ((($_ ne "") || ($line eq "")) && ($line !~ /^\s+\S/));
 
    die "ran into EOF - where's section 'FILES'?" if ($line eq "");
 
@@ -126,6 +126,10 @@ while(1)
    elsif ($line =~ /^\=item (.*)/)
    {  # start a new list item, with a bullet at start of line or a title
       $chapter .= "$1\n" if ($1 ne "*");
+   }
+   elsif ($line =~ /^\s+(\S.*)/)
+   {
+      $chapter .= "   $1\n";
    }
    else
    {  # append text of an ordinary paragraph to the current chapter

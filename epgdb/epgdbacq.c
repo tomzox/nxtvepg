@@ -28,7 +28,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbacq.c,v 1.29 2001/06/04 17:15:24 tom Exp tom $
+ *  $Id: epgdbacq.c,v 1.30 2001/06/10 08:09:05 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -45,7 +45,6 @@
 #include "epgdb/epgdbmgmt.h"
 #include "epgdb/epgdbacq.h"
 #include "epgdb/epgstream.h"
-#include "epgctl/epgacqctl.h"
 
 
 // ----------------------------------------------------------------------------
@@ -64,6 +63,7 @@ static bool        bScratchAcqMode;
 static bool        bHeaderCheckInit;
 static bool        bNewChannel;
 static uchar       lastPageHeader[HEADER_CHECK_LEN];
+static const EPGDB_ACQ_CB * pEpgDbAcqCb;
 
 
 // ----------------------------------------------------------------------------
@@ -72,6 +72,7 @@ static uchar       lastPageHeader[HEADER_CHECK_LEN];
 void EpgDbAcqInit( void )
 {
    bEpgDbAcqEnabled = FALSE;
+   pEpgDbAcqCb = NULL;
 
    pVbiBuf->writer_idx = 0;
    pVbiBuf->reader_idx = 0;
@@ -212,6 +213,14 @@ void EpgDbAcqInitScan( void )
    }
    else
       debug0("EpgDbAcq-InitScan: acq not enabled");
+}
+
+// ---------------------------------------------------------------------------
+// Set callback functions
+//
+void EpgDbAcqSetCallbacks( const EPGDB_ACQ_CB * pCb )
+{
+   pEpgDbAcqCb = pCb;
 }
 
 // ---------------------------------------------------------------------------
@@ -760,7 +769,7 @@ void EpgDbAcqProcessPackets( EPGDB_CONTEXT * const * pdbc )
                if ( EpgDbAcqDoPageHeaderCheck(vbl->data + 13 - 5) == FALSE )
                {
                   bHeaderCheckInit = FALSE;
-                  EpgAcqCtl_ChannelChange(TRUE);
+                  pEpgDbAcqCb->pChannelChange(TRUE);
                   // must exit loop b/c reader_idx might be changed by AcqReset!
                   break;
                }
@@ -783,7 +792,7 @@ void EpgDbAcqProcessPackets( EPGDB_CONTEXT * const * pdbc )
          if (pBlock != NULL)
          {
             dprintf1("EpgDbAcq-ProcessPackets: Offer BI block to acq ctl (0x%lx)\n", (long)pBlock);
-            EpgAcqCtl_BiCallback(&pBlock->blk.bi);
+            pEpgDbAcqCb->pBiCallback(&pBlock->blk.bi);
             xfree(pBlock);
          }
 
@@ -791,7 +800,7 @@ void EpgDbAcqProcessPackets( EPGDB_CONTEXT * const * pdbc )
          if (pBlock != NULL)
          {
             dprintf2("EpgDbAcq-ProcessPackets: Offer AI block 0x%04X to acq ctl (0x%lx)\n", AI_GET_CNI(&pBlock->blk.ai), (long)pBlock);
-            if (EpgAcqCtl_AiCallback(&pBlock->blk.ai))
+            if (pEpgDbAcqCb->pAiCallback(&pBlock->blk.ai))
             {  // AI has been accepted -> start full acquisition
                if ( EpgDbAddBlock(*pdbc, pBlock) )
                {
@@ -814,12 +823,12 @@ void EpgDbAcqProcessPackets( EPGDB_CONTEXT * const * pdbc )
          {
             if (pBlock->type == BLOCK_TYPE_BI)
             {  // the Bi block never is added to the db, only evaluated by acq ctl
-               EpgAcqCtl_BiCallback(&pBlock->blk.bi);
+               pEpgDbAcqCb->pBiCallback(&pBlock->blk.bi);
                xfree(pBlock);
             }
             else if (pBlock->type == BLOCK_TYPE_AI)
             {
-               if ( (EpgAcqCtl_AiCallback(&pBlock->blk.ai) == FALSE) || 
+               if ( (pEpgDbAcqCb->pAiCallback(&pBlock->blk.ai) == FALSE) || 
                     (EpgDbAddBlock(*pdbc, pBlock) == FALSE) )
                {  // block was not accepted
                   xfree(pBlock);
@@ -842,31 +851,35 @@ void EpgDbAcqProcessPackets( EPGDB_CONTEXT * const * pdbc )
 //
 bool EpgDbAcqCheckForPackets( void )
 {
-   bool result;
+   bool result = FALSE;
 
    if (bEpgDbAcqEnabled)
    {
-      if (bNewChannel && (pVbiBuf->frameSeqNo != 0))
-      {  // the slave has started for the new channel
-         // discard old data in the buffer
-         pVbiBuf->reader_idx = pVbiBuf->start_writer_idx;
-         bNewChannel = FALSE;
-      }
-
       if (bNewChannel == FALSE)
       {
          result = (pVbiBuf->reader_idx != pVbiBuf->writer_idx);
 
          if ((result == FALSE) && (pVbiBuf->isEnabled == FALSE))
          {  // vbi slave has stopped acquisition -> inform master control
-            EpgAcqCtl_Stop();
+            debug0("EpgDbAcq-CheckForPackets: slave process has disabled acq");
+            pEpgDbAcqCb->pStopped();
          }
       }
       else
-         result = FALSE;
+      {  // after channel change: skip the first frame
+         if (pVbiBuf->frameSeqNo != 0)
+         {  // the slave has started for the new channel
+            // discard old data in the buffer
+            pVbiBuf->reader_idx = pVbiBuf->start_writer_idx;
+            bNewChannel = FALSE;
+         }
+         if (pVbiBuf->isEnabled == FALSE)
+         {  // must inform master the acq has stopped, or acq will lock up in waiting for channel change completion
+            debug0("EpgDbAcq-CheckForPackets: slave process has disabled acq while waiting for new channel");
+            pEpgDbAcqCb->pStopped();
+         }
+      }
    }
-   else
-      result = FALSE;
 
    return result;
 }

@@ -4,7 +4,22 @@ changes or additions.
 
 Before you submit any feature requests, please read the TODO file.
 
-from 0.5.1 to 0.5.2 (yet unreleased)
+from 0.5.2 to 0.6.0 (August 2001)
+- possibility to invoke user-defined external commands from the context
+  menu in the browser listbox, e.g. to program a timer for the selected
+  programme.
+- new dialog in the control menu to dump of the entire programme list or
+  selected programme descriptions into a file in HTML format.
+- added option Match full to the text search dialog to allow exact
+  title matches, e.g. a search for "heute" will no longer match on
+  "heute journal" when full match is enabled.
+- alphabetically sorted series list in the filter menu.
+- internal change only: separated the EPG scan cleanly from the acq control
+  state machine.
+- added RPM spec which allows to install directly from the source tarball
+- bugfix in epgblock.c for Power-PC platform; thanks to Gerd Knorr.
+
+from 0.5.1 to 0.5.2 (2001-June-14)
 - bugfix programme listbox: the network filter did not follow xawtv channel
   changes. Thanks to Werner Renhardt (werner at kangaroo.at)
 - bugfix cyclic acquisition (bug was introduced in 0.5.1): expired programmes
@@ -12,7 +27,7 @@ from 0.5.1 to 0.5.2 (yet unreleased)
   did not detect when the database was complete and did not move on to the
   next provider.
 
-from 0.5.0 to 0.5.1 (2001-June-5)
+from 0.5.0 to 0.5.1 (June/5/2001)
 - monitor the _XAWTV_STATION property on the xawtv window and VPS/PDC (during
   EPG acquisition) to detect channel changes (new source module epgui/xawtv.c;
   communication with xawtv is now done directly via X11 calls, and no longer

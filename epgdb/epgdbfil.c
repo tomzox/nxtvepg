@@ -23,7 +23,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbfil.c,v 1.26 2001/05/19 14:23:39 tom Exp tom $
+ *  $Id: epgdbfil.c,v 1.27 2001/06/13 17:47:42 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -492,7 +492,7 @@ void EpgDbFilterSetProgIdx( FILTER_CONTEXT *fc, uchar newFirstProgIdx, uchar new
                                      //"ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞß"
 const uchar latin1LowerCaseTable[32] = "àáâãäåæçèéêëìíîïðñòóôõö×øùúûüýþß";
 
-void EpgDbFilterSetSubStr( FILTER_CONTEXT *fc, const uchar *pStr, bool ignoreCase )
+void EpgDbFilterSetSubStr( FILTER_CONTEXT *fc, const uchar *pStr, bool matchCase, bool matchFull )
 {
    uchar *p, c;
 
@@ -500,9 +500,10 @@ void EpgDbFilterSetSubStr( FILTER_CONTEXT *fc, const uchar *pStr, bool ignoreCas
    {
       strncpy(fc->subStrFilter, pStr, SUBSTR_FILTER_MAXLEN);
       fc->subStrFilter[SUBSTR_FILTER_MAXLEN] = 0;
-      fc->ignoreCase = ignoreCase;
+      fc->strMatchCase = matchCase;
+      fc->strMatchFull = matchFull;
 
-      if (ignoreCase)
+      if (matchCase == FALSE)
       {  // convert search string to all lowercase
          p = fc->subStrFilter;
          while ((c = *p) != 0)
@@ -525,7 +526,7 @@ void EpgDbFilterSetSubStr( FILTER_CONTEXT *fc, const uchar *pStr, bool ignoreCas
 // - make a lower-cas copy of the haystack and then use the strstr library func.
 //   the needle already has to be lower-case
 //
-static const char * strstri( const char *haystack, const char *needle )
+static char * strstri( const char *haystack, const char *needle )
 {
    register const uchar *src;
    register uchar c, *dst;
@@ -548,6 +549,23 @@ static const char * strstri( const char *haystack, const char *needle )
    *(dst++) = 0;
 
    return strstr(copy, needle);
+}
+
+// ---------------------------------------------------------------------------
+// Compare text with search string accorgind to search parameters
+// - parameter #1: ignore case
+// - parameter #2: exact => search string must match start and end of text
+//
+static bool xstrcmp( const FILTER_CONTEXT *fc, const char * str )
+{
+   if (fc->strMatchFull == FALSE)
+   {
+      return ((fc->strMatchCase ? strstr : strstri)(str, fc->subStrFilter) != NULL);
+   }
+   else
+   {
+      return ((fc->strMatchCase ? strcmp : strcasecmp)(str, fc->subStrFilter) == 0);
+   }
 }
 
 // ---------------------------------------------------------------------------
@@ -953,48 +971,21 @@ bool EpgDbFilterMatches( const EPGDB_CONTEXT *dbc, const FILTER_CONTEXT *fc, con
 
       if ((fc->enabledFilters & (FILTER_SUBSTR_TITLE|FILTER_SUBSTR_DESCR)) == (FILTER_SUBSTR_TITLE|FILTER_SUBSTR_DESCR))
       {
-         if (fc->ignoreCase == FALSE)
-         {
-            if ( (!strstr(PI_GET_TITLE(pPi), fc->subStrFilter)) &&
-                 (!PI_HAS_SHORT_INFO(pPi) || !strstr(PI_GET_SHORT_INFO(pPi), fc->subStrFilter)) &&
-                 (!PI_HAS_LONG_INFO(pPi) || !strstr(PI_GET_LONG_INFO(pPi), fc->subStrFilter)) )
-               goto failed;
-         }
-         else
-         {
-            if ( (!strstri(PI_GET_TITLE(pPi), fc->subStrFilter)) &&
-                 (!PI_HAS_SHORT_INFO(pPi) || !strstri(PI_GET_SHORT_INFO(pPi), fc->subStrFilter)) &&
-                 (!PI_HAS_SHORT_INFO(pPi) || !strstri(PI_GET_LONG_INFO(pPi), fc->subStrFilter)) )
-               goto failed;
-         }
+         if ( (!xstrcmp(fc, PI_GET_TITLE(pPi))) &&
+              (!PI_HAS_SHORT_INFO(pPi) || !xstrcmp(fc, PI_GET_SHORT_INFO(pPi))) &&
+              (!PI_HAS_LONG_INFO(pPi) || !xstrcmp(fc, PI_GET_LONG_INFO(pPi))) )
+            goto failed;
       }
       else if (fc->enabledFilters & FILTER_SUBSTR_TITLE)
       {
-         if (fc->ignoreCase == FALSE)
-         {
-            if (!strstr(PI_GET_TITLE(pPi), fc->subStrFilter))
-               goto failed;
-         }
-         else
-         {
-            if (!strstri(PI_GET_TITLE(pPi), fc->subStrFilter))
-               goto failed;
-         }
+         if (!xstrcmp(fc, PI_GET_TITLE(pPi)))
+            goto failed;
       }
       else if (fc->enabledFilters & FILTER_SUBSTR_DESCR)
       {
-         if (fc->ignoreCase == FALSE)
-         {
-            if ( (!PI_HAS_SHORT_INFO(pPi) || !strstr(PI_GET_SHORT_INFO(pPi), fc->subStrFilter)) &&
-                 (!PI_HAS_SHORT_INFO(pPi) || !strstr(PI_GET_LONG_INFO(pPi), fc->subStrFilter)) )
-               goto failed;
-         }
-         else
-         {
-            if ( (!PI_HAS_SHORT_INFO(pPi) || !strstri(PI_GET_SHORT_INFO(pPi), fc->subStrFilter)) &&
-                 (!PI_HAS_SHORT_INFO(pPi) || !strstri(PI_GET_LONG_INFO(pPi), fc->subStrFilter)) )
-               goto failed;
-         }
+         if ( (!PI_HAS_SHORT_INFO(pPi) || !xstrcmp(fc, PI_GET_SHORT_INFO(pPi))) &&
+              (!PI_HAS_SHORT_INFO(pPi) || !xstrcmp(fc, PI_GET_LONG_INFO(pPi))) )
+            goto failed;
       }
 
       // all tests have passed -> match ok

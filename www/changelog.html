@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: changelog.html,v 1.12 2001/06/14 19:42:09 tom Exp $ -->
+<!-- $Id: changelog.html,v 1.15 2001/08/28 19:11:30 tom Exp $ -->
 <HEAD>
 <TITLE>Nextview EPG Decoder Change-Log</TITLE>
 <LINK href="nxtvepg.css" rel=stylesheet type=text/css>
@@ -27,11 +27,26 @@ It now also contains information about work in progress on the next release.
 If you're interested in beta testing new features, just send me a mail.
 </P>
 
-<H2>From 0.5.2 to 0.6.0 (yet unreleased)</H2>
+<H2>From 0.6.0 to 0.6.1 (yet unreleased)</H2>
 <P>
-The next release will contain the following new features:
-</P><P>
+This release will contain the following bugfixes and/or new features:
+</P>
 <UL>
+<LI>Fixed bug in block management which allowed for PI blocks to remain in the
+  database although the valid network block range was declared void in the AI.
+  This could result in fill percentages &gt; 100 in the statistic output
+  (as seen on provider Pro7 on 08/28/2001).
+<LI><I>and certainly more...</I>
+</UL>
+
+<H2>From 0.5.2 to 0.6.0 (August/25/2001)</H2>
+<P>
+This release contains the following new features:
+</P>
+<UL>
+<LI>Possibility to invoke user-defined external commands from the context
+  menu in the browser listbox, e.g. to program a timer for the selected
+  programme in a scheduler like <I>plan</I>.
 <LI>Dump of programme list or selected programme descriptions into a file
   in HTML format, from where they can be loaded by any WWW browser. This
   may be of interest for people who want to print out TV schedules
@@ -39,11 +54,8 @@ The next release will contain the following new features:
 <LI>New text search option <I>Match full</I> to allow exact title matches,
   e.g. a search for "heute" will no longer match on "heute journal" when
   full match is enabled.
-<LI>internal change only: separated the EPG scan cleanly from the acq control
-  state machine. This removes some pitfalls which were one of the reasons the
-  last release was a week late.
-<LI><I>and certainly more...</I>
-</UL></P>
+<LI>Alphabetically sorted series list in the filter menu.
+</UL>
 
 <H2>From 0.5.1 to 0.5.2 (June/14/2001)</H2>
 <P>
@@ -286,21 +298,21 @@ For a detailed description of these new features please refer to the
 
 <H2>From 0.02a to 0.3.1 (Sep./Oct. 2000)</H2>
 <UL>
-<LI>added netwop, start time & sorting criterion filters to menus & shortcuts
+<LI>added netwop, start time &amp; sorting criterion filters to menus &amp; shortcuts
 <LI>fixed bugs in shortcut selection: series were not set in the menu checkbuttons
   and series filter not disabled in filter context after deselection
 <LI>automatic shortcut deselection when it's filters are manually undone
 <LI>timescale windows are reloaded after AI version changed and
   not closed anymore upon provider change
-<LI>created manual page & help menu
+<LI>created manual page &amp; help menu
 <LI>added install rule to Makefile and added installations instructions to README
 <LI>changed default for db directory to /usr/tmp/nxtvepg; added option -dbdir
-<LI>added command line option -card for alternate vbi & video devices
+<LI>added command line option -card for alternate vbi &amp; video devices
   (needed when there's more than one TV card)
 <LI>added context menu, invoked by right mouse button: allows quick filter
   selection, depending on currently selected title
-<LI>show copyright & helpful message if no provider known or db empty
-<LI>added programme title & feature summary to short-info field
+<LI>show copyright &amp; helpful message if no provider known or db empty
+<LI>added programme title &amp; feature summary to short-info field
 <LI>fixed LTO (GMT offset) computation during daylight saving time
 </UL>
 
@@ -310,7 +322,7 @@ For a detailed description of these new features please refer to the
 <LI>added netwop configuration for general exclusion of non-receptable
   netwops and for personalized network ordering
 <LI>added command line options (UNIX only)
-<LI>added shortcut add&edit popup and implemented "merge" mode
+<LI>added shortcut add&amp;edit popup and implemented "merge" mode
 <LI>added EPG scan and "active acquisition mode"; the tuner is set
   to the chanel of the selected ui db, if possible (UNIX only)
 <LI>maintain list of "obsolete" PI, i.e. PI that could not be added

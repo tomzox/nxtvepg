@@ -43,7 +43,7 @@
  *    Linux:  Tom Zoerner
  *    NetBSD: Mario Kemper <magick@bundy.zhadum.de>
  *
- *  $Id: btdrv4linux.c,v 1.14 2001/05/06 14:29:35 tom Exp tom $
+ *  $Id: btdrv4linux.c,v 1.15 2001/06/09 19:01:16 tom Exp tom $
  */
 
 #if !defined(linux) && !defined(__NetBSD__)
@@ -1014,13 +1014,7 @@ static void BtDriver_Main( void )
 
    while (acqShouldExit == FALSE)
    {
-      if (freeDevice)
-      {  // hang-up signal received -> switch acq off
-         pVbiBuf->isEnabled = FALSE;
-         freeDevice = FALSE;
-      }
-
-      if (pVbiBuf->isEnabled)
+      if (pVbiBuf->isEnabled && (freeDevice == FALSE))
       {
          #ifndef __NetBSD__
          if ((vbiCardIndex != pVbiBuf->cardIndex) && (vbi_fdin != -1))
@@ -1104,6 +1098,12 @@ static void BtDriver_Main( void )
             }
             #endif //__NetBSD__
          }
+         if (freeDevice)
+         {  // hang-up signal received -> inform master thread by setting the state to disabled
+            freeDevice = FALSE;
+            pVbiBuf->isEnabled = FALSE;
+         }
+
          // sleep until signal; check parent every 30 secs
          tv.tv_sec = 30;
          tv.tv_usec = 0;

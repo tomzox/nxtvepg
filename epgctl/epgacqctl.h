@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqctl.h,v 1.27 2001/05/31 17:08:07 tom Exp tom $
+ *  $Id: epgacqctl.h,v 1.28 2001/06/10 08:29:15 tom Exp tom $
  */
 
 #ifndef __EPGACQCTL_H
@@ -192,14 +192,7 @@ bool EpgAcqCtl_UiProvChange( void );
 bool EpgAcqCtl_CheckDeviceAccess( void );
 EPGDB_STATE EpgAcqCtl_GetDbState( uint cni );
 void EpgAcqCtl_DescribeAcqState( EPGACQ_DESCR * pAcqState );
-void EpgAcqCtl_ToggleAcqForScan( bool enable );
-
-// Interface for notifications from acquisition
-#ifdef __EPGBLOCK_H
-void EpgAcqCtl_ChannelChange( bool changeDb );
-bool EpgAcqCtl_AiCallback( const AI_BLOCK *pNewAi );
-bool EpgAcqCtl_BiCallback( const BI_BLOCK *pBi );
-#endif
+void EpgAcqCtl_Suspend( bool suspend );
 
 // has to be invoked about once a second by a timer when acq is running
 void EpgAcqCtl_Idle( void );

@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <html lang="en">
-<!-- $Id: provnets.html,v 1.8 2001/06/06 16:27:59 tom Exp $ -->
+<!-- $Id: provnets.html,v 1.9 2001/08/25 17:08:57 tom Exp $ -->
 <head>
 <title>nexTView Provider Table</title>
 <META http-equiv="Content-Type" content="text/html; charset=iso8859-1">
@@ -21,13 +21,8 @@
 <P>The following table lists which networks are covered by each of the
 nexTView provider's programme guide. Note that several EPGs use the same
 content provider; they differ only in their network selection.
-</P><P>
-<FONT COLOR=red>News:</FONT>
-As of May 2001 there's a new provider: TRT, which covers mainly Turkish
-networks plus some international networks like CNN and NBC. However it
-seems they're still in a testing phase (see note below).
+</P>
 
-</P><P>
 <center><table BORDER=2 CELLPADDING=4 NOSAVE >
 <tr VALIGN=TOP NOSAVE>
 <th>Provider's network</th>
@@ -148,24 +143,25 @@ KNL6, TGRT, C5, KNLE, NTV, CNNT, TRT1, TRT2, TRT3, TRT4</td>
 </tr>
 </table></center>
 
-</P><P><BR>
+<P>
 <B><A NAME="TRT-note">Notes about TRT:</A></B>
-As of May/25/2001 this Nextview service appears to be still in a
-testing phase.  Currently they are not using the correct country and
-network identification codes (CNI) yet. Instead, they're using numbers
-#1-#23. It will not be possible to merge EPG info from TRT with
-other providers (note: CNI codes are published by the
+</P><P>
+This service started in May 2001. As of August they unfortunately still
+are not sending the correct country/network codes for non-Turkish networks
+(note: CNI codes are published by the
 <A HREF="http://www.etsi.org">ETSI</A> for all European TV networks
-in technical report 101 231)
+in technical report 101 231).
+Instead, they're simply numbered through starting with 1. When you
+merge the TRT database with other providers, some networks may appear
+twice, because they appear to be different by their CNI codes.
 </P><P>
-Update June/1/2001: they are now using the correct CNI codes at least
-for Turkish networks. Except that TRT-int (from which I receive the TRT
+Another error is that TRT-int (from which I receive the TRT
 Nextview) is identifying itself as TRT-1 both via packet 8/30/1 and
-Nextview AI, so that you'll get wrong programme information for this
-network.
+Nextview application inventory, so that you'll get wrong programme
+information for this network.
 </P><P>
-More importantly, not all Turkish
-(Latin-5) characters can be displayed.  The difference to latin-1 is only
+Besides that, not all Turkish (Latin-5) characters can be displayed by
+nxtvepg.  The difference to latin-1 is only
 6 characters ('g' and 'G' with half circle above, 'I' with dot above,
 'i' without dot, 's' and 'S' with comma beneath). Currently there are no
 plans to support latin-5 in nxtvepg because that would require mixed use

@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqctl.c,v 1.46 2001/06/04 18:57:53 tom Exp tom $
+ *  $Id: epgacqctl.c,v 1.48 2001/08/23 20:01:17 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -74,6 +74,19 @@ EPGDB_CONTEXT * pAcqDbContext = NULL;
 
 static void EpgAcqCtl_InitCycle( void );
 static bool EpgAcqCtl_UpdateProvider( bool changeDb );
+
+// Interface for notifications from acquisition
+static void EpgAcqCtl_ChannelChange( bool changeDb );
+static bool EpgAcqCtl_AiCallback( const AI_BLOCK *pNewAi );
+static bool EpgAcqCtl_BiCallback( const BI_BLOCK *pBi );
+
+static const EPGDB_ACQ_CB epgAcqCb =
+{
+   EpgAcqCtl_AiCallback,
+   EpgAcqCtl_BiCallback,
+   EpgAcqCtl_ChannelChange,
+   EpgAcqCtl_Stop
+};
 
 // ---------------------------------------------------------------------------
 // Reset statistic values
@@ -206,6 +219,7 @@ bool EpgAcqCtl_Start( void )
 
       // initialize teletext decoder
       EpgDbAcqInit();
+      EpgDbAcqSetCallbacks(&epgAcqCb);
 
       EpgAcqCtl_InitCycle();
       EpgAcqCtl_UpdateProvider(FALSE);
@@ -286,10 +300,12 @@ int EpgAcqCtl_Toggle( int newState )
 // ---------------------------------------------------------------------------
 // Enable or disable BI/AI callback handling for EPG scan
 //
-void EpgAcqCtl_ToggleAcqForScan( bool enable )
+void EpgAcqCtl_Suspend( bool suspend )
 {
-   if (enable)
-      acqCtl.state = ACQSTATE_WAIT_BI;
+   if (suspend == FALSE)
+   {
+      EpgAcqCtl_Start();
+   }
    else
       acqCtl.state = ACQSTATE_OFF;
 }
@@ -630,7 +646,7 @@ static void EpgAcqCtl_AdvanceCyclePhase( bool forceAdvance )
             break;
          case ACQMODE_PHASE_STREAM2:
             quote1 = (double)acqStats.count[0].sinceAcq / acqStats.count[0].ai;
-            quote2 = (double)acqStats.count[1].sinceAcq / acqStats.count[1].ai; ;
+            quote2 = (double)acqStats.count[1].sinceAcq / acqStats.count[1].ai;
             advance = ((acqStats.count[0].variance < MIN_CYCLE_VARIANCE) && (quote1 >= MIN_CYCLE_QUOTE)) &&
                       ((acqStats.count[1].variance < MIN_CYCLE_VARIANCE) && (quote2 >= MIN_CYCLE_QUOTE)) &&
                       EpgAcqCtl_CheckVarianceStable();
@@ -998,11 +1014,13 @@ void EpgAcqCtl_DescribeAcqState( EPGACQ_DESCR * pAcqState )
 // ---------------------------------------------------------------------------
 // AI callback: invoked before a new AI block is inserted into the database
 //
-bool EpgAcqCtl_AiCallback( const AI_BLOCK *pNewAi )
+static bool EpgAcqCtl_AiCallback( const AI_BLOCK *pNewAi )
 {
    const AI_BLOCK *pOldAi;
    ulong oldTunerFreq;
    bool accept = FALSE;
+
+   assert(EpgScan_IsActive() == FALSE);  // EPG scan uses a separate callback
 
    if (acqCtl.state == ACQSTATE_WAIT_BI)
    {
@@ -1018,11 +1036,12 @@ bool EpgAcqCtl_AiCallback( const AI_BLOCK *pNewAi )
 
       if (pOldAi == NULL)
       {  // the current db is empty
-         EpgDbLockDatabase(pAcqDbContext, FALSE);
-
          oldTunerFreq = pAcqDbContext->tunerFreq;
+
+         EpgDbLockDatabase(pAcqDbContext, FALSE);
          EpgContextCtl_Close(pAcqDbContext);
-         pAcqDbContext = EpgContextCtl_Open(AI_GET_CNI(pNewAi), (EpgScan_IsActive() ? CTX_RELOAD_ERR_NONE : CTX_RELOAD_ERR_ANY));
+
+         pAcqDbContext = EpgContextCtl_Open(AI_GET_CNI(pNewAi), CTX_RELOAD_ERR_ANY);
          dprintf2("EpgAcqCtl: empty acq db, AI found: CNI 0x%04X (%s)\n", AI_GET_CNI(pNewAi), ((pAcqDbContext->pAiBlock == NULL) ? "new" : "reload ok"));
 
          if ((pAcqDbContext->tunerFreq != oldTunerFreq) && (oldTunerFreq != 0))
@@ -1092,7 +1111,7 @@ bool EpgAcqCtl_AiCallback( const AI_BLOCK *pNewAi )
             dprintf2("EpgAcqCtl: switching acq db from %04X to %04X\n", AI_GET_CNI(pOldAi), AI_GET_CNI(pNewAi));
             EpgDbLockDatabase(pAcqDbContext, FALSE);
             EpgContextCtl_Close(pAcqDbContext);
-            pAcqDbContext = EpgContextCtl_Open(AI_GET_CNI(pNewAi), (EpgScan_IsActive() ? CTX_RELOAD_ERR_NONE : CTX_RELOAD_ERR_ANY));
+            pAcqDbContext = EpgContextCtl_Open(AI_GET_CNI(pNewAi), CTX_RELOAD_ERR_ANY);
 
             EpgDbLockDatabase(pAcqDbContext, TRUE);
             assert((EpgDbContextGetCni(pAcqDbContext) == AI_GET_CNI(pNewAi)) || (EpgDbContextGetCni(pAcqDbContext) == 0));
@@ -1113,10 +1132,7 @@ bool EpgAcqCtl_AiCallback( const AI_BLOCK *pNewAi )
       EpgDbLockDatabase(pAcqDbContext, FALSE);
    }
    else
-   {  // should be reached only during epg scan -> discard block
-      assert(EpgScan_IsActive());
-      dprintf1("EpgAcqCtl: during scan, new AI 0x%04X\n", AI_GET_CNI(pNewAi));
-   }
+      assert(acqCtl.state != ACQSTATE_OFF);
 
    return accept;
 }
@@ -1126,11 +1142,13 @@ bool EpgAcqCtl_AiCallback( const AI_BLOCK *pNewAi )
 // - the BI block is never inserted into the database
 // - only the application ID is extracted and saved in the db context
 //
-bool EpgAcqCtl_BiCallback( const BI_BLOCK *pNewBi )
+static bool EpgAcqCtl_BiCallback( const BI_BLOCK *pNewBi )
 {
+   assert(EpgScan_IsActive() == FALSE);  // EPG scan uses a separate callback
+
    if (pNewBi->app_id == EPG_ILLEGAL_APPID)
    {
-      dprintf0("EpgCtl: EPG not listed in BI - stop acq\n");
+      dprintf0("EpgCtl-BiCallback: EPG not listed in BI\n");
    }
    else
    {
@@ -1143,7 +1161,7 @@ bool EpgAcqCtl_BiCallback( const BI_BLOCK *pNewBi )
          }
       }
       else
-         dprintf1("EpgAcqCtl-BiCallback: BI now in db, appID=%d\n", pNewBi->app_id);
+         dprintf1("EpgAcqCtl-BiCallback: BI received, appID=%d\n", pNewBi->app_id);
 
       switch (acqCtl.state)
       {
@@ -1162,8 +1180,7 @@ bool EpgAcqCtl_BiCallback( const BI_BLOCK *pNewBi )
             break;
 
          default:
-            // should be reached only during epg scan -> discard block
-            assert(EpgScan_IsActive());
+            SHOULD_NOT_BE_REACHED;
             break;
       }
    }
@@ -1175,11 +1192,11 @@ bool EpgAcqCtl_BiCallback( const BI_BLOCK *pNewBi )
 // ---------------------------------------------------------------------------
 // Notification from acquisition about channel change
 //
-void EpgAcqCtl_ChannelChange( bool changeDb )
+static void EpgAcqCtl_ChannelChange( bool changeDb )
 {
-   assert(EpgScan_IsActive() == FALSE);  // EPG scan already does a reset before every channel change
+   assert(EpgScan_IsActive() == FALSE);  // EPG scan uses a separate callback
 
-   if ((acqCtl.state != ACQSTATE_OFF) && (EpgScan_IsActive() == FALSE))
+   if (acqCtl.state != ACQSTATE_OFF)
    {
       dprintf4("EpgAcqCtl-ChannelChange: reset acq for db 0x%04X (0x%lx) modified=%d changedb=%d\n", ((pAcqDbContext->pAiBlock != NULL) ? AI_GET_CNI(&pAcqDbContext->pAiBlock->blk.ai) : 0), (long)pAcqDbContext, pAcqDbContext->modified, changeDb);
       if ( changeDb &&
@@ -1187,7 +1204,7 @@ void EpgAcqCtl_ChannelChange( bool changeDb )
            (EpgDbContextIsMerged(pUiDbContext) == FALSE) )
       {  // close acq db and fall back to ui db
          EpgContextCtl_Close(pAcqDbContext);
-         pAcqDbContext = EpgContextCtl_Open(0, (EpgScan_IsActive() ? CTX_RELOAD_ERR_NONE : CTX_RELOAD_ERR_ANY));
+         pAcqDbContext = EpgContextCtl_Open(0, CTX_RELOAD_ERR_ANY);
       }
 
       EpgDbAcqReset(pAcqDbContext, EPG_ILLEGAL_PAGENO, EPG_ILLEGAL_APPID);
@@ -1281,7 +1298,7 @@ void EpgAcqCtl_ProcessPackets( void )
             EpgDbLockDatabase(pAcqDbContext, TRUE);
             if ( EpgDbDump(pAcqDbContext) )
             {
-               dprintf1("EpgAcqCtl-Idle: dumped db %04X to file\n", EpgDbContextGetCni(pAcqDbContext));
+               dprintf1("EpgAcqCtl: dumped db %04X to file\n", EpgDbContextGetCni(pAcqDbContext));
                acqCtl.dumpTime = time(NULL);
             }
             EpgDbLockDatabase(pAcqDbContext, FALSE);
@@ -1290,9 +1307,9 @@ void EpgAcqCtl_ProcessPackets( void )
 
       // check the MIP if EPG is transmitted on a different page
       pageNo = EpgDbAcqGetMipPageNo();
-      if ( (pageNo != EPG_ILLEGAL_PAGENO) && (pageNo != pAcqDbContext->pageNo))
+      if ((pageNo != EPG_ILLEGAL_PAGENO) && (pageNo != pAcqDbContext->pageNo))
       {  // found a different page number in MIP
-         dprintf2("EpgAcqCtl-Idle: non-default MIP page no for EPG: %03X (was %03X) -> restart acq\n", pageNo, pAcqDbContext->pageNo);
+         dprintf2("EpgAcqCtl: non-default MIP page no for EPG: %03X (was %03X) -> restart acq\n", pageNo, pAcqDbContext->pageNo);
 
          // XXX the pageno should not be saved before RUNNING since this might be the wrong db
          pAcqDbContext->pageNo = pageNo;

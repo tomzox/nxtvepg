@@ -21,17 +21,17 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile.win32,v 1.9 2001/05/19 19:42:03 tom Exp tom $
+#  $Id: Makefile.win32,v 1.11 2001/08/25 12:47:10 tom Exp tom $
 #
 
 # if you have perl set the path here, else just leave it alone
 PERL    = /usr/bin/perl
 
-#LDLIBS = -LD:/Programme/Tcl/lib -ltk83 -ltcl83
-LDLIBS  = -L. -ltcl83 -ltk83
+LDLIBS = -L//D/gnu/tcl/lib -ltk83 -ltcl83
+#LDLIBS  = -L. -ltcl83 -ltk83
 
-INCS   += -ID:/Programme/Tcl/include
-INCS   += -I. -IC:/cygwin/usr/include/mingw
+INCS   += -ID:/gnu/Tcl/include
+INCS   += -I. -ID:/cygwin/usr/include/mingw
 
 # define this if you don't want to load external Tcl/Tk init scripts
 DEFS   += -DUSE_PRECOMPILED_TCL_LIBS
@@ -55,9 +55,9 @@ MODS    = epgvbi/vbidecode epgvbi/tvchan epgvbi/btdrv4win epgvbi/hamming \
           epgctl/epgctxmerge \
           epgdb/epgdbacq epgdb/epgstream epgdb/epgdbmerge epgdb/epgdbsav \
           epgdb/epgdbmgmt epgdb/epgdbif epgdb/epgdbfil epgdb/epgblock \
-          epgui/uictrl epgui/pilistbox epgui/pifilter epgui/epgui epgui/help \
-          epgui/statswin epgui/pdc_themes epgui/menucmd epgui/epgtxtdump \
-          epgui/epgmain epgui/tcl_libs
+          epgui/uictrl epgui/pilistbox epgui/pioutput epgui/pifilter \
+          epgui/epgui epgui/help epgui/statswin epgui/pdc_themes \
+          epgui/menucmd epgui/epgtxtdump epgui/epgmain epgui/tcl_libs
 
 SRCS    = $(addsuffix .c, $(MODS))
 OBJS    = $(addsuffix .o, $(MODS)) epgui/tkwinico.res.o

@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbacq.h,v 1.13 2001/05/06 17:26:37 tom Exp tom $
+ *  $Id: epgdbacq.h,v 1.14 2001/06/10 08:08:37 tom Exp tom $
  */
 
 #ifndef __EPGDBACQ_H
@@ -47,6 +47,17 @@
 
 
 // ---------------------------------------------------------------------------
+// Definition of callback functions from the 
+//
+typedef struct 
+{
+   bool (* pAiCallback)( const AI_BLOCK *pNewAi );
+   bool (* pBiCallback)( const BI_BLOCK *pNewBi );
+   void (* pChannelChange)( bool changeDb );
+   void (* pStopped)( void );
+} EPGDB_ACQ_CB;
+
+// ---------------------------------------------------------------------------
 // Declaration of the service interface functions
 //
 
@@ -56,6 +67,7 @@ void EpgDbAcqStart( EPGDB_CONTEXT *dbc, uint pageNo, uint appId );
 void EpgDbAcqStop( void );
 void EpgDbAcqReset( EPGDB_CONTEXT *dbc, uint pageNo, uint appId );
 void EpgDbAcqInitScan( void );
+void EpgDbAcqSetCallbacks( const EPGDB_ACQ_CB * pCb );
 void EpgDbAcqNotifyChannelChange( void );
 void EpgDbAcqGetScanResults( uint *pCni, bool *pNiWait, uint *pDataPageCnt );
 uint EpgDbAcqGetMipPageNo( void );

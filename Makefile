@@ -24,7 +24,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile,v 1.31 2001/06/04 19:24:03 tom Exp tom $
+#  $Id: Makefile,v 1.34 2001/08/25 12:46:29 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -32,9 +32,11 @@ ifeq ($(OS),Windows_NT)
 include Makefile.win32
 else
 
-IROOT   = /usr/local
-BINDIR  = $(IROOT)/bin
-MANDIR  = $(IROOT)/man/man1
+ROOT    =
+prefix  = /usr/local
+exec_prefix = ${prefix}
+bindir  = $(ROOT)${exec_prefix}/bin
+mandir  = $(ROOT)${prefix}/man/man1
 
 # if you have perl set the path here, else just leave it alone
 PERL    = /usr/bin/perl
@@ -52,7 +54,9 @@ DEFS   += -DTK_LIBRARY_PATH=\"/usr/lib/tk8.3\"
 DEFS   += -DTCL_LIBRARY_PATH=\"/usr/lib/tcl8.3\"
 
 # path to the directory where the provider database files are kept
-DEFS   += -DEPG_DB_DIR=\"/usr/tmp/nxtvdb\"
+DB_DIR  = /usr/tmp/nxtvdb
+DEFS   += -DEPG_DB_DIR=\"$(DB_DIR)\"
+INST_DB_DIR = $(ROOT)$(DB_DIR)
 
 #WARN    = -Wall -Wpointer-arith -Wnested-externs \
 #          -Werror -Wstrict-prototypes -Wmissing-prototypes
@@ -67,9 +71,9 @@ CSRC    = epgvbi/vbidecode epgvbi/tvchan epgvbi/btdrv4linux epgvbi/hamming \
           epgctl/epgctxmerge \
           epgdb/epgdbacq epgdb/epgstream epgdb/epgdbmerge epgdb/epgdbsav \
           epgdb/epgdbmgmt epgdb/epgdbif epgdb/epgdbfil epgdb/epgblock \
-          epgui/uictrl epgui/pilistbox epgui/pifilter epgui/statswin \
-          epgui/pdc_themes epgui/menucmd epgui/epgtxtdump epgui/epgmain \
-          epgui/xawtv
+          epgui/uictrl epgui/pilistbox epgui/pioutput epgui/pifilter \
+          epgui/statswin epgui/pdc_themes epgui/menucmd epgui/epgtxtdump \
+          epgui/epgmain epgui/xawtv
 CGEN    = epgui/epgui epgui/help
 
 SRCS    = $(addsuffix .c, $(CSRC)) $(addsuffix .c, $(CGEN))
@@ -81,11 +85,13 @@ nxtvepg: $(OBJS)
 	$(CC) $(CFLAGS) $(INCS) $(LDFLAGS) -o nxtvepg $(OBJS) $(LDLIBS)
 
 install: nxtvepg nxtvepg.1
-	test -d $(BINDIR) || mkdirhier $(BINDIR)
-	test -d $(MANDIR) || mkdirhier $(MANDIR)
-	install -c -m 0755 nxtvepg     $(BINDIR)
-	install -c -m 0644 nxtvepg.1   $(MANDIR)
-	rm -f $(MANDIR)/nxtvepg.1x
+	test -d $(bindir) || mkdirhier $(bindir)
+	test -d $(mandir) || mkdirhier $(mandir)
+	test -d $(INST_DB_DIR) || mkdirhier $(INST_DB_DIR)
+	chmod 0777 $(INST_DB_DIR)
+	install -c -m 0755 nxtvepg     $(bindir)
+	install -c -m 0644 nxtvepg.1   $(mandir)
+	rm -f $(mandir)/nxtvepg.1x
 
 ##%.o: %.c
 ##	$(CC) $(CFLAGS) -c *.c -o *.o
@@ -133,7 +139,7 @@ depend:
 
 bak:
 	cd .. && tar cf pc.tar pc -X pc/tar-ex && bzip2 -f -9 pc.tar
-	cd .. && tar cf /c/nxtvepg/pc.tar pc -X pc/tar-ex-win
+	cd .. && tar cf /e/pc.tar pc -X pc/tar-ex-win
 
 include Makefile.dep
 

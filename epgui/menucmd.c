@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: menucmd.c,v 1.45 2001/05/06 17:45:34 tom Exp tom $
+ *  $Id: menucmd.c,v 1.47 2001/06/16 10:27:15 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -81,7 +81,10 @@ static int SetControlMenuStates(ClientData ttp, Tcl_Interp *interp, int argc, ch
       uiCni  = EpgDbContextGetCni(pUiDbContext);
 
       // enable "dump database" only if UI database has at least an AI block
-      sprintf(comm, ".menubar.ctrl entryconfigure \"Dump database...\" -state %s\n",
+      sprintf(comm, ".menubar.ctrl entryconfigure \"Dump raw database...\" -state %s\n",
+                    ((uiCni != 0) ? "normal" : "disabled"));
+      eval_check(interp, comm);
+      sprintf(comm, ".menubar.ctrl entryconfigure \"Dump in HTML...\" -state %s\n",
                     ((uiCni != 0) ? "normal" : "disabled"));
       eval_check(interp, comm);
 
@@ -199,21 +202,30 @@ static int MenuCmd_DumpDatabase(ClientData ttp, Tcl_Interp *interp, int argc, ch
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
    }
-   else if ( Tcl_GetBoolean(interp, argv[2], &do_pi) || 
-             Tcl_GetBoolean(interp, argv[3], &do_xi) || 
-             Tcl_GetBoolean(interp, argv[4], &do_ai) || 
-             Tcl_GetBoolean(interp, argv[5], &do_ni) || 
-             Tcl_GetBoolean(interp, argv[6], &do_oi) || 
-             Tcl_GetBoolean(interp, argv[7], &do_mi) || 
-             Tcl_GetBoolean(interp, argv[8], &do_li) || 
-             Tcl_GetBoolean(interp, argv[9], &do_ti) )
-   {  // one of the params is not boolean
+   else if ( (Tcl_GetBoolean(interp, argv[2], &do_pi) != TCL_OK) || 
+             (Tcl_GetBoolean(interp, argv[3], &do_xi) != TCL_OK) || 
+             (Tcl_GetBoolean(interp, argv[4], &do_ai) != TCL_OK) || 
+             (Tcl_GetBoolean(interp, argv[5], &do_ni) != TCL_OK) || 
+             (Tcl_GetBoolean(interp, argv[6], &do_oi) != TCL_OK) || 
+             (Tcl_GetBoolean(interp, argv[7], &do_mi) != TCL_OK) || 
+             (Tcl_GetBoolean(interp, argv[8], &do_li) != TCL_OK) || 
+             (Tcl_GetBoolean(interp, argv[9], &do_ti) != TCL_OK) )
+   {  // one of the params is not boolean; error msg is already set
       result = TCL_ERROR;
    }
    else
    {
       if ((argv[1] != NULL) && (argv[1][0] != 0))
+      {
          fp = fopen(argv[1], "w");
+         if (fp == NULL)
+         {  // access, create or truncate failed -> inform the user
+            sprintf(comm, "tk_messageBox -type ok -icon error -parent .dumpdb -message \"Failed to open file '%s' for writing: %s\"",
+                          argv[1], strerror(errno));
+            eval_check(interp, comm);
+            Tcl_ResetResult(interp);
+         }
+      }
       else
          fp = stdout;
 
@@ -223,14 +235,8 @@ static int MenuCmd_DumpDatabase(ClientData ttp, Tcl_Interp *interp, int argc, ch
                                                (bool)do_oi, (bool)do_mi, (bool)do_li, (bool)do_ti);
          if (fp != stdout)
             fclose(fp);
-         result = TCL_OK;
       }
-      else
-      {
-         sprintf(comm, "Dump database: file create failed: %s\n", strerror(errno));
-         interp->result = comm;
-         result = TCL_ERROR;
-      }
+      result = TCL_OK;
    }
 
    return result;
@@ -1092,7 +1098,11 @@ static void MenuCmd_EpgScanHandler( ClientData clientData )
 {
    uint rescheduleMs;
 
-   rescheduleMs = EpgScan_EvHandler();
+   if (EpgScan_IsActive())
+      rescheduleMs = EpgScan_EvHandler();
+   else
+      rescheduleMs = 0;
+
    if (rescheduleMs > 0)
    {
       // update the progress bar

@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgblock.c,v 1.36 2001/06/04 17:14:20 tom Exp tom $
+ *  $Id: epgblock.c,v 1.37 2001/08/19 09:11:58 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -417,8 +417,10 @@ static const char g2map_latin2[] =
 //   are replace by special chars, depending on the country
 // - in the following table -1 stands for ASCII chars, the other values
 //   are to be taken as index in the national options table
+// - note: declared as signed char to allow use of negative values; ANSI-C
+//   does not specify if char is signed or unsigned by default
 //
-static const char nationalOptionsMatrix[0x80] =
+static const signed char nationalOptionsMatrix[0x80] =
 {
    /*          0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F  */
    /*0x00*/   -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,

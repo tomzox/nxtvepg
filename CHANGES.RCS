@@ -4671,3 +4671,298 @@ www/man.html [rev:1.9, 2001-06-14T19:56:06]:
 CHANGES [rev:1.14, 2001-06-14T20:49:38]:
 - updated for release 0.5.2 (bugfix release)
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_5_2 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+epgvbi/btdrv4linux.c [rev:1.15, 2001-06-09T19:01:16]:
+- improved handling of SIGHUP in BtDriver_Main()
+- pVbiBuf->isEnabled is not set to FALSE before the actual close()
+epgdb/epgdbacq.h [epgvbi/ttxdecode.h, rev:1.14, 2001-06-10T08:08:37]:
+- added struct EPGDB_ACQ_CB
+- added EpgDbAcqSetCallbacks()
+epgdb/epgdbacq.c [epgvbi/ttxdecode.c, rev:1.30, 2001-06-10T08:09:05]:
+- removed #include "epgctl/epgacqctl.h"
+- interface to control layer is now implemented via callbacks
+- callbacks are set per new func EpgDbAcqSetCallbacks()
+    using the new struct EPGDB_ACQ_CB
+- replaced all ref's to EpgAcqCtl_* funcs with callbacks
+- fix in EpgDbAcqCheckForPackets() for bNewChannel handling
+- pVbiBuf->isEnabled was not supervised during channel change
+- hence acq could have locked up
+epgui/epgmain.c [rev:1.64, 2001-06-10T08:12:48]:
+- ClockSecEvent: added call to EpgScan_ProcessPackets
+- acq and scan engines now have separate acq callback handling
+epgui/menucmd.c [rev:1.46, 2001-06-10T08:13:24]:
+- MenuCmd_EpgScanHandler: detect if scan has stopped
+- scan can be stopped by the driver; this info is passed up via callback
+    into scan ctrl and now polled in the menucmd scan handler invocation
+- ungrabs the popup when the scan has stopped
+epgctl/epgacqctl.h [rev:1.28, 2001-06-10T08:29:15]:
+- removed decls of BI/AI/ChannelChange funcs
+- these are now passed as callback pointers to dbacq
+- replaced EpgAcqCtl_ToggleAcqForScan() with EpgAcqCtl_Suspend()
+- scan now uses its own set of callbacks
+- scan suspends acqctl for the entire time of the scan
+epgctl/epgacqctl.c [rev:1.47, 2001-06-10T08:30:25]:
+- BI/AI/ChannelChange callbacks now passed to epgdbacq as func pointers
+- this allows for epgscan to use a different set of callbacks
+- use new func EpgDbAcqSetCallbacks() and struct EPGDB_ACQ_CB to pass cb ptrs
+- cb funcs are declared static now
+- replaced EpgAcqCtl_ToggleAcqForScan() with EpgAcqCtl_Suspend()
+- scan now uses its own set of callbacks
+- scan suspends acqctl for the entire time of the scan
+- removed special handling of EpgScan_IsActive() in cb funcs
+epgctl/epgscan.h [rev:1.6, 2001-06-10T08:32:58]:
+- added EpgScan_ProcessPackets(), called from main loop every second
+epgctl/epgscan.c [rev:1.14, 2001-06-10T08:33:13]:
+- Scan no longer uses BI/AI callbacks from epgacqctl module
+- added reduced copy of the callbacks
+- callback pointers are passed to epgdbacq module via new func
+    EpgDbAcqSetCallbacks() and struct EPGDB_ACQ_CB
+- also no longer use pAcqDbContext
+- changed all references to scanCtl.pDbContext
+- replaced EpgAcqCtl_ToggleAcqForScan() with EpgAcqCtl_Suspend()
+- scan suspends acqctl for the entire time of the scan
+nxtvepg.pod [rev:1.46, 2001-06-12T18:46:38]:
+- improved section on Xawtv connection, option channel changes
+- make clear that the network filter follows the channel only if
+    it is used exclusively
+- mention that the network filter will filter even for networks
+    which are excluded in the network selection dialog
+www/changelog.html [rev:1.11, 2001-06-12T19:03:28]:
+- added two bugfixes for 0.5.2 (yet unreleased)
+epgdb/epgdbfil.c [rev:1.27, 2001-06-13T17:47:42]:
+- EpgDbFilterSetSubStr(): changed/added params:
+- added param matchFull: suppress sub-string search, compare full text
+- inverted param ignoreCase: now called matchCase
+- EpgDbFilterMatches() now handles 4 cases for text search
+    using new func xstrcmp()
+epgdb/epgdbfil.h [rev:1.17, 2001-06-13T17:49:07]:
+- EpgDbFilterSetSubStr(): changed/added params:
+- added param matchFull: suppress sub-string search, compare full text
+- inverted param ignoreCase: now called matchCase
+- struct FILTER_CONTEXT: same changes
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.115, 2001-06-13T17:58:22]:
+- text search dialog: options changed
+- inverted param ignoreCase: now called matchCase
+- added param matchFull: suppress sub-string search, compare full text
+- changed in all funcs that handle text search params
+- LoadRc for version < 0.6.0: convert text search params
+- for backwards compatibility:
+- remove substr history
+- change shortcut params for text search: invert ignoreCase, add FALSE fullMatch
+epgui/pifilter.c [rev:1.47, 2001-06-13T17:58:38]:
+- SelectSubStr: params changed
+- inverted param ignoreCase: now called matchCase
+- added param matchFull: suppress sub-string search, compare full text
+- Context menu: added text search option "fullMatch"
+epgui/menucmd.c [rev:1.47, 2001-06-16T10:27:15]:
+- Dump database:
+- renamed menu entry to "Dump raw database" in SetControlMenuStates()
+- MenuCmd_DumpDatabase(): slight fix in Tcl result checks: use TCL_OK macro
+- display file creation errors in message box instead of Tcl error result
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.116, 2001-06-16T10:32:26]:
+- Added new dialog in Control menu: "Dump in HTML"
+- added new proc PopupDumpHtml
+- renamed "Dump database..." to "Dump raw database..."
+- dumpdb now warns if given file already exists
+- LoadRc: changed version check for substr from 0.5.2 to 0.6.0
+epgui/pilistbox.c [rev:1.58, 2001-06-16T11:10:14]:
+- Added new feature "Dump HTML"
+- split off PiListBox_PrintColumnItem() from PiListBox_InsertItem()
+    the new func is now used by listbox and HTML dump
+- split several funcs off from PiListBox_UpdateInfoText():
+    Pi_AppendShortAndLongInfoText(), Pi_AppendCompressedThemes(),
+    Pi_AppendFeatureList()
+    these new funcs are also used by the new PiListbox_HtmlDesc()
+- new Tcl command C_DumpHtml, which invokes PiListBox_DumpHtml()
+- XXX TODO: split this source file
+epgui/pioutput.c [rev:1.1, 2001-06-16T14:57:44]:
+- Initial revision
+epgui/pioutput.h [rev:1.1, 2001-06-16T14:57:44]:
+- Initial revision
+epgui/pilistbox.c [rev:1.59, 2001-06-16T14:58:08]:
+- split off pioutput module
+epgui/pilistbox.h [rev:1.11, 2001-06-16T14:58:08]:
+- split off pioutput module
+Makefile [rev:1.32, 2001-06-16T15:00:33]:
+- added epgui/pioutput
+Makefile.win32 [rev:1.10, 2001-06-16T15:00:33]:
+- added epgui/pioutput
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.117, 2001-06-16T15:01:14]:
+- split pilistbox module -> renamed 2 C operators
+- proc C_PiListBox_PopupPi --> C_PopupPi
+- proc C_PiListBox_CfgColumns --> C_PiOutput_CfgColumns
+epgui/epgmain.c [rev:1.65, 2001-06-16T15:02:04]:
+- added init & destroy calls for new pioutput module
+nxtvepg.pod [rev:1.47, 2001-06-16T19:09:42]:
+- added description for new dialog "Dump (database) in HTML"
+- improved description of "Dump raw database" (renamed from "Dump database")
+- renamed "substring search" to "text search"
+Makefile [rev:1.33, 2001-07-02T21:29:34]:
+- added support for RPM specfile:
+- added var: ROOT, prepended to all paths, to support RPM buildroot
+- renamed several vars: IROOT->prefix, BINDIR->bindir, MANDIR->mandir
+nxtvepg.spec [rev:1.1, 2001-07-02T21:30:18]:
+- Initial revision
+epgui/pioutput.c [rev:1.2, 2001-08-12T13:02:40]:
+- fixed for Win32
+- added link to external stylesheet for HTML dump
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.118, 2001-08-12T18:32:03]:
+- added new filter menu: "Series alphabetically..."
+    created by new post command proc CreateSeriesLetterMenu
+- limit both series menus to 25 entries; add "more..." entry
+    insert "none" if no titles in the menu
+- removed proc DictifySeriesTitle -> moved to pioutput.c
+- dump HTML: updated ref to Help doc
+- pi column widths: adjusted width of time from 20 to 22 for non-unix
+- series reset: replaced C_SelectSeries w/o args with C_ResetFilter series
+epgui/pifilter.c [rev:1.48, 2001-08-12T18:38:19]:
+- corrected usage strings: added "C_" prefix to proc names
+- removed special case argc==1 from C_SelectSeries -> handled by C_ResetFilter
+- series title funcs now use PiOutput_DictifyTitle():
+    in GetNetwopSeriesList(), GetSeriesByLetter(), GetSeriesTitles().
+    so on Tcl/Tk level the title strings need no longer be modified
+    plus the language id need not be returned in the results
+- added new func GetSeriesByLetter() for alphabetically sorted series list
+- bugfix UpdateFilterContextMenuState:
+    used netwop*128 instead of <<8 for series code calculation
+epgui/pioutput.c [rev:1.3, 2001-08-12T18:38:33]:
+- added new func PiOutput_DictifyTitle()
+- was previously implemented on Tcl level as regex
+- now used one level down in pifilter.c for series titles
+epgui/pioutput.h [rev:1.2, 2001-08-12T18:39:16]:
+- added new func PiOutput_DictifyTitle()
+- was previously implemented on Tcl level as regex
+- now used one level down in pifilter.c for series titles
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.119, 2001-08-12T19:18:19]:
+- merged the two width columns in the coltabs array
+- use pixels instead of mm -> same numbers work on all platforms
+- latest problem was with move from XFree3 -> XFree 4
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.120, 2001-08-12T19:28:39]:
+- fix proc FilterMenuAdd_Title: "Clear search history"
+- rc file was not updated after clear
+- hence titles re-appeared after next program start (unless rc was written otherwise)
+epgui/pifilter.c [rev:1.49, 2001-08-14T18:34:23]:
+- bugfix CreateContextMenu (crash SEGV)
+- missing check for pPiBlock==NULL in "undo netwop filter" section
+epgdb/epgblock.c [rev:1.37, 2001-08-19T09:11:58]:
+- bugfix: declare nationalOptionsMatrix as signed char
+- bug reported by Gerd Knorr for Power-PC platform
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.121, 2001-08-19T11:10:40]:
+- added Context menu popup configuration dialog
+- added list ctxmencf to the rc/ini file
+epgui/pifilter.c [rev:1.50, 2001-08-19T11:11:32]:
+- added user-defined entries to the context menu
+- defined in global Tcl var ctxmencf
+- added separator above if neccessary
+- bugfix: replaced C_SelectSeries w/o args with C_ResetFilter series
+epgui/pioutput.c [rev:1.4, 2001-08-19T11:15:16]:
+- Added Tcl operator C_ExecUserCmd -> new func PiOutput_ExecUserCmd
+- Changed tpe of arg fp in PiOutput_AppendShortAndLongInfoText() to void *
+epgui/pioutput.h [rev:1.3, 2001-08-19T11:16:24]:
+- Changed tpe of arg fp in PiOutput_AppendShortAndLongInfoText() to void *
+epgui/pilistbox.c [rev:1.60, 2001-08-19T11:16:42]:
+- fix: PiListBox_InsertItem()
+- must not use tag "past" even if start time is over
+- else some titles might appear red in the short time between a
+    reset/refresh and the regular expire call
+- Changed tpe of arg fp in PiOutput_AppendShortAndLongInfoText() to void *
+www/changelog.html [rev:1.13, 2001-08-19T11:51:32]:
+- added items for unrelease 0.6.0
+- user-def cmds in ctx men
+- removed internal change: EPG scan
+- added possible releae date: end august 2001
+nxtvepg.pod [rev:1.48, 2001-08-21T19:29:24]:
+- chapter context menu: added section #3: user-defined commands
+- chapter configuration: added context menu config dialog (user-def'd cmds)
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.122, 2001-08-21T19:45:51]:
+- added file selection dialog to dump menus (raw & HTML)
+- HTML dump: reordered dialog widgets
+epgui/pilistbox.c [rev:1.61, 2001-08-21T19:46:59]:
+- added maxlen arg to call to PiOutput_AppendCompressedThemes()
+epgui/pioutput.h [rev:1.4, 2001-08-21T19:47:26]:
+- added maxlen arg to PiOutput_AppendCompressedThemes()
+epgui/pioutput.c [rev:1.5, 2001-08-21T19:51:09]:
+- added buffer overflow prevention
+- to PiOutput_AppendCompressedThemes()
+- to PiOutput_ExtCmdAppend() and it's users
+-> PiOutput_ExtCmdVariable() uses PiOutput_ExtCmdAppend() exclusively
+     to write its output
+- HTML dump: correct handling of special chars: & < >
+-> new function PiOutput_HtmlWriteString(), used by all non-HTML strings
+-> remove double quotes from service name in copyright meta tag
+nxtvepg.pod [rev:1.49, 2001-08-21T20:55:55]:
+- chapter control: dump HTML: adapted to changed widget ordering
+- fileselection is now topmost, then flags, then type.
+epgui/pioutput.c [rev:1.6, 2001-08-23T19:59:43]:
+- bugfix WIN32 in HtmlFileCreate()
+- do not abort if backup file does not exist,
+- i.e. when remove fails with ENOENT
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.123, 2001-08-23T20:00:38]:
+- save dumpdb and dumphtml settings in rc/ini file
+epgctl/epgacqctl.c [rev:1.48, 2001-08-23T20:01:17]:
+- tiny fix: removed 2nd ; behind statement
+pod2help.pl [rev:1.11, 2001-08-23T20:13:46]:
+- added support for pre-formatted paragraphs
+- i.e. paragraphs that start with blank
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.124, 2001-08-23T21:02:13]:
+- bugfixes ctxmencf dialog:
+- unset ctxmencf_arr must check if array exists
+- selidx can be -1 and still appear < llength $ctxmencf_ord
+    symptom was that no warning for unsaved changed showed when no idx selected
+- added word "Note:" to warning texts; "OK" is no longer default button
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.125, 2001-08-24T19:55:29]:
+- improvements in context menu config dialog
+- added "clear" button
+- clear entry fields after the last item is deleted
+- removed default from "discard" dialog in abort button
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.126, 2001-08-25T06:54:37]:
+- fix dumdb dialog: added destroy to the proc called after Ok
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.127, 2001-08-25T08:52:02]:
+- fixes in ProvMerge_Quit:
+- don't check if prov selist is empty upon Abort
+- do not remove destroy binding of opt dialog
+epgui/pioutput.c [rev:1.7, 2001-08-25T11:52:41]:
+- removed embarrassing size restriction for command lines to user-def cmds
+-> use new struct DYN_CHAR_BUF to implement dynamically growing buffer
+-> buffer handled by new func PiOutput_ExtCmdAppendChar
+-> all ExtCmd functions changed to transparently pass ptr to dynbuf
+     instead of char* and maxlen
+nxtvepg.pod [rev:1.50, 2001-08-25T12:38:14]:
+- updated description of context menu config dialog
+Makefile [rev:1.34, 2001-08-25T12:46:29]:
+- changed bak rule: windows path from C: back to E:
+Makefile.win32 [rev:1.11, 2001-08-25T12:47:10]:
+- Changed paths to Tcl: now in D:/gnu/tcl
+CHANGES.version [rev:1.7, 2001-08-25T12:48:10]:
+- added nxtvepg.spec to list of manually version update required
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.128, 2001-08-25T12:50:12]:
+- ctxmencf dialog: widened entry fields from 50 to 55 to use
+epgctl/epgversion.h [rev:1.14, 2001-08-25T12:52:12]:
+- set to version 0.6.0
+epgui/epgui.tcl [epgtcl/mainwin.tcl, rev:1.129, 2001-08-25T15:07:45]:
+- fixed proc SelectPiMotion for Win95:
+- mask $state with 0x100 because bit 3 is permanently set
+www/index-de.html [rev:1.15, 2001-08-25T17:07:09]:
+- update for release 0.6.0
+- added possibility to generate RPM from source tarball
+- removed thecounter.com script code
+- added </P> tags
+www/index.html [rev:1.27, 2001-08-25T17:07:09]:
+- update for release 0.6.0
+- added possibility to generate RPM from source tarball
+- removed thecounter.com script code
+- added </P> tags
+www/changelog.html [rev:1.14, 2001-08-25T17:08:20]:
+- update for release 0.6.0
+www/man.html [rev:1.10, 2001-08-25T17:08:43]:
+- update for release 0.6.0
+www/provnets.html [rev:1.9, 2001-08-25T17:08:57]:
+- moved TRT note to the bottom; tightened the text
+CHANGES [rev:1.15, 2001-08-25T17:28:24]:
+- updated for release 0.6.0
+TODO [rev:1.13, 2001-08-25T17:28:39]:
+- updated for release 0.6.0
+www/changelog.html [rev:1.15, 2001-08-28T19:11:30]:
+- added pre-info for 0.6.1: bugfix epgdbmgmt
+- removed "maybe more" from 0.6.0
+- fixed HTML: replaced some & with &amp;
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_0_6_0 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

@@ -34,7 +34,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgscan.c,v 1.13 2001/06/04 17:35:47 tom Exp tom $
+ *  $Id: epgscan.c,v 1.14 2001/06/10 08:33:13 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -75,6 +75,7 @@ typedef struct
    bool             doRefresh;        // user option: check already known providers only
    ulong          * provFreqTab;      // list of known providers (refresh mode)
    uint             provFreqCount;    // number of known providers (refresh mode)
+   EPGDB_CONTEXT  * pDbContext;       // database context for BI/AI search and reload
    void          (* MsgCallback)( const char * pMsg );
 } EPGSCANCTL_STATE;
 
@@ -107,6 +108,141 @@ static bool EpgScan_NextChannel( ulong * pFreq )
       }
    }
    return result;
+}
+
+// ---------------------------------------------------------------------------
+// AI callback: invoked before a new AI block is inserted into the database
+//
+static bool EpgScan_AiCallback( const AI_BLOCK *pNewAi )
+{
+   const AI_BLOCK *pOldAi;
+   ulong oldTunerFreq;
+   uint oldAppId;
+   bool accept = FALSE;
+
+   if (scanCtl.state >= SCAN_STATE_WAIT_EPG)
+   {
+      dprintf3("EpgScan: AI found, CNI=0x%04X version %d/%d\n", AI_GET_CNI(pNewAi), pNewAi->version, pNewAi->version_swo);
+      EpgDbLockDatabase(scanCtl.pDbContext, TRUE);
+      pOldAi = EpgDbGetAi(scanCtl.pDbContext);
+      if (pOldAi == NULL)
+      {
+         oldTunerFreq = scanCtl.pDbContext->tunerFreq;
+         oldAppId = scanCtl.pDbContext->appId;
+         EpgDbLockDatabase(scanCtl.pDbContext, FALSE);
+         EpgContextCtl_Close(scanCtl.pDbContext);
+
+         scanCtl.pDbContext = EpgContextCtl_Open(AI_GET_CNI(pNewAi), CTX_RELOAD_ERR_NONE);
+
+         if (scanCtl.pDbContext->appId == EPG_ILLEGAL_APPID)
+            scanCtl.pDbContext->appId = oldAppId;
+
+         if ((scanCtl.pDbContext->tunerFreq != oldTunerFreq) && (oldTunerFreq != 0))
+         {
+            dprintf2("EpgScan: updating tuner freq: %.2f -> %.2f\n", (double)scanCtl.pDbContext->tunerFreq/16, (double)oldTunerFreq/16);
+            scanCtl.pDbContext->modified = TRUE;
+            scanCtl.pDbContext->tunerFreq = oldTunerFreq;
+         }
+
+         if (scanCtl.pDbContext->tunerFreq != 0)
+         {  // store the provider channel frequency in the rc/ini file
+            UiControlMsg_NewProvFreq(AI_GET_CNI(pNewAi), scanCtl.pDbContext->tunerFreq);
+         }
+
+         accept = TRUE;
+      }
+      else
+      {
+         debug1("EpgScan: 2nd AI block received - ignored (prev CNI 0x%04X)", AI_GET_CNI(pOldAi));
+         EpgDbLockDatabase(scanCtl.pDbContext, FALSE);
+      }
+   }
+   else
+   {  // should be reached only during epg scan -> discard block
+      dprintf1("EpgScan: during scan, new AI 0x%04X\n", AI_GET_CNI(pNewAi));
+   }
+
+   return accept;
+}
+
+// ---------------------------------------------------------------------------
+// Called by the database management when a new BI block was received
+// - the BI block is never inserted into the database
+// - only the application ID is extracted and saved in the db context
+//
+static bool EpgScan_BiCallback( const BI_BLOCK *pNewBi )
+{
+   if (scanCtl.state >= SCAN_STATE_WAIT_EPG)
+   {
+      if (pNewBi->app_id == EPG_ILLEGAL_APPID)
+      {
+         dprintf0("EpgCtl: EPG not listed in BI\n");
+      }
+      else
+      {
+         if (scanCtl.pDbContext->appId != EPG_ILLEGAL_APPID)
+         {
+            if (scanCtl.pDbContext->appId != pNewBi->app_id)
+            {  // not the default id
+               dprintf2("EpgCtl: app-ID changed from %d to %d\n", scanCtl.pDbContext->appId, scanCtl.pDbContext->appId);
+               EpgDbAcqReset(scanCtl.pDbContext, EPG_ILLEGAL_PAGENO, pNewBi->app_id);
+            }
+         }
+         else
+            dprintf1("EpgScan-BiCallback: BI now in db, appID=%d\n", pNewBi->app_id);
+      }
+   }
+
+   // the BI block is never added to the db
+   return FALSE;
+}
+
+// ---------------------------------------------------------------------------
+// Notification from acquisition about channel change
+// - dummy, not required during scan
+// - since the video and vbi devices are kepty busy, no external channel changes can occur
+//
+static void EpgScan_ChannelChange( bool changeDb )
+{
+   SHOULD_NOT_BE_REACHED;
+}
+
+static const EPGDB_ACQ_CB scanAcqCb =
+{
+   EpgScan_AiCallback,
+   EpgScan_BiCallback,
+   EpgScan_ChannelChange,
+   EpgScan_Stop
+};
+
+// ----------------------------------------------------------------------------
+// Process all available lines from VBI and check for BI and AI blocks
+// 
+void EpgScan_ProcessPackets( void )
+{
+   uint pageNo;
+
+   if (scanCtl.pDbContext != NULL)
+   {
+      // the check function must be called even if EPG acq is not yet enabled
+      // because it also handles channel changes and watches over the slave's life
+      if (EpgDbAcqCheckForPackets())
+      {
+         if (scanCtl.state >= SCAN_STATE_WAIT_EPG)
+         {
+            EpgDbAcqProcessPackets(&scanCtl.pDbContext);
+         }
+      }
+
+      pageNo = EpgDbAcqGetMipPageNo();
+      if ((pageNo != EPG_ILLEGAL_PAGENO) && (pageNo != scanCtl.pDbContext->pageNo))
+      {  // found a different page number in MIP
+         dprintf2("EpgScan-ProcessPackets: non-default MIP page no for EPG: %03X (was %003X) -> restart acq\n", pageNo, scanCtl.pDbContext->pageNo);
+
+         scanCtl.pDbContext->pageNo = pageNo;
+         EpgDbAcqReset(scanCtl.pDbContext, pageNo, EPG_ILLEGAL_APPID);
+      }
+   }
 }
 
 // ----------------------------------------------------------------------------
@@ -158,9 +294,9 @@ uint EpgScan_EvHandler( void )
 
          if (scanCtl.state == SCAN_STATE_WAIT_EPG)
          {
-            if (EpgDbContextGetCni(pAcqDbContext) != 0)
+            if (EpgDbContextGetCni(scanCtl.pDbContext) != 0)
             {  // AI block has been received
-               assert((pAcqDbContext->pAiBlock != NULL) && pAcqDbContext->modified);
+               assert((scanCtl.pDbContext->pAiBlock != NULL) && scanCtl.pDbContext->modified);
 
                pPeek = EpgDbPeek(cni, NULL);
                if (pPeek != NULL)
@@ -169,27 +305,27 @@ uint EpgScan_EvHandler( void )
                                 AI_GET_NETWOP_NAME(&pPeek->pAiBlock->blk.ai, pPeek->pAiBlock->blk.ai.thisNetwop));
                   scanCtl.MsgCallback(msgbuf);
                   scanCtl.state = SCAN_STATE_DONE;
-                  if (pPeek->tunerFreq != pAcqDbContext->tunerFreq)
+                  if (pPeek->tunerFreq != scanCtl.pDbContext->tunerFreq)
                   {
                      scanCtl.MsgCallback("storing provider's tuner frequency");
-                     EpgContextCtl_UpdateFreq(cni, pAcqDbContext->tunerFreq);
+                     EpgContextCtl_UpdateFreq(cni, scanCtl.pDbContext->tunerFreq);
                   }
-                  UiControlMsg_NewProvFreq(cni, pAcqDbContext->tunerFreq);
+                  UiControlMsg_NewProvFreq(cni, scanCtl.pDbContext->tunerFreq);
                   EpgDbPeekDestroy(pPeek);
                }
                else
                {
-                  EpgDbDump(pAcqDbContext);
+                  EpgDbDump(scanCtl.pDbContext);
 
-                  EpgDbLockDatabase(pAcqDbContext, TRUE);
-                  pAi = EpgDbGetAi(pAcqDbContext);
+                  EpgDbLockDatabase(scanCtl.pDbContext, TRUE);
+                  pAi = EpgDbGetAi(scanCtl.pDbContext);
                   if (pAi != NULL)
                   {
                      sprintf(msgbuf, "Found new provider: %s", AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop));
                      scanCtl.MsgCallback(msgbuf);
                      scanCtl.state = SCAN_STATE_DONE;
                   }
-                  EpgDbLockDatabase(pAcqDbContext, FALSE);
+                  EpgDbLockDatabase(scanCtl.pDbContext, FALSE);
                }
             }
          }
@@ -209,12 +345,12 @@ uint EpgScan_EvHandler( void )
                                AI_GET_NETWOP_NAME(&pPeek->pAiBlock->blk.ai, pPeek->pAiBlock->blk.ai.thisNetwop));
                scanCtl.MsgCallback(msgbuf);
 
-               if (pPeek->tunerFreq != pAcqDbContext->tunerFreq)
+               if (pPeek->tunerFreq != scanCtl.pDbContext->tunerFreq)
                {
                   scanCtl.MsgCallback("storing provider's tuner frequency");
-                  EpgContextCtl_UpdateFreq(cni, pAcqDbContext->tunerFreq);
+                  EpgContextCtl_UpdateFreq(cni, scanCtl.pDbContext->tunerFreq);
                }
-               UiControlMsg_NewProvFreq(cni, pAcqDbContext->tunerFreq);
+               UiControlMsg_NewProvFreq(cni, scanCtl.pDbContext->tunerFreq);
                EpgDbPeekDestroy(pPeek);
 
                scanCtl.state = SCAN_STATE_DONE;
@@ -240,8 +376,6 @@ uint EpgScan_EvHandler( void )
                      if (scanCtl.state <= SCAN_STATE_WAIT_NI)
                         scanCtl.MsgCallback("checking for EPG transmission...");
                      scanCtl.state = SCAN_STATE_WAIT_EPG;
-                     // enable normal EPG acq callback handling
-                     EpgAcqCtl_ToggleAcqForScan(TRUE);
                      break;
 
                   default:
@@ -262,9 +396,6 @@ uint EpgScan_EvHandler( void )
                scanCtl.state = SCAN_STATE_WAIT_NI_OR_EPG;
             else
                scanCtl.state = SCAN_STATE_WAIT_EPG;
-
-            // enable normal EPG acq callback handling
-            EpgAcqCtl_ToggleAcqForScan(TRUE);
          }
          else if ((scanCtl.state < SCAN_STATE_WAIT_NI) && niWait)
          {
@@ -295,20 +426,19 @@ uint EpgScan_EvHandler( void )
             if ( BtDriver_TuneChannel(freq, TRUE) )
             {
                // automatically dump db if provider was found, then free resources
-               assert((pAcqDbContext->pAiBlock == NULL) || (pAcqDbContext->tunerFreq != 0));
-               EpgContextCtl_Close(pAcqDbContext);
+               assert((scanCtl.pDbContext->pAiBlock == NULL) || (scanCtl.pDbContext->tunerFreq != 0));
+               EpgContextCtl_Close(scanCtl.pDbContext);
 
-               pAcqDbContext = EpgContextCtl_CreateNew();
-               pAcqDbContext->tunerFreq = freq;
+               scanCtl.pDbContext = EpgContextCtl_CreateNew();
+               scanCtl.pDbContext->tunerFreq = freq;
 
                // Note: Reset initializes the app-ID and ttx page no, hence it must be called after the db switch
-               EpgDbAcqReset(pAcqDbContext, EPG_ILLEGAL_PAGENO, EPG_ILLEGAL_APPID);
+               EpgDbAcqReset(scanCtl.pDbContext, EPG_ILLEGAL_PAGENO, EPG_ILLEGAL_APPID);
                EpgDbAcqInitScan();
 
                dprintf1("RESET channel %d\n", scanCtl.channel);
                scanCtl.startTime = now;
                scanCtl.state = SCAN_STATE_RESET;
-               EpgAcqCtl_ToggleAcqForScan(FALSE);
 
                rescheduleMs = 50;
             }
@@ -369,24 +499,23 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool doRefresh
    scanCtl.provFreqTab   = freqTab;
    scanCtl.provFreqCount = freqCount;
    scanCtl.MsgCallback   = MsgCallback;
+   scanCtl.pDbContext     = EpgContextCtl_CreateNew();
    result = EPGSCAN_OK;
 
-   // set up an empty db
-   if (scanCtl.acqWasEnabled)
-   {
-      EpgContextCtl_Close(pAcqDbContext);
-      pAcqDbContext = NULL;
-   }
-   pAcqDbContext = EpgContextCtl_CreateNew();
    rescheduleMs = 0;
 
    // start EPG acquisition
    if (scanCtl.acqWasEnabled == FALSE)
    {
       EpgDbAcqInit();
-      EpgDbAcqStart(pAcqDbContext, EPG_ILLEGAL_PAGENO, EPG_ILLEGAL_APPID);
+      EpgDbAcqStart(scanCtl.pDbContext, EPG_ILLEGAL_PAGENO, EPG_ILLEGAL_APPID);
       if (BtDriver_StartAcq() == FALSE)
          result = EPGSCAN_ACCESS_DEV_VIDEO;
+   }
+   else
+   {
+      EpgContextCtl_Close(pAcqDbContext);
+      pAcqDbContext = NULL;
    }
 
    if (result == EPGSCAN_OK)
@@ -401,11 +530,12 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool doRefresh
             if ( EpgScan_NextChannel(&freq) &&
                  BtDriver_TuneChannel(freq, TRUE) )
             {
-               pAcqDbContext->tunerFreq = freq;
+               scanCtl.pDbContext->tunerFreq = freq;
 
-               EpgDbAcqReset(pAcqDbContext, EPG_ILLEGAL_PAGENO, EPG_ILLEGAL_APPID);
+               EpgDbAcqReset(scanCtl.pDbContext, EPG_ILLEGAL_PAGENO, EPG_ILLEGAL_APPID);
                EpgDbAcqInitScan();
-               EpgAcqCtl_ToggleAcqForScan(FALSE);
+               EpgAcqCtl_Suspend(TRUE);
+               EpgDbAcqSetCallbacks(&scanAcqCb);
 
                dprintf1("RESET channel %d\n", scanCtl.channel);
                scanCtl.state = SCAN_STATE_RESET;
@@ -441,13 +571,12 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool doRefresh
 
    if (result != EPGSCAN_OK)
    {
-      EpgContextCtl_Close(pAcqDbContext);
-      pAcqDbContext = NULL;
-      EpgAcqCtl_ToggleAcqForScan(FALSE);
+      EpgContextCtl_Close(scanCtl.pDbContext);
+      scanCtl.pDbContext = NULL;
       if (scanCtl.acqWasEnabled == FALSE)
          EpgDbAcqStop();
       else
-         EpgAcqCtl_Start();
+         EpgAcqCtl_Suspend(FALSE);
 
       if (scanCtl.provFreqTab != NULL)
       {
@@ -479,9 +608,8 @@ void EpgScan_Stop( void )
       }
       scanCtl.state = SCAN_STATE_OFF;
 
-      EpgAcqCtl_ToggleAcqForScan(FALSE);
-      EpgContextCtl_Close(pAcqDbContext);
-      pAcqDbContext = NULL;
+      EpgContextCtl_Close(scanCtl.pDbContext);
+      scanCtl.pDbContext = NULL;
 
       BtDriver_CloseDevice();
       if (scanCtl.acqWasEnabled == FALSE)
@@ -490,9 +618,7 @@ void EpgScan_Stop( void )
          EpgDbAcqStop();
       }
       else
-      {
-         EpgAcqCtl_Start();
-      }
+         EpgAcqCtl_Suspend(FALSE);
    }
 }
 

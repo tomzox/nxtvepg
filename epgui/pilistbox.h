@@ -16,35 +16,11 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pilistbox.h,v 1.10 2001/05/12 18:34:51 tom Exp tom $
+ *  $Id: pilistbox.h,v 1.11 2001/06/16 14:58:08 tom Exp tom $
  */
 
 #ifndef __PILISTBOX_H
 #define __PILISTBOX_H
-
-
-// Definition of PI listbox column types
-typedef enum
-{
-   PIBOX_COL_NETNAME,
-   PIBOX_COL_TIME,
-   PIBOX_COL_WEEKDAY,
-   PIBOX_COL_DAY,
-   PIBOX_COL_DAY_MONTH,
-   PIBOX_COL_DAY_MONTH_YEAR,
-   PIBOX_COL_TITLE,
-   PIBOX_COL_DESCR,
-   PIBOX_COL_PIL,
-   PIBOX_COL_THEME,
-   PIBOX_COL_SOUND,
-   PIBOX_COL_FORMAT,
-   PIBOX_COL_ED_RATING,
-   PIBOX_COL_PAR_RATING,
-   PIBOX_COL_LIVE_REPEAT,
-   PIBOX_COL_SUBTITLES,
-   PIBOX_COL_COUNT
-
-} PIBOX_COL_TYPES;
 
 
 // Initialization - Interface to main module

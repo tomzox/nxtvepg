@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pilistbox.c,v 1.57 2001/06/12 18:09:38 tom Exp tom $
+ *  $Id: pilistbox.c,v 1.61 2001/08/21 19:46:59 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -49,8 +49,8 @@
 #include "epgui/epgmain.h"
 #include "epgui/uictrl.h"
 #include "epgctl/epgctxctl.h"
-#include "epgui/pdc_themes.h"
 #include "epgui/pifilter.h"
+#include "epgui/pioutput.h"
 #include "epgui/pilistbox.h"
 
 
@@ -84,49 +84,6 @@ PIBOX_STATE pibox_state = PIBOX_NOT_INIT;  // listbox state
 EPGDB_STATE pibox_dbstate;       // database state
 
 #define dbc pUiDbContext         // internal shortcut
-
-// Emergency fallback for column configuration
-// (should never be used because tab-stops and column header buttons will not match)
-static const PIBOX_COL_TYPES defaultPiboxCols[] =
-{
-   PIBOX_COL_NETNAME,
-   PIBOX_COL_TIME,
-   PIBOX_COL_WEEKDAY,
-   PIBOX_COL_TITLE,
-   PIBOX_COL_COUNT
-};
-// pointer to a list of the currently configured column types
-static const PIBOX_COL_TYPES * pPiboxCols = defaultPiboxCols;
-
-// ----------------------------------------------------------------------------
-// Table to implement isalnum() for all latin fonts
-//
-const char alphaNumTab[256] =
-{
-/* 0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F */
-   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 0 */
-   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 1 */
-   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 2 */
-   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,  /* 3 */ // 0 - 9
-   0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,  /* 4 */ // A - Z
-   2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0,  /* 5 */
-   0,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,  /* 6 */ // a - z
-  -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1, 0, 0, 0, 0, 0,  /* 7 */
-   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 8 */
-   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 9 */
-   0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,  /* A */ // national
-   4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,  /* B */
-   4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,  /* C */
-   4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,  /* D */
-   4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,  /* E */
-   4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,  /* F */
-/* 0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F */
-};
-#define ALNUM_NONE    0
-#define ALNUM_DIGIT   1
-#define ALNUM_UCHAR   2
-#define ALNUM_LCHAR  -1
-#define ALNUM_NATION  4
 
 // ----------------------------------------------------------------------------
 // Check the consistancy of the listbox state with the database and text widget
@@ -386,203 +343,21 @@ void PiListBox_UpdateState( EPGDB_STATE newDbState )
 //
 static void PiListBox_InsertItem( const PI_BLOCK *pPiBlock, int pos )
 {
-   const AI_BLOCK *pAiBlock;
-   struct tm ttm;
    uint idx, off;
    time_t now;
+   int len;
 
-   memcpy(&ttm, localtime(&pPiBlock->start_time), sizeof(struct tm));
-   idx = 0;
    sprintf(comm, ".all.pi.list.text insert %d.0 {", pos + 1);
+
+   idx = 0;
    off = strlen(comm);
 
-   while (pPiboxCols[idx] < PIBOX_COL_COUNT)
+   while ( (len = PiOutput_PrintColumnItem(pPiBlock, idx, comm + off)) >= 0 )
    {
-      switch (pPiboxCols[idx])
-      {
-         case PIBOX_COL_NETNAME:
-            EpgDbLockDatabase(dbc, TRUE);
-            pAiBlock = EpgDbGetAi(dbc);
-            if ((pAiBlock != NULL) && (pPiBlock->netwop_no < pAiBlock->netwopCount))
-            {
-               uchar buf[7], *p;
-               sprintf(buf, "0x%04X", AI_GET_NETWOP_N(pAiBlock, pPiBlock->netwop_no)->cni);
-               p = Tcl_GetVar2(interp, "cfnetnames", buf, TCL_GLOBAL_ONLY);
-               if (p != NULL)
-                  strncpy(comm + off, p, 9);
-               else
-                  strncpy(comm + off, AI_GET_NETWOP_NAME(pAiBlock, pPiBlock->netwop_no), 9);
-               comm[off + 9] = 0;
-            }
-            else
-            {
-               debug0("PiListBox_InsertItem: no AI block");
-               strcpy(comm + off, "??");
-            }
-            EpgDbLockDatabase(dbc, FALSE);
-            off += strlen(comm + off);
-            break;
-            
-         case PIBOX_COL_TIME:
-            strftime(comm + off,     19, "%H:%M-", &ttm);
-            strftime(comm + off + 6, 19, "%H:%M",  localtime(&pPiBlock->stop_time));
-            off += 11;
-            break;
-
-         case PIBOX_COL_WEEKDAY:
-            strftime(comm + off, 19, "%a", &ttm);
-            off += strlen(comm + off);
-            break;
-
-         case PIBOX_COL_DAY:
-            strftime(comm + off, 19, "%d.", &ttm);
-            off += strlen(comm + off);
-            break;
-
-         case PIBOX_COL_DAY_MONTH:
-            strftime(comm + off, 19, "%d.%m.", &ttm);
-            off += strlen(comm + off);
-            comm[off] = 0;
-            break;
-
-         case PIBOX_COL_DAY_MONTH_YEAR:
-            strftime(comm + off, 19, "%d.%m.%Y", &ttm);
-            off += strlen(comm + off);
-            break;
-
-         case PIBOX_COL_TITLE:
-            strcpy(comm + off, PI_GET_TITLE(pPiBlock));
-            off += strlen(comm + off);
-            break;
-
-         case PIBOX_COL_DESCR:
-            comm[off++] = (PI_HAS_LONG_INFO(pPiBlock) ? 'l' : 
-                          (PI_HAS_SHORT_INFO(pPiBlock) ? 's' : '-'));
-            break;
-
-         case PIBOX_COL_PIL:
-            if (pPiBlock->pil != 0x7fff)
-            {
-               sprintf(comm + off, "%02d:%02d/%02d.%02d.",
-                       (pPiBlock->pil >>  6) & 0x1F,
-                       (pPiBlock->pil      ) & 0x3F,
-                       (pPiBlock->pil >> 15) & 0x1F,
-                       (pPiBlock->pil >> 11) & 0x0F);
-               off += strlen(comm + off);
-            }
-            break;
-
-         case PIBOX_COL_SOUND:
-            switch(pPiBlock->feature_flags & 0x03)
-            {
-               case 1: strcpy(comm + off, "2-chan"); break;
-               case 2: strcpy(comm + off, "stereo"); break;
-               case 3: strcpy(comm + off, "surr."); break;
-            }
-            off += strlen(comm + off);
-            break;
-
-         case PIBOX_COL_FORMAT:
-            if (pPiBlock->feature_flags & 0x08)
-               strcpy(comm + off, "PAL+");
-            else if (pPiBlock->feature_flags & 0x04)
-               strcpy(comm + off, "wide");
-            off += strlen(comm + off);
-            break;
-
-         case PIBOX_COL_ED_RATING:
-            if (pPiBlock->editorial_rating > 0)
-            {
-               sprintf(comm + off, " %d", pPiBlock->editorial_rating);
-               off += strlen(comm + off);
-            }
-            break;
-
-         case PIBOX_COL_PAR_RATING:
-            if (pPiBlock->parental_rating == 1)
-               strcpy(comm + off, "all");
-            else if (pPiBlock->parental_rating > 0)
-               sprintf(comm + off, ">%2d", pPiBlock->parental_rating * 2);
-            off += strlen(comm + off);
-            break;
-
-         case PIBOX_COL_LIVE_REPEAT:
-            if (pPiBlock->feature_flags & 0x40)
-               strcpy(comm + off, "live");
-            else if (pPiBlock->feature_flags & 0x80)
-               strcpy(comm + off, "repeat");
-            off += strlen(comm + off);
-            break;
-
-         case PIBOX_COL_SUBTITLES:
-            comm[off++] = ((pPiBlock->feature_flags & 0x100) ? 't' : '-');
-            break;
-
-         case PIBOX_COL_THEME:
-            if (pPiBlock->no_themes > 0)
-            {
-               const uchar * p;
-               uchar theme;
-               uint themeIdx, len;
-
-               if (pPiFilterContext->enabledFilters & FILTER_THEMES)
-               {
-                  // Search for the first theme that's not part of the filter setting.
-                  // (It would be boring to print "movie" for all programmes, when there's
-                  //  a movie theme filter; instead we print the first sub-theme, e.g. "sci-fi")
-                  for (themeIdx=0; themeIdx < pPiBlock->no_themes; themeIdx++)
-                  {  // ignore theme class
-                     theme = pPiBlock->themes[themeIdx];
-                     if ( (theme < 0x80) &&
-                          ((pPiFilterContext->themeFilterField[theme] & pPiFilterContext->usedThemeClasses) == 0) )
-                     {
-                        break;
-                     }
-                  }
-                  if (themeIdx >= pPiBlock->no_themes)
-                     themeIdx = 0;
-               }
-               else
-                  themeIdx = 0;
-
-               if (pPiBlock->themes[themeIdx] >= 0x80)
-               {  // series
-                  strcpy(comm + off, pdc_series);
-               }
-               else if ((p = pdc_themes[pPiBlock->themes[themeIdx]]) != NULL)
-               {  // remove " - general" from the end of the theme category name
-                  len = strlen(p);
-                  if ((len > 10) && (strcmp(p + len - 10, " - general") == 0))
-                  {
-                     strncpy(comm + off, p, len - 10);
-                     comm[off + len - 10] = 0;
-                  }
-                  else
-                     strcpy(comm + off, p);
-               }
-
-               // limit max. length: theme must fit into the column width
-               len = strlen(comm + off);
-               if (len > 10)
-               {  // remove single chars or separators from the end of the truncated string
-                  p = comm + off + 10 - 1;
-                  if (alphaNumTab[*(p - 1)] == ALNUM_NONE)
-                     p -= 2;
-                  while (alphaNumTab[*(p--)] == ALNUM_NONE)
-                     ;
-                  off = (char *)(p + 2) - (char *)comm;
-               }
-               else
-                  off += len;
-            }
-            break;
-
-         default:
-            SHOULD_NOT_BE_REACHED;
-            break;
-      }
+      off += len;
       comm[off++] = '\t';
       comm[off] = 0;
+
       idx += 1;
    }
    // remove trailing tab character
@@ -590,247 +365,31 @@ static void PiListBox_InsertItem( const PI_BLOCK *pPiBlock, int pos )
       off -= 1;
 
    now = time(NULL);
-   sprintf(comm + off, "\n} %s\n", (pPiBlock->stop_time <= now) ? "past" :
-                                   ((pPiBlock->start_time <= now) ? "now" : "then"));
+   sprintf(comm + off, "\n} %s\n", /* ((pPiBlock->stop_time <= now) && ((pPiFilterContext->enabledFilters & FILTER_EXPIRE_TIME) == FALSE))  ? "past" : */
+                                   ((pPiBlock->start_time <= now) ? "now" : "then") );
    eval_check(interp, comm);
 }
 
 // ----------------------------------------------------------------------------
-// Configure browser listing columns
-// - Additionally the tab-stops in the text widget must be defined for the
-//   width of the respective columns: Tcl/Tk proc ApplySelectedColumnList
-// - Also, the listbox must be refreshed
+// Callback function for PiOutput-AppendShortAndLongInfoText
 //
-static int PiListBox_CfgColumns( ClientData ttp, Tcl_Interp *interp, int argc, char *argv[] )
+static void PiListBox_AppendInfoTextCb( void *fp, const char * pShortInfo, bool insertSeparator, const char * pLongInfo )
 {
-   PIBOX_COL_TYPES * pColTab;
-   char **pColArgv;
-   uint colCount, colIdx, idx;
-   char * pTmpStr;
-   int result;
+   assert(fp == NULL);
 
-   pTmpStr = Tcl_GetVar(interp, "colsel_selist", TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG);
-   if (pTmpStr != NULL)
+   if (pShortInfo != NULL)
    {
-      result = Tcl_SplitList(interp, pTmpStr, &colCount, &pColArgv);
-      if (result == TCL_OK)
-      {
-         pColTab = xmalloc((colCount + 1) * sizeof(PIBOX_COL_TYPES));
-
-         for (idx=0; idx < colCount; idx++)
-         {
-            if      (strcmp(pColArgv[idx], "netname") == 0) colIdx = PIBOX_COL_NETNAME;
-            else if (strcmp(pColArgv[idx], "time") == 0) colIdx = PIBOX_COL_TIME;
-            else if (strcmp(pColArgv[idx], "weekday") == 0) colIdx = PIBOX_COL_WEEKDAY;
-            else if (strcmp(pColArgv[idx], "day") == 0) colIdx = PIBOX_COL_DAY;
-            else if (strcmp(pColArgv[idx], "day_month") == 0) colIdx = PIBOX_COL_DAY_MONTH;
-            else if (strcmp(pColArgv[idx], "day_month_year") == 0) colIdx = PIBOX_COL_DAY_MONTH_YEAR;
-            else if (strcmp(pColArgv[idx], "title") == 0) colIdx = PIBOX_COL_TITLE;
-            else if (strcmp(pColArgv[idx], "description") == 0) colIdx = PIBOX_COL_DESCR;
-            else if (strcmp(pColArgv[idx], "pil") == 0) colIdx = PIBOX_COL_PIL;
-            else if (strcmp(pColArgv[idx], "theme") == 0) colIdx = PIBOX_COL_THEME;
-            else if (strcmp(pColArgv[idx], "sound") == 0) colIdx = PIBOX_COL_SOUND;
-            else if (strcmp(pColArgv[idx], "format") == 0) colIdx = PIBOX_COL_FORMAT;
-            else if (strcmp(pColArgv[idx], "ed_rating") == 0) colIdx = PIBOX_COL_ED_RATING;
-            else if (strcmp(pColArgv[idx], "par_rating") == 0) colIdx = PIBOX_COL_PAR_RATING;
-            else if (strcmp(pColArgv[idx], "live_repeat") == 0) colIdx = PIBOX_COL_LIVE_REPEAT;
-            else if (strcmp(pColArgv[idx], "subtitles") == 0) colIdx = PIBOX_COL_SUBTITLES;
-            else colIdx = PIBOX_COL_COUNT;
-
-            pColTab[idx] = colIdx;
-         }
-         pColTab[idx] = PIBOX_COL_COUNT;
-
-         if (pPiboxCols != defaultPiboxCols)
-            xfree((void *)pPiboxCols);
-         pPiboxCols = pColTab;
-      }
+      if (pLongInfo != NULL)
+         sprintf(comm, ".all.pi.info.text insert end {%s%s%s}\n", pShortInfo, (insertSeparator ? "\n" : ""), pLongInfo);
+      else
+         sprintf(comm, ".all.pi.info.text insert end {%s}\n", pShortInfo);
    }
    else
-      result = TCL_ERROR;
-
-   return result;
-}
-
-// ----------------------------------------------------------------------------
-// Remove descriptions that are substrings of other info strings in the given list
-//
-static uint PiListBox_UnifyMergedInfo( uchar ** infoStrTab, uint infoCount )
-{
-   register uchar c1, c2;
-   register schar ia1, ia2;
-   uchar *pidx, *pcmp, *p1, *p2;
-   uint idx, cmpidx;
-   int len, cmplen;
-
-   for (idx = 0; idx < infoCount; idx++)
-   {
-      pidx = infoStrTab[idx];
-      while ( (*pidx != 0) && (alphaNumTab[*pidx] == ALNUM_NONE) )
-         pidx += 1;
-      len = strlen(pidx);
-
-      for (cmpidx = 0; cmpidx < infoCount; cmpidx++)
-      {
-         if ((idx != cmpidx) && (infoStrTab[cmpidx] != NULL))
-         {
-            pcmp = infoStrTab[cmpidx];
-            while ( (alphaNumTab[*pcmp] != 0) && (alphaNumTab[*pcmp] == ALNUM_NONE) )
-               pcmp += 1;
-            cmplen = strlen(pcmp);
-            if (cmplen >= len)
-            {
-               cmplen -= len;
-
-               while (cmplen-- >= 0)
-               {
-                  if (*(pcmp++) == *pidx)
-                  {
-                     p1 = pidx + 1;
-                     p2 = pcmp;
-
-                     while ( ((c1 = *p1) != 0) && ((c2 = *p2) != 0) )
-                     {
-                        ia1 = alphaNumTab[c1];
-                        ia2 = alphaNumTab[c2];
-                        if (ia1 == ALNUM_NONE)
-                           p1++;
-                        else if (ia2 == ALNUM_NONE)
-                           p2++;
-                        else
-                        {
-                           if ( (ia1 ^ ia2) < 0 )
-                           {  // different case -> make both upper case
-                              c1 &= ~0x20;
-                              c2 &= ~0x20;
-                           }
-                           if (c1 != c2)
-                              break;
-                           else
-                           {
-                              p1++;
-                              p2++;
-                           }
-                        }
-                     }
-
-                     if (*p1 == 0)
-                     {  // found identical substring
-                        dprintf1("PiListBox-UnifyMergedInfo: remove %s\n", infoStrTab[idx]);
-                        xfree(infoStrTab[idx]);
-                        infoStrTab[idx] = NULL;
-                        break;
-                     }
-                  }
-               }
-               if (infoStrTab[idx] == NULL)
-                  break;
-            }
-         }
-      }
+   {  // separator between info texts of different providers
+      sprintf(comm, ".all.pi.info.text insert end {\n\n} title\n"
+                    ".all.pi.info.text image create {end - 2 line} -image bitmap_line\n");
    }
-
-   return infoCount;
-}
-
-// ----------------------------------------------------------------------------
-// Build array of description strings for merged PI
-// - Merged database needs special handling, because short and long infos
-//   of all providers are concatenated into the short info string. Separator
-//   between short and long info is a newline char. After each provider's
-//   info there's a form-feed char.
-// - Returns the number of separate strings and puts their pointers into the array.
-//   The caller must free the separated strings.
-//
-static uint PiListBox_SeparateMergedInfo( const PI_BLOCK * pPiBlock, uchar ** infoStrTab )
-{
-   uchar c, *p, *ps, *pl, *pt;
-   int   shortInfoLen, longInfoLen, len;
-   uint  count;
-
-   p = PI_GET_SHORT_INFO(pPiBlock);
-   count = 0;
-   do
-   {  // loop across all provider's descriptions
-
-      // obtain start and length of this provider's short and long info
-      shortInfoLen = longInfoLen = 0;
-      ps = p;
-      pl = NULL;
-      while (*p)
-      {
-         if (*p == '\n')
-         {  // end of short info found
-            shortInfoLen = p - ps;
-            pl = p + 1;
-         }
-         else if (*p == 12)
-         {  // end of short and/or long info found
-            if (pl == NULL)
-               shortInfoLen = p - ps;
-            else
-               longInfoLen = p - pl;
-            p++;
-            break;
-         }
-         p++;
-      }
-
-      if (pl != NULL)
-      {
-         // if there's a long info too, do the usual redundancy check
-
-         if (shortInfoLen > longInfoLen)
-         {
-            len = longInfoLen;
-            pt = ps + (shortInfoLen - longInfoLen);
-         }
-         else
-         {
-            len = shortInfoLen;
-            pt = ps;
-         }
-         c = *pl;
-
-         // min length is 30, because else single words might match
-         while (len-- > 30)
-         {
-            if (*(pt++) == c)
-            {
-               if (!strncmp(pt, pl+1, len))
-               {  // start of long info is identical to end of short info -> skip identical part in long info
-                  pl          += len + 1;
-                  longInfoLen -= len + 1;
-                  break;
-               }
-            }
-         }
-
-         infoStrTab[count] = xmalloc(shortInfoLen + longInfoLen + 1 + 1);
-         strncpy(infoStrTab[count], ps, shortInfoLen);
-
-         // if short and long info were not merged, add a newline inbetween
-         if (len <= 30)
-         {
-            infoStrTab[count][shortInfoLen] = '\n';
-            shortInfoLen += 1;
-         }
-         // append the long info to the text widget insert command
-         strncpy(infoStrTab[count] + shortInfoLen, pl, longInfoLen);
-
-         infoStrTab[count][shortInfoLen + longInfoLen] = 0;
-      }
-      else
-      {  // only short info available; copy it into the array
-         infoStrTab[count] = xmalloc(shortInfoLen + 1);
-         strncpy(infoStrTab[count], ps, shortInfoLen);
-         infoStrTab[count][shortInfoLen] = 0;
-      }
-      count += 1;
-
-   } while (*p);
-
-   return count;
+   eval_check(interp, comm);
 }
 
 // ----------------------------------------------------------------------------
@@ -843,7 +402,7 @@ static void PiListBox_UpdateInfoText( bool keepView )
    const uchar *pCfNetname;
    uchar date_str[20], start_str[20], stop_str[20], cni_str[7];
    uchar view_buf[20];
-   int len, idx, theme, themeCat;
+   int len;
    
    if (keepView)
    {  // remember the viewable fraction of the text
@@ -871,80 +430,21 @@ static void PiListBox_UpdateInfoText( bool keepView )
          // now add a feature summary to the bottom label field
          strcpy(comm, ".all.pi.info.text insert end {");
 
-         for (idx=0; idx < pPiBlock->no_themes; idx++)
-         {
-            theme = pPiBlock->themes[idx];
-            if (theme > 0x80)
-               theme = 0x80;
-            themeCat = PdcThemeGetCategory(theme);
-            if ( (pdc_themes[theme] != NULL) &&
-                 // current theme is general and next same category -> skip
-                 ( (themeCat != theme) ||
-                   (idx + 1 >= pPiBlock->no_themes) ||
-                   (themeCat != PdcThemeGetCategory(pPiBlock->themes[idx + 1])) ) &&
-                 // current theme is identical to next -> skip
-                 ( (idx + 1 >= pPiBlock->no_themes) ||
-                   (theme != pPiBlock->themes[idx + 1]) ))
-            {
-               if ( (strlen(pdc_themes[theme]) > 10) &&
-                    (strcmp(pdc_themes[theme] + strlen(pdc_themes[theme]) - 10, " - general") == 0) )
-               {  // copy theme name except of the trailing " - general"
-                  comm[strlen(comm) + strlen(pdc_themes[theme]) - 10] = 0;
-                  strncpy(comm + strlen(comm), pdc_themes[theme], strlen(pdc_themes[theme]) - 10);
-               }
-               else
-                  strcat(comm + strlen(comm), pdc_themes[theme]);
-               strcat(comm, ", ");
-            }
-         }
-         // remove last comma if nothing follows
+         // append theme list
          len = strlen(comm);
-         if ((comm[len - 2] == ',') && (comm[len - 1] == ' '))
-            comm[len - 2] = 0;
+         PiOutput_AppendCompressedThemes(pPiBlock, comm + len, sizeof(comm) - (len + 1));
+
+         // append features list
          strcat(comm, " (");
-
-         switch(pPiBlock->feature_flags & 0x03)
-         {
-            case  1: strcat(comm, "2-channel, "); break;
-            case  2: strcat(comm, "stereo, "); break;
-            case  3: strcat(comm, "surround, "); break;
-         }
-
-         if (pPiBlock->feature_flags & 0x04)
-            strcat(comm, "wide, ");
-         if (pPiBlock->feature_flags & 0x08)
-            strcat(comm, "PAL+, ");
-         if (pPiBlock->feature_flags & 0x10)
-            strcat(comm, "digital, ");
-         if (pPiBlock->feature_flags & 0x20)
-            strcat(comm, "encrypted, ");
-         if (pPiBlock->feature_flags & 0x40)
-            strcat(comm, "live, ");
-         if (pPiBlock->feature_flags & 0x80)
-            strcat(comm, "repeat, ");
-         if (pPiBlock->feature_flags & 0x100)
-            strcat(comm, "subtitles, ");
-
-         if (pPiBlock->editorial_rating > 0)
-            sprintf(comm + strlen(comm), "rating: %d of 1..7, ", pPiBlock->editorial_rating);
-
-         if (pPiBlock->parental_rating == 1)
-            strcat(comm, "age: general, ");
-         else if (pPiBlock->parental_rating > 0)
-            sprintf(comm + strlen(comm), "age: %d and up, ", pPiBlock->parental_rating * 2);
-
+         PiOutput_AppendFeatureList(pPiBlock, comm + strlen(comm));
          // remove opening bracket if nothing follows
          len = strlen(comm);
          if ((comm[len - 2] == ' ') && (comm[len - 1] == '('))
             comm[len - 2] = 0;
          else
-         {
-            // remove last comma if nothing follows
-            if ((comm[len - 2] == ',') && (comm[len - 1] == ' '))
-               comm[len - 2] = 0;
             strcat(comm, ")");
-         }
-         // finalize string
+
+         // finalize theme & feature string
          strcat(comm, "\n} features\n");
          eval_check(interp, comm);
 
@@ -964,80 +464,7 @@ static void PiListBox_UpdateInfoText( bool keepView )
                        (((pPiBlock->start_time - time(NULL)) > 12*60*60) ? (char *)date_str : "") );
          eval_check(interp, comm);
 
-         if ( PI_HAS_SHORT_INFO(pPiBlock) && PI_HAS_LONG_INFO(pPiBlock) )
-         {
-            // remove identical substring from beginning of long info
-            // (this feature has been added esp. for the German provider RTL-II)
-            const uchar *ps = PI_GET_SHORT_INFO(pPiBlock);
-            const uchar *pl = PI_GET_LONG_INFO(pPiBlock);
-            uint len = strlen(ps);
-            uchar c = *pl;
-
-            // min length is 30, because else single words might match
-            while (len-- > 30)
-            {
-               if (*(ps++) == c)
-               {
-                  if (!strncmp(ps, pl+1, len))
-                  {
-                     pl += len + 1;
-                     break;
-                  }
-               }
-            }
-
-            sprintf(comm, ".all.pi.info.text insert end {%s%s%s}\n",
-                          PI_GET_SHORT_INFO(pPiBlock),
-                          (len > 30) ? "" : "\n",
-                          pl);
-            eval_check(interp, comm);
-         }
-         else if (PI_HAS_SHORT_INFO(pPiBlock))
-         {
-            if (EpgDbContextIsMerged(pUiDbContext))
-            {
-               uchar *infoStrTab[MAX_MERGED_DB_COUNT];
-               uint infoCount, idx, added;
-
-               // Merged database -> for presentation the usual short/long info
-               // combination is done, plus a separator image is added between
-               // different provider's descriptions.
-
-               infoCount = PiListBox_SeparateMergedInfo(pPiBlock, infoStrTab);
-               infoCount = PiListBox_UnifyMergedInfo(infoStrTab, infoCount);
-               added = 0;
-
-               for (idx=0; idx < infoCount; idx++)
-               {
-                  if (infoStrTab[idx] != NULL)
-                  {
-                     if (added > 0)
-                     {  // not the only or first info -> insert separator image (a horizontal line)
-                        sprintf(comm, ".all.pi.info.text insert end {\n\n} title\n"
-                                      ".all.pi.info.text image create {end - 2 line} -image bitmap_line\n");
-                        eval_check(interp, comm);
-                     }
-
-                     // add the short info to the text widget insert command
-                     sprintf(comm, ".all.pi.info.text insert end {%s}\n", infoStrTab[idx]);
-                     eval_check(interp, comm);
-
-                     xfree(infoStrTab[idx]);
-                     added += 1;
-                  }
-               }
-            }
-            else
-            {
-               sprintf(comm, ".all.pi.info.text insert end {%s}\n", PI_GET_SHORT_INFO(pPiBlock));
-               eval_check(interp, comm);
-            }
-         }
-         else if (PI_HAS_LONG_INFO(pPiBlock))
-         {
-            sprintf(comm, ".all.pi.info.text insert end {%s}\n", PI_GET_LONG_INFO(pPiBlock));
-            eval_check(interp, comm);
-         }
+         PiOutput_AppendShortAndLongInfoText(pPiBlock, PiListBox_AppendInfoTextCb, NULL);
       }
       else
          debug2("PiListBox-UpdateInfoText: selected block start=%ld netwop=%d not found\n", pibox_list[pibox_count-1].start_time, pibox_list[pibox_count-1].netwop_no);
@@ -2413,157 +1840,6 @@ void PiListBox_UpdateNowItems( void )
 }
 
 // ----------------------------------------------------------------------------
-// show info about the currently selected item in pop-up window
-//
-static int PiListBox_PopupPi( ClientData ttp, Tcl_Interp *i, int argc, char *argv[] )
-{
-   const AI_BLOCK * pAiBlock;
-   const AI_NETWOP *pNetwop;
-   const PI_BLOCK * pPiBlock;
-   const DESCRIPTOR *pDesc;
-   const char * pCfNetname;
-   uchar *p;
-   uchar start_str[50], stop_str[50], cni_str[7];
-   uchar ident[50];
-   int index;
-   int result;
-
-   if (argc != 3) 
-   {  // Anzahl Parameter falsch -> usage ausgeben lassen
-      i->result = "Usage: PopupPi xcoo ycoo";
-      result = TCL_ERROR; 
-   }  
-   else
-   {
-      result = TCL_OK; 
-
-      if (pibox_curpos >= 0)
-      {
-	 EpgDbLockDatabase(dbc, TRUE);
-	 pAiBlock = EpgDbGetAi(dbc);
-	 pPiBlock = EpgDbSearchPi(dbc, NULL, pibox_list[pibox_curpos].start_time, pibox_list[pibox_curpos].netwop_no);
-	 if ((pAiBlock != NULL) && (pPiBlock != NULL) && (pPiBlock->netwop_no < pAiBlock->netwopCount))
-	 {
-	    pNetwop = AI_GET_NETWOP_N(pAiBlock, pPiBlock->netwop_no);
-
-            sprintf(cni_str, "0x%04X", AI_GET_NETWOP_N(pAiBlock, pPiBlock->netwop_no)->cni);
-            pCfNetname = Tcl_GetVar2(interp, "cfnetnames", cni_str, TCL_GLOBAL_ONLY);
-            if (pCfNetname == NULL)
-               pCfNetname = AI_GET_NETWOP_NAME(pAiBlock, pPiBlock->netwop_no);
-
-	    sprintf(ident, ".poppi_%d_%ld", pPiBlock->netwop_no, pPiBlock->start_time);
-
-	    sprintf(comm, "Create_PopupPi %s %s %s\n", ident, argv[1], argv[2]);
-	    eval_check(interp, comm);
-
-	    sprintf(comm, "%s.text insert end {%s\n} title\n", ident, PI_GET_TITLE(pPiBlock));
-	    eval_check(interp, comm);
-
-	    sprintf(comm, "%s.text insert end {Network: \t%s\n} body\n", ident, pCfNetname);
-	    eval_check(interp, comm);
-
-	    sprintf(comm, "%s.text insert end {BlockNo:\t0x%04X in %04X-%04X-%04X\n} body\n", ident, pPiBlock->block_no, pNetwop->startNo, pNetwop->stopNo, pNetwop->stopNoSwo);
-	    eval_check(interp, comm);
-
-	    strftime(start_str, 49, "%a %d.%m %H:%M", localtime(&pPiBlock->start_time));
-	    strftime(stop_str, 49, "%a %d.%m %H:%M", localtime(&pPiBlock->stop_time));
-	    sprintf(comm, "%s.text insert end {Start:\t%s\nStop:\t%s\n} body\n", ident, start_str, stop_str);
-	    eval_check(interp, comm);
-
-	    if (pPiBlock->pil != 0x7FFF)
-	    {
-	       sprintf(comm, "%s.text insert end {PIL:\t%02d.%02d. %02d:%02d\n} body\n", ident,
-		       (pPiBlock->pil >> 15) & 0x1F,
-		       (pPiBlock->pil >> 11) & 0x0F,
-		       (pPiBlock->pil >>  6) & 0x1F,
-		       (pPiBlock->pil      ) & 0x3F );
-	    }
-	    else
-	       sprintf(comm, "%s.text insert end {PIL:\tnone\n} body\n", ident);
-	    eval_check(interp, comm);
-
-	    switch(pPiBlock->feature_flags & 0x03)
-	    {
-	      case  0: p = "mono"; break;
-	      case  1: p = "2chan"; break;
-	      case  2: p = "stereo"; break;
-	      case  3: p = "surround"; break;
-	      default: p = ""; break;
-	    }
-	    sprintf(comm, "%s.text insert end {Sound:\t%s\n} body\n", ident, p);
-	    eval_check(interp, comm);
-	    if (pPiBlock->feature_flags & ~0x03)
-	    sprintf(comm, "%s.text insert end {Features:\t%s%s%s%s%s%s%s\n} body\n", ident,
-			   ((pPiBlock->feature_flags & 0x04) ? " wide" : ""),
-			   ((pPiBlock->feature_flags & 0x08) ? " PAL+" : ""),
-			   ((pPiBlock->feature_flags & 0x10) ? " digital" : ""),
-			   ((pPiBlock->feature_flags & 0x20) ? " encrypted" : ""),
-			   ((pPiBlock->feature_flags & 0x40) ? " live" : ""),
-			   ((pPiBlock->feature_flags & 0x80) ? " repeat" : ""),
-			   ((pPiBlock->feature_flags & 0x100) ? " subtitles" : "")
-			   );
-	    else
-	       sprintf(comm, "%s.text insert end {Features:\tnone\n} body\n", ident);
-	    eval_check(interp, comm);
-
-	    if (pPiBlock->parental_rating == 0)
-	       sprintf(comm, "%s.text insert end {Parental rating:\tnone\n} body\n", ident);
-	    else if (pPiBlock->parental_rating == 1)
-	       sprintf(comm, "%s.text insert end {Parental rating:\tgeneral\n} body\n", ident);
-	    else
-	       sprintf(comm, "%s.text insert end {Parental rating:\t%d years and up\n} body\n", ident, pPiBlock->parental_rating * 2);
-	    eval_check(interp, comm);
-
-	    if (pPiBlock->editorial_rating == 0)
-	       sprintf(comm, "%s.text insert end {Editorial rating:\tnone\n} body\n", ident);
-	    else
-	       sprintf(comm, "%s.text insert end {Editorial rating:\t%d of 1..7\n} body\n", ident, pPiBlock->editorial_rating);
-	    eval_check(interp, comm);
-
-	    for (index=0; index < pPiBlock->no_themes; index++)
-	    {
-	       if (pPiBlock->themes[index] > 0x80)
-		  p = "series";
-	       else if ((p = (char *) pdc_themes[pPiBlock->themes[index]]) == 0)
-		  p = (char *) pdc_undefined_theme;
-	       sprintf(comm, "%s.text insert end {Theme:\t0x%02X %s\n} body\n", ident, pPiBlock->themes[index], p);
-	       eval_check(interp, comm);
-	    }
-
-	    for (index=0; index < pPiBlock->no_sortcrit; index++)
-	    {
-	       sprintf(comm, "%s.text insert end {Sorting Criterion:\t0x%02X\n} body\n", ident, pPiBlock->sortcrits[index]);
-	       eval_check(interp, comm);
-	    }
-
-	    pDesc = PI_GET_DESCRIPTORS(pPiBlock);
-	    for (index=0; index < pPiBlock->no_descriptors; index++)
-	    {
-	       switch (pDesc[index].type)
-	       {
-		  case 7:  sprintf(comm, "%s.text insert end {Descriptor:\tlanguage ID %d\n} body\n", ident, pDesc[index].id); break;
-		  case 8:  sprintf(comm, "%s.text insert end {Descriptor:\tsubtitle ID %d\n} body\n", ident, pDesc[index].id); break;
-		  default: sprintf(comm, "%s.text insert end {Descriptor:\tunknown type=%d, ID=%d\n} body\n", ident, pDesc[index].type, pDesc[index].id); break;
-	       }
-	       eval_check(interp, comm);
-	    }
-
-	    sprintf(comm, "global poppedup_pi\n"
-	                  "$poppedup_pi.text configure -state disabled\n"
-	                  "$poppedup_pi.text configure -height [expr 1 + [$poppedup_pi.text index end]]\n"
-			  "pack $poppedup_pi.text\n");
-	    eval_check(interp, comm);
-	 }
-	 else
-	    debug2("PiListBox-PopupPi: selected block start=%ld netwop=%d not found\n", pibox_list[pibox_count-1].start_time, pibox_list[pibox_count-1].netwop_no);
-	 EpgDbLockDatabase(dbc, FALSE);
-      }
-   }
-
-   return result;
-}
-
-// ----------------------------------------------------------------------------
 // Refresh the listbox after filter change
 //
 static int PiListBox_RefreshCmd( ClientData ttp, Tcl_Interp *i, int argc, char *argv[] )
@@ -2695,8 +1971,6 @@ static int PiListBox_Resize( ClientData ttp, Tcl_Interp *i, int argc, char *argv
 //
 void PiListBox_Destroy( void )
 {
-   if (pPiboxCols != defaultPiboxCols)
-      xfree((void *)pPiboxCols);
    if (pibox_list != NULL)
       xfree(pibox_list);
 }
@@ -2719,14 +1993,10 @@ void PiListBox_Create( void )
       Tcl_CreateCommand(interp, "C_PiListBox_CursorUp", PiListBox_CursorUp, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_PiListBox_GotoTime", PiListBox_GotoTime, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_PiListBox_SelectItem", PiListBox_SelectItem, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_PiListBox_PopupPi", PiListBox_PopupPi, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_RefreshPiListbox", PiListBox_RefreshCmd, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_ResetPiListbox", PiListBox_ResetCmd, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_ResizePiListbox", PiListBox_Resize, (ClientData) NULL, NULL);
-      Tcl_CreateCommand(interp, "C_PiListBox_CfgColumns", PiListBox_CfgColumns, (ClientData) NULL, NULL);
       Tcl_CreateCommand(interp, "C_PiListBox_GetSelectedNetwop", PiListBox_GetSelectedNetwop, (ClientData) NULL, NULL);
-      // set the column configuration
-      PiListBox_CfgColumns(NULL, interp, 0, NULL);
       // set the initial listbox height
       PiListBox_Resize(NULL, interp, 0, NULL);
    }
