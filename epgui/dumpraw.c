@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumpraw.c,v 1.28 2004/03/21 16:48:15 tom Exp tom $
+ *  $Id: dumpraw.c,v 1.29 2004/08/07 14:13:32 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -460,30 +460,57 @@ void EpgDumpRaw_IncomingBlock( const EPGDB_BLOCK_UNION * pUnion, BLOCK_TYPE type
                EpgDumpRaw_Ti(stdout, &pUnion->ti, stream);
                break;
             default:
-               debug1("EpgDumpRaw_-Block: unknown block type %d\n", type);
+               debug1("EpgDumpRaw-Block: unknown block type %d\n", type);
                break;
          }
       }
    }
    else
-      debug0("EpgDumpRaw_-Block: illegal NULL ptr param");
+      debug0("EpgDumpRaw-Block: illegal NULL ptr param");
 }
 
 // ---------------------------------------------------------------------------
 // Switch dump on or off
 //
-static void EpgDumpRaw_Toggle( void )
+void EpgDumpRaw_Toggle( void )
 {
    dumpRawIncoming = ! dumpRawIncoming;
+}
+
+// ----------------------------------------------------------------------------
+// Helper func: read boolean from global Tcl var
+//
+static bool EpgDumpRaw_ReadTclBool( Tcl_Interp *interp,
+                                    CONST84 char * pName, bool fallbackVal )
+{
+   Tcl_Obj  * pVarObj;
+   int  value;
+
+   if (pName != NULL)
+   {
+      pVarObj = Tcl_GetVar2Ex(interp, pName, NULL, TCL_GLOBAL_ONLY);
+      if ( (pVarObj == NULL) ||
+           (Tcl_GetBooleanFromObj(interp, pVarObj, &value) != TCL_OK) )
+      {
+         debug3("EpgDumpRaw-ReadTclBool: cannot read Tcl var %s (%s) - use default val %d", pName, ((pVarObj != NULL) ? Tcl_GetString(pVarObj) : "*undef*"), fallbackVal);
+         value = fallbackVal;
+      }
+   }
+   else
+   {
+      fatal0("EpgDumpRaw-ReadTclBool: illegal NULL ptr param");
+      value = fallbackVal;
+   }
+   return (bool) value;
 }
 
 // ---------------------------------------------------------------------------
 // Dump the complete database
 //
-static void EpgDumpRaw_Database( EPGDB_CONTEXT *pDbContext, FILE *fp,
-                                 bool do_pi, bool do_xi, bool do_ai, bool do_ni,
-                                 bool do_oi, bool do_mi, bool do_li, bool do_ti )
+static void EpgDumpRaw_Database( EPGDB_CONTEXT *pDbContext, FILE *fp )
 {
+   bool  do_pi, do_xi, do_ai, do_ni;
+   bool  do_oi, do_mi, do_li, do_ti;
    const AI_BLOCK * pAi;
    const NI_BLOCK * pNi;
    const OI_BLOCK * pOi;
@@ -493,6 +520,15 @@ static void EpgDumpRaw_Database( EPGDB_CONTEXT *pDbContext, FILE *fp,
    const PI_BLOCK * pPi;
    uint  blockno, count;
    uchar netwop;
+
+   do_pi = EpgDumpRaw_ReadTclBool(interp, "dumpdb_pi", 1);
+   do_xi = EpgDumpRaw_ReadTclBool(interp, "dumpdb_xi", 1);
+   do_ai = EpgDumpRaw_ReadTclBool(interp, "dumpdb_ai", 1);
+   do_ni = EpgDumpRaw_ReadTclBool(interp, "dumpdb_ni", 1);
+   do_oi = EpgDumpRaw_ReadTclBool(interp, "dumpdb_oi", 1);
+   do_mi = EpgDumpRaw_ReadTclBool(interp, "dumpdb_mi", 1);
+   do_li = EpgDumpRaw_ReadTclBool(interp, "dumpdb_li", 1);
+   do_ti = EpgDumpRaw_ReadTclBool(interp, "dumpdb_ti", 1);
 
    EpgDbLockDatabase(pDbContext, TRUE);
 
@@ -599,19 +635,25 @@ static void EpgDumpRaw_Database( EPGDB_CONTEXT *pDbContext, FILE *fp,
 }
 
 // ----------------------------------------------------------------------------
-// Dump the complete database
+// Dump the complete database (invoked via command line)
+//
+void EpgDumpRaw_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp )
+{
+   EpgDumpRaw_Database(pDbContext, fp);
+}
+
+// ----------------------------------------------------------------------------
+// Dump the complete database (invoked via GUI)
 //
 static int EpgDumpRaw_DumpRawDatabase( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
-   const char * const pUsage = "Usage: C_DumpRawDatabase <file-name> <pi=0/1> <xi=0/1> <ai=0/1>"
-                                                 " <ni=0/1> <oi=0/1> <mi=0/1> <li=0/1> <ti=0/1>";
-   int do_pi, do_xi, do_ai, do_ni, do_oi, do_mi, do_li, do_ti;
+   const char * const pUsage = "Usage: C_DumpRawDatabase <file-name>";
    const char * pFileName;
    Tcl_DString ds;
    FILE *fp;
    int result;
 
-   if (objc != 1+1+8)
+   if (objc != 1+1)
    {  // parameter count is invalid
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR;
@@ -619,17 +661,6 @@ static int EpgDumpRaw_DumpRawDatabase( ClientData ttp, Tcl_Interp *interp, int o
    else if ( (pFileName = Tcl_GetString(objv[1])) == NULL )
    {  // internal error: can not get filename string
       Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR;
-   }
-   else if ( (Tcl_GetBooleanFromObj(interp, objv[2], &do_pi) != TCL_OK) || 
-             (Tcl_GetBooleanFromObj(interp, objv[3], &do_xi) != TCL_OK) || 
-             (Tcl_GetBooleanFromObj(interp, objv[4], &do_ai) != TCL_OK) || 
-             (Tcl_GetBooleanFromObj(interp, objv[5], &do_ni) != TCL_OK) || 
-             (Tcl_GetBooleanFromObj(interp, objv[6], &do_oi) != TCL_OK) || 
-             (Tcl_GetBooleanFromObj(interp, objv[7], &do_mi) != TCL_OK) || 
-             (Tcl_GetBooleanFromObj(interp, objv[8], &do_li) != TCL_OK) || 
-             (Tcl_GetBooleanFromObj(interp, objv[9], &do_ti) != TCL_OK) )
-   {  // one of the params is not boolean; error msg is already set
       result = TCL_ERROR;
    }
    else
@@ -652,8 +683,8 @@ static int EpgDumpRaw_DumpRawDatabase( ClientData ttp, Tcl_Interp *interp, int o
 
       if (fp != NULL)
       {
-         EpgDumpRaw_Database(pUiDbContext, fp, (bool)do_pi, (bool)do_xi, (bool)do_ai, (bool)do_ni,
-                                               (bool)do_oi, (bool)do_mi, (bool)do_li, (bool)do_ti);
+         EpgDumpRaw_Database(pUiDbContext, fp);
+
          if (fp != stdout)
             fclose(fp);
       }

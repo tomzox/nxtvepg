@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: changelog.html,v 1.56 2004/07/24 13:45:30 tom Exp $ -->
+<!-- $Id: changelog.html,v 1.57 2004/08/31 20:50:48 tom Exp $ -->
 <HEAD>
 <TITLE>Nextview EPG Decoder Change Log</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -34,7 +34,7 @@
 
 <H2 class="navhead">News</H2>
 <P>
-Jul/17/2004: <A HREF="changelog.html#release_2_7_1">Release 2.7.1</A>
+Aug/17/2004: <A HREF="changelog.html#release_2_7_2">Release 2.7.2</A>
 </P>
 
 <H2 class="navhead">Documentation</H2>
@@ -80,6 +80,28 @@ nexTView EPG decoder software.
 For details on work in progress please refer to
 <A HREF="http://sourceforge.net/mailarchive/forum.php?forum_id=14102">mailing list archives</A>.
 </P>
+
+
+<H2><A NAME="release_2_7_2">From 2.7.1 to 2.7.2 (Aug/30/2004)</A></H2>
+<P>
+This release contains the following feature improvements and bugfixes:
+</P>
+<UL>
+<LI>Fixed bugs in <A HREF="man.html#export_as_xmltv">XMLTV database export</A>,
+  both DTD versions 0.5 and 0.6 (bugs were introduced during introduction of 0.6 in version 2.7.1)
+  Thanks to Steffen Siebert for pointing these out.
+<LI>Added <A HREF="http://tvtime.sourceforge.net/">tvtime</A>
+  to the list of <A HREF="links.html">TV applications supporting interaction</A>
+  with nxtvepg (via "xawtv-remote" connection; import of tvtime's channel
+  table is not supported yet though.)  Thanks to Billy Biggs.
+<LI>Added new command line option <A HREF="man.html#item__2dclock_mode">-clock</A>
+  which allows to acquire the
+  current date and time from teletext and update the system time with it.
+  (Warning: implementation is still preliminary; usage of this option may
+  change in subsequent versions of nxtvepg.)
+<LI>Made the <A HREF="tvsim.html">tvsim</A> tools compilable on *BSD platforms, thanks to
+  Simon Barner for the patch (note: still untested; please report if it actually works.)
+</UL>
 
 
 <H2><A NAME="release_2_7_1">From 2.7.0 to 2.7.1 (Jul/17/2004)</A></H2>

@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgmain.c,v 1.135 2004/06/20 18:53:13 tom Exp tom $
+ *  $Id: epgmain.c,v 1.137 2004/08/29 21:49:04 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -105,6 +105,8 @@
 
 #include "epgvbi/btdrv.h"
 #include "epgvbi/winshmsrv.h"
+#include "epgvbi/ttxdecode.h"
+#include "epgvbi/syserrmsg.h"
 #include "epgui/epgmain.h"
 
 
@@ -413,6 +415,144 @@ static void EventHandler_SigHup( ClientData clientData )
    }
 }
 #endif
+
+// ---------------------------------------------------------------------------
+// Fetch current time from teletext
+//
+static void SystemClockCmd( EPGTAB_DUMP_MODE optDumpMode, uint cni )
+{
+   EPGDB_CONTEXT * pPeek;
+   Tcl_Obj  * pVarObj;
+   bool  isTuner;
+   uint  freq;
+   int   input;
+   uint  waitCnt;
+   sint  lto;
+   time_t ttxTime;
+
+   SetHardwareConfig(interp, videoCardIndex);
+   BtDriver_SelectSlicer(VBI_SLICER_ZVBI);
+   BtDriver_SetChannelProfile(VBI_CHANNEL_PRIO_BACKGROUND, 0, 0, 0);
+
+   if (BtDriver_StartAcq())
+   {
+      if (cni != 0)
+      {
+         freq = UiControlMsg_QueryProvFreq(cni);
+         if (freq == 0)
+         {
+            pPeek = EpgContextCtl_Peek(cni, CTX_RELOAD_ERR_ACQ);
+            if (pPeek != NULL)
+            {
+               freq = pPeek->tunerFreq;
+               EpgContextCtl_ClosePeek(pPeek);
+            }
+            else
+               debug1("EpgAcqCtl-UpdateProvider: peek for 0x%04X failed", cni);
+         }
+      }
+      else
+         freq = 0;
+
+      pVarObj = Tcl_GetVar2Ex(interp, "hwcf_input", NULL, TCL_GLOBAL_ONLY);
+      if ( (pVarObj == NULL) ||
+           (Tcl_GetIntFromObj(interp, pVarObj, &input) != TCL_OK) )
+      {
+         input = 0;
+      }
+
+      if ( BtDriver_TuneChannel(input, freq, FALSE, &isTuner) )
+      {
+         if ( isTuner && (freq == 0) && (cni != 0) )
+         {
+            fprintf(stderr, "nxtvepg: warning: cannot tune channel for provider 0x%04X: "
+                            "frequency unknown\n", cni);
+         }
+      }
+      else
+         fprintf(stderr, "Failed to tune provider channel: %s\n", BtDriver_GetLastError());
+
+      ttxTime = 0;
+      waitCnt = 0;
+      while ((should_exit == FALSE) && (waitCnt < 5*25))
+      {
+#ifndef WIN32
+         struct timeval  tv;
+         tv.tv_sec  = 0;
+         tv.tv_usec = 40 * 1000L;  // 1/25 sec = 40 ms
+         select(0, NULL, NULL, NULL, &tv);
+#else
+         Sleep(40);
+#endif
+
+         ttxTime = TtxDecode_GetDateTime(&lto);
+         if (ttxTime != 0)
+            break;
+         waitCnt += 1;
+      }
+
+      if (ttxTime != 0)
+      {
+         dprintf3("... offset %d to UTC: GMT%+d %s", (int)(time(NULL)-ttxTime), lto/(60*60), ctime(&ttxTime));
+         switch (optDumpMode)
+         {
+            case EPGTAB_CLOCK_SET:
+            {
+#ifdef WIN32
+               SYSTEMTIME st;
+               struct tm * ptm;
+
+               ptm = gmtime(&ttxTime);
+               memset(&st, 0, sizeof(st));
+               st.wYear = ptm->tm_year + 1900;
+               st.wMonth = ptm->tm_mon + 1;
+               st.wDay = ptm->tm_mday;
+               st.wHour = ptm->tm_hour;
+               st.wMinute = ptm->tm_min;
+               st.wSecond = ptm->tm_sec;
+               if (SetSystemTime(&st) == FALSE)
+               {
+                  char * errmsg = NULL;
+                  SystemErrorMessage_Set(&errmsg, GetLastError(), "Failed to modify system time", NULL);
+                  fprintf(stderr, "%s\n", errmsg);
+               }
+#else
+               struct timeval tv;
+
+               tv.tv_sec = ttxTime;
+               tv.tv_usec = 0;
+               if (settimeofday(&tv, NULL) != 0)
+               {
+                  fprintf(stderr, "Failed to modify system time: %s\n", strerror(errno));
+               }
+#endif
+              break;
+            }
+            case EPGTAB_CLOCK_PRINT:
+            {
+              struct tm * ptm;
+              char buf[256];
+
+              ptm = localtime(&ttxTime);
+              if (strftime(buf, sizeof(buf), "%a %b %d %H:%M:%S %Z %Y", ptm))
+              {
+                 printf("%s\n", buf);
+              }
+              break;
+            }
+            default:
+              fatal1("SystemClock-Cmd: unknown mode %d", optDumpMode);
+              break;
+         }
+      }
+      else
+         fprintf(stderr, "No time packets received from teletext - giving up.\n");
+
+      BtDriver_StopAcq();
+   }
+   else
+      fprintf(stderr, "Failed to start acquisition: %s\n", BtDriver_GetLastError());
+}
 
 // ---------------------------------------------------------------------------
 // Handle client connection to EPG acquisition daemon
@@ -2168,6 +2308,7 @@ static void Usage( const char *argv0, const char *argvn, const char * reason )
                    #endif
                    #endif
                    "       -dump pi|ai|pdc|xml     \t: dump database\n"
+                   "       -clock              \t: set system clock\n"
                    "       -demo <db-file>     \t: load database in demo mode\n",
                    argv0, reason, argvn, argv0);
 #if 0
@@ -2346,6 +2487,21 @@ static void ParseArgv( int argc, char * argv[] )
             else
                Usage(argv[0], argv[argIdx], "missing provider cni after");
          }
+         else if (!strcmp(argv[argIdx], "-clock"))
+         {  // extract current time from teletext
+            if (argIdx + 1 < argc)
+            {
+               if (strcasecmp("set", argv[argIdx + 1]) == 0)
+                  optDumpMode = EPGTAB_CLOCK_SET;
+               else if (strcasecmp("print", argv[argIdx + 1]) == 0)
+                  optDumpMode = EPGTAB_CLOCK_PRINT;
+               else
+                  Usage(argv[argIdx + 1], argv[argIdx], "illegal mode keyword for");
+               argIdx += 2;
+            }
+            else
+               Usage(argv[0], argv[argIdx], "missing mode keyword after");
+         }
          else if (!strcmp(argv[argIdx], "-demo"))
          {
             if (argIdx + 1 < argc)
@@ -2459,7 +2615,7 @@ static void ParseArgv( int argc, char * argv[] )
 
    if (optDumpMode != EPGTAB_DUMP_NONE)
    {
-      if (startUiCni == 0)
+      if ((startUiCni == 0) && !IS_CLOCK_MODE(optDumpMode))
          Usage(argv[0], "-dump", "Must also specify -provider");
       else if (pDemoDatabase != NULL)
          Usage(argv[0], "-dump", "Cannot combine with -demo mode");
@@ -2671,7 +2827,7 @@ int main( int argc, char *argv[] )
    // scan the database directory
    EpgContextCtl_InitCache();
 
-   if (optDumpMode == EPGTAB_DUMP_NONE)
+   if ((optDumpMode == EPGTAB_DUMP_NONE) || IS_CLOCK_MODE(optDumpMode))
    {
       // UNIX must fork the VBI slave before GUI startup or the slave will inherit all X11 file handles
       BtDriver_Init();
@@ -2701,7 +2857,12 @@ int main( int argc, char *argv[] )
 
    if (optDumpMode != EPGTAB_DUMP_NONE)
    {  // dump mode: just dump the database, then exit
-      if (startUiCni == 0x00ff)
+      if ( IS_CLOCK_MODE(optDumpMode) )
+      {
+         SystemClockCmd(optDumpMode, startUiCni);
+         pUiDbContext = NULL;
+      }
+      else if (startUiCni == 0x00ff)
       {
          pUiDbContext = MenuCmd_MergeDatabases();
          if (pUiDbContext == NULL)
@@ -2718,11 +2879,22 @@ int main( int argc, char *argv[] )
       {
          SetUserLanguage(interp);
 
-         if (optDumpMode == EPGTAB_DUMP_XML)
-            EpgDumpXml_Standalone(pUiDbContext, stdout);
-         else
-            EpgDumpText_Standalone(pUiDbContext, stdout, optDumpMode);
-
+         switch (optDumpMode)
+         {
+            case EPGTAB_DUMP_XML:
+               EpgDumpXml_Standalone(pUiDbContext, stdout);
+               break;
+            case EPGTAB_DUMP_AI:
+            case EPGTAB_DUMP_PI:
+            case EPGTAB_DUMP_PDC:
+               EpgDumpText_Standalone(pUiDbContext, stdout, optDumpMode);
+               break;
+            case EPGTAB_DUMP_DEBUG:
+               EpgDumpRaw_Standalone(pUiDbContext, stdout);
+               break;
+            default:
+               break;
+         }
          EpgContextCtl_Close(pUiDbContext);
       }
    }

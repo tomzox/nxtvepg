@@ -16859,3 +16859,99 @@ www/index-fr.html [rev:1.5, 2004-07-24T13:46:55]:
 www/index.html [rev:1.83, 2004-07-24T13:46:55]:
 - Updated for release 2.7.1
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_7_1 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+epgui/dumpxml.c [rev:1.8, 2004-07-27T19:55:10]:
+- Bugfix XMLTV DTD6 <aspect> tag:
+- superfluous "and" inbetween x and y attributes (copy/paste error)
+- pointed out by Steffen Siebert, mail 2004-07-26
+epgui/dumpxml.c [rev:1.9, 2004-08-07T14:06:22]:
+- Fixed XMLTV DTD5 support:
+- broken by DTD6 support: disallowed <p> tag was added inside <desc>
+- pointed out by Steffen Siebert, mail 2004-07-29
+epgui/dumpraw.c [rev:1.29, 2004-08-07T14:13:32]:
+- Added global interface to allow dump via command line
+- added new global function EpgDumpRaw_Standalone()
+- made EpgDumpRaw_Toggle() global
+- EpgDumpRaw_Database() and Tcl proc C_DumpRawDatabase changed: ai/pi/etc.
+    flags no longer passed as args, now read from global Tcl variables
+epgui/dumpraw.h [rev:1.12, 2004-08-07T14:13:38]:
+- Added global interface to allow dump via command line
+- added new global function EpgDumpRaw_Standalone()
+- made EpgDumpRaw_Toggle() global
+epgui/dumptext.c [rev:1.9, 2004-08-07T14:13:46]:
+- EpgDumpText_GetMode(): added keyword "raw" and type EPGTAB_DUMP_DEBUG
+epgui/dumptext.h [rev:1.4, 2004-08-07T14:13:52]:
+- Added new element EPGTAB_DUMP_DEBUG to enum EPGTAB_DUMP_MODE (raw dump)
+epgui/epgmain.c [rev:1.136, 2004-08-07T14:13:58]:
+- Added "-dump raw": call new func dumpraw.c::EpgDumpRaw_Standalone()
+epgtcl/dlg_dump.tcl [rev:1.7, 2004-08-07T14:14:14]:
+- Allow raw database dump via command line
+- adapted interface to C callback C_DumpRawDatabase: ai/pi/etc. flags
+    no longer passed as args, now read from global Tcl variables
+tvsim/tvsim_main.c [rev:1.26, 2004-08-15T19:07:23]:
+- Applied patch for FreeBSD by Simon Barner (mail 2004-07-31)
+- fixes syntax errors only; untested
+epgui/xawtv.c [rev:1.43, 2004-08-29T17:04:19]:
+- Added support for TvTime in Xawtv_QueryClass()
+epgctl/mytypes.h [rev:1.21, 2004-08-29T21:46:59]:
+- Moved option DUMP_TTX_PACKETS into btdrv.h
+epgvbi/btdrv4linux.c [rev:1.60, 2004-08-29T21:47:19]:
+- Fixed acq stop in non-threaded mode
+- previously both processes hang for up to 30 seconds after stop during exit
+- was a race in child stop: "should exit" flag was not checked directly
+    before going to sleep for 30 seconds (sig TERM was received during close
+    of VBI device)
+epgvbi/btdrv.h [rev:1.42, 2004-08-29T21:47:28]:
+- Added new command line option "-clock print|set"
+- added time and date output to TTX shared memory (together with CNI)
+- Also: moved option DUMP_TTX_PACKETS here from global mytypes.h
+epgvbi/ttxdecode.c [rev:1.58, 2004-08-29T21:47:37]:
+- Added new command line option "-clock print|set"
+- forward P8/30/1 to new decoding function TtxDecode_AddTime()
+- store decoded times in new TTX shared memory elements
+- added interface function TtxDecode_GetDateTime() to query date/time
+epgvbi/ttxdecode.h [rev:1.29, 2004-08-29T21:47:54]:
+- Added new command line option "-clock print|set"
+- added interface function TtxDecode_GetDateTime() to query date/time
+epgvbi/hamming.c [rev:1.10, 2004-08-29T21:48:06]:
+- Debug only: new function DebugDumpTeletextPkg() used for DUMP_TTX_PACKETS mode
+epgvbi/hamming.h [rev:1.10, 2004-08-29T21:48:18]:
+- Debug only: new function DebugDumpTeletextPkg() used for DUMP_TTX_PACKETS mode
+epgui/dumptext.h [rev:1.5, 2004-08-29T21:48:55]:
+- Added new command line option "-clock print|set"
+- added new types EPGTAB_CLOCK_SET to enum EPGTAB_DUMP_MODE
+- note: respective keywords not recognized by EpgDumpText_GetMode()
+    directly handled by epgmain
+epgui/epgmain.c [rev:1.137, 2004-08-29T21:49:04]:
+- Added new command line option "-clock print|set"
+- added new startup modes EPGTAB_CLOCK_SET: similar to dump, but with TTX acq
+- added new function SystemClockCmd()
+nxtvepg.pod [rev:1.114, 2004-08-30T21:13:26]:
+- Added description of new option "-clock print|set"
+epgctl/epgversion.h [rev:1.57, 2004-08-30T22:18:32]:
+- set version to 2.7.2
+CHANGES [rev:1.42, 2004-08-30T22:33:40]:
+- updated for release 2.7.2
+www/WDMpre-releases.html [rev:1.6, 2004-08-31T20:49:34]:
+www/changelog-2.6.0pre.html [rev:1.7, 2004-08-31T20:49:34]:
+www/changelog-2.7.0pre.html [rev:1.3, 2004-08-31T20:49:34]:
+www/faq.html [rev:1.9, 2004-08-31T20:49:34]:
+www/help-wanted.html [rev:1.11, 2004-08-31T20:49:34]:
+www/intro-de.html [rev:1.8, 2004-08-31T20:49:34]:
+www/intro.html [rev:1.8, 2004-08-31T20:49:34]:
+www/pre-releases.html [rev:1.47, 2004-08-31T20:49:34]:
+www/provnets.html [rev:1.34, 2004-08-31T20:49:34]:
+www/tvsim-faq.html [rev:1.10, 2004-08-31T20:49:34]:
+- Updated news section for release 2.7.2
+www/download-de.html [rev:1.13, 2004-08-31T20:50:35]:
+www/download.html [rev:1.13, 2004-08-31T20:50:35]:
+www/index-de.html [rev:1.72, 2004-08-31T20:50:35]:
+www/index-fr.html [rev:1.6, 2004-08-31T20:50:35]:
+www/index.html [rev:1.84, 2004-08-31T20:50:35]:
+www/man.html [rev:1.35, 2004-08-31T20:50:35]:
+www/changelog.html [rev:1.57, 2004-08-31T20:50:48]:
+- Updated for release 2.7.2
+www/links.html [rev:1.10, 2004-08-31T20:50:55]:
+- updated for release 2.7.2
+- moved "tvtime" into section for apps which support interaction
+- removed "new" tag from nxtvepg2web
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_7_2 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

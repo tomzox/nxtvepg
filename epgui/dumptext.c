@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumptext.c,v 1.8 2004/05/31 14:34:43 tom Exp tom $
+ *  $Id: dumptext.c,v 1.9 2004/08/07 14:13:46 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -263,6 +263,8 @@ EPGTAB_DUMP_MODE EpgDumpText_GetMode( const char * pModeStr )
          mode = EPGTAB_DUMP_PDC;
       else if (strcasecmp("xml", pModeStr) == 0)
          mode = EPGTAB_DUMP_XML;
+      else if (strcasecmp("raw", pModeStr) == 0)
+         mode = EPGTAB_DUMP_DEBUG;
       else
          debug1("DumpText_-GetMode: unknown mode: %s", pModeStr);
    }

@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumpraw.h,v 1.11 2003/02/26 21:53:49 tom Exp tom $
+ *  $Id: dumpraw.h,v 1.12 2004/08/07 14:13:38 tom Exp tom $
  */
 
 #ifndef __DUMPRAW_H
@@ -30,6 +30,10 @@
 // interface to stream decoder
 void EpgDumpRaw_IncomingBlock( const EPGDB_BLOCK_UNION * pUnion, BLOCK_TYPE type, uchar stream );
 void EpgDumpRaw_IncomingUnknown( BLOCK_TYPE type, uint size, uchar stream );
+
+// interface to main module (command line)
+void EpgDumpRaw_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp );
+void EpgDumpRaw_Toggle( void );
 
 void EpgDumpRaw_Init( void );
 void EpgDumpRaw_Destroy( void );

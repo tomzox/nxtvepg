@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_dump.tcl,v 1.6 2004/05/31 14:33:16 tom Exp tom $
+#  $Id: dlg_dump.tcl,v 1.7 2004/08/07 14:14:14 tom Exp tom $
 #
 set dumpdb_pi 1
 set dumpdb_xi 1
@@ -159,9 +159,7 @@ proc DoDbRawDump {} {
 
    if [DlgDump_CheckOutputFile .dumpdb dumpdb_filename .txt 1 0] {
 
-      C_DumpRawDatabase $dumpdb_filename \
-                        $dumpdb_pi $dumpdb_xi $dumpdb_ai $dumpdb_ni \
-                        $dumpdb_oi $dumpdb_mi $dumpdb_li $dumpdb_ti
+      C_DumpRawDatabase $dumpdb_filename
 
       # save the settings to the rc/ini file
       UpdateRcFile

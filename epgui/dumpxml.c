@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumpxml.c,v 1.7 2004/07/11 18:22:30 tom Exp tom $
+ *  $Id: dumpxml.c,v 1.9 2004/08/07 14:06:22 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -309,9 +309,18 @@ static void EpgDumpXml_WriteProgramme( EPGDB_CONTEXT * pDbContext, const AI_BLOC
    fprintf(fp, "</title>\n");
    if ( PI_HAS_SHORT_INFO(pPiBlock) || PI_HAS_LONG_INFO(pPiBlock) )
    {
-      fprintf(fp, "\t<desc><p>\n");
-      PiDescription_AppendShortAndLongInfoText(pPiBlock, EpgDumpXml_AppendInfoTextCb, fp, EpgDbContextIsMerged(pDbContext));
-      fprintf(fp, "\t</p></desc>\n");
+      if ( IS_XML_DTD5(xmlDtdVersion) )
+      {
+         fprintf(fp, "\t<desc>\n");
+         PiDescription_AppendShortAndLongInfoText(pPiBlock, EpgDumpXml_AppendInfoTextCb, fp, EpgDbContextIsMerged(pDbContext));
+         fprintf(fp, "\t</desc>\n");
+      }
+      else
+      {
+         fprintf(fp, "\t<desc><p>\n");
+         PiDescription_AppendShortAndLongInfoText(pPiBlock, EpgDumpXml_AppendInfoTextCb, fp, EpgDbContextIsMerged(pDbContext));
+         fprintf(fp, "\t</p></desc>\n");
+      }
    }
 
    // theme categories
@@ -377,7 +386,7 @@ static void EpgDumpXml_WriteProgramme( EPGDB_CONTEXT * pDbContext, const AI_BLOC
       if ((pPiBlock->feature_flags & (PI_FEATURE_PAL_PLUS | PI_FEATURE_FMT_WIDE)) != 0)
       {
          fprintf(fp, "\t<video>\n");
-         fprintf(fp, "\t\t<aspect x=\"16\" and y=\"9\" />\n");
+         fprintf(fp, "\t\t<aspect x=\"16\" y=\"9\" />\n");
          if (pPiBlock->feature_flags & PI_FEATURE_PAL_PLUS)
             fprintf(fp, "\t\t<quality>PAL+</quality>\n");
          fprintf(fp, "\t</video>\n");

@@ -24,7 +24,7 @@
 #
 #  Author: Tom Zoerner
 #
-# $Id: nxtvepg.pod,v 1.113 2004/07/18 12:42:50 tom Exp tom $
+# $Id: nxtvepg.pod,v 1.114 2004/08/30 21:13:26 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME
@@ -240,9 +240,10 @@ a fixed list of providers.
 
 =item B<-dump> I<mode>
 
-With this argument, nxtvepg will only export the database in XML format
-(see L<"CONTROL: Export as XMLTV">) or in a fixed text format (see also
-L<"CONTROL: Export as text">), then exit.  This argument must be combined
+When started with this argument, nxtvepg will only export the database
+in XML format (see L<"CONTROL: Export as XMLTV">)
+or in a fixed text format (see also L<"CONTROL: Export as text">),
+then exit.  This argument must be combined
 with I<-provider> to specify which database is to be exported.
 
 To export the database in XML format, use keyword I<xml> as mode.
@@ -279,6 +280,44 @@ I<raise> to deiconify the other window and to bring it to the top
 (in case it's obscured by other windows);
 I<acqon> to start acquisition;
 I<acqoff> to stop acquisition.
+
+
+=item B<-clock> I<mode>
+
+When started with this argument, nxtvepg will acquire the current
+date and time from teletext and then terminate.  To specify from which
+channel to acquire date and time use the I<-prov> option option.
+(If you want to use a channel which is not an Nextview EPG provider,
+you'd have to use an external application to tune the channel before you
+invoke nxtvepg; with the exception of Linux' I<v4lctl setstation>
+command this mode is unsupported though and may not work, depending
+on the external application you're using it with.)
+
+B<Important restriction>: nxtvepg is able to retrieve the clock only
+from channels where the so-called teletext I<packet 8/30/1> is
+transmitted, which contains date, time and local time zone offset in
+a binary format.  nxtvepg will never attempt to retrieve times from
+teletext header lines.  All Nextview EPG providers transmit packet 8/30/1,
+and a few other networks do too (e.g. ARD and ZDF in Germany.)
+
+With mode I<print> the date and time will only be printed
+(B<Important> note to Windows users: you need to redirect the output
+of nxtvepg to make it visible; see the I<-dump> option above for an
+explanation)
+
+With mode I<set> the time is set as system time, provided the calling
+user has the necessary priviliges (e.g. you'd need to be I<root> on
+UNIX; since it's depreciated to run nxtvepg with root priviliges,
+it's recommended to first print the time into a file and then pass
+it to date).
+
+UNIX users should also note that the I<set> mode does not update the
+battery powered hardware clock (aka Real Time Clock B<RTC>), so the
+correction will probably be lost with the next reboot.  To update your
+RTC, call I<hwclock --systohc> or your operating system's equivalent
+after nxtvepg.  Some Linux distributions automatically take care of
+this during shutdown.
+
 
 =item B<-demo> I<path>
 

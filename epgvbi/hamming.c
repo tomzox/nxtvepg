@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: hamming.c,v 1.9 2003/03/19 16:18:24 tom Exp tom $
+ *  $Id: hamming.c,v 1.10 2004/08/29 21:48:06 tom Exp tom $
  */
 
 #define __HAMMING_C
@@ -146,4 +146,50 @@ ushort UnHamParityArray( const uchar *pin, uchar *pout, uint byteCount )
 
    return errCount;
 }
+
+// ----------------------------------------------------------------------------
+// Print data of a teletext data line
+//
+#if DUMP_TTX_PACKETS == ON
+void DebugDumpTeletextPkg( const uchar * pHead, const uchar * pData, uint frameSeqNo,
+                           uint lineNo, uint pkgNo, uint pageNo, uint subPageNo, bool isEpgPage )
+{
+   uchar   tmparr[46];
+   uchar * pTmp;
+   ushort  errCount;
+   uint    byteCount;
+   schar   c1;
+
+   // undo parity bit and mask out special characters
+   pTmp = tmparr;
+   errCount = 0;
+   for (byteCount = 42; byteCount > 0; byteCount--)
+   {
+      c1 = (schar)parityTab[*(pData++)];
+      if ( (c1 >= 0) &&
+           ((c1 > 0x20) && (c1 < 0x7f)) )
+      {
+         *(pTmp++) = c1;
+      }
+      else
+      {
+         *(pTmp++) = 0xA0;  // Latin-1 space character
+         errCount += 1;
+      }
+   }
+
+   if (pkgNo != 0)
+   {
+      tmparr[40] = 0;
+      printf("%s: frame %d line %3d pkg %2d: '%s' (%d)\n",
+              pHead, frameSeqNo, lineNo, pkgNo, &tmparr[0], isEpgPage);
+   }
+   else
+   {
+      tmparr[40-8] = 0;
+      printf("%s: frame %d line %3d page %03X.%04X pkg %02d: '%s' (%d)\n",
+              pHead, frameSeqNo, lineNo, pageNo, subPageNo, pkgNo, &tmparr[8], isEpgPage);
+   }
+}
+#endif  // DUMP_TTX_PACKETS == ON
 

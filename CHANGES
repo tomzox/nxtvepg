@@ -5,6 +5,22 @@ features).  For patchlevel releases also internal changes might be listed in
 case they may fix bugs (or cause new ones)
 
 
+from 2.7.1 to 2.7.2 (2004-Aug-30)
+
+- Fixed bugs in XMLTV database export, both in DTD5 and DTD6 versions
+  (introduced in version 2.7.1)
+  Thanks to Steffen Siebert for pointing these out.
+- Added "tvtime" to the list of TV applications supporting interaction
+  with nxtvepg (via "xawtv-remote" connection; import of tvtime's channel
+  table is not supported yet though.)  Thanks to Billy Biggs.
+- Added new command line option "-clock" which allows to acquire the
+  current date and time from teletext and update the system time with it.
+  (Warning: implementation is still preliminary; usage of this option may
+  change in subsequent versions of nxtvepg.)
+- Made the "tvsim" tools compilable on *BSD platforms, thanks to
+  Simon Barner (note: still untested; please report if it actually works.)
+
+
 from 2.7.0 to 2.7.1 (2004-Jul-17)
 
 - bugfix in "local time" option for XML database export (times were still

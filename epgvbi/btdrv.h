@@ -37,7 +37,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: btdrv.h,v 1.41 2004/07/11 19:07:20 tom Exp tom $
+ *  $Id: btdrv.h,v 1.42 2004/08/29 21:47:28 tom Exp tom $
  */
 
 #ifndef __BTDRV_H
@@ -106,6 +106,10 @@ typedef enum
    VBI_CHANNEL_PRIO_INTERACTIVE
 } VBI_CHANNEL_PRIO_TYPE;
 
+
+// enable dump of all incoming TTX packets
+#define DUMP_TTX_PACKETS         OFF
+
 // ---------------------------------------------------------------------------
 // number of teletext packets that can be stored in ring buffer
 // - Nextview maximum data rate is 5 pages per second (200ms min distance)
@@ -168,6 +172,13 @@ typedef struct
    uint32_t  cniRepCount;       // reception counter - reset upon CNI change
    uint32_t  lastPil;           // last received PIL - copied to outPil after X repetitions
    uint32_t  pilRepCount;       // reception counter - reset upon PIL change
+
+   uint8_t   haveTime;
+   uint8_t   timeRepCount;
+   int32_t   lto;
+   int32_t   lastLto;
+   uint32_t  timeVal;
+   uint32_t  lastTimeVal;
 
    uint8_t   haveText;
    uint8_t   outText[PDC_TEXT_LEN+1];     // status display (e.g. channel name and program title)

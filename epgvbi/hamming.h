@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: hamming.h,v 1.9 2004/02/14 19:17:12 tom Exp tom $
+ *  $Id: hamming.h,v 1.10 2004/08/29 21:48:18 tom Exp tom $
  */
 
 #ifndef __HAMMING_H
@@ -165,6 +165,11 @@ EXT const uchar byteBitDistTable[256]
 
 bool UnHam84Array( uchar *pin, uint byteCount );
 ushort UnHamParityArray( const uchar *pin, uchar *pout, uint byteCount );
+
+#if DUMP_TTX_PACKETS == ON
+void DebugDumpTeletextPkg( const uchar * pHead, const uchar * pData, uint frameSeqNo,
+                           uint lineNo, uint pkgNo, uint pageNo, uint subPageNo, bool isEpgPage );
+#endif
 
 #undef EXT
 

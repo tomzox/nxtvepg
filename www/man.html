@@ -33,7 +33,7 @@
 
 <H2 class="navhead">News</H2>
 <P>
-Jul/17/2004: <A HREF="changelog.html#release_2_7_1">Release 2.7.1</A>
+Aug/30/2004: <A HREF="changelog.html#release_2_7_2">Release 2.7.2</A>
 </P>
 
 <H2 class="navhead">Documentation</H2>
@@ -75,7 +75,6 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 This is the manual page for the
 <A HREF="http://nxtvepg.sourceforge.net/">nxtvepg</A> software package.</P>
 </DIV>
-
 
 <p><a name="__index__"></a></p>
 <!-- INDEX BEGIN -->
@@ -427,9 +426,10 @@ a fixed list of providers.
 <dt><strong><a name="item__2ddump_mode"><strong>-dump</strong> <em>mode</em></a></strong><br />
 </dt>
 <dd>
-With this argument, nxtvepg will only export the database in XML format
-(see <a href="#export_as_xmltv">CONTROL: Export as XMLTV</a>) or in a fixed text format (see also
-<a href="#export_as_text">CONTROL: Export as text</a>), then exit.  This argument must be combined
+When started with this argument, nxtvepg will only export the database
+in XML format (see <a href="#export_as_xmltv">CONTROL: Export as XMLTV</a>)
+or in a fixed text format (see also <a href="#export_as_text">CONTROL: Export as text</a>),
+then exit.  This argument must be combined
 with <em>-provider</em> to specify which database is to be exported.
 </dd>
 <dd>
@@ -474,6 +474,48 @@ command to the other process and then exit.
 (in case it's obscured by other windows);
 <em>acqon</em> to start acquisition;
 <em>acqoff</em> to stop acquisition.</p>
+</dd>
+<p></p>
+<dt><strong><a name="item__2dclock_mode"><strong>-clock</strong> <em>mode</em></a></strong><br />
+</dt>
+<dd>
+When started with this argument, nxtvepg will acquire the current
+date and time from teletext and then terminate.  To specify from which
+channel to acquire date and time use the <em>-prov</em> option option.
+(If you want to use a channel which is not an Nextview EPG provider,
+you'd have to use an external application to tune the channel before you
+invoke nxtvepg; with the exception of Linux' <em>v4lctl setstation</em>
+command this mode is unsupported though and may not work, depending
+on the external application you're using it with.)
+</dd>
+<dd>
+<p><strong>Important restriction</strong>: nxtvepg is able to retrieve the clock only
+from channels where the so-called teletext <em>packet 8/30/1</em> is
+transmitted, which contains date, time and local time zone offset in
+a binary format.  nxtvepg will never attempt to retrieve times from
+teletext header lines.  All Nextview EPG providers transmit packet 8/30/1,
+and a few other networks do too (e.g. ARD and ZDF in Germany.)</p>
+</dd>
+<dd>
+<p>With mode <em>print</em> the date and time will only be printed
+(<strong>Important</strong> note to Windows users: you need to redirect the output
+of nxtvepg to make it visible; see the <em>-dump</em> option above for an
+explanation)</p>
+</dd>
+<dd>
+<p>With mode <em>set</em> the time is set as system time, provided the calling
+user has the necessary priviliges (e.g. you'd need to be <em>root</em> on
+UNIX; since it's depreciated to run nxtvepg with root priviliges,
+it's recommended to first print the time into a file and then pass
+it to date).</p>
+</dd>
+<dd>
+<p>UNIX users should also note that the <em>set</em> mode does not update the
+battery powered hardware clock (aka Real Time Clock <strong>RTC</strong>), so the
+correction will probably be lost with the next reboot.  To update your
+RTC, call <em>hwclock --systohc</em> or your operating system's equivalent
+after nxtvepg.  Some Linux distributions automatically take care of
+this during shutdown.</p>
 </dd>
 <p></p>
 <dt><strong><a name="item__2ddemo_path"><strong>-demo</strong> <em>path</em></a></strong><br />

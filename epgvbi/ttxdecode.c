@@ -32,7 +32,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: ttxdecode.c,v 1.57 2004/03/28 12:39:13 tom Exp tom $
+ *  $Id: ttxdecode.c,v 1.58 2004/08/29 21:47:37 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -45,8 +45,8 @@
 #include "epgctl/debug.h"
 
 #include "epgvbi/cni_tables.h"
-#include "epgvbi/hamming.h"
 #include "epgvbi/btdrv.h"
+#include "epgvbi/hamming.h"
 #include "epgvbi/ttxdecode.h"
 
 
@@ -379,6 +379,59 @@ static void TtxDecode_AddText( CNI_TYPE type, const uchar * data )
 }
 
 // ---------------------------------------------------------------------------
+// Save status display text
+//
+static void TtxDecode_AddTime( CNI_TYPE type, uint timeVal, sint lto )
+{
+   volatile CNI_ACQ_STATE  * pState;
+
+   if (type < CNI_TYPE_COUNT)
+   {
+      pState = pVbiBuf->cnis + type;
+
+      if ( (pState->lastLto != lto) ||
+           (timeVal - pState->lastTimeVal > 2) ||
+           (timeVal < pState->lastTimeVal) )
+      {
+         pState->timeRepCount = 0;
+      }
+
+      pState->lastTimeVal = timeVal;
+      pState->lastLto     = lto;
+
+      pState->timeRepCount += 1;
+      if (pState->timeRepCount >= 3)
+      {
+         // XXX FIXME not MT safe
+         pState->timeVal  = pState->lastTimeVal;
+         pState->lto      = pState->lastLto;
+         pState->haveTime = TRUE;
+      }
+   }
+}
+
+// ---------------------------------------------------------------------------
+// Retrieve last received time
+// - returns 0 if none available
+//
+uint TtxDecode_GetDateTime( sint * pLto )
+{
+   volatile CNI_ACQ_STATE  * pState;
+   uint result = 0;
+
+   if (pVbiBuf->cnis[CNI_TYPE_NI].haveTime)
+   {
+      pState = pVbiBuf->cnis + CNI_TYPE_NI;
+
+      if (pLto != NULL)
+         *pLto = pState->lto;
+
+      result = pState->timeVal;
+   }
+   return result;
+}
+
+// ---------------------------------------------------------------------------
 // Decode an incoming MIP packet
 // - note that this runs inside of the ttx sub-thread
 // - if an EPG id is found, it is passed to the acq control via shared memory
@@ -541,6 +594,8 @@ static void TtxDecode_GetP830Cni( const uchar * data )
    schar dc, c1;
    uint  mday, month, hour, minute;
    uint  cni, pil;
+   sint  lto;
+   uint  mjd, utc_h, utc_m, utc_s, tv;
    uint  idx;
 
    if ( UnHam84Nibble(data, &dc) )
@@ -557,6 +612,28 @@ static void TtxDecode_GetP830Cni( const uchar * data )
             TtxDecode_AddCni(CNI_TYPE_NI, cni, INVALID_VPS_PIL);
          }
          TtxDecode_AddText(CNI_TYPE_NI, data + 20);
+
+         lto = ((data[9] & 0x7F) >> 1) * 30*60;
+         if ((data[9] & 0x80) == 0)
+            lto = 0 - lto;
+
+         mjd = + ((data[10] & 15) - 1) * 10000
+               + ((data[11] >> 4) - 1) * 1000
+               + ((data[11] & 15) - 1) * 100
+               + ((data[12] >> 4) - 1) * 10
+               + ((data[12] & 15) - 1);
+
+         utc_h = ((data[13] >> 4) - 1) * 10 + ((data[13] & 15) - 1);
+         utc_m = ((data[14] >> 4) - 1) * 10 + ((data[14] & 15) - 1);
+         utc_s = ((data[15] >> 4) - 1) * 10 + ((data[15] & 15) - 1);
+
+         if ( (utc_h < 24) && (utc_m < 60) && (utc_s < 60) &&
+              (mjd >= 40587) && (lto <= 12*60*60) && (lto >= -12*60*60) )
+         {
+            tv = ((mjd - 40587) * (24*60*60)) + (utc_h * 60*60) + (utc_m * 60) + utc_s;
+
+            TtxDecode_AddTime(CNI_TYPE_NI, tv, lto);
+         }
       }
       else if (dc == 1)
       {  // this is a packet 8/30/2 (PDC)
@@ -767,12 +844,15 @@ const VBI_LINE * TtxDecode_GetPacket( bool freePrevPkg )
          pVbl = (const VBI_LINE *) &pVbiBuf->line[pVbiBuf->reader_idx];
 
          #if DUMP_TTX_PACKETS == ON
-         {  // dump the complete parity decoded content of the TTX packet
-            char tmparr[46];
-            UnHamParityArray(pVbl->data, tmparr, 42);
-            tmparr[41] = 0;
-            printf("TTX frame=%d line %2d: pkg=%2d page=%03X sub=%04X '%s' BP=0x%02x\n", pVbl->frame, pVbl->line, pVbl->pkgno, pVbl->pageno, pVbl->sub, tmparr, pVbl->data[0]);
-         }
+         // dump the complete parity decoded content of the TTX packet
+         DebugDumpTeletextPkg("TTX", pVbl->data, pVbl->frame, pVbl->line, pVbl->pkgno, pVbl->pageno, pVbl->sub, TRUE);
+         //printf("TTX frame=%d line %2d: pkg=%2d page=%03X sub=%04X '%s' BP=0x%02x\n", pVbl->frame, pVbl->line, pVbl->pkgno, pVbl->pageno, pVbl->sub, tmparr, pVbl->data[0]);
+         #endif
+      }
+      else
+      {
+         #if DUMP_TTX_PACKETS == ON
+         fflush(stdout);
          #endif
       }
    }
@@ -1092,12 +1172,9 @@ void TtxDecode_AddPacket( const uchar * data, uint line )
          }
 
          #if DUMP_TTX_PACKETS == ON
-         {  // dump all TTX packets, even non-EPG ones
-            char tmparr[46];
-            UnHamParityArray(data+2, tmparr, 42);
-            tmparr[41] = 0;
-            printf("SLAVE frame=%d line %2d: pkg=%2d page=%03X sub=%04X %d '%s'\n", acqSlaveState.frameSeqNo, line, pkgno, pageNo, sub, acqSlaveState.isEpgPage, tmparr);
-         }
+         // dump all TTX packets, even non-EPG ones
+         DebugDumpTeletextPkg("SLAVE", data+2, acqSlaveState.frameSeqNo, line, pkgno, pageNo, sub, acqSlaveState.isEpgPage);
+         //printf("SLAVE frame=%d line %2d: pkg=%2d page=%03X sub=%04X %d '%s'\n", acqSlaveState.frameSeqNo, line, pkgno, pageNo, sub, acqSlaveState.isEpgPage, tmparr);
          #endif
       }
       else

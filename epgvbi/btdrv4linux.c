@@ -44,7 +44,7 @@
  *    NetBSD:  Mario Kemper <magick@bundy.zhadum.de>
  *    FreeBSD: Simon Barner <barner@gmx.de>
  *
- *  $Id: btdrv4linux.c,v 1.59 2004/07/11 19:28:41 tom Exp tom $
+ *  $Id: btdrv4linux.c,v 1.60 2004/08/29 21:47:19 tom Exp tom $
  */
 
 #if !defined(linux) && !defined(__NetBSD__) && !defined(__FreeBSD__) 
@@ -592,6 +592,8 @@ static void BtDriver_CloseVbi( void )
 
    if (vbi_fdin != -1)
    {
+      dprintf1("BtDriver-CloseVbi: fd %d\n", vbi_fdin);
+
       sprintf(tmpName, PIDFILENAME, vbiCardIndex);
       unlink(tmpName);
 
@@ -1526,6 +1528,9 @@ bool BtDriver_CheckDevice( void )
 //
 static void BtDriver_SignalHandler( int sigval )
 {
+#ifndef USE_THREADS
+   dprintf2("Received signal %d in %s process\n", sigval, isVbiProcess ? "VBI" : "EPG");
+#endif
    acqShouldExit = TRUE;
    signal(sigval, BtDriver_SignalHandler);
 }
@@ -1715,7 +1720,11 @@ void BtDriver_StopAcq( void )
 
       if (pVbiBuf->vbiPid != -1)
       {  // wake up the child
-         kill(pVbiBuf->vbiPid, SIGUSR1);
+         if (kill(pVbiBuf->vbiPid, SIGUSR1) != 0)
+         {
+            debug3("BtDriver-StopAcq: failed to wake up child process %d: errno %d: %s", pVbiBuf->vbiPid, errno, strerror(errno));
+            pVbiBuf->vbiPid = -1;
+         }
       }
    }
 #endif
@@ -1755,23 +1764,49 @@ const char * BtDriver_GetLastError( void )
 void BtDriver_Exit( void )
 {
 #ifndef USE_THREADS
+   struct timeval tv;
+   uint max_wait;
+   uint wret;
    struct shmid_ds stat;
 
    if (pVbiBuf != NULL)
    {
       if ((isVbiProcess == FALSE) && (pVbiBuf->vbiPid != -1))
       {  // this is the parent process -> kill the child process first
+         dprintf1("BtDriver-Exit: terminate child process %d\n", pVbiBuf->vbiPid);
+
+         signal(SIGCHLD, SIG_DFL);
          if (kill(pVbiBuf->vbiPid, SIGTERM) == 0)
          {
-            waitpid(pVbiBuf->vbiPid, NULL, 0);
+            max_wait = 10;
+            while ((pVbiBuf->vbiPid != -1) && (max_wait > 0))
+            {
+               dprintf0("BtDriver-Exit: waiting for child process...\n");
+               wret = waitpid(pVbiBuf->vbiPid, NULL, WNOHANG);
+               if (wret == 0)
+               {  // sleep until child signals its death
+                  tv.tv_sec =  0;
+                  tv.tv_usec = 100 * 1000;
+                  select(0, NULL, NULL, NULL, &tv);
+                  max_wait -= 1;
+               }
+               else
+                  max_wait = 0;
+            }
+         }
+         else
+         {
+            debug3("BtDriver-Exit: failed to kill child process %d: errno %d: %s", pVbiBuf->vbiPid, errno, strerror(errno));
+            pVbiBuf->vbiPid = -1;
          }
       }
 
-      // mark the process as detached
       if (isVbiProcess == FALSE)
+      {
          pVbiBuf->epgPid = -1;
+      }
       else
-         pVbiBuf->vbiPid = -1;
+         dprintf1("BtDriver-Exit: child process %d terminated\n", (int)getpid());
 
       // detatch and free the shared memory
       shmdt((void *) pVbiBuf);
@@ -1926,7 +1961,7 @@ static void BtDriver_OpenVbiBuf( void )
       else  // ignore failure
          debug2("BtDriver-OpenVbiBuf: ioctl(VIDIOCSVBIFMT) failed with errno %d: %s", errno, strerror(errno));
 
-      dprintf7("VBI format: %d lines, %d samples per line, %d sampling rate, offset=%d, flags=0x%X, start lines %d,%d\n", fmt.count[0] + fmt.count[1], fmt.samples_per_line, fmt.sampling_rate, vfmt2.fmt.offset, vfmt2.fmt.flags, fmt.start[0], fmt.start[1]);
+      dprintf6("VBI format: %d lines, %d samples per line, %d sampling rate, flags=0x%X, start lines %d,%d\n", fmt.count[0] + fmt.count[1], fmt.samples_per_line, fmt.sampling_rate, fmt.flags, fmt.start[0], fmt.start[1]);
       bufLines = fmt.count[0] + fmt.count[1];
       if (bufLines > VBI_MAX_LINENUM)
          bufLines = VBI_MAX_LINENUM;
@@ -2111,6 +2146,9 @@ static void BtDriver_DecodeFrame( void )
       debug2("BtDriver-DecodeFrame: read error %d (%s)", pVbiBuf->failureErrno, strerror(pVbiBuf->failureErrno));
    }
 #endif  // USE_LIBZVBI
+#if DUMP_TTX_PACKETS == ON
+   fflush(stdout);
+#endif
 }
 
 #if defined(__NetBSD__) || defined(__FreeBSD__)
@@ -2318,11 +2356,13 @@ static void * BtDriver_Main( void * foo )
          BtDriver_CloseVbi();
 
          // sleep until signal; check parent every 30 secs
-         tv.tv_sec = 30;
-         tv.tv_usec = 0;
-         select(0, NULL, NULL, NULL, &tv);
-         BtDriver_CheckParent();
-
+         if (acqShouldExit == FALSE)
+         {
+            tv.tv_sec = 30;
+            tv.tv_usec = 0;
+            select(0, NULL, NULL, NULL, &tv);
+            BtDriver_CheckParent();
+         }
          #else
          // the thread terminates when acq is stopped
          acqShouldExit = TRUE;
@@ -2357,6 +2397,8 @@ static void * BtDriver_Main( void * foo )
       dprintf1("BtDriver-Main: acq slave exiting - signalling parent %d\n", pVbiBuf->epgPid);
       kill(pVbiBuf->epgPid, SIGHUP);
    }
+   else
+      dprintf0("BtDriver-Main: acq slave exiting\n");
    #endif
 
    return NULL;
