@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: timescale.c,v 1.11 2003/10/05 19:29:31 tom Exp tom $
+ *  $Id: timescale.c,v 1.12 2004/11/01 17:11:50 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -127,6 +127,8 @@ static void TimeScale_UpdateStatusLine( ClientData dummy )
    ulong total, curVersionCount;
    uint nearPerc;
    int target;
+   Tcl_DString msg_dstr;
+   Tcl_DString cmd_dstr;
 
    for (target=0; target < 2; target++)
    {
@@ -172,17 +174,29 @@ static void TimeScale_UpdateStatusLine( ClientData dummy )
                   else
                      nearPerc = 100;
 
-                  sprintf(comm, "%s.bottom.l configure -text {%s database %d%% complete, near data %d%%.}\n",
-                                tscn[target],
+                  sprintf(comm, "%s database %d%% complete, near data %d%%.",
                                 AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop),
                                 (int)((double)curVersionCount * 100.0 / total), nearPerc);
                }
                else
                {
-                  sprintf(comm, "%s.bottom.l configure -text {%s database 100%% complete.}\n",
-                                tscn[target], AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop));
+                  sprintf(comm, "%s database 100%% complete.",
+                                AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop));
                }
-               eval_global(interp, comm);
+
+               if (Tcl_ExternalToUtfDString(NULL, comm, -1, &msg_dstr) != NULL)
+               {
+                  Tcl_DStringInit(&cmd_dstr);
+                  Tcl_DStringAppend(&cmd_dstr, tscn[target], -1);
+                  Tcl_DStringAppend(&cmd_dstr, ".bottom.l configure -text", -1);
+                  // append message as list element, so that '{' etc. is escaped properly
+                  Tcl_DStringAppendElement(&cmd_dstr, Tcl_DStringValue(&msg_dstr));
+
+                  eval_check(interp, Tcl_DStringValue(&cmd_dstr));
+
+                  Tcl_DStringFree(&cmd_dstr);
+                  Tcl_DStringFree(&msg_dstr);
+               }
             }
             EpgDbLockDatabase(dbc, FALSE);
          }

@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqctl.c,v 1.85 2004/07/11 19:02:59 tom Exp tom $
+ *  $Id: epgacqctl.c,v 1.87 2004/12/24 10:15:56 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -72,6 +72,7 @@ typedef struct
    time_t         chanChangeTime;
    uint           inputSource;
    uint           currentSlicerType;
+   uint           currentPageNo;
    bool           autoSlicerType;
    bool           haveWarnedInpSrc;
 } EPGACQCTL_STATE;
@@ -458,12 +459,12 @@ static void EpgAcqCtl_TtxStart( EPGDB_CONTEXT *dbc, EPGDB_QUEUE * pQueue, uint p
    uint epgAppId;
    bool bWaitForBiAi;
 
-   if (pageNo != EPG_ILLEGAL_PAGENO)
-      epgPageNo = dbc->pageNo = pageNo;
-   else if ((dbc->pageNo != EPG_ILLEGAL_PAGENO) && VALID_EPG_PAGENO(dbc->pageNo))
+   if (VALID_EPG_PAGENO(pageNo))
+      epgPageNo = pageNo;
+   else if (VALID_EPG_PAGENO(dbc->pageNo))
       epgPageNo = dbc->pageNo;
    else
-      epgPageNo = dbc->pageNo = EPG_DEFAULT_PAGENO;
+      epgPageNo = EPG_DEFAULT_PAGENO;
 
    if (appId != EPG_ILLEGAL_APPID)
       epgAppId = appId;
@@ -488,6 +489,8 @@ static void EpgAcqCtl_TtxStart( EPGDB_CONTEXT *dbc, EPGDB_QUEUE * pQueue, uint p
    EpgStreamInit(pQueue, bWaitForBiAi, epgAppId, epgPageNo);
 
    TtxDecode_StartEpgAcq(epgPageNo, FALSE);
+
+   acqCtl.currentPageNo = epgPageNo;
 }
 
 // ---------------------------------------------------------------------------
@@ -792,8 +795,8 @@ static bool EpgAcqCtl_TuneProvider( uint freq, uint cni )
             // close the device, which was kept open after setting the input source
             if (cni != 0)
             {  // inform the user that acquisition will not be possible
-               UiControlMsg_MissingTunerFreq(cni);
                acqCtl.passiveReason = ACQPASSIVE_NO_FREQ;
+               UiControlMsg_MissingTunerFreq(cni);
             }
             else
             {
@@ -805,13 +808,17 @@ static bool EpgAcqCtl_TuneProvider( uint freq, uint cni )
       else
       {
          dprintf0("EpgAcqCtl-TuneProv: input is no tuner -> force to passive mode\n");
-         if ((acqCtl.mode != ACQMODE_EXTERNAL) && (acqCtl.haveWarnedInpSrc == FALSE))
-         {  // warn the user, but only once
-            UiControlMsg_AcqPassive();
-         }
-         acqCtl.haveWarnedInpSrc = TRUE;
          acqCtl.mode = ACQMODE_FORCED_PASSIVE;
          acqCtl.passiveReason = ACQPASSIVE_NO_TUNER;
+
+         if (freq != 0)
+         {
+            if ((acqCtl.mode != ACQMODE_EXTERNAL) && (acqCtl.haveWarnedInpSrc == FALSE))
+            {  // warn the user, but only once
+               UiControlMsg_AcqPassive();
+            }
+            acqCtl.haveWarnedInpSrc = TRUE;
+         }
       }
 
       if (acqCtl.autoSlicerType)
@@ -1028,32 +1035,33 @@ static void EpgAcqCtl_InitCycle( void )
 // ---------------------------------------------------------------------------
 // Determine if netwop coverage variance is stable enough
 //
-static bool EpgAcqCtl_CheckVarianceStable( uint stream )
+static bool EpgAcqCtl_CheckVarianceStable( uint streamIdx )
 {
    EPGDB_VAR_HIST  * pHist;
    double min, max;
    uint idx;
-   bool result;
+   bool result = FALSE;
 
-   assert(stream < 2);
-
-   pHist = acqStats.varianceHist + stream;
-   if (pHist->count >= VARIANCE_HIST_COUNT)
+   if (streamIdx < 2)
    {
-      // get min and max variance from the history list
-      min = max = pHist->buf[0];
-      for (idx=1; idx < VARIANCE_HIST_COUNT; idx++)
+      pHist = acqStats.varianceHist + streamIdx;
+      if (pHist->count >= VARIANCE_HIST_COUNT)
       {
-         if (pHist->buf[idx] < min)
-            min = pHist->buf[idx];
-         if (pHist->buf[idx] > max)
-            max = pHist->buf[idx];
+         // get min and max variance from the history list
+         min = max = pHist->buf[0];
+         for (idx=1; idx < VARIANCE_HIST_COUNT; idx++)
+         {
+            if (pHist->buf[idx] < min)
+               min = pHist->buf[idx];
+            if (pHist->buf[idx] > max)
+               max = pHist->buf[idx];
+         }
+         // variance slope has to be below threshold
+         result = ((max - min) <= MAX_CYCLE_VAR_DIFF);
       }
-      // variance slope has to be below threshold
-      result = ((max - min) <= MAX_CYCLE_VAR_DIFF);
    }
    else
-      result = FALSE;
+      fatal1("EpgAcqCtl-CheckVarianceStable: invalid stream index %d", streamIdx);
 
    return result;
 }
@@ -1233,6 +1241,12 @@ bool EpgAcqCtl_SelectMode( EPGACQ_MODE newAcqMode, EPGACQ_PHASE maxPhase,
          if (cniCount > MAX_MERGED_DB_COUNT)
             cniCount = MAX_MERGED_DB_COUNT;
 
+         if ( (newAcqMode != acqCtl.mode) &&
+              (newAcqMode != ACQMODE_NETWORK) )
+         {
+            acqCtl.haveWarnedInpSrc = FALSE;
+         }
+
          // check if the same parameters are already set -> if yes skip
          // note: compare actual mode instead of user mode, to reset if acq is stalled
          if ( (newAcqMode != acqCtl.mode) ||
@@ -1259,10 +1273,9 @@ bool EpgAcqCtl_SelectMode( EPGACQ_MODE newAcqMode, EPGACQ_PHASE maxPhase,
             // reset acquisition and start with the new parameters
             if (acqCtl.state != ACQSTATE_OFF)
             {
-               dprintf3("EpgAcqCtl-SelectMode: reset acq with new params: mode=%d, CNI count=%d, CNI#0=%04X\n", cniCount, newAcqMode, pCniTab[0]);
+               dprintf3("EpgAcqCtl-SelectMode: reset acq with new params: mode=%d, CNI count=%d, CNI#0=%04X\n", newAcqMode, cniCount, pCniTab[0]);
                if (acqCtl.mode != ACQMODE_NETWORK)
                {
-                  acqCtl.haveWarnedInpSrc = FALSE;
                   EpgAcqCtl_InitCycle();
                   result = EpgAcqCtl_UpdateProvider(TRUE);
                }
@@ -1310,6 +1323,9 @@ bool EpgAcqCtl_SetInputSource( uint inputIdx, uint slicerType )
 {
    bool result;
 
+   if (acqCtl.inputSource != inputIdx)
+      acqCtl.haveWarnedInpSrc = FALSE;
+
    acqCtl.inputSource = inputIdx;
 
    // save slicer type; if automatic start with "trivial"
@@ -1328,8 +1344,6 @@ bool EpgAcqCtl_SetInputSource( uint inputIdx, uint slicerType )
         (acqCtl.mode != ACQMODE_PASSIVE) &&
         (acqCtl.mode != ACQMODE_NETWORK) )
    {
-      acqCtl.haveWarnedInpSrc = FALSE;
-
       if (acqCtl.autoSlicerType == FALSE)
       {
          BtDriver_SelectSlicer(acqCtl.currentSlicerType);
@@ -1594,6 +1608,13 @@ static bool EpgAcqCtl_AiCallback( const AI_BLOCK *pNewAi )
                UiControlMsg_NewProvFreq(ai_cni, freq);
             }
          }
+      }
+      // update teletext page number in the database if changed
+      // note: store is delayed until AI reception to be sure the db matches the current stream
+      if ( (acqCtl.currentPageNo != pAcqDbContext->pageNo) &&
+           VALID_EPG_PAGENO(acqCtl.currentPageNo) )
+      {
+         pAcqDbContext->pageNo = acqCtl.currentPageNo;
       }
    }
    else
@@ -1892,8 +1913,6 @@ bool EpgAcqCtl_ProcessPackets( void )
             {  // found a different page number in MIP
                dprintf2("EpgAcqCtl: non-default MIP page no for EPG: %03X (was %03X) -> restart acq\n", pageNo, pAcqDbContext->pageNo);
 
-               // XXX the pageno should not be saved before RUNNING since this might be the wrong db
-               pAcqDbContext->pageNo = pageNo;
                EpgAcqCtl_TtxReset(pAcqDbContext, &acqDbQueue, pageNo, EPG_ILLEGAL_APPID);
             }
          }

@@ -22,9 +22,9 @@
  *  Author: 
  *      Copyright (c) 2002 Atsushi Nakagawa.  All rights reserved.
  *
- *  DScaler #Id: SAA7134_Defines.h,v 1.9 2002/11/08 06:15:34 atnak Exp #
+ *  DScaler #Id: SAA7134_Defines.h,v 1.11 2003/10/27 10:39:54 adcockj Exp #
  *
- *  $Id: saa7134_reg.h,v 1.5 2003/02/07 21:00:22 tom Exp tom $
+ *  $Id: saa7134_reg.h,v 1.6 2004/10/16 13:08:48 tom Exp tom $
  */
 
 #ifndef __SAA7134_REG_H

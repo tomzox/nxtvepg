@@ -22,7 +22,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile.win32,v 1.50 2004/04/02 12:54:46 tom Exp tom $
+#  $Id: Makefile.win32,v 1.51 2004/12/18 14:51:21 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -122,7 +122,7 @@ TVSIM_CSRC2   = epgvbi/btdrv4win epgvbi/vbidecode epgvbi/zvbidecoder \
 TVSIM_TCLSRC  = tvsim/tvsim_gui epgtcl/tcl_libs epgtcl/tk_libs
 VBIREC_CSRC   = tvsim/vbirec_main
 VBIREC_CSRC2  = epgvbi/winshmsrv epgvbi/cni_tables epgvbi/hamming epgctl/debug
-VBIREC_TCLSRC = tvsim/vbirec_gui epgtcl/tcl_libs epgtcl/tk_libs
+VBIREC_TCLSRC = tvsim/vbirec_gui epgtcl/tcl_libs epgtcl/tk_libs epgtcl/combobox
 VBIPLAY_CSRC  = tvsim/vbiplay
 VBIPLAY_CSRC2 = tvsim/winshmclnt epgctl/debug
 

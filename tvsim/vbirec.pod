@@ -24,7 +24,7 @@
 #
 #  Author: Tom Zoerner
 #
-# $Id: vbirec.pod,v 1.9 2004/03/23 15:54:54 tom Exp tom $
+# $Id: vbirec.pod,v 1.10 2004/12/12 15:56:40 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME
@@ -184,6 +184,35 @@ the EPG application's input source and tuner frequency requests.
 The TV application should grant the tuner when video capturing is
 disabled of the TV window minimized or completely obscured by other
 windows.
+
+=back 4
+
+
+=head1 TV APP INTERACTION
+
+The following dialog section allows to send requests to a connected
+TV application.
+
+=over 4
+
+=item B<Send EPG Information to OSD>
+
+You can enter a programme title, start time, duration and date offset
+which is sent to the TV app when you press the I<Send> button.
+The TV app should display the data on-screen (OSD) 
+When you don't enter a time and date, I<vbirec> invents start and
+stop times by itself: start is the last full hour, duration 60 minutes.
+
+=item B<Send TV Control Command>
+
+You can enter a command and press I<Send> to pass it to the TV app.
+Command arguments are separated by blanks (there's currently no way
+to escape possible blanks inside command arguments)
+
+Which commands are supported depends on the TV application.  At minimum
+they should support command "setstation" with a network name as argument.
+A list of commands which are used by nxtvepg is available in the
+drop-down menu below the command entry field.
 
 =back 4
 

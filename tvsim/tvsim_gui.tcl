@@ -23,7 +23,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: tvsim_gui.tcl,v 1.11 2004/03/22 21:44:22 tom Exp tom $
+#  $Id: tvsim_gui.tcl,v 1.12 2004/12/12 14:52:43 tom Exp tom $
 #
 
 set program_title {}
@@ -60,9 +60,11 @@ frame     .epgi
 entry     .epgi.ptitle -relief flat -borderwidth 1 -textvariable program_title
 pack      .epgi.ptitle -side top -pady 5 -fill x -expand 1
 entry     .epgi.ptimes -relief flat -borderwidth 1 -textvariable program_times
-pack      .epgi.ptimes -side top -pady 5 -fill x -expand 1
 entry     .epgi.ptheme -relief flat -borderwidth 1 -textvariable program_theme
-pack      .epgi.ptheme -side top -pady 5 -fill x -expand 1
+if {!$is_unix} {
+   pack   .epgi.ptimes -side top -pady 5 -fill x -expand 1
+   pack   .epgi.ptheme -side top -pady 5 -fill x -expand 1
+}
 pack      .epgi -side top -padx 5 -fill x
 
 # create check button to toggle "grant tuner" mode on/off

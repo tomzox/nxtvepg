@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgmain.c,v 1.138 2004/09/05 18:24:26 tom Exp tom $
+ *  $Id: epgmain.c,v 1.139 2004/10/31 17:18:33 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -1745,6 +1745,18 @@ extern TCL_STORAGE_CLASS void Tk_RegisterMainDestructionHandler( Tcl_CloseProc *
 
 #endif
 
+static void TclTkPanicHandler( CONST84 char * format, ... )
+{
+   fatal1("Tcl/Tk panic caught: %s", format);
+
+   BtDriver_Exit();
+#ifdef WIN32
+   ExitProcess(-2);
+#else
+   exit(-2);
+#endif
+}
+
 
 #ifdef WIN32
 // ---------------------------------------------------------------------------
@@ -2688,6 +2700,8 @@ static int ui_init( int argc, char **argv, bool withTk )
          #endif
       }
    }
+
+   Tcl_SetPanicProc(TclTkPanicHandler);
 
    // load all Tcl/Tk scripts which handle toplevel window, menus and dialogs
    LoadTcl_Init(withTk);

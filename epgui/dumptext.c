@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumptext.c,v 1.9 2004/08/07 14:13:46 tom Exp tom $
+ *  $Id: dumptext.c,v 1.10 2004/10/31 16:47:42 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -266,10 +266,10 @@ EPGTAB_DUMP_MODE EpgDumpText_GetMode( const char * pModeStr )
       else if (strcasecmp("raw", pModeStr) == 0)
          mode = EPGTAB_DUMP_DEBUG;
       else
-         debug1("DumpText_-GetMode: unknown mode: %s", pModeStr);
+         debug1("DumpText-GetMode: unknown mode: %s", pModeStr);
    }
    else
-      debug0("DumpText_-GetMode: illegal NULL ptr param");
+      debug0("DumpText-GetMode: illegal NULL ptr param");
 
    return mode;
 }

@@ -1,5 +1,5 @@
 /////////////////////////////////////////////////////////////////////////////
-// #Id: DSDrv.H,v 1.13 2002/10/29 10:03:17 adcockj Exp #
+// #Id: DSDrv.H,v 1.14 2004/04/14 10:01:59 adcockj Exp #
 /////////////////////////////////////////////////////////////////////////////
 // Copyright (c) 2000 John Adcock.  All rights reserved.
 /////////////////////////////////////////////////////////////////////////////
@@ -35,7 +35,7 @@
 //                                     (see note in header)
 //
 /////////////////////////////////////////////////////////////////////////////
-// nxtvepg $Id: dsdrv.h,v 1.1 2002/05/04 18:39:12 tom Exp tom $
+// nxtvepg $Id: dsdrv.h,v 1.2 2004/12/26 21:48:02 tom Exp tom $
 /////////////////////////////////////////////////////////////////////////////
 
 #if ! defined (__DSDRVDEF_H)
@@ -44,7 +44,7 @@
 // define version number to be compiled into both files
 // we use this to make sure that we are speaking the same language in both the 
 // drivers and the dll
-#define DSDRV_COMPAT_MIN_VERSION    0x4002
+#define DSDRV_COMPAT_MIN_VERSION    0x4003
 #define DSDRV_COMPAT_MASK         (~0x0fff)
 #define DSDRV_COMPAT_MAJ_VERSION  (DSDRV_COMPAT_MIN_VERSION & DSDRV_COMPAT_MASK)
 
@@ -199,6 +199,12 @@ extern "C" {
 
 #define IOCTL_DSDRV_SETPCICONFIG \
     CTL_CODE(FILE_DEVICE_DSCALER, (DSDRV_BASE + 20), METHOD_OUT_DIRECT, FILE_ANY_ACCESS)
+
+#define IOCTL_DSDRV_GETPCICONFIGOFFSET \
+    CTL_CODE(FILE_DEVICE_DSCALER, (DSDRV_BASE + 21), METHOD_OUT_DIRECT, FILE_ANY_ACCESS)
+
+#define IOCTL_DSDRV_SETPCICONFIGOFFSET \
+    CTL_CODE(FILE_DEVICE_DSCALER, (DSDRV_BASE + 22), METHOD_OUT_DIRECT, FILE_ANY_ACCESS)
 
 
 typedef struct tagDSDrvParam

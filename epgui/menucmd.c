@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: menucmd.c,v 1.116 2004/07/10 19:25:03 tom Exp $
+ *  $Id: menucmd.c,v 1.118 2004/12/24 10:17:23 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -529,6 +529,41 @@ static int MenuCmd_IsNetAcqActive( ClientData ttp, Tcl_Interp *interp, int objc,
 }
 
 // ----------------------------------------------------------------------------
+// Query if video input source is external (i.e. not a tuner)
+// - currently used to cleanly prevent start of EPG scan
+// - only works while acquisition is enabled (XXX FIXME)
+//
+static int MenuCmd_IsAcqExternal( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+{
+   const char * const pUsage = "Usage: C_IsAcqExternal";
+   EPGACQ_DESCR acqState;
+   bool  isExternal;
+   int result;
+
+   if (objc != 1)
+   {  // parameter count is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else 
+   {
+      EpgAcqCtl_DescribeAcqState(&acqState);
+
+      if ( (acqState.state != ACQDESCR_DISABLED) &&
+           (acqState.mode == ACQMODE_FORCED_PASSIVE) &&
+           (acqState.passiveReason == ACQPASSIVE_NO_TUNER) )
+         isExternal = TRUE;
+      else
+         isExternal = FALSE;
+
+      Tcl_SetResult(interp, (isExternal ? "1" : "0"), TCL_STATIC);
+
+      result = TCL_OK;
+   }
+   return result;
+}
+
+// ----------------------------------------------------------------------------
 // Set user configured language of PDC themes
 // - called during startup and manual config change, and due to automatic language
 //   selection mode also after provider switch and AI version change
@@ -693,6 +728,7 @@ static int MenuCmd_GetProvServiceInfos( ClientData ttp, Tcl_Interp *interp, int 
    const OI_BLOCK * pOi;
    EPGDB_CONTEXT  * pPeek;
    Tcl_Obj * pResultList;
+   Tcl_DString dstr;
    int cni, netwop;
    int result;
 
@@ -716,28 +752,38 @@ static int MenuCmd_GetProvServiceInfos( ClientData ttp, Tcl_Interp *interp, int 
 
          if (pAi != NULL)
          {
+            Tcl_DStringInit(&dstr);
             pResultList = Tcl_NewListObj(0, NULL);
 
             // first element in return list is the service name
-            Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(AI_GET_SERVICENAME(pAi), -1));
+            Tcl_ExternalToUtfDString(NULL, AI_GET_SERVICENAME(pAi), -1, &dstr);
+            Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(Tcl_DStringValue(&dstr), -1));
 
             // second element is OI header
             if ((pOi != NULL) && OI_HAS_HEADER(pOi))
-               Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(OI_GET_HEADER(pOi), -1));
+            {
+               Tcl_ExternalToUtfDString(NULL, OI_GET_HEADER(pOi), -1, &dstr);
+               Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(Tcl_DStringValue(&dstr), -1));
+            }
             else
                Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj("", -1));
 
             // third element is OI message
             if ((pOi != NULL) && OI_HAS_MESSAGE(pOi))
-               Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(OI_GET_MESSAGE(pOi), -1));
+            {
+               Tcl_ExternalToUtfDString(NULL, OI_GET_MESSAGE(pOi), -1, &dstr);
+               Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(Tcl_DStringValue(&dstr), -1));
+            }
             else
                Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj("", -1));
 
             // append names of all netwops
             for ( netwop = 0; netwop < pAi->netwopCount; netwop++ ) 
             {
-               Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(AI_GET_NETWOP_NAME(pAi, netwop), -1));
+               Tcl_ExternalToUtfDString(NULL, AI_GET_NETWOP_NAME(pAi, netwop), -1, &dstr);
+               Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(Tcl_DStringValue(&dstr), -1));
             }
+            Tcl_DStringFree(&dstr);
 
             Tcl_SetObjResult(interp, pResultList);
          }
@@ -791,6 +837,7 @@ static int MenuCmd_GetProvCnisAndNames( ClientData ttp, Tcl_Interp *interp, int 
    const uint * pCniList;
    EPGDB_CONTEXT  * pPeek;
    Tcl_Obj * pResultList;
+   Tcl_DString msg_dstr;
    uchar buf[10];
    uint idx, cniCount;
    int result;
@@ -817,7 +864,10 @@ static int MenuCmd_GetProvCnisAndNames( ClientData ttp, Tcl_Interp *interp, int 
                sprintf(buf, "0x%04X", pCniList[idx]);
                Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(buf, -1));
 
-               Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop), -1));
+               Tcl_ExternalToUtfDString(NULL, AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop), -1, &msg_dstr);
+               Tcl_ListObjAppendElement(interp, pResultList,
+                                        Tcl_NewStringObj(Tcl_DStringValue(&msg_dstr), -1));
+               Tcl_DStringFree(&msg_dstr);
             }
             EpgDbLockDatabase(pPeek, FALSE);
 
@@ -843,6 +893,7 @@ static void MenuCmd_AppendNetwopList( Tcl_Interp *interp, Tcl_Obj * pList,
 {
    uchar strbuf[15];
    uint  netwop;
+   Tcl_DString dstr;
 
    if (pAiBlock != NULL)
    {
@@ -860,7 +911,11 @@ static void MenuCmd_AppendNetwopList( Tcl_Interp *interp, Tcl_Obj * pList,
 
             // as a side-effect the netwop names are stored into a TCL array
             if (pArrName[0] != 0)
-               Tcl_SetVar2(interp, pArrName, strbuf, (char *)AI_GET_NETWOP_NAME(pAiBlock, netwop), 0);
+            {
+               Tcl_ExternalToUtfDString(NULL, AI_GET_NETWOP_NAME(pAiBlock, netwop), -1, &dstr);
+               Tcl_SetVar2(interp, pArrName, strbuf, Tcl_DStringValue(&dstr), 0);
+               Tcl_DStringFree(&dstr);
+            }
          }
       }
    }
@@ -1986,11 +2041,32 @@ static void MenuCmd_AddProvDelButton( uint cni )
 //
 static void MenuCmd_AddEpgScanMsg( const char * pMsg, bool bold )
 {
-   if (Tcl_VarEval(interp, ".epgscan.all.fmsg.msg insert end {", pMsg, "\n}", (bold ? " bold" : ""),
-                           "\n.epgscan.all.fmsg.msg see {end linestart - 2 lines}\n",
-                           NULL
-                  ) != TCL_OK)
-      debugTclErr(interp, "MenuCmd-AddEpgScanMsg");
+   Tcl_DString msg_dstr;
+   Tcl_DString cmd_dstr;
+
+   if (pMsg != NULL)
+   {
+      if (Tcl_ExternalToUtfDString(NULL, pMsg, -1, &msg_dstr) != NULL)
+      {
+         Tcl_DStringInit(&cmd_dstr);
+         Tcl_DStringAppend(&cmd_dstr, ".epgscan.all.fmsg.msg insert end ", -1);
+         // append message (plus a newline) as list element, so that '{' etc. is escaped properly
+         Tcl_DStringAppend(&msg_dstr, "\n", -1);
+         Tcl_DStringAppendElement(&cmd_dstr, Tcl_DStringValue(&msg_dstr));
+         if (bold)
+            Tcl_DStringAppend(&cmd_dstr, " bold", -1);
+
+         eval_check(interp, Tcl_DStringValue(&cmd_dstr));
+         eval_check(interp, "\n.epgscan.all.fmsg.msg see {end linestart - 2 lines}\n");
+
+         Tcl_DStringFree(&msg_dstr);
+         Tcl_DStringFree(&cmd_dstr);
+      }
+      else
+         debug1("MenuCmd-AddEpgScanMsg: UTF conversion failed for '%s'", pMsg);
+   }
+   else
+      debug0("MenuCmd-AddEpgScanMsg: illegal NULL ptr param");
 }
 
 // ----------------------------------------------------------------------------
@@ -2087,9 +2163,9 @@ static int MenuCmd_StartEpgScan( ClientData ttp, Tcl_Interp *interp, int objc, T
 
             case EPGSCAN_NO_TUNER:
                sprintf(comm, "tk_messageBox -type ok -icon error -parent .epgscan "
-                             "-message {The input source you have set in the 'TV card input' configuration "
-                                       "is not a TV tuner device. Either change that setting or exit the "
-                                       "EPG scan and tune the providers you're interested in manually.}\n");
+                             "-message {The provider search cannot be used for external video sources. "
+                                       "Quit the scan dialog and tune an EPG provider's TV channel "
+                                       "manually (e.g. in your satellite receiver or set-top box.)}\n");
                eval_check(interp, comm);
                break;
 
@@ -2742,6 +2818,8 @@ static int MenuCmd_UpdateNetAcqConfig( ClientData ttp, Tcl_Interp *interp, int o
 static int MenuCmd_GetTimeZone( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
    const char * const pUsage = "Usage: C_GetTimeZone";
+   Tcl_Obj * pResultList;
+   Tcl_DString dstr;
    int  result;
 
    if (objc != 1)
@@ -2753,14 +2831,27 @@ static int MenuCmd_GetTimeZone( ClientData ttp, Tcl_Interp *interp, int objc, Tc
    {
       struct tm *tm;
       time_t now;
+      char * pDstTzName;
       sint lto;
 
       tzset();
+      now = time(NULL);
       tm = localtime(&now);
       lto = EpgLtoGet(now);
 
-      sprintf(comm, "%d %d {%s}", lto/60, tm->tm_isdst, (tm->tm_isdst ? tzname[1] : tzname[0]));
-      Tcl_SetResult(interp, comm, TCL_VOLATILE);
+      pDstTzName = (tm->tm_isdst ? tzname[1] : tzname[0]);
+
+      pResultList = Tcl_NewListObj(0, NULL);
+
+      if (Tcl_ExternalToUtfDString(NULL, pDstTzName, -1, &dstr) != NULL)
+      {
+         Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewIntObj(lto/60));
+         Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewIntObj(tm->tm_isdst));
+         Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(Tcl_DStringValue(&dstr), -1));
+
+         Tcl_DStringFree(&dstr);
+      }
+      Tcl_SetObjResult(interp, pResultList);
       result = TCL_OK;
    }
    return result;
@@ -2808,6 +2899,7 @@ void MenuCmd_Init( bool isDemoMode )
    {  // Create callback functions
       Tcl_CreateObjCommand(interp, "C_ToggleAcq", MenuCmd_ToggleAcq, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_IsNetAcqActive", MenuCmd_IsNetAcqActive, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_IsAcqExternal", MenuCmd_IsAcqExternal, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_SetControlMenuStates", MenuCmd_SetControlMenuStates, (ClientData) NULL, NULL);
 
       Tcl_CreateObjCommand(interp, "C_ChangeProvider", MenuCmd_ChangeProvider, (ClientData) NULL, NULL);

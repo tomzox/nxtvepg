@@ -5,6 +5,51 @@ features).  For patchlevel releases also internal changes might be listed in
 case they may fix bugs (or cause new ones)
 
 
+from 2.7.3 to 2.7.4 (2004-Dec-27)
+
+- bugfix EPG teletext number update in database: after external channel
+  changes from one provider directly onto another there was a possibility
+  that a wrong teletext number was stored for the first provider,
+  subsequently causing acquisition to fail; also changed the EPG scan to
+  update the teletext numbers stored in the databases
+- added output of current EPG page number to "acquisition statistics"
+  in control menu
+- added possibility to store "expire time" filter in shortcuts
+- fixed timezone calculation for provider "VT4"
+- Windows: updated TV card support; Note a new version of the DScaler
+  "dsdrv4" driver will be installed the first time you start nxtvepg
+  (unless version 4.03 was already installed by another application)
+- fixes in the way provider and network names were passed to Tcl/Tk
+  for display in main window status bar and various dialogs (only
+  relevant for names corrupted by transmission errors, but did cause
+  sporadic failure)
+- fixed default setting for context menu: was empty since 2.7.1;
+  Windows only: also fixed !wintv! keyword handling in scripts bound
+  to reminder events
+- fixed bug in text search filter for merged databases: sub-string
+  search ended after 258 characters
+- added possibility to configure text foreground colors (at least for
+  programme list) to support an inverted color scheme
+- added new display format option for composite attributes (i.e.
+  user-defined columns): set foreground color for entire column
+- UNIX: added "XdTV" (former xawdecode) to internal list of TV apps
+  with which nxtvepg can exchange EPG info
+- XML export: omit newline (i.e. line break) at start and end of
+  description text (on user request esp. for DTD version 5); also
+  in DTD version 6 descriptions merged from multiple providers are now
+  exported in separate description attributes instead of concatenating
+  the text into one with newlines inbetween.
+- fixed bug in handling external video input source during EPG provider
+  scan which caused misleading help messages
+- added work-around to catch "panic" (i.e. internal errors) in Tcl/Tk
+  library, esp. to cleanly shut down acquisition.
+  On Windows this fixes annoying popup messages when switching desktop
+  display to full-screen (e.g. upon start of some game).
+- TV app. interaction developent tool vbirec: added possibility to send
+  commands and EPG OSD infos to a connected TV app (to allow testing
+  this feature without nxtvepg)
+
+
 from 2.7.2 to 2.7.3 (2004-Sep-05)
 
 - Fixed backwards compatibility with K!TV (since 2.7.2 there was an error

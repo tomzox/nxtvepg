@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgstream.h,v 1.16 2004/02/14 19:28:53 tom Exp tom $
+ *  $Id: epgstream.h,v 1.17 2004/09/25 18:42:41 tom Exp tom $
  */
 
 #ifndef __EPGSTREAM_H
@@ -51,16 +51,18 @@ enum
 
 typedef struct
 {
+   uint32_t  epgPageNo;         // EPG ttx page number
    uint32_t  epgPagCount;       // number of EPG ttx pages received
    uint32_t  epgPagMissing;     // number of missing pages
    uint32_t  epgPkgCount;       // number of EPG ttx packets received
    uint32_t  epgPkgMissing;     // number of missing packets
    uint32_t  epgBiCount;        // number of BI blocks
+   uint32_t  epgAppId;          // EPG application ID from BI block
    uint32_t  epgBlkCount;       // number of blocks in stream (including BI)
    uint32_t  epgBlkErr;         // number of dropped blocks (decoding error, not drop due to missing ttx pkg)
    uint32_t  epgStrSum;         // number of string characters
    uint32_t  epgParErr;         // number of parity errors
-   uint32_t  reserved_0;        // align to 8-byte boundary
+   uint32_t  reserved_0[3];     // unused, always 0
 } EPG_STREAM_STATS;
 
 // ----------------------------------------------------------------------------

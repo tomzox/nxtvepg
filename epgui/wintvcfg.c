@@ -25,7 +25,7 @@
  *    so their respective copyright applies too. Please see the notes in
  *    functions headers below.
  *
- *  $Id: wintvcfg.c,v 1.19 2004/05/30 20:31:20 tom Exp tom $
+ *  $Id: wintvcfg.c,v 1.20 2004/11/01 16:03:14 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -80,6 +80,7 @@ typedef enum
    TVAPP_NONE,
    TVAPP_XAWTV,
    TVAPP_XAWDECODE,
+   TVAPP_XDTV,       // former xawdecode
    TVAPP_ZAPPING,
    TVAPP_COUNT
 } TVAPP_NAME;
@@ -1215,6 +1216,7 @@ static const TVAPP_LIST tvAppList[TVAPP_COUNT] =
 #else
    { "Xawtv",    FALSE, WintvCfg_GetXawtvStationNames,    WintvCfg_GetXawtvFreqTab,    ".xawtv" },
    { "XawDecode",FALSE, WintvCfg_GetXawtvStationNames,    WintvCfg_GetXawtvFreqTab,    ".xawdecode/xawdecoderc" },
+   { "XdTV",     FALSE, WintvCfg_GetXawtvStationNames,    WintvCfg_GetXawtvFreqTab,    ".xdtv/xdtvrc" },
    { "Zapping",  FALSE, WintvCfg_GetZappingStationNames,  WintvCfg_GetZappingFreqTab,  ".zapping/zapping.conf" },
 #endif
 };

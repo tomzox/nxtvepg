@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pilistbox.c,v 1.94 2004/02/28 21:38:40 tom Exp tom $
+ *  $Id: pilistbox.c,v 1.95 2004/12/12 14:49:15 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -302,7 +302,8 @@ static void PiListBox_AdjustScrollBar( void )
 static void PiListBox_ShowCursor( void )
 {
    const PI_BLOCK *pPiBlock;
-   const char * pColor;
+   const char * pFgColor;
+   const char * pBgColor;
    time_t       curTime;
 
    curTime = EpgGetUiMinuteTime();
@@ -316,20 +317,32 @@ static void PiListBox_ShowCursor( void )
          pPiBlock = EpgDbSearchPi(dbc, pibox_list[pibox_curpos].start_time, pibox_list[pibox_curpos].netwop_no);
 
          if ((pPiBlock != NULL) && (pPiBlock->stop_time <= curTime))
-            pColor = "pi_cursor_bg_past";
+         {
+            pFgColor = "pi_cursor_fg_past";
+            pBgColor = "pi_cursor_bg_past";
+         }
          else
-            pColor = "pi_cursor_bg_now";
+         {
+            pFgColor = "pi_cursor_fg_now";
+            pBgColor = "pi_cursor_bg_now";
+         }
          EpgDbLockDatabase(dbc, FALSE);
       }
       else
-         pColor = "pi_cursor_bg_now";
+      {
+         pFgColor = "pi_cursor_fg_now";
+         pBgColor = "pi_cursor_bg_now";
+      }
    }
    else
-      pColor = "pi_cursor_bg";
+   {
+      pFgColor = "pi_cursor_fg";
+      pBgColor = "pi_cursor_bg";
+   }
 
-   sprintf(comm, ".all.pi.list.text tag configure cur -background $%s\n"
+   sprintf(comm, ".all.pi.list.text tag configure cur -foreground $%s -background $%s\n"
                  ".all.pi.list.text tag add cur %d.0 %d.0\n",
-                 pColor, pibox_curpos + 1, pibox_curpos + 2);
+                 pFgColor, pBgColor, pibox_curpos + 1, pibox_curpos + 2);
    eval_global(interp, comm);
 }
 

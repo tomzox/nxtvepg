@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: tvsim_main.c,v 1.26 2004/08/15 19:07:23 tom Exp tom $
+ *  $Id: tvsim_main.c,v 1.27 2004/12/12 14:53:06 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_TVSIM
@@ -170,6 +170,7 @@ static Display * TvSim_GetTvDisplay( void )
 //
 static int Xawtv_QueryRemoteCommand( Window wid, char * pBuffer, int bufLen )
 {
+   Tk_ErrorHandler errHandler;
    Display *dpy;
    Atom  type;
    int   format;
@@ -181,6 +182,9 @@ static int Xawtv_QueryRemoteCommand( Window wid, char * pBuffer, int bufLen )
    dpy = TvSim_GetTvDisplay();
    if (dpy != NULL)
    {
+      // push an /dev/null handler onto the stack that catches any type of X11 error events
+      errHandler = Tk_CreateErrorHandler(dpy, -1, -1, -1, (Tk_ErrorProc *) NULL, (ClientData) NULL);
+
       args = NULL;
       if ( (XGetWindowProperty(dpy, wid, xawtv_remote_atom, 0, (65536 / sizeof (long)), False, XA_STRING,
                                &type, &format, &nitems, &bytesafter, &args) == Success) && (args != NULL) )
@@ -191,11 +195,25 @@ static int Xawtv_QueryRemoteCommand( Window wid, char * pBuffer, int bufLen )
          pBuffer[bufLen - 1] = 0;
          XFree(args);
 
+         dprintf1("Xawtv-QueryRemoteCommand: RECV %s", pBuffer);
          result = 0;
          for (idx=0; idx < nitems; idx++)
+         {
             if (pBuffer[idx] == 0)
+            {
                result += 1;
+
+               if (idx + 1 < nitems)
+                  dprintf1(" %s", pBuffer + idx + 1);
+            }
+         }
+         dprintf1(" (#%d)\n", result);
       }
+      else
+         dprintf0("Xawtv-QueryRemoteCommand: failed to read property\n");
+
+      // remove the dummy error handler
+      Tk_DeleteErrorHandler(errHandler);
    }
    else
       debug0("No Tk display available");
@@ -244,8 +262,10 @@ static int TvSimu_AsyncThreadHandler( ClientData clientData, Tcl_Interp *interp,
 // - this function is called for every incoming X event
 // - filters out events on the pseudo xawtv main window
 //
-static void Xawtv_EventNotification( ClientData clientData, XEvent *eventPtr )
+static int Xawtv_EventNotification( ClientData clientData, XEvent *eventPtr )
 {
+   bool result = FALSE;
+
    if ( (eventPtr->type == PropertyNotify) &&
         (eventPtr->xproperty.window == xawtv_wid) && (xawtv_wid != None) )
    {
@@ -258,7 +278,9 @@ static void Xawtv_EventNotification( ClientData clientData, XEvent *eventPtr )
             Tcl_AsyncMark(asyncThreadHandler);
          }
       }
+      result = TRUE;
    }
+   return result;
 }
 
 // ----------------------------------------------------------------------------
@@ -361,7 +383,7 @@ static void TvSim_XawtvCreateAtoms( void )
          {
             TvSim_XawtvSetStation(0, "1", "ARD");
 
-            Tk_CreateEventHandler(mainWindow, PropertyChangeMask, Xawtv_EventNotification, NULL);
+            Tk_CreateGenericHandler(Xawtv_EventNotification, NULL);
          }
       }
       else
@@ -559,7 +581,7 @@ static void DisplaySystemErrorMsg( char * message, DWORD code )
       free(buf);
    }
 }
-#endif
+#endif // COMPILE_UNUSED_CODE
 
 // ---------------------------------------------------------------------------
 // Callback to deal with Windows shutdown

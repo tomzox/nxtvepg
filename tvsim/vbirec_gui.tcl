@@ -26,16 +26,27 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: vbirec_gui.tcl,v 1.9 2004/03/09 21:16:12 tom Exp tom $
+#  $Id: vbirec_gui.tcl,v 1.10 2004/12/12 15:39:08 tom Exp tom $
 #
 
 set dumpttx_filename {ttx.dat}
 set dumpttx_enable 0
 
+set cmd_argstr_hist [list "setstation ARD" "setstation ZDF" "setstation back" \
+                          "setstation prev" "setstation next" \
+                          "volume mute" "capture on" "capture off"]
+set osd_title_hist [list "One hour test programme"]
+set osd_hour {}
+set osd_min {}
+set osd_date_off 0
+set osd_duration 60
+
+
 proc InitGuiVars {} {
    global ttx_pkg ttx_rate vps_cnt epg_pag epg_pkg
    global cni_vps cni_pdc cni_p8301 cni_name ttx_pgno ttx_head
    global tvChanName tvChanCni tvCurInput tvCurFreq tvGrantTuner
+   global cmd_argstr_hist osd_title_hist
 
    set ttx_pkg {0}
    set ttx_rate {0}
@@ -54,6 +65,7 @@ proc InitGuiVars {} {
    set tvCurFreq {undefined}
    set tvGrantTuner {no}
 }
+
 InitGuiVars
 
 # set font type and size for message popups
@@ -78,6 +90,10 @@ if {$tcl_version >= 8.4} {
    set ::entry_disabledbackground "-background"
 }
 
+if {[llength [info commands tkButtonInvoke]] == 0} {
+   proc tkButtonInvoke {w} {tk::ButtonInvoke $w}
+}
+
 # create an image of a folder
 set fileImage [image create photo -data {
 R0lGODlhEAAMAKEAAAD//wAAAPD/gAAAACH5BAEAAAAALAAAAAAQAAwAAAIghINhyycvVFsB
@@ -85,7 +101,7 @@ QtmS3rjaH1Hg141WaT5ouprt2HHcUgAAOw==}]
 
 
 frame     .stats -borderwidth 1 -relief sunken
-pack      .stats -side top
+pack      .stats -side top -fill x
 label     .stats.lab_ttx_pkg -text "TTX pkg count:"
 label     .stats.val_ttx_pkg -textvariable ttx_pkg
 grid      .stats.lab_ttx_pkg .stats.val_ttx_pkg -sticky w -padx 5
@@ -154,6 +170,7 @@ grid      .stats.lab_tvCurFreq .stats.val_tvCurFreq -sticky w -padx 5
 label     .stats.lab_tvGrantTuner -text "TV app. grants tuner:"
 label     .stats.val_tvGrantTuner -textvariable tvGrantTuner
 grid      .stats.lab_tvGrantTuner .stats.val_tvGrantTuner -sticky w -padx 5
+grid      columnconfigure .stats 1 -weight 2
 pack      .stats -side top -fill x
 
 frame     .connect -borderwidth 1 -relief sunken
@@ -161,6 +178,47 @@ checkbutton .connect.but_con -text "" -disabledforeground black
 bindtags  .connect.but_con {.connect.but_con .}
 pack      .connect.but_con -side top -padx 10
 pack      .connect -side top -fill x
+
+# frame with controls for TV app interaction
+frame     .interact -borderwidth 1 -relief sunken
+label     .interact.lab_osd_title -text "OSD title:"
+grid      .interact.lab_osd_title -sticky w -padx 5 -row 0 -column 0
+combobox::combobox .interact.ent_osd_title -textvariable osd_title -width 32 \
+                                  -editable 1 -opencommand {OpenComboHistory .interact.ent_osd_title osd_title_hist}
+grid      .interact.ent_osd_title -sticky we -padx 5 -row 0 -column 1
+bind      .interact.ent_osd_title <Return> {tkButtonInvoke .interact.but_osd_send}
+button    .interact.but_osd_send -text "Send" -command SendEpgOsdCmd
+grid      .interact.but_osd_send -row 0 -column 2
+
+frame     .interact.frm_osd
+entry     .interact.frm_osd.ent_osd_hour -textvariable osd_hour -width 3
+label     .interact.frm_osd.lab_osd_hour -text ":"
+entry     .interact.frm_osd.ent_osd_min -textvariable osd_min -width 3
+label     .interact.frm_osd.lab_osd_min -text "HH:MM, "
+entry     .interact.frm_osd.ent_osd_dur -textvariable osd_duration -width 3
+label     .interact.frm_osd.lab_osd_dur -text "mins,  +"
+entry     .interact.frm_osd.ent_osd_date -textvariable osd_date_off -width 3
+label     .interact.frm_osd.lab_osd_date -text "days"
+bind      .interact.frm_osd.ent_osd_hour <Return> {tkButtonInvoke .interact.frm_osd.but_osd_send}
+bind      .interact.frm_osd.ent_osd_date <Return> {tkButtonInvoke .interact.frm_osd.but_osd_send}
+bind      .interact.frm_osd.ent_osd_dur <Return> {tkButtonInvoke .interact.frm_osd.but_osd_send}
+pack      .interact.frm_osd.ent_osd_hour .interact.frm_osd.lab_osd_hour \
+          .interact.frm_osd.ent_osd_min .interact.frm_osd.lab_osd_min \
+          .interact.frm_osd.ent_osd_dur .interact.frm_osd.lab_osd_dur \
+          .interact.frm_osd.ent_osd_date .interact.frm_osd.lab_osd_date -side left
+grid      .interact.frm_osd -sticky w -padx 5 -row 1 -column 1 -columnspan 2
+
+
+label     .interact.lab_cmd_time -text "TV command:"
+grid      .interact.lab_cmd_time -sticky w -padx 5 -row 2 -column 0
+combobox::combobox .interact.ent_cmd_arg -textvariable cmd_argstr -width 32 \
+                                 -editable 1 -opencommand {OpenComboHistory .interact.ent_cmd_arg cmd_argstr_hist}
+bind      .interact.ent_cmd_arg <Return> {tkButtonInvoke .interact.but_cmd_send}
+grid      .interact.ent_cmd_arg -sticky we -padx 5 -row 2 -column 1
+button    .interact.but_cmd_send -text "Send" -command SendTvAppCmd
+grid      .interact.but_cmd_send -sticky w -padx 5 -row 2 -column 2
+grid      columnconfigure .interact 1 -weight 2
+pack      .interact -side top -fill x -expand 1
 
 # create entry field and command button to configure TV app directory
 frame     .dumpttx -borderwidth 1 -relief sunken
@@ -204,6 +262,91 @@ proc ConnectEpg {enable name} {
    }
 }
 ConnectEpg 0 {}
+
+##  --------------------------------------------------------------------------
+##  Functions to support interaction with TV applications
+
+# callback for "Send" button: send TV command string to TV app.
+proc SendTvAppCmd {} {
+   global cmd_argstr cmd_argstr_hist
+
+   regsub -all "  *" $cmd_argstr " " cmd2
+   regsub -all "^ " $cmd2 "" cmd2
+   eval [concat C_Tvapp_SendCmd [split $cmd2]]
+
+   AddComboHistory cmd_argstr_hist $cmd_argstr
+}
+
+# callback for "Send" button: send EPG programme title to TV app.
+proc SendEpgOsdCmd {} {
+   global osd_title osd_title_hist
+   global osd_hour osd_min osd_date_off osd_duration
+
+   if {[catch {
+      set start_time [clock seconds]
+      set cur_hour [clock format $start_time -format "%k"]
+      set cur_min [clock format $start_time -format "%M"]
+      set start_time [expr $start_time - ($cur_hour * 60*60) - ($cur_min * 60)]
+      set start_time [expr $start_time + ($osd_hour * 60*60) + ($osd_min * 60)]
+      }] } {
+      set start_time [clock seconds]
+      set osd_hour {}
+      set osd_min {}
+      set start_time [expr $start_time - ($start_time % (60*60))]
+   }
+   if {[catch {expr $osd_date_off + 0}]} {
+      set osd_date_off 0
+   } else {
+      set start_time [expr $start_time + ($osd_date_off * 24*60*60)]
+   }
+   if {[catch {expr $osd_duration + 0}]} {
+      set osd_duration 0
+      set stop_time  [expr $start_time + (60 * 60)]
+   } else {
+      set stop_time  [expr $start_time + ($osd_duration * 60)]
+   }
+
+   C_SendEpgOsd $osd_title $start_time $stop_time
+
+   AddComboHistory osd_title_hist $osd_title
+}
+
+# helper function: add item to history menu
+proc AddComboHistory {hist_var new} {
+   upvar $hist_var hist_list
+
+   if {[string length $new] > 0} {
+      # remove identical items from the stack
+      set idx 0
+      foreach item $hist_list {
+         if {[string compare $item $new] == 0} {
+            set hist_list [lreplace $hist_list $idx $idx]
+            break
+         }
+         incr idx
+      }
+      # push the new string onto the history stack
+      set hist_list [linsert $hist_list 0 $new]
+   }
+}
+
+# helper function: open history menu
+proc OpenComboHistory {widget hist_var} {
+   upvar $hist_var hist_list
+
+   # check if the history list is empty
+   if {[llength $hist_list] > 0} {
+
+      # remove the previous content (in case the history changed since the last open)
+      $widget list delete 0 end
+
+      # add the search history as menu commands, if not in the stack
+      foreach item $hist_list {
+         $widget list insert end $item
+      }
+   }
+}
+
 
 ##  --------------------------------------------------------------------------
 ##  About window with the obligatory Copyright and License information

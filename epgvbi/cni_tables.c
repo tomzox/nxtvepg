@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: cni_tables.c,v 1.24 2004/05/22 18:54:12 tom Exp tom $
+ *  $Id: cni_tables.c,v 1.25 2004/09/25 18:50:15 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -628,15 +628,16 @@ static uint CniConvertVpsToPdc( uint vpsCni )
 static const CNI_PDC_DESC * CniSearchNiPdcTable( uint cni )
 {
    const CNI_PDC_DESC * pPdc;
+   uint  pdcCni;
 
    pPdc = cni_pdc_desc_table;
 
    // convert VPS codes to PDC
-   cni = CniConvertVpsToPdc(cni);
+   pdcCni = CniConvertVpsToPdc(cni);
 
    while (pPdc->name != NULL)
    {
-      if ( (pPdc->pdc == cni) || (pPdc->ni == cni) )
+      if ( (pPdc->pdc == pdcCni) || (pPdc->ni == cni) )
       {
          break;
       }

@@ -24,7 +24,7 @@
 #
 #  Author: Tom Zoerner
 #
-# $Id: nxtvepg.pod,v 1.114 2004/08/30 21:13:26 tom Exp tom $
+# $Id: nxtvepg.pod,v 1.116 2004/12/18 14:56:43 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME
@@ -70,7 +70,7 @@ In France: Canal+, M6, TV5, EuroNews (coverage: 8 networks)
 
 =item *
 
-In Belgium: VT4 (coverage: 32 networks)
+In Belgium: VT4, M6, TV5 (coverage: 32 networks)
 
 =item *
 
@@ -2328,11 +2328,12 @@ See L<"ACQUISITION MODES"> for more details.
 Open a dialog that allows to start a scan across all TV channels for
 Nextview transmissions.  You should perform this search at least once,
 firstly to find out which providers are available in your area, and
-secondly to determine the frequencies of all provider's TV channels. Those
+secondly to determine the TV frequencies of all EPG providers. Those
 are required for most acquisition modes, and due to driver limitations
 often not available without a scan (e.g. on Windows or Linux with bttv
-driver <= 0.7.50). See also L<"GETTING STARTED"> and the subsequent
-chapter on TV card configuration.
+driver <= 0.7.50).  Note that the provider scan only works if you use
+the internal tuner as input source.  See also L<"GETTING STARTED"> and
+the subsequent chapter on TV card configuration.
 
 If you live in France or Belgium, select the French frequency table
 (which implies the I<Secam L> TV norm) to be used for the EPG scan;
@@ -2814,9 +2815,10 @@ text, one of the pre-defined images or one of the programme's attributes
 
 In case you chose to use text (including attributes), you can select
 bold, underlined or overstrike font and the text color.  For all types
-you can also select a background color, either only for the single
-column in which the element is displayed, or the complete programme
-element.  The resulting appearance is shown in a B<Text sample>
+you can also select a background color.  Colors can be applied either
+just to the user-defined attribute itself, or the entire column
+(in single list layout; or the entire element in grid layout)
+The resulting appearance is shown in a B<Text sample>
 above the controls.  These display options can be configured separately
 for every shortcut match.  An exception is the entire-column background
 color; if such a format is found in multiple attributes, the last one
@@ -2932,20 +2934,24 @@ order of automatically generated menu entries or to extend the popup
 menu with user-defined external commands (for a general description of
 the context menu see L<"CONTEXT MENU">).
 
-The dialog window there is a list of all currently defined command
-titles.  When you open the dialog for the first time, you'll see only
-pre-defined "pseudo commands."  They don't show up like that in the
-context menu, they just represent commands which are automatically
+At the top of the dialog window there's a list of titles of all
+currently defined menu items.  When you open the dialog for the
+first time, you'll see only pre-defined "pseudo commands" (such as
+"Add programme filters".)  These don't show up like that in the context
+menu, they just represent menu commands which are automatically
 inserted in their place at run-time, depending on the currently
-selected programme entries and current filter settings.
+selected programme entries and current filter settings (e.g. to add
+a filter for the network of the curently selected programme.)
 
-As usual, you can change the ordering by selecting an entry and then
-clicking the buttons with up/down arrows. To remove an entry, select
+As usual, you can change the ordering of items in the list by selecting
+an item and then clicking the buttons with up/down arrows.
+To remove an entry, select
 it and press I<Delete>.  If you make an error you can leave the dialog
 with I<Abort>; changes aren't applied and saved until you leave the
 dialog with I<Ok>.
 
-The I<Add new> menu button allows to insert a new menu item:
+The I<Add new> menu button allows to insert a new menu item below the
+currently selected one:
 
 =over 4
 

@@ -33,7 +33,7 @@
 #
 # #Revision: 1.7 #
 #
-#  nxtvepg $Id: htree.tcl,v 1.9 2004/01/24 18:58:22 tom Exp tom $
+#  nxtvepg $Id: htree.tcl,v 1.10 2004/12/12 14:48:41 tom Exp tom $
 
 
 
@@ -444,6 +444,7 @@ proc Tree:create {w args} {
   set Tree($w:selectmode) browse
   set Tree($w:selectbackground) gray50
   set Tree($w:selectforeground) black
+  set Tree($w:foreground) black
   set Tree($w:font) {Helvetica -12 bold}
 
   set canvas_args {}
@@ -454,6 +455,7 @@ proc Tree:create {w args} {
       -selectmode {set Tree($w:selectmode) $arg}
       -selectbackground {set Tree($w:selectbackground) $arg}
       -selectforeground {set Tree($w:selectforeground) $arg}
+      -foreground {set Tree($w:foreground) $arg}
       -font {set Tree($w:font) $arg}
       -maxwidth {set Tree($w:cfmaxwidth) [expr $arg * $char_width]}
       -minwidth {set Tree($w:cfminwidth) [expr $arg * $char_width]}
@@ -686,7 +688,7 @@ proc Tree:selection {w cmd {v {}} {v2 {}}} {
           lappend tmpl $el
         } elseif [info exists Tree($w:$el:tag)] {
            # undo -selectforeground
-           $w itemconfigure $Tree($w:$el:tag) -fill black
+           $w itemconfigure $Tree($w:$el:tag) -fill $Tree($w:foreground)
         }
       }
       set Tree($w:selection) $tmpl
@@ -945,7 +947,7 @@ proc Tree:buildlayer {w v xoff yoff_ref} {
       } else {
         set clabel $c
       }
-      set j [$w create text $x $y -text $clabel -font $Tree($w:font) -fill black \
+      set j [$w create text $x $y -text $clabel -font $Tree($w:font) -fill $Tree($w:foreground) \
                                   -anchor w -tags $Tree($w:$vx/$c:tags)]
       set Tree($w:tag:$j) $vx/$c
       set el_width [expr $x + [font measure $Tree($w:font) $clabel]]

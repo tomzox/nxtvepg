@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: faq.html,v 1.10 2004/09/05 19:43:40 tom Exp $ -->
+<!-- $Id: faq.html,v 1.12 2004/12/28 19:22:27 tom Exp $ -->
 <HEAD>
 <TITLE>Nxtvepg Frequently Asked Questions (with Answers)</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -37,7 +37,7 @@
 
 <H2 class="navhead">News</H2>
 <P>
-Sep/5/2004: <A HREF="changelog.html#release_2_7_3">Release 2.7.3</A>
+Dec/27/2004: <A HREF="changelog.html#release_2_7_4">Release 2.7.4</A>
 </P>
 
 <H2 class="navhead">Documentation</H2>
@@ -103,6 +103,8 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
     <UL>
     <LI><A HREF="#tv_app_interaction">
         Q: When will TV application X be supported?</A>
+    <LI><A HREF="#prov_missing">
+        Q: How do I catch EPG providers which aren't found by the scan?</A>
     <LI><A HREF="#acquisition_problems">
         Q: Nextview EPG acquisition suddenly doesn't work anymore.
            Is provider X dead?</A>
@@ -298,6 +300,39 @@ TV app's author interested.
 Also check out the
 <A HREF="links.html">list of already supported applications</A>
 </P>
+
+<DT><A NAME="prov_missing">
+    Q: How do I catch EPG providers which aren't found by the scan?</A>
+<DD><P>
+Fist make sure by reading the <A HREF="provnets.html">provider list</A>
+that you really can receive the network where the provider transmits
+and that it's still active.  Unfortunately there are many possible
+causes which could make the provider scan fail, so there's also
+different solutions:
+</P>
+<UL>
+<LI>Some networks only transmit part of the day (e.g. TV5)  In this
+    case you only can wait.  Also some providers have transmission
+    gaps sometimes for technical reasons.  So be patient.
+<LI>Load a TV application's channel table, for example from
+    K!TV or xawtv (see checkbuttons at the bottom of the provider scan
+    dialog window; note you need to configure <I>TV app. interaction</I>
+    first via the Configure menu) and enable "slow" mode.
+<LI>Tune the network manually.  On UNIX, just fire up xawtv or some other
+    TV application and tune in the respective TV channel or frequency.
+    nxtvepg will automatically try to find a provider on this channel
+    in the background.  You can check <I>Acquisition statistics</I>
+    (see control menu) for the progress; see also next question for
+    info how to read the statistics.
+    <BR>On Windows it works basically the same, but you have to use a
+    TV app. which supports Nextview acquisition during TV watching.
+    As of writing this it's only K!TV.
+<LI>Last but not least, if it's not just one, but all provider which
+    are missing, your card configuration may not be correct or signal
+    quality too bad.  See manual chapter
+    <A HREF="man.html#getting_started">Getting Started</A>.
+</UL>
+<P></P>
 
 <DT><A NAME="acquisition_problems">
     Q: Nextview EPG acquisition suddenly doesn't work anymore.</A>

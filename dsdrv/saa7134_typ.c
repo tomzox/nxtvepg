@@ -26,9 +26,9 @@
  *
  *    Copyright (c) 2002 Atsushi Nakagawa.  All rights reserved.
  *
- *  DScaler #Id: SAA7134Card_Types.cpp,v 1.46 2004/03/26 14:17:52 atnak Exp #
+ *  DScaler #Id: SAA7134Card_Types.cpp,v 1.49 2004/06/21 06:08:59 atnak Exp #
  *
- *  $Id: saa7134_typ.c,v 1.17 2004/05/22 19:50:01 tom Exp tom $
+ *  $Id: saa7134_typ.c,v 1.19 2004/12/26 21:46:58 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_DSDRV
@@ -316,6 +316,7 @@ static const TCardType m_SAA7134Cards[] =
             },
             #endif
         },
+        // Some variations of this card use differnet tuners.  E.g. Temic PAL
         TUNER_LG_TAPCNEW_PAL,
         AUDIOCRYSTAL_NONE,
         0x0018e700,
@@ -1167,6 +1168,8 @@ static const TCardType m_SAA7134Cards[] =
     },
     // Elitegroup EZ-TV
     // Thanks "Arturo Garcia" <argabulk@ho...>
+    // + Card "Grandmars PV951P4TF" is same except ID and Tuner chip(?)
+    //   Thanks Kwok Kelvin <kelvin002@ho...>
     {
         "Elitegroup EZ-TV",
         0x7134,
@@ -1438,11 +1441,180 @@ static const TCardType m_SAA7134Cards[] =
         NULL,
         StandardSAA7134InputSelect,
     },
+    // Dazzle My TV
+    // Thanks <rockmong@ho...>
+    // Looks like a FlyVideo 2000 clone (from Korean)
+    {
+        "Dazzle My TV",
+        0x7130,
+        3,
+        {
+            {
+                "Tuner",
+                INPUTTYPE_TUNER,
+                VIDEOINPUTSOURCE_PIN1,
+                AUDIOINPUTSOURCE_LINE2,
+                0xE000, 0x4000,
+            },
+            {
+                "Composite",
+                INPUTTYPE_COMPOSITE,
+                VIDEOINPUTSOURCE_PIN3,
+                AUDIOINPUTSOURCE_LINE1,
+                0xE000, 0x4000,
+            },
+            {
+                "S-Video",
+                INPUTTYPE_SVIDEO,
+                VIDEOINPUTSOURCE_PIN0,
+                AUDIOINPUTSOURCE_LINE1,
+                0xE000, 0x4000,
+            },
+        },
+        TUNER_PHILIPS_NTSC,
+        AUDIOCRYSTAL_NONE,
+        0x0018e700,
+        NULL,
+        StandardSAA7134InputSelect,
+        0x01384e42,
+    },
+    // Genius Video Wonder PRO III
+    // Thanks Michal Kueera <michalk@my...>
+    // Looks like another FlyVideo 3000 clone (from Czech Republic)
+    // Notice this card is a SAA7134 but the DAC appears not used
+    {
+        "Genius Video Wonder PRO III",
+        0x7134,
+        4,
+        {
+            {
+                "Tuner",
+                INPUTTYPE_TUNER,
+                VIDEOINPUTSOURCE_PIN1,
+                AUDIOINPUTSOURCE_LINE2,
+                0xE000, 0x0000,
+            },
+            {
+                "Composite",
+                INPUTTYPE_COMPOSITE,
+                VIDEOINPUTSOURCE_PIN3,
+                AUDIOINPUTSOURCE_LINE2,
+                0xE000, 0x4000,
+            },
+            {
+                "S-Video",
+                INPUTTYPE_SVIDEO,
+                VIDEOINPUTSOURCE_PIN0,
+                AUDIOINPUTSOURCE_LINE2,
+                0xE000, 0x4000,
+            },
+            #if 0
+            {
+                NULL,
+                INPUTTYPE_FINAL,
+                VIDEOINPUTSOURCE_NONE,
+                AUDIOINPUTSOURCE_NONE,
+                0xE000, 0x8000,
+            },
+            #endif
+        },
+        TUNER_PHILIPS_PAL,
+        AUDIOCRYSTAL_32110Hz,
+        0x0018e700,
+        NULL,
+        StandardSAA7134InputSelect,
+        0x01385168,
+    },
+    // V-Gear MyTV2 Radio (saa7130)
+    // Thanks "Daniel Kutin" <daniel.kutin@os...>
+    // Another card by vendor 0x0138.
+    {
+        "V-Gear MyTV2 Radio",
+        0x7130,
+        5,
+        {
+            {
+                "Tuner",
+                INPUTTYPE_TUNER,
+                VIDEOINPUTSOURCE_PIN1,
+                AUDIOINPUTSOURCE_LINE2,
+                0xE000, 0x0000,
+            },
+            {
+                "Composite",
+                INPUTTYPE_COMPOSITE,
+                VIDEOINPUTSOURCE_PIN3,
+                AUDIOINPUTSOURCE_LINE2,
+                0xE000, 0x4000,
+            },
+            {
+                "S-Video",
+                INPUTTYPE_SVIDEO,
+                VIDEOINPUTSOURCE_PIN0,          // (Might req mode 6)
+                AUDIOINPUTSOURCE_LINE2,
+                0xE000, 0x4000,
+            },
+            {
+                "Radio",
+                INPUTTYPE_RADIO,
+                VIDEOINPUTSOURCE_NONE,
+                AUDIOINPUTSOURCE_LINE2,
+                0xE000, 0x2000,
+            },
+            #if 0
+            {
+                NULL,
+                INPUTTYPE_FINAL,
+                VIDEOINPUTSOURCE_NONE,
+                AUDIOINPUTSOURCE_DAC,
+                0xE000, 0x8000,
+            },
+            #endif
+        },
+        TUNER_PHILIPS_PAL,
+        AUDIOCRYSTAL_NONE,
+        0x0000e000,
+        NULL,
+        StandardSAA7134InputSelect,
+        0x013819d0,
+    },
 };
 
 #define SAA7134CARDID_LASTONE (sizeof(m_SAA7134Cards)/sizeof(m_SAA7134Cards[0]))
 #define SAA7134CARDID_UNKNOWN 0
 
+//
+// Notes:
+//
+// "Might req mode 6": S-Video is listed with VIDEOINPUTSOURCE_PIN0 but what
+// is actually used is not mode 0 but mode 8.  --This is due to an old design
+// decision that I no longer remember why.  Mode 6 is exactly the same as mode
+// 8 except the C-channel gain control is set with a register instead of
+// automatic gain control that is linked to the Y-channel. "Might req mode 6"
+// has been placed beside entries where the RegSpy dump showed the
+// SAA7134_ANALOG_IN_CTRL1 register with xxxx0110(6) instead of xxxx1000(8).
+//
+
+//
+// LifeView Clones:  (Actually, I don't know who supplies who)
+//
+//              0x7130                      0x7134                          0x7133
+//
+// 0x01384e42   Dazzle My TV                LifeView FlyVideo3000
+//                                          Chronos Video Shuttle II
+//
+// 0x01385168   LifeView FlyVideo2000       Genius Video Wonder PRO III     PrimeTV 7133
+//              Chronos Video Shuttle II
+//
+// 0x013819d0   V-Gear MyTV2 Radio
+//
+//
+// Notes:
+// - The auto detect ID 0x01384e42 is not used by LifeView FlyVideo3000 that I know
+//   of.  This ID comes from the SAA7134 version of Chronos Video Shuttle II.
+// - All cards above have an identical video input pin configuration.  They also use
+//   the same 0x0018e700 GPIO mask.
+//
 
 static uint AutoDetectCardType( TVCARD * pTvCard )
 {
@@ -1489,12 +1661,12 @@ static uint AutoDetectTuner( TVCARD * pTvCard, uint CardId )
 }
 
 
-static bool GetIffType( TVCARD * pTvCard, bool * pIsMono )
+static uint GetIffType( TVCARD * pTvCard, bool * pIsPinnacle, bool * pIsMono )
 {
-    if ((pTvCard == NULL) || (pIsMono == NULL))
+    if ((pTvCard != NULL) && (pIsPinnacle != NULL) && (pIsMono != NULL))
         fatal0("SAA7134-GetIffType: illegal NULL ptr param");
 
-    return FALSE;
+    return TDA9887_DEFAULT;
 }
 
 static uint GetPllType( TVCARD * pTvCard, uint CardId )

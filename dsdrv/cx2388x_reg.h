@@ -26,9 +26,9 @@
  *      " This code is based on a version of dTV modified by Michael Eskin and
  *        others at Connexant.  Those parts are probably (c) Connexant 2002 "
  *
- *  DScaler #Id: CX2388x_Defines.h,v 1.23 2004/03/07 12:20:12 to_see Exp #
+ *  DScaler #Id: CX2388x_Defines.h,v 1.24 2004/08/31 17:54:50 to_see Exp #
  *
- *  $Id: cx2388x_reg.h,v 1.7 2004/03/12 21:31:47 tom Exp tom $
+ *  $Id: cx2388x_reg.h,v 1.8 2004/10/16 13:07:21 tom Exp tom $
  */
 
 #ifndef __CX2388X_REG_H

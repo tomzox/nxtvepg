@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: shortcuts.tcl,v 1.16 2003/12/27 20:12:46 tom Exp tom $
+#  $Id: shortcuts.tcl,v 1.17 2004/09/25 16:23:49 tom Exp tom $
 #
 #=CONST= ::fsc_name_idx 0
 #=CONST= ::fsc_mask_idx 1
@@ -164,6 +164,7 @@ proc CheckShortcutDeselection {} {
    global timsel_relative timsel_absstop timsel_datemode
    global dursel_min dursel_max
    global vpspdc_filt
+   global piexpire_display
    global filter_invert
    global fsc_prevselection
 
@@ -281,6 +282,9 @@ proc CheckShortcutDeselection {} {
             }
             vps_pdc {
                set undo [expr $vpspdc_filt != [lindex $valist 0]]
+            }
+            piexpire {
+               set undo [expr $piexpire_display != [lindex $valist 0]]
             }
             substr {
                # check if all substr param sets are still active, i.e. on the stack
@@ -409,6 +413,9 @@ proc SelectSingleShortcut {sc_tag} {
          vps_pdc {
             set vpspdc_filt [lindex $valist 0]
          }
+         piexpire {
+            set piexpire_display [lindex $valist 0]
+         }
          series {
             foreach series $valist {
                C_SelectSeries $series 1
@@ -450,6 +457,7 @@ proc SelectShortcuts {sc_tag_list shortcuts_arr} {
    global timsel_relative timsel_absstop timsel_datemode
    global dursel_min dursel_max dursel_minstr dursel_maxstr
    global vpspdc_filt
+   global piexpire_display
    global fsc_prevselection
    global filter_invert
 
@@ -486,6 +494,7 @@ proc SelectShortcuts {sc_tag_list shortcuts_arr} {
             vps_pdc    {ResetVpsPdcFilt;      set reset(vps_pdc) 1}
             substr     {ResetSubstr;          set reset(substr) 1}
             netwops    {ResetNetwops;         set reset(netwops) 1}
+            piexpire   {ResetExpireDelay}
             invert_all {array unset filter_invert all}
          }
       }
@@ -563,6 +572,10 @@ proc SelectShortcuts {sc_tag_list shortcuts_arr} {
                   vps_pdc {
                      set vpspdc_filt 0
                      C_SelectVpsPdcFilter $vpspdc_filt
+                  }
+                  piexpire {
+                     set piexpire_display 0
+                     C_SelectExpiredPiDisplay
                   }
                   series {
                      foreach index $valist {
@@ -715,6 +728,11 @@ proc SelectShortcuts {sc_tag_list shortcuts_arr} {
                vps_pdc {
                   set vpspdc_filt [lindex $valist 0]
                   C_SelectVpsPdcFilter $vpspdc_filt
+               }
+               piexpire {
+                  set piexpire_display [lindex $valist 0]
+                  C_SelectExpiredPiDisplay
+                  PiExpTime_ExternalChange
                }
                series {
                   foreach series $valist {
@@ -1127,6 +1145,7 @@ proc DescribeCurrentFilter {} {
    global timsel_relative timsel_absstop timsel_datemode
    global dursel_min dursel_max
    global vpspdc_filt
+   global piexpire_display
    global filter_invert
 
    # save the setting of the current theme class into the array
@@ -1225,6 +1244,12 @@ proc DescribeCurrentFilter {} {
    if {$vpspdc_filt != 0} {
       lappend all "vps_pdc" $vpspdc_filt
       lappend mask "vps_pdc"
+   }
+
+   # dump PI expire time
+   if {$piexpire_display != 0} {
+      lappend all "piexpire" $piexpire_display
+      lappend mask "piexpire"
    }
 
    # dump CNIs of selected netwops
@@ -1457,6 +1482,13 @@ proc ShortcutPrettyPrint {filter inv_list} {
                append out "${not}VPS/PDC: restrict to programs with VPS/PDC code"
             } elseif {[lindex $valist 0] == 2} {
                append out "${not}VPS/PDC: restrict to programs with differing VPS/PDC code"
+            }
+         }
+         piexpire {
+            if {[lindex $valist 0] < 60} {
+               append out "Expire time: include expired programmes up to [lindex $valist 0] minutes"
+            } else {
+               append out "Expire time: include expired programmes up to [expr int([lindex $valist 0]/60)]:[expr [lindex $valist 0]%60] hours"
             }
          }
          substr {

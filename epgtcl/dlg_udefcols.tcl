@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_udefcols.tcl,v 1.15 2003/12/27 20:12:14 tom Exp tom $
+#  $Id: dlg_udefcols.tcl,v 1.17 2004/12/12 17:26:40 tom Exp tom $
 #
 # import constants from other modules
 #=INCLUDE= "epgtcl/dlg_remind.h"
@@ -46,13 +46,14 @@ proc PreloadUserDefinedColumns {} {
 
 # convert an internal color tag into a widget color parameter
 proc TextTag2Color {tag} {
-   if {([string length $tag] == 6+6) && ([scan $tag {%*[fba]g_RGB%x%n} foo len] == 2) && ($len == 12)} {
+   if {([string length $tag] == 6+6) && ([scan $tag {%*[fbac]g_RGB%x%n} foo len] == 2) && ($len == 12)} {
       return "#[string range $tag 6 end]"
    } elseif {[string compare $tag "fg_UNDEF"] == 0} {
-      return "black"
+      return $::text_fg
    } elseif {[string compare $tag "bg_UNDEF"] == 0} {
       return $::text_bg
-   } elseif {[regexp {[fba]g_} $tag]} {
+      return $::text_fg
+   } elseif {[regexp {[fbac]g_} $tag]} {
       return [string range $tag 3 end]
    } else {
       return {}
@@ -90,7 +91,7 @@ proc UserCols_SetPiBoxTextColors {wid} {
    # remove old tags before setting new ones
    set ltmp {}
    foreach fmt_tag [$wid tag names] {
-      if {[regexp {^[fba]g_} $fmt_tag] && \
+      if {[regexp {^[fbac]g_} $fmt_tag] && \
           ![regexp {^ag_day} $fmt_tag] && \
           ![info exists fmt_cache($fmt_tag)]} {
          lappend ltmp $fmt_tag
@@ -205,7 +206,7 @@ proc PopupUserDefinedColumns {} {
    global remgroups remgroup_order
    global usercols colsel_tabs colsel_ailist_predef
    global usercol_scnames usercol_cf_tag usercol_cf_filt_idx
-   global usercol_popup text_bg pi_font pi_img win_frm_fg entry_disabledforeground
+   global usercol_popup text_fg text_bg pi_font pi_img win_frm_fg entry_disabledforeground
 
    if {$usercol_popup == 0} {
       CreateTransientPopup .usercol "Attribute composition & display format"
@@ -334,9 +335,14 @@ proc PopupUserDefinedColumns {} {
       .usercol.all.disp.fmt.txtdemo tag configure samplet -font $pi_font
       .usercol.all.disp.fmt.txtdemo tag configure sampleb -background $text_bg
       .usercol.all.disp.fmt.txtdemo tag configure samplec -background $text_bg
+      .usercol.all.disp.fmt.txtdemo tag configure sampled -foreground $text_fg
       .usercol.all.disp.fmt.txtdemo tag lower samplec
       .usercol.all.disp.fmt.txtdemo insert 1.0 "\n" half_line
-      .usercol.all.disp.fmt.txtdemo insert 2.0 " " {txt_margin samplec} " " {sampleb samplec} "Text sample" {samplet sampleb samplec} " " {sampleb samplec} "\n" {txt_margin samplec}
+      .usercol.all.disp.fmt.txtdemo insert 2.0 " " {txt_margin samplec} \
+                                               "****  " {sampleb samplec sampled} \
+                                               "Text sample" {samplet sampleb samplec} \
+                                               "  ****" {sampleb samplec sampled} \
+                                               "\n" {txt_margin samplec}
       bindtags .usercol.all.disp.fmt.txtdemo {all . .usercol.all.disp.fmt.txtdemo}
       grid    .usercol.all.disp.fmt.txtdemo -sticky news -row 0 -column 1 -rowspan 2 -pady 3
       checkbutton .usercol.all.disp.fmt.chk_bold -text "bold" -variable usercol_cf_bold \
@@ -348,27 +354,38 @@ proc PopupUserDefinedColumns {} {
       checkbutton .usercol.all.disp.fmt.chk_overstrike -text "overstrike" -variable usercol_cf_overstrike \
                                                       -command UserColsDlg_UpdateFmtDemoText
       grid    .usercol.all.disp.fmt.chk_overstrike -sticky w -row 4 -column 0
+
       menubutton .usercol.all.disp.fmt.mb_fgcolor -text "Text color" -direction flush -indicatoron 1 \
                                                   -takefocus 1 -highlightthickness 1 -borderwidth 2 -relief raised \
                                                   -menu .usercol.all.disp.fmt.mb_fgcolor.men
       grid    .usercol.all.disp.fmt.mb_fgcolor -sticky we -row 2 -column 1
       UserColsDlg_CreateColorMenu .usercol.all.disp.fmt.mb_fgcolor.men fg \
-                  {auto fg_UNDEF black fg_RGB000000 red fg_RGBCC0000 blue fg_RGB0000CC \
+                  {auto fg_UNDEF black fg_RGB000000 white fg_RGBFFFFFF red fg_RGBCC0000 blue fg_RGB0000CC \
                    green fg_RGB00CC00 yellow fg_RGBCCCC00 pink fg_RGBCC00CC cyan fg_RGB00CCCC}
+
       menubutton .usercol.all.disp.fmt.mb_agcolor -text "Attribute background" -direction flush -indicatoron 1 \
                                                   -takefocus 1 -highlightthickness 1 -borderwidth 2 -relief raised \
                                                   -menu .usercol.all.disp.fmt.mb_agcolor.men
       grid    .usercol.all.disp.fmt.mb_agcolor -sticky we -row 3 -column 1
       UserColsDlg_CreateColorMenu .usercol.all.disp.fmt.mb_agcolor.men ag \
-                              {auto bg_UNDEF white ag_RGBFFFFFF red ag_RGBFFCCCC blue ag_RGBCCCCFF \
+                              {auto bg_UNDEF black ag_RGB000000 white ag_RGBFFFFFF red ag_RGBFFCCCC blue ag_RGBCCCCFF \
                                green ag_RGBCCFFCC yellow ag_RGBFFFFCC pink ag_RGBFFCCFF cyan ag_RGBCCFFFF}
+
       menubutton .usercol.all.disp.fmt.mb_bgcolor -text "Column background" -direction flush -indicatoron 1 \
                                                   -takefocus 1 -highlightthickness 1 -borderwidth 2 -relief raised \
                                                   -menu .usercol.all.disp.fmt.mb_bgcolor.men
       grid    .usercol.all.disp.fmt.mb_bgcolor -sticky we -row 4 -column 1
       UserColsDlg_CreateColorMenu .usercol.all.disp.fmt.mb_bgcolor.men bg \
-                              {auto bg_UNDEF white bg_RGBFFFFFF red bg_RGBFFCCCC blue bg_RGBCCCCFF \
+                              {auto bg_UNDEF black bg_RGB000000 white bg_RGBFFFFFF red bg_RGBFFCCCC blue bg_RGBCCCCFF \
                                green bg_RGBCCFFCC yellow bg_RGBFFFFCC pink bg_RGBFFCCFF cyan bg_RGBCCFFFF}
+
+      menubutton .usercol.all.disp.fmt.mb_cgcolor -text "Column text color" -direction flush -indicatoron 1 \
+                                                  -takefocus 1 -highlightthickness 1 -borderwidth 2 -relief raised \
+                                                  -menu .usercol.all.disp.fmt.mb_cgcolor.men
+      grid    .usercol.all.disp.fmt.mb_cgcolor -sticky we -row 5 -column 1
+      UserColsDlg_CreateColorMenu .usercol.all.disp.fmt.mb_cgcolor.men cg \
+                              {auto fg_UNDEF black cg_RGB000000 white cg_RGBFFFFFF red cg_RGBCC0000 blue cg_RGB0000CC \
+                               green cg_RGB00CC00 yellow cg_RGBCCCC00 pink cg_RGBCC00CC cyan cg_RGB00CCCC}
 
       grid    columnconfigure .usercol.all.disp.fmt 0 -weight 1
       grid    columnconfigure .usercol.all.disp.fmt 1 -weight 1
@@ -698,8 +715,8 @@ proc UserColsDlg_PopupUdefColorMenu {col_var type} {
 # apply the text format settings to the demo text entry widget
 proc UserColsDlg_UpdateFmtDemoText {} {
    global usercol_cf_bold usercol_cf_underline usercol_cf_overstrike
-   global usercol_cf_fgcolor usercol_cf_agcolor usercol_cf_bgcolor
-   global text_bg pi_font pi_bold_font
+   global usercol_cf_fgcolor usercol_cf_agcolor usercol_cf_bgcolor usercol_cf_cgcolor
+   global text_fg text_bg pi_font pi_bold_font
 
    if $usercol_cf_bold {
       set demo_font $pi_bold_font
@@ -734,6 +751,9 @@ proc UserColsDlg_UpdateFmtDemoText {} {
 
    set bgcol [TextTag2Color $usercol_cf_bgcolor]
    .usercol.all.disp.fmt.txtdemo tag configure samplec -background $bgcol
+
+   set fgcol [TextTag2Color $usercol_cf_cgcolor]
+   .usercol.all.disp.fmt.txtdemo tag configure sampled -foreground $fgcol
 }
 
 # helper function: store (possibly modified) settings of the selected shortcut
@@ -741,7 +761,7 @@ proc UserColsDlg_UpdateShortcutAttribs {} {
    global usercol_cf_selist usercol_cf_filt usercol_cf_filt_idx
    global usercol_cf_type usercol_cf_text usercol_cf_image usercol_cf_attr
    global usercol_cf_bold usercol_cf_underline usercol_cf_overstrike
-   global usercol_cf_fgcolor usercol_cf_agcolor usercol_cf_bgcolor
+   global usercol_cf_fgcolor usercol_cf_agcolor usercol_cf_bgcolor usercol_cf_cgcolor
 
    if {$usercol_cf_filt_idx != -1} {
       set sc_tag [lindex $usercol_cf_selist $usercol_cf_filt_idx]
@@ -766,6 +786,7 @@ proc UserColsDlg_UpdateShortcutAttribs {} {
       }
       if {[string compare $usercol_cf_agcolor bg_UNDEF] != 0} {lappend fmt $usercol_cf_agcolor}
       if {[string compare $usercol_cf_bgcolor bg_UNDEF] != 0} {lappend fmt $usercol_cf_bgcolor}
+      if {[string compare $usercol_cf_cgcolor fg_UNDEF] != 0} {lappend fmt $usercol_cf_cgcolor}
 
       set usercol_cf_filt($sc_tag) [list $usercol_cf_type $value $fmt 0 $sc_tag]
    }
@@ -776,7 +797,7 @@ proc UserColsDlg_SelectShortcut {} {
    global usercol_cf_tag usercol_cf_selist usercol_cf_filt_idx usercol_cf_filt
    global usercol_cf_type usercol_cf_text usercol_cf_image usercol_cf_attr
    global usercol_cf_bold usercol_cf_underline usercol_cf_overstrike
-   global usercol_cf_fgcolor usercol_cf_agcolor usercol_cf_bgcolor
+   global usercol_cf_fgcolor usercol_cf_agcolor usercol_cf_bgcolor usercol_cf_cgcolor
    global colsel_tabs pi_img
 
    set sc_idx [.usercol.all.sel.selist curselection]
@@ -810,12 +831,14 @@ proc UserColsDlg_SelectShortcut {} {
          set usercol_cf_fgcolor fg_UNDEF
          set usercol_cf_agcolor bg_UNDEF
          set usercol_cf_bgcolor bg_UNDEF
+         set usercol_cf_cgcolor fg_UNDEF
          foreach fmt [lindex $filt $::ucf_fmt_idx] {
             if {[string compare $fmt bold] == 0} {set usercol_cf_bold 1} \
             elseif {[string compare $fmt underline] == 0} {set usercol_cf_underline 1} \
             elseif {[string compare $fmt overstrike] == 0} {set usercol_cf_overstrike 1} \
             elseif {[string compare -length 3 $fmt "fg_"] == 0} {set usercol_cf_fgcolor $fmt} \
             elseif {[string compare -length 3 $fmt "ag_"] == 0} {set usercol_cf_agcolor $fmt} \
+            elseif {[string compare -length 3 $fmt "cg_"] == 0} {set usercol_cf_cgcolor $fmt} \
             else {set usercol_cf_bgcolor $fmt}
          }
       }
@@ -831,6 +854,7 @@ proc UserColsDlg_SelectShortcut {} {
       set usercol_cf_fgcolor fg_UNDEF
       set usercol_cf_agcolor bg_UNDEF
       set usercol_cf_bgcolor bg_UNDEF
+      set usercol_cf_cgcolor fg_UNDEF
       .usercol.all.disp.attr.img configure -image [lindex $pi_img($usercol_cf_image) $::pimg_name_idx]
       .usercol.all.disp.attr.att configure -text [lindex $colsel_tabs($usercol_cf_attr) $::cod_label_idx]
    }

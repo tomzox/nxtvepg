@@ -28,7 +28,7 @@
  *
  *  DScaler #Id: BT848Card_Types.cpp,v 1.41 2004/01/29 15:14:41 adcockj Exp #
  *
- *  $Id: bt8x8_typ.c,v 1.13 2004/03/22 17:35:46 tom Exp tom $
+ *  $Id: bt8x8_typ.c,v 1.15 2004/12/26 21:46:58 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -156,6 +156,8 @@ typedef enum
     TVCARD_PMSVIDEO_SDI,
     TVCARD_PMSDELUXE,
     TVCARD_NEBULA_DIGITV,
+    TVCARD_SWEETSPOT,
+    TVCARD_HERCULES_SMART_TV_STEREO,
     TVCARD_LASTONE,
 } eTVCardId;
 
@@ -217,6 +219,7 @@ typedef enum
     SOUNDCHIP_NONE,
     SOUNDCHIP_MSP,
     SOUNDCHIP_TDA9875,
+    SOUNDCHIP_TDA9874,
 } eSoundChip;
 
 /// Does the card have a PLL generator - used for PAL & SECAM
@@ -3884,6 +3887,127 @@ static const TCardType m_TVCards[TVCARD_LASTONE] =
         0x7,
         {0, 0x1, 0x2, 0x3, 0x4, 0, }
     },
+    {
+        "Sweetspot",
+        12,
+        {
+            {
+                "Component",
+                INPUTTYPE_CCIR,
+                0
+            },
+            {
+                "S-Video 1",
+                INPUTTYPE_CCIR,
+                0,
+            },
+            {
+                "S-Video 2",
+                INPUTTYPE_CCIR,
+                0,
+            },
+            {
+                "Composite 1 (Red)",
+                INPUTTYPE_CCIR,
+                0,
+            },
+            {
+                "Composite 2 (Green)",
+                INPUTTYPE_CCIR,
+                0,
+            },
+            {
+                "Composite 3 (Blue)",
+                INPUTTYPE_CCIR,
+                0,
+            },
+            #if 0  // not supported by nxtvepg  //TZ
+            {
+                "PDI",
+                INPUTTYPE_CCIR,
+                0,
+            },
+            {
+                "Composite 1 over S-video 1",
+                INPUTTYPE_CCIR,
+                0,
+            },
+            {
+                "Composite 2 over S-video 1",
+                INPUTTYPE_CCIR,
+                0,
+            },
+            {
+                "Composite 1 over S-video 2",
+                INPUTTYPE_CCIR,
+                0,
+            },
+            {
+                "Composite 2 over S-video 2",
+                INPUTTYPE_CCIR,
+                0,
+            },
+            {
+                "RGBS / RGsB",
+                INPUTTYPE_CCIR,
+                0,
+            },
+            #endif
+        },
+        PLL_28,
+        TUNER_ABSENT,
+        SOUNDCHIP_NONE,
+        NULL,  // InitPMSDeluxe,
+        StandardBT848InputSelect,  // PMSDeluxeInputSelect,
+        //SetPMSDeluxeContrastBrightness,
+        //SetPMSDeluxeSaturationU,
+        //SetPMSDeluxeSaturationV,
+        //SetPMSDeluxeHue,
+        //SetPMSDeluxeFormat,
+        //CAudioDecoder::AUDIODECODERTYPE_DETECT,
+        0,
+        {0, 0, 0, 0, 0, 0, }
+    },
+    {
+        "Hercules Smart TV Stereo",
+        4,
+        {
+            {
+                "Tuner",
+                INPUTTYPE_TUNER,
+                2,
+            },
+            {
+                "Composite",
+                INPUTTYPE_COMPOSITE,
+                3,
+            },
+            {
+                "S-Video",
+                INPUTTYPE_SVIDEO,
+                1,
+            },
+            {
+                "Composite over S-Video",
+                INPUTTYPE_COMPOSITE,
+                1,
+            },
+        },
+        PLL_28,
+        TUNER_PHILIPS_PAL,
+        SOUNDCHIP_TDA9874,
+        NULL,
+        StandardBT848InputSelect,
+        //SetAnalogContrastBrightness,
+        //SetAnalogSaturationU,
+        //SetAnalogSaturationV,
+        //SetAnalogHue,
+        //StandardSetFormat,
+        //CAudioDecoder::AUDIODECODERTYPE_TDA9874,
+        0, 
+        /* not applicable for tda9874 because pic16c54 controls mute/unmute*/
+        {0, 0, 0, 0, 0, 0, }
+    },
 };
 
 static const TAutoDectect878 m_AutoDectect878[] =
@@ -4344,12 +4468,11 @@ static uint AutoDetectTuner( TVCARD * pTvCard, uint CardId )
 //   Derived from CBT848Card::InitTuner
 //   DScaler CVS #Id: BT848Card_Tuner.cpp,v 1.13 2003/10/27 10:39:50 adcockj Exp #
 //
-static bool GetIffType( TVCARD * pTvCard, bool * pIsMono )
+static uint GetIffType( TVCARD * pTvCard, bool * pIsPinnacle, bool * pIsMono )
 {
     DWORD Id;
-    bool  result = FALSE;
 
-    if ((pTvCard != NULL) && (pIsMono != NULL))
+    if ((pTvCard != NULL) && (pIsPinnacle != NULL) && (pIsMono != NULL))
     {
         *pIsMono = FALSE;
 
@@ -4371,7 +4494,7 @@ static bool GetIffType( TVCARD * pTvCard, bool * pIsMono )
                 {
                     // Only newer cards use MT2032 & TDA9885/6/7
                     Id = 63 - Id;
-                    result = TRUE;
+                    *pIsPinnacle = TRUE;
                 }
             }
             break;
@@ -4392,7 +4515,7 @@ static bool GetIffType( TVCARD * pTvCard, bool * pIsMono )
     else
         fatal0("Bt8x8-GetIffType:illegal NULL ptr param");
 
-    return result;
+    return TDA9887_DEFAULT;
 }
 
 static uint GetPllType( TVCARD * pTvCard, uint CardId )

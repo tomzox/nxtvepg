@@ -18,8 +18,9 @@
  *
  *  DScaler #Id: TunerID.h,v 1.2 2003/02/06 21:27:05 ittarnavsky Exp #
  *  DScaler #Id: TVFormats.h,v 1.6 2003/01/07 16:49:08 adcockj Exp #
+ *  DScaler #Id: TDA9887.h,v 1.8 2004/09/29 20:36:02 to_see Exp #
  *
- *  $Id: wintuner.h,v 1.8 2004/02/13 18:57:40 tom Exp tom $
+ *  $Id: wintuner.h,v 1.9 2004/12/26 21:48:15 tom Exp tom $
  */
 
 #ifndef __WINTUNER_H
@@ -81,6 +82,7 @@ typedef enum
     TUNER_PHILIPS_FI1286_NTSC_M_J,
     TUNER_MT2050,
     TUNER_MT2050_PAL,
+    TUNER_PHILIPS_4IN1,
     TUNER_LASTONE,
 } eTunerId;
 
@@ -115,6 +117,20 @@ typedef enum
 
     VIDEOFORMAT_LASTONE
 } eVideoFormat;
+
+// ---------------------------------------------------------------------------
+// from TDA9887.h
+
+typedef enum
+{
+    TDA9887_DEFAULT = 0,
+    TDA9887_MSI_TV_ANYWHERE_MASTER,
+    TDA9887_LEADTEK_WINFAST_EXPERT,
+    TDA9887_ATI_TV_WONDER_PRO,
+    TDA9887_AVERTV_303,
+    // Add here new tda9887 settings.
+    TDA9887_LASTONE,
+} eTDA9887Card;
 
 // ---------------------------------------------------------------------------
 // Interface declaration

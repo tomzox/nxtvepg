@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: piremind.c,v 1.15 2004/06/19 18:58:39 tom Exp tom $
+ *  $Id: piremind.c,v 1.16 2004/09/26 16:12:07 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -1138,8 +1138,10 @@ static int PiRemind_ContextMenu( ClientData ttp, Tcl_Interp *interp, int objc, T
             if (isExtended)
             {
                sprintf(comm, "%s add cascade -label {Change reminder group} -menu %s.reminder_group\n"
-                             "menu %s.reminder_group -tearoff 0 -postcommand {PostDynamicMenu %s.reminder_group Reminder_PostGroupMenu %d}\n",
-                             pMenu, pMenu, pMenu, pMenu, remIdx);
+                             "if {[string length [info commands %s.reminder_group]] == 0} {\n"
+                             "   menu %s.reminder_group -tearoff 0 -postcommand {PostDynamicMenu %s.reminder_group Reminder_PostGroupMenu %d}\n"
+                             "}\n",
+                             pMenu, pMenu, pMenu, pMenu, pMenu, remIdx);
                eval_check(interp, comm);
                entryCount += 1;
             }
@@ -1166,8 +1168,10 @@ static int PiRemind_ContextMenu( ClientData ttp, Tcl_Interp *interp, int objc, T
             if (isExtended)
             {
                sprintf(comm, "%s add cascade -label {Add reminder into group} -menu %s.reminder_group\n"
-                             "menu %s.reminder_group -tearoff 0 -postcommand {PostDynamicMenu %s.reminder_group Reminder_PostGroupMenu -1}\n",
-                             pMenu, pMenu, pMenu, pMenu);
+                             "if {[string length [info commands %s.reminder_group]] == 0} {\n"
+                             "  menu %s.reminder_group -tearoff 0 -postcommand {PostDynamicMenu %s.reminder_group Reminder_PostGroupMenu -1}\n"
+                             "}\n",
+                             pMenu, pMenu, pMenu, pMenu, pMenu);
                eval_check(interp, comm);
                entryCount += 1;
             }

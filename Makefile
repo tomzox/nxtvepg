@@ -28,7 +28,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile,v 1.76 2004/07/18 12:58:31 tom Exp tom $
+#  $Id: Makefile,v 1.77 2004/12/18 14:49:26 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -93,7 +93,7 @@ DEFS   += -DUSE_DAEMON
 # (note proxy API is still subject to change as of March-2004)
 #DEFS   += -DUSE_VBI_PROXY
 #LDLIBS += -lzvbi -lpthread -lpng
-#LDLIBS += /tom/work/tv/cvs/vbi/src/.libs/libzvbi.a -lpthread -lpng
+#LDLIBS += /tom/work/tv/cvs/x-ssh/vbi/src/.libs/libzvbi.a -lpthread -lpng
 
 # enable workarounds for linux saa7134 driver: up to version 0.2.6
 # - change VBI default sampling rate (because the driver doesn't support ioctl VIDIOCGVBIFMT)
@@ -159,7 +159,7 @@ VBIREC_CSRC   = tvsim/vbirec_main
 VBIREC_CSRC2  = epgvbi/btdrv4linux epgvbi/vbidecode epgvbi/zvbidecoder \
                 epgvbi/ttxdecode epgvbi/hamming epgvbi/cni_tables \
                 epgvbi/syserrmsg epgctl/debug epgui/xawtv
-VBIREC_TCLSRC = tvsim/vbirec_gui
+VBIREC_TCLSRC = tvsim/vbirec_gui epgtcl/combobox
 
 NXTV_OBJS     = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(CSRC) $(TCLSRC)))
 TVSIM_OBJS    = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(TVSIM_CSRC) $(TVSIM_CSRC2) $(TVSIM_TCLSRC)))
@@ -286,7 +286,7 @@ nxtvepg.1 manual.html: nxtvepg.pod pod2help.pl epgctl/epgversion.h
 	     nxtvepg.pod > nxtvepg.1; \
 	  echo "pod2html nxtvepg.pod > manual.html"; \
 	  pod2html nxtvepg.pod | $(PERL) -p -e 's/(HREF=\"#)([^:"]+: |[^_"]+(_[^_"]+)?__)+/$$1/gi;' > manual.html; \
-	  rm -f pod2htm?.x~~ pod2html-{dircache,itemcache}; \
+	  rm -f pod2htm?.* pod2html-{dircache,itemcache}; \
 	else \
 	  echo "ERROR: cannot generate manual page without Perl"; \
 	  false; \
@@ -301,7 +301,7 @@ tvsim/tvsim.1 tvsim/tvsim.html: tvsim/tvsim.pod tvsim/tvsim_version.h
 	          tvsim/tvsim.pod > tvsim/tvsim.1; \
 	  echo "pod2html tvsim/tvsim.pod > tvsim/tvsim.html"; \
 	  pod2html tvsim/tvsim.pod | $(PERL) -p -e 's/(HREF=\"#)([^:"]+: |[^_"]+(_[^_"]+)?__)+/$$1/gi;' > tvsim/tvsim.html; \
-	  rm -f pod2htm?.x~~ pod2html-{dircache,itemcache}; \
+	  rm -f pod2htm?.* pod2html-{dircache,itemcache}; \
 	else \
 	  echo "ERROR: cannot generate tvsim HTML or nroff manuals without Perl"; \
 	  false; \
@@ -316,7 +316,7 @@ tvsim/vbirec.1 tvsim/vbirec.html: tvsim/vbirec.pod tvsim/tvsim_version.h
 	          tvsim/vbirec.pod > tvsim/vbirec.1; \
 	  echo "pod2html tvsim/vbirec.pod > tvsim/vbirec.html"; \
 	  pod2html tvsim/vbirec.pod | $(PERL) -p -e 's/(HREF=\"#)([^:"]+: |[^_"]+(_[^_"]+)?__)+/$$1/gi;' > tvsim/vbirec.html; \
-	  rm -f pod2htm?.x~~ pod2html-{dircache,itemcache}; \
+	  rm -f pod2htm?.* pod2html-{dircache,itemcache}; \
 	else \
 	  echo "ERROR: cannot generate vbirec HTML or nroff manuals without Perl"; \
 	  false; \
@@ -331,7 +331,7 @@ tvsim/vbiplay.1 tvsim/vbiplay.html: tvsim/vbiplay.pod tvsim/tvsim_version.h
 	          tvsim/vbiplay.pod > tvsim/vbiplay.1; \
 	  echo "pod2html tvsim/vbiplay.pod > tvsim/vbiplay.html"; \
 	  pod2html tvsim/vbiplay.pod | $(PERL) -p -e 's/(HREF=\"#)([^:"]+: |[^_"]+(_[^_"]+)?__)+/$$1/gi;' > tvsim/vbiplay.html; \
-	  rm -f pod2htm?.x~~ pod2html-{dircache,itemcache}; \
+	  rm -f pod2htm?.* pod2html-{dircache,itemcache}; \
 	else \
 	  echo "ERROR: cannot generate vbiplay HTML or nroff manuals without Perl"; \
 	  false; \

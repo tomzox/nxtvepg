@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_filter.tcl,v 1.13 2004/05/29 17:32:10 tom Exp tom $
+#  $Id: dlg_filter.tcl,v 1.14 2004/09/25 16:23:10 tom Exp tom $
 #
 set progidx_first 0
 set progidx_last  0
@@ -62,6 +62,18 @@ proc TimeFilterExternalChange {} {
    if $timsel_popup {
       Timsel_UpdateWidgetState
       Timsel_UpdateEntryText
+   }
+}
+
+proc PiExpTime_ExternalChange {} {
+   global piexpire_days piexpire_mins
+   global piexpire_display
+   global piexpire_popup
+
+   if $piexpire_popup {
+      set piexpire_days [expr int($piexpire_display / (60*60))]
+      set piexpire_mins [expr $piexpire_display % (60*60)]
+      UpdateExpiryFilter 0
    }
 }
 

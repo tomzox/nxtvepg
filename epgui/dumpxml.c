@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumpxml.c,v 1.9 2004/08/07 14:06:22 tom Exp tom $
+ *  $Id: dumpxml.c,v 1.10 2004/10/31 17:01:13 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -53,20 +53,33 @@
 
 #define IS_XML_DTD5(X) ((X) != EPGTCL_XMLTV_DTD_6)
 
-static const char * pXmlParSepStr;
+// 
+typedef struct
+{
+   FILE   * fp;
+   int      xmlDtdVersion;
+} DUMP_XML_CB_INFO;
 
 // ----------------------------------------------------------------------------
 // Print Short- and Long-Info texts for XMLTV
 //
 static void EpgDumpXml_AppendInfoTextCb( void *vp, const char * pDesc, bool addSeparator )
 {
-   FILE * fp = (FILE *) vp;
+   DUMP_XML_CB_INFO * pCbInfo = vp;
+   FILE * fp;
    char * pNewline;
 
-   if ((fp != NULL) && (pDesc != NULL))
+   if ((pCbInfo != NULL) && (pCbInfo->fp != NULL) && (pDesc != NULL))
    {
+      fp = pCbInfo->fp;
+
       if (addSeparator)
-         fprintf(fp, pXmlParSepStr);
+      {
+         if ( IS_XML_DTD5(pCbInfo->xmlDtdVersion) )
+            fprintf(fp, "\n\n");
+         else
+            fprintf(fp, "</p></desc>\n\t<desc><p>");
+      }
 
       // replace newline characters with paragraph tags
       while ( (pNewline = strchr(pDesc, '\n')) != NULL )
@@ -74,14 +87,17 @@ static void EpgDumpXml_AppendInfoTextCb( void *vp, const char * pDesc, bool addS
          // print text up to (and excluding) the newline
          *pNewline = 0;  // XXX must not modify const string
          EpgDumpHtml_WriteString(fp, pDesc);
-         fprintf(fp, pXmlParSepStr);
+
+         if ( IS_XML_DTD5(pCbInfo->xmlDtdVersion) )
+            fprintf(fp, "\n\n");
+         else
+            fprintf(fp, "</p>\n<p>");
+
          // skip to text following the newline
          pDesc = pNewline + 1;
       }
       // write the segment behind the last newline
       EpgDumpHtml_WriteString(fp, pDesc);
-
-      fprintf(fp, "\n");
    }
 }
 
@@ -254,8 +270,9 @@ static void EpgDumpXml_WriteChannels( EPGDB_CONTEXT * pDbContext, const AI_BLOCK
 // Write a single programme description
 //
 static void EpgDumpXml_WriteProgramme( EPGDB_CONTEXT * pDbContext, const AI_BLOCK * pAiBlock,
-                                       const PI_BLOCK * pPiBlock, FILE * fp, bool xmlDtdVersion )
+                                       const PI_BLOCK * pPiBlock, FILE * fp, int xmlDtdVersion )
 {
+   DUMP_XML_CB_INFO cbInfo;
    const char  * pThemeStr;
    struct tm     vpsTime;
    uint  idx;
@@ -280,7 +297,6 @@ static void EpgDumpXml_WriteProgramme( EPGDB_CONTEXT * pDbContext, const AI_BLOC
 
       fprintf(fp, "<programme start=\"%s\" stop=\"%s\" %s channel=\"CNI%04X\">\n",
                   start_str, stop_str, tmp_str, AI_GET_NETWOP_N(pAiBlock, pPiBlock->netwop_no)->cni);
-      pXmlParSepStr = "\n\n";
    }
    else // XML DTD 6
    {
@@ -299,7 +315,6 @@ static void EpgDumpXml_WriteProgramme( EPGDB_CONTEXT * pDbContext, const AI_BLOC
                   AI_GET_NETWOP_N(pAiBlock, pPiBlock->netwop_no)->cni,
                   pPiBlock->block_no, (int)pPiBlock->start_time,
                   ((pPiBlock->feature_flags & PI_FEATURE_REPEAT) ? " newness=\"repeat\"" : ""));
-      pXmlParSepStr = "\n</p><p>\n";
    }
 
    // programme title and description (quoting "<", ">" and "&" characters)
@@ -309,17 +324,20 @@ static void EpgDumpXml_WriteProgramme( EPGDB_CONTEXT * pDbContext, const AI_BLOC
    fprintf(fp, "</title>\n");
    if ( PI_HAS_SHORT_INFO(pPiBlock) || PI_HAS_LONG_INFO(pPiBlock) )
    {
+      cbInfo.fp = fp;
+      cbInfo.xmlDtdVersion = xmlDtdVersion;
+
       if ( IS_XML_DTD5(xmlDtdVersion) )
       {
-         fprintf(fp, "\t<desc>\n");
-         PiDescription_AppendShortAndLongInfoText(pPiBlock, EpgDumpXml_AppendInfoTextCb, fp, EpgDbContextIsMerged(pDbContext));
-         fprintf(fp, "\t</desc>\n");
+         fprintf(fp, "\t<desc>");
+         PiDescription_AppendShortAndLongInfoText(pPiBlock, EpgDumpXml_AppendInfoTextCb, &cbInfo, EpgDbContextIsMerged(pDbContext));
+         fprintf(fp, "</desc>\n");
       }
       else
       {
-         fprintf(fp, "\t<desc><p>\n");
-         PiDescription_AppendShortAndLongInfoText(pPiBlock, EpgDumpXml_AppendInfoTextCb, fp, EpgDbContextIsMerged(pDbContext));
-         fprintf(fp, "\t</p></desc>\n");
+         fprintf(fp, "\t<desc><p>");
+         PiDescription_AppendShortAndLongInfoText(pPiBlock, EpgDumpXml_AppendInfoTextCb, &cbInfo, EpgDbContextIsMerged(pDbContext));
+         fprintf(fp, "</p></desc>\n");
       }
    }
 

@@ -31,7 +31,7 @@
  *     xawtv-remote.c by Gerd Knorr (kraxel@bytesex.org).  Some source code
  *     is directly derived from xawtv.
  *
- *  $Id: xawtv.c,v 1.43 2004/08/29 17:04:19 tom Exp tom $
+ *  $Id: xawtv.c,v 1.45 2004/12/12 14:49:50 tom Exp tom $
  */
 
 #ifdef WIN32
@@ -208,6 +208,7 @@ static bool Xawtv_QueryClass( Display * dpy, Window wid )
       dprintf1("Xawtv-Query: wm-class: %s\n", args);
       if ( (strcasecmp(args, "XAWTV") == 0) ||
            (strcasecmp(args, "XAWDECODE") == 0) ||
+           (strcasecmp(args, "XDTV") == 0) ||
            (strcasecmp(args, "ZAPPING") == 0) ||
            (strcasecmp(args, "TVTIME") == 0) )
       {
@@ -1046,7 +1047,7 @@ static int Xawtv_SendCmd(ClientData ttp, Tcl_Interp *interp, int argc, CONST84 c
          tmp_dstr = pass_dstr + idx - 1;
          // convert Tcl internal Unicode to Latin-1
          Tcl_UtfToExternalDString(NULL, argv[idx], -1, tmp_dstr);
-         dprintf1("%s ", Tcl_DStringValue(tmp_dstr));
+         dprintf1("%s, ", Tcl_DStringValue(tmp_dstr));
          len += Tcl_DStringLength(tmp_dstr) + 1;
       }
       dprintf0("\n");

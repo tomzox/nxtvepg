@@ -40,7 +40,7 @@
  *      Tom Zoerner
  *
  *
- *  $Id: btdrv4win.c,v 1.49 2004/07/11 19:13:11 tom Exp $
+ *  $Id: btdrv4win.c,v 1.50 2004/12/27 14:10:04 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -566,7 +566,8 @@ static BOOL BtDriver_OpenCard( uint cardIdx )
          ret = pciGetHardwareResources(CaptureChips[chipIdx].VendorId,
                                        CaptureChips[chipIdx].DeviceId,
                                        chipCardIdx,
-                                       supportsAcpi);
+                                       supportsAcpi,
+                                       cardif.ctl->ResetChip);
 
          if (ret == ERROR_SUCCESS)
          {

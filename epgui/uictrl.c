@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: uictrl.c,v 1.43 2004/04/02 12:21:36 tom Exp $
+ *  $Id: uictrl.c,v 1.45 2004/12/24 10:19:21 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -63,7 +63,7 @@ typedef enum
    EPGDB_NOT_INIT,
    EPGDB_WAIT_SCAN,
    EPGDB_PROV_SCAN,
-   EPGDB_PROV_WAIT,
+   EPGDB_PROV_TUNE_EXT,
    EPGDB_PROV_SEL,
    EPGDB_ACQ_NO_FREQ,
    EPGDB_ACQ_NO_TUNER,
@@ -111,11 +111,12 @@ static const uchar * UiControl_GetDbStateMsg( EPGDB_STATE state )
                 "favorite provider and start reading in its TV programme database.";
          break;
 
-      case EPGDB_PROV_WAIT:
+      case EPGDB_PROV_TUNE_EXT:
          pMsg = "There are no providers for Nextview data known yet. "
-                "Since you do not use the TV tuner as video input source, "
-                "you have to select a provider's channel at the external "
-                "video source by yourself. For a list of possible channels "
+                "Since you have configured an external video input source, "
+                "you have to manually select a provider's TV channel at the "
+                "external video equipment. nxtvepg should then automatically "
+                "detect the provider in apx. 10-20 seconds. For a list of providers "
                 "see the README file or the nxtvepg Internet Homepage.";
          break;
 
@@ -134,10 +135,10 @@ static const uchar * UiControl_GetDbStateMsg( EPGDB_STATE state )
 
       case EPGDB_ACQ_NO_TUNER:
          pMsg = "The database of the currently selected provider is empty. "
-                "Since you have not selected the internal TV tuner as input source, "
-                "you have to make sure yourself that "
-                "you have tuned the TV channel of the this provider "
-                "or select a different provider from the Configure menu.";
+                "Since you have configured an external video input source, "
+                "you have to manually select a provider's TV channel at the "
+                "external video equipment to enable nxtvepg to refresh its database. "
+                "After channel changes wait apx. 20 seconds for acquisition to start.";
          break;
 
       case EPGDB_ACQ_ACCESS_DEVICE:
@@ -228,7 +229,7 @@ static EPGDB_STATE UiControl_GetDbState( void )
          if ( (acqState.state != ACQDESCR_DISABLED) &&
               (acqState.mode == ACQMODE_FORCED_PASSIVE) &&
               (acqState.passiveReason == ACQPASSIVE_NO_TUNER) )
-            dbState = EPGDB_PROV_WAIT;
+            dbState = EPGDB_PROV_TUNE_EXT;
          else
             dbState = EPGDB_PROV_SCAN;
       }
@@ -373,6 +374,7 @@ void UiControl_CheckDbState( void )
    else
       state = EPGDB_NOT_INIT;
 
+   dprintf2("UiControl-CheckDbState: pibox state #%d (%.45s...)\n", state, UiControl_GetDbStateMsg(state));
    PiBox_ErrorMessage(UiControl_GetDbStateMsg(state));
 }
 
@@ -386,6 +388,8 @@ void UiControl_AiStateChange( ClientData clientData )
 {
    uint target = PVOID2UINT(clientData);
    const AI_BLOCK *pAiBlock;
+   Tcl_DString msg_dstr;
+   Tcl_DString cmd_dstr;
 
    if ( (EpgDbContextGetCni(pUiDbContext) == 0) &&
         (EpgDbContextGetCni(pAcqDbContext) != 0) &&
@@ -411,8 +415,20 @@ void UiControl_AiStateChange( ClientData clientData )
       if (pAiBlock != NULL)
       {
          // set the window title according to the new AI
-         sprintf(comm, "wm title . {Nextview EPG: %s}\n", AI_GET_SERVICENAME(pAiBlock));
-         eval_check(interp, comm);
+         strcpy(comm, "Nextview EPG: ");
+         strcat(comm, AI_GET_SERVICENAME(pAiBlock));
+         if (Tcl_ExternalToUtfDString(NULL, comm, -1, &msg_dstr) != NULL)
+         {
+            Tcl_DStringInit(&cmd_dstr);
+            Tcl_DStringAppend(&cmd_dstr, "wm title .", -1);
+            // append message as list element, so that '{' etc. is escaped properly
+            Tcl_DStringAppendElement(&cmd_dstr, Tcl_DStringValue(&msg_dstr));
+
+            eval_check(interp, Tcl_DStringValue(&cmd_dstr));
+
+            Tcl_DStringFree(&cmd_dstr);
+            Tcl_DStringFree(&msg_dstr);
+         }
 
          // generate the netwop mapping tables and update the netwop filter bar
          sprintf(comm, "UpdateProvCniTable 0x%04X\n"
@@ -679,8 +695,12 @@ static void UiControl_MissingTunerFreq( ClientData clientData )
 //
 void UiControlMsg_MissingTunerFreq( uint cni )
 {
+   dprintf0("UiControlMsg-MissingTunerFreq\n");
+
    if (uiControlInitialized)
+   {
       AddMainIdleEvent(UiControl_MissingTunerFreq, UINT2PVOID(cni), FALSE);
+   }
    else
       fprintf(stderr, "nxtvepg: warning: cannot tune channel for provider 0x%04X: frequency unknown\n", cni);
 }
@@ -714,6 +734,8 @@ static void UiControl_NetAcqError( ClientData clientData )
 //
 void UiControlMsg_NetAcqError( void )
 {
+   dprintf0("UiControlMsg-NetAcqError\n");
+
    if (uiControlInitialized)
       AddMainIdleEvent(UiControl_NetAcqError, NULL, TRUE);
 }
@@ -743,6 +765,8 @@ static void UiControl_AcqPassive( ClientData clientData )
 //
 void UiControlMsg_AcqPassive( void )
 {
+   dprintf0("UiControlMsg-AcqPassive\n");
+
    if (uiControlInitialized)
       AddMainIdleEvent(UiControl_AcqPassive, (ClientData) NULL, TRUE);
    else
@@ -756,6 +780,8 @@ void UiControlMsg_AcqEvent( ACQ_EVENT acqEvent )
 {
    if (uiControlInitialized)
    {
+      dprintf1("UiControlMsg-AcqEvent: event #%d\n", acqEvent);
+
       switch (acqEvent)
       {
          case ACQ_EVENT_PROV_CHANGE:

@@ -20,7 +20,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: mainwin.tcl,v 1.241 2004/06/26 14:10:20 tom Exp $
+#  $Id: mainwin.tcl,v 1.244 2004/12/12 17:22:40 tom Exp $
 #
 # import constants from other modules
 #=INCLUDE= "epgtcl/shortcuts.h"
@@ -34,8 +34,9 @@
 ##
 proc LoadWidgetOptions {} {
    global font_normal font_fixed pi_font pi_bold_font help_font
-   global text_bg default_bg win_frm_fg pi_bg_now pi_bg_past help_bg
-   global pi_cursor_bg pi_cursor_bg_now pi_cursor_bg_past
+   global text_fg text_bg default_bg win_frm_fg help_fg help_bg
+   global pi_fg_now pi_bg_now pi_fg_past pi_bg_past pi_cursor_fg pi_cursor_bg
+   global pi_cursor_fg_now pi_cursor_bg_now pi_cursor_fg_past pi_cursor_bg_past
    global xawtv_font xawtv_overlay_fg xawtv_overlay_bg
    global dscale_cols dscale_font dscale_width dscale_scwidth dscale_date_fmt
    global sctree_font sctree_selfg sctree_selbg
@@ -45,10 +46,13 @@ proc LoadWidgetOptions {} {
    if {$is_unix} {
       set font_pt_size  12
       # background for cursor in TV schedule
+      set pi_cursor_fg      black
       set pi_cursor_bg      #c3c3c3
       # background for cursor when above a currently running programme
+      set pi_cursor_fg_now  black
       set pi_cursor_bg_now  #b8b8df
       # background for cursor when above an expired programme
+      set pi_cursor_fg_past black
       set pi_cursor_bg_past #d7d7c7
    } else {
       if {$tcl_version >= 8.3} {
@@ -56,18 +60,25 @@ proc LoadWidgetOptions {} {
       } else {
          set font_pt_size  15
       }
+      set pi_cursor_fg      black
       set pi_cursor_bg      #d4d4d4
+      set pi_cursor_fg_now  black
       set pi_cursor_bg_now  #d8d8ff
+      set pi_cursor_fg_past black
       set pi_cursor_bg_past #e0e0c9
    }
 
    # background color for all text and list in- and output fields
+   set text_fg    black
    set text_bg    #e9e9ec
    # background in TV schedule for currently running programmes
+   set pi_fg_now  black
    set pi_bg_now  #d9d9ef
    # background in TV schedule for expired programmes
+   set pi_fg_past black
    set pi_bg_past #ede7dd
    # background for help text
+   set help_fg    black
    set help_bg    #ffd840
    # background colors for PI date scale (red, orange, yellow, green, cyan, blue, purple)
    set dscale_cols {#ff3d3d #ff9d3c #fdff4f #4eff57 #07d1c1 #5b73ff #eb41ff}
@@ -103,15 +114,17 @@ proc LoadWidgetOptions {} {
    # create temporary listbox widget to query parameters for the shortcut tree widget
    listbox .tmp_lb
    set sctree_font [.tmp_lb cget -font]
-   set sctree_selfg [.tmp_lb cget -selectforeground]
-   set sctree_selbg [.tmp_lb cget -selectbackground]
+   set select_fg [.tmp_lb cget -selectforeground]
+   set select_bg [.tmp_lb cget -selectbackground]
    destroy .tmp_lb
 
    # create temporary widget to check syntax of configuration options
    label .test_opt
    # load and check all color resources
-   foreach opt {pi_cursor_bg pi_cursor_bg_now pi_cursor_bg_past text_bg help_bg \
-                pi_bg_now pi_bg_past xawtv_overlay_fg xawtv_overlay_bg} {
+   foreach opt {pi_cursor_fg pi_cursor_bg pi_cursor_fg_now pi_cursor_bg_now
+                pi_cursor_fg_past pi_cursor_bg_past text_fg text_bg help_fg \
+                pi_fg_now pi_bg_now pi_fg_past pi_bg_past select_fg select_bg \
+                help_fg help_bg xawtv_overlay_fg xawtv_overlay_bg} {
       set value [option get . $opt userDefault]
       if {([string length $value] > 0) && \
           ([catch {.test_opt configure -foreground $value}] == 0)} {
@@ -178,12 +191,23 @@ proc LoadWidgetOptions {} {
 
    set default_bg [. cget -background]
    set win_frm_fg [. cget -highlightcolor]
+   set sctree_selfg $select_fg
+   set sctree_selbg $select_bg
 
    # map "artifical" resources onto internal Tk resources
    option add *Dialog.msg.font $msgbox_font userDefault
+   option add *Listbox.foreground $text_fg userDefault
    option add *Listbox.background $text_bg userDefault
+   option add *Entry.foreground $text_fg userDefault
    option add *Entry.background $text_bg userDefault
+   option add *Text.foreground $text_fg userDefault
    option add *Text.background $text_bg userDefault
+   option add *Listbox.selectForeground $select_fg userDefault
+   option add *Listbox.selectBackground $select_bg userDefault
+   option add *Entry.selectForeground $select_fg userDefault
+   option add *Entry.selectBackground $select_bg userDefault
+   option add *Text.selectForeground $select_fg userDefault
+   option add *Text.selectBackground $select_bg userDefault
 }
 
 # helper function to modify a font's size or appearance
@@ -212,7 +236,7 @@ set pinetbox_col_width 125
 
 proc CreateMainWindow {} {
    global is_unix entry_disabledforeground
-   global text_bg pi_bg_now pi_bg_past default_bg
+   global text_fg text_bg pi_bg_now pi_bg_past default_bg
    global font_normal pi_font pi_bold_font
    global sctree_font sctree_selfg sctree_selbg
    global fileImage pi_img
@@ -274,7 +298,8 @@ proc CreateMainWindow {} {
    Tree:create .all.shortcuts.list -width 0 -cursor top_left_arrow \
                                    -font $sctree_font -selectbackground $sctree_selbg \
                                    -selectmode extended -selectforeground $sctree_selfg \
-                                   -background $text_bg -relief ridge -borderwidth 2
+                                   -foreground $text_fg -background $text_bg \
+                                   -relief ridge -borderwidth 2
 
    bind      .all.shortcuts.list <<TreeSelect>> {ShortcutTree_Invoke}
    bind      .all.shortcuts.list <<TreeOpenClose>> {ShortcutTree_OpenCloseEvent .all.shortcuts.list shortcuts $shortcut_tree}
@@ -506,17 +531,20 @@ proc CreateMainWindow {} {
 ##  Define text tags for PI listbox & netbox output
 ##
 proc AssignPiTextTags {wid} {
-   global pi_bg_now pi_bg_past pi_bold_font
-   global pi_cursor_bg dscale_cols
+   global pi_fg_now pi_bg_now pi_fg_past pi_bg_past
+   global pi_cursor_fg pi_cursor_bg
+   global pi_bold_font dscale_cols
 
    # tags to mark currently running programmes
    # note: background color of "cur" is changed dynamically at time of display
    $wid tag configure cur -relief raised -borderwidth 1
-   $wid tag configure now -background $pi_bg_now
-   $wid tag configure past -background $pi_bg_past
-   $wid tag configure cur_pseudo -relief ridge -background $pi_cursor_bg \
+   $wid tag configure now -foreground $pi_fg_now -background $pi_bg_now
+   $wid tag configure past -foreground $pi_fg_past -background $pi_bg_past
+   $wid tag configure cur_pseudo -relief ridge -foreground $pi_cursor_fg \
+                                 -background $pi_cursor_bg \
                                  -borderwidth 2 -lmargin1 2 -rmargin 2
-   $wid tag configure cur_pseudo_overlay -relief ridge -background $pi_cursor_bg \
+   $wid tag configure cur_pseudo_overlay -relief ridge -foreground $pi_cursor_fg \
+                                 -background $pi_cursor_bg \
                                  -borderwidth 2 -bgstipple bitmap_hatch
 
    $wid tag lower now
@@ -618,6 +646,7 @@ array set pi_attr_labels [list \
    netwops Networks \
    substr {Text search} \
    vps_pdc VPS/PDC \
+   piexpire {Expire time} \
    invert_all {Global invert} \
 ]
 
@@ -3178,7 +3207,7 @@ proc SelectTextOnFocus {wid} {
 set help_popup 0
 
 proc PopupHelp {index {subheading {}} {subrange {}}} {
-   global help_bg help_font font_fixed win_frm_fg
+   global help_fg help_bg help_font font_fixed win_frm_fg
    global help_popup help_winsize helpTexts helpIndex
 
    if {$help_popup == 0} {
@@ -3213,7 +3242,7 @@ proc PopupHelp {index {subheading {}} {subrange {}}} {
       }
 
       frame  .help.disp
-      text   .help.disp.text -width 60 -wrap word -background $help_bg \
+      text   .help.disp.text -width 60 -wrap word -foreground $help_fg -background $help_bg \
                              -font $help_font -spacing3 6 -cursor circle \
                              -yscrollcommand {.help.disp.sb set}
       pack   .help.disp.text -side left -fill both -expand 1
@@ -3484,7 +3513,7 @@ proc PopupColumnSelection {} {
    global colsel_ailist colsel_selist colsel_names colsel_nonl
    global pibox_type pilistbox_cols pinetbox_rows pinetbox_rows_nonl
    global colsel_popup
-   global text_bg
+   global text_fg text_bg
 
    if {$colsel_popup == 0} {
       CreateTransientPopup .colsel "Programme attribute display selection"
@@ -3499,7 +3528,7 @@ proc PopupColumnSelection {} {
       array set colsel_nonl [array get pinetbox_rows_nonl]
 
       message .colsel.intromsg -text "Select which types of attributes you want\nto have displayed for each TV programme:" \
-                               -aspect 2500 -borderwidth 2 -relief ridge -background $text_bg -pady 5
+                               -aspect 2500 -borderwidth 2 -relief ridge -foreground $text_fg -background $text_bg -pady 5
       pack .colsel.intromsg -side top -fill x
 
       frame .colsel.all
@@ -3522,9 +3551,10 @@ proc PopupColumnSelection {} {
 
       frame   .colsel.tailmsg -borderwidth 2 -relief ridge -background $text_bg
       message .colsel.tailmsg.msg -text "Note: you can extend the above list with user-defined\nattributes which allow to choose colors and images" \
-                                  -aspect 2500 -background $text_bg
+                                  -aspect 2500 -foreground $text_fg -background $text_bg
       pack    .colsel.tailmsg.msg -side left -fill x -expand 1
-      button  .colsel.tailmsg.goto -text "Open..." -borderwidth 0 -relief flat -background $text_bg \
+      button  .colsel.tailmsg.goto -text "Open..." -borderwidth 0 -relief flat \
+                                   -foreground $text_fg -background $text_bg \
                                    -command PopupUserDefinedColumns
       pack    .colsel.tailmsg.goto  -side right -anchor e
       pack    .colsel.tailmsg  -side top -fill x
@@ -4334,7 +4364,7 @@ proc SortProvList_cmd {a b} {
 ##   to allow to display a text across all columns
 ##
 proc PiBox_DisplayErrorMessage {text} {
-   global pi_font text_bg
+   global pi_font text_fg text_bg
    global pibox_type
 
    if {[string length $text] > 0} {
@@ -4353,7 +4383,8 @@ proc PiBox_DisplayErrorMessage {text} {
       $wid delete 1.0 end
 
       if {[llength [info commands ${wid}.nxtvlogo]] == 0} {
-         button ${wid}.nxtvlogo -bitmap nxtv_logo -background $text_bg \
+         button ${wid}.nxtvlogo -bitmap nxtv_logo \
+                                -foreground $text_fg -background $text_bg \
                                 -borderwidth 0 -highlightthickness 0
          bindtags ${wid}.nxtvlogo {all .}
       }

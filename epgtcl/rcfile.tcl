@@ -18,12 +18,12 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: rcfile.tcl,v 1.21 2004/06/19 19:12:03 tom Exp tom $
+#  $Id: rcfile.tcl,v 1.22 2004/09/25 16:23:30 tom Exp tom $
 #
 set myrcfile ""
 set is_daemon 0
 # define limit for forwards compatibility
-set nxtvepg_rc_compat 0x020792
+set nxtvepg_rc_compat 0x0207B2
 
 proc LoadRcFile {filename isDefault isDaemon} {
    global shortcuts shortcut_tree

@@ -34,7 +34,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgscan.c,v 1.36 2004/07/11 18:49:01 tom Exp tom $
+ *  $Id: epgscan.c,v 1.38 2004/12/24 10:16:04 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -138,6 +138,7 @@ static bool EpgScan_AiCallback( const AI_BLOCK *pNewAi )
 {
    const AI_BLOCK *pOldAi;
    uint oldTunerFreq;
+   uint oldPageNo;
    uint oldAppId;
    uchar msgbuf[80];
    bool accept = FALSE;
@@ -154,6 +155,7 @@ static bool EpgScan_AiCallback( const AI_BLOCK *pNewAi )
       {
          // save the parameters found during the scan
          oldTunerFreq = scanCtl.pDbContext->tunerFreq;
+         oldPageNo = scanCtl.pDbContext->pageNo;
          oldAppId = scanCtl.pDbContext->appId;
 
          EpgDbLockDatabase(scanCtl.pDbContext, FALSE);
@@ -196,6 +198,20 @@ static bool EpgScan_AiCallback( const AI_BLOCK *pNewAi )
 
             // store the provider channel frequency in the rc/ini file
             UiControlMsg_NewProvFreq(AI_GET_CNI(pNewAi), scanCtl.pDbContext->tunerFreq);
+         }
+         // update teletext page number in the database if changed
+         // note: store is delayed until AI reception to be sure the db matches the current stream
+         if (scanCtl.pDbContext->pageNo != oldPageNo)
+         {
+            debug3("EpgScan-AiCallback: CNI 0x%04X: updating EPG page no: 0x%03x -> 0x%03x", AI_GET_CNI(pNewAi), scanCtl.pDbContext->pageNo, oldPageNo);
+            // don't report the initial page update to the user
+            if ( VALID_EPG_PAGENO(scanCtl.pDbContext->pageNo) &&
+                 (scanCtl.pDbContext->pageNo != EPG_DEFAULT_PAGENO) )
+            {
+               sprintf(msgbuf, "storing provider's EPG teletext page number %03X", oldPageNo);
+               scanCtl.MsgCallback(msgbuf, TRUE);
+            }
+            scanCtl.pDbContext->pageNo = oldPageNo;
          }
 
          accept = TRUE;
@@ -745,7 +761,7 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv,
       else
          result = EPGSCAN_INTERNAL;
 
-      if ((result != EPGSCAN_OK) && (scanCtl.acqWasEnabled == FALSE))
+      if (result != EPGSCAN_OK)
       {
          if (scanCtl.acqWasEnabled == FALSE)
             BtDriver_StopAcq();

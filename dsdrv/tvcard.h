@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: tvcard.h,v 1.6 2004/03/22 17:35:20 tom Exp tom $
+ *  $Id: tvcard.h,v 1.7 2004/12/26 21:48:50 tom Exp tom $
  */
 
 #ifndef __TVCARD_H
@@ -37,6 +37,7 @@ typedef struct
    bool (* StartAcqThread) ( void );
    void (* StopAcqThread)  ( void );
    bool (* Configure) ( uint threadPrio, uint pllType );
+   void (* ResetChip) ( DWORD m_BusNumber, DWORD m_SlotNumber );
    void (* Close) ( struct TVCARD_struct * pTvCard );
    bool (* Open) ( struct TVCARD_struct * pTvCard, bool wdmStop );
 } TVCARD_CTL;
@@ -46,7 +47,7 @@ typedef struct
    const char * (* GetCardName) ( struct TVCARD_struct * pTvCard, uint CardId );
    uint         (* AutoDetectCardType) ( struct TVCARD_struct * pTvCard );
    uint         (* AutoDetectTuner) ( struct TVCARD_struct * pTvCard, uint CardId );
-   bool         (* GetIffType) ( struct TVCARD_struct * pTvCard, bool * pIsMono );
+   uint         (* GetIffType) ( struct TVCARD_struct * pTvCard, bool * pIsPinnacle, bool * pIsMono );
    uint         (* GetPllType) ( struct TVCARD_struct * pTvCard, uint cardId );
    void         (* GetI2cScanRange) ( struct TVCARD_struct * pTvCard, uint * pStart, uint * pStop );
    bool         (* SupportsAcpi) ( struct TVCARD_struct * pTvCard );

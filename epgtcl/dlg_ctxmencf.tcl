@@ -19,10 +19,14 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_ctxmencf.tcl,v 1.8 2004/06/19 19:07:22 tom Exp tom $
+#  $Id: dlg_ctxmencf.tcl,v 1.9 2004/11/01 15:46:55 tom Exp tom $
 #
 set ctxmencf_popup 0
-set ctxmencf {}
+set ctxmencf [list {pi_context.addfilt {} {}} \
+                   {menu_separator {} {}} \
+                   {pi_context.undofilt {} {}} \
+                   {menu_separator {} {}} \
+                   {pi_context.reminder_ext {} {}}]
 set ctxmencf_wintv_vcr 0
 
 
@@ -244,19 +248,19 @@ proc ContextMenuConfigPopup {} {
 proc ContextMenuGetExamples {} {
    global is_unix
 
-   set examples [list \
-      [list exec.unix "Set reminder in plan" \
-            {plan ${start:%d.%m.%Y %H:%M} ${title}\ \(${network}\)} \
-            "Plan reminder"] \
-      [list exec.unix "Set alarm timer" \
-            {xalarm -time ${start:%H:%M} -date ${start:%b %d %Y} ${title}\ \(${network}\)} \
-            "XAlarm timer"] \
-      [list exec.unix "Demo: echo all variables" \
-            {echo title=${title} network=${network} start=${start} stop=${stop} VPS/PDC=${VPS} duration=${duration} relstart=${relstart} CNI=${CNI} description=${description} themes=${themes} e_rating=${e_rating} p_rating=${p_rating} sound=${sound} format=${format} digital=${digital} encrypted=${encrypted} live=${live} repeat=${repeat} subtitle=${subtitle}} \
-            "All variables"] \
-   ]
+   set examples {}
+
    if $is_unix {
       lappend examples \
+         [list exec.unix "Set reminder in plan" \
+               {plan ${start:%d.%m.%Y %H:%M} ${title}\ \(${network}\)} \
+               "Plan reminder"] \
+         [list exec.unix "Set alarm timer" \
+               {xalarm -time ${start:%H:%M} -date ${start:%b %d %Y} ${title}\ \(${network}\)} \
+               "XAlarm timer"] \
+         [list exec.unix "Demo: echo all variables" \
+               {echo title=${title} network=${network} start=${start} stop=${stop} VPS/PDC=${VPS} duration=${duration} relstart=${relstart} CNI=${CNI} description=${description} themes=${themes} e_rating=${e_rating} p_rating=${p_rating} sound=${sound} format=${format} digital=${digital} encrypted=${encrypted} live=${live} repeat=${repeat} subtitle=${subtitle}} \
+               "All variables"] \
          [list tvapp.xawtv "Tune this channel" \
                {setstation ${network}} \
                "Change channel in connected TV app."]
@@ -265,7 +269,7 @@ proc ContextMenuGetExamples {} {
          [list tvapp.wintv "Record this show" \
                {record ${network} ${CNI} ${start} ${stop} ${VPS} ${title} ${themes:n}} \
                "Send 'record' command to TV app."] \
-         [list tvapp.wintv "Tune this channel" \
+         [list tvapp.wintv "Tune this TV channel" \
                {setstation ${network}} \
                "Change channel in connected TV app."]
    }

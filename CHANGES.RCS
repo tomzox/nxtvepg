@@ -17005,3 +17005,490 @@ www/provnets.html [rev:1.35, 2004-09-05T19:43:40]:
 www/tvsim-faq.html [rev:1.11, 2004-09-05T19:43:40]:
 - updated for 2.7.3
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_7_3 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+#-----------------------------------------------------------------------------
+# NOTE: versions on branches under dsdrv/ are copies of the respective file
+# as imported from DScaler. The branch is maintained so that deltas can be
+# tracked and merged from the DScaler branch to the nxtvepg main branch.
+#-----------------------------------------------------------------------------
+dsdrv/saa7134.c [rev:1.1.1.6, 2004-09-11T20:22:12]:
+-r1.43: fix: dma memory safety check
+dsdrv/saa7134.c [rev:1.1.2.4, 2004-09-11T20:27:59]:
+-r1.71 to r.1.91 of DScaler's SAA7134Source.cpp
+dsdrv/bt8x8_reg.h [rev:1.1.1.5, 2004-09-12T11:58:46]:
+-r1.29: added new card to enum: TVCARD_SWEETSPOT
+dsdrv/cx2388x_reg.h [rev:1.1.1.6, 2004-09-12T12:03:47]:
+-r1.24: split card PIXELVIEW_PLAYTV_ULTRA into 2 entries
+dsdrv/dsdrv.h [rev:1.1, 2004-09-12T13:32:02]:
+- branches:  1.1.1;
+- Initial revision
+www/download-de.html [rev:1.15, 2004-09-13T19:53:10]:
+- fixed for 2.7.3: there's only a diff this time, no nxtvepg-2.7.3.tar.gz
+www/download.html [rev:1.15, 2004-09-13T19:53:10]:
+- fixed for 2.7.3: there's only a diff this time, no nxtvepg-2.7.3.tar.gz
+www/provnets.html [rev:1.36, 2004-09-13T19:53:14]:
+- VT4: corrected preview span from 3 to 2-3; removed red&bold tags
+www/provnets.html [rev:1.37, 2004-09-22T20:07:47]:
+- Added Belgium to country list of TV5 and M6
+README [rev:1.40, 2004-09-22T20:10:32]:
+- Added M6 and TV5 to list of EPG providers for Belgium
+nxtvepg.pod [rev:1.115, 2004-09-22T20:10:32]:
+- Added M6 and TV5 to list of EPG providers for Belgium
+nxtvepg.spec [rev:1.20, 2004-09-22T20:10:32]:
+- Added M6 and TV5 to list of EPG providers for Belgium
+www/pre-releases.html [rev:1.49, 2004-09-23T20:16:12]:
+- Released 2.7.4pre0
+epgctl/epgversion.h [rev:1.59, 2004-09-25T16:03:23]:
+- set version to 2.7.4pre0
+CHANGES [rev:1.44, 2004-09-25T16:04:25]:
+- updated for release 2.7.4pre0
+epgtcl/mainwin.tcl [rev:1.242, 2004-09-25T16:22:33]:
+- Added possibility to store "expire time" filter setting in shortcuts
+- added "expire time" filter to "pi_attr_labels" array
+    (used for configuring filter masks in shortcuts edit dialog)
+epgtcl/dlg_filter.tcl [rev:1.14, 2004-09-25T16:23:10]:
+- Added possibility to store "expire time" filter setting in shortcuts
+- added new proc PiExpTime_ExternalChange: called when piexpire filter is
+    enabled via shortcuts; calls for disable is still TODO
+epgtcl/dlg_shortcuts.tcl [rev:1.16, 2004-09-25T16:23:22]:
+- Added possibility to store "expire time" filter setting in shortcuts
+- added piexpire to filter mask menu
+epgtcl/rcfile.tcl [rev:1.22, 2004-09-25T16:23:30]:
+- Added possibility to store "expire time" filter setting in shortcuts
+- raised compatibility from 2.7.1pre2 to 2.7.4pre0
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_7_4_PRE0 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+epgtcl/shortcuts.tcl [rev:1.17, 2004-09-25T16:23:49]:
+- Added possibility to store "expire time" filter setting in shortcuts
+- added handling for new keyword "piexpire" to all shortcut finctions
+- added callback to proc PiExpTime_ExternalChange upon changes
+epgctl/epgacqctl.c [rev:1.86, 2004-09-25T18:32:50]:
+- Bugfix EPG teletext page number handling
+- delay storing page number in db until AI is received
+- note: providers which transmit on the default page 1DF may not have a MIP
+    so when we listen to the wrong page it's never corrected (in the past not
+    even by the EPG scan, so the db had to be removed by the user)
+- bug reported for Switzerland in forum 2004-Sep-05 ("reception fails...")
+- Also: trivial change in EpgAcqCtl_CheckVarianceStable(): added param check
+epgctl/epgscan.c [rev:1.37, 2004-09-25T18:32:59]:
+- Bugfix EPG teletext page number handling
+- save the teletext page number from where AI was received in the database
+    to correct a possibly wrong number stored there
+epgdb/epgnetio.h [rev:1.27, 2004-09-25T18:38:33]:
+- Set PROTOCOL_COMPAT from 2.7.0pre7 to 2.7.4pre0
+- (due to addition of EPG page# and AI appID to EPG_STREAM_STATS in acq stats)
+epgdb/epgstream.c [rev:1.30, 2004-09-25T18:42:36]:
+- added epgPageNo and epgAppId to struct EPG_STREAM_STATS
+    related to bugfix of EPG teletext page number handling in epgacqctl.c
+- minor fix in stream decoder: don't override blockpointer with offset
+    behind end of first block (i.e. when continued from last packet)
+epgdb/epgstream.h [rev:1.17, 2004-09-25T18:42:41]:
+- Added epgPageNo and epgAppId to struct EPG_STREAM_STATS
+epgvbi/cni_tables.c [rev:1.25, 2004-09-25T18:50:15]:
+- Bugfix CniSearchNiPdcTable(), affecting LTO calculation:
+- CNI must not be VPS->PDC converted for comparison with P8/30/1 CNI value
+    in cni_pdc_desc_table
+- provider "VT4" was not found because it's P8/30/1 CNI 0x0404 was converted
+    into 0x2404 (erroneously assuming Switzerland VPS country code 4 and
+    converting it into PDC country code 0x24)
+- reported in forum 2004-Sep-10 by Neo
+epgui/statswin.c [rev:1.68, 2004-09-25T18:52:03]:
+- Added EPG page# and BI appID to acq. stats popup
+- related to bugfix of EPG teletext page number handling in epgacqctl.c
+- added epgPageNo and epgAppId to struct EPG_STREAM_STATS
+www/pre-releases.html [rev:1.50, 2004-09-26T14:56:28]:
+- Work-around for error in last windows release: had wrong dsdrv4 driver version
+- replaced ZIP file new new one named nxtvepg-2.7.4pre0a-win.zip
+- added package with drivers: dsdrv4_03.zip
+epgui/piremind.c [rev:1.16, 2004-09-26T16:12:07]:
+- Bugfix context menu creation for WIN32:
+- check if reminder_group sub-menu already exists before creating it
+- bug reported in forum 2004-Sep-25 for 2.7.4pre0
+epgctl/epgversion.h [rev:1.60, 2004-10-03T19:13:41]:
+- set version to 2.7.4pre1
+CHANGES [rev:1.45, 2004-11-01T19:30:51 | LATE CHECKIN]:
+- updated for release 2.7.4pre1
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_7_4_PRE1 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+dsdrv/bt8x8_reg.h [rev:1.1.1.6, 2004-10-16T12:20:51]:
+-r1.30: Added new card "Hercules Smart TV Stereo"
+dsdrv/cx2388x_reg.h [rev:1.1.1.7, 2004-10-16T12:42:30]:
+-r1.25: Added Card AverTV303 (enum CX2388xCARD_AVERTV_303)
+dsdrv/saa7134_typ.c [rev:1.1.1.12, 2004-10-16T13:02:14]:
+-r1.49: Added new card V-Gear MyTV2 Radio
+-r1.48: added new card "Genius Video Wonder PRO III"
+-r1.47: added new card "Dazzle My TV"
+dsdrv/saa7134_typ.c [rev:1.18, 2004-10-16T13:02:28]:
+- DScaler CVS import:
+-r1.49: Added new card V-Gear MyTV2 Radio
+-r1.48: added new card "Genius Video Wonder PRO III"
+-r1.47: added new card "Dazzle My TV"
+dsdrv/bt8x8_reg.h [rev:1.16, 2004-10-16T13:03:29]:
+- DScaler CVS import: updated version tag only
+dsdrv/bt8x8_typ.c [rev:1.1.1.7, 2004-10-16T13:05:59]:
+-r1.43: Preparing support for "Hercules Smart TV Stereo" card
+-r1.42: Added Sweetspot as new card type
+dsdrv/bt8x8_typ.c [rev:1.14, 2004-10-16T13:06:33]:
+- DScaler CVS import:
+-r1.43: Preparing support for "Hercules Smart TV Stereo" card
+-r1.42: Added Sweetspot as new card type
+dsdrv/cx2388x_reg.h [rev:1.8, 2004-10-16T13:07:21]:
+- DScaler CVS import: updated version tag only
+dsdrv/saa7134_reg.h [rev:1.6, 2004-10-16T13:08:48]:
+- DScaler CVS import: updated version tag only
+dsdrv/wintuner.h [rev:1.1.1.1, 2004-10-16T13:16:06]:
+- DScaler CVS import: TunerID.h v1.5
+dsdrv/wintuner.h [rev:1.1.2.1, 2004-10-16T13:18:23]:
+- DScaler CVS import: TVFormats.h v1.8
+dsdrv/wintuner.c [rev:1.1.1.1, 2004-10-16T13:36:01]:
+- DScaler CVS import: GenericTuner.cpp v1.13
+dsdrv/wintuner.c [rev:1.1.2.1, 2004-10-16T13:38:41]:
+- DScaler CVS import: TunerID.cpp v1.3
+dsdrv/wintuner.c [rev:1.1.3.1, 2004-10-16T13:45:17]:
+- DScaler CVS import: MT2032.cpp v1.13
+dsdrv/wintuner.c [rev:1.1.4.1, 2004-10-16T13:46:31]:
+- DScaler CVS import: MT2050.cpp v1.5
+dsdrv/wintuner.c [rev:1.1.5.1, 2004-10-16T13:55:27]:
+- DScaler CVS import: TDA9887.cpp v1.3
+dsdrv/wintuner.h [rev:1.1.3.1, 2004-10-16T14:30:36]:
+- DScaler CVS import: TDA9887.h v1.8
+dsdrv/wintuner.c [rev:1.1.2.2, 2004-10-16T15:30:20]:
+-r1.4: Added Philips 4in1 tuner (from v4l2)
+dsdrv/wintuner.c [rev:1.1.5.2, 2004-10-16T15:33:45]:
+-r1.9: Added Card AverTV303, Thanks to Zbigniew Pluta
+-r1.8: Renamed variable name from Pal_L to Secam_L (Sorry)
+-r1.7: Added audio support for Ati Tv Wonder Pro
+-r1.6: Created an new struct TControlSettings for better handling
+         more cards and deleted class CTDA9887MsiMaster. Thanks to atnak.
+-r1.5: Added settings in CTDA9887MsiMaster for Pal(I) from John
+-r1.4: Added an new class for Msi Master Card
+dsdrv/wintuner.c [rev:1.1.1.2, 2004-10-16T15:58:58]:
+-r1.16: Added Philips 4in1 tuner (from v4l2)
+-r1.15: Added some fixes for Philips MK3 tuner & TDA9887
+-r1.14: Generic tuner radio patch from Sven Grothklags
+epgui/dumptext.c [rev:1.10, 2004-10-31T16:47:42]:
+- Cosmetic fix in debug output
+epgui/dumpxml.c [rev:1.10, 2004-10-31T17:01:13]:
+- changed format of <desc> attribute both for DTD 5 and 6:
+    + removed "\n" at start and end of text (both 5 and 6)
+    + DTD 6: separate texts from different providers with </desc><desc>
+    (requested 2004-10-26 in SF forum by adamsky)
+- avoid global variable: use small struct to pass both file pointer and
+    DTD version to callback
+epgui/epgmain.c [rev:1.139, 2004-10-31T17:18:33]:
+- Install callback for Tcl/Tk library to catch "panic" and avoid abort
+- the handler will exit too, but shut down the TV card driver first
+- found after SF forum post 2004-09-30: problem with WIN32 fullscreen
+epgtcl/dlg_ctxmencf.tcl [rev:1.9, 2004-11-01T15:46:55]:
+- Post-fix configuration change (last check-in)
+- default config (i.e. with missing rc file) was empty -> no menu entries
+- removed UNIX examples (plan, xalarm, echo) on WIN32
+epgtcl/dlg_prov.tcl [rev:1.12, 2004-11-01T15:50:47]:
+- EPG scan dialog:
+- include buttons to open card and TV app config on UNIX too
+epgui/xawtv.c [rev:1.44, 2004-11-01T16:03:04]:
+- Added new alias for XdTV (former xawdecode) in Xawtv_QueryClass()
+- requested by Pingus via SF.net forum 2004-10-02
+epgui/wintvcfg.c [rev:1.20, 2004-11-01T16:03:14]:
+- Added new alias for XdTV (former xawdecode) in tvAppList
+- requested by Pingus via SF.net forum 2004-10-02
+epgui/uictrl.c [rev:1.44, 2004-11-01T16:58:55]:
+- Made string passing from C to Tcl/Tk more robust:
+- even "transparent" strings (network names, service names) in Nextview db
+    may contain any chars due to decoding errors, e.g. {[]} or non-ASCII chars
+- use DString to convert to UTF and escape special chars
+-> adapted UiControl_AiStateChange()
+epgui/menucmd.c [rev:1.117, 2004-11-01T17:08:03]:
+- Made string passing from C to Tcl/Tk more robust:
+- even "transparent" strings (network names, service names) in Nextview db
+    may contain any chars due to decoding errors, e.g. {[]} or non-ASCII chars
+- use DString to convert to UTF and escape special chars
+epgui/statswin.c [rev:1.69, 2004-11-01T17:11:50]:
+- branches:  1.69.1;
+- Made string passing from C to Tcl/Tk more robust:
+- even "transparent" strings (network names, service names) in Nextview db
+    may contain any chars due to decoding errors, e.g. {[]} or non-ASCII chars
+- use DString to convert to UTF and escape special chars
+epgui/timescale.c [rev:1.12, 2004-11-01T17:11:50]:
+- Made string passing from C to Tcl/Tk more robust:
+- even "transparent" strings (network names, service names) in Nextview db
+    may contain any chars due to decoding errors, e.g. {[]} or non-ASCII chars
+- use DString to convert to UTF and escape special chars
+epgctl/epgversion.h [rev:1.61, 2004-11-01T19:29:49]:
+- set version to 2.7.4pre2
+CHANGES [rev:1.46, 2004-11-01T19:32:39]:
+- updated for release 2.7.4pre2
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_7_4_PRE2 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+www/faq.html [rev:1.11, 2004-11-20T20:28:04]:
+- Added new Q: How do I catch EPG providers which aren't found by the scan?
+epgtcl/mainwin.tcl [rev:1.243, 2004-12-12T14:47:33]:
+- Made text foreground colors configurable
+- LoadWidgetOptions: load "fg" colors from X defaults; save to config vars
+    and set as userDefault for Listbox, Entry and Text
+- AssignPiTextTags: apply cursor fg col to pibox text tags
+epgtcl/dlg_dump.tcl [rev:1.8, 2004-12-12T14:48:04]:
+- Apply $text_fg to message widget (in addition to $text_bg)
+epgtcl/dlg_prov.tcl [rev:1.13, 2004-12-12T14:48:18]:
+- Apply $text_fg to checkbox widget inside text (in addition to $text_bg)
+epgtcl/dlg_shortcuts.tcl [rev:1.17, 2004-12-12T14:48:25]:
+- Apply $text_fg to HTree widget (in addition to $text_bg)
+epgtcl/dlg_udefcols.tcl [rev:1.16, 2004-12-12T14:48:34]:
+- Added new display option: foreground text color of entire column
+- new color prefix "cg" (in addition to fg, bg, ag)
+epgtcl/htree.tcl [rev:1.10, 2004-12-12T14:48:41]:
+- Implemented new config option -foreground
+- previously text color was "black" only
+epgui/pilistbox.c [rev:1.95, 2004-12-12T14:49:15]:
+- Made cursor foreground color configurable via X11 options
+epgui/pinetbox.c [rev:1.41, 2004-12-12T14:49:15]:
+- Made cursor foreground color configurable via X11 options
+epgui/pioutput.c [rev:1.54, 2004-12-12T14:49:38]:
+- Evaluate new attribute "column text color" in user-defined columns
+- format prefix "cg_"; handled equivalently to "bg_"
+epgui/xawtv.c [rev:1.45, 2004-12-12T14:49:50]:
+- branches:  1.45.1;
+- Single dprintf() call in Xawtv_SendCmd() modified
+tvsim/tvsim_gui.tcl [rev:1.12, 2004-12-12T14:52:43]:
+- Supress theme display on UNIX (not supported by protocol)
+tvsim/tvsim_main.c [rev:1.27, 2004-12-12T14:53:06]:
+- use different type of X11 event handlers: now picks up X atom prop. changes
+- QueryRemoteCommand: install X11 error handler
+tvsim/tvsim_version.h [rev:1.6, 2004-12-12T14:54:01]:
+- Changed version from 2.0 to 2.1
+- due to vbirec extension: sending of OSD info and TV commands
+tvsim/vbirec_gui.tcl [rev:1.10, 2004-12-12T15:39:08]:
+- Added new OSD elements to allow testing interaction with TV apps
+- added possibility to send EPG OSD info (title and date/time only)
+- added possibility to send TV command
+- based on combobox widget to keep history of sent titles and commands
+tvsim/vbirec_main.c [rev:1.21, 2004-12-12T15:39:19]:
+- Added new OSD elements to allow testing interaction with TV apps
+- added new callback function TclCb_SendEpgOsd
+- WIN32: added new callback TclCb_SendTvCmd (UNIX uses xawtv.c)
+- include combobox widget (for OSD title history)
+tvsim/vbirec.pod [rev:1.10, 2004-12-12T15:56:40]:
+- Documented new features: sending TV commands & OSD info
+epgtcl/mainwin.tcl [rev:1.244, 2004-12-12T17:22:40]:
+- branches:  1.244.1;
+- Post-fix column fg col cfg: removed -foreground from "frame" widget options
+epgtcl/dlg_udefcols.tcl [rev:1.17, 2004-12-12T17:26:40]:
+- Post-fix column foreground color configuration
+- offer black and white colors both in fg and bg color menus
+- switched default colors for column fg col: was "light" shades as for bg
+epgctl/epgversion.h [rev:1.62, 2004-12-12T17:46:32]:
+- set version to 2.7.4pre3
+CHANGES [rev:1.47, 2004-12-12T18:07:35]:
+- updated for release 2.7.4pre3
+TODO [rev:1.35, 2004-12-12T18:07:35]:
+- updated for release 2.7.4pre3
+www/index-de.html [rev:1.74, 2004-12-12T18:22:12]:
+- Removed tag "new" and coloring from 2.7.3 release note
+- since this is hardly a "new" release anymore (3 months old)
+www/index-fr.html [rev:1.8, 2004-12-12T18:22:12]:
+- Removed tag "new" and coloring from 2.7.3 release note
+- since this is hardly a "new" release anymore (3 months old)
+www/index.html [rev:1.86, 2004-12-12T18:22:12]:
+- Removed tag "new" and coloring from 2.7.3 release note
+- since this is hardly a "new" release anymore (3 months old)
+www/pre-releases.html [rev:1.51, 2004-12-15T20:09:39]:
+- Updated for 2.7.4pre1...pre3
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_7_4_PRE3 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+Makefile [rev:1.77, 2004-12-18T14:49:26]:
+- branches:  1.77.1;
+- added "combobox" to object list for vbirec:
+    (used for history in new TV command and EPG info text entry fields)
+- extended clean-up commands in manual page rules
+Makefile.win32 [rev:1.51, 2004-12-18T14:51:21]:
+- branches:  1.51.1;
+- Added "combobox" to object list for vbirec
+- (used for history in new TV command and EPG info text entry fields)
+Nxtvepg.ad [rev:1.5, 2004-12-18T14:54:27]:
+- added defaults fore new foregrund text color configuration
+- added alternative default for "inverse" color scheme
+nxtvepg.pod [rev:1.116, 2004-12-18T14:56:43]:
+- Updated chapter on "attribute composition" config dialog
+- included description of "overall column text foreground color" format
+epgctl/epgacqctl.c [rev:1.87, 2004-12-24T10:15:56]:
+- Reduced frequency at which warning messages ae displayed
+- don't reset haveWarnedInpSrc upon every acq param update
+- don't warn about passive due to external input if db has no frequency
+epgctl/epgscan.c [rev:1.38, 2004-12-24T10:16:04]:
+- Bugfix: tuner device was not closed after error during start of scan
+- occurred when input device was not a tuner
+    (in consequence the "is tuner" detection in epg acq restart failed)
+epgui/menucmd.c [rev:1.118, 2004-12-24T10:17:23]:
+- Prevent user from opening EPG scan for external video input sources
+- added new Tcl interface function C_IsAcqExternal (only works during acq)
+- also improved EPG scan error message for external devices
+    (old message was confusing; email borg_no.one@gmx.net 2004-12-19)
+epgui/uictrl.c [rev:1.45, 2004-12-24T10:19:21]:
+- Improved help messages for empty database and external input source
+- added explanation what tuning "manually" means
+    (old message was confusing; email borg_no.one@gmx.net 2004-12-19)
+- also added more debug messages via dprintf()
+epgtcl/dlg_prov.tcl [rev:1.14, 2004-12-24T10:20:59]:
+- Prevent user from opening EPG scan for external video input sources
+- based on new C proc C_IsAcqExternal
+epgdb/epgblock.c [rev:1.52, 2004-12-24T10:37:33]:
+- Bugfix daylight saving change handling:
+- PI stop time may be in different time zone than start
+-> call localtime() once each for start and stop to query "isdst"
+epgdb/epgdbfil.c [rev:1.48, 2004-12-24T11:00:29]:
+- Temporary work-around / bugfix for text search:
+- lower-case conversion buffer for short-info was too short so that only first
+    255 chars were searched but for merged databases messages could be longer
+- increased length of buffer from 255+4 to 3*(256+2048+4)
+- XXX FIXME: buffer should be allocated dynamically
+epgvbi/btdrv4linux.c [rev:1.61, 2004-12-24T11:05:11]:
+- branches:  1.61.1;
+- Improvd debug output for tuner device open/close
+dsdrv/dsdrv.h [rev:1.1.1.1, 2004-12-24T11:38:23]:
+- Initial check-in of original DScaler header (dsdrv version 4.03)
+- taken from DScaler CVS: DScaler/Api/DSDrv.H
+dsdrv/cx2388x.c [rev:1.1.1.5, 2004-12-26T21:09:40]:
+- Upgrade from DScaler version 1.56 to 1.66
+-r1.66: Added Card AverTV303, Thanks to Zbigniew Pluta
+-r1.65: Added audio support for Ati Tv Wonder Pro
+-r1.64: improved cx2388x driver coverage when disabling drivers
+-r1.63: Created new struct TControlSettings for better handling more cards...
+-r1.62: New TAudioRegList structure to hold audio register settings...
+-r1.61: Bugfix: Moved StartStopConexantDriver code from CX2388xCard to
+          CCX2388xSource that the driver is stoped before InitTuner is called;
+          More Loging when not able to Stop the WDM-Driver when other SW uses
+          the card Hardware.
+-r1.60: Added an new class for Msi Master Card
+-r1.59: Fix for previous fix (must learn to program...)
+-r1.58: Fix failing to find tda9887 at alternate addresses
+-r1.57: Fixes for eeprom corruption
+dsdrv/cx2388x_typ.c [rev:1.1.1.7, 2004-12-26T21:10:43]:
+- Upgrade from DScaler version 1.22 to 1.30
+-r1.30: Added Card AverTV303, Thanks to Zbigniew Pluta
+-r1.29: New entry for PixelView PlayTV Ultra + on chip audio
+-r1.28: Added audio support for Ati Tv Wonder Pro
+-r1.27: WinTV - cleaned tuner detection; ATI TV Wonder Pro - corrected GPIOs
+-r1.26: Changed write order GPIO's for Leadtek Expert card
+-r1.25: Added Patch for INPUTTYPE_COMPOSITE in card "Prolink PlayTV HD"
+-r1.24: Fix to reset GPIO Mode to Normal Mode
+-r1.23: added GPIO Settings for Leadtek WinFast TV2000 XP Expert + misc
+dsdrv/hwdrv.c [rev:1.1.1.5, 2004-12-26T21:11:28]:
+- Upgrade from DScaler version 1.19 to 1.22
+-r1.22: Updated files for better doxygen compatability
+-r1.21: Improved code to adjust access rights
+-r1.20: Added comment
+dsdrv/hwpci.c [rev:1.1.1.2, 2004-12-26T21:14:35]:
+- Upgrade from DScaler version 1.14 to 1.17
+-r1.17: Fixes for eeprom corruption
+-r1.16: Added new offset functions for manipulating PCI config space
+-r1.15: Updated files for better doxygen compatability
+dsdrv/bt8x8.c [rev:1.12, 2004-12-26T21:46:45]:
+- DScaler CVS import: Added new configure API function: Bt8x8_ResetChip()
+- called by hwpci.c during PCI card open
+dsdrv/saa7134.c [rev:1.22, 2004-12-26T21:46:45]:
+- DScaler CVS import: Added new configure API function: Bt8x8_ResetChip()
+- called by hwpci.c during PCI card open
+dsdrv/bt8x8_typ.c [rev:1.15, 2004-12-26T21:46:58]:
+- Extended GetIffType(): allow to return card-specific TDA9887 type
+dsdrv/saa7134_typ.c [rev:1.19, 2004-12-26T21:46:58]:
+- Extended GetIffType(): allow to return card-specific TDA9887 type
+dsdrv/cx2388x.c [rev:1.17, 2004-12-26T21:47:08]:
+- DScaler CVS import: versions 1.56 to 1.66
+- improved WDM driver start/stop; moved to earlier position during startup
+- updated Cx2388x_ResetChip(): now called by hwpci.c during card open
+- added Cx2388x_ResetChip() to configure API: called by hwpci.c as callback
+dsdrv/cx2388x_typ.c [rev:1.14, 2004-12-26T21:47:20]:
+- DScaler CVS import:
+- added new cards (AverTV303, PixelView); other entries updated
+    renamed PIXELVIEW_PLAYTV_ULTRA into ..._TUNERSOUND
+- Hauppauge WinTV: cleaned tuner detection via EEPROM
+- extended GetIffType() for wintuner.c: return card-specific TDA9887 type
+dsdrv/dsdrv.h [rev:1.2, 2004-12-26T21:48:02]:
+- DScaler CVS import: Upgrade to dsdrv version 4.03
+dsdrv/wintuner.c [rev:1.23, 2004-12-26T21:48:15]:
+- DScaler CVS import: update of TDA9887 handling
+- from TDA9887.cpp versions 1.4 - 1.9:
+    + added support for CX2388x card dependent TDA9887 variants
+    + uses extended GetIffType() card API: returns card-specific TDA9887 type;
+- added new tuner "Philips 4in1"
+dsdrv/wintuner.h [rev:1.9, 2004-12-26T21:48:15]:
+- DScaler CVS import: update of TDA9887 handling
+- from TDA9887.cpp versions 1.4 - 1.9:
+    + added support for CX2388x card dependent TDA9887 variants
+    + uses extended GetIffType() card API: returns card-specific TDA9887 type;
+- added new tuner "Philips 4in1"
+dsdrv/hwdrv.c [rev:1.14, 2004-12-26T21:48:34]:
+- DScaler CVS import: updated ACPI handling
+-r1.21: improved code to adjust driver access rights
+dsdrv/hwpci.c [rev:1.8, 2004-12-26T21:48:42]:
+- DScaler CVS import: updated ACPI handling
+- added new function HwPci_GetPCIConfigOffset, ...SetPCIConfigOffset
+- HwPci_OpenPCICard(): added new param: HWPCI_RESET_CHIP_CB pResetCb
+- use ResetChip() callback during open/close for ACPI
+    (note: before reset was done in bt8x8.c et.al., but this was too late)
+dsdrv/hwpci.h [rev:1.6, 2004-12-26T21:48:44]:
+- HwPci_OpenPCICard(): added new param: HWPCI_RESET_CHIP_CB pResetCb
+dsdrv/tvcard.h [rev:1.7, 2004-12-26T21:48:50]:
+- extended GetIffType(): allow to return card-specific TDA9887 type
+- added ResetChip() to card configure API: used as callback by hwpci.c
+dsdrv/dsdrv34.c [rev:1.10, 2004-12-26T21:51:14]:
+- Added new param "pResetCb" to pciGetHardwareResources()
+- passed through to HwPci_OpenPCICard()
+dsdrv/dsdrvlib.h [rev:1.10, 2004-12-26T21:51:14]:
+- Added new param "pResetCb" to pciGetHardwareResources()
+- passed through to HwPci_OpenPCICard()
+dsdrv/hwdrv.c [rev:1.15, 2004-12-26T21:55:20]:
+- Fixed compiler warning
+epgui/wmhooks.c [rev:1.4, 2004-12-27T13:47:33]:
+- Fixed compiler warning in unused WIN32 function
+epgvbi/btdrv4win.c [rev:1.50, 2004-12-27T14:10:04]:
+- branches:  1.50.1;
+- BtDriver_OpenCard(): adapted for new ACPI handling
+- pass function pointer cardif.ctl->ResetChip to hwpci.c
+- invoked as callback if necessary
+epgctl/debug.h [rev:1.18, 2004-12-27T14:17:08]:
+- Changed eval_check macros in non-debug branch:
+- replaced Tcl_Eval() with Tcl_EvalEx()
+- now same function used as in macros with debug support
+epgctl/epgversion.h [rev:1.63, 2004-12-27T14:17:53]:
+- set version to 2.7.4
+CHANGES [rev:1.48, 2004-12-28T19:09:36 | LATE CHECKIN | EDITED POST-RELEASE]:
+- updated for release 2.7.4
+TODO [rev:1.36, 2004-12-28T19:09:51 | LATE CHECKIN]:
+- updated for release 2.7.4
+nxtvepg.pod [rev:1.117, 2004-12-28T19:10:02 | LATE CHECKIN]:
+- Added note to EPG scan that it doesn't work for external sources
+www/WDMpre-releases.html [rev:1.8, 2004-12-28T19:22:27]:
+- Updated news section for release 2.7.4
+www/changelog-2.6.0pre.html [rev:1.9, 2004-12-28T19:22:27]:
+- Updated news section for release 2.7.4
+www/faq.html [rev:1.12, 2004-12-28T19:22:27]:
+- Updated news section for release 2.7.4
+www/help-wanted.html [rev:1.13, 2004-12-28T19:22:27]:
+- Updated news section for release 2.7.4
+www/intro-de.html [rev:1.10, 2004-12-28T19:22:27]:
+- Updated news section for release 2.7.4
+www/intro.html [rev:1.10, 2004-12-28T19:22:27]:
+- Updated news section for release 2.7.4
+www/links.html [rev:1.12, 2004-12-28T19:22:27]:
+- Updated news section for release 2.7.4
+www/provnets.html [rev:1.38, 2004-12-28T19:22:27]:
+- Updated news section for release 2.7.4
+www/tvsim-faq.html [rev:1.12, 2004-12-28T19:22:27]:
+- Updated news section for release 2.7.4
+www/pre-releases.html [rev:1.52, 2004-12-28T19:28:05]:
+- Updated for release 2.7.4:
+- moved changelog of pre-releases into changelog-2.7.0pre.html
+www/changelog-2.7.0pre.html [rev:1.5, 2004-12-28T19:28:14]:
+- Updated for release 2.7.4:
+- moved changelog of pre-releases here from pre-releases.html
+www/changelog.html [rev:1.59, 2004-12-28T19:29:38]:
+- Updated for release 2.7.4
+www/download-de.html [rev:1.16, 2004-12-28T19:29:38]:
+- Updated for release 2.7.4
+www/download.html [rev:1.16, 2004-12-28T19:29:38]:
+- Updated for release 2.7.4
+www/index-de.html [rev:1.75, 2004-12-28T19:29:38]:
+- Updated for release 2.7.4
+www/index-fr.html [rev:1.9, 2004-12-28T19:29:38]:
+- Updated for release 2.7.4
+www/index.html [rev:1.87, 2004-12-28T19:29:38]:
+- Updated for release 2.7.4
+www/man.html [rev:1.37, 2004-12-28T19:30:07]:
+- Updated for release 2.7.4
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_7_4 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

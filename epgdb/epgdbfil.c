@@ -23,7 +23,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbfil.c,v 1.47 2003/09/23 19:36:32 tom Exp tom $
+ *  $Id: epgdbfil.c,v 1.48 2004/12/24 11:00:29 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -1033,7 +1033,7 @@ static bool EpgDbFilter_MatchSubstr( const EPGDB_FILT_SUBSTR *ssc, const uchar *
                                      const uchar * pShortStr,      const uchar * pLongStr )
 {
    uchar long_info[2048+20];
-   uchar short_info[255+4];
+   uchar short_info[3*(256+2048+4)]; // XXX FIXME merged db description can be much longer
    uchar title[255+4];
    bool title_lower;
    bool short_lower;

@@ -19,7 +19,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_shortcuts.tcl,v 1.15 2004/03/11 21:43:57 tom Exp tom $
+#  $Id: dlg_shortcuts.tcl,v 1.17 2004/12/12 14:48:25 tom Exp tom $
 #
 # import constants from other modules
 #=INCLUDE=  "epgtcl/shortcuts.h"
@@ -130,7 +130,7 @@ proc UpdateFilterShortcutByContext {sc_tag} {
 ##
 proc UpdateFilterShortcut {} {
    global shortcuts shortcut_tree fsc_prevselection
-   global text_bg sctree_font sctree_selfg sctree_selbg
+   global text_fg text_bg sctree_font sctree_selfg sctree_selbg
    global fscupd_popup fscupd_tree
    global fscedit_popup fscedit_tree fscedit_sclist
 
@@ -149,7 +149,8 @@ proc UpdateFilterShortcut {} {
       set fscupd_popup 1
 
       message .fscupd.msg -text "Please select which shortcut shall be updated with the current filter setting:" \
-                          -aspect 520 -borderwidth 2 -relief ridge -background $text_bg -pady 5 -anchor w
+                          -aspect 520 -borderwidth 2 -relief ridge \
+                          -foreground $text_fg -background $text_bg -pady 5 -anchor w
       pack .fscupd.msg -side top -fill x
 
       ## first column: listbox with all shortcut labels
@@ -159,9 +160,9 @@ proc UpdateFilterShortcut {} {
       Tree:create .fscupd.sc_list.lb -width 0 -maxheight 25 -minheight 12 -minwidth 5 \
                                      -font $sctree_font -selectbackground $sctree_selbg \
                                      -selectforeground $sctree_selfg -cursor top_left_arrow \
-                                     -background $text_bg -relief ridge -borderwidth 2 \
-                                     -yscrollcommand {.fscupd.sc_list.sb set} \
-                                     -selectmode browse
+                                     -foreground $text_fg -background $text_bg \
+                                     -relief ridge -borderwidth 2 -selectmode browse \
+                                     -yscrollcommand {.fscupd.sc_list.sb set}
       pack      .fscupd.sc_list.lb -side left -fill both -expand 1
       pack      .fscupd.sc_list -side left -pady 10 -padx 10 -fill both -expand 1
 
@@ -506,7 +507,7 @@ proc EditFilterShortcuts {{sc_tag -1}} {
 proc PopupFilterShortcuts {} {
    global fscedit_sclist fscedit_tree
    global fscedit_desc fscedit_mask fscedit_label fscedit_logic fscedit_tag
-   global font_normal text_bg sctree_font sctree_selfg sctree_selbg
+   global font_normal text_fg text_bg sctree_font sctree_selfg sctree_selbg
    global pi_attr_labels
    global fscedit_popup
 
@@ -527,9 +528,9 @@ proc PopupFilterShortcuts {} {
       Tree:create .fscedit.list -width 0 -maxheight 25 -minwidth 5 -cursor top_left_arrow \
                                 -font $sctree_font -selectbackground $sctree_selbg \
                                 -selectforeground $sctree_selfg \
-                                -background $text_bg -relief ridge -borderwidth 2 \
-                                -yscrollcommand {.fscedit.list_sb set} \
-                               -selectmode browse
+                                -foreground $text_fg -background $text_bg \
+                                -relief ridge -borderwidth 2 -selectmode browse \
+                                -yscrollcommand {.fscedit.list_sb set}
       bind .fscedit.list <Enter> {focus %W}
       bind .fscedit.list <<TreeSelect>> {+ SelectEditedShortcut}
       bind .fscedit.list <<TreeOpenClose>> {ShortcutTree_OpenCloseEvent .fscedit.list fscedit_sclist $fscedit_tree}
@@ -612,7 +613,7 @@ proc PopupFilterShortcuts {} {
 
       # fill filter mask menu
       foreach filt {features parental editorial progidx timsel dursel themes series \
-                    sortcrits netwops substr vps_pdc invert_all} {
+                    sortcrits netwops substr vps_pdc piexpire invert_all} {
          .fscedit.flags.mb_mask.men add checkbutton -label $pi_attr_labels($filt) -variable fscedit_mask($filt)
       }
 

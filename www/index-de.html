@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="de">
-<!-- $Id: index-de.html,v 1.73 2004/09/05 19:43:40 tom Exp $ -->
+<!-- $Id: index-de.html,v 1.75 2004/12/28 19:29:38 tom Exp $ -->
 <HEAD>
 <TITLE>nexTView EPG Dekoder Software Download</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -29,15 +29,7 @@
 
 <H2 class="navhead">News</H2>
 <P>
-5.9.2004: <A HREF="changelog.html#release_2_7_3">Release 2.7.3</A>
-</P><P>
-30.8.2004: Release 2.7.2
-</P><P>
-17.7.2004: Release 2.7.1
-</P><P>
-2.4.2004: Release 2.7.0
-</P><P>
-März 2004: Neuer Anbieter <A HREF="provnets.html"><I>VT4</I> in Belgien</A>
+27.12.2004: <A HREF="changelog.html#release_2_7_4">Release 2.7.4</A>
 </P>
 
 <H2 class="navhead">Dokumentation</H2>
@@ -99,51 +91,40 @@ und Belgien, ohne Zugriff auf's Internet.  <A HREF="intro-de.html">Weiter...</A>
 <LI><A HREF="download-de.html">Software Download</A>
 <LI><A HREF="download-de.html#requirements">SystemAnforderungen</A>
 <P></P>
-<LI><A HREF="index.html#new_2_7_3">Neuer release 2.7.3</A>
+<LI><A HREF="index.html#new_2_7_4">Aktueller release 2.7.4</A>
 <LI><A HREF="index.html#feedback">Fragen und feedback</A>
 <LI><A HREF="index.html#help_wanted">Entwickler gesucht</A>
 <LI><A HREF="index.html#copyright">Copyright</A>
 </UL>
 
-<H2><A NAME="new_2_7_3"><SPAN class="green">Neuer release 2.7.3 (5.9.2004)</SPAN></A></H2>
+<H2><SPAN CLASS="red"><A NAME="new_2_7_4">Aktueller release 2.7.4 (27.12.2004)</A></SPAN></H2>
 <P>
-Die Releases 2.7.2 und 2.7.3 beheben Fehler im XMLTV export und bringen
-ein paar Neuerungen:
+Version 2.7.4 dient gleich den vorherigen drei releases hauptsächlich
+der Fehlerbereinigung und kleinen Erweiterungen. Die wichtigsten Änderungen
+sind:
 </P>
 <UL>
-<LI>Bugfixes im <A HREF="man.html#export_as_xmltv">XMLTV database export</A>
-<LI>TV-Applikation <A HREF="http://tvtime.sourceforge.net/">tvtime</A> unterstützt
-  nun auch <A HREF="links.html">Interaktion mit nxtvepg</A> (erst ab tvtime Version 0.9.13)
-<LI>Neue Option <A HREF="man.html#item__2dclock_mode">-clock</A> um die Systemzeit
-  aus dem Teletext auszulesen.
-</UL>
-<P>
-In der Vorgängerversion 2.7.1 waren folgende Änderungen enthalten:
-</P>
-<UL>
-<LI>Option <I>local time</I> im
-  <A HREF="man.html#export_as_xmltv">XML Database Export</A>
-  funktioniert jetzt korrek; außerdem wird die neue
-  <A HREF="http://membled.com/work/apps/xmltv/">Version 0.6 der XMLTV DTD</A>
-  jetzt unterstützt.
-<LI>Interaktion mit TV-Applikation
-  <A HREF="http://zapping.sourceforge.net/">Zapping</A>
-  (z.B. Einlesen der Kanaltabelle für den EPG scan)
-<LI>Verbesserung des Umgangs mit Wechsel zwischen Sommer- und Winterzeit
-  als auch EPG Providern die Programmdaten in örtlicher Lokalzeit senden
-  (z.B. <A HREF="provnets.html">TRT</A>)
-<LI>Erweiterung der Konfigurierbarkeit des
-  <A HREF="man.html#context_menu_configuration">Kontextmenüs</A>
-  in der Programmliste.
-<LI>Das Nextview Logo wird jetzt auch unter X11 in der Fenstertitelleiste
-  dargestellt.
-<LI>Bugs behoben in den
-  <A HREF="man.html#item__2ddaemonstop">-daemonstop</A> und
-  <A HREF="man.html#item__2dprovider_cni">-provider merged</A>
-  Kommandozeilenoptionen.
-<LI>Auf Windows stimmem nun die Wochentagsfarben in der Programmliste
-  mit denen in der
-  <A HREF="man.html#item_show_weekday_scale">Wochentagsskala</A> überein.
+<LI>Ein Fehler in der internen Verwaltung der Providerdaten wurde behoben der
+  zum Stillstand der Akquisition geführt hat wenn mehrere Provider
+  abwechselnd eingelesen wurden die Nextview EPG auf unterschiedlichen
+  Teletextseiten übertragen (Problem betraf hauptsächlich die Schweiz.)
+<LI>Ein Fehler in der Zeitzonenberechnung für den belgischen Provider "VT4"
+  und die Sommerzeitumstellung wurde behoben.
+<LI>Ein Fehler in der <A HREF="man.html#filtering">Textsuche</A> wurde behoben:
+  Der eingegebene Text wurde bei <A HREF="man.html#merged_databases">merged databases</A>
+  nur in den ersten 258 Zeichen des Beschreibungstextes gesucht wenn
+  Groß-/Kleinschreibung ignoriert werden sollte.
+<LI>Die Filtereinstellung für "expire time" kann nun in einem
+  <A HREF="man.html#editing_filter_shortcuts">filter shortcut</A>
+  gespeichert werden.
+<LI>Die Möglichkeiten Textfarben in der Programmliste zu konfigurieren
+  wurden erweitert.  Insbesondere kann nun Text als weiß auf schwarzem
+  Hintergrund konfiguriert werden (mittels
+  <A HREF="man.html#files">.Xresources bzw. Nxtvepg.ad</A>)
+<LI>Benutzerdefinierte Spalten bzw. Tabellenelemente
+  (<A HREF="man.html#composite_attributes">composite attributes</A>)
+  können nun auch die Textfarben (d.h. Vordergrundfarbe) der gesamten
+  Spalte ändern.
 </UL>
 <P>
 Zum Herunterladen in der <A HREF="download-de.html">Download Sektion</A>.

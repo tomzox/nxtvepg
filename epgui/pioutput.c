@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pioutput.c,v 1.53 2004/05/31 14:34:43 tom Exp tom $
+ *  $Id: pioutput.c,v 1.54 2004/12/12 14:49:38 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -626,6 +626,7 @@ void PiOutput_PiListboxInsert( const PI_BLOCK *pPiBlock, uint textrow )
    Tcl_Obj * pFmtObj, * pImageObj;
    Tcl_Obj * objv[10];
    Tcl_Obj * pLastFmtObj;
+   Tcl_Obj * pFgFmtObj;
    Tcl_Obj * pBgFmtObj;
    char      linebuf[15];
    char      imgCmdBuf[250];
@@ -661,6 +662,7 @@ void PiOutput_PiListboxInsert( const PI_BLOCK *pPiBlock, uint textrow )
    imgCmdBuf[0] = 0;
    isBoldFont = FALSE;
    piboxFont = piBoldFont = NULL;
+   pFgFmtObj = NULL;
    pBgFmtObj = NULL;
 
    // open the (proportional) fonts which are used to display the text
@@ -791,8 +793,14 @@ void PiOutput_PiListboxInsert( const PI_BLOCK *pPiBlock, uint textrow )
                  (Tcl_ListObjGetElements(interp, pFmtObj, &fmtCount, &pFmtObjv) == TCL_OK) &&
                  (fmtCount > 0) )
             {
-               if (strncmp(Tcl_GetString(pFmtObjv[fmtCount - 1]), "bg_", 3) == 0)
-               {  // background color for entire column: must be the last format element in list
+               if (strncmp(Tcl_GetString(pFmtObjv[fmtCount - 1]), "cg_", 3) == 0)
+               {  // foreground color for entire column: must be the last format element in list
+                  pFgFmtObj = pFmtObjv[fmtCount - 1];
+                  fmtCount -= 1;
+               }
+               if ( (fmtCount > 0) &&
+                    (strncmp(Tcl_GetString(pFmtObjv[fmtCount - 1]), "bg_", 3) == 0) )
+               {  // background color for entire column: may only be followed by column fg. col
                   pBgFmtObj = pFmtObjv[fmtCount - 1];
                   fmtCount -= 1;
                }
@@ -840,6 +848,12 @@ void PiOutput_PiListboxInsert( const PI_BLOCK *pPiBlock, uint textrow )
       {  // display the last image
          eval_global(interp, imgCmdBuf);
       }
+      if (pFgFmtObj != NULL)
+      {  // set foreground color for entire column, if present in any column
+         sprintf(imgCmdBuf, ".all.pi.list.text tag add {%s} %d.0 %d.0",
+                            Tcl_GetString(pFgFmtObj), textrow+1, textrow+2);
+         eval_global(interp, imgCmdBuf);
+      }
       if (pBgFmtObj != NULL)
       {  // set background color for entire column, if present in any column
          sprintf(imgCmdBuf, ".all.pi.list.text tag add {%s} %d.0 %d.0",
@@ -868,6 +882,7 @@ uint PiOutput_PiNetBoxInsert( const PI_BLOCK * pPiBlock, uint colIdx, sint textR
    Tcl_Obj * pFmtObj, * pImageObj;
    Tcl_Obj * objv[10];
    Tcl_Obj * pLastFmtObj;
+   Tcl_Obj * pFgFmtObj;
    Tcl_Obj * pBgFmtObj;
    char      linebuf[15];
    char      imgCmdBuf[250];
@@ -902,6 +917,7 @@ uint PiOutput_PiNetBoxInsert( const PI_BLOCK * pPiBlock, uint colIdx, sint textR
    bufHeight = 0;
    off = 0;
    pLastFmtObj = NULL;
+   pFgFmtObj = NULL;
    pBgFmtObj = NULL;
    imgCmdBuf[0] = 0;
    imgRow = 0;
@@ -1032,7 +1048,13 @@ uint PiOutput_PiNetBoxInsert( const PI_BLOCK * pPiBlock, uint colIdx, sint textR
                  (Tcl_ListObjGetElements(interp, pFmtObj, &fmtCount, &pFmtObjv) == TCL_OK) &&
                  (fmtCount > 0) )
             {
-               if (strncmp(Tcl_GetString(pFmtObjv[fmtCount - 1]), "bg_", 3) == 0)
+               if (strncmp(Tcl_GetString(pFmtObjv[fmtCount - 1]), "cg_", 3) == 0)
+               {  // foreground color for entire column: must be the last format element in list
+                  pFgFmtObj = pFmtObjv[fmtCount - 1];
+                  fmtCount -= 1;
+               }
+               if ( (fmtCount > 0) &&
+                    (strncmp(Tcl_GetString(pFmtObjv[fmtCount - 1]), "bg_", 3) == 0) )
                {  // background color for entire element: must be the last format element in list
                   pBgFmtObj = pFmtObjv[fmtCount - 1];
                   fmtCount -= 1;
@@ -1094,6 +1116,12 @@ uint PiOutput_PiNetBoxInsert( const PI_BLOCK * pPiBlock, uint colIdx, sint textR
    }
    while (bufHeight < 3);
 
+   if (pFgFmtObj != NULL)
+   {  // set foreground color for all lines except the gap
+      sprintf(imgCmdBuf, ".all.pi.list.nets.n_%d tag add {%s} %d.0 %d.0",
+                         colIdx, Tcl_GetString(pFgFmtObj), textRow + 1, textRow + bufHeight);
+      eval_global(interp, imgCmdBuf);
+   }
    if (pBgFmtObj != NULL)
    {  // set background color for all lines except the gap
       sprintf(imgCmdBuf, ".all.pi.list.nets.n_%d tag add {%s} %d.0 %d.0",

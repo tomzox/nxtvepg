@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgstream.c,v 1.29 2004/02/14 19:28:56 tom Exp tom $
+ *  $Id: epgstream.c,v 1.30 2004/09/25 18:42:36 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_STREAM
@@ -144,7 +144,7 @@ static void EpgStreamConvertBlock( const uchar *pBuffer, uint blockLen, uchar st
 
       if (enableAllTypes || (type <= EPGDBACQ_TYPE_AI))
       {
-         dprintf2("SCRATCH ADD type=%d (0x%lx)\n", pBlock->type, (ulong)pBlock);
+         dprintf2("BLOCK ADD type=%d (0x%lx)\n", pBlock->type, (ulong)pBlock);
          // Append the converted block to a queue
          // (the buffer is neccessary because more than one block end in one packet,
          // so we can not simply return a block address from the stream decoder)
@@ -152,7 +152,7 @@ static void EpgStreamConvertBlock( const uchar *pBuffer, uint blockLen, uchar st
       }
       else
       {
-         dprintf2("SCRATCH REJECT type=%d (0x%lx)\n", pBlock->type, (ulong)pBlock);
+         dprintf2("BLOCK REJECT type=%d (0x%lx)\n", pBlock->type, (ulong)pBlock);
          xfree(pBlock);
       }
    }
@@ -404,7 +404,7 @@ static void EpgStreamDecodePacket( uchar packNo, const uchar * dat )
          if (psd->haveBlock && (blockPtr > 1))
          {  // append data to a block
             dprintf2("pkg=%2d, BP= 1: append up to %d bytes\n", packNo, blockPtr - 1);
-            blockPtr = 1 + EpgStreamAddData(dat + 1, blockPtr - 1, FALSE);
+            EpgStreamAddData(dat + 1, blockPtr - 1, FALSE);
          }
          else if ((psd->haveBlock == FALSE) && (blockPtr == 40))
             dprintf1("pkg=%2d: BP=0xD -> no block start in this packet\n", packNo);
@@ -604,6 +604,8 @@ bool EpgStreamProcessPackets( void )
    if ( (pVbiBuf != NULL) &&
         (pVbiBuf->chanChangeReq == pVbiBuf->chanChangeCnf) )
    {
+      assert(pVbiBuf->epgPageNo == ttxState.epgPageNo);
+
       // fetch the oldest packet from the teletext ring buffer
       while ( (pVbl = TtxDecode_GetPacket(freePrevPkg)) != NULL )
       {
@@ -678,6 +680,9 @@ void EpgStreamGetStatistics( EPG_STREAM_STATS * pStats )
 {
    if (pStats != NULL)
    {
+      streamStats.epgAppId = epgStreamAppId;
+      streamStats.epgPageNo = ttxState.epgPageNo;
+
       *pStats = streamStats;
    }
 }
@@ -688,7 +693,6 @@ void EpgStreamGetStatistics( EPG_STREAM_STATS * pStats )
 void EpgStreamInit( EPGDB_QUEUE *pDbQueue, bool bWaitForBiAi, uint appId, uint pageNo )
 {
    memset(&streamData, 0, sizeof(streamData));
-   memset(&streamStats, 0, sizeof(streamStats));
    streamData[0].ci = 0xff;
    streamData[1].ci = 0xff;
    streamOfPage   = NXTV_NO_STREAM;
@@ -700,6 +704,8 @@ void EpgStreamInit( EPGDB_QUEUE *pDbQueue, bool bWaitForBiAi, uint appId, uint p
    ttxState.epgPageNo = pageNo;
    ttxState.isEpgPage = FALSE;
    ttxState.bHeaderCheckInit = FALSE;
+
+   memset(&streamStats, 0, sizeof(streamStats));
 
    // note: intentionally using clear func instead of overwriting the pointer with NULL
    // (simplifies upper layers' state machines: start acq may be called while acq is already running)

@@ -1,5 +1,5 @@
 /////////////////////////////////////////////////////////////////////////////
-// #Id: HardwareDriver.cpp,v 1.19 2002/12/04 14:15:06 adcockj Exp #
+// #Id: HardwareDriver.cpp,v 1.22 2003/10/27 10:39:51 adcockj Exp #
 /////////////////////////////////////////////////////////////////////////////
 // Copyright (c) 2001 John Adcock.  All rights reserved.
 /////////////////////////////////////////////////////////////////////////////
@@ -15,7 +15,7 @@
 //  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 //  GNU General Public License for more details
 /////////////////////////////////////////////////////////////////////////////
-// nxtvepg $Id: hwdrv.c,v 1.13 2004/03/22 17:30:53 tom Exp tom $
+// nxtvepg $Id: hwdrv.c,v 1.15 2004/12/26 21:55:20 tom Exp tom $
 //////////////////////////////////////////////////////////////////////////////
 
 #define WIN32_LEAN_AND_MEAN
@@ -75,6 +75,19 @@ DWORD HwDrv_LoadDriver( void )
     {
         LOG(2,"LoadDriver: Opening the Service Control Manager...");
         // get handle of the Service Control Manager
+
+        // This function fails on WinXP when not logged on as an administrator.
+        // The following note comes from the updated Platform SDK documentation:
+
+        // Windows 2000 and earlier: All processes are granted SC_MANAGER_CONNECT, 
+        // SC_MANAGER_ENUMERATE_SERVICE, and SC_MANAGER_QUERY_LOCK_STATUS access to all service control
+        // manager databases. This enables any process to open a service control manager database handle
+        // that it can use in the OpenService, EnumServicesStatus, and QueryServiceLockStatus functions. 
+        //
+        // Windows XP: Only authenticated users are granted SC_MANAGER_CONNECT, 
+        // SC_MANAGER_ENUMERATE_SERVICE, and SC_MANAGER_QUERY_LOCK_STATUS access to all service control
+        // manager databases. 
+
         hSCManager = OpenSCManager(NULL, NULL, SC_MANAGER_CONNECT);
         if(hSCManager == NULL)
         {
@@ -538,27 +551,38 @@ static BOOL AdjustAccessRights( void )
     // Build the ACE.
     if(!bError)
     {
-        const char * const pGroupTab[] = {"EVERYONE", "Jeder", "Chacun", NULL};
-        const char * const * pGroupName;
+        SID_IDENTIFIER_AUTHORITY SIDAuthWorld = { SECURITY_WORLD_SID_AUTHORITY };
+        PSID pSIDEveryone;
 
-        for (pGroupName = pGroupTab; *pGroupName != NULL; pGroupName++)
+        // Create a SID for the Everyone group.
+        if (!AllocateAndInitializeSid(&SIDAuthWorld, 1,
+                     SECURITY_WORLD_RID,
+                     0,
+                     0, 0, 0, 0, 0, 0,
+                     &pSIDEveryone))
         {
-            BuildExplicitAccessWithName(&ea, (char *) *pGroupName, DRIVER_ACCESS_RIGHTS, SET_ACCESS, 
-                NO_INHERITANCE);
-           
-            dwError = SetEntriesInAcl(1, &ea, pacl, &pNewAcl);
-
-            if (dwError != ERROR_NONE_MAPPED)
-                break;
-
-            LOG(2,"SetEntriesInAcl failed: %s unknown - trying again", *pGroupName);
-        }
-
-        if(dwError != ERROR_SUCCESS)
-        {
-            LOG(1,"SetEntriesInAcl failed. 0x%X", GetLastError());
+            LOG(1,"AllocateAndInitializeSid() failed. 0x%X",GetLastError());
             bError = TRUE;
         }
+        else
+        {
+            ea.grfAccessMode = SET_ACCESS;
+            ea.grfAccessPermissions = DRIVER_ACCESS_RIGHTS;
+            ea.grfInheritance = NO_INHERITANCE;
+            ea.Trustee.MultipleTrusteeOperation = NO_MULTIPLE_TRUSTEE;
+            ea.Trustee.pMultipleTrustee = NULL;
+            ea.Trustee.TrusteeForm = TRUSTEE_IS_SID;
+            ea.Trustee.TrusteeType = TRUSTEE_IS_GROUP;
+            ea.Trustee.ptstrName = (char *)pSIDEveryone;
+    
+            dwError = SetEntriesInAcl(1, &ea, pacl, &pNewAcl);
+            if(dwError != ERROR_SUCCESS)
+            {
+                LOG(0,"SetEntriesInAcl failed. %d", dwError);
+                bError = TRUE;
+            }
+        }
+        FreeSid(pSIDEveryone);
     }
     
     // Initialize a new Security Descriptor.

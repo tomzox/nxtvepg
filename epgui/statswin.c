@@ -33,7 +33,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: statswin.c,v 1.67 2004/03/11 22:27:40 tom Exp tom $
+ *  $Id: statswin.c,v 1.69 2004/11/01 17:11:50 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -155,6 +155,8 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
    time_t acqMinTime[2];
    time_t lastAiUpdate;
    uint target;
+   Tcl_DString msg_dstr;
+   Tcl_DString cmd_dstr;
 
    target = PVOID2UINT(clientData);
    if (target == DB_TARGET_ACQ)
@@ -216,8 +218,7 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
          allVersionsCount = count[0].allVersions + count[1].allVersions + obsolete;
          curVersionCount  = count[0].curVersion + count[1].curVersion + obsolete;
 
-         sprintf(comm, "%s.browser.stat configure -text \""
-                       "EPG provider:     %s (CNI %04X)\n"
+         sprintf(comm, "EPG provider:     %s (CNI %04X)\n"
                        "last AI update:   %s\n"
                        "Database version: %d/%d\n"
                        "Blocks in AI:     %d (%d + %d swo)\n"
@@ -226,9 +227,7 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
                        "filled:           %d%% / %d%% current version\n"
                        "expired stream:   %d%%: %d (%d + %d)\n"
                        "expired total:    %d%%: %d\n"
-                       "defective blocks: %d%%: %d (%d + %d)"
-                       "\"\n",
-                       dbswn[target],
+                       "defective blocks: %d%%: %d (%d + %d)",
                        netname, cni,
                        datestr,
                        version, versionSwo,
@@ -248,7 +247,19 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
                        ((allVersionsCount > 0) ? ((int)((double)(count[0].defective + count[1].defective) * 100.0 / allVersionsCount)) : 0),
                           count[0].defective + count[1].defective, count[0].defective, count[1].defective
                 );
-         eval_check(interp, comm);
+         if (Tcl_ExternalToUtfDString(NULL, comm, -1, &msg_dstr) != NULL)
+         {
+            Tcl_DStringInit(&cmd_dstr);
+            Tcl_DStringAppend(&cmd_dstr, dbswn[target], -1);
+            Tcl_DStringAppend(&cmd_dstr, ".browser.stat configure -text", -1);
+            // append message as list element, so that '{' etc. is escaped properly
+            Tcl_DStringAppendElement(&cmd_dstr, Tcl_DStringValue(&msg_dstr));
+
+            eval_check(interp, Tcl_DStringValue(&cmd_dstr));
+
+            Tcl_DStringFree(&cmd_dstr);
+            Tcl_DStringFree(&msg_dstr);
+         }
 
          if (total > 0)
          {
@@ -323,7 +334,7 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
          else
             duration = 0;
 
-         sprintf(comm, "%s.acq.stat configure -text {", dbswn[target]);
+         comm[0] = 0;
 
          #ifdef USE_DAEMON
          if (acqState.isNetAcq)
@@ -379,8 +390,8 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
          sprintf(comm + strlen(comm),
                        "TTX data rate:    %d baud\n"
                        "EPG data rate:    %d baud (%1.1f%% of TTX)\n"
-                       "EPG page rate:    %1.2f pages/sec\n"
-                       "AI recv. count:   %d\n"
+                       "EPG page rate:    %1.2f pages/sec (page %03X)\n"
+                       "AI recv. count:   %d (appID %d)\n"
                        "AI min/avg/max:   %d/%2.2f/%d sec\n"
                        "PI rx repetition: %d/%.2f/%.2f now/s1/s2\n"
                        "Decoder quality:  lost/got %d/%d pages, %d/%d pkg\n"
@@ -390,7 +401,8 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
                        ((duration > 0) ? (int)((sv->ttx.epgPkgCount*45*8)/duration) : 0),
                        ((sv->ttx.ttxPkgCount > 0) ? ((double)sv->ttx.epgPkgCount*100.0/sv->ttx.ttxPkgCount) : 0.0),
                        ((duration > 0) ? ((double)sv->ttx.epgPagCount / duration) : 0),
-                       sv->ai.aiCount,
+                          sv->stream.epgPageNo,
+                       sv->ai.aiCount, sv->stream.epgAppId,
                        (int)sv->ai.minAiDistance,
                           ((sv->ai.aiCount > 1) ? ((double)sv->ai.sumAiDistance / (sv->ai.aiCount - 1)) : 0),
                           (int)sv->ai.maxAiDistance,
@@ -491,8 +503,19 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
                                          sv->count[0].variance, sv->count[1].variance);
          }
 
-         strcat(comm, "}\n");
-         eval_check(interp, comm);
+         if (Tcl_ExternalToUtfDString(NULL, comm, -1, &msg_dstr) != NULL)
+         {
+            Tcl_DStringInit(&cmd_dstr);
+            Tcl_DStringAppend(&cmd_dstr, dbswn[target], -1);
+            Tcl_DStringAppend(&cmd_dstr, ".acq.stat configure -text", -1);
+            // append message as list element, so that '{' etc. is escaped properly
+            Tcl_DStringAppendElement(&cmd_dstr, Tcl_DStringValue(&msg_dstr));
+
+            eval_check(interp, Tcl_DStringValue(&cmd_dstr));
+
+            Tcl_DStringFree(&cmd_dstr);
+            Tcl_DStringFree(&msg_dstr);
+         }
 
          // remove the old update timer
          if (dbStatsWinState[target].updateHandler != NULL)
@@ -561,10 +584,11 @@ static void StatsWin_UpdateDbStatusLine( ClientData clientData )
    #ifdef USE_DAEMON
    EPGDBSRV_DESCR netState;
    #endif
+   Tcl_DString msg_dstr;
 
    dprintf0("StatsWin-UpdateDbStatusLine: called\n");
 
-   strcpy(comm, "set dbstatus_line {");
+   comm[0] = 0;
 
    if (IsDemoMode())
    {  // Demo database -> do not display statistics
@@ -864,8 +888,14 @@ static void StatsWin_UpdateDbStatusLine( ClientData clientData )
    else if (acqState.state != ACQDESCR_SCAN)
       strcat(comm, ".");
 
-   strcat(comm, "}\n");
-   eval_global(interp, comm);
+   if (Tcl_ExternalToUtfDString(NULL, comm, -1, &msg_dstr) != NULL)
+   {
+      if (Tcl_SetVar(interp, "dbstatus_line", Tcl_DStringValue(&msg_dstr), TCL_GLOBAL_ONLY) == NULL)
+      {
+         debugTclErr(interp, "assigning to var dbstatus_line");
+      }
+      Tcl_DStringFree(&msg_dstr);
+   }
 }
 
 // ----------------------------------------------------------------------------

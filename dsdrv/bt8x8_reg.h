@@ -21,9 +21,9 @@
  *
  *  Author: Tom Zoerner
  *
- *  DScaler #Id: Bt848_Defines.h,v 1.19 2002/09/12 21:56:26 ittarnavsky Exp #
+ *  DScaler #Id: Bt848_Defines.h,v 1.30 2004/09/21 17:43:08 to_see Exp #
  *
- *  $Id: bt8x8_reg.h,v 1.15 2003/06/24 20:13:21 tom Exp tom $
+ *  $Id: bt8x8_reg.h,v 1.16 2004/10/16 13:03:29 tom Exp tom $
  */
 
 #ifndef __BT8X8_REG_H

@@ -27,7 +27,7 @@
  *
  *  DScaler #Id: CX2388xCard_Types.cpp,v 1.22 2004/03/10 17:44:03 to_see Exp #
  *
- *  $Id: cx2388x_typ.c,v 1.13 2004/03/29 22:23:17 tom Exp tom $
+ *  $Id: cx2388x_typ.c,v 1.14 2004/12/26 21:47:20 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_DSDRV
@@ -67,6 +67,8 @@ static void StandardInputSelect( TVCARD * pTvCard, uint nInput);
 static void MSIPalInputSelect( TVCARD * pTvCard, uint nInput);
 static void PlayHDInputSelect( TVCARD * pTvCard, uint nInput);
 static void AsusInputSelect( TVCARD * pTvCard, uint nInput);
+static void LeadtekInputSelect( TVCARD * pTvCard, uint nInput );
+static void AverTV303InputSelect( TVCARD * pTvCard, uint nInput );
 static void StandardSetFormat( TVCARD * pTvCard, uint nInput, eVideoFormat Format, BOOL IsProgressive);
 
 /// Defines each input on a card
@@ -130,8 +132,10 @@ typedef enum
     CX2388xCARD_MSI_TV_ANYWHERE_MASTER_PAL,
     CX2388xCARD_ATI_WONDER_PRO,
     CX2388xCARD_HAUPPAUGE_PCI_FM_TUNERSOUND,
-    CX2388xCARD_PIXELVIEW_PLAYTV_ULTRA,
+    CX2388xCARD_PIXELVIEW_PLAYTV_ULTRA_TUNERSOUND,
     CX2388xCARD_KWORLD_TV_STEREO,
+    CX2388xCARD_PIXELVIEW_PLAYTV_ULTRA,
+    CX2388xCARD_AVERTV_303,
     CX2388xCARD_LASTONE,
 } eCX2388xCardId;
 
@@ -489,6 +493,12 @@ static const TCardType m_TVCards[CX2388xCARD_LASTONE] =
                 0x00000000,
             },
             {
+                "Composite",
+                INPUTTYPE_COMPOSITE,
+                1,
+                0x00000000,
+            },
+            {
                 "S-Video",
                 INPUTTYPE_SVIDEO,
                 2,
@@ -593,8 +603,6 @@ static const TCardType m_TVCards[CX2388xCARD_LASTONE] =
         TUNER_ABSENT,
         //IDC_CX2388X,
     },
-    // CX2388xCARD_LEADTEK_WINFAST_EXPERT
-    // video and audio input switching is not yet verified.
     {
         "Leadtek WinFast TV2000 XP Expert",
         3,
@@ -620,7 +628,7 @@ static const TCardType m_TVCards[CX2388xCARD_LASTONE] =
         },
         NULL,
         //NULL,
-        StandardInputSelect,
+        LeadtekInputSelect,
         //SetAnalogContrastBrightness,
         //SetAnalogHue,
         //SetAnalogSaturationU,
@@ -669,6 +677,7 @@ static const TCardType m_TVCards[CX2388xCARD_LASTONE] =
         TUNER_MT2050_PAL,
         //IDC_CX2388X,
     },
+    // GPIO's from Allen
     {
         "ATI TV Wonder Pro",
         3,
@@ -677,19 +686,19 @@ static const TCardType m_TVCards[CX2388xCARD_LASTONE] =
                 "Tuner",
                 INPUTTYPE_TUNER,
                 0,
-                0x00000000,
+                0x000003ff,
             },
             {
                 "Composite",
                 INPUTTYPE_COMPOSITE,
                 1,
-                0x00000000,
+                0x000003fe,
             },
             {
                 "S-Video",
                 INPUTTYPE_SVIDEO,
                 2,
-                0x00000000,
+                0x000003fe,
             },
         },
         NULL,
@@ -700,7 +709,7 @@ static const TCardType m_TVCards[CX2388xCARD_LASTONE] =
         //SetAnalogSaturationU,
         //SetAnalogSaturationV,
         StandardSetFormat,
-        TUNER_USER_SETUP,
+        TUNER_PHILIPS_4IN1,
         //IDC_CX2388X,
     },
     // Card info from Tom Zoerner
@@ -753,7 +762,7 @@ static const TCardType m_TVCards[CX2388xCARD_LASTONE] =
     
     // Card info from Denis Love
     {
-        "PixelView PlayTV Ultra",
+        "PixelView PlayTV Ultra (Mono Tuner Sound)",
         3,
         {
             {
@@ -785,11 +794,13 @@ static const TCardType m_TVCards[CX2388xCARD_LASTONE] =
         //SetAnalogSaturationU,
         //SetAnalogSaturationV,
         StandardSetFormat,
+        // \todo support for onboard TDA9874
+        // this is only mono sound from tuner
         TUNER_PHILIPS_PAL,
         //IDC_CX2388X,
     },
-    
     // Card Info from trfillos@...
+    // this card has no eeprom.
     {
         "K-World DV/AV Expert TV Stereo",
         3,
@@ -826,6 +837,81 @@ static const TCardType m_TVCards[CX2388xCARD_LASTONE] =
         TUNER_PHILIPS_FM1216ME_MK3,
         //IDC_CX2388X,
     },
+    // Card info from tarambuka3500
+    {
+        "PixelView PlayTV Ultra",
+        3,
+        {
+            {
+                "Tuner",
+                INPUTTYPE_TUNER,
+                0,
+                0x0000bff1,
+
+            },
+            {
+                "Composite",
+                INPUTTYPE_COMPOSITE,
+                1,
+                0x0000bff3,
+            },
+            {
+                "S-Video",
+                INPUTTYPE_SVIDEO,
+                2,
+                0x0000bff3,
+            },
+            // FM radio input omitted
+        },
+        NULL,
+        //NULL,
+        StandardInputSelect,
+        //SetAnalogContrastBrightness,
+        //SetAnalogHue,
+        //SetAnalogSaturationU,
+        //SetAnalogSaturationV,
+        StandardSetFormat,
+        TUNER_PHILIPS_PAL,
+        //IDC_CX2388X,
+    },
+    
+    // Card info Zbigniew Pluta
+    {
+        "AverTV Studio 303 (M126)",
+        3,
+        {
+            {
+                "Tuner",
+                INPUTTYPE_TUNER,
+                0,
+                0x00000000,
+
+            },
+            {
+                "Composite",
+                INPUTTYPE_COMPOSITE,
+                1,
+                0x00000000,
+            },
+            {
+                "S-Video",
+                INPUTTYPE_SVIDEO,
+                2,
+                0x00000000,
+            },
+            // FM radio input omitted
+        },
+        NULL,
+        //NULL,
+        AverTV303InputSelect,
+        //SetAnalogContrastBrightness,
+        //SetAnalogHue,
+        //SetAnalogSaturationU,
+        //SetAnalogSaturationV,
+        StandardSetFormat,
+        TUNER_PHILIPS_FM1216ME_MK3,
+        //IDC_CX2388X,
+    },
 };
 
 static const TAutoDectect m_AutoDectect[] =
@@ -837,78 +923,81 @@ static const TAutoDectect m_AutoDectect[] =
     { 0x48201043, CX2388xCARD_ASUS, "Asus 880" },
     { 0x34010070, CX2388xCARD_HAUPPAUGE_PCI_FM, "Hauppauge" },
     { 0x34000070, CX2388xCARD_HAUPPAUGE_PCI_FM, "Hauppauge" },
-    { 0x6611107D, CX2388xCARD_LEADTEK_WINFAST_EXPERT, "Leadtek WinFast TV2000 XP Expert" },
+    { 0x6611107D, CX2388xCARD_LEADTEK_WINFAST_EXPERT, "Leadtek WinFast TV2000 XP Expert" }, // PAL
+    { 0x6613107D, CX2388xCARD_LEADTEK_WINFAST_EXPERT, "Leadtek WinFast TV2000 XP Expert" }, // NTSC
     { 0x86061462, CX2388xCARD_MSI_TV_ANYWHERE_MASTER_PAL, "MSI TV@nywhere Master"},
     { 0x48111554, CX2388xCARD_PIXELVIEW_PLAYTV_ULTRA, "PixelView PlayTV Ultra" },
     { 0x088317DE, CX2388xCARD_KWORLD_TV_STEREO, "K-World DV/AV Expert TV Stereo" }, // NTSC
     { 0x088217DE, CX2388xCARD_KWORLD_TV_STEREO, "K-World DV/AV Expert TV Stereo" }, // PAL
+    { 0x000b1461, CX2388xCARD_AVERTV_303, "AverTV Studio 303 (M126)" },
     { 0, (eCX2388xCardId)-1, NULL }
 };
 
-static const eTunerId m_Tuners_hauppauge[]=
+static const eTunerId m_Tuners_Hauppauge_CX2388x_Card[]=
 {
-    TUNER_ABSENT,                           /* ""                                 */
-    TUNER_ABSENT,                           /* "External"                     */
-    TUNER_ABSENT,                           /* "Unspecified"                */
-    TUNER_PHILIPS_PAL,                  /* "Philips FI1216"           */
-    /*4*/
-    TUNER_PHILIPS_SECAM,                /* "Philips FI1216MF"       */
-    TUNER_PHILIPS_NTSC,                 /* "Philips FI1236"           */
-    TUNER_PHILIPS_PAL_I,                /* "Philips FI1246"         */
-    TUNER_PHILIPS_PAL_DK,               /* "Philips FI1256"           */
-    /*8*/
-    TUNER_PHILIPS_PAL,                  /* "Philips FI1216 MK2"     */
-    TUNER_PHILIPS_SECAM,                /* "Philips FI1216MF MK2"   */
-    TUNER_PHILIPS_NTSC,                 /* "Philips FI1236 MK2"     */
-    TUNER_PHILIPS_PAL_I,                /* "Philips FI1246 MK2"     */
-    /*12*/
-    TUNER_PHILIPS_PAL_DK,               /* "Philips FI1256 MK2"     */
-    TUNER_TEMIC_4032FY5_NTSC,       /* "Temic 4032FY5"            */
-    TUNER_TEMIC_4002FH5_PAL,        /* "Temic 4002FH5"          */
-    TUNER_TEMIC_4062FY5_PAL_I,  /* "Temic 4062FY5"          */
-    /*16*/
-    TUNER_PHILIPS_PAL,                  /* "Philips FR1216 MK2"     */
-    TUNER_PHILIPS_SECAM,                /* "Philips FR1216MF MK2"   */
-    TUNER_PHILIPS_NTSC,                 /* "Philips FR1236 MK2"     */
-    TUNER_PHILIPS_PAL_I,                /* "Philips FR1246 MK2"     */
-    /*20*/
-    TUNER_PHILIPS_PAL_DK,               /* "Philips FR1256 MK2"     */
-    TUNER_PHILIPS_PAL,                  /* "Philips FM1216"         */
-    TUNER_PHILIPS_SECAM,                /* "Philips FM1216MF"       */
-    TUNER_PHILIPS_NTSC,                 /* "Philips FM1236"         */
-    /*24*/
-    TUNER_PHILIPS_PAL_I,                /* "Philips FM1246"         */
-    TUNER_PHILIPS_PAL_DK,               /* "Philips FM1256"           */
-    TUNER_TEMIC_4036FY5_NTSC,       /* "Temic 4036FY5"            */
-    TUNER_ABSENT,                           /* "Samsung TCPN9082D"      */
-    /*28*/
-    TUNER_ABSENT,                           /* "Samsung TCPM9092P"      */
-    TUNER_TEMIC_4006FH5_PAL,        /* "Temic 4006FH5"          */
-    TUNER_ABSENT,                           /* "Samsung TCPN9085D"      */
-    TUNER_ABSENT,                           /* "Samsung TCPB9085P"      */
-    /*32*/
-    TUNER_ABSENT,                           /* "Samsung TCPL9091P"      */
-    TUNER_TEMIC_4039FR5_NTSC,       /* "Temic 4039FR5"            */
-    TUNER_PHILIPS_MULTI,                /* "Philips FQ1216 ME"      */
-    TUNER_TEMIC_4066FY5_PAL_I,  /* "Temic 4066FY5"          */
-    /*36*/
-    TUNER_ABSENT,                           /* "Philips TD1536"           */
-    TUNER_ABSENT,                           /* "Philips TD1536D"        */
-    TUNER_PHILIPS_NTSC,                 /* "Philips FMR1236"          */
-    TUNER_ABSENT,                           /* "Philips FI1256MP"         */
-    /*40*/
-    TUNER_ABSENT,                           /* "Samsung TCPQ9091P"      */
-    TUNER_TEMIC_4006FN5_PAL,        /* "Temic 4006FN5"            */
-    TUNER_TEMIC_4009FR5_PAL,        /* "Temic 4009FR5"            */
-    TUNER_TEMIC_4046FM5_MULTI,  /* "Temic 4046FM5"            */
-    /*44*/
-    TUNER_TEMIC_4009FN5_PAL,      /* "Temic 4009FN5"              */
-    TUNER_ABSENT,                           /* "Philips TD1536D_FH_44"*/
-    TUNER_LG_R01F_NTSC,                 /* "LG TP18NSR01F"          */
-    TUNER_LG_B01D_PAL,                  /* "LG TP18PSB01D"            */
-    TUNER_LG_B11D_PAL,                  /* "LG TP18PSB11D"            */
-    TUNER_LG_I001D_PAL_I,               /* "LG TAPC-I001D"          */
-    TUNER_LG_I701D_PAL_I                /* "LG TAPC-I701D"          */
+    TUNER_ABSENT,
+    TUNER_ABSENT,                       //"External"
+    TUNER_ABSENT,                       //"Unspecified"
+    TUNER_PHILIPS_PAL,                  //"Philips FI1216"
+    //4
+    TUNER_PHILIPS_SECAM,                //"Philips FI1216MF"
+    TUNER_PHILIPS_NTSC,                 //"Philips FI1236"
+    TUNER_PHILIPS_PAL_I,                //"Philips FI1246"
+    TUNER_PHILIPS_PAL_DK,               //"Philips FI1256"
+    //8
+    TUNER_PHILIPS_PAL,                  //"Philips FI1216 MK2"
+    TUNER_PHILIPS_SECAM,                //"Philips FI1216MF MK2"
+    TUNER_PHILIPS_NTSC,                 //"Philips FI1236 MK2"
+    TUNER_PHILIPS_PAL_I,                //"Philips FI1246 MK2"
+    //12
+    TUNER_PHILIPS_PAL_DK,               //"Philips FI1256 MK2"
+    TUNER_TEMIC_4032FY5_NTSC,           //"Temic 4032FY5"
+    TUNER_TEMIC_4002FH5_PAL,            //"Temic 4002FH5"
+    TUNER_TEMIC_4062FY5_PAL_I,          //"Temic 4062FY5"
+    //16
+    TUNER_PHILIPS_PAL,                  //"Philips FR1216 MK2"
+    TUNER_PHILIPS_SECAM,                //"Philips FR1216MF MK2"
+    TUNER_PHILIPS_NTSC,                 //"Philips FR1236 MK2"
+    TUNER_PHILIPS_PAL_I,                //"Philips FR1246 MK2"
+    //20
+    TUNER_PHILIPS_PAL_DK,               //"Philips FR1256 MK2"
+    TUNER_PHILIPS_PAL,                  //"Philips FM1216"
+    TUNER_PHILIPS_SECAM,                //"Philips FM1216MF"
+    TUNER_PHILIPS_NTSC,                 //"Philips FM1236"
+    //24
+    TUNER_PHILIPS_PAL_I,                //"Philips FM1246"
+    TUNER_PHILIPS_PAL_DK,               //"Philips FM1256"
+    TUNER_TEMIC_4036FY5_NTSC,           //"Temic 4036FY5"
+    TUNER_ABSENT,                       //"Samsung TCPN9082D"
+    //28
+    TUNER_ABSENT,                       //"Samsung TCPM9092P"
+    TUNER_TEMIC_4006FH5_PAL,            //"Temic 4006FH5"
+    TUNER_ABSENT,                       //"Samsung TCPN9085D"
+    TUNER_ABSENT,                       //"Samsung TCPB9085P"
+    //32
+    TUNER_ABSENT,                       //"Samsung TCPL9091P"
+    TUNER_TEMIC_4039FR5_NTSC,           //"Temic 4039FR5"
+    TUNER_PHILIPS_MULTI,                //"Philips FQ1216 ME"
+    TUNER_TEMIC_4066FY5_PAL_I,          //"Temic 4066FY5"
+    //36
+    TUNER_PHILIPS_NTSC,                 //"Philips TD1536"
+    TUNER_PHILIPS_NTSC,                 //"Philips TD1536D"
+    TUNER_PHILIPS_NTSC,                 //"Philips FMR1236"
+    TUNER_ABSENT,                       //"Philips FI1256MP"
+    //40
+    TUNER_ABSENT,                       //"Samsung TCPQ9091P"
+    TUNER_TEMIC_4006FN5_PAL,            //"Temic 4006FN5"
+    TUNER_TEMIC_4009FR5_PAL,            //"Temic 4009FR5"
+    TUNER_TEMIC_4046FM5_MULTI,          //"Temic 4046FM5"
+    //44
+    TUNER_TEMIC_4009FN5_PAL,            //"Temic 4009FN5"
+    TUNER_ABSENT,                       //"Philips TD1536D_FH_44"
+    TUNER_LG_R01F_NTSC,                 //"LG TPI8NSR01F"
+    TUNER_LG_B01D_PAL,                  //"LG TPI8PSB01D"
+    //48
+    TUNER_LG_B11D_PAL,                  //"LG TPI8PSB11D"
+    TUNER_LG_I001D_PAL_I,               //"LG TAPC-I001D"
+    TUNER_LG_I701D_PAL_I,               //"LG TAPC-I701D"
 };
 
 
@@ -929,12 +1018,34 @@ static const char * GetCardName( TVCARD * pTvCard, uint CardId )
     return pName;
 }
 
-static bool GetIffType( TVCARD * pTvCard, bool * pIsMono )
+static uint GetIffType( TVCARD * pTvCard, bool * pIsPinnacle, bool * pIsMono )
 {
-    if ((pTvCard == NULL) || (pIsMono == NULL))
+    uint  Type = TDA9887_DEFAULT;
+
+    if ((pTvCard != NULL) && (pIsPinnacle != NULL) && (pIsMono != NULL))
+    {
+        switch (pTvCard->params.cardId)
+        {
+            case CX2388xCARD_MSI_TV_ANYWHERE_MASTER_PAL:
+                Type = TDA9887_MSI_TV_ANYWHERE_MASTER;
+                break;
+            case TDA9887_LEADTEK_WINFAST_EXPERT:
+                Type = TDA9887_LEADTEK_WINFAST_EXPERT;
+                break;
+            case TDA9887_ATI_TV_WONDER_PRO:
+                Type = TDA9887_ATI_TV_WONDER_PRO;
+                break;
+            case TDA9887_AVERTV_303:
+                Type = TDA9887_AVERTV_303;
+                break;
+            default:
+                break;
+        }
+    }
+    else
         fatal0("Cx2388x-GetIffType: illegal NULL ptr param");
 
-    return FALSE;
+    return Type;
 }
 
 static uint GetPllType( TVCARD * pTvCard, uint CardId )
@@ -1122,52 +1233,47 @@ static uint AutoDetectTuner( TVCARD * pTvCard, uint CardId )
     else if(m_TVCards[CardId].TunerId == TUNER_AUTODETECT)
     {
         eTunerId Tuner = TUNER_ABSENT;
-         /* The same way btwincap 5.3.2 uses to detect the tuners.
+        int i;
+        
+        // Read the whole EEPROM
+        BYTE Eeprom[256];
+        for (i=0; i<256; i += 4)
+        {
+            // DWORD alignment needed
+            DWORD dwVal = ReadDword(MAP_EEPROM_DATA + i);
+            Eeprom[i+0] = LOBYTE(LOWORD(dwVal));
+            Eeprom[i+1] = HIBYTE(LOWORD(dwVal));
+            Eeprom[i+2] = LOBYTE(HIWORD(dwVal));
+            Eeprom[i+3] = HIBYTE(HIWORD(dwVal));
+        }
 
-           Tested:
-            - Hauppauge:      (full)            Wintv-PCI-FM
-        */
         switch(CardId)
         {
           case CX2388xCARD_HAUPPAUGE_PCI_FM:
           case CX2388xCARD_HAUPPAUGE_PCI_FM_TUNERSOUND:
-            {
-                // Read EEPROM
-                BYTE Eeprom[128];
-                BYTE Out[2] = { 0xA0 , 0 };
-                #define EEP_OFF 8
+              if (Eeprom[8+0] != 0x84 || Eeprom[8+2] != 0)
+              {
+                  //Hauppage EEPROM invalid
+                  debug2("AutoDetectTuner: Hauppage card. EEPROM error: 0x%02X,0x%02X (!= 0x84,0x00)", Eeprom[8 + 0], Eeprom[8 + 2]);
+              }
 
-                Eeprom[EEP_OFF + 0] = 0;
-                Eeprom[EEP_OFF + 2] = 0xff;
-                if (pTvCard->i2cBus->I2cRead(pTvCard, Out,sizeof(Out),Eeprom,sizeof(Eeprom)) == FALSE)
-                {
-                    debug0("AutoDetectTuner: Hauppage card. EEPROM I2C error");
-                    break;
-                }
+              else
+              {
+                  dprintf1("AutoDetectTuner: Hauppage tuner table index %d\n", Eeprom[8+9]);
 
-                if (Eeprom[EEP_OFF + 0] != 0x84 || Eeprom[EEP_OFF + 2] != 0)
-                {
-                    //Hauppage EEPROM invalid
-                    debug2("AutoDetectTuner: Hauppage card. EEPROM error: 0x%02X,0x%02X (!= 0x84,0x00)", Eeprom[EEP_OFF + 0], Eeprom[EEP_OFF + 2]);
-                    break;
-                }
+                  if (Eeprom[8+9] < (sizeof(m_Tuners_Hauppauge_CX2388x_Card) / sizeof(m_Tuners_Hauppauge_CX2388x_Card[0]))) 
+                  {
+                      Tuner = m_Tuners_Hauppauge_CX2388x_Card[Eeprom[8+9]];
+                  }
+              }
 
-                dprintf1("AutoDetectTuner: Hauppage tuner table index %d\n", Eeprom[EEP_OFF + 9]);
-
-                if (Eeprom[EEP_OFF + 9] < sizeof(m_Tuners_hauppauge)/sizeof(m_Tuners_hauppauge[0]))
-                {
-                    dprintf1("AutoDetectTuner: Tuner #%d\n", m_Tuners_hauppauge[Eeprom[EEP_OFF + 9]]);
-                    Tuner = m_Tuners_hauppauge[Eeprom[EEP_OFF + 9]];
-                }
-                else
-                    debug1("AutoDetectTuner: invalid tuner #%d found", Eeprom[EEP_OFF + 9]);
-            }
-            break;
+              break;
 
           default:
-            debug1("AutoDetectTuner: warning: card %d unsupported by tuner auto-detect", CardId);
-            break;
-        }
+              debug1("AutoDetectTuner: warning: card %d unsupported by tuner auto-detect", CardId);
+              break;
+        } // switch(CardId)
+        
         return Tuner;
     }
     else
@@ -1239,7 +1345,17 @@ static void StandardInputSelect( TVCARD * pTvCard, uint nInput)
     }
 
     // set up any sound stuff
-    WriteDword(MO_GP0_IO, m_TVCards[m_CardType].Inputs[nInput].GPIOFlags);
+    {
+        DWORD dwTemp = m_TVCards[m_CardType].Inputs[nInput].GPIOFlags;
+        
+        if(dwTemp != 0x00000000)
+        {
+            // Reset to normal GPIO Mode
+            WriteDword(MO_GP3_IO, 0x00000000);
+        }
+
+        WriteDword(MO_GP0_IO, dwTemp);
+    }
 }
 
 static void MSIPalInputSelect( TVCARD * pTvCard, uint nInput)
@@ -1247,18 +1363,18 @@ static void MSIPalInputSelect( TVCARD * pTvCard, uint nInput)
     StandardInputSelect(pTvCard, nInput);
     if(nInput == 0)
     {
+        WriteDword(MO_GP3_IO, 0x00000000); 
         WriteDword(MO_GP0_IO, 0x000040bf);
         WriteDword(MO_GP1_IO, 0x000080c0);
         WriteDword(MO_GP2_IO, 0x0000ff40); 
-        WriteDword(MO_GP3_IO, 0x00000000);
     }
     else
     {
         // Turn off anything audio if we're not the tuner
+        WriteDword(MO_GP3_IO, 0x00000000); 
         WriteDword(MO_GP0_IO, 0x000040bf);
         WriteDword(MO_GP1_IO, 0x000080c0);
         WriteDword(MO_GP2_IO, 0x0000ff20); 
-        WriteDword(MO_GP3_IO, 0x00000000);
     }
 }
 
@@ -1278,26 +1394,82 @@ static void PlayHDInputSelect( TVCARD * pTvCard, uint nInput)
     }
 }
 
-static void AsusInputSelect( TVCARD * pTvCard, uint nInput)
+static void AsusInputSelect( TVCARD * pTvCard, uint nInput )
 {
     StandardInputSelect(pTvCard, nInput);
     if(nInput == 0)
     {
         // GPIO pins set according to values supplied by
         // Phil Rasmussen 
+        WriteDword(MO_GP3_IO, 0x00000000); 
         WriteDword(MO_GP0_IO, 0x000080ff);
         WriteDword(MO_GP1_IO, 0x000001ff);
         WriteDword(MO_GP2_IO, 0x000000ff); 
-        WriteDword(MO_GP3_IO, 0x00000000); 
     }
     else
     {
         // Turn off anything audio if we're not the tuner
+        WriteDword(MO_GP3_IO, 0x00000000); 
         WriteDword(MO_GP0_IO, 0x0000ff00);
         WriteDword(MO_GP1_IO, 0x0000ff00);
         WriteDword(MO_GP2_IO, 0x0000ff00); 
-        WriteDword(MO_GP3_IO, 0x00000000); 
     }
+}
+
+static void LeadtekInputSelect( TVCARD * pTvCard, uint nInput )
+{
+    StandardInputSelect(pTvCard, nInput);
+    if(nInput == 0)
+    {
+        WriteDword(MO_GP3_IO, 0x02000000); 
+        WriteDword(MO_GP0_IO, 0x00F5e700);
+        WriteDword(MO_GP1_IO, 0x00003004);
+        WriteDword(MO_GP2_IO, 0x00F5e700); 
+    }
+    
+    else
+    {
+        WriteDword(MO_GP3_IO, 0x02000000); 
+        WriteDword(MO_GP0_IO, 0x00F5c700);
+        WriteDword(MO_GP1_IO, 0x00003004);
+        WriteDword(MO_GP2_IO, 0x00F5c700); 
+    }
+
+    // FM-Radio:
+    /*
+        WriteDword(MO_GP3_IO, 0x02000000); 
+        WriteDword(MO_GP0_IO, 0x00F5d700);
+        WriteDword(MO_GP1_IO, 0x00003004);
+        WriteDword(MO_GP2_IO, 0x00F5d700); 
+    */
+}
+
+static void AverTV303InputSelect( TVCARD * pTvCard, uint nInput )
+{
+    StandardInputSelect(pTvCard, nInput);
+    if(nInput == 0)
+    {
+        WriteDword(MO_GP3_IO, 0x00000000); 
+        WriteDword(MO_GP0_IO, 0x000000ff);
+        WriteDword(MO_GP1_IO, 0x0000e09f);
+        WriteDword(MO_GP2_IO, 0x000000d1); 
+    }
+    
+    else
+    {
+        WriteDword(MO_GP3_IO, 0x00000000); 
+        WriteDword(MO_GP0_IO, 0x000000ff);
+        WriteDword(MO_GP1_IO, 0x0000e05f);
+        WriteDword(MO_GP2_IO, 0x000000d1); 
+    }
+
+    // muted:
+    /*
+        WriteDword(MO_GP3_IO, 0x00000000); 
+        WriteDword(MO_GP0_IO, 0x000000ff);
+        WriteDword(MO_GP1_IO, 0x000020ff);
+        WriteDword(MO_GP2_IO, 0x000000d1); 
+    */
 }
 
 static void StandardSetFormat( TVCARD * pTvCard, uint nInput, eVideoFormat Format, BOOL IsProgressive)

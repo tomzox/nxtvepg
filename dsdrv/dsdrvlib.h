@@ -17,7 +17,7 @@
 // Extracted from Dscaler 
 // Copyright (c) 2000 John Adcock.  All rights reserved.
 /////////////////////////////////////////////////////////////////////////////
-// nxtvepg $Id: dsdrvlib.h,v 1.9 2003/02/22 14:58:05 tom Exp $
+// nxtvepg $Id: dsdrvlib.h,v 1.10 2004/12/26 21:51:14 tom Exp $
 /////////////////////////////////////////////////////////////////////////////
 
 #ifndef DSDRV43_HELPER
@@ -28,6 +28,7 @@
 
 // for driver load result codes
 #include "dsdrv/hwdrv.h"
+#include "dsdrv/hwpci.h"
 
 #define ALLOC_MEMORY_CONTIG 1
 
@@ -48,7 +49,8 @@ DWORD DoesThisPCICardExist(DWORD dwVendorID, DWORD dwDeviceID, DWORD dwCardIndex
 DWORD pciGetHardwareResources(DWORD   dwVendorID,
                               DWORD   dwDeviceID,
                               DWORD   dwCardIndex,
-                              BOOL    supportsAcpi);
+                              BOOL    supportsAcpi,
+                              HWPCI_RESET_CHIP_CB pResetCb);
 
 void WriteByte(DWORD Offset, BYTE Data);
 void WriteWord(DWORD Offset, WORD Data);

@@ -31,7 +31,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: vbirec_main.c,v 1.20 2004/03/22 21:43:55 tom Exp tom $
+ *  $Id: vbirec_main.c,v 1.21 2004/12/12 15:39:19 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_TVSIM
@@ -66,6 +66,7 @@
 #include "epgvbi/cni_tables.h"
 #include "epgvbi/hamming.h"
 #include "epgdb/epgblock.h"
+#include "epgtcl/combobox.h"
 #include "tvsim/vbirec_gui.h"
 #include "tvsim/tvsim_version.h"
 
@@ -757,6 +758,111 @@ static char * TclCb_EnableDump( ClientData clientData, Tcl_Interp * interp, CONS
    return NULL;
 }
 
+// ----------------------------------------------------------------------------
+// Callback to send EPG OSD info to TV app
+//
+static int TclCb_SendEpgOsd( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+{
+   const char * const pUsage = "Usage: C_SendEpgOsd <title> <start-time> <stop-time>";
+   int  start_time, stop_time;
+   int  result;
+
+   if ( (objc != 1+3) ||
+        (Tcl_GetIntFromObj(interp, objv[2], &start_time) != TCL_OK) ||
+        (Tcl_GetIntFromObj(interp, objv[3], &stop_time) != TCL_OK) )
+   {  // parameter count is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else
+   {
+#ifdef WIN32
+      uchar no_themes, theme_arr[8];
+      uint  chanQueryIdx;
+      char  station[50];
+
+      WintvSharedMem_QueryChanName(station, sizeof(station), &chanQueryIdx);
+      no_themes = 0;
+
+      WintvSharedMem_SetEpgInfo(start_time, stop_time, Tcl_GetString(objv[1]),
+                                no_themes, theme_arr,
+                                chanQueryIdx);
+#else
+      char  start_str[10], stop_str[10];
+      time_t ltime;
+      uint  cmdLen;
+
+      ltime = start_time;
+      strftime(start_str, 10, "%H:%M", localtime(&ltime));
+      ltime = stop_time;
+      strftime(stop_str, 10, "%H:%M", localtime(&ltime));
+
+      cmdLen = sprintf(comm, "message%c%s-%s %s%c", 0,
+                       start_str, stop_str, Tcl_GetString(objv[1]), 0);
+      Xawtv_SendCmdArgv(interp, comm, cmdLen);
+#endif
+      result = TCL_OK;
+   }
+   return result;
+}
+
+#ifdef WIN32
+// ----------------------------------------------------------------------------
+// Callback to send a command to TV app
+//
+static int TclCb_SendTvCmd(ClientData ttp, Tcl_Interp *interp, int argc, CONST84 char *argv[])
+{
+   const char * const pUsage = "Usage: C_Tvapp_SendCmd <command> [<args> [<...>]]";
+   Tcl_DString *pass_dstr, *tmp_dstr;
+   char * pass;
+   int idx, len;
+   int  result;
+
+   if (argc < 2)
+   {  // parameter count is invalid
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR;
+   }
+   else
+   {
+      // sum up the total length of all parameters, including terminating 0-Bytes
+      pass_dstr = xmalloc(sizeof(Tcl_DString) * argc);  // allocate one too many
+      //dprintf0("SendCmd: ");
+      len = 0;
+      for (idx = 1; idx < argc; idx++)
+      {
+         tmp_dstr = pass_dstr + idx - 1;
+         // convert Tcl internal Unicode to Latin-1
+         Tcl_UtfToExternalDString(NULL, argv[idx], -1, tmp_dstr);
+         //dprintf1("%s ", Tcl_DStringValue(tmp_dstr));
+         len += Tcl_DStringLength(tmp_dstr) + 1;
+      }
+      //dprintf0("\n");
+
+      // concatenate the parameters into one char-array, separated by 0-Bytes
+      pass = xmalloc(len);
+      len = 0;
+      pass[0] = 0;
+      for (idx = 1; idx < argc; idx++)
+      {
+         tmp_dstr = pass_dstr + idx - 1;
+         strcpy(pass + len, Tcl_DStringValue(tmp_dstr));
+         len += strlen(pass + len) + 1;
+         Tcl_DStringFree(tmp_dstr);
+      }
+      xfree(pass_dstr);
+
+      // send the string to the TV app
+      WintvSharedMem_SetEpgCommand(argc - 1, pass, len);
+
+      xfree(pass);
+
+      result = TCL_OK;
+   }
+   return result;
+}
+#endif // WIN32
+
 // ---------------------------------------------------------------------------
 // Dummy functions for winshmsrv.c
 //
@@ -852,6 +958,11 @@ static int ui_init( int argc, char **argv )
       debugTclErr(interp, "tk_libs_tcl_static");
    }
    #endif
+   if (TCL_EVAL_CONST(interp, combobox_tcl_dynamic) != TCL_OK)
+   {
+      debug1("combobox_tcl_dynamic error: %s\n", Tcl_GetStringResult(interp));
+      debugTclErr(interp, "combobox_tcl_dynamic");
+   }
 
    #ifdef DISABLE_TCL_BGERR
    // switch off Tcl/Tk background error reports for release version
@@ -862,10 +973,12 @@ static int ui_init( int argc, char **argv )
    #ifdef WIN32
    // create an asynchronous event source that allows to receive triggers from the EPG message receptor thread
    asyncThreadHandler = Tcl_AsyncCreate(VbiRec_AsyncThreadHandler, NULL);
+   Tcl_CreateCommand(interp, "C_Tvapp_SendCmd", TclCb_SendTvCmd, (ClientData) NULL, NULL);
    #else
    exitAsyncHandler = Tcl_AsyncCreate(AsyncHandler_AppTerminate, NULL);
    Tcl_CreateCommand(interp, "XawtvConfigShmChannelChange", Xawtv_CbStationChange, (ClientData) NULL, NULL);
    #endif
+   Tcl_CreateObjCommand(interp, "C_SendEpgOsd", TclCb_SendEpgOsd, (ClientData) NULL, NULL);
 
    if (TCL_EVAL_CONST(interp, vbirec_gui_tcl_static) != TCL_OK)
    {

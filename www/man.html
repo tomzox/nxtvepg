@@ -33,7 +33,7 @@
 
 <H2 class="navhead">News</H2>
 <P>
-Sep/5/2004: <A HREF="changelog.html#release_2_7_3">Release 2.7.3</A>
+Dec/27/2004: <A HREF="changelog.html#release_2_7_4">Release 2.7.4</A>
 </P>
 
 <H2 class="navhead">Documentation</H2>
@@ -222,7 +222,7 @@ In Switzerland: SF1, TSR1, TSI1, EuroNews (coverage: apx. 37 networks)
 In France: Canal+, M6, TV5, EuroNews (coverage: 8 networks)
 <p></p>
 <li></li>
-In Belgium: VT4 (coverage: 32 networks)
+In Belgium: VT4, M6, TV5 (coverage: 32 networks)
 <p></p>
 <li></li>
 In Turkey: TRT (coverage: apx. 17 networks)
@@ -2450,11 +2450,12 @@ See <a href="#acquisition_modes">ACQUISITION MODES</a> for more details.</p>
 <p>Open a dialog that allows to start a scan across all TV channels for
 Nextview transmissions.  You should perform this search at least once,
 firstly to find out which providers are available in your area, and
-secondly to determine the frequencies of all provider's TV channels. Those
+secondly to determine the TV frequencies of all EPG providers. Those
 are required for most acquisition modes, and due to driver limitations
 often not available without a scan (e.g. on Windows or Linux with bttv
-driver &lt;= 0.7.50). See also <a href="#getting_started">GETTING STARTED</a> and the subsequent
-chapter on TV card configuration.</p>
+driver &lt;= 0.7.50).  Note that the provider scan only works if you use
+the internal tuner as input source.  See also <a href="#getting_started">GETTING STARTED</a> and
+the subsequent chapter on TV card configuration.</p>
 <p>If you live in France or Belgium, select the French frequency table
 (which implies the <em>Secam L</em> TV norm) to be used for the EPG scan;
 else use the default frequency table which covers common cable network
@@ -2923,9 +2924,10 @@ text, one of the pre-defined images or one of the programme's attributes
 (i.e. if you select <em>Time</em> the programme's start time will be displayed).</p>
 <p>In case you chose to use text (including attributes), you can select
 bold, underlined or overstrike font and the text color.  For all types
-you can also select a background color, either only for the single
-column in which the element is displayed, or the complete programme
-element.  The resulting appearance is shown in a <strong>Text sample</strong>
+you can also select a background color.  Colors can be applied either
+just to the user-defined attribute itself, or the entire column
+(in single list layout; or the entire element in grid layout)
+The resulting appearance is shown in a <strong>Text sample</strong>
 above the controls.  These display options can be configured separately
 for every shortcut match.  An exception is the entire-column background
 color; if such a format is found in multiple attributes, the last one
@@ -3026,18 +3028,22 @@ and all resulting segments can be used as network names.</p>
 order of automatically generated menu entries or to extend the popup
 menu with user-defined external commands (for a general description of
 the context menu see <a href="#context_menu">CONTEXT MENU</a>).</p>
-<p>The dialog window there is a list of all currently defined command
-titles.  When you open the dialog for the first time, you'll see only
-pre-defined ``pseudo commands.''  They don't show up like that in the
-context menu, they just represent commands which are automatically
+<p>At the top of the dialog window there's a list of titles of all
+currently defined menu items.  When you open the dialog for the
+first time, you'll see only pre-defined ``pseudo commands'' (such as
+``Add programme filters''.)  These don't show up like that in the context
+menu, they just represent menu commands which are automatically
 inserted in their place at run-time, depending on the currently
-selected programme entries and current filter settings.</p>
-<p>As usual, you can change the ordering by selecting an entry and then
-clicking the buttons with up/down arrows. To remove an entry, select
+selected programme entries and current filter settings (e.g. to add
+a filter for the network of the curently selected programme.)</p>
+<p>As usual, you can change the ordering of items in the list by selecting
+an item and then clicking the buttons with up/down arrows.
+To remove an entry, select
 it and press <em>Delete</em>.  If you make an error you can leave the dialog
 with <em>Abort</em>; changes aren't applied and saved until you leave the
 dialog with <em>Ok</em>.</p>
-<p>The <em>Add new</em> menu button allows to insert a new menu item:</p>
+<p>The <em>Add new</em> menu button allows to insert a new menu item below the
+currently selected one:</p>
 <dl>
 <dt><strong><a name="item_external_command"><strong>External command</strong></a></strong><br />
 </dt>

@@ -44,7 +44,7 @@
  *    NetBSD:  Mario Kemper <magick@bundy.zhadum.de>
  *    FreeBSD: Simon Barner <barner@gmx.de>
  *
- *  $Id: btdrv4linux.c,v 1.60 2004/08/29 21:47:19 tom Exp tom $
+ *  $Id: btdrv4linux.c,v 1.61 2004/12/24 11:05:11 tom Exp $
  */
 
 #if !defined(linux) && !defined(__NetBSD__) && !defined(__FreeBSD__) 
@@ -633,12 +633,16 @@ static void BtDriver_CloseVbi( void )
 void BtDriver_CloseDevice( void )
 {
    #if !defined (__NetBSD__) && !defined (__FreeBSD__)
+   dprintf1("BtDriver-CloseDevice: close fd: %d\n", video_fd);
+
    if (video_fd != -1)
    {
       close(video_fd);
       video_fd = -1;
    }
    #else //  __NetBSD__ || __FreeBSD__
+   dprintf1("BtDriver-CloseDevice: close fd: %d\n", tuner_fd);
+
    if (tuner_fd != -1)
    {
       // unmute tuner
@@ -906,7 +910,7 @@ bool BtDriver_TuneChannel( int inputIdx, uint freq, bool keepOpen, bool * pIsTun
    {
       pDevName = BtDriver_GetDevicePath(DEV_TYPE_VIDEO, pVbiBuf->cardIndex);
       video_fd = open(pDevName, O_RDONLY);
-      dprintf2("BtDriver-TuneChannel: opened %s, fd=%d\n", pDevName, video_fd);
+      dprintf3("BtDriver-TuneChannel: opened %s, fd=%d, keep-open=%d\n", pDevName, video_fd, keepOpen);
       wasOpen = FALSE;
 
 #if defined(HAVE_V4L2) && defined(VIDIOC_S_PRIORITY)

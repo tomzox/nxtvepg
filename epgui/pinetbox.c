@@ -19,7 +19,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pinetbox.c,v 1.40 2003/10/05 19:42:35 tom Exp tom $
+ *  $Id: pinetbox.c,v 1.41 2004/12/12 14:49:15 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -930,7 +930,8 @@ static void PiNetBox_ShowCursor( void )
 {
    NETBOX_COL   * pCol;
    NETBOX_ELEM  * pElem;
-   const char   * pColor;
+   const char   * pFgColor;
+   const char   * pBgColor;
    time_t  curTime;
 
    if (netbox.cur_col < netbox.col_count)
@@ -945,15 +946,24 @@ static void PiNetBox_ShowCursor( void )
          curTime = EpgGetUiMinuteTime();
 
          if (pElem->stop_time <= curTime)
-            pColor = "pi_cursor_bg_past";
+         {
+            pFgColor = "pi_cursor_fg_past";
+            pBgColor = "pi_cursor_bg_past";
+         }
          else if (pElem->start_time <= curTime)
-            pColor = "pi_cursor_bg_now";
+         {
+            pFgColor = "pi_cursor_fg_now";
+            pBgColor = "pi_cursor_bg_now";
+         }
          else
-            pColor = "pi_cursor_bg";
+         {
+            pFgColor = "pi_cursor_fg";
+            pBgColor = "pi_cursor_bg";
+         }
 
-         sprintf(comm, ".all.pi.list.nets.n_%d tag configure cur -background $%s\n"
+         sprintf(comm, ".all.pi.list.nets.n_%d tag configure cur -foreground $%s -background $%s\n"
                        ".all.pi.list.nets.n_%d tag add cur %d.0 %d.0\n",
-                       netbox.cur_col, pColor,
+                       netbox.cur_col, pFgColor, pBgColor,
                        netbox.cur_col,
                        pElem->text_row + pCol->start_off + 1,
                        pElem->text_row + pElem->text_height - NETBOX_ELEM_GAP + pCol->start_off + 1);

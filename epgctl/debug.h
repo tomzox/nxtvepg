@@ -23,7 +23,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: debug.h,v 1.17 2003/02/27 18:44:21 tom Exp tom $
+ *  $Id: debug.h,v 1.18 2004/12/27 14:17:08 tom Exp tom $
  */
 
 #ifndef __DEBUG_H
@@ -252,9 +252,9 @@ void * xmalloc( size_t size );
 #endif
 #else  // DEBUG_SWITCH != ON
 #define eval_check(INTERP,CMD) \
-   Tcl_Eval((INTERP), (CMD))
+   Tcl_EvalEx((INTERP), (CMD), -1, 0)
 #define eval_global(INTERP,CMD) \
-   Tcl_GlobalEval((INTERP), (CMD))
+   Tcl_EvalEx((INTERP), (CMD), -1, TCL_EVAL_GLOBAL)
 #define debugTclErr(INTERP,STR)
 #endif
 #endif

@@ -17,7 +17,7 @@
 // PCICard.cpp, HardwareDriver.cpp, HardwareMemory is from Dscaler
 // Copyright (c) 2001 John Adcock.  All rights reserved.
 /////////////////////////////////////////////////////////////////////////////
-// nxtvepg $Id: dsdrv34.c,v 1.9 2003/03/19 16:18:14 tom Exp $
+// nxtvepg $Id: dsdrv34.c,v 1.10 2004/12/26 21:51:14 tom Exp $
 /////////////////////////////////////////////////////////////////////////////
 
 // What's this ?
@@ -244,7 +244,8 @@ DWORD DoesThisPCICardExist(DWORD dwVendorID, DWORD dwDeviceID, DWORD dwCardIndex
 DWORD pciGetHardwareResources(DWORD   dwVendorID,
                               DWORD   dwDeviceID,
                               DWORD   dwCardIndex,
-                              BOOL    supportsAcpi )
+                              BOOL    supportsAcpi,
+                              HWPCI_RESET_CHIP_CB pResetCb)
 {
     BOOL ret;
 
@@ -255,7 +256,8 @@ DWORD pciGetHardwareResources(DWORD   dwVendorID,
     if ( !ret )
         return 2;
 
-    ret = HwPci_OpenPCICard(dwVendorID, dwDeviceID, dwCardIndex, supportsAcpi);
+    ret = HwPci_OpenPCICard(dwVendorID, dwDeviceID, dwCardIndex,
+                            supportsAcpi, pResetCb);
     if ( !ret )
         return 3;
 

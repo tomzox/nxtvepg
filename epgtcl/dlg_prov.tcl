@@ -19,7 +19,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_prov.tcl,v 1.11 2004/04/02 13:47:41 tom Exp tom $
+#  $Id: dlg_prov.tcl,v 1.14 2004/12/24 10:20:59 tom Exp tom $
 #
 set provwin_popup 0
 set provmerge_popup 0
@@ -437,7 +437,7 @@ proc ProvMerge_Quit {cause} {
 ##  Create EPG scan popup-window
 ##
 proc PopupEpgScan {} {
-   global is_unix env font_fixed font_normal text_bg
+   global is_unix env font_fixed font_normal text_fg text_bg
    global prov_freqs
    global tvapp_name
    global hwcf_cardidx tvcardcf
@@ -449,12 +449,17 @@ proc PopupEpgScan {} {
          # acquisition is not running local -> abort
          tk_messageBox -type ok -icon error -message "EPG scan cannot be started: you must disconnect from the acquisition daemon via the Control menu first."
          return
-      } elseif {!$is_unix} {
-         if {![info exists tvcardcf($hwcf_cardidx)]} {
-            # TV card has not been configured yet -> abort
-            tk_messageBox -type ok -icon info -message "Before you start the scan, please do configure your card type in the 'TV card input' sub-menu of the Configure menu."
-            return
-         }
+      } elseif {!$is_unix && \
+                ![info exists tvcardcf($hwcf_cardidx)]} {
+         # TV card has not been configured yet -> abort
+         tk_messageBox -type ok -icon info -message "Before you start the scan, please do configure your card type in the 'TV card input' sub-menu of the Configure menu."
+         return
+      } elseif [C_IsAcqExternal] {
+         tk_messageBox -type ok -icon info -message [concat \
+                "The provider search cannot be used with an external video input source. " \
+                "You must tune EPG provider TV channels manually in the external device " \
+                "which is attached to the video input."]
+         return
       }
 
       CreateTransientPopup .epgscan "Scan for Nextview EPG providers"
@@ -505,12 +510,10 @@ proc PopupEpgScan {} {
       checkbutton .epgscan.all.opt.refresh -text "Refresh only" -variable epgscan_opt_refresh
       checkbutton .epgscan.all.opt.slow -text "Slow" -variable epgscan_opt_slow -command {C_SetEpgScanSpeed $epgscan_opt_slow}
       pack    .epgscan.all.opt.refresh .epgscan.all.opt.slow -side left -padx 5
-      if {!$is_unix} {
-         button .epgscan.all.opt.cfgtvcard -text "Card setup" -command PopupHardwareConfig
-         button .epgscan.all.opt.cfgtvpp -text "Select TV app" -command XawtvConfigPopup
-         pack   .epgscan.all.opt.cfgtvpp -side right -pady 3
-         pack   .epgscan.all.opt.cfgtvcard -side right -pady 3
-      }
+      button .epgscan.all.opt.cfgtvcard -text "Card setup" -command PopupHardwareConfig
+      button .epgscan.all.opt.cfgtvpp -text "Select TV app" -command XawtvConfigPopup
+      pack   .epgscan.all.opt.cfgtvpp -side right -pady 3
+      pack   .epgscan.all.opt.cfgtvcard -side right -pady 3
       pack   .epgscan.all.opt -side top -padx 10 -fill x
 
 
@@ -519,7 +522,7 @@ proc PopupEpgScan {} {
       if {[llength $prov_freqs] > 0} {
          .epgscan.all.fmsg.msg insert end "To remove obsolete providers or fix database problems\nenable the "
          checkbutton .epgscan.all.fmsg.msg.refresh -text "Refresh only" -variable epgscan_opt_refresh \
-                                                   -font $font_fixed -background $text_bg -cursor top_left_arrow
+                                                   -font $font_fixed -foreground $text_fg -background $text_bg -cursor top_left_arrow
          .epgscan.all.fmsg.msg window create end -window .epgscan.all.fmsg.msg.refresh 
          .epgscan.all.fmsg.msg insert end "option.\n\n"
       } else {

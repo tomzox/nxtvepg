@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgblock.c,v 1.51 2004/05/31 14:38:47 tom Exp tom $
+ *  $Id: epgblock.c,v 1.52 2004/12/24 10:37:33 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -226,6 +226,7 @@ static void SetStartAndStopTime(uint bcdStart, uint julian, uint bcdStop, PI_BLO
       // preview duration, regardless of daylight saving time changes
       pTm = localtime(&pPiBlock->start_time);
       pPiBlock->start_time -= provLtoDelta + (pTm->tm_isdst * 60*60);
+      pTm = localtime(&pPiBlock->stop_time);
       pPiBlock->stop_time  -= provLtoDelta + (pTm->tm_isdst * 60*60);
    }
    else

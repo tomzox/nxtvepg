@@ -37,7 +37,11 @@
  *    WinDriver replaced with DSdrv (DScaler driver)
  *      March 2002 by E-Nek (e-nek@netcourrier.com)
  *
- *  $Id: bt8x8.c,v 1.11 2004/03/22 17:35:32 tom Exp tom $
+ *  DScaler #Id: BT848Card.cpp,v 1.44 2004/04/18 12:00:55 adcockj Exp #
+ *  DScaler #Id: BT848Source.cpp,v 1.133 2004/11/13 21:45:56 to_see Exp #
+ *  DScaler #Id: BT848Provider.cpp,v 1.9 2003/10/27 10:39:50 adcockj Exp #
+ *
+ *  $Id: bt8x8.c,v 1.12 2004/12/26 21:46:45 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -59,6 +63,7 @@
 
 #include "dsdrv/dsdrvlib.h"
 #include "dsdrv/hwmem.h"
+#include "dsdrv/hwpci.h"
 #include "dsdrv/tvcard.h"
 #include "dsdrv/bt8x8_reg.h"
 #include "dsdrv/bt8x8_i2c.h"
@@ -527,6 +532,33 @@ static void Bt8x8_ManageMyState( void )
 }
 
 // ----------------------------------------------------------------------------
+// Initialize PCI card
+// - callback, invoked by the PCI driver during initial card setup
+//
+static void Bt8x8_ResetChip( DWORD m_BusNumber, DWORD m_SlotNumber )
+{
+   BYTE Command = 0;
+
+   // try and switch on the card using the PCI Command value
+   // this is to try and solve problems when a driver hasn't been
+   // loaded for the card, which may be necessary when you have 
+   // multiple cards
+   if (HwPci_GetPCIConfigOffset(&Command, 0x04, m_BusNumber, m_SlotNumber))
+   {
+      // switch on allow master and respond to memory requests
+      if ((Command & 0x06) != 0x06)
+      {
+         debug1("CX2388x PCI Command was %d", Command);
+         Command |= 0x06;
+         HwPci_SetPCIConfigOffset(&Command, 0x04, m_BusNumber, m_SlotNumber);
+         Sleep(500);
+      }
+   }
+
+   WriteByte(BT848_SRESET, 0);
+}
+
+// ----------------------------------------------------------------------------
 // Reset the Bt8x8 and program all relevant registers with constants
 //
 static bool Bt8x8_ResetHardware( void )
@@ -799,6 +831,8 @@ static bool Bt8x8_Open( TVCARD * pTvCard, bool wdmStop )
       result = Bt8x8_AllocDmaMemory();
       if (result)
       {
+         Bt8x8_ResetChip(pTvCard->params.BusNumber, pTvCard->params.SlotNumber);
+
          HwPci_InitStateBuf();
          Bt8x8_ManageMyState();
 
@@ -828,6 +862,7 @@ static const TVCARD_CTL Bt8x8_CardCtl =
    Bt8x8_StartAcqThread,
    Bt8x8_StopAcqThread,
    Bt8x8_Configure,
+   Bt8x8_ResetChip,
    Bt8x8_Close,
    Bt8x8_Open,
 };

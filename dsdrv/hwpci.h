@@ -15,7 +15,7 @@
 //  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 //  GNU General Public License for more details
 /////////////////////////////////////////////////////////////////////////////
-// nxtvepg $Id: hwpci.h,v 1.5 2003/02/22 14:58:19 tom Exp tom $
+// nxtvepg $Id: hwpci.h,v 1.6 2004/12/26 21:48:44 tom Exp tom $
 /////////////////////////////////////////////////////////////////////////////
 
 #ifndef __PCICARD_H___
@@ -33,10 +33,16 @@ WORD HwPci_GetVendorId( void );
 DWORD HwPci_GetMemoryAddress( void ); // E-nek
 DWORD HwPci_GetMemoryLength( void );  // E-nek  
 
+/* tomzo:
+** Callback to reset card during card open or close
+*/
+typedef void (* HWPCI_RESET_CHIP_CB) ( DWORD m_BusNumber, DWORD m_SlotNumber );
+
 /**  Try to find card with given attributes on system
    @return TRUE is device is found
 */
-BOOL HwPci_OpenPCICard(WORD VendorID, WORD DeviceID, DWORD DeviceIndex, BOOL supportsAcpi);
+BOOL HwPci_OpenPCICard(WORD VendorID, WORD DeviceID, DWORD DeviceIndex,
+                       BOOL supportsAcpi, HWPCI_RESET_CHIP_CB pResetCb);
 
 // E-nek :
 // C crade mais j'en ai besoin en public ...
@@ -68,5 +74,7 @@ void HwPci_OrDataDword(DWORD Offset, DWORD Data);
 
 BOOL HwPci_GetPCIConfig(PCI_COMMON_CONFIG* pPCI_COMMON_CONFIG, DWORD Bus, DWORD Slot);
 BOOL HwPci_SetPCIConfig(PCI_COMMON_CONFIG* pPCI_COMMON_CONFIG, DWORD Bus, DWORD Slot);
+BOOL HwPci_GetPCIConfigOffset(BYTE* pbPCIConfig, DWORD Offset, DWORD Bus, DWORD Slot);
+BOOL HwPci_SetPCIConfigOffset(BYTE* pbPCIConfig, DWORD Offset, DWORD Bus, DWORD Slot);
 
 #endif

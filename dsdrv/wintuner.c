@@ -29,11 +29,11 @@
  *
  *  DScaler #Id: GenericTuner.cpp,v 1.13 2003/10/27 10:39:51 adcockj Exp #
  *  DScaler #Id: TunerID.cpp,v 1.3 2003/12/18 15:57:41 adcockj Exp #
- *  DScaler #Id: MT2032.cpp,v 1.12 2003/10/27 10:39:52 adcockj Exp #
- *  DScaler #Id: MT2050.cpp,v 1.4 2004/02/11 15:29:52 robmuller Exp #
- *  DScaler #Id: TDA9887.cpp,v 1.3 2003/10/27 10:39:54 adcockj Exp #
+ *  DScaler #Id: MT2032.cpp,v 1.13 2004/01/14 17:06:44 robmuller Exp #
+ *  DScaler #Id: MT2050.cpp,v 1.5 2004/04/06 12:20:48 adcockj Exp #
+ *  DScaler #Id: TDA9887.cpp,v 1.9 2004/09/29 20:36:02 to_see Exp #
  *
- *  $Id: wintuner.c,v 1.22 2004/05/22 19:50:27 tom Exp tom $
+ *  $Id: wintuner.c,v 1.23 2004/12/26 21:48:15 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -53,8 +53,11 @@
 #include "dsdrv/wintuner.h"
 
 
+// ---------------------------------------------------------------------------
+// Module state variables
 
 static BYTE TunerDeviceI2C = 0;
+static eTDA9887Card Tda9887Type;
 static CRITICAL_SECTION m_cCrit;    //semaphore for I2C access
 static uint MicrotuneType;
 static bool haveTda9887Standard;
@@ -116,6 +119,7 @@ static const char * TunerNames[TUNER_LASTONE] =
    "Philips FI1286 [NTCS M-J]",                 // TUNER_PHILIPS_FI1286_NTSC_M_J
    "MT2050 [SECAM default]",                    // TUNER_MT2050
    "MT2050 [PAL default]",                      // TUNER_MT2050_PAL
+   "Philips 4in1 [ATI TV Wonder Pro/Conexant]", // TUNER_PHILIPS_4IN1
 };
 
 // ---------------------------------------------------------------------------
@@ -451,6 +455,12 @@ static void Tuner_GetParams( eTunerId tunerId, TTunerType * pTuner )
                  16*(160.00),16*(454.00),0x01,0x02,0x04,0x8e,940);
              break;
          }
+       case TUNER_PHILIPS_4IN1:
+         {
+             TUNERDEF(TUNER_PHILIPS_4IN1, VIDEOFORMAT_NTSC_M,
+                 16*(160.00),16*(442.00),0x01,0x02,0x04,0x8e,732);
+             break;
+         }
     }
 }
 
@@ -507,15 +517,92 @@ static BOOL I2CBus_Write( const BYTE * writeBuffer, size_t writeBufferSize )
 #define I2C_TDA9887_0      0x86
 #define I2C_TDA9887_1      0x96
 
-static const BYTE tda9887detect[] =       {I2C_TDA9887_x, 0x00, 0x54, 0x70, 0x44};
+typedef struct
+{
+    DWORD eTDA9887Card;
+    BYTE Pal_BG[3];
+    //BYTE Pal_I[3];
+    //BYTE Pal_DK[3];
+    BYTE Secam_L[3];
+    BYTE Ntsc[3];
+    //BYTE Ntsc_Jp[3];
+    //BYTE Fm_Radio[3];
 
-static const BYTE tda9887set_pal_bg[] =   {I2C_TDA9887_x, 0x00, 0x96, 0x70, 0x49};
-static const BYTE tda9887set_pal_l[] =    {I2C_TDA9887_x, 0x00, 0x86, 0x50, 0x4b};
-static const BYTE tda9887set_ntsc[] =     {I2C_TDA9887_x, 0x00, 0x96, 0x70, 0x44};
-//static const BYTE tda9887set_pal_i[] =    {I2C_TDA9887_x, 0x00, 0x96, 0x70, 0x4a};
-//static const BYTE tda9887set_pal_dk[] =   {I2C_TDA9887_x, 0x00, 0x96, 0x70, 0x4b};
-//static const BYTE tda9887set_ntsc_jp[] =  {I2C_TDA9887_x, 0x00, 0x96, 0x70, 0x40};
-//static const BYTE tda9887set_fm_radio[] = {I2C_TDA9887_x, 0x00, 0x8e, 0x0d, 0x77};
+} TDA9887_ControlSettings;
+
+
+static const TDA9887_ControlSettings Tda9887TypeSettings[TDA9887_LASTONE] =
+{
+    {
+        TDA9887_DEFAULT,
+        // B ,   C,    E
+        {0x96, 0x70, 0x49}, // PAL_BG
+        //{0x96, 0x70, 0x4a}, // PAL_I
+        //{0x96, 0x70, 0x4b}, // PAL_DK
+        {0x86, 0x50, 0x4b}, // SECAM_L
+        {0x96, 0x70, 0x44}, // NTSC
+        //{0x96, 0x70, 0x40}, // NTSC_JP
+        //{0x8e, 0x0d, 0x77}, // FM_RADIO
+    },
+    {
+        TDA9887_MSI_TV_ANYWHERE_MASTER,
+        {0x56, 0x70, 0x49}, // PAL_BG       Working
+        //{0x56, 0x6e, 0x4a}, // PAL_I        Working
+        //{0x56, 0x70, 0x4b}, // PAL_DK       Working
+        {0x86, 0x50, 0x4b}, // SECAM_L      ?
+        {0x92, 0x30, 0x04}, // NTSC         Working
+        //{0x92, 0x30, 0x40}, // NTSC_JP      ?
+        //{0x8e, 0x0d, 0x77}, // FM_RADIO     ?
+    },
+    {
+        TDA9887_LEADTEK_WINFAST_EXPERT,
+        {0x16, 0x70, 0x49}, // PAL_BG       Working
+        //{0x16, 0x6e, 0x4a}, // PAL_I        ?
+        //{0x16, 0x70, 0x4b}, // PAL_DK       Working
+        {0x86, 0x50, 0x4b}, // SECAM_L      ?
+        {0x92, 0x30, 0x04}, // NTSC         ?
+        //{0x92, 0x30, 0x40}, // NTSC_JP      ?
+        //{0x8e, 0x70, 0x49}, // FM_RADIO     ? must work
+    },
+    {
+        TDA9887_ATI_TV_WONDER_PRO,
+        {0x16, 0x70, 0x49}, // PAL_BG       ?
+        //{0x16, 0x6e, 0x4a}, // PAL_I        ?
+        //{0x16, 0x70, 0x4b}, // PAL_DK       ?
+        {0x86, 0x50, 0x4b}, // SECAM_L      ?
+        {0x92, 0x30, 0x04}, // NTSC         Working
+        //{0x92, 0x30, 0x40}, // NTSC_JP      ?
+        //{0x8e, 0x0d, 0x77}, // FM_RADIO     ?
+    },
+    {
+        TDA9887_AVERTV_303,
+        {0x16, 0x70, 0x49}, // PAL_BG       ?
+        //{0x16, 0x6e, 0x4a}, // PAL_I        ?
+        //{0x16, 0x70, 0x4b}, // PAL_DK       Working
+        {0x86, 0x50, 0x4b}, // SECAM_L      ?
+        {0x92, 0x30, 0x04}, // NTSC         ?
+        //{0x92, 0x30, 0x40}, // NTSC_JP      ?
+        //{0x8e, 0x0d, 0x77}, // FM_RADIO     ?
+    },
+
+    /*
+    Add here new settings. But be careful:
+    We can't use CardID's, there are more than one tables,
+    BT8x8, SAA71xx and CX2388x. Please add an new entry in eTDA9887Card.
+    For example:
+    {
+        TDA9887_NEW_CARD_SETTINGS,
+        {0x00, 0x00, 0x00}, // PAL_BG       ?
+        {0x00, 0x00, 0x00}, // PAL_I        ?
+        {0x00, 0x00, 0x00}, // PAL_DK       ?
+        {0x00, 0x00, 0x00}, // SECAM_L      ?
+        {0x00, 0x00, 0x00}, // NTSC         ?
+        {0x00, 0x00, 0x00}, // NTSC_JP      ?
+        {0x00, 0x00, 0x00}, // FM_RADIO     ?
+    },
+    */
+
+};
 
 static void Tda9887_TunerSet( bool bPreSet, uint norm /* eVideoFormat videoFormat */ )
 {
@@ -524,28 +611,34 @@ static void Tda9887_TunerSet( bool bPreSet, uint norm /* eVideoFormat videoForma
    dprintf2("Tda9887-TunerSet: preset=%d, norm=%d", bPreSet, norm);
    if (bPreSet)
    {
-       switch (norm)
-       {
-          case VIDEO_MODE_PAL:
-             memcpy(tda9887set, tda9887set_pal_bg, sizeof(tda9887set));
-             break;
+      if (Tda9887Type < TDA9887_LASTONE)
+      {
+         switch (norm)
+         {
+            case VIDEO_MODE_PAL:
+               memcpy(&tda9887set[2], Tda9887TypeSettings[Tda9887Type].Pal_BG, 3);
+               break;
 
-          case VIDEO_MODE_SECAM:
-             memcpy(tda9887set, tda9887set_pal_l, sizeof(tda9887set));
-             break;
+            case VIDEO_MODE_SECAM:
+               memcpy(&tda9887set[2], Tda9887TypeSettings[Tda9887Type].Secam_L, 3);
+               break;
 
-          case VIDEO_MODE_NTSC:
-             memcpy(tda9887set, tda9887set_ntsc, sizeof(tda9887set));
-             break;
+            case VIDEO_MODE_NTSC:
+               memcpy(&tda9887set[2], Tda9887TypeSettings[Tda9887Type].Ntsc, 3);
+               break;
 
-          default:
-             debug1("TDA9887: Invalid video format %d", norm);
-             return;
-       }
+            default:
+               debug1("TDA9887: Invalid video format %d", norm);
+               return;
+         }
+         dprintf3("Tda9887-TunerSet: 0x%02x 0x%02x 0x%02x", tda9887set[2], tda9887set[3], tda9887set[4]);
 
-       dprintf3("Tda9887-TunerSet: 0x%02x 0x%02x 0x%02x", tda9887set[2], tda9887set[3], tda9887set[4]);
-       tda9887set[0] = Tda9887DeviceI2C;
-       I2CBus_Write(tda9887set, 5);
+         tda9887set[0] = Tda9887DeviceI2C;
+         tda9887set[1] = 0;
+         I2CBus_Write(tda9887set, 5);
+      }
+      else
+         debug1("Tda9887-TunerSet: invalid type %d", Tda9887Type);
    }
 }
 
@@ -556,6 +649,7 @@ static void Tda9887_Init( bool bPreInit, uint norm /* eVideoFormat videoFormat *
 
 static bool Tda9887_Detect( BYTE Addr )
 {
+   static const BYTE tda9887detect[] = {I2C_TDA9887_x, 0x00, 0x54, 0x70, 0x44};
    BYTE tda9887set[5];
    bool result;
 
@@ -1558,6 +1652,7 @@ bool Tuner_Init( TUNER_TYPE type, TVCARD * pNewTvCardIf )
    uint i2cStart, i2cStop;
    BYTE i2cPort;
    uint defaultNorm = 0;
+   eTDA9887Card IffType;
    bool result = FALSE;
 
    dprintf1("Tuner-Init: requested type %d\n", type);
@@ -1568,6 +1663,7 @@ bool Tuner_Init( TUNER_TYPE type, TVCARD * pNewTvCardIf )
    if ((pNewTvCardIf != NULL) && (pNewTvCardIf->i2cBus != NULL))
    {
       pTvCard               = pNewTvCardIf;
+      Tda9887Type           = TDA9887_LASTONE;
       haveTda9887Standard   = FALSE;
       haveTda9887Pinnacle   = FALSE;
       isTda9887PinnacleMono = FALSE;
@@ -1587,15 +1683,17 @@ bool Tuner_Init( TUNER_TYPE type, TVCARD * pNewTvCardIf )
             dprintf1("Tuner-Init: detecting IF demodulator, norm %d\n", defaultNorm);
 
             // detect and initialize external IF demodulator (must be done before port scan)
-            if (pTvCard->cfg->GetIffType(pTvCard, &isTda9887PinnacleMono) &&
-                Tda9887_Detect(I2C_TDA9887_0) )
+            IffType = pTvCard->cfg->GetIffType(pTvCard, &haveTda9887Pinnacle, &isTda9887PinnacleMono);
+            if ( haveTda9887Pinnacle && Tda9887_Detect(I2C_TDA9887_0) )
             {
+               Tda9887Type = IffType;
                haveTda9887Pinnacle = TRUE;
                TDA9887Pinnacle_Init(TRUE, defaultNorm);
             }
             else if ( Tda9887_Detect(I2C_TDA9887_0) ||
                       Tda9887_Detect(I2C_TDA9887_1) )
             {
+               Tda9887Type = IffType;
                haveTda9887Standard  = TRUE;
                Tda9887_Init(TRUE, defaultNorm);
             }

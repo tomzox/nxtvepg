@@ -21,11 +21,11 @@
  *  Authors:
  *      Copyright (c) 2002 Atsushi Nakagawa.  All rights reserved.
  *
- *  DScaler #Id: SAA7134Card.cpp,v 1.42 2003/10/27 10:39:53 adcockj Exp #
- *  DScaler #Id: SAA7134Source.cpp,v 1.69 2003/01/27 22:04:12 laurentg Exp #
+ *  DScaler #Id: SAA7134Card.cpp,v 1.43 2004/04/24 11:12:01 atnak Exp #
+ *  DScaler #Id: SAA7134Source.cpp,v 1.91 2004/08/06 16:23:00 atnak Exp #
  *  DScaler #Id: SAA7134Provider.cpp,v 1.10 2002/12/24 08:22:14 atnak Exp #
  *
- *  $Id: saa7134.c,v 1.21 2004/05/22 19:48:49 tom Exp tom $
+ *  $Id: saa7134.c,v 1.22 2004/12/26 21:46:45 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -1006,6 +1006,14 @@ static void SAA7134_StopAcqThread( void )
    StopCapture();
 }
 
+// ----------------------------------------------------------------------------
+// Initialize PCI card
+//
+static void SAA7134_ResetChip( DWORD m_BusNumber, DWORD m_SlotNumber )
+{
+    // nothing needs to be done here for SAA7134 cards
+}
+
 // ---------------------------------------------------------------------------
 // Set parameters
 //
@@ -1113,6 +1121,7 @@ static const TVCARD_CTL SAA7134_CardCtl =
    SAA7134_StartAcqThread,
    SAA7134_StopAcqThread,
    SAA7134_Configure,
+   SAA7134_ResetChip,
    SAA7134_Close,
    SAA7134_Open,
 };

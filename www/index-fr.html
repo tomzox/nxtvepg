@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="fr">
-<!-- $Id: index-fr.html,v 1.7 2004/09/05 19:43:40 tom Exp $ -->
+<!-- $Id: index-fr.html,v 1.9 2004/12/28 19:29:38 tom Exp $ -->
 <!-- Translated by Néo (hotmail's neojudgment, 2004-03-15) -->
 <HEAD>
 <TITLE>nexTView EPG Decoder Software Download Page</TITLE>
@@ -30,15 +30,7 @@
 
 <H2 class="navhead">News</H2>
 <P>
-5.9.2004: <A HREF="changelog.html#release_2_7_3">Release 2.7.3</A>
-</P><P>
-30.8.2004: Release 2.7.2
-</P><P>
-17.7.2004: Release 2.7.1
-</P><P>
-2.4.2004: Release 2.7.0
-</P><P>
-Mars 2004: Nouveau fournisseur <A HREF="provnets.html"><I>VT4</I> en Belgique</A>
+27.12.2004: <A HREF="changelog.html#release_2_7_4">Release 2.7.4</A>
 </P>
 
 <H2 class="navhead">Documentation</H2>
@@ -102,48 +94,33 @@ par l'intermédiaire d'une carte de TV analogique, sans accès à Internet.
 <LI><a href="download.html">Téléchargement du programme</a>
 <LI><a href="download.html#requirements">Pré requis</a>
 <P></P>
-<LI><A href="index.html#new_2_7_3">A propos de la nouvelle version 2.7.3</A>
+<LI><A href="index.html#new_2_7_4">A propos de la version 2.7.4</A>
 <LI><A href="index.html#feedback">Questions et feedback</A>
 <LI><a href="index.html#help_wanted">Recherche aide</a>
 <LI><A href="index.html#copyright">Notification de copyright</A>
 </UL>
 
 
-<H2><A NAME="new_2_7_3"><SPAN class="green">Nouvelle Version 2.7.3 (5.9.2004)</SPAN></A></H2>
+<H2><SPAN CLASS="red"><A NAME="new_2_7_4">Version 2.7.4 (27.12.2004)</A></SPAN></H2>
 <P>
-Releases 2.7.2 and 2.7.3 fix two bugs in XMLTV export and introduce a
-new feature:
+Release 2.7.4 once more is mainly a maintenance release with mostly
+bug fixes and a few feature enhancements.  Highlights include:
 </P>
 <UL>
-<LI>Fixed bugs in <A HREF="man.html#export_as_xmltv">XMLTV database export</A>
-<LI>Added <A HREF="http://tvtime.sourceforge.net/">tvtime</A>
-  to the list of <A HREF="links.html">TV applications supporting interaction</A>
-  with nxtvepg (requires tvtime version 0.9.13 or later)
-<LI>Added new command line option <A HREF="man.html#item__2dclock_mode">-clock</A>
-</UL>
-<P>
-The previous version featured the following changes:
-</P>
-<UL>
-<LI>Fixed <I>local time</I> option in
-  <A HREF="man.html#export_as_xmltv">XML database export</A>
-  and added support for the
-  <A HREF="http://membled.com/work/apps/xmltv/">new XMLTV DTD 0.6</A>
-<LI>Added support for interaction with new UNIX TV app:
-  <A HREF="http://zapping.sourceforge.net/">Zapping</A>,
-  (e.g. reading channel table from "zapping.conf")
-<LI>Work-around for daylight saving time changes and local time zone
-  handling specifically for <A HREF="provnets.html">Turkish provider TRT</A>.
-<LI>Made programme list's context menu
-  <A HREF="man.html#context_menu_configuration">fully configurable</A>:
-  pre-defined commands for filter and reminder control can be re-ordered now, too.
-<LI>Display Nextview logo in main window title bar on X11, too
-<LI>Fixed bugs in
-  <A HREF="man.html#item__2ddaemonstop">-daemonstop</A> and
-  <A HREF="man.html#item__2dprovider_cni">-provider merged</A>
-  command line options.
-<LI>Windows only: fixed weekday colors in the
-  <A HREF="man.html#item_show_weekday_scale">weekday scale</A>
+<LI>Fixed a bug in EPG teletext number updates which caused acquisition
+  to stall if multiple providers were acquired which used different
+  teletext pages for transmission (e.g. in Switzerland)
+<LI>Fixed timezone calculation for provider "VT4" in Belgium
+<LI>Fixed bug in <A HREF="man.html#filtering">text search filter</A>
+  for <A HREF="man.html#merged_databases">merged databases</A>: sub-string
+  search ended after 258 characters
+<LI>Added possibility to store "expire time" filter in shortcuts
+<LI>Added possibility to configure text foreground colors (at least for
+  programme list) to support an inverted color scheme (configurable via
+  <A HREF="man.html#files">.Xresources or Nxtvepg.ad</A>)
+<LI>Added new display format option for
+  <A HREF="man.html#composite_attributes">composite attributes</A> (i.e.
+  user-defined columns): set foreground color for entire column
 </UL>
 <P>
 Regardez aussi la liste détaillée des

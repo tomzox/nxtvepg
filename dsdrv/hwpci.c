@@ -1,5 +1,5 @@
 /////////////////////////////////////////////////////////////////////////////
-// #Id: PCICard.cpp,v 1.14 2002/11/07 21:06:12 adcockj Exp #
+// $Id: hwpci.c,v 1.8 2004/12/26 21:48:42 tom Exp tom $
 /////////////////////////////////////////////////////////////////////////////
 // Copyright (c) 2001 John Adcock.  All rights reserved.
 /////////////////////////////////////////////////////////////////////////////
@@ -15,7 +15,7 @@
 //  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 //  GNU General Public License for more details
 /////////////////////////////////////////////////////////////////////////////
-// nxtvepg $Id: hwpci.c,v 1.7 2003/02/22 14:58:13 tom Exp tom $
+// nxtvepg $Id: hwpci.c,v 1.8 2004/12/26 21:48:42 tom Exp tom $
 //////////////////////////////////////////////////////////////////////////////
 
 #define WIN32_LEAN_AND_MEAN     // Exclude rarely-used stuff from Windows headers
@@ -39,6 +39,7 @@ static DWORD  m_SlotNumber;
 static DWORD  m_MemoryBase;
 //static CHardwareDriver* m_pDriver;
 static DWORD  m_InitialACPIStatus;
+static HWPCI_RESET_CHIP_CB m_pCardResetCb;
 
 // forward declarations
 static int  HwPci_GetACPIStatus( void );
@@ -57,6 +58,7 @@ void HwPci_Create( void )
    m_MemoryBase = 0;
    m_bOpen = FALSE;
    m_InitialACPIStatus = 0;
+   m_pCardResetCb = NULL;
 }
 
 void HwPci_Destroy( void )
@@ -92,7 +94,8 @@ WORD HwPci_GetVendorId( void )
     return m_VendorId;
 }
 
-BOOL HwPci_OpenPCICard(WORD VendorID, WORD DeviceID, DWORD DeviceIndex, BOOL supportsAcpi)
+BOOL HwPci_OpenPCICard(WORD VendorID, WORD DeviceID, DWORD DeviceIndex,
+                       BOOL supportsAcpi, HWPCI_RESET_CHIP_CB pResetCb)
 {
     TDSDrvParam hwParam;
     DWORD dwReturnedLength;
@@ -106,6 +109,8 @@ BOOL HwPci_OpenPCICard(WORD VendorID, WORD DeviceID, DWORD DeviceIndex, BOOL sup
     }
     m_DeviceId = DeviceID;
     m_VendorId = VendorID;
+
+    m_pCardResetCb = pResetCb;
 
     hwParam.dwAddress = VendorID;
     hwParam.dwValue = DeviceID;
@@ -489,18 +494,79 @@ BOOL HwPci_SetPCIConfig(PCI_COMMON_CONFIG* pPCI_COMMON_CONFIG, DWORD Bus, DWORD 
     return TRUE;
 }
 
+BOOL HwPci_GetPCIConfigOffset(BYTE* pbPCIConfig, DWORD Offset, DWORD Bus, DWORD Slot)
+{
+    TDSDrvParam hwParam;
+    DWORD dwStatus;
+    DWORD dwLength;
+
+    if(pbPCIConfig == NULL)
+    {
+        LOG(1, "GetPCIConfigOffset failed. pbPCIConfig == NULL");
+        return FALSE;
+    }
+
+    hwParam.dwAddress = Bus;
+    hwParam.dwValue = Slot;
+    hwParam.dwFlags = Offset;
+
+    dwStatus = HwDrv_SendCommandEx(IOCTL_DSDRV_GETPCICONFIGOFFSET,
+                                        &hwParam,
+                                        sizeof(hwParam),
+                                        pbPCIConfig,
+                                        1,
+                                        &dwLength);
+
+    if(dwStatus != ERROR_SUCCESS)
+    {
+        LOG(1, "GetPCIConfigOffet failed for %X %X failed 0x%x", Bus, Slot, dwStatus);
+        return FALSE;
+    }
+    return TRUE;
+}
+
+BOOL HwPci_SetPCIConfigOffset(BYTE* pbPCIConfig, DWORD Offset, DWORD Bus, DWORD Slot)
+{
+    TDSDrvParam hwParam;
+    DWORD dwStatus;
+    DWORD dwLength;
+
+    if(pbPCIConfig == NULL)
+    {
+        LOG(1, "SetPCIConfigOffset failed. pbPCIConfig == NULL");
+        return FALSE;
+    }
+
+    hwParam.dwAddress = Bus;
+    hwParam.dwValue = Slot;
+    hwParam.dwFlags = Offset;
+
+    dwStatus = HwDrv_SendCommandEx(IOCTL_DSDRV_SETPCICONFIGOFFSET,
+                                        &hwParam,
+                                        sizeof(hwParam),
+                                        pbPCIConfig,
+                                        1,
+                                        &dwLength);
+
+    if(dwStatus != ERROR_SUCCESS)
+    {
+        LOG(1, "SetPCIConfigOffset failed for %X %X failed 0x%x", Bus, Slot, dwStatus);
+        return FALSE;
+    }
+    return TRUE;
+}
+
 // this functions returns 0 if the card is in ACPI state D0 or on error
 // returns 3 if in D3 state (full off)
 static int HwPci_GetACPIStatus( void )
 {
-    PCI_COMMON_CONFIG PCI_Config;
-
     // only some cards are able to power down
     //if(!SupportsACPI()) { return 0; }  // checked by caller
     
-    if(HwPci_GetPCIConfig(&PCI_Config, m_BusNumber, m_SlotNumber))
+    BYTE ACPIStatus = 0;
+    if(HwPci_GetPCIConfigOffset(&ACPIStatus, 0x50, m_BusNumber, m_SlotNumber))
     {
-        DWORD ACPIStatus = PCI_Config.DeviceSpecific[0x10] & 3;
+        ACPIStatus = ACPIStatus & 3;
 
         LOG(1, "Bus %d Card %d ACPI status: D%d", m_BusNumber, m_SlotNumber, ACPIStatus);
         return ACPIStatus;
@@ -512,27 +578,28 @@ static int HwPci_GetACPIStatus( void )
 // Set ACPIStatus to 0 for D0/full on state. 3 for D3/full off
 static void HwPci_SetACPIStatus(int ACPIStatus)
 {
-    PCI_COMMON_CONFIG PCI_Config;
-
     // only some cards are able to power down
     //if(!SupportsACPI()) { return; }  // checked during open
 
-    if(!HwPci_GetPCIConfig(&PCI_Config, m_BusNumber, m_SlotNumber))
+    BYTE ACPIStatusNew = 0;
+    if(HwPci_GetPCIConfigOffset(&ACPIStatusNew, 0x50, m_BusNumber, m_SlotNumber))
     {
-        return;
+        ACPIStatusNew &= ~3;
+        ACPIStatusNew |= ACPIStatus;
+
+        LOG(1, "Attempting to set Bus %d Card %d ACPI status to D%d", m_BusNumber, m_SlotNumber, ACPIStatusNew);
+
+        HwPci_SetPCIConfigOffset(&ACPIStatusNew, 0x50, m_BusNumber, m_SlotNumber);
+
+        if(ACPIStatus == 0)
+        {
+            Sleep(500);
+            if (m_pCardResetCb != NULL)
+            {
+                m_pCardResetCb(m_BusNumber, m_SlotNumber);
+            }
+        }
+        LOG(1, "Set ACPI status complete");
     }
-    PCI_Config.DeviceSpecific[0x10] &= ~3;
-    PCI_Config.DeviceSpecific[0x10] |= ACPIStatus;
-
-    LOG(1, "Attempting to set Bus %d Card %d ACPI status to D%d", m_BusNumber, m_SlotNumber, ACPIStatus);
-
-    HwPci_SetPCIConfig(&PCI_Config, m_BusNumber, m_SlotNumber);
-
-    if(ACPIStatus == 0)
-    {
-        Sleep(500);
-        //ResetChip();  // done by caller
-    }
-    LOG(1, "Set ACPI status complete");
 }
 
