@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: wintv.c,v 1.21 2004/06/19 19:07:03 tom Exp tom $
+ *  $Id: wintv.c,v 1.22 2005/03/06 20:16:30 tom Exp tom $
  */
 
 #ifndef WIN32
@@ -144,6 +144,7 @@ static const PI_BLOCK * Wintv_SearchCurrentPi( uint cni, uint pil )
    FILTER_CONTEXT *fc;
    const AI_BLOCK *pAiBlock;
    const PI_BLOCK *pPiBlock;
+   const AI_NETWOP *pNetwop;
    time_t now;
    uchar netwop;
    
@@ -155,9 +156,19 @@ static const PI_BLOCK * Wintv_SearchCurrentPi( uint cni, uint pil )
    if (pAiBlock != NULL)
    {
       // convert the CNI parameter to a netwop index
-      for ( netwop = 0; netwop < pAiBlock->netwopCount; netwop++ ) 
-         if (cni == AI_GET_NETWOP_N(pAiBlock, netwop)->cni)
+      pNetwop = AI_GET_NETWOPS(pAiBlock);
+      for ( netwop = 0; netwop < pAiBlock->netwopCount; netwop++, pNetwop++ ) 
+         if (cni == pNetwop->cni)
             break;
+
+      // if not found: try 2nd time with conversion to PDC
+      if (netwop >= pAiBlock->netwopCount)
+      {
+         pNetwop = AI_GET_NETWOPS(pAiBlock);
+         for ( netwop = 0; netwop < pAiBlock->netwopCount; netwop++, pNetwop++ ) 
+            if (cni == CniConvertUnknownToPdc(pNetwop->cni))
+               break;
+      }
 
       if (netwop < pAiBlock->netwopCount)
       {

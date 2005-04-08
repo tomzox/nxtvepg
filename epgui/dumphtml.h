@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumphtml.h,v 1.1 2003/02/26 21:59:31 tom Exp tom $
+ *  $Id: dumphtml.h,v 1.2 2004/12/29 12:05:21 tom Exp tom $
  */
 
 #ifndef __DUMPHTML_H
@@ -30,7 +30,7 @@
 void EpgDumpHtml_Init( void );
 void EpgDumpHtml_Destroy( void );
 
-void EpgDumpHtml_WriteString( FILE *fp, const char * pText );
+void EpgDumpHtml_WriteString( FILE *fp, const char * pText, sint strlen );
 void EpgDumpHtml_RemoveQuotes( const uchar * pStr, uchar * pBuf, uint maxOutLen );
 
 

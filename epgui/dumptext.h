@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumptext.h,v 1.5 2004/08/29 21:48:55 tom Exp tom $
+ *  $Id: dumptext.h,v 1.6 2004/12/29 20:26:40 tom Exp $
  */
 
 #ifndef __DUMPTEXT_H
@@ -28,7 +28,10 @@ typedef enum
    EPGTAB_DUMP_AI,
    EPGTAB_DUMP_PI,
    EPGTAB_DUMP_PDC,
-   EPGTAB_DUMP_XML,
+   EPGTAB_DUMP_XMLTV_ANY,
+   EPGTAB_DUMP_XMLTV_DTD_5_GMT,
+   EPGTAB_DUMP_XMLTV_DTD_5_LTZ,
+   EPGTAB_DUMP_XMLTV_DTD_6,
    EPGTAB_DUMP_DEBUG,
    EPGTAB_CLOCK_SET,
    EPGTAB_CLOCK_PRINT,
@@ -36,6 +39,7 @@ typedef enum
    EPGTAB_DUMP_NONE = EPGTAB_DUMP_COUNT
 } EPGTAB_DUMP_MODE;
 
+#define IS_STANDALONE_MODE(X) ((X)!=EPGTAB_DUMP_NONE)
 #define IS_CLOCK_MODE(X) (((X)==EPGTAB_CLOCK_SET)||((X)==EPGTAB_CLOCK_PRINT))
 
 // ---------------------------------------------------------------------------

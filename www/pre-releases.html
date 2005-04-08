@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: pre-releases.html,v 1.52 2004/12/28 19:28:05 tom Exp $ -->
+<!-- $Id: pre-releases.html,v 1.60 2005/04/08 21:41:13 tom Exp $ -->
 <HEAD>
 <TITLE>Developers and alpha testers download page</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -32,6 +32,8 @@
 
 <H2 class="navhead">News</H2>
 <P>
+Apr/8/2005: <A HREF="index.html#new_2_7_5">Release 2.7.5</A>
+</P><P>
 Dec/27/2004: <A HREF="changelog.html#release_2_7_4">Release 2.7.4</A>
 </P>
 
@@ -40,7 +42,6 @@ Dec/27/2004: <A HREF="changelog.html#release_2_7_4">Release 2.7.4</A>
 <A HREF="index.html">Homepage</A><BR>
 <A HREF="intro.html">Introduction</A><BR>
 <A HREF="provnets.html">Providers list</A><BR>
-<A HREF="help-wanted.html">Help Wanted</A><BR>
 <A HREF="links.html">Links</A><BR>
 <A HREF="faq.html">FAQ</A><BR>
 <BR>
@@ -56,11 +57,11 @@ Dec/27/2004: <A HREF="changelog.html#release_2_7_4">Release 2.7.4</A>
 
 <H2 class="navhead">Screenshots</H2>
 <P>
-<A HREF="screenshot-shortcuts.gif">New 2.7.0 feature</A><BR>
-<A HREF="screenshot-reminder.gif">New 2.6.0 features</A><BR>
-<A HREF="screenshot-grid1.png">New 2.5.0 features</A><BR>
-<A HREF="screenshot-win.gif">Windows screenshot</A><BR>
-<A HREF="screenshot-series.gif">Series menu</A><BR>
+<A HREF="screenshot-274.png">Main window</A><BR>
+<A HREF="screenshot-grid1.png">"Grid" layout</A><BR>
+<A HREF="screenshot-reminder.png">Reminders</A><BR>
+<A HREF="screenshot-stats.png">Reception statistics</A><BR>
+<A HREF="screenshot-series.png">Series menu</A><BR>
 <A HREF="screenshot-xawtv.jpg">xawtv with EPG OSD</A><BR>
 </P>
 <span class="center"><span class="logo"><a href="http://sourceforge.net"><img
@@ -79,10 +80,9 @@ and alpha/beta testers.  If you're searching for the regular release
 visit the <A HREF="download.html">download page</A>.
 </P>
 <P>
-<B>Note:</B> currently there are two development branches: besides this
-2.7.x maintanance branch there's also a
-<A HREF="WDMpre-releases.html">WDM support development</A> branch.
-The two branches will be merged for release 2.8.0.
+<B>Note:</B> <A HREF="WDMpre-releases.html">WDM support development</A>
+has been merged with the main development line.  The separate page will
+still be kept during alpha/beta testing though.
 </P>
 
 <H2>Downloads</H2>
@@ -109,26 +109,38 @@ For a list of bug fixes (and a few new features) see the
 <A HREF="http://nxtvepg.sourceforge.net/changelog.html">changelog</A>.
 </P><P>
 -->
-This release comes with internal consistany checks and debug output enabled
-and should be used for evaluation only.  Please do not redistribute.
+Pre-releases include alot of internal consistany checks and produce plenty of
+debug output.  Hence they should be used for evaluation only.
+Please do not redistribute.
 </P>
-<!--
+
+<B>2.8.0 development line</B>
+
 <P>
+<!--
 <B>Warning:</B> There's a change in the format of user-defined columns
 in the rc/ini file.  Once you start 2.4.1 your configuration will automatically
 be converted.  Make a copy of your old rc/ini file before you first start 2.4.1
 to be able to switch back to 2.4.0 in case you find any severe bugs in 2.4.1
 -->
 
-Note the format of rc/ini file has changed in 2.7.4pre0.
+Note the format of rc/ini file has changed in 2.7.5pre0 and 2.7.5pre1
+(but not in 2.7.5rc1, which was forked off before 2.7.5pre0)
 It will be automatically upgraded upon the first start when using an rc/ini file
 written by an older version.  Remember to make a backup copy, so that you can
 still return to older versions.
+
+<!--
 The acquisition daemon protocol has also changed,
 hence you cannot connect with a 2.7.4pre0 client to 2.7.3 or older daemons, or vice versa.
+-->
 </P>
 <P>
-<B>Last update: December 12th 2004: release 2.7.4pre3</B>
+<B>Last update: March 24th 2005: release 2.8.0pre5</B>
+</P>
+<P>
+As of 2.8.0pre1 WDM support (affects Windows users only) has been merged onto
+the main development line, hence the jump from 2.7.5 to 2.8.0
 </P>
 <UL>
 <!--
@@ -138,7 +150,7 @@ hence you cannot connect with a 2.7.4pre0 client to 2.7.3 or older daemons, or v
 <LI><I>no downloads are currently available</I>
 -->
 <LI>Sources:
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.7.4pre3.tar.gz">nxtvepg-2.7.4pre3.tar.gz</A>
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre5.tar.gz">nxtvepg-2.8.0pre5.tar.gz</A>
 <!--
 <BR>Note: if you want to test nxtvepg with
 <A HREF="http://nxtvepg.sourceforge.net/tmp/README-proxy.txt">VBI proxy</A>
@@ -149,89 +161,114 @@ nxtvepg Makefile and get libzvbi from CVS at
 select branch "proxy" during checkout.
 -->
 <LI>Win32 executable:
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.7.4pre3-win.zip">nxtvepg-2.7.4pre3-win.zip</A>
+    <!--
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre5-win.zip">nxtvepg-2.8.0pre5-win.zip</A>
+    -->
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre5b-win.zip">nxtvepg-2.8.0pre5b-win.zip</A><BR>
+    (<I>Release pre5b is identical to pre5, just compiled with a different compiler.</I>)
+<!--
 <BR>(Does not contain the Tcl/Tk libraries; please copy them from the last official release.)
+-->
+<BR><STRONG>Important:</STRONG> WDM users require a new version of VBIACQWDMDRV.DLL
+    The one released for 2.8.0pre1 no longer works.
+
+<LI>To enable use of vendor supplied WDM drivers you need an additional DLL which
+    is developed separately by Gérard Chevalier.  Download from the
+    <A HREF="WDMpre-releases.html">WDM support development</A> page.
 <!--
 <BR><B>Attention:</B> Please note that Win32 TV card configuration parameters
 and driver version have changed in pre7.
 See the above link to the mailing list archive for details.
 -->
-<LI>Win32 TV simulator: <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.7.4pre3-tvsim.zip">nxtvepg-2.7.4pre3-tvsim.zip</A><BR>
-Please try to reproduce any K!TV related problems with tvsim.exe
+<LI>Win32 TV simulator: <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre5-tvsim.zip">nxtvepg-2.8.0pre5-tvsim.zip</A><BR>
+Please try to reproduce any problems related to interaction with K!TV with tvsim.exe
 before you report them.
 </UL>
 
 <H2>Change history</H2>
 
-<H3>Changes between 2.7.4pre3 and 2.7.4 (2004-12-27)</H3>
+<H3>Changes between 2.8.0pre4 and 2.8.0pre5 (2005-03-25)</H3>
 <UL>
-<LI>Fixed bug in handling external video input source during EPG scan
-  which caused misleading help messages.
-<LI>Finalized update of TV card support (i.e. DScaler import);
-  bugfix in MT2032 tuner handling.
+<LI>Bugfix: missing error-check in time conversion lead to inconsistant
+  start/stop times around daylight saving time switch (which lead to
+  reload failure cause: "database corrupt")
+<LI>Fixed timezone format in XMLTV output (DTD 0.5, local timezone only)
+  Thanks to Laurent Garnier for reporting the bug.
+<LI>Updated network ID tables for EPG scan and TV interaction (updated
+  with TR231 rev. 03/2005)  Thanks to Quenotte.
+<LI>Windows: Upgrade of Tcl/Tk library from version 8.3.4 to 8.4.9
+<LI>Windows: Bugfix in new K!TV channel table import (Import "Test"
+  in TV app interaction configuration dialog failed when tried
+  immediately after switching from a different application type.)
+<LI>Windows, WDM support: as work-around for broken Hauppauge drivers:
+  removed VBI frame timestamp check
 </UL>
 
-<H3>Changes between 2.7.4pre2 and 2.7.4pre3 (2004-12-12)</H3>
+<H3>Changes between 2.8.0pre3 and 2.8.0pre4 (2005-02-27)</H3>
 <UL>
-<LI>Added possibility to configure text foreground colors (at least for
-  programme list) to support an inverted color scheme (see examples with
-  <A HREF="screenshot-inv-col1.png">inverted color scheme in single column layout</A>,
-  <A HREF="screenshot-inv-col2.png">inverted color scheme in grid layout</A>)
-<LI>Added new display format option for composite attributes (i.e.
-  user-defined columns): set foreground color for entire column
-  (see <A HREF="screenshot-inv-col3.png">example</A>)
-<LI>TV app. interaction developent tool vbirec: added possibility to send
-  commands and EPG OSD infos to a connected TV app (to allow testing
-  this feature without nxtvepg)
+<LI>Added support for reading channel table of K!TV 2.3
+  Thanks to Quenotte for providing a patch.
+<LI>Windows only bugfix: "Record this show" did not appear in context
+  menu when connected to K!TV
+<LI>Improved network/channel identification by VPS/PDC during
+  interaction with TV applications (e.g. TV5 was not identified)
 </UL>
 
-<H3>Changes between 2.7.4pre1 and 2.7.4pre2 (2004-11-01)</H3>
+<H3>Changes between 2.8.0pre2a and 2.8.0pre3 (2005-02-20)</H3>
 <UL>
-<LI>XML export: omit newline (i.e. line break) at start and end of
-  description text (on user request esp. for DTD version 5); also
-  in DTD version 6 descriptions merged from multiple providers are now
-  exported in separate description attributes instead of concatenating
-  the text into one with newlines inbetween.
-<LI>Windows only: cleanly catch crash when switching desktop display to
-  full-screen (e.g. upon start of some game); nxtvepg still aborts
-  but safely stops the TV card driver and prevents popup message
-  (the crash is caused by a bug in the Tcl/Tk library)
-<LI>Windows: Fixed !wintv! keyword handling in scripts bound to
-  reminder events
-<LI>Windows: more updates of DScaler drivers (new TV cards, improved
-  support for cards with TDA9887)
+<LI>Fixed error message during provider removal in EPG scan
+<LI>Windows only: fixed !wintv! keyword handling in scripts bound
+  to reminder events (this was already supposed to be in 2.7.4 but
+  lost somehow)
+<LI>Windows only: minor bugfixes in WDM driver support
 </UL>
 
-<H3>Changes between 2.7.4pre0 and 2.7.4pre1 (2004-10-03)</H3>
+<H3>Changes between 2.8.0pre1 and 2.8.0pre2a (2005-01-21)</H3>
 <UL>
-<LI>Fixes in the way provider and network names were passed to Tcl/Tk
-  for display in main window status bar and various dialogs (only
-  relevant for names corrupted by transmission errors, but did cause
-  sporadic failure)
-<LI>Fixed default setting for context menu: was empty since 2.7.1
-<LI>Fixed bug in text search filter for merged databases: sub-string
-  search ended after 258 characters
-<LI>Added work-around to catch "panic" (i.e. internal errors) in Tcl/Tk
-  library, esp. to cleanly shut down acquisition
-<LI>UNIX: added "XdTV" (former xawdecode) to internal list of TV apps
-  with which nxtvepg can exchange EPG info
+<LI>UNIX: Implemented new communication protocol for TV applications:
+  based on the <A HREF="xiccc-proto.html">X11 ICCCM protocol</A>
+  (Download the tvsim package to get a demo)
+<LI>added command line option -remctrl for UNIX (was supported on WIN32 only)
+<LI>Win32: keep acquisition disabled until the user has configured the TV card
+<LI>Win32 (2.8.0pre2a): temporarily disable acquisition while in the TV card config
+  dialog when switching to a WDM source (necessary to allow video input selection)
 </UL>
 
-
-<H3>Changes between 2.7.3 and 2.7.4pre0 (2004-09-22)</H3>
+<H3>Changes between 2.7.5pre1 and 2.8.0pre1 (2005-01-16)</H3>
 <UL>
-<LI>Bugfix EPG teletext number update in database: after external channel
-  changes from one provider directly onto another there was a possibility
-  that a wrong teletext number was stored for the first provider,
-  subsequently causing acquisition to fail; also changed the EPG scan to
-  update the teletext numbers stored in the databases
-<LI>Added output of current EPG page number to "acquisition statistics"
-  in control menu
-<LI>Added possibility to store "expire time" filter in shortcuts
-<LI>Fixed timezone calculation for provider "VT4"
-<LI>Windows: updated DScaler TV card support; Note a new version of the
-  dsdrv4 driver will be installed the first time you start nxtvepg
-  (unless version 4.03 was already installed by another application)
+<LI>WIN32: merged support for WDM driver previously released as 2.8.0pre0
+  (Note: requires separate DLL, see page; still in alpha testing state;
+  details see <A HREF="WDMpre-releases.html">WDM support development</A> page)
+<LI>Included small fixes previously supplied as patch for 2.7.5pre1:
+   <UL>
+   <LI>Fixed -outfile option for Windows
+   <LI>Win32-only: fixed bug during daemon start via GUI
+   <LI>nxtvepgd: some memory was not freed during exit which triggered a debug exception
+   <LI>Added description for -provscan in manual, added Belgium to country code list
+   </UL>
+<LI>Suppress warning about missing nxtvepg.ini file when nxtvepg is
+  started for the first time.  Thanks to Gérard for pointing out this bug.
+</UL>
+
+<H3>Changes between 2.7.5pre0 and 2.7.5pre1 (2005-01-08)</H3>
+<UL>
+<LI>Split up config file .nxtvepgrc/nxtvepg.ini into sections.  Only
+  sections belonging to GUI are parsed by Tcl code; sections containing
+  database and acquisition parameters are read by a new C module.
+<LI>Added new command line option -provscan de|fr|at|ch: runs an EPG
+  scan without GUI. It can also be used by nxtvepgd, so nxtvepg can
+  now be set up without ever using the GUI (except for some advanced
+  acquisition options)
+</UL>
+
+<H3>Changes between 2.7.4 and 2.7.5pre0 (2005-01-01)</H3>
+<UL>
+<LI>Fixed HTML export (not all text format options were processed,
+  weekday color column was not implemented) and improved layout
+<LI>XML export: format can now be selected via command line options
+<LI>Added command line option -outfile <path>
+<LI>Possibility to compile separate daemon without GUI (note to UNIX
+  users: enter "make daemon" to compile the daemon-only executable)
 </UL>
 
 

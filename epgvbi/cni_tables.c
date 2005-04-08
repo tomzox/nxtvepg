@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: cni_tables.c,v 1.25 2004/09/25 18:50:15 tom Exp tom $
+ *  $Id: cni_tables.c,v 1.28 2005/03/06 19:54:12 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -135,6 +135,7 @@ static const CNI_PDC_DESC cni_pdc_desc_table[] =
    {0x1D42, 0x4942, "MUXX"},
    {0x1D43, 0x4943, "EXTRA"},
    {0x1D44, 0x4944, "BR-Alpha: Bildungskanal des Bayerischen Rundfunks"},
+   {0x1D77, 0x49BD, "1-2-3.TV"},
    {0x1D7A, 0x0000, "n24"},
    {0x1D7B, 0x49BE, "Tele-5"},
    {0x1D7C, 0x0000, "ONYX-TV"},
@@ -201,7 +202,7 @@ static const CNI_PDC_DESC cni_pdc_desc_table[] =
    {0x1DBF, 0x0000, "Berlin-Mix-Channel I"},
    {0x1DC1, 0x4901, "ARD: Erstes Deutsches Fernsehen"},
    {0x1DC2, 0x4902, "ZDF: Zweites Deutsches Fernsehen"},
-   {0x1DC7, 0xD107, "3sat (ARD/ZDF/ORF/SRG common programme)"},  // 0x49C7 in ETSI TR
+   {0x1DC7, 0x49C7, "3sat (ARD/ZDF/ORF/SRG common programme)"},
    {0x1DC8, 0x4918, "Phoenix: Ereignis und Dokumentationskanal (ARD/ZDF)"},  // 0x4908 in ETSI TR
    {0x1DC9, 0x49C9, "Kinderkanal (ARD/ZDF)"},
    {0x1DCA, 0x0000, "BR-1: Regionalprogramm"},
@@ -282,9 +283,18 @@ static const CNI_PDC_DESC cni_pdc_desc_table[] =
    // Italy
    {0x1500, 0x390A, "Arte"},
    {0x1500, 0xFA05, "Canale 5"},
+   {0x1500, 0x3930, "Discovery Italy"},
+   {0x1500, 0x3961, "Discovery Civilisations"},
+   {0x1500, 0x3962, "Discovery Travel and Adventure"},
+   {0x1500, 0x3963, "Discovery Science"},
+   {0x1500, 0x3985, "FOX KIDS"},
+   {0x1500, 0x3987, "FOX KIDS +1"},
    {0x1500, 0x3939, "GAY TV"},
    {0x1500, 0xFA06, "Italia 1"},
+   {0x1500, 0x3988, "LA7"},
    {0x1500, 0x3933, "MTV Italia"},
+   {0x1500, 0x3934, "MTV Brand New"},
+   {0x1500, 0x3935, "MTV Hits"},
    {0x1500, 0x3901, "RAI 1"},
    {0x1500, 0x3902, "RAI 2"},
    {0x1500, 0x3903, "RAI 3"},
@@ -309,12 +319,65 @@ static const CNI_PDC_DESC cni_pdc_desc_table[] =
    {0x1500, 0x3957, "RaiSat G. Rosso interattivo"},
    {0x1500, 0x3938, "RTV38"},
    {0x1500, 0x39B1, "Sailing Channel"},
-   {0x1500, 0x3997, "Tele+1"},
-   {0x1500, 0x3998, "Tele+2"},
-   {0x1500, 0x3999, "Tele+3"},
+   {0x1500, 0x3997, "Sky Sport 1"}, // "Tele+1"
+   {0x1500, 0x3998, "Sky Cinema 1"}, // "Tele+2"
    {0x1500, 0xFA08, "TMC"},
+   {0x1500, 0x3999, "Tele+3"},
    {0x1500, 0x3910, "TRS TV"},
+   {0x1511, 0x3911, "Sky Cinema Classic"},
+   {0x1513, 0x3913, "Sky Calcio 1"},
+   {0x1514, 0x3914, "Sky Calcio 2"},
+   {0x1515, 0x3915, "Sky Calcio 3"},
+   {0x1516, 0x3916, "Sky Calcio 4"},
+   {0x1517, 0x3917, "Sky Calcio 5"},
+   {0x1518, 0x3918, "Sky Calcio 6"},
+   {0x1519, 0x3919, "Sky Calcio 7"},
+   {0x15A0, 0x39A0, "Sky Calcio 8"},
+   {0x15A1, 0x39A1, "Sky Calcio 9"},
+   {0x15A2, 0x39A2, "Sky Calcio 10"},
+   {0x15A3, 0x39A3, "Sky Calcio 11"},
+   {0x15A4, 0x39A4, "Sky Calcio 12"},
+   {0x15A5, 0x39A5, "Sky Calcio 13"},
+   {0x15A6, 0x39A6, "Sky Calcio 14"},
+   {0x1548, 0x3948, "Sky Sports 3"},
+   {0x1549, 0x3949, "Sky Diretta Gol"},
+   {0x1568, 0x3968, "Sky Meteo24"},
+   {0x1500, 0x3970, "Sky Cinema 2"},
+   {0x1500, 0x3971, "Sky Cinema 3"},
+   {0x1500, 0x3972, "Sky Cinema Autore"},
+   {0x1500, 0x3973, "Sky Cinema Max"},
+   {0x1500, 0x3974, "Sky Cinema 16:9"},
+   {0x1500, 0x3975, "Sky Sports 2"},
+   {0x1500, 0x3976, "Sky TG24"},
    {0x1500, 0x3940, "Video Italia"},
+   {0x1500, 0x3941, "SAT 2000"},
+   {0x1500, 0x39CA, "VIDEOLINA"},
+   {0x1500, 0x3986, "PEOPLE TV - RETE 7"},
+   {0x1500, 0x3989, "PrimaTV"},
+   {0x1500, 0x398A, "SportItalia"},
+   {0x1591, 0x3991, "Marcopolo"},
+   {0x1592, 0x3992, "Alice"},
+   {0x1593, 0x3993, "Nuvolari"},
+   {0x1594, 0x3994, "Leonardo"},
+   {0x1596, 0x3996, "SUPERPIPPA CHANNEL"},
+   {0x1590, 0x3990, "STUDIO UNIVERSAL"},
+   {0x1560, 0x3960, "SCI FI CHANNEL"},
+   {0x1500, 0x3909, "Telenova"},
+   {0x1542, 0x3942, "Jimmy"},
+   {0x1543, 0x3943, "Planet"},
+   {0x1544, 0x3944, "Cartoon Network"},
+   {0x1547, 0x3947, "Cartoon Network +1"},
+   {0x1545, 0x3945, "Boomerang"},
+   {0x1546, 0x3946, "CNN International"},
+   {0x15B2, 0x39B2, "Disney Channel"},
+   {0x15B3, 0x39B3, "7 Gold-Sestra Rete"},
+   {0x15B4, 0x39B4, "Rete 8-VGA"},
+   {0x15B5, 0x39B5, "Nuovarete"},
+   {0x15B6, 0x39B6, "Radio Italia TV"},
+   {0x15B7, 0x39B7, "Rete 7"},
+   {0x15B0, 0x39B0, "Disney Channel +1"},
+   {0x15B9, 0x39B9, "Toon Disney"},
+   {0x15C7, 0x39C7, "Bassano TV"},
    // Luxembourg
    {0x0000, 0x4000, "RTL Télé Lëtzebuerg"},
    // Netherlands
@@ -330,6 +393,10 @@ static const CNI_PDC_DESC cni_pdc_desc_table[] =
    {0x4800, 0x3125, "NET5"},
    {0x4800, 0x3126, "SBS6"},
    {0x4800, 0x3128, "V8"},
+   {0x4800, 0x3130, "TMF (Netherlands service)"},
+   {0x4800, 0x3131, "TMF (Belgian Flanders service)"},
+   {0x4800, 0x3132, "MTV NL"},
+   {0x4800, 0x3137, "RNN7"},
    // Norway
    {0x3F00, 0x4701, "NRK1"},
    {0x3F00, 0x4703, "NRK2"},
@@ -337,6 +404,8 @@ static const CNI_PDC_DESC cni_pdc_desc_table[] =
    {0x3F00, 0x4704, "TV Norge"},
    {0x3F00, 0x4720, "Discovery Nordic"},
    // Poland
+   {0x3300, 0x4831, "Animal Planet"},
+   {0x3300, 0x4830, "Discovery Poland"},
    {0x3300, 0x4810, "TV Polonia"},
    {0x3300, 0x4801, "TVP1"},
    {0x3300, 0x4802, "TVP2"},
@@ -385,6 +454,10 @@ static const CNI_PDC_DESC cni_pdc_desc_table[] =
    {0x3E00, 0xCA03, "TV3"},
    {0x3E00, 0x3E00, "TVE1"},
    {0x3E00, 0xE100, "TVE2"},
+   {0x3E00, 0xE200, "TVE Internacional Europa"},
+   {0x3E00, 0x3403, "CANAL 9"},
+   {0x3E00, 0x3404, "PUNT 2"},
+   {0x3E00, 0x3405, "CCV"},
    // Sweden
    {0x4E01, 0x4601, "SVT 1"},
    {0x4E02, 0x4602, "SVT 2"},
@@ -404,12 +477,13 @@ static const CNI_PDC_DESC cni_pdc_desc_table[] =
    {0x24C8, 0x4108, "SSR, Télévision Suisse Romande, TSR 2"},
    {0x24C9, 0x4109, "SSR, Televisione svizzera di lingua italiana, TSI 2"},
    {0x24CA, 0x410A, "SRG SSR Sat Access"},
+   {0x2421, 0x4121, "U1"},
    // Turkey
    {0x4301, 0x9001, "TRT-1"},
    {0x4302, 0x9002, "TRT-2"},
    {0x4303, 0x9003, "TRT-3"},
    {0x4304, 0x9004, "TRT-4"},
-   {0x4305, 0x9005, "TRT-int"},
+   {0x4305, 0x9005, "TRT International"},
    {0x4306, 0x9006, "AVRASYA"},
    {0x4300, 0x9007, "Show TV"},
    {0x4300, 0x9008, "Cine 5"},
@@ -471,8 +545,11 @@ static const CNI_PDC_DESC cni_pdc_desc_table[] =
    {0x2C3B, 0xC47B, "CHANNEL 5 (4)"},
    {0x2C24, 0xFCE4, "CHANNEL TV"},
    {0x5BF0, 0x4404, "CHILDREN'S CHANNEL"},
-   {0x5BF1, 0x01F2, "CNN international"},
+   {0x5BF1, 0x01F2, "CNN International"},
    {0x5BF2, 0x4407, "DISCOVERY"},
+   {0x5B00, 0x4420, "Discovery Home & Leisure"},
+   {0x5B00, 0x4421, "Animal Planet"},
+   {0x5BCC, 0x44D1, "DISNEY CHANNEL UK"},
    {0x5BF3, 0x4408, "FAMILY CHANNEL"},
    {0x5BD2, 0xADDC, "GMTV"},
    {0x2C3A, 0xF33A, "GRAMPIAN TV"},
@@ -488,6 +565,7 @@ static const CNI_PDC_DESC cni_pdc_desc_table[] =
    {0x2C34, 0x10E4, "MERIDIAN"},
    {0x2C1B, 0xFCFB, "MOVIE CHANNEL"},
    {0x2C14, 0x4D54, "MTV"},
+   {0x2C00, 0x320B, "National Geographic Channel"},
    {0x2C31, 0x8E71, "NBC Europe"},
    {0x2C35, 0x8E72, "CNBC Europe"},
    {0x2C00, 0xA460, "Nickelodeon UK"},
@@ -507,6 +585,7 @@ static const CNI_PDC_DESC cni_pdc_desc_table[] =
    {0x5BF9, 0xFCF6, "SKY TRAVEL"},
    {0x2C0F, 0xFCFF, "SKY TWO"},
    {0x2C25, 0x37E5, "SSVC"},
+   {0x2C00, 0x44C1, "TNT / Cartoon Network"},
    {0x2C2C, 0xA82C, "TYNE TEES TV"},
    {0x5BFA, 0x4401, "UK GOLD"},
    {0x2C01, 0x4402, "LIVING"},
@@ -519,6 +598,8 @@ static const CNI_PDC_DESC cni_pdc_desc_table[] =
    // Ukraine
    {0x7700, 0x7700, "1+1"},
    {0x7700, 0x7705, "M1"},
+   {0x7700, 0x7707, "ICTV"},
+   {0x7700, 0x7708, "Novy Kanal"},
    // USA
    {0x0100, 0x01fa, "CNN International"},
    {0,      0,      NULL},
@@ -799,6 +880,23 @@ uint CniConvertPdcToVps( uint cni )
          break;
    }
    return cni;
+}
+
+// ---------------------------------------------------------------------------
+// Convert a CNI of unknown type into PDC
+// - CNIs which originate from AI blocks may have any type
+//   for comparison with "live" CNIs they need to be converted into PDC
+//
+uint CniConvertUnknownToPdc( uint cni )
+{
+   uint pdcCni;
+
+   pdcCni = CniConvertP8301ToVps(cni);
+   if (pdcCni == cni)
+   {
+      pdcCni = CniConvertPdcToVps(cni);
+   }
+   return pdcCni;
 }
 
 // ---------------------------------------------------------------------------

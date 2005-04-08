@@ -19,7 +19,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_ctxmencf.tcl,v 1.9 2004/11/01 15:46:55 tom Exp tom $
+#  $Id: dlg_ctxmencf.tcl,v 1.10 2005/03/06 20:25:22 tom Exp tom $
 #
 set ctxmencf_popup 0
 set ctxmencf [list {pi_context.addfilt {} {}} \
@@ -102,7 +102,7 @@ proc ContextMenuAddWintvVcr {} {
    global ctxmencf ctxmencf_wintv_vcr
 
    if {$ctxmencf_wintv_vcr == 0} {
-      lappend ctxmencf [list wintv \
+      lappend ctxmencf [list tvapp.wintv \
                              {Record this show} \
                              {record ${network} ${CNI} ${start} ${stop} ${VPS} ${title} ${themes:n}}]
 

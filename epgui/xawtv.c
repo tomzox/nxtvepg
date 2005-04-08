@@ -31,7 +31,7 @@
  *     xawtv-remote.c by Gerd Knorr (kraxel@bytesex.org).  Some source code
  *     is directly derived from xawtv.
  *
- *  $Id: xawtv.c,v 1.45 2004/12/12 14:49:50 tom Exp tom $
+ *  $Id: xawtv.c,v 1.45.1.1 2005/03/30 14:58:07 tom Exp $
  */
 
 #ifdef WIN32
@@ -58,6 +58,7 @@
 #include "epgctl/debug.h"
 #include "epgvbi/btdrv.h"
 #include "epgvbi/ttxdecode.h"
+#include "epgvbi/cni_tables.h"
 #include "epgdb/epgblock.h"
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
@@ -629,7 +630,9 @@ static uint Xawtv_MapName2Cni( const char * station )
 }
 
 // ----------------------------------------------------------------------------
-// Determine TV program by PIL or current time
+// Determine TV program by CNI and PIL or current time
+// - CNI may have been derived by name (i.e. mapped by name to CNI in AI)
+//   or from live TV; in the latter case it's been converted to PDC
 //
 static const PI_BLOCK * Xawtv_SearchCurrentPi( uint cni, uint pil )
 {
@@ -644,12 +647,20 @@ static const PI_BLOCK * Xawtv_SearchCurrentPi( uint cni, uint pil )
    now = time(NULL);
 
    pAiBlock = EpgDbGetAi(pUiDbContext);
-   if (pAiBlock != NULL)
+   if ((pAiBlock != NULL) && (cni != 0))
    {
       // convert the CNI parameter to a netwop index
       for ( netwop = 0; netwop < pAiBlock->netwopCount; netwop++ ) 
          if (cni == AI_GET_NETWOP_N(pAiBlock, netwop)->cni)
             break;
+
+      // if not found: try 2nd time with conversion to PDC
+      if (netwop >= pAiBlock->netwopCount)
+      {
+         for ( netwop = 0; netwop < pAiBlock->netwopCount; netwop++ ) 
+            if (cni == CniConvertUnknownToPdc(AI_GET_NETWOP_N(pAiBlock, netwop)->cni))
+               break;
+      }
 
       if (netwop < pAiBlock->netwopCount)
       {

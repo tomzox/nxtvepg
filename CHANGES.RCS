@@ -17492,3 +17492,187 @@ www/index.html [rev:1.87, 2004-12-28T19:29:38]:
 www/man.html [rev:1.37, 2004-12-28T19:30:07]:
 - Updated for release 2.7.4
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_7_4 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+#-----------------------------------------------------------------------------
+# NOTE this is a bug-fix release where fixes from ongoing development for
+# release 2.8.0 were backported. Thus many files are on bugfix-branches and
+# check-in dates are not in chronological order, as they were cherry-picked
+# into this list from the chronologically sorted RCS version log.
+#-----------------------------------------------------------------------------
+epgui/xawtv.c [rev:1.45.1.1, 2005-03-30T14:58:07]:
+- Side-branch for bugfix-release 2.7.5
+- merged CNI matching fix from rev 1.47
+Makefile [rev:1.77.1.1, 2005-03-30T15:48:11]:
+- Side-branch for bugfix-release 2.7.5
+- updated copyright for 2005
+epgctl/epgversion.h [rev:1.70, 2005-03-30T16:29:57]:
+- Updated for release 2.7.5 RC1
+epgtcl/rcfile.tcl [rev:1.23, 2004-12-29T12:04:31]:
+- branches:  1.23.1;
+- Added new configuration parameter "dumphtml_text_fmt"
+epgtcl/rcfile.tcl [rev:1.23.1.1, 2005-03-30T17:53:05]:
+- Added special case for release 2.7.5:
+- 2.7.5pre0 and pre1 and 2.8.0preX releases have lower version
+    yet are incompatible
+- note this check is only for documentation and actually never
+    reached because when reading the new format a syntax error occurs
+www/pre-releases.html [rev:1.59, 2005-03-30T21:06:52]:
+- updated for 2.7.5rc1: backport of bugfixes into 2.7.4
+- added 2nd download section, i.e. keep both 2.7.5rc1 and 2.8.0pre5
+epgdb/epgblock.c [rev:1.53, 2005-03-29T18:36:36]:
+- Bugfix SetStartAndStopTime: in mode "provLtoDaily = TRUE"
+- prevent stop time getting smaller than start time at switch from
+    winter to summer time
+- bug reported 2004-03-25 in forum by various users ("Failed to load...")
+epgtcl/mainwin.tcl [rev:1.244.1.1, 2005-03-30T14:17:13]:
+- Side-branch for bugfix-release 2.7.5:
+- updated copyright for 2005
+epgtcl/dlg_ctxmencf.tcl [rev:1.10, 2005-03-06T20:25:22]:
+- WIN32: bugfix proc ContextMenuAddWintvVcr
+- "tvapp" profix was missing from command added to context menu
+- bug reported by Quenotte via email 2004-02-26
+epgtcl/dlg_dump.tcl [rev:1.9, 2004-12-29T12:02:58]:
+- Added new option to HTML export: "Apply text format options..."
+- pass value through to C_DumpHtml
+- also stored in rc file
+epgui/dumphtml.c [rev:1.3, 2004-12-29T12:04:51]:
+- added param "strlen" to EpgDumpHtml_WriteString()
+    + allows to avoid inserting 0-bytes in string during PI description output
+    + globally adapted all calls to the function
+- fixed PI list format option handling (user-defined columns): was not yet
+    adapted for changes in color format options; also "overstrike" was missing
+- added missing handling of reminder and weekcol column types
+- improved formatting of PI descriptions: use border on table
+- C_DumpHtml: added option to suppress use of text formatting (e.g. colors)
+epgui/dumphtml.h [rev:1.2, 2004-12-29T12:05:21]:
+- Added param "strlen" to EpgDumpHtml_WriteString()
+- allows to avoid inserting 0-bytes in string during PI description output
+epgui/dumpxml.c [rev:1.11, 2004-12-29T12:05:30]:
+- Added param "strlen" to calls to EpgDumpHtml_WriteString()
+- allows to avoid inserting 0-bytes in string during PI description output
+epgui/dumptext.c [rev:1.11, 2004-12-29T20:26:40]:
+- Added possibility to specify XMLTV DTD version for -dump on command line
+- added new keywords and enum members for XMLTV dump
+epgui/dumptext.h [rev:1.6, 2004-12-29T20:26:40]:
+- Added possibility to specify XMLTV DTD version for -dump on command line
+- added new keywords and enum members for XMLTV dump
+- Also: added new helper macro IS_STANDALONE_MODE()
+epgui/dumpxml.c [rev:1.12, 2004-12-29T20:26:56]:
+- branches:  1.12.1;
+- Added possibility to specify XMLTV DTD version for -dump on command line
+- added arg EPGTAB_DUMP_MODE to EpgDumpXml_Standalone(): only use
+    format specified in config file if none is selected on command line
+epgui/dumpxml.h [rev:1.2, 2004-12-29T20:26:56]:
+- Added possibility to specify XMLTV DTD version for -dump on command line
+- added arg EPGTAB_DUMP_MODE to EpgDumpXml_Standalone(): only use
+    format specified in config file if none is selected on command line
+epgui/epgmain.c [rev:1.140, 2004-12-29T20:27:06]:
+- branches:  1.140.1;
+- added possibility to specify XMLTV DTD version for -dump on command line
+- added new command line option "-outfile <path>"
+- use new macro IS_STANDALONE_MODE() in checks for dump/clock modes
+- split off new function MainOptionError() from Usage(): reduced output
+    text in case of specific errors; replaced many Usage() calls
+- slight clean-up of #ifdef in Usage()
+nxtvepg.pod [rev:1.118, 2004-12-31T14:54:41]:
+- added new command line option "-outfile <path>
+- adapted description of -dump and -clock: refer to -outfile for
+    explanation of output redirection
+- acqonce: added note about -nodetach
+nxtvepg.pod [rev:1.118.1.1, 2005-03-30T15:07:18]:
+- Side-branch for bugfix-release 2.7.5
+- merged description of xml export sub-modes from 1.124
+epgui/shellcmd.c [rev:1.10, 2005-02-20T20:25:31]:
+- Bugfix WIN32: reminder scripts did not work
+- added #ifdef to use platform-dependent command types
+epgui/wintv.c [rev:1.22, 2005-03-06T20:16:30]:
+- Improved match of VPS/PDC CNIs onto AI CNI list members
+- TV5 was not identified because AI contained P8/30/1 CNI; network also sends
+    P8/30/1, but it was automatically converted to PDC during reception
+- Xawtv_SearchCurrentPi(): added 2nd loop across AI CNI list which
+    includes conversion of AI CNIs to PDC
+- bug reported in forum 2004-Feb-24 by Manani
+epgvbi/cni_tables.c [rev:1.26, 2005-03-01T20:03:14]:
+- Added new function CniConvertUnknownToPdc()
+- used to search PDC CNI in AI CNI table (AI CNI type is unknown)
+epgvbi/cni_tables.h [rev:1.6, 2005-03-01T20:03:14]:
+- Added new function CniConvertUnknownToPdc()
+- used to search PDC CNI in AI CNI table (AI CNI type is unknown)
+epgvbi/cni_tables.c [rev:1.27, 2005-03-05T22:04:33]:
+- Applied patched by Quenotte: updated with TR231 03/2005
+epgvbi/cni_tables.c [rev:1.28, 2005-03-06T19:54:12]:
+- Fixed P8/30/1 CNI for 3sat: now transmits value which is registered with EBU
+epgvbi/hamming.c [rev:1.11, 2005-02-20T20:25:23]:
+- Added include "epgvbi/btdrv.h": for define DUMP_TTX_PACKETS
+epgui/dumpxml.c [rev:1.12.1.1, 2005-03-30T14:39:58]:
+- Side-branch for bugfix-release 2.7.5
+- merged bugfixes from rev 1.14
+epgui/dumpxml.c [rev:1.12.1.2, 2005-04-02T12:45:29]:
+- Merged changes from rev 1.15
+epgui/dumpxml.c [rev:1.12.1.3, 2005-04-02T16:56:46]:
+- Bugfix: xmlDtdVersion was still declared "bool" in 3 function prototypes
+epgui/epgmain.c [rev:1.140.1.1, 2005-03-30T14:49:38]:
+- Side-branch for bugfix-release 2.7.5
+- merged outfile fix from cmdline.c::r1.3
+epgctl/epgversion.h [rev:1.71, 2005-04-08T16:55:49]:
+- set version to 2.7.5
+nxtvepg.spec [rev:1.22, 2005-03-30T15:08:22]:
+- set version to 2.7.5
+CHANGES [rev:1.49, 2005-04-08T16:36:05]:
+- updated for release 2.7.5
+www/changelog-2.6.0pre.html [rev:1.11, 2005-04-08T21:36:18]:
+- updated news section for release 2.7.5
+- removed link to "help wanted" page
+www/changelog-2.7.0pre.html [rev:1.7, 2005-04-08T21:36:18]:
+- updated news section for release 2.7.5
+- removed link to "help wanted" page
+www/faq.html [rev:1.14, 2005-04-08T21:36:18]:
+- updated news section for release 2.7.5
+- removed link to "help wanted" page
+www/help-wanted.html [rev:1.16, 2005-04-08T21:36:18]:
+- updated news section for release 2.7.5
+- removed link to "help wanted" page
+www/intro-de.html [rev:1.13, 2005-04-08T21:36:18]:
+- updated news section for release 2.7.5
+- removed link to "help wanted" page
+www/intro.html [rev:1.13, 2005-04-08T21:36:18]:
+- updated news section for release 2.7.5
+- removed link to "help wanted" page
+www/links.html [rev:1.14, 2005-04-08T21:36:18]:
+- updated news section for release 2.7.5
+- removed link to "help wanted" page
+www/provnets.html [rev:1.43, 2005-04-08T21:36:18]:
+- updated news section for release 2.7.5
+- removed link to "help wanted" page
+www/tvsim-faq.html [rev:1.14, 2005-04-08T21:36:18]:
+- updated news section for release 2.7.5
+- removed link to "help wanted" page
+www/xiccc-proto.html [rev:1.4, 2005-04-08T21:36:18]:
+- updated news section for release 2.7.5
+- removed link to "help wanted" page
+www/WDMpre-releases.html [rev:1.15, 2005-04-08T21:38:09]:
+- import of Gerard's changes for his release 2004-04-05
+- updated news section for release 2.7.5
+- removed link to "help wanted" page
+www/changelog.html [rev:1.62, 2005-04-08T21:40:17]:
+- Updated for release 2.7.5
+www/download-de.html [rev:1.18, 2005-04-08T21:40:17]:
+- Updated for release 2.7.5
+www/download.html [rev:1.18, 2005-04-08T21:40:17]:
+- Updated for release 2.7.5
+www/index.html [rev:1.90, 2005-04-08T21:40:17]:
+- Updated for release 2.7.5
+www/man.html [rev:1.39, 2005-04-08T21:40:17]:
+- Updated for release 2.7.5
+www/index-de.html [rev:1.78, 2005-04-08T21:40:31]:
+- updated for release 2.7.5
+- fixed intra-page links in "Navigation" section
+www/index-fr.html [rev:1.13, 2005-04-08T21:40:31]:
+- updated for release 2.7.5
+- fixed intra-page links in "Navigation" section
+www/pre-releases.html [rev:1.60, 2005-04-08T21:41:13]:
+- updated for release 2.7.5
+- removed changelog of 2.7.5rc1
+www/index-fr.html [rev:1.14, 2005-04-09T12:28:52]:
+- French translation of 2.7.5 changelog
+- by Neo, email 2005-04-09
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_7_5 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

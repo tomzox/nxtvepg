@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="de">
-<!-- $Id: download-de.html,v 1.16 2004/12/28 19:29:38 tom Exp $ -->
+<!-- $Id: download-de.html,v 1.18 2005/04/08 21:40:17 tom Exp $ -->
 <HEAD>
 <TITLE>nexTView EPG Software Download</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -43,7 +43,6 @@
 <A HREF="index-de.html">Homepage</A><BR>
 <A HREF="intro-de.html">Einführung</A><BR>
 <A HREF="provnets.html">Providerliste</A><BR>
-<A HREF="help-wanted.html">Mithilfe/Jobs</A><BR>
 <A HREF="links.html">Links</A><BR>
 <A HREF="faq.html">FAQ</A><BR>
 <BR>
@@ -59,12 +58,12 @@
 
 <H2 class="navhead">Screenshots</H2>
 <P>
-<A HREF="screenshot-shortcuts.gif">Neu in Version 2.7.0</A><BR>
-<A HREF="screenshot-reminder.gif">Neu in Version 2.6.0</A><BR>
-<A HREF="screenshot-grid1.png">Neu in Version 2.5.0</A><BR>
-<A HREF="screenshot-win.gif">Windows screenshot</A><BR>
-<A HREF="screenshot-series.gif">Serien Menü</A><BR>
-<A HREF="screenshot-xawtv.jpg">xawtv mit EPG Einblendung</A><BR>
+<A HREF="screenshot-274.png">Main window</A><BR>
+<A HREF="screenshot-grid1.png">"Grid" layout</A><BR>
+<A HREF="screenshot-reminder.png">Reminders</A><BR>
+<A HREF="screenshot-stats.png">Reception statistics</A><BR>
+<A HREF="screenshot-series.png">Series menu</A><BR>
+<A HREF="screenshot-xawtv.jpg">xawtv with EPG OSD</A><BR>
 </P>
 <span class="center"><span class="logo"><a href="http://sourceforge.net"><img
 src="http://sourceforge.net/sflogo.php?group_id=64430&amp;type=4"
@@ -74,11 +73,11 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 <DIV class="mainBlock">
 <H1>Download</H1>
 <P>
-Die letzte stabile Distribution ist Version 2.7.4 vom 27. Dezember 2004.
+Die letzte stabile Distribution ist Version 2.7.5 vom 8. April 2005.
 Gleich den vorherigen drei releases dient sie hauptsächlich
 der Fehlerbereinigung und kleinen Erweiterungen, siehe
-<A HREF="index-de.html#new_2_7_4">Zusammenfassung</A> auf der homepage oder
-die detaillierte Liste im <A HREF="changelog.html#release_2_7_4">Change-Log</A>.
+<A HREF="index-de.html#new_2_7_5">Zusammenfassung</A> auf der homepage oder
+die detaillierte Liste im <A HREF="changelog.html#release_2_7_5">Change-Log</A>.
 </P><P>
 Ältere Distributionen sind über die
 <A HREF="http://sourceforge.net/project/showfiles.php?group_id=64430">SourceForge File List</A>
@@ -88,7 +87,7 @@ verfügbar.
 <DIV CLASS="box">
 <H2 class="navhead"><A NAME="download_unix">Source Distribution</A></H2>
 <P>
-<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.7.4.tar.gz?download">nxtvepg-2.7.4.tar.gz</A>
+<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.7.5.tar.gz?download">nxtvepg-2.7.5.tar.gz</A>
 </P><P>
 Source Distribution für Linux, NetBSD und FreeBSD: entpacken
 Sie das Archiv, wechseln Sie in das angelegte Verzeichnis mit einer Shell und
@@ -98,7 +97,7 @@ auch aus den Sourcen compiliert werden; eine Anleitung dazu findet sich auch
 im README.
 </P><P>
 Aus dem source tarball läßt sich auch ein RPM package bauen mit dem
-Kommando: <KBD>rpm -ta nxtvepg-2.7.4.tar.gz</KBD>. Das erzeugte package
+Kommando: <KBD>rpm -ta nxtvepg-2.7.5.tar.gz</KBD>. Das erzeugte package
 kann dann wie üblich mit <KBD>rpm -i</KBD> installiert werden.
 Alternativ sind auch fertige packages verfügbar (jedoch nicht
 unbedingt immer die neueste Version):</P>
@@ -119,7 +118,7 @@ unbedingt immer die neueste Version):</P>
 <DIV CLASS="box">
 <H2 class="navhead"><A NAME="download_windows">Binärdistribution für M$ Windows</A></H2>
 <P>
-<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.7.4-win.zip?download">nxtvepg-2.7.4-win.zip</A>
+<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.7.5-win.zip?download">nxtvepg-2.7.5-win.zip</A>
 </P><P>
 Windows executable:
 Das nxtvepg ZIP Archiv muß lediglich in ein leeres Verzeichnis entpackt werden,
@@ -132,8 +131,8 @@ Benutzeranleitung, Abschnitt <A HREF="man.html#getting_started">Getting Started<
 (nur in englisch verfügbar).
 </P><P>
 Für Entwickler: Demo zur Interaktion mit TV Applikationen
-(siehe auch <A HREF="help-wanted.html">help wanted</A>):
-<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.7.4-tvsim.zip?download">nxtvepg-2.7.4-tvsim.zip</A>
+(siehe auch <A HREF="tvsim-faq.html">FAQ</A>):
+<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.7.5-tvsim.zip?download">nxtvepg-2.7.5-tvsim.zip</A>
 (siehe auch <A HREF="tvsim.html">tvsim</A>,
 <A HREF="vbirec.html">vbirec</A> oder
 <A HREF="vbiplay.html">vbiplay</A> manuals, oder

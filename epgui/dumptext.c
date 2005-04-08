@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumptext.c,v 1.10 2004/10/31 16:47:42 tom Exp tom $
+ *  $Id: dumptext.c,v 1.11 2004/12/29 20:26:40 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -262,7 +262,13 @@ EPGTAB_DUMP_MODE EpgDumpText_GetMode( const char * pModeStr )
       else if (strcasecmp("pdc", pModeStr) == 0)
          mode = EPGTAB_DUMP_PDC;
       else if (strcasecmp("xml", pModeStr) == 0)
-         mode = EPGTAB_DUMP_XML;
+         mode = EPGTAB_DUMP_XMLTV_ANY;
+      else if (strcasecmp("xml5", pModeStr) == 0)
+         mode = EPGTAB_DUMP_XMLTV_DTD_5_GMT;
+      else if (strcasecmp("xml5ltz", pModeStr) == 0)
+         mode = EPGTAB_DUMP_XMLTV_DTD_5_LTZ;
+      else if (strcasecmp("xml6", pModeStr) == 0)
+         mode = EPGTAB_DUMP_XMLTV_DTD_6;
       else if (strcasecmp("raw", pModeStr) == 0)
          mode = EPGTAB_DUMP_DEBUG;
       else

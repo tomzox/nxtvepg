@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: rcfile.tcl,v 1.22 2004/09/25 16:23:30 tom Exp tom $
+#  $Id: rcfile.tcl,v 1.23.1.1 2005/03/30 17:53:05 tom Exp $
 #
 set myrcfile ""
 set is_daemon 0
@@ -72,7 +72,10 @@ proc LoadRcFile {filename isDefault isDaemon} {
          } elseif {$ver_check == 0} {
             # check if the given rc file is from a newer version
             if {[info exists rc_compat_version] && [info exists nxtvepg_version_str]} {
-               if {$rc_compat_version > $EPG_VERSION_NO} {
+               # Special case for release 2.7.5 (2.7.x with x > 4 to be exact) (ugly hack)
+               # 2.8.0 pre-releases have lower version number but are also incompatible
+               if {($rc_compat_version > $EPG_VERSION_NO) || \
+                   (($rc_compat_version > 0x207C0) && ($rc_compat_version <= 0x207CF))} {
                   tk_messageBox -type ok -default ok -icon error \
                      -message "rc/ini file '$myrcfile' is from an incompatible, newer version of nxtvepg ($nxtvepg_version_str) and cannot be loaded. Use -rcfile command line option to specify an alternate file name or use the newer nxtvepg executable."
 

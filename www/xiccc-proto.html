@@ -1,0 +1,611 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
+<HTML lang="en">
+<!-- $Id: xiccc-proto.html,v 1.4 2005/04/08 21:36:18 tom Exp $ -->
+<HEAD>
+<TITLE>X11 TV application communication protocols</TITLE>
+<META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<META name="language" content="en">
+<META name="keywords" lang="en" content="ICCCM,X11,TV application interaction,xdtv,xawdecode,zapping,xawtv">
+<META name="description" content="Howto for adding Nextview EPG support to X11 TV applications.  Directed toward TV application software developers.">
+<META name="author" content="Tom Zoerner">
+<META name="copyright" content="Tom Zoerner">
+<META name="robots" content="index, follow">
+<LINK rel="stylesheet" type="text/css" href="nxtvepg.css">
+<LINK rel="shortcut icon" type="image/x-icon" href="nxtvepg.ico">
+<LINK rel="top" href="//nxtvepg.sourceforge.net/" title="nexTView EPG Decoder Homepage">
+</HEAD>
+<BODY>
+
+<DIV CLASS="navBar">
+<P><SMALL>
+<IMG ALT="" SRC="nxtv_icon.gif">&nbsp;nxtvepg&nbsp;
+<A HREF="index.html">home</A> &nbsp;|&nbsp;
+<A HREF="intro.html">about</A>
+</SMALL></P></DIV>
+
+<DIV class="navBlock">
+<H2 class="navhead">Language</H2>
+<P>
+<IMG ALT="" SRC="en.png" WIDTH=16 HEIGHT=10> English<BR>
+<IMG ALT="" SRC="de.png" WIDTH=16 HEIGHT=10> <SPAN class="navDisabled">Deutsch</SPAN><BR>
+<IMG ALT="" SRC="fr.png" WIDTH=16 HEIGHT=10> <SPAN class="navDisabled">Français</SPAN><BR>
+</P>
+
+<H2 class="navhead">News</H2>
+<P>
+Apr/8/2005: <A HREF="index.html#new_2_7_5">Release 2.7.5</A>
+</P><P>
+Dec/27/2004: <A HREF="changelog.html#release_2_7_4">Release 2.7.4</A>
+</P>
+
+<H2 class="navhead">Documentation</H2>
+<P>
+<A HREF="index.html">Homepage</A><BR>
+<A HREF="intro.html">Introduction</A><BR>
+<A HREF="provnets.html">Providers list</A><BR>
+<SPAN CLASS="navPointer">Help Wanted</SPAN><BR>
+<A HREF="links.html">Links</A><BR>
+<A HREF="faq.html">FAQ</A><BR>
+<BR>
+<A HREF="man.html">nxtvepg manual</A><BR>
+</P>
+
+<H2 class="navhead">Download</H2>
+<P>
+<A HREF="download.html">Download</A><BR>
+<A HREF="download.html#requirements">System requirements</A><BR>
+<A HREF="changelog.html">Changelog</A><BR>
+</P>
+
+<H2 class="navhead">Screenshots</H2>
+<P>
+<A HREF="screenshot-274.png">Main window</A><BR>
+<A HREF="screenshot-grid1.png">"Grid" layout</A><BR>
+<A HREF="screenshot-reminder.png">Reminders</A><BR>
+<A HREF="screenshot-stats.png">Reception statistics</A><BR>
+<A HREF="screenshot-series.png">Series menu</A><BR>
+<A HREF="screenshot-xawtv.jpg">xawtv with EPG OSD</A><BR>
+</P>
+<span class="center"><span class="logo"><a href="http://sourceforge.net"><img
+src="http://sourceforge.net/sflogo.php?group_id=64430&amp;type=4"
+width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
+</DIV>
+
+<DIV class="mainBlock">
+<H1>X11 TV application communication protocols</H1>
+<P>
+This page briefly describes the two protocols which allow communication
+between nxtvepg and X11 TV applications to provide EPG information or
+remote control.
+</P><P>
+This documented is intended for software developers.  Readers should have
+experience with programming X clients at Xlib level, i.e. they should at
+least be familiar with the concept of X event handling and what windows
+and atoms represent at this level.
+This document is not intended to be a formal specification.
+</P>
+
+<H2>Xawtv protocol</H2>
+<P>
+This protocol is based on remote control mechanisms implemented in
+<A HREF="http://bytesex.org/xawtv/">Xawtv</A>.
+They allow to capture the currently tuned station and station
+changes and to send generic remote commands to xawtv.  Since the
+protocol predates nxtvepg there's no support for EPG specifically.
+</P>
+
+<H3>Messages</H3>
+<P>
+Communication is based on 3 X atoms which all must be placed in the
+TV application's toplevel window (i.e. the topmost one below the
+window manager's decorative frames)
+</P>
+<DL>
+<DT><B>WM_CLASS</B></DT>
+<DD><P>
+    Contains the name of the application (e.g. "Xawtv")  When searching
+    for a peer, nxtvepg examines every toplevel window for this atom and
+    compares the value with a list of known application names.  The list
+    has to be extended for each new TV application.
+</P></DD>
+<DT><B>_XAWTV_STATION</B></DT>
+<DD><P>
+    Describes the TV station currently tuned by the TV application.
+    Contains 3 strings, each terminated by zero bytes:
+    TV frequency in kHz, channel name, station name.
+    This atom must be updated by the TV application upon every channel
+    change, since nxtvepg uses property change events to monitor for
+    channel changes.
+</P></DD>
+<DT><B>_XAWTV_REMOTE</B></DT>
+<DD><P>
+    This atom is used to pass commands from remote applications to Xawtv.
+    The command name and parameters are passed as zero-separated strings.
+    The following commands are used by nxtvepg:
+    </P>
+    <TABLE FRAME="border" RULES="groups" CELLPADDING="2">
+    <COLGROUP SPAN="1"><COLGROUP SPAN="1">
+    <THEAD>
+    <TR><TH ALIGN="left">Command<TH ALIGN="left">Description</TR>
+    </THEAD><TBODY>
+    <TR><TD><KBD>setstation ...</KBD><TD>Tune the TV network with the given name
+    <TR><TD><KBD>setstation back</KBD><TD>Toggle back to the previously viewed TV station
+    <TR><TD><KBD>setstation next</KBD><TD>Switch to the next station in the TV app's channel table
+    <TR><TD><KBD>setstation prev</KBD><TD>Switch to the previous station in the TV app's channel table
+    <TR><TD><KBD>capture on</KBD><TD>Enable TV video display
+    <TR><TD><KBD>capture off</KBD><TD>Disable or pause TV video display
+    <TR><TD><KBD>volume mute</KBD><TD>Toggle audio mute on/off
+    <TR><TD><KBD>message ...</KBD><TD>Display the given message (e.g. in the window title bar or inside the TV video display)
+    </TBODY>
+    </TABLE>
+    <P>
+    To invoke a command it's simply written into the atom by means of
+    XChangeProperty(), which triggers a property change event in the
+    TV application.  There's no confirmation sent back to nxtvepg to
+    indicate if the command was sucessfully executed.
+</P></DD>
+</DL>
+<H3>Procedures</H3>
+<P>
+When nxtvepg is started it first scans all existing toplevel windows
+for known WM_CLASS names.  If one is found, the window ID is stored.
+If not, nxtvepg registers for sub-structure notify events on the
+root window and checks WM_CLASS on all newly created toplevel windows.
+(This procedure is the main weakness of this protocol, since both the
+initial scan and the monitoring cause an unnecessary load on the X
+server.  Note that not only application main windows are toplevel windows,
+but also every dialog, popup menu or even tool-tip.)
+<P></P>
+While nxtvepg is "connected" to a TV app (i.e. a valid window ID is
+known) it monitors for property change events on the STATION atom.
+After every change it reads the station name from the atom and matches
+it against the internal network name list.  If a match is found, or if
+the station can be identified by means of VPS/PDC capture, EPG info is
+sent back to the TV application.
+(Note by default nxtvepg does not use the "message" command to display
+EPG information since it doesn't look very nice in xawtv.  Instead it
+generates a small popup window by itself and just positions it close to
+the TV application's window.)
+<P></P>
+While nxtvepg is "connected", the user also has the possibility to
+remote control the TV application.  Most importantly he/she can
+generate "setstation" commands simply by double-clicking a programme
+entry.
+<P></P>
+nxtvepg learns about termination of the TV application by receiving
+a destroy event for the TV app's toplevel window.  Note the TV app
+has no means to know if nxtvepg is connected.
+</P>
+
+<H2>ICCC selection manager protocol</H2>
+<P>
+The second communication protocol supported by nxtvepg (starting with version 2.8.0)
+is derived from the <I>Selection Manager</I> protocol specified in the
+<A HREF="ftp://ftp.x.org/pub/R6.6/xc/doc/hardcopy/ICCCM/icccm.PS.gz">Inter-Client Communication Conventions Manual</A>,
+version 2.  Note that despite the protocol's name it's not limited to
+the exchange of copy/paste text buffers.  See also
+<A HREF="http://freedesktop.org">freedesktop.org</A>
+for other examples how the protocol is used (e.g in the systray protocol)
+</P><P>
+This protocol is in some ways similar to the Xawtv protocol, since it also
+uses atoms for message transport and - at least for now - the same messages
+are exchanged.  The main differences are firstly the use of the X11 selection
+mechanism to simplify and speed up the search for peers, and secondly that
+the connection is bidirectional and generally more robust.
+</P>
+
+<H3>Procedures</H3>
+<P>
+Initially, each peer must create an X window which is only used to manage
+the selection.  An atom is placed on this window which identifies the peer
+either as an EPG or a TV application.  Other atoms which are used for
+data transfer and explained in the next chapter are also placed here.
+</P><P>
+The application then can search for a compatible peer. This is done by
+a single call of the XGetSelectionOwner() function.  If sucessful, the
+function returns the peer's selection window ID.  If not, the client
+listens for client messages on the root window, to receive broadcast
+messages which are sent when a new manager starts (see next paragraph.)
+</P><P>
+To be able to receive messages from peers, an application must register
+as <I>selection manager</I> with function XSetSelectionOwner().  Only then
+others can find it with XGetSelectionOwner().  nxtvepg always registers
+as manager, but for TV applications it's optional.  Applications which
+only want to query EPG infos need not become manager.  However it's required
+to become manager if a TV app also wants to allow remote control (e.g.
+changing channels from inside nxtvepg)
+</P><P>
+Multiple instances can be active on both sides: if you start nxtvepg
+several times (possibly on different hosts, but with the same -tvdisplay)
+only the first one will serve EPG queries and follow station changes of
+TV apps.  The other instances still can send remote commands to the TV apps
+though.  Another nxtvepg instance will automatically take over management
+if the previous manager is terminated.  If multiple TV apps are active,
+they should sort out among themselves which one is manager.
+</P><P>
+Communication follows a query/response model: the client first assigns
+request parameters to one atom, then sends a selection request message
+to the peer's manager window. After processing the request, the peer
+assigns a possible result value to another atom and replies with a
+selection notify event.  Note that all atoms are placed on the client's
+selection window.  This way multiple client requests can be processed
+in parallel.  The extra selection request/notify messages are used (in
+contrary to property change events in Xawtv) to support large data
+transfers in multiple chunks.  Theoretically a client can request the
+entire EPG database.
+</P><P>
+<STRONG>Important</STRONG>: nxtvepg's implementation as described above
+slightly differs from the ICCC specification. In the spec the same atom
+is used for parameters and response, so clients have to wait for a response
+before they can send the next query.  To simplify station change handling
+nxtvepg departs from that, i.e. allows overlapping requests.  Only the
+last request to the same target (see next chapter) will be answered for
+each client.
+</P>
+
+<H3>Messages</H3>
+<P>
+The following is a list of the atoms used for data exchange.
+Arguments are zero-separated strings.
+</P>
+
+<DL>
+<DT><B>_NXTVEPG_SELECTION_MANAGER</B></DT>
+<DD><P>
+    Identifier for nxtvepg's selection window, i.e. used by the TV application
+    during connection establishment in search for the nxtvepg client.  It's
+    automatically set on the selection window during initialisation.
+    The value is a zero separated list of:
+    protocol version (<KBD>NETAIP/1.0</KBD> for the current version),
+    application name, application version, feature bits (currently always 0).
+    The application is intended to be displayed to the user (e.g. is display
+    of the connection status) but not evaluated by nxtvepg.
+</P></DD>
+<DT><B>_NXTVEPG_TV_CLIENT_MANAGER</B></DT>
+<DD><P>
+    Identifier for the TV application's selection window, i.e. used by
+    nxtvepg in search for TV clients.
+    The value is the same as in the previous atom.
+</P></DD>
+<DT><B>_NXTVEPG_SETSTATION</B></DT>
+<DD><P>
+    Used to send "setstation" messages to an EPG peer which signal a channel
+    change and request a reply of EPG information for the new channel.
+    Applications should not manipulate this property's value directly, but use
+    function <I>Xiccc_SendQuery</I> instead.  The property is assigned channel
+    information and parameters for the EPG request in form of zero-separated
+    strings which contain:</P>
+    <OL>
+    <LI>Protocol identifier (always <KBD>NETAIP/1.0</KBD>)
+    <LI>Channel name (e.g. "ARD"),
+    <LI>Frequency in kHz,
+    <LI>Channel name (e.g. "SE10"),
+    <LI>VPS/PDC channel ID (CNI, e.g. 0xD92 for German network "Kabel1"),
+    <LI>Requested EPG format (always "TAB" currently),
+    <LI>Count of requested EPG programmes,
+    <LI>update flag
+    </OL>
+    <P>
+    When the update flag is set, unsolicited selection notification are
+    sent by nxtvepg when new programmes start on the channel, or if another
+    TV applications changes the channel.</P>
+</P></DD>
+<DT><B>_NXTVEPG_SETSTATION_RESULT</B></DT>
+<DD><P>
+    This atom is used to receive replies to the above setstation message,
+    i.e. EPG information.  Basically the client could use any other atom
+    for this, this specific name is just what's used by the code in xiccc.
+    In contrary to Xawtv the client should not use property change events
+    for notification if incoming events, but instead wait for selection
+    notify events.  (This is required because the remote peer may write
+    the property's data in several chunks.)
+</P></DD>
+<DT><B>_NXTVEPG_REMOTE</B></DT>
+<DD><P>
+    Used to send all other kinds of messages between peers.  It's always a
+    number zero-separated strings (note the last string should be terminated
+    with a single zero.)  The first element is the name of the command, the
+    rest is parameters and depends on the type of command.  Default commands
+    which should be supported by all TV apps are the same as for
+    <I>_XAWTV_REMOTE</I>.  Actually, the content of this property is identical
+    to Xawtv.
+</P></DD>
+<DD><P>
+<DT><B>_NXTVEPG_REMOTE_RESULT</B></DT>
+<DD><P>
+    Used to receive replies to remote commands.  The content depends on the
+    request, but peers should always send at least a status code back.
+</P></DD>
+</DL>
+
+<H3>Reference Implementation</H3>
+<P>
+The following is a short description of the reference implementation in
+source module <KBD>epgui/xiccc.c</KBD>  Note it's not intended as a library,
+you may have to slightly adapt the function interfaces to your requirements.
+</P><P>
+Most functions are asynchronous.  For example, when sending a message to
+a peer, the reply is not yet available when the function returns. Instead
+you must install an event handler which will be invoked when a reply
+arrives, or other relevant events occur.
+</P><P>
+Since the protocol is based on Xlib directly, you need to install an
+event handler which receives all X events, called "low-level" in the
+following.  The xiccc module will filter out protocol events and pass
+everything else (keyboard input events etc.) on to your toolkit library.
+Events which should be handled by the application (e.g. incoming messages)
+are signaled by means of a bitfield and message queues.  The application
+should normally not process them directly in the X event handler since
+it might interfer with your toolkit's event processing.  Instead a
+"high-level" handler should be triggered which is then invoked as a
+regular toolkit event.
+</P><P>
+In addition, event processing in the "high-level" handler requires
+to install at least temporarily an X11 error handler which ignores
+"Bad Window" errors which might be caused when accessing resources
+of remote peers which have been been terminated.
+</P><P>
+A typical protocol client will look like this (not showing application
+specific functionality):
+</P>
+
+<UL>
+<LI><I>During application startup phase</I><BR>
+    <UL>
+    <LI>Install a handler which receives all X input events
+    <LI>Install a "high-level" event handler which can be triggered by the low-level handler.
+
+    <LI>Xiccc_Initialize(&amp;xiccc, dpy, TRUE, pIdArgv, idLen);
+    <LI>Xiccc_ClaimManagement(&amp;xiccc, FALSE);
+    <LI>Xiccc_SearchPeer(&amp;xiccc);
+        <BR>note these functions may already raise events,
+        <BR>hence check event bits and trigger high-level handler if necessary
+    </UL>
+<LI><I>main task event loop</I>
+    <UL>
+    <LI>In the X input event handler: pass all events to Xiccc_XEvent()<BR>
+        Check for high-level events in the bit mask and trigger the high-level handler, if neccessary
+    <LI>In the high-level handler, first call Xiccc_HandleInternalEvent()<BR>
+        Process application events, as necessary (e.g. display EPG info on-screen; see list below)
+    <LI>Report TV station changes to EPG app by sending SETSTATION messages
+    </UL>
+
+<LI><I>During application shutdown phase</I><BR>
+    <UL>
+    <LI>Xiccc_Destroy(&amp;xiccc);
+    </UL>
+</UL>
+
+<P>
+The following events may be generated by xiccc and should be handled by
+the application in the "high-level" event handler.
+</P>
+
+<TABLE FRAME="border" RULES="groups" CELLPADDING="2">
+<COLGROUP SPAN="1"><COLGROUP SPAN="1">
+<THEAD>
+<TR><TH>Event</TH>
+    <TH>Description</TH>
+</TR>
+</THEAD><TBODY>
+<TR><TD>XICCC_NEW_PEER</TD>
+    <TD>A new peer was found or a new manager has taken over management.</TD>
+</TR>
+<TR><TD>XICCC_LOST_PEER</TD>
+    <TD>The remote manager has terminated or given up management.</TD>
+</TR>
+<TR><TD>XICCC_GOT_MGMT</TD>
+    <TD>A previous request to take over management with Xiccc_ClaimManagement()
+        was sucessful.
+    </TD>
+</TR>
+<TR><TD>XICCC_LOST_MGMT</TD>
+    <TD>Another application has taken over management.</TD>
+</TR>
+<TR><TD>XICCC_SETSTATION_REQ</TD>
+    <TD>A message has arrived on the SETSTATION target. It can be retrieved from
+        the respective message queue.</TD>
+</TR>
+<TR><TD>XICCC_SETSTATION_REPLY</TD>
+    <TD>A response to a previous SETSTATION message has been received.</TD>
+</TR>
+<TR><TD>XICCC_REMOTE_REQ</TD>
+    <TD>A message has arrived on the REMOTE target. It can be retrieved from
+        the respective message queue.</TD>
+</TR>
+<TR><TD>XICCC_REMOTE_REPLY</TD>
+    <TD>A response to a previous REMOTE message has been received.</TD>
+</TR>
+</TBODY>
+</TABLE>
+
+<P>
+To include the header file <I>xiccc.h</I> you need to first include the
+following headers:
+<PRE>
+#include &lt;X11/Xlib.h&gt;
+#include &lt;X11/Xatom.h&gt;
+</PRE>
+</P><P>
+The following is an overview of all functions offered by xiccc.c
+</P>
+
+<TABLE>
+<TR><TH COLSPAN="2">Function<TH>Arguments &amp; description</TR>
+
+<TR CLASS="func_box">
+<TD>bool
+<TD>Xiccc_Initialize
+<TD>( XICCC_STATE * pXi, Display * dpy, bool isEpg,
+                       const char * pIdArgv, uint idLen )
+</TD></TR><TR><TD><TD><TD>
+Called once during start-up to initialize the module state and
+allocate static resources (e.g. create the atoms)
+</TD></TR>
+
+<TR CLASS="func_box">
+<TD>void
+<TD>Xiccc_Destroy
+<TD>( XICCC_STATE * pXi )
+</TD></TR><TR><TD><TD><TD>
+Called during shutdown to free resources (e.g. destroy the selection window)
+</TD></TR>
+
+<TR CLASS="func_box">
+<TD>bool
+<TD>Xiccc_ClaimManagement
+<TD>( XICCC_STATE * pXi, bool force )
+</TD></TR><TR><TD><TD><TD>
+Start procedure to become owner of the selection (i.e. manager)
+For TV applications use of this function is optional, unless you want
+the to be able to receive remote commands sent by the peer.  An
+<I>XICCC_GOT_MGMT</I> event will be generated when the request was
+successful.  The request may fail when there already is a manager,
+unless <I>force</I> is set to TRUE.
+</TD></TR>
+
+<TR CLASS="func_box">
+<TD>bool
+<TD>Xiccc_ReleaseManagement
+<TD>( XICCC_STATE * pXi )
+</TD></TR><TR><TD><TD><TD>
+Start procedure to voluntarily release ownership. An
+<I>XICCC_LOST_MGMT</I> event will be generated when the release
+is complete.
+</TD></TR>
+
+<TR CLASS="func_box">
+<TD>bool
+<TD>Xiccc_SearchPeer
+<TD>( XICCC_STATE * pXi )
+</TD></TR><TR><TD><TD><TD>
+This function is used to establish a connection to a remote peer.
+A <I>XICCC_NEW_PEER</I> event will be raised as soon as a peer is
+found, which may be immediately when the function returns. Hence
+the application should check the events bits after calling this
+function and possible invoke the "high-level" event handler or
+otherwise handle the event, if required.
+The caller should install an X error handler to catch possible <I>Bad window</I> errors.
+</TD></TR>
+
+<TR CLASS="func_box"><TD>bool
+<TD>Xiccc_XEvent
+<TD>( XEvent *eventPtr, XICCC_STATE * pXi, bool * pNeedHandler )
+</TD></TR><TR><TD><TD><TD>
+This function should be called for every incoming X event and filters
+out events for the own selection window or that of a connected peer
+and protocol messages on the root window.  The result value is TRUE
+if the event was processed internally. If an event occured which is
+of interest for the application, boolean<I>*pNeedHandler</I> is set
+to TRUE and the respective bit is set in the <I>events</I> member
+in the state struct.  The application should then trigger it's
+"high-level" event handler to process the event and clear bits if
+processed events.
+</TD></TR>
+
+<TR CLASS="func_box">
+<TD>void
+<TD>Xiccc_HandleInternalEvent
+<TD>( XICCC_STATE * pXi )
+</TD></TR><TR><TD><TD><TD>
+This function should be called first inside the "high-level" event handler.
+It may generate additional application level events.
+</TD></TR>
+
+<TR CLASS="func_box">
+<TD>bool
+<TD>Xiccc_SendQuery
+<TD>( XICCC_STATE * pXi, const char * pCmd, sint cmdLen,
+                      Atom target, Atom property )
+</TD></TR><TR><TD><TD><TD>
+Send the given message to a connected peer on the given target atom.
+The caller should install an X error handler to catch possible <I>Bad window</I> errors.
+The result will be written to the given property atom.  When the reply
+arrives, an event will be raised.
+</TD></TR>
+
+<TR CLASS="func_box">
+<TD>bool
+<TD>Xiccc_SplitArgv
+<TD>( Display * dpy, Window wid, Atom property, char *** ppArgv, uint * pArgc )
+</TD></TR><TR><TD><TD><TD>
+This is a helper function which can be used to split a received message
+into separate strings.
+</TD></TR>
+
+<TR CLASS="func_box">
+<TD>bool
+<TD>Xiccc_SendReply
+<TD>( XICCC_STATE * pXi, const char * pStr, int strLen,
+                      XICCC_EV_QUEUE * pReq, Atom target )
+</TD></TR><TR><TD><TD><TD>
+This function sends a reply message to the peer.  specified by the given
+message queue element (i.e. a selection notification is sent)
+The caller should install an X error handler to catch possible <I>Bad window</I> errors.
+</TD></TR>
+
+<TR CLASS="func_box">
+<TD>bool
+<TD>Xiccc_SendNullReply
+<TD>( XICCC_STATE * pXi, XICCC_EV_QUEUE * pReq, Atom target )
+</TD></TR><TR><TD><TD><TD>
+This function is used when a severe error occurs during processing of
+an incoming message (e.g. parameters could not be parsed)
+The caller should install an X error handler to catch possible <I>Bad window</I> errors.
+</TD></TR>
+
+<TR CLASS="func_box">
+<TD>void
+<TD>Xiccc_BuildArgv
+<TD>( char ** ppBuild, uint * pArgLen, ... )
+</TD></TR><TR><TD><TD><TD>
+This function combines the given strings into a single zero-separated string.
+The caller must free *ppBuild afterwards.
+</TD></TR>
+
+<TR CLASS="func_box">
+<TD>bool
+<TD>Xiccc_ParseMsgSetstation
+<TD>( Display * dpy, XICCC_EV_QUEUE * pReq, Atom target )
+</TD></TR><TR><TD><TD><TD>
+Helper function only intended for nxtvepg to parse SETSTATION messages.
+</TD></TR>
+
+<TR CLASS="func_box">
+<TD>void
+<TD>Xiccc_QueueUnlinkEvent
+<TD>( XICCC_EV_QUEUE ** pHead, XICCC_EV_QUEUE * pReq )
+</TD></TR><TR><TD><TD><TD>
+Unlinks a specific message from the queue;
+memory must be freed or event queued in other queue by caller
+</TD></TR>
+
+<TR CLASS="func_box">
+<TD>void
+<TD>Xiccc_QueueRemoveRequest
+<TD>( XICCC_EV_QUEUE ** pHead, Window requestor )
+</TD></TR><TR><TD><TD><TD>
+Removes and frees all messages of a given peer from the queue.
+</TD></TR>
+
+<TR CLASS="func_box">
+<TD>void
+<TD>Xiccc_QueueAddEvent
+<TD>( XICCC_EV_QUEUE ** pHead, XICCC_EV_QUEUE * pNew )
+</TD></TR><TR><TD><TD><TD>
+Add a message to the queue;
+new events are inserted at the head of the queue
+</TD></TR>
+
+<TR CLASS="func_box">
+<TD>void
+<TD>Xiccc_QueueFree
+<TD>( XICCC_EV_QUEUE ** pHead )
+</TD></TR><TR><TD><TD><TD>
+Removes all messages in a queue.
+</TD></TR>
+</TABLE>
+
+
+</BODY>
+</HTML>

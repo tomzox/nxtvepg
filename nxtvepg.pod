@@ -24,7 +24,7 @@
 #
 #  Author: Tom Zoerner
 #
-# $Id: nxtvepg.pod,v 1.116 2004/12/18 14:56:43 tom Exp tom $
+# $Id: nxtvepg.pod,v 1.118.1.1 2005/03/30 15:07:18 tom Exp $
 # ---------------------------------------------------------------------------
 
 =head1 NAME
@@ -235,36 +235,73 @@ In daemon mode this option will automatically stop acquisition and
 terminate the daemon after the given phase has been completed for all
 providers.  Phases are the same as defined in L<"ACQUISITION MODES">,
 i.e. I<now>, I<near> and I<full>.  Note it's not useful to use this
-option in acquisition mode I<follow-ui>, i.e. it's only useful with
-a fixed list of providers.
+option in acquisition mode I<follow-ui> because acquisition restarts
+after each provider change.  This option is only useful with a fixed
+list of providers.
+
+If you want to run another program from inside a script after nxtvepg
+has finished, use the I<-nodetach> option (UNIX only)  Then the
+shell which is processing the script will usually wait for nxtvepg
+to terminate before starting the next command.  On Windows there's
+no simple way to achieve this (because non-console applications
+are always run in the background), so you need to use a script
+language which supports instructions which wait until a running
+program (namely nxtvepg) has finished.
 
 =item B<-dump> I<mode>
 
-When started with this argument, nxtvepg will only export the database
-in XML format (see L<"CONTROL: Export as XMLTV">)
-or in a fixed text format (see also L<"CONTROL: Export as text">),
-then exit.  This argument must be combined
-with I<-provider> to specify which database is to be exported.
+When started with this argument, nxtvepg will only export the entire
+programme database, then exit.  This argument must be combined
+with I<-provider> to specify which database shall be exported.
 
 To export the database in XML format, use keyword I<xml> as mode.
+In this case the last mode (i.e. XMLTV DTD version) which was used
+via the main menu is used.  To export the database in another mode,
+use I<xml5>, I<xml5ltz> or I<xml6>.  
+For more details see L<"CONTROL: Export as XMLTV">.
 
-For text export three mode keywords are understood:
+To export the database into a plain text file (e.g. for import into an
+SQL database) three mode keywords are supported:
 I<pi> to dump programmes (i.e. the complete TV schedules),
 I<ai> to dump the provider's network table,
-I<pdc> to dump the PDC theme table.
+I<pdc> to dump the PDC theme categories table.
+For more details see L<"CONTROL: Export as text">.
+
+For debugging purposes there's also a mode I<raw> which prints all data
+in the database in a format which is closely related to the internal
+data structures.  This output should not be used for data export.
+For more details see L<"CONTROL: Dump raw database">.
 
 The output is written to I<stdout> unless you redirect it into a file
-or pipe it into another program.  Note to Windows users: since nxtvepg
-is not a console application, no I<stdout> is available, i.e. it's output
-will be discarded by the operating system unless you redirect it.
-For example you could enter the following command in the shell
-(or "MS-DOS prompt"):
+or pipe it into another program. See also option I<-outfile>
+
+=item B<-outfile> I<path>
+
+This option allows to redirect output from I<-dump> or any other
+modes which print to I<stdout> by default. It also works in normal
+operation modes, but the created file will be empty.
+nxtvepg will abort if the specified file already exists to avoid
+inadvertantly overwriting other files.  If you're using the option
+inside a script or batch file you should add a command to remove
+the target file before invoking nxtvepg.
+
+This option is especially helpful for M$ Windows users, since output
+written to I<stdout> is discarded by the operating system because
+nxtvepg is not a "console application".  This means for exmaple, if
+output of the above -dump mode is not to be discarded, you must
+either use this option or redirect output as below.
+
+Note: instead of using this option you can also redirect output with
+the ">" or "|" operators in UNIX shells or under M$ Windows at the
+MS-DOS command prompt.  For example you could use either of the
+following:
 
   nxtvepg -dump ai -prov d92 > networks.txt
+  nxtvepg -dump ai -prov d92 | more
 
-to write the network table of provider I<Kabel1> (CNI I<0xd92>) into a file
-called I<networks.txt>.
-
+to write the network table of provider I<Kabel1> (CNI I<0xd92>) into
+a file named I<networks.txt>, or pipe it to the paging program "more"
+respectively.
 
 =item B<-remctrl> I<command>
 
@@ -300,10 +337,9 @@ a binary format.  nxtvepg will never attempt to retrieve times from
 teletext header lines.  All Nextview EPG providers transmit packet 8/30/1,
 and a few other networks do too (e.g. ARD and ZDF in Germany.)
 
-With mode I<print> the date and time will only be printed
-(B<Important> note to Windows users: you need to redirect the output
-of nxtvepg to make it visible; see the I<-dump> option above for an
-explanation)
+With mode I<print> the date and time will be read and printed.
+The output is written to I<stdout> unless you redirect it into a file
+or pipe it into another program. See option I<-outfile> for details.
 
 With mode I<set> the time is set as system time, provided the calling
 user has the necessary priviliges (e.g. you'd need to be I<root> on
@@ -2085,6 +2121,10 @@ the actual programme descriptions; I<Defective PI> contains those
 PI which were not accepted into the database because of inconsistencies
 like a zero or overlapping running time. For an explanation of the
 other block types please see the ETSI specification 707.
+
+You can also export the database in this format via the command
+line by using option C<-dump raw>.  In this case the options last
+used in the dialog are effective.
 
 
 =head2 Export as text

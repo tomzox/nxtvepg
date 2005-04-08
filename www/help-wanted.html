@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: help-wanted.html,v 1.13 2004/12/28 19:22:27 tom Exp $ -->
+<!-- $Id: help-wanted.html,v 1.16 2005/04/08 21:36:18 tom Exp $ -->
 <HEAD>
 <TITLE>Software developers help wanted for nxtvepg project</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -33,6 +33,8 @@
 
 <H2 class="navhead">News</H2>
 <P>
+Apr/8/2005: <A HREF="index.html#new_2_7_5">Release 2.7.5</A>
+</P><P>
 Dec/27/2004: <A HREF="changelog.html#release_2_7_4">Release 2.7.4</A>
 </P>
 
@@ -57,11 +59,11 @@ Dec/27/2004: <A HREF="changelog.html#release_2_7_4">Release 2.7.4</A>
 
 <H2 class="navhead">Screenshots</H2>
 <P>
-<A HREF="screenshot-shortcuts.gif">New 2.7.0 feature</A><BR>
-<A HREF="screenshot-reminder.gif">New 2.6.0 features</A><BR>
-<A HREF="screenshot-grid1.png">New 2.5.0 features</A><BR>
-<A HREF="screenshot-win.gif">Windows screenshot</A><BR>
-<A HREF="screenshot-series.gif">Series menu</A><BR>
+<A HREF="screenshot-274.png">Main window</A><BR>
+<A HREF="screenshot-grid1.png">"Grid" layout</A><BR>
+<A HREF="screenshot-reminder.png">Reminders</A><BR>
+<A HREF="screenshot-stats.png">Reception statistics</A><BR>
+<A HREF="screenshot-series.png">Series menu</A><BR>
 <A HREF="screenshot-xawtv.jpg">xawtv with EPG OSD</A><BR>
 </P>
 <span class="center"><span class="logo"><a href="http://sourceforge.net"><img
@@ -76,12 +78,13 @@ The nxtvepg project is sort-of my pet project since 2000.  Development
 was mostly driven by how interesing the topic seemed to implement, or
 how much I liked to have it for myself.  Of course I also have honored
 reasonable feature requests, but since my time is limited (I do also
-have a job to pay for my living) and I'm a UNIX hacker and not skilled
+have a job to pay for my living) and I'm a UN*X hacker and not skilled
 in Microsoft specifics, I often see myself unable to comply to requests
 even when wholeheartedly agreeing that nxtvepg direly needs improvements
 in some areas.
 </P><P>
-Since during the last year the number of users appears to have grown
+Since during the last year (as of writing this in September 2003)
+the number of users appears to have grown
 considerably I feel a responsibility to address at least the most urgent
 topics which I have listed below.  There are of course a lot more open
 points and possible feature enhancements (see TODO list in the nxtvepg
@@ -94,13 +97,11 @@ me at the address given in nxtvepg's <I>Help -> About</I> dialog.
 <P><BR></P>
 
 <DL>
-<DT><B>Teletext acquisition via DirectShow &reg; on Microsoft Windows &reg;</B>
+<DT><B>Nextview EPG acquisition via DirectShow &reg; on Microsoft Windows &reg;</B>
 <DD><P>Currently in development.<BR>
-    <!--  commented out on request of GV
-    But you can still help in form of alpha-testing, see the
+    But you can still help in form of alpha-testing and porting to
+    more TV cards, see the
     <A HREF="WDMpre-releases.html">WDM support development download page</A>
-    -->
-    Please refer to mailing list for release announcements.
     </P>
 
 <DT><B>TV application interaction</B>
@@ -108,18 +109,21 @@ me at the address given in nxtvepg's <I>Help -> About</I> dialog.
     <A HREF="tvsim.html#interaction features">tvsim manual</A> for a
     complete list of features) with TV applications which do support
     the interaction protocol; also it can only load the TV channel table
-    if it has a parser for the specific file format.  Currently only xawtv
-    and xawdecode on UNIX and K!TV on Windows are supported this way.
-    On Windows in addition the channel table of a few more TV apps can
-    be used.<BR>
+    if it has a parser for the specific file format.  On UN*X the most
+    used TV applications are already supported, however for Windows it's
+    still only K!TV (see <A HREF="links.html">full list of TV applications</A>)
+    <BR>
     I do receive requests to suport one or other TV application almost
     on a regular basis, but I cannot do much here since for the most
     part the work is on side of the TV application.  For the Windows
     platform I've already written a prototype client in the
     <A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.7.0-tvsim.zip?download">tvsim package</A>
     which contains all the code necessary for interaction, but it would
-    need to be included on side of the TV apps.  Please refer to this
-    <A HREF="tvsim-faq.html">Questions &amp; answers</A> for more details.
+    need to be included on side of the TV app.  For Windows please refer to
+    this <A HREF="tvsim-faq.html">Questions &amp; answers</A> for more details.
+    For UN*X please refer to the
+    <A HREF="xiccc-proto.html">X11 TV application communication protocols</A>
+    page for more details.
     </P>
 
 <DT><B>Linux VBI proxy</B>
@@ -144,7 +148,7 @@ me at the address given in nxtvepg's <I>Help -> About</I> dialog.
 <DT><B>Translation for French and German users</B>
 <DD><P>Appearently there is a number of users who do not understand English
     well enough to understand the descriptions in the manual.  The manual
-    currently has more than 3000 lines but maybe someone still wants to
+    currently has more than 3500 lines but maybe someone still wants to
     tackle it?   At least in case of French this would not be a one-time
     only job, since the manual needs to be updated for every release.
     (It's also been requested in the past to translate all menus and dialogs,

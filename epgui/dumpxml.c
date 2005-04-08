@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumpxml.c,v 1.10 2004/10/31 17:01:13 tom Exp tom $
+ *  $Id: dumpxml.c,v 1.12.1.3 2005/04/02 16:56:46 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -46,8 +46,8 @@
 #include "epgui/pdc_themes.h"
 #include "epgui/pifilter.h"
 #include "epgui/pidescr.h"
-#include "epgui/pioutput.h"
 #include "epgui/dumphtml.h"
+#include "epgui/dumptext.h"
 #include "epgui/dumpxml.h"
 #include "epgtcl/dlg_dump.h"
 
@@ -67,7 +67,7 @@ static void EpgDumpXml_AppendInfoTextCb( void *vp, const char * pDesc, bool addS
 {
    DUMP_XML_CB_INFO * pCbInfo = vp;
    FILE * fp;
-   char * pNewline;
+   const char * pNewline;
 
    if ((pCbInfo != NULL) && (pCbInfo->fp != NULL) && (pDesc != NULL))
    {
@@ -85,8 +85,7 @@ static void EpgDumpXml_AppendInfoTextCb( void *vp, const char * pDesc, bool addS
       while ( (pNewline = strchr(pDesc, '\n')) != NULL )
       {
          // print text up to (and excluding) the newline
-         *pNewline = 0;  // XXX must not modify const string
-         EpgDumpHtml_WriteString(fp, pDesc);
+         EpgDumpHtml_WriteString(fp, pDesc, pNewline - pDesc);
 
          if ( IS_XML_DTD5(pCbInfo->xmlDtdVersion) )
             fprintf(fp, "\n\n");
@@ -97,7 +96,7 @@ static void EpgDumpXml_AppendInfoTextCb( void *vp, const char * pDesc, bool addS
          pDesc = pNewline + 1;
       }
       // write the segment behind the last newline
-      EpgDumpHtml_WriteString(fp, pDesc);
+      EpgDumpHtml_WriteString(fp, pDesc, -1);
    }
 }
 
@@ -134,7 +133,7 @@ static int EpgDumpXml_QueryXmlDtdVersion( Tcl_Interp *interp )
 //   in the local time zone
 //
 static void EpgDumpXml_PrintTimestamp( char * pBuf, uint maxLen,
-                                       time_t then, bool xmlDtdVersion )
+                                       time_t then, int xmlDtdVersion )
 {
    size_t len;
    sint   lto;
@@ -155,7 +154,7 @@ static void EpgDumpXml_PrintTimestamp( char * pBuf, uint maxLen,
       len = strftime(pBuf, maxLen, "%Y%m%d%H%M%S", localtime(&then));
       if (len + 1 + 6 <= maxLen)
       {
-         sprintf(pBuf + len, " %c%04d", ltoSign, lto);
+         sprintf(pBuf + len, " %c%02d%02d", ltoSign, lto/60, lto%60);
       }
    }
    else if (xmlDtdVersion == EPGTCL_XMLTV_DTD_5_GMT)
@@ -174,7 +173,7 @@ static void EpgDumpXml_PrintTimestamp( char * pBuf, uint maxLen,
 // Write XML file header
 //
 static void EpgDumpXml_WriteHeader( EPGDB_CONTEXT * pDbContext, const AI_BLOCK * pAiBlock,
-                                    FILE * fp, bool xmlDtdVersion )
+                                    FILE * fp, int xmlDtdVersion )
 {
    uchar   start_str[50];
    time_t  lastAiUpdate;
@@ -199,7 +198,7 @@ static void EpgDumpXml_WriteHeader( EPGDB_CONTEXT * pDbContext, const AI_BLOCK *
                   "<tv generator-info-name=\"nxtvepg/" EPG_VERSION_STR "\" "
                        "generator-info-url=\"" NXTVEPG_URL "\" "
                        "source-info-name=\"nexTView ");
-      EpgDumpHtml_WriteString(fp, comm);
+      EpgDumpHtml_WriteString(fp, comm, -1);
       fprintf(fp, "\" date=\"%s\">\n", start_str);
    }
    else // XML DTD 6
@@ -211,7 +210,7 @@ static void EpgDumpXml_WriteHeader( EPGDB_CONTEXT * pDbContext, const AI_BLOCK *
                   "\t<copying>\n"
                   "\t\t<p>\n"
                   "Copyright by nexTView EPG content providers: ", start_str);
-      EpgDumpHtml_WriteString(fp, comm);
+      EpgDumpHtml_WriteString(fp, comm, -1);
       fprintf(fp, "\n\t\t</p>\n"
                   "\t</copying>\n"
                   "\t<generator-info>\n"
@@ -226,19 +225,19 @@ static void EpgDumpXml_WriteHeader( EPGDB_CONTEXT * pDbContext, const AI_BLOCK *
 // ----------------------------------------------------------------------------
 // Write XML channel table
 //
-static void EpgDumpXml_WriteChannels( EPGDB_CONTEXT * pDbContext, const AI_BLOCK * pAiBlock,
-                                      FILE * fp, bool xmlDtdVersion )
+static void EpgDumpXml_WriteChannel( EPGDB_CONTEXT * pDbContext, const AI_BLOCK * pAiBlock,
+                                     uint netwopIdx, FILE * fp, int xmlDtdVersion )
 {
    const AI_NETWOP * pNetwop;
    const uchar     * pCfNetname;
    const char      * native;
    Tcl_DString       ds;
    uchar cni_str[10];
-   uint  netwop;
 
-   pNetwop = AI_GET_NETWOPS(pAiBlock);
-   for (netwop=0; netwop < pAiBlock->netwopCount; netwop++)
+   if (netwopIdx < pAiBlock->netwopCount)
    {
+      pNetwop = AI_GET_NETWOP_N(pAiBlock, netwopIdx);
+
       sprintf(cni_str, "0x%04X", pNetwop->cni);
       pCfNetname = Tcl_GetVar2(interp, "cfnetnames", cni_str, TCL_GLOBAL_ONLY);
       if (pCfNetname != NULL)
@@ -252,18 +251,19 @@ static void EpgDumpXml_WriteChannels( EPGDB_CONTEXT * pDbContext, const AI_BLOCK
 
       if ( IS_XML_DTD5(xmlDtdVersion) == FALSE )
       {
-         fprintf(fp, "\t<number num=\"%d\" />\n", netwop);
+         fprintf(fp, "\t<number num=\"%d\" />\n", netwopIdx);
       }
 
       fprintf(fp, "\t<display-name>");
-      EpgDumpHtml_WriteString(fp, native);
+      EpgDumpHtml_WriteString(fp, native, -1);
       fprintf(fp, "</display-name>\n"
                   "</channel>\n");
 
       if (pCfNetname != NULL)
          Tcl_DStringFree(&ds);
-      pNetwop += 1;
    }
+   else
+      debug2("EpgDumpXml-WriteChannel: invalid netwop index %d (>= %d)", netwopIdx, pAiBlock->netwopCount);
 }
 
 // ----------------------------------------------------------------------------
@@ -318,9 +318,8 @@ static void EpgDumpXml_WriteProgramme( EPGDB_CONTEXT * pDbContext, const AI_BLOC
    }
 
    // programme title and description (quoting "<", ">" and "&" characters)
-   PiOutput_PrintColumnItem(pPiBlock, PIBOX_COL_TITLE, comm, TCL_COMM_BUF_SIZE);
    fprintf(fp, "\t<title>");
-   EpgDumpHtml_WriteString(fp, comm);
+   EpgDumpHtml_WriteString(fp, PI_GET_TITLE(pPiBlock), -1);
    fprintf(fp, "</title>\n");
    if ( PI_HAS_SHORT_INFO(pPiBlock) || PI_HAS_LONG_INFO(pPiBlock) )
    {
@@ -344,28 +343,42 @@ static void EpgDumpXml_WriteProgramme( EPGDB_CONTEXT * pDbContext, const AI_BLOC
    // theme categories
    for (idx=0; idx < pPiBlock->no_themes; idx++)
    {
-      if ( IS_XML_DTD5(xmlDtdVersion) )
-         fprintf(fp, "\t<category>");
-      else
-         fprintf(fp, "\t<category system=\"pdc\" code=\"%d\">", pPiBlock->themes[idx]);
-
       pThemeStr = PdcThemeGet(pPiBlock->themes[idx]);
       if (pThemeStr != NULL)
-         EpgDumpHtml_WriteString(fp, pThemeStr);
+      {
+         if ( IS_XML_DTD5(xmlDtdVersion) )
+            fprintf(fp, "\t<category>");
+         else
+            fprintf(fp, "\t<category system=\"pdc\" code=\"%d\">", pPiBlock->themes[idx]);
 
-      fprintf(fp, "</category>\n");
+         EpgDumpHtml_WriteString(fp, pThemeStr, -1);
+
+         fprintf(fp, "</category>\n");
+      }
    }
 
    // attributes
    if ( IS_XML_DTD5(xmlDtdVersion) )
    {
-      PiOutput_PrintColumnItem(pPiBlock, PIBOX_COL_SOUND, comm, TCL_COMM_BUF_SIZE);
-      if (comm[0] != 0)
-         fprintf(fp, "\t<audio>\n\t\t<stereo>%s</stereo>\n\t</audio>\n", comm);
+      if ((pPiBlock->feature_flags & PI_FEATURE_SOUND_MASK) == PI_FEATURE_SOUND_STEREO)
+      {
+         fprintf(fp, "\t<audio>\n\t\t<stereo>stereo</stereo>\n\t</audio>\n");
+      }
+      else if ((pPiBlock->feature_flags & PI_FEATURE_SOUND_MASK) == PI_FEATURE_SOUND_SURROUND)
+      {
+         fprintf(fp, "\t<audio>\n\t\t<stereo>surround</stereo>\n\t</audio>\n");
+      }
+      // else: 2-channel not supported by DTD 0.5 semantics
 
-      PiOutput_PrintColumnItem(pPiBlock, PIBOX_COL_SUBTITLES, comm, TCL_COMM_BUF_SIZE);
-      if (comm[0] != 0)
+      if (pPiBlock->feature_flags & PI_FEATURE_SUBTITLES)
+      {
          fprintf(fp, "\t<subtitles type=\"teletext\" />\n");
+      }
+
+      if ((pPiBlock->feature_flags & (PI_FEATURE_PAL_PLUS | PI_FEATURE_FMT_WIDE)) != 0)
+      {
+         fprintf(fp, "\t<video>\n\t\t<aspect>16:9</aspect>\n\t</video>\n");
+      }
 
       if (pPiBlock->parental_rating == 1)
          fprintf(fp, "\t<rating system=\"age\">\n\t\t<value>general</value>\n\t</rating>\n");
@@ -432,13 +445,32 @@ static void EpgDumpXml_WriteProgramme( EPGDB_CONTEXT * pDbContext, const AI_BLOC
 // ----------------------------------------------------------------------------
 // Dump programme titles and/or descriptions into file in XMLTV format
 //
-void EpgDumpXml_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp )
+void EpgDumpXml_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp, EPGTAB_DUMP_MODE dumpMode )
 {
    const AI_BLOCK  * pAiBlock;
    const PI_BLOCK  * pPiBlock;
+   uint  netwopIdx;
    int   xmlDtdVersion;
 
-   xmlDtdVersion = EpgDumpXml_QueryXmlDtdVersion(interp);
+   switch (dumpMode)
+   {
+      case EPGTAB_DUMP_XMLTV_ANY:
+         xmlDtdVersion = EpgDumpXml_QueryXmlDtdVersion(interp);
+         break;
+      case EPGTAB_DUMP_XMLTV_DTD_5_GMT:
+         xmlDtdVersion = EPGTCL_XMLTV_DTD_5_GMT;
+         break;
+      case EPGTAB_DUMP_XMLTV_DTD_5_LTZ:
+         xmlDtdVersion = EPGTCL_XMLTV_DTD_5_LTZ;
+         break;
+      case EPGTAB_DUMP_XMLTV_DTD_6:
+         xmlDtdVersion = EPGTCL_XMLTV_DTD_6;
+         break;
+      default:
+         fatal1("EpgDumpXml-Standalone: invalid mode %d\n", dumpMode);
+         xmlDtdVersion = EPGTCL_XMLTV_DTD_5_GMT;
+         break;
+   }
 
    if (fp != NULL)
    {
@@ -450,7 +482,10 @@ void EpgDumpXml_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp )
          EpgDumpXml_WriteHeader(pDbContext, pAiBlock, fp, xmlDtdVersion);
 
          // channel table
-         EpgDumpXml_WriteChannels(pDbContext, pAiBlock, fp, xmlDtdVersion);
+         for (netwopIdx = 0; netwopIdx < pAiBlock->netwopCount; netwopIdx++)
+         {
+            EpgDumpXml_WriteChannel(pDbContext, pAiBlock, netwopIdx, fp, xmlDtdVersion);
+         }
 
          // loop across all PI and dump their info
          pPiBlock = EpgDbSearchFirstPi(pDbContext, NULL);
@@ -494,7 +529,7 @@ static int EpgDumpXml_DumpDatabase( ClientData ttp, Tcl_Interp *interp,int objc,
       fpDst = fopen(pFileName, "w");
       if (fpDst != NULL)
       {
-         EpgDumpXml_Standalone(pUiDbContext, fpDst);
+         EpgDumpXml_Standalone(pUiDbContext, fpDst, EPGTAB_DUMP_XMLTV_ANY);
          fclose(fpDst);
       }
       else

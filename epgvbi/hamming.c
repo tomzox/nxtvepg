@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: hamming.c,v 1.10 2004/08/29 21:48:06 tom Exp tom $
+ *  $Id: hamming.c,v 1.11 2005/02/20 20:25:23 tom Exp tom $
  */
 
 #define __HAMMING_C
@@ -29,6 +29,7 @@
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
 
+#include "epgvbi/btdrv.h"     // for define DUMP_TTX_PACKETS
 #include "epgvbi/hamming.h"
 
 

@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumpxml.h,v 1.1 2003/02/26 21:59:35 tom Exp tom $
+ *  $Id: dumpxml.h,v 1.2 2004/12/29 20:26:56 tom Exp $
  */
 
 #ifndef __DUMPXML_H
@@ -30,6 +30,6 @@
 void EpgDumpXml_Init( void );
 void EpgDumpXml_Destroy( void );
 
-void EpgDumpXml_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp );
+void EpgDumpXml_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp, EPGTAB_DUMP_MODE dumpMode );
 
 #endif  // __DUMPXML_H

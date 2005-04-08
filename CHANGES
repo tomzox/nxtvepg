@@ -5,6 +5,28 @@ features).  For patchlevel releases also internal changes might be listed in
 case they may fix bugs (or cause new ones)
 
 
+from 2.7.4 to 2.7.5 (2005-Apr-08)
+
+- fixed HTML export (not all text format options were processed,
+  weekday color column was not implemented) and improved layout
+- fixed timezone format in XMLTV output (DTD 0.5, local timezone only)
+  Thanks to Laurent Garnier for reporting the bug.
+- XML export: format can now be selected via command line options
+- added command line option -outfile <path>
+- Improved network/channel identification by VPS/PDC during
+  interaction with TV applications (e.g. TV5 was not identified)
+- Added support for reading channel table of K!TV 2.3
+  Thanks to Quenotte for providing a patch.
+- Windows only: fixed !wintv! keyword handling in scripts bound
+  to reminder events (this was already supposed to be in 2.7.4 but
+  lost somehow)
+- Windows only bugfix: "Record this show" did not appear in context
+  menu when connected to K!TV
+- bugfix: missing error-check in time conversion lead to inconsistant
+  start/stop times around daylight saving time switch (which lead to
+  error "database corrupt" during reload)
+
+
 from 2.7.3 to 2.7.4 (2004-Dec-27)
 
 - bugfix EPG teletext number update in database: after external channel
@@ -45,7 +67,7 @@ from 2.7.3 to 2.7.4 (2004-Dec-27)
   library, esp. to cleanly shut down acquisition.
   On Windows this fixes annoying popup messages when switching desktop
   display to full-screen (e.g. upon start of some game).
-- TV app. interaction developent tool vbirec: added possibility to send
+- TV app. interaction development tool vbirec: added possibility to send
   commands and EPG OSD infos to a connected TV app (to allow testing
   this feature without nxtvepg)
 

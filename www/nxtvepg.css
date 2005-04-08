@@ -131,3 +131,6 @@ H2 {
         FONT-FAMILY: Verdana,Geneva,Arial,sans-serif;
         PADDING-TOP: 30pt
 }
+TR.func_box {
+	background-color: #eeeeee;
+}

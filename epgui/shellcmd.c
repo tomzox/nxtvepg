@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: shellcmd.c,v 1.9 2004/06/19 19:06:48 tom Exp tom $
+ *  $Id: shellcmd.c,v 1.10 2005/02/20 20:25:31 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -96,6 +96,13 @@ typedef enum
    CTX_TYPE_COUNT
 } CTXMEN_TYPE;
 
+#ifndef WIN32
+#define CTX_TYPE_EXEC_DEFAULT   CTX_TYPE_EXEC_UNIX
+#define CTX_TYPE_TVAPP_DEFAULT  CTX_TYPE_TVAPP_XAWTV
+#else
+#define CTX_TYPE_EXEC_DEFAULT   CTX_TYPE_EXEC_WIN32
+#define CTX_TYPE_TVAPP_DEFAULT  CTX_TYPE_TVAPP_WINTV
+#endif
 
 // struct to hold dynamically growing char buffer
 typedef struct
@@ -637,6 +644,7 @@ Tcl_Obj * PiOutput_ParseScript( Tcl_Interp *interp, Tcl_Obj * pCmdObj,
    Tcl_DString  ds;
    Tcl_Obj    * pResultList;
    DYN_CHAR_BUF cmdbuf;
+   CTXMEN_TYPE  cmdType;
 
    assert(EpgDbIsLocked(pUiDbContext));
 
@@ -663,8 +671,7 @@ Tcl_Obj * PiOutput_ParseScript( Tcl_Interp *interp, Tcl_Obj * pCmdObj,
          PiOutput_CmdSubstitute(pUserCmd, &cmdbuf, TRUE, pPiBlock, pAiBlock);
          ShellCmd_AppendChar('\0', &cmdbuf);
 
-         Tcl_ListObjAppendElement(interp, pResultList,
-                                  Tcl_NewStringObj(pCtxMenuTypeKeywords[CTX_TYPE_TVAPP_XAWTV], -1));
+         cmdType = CTX_TYPE_TVAPP_DEFAULT;
       }
       else
       {  // substitute variables and quote spaces etc.
@@ -679,9 +686,9 @@ Tcl_Obj * PiOutput_ParseScript( Tcl_Interp *interp, Tcl_Obj * pCmdObj,
 
          ShellCmd_AppendChar('\0', &cmdbuf);
 
-         Tcl_ListObjAppendElement(interp, pResultList,
-                                  Tcl_NewStringObj(pCtxMenuTypeKeywords[CTX_TYPE_EXEC_UNIX], -1));
+         cmdType = CTX_TYPE_EXEC_DEFAULT;
       }
+      Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(pCtxMenuTypeKeywords[cmdType], -1));
       Tcl_DStringFree(&ds);
 
       Tcl_ListObjAppendElement(interp, pResultList,

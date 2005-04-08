@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_dump.tcl,v 1.8 2004/12/12 14:48:04 tom Exp tom $
+#  $Id: dlg_dump.tcl,v 1.9 2004/12/29 12:02:58 tom Exp tom $
 #
 set dumpdb_pi 1
 set dumpdb_xi 1
@@ -42,6 +42,7 @@ set dumphtml_sel 1
 set dumphtml_sel_count 25
 set dumphtml_type 3
 set dumphtml_hyperlinks 1
+set dumphtml_text_fmt 1
 set dumphtml_use_colsel 0
 set dumphtml_colsel {}
 set dumphtml_popup 0
@@ -247,7 +248,7 @@ proc DoDbTabsDump {} {
 ##
 proc PopupDumpHtml {} {
    global dumphtml_filename dumphtml_type dumphtml_file_append dumphtml_file_overwrite
-   global dumphtml_sel dumphtml_sel_count dumphtml_hyperlinks
+   global dumphtml_sel dumphtml_sel_count dumphtml_hyperlinks dumphtml_text_fmt
    global font_fixed fileImage
    global dumphtml_popup
 
@@ -309,6 +310,8 @@ proc PopupDumpHtml {} {
       pack .dumphtml.opt4.row1 -side top -anchor nw -fill x
       checkbutton .dumphtml.opt4.chk1 -text "Add hyperlinks to titles" -variable dumphtml_hyperlinks
       pack .dumphtml.opt4.chk1 -side top -anchor nw
+      checkbutton .dumphtml.opt4.chk2 -text "Apply text format options in user-defined columns" -variable dumphtml_text_fmt
+      pack .dumphtml.opt4.chk2 -side top -anchor nw
       pack .dumphtml.opt4 -side top -pady 5 -padx 10 -fill x
 
       frame .dumphtml.cmd
@@ -434,7 +437,8 @@ proc HtmlDump_ApplyColumnSelection {} {
 # callback for "Export" button
 proc HtmlDump_Start {} {
    global dumphtml_filename dumphtml_type dumphtml_file_append dumphtml_file_overwrite
-   global dumphtml_sel dumphtml_hyperlinks dumphtml_use_colsel dumphtml_colsel dumphtml_sel_count
+   global dumphtml_sel dumphtml_hyperlinks dumphtml_text_fmt
+   global dumphtml_use_colsel dumphtml_colsel dumphtml_sel_count
    global pilistbox_cols
 
    if {$dumphtml_sel == 1} {
@@ -446,7 +450,7 @@ proc HtmlDump_Start {} {
       }
    }
 
-   # select a column to user for hyperlinks
+   # select a column to use for hyperlinks
    set hyperCol [lsearch -exact $pilistbox_cols title]
    if {$hyperCol == -1} {set hyperCol 0}
 
@@ -463,6 +467,7 @@ proc HtmlDump_Start {} {
                     [expr $dumphtml_sel == 2] \
                     [expr ($dumphtml_sel == 2) ? 1 : ((($dumphtml_sel == 0) ? -1 : $dumphtml_sel_count))] \
                     [expr ($dumphtml_hyperlinks && ($dumphtml_type == 3)) ? $hyperCol : -1] \
+                    $dumphtml_text_fmt \
                     $colsel
 
          # save the settings to the rc/ini file

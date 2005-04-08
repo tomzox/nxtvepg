@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgblock.c,v 1.52 2004/12/24 10:37:33 tom Exp tom $
+ *  $Id: epgblock.c,v 1.53 2005/03/29 18:36:36 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -228,6 +228,12 @@ static void SetStartAndStopTime(uint bcdStart, uint julian, uint bcdStop, PI_BLO
       pPiBlock->start_time -= provLtoDelta + (pTm->tm_isdst * 60*60);
       pTm = localtime(&pPiBlock->stop_time);
       pPiBlock->stop_time  -= provLtoDelta + (pTm->tm_isdst * 60*60);
+      // fail-safety
+      if (pPiBlock->stop_time < pPiBlock->start_time)
+      {
+         debug6("SetStartAndStopTime: negative duration after LTO correction by %d: date %d, start/stop=0x%X,%X BCD -> %d,%d", provLtoDelta, (int)startDate, bcdStart, bcdStop, (int)pPiBlock->start_time, (int)pPiBlock->stop_time);
+         pPiBlock->stop_time = pPiBlock->start_time;
+      }
    }
    else
    {

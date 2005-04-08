@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="fr">
-<!-- $Id: index-fr.html,v 1.9 2004/12/28 19:29:38 tom Exp $ -->
+<!-- $Id: index-fr.html,v 1.14 2005/04/09 12:28:52 tom Exp $ -->
 <!-- Translated by Néo (hotmail's neojudgment, 2004-03-15) -->
 <HEAD>
 <TITLE>nexTView EPG Decoder Software Download Page</TITLE>
@@ -30,6 +30,8 @@
 
 <H2 class="navhead">News</H2>
 <P>
+8.4.2005: <A HREF="index-fr.html#new_2_7_5">Release 2.7.5</A>
+</P><P>
 27.12.2004: <A HREF="changelog.html#release_2_7_4">Release 2.7.4</A>
 </P>
 
@@ -38,7 +40,6 @@
 <A HREF="index.html">Accueil</A><BR>
 <A HREF="intro.html">Introduction</A><BR>
 <A HREF="provnets.html">Fournisseurs</A><BR>
-<A HREF="help-wanted.html">Recherche aide</A><BR>
 <A HREF="links.html">Liens</A><BR>
 <A HREF="faq.html">FAQ</A><BR>
 <BR>
@@ -54,14 +55,14 @@
 
 <H2 class="navhead">Screenshots</H2>
 <P>
-<A HREF="screenshot-shortcuts.gif">New 2.7.0 feature</A><BR>
-<A HREF="screenshot-reminder.gif">New 2.6.0 features</A><BR>
-<A HREF="screenshot-grid1.png">New 2.5.0 features</A><BR>
-<A HREF="screenshot-win.gif">Windows screenshot</A><BR>
-<A HREF="screenshot-series.gif">Series menu</A><BR>
+<A HREF="screenshot-274.png">Main window</A><BR>
+<A HREF="screenshot-grid1.png">"Grid" layout</A><BR>
+<A HREF="screenshot-reminder.png">Reminders</A><BR>
+<A HREF="screenshot-stats.png">Reception statistics</A><BR>
+<A HREF="screenshot-series.png">Series menu</A><BR>
 <A HREF="screenshot-xawtv.jpg">xawtv with EPG OSD</A><BR>
 </P>
-<span class="center"><span class="logo"><a href="http://sourceforge.net"><img
+<span class="center"><span class="logo"><a href="http://sourceforge.net/"><img
 src="http://sourceforge.net/sflogo.php?group_id=64430&amp;type=4"
 width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 </DIV>
@@ -75,7 +76,7 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 <BR>Logiciel de Décodage EPG</SPAN></H1>
 
 <P>
-Bienvenue sur la page d'accueil du progiciel <I>de nxtvepg </I>: Un décodeur
+Bienvenue sur la page d'accueil du progiciel <I>nxtvepg</I>: Un décodeur
 pour nexTView EPG, un guide électronique de programmes TV dans le domaine
 analogique (par opposition au EPGs numériques qui viennent avec les émissions
 numériques, bien que vous puissiez recevoir Nextview EPG
@@ -94,33 +95,27 @@ par l'intermédiaire d'une carte de TV analogique, sans accès à Internet.
 <LI><a href="download.html">Téléchargement du programme</a>
 <LI><a href="download.html#requirements">Pré requis</a>
 <P></P>
-<LI><A href="index.html#new_2_7_4">A propos de la version 2.7.4</A>
-<LI><A href="index.html#feedback">Questions et feedback</A>
-<LI><a href="index.html#help_wanted">Recherche aide</a>
-<LI><A href="index.html#copyright">Notification de copyright</A>
+<LI><A href="index-fr.html#new_2_7_5">A propos de la version 2.7.5</A>
+<LI><A href="index-fr.html#feedback">Questions et feedback</A>
+<LI><a href="index-fr.html#help_wanted">Recherche aide</a>
+<LI><A href="index-fr.html#copyright">Notification de copyright</A>
 </UL>
 
 
-<H2><SPAN CLASS="red"><A NAME="new_2_7_4">Version 2.7.4 (27.12.2004)</A></SPAN></H2>
+<H2><SPAN CLASS="red"><A NAME="new_2_7_5">Version 2.7.5 (8.4.2005)</A></SPAN></H2>
 <P>
-Release 2.7.4 once more is mainly a maintenance release with mostly
-bug fixes and a few feature enhancements.  Highlights include:
+La version 2.7.5 est une fois de plus principalement une maintenance avec la 
+plupart du temps des corrections d'erreurs et quelques perfectionnements.
+Les points les plus importants incluent:
 </P>
 <UL>
-<LI>Fixed a bug in EPG teletext number updates which caused acquisition
-  to stall if multiple providers were acquired which used different
-  teletext pages for transmission (e.g. in Switzerland)
-<LI>Fixed timezone calculation for provider "VT4" in Belgium
-<LI>Fixed bug in <A HREF="man.html#filtering">text search filter</A>
-  for <A HREF="man.html#merged_databases">merged databases</A>: sub-string
-  search ended after 258 characters
-<LI>Added possibility to store "expire time" filter in shortcuts
-<LI>Added possibility to configure text foreground colors (at least for
-  programme list) to support an inverted color scheme (configurable via
-  <A HREF="man.html#files">.Xresources or Nxtvepg.ad</A>)
-<LI>Added new display format option for
-  <A HREF="man.html#composite_attributes">composite attributes</A> (i.e.
-  user-defined columns): set foreground color for entire column
+<LI>Correction d'une erreur dans l'exportation de fichier au format XML (XMLTV DTD 0.5)
+<LI>Correction d'une erreur majeure dans l'exportation HTML et certaines améliorations ont été également apportées.
+<LI>Une nouvelle ligne de commande "-outfile..." a été ajoutée pour simplifier le script d'exportation.
+<LI>La reconnaissance des fournisseurs via VPS/PDC durant une interaction avec une application TV a été corrigée.(ex.TV5 est maintenant identifié.)
+<LI>Le support pour lire la table des chaînes de K!TV 2.3 a été ajoutée.
+<LI>Le menu contextuel pour "Zoomout" (le plugin de K!TV) vient d'être modifié.
+<LI>Correction de la prise en charge pour l'heure été/hiver.
 </UL>
 <P>
 Regardez aussi la liste détaillée des
@@ -160,12 +155,7 @@ si la même question n'a pas été posée récemment.
 <P>
 Si vous êtes un développeur de logiciel et que vous aimez nxtvepg et que vous 
 voulez le rendre bien plus utile et plus pratique ou si vous cherchez un projet
-freeware pour travailler dessus, svp apportez votre contribution à nxtvepg. J'ai 
-compilé une <A href="help-wanted.html">liste de sujets</A> qui
-bénéficieraient de votre aide. Notez que vous pouvez également contribuer en
-ajoutant le support de nxtvepg <i>à d'autres</i> applications, par exemple en
-ajoutant Nextview EPG on-screen-display (osd) dans différentes applications de
-visionnement de TV. 
+freeware pour travailler dessus, svp apportez votre contribution à nxtvepg.
 </P>
 
 <H2><A NAME="copyright">Copyright</A></H2>

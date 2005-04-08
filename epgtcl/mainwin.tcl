@@ -20,7 +20,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: mainwin.tcl,v 1.244 2004/12/12 17:22:40 tom Exp $
+#  $Id: mainwin.tcl,v 1.244.1.1 2005/03/30 14:17:13 tom Exp $
 #
 # import constants from other modules
 #=INCLUDE= "epgtcl/shortcuts.h"

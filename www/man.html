@@ -33,6 +33,8 @@
 
 <H2 class="navhead">News</H2>
 <P>
+Apr/8/2005: <A HREF="index.html#new_2_7_5">Release 2.7.5</A>
+</P><P>
 Dec/27/2004: <A HREF="changelog.html#release_2_7_4">Release 2.7.4</A>
 </P>
 
@@ -41,7 +43,6 @@ Dec/27/2004: <A HREF="changelog.html#release_2_7_4">Release 2.7.4</A>
 <A HREF="index.html">Homepage</A><BR>
 <A HREF="intro.html">Introduction</A><BR>
 <A HREF="provnets.html">Providers list</A><BR>
-<A HREF="help-wanted.html">Help Wanted</A><BR>
 <A HREF="links.html">Links</A><BR>
 <A HREF="faq.html">FAQ</A><BR>
 <BR>
@@ -57,11 +58,11 @@ Dec/27/2004: <A HREF="changelog.html#release_2_7_4">Release 2.7.4</A>
 
 <H2 class="navhead">Screenshots</H2>
 <P>
-<A HREF="screenshot-shortcuts.gif">New 2.7.0 feature</A><BR>
-<A HREF="screenshot-reminder.gif">New 2.6.0 features</A><BR>
-<A HREF="screenshot-grid1.png">New 2.5.0 features</A><BR>
-<A HREF="screenshot-win.gif">Windows screenshot</A><BR>
-<A HREF="screenshot-series.gif">Series menu</A><BR>
+<A HREF="screenshot-274.png">Main window</A><BR>
+<A HREF="screenshot-grid1.png">"Grid" layout</A><BR>
+<A HREF="screenshot-reminder.png">Reminders</A><BR>
+<A HREF="screenshot-stats.png">Reception statistics</A><BR>
+<A HREF="screenshot-series.png">Series menu</A><BR>
 <A HREF="screenshot-xawtv.jpg">xawtv with EPG OSD</A><BR>
 </P>
 <span class="center"><span class="logo"><a href="http://sourceforge.net"><img
@@ -419,43 +420,87 @@ In daemon mode this option will automatically stop acquisition and
 terminate the daemon after the given phase has been completed for all
 providers.  Phases are the same as defined in <a href="#acquisition_modes">ACQUISITION MODES</a>,
 i.e. <em>now</em>, <em>near</em> and <em>full</em>.  Note it's not useful to use this
-option in acquisition mode <em>follow-ui</em>, i.e. it's only useful with
-a fixed list of providers.
+option in acquisition mode <em>follow-ui</em> because acquisition restarts
+after each provider change.  This option is only useful with a fixed
+list of providers.
+</dd>
+<dd>
+<p>If you want to run another program from inside a script after nxtvepg
+has finished, use the <em>-nodetach</em> option (UNIX only)  Then the
+shell which is processing the script will usually wait for nxtvepg
+to terminate before starting the next command.  On Windows there's
+no simple way to achieve this (because non-console applications
+are always run in the background), so you need to use a script
+language which supports instructions which wait until a running
+program (namely nxtvepg) has finished.</p>
 </dd>
 <p></p>
 <dt><strong><a name="item__2ddump_mode"><strong>-dump</strong> <em>mode</em></a></strong><br />
 </dt>
 <dd>
-When started with this argument, nxtvepg will only export the database
-in XML format (see <a href="#export_as_xmltv">CONTROL: Export as XMLTV</a>)
-or in a fixed text format (see also <a href="#export_as_text">CONTROL: Export as text</a>),
-then exit.  This argument must be combined
-with <em>-provider</em> to specify which database is to be exported.
+When started with this argument, nxtvepg will only export the entire
+programme database, then exit.  This argument must be combined
+with <em>-provider</em> to specify which database shall be exported.
 </dd>
 <dd>
-<p>To export the database in XML format, use keyword <em>xml</em> as mode.</p>
+<p>To export the database in XML format, use keyword <em>xml</em> as mode.
+In this case the last mode (i.e. XMLTV DTD version) which was used
+via the main menu is used.  To export the database in another mode,
+use <em>xml5</em>, <em>xml5ltz</em> or <em>xml6</em>.  
+For more details see <a href="#export_as_xmltv">CONTROL: Export as XMLTV</a>.</p>
 </dd>
 <dd>
-<p>For text export three mode keywords are understood:
+<p>To export the database into a plain text file (e.g. for import into an
+SQL database) three mode keywords are supported:
 <em>pi</em> to dump programmes (i.e. the complete TV schedules),
 <em>ai</em> to dump the provider's network table,
-<em>pdc</em> to dump the PDC theme table.</p>
+<em>pdc</em> to dump the PDC theme categories table.
+For more details see <a href="#export_as_text">CONTROL: Export as text</a>.</p>
+</dd>
+<dd>
+<p>For debugging purposes there's also a mode <em>raw</em> which prints all data
+in the database in a format which is closely related to the internal
+data structures.  This output should not be used for data export.
+For more details see <a href="#dump_raw_database">CONTROL: Dump raw database</a>.</p>
 </dd>
 <dd>
 <p>The output is written to <em>stdout</em> unless you redirect it into a file
-or pipe it into another program.  Note to Windows users: since nxtvepg
-is not a console application, no <em>stdout</em> is available, i.e. it's output
-will be discarded by the operating system unless you redirect it.
-For example you could enter the following command in the shell
-(or ``MS-DOS prompt''):</p>
+or pipe it into another program. See also option <em>-outfile</em></p>
+</dd>
+<p></p>
+<dt><strong><a name="item__2doutfile_path"><strong>-outfile</strong> <em>path</em></a></strong><br />
+</dt>
+<dd>
+This option allows to redirect output from <em>-dump</em> or any other
+modes which print to <em>stdout</em> by default. It also works in normal
+operation modes, but the created file will be empty.
+nxtvepg will abort if the specified file already exists to avoid
+inadvertantly overwriting other files.  If you're using the option
+inside a script or batch file you should add a command to remove
+the target file before invoking nxtvepg.
+</dd>
+<dd>
+<p>This option is especially helpful for M$ Windows users, since output
+written to <em>stdout</em> is discarded by the operating system because
+nxtvepg is not a ``console application''.  This means for exmaple, if
+output of the above -dump mode is not to be discarded, you must
+either use this option or redirect output as below.</p>
+</dd>
+<dd>
+<p>Note: instead of using this option you can also redirect output with
+the ``&gt;'' or ``|'' operators in UNIX shells or under M$ Windows at the
+MS-DOS command prompt.  For example you could use either of the
+following:</p>
 </dd>
 <dd>
 <pre>
-  nxtvepg -dump ai -prov d92 &gt; networks.txt</pre>
+  nxtvepg -dump ai -prov d92 &gt; networks.txt
+  nxtvepg -dump ai -prov d92 | more</pre>
 </dd>
 <dd>
-<p>to write the network table of provider <em>Kabel1</em> (CNI <em>0xd92</em>) into a file
-called <em>networks.txt</em>.</p>
+<p>to write the network table of provider <em>Kabel1</em> (CNI <em>0xd92</em>) into
+a file named <em>networks.txt</em>, or pipe it to the paging program ``more''
+respectively.</p>
 </dd>
 <p></p>
 <dt><strong><a name="item__2dremctrl_command"><strong>-remctrl</strong> <em>command</em></a></strong><br />
@@ -497,10 +542,9 @@ teletext header lines.  All Nextview EPG providers transmit packet 8/30/1,
 and a few other networks do too (e.g. ARD and ZDF in Germany.)</p>
 </dd>
 <dd>
-<p>With mode <em>print</em> the date and time will only be printed
-(<strong>Important</strong> note to Windows users: you need to redirect the output
-of nxtvepg to make it visible; see the <em>-dump</em> option above for an
-explanation)</p>
+<p>With mode <em>print</em> the date and time will be read and printed.
+The output is written to <em>stdout</em> unless you redirect it into a file
+or pipe it into another program. See option <em>-outfile</em> for details.</p>
 </dd>
 <dd>
 <p>With mode <em>set</em> the time is set as system time, provided the calling
@@ -2228,6 +2272,9 @@ the actual programme descriptions; <em>Defective PI</em> contains those
 PI which were not accepted into the database because of inconsistencies
 like a zero or overlapping running time. For an explanation of the
 other block types please see the ETSI specification 707.</p>
+<p>You can also export the database in this format via the command
+line by using option <code>-dump raw</code>.  In this case the options last
+used in the dialog are effective.</p>
 <p>
 </p>
 <h2><a name="export_as_text">Export as text</a></h2>

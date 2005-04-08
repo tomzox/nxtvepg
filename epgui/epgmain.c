@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgmain.c,v 1.139 2004/10/31 17:18:33 tom Exp tom $
+ *  $Id: epgmain.c,v 1.140.1.1 2005/03/30 14:49:38 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -148,6 +148,7 @@ static int  videoCardIndex = -1;
 static bool disableAcq = FALSE;
 static DAEMON_MODE optDaemonMode = EPGGUI_START;
 static EPGTAB_DUMP_MODE optDumpMode = EPGTAB_DUMP_NONE;
+static const char * pStdOutFileName = NULL;
 #ifdef USE_DAEMON
 static bool optNoDetach   = FALSE;
 #endif
@@ -1666,7 +1667,7 @@ static int AsyncHandler_Signalled( ClientData clientData, Tcl_Interp *interp, in
 //
 static void signal_handler( int sigval )
 {
-   if ((sigval == SIGHUP) && !IS_DAEMON(optDaemonMode) && (optDumpMode == EPGTAB_DUMP_NONE))
+   if ((sigval == SIGHUP) && !IS_DAEMON(optDaemonMode) && !IS_STANDALONE_MODE(optDumpMode))
    {  // toggle acquisition on/off (unless in daemon mode)
       if (signalAsyncHandler != NULL)
       {  // trigger an event, so that the Tcl/Tk event handler immediately wakes up
@@ -2275,15 +2276,32 @@ static void SetWorkingDirectoryFromExe( const char *argv0 )
 #endif
 
 // ---------------------------------------------------------------------------
+// Print error message and exit
+// - same to "usage" function, but without printing all the options
+//
+static void MainOptionError( const char *argv0, const char *argvn, const char * reason )
+{
+   const char * const pUsageFmt =
+                   "%s: %s: %s\n"
+                   "Use '%s -help' or refer to the manual pages to get more info\n";
+
+#ifndef WIN32
+   fprintf(stderr, pUsageFmt, argv0, reason, argvn, argv0);
+#else
+   sprintf(comm,   pUsageFmt, argv0, reason, argvn, argv0);
+   MessageBox(NULL, comm, "Nextview EPG Decoder Options Error", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+#endif
+
+   exit(1);
+}
+
+// ---------------------------------------------------------------------------
 // Print Usage and exit
 //
 static void Usage( const char *argv0, const char *argvn, const char * reason )
 {
-#ifndef WIN32
-   fprintf(stderr, "%s: %s: %s\n"
-#else
-   sprintf(comm, "%s: %s: %s\n"
-#endif
+   const char * const pUsageFmt =
+                   "%s: %s: %s\n"
                    "Usage: %s [options] [database]\n"
                    "       -help       \t\t: this message\n"
                    #ifndef WIN32
@@ -2319,15 +2337,16 @@ static void Usage( const char *argv0, const char *argvn, const char * reason )
                    "       -nodetach           \t: daemon remains connected to tty\n"
                    #endif
                    #endif
-                   "       -dump pi|ai|pdc|xml     \t: dump database\n"
-                   "       -clock set|print    \t: set system clock\n"
-                   "       -demo <db-file>     \t: load database in demo mode\n",
-                   argv0, reason, argvn, argv0);
-#if 0
-   /*balance brackets for syntax highlighting*/  )
-#endif
-#ifdef WIN32
-   MessageBox(NULL, comm, "Nextview-EPG-Decoder Usage", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+                   "       -dump pi|ai|pdc|xml|...\t: export database in various formats\n"
+                   "       -outfile <path>     \t: target file for export and other output\n"
+                   "       -clock set|print    \t: set system clock from teletext clock\n"
+                   "       -demo <db-file>     \t: load database in demo mode\n";
+
+#ifndef WIN32
+   fprintf(stderr, pUsageFmt, argv0, reason, argvn, argv0);
+#else
+   sprintf(comm, pUsageFmt, argv0, reason, argvn, argv0);
+   MessageBox(NULL, comm, "Nextview EPG Decoder Usage", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
 #endif
 
    exit(1);
@@ -2395,7 +2414,7 @@ static void ParseArgv( int argc, char * argv[] )
             optNoDetach = TRUE;
             argIdx += 1;
             #else
-            Usage(argv[0], argv[argIdx], "unsupported option");
+            MainOptionError(argv[0], argv[argIdx], "option not supported on Windows");
             #endif
          }
          else if (!strcmp(argv[argIdx], "-acqpassive"))
@@ -2414,18 +2433,18 @@ static void ParseArgv( int argc, char * argv[] )
                else if (!strcmp(argv[argIdx + 1], "now"))
                   optAcqOnce = ACQMODE_PHASE_NOWNEXT;
                else
-                  Usage(argv[0], argv[argIdx], "unknown mode keyword: expecting now, near or all");
+                  MainOptionError(argv[0], argv[argIdx], "unknown mode keyword: expecting now, near or all");
                argIdx += 2;
             }
             else
                Usage(argv[0], argv[argIdx], "missing mode keyword after");
          }
-         #else
+         #else  // not USE_DAEMON
          else if ( !strcmp(argv[argIdx], "-daemon") ||
                    !strcmp(argv[argIdx], "-nodetach") ||
                    !strcmp(argv[argIdx], "-acqpassive") )
          {
-            Usage(argv[0], argv[argIdx], "unsupported option");
+            MainOptionError(argv[0], argv[argIdx], "support for this option has been disabled");
          }
          #endif
          else if (!strcmp(argv[argIdx], "-dump"))
@@ -2434,7 +2453,7 @@ static void ParseArgv( int argc, char * argv[] )
             {
                optDumpMode = EpgDumpText_GetMode(argv[argIdx + 1]);
                if (optDumpMode == EPGTAB_DUMP_NONE)
-                  Usage(argv[argIdx + 1], argv[argIdx], "illegal mode keyword for");
+                  MainOptionError(argv[argIdx + 1], argv[argIdx], "illegal mode keyword for");
                argIdx += 2;
             }
             else
@@ -2467,7 +2486,7 @@ static void ParseArgv( int argc, char * argv[] )
                char *pe;
                ulong cardIdx = strtol(argv[argIdx + 1], &pe, 0);
                if ((pe != (argv[argIdx + 1] + strlen(argv[argIdx + 1]))) || (cardIdx > 9))
-                  Usage(argv[0], argv[argIdx+1], "invalid index (range 0-9)");
+                  MainOptionError(argv[0], argv[argIdx+1], "invalid index (range 0-9)");
                videoCardIndex = (int) cardIdx;
                argIdx += 2;
             }
@@ -2481,7 +2500,7 @@ static void ParseArgv( int argc, char * argv[] )
             {  // read hexadecimal CNI of selected provider
                if (startUiCni != 0)
                {
-                  Usage(argv[0], argv[argIdx], "this option can be used only once");
+                  MainOptionError(argv[0], argv[argIdx], "this option can be used only once");
                }
                if (!strcmp(argv[argIdx + 1], "merged"))
                {
@@ -2492,7 +2511,7 @@ static void ParseArgv( int argc, char * argv[] )
                   char *pe;
                   startUiCni = strtol(argv[argIdx + 1], &pe, 16);
                   if (pe != (argv[argIdx + 1] + strlen(argv[argIdx + 1])))
-                     Usage(argv[0], argv[argIdx+1], "invalid CNI (must be hexadecimal, e.g. 0x0d94 or d94)");
+                     MainOptionError(argv[0], argv[argIdx+1], "invalid CNI (must be hexadecimal, e.g. 0x0d94 or d94)");
                }
                argIdx += 2;
             }
@@ -2508,7 +2527,17 @@ static void ParseArgv( int argc, char * argv[] )
                else if (strcasecmp("print", argv[argIdx + 1]) == 0)
                   optDumpMode = EPGTAB_CLOCK_PRINT;
                else
-                  Usage(argv[argIdx + 1], argv[argIdx], "illegal mode keyword for");
+                  MainOptionError(argv[argIdx + 1], argv[argIdx], "illegal mode keyword for");
+               argIdx += 2;
+            }
+            else
+               Usage(argv[0], argv[argIdx], "missing mode keyword after");
+         }
+         else if (!strcmp(argv[argIdx], "-outfile"))
+         {  // install given file as target for stdout (esp. for dump modes)
+            if (argIdx + 1 < argc)
+            {
+               pStdOutFileName = argv[argIdx + 1];
                argIdx += 2;
             }
             else
@@ -2521,7 +2550,7 @@ static void ParseArgv( int argc, char * argv[] )
                pDemoDatabase = argv[argIdx + 1];
                if (stat(pDemoDatabase, &st) != 0)
                {
-                  Usage(argv[0], strerror(errno), "cannot open demo database");
+                  MainOptionError(argv[0], strerror(errno), "cannot open demo database");
                }
                argIdx += 2;
             }
@@ -2570,7 +2599,7 @@ static void ParseArgv( int argc, char * argv[] )
                else if (!strcmp(argv[argIdx + 1], "acqoff"))
                   optRemCtrl = UWM_ACQ_OFF;
                else
-                  Usage(argv[0], argv[argIdx], "unknown keyword");
+                  MainOptionError(argv[0], argv[argIdx], "unknown keyword");
                argIdx += 2;
             }
             else
@@ -2608,29 +2637,29 @@ static void ParseArgv( int argc, char * argv[] )
    if (IS_DAEMON(optDaemonMode))
    {
       if (disableAcq)
-         Usage(argv[0], "-daemon", "Cannot combine with -noacq");
+         MainOptionError(argv[0], "-daemon", "Cannot combine with -noacq");
       else if (pDemoDatabase != NULL)
-         Usage(argv[0], "-daemon", "Cannot combine with -demo mode");
+         MainOptionError(argv[0], "-daemon", "Cannot combine with -demo mode");
       else if ((startUiCni != 0) && optAcqPassive)
-         Usage(argv[0], "-provider", "Cannot combine with -acqpassive");
+         MainOptionError(argv[0], "-provider", "Cannot combine with -acqpassive");
       else if (optDumpMode != EPGTAB_DUMP_NONE)
-         Usage(argv[0], "-daemon", "Cannot combine with -dump");
+         MainOptionError(argv[0], "-daemon", "Cannot combine with -dump");
    }
    else
    #endif
    {
       if (optAcqPassive)
-         Usage(argv[0], "-acqpassive", "Only meant for -daemon mode");
+         MainOptionError(argv[0], "-acqpassive", "Only meant for -daemon mode");
       if (optAcqOnce != ACQMODE_PHASE_COUNT)
-         Usage(argv[0], "-acqonce", "Only meant for -daemon mode");
+         MainOptionError(argv[0], "-acqonce", "Only meant for -daemon mode");
    }
 
    if (optDumpMode != EPGTAB_DUMP_NONE)
    {
       if ((startUiCni == 0) && !IS_CLOCK_MODE(optDumpMode))
-         Usage(argv[0], "-dump", "Must also specify -provider");
+         MainOptionError(argv[0], "-dump", "Must also specify -provider");
       else if (pDemoDatabase != NULL)
-         Usage(argv[0], "-dump", "Cannot combine with -demo mode");
+         MainOptionError(argv[0], "-dump", "Cannot combine with -demo mode");
    }
 }
 
@@ -2793,6 +2822,21 @@ int main( int argc, char *argv[] )
    ParseArgv(argc, argv);
    pOptArgv0 = argv[0];
 
+   if (pStdOutFileName != NULL)
+   {
+      struct stat st;
+
+      if ( stat(pStdOutFileName, &st) != 0 )
+      {
+         if (freopen(pStdOutFileName, "w", stdout) == NULL)
+         {
+            MainOptionError(pOptArgv0, pStdOutFileName, "output file already exists");
+         }
+      }
+      else
+         MainOptionError(pOptArgv0, pStdOutFileName, "output file already exists");
+   }
+
    #ifdef USE_DAEMON
    if (optDaemonMode == DAEMON_START)
    {  // deamon mode -> detach from tty
@@ -2804,8 +2848,11 @@ int main( int argc, char *argv[] )
          close(0);
          open("/dev/null", O_RDONLY, 0);
          #if DEBUG_SWITCH == OFF
-         close(1);
-         open("/dev/null", O_WRONLY, 0);
+         if (pStdOutFileName == NULL)
+         {
+            close(1);
+            open("/dev/null", O_WRONLY, 0);
+         }
          close(2);
          dup(1);
          #endif
@@ -2817,12 +2864,12 @@ int main( int argc, char *argv[] )
    }
    #endif
    #ifdef WIN32
-   else if ((optDaemonMode == EPGGUI_START) && (optDumpMode == EPGTAB_DUMP_NONE))
+   else if (!IS_DAEMON(optDaemonMode) && !IS_STANDALONE_MODE(optDumpMode))
    {
       is2ndInstance = RaiseNxtvepgGuiWindow(optRemCtrl);
    }
    #else // not WIN32
-   if (optDumpMode == EPGTAB_DUMP_NONE)
+   if ( !IS_STANDALONE_MODE(optDumpMode) )
    {
       signal(SIGINT, signal_handler);
       signal(SIGTERM, signal_handler);
@@ -2841,7 +2888,7 @@ int main( int argc, char *argv[] )
    // scan the database directory
    EpgContextCtl_InitCache();
 
-   if ((optDumpMode == EPGTAB_DUMP_NONE) || IS_CLOCK_MODE(optDumpMode))
+   if ( !IS_STANDALONE_MODE(optDumpMode) || IS_CLOCK_MODE(optDumpMode) )
    {
       // UNIX must fork the VBI slave before GUI startup or the slave will inherit all X11 file handles
       BtDriver_Init();
@@ -2852,7 +2899,7 @@ int main( int argc, char *argv[] )
 
    // initialize Tcl interpreter and compile all scripts
    // Tk is only initialized if a GUI will be opened
-   ui_init(argc, argv, (!IS_DAEMON(optDaemonMode) && (optDumpMode == EPGTAB_DUMP_NONE)));
+   ui_init(argc, argv, (!IS_DAEMON(optDaemonMode) && !IS_STANDALONE_MODE(optDumpMode)));
 
    should_exit = FALSE;
    #ifndef WIN32
@@ -2863,13 +2910,13 @@ int main( int argc, char *argv[] )
    // load the user configuration from the rc/ini file
    sprintf(comm, "LoadRcFile {%s} %d %d",
                  rcfile, (strcmp(defaultRcFile, rcfile) == 0),
-                 (IS_DAEMON(optDaemonMode) || (optDumpMode != EPGTAB_DUMP_NONE)));
+                 (IS_DAEMON(optDaemonMode) || IS_STANDALONE_MODE(optDumpMode)));
    eval_check(interp, comm);
 
    // setup cut-off time for expired PI blocks during database reload
    MenuCmd_SetPiExpireDelay();
 
-   if (optDumpMode != EPGTAB_DUMP_NONE)
+   if ( IS_STANDALONE_MODE(optDumpMode) )
    {  // dump mode: just dump the database, then exit
       if ( IS_CLOCK_MODE(optDumpMode) )
       {
@@ -2895,8 +2942,11 @@ int main( int argc, char *argv[] )
 
          switch (optDumpMode)
          {
-            case EPGTAB_DUMP_XML:
-               EpgDumpXml_Standalone(pUiDbContext, stdout);
+            case EPGTAB_DUMP_XMLTV_ANY:
+            case EPGTAB_DUMP_XMLTV_DTD_5_GMT:
+            case EPGTAB_DUMP_XMLTV_DTD_5_LTZ:
+            case EPGTAB_DUMP_XMLTV_DTD_6:
+               EpgDumpXml_Standalone(pUiDbContext, stdout, optDumpMode);
                break;
             case EPGTAB_DUMP_AI:
             case EPGTAB_DUMP_PI:
@@ -2912,7 +2962,7 @@ int main( int argc, char *argv[] )
          EpgContextCtl_Close(pUiDbContext);
       }
    }
-   else if (optDaemonMode == EPGGUI_START)
+   else if ( !IS_DAEMON(optDaemonMode) )
    {  // normal GUI mode
 
       eval_check(interp, "LoadWidgetOptions\n"
@@ -3113,7 +3163,7 @@ int main( int argc, char *argv[] )
    BtDriver_Exit();
 
    // shut down all GUI modules
-   if ((optDaemonMode == EPGGUI_START) && (optDumpMode == EPGTAB_DUMP_NONE))
+   if ( !IS_DAEMON(optDaemonMode) && !IS_STANDALONE_MODE(optDumpMode) )
    {
       EpgContextCtl_Close(pUiDbContext);
       pUiDbContext = NULL;

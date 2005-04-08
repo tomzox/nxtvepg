@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: index.html,v 1.87 2004/12/28 19:29:38 tom Exp $ -->
+<!-- $Id: index.html,v 1.90 2005/04/08 21:40:17 tom Exp $ -->
 <HEAD>
 <TITLE>nexTView EPG Decoder Software Download Page</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -29,6 +29,8 @@
 
 <H2 class="navhead">News</H2>
 <P>
+Apr/8/2005: <A HREF="index.html#new_2_7_5">Release 2.7.5</A>
+</P><P>
 Dec/27/2004: <A HREF="changelog.html#release_2_7_4">Release 2.7.4</A>
 </P>
 
@@ -37,7 +39,6 @@ Dec/27/2004: <A HREF="changelog.html#release_2_7_4">Release 2.7.4</A>
 <A HREF="index.html">Homepage</A><BR>
 <A HREF="intro.html">Introduction</A><BR>
 <A HREF="provnets.html">Providers list</A><BR>
-<A HREF="help-wanted.html">Help Wanted</A><BR>
 <A HREF="links.html">Links</A><BR>
 <A HREF="faq.html">FAQ</A><BR>
 <BR>
@@ -53,11 +54,11 @@ Dec/27/2004: <A HREF="changelog.html#release_2_7_4">Release 2.7.4</A>
 
 <H2 class="navhead">Screenshots</H2>
 <P>
-<A HREF="screenshot-shortcuts.gif">New 2.7.0 feature</A><BR>
-<A HREF="screenshot-reminder.gif">New 2.6.0 features</A><BR>
-<A HREF="screenshot-grid1.png">New 2.5.0 features</A><BR>
-<A HREF="screenshot-win.gif">Windows screenshot</A><BR>
-<A HREF="screenshot-series.gif">Series menu</A><BR>
+<A HREF="screenshot-274.png">Main window</A><BR>
+<A HREF="screenshot-grid1.png">"Grid" layout</A><BR>
+<A HREF="screenshot-reminder.png">Reminders</A><BR>
+<A HREF="screenshot-stats.png">Reception statistics</A><BR>
+<A HREF="screenshot-series.png">Series menu</A><BR>
 <A HREF="screenshot-xawtv.jpg">xawtv with EPG OSD</A><BR>
 </P>
 <span class="center"><span class="logo"><a href="http://sourceforge.net"><img
@@ -92,33 +93,29 @@ analog TV card, without access to the internet.
 <LI><A HREF="download.html">Software download</A>
 <LI><A HREF="download.html#requirements">System Requirements</A>
 <P></P>
-<LI><A HREF="index.html#new_2_7_4">About the latest release 2.7.4</A>
+<LI><A HREF="index.html#new_2_7_5">About the latest release 2.7.5</A>
 <LI><A HREF="index.html#feedback">Questions and feedback</A>
-<LI><A HREF="index.html#help_wanted">Help wanted</A>
+<LI><A HREF="index.html#help_wanted">Contributing</A>
 <LI><A HREF="index.html#copyright">Copyright notice</A>
 </UL>
 
 
-<H2><SPAN CLASS="red"><A NAME="new_2_7_4">Latest release 2.7.4 (Dec/27/2004)</A></SPAN></H2>
+<H2><SPAN CLASS="red"><A NAME="new_2_7_5">Latest release 2.7.5 (Apr/8/2005)</A></SPAN></H2>
 <P>
-Release 2.7.4 once more is mainly a maintenance release with mostly
+Release 2.7.5 once more is mainly a maintenance release with mostly
 bug fixes and a few feature enhancements.  Highlights include:
 </P>
 <UL>
-<LI>Fixed a bug in EPG teletext number updates which caused acquisition
-  to stall if multiple providers were acquired which used different
-  teletext pages for transmission (e.g. in Switzerland)
-<LI>Fixed timezone calculation for provider "VT4" in Belgium
-<LI>Fixed bug in <A HREF="man.html#filtering">text search filter</A>
-  for <A HREF="man.html#merged_databases">merged databases</A>: sub-string
-  search ended after 258 characters
-<LI>Added possibility to store "expire time" filter in shortcuts
-<LI>Added possibility to configure text foreground colors (at least for
-  programme list) to support an inverted color scheme (configurable via
-  <A HREF="man.html#files">.Xresources or Nxtvepg.ad</A>)
-<LI>Added new display format option for
-  <A HREF="man.html#composite_attributes">composite attributes</A> (i.e.
-  user-defined columns): set foreground color for entire column
+<LI>A bug in the database export in XML format was fixed (XMLTV DTD 0.5)
+<LI>Several bugs were fixed in HTML export and the layout was improved.
+<LI>A new command line option "-outfile ..." was added to simplify
+    script based data export.
+<LI>Network identification by VPS/PDC during interaction with
+    TV applications was fixed (e.g. so that TV5 is now also identified.)
+<LI>Support for reading the channel tables of K!TV 2.3 was added.
+<LI>Automatic addition of "Zoomout" (K!TV plugin) to the context menu
+    was fixed.
+<LI>A bug in the handling of the daylight saving time switch was fixed.
 </UL>
 <P>
 Fetch this new release from the <A HREF="download.html">download section</A>.
@@ -154,15 +151,13 @@ and the <A HREF="http://sourceforge.net/forum/forum.php?forum_id=217872">forum</
 if the same question hasn't been asked recently.
 </P>
 
-<H2><A NAME="help_wanted">Help wanted</A></H2>
+<H2><A NAME="help_wanted">Contributing</A></H2>
 <P>
 If you're a software developer and like nxtvepg but want to help to make it
 even more useful, or if you're just generally seeking a freeware project to
-work on, please consider contributing to nxtvepg.  I've compiled a
-<A HREF="help-wanted.html">list of topics</A> which would benefit from your
-help the most.  Note that you can also contribute by adding nxtvepg support
-to <I>other</I> applications, e.g. by adding Nextview EPG on-screen-display
-to a TV viewing application.
+work on, please consider contributing to nxtvepg.  Note that you can also
+contribute by adding nxtvepg support to <I>other</I> applications, e.g. by
+adding Nextview EPG on-screen-display to a TV viewing application.
 </P>
 
 <H2><A NAME="copyright">Copyright</A></H2>

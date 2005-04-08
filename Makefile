@@ -28,7 +28,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile,v 1.77 2004/12/18 14:49:26 tom Exp tom $
+#  $Id: Makefile,v 1.77.1.1 2005/03/30 15:48:11 tom Exp $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -259,7 +259,6 @@ endif
 clean:
 	-rm -rf build-*
 	-rm -f core a.out *.exe *.o
-	-rm -f epgui/tkwinico.res
 
 .PHONY: depend
 depend:
@@ -282,7 +281,7 @@ nxtvepg.1 manual.html: nxtvepg.pod pod2help.pl epgctl/epgversion.h
 	  EPG_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*EPG_VERSION_STR' epgctl/epgversion.h | head -1 | sed -e 's#.*"\(.*\)".*#\1#'`; \
 	  echo "pod2man nxtvepg.pod > nxtvepg.1"; \
 	  pod2man -date " " -center "Nextview EPG Decoder" -section "1" \
-	          -release "nxtvepg "$$EPG_VERSION_STR" (C) 1999-2004 Tom Zoerner" \
+	          -release "nxtvepg "$$EPG_VERSION_STR" (C) 1999-2005 Tom Zoerner" \
 	     nxtvepg.pod > nxtvepg.1; \
 	  echo "pod2html nxtvepg.pod > manual.html"; \
 	  pod2html nxtvepg.pod | $(PERL) -p -e 's/(HREF=\"#)([^:"]+: |[^_"]+(_[^_"]+)?__)+/$$1/gi;' > manual.html; \
@@ -297,7 +296,7 @@ tvsim/tvsim.1 tvsim/tvsim.html: tvsim/tvsim.pod tvsim/tvsim_version.h
 	  TVSIM_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*TVSIM_VERSION_STR' tvsim/tvsim_version.h | head -1 | sed -e 's#.*"\(.*\)".*#\1#'`; \
 	  echo "pod2man tvsim/tvsim.pod > tvsim/tvsim.1"; \
 	  pod2man -date " " -center "TV app interaction simulator" -section "1" \
-	          -release "tvsim "$$TVSIM_VERSION_STR" (C) 2002,2004 Tom Zoerner" \
+	          -release "tvsim "$$TVSIM_VERSION_STR" (C) 2002,2004,2005 Tom Zoerner" \
 	          tvsim/tvsim.pod > tvsim/tvsim.1; \
 	  echo "pod2html tvsim/tvsim.pod > tvsim/tvsim.html"; \
 	  pod2html tvsim/tvsim.pod | $(PERL) -p -e 's/(HREF=\"#)([^:"]+: |[^_"]+(_[^_"]+)?__)+/$$1/gi;' > tvsim/tvsim.html; \
@@ -312,7 +311,7 @@ tvsim/vbirec.1 tvsim/vbirec.html: tvsim/vbirec.pod tvsim/tvsim_version.h
 	  TVSIM_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*TVSIM_VERSION_STR' tvsim/tvsim_version.h | head -1 | sed -e 's#.*"\(.*\)".*#\1#'`; \
 	  echo "pod2man tvsim/vbirec.pod > tvsim/vbirec.1"; \
 	  pod2man -date " " -center "VBI recorder" -section "1" \
-	          -release "vbirec (C) 2002,2004 Tom Zoerner" \
+	          -release "vbirec (C) 2002,2004,2005 Tom Zoerner" \
 	          tvsim/vbirec.pod > tvsim/vbirec.1; \
 	  echo "pod2html tvsim/vbirec.pod > tvsim/vbirec.html"; \
 	  pod2html tvsim/vbirec.pod | $(PERL) -p -e 's/(HREF=\"#)([^:"]+: |[^_"]+(_[^_"]+)?__)+/$$1/gi;' > tvsim/vbirec.html; \
