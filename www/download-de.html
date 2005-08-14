@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="de">
-<!-- $Id: download-de.html,v 1.18 2005/04/08 21:40:17 tom Exp $ -->
+<!-- $Id: download-de.html,v 1.21 2005/12/11 08:34:22 tom Exp $ -->
 <HEAD>
 <TITLE>nexTView EPG Software Download</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -28,13 +28,17 @@
 <DIV class="navBlock">
 <H2 class="navhead">Sprache</H2>
 <P>
-<IMG ALT="" SRC="en.png" WIDTH=16 HEIGHT=10> <A HREF="download.html">English</A><BR>
-<IMG ALT="" SRC="de.png" WIDTH=16 HEIGHT=10> Deutsch<BR>
-<IMG ALT="" SRC="fr.png" WIDTH=16 HEIGHT=10> <SPAN class="navDisabled">Français</SPAN><BR>
+<IMG ALT="" SRC="en.png" WIDTH="16" HEIGHT="10"> <A HREF="download.html">English</A><BR>
+<IMG ALT="" SRC="de.png" WIDTH="16" HEIGHT="10"> Deutsch<BR>
+<IMG ALT="" SRC="fr.png" WIDTH="16" HEIGHT="10"> <SPAN class="navDisabled">Français</SPAN><BR>
 </P>
 
 <H2 class="navhead">News</H2>
 <P>
+14.8.2005: <A HREF="index-de.html#new_2_7_6">Release 2.7.6</A>
+</P><P>
+8.4.2005: <A HREF="changelog.html#release_2_7_5">Release 2.7.5</A>
+</P><P>
 27.12.2004: <A HREF="changelog.html#release_2_7_4">Release 2.7.4</A>
 </P>
 
@@ -46,7 +50,7 @@
 <A HREF="links.html">Links</A><BR>
 <A HREF="faq.html">FAQ</A><BR>
 <BR>
-<A HREF="man.html">nxtvepg manual</A><BR>
+<A HREF="man-de.html">nxtvepg manual</A><BR>
 </P>
 
 <H2 class="navhead">Download</H2>
@@ -73,11 +77,11 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 <DIV class="mainBlock">
 <H1>Download</H1>
 <P>
-Die letzte stabile Distribution ist Version 2.7.5 vom 8. April 2005.
+Die letzte stabile Distribution ist Version 2.7.6 vom 14. August 2005.
 Gleich den vorherigen drei releases dient sie hauptsächlich
 der Fehlerbereinigung und kleinen Erweiterungen, siehe
-<A HREF="index-de.html#new_2_7_5">Zusammenfassung</A> auf der homepage oder
-die detaillierte Liste im <A HREF="changelog.html#release_2_7_5">Change-Log</A>.
+<A HREF="index-de.html#new_2_7_6">Zusammenfassung</A> auf der homepage oder
+die detaillierte Liste im <A HREF="changelog.html#release_2_7_6">Change-Log</A>.
 </P><P>
 Ältere Distributionen sind über die
 <A HREF="http://sourceforge.net/project/showfiles.php?group_id=64430">SourceForge File List</A>
@@ -87,7 +91,7 @@ verfügbar.
 <DIV CLASS="box">
 <H2 class="navhead"><A NAME="download_unix">Source Distribution</A></H2>
 <P>
-<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.7.5.tar.gz?download">nxtvepg-2.7.5.tar.gz</A>
+<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.7.6.tar.gz?download">nxtvepg-2.7.6.tar.gz</A>
 </P><P>
 Source Distribution für Linux, NetBSD und FreeBSD: entpacken
 Sie das Archiv, wechseln Sie in das angelegte Verzeichnis mit einer Shell und
@@ -97,7 +101,7 @@ auch aus den Sourcen compiliert werden; eine Anleitung dazu findet sich auch
 im README.
 </P><P>
 Aus dem source tarball läßt sich auch ein RPM package bauen mit dem
-Kommando: <KBD>rpm -ta nxtvepg-2.7.5.tar.gz</KBD>. Das erzeugte package
+Kommando: <KBD>rpm -ta nxtvepg-2.7.6.tar.gz</KBD>. Das erzeugte package
 kann dann wie üblich mit <KBD>rpm -i</KBD> installiert werden.
 Alternativ sind auch fertige packages verfügbar (jedoch nicht
 unbedingt immer die neueste Version):</P>
@@ -118,21 +122,24 @@ unbedingt immer die neueste Version):</P>
 <DIV CLASS="box">
 <H2 class="navhead"><A NAME="download_windows">Binärdistribution für M$ Windows</A></H2>
 <P>
-<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.7.5-win.zip?download">nxtvepg-2.7.5-win.zip</A>
+<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.7.6-win.exe?download">nxtvepg-2.7.6-win.exe</A>
 </P><P>
+<!--
 Windows executable:
 Das nxtvepg ZIP Archiv muß lediglich in ein leeres Verzeichnis entpackt werden,
-dann kann nxtvepg.exe direkt gestartet werden.  Ihr INI file und die
+dann kann nxtvepg.exe direkt gestartet werden.
+-->
+Ihr INI file und die
 Datenbanken von älteren nxtvepg Installationen können Sie ins neue Verzeichnis
 übernehmen. Das tvsim ZIP file kann optional
 danach in dasselbe Verzeichnis entpackt werden. Eine Beschreibung der
 initialen Konfiguration findet sich im Hilfe Menü bzw. in der HTML
-Benutzeranleitung, Abschnitt <A HREF="man.html#getting_started">Getting Started</A>
+Benutzeranleitung, Abschnitt <A HREF="man-de.html#getting_started">Getting Started</A>
 (nur in englisch verfügbar).
 </P><P>
 Für Entwickler: Demo zur Interaktion mit TV Applikationen
 (siehe auch <A HREF="tvsim-faq.html">FAQ</A>):
-<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.7.5-tvsim.zip?download">nxtvepg-2.7.5-tvsim.zip</A>
+<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.7.6-tvsim.zip?download">nxtvepg-2.7.6-tvsim.zip</A>
 (siehe auch <A HREF="tvsim.html">tvsim</A>,
 <A HREF="vbirec.html">vbirec</A> oder
 <A HREF="vbiplay.html">vbiplay</A> manuals, oder

@@ -22,7 +22,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile.win32,v 1.51 2004/12/18 14:51:21 tom Exp tom $
+#  $Id: Makefile.win32,v 1.51.1.1 2005/08/14 11:31:48 tom Exp $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -102,12 +102,12 @@ CSRC    = epgvbi/btdrv4win epgvbi/vbidecode epgvbi/zvbidecoder \
           epgui/epgmain epgui/loadtcl epgui/wintv epgui/wintvcfg \
           epgui/dumptext epgui/dumpraw epgui/dumphtml epgui/dumpxml \
           epgui/shellcmd epgui/wmhooks
-TCLSRC  = epgtcl/mainwin epgtcl/helptexts epgtcl/dlg_hwcfg epgtcl/dlg_xawtvcf \
+TCLSRC  = epgtcl/mainwin epgtcl/dlg_hwcfg epgtcl/dlg_xawtvcf \
           epgtcl/dlg_ctxmencf epgtcl/dlg_acqmode epgtcl/dlg_netsel \
           epgtcl/dlg_dump epgtcl/dlg_netname epgtcl/dlg_udefcols \
           epgtcl/shortcuts epgtcl/dlg_shortcuts epgtcl/draw_stats \
           epgtcl/dlg_filter epgtcl/dlg_substr epgtcl/dlg_remind \
-          epgtcl/dlg_prov epgtcl/rcfile \
+          epgtcl/dlg_prov epgtcl/rcfile epgtcl/helptexts epgtcl/helptexts_de \
           epgtcl/mclistbox epgtcl/combobox epgtcl/rnotebook epgtcl/htree \
           epgtcl/tcl_libs epgtcl/tk_libs
 
@@ -136,8 +136,9 @@ TVSIM_OBJS    = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(TVSIM_CSRC) $(TVSIM
 VBIREC_OBJS   = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(VBIREC_CSRC) $(VBIREC_CSRC2) $(VBIREC_TCLSRC)))
 VBIPLAY_OBJS  = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(VBIPLAY_CSRC) $(VBIPLAY_CSRC2)))
 
-.PHONY: devel tvsim tvmans all
-devel   :: $(BUILD_DIR) tcl_headers $(BUILD_DIR)/nxtvepg.exe nxtvepg.1
+.PHONY: devel manuals tvsim tvmans all
+devel   :: $(BUILD_DIR) tcl_headers $(BUILD_DIR)/nxtvepg.exe manuals
+manuals :: nxtvepg.1 manual.html manual-de.html
 tvsim   :: $(BUILD_DIR) tcl_headers_tvsim $(BUILD_DIR)/tvsim.exe $(BUILD_DIR)/vbirec.exe $(BUILD_DIR)/vbiplay.exe tvmans
 tvmans  :: tvsim/tvsim.html tvsim/vbirec.html tvsim/vbiplay.html
 all     :: devel tvsim
@@ -260,7 +261,7 @@ zip: all
 	strip $(BUILD_DIR)/nxtvepg.exe; \
 	zip -9 -j $$ARCHIVE $(BUILD_DIR)/nxtvepg.exe; \
 	zip -9 $$ARCHIVE tcl$(TCL_L).dll tk$(TCL_L).dll dsdrv4.sys dsdrv4.vxd nxtvepg.ico; \
-	zip -9 $$ARCHIVE -l manual.html Nxtvepg.ad; \
+	zip -9 $$ARCHIVE -l manual.html manual-de.html Nxtvepg.ad; \
 	for v in TODO README CHANGES COPYRIGHT; do \
 	   mv $$v $${v}.txt; \
 	   zip -9 -l $$ARCHIVE $${v}.txt; \

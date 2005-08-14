@@ -23,7 +23,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: debug.h,v 1.18 2004/12/27 14:17:08 tom Exp tom $
+ *  $Id: debug.h,v 1.21 2005/07/10 15:15:30 tom Exp tom $
  */
 
 #ifndef __DEBUG_H
@@ -202,13 +202,18 @@ void DebugSetError( void );
 // memory allocation debugging
 #if CHK_MALLOC == ON
 void * chk_malloc( size_t size, const char * pFileName, int line );
+void * chk_realloc( void * ptr, size_t size );
 void chk_free( void * ptr );
 void chk_memleakage( void );
+char * chk_strdup( const char * pSrc, const char * pFileName, int line );
 #define xmalloc(SIZE)  chk_malloc((SIZE),__FILE__,__LINE__)
+#define xrealloc(PTR,SIZE) chk_realloc((PTR),(SIZE))
 #define xfree(PTR)     chk_free(PTR)
+#define xstrdup(PTR)   chk_strdup((PTR),__FILE__,__LINE__)
 #else
-#include <stdlib.h>
 void * xmalloc( size_t size );
+void * xrealloc( void * ptr, size_t size );
+char * xstrdup( const char * pSrc );
 #define xfree(PTR)     free(PTR)
 #endif
 

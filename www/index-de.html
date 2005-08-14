@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="de">
-<!-- $Id: index-de.html,v 1.78 2005/04/08 21:40:31 tom Exp $ -->
+<!-- $Id: index-de.html,v 1.82 2005/12/11 08:34:22 tom Exp $ -->
 <HEAD>
 <TITLE>nexTView EPG Dekoder Software Download</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -22,14 +22,16 @@
 <DIV class="navBlock">
 <H2 class="navhead">Sprache</H2>
 <P>
-<IMG ALT="" SRC="en.png" WIDTH=16 HEIGHT=10> <A HREF="index.html">English</A><BR>
-<IMG ALT="" SRC="de.png" WIDTH=16 HEIGHT=10> Deutsch<BR>
-<IMG ALT="" SRC="fr.png" WIDTH=16 HEIGHT=10> <A HREF="index-fr.html">Français</A><BR>
+<IMG ALT="" SRC="en.png" WIDTH="16" HEIGHT="10"> <A HREF="index.html">English</A><BR>
+<IMG ALT="" SRC="de.png" WIDTH="16" HEIGHT="10"> Deutsch<BR>
+<IMG ALT="" SRC="fr.png" WIDTH="16" HEIGHT="10"> <A HREF="index-fr.html">Français</A><BR>
 </P>
 
 <H2 class="navhead">News</H2>
 <P>
-8.4.2005: <A HREF="index-de.html#new_2_7_5">Release 2.7.5</A>
+14.8.2005: <A HREF="index-de.html#new_2_7_6">Release 2.7.6</A>
+</P><P>
+8.4.2005: <A HREF="changelog.html#release_2_7_5">Release 2.7.5</A>
 </P><P>
 27.12.2004: <A HREF="changelog.html#release_2_7_4">Release 2.7.4</A>
 </P>
@@ -42,7 +44,7 @@
 <A HREF="links.html">Links</A><BR>
 <A HREF="faq.html">FAQ</A><BR>
 <BR>
-<A HREF="man.html">nxtvepg manual</A><BR>
+<A HREF="man-de.html">nxtvepg manual</A><BR>
 </P>
 
 <H2 class="navhead">Download</H2>
@@ -92,33 +94,40 @@ und Belgien, ohne Zugriff auf's Internet.  <A HREF="intro-de.html">Weiter...</A>
 <LI><A HREF="download-de.html">Software Download</A>
 <LI><A HREF="download-de.html#requirements">SystemAnforderungen</A>
 <P></P>
-<LI><A HREF="index-de.html#new_2_7_5">Aktueller release 2.7.5</A>
+<LI><A HREF="index-de.html#new_2_7_6">Aktueller release 2.7.6</A>
 <LI><A HREF="index-de.html#feedback">Fragen und feedback</A>
 <LI><A HREF="index-de.html#help_wanted">Entwickler gesucht</A>
 <LI><A HREF="index-de.html#copyright">Copyright</A>
 </UL>
 
-<H2><SPAN CLASS="red"><A NAME="new_2_7_5">Aktueller release 2.7.5 (8.4.2005)</A></SPAN></H2>
+<H2><A NAME="new_2_7_6">Neuer release 2.7.6 (14.8.2005)</A></H2>
 <P>
-Version 2.7.5 dient gleich den vorherigen releases hauptsächlich
-der Fehlerbereinigung und kleinen Erweiterungen. Die wichtigsten Änderungen
-sind:
+Neu in Release 2.7.6 ist vor allem die deutsche Übersetzung der
+Bedienungsanleitung und der internen Hilfe.  Außerdem wurden einige
+seit dem vorherigen Release gemeldete Fehler behoben.
 </P>
 <UL>
-<LI>Korrekuren am Ausgabeformat beim Datenexport in XML (XMLTV DTD 0.5)
-<LI>Korrekturen und Verbesserungen beim Export in HTML
-<LI>Neue Kommandozeilenoption "-outfile ..." um den Skript-gesteuerten
-    Datenexport zu vereinfachen
-<LI>Verbesserungen bei der Senderidentifizierung für Einblendung von
-    EPG infos in verbundenen TV Applikationsn
-<LI>Unterstützung für den Import der Programmtabelle von K!TV version 2.3
-<LI>Korrektur im Kontext Menü für "Zoomout" (K!TV record plugin)
-<LI>Korrektur für den Wechsel in die Sommerzeit
+<LI>Die komplette <A HREF="man-de.html">Bedienungsanleitung</A> und die interne
+  Hilfe wurden ins Deutsche übersetzt.
+  <BR><SPAN class="anno">(Vielen Dank an Olaf Noehring für die organisatorische
+  Arbeit, und an Kurt Lettmaier, der den Großteil der 4000 Zeilen übersetzt hat.)
+<LI>Ein Fehler der beim Löschen mehrerer Reminder sogar zum Programmabsturz
+  führen konnte wurde behoben.
+  &nbsp;&nbsp;<SPAN class="anno">(Auch hier geht der Dank an Kurt für den bug report.)</SPAN>
+<LI>Das XMLTV Ausgabeformat wurde leicht korrigiert damit es voll und ganz
+  der XMLTV DTD 0.6 Spezifikation entspricht.
+<LI>Die Fehlerausgabe im EPG Provider scan wurde verbessert so daß für jeden
+  Fehlerfall ein Hinweis auf die mögliche Ursache ausgegeben wird.
+  &nbsp;&nbsp;<SPAN class="anno">(Dank an Andreas für den Bug report.)</SPAN>
+<LI>Der Windows Release kommt jetzt in Form eines Installers anstatt eines
+  einfachen ZIP Archivs.
+  &nbsp;&nbsp;<SPAN class="anno">(Dank an Néo für die Idee und Implementierung.)</SPAN>
 </UL>
 <P>
 Zum Herunterladen in der <A HREF="download-de.html">Download Sektion</A>.
 Siehe auch die detaillierte Liste aller Änderungen im
-<A HREF="changelog.html">changelog</A>.
+<A HREF="changelog.html">changelog</A>.  Es gibt außerdem bereits eine
+<A HREF="pre-releases.html">neue Entwicklungslinie</A> mit neuen Features.
 </P>
 
 <H2><A NAME="feedback">Feedback</A></H2>
@@ -144,7 +153,7 @@ abonniert werden.
 </UL>
 <P>
 Bevor Sie eine Frage stellen überlegen Sie bitte ob sie durch das
-<A HREF="man.html">manual</A> geklärt wird und sehen Sie im
+<A HREF="man-de.html">manual</A> geklärt wird und sehen Sie im
 <A HREF="http://sourceforge.net/mailarchive/forum.php?forum_id=14102">mailing list Archiv</A>
 als auch im <A HREF="http://sourceforge.net/forum/forum.php?forum_id=217872">Forum</A>
 nach ob dieselbe Frage eventuell bereits kürzlich beantwortet wurde.

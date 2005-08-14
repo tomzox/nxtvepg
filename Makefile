@@ -28,7 +28,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile,v 1.77.1.1 2005/03/30 15:48:11 tom Exp $
+#  $Id: Makefile,v 1.77.1.2 2005/08/14 11:28:25 tom Exp $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -144,12 +144,12 @@ CSRC    = epgvbi/btdrv4linux epgvbi/vbidecode epgvbi/zvbidecoder \
           epgui/epgmain epgui/loadtcl epgui/xawtv epgui/wintvcfg \
           epgui/dumptext epgui/dumpraw epgui/dumphtml epgui/dumpxml \
           epgui/shellcmd epgui/wmhooks
-TCLSRC  = epgtcl/mainwin epgtcl/helptexts epgtcl/dlg_hwcfg epgtcl/dlg_xawtvcf \
+TCLSRC  = epgtcl/mainwin epgtcl/dlg_hwcfg epgtcl/dlg_xawtvcf \
           epgtcl/dlg_ctxmencf epgtcl/dlg_acqmode epgtcl/dlg_netsel \
           epgtcl/dlg_dump epgtcl/dlg_netname epgtcl/dlg_udefcols \
           epgtcl/shortcuts epgtcl/dlg_shortcuts epgtcl/draw_stats \
           epgtcl/dlg_filter epgtcl/dlg_substr epgtcl/dlg_remind \
-          epgtcl/dlg_prov epgtcl/rcfile \
+          epgtcl/dlg_prov epgtcl/rcfile epgtcl/helptexts epgtcl/helptexts_de \
           epgtcl/mclistbox epgtcl/combobox epgtcl/rnotebook epgtcl/htree
 
 TVSIM_CSRC    = tvsim/tvsim_main
@@ -165,8 +165,9 @@ NXTV_OBJS     = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(CSRC) $(TCLSRC)))
 TVSIM_OBJS    = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(TVSIM_CSRC) $(TVSIM_CSRC2) $(TVSIM_TCLSRC)))
 VBIREC_OBJS   = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(VBIREC_CSRC) $(VBIREC_CSRC2) $(VBIREC_TCLSRC)))
 
-.PHONY: devel tvsim tvmans all
-devel   :: $(BUILD_DIR) tcl_headers $(BUILD_DIR)/nxtvepg nxtvepg.1
+.PHONY: devel manuals tvsim tvmans all
+devel   :: $(BUILD_DIR) tcl_headers $(BUILD_DIR)/nxtvepg manuals
+manuals :: nxtvepg.1 manual.html manual-de.html
 tvsim   :: $(BUILD_DIR) tcl_headers_tvsim $(BUILD_DIR)/tvsimu $(BUILD_DIR)/vbirec tvmans
 tvmans  :: $(BUILD_DIR) tvsim/tvsim.html tvsim/vbirec.html tvsim/vbiplay.html
 all     :: devel tvsim tvmans
@@ -267,16 +268,27 @@ depend:
 
 epgtcl/helptexts.tcl: nxtvepg.pod pod2help.pl
 	@if test -x $(PERL); then \
-	  echo "$(PERL) pod2help.pl nxtvepg.pod > epgtcl/helptexts.tcl"; \
-	  $(PERL) pod2help.pl nxtvepg.pod > epgtcl/helptexts.tcl; \
+	  echo "$(PERL) pod2help.pl -lang en nxtvepg.pod > epgtcl/helptexts.tcl"; \
+	  $(PERL) pod2help.pl -lang en nxtvepg.pod > epgtcl/helptexts.tcl; \
 	elif test -f epgtcl/helptexts.tcl; then \
 	  touch epgtcl/helptexts.tcl; \
 	else \
-	  echo "ERROR: cannot generate epgtcl/helptexts.tcl or nxtvepg.1 without Perl"; \
+	  echo "ERROR: cannot generate epgtcl/helptexts.tcl without Perl"; \
 	  false; \
 	fi
 
-nxtvepg.1 manual.html: nxtvepg.pod pod2help.pl epgctl/epgversion.h
+epgtcl/helptexts_de.tcl: nxtvepg-de.pod pod2help.pl
+	@if test -x $(PERL); then \
+	  echo "$(PERL) pod2help.pl -lang de nxtvepg-de.pod > epgtcl/helptexts_de.tcl"; \
+	  $(PERL) pod2help.pl -lang de nxtvepg-de.pod > epgtcl/helptexts_de.tcl; \
+	elif test -f epgtcl/helptexts_de.tcl; then \
+	  touch epgtcl/helptexts_de.tcl; \
+	else \
+	  echo "ERROR: cannot generate epgtcl/helptexts_de.tcl without Perl"; \
+	  false; \
+	fi
+
+nxtvepg.1 manual.html: nxtvepg.pod epgctl/epgversion.h
 	@if test -x $(PERL); then \
 	  EPG_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*EPG_VERSION_STR' epgctl/epgversion.h | head -1 | sed -e 's#.*"\(.*\)".*#\1#'`; \
 	  echo "pod2man nxtvepg.pod > nxtvepg.1"; \
@@ -285,6 +297,17 @@ nxtvepg.1 manual.html: nxtvepg.pod pod2help.pl epgctl/epgversion.h
 	     nxtvepg.pod > nxtvepg.1; \
 	  echo "pod2html nxtvepg.pod > manual.html"; \
 	  pod2html nxtvepg.pod | $(PERL) -p -e 's/(HREF=\"#)([^:"]+: |[^_"]+(_[^_"]+)?__)+/$$1/gi;' > manual.html; \
+	  rm -f pod2htm?.* pod2html-{dircache,itemcache}; \
+	else \
+	  echo "ERROR: cannot generate manual page without Perl"; \
+	  false; \
+	fi
+
+manual-de.html: nxtvepg.pod epgctl/epgversion.h
+	@if test -x $(PERL); then \
+	  EPG_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*EPG_VERSION_STR' epgctl/epgversion.h | head -1 | sed -e 's#.*"\(.*\)".*#\1#'`; \
+	  echo "pod2html nxtvepg-de.pod > manual-de.html"; \
+	  pod2html nxtvepg-de.pod | $(PERL) -p -e 's/(HREF=\"#)([^:"]+: |[^_"]+(_[^_"]+)?__)+/$$1/gi;' > manual-de.html; \
 	  rm -f pod2htm?.* pod2html-{dircache,itemcache}; \
 	else \
 	  echo "ERROR: cannot generate manual page without Perl"; \

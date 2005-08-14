@@ -5,6 +5,22 @@ features).  For patchlevel releases also internal changes might be listed in
 case they may fix bugs (or cause new ones)
 
 
+from 2.7.5 to 2.7.6 (2005-Aug-14)
+
+- Added German translation of the manual and help pages.
+  Many thanks to Olaf Noehring and Kurt Lettmaier for contributing
+  the translation.
+- Major bugfix in reminder removal (when removing multiple reminders
+  in the same order they were created, the wrong reminder was removed
+  and nxtvepg could even crash.) Thanks to Kurt for reporting this bug.
+- Added menu entry "Edit filter-based reminders" to promote the
+  possibility to create reminders based on shortcuts.
+- Minor fix in XMLTV export (DTD 0.6): several elements were not
+  in the correct order, which caused warnings with some XML processors
+- UNIX: Provider scan now issues an appropriate error message upon
+  device errors (Thanks to Andreas for reporting this problem)
+
+
 from 2.7.4 to 2.7.5 (2005-Apr-08)
 
 - fixed HTML export (not all text format options were processed,

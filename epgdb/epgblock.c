@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgblock.c,v 1.53 2005/03/29 18:36:36 tom Exp tom $
+ *  $Id: epgblock.c,v 1.54 2005/05/29 16:15:10 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -728,7 +728,7 @@ EPGDB_BLOCK * EpgBlockConvertPi(const uchar *pCtrl, uint ctrlLen, uint strLen)
                               psd[14] | (psd[15]<<8),
                               &pi);
    pi.pil                   = psd[16] | (psd[17]<<8) | ((psd[18]&0x0f)<<16);
-   pi.parental_rating       = psd[18] >> 4;;
+   pi.parental_rating       = psd[18] >> 4;
    pi.editorial_rating      = psd[19] & 0x07;
    pi.no_themes             = (psd[19]>>3) & 0x07;
    pi.no_sortcrit           = (psd[19]>>6) | ((psd[20]&1)<<2);

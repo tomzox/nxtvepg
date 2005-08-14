@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="fr">
-<!-- $Id: index-fr.html,v 1.14 2005/04/09 12:28:52 tom Exp $ -->
+<!-- $Id: index-fr.html,v 1.17 2005/12/11 08:34:22 tom Exp $ -->
 <!-- Translated by Néo (hotmail's neojudgment, 2004-03-15) -->
 <HEAD>
 <TITLE>nexTView EPG Decoder Software Download Page</TITLE>
@@ -23,14 +23,16 @@
 <DIV class="navBlock">
 <H2 class="navhead">Language</H2>
 <P>
-<IMG ALT="" SRC="en.png" WIDTH=16 HEIGHT=10> <A HREF="index.html">English</A><BR>
-<IMG ALT="" SRC="de.png" WIDTH=16 HEIGHT=10> <A HREF="index-de.html">Deutsch</A><BR>
-<IMG ALT="" SRC="fr.png" WIDTH=16 HEIGHT=10> Français<BR>
+<IMG ALT="" SRC="en.png" WIDTH="16" HEIGHT="10"> <A HREF="index.html">English</A><BR>
+<IMG ALT="" SRC="de.png" WIDTH="16" HEIGHT="10"> <A HREF="index-de.html">Deutsch</A><BR>
+<IMG ALT="" SRC="fr.png" WIDTH="16" HEIGHT="10"> Français<BR>
 </P>
 
 <H2 class="navhead">News</H2>
 <P>
-8.4.2005: <A HREF="index-fr.html#new_2_7_5">Release 2.7.5</A>
+14.8.2005: <A HREF="index-fr.html#new_2_7_6">Release 2.7.6</A>
+</P><P>
+8.4.2005: <A HREF="changelog.html#release_2_7_5">Release 2.7.5</A>
 </P><P>
 27.12.2004: <A HREF="changelog.html#release_2_7_4">Release 2.7.4</A>
 </P>
@@ -95,31 +97,44 @@ par l'intermédiaire d'une carte de TV analogique, sans accès à Internet.
 <LI><a href="download.html">Téléchargement du programme</a>
 <LI><a href="download.html#requirements">Pré requis</a>
 <P></P>
-<LI><A href="index-fr.html#new_2_7_5">A propos de la version 2.7.5</A>
+<LI><A href="index-fr.html#new_2_7_6">A propos de la version 2.7.6</A>
 <LI><A href="index-fr.html#feedback">Questions et feedback</A>
 <LI><a href="index-fr.html#help_wanted">Recherche aide</a>
 <LI><A href="index-fr.html#copyright">Notification de copyright</A>
 </UL>
 
 
-<H2><SPAN CLASS="red"><A NAME="new_2_7_5">Version 2.7.5 (8.4.2005)</A></SPAN></H2>
+<H2><A NAME="new_2_7_6">Version 2.7.6 (14.8.2005)</A></H2>
 <P>
-La version 2.7.5 est une fois de plus principalement une maintenance avec la 
-plupart du temps des corrections d'erreurs et quelques perfectionnements.
-Les points les plus importants incluent:
+Les nouveautés majeures de la version 2.7.6 est la traduction complète
+en Allemand du manuel et de l'aide. Quelques erreurs qui avaient été
+signalée dans la version précédente ont été également corrigées.
 </P>
 <UL>
-<LI>Correction d'une erreur dans l'exportation de fichier au format XML (XMLTV DTD 0.5)
-<LI>Correction d'une erreur majeure dans l'exportation HTML et certaines améliorations ont été également apportées.
-<LI>Une nouvelle ligne de commande "-outfile..." a été ajoutée pour simplifier le script d'exportation.
-<LI>La reconnaissance des fournisseurs via VPS/PDC durant une interaction avec une application TV a été corrigée.(ex.TV5 est maintenant identifié.)
-<LI>Le support pour lire la table des chaînes de K!TV 2.3 a été ajoutée.
-<LI>Le menu contextuel pour "Zoomout" (le plugin de K!TV) vient d'être modifié.
-<LI>Correction de la prise en charge pour l'heure été/hiver.
+<LI>Ajout de la traduction complète en Allemand du manuel et de l'aide.
+  <BR><SPAN class="anno">(Un grand merci à Olaf Noehring et Kurt Lettmaier
+  pour leur contribution à la traduction du manuel.)</SPAN>
+<LI>Une erreur importante, laquelle affectait l'effacement séquentiel
+  de multiples aide-mémoires "reminder" a été corrigée.
+  Cette erreur pouvait rendre nxtvepg instable.
+  &nbsp;&nbsp;<SPAN class="anno">(Merci encore à Kurt pour avoir
+  rapporté cette erreur.)</SPAN>
+<LI>XMLTV a été légèrement modifié afin de devenir entièrement conforme
+  avec le XMLTV DTD 0.6.
+<LI>Les erreurs de diagnostique durant la recherche des fournisseurs
+  ont été améliorées afin d'éviter des erreurs sans en afficher la cause.
+  &nbsp;&nbsp;<SPAN class="anno">(Merci à Andreas pour avoir rapporté ce
+  problème.)</SPAN>
+<LI>En dernier mais non des moindres, la version finale pour Windows
+  est maintenant fournie sous la forme d'un installeur en lieu et place
+  d'une archive ZIP.
+  &nbsp;&nbsp;<SPAN class="anno">(Merci à Néo pour la suggestion et sa
+  mise en application.)</SPAN>
 </UL>
 <P>
 Regardez aussi la liste détaillée des
 <A HREF="changelog.html">modifications majeures</A>.
+There's also a <A HREF="pre-releases.html">new development line</A> with new features.
 </P>
 
 

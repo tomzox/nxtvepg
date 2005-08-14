@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: rcfile.tcl,v 1.23.1.1 2005/03/30 17:53:05 tom Exp $
+#  $Id: rcfile.tcl,v 1.23.1.2 2005/08/14 12:11:00 tom Exp $
 #
 set myrcfile ""
 set is_daemon 0
@@ -30,7 +30,7 @@ proc LoadRcFile {filename isDefault isDaemon} {
    global prov_selection prov_freqs cfnetwops cfnetnames cfnettimes cfnetjoin
    global showNetwopListbox showNetwopListboxLeft showShortcutListbox
    global showLayoutButton showStatusLine showColumnHeader showDateScale
-   global hideOnMinimize menuUserLanguage help_winsize
+   global hideOnMinimize menuUserLanguage help_winsize help_lang
    global prov_merge_cnis prov_merge_cf
    global acq_mode acq_mode_cnis netacq_enable
    global pibox_height pilistbox_cols shortinfo_height
@@ -392,7 +392,7 @@ proc UpdateRcFile {} {
    global prov_selection prov_freqs cfnetwops cfnetnames cfnettimes cfnetjoin
    global showNetwopListbox showNetwopListboxLeft showShortcutListbox
    global showLayoutButton showStatusLine showColumnHeader showDateScale
-   global hideOnMinimize menuUserLanguage help_winsize
+   global hideOnMinimize menuUserLanguage help_winsize help_lang
    global prov_merge_cnis prov_merge_cf
    global acq_mode acq_mode_cnis netacq_enable
    global pibox_height pilistbox_cols shortinfo_height
@@ -481,6 +481,7 @@ proc UpdateRcFile {} {
 
       # dump size of help window, if modified by the user
       if {[info exists help_winsize]} {puts $rcfile [list set help_winsize $help_winsize]}
+      if {[info exists help_lang]} {puts $rcfile [list set help_lang $help_lang]}
 
       # dump provider database merge CNIs and configuration
       if {[info exists prov_merge_cnis]} {puts $rcfile [list set prov_merge_cnis $prov_merge_cnis]}

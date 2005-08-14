@@ -25,7 +25,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgblock.h,v 1.48 2004/05/31 14:38:57 tom Exp tom $
+ *  $Id: epgblock.h,v 1.49 2005/05/29 16:15:14 tom Exp $
  */
 
 #ifndef __EPGBLOCK_H
@@ -486,7 +486,7 @@ typedef struct EPGDB_BLOCK_STRUCT
    const EPGDB_BLOCK_UNION   blk;   // the actual data
 } EPGDB_BLOCK;
 
-#define BLK_UNION_OFF    (sizeof(EPGDB_BLOCK) - sizeof(EPGDB_BLOCK_UNION))
+#define BLK_UNION_OFF    ((uint)(sizeof(EPGDB_BLOCK) - sizeof(EPGDB_BLOCK_UNION)))
 
 // ----------------------------------------------------------------------------
 // Event callback for handling incoming PI in the GUI

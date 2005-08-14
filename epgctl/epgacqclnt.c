@@ -21,7 +21,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgacqclnt.c,v 1.16 2004/06/20 18:51:00 tom Exp $
+ *  $Id: epgacqclnt.c,v 1.17 2005/05/29 16:22:49 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -322,7 +322,7 @@ static bool EpgAcqClient_CheckMsg( uint len, EPGNETIO_MSG_HEADER * pHead, EPGDBS
                         EpgBlockCheckConsistancy(pNewBlock);
             }
             else
-               debug2("EpgAcqClient-CheckMsg: BLOCK_IND msg len %d != block size=%d", pHead->len, sizeof(EPGNETIO_MSG_HEADER) + blockSize + BLK_UNION_OFF);
+               debug2("EpgAcqClient-CheckMsg: BLOCK_IND msg len %d != block size=%d", pHead->len, (uint)sizeof(EPGNETIO_MSG_HEADER) + blockSize + BLK_UNION_OFF);
          }
          else
             debug1("EpgAcqClient-CheckMsg: BLOCK_IND msg too short: len=%d", pHead->len);
@@ -401,7 +401,7 @@ static bool EpgAcqClient_CheckMsg( uint len, EPGNETIO_MSG_HEADER * pHead, EPGDBS
                      result = TRUE;
                   }
                   else
-                     debug2("EpgAcqClient-CheckMsg: STATS_IND type MINIMAL illegal msg len %d != %d", size, sizeof(pBody->stats_ind.u.minimal));
+                     debug2("EpgAcqClient-CheckMsg: STATS_IND type MINIMAL illegal msg len %d != %d", size, (uint)sizeof(pBody->stats_ind.u.minimal));
                   break;
                case EPGDB_STATS_UPD_TYPE_INITIAL:
                   if (size == sizeof(pBody->stats_ind.u.initial))
@@ -425,7 +425,7 @@ static bool EpgAcqClient_CheckMsg( uint len, EPGNETIO_MSG_HEADER * pHead, EPGDBS
                      result = TRUE;
                   }
                   else
-                     debug2("EpgAcqClient-CheckMsg: STATS_IND type INITIAL illegal msg len %d != %d", size, sizeof(pBody->stats_ind.u.initial));
+                     debug2("EpgAcqClient-CheckMsg: STATS_IND type INITIAL illegal msg len %d != %d", size, (uint)sizeof(pBody->stats_ind.u.initial));
                   break;
                case EPGDB_STATS_UPD_TYPE_UPDATE:
                   if (size == sizeof(pBody->stats_ind.u.update))
@@ -447,7 +447,7 @@ static bool EpgAcqClient_CheckMsg( uint len, EPGNETIO_MSG_HEADER * pHead, EPGDBS
                      result = TRUE;
                   }
                   else
-                     debug2("EpgAcqClient-CheckMsg: STATS_IND type UPDATE illegal msg len %d != %d", size, sizeof(pBody->stats_ind.u.update));
+                     debug2("EpgAcqClient-CheckMsg: STATS_IND type UPDATE illegal msg len %d != %d", size, (uint)sizeof(pBody->stats_ind.u.update));
                   break;
                default:
                   debug1("EpgAcqClient-CheckMsg: STATS_IND illegal type %d", pBody->stats_ind.type);

@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: pre-releases.html,v 1.60 2005/04/08 21:41:13 tom Exp $ -->
+<!-- $Id: pre-releases.html,v 1.66 2005/08/14 18:19:50 tom Exp $ -->
 <HEAD>
 <TITLE>Developers and alpha testers download page</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -25,14 +25,16 @@
 <DIV class="navBlock">
 <H2 class="navhead">Language</H2>
 <P>
-<IMG ALT="" SRC="en.png" WIDTH=16 HEIGHT=10> English<BR>
-<IMG ALT="" SRC="de.png" WIDTH=16 HEIGHT=10> <SPAN class="navDisabled">Deutsch</SPAN><BR>
-<IMG ALT="" SRC="fr.png" WIDTH=16 HEIGHT=10> <SPAN class="navDisabled">Français</SPAN><BR>
+<IMG ALT="" SRC="en.png" WIDTH="16" HEIGHT="10"> English<BR>
+<IMG ALT="" SRC="de.png" WIDTH="16" HEIGHT="10"> <SPAN class="navDisabled">Deutsch</SPAN><BR>
+<IMG ALT="" SRC="fr.png" WIDTH="16" HEIGHT="10"> <SPAN class="navDisabled">Français</SPAN><BR>
 </P>
 
 <H2 class="navhead">News</H2>
 <P>
-Apr/8/2005: <A HREF="index.html#new_2_7_5">Release 2.7.5</A>
+Aug/14/2005: <A HREF="index.html#new_2_7_6">Release 2.7.6</A>
+</P><P>
+Apr/8/2005: <A HREF="changelog.html#release_2_7_5">Release 2.7.5</A>
 </P><P>
 Dec/27/2004: <A HREF="changelog.html#release_2_7_4">Release 2.7.4</A>
 </P>
@@ -114,8 +116,6 @@ debug output.  Hence they should be used for evaluation only.
 Please do not redistribute.
 </P>
 
-<B>2.8.0 development line</B>
-
 <P>
 <!--
 <B>Warning:</B> There's a change in the format of user-defined columns
@@ -124,7 +124,7 @@ be converted.  Make a copy of your old rc/ini file before you first start 2.4.1
 to be able to switch back to 2.4.0 in case you find any severe bugs in 2.4.1
 -->
 
-Note the format of rc/ini file has changed in 2.7.5pre0 and 2.7.5pre1
+Note the format of rc/ini file has changed in 2.7.5pre0, 2.7.5pre1 and 2.8.0pre6
 (but not in 2.7.5rc1, which was forked off before 2.7.5pre0)
 It will be automatically upgraded upon the first start when using an rc/ini file
 written by an older version.  Remember to make a backup copy, so that you can
@@ -136,7 +136,7 @@ hence you cannot connect with a 2.7.4pre0 client to 2.7.3 or older daemons, or v
 -->
 </P>
 <P>
-<B>Last update: March 24th 2005: release 2.8.0pre5</B>
+<B>Last update: June 30th 2005: release 2.8.0pre8</B>
 </P>
 <P>
 As of 2.8.0pre1 WDM support (affects Windows users only) has been merged onto
@@ -150,7 +150,7 @@ the main development line, hence the jump from 2.7.5 to 2.8.0
 <LI><I>no downloads are currently available</I>
 -->
 <LI>Sources:
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre5.tar.gz">nxtvepg-2.8.0pre5.tar.gz</A>
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre8.tar.gz">nxtvepg-2.8.0pre8.tar.gz</A> (apx 1.4 MB)
 <!--
 <BR>Note: if you want to test nxtvepg with
 <A HREF="http://nxtvepg.sourceforge.net/tmp/README-proxy.txt">VBI proxy</A>
@@ -161,16 +161,13 @@ nxtvepg Makefile and get libzvbi from CVS at
 select branch "proxy" during checkout.
 -->
 <LI>Win32 executable:
-    <!--
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre5-win.zip">nxtvepg-2.8.0pre5-win.zip</A>
-    -->
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre5b-win.zip">nxtvepg-2.8.0pre5b-win.zip</A><BR>
-    (<I>Release pre5b is identical to pre5, just compiled with a different compiler.</I>)
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre8-win.zip">nxtvepg-2.8.0pre8-win.zip</A> (apx. 800 kB)
+<LI>If you haven't downloaded pre5, you'll also need new Tcl/Tk libraries:
+    <BR>Tcl/Tk 8.4.9 DLL: <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre5-tcltk.zip">nxtvepg-2.8.0pre5-tcltk.zip</A> (apx. 750 kB)
+    <BR>Just unpack this zip file in the directory which holds nxtvepg.exe
 <!--
 <BR>(Does not contain the Tcl/Tk libraries; please copy them from the last official release.)
 -->
-<BR><STRONG>Important:</STRONG> WDM users require a new version of VBIACQWDMDRV.DLL
-    The one released for 2.8.0pre1 no longer works.
 
 <LI>To enable use of vendor supplied WDM drivers you need an additional DLL which
     is developed separately by Gérard Chevalier.  Download from the
@@ -180,12 +177,47 @@ select branch "proxy" during checkout.
 and driver version have changed in pre7.
 See the above link to the mailing list archive for details.
 -->
-<LI>Win32 TV simulator: <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre5-tvsim.zip">nxtvepg-2.8.0pre5-tvsim.zip</A><BR>
+<LI>Win32 TV simulator:
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre8-tvsim.zip">nxtvepg-2.8.0pre8-tvsim.zip</A><BR>
 Please try to reproduce any problems related to interaction with K!TV with tvsim.exe
 before you report them.
 </UL>
 
 <H2>Change history</H2>
+
+<H3>Changes between 2.8.0pre7 and 2.8.0pre8 (2005-06-30)</H3>
+<UL>
+<LI>Update of XMLTV parser
+<LI>Minor fix in XMLTV export (DTD 0.6): several elements were not
+    in the correct order, which caused warnings with some XML processors
+<LI>UNIX: Provider scan now issues an appropriate error message upon
+    device errors (Thanks to Andreas for reporting this problem)
+</UL>
+
+<H3>Changes between 2.8.0pre6 and 2.8.0pre7 (2005-06-03)</H3>
+<UL>
+<LI>Added possibility to import EPG data from
+    <A HREF="http://membled.com/work/apps/xmltv/">XMLTV</A> files.
+    (Note: to import XMLTV data, just add the file name to the
+    command line, i.e. start as "nxtvepg tv.xml")
+<LI>Bugfix in handling of command line option "-dump xml"
+    (bug was introduced in 2.8.0pre6)
+</UL>
+<P>
+Note: feedback for XMLTV data import is appreciated.  Currently only
+import of data from grabbers for DE, UK and FR has been tested.  Possible
+errors or warnings during data import are logged in your debug.out file.
+</P>
+
+<H3>Changes between 2.8.0pre5 and 2.8.0pre6 (2005-04-09)</H3>
+<UL>
+<LI>Added support for -dump option in non-GUI executable (nxtvepgd)<BR>
+  Note: export mode "xml" is not supported in this case, you must include
+  the DTD version (e.g. "xml5", see manual); also user-configured network
+  names (via "Network name" configuration dialog in the GUI) are not adhered.
+<LI>Windows: Separated WDM from dsdrv4 sources in the TV card configuration
+  to make the distinction more clear.
+</UL>
 
 <H3>Changes between 2.8.0pre4 and 2.8.0pre5 (2005-03-25)</H3>
 <UL>
@@ -270,7 +302,6 @@ before you report them.
 <LI>Possibility to compile separate daemon without GUI (note to UNIX
   users: enter "make daemon" to compile the daemon-only executable)
 </UL>
-
 
 <H2>Copyright &amp; Disclaimer</H2>
 <P>

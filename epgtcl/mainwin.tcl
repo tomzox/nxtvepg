@@ -20,7 +20,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: mainwin.tcl,v 1.244.1.1 2005/03/30 14:17:13 tom Exp $
+#  $Id: mainwin.tcl,v 1.244.1.2 2005/08/14 12:23:55 tom Exp $
 #
 # import constants from other modules
 #=INCLUDE= "epgtcl/shortcuts.h"
@@ -737,7 +737,8 @@ proc CreateMenubar {} {
    .menubar.reminder add command -label "Remove reminder" -state disabled
    .menubar.reminder add separator
    .menubar.reminder add command -label "Show reminder matches" -command Reminder_ShowAll
-   .menubar.reminder add command -label "Edit reminder list..." -command PopupReminderList
+   .menubar.reminder add command -label "Edit reminder list..." -command {PopupReminderList 0}
+   .menubar.reminder add command -label "Edit filter-based reminders..." -command {PopupReminderList 1}
    .menubar.reminder add separator
    .menubar.reminder add command -label "Configure reminder groups..." -command PopupReminderConfig
    menu .menubar.reminder.group -tearoff 0
@@ -3205,10 +3206,11 @@ proc SelectTextOnFocus {wid} {
 ##  Handling of help popup
 ##
 set help_popup 0
+set help_lang "en"
 
 proc PopupHelp {index {subheading {}} {subrange {}}} {
    global help_fg help_bg help_font font_fixed win_frm_fg
-   global help_popup help_winsize helpTexts helpIndex
+   global help_popup help_winsize helpTexts helpIndex help_lang
 
    if {$help_popup == 0} {
       set help_popup 1
@@ -3219,6 +3221,10 @@ proc PopupHelp {index {subheading {}} {subrange {}}} {
       # command buttons to close help window or to switch chapter
       frame  .help.cmd
       button .help.cmd.dismiss -text "Dismiss" -command {destroy .help} -width 7
+      menubutton .help.cmd.lang -text "Language" -menu .help.cmd.lang.men -takefocus 1 \
+                                -direction below -indicatoron 1 -borderwidth 2 -relief raised \
+                                -cursor top_left_arrow \
+                                -takefocus 1 -highlightthickness 1 -highlightcolor $win_frm_fg
       menubutton .help.cmd.chpt -text "Chapters" -menu .help.cmd.chpt.men -takefocus 1 \
                                 -direction below -indicatoron 1 -borderwidth 2 -relief raised \
                                 -cursor top_left_arrow \
@@ -3226,17 +3232,22 @@ proc PopupHelp {index {subheading {}} {subrange {}}} {
       button .help.cmd.prev -text "Previous" -width 7
       button .help.cmd.next -text "Next" -width 7
       button .help.cmd.back -text "Back" -width 7 -command HelpHistoryBack -state disabled
-      pack   .help.cmd.dismiss -side left -padx 20
-      pack   .help.cmd.chpt -side left -padx 20
+      pack   .help.cmd.dismiss -side left -padx 5
+      pack   .help.cmd.lang -side left -padx 5
+      pack   .help.cmd.chpt -side left -padx 5
       pack   .help.cmd.prev .help.cmd.next -side left
-      pack   .help.cmd.back -side left -padx 20
+      pack   .help.cmd.back -side left -padx 5
       pack   .help.cmd -side top
       bind   .help.cmd <Destroy> {+ set help_popup 0}
 
-      menu .help.cmd.chpt.men -tearoff 0
+      menu .help.cmd.lang.men -tearoff 0
+      .help.cmd.lang.men add radiobutton -label "English" -variable help_lang -value "en" -command HelpLanguageChange
+      .help.cmd.lang.men add radiobutton -label "Deutsch" -variable help_lang -value "de" -command HelpLanguageChange
+
       foreach {title idx} [array get helpIndex] {
          set helpTitle($idx) $title
       }
+      menu .help.cmd.chpt.men -tearoff 0
       foreach idx [lsort -integer [array names helpTitle]] {
          .help.cmd.chpt.men add command -label $helpTitle($idx) -command [list PopupHelp $idx]
       }
@@ -3282,6 +3293,9 @@ proc PopupHelp {index {subheading {}} {subrange {}}} {
       # initialize history stack
       set ::helpStack {}
 
+      # load help texts
+      catch {LoadHelpTexts_$help_lang}
+
    } else {
       # save old text position on the stack
       if {[llength $subrange] == 0} {
@@ -3296,18 +3310,18 @@ proc PopupHelp {index {subheading {}} {subrange {}}} {
    }
 
    # fill the widget with the formatted text
-   eval [concat .help.disp.text insert end $helpTexts($index)]
+   eval [concat .help.disp.text insert end $helpTexts($help_lang,$index)]
    .help.disp.text configure -state disabled
 
    # define/update bindings for left/right command buttons
-   if {[info exists helpTexts([expr $index - 1])]} {
+   if {[info exists helpTexts($help_lang,[expr $index - 1])]} {
       .help.cmd.prev configure -command "PopupHelp [expr $index - 1]" -state normal
       bind .help.disp.text <Left> "PopupHelp [expr $index - 1]"
    } else {
       .help.cmd.prev configure -command {} -state disabled
       bind .help.disp.text <Left> {}
    }
-   if {[info exists helpTexts([expr $index + 1])]} {
+   if {[info exists helpTexts($help_lang,[expr $index + 1])]} {
       .help.cmd.next configure -command "PopupHelp [expr $index + 1]" -state normal
       bind .help.disp.text <Right> "PopupHelp [expr $index + 1]"
    } else {
@@ -3316,7 +3330,7 @@ proc PopupHelp {index {subheading {}} {subrange {}}} {
    }
 
    # bring the given text section into view
-   if {[llength $subrange] == 2} {
+   if {([llength $subrange] == 2) && ([string length [lindex $subrange 0]] > 0)} {
       .help.disp.text see [lindex $subrange 1]
       .help.disp.text see [lindex $subrange 0]
    } elseif {[string length $subheading] != 0} {
@@ -3406,6 +3420,20 @@ proc HelpWindowResized {w} {
          UpdateRcFile
       }
    }
+}
+
+# callback for language menu entries
+proc HelpLanguageChange {} {
+   global helpStack help_lang
+
+   catch {LoadHelpTexts_$help_lang}
+
+   UpdateRcFile
+
+   HelpHistoryUpdate
+   set elem [lindex $helpStack end]
+   set helpStack [lreplace $helpStack end end]
+   PopupHelp [lindex $elem 0] {} [lrange $elem 1 2]
 }
 
 ##  --------------------------------------------------------------------------

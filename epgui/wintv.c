@@ -46,6 +46,7 @@
 #include "epgvbi/tvchan.h"
 #include "epgvbi/btdrv.h"
 #include "epgvbi/ttxdecode.h"
+#include "epgvbi/cni_tables.h"
 #include "epgvbi/winshmsrv.h"
 #include "epgvbi/winshm.h"
 #include "epgdb/epgblock.h"

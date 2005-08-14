@@ -34,12 +34,15 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgscan.c,v 1.38 2004/12/24 10:16:04 tom Exp tom $
+ *  $Id: epgscan.c,v 1.40 2005/07/01 21:24:35 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
 #define DPRINTF_OFF
 
+#include <stdlib.h>
+#include <stdio.h>
+#include <errno.h>
 #include <time.h>
 #include <string.h>
 
@@ -292,7 +295,23 @@ uint EpgScan_EvHandler( void )
    // because it also handles channel changes and watches over the slave's life)
    TtxDecode_CheckForPackets(&stopped);
    if ( stopped || (scanCtl.pDbContext == NULL) )
+   {
+      #ifndef WIN32
+      const char * pErrStr = BtDriver_GetLastError();
+      sprintf(msgbuf, "\nFatal error: video/VBI device error:\n%.200s.\n",
+              ((pErrStr != NULL) ? pErrStr : "(unknown - internal error, please report)"));
+      scanCtl.MsgCallback(msgbuf, TRUE);
+      #else
+      scanCtl.MsgCallback("Fatal error in video/VBI device (driver error) - abort.", TRUE);
+      #endif
+
       EpgScan_Stop();
+   }
+   else if (scanCtl.pDbContext == NULL)
+   {
+      scanCtl.MsgCallback("\nInternal error: setup incomplete (please report)\n", TRUE);
+      EpgScan_Stop();
+   }
 
    dispText[0] = 0;
    rescheduleMs = 0;
@@ -359,6 +378,12 @@ uint EpgScan_EvHandler( void )
             {  // AI block has been received -> done
                assert(scanCtl.pDbContext->modified);
 
+               // write database into file (done immediately to display errors in the correct context)
+               if (EpgDbDump(scanCtl.pDbContext) == FALSE)
+               {
+                  scanCtl.MsgCallback("Error writing the database:", TRUE);
+                  scanCtl.MsgCallback(strerror(errno), TRUE);
+               }
                scanCtl.state = SCAN_STATE_DONE;
             }
             EpgDbLockDatabase(scanCtl.pDbContext, FALSE);
@@ -713,6 +738,7 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv,
       if (EpgScan_NextChannel(&freq))
       {
          BtDriver_SetChannelProfile(VBI_CHANNEL_PRIO_INTERACTIVE, 0, 0, 0);
+         BtDriver_SelectSlicer(VBI_SLICER_ZVBI);
 
          if ( BtDriver_TuneChannel(scanCtl.inputSrc, freq, TRUE, &isTuner) )
          {

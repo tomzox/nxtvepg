@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: changelog.html,v 1.62 2005/04/08 21:40:17 tom Exp $ -->
+<!-- $Id: changelog.html,v 1.64 2005/08/14 18:16:33 tom Exp $ -->
 <HEAD>
 <TITLE>Nextview EPG Decoder Change Log</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -27,14 +27,16 @@
 <DIV class="navBlock">
 <H2 class="navhead">Language</H2>
 <P>
-<IMG ALT="" SRC="en.png" WIDTH=16 HEIGHT=10> English<BR>
-<IMG ALT="" SRC="de.png" WIDTH=16 HEIGHT=10> <SPAN class="navDisabled">Deutsch</SPAN><BR>
-<IMG ALT="" SRC="fr.png" WIDTH=16 HEIGHT=10> <SPAN class="navDisabled">Français</SPAN><BR>
+<IMG ALT="" SRC="en.png" WIDTH="16" HEIGHT="10"> English<BR>
+<IMG ALT="" SRC="de.png" WIDTH="16" HEIGHT="10"> <SPAN class="navDisabled">Deutsch</SPAN><BR>
+<IMG ALT="" SRC="fr.png" WIDTH="16" HEIGHT="10"> <SPAN class="navDisabled">Français</SPAN><BR>
 </P>
 
 <H2 class="navhead">News</H2>
 <P>
-Apr/8/2005: <A HREF="index.html#new_2_7_5">Release 2.7.5</A>
+Aug/14/2005: <A HREF="index.html#new_2_7_6">Release 2.7.6</A>
+</P><P>
+Apr/8/2005: <A HREF="changelog.html#release_2_7_5">Release 2.7.5</A>
 </P><P>
 Dec/27/2004: <A HREF="changelog.html#release_2_7_4">Release 2.7.4</A>
 </P>
@@ -81,6 +83,23 @@ nexTView EPG decoder software.
 For details on work in progress please refer to
 <A HREF="http://sourceforge.net/mailarchive/forum.php?forum_id=14102">mailing list archives</A>.
 </P>
+
+
+<H2><A NAME="release_2_7_6">From 2.7.5 to 2.7.6 (Aug/14/2005)</A></H2>
+<UL>
+<LI>Added German translation of the manual and help pages.
+  Many thanks to Olaf Noehring and Kurt Lettmaier for contributing
+  the translation.
+<LI>Major bugfix in reminder removal (when removing multiple reminders
+  in the same order they were created, the wrong reminder was removed
+  and nxtvepg could even crash.) Thanks to Kurt for reporting this bug.
+<LI>Added menu entry "Edit filter-based reminders" to promote the
+  possibility to create reminders based on shortcuts.
+<LI>Minor fix in XMLTV export (DTD 0.6): several elements were not
+  in the correct order, which caused warnings with some XML processors
+<LI>UNIX: Provider scan now issues an appropriate error message upon
+  device errors (Thanks to Andreas for reporting this problem)
+</UL>
 
 
 <H2><A NAME="release_2_7_5">From 2.7.4 to 2.7.5 (Apr/8/2005)</A></H2>

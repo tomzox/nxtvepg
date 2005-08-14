@@ -51,7 +51,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_remind.tcl,v 1.18 2004/04/02 11:27:33 tom Exp tom $
+#  $Id: dlg_remind.tcl,v 1.20 2005/08/09 19:20:24 tom Exp tom $
 #
 # import constants from other modules
 #=INCLUDE= "epgtcl/dlg_udefcols.h"
@@ -143,7 +143,6 @@ set rem_col_fmt {{1 circle_red bg_RGBFFD0D0 -1 rgp_all}}
 ##
 proc Reminder_InitData {} {
    global remgroups remgroup_order reminders shortcuts
-   global piexpire_cutoff
 
    # no reminder groups in RC file -> set default group
    if {[array size remgroups] == 0} {
@@ -880,10 +879,12 @@ proc Reminder_PostGroupMenu {wid rem_idx} {
 
 ## ---------------------------------------------------------------------------
 ## Handle external addition, removal or suppression of reminders
+## - it's mandatory that this function is called after all changes in the
+##   reminder list to keep the dialog in sync
 ##
 proc Reminder_ExternalChange {add_idx} {
    global remlist_lastpi_start remlist_lastpi_netwop
-   global remlist_popup
+   global remlist_popup remlist_pilist
    global reminders
 
    # refresh in case display shows markers for reminders
@@ -896,10 +897,23 @@ proc Reminder_ExternalChange {add_idx} {
    UpdateRcFile
 
    if $remlist_popup {
-      if {($add_idx != -1) && ($add_idx < [llength $reminders])} {
+      if {$add_idx != -1} {
+         # place cursor onto the added/modified element
          set elem [lindex $reminders $add_idx]
          set remlist_lastpi_start [lindex $elem $::rpi_start_idx]
          set remlist_lastpi_netwop [lindex $elem $::rpi_netwop_idx]
+      } else {
+         # keep cursor on the currently selected element
+         set frm1 [Rnotebook:frame .remlist.nb 1]
+         set sel_idx [${frm1}.selist curselection]
+         if {([llength $sel_idx] == 1) && ($sel_idx < [llength $remlist_pilist])} {
+            set rem_idx [lindex $remlist_pilist $sel_idx]
+            if {$rem_idx < [llength $reminders]} {
+               set elem [lindex $reminders $rem_idx]
+               set remlist_lastpi_start [lindex $elem $::rpi_start_idx]
+               set remlist_lastpi_netwop [lindex $elem $::rpi_netwop_idx]
+            }
+         }
       }
       RemPiList_FillPi pi
    }
@@ -1007,7 +1021,7 @@ proc Reminder_SelectFromTagList {group_list grp_tag} {
 ## ---------------------------------------------------------------------------
 ## Open dialog to manage list of reminders
 ##
-proc PopupReminderList {} {
+proc PopupReminderList {tab_idx} {
    global pi_font
    global remlist_popup
    global remlist_winsize rempilist_colsize remsclist_colsize
@@ -1149,6 +1163,8 @@ proc PopupReminderList {} {
       RemPiList_CheckDispFlags
       RemPiList_FillPi init
       RemPiList_Select
+
+      Rnotebook:raise .remlist.nb [expr $tab_idx + 1]
 
    } else {
       raise .remlist

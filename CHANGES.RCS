@@ -17676,3 +17676,146 @@ www/index-fr.html [rev:1.14, 2005-04-09T12:28:52]:
 - French translation of 2.7.5 changelog
 - by Neo, email 2005-04-09
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_7_5 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+epgctl/debug.c [rev:1.19, 2005-01-01T18:13:30]:
+- Added new function "xstrdup": like strdup, but using xmalloc
+epgctl/debug.h [rev:1.19, 2005-01-01T18:13:33]:
+- added new function "xstrdup": like strdup, but using xmalloc
+- removed include <stdlib.h> for malloc
+epgui/wintvcfg.c [rev:1.21, 2005-02-27T13:34:30]:
+- Applied patch to add support for K!TV-2.2 channel tab
+- Sent via email 2005-02-26 by quenotte@kastortv.org
+epgui/wintvcfg.c [rev:1.22, 2005-02-27T18:22:20]:
+- Made chn.tab. parser backwards compatible with older K!TV versions again
+- note: K!TV versions 2.0 up to 2.3 are not supported
+epgui/wintvcfg.c [rev:1.23, 2005-03-06T20:06:57]:
+- Bugfix new TVAPP_KTV check in WintvCfg_GetPath()
+epgui/wintvcfg.c [rev:1.24, 2005-03-30T14:53:55]:
+- Fixed WintvCfg_GetPath: removed obsolete "fatal" statement
+- "appIdx == TVAPP_NONE" may legally occur when user hasn't configured one
+epgctl/debug.c [rev:1.20, 2005-05-29T16:22:49]:
+- Fixed warnings for -m64: added cast for printf() args of type size_t
+epgctl/debug.c [rev:1.21, 2005-06-28T16:09:09]:
+- Added wrapper for C library realloc() function
+epgctl/debug.h [rev:1.20, 2005-06-28T16:09:09]:
+- Added wrapper for C library realloc() function
+epgctl/debug.c [rev:1.22, 2005-06-28T21:28:14]:
+- Syntax fix in function xrealloc() - used when compiling without CHK_MALLOC
+epgctl/debug.c [rev:1.23, 2005-07-10T15:15:30]:
+- Fix non-debug mode: xstrdup() was mapped to strdup -> NULL ptr check missing
+epgctl/debug.h [rev:1.21, 2005-07-10T15:15:30]:
+- Fix non-debug mode: xstrdup() was mapped to strdup -> NULL ptr check missing
+epgctl/epgacqclnt.c [rev:1.17, 2005-05-29T16:22:49]:
+- Fixed warnings for -m64: added cast for printf() args of type size_t
+epgctl/epgscan.c [rev:1.39, 2005-05-29T16:46:42]:
+- Added direct call to EpgDbDump() when closing database
+- check for result value and display error message if write failed
+- requested in nxtvepg forum by "Lutz", 2005-Apr-14
+- Also:
+- always switch to ZVBI slicer mode
+epgctl/epgscan.c [rev:1.40, 2005-07-01T21:24:35]:
+- Bugfix: no error message was printed upon abort due to VBI device errors
+- added error message to handling of "stopped" result from ttx pkg query
+- reported in forum by Andreas, 2005-06-17
+epgdb/epgblock.c [rev:1.54, 2005-05-29T16:15:10]:
+- branches:  1.54.1;
+- Syntax fix: removed duplicate ";" after command
+epgdb/epgblock.h [rev:1.49, 2005-05-29T16:15:14]:
+- Fixed warnings for -m64: added (uint) for BLK_UNION_OFF: b/c sizeof()
+epgdb/epgdbsav.c [rev:1.56, 2005-05-29T16:20:53]:
+- branches:  1.56.1;
+- Bugfix in various places: used size_t instead of ssize_t for return values
+- hence error check "size < 0" did not work -> wirte errors not detected
+- reported in nxtvepg forum by "Lutz", 2005-Apr-14
+- Also:
+- simplification of dbc->expireDelayPi handling in reload
+- fix of Win32 error handling in dbdir creation (still fails sometimes, TODO)
+epgdb/epgtscqueue.h [rev:1.4, 2005-05-29T16:15:27]:
+- Fixed warnings for -m64: added (uint) for PI_TSC_GET_BUF_SIZE: b/c sizeof()
+epgtcl/dlg_remind.tcl [rev:1.19, 2005-01-06T14:06:17]:
+- Removed superfluous global declaration of piexpire_cutoff
+epgtcl/dlg_remind.tcl [rev:1.20, 2005-08-09T19:20:24]:
+- Bugfix Reminder_ExternalChange:
+- must also update the PI reminder list with $add_idx == -1 because the
+    display must stay in sync with the reminder list (esp. because reminders
+    are addressed by index only and indices can change after removals!)
+- bug reported by Kurt in forum 2005-07-31
+epgui/loadtcl.c [rev:1.8, 2005-05-29T17:02:53]:
+- Fixed warnings for -m64: added cast for printf() args of type size_t
+epgui/loadtcl.c [rev:1.9, 2005-07-17T18:28:29]:
+- added German helptexts: new module helptexts_de.tcl
+- split helptexts module: moved texts into dynamic part
+epgui/piremind.c [rev:1.17, 2005-05-29T17:02:41]:
+- Fixed warnings for -m64: use macro PVOID2INT() for void* casts
+epgui/piremind.c [rev:1.18, 2005-07-30T19:37:47]:
+- major bugfix: indices of cached single-PI reminders were not adjusted
+    after reminder removal -> new func PiRemind_PiCacheShiftIndices()
+- added check that index is valid in PiRemind_RemovePi()
+- added debug output in 2 more funcs to catch invalid parameters
+pod2help.pl [rev:1.20, 2005-07-17T17:52:12]:
+- added command line option -lang; prepend language code to helpTexts indices
+- place helpTexts into DYNAMIC section (helpIndex remains static)
+- split off sub-function ReadParagraph
+epgui/wintv.c [rev:1.23, 2005-04-07T18:05:11 | LATE CHECKIN]:
+- Compile fix last change: added include cni_tables.h
+epgctl/epgversion.h [rev:1.75, 2005-08-14T10:52:44]:
+- branches:  1.75.1;
+- set version to 2.7.6
+CHANGES [rev:1.50, 2005-08-14T11:22:45]:
+- updated for release 2.7.6
+Makefile [rev:1.77.1.2, 2005-08-14T11:28:25]:
+- Added rules for German manual & help
+- backport from rev 1.89 for relase 2.7.6
+Makefile.win32 [rev:1.51.1.1, 2005-08-14T11:31:48]:
+- Added rules for German manual & help
+- backport from rev 1.61 for relase 2.7.6
+nxtvepg.spec [rev:1.23, 2005-08-14T11:34:28]:
+- set version to 2.7.6
+- added manual-de.html as documentation
+COPYRIGHT [rev:1.14, 2005-08-14T11:46:22]:
+- Added copyright for German translation in nxtvepg-de.pod
+epgtcl/rcfile.tcl [rev:1.23.1.2, 2005-08-14T12:11:00]:
+- Save and load new config variable: help_lang
+epgtcl/mainwin.tcl [rev:1.248, 2005-08-14T12:19:48]:
+- Added new enty to "Reminder" menu: "Edit filter-based reminders..."
+- same as regular "Edit..." but jumps directly into "Shortcuts" tab
+- added because many people seem to have missed this possibility
+epgtcl/mainwin.tcl [rev:1.244.1.2, 2005-08-14T12:23:55]:
+- Merged changes from 1.247 & 248 (German help; added new reminder menu entry)
+www/WDMpre-releases.html [rev:1.17, 2005-08-14T18:14:28]:
+- Updated news section for release 2.7.6
+www/changelog-2.6.0pre.html [rev:1.13, 2005-08-14T18:14:28]:
+- Updated news section for release 2.7.6
+www/changelog-2.7.0pre.html [rev:1.9, 2005-08-14T18:14:28]:
+- Updated news section for release 2.7.6
+www/faq.html [rev:1.16, 2005-08-14T18:14:28]:
+- Updated news section for release 2.7.6
+www/help-wanted.html [rev:1.18, 2005-08-14T18:14:28]:
+- Updated news section for release 2.7.6
+www/intro.html [rev:1.15, 2005-08-14T18:14:28]:
+- Updated news section for release 2.7.6
+www/links.html [rev:1.16, 2005-08-14T18:14:28]:
+- Updated news section for release 2.7.6
+www/man.html [rev:1.42, 2005-08-14T18:14:28]:
+- Updated news section for release 2.7.6
+www/provnets.html [rev:1.45, 2005-08-14T18:14:28]:
+- Updated news section for release 2.7.6
+www/tvsim-faq.html [rev:1.16, 2005-08-14T18:14:28]:
+- Updated news section for release 2.7.6
+www/changelog.html [rev:1.64, 2005-08-14T18:16:33]:
+- Updated for release 2.7.6
+www/nxtvepg.css [rev:1.16, 2005-08-14T18:18:05]:
+- Added SPAN.anno: used for annotations in release notes (e.g. thanks)
+www/pre-releases.html [rev:1.66, 2005-08-14T18:19:50]:
+- updated new section for release 2.7.6
+- removed 2.7.6 pre-release notes
+www/download-de.html [rev:1.21, 2005-12-11T08:34:22]:
+- Updated for release 2.7.6 (Aug.2005)
+www/download.html [rev:1.20, 2005-12-11T08:34:22]:
+- Updated for release 2.7.6 (Aug.2005)
+www/index-de.html [rev:1.82, 2005-12-11T08:34:22]:
+- Updated for release 2.7.6 (Aug.2005)
+www/index-fr.html [rev:1.17, 2005-12-11T08:34:22]:
+- Updated for release 2.7.6 (Aug.2005)
+www/index.html [rev:1.93, 2005-12-11T08:34:22]:
+- Updated for release 2.7.6 (Aug.2005)
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_7_6 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

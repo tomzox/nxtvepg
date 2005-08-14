@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: index.html,v 1.90 2005/04/08 21:40:17 tom Exp $ -->
+<!-- $Id: index.html,v 1.93 2005/12/11 08:34:22 tom Exp $ -->
 <HEAD>
 <TITLE>nexTView EPG Decoder Software Download Page</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -22,14 +22,16 @@
 <DIV class="navBlock">
 <H2 class="navhead">Language</H2>
 <P>
-<IMG ALT="" SRC="en.png" WIDTH=16 HEIGHT=10> English<BR>
-<IMG ALT="" SRC="de.png" WIDTH=16 HEIGHT=10> <A HREF="index-de.html">Deutsch</A><BR>
-<IMG ALT="" SRC="fr.png" WIDTH=16 HEIGHT=10> <A HREF="index-fr.html">Français</A><BR>
+<IMG ALT="" SRC="en.png" WIDTH="16" HEIGHT="10"> English<BR>
+<IMG ALT="" SRC="de.png" WIDTH="16" HEIGHT="10"> <A HREF="index-de.html">Deutsch</A><BR>
+<IMG ALT="" SRC="fr.png" WIDTH="16" HEIGHT="10"> <A HREF="index-fr.html">Français</A><BR>
 </P>
 
 <H2 class="navhead">News</H2>
 <P>
-Apr/8/2005: <A HREF="index.html#new_2_7_5">Release 2.7.5</A>
+Aug/14/2005: <A HREF="index.html#new_2_7_6">Release 2.7.6</A>
+</P><P>
+Apr/8/2005: <A HREF="changelog.html#release_2_7_5">Release 2.7.5</A>
 </P><P>
 Dec/27/2004: <A HREF="changelog.html#release_2_7_4">Release 2.7.4</A>
 </P>
@@ -93,34 +95,40 @@ analog TV card, without access to the internet.
 <LI><A HREF="download.html">Software download</A>
 <LI><A HREF="download.html#requirements">System Requirements</A>
 <P></P>
-<LI><A HREF="index.html#new_2_7_5">About the latest release 2.7.5</A>
+<LI><A HREF="index.html#new_2_7_6">About the latest release 2.7.6</A>
 <LI><A HREF="index.html#feedback">Questions and feedback</A>
 <LI><A HREF="index.html#help_wanted">Contributing</A>
 <LI><A HREF="index.html#copyright">Copyright notice</A>
 </UL>
 
 
-<H2><SPAN CLASS="red"><A NAME="new_2_7_5">Latest release 2.7.5 (Apr/8/2005)</A></SPAN></H2>
+<H2><A NAME="new_2_7_6">New release 2.7.6 (Aug/14/2005)</A></H2>
 <P>
-Release 2.7.5 once more is mainly a maintenance release with mostly
-bug fixes and a few feature enhancements.  Highlights include:
+The major new features in release 2.7.6 is the German translation of
+the complete manual and help pages.  Also a few bugs which have been
+reported since the previous release have been fixed.
 </P>
 <UL>
-<LI>A bug in the database export in XML format was fixed (XMLTV DTD 0.5)
-<LI>Several bugs were fixed in HTML export and the layout was improved.
-<LI>A new command line option "-outfile ..." was added to simplify
-    script based data export.
-<LI>Network identification by VPS/PDC during interaction with
-    TV applications was fixed (e.g. so that TV5 is now also identified.)
-<LI>Support for reading the channel tables of K!TV 2.3 was added.
-<LI>Automatic addition of "Zoomout" (K!TV plugin) to the context menu
-    was fixed.
-<LI>A bug in the handling of the daylight saving time switch was fixed.
+<LI>Added German translation of the complete manual and help pages.
+  <BR><SPAN class="anno">(Many thanks to Olaf Noehring and Kurt Lettmaier for contributing
+  the <A HREF="man-de.html">translated manual</A>.)</SPAN>
+<LI>A major bug which affected sequential removal of multiple reminders
+  was fixed.  The bug could even crash nxtvepg.
+  &nbsp;&nbsp;<SPAN class="anno">(Thanks again to Kurt for reporting this bug.)</SPAN>
+<LI>XMLTV output was slightly changed to make it fully compliant with
+  the XMLTV DTD 0.6.
+<LI>Error diagnositcs in the provider scan were improved to avoid
+  silent failures without an indication of the cause.
+  &nbsp;&nbsp;<SPAN class="anno">(Thanks to Andreas for reporting this problem)</SPAN>
+<LI>Last but not least, the Windows release is now provided in form of
+  an installer instead of a plain ZIP archive.
+  &nbsp;&nbsp;<SPAN class="anno">(Thanks to Néo for suggesting and implementing the installer.)</SPAN>
 </UL>
 <P>
 Fetch this new release from the <A HREF="download.html">download section</A>.
 For a more detailed list of changes
 see the <A HREF="changelog.html">changelog</A>.
+Note there's also a <A HREF="pre-releases.html">new development line</A> with new features.
 </P>
 
 

@@ -29,7 +29,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbsav.c,v 1.55 2004/05/31 14:38:47 tom Exp tom $
+ *  $Id: epgdbsav.c,v 1.56 2005/05/29 16:20:53 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -66,6 +66,9 @@
 #include "epgdb/epgdbsav.h"
 
 
+#ifdef __MINGW32__
+typedef long ssize_t;
+#endif
 
 //internal shortcuts
 typedef const EPGDB_CONTEXT * CPDBC;
@@ -86,7 +89,8 @@ static time_t  epgDbReloadExpireDelayPi = EPGDBSAV_DEFAULT_EXPIRE_TIME;
 static bool EpgDbDumpHeader( CPDBC dbc, int fd )
 {
    EPGDBSAV_HEADER header;
-   size_t size, rest;
+   ssize_t size;
+   size_t  rest;
    const uchar *p;
 
    if (dbc->pAiBlock != NULL)
@@ -117,13 +121,19 @@ static bool EpgDbDumpHeader( CPDBC dbc, int fd )
       do
       {
          size = write(fd, p, rest);
-         if (size < 0)
+         if (size > 0)
          {
-            fprintf(stderr, "Error writing database header: %s\n", strerror(errno));
+            p += size;
+            rest -= size;
+         }
+         else if ( ((size < 0) && (errno != EINTR)) || (size == 0) )
+         {
+            if (size == 0)
+               fprintf(stderr, "Error writing database header (filesystem full?)\n");
+            else
+               fprintf(stderr, "Error writing database header: %s\n", strerror(errno));
             return FALSE;
          }
-         p += size;
-         rest -= size;
       }
       while (rest > 0);
    }
@@ -138,7 +148,8 @@ static bool EpgDbDumpHeader( CPDBC dbc, int fd )
 //
 static bool EpgDbDumpAppendBlock( const EPGDB_BLOCK * pBlock, int fd )
 {
-   size_t size, rest;
+   ssize_t size;
+   size_t  rest;
    const uchar *p;
 
    rest = pBlock->size + BLK_UNION_OFF;
@@ -146,13 +157,19 @@ static bool EpgDbDumpAppendBlock( const EPGDB_BLOCK * pBlock, int fd )
    do
    {
       size = write(fd, p, rest);
-      if (size < 0)
+      if (size > 0)
       {
-         fprintf(stderr, "Error writing in database: %s\n", strerror(errno));
+         p += size;
+         rest -= size;
+      }
+      else if ( ((size < 0) && (errno != EINTR)) || (size == 0) )
+      {
+         if (size == 0)
+            fprintf(stderr, "Error writing database (filesystem full?)\n");
+         else
+            fprintf(stderr, "Error writing in database: %s\n", strerror(errno));
          return FALSE;
       }
-      p += size;
-      rest -= size;
    }
    while (rest > 0);
 
@@ -393,6 +410,8 @@ static EPGDB_RELOAD_RESULT EpgDbReloadAddDefectPiBlock( PDBC dbc, EPGDB_BLOCK * 
    {
       if (pBlock->version == ((pBlock->stream == 0) ? dbc->pAiBlock->blk.ai.version : dbc->pAiBlock->blk.ai.version_swo))
       {
+         //dprintf7("RELOAD DEFECTIVE PI ptr=%lx: netwop=%d, blockno=%d, start=%ld, stop=%ld AI=%d '%s'\n", (ulong)pBlock, pBlock->blk.pi.netwop_no, pBlock->blk.pi.block_no, pBlock->blk.pi.start_time, pBlock->blk.pi.stop_time, pBlock->blk.pi.block_no_in_ai, PI_GET_TITLE(&pBlock->blk.pi));
+
          if ( EpgDbPiBlockNoValid(dbc, pBlock->blk.pi.block_no, pBlock->blk.pi.netwop_no) )
          {
             // prepend to list of defect blocks
@@ -443,10 +462,9 @@ static EPGDB_RELOAD_RESULT EpgDbReloadAddPiBlock( PDBC dbc, EPGDB_BLOCK * pBlock
             EpgDbPiBlockNoValid(dbc, pBlock->blk.pi.block_no, netwop);
 
          if ( (pBlock->blk.pi.block_no_in_ai) ||
-              ( (pBlock->blk.pi.stop_time <= epgDbReloadCurTime) &&
-                (pBlock->blk.pi.stop_time >= epgDbReloadCurTime - dbc->expireDelayPi) ))
+              (pBlock->blk.pi.stop_time > epgDbReloadCurTime - dbc->expireDelayPi) )
          {
-            //dprintf4("RELOAD PI ptr=%lx: netwop=%d, blockno=%d, start=%ld\n", (ulong)pBlock, netwop, pBlock->blk.pi.block_no, pBlock->blk.pi.start_time);
+            dprintf7("RELOAD PI ptr=%lx: netwop=%d, blockno=%d, start=%ld, stop=%ld AI=%d '%s'\n", (ulong)pBlock, netwop, pBlock->blk.pi.block_no, pBlock->blk.pi.start_time, pBlock->blk.pi.stop_time, pBlock->blk.pi.block_no_in_ai, PI_GET_TITLE(&pBlock->blk.pi));
 
             if (dbc->pFirstPi == NULL)
             {  // there's no PI yet in the database -> just link with head pointers
@@ -502,12 +520,13 @@ static EPGDB_RELOAD_RESULT EpgDbReloadAddPiBlock( PDBC dbc, EPGDB_BLOCK * pBlock
          }
          else
          {  // block expired or removed from stream
+            dprintf7("DROP   PI ptr=%lx: netwop=%d, blockno=%d, start=%ld, stop=%ld AI=%d '%s'\n", (ulong)pBlock, netwop, pBlock->blk.pi.block_no, pBlock->blk.pi.start_time, pBlock->blk.pi.stop_time, pBlock->blk.pi.block_no_in_ai, PI_GET_TITLE(&pBlock->blk.pi));
             xfree(pBlock);
          }
       }
       else
       {  // invalid netwop or defective stop time: should never happen (defective blocks are filtered before saving)
-         //dprintf3("EXPIRED pi netwop=%d, blockno=%d start=%ld\n", pBlock->blk.pi.netwop_no, pBlock->blk.pi.block_no, pBlock->blk.pi.start_time);
+         dprintf3("EXPIRED pi netwop=%d, blockno=%d start=%ld\n", pBlock->blk.pi.netwop_no, pBlock->blk.pi.block_no, pBlock->blk.pi.start_time);
          xfree(pBlock);
       }
       result = EPGDB_RELOAD_OK;
@@ -525,7 +544,7 @@ static EPGDB_RELOAD_RESULT EpgDbReloadAddPiBlock( PDBC dbc, EPGDB_BLOCK * pBlock
 //
 static EPGDB_RELOAD_RESULT EpgDbReloadHeader( uint cni, int fd, EPGDBSAV_HEADER * pHead, bool * pSwapEndian )
 {
-   size_t size;
+   ssize_t size;
    bool   swapEndian;
    EPGDB_RELOAD_RESULT result;
 
@@ -618,7 +637,7 @@ PDBC EpgDbReload( uint cni, EPGDB_RELOAD_RESULT * pResult )
    EPGDB_BLOCK *pBlock;
    uchar   buffer[BLK_UNION_OFF];
    uint32_t size;
-   size_t  readSize;
+   ssize_t readSize;
    int     fd;
    bool    swapEndian;
    uchar * pFilename;
@@ -802,7 +821,7 @@ static EPGDB_BLOCK * EpgDbPeekOi( int fd, bool swapEndian )
    EPGDB_BLOCK * pBlock;
    uchar buffer[BLK_UNION_OFF];
    BLOCK_TYPE  type;
-   size_t      readSize;
+   ssize_t     readSize;
    uint32_t    size;
 
    pBlock = NULL;
@@ -850,7 +869,7 @@ static EPGDB_BLOCK * EpgDbPeekOi( int fd, bool swapEndian )
             }
             else
             {
-               debug2("EpgDb-PeekOi: block read error: want %d, got %d", size, readSize);
+               debug2("EpgDb-PeekOi: block read error: want %ld, got %ld", (long)size, (long)readSize);
                xfree(pBlock);
                pBlock = NULL;
                break;
@@ -888,7 +907,7 @@ EPGDB_CONTEXT * EpgDbPeek( uint cni, EPGDB_RELOAD_RESULT * pResult )
    EPGDB_BLOCK   * pBlock;
    uchar buffer[BLK_UNION_OFF];
    uint32_t size;
-   size_t  readSize;
+   ssize_t readSize;
    int     fd;
    bool    swapEndian;
    uchar * pFilename;
@@ -946,7 +965,7 @@ EPGDB_CONTEXT * EpgDbPeek( uint cni, EPGDB_RELOAD_RESULT * pResult )
                }
                else
                {
-                  debug2("EpgDb-Peek: block read error: want %d, got %d", size, readSize);
+                  debug2("EpgDb-Peek: block read error: want %ld, got %ld", (long)size, (long)readSize);
                   xfree(pBlock);
                }
             }
@@ -1214,13 +1233,15 @@ bool EpgDbSavSetupDir( const char * pDirPath, const char * pDemoDb )
       if (attr == INVALID_FILE_ATTRIBUTES)
       {
          errCode = GetLastError();
-         debug1("EpgDb-SavSetupDir: dbdir error %ld", errCode);
+         debug2("EpgDb-SavSetupDir: dbdir '%s': error %ld", pDirPath, errCode);
 
-         if (errCode == ERROR_FILE_NOT_FOUND)
+         if ( (errCode == ERROR_FILE_NOT_FOUND) ||
+              (errCode == ERROR_PATH_NOT_FOUND) )
          {
             // directory does no exist -> create it
             if (CreateDirectory(epgDbDirPath, NULL) == 0)
             {  // creation failed -> warn
+               errCode = GetLastError();
                SystemErrorMessage_Set(&pError, errCode, "Check option -dbdir ", pDirPath,
                                       "\nPath does not exist and cannot be created: ", NULL);
                if (pError != NULL)
@@ -1329,7 +1350,7 @@ void EpgDbDumpGetDirAndCniFromArg( char * pArg, const char ** ppDirPath, uint * 
 bool EpgDbDumpUpdateHeader( uint cni, uint freq )
 {
    EPGDBSAV_HEADER head;
-   size_t   size;
+   ssize_t  size;
    uchar  * pFilename;
    int      fd;
    uint32_t headCompatVersion;
@@ -1374,7 +1395,7 @@ bool EpgDbDumpUpdateHeader( uint cni, uint freq )
                      result = TRUE;
                   }
                   else
-                     debug2("EpgDbDump-UpdateHeader: write failed with %d, errno %d\n", size, errno);
+                     debug2("EpgDbDump-UpdateHeader: write failed with %ld, errno %d\n", (long)size, errno);
                }
                else
                   debug1("EpgDbDump-UpdateHeader: seek failed with errno %d", errno);
@@ -1397,7 +1418,7 @@ bool EpgDbDumpUpdateHeader( uint cni, uint freq )
 time_t EpgReadAiUpdateTime( uint cni )
 {
    EPGDBSAV_HEADER head;
-   size_t  size;
+   ssize_t size;
    uchar * pFilename;
    int     fd;
    time_t  aiUpdateTime = (time_t) 0;
@@ -1441,7 +1462,7 @@ time_t EpgReadAiUpdateTime( uint cni )
 uint EpgDbReadFreqFromDefective( uint cni )
 {
    EPGDBSAV_HEADER head;
-   size_t  size;
+   ssize_t size;
    uchar * pFilename;
    int     fd;
    uint    tunerFreq = 0;

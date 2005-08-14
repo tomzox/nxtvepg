@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: piremind.c,v 1.16 2004/09/26 16:12:07 tom Exp tom $
+ *  $Id: piremind.c,v 1.18 2005/07/30 19:37:47 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -82,9 +82,8 @@ static time_t        RemPiCacheBaseTime;
 static Tcl_HashTable RemPiCache;
 
 // macros to derive the hash key from PI network and start time/VPS
-#define REMPI_CACHE_GET_VPS_KEY(PIL,NETWOP)     ((const char *)(((PIL) << 8) | 0x80 | (NETWOP)))
-#define REMPI_CACHE_GET_TIME_KEY(START,NETWOP)  ((const char *)((((START) - RemPiCacheBaseTime) << 8) | \
-                                                                (NETWOP)))
+#define REMPI_CACHE_GET_VPS_KEY(PIL,NETWOP)     INT2PVOID(((PIL) << 8) | 0x80 | (NETWOP))
+#define REMPI_CACHE_GET_TIME_KEY(START,NETWOP)  INT2PVOID((((START) - RemPiCacheBaseTime) << 8) | (NETWOP))
 
 // ----------------------------------------------------------------------------
 // Recursively duplicate shared objects in reminder list elements
@@ -174,10 +173,16 @@ static int PiRemind_GetPiControlValue( sint remIdx )
       {
          if (Tcl_GetIntFromObj(interp, pElemArgv[EPGTCL_RPI_CTRL_IDX], &ctrl) != TCL_OK)
          {
+            debug2("PiRemind-GetPiControlValue: group tag in reminder #%d corrupt (%s)", remIdx, Tcl_GetString(pRemPiObj));
             ctrl = EPGTCL_RPI_CTRL_DEFAULT;
          }
       }
-   }
+      else
+         debug2("PiRemind-GetPiControlValue: reminder #%d corrupt (%s)", remIdx, Tcl_GetString(pRemPiObj));
+   }  
+   else
+      debug2("PiRemind-GetPiControlValue: invalid idx %d in list 0x%lx", remIdx, (long)pRemListObj);
+
    return ctrl;
 }
 
@@ -254,16 +259,16 @@ static void PiRemind_PiCacheAdd( sint remIdx, sint groupTag,
             if (pil != INVALID_VPS_PIL)
             {
                pEntry = Tcl_CreateHashEntry(&RemPiCache, REMPI_CACHE_GET_VPS_KEY(pil, netwop), &isNewCacheEntry);
-               Tcl_SetHashValue(pEntry, (remIdx << 5) | tagIdx);
+               Tcl_SetHashValue(pEntry, INT2PVOID((remIdx << 5) | tagIdx));
 
                if (isNewCacheEntry == 0)
-                  debug3("PiRemind-PiCacheAdd: duplicate key 0x%X: netwop %d, PIL 0x%X", (int)REMPI_CACHE_GET_VPS_KEY(pil, netwop), netwop, pil);
+                  debug3("PiRemind-PiCacheAdd: duplicate key 0x%X: netwop %d, PIL 0x%X", PVOID2INT(REMPI_CACHE_GET_VPS_KEY(pil, netwop)), netwop, pil);
             }
             pEntry = Tcl_CreateHashEntry(&RemPiCache, REMPI_CACHE_GET_TIME_KEY(start_time, netwop), &isNewCacheEntry);
-            Tcl_SetHashValue(pEntry, (remIdx << 5) | tagIdx);
+            Tcl_SetHashValue(pEntry, INT2PVOID((remIdx << 5) | tagIdx));
 
             if (isNewCacheEntry == 0)
-               debug3("PiRemind-PiCacheAdd: duplicate key 0x%X: netwop %d, start %d", (int)REMPI_CACHE_GET_TIME_KEY(start_time, netwop), netwop, (int)start_time);
+               debug3("PiRemind-PiCacheAdd: duplicate key 0x%X: netwop %d, start %d", PVOID2INT(REMPI_CACHE_GET_TIME_KEY(start_time, netwop)), netwop, (int)start_time);
          }
          else
             debug1("PiRemind-PiCacheAdd: invalid group tag %d", groupTag);
@@ -306,9 +311,47 @@ static void PiRemind_PiCacheRemove( Tcl_Obj * pRemListObj, int remIdx )
 
             pEntry = Tcl_FindHashEntry(&RemPiCache, REMPI_CACHE_GET_TIME_KEY(start_time, netwop));
             if (pEntry != NULL)
+            {
                Tcl_DeleteHashEntry(pEntry);
+            }
+            else
+               debug1("PiRemind-PiCacheRemove: reminder elem #%d not found in cache", remIdx);
+
          }
+         else
+            debug2("PiRemind-PiCacheRemove: parse error in reminder elem #%d: '%s'", remIdx, Tcl_GetString(pRemPiObj));
       }
+      else
+         debug1("PiRemind-PiCacheRemove: invalid reminder elem #%d", remIdx);
+   }
+   else
+      debug2("PiRemind-PiCacheRemove: invalid params %lx, %d", (long)pRemListObj, remIdx);
+}
+
+// ----------------------------------------------------------------------------
+// Adjust reminder indices in the cache
+// - called after removal of a reminder: all subsequent list elements are shifted
+// - parameter is the index of the removed reminder; lower indices are not changed
+//
+static void PiRemind_PiCacheShiftIndices( Tcl_Obj * pRemListObj, int remIdx )
+{
+   Tcl_HashEntry * pEntry;
+   Tcl_HashSearch  searchEntry;
+   uint  val;
+
+   pEntry = Tcl_FirstHashEntry(&RemPiCache, &searchEntry);
+   while (pEntry != NULL)
+   {
+      val = PVOID2UINT(Tcl_GetHashValue(pEntry));
+
+      // only decrement indices past the given threshold
+      if ((val >> 5) > remIdx)
+      {
+         val = ((val & ~0x1f) - (1 << 5)) | (val & 0x1f);
+         Tcl_SetHashValue(pEntry, UINT2PVOID(val));
+      }
+
+      pEntry = Tcl_NextHashEntry(&searchEntry);
    }
 }
 
@@ -858,7 +901,7 @@ static int PiRemind_RemovePi( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_
    const char * const pUsage = "Usage: C_PiRemind_RemovePi [rem-idx]";
    const PI_BLOCK * pPiBlock;
    Tcl_Obj  * pRemListObj;
-   sint  remIdx;
+   sint  remIdx, remCount;
    bool  changed;
    int   result;
 
@@ -892,15 +935,22 @@ static int PiRemind_RemovePi( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_
 
          if (remIdx >= 0)
          {
-            PiRemind_PiCacheRemove(pRemListObj, remIdx);
-
-            if (PiReminder_UnshareList(&pRemListObj, NULL, 0, NULL, 0) == TCL_OK)
+            Tcl_ListObjLength(interp, pRemListObj, &remCount);
+            if (remIdx < remCount)
             {
-               if (Tcl_ListObjReplace(interp, pRemListObj, remIdx, 1, 0, NULL) != TCL_OK)
-                  debugTclErr(interp, "PiRemind-RemovePi: failed to remove element from reminder list");
+               PiRemind_PiCacheRemove(pRemListObj, remIdx);
+               PiRemind_PiCacheShiftIndices(pRemListObj, remIdx);
 
-               changed = TRUE;
+               if (PiReminder_UnshareList(&pRemListObj, NULL, 0, NULL, 0) == TCL_OK)
+               {
+                  if (Tcl_ListObjReplace(interp, pRemListObj, remIdx, 1, 0, NULL) != TCL_OK)
+                     debugTclErr(interp, "PiRemind-RemovePi: failed to remove element from reminder list");
+
+                  changed = TRUE;
+               }
             }
+            else
+               debug2("PiRemind-RemovePi: invalid idx %d for count %d", remIdx, remCount);
          }
       }
 

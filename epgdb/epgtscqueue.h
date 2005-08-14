@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgtscqueue.h,v 1.3 2002/03/29 17:34:30 tom Exp tom $
+ *  $Id: epgtscqueue.h,v 1.4 2005/05/29 16:15:27 tom Exp tom $
  */
 
 #ifndef __EPGTSCQUEUE_H
@@ -81,8 +81,8 @@ typedef struct EPGDB_PI_TSC_BUF_STRUCT
 // macros to calculate sizes of a timescale buffer
 // (in network acq mode only the used fraction of the pi array is transmitted)
 #define PI_TSC_GET_BUF_COUNT(M)    (((M) == PI_TSC_MODE_INITIAL) ? PI_TSC_BUF_LEN_INITIAL : PI_TSC_BUF_LEN_INCREMENTAL)
-#define PI_TSC_GET_BUF_SIZE(C)     ( sizeof(EPGDB_PI_TSC_BUF) + \
-                                    (sizeof(EPGDB_PI_TSC_ELEM) * ((C) - 1)))
+#define PI_TSC_GET_BUF_SIZE(C)     ((uint)( sizeof(EPGDB_PI_TSC_BUF) + \
+                                          (sizeof(EPGDB_PI_TSC_ELEM) * ((C) - 1))))
 
 // this type holds root of the queue
 // other modules pass a pointer to this as a handle

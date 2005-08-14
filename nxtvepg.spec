@@ -1,5 +1,5 @@
 %define    prefix    /usr/local
-%define    version   2.7.5
+%define    version   2.7.6
 
 Summary:   nexTView EPG decoder and browser
 Name:      nxtvepg
@@ -47,7 +47,7 @@ make ROOT="$RPM_BUILD_ROOT" install
 
 %files
 %defattr(-,root,root)
-%doc README CHANGES COPYRIGHT TODO manual.html
+%doc README CHANGES COPYRIGHT TODO manual.html manual-de.html
 %dir /usr/tmp/nxtvdb
 %attr(777,root,root) /usr/tmp/nxtvdb
 /%{prefix}/bin/nxtvepg

@@ -22,7 +22,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: debug.c,v 1.18 2002/11/04 19:04:21 tom Exp tom $
+ *  $Id: debug.c,v 1.23 2005/07/10 15:15:30 tom Exp tom $
  */
 
 #define __DEBUG_C
@@ -96,6 +96,8 @@ static MALLOC_CHAIN * pMallocChain = NULL;
 // globals that allow to monitor memory usage
 static ulong malUsage = 0L;
 static ulong malPeak  = 0L;
+static uint malRealloc = 0;
+static uint malReallocOk = 0;
 #endif  // CHK_MALLOC == ON
 
 
@@ -167,11 +169,14 @@ void DebugSetError( void )
 #if CHK_MALLOC == ON
 // ---------------------------------------------------------------------------
 // Wrapper for the C library malloc() function
+// - warning: not MT-safe
 // - maintains a list of all allocated blocks
 //
 void * chk_malloc( size_t size, const char * pFileName, int line )
 {
    MALLOC_CHAIN * pElem;
+
+   assert(size > 0);
 
    // perform the actual allocation, including some bytes for our framework
    pElem = malloc(size + MALLOC_CHAIN_ADD_LEN);
@@ -180,7 +185,7 @@ void * chk_malloc( size_t size, const char * pFileName, int line )
    if (pElem == NULL)
    {
       SHOULD_NOT_BE_REACHED;
-      fprintf(stderr, "malloc failed (%d bytes) - abort.\n", size);
+      fprintf(stderr, "malloc failed (%ld bytes) - abort.\n", (ulong)size);
       exit(-1);
    }
 
@@ -211,6 +216,70 @@ void * chk_malloc( size_t size, const char * pFileName, int line )
 
    return (void *)&pElem[1];
 }  
+
+// ---------------------------------------------------------------------------
+// Wrapper for the C library realloc() function
+// - warning: not MT-safe
+//
+void * chk_realloc( void * ptr, size_t size )
+{
+   MALLOC_CHAIN * pElem;
+   MALLOC_CHAIN * pPrevElem;
+
+   pElem = (MALLOC_CHAIN *)((ulong)ptr - sizeof(MALLOC_CHAIN));
+   pPrevElem = pElem;
+
+   assert(size > 0);
+   // check the magic strings before and after the data
+   assert(memcmp(pElem->magic1, pMallocMagic, sizeof(MALLOC_CHAIN_MAGIC_LEN)) == 0);
+   assert(memcmp((uchar *)&pElem[1] + pElem->size, pMallocMagic, sizeof(MALLOC_CHAIN_MAGIC_LEN)) == 0);
+
+   // update memory usage
+   assert(malUsage >= pElem->size);
+   malUsage -= pElem->size;
+
+   // perform the actual re-allocation
+   pElem = realloc(pElem, size + MALLOC_CHAIN_ADD_LEN);
+
+   // check the result pointer
+   if (pElem == NULL)
+   {
+      SHOULD_NOT_BE_REACHED;
+      fprintf(stderr, "realloc failed (%ld bytes) - abort.\n", (ulong)size);
+      exit(-1);
+   }
+
+   // updates links to the current element in case the pointer changed
+   if (pElem->prev != NULL)
+   {
+      pElem->prev->next = pElem;
+   }
+   else
+   {
+      pMallocChain = pElem;
+   }
+   if (pElem->next != NULL)
+   {
+      pElem->next->prev = pElem;
+   }
+
+   // monitor maximum memory usage
+   malUsage += size;
+   if (malUsage > malPeak)
+      malPeak = malUsage;
+
+   malRealloc += 1;
+   if (pElem == pPrevElem)
+      malReallocOk += 1;
+
+   // update size in header magic
+   pElem->size = size;
+
+   // update magic after the data
+   memcpy((uchar *)&pElem[1] + size, pMallocMagic, sizeof(MALLOC_CHAIN_MAGIC_LEN));
+
+   return (void *)&pElem[1];
+}
 
 // ---------------------------------------------------------------------------
 // Wrapper for the C library free() function
@@ -281,7 +350,7 @@ void chk_memleakage( void )
       pWalk = pMallocChain;
       for (count=0; count < 10; count++)
       {
-         debug3("chk-memleakage: not freed: %s, line %d, size %d", pWalk->fileName, pWalk->line, pWalk->size);
+         debug3("chk-memleakage: not freed: %s, line %d, size %ld", pWalk->fileName, pWalk->line, (ulong)pWalk->size);
          pWalk = pWalk->next;
       }
    }
@@ -291,16 +360,31 @@ void chk_memleakage( void )
    assert(malUsage == 0);
 
    //printf("chk-memleakage: no leak, max usage: %ld bytes\n", malPeak);
+   //printf("chk-memleakage: no leak, in-place reallocs: %d of %d\n", malReallocOk, malRealloc);
 }
+
+// ---------------------------------------------------------------------------
+// Replacement for strdup which allows checking that memory is freed
+//
+char * chk_strdup( const char * pSrc, const char * pFileName, int line )
+{
+   char * pDst = chk_malloc(strlen(pSrc) + 1, pFileName, line);
+   strcpy(pDst, pSrc);
+   return pDst;
+}  
 
 #else //CHK_MALLOC == OFF
 
 // ---------------------------------------------------------------------------
-// Wrapper for malloc to check for error return
+// Wrapper for malloc to check for error result
 //
 void * xmalloc( size_t size )
 {
-   void * ptr = malloc(size);
+   void * ptr;
+
+   assert(size > 0);
+
+   ptr = malloc(size);
    if (ptr == NULL)
    {  // malloc failed - should never happen
       #ifndef WIN32
@@ -315,5 +399,39 @@ void * xmalloc( size_t size )
    }
    return ptr;
 }
+
+// ---------------------------------------------------------------------------
+// Wrapper for realloc to check for error result
+//
+void * xrealloc( void * ptr, size_t size )
+{
+   assert(size > 0);
+
+   ptr = realloc(ptr, size);
+   if (ptr == NULL)
+   {  // malloc failed - should never happen
+      #ifndef WIN32
+      fprintf(stderr, "realloc failed (%d bytes) - abort.\n", (int) size);
+      SHOULD_NOT_BE_REACHED;
+      exit(-1);
+      #else
+      MessageBox(NULL, "Memory allocation failure - Terminating", "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+      // force an exception that will be caught and shut down the process properly
+      *(uchar *)ptr = 0;
+      #endif
+   }
+   return ptr;
+}
+
+// ---------------------------------------------------------------------------
+// Replacement for strdup to check for error result
+//
+char * xstrdup( const char * pSrc )
+{
+   char * pDst = xmalloc(strlen(pSrc) + 1);
+   strcpy(pDst, pSrc);
+   return pDst;
+}  
+
 #endif //CHK_MALLOC == OFF
 

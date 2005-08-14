@@ -166,13 +166,18 @@ static void EpgDumpXml_PrintTimestamp( char * pBuf, uint maxLen,
       strftime(pBuf, maxLen, "%Y-%m-%dT%H:%M:%SZ", gmtime(&then));
    }
    else
+   {
       debug1("EpgDumpXml-PrintTimestamp: invalid XMLTV DTD version %d", xmlDtdVersion);
+      if (maxLen >= 1)
+         *pBuf = 0;
+   }
 }
 
 // ----------------------------------------------------------------------------
 // Write XML file header
 //
-static void EpgDumpXml_WriteHeader( EPGDB_CONTEXT * pDbContext, const AI_BLOCK * pAiBlock,
+static void EpgDumpXml_WriteHeader( EPGDB_CONTEXT * pDbContext,
+                                    const AI_BLOCK * pAiBlock, const OI_BLOCK * pOiBlock,
                                     FILE * fp, int xmlDtdVersion )
 {
    uchar   start_str[50];
@@ -208,11 +213,33 @@ static void EpgDumpXml_WriteHeader( EPGDB_CONTEXT * pDbContext, const AI_BLOCK *
                   "<tv>\n"
                   "<about date=\"%s\">\n"
                   "\t<copying>\n"
-                  "\t\t<p>\n"
+                  "\t\t<p>"
                   "Copyright by nexTView EPG content providers: ", start_str);
       EpgDumpHtml_WriteString(fp, comm, -1);
-      fprintf(fp, "\n\t\t</p>\n"
+      fprintf(fp, "</p>\n"
                   "\t</copying>\n"
+                  "\t<source-info><link>\n"
+                  "\t\t<text>");
+      EpgDumpHtml_WriteString(fp, AI_GET_SERVICENAME(pAiBlock), -1);
+      fprintf(fp, "</text>\n");
+      if ((pOiBlock != NULL) && (OI_HAS_HEADER(pOiBlock) || OI_HAS_MESSAGE(pOiBlock)))
+      {
+         fprintf(fp, "\t\t<blurb>\n");
+         if (OI_HAS_HEADER(pOiBlock))
+         {
+            fprintf(fp, "\t\t\t<p>");
+            EpgDumpHtml_WriteString(fp, OI_GET_HEADER(pOiBlock), -1);
+            fprintf(fp, "</p>\n");
+         }
+         if (OI_HAS_MESSAGE(pOiBlock))
+         {
+            fprintf(fp, "\t\t\t<p>");
+            EpgDumpHtml_WriteString(fp, OI_GET_MESSAGE(pOiBlock), -1);
+            fprintf(fp, "</p>\n");
+         }
+         fprintf(fp, "\t\t</blurb>\n");
+      }
+      fprintf(fp, "\t</link></source-info>\n"
                   "\t<generator-info>\n"
                   "\t\t<link href=\"" NXTVEPG_URL "\">\n"
                   "\t\t\t<text>nxtvepg/" EPG_VERSION_STR "</text>\n"
@@ -360,6 +387,11 @@ static void EpgDumpXml_WriteProgramme( EPGDB_CONTEXT * pDbContext, const AI_BLOC
    // attributes
    if ( IS_XML_DTD5(xmlDtdVersion) )
    {
+      if ((pPiBlock->feature_flags & (PI_FEATURE_PAL_PLUS | PI_FEATURE_FMT_WIDE)) != 0)
+      {
+         fprintf(fp, "\t<video>\n\t\t<aspect>16:9</aspect>\n\t</video>\n");
+      }
+
       if ((pPiBlock->feature_flags & PI_FEATURE_SOUND_MASK) == PI_FEATURE_SOUND_STEREO)
       {
          fprintf(fp, "\t<audio>\n\t\t<stereo>stereo</stereo>\n\t</audio>\n");
@@ -370,14 +402,14 @@ static void EpgDumpXml_WriteProgramme( EPGDB_CONTEXT * pDbContext, const AI_BLOC
       }
       // else: 2-channel not supported by DTD 0.5 semantics
 
-      if (pPiBlock->feature_flags & PI_FEATURE_SUBTITLES)
+      if (pPiBlock->feature_flags & PI_FEATURE_REPEAT)
       {
-         fprintf(fp, "\t<subtitles type=\"teletext\" />\n");
+         fprintf(fp, "\t<previously-shown />\n");
       }
 
-      if ((pPiBlock->feature_flags & (PI_FEATURE_PAL_PLUS | PI_FEATURE_FMT_WIDE)) != 0)
+      if (pPiBlock->feature_flags & PI_FEATURE_SUBTITLES)
       {
-         fprintf(fp, "\t<video>\n\t\t<aspect>16:9</aspect>\n\t</video>\n");
+         fprintf(fp, "\t<subtitles type=\"teletext\"></subtitles>\n");
       }
 
       if (pPiBlock->parental_rating == 1)
@@ -400,20 +432,6 @@ static void EpgDumpXml_WriteProgramme( EPGDB_CONTEXT * pDbContext, const AI_BLOC
                      pPiBlock->sortcrits[idx]);
       }
 
-      if ((pPiBlock->feature_flags & PI_FEATURE_SOUND_MASK) == PI_FEATURE_SOUND_STEREO)
-      {
-         fprintf(fp, "\t<audio><stereo /></audio>\n");
-      }
-      else if ((pPiBlock->feature_flags & PI_FEATURE_SOUND_MASK) == PI_FEATURE_SOUND_SURROUND)
-      {
-         fprintf(fp, "\t<audio><stereo /></audio>\n");
-      }
-      else if ((pPiBlock->feature_flags & PI_FEATURE_SOUND_MASK) == PI_FEATURE_SOUND_2CHAN)
-      {
-         fprintf(fp, "\t<audio><mono channel=\"A\"/></audio>\n");
-         fprintf(fp, "\t<audio><mono channel=\"B\"/></audio>\n");
-      }
-
       if ((pPiBlock->feature_flags & (PI_FEATURE_PAL_PLUS | PI_FEATURE_FMT_WIDE)) != 0)
       {
          fprintf(fp, "\t<video>\n");
@@ -421,6 +439,20 @@ static void EpgDumpXml_WriteProgramme( EPGDB_CONTEXT * pDbContext, const AI_BLOC
          if (pPiBlock->feature_flags & PI_FEATURE_PAL_PLUS)
             fprintf(fp, "\t\t<quality>PAL+</quality>\n");
          fprintf(fp, "\t</video>\n");
+      }
+
+      if ((pPiBlock->feature_flags & PI_FEATURE_SOUND_MASK) == PI_FEATURE_SOUND_STEREO)
+      {
+         fprintf(fp, "\t<audio><stereo /></audio>\n");
+      }
+      else if ((pPiBlock->feature_flags & PI_FEATURE_SOUND_MASK) == PI_FEATURE_SOUND_SURROUND)
+      {
+         fprintf(fp, "\t<audio><surround /></audio>\n");
+      }
+      else if ((pPiBlock->feature_flags & PI_FEATURE_SOUND_MASK) == PI_FEATURE_SOUND_2CHAN)
+      {
+         fprintf(fp, "\t<audio channel=\"A\"><mono /></audio>\n");
+         fprintf(fp, "\t<audio channel=\"B\"><mono /></audio>\n");
       }
 
       if (pPiBlock->feature_flags & PI_FEATURE_SUBTITLES)
@@ -448,6 +480,7 @@ static void EpgDumpXml_WriteProgramme( EPGDB_CONTEXT * pDbContext, const AI_BLOC
 void EpgDumpXml_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp, EPGTAB_DUMP_MODE dumpMode )
 {
    const AI_BLOCK  * pAiBlock;
+   const OI_BLOCK  * pOiBlock;
    const PI_BLOCK  * pPiBlock;
    uint  netwopIdx;
    int   xmlDtdVersion;
@@ -478,8 +511,11 @@ void EpgDumpXml_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp, EPGTAB_DUMP_M
       pAiBlock = EpgDbGetAi(pDbContext);
       if (pAiBlock != NULL)
       {
+         // get "OSD information" with service name and message
+         pOiBlock = EpgDbGetOi(pDbContext, 0);
+
          // header with source info
-         EpgDumpXml_WriteHeader(pDbContext, pAiBlock, fp, xmlDtdVersion);
+         EpgDumpXml_WriteHeader(pDbContext, pAiBlock, pOiBlock, fp, xmlDtdVersion);
 
          // channel table
          for (netwopIdx = 0; netwopIdx < pAiBlock->netwopCount; netwopIdx++)

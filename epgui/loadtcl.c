@@ -22,7 +22,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: loadtcl.c,v 1.7 2003/12/27 17:27:44 tom Exp tom $
+ *  $Id: loadtcl.c,v 1.9 2005/07/17 18:28:29 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -41,6 +41,7 @@
 #include "epgtcl/mainwin.h"
 #include "epgtcl/rcfile.h"
 #include "epgtcl/helptexts.h"
+#include "epgtcl/helptexts_de.h"
 #include "epgtcl/draw_stats.h"
 #include "epgtcl/shortcuts.h"
 #include "epgtcl/mclistbox.h"
@@ -91,7 +92,8 @@ static const TCL_LOAD_TAB pLoadTab[] =
    {tk_libs_tcl_static, NULL, NULL},
    #endif
    {mainwin_tcl_static, NULL, NULL},
-   {helptexts_tcl_static, NULL, NULL},
+   {helptexts_tcl_static, helptexts_tcl_dynamic, "helptexts_tcl"},
+   {helptexts_de_tcl_static, helptexts_de_tcl_dynamic, "helptexts_de_tcl"},
    {dlg_hwcfg_tcl_static, dlg_hwcfg_tcl_dynamic, "dlg_hwcfg_tcl"},
    {dlg_ctxmencf_tcl_static, dlg_ctxmencf_tcl_dynamic, "dlg_ctxmencf_tcl"},
    {dlg_acqmode_tcl_static, dlg_acqmode_tcl_dynamic, "dlg_acqmode_tcl"},
@@ -182,7 +184,7 @@ void LoadTcl_Init( bool withGui )
       {
          if (TCL_EVAL_CONST(interp, pModule->pStatic) != TCL_OK)
          {
-            debug1("LoadTcl-Init: failed to compile static script #%d", pModule - pLoadTab);
+            debug1("LoadTcl-Init: failed to compile static script #%d", (uint)(pModule - pLoadTab));
             debugTclErr(interp, "eval");
          }
       }

@@ -78,6 +78,10 @@ div.footer P {
         FONT-SIZE: 8pt;
         TEXT-DECORATION: overline;
 }
+SPAN.anno {
+        FONT-SIZE: small;
+        FONT-STYLE: italic;
+}
 SPAN.red {
         COLOR: #ff0000;
 }

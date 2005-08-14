@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: download.html,v 1.18 2005/04/08 21:40:17 tom Exp $ -->
+<!-- $Id: download.html,v 1.20 2005/12/11 08:34:22 tom Exp $ -->
 <HEAD>
 <TITLE>nexTView EPG Decoder Software Download</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -30,14 +30,16 @@
 <DIV class="navBlock">
 <H2 class="navhead">Language</H2>
 <P>
-<IMG ALT="" SRC="en.png" WIDTH=16 HEIGHT=10> English<BR>
-<IMG ALT="" SRC="de.png" WIDTH=16 HEIGHT=10> <A HREF="download-de.html">German</A><BR>
-<IMG ALT="" SRC="fr.png" WIDTH=16 HEIGHT=10> <SPAN class="navDisabled">Français</SPAN><BR>
+<IMG ALT="" SRC="en.png" WIDTH="16" HEIGHT="10"> English<BR>
+<IMG ALT="" SRC="de.png" WIDTH="16" HEIGHT="10"> <A HREF="download-de.html">German</A><BR>
+<IMG ALT="" SRC="fr.png" WIDTH="16" HEIGHT="10"> <SPAN class="navDisabled">Français</SPAN><BR>
 </P>
 
 <H2 class="navhead">News</H2>
 <P>
-Apr/8/2005: <A HREF="index.html#new_2_7_5">Release 2.7.5</A>
+Aug/14/2005: <A HREF="index.html#new_2_7_6">Release 2.7.6</A>
+</P><P>
+Apr/8/2005: <A HREF="changelog.html#release_2_7_5">Release 2.7.5</A>
 </P><P>
 Dec/27/2004: <A HREF="changelog.html#release_2_7_4">Release 2.7.4</A>
 </P>
@@ -78,20 +80,21 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 
 <H1>Software download</H1>
 <P>
-The latest stable release is version 2.7.5, which once more mainly is a
-maintenance release with mostly bug fixes and a few feature enhancements.
-See <A HREF="index.html#new_2_7_5">overview</A> 
+The latest stable release is version 2.7.6 which brings a German translation
+of the complete manual and help pages.  Also a few bugs which have been
+reported since the previous release have been fixed.
+See the <A HREF="index.html#new_2_7_6">overview</A> 
 on the homepage or refer to the more detailed
-<A HREF="changelog.html#release_2_7_5">changelog 2.7.5</A>.
+<A HREF="changelog.html#release_2.7.6">changelog 2.7.6</A>.
 </P><P>
-For previous releases see the
+For older release packages see the
 <A HREF="http://sourceforge.net/project/showfiles.php?group_id=64430">SourceForge File List</A>.
 </P>
 
 <DIV CLASS="box">
 <H2><A NAME="download_unix">Source distribution</A></H2>
 <P>
-<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.7.5.tar.gz?download">nxtvepg-2.7.5.tar.gz</A>
+<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.7.6.tar.gz?download">nxtvepg-2.7.6.tar.gz</A>
 </P><P>
 Source distribution for Linux, NetBSD and FreeBSD: unpack
 the archive, then change into the source directory and compile
@@ -101,7 +104,7 @@ also possible to compile the Windows port from these sources; this is
 also explained in README.
 </P><P>
 You can build a RPM package from the source tarball simply by running
-<KBD>rpm -ta nxtvepg-2.7.5.tar.gz</KBD> and install it as usual with
+<KBD>rpm -ta nxtvepg-2.7.6.tar.gz</KBD> and install it as usual with
 <KBD>rpm -i</KBD>.
 </P><P>
 Alternatively, pre-compiled packages are provided at the following sites
@@ -125,11 +128,14 @@ Alternatively, pre-compiled packages are provided at the following sites
 <DIV CLASS="box">
 <H2><A NAME="download_windows">Binary distribution for M$ Windows</A></H2>
 <P>
-<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.7.5-win.zip?download">nxtvepg-2.7.5-win.zip</A>
+<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.7.6-win.exe?download">nxtvepg-2.7.6-win.exe</A>
 </P><P>
+<!--
 Windows executable:
 Simply unpack the nxtvepg ZIP file into an empty directory and then
-double-click the nxtvepg.exe file.  If you're upgrading from an older version
+double-click the nxtvepg.exe file.
+-->
+ If you're upgrading from an older version
 of nxtvepg, you can copy your previous INI file and databases into the new
 directory.  The optional tvsim ZIP file should be unpacked into the same
 directory.  Please refer to the Help menu or HTML manual page, section
@@ -137,7 +143,7 @@ directory.  Please refer to the Help menu or HTML manual page, section
 </P><P>
 For developers: demo application for TV application interaction
 (see also <A HREF="tvsim-faq.html">FAQ</A>):
-<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.7.5-tvsim.zip?download">nxtvepg-2.7.5-tvsim.zip</A>
+<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.7.6-tvsim.zip?download">nxtvepg-2.7.6-tvsim.zip</A>
 (see <A HREF="tvsim.html">tvsim</A>,
 <A HREF="vbirec.html">vbirec</A> or
 <A HREF="vbiplay.html">vbiplay</A> manuals, or
