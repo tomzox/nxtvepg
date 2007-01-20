@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: WDMpre-releases.html,v 1.17 2005/08/14 18:14:28 tom Exp $ -->
+<!-- $Id: WDMpre-releases.html,v 1.19 2006/07/26 08:18:06 tom Exp $ -->
 <HEAD>
 <TITLE>WDM Support alpha testers download page</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -33,11 +33,6 @@
 
 <H2 class="navhead">News</H2>
 <P>
-Aug/14/2005: <A HREF="index.html#new_2_7_6">Release 2.7.6</A>
-</P><P>
-Apr/8/2005: <A HREF="changelog.html#release_2_7_5">Release 2.7.5</A>
-</P><P>
-Dec/27/2004: <A HREF="changelog.html#release_2_7_4">Release 2.7.4</A>
 </P>
 
 <H2 class="navhead">Documentation</H2>
@@ -74,158 +69,10 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 
 <DIV class="mainBlock">
 
-<H1>WDM Support for nxtvepg:<BR>alpha testers download page</H1>
-<P>
-This page lists the latest updates for the very first attempt to support
-Windows WDM devices for <A HREF="http://nxtvepg.sourceforge.net/">nxtvepg</A>
-software package.
-The software which is available here is only intended for developers
-and alpha/beta testers.  If you're searching for the regular release
-visit the <A HREF="download.html">download page</A>.
-</P>
-<P>
-<B>Note:</B> currently there are two development branches: besides WDM support
-there's also a <A HREF="pre-releases.html">2.7.0 maintanance</A> branch.
-The two branches will be merged for release 2.8.0.
-</P>
+This page is obsolete.
+The content has been moved to the regular
+<A HREF="pre-releases.html">pre-release download page</A>.
 
-<H2>Introduction</H2>
-<P>
-The following pre-release contains the latest Windows release of nxtvepg
-with WDM support, i.e. the option to use drivers supplied by your card's
-manufacturer instead of the one which comes with nxtvepg.  Main goal of
-development is to help Windows users who cannot use nxtvepg at all because
-their TV card is not supported by nxtvepg's driver.  This is because
-currently VBI acquisition in the Windows port of nxtvepg is based exclusively
-on the <A HREF="http://dscaler.org/">DScaler</A> "dsdrv4" driver, which
-supports only cards based on Conexant BT878, CX23881 or Philips
-SAA7134 (and even among these only the ones with supported tuners.)
-Cards with chip sets from vendors which do not disclose specifications
-to support open source driver implementations cannot be supported
-this way.
-</P><P> 
-WDM support is useful for Windows users only.
-UNIX users need not look further.
-</P> 
-<P> 
-Please do also refer to the
-<A HREF="http://sourceforge.net/mailarchive/forum.php?forum_id=14102">mailing list archives</A>
-and <A HREF="http://sourceforge.net/forum/forum.php?forum_id=217872">forum</A>
-for background information.
-</P>
-
-<H2>Known problems</H2>
-<P>
-The following bugs/open issues are already known:
-</P>
-<UL>
-<LI>When initially selecting a WDM source in the TV card input configuration
-    dialog, video source selection may not work (device is allegedly busy.)
-    If that happens, just close the dialog with OK and open it again.
-    After that the video input selection should work.
-<LI>TV channel/frequency conversion doesn't work for all channel tables yet.
-    If you live in Germany and have cable, you need to create a file named
-    VBIAcqWDMDrv.ini in the same directory as VBIAcqWDMDrv.dll with the
-    following two lines:
-<PRE>
-[Debug Behaviour]
-ForceRFInput=c
-</PRE>
-    This file is also in WDMDebugPkgDDMMYY.zip (see download section below),
-    including documentation and additional debug options.
-<LI>The EPG provider scan must be run in <I>slow</I> mode (you can enable this
-    option at the bottom of the provider scan dialog window.)  Even then some
-    networks may appear duplicate in the scan.  If your provider isn't found
-    due to this, try running the scan again, or use a K!TV or DScaler channel
-    table and move your provider's channel to the first position.
-<LI>Hauppauge PVR 250/350 cards are not supported yet.
-</UL>
-<P>
-Other problems which were formerly listed here (i.e. "elaborate VBI slicer"
-not implemented and dsdrv driver disabled) are solved now.
-</P>
-
-<H2>Tests feedback</H2>
-<P>
-This section gives cards and system combination currently reported as "working".
-<P>
-<UL>
-<LI>Leadtek WinFast TV2000XP Expert on Windows XP and Windows 2000
-<LI>Hauppauge WinTv PCI (Bt878 + Philips Tuner) on Windows XP
-<LI>Hauppauge WinTv Go on Windows XP
-<LI>Hauppauge WinTV PVR on Windows 2000
-<LI>Hauppauge WinTV PCI (new series with CX23881 chip) on W2K: <B>works partly</B><BR>
-    Appearently due to a bug in the WDM driver apx. half of the teletext pages
-    are lost; but if you're patient EPG reception is still possible.
-<LI>Typhoon card "Art.No. 90031" with Philips capture chip (SAA7134) on W2K
-<LI>Almost any card with Brooktree Bt878 or Bt848 capture chip when using the
-    free <A HREF="http://btwincap.sourceforge.net/">btwincap</A> WDM driver.
-</UL>
-<P>
-If you want to provide feedback, please send it to Gérard, not to Tom
-(for developers' mail addresses look in the SourceForge
-<A HREF="http://sourceforge.net/project/memberlist.php?group_id=64430">project member list</A>)
-Please ask first if your card is already tested before sending large trace files.
-</P>
-
-<H2>Downloads</H2>
-<P>
-This release comes with internal consistency checks and debug output enabled
-and should be used for evaluation only.  Please do not redistribute.
-</P>
-<P>
-<B>Last update: march 31st 2005: bug correction & API synchronization with PreRelease 2.8.0pre3 and up</B>
-</P>
-<UL>
-<!--
-<LI><I>no downloads are currently available</I>
--->
-<LI>Download the latest Win32 PreRelease (> 2.8.0pre3) <A HREF="http://nxtvepg.sourceforge.net/pre-releases.html">from here</A>
-<LI>Download the <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepgWDMPatch040405.zip">WDMPatch_040405</A> to the application.
-<BR>Follows instructions given in NxtvWDMReadMe.txt
-<LI>In case it doesn't work with your hardware, download the <A HREF="http://nxtvepg.sourceforge.net/tmp/WDMDebugPkg040405.zip">Debugging Package 040405</A>.
-<BR>Then follows instructions given in NxtvWDMReadMe.txt.
-<BR>As feedback come, instructions in this file will evolve.
-<LI>WDM Driver sources (Visual Studio 2002-V7) : <A HREF="http://nxtvepg.sourceforge.net/tmp/VBIAcqWDMDrvSrc040405.zip">VBIAcqWDMDrvSrc040405.zip</A>
-<LI>Debugging stuff sources : <A HREF="http://nxtvepg.sourceforge.net/tmp/WDMDebugPkgSrc011405.zip">Debugging Package 011405</A>.
-</UL>
-
-<H2>Change history</H2>
-
-<H3>API Synchronization with 2.8.0pre3 and up and bug fix (2005-03-31)</H3>
-<UL>
-<LI>There where an API change between nxtvepg and the WDM driver DLL that needed fix.
-<LI>In the future, there will be a DLL version check to prevent use of wrong DLL.
-<LI>Fixed a bug that caused VBI data loss.
-<LI>DirectX ressources management bug fix : enable / disable acquisition cycles now works.
-</UL>
-<H3>Merged WDM support into 2.8.0pre1 (2005-01-20)</H3>
-<UL>
-<LI>From now, there is no more need to patch nxtvepg.exe as WDM support is integrated into.
-</UL>
-<H3>Merged WDM support into 2.7.5pre1 (2005-01-14)</H3>
-<UL>
-<LI>Added lot of debugging facilities.
-<LI>Some more TV cards reported working.
-</UL>
-
-<H3>Start of WDM alpha support on the 2.7.0 (2004-04-30)</H3>
-<UL>
-<LI>Added WDM Support.
-<LI>First time of issue. Only tested with Leadtek WinFast TV2000XP Expert and Windows XP.
-</UL>
-
-
-<H2>Copyright &amp; Disclaimer</H2>
-<P>
-This program is free software; you can redistribute it and/or modify
-it under the terms of the
-<A HREF="http://www.fsf.org/copyleft/gpl.html">GNU General Public License</A>
-as published by the <A HREF="http://www.fsf.org/">Free Software Foundation.</A>
-This program is distributed in the hope that it will be useful,
-but <B>without any warranty</B>; without even the implied warranty of
-merchantability or fitness for a particular purpose.
-</P>
 </DIV>
 </BODY>
 </HTML>

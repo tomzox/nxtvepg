@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: hamming.h,v 1.10 2004/08/29 21:48:18 tom Exp tom $
+ *  $Id: hamming.h,v 1.11 2006/07/02 12:03:35 tom Exp $
  */
 
 #ifndef __HAMMING_H
@@ -163,7 +163,9 @@ EXT const uchar byteBitDistTable[256]
 #define UnHam84Nibble(P,V) (( *(V) = (schar)unhamtab[*((uchar *)(P))] ) >= 0 )
 #define UnHam84Byte(P,V)   (( *(V) = ((sint)unhamtab[*((uchar *)(P))] | ((sint)unhamtab[*(((uchar *)(P))+1)] << 4)) ) >= 0 )
 
-bool UnHam84Array( uchar *pin, uint byteCount );
+#define UnHamParityByte(P,V) (( *(V) = (sint)parityTab[*((uchar *)(P))]) >= 0)
+
+bool UnHam84Array( uchar * pin, uchar * pout, uint byteCount );
 ushort UnHamParityArray( const uchar *pin, uchar *pout, uint byteCount );
 
 #if DUMP_TTX_PACKETS == ON

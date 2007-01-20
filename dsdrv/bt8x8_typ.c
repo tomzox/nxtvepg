@@ -28,7 +28,7 @@
  *
  *  DScaler #Id: BT848Card_Types.cpp,v 1.41 2004/01/29 15:14:41 adcockj Exp #
  *
- *  $Id: bt8x8_typ.c,v 1.15 2004/12/26 21:46:58 tom Exp tom $
+ *  $Id: bt8x8_typ.c,v 1.17 2006/12/21 20:10:44 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -4122,72 +4122,6 @@ static const bool m_Tuners_miro_fm[] =
     false   ,false  ,false  ,false
 };
 
-static const eTunerId m_Tuners_hauppauge[]=
-{
-    TUNER_ABSENT,                           /* ""                                 */
-    TUNER_ABSENT,                           /* "External"                     */
-    TUNER_ABSENT,                           /* "Unspecified"                */
-    TUNER_PHILIPS_PAL,                  /* "Philips FI1216"           */
-    /*4*/
-    TUNER_PHILIPS_SECAM,                /* "Philips FI1216MF"       */
-    TUNER_PHILIPS_NTSC,                 /* "Philips FI1236"           */
-    TUNER_PHILIPS_PAL_I,                /* "Philips FI1246"         */
-    TUNER_PHILIPS_PAL_DK,               /* "Philips FI1256"           */
-    /*8*/
-    TUNER_PHILIPS_PAL,                  /* "Philips FI1216 MK2"     */
-    TUNER_PHILIPS_SECAM,                /* "Philips FI1216MF MK2"   */
-    TUNER_PHILIPS_NTSC,                 /* "Philips FI1236 MK2"     */
-    TUNER_PHILIPS_PAL_I,                /* "Philips FI1246 MK2"     */
-    /*12*/
-    TUNER_PHILIPS_PAL_DK,               /* "Philips FI1256 MK2"     */
-    TUNER_TEMIC_4032FY5_NTSC,       /* "Temic 4032FY5"            */
-    TUNER_TEMIC_4002FH5_PAL,        /* "Temic 4002FH5"          */
-    TUNER_TEMIC_4062FY5_PAL_I,  /* "Temic 4062FY5"          */
-    /*16*/
-    TUNER_PHILIPS_PAL,                  /* "Philips FR1216 MK2"     */
-    TUNER_PHILIPS_SECAM,                /* "Philips FR1216MF MK2"   */
-    TUNER_PHILIPS_NTSC,                 /* "Philips FR1236 MK2"     */
-    TUNER_PHILIPS_PAL_I,                /* "Philips FR1246 MK2"     */
-    /*20*/
-    TUNER_PHILIPS_PAL_DK,               /* "Philips FR1256 MK2"     */
-    TUNER_PHILIPS_PAL,                  /* "Philips FM1216"         */
-    TUNER_PHILIPS_SECAM,                /* "Philips FM1216MF"       */
-    TUNER_PHILIPS_NTSC,                 /* "Philips FM1236"         */
-    /*24*/
-    TUNER_PHILIPS_PAL_I,                /* "Philips FM1246"         */
-    TUNER_PHILIPS_PAL_DK,               /* "Philips FM1256"           */
-    TUNER_TEMIC_4036FY5_NTSC,       /* "Temic 4036FY5"            */
-    TUNER_ABSENT,                           /* "Samsung TCPN9082D"      */
-    /*28*/
-    TUNER_ABSENT,                           /* "Samsung TCPM9092P"      */
-    TUNER_TEMIC_4006FH5_PAL,        /* "Temic 4006FH5"          */
-    TUNER_ABSENT,                           /* "Samsung TCPN9085D"      */
-    TUNER_ABSENT,                           /* "Samsung TCPB9085P"      */
-    /*32*/
-    TUNER_ABSENT,                           /* "Samsung TCPL9091P"      */
-    TUNER_TEMIC_4039FR5_NTSC,       /* "Temic 4039FR5"            */
-    TUNER_PHILIPS_MULTI,                /* "Philips FQ1216 ME"      */
-    TUNER_TEMIC_4066FY5_PAL_I,  /* "Temic 4066FY5"          */
-    /*36*/
-    TUNER_ABSENT,                           /* "Philips TD1536"           */
-    TUNER_ABSENT,                           /* "Philips TD1536D"        */
-    TUNER_PHILIPS_NTSC,                 /* "Philips FMR1236"          */
-    TUNER_ABSENT,                           /* "Philips FI1256MP"         */
-    /*40*/
-    TUNER_ABSENT,                           /* "Samsung TCPQ9091P"      */
-    TUNER_TEMIC_4006FN5_PAL,        /* "Temic 4006FN5"            */
-    TUNER_TEMIC_4009FR5_PAL,        /* "Temic 4009FR5"            */
-    TUNER_TEMIC_4046FM5_MULTI,  /* "Temic 4046FM5"            */
-    /*44*/
-    TUNER_TEMIC_4009FN5_PAL,      /* "Temic 4009FN5"              */
-    TUNER_ABSENT,                           /* "Philips TD1536D_FH_44"*/
-    TUNER_LG_R01F_NTSC,                 /* "LG TP18NSR01F"          */
-    TUNER_LG_B01D_PAL,                  /* "LG TP18PSB01D"            */
-    TUNER_LG_B11D_PAL,                  /* "LG TP18PSB11D"            */
-    TUNER_LG_I001D_PAL_I,               /* "LG TAPC-I001D"          */
-    TUNER_LG_I701D_PAL_I                /* "LG TAPC-I701D"          */
-};
-
 static const eTunerId m_Tuners_avermedia_0[] =
 {
     TUNER_PHILIPS_NTSC,
@@ -4390,12 +4324,7 @@ static uint AutoDetectTuner( TVCARD * pTvCard, uint CardId )
                     break;
                 }
 
-                dprintf1("AutoDetectTuner: Hauppage card. Id: 0x%02X\n",Eeprom[9]);
-
-                if (Eeprom[9] < sizeof(m_Tuners_hauppauge)/sizeof(m_Tuners_hauppauge[0]))
-                {
-                    Tuner = m_Tuners_hauppauge[Eeprom[9]];
-                }
+                Tuner = Tuner_GetHauppaugeEepromId(Eeprom[9]);
 
                 dprintf2("AutoDetectTuner: Hauppage card. Block 2: 0x%02X at %d+3\n",Eeprom[ Eeprom[1]+3 ],Eeprom[1]);
             }
@@ -4464,11 +4393,26 @@ static uint AutoDetectTuner( TVCARD * pTvCard, uint CardId )
 
 
 // ---------------------------------------------------------------------------
+// Query TDA9887 parameters stored in card INI file
+// - returns TRUE if TDA9887 is configured via card INI
+//
+static bool GetTda9887Modes( TVCARD * pTvCard, bool * pHasTda9887, void ** ppModes )
+{
+    if ((pTvCard != NULL) && (pHasTda9887 != NULL) && (ppModes != NULL))
+    {
+    }
+    else
+        fatal0("Bt8x8-GetTda9887Modes: illegal NULL ptr param");
+
+    return FALSE;
+}
+
+// ---------------------------------------------------------------------------
 // Query how IF demodulator TDA9887 needs to be programmed
 //   Derived from CBT848Card::InitTuner
 //   DScaler CVS #Id: BT848Card_Tuner.cpp,v 1.13 2003/10/27 10:39:50 adcockj Exp #
 //
-static uint GetIffType( TVCARD * pTvCard, bool * pIsPinnacle, bool * pIsMono )
+static void GetIffType( TVCARD * pTvCard, bool * pIsPinnacle, bool * pIsMono )
 {
     DWORD Id;
 
@@ -4514,8 +4458,6 @@ static uint GetIffType( TVCARD * pTvCard, bool * pIsPinnacle, bool * pIsMono )
     }
     else
         fatal0("Bt8x8-GetIffType:illegal NULL ptr param");
-
-    return TDA9887_DEFAULT;
 }
 
 static uint GetPllType( TVCARD * pTvCard, uint CardId )
@@ -4538,17 +4480,6 @@ static uint GetPllType( TVCARD * pTvCard, uint CardId )
         fatal0("Bt8x8-GetPllType:illegal NULL ptr param");
 
     return pll;
-}
-
-static void GetI2cScanRange( struct TVCARD_struct * pTvCard, uint * pStart, uint * pStop )
-{
-   if ((pTvCard != NULL) && (pStart != NULL) && (pStop != NULL))
-   {
-      *pStart = 0xC0;
-      *pStop  = 0xCE;
-   }
-   else
-      fatal0("Bt8x8-GetI2cScanRange: illegal NULL ptr param");
 }
 
 // ---------------------------------------------------------------------------
@@ -4680,8 +4611,8 @@ static const char * GetCardName( TVCARD * pTvCard, uint CardId )
         {
             pName = m_TVCards[CardId].szName;
         }
-        else
-            debug2("Bt8x8Typ-GetCardName: invalid card idx %d (>= %d)", CardId, TVCARD_LASTONE);
+        //else: no warning because during card enumeration this function
+        // is called until NULL is returned
     }
     else
         fatal0("Bt8x8Typ-GetCardName: illegal NULL ptr param");
@@ -5001,6 +4932,14 @@ static void CtrlSilkSDISwitch( TVCARD * pTvCard, BYTE SLV, BYTE IEN)
 }
 
 // ---------------------------------------------------------------------------
+// Free allocated resources
+//
+static void FreeCardList( void )
+{
+   // nothing to do
+}
+
+// ---------------------------------------------------------------------------
 // Fill interface struct
 //
 static const TVCARD_CFG Bt8x8Typ_Interface =
@@ -5008,15 +4947,16 @@ static const TVCARD_CFG Bt8x8Typ_Interface =
    GetCardName,
    AutoDetectCardType,
    AutoDetectTuner,
+   GetTda9887Modes,
    GetIffType,
    GetPllType,
-   GetI2cScanRange,
    SupportsAcpi,
    GetNumInputs,
    GetInputName,
    IsInputATuner,
    IsInputSVideo,
    SetVideoSource,
+   FreeCardList,
 };
 
 void Bt8x8Typ_GetInterface( TVCARD * pTvCard )

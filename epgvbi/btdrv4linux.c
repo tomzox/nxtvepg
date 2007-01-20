@@ -44,7 +44,7 @@
  *    NetBSD:  Mario Kemper <magick@bundy.zhadum.de>
  *    FreeBSD: Simon Barner <barner@gmx.de>
  *
- *  $Id: btdrv4linux.c,v 1.61 2004/12/24 11:05:11 tom Exp $
+ *  $Id: btdrv4linux.c,v 1.61.1.1 2006/12/21 22:15:36 tom Exp $
  */
 
 #if !defined(linux) && !defined(__NetBSD__) && !defined(__FreeBSD__) 
@@ -2015,7 +2015,7 @@ static void BtDriver_OpenVbiBuf( void )
 #endif  // not NetBSD
 
    // pass parameters to zvbi slicer
-   if (vbi_raw_decoder_add_services(&zvbi_rd, VBI_SLICED_TELETEXT_B | VBI_SLICED_VPS, 1)
+   if (vbi_raw_decoder_add_services(&zvbi_rd, VBI_SLICED_TELETEXT_B | VBI_SLICED_VPS, 0)
         != (VBI_SLICED_TELETEXT_B | VBI_SLICED_VPS) )
    {
       fprintf(stderr, "Failed to initialize VBI slicer for teletext & VPS\n");
@@ -2102,7 +2102,7 @@ static void BtDriver_DecodeFrame( void )
    }
    else if (stat >= 0)
    {
-      debug2("BtDriver-DecodeFrame: short read: %ld of %d", stat, bufSize);
+      debug2("BtDriver-DecodeFrame: short read: %ld of %ld", stat, (long)bufSize);
    }
 #else  // USE_LIBZVBI
    double timestamp;

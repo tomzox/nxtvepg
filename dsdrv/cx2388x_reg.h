@@ -26,9 +26,9 @@
  *      " This code is based on a version of dTV modified by Michael Eskin and
  *        others at Connexant.  Those parts are probably (c) Connexant 2002 "
  *
- *  DScaler #Id: CX2388x_Defines.h,v 1.24 2004/08/31 17:54:50 to_see Exp #
+ *  DScaler #Id: CX2388x_Defines.h,v 1.27 2005/01/13 20:29:33 to_see Exp #
  *
- *  $Id: cx2388x_reg.h,v 1.8 2004/10/16 13:07:21 tom Exp tom $
+ *  $Id: cx2388x_reg.h,v 1.9 2006/12/19 15:28:25 tom Exp tom $
  */
 
 #ifndef __CX2388X_REG_H
@@ -562,6 +562,7 @@
 
 #define CX2388X_DEVICE_STATUS        0x00310100
 #define CX2388X_DEVICE_STATUS_HLOCK  (1 << 5)
+#define CX2388X_DEVICE_STATUS_VPRES  (1 << 6)
 
 #define CX2388X_VIDEO_INPUT     0x00310104
 

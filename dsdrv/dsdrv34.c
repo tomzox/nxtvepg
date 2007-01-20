@@ -17,7 +17,7 @@
 // PCICard.cpp, HardwareDriver.cpp, HardwareMemory is from Dscaler
 // Copyright (c) 2001 John Adcock.  All rights reserved.
 /////////////////////////////////////////////////////////////////////////////
-// nxtvepg $Id: dsdrv34.c,v 1.10 2004/12/26 21:51:14 tom Exp $
+// nxtvepg $Id: dsdrv34.c,v 1.12 2006/12/21 20:31:47 tom Exp tom $
 /////////////////////////////////////////////////////////////////////////////
 
 // What's this ?
@@ -108,7 +108,7 @@ static BOOL CheckDriverImagePath( void )
 }
 
 
-const char * GetDriverErrorMsg( DWORD loadError )
+const char * DsDrvGetErrorMsg( DWORD loadError )
 {
    const char * errmsg;
 
@@ -154,7 +154,7 @@ const char * GetDriverErrorMsg( DWORD loadError )
 }
 
 
-DWORD LoadDriver( void )
+DWORD DsDrvLoad( void )
 {
     DWORD result;
 
@@ -203,7 +203,7 @@ DWORD LoadDriver( void )
 }
 
 
-void UnloadDriver( void )
+void DsDrvUnload( void )
 {
     if (Pcicard)
     {
@@ -476,4 +476,15 @@ void ManageByte( DWORD Offset )
       DsDrv_AddElement(&cardStateBuf, (DWORD)ReadByte(Offset));
    }
 }
+
+void DsDrv_LockCard( void )
+{
+   HwPci_LockCard();
+}
+
+void DsDrv_UnlockCard( void )
+{
+   HwPci_UnlockCard();
+}
+
 

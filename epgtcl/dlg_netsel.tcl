@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_netsel.tcl,v 1.9 2003/03/31 19:14:32 tom Exp tom $
+#  $Id: dlg_netsel.tcl,v 1.10 2006/11/26 14:59:12 tom Exp $
 #
 set netsel_popup 0
 
@@ -147,7 +147,13 @@ proc PopupNetwopSelection {} {
          ApplyUserNetnameCfg netsel_names
          # initialize list of user-selected CNIs
          if {[info exists cfnetwops($netsel_prov)]} {
-            set netsel_selist [lindex $cfnetwops($netsel_prov) 0]
+            set netsel_selist {}
+            # filter out unknown CNIs (not part of the AI network table anymore)
+            foreach cni [lindex $cfnetwops($netsel_prov) 0] {
+               if {[info exists netsel_names($cni)]} {
+                  lappend netsel_selist $cni
+               }
+            }
          } else {
             set netsel_selist $netsel_ailist
          }

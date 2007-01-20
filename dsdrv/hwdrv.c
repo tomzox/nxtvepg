@@ -15,12 +15,13 @@
 //  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 //  GNU General Public License for more details
 /////////////////////////////////////////////////////////////////////////////
-// nxtvepg $Id: hwdrv.c,v 1.15 2004/12/26 21:55:20 tom Exp tom $
+// nxtvepg $Id: hwdrv.c,v 1.16 2006/12/21 20:28:37 tom Exp tom $
 //////////////////////////////////////////////////////////////////////////////
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <winsvc.h>
+#include <stdlib.h>
 #include "dsdrv/dsdrv.h"
 #include "dsdrv/hwdrv.h"
 #include "dsdrv/debuglog.h"
@@ -29,12 +30,11 @@
 // define this to force uninstallation of the NT driver on every destruction of the class.
 //#define ALWAYS_UNINSTALL_NTDRIVER
 
-static const LPSTR NTDriverName = NT_DRIVER_NAME;
-
 static BOOL AdjustAccessRights( void );
 static SC_HANDLE   m_hService;
 static HANDLE      m_hFile;
 static BOOL        m_bWindows95;
+static char        m_NTDriverName[MAX_PATH];
 
 // the access rights that are needed to just use DScaler (no (un)installation).
 #define DRIVER_ACCESS_RIGHTS (SERVICE_START | SERVICE_STOP)
@@ -42,6 +42,7 @@ static BOOL        m_bWindows95;
 void HwDrv_Create( void )  //CHardwareDriver::CHardwareDriver()
 {
     OSVERSIONINFO ov;
+    const char* arch64Bit;
 
     m_hFile = INVALID_HANDLE_VALUE;
     m_hService = NULL;
@@ -49,6 +50,17 @@ void HwDrv_Create( void )  //CHardwareDriver::CHardwareDriver()
     ov.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
     GetVersionEx( &ov);
     m_bWindows95 = (ov.dwPlatformId == VER_PLATFORM_WIN32_WINDOWS);
+
+    strcpy(m_NTDriverName, "DSDrv4");
+    
+    // we are a 32bit program possibly running on 64bit hardware
+    // if this is the case then we need to load up an arch
+    // specific driver, we just append the arch to the standard name
+    arch64Bit = getenv("PROCESSOR_ARCHITEW6432");
+    if (arch64Bit)
+    {
+        strcat(m_NTDriverName, arch64Bit);
+    }
 }
 
 void HwDrv_Destroy( void )  //CHardwareDriver::~CHardwareDriver()
@@ -98,7 +110,7 @@ DWORD HwDrv_LoadDriver( void )
         if(!bError)
         {
             LOG(2,"LoadDriver: Open the Service " NT_DRIVER_NAME "...");
-            m_hService = OpenService(hSCManager, NTDriverName, DRIVER_ACCESS_RIGHTS);
+            m_hService = OpenService(hSCManager, m_NTDriverName, DRIVER_ACCESS_RIGHTS);
 
             if(m_hService == NULL)
             {
@@ -336,7 +348,7 @@ DWORD HwDrv_InstallNTDriver( void )
 
     if(!bError)
     {
-        strcat(szDriverPath, NTDriverName);
+        strcat(szDriverPath, m_NTDriverName);
         strcat(szDriverPath, ".sys");       
         
         LOG(2,"InstallNTDriver: Opening the service control manager...");
@@ -356,8 +368,8 @@ DWORD HwDrv_InstallNTDriver( void )
         LOG(2,"InstallNTDriver: Creating the service %s (kernel driver, manual start)",szDriverPath);
         m_hService = CreateService(
             hSCManager,            // SCManager database
-            NTDriverName,          // name of service
-            NTDriverName,          // name to display
+            m_NTDriverName,          // name of service
+            m_NTDriverName,          // name to display
             SERVICE_ALL_ACCESS,    // desired access
             SERVICE_KERNEL_DRIVER, // service type
             SERVICE_DEMAND_START,  // start type
@@ -379,7 +391,7 @@ DWORD HwDrv_InstallNTDriver( void )
                 LOG(2,"InstallNTDriver: Create failed: already exists: will attempt to delete the service");
 
                 LOG(2,"InstallNTDriver: Opening the service " NT_DRIVER_NAME "...");
-                m_hService = OpenService(hSCManager, NTDriverName, SERVICE_ALL_ACCESS);
+                m_hService = OpenService(hSCManager, m_NTDriverName, SERVICE_ALL_ACCESS);
 
                 LOG(2,"InstallNTDriver: Deleting the service...");
                 if(DeleteService(m_hService) == FALSE)
@@ -400,8 +412,8 @@ DWORD HwDrv_InstallNTDriver( void )
                     LOG(2,"InstallNTDriver: 2nd attempt at creating service %s (kernel driver, manual start)",szDriverPath);
                     m_hService = CreateService(
                         hSCManager,            // SCManager database
-                        NTDriverName,          // name of service
-                        NTDriverName,          // name to display
+                        m_NTDriverName,          // name of service
+                        m_NTDriverName,          // name to display
                         SERVICE_ALL_ACCESS,    // desired access
                         SERVICE_KERNEL_DRIVER, // service type
                         SERVICE_DEMAND_START,  // start type
@@ -649,7 +661,7 @@ BOOL HwDrv_UnInstallNTDriver( void )
 
         if(!bError)
         {
-            m_hService = OpenService(hSCManager, NTDriverName, SERVICE_ALL_ACCESS);
+            m_hService = OpenService(hSCManager, m_NTDriverName, SERVICE_ALL_ACCESS);
             if(m_hService == NULL)
             {
                 if(GetLastError() == ERROR_SERVICE_DOES_NOT_EXIST)

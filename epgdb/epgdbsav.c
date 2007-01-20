@@ -29,7 +29,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbsav.c,v 1.56 2005/05/29 16:20:53 tom Exp $
+ *  $Id: epgdbsav.c,v 1.56.1.1 2006/12/21 22:25:54 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -40,11 +40,11 @@
 #include <dirent.h>
 #else
 #include <windows.h>
-#include <stdlib.h>
 #include <io.h>
 #include <direct.h>
 #include <ctype.h>
 #endif
+#include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
 #include <sys/types.h>
@@ -1511,14 +1511,14 @@ uint EpgDbRemoveDatabaseFile( uint cni )
 
    pFilename = xmalloc(strlen(epgDbDirPath) + 1 + DUMP_NAME_MAX_LEN);
 
-   sprintf(pFilename, "%s/" DUMP_NAME_FMT_UNIX, epgDbDirPath, cni);
+   sprintf(pFilename, "%s%c" DUMP_NAME_FMT_UNIX, epgDbDirPath, PATH_SEPARATOR, cni);
    if ( (unlink(pFilename) != 0) && (access(pFilename, F_OK) != 0) )
    {
       debug2("EpgDb-RemoveDatabaseFile: failed to remove db file '%s': %s", pFilename, strerror(errno));
       result = errno;
    }
 
-   sprintf(pFilename, "%s/" DUMP_NAME_FMT_DOS, epgDbDirPath, cni);
+   sprintf(pFilename, "%s%c" DUMP_NAME_FMT_DOS, epgDbDirPath, PATH_SEPARATOR, cni);
    if ( (unlink(pFilename) != 0) && (access(pFilename, F_OK) != 0) )
    {
       debug2("EpgDb-RemoveDatabaseFile: failed to remove db file '%s': %s", pFilename, strerror(errno));

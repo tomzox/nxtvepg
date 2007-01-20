@@ -25,15 +25,22 @@
  *      Copyright (C) 1997 Markus Schroeder (schroedm@uni-duesseldorf.de)
  *      Copyright (C) 1997,1998 Gerd Knorr (kraxel@goldbach.in-berlin.de)
  *      also Ralph Metzler, Gunther Mayer and others; see also btdrv4win.c
- *      DScaler parts are copyleft 2001 itt@myself.com
+ *      DScaler parts are copyleft 2001-2003 itt@myself.com
  *
  *  DScaler #Id: GenericTuner.cpp,v 1.13 2003/10/27 10:39:51 adcockj Exp #
- *  DScaler #Id: TunerID.cpp,v 1.3 2003/12/18 15:57:41 adcockj Exp #
+ *  DScaler #Id: TunerID.cpp,v 1.10 2005/07/17 15:58:28 to_see Exp #
+ *  DScaler #Id: TunerID.h,v 1.12 2005/08/11 17:21:55 to_see Exp #
  *  DScaler #Id: MT2032.cpp,v 1.13 2004/01/14 17:06:44 robmuller Exp #
  *  DScaler #Id: MT2050.cpp,v 1.5 2004/04/06 12:20:48 adcockj Exp #
- *  DScaler #Id: TDA9887.cpp,v 1.9 2004/09/29 20:36:02 to_see Exp #
+ *  DScaler #Id: TDA9887.cpp,v 1.20 2005/03/09 13:19:15 atnak Exp #
+ *  DScaler #Id: SAA7134Card_Tuner.cpp,v 1.21 2005/03/09 15:20:04 atnak Exp #
+ *  DScaler #Id: TEA5767.cpp,v 1.2 2005/08/07 09:43:27 to_see Exp #
+ *  DScaler #Id: TDA8290.cpp,v 1.6 2005/03/19 11:15:43 atnak Exp #
+ *  DScaler #Id: TDA8290.h,v 1.4 2005/03/09 13:19:51 atnak Exp #
+ *  DScaler #Id: TDA8275.cpp,v 1.10 2005/10/04 19:59:48 to_see Exp #
+ *  DScaler #Id: TDA8275.h,v 1.6 2005/10/04 19:59:09 to_see Exp #
  *
- *  $Id: wintuner.c,v 1.23 2004/12/26 21:48:15 tom Exp tom $
+ *  $Id: wintuner.c,v 1.25 2006/12/21 20:34:36 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -50,6 +57,7 @@
 
 #include "epgvbi/btdrv.h"
 #include "dsdrv/tvcard.h"
+#include "dsdrv/dsdrvlib.h"
 #include "dsdrv/wintuner.h"
 
 
@@ -57,12 +65,12 @@
 // Module state variables
 
 static BYTE TunerDeviceI2C = 0;
-static eTDA9887Card Tda9887Type;
-static CRITICAL_SECTION m_cCrit;    //semaphore for I2C access
 static uint MicrotuneType;
 static bool haveTda9887Standard;
 static bool haveTda9887Pinnacle;
 static bool isTda9887PinnacleMono;
+static bool isTda9887Ex;
+static bool haveTda8290;
 static BYTE Tda9887DeviceI2C = 0;
 static uint m_LastVideoFormat = 0xff;
 static TVCARD * pTvCard = NULL;
@@ -72,54 +80,71 @@ static TVCARD * pTvCard = NULL;
 //
 static const char * TunerNames[TUNER_LASTONE] =
 {
-   "*No Tuner/Unknown*",                        // TUNER_ABSENT = 0
-   "Philips [PAL_I]",                           // TUNER_PHILIPS_PAL_I      
-   "Philips [NTSC]",                            // TUNER_PHILIPS_NTSC     
-   "Philips [SECAM]",                           // TUNER_PHILIPS_SECAM      
-   "Philips [PAL]",                             // TUNER_PHILIPS_PAL
-   "Temic 4002 FH5 [PAL B/G]",                  // TUNER_TEMIC_4002FH5_PAL
-   "Temic 4032 FY5 [NTSC]",                     // TUNER_TEMIC_4032FY5_NTSC
-   "Temic 4062 FY5 [PAL I]",                    // TUNER_TEMIC_4062FY5_PAL_I
-   "Temic 4036 FY5 [NTSC]",                     // TUNER_TEMIC_4036FY5_NTSC     
-   "Alps TSBH1 [NTSC]",                         // TUNER_ALPS_TSBH1_NTSC                             
-   "Alps TSBE1 [PAL]",                          // TUNER_ALPS_TSBE1_PAL                                    
-   "Alps TSBB5 [PAL I]",                        // TUNER_ALPS_TSBB5_PAL_I                                  
-   "Alps TSBE5 [PAL]",                          // TUNER_ALPS_TSBE5_PAL                                    
-   "Alps TSBC5 [PAL]",                          // TUNER_ALPS_TSBC5_PAL                                    
-   "Temic 4006 FH5 [PAL B/G]",                  // TUNER_TEMIC_4006FH5_PAL      
-   "Philips 1236D Input 1 [ATSC/NTSC]",         // TUNER_PHILIPS_1236D_NTSC_INPUT1
-   "Philips 1236D Input 2 [ATSC/NTSC]",         // TUNER_PHILIPS_1236D_NTSC_INPUT2
-   "Alps TSCH6 [NTSC]",                         // TUNER_ALPS_TSCH6_NTSC                                     
-   "Temic 4016 FY5 [PAL D/K/L]",                // TUNER_TEMIC_4016FY5_PAL
-   "Philips MK2           [NTSC_M]",            // TUNER_PHILIPS_MK2_NTSC     
-   "Temic 4066 FY5 [PAL I]",                    // TUNER_TEMIC_4066FY5_PAL_I
-   "Temic 4006 FN5 [PAL Auto]",                 // TUNER_TEMIC_4006FN5_PAL
-   "Temic 4009 FR5 [PAL B/G] + FM",             // TUNER_TEMIC_4009FR5_PAL
-   "Temic 4039 FR5 [NTSC] + FM",                // TUNER_TEMIC_4039FR5_NTSC
-   "Temic 4046 FM5 [PAL/SECAM multi]",          // TUNER_TEMIC_4046FM5_MULTI
-   "Philips [PAL_DK]",                          // TUNER_PHILIPS_PAL_DK
-   "Philips FQ1216ME      [PAL/SECAM multi]",   // TUNER_PHILIPS_MULTI      
-   "LG TAPC-I001D [PAL I] + FM",                // TUNER_LG_I001D_PAL_I
-   "LG TAPC-I701D [PAL I]",                     // TUNER_LG_I701D_PAL_I
-   "LG TPI8NSR01F [NTSC] + FM",                 // TUNER_LG_R01F_NTSC
-   "LG TPI8PSB01D [PAL B/G] + FM",              // TUNER_LG_B01D_PAL
-   "LG TPI8PSB11D [PAL B/G]",                   // TUNER_LG_B11D_PAL      
-   "Temic 4009 FN5 [PAL Auto] + FM",            // TUNER_TEMIC_4009FN5_PAL
-   "MT2032 universal [SECAM default]",          // TUNER_MT2032
-   "Sharp 2U5JF5540 [NTSC_JP]",                 // TUNER_SHARP_2U5JF5540_NTSC
-   "LG TAPC-H701P [NTSC]",                      // TUNER_LG_TAPCH701P_NTSC
-   "Samsung TCPM9091PD27 [PAL B/G/I/D/K]",      // TUNER_SAMSUNG_PAL_TCPM9091PD27
-   "Temic 4106 FH5 [PAL B/G]",                  // TUNER_TEMIC_4106FH5  
-   "Temic 4012 FY5 [PAL D/K/L]",                // TUNER_TEMIC_4012FY5      
-   "Temic 4136 FY5 [NTSC]",                     // TUNER_TEMIC_4136FY5
-   "LG TAPC-new   [PAL]",                       // TUNER_LG_TAPCNEW_PAL     
-   "Philips FQ1216ME MK3  [PAL/SECAM multi]",   // TUNER_PHILIPS_FM1216ME_MK3
-   "LG TAPC-new   [NTSC]",                      // TUNER_LG_TAPCNEW_NTSC
-   "MT2032 universal [PAL default]",            // TUNER_MT2032_PAL
-   "Philips FI1286 [NTCS M-J]",                 // TUNER_PHILIPS_FI1286_NTSC_M_J
-   "MT2050 [SECAM default]",                    // TUNER_MT2050
-   "MT2050 [PAL default]",                      // TUNER_MT2050_PAL
-   "Philips 4in1 [ATI TV Wonder Pro/Conexant]", // TUNER_PHILIPS_4IN1
+    // Name                                         v4l2    ID
+    "*No Tuner/Unknown*",                       //    4     TUNER_ABSENT = 0
+    "Philips FI1246 [PAL I]",                   //    1     TUNER_PHILIPS_PAL_I     
+    "Philips FI1236 [NTSC]",                    //    2     TUNER_PHILIPS_NTSC      
+    "Philips [SECAM]",                          //    3     TUNER_PHILIPS_SECAM     
+    "Philips [PAL]",                            //    5     TUNER_PHILIPS_PAL
+    "Temic 4002 FH5 [PAL B/G]",                 //    0     TUNER_TEMIC_4002FH5_PAL
+    "Temic 4032 FY5 [NTSC]",                    //    6     TUNER_TEMIC_4032FY5_NTSC
+    "Temic 4062 FY5 [PAL I]",                   //    7     TUNER_TEMIC_4062FY5_PAL_I
+    "Temic 4036 FY5 [NTSC]",                    //    8     TUNER_TEMIC_4036FY5_NTSC        
+    "Alps TSBH1 [NTSC]",                        //    9     TUNER_ALPS_TSBH1_NTSC                             
+    "Alps TSBE1 [PAL]",                         //   10     TUNER_ALPS_TSBE1_PAL                                    
+    "Alps TSBB5 [PAL I]",                       //   11     TUNER_ALPS_TSBB5_PAL_I                                  
+    "Alps TSBE5 [PAL]",                         //   12     TUNER_ALPS_TSBE5_PAL                                    
+    "Alps TSBC5 [PAL]",                         //   13     TUNER_ALPS_TSBC5_PAL                                    
+    "Temic 4006 FH5 [PAL B/G]",                 //   14     TUNER_TEMIC_4006FH5_PAL     
+    "Philips 1236D Input 1 [ATSC/NTSC]",        //   42     TUNER_PHILIPS_1236D_NTSC_INPUT1
+    "Philips 1236D Input 2 [ATSC/NTSC]",        //   42     TUNER_PHILIPS_1236D_NTSC_INPUT2
+    "Alps TSCH6 [NTSC]",                        //   15     TUNER_ALPS_TSCH6_NTSC                                      
+    "Temic 4016 FY5 [PAL D/K/L]",               //   16     TUNER_TEMIC_4016FY5_PAL
+    "Philips MK2 [NTSC M]",                     //   17     TUNER_PHILIPS_MK2_NTSC      
+    "Temic 4066 FY5 [PAL I]",                   //   18     TUNER_TEMIC_4066FY5_PAL_I
+    "Temic 4006 FN5 [PAL Auto]",                //   19     TUNER_TEMIC_4006FN5_PAL
+    "Temic 4009 FR5 [PAL B/G] + FM",            //   20     TUNER_TEMIC_4009FR5_PAL
+    "Temic 4039 FR5 [NTSC] + FM",               //   21     TUNER_TEMIC_4039FR5_NTSC
+    "Temic 4046 FM5 [PAL/SECAM multi]",         //   22     TUNER_TEMIC_4046FM5_MULTI
+    "Philips [PAL D/K]",                        //   23     TUNER_PHILIPS_PAL_DK
+    "Philips FQ1216ME [PAL/SECAM multi]",       //   24     TUNER_PHILIPS_MULTI     
+    "LG TAPC-I001D [PAL I] + FM",               //   25     TUNER_LG_I001D_PAL_I
+    "LG TAPC-I701D [PAL I]",                    //   26     TUNER_LG_I701D_PAL_I
+    "LG TPI8NSR01F [NTSC] + FM",                //   27     TUNER_LG_R01F_NTSC
+    "LG TPI8PSB01D [PAL B/G] + FM",             //   28     TUNER_LG_B01D_PAL
+    "LG TPI8PSB11D [PAL B/G]",                  //   29     TUNER_LG_B11D_PAL       
+    "Temic 4009 FN5 [PAL Auto] + FM",           //   30     TUNER_TEMIC_4009FN5_PAL
+    "MT2032 universal [SECAM default]",         //   33     TUNER_MT2032
+    "Sharp 2U5JF5540 [NTSC JP]",                //   31     TUNER_SHARP_2U5JF5540_NTSC
+    "LG TAPC-H701P [NTSC]",                     //          TUNER_LG_TAPCH701P_NTSC
+    "Samsung TCPM9091PD27 [PAL B/G/I/D/K]",     //   32     TUNER_SAMSUNG_PAL_TCPM9091PD27
+    "Temic 4106 FH5 [PAL B/G]",                 //   34     TUNER_TEMIC_4106FH5  
+    "Temic 4012 FY5 [PAL D/K/L]",               //   35     TUNER_TEMIC_4012FY5     
+    "Temic 4136 FY5 [NTSC]",                    //   36     TUNER_TEMIC_4136FY5
+    "LG TAPC-new [PAL]",                        //   37     TUNER_LG_TAPCNEW_PAL        
+    "Philips FQ1216ME MK3 [PAL/SECAM multi]",   //   38     TUNER_PHILIPS_FM1216ME_MK3
+    "LG TAPC-new [NTSC]",                       //   39     TUNER_LG_TAPCNEW_NTSC
+    "MT2032 universal [PAL default]",           //   33     TUNER_MT2032_PAL
+    "Philips FI1286 [NTCS M/J]",                //          TUNER_PHILIPS_FI1286_NTSC_M_J
+    "MT2050 [SECAM default]",                   //   33     TUNER_MT2050
+    "MT2050 [PAL default]",                     //   33     TUNER_MT2050_PAL
+    "Philips 4in1 [ATI TV Wonder Pro/Conexant]",//   44     TUNER_PHILIPS_4IN1
+    "TCL 2002N",                                //   50     TUNER_TCL_2002N
+    "HITACHI V7-J180AT",                        //   40     TUNER_HITACHI_NTSC
+    "Philips FI1216 MK [PAL]",                  //   41     TUNER_PHILIPS_PAL_MK
+    "Philips FM1236 MK3 [NTSC]",                //   43     TUNER_PHILIPS_FM1236_MK3
+    "LG TAPE series [NTSC]",                    //   47     TUNER_LG_NTSC_TAPE
+    "Tenna TNF 8831 [PAL]",                     //   48     TUNER_TNF_8831BGFF
+    "Philips FM1256 MK3 [PAL/SECAM D]",         //   51     TUNER_PHILIPS_FM1256_IH3
+    "Philips FQ1286 [NTSC]",                    //   53     TUNER_PHILIPS_FQ1286
+    "LG TAPE series [PAL]",                     //   55     TUNER_LG_PAL_TAPE
+    "Philips FM1216AME [PAL/SECAM multi]",      //   56     TUNER_PHILIPS_FQ1216AME_MK4
+    "Philips FQ1236A MK4 [NTSC]",               //   57     TUNER_PHILIPS_FQ1236A_MK4
+    "Philips TDA8275",                          //   54     TUNER_TDA8275
+    "Ymec TVF-8531MF/8831MF/8731MF [NTSC]",     //   58     TUNER_YMEC_TVF_8531MF
+    "Ymec TVision TVF-5533MF [NTSC]",           //   59     TUNER_YMEC_TVF_5533MF
+    "Tena TNF9533-D/IF/TNF9533-B/DF [PAL]",     //   61     TUNER_TENA_9533_DI
+    "Philips FMD1216ME MK3 Hybrid [PAL]",       //   63     TUNER_PHILIPS_FMD1216ME_MK3
 };
 
 // ---------------------------------------------------------------------------
@@ -461,20 +486,226 @@ static void Tuner_GetParams( eTunerId tunerId, TTunerType * pTuner )
                  16*(160.00),16*(442.00),0x01,0x02,0x04,0x8e,732);
              break;
          }
+       case TUNER_TCL_2002N:
+         {
+             TUNERDEF(TUNER_TCL_2002N, VIDEOFORMAT_NTSC_M,
+                 16*(172.00),16*(448.00),0x01,0x02,0x08,0x8e,732);
+             break;
+         }
+       case TUNER_HITACHI_NTSC:
+         {
+             TUNERDEF(TUNER_HITACHI_NTSC, VIDEOFORMAT_NTSC_M,
+                 16*(170.00),16*(450.00),0x01,0x02,0x08,0x8e,940);
+             break;
+         }
+       case TUNER_PHILIPS_PAL_MK:
+         {
+             TUNERDEF(TUNER_PHILIPS_PAL_MK, VIDEOFORMAT_PAL_B,
+                 16*(140.00),16*(463.25),0x01,0xc2,0xcf,0x8e,623);
+             break;
+         }
+       case TUNER_PHILIPS_FM1236_MK3:
+         {
+             TUNERDEF(TUNER_PHILIPS_FM1236_MK3, VIDEOFORMAT_NTSC_M,
+                 16*(160.00),16*(442.00),0x01,0x02,0x04,0x8e,732);
+             break;
+         }
+       case TUNER_LG_NTSC_TAPE:
+         {
+             TUNERDEF(TUNER_LG_NTSC_TAPE, VIDEOFORMAT_NTSC_M,
+                 16*(160.00),16*(442.00),0x01,0x02,0x04,0x8e,732);
+             break;
+         }
+       case TUNER_TNF_8831BGFF:
+         {
+             TUNERDEF(TUNER_TNF_8831BGFF, VIDEOFORMAT_PAL_B,
+                 16*(161.25),16*(463.25),0xa0,0x90,0x30,0x8e,623);
+             break;
+         }
+       case TUNER_PHILIPS_FM1256_IH3:
+         {
+             TUNERDEF(TUNER_PHILIPS_FM1256_IH3, VIDEOFORMAT_PAL_B,
+                 16*(160.00),16*(442.00),0x01,0x02,0x04,0x8e,623);
+             break;
+         }
+       case TUNER_PHILIPS_FQ1286:
+         {
+             TUNERDEF(TUNER_PHILIPS_FQ1286, VIDEOFORMAT_NTSC_M,
+                 16*(160.00),16*(454.00),0x41,0x42,0x04,0x8e,940);// UHF band untested
+             break;
+         }
+       case TUNER_LG_PAL_TAPE:
+         {
+             TUNERDEF(TUNER_LG_PAL_TAPE, VIDEOFORMAT_PAL_B,
+                 16*(170.00),16*(450.00),0x01,0x02,0x08,0xce,623);
+             break;
+         }
+       case TUNER_PHILIPS_FQ1216AME_MK4:
+         {
+             TUNERDEF(TUNER_PHILIPS_FQ1216AME_MK4, VIDEOFORMAT_PAL_B,
+                 16*(160.00),16*(442.00),0x01,0x02,0x04,0xce,623);
+             break;
+         }
+       case TUNER_PHILIPS_FQ1236A_MK4:
+         {
+             TUNERDEF(TUNER_PHILIPS_FQ1236A_MK4, VIDEOFORMAT_PAL_B,
+                 16*(160.00),16*(442.00),0x01,0x02,0x04,0x8e,732);
+             break;
+         }
+       case TUNER_YMEC_TVF_8531MF:
+         {
+             TUNERDEF(TUNER_YMEC_TVF_8531MF, VIDEOFORMAT_NTSC_M,
+                 16*(160.00),16*(454.00),0xa0,0x90,0x30,0x8e,732);
+             break;
+         }
+       case TUNER_YMEC_TVF_5533MF:
+         {
+             TUNERDEF(TUNER_YMEC_TVF_5533MF, VIDEOFORMAT_NTSC_M,
+                 16*(160.00),16*(454.00),0x01,0x02,0x04,0x8e,732);
+             break;
+         }
+       case TUNER_TENA_9533_DI:
+         {
+             TUNERDEF(TUNER_TENA_9533_DI, VIDEOFORMAT_PAL_B,
+                 16*(160.25),16*(464.25),0x01,0x02,0x04,0x8e,623);
+             break;
+         }
+       case TUNER_PHILIPS_FMD1216ME_MK3:
+         {
+             TUNERDEF(TUNER_PHILIPS_FMD1216ME_MK3, VIDEOFORMAT_PAL_B,
+                 16*(160.00),16*(442.00),0x51,0x52,0x54,0x86,623);
+             break;
+         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// Hauppauge EEPROM tuner identifiers
+// - used for bt8x8 and cx8800 cards
+//
+static const eTunerId m_TunerHauppaugeAnalog[] =
+{
+    /* 0-9 */
+    TUNER_ABSENT,                       //"None"
+    TUNER_ABSENT,                       //"External"
+    TUNER_ABSENT,                       //"Unspecified"
+    TUNER_PHILIPS_PAL,                  //"Philips FI1216"
+    TUNER_PHILIPS_SECAM,                //"Philips FI1216MF"
+    TUNER_PHILIPS_NTSC,                 //"Philips FI1236"
+    TUNER_PHILIPS_PAL_I,                //"Philips FI1246"
+    TUNER_PHILIPS_PAL_DK,               //"Philips FI1256"
+    TUNER_PHILIPS_PAL,                  //"Philips FI1216 MK2"
+    TUNER_PHILIPS_SECAM,                //"Philips FI1216MF MK2"
+    /* 10-19 */
+    TUNER_PHILIPS_NTSC,                 //"Philips FI1236 MK2"
+    TUNER_PHILIPS_PAL_I,                //"Philips FI1246 MK2"
+    TUNER_PHILIPS_PAL_DK,               //"Philips FI1256 MK2"
+    TUNER_TEMIC_4032FY5_NTSC,           //"Temic 4032FY5"
+    TUNER_TEMIC_4002FH5_PAL,            //"Temic 4002FH5"
+    TUNER_TEMIC_4062FY5_PAL_I,          //"Temic 4062FY5"
+    TUNER_PHILIPS_PAL,                  //"Philips FR1216 MK2"
+    TUNER_PHILIPS_SECAM,                //"Philips FR1216MF MK2"
+    TUNER_PHILIPS_NTSC,                 //"Philips FR1236 MK2"
+    TUNER_PHILIPS_PAL_I,                //"Philips FR1246 MK2"
+    /* 20-29 */
+    TUNER_PHILIPS_PAL_DK,               //"Philips FR1256 MK2"
+    TUNER_PHILIPS_PAL,                  //"Philips FM1216"
+    TUNER_PHILIPS_SECAM,                //"Philips FM1216MF"
+    TUNER_PHILIPS_NTSC,                 //"Philips FM1236"
+    TUNER_PHILIPS_PAL_I,                //"Philips FM1246"
+    TUNER_PHILIPS_PAL_DK,               //"Philips FM1256"
+    TUNER_TEMIC_4036FY5_NTSC,           //"Temic 4036FY5"
+    TUNER_ABSENT,                       //"Samsung TCPN9082D"
+    TUNER_ABSENT,                       //"Samsung TCPM9092P"
+    TUNER_TEMIC_4006FH5_PAL,            //"Temic 4006FH5"
+    /* 30-39 */
+    TUNER_ABSENT,                       //"Samsung TCPN9085D"
+    TUNER_ABSENT,                       //"Samsung TCPB9085P"
+    TUNER_ABSENT,                       //"Samsung TCPL9091P"
+    TUNER_TEMIC_4039FR5_NTSC,           //"Temic 4039FR5"
+    TUNER_PHILIPS_MULTI,                //"Philips FQ1216 ME"
+    TUNER_TEMIC_4066FY5_PAL_I,          //"Temic 4066FY5"
+    TUNER_PHILIPS_NTSC,                 //"Philips TD1536"
+    TUNER_PHILIPS_NTSC,                 //"Philips TD1536D"
+    TUNER_PHILIPS_NTSC,                 //"Philips FMR1236"
+    TUNER_ABSENT,                       //"Philips FI1256MP"
+    /* 40-49 */
+    TUNER_ABSENT,                       //"Samsung TCPQ9091P"
+    TUNER_TEMIC_4006FN5_PAL,            //"Temic 4006FN5"
+    TUNER_TEMIC_4009FR5_PAL,            //"Temic 4009FR5"
+    TUNER_TEMIC_4046FM5_MULTI,          //"Temic 4046FM5"
+    TUNER_TEMIC_4009FN5_PAL,            //"Temic 4009FN5"
+    TUNER_ABSENT,                       //"Philips TD1536D_FH_44"
+    TUNER_LG_R01F_NTSC,                 //"LG TPI8NSR01F"
+    TUNER_LG_B01D_PAL,                  //"LG TPI8PSB01D"
+    TUNER_LG_B11D_PAL,                  //"LG TPI8PSB11D"
+    TUNER_LG_I001D_PAL_I,               //"LG TAPC-I001D"
+    /* 50-59 */
+    TUNER_LG_I701D_PAL_I,               //"LG TAPC-I701D"
+    TUNER_ABSENT,                       //"Temic 4042FI5"
+    TUNER_ABSENT,                       //"Microtune 4049 FM5"
+    TUNER_ABSENT,                       //"LG TPI8NSR11F"
+    TUNER_ABSENT,                       //"Microtune 4049 FM5 Alt I2C"
+    TUNER_ABSENT,                       //"Philips FQ1216ME MK3"
+    TUNER_PHILIPS_FM1236_MK3,           //"Philips FI1236 MK3"
+    TUNER_PHILIPS_FM1216ME_MK3,         //"Philips FM1216 ME MK3"
+    TUNER_PHILIPS_FM1236_MK3,           //"Philips FM1236 MK3"
+    TUNER_ABSENT,                       //"Philips FM1216MP MK3"
+    /* 60-69 */
+    TUNER_PHILIPS_FM1216ME_MK3,         //"LG S001D MK3"
+    TUNER_ABSENT,                       //"LG M001D MK3"
+    TUNER_ABSENT,                       //"LG S701D MK3"
+    TUNER_ABSENT,                       //"LG M701D MK3"
+    TUNER_ABSENT,                       //"Temic 4146FM5"
+    TUNER_TEMIC_4136FY5,                //"Temic 4136FY5"
+    TUNER_TEMIC_4106FH5,                //"Temic 4106FH5"
+    TUNER_ABSENT,                       //"Philips FQ1216LMP MK3"
+    TUNER_LG_NTSC_TAPE,                 //"LG TAPE H001F MK3"
+    TUNER_ABSENT,                       //"LG TAPE H701F MK3"
+    /* 70-79 */
+    TUNER_ABSENT,                       //"LG TALN H200T"
+    TUNER_ABSENT,                       //"LG TALN H250T"
+    TUNER_ABSENT,                       //"LG TALN M200T"
+    TUNER_ABSENT,                       //"LG TALN Z200T"
+    TUNER_ABSENT,                       //"LG TALN S200T"
+    TUNER_ABSENT,                       //"Thompson DTT7595"
+    TUNER_ABSENT,                       //"Thompson DTT7592"
+    TUNER_ABSENT,                       //"Silicon TDA8275C1 8290"
+    TUNER_ABSENT,                       //"Silicon TDA8275C1 8290 FM"
+    TUNER_ABSENT,                       //"Thompson DTT757"
+    /* 80-89 */
+    TUNER_ABSENT,                       //"Philips FQ1216LME MK3"
+    TUNER_ABSENT,                       //"LG TAPC G701D"
+    TUNER_LG_TAPCNEW_NTSC,              //"LG TAPC H791F"
+    TUNER_LG_TAPCNEW_PAL,               //"TCL 2002MB 3"
+    TUNER_LG_TAPCNEW_PAL,               //"TCL 2002MI 3"
+    TUNER_TCL_2002N,                    //"TCL 2002N 6A"
+    TUNER_ABSENT,                       //"Philips FQ1236 MK3"
+    TUNER_ABSENT,                       //"Samsung TCPN 2121P30A"
+    TUNER_ABSENT,                       //"Samsung TCPE 4121P30A"
+    TUNER_PHILIPS_FM1216ME_MK3,         //"TCL MFPE05 2"
+    /* 90-99 */
+    TUNER_ABSENT,                       //"LG TALN H202T"
+    TUNER_PHILIPS_FQ1216AME_MK4,        //"Philips FQ1216AME MK4"
+    TUNER_PHILIPS_FQ1236A_MK4,          //"Philips FQ1236A MK4"
+    TUNER_ABSENT,                       //"Philips FQ1286A MK4"
+    TUNER_ABSENT,                       //"Philips FQ1216ME MK5"
+    TUNER_ABSENT,                       //"Philips FQ1236 MK5"
+    TUNER_ABSENT,                       //"Unspecified"
+    TUNER_LG_PAL_TAPE,                  //"LG PAL (TAPE Series)"
+};
 
 // ---------------------------------------------------------------------------
 // Generic I2C interface: pass calls through to hardware-specific driver
 //
 static void I2CBus_Lock( void )
 {
-   EnterCriticalSection(&m_cCrit);
+   DsDrv_LockCard();
 }
 
 static void I2CBus_Unlock( void )
 {
-   LeaveCriticalSection(&m_cCrit);
+   DsDrv_UnlockCard();
 }
 
 static BOOL I2CBus_Write( const BYTE * writeBuffer, size_t writeBufferSize )
@@ -496,6 +727,824 @@ static BOOL I2CBus_Write( const BYTE * writeBuffer, size_t writeBufferSize )
 }
 
 // ---------------------------------------------------------------------------
+// Import of DScaler TDA8290.cpp support: from class CTDA8290
+
+// The I2C address of the TDA8290 chip.
+#define I2C_ADDR_TDA8290        0x4B
+
+// Subaddresses used by TDA8290.  Addresses marked R
+// are read mode.  The rest are write mode.
+#define TDA8290_CLEAR                       0x00
+#define TDA8290_STANDARD_REG                0x01
+#define TDA8290_DIV_FUNC                    0x02
+#define TDA8290_FILTERS_1                   0x03
+#define TDA8290_FILTERS_2                   0x04
+#define TDA8290_ADC_HEADR                   0x05
+#define TDA8290_GRP_DELAY                   0x06
+#define TDA8290_DTO_PC                      0x07
+#define TDA8290_PC_PLL_FUNC                 0x08
+#define TDA8290_AGC_FUNC                    0x09
+#define TDA8290_IF_AGC_SET                  0x0F
+#define TDA8290_T_AGC_FUNC                  0x10
+#define TDA8290_TOP_ADJUST_REG              0x11
+#define TDA8290_SOUNDSET_1                  0x13
+#define TDA8290_SOUNDSET_2                  0x14
+// ... address defines skipped ...
+#define TDA8290_ADC_SAT                     0x1A    // R
+#define TDA8290_AFC_REG                     0x1B    // R
+#define TDA8290_AGC_HVPLL                   0x1C    // R
+#define TDA8290_IF_AGC_STAT                 0x1D    // R
+#define TDA8290_T_AGC_STAT                  0x1E    // R
+#define TDA8290_IDENTITY                    0x1F    // R
+#define TDA8290_GPIO1                       0x20
+#define TDA8290_GPIO2                       0x21
+#define TDA8290_GPIO3                       0x22
+#define TDA8290_TEST                        0x23
+#define TDA8290_PLL1                        0x24
+#define TDA8290_PLL1R                       0x24    // R
+#define TDA8290_PLL2                        0x25
+#define TDA8290_PLL3                        0x26
+#define TDA8290_PLL4                        0x27
+#define TDA8290_ADC                         0x28
+// ... address defines skipped ...
+#define TDA8290_PLL5                        0x2C
+#define TDA8290_PLL6                        0x2D
+#define TDA8290_PLL7                        0x2E
+#define TDA8290_PLL8                        0x2F    //R
+#define TDA8290_V_SYNC_DEL                  0x30
+
+typedef enum
+{
+    TDA8290_STANDARD_MN = 0,
+    TDA8290_STANDARD_B,
+    TDA8290_STANDARD_GH,
+    TDA8290_STANDARD_I,
+    TDA8290_STANDARD_DK,
+    TDA8290_STANDARD_L,
+    TDA8290_STANDARD_L2,
+    TDA8290_STANDARD_RADIO,
+    TDA8290_STANDARD_LASTONE
+} eTDA8290Standard;
+
+static void Tda8290_SetVideoSystemStandard(eTDA8290Standard standard);
+static eTDA8290Standard Tda8290_GetTDA8290Standard(uint norm /*eVideoFormat videoFormat*/);
+
+static BOOL Tda8290_WriteToSubAddress(BYTE subAddress, BYTE writeByte)
+{
+   BYTE buf[3];
+
+   buf[0] = I2C_ADDR_TDA8290;
+   buf[1] = subAddress;
+   buf[2] = writeByte;
+
+   return I2CBus_Write(buf, 3);
+}
+
+static BOOL Tda8290_ReadFromSubAddress(BYTE subAddress, BYTE *readBuffer, size_t len)
+{
+   BYTE addr[2];
+
+   addr[0] = I2C_ADDR_TDA8290;
+   addr[1] = subAddress;
+
+   return pTvCard->i2cBus->I2cRead(pTvCard, addr, sizeof(addr), readBuffer, len);
+}
+
+static void Tda8290_Init(bool bPreInit, uint norm /*eVideoFormat videoFormat*/ )
+{
+    if (bPreInit)
+    {
+        // Set TDA8290 gate for TDA8275 communication
+        Tda8290_WriteToSubAddress(TDA8290_GPIO2, 0xC1);
+    }
+    else
+    {
+        // V-Sync: positive pulse, line 15, width 128us (data-sheet initialization)
+        Tda8290_WriteToSubAddress(TDA8290_V_SYNC_DEL, 0x6F);
+        // Set GP0 to VSYNC.  The data-sheet says this but the v4l2 code
+        // doesn't do this for some reason.
+        Tda8290_WriteToSubAddress(TDA8290_GPIO1, 0x0B);
+        // Set TDA8290 gate to prevent TDA8275 communication
+        Tda8290_WriteToSubAddress(TDA8290_GPIO2, 0x81);
+    }
+}
+
+static void Tda8290_TunerSet(bool bPreSet, uint norm /*eVideoFormat videoFormat*/ )
+{
+    eTDA8290Standard standard = Tda8290_GetTDA8290Standard(norm /*videoFormat*/);
+
+    if (bPreSet)
+    {
+        // Set video system standard.
+        Tda8290_SetVideoSystemStandard(standard);
+
+        // "1.1 Set input ADC register" (data-sheet)
+        Tda8290_WriteToSubAddress(TDA8290_ADC, 0x14);
+        // "1.2 Increasing IF AGC speed" (data-sheet)
+        // This is the register's default value.
+        Tda8290_WriteToSubAddress(TDA8290_IF_AGC_SET, 0x88);
+        // "1.3 Set ADC headroom (TDA8290) to nominal" (data-sheet)
+        //if (standard == TDA8290_STANDARD_L || standard == TDA8290_STANDARD_L2)
+        if (norm == VIDEO_MODE_SECAM)
+        {
+            // 9dB ADC headroom if standard is L or L'
+            Tda8290_WriteToSubAddress(TDA8290_ADC_HEADR, 0x2);
+        }
+        //else
+        //{
+        //    // 6dB ADC headroom
+        //    Tda8290_WriteToSubAddress(TDA8290_ADC_HEADR, 0x4);
+        //}
+
+        // 1.4 Set picture carrier PLL BW (TDA8290) to nominal (data-sheet)
+        // This is the register's default value.
+        Tda8290_WriteToSubAddress(TDA8290_PC_PLL_FUNC, 0x47);
+
+        // The v4l code does this instead of 1.2, 1.3 and 1.4
+        // Tda8290_WriteToSubAddress(TDA8290_CLEAR, 0x00);
+
+        // Set TDA8290 gate for TDA8275 communication
+        Tda8290_WriteToSubAddress(TDA8290_GPIO2, 0xC1);
+    }
+    else
+    {
+        BYTE readByte = 0x00;
+
+        // 4 Switching AGCF gain to keep 8dB headroom for RF power variations
+        if ( ( (Tda8290_ReadFromSubAddress(TDA8290_IF_AGC_STAT, &readByte, 1) && (readByte > 155)) ||
+               (Tda8290_ReadFromSubAddress(TDA8290_AFC_REG, &readByte, 1) && ((readByte & 0x80) == 0)) ) &&
+             (Tda8290_ReadFromSubAddress(TDA8290_ADC_SAT, &readByte, 1) && (readByte < 20)) )
+        {
+            // 1Vpp for TDA8290 ADC
+            Tda8290_WriteToSubAddress(TDA8290_ADC, 0x54);
+            Sleep(100);
+
+            // This cannot be done because there's no interface from here to the TDA8275.
+            //if ((Tda8290_ReadFromSubAddress(TDA8290_IF_AGC_STAT, &readByte, 1) && readByte > 155 ||
+            //  Tda8290_ReadFromSubAddress(TDA8290_AFC_REG, &readByte, 1) && (readByte & 0x80) == 0))
+            //{
+            //  // AGCF gain is increased to 10-30dB.
+            //  TDA8275->Tda8290_WriteToSubAddress(TDA8275_AB4, 0x08);
+            //  Sleep(100);
+
+                if ( (Tda8290_ReadFromSubAddress(TDA8290_IF_AGC_STAT, &readByte, 1) && (readByte > 155)) ||
+                     (Tda8290_ReadFromSubAddress(TDA8290_AFC_REG, &readByte, 1) && ((readByte & 0x80) == 0)) )
+                {
+                    // 12dB ADC headroom
+                    Tda8290_WriteToSubAddress(TDA8290_ADC_HEADR, 0x1);
+                    // 70kHz PC PLL BW to counteract striping in picture
+                    Tda8290_WriteToSubAddress(TDA8290_PC_PLL_FUNC, 0x27);
+                    // Wait for IF AGC
+                    Sleep(100);
+                }
+            //}
+        }
+
+        // 5/ RESET for L/L' deadlock
+        //if (standard == TDA8290_STANDARD_L || standard == TDA8290_STANDARD_L2)
+        if (norm == VIDEO_MODE_SECAM)
+        {
+            if ((Tda8290_ReadFromSubAddress(TDA8290_ADC_SAT, &readByte, 1) && (readByte > 20)) ||
+                (Tda8290_ReadFromSubAddress(TDA8290_AFC_REG, &readByte, 1) && ((readByte & 0x80) == 0)) )
+            {
+                // Reset AGC integrator
+                Tda8290_WriteToSubAddress(TDA8290_AGC_FUNC, 0x0B);
+                Sleep(40);
+                // Normal mode
+                Tda8290_WriteToSubAddress(TDA8290_AGC_FUNC, 0x09);
+            }
+        }
+
+        // 6/ Set TDA8290 gate to prevent TDA8275 communication
+        Tda8290_WriteToSubAddress(TDA8290_GPIO2, 0x81);
+        // 7/ IF AGC control loop bandwidth
+        Tda8290_WriteToSubAddress(TDA8290_IF_AGC_SET, 0x81);
+    }
+}
+
+static BOOL Tda8290_Detect( void )
+{
+    BYTE readBuffer;
+
+    // I'm not sure about this.  Maybe the value of identify needs to be tested
+    // too, and maybe it's necessary to perform read tests on other registers.
+    if (!Tda8290_ReadFromSubAddress(TDA8290_IDENTITY, &readBuffer, 1))
+    {
+        dprintf0("TDA8290: not detected\n");
+        return FALSE;
+    }
+
+    dprintf1("Tda8290-Detect: read $1F = %02x\n", readBuffer);
+    return TRUE;
+}
+
+static void Tda8290_SetVideoSystemStandard(eTDA8290Standard standard)
+{
+    const BYTE sgStandard[TDA8290_STANDARD_LASTONE] = { 1, 2, 4, 8, 16, 32, 64, 0 };
+
+    if ( (standard == TDA8290_STANDARD_RADIO)
+         || (standard > TDA8290_STANDARD_LASTONE) )
+    {
+        return;
+    }
+
+    // Bits: 0..6 := standard, 7 := expert mode
+    Tda8290_WriteToSubAddress(TDA8290_STANDARD_REG, sgStandard[(int)standard]);
+    // Activate expert mode.  I think it might need to be broken into two
+    // calls like this so the first call sets everything up in easy mode
+    // before expert mode is switched on.
+    Tda8290_WriteToSubAddress(TDA8290_STANDARD_REG, sgStandard[(int)standard]|0x80);
+}
+
+static eTDA8290Standard Tda8290_GetTDA8290Standard(uint norm /*eVideoFormat videoFormat*/)
+{
+    eTDA8290Standard standard = TDA8290_STANDARD_MN;
+
+    switch (norm /*videoFormat*/)
+    {
+    //case VIDEOFORMAT_PAL_B:
+    //case VIDEOFORMAT_SECAM_B:
+    case VIDEO_MODE_PAL:
+        standard = TDA8290_STANDARD_B;
+        break;
+    //case VIDEOFORMAT_PAL_G:
+    //case VIDEOFORMAT_PAL_H:        
+    //case VIDEOFORMAT_PAL_N:
+    //case VIDEOFORMAT_SECAM_G:
+    //case VIDEOFORMAT_SECAM_H:
+        //standard = TDA8290_STANDARD_GH;
+        //break;
+    //case VIDEOFORMAT_PAL_I:
+        //standard = TDA8290_STANDARD_I;
+        //break;
+    //case VIDEOFORMAT_PAL_D:
+    //case VIDEOFORMAT_SECAM_D:   
+    //case VIDEOFORMAT_SECAM_K:
+    //case VIDEOFORMAT_SECAM_K1:
+        //standard = TDA8290_STANDARD_DK;
+        //break;
+    //case VIDEOFORMAT_SECAM_L:
+    //case VIDEOFORMAT_SECAM_L1:
+    case VIDEO_MODE_SECAM:
+        standard = TDA8290_STANDARD_L;
+        break;
+    //case VIDEOFORMAT_PAL_60:    
+        // Unsupported
+        //break;
+    //case VIDEOFORMAT_PAL_M:
+    //case VIDEOFORMAT_PAL_N_COMBO:
+    //case VIDEOFORMAT_NTSC_M:
+    case VIDEO_MODE_NTSC:
+        standard = TDA8290_STANDARD_MN;
+        break;
+    //case VIDEOFORMAT_NTSC_50:
+    //case VIDEOFORMAT_NTSC_M_Japan:
+        //standard = TDA8290_STANDARD_MN;
+        //break;
+    // This value is used among ITuner and IExternalIFDemodulator for radio.
+    //case (VIDEOFORMAT_LASTONE+1):
+        //standard = TDA8290_STANDARD_RADIO;
+        //break;
+    }
+
+    return standard;
+}
+
+
+// ---------------------------------------------------------------------------
+// @file TDA8290.cpp CTDA8290 Implementation
+//
+// The I2C addresses for the TDA8275 chip.
+// (These are standard tuner addresses.  a.k.a C0, C2, C4, C6)
+#define I2C_ADDR_TDA8275_0      0x60
+#define I2C_ADDR_TDA8275_1      0x61
+#define I2C_ADDR_TDA8275_2      0x62
+#define I2C_ADDR_TDA8275_3      0x63
+
+// Common Subaddresses used by TDA8275 and TDA8275A (Read-Only status register)
+#define TDA8275_SR0             0x00
+#define TDA8275_SR1             0x10
+#define TDA8275_SR2             0x20
+#define TDA8275_SR3             0x30
+
+// Common Subaddresses used by TDA8275 and TDA8275A.
+#define TDA8275_DB1             0x00
+#define TDA8275_DB2             0x10
+#define TDA8275_DB3             0x20
+#define TDA8275_CB1             0x30
+#define TDA8275_BB              0x40
+#define TDA8275_AB1             0x50
+#define TDA8275_AB2             0x60
+
+// Subaddresses used by TDA8275 only.
+#define TDA8275_AB3             0x70
+#define TDA8275_AB4             0x80
+#define TDA8275_GB              0x90
+#define TDA8275_TB              0xA0
+#define TDA8275_SDB3            0xB0
+#define TDA8275_SDB4            0xC0
+
+// Subaddresses used by TDA8275A only.
+#define TDA8275A_IB1            0x70
+#define TDA8275A_AB3            0x80
+#define TDA8275A_IB2            0x90
+#define TDA8275A_CB2            0xA0
+#define TDA8275A_IB3            0xB0
+#define TDA8275A_CB3            0xC0
+
+typedef struct
+{
+    WORD    loMin;
+    WORD    loMax;
+    BYTE    spd;
+    BYTE    BS;
+    BYTE    BP;
+    BYTE    CP;
+    BYTE    GC3;
+    BYTE    div1p5;
+} tProgramingParam;
+
+typedef struct
+{
+    WORD    loMin;
+    WORD    loMax;
+    BYTE    SVCO;
+    BYTE    SPD;
+    BYTE    SCR;
+    BYTE    SBS;
+    BYTE    GC3;
+
+} tProgramingParam2;
+
+typedef struct
+{
+    WORD    loMin;
+    WORD    loMax;
+    BYTE    SVCO;
+    BYTE    SPD;
+    BYTE    SCR;
+    BYTE    SBS;
+    BYTE    GC3;
+
+} tProgramingParam3;
+
+typedef struct
+{
+    WORD    sgIFkHz;
+    BYTE    sgIFLPFilter;
+} tStandardParam;
+
+// TDA8275 analog TV frequency dependent parameters (prgTab)
+static const tProgramingParam Tda8275_k_programmingTable[] =
+{
+    // LOmin,   LOmax,  spd,    BS,     BP,     CP,     GC3,    div1p5
+    { 55,       62,     3,      2,      0,      0,      3,      1   },
+    { 62,       66,     3,      3,      0,      0,      3,      1   },
+    { 66,       76,     3,      1,      0,      0,      3,      0   },
+    { 76,       84,     3,      2,      0,      0,      3,      0   },
+    { 84,       93,     3,      2,      0,      0,      1,      0   },
+    { 93,       98,     3,      3,      0,      0,      1,      0   },
+    { 98,       109,    3,      3,      1,      0,      1,      0   },
+    { 109,      123,    2,      2,      1,      0,      1,      1   },
+    { 123,      133,    2,      3,      1,      0,      1,      1   },
+    { 133,      151,    2,      1,      1,      0,      1,      0   },
+    { 151,      154,    2,      2,      1,      0,      1,      0   },
+    { 154,      181,    2,      2,      1,      0,      0,      0   },
+    { 181,      185,    2,      2,      2,      0,      1,      0   },
+    { 185,      217,    2,      3,      2,      0,      1,      0   },
+    { 217,      244,    1,      2,      2,      0,      1,      1   },
+    { 244,      265,    1,      3,      2,      0,      1,      1   },
+    { 265,      302,    1,      1,      2,      0,      1,      0   },
+    { 302,      324,    1,      2,      2,      0,      1,      0   },
+    { 324,      370,    1,      2,      3,      0,      1,      0   },
+    { 370,      454,    1,      3,      3,      0,      1,      0   },
+    { 454,      493,    0,      2,      3,      0,      1,      1   },
+    { 493,      530,    0,      3,      3,      0,      1,      1   },
+    { 530,      554,    0,      1,      3,      0,      1,      0   },
+    { 554,      604,    0,      1,      4,      0,      0,      0   },
+    { 604,      696,    0,      2,      4,      0,      0,      0   },
+    { 696,      740,    0,      2,      4,      1,      0,      0   },
+    { 740,      820,    0,      3,      4,      0,      0,      0   },
+    { 820,      865,    0,      3,      4,      1,      0,      0   }
+};
+
+// TDA8275A analog TV frequency dependent parameters (prgTab)
+static const tProgramingParam2 Tda8275_k_programmingTable2[] =
+{
+    // loMin,   loMax,  SVCO,   SPD,    SCR,    SBS,    GC3
+    { 49,       56,     3,      4,      0,      0,      3   },
+    { 56,       67,     0,      3,      0,      0,      3   },
+    { 67,       81,     1,      3,      0,      0,      3   },
+    { 81,       97,     2,      3,      0,      0,      3   },
+    { 97,       113,    3,      3,      0,      1,      1   },
+    { 113,      134,    0,      2,      0,      1,      1   },
+    { 134,      154,    1,      2,      0,      1,      1   },
+    { 154,      162,    1,      2,      0,      1,      1   },
+    { 162,      183,    2,      2,      0,      1,      1   },
+    { 183,      195,    2,      2,      0,      2,      1   },
+    { 195,      227,    3,      2,      0,      2,      3   },
+    { 227,      269,    0,      1,      0,      2,      3   },
+    { 269,      325,    1,      1,      0,      2,      1   },
+    { 325,      390,    2,      1,      0,      3,      3   },
+    { 390,      455,    3,      1,      0,      3,      3   },
+    { 455,      520,    0,      0,      0,      3,      1   },
+    { 520,      538,    0,      0,      1,      3,      1   },
+    { 538,      554,    1,      0,      0,      3,      1   },
+    { 554,      620,    1,      0,      0,      4,      0   },
+    { 620,      650,    1,      0,      1,      4,      0   },
+    { 650,      700,    2,      0,      0,      4,      0   },
+    { 700,      780,    2,      0,      1,      4,      0   },
+    { 780,      820,    3,      0,      0,      4,      0   },
+    { 820,      870,    3,      0,      1,      4,      0   },
+    { 870,      911,    3,      0,      2,      4,      0   }
+};
+
+#if 0
+// TDA8275A DVB-T frequency dependent parameters (prgTab)
+static const tProgramingParam3 Tda8275_k_programmingTable3[] =
+{
+    // loMin,   loMax,  SVCO,   SPD,    SCR,    SBS,    GC3
+    { 49,       57,     3,      4,      0,      0,      1   },
+    { 57,       67,     0,      3,      0,      0,      1   },
+    { 67,       81,     1,      3,      0,      0,      1   },
+    { 81,       98,     2,      3,      0,      0,      1   },
+    { 98,       114,    3,      3,      0,      1,      1   },
+    { 114,      135,    0,      2,      0,      1,      1   },
+    { 135,      154,    1,      2,      0,      1,      1   },
+    { 154,      163,    1,      2,      0,      1,      1   },
+    { 163,      183,    2,      2,      0,      1,      1   },
+    { 183,      195,    2,      2,      0,      2,      1   },
+    { 195,      228,    3,      2,      0,      2,      1   },
+    { 228,      269,    0,      1,      0,      2,      1   },
+    { 269,      290,    1,      1,      0,      2,      1   },
+    { 290,      325,    1,      1,      0,      3,      1   },
+    { 325,      390,    2,      1,      0,      3,      1   },
+    { 390,      455,    3,      1,      0,      3,      1   },
+    { 455,      520,    0,      0,      0,      3,      1   },
+    { 520,      538,    0,      0,      1,      3,      1   },
+    { 538,      550,    1,      0,      0,      3,      1   },
+    { 550,      620,    1,      0,      0,      4,      0   },
+    { 620,      650,    1,      0,      1,      4,      0   },
+    { 650,      700,    2,      0,      0,      4,      0   },
+    { 700,      780,    2,      0,      1,      4,      0   },
+    { 780,      820,    3,      0,      0,      4,      0   },
+    { 820,      870,    3,      0,      1,      4,      0   }
+};
+#endif
+
+static const tStandardParam Tda8275_k_standardParamTable[TDA8290_STANDARD_LASTONE] =
+{
+    // sgIFkHz, sgIFLPFilter
+    { 5750, 1 },
+    { 6750, 0 },
+    { 7750, 0 },
+    { 7750, 0 },
+    { 7750, 0 },
+    { 7750, 0 },
+    { 1250, 0 },
+    { 4750, 0 },  // FM Radio (this value is a guess)
+};
+
+static BOOL Tda8275_WriteToSubAddress(BYTE subAddress, BYTE writeByte)
+{
+   BYTE buf[3];
+
+   buf[0] = I2C_ADDR_TDA8275_1;
+   buf[1] = subAddress;
+   buf[2] = writeByte;
+
+   return I2CBus_Write(buf, 3);
+}
+
+
+static bool Tda8275_IsTDA8275A( void )
+{
+    static const BYTE addr[2] = {I2C_ADDR_TDA8275_1, TDA8275_SR1};
+    BYTE Result;
+
+    // Read HID Bit's (18:21) : 0000 = TDA8275
+    //                          0010 = TDA8275A
+
+    if (pTvCard->i2cBus->I2cRead(pTvCard, addr, sizeof(addr), &Result, 1))
+    {
+        if ((Result & 0x3C) == 0x08)
+        {
+            dprintf0("TDA8275: TDA8275A revision found\n");
+            return TRUE;
+        }
+        else
+        {
+            dprintf0("TDA8275: Found\n");
+            return FALSE;
+        }
+    }
+
+    debug0("TDA8275: Error while detecting chip revision\n");
+    return FALSE;
+}
+
+static void Tda8275_WriteTDA8275Initialization( void )
+{
+    // 2 TDA8275A Initialization
+    if (Tda8275_IsTDA8275A())
+    {
+        Tda8275_WriteToSubAddress(TDA8275_DB1, 0x00);
+        Tda8275_WriteToSubAddress(TDA8275_DB2, 0x00);
+        Tda8275_WriteToSubAddress(TDA8275_DB3, 0x00);
+        Tda8275_WriteToSubAddress(TDA8275_AB1, 0xAB);
+        Tda8275_WriteToSubAddress(TDA8275_AB2, 0x3C);
+        Tda8275_WriteToSubAddress(TDA8275A_IB1, 0x04);
+        Tda8275_WriteToSubAddress(TDA8275A_AB3, 0x24);
+        Tda8275_WriteToSubAddress(TDA8275A_IB2, 0xFF);
+        Tda8275_WriteToSubAddress(TDA8275A_CB2, 0x40);
+        Tda8275_WriteToSubAddress(TDA8275A_IB3, 0x00);
+        Tda8275_WriteToSubAddress(TDA8275A_CB3, 0x3B);
+
+        /*
+        // These values come from the "2/ TDA8275A Initialization"
+        // code in the data-sheet.  Those that weren't specified
+        // there were substituted with default values from the
+        // default column of the data-sheet.
+
+        BYTE initializationBytes[13] = {
+            // DB1,  DB2,  DB3,  CB1
+               0x00, 0x00, 0x00, 0xDC,
+            // BB,   AB1,  AB2,  IB1
+               0x05, 0xAB, 0x3C, 0x04,
+            // AB3,  IB2,  CB2,  IB3,  CB3
+               0x24, 0xFF, 0x40, 0x00, 0x3B };
+
+        Tda8275_WriteToSubAddress(TDA8275A_DB1, initializationBytes, 13);
+        */
+    }
+    else
+    {
+        Tda8275_WriteToSubAddress(TDA8275_DB1, 0x00);
+        Tda8275_WriteToSubAddress(TDA8275_DB2, 0x00);
+        Tda8275_WriteToSubAddress(TDA8275_DB3, 0x40);
+        Tda8275_WriteToSubAddress(TDA8275_AB3, 0x2A);
+        Tda8275_WriteToSubAddress(TDA8275_GB, 0xFF);
+        Tda8275_WriteToSubAddress(TDA8275_TB, 0x00);
+        Tda8275_WriteToSubAddress(TDA8275_SDB3, 0x00);
+        Tda8275_WriteToSubAddress(TDA8275_SDB4, 0x40);
+
+        /*
+        // These values come from the "2/ TDA827x Initialization"
+        // code in the data-sheet.  Those that weren't specified
+        // there were substituted with default values from the
+        // default column of the data-sheet.
+
+        BYTE initializationBytes[13] = {
+            // DB1,  DB2,  DB3,  CB1
+               0x00, 0x00, 0x40, 0x70,
+            // BB,   AB1,  AB2,  AB3
+               0x00, 0x83, 0x3F, 0x2A,
+            // AB4,  GB,   TB,   SDB3, SDB4
+               0x04, 0xFF, 0x00, 0x00, 0x40 };
+
+        Tda8275_WriteToSubAddress(TDA8275_DB1, initializationBytes, 13);
+        */
+    }
+}
+
+static bool Tda8275_SetFrequency(long frequencyHz, eTDA8290Standard standard)
+{
+    BYTE sgIFLPFilter = Tda8275_k_standardParamTable[(int)standard].sgIFLPFilter;
+    LONG sgIFHz = Tda8275_k_standardParamTable[(int)standard].sgIFkHz * 1000;
+
+    // sgRFHz + sgIFHz
+    LONG freqRFIFHz = frequencyHz + sgIFHz;
+
+    // The data-sheet says:
+    // N11toN0=round((2^spd)*Flo*1000000*(16MHz/(2^6))
+    //
+    // Then uses this code to get the n11ton0 value:
+    // lgN11toN0 = Round((2 ^ prgTab(c, 3)) * (sgRFMHz + sgIFMHz) * 1000000 / (16000000 / 2 ^ 6))
+    //
+    // Notice the discrepancy with division of (16MHz/2^6).  'prgTab(c, 3)' is row->spd,
+    // (sgRFMHz + sgIFMHz) is (freqRFIFHz / 1000000).
+
+    // 0.5 is added for rounding.
+
+    bool success = TRUE;
+
+    if (Tda8275_IsTDA8275A())
+    {
+#if 0
+        if (IsDvbMode())
+        {
+            // For TDA8275A in DVB Mode
+            const tProgramingParam3* row = Tda8275_k_programmingTable3;
+            const tProgramingParam3* last = (const tProgramingParam3*)((size_t)row + sizeof(Tda8275_k_programmingTable3)) - 1;
+            for ( ; row != last && freqRFIFHz > row->loMax * 1000000; row++) ;
+            WORD n11ton0 = (WORD)((double)(1 << row->SPD) * ((double)freqRFIFHz / 250000) + 0.5);
+
+            BYTE channelBytes[12];
+            channelBytes[0]  = (n11ton0 >> 6) & 0x3F;
+            channelBytes[1]  = (n11ton0 << 2) & 0xFC;
+            channelBytes[2]  = 0x00;
+            channelBytes[3]  = 0x16;
+            channelBytes[4]  = (row->SPD << 5) | (row->SVCO << 3) | (row->SBS);
+            channelBytes[5]  = 0x01 << 6 | (row->GC3 << 4) | 0x0B;
+            channelBytes[6]  = 0x0C;
+            channelBytes[7]  = 0x06;
+            channelBytes[8]  = 0x24;
+            channelBytes[9]  = 0xFF;
+            channelBytes[10] = 0x60;
+            channelBytes[11] = 0x00;
+            channelBytes[12] = sgIFLPFilter ? 0x3B : 0x39; // 7MHz (US) / 9Mhz (Europe);
+
+            if (!Tda8275_WriteToSubAddress(TDA8275_DB1, channelBytes, 12))
+            {
+                return false;
+            }
+
+            // 2.2 Re-initialize PLL and gain path
+            Tda8275_WriteToSubAddress(Tda8275_AB2, 0x3C);
+            Tda8275_WriteToSubAddress(TDA8275A_CB2, 0x40);
+            Sleep(2);
+            Tda8275_WriteToSubAddress(TDA8275_CB1, (0x04 << 2) | (row->SCR >> 2));
+            Sleep(550); // 550ms delay required.
+            Tda8275_WriteToSubAddress(TDA8275_AB1, (0x02 << 6) | (row->GC3 << 4) | 0x0F);
+        }
+        else
+#endif
+        {
+            // For TDA8275A in analog TV Mode
+            const tProgramingParam2* row = Tda8275_k_programmingTable2;
+            const tProgramingParam2* last = (const tProgramingParam2*)((size_t)row + sizeof(Tda8275_k_programmingTable2)) - 1;
+            WORD n11ton0;
+            BYTE channelBytes[2+12];
+            
+            // Find the matching row of the programming table for this frequency.
+            for ( ; (row != last) && (freqRFIFHz > row->loMax * 1000000); row++)
+               ;
+            
+            n11ton0 = (WORD)((double)(1 << row->SPD) * ((double)freqRFIFHz / 250000) + 0.5);
+
+            channelBytes[0] = I2C_ADDR_TDA8275_1;
+            channelBytes[1] = TDA8275_DB1;
+            channelBytes[2+0]  = (n11ton0 >> 6) & 0x3F;
+            channelBytes[2+1]  = (n11ton0 << 2) & 0xFC;
+            channelBytes[2+2]  = 0x00;
+            channelBytes[2+3]  = 0x16;
+            channelBytes[2+4]  = (row->SPD << 5) | (row->SVCO << 3) | (row->SBS);
+            channelBytes[2+5]  = 0x02 << 6 | (row->GC3 << 4) | 0x0B;
+            channelBytes[2+6]  = 0x0C;
+            channelBytes[2+7]  = 0x04;
+            channelBytes[2+8]  = 0x20;
+            channelBytes[2+9]  = 0xFF;
+            channelBytes[2+10] = 0xE0;
+            channelBytes[2+11] = 0x00;
+            channelBytes[2+12] = sgIFLPFilter ? 0x3B : 0x39; // 7MHz (US) / 9Mhz (Europe);
+
+            if (!I2CBus_Write(channelBytes, 2+12))
+            {
+                return FALSE;
+            }
+
+            // 2.2 Re-initialize PLL and gain path
+            Tda8275_WriteToSubAddress(TDA8275_AB2,  0x3C);
+            Tda8275_WriteToSubAddress(TDA8275A_CB2, 0xC0);
+            Sleep(2);
+            Tda8275_WriteToSubAddress(TDA8275_CB1, (0x04 << 2) | (row->SCR >> 2));
+            Sleep(550); // 550ms delay required.
+            Tda8275_WriteToSubAddress(TDA8275_AB1, (0x02 << 6) | (row->GC3 << 4) | 0x0F);
+            // 3 Enabling VSYNC only for analog TV 
+            Tda8275_WriteToSubAddress(TDA8275A_AB3, 0x28);
+            Tda8275_WriteToSubAddress(TDA8275A_IB3, 0x01);
+            Tda8275_WriteToSubAddress(TDA8275A_CB3, sgIFLPFilter ? 0x3B : 0x39); // 7MHz (US) / 9Mhz (Europe);
+        }
+    }
+    else
+    {
+        // For TDA8275
+        const tProgramingParam* row = Tda8275_k_programmingTable;
+        const tProgramingParam* last = (const tProgramingParam*)((size_t)row + sizeof(Tda8275_k_programmingTable)) - 1;
+        WORD n11ton0;
+        BYTE channelBytes[2+7];
+        
+        // Find the matching row of the programming table for this frequency.
+        for ( ; row != last && freqRFIFHz > row->loMax * 1000000; row++) ;
+
+        n11ton0 = (WORD)((double)(1 << row->spd) * ((double)freqRFIFHz / 250000) + 0.5);
+
+        channelBytes[0] = I2C_ADDR_TDA8275_1;
+        channelBytes[1] = TDA8275_DB1;
+        channelBytes[2+0] = (n11ton0 >> 6) & 0x3F;
+        channelBytes[2+1] = (n11ton0 << 2) & 0xFC;
+        channelBytes[2+2] = 0x40;
+        channelBytes[2+3] = sgIFLPFilter ? 0x72 : 0x52; // 7MHz (US) / 9Mhz (Europe)
+        channelBytes[2+4] = (row->spd << 6)|(row->div1p5 << 5)|(row->BS << 3)|row->BP;
+        channelBytes[2+5] = 0x8F | (row->GC3 << 4);
+        channelBytes[2+6] = 0x8F;
+
+        if (!I2CBus_Write(channelBytes, 2+7) ||
+            !Tda8275_WriteToSubAddress(TDA8275_AB4, 0x00))
+        {
+            return FALSE;
+        }
+
+
+        // 2.2 Re-initialize PLL and gain path
+        success &= Tda8275_WriteToSubAddress(TDA8275_AB2, 0xBF);
+        // This puts a delay that may not be necessary.
+        //  success &= Tda8275_WriteToSubAddress(TDA8275_CB1, 0xD2);
+        //  Sleep(1);
+        //  success &= Tda8275_WriteToSubAddress(TDA8275_CB1, 0x56);
+        //  Sleep(1); // Only 550us required.
+        //  success &= Tda8275_WriteToSubAddress(TDA8275_CB1, 0x52);
+        //  Sleep(550); // 550ms delay required.
+        success &= Tda8275_WriteToSubAddress(TDA8275_CB1, 0x50|row->CP);
+
+        // 3 Enabling VSYNC mode for AGC2
+        Tda8275_WriteToSubAddress(TDA8275_AB2, 0x7F);
+        Tda8275_WriteToSubAddress(TDA8275_AB4, 0x08);
+    }
+    
+    return success;
+}
+
+static bool Tda8275_SetTVFrequency(long frequencyHz, uint norm /*eVideoFormat videoFormat*/)
+{
+    bool success;
+
+    if (haveTda8290)
+    {
+       Tda8290_TunerSet(TRUE, norm /*videoFormat*/);
+    }
+
+    success = Tda8275_SetFrequency(frequencyHz, Tda8290_GetTDA8290Standard(norm /*videoFormat*/));
+
+    if (haveTda8290)
+    {
+       Tda8290_TunerSet(FALSE, norm /*videoFormat*/);
+    }
+
+    return success;
+}
+
+static bool Tda8275_InitializeTuner( void )
+{
+    Tda8275_WriteTDA8275Initialization();
+
+    if (haveTda8290)
+    {
+        Tda8290_Init(FALSE, VIDEO_MODE_PAL);
+    }
+
+    return TRUE;
+}
+
+// ---------------------------------------------------------------------------
+// Autodetect TEA5767
+//
+static BOOL IsTEA5767PresentAtC0( TVCARD * pTvCard )
+{
+    BYTE buffer[7] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+    BYTE addr = 0xC0;  //I2C_TEA5767
+
+    // Sub addresses are not supported so read all five bytes.
+    if (pTvCard->i2cBus->I2cRead(pTvCard, &addr, sizeof(addr), buffer, sizeof(buffer)))
+    {
+        dprintf0("TEA5767: No I2C device at 0xC0."); 
+        return FALSE;
+    }
+
+    // If all bytes are the same then it's a tuner and not a tea5767 chip.
+    if (buffer[0] == buffer[1] &&
+        buffer[0] == buffer[2] &&
+        buffer[0] == buffer[3] &&
+        buffer[0] == buffer[4])
+    {
+        dprintf0("TEA5767: Not Found. All bytes are equal.");
+        return FALSE;
+    }
+
+    // Status bytes:
+    // Byte 4: bit 3:1 : CI (Chip Identification) == 0
+    //         bit 0   : internally set to 0
+    // Byte 5: bit 7:0 : == 0
+    if (((buffer[3] & 0x0f) != 0x00) || (buffer[4] != 0x00))
+    {
+        dprintf0("TEA5767: Not Found. Chip ID is not zero.");
+        return FALSE;
+    }
+
+    // It seems that tea5767 returns 0xff after the 5th byte
+    if ((buffer[5] != 0xff) || (buffer[6] != 0xff))
+    {
+        dprintf0("TEA5767: Not Found. Returned more than 5 bytes.");
+        return FALSE;
+    }
+
+    dprintf5("TEA5767: Found. 0x%02X 0x%02X 0x%02X 0x%02X 0x%02X",
+             buffer[0], buffer[1], buffer[2], buffer[3], buffer[4]);
+    
+    return TRUE;
+}
+
+// ---------------------------------------------------------------------------
 // Support for TDA9887 "IF demodulator"
 //
 // Explanation about functions of MT2032/MT2050 and TDA9887:
@@ -513,96 +1562,20 @@ static BOOL I2CBus_Write( const BYTE * writeBuffer, size_t writeBufferSize )
 // however stripped down to support PAL/SECAM only:
 //
 
-#define I2C_TDA9887_x         0           // placehoder only
-#define I2C_TDA9887_0      0x86
-#define I2C_TDA9887_1      0x96
-
-typedef struct
-{
-    DWORD eTDA9887Card;
-    BYTE Pal_BG[3];
-    //BYTE Pal_I[3];
-    //BYTE Pal_DK[3];
-    BYTE Secam_L[3];
-    BYTE Ntsc[3];
-    //BYTE Ntsc_Jp[3];
-    //BYTE Fm_Radio[3];
-
-} TDA9887_ControlSettings;
+#define I2C_TDA9887_x         0    // placehoder only
+#define I2C_TDA9887_0      0x86    // MAD1
+#define I2C_TDA9887_1      0x96    // MAD3
+#define I2C_TDA9887_2      0x84    // MAD2
+#define I2C_TDA9887_3      0x94    // MAD4
 
 
-static const TDA9887_ControlSettings Tda9887TypeSettings[TDA9887_LASTONE] =
-{
-    {
-        TDA9887_DEFAULT,
-        // B ,   C,    E
-        {0x96, 0x70, 0x49}, // PAL_BG
-        //{0x96, 0x70, 0x4a}, // PAL_I
-        //{0x96, 0x70, 0x4b}, // PAL_DK
-        {0x86, 0x50, 0x4b}, // SECAM_L
-        {0x96, 0x70, 0x44}, // NTSC
-        //{0x96, 0x70, 0x40}, // NTSC_JP
-        //{0x8e, 0x0d, 0x77}, // FM_RADIO
-    },
-    {
-        TDA9887_MSI_TV_ANYWHERE_MASTER,
-        {0x56, 0x70, 0x49}, // PAL_BG       Working
-        //{0x56, 0x6e, 0x4a}, // PAL_I        Working
-        //{0x56, 0x70, 0x4b}, // PAL_DK       Working
-        {0x86, 0x50, 0x4b}, // SECAM_L      ?
-        {0x92, 0x30, 0x04}, // NTSC         Working
-        //{0x92, 0x30, 0x40}, // NTSC_JP      ?
-        //{0x8e, 0x0d, 0x77}, // FM_RADIO     ?
-    },
-    {
-        TDA9887_LEADTEK_WINFAST_EXPERT,
-        {0x16, 0x70, 0x49}, // PAL_BG       Working
-        //{0x16, 0x6e, 0x4a}, // PAL_I        ?
-        //{0x16, 0x70, 0x4b}, // PAL_DK       Working
-        {0x86, 0x50, 0x4b}, // SECAM_L      ?
-        {0x92, 0x30, 0x04}, // NTSC         ?
-        //{0x92, 0x30, 0x40}, // NTSC_JP      ?
-        //{0x8e, 0x70, 0x49}, // FM_RADIO     ? must work
-    },
-    {
-        TDA9887_ATI_TV_WONDER_PRO,
-        {0x16, 0x70, 0x49}, // PAL_BG       ?
-        //{0x16, 0x6e, 0x4a}, // PAL_I        ?
-        //{0x16, 0x70, 0x4b}, // PAL_DK       ?
-        {0x86, 0x50, 0x4b}, // SECAM_L      ?
-        {0x92, 0x30, 0x04}, // NTSC         Working
-        //{0x92, 0x30, 0x40}, // NTSC_JP      ?
-        //{0x8e, 0x0d, 0x77}, // FM_RADIO     ?
-    },
-    {
-        TDA9887_AVERTV_303,
-        {0x16, 0x70, 0x49}, // PAL_BG       ?
-        //{0x16, 0x6e, 0x4a}, // PAL_I        ?
-        //{0x16, 0x70, 0x4b}, // PAL_DK       Working
-        {0x86, 0x50, 0x4b}, // SECAM_L      ?
-        {0x92, 0x30, 0x04}, // NTSC         ?
-        //{0x92, 0x30, 0x40}, // NTSC_JP      ?
-        //{0x8e, 0x0d, 0x77}, // FM_RADIO     ?
-    },
-
-    /*
-    Add here new settings. But be careful:
-    We can't use CardID's, there are more than one tables,
-    BT8x8, SAA71xx and CX2388x. Please add an new entry in eTDA9887Card.
-    For example:
-    {
-        TDA9887_NEW_CARD_SETTINGS,
-        {0x00, 0x00, 0x00}, // PAL_BG       ?
-        {0x00, 0x00, 0x00}, // PAL_I        ?
-        {0x00, 0x00, 0x00}, // PAL_DK       ?
-        {0x00, 0x00, 0x00}, // SECAM_L      ?
-        {0x00, 0x00, 0x00}, // NTSC         ?
-        {0x00, 0x00, 0x00}, // NTSC_JP      ?
-        {0x00, 0x00, 0x00}, // FM_RADIO     ?
-    },
-    */
-
-};
+static const BYTE tda9887set_pal_bg[] =   {0, 0x00, 0x96, 0x70, 0x49};
+//static const BYTE tda9887set_pal_i[] =    {0, 0x00, 0x96, 0x70, 0x4a};
+//static const BYTE tda9887set_pal_dk[] =   {0, 0x00, 0x96, 0x70, 0x4b};
+static const BYTE tda9887set_pal_l[] =    {0, 0x00, 0x86, 0x50, 0x4b};
+static const BYTE tda9887set_ntsc[] =     {0, 0x00, 0x96, 0x70, 0x44};
+//static const BYTE tda9887set_ntsc_jp[] =  {0, 0x00, 0x96, 0x70, 0x40};
+//static const BYTE tda9887set_fm_radio[] = {0, 0x00, 0x8e, 0x0d, 0x77};
 
 static void Tda9887_TunerSet( bool bPreSet, uint norm /* eVideoFormat videoFormat */ )
 {
@@ -611,20 +1584,19 @@ static void Tda9887_TunerSet( bool bPreSet, uint norm /* eVideoFormat videoForma
    dprintf2("Tda9887-TunerSet: preset=%d, norm=%d", bPreSet, norm);
    if (bPreSet)
    {
-      if (Tda9887Type < TDA9887_LASTONE)
       {
          switch (norm)
          {
             case VIDEO_MODE_PAL:
-               memcpy(&tda9887set[2], Tda9887TypeSettings[Tda9887Type].Pal_BG, 3);
+               memcpy(tda9887set, tda9887set_pal_bg, 5);
                break;
 
             case VIDEO_MODE_SECAM:
-               memcpy(&tda9887set[2], Tda9887TypeSettings[Tda9887Type].Secam_L, 3);
+               memcpy(tda9887set, tda9887set_pal_l, 5);
                break;
 
             case VIDEO_MODE_NTSC:
-               memcpy(&tda9887set[2], Tda9887TypeSettings[Tda9887Type].Ntsc, 3);
+               memcpy(tda9887set, tda9887set_ntsc, 5);
                break;
 
             default:
@@ -637,8 +1609,6 @@ static void Tda9887_TunerSet( bool bPreSet, uint norm /* eVideoFormat videoForma
          tda9887set[1] = 0;
          I2CBus_Write(tda9887set, 5);
       }
-      else
-         debug1("Tda9887-TunerSet: invalid type %d", Tda9887Type);
    }
 }
 
@@ -672,43 +1642,43 @@ static bool Tda9887_Detect( BYTE Addr )
 //
 
 //// first reg
-#define TDA9887_VideoTrapBypassOFF     0x00    // bit b0
-#define TDA9887_VideoTrapBypassON      0x01    // bit b0
+#define TDA9887_VideoTrapBypassOFF      0x00    // bit b0
+#define TDA9887_VideoTrapBypassON       0x01    // bit b0
 
-#define TDA9887_AutoMuteFmInactive     0x00    // bit b1
-#define TDA9887_AutoMuteFmActive       0x02    // bit b1
+#define TDA9887_AutoMuteFmInactive      0x00    // bit b1
+#define TDA9887_AutoMuteFmActive        0x02    // bit b1
 
-#define TDA9887_Intercarrier           0x00    // bit b2
-#define TDA9887_QSS                    0x04    // bit b2
+#define TDA9887_Intercarrier            0x00    // bit b2
+#define TDA9887_QSS                     0x04    // bit b2
 
-#define TDA9887_PositiveAmTV           0x00    // bit b3:4
-#define TDA9887_FmRadio                0x08    // bit b3:4
-#define TDA9887_NegativeFmTV           0x10    // bit b3:4
+#define TDA9887_PositiveAmTV            0x00    // bit b3:4
+#define TDA9887_FmRadio                 0x08    // bit b3:4
+#define TDA9887_NegativeFmTV            0x10    // bit b3:4
 
-#define TDA9887_ForcedMuteAudioON      0x20    // bit b5
-#define TDA9887_ForcedMuteAudioOFF     0x00    // bit b5
+#define TDA9887_ForcedMuteAudioON       0x20    // bit b5
+#define TDA9887_ForcedMuteAudioOFF      0x00    // bit b5
 
-#define TDA9887_OutputPort1Active      0x00    // bit b6
-#define TDA9887_OutputPort1Inactive    0x40    // bit b6
-#define TDA9887_OutputPort2Active      0x00    // bit b7
-#define TDA9887_OutputPort2Inactive    0x80    // bit b7
-
+#define TDA9887_OutputPort1Active       0x00    // bit b6
+#define TDA9887_OutputPort1Inactive     0x40    // bit b6
+#define TDA9887_OutputPort2Active       0x00    // bit b7
+#define TDA9887_OutputPort2Inactive     0x80    // bit b7
 
 //// second reg
-#define TDA9887_DeemphasisOFF          0x00    // bit c5
-#define TDA9887_DeemphasisON           0x20    // bit c5
-#define TDA9887_Deemphasis75           0x00    // bit c6
-#define TDA9887_Deemphasis50           0x40    // bit c6
-#define TDA9887_AudioGain0             0x00    // bit c7
-#define TDA9887_AudioGain6             0x80    // bit c7
-
+#define TDA9887_TakeOverPointMin        0x00    // bit c0:4
+#define TDA9887_TakeOverPointDefault    0x10    // bit c0:4
+#define TDA9887_TakeOverPointMax        0x1f    // bit c0:4
+#define TDA9887_DeemphasisOFF           0x00    // bit c5
+#define TDA9887_DeemphasisON            0x20    // bit c5
+#define TDA9887_Deemphasis75            0x00    // bit c6
+#define TDA9887_Deemphasis50            0x40    // bit c6
+#define TDA9887_AudioGain0              0x00    // bit c7
+#define TDA9887_AudioGain6              0x80    // bit c7
 
 //// third reg
 #define TDA9887_AudioIF_4_5             0x00    // bit e0:1
 #define TDA9887_AudioIF_5_5             0x01    // bit e0:1
 #define TDA9887_AudioIF_6_0             0x02    // bit e0:1
 #define TDA9887_AudioIF_6_5             0x03    // bit e0:1
-
 
 #define TDA9887_VideoIF_58_75           0x00    // bit e2:4
 #define TDA9887_VideoIF_45_75           0x04    // bit e2:4
@@ -718,7 +1688,6 @@ static bool Tda9887_Detect( BYTE Addr )
 #define TDA9887_VideoIF_33_40           0x14    // bit e2:4
 #define TDA9887_RadioIF_45_75           0x18    // bit e2:4
 #define TDA9887_RadioIF_38_90           0x1C    // bit e2:4
-
 
 #define TDA9887_TunerGainNormal         0x00    // bit e5
 #define TDA9887_TunerGainLow            0x20    // bit e5
@@ -869,6 +1838,247 @@ static void TDA9887Pinnacle_TunerSet(bool bPreSet, uint norm /* eVideoFormat vid
 static void TDA9887Pinnacle_Init(bool bPreInit, eVideoFormat videoFormat)
 {
     TDA9887Pinnacle_TunerSet(bPreInit, videoFormat);
+}
+
+// ---------------------------------------------------------------------------
+// CTDA9887Ex
+//
+typedef struct
+{
+    BYTE b;
+    BYTE c;
+    BYTE e;
+} TTDABytes;
+
+static const TTDABytes k_TDAStandardtSettings[TDA9887_FORMAT_LASTONE] =
+{
+    {
+        // TDA9887_FORMAT_PAL_BG
+        TDA9887_NegativeFmTV | TDA9887_QSS | TDA9887_OutputPort1Inactive | TDA9887_OutputPort2Inactive,
+        TDA9887_DeemphasisON | TDA9887_Deemphasis50 | TDA9887_TakeOverPointDefault,
+        TDA9887_AudioIF_5_5  | TDA9887_VideoIF_38_90,
+    },
+    {
+        // TDA9887_FORMAT_PAL_I
+        TDA9887_NegativeFmTV | TDA9887_QSS | TDA9887_OutputPort1Inactive | TDA9887_OutputPort2Inactive,
+        TDA9887_DeemphasisON | TDA9887_Deemphasis50 | TDA9887_TakeOverPointDefault,
+        TDA9887_AudioIF_6_0  | TDA9887_VideoIF_38_90,
+    },
+    {
+        // TDA9887_FORMAT_PAL_DK
+        TDA9887_NegativeFmTV | TDA9887_QSS | TDA9887_OutputPort1Inactive | TDA9887_OutputPort2Inactive,
+        TDA9887_DeemphasisON | TDA9887_Deemphasis50 | TDA9887_TakeOverPointDefault,
+        TDA9887_AudioIF_6_5  | TDA9887_VideoIF_38_00,
+    },
+    {
+        // TDA9887_FORMAT_PAL_MN
+        TDA9887_NegativeFmTV | TDA9887_QSS | TDA9887_OutputPort1Inactive | TDA9887_OutputPort2Inactive,
+        TDA9887_DeemphasisON | TDA9887_Deemphasis75 | TDA9887_TakeOverPointDefault,
+        TDA9887_AudioIF_4_5  | TDA9887_VideoIF_45_75,
+    },
+    {
+        // TDA9887_FORMAT_SECAM_L
+        TDA9887_PositiveAmTV | TDA9887_QSS | TDA9887_OutputPort1Inactive | TDA9887_OutputPort2Inactive,
+        TDA9887_TakeOverPointDefault,
+        TDA9887_AudioIF_6_5  | TDA9887_VideoIF_38_90,
+    },
+    {
+        // TDA9887_FORMAT_SECAM_DK
+        TDA9887_NegativeFmTV | TDA9887_QSS | TDA9887_OutputPort1Inactive | TDA9887_OutputPort2Inactive,
+        TDA9887_DeemphasisON | TDA9887_Deemphasis50 | TDA9887_TakeOverPointDefault,
+        TDA9887_AudioIF_6_5  | TDA9887_VideoIF_38_00,
+    },
+    {
+        // TDA9887_FORMAT_NTSC_M
+        TDA9887_NegativeFmTV | TDA9887_QSS | TDA9887_OutputPort1Inactive | TDA9887_OutputPort2Inactive,
+        TDA9887_DeemphasisON | TDA9887_Deemphasis50  | TDA9887_TakeOverPointDefault,
+        TDA9887_AudioIF_4_5  | TDA9887_VideoIF_45_75 | TDA9887_Gating_36,
+    },
+    {
+        // TDA9887_FORMAT_NTSC_JP
+        TDA9887_NegativeFmTV | TDA9887_QSS | TDA9887_OutputPort1Inactive | TDA9887_OutputPort2Inactive,
+        TDA9887_DeemphasisON | TDA9887_Deemphasis50  | TDA9887_TakeOverPointDefault,
+        TDA9887_AudioIF_4_5  | TDA9887_VideoIF_58_75 | TDA9887_Gating_36,
+    },
+    {
+        // TDA9887_FORMAT_RADIO
+        TDA9887_FmRadio      | TDA9887_QSS | TDA9887_OutputPort1Inactive | TDA9887_OutputPort2Inactive,
+        TDA9887_DeemphasisON | TDA9887_Deemphasis75 | TDA9887_TakeOverPointDefault,
+        TDA9887_AudioIF_5_5  | TDA9887_RadioIF_38_90,
+    },
+};
+
+static TTDABytes m_TDASettings[TDA9887_FORMAT_LASTONE];
+
+// declarations for forward references
+static void TDA9887Ex_SetBit(IN OUT BYTE * bits, IN BYTE bit, IN bool set);
+static void TDA9887Ex_TunerSet(IN bool bPreSet, IN eVideoFormat format);
+static void TDA9887Ex_TunerSetInt(IN bool bPreSet, IN eTDA9887Format format);
+static eTDA9887Format TDA9887Ex_VideoFormat2TDA9887Format(IN eVideoFormat format);
+
+static bool TDA9887Ex_CreateDetectedTDA9887Ex( void )
+{
+    static const BYTE tda9887Addresses[4] = { I2C_TDA9887_0, I2C_TDA9887_1,
+                                              I2C_TDA9887_2, I2C_TDA9887_3 };
+    uint  idx;
+
+    for (idx = 0; idx < 4; idx++)
+    {
+        if (Tda9887_Detect(tda9887Addresses[idx]))
+        {
+           return TRUE;
+        }
+    }
+    return FALSE;
+}
+
+static void TDA9887Ex_TunerInit( bool bPreInit, uint norm /* eVideoFormat videoFormat */ )
+{
+   TDA9887Ex_TunerSet(bPreInit, norm);
+}
+
+static void TDA9887Ex_TunerSet(IN bool bPreSet, IN eVideoFormat format)
+{
+    eTDA9887Format tdaFormat = TDA9887Ex_VideoFormat2TDA9887Format(format);
+    if (tdaFormat == TDA9887_FORMAT_NONE)
+    {
+        dprintf1("CTDA9887Ex_TunerSet: Unsupported video format: %u", format);
+    }
+    else
+    {
+        TDA9887Ex_TunerSetInt(bPreSet, tdaFormat);
+    }
+}
+
+static void TDA9887Ex_TunerSetInt(IN bool bPreSet, IN eTDA9887Format format)
+{
+    BYTE writeBytes[5];
+
+    if (!bPreSet || format == TDA9887_FORMAT_NONE)
+    {
+        // Only setup before tuning (bPreSet).
+        return;
+    }
+    if (format >= TDA9887_FORMAT_LASTONE)
+    {
+       debug1("CTDA9887Ex_TunerSet: invalid format %d\n", (int)format);
+       return;
+    }
+
+    writeBytes[0] = Tda9887DeviceI2C;
+    writeBytes[1] = 0;
+    writeBytes[2] = m_TDASettings[format].b;
+    writeBytes[3] = m_TDASettings[format].c;
+    writeBytes[4] = m_TDASettings[format].e;
+
+    dprintf3("CTDA9887Ex_TunerSet: 0x%02x 0x%02x 0x%02x\n", writeBytes[2], writeBytes[3], writeBytes[4]);
+    I2CBus_Write(writeBytes, 5);
+}
+
+static void TDA9887Ex_SetModes(IN eTDA9887Format format, IN BYTE mask, IN BYTE bits)
+{
+    if (format == TDA9887_FORMAT_NONE)
+    {
+        return;
+    }
+
+    // Override demodulation
+    if (mask & TDA9887_SM_CARRIER_QSS)
+    {
+        TDA9887Ex_SetBit(&m_TDASettings[format].b,
+            TDA9887_QSS, (bits & TDA9887_SM_CARRIER_QSS) != 0);
+    }
+    // Override OutputPort1
+    if (mask & TDA9887_SM_OUTPUTPORT1_INACTIVE)
+    {
+        TDA9887Ex_SetBit(&m_TDASettings[format].b,
+            TDA9887_OutputPort1Inactive, (bits & TDA9887_SM_OUTPUTPORT1_INACTIVE) != 0);
+    }
+    // Override OutputPort2
+    if (mask & TDA9887_SM_OUTPUTPORT2_INACTIVE)
+    {
+        TDA9887Ex_SetBit(&m_TDASettings[format].b,
+            TDA9887_OutputPort2Inactive, (bits & TDA9887_SM_OUTPUTPORT2_INACTIVE) != 0);
+    }
+    // Override TakeOverPoint
+    if (mask & TDA9887_SM_TAKEOVERPOINT_MASK)
+    {
+        m_TDASettings[format].c &= ~TDA9887_TakeOverPointMax;
+        m_TDASettings[format].c |=
+            (bits & TDA9887_SM_TAKEOVERPOINT_MASK) >> TDA9887_SM_TAKEOVERPOINT_OFFSET;
+    }
+}
+
+static void TDA9887Ex_SetModesEx(IN TTDA9887FormatModes* modes)
+{
+    uint idx;
+
+    memcpy(m_TDASettings, k_TDAStandardtSettings, sizeof(m_TDASettings));
+
+    for (idx = 0; idx < TDA9887_FORMAT_LASTONE; idx++)
+    {
+        TDA9887Ex_SetModes(modes[idx].format, modes[idx].mask, modes[idx].bits);
+    }
+}
+
+static eTDA9887Format TDA9887Ex_VideoFormat2TDA9887Format(IN eVideoFormat format)
+{
+    switch (format)
+    {
+        //case VIDEOFORMAT_PAL_B:
+        //case VIDEOFORMAT_PAL_G:
+        case VIDEO_MODE_PAL:
+            return TDA9887_FORMAT_PAL_BG;
+        //case VIDEOFORMAT_PAL_I:
+        //    return TDA9887_FORMAT_PAL_I;
+        //case VIDEOFORMAT_PAL_D:
+        //    return TDA9887_FORMAT_PAL_DK;
+        //case VIDEOFORMAT_PAL_M:
+        //case VIDEOFORMAT_PAL_N:
+        //case VIDEOFORMAT_PAL_N_COMBO:
+        //    return TDA9887_FORMAT_PAL_MN;
+        //case VIDEOFORMAT_SECAM_L:
+        //case VIDEOFORMAT_SECAM_L1:
+        case VIDEO_MODE_SECAM:
+            return TDA9887_FORMAT_SECAM_L;
+        //case VIDEOFORMAT_SECAM_D:
+        //case VIDEOFORMAT_SECAM_K:
+        //case VIDEOFORMAT_SECAM_K1:
+        //    return TDA9887_FORMAT_SECAM_DK;
+        //case VIDEOFORMAT_NTSC_M:
+        case VIDEO_MODE_NTSC:
+            return TDA9887_FORMAT_NTSC_M;
+        //case VIDEOFORMAT_NTSC_50:
+        //case VIDEOFORMAT_NTSC_M_Japan:
+        //    return TDA9887_FORMAT_NTSC_JP;
+        //case (VIDEOFORMAT_LASTONE+1):
+        //    return TDA9887_FORMAT_RADIO;
+        // I'm not sure about the following.
+        //case VIDEOFORMAT_PAL_H:
+        //case VIDEOFORMAT_SECAM_B:
+        //case VIDEOFORMAT_SECAM_G:
+        //case VIDEOFORMAT_SECAM_H:
+        //    return TDA9887_FORMAT_PAL_BG;
+        //case VIDEOFORMAT_PAL_60:
+        //    return TDA9887_FORMAT_NTSC_M;
+        default:
+            debug1("TDA9887Ex: Invalid video format %d", (int)format);
+            break;
+    }
+    // NEVER_GET_HERE;
+    return TDA9887_FORMAT_NONE;
+}
+
+static void TDA9887Ex_SetBit(IN OUT BYTE * bits, IN BYTE bit, IN bool set)
+{
+    if (set)
+    {
+        *bits |= bit;
+    }
+    else
+    {
+        *bits &= ~bit;
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1158,7 +2368,9 @@ static bool Microtune_Initialize( TUNER_TYPE type, uint defaultNorm )
 
     dprintf2("Microtune-Initialize: default type=%d, norm %d\n", type, defaultNorm);
 
-    if (haveTda9887Standard)
+    if (isTda9887Ex)
+        TDA9887Ex_TunerInit(TRUE, defaultNorm);
+    else if (haveTda9887Standard)
         Tda9887_Init(TRUE, defaultNorm);
     else if (haveTda9887Pinnacle)
         TDA9887Pinnacle_Init(TRUE, defaultNorm);
@@ -1197,7 +2409,9 @@ static bool Microtune_Initialize( TUNER_TYPE type, uint defaultNorm )
             break;
     }
 
-    if (haveTda9887Standard)
+    if (isTda9887Ex)
+        TDA9887Ex_TunerInit(TRUE, defaultNorm);
+    else if (haveTda9887Standard)
         Tda9887_Init(FALSE, defaultNorm);
     else if (haveTda9887Pinnacle)
         TDA9887Pinnacle_Init(FALSE, defaultNorm);
@@ -1514,7 +2728,9 @@ bool Tuner_SetFrequency( TUNER_TYPE type, uint wFrequency, uint norm )
 
       I2CBus_Lock();
 
-      if (haveTda9887Standard)
+      if (isTda9887Ex)
+         TDA9887Ex_TunerSet(TRUE, norm);
+      else if (haveTda9887Standard)
          Tda9887_TunerSet(TRUE, norm);
       else if (haveTda9887Pinnacle)
          TDA9887Pinnacle_TunerSet(TRUE, norm);
@@ -1533,6 +2749,10 @@ bool Tuner_SetFrequency( TUNER_TYPE type, uint wFrequency, uint norm )
          {
             result = MT2050_SetIFFreq(wFrequency * 62500);
          }
+      }
+      else if (type == TUNER_TDA8275)
+      {
+         result = Tda8275_SetTVFrequency(wFrequency * 62500, norm);
       }
       else
       {
@@ -1607,7 +2827,9 @@ bool Tuner_SetFrequency( TUNER_TYPE type, uint wFrequency, uint norm )
          result = I2CBus_Write(buffer, 5);
       }
 
-      if (haveTda9887Standard)
+      if (isTda9887Ex)
+         TDA9887Ex_TunerSet(FALSE, norm);
+      else if (haveTda9887Standard)
          Tda9887_TunerSet(FALSE, norm);
       else if (haveTda9887Pinnacle)
          TDA9887Pinnacle_TunerSet(FALSE, norm);
@@ -1635,6 +2857,24 @@ const char * Tuner_GetName( uint idx )
       return NULL;
 }
 
+// ----------------------------------------------------------------------------
+// Query Hauppauge EEPROM tuner ID
+//
+eTunerId Tuner_GetHauppaugeEepromId( uint idx )
+{
+   eTunerId Tuner = TUNER_ABSENT;
+
+   if (idx < sizeof(m_TunerHauppaugeAnalog)/sizeof(m_TunerHauppaugeAnalog[0]))
+   {
+      Tuner = m_TunerHauppaugeAnalog[idx];
+      dprintf2("Tuner-GetHauppaugeEepromId: ID:0x%02X -> %d\n", idx, (int)Tuner);
+   }
+   else
+      debug1("Tuner-GetHauppaugeEepromId: invalid ID 0x%X", idx);
+
+   return Tuner;
+}
+
 // ---------------------------------------------------------------------------
 // Free module resources
 //
@@ -1649,24 +2889,24 @@ void Tuner_Close( void )
 //
 bool Tuner_Init( TUNER_TYPE type, TVCARD * pNewTvCardIf )
 {
-   uint i2cStart, i2cStop;
+   TTDA9887FormatModes * pTda9887Modes;
+   uint i2cStart;
    BYTE i2cPort;
    uint defaultNorm = 0;
-   eTDA9887Card IffType;
    bool result = FALSE;
 
    dprintf1("Tuner-Init: requested type %d\n", type);
-   InitializeCriticalSection(&m_cCrit);
    TunerDeviceI2C = 0;
    pTvCard = NULL;
 
    if ((pNewTvCardIf != NULL) && (pNewTvCardIf->i2cBus != NULL))
    {
       pTvCard               = pNewTvCardIf;
-      Tda9887Type           = TDA9887_LASTONE;
       haveTda9887Standard   = FALSE;
       haveTda9887Pinnacle   = FALSE;
       isTda9887PinnacleMono = FALSE;
+      isTda9887Ex           = FALSE;
+      haveTda8290           = FALSE;
 
       if (type < TUNERS_COUNT)
       {
@@ -1682,50 +2922,88 @@ bool Tuner_Init( TUNER_TYPE type, TVCARD * pNewTvCardIf )
                defaultNorm = VIDEO_MODE_PAL;
             dprintf1("Tuner-Init: detecting IF demodulator, norm %d\n", defaultNorm);
 
-            // detect and initialize external IF demodulator (must be done before port scan)
-            IffType = pTvCard->cfg->GetIffType(pTvCard, &haveTda9887Pinnacle, &isTda9887PinnacleMono);
-            if ( haveTda9887Pinnacle && Tda9887_Detect(I2C_TDA9887_0) )
+            if (pTvCard->cfg->GetTda9887Modes(pTvCard, &haveTda9887Standard, (void **)&pTda9887Modes))
             {
-               Tda9887Type = IffType;
-               haveTda9887Pinnacle = TRUE;
-               TDA9887Pinnacle_Init(TRUE, defaultNorm);
+               // presence of TDA9887 isdefined in the card INI file
+               if (haveTda9887Standard)
+               {
+                  haveTda9887Standard = FALSE;  //overridden by "Ex" flag
+                  if ( TDA9887Ex_CreateDetectedTDA9887Ex() )
+                  {
+                     isTda9887Ex = TRUE;
+                     TDA9887Ex_SetModesEx(pTda9887Modes);
+                     TDA9887Ex_TunerInit(TRUE, defaultNorm);
+                  }
+                  else
+                     debug0("Tuner-Init: failed to detect configured TDA9887");
+               }
             }
-            else if ( Tda9887_Detect(I2C_TDA9887_0) ||
-                      Tda9887_Detect(I2C_TDA9887_1) )
-            {
-               Tda9887Type = IffType;
-               haveTda9887Standard  = TRUE;
-               Tda9887_Init(TRUE, defaultNorm);
+            else
+            {  // legacy auto-detection mode - only used by BT8x8 driver now
+               // detect and initialize external IF demodulator (must be done before port scan)
+               pTvCard->cfg->GetIffType(pTvCard, &haveTda9887Pinnacle, &isTda9887PinnacleMono);
+               if ( haveTda9887Pinnacle && Tda9887_Detect(I2C_TDA9887_0) )
+               {
+                  haveTda9887Pinnacle = TRUE;
+                  TDA9887Pinnacle_Init(TRUE, defaultNorm);
+               }
+               else if ( Tda9887_Detect(I2C_TDA9887_0) ||
+                         Tda9887_Detect(I2C_TDA9887_1) )
+               {
+                  haveTda9887Standard  = TRUE;
+                  Tda9887_Init(TRUE, defaultNorm);
+               }
             }
          }
+         else if (type == TUNER_TDA8275)
+         {
+            if ( Tda8290_Detect() )
+            {
+               haveTda8290 = TRUE;
+               Tda8290_Init(TRUE, VIDEO_MODE_PAL);  // norm is unused
+            }
+            else
+               debug0("Tuner-Init: failed to detect TDA8290 - expected to be present with TDA8275");
+         }
+
+         // Try to detect TEA5767 FM-Radio chip 
+         // if present, don't scan at address 0xC0, else the EEPROM can get corrupted
+         if (IsTEA5767PresentAtC0(pTvCard))
+            i2cStart = 0xC2;
+         else
+            i2cStart = 0xC0;
 
          // scan the I2C bus for devices
-         pTvCard->cfg->GetI2cScanRange(pTvCard, &i2cStart, &i2cStop);
-         for (i2cPort = i2cStart; i2cPort <= i2cStop; i2cPort += 2)
+         dprintf1("Tuner-Init: checking for tuner at I2C addr 0x%02X...0xCE (step 2)\n", i2cStart);
+         result = FALSE;
+         for (i2cPort = i2cStart; (i2cPort <= 0xCE) && !result; i2cPort += 2)
          {
-            dprintf1("Tuner-Init: check for tuner at 0x%02X\n", i2cPort);
             if ( pTvCard->i2cBus->I2cWrite(pTvCard, &i2cPort, 1) )
             {
-               dprintf1("Tuner-Init: found tuner at 0x%02X\n", i2cPort);
-               break;
+               dprintf1("Tuner-Init: found I2C device at 0x%02X\n", i2cPort);
+               TunerDeviceI2C = i2cPort;
+
+               if ( (type == TUNER_MT2032) || (type == TUNER_MT2032_PAL) ||
+                    (type == TUNER_MT2050) || (type == TUNER_MT2050_PAL) )
+               {
+                  result = Microtune_Initialize(type, defaultNorm);
+                  // note: continue loop if tuner not identified
+               }
+               else if (type == TUNER_TDA8275)
+               {
+                  result = Tda8275_InitializeTuner();
+               }
+               else
+               {  // "simple" tuner found -> done
+                  result = TRUE;
+               }
             }
          }
 
-         if (i2cPort <= i2cStop)
-         {
-            TunerDeviceI2C = i2cPort;
-
-            if ( (type == TUNER_MT2032) || (type == TUNER_MT2032_PAL) ||
-                 (type == TUNER_MT2050) || (type == TUNER_MT2050_PAL) )
-            {
-               Microtune_Initialize(type, defaultNorm);
-            }
-            result = TRUE;
-         }
-         else
+         if (result == FALSE)
          {
             TunerDeviceI2C = 0;
-            MessageBox(NULL, "Warning: no tuner found on I2C bus\nin address range 0xc0 - 0xce", "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+            MessageBox(NULL, "Warning: no tuner found on I2C bus.\nAcquisition will probably not work (cannot switch TV channels.)\nSee README.txt for more info.", "Nextview EPG driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
             debug0("Tuner-Init: no tuner found - disabling module");
          }
          I2CBus_Unlock();

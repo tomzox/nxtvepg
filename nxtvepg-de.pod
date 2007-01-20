@@ -20,7 +20,7 @@
 #  Author: Tom Zoerner (Original)
 #          German translation by Kurt Lettmaier & Olaf Nöhring
 #
-# $Id: nxtvepg-de.pod,v 1.8 2005/08/09 19:10:46 tom Exp tom $
+# $Id: nxtvepg-de.pod,v 1.9.1.1 2006/12/21 21:55:13 tom Exp $
 # ---------------------------------------------------------------------------
 
 =head1 NAME
@@ -43,7 +43,7 @@ B<nxtvepg> ermöglicht den Empfang kostenloser TV-Programmlisten für alle bzw. di
 
 =item *
 
-In Deutschland und Österreich: Kabel1, RTL-II (Abdeckung: ca. 32 Sender)
+In Deutschland und Österreich: Kabel1 (Abdeckung: ca. 32 Sender)
 
 =item *
 
@@ -55,7 +55,7 @@ In Frankreich: Canal+, M6, TV5, EuroNews (Abdeckung: 8 Sender)
 
 =item *
 
-In Belgien: VT4, M6, TV5 (Abdeckung: 32 Sender)
+In Belgien: M6, TV5 (Abdeckung: 32 Sender)
 
 =item *
 
@@ -87,7 +87,7 @@ Spezifiziert die Position des Hauptfensters, z.B. B<-geometry -0+0> um das Haupt
 
 Starte mit dem Hauptfenster als Icon (bzw. minimiert)
 
-Für Windows-Nutzer ist diese Option besonders hilfreich, wenn nxtvepg über die I<Autostart>-Gruppe gestartet wird. Wird I<Hide on minimize> benutzt, startet nxtvepg fast unsichtbar im Hintergrund nur mit einem Symbol im Tray der Taskbar (siehe auch L<"CONFIGURATION: Show/Hide">).
+Für Windows-Nutzer ist diese Option besonders hilfreich, wenn nxtvepg über die I<Autostart>-Gruppe gestartet wird. Wird "I<Hide on minimize>" benutzt, startet nxtvepg fast unsichtbar im Hintergrund nur mit einem Symbol im Tray der Taskleiste (siehe auch L<"CONFIGURATION: Show/Hide">).
 
 =item B<-rcfile> I<path>
 
@@ -113,7 +113,7 @@ Starte mit abgeschalteter Akquisition. Die Akquisition kann später immer noch üb
 
 =item B<-daemon>
 
-Starte ohne grafische Oberfläche. Der Prozess wird von der Oberfläche getrennt (d.h. ohne sichtbares Fenster auf dem Desktop) und führt die Akquisition im Hintergrund aus. Wenn keine anderen Optionen angegeben sind, wird der gleiche Provider und Akquisitionsmodus wie in der GUI konfiguriert benutzt. Wenn die Option -provider angegeben ist, wird die Akquisition nur für diesen Provider gestartet (Achtung: im Unterschied zum Normalmodus, in welchem diese Option die Browser-Datenbank wählt.) Die Option -daemon kann nicht mit -noacq oder -demo kombiniert werden.
+Starte ohne grafische Oberfläche. Der Prozess wird von der Oberfläche getrennt (d.h. ohne sichtbares Fenster auf dem Desktop) und führt die Akquisition im Hintergrund aus. Wenn keine anderen Optionen angegeben sind, wird der gleiche Provider und Akquisitionsmodus wie in der GUI konfiguriert benutzt. Wenn die Option -provider angegeben ist, wird die Akquisition nur für diesen Provider gestartet (Achtung: im Unterschied zum Normalmodus, in welchem diese Option die Browser-Datenbank wählt) Die Option -daemon kann nicht mit -noacq oder -demo kombiniert werden.
 
 Der Daemon erzeugt immer einen Socket im Verzeichnis I</tmp> (nur UNIX) und optional einen TCP/IP-Socket, um Browserprozessen Verbindungen zu erlauben. Wenn verbunden, empfängt der Browser Updates für die geöffneten NexTView-Datenbanken und berichtet über den Akquisitionsprozess; besteht keine Verbindung, kann es sein, dass die Programmdaten des Browsers unvollständig oder veraltet sind.
 
@@ -130,11 +130,11 @@ Zum Beenden des Daemon-Prozesses siehe unten stehende Option -daemonstop.
 
 Mit dieser Option wird ein im Hintergrund laufender Akquistionsprozess gesucht und falls gefunden angehalten; danach beendet sich das Programm. Beachten Sie, dass Sie die entsprechende Berechtigung benötigen, ein Signal zum Beenden des Prozesses zu senden (muss mit derselben Benutzer-ID laufen). Diese Option ist dazu gedacht, die Steuerung der Akquisition durch Skripte zu ermöglichen, z.B. um diese zu einer bestimmten Zeit automatisch zu starten oder zu terminieren.
 
-Tipp: Wenn der Daemon auf dem gleichen Host und der selben uid läuft, können Sie ihn auch beenden, indem Sie die Option I<Enable acquisition> unter dem I<Control>-Menü abstellen, während Sie mit dem Daemon verbunden sind. Weitere Details siehe L<"CONTROL"> und L<"FILES">.
+B<Tipp:> Wenn der Daemon auf dem gleichen Host und der selben uid läuft, können Sie ihn auch beenden, indem Sie die Option "I<Enable acquisition>" unter dem I<Control>-Menü abstellen, während Sie mit dem Daemon verbunden sind. Weitere Details siehe L<"CONTROL"> und L<"FILES">.
 
 =item B<-nodetach>
 
-Nur UNIX: Im Daemon-Modus verhindert diese Option, dass sich der Prozess vom Terminal abkoppelt. Logmeldungen ab Level I<warning> werden dann am Terminal ausgegeben (z.B. Konfigurationsfehler die zu unmittelbarem Programmabbruch führen.) Außerdem kann das Programm mit "Control-C" abgebrochen werden. Dieser Modus dient nur Debugging-Zwecken.
+Nur UNIX: Im Daemon-Modus verhindert diese Option, dass sich der Prozess vom Terminal abkoppelt. Logmeldungen ab Level I<warning> werden dann am Terminal ausgegeben (z.B. Konfigurationsfehler die zu unmittelbarem Programmabbruch führen). Außerdem kann das Programm mit "Strg+C" abgebrochen werden. Dieser Modus dient nur Debugging-Zwecken.
 
 =item B<-acqpassive>
 
@@ -144,7 +144,7 @@ Im Daemon-Modus überschreibt diese Option die Akquisitionseinstellung der Konfig
 
 Im Daemon-Modus hält diese Option automatisch die Akquisition an und beendet den Daemon nachdem die vorgegebene Phase für alle Provider abgeschlossen wurde. Die Phasen sind die gleichen wie unter L<"ACQUISITION MODES"> definiert, z.B. I<now>, I<near> und I<full>. Falls Sie den Akquisitionsmodus I<follow-ui> verwenden ist diese Option jedoch nicht sinnvoll, da der Daemon in diesem Modus die Akquisition mit jedem Anbieterwechsel in einem verbundenen Browser neu startet. Anders gesagt, die Option ist nur in Verbindung mit einer fest eingestellten Liste von Anbietern sinnvoll.
 
-Falls Sie nach dem Schließen von nxtvepg ein anderes Programm starten möchten, verwenden Sie Option I<-nodetach> (nur auf UNIX verfügbar.)  In diesem Fall wird die aufrufende Shell mit dem Start des nächsten Kommandos in Ihrem Skript warten bis nxtvepg beendet ist. Auf Windows gibt es keinen einfachen Weg um dies zu erreichen, da nxtvepg keine so genannte "Console"-Applikation ist und somit immer im Hintergrund gestartet wird. Deshalb benötigen Sie eine Skript-Sprache die es erlaubt darauf zu Warten dass nxtvepg terminiert.
+Falls Sie nach dem Schließen von nxtvepg ein anderes Programm starten möchten, verwenden Sie Option I<-nodetach> (nur auf UNIX verfügbar). In diesem Fall wird die aufrufende Shell mit dem Start des nächsten Kommandos in Ihrem Skript warten bis nxtvepg beendet ist. Auf Windows gibt es keinen einfachen Weg um dies zu erreichen, da nxtvepg keine so genannte "Console"-Applikation ist und somit immer im Hintergrund gestartet wird. Deshalb benötigen Sie eine Skript-Sprache die es erlaubt darauf zu warten, dass nxtvepg terminiert.
 
 =item B<-dump> I<mode>
 
@@ -156,15 +156,15 @@ Um die Daten in tabellarischer Form in eine Textdatei zu exportieren (z.B. für d
 
 Für Analysezwecke gibt es außerdem noch den Modus I<raw> der den gesamten Inhalt der Datenbank in einem Format ausgibt das sich eng an die internen Datenstrukturen anlehnt.  Das Format kann sich jederzeit ändern, daher sollte dieser Modus nicht zur Weiterverarbeitung der Daten verwendet werden. Für mehr Details siehe L<"CONTROL: Dump raw database">.
 
-Alle Ausgaben werden auf das Terminal ausgegeben (das sogenannte I<stdout>) falls sie nicht per Pipeline "|" in ein anderes Programm oder per ">" in eine Datei umgelenkt werden.  Siehe auch Option I<-outfile>.
+Alle Ausgaben werden auf das Terminal ausgegeben (das so genannte I<stdout>) falls sie nicht per Pipeline "|" in ein anderes Programm oder per ">" in eine Datei umgelenkt werden.  Siehe auch Option I<-outfile>.
 
 =item B<-outfile> I<path>
 
 Diese Option ermöglicht es, die Ausgaben von I<-dump> oder anderen Betriebsmodi, die standardmäßig auf das Terminal schreiben, umzulenken.  Die Option kann auch im Normalmodus verwendet werden, jedoch wird die erzeugte Datei leer bleiben.  nxtvepg bricht mit einem Fehler ab wenn die angegebene Datei schon existiert, um zu verhindern dass Sie aus Versehen andere Dateien überschreiben.  Wenn Sie die Option in einem Skript oder einer Batch-Datei verwenden, können sie ein Kommando voranstellen das die Zieldatei löscht, falls sie schon existiert.
 
-Diese Option ist insbesondere für Windows-Nutzer hilfreich, da dieses Betriebssystem Ausgaben nach I<stdout> schlicht und einfach verwirft (da nxtvepg keine Konsolenapplikation ist, sondern ein GUI hat.) Dies bedeutet dass Sie überhaupt keine Ausgabe sehen werden, wenn Sie nicht eine der hier beschriebenen Methoden zur Umlenkung der Ausgabe verwenden.
+Diese Option ist insbesondere für Windows-Nutzer hilfreich, da dieses Betriebssystem Ausgaben nach I<stdout> schlicht und einfach verwirft (da nxtvepg keine Konsolenapplikation ist, sondern ein GUI hat). Dies bedeutet, dass Sie überhaupt keine Ausgabe sehen werden, wenn Sie nicht eine der hier beschriebenen Methoden zur Umlenkung der Ausgabe verwenden.
 
-Tipp: Anstelle der Option -outfile können Sie die Ausgabe auch mit ">" oder "|" umleiten.  Dies funktioniert unter UNIX in jedem beliebigen Terminal bzw. jeder Shell und unter Windows in einem MS-DOS Kommandofenster oder einer Batch-Datei. Beispiele:
+B<Tipp:> Anstelle der Option -outfile können Sie die Ausgabe auch mit ">" oder "|" umleiten.  Dies funktioniert unter UNIX in jedem beliebigen Terminal bzw. jeder Shell und unter Windows in einem MS-DOS Kommandofenster oder einer Batch-Datei. Beispiele:
 
   nxtvepg -dump ai -prov d92 > networks.txt
   nxtvepg -dump ai -prov d92 | more
@@ -187,7 +187,7 @@ Mit dem Modus I<print> wird Datum und Zeit ermittelt und auf das Terminal ausgeg
 
 Mit dem Modus I<set> wird die ermittelte Zeit als aktuelle Systemzeit eingestellt. Voraussetzung ist, dass der aufrufende Benutzer die dazu erforderlichen Privilegien besitzt (z.B. müssen sie unter UNIX als Administrator I<root> angemeldet sein).
 
-Wenn Sie UNIX verwenden, sollten Sie außerdem bedenken, dass das Kommando I<date> nicht die batteriegestützte Echtzeituhr einstellt (auch genannt Real Time Clock, B<RTC>). Deshalb kann es passieren dass die Korrektur mit dem nächsten reboot vergessen wird.  Um die RTC zu korrigieren, können Sie abschließend I<hwclock --systohc> oder ein entsprechendes Kommando aufrufen. Manche Linux-Distributionen rufen dieses Kommando beim Herunterfahren des Rechners auch automatisch auf.
+Wenn Sie UNIX verwenden, sollten Sie außerdem bedenken, dass das Kommando I<date> nicht die batteriegestützte Echtzeituhr einstellt (auch genannt Real Time Clock, B<RTC>). Deshalb kann es passieren, dass die Korrektur mit dem nächsten reboot vergessen wird.  Um die RTC zu korrigieren, können Sie abschließend I<hwclock --systohc> oder ein entsprechendes Kommando aufrufen. Manche Linux-Distributionen rufen dieses Kommando beim Herunterfahren des Rechners auch automatisch auf.
 
 =item B<-demo> I<path>
 
@@ -201,13 +201,13 @@ Gibt eine kurze Übersicht aller verfügbaren Befehlszeilen-Optionen aus.
 
 Am Ende der Optionen können Sie einen Dateinamen hinzufügen. Dies entspricht der Angabe von B<-dbdir> und B<-provider>. Der Provider-CNI wird aus dem Dateinamen ermittelt. Wenn der Dateiname nicht das in L<"FILES"> definierte Format besitzt, wird er als Name einer Demo-Datenbank angenommen und wie die Option B<-demo> geladen. Das Argument Datenbank-Dateiname überschreibt jede zuvor gesetzte Option.
 
-Dies ist besonders nützlich für Nutzer grafischer Dateimanager (wie dem Windows Explorer), da man so eine Datenbankdatei einfach auf eine ausführbare Datei ziehen und fallenlassen kann (Drag & Drop). Auf Windows-Systemen wird das Arbeitsverzeichnis auf den Ordner gesetzt, der die ausführbare Datei enthält. (Da der Explorer sonst offenbar den Desktop-Ordner verwendet, so dass keine der DLLs und Treiber gefunden werden). Diess bedeutet dass die Datei nxtvepg.ini im selben Verzeichnis erwartet wird.
+Dies ist besonders nützlich für Nutzer grafischer Dateimanager (wie dem Windows Explorer), da man so eine Datenbankdatei einfach auf eine ausführbare Datei ziehen und fallenlassen kann (Drag & Drop). Auf Windows-Systemen wird das Arbeitsverzeichnis auf den Ordner gesetzt, der die ausführbare Datei enthält. (Da der Explorer sonst offenbar den Desktop-Ordner verwendet, so dass keine der DLLs und Treiber gefunden werden). Dies bedeutet, dass die Datei nxtvepg.ini im selben Verzeichnis erwartet wird.
 
-Hinweis für Windows-Benutzer: alle diese Optionen sind - sofern nicht anders angegeben - auch in der Windows-Version verfügbar. Sie können die Optionen entweder an der "MS-DOS"-Eingabeaufforderung oder in einer Batchdatei übergeben, oder durch Anhängen an Pfad und Namen der ausführbaren Datei in einer Verknüpfungsdefinition ("shortcut").
+Hinweis für Windows-Benutzer: alle diese Optionen sind - sofern nicht anders angegeben - auch in der Windows-Version verfügbar. Sie können die Optionen entweder an der "MS-DOS"-Eingabeaufforderung oder in einer Batchdatei übergeben, oder durch Anhängen an Pfad und Namen der ausführbaren Datei in einer Verknüpfungsdefinition (engl. "shortcut").
 
 =head1 GETTING STARTED
 
-Bevor Sie TV-Programmdaten eines Nextview EPG Anbieters einlesen können (im Folgenden I<Akquisition> genannt), müssen Sie noch einige Einstellungen vornehmen. Welche das sind, hängt von der Ausstattung des Rechners ab und wird in diesem Kapitel beschrieben. Solange das Browserfenster keine Daten enthält, wird ein gelb unterlegter Hilfetext angezeigt.
+Bevor Sie TV-Programmdaten eines Nextview-EPG-Anbieters einlesen können (im Folgenden I<Akquisition> genannt), müssen Sie noch einige Einstellungen vornehmen. Welche das sind, hängt von der Ausstattung des Rechners ab und wird in diesem Kapitel beschrieben. Solange das Browserfenster keine Daten enthält, wird ein gelb unterlegter Hilfetext angezeigt.
 
 Dieses Handbuch beschreibt alle Eigenschaften von nxtvepg im Detail. Sie müssen nicht alles davon auf einmal lesen, um die Software bedienen zu können. Es empfiehlt sich jedoch, wenigstens die Abschnitte L<"BASIC BROWSING">, L<"DATA ACQUISITION"> und L<"FILTERING"> durchzugehen.
 
@@ -215,9 +215,9 @@ Dieses Handbuch beschreibt alle Eigenschaften von nxtvepg im Detail. Sie müssen 
 
 Windows-Anwender müssen zuerst den Treiber für ihre TV-Karte im Dialog "TV card input" vom Configure-Menü aus konfigurieren (weitere Informationen siehe auch L<"CONFIGURATION: TV card input">). UNIX-Anwender können diesen Abschnitt überspringen.
 
-Mit Betätigen des Buttons "I<Configure card>" in der Mitte des Dialogfeldes wird die Kartenkonfiguration in einer weiteren Dialogbox gestartet. Falls keine unterstützten TV-Capture-Chips auf Ihrem System gefunden wurden, ist der Button deaktiviert. Eine eventuell erscheinende Meldung I<PCI scan failed> bedeutet, dass der TV-Kartentreiber nicht geladen werden konnte. In diesem Fall sollten Sie es nach dem Schließen aller anderen Video-Anwendungen nochmals versuchen oder ausführliche Beschreibungen von Treiber-Fehlermeldungen in der README Datei nachschlagen.
+Mit Betätigen des Buttons "I<Configure card>" in der Mitte des Dialogfeldes wird die Kartenkonfiguration in einer weiteren Dialogbox gestartet. Falls keine unterstützten TV-Capture-Chips auf Ihrem System gefunden wurden, ist der Button deaktiviert. Eine eventuell erscheinende Meldung "I<PCI scan failed>" bedeutet, dass der TV-Kartentreiber nicht geladen werden konnte. In diesem Fall sollten Sie es nach dem Schließen aller anderen Video-Anwendungen nochmals versuchen oder ausführliche Beschreibungen von Treiber-Fehlermeldungen in der README-Datei nachschlagen.
 
-Drücken Sie zunächst den I<Autodetect>-Button im rechten Teil des Dialogfensters. Falls vorhanden, wird der nichtflüchtige Speicher (EEPROM) Ihrer Karte gelesen, um den Hersteller und das Modell zu bestimmen. Im Optimalfall können so alle benötigten Parameter automatisch bestimmt werden. Klappt dies, werden alle benötigten Kartenparameter gesetzt und Sie brauchen nichts weiter zu tun, als den Konfigurations-Dialog mit OK zu schließen. Wenn Sie wollen, können Sie jedoch automatisch ermittelte Werte (z.B. Tuner-Typ) mit den unten beschriebenen Optionen überschreiben.
+Drücken Sie zunächst den Button I<Autodetect> im rechten Teil des Dialogfensters. Falls vorhanden, wird der nichtflüchtige Speicher (EEPROM) Ihrer Karte gelesen, um den Hersteller und das Modell zu bestimmen. Im Optimalfall können so alle benötigten Parameter automatisch bestimmt werden. Klappt dies, werden alle benötigten Kartenparameter gesetzt und Sie brauchen nichts weiter zu tun, als den Konfigurations-Dialog mit OK zu schließen. Wenn Sie wollen, können Sie jedoch automatisch ermittelte Werte (z.B. Tuner-Typ) mit den unten beschriebenen Optionen überschreiben.
 
 Erscheint ein Hinweis, dass zwar die Karte jedoch nicht der Tuner bestimmt werden konnte, können die nächsten Absätze übersprungen werden und es geht beim manuellen Einstellen des Tuners weiter.
 
@@ -225,29 +225,29 @@ Wird der TV-Karten-Typ nicht automatisch erkannt, können Sie ihn in der linken A
 
 Bei bestimmten Karten-Typen wird die Karte nach manueller Kartenauswahl nach dem Tuner-Typ abgefragt. Schlägt dies fehl, erscheint eine Mitteilung und Sie müssen den Tuner manuell auswählen.
 
-Um einen Tuner-Typen zu konfigurieren öffnen Sie das Popup-Menü "Tunerauswahl" indem Sie auf den I<Configure>-Button klicken und einen Eintrag auswählen. Bei vielen Karten steht der Tuner-Typ auf der Verpackung. Sicherer ist es, den Tuner-Typ vom silbernen Abschirmgehäuse auf der Karte selbst abzulesen.
+Um einen Tuner-Typen zu konfigurieren öffnen Sie das Popup-Menü "Tunerauswahl" indem Sie auf den Button I<Configure> klicken und einen Eintrag auswählen. Bei vielen Karten steht der Tuner-Typ auf der Verpackung. Sicherer ist es, den Tuner-Typ vom silbernen Abschirmgehäuse auf der Karte selbst abzulesen.
 
 Ein paar klärende Hinweise zu den Einstellungen: Bei vielen Karten ist der ausgewählte Karten-Typ für nxtvepg nicht relevant (d.h. nur der Tuner-Typ und für Bt878-Karten der PLL). Keine Sorge, wenn die Karte nicht in der Liste zu finden ist. Es funktioniert auch, wenn Sie einfach irgendeinen PAL- oder SECAM-Karteneintrag aus der Liste nehmen und die anderen Parameter manuell setzen. Mit dem Start eines EPG-Suchlaufs können Sie die Konfiguration überprüfen. Zuvor müssen Sie jedoch das Konfigurations-Untermenü mit OK verlassen, damit die Änderungen übernommen werden. Der Einfachheit halber können Sie den Dialog zur Karten-Konfiguration mit einem Button im Dialogfenster des EPG-Suchlaufs öffnen.
 
 Tipp zur Auswahl des Tuners: In Deutschland, Österreich oder der Schweiz ist vermutlich ein PAL-Tuner richtig, in Frankreich einer der SECAM-Typen. Bei Auswahl eines falschen Tuners gibt es entweder überhaupt keinen Empfang (der EPG-Suchlauf läuft einfach durch und schlägt vor, die Antenne zu überprüfen) oder es werden nur wenige Sender empfangen.
 
-Bei Karten, die mit einem Brooktree-Chip (Bt878 u.a.) ausgestattet sind, muss die Art der PLL-Initialisierung immer eingestellt werden. Diese Einstellungen sind direkt mit der Kartenauswahl verknüpft. Deshalb brauchen Sie dies nicht manuell vorzunehmen. Normalerweise ist der richtige Wert für I<PLL initialization> bei PAL- und SECAM-Karten entweder I<No init> oder I<28 MHz>. (Wurde der falsche Wert ausgewählt, haben Sie überhaupt keinen Empfang.)
+Bei Karten, die mit einem Brooktree-Chip (Bt878 u.a.) ausgestattet sind, muss die Art der PLL-Initialisierung immer eingestellt werden. Diese Einstellungen sind direkt mit der Kartenauswahl verknüpft. Deshalb brauchen Sie dies nicht manuell vorzunehmen. Normalerweise ist der richtige Wert für "I<PLL initialization>" bei PAL- und SECAM-Karten entweder "I<No init>" oder "I<28 MHz>". (Wurde der falsche Wert ausgewählt, haben Sie überhaupt keinen Empfang.)
 
 =head2 Video input configuration
 
-Bevor nxtvepg mit der Akquisition von EPG-Daten beginnen kann, muss eingetragen werden, ob das Videosignal vom internen TV-Tuner der TV-Karte (bei Anschluss über Kabel oder terrestrischer Antenne) stammt oder von einer externen Quelle (etwa von einem Satellitenempfänger verbunden über ein Composite- oder S-Video-Kabel). Dies kann im Dialog I<TV card input> des Konfigurationsmenüs eingestellt werden (detailliertere Information siehe unter L<"CONFIGURATION: TV card input">).
+Bevor nxtvepg mit der Akquisition von EPG-Daten beginnen kann, muss eingetragen werden, ob das Videosignal vom internen TV-Tuner der TV-Karte (bei Anschluss über Kabel oder terrestrischer Antenne) stammt oder von einer externen Quelle (etwa von einem Satellitenempfänger verbunden über ein Composite- oder S-Video-Kabel). Dies kann im Dialog "I<TV card input>" des Konfigurationsmenüs eingestellt werden (detailliertere Information siehe unter L<"CONFIGURATION: TV card input">).
 
 Normalerweise verwendet nxtvepg den TV-Tuner-Eingang. Das ist die gängige Arbeitsweise, da nxtvepg zwischen Kanälen von verschiedenen NexTView-Anbietern wechseln kann. Bei einer externen Quelle muss zwischen Kanälen jedoch manuell umgeschaltet werden (siehe auch L<"DATA ACQUISITION">). In Frankreich sollte die französische Kanalliste eingesetzt werden (die bereits die Secam-TV-Norm anstatt PAL B/G/I nutzt); diese Information wird im nächsten Schritt angewandt: Der EPG-Suchlauf.
 
 Ist kein TV-Tuner sondern ein Satellitenreceiver über den Composite- oder S-Video-Eingang im Einsatz, ist die entsprechende Einstellung im "I<video input>"-Dropdown-Menü auszuwählen. Schließen Sie den Dialog mit OK und öffnen Sie den Dialog für die Konfiguration des Akquisitionsmodus im selben Menü. Dort sollte in den Modus I<external> gewechselt werden: In diesem Modus schaltet nxtvepg beim Start der Akquisition zum eingestellten Video-Eingangskanal der externen Video-Quelle um. Dabei sollte an der externen Video-Quelle ein NexTView-Anbieter-Kanal empfangen werden können. Um wie bei einem EPG-Suchlauf alle vorhandenen Provider zu erhalten, sollten Sie alle Anbieter-Kanäle auslesen (eine Liste gibt es am Anfang der Hilfe oder auf der Homepage) und warten, bis der Text in der Statuszeile von "starting up" auf "working on" wechselt.
 
-Obwohl es möglich ist, den Satellitenreceiver über ein Antennenkabel anzuschließen, ist von dieser Variante abzuraten, da das Signal oft so stark beeinträchtigt wird, dass nxtvepg den EPG-Datenstrom nicht mehr dekodieren kann. Wenn Sie dennoch diese Verbindungsart wählen, nehmen Sie den Tuner als Quelle und starten Sie einen EPG-Suchlauf, um den Kanal zu finden auf dem der Satellitenreceiver das Signal überträgt. Bitte stellen Sie sicher, dass die Option "I<Use .xawtv>" im Dialog des Providersuchlaufs ausgeschaltet ist, es sei denn, der Kanal des Satellitenreceivers (d.h. die Frequenz, auf die das Satellitensignal aufmoduliert wird) ist als ein Eingangskanal in xawtv definiert. Stellen Sie einen Kanal eines NexTView-Anbieters ein, bevor Sie den EPG-Suchlauf starten. Der Suchlauf wird nur diesen einen Anbieter finden. Wenn Sie alle Anbieter laden wollen, müssen Sie wie oben beschrieben manuell vorgehen. Es empfiehlt sich, den Akquisitionsmodus auf I<Follow browser database> zu stellen. Obwohl nxtvepg mit der Akquisition in Wirklichkeit nicht Ihrer Anbieterauswahl folgen kann, da es den Fernsehkanal am externen Eingang nicht umschalten kann, wird dieser Modus nxtvepg anweisen, den TV-Tuner auf den Kanal des Receivers zu setzen (nähere Details sind in L<"ACQUISITION MODES"> zu finden).
+Obwohl es möglich ist, den Satellitenreceiver über ein Antennenkabel anzuschließen, ist von dieser Variante abzuraten, da das Signal oft so stark beeinträchtigt wird, dass nxtvepg den EPG-Datenstrom nicht mehr dekodieren kann. Wenn Sie dennoch diese Verbindungsart wählen, nehmen Sie den Tuner als Quelle und starten Sie einen EPG-Suchlauf, um den Kanal zu finden auf dem der Satellitenreceiver das Signal überträgt. Bitte stellen Sie sicher, dass die Option "I<Use .xawtv>" im Dialog des Providersuchlaufs ausgeschaltet ist, es sei denn, der Kanal des Satellitenreceivers (d.h. die Frequenz, auf die das Satellitensignal aufmoduliert wird) ist als ein Eingangskanal in xawtv definiert. Stellen Sie einen Kanal eines NexTView-Anbieters ein, bevor Sie den EPG-Suchlauf starten. Der Suchlauf wird nur diesen einen Anbieter finden. Wenn Sie alle Anbieter laden wollen, müssen Sie wie oben beschrieben manuell vorgehen. Es empfiehlt sich, den Akquisitionsmodus auf "I<Follow browser database>" zu stellen. Obwohl nxtvepg mit der Akquisition in Wirklichkeit nicht Ihrer Anbieterauswahl folgen kann, da es den Fernsehkanal am externen Eingang nicht umschalten kann, wird dieser Modus nxtvepg anweisen, den TV-Tuner auf den Kanal des Receivers zu setzen (nähere Details sind in L<"ACQUISITION MODES"> zu finden).
 
 =head2 EPG scan: Search for Nextview providers
 
 Dieser Abschnitt ist nur relevant, wenn der interne Tuner der TV-Karte verwendet werden soll. In diesem Fall besteht der nächste Schritt darin, eine Anbietersuche aus dem Konfigurationsmenü heraus zu starten. Während der Suche werden alle Fernsehkanäle auf das Vorhandensein von NexTView-Übertragungen geprüft und aus den Ergebnissen wird eine Liste von NexTView-Anbietern erstellt.
 
-Der Suchlauf kann beschleunigt werden, indem die Kanalliste einer Fernsehapplikation verwendet wird. In diesem Fall wird der Suchlauf auf die Frequenzen in der Kanalliste der TV-Anwendung beschränkt. Dieser Modus wird mit dem Button I<Use TV app freq. table> gewählt. Er ist inaktiv, solange keine Fernsehapplikation im Dialog I<TV app. interaction>, der im nächsten Kapitel beschrieben wird, ausgewählt ist. Dieser Dialog kann durch Druck auf den Button am unteren Rand des Dialogfensters des EPG-Suchlaufs geöffnet werden.
+Der Suchlauf kann beschleunigt werden, indem die Kanalliste einer Fernsehapplikation verwendet wird. In diesem Fall wird der Suchlauf auf die Frequenzen in der Kanalliste der TV-Anwendung beschränkt. Dieser Modus wird mit dem Button "I<Use TV app freq. table>" gewählt. Er ist inaktiv, solange keine Fernsehapplikation im Dialog "I<TV app. interaction>", der im nächsten Kapitel beschrieben wird, ausgewählt ist. Dieser Dialog kann durch Druck auf den Button am unteren Rand des Dialogfensters des EPG-Suchlaufs geöffnet werden.
 
 Am Ende der Suche steht eine kurze Zusammenfassung aus der hervorgeht, wie viele Provider gefunden wurden. Wurden Provider gefunden, kann das Dialogfenster geschlossen werden. Mittels der Providerauswahl aus dem Konfigurationsmenü kann der bevorzugte Provider gewählt werden. Bitte warten Sie, während der Kanal des Providers eingestellt und Daten empfangen werden.
 
@@ -265,7 +265,7 @@ nxtvepg kann wie folgt mit TV-Anwendungen zusammenarbeiten:
 
 =item *
 
-Laden der Kanaltabelle der TV-Anwendung: die Verwendung der TV-Tunerfrequenzen kann die EPG-Suche erheblich beschleunigen (wie oben bereits erwähnt.) Die eingelesenen Sendernamen werden vom Dialog I<Network name> im Konfigurationsmenü (siehe L<"CONFIGURATION: Network names">) genutzt, um die Sendernamen zwischen nxtvepg und der TV-Anwendung zu synchronisieren.
+Laden der Kanaltabelle der TV-Anwendung: die Verwendung der TV-Tunerfrequenzen kann die EPG-Suche erheblich beschleunigen (wie oben bereits erwähnt). Die eingelesenen Sendernamen werden vom Dialog "I<Network name>" im Konfigurationsmenü (siehe L<"CONFIGURATION: Network names">) genutzt, um die Sendernamen zwischen nxtvepg und der TV-Anwendung zu synchronisieren.
 
 =item *
 
@@ -287,21 +287,21 @@ Nach dem Einstellen von TV-Anwendungstyp und -pfad sollten Sie den Konfiguration
 
 =head1 BASIC BROWSING
 
-Das Hauptfenster des Browsers besteht hauptsächlich aus zwei Bereichen: Der Obere enthält eine Liste nach Startzeit sortierter Titel der Sendungen. Alle aktuell laufenden Sendungen (oder eher: alle Sendungen, die gemäß der Startzeit laufen sollten) sind durch eine hellblaue Hintergrundfarbe gekennzeichnet. Eine Zeile in der Liste ist von einem Cursor ausgewählt (fokussiert); Der untere Bereich enthält die Beschreibung für den ausgewählten Titel. Die Menge der hier verfügbaren Informationen hängt ausschließlich vom Inhaltsprovider ab.
+Das Hauptfenster des Browsers besteht hauptsächlich aus zwei Bereichen: Der Obere enthält eine Liste nach Startzeit sortierter Titel der Sendungen. Alle aktuell laufenden Sendungen (oder eher: alle Sendungen, die gemäß der Startzeit laufen sollten) sind durch eine hellblaue Hintergrundfarbe gekennzeichnet. Eine Zeile in der Liste ist von einem Cursor ausgewählt (fokussiert); der untere Bereich enthält die Beschreibung für den ausgewählten Titel. Die Menge der hier verfügbaren Informationen hängt ausschließlich vom Inhaltsprovider ab.
 
 Das einfache Blättern durch die Programm-Informationen sollte intuitiv möglich sein. Man kann entweder die Maus oder die Pfeiltasten der Tastatur verwenden:
 
 Mit der Maus kann jeder Titel durch einen Klick ausgewählt werden. Im unteren Fenster wird dabei die Beschreibung angezeigt. Mit dem linken Scrollbalken kann die Liste vorwärts zu in fernerer Zukunft laufenden Programmen bewegt werden. Mit der Wochenanzeige rechts kann man direkt zu einer bestimmten Zeit an einem bestimmten Datum springen.
 
-Benutzen Sie bei Verwendung des Keyboards die "Pfeil auf/ab"-Tasten, um einen Titel auszuwählen. Für das schnelle Scrollen verwenden Sie die "Bild auf/ab"-Tasten. Mit der "Pos 1"-Taste gelangen Sie immer zurück zum ersten Titel. Mit TAB oder SHIFT-TAB können Sie den Fokus der Keyboardeingabe auf andere Eingabeelemente bewegen, z.B. zu den Sender- und Shortcut-Listen; um ein gewähltes Thema oder einen Shortcut als Filter zu bestätigen drücken Sie die Leertaste. Die ersten 10 Shortcuts können auch direkt vom Hauptfenster aus über die Zahlentasten 1-9 und 0 aktiviert werden. STRG-C im Hauptfenster öffnet das Kontextmenü; STRG-F öffnet den Dialog zur Textsuche; die ESCAPE-Taste ist gleichbedeutend dem Reset-Button (Dismiss/Abort). Die Menüs können Sie erreichen, indem Sie die ALT-Taste zusammen mit dem unterstrichenen Buchstaben des entsprechenden Menüeintrags drücken.
+Benutzen Sie bei Verwendung des Keyboards die "Pfeil auf/ab"-Tasten, um einen Titel auszuwählen. Für das schnelle Scrollen verwenden Sie die "Bild auf/ab"-Tasten. Mit der "Pos 1"-Taste gelangen Sie immer zurück zum ersten Titel. Mit TAB oder SHIFT+TAB können Sie den Fokus der Keyboardeingabe auf andere Eingabeelemente bewegen, z.B. zu den Sender- und Shortcut-Listen; um ein gewähltes Thema oder einen Shortcut als Filter zu bestätigen drücken Sie die Leertaste. Die ersten 10 Shortcuts können auch direkt vom Hauptfenster aus über die Zahlentasten 1-9 und 0 aktiviert werden. STRG+C im Hauptfenster öffnet das Kontextmenü; STRG+F öffnet den Dialog zur Textsuche; die ESCAPE-Taste ist gleichbedeutend dem Reset-Button (Dismiss/Abort). Die Menüs können Sie erreichen, indem Sie die ALT-Taste zusammen mit dem unterstrichenen Buchstaben des entsprechenden Menüeintrags drücken.
 
-Sie können die Programmwahl auf verschiedenste Art einschränken, um dadurch leichter zu finden was Sie interessiert. Beispielsweise können Sie die Liste auf Sendungen bestimmter Sender beschränken; oder Sie beschränken die Liste nur auf Filme. Dieser Prozess wird I<filtering> genannt und weiter unten detailliert beschrieben, siehe L<"FILTERING">. Für die geläufigsten Filteroptionen gibt es eine Liste mit I<Shortcuts>auf der linken Seite des Hauptfensters. Zu bemerken ist, dass diese Liste frei konfigurierbar ist, siehe L<"FILTER SHORTCUTS">.
+Sie können die Programmwahl auf verschiedenste Art einschränken, um dadurch leichter zu finden was Sie interessiert. Beispielsweise können Sie die Liste auf Sendungen bestimmter Sender beschränken; oder Sie beschränken die Liste nur auf Filme. Dieser Prozess wird I<filtering> genannt und weiter unten detailliert beschrieben, siehe L<"FILTERING">. Für die geläufigsten Filteroptionen gibt es eine Liste mit I<Shortcuts> auf der linken Seite des Hauptfensters. Zu bemerken ist, dass diese Liste frei konfigurierbar ist, siehe L<"FILTER SHORTCUTS">.
 
 Seit Version 2.5.0 bietet nxtvepg zwei Layouts für den TV-Zeitplan an: Standardmäßig sind die Programme aller Sender nach ihrer Startzeit in einer einzigen Liste kombiniert, d.h. in einer großen Tabelle. Alternativ können Programme spaltenweise getrennt angezeigt werden, sodass jeder Sender seine eigene Spalte erhält. Dieses Format ähnelt dem der meisten Programmzeitschriften. In diesem Layout kann sowohl vertikal nach Anfangszeit als auch horizontal nach Sendern gescrollt werden.
 
-Wenn Sie die Höhe des Programmfensters verändern, wird das Infotext-Fenster unten entsprechend angepasst. Sie können die Größenverhältnisse zwischen Programmliste und Infotext mit dem dazwischen liegenden Button mit den zwei kleinen Auf/Ab-Pfeilen anpassen, indem Sie diese mit gedrückt gehaltener Maustaste verschieben.
+Wenn Sie die Höhe des Programmfensters verändern, wird das Infotext-Fenster unten entsprechend angepasst. Sie können die Größenverhältnisse zwischen Programmliste und Infotext mit dem dazwischen liegenden Button mit den zwei kleinen auf/ab-Pfeilen anpassen, indem Sie diese mit gedrückt gehaltener Maustaste verschieben.
 
-Nxtvepg kann mit TV-Anwendungen interagieren (z.B. I<xawtv> auf UNIX; erfordert zuvor ein Setup, siehe L<"GETTING STARTED">), um eine Verbindung in beide Richtungen zu gewährleisten: Erstens werden Sie einen "I<Tune TV>"-Button im Hauptfenster unterhalb der Uhr vorfinden. Wenn Sie diesen anklicken, wird der Sender der aktuell gewählten Sendung in der TV-Anwendung aufgerufen. Dies geht auch mit einem Doppelklick auf das Programm oder über das Drücken der ENTER-Taste. Durch einen Klick der rechten Maustaste auf den "I<Tune TV>"-Buttons links können Sie auch ein kleines Menü aufrufen, das eine grundlegende TV-Steuerung bietet. Zweitens wird der Cursor im nxtvepg Hauptfenster automatisch auf die im aktuellen Sender laufende Sendung springen, wenn Sie den Kanal innerhalb der TV-Anwendung wechseln. Sie können diese Reaktion manuell durch das Drücken der Taste "i" des Keyboard auslösen. Siehe L<"CONFIGURATION: TV application interaction"> für mehr Details.
+Nxtvepg kann mit TV-Anwendungen interagieren (z.B. I<xawtv> auf UNIX; erfordert zuvor ein Setup, siehe L<"GETTING STARTED">), um eine Verbindung in beide Richtungen zu gewährleisten: Erstens werden Sie einen "I<Tune TV>"-Button im Hauptfenster unterhalb der Uhr vorfinden. Wenn Sie diesen anklicken, wird der Sender der aktuell gewählten Sendung in der TV-Anwendung aufgerufen. Dies geht auch mit einem Doppelklick auf das Programm oder über das Drücken der ENTER-Taste. Durch einen Klick der rechten Maustaste auf den Button "I<Tune TV>" links können Sie auch ein kleines Menü aufrufen, das eine grundlegende TV-Steuerung bietet. Zweitens wird der Cursor im nxtvepg-Hauptfenster automatisch auf die im aktuellen Sender laufende Sendung springen, wenn Sie den Kanal innerhalb der TV-Anwendung wechseln. Sie können diese Reaktion manuell durch das Drücken der Keyboard-Taste "i" auslösen. Siehe L<"CONFIGURATION: TV application interaction"> für mehr Details.
 
 Am unteren Rand des Fensters gibt es eine Statuszeile, die über den Status der Datenbank und der Akquisition informiert. Im Prinzip ist es eine stark komprimierte Zusammenfassung des B<Statistics>-Popups des B<Control>-Menüs und besonders nützlich, um über das Alter der Datenbank zu informieren oder bei unterbrochener Akquisition zu warnen.
 
@@ -321,7 +321,7 @@ Sie können den Fortschritt der Akquisition über das Fenster mit der Zeitskalen- 
 
 =head1 ACQUISITION MODES
 
-Der Dialog zur Konfiguration des Akquisitionsmodus ermöglicht es Ihnen, zu kontrollieren, für welche Provider Daten gesammelt werden und in welcher Reihenfolge. Dies ist hauptsächlich für Anwender gedacht, die Datenbanken von mehr als einem Provider nutzen, beispielsweise in einer zusammengeführten (merged) Datenbank, oder ihre Startzeit optimieren wollen. Sind Sie mit einer einzigen Datenbank zufrieden oder wollen Sie nicht unmittelbar nach dem Programmstart blättern, sollten Sie beim Standard bleiben, welcher Daten nur für den im Browser gewählten Provider lädt.
+Der Dialog zur Konfiguration des Akquisitionsmodus ermöglicht es Ihnen, zu kontrollieren, für welche Provider Daten gesammelt werden und in welcher Reihenfolge. Dies ist hauptsächlich für Anwender gedacht, die Datenbanken von mehr als einem Provider nutzen, beispielsweise in einer zusammengeführten (engl. "merged") Datenbank, oder ihre Startzeit optimieren wollen. Sind Sie mit einer einzigen Datenbank zufrieden oder wollen Sie nicht unmittelbar nach dem Programmstart blättern, sollten Sie beim Standard bleiben, welcher Daten nur für den im Browser gewählten Provider lädt.
 
 =over 4
 
@@ -339,7 +339,7 @@ Auf Windows-Systemen kann dieser Modus verwendet werden, falls der Tuner nxtvepg
 
 =item B<Follow-UI>
 
-Dies ist der Standard-Modus: die Akquisition arbeitet immer für den Provider, den Sie für den Browser (d.h. die Benutzerschnittstelle) gewählt haben. Ändern Sie den Provider im Browserfenster, folgt die Akquisition dem neu eingestellten Kanal. Natürlich wird dazu mindestens ein EPG-Suchlauf benötigt, damit die Tuner-Frequenzen aller Provider bekannt sind. Verwenden Sie im Browser eine zusammengeführte (merged) Datenbank, arbeitet die Akquisition bei jedem der zusammengeführten Provider nacheinander, ähnlich dem Modus, der als Nächstes beschrieben wird.
+Dies ist der Standard-Modus: die Akquisition arbeitet immer für den Provider, den Sie für den Browser (d.h. die Benutzerschnittstelle) gewählt haben. Ändern Sie den Provider im Browserfenster, folgt die Akquisition dem neu eingestellten Kanal. Natürlich wird dazu mindestens ein EPG-Suchlauf benötigt, damit die Tuner-Frequenzen aller Provider bekannt sind. Verwenden Sie im Browser eine zusammengeführte (engl. "merged") Datenbank, arbeitet die Akquisition bei jedem der zusammengeführten Provider nacheinander, ähnlich dem Modus, der als Nächstes beschrieben wird.
 
 =item B<Manually selected>
 
@@ -361,11 +361,11 @@ Dies ist derselbe Modus wie zuvor, außer dass die I<Now>-Stufe übersprungen wird
 
 =back
 
-Welcher Modus der Beste für Sie ist, hängt davon ab wie Sie Ihren Browser nutzen. Wenn Sie - wie oben erwähnt - hauptsächlich einen einzelnen Provider verwenden, halten Sie sich an den Follow-UI-Modus. Nutzen Sie eine zusammengeführte (merged) Datenbank, werden die Daten automatisch für alle enthaltenen Provider geladen. Wechseln Sie jedoch manuell zwischen mehreren Providern, sollten Sie einen der manuellen Akquisitions-Modi vorziehen.
+Welcher Modus der Beste für Sie ist, hängt davon ab wie Sie Ihren Browser nutzen. Wenn Sie - wie oben erwähnt - hauptsächlich einen einzelnen Provider verwenden, halten Sie sich an den Follow-UI-Modus. Nutzen Sie eine zusammengeführte (engl. "merged") Datenbank, werden die Daten automatisch für alle enthaltenen Provider geladen. Wechseln Sie jedoch manuell zwischen mehreren Providern, sollten Sie einen der manuellen Akquisitions-Modi vorziehen.
 
 Die zyklischen Modi ermöglichen es Ihnen, die Startzeit zu optimieren. Während im manuellen Modus (Standardmodus) die erste Datenbank komplett geladen wird bevor die Nächste gestartet wird, können Sie in den zyklischen Modi bestimmen, dass zuerst nur I<Now>-Daten aller Provider geladen werden. Infolgedessen werden Sie bereits nach ein paar Minuten die I<Now>-Informationen aller Provider aktualisiert haben. Benötigen Sie mehr Vorschau als die nächsten 2-3 Sendungen, z.B. den kompletten Abend, verwenden Sie bitte den zyklischen Modus, der mit der I<Near>-Stufe beginnt.
 
-Verwenden Sie die manuelle Akquisition gemeinsam mit einer zusammengeführten Datenbank, sollten Sie sicherstellen, dass sich der gleiche Provider in beiden Listen oben befindet, d.h. die Akquisition sollte immer mit der "Haupt-Datenbank" der Zusammenführung (Merge) beginnen.
+Verwenden Sie die manuelle Akquisition gemeinsam mit einer zusammengeführten Datenbank, sollten Sie sicherstellen, dass sich der gleiche Provider in beiden Listen oben befindet, d.h. die Akquisition sollte immer mit der "Haupt-Datenbank" der Zusammenführung (engl. "merge") beginnen.
 
 Bitte beachten Sie, dass die Zeit bis alle Datenbanken komplettiert sind, in den zyklischen Modi länger ist als im standardmäßig manuellen Modus. Allgemein kommt die für die I<Now>- und I<Next>-Stufen benötigte Zeit zur Vervollständigungszeit der Datenbank hinzu.
 
@@ -391,7 +391,7 @@ Ist die Akquisition derzeit nicht aktiv, wird darauf hingewiesen. Gegebenenfalls
 
 Andernfalls werden Sie den Sendernamen des Inhaltproviders sehen und einen Prozentsatz, der den Akquisitionsprozess beschreibt. Zu bemerken ist, dass sich dieser Prozentsatz von der prozentualen Gesamtfüllrate unterscheiden kann, die mit der Browserdatenbank übergeben wird, da sie ebenso Blöcke widerspiegelt, die aufgrund von Versions-Änderungen neu geladen werden müssen.
 
-Zusätzlich kann ein Hinweis über den aktuellen Modus der Akquisition erscheinen, wie die aktuelle Phase für zyklische Akquisitionsmodi oder "I<forced passive>" wenn nxtvepg nicht in der Lage ist, den TV-Kanal zu wechseln (u.U. weil eine TV-Anwendung parallel läuft.) Siehe L<"ACQUISITION MODES"> für Details.
+Zusätzlich kann ein Hinweis über den aktuellen Modus der Akquisition erscheinen, wie die aktuelle Phase für zyklische Akquisitionsmodi oder "I<forced passive>" wenn nxtvepg nicht in der Lage ist, den TV-Kanal zu wechseln (u.U. weil eine TV-Anwendung parallel läuft). Siehe L<"ACQUISITION MODES"> für Details.
 
 =head2 Timescale popup windows
 
@@ -399,7 +399,7 @@ Sie können den Prozess der Akquisition mittels des Zeitplanfensters beobachten, 
 
 Die Zeitplanfenster besitzen eine Skala für jeden Sender, der vom gewählten Provider abgedeckt wird. Das linke Ende der Skalen verweist auf die Startzeit der ältesten in der Datenbank vorhandenen TV-Sendung. Abhängig davon wie lange das letzte Update der Datenbank zurückliegt und abhängig von der eingestellten Verzögerung bis zur automatischen Löschung abgelaufener Programme (siehe L<"FILTERING: Expired Programmes Display">), können manche oder alle Sendungen in der Vergangenheit liegen. Die exakten Datierungen werden in der Datumsskala am oberen Rand des Fensters ausgegeben, wobei die aktuelle Zeit zusätzlich durch einen mit "now" gekennzeichneten kleinen Pfeil markiert ist.
 
-Bereiche die von Sendungen des jeweiligen Senders in der Datenbank belegt werden, sind durch rote oder blaue Farbe markiert, nicht belegte Bereiche sind schwarz belassen. Die unterschiedlichen Farben spiegeln den Sub-Datenstrom (stream) wieder, in dem die Daten empfangen wurden, oder weisen auf Inkonsistenzen hin. Sub-Datenströme sind direkt mit den unter L<"ACQUISITION MODES"> erwähnten Zyklusphasen identisch; abgesehen davon ist die Unterscheidung während des normalen Betriebs nicht relevant.
+Bereiche die von Sendungen des jeweiligen Senders in der Datenbank belegt werden, sind durch rote oder blaue Farbe markiert, nicht belegte Bereiche sind schwarz belassen. Die unterschiedlichen Farben spiegeln den Sub-Datenstrom (engl. "stream") wieder, in dem die Daten empfangen wurden, oder weisen auf Inkonsistenzen hin. Sub-Datenströme sind direkt mit den unter L<"ACQUISITION MODES"> erwähnten Zyklusphasen identisch; abgesehen davon ist die Unterscheidung während des normalen Betriebs nicht relevant.
 
 =over 4
 
@@ -459,7 +459,7 @@ Die Versionsnummer wird vom Provider jeden Tag oder nach Veränderungen am Inhalt
 
 =item I<Blocks in AI:>
 
-Wie viele Blöcke sind insgesamt übertragen worden. Diese Zahl stammt vom AI-Block des Providers, d.h. von der Bestandsliste. Zusätzlich separat aufgelistet für Sub-Datenstrom 1 und 2 (swo)
+Wie viele Blöcke sind insgesamt übertragen worden. Diese Zahl stammt vom AI-Block des Providers, d.h. von der Bestandsliste. Zusätzlich separat aufgelistet für Sub-Datenstrom 1 und 2 (siehe weiter oben)
 
 =item I<Block count db:>
 
@@ -479,7 +479,7 @@ Anzahl der Sendungsblöcke, die eine in der Vergangenheit liegende Stopzeit besit
 
 =item I<Expired total:>
 
-Gesamtzahl und Prozentsatz abgelaufener Blöcke in der Datenbank. Dieser Wert hängt von der vom Nutzer konfigurierten Löschverzögerung ab, d.h. davon wie lange abgelaufene Blöcke behalten werden bis sie aus der Datenbank entfernt werden. Normalerweise verschwinden solche Blöcke aus der Liste der Sendungen, dies kann jedoch über den Filter "I<expire time>"im Filter-Menü (siehe auch L<"FILTERING">) geändert werden.
+Gesamtzahl und Prozentsatz abgelaufener Blöcke in der Datenbank. Dieser Wert hängt von der vom Nutzer konfigurierten Löschverzögerung ab, d.h. davon wie lange abgelaufene Blöcke behalten werden bis sie aus der Datenbank entfernt werden. Normalerweise verschwinden solche Blöcke aus der Liste der Sendungen, dies kann jedoch über den Filter "I<expire time>" im Filter-Menü (siehe auch L<"FILTERING">) geändert werden.
 
 =item I<Defective blocks:>
 
@@ -489,7 +489,7 @@ Anzahl der Blöcke mit ungültiger oder überlappender Startzeit. Diese Blöcke tauc
 
 Das Tortendiagramm zur Linken des Fensters visualisiert diese Zahlen. Der Kreis repräsentiert 100% der in der AI aufgelisteten Blöcke. Er ist aufgeteilt in Stream 1 (rot) und Stream 2 (blau). Die schraffierten Segmente stellen die Blöcke dar, die in der lokalen Datenbank noch fehlen, die gelben Segmente den Prozentsatz an abgelaufenen und/oder fehlerhaften Blöcken.
 
-Erinnern Sie sich bitte beim Interpretieren dieser Werte daran, dass Blöcke dem Übertragungszyklus angehängt werden könnten, wenn Sendungen abgelaufen sind (in einer leichten Verletzung des NexTView-Standards wird dies bewerkstelligt, ohne die Datenbankversion zu ändern). Deshalb kann es sein, dass Sie von Zeit zu Zeit den prozentualen Füllgrad während der Akquisition einen Schritt zurückfallen sehen. Ebenso ist zu bemerken, dass abgelaufene PI von der Benutzeroberfläche aus nicht erreichbar sind, obschon sie in der Anzeige des Datenbankinhalts (dump) über das I<Control>-Menü enthalten sind.
+Erinnern Sie sich bitte beim Interpretieren dieser Werte daran, dass Blöcke dem Übertragungszyklus angehängt werden könnten, wenn Sendungen abgelaufen sind (in einer leichten Verletzung des NexTView-Standards wird dies bewerkstelligt, ohne die Datenbankversion zu ändern). Deshalb kann es sein, dass Sie von Zeit zu Zeit den prozentualen Füllgrad während der Akquisition einen Schritt zurückfallen sehen. Ebenso ist zu bemerken, dass abgelaufene PI von der Benutzeroberfläche aus nicht erreichbar sind, obschon sie in der Anzeige des Datenbankinhalts (engl. "dump") über das I<Control>-Menü enthalten sind.
 
 =head2 Acquisition statistics
 
@@ -551,9 +551,9 @@ Das Diagramm links zeigt den Verlauf der prozentualen Füllung für Stream 1 und S
 
 =head1 MERGED DATABASES
 
-Wenn Sie Datenbanken verschiedener NexTView-Provider miteinander vergleichen, werden Sie des Öfteren feststellen, dass jeder ein oder mehrere nette Features bereithält oder Sender beinhaltet, die einem anderen fehlen. Anstatt ständig zwischen den einzelnen Providern hin und her zu wechseln, erlaubt das Datenbank-Merging (to merge: mischen, zusammenführen), Features oder Sender von unterschiedlichen Originaldatenbanken in eine neu erzeugte Datenbank auszuwählen und miteinander zu kombinieren.
+Wenn Sie Datenbanken verschiedener NexTView-Provider miteinander vergleichen, werden Sie des Öfteren feststellen, dass jeder ein oder mehrere nette Features bereithält oder Sender beinhaltet, die einem anderen fehlen. Anstatt ständig zwischen den einzelnen Providern hin und her zu wechseln, erlaubt das Datenbank-Merging (to merge (engl.): mischen, zusammenführen), Features oder Sender von unterschiedlichen Originaldatenbanken in eine neu erzeugte Datenbank auszuwählen und miteinander zu kombinieren.
 
-Wählen  Sie den Eintrag B<Merge providers> im B<Configure>-Menü aus, erhalten Sie einen Dialog mit zwei Listenfeldern: das Linke davon enthält eine Liste aller im Moment verfügbaren Datenbanken. Das Rechte stellt eine Liste der Datenbanken dar, die Sie miteinander zusammenführen wollen. Sie können Einträge in dieser Liste hinzufügen, löschen und neu sortieren. Sind Sie fertig mit Ihrer Auswahl, drücken Sie B<OK>, um das Zusammenführen zu starten und zu der neuen Datenbank zu wechseln.
+Wählen  Sie den Eintrag "B<Merge providers>" im B<Configure>-Menü aus, erhalten Sie einen Dialog mit zwei Listenfeldern: das Linke davon enthält eine Liste aller im Moment verfügbaren Datenbanken. Das Rechte stellt eine Liste der Datenbanken dar, die Sie miteinander zusammenführen wollen. Sie können Einträge in dieser Liste hinzufügen, löschen und neu sortieren. Sind Sie fertig mit Ihrer Auswahl, drücken Sie B<OK>, um das Zusammenführen zu starten und zu der neuen Datenbank zu wechseln.
 
 Durch das Anordnen der Provider in Ihrer Auswahl, weisen Sie ihnen Prioritäten zu, die für eine Konfliktlösung sehr wichtig sind. Ein Konflikt tritt dann auf, wenn Start- und Stopzeiten der Sendung bei den Providern verschieden sind. Die Wahrscheinlichkeit solch eines Konfliktes hängt von der Qualität Ihrer Provider ab; theoretisch sollten sie nie auftreten, außer wenn kurzfristige Programmänderungen erfolgen. In der Realität sind solche Konflikte gar nicht so unwahrscheinlich, speziell bei Sendungen, die früh am Morgen ausgestrahlt werden. Sie sollten den verlässlichsten Provider an die erste Stelle setzen, da widersprüchliche Sendungen von darunter stehenden Providern abgelehnt werden, d.h. nicht mit in die zusammengeführte Datenbank aufgenommen werden.
 
@@ -577,11 +577,11 @@ Unter Windows ist das Navigate-Menü aus technischen Gründen ein Eintrag innerhal
 
 Ähnlich I<Navigate> erlaubt dieses Menü die Kontrolle darüber, welche der Sendungen der Datenbank in der Liste präsent sein sollen. Jedoch sind Sie hier nicht auf die Vorauswahl der Filteroptionen beschränkt. Für jede existierende Art von Attribut gibt es einen Filter. Attribute sind zum Beispiel Sender, Startzeit, Themenbeschreibung und so weiter.
 
-Filter können entweder einmalig durch erneutes Auswählen desselben Eintrages im Filtermenü zurückgesetzt werden, oder global durch einen Klick auf den I<Reset>-Button oder -Menüeintrag.
+Filter können entweder einmalig durch erneutes Auswählen desselben Eintrages im Filtermenü zurückgesetzt werden, oder global durch einen Klick auf I<Reset>-Button oder -Menüeintrag.
 
 Sie können beliebig viele Filter miteinander kombinieren um einen komplexen Filter zusammenzustellen. Wenn Sie zwei Filter unterschiedlichen Typs kombinieren, werden nur solche Sendungen aufgelistet, auf die beide Attribute zutreffen (logisches UND). Wählen Sie zwei Filter vom gleichen Typ, werden alle Sendungen mit einem von beiden Attributen aufgelistet (logisches ODER). Beachten Sie, dass einige Filtertypen auch mehrere "Klassen" unterstützen, was ein logisches UND innerhalb einer Kategorie ermöglicht; dies wird ausführlicher in der unten stehenden Liste der Filtertypen erklärt.
 
-I<Beispiele:> Wollen Sie etwa alle Sendungen aufgelistet bekommen für entweder Sender A B<ODER> Sender B, wählen Sie einfach beide Sender in der Filterliste. Wollen Sie alle auf A geplanten Filme, d.h. alle Sendungen, die auf Sender A laufen B<UND> mit Spielfilm kennzeichnet sind, wählen Sie Sender A und als Thema "Spielfilm - allgemein".
+I<Beispiele:> Wollen Sie etwa alle Sendungen aufgelistet bekommen für entweder Sender A B<ODER> Sender B, wählen Sie einfach beide Sender in der Filterliste. Wollen Sie alle auf A geplanten Filme, d.h. alle Sendungen, die auf Sender A laufen B<UND> mit Spielfilm gekennzeichnet sind, wählen Sie Sender A und als Thema "Spielfilm - allgemein".
 
 =head2 Filter Types
 
@@ -607,15 +607,15 @@ Werden Serien und Themen oder gleichermaßen Serien und Textsuche kombiniert, wer
 
 Beschränkt die Liste der Programme auf einen oder mehrere Sender. Der Filter ist abgeschaltet, wenn alle Kontrollkästchen deaktiviert sind.
 
-Tipp: Die Senderauswahlliste kann permanent im Hauptfenster eingeblendet werden, indem eine der Checkboxen I<Show networks> im Untermenü I<Show/Hide> des Konfigurationsmenüs (siehe L<"CONFIGURATION: Show/Hide">) aktiviert wird. Außerdem sind sowohl die Senderreihenfolge als auch die Sendernamen konfigurierbar. Insbesondere können Sie auch uninteressante Sender permanent aus der Liste entfernen.
+B<Tipp:> Die Senderauswahlliste kann permanent im Hauptfenster eingeblendet werden, indem eine der Checkboxen "I<Show networks>" im Untermenü I<Show/Hide> des Konfigurationsmenüs (siehe L<"CONFIGURATION: Show/Hide">) aktiviert wird. Außerdem sind sowohl die Senderreihenfolge als auch die Sendernamen konfigurierbar. Insbesondere können Sie auch uninteressante Sender permanent aus der Liste entfernen.
 
 =item B<Text search>
 
-Begrenzt die Auflistung auf Sendungen, deren Titel oder Beschreibung einen (oder eins von beiden, falls beide Optionen aktiviert sind) der eingegeben Textteile enthalten. Wenn Sie die Option I<match complete text> aktivieren, wird eine exakte Übereinstimmung benötigt, d.h. eine Suche nach "heute" wird nicht auf "heute journal" zutreffen. (Dies ist vorgesehen für Nur-Titel-Suchanfragen, wie sie vom Kontextmenü aus gestartet werden). Wenn Sie die Option I<match case> aktivieren, wird die Groß-/Kleinschreibung relevant, d.h. eine Suche nach "heute" wird keine Treffer für "Heute Abend" ergeben.
+Begrenzt die Auflistung auf Sendungen, deren Titel oder Beschreibung einen (oder eins von beiden, falls beide Optionen aktiviert sind) der eingegeben Textteile enthalten. Wenn Sie die Option "I<match complete text>" aktivieren, wird eine exakte Übereinstimmung benötigt, d.h. eine Suche nach "heute" wird nicht auf "heute journal" zutreffen. (Dies ist vorgesehen für Nur-Titel-Suchanfragen, wie sie vom Kontextmenü aus gestartet werden). Wenn Sie die Option "I<match case>" aktivieren, wird die Groß-/Kleinschreibung relevant, d.h. eine Suche nach "heute" wird keine Treffer für "Heute Abend" ergeben.
 
 Sie können nach mehr als einem Text gleichzeitig suchen; Sie werden alle Sendungen erhalten, die irgendeinen der vorgegebenen Texte enthalten (logisches ODER). Das Listenfeld oberhalb des Texteingabefeldes reiht alle zurzeit aktiven Texte auf. Sie können auf die Optionen in der Liste doppelklicken, um sie zwischen "yes" und "no" umzuschalten (d.h. Option aktiviert oder deaktiviert). Die Einträge besitzen auch kleine Kontextmenüs, die es ermöglichen, einzelne Texte zu entfernen oder zwischen den Optionen umzuschalten.
 
-Drücken Sie I<Click here to open...> um einen kleinen Dialog zu öffnen, der es Ihnen erlaubt, schnell eine große Liste von Texten (beispielsweise eine Liste Ihrer bevorzugten Filmtitel) anzufügen. Ebenso können Sie Text zum Beispiel aus einem Texteditor heraus in den Dialog einfügen (STRG+V) oder diesen direkt aus einer Datei laden. Jede Zeile in den Textfeldern wird als separate Suchanfrage angefügt, wenn Sie OK drücken, und alle neuen Einträge werden dieselben Optionen besitzen. Leerzeichen am Beginn oder Ende von Zeilen werden automatisch entfernt und mit # beginnende Zeilen werden übersprungen, wenn sie aus einer Datei heraus geladen werden.
+Drücken Sie "I<Click here to open...>", um einen kleinen Dialog zu öffnen, der es Ihnen erlaubt, schnell eine große Liste von Texten (beispielsweise eine Liste Ihrer bevorzugten Filmtitel) anzufügen. Ebenso können Sie Text zum Beispiel aus einem Texteditor heraus in den Dialog einfügen (STRG+V) oder diesen direkt aus einer Datei laden. Jede Zeile in den Textfeldern wird als separate Suchanfrage angefügt, wenn Sie OK drücken, und alle neuen Einträge werden dieselben Optionen besitzen. Leerzeichen am Beginn oder Ende von Zeilen werden automatisch entfernt und mit # beginnende Zeilen werden übersprungen, wenn sie aus einer Datei heraus geladen werden.
 
 Ein Verlauf der letzten 50 Suchbegriffe (nur manuell eingegebene) einschließlich deren Optionen ist im Dropdown-Menü unterhalb des Texteingabefeldes verfügbar. Sie können es mit dem Pfeilbutton an der rechten Seite des Eingebefeldes öffnen, oder mit einer der "Pfeil auf/ab"-Tasten.  Ebenso stehen die letzten 10 Suchwörter im Menü des Spaltenkopfes I<Title> der Programmliste zur Verfügung (letzteres nur im "Single List"-Layout.)
 
@@ -631,7 +631,7 @@ Wenn Sie mehr als einen Wert des gleichen Attributes erlauben wollen (z.B. Bildf
 
 Begrenzt die Auflistung auf Sendungen, die für Kinder des angegebenen Alters oder älter geeignet sind. Zum Beispiel: wenn Sie 14 wählen, erhalten Sie alle Sendungen für Kinder zwischen 0 und 14 Jahren.
 
-Tipp: Sie können die Filterinvertierung benutzen um Sendungen zu finden, die erst ab einem bestimmten Alter freigegeben sind (siehe nächstes Kapitel).  Um z.B. alle Sendungen mit Freigabe ab 16 oder ab 18 zu finden, wählen Sie Alter 14 und invertieren Sie die Suche.
+B<Tipp:> Sie können die Filterinvertierung benutzen um Sendungen zu finden, die erst ab einem bestimmten Alter freigegeben sind (siehe nächstes Kapitel).  Um z.B. alle Sendungen mit Freigabe ab 16 oder ab 18 zu finden, wählen Sie Alter 14 und invertieren Sie die Suche.
 
 =item B<Editorial Rating>
 
@@ -643,7 +643,7 @@ Zu bemerken ist, dass einige Anbieter nicht alle Werte verwenden, beispielsweise
 
 Beschränkt die Liste der Programme auf solche, deren Startzeit innerhalb des angegebenen Intervalls liegt und das am angegebenen Datum oder Wochentag läuft.
 
-Folgende Optionen stehen zur Verfügung: Wenn Sie I<Start at current time> aktivieren, wird der Intervallstart auf die aktuelle Uhrzeit beim Setzen des Filters festgelegt und der als Stopzeit eingegebene Wert wird als Dauer interpretiert, d.h. er wird zum Intervallstart hinzuaddiert. Aktivieren Sie I<Stop at end of day>, wird das Intervall-Ende auf 23:59 desselben Tages festgelegt.
+Folgende Optionen stehen zur Verfügung: Wenn Sie "I<Start at current time>" aktivieren, wird der Intervallstart auf die aktuelle Uhrzeit beim Setzen des Filters festgelegt und der als Stopzeit eingegebene Wert wird als Dauer interpretiert, d.h. er wird zum Intervallstart hinzuaddiert. Aktivieren Sie "I<Stop at end of day>", wird das Intervall-Ende auf 23:59 desselben Tages festgelegt.
 
 Für das Datum können Sie zwischen folgenden Modi wählen: I<Ignore date>: der Filter erlaubt Sendungen, die an irgendeinem Tag starten (im oberhalb stehenden Zeitfenster). I<Relative date>: erlaube nur Sendungen, die in N Tagen von heute an starten, d.h. für Null: heute, für 1: morgen usw. I<Weekday>: erlaube Sendungen, die am angegebenen Wochentag starten (die Skala läuft von Samstag bis Freitag). I<Day of month>: erlaube nur Sendungen, die am n-ten Tag eines Monats starten (die Skala läuft von 1 bis 31).
 
@@ -651,7 +651,7 @@ Zu beachten ist, dass die Hauptabsicht dieses Filters in der Unterstützung der Z
 
 =item B<Program index>
 
-Begrenzt die Auflistung auf Sendungen, deren Index innerhalb eines vorgegebenen Bereiches liegt. Die aktuell laufenden Programme eines jeden Senders besitzen den Index Null, die folgende Sendung jedes Senders Index Eins usw. Die drei wichtigsten Kombinationen sind als Radiobuttons verfügbar: I<now>: aktuell laufende Sendungen (Bereich 0-0), I<next>: direkt folgende Sendungen (Bereich 1-1) und I<now or next> (Bereich 0-1).
+Begrenzt die Auflistung auf Sendungen, deren Index innerhalb eines vorgegebenen Bereiches liegt. Die aktuell laufenden Programme eines jeden Senders besitzen den Index Null, die folgende Sendung jedes Senders Index Eins usw. Die drei wichtigsten Kombinationen sind als Radiobuttons verfügbar: I<now>: aktuell laufende Sendungen (Bereich 0-0), I<next>: direkt folgende Sendungen (Bereich 1-1) und "I<now or next>" (Bereich 0-1).
 
 Bei zusammengeführten Datenbanken werden nur die Indizes 0 und 1 unterstützt.
 
@@ -665,13 +665,13 @@ Die Zeitdauer kann entweder durch die Skalen oder durch direkte Eingabe der Wert
 
 Im Gegensatz zu allen anderen Filteroptionen wird diese genutzt, um den Satz zutreffender Sendungen zu I<vergrößern>. Sie ermöglicht es, abgelaufene Sendungen mit in die Liste einzuschließen (d.h. solche mit Stopzeit in der Vergangenheit); diese werden mit einem gelblichen Hintergrund gekennzeichnet (die Farbe können Sie ändern, siehe C<.Xdefaults> und C<nxtvepg.ad> in L<"FILES">). Mit den Schiebereglern können Sie bestimmen, wie viele Tage und Stunden die Schwelle der Ablaufzeit verstellt werden soll. Standardmäßig ist diese Schwelle Null, sodass abgelaufene Sendungen sofort aus der Liste verschwinden.
 
-Beachten Sie, dass Sie nicht mehr Sendungen hinzufügen können, als in der Datenbank gespeichert sind; üblicherweise werden Sendungen nach 4 Stunden entfernt. Im Dialog gibt es einen zweiten Karteireiter mit Namen I<Configure>, der es Ihnen ermöglicht, die Verzögerung zu ändern, nach welcher abgelaufene Sendungen automatisch entfernt werden. Drücken Sie den Button I<Update>, um den neuen Wert zu setzen. Ist dieser Wert kleiner als zuvor, werden Sendungen augenblicklich aus der Datenbank entfernt; dieser Vorgang kann nicht rückgängig gemacht werden (es sei denn die Sendungen sind bereits in der Bestandsliste des Providers registriert, was der Fall sein kann, wenn Sie die Datenbank seit langer Zeit nicht mehr aktualisiert hatten. In diesem Fall werden Sie eine irreführende Warnung erhalten, dass Sendungen gerade entfernt werden, obwohl diese nicht entfernt werden können).
+Beachten Sie, dass Sie nicht mehr Sendungen hinzufügen können, als in der Datenbank gespeichert sind; üblicherweise werden Sendungen nach 4 Stunden entfernt. Im Dialog gibt es einen zweiten Karteireiter mit Namen I<Configure>, der es Ihnen ermöglicht, die Verzögerung zu ändern, nach der abgelaufene Sendungen automatisch entfernt werden. Drücken Sie den Button I<Update>, um den neuen Wert zu setzen. Ist dieser Wert kleiner als zuvor, werden Sendungen augenblicklich aus der Datenbank entfernt; dieser Vorgang kann nicht rückgängig gemacht werden (es sei denn die Sendungen sind bereits in der Bestandsliste des Providers registriert, was der Fall sein kann, wenn Sie die Datenbank seit langer Zeit nicht mehr aktualisiert hatten. In diesem Fall werden Sie eine irreführende Warnung erhalten, dass Sendungen gerade entfernt werden, obwohl diese nicht entfernt werden können).
 
 =item B<Sorting Criteria>
 
 Begrenzt die Auflistung auf Sendungen, denen ein bestimmtes "Sortierkriterium" zugeordnet ist. Jeder Sendung können vom Inhaltsanbieter bis zu 7 Sortierkriterien zugewiesen werden. Diese funktionieren ähnlich den Themen-Beschreibungen, ihre Bedeutung ist jedoch nicht durch den NexTView-Standard vorgegeben. Der Inhalts-Provider kann beliebige Nummern zur Darstellung eines Attributs verwenden. Attribute sind üblicherweise Themen, die nicht im vordefinierten Katalog enthalten sind, z.B. aktuelle Ereignisse wie Olympische Spiele.  Die Bedeutung dieser Nummern wird gewöhnlich durch die Navigations-Menüs der Provider definiert (siehe L<"NAVIGATE">).
 
-Äquivalent zu Themen können Sie Sortierkriterien in unterschiedlichen Klassen (I<classes>) zuweisen, um ein logisches UND zu implementieren, d.h. nur Sendungen treffen zu, die mindestens eines der spezifizierten Sortierkriterien in jeder verwendeten Klasse besitzen. Beispiel: um alle Sendungen zu erhalten, denen sowohl 0x01 als auch entweder 0x10 oder 0x11 zugeordnet wurde, spezifizieren Sie ein Sortierkriterium 0x01 in Klasse #1 und 0x10 und 0x11 in Klasse #2. Zu bemerken ist, dass der Dialog alle Werte im Hexadezimal-Format anzeigt, d.h. mit den Ziffern 0,1,...,9 gefolgt von den Buchstaben A bis F.
+Äquivalent zu Themen können Sie Sortierkriterien in unterschiedlichen Klassen (engl. "I<classes>") zuweisen, um ein logisches UND zu implementieren, d.h. nur Sendungen treffen zu, die mindestens eines der spezifizierten Sortierkriterien in jeder verwendeten Klasse besitzen. Beispiel: um alle Sendungen zu erhalten, denen sowohl 0x01 als auch entweder 0x10 oder 0x11 zugeordnet wurde, spezifizieren Sie ein Sortierkriterium 0x01 in Klasse #1 und 0x10 und 0x11 in Klasse #2. Zu bemerken ist, dass der Dialog alle Werte im Hexadezimal-Format anzeigt, d.h. mit den Ziffern 0,1,...,9 gefolgt von den Buchstaben A bis F.
 
 Der Button "I<Load all used>" im Dialog für die Sortierkriterien füllt das Auswahl-Listenfeld mit einer Liste aller Codes, die tatsächlich in der aktuellen Datenbank verwendet werden. Dies ergibt einen schnellen Überblick darüber, welche Filterkriterien Treffer ergeben werden.
 
@@ -689,9 +689,9 @@ I<Hinweis:> das Filtermenü kann auch genutzt werden um Filteroptionen zu erkunde
 
 Am Ende des Filtermenüs findet sich das Untermenü I<Invert>, welches es ermöglicht das Ergebnis der Filterung zu umzudrehen. Es gibt zwei Möglichkeiten: global und individuell.
 
-Wenn Sie die globale Umkehrung (global inversion) wählen, werden Sie exakt diejenigen Sendungen erhalten, welche ansonsten ausgefiltert würden (ausgenommen Sendungen, die von Ihrer Sender- und Sendezeitwahl permanent ausgefiltert werden). Beachten Sie: durch die Art wie Filter-Shurtcuts zusammengeführt werden, wenn mehr als einer gleichzeitig gewählt wurde, ist es in den meisten Fällen nicht angeraten, globales Umkehren für Filter-Shortcuts zu verwenden, solange Sie die Kombinationsregel nicht andern (siehe L<"FILTER SHORTCUTS: Shortcut combination modes">).
+Wenn Sie die globale Umkehrung (engl. "I<global inversion>") wählen, werden Sie exakt diejenigen Sendungen erhalten, welche ansonsten ausgefiltert würden (ausgenommen Sendungen, die von Ihrer Sender- und Sendezeitwahl permanent ausgefiltert werden). Beachten Sie: durch die Art wie Filter-Shortcuts zusammengeführt werden, wenn mehr als einer gleichzeitig gewählt wurde, ist es in den meisten Fällen nicht angeraten, globales Umkehren für Filter-Shortcuts zu verwenden, solange Sie die Kombinationsregel nicht andern (siehe L<"FILTER SHORTCUTS: Shortcut combination modes">).
 
-Das Invert-Menü erlaubt ebenso, bestimmte Filtertypen individuell zu invertieren (auch in einigen Filter-Untermenüs gibt es Invert-Buttons mit derselben Funktion). Die Logik hinter der Kombination von Filtern ist dieselbe wie ohne die Invertierung, d.h. es gibt ein logisches ODER zwischen Filtern des gleichen Typs (beispielsweise Sender A ODER Sender B) und ein logischen UND zwischen verschiedenartigen Filtertypen (z.B. Sender A UND Themenkategorie Spielfilm).
+Das Invert-Menü erlaubt ebenso, bestimmte Filtertypen individuell zu invertieren (auch in einigen Filter-Untermenüs gibt es I<Invert>-Buttons mit derselben Funktion). Die Logik hinter der Kombination von Filtern ist dieselbe wie ohne die Invertierung, d.h. es gibt ein logisches ODER zwischen Filtern des gleichen Typs (beispielsweise Sender A ODER Sender B) und ein logischen UND zwischen verschiedenartigen Filtertypen (z.B. Sender A UND Themenkategorie Spielfilm).
 
 B<Beispiel 1:> Wenn Sie alle Sendungen wollen, die weder als Sport- noch als Kindersendungen kategorisiert sind, wählen Sie die Themenfilter Sport und Kinder und invertieren danach den aktuellen Themenfilter (gewöhnlich Klasse #1; Sie können gleichermaßen das globale Umkehren verwenden, wenn Themen die einzigen Filter sind).
 
@@ -705,27 +705,27 @@ Beachten Sie: obwohl das Feature Filter die Verwendung verschiedener Klassen anb
 
 Es gibt eine Reihe vordefinierter Filteroptionen im Hauptfenster unter der Uhr. Diese so genannten Shortcuts ermöglichen Ihnen, Filter mit einem einzelnen Mausklick zu aktivieren. Sie können beliebig Einträge zu dieser Liste hinzufügen, ändern oder löschen.
 
-Wollen Sie einen Shortcut hinzufügen, stellen Sie zunächst die Filter so ein, wie Sie diese speichern wollen. D.h. wählen Sie entweder vorhandene Shortcuts oder einen Eintrag aus dem Navigationsmenü und/oder fügen Sie Filter aus dem Haupt- oder dem Kontextmenü hinzu. Haben Sie eine interessante Konfiguration gefunden, wählen Sie I<Add filter shortcut> aus dem Menü I<Shortcuts>.
+Wollen Sie einen Shortcut hinzufügen, stellen Sie zunächst die Filter so ein, wie Sie diese speichern wollen. D.h. wählen Sie entweder vorhandene Shortcuts oder einen Eintrag aus dem Navigationsmenü und/oder fügen Sie Filter aus dem Haupt- oder dem Kontextmenü hinzu. Haben Sie eine interessante Konfiguration gefunden, wählen Sie "I<Add filter shortcut>" aus dem Menü I<Shortcuts>.
 
-Dies wird den Dialog zum Bearbeiten des Shortcuts (der unten detailliert beschrieben wird) mit Ihrem neuen Shurtcut am Beginn der linken Liste öffnen. Sie sollten die Shortcut-Kennung im Feld oben rechts ändern; standardmäßig ist es "I<new shortcut>". Die Kennung wird in der Shortcut-Liste im Hauptfenster angezeigt. Sind Sie fertig, drücken Sie den Button I<Save>.  Drücken Sie I<Abort> wenn Sie es sich anders überlegt haben und den Shortcut schließlich doch nicht hinzufügen wollen.
+Dies wird den Dialog zum Bearbeiten des Shortcuts (der unten detailliert beschrieben wird) mit Ihrem neuen Shortcut am Beginn der linken Liste öffnen. Sie sollten die Shortcut-Kennung im Feld oben rechts ändern; standardmäßig ist es "I<new shortcut>". Die Kennung wird in der Shortcut-Liste im Hauptfenster angezeigt. Sind Sie fertig, drücken Sie den Button I<Save>.  Drücken Sie I<Abort> wenn Sie es sich anders überlegt haben und den Shortcut schließlich doch nicht hinzufügen wollen.
 
 Mit Hilfe der gedrückten linken Maustaste oder durch gleichzeitiges Drücken der I<STRG>- oder I<SHIFT>-Tasten, können Sie mehrere Shortcuts parallel aktivieren, wenn Sie diese im Listenfeld des Hauptfensters auswählen. Siehe nächstes Kapitel bezüglich möglicher Nebeneffekte beim Kombinieren von Shortcuts.
 
 Die Shortcut-Liste besitzt ein kleines Kontextmenü, das beim Klick in sie mit der rechten Maustaste gezeigt wird. Dieses bietet schnelleren Zugriff auf dieselben Befehle, die im Hauptmenü zur Verfügung stehen und zusätzlich einen I<Delete>-Befehl; der Shortcut auf den Sie mit der Maustaste klicken, wird für die gewählte Operation vorselektiert.
 
-Wenn Sie einen Shortcut aktualisieren (I<Update>) und Ihre aktuellen Filter-Einstellungen andere Filter als Ihre zuvor gespeicherten Einstellungen enthalten, werden Sie gefragt, ob die Filtermaske automatisch angepasst werden soll (z.B. wenn Ihr Filter zuvor nach der Themenkategorie "Spielfilm" gesucht hatte, der gegenwärtige Filter jedoch aus einer Textsuche besteht). Siehe unten nach mehr Details über Filtermasken; solange Sie diese Shortcut-Maske zuvor nicht manuell bearbeitet haben, können Sie sorglos auf "Yes" drücken.
+Wenn Sie einen Shortcut aktualisieren (engl. "I<update>") und Ihre aktuellen Filter-Einstellungen andere Filter als Ihre zuvor gespeicherten Einstellungen enthalten, werden Sie gefragt, ob die Filtermaske automatisch angepasst werden soll (z.B. wenn Ihr Filter zuvor nach der Themenkategorie "Spielfilm" gesucht hatte, der gegenwärtige Filter jedoch aus einer Textsuche besteht). Siehe unten nach mehr Details über Filtermasken; solange Sie diese Shortcut-Maske zuvor nicht manuell bearbeitet haben, können Sie sorglos auf "Yes" drücken.
 
 =head2 Editing Filter Shortcuts
 
-Um Namen und/oder die Organisation Ihrer Shortcuts zu ändern, öffnen Sie den Edit-Dialog (z.B. über das Hauptmenü). Auf der linken Seite des Dialogfensters steht eine Liste aller Ihrer Shortcuts. In der Mitte befindet sich eine Reihe von Befehlsbuttons, die mit dem zur Linken markierten Shortcut zusammenarbeiten (unten erklärt). Zur Rechten liegt ein editierbares Feld mit dem Shortcut-Namen, eine nicht-beschreibbare Anzeige der dem Shortcut momentan zugewiesenen Filter-Einstellungen, und Popupmenüs zum Ändern der Filtermaske und der Kombinationsregeln (unten ebenfalls detailliert erklärt).
+Um Namen und/oder die Organisation Ihrer Shortcuts zu ändern, öffnen Sie den I<Edit>-Dialog (z.B. über das Hauptmenü). Auf der linken Seite des Dialogfensters steht eine Liste aller Ihrer Shortcuts. In der Mitte befindet sich eine Reihe von Befehlsbuttons, die mit dem zur Linken markierten Shortcut zusammenarbeiten (unten erklärt). Zur Rechten liegt ein editierbares Feld mit dem Shortcut-Namen, eine nicht-beschreibbare Anzeige der dem Shortcut momentan zugewiesenen Filter-Einstellungen, und Popupmenüs zum Ändern der Filtermaske und der Kombinationsregeln (unten ebenfalls detailliert erklärt).
 
 Die Buttons mit den auf/ab-Pfeilen werden den markierten Shortcut nach oben bzw. unten bewegen. Die Buttons mit den nach links oben oder rechts unten zeigenden Pfeilen werden verwendet, um einen Shortcut aus einem Unterordner heraus beziehungsweise in einen hinein zu bewegen.
 
-Der I<Delete>-Button entfernt den ausgewählten Shortcut aus der Liste (das Löschen wird das Hauptfenster nicht verändern, solange Sie nicht auf I<Save> drücken, Sie können den Dialog also mit I<Abort> verlassen, um die Aktion rückgängig zu machen).
+Der Button I<Delete> entfernt den ausgewählten Shortcut aus der Liste (das Löschen wird das Hauptfenster nicht verändern, solange Sie nicht auf I<Save> drücken, Sie können den Dialog also mit I<Abort> verlassen, um die Aktion rückgängig zu machen).
 
-Der I<Invoke>-Button wird die Filter-Einstellungen des Shortcuts genau so auf das Hauptfenster anwenden, als wenn Sie den Shortcut in der Liste des Hauptfensters auswählen. Sie können danach die Filter-Einstellungen über das Filtermenü ändern. Verwenden Sie den I<Update>-Button, um dem bearbeiteten Shortcut die Filter-Einstellungen des Hauptfensters zuzuweisen.
+Der Button I<Invoke> wird die Filter-Einstellungen des Shortcuts genau so auf das Hauptfenster anwenden, als wenn Sie den Shortcut in der Liste des Hauptfensters auswählen. Sie können danach die Filter-Einstellungen über das Filtermenü ändern. Verwenden Sie den Button I<Update>, um dem bearbeiteten Shortcut die Filter-Einstellungen des Hauptfensters zuzuweisen.
 
-Sie sollten vorsichtig mit dem I<Update>-Button umgehen, da leicht ein falscher Shortcut überschrieben werden kann. Haben Sie solch einen Irrtum festgestellt, können Sie die Änderung rückgängig machen, entweder indem Sie den Edit-Dialog über den I<Abort>-Button verlassen oder indem Sie den entsprechenden Shortcut im Hauptfenster markieren und ihm die Originaleinstellungen über I<Update> zuweisen.
+Sie sollten vorsichtig mit dem I<Update>-Button umgehen, da leicht ein falscher Shortcut überschrieben werden kann. Haben Sie solch einen Irrtum festgestellt, können Sie die Änderung rückgängig machen, entweder indem Sie den I<Edit>-Dialog über den Button I<Abort> verlassen oder indem Sie den entsprechenden Shortcut im Hauptfenster markieren und ihm die Originaleinstellungen über I<Update> zuweisen.
 
 =head2 Filter Masks
 
@@ -733,7 +733,7 @@ Wenn Sie einen Shortcut deselektieren, sei es weil Sie einen anderen Shortcut wä
 
 Die Filtermaske wird im Dialog Shortcuts mittels je einer Checkbox pro Filterkategorie definiert. Standardmäßig ist die Maske für jede Filterkategorie aktiviert, die Sie in die Einstellungen der Shortcut-Filter eingebunden haben. Rufen Sie den Shortcut später aus dem Hauptfenster heraus auf, werden alle Filter der entsprechenden Kategorie entfernt (demaskiert) bevor die Shortcut-Filter hinzugefügt werden.
 
-Das Maskieren kann auch aktiviert werden, wenn kein Filter dieser Kategorie ausgewählt wurde. Dies kann verwendet werden, um "Lösch-Shortcuts" zu definieren. Wählen Sie z.B. die Maske "Themen" aus, wenn Sie einen Shortcut haben wollen, der erlaubt, alle themen-bezogenen Filter auf einmal aufzuheben. Oder aktivieren Sie alle Masken für einen I<Reset>-Button (der einzige Unterschied zum vordefinierten Reset-Button wäre, dass die Anzeige nicht zur ersten aktuellen Sendung springt).
+Das Maskieren kann auch aktiviert werden, wenn kein Filter dieser Kategorie ausgewählt wurde. Dies kann verwendet werden, um "Lösch-Shortcuts" zu definieren. Wählen Sie z.B. die Maske "Themen" aus, wenn Sie einen Shortcut haben wollen, der erlaubt, alle themen-bezogenen Filter auf einmal aufzuheben. Oder aktivieren Sie alle Masken für einen I<Reset>-Button (der einzige Unterschied zum vordefinierten I<Reset>-Button wäre, dass die Anzeige nicht zur ersten aktuellen Sendung springt).
 
 =head2 Shortcut combination modes
 
@@ -745,15 +745,15 @@ Bei solch einfachen Shortcuts, die aus einem einzigen Filtertyp bestehen, ist di
 
 Deshalb besitzt der Dialog zum Bearbeiten der Shortcuts eine "I<Combination rule>"-Option, wo Sie den Modus in I<ODER> oder I<UND> ändern können. Versetzen Sie einen Shortcut in diesen Modus, werden dessen Filter getrennt von allen anderen behandelt.
 
-Der einzige Nachteil ist, dass derartige Shortcut-Filter nicht über die Filtermenüs editierbar sind. Sollten Sie irgendwann die Filter-Einstellungen ändern wollen, ohne alles von vorne erstellen zu müssen, verwenden Sie die I<Invoke>- und I<Update>-Buttons im Edit-Dialog (siehe L<"FILTER SHORTCUTS: Editing Filter Shortcuts">).
+Der einzige Nachteil ist, dass derartige Shortcut-Filter nicht über die Filtermenüs editierbar sind. Sollten Sie irgendwann die Filter-Einstellungen ändern wollen, ohne alles von vorne erstellen zu müssen, verwenden Sie die Buttons I<Invoke> und I<Update> im I<Edit>-Dialog (siehe L<"FILTER SHORTCUTS: Editing Filter Shortcuts">).
 
 =head2 Shortcut update dialog
 
-Wenn Sie den Befehl "I<Shortcut Update>" im Hauptmenü auswählen, wird ein kleiner Dialog mit einer Liste aller Shortcuts eingeblendet. Die Filter-Einstellungen des Shortcuts, den Sie in der Liste wählen, werden wenn Sie den I<Update>-Button drücken mit den momentan aktiven Filter-Einstellungen überschrieben. Sie können genauso gut den I<Update- und Edit>-Button verwenden, um in den Dialog für die Filterbearbeitung zu springen (siehe weiter oben in diesem Kapitel).
+Wenn Sie den Befehl "I<Shortcut Update>" im Hauptmenü auswählen, wird ein kleiner Dialog mit einer Liste aller Shortcuts eingeblendet. Die Filter-Einstellungen des Shortcuts, den Sie in der Liste wählen, werden wenn Sie den Button I<Update> drücken mit den momentan aktiven Filter-Einstellungen überschrieben. Sie können genauso gut die Buttons I<Update> oder I<Edit> verwenden, um in den Dialog für die Filterbearbeitung zu springen (siehe weiter oben in diesem Kapitel).
 
-Tipp: Während das Dialogfenster zum Editieren der Shortcuts geöffnet ist, werden jedwede Änderungen (z.B. Löschungen oder Hinzufügungen) nur auf die temporäre Liste im Dialogfenster angewandt. Erst wenn Sie den I<Save>-Button drücken erscheinen die Änderungen in der Shortcut-Liste im Hauptfenster. Ebenso besteht die für Shortcut-Aktualisierungen angebotene Liste aus den Shortcuts der temporären Liste.  Dies gibt Ihnen die Möglichkeit Ihre Änderungen zu Testen bevor Sie sie speichern und sie gegebenenfalls mit I<Abort> zu verwerfen.
+B<Tipp:> Während das Dialogfenster zum Editieren der Shortcuts geöffnet ist, werden jedwede Änderungen (z.B. Löschungen oder Hinzufügungen) nur auf die temporäre Liste im Dialogfenster angewandt. Erst wenn Sie den Button I<Save> drücken erscheinen die Änderungen in der Shortcut-Liste im Hauptfenster. Ebenso besteht die für Shortcut-Aktualisierungen angebotene Liste aus den Shortcuts der temporären Liste.  Dies gibt Ihnen die Möglichkeit Ihre Änderungen zu Testen bevor Sie sie speichern und sie gegebenenfalls mit I<Abort> zu verwerfen.
 
-Tipp: Noch schneller können Sie einen einzelnen Shortcut ändern indem Sie das Kontextmenü der Shortcut-Liste verwenden.  Dort entfällt der Zwischenschritt der Shortcut-Auswahl.
+B<Tipp:> Noch schneller können Sie einen einzelnen Shortcut ändern indem Sie das Kontextmenü der Shortcut-Liste verwenden.  Dort entfällt der Zwischenschritt der Shortcut-Auswahl.
 
 =head1 COMPOSITE ATTRIBUTES
 
@@ -763,11 +763,11 @@ Composite-Attribute ersetzen einzelne Attribute in der Anzeige (z.B. nur die Spa
 
 Composite-Attribute werden über den Dialog "I<Attribute composition>" im I<Configure>-Menü erstellt und bearbeitet (siehe L<"CONFIGURATION: Attribute composition">).
 
-Das "Herz" der Attribut-Komposition ist eine Liste von Filtershortcuts und Reminder-Gruppen, die Sie als Auswahl Ihrer persönlichen Filtershortcuts und/oder Reminder-Gruppen aufbauen (siehe auch L<"FILTER SHORTCUTS"> und L<"REMINDERS">).
+Das "Herz" der Attribut-Komposition ist eine Liste von Filter-Shortcuts und Reminder-Gruppen, die Sie als Auswahl Ihrer persönlichen Filter-Shortcuts und/oder Reminder-Gruppen aufbauen (siehe auch L<"FILTER SHORTCUTS"> und L<"REMINDERS">).
 
 Immer wenn nxtvepg ein Composite-Attribut im Browser anzeigt, vergleicht es die aktuellen Attribute der Sendung (beispielsweise Themenkategorien oder zugewiesene Reminder) mit den entsprechenden Composite-Attributen, die den Shortcuts und Reminder-Gruppen zugewiesenen sind. Die Vergleiche erfolgen in der gegebenen Reihenfolge, d.h. von oben nach unten in der Liste des Dialogs. Wird beim Vergleich ein Treffer gefunden, wird ein diesem Shortcut zugewiesener Text, Bild oder Attribut im auf der rechten Seite spezifizierten Format innerhalb der Programmliste angezeigt. Wenn keines trifft (und es existiert kein I<*no match*>-Eintrag, siehe unten), wird an der Stelle des Attributs nichts dargestellt.
 
-Beachten Sie, I<Vergleich> bedeutet in diesem Zusammenhang, dass die Filter eines Shortcuts gegen die TV-Sendung geprüft werden, d.h. eine Sendung "trifft" einen Filter, wenn sie weiterhin angezeigt würde, wenn Sie diesen Filtershortcut im Hauptfenster aktivieren. Entsprechend wird eine Reminder-Gruppe als zutreffend angenommen, wenn die jeweilige Sendung als ein Reminder innerhalb dieser Gruppe programmiert ist (oder auf einen Shortcut zutrifft, der einer gegebenen Reminder-Gruppe zugewiesen ist - aber der Einfachheit halber sei diese Option hier übergangen).
+Beachten Sie, I<Vergleich> bedeutet in diesem Zusammenhang, dass die Filter eines Shortcuts gegen die TV-Sendung geprüft werden, d.h. eine Sendung "trifft" einen Filter, wenn sie weiterhin angezeigt würde, wenn Sie diesen Filter-Shortcut im Hauptfenster aktivieren. Entsprechend wird eine Reminder-Gruppe als zutreffend angenommen, wenn die jeweilige Sendung als ein Reminder innerhalb dieser Gruppe programmiert ist (oder auf einen Shortcut zutrifft, der einer gegebenen Reminder-Gruppe zugewiesen ist - aber der Einfachheit halber sei diese Option hier übergangen).
 
 B<Beispiel>: um eine persönlich gestaltete Version der Spalte I<Editorial rating> (ER) zu erstellen, könnten Sie drei Shortcuts erzeugen: einen mit dem auf ">=6" gesetzten ER-Filter, einen mit ">=4" und einen mit ">=2"; danach könnten Sie eine neue benutzerdefinierte Spalte erzeugen und diese drei Shortcuts in gleicher Reihenfolge einfügen; dem ersten Shortcut-Treffer könnten Sie den Text "sehr gut", dem zweiten "ok" und dem dritte "mies" zuweisen. Als Resultat hätten Sie eine Spalte, in der die numerischen Wertungen durch Ihren Text ersetzt wären.
 
@@ -779,23 +779,23 @@ Sie können diesen Mechanismus auch nutzen, um mehrere Spalten in eine zu kombini
 
 =head1 REMINDERS
 
-Reminder ermöglichen es ausgewählte TV-Sendungen hervorzuheben. nxtvepg kann diese in der Programmliste markieren und, falls gewünscht, vor deren Beginn eine Meldung anzeigen oder ein externes Kommando ausführen. Sie können in der Programmliste sowohl individuelle Sendungen markieren als auch alle Treffer auf Filtershortcuts, um z.B. TV-Serien zu markieren.
+Reminder ermöglichen es ausgewählte TV-Sendungen hervorzuheben. nxtvepg kann diese in der Programmliste markieren und, falls gewünscht, vor deren Beginn eine Meldung anzeigen oder ein externes Kommando ausführen. Sie können in der Programmliste sowohl individuelle Sendungen markieren als auch alle Treffer auf Filter-Shortcuts, um z.B. TV-Serien zu markieren.
 
-Um einen neuen Reminder zu setzen, markieren Sie einfach eine Sendung in der Programmliste und wählen Sie I<Add reminder for selected title> aus dem I<Reminder>-Menü. Der gleiche Befehl steht auch im Kontextmenü zur Verfügung, d.h. durch Anklicken des gewählten Titels mit der rechten Maustaste. Um einen Reminder zu entfernen, markieren Sie den Titel einfach noch einmal und wählen I<Remove reminder for selected title>.
+Um einen neuen Reminder zu setzen, markieren Sie einfach eine Sendung in der Programmliste und wählen Sie "I<Add reminder for selected title>" aus dem I<Reminder>-Menü. Der gleiche Befehl steht auch im Kontextmenü zur Verfügung, d.h. durch Anklicken des gewählten Titels mit der rechten Maustaste. Um einen Reminder zu entfernen, markieren Sie den Titel einfach noch einmal und wählen "I<Remove reminder for selected title>".
 
-Standardmäßig zeigt nxtvepg eine Einblendung für jedes zu erinnernde Programm 5 Minuten vor Beginn und noch mal direkt beim Beginn an. Dieses Verhalten kann man im Dialog I<Configure reminder groups...> ändern, wie im Folgenden beschrieben.
+Standardmäßig zeigt nxtvepg eine Einblendung für jedes zu erinnernde Programm 5 Minuten vor Beginn und noch mal direkt beim Beginn an. Dieses Verhalten kann man im Dialog "I<Configure reminder groups...>" ändern, wie im Folgenden beschrieben.
 
-Wollen Sie einen Reminder für eine TV-Serie setzen, müssen Sie zuerst einen Filtershortcut erstellen, der auf diese Serie zutrifft (entweder durch die Suche nach dem Serien-Code oder nach dem Titel).  Um den Programmieraufwand zu reduzieren, können Sie einen Shortcut erzeugen, der auf alle Ihre Lieblingsserien zugleich zutrifft, und einen Reminder für diese Kollektion setzen. Um dem Shortcut einen Reminder zuzuordnen, verwenden Sie I<Edit reminder list>, was im nächsten Kapitel beschrieben wird.
+Wollen Sie einen Reminder für eine TV-Serie setzen, müssen Sie zuerst einen Filter-Shortcut erstellen, der auf diese Serie zutrifft (entweder durch die Suche nach dem Serien-Code oder nach dem Titel).  Um den Programmieraufwand zu reduzieren, können Sie einen Shortcut erzeugen, der auf alle Ihre Lieblingsserien zugleich zutrifft, und einen Reminder für diese Kollektion setzen. Um dem Shortcut einen Reminder zuzuordnen, verwenden Sie "I<Edit reminder list>", was im nächsten Kapitel beschrieben wird.
 
-Tipp: Sie können auch individuelle Reminder für Einträge hinzufügen, die bereits durch Shortcut-basierte Reminder markiert sind. Dies erlaubt es Ihnen zum einen, eine weitere spezifische Aktion für diese TV-Sendung anzufügen (indem Sie Reminder-Gruppen mit verschiedenen Aktionen verwenden, siehe unten.)  Außerdem können Sie die Markierung für die einzelne ausgewählte Sendung unterdrücken. Diese "I<supress>"-Option wird in den Reminder- und Kontextmenüs angeboten, wenn anwendbar (durch diese Möglichkeit wird vermieden dass Shortcut-basierte Reminder mit komplexen Ausnahmeregeln eingeschränkt werden müssen, um die Markierung unbeliebter Sendungen zu verhindern).
+B<Tipp:> Sie können auch individuelle Reminder für Einträge hinzufügen, die bereits durch Shortcut-basierte Reminder markiert sind. Dies erlaubt es Ihnen zum einen, eine weitere spezifische Aktion für diese TV-Sendung anzufügen (indem Sie Reminder-Gruppen mit verschiedenen Aktionen verwenden, siehe unten). Außerdem können Sie die Markierung für die einzelne ausgewählte Sendung unterdrücken (engl. "to supress"). Diese "I<supress>"-Option wird in den Reminder- und Kontextmenüs angeboten, wenn anwendbar (durch diese Möglichkeit wird vermieden dass Shortcut-basierte Reminder mit komplexen Ausnahmeregeln eingeschränkt werden müssen, um die Markierung unbeliebter Sendungen zu verhindern).
 
-Standardmäßig besitzt nxtvepg (im "I<single list>"-Layout) eine mit I<Mark> betitelte Spalte, die bei allen Sendungen für die ein Reminder eingetragen ist einen roten Punkte enthält.  Selbstverständlich werden auch Sendungen markiert auf die Shortcuts mit zugeordneten Remindern zutreffen. Sie können auch einen Filter setzen der nur Sendungen mit Remindern in der Programmliste anzeigt, indem Sie I<Show reminder matches> im Reminder-Menü auswählen.
+Standardmäßig besitzt nxtvepg (im "I<single list>"-Layout) eine mit I<Mark> betitelte Spalte, die bei allen Sendungen für die ein Reminder eingetragen ist einen roten Punkte enthält.  Selbstverständlich werden auch Sendungen markiert auf die Shortcuts mit zugeordneten Remindern zutreffen. Sie können auch einen Filter setzen der nur Sendungen mit Remindern in der Programmliste anzeigt, indem Sie "I<Show reminder matches>" im Reminder-Menü auswählen.
 
 =head2 Edit reminder list
 
 Öffnet eine Liste mit allen Remindern. Individuelle Reminder und Shortcut-basierte Reminder sind getrennt aufgelistet: Durch Klicken auf die Karteireiter im Dialogfenster wird zwischen den Listen gewechselt.
 
-Die Liste "B<single programmes>" ist nach Startzeit und Sender sortiert. Wenn Sie einen Reminder doppelklicken, springt die Anzeige im Hauptfenster zur Startzeit der Sendung (wenn diese aktuell in der Datenbank vorhanden ist). Um einen Reminder zu löschen, klicken Sie auf den I<Delete>-Button oder drücken Sie die Entf-Taste auf Ihrem Keyboard. Sie können auch die "Gruppe" des Reminders (siehe unten) wählen, entweder indem Sie eine Gruppe im Popupmenü des Menübuttons I<Set group> wählen oder durch einen Rechtsklick mit der Maus auf die Gruppenspalte.
+Die Liste "B<single programmes>" ist nach Startzeit und Sender sortiert. Wenn Sie einen Reminder doppelklicken, springt die Anzeige im Hauptfenster zur Startzeit der Sendung (wenn diese aktuell in der Datenbank vorhanden ist). Um einen Reminder zu löschen, klicken Sie auf den Button I<Delete> oder drücken Sie die Entf-Taste auf Ihrem Keyboard. Sie können auch die "Gruppe" des Reminders (siehe unten) wählen, entweder indem Sie eine Gruppe im Popupmenü des Menübuttons "I<Set group>" wählen oder durch einen Rechtsklick mit der Maus auf die Gruppenspalte.
 
 Die Liste zeigt Reminder für Sendungen die abgelaufen sind nicht mehr an.  Sie können das I<Display>-Menü zur rechten verwenden, um dies zu ändern (nach ca. zwei Wochen werden die Reminder jedoch endgültig gelöscht). Sie können auch "unterdrückte" Reminder einbinden, d.h. Einträge, die über den entsprechenden Eintrag im Reminder Hauptmenü zum Unterdrücken von Shortcut-Treffern erstellt wurden; diese erscheinen dann mit der Gruppenzuordnung I<suppress> in der Liste.
 
@@ -807,11 +807,11 @@ Alle Änderungen, die in diesem Dialog vorgenommen werden, treten sofort in Kraft
 
 Öffnet einen Konfigurations-Dialog für Reminder-Gruppen. Jeder Reminder ist genau einer Gruppe zugeordnet, die festlegt welche Aktionen zur Startzeit der Sendungen ausgeführt werden. Gruppen erlauben Ihnen, Aktionen leicht zu ändern (und insbesondere: sie zu deaktivieren, wenn Sie nicht in Stimmung sind, TV zu kucken), ohne jeden einzelnen Reminder editieren zu müssen. Wenn Sie einen neuen Reminder mit dem Menübefehl "I<add reminder>" erstellen, wird dieser immer der ersten Gruppe zugeordnet, d.h. Index 0.
 
-Standardmäßig hat nxtvepg nur eine Gruppe, die eine Nachricht 5 Minuten vor und direkt zur Startzeit auftauchen lässt. Sie können dies ändern, indem Sie die Gruppe in der linken Liste auswählen und dann die Parameter rechts modifizieren. Oder erstellen Sie einen neuen Reminder durch eine Klick auf I<New>. Ebenso können Sie die Sortierreihenfolge der Gruppen ändern (nur aus Komfortgründen vorhanden; außer für Gruppe Null ist die Reihenfolge irrelevant). Der I<Show>-Button setzt einen Filter für die Programmliste, sodass nur Sendungen angezeigt werden, die auf Reminder in der gleichen Gruppe zutreffen, wie der aktuell gewählte Shortcut.
+Standardmäßig hat nxtvepg nur eine Gruppe, die eine Nachricht 5 Minuten vor und direkt zur Startzeit auftauchen lässt. Sie können dies ändern, indem Sie die Gruppe in der linken Liste auswählen und dann die Parameter rechts modifizieren. Oder erstellen Sie einen neuen Reminder durch eine Klick auf I<New>. Ebenso können Sie die Sortierreihenfolge der Gruppen ändern (nur aus Komfortgründen vorhanden; außer für Gruppe Null ist die Reihenfolge irrelevant). Der Button I<Show> setzt einen Filter für die Programmliste, sodass nur Sendungen angezeigt werden, die auf Reminder in der gleichen Gruppe zutreffen, wie der aktuell gewählte Shortcut.
 
-Am oberen Rand der Sektion zur Parametereingabe befindet sich das Eingabefeld I<Label>. Es erlaubt der Gruppe einen Namen zu geben, welcher dann in den Reminderlisten und in den Bestätigungsmeldungen der Reminder Verwendung findet. Darunter liegt eine Checkbox mit Namen I<Disable all group events>. Ist diese aktiviert, werden alle Aktionen für diese Gruppe unterdrückt. Sie bekommen beispielsweise keine Popupnachricht und Skripte werden nicht ausgeführt. Die Sendungen werden somit im Listenfeld nur markiert.
+Am oberen Rand der Sektion zur Parametereingabe befindet sich das Eingabefeld I<Label>. Es erlaubt der Gruppe einen Namen zu geben, welcher dann in den Reminderlisten und in den Bestätigungsmeldungen der Reminder Verwendung findet. Darunter liegt eine Checkbox mit Namen "I<Disable all group events>". Ist diese aktiviert, werden alle Aktionen für diese Gruppe unterdrückt. Sie bekommen beispielsweise keine Popupnachricht und Skripte werden nicht ausgeführt. Die Sendungen werden somit im Listenfeld nur markiert.
 
-Weiter unten liegt ein Eingabefeld, in das Sie eine Liste durch Kommas getrennter Werte eingeben können, die definieren, mit welchen Zeitversätzen Remindernachrichten angezeigt werden; diese Versätze werden von der Startzeit subtrahiert, d.h. wenn Sie "5" eingeben, wird eine Nachricht 5 Minuten vor der nominalen Startzeit der Sendung erscheinen. Sie können auch negative Werte verwenden (z.B. "-5"), wenn Sie Reminder nach der Startzeit erscheinen lassen wollen. Zusätzlich können Sie Startzeiten für Befehle setzen. Befehle werden still im Hintergrund ausgeführt, es sei denn Sie aktivieren I<Ask before executing script>.
+Weiter unten liegt ein Eingabefeld, in das Sie eine Liste durch Kommas getrennter Werte eingeben können, die definieren, mit welchen Zeitversätzen Remindernachrichten angezeigt werden; diese Versätze werden von der Startzeit subtrahiert, d.h. wenn Sie "5" eingeben, wird eine Nachricht 5 Minuten vor der nominalen Startzeit der Sendung erscheinen. Sie können auch negative Werte verwenden (z.B. "-5"), wenn Sie Reminder nach der Startzeit erscheinen lassen wollen. Zusätzlich können Sie Startzeiten für Befehle setzen. Befehle werden still im Hintergrund ausgeführt, es sei denn Sie aktivieren "I<Ask before executing script>".
 
 Anmerkung: Änderungen an der Konfiguration (einschließlich Hinzufügen oder Löschen von Gruppen) werden nicht angewandt, bevor man den Dialog mit OK verlässt.
 
@@ -841,7 +841,7 @@ Die Titeltext- und Serienfilter erlauben sehr schnell nach Wiederholungen einer 
 
 =item B<Hinzufügen von Erinnerungen>
 
-Dieser Menüeintrag wird einen Reminder für die aktuell gewählte Sendung hinzufügen. Der Reminder wird der Standard-Remindergruppe angehören. Um Reminder in anderen Gruppen anzulegen verwenden Sie I<Add reminder into group> im Reminder-Hauptmenü (siehe auch L<"REMINDERS">).
+Dieser Menüeintrag wird einen Reminder für die aktuell gewählte Sendung hinzufügen. Der Reminder wird der Standard-Remindergruppe angehören. Um Reminder in anderen Gruppen anzulegen verwenden Sie "I<Add reminder into group>" im Reminder-Hauptmenü (siehe auch L<"REMINDERS">).
 
 =item B<Benutzerdefinierte Einträge>
 
@@ -863,11 +863,11 @@ UNIX: Wird die Akquisition ausgeschaltet, wird auch das I</dev/vbi> device freig
 
 =head2 Connect to acq. daemon
 
-Starten oder trennen Sie die Verbindung zwischen dem Browser und einem im Hintergrund laufenden Akquisitions-Daemon. Der Daemon kann auf dem gleichen Host oder sonst wo im lokalen Netzwerk laufen. Die Adresse des Daemons und andere Parameter werden im I<Client/Server>-Menü konfiguriert (siehe L<"CONFIGURATION: Client/Server">). Standardmäßig wird der Daemon lokal gestartet. Der Hauptvorteil des Gebrauchs eines Daemon ist, dass Sie die Akquisition permanent im Hintergrund laufen lassen können, auch wenn Sie den Browser (oder auf UNIX den X11-Server, d.h. das windowing system) beenden. In M$ Windows wird der Daemon beendet, wenn Sie sich ausloggen.
+Starten oder trennen Sie die Verbindung zwischen dem Browser und einem im Hintergrund laufenden Akquisitions-Daemon. Der Daemon kann auf dem gleichen Host oder sonst wo im lokalen Netzwerk laufen. Die Adresse des Daemons und andere Parameter werden im I<Client/Server>-Menü konfiguriert (siehe L<"CONFIGURATION: Client/Server">). Standardmäßig wird der Daemon lokal gestartet. Der Hauptvorteil des Gebrauchs eines Daemon ist, dass Sie die Akquisition permanent im Hintergrund laufen lassen können, auch wenn Sie den Browser (oder auf UNIX den X11-Server, d.h. das "windowing system") beenden. In M$ Windows wird der Daemon beendet, wenn Sie sich ausloggen.
 
 Wenn Sie versuchen zu verbinden, aber der Daemon läuft noch nicht, wird Ihnen angeboten den Daemon automatisch zu starten, vorausgesetzt Sie haben den Server-Hostnamen I<localhost> konfiguriert. Der Daemon wird mit denselben Datenbank- und rcfile-Pfaden wie der Browser gestartet.
 
-Zu bemerken ist, dass das Trennen der Verbindung zum Daemon oder das Beenden des Browsers die Akquisition nicht stoppt und infolgedessen das Gerät nicht freigibt. Ist dies das, was Sie wollen, wählen Sie stattdessen den Befehl I<Enable acquisition>, welcher den Daemon beendet. Natürlich ist diese Option nur verfügbar, wenn Ihr Daemon auf demselben Host und mit derselben Benutzerkennung läuft wie der Browserprozess.
+Zu bemerken ist, dass das Trennen der Verbindung zum Daemon oder das Beenden des Browsers die Akquisition nicht stoppt und infolgedessen das Gerät nicht freigibt. Ist dies das, was Sie wollen, wählen Sie stattdessen den Befehl "I<Enable acquisition>", welcher den Daemon beendet. Natürlich ist diese Option nur verfügbar, wenn Ihr Daemon auf demselben Host und mit derselben Benutzerkennung läuft wie der Browserprozess.
 
 =head2 Dump stream
 
@@ -879,9 +879,9 @@ Besteht eine Verbindung zum Akquisitions-Daemon, werden nur Blöcke ausgegeben di
 
 Öffnet einen Dialog, der es erlaubt alle Blöcke in der Datenbank in einem freien Textformat auf das Terminal (nur UNIX) oder in eine bestimmte Datei auszugeben.  Das Format ist identisch mit dem des Befehls I<Dump stream>.  Auch dieses Feature ist hauptsächlich für Entwickler vorgesehen. Um alle Infos in der Ausgabe zu verstehen, müssen Sie in den Quelltext in F<epgui/epgtxtdump.c> des nxtvepg-Source-Pakets nachsehen.
 
-Eine Reihe von Checkboxen erlauben Ihnen zu bestimmen welche Art von Blöcken geschrieben werden: Die Informationsblöcke der Sendungen (I<Programme Information Blocks> oder PI) enthalten die eigentlichen Programmbeschreibungen; I<Defective PI> enthalten solche PI, die wegen Inkonsistenzen wie z.B. überlappenden Laufzeiten nicht für die Datenbank akzeptiert wurden. Für eine Erklärung der anderen Blocktypen sehen Sie bitte die ETSI-Spezifikation 707 ein.
+Eine Reihe von Checkboxen erlauben Ihnen zu bestimmen welche Art von Blöcken geschrieben werden: Die Informationsblöcke der Sendungen (I<Programme Information Blocks> oder PI) enthalten die eigentlichen Programmbeschreibungen; "I<Defective PI>" enthalten solche PI, die wegen Inkonsistenzen wie z.B. überlappenden Laufzeiten nicht für die Datenbank akzeptiert wurden. Für eine Erklärung der anderen Blocktypen sehen Sie bitte die ETSI-Spezifikation 707 ein.
 
-Tipp: Die Ausgabe kann auch direkt über die Befehlszeile mittels des Schalters B<-dump raw> erfolgen (siehe auch L<"OPTIONS">).  In diesem Fall werden die zuletzt im Dialog eingestellten Parameter verwendet.
+B<Tipp:> Die Ausgabe kann auch direkt über die Befehlszeile mittels des Schalters B<-dump raw> erfolgen (siehe auch L<"OPTIONS">).  In diesem Fall werden die zuletzt im Dialog eingestellten Parameter verwendet.
 
 =head2 Export as text
 
@@ -939,7 +939,7 @@ Für I<MySQL> können Sie die Tabellen wie folgt definieren:
       UNIQUE theme_idx (theme_idx)
    );
 
-Tipp: Die Dateien können auch direkt über die Befehlszeile mittels der Schalter B<-dump pi>, B<-dump ai> bzw. B<-dump pdc> geschrieben werden. (Siehe auch L<"OPTIONS">)
+B<Tipp:> Die Dateien können auch direkt über die Befehlszeile mittels der Schalter B<-dump pi>, B<-dump ai> bzw. B<-dump pdc> geschrieben werden. (Siehe auch L<"OPTIONS">)
 
 =head2 Export as XMLTV
 
@@ -949,23 +949,23 @@ B<Tipp:> Sie können die Menge der exportierten Daten einschränken indem Sie eine
 
 Einige TV-Anwendungen sind dafür bekannt, XMLTV-Timestamps nicht korrekt auszuwerten. Um diese Probleme zu umgehen gibt es eine Option, die erlaubt, Datumsangaben und Uhrzeiten in lokaler Zeit anstatt UTC (auch bekannt als I<Greenwhich Mean Time> oder GMT) zu exportieren. Erscheinen alle Programmdaten um eine oder zwei Stunden verschoben im Zeitplan Ihrer TV-Anwendung, versuchen Sie es mit dieser Option.
 
-Tipp: Die Datenbank kann auch direkt über die Befehlszeile mittels des Schalters B<-dump xml> exportiert werden. (Siehe auch L<"OPTIONS">)
+B<Tipp:> Die Datenbank kann auch direkt über die Befehlszeile mittels des Schalters B<-dump xml> exportiert werden. (Siehe auch L<"OPTIONS">)
 
 =head2 Export as HTML
 
 Öffnet einen Dialog, der erlaubt, die komplette Datenbank oder markierte Sendungen in eine Datei im HTML-Format (Hypertext Markup Language) zu exportieren. Die Datei kann dann in einen WWW-Browser geladen werden, z.B. I<Mozilla> oder I<Opera>. Dies ist insbesondere nützlich, wenn Sie Ihre TV-Beschreibungen ausdrucken wollen.
 
-Oben im Dialogfenster müssen Sie den Namen der Ausgabedatei eingeben; wenn Sie Ihr keine Erweiterung geben, wird automatisch ein I<.html> angehängt. Klicken Sie auf den kleinen Ordnerbutton rechts daneben, um einen Dialog zur Dateiwahl zu offnen. Drücken Sie den I<Export>-Button, um das HTML-Dokument zu erstellen und I<Dismiss>, um das Dialogfenster zu schließen.
+Oben im Dialogfenster müssen Sie den Namen der Ausgabedatei eingeben; wenn Sie Ihr keine Erweiterung geben, wird automatisch ein I<.html> angehängt. Klicken Sie auf den kleinen Ordnerbutton rechts daneben, um einen Dialog zur Dateiwahl zu offnen. Drücken Sie den Button I<Export>, um das HTML-Dokument zu erstellen und I<Dismiss>, um das Dialogfenster zu schließen.
 
-Standardmäßig ist die Checkbox I<All matching programmes, but max ...> aktiviert. In diesem Modus werden alle Sendungen exportiert, die auf die aktuellen Filter-Einstellungen zutreffen, jedoch nur bis zur angegebenen Maximalzahl an Sendungen. Es wird empfohlen die Zahl der Sendungen immer zu beschränken, da sonst sehr große HTML-Dokumente erzeugt werden, was zu einer langen Ladezeit in Ihrem Web-Browser führen kann.
+Standardmäßig ist die Checkbox "I<All matching programmes, but max ...>" aktiviert. In diesem Modus werden alle Sendungen exportiert, die auf die aktuellen Filter-Einstellungen zutreffen, jedoch nur bis zur angegebenen Maximalzahl an Sendungen. Es wird empfohlen die Zahl der Sendungen immer zu beschränken, da sonst sehr große HTML-Dokumente erzeugt werden, was zu einer langen Ladezeit in Ihrem Web-Browser führen kann.
 
-Verwenden Sie den Modus I<Selected programme only>, um nur die Sendung zu exportieren, die aktuell im Hauptfenster des Browsers markiert ist. In Kombination mit dem Modus I<Append to file> erlaubt dies Schritt-für-Schritt ein Dokument mit genau den Sendungen zu erstellen, die Sie interessieren.
+Verwenden Sie den Modus "I<Selected programme only>", um nur die Sendung zu exportieren, die aktuell im Hauptfenster des Browsers markiert ist. In Kombination mit dem Modus I<Append to file> erlaubt dies Schritt-für-Schritt ein Dokument mit genau den Sendungen zu erstellen, die Sie interessieren.
 
-Im Feld darunter befinden sich drei Auswahlknöpfe, mit denen Sie das Ausgabeformat auswählen können. Wenn Sie I<Write titles> wählen, erhalten Sie eine Tabelle in derselben Konfiguration wie in der Programmtitelliste des Hauptfensters. Wollen Sie andere Spaltentypen haben, können Sie eine separate Spalten-Konfiguration mittels der Auswahl von I<Different columns than main window> und dem Drücken des I<Configure>-Buttons zur Wahl des anzuzeigenden Spaltentyps erstellen.
+Im Feld darunter befinden sich drei Auswahlknöpfe, mit denen Sie das Ausgabeformat auswählen können. Wenn Sie I<Write titles> wählen, erhalten Sie eine Tabelle in derselben Konfiguration wie in der Programmtitelliste des Hauptfensters. Wollen Sie andere Spaltentypen haben, können Sie eine separate Spalten-Konfiguration mittels der Auswahl von "I<Different columns than main window>" und dem Drücken des Buttons I<Configure> zur Wahl des anzuzeigenden Spaltentyps erstellen.
 
-Wenn Sie I<Write descriptions> wählen, werden Sie für jede exportierte Sendung eine Featureübersicht und -beschreibung erhalten, ähnlich der Info im unteren Teil des Hauptfensters.
+Wenn Sie "I<Write descriptions>" wählen, werden Sie für jede exportierte Sendung eine Featureübersicht und -beschreibung erhalten, ähnlich der Info im unteren Teil des Hauptfensters.
 
-Wenn Sie I<Write titles and descriptions> wählen, enthält das HTML-Dokument zuerst eine tabellarische Titelübersicht und darunter die zugehörigen Beschreibungen. In diesem Modus können Sie I<Add hyperlinks to titles> auswählen, um Hyperlinks von den Titeln in der Tabelle zu den entsprechenden Beschreibungen hinzuzufügen.
+Wenn Sie "I<Write titles and descriptions>" wählen, enthält das HTML-Dokument zuerst eine tabellarische Titelübersicht und darunter die zugehörigen Beschreibungen. In diesem Modus können Sie "I<Add hyperlinks to titles>" auswählen, um Hyperlinks von den Titeln in der Tabelle zu den entsprechenden Beschreibungen hinzuzufügen.
 
 Das Aussehen des erzeugten Dokuments wird durch ein internes CSS-Stylesheet festgelegt. Mögen Sie dieses Aussehen nicht, können Sie es mit einem eigenen Stylesheet überschreiben. Speichern Sie dieses in eine Datei mit Namen F<nxtvhtml.css> und legen Sie diese in dasselbe Verzeichnis wie die generierte HTML-Datei. Siehe I<http://www.w3.org/> für mehr Informationen zu HTML und Stylesheets. Wenn Ihre Spalten-Konfiguration Bilder enthält (siehe L<"COMPOSITE ATTRIBUTES">), müssen Sie diese in ein Unterverzeichnis namens F<images> legen; des Weiteren sollte Ihr Web-Browser das Bildformat B<PNG> unterstützen.
 
@@ -1023,11 +1023,11 @@ Um überflüssige NexTView-Provider zu entfernen (z.B. solche, die keinen NexTView
 
 In Frankreich oder Belgien sollte die französische Frequenztabelle (welche gleichzeitig die I<Secam L> TV-Norm impliziert) für die Sendersuche ausgewählt werden. In allen anderen Ländern sollte die Standard-Frequenztabelle ausgewählt werden. Letztere deckt alle üblichen westeuropäischen Frequenzen in Kabel- und Antennenausstrahlung mit PAL TV-Norm ab. Andere Länder werden zurzeit nicht unterstützt, da hier keine NexTView-Provider bekannt sind. In einer Gegend, in der sowohl PAL- als auch SECAM-Sender empfangen werden können, sollte die Suche zweimal mit verschiedenen Frequenztabellen ausgeführt werden.
 
-Der Button I<Use TV app.> wird automatisch ausgewählt, wenn eine Konfigurationsdatei von I<xawtv> im home-Verzeichnis gefunden (nur UNIX) oder eine TV-Anwendung im Dialog I<TV app. interaction> eingestellt wurde. Anstatt alle möglichen TV-Kanäle oder -Frequenzen in allen Bändern zu durchsuchen, wird nxtvepg dann lediglich die dort definierten TV-Kanäle überprüfen. So wird die Suche nicht nur verkürzt, sondern auch zuverlässiger.
+Der Button "I<Use TV app.>" wird automatisch ausgewählt, wenn eine Konfigurationsdatei von I<xawtv> im home-Verzeichnis gefunden (nur UNIX) oder eine TV-Anwendung im Dialog "I<TV app. interaction>" eingestellt wurde. Anstatt alle möglichen TV-Kanäle oder -Frequenzen in allen Bändern zu durchsuchen, wird nxtvepg dann lediglich die dort definierten TV-Kanäle überprüfen. So wird die Suche nicht nur verkürzt, sondern auch zuverlässiger.
 
 Setzen Sie ein Häkchen an der Checkbox I<Slow>, wenn Sie auf manchen Kanälen einen schlechten Empfang haben. Im Slow-Modus wird der Suchlauf Kanäle mit "instabilem" Videosignal nicht überspringen (d.h. kein PLL H-lock innerhalb 150 Millisekunden) und auf alles doppelt so lange als sonst warten, d.h. bis zu 4 Sekunden auf eine VPS/PDC-Kanal-Identifikation und bis zu 90 Sekunden auf ein EPG bei bekannten Providern oder wenn potentielle EPG-Datenpakete gefunden wurden. Zu bemerken ist, dass Sie die Einstellung "Slow" auch während des Suchlaufs ändern können.
 
-Verwenden Sie den Modus I<Refresh only>, wenn Sie Ihre Datenbank-Dateien gelöscht haben (oder aus einer inkompatiblen Software-Version aktualisieren) oder wenn Sie veraltete Provider identifizieren oder löschen wollen. In diesem Modus werden nur Kanäle überprüft, auf denen zuvor NexTView-Daten empfangen wurden (die Frequenzen werden sowohl in den Datenbanken als auch in Ihrer rc/ini-Datei aufbewahrt). Dies erlaubt, Ihre komplette Provider-Auswahl sehr schnell wiederzugewinnen. Wird auf dem Kanal eines Providers keine Daten-Übertragung gefunden, wird ein Button I<Remove this provider> im Ausgabefenster zugefügt, den Sie nach dem Beenden des Suchlaufs zum Entfernen der Datenbank und jeder über den Provider gespeicherten Information verwenden können. Zu bemerken ist, dass das Entfernen fehlschlagen wird, wenn die Datenbank in diesem Moment in Gebrauch ist, also müssen Sie möglicherweise die Akquisition anhalten und einen anderen Provider wählen.
+Verwenden Sie den Modus "I<Refresh only>", wenn Sie Ihre Datenbank-Dateien gelöscht haben (oder aus einer inkompatiblen Software-Version aktualisieren) oder wenn Sie veraltete Provider identifizieren oder löschen wollen. In diesem Modus werden nur Kanäle überprüft, auf denen zuvor NexTView-Daten empfangen wurden (die Frequenzen werden sowohl in den Datenbanken als auch in Ihrer rc/ini-Datei aufbewahrt). Dies erlaubt, Ihre komplette Provider-Auswahl sehr schnell wiederzugewinnen. Wird auf dem Kanal eines Providers keine Daten-Übertragung gefunden, wird ein Button "I<Remove this provider>" im Ausgabefenster zugefügt, den Sie nach dem Beenden des Suchlaufs zum Entfernen der Datenbank und jeder über den Provider gespeicherten Information verwenden können. Zu bemerken ist, dass das Entfernen fehlschlagen wird, wenn die Datenbank in diesem Moment in Gebrauch ist, also müssen Sie möglicherweise die Akquisition anhalten und einen anderen Provider wählen.
 
 Technische Details des EPG-Suchlaufs: Der Suchlauf wird jede physikalische TV-Frequenz (oder Teilmengen davon, wenn Sie eine der unten beschriebenen Optionen verwenden) aufsuchen und auf ein TV-Signal überprüfen. Wird ein solches innerhalb 150 ms erkannt oder wurde mindestens ein Teletext-Paket empfangen, wird der Suchlauf bis zu zwei Sekunden auf eine gültige VPS/PDC-Kanal-Identifizierung warten. Gleichzeitig empfängt er Pakete aller potenziellen EPG-Teletextseiten. Wird ein VPS/PDC-Code gelesen, der einem der bekannten EPG-Provider zugeordnet werden kann oder wurden gültige Datenpakete empfangen (was nicht notwendigerweise bedeutet dass dort EPG gesendet wird, weil andere Dienste dieselbe Codierung verwenden könnten), wartet der Scan bis zu 45 Sekunden auf Nachrichten von EPG-Bestandslisten (BI- und AI-Blöcke). Sie können dieses Verfahren im Nachrichtenfenster mitverfolgen.
 
@@ -1037,19 +1037,19 @@ Obwohl der Scan sich redlich Mühe gibt, ist nicht garantiert, dass jeder EPG-Pro
 
 Öffnet einen Dialog, in dem die Parameter der Hardware der TV-Karte konfiguriert werden können.
 
-Dieser Dialog enthält unter Windows mehr Optionen als auf UNIX, da der Treiber unter UNIX Teil des Betriebssystems ist, bei Windows dagegen Teil der Applikation.  Bei Windows muss der Treiber daher für jede Anwendung erneut konfiguriert werden. Sie müssen Ihre Karte im Unterdialog I<Configure card> konfigurieren bevor Sie nxtvepg nutzen können. Bitte sehen Sie in L<"GETTING STARTED"> nach einer Beschreibung dieses Dialogs.
+Dieser Dialog enthält unter Windows mehr Optionen als auf UNIX, da der Treiber unter UNIX Teil des Betriebssystems ist, bei Windows dagegen Teil der Applikation.  Bei Windows muss der Treiber daher für jede Anwendung erneut konfiguriert werden. Sie müssen Ihre Karte im Unterdialog "I<Configure card>" konfigurieren bevor Sie nxtvepg nutzen können. Bitte sehen Sie in L<"GETTING STARTED"> nach einer Beschreibung dieses Dialogs.
 
-I<Video source> erlaubt die Wahl der Quelle des Video-Inputs, d.h. wo Sie ein Kabel für den Video-Eingang mit Ihrer TV-Karte verbunden haben: I<Tuner> oder I<Television> verweist auf einen Eingang via Antennenkabel (auch als UHF/VHF- oder BK-Kabel bekannt, d.h. terrestrischer Empfang oder Kabel-TV); I<Composite> verweist auf ein Cinch-Video-Kabel wie es von Satelliten-Receivern oder billigen Video-Rekordern verwendet wird; I<S-Video> ist eine Variante von Composite mit besserer Bildqualität (oft fälschlich S-VHS-Kabel genannt, weil es meistens von S-VHS-Recordern verwendet wird) und leicht zu erkennen an den Sub-D-Anschlüssen (in deutsch "Hosidenstecker" genannt). Abhängig von Ihrer Hardware werden Sie nur eine Teilmenge dieser Input-Typen sehen oder zusätzliche (z.B. I<Radio>, welches jedoch nicht als Input für nxtvepg brauchbar ist).
+"I<Video source>" erlaubt die Wahl der Quelle des Video-Inputs, d.h. wo Sie ein Kabel für den Video-Eingang mit Ihrer TV-Karte verbunden haben: I<Tuner> oder I<Television> verweist auf einen Eingang via Antennenkabel (auch als UHF/VHF- oder BK-Kabel bekannt, d.h. terrestrischer Empfang oder Kabel-TV); I<Composite> verweist auf ein Cinch-Video-Kabel wie es von Satelliten-Receivern oder billigen Video-Rekordern verwendet wird; I<S-Video> ist eine Variante von Composite mit besserer Bildqualität (oft fälschlich S-VHS-Kabel genannt, weil es meistens von S-VHS-Recordern verwendet wird) und leicht zu erkennen an den Sub-D-Anschlüssen (in deutsch "Hosidenstecker" genannt). Abhängig von Ihrer Hardware werden Sie nur eine Teilmenge dieser Input-Typen sehen oder zusätzliche (z.B. I<Radio>, welches jedoch nicht als Input für nxtvepg brauchbar ist).
 
 Zu beachten ist, dass wenn nicht der TV-Tuner als Eingabe gewählt wird, nxtvepg nicht automatisch auf den Sender Ihres EPG-Anbieters umschalten kann. Siehe auch L<"DATA ACQUISITION">.
 
 Haben Sie mehr als eine TV-Tunerkarte in Ihrem Rechner, können Sie wählen, welche Sie nutzen wollen. Dieselbe Auswahl wird über die Befehlszeilenoption B<-card> getroffen (siehe L<"OPTIONS">). Das Popupmenü wird Ihnen alle Kartentypen - wie im Treiber konfiguriert - auflisten. Zu bemerken ist, dass sich das Ändern der Karte ebenso auf die Input-Wahl auswirken wird, insbesondere wenn die Karten unterschiedliche Sortierreihenfolgen der Input-Typen besitzen.
 
-Die Option I<Slicer Quality> wählt zwischen verschiedenen Algorithmen aus, mit denen der Teletext aus dem analogen Videosignal extrahiert wird. Der Algorithmus I<simple> funktioniert nur bei ausgezeichnetem TV-Empfang, hat jedoch den Vorteil, sehr wenig CPU-Ressourcen zu verbrauchen. Der Algorithmus I<elaborate> (aus Zappings libzvbi zapping.sourceforge.net und ursprünglich für den Linux-Teletextviewer I<alevt> entwickelt) ist wesentlich fehlertoleranter. Wenn Sie I<automatic> wählen, wird die Akquisition immer mit dem einfachen Algorithmus starten, jedoch auf den aufwendigeren umschalten, wenn die Fehlerrate bestimmte Grenzwerte übersteigt (siehe auch L<"STATISTICS: Acquisition statistics">).
+Die Option "I<Slicer Quality>" wählt zwischen verschiedenen Algorithmen aus, mit denen der Teletext aus dem analogen Videosignal extrahiert wird. Der Algorithmus I<simple> funktioniert nur bei ausgezeichnetem TV-Empfang, hat jedoch den Vorteil, sehr wenig CPU-Ressourcen zu verbrauchen. Der Algorithmus I<elaborate> (aus Zappings libzvbi zapping.sourceforge.net und ursprünglich für den Linux-Teletextviewer I<alevt> entwickelt) ist wesentlich fehlertoleranter. Wenn Sie I<automatic> wählen, wird die Akquisition immer mit dem einfachen Algorithmus starten, jedoch auf den aufwendigeren umschalten, wenn die Fehlerrate bestimmte Grenzwerte übersteigt (siehe auch L<"STATISTICS: Acquisition statistics">).
 
 B<Nur Windows:> am unteren Rand der Dialogbox sind weitere Optionen, die nur benötigt werden, wenn überprüft werden soll, ob die Akquisition nicht korrekt arbeitet.
 
-Sollten Sie Datenverlust während hoher Systemauslastung feststellen, können Sie die Priorität des Akquisitions-Threads erhöhen (dies kann in einigen Windows-Versionen spezielle Privilegien erfordern). Standard ist I<Normal>, d.h. die gleiche wie für alle Benutzeranwendungen.
+Sollten Sie Datenverlust während hoher Systemauslastung feststellen, können Sie die Priorität des Akquisitions-Threads erhöhen (dies kann in einigen Windows-Versionen spezielle Privilegien erfordern). Standard ist I<normal>, d.h. die gleiche wie für alle Benutzeranwendungen.
 
 Die zweite Checkbox erlaubt eine Protokollierung des Treiberstarts und -stopps. Die Ausgabe wird an eine Datei mit Namen I<dsdrv.log> im Arbeitsverzeichnis von nxtvepg angehängt. Aktivieren Sie diese Option, wenn der Treiberstart fehlschlägt und Sie die Ursache nicht finden können. Sehen Sie sich aber zuerst die Erklärung der Treiberfehlermeldungen in der README-Datei an. Zu bemerken ist, dass die Logging-Option zwischen den Programmstarts vergessen wird, d.h. um davon Gebrauch zu machen, müssen Sie die Akquisition über das Control-Menü aktivieren und nicht indem Sie nxtvepg neu starten.
 
@@ -1069,7 +1069,7 @@ Achtung: Dieses Feature ist noch nicht implementiert. Durch das Aktivieren der F
 
 =item I<Enable TCP/IP>
 
-Wenn Sie Verbindungen über das TCP/IP-Netzwerk-Protokoll erlauben, ermöglichen Sie Verbindungen von bzw. zu anderen Rechnern im Netzwerk. Da es in nxtvepg momentan keinerlei Zugriffskontrolle gibt, können sich diese Hosts an beliebiger Stelle innerhalb des Netzwerks befinden oder sonst wo in der Welt, während Sie mit dem Internet verbunden sind. Falls Sie keinen Firewall besitzen, der eingehende Verbindungen von nicht-vertrauenswürdigen Hosts abwehrt, ist dieser Modus äußerst gefährlich, da nxtvepg nicht gegen böswillige Client-Verbindungen abgesichert ist.
+Wenn Sie Verbindungen über das TCP/IP-Netzwerk-Protokoll erlauben, ermöglichen Sie Verbindungen von bzw. zu anderen Rechnern im Netzwerk. Da es in nxtvepg momentan keinerlei Zugriffskontrolle gibt, können sich diese Hosts an beliebiger Stelle innerhalb des Netzwerks befinden oder sonst wo in der Welt, während Sie mit dem Internet verbunden sind. Falls Sie keine Firewall besitzen, der eingehende Verbindungen von nicht-vertrauenswürdigen Hosts abwehrt, ist dieser Modus äußerst gefährlich, da nxtvepg nicht gegen böswillige Client-Verbindungen abgesichert ist.
 
 Bemerkung: Auf Windows wird derzeit nur TCP/IP unterstützt, d.h. diese Option muss aktiviert sein, um den Daemon starten zu können.
 
@@ -1125,7 +1125,7 @@ Nur Windows: die Option erlaubt es, die Zuordnung der Kommunikations-Ressourcen 
 
 Diese Option ermöglicht es, den gleichnamigen Button unterhalb der Uhr im Hauptfenster von nxtvepg zu zeigen oder zu verstecken. Wenn Sie kein Interesse an einer Fernbedienung der TV-Anwendung haben, schalten Sie die Option ab.
 
-Tipp: Der Button hat ein kleines Kontextmenü, das sich mit der rechten Maustaste öffnet. Es enthält einige Kommandos zur Kontrolle der TV-Applikation (nicht alle TV-Applikationen unterstützen alle angebotenen Kommandos).
+B<Tipp:> Der Button hat ein kleines Kontextmenü, das sich mit der rechten Maustaste öffnet. Es enthält einige Kommandos zur Kontrolle der TV-Applikation (nicht alle TV-Applikationen unterstützen alle angebotenen Kommandos).
 
 =item I<Cursor follows channel changes>
 
@@ -1141,11 +1141,11 @@ Nach einem Kanalwechsel oder dem Wechsel des aktuellen Programmtitels wird die I
 
 Auf UNIX kann das Anzeigeformat durch Auswählen der folgenden Radiobuttons festgelegt werden:
 
-Mit I<Separate popup> wird nxtvepg ein kleines Popupfenster erzeugen und es genau neben dem xawtv-Fenster platzieren. Die blaue Fläche in dem kleinen Streifen am oberen Rand gibt an, welcher Anteil der (nominalen) Laufzeit in der Vergangenheit liegt. Mit I<Video overlay> wird nxtvepg ein ähnliches Popup generieren, jedoch wird dies über das Videobild gelegt (bitte beachten Sie, dass diese Option nur mit XFree86 Version 4 und der Erweiterung XVideo ordentlich funktioniert; verwenden Sie den Befehl B<xvinfo>, um zu überprüfen, ob Ihr Server dieses Feature unterstützt). Sie können Schriftart und -farbe in diesem Popup über die X Resources ändern (siehe L<"FILES"> für Details). I<Video overlay, 2 lines> ist identisch, ausgenommen dass es Laufzeit und Titel auf zwei separate Zeilen verteilt und zusätzlich den Prozentsatz der abgelaufenen Laufzeit angibt. Mit I<Xawtv window title> wird die Info an xawtv gesendet und im Fenstertitel dargestellt. Außer für diese letzte Option können Sie die gewünschte Anzeigedauer mit einem Schieberegler am unteren Ende des Dialogs konfigurieren. Eine Dauer von Null bedeutet dass die Anzeige endlos stehen bleibt.
+Mit "I<Separate popup>" wird nxtvepg ein kleines Popupfenster erzeugen und es genau neben dem xawtv-Fenster platzieren. Die blaue Fläche in dem kleinen Streifen am oberen Rand gibt an, welcher Anteil der (nominalen) Laufzeit in der Vergangenheit liegt. Mit "I<Video overlay>" wird nxtvepg ein ähnliches Popup generieren, jedoch wird dies über das Videobild gelegt (bitte beachten Sie, dass diese Option nur mit XFree86 Version 4 und der Erweiterung XVideo ordentlich funktioniert; verwenden Sie den Befehl B<xvinfo>, um zu überprüfen, ob Ihr Server dieses Feature unterstützt). Sie können Schriftart und -farbe in diesem Popup über die X Resources ändern (siehe L<"FILES"> für Details). "I<Video overlay, 2 lines>" ist identisch, ausgenommen dass es Laufzeit und Titel auf zwei separate Zeilen verteilt und zusätzlich den Prozentsatz der abgelaufenen Laufzeit angibt. Mit "I<Xawtv window title>" wird die Info an xawtv gesendet und im Fenstertitel dargestellt. Außer für diese letzte Option können Sie die gewünschte Anzeigedauer mit einem Schieberegler am unteren Ende des Dialogs konfigurieren. Eine Dauer von Null bedeutet dass die Anzeige endlos stehen bleibt.  Mit I<Use external application> kann eine beliebige externe Applikation zur Anzeige verwendet werden. Titel und Laufzeit des aktuellen Programms können auf der Kommandozeile übergeben werden. Die Syntax ist dieselbe wie beim Aufruf externer Applikationen im Kontextmenü (siehe L<"CONFIGURATION: Context menu configuration">)
 
 =back
 
-Nur Windows: in der Mitte des Dialogs befindet sich eine Zeile, die den aktuellen Verbindungsstatus der TV-Anwendung anzeigt. Sie enthält den Namen der verbundenen Applikation oder I<not connected>. Letztere Meldung erscheint wenn keine TV-Anwendung läuft oder eine die nicht mit nxtvepg interagiert (siehe auch L<"GETTING STARTED: Configuring a TV application">). Sie können mit anderen Applikationen als unten konfiguriert Verbindung aufnehmen, sind jedoch die Sendernamen nicht mit nxtvepg synchronisiert, wird die Interaktion nicht optimal funktionieren (d.h. nxtvepg könnte nicht in der Lage dazu sein, alle Sender zu identifizieren, und daher keine Sendungstitel bereitstellen).
+Nur Windows: in der Mitte des Dialogs befindet sich eine Zeile, die den aktuellen Verbindungsstatus der TV-Anwendung anzeigt. Sie enthält den Namen der verbundenen Applikation oder "I<not connected>". Letztere Meldung erscheint wenn keine TV-Anwendung läuft oder eine die nicht mit nxtvepg interagiert (siehe auch L<"GETTING STARTED: Configuring a TV application">). Sie können mit anderen Applikationen als unten konfiguriert Verbindung aufnehmen, sind jedoch die Sendernamen nicht mit nxtvepg synchronisiert, wird die Interaktion nicht optimal funktionieren (d.h. nxtvepg könnte nicht in der Lage dazu sein, alle Sender zu identifizieren, und daher keine Sendungstitel bereitstellen).
 
 Im unteren Teil des Dialogfensters können Sie Typ und (auf Windows) den Installationspfad Ihrer bevorzugten TV-Anwendung konfigurieren. Diese Information wird genutzt, um auf die Kanalliste der TV-Anwendung (d.h. Frequenzen und Stationsnamen des TV-Tuners) während des EPG-Provider-Suchlaufs zuzugreifen (siehe L<"CONFIGURATION: Provider scan">) und im Dialog zur Konfiguration der Sendernamen (siehe L<"CONFIGURATION: Network names">).
 
@@ -1157,33 +1157,33 @@ Zu bemerken ist, dass nicht alle TV-Anwendungen, die im Popupmenü aufgelistet we
 
 =head2 Select attributes
 
-Öffnet den Konfigurationsdialog für "Sendungsattribute", d.h.  hier können Sie wählen, welche Daten für die Sendungen im Hauptfenster angezeigt werden. Im Listenfeld zur Linken des Dialogfensters steht eine Auflistung aller verfügbaren Attributkategorien, z.B. Titel, Laufzeit, Wochentag, TV-Sendername, Ratings, ... d.h. genau die gleichen, die für das Filtern verfügbar sind. Tipp: Mit dem im nächsten Kapitel beschriebenen Dialog können Sie sich eigene Attribute zusammenstellen, um diese Liste zu erweitern.
+Öffnet den Konfigurationsdialog für "Sendungsattribute", d.h.  hier können Sie wählen, welche Daten für die Sendungen im Hauptfenster angezeigt werden. Im Listenfeld zur Linken des Dialogfensters steht eine Auflistung aller verfügbaren Attributkategorien, z.B. Titel, Laufzeit, Wochentag, TV-Sendername, Ratings, ... d.h. genau die gleichen, die für das Filtern verfügbar sind. B<Tipp:> Mit dem im nächsten Kapitel beschriebenen Dialog können Sie sich eigene Attribute zusammenstellen, um diese Liste zu erweitern.
 
 Das Listenfeld zur Rechten enthält die Typen, die aktuell zur Anzeige ausgewählt sind. Der oberste Eintrag erscheint im "single list"-Layout auf der Linken Seite des Listenfelds; im tabellarischen "grid"-Layout erscheint entsprechend der oberste Eintrag in der ersten Zeile usw.  Drücken Sie I<Apply>, um das Browserlistenfeld mit der neuen Spaltenauswahl aktualisieren zu lassen.
 
 Im "single list"-Layout (siehe L<"CONFIGURATION: List layout">) besitzt jedes Attribut seine eigene Spalte im TV-Zeitplan und ein damit verbundenes Filtermenü im Button oberhalb der Spalte (vorausgesetzt die Spaltenköpfe wurden nicht deaktiviert, siehe L<"CONFIGURATION: Show/Hide">). Sie können die Breite jeder Spalte ändern, indem Sie den Mauspfeil an die rechte Seite jedes Menüeintrages bewegen bis ein Pfeil an einem senkrechten Strich zu sehen ist und diesen dann mit gedrückter Maustaste an die neue Position ziehen.
 
-Im "separate network columns"-Layout werden die Attribute untereinander in separaten Zeilen der Spalten des TV-Zeitplans ausgedruckt, es sei denn Sie wählen I<No new line after element> während das jeweilig Attribut im rechten Listenfeld gewählt ist. Leere Zeilen werden automatisch unterdrückt, sodass im Gegensatz zum "single list"-Layout die tatsächlich gezeigte Anzahl an Attributen variieren kann. Dies ist insbesondere bei benutzerdefinierten Attributen nützlich: So könnten Sie z.B. das Attribut so definieren, dass Themen-Kategorien nur für Filme ausgedruckt werden, um die Auflistung kompakter zu halten.
+Im "separate network columns"-Layout werden die Attribute untereinander in separaten Zeilen der Spalten des TV-Zeitplans ausgedruckt, es sei denn Sie wählen "I<No new line after element>" während das jeweilig Attribut im rechten Listenfeld gewählt ist. Leere Zeilen werden automatisch unterdrückt, sodass im Gegensatz zum "single list"-Layout die tatsächlich gezeigte Anzahl an Attributen variieren kann. Dies ist insbesondere bei benutzerdefinierten Attributen nützlich: So könnten Sie z.B. das Attribut so definieren, dass Themen-Kategorien nur für Filme ausgedruckt werden, um die Auflistung kompakter zu halten.
 
 =head2 Attribute composition
 
-Öffnet den Konfigurations-Dialog für I<composite attributes>, welcher erlaubt, neue Spaltentypen für das "single list"-TV-Zeitplan-Layout zu erstellen (siehe L<"CONFIGURATION: List layout">) beziehungsweise neue Zeilen im "spearate network columns"-Layout, die danach zusätzlich zu den vorgegebenen Attributtypen gewählt werden können (z.B. "Titel" und "Thema") wie im vorherigen Kapitel beschrieben.
+Öffnet den Konfigurations-Dialog für "I<composite attributes>", welcher erlaubt, neue Spaltentypen für das "single list"-TV-Zeitplan-Layout zu erstellen (siehe L<"CONFIGURATION: List layout">) beziehungsweise neue Zeilen im "spearate network columns"-Layout, die danach zusätzlich zu den vorgegebenen Attributtypen gewählt werden können (z.B. "Titel" und "Thema") wie im vorherigen Kapitel beschrieben.
 
 Für eine allgemeine Beschreibung von Composite-Attributen siehe L<"COMPOSITE ATTRIBUTES">. Dieses Kapitel beschreibt lediglich den Gebrauch des Konfigurations-Dialoges. Dieses Kapitel geht auch davon aus, dass Sie mit dem Konzept der Filter-Shortcuts (siehe L<"FILTER SHORTCUTS">) und Reminder vertraut sind (siehe L<"REMINDERS">).
 
 Der Dialog besteht aus drei Sektionen: ganz oben rechts befindet sich ein Dropdown-Menü, das alle im Moment definierten Composite-Attribute auflistet. Hier wählen Sie, welche Attribut-Definition Sie bearbeiten wollen. Darunter zur Linken liegt eine Liste von Shortcuts und Reminder-Gruppen sowie 4 Buttons, um diese Liste zu bearbeiten. Auf der rechten Seite der Shortcut-Liste befinden sich diverse Schalter zur Definition, wie Shortcuts und Reminder-Gruppen, die auf Sendungen zutreffen, angezeigt werden sollen.
 
-Zu bemerken ist, dass es Abhängigkeiten der Sektionen untereinander gibt: wenn Sie mit dem Dropdown-Menü oben zu einer anderen Attribut-Definition wechseln, wird der Rest des Dialogs augenblicklich aktualisiert und zeigt die aktuelle Definition des Composite-Attributs (Sie werden eine Warnung erhalten, sollten Änderungen an der vorherigen Zuordnung noch nicht per "Apply" Button gespeichert worden sein). Ebenso werden die Anzeigeformat-Optionen zur Rechten aktualisiert, wenn Sie einen Shortcut im Listenfeld wählen.
+Zu bemerken ist, dass es Abhängigkeiten der Sektionen untereinander gibt: wenn Sie mit dem Dropdown-Menü oben zu einer anderen Attribut-Definition wechseln, wird der Rest des Dialogs augenblicklich aktualisiert und zeigt die aktuelle Definition des Composite-Attributs (Sie werden eine Warnung erhalten, sollten Änderungen an der vorherigen Zuordnung noch nicht per "Apply"-Button gespeichert worden sein). Ebenso werden die Anzeigeformat-Optionen zur Rechten aktualisiert, wenn Sie einen Shortcut im Listenfeld wählen.
 
-Um ein neues Composite-Attribut zu erstellen, beginnen Sie mit dem Befehl I<Create new definition> im Menü oben rechts im Dialogfenster. Sie sollten dem Attribut möglichst sofort eine Kennung geben, sodass Sie Ihre Definition wieder finden, siehe L<"CONFIGURATION: Select attributes">. Ebenso sollten Sie der Kennung einen Text für den Spaltenkopf zuordnen (nur im "single list"-Layout), der oberhalb der Sendungsliste im Hauptfenster auftauchen wird; wenn möglich sollten Sie hier einen kürzeren Text verwenden als in der Kennung.
+Um ein neues Composite-Attribut zu erstellen, beginnen Sie mit dem Befehl "I<Create new definition>" im Menü oben rechts im Dialogfenster. Sie sollten dem Attribut möglichst sofort eine Kennung geben, sodass Sie Ihre Definition wieder finden, siehe L<"CONFIGURATION: Select attributes">. Ebenso sollten Sie der Kennung einen Text für den Spaltenkopf zuordnen (nur im "single list"-Layout), der oberhalb der Sendungsliste im Hauptfenster auftauchen wird; wenn möglich sollten Sie hier einen kürzeren Text verwenden als in der Kennung.
 
-Danach fügen Sie einen oder mehrere Filter zur Liste hinzu, indem Sie die Dropdown-Menüs I<Add shortcut> oder I<Add reminder> links des Listenfeldes verwenden. Neue Einträge werden immer an das Ende der Liste angefügt, jedoch können Sie die Sortierreihenfolge mit Hilfe der auf/ab-Pfeil-Buttons verändern. Um einen Shortcut oder eine Reminder-Gruppe aus der Liste zu entfernen, markieren Sie den Eintrag zuerst, dann klicken Sie I<Delete>-Button oder -Taste. Beachten Sie: die Reihenfolge wird dann relevant, wenn eine Sendung auf mehrere der ausgewählten Shortcuts zutrifft oder wenn Sie Shortcuts mit Reminder-Gruppen mischen.  Denn das Anzeigeformat wird vom ersten zutreffenden Eintrag in der Liste, von oben beginnend, bestimmt (siehe auch Einführung in L<"COMPOSITE ATTRIBUTES">).
+Danach fügen Sie einen oder mehrere Filter zur Liste hinzu, indem Sie die Dropdown-Menüs "I<Add shortcut>" oder "I<Add reminder>" links des Listenfeldes verwenden. Neue Einträge werden immer an das Ende der Liste angefügt, jedoch können Sie die Sortierreihenfolge mit Hilfe der auf/ab-Pfeil-Buttons verändern. Um einen Shortcut oder eine Reminder-Gruppe aus der Liste zu entfernen, markieren Sie den Eintrag zuerst, dann klicken Sie den Button I<Delete> oder die I<Entf>-Taste. Beachten Sie: die Reihenfolge wird dann relevant, wenn eine Sendung auf mehrere der ausgewählten Shortcuts zutrifft oder wenn Sie Shortcuts mit Reminder-Gruppen mischen.  Denn das Anzeigeformat wird vom ersten zutreffenden Eintrag in der Liste, von oben beginnend, bestimmt (siehe auch Einführung in L<"COMPOSITE ATTRIBUTES">).
 
-Zur Rechten der Shortcut-Liste befinden sich Schalter, die definieren, was abhängig von einem Shortcut- oder Reminder-Treffer in der Sendungsliste angezeigt wird (Sendungen, die auf keinen der gegebenen Shortcuts zutreffen, werden nicht dargestellt, es sei denn Sie haben einen I<*no match*>-Eintrag). Standardmäßig wird ein Treffer als der Name des zutreffenden Shortcuts oder der Reminder-Gruppe angezeigt, Sie können dies jedoch ganz einfach über die Schalter rechts des Listenfelds ändern. Die Wahlmöglichkeiten sind: frei definierter aber statischer Text, eines der vordefinierten Bilder oder Attribute der Sendung (wenn Sie beispielsweise I<Time> wählen, wird die Startzeit der Sendung angezeigt).
+Zur Rechten der Shortcut-Liste befinden sich Schalter, die definieren, was abhängig von einem Shortcut- oder Reminder-Treffer in der Sendungsliste angezeigt wird (Sendungen, die auf keinen der gegebenen Shortcuts zutreffen, werden nicht dargestellt, es sei denn Sie haben einen Eintrag I<*no match*>). Standardmäßig wird ein Treffer als der Name des zutreffenden Shortcuts oder der Reminder-Gruppe angezeigt, Sie können dies jedoch ganz einfach über die Schalter rechts des Listenfelds ändern. Die Wahlmöglichkeiten sind: frei definierter aber statischer Text, eines der vordefinierten Bilder oder Attribute der Sendung (wenn Sie beispielsweise I<Time> wählen, wird die Startzeit der Sendung angezeigt).
 
 Falls Sie sich entscheiden Text zu verwenden (dies schließt auch Attribute ein), können Sie fette, unterstrichene oder durchgestrichene Schrift sowie die Textfarbe auswählen. Unabhängig vom Typ können Sie eine Hintergrundfarbe wählen: entweder nur für die Spalte/Zeile in der das Element angezeigt wird oder für das komplette Programmelement. Das hieraus resultierende Erscheinungsbild wird in einem B<Text sample> über der Steuerung angezeigt. Diese Anzeigeoptionen können separat für jeden Shortcut-Treffer konfiguriert werden. Eine Ausnahme bildet die Hintergrundfarbe der Gesamtspalte; wird solch ein Format in mehreren Attributen vorgefunden, zählt das letzte davon.
 
-Wollen Sie Ihre Attribut-Definition ausprobieren, drücken Sie unten den I<Apply>-Button. Die Definition wird in der Konfigurationsdatei gespeichert und der Browserinhalt aktualisiert. Sollte das Attribut momentan nicht im Browser verwendet werden, wird ihnen in einer Popup-Mitteilung angeboten, das Attribut automatisch dem TV-Plan anzuhängen. Sie können dessen Position später über die Konfiguration der I<Attribute selection> verändern.
+Wollen Sie Ihre Attribut-Definition ausprobieren, drücken Sie unten den Button I<Apply>. Die Definition wird in der Konfigurationsdatei gespeichert und der Browserinhalt aktualisiert. Sollte das Attribut momentan nicht im Browser verwendet werden, wird ihnen in einer Popup-Mitteilung angeboten, das Attribut automatisch dem TV-Plan anzuhängen. Sie können dessen Position später über die Konfiguration der "I<Attribute selection>" verändern.
 
 Unten gibt es auch einen I<Delete>-Button, der das Entfernen veralteter Definitionen erlaubt. Wird das Composite-Attribut nach wie vor im Browser angezeigt, wird es automatisch entfernt. Zu bemerken ist, dass eine Löschung nicht rückgängig gemacht werden kann, d.h. die Information ist unwiederbringlich verloren.
 
@@ -1191,19 +1191,19 @@ Unten gibt es auch einen I<Delete>-Button, der das Entfernen veralteter Definiti
 
 Öffnet den Dialog zur Senderwahl. Er erlaubt das permanente Abschalten eines TV-Senders in einer Provider-Auflistung, z.B. wenn Sie den Kanal gar nicht empfangen können. Sie können auch die Anordnung der Sender andern, z.B. indem Sie ihre Favoriten-Sender an die Spitze des Filtermenüs setzen.
 
-Dieses Fenster enthält zwei Listen: auf der linken Seite werden Sie alle vom Provider abgedeckten Sender in Ihrer originalen Anordnung vorfinden, auf der rechten Seite diejenigen, welche für die Programmauflistung in Ihrer bevorzugten Reihenfolge gewählt wurden. Standardmäßig werden beide Listen den genau gleichen Inhalt haben. Wollen Sie Sender ausschließen, markieren Sie sie in der rechten Liste und drücken Sie auf I<Delete>. Sie können sie jederzeit wieder einschließen, indem Sie sie in der linken Liste markieren und auf I<Add> drücken. Die Reihenfolge können Sie in der rechten Liste durch das Markieren eines oder mehrerer Sender und dem Drücken der I<up>- oder I<down>-Pfeile verändern.
+Dieses Fenster enthält zwei Listen: auf der linken Seite werden Sie alle vom Provider abgedeckten Sender in Ihrer originalen Anordnung vorfinden, auf der rechten Seite diejenigen, welche für die Programmauflistung in Ihrer bevorzugten Reihenfolge gewählt wurden. Standardmäßig werden beide Listen den genau gleichen Inhalt haben. Wollen Sie Sender ausschließen, markieren Sie sie in der rechten Liste und drücken Sie auf I<Delete>. Sie können sie jederzeit wieder einschließen, indem Sie sie in der linken Liste markieren und auf I<Add> drücken. Die Reihenfolge können Sie in der rechten Liste durch das Markieren eines oder mehrerer Sender und dem Drücken der I<Auf>- oder I<Ab>-Pfeile verändern.
 
 Wollen Sie dieselbe Auswahl und Reihenfolge für alle Provider, können Sie ganz einfach Ihre Reihenfolge und Auswahl mit dem I<copy>-Popupmenü kopieren; dieses Menü enthält eine Liste aller bekannten Provider. Zu bemerken ist, dass wenn Sie von einem Provider mit weniger (oder anderen) Sendern kopieren, solche Sender, die in der Datenbank des anderen Providers fehlen, am Ende der Senderauswahl im rechten Listenfeld erscheinen.
 
 Am unteren Ende des Dialogfensters steht ein Eingabefeld namens B<Air times>, das die Begrenzung der Programmauflistung eines Senders auf einen bestimmten Zeitrahmen erlaubt. Zum Beispiel, wenn Sie I<Arte> nur von 19:00 bis 07:00 Uhr empfangen, wählen Sie "Arte" entweder in der linken oder der rechten Liste, geben dann "19:00" und "07:00" in die Felder ein (stellen Sie sicher, dass Sie immer 4 Ziffern und einen trennenden Doppelpunkt verwenden). Sendungen, die vollkommen außerhalb dieses Zeitfensters liegen, werden im Browserfenster nicht auftauchen. Wollen Sie die Begrenzung rückgängig machen, geben Sie 00:00 bis 00:00 oder gleiche Zeitwerte ein.
 
-Tipp: Sie können diesen Dialog (und alle anderen Dialoge mit vergleichbaren Listenfeldern) auch über das Keyboard bedienen: benutzen Sie die TAB-Taste oder die Maus, um den Fokus auf die Keyboardeingabe zum linken oder rechten Listenfeld zu bewegen. Verwenden Sie die "Pfeil auf/ab"-Tasten, um einen Eintrag zu markieren; halten Sie die SHIFT-Taste gedrückt, um mehrere Einträge zu markieren. Drücken Sie in der linken Liste auf Eingabe, um einen Sender in der rechten Liste hinzuzufügen. Drücken Sie in der rechten Liste auf die ENTF-Taste, um einen Sender zu entfernen oder drücken Sie STRG und die "Pfeil auf/ab"-Tasten, um die Position der markierten Einträge innerhalb der Liste zu verändern.
+B<Tipp:> Sie können diesen Dialog (und alle anderen Dialoge mit vergleichbaren Listenfeldern) auch über das Keyboard bedienen: benutzen Sie die TAB-Taste oder die Maus, um den Fokus auf die Keyboardeingabe zum linken oder rechten Listenfeld zu bewegen. Verwenden Sie die "Pfeil auf/ab"-Tasten, um einen Eintrag zu markieren; halten Sie die SHIFT-Taste gedrückt, um mehrere Einträge zu markieren. Drücken Sie in der linken Liste auf Eingabe, um einen Sender in der rechten Liste hinzuzufügen. Drücken Sie in der rechten Liste auf die ENTF-Taste, um einen Sender zu entfernen oder drücken Sie STRG und die "Pfeil auf/ab"-Tasten, um die Position der markierten Einträge innerhalb der Liste zu verändern.
 
 =head2 Network names
 
 Öffnet einen Dialog zur Konfiguration der Sendernamen. Dessen Hauptzweck ist, die Sendernamen zwischen nxtvepg und Ihrer TV-Anwendungen zu synchronisieren. Dies ist notwendig, weil der Sendername der Kommunikation dient, wenn Sie die "I<Tune TV>"-Fernbedienung verwenden und ebenso für die Bekanntgaben der Kanalwechsel von Seiten der TV-Anwendungen. Bei vielen Sendern muss nichts verändert werden, bei anderen jedoch bestehen mehrere Varianten, z.B. in Deutschland "Super RTL" versus "S-RTL" oder "MDR3" versus "MDR".
 
-Zuerst sollten Sie auswählen, mit welcher TV-Anwendung Sie synchronisieren wollen und wo sich die Konfigurationsdateien befinden. Dies geschieht über den Dialog I<TV app. interaction> im Configure-Menü (siehe L<"CONFIGURATION: TV application interaction">).
+Zuerst sollten Sie auswählen, mit welcher TV-Anwendung Sie synchronisieren wollen und wo sich die Konfigurationsdateien befinden. Dies geschieht über den Dialog "I<TV app. interaction>" im Configure-Menü (siehe L<"CONFIGURATION: TV application interaction">).
 
 Ein weiterer Zweck dieses Dialoges ist es, die Namen der Sender über alle NexTView-Provider hinweg einheitlich zu machen. Die hier angegebenen Namen, werden unabhängig vom Provider, in der Programmübersicht und allen Filter-Menüs verwendet.
 
@@ -1223,7 +1223,7 @@ Oben innerhalb des Dialogfensters steht eine Liste aller aktuell definierten Men
 
 Wie üblich können Sie die Reihenfolge der Einträge in der Liste ändern indem Sie einen Eintrag selektieren und dann die "Pfeil auf/ab"-Knöpfe anklicken. Um einen Eintrag zu löschen, selektieren Sie ihn und klicken Sie I<Delete>.  Falls Sie eine Änderung rückgängig machen wollen, verlassen Sie den Dialog mit I<Abort>.  Änderungen werden nicht in das Hauptfenster übernommen bis Sie den Dialog mit I<OK> schließen.
 
-Der Knopf I<Add new> erlaubt einen neuen Menüeintrag unterhalb des aktuell selektierten zu erzeugen. Die folgenden Kommandotypen sind zu unterscheiden:
+Der Knopf "I<Add new>" erlaubt einen neuen Menüeintrag unterhalb des aktuell selektierten zu erzeugen. Die folgenden Kommandotypen sind zu unterscheiden:
 
 =over 4
 
@@ -1241,7 +1241,7 @@ Beispiel:
 
   setstation ${network}
 
-Bewirkt dass die TV-Anwendung auf den Sender des aktuell in nxtvepg selektierten Programms umschaltet (d.h. identisch zum Klicken des Knopfs I<Tune TV>). Welche Kommandos die TV-Applikation unterstützt entnehmen Sie bitte deren Dokumentation.
+Bewirkt dass die TV-Anwendung auf den Sender des aktuell in nxtvepg selektierten Programms umschaltet (d.h. identisch zum Klicken des Knopfs "I<Tune TV>"). Welche Kommandos die TV-Applikation unterstützt entnehmen Sie bitte deren Dokumentation.
 
 =item B<Menu title> und B<Menu separator>
 
@@ -1257,7 +1257,7 @@ An Stelle dieses Eintrags wird im Kontextmenü eine Liste von Kommandos erscheine
 
 =back
 
-Wenn Sie den Knopf I<Add Example> klicken, erscheint eine kleine Liste von Beispielkommandos die Sie zu Testzwecken Ihrem Kontextmenü hinzufügen können.
+Wenn Sie den Knopf "I<Add Example>" klicken, erscheint eine kleine Liste von Beispielkommandos die Sie zu Testzwecken Ihrem Kontextmenü hinzufügen können.
 
 Wie oben bereits erwähnt, können die Befehlszeilen Platzhalter umgeben von C<${}> beinhalten, die beim Aufruf durch Attribute des im Hauptfenster selektierten Programms ersetzt werden. Im Folgenden finden Sie eine Liste aller verfügbaren Variablen.  Die Bedeutung sollte selbsterklärend sein, außer eventuell "CNI": dies ist ein Europaweit eindeutiger Senderidentifikations-Code; e/p_rating: bezeichnet Wertung bzw. Altersfreigabe.
 
@@ -1317,7 +1317,7 @@ Unter Windows werden nur einfache und doppelte Anführungszeichen sowie Leerzeich
 
   plan 22.08.2001\ 13:05 Käpt\'n\ Blaubärs\ Seemannsgarn
 
-Tipp: Sie können zwei separate Substitutionen für Datum und Uhrzeit verwenden, wenn Sie einen Backslash innerhalb Datum und Uhrzeit vermeiden wollen (falls das aufgerufene Programm den Backslash nicht verarbeiten kann). Beispiel:
+B<Tipp:> Sie können zwei separate Substitutionen für Datum und Uhrzeit verwenden, wenn Sie einen Backslash innerhalb Datum und Uhrzeit vermeiden wollen (falls das aufgerufene Programm den Backslash nicht verarbeiten kann). Beispiel:
 
   plan ${start:%d.%m.%Y} ${start:%H:%M} ${title}
 
@@ -1345,7 +1345,7 @@ Versteckt oder zeigt das Senderfilter-Listenfeld zwischen Shortcut- und Programm
 
 =item I<Show layout button>
 
-Versteckt oder zeigt die Checkbox I<Grid layout> unterhalb Shortcuts- oder Senderliste im Hauptfenster (siehe auch L<"CONFIGURATION: List layout">). Sollten Sie das eine oder das andere Layout permanent verwenden, wollen Sie womöglich diese Box verstecken (sie ist hauptsächlich präsent, um Benutzer, die von älteren Versionen upgraden, von dieser neuen Option wissen zu lassen).
+Versteckt oder zeigt die Checkbox "I<Grid layout>" unterhalb Shortcuts- oder Senderliste im Hauptfenster (siehe auch L<"CONFIGURATION: List layout">). Sollten Sie das eine oder das andere Layout permanent verwenden, wollen Sie womöglich diese Box verstecken (sie ist hauptsächlich präsent, um Benutzer, die von älteren Versionen upgraden, von dieser neuen Option wissen zu lassen).
 
 =item I<Show status line>
 
@@ -1361,7 +1361,7 @@ Versteckt oder zeigt die Wochentags-Skala zur Rechten der Programmliste (beachte
 
 =item I<Hide on minimize>
 
-Nur Windows: Ist diese Option aktiviert, wird in der Taskbar der Eintrag des Hauptfensters entfernt, wenn dieses minimiert wird oder das Programm mit dem Befehlszeilenschalter I<-iconic> gestartet wird. Stattdessen wird ein Icon in das Systemtray der Taskbar gelegt. Ein Klick darauf mit der rechten Maustaste öffnet ein kleines Popupmenü. Die Einträge in diesem Menü haben dieselbe Bedeutung, wie die gleichnamigen im Control-Menü (siehe L<"CONTROL">).
+Nur Windows: Ist diese Option aktiviert, wird in der Taskleiste der Eintrag des Hauptfensters entfernt, wenn dieses minimiert wird oder das Programm mit dem Befehlszeilenschalter I<-iconic> gestartet wird. Stattdessen wird ein Icon in das Systemtray der Taskleiste gelegt. Ein Klick darauf mit der rechten Maustaste öffnet ein kleines Popupmenü. Die Einträge in diesem Menü haben dieselbe Bedeutung, wie die gleichnamigen im Control-Menü (siehe L<"CONTROL">).
 
 =back
 
@@ -1379,7 +1379,7 @@ Dies ist das Original-Layout (das einzige Layout bis nxtvepg Version 2.4) in dem
 
 In diesem Layout werden die Sendungen immer nach Startzeit sortiert, aber in getrennten Spalten für jeden Sender präsentiert. Zeitpläne der verschiedenen Sender werden so angeordnet, dass Programme die gleichzeitig laufen, annähernd auf gleicher Höhe stehen.
 
-Sie können über das I<Control>-Menü mehrere Spalten zu einer einzigen verbinden (gedacht für Sender, die sich den selben Kanal teilen; verwenden Sie dies im Zusammenhang mit der I<air times restriction> wie in L<"CONFIGURATION: Select networks"> beschrieben). Das Control-Menü ist Teil des Dropdown-Menüs unterhalb des Buttons am oberen Ende der Spalte. Dieses Menü beinhaltet ebenso Befehle, um die Anzahl sichtbarer Spalten zu erhöhen oder zu senken.
+Sie können über das I<Control>-Menü mehrere Spalten zu einer einzigen verbinden (gedacht für Sender, die sich den selben Kanal teilen; verwenden Sie dies im Zusammenhang mit der "I<air times restriction>" wie in L<"CONFIGURATION: Select networks"> beschrieben). Das Control-Menü ist Teil des Dropdown-Menüs unterhalb des Buttons am oberen Ende der Spalte. Dieses Menü beinhaltet ebenso Befehle, um die Anzahl sichtbarer Spalten zu erhöhen oder zu senken.
 
 =back
 
@@ -1413,7 +1413,7 @@ Alternativ kann man sich zum Mitglied einer Gruppe in F</etc/groups> - die Zugri
 
 In Linux-Kernelserien 2.4 und früher (d.h. vor Revision 2 der video4linux API) werden diese Gerätedateien dazu benutzt, die Input-Quelle (z.B. TV-Tuner oder einen der Composite- oder S-Video-Anschlüsse) und die Tunerfrequenz auszuwählen, solange Sie nicht den passiven Akquisitionsmodus wählen. Der Index kann mit der Befehlszeilenoption B<-card> angegeben werden. Sie müssen Lese- und Schreibrechte für das Gerät haben.
 
-Das Gerät wird nur während der Providersuche geöffnet gehalten (siehe L<"CONFIGURATION: Provider scan">). Ansonsten wird es nur kurzeitig geöffnet, um die Input-Quelle und die Tunerfrequenz zu setzen. Ist das Gerät belegt (z.B. durch eine TV-Anwendung), startet die Akquisition auf dem momentan ausgewählten Kanal und folgt automatisch jeder Kanaländerung (dies wird z.B. in der Statuszeile am unteren Ende des Browserfensters als Akquisitionsmodus I<forced passive> gemeldet, siehe L<"STATISTICS: Status line">).
+Das Gerät wird nur während der Providersuche geöffnet gehalten (siehe L<"CONFIGURATION: Provider scan">). Ansonsten wird es nur kurzeitig geöffnet, um die Input-Quelle und die Tunerfrequenz zu setzen. Ist das Gerät belegt (z.B. durch eine TV-Anwendung), startet die Akquisition auf dem momentan ausgewählten Kanal und folgt automatisch jeder Kanaländerung (dies wird z.B. in der Statuszeile am unteren Ende des Browserfensters als Akquisitionsmodus "I<forced passive>" gemeldet, siehe L<"STATISTICS: Status line">).
 
 Beachten Sie: das Video-Gerät muss zwingend denselben Index wie das VBI-Gerät besitzen. Haben Sie ein Video-Gerät an index 0, das kein Teletext unterstützt (eine Webcam zum Beispiel), kann das zum Video-Gerät 1 gehörende VBI-Gerät an index 0 auftauchen. Sie sollten den Treiber dazu zwingen, das Gerät an index 1 des VBI-Index zu setzen. Auf Linux ist dies mittels der Parameter I<insmod> in I</etc/modules.conf> möglich, z.B. für bttv:
 
@@ -1485,7 +1485,7 @@ Sie können NexTView auch direkt im TV-Set haben - zu ersehen aus den Katalogen v
 
 =head1 KNOWN BUGS
 
-Unter Windows besteht das Risiko eines Systemabsturzes ("blue screen"), wenn die Anwendung mit Gewalt beendet wird, z.B. über den Taskmanager. Dies ist unvermeidbar, weil in diesem Fall keine Chance besteht, den Treiber zu stoppen und die TV-Karte daher fortfährt, Daten in den RAM einzulesen. Bei normalem Arbeitsablauf sollte dies sehr unwahrscheinlich sein, da alle Software-Ausnahmefehler (z.B. page faults) und Meldungen beim Herunterfahren aufgefangen werden und der Treiber vor dem Beenden gestoppt wird.
+Unter Windows besteht das Risiko eines Systemabsturzes ("blue screen"), wenn die Anwendung mit Gewalt beendet wird, z.B. über den Task-Manager. Dies ist unvermeidbar, weil in diesem Fall keine Chance besteht, den Treiber zu stoppen und die TV-Karte daher fortfährt, Daten in den RAM einzulesen. Bei normalem Arbeitsablauf sollte dies sehr unwahrscheinlich sein, da alle Software-Ausnahmefehler (z.B. page faults) und Meldungen beim Herunterfahren aufgefangen werden und der Treiber vor dem Beenden gestoppt wird.
 
 =head1 REPORTING BUGS
 
@@ -1501,7 +1501,7 @@ Vielen Dank an Kurt Lettmaier und Olaf Nöhring für die deutsche Übersetzung des 
 
 =head1 COPYRIGHT
 
-Copyright (C) 1999 - 2005 by Th. Zörner. Alle Rechte vorbehalten.
+Copyright (C) 1999 - 2007 by Th. Zörner. Alle Rechte vorbehalten.
 
 Zusätzliche Copyrights gelten für Teile des verwendeten Quelltexts. Bitte in der Datei COPYRIGHT und den Kommentaren im Quelltext nach Details sehen.
 

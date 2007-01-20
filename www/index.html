@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: index.html,v 1.93 2005/12/11 08:34:22 tom Exp $ -->
+<!-- $Id: index.html,v 1.101 2007/01/28 13:19:58 tom Exp $ -->
 <HEAD>
 <TITLE>nexTView EPG Decoder Software Download Page</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -12,10 +12,9 @@
 <META name="robots" content="index, follow">
 <META name="revisit-after" content="01 month">
 <LINK rel="stylesheet" type="text/css" href="nxtvepg.css">
-<LINK rel="alternate" type="text/html" href="index-de.html" hreflang="de" lang="de" title="nexTView Decoder Download">
+<LINK rel="alternate" type="text/html" href="index-de.html" hreflang="de" lang="de" title="nexTView EPG Dekoder Software">
 <LINK rel="alternate" type="text/html" href="index-fr.html" hreflang="fr" lang="fr" title="Logiciel de Décodage Nextview EPG">
 <LINK rel="shortcut icon" type="image/x-icon" href="nxtvepg.ico">
-<LINK rel="top" href="http://nxtvepg.sourceforge.net/" title="nexTView EPG Decoder Homepage">
 </HEAD>
 <BODY>
 
@@ -29,11 +28,6 @@
 
 <H2 class="navhead">News</H2>
 <P>
-Aug/14/2005: <A HREF="index.html#new_2_7_6">Release 2.7.6</A>
-</P><P>
-Apr/8/2005: <A HREF="changelog.html#release_2_7_5">Release 2.7.5</A>
-</P><P>
-Dec/27/2004: <A HREF="changelog.html#release_2_7_4">Release 2.7.4</A>
 </P>
 
 <H2 class="navhead">Documentation</H2>
@@ -71,7 +65,7 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 <DIV class="mainBlock">
 
 <SPAN CLASS="center">
-<IMG ALT="" SRC="nxtv_logo.gif" WIDTH=66 HEIGHT=66>
+<IMG ALT="" SRC="nxtv_logo.png" WIDTH=66 HEIGHT=66>
 </SPAN>
 <H1><SPAN CLASS="center">nexTView
 <BR>EPG Decoder Software</SPAN></H1>
@@ -95,40 +89,37 @@ analog TV card, without access to the internet.
 <LI><A HREF="download.html">Software download</A>
 <LI><A HREF="download.html#requirements">System Requirements</A>
 <P></P>
-<LI><A HREF="index.html#new_2_7_6">About the latest release 2.7.6</A>
+<LI><A HREF="index.html#new_2_7_7">About the latest release 2.7.7</A>
 <LI><A HREF="index.html#feedback">Questions and feedback</A>
-<LI><A HREF="index.html#help_wanted">Contributing</A>
 <LI><A HREF="index.html#copyright">Copyright notice</A>
 </UL>
 
 
-<H2><A NAME="new_2_7_6">New release 2.7.6 (Aug/14/2005)</A></H2>
+<H2><SPAN CLASS="red"><A NAME="new_2_7_7">Current release 2.7.7 (Jan/21/2007)</A></SPAN></H2>
 <P>
-The major new features in release 2.7.6 is the German translation of
-the complete manual and help pages.  Also a few bugs which have been
-reported since the previous release have been fixed.
+Release 2.7.7 once more is mainly a maintenance release with mostly
+bug fixes and a few feature enhancements. Highlights include:
 </P>
 <UL>
-<LI>Added German translation of the complete manual and help pages.
-  <BR><SPAN class="anno">(Many thanks to Olaf Noehring and Kurt Lettmaier for contributing
-  the <A HREF="man-de.html">translated manual</A>.)</SPAN>
-<LI>A major bug which affected sequential removal of multiple reminders
-  was fixed.  The bug could even crash nxtvepg.
-  &nbsp;&nbsp;<SPAN class="anno">(Thanks again to Kurt for reporting this bug.)</SPAN>
-<LI>XMLTV output was slightly changed to make it fully compliant with
-  the XMLTV DTD 0.6.
-<LI>Error diagnositcs in the provider scan were improved to avoid
-  silent failures without an indication of the cause.
-  &nbsp;&nbsp;<SPAN class="anno">(Thanks to Andreas for reporting this problem)</SPAN>
-<LI>Last but not least, the Windows release is now provided in form of
-  an installer instead of a plain ZIP archive.
-  &nbsp;&nbsp;<SPAN class="anno">(Thanks to Néo for suggesting and implementing the installer.)</SPAN>
+<LI>Improved robustness of the decoder against transmission errors due
+  to bad TV reception.
+<LI><I>Windows:</I> Update of TV card drivers to improve hardware support
+  (Imported from <A HREF="http://www.dscaler.org/">DScaler</A>.)
+<LI><I>UNIX:</I> Fixed <A HREF="man.html#tv_application_interaction">interaction</A>
+  with TV-application <A HREF="http://tvtime.sourceforge.net/">tvtime</A>
+<LI><I>Linux:</I> Work-around for bttv driver bug in Linux
+  <A HREF="http://kernel.org/">kernel</A> 2.6.16
+<LI>Many fixes and improvements in the
+  <A HREF="man-de.html">German translation</A> of the documentation.
+  <BR><SPAN class="anno">(Thanks again to Kurt Lettmaier.)</SPAN>
 </UL>
 <P>
 Fetch this new release from the <A HREF="download.html">download section</A>.
-For a more detailed list of changes
-see the <A HREF="changelog.html">changelog</A>.
-Note there's also a <A HREF="pre-releases.html">new development line</A> with new features.
+<BR>Please refer to the <A HREF="changelog.html">changelog</A> for a detailed
+list of changes.
+</P><P>
+Note new development is currently proceeding on a separate development
+line. See the <A HREF="pre-releases.html">pre-release page</A>.
 </P>
 
 
@@ -159,18 +150,9 @@ and the <A HREF="http://sourceforge.net/forum/forum.php?forum_id=217872">forum</
 if the same question hasn't been asked recently.
 </P>
 
-<H2><A NAME="help_wanted">Contributing</A></H2>
-<P>
-If you're a software developer and like nxtvepg but want to help to make it
-even more useful, or if you're just generally seeking a freeware project to
-work on, please consider contributing to nxtvepg.  Note that you can also
-contribute by adding nxtvepg support to <I>other</I> applications, e.g. by
-adding Nextview EPG on-screen-display to a TV viewing application.
-</P>
-
 <H2><A NAME="copyright">Copyright</A></H2>
 <P>
-&copy; Copyright 1999 - 2004 by T. Zoerner (and others).
+&copy; Copyright 1999 - 2007 by T. Zoerner (and others).
 All rights reserved.
 </P><P>
 The author of this site's software is not a member of the
@@ -191,23 +173,6 @@ software.  The data is free for personal use, but you must not publically
 redistribute it (e.g. make it available on the Internet) without prior
 permission.
 </P>
-
-<!-- Begin Nedstat Basic code -->
-<!-- Title: nexTView EPG Decoder Software -->
-<!-- URL: http://nxtvepg.tripod.com/ -->
-<script language="JavaScript" src="http://m1.nedstatbasic.net/basic.js">
-</script>
-<script language="JavaScript">
-<!--
-nedstatbasic("ABLmbAYCeAjHJw8oZuzU34ENTm6Q", 0);
-// -->
-</script>
-<noscript>
-<a target="_blank" href="http://v1.nedstatbasic.net/stats?ABLmbAYCeAjHJw8oZuzU34ENTm6Q"><img
-src="http://m1.nedstatbasic.net/n?id=ABLmbAYCeAjHJw8oZuzU34ENTm6Q"
-border="0" nosave width="18" height="18" ALT=""></a>
-</noscript>
-<!-- End Nedstat Basic code -->
 
 </DIV>
 </BODY>

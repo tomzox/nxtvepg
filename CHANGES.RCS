@@ -17819,3 +17819,383 @@ www/index-fr.html [rev:1.17, 2005-12-11T08:34:22]:
 www/index.html [rev:1.93, 2005-12-11T08:34:22]:
 - Updated for release 2.7.6 (Aug.2005)
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_7_6 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+epgtcl/dlg_remind.tcl [rev:1.21, 2005-12-27T19:37:00]:
+- Bugfix reminder message popup:
+- wrong font used for programme titles (was unconfigurable)
+- reported by nobody via forum 2005-12-26
+epgctl/debug.c [rev:1.24, 2005-12-27T18:26:27]:
+- WIN32: made message box for assert() non-modal
+- to make it slightly less annoying for users
+epgdb/epgaifrag.c [rev:1.1, 2005-12-29T15:42:10]:
+- Initial revision
+epgdb/epgaifrag.h [rev:1.1, 2005-12-29T15:42:10]:
+- Initial revision
+epgdb/epgaifrag.c [rev:1.2, 2006-07-29T15:43:15]:
+- Improved a few comments
+epgdb/epgstream.c [rev:1.31, 2005-12-29T15:49:09]:
+- added support for AI fragment assembly
+- increment "dropped block" counter also upon missing packets at page end
+epgui/wintvcfg.c [rev:1.25, 2006-01-06T14:28:57]:
+- Bugfix channel table import: external to UTF-8 conversion was missing
+dsdrv/saa7134_typ.c [rev:1.20, 2005-12-11T08:42:41]:
+- Bugfix: NULL-pointer assertion in GetIffType() was negated
+dsdrv/bt8x8_typ.c [rev:1.16, 2006-01-04T16:17:06]:
+- Adapted for interface change in tvcard.h
+- added new GetTda9887Modes, FreeCardList: used by SAA7134 and CX2388x only
+- removed obsolete return value from GetIffType
+- removed GetI2cScanRange: EEPROM now detected dynamically in wintuner.c
+dsdrv/cx2388x_typ.c [rev:1.15, 2006-01-04T16:17:51]:
+- Major DScaler import: read card list at run-time from INI file
+- requires new modules cfg_parse.c and wintuner_typ.c plus INI files
+dsdrv/saa7134_typ.c [rev:1.21, 2006-01-04T16:17:51]:
+- Major DScaler import: read card list at run-time from INI file
+- requires new modules cfg_parse.c and wintuner_typ.c plus INI files
+dsdrv/tvcard.h [rev:1.8, 2006-01-04T16:17:59]:
+- Interface change for dynamic card list management in SAA7134 and CX2388x
+- added new GetTda9887Modes: retrieve TDA9887 config read from card INI
+- added new FreeCardList: free memory for card list
+- removed obsolete return value from GetIffType
+- removed GetI2cScanRange: EEPROM now detected dynamically in wintuner.c
+dsdrv/wintuner.c [rev:1.24, 2006-01-04T16:18:08]:
+- DScaler import:
+- adapted for SAA713x & CX2388x dynamic card list management:
+    retrieve TDA9887 config from INI file (new class TDA9887Ex)
+- updated tuner list: added new tuners
+- replaced CFG callback GetI2cScanRange with new func IsTEA5767PresentAtC0
+dsdrv/wintuner.h [rev:1.10, 2006-01-04T16:18:11]:
+- DScaler import:
+- updated tuner list: added new tuners
+- adapted for SAA713x & CX2388x dynamic card list management:
+    removed TDA9887 card modes; obsolete due to card INI file
+dsdrv/cfg_parse.c [rev:1.1, 2006-01-04T16:18:21]:
+- branches:  1.1.1;
+- Initial revision
+dsdrv/cfg_parse.h [rev:1.1, 2006-01-04T16:18:21]:
+- branches:  1.1.1;
+- Initial revision
+dsdrv/wintuner_typ.c [rev:1.1, 2006-01-04T16:18:35]:
+- branches:  1.1.1;
+- Initial revision
+dsdrv/wintuner_typ.h [rev:1.1, 2006-01-04T16:18:35]:
+- branches:  1.1.1;
+- Initial revision
+dsdrv/cfg_parse.c [rev:1.2, 2006-01-05T14:22:36]:
+- Ported use of "throw" in parser callback functions
+dsdrv/cfg_parse.h [rev:1.2, 2006-01-05T14:22:36]:
+- Ported use of "throw" in parser callback functions
+dsdrv/wintuner_typ.c [rev:1.2, 2006-01-05T14:22:36]:
+- Ported use of "throw" in parser callback functions
+dsdrv/wintuner_typ.h [rev:1.2, 2006-01-05T14:22:36]:
+- Ported use of "throw" in parser callback functions
+www/pre-releases.html [rev:1.68, 2006-01-05T14:23:30]:
+- updated for release 2.8.0pre10
+www/index-de.html [rev:1.83, 2006-01-05T14:27:54]:
+- updated copyright for 2006
+www/index-fr.html [rev:1.18, 2006-01-05T14:27:54]:
+- updated copyright for 2006
+www/index.html [rev:1.94, 2006-01-05T14:27:54]:
+- updated copyright for 2006
+dsdrv/CX2388xCards.ini [rev:1.1, 2006-01-05T14:35:56]:
+- Initial revision
+dsdrv/SAA713xCards.ini [rev:1.1, 2006-01-05T14:35:56]:
+- Initial revision
+dsdrv/wintuner_typ.c [rev:1.1.1.1, 2006-01-05T14:43:52]:
+- ParsingCommon.cpp,v 1.14
+dsdrv/wintuner_typ.h [rev:1.1.1.1, 2006-01-05T14:44:27]:
+- ParsingCommon.h,v 1.3
+dsdrv/cfg_parse.c [rev:1.1.1.1, 2006-01-05T14:44:57]:
+- HierarchicalConfigParser.cpp,v 1.15
+dsdrv/cfg_parse.h [rev:1.1.1.1, 2006-01-05T14:45:03]:
+- HierarchicalConfigParser.h,v 1.13
+dsdrv/saa7134_typ.c [rev:1.1.1.13, 2006-01-05T14:51:26]:
+-r1.58 Added "auto detect" and "user setup" to tuner parsing
+-r1.57 Audio crystal units were actually in MHz.
+-r1.56 Fixed parsing audio crystal units "Hz" to "kHz" + other minor changes.
+-r1.55 Fix the VC++ 6 incompatibility introduced by last change.
+-r1.54 Updates to HierarchicalConfigParser.
+-r1.53 Made changes to satisfy VC++ 6.
+-r1.52 Added settings specific tor TDA9887 to the card list.
+-r1.51 Code change for VS6 compatibility.
+-r1.50 Changed the card list to an ini file.
+dsdrv/cx2388x_typ.c [rev:1.1.1.8, 2006-01-05T14:54:26]:
+-r1.31: Changed the card list to an ini file
+dsdrv/wintuner.c [rev:1.1.1.3, 2006-01-05T15:05:16]:
+- DScaler CVS import: GenericTuner.cpp v1.21
+-r1.21 Corrected tuner defines; Updated m_TunerHauppaugeAnalog
+-r1.20 Added some tuner
+-r1.19 Get rid of a load of compilation warnings in vs.net
+-r1.18 Added some tuner
+-r1.17 Added TCL 2002N tuner (from v4l2)
+dsdrv/wintuner.c [rev:1.1.2.3, 2006-01-05T15:07:35]:
+- DScaler CVS import:  TunerID.cpp,v 1.10
+-r1.10 Corrected tuner defines; Updated m_TunerHauppaugeAnalog
+-r1.9 Added some tuner
+-r1.8 Added the TDA8275 tuner.
+-r1.7 Added some tuner
+-r1.6 Added some tuner
+-r1.5 Added TCL 2002N tuner (from v4l2)
+dsdrv/wintuner.c [rev:1.1.5.3, 2006-01-05T15:11:15]:
+- DScaler CVS import: TDA9887.cpp,v 1.20
+-r1.20 Added CreateDetectedTDA9887/Ex functions.
+-r1.19 Renamed CI2CDevice:::Attach(...) to SetI2CBus(...)
+-r1.18 Changed the card list to an ini file
+-r1.17 Changed TDA9887 Standard Settings to default Outport1/2 is inactive.
+-r1.16 Slight change to DetectAttach().
+-r1.15 Added DetectAttach() to do the chip scanning work.
+-r1.14 Changed constant to more correct name.
+-r1.13 Changed variable name to fix conflict.
+-r1.12 Fixed comments.
+-r1.11 Completed changes for CTDA9887FromIni (and renamed to CTDA9887Ex).
+-r1.10 Created new class CTDA9887FromIni
+dsdrv/wintuner.h [rev:1.1.1.2, 2006-01-05T15:16:10]:
+- DScaler CVS import: TunerID.h,v 1.12
+-r1.12 Updated m_TunerHauppaugeAnalog
+-r1.11 Corrected tuner defines; Updated m_TunerHauppaugeAnalog
+-r1.10 Added some tuner
+-r1.9  Moved m_TunerHauppaugeAnalog to TunerID.h for common use by BT and CX
+-r1.8  Added the TDA8275 tuner.
+-r1.7  Added some tuner
+-r1.6  Added TCL 2002N tuner (from v4l2)
+dsdrv/wintuner.h [rev:1.1.3.2, 2006-01-05T15:19:18]:
+- DScaler CVS import: TDA9887.h,v 1.21
+-r1.21 Added CreateDetectedTDA9887/Ex functions.
+-r1.20 Renamed CI2CDevice:::Attach(...) to SetI2CBus(...)
+-r1.19 Changed the card list to an ini file
+-r1.18 Fixed SetMode() QSS mask conflict with TakeOverPoint mask.
+-r1.17 Added misc defines for SetModes(...).
+-r1.16 Slight change to DetectAttach().
+-r1.15 Added DetectAttach() to do the chip scanning work.
+-r1.14 Added more I2C Addresses from datasheet
+-r1.13 Changed constant to more correct name.
+-r1.12 Changed variable name to fix conflict.
+-r1.11 Completed changes for CTDA9887FromIni (and renamed to CTDA9887Ex).
+-r1.10 Deleted unused defines
+-r1.9  Created new class CTDA9887FromIni
+dsdrv/cx2388x_typ.c [rev:1.16, 2006-01-05T14:22:36]:
+- Ported use of "throw" in parser callback functions
+dsdrv/saa7134_typ.c [rev:1.22, 2006-01-05T14:22:36]:
+- Ported use of "throw" in parser callback functions
+dsdrv/dsdrv34.c [rev:1.11, 2005-01-16T20:16:17]:
+- Renamed LoadDriver() and UnloadDriver() to distinguish them from WDM driver interface
+dsdrv/dsdrvlib.h [rev:1.11, 2005-01-16T20:16:17]:
+- Renamed LoadDriver() and UnloadDriver() to distinguish them from WDM driver interface
+dsdrv/bt8x8.c [rev:1.13, 2006-07-02T11:39:48]:
+- Added debug output in case acq is not started b/c "cap. already enabled"
+dsdrv/saa7134.c [rev:1.23, 2006-07-02T11:43:26]:
+- added debug output in case acq is not started b/c "cap. already enabled"
+- reset GPIO ports during shut-down (to mute audio)
+dsdrv/cx2388x.c [rev:1.18, 2006-07-02T11:43:39]:
+- reset GPIO ports during shut-down (to mute audio)
+dsdrv/cx2388x_typ.c [rev:1.17, 2006-07-02T11:43:50]:
+- StandardInputSelect: Added shutdown handling for nInput = -1 (INPUTTYPE_FINAL)
+dsdrv/saa7134_typ.c [rev:1.23, 2006-07-02T11:44:04]:
+- StandardInputSelect: Added shutdown handling for nInput = -1 (INPUTTYPE_FINAL)
+dsdrv/bt8x8.c [rev:1.14, 2006-10-14T15:48:31]:
+- Fixed compiler warning: "LL" missing after long^2 constant
+dsdrv/cx2388x.c [rev:1.19, 2006-10-14T15:48:31]:
+- Fixed compiler warning: "LL" missing after long^2 constant
+dsdrv/saa7134_i2c.c [rev:1.7, 2006-10-14T15:48:31]:
+- Fixed compiler warning: "LL" missing after long^2 constant
+dsdrv/cx2388x_typ.c [rev:1.18, 2006-10-14T15:48:47]:
+- Moved card list initialization from main if. into the various query funcs
+- to avoid unnecessary init during shutdown, which may trigger error msg
+dsdrv/saa7134_typ.c [rev:1.24, 2006-10-14T15:48:47]:
+- Moved card list initialization from main if. into the various query funcs
+- to avoid unnecessary init during shutdown, which may trigger error msg
+dsdrv/cx2388x_reg.h [rev:1.9, 2006-12-19T15:28:25]:
+- Imported DScaler CVS rev 1.27
+- added bit mask CX2388X_DEVICE_STATUS_VPRES for V-sync detection
+dsdrv/bt8x8.c [rev:1.15, 2006-12-21T20:10:32]:
+- DScaler CVS Import
+-r1.48: Fixed bug in GetTickCount()
+dsdrv/bt8x8_typ.c [rev:1.17, 2006-12-21T20:10:44]:
+- DScaler CVS Import
+-r1.44: moved m_TunerHauppaugeAnalog into wintuner.c
+dsdrv/cfg_parse.c [rev:1.3, 2006-12-21T20:10:59]:
+-r1.16: fixed compile warning: replaced stricmp with _stricmp
+dsdrv/cx2388x.c [rev:1.20, 2006-12-21T20:17:22]:
+- DScaler CVS Import
+-r1.73: Fixed bug in GetTickCount()
+-r1.67: ... added "Vertical Sync Detection" (use CX2388X_DEVICE_STATUS)
+dsdrv/cx2388x_typ.c [rev:1.19, 2006-12-21T20:17:35]:
+-r1.8: moved m_TunerHauppaugeAnalog into wintuner.c
+dsdrv/saa7134.c [rev:1.24, 2006-12-21T20:19:34]:
+- DScaler CVS Import
+-r1.45: ONLY PREPARED: manage for SAA7133/5's ANALOG_IO_SELECT.
+- note: not compiled because 7133/5 audio registers are defined in a funny way
+dsdrv/saa7134_i2c.c [rev:1.8, 2006-12-21T20:24:30]:
+- DScaler CVS Import SAA7134I2CBus.cpp r1.6
+-r1.6: Fixed bug in GetTickCount()
+dsdrv/hwdrv.c [rev:1.16, 2006-12-21T20:28:37]:
+- DScaler CVS Import: HardwareDriver.cpp r1.24
+-r1.23 & r24: Support for 64 bit platforms (running in 32-bit compat mode)
+dsdrv/hwpci.c [rev:1.9, 2006-12-21T20:30:31]:
+- DScaler CVS Import: PCICard.cpp r1.22
+-r1.21: Card access from one thread at a time
+-> added new functions HwPci_LockCard, _UnlockCard()
+-> lock/unlock for every read/write to card registers via PCI
+dsdrv/hwpci.h [rev:1.7, 2006-12-21T20:30:33]:
+- DScaler CVS Import: PCICard.cpp r1.22
+-r1.21: Card access from one thread at a time
+-> added new functions HwPci_LockCard, _UnlockCard()
+-> exported globally to allow locking for entire I2C bus transfer
+dsdrv/dsdrv34.c [rev:1.12, 2006-12-21T20:31:47]:
+- Added new wrapper functions DsDrv_LockCard(), _UnlockCard()
+- For DScaler fix "Card access from one thread at a time"
+- called by wintuner.c around I2C access
+dsdrv/dsdrvlib.h [rev:1.12, 2006-12-21T20:31:47]:
+- Added new wrapper functions DsDrv_LockCard(), _UnlockCard()
+- For DScaler fix "Card access from one thread at a time"
+- called by wintuner.c around I2C access
+dsdrv/wintuner.c [rev:1.25, 2006-12-21T20:34:36]:
+- added support for TDA8275 and its IF-Demod TDA8290
+- tuner I2C scan update (keep scanning after MT init failure)
+- moved m_TunerHauppaugeAnalog from bt8x8.c and cx2388x.c into wintuner.c;
+    + updated with latest version from TunerID.h v1.12
+    + added interface function Tuner_GetHauppaugeEepromId()
+- replaced internal semaphore with PCI driver semaphore via DsDrv_LockCard();
+    for DScaler fix "Card access from one thread at a time"
+dsdrv/wintuner.h [rev:1.11, 2006-12-21T20:35:42]:
+- moved m_TunerHauppaugeAnalog from bt8x8.c and cx2388x.c into wintuner.c:
+    added declaration for interface function Tuner_GetHauppaugeEepromId()
+epgtcl/dlg_netname.tcl [rev:1.5, 2005-01-06T14:05:56]:
+- Removed superfluous global declaration of prov_selection
+epgtcl/dlg_netname.tcl [rev:1.6, 2006-01-29T14:51:28]:
+- Fixed pattern matching for network name comparison
+- comparison did not work for non-ASCII letters (esp. not for non-latin)
+- instead of removing all non-letters, just remove special chars in ASCII range
+- bug reported 2006-01-09 ny feisen for Hebrew with UTF8
+epgvbi/hamming.c [rev:1.12, 2006-07-02T12:03:35]:
+- Added support for epgaifrag.c
+- added "pout" param to UnHam84Array() to allow non-in-place decoding
+epgvbi/hamming.h [rev:1.11, 2006-07-02T12:03:35]:
+- Added support for epgaifrag.c
+- added "pout" param to UnHam84Array() to allow non-in-place decoding
+- added macro UnHamParityByte
+epgtcl/dlg_ctxmencf.tcl [rev:1.11, 2006-09-10T11:50:56]:
+- Bugfix separator handling in context menu
+- external commands were not counted, hence separator did not appear
+- bug reported in forum 08.08.2006 17:38
+epgctl/debug.c [rev:1.25, 2006-09-22T18:03:18]:
+- Send debug (and dprintf) output to STDERR instead of STDOUT (UNIX only)
+epgctl/debug.h [rev:1.22, 2006-09-22T18:03:18]:
+- Send debug (and dprintf) output to STDERR instead of STDOUT (UNIX only)
+epgctl/debug.c [rev:1.26, 2006-10-14T15:49:51]:
+- Improved debug output in chk_free() in case of memory corruption
+- print file and line info of defective block
+epgctl/debug.c [rev:1.27, 2006-11-12T18:36:54]:
+- Improved malloc debug support (yet again):
+- pass caller file name and line no to chk_realloc() and chk_free():
+    used for debug output in case of errors, i.e. now print both origin
+    of malloc() and origin of call to free()
+- also unified naming of these params across all funcs
+epgctl/debug.h [rev:1.23, 2006-11-12T18:36:54]:
+- Improved malloc debug support (yet again):
+- pass caller file name and line no to chk_realloc() and chk_free():
+    used for debug output in case of errors, i.e. now print both origin
+    of malloc() and origin of call to free()
+- also unified naming of these params across all funcs
+epgtcl/dlg_netsel.tcl [rev:1.10, 2006-11-26T14:59:12]:
+- Bugfix in network selection dialog:
+- filter out unknown CNIs in cfnetwops (i.e. no longer def'd in AI table)
+epgdb/epgdbmgmt.c [rev:1.50, 2006-11-23T21:11:11]:
+- Minor improvement of EpgDbCheckChains()
+epgdb/epgdbfil.c [rev:1.49, 2006-11-25T20:43:49]:
+- Added include <stdlib.h> for malloc/free (when compiling without CHK_MALLOC)
+epgdb/epgtscqueue.c [rev:1.6, 2006-11-25T20:49:29]:
+- replaced use of AI_GET_CNI() with EpgDbContextGetCni() to support XMLTV db
+- added include <stdlib.h> for malloc/free (when compiling without CHK_MALLOC)
+epgdb/epgqueue.c [rev:1.8, 2006-09-26T11:14:43]:
+- Debug only: changed NULL ptr log output from debug0 into fatal0
+epgdb/epgqueue.c [rev:1.9, 2006-11-25T20:43:37]:
+- Added include <stdlib.h> for malloc/free (when compiling without CHK_MALLOC)
+epgvbi/cni_tables.c [rev:1.29, 2006-07-02T11:56:23]:
+- removed German provider RTL2 (deceased March/1/2006)
+- changed CNI for Tele-5 (was changed in ETSI TR 231 "03_05_tcm6-18471")
+    now also matches the CNI which is on air
+epgvbi/cni_tables.c [rev:1.30, 2006-07-02T14:57:05]:
+- Updated with tech_info_tr231-2006_tcm6-41792.pdf
+epgvbi/cni_tables.c [rev:1.31, 2006-12-18T16:14:50]:
+- Removed deceased provider VT4 (March 2006)
+README [rev:1.41.1.1, 2006-12-21T21:49:03]:
+- Branch for 2.7.x line
+- merged corrections from main line up to 1.44 (excluding mention of WDM)
+- updated provider list
+nxtvepg.spec [rev:1.25, 2006-12-21T21:51:18]:
+- removed Belgium provider VT4: reportedly dead since March 2006
+- updated version number for release 2.7.7
+nxtvepg.pod [rev:1.118.1.3, 2006-12-21T21:52:39]:
+- Merged updates from up to r1.127 for release 2.7.7
+nxtvepg-de.pod [rev:1.9.1.1, 2006-12-21T21:55:13]:
+- Created branch for 2.7.x line
+- merged updates from up to r1.11 for release 2.7.7
+epgvbi/btdrv4win.c [rev:1.50.1.1, 2006-12-21T22:13:47]:
+- Created branch for 2.7.7 release: merged from main line up to 1.57
+- updated interface to dsddrv (function names, free card list)
+- improved error messages
+epgvbi/btdrv4linux.c [rev:1.61.1.1, 2006-12-21T22:15:36]:
+- Created branch for 2.7.7 release: merged from main line up to 1.64
+- added work-around for bttv driver bug in Linux kernel 2.6.16
+epgdb/epgblock.c [rev:1.54.1.1, 2006-12-21T22:24:05]:
+- Created branch for 2.7.7 release:
+- merged bugfix EpgLtoInit() from r1.58
+- merged compiler warning fix from r1.57
+epgdb/epgdbsav.c [rev:1.56.1.1, 2006-12-21T22:25:54]:
+- Created branch for 2.7.7 release:
+- merged WIN32 bugfix EpgDbRemoveDatabaseFile() from r1.57
+epgui/statswin.c [rev:1.69.1.1, 2006-12-21T22:28:23]:
+- Created branch for 2.7.7 release:
+- merged all-version count bugfix from r1.72
+epgui/xawtv.c [rev:1.45.1.2, 2006-12-21T22:32:14]:
+- merged fix for tvtime from r1.51
+- merged compiler warning fixes from r1.52 (i.e. subset of changes only)
+epgtcl/mainwin.tcl [rev:1.244.1.3, 2006-12-21T22:34:29]:
+- merged SelectTextOnFocus improvement from r1.250
+- updated copyright for 2006
+Makefile [rev:1.77.1.3, 2006-12-22T14:30:20]:
+- Merged with main line up to 1.93
+- updated copyright for 2006
+- added new module epgdb/epgaifrag.c (AI fragment assembly)
+- adapted warning control for gcc 4.0
+- updated rule for build_dir creating, dep files and new PC
+Makefile.win32 [rev:1.51.1.2, 2006-12-22T14:40:49]:
+- Merged with main line up to 1.66
+- added new modules: epgaifrag, dsdrv/cfg_parse, wintuner_typ.c
+    added CX2388xCards, SAA713xCards.ini to -win.zip
+- updated rule for build_dir creating and new PC (MinGW update)
+epgui/wmhooks.h [rev:1.1, 2006-12-22T15:19:55]:
+- Initial revision
+epgui/wmhooks.h [rev:1.2, 2006-12-22T15:23:37]:
+- Added support for win32 -> module renamed from x11wm.h into wmhooks.h
+- (Change already done 2003/09/28 - forgotten check-in)
+images/ptr_down_right.xbm [rev:1.1, 2006-12-22T15:47:44]:
+- Initial revision
+images/ptr_up_left.xbm [rev:1.1, 2006-12-22T15:47:44]:
+- Initial revision
+COPYRIGHT [rev:1.16, 2006-12-30T16:07:53]:
+- Updated copyright for 2007
+epgctl/epgversion.h [rev:1.75.1.1, 2007-01-20T16:56:23]:
+- set version to 2.7.7 (branching out from 2.7.6)
+CHANGES [rev:1.51, 2007-01-20T17:08:59]:
+- updated for release 2.7.7
+Makefile [rev:1.77.1.4, 2007-01-20T17:12:47]:
+- updated copyright for 2007
+epgtcl/mainwin.tcl [rev:1.244.1.4, 2007-01-20T17:15:40]:
+- updated copyright for 2007
+www/changelog.html [rev:1.66, 2007-01-28T13:19:58]:
+- Updated for release 2.7.7
+www/download-de.html [rev:1.26, 2007-01-28T13:19:58]:
+- Updated for release 2.7.7
+www/download.html [rev:1.24, 2007-01-28T13:19:58]:
+- Updated for release 2.7.7
+www/index-de.html [rev:1.91, 2007-01-28T13:19:58]:
+- Updated for release 2.7.7
+www/index-fr.html [rev:1.23, 2007-01-28T13:19:58]:
+- Updated for release 2.7.7
+www/index.html [rev:1.101, 2007-01-28T13:19:58]:
+- Updated for release 2.7.7
+www/pre-releases-de.html [rev:1.10, 2007-01-28T13:20:15]:
+- Updated for release 2.7.7
+www/pre-releases.html [rev:1.81, 2007-01-28T13:20:15]:
+- Updated for release 2.7.7
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_7_7 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

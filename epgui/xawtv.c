@@ -31,7 +31,7 @@
  *     xawtv-remote.c by Gerd Knorr (kraxel@bytesex.org).  Some source code
  *     is directly derived from xawtv.
  *
- *  $Id: xawtv.c,v 1.45.1.1 2005/03/30 14:58:07 tom Exp $
+ *  $Id: xawtv.c,v 1.45.1.2 2006/12/21 22:32:14 tom Exp $
  */
 
 #ifdef WIN32
@@ -86,6 +86,18 @@ static Window root_wid = None;
 
 static Tcl_TimerToken popDownEvent = NULL;
 static Tcl_TimerToken pollVpsEvent = NULL;
+static Tcl_TimerToken classBufferEvent = NULL;
+
+// names to search for in WM_CLASS property
+static const char * const pKnownTvAppNames[] =
+{
+  "XAWTV",
+  "XAWDECODE",
+  "XDTV",
+  "ZAPPING",
+  "TVTIME",
+};
+#define KNOWN_TVAPP_COUNT (sizeof(pKnownTvAppNames)/sizeof(pKnownTvAppNames[0]))
 
 // possible EPG info display types in xawtv
 typedef enum
@@ -110,10 +122,28 @@ typedef struct
 static XAWTVCF xawtvcf = {1, 1, 1, POP_EXT, 7};
 
 // forward declaration
+static void Xawtv_ClassBufferTimer( ClientData clientData );
 static void Xawtv_StationSelected( ClientData clientData );
 static bool Xawtv_QueryRemoteStation( Window wid, char * pBuffer, int bufLen, int * pTvFreq );
 static void Xawtv_PopDownNowNext( ClientData clientData );
 static void Xawtv_TvAttach( ClientData clientData );
+
+// ----------------------------------------------------------------------------
+// buffer to hold IDs of newly created toplevel windows until WM_CLASS query
+//
+typedef struct
+{
+   time_t    timestamp;
+   Display * dpy;
+   Window    wid;
+} XAWTV_WID_BUF;
+
+static struct
+{
+   uint      maxCount;
+   uint      fillCount;
+   XAWTV_WID_BUF * pBuf;
+} xawtvWidScanBuf;
 
 // ----------------------------------------------------------------------------
 // define struct to hold state of CNI & PIL supervision
@@ -190,39 +220,60 @@ static Display * Xawtv_GetTvDisplay( void )
 // Check the class of a newly created window
 // - to find xawtv we cannot check for the STATION property on the window,
 //   because that one's not available right away when the window is created
+// - error handler must be installed by caller!
 //
-static bool Xawtv_QueryClass( Display * dpy, Window wid )
+static bool Xawtv_ClassQuery( Display * dpy, Window wid )
 {
-   Tk_ErrorHandler errHandler;
    Atom   type;
-   int    format;
+   int    format, argc;
+   ulong  off;
    ulong  nitems, bytesafter;
    uchar  *args;
+   char   *pAtomName;
+   uint   tvIdx;
    bool   result = FALSE;
-
-   // push an /dev/null handler onto the stack that catches any type of X11 error events
-   errHandler = Tk_CreateErrorHandler(dpy, -1, -1, -1, (Tk_ErrorProc *) Xawtv_X11ErrorHandler, (ClientData) NULL);
 
    if ( (XGetWindowProperty(dpy, wid, wm_class_atom, 0, 64, False, AnyPropertyType,
                             &type, &format, &nitems, &bytesafter, &args) == Success) && (args != NULL) )
    {
-      dprintf1("Xawtv-Query: wm-class: %s\n", args);
-      if ( (strcasecmp(args, "XAWTV") == 0) ||
-           (strcasecmp(args, "XAWDECODE") == 0) ||
-           (strcasecmp(args, "XDTV") == 0) ||
-           (strcasecmp(args, "ZAPPING") == 0) ||
-           (strcasecmp(args, "TVTIME") == 0) )
+      if (type == XA_STRING)
       {
-         xawtv_wid = wid;
-         // parent is unknown, because the window is not managed by the wm yet
-         parent_wid = None;
-         result = TRUE;
+         for (off=0, argc=0; (off < nitems) && !result; off += strlen(args + off) + 1, argc++)
+         {
+            dprintf2("Xawtv-ClassQuery: window:0x%X wm-class: '%s'\n", (int)wid, args + off);
+            for (tvIdx=0; tvIdx < KNOWN_TVAPP_COUNT; tvIdx++)
+            {
+               if ( (nitems - off >= strlen(pKnownTvAppNames[tvIdx])) &&
+                    (strcasecmp(args + off, pKnownTvAppNames[tvIdx]) == 0) )
+               {
+                  result = TRUE;
+                  break;
+               }
+            }
+         }
+      }
+      else if (type == XA_ATOM)
+      {
+         for (argc=0; (argc < nitems) && !result; argc++)
+         {
+            pAtomName = XGetAtomName(dpy, (Atom)(((long*)args)[argc]));
+            if (pAtomName != NULL)
+            {
+               for (tvIdx=0; tvIdx < KNOWN_TVAPP_COUNT; tvIdx++)
+               {
+                  dprintf2("Xawtv-ClassQuery: window:0x%X wm-class atom: '%s'\n", (int)wid, pAtomName);
+                  if (strcasecmp(pAtomName, pKnownTvAppNames[tvIdx]) == 0)
+                  {
+                     result = TRUE;
+                     break;
+                  }
+               }
+               XFree(pAtomName);
+            }
+         }
       }
       XFree(args);
    }
-
-   // remove the dummy error handler
-   Tk_DeleteErrorHandler(errHandler);
 
    return result;
 }
@@ -257,7 +308,167 @@ static bool Xawtv_QueryParent( Display * dpy, Window wid )
 }
 
 // ----------------------------------------------------------------------------
-// Event handler
+// Append ID of a newly created window to the buffer
+//
+static void Xawtv_ClassBufferAppend( Display * dpy, Window wid )
+{
+   XAWTV_WID_BUF * pOld;
+   uint  idx;
+
+   for (idx = 0; idx < xawtvWidScanBuf.fillCount; idx++)
+      if ( (xawtvWidScanBuf.pBuf[idx].wid == wid) &&
+           (xawtvWidScanBuf.pBuf[idx].dpy == dpy) )
+         break;
+   if (idx < xawtvWidScanBuf.fillCount)
+   {
+      // window is already registered (or ID already reused) -> remove old instance
+      // (don't overwrite, else timestamps would no longer be in increasing order)
+      if (idx + 1 < xawtvWidScanBuf.fillCount)
+      {
+         memmove(&xawtvWidScanBuf.pBuf[idx], &xawtvWidScanBuf.pBuf[idx + 1],
+                 sizeof(xawtvWidScanBuf.pBuf[0]) * (xawtvWidScanBuf.fillCount - (idx + 1)));
+      }
+      xawtvWidScanBuf.fillCount -= 1;
+   }
+
+   // grow buffer if necessary
+   if (xawtvWidScanBuf.fillCount >= xawtvWidScanBuf.maxCount)
+   { 
+      pOld = xawtvWidScanBuf.pBuf;
+      xawtvWidScanBuf.maxCount += 16;
+      xawtvWidScanBuf.pBuf = xmalloc(xawtvWidScanBuf.maxCount * sizeof(xawtvWidScanBuf.pBuf[0]));
+
+      if (pOld != NULL)
+      {
+         memcpy(xawtvWidScanBuf.pBuf, pOld, xawtvWidScanBuf.fillCount * sizeof(xawtvWidScanBuf.pBuf[0]));
+         xfree(pOld);
+      }
+   }
+
+   xawtvWidScanBuf.pBuf[xawtvWidScanBuf.fillCount].dpy = dpy;
+   xawtvWidScanBuf.pBuf[xawtvWidScanBuf.fillCount].wid = wid;
+   xawtvWidScanBuf.pBuf[xawtvWidScanBuf.fillCount].timestamp = time(NULL);
+   xawtvWidScanBuf.fillCount += 1;
+}
+
+// ----------------------------------------------------------------------------
+// Empty the window ID buffer
+//
+static void Xawtv_ClassBufferDestroy( void )
+{
+   if (xawtvWidScanBuf.pBuf != NULL)
+   {
+      xfree(xawtvWidScanBuf.pBuf);
+      xawtvWidScanBuf.pBuf = NULL;
+   }
+   xawtvWidScanBuf.fillCount = 0;
+   xawtvWidScanBuf.maxCount = 0;
+}
+
+// ----------------------------------------------------------------------------
+// Check class of all windows in a queue to search for new Xawtv peer
+//
+static void Xawtv_ClassBufferProcess( void )
+{
+   Tk_ErrorHandler errHandler;
+   Display * dpy;
+   uint   idx;
+   time_t now = time(NULL);
+
+   dpy = Xawtv_GetTvDisplay();
+   if (dpy != NULL)
+   {
+      // push an /dev/null handler onto the stack that catches any type of X11 error events
+      errHandler = Tk_CreateErrorHandler(dpy, -1, -1, -1, (Tk_ErrorProc *) Xawtv_X11ErrorHandler, (ClientData) NULL);
+
+      for (idx = 0; idx < xawtvWidScanBuf.fillCount; idx++)
+      {
+         if (now >= xawtvWidScanBuf.pBuf[idx].timestamp + 2)
+         {
+            if ( Xawtv_ClassQuery(xawtvWidScanBuf.pBuf[idx].dpy, xawtvWidScanBuf.pBuf[idx].wid) )
+            {
+               dprintf1("Xawtv-ClassBufferProcess: found peer window:0x%X\n", (int)xawtvWidScanBuf.pBuf[idx].wid);
+
+               xawtv_wid = xawtvWidScanBuf.pBuf[idx].wid;
+               // discard the remaining IDs in the buffer
+               Xawtv_ClassBufferDestroy();
+
+               // parent is unknown, because the window may not managed by the wm yet
+               parent_wid = None;
+               // remove the creation event notification
+               XSelectInput(dpy, root_wid, 0);
+               // install an event handler
+               XSelectInput(dpy, xawtv_wid, StructureNotifyMask | PropertyChangeMask);
+               // check if the tuner device is busy upon the first property event
+               followTvState.newXawtvStarted = TRUE;
+               AddMainIdleEvent(Xawtv_TvAttach, NULL, TRUE);
+               // trigger initial query of station property
+               AddMainIdleEvent(Xawtv_StationSelected, NULL, TRUE);
+               break;
+            }
+         }
+         else
+         {  // check this and the following windows later
+            break;
+         }
+      }
+
+      // remove processed windows from the queue
+      if (idx < xawtvWidScanBuf.fillCount)
+      {
+         if (idx > 0)
+         {
+            memmove(&xawtvWidScanBuf.pBuf[0], &xawtvWidScanBuf.pBuf[idx],
+                    sizeof(xawtvWidScanBuf.pBuf[0]) * (xawtvWidScanBuf.fillCount - idx));
+            xawtvWidScanBuf.fillCount -= idx;
+         }
+         classBufferEvent = Tcl_CreateTimerHandler( (xawtvWidScanBuf.pBuf[0].timestamp + 2 - now) * 1000,
+                                                    Xawtv_ClassBufferTimer, NULL);
+      }
+      else
+         xawtvWidScanBuf.fillCount = 0;
+
+      // remove the dummy error handler
+      Tk_DeleteErrorHandler(errHandler);
+   }
+}
+
+// ----------------------------------------------------------------------------
+// Timer event handler to process queued toplevel window IDs
+//
+static void Xawtv_ClassBufferTimer( ClientData clientData )
+{
+   classBufferEvent = NULL;
+
+   if (xawtv_wid == None)
+   {
+      if (xawtvWidScanBuf.fillCount != 0)
+      {
+         dprintf2("Xawtv-ClassWidCheck: checking class of %d new windows, first: 0x%X\n", xawtvWidScanBuf.fillCount, (int)xawtvWidScanBuf.pBuf[0].wid);
+         Xawtv_ClassBufferProcess();
+      }
+   }
+   else
+   {
+      Xawtv_ClassBufferDestroy();
+   }
+}
+
+// ----------------------------------------------------------------------------
+// Event handler, triggered by X event handler for new toplevel windows
+// - install TCL timer to trigger query of the wm-class of new windows
+// - query is delayed because apps may need some time until wm-class is set
+//
+static void Xawtv_ClassBufferEvent( ClientData clientData )
+{
+   if (classBufferEvent == NULL)
+   {
+      classBufferEvent = Tcl_CreateTimerHandler(3000, Xawtv_ClassBufferTimer, NULL);
+   }
+}
+
+// ----------------------------------------------------------------------------
+// X Event handler
 // - this function is called for every incoming X event
 // - filters out events from the xawtv main window
 //
@@ -282,16 +493,10 @@ static int Xawtv_EventNotification( ClientData clientData, XEvent *eventPtr )
              (eventPtr->xcreatewindow.parent == root_wid) && (root_wid != None) )
    {
       dprintf1("CreateNotify event from window 0x%X\n", (int)eventPtr->xcreatewindow.window);
-      if ( (xawtv_wid == None) &&
-           Xawtv_QueryClass(eventPtr->xcreatewindow.display, eventPtr->xcreatewindow.window) )
+      if (xawtv_wid == None)
       {
-         // remove the creation event notification
-         XSelectInput(eventPtr->xcreatewindow.display, root_wid, 0);
-         // install an event handler
-         XSelectInput(eventPtr->xcreatewindow.display, xawtv_wid, StructureNotifyMask | PropertyChangeMask);
-         // check if the tuner device is busy upon the first property event
-         followTvState.newXawtvStarted = TRUE;
-         AddMainIdleEvent(Xawtv_TvAttach, NULL, TRUE);
+         Xawtv_ClassBufferAppend(eventPtr->xcreatewindow.display, eventPtr->xcreatewindow.window);
+         AddMainIdleEvent(Xawtv_ClassBufferEvent, NULL, TRUE);
       }
       result = TRUE;
    }
@@ -357,6 +562,12 @@ static bool Xawtv_FindWindow( Display * dpy, Atom atom )
                result = TRUE;
                break;   // NOTE: there might be more than window
             }
+            else
+            {  // station property not present -> debug only: read wm-class property
+#ifndef DPRINTF_OFF
+               Xawtv_ClassQuery(dpy, kids[n]);
+#endif
+            }
          }
          XFree(kids);
       }
@@ -367,6 +578,48 @@ static bool Xawtv_FindWindow( Display * dpy, Atom atom )
       debug1("XQueryTree failed on display %s", DisplayString(dpy));
 
    return result;
+}
+
+// ----------------------------------------------------------------------------
+// Check if the cached Xawtv window still exists
+// - X error handler must be installed by caller
+// - if window has become invalid or none known yet, a new one is searched
+//
+static void Xawtv_CheckWindow( Display * dpy )
+{
+   Atom type;
+   int format;
+   ulong nitems, bytesafter;
+   uchar *args = NULL;
+
+   if (xawtv_wid != None)
+   {
+      XGetWindowProperty(dpy, xawtv_wid, xawtv_station_atom, 0, (65536 / sizeof (long)), False,
+                         XA_STRING, &type, &format, &nitems, &bytesafter, &args);
+      if (args != NULL)
+      {
+         dprintf1("Xawtv-CheckWindow: xawtv alive, window 0x%X, STATION: ", (int)xawtv_wid);
+         DebugDumpProperty(args, nitems);
+         XFree(args);
+      }
+      else
+      {
+         dprintf1("Xawtv-CheckWindow: xawtv window 0x%X invalid", (int)xawtv_wid);
+         xawtv_wid = None;
+         AddMainIdleEvent(Xawtv_TvAttach, NULL, TRUE);
+      }
+   }
+
+   // try to find a new xawtv window
+   if (xawtv_wid == None)
+   {
+      if ( Xawtv_FindWindow(dpy, xawtv_station_atom) )
+      {
+         dprintf1("Xawtv-CheckWindow: Connect to xawtv 0x%X\n", (int)xawtv_wid);
+         XSelectInput(dpy, xawtv_wid, StructureNotifyMask | PropertyChangeMask);
+         AddMainIdleEvent(Xawtv_StationSelected, NULL, TRUE);
+      }
+   }
 }
 
 // ---------------------------------------------------------------------------
@@ -464,39 +717,7 @@ void Xawtv_SendCmdArgv(Tcl_Interp *interp, const char * pCmdStr, uint cmdLen )
       // push an /dev/null handler onto the stack that catches any type of X11 error events
       errHandler = Tk_CreateErrorHandler(dpy, -1, -1, -1, (Tk_ErrorProc *) Xawtv_X11ErrorHandler, (ClientData) NULL);
 
-      // check if the cached window still exists
-      if (xawtv_wid != None)
-      {
-         Atom type;
-         int format;
-         ulong nitems, bytesafter;
-         uchar *args = NULL;
-
-         XGetWindowProperty(dpy, xawtv_wid, xawtv_station_atom, 0, (65536 / sizeof (long)), False,
-                            XA_STRING, &type, &format, &nitems, &bytesafter, &args);
-         if (args != NULL)
-         {
-            dprintf1("SendCmd: xawtv alive, window 0x%08lx, STATION: ", xawtv_wid);
-            DebugDumpProperty(args, nitems);
-            XFree(args);
-         }
-         else
-         {
-            xawtv_wid = None;
-            AddMainIdleEvent(Xawtv_TvAttach, NULL, TRUE);
-         }
-      }
-
-      // try to find a new xawtv window
-      if (xawtv_wid == None)
-      {
-         if ( Xawtv_FindWindow(dpy, xawtv_station_atom) )
-         {
-            dprintf1("Xawtv-SendCmd: Connect to xawtv 0x%lX\n", (ulong)xawtv_wid);
-            XSelectInput(dpy, xawtv_wid, StructureNotifyMask | PropertyChangeMask);
-            AddMainIdleEvent(Xawtv_StationSelected, NULL, TRUE);
-         }
-      }
+      Xawtv_CheckWindow(dpy);
 
       if (xawtv_wid != None)
       {
@@ -533,7 +754,10 @@ static bool Xawtv_QueryRemoteStation( Window wid, char * pBuffer, int bufLen, in
    ulong off;
    ulong nitems, bytesafter;
    uchar *args;
-   bool result = FALSE;
+   bool result;
+
+   result = FALSE;
+   *pTvFreq = 0;
 
    {
       dpy = Xawtv_GetTvDisplay();
@@ -564,7 +788,7 @@ static bool Xawtv_QueryRemoteStation( Window wid, char * pBuffer, int bufLen, in
                {
                   if (pBuffer != NULL)
                   {
-                     dprintf2("Xawtv-Query: window 0x%lX: station name: %s\n", (ulong)wid, args + off);
+                     dprintf2("Xawtv-Query: window 0x%lX: station name: '%s'\n", (ulong)wid, args + off);
                      strncpy(pBuffer, args + off, bufLen);
                      pBuffer[bufLen - 1] = 0;
                   }
@@ -983,7 +1207,7 @@ static void Xawtv_StationSelected( ClientData clientData )
               ( (followTvState.cni != cni) ||
                 (followTvState.pil == INVALID_VPS_PIL) ) )
          {  // acq running -> wait for VPS/PDC to determine PIL (and confirm CNI)
-            dprintf1("Xawtv-StationSelected: delay xawtv info for 0x%04X\n", cni);
+            dprintf1("Xawtv-StationSelected: delay xawtv info for CNI 0x%04X\n", cni);
             followTvState.stationCni = cni;
             followTvState.stationPoll = 120;
 
@@ -1116,6 +1340,8 @@ static int Xawtv_ReadConfig( Tcl_Interp *interp, XAWTVCF *pNewXawtvcf )
    int  cfArgc, idx;
    int result = TCL_ERROR;
 
+   memset(pNewXawtvcf, 0, sizeof(*pNewXawtvcf));  // compiler dummy
+
    pTmpStr = Tcl_GetVar(interp, "xawtvcf", TCL_GLOBAL_ONLY|TCL_LEAVE_ERR_MSG);
    if (pTmpStr != NULL)
    {
@@ -1237,7 +1463,7 @@ static int Xawtv_InitConfig(ClientData ttp, Tcl_Interp *interp, int argc, CONST8
    Tk_ErrorHandler errHandler;
    Display *dpy;
    XAWTVCF newXawtvCf;
-   bool isFirstCall = (bool)((int) ttp);
+   bool isFirstCall = PVOID2INT(ttp);
 
    if (pollVpsEvent != NULL)
    {
@@ -1325,6 +1551,13 @@ void Xawtv_Destroy( void )
       Tcl_DeleteTimerHandler(popDownEvent);
       popDownEvent = NULL;
    }
+
+   if (classBufferEvent != NULL)
+   {
+      Tcl_DeleteTimerHandler(classBufferEvent);
+      classBufferEvent = NULL;
+   }
+   Xawtv_ClassBufferDestroy();
 }
 
 // ----------------------------------------------------------------------------
@@ -1384,6 +1617,9 @@ void Xawtv_Init( char * pTvX11Display )
          Tk_CreateGenericHandler(Xawtv_EventNotification, NULL);
       }
    }
+
+   // clear window ID buffer
+   memset(&xawtvWidScanBuf, 0, sizeof(xawtvWidScanBuf));
 
    // read user config and initialize local vars
    Xawtv_InitConfig((ClientData) TRUE, interp, 0, NULL);

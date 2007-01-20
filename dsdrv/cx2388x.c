@@ -23,11 +23,12 @@
  *      "This code is based on a version of dTV modified by Michael Eskin and
  *      others at Connexant.  Those parts are probably (c) Connexant 2002"
  *
- *  DScaler #Id: CX2388xCard.cpp,v 1.56 2004/03/07 17:34:48 to_see Exp #
+ *  DScaler #Id: CX2388xCard.cpp,v 1.75 2006/10/06 13:35:28 adcockj Exp #
  *  DScaler #Id: CX2388xSource.cpp,v 1.42 2003/01/25 23:46:25 laurentg Exp #
  *  DScaler #Id: CX2388xProvider.cpp,v 1.3 2002/11/02 09:47:36 adcockj Exp #
+ *  DScaler #Id: CX2388xCard_Tuner.cpp,v 1.9 2005/12/27 19:29:35 to_see Exp #
  *
- *  $Id: cx2388x.c,v 1.17 2004/12/26 21:47:08 tom Exp tom $
+ *  $Id: cx2388x.c,v 1.20 2006/12/21 20:17:22 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -864,6 +865,9 @@ static void Cx2388x_ResetHardware( void )
    //2.  Set bits 27:26 of register 0xE4310200 to 0x0.  The default value is
    //    0x0CE00555, which becomes 0x00E00555 with this change.
    WriteDword( CX2388X_AGC_BACK_VBI, 0x00E00555 );
+
+   // SetVerticalSyncDetection(TRUE)
+   OrDataDword( CX2388X_VIDEO_INPUT, CX2388X_VIDEO_INPUT_VERTEN );
 }
 
 // ----------------------------------------------------------------------------
@@ -875,9 +879,8 @@ static ULONG Cx2388x_GetTickCount( void )
 
    QueryPerformanceFrequency((PLARGE_INTEGER)&frequency);
    QueryPerformanceCounter((PLARGE_INTEGER)&ticks);
-   ticks = (ticks & 0xFFFFFFFF00000000) / frequency * 10000000 +
-           (ticks & 0xFFFFFFFF) * 10000000 / frequency;
-   return (ULONG)(ticks / 10000);
+   ticks = ticks * 1000 / frequency;
+   return (ULONG)ticks;
 }
 
 static void Cx2388x_I2cInitialize( void )
@@ -1225,9 +1228,20 @@ static DWORD WINAPI Cx2388x_VbiThread( LPVOID dummy )
 //
 static bool Cx2388x_IsVideoPresent( void )
 {
-   DWORD dwval = ReadDword(CX2388X_DEVICE_STATUS);
+   DWORD dwval       = ReadDword(CX2388X_DEVICE_STATUS);
+   DWORD dwUseVSync  = ReadDword(CX2388X_VIDEO_INPUT);
 
-   return ((dwval & CX2388X_DEVICE_STATUS_HLOCK) == CX2388X_DEVICE_STATUS_HLOCK);
+   // "Vertical Sync Detection" enabled?
+   if ((dwUseVSync & CX2388X_VIDEO_INPUT_VERTEN) == CX2388X_VIDEO_INPUT_VERTEN)
+   {
+      // detection is much faster
+      return ((dwval & CX2388X_DEVICE_STATUS_VPRES) == CX2388X_DEVICE_STATUS_VPRES);
+   }
+   else
+   {
+      // use the old way
+      return ((dwval & CX2388X_DEVICE_STATUS_HLOCK) == CX2388X_DEVICE_STATUS_HLOCK);
+   }
 }
 
 // ---------------------------------------------------------------------------
@@ -1304,6 +1318,9 @@ static void Cx2388x_Close( TVCARD * pTvCard )
    // reset PCI registers to original state
    if (CardConflictDetected == FALSE)
    {
+      // reset GPIO ports (mute audio)
+      pTvCard->cfg->SetVideoSource(pTvCard, -1);
+
       HwPci_RestoreState();
       Cx2388x_ManageMyState();
    }

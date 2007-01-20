@@ -51,7 +51,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_remind.tcl,v 1.20 2005/08/09 19:20:24 tom Exp tom $
+#  $Id: dlg_remind.tcl,v 1.21 2005/12/27 19:37:00 tom Exp $
 #
 # import constants from other modules
 #=INCLUDE= "epgtcl/dlg_udefcols.h"
@@ -279,7 +279,7 @@ proc Reminder_GetShortcuts {cache_var} {
 ##  Display reminder message popup
 ##
 proc Reminder_DisplayMessage {topwid msg_list} {
-   global default_bg text_bg font_normal pi_cursor_bg
+   global default_bg text_bg pi_font pi_cursor_bg
    global remgroups
    global remalarm_popup remalarm_list
 
@@ -297,7 +297,7 @@ proc Reminder_DisplayMessage {topwid msg_list} {
       bindtags ${topwid}.f1.logo [list ${topwid} all]
       pack   ${topwid}.f1.logo -side left -anchor n -padx 10 -pady 10
       text   ${topwid}.f1.msg -wrap none -background $text_bg -cursor circle \
-                              -height 5 -width 64 -font $font_normal -takefocus 0 \
+                              -height 5 -width 64 -font $pi_font -takefocus 0 \
                               -borderwidth 2 -highlightthickness 0 -highlightcolor $default_bg \
                               -cursor circle -spacing1 1 -spacing2 1 -spacing3 1
       bindtags ${topwid}.f1.msg [list ${topwid}.f1.msg ${topwid} all]
@@ -359,7 +359,7 @@ proc Reminder_DisplayMessage {topwid msg_list} {
    if $is_cmd {
       set group [lindex [lindex $msg_list 0] $::rev_grptag_idx]
       set grp_name [lindex $remgroups($group) $::rgp_name_idx]
-      ${topwid}.f1.msg tag configure tag_bold -font [DeriveFont $font_normal 0 bold]
+      ${topwid}.f1.msg tag configure tag_bold -font [DeriveFont $pi_font 0 bold]
       ${topwid}.f1.msg tag configure href -lmargin1 10 -lmargin2 10 -rmargin 10
       ${topwid}.f1.msg insert end "\nExecute $grp_name script for this programme?\n" tag_bold
       incr line_count 2

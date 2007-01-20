@@ -22,7 +22,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile.win32,v 1.51.1.1 2005/08/14 11:31:48 tom Exp $
+#  $Id: Makefile.win32,v 1.51 2004/12/18 14:51:21 tom Exp tom $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -36,19 +36,19 @@ WINDRES = windres
 DLLTOOL = dlltool
 else
 # cross-compiling for win32 on UNIX host (requires "gcc-win" package)
-INCS   += -nostdinc -DNONAMELESSUNION
+INCS   += -DNONAMELESSUNION
 INCS   += -I.
-INCS   += -I/usr/local/i386-pc-cygwin32/include/mingw
-INCS   += -I/usr/local/i386-pc-cygwin32/include/w32api
+INCS   += -I/usr/i586-mingw32msvc/include
 
-GCC_ROOT = /usr/local/i386-pc-cygwin32
-AR      = $(GCC_ROOT)/bin/i386-pc-cygwin32-ar
-AS      = $(GCC_ROOT)/bin/i386-pc-cygwin32-as
-NM      = $(GCC_ROOT)/bin/i386-pc-cygwin32-nm
-WINDRES = $(GCC_ROOT)/bin/i386-pc-cygwin32-windres
-DLLTOOL = $(GCC_ROOT)/bin/i386-pc-cygwin32-dlltool
-ROOT    = /d
-CC      = gcc-win
+GCC_ROOT = /usr/i586-mingw32msvc
+AR      = $(GCC_ROOT)/bin/ar
+AS      = $(GCC_ROOT)/bin/as
+NM      = $(GCC_ROOT)/bin/nm
+WINDRES = /usr/bin/i586-mingw32msvc-windres
+DLLTOOL = $(GCC_ROOT)/bin/dlltool
+#ROOT    = $(HOME)/Save/dos
+ROOT    = /home/tom/Save/dos
+CC      = i586-mingw32msvc-gcc
 endif
 
 # if you have perl set the path here, else just leave it alone
@@ -88,12 +88,13 @@ INCS      += -I$(BUILD_DIR)
 
 # ----- don't change anything below ------------------------------------------
 
+SUBDIRS = epgvbi epgdb epgctl epgui epgtcl tvsim dsdrv
 CSRC    = epgvbi/btdrv4win epgvbi/vbidecode epgvbi/zvbidecoder \
           epgvbi/ttxdecode epgvbi/hamming epgvbi/cni_tables epgvbi/tvchan \
           epgvbi/syserrmsg epgvbi/winshmsrv \
           epgctl/debug epgctl/epgacqctl epgctl/epgscan epgctl/epgctxctl \
           epgctl/epgctxmerge epgctl/epgacqsrv epgctl/epgacqclnt \
-          epgdb/epgstream epgdb/epgdbmerge epgdb/epgdbsav \
+          epgdb/epgstream epgdb/epgaifrag epgdb/epgdbmerge epgdb/epgdbsav \
           epgdb/epgdbmgmt epgdb/epgdbif epgdb/epgdbfil epgdb/epgblock \
           epgdb/epgqueue epgdb/epgtscqueue epgdb/epgnetio \
           epgui/uictrl epgui/pibox epgui/pilistbox epgui/pinetbox \
@@ -114,7 +115,8 @@ TCLSRC  = epgtcl/mainwin epgtcl/dlg_hwcfg epgtcl/dlg_xawtvcf \
 DSDRV_CSRC    = dsdrv/dsdrv34 dsdrv/hwdrv dsdrv/hwpci dsdrv/hwmem dsdrv/debuglog
 TVCARD_CSRC   = dsdrv/bt8x8 dsdrv/bt8x8_i2c dsdrv/bt8x8_typ \
                 dsdrv/saa7134 dsdrv/saa7134_i2c dsdrv/saa7134_typ \
-                dsdrv/cx2388x dsdrv/cx2388x_typ dsdrv/wintuner
+                dsdrv/cx2388x dsdrv/cx2388x_typ dsdrv/wintuner \
+                dsdrv/cfg_parse dsdrv/wintuner_typ
 TVSIM_CSRC    = tvsim/tvsim_main tvsim/winshmclnt
 TVSIM_CSRC2   = epgvbi/btdrv4win epgvbi/vbidecode epgvbi/zvbidecoder \
                 epgvbi/ttxdecode epgvbi/hamming epgvbi/cni_tables \
@@ -137,9 +139,9 @@ VBIREC_OBJS   = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(VBIREC_CSRC) $(VBIR
 VBIPLAY_OBJS  = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(VBIPLAY_CSRC) $(VBIPLAY_CSRC2)))
 
 .PHONY: devel manuals tvsim tvmans all
-devel   :: $(BUILD_DIR) tcl_headers $(BUILD_DIR)/nxtvepg.exe manuals
+devel   :: build_dir tcl_headers $(BUILD_DIR)/nxtvepg.exe manuals
 manuals :: nxtvepg.1 manual.html manual-de.html
-tvsim   :: $(BUILD_DIR) tcl_headers_tvsim $(BUILD_DIR)/tvsim.exe $(BUILD_DIR)/vbirec.exe $(BUILD_DIR)/vbiplay.exe tvmans
+tvsim   :: build_dir tcl_headers_tvsim $(BUILD_DIR)/tvsim.exe $(BUILD_DIR)/vbirec.exe $(BUILD_DIR)/vbiplay.exe tvmans
 tvmans  :: tvsim/tvsim.html tvsim/vbirec.html tvsim/vbiplay.html
 all     :: devel tvsim
 
@@ -262,6 +264,7 @@ zip: all
 	zip -9 -j $$ARCHIVE $(BUILD_DIR)/nxtvepg.exe; \
 	zip -9 $$ARCHIVE tcl$(TCL_L).dll tk$(TCL_L).dll dsdrv4.sys dsdrv4.vxd nxtvepg.ico; \
 	zip -9 $$ARCHIVE -l manual.html manual-de.html Nxtvepg.ad; \
+	zip -9 -j $$ARCHIVE dsdrv/CX2388xCards.ini dsdrv/SAA713xCards.ini; \
 	for v in TODO README CHANGES COPYRIGHT; do \
 	   mv $$v $${v}.txt; \
 	   zip -9 -l $$ARCHIVE $${v}.txt; \
@@ -280,6 +283,10 @@ zip: all
 
 bak:
 	cd .. && tar cf /c/winpc.tar pc -X pc/tar-ex-win
+
+.PHONY: build_dir
+build_dir:
+	@mkdir -p $(addprefix $(BUILD_DIR)/,$(SUBDIRS))
 
 # include dependencies (each object has one dependency file)
 -include $(BUILD_DIR)/*/*.dep

@@ -28,7 +28,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile,v 1.77.1.2 2005/08/14 11:28:25 tom Exp $
+#  $Id: Makefile,v 1.77.1.1 2005/03/30 15:48:11 tom Exp $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -114,6 +114,7 @@ INST_DB_PERM = 0777
 endif
 
 WARN    = -Wall -Wnested-externs -Wstrict-prototypes -Wmissing-prototypes
+WARN   += -Wno-pointer-sign
 #WARN  += -Wpointer-arith -Werror
 CC      = gcc
 # the following flags can be overridden by an environment variable with the same name
@@ -130,12 +131,13 @@ endif
 
 # ----- don't change anything below ------------------------------------------
 
+SUBDIRS = epgvbi epgdb epgctl epgui epgtcl tvsim
 CSRC    = epgvbi/btdrv4linux epgvbi/vbidecode epgvbi/zvbidecoder \
           epgvbi/ttxdecode epgvbi/hamming epgvbi/cni_tables epgvbi/tvchan \
           epgvbi/syserrmsg \
           epgctl/debug epgctl/epgacqctl epgctl/epgscan epgctl/epgctxctl \
           epgctl/epgctxmerge epgctl/epgacqclnt epgctl/epgacqsrv \
-          epgdb/epgstream epgdb/epgdbmerge epgdb/epgdbsav \
+          epgdb/epgstream epgdb/epgaifrag epgdb/epgdbmerge epgdb/epgdbsav \
           epgdb/epgdbmgmt epgdb/epgdbif epgdb/epgdbfil epgdb/epgblock \
           epgdb/epgnetio epgdb/epgqueue epgdb/epgtscqueue \
           epgui/pibox epgui/pilistbox epgui/pinetbox epgui/piremind \
@@ -166,10 +168,10 @@ TVSIM_OBJS    = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(TVSIM_CSRC) $(TVSIM
 VBIREC_OBJS   = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(VBIREC_CSRC) $(VBIREC_CSRC2) $(VBIREC_TCLSRC)))
 
 .PHONY: devel manuals tvsim tvmans all
-devel   :: $(BUILD_DIR) tcl_headers $(BUILD_DIR)/nxtvepg manuals
+devel   :: build_dir tcl_headers $(BUILD_DIR)/nxtvepg manuals
 manuals :: nxtvepg.1 manual.html manual-de.html
-tvsim   :: $(BUILD_DIR) tcl_headers_tvsim $(BUILD_DIR)/tvsimu $(BUILD_DIR)/vbirec tvmans
-tvmans  :: $(BUILD_DIR) tvsim/tvsim.html tvsim/vbirec.html tvsim/vbiplay.html
+tvsim   :: build_dir tcl_headers_tvsim $(BUILD_DIR)/tvsimu $(BUILD_DIR)/vbirec tvmans
+tvmans  :: build_dir tvsim/tvsim.html tvsim/vbirec.html tvsim/vbiplay.html
 all     :: devel tvsim tvmans
 
 $(BUILD_DIR)/nxtvepg: $(NXTV_OBJS)
@@ -197,9 +199,9 @@ endif
 .SUFFIXES: .c .o .tcl
 
 $(BUILD_DIR)/%.o: %.c
-	$(CC) $(CFLAGS) -Wp,-MMD,$(BUILD_DIR)/deps.tmp -c -o $@ $<
-	@sed -e "s#^[^ \t].*\.o:#$@:#" < $(BUILD_DIR)/deps.tmp > $@.dep && \
-	   rm -f $(BUILD_DIR)/deps.tmp
+	$(CC) $(CFLAGS) -Wp,-MMD,$@.dep.tmp -c -o $@ $<
+	@sed -e "s#^[^ \t].*\.o:#$@:#" < $@.dep.tmp > $@.dep && \
+	   rm -f $@.dep.tmp
 
 $(BUILD_DIR)/%.c: %.tcl $(BUILD_DIR)/tcl2c
 	$(BUILD_DIR)/tcl2c -d -c -h -p $(BUILD_DIR) $*.tcl
@@ -237,16 +239,14 @@ epgui/loadtcl.c :: $(TCL_LIBRARY_PATH)/tclIndex $(TK_LIBRARY_PATH)/tclIndex
 
 .PHONY: bak
 bak:
-	cd .. && tar cf /c/transfer/pc.tar pc -X pc/tar-ex-win
+	cd .. && tar cvf /tmp/pc.tar -X pc/tar-ex-win pc ttx
+	bzip2 -9f /tmp/pc.tar
 #	cd .. && tar cf pc1.tar pc -X pc/tar-ex && bzip2 -f -9 pc1.tar
 #	tar cf ../pc2.tar www ATTIC dsdrv?* tk8* tcl8* && bzip2 -f -9 ../pc2.tar
 
-$(BUILD_DIR):
-	if [ ! -d $@ ] ; then \
-	  mkdir $@; \
-	  mkdir $@/epgvbi $@/epgdb $@/epgctl $@/epgui $@/epgtcl; \
-	  mkdir $@/tvsim; \
-	fi
+.PHONY: build_dir
+build_dir:
+	@mkdir -p $(addprefix $(BUILD_DIR)/,$(SUBDIRS))
 
 # include dependencies (each object has one dependency file)
 -include $(BUILD_DIR)/*/*.dep
@@ -293,7 +293,7 @@ nxtvepg.1 manual.html: nxtvepg.pod epgctl/epgversion.h
 	  EPG_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*EPG_VERSION_STR' epgctl/epgversion.h | head -1 | sed -e 's#.*"\(.*\)".*#\1#'`; \
 	  echo "pod2man nxtvepg.pod > nxtvepg.1"; \
 	  pod2man -date " " -center "Nextview EPG Decoder" -section "1" \
-	          -release "nxtvepg "$$EPG_VERSION_STR" (C) 1999-2005 Tom Zoerner" \
+	          -release "nxtvepg "$$EPG_VERSION_STR" (C) 1999-2007 Tom Zoerner" \
 	     nxtvepg.pod > nxtvepg.1; \
 	  echo "pod2html nxtvepg.pod > manual.html"; \
 	  pod2html nxtvepg.pod | $(PERL) -p -e 's/(HREF=\"#)([^:"]+: |[^_"]+(_[^_"]+)?__)+/$$1/gi;' > manual.html; \

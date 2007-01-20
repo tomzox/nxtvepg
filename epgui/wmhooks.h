@@ -1,5 +1,5 @@
 /*
- *  X11 window manager hooks
+ *  X11 and Win32 window manager hooks
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
@@ -16,15 +16,15 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id$
+ *  $Id: wmhooks.h,v 1.2 2006/12/22 15:23:37 tom Exp tom $
  */
 
-#ifndef __X11WM_H
-#define __X11WM_H
+#ifndef __WMHOOKS_H
+#define __WMHOOKS_H
 
 
 void WmHooks_Init( Tcl_Interp * interp );
 void WmHooks_Destroy( void );
 
 
-#endif  // __X11WM_H
+#endif  // __WMHOOKS_H

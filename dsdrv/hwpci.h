@@ -15,7 +15,7 @@
 //  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 //  GNU General Public License for more details
 /////////////////////////////////////////////////////////////////////////////
-// nxtvepg $Id: hwpci.h,v 1.6 2004/12/26 21:48:44 tom Exp tom $
+// nxtvepg $Id: hwpci.h,v 1.7 2006/12/21 20:30:33 tom Exp tom $
 /////////////////////////////////////////////////////////////////////////////
 
 #ifndef __PCICARD_H___
@@ -76,5 +76,8 @@ BOOL HwPci_GetPCIConfig(PCI_COMMON_CONFIG* pPCI_COMMON_CONFIG, DWORD Bus, DWORD 
 BOOL HwPci_SetPCIConfig(PCI_COMMON_CONFIG* pPCI_COMMON_CONFIG, DWORD Bus, DWORD Slot);
 BOOL HwPci_GetPCIConfigOffset(BYTE* pbPCIConfig, DWORD Offset, DWORD Bus, DWORD Slot);
 BOOL HwPci_SetPCIConfigOffset(BYTE* pbPCIConfig, DWORD Offset, DWORD Bus, DWORD Slot);
+
+void HwPci_LockCard( void );
+void HwPci_UnlockCard( void );
 
 #endif

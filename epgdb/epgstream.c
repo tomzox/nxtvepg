@@ -20,13 +20,14 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgstream.c,v 1.30 2004/09/25 18:42:36 tom Exp tom $
+ *  $Id: epgstream.c,v 1.31 2005/12/29 15:49:09 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_STREAM
 #define DPRINTF_OFF
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "epgctl/mytypes.h"
@@ -38,6 +39,7 @@
 #include "epgdb/epgblock.h"
 #include "epgui/dumpraw.h"
 #include "epgdb/epgqueue.h"
+#include "epgdb/epgaifrag.h"
 #include "epgdb/epgstream.h"
 
 
@@ -58,7 +60,6 @@ typedef struct
    uint    recvLen;
    bool    haveBlock;
    uint    haveHeader;
-   uchar   headerFragment[3];
    uchar   blockBuf[NXTV_BLOCK_MAXLEN + 4];
 } NXTV_STREAM;
 
@@ -191,7 +192,7 @@ static void EpgStreamCheckBlock( NXTV_STREAM * const psd, uchar stream )
 
    if (psd->appID == 0)
    {  // Bundle Inventory (BI block)
-      if (UnHam84Array(psd->blockBuf, psd->blockLen / 2))
+      if (UnHam84Array(psd->blockBuf, psd->blockBuf, psd->blockLen / 2))
       {
          chkSum = psd->blockBuf[2];
          psd->blockBuf[2] = 0;  // checksum does not include itself
@@ -222,7 +223,7 @@ static void EpgStreamCheckBlock( NXTV_STREAM * const psd, uchar stream )
 
          if (psd->blockLen >= (ctrlLen+2) * 2)
          {
-            if ( UnHam84Array(psd->blockBuf, ctrlLen + 2) )
+            if ( UnHam84Array(psd->blockBuf, psd->blockBuf, ctrlLen + 2) )
             {
                strLen = psd->blockLen - (ctrlLen + 2)*2;
                errCnt = UnHamParityArray(psd->blockBuf + (ctrlLen+2)*2, psd->blockBuf + ctrlLen+2, strLen);
@@ -239,6 +240,9 @@ static void EpgStreamCheckBlock( NXTV_STREAM * const psd, uchar stream )
                   psd->blockBuf[2] = chkSum;
                   // real block size = header + control-data + string-data
                   EpgStreamConvertBlock(psd->blockBuf, 2 + ctrlLen + strLen, stream, errCnt, type);
+
+                  if (type == EPGDBACQ_TYPE_AI)
+                     EpgAiFragmentsRestart();
                }
                else
                {
@@ -322,6 +326,10 @@ static uint EpgStreamAddData( const uchar * dat, uint restLine, bool isNewBlock 
             psd->blockLen = ((c2 >> 1) | (c3 << 3) | (c4 << 7)) + 4;  // + length of block len itself
             psd->haveHeader = TRUE;
 
+            if (psd->appID == epgStreamAppId)
+            {
+               EpgAiFragmentsBlockStart(psd->blockBuf, psd->blockLen, dat, restLine);
+            }
             if (psd->appID == 0)
                streamStats.epgBiCount += 1;
             dprintf4("               start block recv stream %d, appID=%d, len=4+%d, startlen=4+%d\n", /*packNo, blockPtr,*/ streamOfPage+1, psd->appID, psd->blockLen - 4, restLine);
@@ -381,6 +389,7 @@ static void EpgStreamDecodePacket( uchar packNo, const uchar * dat )
          streamOfPage = NXTV_NO_STREAM;
       }
    }
+   EpgAiFragmentsAddPkg(streamOfPage, packNo, dat);
 
    if (streamOfPage < NXTV_NO_STREAM)
    {
@@ -492,7 +501,10 @@ static bool EpgStreamNewPage( uint sub )
                if (streamData[streamOfPage].pkgCount != newPkgCount)
                {  // mismatch in packet count per page -> not same page after all
                   debug4("EpgStream-NewPage: packet count error for continued page CI=%d (%d -> %d) stream %d", streamData[streamOfPage].ci, streamData[streamOfPage].pkgCount, newPkgCount, streamOfPage);
+                  if (streamData[streamOfPage].haveBlock && streamData[streamOfPage].haveHeader)
+                     streamStats.epgBlkErr += 1;
                   streamData[streamOfPage].haveBlock = FALSE;
+                  EpgAiFragmentsBreak(streamOfPage);
                }
                else
                {
@@ -503,18 +515,24 @@ static bool EpgStreamNewPage( uint sub )
             else if ( ((streamData[streamOfPage].ci + 1) & 0xf) != newCi )
             {  // continuity is broken -> discard partial EPG block in the buffer
                debug3("EpgStream-NewPage: page continuity error (%d -> %d) stream %d", streamData[streamOfPage].ci, newCi, streamOfPage);
+               if (streamData[streamOfPage].haveBlock && streamData[streamOfPage].haveHeader)
+                  streamStats.epgBlkErr += 1;
                streamData[streamOfPage].haveBlock = FALSE;
                streamStats.epgPagMissing += 1;
+               EpgAiFragmentsBreak(streamOfPage);
             }
             else if (streamData[streamOfPage].lastPkg != streamData[streamOfPage].pkgCount)
             {  // packets missing at the end of the last page -> discard partial block
                debug2("EpgStream-NewPage: packets missing at page end: %d < %d", streamData[streamOfPage].lastPkg, streamData[streamOfPage].pkgCount);
+               if (streamData[streamOfPage].haveBlock && streamData[streamOfPage].haveHeader)
+                  streamStats.epgBlkErr += 1;
                streamData[streamOfPage].haveBlock = FALSE;
                streamStats.epgPkgMissing += 1;
             }
          }
 
          dprintf4("pkg= 0: ***NEW PAGE*** CI=%d stream=%d pkgno=%d last=%d\n", newCi, streamOfPage, newPkgCount, firstPkg);
+         EpgAiFragmentsStartPage(streamOfPage, firstPkg, newPkgCount);
          streamData[streamOfPage].ci = newCi;
          streamData[streamOfPage].pkgCount = newPkgCount;
          streamData[streamOfPage].lastPkg = firstPkg;
@@ -525,6 +543,7 @@ static bool EpgStreamNewPage( uint sub )
       {
          debug2("EpgStream-NewPage: too many packets (%d) for page in stream %d", streamData[streamOfPage].pkgCount, streamOfPage);
          streamOfPage = NXTV_NO_STREAM;
+         EpgAiFragmentsBreak(streamOfPage);
       }
    }
 
@@ -600,6 +619,9 @@ bool EpgStreamProcessPackets( void )
    const VBI_LINE * pVbl;
    bool freePrevPkg   = FALSE;
    bool channelChange = TRUE;
+   const uchar * pAiBuffer;
+   uint blockLen;
+   uint parityErrCnt;
 
    if ( (pVbiBuf != NULL) &&
         (pVbiBuf->chanChangeReq == pVbiBuf->chanChangeCnf) )
@@ -644,6 +666,14 @@ bool EpgStreamProcessPackets( void )
             else
                debug1("EpgStream-ProcessPackets: discarding pkg %d on non-EPG page", pVbl->pkgno);
          }
+      }
+
+      // if AI block was missed by the stream decoder, check if AI fragment assembly can deliver
+      pAiBuffer = EpgAiFragmentsAssemble(&blockLen, &parityErrCnt);
+      if ( pAiBuffer != NULL )
+      {
+         EpgStreamConvertBlock(pAiBuffer, blockLen, NXTV_STREAM_NO_1, parityErrCnt, EPGDBACQ_TYPE_AI);
+         xfree((void *) pAiBuffer);
       }
    }
    return channelChange;
@@ -706,6 +736,8 @@ void EpgStreamInit( EPGDB_QUEUE *pDbQueue, bool bWaitForBiAi, uint appId, uint p
    ttxState.bHeaderCheckInit = FALSE;
 
    memset(&streamStats, 0, sizeof(streamStats));
+
+   EpgAiFragmentsRestart();
 
    // note: intentionally using clear func instead of overwriting the pointer with NULL
    // (simplifies upper layers' state machines: start acq may be called while acq is already running)

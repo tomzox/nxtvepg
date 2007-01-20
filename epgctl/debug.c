@@ -22,7 +22,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: debug.c,v 1.23 2005/07/10 15:15:30 tom Exp tom $
+ *  $Id: debug.c,v 1.27 2006/11/12 18:36:54 tom Exp $
  */
 
 #define __DEBUG_C
@@ -129,7 +129,7 @@ void DebugLogLine( bool doHalt )
       perror("open epg log file debug.out");
 
    #ifndef WIN32
-   printf("%s", debugStr);
+   fprintf(stderr, "%s", debugStr);
    #else
    OutputDebugString(debugStr);
    #endif
@@ -140,7 +140,7 @@ void DebugLogLine( bool doHalt )
       #ifndef WIN32
       abort();
       #else
-      MessageBox(NULL, debugStr, "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+      MessageBox(NULL, debugStr, "Nextview EPG", MB_ICONSTOP | MB_OK | MB_SETFOREGROUND);
       #endif
    }
    #endif
@@ -172,7 +172,7 @@ void DebugSetError( void )
 // - warning: not MT-safe
 // - maintains a list of all allocated blocks
 //
-void * chk_malloc( size_t size, const char * pFileName, int line )
+void * chk_malloc( size_t size, const char * pCallerFile, int callerLine )
 {
    MALLOC_CHAIN * pElem;
 
@@ -190,9 +190,9 @@ void * chk_malloc( size_t size, const char * pFileName, int line )
    }
 
    // save info about the caller
-   strncpy(pElem->fileName, pFileName, MALLOC_CHAIN_FILENAME_LEN - 1);
+   strncpy(pElem->fileName, pCallerFile, MALLOC_CHAIN_FILENAME_LEN - 1);
    pElem->fileName[MALLOC_CHAIN_FILENAME_LEN - 1] = 0;
-   pElem->line = line;
+   pElem->line = callerLine;
    pElem->size = size;
 
    // monitor maximum memory usage
@@ -213,6 +213,7 @@ void * chk_malloc( size_t size, const char * pFileName, int line )
       assert(pElem->next->prev == NULL);
       pElem->next->prev = pElem;
    }
+   //fprintf(stderr, "chk-malloc: 0x%lX: %s, line %d, size %ld\n", (long)pElem, pElem->fileName, pElem->line, (ulong)pElem->size);
 
    return (void *)&pElem[1];
 }  
@@ -221,7 +222,7 @@ void * chk_malloc( size_t size, const char * pFileName, int line )
 // Wrapper for the C library realloc() function
 // - warning: not MT-safe
 //
-void * chk_realloc( void * ptr, size_t size )
+void * chk_realloc( void * ptr, size_t size, const char * pCallerFile, int callerLine )
 {
    MALLOC_CHAIN * pElem;
    MALLOC_CHAIN * pPrevElem;
@@ -277,6 +278,7 @@ void * chk_realloc( void * ptr, size_t size )
 
    // update magic after the data
    memcpy((uchar *)&pElem[1] + size, pMallocMagic, sizeof(MALLOC_CHAIN_MAGIC_LEN));
+   //fprintf(stderr, "chk-realloc: 0x%lX: %s, line %d, size %ld; caller: %s, line: %d\n", (long)pElem, pElem->fileName, pElem->line, (ulong)pElem->size, pCallerFile, callerLine);
 
    return (void *)&pElem[1];
 }
@@ -286,18 +288,32 @@ void * chk_realloc( void * ptr, size_t size )
 // - removes the block from the list of allocated blocks
 // - checks if block boundaries were overwritten
 //
-void chk_free( void * ptr )
+void chk_free( void * ptr, const char * pCallerFile, int callerLine )
 {
    MALLOC_CHAIN * pElem;
 
    pElem = (MALLOC_CHAIN *)((ulong)ptr - sizeof(MALLOC_CHAIN));
 
+   //fprintf(stderr, "chk-free: 0x%lX: %s, line %d, size %ld; caller: %s, line: %d\n", (long)pElem, pElem->fileName, pElem->line, (ulong)pElem->size, pCallerFile, callerLine);
+
    // check the magic strings before and after the data
-   assert(memcmp(pElem->magic1, pMallocMagic, sizeof(MALLOC_CHAIN_MAGIC_LEN)) == 0);
-   assert(memcmp((uchar *)&pElem[1] + pElem->size, pMallocMagic, sizeof(MALLOC_CHAIN_MAGIC_LEN)) == 0);
+   if (memcmp(pElem->magic1, pMallocMagic, sizeof(MALLOC_CHAIN_MAGIC_LEN)) != 0)
+   {
+      if (memcmp(pElem->magic1, pMallocXmark, sizeof(MALLOC_CHAIN_MAGIC_LEN)) == 0)
+         fatal6("chk-free: doubly freed allocated buffer 0x%lX: %s, line %d, size %ld; caller: %s, line %d", (long)pElem, pElem->fileName, pElem->line, (ulong)pElem->size, pCallerFile, callerLine);
+      else
+         fatal6("chk-free: invalid magic before allocated buffer 0x%lX: %s, line %d, size %ld; caller: %s, line %d", (long)pElem, pElem->fileName, pElem->line, (ulong)pElem->size, pCallerFile, callerLine);
+   }
+   if (memcmp((uchar *)&pElem[1] + pElem->size, pMallocMagic, sizeof(MALLOC_CHAIN_MAGIC_LEN)) != 0)
+   {
+      fatal6("chk-free: invalid magic after allocated buffer 0x%lX: %s, line %d, size %ld; caller: %s, line: %d", (long)pElem, pElem->fileName, pElem->line, (ulong)pElem->size, pCallerFile, callerLine);
+   }
 
    // update memory usage
-   assert(malUsage >= pElem->size);
+   if (malUsage < pElem->size)
+   {
+      fatal7("chk-free: mem usage %ld < freed size: buffer 0x%lX: %s, line %d, size %ld; caller: %s, line: %d", malUsage, (long)pElem, pElem->fileName, pElem->line, (ulong)pElem->size, pCallerFile, callerLine);
+   }
    malUsage -= pElem->size;
 
    // invalidate the magic
@@ -359,16 +375,16 @@ void chk_memleakage( void )
    assert(pMallocChain == NULL);
    assert(malUsage == 0);
 
-   //printf("chk-memleakage: no leak, max usage: %ld bytes\n", malPeak);
-   //printf("chk-memleakage: no leak, in-place reallocs: %d of %d\n", malReallocOk, malRealloc);
+   //fprintf(stderr, "chk-memleakage: no leak, max usage: %ld bytes\n", malPeak);
+   //fprintf(stderr, "chk-memleakage: no leak, in-place reallocs: %d of %d\n", malReallocOk, malRealloc);
 }
 
 // ---------------------------------------------------------------------------
 // Replacement for strdup which allows checking that memory is freed
 //
-char * chk_strdup( const char * pSrc, const char * pFileName, int line )
+char * chk_strdup( const char * pSrc, const char * pCallerFile, int callerLine )
 {
-   char * pDst = chk_malloc(strlen(pSrc) + 1, pFileName, line);
+   char * pDst = chk_malloc(strlen(pSrc) + 1, pCallerFile, callerLine);
    strcpy(pDst, pSrc);
    return pDst;
 }  

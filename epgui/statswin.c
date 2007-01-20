@@ -33,7 +33,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: statswin.c,v 1.69 2004/11/01 17:11:50 tom Exp tom $
+ *  $Id: statswin.c,v 1.69.1.1 2006/12/21 22:28:23 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -282,8 +282,8 @@ static void StatsWin_UpdateDbStatsWin( ClientData clientData )
       else
       {  // Merged database
 
-         allVersionsCount = count[0].allVersions + count[0].expired + count[0].defective +
-                            count[1].allVersions + count[1].expired + count[1].defective;
+         allVersionsCount = count[0].allVersions + count[0].expired + count[0].defective + count[0].extra +
+                            count[1].allVersions + count[1].expired + count[1].defective + count[1].extra;
 
          sprintf(comm, "%s.browser.stat configure -text \""
                        "EPG Provider:     Merged database\n"

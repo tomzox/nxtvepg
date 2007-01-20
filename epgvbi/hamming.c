@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: hamming.c,v 1.11 2005/02/20 20:25:23 tom Exp tom $
+ *  $Id: hamming.c,v 1.12 2006/07/02 12:03:35 tom Exp $
  */
 
 #define __HAMMING_C
@@ -96,13 +96,12 @@ uint UnHam84Word( const uchar * d )
 */
 
 // ----------------------------------------------------------------------------
-// Unham a series of 8/4 encoded bytes in-place
-// - aborts and returns FALSE upon errors
+// Decode a series of Hamming-8/4 encoded bytes
+// - aborts and returns FALSE upon non-recoverable errors
 //
-bool UnHam84Array( uchar * pin, uint byteCount )
+bool UnHam84Array( uchar * pin, uchar * pout, uint byteCount )
 {
    schar c1, c2;
-   uchar * pout = pin;
    bool result = TRUE;
 
    for (; byteCount > 0; byteCount--)
@@ -122,8 +121,9 @@ bool UnHam84Array( uchar * pin, uint byteCount )
 }
 
 // ----------------------------------------------------------------------------
-// Resolve parity on an array in-place
-// - errors are ignored, the character just replaced by a blank
+// Decode a parity-encoded string
+// - characters with parity errors are replaced with a blank char (0xA0)
+// - returns number of parity errors in the string
 //
 ushort UnHamParityArray( const uchar *pin, uchar *pout, uint byteCount )
 {

@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: tvcard.h,v 1.7 2004/12/26 21:48:50 tom Exp tom $
+ *  $Id: tvcard.h,v 1.8 2006/01/04 16:17:59 tom Exp tom $
  */
 
 #ifndef __TVCARD_H
@@ -47,15 +47,16 @@ typedef struct
    const char * (* GetCardName) ( struct TVCARD_struct * pTvCard, uint CardId );
    uint         (* AutoDetectCardType) ( struct TVCARD_struct * pTvCard );
    uint         (* AutoDetectTuner) ( struct TVCARD_struct * pTvCard, uint CardId );
-   uint         (* GetIffType) ( struct TVCARD_struct * pTvCard, bool * pIsPinnacle, bool * pIsMono );
+   bool         (* GetTda9887Modes) ( struct TVCARD_struct * pTvCard, bool * pHasTda9887, void ** ppModes );
+   void         (* GetIffType) ( struct TVCARD_struct * pTvCard, bool * pIsPinnacle, bool * pIsMono );
    uint         (* GetPllType) ( struct TVCARD_struct * pTvCard, uint cardId );
-   void         (* GetI2cScanRange) ( struct TVCARD_struct * pTvCard, uint * pStart, uint * pStop );
    bool         (* SupportsAcpi) ( struct TVCARD_struct * pTvCard );
    uint         (* GetNumInputs) ( struct TVCARD_struct * pTvCard );
    const char * (* GetInputName) ( struct TVCARD_struct * pTvCard, uint nInput );
    bool         (* IsInputATuner) ( struct TVCARD_struct * pTvCard, uint nInput );
    bool         (* IsInputSVideo) ( struct TVCARD_struct * pTvCard, uint nInput );
    bool         (* SetVideoSource) ( struct TVCARD_struct * pTvCard, uint nInput );
+   void         (* FreeCardList) ( void );
 } TVCARD_CFG;
 
 typedef struct

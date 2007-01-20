@@ -18,12 +18,13 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgtscqueue.c,v 1.5 2002/03/29 17:34:24 tom Exp tom $
+ *  $Id: epgtscqueue.c,v 1.6 2006/11/25 20:49:29 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
 #define DPRINTF_OFF
 
+#include <stdlib.h>
 #include <time.h>
 #include <string.h>
 #include <math.h>
@@ -655,7 +656,7 @@ void EpgTscQueue_AddPi( EPGDB_PI_TSC * pQueue, EPGDB_CONTEXT * dbc, const PI_BLO
       {
          isMerged = EpgDbContextIsMerged(dbc);
          // set parameters for buffer creation
-         pQueue->writeProvCni = isMerged ? 0x00ff : AI_GET_CNI(pAi);
+         pQueue->writeProvCni = EpgDbContextGetCni(dbc);
          pQueue->writeMode    = PI_TSC_MODE_INCREMENTAL;
 
          now      = time(NULL);
@@ -725,7 +726,7 @@ void EpgTscQueue_AddAll( EPGDB_PI_TSC * pQueue, EPGDB_CONTEXT * dbc )
       {
          isMerged = EpgDbContextIsMerged(dbc);
          // set parameters for buffer creation
-         pQueue->writeProvCni = isMerged ? 0x00ff : AI_GET_CNI(pAi);
+         pQueue->writeProvCni = EpgDbContextGetCni(dbc);
          pQueue->writeMode    = PI_TSC_MODE_INITIAL;
 
          now      = time(NULL);

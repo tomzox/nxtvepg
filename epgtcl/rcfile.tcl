@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: rcfile.tcl,v 1.23.1.2 2005/08/14 12:11:00 tom Exp $
+#  $Id: rcfile.tcl,v 1.23.1.1 2005/03/30 17:53:05 tom Exp $
 #
 set myrcfile ""
 set is_daemon 0

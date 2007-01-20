@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: changelog.html,v 1.64 2005/08/14 18:16:33 tom Exp $ -->
+<!-- $Id: changelog.html,v 1.66 2007/01/28 13:19:58 tom Exp $ -->
 <HEAD>
 <TITLE>Nextview EPG Decoder Change Log</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -34,11 +34,6 @@
 
 <H2 class="navhead">News</H2>
 <P>
-Aug/14/2005: <A HREF="index.html#new_2_7_6">Release 2.7.6</A>
-</P><P>
-Apr/8/2005: <A HREF="changelog.html#release_2_7_5">Release 2.7.5</A>
-</P><P>
-Dec/27/2004: <A HREF="changelog.html#release_2_7_4">Release 2.7.4</A>
 </P>
 
 <H2 class="navhead">Documentation</H2>
@@ -82,6 +77,37 @@ of the <A HREF="http://nxtvepg.sourceforge.net/">nxtvepg</A>
 nexTView EPG decoder software.
 For details on work in progress please refer to
 <A HREF="http://sourceforge.net/mailarchive/forum.php?forum_id=14102">mailing list archives</A>.
+</P>
+
+
+<H2><A NAME="release_2_7_7">From 2.7.6 to 2.7.7 (Jan/21/2007)</A></H2>
+<UL>
+<LI>Implemented new algorithm in EPG stream decoder to improve performance
+  under bad reception conditions (i.e. with high data loss rates)
+<LI>UNIX: bugfix in TV app detection -&gt; fixes interaction with "tvtime"
+<LI>WIN32: update of TV card drivers (import of latest DScaler version):
+  SAA7134 and CX2388x card config is now read from INI files; added
+  support for TV cards with TDA8275/8290 tuner; driver-adaption for
+  64-bit platforms
+<LI>Minor bugfix in display of user-defined separators in programme
+  list's context menu
+<LI>Minor bugfix in reminder message popup windows: font for programme
+  title can now be changed with "pi_font" in the resource file (i.e.
+  file Nxtvepg.ad or via X11 resources on UNIX)
+<LI>Linux: Work-around for bttv driver bug in kernel 2.6.16 (fixed in
+  2.6.18)
+  <BR><SPAN class="anno">Thanks to all the people in the nxtvepg forum who helped
+  debugging this and esp. to Lars for providing the first work-around.</SPAN>
+<LI>Linux: improved portability of timezone offset calculation
+<LI>Excluded deceased providers "RTL2" (Germany) and "VT" (Belgium) from
+  documentation and the EPG scan's list of pre-defined providers.
+<LI>Many fixes and improvements in the German documentation
+  <BR><SPAN class="anno">Thanks again to Kurt Lettmaier.</SPAN>
+</UL>
+<P>
+<SPAN class="anno">
+Thanks again to Néo for once more providing the installer for the Windows version.
+</SPAN>
 </P>
 
 

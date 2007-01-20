@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_netname.tcl,v 1.4 2003/03/31 19:15:21 tom Exp tom $
+#  $Id: dlg_netname.tcl,v 1.6 2006/01/29 14:51:28 tom Exp $
 #
 set netname_popup 0
 
@@ -44,7 +44,7 @@ proc ApplyUserNetnameCfg {name_arr} {
 ##  Configure individual names for networks
 ##
 proc NetworkNamingPopup {} {
-   global cfnetnames prov_selection cfnetwops
+   global cfnetnames cfnetwops
    global netname_ailist netname_names netname_idx netname_xawtv netname_automatch
    global netname_prov_cnis netname_prov_names netname_provnets
    global netname_entry
@@ -116,7 +116,7 @@ proc NetworkNamingPopup {} {
       set xawtv_list [C_Tvapp_GetStationNames]
       foreach name $xawtv_list {
          set netname_xawtv($name) $name
-         regsub -all -- {[^a-zA-Z0-9]*} $name {} tmp
+         regsub -all -- {[\0-\/\:-\?\[\\\]\^\_\{\|\}\~]*} $name {} tmp
          set netname_xawtv([string tolower $tmp]) $name
       }
 
@@ -132,8 +132,9 @@ proc NetworkNamingPopup {} {
             lappend netname_automatch $cni
             foreach prov $netname_prov_cnis {
                if [info exists netname_provnets($prov,$cni)] {
-                  # remove all non-alphanumeric characters from the name and make it lower case
-                  regsub -all -- {[^a-zA-Z0-9]*} $netname_provnets($prov,$cni) {} name
+                  # remove non-alphanumeric ASCII characters from the name
+                  regsub -all -- {[\0-\/\:-\?\[\\\]\^\_\{\|\}\~]*} $netname_provnets($prov,$cni) {} name
+                  # make it lower-case
                   set name [string tolower $name]
                   if [info exists netname_xawtv($netname_provnets($prov,$cni))] {
                      incr xawtv_auto_match
@@ -324,7 +325,7 @@ proc NetworkNameEdited {trname trops trcmd} {
       if {$netname_idx != -1} {
          set cni [lindex $netname_ailist $netname_idx]
 
-         regsub -all -- {[^a-zA-Z0-9]*} $netname_entry {} name
+         regsub -all -- {[\0-\/\:-\?\[\\\]\^\_\{\|\}\~]*} $netname_entry {} name
          set name [string tolower $name]
 
          if {[info exists netname_xawtv($netname_entry)]} {

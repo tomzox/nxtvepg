@@ -18,13 +18,14 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgqueue.c,v 1.7 2002/02/16 11:18:42 tom Exp tom $
+ *  $Id: epgqueue.c,v 1.9 2006/11/25 20:43:37 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
 #define DEBUG_EPGQUEUE_CONSISTANCY  OFF
 #define DPRINTF_OFF
 
+#include <stdlib.h>
 #include <time.h>
 #include <string.h>
 #include <math.h>
@@ -89,7 +90,7 @@ void EpgDbQueue_Add( EPGDB_QUEUE * pQueue, EPGDB_BLOCK * pBlock )
       assert(EpgDbQueue_CheckConsistancy(pQueue));
    }
    else
-      debug0("EpgDbQueue-Add: called with NULL ptr");
+      fatal0("EpgDbQueue-Add: called with NULL ptr");
 }
 
 // ----------------------------------------------------------------------------
@@ -120,7 +121,7 @@ EPGDB_BLOCK * EpgDbQueue_Get( EPGDB_QUEUE * pQueue )
       assert(EpgDbQueue_CheckConsistancy(pQueue));
    }
    else
-      debug0("EpgDbQueue-Get: called with NULL ptr");
+      fatal0("EpgDbQueue-Get: called with NULL ptr");
 
    return pBlock;
 }
@@ -161,7 +162,7 @@ EPGDB_BLOCK * EpgDbQueue_GetByType( EPGDB_QUEUE * pQueue, BLOCK_TYPE type )
       assert(EpgDbQueue_CheckConsistancy(pQueue));
    }
    else
-      debug0("EpgDbQueue-GetByType: called with NULL ptr");
+      fatal0("EpgDbQueue-GetByType: called with NULL ptr");
 
    return NULL;
 }
@@ -191,7 +192,7 @@ void EpgDbQueue_Clear( EPGDB_QUEUE * pQueue )
       assert(EpgDbQueue_CheckConsistancy(pQueue));
    }
    else
-      debug0("EpgDbQueue-Clear: called with NULL ptr");
+      fatal0("EpgDbQueue-Clear: called with NULL ptr");
 }
 
 // ----------------------------------------------------------------------------
@@ -209,7 +210,7 @@ void EpgDbQueue_Init( EPGDB_QUEUE * pQueue )
       assert(EpgDbQueue_CheckConsistancy(pQueue));
    }
    else
-      debug0("EpgDbQueue-Create: called with NULL ptr");
+      fatal0("EpgDbQueue-Create: called with NULL ptr");
 }
 
 // ----------------------------------------------------------------------------
@@ -227,7 +228,7 @@ uint EpgDbQueue_GetBlockCount( EPGDB_QUEUE * pQueue )
       dprintf1("EpgDbQueue-GeBlockCount: %s\n", (result ? "yes" : "no"));
    }
    else
-      debug0("EpgDbQueue-GeBlockCount: called with NULL ptr");
+      fatal0("EpgDbQueue-GeBlockCount: called with NULL ptr");
 
    return count;
 }
@@ -248,7 +249,7 @@ const EPGDB_BLOCK * EpgDbQueue_Peek( EPGDB_QUEUE * pQueue )
       assert(EpgDbQueue_CheckConsistancy(pQueue));
    }
    else
-      debug0("EpgDbQueue-Get: called with NULL ptr");
+      fatal0("EpgDbQueue-Get: called with NULL ptr");
 
    return pBlock;
 }

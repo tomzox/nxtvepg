@@ -20,12 +20,13 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgblock.c,v 1.54 2005/05/29 16:15:10 tom Exp tom $
+ *  $Id: epgblock.c,v 1.54.1.1 2006/12/21 22:24:05 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
 #define DPRINTF_OFF
 
+#include <stdlib.h>
 #include <time.h>
 #include <string.h>
 
@@ -174,14 +175,9 @@ void EpgLtoInit( void )
    unixTimeBase1982 = mktime(&tm);
 
    // undo the local->UTC conversion that mktime unwantedly always does
-   #if !defined(__NetBSD__) && !defined(__FreeBSD__)
-   pTm = localtime(&unixTimeBase1982);
-   unixTimeBase1982 += 60*60 * pTm->tm_isdst - timezone;
-   #else  // BSD
    pTm = gmtime(&unixTimeBase1982);
    pTm->tm_isdst = -1;
    unixTimeBase1982 += (unixTimeBase1982 - mktime(pTm));
-   #endif
 }
 
 // ----------------------------------------------------------------------------
@@ -1920,6 +1916,11 @@ EPGDB_BLOCK * EpgBlockConvertTi(const uchar *pCtrl, uint ctrlLen, uint strLen)
                buf[0] = (psd[3] >> 6) | ((psd[4] & 0x3f) << 2);
                buf[1] = (psd[4] >> 6) | ((psd[5] & 0x3f) << 2);
                buf[2] = (psd[5] >> 6) | ((psd[6] & 0x3f) << 2);
+               break;
+
+            default:  // cannot be reached - dummy to avoid compiler warning
+               SHOULD_NOT_BE_REACHED;
+               buf[0] = buf[1] = buf[2] = 0;
                break;
          }
          // decode TTX page reference according to ETS 300 707 chap. 11.3.2

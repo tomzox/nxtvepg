@@ -5,6 +5,30 @@ features).  For patchlevel releases also internal changes might be listed in
 case they may fix bugs (or cause new ones)
 
 
+from 2.7.6 to 2.7.7 (2007-01-21)
+
+- Implemented new algorithm in EPG stream decoder to improve performance
+  under bad reception conditions (i.e. with high data loss rates)
+- UNIX: bugfix in TV app detection -> fixes interaction with "tvtime"
+- WIN32: update of TV card drivers (import of latest DScaler version):
+  SAA7134 and CX2388x card config is now read from INI files; added
+  support for TV cards with TDA8275/8290 tuner; driver-adaption for
+  64-bit platforms
+- Minor bugfix in display of user-defined separators in programme
+  list's context menu
+- Minor bugfix in reminder message popup windows: font for programme
+  title can now be changed with "pi_font" in the resource file (i.e.
+  file Nxtvepg.ad or via X11 resources on UNIX)
+- Linux: Work-around for bttv driver bug in kernel 2.6.16 (fixed in
+  2.6.18)  Thanks to all the people in the nxtvepg forum who helped
+  debugging this and esp. to Lars for providing the first work-around.
+- Linux: improved portability of timezone offset calculation
+- Excluded deceased providers "RTL2" (Germany) and "VT" (Belgium) from
+  documentation and the EPG scan's list of pre-defined providers.
+- Many fixes and improvements in the German documentation; Thanks
+  again to Kurt Lettmaier
+
+
 from 2.7.5 to 2.7.6 (2005-Aug-14)
 
 - Added German translation of the manual and help pages.

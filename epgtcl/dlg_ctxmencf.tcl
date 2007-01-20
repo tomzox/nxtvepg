@@ -19,7 +19,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_ctxmencf.tcl,v 1.10 2005/03/06 20:25:22 tom Exp tom $
+#  $Id: dlg_ctxmencf.tcl,v 1.11 2006/09/10 11:50:56 tom Exp $
 #
 set ctxmencf_popup 0
 set ctxmencf [list {pi_context.addfilt {} {}} \
@@ -57,6 +57,7 @@ proc PopupDynamicContextMenu {w unused} {
          }
          menu_title {
             $w add command -label [lindex $elem $::ctxcf_title_idx] -state disabled
+            incr entry_count
          }
          pi_context.addfilt {
             incr entry_count [C_PiFilter_ContextMenuAddFilter $w]
@@ -74,12 +75,14 @@ proc PopupDynamicContextMenu {w unused} {
             if {!$is_unix && [C_Tvapp_IsConnected]} {
                $w add command -label [lindex $elem $::ctxcf_title_idx] \
                               -command [list C_ExecUserCmd $type [lindex $elem $::ctxcf_cmd_idx]]
+               incr entry_count
             }
          }
          exec.win32 {
             if {!$is_unix} {
                $w add command -label [lindex $elem $::ctxcf_title_idx] \
                               -command [list C_ExecUserCmd $type [lindex $elem $::ctxcf_cmd_idx]]
+               incr entry_count
             }
          }
          tvapp.xawtv -
@@ -87,6 +90,7 @@ proc PopupDynamicContextMenu {w unused} {
             if $is_unix {
                $w add command -label [lindex $elem $::ctxcf_title_idx] \
                               -command [list C_ExecUserCmd $type [lindex $elem $::ctxcf_cmd_idx]]
+               incr entry_count
             }
          }
       }

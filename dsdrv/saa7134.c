@@ -21,11 +21,11 @@
  *  Authors:
  *      Copyright (c) 2002 Atsushi Nakagawa.  All rights reserved.
  *
- *  DScaler #Id: SAA7134Card.cpp,v 1.43 2004/04/24 11:12:01 atnak Exp #
- *  DScaler #Id: SAA7134Source.cpp,v 1.91 2004/08/06 16:23:00 atnak Exp #
+ *  DScaler #Id: SAA7134Card.cpp,v 1.46 2005/03/24 17:57:58 adcockj Exp #
+ *  DScaler #Id: SAA7134Source.cpp,v 1.100 2006/09/24 14:14:44 robmuller Exp #
  *  DScaler #Id: SAA7134Provider.cpp,v 1.10 2002/12/24 08:22:14 atnak Exp #
  *
- *  $Id: saa7134.c,v 1.22 2004/12/26 21:46:45 tom Exp tom $
+ *  $Id: saa7134.c,v 1.24 2006/12/21 20:19:34 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -164,7 +164,7 @@ static void SAA7134_DumpRegisters( void )
 // Save/reload card state into/from file
 // - save or restore everything that might be used by the "real" drivers
 //
-static void SAA7134_ManageMyState( void )
+static void SAA7134_ManageMyState( TVCARD * pTvCard )
 {
     int i;
 
@@ -294,6 +294,14 @@ static void SAA7134_ManageMyState( void )
 
     ManageByte(SAA7134_I2S_AUDIO_OUTPUT);
     ManageByte(SAA7134_SPECIAL_MODE);
+
+#if 0
+    if ( (pTvCard->params.DeviceId == 0x7133) ||
+         (pTvCard->params.DeviceId == 0x7135) )
+    {
+        ManageDword(SAA7133_ANALOG_IO_SELECT);
+    }
+#endif
 
     // do these ones last
     #if 0  // It is probably safer if we leave DMA and IRQ stuff zeroed when we're done.
@@ -1022,7 +1030,7 @@ static bool SAA7134_Configure( uint threadPrio, uint pllType )
    if (vbiThreadHandle != NULL)
    {
       if (SetThreadPriority(vbiThreadHandle, threadPrio) == 0)
-         debug2("Cx2388x-Configure: SetThreadPriority(%d) returned %ld", threadPrio, GetLastError());
+         debug2("SAA7134-Configure: SetThreadPriority(%d) returned %ld", threadPrio, GetLastError());
    }
    return TRUE;
 }
@@ -1046,6 +1054,8 @@ static bool SAA7134_Open( TVCARD * pTvCard, bool wdmStop )
    CapCtl = ReadByte(SAA7134_REGION_ENABLE);
    if (DmaCtl && CapCtl)
    {
+      debug2("SAA7134-Open: capturing already enabled (Region=0x%x, DMA=0x%lx)", CapCtl, DmaCtl);
+
       MessageBox(NULL, "Capturing is already enabled in the TV card!\n"
                        "Probably another video application is running,\n"
                        "however nxtvepg requires exclusive access.\n"
@@ -1063,7 +1073,7 @@ static bool SAA7134_Open( TVCARD * pTvCard, bool wdmStop )
       {
          // Save state of PCI registers
          HwPci_InitStateBuf();
-         SAA7134_ManageMyState();
+         SAA7134_ManageMyState(pTvCard);
 
          // Initialize PCI registers
          ResetHardware();
@@ -1086,6 +1096,9 @@ static void SAA7134_Close( TVCARD * pTvCard )
    // skip reset if conflict was detected earlier to avoid crashing the other app
    if (CardConflictDetected == FALSE)
    {
+      // reset GPIO ports (mute audio)
+      pTvCard->cfg->SetVideoSource(pTvCard, -1);
+
       // reset PCI registers
       WriteByte(SAA7134_REGION_ENABLE, 0x00);
       WriteDword(SAA7134_IRQ1, 0UL);
@@ -1106,7 +1119,7 @@ static void SAA7134_Close( TVCARD * pTvCard )
 
       // reset PCI registers to original state
       HwPci_RestoreState();
-      SAA7134_ManageMyState();
+      SAA7134_ManageMyState(pTvCard);
    }
 
    SAA7134_FreeDmaMemory();

@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="fr">
-<!-- $Id: index-fr.html,v 1.17 2005/12/11 08:34:22 tom Exp $ -->
+<!-- $Id: index-fr.html,v 1.23 2007/01/28 13:19:58 tom Exp $ -->
 <!-- Translated by Néo (hotmail's neojudgment, 2004-03-15) -->
 <HEAD>
 <TITLE>nexTView EPG Decoder Software Download Page</TITLE>
@@ -16,7 +16,6 @@
 <LINK rel="alternate" type="text/html" href="index.html" hreflang="en" lang="en" title="nexTView Decoder Download Page">
 <LINK rel="alternate" type="text/html" href="index-de.html" hreflang="de" lang="en" title="nexTView Decoder Download">
 <LINK rel="shortcut icon" type="image/x-icon" href="nxtvepg.ico">
-<LINK rel="top" href="http://nxtvepg.sourceforge.net/" title="nexTView EPG Decoder Homepage">
 </HEAD>
 <BODY>
 
@@ -30,11 +29,6 @@
 
 <H2 class="navhead">News</H2>
 <P>
-14.8.2005: <A HREF="index-fr.html#new_2_7_6">Release 2.7.6</A>
-</P><P>
-8.4.2005: <A HREF="changelog.html#release_2_7_5">Release 2.7.5</A>
-</P><P>
-27.12.2004: <A HREF="changelog.html#release_2_7_4">Release 2.7.4</A>
 </P>
 
 <H2 class="navhead">Documentation</H2>
@@ -72,7 +66,7 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 <DIV class="mainBlock">
 
 <SPAN CLASS="center">
-<IMG ALT="" SRC="nxtv_logo.gif" WIDTH=66 HEIGHT=66>
+<IMG ALT="" SRC="nxtv_logo.png" WIDTH=66 HEIGHT=66>
 </SPAN>
 <H1><SPAN CLASS="center">nexTView
 <BR>Logiciel de Décodage EPG</SPAN></H1>
@@ -97,44 +91,56 @@ par l'intermédiaire d'une carte de TV analogique, sans accès à Internet.
 <LI><a href="download.html">Téléchargement du programme</a>
 <LI><a href="download.html#requirements">Pré requis</a>
 <P></P>
-<LI><A href="index-fr.html#new_2_7_6">A propos de la version 2.7.6</A>
+<LI><A href="index-fr.html#new_2_7_7">A propos de la version 2.7.7</A>
 <LI><A href="index-fr.html#feedback">Questions et feedback</A>
-<LI><a href="index-fr.html#help_wanted">Recherche aide</a>
 <LI><A href="index-fr.html#copyright">Notification de copyright</A>
 </UL>
 
 
-<H2><A NAME="new_2_7_6">Version 2.7.6 (14.8.2005)</A></H2>
+<H2><SPAN CLASS="red"><A NAME="new_2_7_7">Version 2.7.7 (21.1.2007)</A></SPAN></H2>
 <P>
-Les nouveautés majeures de la version 2.7.6 est la traduction complète
-en Allemand du manuel et de l'aide. Quelques erreurs qui avaient été
-signalée dans la version précédente ont été également corrigées.
+La version 2.7.7 est une fois de plus principalement un entretien avec
+la plupart du temps des corrections de bugs et comportent également des
+perfectionnements:
 </P>
 <UL>
-<LI>Ajout de la traduction complète en Allemand du manuel et de l'aide.
-  <BR><SPAN class="anno">(Un grand merci à Olaf Noehring et Kurt Lettmaier
-  pour leur contribution à la traduction du manuel.)</SPAN>
-<LI>Une erreur importante, laquelle affectait l'effacement séquentiel
-  de multiples aide-mémoires "reminder" a été corrigée.
-  Cette erreur pouvait rendre nxtvepg instable.
-  &nbsp;&nbsp;<SPAN class="anno">(Merci encore à Kurt pour avoir
-  rapporté cette erreur.)</SPAN>
-<LI>XMLTV a été légèrement modifié afin de devenir entièrement conforme
-  avec le XMLTV DTD 0.6.
-<LI>Les erreurs de diagnostique durant la recherche des fournisseurs
-  ont été améliorées afin d'éviter des erreurs sans en afficher la cause.
-  &nbsp;&nbsp;<SPAN class="anno">(Merci à Andreas pour avoir rapporté ce
-  problème.)</SPAN>
-<LI>En dernier mais non des moindres, la version finale pour Windows
-  est maintenant fournie sous la forme d'un installeur en lieu et place
-  d'une archive ZIP.
-  &nbsp;&nbsp;<SPAN class="anno">(Merci à Néo pour la suggestion et sa
-  mise en application.)</SPAN>
+<LI>Implémentation d'un nouvel algorithme dans le décodeur de flux EPG
+pour en améliorer les performances lors de mauvaises conditions de réception
+(c.-à-d. avec un taux élevé de perte de données).
+<LI>Unix: Correction d'un bug lors de la détection des applications TV:
+Correction de l'<A HREF="man.html#tv_application_interaction">interaction</A>
+avec <A HREF="http://tvtime.sourceforge.net/">tvtime</A>
+<LI>WIN32: Mise à jour des pilotes pour les cartes TV (importation de la
+dernière version de <A HREF="http://www.dscaler.org/">DScaler</A>):
+La configuration des cartes SAA7134 et CX2388x est maintenant lue à partir
+des fichiers INI; ajout du support des cartes TV avec tuner TDA8275/8290;
+adaptation des drivers pour les plateformes 64-bit.
+<LI>Correction mineure dans l'affichage des séparateurs définis par
+l'utilisateur dans le menu contextuel pour la liste des programmes.
+<LI>Correction mineure dans les fenêtres popup lors d'un message de rappel;
+la police de caractère pour le titre du programme peut maintenant être modifiée
+à partir de "pi_font" dans le fichier de ressources (c.-à-d. le fichier
+Nxtvepg.ad ou via X11 sous UNIX).
+<LI>Linux: Correction du bug du driver de bttv dans le
+<A HREF="http://kernel.org/">kernel</A> 2.6.16 (corrigé dans la 2.6.18).
+<SPAN class="anno">Merci à toutes les personnes du forum nxtvepg qui ont aidé à corriger ceci
+et spécialement à Lars pour avoir fourni en premier la correction.</SPAN>
+<LI>Linux: Portabilité améliorée du calcul des fuseaux horaires.
+<LI>Les fournisseurs EPG ne fonctionnant plus: "RTL2" (Allemagne) et "VT4"
+(Belgique) sont exclus de la documentation et de la liste du scan EPG des
+fournisseurs prédéfinis.
+<LI>Beaucoup de corrections et d'améliorations dans la
+<A HREF="man-de.html">documentation allemande</A>
+<SPAN class="anno">(Merci encore à Kurt Lettmaier. )</SPAN>
 </UL>
 <P>
-Regardez aussi la liste détaillée des
+Fetch this new release from the <A HREF="download.html">download section</A>.
+<BR>Regardez aussi la liste détaillée des
 <A HREF="changelog.html">modifications majeures</A>.
-There's also a <A HREF="pre-releases.html">new development line</A> with new features.
+<BR><SPAN class="anno">Merci encore à Néo de fournir l'installateur pour la version de Windows.</SPAN>
+</P><P>
+Note new development is currently proceeding on a separate development
+line. See the <A HREF="pre-releases.html">pre-release page</A>.
 </P>
 
 
@@ -166,16 +172,9 @@ et le <A href="http://sourceforge.net/forum/forum.php?forum_id=217872">forum</A>
 si la même question n'a pas été posée récemment.
 </P>
 
-<H2><A NAME="help_wanted">Recherche aide</A></H2>
-<P>
-Si vous êtes un développeur de logiciel et que vous aimez nxtvepg et que vous 
-voulez le rendre bien plus utile et plus pratique ou si vous cherchez un projet
-freeware pour travailler dessus, svp apportez votre contribution à nxtvepg.
-</P>
-
 <H2><A NAME="copyright">Copyright</A></H2>
 <P>
-&copy; Copyright 1999 - 2004 par T. Zoerner (et autres).
+&copy; Copyright 1999 - 2007 par T. Zoerner (et autres).
 Tous droits réservés.
 </P><P>
 L'auteur du logiciel de ce site n'est pas un membre de
@@ -200,23 +199,6 @@ permission au préalable.
 </DIV>
 <DIV class="footer">
 <P>Thanks to Néo for the French translation.</P>
-
-<!-- Begin Nedstat Basic code -->
-<!-- Title: nexTView EPG Decoder Software -->
-<!-- URL: http://nxtvepg.tripod.com/ -->
-<script language="JavaScript" src="http://m1.nedstatbasic.net/basic.js">
-</script>
-<script language="JavaScript">
-<!--
-nedstatbasic("ABLmbAYCeAjHJw8oZuzU34ENTm6Q", 0);
-// -->
-</script>
-<noscript>
-<a target="_blank" href="http://v1.nedstatbasic.net/stats?ABLmbAYCeAjHJw8oZuzU34ENTm6Q"><img
-src="http://m1.nedstatbasic.net/n?id=ABLmbAYCeAjHJw8oZuzU34ENTm6Q"
-border="0" nosave width="18" height="18" ALT=""></a>
-</noscript>
-<!-- End Nedstat Basic code -->
 
 </DIV>
 </BODY>

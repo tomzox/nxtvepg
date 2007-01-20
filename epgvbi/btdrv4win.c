@@ -40,7 +40,7 @@
  *      Tom Zoerner
  *
  *
- *  $Id: btdrv4win.c,v 1.50 2004/12/27 14:10:04 tom Exp $
+ *  $Id: btdrv4win.c,v 1.50.1.1 2006/12/21 22:13:47 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -199,6 +199,23 @@ static bool BtDriver_GetCardInterface( TVCARD * pTvCard, DWORD VendorId, uint ca
 }
 
 // ---------------------------------------------------------------------------
+// Free resources allocated in card drivers
+//
+static void BtDriver_PciCardsRelease( void )
+{
+   TVCARD tmpCardIf;
+
+   Bt8x8_GetInterface(&tmpCardIf);
+   tmpCardIf.cfg->FreeCardList();
+
+   SAA7134_GetInterface(&tmpCardIf);
+   tmpCardIf.cfg->FreeCardList();
+
+   Cx2388x_GetInterface(&tmpCardIf);
+   tmpCardIf.cfg->FreeCardList();
+}
+
+// ---------------------------------------------------------------------------
 // Select the video input source
 // - which input is tuner and which composite etc. is completely up to the
 //   card manufacturer, but it seems that almost all use the 2,3,1,1 muxing
@@ -295,7 +312,7 @@ bool BtDriver_QueryCardParams( uint cardIdx, sint * pCardType, sint * pTunerType
                shmSlaveMode = (WintvSharedMem_ReqTvCardIdx(cardIdx) == FALSE);
                if (shmSlaveMode == FALSE)
                {
-                  loadError = LoadDriver();
+                  loadError = DsDrvLoad();
                   if (loadError == HWDRV_LOAD_SUCCESS)
                   {
                      // scan the PCI bus for known cards
@@ -303,11 +320,11 @@ bool BtDriver_QueryCardParams( uint cardIdx, sint * pCardType, sint * pTunerType
 
                      drvLoaded = BtDriver_OpenCard(cardIdx);
                      if (drvLoaded == FALSE)
-                        UnloadDriver();
+                        DsDrvUnload();
                   }
                   else
                   {
-                     MessageBox(NULL, GetDriverErrorMsg(loadError), "Nextview EPG driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+                     MessageBox(NULL, DsDrvGetErrorMsg(loadError), "Nextview EPG driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
                   }
                }
             }
@@ -333,7 +350,7 @@ bool BtDriver_QueryCardParams( uint cardIdx, sint * pCardType, sint * pTunerType
 
                if (drvWasLoaded == FALSE)
                {
-                  UnloadDriver();
+                  DsDrvUnload();
                   drvLoaded = FALSE;
                }
             }
@@ -399,16 +416,16 @@ bool BtDriver_EnumCards( uint cardIdx, uint cardType, uint * pChipType, const ch
          shmSlaveMode = (WintvSharedMem_ReqTvCardIdx(cardIdx) == FALSE);
          if (shmSlaveMode == FALSE)
          {
-            loadError = LoadDriver();
+            loadError = DsDrvLoad();
             if (loadError == HWDRV_LOAD_SUCCESS)
             {
                // scan the PCI bus for known cards, but don't open any
                BtDriver_CountCards();
-               UnloadDriver();
+               DsDrvUnload();
             }
             else if (showDrvErr)
             {
-               MessageBox(NULL, GetDriverErrorMsg(loadError), "Nextview EPG driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+               MessageBox(NULL, DsDrvGetErrorMsg(loadError), "Nextview EPG driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
             }
 
          }
@@ -583,10 +600,14 @@ static BOOL BtDriver_OpenCard( uint cardIdx )
    }
    else
    {
-      if (cardIdx > 0)
-         sprintf(msgbuf, "Capture card #%d not found! (Found %d cards on PCI bus)", cardIdx, btCardCount);
+      if (cardIdx == 0)
+         sprintf(msgbuf, "Cannot start EPG data acquisition because\n"
+                         "no supported TV capture PCI cards have been found.");
       else
-         sprintf(msgbuf, "No supported capture cards found on PCI bus!");
+         sprintf(msgbuf, "Cannot start EPG data acquisition because\n"
+                         "TV card #%d was not found on the PCI bus\n"
+                         "(found %d supported TV capture cards)",
+                         cardIdx, btCardCount);
       MessageBox(NULL, msgbuf, "Nextview EPG driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
    }
 
@@ -602,7 +623,7 @@ static void BtDriver_Unload( void )
    if (drvLoaded)
    {
       cardif.ctl->Close(&cardif);
-      UnloadDriver();
+      DsDrvUnload();
 
       drvLoaded = FALSE;
    }
@@ -620,7 +641,7 @@ static bool BtDriver_Load( void )
 
    assert(shmSlaveMode == FALSE);
 
-   loadError = LoadDriver();
+   loadError = DsDrvLoad();
    if (loadError == HWDRV_LOAD_SUCCESS)
    {
       BtDriver_CountCards();
@@ -657,17 +678,17 @@ static bool BtDriver_Load( void )
          }
          else
          {  // card init failed -> unload driver (do not call card close function)
-            UnloadDriver();
+            DsDrvUnload();
          }
       }
       else
       {  // else: user message already generated by open function
-         UnloadDriver();
+         DsDrvUnload();
       }
    }
    else
    {  // failed to load the driver
-      MessageBox(NULL, GetDriverErrorMsg(loadError), "Nextview EPG driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+      MessageBox(NULL, DsDrvGetErrorMsg(loadError), "Nextview EPG driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
       result = FALSE;
    }
 
@@ -1042,7 +1063,7 @@ bool BtDriver_StartAcq( void )
                   result = FALSE;
 
                if (result == FALSE)
-                  UnloadDriver();
+                  DsDrvUnload();
 #else
                result = TRUE;
 #endif
@@ -1157,5 +1178,7 @@ void BtDriver_Exit( void )
    {  // acq is still running - should never happen
       BtDriver_StopAcq();
    }
+   // release dynamically loaded TV card lists
+   BtDriver_PciCardsRelease();
 }
 

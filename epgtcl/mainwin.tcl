@@ -20,7 +20,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: mainwin.tcl,v 1.244.1.2 2005/08/14 12:23:55 tom Exp $
+#  $Id: mainwin.tcl,v 1.244.1.3 2006/12/21 22:34:29 tom Exp $
 #
 # import constants from other modules
 #=INCLUDE= "epgtcl/shortcuts.h"
@@ -3196,9 +3196,14 @@ proc TuneTvPopupMenu {state xcoo ycoo} {
 ##  - only useful for small fields where the old content is frequently discarded
 ##
 proc SelectTextOnFocus {wid} {
+   # check if the widget already has the focus
    if {[string compare [focus -displayof $wid] $wid] != 0} {
-      $wid selection range 0 end
-      focus $wid
+      # check if the widget is disabled or read-only
+      if {([catch [list $wid cget -state] state] != 0) || \
+          ($state eq "normal")} {
+         $wid selection range 0 end
+         focus $wid
+      }
    }
 }
 

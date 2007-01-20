@@ -23,12 +23,13 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbfil.c,v 1.48 2004/12/24 11:00:29 tom Exp tom $
+ *  $Id: epgdbfil.c,v 1.49 2006/11/25 20:43:49 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
 #define DPRINTF_OFF
 
+#include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 #include <time.h>

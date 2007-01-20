@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: cni_tables.c,v 1.28 2005/03/06 19:54:12 tom Exp tom $
+ *  $Id: cni_tables.c,v 1.31 2006/12/18 16:14:50 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -57,6 +57,10 @@ static const CNI_PDC_DESC cni_pdc_desc_table[] =
    {0x1AC1, 0x4301, "ORF-1"},
    {0x1AC2, 0x4302, "ORF-2"},
    {0x1AC3, 0x0000, "ORF - FS 3"},
+   {0x1AC7, 0x0000, "TW 1"},
+   {0x1AC8, 0x0000, "Nick - Viva"},
+   {0x1AC9, 0x0000, "MTV Austria"},
+   {0x1ACA, 0x0000, "ATV+"},
    {0x1ACB, 0x0000, "ORF- FS 2: Lokalprogramm Burgenland"},
    {0x1ACC, 0x0000, "ORF- FS 2: Lokalprogramm Kärnten"},
    {0x1ACD, 0x0000, "ORF- FS 2: Lokalprogramm Niederösterreich"},
@@ -72,19 +76,54 @@ static const CNI_PDC_DESC cni_pdc_desc_table[] =
    {0x1600, 0x3203, "RTBF 1"},
    {0x1600, 0x3204, "RTBF 2"},
    {0x1605, 0x3205, "VTM"},
-   {0x1606, 0x3206, "Kanaal2"},
+   {0x1606, 0x3206, "Kanaal 2"},
    {0x1600, 0x3207, "RTBF Sat"},
    {0x1600, 0x3209, "RTL-TVI"},
    {0x1600, 0x320A, "CLUB-RTL"},
    {0x1600, 0x320C, "AB3"},
+   {0x1600, 0x320D, "AB4e"},
+   {0x1600, 0x320E, "Ring TV"},
    {0x1600, 0x320F, "JIM.tv"},
+   {0x1600, 0x3210, "RTV-Kempen"},
+   {0x1600, 0x3211, "RTV-Mechelen"},
+   {0x1600, 0x3212, "MCM Belgium"},
+   {0x1600, 0x3213, "Vitaya"},
+   {0x1600, 0x3214, "WTV"},
+   {0x1600, 0x3215, "FocusTV"},
+   {0x1600, 0x3216, "Be 1 ana"},
+   {0x1600, 0x3217, "Be 1 num"},
+   {0x1600, 0x3218, "Be Ciné 1"},
+   {0x1600, 0x3219, "Be Sport 1"},
+   {0x1600, 0x321A, "PRIME Sport 1"},
+   {0x1600, 0x321B, "PRIME SPORT 2"},
+   {0x1600, 0x321C, "PRIME Action"},
+   {0x1600, 0x321D, "PRIME One"},
+   {0x1600, 0x321E, "TV Brussel"},
+   {0x1600, 0x321F, "AVSe"},
+   {0x1600, 0x3221, "TV Limburg"},
+   {0x1600, 0x3222, "Kanaal 3"},
+   {0x1600, 0x3223, "ATV"},
+   {0x1600, 0x3224, "ROB TV"},
+   {0x1600, 0x3225, "PLUG TV"},
+   {0x1600, 0x32A7, "Be 1 + 1h"},
+   {0x1600, 0x32A8, "Be Ciné 2"},
+   {0x1600, 0x32A9, "Be Sport 2"},
    {0x1604, 0x0404, "VT4"},
    // Croatia
    {0x4600, 0x0385, "HRT"},
+   {0x4600, 0x0386, "NovaTV"},
+   {0x4600, 0x0400, "RTL Televizija"},
    // Czech Republic
    {0x32C1, 0x4201, "CT 1"},
    {0x32C2, 0x4202, "CT 2"},
    {0x32C3, 0x4203, "NOVA TV"},
+   {0x32C4, 0x4204, "Prima TV"},
+   {0x3200, 0x4205, "TV Praha"},
+   {0x3200, 0x4206, "TV HK"},
+   {0x3200, 0x4207, "TV Pardubice"},
+   {0x3200, 0x4208, "TV Brno"},
+   {0x32CA, 0x420A, "CT24"},
+   {0x32CB, 0x420B, "CT4 SPORT"},
    {0x32D1, 0x4211, "CT1 Regional, Brno"},
    {0x32D2, 0x4212, "CT2 Regional, Brno"},
    {0x32E1, 0x4221, "CT1 Regional, Ostravia"},
@@ -97,6 +136,10 @@ static const CNI_PDC_DESC cni_pdc_desc_table[] =
    {0x2903, 0x49CF, "DR2"},
    {0x2904, 0x4503, "TV2 Zulu"},
    {0x2900, 0x4504, "Discovery"},
+   {0x2905, 0x4505, "TV 2 Charlie"},
+   {0x2906, 0x4506, "TV Danmark"},
+   {0x2907, 0x4507, "Kanal 5"},
+   {0x2908, 0x4508, "TV 2 Film"},
    // Finland
    {0x260F, 0x358F, "OWL3"},
    {0x2601, 0x3581, "YLE1"},
@@ -110,6 +153,8 @@ static const CNI_PDC_DESC cni_pdc_desc_table[] =
    {0x2F04, 0x33F4, "Canal+"},
    {0x2FE1, 0xFE01, "Euronews"},
    {0x2FE2, 0xF101, "Eurosport"},
+   {0x2FE3, 0xF102, "Eurosport 2"},
+   {0x2FE4, 0xF103, "Eurosport News"},
    {0x2F01, 0x33F1, "France 1 (TF1)"},
    {0x2F02, 0x33F2, "France 2"},
    {0x2F03, 0x33F3, "France 3"},
@@ -135,9 +180,15 @@ static const CNI_PDC_DESC cni_pdc_desc_table[] =
    {0x1D42, 0x4942, "MUXX"},
    {0x1D43, 0x4943, "EXTRA"},
    {0x1D44, 0x4944, "BR-Alpha: Bildungskanal des Bayerischen Rundfunks"},
+   {0x1D73, 0x0000, "MTV"},
+   {0x1D74, 0x0000, "Nick"},
+   {0x1D75, 0x0000, "KDG Info"},
+   {0x1D76, 0x0000, "Das Vierte"},
    {0x1D77, 0x49BD, "1-2-3.TV"},
+   {0x1D78, 0x49BE, "Tele-5"},
+   {0x1D79, 0x0000, "RTL Shop"},
    {0x1D7A, 0x0000, "n24"},
-   {0x1D7B, 0x49BE, "Tele-5"},
+   {0x1D7B, 0x0000, "TV.B"},
    {0x1D7C, 0x0000, "ONYX-TV"},
    {0x1D7D, 0x5C49, "QVC-Teleshopping"},
    {0x1D7E, 0x0000, "Nickelodeon"},
@@ -387,9 +438,12 @@ static const CNI_PDC_DESC cni_pdc_desc_table[] =
    {0x4804, 0x3104, "RTL 4"},
    {0x4805, 0x3105, "RTL 5"},
    {0x4806, 0x3106, "Yorin"},
+   {0x4847, 0x3147, "RTL7"},
    {0x4820, 0x3120, "The BOX"},
    {0x4800, 0x3121, "Discovery Netherlands"},
-   {0x4822, 0x3122, "Kindernet/Veronica"},
+   {0x4822, 0x3122, "Nickelodeon"},
+   {0x4800, 0x3123, "Animal Planet Benelux"},
+   {0x4800, 0x3124, "TALPA TV"},
    {0x4800, 0x3125, "NET5"},
    {0x4800, 0x3126, "SBS6"},
    {0x4800, 0x3128, "V8"},
@@ -458,6 +512,20 @@ static const CNI_PDC_DESC cni_pdc_desc_table[] =
    {0x3E00, 0x3403, "CANAL 9"},
    {0x3E00, 0x3404, "PUNT 2"},
    {0x3E00, 0x3405, "CCV"},
+   {0x3E20, 0x3420, "Telemadrid"},
+   {0x3E21, 0x3421, "La Otra"},
+   {0x3E22, 0x3422, "TM SAT"},
+   {0x3E23, 0x3423, "La sexta"},
+   {0x3E24, 0x3424, "Antena 3"},
+   {0x3E25, 0x3425, "Neox"},
+   {0x3E26, 0x3426, "Nova"},
+   {0x3E27, 0x3427, "Cuatro"},
+   {0x3E28, 0x3428, "CNN+"},
+   {0x3E29, 0x3429, "40 Latino"},
+   {0x3E2A, 0x342A, "24 Horas"},
+   {0x3E2B, 0x342B, "Clan TVE"},
+   {0x3E2C, 0x342C, "Teledeporte"},
+   {0x1FE5, 0xE500, "Tele5"},
    // Sweden
    {0x4E01, 0x4601, "SVT 1"},
    {0x4E02, 0x4602, "SVT 2"},
@@ -470,6 +538,20 @@ static const CNI_PDC_DESC cni_pdc_desc_table[] =
    {0x2486, 0x0000, "Star TV"},
    {0x2487, 0x0000, "Pro Sieben"},
    {0x2488, 0x0000, "TopTV"},
+   {0x2489, 0x0000, "Tele"},
+   {0x248A, 0x0000, "Kabel 1"},
+   {0x248B, 0x0000, "TV3"},
+   {0x248C, 0x0000, "TeleZüri 2"},
+   {0x248D, 0x0000, "Swizz Music Television"},
+   {0x248E, 0x0000, "Intro TV"},
+   {0x248F, 0x0000, "Tele Tell"},
+   {0x2490, 0x0000, "Tele Top"},
+   {0x2491, 0x0000, "TV Südostschweiz"},
+   {0x2492, 0x0000, "TV Ostshweiz"},
+   {0x2493, 0x0000, "Tele Ticino"},
+   {0x2494, 0x0000, "Schaffhauser Fernsehen"},
+   {0x2495, 0x0000, "U1 TV"},
+   {0x2496, 0x0000, "MTV Swiss"},
    {0x24C1, 0x4101, "SRG, Schweizer Fernsehen DRS, SF 1"},
    {0x24C2, 0x4102, "SSR, Télévision Suisse Romande, TSR 1"},
    {0x24C3, 0x4103, "SSR, Televisione svizzera di lingua italiana, TSI 1"},
@@ -478,6 +560,7 @@ static const CNI_PDC_DESC cni_pdc_desc_table[] =
    {0x24C9, 0x4109, "SSR, Televisione svizzera di lingua italiana, TSI 2"},
    {0x24CA, 0x410A, "SRG SSR Sat Access"},
    {0x2421, 0x4121, "U1"},
+   {0x2422, 0x4122, "TeleZüri"},
    // Turkey
    {0x4301, 0x9001, "TRT-1"},
    {0x4302, 0x9002, "TRT-2"},
@@ -596,10 +679,10 @@ static const CNI_PDC_DESC cni_pdc_desc_table[] =
    {0x2C3C, 0x4403, "WIRE TV"},
    {0x2C2D, 0xFA2C, "YORKSHIRE TV"},
    // Ukraine
-   {0x7700, 0x7700, "1+1"},
-   {0x7700, 0x7705, "M1"},
+   {0x77C0, 0x7700, "Studio 1+1"},
+   {0x77C5, 0x7705, "M1"},
    {0x7700, 0x7707, "ICTV"},
-   {0x7700, 0x7708, "Novy Kanal"},
+   {0x77C8, 0x7708, "Novy Kanal"},
    // USA
    {0x0100, 0x01fa, "CNN International"},
    {0,      0,      NULL},
@@ -642,7 +725,7 @@ static const CNI_COUNTRY_DESC cni_country_table[] =
    {0x43, 120, "Turkey"},
    {0x2C,   0, "UK"},
    {0x5B,   0, "UK"},
-// {0x00, 180, "Ukraine"},
+   {0x77, 180, "Ukraine"},
    {0x01,  60, "USA"},            // for CNN-Int only, uses CET
    {0, 0, NULL},
 };
@@ -841,6 +924,7 @@ uint CniConvertP8301ToVps( uint cni )
                   case 0x1D:
                   case 0x1A:
                   case 0x24:
+                  case 0x77:
                      cni &= 0x0FFF;
                      break;
                }
@@ -872,6 +956,8 @@ uint CniConvertPdcToVps( uint cni )
       case 0xFA:
       case 0x24:  // country code for Switzerland
       case 0xF4:
+      case 0x77:  // country code for Ukraine
+      case 0xF7:
          // discard the upper 4 bits of the country code
          cni &= 0x0fff;
          break;
@@ -904,8 +990,8 @@ uint CniConvertUnknownToPdc( uint cni )
 //
 static const uint cni_prov_table[] =
 {
-   0x0D8F,  // RTL-II (Germany)
-   0x1D8F,
+   //0x0D8F,  // RTL-II (Germany) - deceased Mar/1/2006
+   //0x1D8F,
    0x0D92,  // Kabel1 (Germany)
    0x1D92,
    //0x0D94,  // PRO7 (Germany) - deceased Apr/14/2002
@@ -925,8 +1011,8 @@ static const uint cni_prov_table[] =
    0x2F04,  // Canal+ (France)
    0x33F4,
    0x2F06,  // M6 (France)
-   0x1604,  // VT4 (Belgium)
-   0x0404,
+   //0x1604,  // VT4 (Belgium) - deceased March 2006
+   //0x0404,
    0x9001,  // TRT-1 (Turkey)
    0
 };

@@ -23,7 +23,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: debug.h,v 1.21 2005/07/10 15:15:30 tom Exp tom $
+ *  $Id: debug.h,v 1.23 2006/11/12 18:36:54 tom Exp $
  */
 
 #ifndef __DEBUG_H
@@ -151,16 +151,16 @@
 // this is a simple printf() but with the advantage that it can be easily disabled
 #if !defined(DPRINTF_OFF) && (DEBUG_SWITCH == ON)
 #ifndef WIN32
-#define dprintf0(S) printf(S)
-#define dprintf1(S,A) printf(S,A)
-#define dprintf2(S,A,B) printf(S,A,B)
-#define dprintf3(S,A,B,C) printf(S,A,B,C)
-#define dprintf4(S,A,B,C,D) printf(S,A,B,C,D)
-#define dprintf5(S,A,B,C,D,E) printf(S,A,B,C,D,E)
-#define dprintf6(S,A,B,C,D,E,F) printf(S,A,B,C,D,E,F)
-#define dprintf7(S,A,B,C,D,E,F,G) printf(S,A,B,C,D,E,F,G)
-#define dprintf8(S,A,B,C,D,E,F,G,H) printf(S,A,B,C,D,E,F,G,H)
-#define dprintf9(S,A,B,C,D,E,F,G,H,I) printf(S,A,B,C,D,E,F,G,H,I)
+#define dprintf0(S) fprintf(stderr,S)
+#define dprintf1(S,A) fprintf(stderr,S,A)
+#define dprintf2(S,A,B) fprintf(stderr,S,A,B)
+#define dprintf3(S,A,B,C) fprintf(stderr,S,A,B,C)
+#define dprintf4(S,A,B,C,D) fprintf(stderr,S,A,B,C,D)
+#define dprintf5(S,A,B,C,D,E) fprintf(stderr,S,A,B,C,D,E)
+#define dprintf6(S,A,B,C,D,E,F) fprintf(stderr,S,A,B,C,D,E,F)
+#define dprintf7(S,A,B,C,D,E,F,G) fprintf(stderr,S,A,B,C,D,E,F,G)
+#define dprintf8(S,A,B,C,D,E,F,G,H) fprintf(stderr,S,A,B,C,D,E,F,G,H)
+#define dprintf9(S,A,B,C,D,E,F,G,H,I) fprintf(stderr,S,A,B,C,D,E,F,G,H,I)
 #else  // WIN32
 // M$ Windows debug output uses OS internal debug features; the output can be captured 
 // with the DebugView tool from http://www.sysinternals.com/
@@ -201,14 +201,14 @@ void DebugSetError( void );
 
 // memory allocation debugging
 #if CHK_MALLOC == ON
-void * chk_malloc( size_t size, const char * pFileName, int line );
-void * chk_realloc( void * ptr, size_t size );
-void chk_free( void * ptr );
+void * chk_malloc( size_t size, const char * pCallerFile, int callerLine );
+void * chk_realloc( void * ptr, size_t size, const char * pCallerFile, int callerLine );
+void chk_free( void * ptr, const char * pCallerFile, int callerLine );
 void chk_memleakage( void );
-char * chk_strdup( const char * pSrc, const char * pFileName, int line );
+char * chk_strdup( const char * pSrc, const char * pCallerFile, int callerLine );
 #define xmalloc(SIZE)  chk_malloc((SIZE),__FILE__,__LINE__)
-#define xrealloc(PTR,SIZE) chk_realloc((PTR),(SIZE))
-#define xfree(PTR)     chk_free(PTR)
+#define xrealloc(PTR,SIZE) chk_realloc((PTR),(SIZE),__FILE__,__LINE__)
+#define xfree(PTR)     chk_free(PTR,__FILE__,__LINE__)
 #define xstrdup(PTR)   chk_strdup((PTR),__FILE__,__LINE__)
 #else
 void * xmalloc( size_t size );

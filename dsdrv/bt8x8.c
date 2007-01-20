@@ -37,11 +37,11 @@
  *    WinDriver replaced with DSdrv (DScaler driver)
  *      March 2002 by E-Nek (e-nek@netcourrier.com)
  *
- *  DScaler #Id: BT848Card.cpp,v 1.44 2004/04/18 12:00:55 adcockj Exp #
+ *  DScaler #Id: BT848Card.cpp,v 1.48 2005/06/09 23:22:00 robmuller Exp #
  *  DScaler #Id: BT848Source.cpp,v 1.133 2004/11/13 21:45:56 to_see Exp #
  *  DScaler #Id: BT848Provider.cpp,v 1.9 2003/10/27 10:39:50 adcockj Exp #
  *
- *  $Id: bt8x8.c,v 1.12 2004/12/26 21:46:45 tom Exp tom $
+ *  $Id: bt8x8.c,v 1.15 2006/12/21 20:10:32 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -113,9 +113,8 @@ static ULONG Bt8x8_I2cGetTickCount( void )
 
    QueryPerformanceFrequency((PLARGE_INTEGER)&frequency);
    QueryPerformanceCounter((PLARGE_INTEGER)&ticks);
-   ticks = (ticks & 0xFFFFFFFF00000000) / frequency * 10000000 +
-           (ticks & 0xFFFFFFFF) * 10000000 / frequency;
-   return (ULONG)(ticks / 10000);
+   ticks = ticks * 1000 / frequency;
+   return (ULONG)ticks;
 }
 
 static void Bt8x8_I2cInitialize( void )
@@ -818,6 +817,8 @@ static bool Bt8x8_Open( TVCARD * pTvCard, bool wdmStop )
    CapCtl = ReadByte(BT848_CAP_CTL);
    if ((DmaCtl & 3) && (CapCtl & 0x0f))
    {
+      debug2("Bt8x8-Open: capturing already enabled (Region=0x%x, DMA=0x%x)", CapCtl, DmaCtl);
+
       MessageBox(NULL, "Capturing is already enabled in the TV card!\n"
                        "Probably another video application is running,\n"
                        "however nxtvepg requires exclusive access.\n"

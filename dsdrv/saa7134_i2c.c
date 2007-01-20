@@ -22,9 +22,9 @@
  *    This software was based on I2CBus.cpp.  Those portions are
  *    copyleft 2001 itt@myself.com.
  *
- *  DScaler #Id: SAA7134I2CBus.cpp,v 1.3 2002/10/30 04:36:43 atnak Exp #
+ *  DScaler #Id: SAA7134I2CBus.cpp,v 1.6 2005/06/09 23:22:01 robmuller Exp #
  *
- *  $Id: saa7134_i2c.c,v 1.6 2003/02/01 23:15:54 tom Exp tom $
+ *  $Id: saa7134_i2c.c,v 1.8 2006/12/21 20:24:30 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -137,9 +137,8 @@ static ULONG SAA7134_GetTickCount( void )
 
    QueryPerformanceFrequency((PLARGE_INTEGER)&frequency);
    QueryPerformanceCounter((PLARGE_INTEGER)&ticks);
-   ticks = (ticks & 0xFFFFFFFF00000000) / frequency * 10000000 +
-           (ticks & 0xFFFFFFFF) * 10000000 / frequency;
-   return (ULONG)(ticks / 10000);
+   ticks = ticks * 1000 / frequency;
+   return (ULONG)ticks;
 }
 
 static void InitializeSleep( void )

@@ -22,7 +22,7 @@
  *  Taken from utils.h, which is part of the GNU C Library.
  *  Copyright (C) 1992, 1996, 1997, 2000 Free Software Foundation, Inc.
  *
- *  $Id$
+ *  $Id: epgswap.h,v 1.1 2006/12/22 15:14:02 tom Exp tom $
  */
 
 #ifndef __EPGSWAP_H

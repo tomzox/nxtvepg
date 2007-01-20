@@ -1,5 +1,5 @@
 /////////////////////////////////////////////////////////////////////////////
-// $Id: hwpci.c,v 1.8 2004/12/26 21:48:42 tom Exp tom $
+// $Id: hwpci.c,v 1.9 2006/12/21 20:30:31 tom Exp tom $
 /////////////////////////////////////////////////////////////////////////////
 // Copyright (c) 2001 John Adcock.  All rights reserved.
 /////////////////////////////////////////////////////////////////////////////
@@ -15,7 +15,7 @@
 //  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 //  GNU General Public License for more details
 /////////////////////////////////////////////////////////////////////////////
-// nxtvepg $Id: hwpci.c,v 1.8 2004/12/26 21:48:42 tom Exp tom $
+// nxtvepg $Id: hwpci.c,v 1.9 2006/12/21 20:30:31 tom Exp tom $
 //////////////////////////////////////////////////////////////////////////////
 
 #define WIN32_LEAN_AND_MEAN     // Exclude rarely-used stuff from Windows headers
@@ -45,6 +45,7 @@ static HWPCI_RESET_CHIP_CB m_pCardResetCb;
 static int  HwPci_GetACPIStatus( void );
 static void HwPci_SetACPIStatus(int ACPIStatus);
 
+static CRITICAL_SECTION m_CriticalSection;
 
 //HwPci_CPCICard(CHardwareDriver* pDriver) :
 void HwPci_Create( void )
@@ -59,6 +60,7 @@ void HwPci_Create( void )
    m_bOpen = FALSE;
    m_InitialACPIStatus = 0;
    m_pCardResetCb = NULL;
+   InitializeCriticalSection(&m_CriticalSection);
 }
 
 void HwPci_Destroy( void )
@@ -67,6 +69,7 @@ void HwPci_Destroy( void )
     {
         HwPci_ClosePCICard();
     }
+    DeleteCriticalSection(&m_CriticalSection);
 }
 
 DWORD HwPci_GetMemoryAddress( void )
@@ -211,7 +214,9 @@ void HwPci_WriteByte(DWORD Offset, BYTE Data)
     hwParam.dwAddress = m_MemoryBase + Offset;
     hwParam.dwValue = Data;
 
+    HwPci_LockCard();
     dwStatus = HwDrv_SendCommand(IOCTL_DSDRV_WRITEMEMORYBYTE, &hwParam, sizeof(hwParam));
+    HwPci_UnlockCard();
 
     if (dwStatus != ERROR_SUCCESS)
     {
@@ -227,7 +232,9 @@ void HwPci_WriteWord(DWORD Offset, WORD Data)
     hwParam.dwAddress = m_MemoryBase + Offset;
     hwParam.dwValue = Data;
 
+    HwPci_LockCard();
     dwStatus = HwDrv_SendCommand(IOCTL_DSDRV_WRITEMEMORYWORD, &hwParam, sizeof(hwParam));
+    HwPci_UnlockCard();
 
     if (dwStatus != ERROR_SUCCESS)
     {
@@ -243,7 +250,9 @@ void HwPci_WriteDword(DWORD Offset, DWORD Data)
     hwParam.dwAddress = m_MemoryBase + Offset;
     hwParam.dwValue = Data;
 
+    HwPci_LockCard();
     dwStatus = HwDrv_SendCommand(IOCTL_DSDRV_WRITEMEMORYDWORD, &hwParam, sizeof(hwParam));
+    HwPci_UnlockCard();
 
     if (dwStatus != ERROR_SUCCESS)
     {
@@ -259,12 +268,15 @@ BYTE HwPci_ReadByte(DWORD Offset)
     DWORD dwStatus;
 
     hwParam.dwAddress = m_MemoryBase + Offset;
+
+    HwPci_LockCard();
     dwStatus = HwDrv_SendCommandEx(IOCTL_DSDRV_READMEMORYBYTE,
                                             &hwParam,
                                             sizeof(hwParam.dwAddress),
                                             &bValue,
                                             sizeof(bValue),
                                             &dwReturnedLength);
+    HwPci_UnlockCard();
 
     if (dwStatus != ERROR_SUCCESS)
     {
@@ -281,12 +293,15 @@ WORD HwPci_ReadWord(DWORD Offset)
     DWORD dwStatus;
 
     hwParam.dwAddress = m_MemoryBase + Offset;
+
+    HwPci_LockCard();
     dwStatus = HwDrv_SendCommandEx(IOCTL_DSDRV_READMEMORYWORD,
                                             &hwParam,
                                             sizeof(hwParam.dwAddress),
                                             &wValue,
                                             sizeof(wValue),
                                             &dwReturnedLength);
+    HwPci_UnlockCard();
 
     if (dwStatus != ERROR_SUCCESS)
     {
@@ -303,12 +318,15 @@ DWORD HwPci_ReadDword(DWORD Offset)
     DWORD dwStatus;
 
     hwParam.dwAddress = m_MemoryBase + Offset;
+
+    HwPci_LockCard();
     dwStatus = HwDrv_SendCommandEx(IOCTL_DSDRV_READMEMORYDWORD,
                                             &hwParam,
                                             sizeof(hwParam.dwAddress),
                                             &dwValue,
                                             sizeof(dwValue),
                                             &dwReturnedLength);
+    HwPci_UnlockCard();
 
     if (dwStatus != ERROR_SUCCESS)
     {
@@ -322,107 +340,131 @@ void HwPci_MaskDataByte(DWORD Offset, BYTE Data, BYTE Mask)
 {
     BYTE Result;
 
+    HwPci_LockCard();
     Result = HwPci_ReadByte(Offset);
     Result = (Result & ~Mask) | (Data & Mask);
     HwPci_WriteByte(Offset, Result);
+    HwPci_UnlockCard();
 }
 
 void HwPci_MaskDataWord(DWORD Offset, WORD Data, WORD Mask)
 {
     WORD Result;
+    HwPci_LockCard();
     Result = HwPci_ReadWord(Offset);
     Result = (Result & ~Mask) | (Data & Mask);
     HwPci_WriteWord(Offset, Result);
+    HwPci_UnlockCard();
 }
 
 void HwPci_MaskDataDword(DWORD Offset, DWORD Data, DWORD Mask)
 {
     DWORD Result;
 
+    HwPci_LockCard();
     Result = HwPci_ReadDword(Offset);
     Result = (Result & ~Mask) | (Data & Mask);
     HwPci_WriteDword(Offset, Result);
+    HwPci_UnlockCard();
 }
 
 void HwPci_AndOrDataByte(DWORD Offset, BYTE Data, BYTE Mask)
 {
     BYTE Result;
 
+    HwPci_LockCard();
     Result = HwPci_ReadByte(Offset);
     Result = (Result & Mask) | Data;
     HwPci_WriteByte(Offset, Result);
+    HwPci_UnlockCard();
 }
 
 void HwPci_AndOrDataWord(DWORD Offset, WORD Data, WORD Mask)
 {
     WORD Result;
 
+    HwPci_LockCard();
     Result = HwPci_ReadWord(Offset);
     Result = (Result & Mask) | Data;
     HwPci_WriteWord(Offset, Result);
+    HwPci_UnlockCard();
 }
 
 void HwPci_AndOrDataDword(DWORD Offset, DWORD Data, DWORD Mask)
 {
     DWORD Result;
 
+    HwPci_LockCard();
     Result = HwPci_ReadDword(Offset);
     Result = (Result & Mask) | Data;
     HwPci_WriteDword(Offset, Result);
+    HwPci_UnlockCard();
 }
 
 void HwPci_AndDataByte(DWORD Offset, BYTE Data)
 {
     BYTE Result;
 
+    HwPci_LockCard();
     Result = HwPci_ReadByte(Offset);
     Result &= Data;
     HwPci_WriteByte(Offset, Result);
+    HwPci_UnlockCard();
 }
 
 void HwPci_AndDataWord(DWORD Offset, WORD Data)
 {
     WORD Result;
 
+    HwPci_LockCard();
     Result = HwPci_ReadWord(Offset);
     Result &= Data;
     HwPci_WriteWord(Offset, Result);
+    HwPci_UnlockCard();
 }
 
 void HwPci_AndDataDword(DWORD Offset, DWORD Data)
 {
     DWORD Result;
 
+    HwPci_LockCard();
     Result = HwPci_ReadDword(Offset);
     Result &= Data;
     HwPci_WriteDword(Offset, Result);
+    HwPci_UnlockCard();
 }
 
 void HwPci_OrDataByte(DWORD Offset, BYTE Data)
 {
     BYTE Result;
 
+    HwPci_LockCard();
     Result = HwPci_ReadByte(Offset);
     Result |= Data;
     HwPci_WriteByte(Offset, Result);
+    HwPci_UnlockCard();
 }
 
 void HwPci_OrDataWord(DWORD Offset, WORD Data)
 {
     WORD Result;
 
+    HwPci_LockCard();
     Result = HwPci_ReadWord(Offset);
     Result |= Data;
     HwPci_WriteWord(Offset, Result);
+    HwPci_UnlockCard();
 }
 
 void HwPci_OrDataDword(DWORD Offset, DWORD Data)
 {
     DWORD Result;
 
+    HwPci_LockCard();
     Result = HwPci_ReadDword(Offset);
     Result |= Data;
     HwPci_WriteDword(Offset, Result);
+    HwPci_UnlockCard();
 }
 
 #if 0
@@ -601,5 +643,15 @@ static void HwPci_SetACPIStatus(int ACPIStatus)
         }
         LOG(1, "Set ACPI status complete");
     }
+}
+
+void HwPci_LockCard( void )
+{
+    EnterCriticalSection(&m_CriticalSection);
+}
+
+void HwPci_UnlockCard( void )
+{
+    LeaveCriticalSection(&m_CriticalSection);
 }
 

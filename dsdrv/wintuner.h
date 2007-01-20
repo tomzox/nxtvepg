@@ -16,11 +16,11 @@
  *
  *  Author: see C source file.
  *
- *  DScaler #Id: TunerID.h,v 1.2 2003/02/06 21:27:05 ittarnavsky Exp #
+ *  DScaler #Id: TunerID.h,v 1.12 2005/08/11 17:21:55 to_see Exp #
  *  DScaler #Id: TVFormats.h,v 1.6 2003/01/07 16:49:08 adcockj Exp #
  *  DScaler #Id: TDA9887.h,v 1.8 2004/09/29 20:36:02 to_see Exp #
  *
- *  $Id: wintuner.h,v 1.9 2004/12/26 21:48:15 tom Exp tom $
+ *  $Id: wintuner.h,v 1.11 2006/12/21 20:35:42 tom Exp tom $
  */
 
 #ifndef __WINTUNER_H
@@ -83,6 +83,22 @@ typedef enum
     TUNER_MT2050,
     TUNER_MT2050_PAL,
     TUNER_PHILIPS_4IN1,
+    TUNER_TCL_2002N,
+    TUNER_HITACHI_NTSC,
+    TUNER_PHILIPS_PAL_MK,
+    TUNER_PHILIPS_FM1236_MK3,
+    TUNER_LG_NTSC_TAPE,
+    TUNER_TNF_8831BGFF,
+    TUNER_PHILIPS_FM1256_IH3,
+    TUNER_PHILIPS_FQ1286,
+    TUNER_LG_PAL_TAPE,
+    TUNER_PHILIPS_FQ1216AME_MK4,
+    TUNER_PHILIPS_FQ1236A_MK4,
+    TUNER_TDA8275,
+    TUNER_YMEC_TVF_8531MF,
+    TUNER_YMEC_TVF_5533MF,
+    TUNER_TENA_9533_DI,
+    TUNER_PHILIPS_FMD1216ME_MK3,
     TUNER_LASTONE,
 } eTunerId;
 
@@ -121,16 +137,64 @@ typedef enum
 // ---------------------------------------------------------------------------
 // from TDA9887.h
 
+// for CTDA9887Ex
+
+// TV format groupings used by TDA9887
 typedef enum
 {
-    TDA9887_DEFAULT = 0,
-    TDA9887_MSI_TV_ANYWHERE_MASTER,
-    TDA9887_LEADTEK_WINFAST_EXPERT,
-    TDA9887_ATI_TV_WONDER_PRO,
-    TDA9887_AVERTV_303,
-    // Add here new tda9887 settings.
-    TDA9887_LASTONE,
-} eTDA9887Card;
+    TDA9887_FORMAT_NONE     = -1,
+    TDA9887_FORMAT_PAL_BG   = 0,
+    TDA9887_FORMAT_PAL_I,
+    TDA9887_FORMAT_PAL_DK,
+    TDA9887_FORMAT_PAL_MN,
+    TDA9887_FORMAT_SECAM_L,
+    TDA9887_FORMAT_SECAM_DK,
+    TDA9887_FORMAT_NTSC_M,
+    TDA9887_FORMAT_NTSC_JP,
+    TDA9887_FORMAT_RADIO,
+    TDA9887_FORMAT_LASTONE,
+} eTDA9887Format;
+
+// Bits for SetCardSpecifics(...)'s TTDA9887CardSpecifics
+enum
+{
+    TDA9887_SM_CARRIER_QSS              = 0x20, // != Intercarrier
+    TDA9887_SM_OUTPUTPORT1_INACTIVE     = 0x40, // != Active
+    TDA9887_SM_OUTPUTPORT2_INACTIVE     = 0x80, // != Active
+    TDA9887_SM_TAKEOVERPOINT_MASK       = 0x1F,
+    TDA9887_SM_TAKEOVERPOINT_OFFSET     = 0,
+
+    TDA9887_SM_TAKEOVERPOINT_DEFAULT    = 0x10, // 0 dB
+    TDA9887_SM_TAKEOVERPOINT_MIN        = 0x00, // -16 dB
+    TDA9887_SM_TAKEOVERPOINT_MAX        = 0x1F, // +15 dB
+};
+
+// Only the modes specified in the enum above can be changed with
+// SetModes(...).  To change a mode, add the respective constant to the
+// 'mask' value then specify the new value in 'bits'.  For example, to
+// use the QSS carrier mode and active OutputPort2 mode, the
+// following will be used:
+//
+// mask = TDA9887_SM_CARRIER_QSS|TDA9887_SM_OUTPUTPORT2_INACTIVE;
+// value = TDA9887_SM_CARRIER_QSS;
+//
+// If no changes are made, modes listed in k_TDAStandardtSettings are
+// used.
+
+// Input structure for SetModes(...).
+typedef struct
+{
+    BYTE    mask;
+    BYTE    bits;
+} TTDA9887Modes;
+
+// Input structure for SetModes(...).
+typedef struct
+{
+    eTDA9887Format  format;
+    BYTE            mask;
+    BYTE            bits;
+} TTDA9887FormatModes;
 
 // ---------------------------------------------------------------------------
 // Interface declaration
@@ -139,5 +203,6 @@ bool Tuner_Init( TUNER_TYPE type, TVCARD * pTvCardIf );
 void Tuner_Close( void );
 bool Tuner_SetFrequency( TUNER_TYPE type, uint wFrequency, uint norm );
 const char * Tuner_GetName( uint idx );
+eTunerId Tuner_GetHauppaugeEepromId( uint idx );
 
 #endif  // __WINTUNER_H

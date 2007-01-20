@@ -1,5 +1,5 @@
 %define    prefix    /usr/local
-%define    version   2.7.6
+%define    version   2.7.7
 
 Summary:   nexTView EPG decoder and browser
 Name:      nxtvepg
@@ -20,10 +20,10 @@ listings for most of the major networks in Germany, Austria, France, Belgium
 and Switzerland.
 
 Currently Nextview EPG is transmitted by:
-- in Germany and Austria: Kabel1, RTL-II (coverage: apx. 32 networks)
+- in Germany and Austria: Kabel1 (coverage: apx. 32 networks)
 - in Switzerland: SF1, TSR1, TSI1, TV5 (coverage: apx. 37 networks)
 - in France: Canal+, M6, TV5 (coverage: 8 networks)
-- in Belgium: VT4, M6, TV5 (coverage: 32 networks)
+- in Belgium: M6, TV5 (coverage: 32 networks)
 - in Turkey: TRT family (coverage: apx. 17 networks)
 
 If you don't receive any of those, then this software unfortunately is

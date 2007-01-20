@@ -25,7 +25,7 @@
  *    so their respective copyright applies too. Please see the notes in
  *    functions headers below.
  *
- *  $Id: wintvcfg.c,v 1.24 2005/03/30 14:53:55 tom Exp tom $
+ *  $Id: wintvcfg.c,v 1.25 2006/01/06 14:28:57 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -295,6 +295,7 @@ static void WintvCfg_AddFreqToBuf( DYN_FREQ_BUF * pFreqBuf, uint freq )
 //
 static void WintvCfg_AddChannelName( Tcl_Interp * interp, char * pName )
 {
+   Tcl_DString dstr;
    char *ps, *pc, *pe, c;
 
    // skip any spaces at the start of the name
@@ -315,6 +316,10 @@ static void WintvCfg_AddChannelName( Tcl_Interp * interp, char * pName )
 
    if ( (*pName != 0) || (doChanTabFilter == FALSE) )
    {
+      // convert string from system encoding into UTF-8
+      Tcl_ExternalToUtfDString(NULL, pName, -1, &dstr);
+      pName = Tcl_DStringValue(&dstr);
+
       // append the name as-is to the result
       Tcl_AppendElement(interp, pName);
 
@@ -352,6 +357,7 @@ static void WintvCfg_AddChannelName( Tcl_Interp * interp, char * pName )
                Tcl_AppendElement(interp, ps);
          }
       }
+      Tcl_DStringFree(&dstr);
    }
 }
 

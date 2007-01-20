@@ -21,13 +21,14 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbmgmt.c,v 1.49 2003/10/05 19:13:23 tom Exp tom $
+ *  $Id: epgdbmgmt.c,v 1.50 2006/11/23 21:11:11 tom Exp $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
 #define DEBUG_EPGDBMGMT_CONSISTANCY OFF
 #define DPRINTF_OFF
 
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
@@ -160,11 +161,12 @@ bool EpgDbCheckChains( CPDBC dbc )
 {
    EPGDB_BLOCK *pPrev, *pWalk;
    EPGDB_BLOCK *pPrevNetwop[MAX_NETWOP_COUNT];
-   uint  blocks;
+   sint  blocks;
    uchar netwop, type;
 
    if (dbc->pFirstPi != NULL)
    {
+      assert(dbc->pAiBlock != NULL);
       assert(dbc->pLastPi != NULL);
       assert(dbc->pFirstPi->pPrevBlock == NULL);
       assert(dbc->pLastPi->pNextBlock == NULL);
@@ -223,6 +225,10 @@ bool EpgDbCheckChains( CPDBC dbc )
             assert((pWalk == NULL) || (pWalk->blk.pi.start_time >= pPrev->blk.pi.start_time));
          }
       }
+      for (netwop=dbc->pAiBlock->blk.ai.netwopCount; netwop < MAX_NETWOP_COUNT; netwop++)
+      {
+         assert(dbc->pFirstNetwopPi[netwop] == NULL);
+      }
       assert(blocks == 0);
    }
    else
@@ -248,6 +254,7 @@ bool EpgDbCheckChains( CPDBC dbc )
    {
       assert(dbc->pAiBlock->type == BLOCK_TYPE_AI);
       assert((dbc->pAiBlock->pNextBlock == NULL) && (dbc->pAiBlock->pPrevBlock == NULL));
+      assert(dbc->pAiBlock->blk.ai.netwopCount < MAX_NETWOP_COUNT);
    }
 
    // check generic block chains

@@ -7,11 +7,11 @@ browse TV programme listings for most of the major networks in Germany,
 Austria, France, Belgium and Switzerland.
 
 Currently Nextview EPG is transmitted by:
-- in Germany and Austria: Kabel1, RTL-II (coverage: apx. 32 networks)
-- in Switzerland: SF1, TSR1, TSI1 (coverage: apx. 37 networks)
+- in Germany and Austria: Kabel1 (coverage: apx. 32 networks)
+- in Switzerland: SF1, TSR1, TSI1, TV5 (coverage: apx. 37 networks)
 - in France: Canal+, M6, TV5 (coverage: 8 networks)
-- in Belgium: VT4, M6, TV5 (coverage: 32 networks)
-- in Turkey: TRT (coverage: apx. 17 networks)
+- in Belgium: M6, TV5 (coverage: 32 networks)
+- in Turkey: TRT family (coverage: apx. 17 networks)
 
 If you don't receive any of those, then this software unfortunately is
 almost useless to you, except for a demo mode. For more details please
@@ -29,11 +29,14 @@ System requirements:
 Hardware minimum requirements are a PC or workstation with performance
 equivalent to a 90 MHz Intel Pentium CPU and 64 MB of RAM (note nxtvepg
 is also known to work fine on Power-PC and Ultra-Sparc platforms.)
-Additionaly a TV tuner card (analog, i.e. not DVB) is required.
+Additionally a TV tuner card (analog, i.e. not DVB) is required.
 
-The Windows version supports all TV cards based either on the capture
+The Windows version supports all PCI TV cards based either on the capture
 chips Brooktree Fusion Bt878/Bt848, sucessor Conexant CX23881 or
-Philips SAA7134.
+Philips SAA7134via the internal "dsdrv4" driver (which is taken from
+the DScaler project.)  Note pre-installed drivers are not used by
+nxtvepg. (Support for WDM drivers will be added in the next release
+nxtvepg 2.8.0)
 
 The Linux version supports all cards for which a "video4linux" or v4l2
 compatible driver exists (e.g. bttv, saa7134, cx8800, possibly even USB
@@ -53,15 +56,18 @@ Linux software requirements:
   use snapshot video4linux-20040330 or later from http://www.bytesex.org/
 - GNU C Compiler 2.93.3 or later, unless you got nxtvepg precompiled for
   your platform
-- Tcl/Tk version 8.3 or later (note version 8.4.0 to 8.4.3 were slow,
-  use 8.4.4); sources available for download from http://www.tcl.tk/
+- Tcl/Tk version 8.3 or later (note versions 8.4.0 to 8.4.3 are depreciated)
+  Sources available for download from http://www.tcl.tk/
+- Any release of X11R5 or X11R6 (Note: builds without X11 and Tk will be
+  supported in the next release nxtvepg 2.8.0)
 
 NetBSD software requirements:
 - kernel >= 1.5 including the bktr driver 2.17 or later,
   available from http://vulture.dmem.strath.ac.uk/bt848/
 - GNU C Compiler, unless you got nxtvepg in a precompiled NetBSD package
-- Tcl/Tk version 8.3 or later (8.4 recommended)
-  available from http://www.tcl.tk/
+- Tcl/Tk version 8.3 or later (note versions 8.4.0 to 8.4.3 are depreciated)
+  Sources available for download from http://www.tcl.tk/
+- Any release of X11R5 or X11R6
 
 Windows software requirements:
 - Nothing actually: nxtvepg is shipped with all the required components.
@@ -99,13 +105,16 @@ UNIX installation procedure (when compiling from source):
     are already defined in system header files; in this case you probably
     have to comment out nxtvepg's definition.
   + To compile the tvsim test & development suite too, invoke "make all"
+    (Note these tools are not installed into system directories since they
+    are intended for temporary use in debugging only.)
   + Intermediate objects and the binaries are generated in a subdirectory
     named build-<platform> (e.g. build-i386 for an Intel compatible)
 
 - make install
-  This will copy the nxtvepg executable into system directories and set up
-  a directory where the databases are stored.  Usually you need to "su root"
-  to have permission to do so.
+  This will copy the nxtvepg and nxtvepgd executables and their respective
+  manual pages into system directories and set up a directory where the
+  databases are stored.  Usually you need to "su root" to have permission
+  to do so.
 
 - Invoke the application and start a provider scan from the Configure menu.
   Alternatively, tune a Nextview provider's TV channel with a TV application

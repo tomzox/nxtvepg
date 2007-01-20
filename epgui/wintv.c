@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: wintv.c,v 1.22 2005/03/06 20:16:30 tom Exp tom $
+ *  $Id: wintv.c,v 1.23 2005/04/07 18:05:11 tom Exp $
  */
 
 #ifndef WIN32

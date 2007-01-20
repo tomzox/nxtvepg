@@ -1,0 +1,378 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
+<HTML lang="de">
+<!-- $Id: pre-releases-de.html,v 1.10 2007/01/28 13:20:15 tom Exp $ -->
+<HEAD>
+<TITLE>Downloadseite für Entwickler und Alphatester</TITLE>
+<META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<META name="language" content="de">
+<META name="author" content="Tom Zoerner">
+<META name="copyright" content="Tom Zoerner">
+<META name="description" content="Software-Download von Alpha- und Beta-Releases der nxtvepg Nextview EPG Decoder Software.">
+<META name="robots" content="noindex">
+<LINK rel="stylesheet" type="text/css" href="nxtvepg.css">
+<LINK rel="shortcut icon" type="image/x-icon" href="nxtvepg.ico">
+<LINK rel="alternate" type="text/html" href="pre-releases.html" hreflang="en" lang="en" title="nexTView pre-release page">
+<LINK rel="top" href="http://nxtvepg.sourceforge.net/index-de.html" title="nexTView EPG Dekoder Homepage">
+</HEAD>
+<BODY>
+
+<DIV CLASS="navBar">
+<P><SMALL>
+<IMG ALT="" SRC="nxtv_icon.gif">&nbsp;nxtvepg&nbsp;
+<A HREF="index-de.html">home</A> &nbsp;|&nbsp;
+<A HREF="intro-de.html">about</A>
+</SMALL></P></DIV>
+
+<DIV class="navBlock">
+<H2 class="navhead">Sprache</H2>
+<P>
+<IMG ALT="" SRC="en.png" WIDTH="16" HEIGHT="10"> <A HREF="pre-releases.html">English</A><BR>
+<IMG ALT="" SRC="de.png" WIDTH="16" HEIGHT="10"> Deutsch<BR>
+<IMG ALT="" SRC="fr.png" WIDTH="16" HEIGHT="10"> <SPAN class="navDisabled">Français</SPAN><BR>
+</P>
+
+<H2 class="navhead">News</H2>
+<P>
+</P>
+
+<H2 class="navhead">Dokumentation</H2>
+<P>
+<A HREF="index-de.html">Homepage</A><BR>
+<A HREF="intro-de.html">Einführung</A><BR>
+<A HREF="provnets-de.html">Providerliste</A><BR>
+<A HREF="links-de.html">Links</A><BR>
+<A HREF="faq-de.html">FAQ</A><BR>
+<BR>
+<A HREF="man-de.html">nxtvepg manual</A><BR>
+</P>
+
+<H2 class="navhead">Download</H2>
+<P>
+<A HREF="download-de.html">Download</A><BR>
+<A HREF="download-de.html#requirements">Systemanforderungen</A><BR>
+<A HREF="changelog.html">Changelog</A><BR>
+</P>
+
+<H2 class="navhead">Screenshots</H2>
+<P>
+<A HREF="screenshot-274.png">Main window</A><BR>
+<A HREF="screenshot-grid1.png">"Grid" layout</A><BR>
+<A HREF="screenshot-reminder.png">Reminders</A><BR>
+<A HREF="screenshot-stats.png">Reception statistics</A><BR>
+<A HREF="screenshot-series.png">Series menu</A><BR>
+<A HREF="screenshot-xawtv.jpg">xawtv with EPG OSD</A><BR>
+</P>
+<span class="center"><span class="logo"><a href="http://sourceforge.net"><img
+src="http://sourceforge.net/sflogo.php?group_id=64430&amp;type=4"
+width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
+</DIV>
+
+<DIV class="mainBlock">
+
+<H1>Downloadseite für Entwickler und Alphatester</H1>
+<P>
+Diese Seite listet die neuesten Updates des
+<A HREF="http://nxtvepg.sourceforge.net/">nxtvepg</A>-Softwarepakets auf.
+Die hier erhältliche Software ist nur für Entwickler und
+Alphatester gedacht. Falls Sie nach dem regulären Release suchen,
+besuchen Sie die <A HREF="download-de.html">Downloadseite</A>.
+</P></P>
+Die Releases auf dieser Seite beinhalten viele interne Konsistenzchecks und
+produzieren jede Menge Debug-Ausgaben. Daher sollten sie nur zu Testzwecken
+verwendet werden.
+Bitte nicht weiterverbreiten.
+<P>
+
+<P>Auf dieser Seite finden Sie:</P>
+<UL>
+<LI><A HREF="#pre_rel_nxtvepg">nxtvepg Development Snapshots</A>
+<LI><A HREF="#wdm_if_lib">WDM Interface Library</A>
+<LI><A HREF="#ttx_grabber">Teletext Grabber</A>
+</UL>
+
+<!-- ------------------------------------------------------------------------ -->
+
+<H2><A NAME="pre_rel_nxtvepg">nxtvepg Core Package</A></H2>
+<P>
+Die folgenden Pakete enthalten einen Snapshot der laufenden Entwicklung von nxtvepg.
+Bitte sehen Sie im <A HREF="pre-releases.html#changelog">Change-Log</A> der englischen
+Ausgabe dieser Seite oder im
+<A HREF="http://sourceforge.net/forum/forum.php?forum_id=217872">Diskussionsforum</A>
+nach Hintergrundinformationen.
+<!--
+ein Release-Kandidat (beta #1) des anstehenden Releases.
+Bitte sehen Sie im <A HREF="pre-releases.html">Change-Log</A> der englischen
+Ausgabe dieser Seite oder im
+<A HREF="http://sourceforge.net/mailarchive/forum.php?forum_id=14102">Archiv der Mailingliste</A>
+nach der History der Änderungen.
+-->
+<!--
+Eine Liste von Bug-Fixes (und von ein paar neuen Features) finden Sie im
+<A HREF="http://nxtvepg.sourceforge.net/changelog.html">Change-Log</A>.
+</P><P>
+-->
+</P>
+
+<H3>2.8.0 - Entwicklungs-Linie</H3>
+<P>
+<!--
+<B>Warnung:</B> Es gibt eine Änderung im Format der benutzerdefinierten
+Spalten in der rc/ini-Datei. Einmal gestartet 2.4.1 wird Ihre Konfiguration
+automatisch konvertiert. Machen Sie sich eine Kopie Ihrer alten rc/ini-Datei
+bevor Sie zum ersten Mal die 2.4.1 starten, um in der Lage zu sein,
+zur 2.4.0 zurückzukehren, falls Sie Bugs in 2.4.1 feststellen
+-->
+
+Beachten Sie, dass sich das Format der rc/ini-Datei mehrmals während der
+Pre-Releases geändert hat, zuletzt in 2.8.0pre11. Die Datei wird
+während des ersten Starts automatisch aktualisiert, wenn eine von einer
+älteren Version geschriebene rc/ini-Datei in Gebrauch ist.
+Vergessen Sie nicht, eine Backup-Kopie anzulegen, sodass Sie immer noch
+zu älteren Versionen zurückkehren können.
+
+<!--
+Das Protokoll des Akquisitionsdaemon hat sich ebenfalls geändert,
+folglich können Sie keine Verbindung mit einem 2.7.4pre0-Clienten zu
+2.7.3 oder älteren Daemons aufnehmen oder umgekehrt.
+-->
+</P>
+<P>
+<B>nxtvepg Release 2.8.0pre16 (28. Dezember 2006)</B>
+</P>
+<UL>
+<!--
+<LI>Neuestes Release ist 2.7.3 auf der regulären
+<A HREF="download.html">Download</A>-Seite.
+-->
+<!--
+<LI><I>momentan sind keine Downloads verfügbar</I>
+-->
+<LI>Quelltexte:
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre16.tar.gz">nxtvepg-2.8.0pre16.tar.gz</A> (ca. 1.8 MB)
+<!--
+<BR>Beachten Sie: wenn Sie nxtvepg mit
+<A HREF="http://nxtvepg.sourceforge.net/tmp/README-proxy.txt">VBI Proxy</A>
+testen wollen (erlaubt mehrere simultane Nutzer eines VBI-Device), dann
+aktivieren Sie -DUSE_LIBZVBI in der
+nxtvepg-Makefile und holen Sie sich libzvbi aus dem CVS auf
+<A HREF="http://zapping.sourceforge.net">zapping.sourceforge.net</A>.
+<B>Wichtig</B>: Proxy-Support steht nicht länger im Hauptzweig.
+Sie müssen den Zweig "proxy" während des Auscheckens wählen.
+-->
+<LI>Win32-Executable:
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre16-win.zip">nxtvepg-2.8.0pre16-win.zip</A> (ca. 1.8 MB)
+
+<LI>Win32-Executable mit UTF-8 support:
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre16-win-utf8.zip">nxtvepg-2.8.0pre16-win-utf8.zip</A> (ca. 1.8 MB)
+    <BR>Diese Version ist für Benutzer geeignet die XMLTV Dateien importieren
+    möchten die in UTF-8 kodiert sind (und sich nicht nach Latin-1 konvertieren
+    lassen.)  UTF-8 support in nxtvepg ist jedoch noch nicht fertig implementiert.
+    Nebenbei: unter UNIX kann UTF-8 support eingeschaltet werden indem die
+    beiden UTF switches im Makefile eingeschalten werden.
+<!--
+<LI>Wenn Sie nicht die pre5 heruntergeladen haben, brauchen Sie auch die
+Tcl/Tk-Programmbibliotheken:
+    <BR>Tcl/Tk 8.4.9 DLL: <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre5-tcltk.zip">nxtvepg-2.8.0pre5-tcltk.zip</A> (apx. 750 kB)
+    <BR>Einfach diese zip-Datei in das Verzeichnis entpacken, in dem die
+    nxtvepg.exe liegt
+-->
+<!--
+<BR>(Enthält nicht die Tcl/Tk-Programmbibliotheken; bitte kopieren Sie sich
+diese aus dem neuesten offiziellen Release.)
+-->
+<LI>K!TV nexTView plugin:
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/NextViewPlugin-2.8.0pre16.zip">NextViewPlugin-2.8.0pre16.zip</A> (ca. 330 kB)
+    <BR>Ein update des plugins ist mit Version 2.8.0pre13 notwendig geworden
+    wegen Änderungen am Interface zur TV-Applikation. (Dies ist jedoch
+    voraussichtlich noch nicht die endgültige Version des Interfaces.)
+
+<LI>Um die Verwendung eines vom Hersteller mitgelieferten WDM-Treibers zu
+aktivieren, benötigen Sie eine zusätzliche DLL, die
+   separat von Gérard Chevalier entwickelt wurde.  Download siehe unten.
+<!--
+<BR><B>Achtung:</B> Bitte beachten Sie, dass sich für Win32 die
+Konfigurationsparameter und Treiberversion der TV-Karten in pre7 geändert
+haben.
+Siehe den obigen Link zum Archiv der Mailingliste für Details.
+-->
+<LI>Win32 TV-Simulator:
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre16-tvsim.zip">nxtvepg-2.8.0pre16-tvsim.zip</A><BR>
+Bitte versuchen Sie, Probleme zu reproduzieren, die sich auf eine Interaktion
+zwischen K!TV mit der tvsim.exe beziehen, bevor Sie darüber berichten.
+</UL>
+
+<!-- ------------------------------------------------------------------------ -->
+
+<HR WIDTH="100%">
+
+<H2><A NAME="wdm_if_lib">WDM-Support für nxtvepg</A></H2>
+<P>
+Die WDM Interface Library wurde von Gérard Chevalier 2004-2005 entwickelt.
+Gerard hat seither die Entwicklung an diesem Projekt gestoppt.
+Die Library wird aktuell von Tom Zoerner gepflegt (soweit möglich)
+</P><P>
+Das folgende Paket enthält das aktuelle Release der WDM Interface
+Library für Windows. Sie erlaubt Windows-Nutzern, optional
+einen vom Hersteller ihrer Karte mitgelieferten Treiber statt
+dem zu verwenden, der von nxtvepg angeboten wird.
+</P><P>
+Hauptziel der Entwicklung ist, Windows-Nutzern zu helfen, die nxtvepg
+überhaupt nicht nutzen können, da ihre TV-Karte nicht vom
+Treiber des nxtvepg unterstützt wird. Dies ist deshalb so, weil
+im Moment die VBI-Akquisition in der Windows-Portierung von nxtvepg
+ausschließlich auf dem
+<A HREF="http://dscaler.org/">DScaler</A>-"dsdrv4"-Treiber basiert,
+der nur auf Conexant BT878, CX23881 oder Philips SAA7134 basierende Karten
+(und unter diesen auch nur die mit unterstützten Tunern) unterstützt.
+Karten mit Chipsets von Herstellern, die keine Spezifikationen zur
+Unterstützung der Implementierung von Open Source Treibern offen legen,
+können nicht so nicht gefördert werden.
+</P><P>
+WDM-Support ist <B>nur für Windows-Nutzer</B> von Wert.
+UNIX-Nutzer müssen sich nicht weiter darum kümmern.
+</P>
+
+<H3>Download des letzten Releases: 23. Juli 2006</H3>
+<UL>
+<LI>Interface Library:
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-wdm-dll-20060723.zip">nxtvepg-wdm-dll-20060723.zip</A>
+<LI>WDM-Treiber Quelltexte
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/VBIAcqWDMDrvSrc081905.zip">VBIAcqWDMDrvSrc081905.zip</A> (Visual Studio 2002-V7)
+</UL>
+<P>
+Entpacken Sie das ZIP-Archiv in das selbe Verzeichnis wie nxtvepg,
+d.h. die DLL sollte im selben Ordner wie die nxtvepg.exe liegen.
+Zusätzliche Instruktionen siehe README-WDM.txt in der zip-Datei.
+</P><P>
+<B>Wichtige Anmerkung:</B> Um die Library zu verwenden, brauchen Sie Version 70d
+der Microsoft Visual C Laufzeitbibliothek (z.B. <KBD>msvcr70d.dll</KBD>).
+Aus rechtlichen Gründen ist diese hier nicht enthalten.
+Es gibt jedoch eine Menge Bezugsquellen dafür im Web, Sie können nach
+<A HREF="http://www.google.de/search?q=msvcr70d.dll">msvcr70d.dll mit Google
+suchen</A>.
+</P>
+
+<H3>Bekannte Probleme</H3>
+<P>
+Die folgenden Bugs/offene Fragen sind bereits bekannt:
+</P>
+<UL>
+<LI>Wenn Sie anfänglich eine WDM-Quelle im Konfigurationsdialog des
+    TV-Karteninput wählen, dass die Auswahl der Video-Quelle nicht
+    funktioniert (das Gerät läuft bereits).
+    Tritt dies auf, schließen Sie einfach den Dialog mit OK und
+    öffnen sie ihn erneut.
+    Danach sollte die Auswahl der Video-Quelle funktionieren.
+<LI>TV-Kanal-/-Frequezkonvertierung funktioniert bei keiner der Kanaltabellen.
+    Wenn Sie in Deutschland leben und Kabel besitzen brauchen Sie eine Datei
+    namens VBIAcqWDMDrv.ini im selben Verzeichnis wie die VBIAcqWDMDrv.dll
+    mit folgenden zwei Zeilen:
+<PRE>
+[Debug Behaviour]
+ForceRFInput=c
+</PRE>
+    Diese Datei ist bereits im Paket enthalten.
+<LI>Die EPG-Providersuche muss im <I>slow</I>-Modus laufen (Sie können
+    diese Option unten im Dialogfenster der Providersuche aktivieren). Sogar dann
+    können manche Sender doppelt in der Suche erscheinen. Wird Ihr Provider
+    so nicht gefunden, versuchen Sie, den Scan noch mal laufen zu lassen oder
+    verwenden Sie eine K!TV- oder DScaler-Kanaltabelle und stellen Sie dort
+    den Kanal Ihres Providers an die erste Position.
+<LI>Hauppauge PVR 250/350 Karten werden noch nicht unterstützt.
+</UL>
+
+<H3>Feedback zu Tests</H3>
+<P>
+Dieser Abschnitt listet Karten- und Systemkombinationen auf, von denen
+momentan berichtet wird, dass sie "funktionieren".
+<P>
+<UL>
+<LI>Leadtek WinFast TV2000XP Expert auf Windows XP und Windows 2000
+<LI>Hauppauge WinTv PCI (Bt878 + Philips Tuner) auf Windows XP
+<LI>Hauppauge WinTv Go auf Windows XP
+<LI>Hauppauge WinTV PVR auf Windows 2000
+<LI>Hauppauge WinTV PCI (neue Serien mit CX23881-Chip) auf W2K: <B>funktioniert
+    teilweise</B><BR>
+    Offensichtlich wegen eines Bugs in den WDM-Treibern gehen die
+    Hälfte der Teletext-Seiten verloren; sind Sie jedoch geduldig,
+    ist ein EPG-Empfang trotz allem möglich.
+<LI>Typhoon-Karte "Art.No. 90031" mit Philips-Capturechip (SAA7134) auf W2K
+<LI>Nahezu jede Karte mit Brooktree Bt878- oder Bt848-Capturechip, wenn der
+    freie WDM-Treiber <A HREF="http://btwincap.sourceforge.net/">btwincap</A>
+    verwendet wird.
+</UL>
+<P>
+Falls Sie Fragen haben oder ein Feedback abgeben wollen, nutzen Sie bitte das
+<A HREF="http://sourceforge.net/forum/forum.php?forum_id=217872">Diskussionsforum</A>.
+</P>
+
+<!-- ------------------------------------------------------------------------ -->
+
+<HR WIDTH="100%">
+
+<H2><A NAME="ttx_grabber">Teletext EPG Grabber</A></H2>
+<P>
+Im Moment ist ein neuer Grabber in Entwicklung, der das Extrahieren von
+Sendungslisten aus Teletext-Seiten erlaubt. Die Intention ist zuallererst,
+den Verlust von zwei deutschen Nextview-Providern und zum zweiten, mehr
+und längere Beschreibungen dem EPG hinzuzufügen. Im Teletext
+besitzen viele Sender gute Beschreibungen nicht nur für Filme sondern
+speziell auch für Wochenmagazine, die täglichen Soaps oder
+aktuelle Ereignisse. Die Ausgabe des Teletext-Grabbers kann mit den Daten von
+Nextview EPG mit Hilfe eines XMLTV-Imports gemergt werden.
+</P>
+<H3>Download des letzten Releases vom 22. November 2006</H3>
+<UL>
+<LI>Teletext Grabber:
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/tv_grab_ttx-0.7.tar.gz">tv_grab_ttx-0.7.tar.gz</A> (ca. 25 kB)
+<LI>Perl-Modul Video::Capture::zvbi
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/Video-Capture-zvbi-0.1.tar.gz">Video-Capture-zvbi-0.1.tar.gz</A> (ca. 25 kB)
+</UL>
+<P>
+Im Folgenden ein Beispiel zur Anwendung: Zuerst wird der Kanal zum Sender
+ARD mittels des Tools v4lctl von xawtv gewechselt. Dann werden die
+VBI-Daten für 1.5 Minuten in eine temporäre Datei aufgenommen.
+Danach werden die EPG-Daten aus den aufgenommenen Teletext-Daten in eine
+XMLTV-Datei extrahiert. Die Schritte 1-3 können mit mehreren Sendern
+wiederholt werden. Zum Schluss werden die XMLTV-Dateien in eine einzige Datei
+gemergt, die in nxtvepg importiert werden kann. Siehe auch <KBD>capall.pl</KBD>
+</P>
+<PRE>
+  v4lctl -c /dev/vbi0 setstation ARD
+  perl cap.pl -dev /dev/vbi0 -duration 90 &gt; ARD.ttx
+  perl ttxacq.pl -page 301-309 ARD.ttx &gt; ARD.xml
+  perl merge.pl *.xml &gt; ~/all.xml
+</PRE>
+<P>
+Zusätzliche Optionen siehe sub ParseArgv in einem der beiden Scripte.
+Wie Sie sehen, wird VBI-Capturing momentan via
+<A HREF="http://zapping.sourceforge.net/doc/libzvbi/index.html">libzvbi</A>
+erledigt, somit wird <B>nur Linux unterstützt</B>.  MS-Windows wird
+nur via nxtvepg ab Version 2.8.0pre13 unterstützt (siehe Konfigurationsmenü
+"Teletext grabber")
+</P>
+
+<!-- ------------------------------------------------------------------------ -->
+
+<HR WIDTH="75%">
+
+<H2>Historie aller Änderungen</H2>
+
+Siehe <A HREF="pre-releases.html#changelog">Change-Log</A> der englischen
+Ausgabe dieser Seite.
+
+
+<H2>Copyright &amp; Disclaimer</H2>
+<P>
+Dieses Programm ist freie Software; Sie können es unter den Bedingungen
+der <A HREF="http://www.fsf.org/copyleft/gpl.html">GNU General Public License</A>,
+wie von der <A HREF="http://www.fsf.org/">Free Software Foundation</A>
+veröffentlicht, weiterverteilen und/oder ändern.
+Dieses Programm wird in der Hoffnung verteilt, von Nutzen zu sein,
+jedoch <B>ohne jede Garantie</B>; ohne auch nur einer Zusicherung
+allgemeiner Gebrauchstauglichkeit oder Eignung zu einem besonderen
+Zweck.
+</P>
+</DIV>
+</BODY>
+</HTML>

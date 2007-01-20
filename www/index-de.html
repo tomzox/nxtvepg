@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="de">
-<!-- $Id: index-de.html,v 1.82 2005/12/11 08:34:22 tom Exp $ -->
+<!-- $Id: index-de.html,v 1.91 2007/01/28 13:19:58 tom Exp $ -->
 <HEAD>
 <TITLE>nexTView EPG Dekoder Software Download</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -15,7 +15,6 @@
 <LINK rel="alternate" type="text/html" href="index.html" hreflang="en" lang="en" title="nexTView Decoder Download Page">
 <LINK rel="alternate" type="text/html" href="index-fr.html" hreflang="fr" lang="fr" title="Logiciel de Décodage Nextview EPG">
 <LINK rel="shortcut icon" type="image/x-icon" href="nxtvepg.ico">
-<LINK rel="top" href="http://nxtvepg.sourceforge.net/" title="nexTView EPG Dekoder Homepage">
 </HEAD>
 <BODY>
 
@@ -29,20 +28,19 @@
 
 <H2 class="navhead">News</H2>
 <P>
-14.8.2005: <A HREF="index-de.html#new_2_7_6">Release 2.7.6</A>
-</P><P>
-8.4.2005: <A HREF="changelog.html#release_2_7_5">Release 2.7.5</A>
-</P><P>
-27.12.2004: <A HREF="changelog.html#release_2_7_4">Release 2.7.4</A>
+10.7.2006: Added German translations of
+<A HREF="provnets-de.html">Providerliste</A>,
+<A HREF="links-de.html">Links</A>,
+<A HREF="faq-de.html">FAQ</A> done by Kurt.
 </P>
 
 <H2 class="navhead">Dokumentation</H2>
 <P>
 <A HREF="index-de.html">Homepage</A><BR>
 <A HREF="intro-de.html">Einführung</A><BR>
-<A HREF="provnets.html">Providerliste</A><BR>
-<A HREF="links.html">Links</A><BR>
-<A HREF="faq.html">FAQ</A><BR>
+<A HREF="provnets-de.html">Providerliste</A><BR>
+<A HREF="links-de.html">Links</A><BR>
+<A HREF="faq-de.html">FAQ</A><BR>
 <BR>
 <A HREF="man-de.html">nxtvepg manual</A><BR>
 </P>
@@ -71,7 +69,7 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 <DIV class="mainBlock">
 
 <SPAN CLASS="center">
-<IMG ALT="" SRC="nxtv_logo.gif" WIDTH=66 HEIGHT=66>
+<IMG ALT="" SRC="nxtv_logo.png" WIDTH=66 HEIGHT=66>
 </SPAN>
 <H1><SPAN CLASS="center">nexTView
 <BR>EPG Dekoder Software</SPAN></H1>
@@ -89,45 +87,44 @@ und Belgien, ohne Zugriff auf's Internet.  <A HREF="intro-de.html">Weiter...</A>
 <H2>Navigation</H2>
 <UL>
 <LI><A HREF="intro-de.html">Mehr über Nextview EPG</A>
-<LI><A HREF="provnets.html">Liste aller Nextview Anbieter</A>
+<LI><A HREF="provnets-de.html">Liste aller Nextview Anbieter</A>
 <P></P>
 <LI><A HREF="download-de.html">Software Download</A>
 <LI><A HREF="download-de.html#requirements">SystemAnforderungen</A>
 <P></P>
-<LI><A HREF="index-de.html#new_2_7_6">Aktueller release 2.7.6</A>
+<LI><A HREF="index-de.html#new_2_7_7">Aktueller release 2.7.7</A>
 <LI><A HREF="index-de.html#feedback">Fragen und feedback</A>
-<LI><A HREF="index-de.html#help_wanted">Entwickler gesucht</A>
 <LI><A HREF="index-de.html#copyright">Copyright</A>
 </UL>
 
-<H2><A NAME="new_2_7_6">Neuer release 2.7.6 (14.8.2005)</A></H2>
+<H2><SPAN CLASS="red"><A NAME="new_2_7_7">Aktueller release 2.7.7 (21.1.2007)</A></SPAN></H2>
 <P>
-Neu in Release 2.7.6 ist vor allem die deutsche Übersetzung der
-Bedienungsanleitung und der internen Hilfe.  Außerdem wurden einige
-seit dem vorherigen Release gemeldete Fehler behoben.
+Version 2.7.7 dient gleich den vorherigen releases hauptsächlich
+der Fehlerbereinigung und kleinen Erweiterungen. Die wichtigsten Änderungen
+sind:
 </P>
 <UL>
-<LI>Die komplette <A HREF="man-de.html">Bedienungsanleitung</A> und die interne
-  Hilfe wurden ins Deutsche übersetzt.
-  <BR><SPAN class="anno">(Vielen Dank an Olaf Noehring für die organisatorische
-  Arbeit, und an Kurt Lettmaier, der den Großteil der 4000 Zeilen übersetzt hat.)
-<LI>Ein Fehler der beim Löschen mehrerer Reminder sogar zum Programmabsturz
-  führen konnte wurde behoben.
-  &nbsp;&nbsp;<SPAN class="anno">(Auch hier geht der Dank an Kurt für den bug report.)</SPAN>
-<LI>Das XMLTV Ausgabeformat wurde leicht korrigiert damit es voll und ganz
-  der XMLTV DTD 0.6 Spezifikation entspricht.
-<LI>Die Fehlerausgabe im EPG Provider scan wurde verbessert so daß für jeden
-  Fehlerfall ein Hinweis auf die mögliche Ursache ausgegeben wird.
-  &nbsp;&nbsp;<SPAN class="anno">(Dank an Andreas für den Bug report.)</SPAN>
-<LI>Der Windows Release kommt jetzt in Form eines Installers anstatt eines
-  einfachen ZIP Archivs.
-  &nbsp;&nbsp;<SPAN class="anno">(Dank an Néo für die Idee und Implementierung.)</SPAN>
+<LI>Verbesserung der Fehlertoleranz des Nextview EPG Dekoders gegen
+  Übertragungsfehler bei schlechten TV-Empfangsbedingungen.
+<LI><I>Windows:</I> Erweiterte Hardwareunterstützung durch neue
+  Version der TV-Karten-Treiber (Übernommen von
+  <A HREF="http://www.dscaler.org/">DScaler</A>.)
+<LI><I>UNIX:</I> Verbesserung der
+  <A HREF="man-de.html#tv_application_interaction">Interaktion</A>
+  mit TV-Applikation <A HREF="http://tvtime.sourceforge.net/">tvtime</A>
+<LI><I>Linux:</I> Umgehung eines Treiber-Fehlers im Linux
+  <A HREF="http://kernel.org/">kernel</A> 2.6.16
+<LI>Überarbeitung der
+  <A HREF="man-de.html">deutschen Dokumentation</A>.
+  <BR><SPAN class="anno">(Nochmals Dank an Kurt Lettmaier.)</SPAN>
 </UL>
 <P>
 Zum Herunterladen in der <A HREF="download-de.html">Download Sektion</A>.
-Siehe auch die detaillierte Liste aller Änderungen im
-<A HREF="changelog.html">changelog</A>.  Es gibt außerdem bereits eine
-<A HREF="pre-releases.html">neue Entwicklungslinie</A> mit neuen Features.
+<BR>Siehe auch die detaillierte Liste aller Änderungen im
+<A HREF="changelog.html">changelog</A>.
+</P><P>
+Die Weiterentwicklung findet momentan auf einer separaten Entwicklungslinie
+statt. Siehe <A HREF="pre-releases-de.html">Pre-Releases</A>.
 </P>
 
 <H2><A NAME="feedback">Feedback</A></H2>
@@ -137,7 +134,7 @@ Verbesserungsvorschlägen, Feature requests oder bug reports.  Folgende
 Möglichkeiten stehen dafür zur Verfügung:
 </P>
 <UL>
-<LI>Liste der <A HREF="faq.html">häufig gestellten Fragen (FAQ)</A>
+<LI>Liste der <A HREF="faq-de.html">häufig gestellten Fragen (FAQ)</A>
 (inklusive Antworten)
 <LI><A HREF="http://sourceforge.net/forum/forum.php?forum_id=217872">Diskussionsforum</A>:
 die einfachste Möglichkeit (erfordert keine Sourceforge Registrierung). Wenn möglich
@@ -160,17 +157,9 @@ nach ob dieselbe Frage eventuell bereits kürzlich beantwortet wurde.
 </P>
 
 
-<H2><A NAME="help_wanted">Entwickler gesucht</A></H2>
-<P>
-Dieses Projekt ist jederzeit offen für Eure Mithilfe.  Sollte ein Feature
-fehlen, zieht bitte in Betracht es einfach selber zu implementieren und
-mir einen Patch zu schicken, anstatt mich darum zu bitten es einzubauen.
-</P>
-
-
 <H2><A NAME="copyright">Copyright</A></H2>
 <P>
-&copy; Copyright 1999 - 2004 T. Z&ouml;rner (und andere).
+&copy; Copyright 1999 - 2007 T. Z&ouml;rner (und andere).
 Alle Rechte vorbehalten.
 </P><P>
 Der Autor dieser Software ist kein Mitglied der
@@ -192,23 +181,6 @@ weiteren Verwertungsrechte vor.  Dies bedeutet daß Sie die Daten zwar
 privat frei nutzen dürfen, eine Weiterverbreitung z.B. im Internet
 jedoch nur mit Genehmigung des jeweiligen Anbieters gestattet ist.
 </P>
-
-<!-- Begin Nedstat Basic code -->
-<!-- Title: nexTView EPG Decoder Software -->
-<!-- URL: http://nxtvepg.tripod.com/ -->
-<script language="JavaScript" src="http://m1.nedstatbasic.net/basic.js">
-</script>
-<script language="JavaScript">
-<!--
-nedstatbasic("ABLmbAYCeAjHJw8oZuzU34ENTm6Q", 0);
-// -->
-</script>
-<noscript>
-<a target="_blank" href="http://v1.nedstatbasic.net/stats?ABLmbAYCeAjHJw8oZuzU34ENTm6Q"><img
-src="http://m1.nedstatbasic.net/n?id=ABLmbAYCeAjHJw8oZuzU34ENTm6Q"
-border="0" nosave width="18" height="18" ALT=""></a>
-</noscript>
-<!-- End Nedstat Basic code -->
 
 </DIV>
 </BODY>
