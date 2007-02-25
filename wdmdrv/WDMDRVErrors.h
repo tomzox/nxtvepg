@@ -1,0 +1,3 @@
+#define WDM_DRV_SYSTEMERR -1;
+#define WDM_DRV_ERR_DEV_OUTOFRANGE -2;
+#define WDM_DRV_ERR_NO_VBIPIN -3;

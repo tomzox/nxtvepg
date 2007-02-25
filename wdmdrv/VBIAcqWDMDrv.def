@@ -1,0 +1,22 @@
+; déclare les paramètres de module pour la DLL.
+
+LIBRARY      VBIAcqWDMDrv.dll
+
+; Les exportations explicites peuvent être placées ici
+
+EXPORTS
+		DllMain PRIVATE
+		InitDrv PRIVATE
+		FreeDrv PRIVATE
+		EnumDevices PRIVATE
+		SelectDevice PRIVATE
+		GetVBISettings PRIVATE
+		StartAcq PRIVATE
+		StopAcq PRIVATE
+		SetChannel PRIVATE
+		GetSignalStatus PRIVATE
+		GetDeviceName PRIVATE
+		GetVideoInputName PRIVATE
+		SelectVideoInput PRIVATE
+		IsInputATuner PRIVATE
+		SetWSTPacketCallBack PRIVATE

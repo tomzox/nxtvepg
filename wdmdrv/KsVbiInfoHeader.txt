@@ -1,0 +1,57 @@
+// http://www.osr.com/ddk/w98ddk/wdmvcap_94mq.htm
+
+
+      KS_VBIINFOHEADER
+
+The *KS_VBIINFOHEADER* structure is used for raw vertical blanking
+interval (VBI) streams. These streams are usually converted to NABTS,
+CC, and WST streams.
+
+typedef struct tagKS_VBIINFOHEADER {
+  ULONG  StartLine;
+  ULONG  EndLine;
+  ULONG  SamplingFrequency;
+  ULONG  MinLineStartTime;
+  ULONG  MaxLineStartTime;
+  ULONG  ActualLineStartTime;
+  ULONG  ActualLineEndTime;
+  ULONG  VideoStandard;
+  ULONG  SamplesPerLine;
+  ULONG  StrideInBytes;
+  ULONG  BufferSize;
+} KS_VBIINFOHEADER, *PKS_VBIINFOHEADER;
+
+
+        Members
+
+*StartLine*
+    Specifies line number of the first digitized VBI line.
+*EndLine*
+    Specifies the line number of the last digitized VBI line.
+*SamplingFrequency*
+    Specifies the sampling frequency expressed in Hz.
+*MinLineStartTime*
+    Specifies the shortest possible interval from the leading edge of
+    Hsync in 10ns units (that is, MicroSeconds * 100).
+*MaxLineStartTime*
+    Specifies the longest possible interval from the leading edge of
+    Hsync in 10ns units (that is, MicroSeconds * 100).
+*ActualLineStartTime*
+    Specifies the actual starting point of VBI digitization from the
+    leading edge of HSync in 10ns units (that is, MicroSeconds * 100).
+*ActualLineEndTime*
+    Specifies the actual ending point for VBI digitization from the
+    leading edge of HSync in 10ns units (that is, MicroSeconds * 100).
+*VideoStandard*
+    Specifies the KS_AnalogVideoStandard* value.
+*SamplesPerLine*
+    Specifies the number of samples digitized per video line.
+*StrideInBytes*
+    Specifies the stride in bytes between the first sample on a given
+    line and the first sample on the next line. This value can be larger
+    than *SamplesPerLine*.
+*BufferSize*
+    Specifies the size in bytes of the buffer to store the entire
+    digitized VBI signal. 
+
+Built on Friday, April 11, 2003
