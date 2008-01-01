@@ -12,28 +12,25 @@
  *  GNU General Public License for more details.
  *
  *
- *  Description: see according C source file.
+ *  Description: see C source file.
  *
  *  Author: Tom Zoerner
  *
- *  $Id: wintvcfg.h,v 1.4 2004/01/24 18:54:34 tom Exp tom $
+ *  $Id: wintvcfg.h,v 1.5 2006/11/26 12:56:52 tom Exp tom $
  */
 
 #ifndef __WINTVCFG_H
 #define __WINTVCFG_H
 
 
-// Interface to GUI
-bool WintvCfg_GetFreqTab( Tcl_Interp * interp, uint ** pFreqTab, uint * pCount );
+bool WintvCfg_GetFreqTab( char ** ppNameTab, uint ** ppFreqTab, uint * pCount, char ** ppErrMsg );
+bool WintvCfg_GetChanTab( uint appIdx, const char * pChanTabPath, char ** ppErrMsg,
+                          char ** ppNameTab, uint ** ppFreqTab, uint * pCount );
+char * WintvCfg_GetRcPath( const char * pBase, uint appIdx );
+bool WintvCfg_QueryApp( uint appIdx, const char ** ppAppName, bool * pNeedPath );
+uint WintvCfg_GetAppIdx( void );
 bool WintvCfg_IsEnabled( void );
-
-// Interface to TV application interaction
-uint WintvCfg_StationNameToCni( char * pName, uint MapName2Cni(const char * station) );
-bool WintvCfg_CheckAirTimes( uint cni );
-
-// Initialisation
-void WintvCfg_Init( bool enableChanTabFilter );
-void WintvCfg_Destroy( void );
+const char * WintvCfg_GetName( void );
 
 
 #endif  // __WINTVCFG_H

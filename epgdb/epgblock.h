@@ -25,7 +25,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgblock.h,v 1.49 2005/05/29 16:15:14 tom Exp $
+ *  $Id: epgblock.h,v 1.52 2007/12/31 16:11:01 tom Exp tom $
  */
 
 #ifndef __EPGBLOCK_H
@@ -57,11 +57,11 @@ typedef struct {
 
 typedef struct
 {
-   uint16_t  cni;
+   uint16_t  netCni;
    uint16_t  startNo;
    uint16_t  stopNo;
    uint16_t  stopNoSwo;
-   uint16_t  addInfo;
+   uint16_t  netCniMSB;   // temporarily replaced addInfo field
    int8_t    lto;
    uint8_t   dayCount;
    uint8_t   alphabet;
@@ -92,7 +92,12 @@ typedef struct
 #define AI_GET_SERVICENAME(X)   ((const uchar *)(X)+(X)->off_serviceNameStr)
 #define AI_GET_STR_BY_OFF(X,O)  ((const uchar *)(X)+(O))
 #define AI_GET_NETWOP_NAME(X,N) ((const uchar *)(X)+AI_GET_NETWOPS(X)[N].off_name)
-#define AI_GET_CNI(X)           (AI_GET_NETWOP_N(X,(X)->thisNetwop)->cni)
+#define AI_GET_NET_CNI(N)       ((uint)((N)->netCni) | ((uint)((N)->netCniMSB)<<16))
+#define AI_GET_NET_CNI_N(X,N)   AI_GET_NET_CNI(AI_GET_NETWOP_N((X),(N)))
+// note: "thisNetwop" is only meaningful for Nextview EPG databases
+// use element "provCni" in the DB context instead (i.e. outside of Nextview acq. control)
+#define AI_GET_THIS_NET_CNI(X)  AI_GET_NET_CNI(AI_GET_NETWOP_N((X),(X)->thisNetwop))
+
 
 // ---------------------------------------------------------------------------
 //    PI Block
@@ -428,7 +433,12 @@ typedef struct
 // EPG block types (internal redefinition; ordering is relevant!)
 
 // this is the maximum number of netwops an AI block can carry
+// (note: value 0xFF is reserved as invalid netwop index)
+#ifdef USE_XMLTV_IMPORT
+#define MAX_NETWOP_COUNT    254
+#else
 #define MAX_NETWOP_COUNT    80
+#endif
 
 typedef enum
 {
@@ -498,7 +508,8 @@ typedef enum
    EPGDB_PI_PRE_UPDATE,
    EPGDB_PI_POST_UPDATE,
    EPGDB_PI_REMOVED,
-   EPGDB_PI_PROC_DONE
+   EPGDB_PI_PROC_DONE,
+   EPGDB_PI_RESYNC
 } EPGDB_PI_ACQ_EVENT;
 
 struct EPGDB_CONTEXT_STRUCT;  // forward declaration only for following pointer reference
@@ -512,11 +523,15 @@ typedef bool (EPGDB_PI_ACQ_CB) ( const struct EPGDB_CONTEXT_STRUCT * usedDbc, EP
 
 typedef struct EPGDB_CONTEXT_STRUCT
 {
+   uint   provCni;                  // provider CNI
    uint   lockLevel;                // number of database locks on this context
    bool   modified;                 // if TRUE, db was modified by acquisition
    time_t expireDelayPi;            // how long to keep PI after they expired
 
    bool   merged;                   // Flag for merged db
+#ifdef USE_XMLTV_IMPORT
+   bool   xmltv;                    // Flag for import via XMLTV
+#endif
    void   *pMergeContext;           // Pointer to merge parameters
 
    uint   pageNo;                   // Teletext page for acq
@@ -548,7 +563,21 @@ typedef struct
 } EPGDB_BLOCK_COUNT;
 
 // max number of databases that can be merged into one
-#define MAX_MERGED_DB_COUNT  10
+#define MAX_MERGED_DB_COUNT  31
+
+// pseudo CNIs
+#define MERGED_PROV_CNI        0x00FF
+#define XMLTV_TTX_PROV_CNI     0x800000FF
+
+#define XMLTV_PROV_CNI_BASE    0x00010000
+#define XMLTV_PROV_CNI_DELTA   0x00010000
+#define XMLTV_PROV_CNI_MAX     0x0FFFFFFF
+#define XMLTV_NET_CNI_MASK     (XMLTV_PROV_CNI_DELTA - 1)
+#define XMLTV_NET_CNI_MSBS     16
+
+#define IS_NXTV_CNI(CNI)       ((((CNI) & ~0xFFFF) == 0) && ((CNI) != MERGED_PROV_CNI))
+#define IS_XMLTV_CNI(CNI)      (((CNI)>=XMLTV_PROV_CNI_BASE) && (((CNI)<=XMLTV_PROV_CNI_MAX)))
+#define IS_PSEUDO_CNI(CNI)     (((CNI)==MERGED_PROV_CNI) || ((CNI)==XMLTV_TTX_PROV_CNI))
 
 // ----------------------------------------------------------------------------
 // Declaration of queue for acquisition

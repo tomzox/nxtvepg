@@ -25,7 +25,7 @@
  *  DScaler #Id: SAA7134Source.cpp,v 1.100 2006/09/24 14:14:44 robmuller Exp #
  *  DScaler #Id: SAA7134Provider.cpp,v 1.10 2002/12/24 08:22:14 atnak Exp #
  *
- *  $Id: saa7134.c,v 1.24 2006/12/21 20:19:34 tom Exp tom $
+ *  $Id: saa7134.c,v 1.25 2007/12/30 21:40:27 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -370,7 +370,7 @@ static bool SAA7134_AllocDmaMemory( void )
       // allocate one page for a table with DMA_PAGES_PER_TASK pointers
       if (HwMem_AllocContigMemory(&PageTableDmaMem[idx], DMA_PAGE_SIZE) == FALSE)
       {
-         MessageBox(NULL, "Failed to allocate DMA page table memory: driver abort", "Nextview EPG driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+         MessageBox(NULL, "Failed to allocate DMA page table memory: driver abort", "nxtvepg driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
          SAA7134_FreeDmaMemory();
          return FALSE;
       }
@@ -380,7 +380,7 @@ static bool SAA7134_AllocDmaMemory( void )
       // allocate space for VBI buffer
       if (HwMem_AllocUserMemory(&VbiDmaMem[idx], DMA_PAGES_PER_TASK * DMA_PAGE_SIZE) == FALSE)
       {
-         MessageBox(NULL, "Failed to allocate VBI Memory for DMA: driver abort", "Nextview EPG driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+         MessageBox(NULL, "Failed to allocate VBI Memory for DMA: driver abort", "nxtvepg driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
          SAA7134_FreeDmaMemory();
          return FALSE;
       }
@@ -1060,7 +1060,7 @@ static bool SAA7134_Open( TVCARD * pTvCard, bool wdmStop )
                        "Probably another video application is running,\n"
                        "however nxtvepg requires exclusive access.\n"
                        "Aborting data acquisition.",
-                       "Nextview EPG driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+                       "nxtvepg driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
       CardConflictDetected = TRUE;
       result = FALSE;
    }

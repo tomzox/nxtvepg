@@ -14,14 +14,13 @@
  *
  *  Description:
  *
- *    Entry point for the Nextview EPG decoder: contains command
- *    line argument parsing, initialisation of all modules and
- *    GUI main loop.
+ *    Main entry point for nxtvepg (but not nxtvepgd): contains init
+ *    of all modules and GUI main loop.
  *    See README in the top level directory for a general description.
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgmain.c,v 1.140.1.1 2005/03/30 14:49:38 tom Exp $
+ *  $Id: epgmain.c,v 1.156 2007/12/31 16:34:36 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -31,7 +30,6 @@
 #include <unistd.h>
 #include <sys/param.h>
 #include <sys/time.h>
-#include <pwd.h>
 #include <signal.h>
 #else
 #include <windows.h>
@@ -40,15 +38,12 @@
 #include <direct.h>
 #endif
 #include <locale.h>
-#include <math.h>
 #include <stdio.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <stdlib.h>   /* abs() */
+#include <stdlib.h>
 #include <string.h>
-#include <ctype.h>    /* isdigit */
 #include <sys/types.h>
-#include <sys/stat.h>
 #include <time.h>
 
 #include <tcl.h>
@@ -73,20 +68,22 @@
 #include "epgui/statswin.h"
 #include "epgui/timescale.h"
 #include "epgui/menucmd.h"
+#include "epgui/epgsetup.h"
 #include "epgui/pibox.h"
 #include "epgui/pioutput.h"
 #include "epgui/pifilter.h"
 #include "epgui/piremind.h"
+#include "epgui/xiccc.h"
 #include "epgui/xawtv.h"
 #include "epgui/wmhooks.h"
 #include "epgui/wintv.h"
-#include "epgui/wintvcfg.h"
-#include "epgui/dumpraw.h"
-#include "epgui/dumptext.h"
-#include "epgui/dumphtml.h"
-#include "epgui/dumpxml.h"
+#include "epgui/wintvui.h"
+#include "epgui/uidump.h"
 #include "epgui/shellcmd.h"
 #include "epgui/loadtcl.h"
+#include "epgui/rcfile.h"
+#include "epgui/cmdline.h"
+#include "epgui/daemon.h"
 
 #include "images/nxtv_logo.xbm"
 #include "images/nxtv_small.xbm"
@@ -119,61 +116,21 @@
 # define TK_LIBRARY_PATH   "."
 #endif
 
-char *epg_version_str = EPG_VERSION_STR;
-char epg_rcs_id_str[] = EPG_VERSION_RCS_ID;
-
 Tcl_Interp * interp;               // Interpreter for application
 char comm[TCL_COMM_BUF_SIZE + 1];  // Command buffer (one extra byte for overflow detection)
 
-typedef enum
-{
-   EPGGUI_START,
-   DAEMON_START,
-   DAEMON_STOP
-} DAEMON_MODE;
-#define IS_DAEMON(MODE)  ((MODE) != EPGGUI_START)
-
-// command line options
-#ifdef WIN32
-static const char * const defaultRcFile = "nxtvepg.ini";
-static const char * const defaultDbDir  = ".";
-#else
-static char * defaultRcFile = "~/.nxtvepgrc";
-static char * defaultDbDir  = NULL;
-static char * pTvX11Display = NULL;
-#endif
-static const char * rcfile = NULL;
-static const char * dbdir  = NULL;
-static int  videoCardIndex = -1;
-static bool disableAcq = FALSE;
-static DAEMON_MODE optDaemonMode = EPGGUI_START;
-static EPGTAB_DUMP_MODE optDumpMode = EPGTAB_DUMP_NONE;
-static const char * pStdOutFileName = NULL;
-#ifdef USE_DAEMON
-static bool optNoDetach   = FALSE;
-#endif
-static EPGACQ_PHASE optAcqOnce = ACQMODE_PHASE_COUNT;
-static bool optAcqPassive = FALSE;
-static bool startIconified = FALSE;
-static uint startUiCni = 0;
-static const char *pDemoDatabase = NULL;
-static const char *pOptArgv0 = NULL;
-static int  optGuiPipe = -1;
-#ifdef WIN32
-static uint optRemCtrl = 0;
-#endif
-
 // handling of global timer events & signals
-static bool should_exit;
+static bool should_exit = FALSE;
 static Tcl_TimerToken clockHandler = NULL;
 static Tcl_TimerToken expirationHandler = NULL;
 #ifndef WIN32
 static Tcl_AsyncHandler exitAsyncHandler = NULL;
 static Tcl_AsyncHandler signalAsyncHandler = NULL;
 #endif
+Tcl_Encoding encIso88591 = NULL;
 
 #ifdef WIN32
-static HINSTANCE  hMainInstance;  // copy of win32 instance handle
+HINSTANCE  hMainInstance;  // copy of win32 instance handle
 #endif
 
 // queue for events called from the main loop when Tcl is idle
@@ -281,14 +238,6 @@ static void ProcessMainIdleEvent( void )
 }
 
 // ---------------------------------------------------------------------------
-// Query if the program was started in demo mode
-//
-bool IsDemoMode( void )
-{
-   return (pDemoDatabase != NULL);
-}
-
-// ---------------------------------------------------------------------------
 // Discard all events in the main idle queue
 // - only required if memory-leak detection is enabled
 //
@@ -347,9 +296,6 @@ static void ClockMinEvent( ClientData clientData )
 
    // refresh the listbox to remove expired PI
    PiBox_Refresh();
-
-   // check upon acquisition progress
-   EpgAcqCtl_Idle();
 }
 
 // ---------------------------------------------------------------------------
@@ -405,9 +351,9 @@ static void EventHandler_SigHup( ClientData clientData )
 {
    if (EpgScan_IsActive() == FALSE)
    {
-      if (pAcqDbContext == NULL)
+      if ( EpgAcqCtl_IsActive() )
       {  // acq currently not running -> start
-         AutoStartAcq(interp);
+         AutoStartAcq();
       }
       else
       {  // acq currently running -> stop it or disconnect from server
@@ -417,142 +363,50 @@ static void EventHandler_SigHup( ClientData clientData )
 }
 #endif
 
-// ---------------------------------------------------------------------------
-// Fetch current time from teletext
-//
-static void SystemClockCmd( EPGTAB_DUMP_MODE optDumpMode, uint cni )
-{
-   EPGDB_CONTEXT * pPeek;
-   Tcl_Obj  * pVarObj;
-   bool  isTuner;
-   uint  freq;
-   int   input;
-   uint  waitCnt;
-   sint  lto;
-   time_t ttxTime;
-
-   SetHardwareConfig(interp, videoCardIndex);
-   BtDriver_SelectSlicer(VBI_SLICER_ZVBI);
-   BtDriver_SetChannelProfile(VBI_CHANNEL_PRIO_BACKGROUND, 0, 0, 0);
-
-   if (BtDriver_StartAcq())
-   {
-      if (cni != 0)
-      {
-         freq = UiControlMsg_QueryProvFreq(cni);
-         if (freq == 0)
-         {
-            pPeek = EpgContextCtl_Peek(cni, CTX_RELOAD_ERR_ACQ);
-            if (pPeek != NULL)
-            {
-               freq = pPeek->tunerFreq;
-               EpgContextCtl_ClosePeek(pPeek);
-            }
-            else
-               debug1("EpgAcqCtl-UpdateProvider: peek for 0x%04X failed", cni);
-         }
-      }
-      else
-         freq = 0;
-
-      pVarObj = Tcl_GetVar2Ex(interp, "hwcf_input", NULL, TCL_GLOBAL_ONLY);
-      if ( (pVarObj == NULL) ||
-           (Tcl_GetIntFromObj(interp, pVarObj, &input) != TCL_OK) )
-      {
-         input = 0;
-      }
-
-      if ( BtDriver_TuneChannel(input, freq, FALSE, &isTuner) )
-      {
-         if ( isTuner && (freq == 0) && (cni != 0) )
-         {
-            fprintf(stderr, "nxtvepg: warning: cannot tune channel for provider 0x%04X: "
-                            "frequency unknown\n", cni);
-         }
-      }
-      else
-         fprintf(stderr, "Failed to tune provider channel: %s\n", BtDriver_GetLastError());
-
-      ttxTime = 0;
-      waitCnt = 0;
-      while ((should_exit == FALSE) && (waitCnt < 5*25))
-      {
-#ifndef WIN32
-         struct timeval  tv;
-         tv.tv_sec  = 0;
-         tv.tv_usec = 40 * 1000L;  // 1/25 sec = 40 ms
-         select(0, NULL, NULL, NULL, &tv);
-#else
-         Sleep(40);
-#endif
-
-         ttxTime = TtxDecode_GetDateTime(&lto);
-         if (ttxTime != 0)
-            break;
-         waitCnt += 1;
-      }
-
-      if (ttxTime != 0)
-      {
-         dprintf3("... offset %d to UTC: GMT%+d %s", (int)(time(NULL)-ttxTime), lto/(60*60), ctime(&ttxTime));
-         switch (optDumpMode)
-         {
-            case EPGTAB_CLOCK_SET:
-            {
 #ifdef WIN32
-               SYSTEMTIME st;
-               struct tm * ptm;
-
-               ptm = gmtime(&ttxTime);
-               memset(&st, 0, sizeof(st));
-               st.wYear = ptm->tm_year + 1900;
-               st.wMonth = ptm->tm_mon + 1;
-               st.wDay = ptm->tm_mday;
-               st.wHour = ptm->tm_hour;
-               st.wMinute = ptm->tm_min;
-               st.wSecond = ptm->tm_sec;
-               if (SetSystemTime(&st) == FALSE)
-               {
-                  char * errmsg = NULL;
-                  SystemErrorMessage_Set(&errmsg, GetLastError(), "Failed to modify system time", NULL);
-                  fprintf(stderr, "%s\n", errmsg);
-               }
-#else
-               struct timeval tv;
-
-               tv.tv_sec = ttxTime;
-               tv.tv_usec = 0;
-               if (settimeofday(&tv, NULL) != 0)
-               {
-                  fprintf(stderr, "Failed to modify system time: %s\n", strerror(errno));
-               }
+// ---------------------------------------------------------------------------
+// WIN32: Advise user to configure the TV card
+//
+static void Main_PopupTvCardSetup( ClientData clientData )
+{
+   MenuCmd_PopupTvCardSetup();
+}
 #endif
-              break;
-            }
-            case EPGTAB_CLOCK_PRINT:
-            {
-              struct tm * ptm;
-              char buf[256];
 
-              ptm = localtime(&ttxTime);
-              if (strftime(buf, sizeof(buf), "%a %b %d %H:%M:%S %Z %Y", ptm))
-              {
-                 printf("%s\n", buf);
-              }
-              break;
-            }
-            default:
-              fatal1("SystemClock-Cmd: unknown mode %d", optDumpMode);
-              break;
-         }
-      }
-      else
-         fprintf(stderr, "No time packets received from teletext - giving up.\n");
+// ---------------------------------------------------------------------------
+// Start database export
+//
+static void MainStartDump( void )
+{
+   uint provCni;
 
-      BtDriver_StopAcq();
+   provCni = CmdLine_GetStartProviderCni();
+   if (provCni == MERGED_PROV_CNI)
+   {
+      pUiDbContext = EpgSetup_MergeDatabases();
+      if (pUiDbContext == NULL)
+         printf("<!-- nxtvepg database merge failed: check merge configuration -->\n");
+   }
+   else if (provCni != 0)
+   {
+      pUiDbContext = EpgContextCtl_Open(provCni, FALSE, CTX_FAIL_RET_NULL, CTX_RELOAD_ERR_REQ);
+      if (pUiDbContext == NULL)
+         printf("<!-- nxtvepg failed to load database %04X -->\n", provCni);
    }
    else
-      fprintf(stderr, "Failed to start acquisition: %s\n", BtDriver_GetLastError());
+   {  // this case should be prevented in the command line parameter check
+      printf("<!-- no provider specified -->\n");
+      pUiDbContext = NULL;
+   }
+
+   if (pUiDbContext != NULL)
+   {
+      SetUserLanguage(interp);
+
+      EpgDump_Standalone(pUiDbContext, stdout, mainOpts.optDumpMode, mainOpts.optDumpSubMode);
+
+      EpgContextCtl_Close(pUiDbContext);
+   }
 }
 
 // ---------------------------------------------------------------------------
@@ -859,7 +713,160 @@ static void EventHandler_NetworkUpdate( EPGACQ_EVHAND * pAcqEv )
       #endif
    }
 }
+#endif  // USE_DAEMON
 
+#ifndef WIN32
+// ----------------------------------------------------------------------------
+// Execute remote command
+//
+static char * EpgMain_ExecRemoteCmd( char ** pArgv, uint argc )
+{
+   if (argc > 0)
+   {
+      if (strcasecmp(pArgv[0], "quit") == 0)
+      {
+         sprintf(comm, "destroy .");
+         eval_check(interp, comm);
+      }
+      else if (strcasecmp(pArgv[0], "raise") == 0)
+      {
+         sprintf(comm, "wm deiconify .\nraise .");
+         eval_check(interp, comm);
+      }
+      else if (strcasecmp(pArgv[0], "iconify") == 0)
+      {
+         sprintf(comm, "wm iconify .");
+         eval_check(interp, comm);
+      }
+      else if (strcasecmp(pArgv[0], "deiconify") == 0)
+      {
+         sprintf(comm, "wm deiconify .");
+         eval_check(interp, comm);
+      }
+      else if (strcasecmp(pArgv[0], "acq_on") == 0)
+      {
+         if ( EpgAcqCtl_IsActive() == FALSE )
+         {
+            AutoStartAcq();
+         }
+      }
+      else if (strcasecmp(pArgv[0], "acq_off") == 0)
+      {
+         EpgAcqCtl_Stop();
+      }
+      else
+      {
+         debug1("EpgMain-ExecRemoteCmd: unknown command '%s'", pArgv[0]);
+      }
+   }
+   return NULL;
+}
+
+// ----------------------------------------------------------------------------
+// Event handler
+// - this function is called for every incoming X event
+// - filters out events from the xawtv main window
+//
+static int RemoteControl_XEvent( ClientData clientData, XEvent *eventPtr )
+{
+   XICCC_STATE * pXi;
+   bool needHandler;
+
+   pXi = (void *) clientData;
+
+   return Xiccc_XEvent(eventPtr, pXi, &needHandler);
+}
+
+// ----------------------------------------------------------------------------
+// Search other nxtvepg instance and pass remote control command
+//
+static void RemoteControlCmd( void )
+{
+   XICCC_STATE xiccc;
+   Tk_Window  mainWindow;
+   Display   * dpy;
+   const char * pCmdStr;
+
+   switch (mainOpts.optRemCtrl)
+   {
+      case REM_CTRL_QUIT: pCmdStr = "quit"; break;
+      case REM_CTRL_RAISE: pCmdStr = "raise"; break;
+      case REM_CTRL_ICONIFY: pCmdStr = "iconify"; break;
+      case REM_CTRL_DEICONIFY: pCmdStr = "deiconify"; break;
+      case REM_CTRL_ACQ_ON: pCmdStr = "acq_on"; break;
+      case REM_CTRL_ACQ_OFF: pCmdStr = "acq_off"; break;
+      default:
+         debug1("RemoteControlCmd: unknown mode %d", mainOpts.optRemCtrl);
+         pCmdStr = NULL;
+         break;
+   }
+   if (pCmdStr != NULL)
+   {
+      eval_check(interp, "wm withdraw .");
+
+      // wait until window is open and everything displayed
+      while ( (Tk_GetNumMainWindows() > 0) &&
+              Tcl_DoOneEvent(TCL_ALL_EVENTS | TCL_DONT_WAIT) )
+         ;
+
+      mainWindow = Tk_MainWindow(interp);
+      if (mainWindow != NULL)
+      {
+         dpy = Tk_Display(mainWindow);
+         if (dpy != NULL)
+         {
+            char * pIdArgv;
+            uint   idLen;
+
+            Tk_CreateGenericHandler(RemoteControl_XEvent, (void *)&xiccc);
+
+            Xiccc_BuildArgv(&pIdArgv, &idLen, ICCCM_PROTO_VSTR, "nxtvepg -remctrl", EPG_VERSION_STR, "", NULL);
+            Xiccc_Initialize(&xiccc, dpy, FALSE, pIdArgv, idLen);
+            xfree(pIdArgv);
+
+            Xiccc_SearchPeer(&xiccc);
+            if (xiccc.events & XICCC_NEW_PEER)
+            {
+               xiccc.events &= ~XICCC_NEW_PEER;
+               Xiccc_SendQuery(&xiccc, pCmdStr, strlen(pCmdStr)+1, xiccc.atoms._NXTVEPG_REMOTE,
+                               xiccc.atoms._NXTVEPG_REMOTE_RESULT);
+
+               while (should_exit == FALSE)
+               {
+                  Tcl_DoOneEvent(0);
+
+                  if (xiccc.events & XICCC_LOST_PEER)
+                  {
+                     fprintf(stderr, "Lost connection\n");
+                     xiccc.events &= ~XICCC_LOST_PEER;
+                     break;
+                  }
+                  if (xiccc.events & XICCC_REMOTE_REPLY)
+                  {
+                     char ** pArgv;
+                     uint  argc;
+
+                     xiccc.events &= ~XICCC_REMOTE_REPLY;
+
+                     if (Xiccc_SplitArgv(dpy, xiccc.manager_wid, xiccc.atoms._NXTVEPG_REMOTE_RESULT, &pArgv, &argc))
+                     {
+                        // note: we're expecting only one result arg
+                        if (argc > 0)
+                           printf("%s", pArgv[0]);
+                        xfree(pArgv);
+                     }
+                     break;
+                  }
+               }
+            }
+
+            Xiccc_Destroy(&xiccc);
+         }
+      }
+   }
+}
+
+#else // WIN32
 // ---------------------------------------------------------------------------
 // WIN32 daemon: maintain an invisible Window to catch shutdown messages
 // - on win32 the only way to terminate the daemon is by sending a command to this
@@ -868,52 +875,10 @@ static void EventHandler_NetworkUpdate( EPGACQ_EVHAND * pAcqEv )
 // - the existance of the window is also used to detect if the daemon is running
 //   by the GUI client
 //
-#ifdef WIN32
-#define UWM_SYSTRAY     (WM_USER + 1)   // Sent by the systray
-#define UWM_QUIT        (WM_USER + 2)   // Codes sent between nxtvepg instances
-#define UWM_RAISE       (WM_USER + 3)
-#define UWM_ICONIFY     (WM_USER + 4)
-#define UWM_DEICONIFY   (WM_USER + 5)
-#define UWM_ACQ_ON      (WM_USER + 6)
-#define UWM_ACQ_OFF     (WM_USER + 7)
 
-static const char * const daemonWndClassname = "nxtvepg_daemon";
 static const char * const remCtrlWndClassname = "nxtvepg_remctrl";
-static HWND      hRemCtrlWnd = NULL;
-static HANDLE    remCtrlWinThreadHandle = NULL;
 static uint      remoteControlMsg = 0;
 static Tcl_AsyncHandler remoteControlMsgHandler = NULL;
-
-// ---------------------------------------------------------------------------
-// Message handler for the daemon's invisible window
-// - only "destructive" events are caught
-//
-static LRESULT CALLBACK DaemonControlWindowMsgCb( HWND hwnd, UINT message, WPARAM wParam, LPARAM lParam )
-{
-   LRESULT result = 0;
-
-   switch (message)
-   {
-      case WM_QUERYENDSESSION:
-         result = TRUE;
-         // fall-through
-      case WM_ENDSESSION:
-      case WM_DESTROY:
-      case WM_CLOSE:
-         // terminate the daemon main loop
-         if (should_exit == FALSE)
-         {
-            debug1("DaemonControl-WindowMsgCb: received message %d - shutting down", message);
-            should_exit = TRUE;
-            // give the daemon main loop time to process the flag
-            Sleep(250);
-         }
-         // quit the window message loop
-         PostQuitMessage(0);
-         return result;
-   }
-   return DefWindowProc(hwnd, message, wParam, lParam);
-}
 
 // ---------------------------------------------------------------------------
 // Process remote control message sent via nxtvepg command line
@@ -923,9 +888,9 @@ static void EventHandler_RemoteControlMsg( ClientData clientData )
    switch ( PVOID2UINT(clientData) )
    {
       case UWM_ACQ_ON:
-         if (pAcqDbContext == NULL)
+         if ( EpgAcqCtl_IsActive() == FALSE )
          {
-            AutoStartAcq(interp);
+            AutoStartAcq();
          }
          break;
 
@@ -997,254 +962,52 @@ static LRESULT CALLBACK RemoteControlWindowMsgCb( HWND hwnd, UINT message, WPARA
 }
 
 // ----------------------------------------------------------------------------
-// Remote control window message handler thread
-// - first creates an invisible window, the triggers the waiting caller thread,
-//   then enters the message loop
-// - the thread finishes when the QUIT message is posted by the msg handler cb
+// Search other nxtvepg instance and pass remote control command
 //
-static DWORD WINAPI RemoteControlWindowThread( LPVOID argEvHandle )
+static void RemoteControlCmd( void )
 {
+   ATOM classAtom;
+   HWND OtherNxtvepgHWnd = NULL;
    WNDCLASSEX  wc;
-   MSG         msg;
+   DWORD uwm;
 
    memset(&wc, 0, sizeof(wc));
    wc.cbSize        = sizeof(WNDCLASSEX);
    wc.hInstance     = hMainInstance;
-   if (IS_DAEMON(optDaemonMode))
+   wc.lpfnWndProc   = RemoteControlWindowMsgCb;
+   wc.lpszClassName = remCtrlWndClassname;
+   classAtom = RegisterClassEx(&wc);
+   if (classAtom != 0)
    {
-      wc.lpfnWndProc   = DaemonControlWindowMsgCb;
-      wc.lpszClassName = daemonWndClassname;
-   }
-   else
-   {
-      wc.lpfnWndProc   = RemoteControlWindowMsgCb;
-      wc.lpszClassName = remCtrlWndClassname;
-   }
-   RegisterClassEx(&wc);
+      OtherNxtvepgHWnd = FindWindowEx(NULL, NULL, INT2PVOID(classAtom), NULL);
+      if (OtherNxtvepgHWnd != NULL) 
+      {  // found another instance of the application
 
-   // Create an invisible window
-   hRemCtrlWnd = CreateWindowEx(0, wc.lpszClassName, wc.lpszClassName, WS_POPUP, CW_USEDEFAULT,
-                                0, CW_USEDEFAULT, 0, NULL, NULL, hMainInstance, NULL);
-
-   if (hRemCtrlWnd != NULL)
-   {
-      dprintf0("RemoteControl-WindowThread: created control window\n");
-
-      // notify the main thread that initialization is complete
-      if (argEvHandle != NULL)
-         if (SetEvent((HANDLE)argEvHandle) == 0)
-            debug1("RemoteControl-WindowThread: SetEvent: %ld", GetLastError());
-      // the event handle is closed by the main thread and must not be used again
-      argEvHandle = NULL;
-
-      while (GetMessage(&msg, hRemCtrlWnd, 0, 0))
-      {
-         TranslateMessage(&msg);
-         DispatchMessage(&msg);
-      }
-
-      // QUIT message received -> destroy the window
-      DestroyWindow(hRemCtrlWnd);
-      hRemCtrlWnd = NULL;
-   }
-   else
-   {
-      debug1("RemoteControl-WindowThread: CreateWindowEx: %ld", GetLastError());
-      SetEvent((HANDLE)argEvHandle);
-   }
-
-   return 0;  // dummy
-}
-
-// ---------------------------------------------------------------------------
-// Create the daemon control window and the message hander task
-//
-static bool RemoteControlWindowCreate( void )
-{
-   DWORD   threadID;
-   HANDLE  evHandle;
-   bool    result = FALSE;
-
-   // open a temporary event handle that's passed to the thread to tell us when it's ready
-   evHandle = CreateEvent(NULL, FALSE, FALSE, NULL);
-   if (evHandle != NULL)
-   {
-      remCtrlWinThreadHandle = CreateThread(NULL, 0, RemoteControlWindowThread, evHandle, 0, &threadID);
-      if (remCtrlWinThreadHandle != NULL)
-      {
-         // wait until the window is created, because if the daemon was started by the
-         // GUI, it checks for the existance of the window - so we must be sure it exists
-         // before we trigger the GUI that we're ready
-         if (WaitForSingleObject(evHandle, 2 * 1000) == WAIT_FAILED)
-            debug1("RemoteControl-WindowCreate: WaitForSingleObject: %ld", GetLastError());
-
-         result = TRUE;
-      }
-      else
-         debug1("RemoteControl-WindowCreate: cannot start thread: %ld", GetLastError());
-
-      CloseHandle(evHandle);
-   }
-   else
-      debug1("RemoteControl-WindowCreate: CreateEvent: %ld", GetLastError());
-
-   return result;
-}
-
-// ---------------------------------------------------------------------------
-// Destroy the daemon control window and stop the message handler task
-//
-static void RemoteControlWindowDestroy( void )
-{
-   if ((remCtrlWinThreadHandle != NULL) && (hRemCtrlWnd != NULL))
-   {
-      PostMessage(hRemCtrlWnd, WM_CLOSE, 0, 0);
-      WaitForSingleObject(remCtrlWinThreadHandle, 2000);
-      CloseHandle(remCtrlWinThreadHandle);
-      remCtrlWinThreadHandle = NULL;
-   }
-}
-#endif  // WIN32
-
-// ---------------------------------------------------------------------------
-// Compatibility definitions for millisecond timer handling
-//
-#ifdef WIN32
-typedef struct
-{
-   uint  msecs;
-} msecTimer;
-#define gettimeofday(PT,N)    do {(PT)->msecs = GetCurrentTime();} while(0)
-#define CmpMsecTimer(A,B,CMP) ((A)->msecs CMP (B)->msecs)
-#define AddMsecTimer(T,VAL)   ((T)->msecs += (VAL) * 1000)
-#define AddSecTimer(T,VAL)    ((T)->msecs += (VAL))
-
-#else
-typedef struct timeval  msecTimer;
-#define CmpMsecTimer(A,B,CMP) timercmp(A,B,CMP)
-#define AddMsecTimer(T,VAL)   ((T)->tv_sec += (VAL))
-#define AddSecTimer(T,VAL)    do { (T)->tv_usec += (VAL) * 1000L; \
-                                    if (tvXawtv.tv_usec > 1000000L) { \
-                                       tvXawtv.tv_sec  += 1L; \
-                                       tvXawtv.tv_usec -= 1000000L; \
-                              }} while (0)
-#endif
-
-// ---------------------------------------------------------------------------
-// Daemon main loop
-//
-static void DaemonMainLoop( void )
-{
-   msecTimer tvIdle;
-   msecTimer tvAcq;
-   msecTimer tvXawtv;
-   msecTimer tvNow;
-   struct timeval tv;
-   fd_set  rd, wr;
-   sint    max_fd;
-   sint    selSockCnt;
-
-   gettimeofday(&tvAcq, NULL);
-   tvIdle = tvAcq;
-   tvXawtv = tvAcq;
-
-   while ((should_exit == FALSE) && (pAcqDbContext != NULL))
-   {
-      gettimeofday(&tvNow, NULL);
-      if (CmpMsecTimer(&tvNow, &tvAcq, >))
-      {  // read VBI device and add blocks to db
-         if (EpgAcqCtl_ProcessPackets())
-            EpgAcqCtl_ProcessBlocks();
-         tvAcq = tvNow;
-         AddMsecTimer(&tvAcq, 1);
-      }
-      if (CmpMsecTimer(&tvNow, &tvIdle, >))
-      {  // check for acquisition timeouts
-         EpgAcqCtl_Idle();
-         tvIdle = tvNow;
-         AddMsecTimer(&tvIdle, 20);
-      }
-      if (CmpMsecTimer(&tvNow, &tvXawtv, >))
-      {  // handle VPS/PDC forwarding
-         EpgAcqCtl_ProcessVps();
-         tvXawtv = tvNow;
-         AddSecTimer(&tvXawtv, 200);
-      }
-
-      FD_ZERO(&rd);
-      FD_ZERO(&wr);
-      max_fd = EpgAcqServer_GetFdSet(&rd, &wr);
-
-      // wait for any event, but max. 250 ms
-      tv.tv_sec  = 0;
-      tv.tv_usec = 250000L;
-
-      selSockCnt = select(((max_fd > 0) ? (max_fd + 1) : 0), &rd, &wr, NULL, &tv);
-      if (selSockCnt != -1)
-      {  // forward new blocks to network clients, handle incoming messages, check for timeouts
-         DBGONLY( if (selSockCnt > 0) )
-            dprintf1("Daemon-MainLoop: select: events on %d sockets\n", selSockCnt);
-         EpgAcqServer_HandleSockets(&rd, &wr);
-      }
-      else
-      {
-         #ifndef WIN32
-         if (errno != EINTR)
-         {  // select syscall failed
-            debug2("Daemon-MainLoop: select with max. fd %d: %s", max_fd, strerror(errno));
-            sleep(1);  // sleep 1 second to avoid busy looping
-         }
-         #else  // WIN32
-         if (WSAGetLastError() != WSAEINTR)
+         switch (mainOpts.optRemCtrl)
          {
-            debug2("Daemon-MainLoop: select with max. fd %d: %d", max_fd, WSAGetLastError());
-            Sleep(1000);  // 1000 milliseconds == 1 second
+            case REM_CTRL_QUIT: uwm = UWM_QUIT; break;
+            case REM_CTRL_RAISE: uwm = UWM_RAISE; break;
+            case REM_CTRL_ICONIFY: uwm = UWM_ICONIFY; break;
+            case REM_CTRL_DEICONIFY: uwm = UWM_DEICONIFY; break;
+            case REM_CTRL_ACQ_ON: uwm = UWM_ACQ_ON; break;
+            case REM_CTRL_ACQ_OFF: uwm = UWM_ACQ_OFF; break;
+            default: uwm = 0;
+               debug1("RemoteControlCmd: unknown mode %d", mainOpts.optRemCtrl);
+               break;
          }
-         #endif
+
+         if (uwm != 0)
+         {
+            PostMessage(OtherNxtvepgHWnd, uwm, 0, 0);
+         }
+         ExitProcess(0);
       }
    }
+   // error: no remote instance found
+   // do not display message box to allow use by batch scripts
+   ExitProcess(1);
 }
-
-// ---------------------------------------------------------------------------
-// Notify the GUI that the daemon is ready
-// - on WIN32 it's also used to notify the GUI that the acq start failed
-//
-static void DaemonTriggerGui( void )
-{
-   #ifdef WIN32
-   HANDLE  parentEvHd;
-   uchar   id_buf[20];
-   #endif
-
-   if (optGuiPipe != -1)
-   {
-      #ifndef WIN32
-      // the cmd line param contains the file handle of the pipe between daemon and GUI
-      write(optGuiPipe, "OK", 3);
-      close(optGuiPipe);
-
-      #else  // WIN32
-      // the cmd line param contains the ID of the parent process
-      dprintf1("Daemon-TriggerGui: triggering GUI process ID %d\n", optGuiPipe);
-      sprintf(id_buf, "nxtvepg_gui_%d", optGuiPipe);
-      parentEvHd = CreateEvent(NULL, FALSE, FALSE, id_buf);
-      if (parentEvHd != NULL)
-      {
-         ifdebug1((GetLastError() != ERROR_ALREADY_EXISTS), "Daemon-TriggerGui: parent id %d has closed event handle", optGuiPipe);
-
-         if (SetEvent(parentEvHd) == 0)
-            debug1("Daemon-TriggerGui: SetEvent: %ld", GetLastError());
-
-         CloseHandle(parentEvHd);
-      }
-      else
-         debug2("Daemon-TriggerGui: CreateEvent \"%s\": %ld", id_buf, GetLastError());
-
-      #endif
-
-      optGuiPipe = -1;
-   }
-}
+#endif // WIN32
 
 #ifndef WIN32
 // ---------------------------------------------------------------------------
@@ -1285,12 +1048,12 @@ static void EventHandler_DaemonStart( ClientData clientData, int mask )
                execErrno = 0;
             if (execErrno == ENOENT)
             {  // most probably exec error: file not found
-               sprintf(comm, "tk_messageBox -type ok -icon error "
+               sprintf(comm, "tk_messageBox -type ok -icon error -title {nxtvepg} "
                              "-message {nxtvepg executable not found. Make sure the program file is in your $PATH.}");
             }
             else
             {  // any other errors: print system error message
-               sprintf(comm, "tk_messageBox -type ok -icon error "
+               sprintf(comm, "tk_messageBox -type ok -icon error -title {nxtvepg} "
                              "-message {Failed to execute the daemon process: %s.}",
                              (execErrno ? strerror(execErrno) : "communication error"));
             }
@@ -1302,7 +1065,7 @@ static void EventHandler_DaemonStart( ClientData clientData, int mask )
          Tcl_DeleteFileHandler(fd);
          close(fd);
          // inform the user
-         eval_check(interp, "tk_messageBox -type ok -icon error "
+         eval_check(interp, "tk_messageBox -type ok -icon error -title {nxtvepg} "
                             "-message {The daemon failed to start. Check syslog or the daemon log file for the cause.}");
          Tcl_ResetResult(interp);
       }
@@ -1327,15 +1090,15 @@ bool EpgMain_StartDaemon( void )
       daemonArgc = 0;
       daemonArgv[daemonArgc++] = "nxtvepg";
       daemonArgv[daemonArgc++] = "-daemon";
-      if (strcmp(defaultRcFile, rcfile) != 0)
+      if (mainOpts.isUserRcFile)
       {
          daemonArgv[daemonArgc++] = "-rcfile";
-         daemonArgv[daemonArgc++] = (char *) rcfile;
+         daemonArgv[daemonArgc++] = (char *) mainOpts.rcfile;
       }
-      if (strcmp(defaultDbDir, dbdir) != 0)
+      if (strcmp(mainOpts.defaultDbDir, mainOpts.dbdir) != 0)
       {
          daemonArgv[daemonArgc++] = "-dbdir";
-         daemonArgv[daemonArgc++] = (char *) dbdir;
+         daemonArgv[daemonArgc++] = (char *) mainOpts.dbdir;
       }
       daemonArgv[daemonArgc++] = "-guipipe";
       daemonArgv[daemonArgc++] = fd_buf;
@@ -1348,8 +1111,8 @@ bool EpgMain_StartDaemon( void )
          case 0:   // child
             close(pipe_fd[0]);
 
-            if (pOptArgv0 != NULL)
-               execv(pOptArgv0, daemonArgv);
+            if (mainOpts.pOptArgv0 != NULL)
+               execv(mainOpts.pOptArgv0, daemonArgv);
             execvp("nxtvepg", daemonArgv);
 
             fprintf(stderr, "Failed to execute the daemon: %s\n", strerror(errno));
@@ -1375,28 +1138,6 @@ bool EpgMain_StartDaemon( void )
    }
    else
       fprintf(stderr, "Failed to create pipe to communicate with daemon: %s\n", strerror(errno));
-
-   return result;
-}
-
-// ---------------------------------------------------------------------------
-// UNIX: Terminate the daemon by sending a signal
-// - the pid is obtained from the pid file (usually /tmp/.vbi_pid#)
-// - the function doesn't return until the process is gone
-//
-bool EpgMain_StopDaemon( void )
-{
-   char * pErrMsg;
-   bool  result;
-
-   result = EpgAcqClient_TerminateDaemon(&pErrMsg);
-
-   if (pErrMsg != NULL)
-   {
-      if (optDaemonMode == DAEMON_STOP)
-         fprintf(stderr, "%s\n", pErrMsg);
-      xfree(pErrMsg);
-   }
 
    return result;
 }
@@ -1461,7 +1202,7 @@ static void EventHandler_DaemonStartWait( ClientData clientData )
 
    // #2: check the result of the daemon start operation
 
-   if ( EpgMain_CheckDaemon() )
+   if ( Daemon_CheckIfRunning() )
    {  // daemon successfuly started -> connect via socket
       if ( EpgAcqCtl_Start() == FALSE )
       {
@@ -1470,7 +1211,7 @@ static void EventHandler_DaemonStartWait( ClientData clientData )
    }
    else
    {  // inform the user about the failure
-      eval_check(interp, "tk_messageBox -type ok -icon error "
+      eval_check(interp, "tk_messageBox -type ok -icon error -title {nxtvepg} "
                          "-message {The daemon failed to start. Check the daemon log file for the cause.}");
       Tcl_ResetResult(interp);
    }
@@ -1519,18 +1260,18 @@ bool EpgMain_StartDaemon( void )
    uchar * pCmdLineStr;
    bool    result = FALSE;
 
-   pCmdLineStr = xmalloc(100 + strlen(rcfile) + strlen(dbdir));
+   pCmdLineStr = xmalloc(100 + strlen(mainOpts.rcfile) + strlen(mainOpts.dbdir));
    sprintf(pCmdLineStr, "nxtvepg.exe -daemon -guipipe %ld", GetCurrentProcessId());
    pErrMsg = NULL;
    errCode = 0;
 
-   if (strcmp(defaultRcFile, rcfile) != 0)
+   if (mainOpts.isUserRcFile)
    {
-      sprintf(pCmdLineStr + strlen(pCmdLineStr), " -rcfile \"%s\"", (char *) rcfile);
+      sprintf(pCmdLineStr + strlen(pCmdLineStr), " -rcfile \"%s\"", (char *) mainOpts.rcfile);
    }
-   if (strcmp(defaultDbDir, dbdir) != 0)
+   if (strcmp(mainOpts.defaultDbDir, mainOpts.dbdir) != 0)
    {
-      sprintf(pCmdLineStr + strlen(pCmdLineStr), " -dbdir \"%s\"", (char *) dbdir);
+      sprintf(pCmdLineStr + strlen(pCmdLineStr), " -dbdir \"%s\"", (char *) mainOpts.dbdir);
    }
    dprintf1("EpgMain-StartDaemon: daemon command line: %s\n", pCmdLineStr);
 
@@ -1590,7 +1331,7 @@ bool EpgMain_StartDaemon( void )
 
    if ((result == FALSE) && (pErrMsg != NULL))
    {
-      sprintf(comm, "tk_messageBox -type ok -icon error -message {%s: ", pErrMsg);
+      sprintf(comm, "tk_messageBox -type ok -icon error -title {nxtvepg} -message {%s: ", pErrMsg);
       // append system error message to the message box output
       FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, NULL, errCode, LANG_USER_DEFAULT,
                     comm + strlen(comm), TCL_COMM_BUF_SIZE - strlen(comm) - 2, NULL);
@@ -1603,43 +1344,7 @@ bool EpgMain_StartDaemon( void )
 
    return result;
 }
-
-// ---------------------------------------------------------------------------
-// WIN32: Terminate the daemon by sending a message to the daemon's invisible window
-//
-bool EpgMain_StopDaemon( void )
-{
-   bool  result = FALSE;
-   uint  idx;
-   HWND  hWnd;
-
-   hWnd = FindWindow(daemonWndClassname, NULL);
-   if (hWnd != NULL)
-   {  // send message to the daemon
-      PostMessage(hWnd, WM_CLOSE, 0, 0);
-
-      // poll until the daemon is gone (XXX should find something to block on)
-      for (idx=0; idx < 6; idx++)
-      {
-         Sleep(250);
-         if (FindWindow(daemonWndClassname, NULL) == NULL)
-            break;
-      }
-      result = TRUE;
-   }
-   return result;
-}
-
-// ---------------------------------------------------------------------------
-// Windows only: check if the daemon is running
-//
-bool EpgMain_CheckDaemon( void )
-{
-   return (FindWindow(daemonWndClassname, NULL) != NULL);
-}
-
 #endif  // WIN32
-#endif  // USE_DAEMON
 
 #ifndef WIN32
 // ---------------------------------------------------------------------------
@@ -1665,9 +1370,9 @@ static int AsyncHandler_Signalled( ClientData clientData, Tcl_Interp *interp, in
 // ---------------------------------------------------------------------------
 // graceful exit upon signals
 //
-static void signal_handler( int sigval )
+static void MainSignalHandler( int sigval )
 {
-   if ((sigval == SIGHUP) && !IS_DAEMON(optDaemonMode) && !IS_STANDALONE_MODE(optDumpMode))
+   if ((sigval == SIGHUP) && IS_GUI_MODE(mainOpts))
    {  // toggle acquisition on/off (unless in daemon mode)
       if (signalAsyncHandler != NULL)
       {  // trigger an event, so that the Tcl/Tk event handler immediately wakes up
@@ -1677,7 +1382,7 @@ static void signal_handler( int sigval )
    else
    {
       #ifdef USE_DAEMON
-      if (IS_DAEMON(optDaemonMode))
+      if (IS_DAEMON(mainOpts))
       {
          char str_buf[10];
 
@@ -1702,7 +1407,17 @@ static void signal_handler( int sigval )
       should_exit = TRUE;
    }
 
-   signal(sigval, signal_handler);
+   signal(sigval, MainSignalHandler);
+}
+
+static void MainSignalSetup( void )
+{
+   signal(SIGINT, MainSignalHandler);
+   signal(SIGTERM, MainSignalHandler);
+   signal(SIGHUP, MainSignalHandler);
+   // ignore signal CHLD because we don't care about our children (e.g. auto-started daemon)
+   // this is overridden by the BT driver in non-threaded mode (to catch death of the acq slave)
+   signal(SIGCHLD, SIG_IGN);
 }
 #else  // WIN32
 
@@ -1721,28 +1436,50 @@ static void WinApiDestructionHandler( ClientData clientData)
    EpgScan_Stop();
    EpgAcqCtl_Stop();
    WintvSharedMem_Exit();
-   BtDriver_Exit();
+   EpgAcqCtl_Destroy(FALSE);
 
    // exit the application
    ExitProcess(0);
 }
 
-#ifdef __MINGW32__
-static LONG WINAPI WinApiExceptionHandler(struct _EXCEPTION_POINTERS *exc_info)
+#if (TCL_MAJOR_VERSION != 8) || (TCL_MINOR_VERSION >= 5)
+static int TclCbWinHandleShutdown( ClientData ttp, Tcl_Interp *interp, int argc, CONST84 char *argv[] )
 {
-   //debug1("FATAL exception caught: %d", GetExceptionCode());
-   debug0("FATAL exception caught");
-   // skip EpgAcqCtl_Stop() because it tries to dump the db - do as little as possible here
-   BtDriver_Exit();
-   ExitProcess(-1);
-   // dummy return
-   return EXCEPTION_EXECUTE_HANDLER;
+   WinApiDestructionHandler(NULL);
+   return TCL_OK;
 }
 #endif
 
+static LONG WINAPI WinApiExceptionHandler(struct _EXCEPTION_POINTERS *exc_info)
+{
+   static bool inExit = FALSE;
+
+   //debug1("FATAL exception caught: %d", GetExceptionCode());
+   debug0("FATAL exception caught");
+
+   // prevent recursive calls - may occur upon crash in acq stop function
+   if (inExit == FALSE)
+   {
+      inExit = TRUE;
+
+      // emergency driver shutdown - do as little as possible here (skip db dump etc.)
+      EpgAcqCtl_Destroy(TRUE);
+      ExitProcess(-1);
+   }
+   else
+   {
+      ExitProcess(-1);
+   }
+
+   // dummy return
+   return EXCEPTION_EXECUTE_HANDLER;
+}
+
+#if (TCL_MAJOR_VERSION == 8) && (TCL_MINOR_VERSION <= 4)
 // Declare the new callback registration function
 // this function is patched into the tk83.dll and hence not listed in the standard header files (see README.tcl)
 extern TCL_STORAGE_CLASS void Tk_RegisterMainDestructionHandler( Tcl_CloseProc * handler );
+#endif
 
 #endif
 
@@ -1750,7 +1487,7 @@ static void TclTkPanicHandler( CONST84 char * format, ... )
 {
    fatal1("Tcl/Tk panic caught: %s", format);
 
-   BtDriver_Exit();
+   EpgAcqCtl_Destroy(TRUE);
 #ifdef WIN32
    ExitProcess(-2);
 #else
@@ -1797,6 +1534,7 @@ static void SetWindowsIcon( HINSTANCE hInstance )
       debug0("SetWindowsIcon: NXTVEPG-ICON resource not found");
 }
 #endif  // ICON_PATCHED_INTO_DLL
+#endif  // WIN32
 
 // ----------------------------------------------------------------------------
 // Systray state
@@ -1808,7 +1546,7 @@ static HWND       hSystrayWnd = NULL;
 static HANDLE     systrayThreadHandle;
 static BOOL       stopSystrayThread;
 static BOOL       systrayDoubleClick;
-static POINT      pt;
+static POINT      systrayCursorPos;
 
 // forward function declaration
 static bool WinSystrayIcon( bool enable );
@@ -1821,7 +1559,8 @@ static void Systray_IdleHandler( ClientData clientData )
 {
    if (systrayDoubleClick == FALSE)
    {  // right mouse button click -> display popup menu
-      sprintf(comm, "tk_popup .systray %ld %ld 0", pt.x, pt.y);
+      // note "tk_popup" does no longer work since Tk 8.4.9: menu pos is off by 3cm
+      sprintf(comm, ".systray post %ld %ld", systrayCursorPos.x, systrayCursorPos.y);
       eval_check(interp, comm);
    }
    else
@@ -1871,7 +1610,7 @@ static LRESULT CALLBACK WinSystrayWndMsgCb( HWND hwnd, UINT message, WPARAM wPar
          switch (lParam)
          {
             case WM_RBUTTONUP:
-               GetCursorPos(&pt);
+               GetCursorPos(&systrayCursorPos);
                systrayDoubleClick = FALSE;
                if (asyncSystrayHandler != NULL)
                {
@@ -1941,7 +1680,7 @@ static DWORD WINAPI WinSystrayThread( LPVOID argEvHandle )
                               GetSystemMetrics(SM_CXSMICON),
                               GetSystemMetrics(SM_CYSMICON), 0); // 16x16 icon
       // szTip is the ToolTip text (64 byte array including NULL)
-      strcpy(nid.szTip, "nexTView");
+      strcpy(nid.szTip, "nxtvepg");
 
       // NIM_ADD: Add icon; NIM_DELETE: Remove icon; NIM_MODIFY: modify icon
       Shell_NotifyIcon(NIM_ADD, &nid);
@@ -2057,7 +1796,7 @@ static int TclCbWinSystrayIcon( ClientData ttp, Tcl_Interp *interp, int argc, CO
 // ----------------------------------------------------------------------------
 // Search if an nxtvepg GUI is already running
 //
-static bool RaiseNxtvepgGuiWindow( uint remCtrlMsg )
+static bool RaiseNxtvepgGuiWindow( void )
 {
    ATOM classAtom;
    HWND OtherNxtvepgHWnd = NULL;
@@ -2076,592 +1815,153 @@ static bool RaiseNxtvepgGuiWindow( uint remCtrlMsg )
       if (OtherNxtvepgHWnd != NULL) 
       {  // found another instance of the application
 
-         if (remCtrlMsg == 0)
-         {
-            answer = MessageBox(NULL, "Nextview EPG already running.\n"
-                                      "Really start a second time?", "Nextview EPG",
-                                      MB_ICONQUESTION | MB_YESNOCANCEL | MB_DEFBUTTON2 | MB_TASKMODAL | MB_SETFOREGROUND);
-            if (answer == IDNO)
-            {  // "No" (default) -> raise other window
-               if (startIconified == FALSE)
-               {
-                  #if 0
-                  if (IsIconic(OtherNxtvepgHWnd))
-                     ShowWindow(OtherNxtvepgHWnd, SW_RESTORE);
-                  SetForegroundWindow(OtherNxtvepgHWnd);
-                  #else
-                  PostMessage(OtherNxtvepgHWnd, UWM_RAISE, 0, 0);
-                  #endif
-               }
-               ExitProcess(0);
+         answer = MessageBox(NULL, "nxtvepg is already running.\n"
+                                   "Really start a second time?", "nxtvepg",
+                                   MB_ICONQUESTION | MB_YESNOCANCEL | MB_DEFBUTTON2 | MB_TASKMODAL | MB_SETFOREGROUND);
+         if (answer == IDNO)
+         {  // "No" (default) -> raise other window
+            if (mainOpts.startIconified == FALSE)
+            {
+               #if 0
+               if (IsIconic(OtherNxtvepgHWnd))
+                  ShowWindow(OtherNxtvepgHWnd, SW_RESTORE);
+               SetForegroundWindow(OtherNxtvepgHWnd);
+               #else
+               PostMessage(OtherNxtvepgHWnd, UWM_RAISE, 0, 0);
+               #endif
             }
-            else if (answer == IDCANCEL)
-            {  // "Cancel"
-               ExitProcess(0);
-            }
-            else if (answer == IDYES)
-            {  // "Yes" -> continue launch, but prevent unnecessary warnings
-               // (note: tvapp interaction setup is suppressed by checking window handle)
+            ExitProcess(0);
+         }
+         else if (answer == IDCANCEL)
+         {  // "Cancel"
+            ExitProcess(0);
+         }
+         else if (answer == IDYES)
+         {  // "Yes" -> continue launch, but prevent unnecessary warnings
+            // (note: tvapp interaction setup is suppressed by checking window handle)
 
-               if (videoCardIndex == -1)
-               {  // suppress acq through default card to avoid warning from driver
-                  disableAcq = TRUE;
-               }
+            if (mainOpts.videoCardIndex == -1)
+            {  // suppress acq through default card to avoid warning from driver
+               mainOpts.disableAcq = TRUE;
             }
          }
       }
    }
 
-   if (remCtrlMsg != 0)
-   {  // remote command mode: 
-      if (OtherNxtvepgHWnd != NULL) 
-      {
-         PostMessage(OtherNxtvepgHWnd, remCtrlMsg, 0, 0);
-         ExitProcess(0);
-      }
-      else
-      {  // error: no remote instance found
-         // do not display message box to allow use by batch scripts
-         ExitProcess(1);
-      }
-   }
-   else
-   {
-      remoteControlMsgHandler = Tcl_AsyncCreate(AsyncHandler_RemoteControlMsg, NULL);
-      RemoteControlWindowCreate();
-   }
+   remoteControlMsgHandler = Tcl_AsyncCreate(AsyncHandler_RemoteControlMsg, NULL);
+   RemoteControlWindowCreate(RemoteControlWindowMsgCb, remCtrlWndClassname);
+
    return (OtherNxtvepgHWnd != NULL);
 }
 #endif  // WIN32
 
-/*
- *-------------------------------------------------------------------------
- *
- * setargv --     [This is taken from the wish main in the Tcl/Tk package]
- *
- *	Parse the Windows command line string into argc/argv.  Done here
- *	because we don't trust the builtin argument parser in crt0.  
- *	Windows applications are responsible for breaking their command
- *	line into arguments.
- *
- *	2N backslashes + quote -> N backslashes + begin quoted string
- *	2N + 1 backslashes + quote -> literal
- *	N backslashes + non-quote -> literal
- *	quote + quote in a quoted string -> single quote
- *	quote + quote not in quoted string -> empty string
- *	quote -> begin quoted string
- *
- * Results:
- *	Fills argcPtr with the number of arguments and argvPtr with the
- *	array of arguments.
- *
- * Parameters:
- *   int *argcPtr;        Filled with number of argument strings
- *   char ***argvPtr;     Filled with argument strings (malloc'd)
- *
- *--------------------------------------------------------------------------
- */
-static void SetArgv( int * argcPtr, char *** argvPtr )
-{
-    char *cmdLine, *p, *arg, *argSpace;
-    char **argv;
-    int argc, size, inquote, copy, slashes;
-    
-    cmdLine = GetCommandLine();
-
-    // Precompute an overly pessimistic guess at the number of arguments
-    // in the command line by counting non-space spans.
-    size = 2;
-    for (p = cmdLine; *p != '\0'; p++) {
-        if (isspace(*p)) {
-            size++;
-            while (isspace(*p)) {
-                p++;
-            }
-            if (*p == '\0') {
-                break;
-            }
-        }
-    }
-    argSpace = (char *) xmalloc((unsigned) (size * sizeof(char *) + strlen(cmdLine) + 1));
-    argv = (char **) argSpace;
-    argSpace += size * sizeof(char *);
-    size--;
-
-    p = cmdLine;
-    for (argc = 0; argc < size; argc++) {
-        argv[argc] = arg = argSpace;
-        while (isspace(*p)) {
-            p++;
-        }
-        if (*p == '\0') {
-            break;
-        }
-
-        inquote = 0;
-        slashes = 0;
-        while (1) {
-            copy = 1;
-            while (*p == '\\') {
-                slashes++;
-                p++;
-            }
-            if (*p == '"') {
-                if ((slashes & 1) == 0) {
-                    copy = 0;
-                    if ((inquote) && (p[1] == '"')) {
-                        p++;
-                        copy = 1;
-                    } else {
-                        inquote = !inquote;
-                    }
-                }
-                slashes >>= 1;
-            }
-
-            while (slashes) {
-                *arg = '\\';
-                arg++;
-                slashes--;
-            }
-
-            if ((*p == '\0') || (!inquote && isspace(*p))) {
-                break;
-            }
-            if (copy != 0) {
-                *arg = *p;
-                arg++;
-            }
-            p++;
-        }
-        *arg = '\0';
-        argSpace = arg + 1;
-    }
-    argv[argc] = NULL;
-
-    *argcPtr = argc;
-    *argvPtr = argv;
-}
-
 // ---------------------------------------------------------------------------
-// Determine the working directory from executable file path and chdir there
-// - used when a db is given on the command line
-// - required because when the program is started by dropping a db onto the
-//   executable the working dir is set to the desktop, which is certainly
-//   not the right place to create the ini file
+// Helper function to convert text content into UTF-8
+// - required for text display in the GUI
+// - note when compile switch USE_UTF8 is defined, PI content is already in UTF-8
+// - prefix and postfix must be encoded in ASCII and are appended unchanged
 //
-static void SetWorkingDirectoryFromExe( const char *argv0 )
+Tcl_Obj * TranscodeToUtf8( T_EPG_ENCODING enc,
+                           const char * pPrefix, const char * pStr, const char * pPostfix )
 {
-   char *pDirPath;
-   int len;
+   Tcl_Obj * pObj;
+   Tcl_DString dstr;
 
-   // search backwards from the end for the begin of the file name
-   len = strlen(argv0);
-   while (--len >= 0)
+   assert(pStr != NULL);
+
+   switch (enc)
    {
-      if (argv0[len] == PATH_SEPARATOR)
-      {
-         pDirPath = strdup(argv0);
-         pDirPath[len] = 0;
-         // change to the directory
-         if (chdir(pDirPath) != 0)
-         {
-            debug2("Cannot change working dir to %s: %s", pDirPath, strerror(errno));
-         }
-         free(pDirPath);
+      case EPG_ENC_ASCII:
+         Tcl_DStringInit(&dstr);
+         Tcl_DStringAppend(&dstr, pStr, -1);
          break;
-      }
+
+      case EPG_ENC_NXTVEPG:
+#ifdef USE_UTF8
+         Tcl_DStringInit(&dstr);
+         Tcl_DStringAppend(&dstr, pStr, -1);
+#else
+         Tcl_ExternalToUtfDString(encIso88591, pStr, -1, &dstr);
+#endif
+         break;
+
+      case EPG_ENC_ISO_8859_1:
+         Tcl_ExternalToUtfDString(encIso88591, pStr, -1, &dstr);
+         break;
+
+      case EPG_ENC_SYSTEM:
+      default:
+         Tcl_ExternalToUtfDString(NULL, pStr, -1, &dstr);
+         break;
    }
-}
-#endif
 
-// ---------------------------------------------------------------------------
-// Print error message and exit
-// - same to "usage" function, but without printing all the options
-//
-static void MainOptionError( const char *argv0, const char *argvn, const char * reason )
-{
-   const char * const pUsageFmt =
-                   "%s: %s: %s\n"
-                   "Use '%s -help' or refer to the manual pages to get more info\n";
-
-#ifndef WIN32
-   fprintf(stderr, pUsageFmt, argv0, reason, argvn, argv0);
-#else
-   sprintf(comm,   pUsageFmt, argv0, reason, argvn, argv0);
-   MessageBox(NULL, comm, "Nextview EPG Decoder Options Error", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
-#endif
-
-   exit(1);
-}
-
-// ---------------------------------------------------------------------------
-// Print Usage and exit
-//
-static void Usage( const char *argv0, const char *argvn, const char * reason )
-{
-   const char * const pUsageFmt =
-                   "%s: %s: %s\n"
-                   "Usage: %s [options] [database]\n"
-                   "       -help       \t\t: this message\n"
-                   #ifndef WIN32
-                   "       -display <display>  \t: X11 server, if different from $DISPLAY\n"
-                   "       -tvdisplay <display>\t: X11 server for TV application\n"
-                   #endif
-                   "       -geometry <geometry>\t: initial window position\n"
-                   #ifndef WIN32
-                   "       -iconic     \t\t: start with window iconified\n"
-                   #else
-                   "       -iconic     \t\t: start with window minimized\n"
-                   #endif
-                   "       -rcfile <path>      \t: path and file name of setup file\n"
-                   "       -dbdir <path>       \t: directory where to store databases\n"
-                   #ifndef WIN32
-                   #ifdef EPG_DB_ENV
-                   "                           \t: default: $" EPG_DB_ENV "/" EPG_DB_DIR "\n"
-                   #else
-                   "                           \t: default: " EPG_DB_DIR "\n"
-                   #endif
-                   #else  // WIN32
-                   "       -remctrl <cmd>      \t: remote control nxtvepg\n"
-                   #endif
-                   "       -card <digit>       \t: index of TV card for acq (starting at 0)\n"
-                   "       -provider <cni>     \t: network id of EPG provider (hex)\n"
-                   "       -noacq              \t: don't start acquisition automatically\n"
-                   #ifdef USE_DAEMON
-                   "       -daemon             \t: don't open any windows; acquisition only\n"
-                   "       -daemonstop         \t: terminate background acquisition process\n"
-                   "       -acqpassive         \t: force daemon to passive acquisition mode\n"
-                   "       -acqonce <phase>    \t: stop acquisition after the given stage\n"
-                   #ifndef WIN32
-                   "       -nodetach           \t: daemon remains connected to tty\n"
-                   #endif
-                   #endif
-                   "       -dump pi|ai|pdc|xml|...\t: export database in various formats\n"
-                   "       -outfile <path>     \t: target file for export and other output\n"
-                   "       -clock set|print    \t: set system clock from teletext clock\n"
-                   "       -demo <db-file>     \t: load database in demo mode\n";
-
-#ifndef WIN32
-   fprintf(stderr, pUsageFmt, argv0, reason, argvn, argv0);
-#else
-   sprintf(comm, pUsageFmt, argv0, reason, argvn, argv0);
-   MessageBox(NULL, comm, "Nextview EPG Decoder Usage", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
-#endif
-
-   exit(1);
-}
-
-// ---------------------------------------------------------------------------
-// Parse command line options
-//
-static void ParseArgv( int argc, char * argv[] )
-{
-   struct stat st;
-   int argIdx = 1;
-
-#ifndef WIN32
-#ifdef EPG_DB_ENV
-   char * pEnvPath = getenv(EPG_DB_ENV);
-   if (pEnvPath != NULL)
+   if ((pPrefix != NULL) && (*pPrefix != 0))
    {
-      defaultDbDir = xmalloc(strlen(pEnvPath) + strlen(EPG_DB_DIR) + 1+1);
-      strcpy(defaultDbDir, pEnvPath);
-      strcat(defaultDbDir, "/" EPG_DB_DIR);
+      pObj = Tcl_NewStringObj(pPrefix, -1);
+      Tcl_AppendToObj(pObj, Tcl_DStringValue(&dstr), Tcl_DStringLength(&dstr));
    }
    else
-#endif
    {
-      defaultDbDir = xmalloc(strlen(EPG_DB_DIR) + 1);
-      strcpy(defaultDbDir, EPG_DB_DIR);
+      pObj = Tcl_NewStringObj(Tcl_DStringValue(&dstr), Tcl_DStringLength(&dstr));
    }
-#else  // WIN32
-   SetWorkingDirectoryFromExe(argv[0]);
-#endif
+   Tcl_DStringFree(&dstr);
 
-   rcfile = defaultRcFile;
-   dbdir  = defaultDbDir;
-
-   while (argIdx < argc)
+   if ((pPostfix != NULL) && (*pPostfix != 0))
    {
-      if (argv[argIdx][0] == '-')
+      Tcl_AppendToObj(pObj, pPostfix, -1);
+   }
+   return pObj;
+}
+
+// ---------------------------------------------------------------------------
+// Helper function to convert and append text to an UTF-8 string
+// - postfix must be encoded in ASCII and is appended unchanged
+//
+Tcl_Obj * AppendToUtf8( T_EPG_ENCODING enc, Tcl_Obj * pObj,
+                        const char * pStr, const char * pPostfix )
+{
+   Tcl_DString dstr;
+
+   if ((pStr != NULL) && (*pStr != 0))
+   {
+      switch (enc)
       {
-         if (!strcmp(argv[argIdx], "-help"))
-         {
-            char versbuf[50];
-            sprintf(versbuf, "(version %s)", epg_version_str);
-            Usage(argv[0], versbuf, "the following command line options are available");
-         }
-         else if (!strcmp(argv[argIdx], "-noacq"))
-         {  // do not enable acquisition
-            disableAcq = TRUE;
-            argIdx += 1;
-         }
-         #ifdef USE_DAEMON
-         else if (!strcmp(argv[argIdx], "-daemon"))
-         {  // suppress GUI
-            optDaemonMode = DAEMON_START;
-            argIdx += 1;
-         }
-         else if (!strcmp(argv[argIdx], "-daemonstop"))
-         {  // kill daemon process, then exit
-            optDaemonMode = DAEMON_STOP;
-            argIdx += 1;
-         }
-         else if (!strcmp(argv[argIdx], "-nodetach"))
-         {  // daemon stays in the foreground
-            #ifndef WIN32
-            optNoDetach = TRUE;
-            argIdx += 1;
-            #else
-            MainOptionError(argv[0], argv[argIdx], "option not supported on Windows");
-            #endif
-         }
-         else if (!strcmp(argv[argIdx], "-acqpassive"))
-         {  // set passive acquisition mode (not saved to rc/ini file)
-            optAcqPassive = TRUE;
-            argIdx += 1;
-         }
-         else if (!strcmp(argv[argIdx], "-acqonce"))
-         {  // do not enable acquisition
-            if (argIdx + 1 < argc)
-            {
-               if (!strcmp(argv[argIdx + 1], "full"))
-                  optAcqOnce = ACQMODE_PHASE_STREAM2;
-               else if (!strcmp(argv[argIdx + 1], "near"))
-                  optAcqOnce = ACQMODE_PHASE_STREAM1;
-               else if (!strcmp(argv[argIdx + 1], "now"))
-                  optAcqOnce = ACQMODE_PHASE_NOWNEXT;
-               else
-                  MainOptionError(argv[0], argv[argIdx], "unknown mode keyword: expecting now, near or all");
-               argIdx += 2;
-            }
-            else
-               Usage(argv[0], argv[argIdx], "missing mode keyword after");
-         }
-         #else  // not USE_DAEMON
-         else if ( !strcmp(argv[argIdx], "-daemon") ||
-                   !strcmp(argv[argIdx], "-nodetach") ||
-                   !strcmp(argv[argIdx], "-acqpassive") )
-         {
-            MainOptionError(argv[0], argv[argIdx], "support for this option has been disabled");
-         }
-         #endif
-         else if (!strcmp(argv[argIdx], "-dump"))
-         {  // dump database and exit
-            if (argIdx + 1 < argc)
-            {
-               optDumpMode = EpgDumpText_GetMode(argv[argIdx + 1]);
-               if (optDumpMode == EPGTAB_DUMP_NONE)
-                  MainOptionError(argv[argIdx + 1], argv[argIdx], "illegal mode keyword for");
-               argIdx += 2;
-            }
-            else
-               Usage(argv[0], argv[argIdx], "missing mode keyword after");
-         }
-         else if (!strcmp(argv[argIdx], "-rcfile"))
-         {
-            if (argIdx + 1 < argc)
-            {  // read file name of rc/ini file
-               rcfile = argv[argIdx + 1];
-               argIdx += 2;
-            }
-            else
-               Usage(argv[0], argv[argIdx], "missing file name after");
-         }
-         else if (!strcmp(argv[argIdx], "-dbdir"))
-         {
-            if (argIdx + 1 < argc)
-            {  // read path of database directory
-               dbdir = argv[argIdx + 1];
-               argIdx += 2;
-            }
-            else
-               Usage(argv[0], argv[argIdx], "missing path name after");
-         }
-         else if (!strcmp(argv[argIdx], "-card"))
-         {
-            if (argIdx + 1 < argc)
-            {  // read index of TV card device
-               char *pe;
-               ulong cardIdx = strtol(argv[argIdx + 1], &pe, 0);
-               if ((pe != (argv[argIdx + 1] + strlen(argv[argIdx + 1]))) || (cardIdx > 9))
-                  MainOptionError(argv[0], argv[argIdx+1], "invalid index (range 0-9)");
-               videoCardIndex = (int) cardIdx;
-               argIdx += 2;
-            }
-            else
-               Usage(argv[0], argv[argIdx], "missing card index after");
-         }
-         else if ( !strcmp(argv[argIdx], "-provider") ||
-                   !strcmp(argv[argIdx], "-prov") )
-         {
-            if (argIdx + 1 < argc)
-            {  // read hexadecimal CNI of selected provider
-               if (startUiCni != 0)
-               {
-                  MainOptionError(argv[0], argv[argIdx], "this option can be used only once");
-               }
-               if (!strcmp(argv[argIdx + 1], "merged"))
-               {
-                  startUiCni = 0x00ff;
-               }
-               else
-               {
-                  char *pe;
-                  startUiCni = strtol(argv[argIdx + 1], &pe, 16);
-                  if (pe != (argv[argIdx + 1] + strlen(argv[argIdx + 1])))
-                     MainOptionError(argv[0], argv[argIdx+1], "invalid CNI (must be hexadecimal, e.g. 0x0d94 or d94)");
-               }
-               argIdx += 2;
-            }
-            else
-               Usage(argv[0], argv[argIdx], "missing provider cni after");
-         }
-         else if (!strcmp(argv[argIdx], "-clock"))
-         {  // extract current time from teletext
-            if (argIdx + 1 < argc)
-            {
-               if (strcasecmp("set", argv[argIdx + 1]) == 0)
-                  optDumpMode = EPGTAB_CLOCK_SET;
-               else if (strcasecmp("print", argv[argIdx + 1]) == 0)
-                  optDumpMode = EPGTAB_CLOCK_PRINT;
-               else
-                  MainOptionError(argv[argIdx + 1], argv[argIdx], "illegal mode keyword for");
-               argIdx += 2;
-            }
-            else
-               Usage(argv[0], argv[argIdx], "missing mode keyword after");
-         }
-         else if (!strcmp(argv[argIdx], "-outfile"))
-         {  // install given file as target for stdout (esp. for dump modes)
-            if (argIdx + 1 < argc)
-            {
-               pStdOutFileName = argv[argIdx + 1];
-               argIdx += 2;
-            }
-            else
-               Usage(argv[0], argv[argIdx], "missing mode keyword after");
-         }
-         else if (!strcmp(argv[argIdx], "-demo"))
-         {
-            if (argIdx + 1 < argc)
-            {  // save file name of demo database
-               pDemoDatabase = argv[argIdx + 1];
-               if (stat(pDemoDatabase, &st) != 0)
-               {
-                  MainOptionError(argv[0], strerror(errno), "cannot open demo database");
-               }
-               argIdx += 2;
-            }
-            else
-               Usage(argv[0], argv[argIdx], "missing database file name after");
-         }
-         else if ( !strcmp(argv[argIdx], "-iconic") )
-         {  // start with iconified main window
-            startIconified = TRUE;
-            argIdx += 1;
-         }
-         else if ( !strcmp(argv[argIdx], "-geometry")
-                   #ifndef WIN32
-                   || !strcmp(argv[argIdx], "-display")
-                   || !strcmp(argv[argIdx], "-name")
-                   #endif
-                 )
-         {  // ignore arguments that are handled by Tk
-            if (argIdx + 1 >= argc)
-               Usage(argv[0], argv[argIdx], "missing position argument after");
-            argIdx += 2;
-         }
-         #ifndef WIN32
-         else if ( !strcmp(argv[argIdx], "-tvdisplay") )
-         {  // alternate display for TV application
-            if (argIdx + 1 >= argc)
-               Usage(argv[0], argv[argIdx], "missing display name argument after");
-            pTvX11Display = argv[argIdx + 1];
-            argIdx += 2;
-         }
-         #else  // WIN32 only
-         else if ( !strcmp(argv[argIdx], "-remctrl") )
-         {  // undocumented option (internal use only): pass fd of pipe to GUI for daemon start
-            if (argIdx + 1 < argc)
-            {  // read decimal fd (silently ignore errors)
-               if (!strcmp(argv[argIdx + 1], "quit"))
-                  optRemCtrl = UWM_QUIT;
-               else if (!strcmp(argv[argIdx + 1], "raise"))
-                  optRemCtrl = UWM_RAISE;
-               else if (!strcmp(argv[argIdx + 1], "iconify"))
-                  optRemCtrl = UWM_ICONIFY;
-               else if (!strcmp(argv[argIdx + 1], "deiconify"))
-                  optRemCtrl = UWM_DEICONIFY;
-               else if (!strcmp(argv[argIdx + 1], "acqon"))
-                  optRemCtrl = UWM_ACQ_ON;
-               else if (!strcmp(argv[argIdx + 1], "acqoff"))
-                  optRemCtrl = UWM_ACQ_OFF;
-               else
-                  MainOptionError(argv[0], argv[argIdx], "unknown keyword");
-               argIdx += 2;
-            }
-            else
-               Usage(argv[0], argv[argIdx], "missing command keyword after");
-         }
-         #endif
-         else if ( !strcmp(argv[argIdx], "-guipipe") )
-         {  // undocumented option (internal use only): pass fd of pipe to GUI for daemon start
-            if (argIdx + 1 < argc)
-            {  // read decimal fd (silently ignore errors)
-               char *pe;
-               optGuiPipe = strtol(argv[argIdx + 1], &pe, 0);
-               if (pe != (argv[argIdx + 1] + strlen(argv[argIdx + 1])))
-                  optGuiPipe = -1;
-               argIdx += 2;
-            }
-         }
-         else
-            Usage(argv[0], argv[argIdx], "unknown option");
+         case EPG_ENC_ASCII:
+            Tcl_DStringInit(&dstr);
+            Tcl_DStringAppend(&dstr, pStr, -1);
+            break;
+
+         case EPG_ENC_NXTVEPG:
+#ifdef USE_UTF8
+            Tcl_DStringInit(&dstr);
+            Tcl_DStringAppend(&dstr, pStr, -1);
+#else
+            Tcl_ExternalToUtfDString(encIso88591, pStr, -1, &dstr);
+#endif
+            break;
+
+         case EPG_ENC_ISO_8859_1:
+            Tcl_ExternalToUtfDString(encIso88591, pStr, -1, &dstr);
+            break;
+
+         case EPG_ENC_SYSTEM:
+         default:
+            Tcl_ExternalToUtfDString(NULL, pStr, -1, &dstr);
+            break;
       }
-      else if (argIdx + 1 == argc)
-      {  // database file argument -> determine dbdir and provider from path
-         EpgDbDumpGetDirAndCniFromArg(argv[argIdx], &dbdir, &startUiCni);
-         if (startUiCni == 0)
-            pDemoDatabase = argv[argIdx];
-         //printf("dbdir=%s CNI=%04X\n", dbdir, startUiCni);
-         argIdx += 1;
-      }
-      else
-         Usage(argv[0], argv[argIdx], "Too many arguments");
+
+      Tcl_AppendToObj(pObj, Tcl_DStringValue(&dstr), Tcl_DStringLength(&dstr));
+      Tcl_DStringFree(&dstr);
    }
 
-   // Check for disallowed option combinations
-   #ifdef USE_DAEMON
-   if (IS_DAEMON(optDaemonMode))
+   if ((pPostfix != NULL) && (*pPostfix != 0))
    {
-      if (disableAcq)
-         MainOptionError(argv[0], "-daemon", "Cannot combine with -noacq");
-      else if (pDemoDatabase != NULL)
-         MainOptionError(argv[0], "-daemon", "Cannot combine with -demo mode");
-      else if ((startUiCni != 0) && optAcqPassive)
-         MainOptionError(argv[0], "-provider", "Cannot combine with -acqpassive");
-      else if (optDumpMode != EPGTAB_DUMP_NONE)
-         MainOptionError(argv[0], "-daemon", "Cannot combine with -dump");
-   }
-   else
-   #endif
-   {
-      if (optAcqPassive)
-         MainOptionError(argv[0], "-acqpassive", "Only meant for -daemon mode");
-      if (optAcqOnce != ACQMODE_PHASE_COUNT)
-         MainOptionError(argv[0], "-acqonce", "Only meant for -daemon mode");
+      Tcl_AppendToObj(pObj, pPostfix, -1);
    }
 
-   if (optDumpMode != EPGTAB_DUMP_NONE)
-   {
-      if ((startUiCni == 0) && !IS_CLOCK_MODE(optDumpMode))
-         MainOptionError(argv[0], "-dump", "Must also specify -provider");
-      else if (pDemoDatabase != NULL)
-         MainOptionError(argv[0], "-dump", "Cannot combine with -demo mode");
-   }
+   return pObj;
 }
+
 
 // ---------------------------------------------------------------------------
 // Initialize the Tcl/Tk interpreter
@@ -2670,10 +1970,6 @@ static int ui_init( int argc, char **argv, bool withTk )
 {
    CONST84 char * pLanguage;
    char *args;
-
-   // set up the user-configured locale
-   setlocale(LC_ALL, "");
-   setlocale(LC_NUMERIC, "C");  // required for Tcl or parsing of floating point numbers fails
 
    if (argc >= 1)
    {
@@ -2761,12 +2057,18 @@ static int ui_init( int argc, char **argv, bool withTk )
 
       #ifdef WIN32
       Tcl_CreateCommand(interp, "C_SystrayIcon", TclCbWinSystrayIcon, (ClientData) NULL, NULL);
+      #if (TCL_MAJOR_VERSION != 8) || (TCL_MINOR_VERSION >= 5)
+      Tcl_CreateCommand(interp, "C_WinHandleShutdown", TclCbWinHandleShutdown, (ClientData) NULL, NULL);
+      eval_check(interp, "wm protocol . WM_SAVE_YOURSELF C_WinHandleShutdown\n");
+      #endif
       #endif
 
-      sprintf(comm, "wm title . {Nextview EPG Decoder}\n"
+      sprintf(comm, "wm title . {nxtvepg}\n"
                     "wm resizable . 0 1\n"
+      #ifndef WIN32
                     "wm iconbitmap . nxtv_logo\n"
-                    "wm iconname . {Nextview EPG}\n"
+                    "wm iconname . {nxtvepg}\n"
+      #endif
                     "wm withdraw .\n");
       eval_check(interp, comm);
 
@@ -2804,165 +2106,111 @@ int main( int argc, char *argv[] )
    // set db states to not initialized
    pUiDbContext = NULL;
 
+   // set up the user-configured locale
+   setlocale(LC_ALL, "");
+   setlocale(LC_NUMERIC, "C");  // required for Tcl or parsing of floating point numbers fails
+
    EpgLtoInit();
 
    #ifdef WIN32
    hMainInstance = hInstance;
+#if (TCL_MAJOR_VERSION == 8) && (TCL_MINOR_VERSION <= 4)
    // set up callback to catch shutdown messages (requires tk83.dll patch, see README.tcl83)
    Tk_RegisterMainDestructionHandler(WinApiDestructionHandler);
+#endif
    // set up an handler to catch fatal exceptions
    #ifndef __MINGW32__
    __try {
    #else
    SetUnhandledExceptionFilter(WinApiExceptionHandler);
    #endif
-   SetArgv(&argc, &argv);
+   CmdLine_WinApiSetArgv(&argc, &argv);
    #endif  // WIN32
 
-   ParseArgv(argc, argv);
-   pOptArgv0 = argv[0];
-
-   if (pStdOutFileName != NULL)
-   {
-      struct stat st;
-
-      if ( stat(pStdOutFileName, &st) != 0 )
-      {
-         if (freopen(pStdOutFileName, "w", stdout) == NULL)
-         {
-            MainOptionError(pOptArgv0, pStdOutFileName, "output file already exists");
-         }
-      }
-      else
-         MainOptionError(pOptArgv0, pStdOutFileName, "output file already exists");
-   }
+   CmdLine_Process(argc, argv, FALSE);
 
    #ifdef USE_DAEMON
-   if (optDaemonMode == DAEMON_START)
+   if (mainOpts.optDaemonMode == DAEMON_RUN)
    {  // deamon mode -> detach from tty
-      #ifndef WIN32
-      if (optNoDetach == FALSE)
-      {
-         if (fork() > 0)
-            exit(0);
-         close(0);
-         open("/dev/null", O_RDONLY, 0);
-         #if DEBUG_SWITCH == OFF
-         if (pStdOutFileName == NULL)
-         {
-            close(1);
-            open("/dev/null", O_WRONLY, 0);
-         }
-         close(2);
-         dup(1);
-         #endif
-         setsid();
-      }
-      #endif
-      EpgAcqServer_Init(optNoDetach);
-      EpgAcqCtl_InitDaemon();
+      Daemon_ForkIntoBackground();
    }
    #endif
    #ifdef WIN32
-   else if (!IS_DAEMON(optDaemonMode) && !IS_STANDALONE_MODE(optDumpMode))
+   if (IS_GUI_MODE(mainOpts))
    {
-      is2ndInstance = RaiseNxtvepgGuiWindow(optRemCtrl);
-   }
-   #else // not WIN32
-   if ( !IS_STANDALONE_MODE(optDumpMode) )
-   {
-      signal(SIGINT, signal_handler);
-      signal(SIGTERM, signal_handler);
-      signal(SIGHUP, signal_handler);
-      // ignore signal CHLD because we don't care about our children (e.g. auto-started daemon)
-      // this is overridden by the BT driver in non-threaded mode (to catch death of the acq slave)
-      signal(SIGCHLD, SIG_IGN);
+      is2ndInstance = RaiseNxtvepgGuiWindow();
    }
    #endif
 
    // set up the directory for the databases (unless in demo mode)
-   if (EpgDbSavSetupDir(dbdir, pDemoDatabase) == FALSE)
+   if (EpgDbSavSetupDir(mainOpts.dbdir, IS_DEMO_MODE(mainOpts)) == FALSE)
    {  // failed to create dir: message was already issued, so just exit
       exit(-1);
    }
-   // scan the database directory
-   EpgContextCtl_InitCache();
+   EpgContextCtl_Init();
 
-   if ( !IS_STANDALONE_MODE(optDumpMode) || IS_CLOCK_MODE(optDumpMode) )
+   if ( !IS_DUMP_MODE(mainOpts) && !IS_REMCTL_MODE(mainOpts) )
    {
+      #ifndef WIN32
+      MainSignalSetup();
+      #endif
       // UNIX must fork the VBI slave before GUI startup or the slave will inherit all X11 file handles
-      BtDriver_Init();
+      EpgAcqCtl_Init();
       #ifdef WIN32
-      WintvSharedMem_Init();
+      WintvSharedMem_Init(FALSE);
       #endif
    }
 
-   // initialize Tcl interpreter and compile all scripts
-   // Tk is only initialized if a GUI will be opened
-   ui_init(argc, argv, (!IS_DAEMON(optDaemonMode) && !IS_STANDALONE_MODE(optDumpMode)));
+   if ( IS_GUI_MODE(mainOpts) || IS_DUMP_MODE(mainOpts) )
+   {
+      #ifndef WIN32
+      exitAsyncHandler = Tcl_AsyncCreate(AsyncHandler_AppTerminate, NULL);
+      signalAsyncHandler = Tcl_AsyncCreate(AsyncHandler_Signalled, NULL);
+      #endif
 
-   should_exit = FALSE;
-   #ifndef WIN32
-   exitAsyncHandler = Tcl_AsyncCreate(AsyncHandler_AppTerminate, NULL);
-   signalAsyncHandler = Tcl_AsyncCreate(AsyncHandler_Signalled, NULL);
-   #endif
+      // initialize Tcl interpreter and compile all scripts
+      // Tk is only initialized if a GUI will be opened
+      ui_init(argc, argv, IS_GUI_MODE(mainOpts));
 
-   // load the user configuration from the rc/ini file
-   sprintf(comm, "LoadRcFile {%s} %d %d",
-                 rcfile, (strcmp(defaultRcFile, rcfile) == 0),
-                 (IS_DAEMON(optDaemonMode) || IS_STANDALONE_MODE(optDumpMode)));
-   eval_check(interp, comm);
+      encIso88591 = Tcl_GetEncoding(interp, "iso8859-1");
 
-   // setup cut-off time for expired PI blocks during database reload
-   MenuCmd_SetPiExpireDelay();
-
-   if ( IS_STANDALONE_MODE(optDumpMode) )
-   {  // dump mode: just dump the database, then exit
-      if ( IS_CLOCK_MODE(optDumpMode) )
-      {
-         SystemClockCmd(optDumpMode, startUiCni);
-         pUiDbContext = NULL;
-      }
-      else if (startUiCni == 0x00ff)
-      {
-         pUiDbContext = MenuCmd_MergeDatabases();
-         if (pUiDbContext == NULL)
-            printf("<!-- nxtvepg database merge failed: check merge configuration -->\n");
-      }
-      else
-      {
-         pUiDbContext = EpgContextCtl_Open(startUiCni, CTX_FAIL_RET_NULL, CTX_RELOAD_ERR_REQ);
-         if (pUiDbContext == NULL)
-            printf("<!-- nxtvepg filed to load database %04X -->\n", startUiCni);
-      }
-
-      if (pUiDbContext != NULL)
-      {
-         SetUserLanguage(interp);
-
-         switch (optDumpMode)
-         {
-            case EPGTAB_DUMP_XMLTV_ANY:
-            case EPGTAB_DUMP_XMLTV_DTD_5_GMT:
-            case EPGTAB_DUMP_XMLTV_DTD_5_LTZ:
-            case EPGTAB_DUMP_XMLTV_DTD_6:
-               EpgDumpXml_Standalone(pUiDbContext, stdout, optDumpMode);
-               break;
-            case EPGTAB_DUMP_AI:
-            case EPGTAB_DUMP_PI:
-            case EPGTAB_DUMP_PDC:
-               EpgDumpText_Standalone(pUiDbContext, stdout, optDumpMode);
-               break;
-            case EPGTAB_DUMP_DEBUG:
-               EpgDumpRaw_Standalone(pUiDbContext, stdout);
-               break;
-            default:
-               break;
-         }
-         EpgContextCtl_Close(pUiDbContext);
-      }
+      RcFile_Init();
+      LoadRcFile();
    }
-   else if ( !IS_DAEMON(optDaemonMode) )
+
+   if ( IS_DUMP_MODE(mainOpts) )
+   {
+      MainStartDump();
+   }
+   else if ( IS_REMCTL_MODE(mainOpts) )
+   {
+      ui_init(argc, argv, TRUE);
+      RemoteControlCmd();
+   }
+   #ifdef USE_DAEMON
+   else if ( !IS_GUI_MODE(mainOpts) )
+   {
+      Daemon_Init();
+      if (mainOpts.optDaemonMode == DAEMON_RUN)
+      {  // Daemon mode: no GUI - just do acq and handle requests from GUI via sockets
+         Daemon_Start();
+      }
+      else if (mainOpts.optDaemonMode == DAEMON_STOP)
+      {
+         Daemon_Stop();
+      }
+      else if (mainOpts.optDaemonMode == EPG_CLOCK_CTRL)
+      {
+         Daemon_SystemClockCmd(mainOpts.optDumpSubMode, CmdLine_GetStartProviderCni());
+      }
+      else if (mainOpts.optDaemonMode == EPG_CL_PROV_SCAN)
+      {
+         Daemon_ProvScanStart();
+      }
+      Daemon_Destroy();
+   }
+   #endif
+   else
    {  // normal GUI mode
 
       eval_check(interp, "LoadWidgetOptions\n"
@@ -2972,29 +2220,35 @@ int main( int argc, char *argv[] )
 
       UiControl_Init();
 
-      if (pDemoDatabase != NULL)
-      {  // demo mode -> open the db given by -demo cmd line arg
-         pUiDbContext = EpgContextCtl_OpenDemo();
-         if (EpgDbContextGetCni(pUiDbContext) == 0)
-         {  // failed to load the demo database (no AI in db) -> start up with empty db
-            pDemoDatabase = NULL;
-            if (EpgDbSavSetupDir(dbdir, NULL) == FALSE)
-            {  // failed to create dir: message was already issued, so just exit
-               exit(-1);
-            }
+      // setup cut-off time for expired PI blocks during database reload
+      EpgSetup_DbExpireDelay();
+
+      if ( IS_DEMO_MODE(mainOpts) )
+      {  // demo mode -> open the db given on the command line
+         pUiDbContext = EpgContextCtl_OpenDemo(mainOpts.pDemoDatabase);
+         if (pUiDbContext == NULL)
+         {  // failed to load the demo database
+            sprintf(comm, "tk_messageBox -type ok -icon error -parent . "
+                           "-message {Failed to load file \"%s\" as demo database.}\n",
+                           mainOpts.pDemoDatabase);
+            eval_check(interp, comm);
+            exit(-1);
          }
-         disableAcq = TRUE;
+         mainOpts.disableAcq = TRUE;
       }
       else
       {  // open the database given by -prov or the last one used
-         OpenInitialDb(startUiCni);
+         EpgSetup_OpenUiDb( CmdLine_GetStartProviderCni() );
       }
       #ifdef USE_DAEMON
       EpgAcqClient_Init(&EventHandler_NetworkUpdate);
-      SetNetAcqParams(interp, FALSE);
+      EpgSetup_NetAcq(FALSE);
       #endif
       // pass TV card hardware parameters to the driver
-      SetHardwareConfig(interp, videoCardIndex);
+      EpgSetup_CardDriver(mainOpts.videoCardIndex);
+      #ifdef USE_TTX_GRABBER
+      EpgSetup_TtxGrabber();
+      #endif
       SetUserLanguage(interp);
       uiMinuteTime  = time(NULL);
       uiMinuteTime -= uiMinuteTime % 60;
@@ -3002,20 +2256,17 @@ int main( int argc, char *argv[] )
       // initialize the GUI control modules
       StatsWin_Create();
       TimeScale_Create();
-      MenuCmd_Init(pDemoDatabase != NULL);
+      MenuCmd_Init( IS_DEMO_MODE(mainOpts) );
       PiRemind_Create();
       PiFilter_Create();
       PiBox_Create();
 
-      EpgDumpText_Init();
-      EpgDumpHtml_Init();
-      EpgDumpXml_Init();
-      EpgDumpRaw_Init();
+      EpgDump_Init();
       ShellCmd_Init();
       WmHooks_Init(interp);
-      WintvCfg_Init(TRUE);
+      WintvUi_Init();
       #ifndef WIN32
-      Xawtv_Init(pTvX11Display);
+      Xawtv_Init(mainOpts.pTvX11Display, EpgMain_ExecRemoteCmd);
       #else
       Wintv_Init(is2ndInstance == FALSE);
       #endif
@@ -3023,7 +2274,7 @@ int main( int argc, char *argv[] )
       // draw the clock and update it every second afterwords
       EventHandler_UpdateClock(NULL);
 
-      if (startIconified)
+      if (mainOpts.startIconified)
          eval_check(interp, "wm iconify .");
 
       // wait until window is open and everything displayed
@@ -3037,12 +2288,21 @@ int main( int argc, char *argv[] )
       #elif !defined(WIN32)
       eval_check(interp, "C_Wm_SetIcon .");
       #endif
-      sprintf(comm, "DisplayMainWindow %d", startIconified);
+      sprintf(comm, "DisplayMainWindow %d", mainOpts.startIconified);
       eval_check(interp, comm);
 
-      if (disableAcq == FALSE)
+      if (mainOpts.disableAcq == FALSE)
       {  // enable EPG acquisition
-         AutoStartAcq(interp);
+#ifdef WIN32
+         if ( EpgSetup_CheckTvCardConfig() == FALSE )
+         {
+            AddMainIdleEvent(Main_PopupTvCardSetup, NULL, TRUE);
+         }
+         else
+#endif
+         {
+            AutoStartAcq();
+         }
       }
 
       // init main window title, PI listbox state and status line
@@ -3092,6 +2352,8 @@ int main( int argc, char *argv[] )
             Tcl_AsyncDelete(signalAsyncHandler);
             signalAsyncHandler = NULL;
             #endif
+            Tcl_FreeEncoding(encIso88591);
+            encIso88591 = NULL;
             // execute pending updates and close main window
             sprintf(comm, "update; destroy .");
             eval_check(interp, comm);
@@ -3099,79 +2361,15 @@ int main( int argc, char *argv[] )
       }
       else
          debug0("could not open the main window - exiting.");
-   }
-   #ifdef USE_DAEMON
-   else if (optDaemonMode == DAEMON_STOP)
-   {
-      EpgAcqClient_Init(NULL);
-      SetNetAcqParams(interp, FALSE);
-      SetHardwareConfig(interp, videoCardIndex);
 
-      EpgMain_StopDaemon();
+      // stop EPG acquisition and the driver
+      EpgScan_Stop();
+      EpgAcqCtl_Stop();
 
-      EpgAcqClient_Destroy();
-   }
-   else if (optDaemonMode == DAEMON_START)
-   {  // Daemon mode: no GUI - just do acq and handle requests from GUI via sockets
-
-      // pass configurable parameters to the network server (e.g. enable logging)
-      SetNetAcqParams(interp, TRUE);
-      SetHardwareConfig(interp, videoCardIndex);
-
-      if (SetDaemonAcquisitionMode(startUiCni, optAcqPassive, optAcqOnce))
-      {
-         if (EpgAcqCtl_Start())
-         {
-            // start listening for client connections (at least on the named socket in /tmp)
-            if (EpgAcqServer_Listen())
-            {
-               #ifdef WIN32
-               RemoteControlWindowCreate();
-               #endif
-               // if the daemon was started by the GUI, notify it that the daemon is ready
-               DaemonTriggerGui();
-
-               DaemonMainLoop();
-            }
-         }
-         else
-         {  // failed to start acq -> error logging
-            EpgNetIo_Logger(LOG_ERR, -1, 0, "failed to start acquisition: ", EpgAcqCtl_GetLastError(), NULL);
-         }
-      }
-      EpgAcqServer_Destroy();
-   }
-   #endif
-
-   #if defined(WIN32) && !defined(__MINGW32__)
-   }
-   __except (EXCEPTION_EXECUTE_HANDLER)
-   {  // caught a fatal exception -> stop the driver to prevent system crash ("blue screen")
-      debug1("FATAL exception caught: %d", GetExceptionCode());
-      // skip EpgAcqCtl_Stop() because it tries to dump the db - do as little as possible here
-      BtDriver_Exit();
-      ExitProcess(-1);
-   }
-   #endif
-
-   // stop EPG acquisition and the driver
-   EpgScan_Stop();
-   EpgAcqCtl_Stop();
-   #ifdef WIN32
-   WintvSharedMem_Exit();
-   #endif
-   BtDriver_Exit();
-
-   // shut down all GUI modules
-   if ( !IS_DAEMON(optDaemonMode) && !IS_STANDALONE_MODE(optDumpMode) )
-   {
       EpgContextCtl_Close(pUiDbContext);
       pUiDbContext = NULL;
 
-      EpgDumpText_Destroy();
-      EpgDumpHtml_Destroy();
-      EpgDumpXml_Destroy();
-      EpgDumpRaw_Destroy();
+      EpgDump_Destroy();
       ShellCmd_Destroy();
 
       PiFilter_Destroy();
@@ -3182,30 +2380,37 @@ int main( int argc, char *argv[] )
       Xawtv_Destroy();
       #else
       Wintv_Destroy();
-      WintvCfg_Destroy();
+      WintvUi_Destroy();
       WinSystrayIcon(FALSE);
       #endif
       #ifdef USE_DAEMON
       EpgAcqClient_Destroy();
       #endif
    }
-   #if defined(WIN32) && defined(USE_DAEMON)
-   else if (optDaemonMode == DAEMON_START)
-   {  // notify the GUI in case we haven't done so before
-      DaemonTriggerGui();
-      // remove the window now to indicate the driver is down and the TV card free
-      RemoteControlWindowDestroy();
+   #if defined(WIN32) && !defined(__MINGW32__)
+   }
+   __except (EXCEPTION_EXECUTE_HANDLER)
+   {
+      WinApiExceptionHandler(NULL);
    }
    #endif
 
+   if ( !IS_DUMP_MODE(mainOpts) )
+   {
+      #ifdef WIN32
+      WintvSharedMem_Exit();
+      #endif
+      EpgAcqCtl_Destroy(FALSE);
+   }
+   RcFile_Destroy();
+
    #if CHK_MALLOC == ON
    DiscardAllMainIdleEvents();
-   EpgContextCtl_ClearCache();
+   EpgContextCtl_Destroy();
    #ifdef WIN32
    xfree(argv);
-   #else
-   xfree((char*)defaultDbDir);
    #endif
+   CmdLine_Destroy();
    // check for allocated memory that was not freed
    chk_memleakage();
    #endif

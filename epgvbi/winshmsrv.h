@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: winshmsrv.h,v 1.4 2002/07/20 16:27:30 tom Exp tom $
+ *  $Id: winshmsrv.h,v 1.5 2007/12/31 16:34:02 tom Exp tom $
  */
 
 #ifndef __WINSHMSRV_H
@@ -29,6 +29,7 @@ typedef struct
 {
    void (* pCbTvEvent)( void );
    void (* pCbStationSelected)( void );
+   void (* pCbEpgQuery)( void );
    void (* pCbTunerGrant)( bool enable );
    void (* pCbAttachTv)( bool enable, bool acqEnabled, bool slaveStateChange );
 } WINSHMSRV_CB;
@@ -36,7 +37,7 @@ typedef struct
 // ---------------------------------------------------------------------------
 // Declaration of service interface functions
 //
-bool WintvSharedMem_Init( void );
+bool WintvSharedMem_Init( bool isDaemon );
 void WintvSharedMem_Exit( void );
 void WintvSharedMem_SetCallbacks( const WINSHMSRV_CB * pCb );
 
@@ -45,19 +46,19 @@ const uchar * WinSharedMem_GetErrorMsg( void );
 bool WintvSharedMem_GetCniAndPil( uint * pCni, uint * pPil );
 bool WintvSharedMem_IsConnected( char * pAppName, uint maxNameLen, uint * pFeatures );
 bool WintvSharedMem_SetEpgCommand( uint argc, const char * pArgStr, uint cmdlen );
-bool WintvSharedMem_SetEpgInfo( time_t start_time, time_t stop_time, const char * pTitle,
-                                uchar themeCount, const uchar * pThemes, uint chanIdx );
-bool WintvSharedMem_QueryChanName( char * pTitle, uint maxLen, uint * pChanIdx );
+bool WintvSharedMem_SetEpgInfo( const char * pData, uint dataLen, uint reqIdx, bool curStation );
+bool WintvSharedMem_GetEpgQuery( char * pBuffer, uint maxLen );
+bool WintvSharedMem_GetStation( char * pStation, uint maxLen, uint * pChanIdx, uint * pEpgCnt );
 bool WintvSharedMem_StartStop( bool start, bool * pAcqEnabled );
 void WintvSharedMem_HandleTvCmd( void );
 
 // interface to Bt8x8 driver (in slave mode)
-bool WintvSharedMem_ReqTvCardIdx( uint cardIdx );
+bool WintvSharedMem_ReqTvCardIdx( uint cardIdx, bool * pEpgHasDriver );
 void WintvSharedMem_FreeTvCard( void );
 bool WintvSharedMem_SetInputSrc( uint inputIdx );
-bool WintvSharedMem_SetTunerFreq( uint freq );
+bool WintvSharedMem_SetTunerFreq( uint freq, uint norm );
 uint WintvSharedMem_GetInputSource( void );
-uint WintvSharedMem_GetTunerFreq( void );
+bool WintvSharedMem_GetTunerFreq( uint * pFreq, bool * pIsTuner );
 volatile EPGACQ_BUF * WintvSharedMem_GetVbiBuf( void );
 
 

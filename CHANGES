@@ -5,7 +5,37 @@ features).  For patchlevel releases also internal changes might be listed in
 case they may fix bugs (or cause new ones)
 
 
-from 2.7.6 to 2.7.7 (2007-01-21)
+from 2.7.7 to 2.8.0 (2007-Dec-31)
+
+- possibility to compile separate daemon "nxtvepgd" without GUI (mainly
+  intended for Linux-based media appliances without X11 libraries)
+- import and merge of EPG data from XMLTV files
+- grabbing EPG data from regular teletext pages (still experimental and
+  hence disabled by default)
+- Windows: extended the communication protocol for TV applications to
+  allow to transport more EPG data (more details, multiple programmes)
+  and to use the nxtvepg daemon; requires new plugin for K!TV
+  (included in win32 package)
+- UNIX: Implemented new communication protocol for TV applications which
+  allows to more EPG data (Download the tvsim package to get a demo) Not
+  yet used by any TV applications.
+- UNIX: added possibility to use an external program to display EPG info
+  popups to TV app. interaction configuration
+- added new command line option -provscan de|fr|at|ch: runs an EPG
+  scan without GUI. It can also be used by nxtvepgd, so nxtvepg can
+  now be set up without ever using the GUI (except for some advanced
+  acquisition options)
+- added command line option -remctrl for UNIX (was supported on WIN32 only)
+- Added support for export in HTML format via the command line: -dump html
+  (does not support all features available in the GUI though.)
+- WIN32: added support for external WDM driver library (note: DLL is not
+  included, see download page; still experimental)
+- Upgrade of Tcl/Tk library from version 8.3.4 to 8.5.0 (to benefit from
+  this UNIX users must also upgrade their installed Tcl/Tk libraries,
+  which is highly recommended due to improvements in widget appearences)
+
+
+from 2.7.6 to 2.7.7 (2007-Jan-21)
 
 - Implemented new algorithm in EPG stream decoder to improve performance
   under bad reception conditions (i.e. with high data loss rates)

@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: timescale.c,v 1.12 2004/11/01 17:11:50 tom Exp tom $
+ *  $Id: timescale.c,v 1.16 2007/03/03 20:39:34 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -120,15 +120,17 @@ const char * const streamColors[STREAM_COLOR_COUNT] =
 //
 static void TimeScale_UpdateStatusLine( ClientData dummy )
 {
+   EPGDB_CONTEXT * pAcqDbContext;
    EPGDB_CONTEXT * dbc;
    const AI_BLOCK * pAi;
-   const EPGDB_BLOCK_COUNT * count;
-   EPGDB_BLOCK_COUNT myCount[2];
+   EPGDB_BLOCK_COUNT count[2];
    ulong total, curVersionCount;
    uint nearPerc;
    int target;
    Tcl_DString msg_dstr;
    Tcl_DString cmd_dstr;
+
+   pAcqDbContext = EpgAcqCtl_GetDbContext(TRUE);
 
    for (target=0; target < 2; target++)
    {
@@ -142,23 +144,22 @@ static void TimeScale_UpdateStatusLine( ClientData dummy )
             sprintf(comm, "destroy %s", tscn[target]);
             eval_check(interp, comm);
          }
-         else if (EpgDbContextIsMerged(dbc) == FALSE)
+         else if ( (EpgDbContextIsMerged(dbc) == FALSE) &&
+                   (EpgDbContextIsXmltv(dbc) == FALSE) )
          {
             EpgDbLockDatabase(dbc, TRUE);
             pAi = EpgDbGetAi(dbc);
             if (pAi != NULL)
             {
                if ( (target == DB_TARGET_ACQ) || (pAcqDbContext == pUiDbContext) )
-                  count = EpgAcqCtl_GetDbStats();
+               {
+                  EpgAcqCtl_GetDbStats(count, NULL);
+               }
                else
-                  count = NULL;
-
-               if (count == NULL)
                {  // acq not running for this database
                   time_t acqMinTime[2];
                   memset(acqMinTime, 0, sizeof(acqMinTime));
-                  EpgDbGetStat(dbc, myCount, acqMinTime, 0);
-                  count = myCount;
+                  EpgDbGetStat(dbc, count, acqMinTime, 0);
                }
 
                total            = count[0].ai + count[1].ai;
@@ -200,13 +201,20 @@ static void TimeScale_UpdateStatusLine( ClientData dummy )
             }
             EpgDbLockDatabase(dbc, FALSE);
          }
-         else
+         else if (EpgDbContextIsMerged(dbc))
          {
             sprintf(comm, "%s.bottom.l configure -text {Merged database.}\n", tscn[target]);
             eval_check(interp, comm);
          }
+         else
+         {
+            sprintf(comm, "%s.bottom.l configure -text {Imported database.}\n", tscn[target]);
+            eval_check(interp, comm);
+         }
       }
    }
+
+   EpgAcqCtl_GetDbContext(FALSE);
 }
 
 // ----------------------------------------------------------------------------
@@ -219,9 +227,12 @@ static void TimeScale_UpdateStatusLine( ClientData dummy )
 static void TimeScale_UpdateDateScale( ClientData dummy )
 {
    time_t now = time(NULL);
+   Tcl_Obj *objv[5];
+   uchar   str_buf[50];
    time_t toff;
    struct tm * pTm;
    uint   target, idx;
+   uint   strOff;
 
    if (scaleUpdateHandler != NULL)
       Tcl_DeleteTimerHandler(scaleUpdateHandler);
@@ -233,19 +244,25 @@ static void TimeScale_UpdateDateScale( ClientData dummy )
       {
          if (now >= tscaleState[target].startTime)
          {
+            // build Tcl script to draw the data scale (use objects because the date list may get long)
+            objv[0] = Tcl_NewStringObj("TimeScale_DrawDateScale", -1);
+            objv[1] = Tcl_NewStringObj(tscn[target], -1);
+            objv[2] = Tcl_NewIntObj(tscaleState[target].widthPixels);
+
             toff = now - tscaleState[target].startTime;
             if (toff < tscaleState[target].widthSecs - 7)
             {
-               sprintf(comm, "TimeScale_DrawDateScale %s %d %ld {", tscn[target],
-                             tscaleState[target].widthPixels, toff / tscaleState[target].secsPerPixel);
+               objv[3] = Tcl_NewIntObj(toff / tscaleState[target].secsPerPixel);
             }
             else
             {  // "now" is off the scale -> draw a vertical arrow pointing out of the window
-               sprintf(comm, "TimeScale_DrawDateScale %s %d off {", tscn[target], tscaleState[target].widthPixels);
+               objv[3] = Tcl_NewStringObj("off", -1);
             }
+            objv[4] = Tcl_NewListObj(0, NULL);
 
             // generate list of pixel positions of daybreaks (note: cannot use constant
             // intervals because of possible intermediate daylight saving time change)
+            strOff = strlen(comm);
             idx = 0;
             while (1)
             {
@@ -264,14 +281,26 @@ static void TimeScale_UpdateDateScale( ClientData dummy )
                toff = mktime(pTm) - tscaleState[target].startTime;
 
                if (toff < tscaleState[target].widthSecs)
-                  sprintf(comm + strlen(comm), "%d %d.%d. ",
-                          (sint)(toff / tscaleState[target].secsPerPixel),
-                          pTm->tm_mday, pTm->tm_mon + 1);
+               {
+                  Tcl_ListObjAppendElement(interp, objv[4],
+                                           Tcl_NewIntObj(toff / tscaleState[target].secsPerPixel));
+
+                  sprintf(str_buf, "%d.%d.", pTm->tm_mday, pTm->tm_mon + 1);
+                  Tcl_ListObjAppendElement(interp, objv[4], Tcl_NewStringObj(str_buf, -1));
+               }
                else
                   break;
             }
-            sprintf(comm + strlen(comm), "}\n");
-            eval_check(interp, comm);
+
+            // execute the script (including inc & dec of ref' counts)
+            for (idx = 0; idx < 5; idx++)
+               Tcl_IncrRefCount(objv[idx]);
+
+            if (Tcl_EvalObjv(interp, 5, objv, 0) != TCL_OK)
+               debugTclErr(interp, "PiOutput-InsertText");
+
+            for (idx = 0; idx < 5; idx++)
+               Tcl_DecrRefCount(objv[idx]);
          }
 
          // install timer to update the position of the NOW array; the interval is
@@ -316,7 +345,8 @@ static int TimeScale_GetTime( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_
 
       if ( tscaleState[target].open )
       {
-        if ((target == DB_TARGET_UI) || (pUiDbContext == pAcqDbContext))
+        if ( (target == DB_TARGET_UI) ||
+             (EpgAcqCtl_GetProvCni() == EpgDbContextGetCni(pUiDbContext)) )
         {
            reqtime  = tscaleState[target].startTime + (poff * tscaleState[target].secsPerPixel);
         }
@@ -346,6 +376,7 @@ static int TimeScale_GetTime( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_
 //
 static void TimeScale_RequestAcq( void )
 {
+   bool isForAcq;
    bool enable;
    bool allProviders;
 
@@ -359,17 +390,23 @@ static void TimeScale_RequestAcq( void )
 
    if (tscaleState[DB_TARGET_UI].open)
    {  // UI timescales are open
-      if ( EpgDbContextIsMerged(pUiDbContext) == FALSE )
+      if ( (EpgDbContextIsMerged(pUiDbContext) == FALSE) &&
+           (EpgDbContextIsXmltv(pUiDbContext) == FALSE) )
       {  // normal db -> forward incoming data if it's for the same db
-         enable |= (pUiDbContext == pAcqDbContext);
+         isForAcq = (EpgAcqCtl_GetProvCni() == EpgDbContextGetCni(pUiDbContext));
+         enable |= isForAcq;
          // remember request state in the timscale state struct
-         tscaleState[DB_TARGET_UI].isForAcq = (pUiDbContext == pAcqDbContext);
+         tscaleState[DB_TARGET_UI].isForAcq = isForAcq;
       }
-      else
+      else if ( EpgDbContextIsMerged(pUiDbContext) )
       {  // merged db -> forward timescale info for any newly merged PI
          EpgContextMergeEnableTimescale(pUiDbContext, TRUE);
 
          // no immediate connection between acq and merged db
+         tscaleState[DB_TARGET_UI].isForAcq = FALSE;
+      }
+      else
+      {
          tscaleState[DB_TARGET_UI].isForAcq = FALSE;
       }
    }
@@ -516,7 +553,9 @@ static void TimeScale_AddPi( int target, EPGDB_PI_TSC * ptsc )
          col = STREAM_COLOR_DEFECTIVE;
       else if (pPt->flags & PI_TSC_MASK_IS_EXPIRED)
       {
-         if (pPt->flags & PI_TSC_MASK_IS_STREAM_1)
+         // stream distinction is meaningless for old database version
+         if ( (pPt->flags & PI_TSC_MASK_IS_STREAM_1) ||
+              !(pPt->flags & PI_TSC_MASK_IS_CUR_VERSION) )
             col = STREAM_COLOR_EXPIRED_V1;
          else
             col = STREAM_COLOR_EXPIRED_V2;
@@ -614,13 +653,18 @@ static void TimeScale_ProcessAcqQueue( ClientData dummy )
    EPGDB_PI_TSC * ptsc;
    const EPGDB_PI_TSC_ELEM *pPt;
    uchar stream, netwop;
+   uint acqCni;
+   bool isUiDb;
 
    // get queue handle from the acq module
    ptsc = EpgAcqCtl_GetTimescaleQueue();
    if (ptsc != NULL)
    {
+      acqCni = EpgAcqCtl_GetProvCni();
+      isUiDb = ((EpgDbContextGetCni(pUiDbContext) == acqCni) && (acqCni != 0));
+
       // save netwop and stream of the last received PI
-      pPt = EpgTscQueue_PeekTail(ptsc, EpgDbContextGetCni(pAcqDbContext));
+      pPt = EpgTscQueue_PeekTail(ptsc, acqCni);
       if (pPt != NULL)
       {
          stream = ((pPt->flags & PI_TSC_MASK_IS_STREAM_1) ? 0 : 1);
@@ -639,10 +683,10 @@ static void TimeScale_ProcessAcqQueue( ClientData dummy )
             {
                if (tscaleState[DB_TARGET_ACQ].locked == FALSE)
                {
-                  if (pUiDbContext == pAcqDbContext)
+                  if (isUiDb)
                   {  // both UI and ACQ timescales are open and refer to the same database
                      dprintf0("TimeScale-ProcessAcqQueue: UI == ACQ\n");
-                     EpgTscQueue_SetProvCni(ptsc, EpgDbContextGetCni(pAcqDbContext));
+                     EpgTscQueue_SetProvCni(ptsc, acqCni);
                      // must process them in parallel ("both"), because popping from a queue frees the data
                      TimeScale_AddPi(DB_TARGET_BOTH, ptsc);
 
@@ -652,7 +696,7 @@ static void TimeScale_ProcessAcqQueue( ClientData dummy )
                   else
                   {  // both UI and ACQ are open, but refer to different databases
                      dprintf0("TimeScale-ProcessAcqQueue: UI != ACQ\n");
-                     EpgTscQueue_SetProvCni(ptsc, EpgDbContextGetCni(pAcqDbContext));
+                     EpgTscQueue_SetProvCni(ptsc, acqCni);
                      TimeScale_AddPi(DB_TARGET_ACQ, ptsc);
 
                      // after an acq provider change, there might still be data in the queue fro the ui db
@@ -676,12 +720,11 @@ static void TimeScale_ProcessAcqQueue( ClientData dummy )
                EpgTscQueue_ClearUnprocessed(ptsc);
 
                // note: no highlighting for the merged db
-               if (pUiDbContext == pAcqDbContext)
+               if (isUiDb)
                   TimeScale_HighlightNetwop(DB_TARGET_UI, netwop, stream);
             }
 
-            if ( tscaleState[DB_TARGET_UI].isForAcq &&
-                 (pUiDbContext != pAcqDbContext) )
+            if ( tscaleState[DB_TARGET_UI].isForAcq && (isUiDb == FALSE) )
             {  // UI db is no longer identical with acq db
 
                // remove netwop highlighting
@@ -693,8 +736,7 @@ static void TimeScale_ProcessAcqQueue( ClientData dummy )
                // update connection between timescale windows and acq
                TimeScale_RequestAcq();
             }
-            else if ( (tscaleState[DB_TARGET_UI].isForAcq == FALSE) &&
-                      (pUiDbContext == pAcqDbContext) )
+            else if ( (tscaleState[DB_TARGET_UI].isForAcq == FALSE) && isUiDb )
             {  // UI db is now identical with acq db
                TimeScale_RequestAcq();
             }
@@ -705,7 +747,7 @@ static void TimeScale_ProcessAcqQueue( ClientData dummy )
          if (tscaleState[DB_TARGET_ACQ].locked == FALSE)
          {  // only acq timescale is open
             dprintf0("TimeScale-ProcessAcqQueue: ACQ only\n");
-            EpgTscQueue_SetProvCni(ptsc, EpgDbContextGetCni(pAcqDbContext));
+            EpgTscQueue_SetProvCni(ptsc, acqCni);
             TimeScale_AddPi(DB_TARGET_ACQ, ptsc);
             EpgTscQueue_ClearUnprocessed(ptsc);
 
@@ -713,7 +755,7 @@ static void TimeScale_ProcessAcqQueue( ClientData dummy )
          }
       }
 
-      if ( (!tscaleState[DB_TARGET_UI].open || (pUiDbContext != pAcqDbContext)) &&
+      if ( (!tscaleState[DB_TARGET_UI].open || !isUiDb) &&
            !tscaleState[DB_TARGET_ACQ].open )
       {
          ifdebug0(EpgTscQueue_HasElems(ptsc), "TimeScale-ProcessAcqQueue: discard remaining data");
@@ -738,30 +780,46 @@ static void TimeScale_ProcessAcqQueue( ClientData dummy )
 }
 
 // ----------------------------------------------------------------------------
-// Helper function: determine the max. day count of all networks in AI
-// - determines the width of the timescale window
+// Helper function: determine width of the timescale window
 //
 static uint TimeScale_GetMaxDayCount( EPGDB_CONTEXT * dbc )
 {
    const AI_BLOCK * pAi;
+   const PI_BLOCK * pFirstPi;
+   const PI_BLOCK * pLastPi;
    uint  days, maxDays;
    uint  idx;
 
    maxDays = TSC_SCALE_MIN_DAY_COUNT;
 
    EpgDbLockDatabase(dbc, TRUE);
-   pAi = EpgDbGetAi(dbc);
-   if (pAi != NULL)
+   if ( !EpgDbContextIsMerged(dbc) && !EpgDbContextIsXmltv(dbc) )
    {
-      for (idx = 0; idx < pAi->netwopCount; idx++)
+      // regular database: use "day count" from AI so missing blocks can be indicated
+      pAi = EpgDbGetAi(dbc);
+      if (pAi != NULL)
       {
-         days = AI_GET_NETWOP_N(pAi, idx)->dayCount;
-         if (days > maxDays)
-            maxDays = days;
+         for (idx = 0; idx < pAi->netwopCount; idx++)
+         {
+            days = AI_GET_NETWOP_N(pAi, idx)->dayCount;
+            if (days > maxDays)
+               maxDays = days;
+         }
       }
+   }
+   else
+   {  // merged or imported db: determine width by covered time
+      pFirstPi = EpgDbSearchFirstPi(dbc, NULL);
+      pLastPi = EpgDbSearchLastPi(dbc, NULL);
+      // note we get either first and last or none, so we need to handle just these 2 cases
+      if ((pFirstPi != NULL) && (pLastPi != NULL))
+         maxDays = (pLastPi->stop_time - pFirstPi->start_time + 24*60*60-1) / (24*60*60);
+      else
+         maxDays = 1;
    }
    EpgDbLockDatabase(dbc, FALSE);
 
+   dprintf1("TimeScale-GetMaxDayCount: %d days\n", maxDays);
    return maxDays;
 }
 
@@ -787,9 +845,9 @@ static void TimeScale_CreateOrRebuild( ClientData dummy )
          // clear the lock
          tscaleState[target].locked = FALSE;
 
-         dbc = ((target == DB_TARGET_UI) ? pUiDbContext : pAcqDbContext);
+         dbc = ((target == DB_TARGET_ACQ) ? EpgAcqCtl_GetDbContext(TRUE) : pUiDbContext);
 
-         if (EpgDbContextGetCni(dbc) != 0)
+         if ((dbc != NULL) && (EpgDbContextGetCni(dbc) != 0))
          {
             // initialize/reset state struct
             // (note: conversion factor secsPerPixel is reset only upon initial display or prov change)
@@ -805,7 +863,7 @@ static void TimeScale_CreateOrRebuild( ClientData dummy )
             sprintf(comm, "TimeScale_Open %s 0x%04X %s %d %d\n",
                           tscn[target], EpgDbContextGetCni(dbc),
                           ((target == DB_TARGET_UI) ? "ui" : "acq"),
-                          EpgDbContextIsMerged(dbc),
+                          (EpgDbContextIsMerged(dbc) || EpgDbContextIsXmltv(dbc)),
                           tscaleState[target].widthPixels);
             eval_check(interp, comm);
 
@@ -862,6 +920,9 @@ static void TimeScale_CreateOrRebuild( ClientData dummy )
             sprintf(comm, "destroy %s", tscn[target]);
             eval_check(interp, comm);
          }
+
+         if (target == DB_TARGET_ACQ)
+            EpgAcqCtl_GetDbContext(FALSE);
       }
    }
 }
@@ -877,11 +938,11 @@ static int TimeScale_Toggle( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_O
 {
    const char * const pUsage = "Usage: C_TimeScale_Toggle ui|acq [0|1]";
    const char * pKey;
-   EPGDB_CONTEXT *dbc;
+   uint provCni;
    int target, newState;
    int result;
 
-   dbc = NULL;  // avoid compiler warnings
+   provCni = 0;  // avoid compiler warnings
    target = 0;
    result = TCL_OK;
 
@@ -891,12 +952,12 @@ static int TimeScale_Toggle( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_O
       // determine target from first parameter: ui or acq db context
       if (strcmp(pKey, "ui") == 0)
       {
-         dbc = pUiDbContext;
+         provCni = EpgDbContextGetCni(pUiDbContext);
          target = DB_TARGET_UI;
       }
       else if (strcmp(pKey, "acq") == 0)
       {
-         dbc = pAcqDbContext;
+         provCni = EpgAcqCtl_GetProvCni();
          target = DB_TARGET_ACQ;
       }
       else
@@ -926,7 +987,7 @@ static int TimeScale_Toggle( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_O
          if (tscaleState[target].open == FALSE)
          {  // user requests to open a new window
             // refuse request if no AI is available (required for netwop list)
-            if (EpgDbContextGetCni(dbc) != 0)
+            if (provCni != 0)
             {
                tscaleState[target].highlighted = 0xff;
                tscaleState[target].open   = TRUE;
@@ -1082,7 +1143,7 @@ void TimeScale_VersionChange( void )
    {
       if ( EpgDbContextIsMerged(pUiDbContext) == FALSE )
       {
-         if (pAcqDbContext == pUiDbContext)
+         if (EpgAcqCtl_GetProvCni() == EpgDbContextGetCni(pUiDbContext))
          {
             tscaleState[DB_TARGET_UI].locked = TRUE;
             update = TRUE;
@@ -1090,7 +1151,7 @@ void TimeScale_VersionChange( void )
       }
       else
       {  // merged database: search for the acq CNI in the list of merged providers
-         if ((EpgContextMergeCheckForCni(pUiDbContext, EpgDbContextGetCni(pAcqDbContext))))
+         if ((EpgContextMergeCheckForCni(pUiDbContext, EpgAcqCtl_GetProvCni())))
          {
             tscaleState[DB_TARGET_UI].locked = TRUE;
             update = TRUE;

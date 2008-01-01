@@ -20,7 +20,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgacqsrv.c,v 1.15 2004/06/19 19:52:26 tom Exp $
+ *  $Id: epgacqsrv.c,v 1.18 2007/01/21 11:24:09 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -28,6 +28,7 @@
 
 #ifdef USE_DAEMON
 
+#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -79,6 +80,7 @@ typedef struct REQUEST_struct
 
    SRV_REQ_STATE   state;
    EPGNETIO_STATE  io;
+   bool            isLocalCon;
    bool            endianSwap;
 
    EPGNETIO_DUMP   dump;
@@ -89,6 +91,7 @@ typedef struct REQUEST_struct
 
    SRV_STATS_STATE doTtxStats;
    bool            doVpsPdc;
+   time_t          sendDbUpdTime;
    bool            enableAllBlocks;
    uint            cniCount;
    uint            provCnis[MAX_MERGED_DB_COUNT];
@@ -169,7 +172,7 @@ static void EpgAcqServer_MergeCniLists( void )
    // if at least one CNI was found, send it to acq ctl
    if (cniCount > 0)
    {
-      EpgAcqCtl_UpdateNetProvList(cniCount, provCnis);
+      EpgAcqCtl_UpdateProvList(cniCount, provCnis);
    }
 }
 
@@ -179,16 +182,18 @@ static void EpgAcqServer_MergeCniLists( void )
 //
 static void EpgAcqServer_BuildStatsMsg( EPGDBSRV_STATE * req, bool aiFollows )
 {
-   const EPGDB_STATS  * pAcqStats;
+   EPG_ACQ_VPS_PDC  vpsPdc;
+   EPG_ACQ_STATS acqStats;
+   bool   newVpsPdc;
    uint   msgLen;
 
-   pAcqStats = EpgAcqCtl_GetAcqStats();
-   if (pAcqStats != NULL)
+   if (EpgAcqCtl_GetAcqStats(&acqStats))
    {
       req->msgBuf.stats_ind.pNext     = NULL;
       req->msgBuf.stats_ind.aiFollows = aiFollows;
       // always include description of acq state
       EpgAcqCtl_DescribeAcqState(&req->msgBuf.stats_ind.descr);
+      newVpsPdc = EpgAcqCtl_GetVpsPdc(&vpsPdc, VPSPDC_REQ_DAEMON, TRUE);
 
       if ((req->statsReqBits & STATS_REQ_BITS_HIST) == 0)
       {
@@ -196,8 +201,12 @@ static void EpgAcqServer_BuildStatsMsg( EPGDBSRV_STATE * req, bool aiFollows )
          msgLen = sizeof(req->msgBuf.stats_ind) - sizeof(req->msgBuf.stats_ind.u) + sizeof(req->msgBuf.stats_ind.u.minimal);
 
          // include database statistics (block counts)
-         memcpy(&req->msgBuf.stats_ind.u.minimal.count, &pAcqStats->count, sizeof(pAcqStats->count));
-         req->msgBuf.stats_ind.u.minimal.vpsPdc = pAcqStats->vpsPdc;
+         memcpy(&req->msgBuf.stats_ind.u.minimal.count, &acqStats.nxtv.count, sizeof(acqStats.nxtv.count));
+         req->msgBuf.stats_ind.u.minimal.nowMaxAcqNetCount = acqStats.nxtv.nowMaxAcqNetCount;
+         if (newVpsPdc)
+            req->msgBuf.stats_ind.u.minimal.vpsPdc = vpsPdc;
+         else
+            req->msgBuf.stats_ind.u.minimal.vpsPdc.cniType = STATS_IND_INVALID_VPS_PDC;
       }
       else
       {
@@ -207,7 +216,11 @@ static void EpgAcqServer_BuildStatsMsg( EPGDBSRV_STATE * req, bool aiFollows )
             msgLen = sizeof(req->msgBuf.stats_ind) - sizeof(req->msgBuf.stats_ind.u) + sizeof(req->msgBuf.stats_ind.u.initial);
 
             // include the complete statistics struct
-            memcpy(&req->msgBuf.stats_ind.u.initial.stats, pAcqStats, sizeof(*pAcqStats));
+            memcpy(&req->msgBuf.stats_ind.u.initial.stats, &acqStats, sizeof(acqStats));
+            if (newVpsPdc)
+               req->msgBuf.stats_ind.u.initial.vpsPdc = vpsPdc;
+            else
+               req->msgBuf.stats_ind.u.initial.vpsPdc.cniType = STATS_IND_INVALID_VPS_PDC;
          }
          else
          {
@@ -215,16 +228,22 @@ static void EpgAcqServer_BuildStatsMsg( EPGDBSRV_STATE * req, bool aiFollows )
             msgLen = sizeof(req->msgBuf.stats_ind) - sizeof(req->msgBuf.stats_ind.u) + sizeof(req->msgBuf.stats_ind.u.update);
 
             // include database statistics (block counts)
-            memcpy(&req->msgBuf.stats_ind.u.update.count, &pAcqStats->count, sizeof(pAcqStats->count));
+            memcpy(&req->msgBuf.stats_ind.u.update.count, &acqStats.nxtv.count, sizeof(acqStats.nxtv.count));
 
-            req->msgBuf.stats_ind.u.update.ai      = pAcqStats->ai;
-            req->msgBuf.stats_ind.u.update.hist    = pAcqStats->hist[pAcqStats->histIdx];
-            req->msgBuf.stats_ind.u.update.histIdx = pAcqStats->histIdx;
-            req->msgBuf.stats_ind.u.update.vpsPdc  = pAcqStats->vpsPdc;
-            req->msgBuf.stats_ind.u.update.ttx     = pAcqStats->ttx;
-            req->msgBuf.stats_ind.u.update.stream  = pAcqStats->stream;
-            req->msgBuf.stats_ind.u.update.nowNextMaxAcqRepCount = pAcqStats->nowNextMaxAcqRepCount;
-            req->msgBuf.stats_ind.u.update.lastStatsUpdate = pAcqStats->lastStatsUpdate;
+            req->msgBuf.stats_ind.u.update.ai      = acqStats.nxtv.ai;
+            req->msgBuf.stats_ind.u.update.hist    = acqStats.nxtv.hist[acqStats.nxtv.histIdx];
+            req->msgBuf.stats_ind.u.update.histIdx = acqStats.nxtv.histIdx;
+            req->msgBuf.stats_ind.u.update.ttx_dec = acqStats.ttx_dec;
+            req->msgBuf.stats_ind.u.update.stream  = acqStats.nxtv.stream;
+            req->msgBuf.stats_ind.u.update.nowMaxAcqRepCount = acqStats.nxtv.nowMaxAcqRepCount;
+            req->msgBuf.stats_ind.u.update.nowMaxAcqNetCount = acqStats.nxtv.nowMaxAcqNetCount;
+            req->msgBuf.stats_ind.u.update.lastStatsUpdate = acqStats.lastStatsUpdate;
+            req->msgBuf.stats_ind.u.update.grabTtxStats = acqStats.ttx_grab.pkgStats;
+
+            if (newVpsPdc)
+               req->msgBuf.stats_ind.u.update.vpsPdc = vpsPdc;
+            else
+               req->msgBuf.stats_ind.u.update.vpsPdc.cniType = STATS_IND_INVALID_VPS_PDC;
          }
       }
 
@@ -239,20 +258,30 @@ static void EpgAcqServer_BuildStatsMsg( EPGDBSRV_STATE * req, bool aiFollows )
 //
 static void EpgAcqServer_BuildVpsPdcMsg( EPGDBSRV_STATE * req )
 {
-   const EPGDB_ACQ_VPS_PDC  * pVpsPdc;
+   EPG_ACQ_VPS_PDC vpsPdc;
 
-   pVpsPdc = EpgAcqCtl_GetVpsPdc(VPSPDC_REQ_DAEMON);
-   if (pVpsPdc != NULL)
+   if ( EpgAcqCtl_GetVpsPdc(&vpsPdc, VPSPDC_REQ_DAEMON, TRUE) )
    {
-      dprintf5("EpgAcqServer-BuildVpsPdcMsg: %02d.%02d. %02d:%02d (0x%04X)\n", (pVpsPdc->pil >> 15) & 0x1F, (pVpsPdc->pil >> 11) & 0x0F, (pVpsPdc->pil >>  6) & 0x1F, (pVpsPdc->pil      ) & 0x3F, pVpsPdc->cni);
+      dprintf5("EpgAcqServer-BuildVpsPdcMsg: %02d.%02d. %02d:%02d (0x%04X)\n", (vpsPdc.pil >> 15) & 0x1F, (vpsPdc.pil >> 11) & 0x0F, (vpsPdc.pil >>  6) & 0x1F, (vpsPdc.pil      ) & 0x3F, vpsPdc.cni);
 
-      memcpy(&req->msgBuf.vps_pdc_ind.vpsPdc, pVpsPdc, sizeof(EPGDB_ACQ_VPS_PDC));
+      req->msgBuf.vps_pdc_ind.vpsPdc = vpsPdc;
 
       EpgNetIo_WriteMsg(&req->io, MSG_TYPE_VPS_PDC_IND, sizeof(MSG_STRUCT_VPS_PDC_IND), &req->msgBuf, FALSE);
    }
 
    req->statsReqBits &= ~ STATS_REQ_BITS_VPS_PDC_UPD;
    req->doVpsPdc = FALSE;
+}
+
+// ----------------------------------------------------------------------------
+// Build database update indication message
+//
+static void EpgAcqServer_BuildDbUpdateMsg( EPGDBSRV_STATE * req )
+{
+   req->msgBuf.db_upd_ind.mtime = req->sendDbUpdTime;
+   req->sendDbUpdTime = 0;
+
+   EpgNetIo_WriteMsg(&req->io, MSG_TYPE_DB_UPD_IND, sizeof(MSG_STRUCT_DB_UPD_IND), &req->msgBuf, FALSE);
 }
 
 // ----------------------------------------------------------------------------
@@ -284,9 +313,9 @@ static bool EpgAcqServer_DumpReqDb( EPGDBSRV_STATE * req )
             req->dumpStartTimes[req->cniCount - 1] = swapTime;
          }
 
-         if (req->dumpStartTimes[req->dumpProvIdx] < EpgContextCtl_GetAiUpdateTime(req->dumpCnis[req->dumpProvIdx]))
+         if (req->dumpStartTimes[req->dumpProvIdx] < EpgContextCtl_GetAiUpdateTime(req->dumpCnis[req->dumpProvIdx], FALSE))
          {
-            req->pDbContext = EpgContextCtl_Open(req->dumpCnis[req->dumpProvIdx], CTX_FAIL_RET_NULL, CTX_RELOAD_ERR_ANY);
+            req->pDbContext = EpgContextCtl_Open(req->dumpCnis[req->dumpProvIdx], FALSE, CTX_FAIL_RET_NULL, CTX_RELOAD_ERR_ANY);
             if (req->pDbContext != NULL)
             {
                dprintf3("EpgAcqServer-DumpReqDb: dump db #%d, CNI 0x%04X: last %ld secs\n", req->dumpProvIdx, req->dumpCnis[req->dumpProvIdx], time(NULL) - req->dumpStartTimes[req->dumpProvIdx]);
@@ -389,7 +418,7 @@ static void EpgAcqServer_Close( EPGDBSRV_STATE * req, bool closeAll )
 // ----------------------------------------------------------------------------
 // Initialize a request structure for a new client and add it to the list
 //
-static void EpgAcqServer_AddConnection( int listen_fd )
+static void EpgAcqServer_AddConnection( int listen_fd, bool isLocal )
 {
    EPGDBSRV_STATE * req;
    int sock_fd;
@@ -403,6 +432,7 @@ static void EpgAcqServer_AddConnection( int listen_fd )
       memset(req, 0, sizeof(EPGDBSRV_STATE));
 
       req->state         = SRV_STATE_WAIT_CON_REQ;
+      req->isLocalCon    = isLocal;
       req->io.lastIoTime = time(NULL);
       req->io.sock_fd    = sock_fd;
 
@@ -483,6 +513,7 @@ static bool EpgAcqServer_CheckMsg( uint len, EPGNETIO_MSG_HEADER * pHead, EPGDBS
       case MSG_TYPE_BLOCK_IND:
       case MSG_TYPE_TSC_IND:
       case MSG_TYPE_VPS_PDC_IND:
+      case MSG_TYPE_DB_UPD_IND:
       case MSG_TYPE_STATS_IND:
       case MSG_TYPE_DUMP_IND:
          debug1("EpgAcqServer-CheckMsg: recv client msg type %d", pHead->type);
@@ -599,7 +630,12 @@ static bool EpgAcqServer_TakeMessage( EPGDBSRV_STATE *req, EPGDBSRV_MSG_BODY * p
                  ((pMsg->stats_req.statsReqBits & STATS_REQ_BITS_TSC_ALL) != 0) &&
                  ((req->statsReqBits & STATS_REQ_BITS_TSC_ALL) == 0) )
             {
-               EpgTscQueue_AddAll(&req->tscQueue, pAcqDbContext);
+               EPGDB_CONTEXT * pDbContext = EpgAcqCtl_GetDbContext(TRUE);
+               if (pDbContext != NULL)
+               {
+                  EpgTscQueue_AddAll(&req->tscQueue, pDbContext);
+               }
+               EpgAcqCtl_GetDbContext(FALSE);
             }
 
             // immediately send VPS/PDC updates if requested and available
@@ -684,7 +720,8 @@ sint EpgAcqServer_GetFdSet( fd_set * rd, fd_set * wr )
           (req->state == SRV_STATE_DUMP_REQUESTED) ||
           (req->state == SRV_STATE_DUMP_ACQ) ||
           (req->doTtxStats != SRV_FWD_STATS_DONE) ||
-          (req->doVpsPdc))
+          (req->doVpsPdc) ||
+          (req->sendDbUpdTime != 0))
          FD_SET(req->io.sock_fd, wr);
       else
          FD_SET(req->io.sock_fd, rd);
@@ -701,6 +738,7 @@ sint EpgAcqServer_GetFdSet( fd_set * rd, fd_set * wr )
 //
 void EpgAcqServer_HandleSockets( fd_set * rd, fd_set * wr )
 {
+   EPGDB_CONTEXT     *pDbContext;
    const EPGDB_BLOCK *pOutBlock;
    EPGDBSRV_STATE    *req;
    EPGDBSRV_STATE    *prev, *tmp;
@@ -710,13 +748,13 @@ void EpgAcqServer_HandleSockets( fd_set * rd, fd_set * wr )
    // accept new TCP/IP connections
    if ((srvState.tcp_ip_fd != -1) && (FD_ISSET(srvState.tcp_ip_fd, rd)))
    {
-      EpgAcqServer_AddConnection(srvState.tcp_ip_fd);
+      EpgAcqServer_AddConnection(srvState.tcp_ip_fd, FALSE);
    }
 
    // accept new local connections
    if ((srvState.pipe_fd != -1) && (FD_ISSET(srvState.pipe_fd, rd)))
    {
-      EpgAcqServer_AddConnection(srvState.pipe_fd);
+      EpgAcqServer_AddConnection(srvState.pipe_fd, TRUE);
    }
 
    // handle active connections
@@ -792,16 +830,17 @@ void EpgAcqServer_HandleSockets( fd_set * rd, fd_set * wr )
          }
          else if (req->state == SRV_STATE_DUMP_ACQ)
          {  // Perform dump of AI and OI#0 of non-requested db
-            if (pAcqDbContext != NULL)
+            pDbContext = EpgAcqCtl_GetDbContext(TRUE);
+            if (pDbContext != NULL)
             {
-               if ( (EpgNetIo_DumpAiOi(&req->io, pAcqDbContext, &req->dump) == FALSE) && (req->io.sock_fd != -1) )
+               if ( (EpgNetIo_DumpAiOi(&req->io, pDbContext, &req->dump) == FALSE) && (req->io.sock_fd != -1) )
                {
                   if ( (req->statsReqBits & STATS_REQ_BITS_TSC_REQ) &&
                        (req->statsReqBits & STATS_REQ_BITS_TSC_ALL) &&
                        (req->enableAllBlocks == FALSE) )
                   {  // if this is a non-forwarded provider but acq timescales are open,
                      // generate full timescale info
-                     EpgTscQueue_AddAll(&req->tscQueue, pAcqDbContext);
+                     EpgTscQueue_AddAll(&req->tscQueue, pDbContext);
                   }
                   req->msgBuf.fwd_ind.cni = srvState.lastFwdCni;
                   EpgNetIo_WriteMsg(&req->io, MSG_TYPE_FORWARD_IND, sizeof(req->msgBuf.fwd_ind), &req->msgBuf.fwd_ind, FALSE);
@@ -813,11 +852,17 @@ void EpgAcqServer_HandleSockets( fd_set * rd, fd_set * wr )
             {  // acquisition has been stopped (can only occur during server shutdown)
                EpgAcqServer_Close(req, TRUE);
             }
+            EpgAcqCtl_GetDbContext(FALSE);
          }
          else if ( (req->doVpsPdc) &&
                    (req->state == SRV_STATE_FORWARD) )
          {  // send VPS/PDC
             EpgAcqServer_BuildVpsPdcMsg(req);
+         }
+         else if ( (req->sendDbUpdTime != 0) &&
+                   (req->state == SRV_STATE_FORWARD) )
+         {
+            EpgAcqServer_BuildDbUpdateMsg(req);
          }
          else if ( (req->doTtxStats != SRV_FWD_STATS_DONE) &&
                    (req->state == SRV_STATE_FORWARD) &&
@@ -1117,6 +1162,46 @@ void EpgAcqServer_SetVpsPdc( bool change )
 }
 
 // ----------------------------------------------------------------------------
+// Trigger sending of full statistics (instead of update only)
+//
+void EpgAcqServer_TriggerStats( void )
+{
+   EPGDBSRV_STATE *req;
+
+   for (req = pReqChain; req != NULL; req = req->pNext)
+   {
+      if (req->state == SRV_STATE_FORWARD)
+      {
+         if (req->statsReqBits & STATS_REQ_BITS_HIST)
+         {
+            req->doTtxStats = SRV_FWD_STATS_INITIAL;
+         }
+      }
+   }
+}
+
+// ----------------------------------------------------------------------------
+// Trigger sending of a database update indicator
+// - sent after an XML file has been updated by the teletext EPG grabber
+// - the mtime parameter is the time at which the database was written;
+//   this allows the client to drop obsolete indications
+//
+void EpgAcqServer_TriggerDbUpdate( time_t mtime )
+{
+   EPGDBSRV_STATE *req;
+
+   assert(mtime != 0);
+
+   for (req = pReqChain; req != NULL; req = req->pNext)
+   {
+      if (req->state == SRV_STATE_FORWARD)
+      {
+         req->sendDbUpdTime = mtime;
+      }
+   }
+}
+
+// ----------------------------------------------------------------------------
 // Append a block to the queues of all interested clients
 // - blocks are only forwarded if their version or content has changed
 // - for every AI blocks a acq stats update is sent, even if the AI is not forwarded
@@ -1125,12 +1210,13 @@ void EpgAcqServer_SetVpsPdc( bool change )
 //
 void EpgAcqServer_AddBlock( EPGDB_CONTEXT * dbc, EPGDB_BLOCK * pNewBlock )
 {
+   EPGDB_CONTEXT * pDbContext;
    EPGDB_BLOCK * pCopyBlock;
    EPGDBSRV_STATE *req;
 
    if ( isDbServer && (srvState.lastFwdCni != 0) )
    {
-      assert ((pNewBlock->type != BLOCK_TYPE_AI) || (srvState.lastFwdCni == AI_GET_CNI(&pNewBlock->blk.ai)));
+      assert ((pNewBlock->type != BLOCK_TYPE_AI) || (srvState.lastFwdCni == AI_GET_THIS_NET_CNI(&pNewBlock->blk.ai)));
 
       // if content changed -> offer block to all connected clients
       if (pNewBlock->updTimestamp == pNewBlock->acqTimestamp)
@@ -1186,7 +1272,12 @@ void EpgAcqServer_AddBlock( EPGDB_CONTEXT * dbc, EPGDB_BLOCK * pNewBlock )
                     (req->statsReqBits & STATS_REQ_BITS_TSC_ALL) &&
                     (req->enableAllBlocks == FALSE) )
                {
-                  EpgTscQueue_AddAll(&req->tscQueue, pAcqDbContext);
+                  pDbContext = EpgAcqCtl_GetDbContext(TRUE);
+                  if (pDbContext != NULL)
+                  {
+                     EpgTscQueue_AddAll(&req->tscQueue, pDbContext);
+                  }
+                  EpgAcqCtl_GetDbContext(FALSE);
                }
             }
          }

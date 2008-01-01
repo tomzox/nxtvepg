@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: shellcmd.c,v 1.10 2005/02/20 20:25:31 tom Exp tom $
+ *  $Id: shellcmd.c,v 1.13 2007/12/29 15:20:00 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -48,6 +48,7 @@
 #include "epgdb/epgblock.h"
 #include "epgdb/epgdbif.h"
 #include "epgui/epgmain.h"
+#include "epgui/epgsetup.h"
 #include "epgui/pdc_themes.h"
 #include "epgui/pibox.h"
 #include "epgui/pidescr.h"
@@ -319,17 +320,13 @@ static void PiOutput_ExtCmdVariable( const PI_BLOCK *pPiBlock, const AI_BLOCK * 
    }
    else if (strncmp(pKeyword, "CNI", keywordLen) == 0)
    {  // network CNI (hexadecimal)
-      sprintf(strbuf, "0x%04X", AI_GET_NETWOP_N(pAiBlock, pPiBlock->netwop_no)->cni);
+      sprintf(strbuf, "0x%04X", AI_GET_NET_CNI_N(pAiBlock, pPiBlock->netwop_no));
       ShellCmd_AppendString(pCmdBuf, strbuf);
    }
    else if (strncmp(pKeyword, "network", keywordLen) == 0)
    {  // network name
-      sprintf(strbuf, "0x%04X", AI_GET_NETWOP_N(pAiBlock, pPiBlock->netwop_no)->cni);
-      pConst = Tcl_GetVar2(interp, "cfnetnames", strbuf, TCL_GLOBAL_ONLY);
-      if (pConst != NULL)
-         ShellCmd_AppendString(pCmdBuf, pConst);
-      else
-         ShellCmd_AppendString(pCmdBuf, AI_GET_NETWOP_NAME(pAiBlock, pPiBlock->netwop_no));
+      pConst = EpgSetup_GetNetName(pAiBlock, pPiBlock->netwop_no, NULL);
+      ShellCmd_AppendString(pCmdBuf, pConst);
    }
    else if (strncmp(pKeyword, "title", keywordLen) == 0)
    {  // programme title string
@@ -426,6 +423,13 @@ static void PiOutput_ExtCmdVariable( const PI_BLOCK *pPiBlock, const AI_BLOCK * 
       sprintf(strbuf, "%d", pPiBlock->parental_rating * 2);
       ShellCmd_AppendString(pCmdBuf, strbuf);
    }
+#ifndef WIN32
+   else if (strncmp(pKeyword, "tvapp-wid", keywordLen) == 0)
+   {  // window ID of connected Xawtv peer
+      sprintf(strbuf, "%d", Xawtv_GetXawtvWid());
+      ShellCmd_AppendString(pCmdBuf, strbuf);
+   }
+#endif
    else
    {
       strcpy(strbuf, "${");
@@ -703,19 +707,16 @@ Tcl_Obj * PiOutput_ParseScript( Tcl_Interp *interp, Tcl_Obj * pCmdObj,
 // Pass an already parsed script to the system or a TV app
 // - argument is a 2-element list: 1st element contains type, 2nd the string
 //
-static int PiOutput_ExecParsedScript( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+static int PiOutput_ExecParsedScript( Tcl_Interp *interp, Tcl_Obj * pTypeObj, Tcl_Obj * pCmdObj )
 {
-   const char * const pUsage = "Usage: C_ExecParsedScript <type> <script>";
    const char * pCmdStr;
    int    ctrl;
    int    cmdLen;
    int    result;
 
-   if ( (objc != 1+2) ||
-        (Tcl_GetIndexFromObj(interp, objv[1], pCtxMenuTypeKeywords, "keyword", TCL_EXACT, &ctrl) != TCL_OK) ||
-        ((pCmdStr = Tcl_GetByteArrayFromObj(objv[2], &cmdLen)) == NULL) )
+   if ( (Tcl_GetIndexFromObj(interp, pTypeObj, pCtxMenuTypeKeywords, "keyword", TCL_EXACT, &ctrl) != TCL_OK) ||
+        ((pCmdStr = Tcl_GetByteArrayFromObj(pCmdObj, &cmdLen)) == NULL) )
    {
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
       result = TCL_ERROR; 
    }  
    else
@@ -741,12 +742,54 @@ static int PiOutput_ExecParsedScript( ClientData ttp, Tcl_Interp *interp, int ob
 #endif
 
          default:
-            debug1("PiOutput-ExecParsedScript: invalid keyword %s", Tcl_GetString(objv[1]));
+            debug1("PiOutput-ExecParsedScript: invalid keyword %s", Tcl_GetString(pTypeObj));
             break;
       }
       result = TCL_OK; 
    }
    return result;
+}
+
+// ----------------------------------------------------------------------------
+// Tcl interface execute a command vector (i.e. pre-parsed script)
+//
+static int PiOutput_ExecParsedScriptTcl( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+{
+   const char * const pUsage = "Usage: C_ExecParsedScript <type> <script>";
+   int    result;
+
+   if (objc != 1+2)
+   {
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR; 
+   }  
+   else
+   {
+      result = PiOutput_ExecParsedScript(interp, objv[1], objv[2]);
+   }
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Parse and execute a script
+//
+void PiOutput_ExecuteScript( Tcl_Interp *interp, Tcl_Obj * pCmdObj, const PI_BLOCK * pPiBlock )
+{
+   Tcl_Obj  * pParseObj;
+   Tcl_Obj ** pParseObjv;
+   int  elCount;
+
+   pParseObj = PiOutput_ParseScript(interp, pCmdObj, pPiBlock);
+   if (pParseObj != NULL)
+   {
+      if ( (Tcl_ListObjGetElements(interp, pParseObj, &elCount, &pParseObjv) == TCL_OK) &&
+           (elCount == 2) )
+      {
+         PiOutput_ExecParsedScript(interp, pParseObjv[0], pParseObjv[1]);
+      }
+      else
+         debug1("PiOutput-ExecuteScript: unexcpeted output from parser for script '%s'", Tcl_GetString(pCmdObj));
+   }
 }
 
 // ----------------------------------------------------------------------------
@@ -797,7 +840,7 @@ void ShellCmd_Init( void )
    if (Tcl_GetCommandInfo(interp, "C_ExecUserCmd", &cmdInfo) == 0)
    {
       Tcl_CreateObjCommand(interp, "C_ExecUserCmd", PiOutput_ExecUserCmd, (ClientData) NULL, NULL);
-      Tcl_CreateObjCommand(interp, "C_ExecParsedScript", PiOutput_ExecParsedScript, (ClientData) NULL, NULL);
+      Tcl_CreateObjCommand(interp, "C_ExecParsedScript", PiOutput_ExecParsedScriptTcl, (ClientData) NULL, NULL);
       Tcl_CreateObjCommand(interp, "C_ContextMenu_GetTypeList", ContextMenu_GetTypeList, (ClientData) NULL, NULL);
    }
    else

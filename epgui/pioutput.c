@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pioutput.c,v 1.54 2004/12/12 14:49:38 tom Exp tom $
+ *  $Id: pioutput.c,v 1.59 2007/12/29 17:02:42 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -40,9 +40,8 @@
 #include "epgdb/epgblock.h"
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
-#include "epgdb/epgtscqueue.h"
-#include "epgdb/epgdbmerge.h"
 #include "epgui/epgmain.h"
+#include "epgui/epgsetup.h"
 #include "epgui/pdc_themes.h"
 #include "epgui/pifilter.h"
 #include "epgui/pibox.h"
@@ -69,8 +68,25 @@ typedef enum
    TCLOBJ_STR_TEXT_ANY,
    TCLOBJ_STR_TEXT_FMT,
    TCLOBJ_STR_LIST_ANY,
+
+   TCLOBJ_WID_INFO,
+   TCLOBJ_STR_DELETE,
+   TCLOBJ_STR_YVIEW,
+   TCLOBJ_STR_END,
+   TCLOBJ_STR_MOVETO,
+   TCLOBJ_STR_1_DOT_0,
+   TCLOBJ_STR_TITLE,
+   TCLOBJ_STR_FEATURES,
+   TCLOBJ_STR_BOLD,
+   TCLOBJ_STR_PARAGRAPH,
+
+   TCLOBJ_CMD_INS_BMP,
+   TCLOBJ_CMD_GET_YVIEW,
    TCLOBJ_COUNT
 } PIBOX_TCLOBJ;
+
+static Tcl_Obj * tcl_obj[TCLOBJ_COUNT];
+
 
 static Tcl_Obj * tcl_obj[TCLOBJ_COUNT];
 
@@ -229,11 +245,15 @@ uint PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES type,
 {
    const uchar * pResult;
    const AI_BLOCK *pAiBlock;
+   char str_buf[64];
    struct tm ttm;
    uint outlen;
+   bool isFromAi;
+   T_EPG_ENCODING transcode;
 
    assert(EpgDbIsLocked(pUiDbContext));
    outlen = 0;
+   transcode = EPG_ENC_ASCII;
 
    if ((pOutBuffer != NULL) && (pPiBlock != NULL))
    {
@@ -242,22 +262,20 @@ uint PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES type,
       {
          case PIBOX_COL_NETNAME:
             pAiBlock = EpgDbGetAi(pUiDbContext);
-            if ((pAiBlock != NULL) && (pPiBlock->netwop_no < pAiBlock->netwopCount))
-            {
-               uchar buf[7];
-               sprintf(buf, "0x%04X", AI_GET_NETWOP_N(pAiBlock, pPiBlock->netwop_no)->cni);
-               pResult = Tcl_GetVar2(interp, "cfnetnames", buf, TCL_GLOBAL_ONLY);
-               if (pResult == NULL)
-                  pResult = AI_GET_NETWOP_NAME(pAiBlock, pPiBlock->netwop_no);
-            }
-            else
-               debug1("PiOutput-PrintColumnItem: no AI block or invalid netwop #%d", pPiBlock->netwop_no);
+            pResult = EpgSetup_GetNetName(pAiBlock, pPiBlock->netwop_no, &isFromAi);
+            transcode = EPG_ENC_NETNAME(isFromAi);
             break;
             
          case PIBOX_COL_TIME:
             memcpy(&ttm, localtime(&pPiBlock->start_time), sizeof(struct tm));
             outlen  = strftime(pOutBuffer, maxLen, "%H:%M - ", &ttm);
             outlen += strftime(pOutBuffer + outlen, maxLen - outlen, "%H:%M",  localtime(&pPiBlock->stop_time));
+#ifdef DEBUG_SWITCH_LTO
+            printf("LISTBOX: '%s' #%d block#%d: %ld-%ld: '%s'\n",
+                   PI_GET_TITLE(pPiBlock),
+                   pPiBlock->netwop_no, pPiBlock->block_no,
+                   pPiBlock->start_time, pPiBlock->stop_time, pOutBuffer);
+#endif
             break;
 
          case PIBOX_COL_DURATION:
@@ -271,7 +289,10 @@ uint PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES type,
 
          case PIBOX_COL_WEEKDAY:
             memcpy(&ttm, localtime(&pPiBlock->start_time), sizeof(struct tm));
-            outlen = strftime(pOutBuffer, maxLen, "%a", &ttm);
+            outlen = strftime(str_buf, sizeof(str_buf)-1, "%a", &ttm);
+            str_buf[outlen] = 0;
+            pResult = str_buf;
+            transcode = EPG_ENC_SYSTEM;
             break;
 
          case PIBOX_COL_DAY:
@@ -291,6 +312,7 @@ uint PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES type,
 
          case PIBOX_COL_TITLE:
             pResult = PI_GET_TITLE(pPiBlock);
+            transcode = EPG_ENC_NXTVEPG;
             break;
 
          case PIBOX_COL_DESCR:
@@ -410,6 +432,7 @@ uint PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES type,
                   theme = PDC_THEME_SERIES;
                }
                pResult = PdcThemeGet(theme);
+               transcode = EPG_ENC_NXTVEPG;
             }
             break;
 
@@ -427,14 +450,46 @@ uint PiOutput_PrintColumnItem( const PI_BLOCK * pPiBlock, PIBOX_COL_TYPES type,
       // copy the result into the output buffer (& limit to max. buffer length)
       if ((pResult != NULL) && (maxLen > 0))
       {
-         strncpy(pOutBuffer, pResult, maxLen);
-
-         outlen = strlen(pResult);
-         if (maxLen < outlen)
+         int status;
+         switch (transcode)
          {
-            debug3("PiOutput-PrintColumnItem: output buffer too small: %d, need %d for '%s'", maxLen, outlen, pResult);
-            pOutBuffer[maxLen - 1] = 0;
-            outlen = maxLen - 1;
+            case EPG_ENC_SYSTEM:
+               status = Tcl_ExternalToUtf(NULL, NULL, pResult, -1, 0, NULL,
+                                          pOutBuffer, maxLen, NULL, (int*)&outlen, NULL);
+               goto handle_status;
+#ifndef USE_UTF8 // if the switch is set, texts are already in UTF-8 -> use default branch
+            case EPG_ENC_NXTVEPG:
+#endif
+            case EPG_ENC_ISO_8859_1:
+               status = Tcl_ExternalToUtf(NULL, encIso88591, pResult, -1, 0, NULL,
+                                          pOutBuffer, maxLen, NULL, (int*)&outlen, NULL);
+               handle_status: ;
+               switch (status)
+               {
+                  case TCL_OK:
+                     break;
+                  case TCL_CONVERT_NOSPACE:
+                     debug3("PiOutput-PrintColumnItem: output buffer too small: %d, need >=%d for '%s'", maxLen, (int)strlen(pResult), pResult);
+                     break;
+                  default:
+                     debug2("PiOutput-PrintColumnItem: transcoding error %d in '%s'", status, pResult);
+                     break;
+               }
+               break;
+
+            case EPG_ENC_ASCII:
+            default:
+               // no transcoding required -> plain copy
+               strncpy(pOutBuffer, pResult, maxLen);
+               outlen = strlen(pResult);
+
+               if (maxLen < outlen)
+               {
+                  debug3("PiOutput-PrintColumnItem: output buffer too small: %d, need %d for '%s'", maxLen, outlen, pResult);
+                  pOutBuffer[maxLen - 1] = 0;
+                  outlen = maxLen - 1;
+               }
+               break;
          }
       }
       else if (outlen < maxLen)
@@ -467,7 +522,9 @@ void PiOutput_CfgColumnsClear( const PIBOX_COL_CFG * pColTab, uint colCount )
    for (colIdx=0; colIdx < colCount; colIdx++)
    {
       if (pColTab[colIdx].pDefObj != NULL)
+      {
          Tcl_DecrRefCount(pColTab[colIdx].pDefObj);
+      }
    }
    xfree((void *) pColTab);
 }
@@ -1138,6 +1195,173 @@ uint PiOutput_PiNetBoxInsert( const PI_BLOCK * pPiBlock, uint colIdx, sint textR
 }
 
 // ----------------------------------------------------------------------------
+// Insert a character string into a text widget at a given line
+// - could be done simpler by Tcl_Eval() but using objects has the advantage
+//   that no command line needs to be parsed so that a '}' in the string
+//   does no harm.
+//
+static void PiOutput_InsertText( PIBOX_TCLOBJ widgetObjIdx, int trow, T_EPG_ENCODING enc,
+                                 const char * pStr, PIBOX_TCLOBJ tagObjIdx )
+{
+   Tcl_Obj * objv[10];
+   char   linebuf[15];
+   uint   objc;
+
+   // assemble a command vector, starting with the widget name/command
+   objv[0] = tcl_obj[widgetObjIdx];
+   objv[1] = tcl_obj[TCLOBJ_STR_INSERT];
+   if (trow >= 0)
+   {  // line number was specified; add 1 because first line is 1.0
+      sprintf(linebuf, "%d.0", trow + 1);
+      objv[2] = Tcl_NewStringObj(linebuf, -1);
+      Tcl_IncrRefCount(objv[2]);
+   }
+   else
+      objv[2] = tcl_obj[TCLOBJ_STR_END];
+
+   objv[3] = TranscodeToUtf8(enc, NULL, pStr, NULL);
+   Tcl_IncrRefCount(objv[3]);
+
+   objv[4] = tcl_obj[tagObjIdx];
+   objc = 5;
+
+   // execute the command vector
+   if (Tcl_EvalObjv(interp, objc, objv, 0) != TCL_OK)
+      debugTclErr(interp, "PiOutput-InsertText");
+
+   // free temporary objects
+   if (trow >= 0)
+   {
+      Tcl_DecrRefCount(objv[2]);
+   }
+   Tcl_DecrRefCount(objv[3]);
+}
+
+// ----------------------------------------------------------------------------
+// Free resources allocated by the listbox
+//
+void PiOutput_DescriptionTextClear( void )
+{
+   Tcl_Obj * objv[] =
+   {
+      // .all.pi.info.text delete 1.0 end
+      tcl_obj[TCLOBJ_WID_INFO],
+      tcl_obj[TCLOBJ_STR_DELETE],
+      tcl_obj[TCLOBJ_STR_1_DOT_0],
+      tcl_obj[TCLOBJ_STR_END],
+      NULL
+   };
+
+   if ( Tcl_EvalObjv(interp, 4, objv, 0) != TCL_OK )
+      debugTclErr(interp, "PiOutput-DescriptionTextClear");
+}
+
+// ----------------------------------------------------------------------------
+// Callback function for PiOutput-AppendShortAndLongInfoText
+//
+static void PiOutput_AppendInfoTextCb( void *fp, const char * pDesc, bool addSeparator )
+{
+   assert(fp == NULL);
+
+   if (pDesc != NULL)
+   {
+      if (addSeparator)
+      {  // separator between info texts of different providers
+
+         // .all.pi.info.text insert end {\n\n} title
+         // .all.pi.info.text image create {end - 2 line} -image bitmap_line
+         if (Tcl_EvalObjEx(interp, tcl_obj[TCLOBJ_CMD_INS_BMP], 0) != TCL_OK)
+            debugTclErr(interp, "PiOutput-AppendInfoTextCb");
+      }
+
+      //Tcl_VarEval(interp, ".all.pi.info.text insert end {", pShortInfo, "}", NULL);
+      PiOutput_InsertText(TCLOBJ_WID_INFO, -1, EPG_ENC_NXTVEPG, pDesc, TCLOBJ_STR_PARAGRAPH);
+   }
+}
+
+// ----------------------------------------------------------------------------
+// Display short and long info for the given PI block
+//
+void PiOutput_DescriptionTextUpdate( const PI_BLOCK * pPiBlock, bool keepView )
+{
+   Tcl_Obj * pYviewObj = NULL;
+   const AI_BLOCK *pAiBlock;
+   const uchar *pCfNetname;
+   bool isFromAi;
+   int len;
+   
+   if (keepView)
+   {  // remember the viewable fraction of the text
+      // lindex [.all.pi.info.text yview] 0
+      if (Tcl_EvalObjEx(interp, tcl_obj[TCLOBJ_CMD_GET_YVIEW], 0) != TCL_OK)
+         debugTclErr(interp, "PiOutput-AppendInfoTextCb");
+      pYviewObj = Tcl_GetObjResult(interp);
+      Tcl_IncrRefCount(pYviewObj);
+   }
+
+   PiOutput_DescriptionTextClear();
+
+   if (pPiBlock != NULL)
+   {
+      pAiBlock = EpgDbGetAi(pUiDbContext);
+
+      if ((pAiBlock != NULL) && (pPiBlock->netwop_no < pAiBlock->netwopCount))
+      {
+         // top of the info window: programme title text
+         strcpy(comm, PI_GET_TITLE(pPiBlock));
+         strcat(comm, "\n");
+         PiOutput_InsertText(TCLOBJ_WID_INFO, -1, EPG_ENC_NXTVEPG, comm, TCLOBJ_STR_TITLE);
+
+         // now add a feature summary: start with theme list
+         PiDescription_AppendCompressedThemes(pPiBlock, comm, TCL_COMM_BUF_SIZE);
+
+         // append features list
+         strcat(comm, " (");
+         PiDescription_AppendFeatureList(pPiBlock, comm + strlen(comm));
+         // remove opening bracket if nothing follows
+         len = strlen(comm);
+         if ((comm[len - 2] == ' ') && (comm[len - 1] == '('))
+            strcpy(comm + len - 2, "\n");
+         else
+            strcpy(comm + len, ")\n");
+         // append the feature string to the text widget content
+         PiOutput_InsertText(TCLOBJ_WID_INFO, -1, EPG_ENC_NXTVEPG, comm, TCLOBJ_STR_FEATURES);
+
+         pCfNetname = EpgSetup_GetNetName(pAiBlock, pPiBlock->netwop_no, &isFromAi);
+         PiOutput_InsertText(TCLOBJ_WID_INFO, -1, EPG_ENC_NETNAME(isFromAi), pCfNetname, TCLOBJ_STR_BOLD);
+
+         // print start- & stop-time
+         len = strftime(comm, TCL_COMM_BUF_SIZE-1, ", %a %d.%m., %H:%M", localtime(&pPiBlock->start_time));
+         len += strftime(comm + len, TCL_COMM_BUF_SIZE-1 - len, " - %H:%M: ", localtime(&pPiBlock->stop_time));
+         comm[len] = 0;
+         PiOutput_InsertText(TCLOBJ_WID_INFO, -1, EPG_ENC_SYSTEM, comm, TCLOBJ_STR_BOLD);
+
+         // finally append description text
+         PiDescription_AppendShortAndLongInfoText(pPiBlock, PiOutput_AppendInfoTextCb, NULL, EpgDbContextIsMerged(pUiDbContext));
+      }
+      else
+         debug1("PiOutput-UpdateDescr: no AI block or invalid netwop=%d", pPiBlock->netwop_no);
+   }
+   else
+      fatal0("PiOutput-UpdateDescr: invalid NULL ptr param");
+
+   if (keepView)
+   {  // set the view back to its previous position
+      Tcl_Obj * objv[] =
+      {
+         tcl_obj[TCLOBJ_WID_INFO],
+         tcl_obj[TCLOBJ_STR_YVIEW],
+         tcl_obj[TCLOBJ_STR_MOVETO],
+         pYviewObj,
+         NULL
+      };
+      // .all.pi.info.text yview moveto %s
+      if ( Tcl_EvalObjv(interp, 4, objv, 0) != TCL_OK )
+         debugTclErr(interp, "PiOutput-UpdateDescr: update yview");
+   }
+}
+
+// ----------------------------------------------------------------------------
 // Free resources allocated by this module (cleanup during program exit)
 //
 void PiOutput_Destroy( void )
@@ -1178,6 +1402,21 @@ void PiOutput_Init( void )
       tcl_obj[TCLOBJ_STR_TEXT_ANY]  = Tcl_NewStringObj("", -1);
       tcl_obj[TCLOBJ_STR_TEXT_FMT]  = Tcl_NewStringObj("", -1);
       tcl_obj[TCLOBJ_STR_LIST_ANY]  = Tcl_NewListObj(0, NULL);
+
+      tcl_obj[TCLOBJ_WID_INFO]      = Tcl_NewStringObj(".all.pi.info.text", -1);
+      tcl_obj[TCLOBJ_STR_DELETE]    = Tcl_NewStringObj("delete", -1);
+      tcl_obj[TCLOBJ_STR_YVIEW]     = Tcl_NewStringObj("yview", -1);
+      tcl_obj[TCLOBJ_STR_END]       = Tcl_NewStringObj("end", -1);
+      tcl_obj[TCLOBJ_STR_MOVETO]    = Tcl_NewStringObj("moveto", -1);
+      tcl_obj[TCLOBJ_STR_1_DOT_0]   = Tcl_NewStringObj("1.0", -1);
+      tcl_obj[TCLOBJ_STR_TITLE]     = Tcl_NewStringObj("title", -1);
+      tcl_obj[TCLOBJ_STR_FEATURES]  = Tcl_NewStringObj("features", -1);
+      tcl_obj[TCLOBJ_STR_BOLD]      = Tcl_NewStringObj("bold", -1);
+      tcl_obj[TCLOBJ_STR_PARAGRAPH] = Tcl_NewStringObj("paragraph", -1);
+
+      tcl_obj[TCLOBJ_CMD_INS_BMP]   = Tcl_NewStringObj(".all.pi.info.text insert end {\n\n} title\n"
+                                                       ".all.pi.info.text image create {end - 2 line} -image bitmap_line", -1);
+      tcl_obj[TCLOBJ_CMD_GET_YVIEW] = Tcl_NewStringObj("lindex [.all.pi.info.text yview] 0", -1);
 
       for (idx=0; idx < TCLOBJ_COUNT; idx++)
          Tcl_IncrRefCount(tcl_obj[idx]);

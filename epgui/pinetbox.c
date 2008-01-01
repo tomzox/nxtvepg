@@ -19,7 +19,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pinetbox.c,v 1.41 2004/12/12 14:49:15 tom Exp tom $
+ *  $Id: pinetbox.c,v 1.45 2007/12/29 17:00:42 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -42,6 +42,7 @@
 #include "epgctl/epgacqctl.h"
 #include "epgctl/epgctxctl.h"
 #include "epgui/epgmain.h"
+#include "epgui/epgsetup.h"
 #include "epgui/uictrl.h"
 #include "epgui/pifilter.h"
 #include "epgui/pioutput.h"
@@ -462,7 +463,7 @@ void PiNetBox_ErrorMessage( const uchar * pMessage )
                     ".all.pi.list.sc set 0.0 1.0\n");
       eval_check(interp, comm);
 
-      PiDescription_ClearText();
+      PiOutput_DescriptionTextClear();
    }
    else if (netbox_init_state != PIBOX_LIST)
    {
@@ -497,7 +498,7 @@ static void PiNetBox_UpdateInfoText( bool keepView )
          pPiBlock = EpgDbSearchPi(dbc, pElem->start_time, pElem->netwop);
          if (pPiBlock != NULL)
          {
-            PiDescription_UpdateText(pPiBlock, keepView);
+            PiOutput_DescriptionTextUpdate(pPiBlock, keepView);
          }
          else
             debug2("PiNetBox-UpdateInfoText: selected block start=%ld netwop=%d not found", pElem->start_time, pElem->netwop);
@@ -506,7 +507,7 @@ static void PiNetBox_UpdateInfoText( bool keepView )
       }
       else if (netbox.cur_idx == INVALID_CUR_IDX)
       {
-         PiDescription_ClearText();
+         PiOutput_DescriptionTextClear();
       }
    }
 }
@@ -519,13 +520,24 @@ static void PiNetBox_UpdateNetwopNames( void )
    const AI_BLOCK * pAiBlock;
    const uchar  * pCfNetname;
    NETBOX_COL   * pCol;
-   uchar cni_str[10];
    uint  colIdx;
    uint  netwop;
+   bool  isFromAi;
+   Tcl_Obj * pTmpObj;
+   Tcl_Obj * objv[4];
 
    EpgDbFilterInitNetwopPreFilter2(pPiFilterContext);
    pCol   = netbox.cols;
    colIdx = 0;
+
+   objv[0] = Tcl_NewStringObj("", 0);
+   objv[1] = Tcl_NewStringObj("configure", -1);
+   objv[2] = Tcl_NewStringObj("-text", -1);
+   objv[3] = Tcl_NewStringObj("", 0);
+   Tcl_IncrRefCount(objv[0]);
+   Tcl_IncrRefCount(objv[1]);
+   Tcl_IncrRefCount(objv[2]);
+   Tcl_IncrRefCount(objv[3]);
 
    EpgDbLockDatabase(dbc, TRUE);
    pAiBlock = EpgDbGetAi(dbc);
@@ -533,7 +545,8 @@ static void PiNetBox_UpdateNetwopNames( void )
    {
       for ( ; (colIdx < netbox.col_count) && (colIdx < netbox.net_count); colIdx++, pCol++)
       {
-         sprintf(comm, ".all.pi.list.nets.h_%d.b configure -text {", colIdx);
+         Tcl_SetStringObj(objv[0], comm, sprintf(comm, ".all.pi.list.nets.h_%d.b", colIdx));
+         Tcl_SetObjLength(objv[3], 0);
 
          for (netwop=0; netwop < pAiBlock->netwopCount; netwop++)
          {
@@ -541,21 +554,21 @@ static void PiNetBox_UpdateNetwopNames( void )
             {
                EpgDbFilterSetNetwopPreFilter2(pPiFilterContext, netwop);
 
-               sprintf(cni_str, "0x%04X", AI_GET_NETWOP_N(pAiBlock, netwop)->cni);
-               pCfNetname = Tcl_GetVar2(interp, "cfnetnames", cni_str, TCL_GLOBAL_ONLY);
-               if (pCfNetname == NULL)
-                  pCfNetname = AI_GET_NETWOP_NAME(pAiBlock, netwop);
+               pCfNetname = EpgSetup_GetNetName(pAiBlock, netwop, &isFromAi);
+               pTmpObj = TranscodeToUtf8(EPG_ENC_NETNAME(isFromAi), NULL, pCfNetname, NULL);
+               Tcl_IncrRefCount(pTmpObj);
 
-               if (comm[strlen(comm) - 1] != '{')
-                  strcat(comm, " / ");
-               strcat(comm, pCfNetname);
+               if (Tcl_GetCharLength(objv[3]) != 0)
+                  Tcl_AppendToObj(objv[3], " / ", -1);
+               Tcl_AppendObjToObj(objv[3], pTmpObj);
+               Tcl_DecrRefCount(pTmpObj);
             }
          }
 
          //debug1("PiNetBox-UpdateNetwopNames: col idx %d not mapped any netwop", colIdx);
 
-         strcat(comm, "}");
-         eval_check(interp, comm);
+         if (Tcl_EvalObjv(interp, 4, objv, 0) != TCL_OK)
+            debugTclErr(interp, "PiNetBox-UpdateNetwopNames");
       }
    }
    EpgDbLockDatabase(dbc, FALSE);
@@ -564,11 +577,18 @@ static void PiNetBox_UpdateNetwopNames( void )
    EpgDbPreFilterEnable(pPiFilterContext, FILTER_NETWOP_PRE2);
 
    // empty the headers of the remaining columns
+   Tcl_SetObjLength(objv[3], 0);
    for ( ; colIdx < netbox.col_count; colIdx++, pCol++)
    {
-      sprintf(comm, ".all.pi.list.nets.h_%d.b configure -text {}", colIdx);
-      eval_check(interp, comm);
+      Tcl_SetStringObj(objv[0], comm, sprintf(comm, ".all.pi.list.nets.h_%d.b", colIdx));
+      if (Tcl_EvalObjv(interp, 4, objv, 0) != TCL_OK)
+         debugTclErr(interp, "PiNetBox-UpdateNetwopNames");
    }
+
+   Tcl_DecrRefCount(objv[0]);
+   Tcl_DecrRefCount(objv[1]);
+   Tcl_DecrRefCount(objv[2]);
+   Tcl_DecrRefCount(objv[3]);
 }
 
 // ----------------------------------------------------------------------------
@@ -1081,7 +1101,7 @@ static void PiNetBox_ClearRows( void )
       pCol += 1;
    }
 
-   PiDescription_ClearText();
+   PiOutput_DescriptionTextClear();
 }
 
 // ----------------------------------------------------------------------------
@@ -3570,7 +3590,7 @@ void PiNetBox_Refresh( void )
 //
 static int PiNetBox_CursorDown( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
-   uint  new_idx;
+   uint  new_idx = 0;  // init only to avoid compiler warning
 
    if (netbox.pi_resync)
       PiNetBox_RefreshEvent((ClientData)TRUE);
@@ -3620,7 +3640,7 @@ static int PiNetBox_CursorDown( ClientData ttp, Tcl_Interp *interp, int objc, Tc
 //
 static int PiNetBox_CursorUp( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
-   uint  new_idx;
+   uint  new_idx = 0;  // init only to avoid compiler warning
 
    if (netbox.pi_resync)
       PiNetBox_RefreshEvent((ClientData)TRUE);
@@ -4337,16 +4357,15 @@ const PI_BLOCK * PiNetBox_GetSelectedPi( void )
 }
 
 // ----------------------------------------------------------------------------
-// Returns the CNI and name of the network of the currently selected PI
+// Returns the CNI of the network of the currently selected PI
 //
-static int PiNetBox_GetSelectedNetwop( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+static int PiNetBox_GetSelectedNetCni( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
-   const char * const pUsage = "Usage: C_PiBox_GetSelectedNetwop";
+   const char * const pUsage = "Usage: C_PiBox_GetSelectedNetCni";
    const AI_BLOCK *pAiBlock;
-   Tcl_Obj      * pResultList;
    NETBOX_COL   * pCol;
    NETBOX_ELEM  * pElem;
-   uchar strbuf[10];
+   uchar strbuf[16+2+1];
    int result;
 
    if (objc != 1)
@@ -4367,13 +4386,9 @@ static int PiNetBox_GetSelectedNetwop( ClientData ttp, Tcl_Interp *interp, int o
             pAiBlock = EpgDbGetAi(dbc);
             if ((pAiBlock != NULL) && (pElem->netwop < pAiBlock->netwopCount))
             {
-               pResultList = Tcl_NewListObj(0, NULL);
+               sprintf(strbuf, "0x%04X", AI_GET_NET_CNI_N(pAiBlock, pElem->netwop));
 
-               sprintf(strbuf, "0x%04X", AI_GET_NETWOP_N(pAiBlock, pElem->netwop)->cni);
-               Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(strbuf, -1));
-               Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(AI_GET_NETWOP_NAME(pAiBlock, pElem->netwop), -1));
-
-               Tcl_SetObjResult(interp, pResultList);
+               Tcl_SetObjResult(interp, Tcl_NewStringObj(strbuf, -1));
             }
             EpgDbLockDatabase(dbc, FALSE);
          }
@@ -4613,6 +4628,14 @@ static bool PiNetBox_HandleAcqEvent( const EPGDB_CONTEXT * usedDbc, EPGDB_PI_ACQ
          case EPGDB_PI_PROC_DONE:
             break;
 
+         case EPGDB_PI_RESYNC:
+            if (netbox.pi_resync == FALSE)
+            {
+               AddMainIdleEvent(PiNetBox_RefreshEvent, (ClientData) FALSE, TRUE);
+               netbox.pi_resync = TRUE;
+            }
+            break;
+
          default:
             fatal1("PiNetBox-HandleAcqEvent: unknown event %d received", event);
             break;
@@ -4695,7 +4718,7 @@ static int PiNetBox_GetCniList( ClientData ttp, Tcl_Interp *interp, int objc, Tc
    Tcl_Obj        * pColList;
    uint   netwop;
    uint   colIdx;
-   uchar  strbuf[10];
+   uchar  strbuf[16+2+1];
    int    result;
 
    if (objc != 1)
@@ -4722,7 +4745,7 @@ static int PiNetBox_GetCniList( ClientData ttp, Tcl_Interp *interp, int objc, Tc
                {
                   if (netbox.net_ai2sel[netwop] == colIdx)
                   {
-                     sprintf(strbuf, "0x%04X", AI_GET_NETWOP_N(pAiBlock, netwop)->cni);
+                     sprintf(strbuf, "0x%04X", AI_GET_NET_CNI_N(pAiBlock, netwop));
                      Tcl_ListObjAppendElement(interp, pColList, Tcl_NewStringObj(strbuf, -1));
                   }
                }
@@ -4772,7 +4795,7 @@ static void PiNetBox_BuildJoinMap( uchar * pMap, const AI_BLOCK * pAiBlock )
                   {
                      // convert CNI into network index
                      for (netwop=0; netwop < pAiBlock->netwopCount; netwop++)
-                        if (cni == AI_GET_NETWOP_N(pAiBlock, netwop)->cni)
+                        if (cni == AI_GET_NET_CNI_N(pAiBlock, netwop))
                            break;
 
                      // silently ignore CNIs which are not part of the current db
@@ -5072,7 +5095,7 @@ void PiNetBox_Create( void )
    Tcl_CreateObjCommand(interp, "C_PiBox_Refresh", PiNetBox_RefreshCmd, (ClientData) NULL, NULL);
    Tcl_CreateObjCommand(interp, "C_PiBox_Reset", PiNetBox_ResetCmd, (ClientData) NULL, NULL);
    Tcl_CreateObjCommand(interp, "C_PiBox_Resize", PiNetBox_Resize, (ClientData) NULL, NULL);
-   Tcl_CreateObjCommand(interp, "C_PiBox_GetSelectedNetwop", PiNetBox_GetSelectedNetwop, (ClientData) NULL, NULL);
+   Tcl_CreateObjCommand(interp, "C_PiBox_GetSelectedNetCni", PiNetBox_GetSelectedNetCni, (ClientData) NULL, NULL);
 
    // specific netbox API
    Tcl_CreateObjCommand(interp, "C_PiNetBox_GetCniList", PiNetBox_GetCniList, (ClientData) NULL, NULL);

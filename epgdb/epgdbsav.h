@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbsav.h,v 1.38 2004/03/21 17:59:50 tom Exp tom $
+ *  $Id: epgdbsav.h,v 1.42 2007/12/30 23:49:56 tom Exp tom $
  */
 
 #ifndef __EPGDBSAV_H
@@ -26,7 +26,7 @@
 // ---------------------------------------------------------------------------
 // definition of dump header struct
 
-#define MAGIC_STR      "NEXTVIEW-DB by TOMZO\n"
+#define MAGIC_STR      "NEXTVIEW-DB by TOMZO"
 #define MAGIC_STR_LEN  20
 
 #define DUMP_COMPAT    EPG_VERSION_TO_INT(0,7,0)   // latest compatible
@@ -75,6 +75,14 @@ typedef enum
 #define O_BINARY       0          // for M$-Windows only
 #endif
 
+#define DUMP_ENCODING_ISO_8859_1  0
+#define DUMP_ENCODING_UTF8        0xFFFFFFFF
+#ifdef USE_UTF8
+#define DUMP_ENCODING_SUP         DUMP_ENCODING_UTF8
+#else
+#define DUMP_ENCODING_SUP         DUMP_ENCODING_ISO_8859_1
+#endif
+
 
 typedef struct
 {
@@ -91,11 +99,10 @@ typedef struct
    uint32_t  tunerFreq;           // tuner frequency of provider's channel
    uint32_t  appId;               // EPG application ID from BI block
 
-   uchar   reserved[28];          // unused space for future use; set to 0
+   uint32_t  encoding;            // encoding: one of DUMP_ENCODING_*
+   uchar     reserved[24];        // unused space for future use; set to 0
 } EPGDBSAV_HEADER;
 
-
-#define RELOAD_ANY_CNI   0
 
 #define BLOCK_TYPE_DEFECT_PI  0x77
 
@@ -116,14 +123,63 @@ typedef enum
    EPGDB_RELOAD_WRONG_MAGIC,   // magic not found or file too short
    EPGDB_RELOAD_ACCESS,        // file open failed
    EPGDB_RELOAD_ENDIAN,        // big/little endian conflict
+   EPGDB_RELOAD_ENCODING,      // incompatible encoding
+   EPGDB_RELOAD_INT_WIDTH,     // incompatible integer width
    EPGDB_RELOAD_VERSION,       // incompatible version
    EPGDB_RELOAD_MERGE,         // invalid merge config
-   EPGDB_RELOAD_EXIST          // file does not exist
+   EPGDB_RELOAD_EXIST,         // file does not exist
+   EPGDB_RELOAD_XML_CNI,       // XMLTV CNI but path unknown
+   EPGDB_RELOAD_XML_MASK = 0x40000000 // XMLTV specific error
 } EPGDB_RELOAD_RESULT;
 
 // macro to compare severity of reload errors
 // (to be used if multiple errors occur in a loop across all databases)
 #define RELOAD_ERR_WORSE(X,Y)  ((X)>(Y))
+
+// ---------------------------------------------------------------------------
+// header format of database written by 32-bit and 64-bit version of nxtvepg
+// - included for error detection only
+//
+typedef struct
+{
+   uchar     magic[MAGIC_STR_LEN];
+   uint16_t  endianMagic;
+   uint32_t  compatVersion;
+   uint32_t  swVersion;
+
+   uint32_t  lastPiDate;
+   uint32_t  firstPiDate;
+   uint32_t  lastAiUpdate;
+   uint32_t  cni;
+   uint32_t  pageNo;
+   uint32_t  tunerFreq;
+   uint32_t  appId;
+
+   uint32_t  encoding;
+   uchar     reserved[24];
+} EPGDBSAV_HEADER_TIME_T_32;
+
+typedef struct
+{
+   uchar     magic[MAGIC_STR_LEN];
+   uint16_t  endianMagic;
+   uint32_t  compatVersion;
+   uint32_t  swVersion;
+
+   uint32_t  lastPiDate;        // not used, so use 2*32 as placeholder for 64
+   uint32_t  __lastPiDate_2;
+   uint32_t  firstPiDate;
+   uint32_t  __firstPiDate_2;
+   uint32_t  lastAiUpdate;
+   uint32_t  __lastAiUpdate_2;
+   uint32_t  cni;
+   uint32_t  pageNo;
+   uint32_t  tunerFreq;
+   uint32_t  appId;
+
+   uint32_t  encoding;
+   uchar     reserved[24];
+} EPGDBSAV_HEADER_TIME_T_64;
 
 // ---------------------------------------------------------------------------
 // header format of previous versions, included for error detection
@@ -146,41 +202,21 @@ typedef struct
 } OBSOLETE_EPGDBSAV_HEADER;
 
 // ---------------------------------------------------------------------------
-// structure which hols the result of a database directory scan
-//
-typedef struct
-{
-   uint   cni;
-   time_t mtime;
-   DB_FMT_TYPE nameFormat;
-} EPGDB_SCAN_BUF_ELEM;
-
-typedef struct
-{
-   uint   count;
-   uint   size;
-   EPGDB_SCAN_BUF_ELEM list[1];
-} EPGDB_SCAN_BUF;
-
-#define EPGDB_SCAN_BUFSIZE_DEFAULT     32
-#define EPGDB_SCAN_BUFSIZE_INCREMENT   32
-#define EPGDB_SCAN_BUFSIZE(COUNT)  (sizeof(EPGDB_SCAN_BUF) + ((COUNT) - 1) * sizeof(EPGDB_SCAN_BUF_ELEM))
-
-// ---------------------------------------------------------------------------
 // declaration of service interface functions
 
 bool EpgDbDump( EPGDB_CONTEXT * pDbContext );
-EPGDB_CONTEXT * EpgDbReload( uint cni, EPGDB_RELOAD_RESULT * pError );
-const EPGDB_SCAN_BUF * EpgDbReloadScan( void );
+EPGDB_CONTEXT * EpgDbReload( uint cni, EPGDB_RELOAD_RESULT * pResult, time_t * pMtime );
+EPGDB_CONTEXT * EpgDbLoadDemo( const char * pDemoDatabase, EPGDB_RELOAD_RESULT * pResult, time_t * pMtime );
+void EpgDbReloadScan( void (*pCb)(uint cni, const char * pPath, sint mtime) );
 void EpgDbSavSetPiExpireDelay( time_t expireDelayPi );
-bool EpgDbSavSetupDir( const char * pDirPath, const char * pDemoDb );
-void EpgDbDumpGetDirAndCniFromArg( char * pArg, const char ** ppDirPath, uint * pCni );
+bool EpgDbSavSetupDir( const char * pDirPath, bool isDemoMode );
+bool EpgDbDumpCheckFileHeader( const char * pFilename );
+bool EpgDbDumpGetDirAndCniFromArg( char * pArg, const char ** ppDirPath, uint * pCni );
 
-EPGDB_CONTEXT * EpgDbPeek( uint cni, EPGDB_RELOAD_RESULT * pResult );
+EPGDB_CONTEXT * EpgDbPeek( uint cni, EPGDB_RELOAD_RESULT * pResult, time_t * pMtime );
 bool EpgDbDumpUpdateHeader( uint cni, uint freq );
 uint EpgDbReadFreqFromDefective( uint cni );
 time_t EpgReadAiUpdateTime( uint cni );
 uint EpgDbRemoveDatabaseFile( uint cni );
-
 
 #endif  // __EPGDBSAV_H

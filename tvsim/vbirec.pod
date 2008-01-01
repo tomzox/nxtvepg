@@ -24,7 +24,7 @@
 #
 #  Author: Tom Zoerner
 #
-# $Id: vbirec.pod,v 1.10 2004/12/12 15:56:40 tom Exp tom $
+# $Id: vbirec.pod,v 1.11 2005/03/06 19:47:18 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME
@@ -261,7 +261,7 @@ Email: tomzo (at) users (dot) sourceforge (dot) net
 
 =head1 COPYRIGHT
 
-Copyright (C) 2002,2004 by T. Zoerner.
+Copyright (C) 2002,2004,2005 by T. Zoerner.
 All rights reserved.
 
 This program is free software; you can redistribute it and/or modify

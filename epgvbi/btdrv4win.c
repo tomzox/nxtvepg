@@ -35,18 +35,23 @@
  *    WinDriver replaced with DSdrv Bt8x8 code (DScaler driver)
  *      March 2002 by E-Nek (e-nek@netcourrier.com)
  *
- *    Support for multiple cards on the PCI bus & different drivers,
- *    and "slave mode" when connected to a TV app
+ *    WDM support
+ *      February 2004 by Gérard Chevalier (gd_chevalier@hotmail.com)
+ *
+ *    The rest
  *      Tom Zoerner
  *
  *
- *  $Id: btdrv4win.c,v 1.50.1.1 2006/12/21 22:13:47 tom Exp $
+ *  $Id: btdrv4win.c,v 1.60 2007/12/31 16:34:13 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
 #define DPRINTF_OFF
+//#define WITHOUT_DSDRV
+//#define WDM_DUMMY_DRV
 
 #include <windows.h>
+#include <aclapi.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -54,10 +59,15 @@
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
 
-#include "epgvbi/vbidecode.h"
 #include "epgvbi/btdrv.h"
 #include "epgvbi/winshm.h"
 #include "epgvbi/winshmsrv.h"
+
+#include "wdmdrv/wdmdrv.h"
+#include "epgvbi/vbidecode.h"
+#include "epgvbi/zvbidecoder.h"
+#include "epgvbi/tvchan.h"
+#include "epgvbi/syserrmsg.h"
 
 #include "dsdrv/dsdrvlib.h"
 #include "dsdrv/tvcard.h"
@@ -68,7 +78,7 @@
 
 
 // ----------------------------------------------------------------------------
-// Declaration of internal variables
+// State of PCI cards
 
 typedef struct
 {
@@ -104,18 +114,39 @@ typedef struct
    DWORD dwSubSystemID;
    DWORD dwBusNumber;
    DWORD dwSlotNumber;
-} TVCARD_ID;
+} PCI_SOURCE;
+
+// ----------------------------------------------------------------------------
+// State of WDM sources
+
+#define WDM_DRV_DLL_PATH "VBIAcqWDMDrv.dll"
+
+static WDMDRV_CTL  WdmDrv;        // pointers to wdmdrv API functions
+static HINSTANCE   WdmDrvHandle;  // handle to wdmdrv interface DLL
+static uint        WdmSrcCount;   // number of known WDM sources
+static vbi_raw_decoder WdmZvbiDec[2];
+static LONGLONG    WdmLastTimestamp;
+static uint        WdmLastFrameNo;
+static uint        WdmSkipFields;
+
+#ifdef WDM_DUMMY_DRV
+extern WDMDRV_CTL WdmDummyIf;
+#endif
+
+// ----------------------------------------------------------------------------
+// Shared variables between PCI and WDM sources
 
 #define MAX_CARD_COUNT  4
-#define CARD_COUNT_UNINITIALIZED  (MAX_CARD_COUNT + 1)
-static TVCARD_ID btCardList[MAX_CARD_COUNT];
-static uint      btCardCount;
+#define CARD_COUNT_UNINITIALIZED  (~0u)
+static PCI_SOURCE     btCardList[MAX_CARD_COUNT];
+static uint           btCardCount;
 
 #define INVALID_INPUT_SOURCE  0xff
 
 static struct
 {
-   uint        cardIdx;
+   BTDRV_SOURCE_TYPE drvType;
+   uint        sourceIdx;
    uint        cardId;
    uint        tunerType;
    uint        pllType;
@@ -127,14 +158,304 @@ static struct
 } btCfg;
 
 static TVCARD cardif;
-static BOOL drvLoaded;
+static BOOL pciDrvLoaded;
+static BOOL wdmDrvLoaded;
 static BOOL shmSlaveMode = FALSE;
+
+// ----------------------------------------------------------------------------
 
 volatile EPGACQ_BUF * pVbiBuf;
 static EPGACQ_BUF vbiBuf;
 
-static void BtDriver_CountCards( void );
-static BOOL BtDriver_OpenCard( uint cardIdx );
+static void BtDriver_WdmDllFree( void );
+static void BtDriver_WdmCountSources( bool showDrvErr );
+static bool BtDriver_DsDrvCountSources( bool showDrvErr );
+static BOOL BtDriver_PciCardOpen( uint sourceIdx );
+
+// ----------------------------------------------------------------------------
+// Load WDM interface library dynamically
+//
+static bool BtDriver_WdmDllLoad( bool showDrvErr )
+{
+   bool result = FALSE;
+
+#ifndef WDM_DUMMY_DRV
+   WdmDrvHandle = LoadLibrary(WDM_DRV_DLL_PATH);
+   if (WdmDrvHandle != NULL)
+   {
+      dprintf0("BtDriver-WdmDllLoad: LoadLibrary OK\n");
+
+      WdmDrv.InitDrv = (void *) GetProcAddress(WdmDrvHandle, "InitDrv");
+      WdmDrv.FreeDrv = (void *) GetProcAddress(WdmDrvHandle, "FreeDrv");
+      WdmDrv.StartAcq = (void *) GetProcAddress(WdmDrvHandle, "StartAcq");
+      WdmDrv.StopAcq = (void *) GetProcAddress(WdmDrvHandle, "StopAcq");
+      WdmDrv.SetChannel = (void *) GetProcAddress(WdmDrvHandle, "SetChannel");
+      WdmDrv.GetSignalStatus = (void *) GetProcAddress(WdmDrvHandle, "GetSignalStatus");
+      WdmDrv.EnumDevices = (void *) GetProcAddress(WdmDrvHandle, "EnumDevices");
+      WdmDrv.GetDeviceName = (void *) GetProcAddress(WdmDrvHandle, "GetDeviceName");
+      WdmDrv.SelectDevice = (void *) GetProcAddress(WdmDrvHandle, "SelectDevice");
+      WdmDrv.GetVBISettings = (void *) GetProcAddress(WdmDrvHandle, "GetVBISettings");
+      WdmDrv.GetVideoInputName = (void *) GetProcAddress(WdmDrvHandle, "GetVideoInputName");
+      WdmDrv.SelectVideoInput = (void *) GetProcAddress(WdmDrvHandle, "SelectVideoInput");
+      WdmDrv.IsInputATuner = (void *) GetProcAddress(WdmDrvHandle, "IsInputATuner");
+      WdmDrv.SetWSTPacketCallBack = (void *) GetProcAddress(WdmDrvHandle, "SetWSTPacketCallBack");
+
+      if ( (WdmDrv.InitDrv != NULL) &&
+           (WdmDrv.FreeDrv != NULL) &&
+           (WdmDrv.StartAcq != NULL) &&
+           (WdmDrv.StopAcq != NULL) &&
+           (WdmDrv.SetChannel != NULL) &&
+           (WdmDrv.GetSignalStatus != NULL) &&
+           (WdmDrv.EnumDevices != NULL) &&
+           (WdmDrv.GetDeviceName != NULL) &&
+           (WdmDrv.SelectDevice != NULL) &&
+           (WdmDrv.GetVBISettings != NULL) &&
+           (WdmDrv.GetVideoInputName != NULL) &&
+           (WdmDrv.SelectVideoInput != NULL) &&
+           (WdmDrv.IsInputATuner != NULL) &&
+           (WdmDrv.SetWSTPacketCallBack != NULL) )
+      {
+         dprintf0("BtDriver-WdmDllLoad: Got entry points OK\n");
+
+         if ( WdmDrv.InitDrv() == S_OK )
+         {
+            dprintf0("BtDriver-WdmDllLoad: OK\n");
+            result = TRUE;
+         }
+         else
+            debug0("BtDriver-WdmDllLoad: failed to initialise WDM interface library");
+      }
+      else
+         debug0("BtDriver-WdmDllLoad: find all WDM interface functions");
+
+      if (result == FALSE)
+      {
+         FreeLibrary(WdmDrvHandle);
+         WdmDrvHandle = NULL;
+      }
+   }
+   else
+   {
+      char * pErrMsg = NULL;
+      DWORD errCode = GetLastError();
+
+      debug1("BtDriver-WdmDllLoad: Failed to load DLL " WDM_DRV_DLL_PATH " (%ld)", errCode);
+      if (showDrvErr)
+      {
+         if ( (errCode != ERROR_FILE_NOT_FOUND) &&
+              (errCode != ERROR_MOD_NOT_FOUND) )
+         {
+            SystemErrorMessage_Set(&pErrMsg, errCode, "Failed to load WDM interface library '" WDM_DRV_DLL_PATH "': ", NULL);
+            MessageBox(NULL, pErrMsg, "nxtvepg WDM problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+            xfree(pErrMsg);
+         }
+         else
+            MessageBox(NULL, "WDM interface library '" WDM_DRV_DLL_PATH "' not found.\nWithout this DLL file you can only use the internal\n'dsdrv' driver for your TV card. ", "nxtvepg WDM problem", MB_ICONEXCLAMATION | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+      }
+   }
+
+#else  // WDM_DUMMY_DRV
+   {
+      WdmDrv = WdmDummyIf;
+      if ( WdmDrv.InitDrv() == S_OK )
+      {
+         dprintf0("BtDriver-WdmDllLoad: Dummy interface loaded\n");
+         WdmDrvHandle = LoadLibrary("kernel32.dll");
+         result = TRUE;
+      }
+   }
+#endif  // WDM_DUMMY_DRV
+
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// CallBack function called by the WDM VBI Driver
+// - this is just a wrapper to the ttx decoder
+//
+static BOOL __stdcall BtDriver_WdmVbiCallback( BYTE * pFieldBuffer, int FrameType, LONGLONG timestamp )
+{
+   BYTE * pLineData;
+   uint FirstField, LastField;
+   uint maxFieldDelta;
+   uint field_idx;
+   uint line_count;
+   uint line_idx;
+
+   switch (FrameType)
+   {
+      case PROGRESSIVE_FRAME:
+         FirstField = 0;
+         LastField = 1;
+         maxFieldDelta = 400000 *1.5;  // 25 frames per second
+         break;
+      case FIELD_ONE:
+         FirstField = LastField = 0;
+         maxFieldDelta = 200000 *1.5;  // 2*25 fields per second
+         break;
+      case FIELD_TWO:
+         FirstField = LastField = 1;
+         maxFieldDelta = 200000 *1.5;
+         break;
+      default:
+         FirstField = LastField = 0;
+         maxFieldDelta = 0;
+         break;
+   }
+
+   if (WdmSkipFields > 0)
+   {
+      dprintf1("BtDriver-WdmVbiCallback: field-skip %d remaining\n", WdmSkipFields);
+      pLineData = pFieldBuffer;
+      for (field_idx = FirstField; field_idx <= LastField; field_idx++)
+      {
+#if 0
+         memset(pLineData, 0, WdmZvbiDec[field_idx].bytes_per_line *
+                              WdmZvbiDec[field_idx].count[field_idx]);
+#endif
+         pLineData +=         WdmZvbiDec[field_idx].bytes_per_line *
+                              WdmZvbiDec[field_idx].count[field_idx];
+
+         if (WdmSkipFields > 0)
+            WdmSkipFields -= 1;
+      }
+      return TRUE;
+   }
+
+   // convert timestamp into frame sequence number
+   //printf("VBI: %ld (D=%ld), %d, %d\n", (long)timestamp, (long)(timestamp - WdmLastTimestamp), FrameType, WdmLastFrameNo); /* XXX */
+#if 0 // Hauppauge driver provides bogus timestamps
+   if (timestamp - WdmLastTimestamp > maxFieldDelta)
+      WdmLastFrameNo += 2;
+   else
+      WdmLastFrameNo += 1;
+#endif
+   WdmLastTimestamp = timestamp;
+
+   if (pVbiBuf != NULL)
+   {
+      if (pVbiBuf->slicerType != VBI_SLICER_ZVBI)
+      {
+         if (VbiDecodeStartNewFrame(WdmLastFrameNo))
+         {
+            pLineData = pFieldBuffer;
+
+            for (field_idx = FirstField; field_idx <= LastField; field_idx++)
+            {
+               line_count = WdmZvbiDec[field_idx].count[field_idx];
+
+               // decode all lines in the field
+               for (line_idx = 0; line_idx < line_count; line_idx++)
+               {
+                  //debug1("line: %d\n", line_idx);
+
+                  VbiDecodeLine(pLineData, line_idx, TRUE);
+
+                  pLineData += WdmZvbiDec[field_idx].bytes_per_line;
+               }
+            }
+         }
+      }
+      else
+      {
+         pLineData = pFieldBuffer;
+
+         for (field_idx = FirstField; field_idx <= LastField; field_idx++)
+         {
+            ZvbiSliceAndProcess(&WdmZvbiDec[field_idx], pLineData, WdmLastFrameNo);
+
+            line_count = WdmZvbiDec[field_idx].count[field_idx];
+            pLineData += line_count * WdmZvbiDec[field_idx].bytes_per_line;
+         }
+      }
+   }
+
+   return TRUE;
+}
+
+// ----------------------------------------------------------------------------
+// Slicer setup according to VBI format delivered by WDM source
+//
+static void BtDriver_WdmInitSlicer( void )
+{
+   KS_VBIINFOHEADER VBIParameters;
+   HRESULT hres;
+   uint services[2];
+
+   hres = WdmDrv.GetVBISettings(&VBIParameters);
+   if ( WDM_DRV_OK(hres) )
+   {
+      dprintf7("WdmVBISettings: lines:%ld-%ld freq:%ld, min/max/actual line start times:%ld/%ld/%ld, end time:%ld\n", VBIParameters.StartLine, VBIParameters.EndLine, VBIParameters.SamplingFrequency, VBIParameters.MinLineStartTime, VBIParameters.MaxLineStartTime, VBIParameters.ActualLineStartTime, VBIParameters.ActualLineEndTime);
+      dprintf4("                video std:%ld, sample count:%ld, stride:%ld bytes, buf size:%ld\n", VBIParameters.VideoStandard, VBIParameters.SamplesPerLine, VBIParameters.StrideInBytes, VBIParameters.BufferSize);
+
+      VbiDecodeSetSamplingRate(VBIParameters.SamplingFrequency,
+                               VBIParameters.StartLine);
+
+      memset(&WdmZvbiDec[0], 0, sizeof(WdmZvbiDec[0]));
+      WdmZvbiDec[0].sampling_rate    = VBIParameters.SamplingFrequency;
+      WdmZvbiDec[0].bytes_per_line   = VBIParameters.StrideInBytes;
+      WdmZvbiDec[0].offset           = (double)VBIParameters.ActualLineStartTime * 1E-8
+                                          / VBIParameters.SamplingFrequency;
+      WdmZvbiDec[0].interlaced       = FALSE;
+      WdmZvbiDec[0].synchronous      = TRUE;
+      WdmZvbiDec[0].sampling_format  = VBI_PIXFMT_YUV420;
+      WdmZvbiDec[0].scanning         = 625;
+      memcpy(&WdmZvbiDec[1], &WdmZvbiDec[0], sizeof(WdmZvbiDec[0]));
+
+      WdmZvbiDec[0].start[0]         = VBIParameters.StartLine;
+      WdmZvbiDec[0].count[0]         = VBIParameters.EndLine - VBIParameters.StartLine + 1;
+      WdmZvbiDec[0].start[1]         = -1;
+      WdmZvbiDec[0].count[1]         = 0;
+
+      WdmZvbiDec[1].start[0]         = -1;
+      WdmZvbiDec[1].count[0]         = 0;
+      WdmZvbiDec[1].start[1]         = VBIParameters.StartLine + 312;
+      WdmZvbiDec[1].count[1]         = VBIParameters.EndLine - VBIParameters.StartLine + 1;
+
+      services[0] = vbi_raw_decoder_add_services(&WdmZvbiDec[0], VBI_SLICED_TELETEXT_B | VBI_SLICED_VPS, 0);
+      services[1] = vbi_raw_decoder_add_services(&WdmZvbiDec[1], VBI_SLICED_TELETEXT_B, 0);
+      if ( ((services[0] & VBI_SLICED_TELETEXT_B) == 0) ||
+           ((services[1] & VBI_SLICED_TELETEXT_B) == 0) )
+      {
+         MessageBox(NULL, "The selected capture source is appearently not able "
+                          "to capture teletext. Will try anyways, but it might not work.",
+                          "nxtvepg driver warning",
+                          MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+      }
+
+      WdmLastTimestamp = 0;
+      WdmLastFrameNo   = 0;
+   }
+   else
+      debug1("BtDriver-WdmInitSlicer: failed to retrieve VBI format: %ld", (long)hres);
+}
+
+// ----------------------------------------------------------------------------
+// Map internal norm to WDM
+//
+static AnalogVideoStandard BtDriver_WdmMapNorm( int norm )
+{
+   AnalogVideoStandard WdmNorm;
+
+   // Adapt norm value for WDM driver (uses DirectShow convention)
+   switch (norm)
+   {
+      case VIDEO_MODE_PAL :
+         WdmNorm = AnalogVideo_PAL_B;
+         break;
+      case VIDEO_MODE_SECAM :
+         WdmNorm = AnalogVideo_SECAM_L;
+         break;
+      case VIDEO_MODE_NTSC :
+         WdmNorm = AnalogVideo_NTSC_M;
+         break;
+      default:
+         debug1("BtDriver-TuneChannel: unsupported TV norm %d", norm);
+         WdmNorm = AnalogVideo_SECAM_L;
+         break;
+   }
+   return WdmNorm;
+}
 
 // ----------------------------------------------------------------------------
 // Helper function to set user-configured priority in IRQ and VBI threads
@@ -158,7 +479,7 @@ static int BtDriver_GetAcqPriority( int level )
 // ---------------------------------------------------------------------------
 // Get interface functions for a TV card
 //
-static bool BtDriver_GetCardInterface( TVCARD * pTvCard, DWORD VendorId, uint cardIdx )
+static bool BtDriver_PciCardGetInterface( TVCARD * pTvCard, DWORD VendorId, uint sourceIdx )
 {
    bool result = TRUE;
 
@@ -184,15 +505,15 @@ static bool BtDriver_GetCardInterface( TVCARD * pTvCard, DWORD VendorId, uint ca
    }
 
    // copy card parameters into the struct
-   if ((btCardCount != CARD_COUNT_UNINITIALIZED) && (cardIdx < btCardCount))
+   if ((btCardCount != CARD_COUNT_UNINITIALIZED) && (sourceIdx < btCardCount))
    {
-      assert(btCardList[cardIdx].VendorId == VendorId);
+      assert(btCardList[sourceIdx].VendorId == VendorId);
 
-      pTvCard->params.BusNumber   = btCardList[cardIdx].dwBusNumber;
-      pTvCard->params.SlotNumber  = btCardList[cardIdx].dwSlotNumber;
-      pTvCard->params.VendorId    = btCardList[cardIdx].VendorId;
-      pTvCard->params.DeviceId    = btCardList[cardIdx].DeviceId;
-      pTvCard->params.SubSystemId = btCardList[cardIdx].dwSubSystemID;
+      pTvCard->params.BusNumber   = btCardList[sourceIdx].dwBusNumber;
+      pTvCard->params.SlotNumber  = btCardList[sourceIdx].dwSlotNumber;
+      pTvCard->params.VendorId    = btCardList[sourceIdx].VendorId;
+      pTvCard->params.DeviceId    = btCardList[sourceIdx].DeviceId;
+      pTvCard->params.SubSystemId = btCardList[sourceIdx].dwSubSystemID;
    }
 
    return result;
@@ -225,24 +546,43 @@ static bool BtDriver_SetInputSource( uint inputIdx, uint norm, bool * pIsTuner )
 {
    bool isTuner = FALSE;
    bool result = FALSE;
+   HRESULT hres;
 
    // remember the input source for later
    btCfg.inputSrc = inputIdx;
 
    if (shmSlaveMode == FALSE)
    {
-      if (drvLoaded)
+      if (pciDrvLoaded)
       {
+#ifndef WITHOUT_DSDRV
          // XXX TODO norm switch
          result = cardif.cfg->SetVideoSource(&cardif, inputIdx);
 
          isTuner = cardif.cfg->IsInputATuner(&cardif, inputIdx);
+#else
+         result = isTuner = TRUE;
+#endif
+      }
+      else if (wdmDrvLoaded)
+      {
+         // XXX TODO(TZ) norm
+         hres = WdmDrv.SelectVideoInput(inputIdx);
+         if ( WDM_DRV_OK(hres) )
+         {
+            // No need to check for failure when calling IsInputATuner as we just called
+            // SelectVideoInput successfully
+            hres = WdmDrv.IsInputATuner(inputIdx, &isTuner);
+            result  = TRUE;
+         }
+         else
+            debug2("BtDriver-SetInputSource: failed for input #%d: %ld", inputIdx, hres);
       }
    }
    else
    {  // slave mode -> set param in shared memory
       result = WintvSharedMem_SetInputSrc(inputIdx);
-      isTuner = TRUE;  // XXX TODO
+      isTuner = TRUE;  // XXX TODO(TZ)
    }
 
    if (pIsTuner != NULL)
@@ -255,26 +595,82 @@ static bool BtDriver_SetInputSource( uint inputIdx, uint norm, bool * pIsTuner )
 // Return name for given input source index
 // - has to be called repeatedly with incremented indices until NULL is returned
 //
-const char * BtDriver_GetInputName( uint cardIdx, uint cardType, uint inputIdx )
+const char * BtDriver_GetInputName( uint sourceIdx, uint cardType, uint drvType, uint inputIdx )
 {
    const char * pName = NULL;
    TVCARD tmpCardIf;
    uint   chipIdx;
+   HRESULT hres;
 
-   if ((btCardCount != CARD_COUNT_UNINITIALIZED) && (cardIdx < btCardCount))
+   if (drvType == BTDRV_SOURCE_PCI)
    {
-      chipIdx = btCardList[cardIdx].chipIdx;
-
-      if (BtDriver_GetCardInterface(&tmpCardIf, CaptureChips[chipIdx].VendorId, CARD_COUNT_UNINITIALIZED) )
+      if ((btCardCount != CARD_COUNT_UNINITIALIZED) && (sourceIdx < btCardCount))
       {
-         tmpCardIf.params.cardId = cardType;
+         chipIdx = btCardList[sourceIdx].chipIdx;
 
-         if (inputIdx < tmpCardIf.cfg->GetNumInputs(&tmpCardIf))
-            pName = tmpCardIf.cfg->GetInputName(&tmpCardIf, inputIdx);
-         else
-            pName = NULL;
+         if (BtDriver_PciCardGetInterface(&tmpCardIf, CaptureChips[chipIdx].VendorId, CARD_COUNT_UNINITIALIZED) )
+         {
+            tmpCardIf.params.cardId = cardType;
+
+            if (inputIdx < tmpCardIf.cfg->GetNumInputs(&tmpCardIf))
+               pName = tmpCardIf.cfg->GetInputName(&tmpCardIf, inputIdx);
+            else
+               pName = NULL;
+         }
       }
+      dprintf4("BtDriver-GetInputName: PCI sourceIdx=%d, cardType=%d, inputIdx=%d: result=%s\n", sourceIdx, cardType, inputIdx, ((pName != NULL) ? pName : "NULL"));
    }
+   else if (drvType == BTDRV_SOURCE_WDM)
+   {
+      // note: only try to load driver for the first query
+      if ( (inputIdx == 0) && (WdmSrcCount == CARD_COUNT_UNINITIALIZED) )
+      {
+         BtDriver_WdmCountSources(FALSE);
+      }
+
+      if ((WdmSrcCount != CARD_COUNT_UNINITIALIZED) && (sourceIdx < WdmSrcCount) &&
+          (WdmDrvHandle != NULL))
+      {
+         if (wdmDrvLoaded == FALSE)
+         {
+            hres = WdmDrv.SelectDevice(sourceIdx, 0);
+            if ( WDM_DRV_OK(hres) )
+            {
+               hres = WdmDrv.GetVideoInputName(inputIdx, (char **)&pName);
+            }
+            else
+            {
+               debug3("BtDriver-GetInputName: failed to select source #%d (WDM dev #%d): %ld", sourceIdx, sourceIdx, hres);
+               hres = S_OK;
+               pName = NULL;
+            }
+         }
+         else
+         {  // this branch should never be reached - since the query function
+            // does not allow to specify a device acq must be stopped before so
+            // that we can temporarily select the given device
+            if (sourceIdx == btCfg.sourceIdx)
+            {
+               hres = WdmDrv.GetVideoInputName(inputIdx, (char **)&pName);
+            }
+            else
+            {
+               debug2("BtDriver-GetInputName: cannot query source %d while acq is enabled for %d", sourceIdx, btCfg.sourceIdx);
+               hres = S_OK;
+               pName = NULL;
+            }
+         }
+         if ( WDM_DRV_OK(hres) == FALSE )
+         {
+            ifdebug4(inputIdx == 0, "BtDriver-GetInputName: failed for input #%d on source #%d (WDM dev #%d): %ld", inputIdx, sourceIdx, sourceIdx, hres);
+            pName = NULL;
+         }
+      }
+      dprintf3("BtDriver-GetInputName: WDM sourceIdx=%d, inputIdx=%d: result=%s\n", sourceIdx, inputIdx, ((pName != NULL) ? pName : "NULL"));
+   }
+   else
+      debug4("BtDriver-GetInputName: invalid driver type %d: sourceIdx=%d, cardType=%d, inputIdx=%d", drvType, sourceIdx, cardType, inputIdx);
+
    return pName;
 }
 
@@ -282,7 +678,7 @@ const char * BtDriver_GetInputName( uint cardIdx, uint cardType, uint inputIdx )
 // Auto-detect card type and return parameters from config table
 // - card type may also be set manually, in which case only params are returned
 //
-bool BtDriver_QueryCardParams( uint cardIdx, sint * pCardType, sint * pTunerType, sint * pPllType )
+bool BtDriver_QueryCardParams( uint sourceIdx, sint * pCardType, sint * pTunerType, sint * pPllType )
 {
    TVCARD tmpCardIf;
    uint   chipIdx;
@@ -292,48 +688,53 @@ bool BtDriver_QueryCardParams( uint cardIdx, sint * pCardType, sint * pTunerType
 
    if ((pCardType != NULL) && (pTunerType != NULL) && (pPllType != NULL))
    {
-      if ((btCardCount != CARD_COUNT_UNINITIALIZED) && (cardIdx < btCardCount))
+      if ((btCardCount != CARD_COUNT_UNINITIALIZED) && (sourceIdx < btCardCount))
       {
          if (shmSlaveMode)
          {  // error
             debug0("BtDriver-QueryCardParams: driver is in slave mode");
-            MessageBox(NULL, "Cannot query the TV card while connected to a TV application.\nTerminated the TV application and try again.", "Nextview EPG driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+            MessageBox(NULL, "Cannot query the TV card while connected to a TV application.\nTerminated the TV application and try again.", "nxtvepg driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
          }
-         else if (drvLoaded && (btCfg.cardIdx != cardIdx))
+         else if (pciDrvLoaded && (btCfg.sourceIdx != sourceIdx))
          {  // error
-            debug2("BtDriver-QueryCardParams: acq running for different card %d instead req. %d", btCfg.cardIdx, cardIdx);
-            MessageBox(NULL, "Acquisition is running for a different TV card.\nStop acquisition and try again.", "Nextview EPG driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+            debug2("BtDriver-QueryCardParams: acq running for different card %d instead req. %d", btCfg.sourceIdx, sourceIdx);
+            MessageBox(NULL, "Acquisition is running for a different TV card.\nStop acquisition and try again.", "nxtvepg driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
          }
          else
          {
-            drvWasLoaded = drvLoaded;
-            if (drvLoaded == FALSE)
+            drvWasLoaded = pciDrvLoaded;
+            if (pciDrvLoaded == FALSE)
             {
-               shmSlaveMode = (WintvSharedMem_ReqTvCardIdx(cardIdx) == FALSE);
+               shmSlaveMode = (WintvSharedMem_ReqTvCardIdx(sourceIdx, NULL) == FALSE);
                if (shmSlaveMode == FALSE)
                {
                   loadError = DsDrvLoad();
                   if (loadError == HWDRV_LOAD_SUCCESS)
                   {
-                     // scan the PCI bus for known cards
-                     BtDriver_CountCards();
+                     pciDrvLoaded = TRUE;
 
-                     drvLoaded = BtDriver_OpenCard(cardIdx);
-                     if (drvLoaded == FALSE)
+                     // scan the PCI bus for known cards
+                     BtDriver_DsDrvCountSources(TRUE);
+
+                     if (BtDriver_PciCardOpen(sourceIdx) == FALSE)
+                     {
                         DsDrvUnload();
+                        pciDrvLoaded = FALSE;
+                     }
                   }
                   else
                   {
-                     MessageBox(NULL, DsDrvGetErrorMsg(loadError), "Nextview EPG driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+                     MessageBox(NULL, DsDrvGetErrorMsg(loadError), "nxtvepg driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
                   }
                }
             }
 
-            if (drvLoaded)
+            if (pciDrvLoaded)
             {
-               chipIdx = btCardList[cardIdx].chipIdx;
-               if ( BtDriver_GetCardInterface(&tmpCardIf, CaptureChips[chipIdx].VendorId, cardIdx) )
+               chipIdx = btCardList[sourceIdx].chipIdx;
+               if ( BtDriver_PciCardGetInterface(&tmpCardIf, CaptureChips[chipIdx].VendorId, sourceIdx) )
                {
+#ifndef WITHOUT_DSDRV
                   if (*pCardType <= 0)
                      *pCardType  = tmpCardIf.cfg->AutoDetectCardType(&tmpCardIf);
 
@@ -343,15 +744,17 @@ bool BtDriver_QueryCardParams( uint cardIdx, sint * pCardType, sint * pTunerType
                      *pPllType   = tmpCardIf.cfg->GetPllType(&tmpCardIf, *pCardType);
                   }
                   else
+#endif
+                  {
                      *pTunerType = *pPllType = 0;
-
+                  }
                   result = TRUE;
                }
 
                if (drvWasLoaded == FALSE)
                {
                   DsDrvUnload();
-                  drvLoaded = FALSE;
+                  pciDrvLoaded = FALSE;
                }
             }
 
@@ -363,7 +766,7 @@ bool BtDriver_QueryCardParams( uint cardIdx, sint * pCardType, sint * pTunerType
          }
       }
       else
-         debug2("BtDriver-QueryCardParams: PCI bus not scanned or invalid card idx %d >= count %d", cardIdx, btCardCount);
+         debug2("BtDriver-QueryCardParams: PCI bus not scanned or invalid card idx %d >= count %d", sourceIdx, btCardCount);
    }
    else
       fatal3("BtDriver-QueryCardParams: illegal NULL ptr params %lx,%lx,%lx", (long)pCardType, (long)pTunerType, (long)pPllType);
@@ -373,18 +776,19 @@ bool BtDriver_QueryCardParams( uint cardIdx, sint * pCardType, sint * pTunerType
 
 // ---------------------------------------------------------------------------
 // Return name from card list for a given chip
+// - only used for PCI sources to select card manufacturer and model
 //
-const char * BtDriver_GetCardNameFromList( uint cardIdx, uint listIdx )
+const char * BtDriver_GetCardNameFromList( uint sourceIdx, uint listIdx )
 {
    const char * pName = NULL;
    TVCARD tmpCardIf;
    uint chipIdx;
 
-   if ((btCardCount != CARD_COUNT_UNINITIALIZED) && (cardIdx < btCardCount))
+   if ((btCardCount != CARD_COUNT_UNINITIALIZED) && (sourceIdx < btCardCount))
    {
-      chipIdx = btCardList[cardIdx].chipIdx;
+      chipIdx = btCardList[sourceIdx].chipIdx;
 
-      if ( BtDriver_GetCardInterface(&tmpCardIf, CaptureChips[chipIdx].VendorId, CARD_COUNT_UNINITIALIZED) )
+      if ( BtDriver_PciCardGetInterface(&tmpCardIf, CaptureChips[chipIdx].VendorId, CARD_COUNT_UNINITIALIZED) )
       {
          pName = tmpCardIf.cfg->GetCardName(&tmpCardIf, listIdx);
       }
@@ -393,103 +797,136 @@ const char * BtDriver_GetCardNameFromList( uint cardIdx, uint listIdx )
 }
 
 // ---------------------------------------------------------------------------
+// Determine default driver type upon first start
+// - prefer WDM if DLL is available
+//
+BTDRV_SOURCE_TYPE BtDriver_GetDefaultDrvType( void )
+{
+   BTDRV_SOURCE_TYPE result;
+
+   if (BtDriver_WdmDllLoad(FALSE))
+   {
+      BtDriver_WdmDllFree();
+      result = BTDRV_SOURCE_WDM;
+   }
+   else
+   {
+      result = BTDRV_SOURCE_PCI;
+   }
+   return result;
+}
+
+// ---------------------------------------------------------------------------
 // Return name & chip type for given TV card
 // - if the driver was never loaded before the PCI bus is scanned now;
 //   no error message displayed if the driver fails to load, but result set to FALSE
 // - end of enumeration is indicated by a FALSE result or NULL name pointer
 //
-bool BtDriver_EnumCards( uint cardIdx, uint cardType, uint * pChipType, const char ** pName, bool showDrvErr )
+bool BtDriver_EnumCards( uint drvType, uint sourceIdx, uint cardType,
+                         uint * pChipType, const char ** pName, bool showDrvErr )
 {
    static char cardName[50];
    TVCARD tmpCardIf;
    uint   chipIdx;
    uint   chipType;
-   uint   loadError;
+   HRESULT hres;
    bool   result = FALSE;
 
    if ((pChipType != NULL) && (pName != NULL))
    {
-      // note: only try to load driver for the first query
-      if ( (cardIdx == 0) && (btCardCount == CARD_COUNT_UNINITIALIZED) &&
-           (drvLoaded == FALSE) && (shmSlaveMode == FALSE) )
+      if (drvType == BTDRV_SOURCE_PCI)
       {
-         shmSlaveMode = (WintvSharedMem_ReqTvCardIdx(cardIdx) == FALSE);
-         if (shmSlaveMode == FALSE)
+         // note: only try to load driver for the first query
+         if ( (sourceIdx == 0) && (btCardCount == CARD_COUNT_UNINITIALIZED) )
          {
-            loadError = DsDrvLoad();
-            if (loadError == HWDRV_LOAD_SUCCESS)
-            {
-               // scan the PCI bus for known cards, but don't open any
-               BtDriver_CountCards();
-               DsDrvUnload();
-            }
-            else if (showDrvErr)
-            {
-               MessageBox(NULL, DsDrvGetErrorMsg(loadError), "Nextview EPG driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
-            }
-
+            assert(pciDrvLoaded == FALSE);
+            BtDriver_DsDrvCountSources(showDrvErr);
          }
-         else if (showDrvErr)
-         {
-            MessageBox(NULL, "Cannot query the TV card while connected to a TV application.\nTerminated the TV application and try again.", "Nextview EPG driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
-         }
-         WintvSharedMem_FreeTvCard();
-         shmSlaveMode = FALSE;
-      }
 
-      if (btCardCount != CARD_COUNT_UNINITIALIZED)
-      {
-         if (cardIdx < btCardCount)
+         if (btCardCount != CARD_COUNT_UNINITIALIZED)
          {
-            chipIdx  = btCardList[cardIdx].chipIdx;
-            chipType = (CaptureChips[chipIdx].VendorId << 16) | CaptureChips[chipIdx].DeviceId;
-
-            if ((cardType != 0) && (chipType == *pChipType))
+            if (sourceIdx < btCardCount)
             {
-               if ( BtDriver_GetCardInterface(&tmpCardIf, CaptureChips[chipIdx].VendorId, CARD_COUNT_UNINITIALIZED) )
+               chipIdx  = btCardList[sourceIdx].chipIdx;
+               chipType = (CaptureChips[chipIdx].VendorId << 16) | CaptureChips[chipIdx].DeviceId;
+
+               if ((cardType != 0) && (chipType == *pChipType))
+               {
+                  if ( BtDriver_PciCardGetInterface(&tmpCardIf, CaptureChips[chipIdx].VendorId, CARD_COUNT_UNINITIALIZED) )
+                  {
+                     *pName = tmpCardIf.cfg->GetCardName(&tmpCardIf, cardType);
+                  }
+                  else
+                     *pName = "unknown chip type";
+               }
+               else
+               {
+                  sprintf(cardName, "unknown %s card", CaptureChips[chipIdx].szName);
+                  *pName = cardName;
+               }
+               *pChipType = chipType;
+            }
+            else
+               *pName = NULL;
+         }
+         else
+         {  // failed to load driver for PCI scan -> just return names for already known cards
+            if (*pChipType != 0)
+            {
+               if ( BtDriver_PciCardGetInterface(&tmpCardIf, *pChipType >> 16, CARD_COUNT_UNINITIALIZED) )
                {
                   *pName = tmpCardIf.cfg->GetCardName(&tmpCardIf, cardType);
                }
                else
-                  *pName = "unknown chip type";
+                  *pName = "unknown card";
+
+               // return 0 as chip type to indicate driver failure
+               *pChipType = 0;
             }
             else
-            {
-               sprintf(cardName, "unknown %s card", CaptureChips[chipIdx].szName);
-               *pName = cardName;
+            {  // end of enumeration
+               if (shmSlaveMode && showDrvErr && (sourceIdx == 0))
+               {
+                  MessageBox(NULL, "Cannot scan PCI bus for TV cards while connected to a TV application.\nTerminated the TV application and try again.", "nxtvepg driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+               }
+               *pName = NULL;
             }
-            *pChipType = chipType;
-         }
-         else
-         {  // end of enumeration
-            *pName = NULL;
          }
          result = TRUE;
       }
-      else
-      {  // failed to load driver for PCI scan -> just return names for already known cards
-         if (*pChipType != 0)
+      else if (drvType == BTDRV_SOURCE_WDM)
+      {
+         // note: only try to load driver for the first query
+         if ( (sourceIdx == 0) && (WdmSrcCount == CARD_COUNT_UNINITIALIZED) )
          {
-            if ( BtDriver_GetCardInterface(&tmpCardIf, *pChipType >> 16, CARD_COUNT_UNINITIALIZED) )
+            assert(wdmDrvLoaded == FALSE);
+            BtDriver_WdmCountSources(showDrvErr);
+         }
+
+         if ( (WdmDrvHandle != NULL) &&
+              (WdmSrcCount != CARD_COUNT_UNINITIALIZED) && (sourceIdx < WdmSrcCount) )
+         {
+            hres = WdmDrv.GetDeviceName(sourceIdx, (char **) pName);
+            if ( WDM_DRV_OK(hres) )
             {
-               *pName = tmpCardIf.cfg->GetCardName(&tmpCardIf, cardType);
+               *pChipType = 0;  // not used for WDM
             }
             else
-               *pName = "unknown card";
-
-            // return 0 as chip type to indicate driver failure
-            *pChipType = 0;
+            {
+               // XXX retrieve & display error message
+               sprintf(cardName, "unknown WDM source");
+               *pName = cardName;
+            }
          }
          else
-         {  // end of enumeration
-            if (shmSlaveMode && showDrvErr && (cardIdx == 0))
-            {
-               MessageBox(NULL, "Cannot scan PCI bus for TV cards while connected to a TV application.\nTerminated the TV application and try again.", "Nextview EPG driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
-            }
             *pName = NULL;
-         }
 
          result = TRUE;
+      }
+      else
+      {  // end of enumeration
+         debug1("BtDriver-EnumCards: unknown driver tpe: %d", drvType);
+         *pName = NULL;
       }
    }
    else
@@ -503,11 +940,26 @@ bool BtDriver_EnumCards( uint cardIdx, uint cardType, uint * pChipType, const ch
 //
 bool BtDriver_IsVideoPresent( void )
 {
+   HRESULT wdmResult;
    bool result;
 
-   if (drvLoaded)
+   if (pciDrvLoaded)
    {
+#ifndef WITHOUT_DSDRV
       result = cardif.ctl->IsVideoPresent();
+#else
+      result = FALSE;
+#endif
+   }
+   else if (wdmDrvLoaded)
+   {
+      wdmResult = WdmDrv.GetSignalStatus();
+
+      if (WDM_DRV_OK(wdmResult))
+         result = ((wdmResult & WDM_DRV_WARNING_NOSIGNAL) == 0);
+      else
+         result = TRUE;
+      // note: upon failure return "TRUE" to be fail-safe (i.e. don't skip the channel in scan)
    }
    else if (shmSlaveMode)
    {  // this operation is currently not supported by the TV app interaction protocol
@@ -523,47 +975,118 @@ bool BtDriver_IsVideoPresent( void )
 // ---------------------------------------------------------------------------
 // Generate a list of available cards
 //
-static void BtDriver_CountCards( void )
+static void BtDriver_WdmCountSources( bool showDrvErr )
+{
+   HRESULT hres;
+
+   if (WdmDrvHandle == NULL)
+   {
+      assert(wdmDrvLoaded == FALSE);
+      assert(WdmSrcCount == CARD_COUNT_UNINITIALIZED);
+
+      BtDriver_WdmDllLoad(showDrvErr);
+   }
+
+   if (WdmDrvHandle != NULL)
+   {
+      if (WdmSrcCount == CARD_COUNT_UNINITIALIZED)
+      {
+         dprintf0("BtDriver-WdmSourceCount: entry\n");
+
+         hres = WdmDrv.EnumDevices();
+         if (WDM_DRV_OK(hres))
+         {
+            WdmSrcCount = (uint) hres;
+            dprintf1("BtDriver-WdmSourceCount: have %d WDM sources\n", WdmSrcCount);
+         }
+         else
+            debug1("BtDriver-WdmSourceCount: WDM interface DLL returned error %ld", hres);
+      }
+   }
+}
+
+// ---------------------------------------------------------------------------
+// Scan PCI Bus for known TV card capture chips
+//
+static void BtDriver_PciCardCount( void )
 {
    uint  chipIdx, cardIdx;
+
+   btCardCount = 0;
+   for (chipIdx=0; (chipIdx < CAPTURE_CHIP_COUNT) && (btCardCount < MAX_CARD_COUNT); chipIdx++)
+   {
+      cardIdx = 0;
+      while (btCardCount < MAX_CARD_COUNT)
+      {
+         if (DoesThisPCICardExist(CaptureChips[chipIdx].VendorId, CaptureChips[chipIdx].DeviceId,
+                                  cardIdx,
+                                  &btCardList[btCardCount].dwSubSystemID,
+                                  &btCardList[btCardCount].dwBusNumber,
+                                  &btCardList[btCardCount].dwSlotNumber) == ERROR_SUCCESS)
+         {
+            dprintf4("PCI scan: found capture chip %s, ID=%lx, bus=%ld, slot=%ld\n", CaptureChips[chipIdx].szName, btCardList[btCardCount].dwSubSystemID, btCardList[btCardCount].dwBusNumber, btCardList[btCardCount].dwSlotNumber);
+
+            btCardList[btCardCount].VendorId    = CaptureChips[chipIdx].VendorId;
+            btCardList[btCardCount].DeviceId    = CaptureChips[chipIdx].DeviceId;
+            btCardList[btCardCount].chipIdx     = chipIdx;
+            btCardList[btCardCount].chipCardIdx = cardIdx;
+            btCardCount += 1;
+         }
+         else
+         {  // no more cards with this chip -> next chip (outer loop)
+            break;
+         }
+         cardIdx += 1;
+      }
+   }
+   dprintf1("BtDriver-PciCardCount: found %d PCI cards\n", btCardCount);
+}
+
+// ---------------------------------------------------------------------------
+// Generate a list of available cards
+//
+static bool BtDriver_DsDrvCountSources( bool showDrvErr )
+{
+   uint  loadError;
+   bool  result = FALSE;
 
    // if the scan was already done skip it
    if (btCardCount == CARD_COUNT_UNINITIALIZED)
    {
-      btCardCount = 0;
-      for (chipIdx=0; (chipIdx < CAPTURE_CHIP_COUNT) && (btCardCount < MAX_CARD_COUNT); chipIdx++)
+      dprintf0("BtDriver-CountSources: PCI start\n");
+
+      // note: don't reserve the card from TV app since a PCI scan does not cause conflicts
+      if (pciDrvLoaded == FALSE)
       {
-         cardIdx = 0;
-         while (btCardCount < MAX_CARD_COUNT)
+         loadError = DsDrvLoad();
+         if (loadError == HWDRV_LOAD_SUCCESS)
          {
-            if (DoesThisPCICardExist(CaptureChips[chipIdx].VendorId, CaptureChips[chipIdx].DeviceId,
-                                     cardIdx,
-                                     &btCardList[btCardCount].dwSubSystemID,
-                                     &btCardList[btCardCount].dwBusNumber,
-                                     &btCardList[btCardCount].dwSlotNumber) == ERROR_SUCCESS)
-            {
-               dprintf4("PCI scan: found capture chip %s, ID=%lx, bus=%ld, slot=%ld\n", CaptureChips[chipIdx].szName, btCardList[btCardCount].dwSubSystemID, btCardList[btCardCount].dwBusNumber, btCardList[btCardCount].dwSlotNumber);
-               btCardList[btCardCount].VendorId    = CaptureChips[chipIdx].VendorId;
-               btCardList[btCardCount].DeviceId    = CaptureChips[chipIdx].DeviceId;
-               btCardList[btCardCount].chipIdx     = chipIdx;
-               btCardList[btCardCount].chipCardIdx = cardIdx;
-               btCardCount += 1;
-            }
-            else
-            {  // no more cards with this chip -> next chip (outer loop)
-               break;
-            }
-            cardIdx += 1;
+            // scan the PCI bus for known cards, but don't open any
+            BtDriver_PciCardCount();
+            DsDrvUnload();
+            result = TRUE;
+         }
+         else if (showDrvErr)
+         {
+            MessageBox(NULL, DsDrvGetErrorMsg(loadError), "nxtvepg driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
          }
       }
-      dprintf1("BT8X8-CountCards: found %d cards", btCardCount);
+      else
+      {  // dsdrv already loaded -> just do the scan
+         BtDriver_PciCardCount();
+         result = TRUE;
+      }
    }
+   else
+      result = TRUE;
+
+   return result;
 }
 
 // ---------------------------------------------------------------------------
 // Open the driver device and allocate I/O resources
 //
-static BOOL BtDriver_OpenCard( uint cardIdx )
+static BOOL BtDriver_PciCardOpen( uint sourceIdx )
 {
    char msgbuf[200];
    int  ret;
@@ -571,13 +1094,14 @@ static BOOL BtDriver_OpenCard( uint cardIdx )
    BOOL supportsAcpi;
    BOOL result = FALSE;
 
-   if (cardIdx < btCardCount)
+   if (sourceIdx < btCardCount)
    {
-      chipIdx     = btCardList[cardIdx].chipIdx;
-      chipCardIdx = btCardList[cardIdx].chipCardIdx;
+      chipIdx     = btCardList[sourceIdx].chipIdx;
+      chipCardIdx = btCardList[sourceIdx].chipCardIdx;
 
-      if ( BtDriver_GetCardInterface(&cardif, CaptureChips[chipIdx].VendorId, cardIdx) )
+      if ( BtDriver_PciCardGetInterface(&cardif, CaptureChips[chipIdx].VendorId, sourceIdx) )
       {
+#ifndef WITHOUT_DSDRV
          supportsAcpi = cardif.cfg->SupportsAcpi(&cardif);
 
          ret = pciGetHardwareResources(CaptureChips[chipIdx].VendorId,
@@ -588,29 +1112,19 @@ static BOOL BtDriver_OpenCard( uint cardIdx )
 
          if (ret == ERROR_SUCCESS)
          {
-            dprintf2("BtDriver-OpenCard: %s driver loaded, card #%d opened\n", CaptureChips[chipIdx].szName, cardIdx);
+            dprintf2("BtDriver-PciCardOpen: %s driver loaded, card #%d opened\n", CaptureChips[chipIdx].szName, sourceIdx);
             result = TRUE;
          }
          else if (ret == 3)
          {  // card found, but failed to open -> abort
-            sprintf(msgbuf, "Capture card #%d (with %s chip) cannot be locked!", cardIdx, CaptureChips[chipIdx].szName);
-            MessageBox(NULL, msgbuf, "Nextview EPG driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+            sprintf(msgbuf, "Capture card #%d (with %s chip) cannot be locked!", sourceIdx, CaptureChips[chipIdx].szName);
+            MessageBox(NULL, msgbuf, "nxtvepg driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
          }
+#else
+         result = TRUE;
+#endif
       }
    }
-   else
-   {
-      if (cardIdx == 0)
-         sprintf(msgbuf, "Cannot start EPG data acquisition because\n"
-                         "no supported TV capture PCI cards have been found.");
-      else
-         sprintf(msgbuf, "Cannot start EPG data acquisition because\n"
-                         "TV card #%d was not found on the PCI bus\n"
-                         "(found %d supported TV capture cards)",
-                         cardIdx, btCardCount);
-      MessageBox(NULL, msgbuf, "Nextview EPG driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
-   }
-
    return result;
 }
 
@@ -618,87 +1132,186 @@ static BOOL BtDriver_OpenCard( uint cardIdx )
 // Shut down the driver and free all resources
 // - after this function is called, other processes can use the card
 //
-static void BtDriver_Unload( void )
+static void BtDriver_DsDrvUnload( void )
 {
-   if (drvLoaded)
+   if (pciDrvLoaded)
    {
+#ifndef WITHOUT_DSDRV
       cardif.ctl->Close(&cardif);
+#endif
       DsDrvUnload();
 
-      drvLoaded = FALSE;
+      // clear driver interface functions (debugging only)
+      memset(&cardif.ctl, 0, sizeof(cardif.ctl));
+      memset(&cardif.cfg, 0, sizeof(cardif.cfg));
+
+      pciDrvLoaded = FALSE;
    }
-   dprintf0("BtDriver-Unload: driver unloaded\n");
+   dprintf0("BtDriver-DsDrvUnload: driver unloaded\n");
 }
 
 // ----------------------------------------------------------------------------
-// Boot the driver, allocate resources and initialize all subsystems
+// Boot the dsdrv driver, allocate resources and initialize all subsystems
 //
-static bool BtDriver_Load( void )
+static bool BtDriver_DsDrvLoad( void )
 {
-#ifndef WITHOUT_TVCARD
    DWORD loadError;
-   bool result;
+   bool result = FALSE;
 
-   assert(shmSlaveMode == FALSE);
+   assert((shmSlaveMode == FALSE) && (wdmDrvLoaded == FALSE));
+
+   BtDriver_WdmDllFree();
 
    loadError = DsDrvLoad();
    if (loadError == HWDRV_LOAD_SUCCESS)
    {
-      BtDriver_CountCards();
+      pciDrvLoaded = TRUE;
+      BtDriver_DsDrvCountSources(FALSE);
 
-      result = BtDriver_OpenCard(btCfg.cardIdx);
-      if (result)
+      if (btCfg.sourceIdx < btCardCount)
       {
-         cardif.params.cardId = btCfg.cardId;
-
-         result = cardif.ctl->Open(&cardif, btCfg.wdmStop);
-         if (result)
+         if ( BtDriver_PciCardOpen(btCfg.sourceIdx) )
          {
-            drvLoaded = TRUE;
+            cardif.params.cardId = btCfg.cardId;
 
-            result = cardif.ctl->Configure(btCfg.threadPrio, btCfg.pllType);
-            if (result)
+#ifndef WITHOUT_DSDRV
+            if ( cardif.ctl->Open(&cardif, btCfg.wdmStop) )
             {
-               // initialize tuner module for the configured tuner type
-               Tuner_Init(btCfg.tunerType, &cardif);
+               if ( cardif.ctl->Configure(btCfg.threadPrio, btCfg.pllType) )
+               {
+                  // initialize tuner module for the configured tuner type
+                  Tuner_Init(btCfg.tunerType, &cardif);
 
-               if (btCfg.tunerFreq != 0)
-               {  // if freq already set, apply it now
-                  Tuner_SetFrequency(btCfg.tunerType, btCfg.tunerFreq, btCfg.tunerNorm);
+                  if (btCfg.tunerFreq != 0)
+                  {  // if freq already set, apply it now
+                     Tuner_SetFrequency(btCfg.tunerType, btCfg.tunerFreq, btCfg.tunerNorm);
+                  }
+                  if (btCfg.inputSrc != INVALID_INPUT_SOURCE)
+                  {  // if source already set, apply it now
+                     BtDriver_SetInputSource(btCfg.inputSrc, btCfg.tunerNorm, NULL);
+                  }
+                  result = TRUE;
                }
-               if (btCfg.inputSrc != INVALID_INPUT_SOURCE)
-               {  // if source already set, apply it now
-                  BtDriver_SetInputSource(btCfg.inputSrc, VIDEO_MODE_PAL, NULL);
+               else
+               {  // failed to initialize the card (alloc memory for DMA)
+                  BtDriver_DsDrvUnload();
                }
             }
-            else
-            {  // driver boot failed - abort
-               BtDriver_Unload();
-            }
+#else  // WITHOUT_DSDRV
+            result = TRUE;
+#endif
          }
-         else
-         {  // card init failed -> unload driver (do not call card close function)
-            DsDrvUnload();
-         }
+         // else: user message already generated by driver
       }
       else
-      {  // else: user message already generated by open function
+         ifdebug2((btCfg.sourceIdx >= btCardCount), "BtDriver-DsDrvLoad: illegal card index %d >= count %d", btCfg.sourceIdx, btCardCount);
+
+      if ((result == FALSE) && (pciDrvLoaded))
+      {
          DsDrvUnload();
+         pciDrvLoaded = FALSE;
       }
    }
    else
    {  // failed to load the driver
-      MessageBox(NULL, DsDrvGetErrorMsg(loadError), "Nextview EPG driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+      MessageBox(NULL, DsDrvGetErrorMsg(loadError), "nxtvepg driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+   }
+
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Shut down the WDM source and free all resources
+// - called when switching to dsdrv or upon exit
+//
+static void BtDriver_WdmDllFree( void )
+{
+   // acquisition must be stopped
+   assert(wdmDrvLoaded == FALSE);
+
+   // additionally unload the library
+   if (WdmDrvHandle != NULL)
+   {
+      WdmDrv.FreeDrv();
+      FreeLibrary(WdmDrvHandle);
+
+      WdmDrvHandle = NULL;
+      WdmSrcCount = CARD_COUNT_UNINITIALIZED;
+   }
+}
+
+// ----------------------------------------------------------------------------
+// Reverse operation to WDM load
+// - doesn't do much except resetting the "loaded" flag
+// - the DLL is detached in a separate function for efficiency
+//
+static void BtDriver_WdmUnload( void )
+{
+   if (wdmDrvLoaded)
+   {
+      ZvbiSliceAndProcess(NULL, NULL, 0);
+      vbi_raw_decoder_destroy(&WdmZvbiDec[0]);
+      vbi_raw_decoder_destroy(&WdmZvbiDec[1]);
+
+      wdmDrvLoaded = FALSE;
+   }
+   dprintf0("BtDriver-WdmUnload: driver unloaded\n");
+}
+
+// ----------------------------------------------------------------------------
+// Activate WDM source
+//
+static bool BtDriver_WdmLoad( void )
+{
+   HRESULT wdmResult;
+   bool result = FALSE;
+
+   assert((shmSlaveMode == FALSE) && (pciDrvLoaded == FALSE));
+   dprintf0("BtDriver-WdmLoad: entry\n");
+
+   // load library and enumerate sources, if necessary
+   BtDriver_WdmCountSources(FALSE);
+
+   if (WdmDrvHandle != NULL)
+   {
+      if (btCfg.sourceIdx < WdmSrcCount)
+      {
+         wdmResult = WdmDrv.SelectDevice(btCfg.sourceIdx, 0);
+         if ( WDM_DRV_OK(wdmResult) )
+         {
+            if ((wdmResult & WDM_DRV_WARNING_INUSE) == 0)
+            {
+               BtDriver_WdmInitSlicer();
+
+               if ( WdmDrv.SetWSTPacketCallBack(BtDriver_WdmVbiCallback, TRUE) == S_OK )
+               {
+                  wdmDrvLoaded = TRUE;
+                  WdmSkipFields = 0;
+                  result = TRUE;
+               }
+            }
+            else
+               MessageBox(NULL, "Failed to start Nextview acquisition: Capture device already in use", "nxtvepg WDM driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+         }
+         // else: user message already generated by open function (XXX really?)
+         dprintf1("BtDriver-WdmLoad: WDM result %ld\n", (long)wdmResult);
+      }
+      else
+         MessageBox(NULL, "Failed to start Nextview acquisition: Capture device not found", "nxtvepg WDM driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+
+      if (result == FALSE)
+      {
+         BtDriver_WdmUnload();
+      }
+   }
+   else
+   {  // failed to load the DLL
+      // XXX TODO print human readable error code
+      //MessageBox(NULL, GetDriverErrorMsg(loadError), "nxtvepg driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
       result = FALSE;
    }
 
    return result;
-
-#else  // WITHOUT_TVCARD
-   assert(shmSlaveMode == FALSE);
-   drvLoaded = FALSE;
-   return TRUE;
-#endif
 }
 
 // ----------------------------------------------------------------------------
@@ -706,50 +1319,71 @@ static bool BtDriver_Load( void )
 // - this function is used to warn the user abour parameter mismatch after
 //   hardware or driver configuration changes
 //
-bool BtDriver_CheckCardParams( int cardIdx, int chipId,
-                               int cardType, int tunerType, int pll, int input )
+bool BtDriver_CheckCardParams( uint drvType, uint sourceIdx, uint chipId,
+                               uint cardType, uint tunerType, uint pll, uint input )
 {
    TVCARD tmpCardIf;
    bool   result = FALSE;
 
-   if (btCardCount != CARD_COUNT_UNINITIALIZED)
+   if (drvType == BTDRV_SOURCE_PCI)
    {
-      if (cardIdx < btCardCount)
+      if (btCardCount != CARD_COUNT_UNINITIALIZED)
       {
-         if (((btCardList[cardIdx].VendorId << 16) |
-               btCardList[cardIdx].DeviceId) == chipId)
+         if (sourceIdx < btCardCount)
          {
-            if (BtDriver_GetCardInterface(&tmpCardIf, (chipId >> 16), CARD_COUNT_UNINITIALIZED) )
+            if (((btCardList[sourceIdx].VendorId << 16) |
+                  btCardList[sourceIdx].DeviceId) == chipId)
             {
-               result = (tmpCardIf.cfg->GetCardName(&tmpCardIf, cardType) != NULL) &&
-                        (tmpCardIf.cfg->GetNumInputs(&tmpCardIf) > input) &&
-                         (Tuner_GetName(tunerType) != NULL);
+               if (BtDriver_PciCardGetInterface(&tmpCardIf, (chipId >> 16), CARD_COUNT_UNINITIALIZED) )
+               {
+                  result = (tmpCardIf.cfg->GetCardName(&tmpCardIf, cardType) != NULL) &&
+                           (tmpCardIf.cfg->GetNumInputs(&tmpCardIf) > input) &&
+                            (Tuner_GetName(tunerType) != NULL);
+               }
             }
          }
+         else
+            debug2("BtDriver-CheckCardParams: source index %d no longer valid (>= %d)", sourceIdx, btCardCount);
       }
-      else
-         debug2("BtDriver-CheckCardParams: source index %d no longer valid (>= %d)", cardIdx, btCardCount);
-   }
-   else
-   {  // no PCI scan yet: just do rudimentary checks
-      if (cardIdx < CAPTURE_CHIP_COUNT)
+      // no PCI scan yet: just do rudimentary checks
+      else if (chipId != 0)
       {
-         if (chipId != 0)
+         if (BtDriver_PciCardGetInterface(&tmpCardIf, (chipId >> 16), CARD_COUNT_UNINITIALIZED) )
          {
-            if (BtDriver_GetCardInterface(&tmpCardIf, (chipId >> 16), CARD_COUNT_UNINITIALIZED) )
-            {
-               tmpCardIf.params.cardId = cardType;
+            tmpCardIf.params.cardId = cardType;
 
-               result = (tmpCardIf.cfg->GetCardName(&tmpCardIf, cardType) != NULL) &&
-                        (tmpCardIf.cfg->GetNumInputs(&tmpCardIf) > input) &&
-                        (Tuner_GetName(tunerType) != NULL);
-            }
-            else
-               debug1("BtDriver-CheckCardParams: unknown PCI ID 0x%X", chipId);
+            result = (tmpCardIf.cfg->GetCardName(&tmpCardIf, cardType) != NULL) &&
+                     (tmpCardIf.cfg->GetNumInputs(&tmpCardIf) > input) &&
+                     (Tuner_GetName(tunerType) != NULL);
          }
+         else
+            debug1("BtDriver-CheckCardParams: unknown PCI ID 0x%X", chipId);
+      }
+      // else: card not configured yet
+   }
+   else if (drvType == BTDRV_SOURCE_WDM)
+   {
+      if ( (WdmSrcCount == CARD_COUNT_UNINITIALIZED) && !pciDrvLoaded)
+      {
+         BtDriver_WdmCountSources(FALSE);
+      }
+      if (WdmSrcCount != CARD_COUNT_UNINITIALIZED)
+      {
+         if (sourceIdx < WdmSrcCount)
+         {
+            // XXX TODO: compare device path
+            result = TRUE;
+         }
+         else
+            debug2("BtDriver-CheckCardParams: WDM source index %d no longer valid (>= %d)", sourceIdx, WdmSrcCount);
       }
       else
-         fatal2("BtDriver-CheckCardParams: illegal source index %d (>= %d)", cardIdx, CAPTURE_CHIP_COUNT);
+      {
+         if (pciDrvLoaded)
+            result = TRUE;  // cannot check WDM while PCI active
+         else
+            result = FALSE;  // WDM sources not counted: probably DLL missing
+      }
    }
    return result;
 }
@@ -759,39 +1393,47 @@ bool BtDriver_CheckCardParams( int cardIdx, int chipId,
 // - called at program start and after config change
 // - Important: input source and tuner freq must be set afterwards
 //
-bool BtDriver_Configure( int cardIdx, int prio, int chipType, int cardType,
+bool BtDriver_Configure( int sourceIdx, int drvType, int prio, int chipType, int cardType,
                          int tunerType, int pllType, bool wdmStop )
 {
-   bool cardChange;
+   bool sourceChange;
    bool cardTypeChange;
    bool pllChange;
    bool tunerChange;
    bool prioChange;
+   int  chipIdx;
+   int  oldChipType;
    bool result = TRUE;
 
+   dprintf8("BtDriver-Configure: source=%d drvtype=%d prio=%d chipType=%d cardType=%d tunerType=%d pll=%d wdmStop=%d\n", sourceIdx, drvType, prio, chipType, cardType, tunerType, pllType, wdmStop);
    prio = BtDriver_GetAcqPriority(prio);
 
-   if (btCardCount != CARD_COUNT_UNINITIALIZED)
+   if ( (drvType == BTDRV_SOURCE_PCI) &&
+        (btCardCount != CARD_COUNT_UNINITIALIZED) && (sourceIdx < btCardCount) )
    {  // check if the configuration data still matches the hardware
-      if ( (cardIdx >= btCardCount) ||
-           (chipType != ((btCardList[cardIdx].VendorId << 16) |
-                         btCardList[cardIdx].DeviceId)) )
+      chipIdx     = btCardList[sourceIdx].chipIdx;
+      oldChipType = ((CaptureChips[chipIdx].VendorId << 16) | CaptureChips[chipIdx].DeviceId);
+      if (chipType != oldChipType)
       {
-         ifdebug3(cardIdx < btCardCount, "BtDriver-Configure: PCI chip type of card #%d changed from 0x%X to 0x%X", cardIdx, ((btCardList[cardIdx].VendorId << 16) | btCardList[cardIdx].DeviceId), chipType);
+         debug3("BtDriver-Configure: PCI chip type of source #%d changed from 0x%X to 0x%X", sourceIdx, oldChipType, chipType);
          cardType = tunerType = pllType = wdmStop = 0;
       }
    }
 
    // check which values change
-   cardChange     = ((cardIdx   != btCfg.cardIdx) ||
+   sourceChange   = ((drvType  != btCfg.drvType) ||
+                     (sourceIdx != btCfg.sourceIdx) ||
                      (wdmStop  != btCfg.wdmStop));
    cardTypeChange = (cardType  != btCfg.cardId);
    tunerChange    = (tunerType != btCfg.tunerType);
    pllChange      = (pllType   != btCfg.pllType);
    prioChange     = (prio      != btCfg.threadPrio);
 
+   dprintf8("BtDriver-Configure: PREV-MODE: slave=%d pci=%d wdm=%d CHANGES: source:%d cardType:%d tuner:%d pll:%d prio:%d\n", shmSlaveMode, pciDrvLoaded, wdmDrvLoaded, sourceChange, cardTypeChange, tunerChange, pllChange, prioChange);
+
    // save the new values
-   btCfg.cardIdx    = cardIdx;
+   btCfg.drvType    = drvType;
+   btCfg.sourceIdx  = sourceIdx;
    btCfg.threadPrio = prio;
    btCfg.cardId     = cardType;
    btCfg.tunerType  = tunerType;
@@ -800,13 +1442,12 @@ bool BtDriver_Configure( int cardIdx, int prio, int chipType, int cardType,
 
    if (shmSlaveMode == FALSE)
    {
-      if (drvLoaded)
+      if (pciDrvLoaded || wdmDrvLoaded)
       {  // acquisition already running -> must change parameters on the fly
          cardif.params.cardId = btCfg.cardId;
 
-         if (cardChange)
-         {  // change of TV card -> unload and reload driver
-#ifndef WITHOUT_TVCARD
+         if (sourceChange)
+         {  // change of TV card (may include switch between DsDrv and WDM)
             BtDriver_StopAcq();
 
             if (BtDriver_StartAcq() == FALSE)
@@ -815,32 +1456,39 @@ bool BtDriver_Configure( int cardIdx, int prio, int chipType, int cardType,
                   pVbiBuf->hasFailed = TRUE;
                result = FALSE;
             }
-#endif
          }
          else
-         {  // same card index: just update tuner type and PLL
-            if (tunerChange && (btCfg.tunerType != 0) && (btCfg.inputSrc == 0))
+         {  // same source: just update tuner type and PLL
+            if (drvType == BTDRV_SOURCE_PCI)
             {
-               Tuner_Init(btCfg.tunerType, &cardif);
-            }
+#ifndef WITHOUT_DSDRV
+               if (tunerChange && (btCfg.tunerType != 0) && (btCfg.inputSrc == 0))
+               {
+                  Tuner_Init(btCfg.tunerType, &cardif);
+               }
 
-            if (prioChange || pllChange)
-            {
-               cardif.ctl->Configure(btCfg.threadPrio, btCfg.pllType);
-            }
+               if (prioChange || pllChange)
+               {
+                  cardif.ctl->Configure(btCfg.threadPrio, btCfg.pllType);
+               }
 
-            if (cardTypeChange)
-            {
-               BtDriver_SetInputSource(btCfg.inputSrc, btCfg.tunerNorm, NULL);
+               if (cardTypeChange)
+               {
+                  BtDriver_SetInputSource(btCfg.inputSrc, btCfg.tunerNorm, NULL);
+               }
+#endif  // WITHOUT_DSDRV
+            }
+            else if (drvType == BTDRV_SOURCE_WDM)
+            {  // nothing to do for WDM source
             }
          }
       }
+      assert(!(pciDrvLoaded && wdmDrvLoaded));  // only one may be active at the same time
    }
    else
    {  // slave mode -> new card idx
-      if (cardChange)
+      if (sourceChange)
       {
-#ifndef WITHOUT_TVCARD
          BtDriver_StopAcq();
 
          if (BtDriver_StartAcq() == FALSE)
@@ -849,7 +1497,6 @@ bool BtDriver_Configure( int cardIdx, int prio, int chipType, int cardType,
                pVbiBuf->hasFailed = TRUE;
             result = FALSE;
          }
-#endif
       }
    }
 
@@ -896,9 +1543,34 @@ bool BtDriver_TuneChannel( int inputIdx, uint freq, bool keepOpen, bool * pIsTun
 
          if (shmSlaveMode == FALSE)
          {
-            if (drvLoaded)
+            if (pciDrvLoaded)
             {
+#ifndef WITHOUT_DSDRV
                result = Tuner_SetFrequency(btCfg.tunerType, freq, norm);
+#else
+               result = TRUE;
+#endif
+            }
+            else if (wdmDrvLoaded)
+            {
+               AnalogVideoStandard WdmNorm;
+               uint country;
+               sint channel;
+
+               channel = TvChannels_FreqToWdmChannel(freq, norm, &country);
+               if (channel != -1)
+               {
+                  WdmNorm = BtDriver_WdmMapNorm(norm);
+                  WdmSkipFields = 2 * 4;
+                  result = WDM_DRV_OK( WdmDrv.SetChannel(channel, country, WdmNorm) );
+
+                  if (result)
+                     dprintf4("TUNE: freq=%.2f, norm=%d: WDM channel=%d, country=%d\n", (double)freq/16.0, norm, channel, country);
+                  else
+                     debug4("FAILED to tune: freq=%.2f, norm=%d: WDM channel=%d, country=%d", (double)freq/16.0, norm, channel, country);
+               }
+               else
+                  debug2("BtDriver-TuneChannel: freq conversion failed for %.2f norm=%d", (double)freq/16.0, norm);
             }
             else
             {  // driver not loaded -> freq will be tuned upon acq start
@@ -907,7 +1579,7 @@ bool BtDriver_TuneChannel( int inputIdx, uint freq, bool keepOpen, bool * pIsTun
          }
          else
          {  // even in slave mode the TV app may have granted the tuner to us
-            result = WintvSharedMem_SetTunerFreq(freq);
+            result = WintvSharedMem_SetTunerFreq(freq, norm);
          }
       }
       else
@@ -922,6 +1594,7 @@ bool BtDriver_TuneChannel( int inputIdx, uint freq, bool keepOpen, bool * pIsTun
 //
 bool BtDriver_QueryChannel( uint * pFreq, uint * pInput, bool * pIsTuner )
 {
+   HRESULT hres;
    bool result = FALSE;
 
    if ((pFreq != NULL) && (pInput != NULL) && (pIsTuner != NULL))
@@ -930,19 +1603,30 @@ bool BtDriver_QueryChannel( uint * pFreq, uint * pInput, bool * pIsTuner )
       {
          *pFreq = btCfg.tunerFreq | (btCfg.tunerNorm << 24);
          *pInput = btCfg.inputSrc;
-         if (drvLoaded)
+         if (pciDrvLoaded)
+         {
             *pIsTuner = cardif.cfg->IsInputATuner(&cardif, btCfg.inputSrc);
+         }
+         else if (wdmDrvLoaded)
+         {
+            hres = WdmDrv.IsInputATuner(btCfg.inputSrc, pIsTuner);
+            if (WDM_DRV_OK(hres) == FALSE)
+            {
+               debug1("BtDriver-QueryChannel: failed to query if WDM input #%d is tuner", btCfg.inputSrc);
+               *pIsTuner = FALSE;
+            }
+         }
          else
             *pIsTuner = TRUE;
+
          result = TRUE;
       }
       else
       {
-         *pFreq = WintvSharedMem_GetTunerFreq();
-         *pInput = WintvSharedMem_GetInputSource();
-         *pIsTuner = TRUE;  // XXX TODO
+         *pInput = EPG_REQ_INPUT_NONE;  // dummy
 
-         result = (*pInput != EPG_REQ_INPUT_NONE) &&
+         result = WintvSharedMem_GetTunerFreq(pFreq, pIsTuner) &&
+                  (*pIsTuner) &&
                   (*pFreq != EPG_REQ_FREQ_NONE);
       }
    }
@@ -993,11 +1677,11 @@ const char * BtDriver_GetTunerName( uint idx )
 bool BtDriver_GetState( bool * pEnabled, bool * pHasDriver, uint * pCardIdx )
 {
    if (pEnabled != NULL)
-      *pEnabled = (shmSlaveMode | drvLoaded);
+      *pEnabled = (shmSlaveMode | pciDrvLoaded | wdmDrvLoaded);
    if (pHasDriver != NULL)
-      *pHasDriver = drvLoaded;
+      *pHasDriver = pciDrvLoaded | wdmDrvLoaded;
    if (pCardIdx != NULL)
-      *pCardIdx = btCfg.cardIdx;
+      *pCardIdx = btCfg.sourceIdx;
 
    return TRUE;
 }
@@ -1040,42 +1724,88 @@ bool BtDriver_Restart( void )
 //
 bool BtDriver_StartAcq( void )
 {
+   HRESULT wdmResult;
+   bool epgHasDriver;
    bool result = FALSE;
 
-   if ( (shmSlaveMode == FALSE) && (drvLoaded == FALSE) )
+   if ( (shmSlaveMode == FALSE) && (pciDrvLoaded == FALSE) && (wdmDrvLoaded == FALSE) )
    {
       // check if the configured card is currently free
-      shmSlaveMode = (WintvSharedMem_ReqTvCardIdx(btCfg.cardIdx) == FALSE);
+      shmSlaveMode = (WintvSharedMem_ReqTvCardIdx(btCfg.sourceIdx, &epgHasDriver) == FALSE);
       if (shmSlaveMode == FALSE)
       {
          if (pVbiBuf != NULL)
          {
-            // load driver & initialize driver for selected TV card
-            if (BtDriver_Load())
+            if (btCfg.drvType == BTDRV_SOURCE_PCI)
             {
-#ifndef WITHOUT_TVCARD
-               if (drvLoaded)
+               // load driver & initialize driver for selected TV card
+               if ( BtDriver_DsDrvLoad() )
                {
-                  pVbiBuf->hasFailed = FALSE;
-                  result = cardif.ctl->StartAcqThread();
-               }
-               else
-                  result = FALSE;
-
-               if (result == FALSE)
-                  DsDrvUnload();
+#ifndef WITHOUT_DSDRV
+                  if ( cardif.ctl->StartAcqThread() )
+                  {
+                     pVbiBuf->hasFailed = FALSE;
+                     result = TRUE;
+                  }
+                  else
+                  {
+                     BtDriver_DsDrvUnload();
+                  }
 #else
-               result = TRUE;
+                  result = TRUE;
 #endif
+               }
+               assert(pciDrvLoaded == result);
+
+               if ( (btCardCount != CARD_COUNT_UNINITIALIZED) &&
+                    (btCfg.sourceIdx >= btCardCount) )
+               {
+                  char msgbuf[200];
+
+                  if (btCardCount == 0)
+                     sprintf(msgbuf, "Cannot start EPG data acquisition because\n"
+                                     "no supported TV capture PCI cards have been found.");
+                  else
+                     sprintf(msgbuf, "Cannot start EPG data acquisition because\n"
+                                     "TV card #%d was not found on the PCI bus\n"
+                                     "(found %d supported TV capture cards)",
+                                     btCfg.sourceIdx, btCardCount);
+                  MessageBox(NULL, msgbuf, "nxtvepg driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+               }
             }
+            else if (btCfg.drvType == BTDRV_SOURCE_WDM)
+            {
+               if ( BtDriver_WdmLoad() )
+               {
+                  wdmResult = WdmDrv.StartAcq();
+                  if ( WDM_DRV_OK(wdmResult) )
+                  {
+                     pVbiBuf->hasFailed = FALSE;
+                     result = TRUE;
+                  }
+                  else
+                  {
+                     // XXX display error message
+                     BtDriver_WdmUnload();
+                  }
+                  dprintf2("BtDriver-StartAcq: WDM-result=%lu OK:%d\n", wdmResult, WDM_DRV_OK(wdmResult));
+               }
+               assert(wdmDrvLoaded == result);
+            }
+            else if (btCfg.drvType == BTDRV_SOURCE_NONE)
+            {
+               // TV card is disabled -> do nothing, return failure result code
+            }
+            else
+               debug1("BtDriver-StartAcq: invalid drv type %d", btCfg.drvType);
          }
 
          if (result == FALSE)
             WintvSharedMem_FreeTvCard();
       }
-      else
+      else if (epgHasDriver == FALSE)
       {  // TV card is already used by TV app -> slave mode
-         dprintf0("BtDriver-StartAcq: starting in slave mode");
+         dprintf0("BtDriver-StartAcq: starting in slave mode\n");
 
          assert(pVbiBuf == &vbiBuf);
          pVbiBuf = WintvSharedMem_GetVbiBuf();
@@ -1087,6 +1817,12 @@ bool BtDriver_StartAcq( void )
          }
          else
             WintvSharedMem_FreeTvCard();
+      }
+      else
+      {  // TV card already used by EPG app (e.g. EPG GUI: must stop acq before daemon can start)
+         debug1("BtDriver-StartAcq: card already busy by another EPG app: %d", epgHasDriver);
+         shmSlaveMode = FALSE;
+         result = FALSE;
       }
    }
    else
@@ -1101,17 +1837,25 @@ bool BtDriver_StartAcq( void )
 // ---------------------------------------------------------------------------
 // Stop acquisition
 // - the driver is automatically stopped and removed
+// - XXX TODO add recursion detection (in case we're called by exception handler)
 //
 void BtDriver_StopAcq( void )
 {
    if (shmSlaveMode == FALSE)
    {
-      if (drvLoaded)
+      if (pciDrvLoaded)
       {
+#ifndef WITHOUT_DSDRV
          cardif.ctl->StopAcqThread();
+#endif
+         BtDriver_DsDrvUnload();
       }
+      else if (wdmDrvLoaded)
+      {
+         WdmDrv.StopAcq();
 
-      BtDriver_Unload();
+         BtDriver_WdmUnload();
+      }
 
       // notify connected TV app that card & driver are now free
       WintvSharedMem_FreeTvCard();
@@ -1120,7 +1864,7 @@ void BtDriver_StopAcq( void )
    {
       if (pVbiBuf != NULL)
       {
-         dprintf0("BtDriver-StopAcq: stopping slave mode acq");
+         dprintf0("BtDriver-StopAcq: stopping slave mode acq\n");
 
          // clear requests in shared memory
          WintvSharedMem_FreeTvCard();
@@ -1160,10 +1904,16 @@ bool BtDriver_Init( void )
    pVbiBuf = &vbiBuf;
 
    memset(&btCfg, 0, sizeof(btCfg));
+   memset(&cardif, 0, sizeof(cardif));
+   btCfg.drvType   = BTDRV_SOURCE_NONE;
    btCfg.tunerType = TUNER_ABSENT;
    btCfg.inputSrc  = INVALID_INPUT_SOURCE;
    btCardCount = CARD_COUNT_UNINITIALIZED;
-   drvLoaded = FALSE;
+   WdmSrcCount = CARD_COUNT_UNINITIALIZED;
+   pciDrvLoaded = FALSE;
+   wdmDrvLoaded = FALSE;
+
+   WdmDrvHandle = NULL;
 
    return TRUE;
 }
@@ -1174,11 +1924,13 @@ bool BtDriver_Init( void )
 //
 void BtDriver_Exit( void )
 {
-   if (drvLoaded)
+   if (pciDrvLoaded || wdmDrvLoaded)
    {  // acq is still running - should never happen
       BtDriver_StopAcq();
    }
    // release dynamically loaded TV card lists
    BtDriver_PciCardsRelease();
+   // the WDM driver may be loaded even while acq is disabled (for TV card config dialog)
+   BtDriver_WdmDllFree();
 }
 

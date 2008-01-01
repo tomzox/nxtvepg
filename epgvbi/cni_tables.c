@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: cni_tables.c,v 1.31 2006/12/18 16:14:50 tom Exp $
+ *  $Id: cni_tables.c,v 1.33 2007/12/31 16:20:31 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -980,63 +980,21 @@ uint CniConvertUnknownToPdc( uint cni )
    pdcCni = CniConvertP8301ToVps(cni);
    if (pdcCni == cni)
    {
-      pdcCni = CniConvertPdcToVps(cni);
-   }
-   return pdcCni;
-}
-
-// ---------------------------------------------------------------------------
-// List of networks who are known to transmit Nextview
-//
-static const uint cni_prov_table[] =
-{
-   //0x0D8F,  // RTL-II (Germany) - deceased Mar/1/2006
-   //0x1D8F,
-   0x0D92,  // Kabel1 (Germany)
-   0x1D92,
-   //0x0D94,  // PRO7 (Germany) - deceased Apr/14/2002
-   //0x1D94,
-   //0x0DC7,  // 3SAT (Germany) - deceased May/31/2003
-   //0x1DC7,
-   0x2FE1,  // EuroNews (Germany)
-   0xFE01,
-   0x24C1,  // SF1 (Switzerland)
-   0x4101,
-   0x24C2,  // TSR1 (Switzerland)
-   0x4102,
-   0x24C3,  // TSI1 (Switzerland)
-   0x4103,
-   0x2FE5,  // TV5 (France)
-   0xF500,
-   0x2F04,  // Canal+ (France)
-   0x33F4,
-   0x2F06,  // M6 (France)
-   //0x1604,  // VT4 (Belgium) - deceased March 2006
-   //0x0404,
-   0x9001,  // TRT-1 (Turkey)
-   0
-};
-
-// ---------------------------------------------------------------------------
-// Check if the given CNI belongs to a known Nextview provider
-//
-bool CniIsKnownProvider( uint cni )
-{
-   const uint * pCni;
-   bool result = FALSE;
-
-   if (cni != 0)
-   {
-      for (pCni = cni_prov_table; *pCni != 0; pCni++)
+      //pdcCni = CniConvertPdcToVps(cni);
+      switch (pdcCni >> 8)
       {
-         if (*pCni == cni)
-         {
-            result = TRUE;
+         case 0x1D:  // country code for Germany
+         case 0x1A:  // country code for Autria
+         case 0x24:  // country code for Switzerland
+         case 0x77:  // country code for Ukraine
+            // discard the upper 4 bits of the country code
+            pdcCni &= 0x0fff;
             break;
-         }
+
+         default:
+            break;
       }
    }
-
-   return result;
+   return pdcCni;
 }
 

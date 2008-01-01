@@ -19,7 +19,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_prov.tcl,v 1.14 2004/12/24 10:20:59 tom Exp tom $
+#  $Id: dlg_prov.tcl,v 1.21 2007/12/29 21:03:39 tom Exp tom $
 #
 set provwin_popup 0
 set provmerge_popup 0
@@ -32,10 +32,31 @@ set epgscan_opt_ftable 0
 set tzcfg_default {1 60 0}
 set timezone_popup 0
 
+# called by tv application config dialog
+proc EpgScan_UpdateTvApp {} {
+   global epgscan_opt_ftable
+   global epgscan_popup
+
+   if $epgscan_popup {
+      if {![C_Tvapp_Enabled]} {
+         .epgscan.all.ftable.tab0 configure -state disabled
+         if {$epgscan_opt_ftable == 0} {
+            set epgscan_opt_ftable 1
+         }
+      } else {
+         if {[string compare [.epgscan.all.ftable.tab0 cget -state] "disabled"] == 0} {
+            .epgscan.all.ftable.tab0 configure -state normal
+            set epgscan_opt_ftable 0
+         }
+      }
+      set tvapp_name [TvAppGetName]
+      .epgscan.all.ftable.tab0 configure -text "Load from $tvapp_name"
+   }
+}
+
 #=LOAD=ProvWin_Create
 #=LOAD=PopupProviderMerge
 #=LOAD=PopupEpgScan
-#=LOAD=PopupTimeZone
 #=DYNAMIC=
 
 ##  --------------------------------------------------------------------------
@@ -74,8 +95,9 @@ proc ProvWin_Create {} {
       frame .provwin.n.b
       scrollbar .provwin.n.b.sb -orient vertical -command {.provwin.n.b.list yview} -takefocus 0
       pack .provwin.n.b.sb -side left -fill y
-      listbox .provwin.n.b.list -relief ridge -selectmode single -exportselection 0 \
-                                -width 12 -height 5 -yscrollcommand {.provwin.n.b.sb set}
+      listbox .provwin.n.b.list -width 12 -height 5 -selectmode single -exportselection 0 \
+                                -yscrollcommand {.provwin.n.b.sb set}
+      relief_listbox .provwin.n.b.list
       pack .provwin.n.b.list -side left -fill both -expand 1
       pack .provwin.n.b -side left -fill both -expand 1
       bind .provwin.n.b.list <<ListboxSelect>> ProvWin_Select
@@ -190,9 +212,7 @@ proc ProvWin_Exit {} {
 proc PopupProviderMerge {} {
    global provmerge_popup
    global provmerge_ailist provmerge_selist provmerge_names provmerge_cf
-   global prov_merge_cnis prov_merge_cf
    global ProvmergeOptLabels
-   global cfnetwops
 
    if {$provmerge_popup == 0} {
       # get CNIs and names of all known providers
@@ -202,19 +222,17 @@ proc PopupProviderMerge {} {
          set provmerge_names($cni) $name
       }
       set provmerge_ailist [SortProvList $provmerge_ailist]
-      if {[info exists prov_merge_cnis]} {
-         set provmerge_selist {}
-         foreach cni $prov_merge_cnis {
-            if {[lsearch -exact $provmerge_ailist $cni] != -1} {
-               lappend provmerge_selist $cni
-            }
+
+      set provmerge_selist {}
+      foreach cni [C_GetMergeProviderList] {
+         if {[lsearch -exact $provmerge_ailist $cni] != -1} {
+            lappend provmerge_selist $cni
          }
-      } else {
+      }
+      if {[llength $provmerge_selist] == 0} {
          set provmerge_selist $provmerge_ailist
       }
-      if {[info exists prov_merge_cf]} {
-         catch {array set provmerge_cf $prov_merge_cf}
-      }
+      catch {array set provmerge_cf [C_GetMergeOptions]}
 
       if {[llength $provmerge_ailist] == 0} {
          # no providers found -> abort
@@ -250,8 +268,8 @@ proc PopupProviderMerge {} {
          cfmisc "misc. features"
          cfvps "VPS/PDC label"
       }
-      menubutton .provmerge.mb -menu .provmerge.mb.men -relief raised -borderwidth 1 \
-                               -text "Configure" -underline 0
+      menubutton .provmerge.mb -menu .provmerge.mb.men -text "Configure" -underline 0
+      config_menubutton .provmerge.mb
       pack .provmerge.mb -side top
       menu .provmerge.mb.men -tearoff 0
       .provmerge.mb.men add command -command {PopupProviderMergeOpt cftitle} -label $ProvmergeOptLabels(cftitle)
@@ -369,7 +387,6 @@ proc ProvMerge_Reset {} {
 proc ProvMerge_Quit {cause} {
    global provmerge_popup provmergeopt_popup
    global provmerge_selist provmerge_cf
-   global prov_merge_cnis prov_merge_cf
    global provmerge_names ProvmergeOptLabels
 
    # check the configuration parameters for consistancy
@@ -421,15 +438,9 @@ proc ProvMerge_Quit {cause} {
 
    # if closed with OK button, start the merge
    if {[string compare $cause "Ok"] == 0} {
-      # save the configuration into global variables
-      set prov_merge_cnis $provmerge_selist 
-      set prov_merge_cf $tmp_cf
-
-      # save the configuration into the rc/ini file
-      UpdateRcFile
 
       # perform the merge and load the new database into the browser
-      C_ProvMerge_Start
+      C_ProvMerge_Start $provmerge_selist $tmp_cf
    }
 }
 
@@ -438,19 +449,16 @@ proc ProvMerge_Quit {cause} {
 ##
 proc PopupEpgScan {} {
    global is_unix env font_fixed font_normal text_fg text_bg
-   global prov_freqs
-   global tvapp_name
-   global hwcf_cardidx tvcardcf
    global epgscan_popup
    global epgscan_opt_slow epgscan_opt_refresh epgscan_opt_ftable
+   global epgscan_enable_refresh
 
    if {$epgscan_popup == 0} {
       if [C_IsNetAcqActive clear_errors] {
          # acquisition is not running local -> abort
          tk_messageBox -type ok -icon error -message "EPG scan cannot be started: you must disconnect from the acquisition daemon via the Control menu first."
          return
-      } elseif {!$is_unix && \
-                ![info exists tvcardcf($hwcf_cardidx)]} {
+      } elseif {![C_CheckTvCardConfig]} {
          # TV card has not been configured yet -> abort
          tk_messageBox -type ok -icon info -message "Before you start the scan, please do configure your card type in the 'TV card input' sub-menu of the Configure menu."
          return
@@ -470,13 +478,13 @@ proc PopupEpgScan {} {
       button .epgscan.cmd.start -text "Start scan" -width 12 -command EpgScan_Start
       button .epgscan.cmd.stop -text "Abort scan" -width 12 -command C_StopEpgScan -state disabled
       button .epgscan.cmd.help -text "Help" -width 12 -command {PopupHelp $helpIndex(Configuration) "Provider scan"}
-      button .epgscan.cmd.dismiss -text "Dismiss" -width 12 -command {destroy .epgscan}
-      pack .epgscan.cmd.start .epgscan.cmd.stop .epgscan.cmd.help .epgscan.cmd.dismiss -side top -padx 10 -pady 10
+      button .epgscan.cmd.ok -text "Ok" -width 12 -command {destroy .epgscan}
+      pack .epgscan.cmd.start .epgscan.cmd.stop .epgscan.cmd.help .epgscan.cmd.ok -side top -padx 10 -pady 10
       pack .epgscan.cmd -side left
 
-      frame .epgscan.all -relief raised -bd 2
+      frame .epgscan.all -relief raised -borderwidth 1
       # progress bar
-      frame .epgscan.all.baro -width 140 -height 15 -relief sunken -borderwidth 2
+      frame .epgscan.all.baro -width 140 -height 15 -relief sunken -borderwidth 1
       pack propagate .epgscan.all.baro 0
       frame .epgscan.all.baro.bari -width 0 -height 11 -background blue
       pack propagate .epgscan.all.baro.bari 0
@@ -493,7 +501,7 @@ proc PopupEpgScan {} {
       pack .epgscan.all.fmsg -side top -padx 10 -fill both -expand 1
 
       # frequency table radio buttons
-      frame .epgscan.all.ftable -borderwidth 2 -relief sunken
+      frame .epgscan.all.ftable -relief sunken -borderwidth 1
       label .epgscan.all.ftable.label -text "Channel table:"
       radiobutton .epgscan.all.ftable.tab1 -text "Western Europe" -variable epgscan_opt_ftable -value 1
       radiobutton .epgscan.all.ftable.tab2 -text "France" -variable epgscan_opt_ftable -value 2
@@ -502,11 +510,10 @@ proc PopupEpgScan {} {
       pack .epgscan.all.ftable.tab1 .epgscan.all.ftable.tab2 .epgscan.all.ftable.tab0 -side left -expand 1 -pady 3
       pack .epgscan.all.ftable -side top -padx 10 -fill x
 
-      trace variable tvapp_name w EpgScan_CheckTvAppStatus
-      EpgScan_CheckTvAppStatus foo bar bar2
+      EpgScan_UpdateTvApp
 
       # mode buttons
-      frame   .epgscan.all.opt -borderwidth 2 -relief sunken
+      frame   .epgscan.all.opt -relief sunken -borderwidth 1
       checkbutton .epgscan.all.opt.refresh -text "Refresh only" -variable epgscan_opt_refresh
       checkbutton .epgscan.all.opt.slow -text "Slow" -variable epgscan_opt_slow -command {C_SetEpgScanSpeed $epgscan_opt_slow}
       pack    .epgscan.all.opt.refresh .epgscan.all.opt.slow -side left -padx 5
@@ -518,8 +525,9 @@ proc PopupEpgScan {} {
 
 
       # check if provider frequencies are available
-      UpdateProvFrequency [C_LoadProvFreqsFromDbs]
-      if {[llength $prov_freqs] > 0} {
+      set freqs_count [C_LoadProvFreqsFromDbs]
+      if {$freqs_count > 0} {
+         set epgscan_enable_refresh 1
          .epgscan.all.fmsg.msg insert end "To remove obsolete providers or fix database problems\nenable the "
          checkbutton .epgscan.all.fmsg.msg.refresh -text "Refresh only" -variable epgscan_opt_refresh \
                                                    -font $font_fixed -foreground $text_fg -background $text_bg -cursor top_left_arrow
@@ -527,6 +535,7 @@ proc PopupEpgScan {} {
          .epgscan.all.fmsg.msg insert end "option.\n\n"
       } else {
          .epgscan.all.opt.refresh configure -state disabled
+         set epgscan_enable_refresh 0
       }
 
       pack .epgscan.all -side top -fill both -expand 1
@@ -546,7 +555,6 @@ proc PopupEpgScan {} {
 # callback for "Start" button
 proc EpgScan_Start {} {
    global epgscan_opt_slow epgscan_opt_refresh epgscan_opt_ftable
-   global hwcf_input
    global is_unix
 
    if {[C_IsNetAcqActive clear_errors]} {
@@ -555,25 +563,22 @@ proc EpgScan_Start {} {
       return
    }
 
-   UpdateRcFile
-
-   C_StartEpgScan $hwcf_input $epgscan_opt_slow $epgscan_opt_refresh $epgscan_opt_ftable
+   C_StartEpgScan $epgscan_opt_slow $epgscan_opt_refresh $epgscan_opt_ftable
 }
 
-# callback for dialog destruction (including "Dismiss" button)
+# callback for dialog destruction (including "OK" button)
 proc EpgScan_Quit {} {
-   global tvapp_name
    global epgscan_popup
 
    set epgscan_popup 0
-   trace vdelete tvapp_name w EpgScan_CheckTvAppStatus
 
    C_StopEpgScan
 }
 
 # called after start or stop of EPG scan to update button states
 proc EpgScanButtonControl {is_start} {
-   global is_unix env prov_freqs
+   global is_unix env
+   global epgscan_enable_refresh
 
    if {[string compare $is_start "start"] == 0} {
       # grab input focus to prevent any interference with the scan
@@ -582,7 +587,7 @@ proc EpgScanButtonControl {is_start} {
       .epgscan.cmd.start configure -state disabled
       .epgscan.cmd.stop configure -state normal
       .epgscan.cmd.help configure -state disabled
-      .epgscan.cmd.dismiss configure -state disabled
+      .epgscan.cmd.ok configure -state disabled
       .epgscan.all.opt.refresh configure -state disabled
       .epgscan.all.ftable.tab0 configure -state disabled
       .epgscan.all.ftable.tab1 configure -state disabled
@@ -604,13 +609,13 @@ proc EpgScanButtonControl {is_start} {
          .epgscan.cmd.start configure -state normal
          .epgscan.cmd.stop configure -state disabled
          .epgscan.cmd.help configure -state normal
-         .epgscan.cmd.dismiss configure -state normal
+         .epgscan.cmd.ok configure -state normal
          if {!$is_unix} {
             .epgscan.all.opt.cfgtvcard configure -state normal
             .epgscan.all.opt.cfgtvpp configure -state normal
          }
          # enable option checkboxes only if they were enabled before the scan
-         if {[llength $prov_freqs] > 0} {
+         if $epgscan_enable_refresh {
             .epgscan.all.opt.refresh configure -state normal
          }
          if {[C_Tvapp_Enabled]} {
@@ -628,14 +633,12 @@ proc EpgScanButtonControl {is_start} {
 
 # callback for "Remove provider" button in the scan message window
 proc EpgScanDeleteProvider {cni} {
-   global prov_selection prov_freqs cfnetwops
-   global prov_merge_cnis prov_merge_cf acq_mode_cnis
 
    if {[string compare [.epgscan.cmd.start cget -state] normal] != 0} {
       # EPG scan not finished yet
       return
    }
-   if {([lsearch -exact $prov_merge_cnis $cni] != -1) &&
+   if {([lsearch -exact [C_GetMergeProviderList] $cni] != -1) &&
        ([C_GetCurrentDatabaseCni] == 0x00FF)} {
       tk_messageBox -type ok -icon error -parent .epgscan \
                     -message "You're still using this provider in the merged database. Please adapt your merge configuration first or select a single provider."
@@ -655,188 +658,11 @@ proc EpgScanDeleteProvider {cni} {
             -message "Failed to remove the database file: $err_str"
       } else {
 
-         set idx [lsearch -exact $prov_selection $cni]
-         if {$idx != -1} {
-            set prov_selection [lreplace $prov_selection $idx $idx]
-         }
-         set idx [lsearch -exact $prov_freqs $cni]
-         if {$idx != -1} {
-            set prov_freqs [lreplace $prov_freqs $idx [expr $idx + 1]]
-         }
-         array unset cfnetwops $cni
-
-         # remove from manual/cyclic acquisition mode provider list
-         set idx [lsearch -exact $acq_mode_cnis $cni]
-         if {$idx != -1} {
-            set acq_mode_cnis [lreplace $acq_mode_cnis $idx $idx]
-            C_UpdateAcquisitionMode
-         }
-         # remove from merge configuration
-         set idx [lsearch -exact $prov_merge_cnis $cni]
-         if {$idx != -1} {
-            set prov_merge_cnis [lreplace $prov_merge_cnis $idx $idx]
-
-            if [info exists prov_merge_cf] {
-               set tmp_cf {}
-               foreach {name vlist} $prov_merge_cf {
-                  set idx [lsearch -exact $vlist $cni]
-                  if {$idx != -1} {
-                     set vlist [lreplace $vlist $idx $idx]
-                  }
-                  if {[llength $vlist] > 0} {
-                     lappend tmp_cf $name $vlist
-                  }
-               }
-               set prov_merge_cf $tmp_cf
-            }
-            # already checked above that merged db is not open, so no need to re-merge here
-         }
-
          UpdateRcFile
 
          # disable the button so that the user can't invoke it again
          catch [.epgscan.all.fmsg.msg.del_prov_$cni configure -state disabled]
       }
    }
-}
-
-# trace callback for variable tvapp_name to update freq. table options
-proc EpgScan_CheckTvAppStatus {n1 n1 v} {
-   global tvapp_name
-   global epgscan_opt_ftable
-   global epgscan_popup
-
-   if $epgscan_popup {
-      if {![C_Tvapp_Enabled]} {
-         .epgscan.all.ftable.tab0 configure -state disabled
-         if {$epgscan_opt_ftable == 0} {
-            set epgscan_opt_ftable 1
-         }
-      } else {
-         if {[string compare [.epgscan.all.ftable.tab0 cget -state] "disabled"] == 0} {
-            .epgscan.all.ftable.tab0 configure -state normal
-            set epgscan_opt_ftable 0
-         }
-      }
-      .epgscan.all.ftable.tab0 configure -text "Load from $tvapp_name"
-   }
-}
-
-## ---------------------------------------------------------------------------
-## Time zone configuration popup
-##
-proc PopupTimeZone {} {
-   global entry_disabledforeground
-   global tzcfg tzcfg_default
-   global tz_auto_sel tz_lto_sel tz_daylight_sel
-   global timezone_popup
-
-   if {$timezone_popup == 0} {
-      CreateTransientPopup .timezone "Configure time zone"
-      set timezone_popup 1
-
-      if {![info exists tzcfg]} {
-         set tzcfg $tzcfg_default
-      }
-      set tz_auto_sel [lindex $tzcfg 0]
-      set tz_lto_sel [lindex $tzcfg 1]
-      set tz_daylight_sel [lindex $tzcfg 2]
-
-      frame .timezone.f1
-      message .timezone.msg -aspect 400 -text \
-"All times and dates in Nextview are transmitted in UTC \
-(Universal Coordinated Time, formerly known as Greenwhich Mean Time) \
-and have to be converted to your local time by adding the local time offset. \
-If the offset given below is not correct, switch to manual mode and enter \
-the correct value."
-      pack .timezone.msg -side top -pady 5 -padx 5
-      radiobutton .timezone.f1.auto -text "automatic" -variable tz_auto_sel -value 1 -command {ToggleTimeZoneAuto 1}
-      radiobutton .timezone.f1.manu -text "manual" -variable tz_auto_sel -value 0 -command {ToggleTimeZoneAuto 0}
-      pack .timezone.f1.auto .timezone.f1.manu -side left -padx 10
-      pack .timezone.f1 -side top -pady 10
-
-      frame .timezone.f2 -borderwidth 1 -relief raised
-      label .timezone.f2.name -text ""
-      frame .timezone.f2.ft
-      label .timezone.f2.ft.l1 -text "Local time offset: "
-      entry .timezone.f2.ft.entry -width 4 -textvariable tz_lto_sel $entry_disabledforeground black
-      bind  .timezone.f2.ft.entry <Enter> {SelectTextOnFocus %W}
-      bind  .timezone.f2.ft.entry <Return> {tkButtonInvoke .timezone.cmd.ok}
-      label .timezone.f2.ft.l2 -text " minutes"
-      pack .timezone.f2.ft.l1 .timezone.f2.ft.entry .timezone.f2.ft.l2 -side left
-      checkbutton .timezone.f2.daylight -text "Daylight saving time (+60 minutes)" -variable tz_daylight_sel
-      pack .timezone.f2.name .timezone.f2.ft .timezone.f2.daylight -side top -pady 5 -padx 5
-      pack .timezone.f2 -side top -pady 10 -fill x
-
-      frame .timezone.cmd
-      button .timezone.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Configuration)}
-      button .timezone.cmd.abort -text "Abort" -width 5 -command {destroy .timezone}
-      button .timezone.cmd.ok -text "Ok" -width 5 -command ApplyTimeZone -default active
-      pack .timezone.cmd.help .timezone.cmd.abort .timezone.cmd.ok -side left -padx 10
-
-      bind .timezone <Key-F1> {PopupHelp $helpIndex(Configuration)}
-      bind .timezone.cmd <Destroy> {+ set timezone_popup 0}
-      focus .timezone.f2.ft.entry
-
-      pack .timezone.cmd -side top -pady 10
-
-      ToggleTimeZoneAuto $tz_auto_sel
-   } else {
-      raise .timezone
-   }
-}
-
-# called after auto/manual radio was toggled
-proc ToggleTimeZoneAuto {newval} {
-   global tz_auto_sel tz_lto_sel tz_daylight_sel
-
-   if {$newval} {
-      # fetch default values
-      set tzarr [C_GetTimeZone]
-      set tz_lto_sel [lindex $tzarr 0]
-      set tz_daylight_sel [lindex $tzarr 1]
-      .timezone.f2.name configure -text "Time zone name: [lindex $tzarr 2]"
-
-      .timezone.f2.ft.entry configure -state disabled
-      .timezone.f2.daylight configure -state disabled
-      .timezone.f2.ft.l1 configure -state disabled
-      .timezone.f2.ft.l2 configure -state disabled
-   } else {
-      .timezone.f2.ft.entry configure -state normal
-      .timezone.f2.daylight configure -state normal
-      .timezone.f2.ft.l1 configure -state normal
-      .timezone.f2.ft.l2 configure -state normal
-   }
-}
-
-# called after the OK button was pressed
-proc ApplyTimeZone {} {
-   global tz_auto_sel tz_lto_sel tz_daylight_sel
-   global tzcfg
-
-   if {$tz_auto_sel == 0} {
-      # check if the manually configured LTO is a valid integer
-      if {[scan $tz_lto_sel "%d" lto] != 1} {
-         tk_messageBox -type ok -default ok -icon error -parent .timezone -message "Invalid input format in LTO '$tz_lto_sel'\nMust be positive or negative decimal integer."
-         return
-      }
-      # check if the value is within bounds of +/- 12 hours
-      if {($lto < -12*60) || ($lto > 12*60)} {
-         tk_messageBox -type ok -default ok -icon error -parent .timezone -message "Invalid LTO: $lto\nThe maximum absolute value is 12 hours."
-         return
-      }
-      # warn if it's not a half-hour value
-      # then the user probably has mistakenly entered hours instead of minutes
-      if {($lto % 30) != 0} {
-         set answer [tk_messageBox -type okcancel -icon warning -parent .timezone -message "Warning: the given LTO value '$lto minutes' is not a complete hour or half hour.\nMaybe you entered an hour value instead of minutes?\nDo you still want to set this LTO?"]
-         if {[string compare $answer "ok"] != 0} {
-            return
-         }
-      }
-   }
-
-   set tzcfg [list $tz_auto_sel $tz_lto_sel $tz_daylight_sel]
-
-   destroy .timezone
 }
 

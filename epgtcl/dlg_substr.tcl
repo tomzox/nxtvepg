@@ -26,7 +26,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_substr.tcl,v 1.2 2003/09/15 20:12:21 tom Exp tom $
+#  $Id: dlg_substr.tcl,v 1.4 2007/12/29 21:12:55 tom Exp tom $
 #
 set substr_grep_title 1
 set substr_grep_descr 1
@@ -60,7 +60,7 @@ proc SubStrPopup {} {
       frame .substr.all
       label .substr.all.lab_stack -text "Currently active search texts:" -font $::font_normal
       pack  .substr.all.lab_stack -side top -anchor w
-      frame .substr.all.stack -borderwidth 2 -relief ridge
+      frame .substr.all.stack -borderwidth 2 -relief groove
       scrollbar .substr.all.stack.list_sb -orient vertical -command [list .substr.all.stack.selist yview] -takefocus 0
       pack      .substr.all.stack.list_sb -side left -fill y
       mclistbox::mclistbox .substr.all.stack.selist -relief ridge -columnrelief flat -labelanchor c \
@@ -125,7 +125,7 @@ proc SubStrPopup {} {
       button .substr.all.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Filtering) "Text search"}
       button .substr.all.cmd.clear -text "Clear" -width 5 -command {ResetSubstr; SubstrUpdateFilter 0}
       button .substr.all.cmd.apply -text "Apply" -width 5 -command {SubstrUpdateFilter 1}
-      button .substr.all.cmd.dismiss -text "Dismiss" -width 5 -command Substr_DialogClose
+      button .substr.all.cmd.dismiss -text "Ok" -width 5 -command {SubstrUpdateFilter 1; Substr_DialogClose}
       pack .substr.all.cmd.help .substr.all.cmd.clear .substr.all.cmd.apply .substr.all.cmd.dismiss -side left -padx 10
       pack .substr.all.cmd -side top -pady 10
 
@@ -183,31 +183,33 @@ proc SubStrPopupHistoryMenu {} {
 
 # fill listbox with currently active substr filters
 proc Substr_FillListbox {} {
-   global substr_pattern
+   global substr_popup substr_pattern
    global substr_stack substr_history
 
-   set sel_idx -1
-   set idx 0
-   .substr.all.stack.selist delete 0 end
-   for {set idx 0} {$idx < [llength $substr_stack]} {incr idx} {
-      set elem [lindex $substr_stack $idx]
-      set ltmp [list [lindex $elem 0]]
-      foreach bool_val [lrange $elem 1 4] {
-         if $bool_val {
-            lappend ltmp yes
-         } else {
-            lappend ltmp no
+   if $substr_popup {
+      set sel_idx -1
+      set idx 0
+      .substr.all.stack.selist delete 0 end
+      for {set idx 0} {$idx < [llength $substr_stack]} {incr idx} {
+         set elem [lindex $substr_stack $idx]
+         set ltmp [list [lindex $elem 0]]
+         foreach bool_val [lrange $elem 1 4] {
+            if $bool_val {
+               lappend ltmp yes
+            } else {
+               lappend ltmp no
+            }
+         }
+         .substr.all.stack.selist insert end $ltmp
+
+         if {[string compare [lindex $elem 0] $substr_pattern] == 0} {
+            set sel_idx $idx
          }
       }
-      .substr.all.stack.selist insert end $ltmp
-
-      if {[string compare [lindex $elem 0] $substr_pattern] == 0} {
-         set sel_idx $idx
+      if {$sel_idx != -1} {
+         .substr.all.stack.selist selection set $sel_idx
+         .substr.all.stack.selist see $sel_idx
       }
-   }
-   if {$sel_idx != -1} {
-      .substr.all.stack.selist selection set $sel_idx
-      .substr.all.stack.selist see $sel_idx
    }
 }
 

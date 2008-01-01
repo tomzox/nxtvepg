@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgblock.c,v 1.54.1.1 2006/12/21 22:24:05 tom Exp $
+ *  $Id: epgblock.c,v 1.60 2007/01/20 20:06:30 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -83,7 +83,7 @@ void EpgBlockSetAlphabets( const AI_BLOCK *pAiBlock )
       now = time(NULL);
       provLtoDaily = (EpgLtoGet(now) != EpgLtoGet(now + (maxDayCount + 2) * 24*60*60));
 
-      if ( CniGetProviderLto(AI_GET_NETWOP_N(pAiBlock, pAiBlock->thisNetwop)->cni, &provTimeZone) == FALSE )
+      if ( CniGetProviderLto(AI_GET_NETWOP_N(pAiBlock, pAiBlock->thisNetwop)->netCni, &provTimeZone) == FALSE )
       {  // unknown CNI -> assume times are UTC, 
          provTimeZone = AI_GET_NETWOP_N(pAiBlock, pAiBlock->thisNetwop)->lto;
       }
@@ -94,6 +94,11 @@ void EpgBlockSetAlphabets( const AI_BLOCK *pAiBlock )
       pTm = localtime(&now);
       provLtoDelta = provTimeZone + (provLtoDaily ? 0 : (pTm->tm_isdst * 60*60))
                    - AI_GET_NETWOP_N(pAiBlock, pAiBlock->thisNetwop)->lto * 15*60;
+#ifdef DEBUG_SWITCH_LTO
+      printf("AI: delta:%d zone:%d daily:%d DST:%d LTO:%d\n",
+             provLtoDelta, provTimeZone, provLtoDaily, pTm->tm_isdst,
+             AI_GET_NETWOP_N(pAiBlock, pAiBlock->thisNetwop)->lto);
+#endif
    }
    else
       debug0("EpgBlock-SetAlphabets: illegal NULL ptr param");
@@ -178,6 +183,11 @@ void EpgLtoInit( void )
    pTm = gmtime(&unixTimeBase1982);
    pTm->tm_isdst = -1;
    unixTimeBase1982 += (unixTimeBase1982 - mktime(pTm));
+
+#ifdef DEBUG_SWITCH_LTO
+   printf("LTO-INIT: base:%ld dst:%d -> dst:%d zone:%ld\n",
+          (long)unixTimeBase1982, tm.tm_isdst, pTm->tm_isdst, (long)timezone);
+#endif
 }
 
 // ----------------------------------------------------------------------------
@@ -237,6 +247,167 @@ static void SetStartAndStopTime(uint bcdStart, uint julian, uint bcdStop, PI_BLO
       pPiBlock->stop_time  -= provLtoDelta;
    }
 }
+
+#ifdef USE_UTF8
+
+// ----------------------------------------------------------------------------
+// "Second G0 Set Designation and National Option Set Selection"
+// - conforming to ETS 300 706, chapter 15.3: table 33
+//
+static const uint natOptChars[][16] =
+{
+    // English (ASCII + Latin-A)
+    //{ '£',   '$',   '@',   '«',   '½',   '»',   '|',   '#',   '­',   '¼',   '¦',   '¾',   '÷' },
+    { 0x0A3,   '$',   '@', 0x0AB, 0x0BD, 0x0BB, 0x0A6,   '#', 0x0AF, 0x0BC, 0x0B6, 0x0BE, 0x0F7 },
+    // German (ASCII + Latin-A)
+    //{ '#',   '$',   '§',   'Ä',   'Ö',   'Ü',   '^',   '_',   '°',   'ä',   'ö',   'ü',   'ß' },
+    {   '#',   '$', 0x0A7, 0x0C4, 0x0D6, 0x0DC,   '^',   '_', 0x0B0, 0x0E4, 0x0F6, 0x0FC, 0x0DF },
+    // Swedish/Finnish/Hungarian (ASCII + Latin-A)
+    //{ '#',   '¤',   'É',   'Ä',   'Ö',   'Å',   'Ü',   '_',   'é',   'ä',   'ö',   'å',   'ü' },
+    {   '#', 0x0A4, 0x0C9, 0x0C4, 0x0D6, 0x0C5, 0x0DC,   '_', 0x0E9, 0x0E4, 0x0F6, 0x0E5, 0x0FC },
+    // Italian (ASCII + Latin-A)
+    //{ '£',   '$',   'é',   '°',   'ç',   '»',   '¬',   '#',   'ù',   'à',   'ò',   'è',   'ì' },
+    { 0x0A3,   '$', 0x0E9, 0x0B0, 0x0E7, 0x0BB, 0x0A6,   '#', 0x0F9, 0x0E0, 0x0F2, 0x0E8, 0x0EC },
+    // French (ASCII + Latin-A)
+    //{ 'é',   'ï',   'à',   'ë',   'ê',   'ù',   'î',   '#',   'è',   'â',   'ô',   'û',   'ç' },
+    { 0x0E9, 0x0EF, 0x0E0, 0x0EB, 0x0EA, 0x0F9, 0x0EE,   '#', 0x0E8, 0x0E2, 0x0F4, 0x0FB, 0x0E7 },
+    // Portuguese/Spanish (ASCII + Latin-A)
+    //{ 'ç',   '$',   '¡',   'á',   'é',   'í',   'ó',   'ú',   '¿',   'ü',   'ñ',   'è',   'à' },
+    { 0x0E7,   '$', 0x0A1, 0x0E1, 0x0E9, 0x0ED, 0x0F3, 0x0FA, 0x0BF, 0x0FC, 0x0F1, 0x0E8, 0x0E0 },
+    // Czech/Slovak (ASCII + Latin-A + Latin-B)
+    //{ '#',   'u',   'c',   't',   'z',   'ý',   'í',   'r',   'é',   'á',   'e',   'ú',   's' },
+    {   '#', 0x16F, 0x10D, 0x165, 0x17E, 0x0FD, 0x0ED, 0x159, 0x0E9, 0x0E1, 0x11B, 0x0FA, 0x161 },
+    // reserved (English mapping)
+    { 0x0A3,   '$',   '@', 0x0AB, 0x0BD, 0x0BB, 0x0A6,   '#', 0x0AF, 0x0BC, 0x0B6, 0x0BE, 0x0F7 },
+    // Polish (ASCII + Latin-A + Latin-B)
+    //{ '#',   'n',   'a',   'Z',   'S',   'L',   'c',   'o',   'e',   'z',   's',   'l',   'z' },
+    {   '#', 0x144, 0x105, 0x17B, 0x15A, 0x141, 0x107, 0x0F3, 0x119, 0x17C, 0x15B, 0x142, 0x17A },
+    // German
+    {   '#',   '$', 0x0A7, 0x0C4, 0x0D6, 0x0DC,   '^',   '_', 0x0B0, 0x0E4, 0x0F6, 0x0FC, 0x0DF },
+    // Swedish/Finnish/Hungarian
+    {   '#', 0x0A4, 0x0C9, 0x0C4, 0x0D6, 0x0C5, 0x0DC,   '_', 0x0E9, 0x0E4, 0x0F6, 0x0E5, 0x0FC },
+    // Italian
+    { 0x0A3,   '$', 0x0E9, 0x0B0, 0x0E7, 0x0BB, 0x0A6,   '#', 0x0F9, 0x0E0, 0x0F2, 0x0E8, 0x0EC },
+    // French
+    { 0x0E9, 0x0EF, 0x0E0, 0x0EB, 0x0EA, 0x0F9, 0x0EE,   '#', 0x0E8, 0x0E2, 0x0F4, 0x0FB, 0x0E7 },
+    // reserved (English mapping)
+    { 0x0A3,   '$',   '@', 0x0AB, 0x0BD, 0x0BB, 0x0A6,   '#', 0x0AF, 0x0BC, 0x0B6, 0x0BE, 0x0F7 },
+    // Czech/Slovak 
+    {   '#', 0x16F, 0x10D, 0x165, 0x17E, 0x0FD, 0x0ED, 0x159, 0x0E9, 0x0E1, 0x11B, 0x0FA, 0x161 },
+    // reserved (English mapping)
+    { 0x0A3,   '$',   '@', 0x0AB, 0x0BD, 0x0BB, 0x0A6,   '#', 0x0AF, 0x0BC, 0x0B6, 0x0BE, 0x0F7 },
+    // English 
+    { 0x0A3,   '$',   '@', 0x0AB, 0x0BD, 0x0BB, 0x0A6,   '#', 0x0AF, 0x0BC, 0x0B6, 0x0BE, 0x0F7 },
+    // German
+    {   '#',   '$', 0x0A7, 0x0C4, 0x0D6, 0x0DC,   '^',   '_', 0x0B0, 0x0E4, 0x0F6, 0x0FC, 0x0DF },
+    // Swedish/Finnish/Hungarian
+    {   '#', 0x0A4, 0x0C9, 0x0C4, 0x0D6, 0x0C5, 0x0DC,   '_', 0x0E9, 0x0E4, 0x0F6, 0x0E5, 0x0FC },
+    // Italian
+    { 0x0A3,   '$', 0x0E9, 0x0B0, 0x0E7, 0x0BB, 0x0A6,   '#', 0x0F9, 0x0E0, 0x0F2, 0x0E8, 0x0EC },
+    // French
+    { 0x0E9, 0x0EF, 0x0E0, 0x0EB, 0x0EA, 0x0F9, 0x0EE,   '#', 0x0E8, 0x0E2, 0x0F4, 0x0FB, 0x0E7 },
+    // Portuguese/Spanish
+    { 0x0E7,   '$', 0x0A1, 0x0E1, 0x0E9, 0x0ED, 0x0F3, 0x0FA, 0x0BF, 0x0FC, 0x0F1, 0x0E8, 0x0E0 },
+    // Turkish (ASCII + Latin-A + Latin-B) ("TL" missing)
+    //{ 'T',   'g',   'I',   'S',   'Ö',   'Ç',   'Ü',   'G',   'i',   's',   'ö',   'ç',   'ü' },
+    { 0x166, 0x11F, 0x130, 0x15E, 0x0D6, 0x0C7, 0x0DC, 0x11E, 0x131, 0x15F, 0x0F6, 0x0E7, 0x0FC },
+    // reserved (English mapping)
+    { 0x0A3,   '$',   '@', 0x0AB, 0x0BD, 0x0BB, 0x0A6,   '#', 0x0AF, 0x0BC, 0x0B6, 0x0BE, 0x0F7 }
+};
+#define NATOPT_ALPHA_COUNT (sizeof(natOptChars) / 16)
+
+#define MAX_DIACRIT_CHARS 26  // must include +1 for terminating 0
+typedef struct
+{
+   uchar        g0[MAX_DIACRIT_CHARS];
+   uint         iso[MAX_DIACRIT_CHARS];
+} DIACRIT;
+
+static const DIACRIT diacrits[16] =
+{
+    /* none */         {{ '#' },
+                        { 0x0A4 }},
+    /* grave - ` */    {{   ' ',   'A',   'E',   'I',   'O',   'U',
+                                   'a',   'e',   'i',   'o',   'u' },
+                        { 0x060, 0x0C0, 0x0C8, 0x0CC, 0x0D2, 0x0D9,
+                                 0x0E0, 0x0E8, 0x0EC, 0x0F2, 0x0F9 }},
+    /* acute - ' */    {{   ' ',   'A',   'C',   'E',   'I',   'L',   'N',   'O',   'R',   'S',   'U',   'Y',   'Z',
+                                   'a',   'c',   'e',   'i',   'l',   'n',   'o',   'r',   's',   'u',   'y',   'z' },
+                        { 0x0B4, 0x0C1, 0x106, 0x0C9, 0x0CD, 0x139, 0x143, 0x0D3, 0x154, 0x15A, 0x0DA, 0x0DD, 0x179,
+                                 0x0E1, 0x107, 0x0E9, 0x0ED, 0x13A, 0x144, 0x0F3, 0x155, 0x15B, 0x0FA, 0x0FD, 0x17A }},
+    /* cirumflex - ^ */{{   ' ',   'A',   'C',   'E',   'G',   'I',   'J',   'O',   'S',   'U',   'W',   'Y',
+                                   'a',   'c',   'e',   'g',   'i',   'j',   'o',   's',   'u',   'w',   'y' },
+                        {   '^', 0x0C2, 0x108, 0x0CA, 0x11C, 0x0CE, 0x134, 0x0D4, 0x15C, 0x0DB, 0x174, 0x176,
+                                 0x0E2, 0x109, 0x0EA, 0x11D, 0x0EE, 0x135, 0x0F4, 0x15D, 0x0FB, 0x175, 0x177 }},
+    /* tilde - ~ */    {{   ' ',   'A',   'I',   'N',   'O',   'U',
+                                   'a',   'i',   'n',   'o',   'u' },
+                        {   '~', 0x0C3, 0x128, 0x0D1, 0x0D5, 0x168,
+                                 0x0E3, 0x129, 0x0F1, 0x0F5, 0x169 }},
+    /* macron - ¯ */   {{   ' ',   'A',   'E',   'I',   'O',   'U',
+                                   'a',   'e',   'i',   'o',   'u' },
+                        { 0x0AF, 0x100, 0x112, 0x12A, 0x14C, 0x16A,
+                                 0x101, 0x113, 0x12B, 0x14D, 0x16B }},
+    /* breve - u */    {{          'A',   'E',   'G',   'I',   'O',   'U',
+                                   'a',   'e',   'g',   'i',   'o',   'u' },
+                        {        0x102, 0x114, 0x11E, 0x12C, 0x14E, 0x16C,
+                                 0x103, 0x115, 0x11F, 0x12D, 0x14F, 0x16D }},
+    /* abovedot - · */ {{          'C',   'E',   'G',   'I',   'Z',
+                                   'c',   'e',   'g',          'z' },
+                        {        0x10A, 0x116, 0x120, 0x130, 0x17B,
+                                 0x10B, 0x117, 0x121,        0x17C }},
+    /* diaeresis ¨ */  {{   ' ',   'A',   'E',   'I',   'O',   'U',   'Y',
+                                   'a',   'e',   'i',   'o',   'u',   'y' },
+                        { 0x0A8, 0x0C4, 0x0CB, 0x0CF, 0x0D6, 0x0DC, 0x178,
+                                 0x0E4, 0x0EB, 0x0EF, 0x0F6, 0x0FC, 0x0FF }},
+    /* dotbelow - . */ {{   ' ' },
+                        {   '.' }},
+    /* ringabove - ° */{{   ' ',   'A',   'U',
+                                   'a',   'u' },
+                        { 0x2DA, 0x0C5, 0x16E,
+                                 0x0E5, 0x16F }},
+    /* cedilla - ¸ */  {{   ' ',   'C',   'G',   'K',   'L',   'N',   'R',   'S',   'T',
+                                   'c',   'g',   'k',   'l',   'n',   'r',   's',   't' },
+                        { 0x0B8, 0x0C7, 0x122, 0x136, 0x13B, 0x145, 0x156, 0x15E, 0x162,
+                                 0x0E7, 0x123, 0x137, 0x13C, 0x146, 0x157, 0x15F, 0x163 }},
+    /* ??? - _ */      {{ ' ' },
+                        { '_' }},
+    /* dbl acute - " */{{   ' ',   'O',   'U',
+                                   'o',   'u' },
+                        {   '"', 0x150, 0x170,
+                                 0x151, 0x171 }},
+    /* ogonek - \, */  {{          'A',   'E',   'I',   'U',
+                                   'a',   'e',   'i',   'u' },
+                        {        0x104, 0x118, 0x12E, 0x172,
+                                 0x105, 0x119, 0x12F, 0x173 }},
+    /* caron - v */    {{          'C',   'D',   'E',   'L',   'N',   'R',   'S',   'T',   'Z',
+                                   'c',   'd',   'e',   'l',   'n',   'r',   's',   't',   'z' },
+                        {        0x10C, 0x10E, 0x11A, 0x13D, 0x147, 0x158, 0x160, 0x164, 0x17D,
+                                 0x10D, 0x10F, 0x11B, 0x13E, 0x148, 0x159, 0x161, 0x165, 0x17E }}
+};
+
+static const uint MapG2ToInternal[6*16] =
+{
+   // " ¡¢£$¥#§¤'\"«    "
+   0x020, 0x0A1, 0x0A2, 0x0A3, 0x024, 0x0A5, 0x023, 0x0A7,
+   0x0A4, 0x027, 0x022, 0x0AB, 0x020, 0x020, 0x020, 0x020,
+   // "°±²³×µ¶·÷'\"»¼½¾¿"
+   0x0B0, 0x0B1, 0x0B2, 0x0B3, 0x0D7, 0x0B5, 0x0B6, 0x0B7,
+   0x0F7, 0x027, 0x022, 0x0BB, 0x0BC, 0x0BD, 0x0BE, 0x0BF,
+   // " `´^~   ¨.°¸_\"  "
+   0x020, 0x060, 0x0B4, 0x05E, 0x07E, 0x020, 0x020, 0x020,
+   0x0A8, 0x02E, 0x0B0, 0x0B8, 0x05F, 0x022, 0x020, 0x020,
+   // "_¹®©            "
+   0x05F, 0x0B9, 0x0AE, 0x0A9, 0x020, 0x020, 0x020, 0x020,
+   0x3B1, 0x020, 0x020, 0x020, 0x020, 0x020, 0x020, 0x020,
+   // " ÆÐªH ILLØ ºÞTNn"
+   0x3A9, 0x0C6, 0x110, 0x0AA, 0x126, 0x020, 0x132, 0x13F,
+   0x141, 0x0D8, 0x152, 0x0BA, 0x0DE, 0x166, 0x14A, 0x149,
+   // "Kædðhiillø ßþtn\x7f";
+   0x04B, 0x0E6, 0x111, 0x0F0, 0x127, 0x131, 0x133, 0x140,
+   0x142, 0x0F8, 0x153, 0x0DF, 0x0FE, 0x167, 0x14B, 0x07F
+};
+
+#else /* !USE_UTF8 */
 
 // ----------------------------------------------------------------------------
 // The following character tables were taken from ALEVT-1.5.1
@@ -323,8 +494,8 @@ static const uchar natOptChars[][16] =
 
 typedef struct {
    char *g0;
-   char *latin1;
-   char *latin2;
+   char *iso;   // latin-1
+   char *iso2;  // latin-2
 } DIACRIT;
 
 static const DIACRIT diacrits[16] =
@@ -379,7 +550,7 @@ static const DIACRIT diacrits[16] =
 			  "èïìµòø¹»¾ÈÏÌ¥ÒØ©«®"			},
 };
 
-static const char g2map_latin1[] =
+static const char MapG2ToInternal[] =
    /*0123456789abcdef*/
     " ¡¢£$¥#§¤'\"«    "
     "°±²³×µ¶·÷'\"»¼½¾¿"
@@ -389,7 +560,7 @@ static const char g2map_latin1[] =
     "Kædðhiillø ßþtn\x7f";
 
 /*
-static const char g2map_latin2[] =
+static const char MapG2ToInternal[] =
    //0123456789abcdef
     " icL$Y#§¤'\"<    "
     "°   ×u  ÷'\">    "
@@ -398,6 +569,7 @@ static const char g2map_latin2[] =
     "  ÐaH iL£O opTNn"
     "K ðdhiil³o ßptn\x7f";
 */
+#endif  /* USE_UTF8 */
 
 // ----------------------------------------------------------------------------
 // Return a de-nationalized character from the G0 set
@@ -421,11 +593,22 @@ static const signed char nationalOptionsMatrix[0x80] =
    /*0x70*/   -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  9, 10, 11, 12, -1
 };
 
-static uchar GetG0Char(uchar val, uchar alphabeth)
+// ----------------------------------------------------------------------------
+// Handle a reference to the G0 teletext character set
+// - characters at some positions depend on the country setting (national option)
+// - otherwise G0 is identical to ASCII with the exception of '$' and 0x7F
+//   and with exception of the control codes
+// - note: Hebrew and Cyrillic G0 charsets are currently not supported
+//
+static uint GetG0Char( uchar val, uchar alphabeth )
 {
-   uchar result;
+   uint result;
 
-   if ( (val < 0x80) && (nationalOptionsMatrix[val] >= 0) )
+   if (val < 0x20)
+   {
+      result = ' ';
+   }
+   else if ( (val < 0x80) && (nationalOptionsMatrix[val] >= 0) )
    {
       if (alphabeth < NATOPT_ALPHA_COUNT)
          result = natOptChars[alphabeth][ (uchar) nationalOptionsMatrix[val] ];
@@ -439,6 +622,42 @@ static uchar GetG0Char(uchar val, uchar alphabeth)
 }
 
 // ----------------------------------------------------------------------------
+// Encode the given Unicode character in UTF8 and append it to the string
+//
+#ifdef USE_UTF8
+static uint InsertUtf8( uchar * pDest, uint charCode )
+{
+   uint charLen;
+
+   if (charCode < 0x80)
+   {
+      pDest[0] = charCode;
+      charLen = 1;
+   }
+   else
+   {
+      assert (charCode < 0x7FF);  // larger codes not used in any of the above tables
+      pDest[0] = 0xC0 | (charCode >> 6);
+      pDest[1] = 0x80 | (charCode & 0x3F);
+      charLen = 2;
+   }
+
+   return charLen;
+}
+// used below to determine minimum remaining string buffer size
+#define MAX_UTF8_LEN 2
+
+#else /* !USE_UTF8 */
+static uint InsertUtf8( uchar * pDest, uint charCode )
+{
+   pDest[0] = charCode;
+   return 1;
+}
+#define MAX_UTF8_LEN 1
+#endif
+
+
+// ----------------------------------------------------------------------------
 // Apply escape sequence to a string
 // - only language-specific escapes and newlines are evaluated
 // - at the same time white space (multiple blanks etc.) is compressed
@@ -449,7 +668,7 @@ static uchar * ApplyEscapes(const uchar *pText, uint textLen, const uchar *pEsca
 {
    uchar *pout, *po;
    uint  escIdx, nextEsc;
-   uint  i, linePos, strLen;
+   uint  i, linePos, strLen, charLen;
    bool  lastWhite;
    uchar newLine;
    uchar data, alphabet;
@@ -460,8 +679,9 @@ static uchar * ApplyEscapes(const uchar *pText, uint textLen, const uchar *pEsca
    else
       alphabet = providerAlphabet;
 
-   // string length may grow due to newline escapes -> reserve some estimated extra space
-   strLen = textLen + escCount + 20;
+   // string length may grow due to newline escapes and muti-byte UTF8 codes
+   // -> reserve extra space for estimated worst-case
+   strLen = textLen + (escCount * MAX_UTF8_LEN) + 20;
 
    pout = (uchar *) xmalloc(strLen + 1);
    if (pout != NULL)
@@ -477,12 +697,9 @@ static uchar * ApplyEscapes(const uchar *pText, uint textLen, const uchar *pEsca
       else
          nextEsc = 0xffff;
 
-      for (i=0; i<textLen && strLen>0; i++)
+      for (i=0; i<textLen && strLen>=MAX_UTF8_LEN; i++)
       {
-         if (pText[i] < 0x20)
-            *po = ' ';
-         else
-            *po = GetG0Char(pText[i], alphabet);
+         charLen = InsertUtf8(po, GetG0Char(pText[i], alphabet));
       
          while (i == nextEsc)
          {
@@ -491,6 +708,7 @@ static uchar * ApplyEscapes(const uchar *pText, uint textLen, const uchar *pEsca
             {
                case 0x01:  // mosaic character: unsupported
                   *po = ' ';
+                  charLen = 1;
                   break;
                case 0x08:  // change alphabet
                   if (data < NATOPT_ALPHA_COUNT)
@@ -499,10 +717,7 @@ static uchar * ApplyEscapes(const uchar *pText, uint textLen, const uchar *pEsca
                      debug1("Apply-Escapes: unsupported alphabet %d", alphabet);
                   break;
                case 0x09:  // G0 character
-                  if ((data >= 0x20) && (data < 0x80))
-                     *po = GetG0Char(data, alphabet);
-                  else
-                     *po = ' ';
+                  charLen = InsertUtf8(po, GetG0Char(data, alphabet));
                   break;
                case 0x0A:  // CR/NL
                   if (newLine == 1)
@@ -511,9 +726,9 @@ static uchar * ApplyEscapes(const uchar *pText, uint textLen, const uchar *pEsca
                      {  // overwrite blank at the end of the line
                         *(po - 1) = '\n';
                      }
-                     else if (strLen > 1)
+                     else if (strLen > charLen)
                      {
-                        po[1] = *po;
+                        memmove(po + 1, po, charLen);
                         *(po++) = '\n';
                         strLen -= 1;
                      }
@@ -524,9 +739,9 @@ static uchar * ApplyEscapes(const uchar *pText, uint textLen, const uchar *pEsca
                   }
                   else if (lastWhite == FALSE)
                   {
-                     if (strLen > 1)
+                     if (strLen > charLen)
                      {  // the blank (instead of newline) is inserted in front of the current character
-                        po[1] = *po;
+                        memmove(po + 1, po, charLen);
                         *po++ = ' ';
                         strLen -= 1;
                      }
@@ -541,9 +756,9 @@ static uchar * ApplyEscapes(const uchar *pText, uint textLen, const uchar *pEsca
                   break;
                case 0x0F:  // G2 character
                   if ((data >= 0x20) && (data < 0x80))
-                     *po = g2map_latin1[data - 0x20];
-                  else
-                     *po = ' ';
+                  {
+                     charLen = InsertUtf8(po, MapG2ToInternal[data - 0x20]);
+                  }
                   break;
                case 0x10:  // diacritical mark
                case 0x11:
@@ -565,7 +780,11 @@ static uchar * ApplyEscapes(const uchar *pText, uint textLen, const uchar *pEsca
                   uint c = (pEscapes[1]>>2)&0x0f;
                   const char *pd = strchr(diacrits[c].g0, pEscapes[2]);
                   if (pd != NULL)
-                     *po = diacrits[c].latin1[pd - diacrits[c].g0];
+                  {
+                     charLen = InsertUtf8(po, diacrits[c].iso[pd - (char *)diacrits[c].g0]);
+                  }
+                  else
+                     debug3("Apply-Escapes: unsupported diacritical mark %d on character 0x%02X - fall back to char 0x%02X", pEscapes[2], c, *po);
                   break;
                }
                default:
@@ -581,6 +800,7 @@ static uchar * ApplyEscapes(const uchar *pText, uint textLen, const uchar *pEsca
 
          if (*po == ' ')
          {
+            assert(charLen == 1);
             if (lastWhite == FALSE)
             {
                po++;
@@ -590,8 +810,8 @@ static uchar * ApplyEscapes(const uchar *pText, uint textLen, const uchar *pEsca
          }
          else
          {
-            po++;
-            strLen -= 1;
+            po += charLen;
+            strLen -= charLen;
             lastWhite = FALSE;
             // set flag to indicate this line is not empty
             newLine = 0;
@@ -714,11 +934,19 @@ EPGDB_BLOCK * EpgBlockConvertPi(const uchar *pCtrl, uint ctrlLen, uint strLen)
    uchar *pTitle, *pShortInfo, *pLongInfo;
    uchar long_info_type;
    uint piLen, idx;
+#ifdef DEBUG_SWITCH_LTO
+   uint XbcdStart, Xjulian, XbcdStop;
+#endif
  
    psd = pCtrl;
    pi.block_no              = (psd[5]>>4) | (psd[6]<<4) | ((psd[7]&0x0f)<<12);
    pi.feature_flags         = (psd[7]>>4) | (psd[8]<<4);
    pi.netwop_no             = psd[9];
+#ifdef DEBUG_SWITCH_LTO
+   XbcdStart                = psd[10] | (psd[11]<<8);
+   Xjulian                  = psd[12] | (psd[13]<<8);
+   XbcdStop                 = psd[14] | (psd[15]<<8);
+#endif
    SetStartAndStopTime(       psd[10] | (psd[11]<<8),
                               psd[12] | (psd[13]<<8),
                               psd[14] | (psd[15]<<8),
@@ -743,6 +971,11 @@ EPGDB_BLOCK * EpgBlockConvertPi(const uchar *pCtrl, uint ctrlLen, uint strLen)
    titleLen = psd[1+psd[0]*3];
    pTitle = ApplyEscapes(pCtrl+ctrlLen+2, titleLen, psd+1, psd[0], pi.netwop_no);
    psd += 1 + psd[0] * 3 + 1;
+#ifdef DEBUG_SWITCH_LTO
+   printf("ACQ: '%s' #%d block#%d: %d %04X-%04X -> %ld-%ld\n",
+          pTitle, pi.netwop_no, pi.block_no,
+          Xjulian, XbcdStart, XbcdStop, pi.start_time, pi.stop_time);
+#endif
  
    if (pi.background_reuse)
    {
@@ -990,7 +1223,8 @@ EPGDB_BLOCK * EpgBlockConvertAi(const uchar *pCtrl, uint ctrlLen, uint strLen)
    {
       if ((i & 1) == 0)
       {
-         pNetwops[i].cni         = psd[0] | (psd[1] << 8);
+         pNetwops[i].netCni         = psd[0] | (psd[1] << 8);
+         pNetwops[i].netCniMSB      = 0;
          pNetwops[i].lto         = psd[2] & 0x7f;
          if (psd[2] & 0x80)
             pNetwops[i].lto      = 0 - pNetwops[i].lto;
@@ -1000,12 +1234,13 @@ EPGDB_BLOCK * EpgBlockConvertAi(const uchar *pCtrl, uint ctrlLen, uint strLen)
          pNetwops[i].startNo     = (psd[5] >> 1) | (psd[6] << 7) | ((psd[7] & 1) << 15);
          pNetwops[i].stopNo      = (psd[7] >> 1) | (psd[8] << 7) | ((psd[9] & 1) << 15);
          pNetwops[i].stopNoSwo   = (psd[9] >> 1) | (psd[10] << 7) | ((psd[11] & 1) << 15);
-         pNetwops[i].addInfo     = (psd[11] >> 1) | ((psd[12] & 0xf) << 7);
+         //pNetwops[i].addInfo   = (psd[11] >> 1) | ((psd[12] & 0xf) << 7);
          psd += 12;  // plus 4 Bit in the following block
       }
       else
       {
-         pNetwops[i].cni         = (psd[0] >> 4) | (psd[1] << 4) | ((psd[2] & 0x0f) << 12);
+         pNetwops[i].netCni         = (psd[0] >> 4) | (psd[1] << 4) | ((psd[2] & 0x0f) << 12);
+         pNetwops[i].netCniMSB      = 0;
          pNetwops[i].lto         = (psd[2] >> 4) | ((psd[3] & 7) << 4);
          if (psd[3] & 0x8)
             pNetwops[i].lto      = 0 - pNetwops[i].lto;
@@ -1015,7 +1250,7 @@ EPGDB_BLOCK * EpgBlockConvertAi(const uchar *pCtrl, uint ctrlLen, uint strLen)
          pNetwops[i].startNo     = (psd[5] >> 5) | (psd[6] << 3) | ((psd[7] & 0x1f) << 11);
          pNetwops[i].stopNo      = (psd[7] >> 5) | (psd[8] << 3) | ((psd[9] & 0x1f) << 11);
          pNetwops[i].stopNoSwo   = (psd[9] >> 5) | (psd[10] << 3) | ((psd[11] & 0x1f) << 11);
-         pNetwops[i].addInfo     = (psd[11] >> 5) | (psd[12] << 3);
+         //pNetwops[i].addInfo   = (psd[11] >> 5) | (psd[12] << 3);
          psd += 13;  // including 4 bit of the previous block
       }
       // initialize unused space in struct to allow comparison by memcmp()
@@ -1159,11 +1394,11 @@ static bool EpgBlockSwapAi( EPGDB_BLOCK * pBlock )
       pNetwop = (AI_NETWOP *) AI_GET_NETWOPS(pAi);
       for (netwop=0; netwop < pAi->netwopCount; netwop++, pNetwop++)
       {
-         swap16(&pNetwop->cni);
+         swap16(&pNetwop->netCni);
          swap16(&pNetwop->startNo);
          swap16(&pNetwop->stopNo);
          swap16(&pNetwop->stopNoSwo);
-         swap16(&pNetwop->addInfo);
+         swap16(&pNetwop->netCniMSB);
 
          swap16(&pNetwop->off_name);
       }

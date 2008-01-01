@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgqueue.c,v 1.9 2006/11/25 20:43:37 tom Exp tom $
+ *  $Id: epgqueue.c,v 1.10 2007/12/29 22:28:07 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -225,7 +225,7 @@ uint EpgDbQueue_GetBlockCount( EPGDB_QUEUE * pQueue )
       assert(EpgDbQueue_CheckConsistancy(pQueue));
       count = pQueue->blockCount;
 
-      dprintf1("EpgDbQueue-GeBlockCount: %s\n", (result ? "yes" : "no"));
+      dprintf1("EpgDbQueue-GeBlockCount: %d\n", count);
    }
    else
       fatal0("EpgDbQueue-GeBlockCount: called with NULL ptr");

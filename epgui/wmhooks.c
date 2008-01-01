@@ -21,7 +21,7 @@
  *  Author: X11 code by Gerd Knorr (code copied from xawtv-3.87/x11/wmhooks.c)
  *          Win32 version and Tcl interface by Tom Zoerner
  *
- *  $Id: wmhooks.c,v 1.4 2004/12/27 13:47:33 tom Exp $
+ *  $Id: wmhooks.c,v 1.4 2004/12/27 13:47:33 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI

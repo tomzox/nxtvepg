@@ -1,0 +1,149 @@
+#
+#  This file maps channel identification codes in XMLTV files (for example
+#  <channel id="tele5.de"> ) to numerical VPS/PDC codes used inside nxtvepg.
+#  VPS/PDC are unique numbers assigned by the European standards document
+#  ETS 300 231. Run an EPG provider scan to find the codes for all channels.
+#
+#  You should NOT use this file to add channels which do not broadcast PDC/VPS,
+#  i.e. channels without an assigned ETSI identification code.  These are
+#  automatically assigned temporary ID numbers by nxtvepg which are stored
+#  in $HOME/.nxtvepgrc on UNIX, or nxtvepg.ini on Windows respectively.
+#
+#  Definitions made below [GLOBAL] apply to all XMLTV documents. Following
+#  sections apply only to XMLTV documents with a matching source-info or
+#  source-data text (inside the <tv> tag or in <source-info><link>)
+#
+#  $Id: xmltv-etsi.map,v 1.5 2008/01/01 02:31:47 tom Exp tom $
+#
+[GLOBAL]
+1DCA 1.br-online.de
+4801 1.omroep.nl
+1AC1 1.orf.at
+24C1 1.sfdrs.ch
+24C2 1.tsr.ch
+4802 2.omroep.nl
+1AC2 2.orf.at
+24C7 2.sfdrs.ch
+24C8 2.tsr.ch
+1DCB 3.br-online.de
+4803 3.omroep.nl
+1AC3 3.orf.at
+1DC7 3sat.de
+1D44 alpha.br-online.de
+1DC1 ard.de
+2C7F bbc1.bbc.co.uk
+2C40 bbc2.bbc.co.uk
+1DE1 bw.swr.de
+2C11 channel4.com
+1546 cnn.com
+5BF2 discoveryeurope.com
+1D8D dsf.com
+2FE1 euronews.net
+1D91 eurosport.de
+1DD1 hamburg1.de
+1DCF hr-online.de
+1D92 kabel1.de
+1DC9 kika.de
+1DFE mdr.de
+1D73 mtv.de
+1D8C n-tv.de
+1D7A n24.de
+1DD4 ndr.de
+1DBA neunlive.de
+1D7C onyx.tv
+1D82 orb.de
+1DC8 phoenix.de
+2487 prosieben.ch
+1D94 prosieben.de
+1DE4 rp.swr.de
+1DAB rtl.de
+1D8F rtl2.de
+1DB9 sat1.de
+2C0D sky-news.sky.com
+2C0E sky-one.sky.com
+1DE2 sr.swr.de
+1D8A superrtl.de
+1DE0 swr.de
+1D78 tele5.de
+1D88 viva.tv
+1D89 viva2.de
+1D8E vox.de
+1DE6 wdr.de
+1DC2 zdf.de
+
+# channel IDs returned by tv_grab_dk in xmltv-0.5.39
+[*tv.tv2.dk*]
+# 3SAT
+1DC7 054.tv.tv2.dk
+# ARD
+1DC1 055.tv.tv2.dk
+# ARTE
+1D85 056.tv.tv2.dk
+# BBC Prime
+2C68 037.tv.tv2.dk
+# BBC World
+2C57 038.tv.tv2.dk
+# CNN
+1546 040.tv.tv2.dk
+# DR 1
+2901 003.tv.tv2.dk
+# DR 2
+2903 004.tv.tv2.dk
+# DSF Sport
+1D8D 057.tv.tv2.dk
+# Eurosport
+1D91 013.tv.tv2.dk
+# MTV
+2C14 042.tv.tv2.dk
+# N3
+1DD4 059.tv.tv2.dk
+# PRO 7
+1D94 060.tv.tv2.dk
+# RTL
+1DAB 061.tv.tv2.dk
+# RTL 2
+1D8F 062.tv.tv2.dk
+# SAT 1
+1DB9 063.tv.tv2.dk
+# Super RTL
+1D8A 064.tv.tv2.dk
+# VH-1
+2C20 052.tv.tv2.dk
+# VOX
+1D8E 065.tv.tv2.dk
+# ZDF
+1DC2 066.tv.tv2.dk
+
+# channel IDs returned by tv_grab_fi in xmltv-0.5.39
+[*www.katso.fi*]
+# 3-SAT
+1DC7 3st.katso.fi
+# Arte
+1D85 arg.katso.fi
+# BBC Prime
+2C68 bbp.katso.fi
+# BBC World
+2C57 bbw.katso.fi
+# Discovery Channel
+5BF2 dsc.katso.fi
+# DSF
+1D8D dsf.katso.fi
+# Eurosport
+1D91 ese.katso.fi
+# RTL II
+1D8F rt2.katso.fi
+# RTL
+1D8B rtp.katso.fi
+# SAT-1
+1DB9 st1.katso.fi
+# SVT1
+4E01 sv1.katso.fi
+# SVT2
+4E02 sv2.katso.fi
+# VH-1
+2C20 vh1.katso.fi
+# Viva
+1D88 y24.katso.fi
+# ZDF
+1DC2 zdf.katso.fi
+

@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: ttxdecode.h,v 1.29 2004/08/29 21:47:54 tom Exp tom $
+ *  $Id: ttxdecode.h,v 1.30 2006/12/05 21:06:40 tom Exp tom $
  */
 
 #ifndef __TTXDECODE_H
@@ -56,17 +56,22 @@
 
 // interface to the EPG acquisition control module and EPG scan
 void TtxDecode_StartEpgAcq( uint epgPageNo, bool isEpgScan );
-void TtxDecode_StopAcq( void );
+void TtxDecode_StopEpgAcq( void );
+void TtxDecode_StartTtxAcq( bool enableScan, uint startPageNo, uint stopPageNo );
+void TtxDecode_StopTtxAcq( void );
 void TtxDecode_InitScan( void );
 void TtxDecode_GetScanResults( uint *pCni, bool *pNiWait, uint *pDataPageCnt, uchar *pDispText, uint textMaxLen );
 uint TtxDecode_GetMipPageNo( void );
-void TtxDecode_GetStatistics( uint32_t * pTtxPkgCount,
-                              uint32_t * pEpgPkgCount, uint32_t * pEpgPagCount );
 uint TtxDecode_GetDateTime( sint * pLto );
+bool TtxDecode_GetPageHeader( char * pBuf, uint * pPgNum, uint pkgOff );
+bool TtxDecode_GetMagStats( uint * pMagBuf, sint * pPgDirection, bool reset );
 bool TtxDecode_CheckForPackets( bool * pStopped );
 #ifdef __BTDRV_H
-const VBI_LINE * TtxDecode_GetPacket( bool freePrevPkg );
-bool TtxDecode_GetCniAndPil( uint * pCni, uint * pPil, volatile EPGACQ_BUF * pThisVbiBuf );
+const VBI_LINE * TtxDecode_GetPacket( uint pkgOff );
+void TtxDecoder_ReleasePackets( void );
+bool TtxDecode_GetCniAndPil( uint * pCni, uint * pPil, CNI_TYPE * pCniType,
+                             uint * pCniInd, uint * pPilInd, volatile EPGACQ_BUF * pThisVbiBuf );
+void TtxDecode_GetStatistics( TTX_DEC_STATS * pStats );
 void TtxDecode_NotifyChannelChange( volatile EPGACQ_BUF * pThisVbiBuf );
 #endif
 

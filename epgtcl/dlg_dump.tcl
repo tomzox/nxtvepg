@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_dump.tcl,v 1.9 2004/12/29 12:02:58 tom Exp tom $
+#  $Id: dlg_dump.tcl,v 1.10 2007/12/29 21:03:39 tom Exp tom $
 #
 set dumpdb_pi 1
 set dumpdb_xi 1
@@ -402,7 +402,7 @@ proc PopupHtmlColumnSelection {} {
       FillColumnSelectionDialog .htmlcols.all htmlcols_ailist htmlcols_selist $dumphtml_colsel 1
 
       message .htmlcols.intromsg -text "Select which types of attributes you want to have\ndisplayed for each TV programme in the HTML document:" \
-                                 -aspect 2500 -borderwidth 2 -relief ridge \
+                                 -aspect 2500 -borderwidth 2 -relief groove \
                                  -foreground $text_fg -background $text_bg -pady 5
       pack .htmlcols.intromsg -side top -fill x -expand 1
 

@@ -20,7 +20,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: mainwin.tcl,v 1.244.1.3 2006/12/21 22:34:29 tom Exp $
+#  $Id: mainwin.tcl,v 1.257 2007/12/31 22:06:26 tom Exp tom $
 #
 # import constants from other modules
 #=INCLUDE= "epgtcl/shortcuts.h"
@@ -40,11 +40,15 @@ proc LoadWidgetOptions {} {
    global xawtv_font xawtv_overlay_fg xawtv_overlay_bg
    global dscale_cols dscale_font dscale_width dscale_scwidth dscale_date_fmt
    global sctree_font sctree_selfg sctree_selbg
-   global entry_disabledforeground x11_appdef_path
+   global entry_disabledforeground entry_disabledbackground x11_appdef_path
    global tcl_version is_unix
 
    if {$is_unix} {
-      set font_pt_size  12
+      if {$tcl_version >= 8.3} {
+         set font_pt_size  [font actual TkTextFont -size]
+      } else {
+         set font_pt_size  12
+      }
       # background for cursor in TV schedule
       set pi_cursor_fg      black
       set pi_cursor_bg      #c3c3c3
@@ -55,6 +59,11 @@ proc LoadWidgetOptions {} {
       set pi_cursor_fg_past black
       set pi_cursor_bg_past #d7d7c7
    } else {
+      if {$tcl_version >= 8.3} {
+         set font_pt_size  [font actual TkTextFont -size]
+      } else {
+         set font_pt_size  12
+      }
       if {$tcl_version >= 8.3} {
          set font_pt_size  12
       } else {
@@ -83,8 +92,13 @@ proc LoadWidgetOptions {} {
    # background colors for PI date scale (red, orange, yellow, green, cyan, blue, purple)
    set dscale_cols {#ff3d3d #ff9d3c #fdff4f #4eff57 #07d1c1 #5b73ff #eb41ff}
 
-   set font_normal [list helvetica [expr   0 - $font_pt_size] normal]
-   set font_fixed  [list courier   [expr   0 - $font_pt_size] normal]
+   if {($tcl_version >= 8.5) && $is_unix} {
+      set font_normal [list [font actual TkTextFont -family] [expr 0 - $font_pt_size] normal]
+      set font_fixed  [list [font actual TkFixedFont -family] [expr 0 - $font_pt_size] normal]
+   } else {
+      set font_normal [list helvetica [expr 0 - $font_pt_size] normal]
+      set font_fixed  [list courier   [expr 0 - $font_pt_size] normal]
+   }
 
    # font for TV schedule and programme description text
    set pi_font      $font_normal
@@ -149,11 +163,13 @@ proc LoadWidgetOptions {} {
    }
    destroy .test_opt
 
-   # load and check all font resources
+   # load and check all font resources (only font syntax is checked, font may not exist)
    foreach opt {pi_font xawtv_font help_font msgbox_font dscale_font} {
       set value [option get . $opt userDefault]
       if {[string length $value] > 0} {
-         if {[catch {font metrics $value -linespace}] == 0} {
+         if {([llength $value] >= 2) &&
+             ([catch {DeriveFont $value 0}] == 0) &&
+             ([catch {font metrics $value -linespace}] == 0)} {
             set $opt $value
          }
       }
@@ -178,11 +194,11 @@ proc LoadWidgetOptions {} {
    # starting with Tk8.4 an entry's text is grey when disabled and
    # this new option must be used where this is not desirable
    if {$tcl_version >= 8.4} {
-      set ::entry_disabledforeground "-disabledforeground"
-      set ::entry_disabledbackground "-disabledbackground"
+      set entry_disabledforeground "-disabledforeground"
+      set entry_disabledbackground "-disabledbackground"
    } else {
-      set ::entry_disabledforeground "-foreground"
-      set ::entry_disabledbackground "-background"
+      set entry_disabledforeground "-foreground"
+      set entry_disabledbackground "-background"
    }
 
    if {[llength [info commands tkButtonInvoke]] == 0} {
@@ -222,6 +238,37 @@ proc DeriveFont {afont delta_size {style {}}} {
    return [list [lindex $afont 0] $size $style]
 }
 
+# helper functions to modify default widget appearences
+if {$tcl_version >= 8.5} {
+   # no longer needed in 8.5 and later
+   proc relief_ridge_v84 {wid} {}
+   proc relief_listbox {wid} {
+      $wid configure -relief sunken -borderwidth 1
+   }
+   # make menubuttons look like a normal button widget
+   proc config_menubutton {wid} {
+      global win_frm_fg
+      $wid configure -relief raised -borderwidth 1 \
+                     -highlightthickness 1 -highlightcolor $win_frm_fg \
+                     -takefocus 1
+   }
+} else {
+   # on Tcl 8.4 and earlier replace kludgy 2-pixel button frames (main window only)
+   proc relief_ridge_v84 {wid} {
+      $wid configure -relief ridge -borderwidth 2
+   }
+   proc relief_listbox {wid} {
+      $wid configure -relief ridge -borderwidth 2
+   }
+   # make menubuttons look like a normal button widget
+   proc config_menubutton {wid} {
+      global win_frm_fg
+      $wid configure -relief raised -borderwidth 2 \
+                     -highlightthickness 1 -highlightcolor $win_frm_fg \
+                     -takefocus 1
+   }
+}
+
 ##  ---------------------------------------------------------------------------
 ##  Create the main window
 ##  - called once during start-up
@@ -259,7 +306,7 @@ proc CreateMainWindow {} {
    bind TextReadOnly <Key-Tab> [bind Text <Control-Key-Tab>]
    bind TextReadOnly <Control-Key-c> [bind Text <<Copy>>]
 
-   frame     .all -relief flat -borderwidth 0
+   frame     .all
    frame     .all.shortcuts -borderwidth 2
    label     .all.shortcuts.clock -padx 7 -text {}
    #grid     .all.shortcuts.clock -row 0 -column 0 -pady 5 -sticky nwe
@@ -267,11 +314,13 @@ proc CreateMainWindow {} {
       .all.shortcuts.clock configure -font [DeriveFont $font_normal 0 bold]
    }
 
-   button    .all.shortcuts.tune -text "Tune TV" -relief ridge -command TuneTV -takefocus 0
+   button    .all.shortcuts.tune -text "Tune TV" -command TuneTV -takefocus 0
+   relief_ridge_v84 .all.shortcuts.tune
    bind      .all.shortcuts.tune <Button-3> {TuneTvPopupMenu 1 %x %y}
    #grid     .all.shortcuts.tune -row 1 -column 0 -sticky nwe
 
-   button    .all.shortcuts.reset -text "Reset" -relief ridge -command {ResetFilterState; C_PiBox_Reset}
+   button    .all.shortcuts.reset -text "Reset" -command {ResetFilterState; C_PiBox_Reset}
+   relief_ridge_v84 .all.shortcuts.reset
    #grid     .all.shortcuts.reset -row 2 -column 0 -sticky nwe
 
    menu      .tunetvcfg -tearoff 0
@@ -298,8 +347,8 @@ proc CreateMainWindow {} {
    Tree:create .all.shortcuts.list -width 0 -cursor top_left_arrow \
                                    -font $sctree_font -selectbackground $sctree_selbg \
                                    -selectmode extended -selectforeground $sctree_selfg \
-                                   -foreground $text_fg -background $text_bg \
-                                   -relief ridge -borderwidth 2
+                                   -foreground $text_fg -background $text_bg
+   relief_listbox .all.shortcuts.list
 
    bind      .all.shortcuts.list <<TreeSelect>> {ShortcutTree_Invoke}
    bind      .all.shortcuts.list <<TreeOpenClose>> {ShortcutTree_OpenCloseEvent .all.shortcuts.list shortcuts $shortcut_tree}
@@ -311,8 +360,9 @@ proc CreateMainWindow {} {
    #grid     .all.shortcuts.list -row 3 -column 0 -sticky nwe
 
    frame     .all.netwops
-   listbox   .all.shortcuts.netwops -exportselection false -height 2 -width 0 -selectmode extended \
-                               -relief ridge -cursor top_left_arrow
+   listbox   .all.shortcuts.netwops -exportselection false -height 2 -width 0 \
+                                    -selectmode extended -cursor top_left_arrow
+   relief_ridge_v84 .all.shortcuts.netwops
    .all.shortcuts.netwops insert end "-all-"
    .all.shortcuts.netwops selection set 0
    bind      .all.shortcuts.netwops <<ListboxSelect>> {SelectNetwop}
@@ -353,7 +403,7 @@ proc CreateMainWindow {} {
    bind      TextPiBox <ButtonRelease-1> {SelectPiRelease %W}
    bind      TextPiBox <ButtonPress-2>   {DragListboxStart %W %X %Y}
    bind      TextPiBox <ButtonRelease-2> {DragListboxStop %W}
-   bind      TextPiBox <Double-Button-2> {C_PopupPi %W %x %y}
+   bind      TextPiBox <Double-Button-2> {Create_PopupPi %W %x %y}
    bind      TextPiBox <Button-3>        {SelectPi %W %x %y; CreateContextMenu mouse %W %x %y}
    bind      TextPiBox <Button-4>        {C_PiBox_Scroll scroll -3 units}
    bind      TextPiBox <Button-5>        {C_PiBox_Scroll scroll 3 units}
@@ -651,14 +701,15 @@ array set pi_attr_labels [list \
 ]
 
 ##  ---------------------------------------------------------------------------
-##  Create the menu bar and it's sub-menus
+##  Create and populate the main window's menu bar (including sub-menus)
 ##  - called once during start-up
 ##
 proc CreateMenubar {} {
    global helpIndex pi_attr_labels
    global is_unix
 
-   menu .menubar -relief ridge
+   menu .menubar
+   relief_ridge_v84 .menubar
    . config -menu .menubar
    .menubar add cascade -label "Control" -menu .menubar.ctrl -underline 0
    .menubar add cascade -label "Configure" -menu .menubar.config -underline 1
@@ -680,23 +731,28 @@ proc CreateMenubar {} {
    .menubar.ctrl add command -label "Export as XMLTV..." -command PopupDumpXml
    .menubar.ctrl add command -label "Export as HTML..." -command PopupDumpHtml
    .menubar.ctrl add separator
-   .menubar.ctrl add checkbutton -label "View timescales..." -command {C_TimeScale_Toggle ui} -variable menuStatusTscaleOpen(ui)
-   .menubar.ctrl add checkbutton -label "View statistics..." -command {C_StatsWin_ToggleDbStats ui} -variable menuStatusStatsOpen(ui)
-   .menubar.ctrl add checkbutton -label "View acq timescales..." -command {C_TimeScale_Toggle acq} -variable menuStatusTscaleOpen(acq)
-   .menubar.ctrl add checkbutton -label "View acq statistics..." -command {C_StatsWin_ToggleDbStats acq} -variable menuStatusStatsOpen(acq)
+   .menubar.ctrl add checkbutton -label "View coverage timescales..." -command {C_TimeScale_Toggle ui} -variable menuStatusTscaleOpen(ui)
+   .menubar.ctrl add checkbutton -label "View database statistics..." -command {C_StatsWin_ToggleDbStats ui} -variable menuStatusStatsOpen(ui)
+   .menubar.ctrl add checkbutton -label "Nextview acq. timescales..." -command {C_TimeScale_Toggle acq} -variable menuStatusTscaleOpen(acq)
+   .menubar.ctrl add checkbutton -label "Nextview acq. statistics..." -command {C_StatsWin_ToggleDbStats acq} -variable menuStatusStatsOpen(acq)
+#=IF=defined(USE_TTX_GRABBER)
+   .menubar.ctrl add checkbutton -label "Teletext grabber statistics..." -command {C_StatsWin_ToggleTtxStats} -variable menuStatusStatsOpen(ttx_acq)
+#=ENDIF=
    .menubar.ctrl add separator
    .menubar.ctrl add command -label "Quit" -command {destroy .; update}
    # Config menu
    menu .menubar.config -tearoff 0
    .menubar.config add command -label "Select provider..." -command ProvWin_Create
    .menubar.config add command -label "Merge providers..." -command PopupProviderMerge
-   .menubar.config add command -label "Acquisition mode..." -command PopupAcqMode
    .menubar.config add separator
+   .menubar.config add command -label "Acquisition mode..." -command PopupAcqMode
+#=IF=defined(USE_TTX_GRABBER)
+   .menubar.config add command -label "Teletext grabber..." -command PopupTtxGrab
+#=ENDIF=
    .menubar.config add command -label "Provider scan..." -command PopupEpgScan
    .menubar.config add command -label "TV card input..." -command PopupHardwareConfig
    .menubar.config add command -label "TV app. interaction..." -command XawtvConfigPopup
    .menubar.config add command -label "Client/Server..." -command PopupNetAcqConfig
-   #.menubar.config add command -label "Time zone..." -command PopupTimeZone
    .menubar.config add separator
    .menubar.config add command -label "Select attributes..." -command PopupColumnSelection
    .menubar.config add command -label "Attribute composition..." -command PopupUserDefinedColumns
@@ -766,7 +822,7 @@ proc CreateMenubar {} {
    .menubar.filter add command -label "Expired display..." -command PopupExpireDelaySelection
    .menubar.filter add command -label "Sorting Criteria..." -command PopupSortCritSelection
    if {!$is_unix} {
-      .menubar.filter add command -label "Navigate" -command {PostSeparateMenu .menubar.filter.ni_1 C_CreateNi 1}
+      .menubar.filter add command -label "Navigate" -command {PostSeparateMenu .menubar.filter.ni_1 PopupNiMenu 1}
       .menubar.filter configure -postcommand {.menubar.filter entryconfigure "Navigate" -state [if [C_IsNavigateMenuEmpty] {set tmp "disabled"} else {set tmp "normal"}]}
    }
    .menubar.filter add separator
@@ -840,7 +896,7 @@ proc CreateMenubar {} {
    menu .menubar.filter.netwops
    # Navigation menu
    if {$is_unix} {
-      menu .menubar.ni_1 -postcommand {PostDynamicMenu .menubar.ni_1 C_CreateNi 1}
+      menu .menubar.ni_1 -postcommand {PostDynamicMenu .menubar.ni_1 PopupNiMenu 1}
    }
    # Shortcuts menu
    menu .menubar.shortcuts -tearoff 0
@@ -1552,17 +1608,16 @@ proc UpdateNetwopMenuState {netlist} {
 ##  - called after provider change, AI update or network selection config change
 ##
 proc UpdateNetwopFilterBar {} {
-   global cfnetwops
 
    # fetch CNI of current db (may be 0 if none available)
    set prov [C_GetCurrentDatabaseCni]
 
    # fetch CNI list and netwop names from AI block in database
    set ailist [C_GetAiNetwopList 0 netnames]
-   ApplyUserNetnameCfg netnames
 
-   if [info exists cfnetwops($prov)] {
-      set ailist [lindex $cfnetwops($prov) 0]
+   set tmpl [lindex [C_GetProvCniConfig $prov] 0]
+   if {[llength $tmpl] != 0} {
+      set ailist $tmpl
    }
 
    .all.shortcuts.netwops delete 1 end
@@ -2564,28 +2619,76 @@ proc PostSeparateMenu {wmenu func param} {
 ##
 set poppedup_pi {}
 
-proc Create_PopupPi {ident wid xcoo ycoo} {
+proc Create_PopupPi {wid xcoo ycoo} {
    global font_normal
    global poppedup_pi
 
-   if {[string length $poppedup_pi] > 0} {destroy $poppedup_pi}
-   set poppedup_pi $ident
+   set tmpl [C_Dump_GetRawPi]
+   catch {destroy $poppedup_pi}
+   if {[llength $tmpl] >= 3} {
+      # list param #1 & #2: PI network and start time -> derive unique toplevel name
+      set poppedup_pi ".poppi_[lindex $tmpl 0]_[lindex $tmpl 1]"
 
-   toplevel $poppedup_pi
-   bind $poppedup_pi <Leave> {destroy %W; set poppedup_pi ""}
-   wm overrideredirect $poppedup_pi 1
-   set xcoo [expr $xcoo + [winfo rootx $wid] - 200]
-   set ycoo [expr $ycoo + [winfo rooty $wid] - 5]
-   wm geometry $poppedup_pi "+$xcoo+$ycoo"
-   text $poppedup_pi.text -relief ridge -width 55 -height 20 -cursor circle -font $font_normal
-   $poppedup_pi.text tag configure title \
-                     -justify center -spacing3 12 -font [DeriveFont $font_normal 6 bold]
-   $poppedup_pi.text tag configure body -tabs 35m
+      toplevel $poppedup_pi
+      wm overrideredirect $poppedup_pi 1
+      set xcoo [expr $xcoo + [winfo rootx $wid] - 200]
+      set ycoo [expr $ycoo + [winfo rooty $wid] - 5]
+      wm geometry $poppedup_pi "+$xcoo+$ycoo"
+      wm resizable $poppedup_pi 0 0
+      bind $poppedup_pi <Leave> {destroy %W}
+      bind $poppedup_pi <FocusOut> {destroy %W}
 
-   #C_PopupPi $poppedup_pi.text $netwop $blockno
-   #$poppedup_pi.text configure -state disabled
-   #$poppedup_pi.text configure -height [expr 1 + [$poppedup_pi.text index end]]
-   #pack $poppedup_pi.text
+      text ${poppedup_pi}.text -relief groove -borderwidth 2 -width 55 -height 20 -cursor circle -font $font_normal
+      pack ${poppedup_pi}.text
+
+      ${poppedup_pi}.text tag configure title -justify center -spacing3 12 \
+                                              -font [DeriveFont $font_normal 6 bold]
+      ${poppedup_pi}.text tag configure body -tabs 35m
+
+      $poppedup_pi.text insert end [lindex $tmpl 2] title
+
+      foreach line [lrange $tmpl 3 end] {
+         $poppedup_pi.text insert end $line body
+      }
+
+      ${poppedup_pi}.text configure -state disabled -height [expr 1 + [$poppedup_pi.text index end]]
+   }
+}
+
+##  ---------------------------------------------------------------------------
+##  Create NI menu cascade
+##
+proc PopupNiMenu {wid block_no} {
+   global dynmenu_posted
+
+   set idx 0
+   # retrieve list of events for this node from the database
+   foreach {link ev_name} [C_CreateNi $block_no] {
+      if {$link != 0} {
+         set sub_men "${wid}x${idx}_${link}"
+         $wid add cascade -label $ev_name -menu $sub_men
+
+         if {[string length [info commands $sub_men]] > 0} {
+            PostDynamicMenu $sub_men C_CreateNi $link
+         } elseif {![info exist dynmenu_posted($sub_men)] || ($dynmenu_posted($sub_men) == 0)} {
+            menu $sub_men -postcommand [list PostDynamicMenu $sub_men PopupNiMenu $link]
+         }
+      } else {
+         # note: the NI menu widget name contains the path to this node from the root NI;
+         # append event index to the current widget's name
+         if [regexp {\.ni_(\d.*)} $wid foo node] {
+            set ev_id "${node}x${idx}"
+            $wid add command -label $ev_name -command "ResetFilterState; C_SelectNi $ev_id"
+         }
+      }
+      incr idx
+   }
+
+   # append "Reset" command to the top-level menu
+   if {$block_no == 1} {
+      $wid add separator
+      $wid add command -label Reset -command {ResetFilterState; C_PiBox_Reset}
+   }
 }
 
 ##  ---------------------------------------------------------------------------
@@ -2647,7 +2750,6 @@ proc CreateSeriesMenu {w param_list} {
 ##  - each entry is a sub-menu (cascade) that list all found series in that netwop
 ##
 proc CreateSeriesNetworksMenu {w dummy} {
-   global cfnetwops
 
    # fetch a list of CNIs of netwops which broadcast series programmes
    set series_nets [C_GetNetwopsWithSeries]
@@ -2656,16 +2758,16 @@ proc CreateSeriesNetworksMenu {w dummy} {
 
       # fetch all network names from AI into an array
       C_GetAiNetwopList 0 netsel_names
-      ApplyUserNetnameCfg netsel_names
 
       # get the CNI of the currently selected db
       set prov [C_GetCurrentDatabaseCni]
       if {$prov != 0} {
 
          # sort the cni list according to the user network selection
-         if [info exists cfnetwops($prov)] {
+         set cni_selist [lindex [C_GetProvCniConfig $prov] 0]
+         if {[llength $cni_selist] != 0} {
             set tmp {}
-            foreach cni [lindex $cfnetwops($prov) 0] {
+            foreach cni $cni_selist {
                if {[lsearch -exact $series_nets $cni] >= 0} {
                   lappend tmp $cni
                }
@@ -3055,6 +3157,15 @@ proc PiDateScale_Redraw {t_first t_last lto} {
          set wday_idx $first_wday
          set base_y 0
          set t_cur $t_root
+
+         # assert minimum height for each date on the scale, so that weekday names fit in
+         # (additionally put a limit on the stop time to avoid painting 100s of invisible days)
+         set wday_count [expr ($dscale_tlen + 24*60*60-1) / (24*60*60)]
+         if {($wday_count != 0) && ($dscale_height / $wday_count < ($th_min + 6))} {
+            set t_last [expr $t_cur + ($dscale_height / ($th_min + 6) + 2) * 24*60*60]
+            set dscale_height [expr $wday_count * ($th_min + 6)]
+         }
+
          while {$t_cur < $t_last} {
             # determine weekday name (add 12h to avoid problems with DST change)
             set date_str [C_ClockFormat [expr $t_cur + 12*60*60] $dscale_date_fmt]
@@ -3150,14 +3261,13 @@ proc PiDateScale_Goto {ycoo_rel but_state} {
 ##    this popup is shown just once after each program start.
 ##
 proc TuneTV {} {
-   global tvapp_name
    global tunetv_msg_nocfg
-   global cfnetnames
 
    # warn if network names have not been sync'ed with TV app yet
-   if {![array exists cfnetnames] && ![info exists tunetv_msg_nocfg]} {
+   if {([llength [C_GetNetwopNames]] == 0) && ![info exists tunetv_msg_nocfg]} {
       set tunetv_msg_nocfg 1
 
+      set tvapp_name [TvAppGetName]
       set answer [tk_messageBox -type okcancel -default ok -icon info \
                      -message "Please synchronize network names with $tvapp_name in the Network Name Configuration dialog. You need to do this just once."]
       if {[string compare $answer "ok"] == 0} {
@@ -3167,18 +3277,8 @@ proc TuneTV {} {
       }
    }
 
-   # retrieve the name of the network of the currently selected PI
-   set selnet [C_PiBox_GetSelectedNetwop]
-   if {[llength $selnet] > 0} {
-      set cni [lindex $selnet 0]
-      # use user-configured network name OR provider name from AI
-      if [info exists cfnetnames($cni)] {
-         set name $cfnetnames($cni)
-      } else {
-         set name [lindex $selnet 1]
-      }
-      C_Tvapp_SendCmd "setstation" $name
-   }
+   # invoke the user-configured command (stored in context menu config)
+   ExecuteTuneTvCommand
 }
 
 # callback for right-click onto the "Tune TV" button
@@ -3214,26 +3314,25 @@ set help_popup 0
 set help_lang "en"
 
 proc PopupHelp {index {subheading {}} {subrange {}}} {
-   global help_fg help_bg help_font font_fixed win_frm_fg
+   global help_fg help_bg help_font font_fixed
    global help_popup help_winsize helpTexts helpIndex help_lang
 
    if {$help_popup == 0} {
       set help_popup 1
       toplevel .help
-      wm title .help "Nextview EPG Help"
+      wm title .help "nxtvepg help"
       wm group .help .
 
       # command buttons to close help window or to switch chapter
       frame  .help.cmd
       button .help.cmd.dismiss -text "Dismiss" -command {destroy .help} -width 7
       menubutton .help.cmd.lang -text "Language" -menu .help.cmd.lang.men -takefocus 1 \
-                                -direction below -indicatoron 1 -borderwidth 2 -relief raised \
-                                -cursor top_left_arrow \
-                                -takefocus 1 -highlightthickness 1 -highlightcolor $win_frm_fg
+                                -direction below -indicatoron 1 \
+                                -cursor top_left_arrow
       menubutton .help.cmd.chpt -text "Chapters" -menu .help.cmd.chpt.men -takefocus 1 \
-                                -direction below -indicatoron 1 -borderwidth 2 -relief raised \
-                                -cursor top_left_arrow \
-                                -takefocus 1 -highlightthickness 1 -highlightcolor $win_frm_fg
+                                -direction below -indicatoron 1 -cursor top_left_arrow
+      config_menubutton .help.cmd.lang
+      config_menubutton .help.cmd.chpt
       button .help.cmd.prev -text "Previous" -width 7
       button .help.cmd.next -text "Next" -width 7
       button .help.cmd.back -text "Back" -width 7 -command HelpHistoryBack -state disabled
@@ -3314,8 +3413,10 @@ proc PopupHelp {index {subheading {}} {subrange {}}} {
       raise .help
    }
 
-   # fill the widget with the formatted text
-   eval [concat .help.disp.text insert end $helpTexts($help_lang,$index)]
+   # fill the widget with the formatted text (note help texts are authored in Latin1 encoding)
+   foreach {htext tlabel} $helpTexts($help_lang,$index) {
+      .help.disp.text insert end [encoding convertfrom "iso8859-1" $htext] $tlabel
+   }
    .help.disp.text configure -state disabled
 
    # define/update bindings for left/right command buttons
@@ -3455,12 +3556,12 @@ proc CreateAbout {} {
       CreateTransientPopup .about "About nxtvepg"
       set about_popup 1
 
-      label .about.name -text "nexTView EPG Decoder - nxtvepg v$EPG_VERSION"
+      label .about.name -text "nxtvepg v$EPG_VERSION"
       pack .about.name -side top -pady 8
       #label .about.tcl_version -text " Tcl/Tk version $tcl_patchLevel"
       #pack .about.tcl_version -side top
 
-      label .about.copyr1 -text "Copyright © 1999 - 2003 by Tom Zörner"
+      label .about.copyr1 -text "Copyright (C) 1999 - 2007 by T. Zörner"
       label .about.copyr2 -text $NXTVEPG_MAILTO
       label .about.copyr3 -text $NXTVEPG_URL -font $font_fixed -foreground blue
       pack .about.copyr1 .about.copyr2 -side top
@@ -3506,23 +3607,23 @@ THIS PROGRAM IS DISTRIBUTED IN THE HOPE THAT IT WILL BE USEFUL, BUT WITHOUT ANY 
 # heading, dropdown menu and the description in the config listbox.
 
 array set colsel_tabs {
-   title          {266 Title    FilterMenuAdd_Title      "Title"} \
-   netname        {60  Network  FilterMenuAdd_Networks   "Network name"} \
-   time           {86  Time     FilterMenuAdd_Time       "Running time"} \
-   duration       {43  Duration FilterMenuAdd_Duration   "Duration"} \
-   weekday        {35  Day      FilterMenuAdd_Date       "Day of week"} \
-   day            {27  Date     FilterMenuAdd_Date       "Day of month"} \
-   day_month      {44  Date     FilterMenuAdd_Date       "Day and month"} \
-   day_month_year {74  Date     FilterMenuAdd_Date       "Day, month and year"} \
-   pil            {76  VPS/PDC  FilterMenuAdd_VpsPdc     "VPS/PDC code"} \
+   title          {283 Title    FilterMenuAdd_Title      "Title"} \
+   netname        {73  Network  FilterMenuAdd_Networks   "Network name"} \
+   time           {96  Time     FilterMenuAdd_Time       "Running time"} \
+   duration       {48  Duration FilterMenuAdd_Duration   "Duration"} \
+   weekday        {37  Day      FilterMenuAdd_Date       "Day of week"} \
+   day            {30  Date     FilterMenuAdd_Date       "Day of month"} \
+   day_month      {51  Date     FilterMenuAdd_Date       "Day and month"} \
+   day_month_year {84  Date     FilterMenuAdd_Date       "Day, month and year"} \
+   pil            {91  VPS/PDC  FilterMenuAdd_VpsPdc     "VPS/PDC code"} \
    theme          {74  Theme    FilterMenuAdd_Themes     "Theme"} \
    sound          {71  Sound    FilterMenuAdd_Sound      "Sound"} \
    format         {41  Format   FilterMenuAdd_Format     "Format"} \
    ed_rating      {30  ER       FilterMenuAdd_EditorialRating "Editorial rating"} \
    par_rating     {30  PR       FilterMenuAdd_ParentalRating  "Parental rating"} \
    live_repeat    {47  L/R      FilterMenuAdd_LiveRepeat "Live or repeat"} \
-   description    {15  I        none                     "Flag description"} \
-   subtitles      {18  ST       FilterMenuAdd_Subtitles  "Flag subtitles"} \
+   description    {18  I        none                     "Flag description"} \
+   subtitles      {25  ST       FilterMenuAdd_Subtitles  "Flag subtitles"} \
    weekcol        {20  Day      FilterMenuAdd_Date       "Weekday colors"} \
    reminder       {30  Mark     FilterMenuAdd_AllReminders "Reminder marks"} \
 }
@@ -3784,9 +3885,9 @@ proc UpdatePiListboxColumns {} {
    }
 
    # configure tab-stops in text widget
-   .all.pi.list.text tag configure past -tab $tabs
-   .all.pi.list.text tag configure now -tab $tabs
-   .all.pi.list.text tag configure then -tab $tabs
+   .all.pi.list.text tag configure past -tabs $tabs
+   .all.pi.list.text tag configure now -tabs $tabs
+   .all.pi.list.text tag configure then -tabs $tabs
 
    # update the settings in the listbox module
    C_PiOutput_CfgColumns
@@ -3817,7 +3918,7 @@ proc FilterMenuAdd_Time {widget is_stand_alone} {
    $widget add command -label "Now" -command {C_PiBox_GotoTime 1 now}
    $widget add command -label "Next" -command {C_PiBox_GotoTime 1 next}
 
-   set now        [clock seconds] 
+   set now        [C_ClockSeconds] 
    set start_time [expr $now - ($now % (2*60*60)) + (2*60*60)]
    set hour       [expr ($start_time % (24*60*60)) / (60*60)]
 
@@ -3839,7 +3940,7 @@ proc FilterMenuAdd_Duration {widget is_stand_alone} {
 }
 
 proc FilterMenuAdd_Date {widget is_stand_alone} {
-   set start_time [clock seconds]
+   set start_time [C_ClockSeconds]
    set last_time [C_GetLastPiTime]
 
    $widget add command -label "Today, [C_ClockFormat $start_time {%d. %b. %Y}]" -command {C_PiBox_GotoTime 1 now}
@@ -3854,7 +3955,7 @@ proc FilterMenuAdd_Date {widget is_stand_alone} {
 }
 
 proc FilterMenuAdd_Networks {widget is_stand_alone} {
-   global cfnetwops netselmenu
+   global netselmenu
 
    $widget add command -label "All networks" -command {ResetNetwops; SelectNetwop}
 
@@ -3862,16 +3963,14 @@ proc FilterMenuAdd_Networks {widget is_stand_alone} {
    # as a side effect this function stores all netwop names into the array netsel_names
    set netsel_prov [C_GetCurrentDatabaseCni]
    set netsel_ailist [C_GetAiNetwopList 0 netsel_names]
-   ApplyUserNetnameCfg netsel_names
 
-   if {[info exists cfnetwops($netsel_prov)]} {
-      set netsel_selist [lindex $cfnetwops($netsel_prov) 0]
-   } else {
+   set netsel_selist [lindex [C_GetProvCniConfig $netsel_prov] 0]
+   if {[llength $netsel_selist] == 0} {
       set netsel_selist $netsel_ailist
    }
 
    # Add currently selected network as command button (unless it is already filtered)
-   set cni [lindex [C_PiBox_GetSelectedNetwop] 0]
+   set cni [C_PiBox_GetSelectedNetCni]
    set nlidx [lsearch -exact $netsel_selist $cni]
    if {($nlidx != -1) && (![info exists netselmenu($nlidx)] || ($netselmenu($nlidx) == 0))} {
       $widget add command -label "Only $netsel_names($cni)" -command "ResetNetwops; set netselmenu($nlidx) 1; SelectNetwopMenu $nlidx"
@@ -4261,9 +4360,9 @@ proc ColumnHeaderMotion {col state xcoo} {
                incr tab_pos [lindex $colsel_tabs($col) $::cod_width_idx]
                lappend tabs ${tab_pos}
             }
-            .all.pi.list.text tag configure past -tab $tabs
-            .all.pi.list.text tag configure now -tab $tabs
-            .all.pi.list.text tag configure then -tab $tabs
+            .all.pi.list.text tag configure past -tabs $tabs
+            .all.pi.list.text tag configure now -tabs $tabs
+            .all.pi.list.text tag configure then -tabs $tabs
 
             # redraw the PI listbox in case strings must be shortened
             UpdatePiListboxColumParams
@@ -4351,7 +4450,9 @@ proc ColumnHeaderButtonRel {col} {
 ## Sort a list of provider CNIs according to user preference
 ##
 proc SortProvList {ailist} {
-   global prov_selection sortProvListArr
+   global sortProvListArr
+
+   set prov_selection [C_GetProvSelection]
 
    if {[info exists prov_selection] && ([llength $prov_selection] > 0)} {
       set idx 0
@@ -4397,7 +4498,7 @@ proc SortProvList_cmd {a b} {
 ##   to allow to display a text across all columns
 ##
 proc PiBox_DisplayErrorMessage {text} {
-   global pi_font text_fg text_bg
+   global pi_font text_fg text_bg NXTVEPG_MAILTO
    global pibox_type
 
    if {[string length $text] > 0} {
@@ -4429,11 +4530,11 @@ proc PiBox_DisplayErrorMessage {text} {
       $wid tag configure wrapTag   -wrap word
       $wid tag configure yellowBg  -background #ffff50
 
-      $wid insert end "Nextview EPG\n" bold24Tag
-      $wid insert end "An Electronic TV Programme Guide for Your PC\n" bold16Tag
+      $wid insert end "nxtvepg\n" bold24Tag
+      $wid insert end "Receiving and Browsing TV Programme Guides on Your PC\n" bold16Tag
       $wid window create end -window ${wid}.nxtvlogo
-      $wid insert end "\n\nCopyright © 1999 - 2003 by Tom Zörner\n" bold12Tag
-      $wid insert end "tomzo@nefkom.net\n\n" bold12Tag
+      $wid insert end "\n\nCopyright (C) 1999 - 2007 by T. Zoerner\n" bold12Tag
+      $wid insert end "$NXTVEPG_MAILTO\n\n" bold12Tag
       $wid tag add centerTag 1.0 {end - 1 lines}
       $wid insert end "This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License Version 2 as published by the Free Software Foundation. This program is distributed in the hope that it will be useful, but without any warranty. See the GPL2 for more details.\n\n" wrapTag
 

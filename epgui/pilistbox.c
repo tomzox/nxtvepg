@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pilistbox.c,v 1.95 2004/12/12 14:49:15 tom Exp tom $
+ *  $Id: pilistbox.c,v 1.98 2007/12/29 20:19:10 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -83,6 +83,7 @@ bool        pibox_resync;        // if TRUE, need to evaluate off and max
 bool        pibox_lock;          // if TRUE, refuse additions from acq
 time_t      pibox_req_time;      // start time of last directly selected item
 time_t      pibox_req_net;       // network of last directly selected item
+int         pibox_acq_inserts;   // count of insertions via acq callback
 PIBOX_STATE pibox_state = PIBOX_NOT_INIT;  // listbox state
 
 #define dbc pUiDbContext         // internal shortcut
@@ -200,7 +201,7 @@ void PiListBox_ErrorMessage( const uchar * pMessage )
       sprintf(comm, ".all.pi.list.sc set 0.0 1.0\n");
       eval_check(interp, comm);
 
-      PiDescription_ClearText();
+      PiOutput_DescriptionTextClear();
    }
    else if (pibox_state != PIBOX_LIST)
    {
@@ -226,7 +227,7 @@ static void PiListBox_UpdateInfoText( bool keepView )
       pPiBlock = EpgDbSearchPi(dbc, pibox_list[pibox_curpos].start_time, pibox_list[pibox_curpos].netwop_no);
       if (pPiBlock != NULL)
       {
-         PiDescription_UpdateText(pPiBlock, keepView);
+         PiOutput_DescriptionTextUpdate(pPiBlock, keepView);
       }
       else
          debug2("PiListBox-UpdateInfoText: selected block start=%ld netwop=%d not found", pibox_list[pibox_count-1].start_time, pibox_list[pibox_count-1].netwop_no);
@@ -358,11 +359,12 @@ void PiListBox_Reset( void )
 
    sprintf(comm, ".all.pi.list.text delete 1.0 end\n");
    eval_check(interp, comm);
-   PiDescription_ClearText();
+   PiOutput_DescriptionTextClear();
 
    EpgDbLockDatabase(dbc, TRUE);
    pPiBlock = EpgDbSearchFirstPi(dbc, pPiFilterContext);
    pibox_resync = FALSE;
+   pibox_acq_inserts = 0;
    pibox_count = 0;
    pibox_max = 0;
    pibox_off = 0;
@@ -404,6 +406,14 @@ void PiListBox_Reset( void )
 }
 
 // ----------------------------------------------------------------------------
+// Refresh display after asynchronous changes in the database (e.g. PI insert by acq)
+//
+static void PiListBox_RefreshEvent( ClientData clientData )
+{
+   PiListBox_Refresh();
+}
+
+// ----------------------------------------------------------------------------
 // Re-Sync the listbox with the database
 //
 void PiListBox_Refresh( void )
@@ -412,6 +422,8 @@ void PiListBox_Refresh( void )
    uchar last_netwop;
    time_t last_start_time;
    int i;
+
+   RemoveMainIdleEvent(PiListBox_RefreshEvent, NULL, FALSE);
 
    if (pibox_state != PIBOX_LIST)
    {
@@ -429,6 +441,7 @@ void PiListBox_Refresh( void )
       last_start_time = pibox_list[pibox_curpos].start_time;
       last_netwop = pibox_list[pibox_curpos].netwop_no;
       pibox_resync = FALSE;
+      pibox_acq_inserts = 0;
       pibox_off = 0;
 
       EpgDbLockDatabase(dbc, TRUE);
@@ -522,7 +535,7 @@ void PiListBox_Refresh( void )
          pibox_count = 0;
          pibox_max = 0;
          // clear the short-info window
-         PiDescription_ClearText();
+         PiOutput_DescriptionTextClear();
       }
 
       EpgDbLockDatabase(dbc, FALSE);
@@ -567,7 +580,7 @@ static void PiListBox_ScrollMoveto( int newpos )
       {
          sprintf(comm, ".all.pi.list.text delete 1.0 end\n");
          eval_check(interp, comm);
-         PiDescription_ClearText();
+         PiOutput_DescriptionTextClear();
 
          if (pibox_curpos >= 0)
          {
@@ -1189,7 +1202,7 @@ static int PiListBox_GotoTime( ClientData ttp, Tcl_Interp *interp, int objc, Tcl
          // Clear the listbox and the description window
          sprintf(comm, ".all.pi.list.text delete 1.0 end\n");
          eval_check(interp, comm);
-         PiDescription_ClearText();
+         PiOutput_DescriptionTextClear();
 
          pibox_off = EpgDbCountPrevPi(dbc, pPiFilterContext, pPiBlock);
          pibox_count = 0;
@@ -1761,13 +1774,12 @@ static void PiListBox_DbRemoved( const PI_BLOCK *pPiBlock )
 static bool PiListBox_HandleAcqEvent( const EPGDB_CONTEXT * usedDbc, EPGDB_PI_ACQ_EVENT event,
                                       const PI_BLOCK * pPiBlock, const PI_BLOCK * pObsolete )
 {
-   static int cbCallCount = 0;
    bool result = FALSE;
 
    if ( (pibox_state == PIBOX_LIST) && (usedDbc == dbc) && (pibox_lock == FALSE) )
    {
-      cbCallCount += 1;
-      if (cbCallCount > PIBOX_MAX_ACQ_CALLBACKS)
+      pibox_acq_inserts += 1;
+      if (pibox_acq_inserts > PIBOX_MAX_ACQ_CALLBACKS)
       {  // pull the plug on synchronous insertions and removals
          pibox_resync = TRUE;
       }
@@ -1775,8 +1787,6 @@ static bool PiListBox_HandleAcqEvent( const EPGDB_CONTEXT * usedDbc, EPGDB_PI_AC
       switch (event)
       {
          case EPGDB_PI_PROC_START:
-            assert(pibox_resync == FALSE);  // missing recount call after last queue processing
-            cbCallCount = 0;
             break;
          case EPGDB_PI_INSERTED:
             PiListBox_DbInserted(pPiBlock);
@@ -1793,9 +1803,15 @@ static bool PiListBox_HandleAcqEvent( const EPGDB_CONTEXT * usedDbc, EPGDB_PI_AC
          case EPGDB_PI_PROC_DONE:
             if (pibox_resync)
             {
-               PiListBox_Refresh();
+               AddMainIdleEvent(PiListBox_RefreshEvent, NULL, TRUE);
             }
-            cbCallCount = 0;
+            break;
+         case EPGDB_PI_RESYNC:
+            if (pibox_resync == FALSE)
+            {
+               pibox_resync = TRUE;
+               AddMainIdleEvent(PiListBox_RefreshEvent, NULL, TRUE);
+            }
             break;
          default:
             fatal1("PiListBox-HandleAcqEvent: unknown event %d received", event);
@@ -1866,14 +1882,13 @@ const PI_BLOCK * PiListBox_GetSelectedPi( void )
 }
 
 // ----------------------------------------------------------------------------
-// Returns the CNI and name of the network of the currently selected PI
+// Returns the CNI of the network of the currently selected PI
 //
-static int PiListBox_GetSelectedNetwop( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+static int PiListBox_GetSelectedNetCni( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
 {
-   const char * const pUsage = "Usage: C_PiBox_GetSelectedNetwop";
+   const char * const pUsage = "Usage: C_PiBox_GetSelectedNetCni";
    const AI_BLOCK *pAiBlock;
-   Tcl_Obj * pResultList;
-   uchar strbuf[10];
+   uchar strbuf[16+2+1];
    uchar netwop;
    int result;
 
@@ -1893,13 +1908,9 @@ static int PiListBox_GetSelectedNetwop( ClientData ttp, Tcl_Interp *interp, int 
          pAiBlock = EpgDbGetAi(dbc);
          if ((pAiBlock != NULL) && (netwop < pAiBlock->netwopCount))
          {
-            pResultList = Tcl_NewListObj(0, NULL);
+            sprintf(strbuf, "0x%04X", AI_GET_NET_CNI_N(pAiBlock, netwop));
 
-            sprintf(strbuf, "0x%04X", AI_GET_NETWOP_N(pAiBlock, netwop)->cni);
-            Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(strbuf, -1));
-            Tcl_ListObjAppendElement(interp, pResultList, Tcl_NewStringObj(AI_GET_NETWOP_NAME(pAiBlock, netwop), -1));
-
-            Tcl_SetObjResult(interp, pResultList);
+            Tcl_SetObjResult(interp, Tcl_NewStringObj(strbuf, -1));
          }
          EpgDbLockDatabase(dbc, FALSE);
       }
@@ -2000,7 +2011,7 @@ void PiListBox_Create( void )
    Tcl_CreateObjCommand(interp, "C_PiBox_Refresh", PiListBox_RefreshCmd, (ClientData) NULL, NULL);
    Tcl_CreateObjCommand(interp, "C_PiBox_Reset", PiListBox_ResetCmd, (ClientData) NULL, NULL);
    Tcl_CreateObjCommand(interp, "C_PiBox_Resize", PiListBox_Resize, (ClientData) NULL, NULL);
-   Tcl_CreateObjCommand(interp, "C_PiBox_GetSelectedNetwop", PiListBox_GetSelectedNetwop, (ClientData) NULL, NULL);
+   Tcl_CreateObjCommand(interp, "C_PiBox_GetSelectedNetCni", PiListBox_GetSelectedNetCni, (ClientData) NULL, NULL);
 
    eval_check(interp, "UpdatePiListboxColumns");
 

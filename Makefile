@@ -14,21 +14,23 @@
 #
 #  Description:
 #
-#    Controls compilation of C and Tcl/Tk source to an executable on
+#    Controls compilation of C and Tcl/Tk source into executables on
 #    UNIX systems. For Windows a separate Makefile is launched (this
-#    requires the CygWin GNU port).  Tcl/Tk source is converted to a
+#    requires the Cygwin GNU port).  Tcl/Tk source is converted to a
 #    C string by tcl2c.  Help and manpage are created by Perl utilities;
 #    the releases comes with pre-generated manpage and help, so that
 #    Perl is not required to install the package.  Dependencies are
 #    generated into a separate file.
 #
-#    To compile the package simply type "make", to compile and install
+#    To compile the package type "make all", to compile and install
 #    type "make install" (without the quotes).  If compilation fails
-#    you may have to adapt some paths below.
+#    you may have to adapt some paths below.  Note that "make nxtvepg"
+#    will not work because there are other targets which need to be
+#    built first (read comments below for further explanations.)
 #
 #  Author: Tom Zoerner
 #
-#  $Id: Makefile,v 1.77.1.1 2005/03/30 15:48:11 tom Exp $
+#  $Id: Makefile,v 1.97 2007/12/31 23:19:00 tom Exp $
 #
 
 ifeq ($(OS),Windows_NT)
@@ -48,23 +50,25 @@ prefix  = /usr/local
 exec_prefix = ${prefix}
 bindir  = $(ROOT)${exec_prefix}/bin
 mandir  = $(ROOT)${prefix}/man/man1
-resdir  = $(ROOT)/usr/X11R6/lib/X11
+resdir  = $(ROOT)/etc/X11
 
-# if you have perl set the path here, else just leave it alone
+# if you have perl and/or flex set their path here, else just leave them alone
 PERL    = /usr/bin/perl
+FLEX    = /usr/bin/flex
+YACC    = /usr/bin/yacc
 
-# select Tcl/Tk version (8.3 recommended; text widget in 8.4. is slower)
+# select Tcl/Tk version (8.5 recommended due to modernized widget appearence)
 TCL_VER := $(shell echo 'puts [package require Tcl]' | tclsh)
-#TCL_VER = 8.4
+#TCL_VER = 8.5
 
 ifeq ($(shell test -d /usr/include/tcl$(TCL_VER) && echo YES),YES)
 INCS   += -I/usr/include/tcl$(TCL_VER)
 endif
 
-LDLIBS  = -ltk$(TCL_VER) -ltcl$(TCL_VER) -L/usr/X11R6/lib -lX11 -lXmu -lm -ldl
+GUILIBS  = -ltk$(TCL_VER) -ltcl$(TCL_VER) -L/usr/X11R6/lib -lX11 -lXmu -ldl
 
 # use static libraries for debugging only
-#LDLIBS += -Ldbglib -static
+#GUILIBS += -Ldbglib -static
 
 INCS   += -I. -I/usr/X11R6/include
 DEFS   += -DX11_APP_DEFAULTS=\"$(resdir)/app-defaults/Nxtvepg\"
@@ -78,8 +82,17 @@ DEFS   += -DTK_LIBRARY_PATH=\"$(TK_LIBRARY_PATH)\"
 DEFS   += -DTCL_LIBRARY_PATH=\"$(TCL_LIBRARY_PATH)\"
 
 # enable use of multi-threading
-DEFS   += -DUSE_THREADS
-LDLIBS += -lpthread
+DEFS    += -DUSE_THREADS
+ACQLIBS += -lpthread
+
+# use UTF-8 internally instead of Latin-1 (EXPERIMENTAL)
+#DEFS   += -DUSE_UTF8 -DXMLTV_OUTPUT_UTF8
+
+# enable support for importing XMLTV files
+DEFS   += -DUSE_XMLTV_IMPORT
+
+# enable support for teletext EPG grabber (EXPERIMENTAL)
+DEFS   += -DUSE_TTX_GRABBER
 
 # enable use of daemon and client/server connection
 DEFS   += -DUSE_DAEMON
@@ -88,18 +101,9 @@ DEFS   += -DUSE_DAEMON
 #DEFS  += -DPATH_VIDEODEV_H=\"/usr/include/linux/videodev.h\"
 
 # enable use of libzvbi
+# (automatically uses the VBI proxy, if the daemon is running)
 #DEFS   += -DUSE_LIBZVBI
-# enable use of VBI proxy via libzvbi (requires proxy branch of libzvbi)
-# (note proxy API is still subject to change as of March-2004)
-#DEFS   += -DUSE_VBI_PROXY
-#LDLIBS += -lzvbi -lpthread -lpng
-#LDLIBS += /tom/work/tv/cvs/x-ssh/vbi/src/.libs/libzvbi.a -lpthread -lpng
-
-# enable workarounds for linux saa7134 driver: up to version 0.2.6
-# - change VBI default sampling rate (because the driver doesn't support ioctl VIDIOCGVBIFMT)
-# - skip ioctls VIDIOCGTUNER and  VIDIOCSTUNER
-# - fix video field sequence
-#DEFS   += -DSAA7134_0_2_2
+#ACQLIBS += -lzvbi -lpthread -lpng
 
 # The database directory can be either in the user's $HOME (or relative to any
 # other env variable) or at a global place like /var/spool (world-writable)
@@ -107,7 +111,7 @@ DEFS   += -DUSE_DAEMON
 #USER_DBDIR  = .nxtvdb
 #DEFS       += -DEPG_DB_ENV=\"HOME\" -DEPG_DB_DIR=\"$(USER_DBDIR)\"
 ifndef USER_DBDIR
-SYS_DBDIR    = /usr/tmp/nxtvdb
+SYS_DBDIR    = /var/tmp/nxtvdb
 DEFS        += -DEPG_DB_DIR=\"$(SYS_DBDIR)\"
 INST_DB_DIR  = $(ROOT)$(SYS_DBDIR)
 INST_DB_PERM = 0777
@@ -118,9 +122,10 @@ WARN   += -Wno-pointer-sign
 #WARN  += -Wpointer-arith -Werror
 CC      = gcc
 # the following flags can be overridden by an environment variable with the same name
-CFLAGS ?= -pipe -O2
+CFLAGS ?= -pipe -g -O2
 CFLAGS += $(WARN) $(INCS) $(DEFS)
-#LDLIBS += -pg
+LDFLAGS += -lm
+#LDFLAGS += -pg
 
 BUILD_DIR  = build-$(shell uname -m | sed -e 's/i.86/i386/' -e 's/ppc/powerpc/')
 INCS      += -I$(BUILD_DIR)
@@ -131,21 +136,30 @@ endif
 
 # ----- don't change anything below ------------------------------------------
 
-SUBDIRS = epgvbi epgdb epgctl epgui epgtcl tvsim
-CSRC    = epgvbi/btdrv4linux epgvbi/vbidecode epgvbi/zvbidecoder \
+SUBDIRS = epgvbi epgdb epgctl epgui epgtcl tvsim xmltv
+EPGSRC  = epgvbi/btdrv4linux epgvbi/vbidecode epgvbi/zvbidecoder \
           epgvbi/ttxdecode epgvbi/hamming epgvbi/cni_tables epgvbi/tvchan \
           epgvbi/syserrmsg \
-          epgctl/debug epgctl/epgacqctl epgctl/epgscan epgctl/epgctxctl \
-          epgctl/epgctxmerge epgctl/epgacqclnt epgctl/epgacqsrv \
           epgdb/epgstream epgdb/epgaifrag epgdb/epgdbmerge epgdb/epgdbsav \
           epgdb/epgdbmgmt epgdb/epgdbif epgdb/epgdbfil epgdb/epgblock \
-          epgdb/epgnetio epgdb/epgqueue epgdb/epgtscqueue \
-          epgui/pibox epgui/pilistbox epgui/pinetbox epgui/piremind \
+          epgdb/epgnetio epgdb/epgqueue epgdb/epgtscqueue epgdb/ttxgrab \
+          epgctl/debug epgctl/epgacqctl epgctl/epgacqnxt epgctl/epgacqttx \
+          epgctl/epgscan epgctl/epgctxctl epgctl/epgctxmerge \
+          epgctl/epgacqclnt epgctl/epgacqsrv
+XMLSRC  = xmltv/xml_prolog.tab xmltv/xml_scan.yy xmltv/xml_cdata \
+          xmltv/xml_hash xmltv/xmltv_tags xmltv/xmltv_db xmltv/xmltv_cni \
+          xmltv/xmltv_timestamp xmltv/xmltv_themes xmltv/xmltv_main
+GUISRC  = epgui/pibox epgui/pilistbox epgui/pinetbox epgui/piremind \
           epgui/uictrl epgui/pioutput epgui/pidescr epgui/pifilter \
           epgui/statswin epgui/timescale epgui/pdc_themes epgui/menucmd \
           epgui/epgmain epgui/loadtcl epgui/xawtv epgui/wintvcfg \
+          epgui/wintvui epgui/epgsetup epgui/cmdline epgui/rcfile \
           epgui/dumptext epgui/dumpraw epgui/dumphtml epgui/dumpxml \
-          epgui/shellcmd epgui/wmhooks
+          epgui/uidump epgui/shellcmd epgui/wmhooks epgui/xiccc \
+          epgui/daemon
+CLDSRC  = epgui/daemon_main epgui/daemon epgui/epgsetup epgui/cmdline \
+          epgui/rcfile epgui/wintvcfg epgui/dumptext epgui/dumpxml \
+          epgui/dumpraw epgui/pidescr epgui/pdc_themes
 TCLSRC  = epgtcl/mainwin epgtcl/dlg_hwcfg epgtcl/dlg_xawtvcf \
           epgtcl/dlg_ctxmencf epgtcl/dlg_acqmode epgtcl/dlg_netsel \
           epgtcl/dlg_dump epgtcl/dlg_netname epgtcl/dlg_udefcols \
@@ -155,36 +169,48 @@ TCLSRC  = epgtcl/mainwin epgtcl/dlg_hwcfg epgtcl/dlg_xawtvcf \
           epgtcl/mclistbox epgtcl/combobox epgtcl/rnotebook epgtcl/htree
 
 TVSIM_CSRC    = tvsim/tvsim_main
-TVSIM_CSRC2   = epgctl/debug epgui/pdc_themes epgvbi/tvchan epgui/wintvcfg
+TVSIM_CSRC2   = epgctl/debug epgui/pdc_themes epgvbi/tvchan epgvbi/syserrmsg \
+                epgui/wintvcfg epgui/wintvui epgui/xiccc epgui/rcfile
 TVSIM_TCLSRC  = tvsim/tvsim_gui
 VBIREC_CSRC   = tvsim/vbirec_main
 VBIREC_CSRC2  = epgvbi/btdrv4linux epgvbi/vbidecode epgvbi/zvbidecoder \
                 epgvbi/ttxdecode epgvbi/hamming epgvbi/cni_tables \
-                epgvbi/syserrmsg epgctl/debug epgui/xawtv
+                epgvbi/syserrmsg epgctl/debug epgui/xawtv epgui/xiccc \
+                epgui/dumptext epgui/pidescr epgui/pdc_themes
 VBIREC_TCLSRC = tvsim/vbirec_gui epgtcl/combobox
 
-NXTV_OBJS     = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(CSRC) $(TCLSRC)))
+NXTV_OBJS     = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(EPGSRC) $(GUISRC) $(TCLSRC)))
+DAEMON_OBJS   = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(EPGSRC) $(CLDSRC)))
 TVSIM_OBJS    = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(TVSIM_CSRC) $(TVSIM_CSRC2) $(TVSIM_TCLSRC)))
 VBIREC_OBJS   = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(VBIREC_CSRC) $(VBIREC_CSRC2) $(VBIREC_TCLSRC)))
 
-.PHONY: devel manuals tvsim tvmans all
+ifneq (,$(findstring USE_XMLTV_IMPORT,$(DEFS)))
+NXTV_OBJS    += $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(XMLSRC)))
+DAEMON_OBJS  += $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(XMLSRC)))
+endif
+
+.PHONY: devel daemon manuals tvsim tvmans all
 devel   :: build_dir tcl_headers $(BUILD_DIR)/nxtvepg manuals
-manuals :: nxtvepg.1 manual.html manual-de.html
+daemon  :: build_dir tcl_headers $(BUILD_DIR)/nxtvepgd manuals
+manuals :: nxtvepg.1 nxtvepgd.1 manual.html manual-de.html
 tvsim   :: build_dir tcl_headers_tvsim $(BUILD_DIR)/tvsimu $(BUILD_DIR)/vbirec tvmans
 tvmans  :: build_dir tvsim/tvsim.html tvsim/vbirec.html tvsim/vbiplay.html
-all     :: devel tvsim tvmans
+all     :: devel daemon tvsim tvmans verifyxml
 
 $(BUILD_DIR)/nxtvepg: $(NXTV_OBJS)
-	$(CC) $(LDFLAGS) -o $@ $(NXTV_OBJS) $(LDLIBS)
+	$(CC) -o $@ $(NXTV_OBJS) $(GUILIBS) $(ACQLIBS) $(LDFLAGS) 
+
+$(BUILD_DIR)/nxtvepgd: $(DAEMON_OBJS)
+	$(CC) -o $@ $(DAEMON_OBJS) $(LDFLAGS) $(ACQLIBS)
 
 $(BUILD_DIR)/tvsimu: $(TVSIM_OBJS)
-	$(CC) $(LDFLAGS) $(TVSIM_OBJS) $(LDLIBS) -o $@
+	$(CC) -o $@ $(TVSIM_OBJS) $(LDFLAGS) $(GUILIBS) $(ACQLIBS)
 
 $(BUILD_DIR)/vbirec: $(VBIREC_OBJS)
-	$(CC) $(LDFLAGS) $(VBIREC_OBJS) $(LDLIBS) -o $@
+	$(CC) -o $@ $(VBIREC_OBJS) $(LDFLAGS) $(GUILIBS) $(ACQLIBS)
 
 .PHONY: install
-install: devel Nxtvepg.ad
+install: daemon Nxtvepg.ad nxtvepgd.1
 	test -d $(bindir) || install -d $(bindir)
 	test -d $(mandir) || install -d $(mandir)
 	test -d $(resdir)/app-defaults || install -d $(resdir)/app-defaults
@@ -193,12 +219,14 @@ ifndef USER_DBDIR
 	chmod $(INST_DB_PERM) $(INST_DB_DIR)
 endif
 	install -c -m 0755 $(BUILD_DIR)/nxtvepg $(bindir)
+	install -c -m 0755 $(BUILD_DIR)/nxtvepgd $(bindir)
 	install -c -m 0644 nxtvepg.1   $(mandir)
+	install -c -m 0644 nxtvepgd.1  $(mandir)
 	install -c -m 0644 Nxtvepg.ad  $(resdir)/app-defaults/Nxtvepg
 
 .SUFFIXES: .c .o .tcl
 
-$(BUILD_DIR)/%.o: %.c
+$(BUILD_DIR)/%.o: %.c | tcl_headers tcl_headers_tvsim
 	$(CC) $(CFLAGS) -Wp,-MMD,$@.dep.tmp -c -o $@ $<
 	@sed -e "s#^[^ \t].*\.o:#$@:#" < $@.dep.tmp > $@.dep && \
 	   rm -f $@.dep.tmp
@@ -219,11 +247,50 @@ $(BUILD_DIR)/%.c: %.tcl $(BUILD_DIR)/tcl2c
           false ; \
 	fi
 
+.SUFFIXES: .yy .lex
+
+%.tab.c %.tab.h: %.yy
+	@if test -x $(YACC); then \
+	  echo "$(YACC) -d -b $(basename $<) $<" ; \
+	  $(YACC) -d -b $(basename $<) $< ; \
+	elif test -f $<; then \
+	  touch $< ; \
+	else \
+	  echo "ERROR: cannot generate $< without $(YACC)" ; \
+	  false; \
+	fi
+
+%.yy.c: %.lex
+	@if test -x $(FLEX); then \
+	  echo "$(FLEX) -o$@ $<" ; \
+	  $(FLEX) -o$@ $< ; \
+	elif test -f $<; then \
+	  touch $< ; \
+	else \
+	  echo "ERROR: cannot generate $< without $(FLEX)" ; \
+	  false; \
+	fi
+
+.PHONY: verifyxml parsexmltv
+# standalone XML parser for validation purposes
+XMLVERISRC = xmltv/xml_prolog.tab xmltv/xml_scan.yy xmltv/xml_verify \
+             xmltv/xml_cdata xmltv/xml_hash epgctl/debug
+XMLVERIOBJ  = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(XMLVERISRC)))
+$(BUILD_DIR)/verifyxml : $(XMLVERIOBJ)
+	$(CC) -o $@ $(XMLVERIOBJ) $(LDFLAGS)
+verifyxml : $(BUILD_DIR)/verifyxml
+
+# standalone XMLTV processor for performance tests
+# note: requires uncommenting main() in source module xmltv_db
+XMLTESTSRC  = $(XMLSRC) $(EPGSRC) epgui/pidescr epgui/pdc_themes
+XMLTESTOBJ  = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(XMLTESTSRC)))
+$(BUILD_DIR)/parsexmltv : $(XMLTESTOBJ)
+	$(CC) -o $@ $(XMLTESTOBJ) $(LDFLAGS)
+parsexmltv : $(BUILD_DIR)/parsexmltv
+
 .PHONY: tcl_headers tcl_headers_tvsim
 tcl_headers: $(addprefix $(BUILD_DIR)/, $(addsuffix .c, $(TCLSRC)))
 tcl_headers_tvsim: $(addprefix $(BUILD_DIR)/, $(addsuffix .c, $(TVSIM_TCLSRC) $(VBIREC_TCLSRC)))
-##%.h: %.tcl $(BUILD_DIR)/tcl2c
-##	$(BUILD_DIR)/tcl2c -d -c -h $*.tcl
 
 $(BUILD_DIR)/tcl2c: tcl2c.c
 	$(CC) $(CFLAGS) -o $(BUILD_DIR)/tcl2c tcl2c.c
@@ -239,10 +306,8 @@ epgui/loadtcl.c :: $(TCL_LIBRARY_PATH)/tclIndex $(TK_LIBRARY_PATH)/tclIndex
 
 .PHONY: bak
 bak:
-	cd .. && tar cvf /tmp/pc.tar -X pc/tar-ex-win pc ttx
+	cd .. && tar cvf /tmp/pc.tar -X pc/tar-ex pc ttx
 	bzip2 -9f /tmp/pc.tar
-#	cd .. && tar cf pc1.tar pc -X pc/tar-ex && bzip2 -f -9 pc1.tar
-#	tar cf ../pc2.tar www ATTIC dsdrv?* tk8* tcl8* && bzip2 -f -9 ../pc2.tar
 
 .PHONY: build_dir
 build_dir:
@@ -288,13 +353,14 @@ epgtcl/helptexts_de.tcl: nxtvepg-de.pod pod2help.pl
 	  false; \
 	fi
 
-nxtvepg.1 manual.html: nxtvepg.pod epgctl/epgversion.h
+nxtvepg.1 nxtvepgd.1 manual.html: nxtvepg.pod epgctl/epgversion.h
 	@if test -x $(PERL); then \
 	  EPG_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*EPG_VERSION_STR' epgctl/epgversion.h | head -1 | sed -e 's#.*"\(.*\)".*#\1#'`; \
 	  echo "pod2man nxtvepg.pod > nxtvepg.1"; \
 	  pod2man -date " " -center "Nextview EPG Decoder" -section "1" \
 	          -release "nxtvepg "$$EPG_VERSION_STR" (C) 1999-2007 Tom Zoerner" \
 	     nxtvepg.pod > nxtvepg.1; \
+          echo ".so man1/nxtvepg.1" > nxtvepgd.1 \
 	  echo "pod2html nxtvepg.pod > manual.html"; \
 	  pod2html nxtvepg.pod | $(PERL) -p -e 's/(HREF=\"#)([^:"]+: |[^_"]+(_[^_"]+)?__)+/$$1/gi;' > manual.html; \
 	  rm -f pod2htm?.* pod2html-{dircache,itemcache}; \
@@ -303,7 +369,7 @@ nxtvepg.1 manual.html: nxtvepg.pod epgctl/epgversion.h
 	  false; \
 	fi
 
-manual-de.html: nxtvepg.pod epgctl/epgversion.h
+manual-de.html: nxtvepg-de.pod epgctl/epgversion.h
 	@if test -x $(PERL); then \
 	  EPG_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*EPG_VERSION_STR' epgctl/epgversion.h | head -1 | sed -e 's#.*"\(.*\)".*#\1#'`; \
 	  echo "pod2html nxtvepg-de.pod > manual-de.html"; \
@@ -319,7 +385,7 @@ tvsim/tvsim.1 tvsim/tvsim.html: tvsim/tvsim.pod tvsim/tvsim_version.h
 	  TVSIM_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*TVSIM_VERSION_STR' tvsim/tvsim_version.h | head -1 | sed -e 's#.*"\(.*\)".*#\1#'`; \
 	  echo "pod2man tvsim/tvsim.pod > tvsim/tvsim.1"; \
 	  pod2man -date " " -center "TV app interaction simulator" -section "1" \
-	          -release "tvsim "$$TVSIM_VERSION_STR" (C) 2002,2004,2005 Tom Zoerner" \
+	          -release "tvsim "$$TVSIM_VERSION_STR" (C) 2002-2007 Tom Zoerner" \
 	          tvsim/tvsim.pod > tvsim/tvsim.1; \
 	  echo "pod2html tvsim/tvsim.pod > tvsim/tvsim.html"; \
 	  pod2html tvsim/tvsim.pod | $(PERL) -p -e 's/(HREF=\"#)([^:"]+: |[^_"]+(_[^_"]+)?__)+/$$1/gi;' > tvsim/tvsim.html; \
@@ -334,7 +400,7 @@ tvsim/vbirec.1 tvsim/vbirec.html: tvsim/vbirec.pod tvsim/tvsim_version.h
 	  TVSIM_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*TVSIM_VERSION_STR' tvsim/tvsim_version.h | head -1 | sed -e 's#.*"\(.*\)".*#\1#'`; \
 	  echo "pod2man tvsim/vbirec.pod > tvsim/vbirec.1"; \
 	  pod2man -date " " -center "VBI recorder" -section "1" \
-	          -release "vbirec (C) 2002,2004,2005 Tom Zoerner" \
+	          -release "vbirec (C) 2002-2007 Tom Zoerner" \
 	          tvsim/vbirec.pod > tvsim/vbirec.1; \
 	  echo "pod2html tvsim/vbirec.pod > tvsim/vbirec.html"; \
 	  pod2html tvsim/vbirec.pod | $(PERL) -p -e 's/(HREF=\"#)([^:"]+: |[^_"]+(_[^_"]+)?__)+/$$1/gi;' > tvsim/vbirec.html; \
@@ -349,7 +415,7 @@ tvsim/vbiplay.1 tvsim/vbiplay.html: tvsim/vbiplay.pod tvsim/tvsim_version.h
 	  TVSIM_VERSION_STR=`egrep '[ \t]*#[ \t]*define[ \t]*TVSIM_VERSION_STR' tvsim/tvsim_version.h | head -1 | sed -e 's#.*"\(.*\)".*#\1#'`; \
 	  echo "pod2man tvsim/vbiplay.pod > tvsim/vbiplay.1"; \
 	  pod2man -date " " -center "VBI playback tool" -section "1" \
-	          -release "vbiplay (C) 2002 Tom Zoerner" \
+	          -release "vbiplay (C) 2002,2006 Tom Zoerner" \
 	          tvsim/vbiplay.pod > tvsim/vbiplay.1; \
 	  echo "pod2html tvsim/vbiplay.pod > tvsim/vbiplay.html"; \
 	  pod2html tvsim/vbiplay.pod | $(PERL) -p -e 's/(HREF=\"#)([^:"]+: |[^_"]+(_[^_"]+)?__)+/$$1/gi;' > tvsim/vbiplay.html; \

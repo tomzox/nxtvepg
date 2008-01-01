@@ -18,7 +18,7 @@
 // License along with this library; if not, write to the Free Software
 // Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 /////////////////////////////////////////////////////////////////////////////
-// nxtvepg $Id: cfg_parse.c,v 1.3 2006/12/21 20:10:59 tom Exp tom $
+// nxtvepg $Id: cfg_parse.c,v 1.4 2007/03/10 17:35:56 tom Exp tom $
 /////////////////////////////////////////////////////////////////////////////
 //
 // Grammar:
@@ -28,8 +28,7 @@
 //  tag-list := value-tag|parent-tag[ tag-list]
 //
 //  value-tag := tag [= value\n|[=] (value)]
-//  parent-tag := tag [= sub-tag-value-list\n|[=] ( sub-tag-value-list ) \ 
-//    [= tag-list\n|tag-list|{ tag-list }]]
+//  parent-tag := tag [= sub-tag-value-list\n|[=] ( sub-tag-value-list ) [= tag-list\n|tag-list|{ tag-list }]]
 //
 //  sub-tag-value-list := value[, sub-tag-value-list]
 //

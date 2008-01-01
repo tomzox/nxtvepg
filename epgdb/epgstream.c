@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgstream.c,v 1.31 2005/12/29 15:49:09 tom Exp $
+ *  $Id: epgstream.c,v 1.32 2006/12/28 16:14:33 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_STREAM
@@ -617,7 +617,7 @@ static bool EpgStreamPageHeaderCheck( const uchar * curPageHeader )
 bool EpgStreamProcessPackets( void )
 {
    const VBI_LINE * pVbl;
-   bool freePrevPkg   = FALSE;
+   uint pkgOff;
    bool channelChange = TRUE;
    const uchar * pAiBuffer;
    uint blockLen;
@@ -629,10 +629,11 @@ bool EpgStreamProcessPackets( void )
       assert(pVbiBuf->epgPageNo == ttxState.epgPageNo);
 
       // fetch the oldest packet from the teletext ring buffer
-      while ( (pVbl = TtxDecode_GetPacket(freePrevPkg)) != NULL )
+      pkgOff = 0;
+      while ( (pVbl = TtxDecode_GetPacket(pkgOff)) != NULL )
       {
-         freePrevPkg = TRUE;
          streamStats.epgPkgCount += 1;
+         pkgOff += 1;
 
          //dprintf4("Process idx=%d: pkg=%d pg=%03X.%04X\n", pVbiBuf->reader_idx, pVbl->pkgno, pVbl->pageno, pVbl->sub);
          if (pVbl->pkgno == 0)
@@ -649,22 +650,19 @@ bool EpgStreamProcessPackets( void )
                   break;
                }
                else
-                  ttxState.isEpgPage = EpgStreamNewPage(pVbl->sub);
+                  ttxState.isEpgPage = EpgStreamNewPage(pVbl->ctrl_lo & 0x3F7F);
             }
             else
             {  // found an unexpected ttx page in the buffer
-               debug1("EpgStream-ProcessPackets: found non-EPG page %03X", pVbl->pageno);
                ttxState.isEpgPage = FALSE;
             }
          }
          else
          {
-            if (ttxState.isEpgPage)
+            if ( ttxState.isEpgPage && (pVbl->pageno == ttxState.epgPageNo) )
             {
                EpgStreamDecodePacket(pVbl->pkgno, pVbl->data);
             }
-            else
-               debug1("EpgStream-ProcessPackets: discarding pkg %d on non-EPG page", pVbl->pkgno);
          }
       }
 
@@ -749,6 +747,10 @@ void EpgStreamInit( EPGDB_QUEUE *pDbQueue, bool bWaitForBiAi, uint appId, uint p
 //
 void EpgStreamClear( void )
 {
-   EpgDbQueue_Clear(pBlockQueue);
+   if (pBlockQueue != NULL)
+   {
+     EpgDbQueue_Clear(pBlockQueue);
+     pBlockQueue = NULL;
+   }
 }
 

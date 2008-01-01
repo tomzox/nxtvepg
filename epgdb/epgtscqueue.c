@@ -18,7 +18,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgtscqueue.c,v 1.6 2006/11/25 20:49:29 tom Exp tom $
+ *  $Id: epgtscqueue.c,v 1.7 2007/03/03 20:37:02 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -756,16 +756,19 @@ void EpgTscQueue_AddAll( EPGDB_PI_TSC * pQueue, EPGDB_CONTEXT * dbc )
                else
                   cur_stream = pBlock->stream;
 
-               if (cur_stream == 0)
+               if (pBlock->blk.pi.block_no_in_ai)
                {
-                  if ((pBlock->version == pAi->version) && (pBlock->stream == cur_stream))
-                     flags |= PI_TSC_MASK_IS_CUR_VERSION;
-                  flags |= PI_TSC_MASK_IS_STREAM_1;
-               }
-               else
-               {
-                  if ((pBlock->version == pAi->version_swo) && (pBlock->stream == cur_stream))
-                     flags |= PI_TSC_MASK_IS_CUR_VERSION;
+                  if (cur_stream == 0)
+                  {
+                     if ((pBlock->version == pAi->version) && (pBlock->stream == cur_stream))
+                        flags |= PI_TSC_MASK_IS_CUR_VERSION;
+                     flags |= PI_TSC_MASK_IS_STREAM_1;
+                  }
+                  else
+                  {
+                     if ((pBlock->version == pAi->version_swo) && (pBlock->stream == cur_stream))
+                        flags |= PI_TSC_MASK_IS_CUR_VERSION;
+                  }
                }
 
                if (pPi->stop_time < now)

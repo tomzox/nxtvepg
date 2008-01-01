@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbif.h,v 1.30 2003/09/19 22:08:00 tom Exp tom $
+ *  $Id: epgdbif.h,v 1.32 2007/01/20 21:32:28 tom Exp tom $
  */
 
 #ifndef __EPGDBIF_H
@@ -71,14 +71,16 @@ uint  EpgDbGetPiBlockIndex( uint startNo, uint blockNo );
 uchar EpgDbGetStreamByBlockNo( const EPGDB_CONTEXT * dbc, const EPGDB_BLOCK * pBlock );
 uint  EpgDbContextGetCni( const EPGDB_CONTEXT * dbc );
 bool  EpgDbContextIsMerged( const EPGDB_CONTEXT * dbc );
+bool  EpgDbContextIsXmltv( const EPGDB_CONTEXT * dbc );
 time_t EpgDbGetAiUpdateTime( const EPGDB_CONTEXT * dbc );
 time_t EpgDbGetPiUpdateTime( const PI_BLOCK * pPiBlock );
 void EpgDbSetAiUpdateTime( const EPGDB_CONTEXT * dbc, time_t acqTimestamp );
 void EpgDbSetPiAcqCallback( EPGDB_CONTEXT * dbc, EPGDB_PI_ACQ_CB * pCb );
+bool EpgDbComparePiRanges( EPGDB_CONTEXT * dbc, const AI_BLOCK * pOldAi, const AI_BLOCK * pNewAi );
 
 bool  EpgDbGetStat( const EPGDB_CONTEXT * dbc, EPGDB_BLOCK_COUNT * pCount, time_t * acqMinTime, uint maxNowRepCount );
 void  EpgDbResetAcqRepCounters( EPGDB_CONTEXT * dbc );
-uint  EpgDbGetNowCycleMaxRepCounter( const EPGDB_CONTEXT * dbc );
+void  EpgDbGetNowCycleMaxRepCounter( const EPGDB_CONTEXT * dbc, uint * pMaxVal, uint * pMaxCount );
 
 
 #endif  // __EPGDBIF_H

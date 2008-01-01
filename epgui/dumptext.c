@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumptext.c,v 1.11 2004/12/29 20:26:40 tom Exp $
+ *  $Id: dumptext.c,v 1.17 2007/12/29 15:20:00 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -29,10 +29,7 @@
 
 #include <string.h>
 #include <stdio.h>
-#include <errno.h>
 #include <time.h>
-
-#include <tcl.h>
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
@@ -41,10 +38,8 @@
 #include "epgdb/epgdbfil.h"
 #include "epgdb/epgdbif.h"
 #include "epgctl/epgctxctl.h"
+#include "epgui/epgsetup.h"
 #include "epgui/pdc_themes.h"
-#include "epgui/epgmain.h"
-#include "epgui/uictrl.h"
-#include "epgui/menucmd.h"
 #include "epgui/pidescr.h"
 #include "epgui/dumptext.h"
 
@@ -58,15 +53,13 @@
 //
 static void DumpText_PiInfoTextCb( void * vp, const char * pDesc, bool addSeparator )
 {
-   FILE * fp = (FILE *) vp;
    char * pNewline;
-   char  fmtBuf[15];
 
-   if (fp != NULL)
+   if (vp != NULL)
    {
       if (addSeparator)
       {  // output separator between texts from different providers
-         fprintf(fp, " //%%// ");
+         PiDescription_BufAppend(vp, " //%// ", -1);
       }
 
       // check for newline chars, they must be replaced, because one PI must
@@ -74,42 +67,49 @@ static void DumpText_PiInfoTextCb( void * vp, const char * pDesc, bool addSepara
       while ( (pNewline = strchr(pDesc, '\n')) != NULL )
       {
          // print text up to (and excluding) the newline
-         sprintf(fmtBuf, "%%.%ds // ", pNewline - pDesc);
-         fprintf(fp, fmtBuf, pDesc);
+         PiDescription_BufAppend(vp, pDesc, pNewline - pDesc);
+         PiDescription_BufAppend(vp, " // ", -1);
          // skip to text following the newline
          pDesc = pNewline + 1;
       }
       // write the segement behind the last newline
-      fprintf(fp, "%s", pDesc);
+      PiDescription_BufAppend(vp, pDesc, -1);
    }
 }
 
 // ---------------------------------------------------------------------------
 // Export PI block to MySQL
 //
-static void DumpText_Pi( FILE *fp, const PI_BLOCK * pPi, const EPGDB_CONTEXT * pDbContext )
+static void DumpText_Pi( PI_DESCR_BUF * pb, const PI_BLOCK * pPi, const EPGDB_CONTEXT * pDbContext )
 {
    const uchar * pShort;
    const uchar * pLong;
    uchar hour, minute, day, month;
-   uchar pilStr[30];
-   uchar start_str[40], stop_str[20];
+   uchar str_buf[128];
    uchar *pStrSoundFormat;
    struct tm *pStart, *pStop;
+   sint  len;
 
    if (pPi != NULL)
    {
+      str_buf[sizeof(str_buf) - 1] = 0;
+
+      len = sprintf(str_buf, "%u\t", pPi->netwop_no);
+      PiDescription_BufAppend(pb, str_buf, len);
+
       pStart = localtime(&pPi->start_time);
       if (pStart != NULL)
-         strftime(start_str, sizeof(start_str), "%Y-%m-%d\t%H:%M:00", pStart);
+         strftime(str_buf, sizeof(str_buf), "%Y-%m-%d\t%H:%M:00\t", pStart);
       else
-         strcpy(start_str, "");
+         strcpy(str_buf, "\t");
+      PiDescription_BufAppend(pb, str_buf, -1);
 
       pStop  = localtime(&pPi->stop_time);
       if (pStop != NULL)
-         strftime(stop_str, sizeof(stop_str), "%H:%M:00", pStop);
+         strftime(str_buf, sizeof(str_buf), "%H:%M:00\t", pStop);
       else
-         strcpy(stop_str, "");
+         strcpy(str_buf, "\t");
+      PiDescription_BufAppend(pb, str_buf, -1);
 
       day    = (pPi->pil >> 15) & 0x1f;
       month  = (pPi->pil >> 11) & 0x0f;
@@ -119,20 +119,48 @@ static void DumpText_Pi( FILE *fp, const PI_BLOCK * pPi, const EPGDB_CONTEXT * p
       if ((day > 0) && (month > 0) && (month <= 12) && (hour < 24) && (minute < 60) &&
           (pStart != NULL))
       {
-         sprintf(pilStr, "%04d-%02d-%02d %02d:%02d:00",
-                         pStart->tm_year + 1900, month, day, hour, minute);
+         len = sprintf(str_buf, "%04d-%02d-%02d %02d:%02d:00\t",
+                                pStart->tm_year + 1900, month, day, hour, minute);
+         PiDescription_BufAppend(pb, str_buf, len);
       }
       else
-         strcpy(pilStr, "\\N");  // MySQL NULL
+         PiDescription_BufAppend(pb, "\\N\t", 3);  // MySQL NULL
+
+      len = sprintf(str_buf, "%u\t%u\t", pPi->parental_rating *2, pPi->editorial_rating);
+      PiDescription_BufAppend(pb, str_buf, len);
 
       switch (pPi->feature_flags & PI_FEATURE_SOUND_MASK)
       {
-        case  PI_FEATURE_SOUND_MONO: pStrSoundFormat = "mono"; break;
-        case  PI_FEATURE_SOUND_2CHAN: pStrSoundFormat = "2-chan"; break;
-        case  PI_FEATURE_SOUND_STEREO: pStrSoundFormat = "stereo"; break;
-        case  PI_FEATURE_SOUND_SURROUND: pStrSoundFormat = "surround"; break;
-        default: pStrSoundFormat = ""; break;  // MySQL error value
+        case  PI_FEATURE_SOUND_MONO: pStrSoundFormat = "mono\t"; break;
+        case  PI_FEATURE_SOUND_2CHAN: pStrSoundFormat = "2-chan\t"; break;
+        case  PI_FEATURE_SOUND_STEREO: pStrSoundFormat = "stereo\t"; break;
+        case  PI_FEATURE_SOUND_SURROUND: pStrSoundFormat = "surround\t"; break;
+        default: pStrSoundFormat = "\t"; break;  // MySQL error value
       }
+      PiDescription_BufAppend(pb, pStrSoundFormat, -1);
+
+      len = sprintf(str_buf, "%c\t%c\t%c\t%c\t%c\t%c\t%c\t",
+                       ((pPi->feature_flags & PI_FEATURE_FMT_WIDE) ? '1' : '0'),
+                       ((pPi->feature_flags & PI_FEATURE_PAL_PLUS) ? '1' : '0'),
+                       ((pPi->feature_flags & PI_FEATURE_DIGITAL) ? '1' : '0'),
+                       ((pPi->feature_flags & PI_FEATURE_ENCRYPTED) ? '1' : '0'),
+                       ((pPi->feature_flags & PI_FEATURE_LIVE) ? '1' : '0'),
+                       ((pPi->feature_flags & PI_FEATURE_REPEAT) ? '1' : '0'),
+                       ((pPi->feature_flags & PI_FEATURE_SUBTITLES) ? '1' : '0') );
+      PiDescription_BufAppend(pb, str_buf, len);
+
+      len = sprintf(str_buf, "%u\t%u\t%u\t%u\t%u\t%u\t%u\t",
+              ((pPi->no_themes > 0) ? pPi->themes[0] : 0),
+              ((pPi->no_themes > 1) ? pPi->themes[1] : 0),
+              ((pPi->no_themes > 2) ? pPi->themes[2] : 0),
+              ((pPi->no_themes > 3) ? pPi->themes[3] : 0),
+              ((pPi->no_themes > 4) ? pPi->themes[4] : 0),
+              ((pPi->no_themes > 5) ? pPi->themes[5] : 0),
+              ((pPi->no_themes > 6) ? pPi->themes[6] : 0) );
+      PiDescription_BufAppend(pb, str_buf, len);
+
+      PiDescription_BufAppend(pb, PI_GET_TITLE(pPi), -1);
+      PiDescription_BufAppend(pb, "\t", 1);
 
       if (PI_HAS_SHORT_INFO(pPi))
          pShort = PI_GET_SHORT_INFO(pPi);
@@ -144,50 +172,23 @@ static void DumpText_Pi( FILE *fp, const PI_BLOCK * pPi, const EPGDB_CONTEXT * p
       else
          pLong = "";
 
-      fprintf(fp, "%u\t%s\t%s\t%s\t%u\t%u\t"           // netwop ... e-rat
-                  "%s\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t"   // features
-                  "%u\t%u\t%u\t%u\t%u\t%u\t%u\t"       // themes
-                  "%s\t",                              // title
-              pPi->netwop_no,
-              start_str,
-              stop_str,
-              pilStr,
-              pPi->parental_rating *2,
-              pPi->editorial_rating,
-              pStrSoundFormat,
-              ((pPi->feature_flags & PI_FEATURE_FMT_WIDE) ? 1 : 0),
-              ((pPi->feature_flags & PI_FEATURE_PAL_PLUS) ? 1 : 0),
-              ((pPi->feature_flags & PI_FEATURE_DIGITAL) ? 1 : 0),
-              ((pPi->feature_flags & PI_FEATURE_ENCRYPTED) ? 1 : 0),
-              ((pPi->feature_flags & PI_FEATURE_LIVE) ? 1 : 0),
-              ((pPi->feature_flags & PI_FEATURE_REPEAT) ? 1 : 0),
-              ((pPi->feature_flags & PI_FEATURE_SUBTITLES) ? 1 : 0),
-              ((pPi->no_themes > 0) ? pPi->themes[0] : 0),
-              ((pPi->no_themes > 1) ? pPi->themes[1] : 0),
-              ((pPi->no_themes > 2) ? pPi->themes[2] : 0),
-              ((pPi->no_themes > 3) ? pPi->themes[3] : 0),
-              ((pPi->no_themes > 4) ? pPi->themes[4] : 0),
-              ((pPi->no_themes > 5) ? pPi->themes[5] : 0),
-              ((pPi->no_themes > 6) ? pPi->themes[6] : 0),
-              ((char*) (pPi->off_title != 0) ? PI_GET_TITLE(pPi) : (uchar *) "")
-      );
+      PiDescription_AppendShortAndLongInfoText(pPi, DumpText_PiInfoTextCb, pb, EpgDbContextIsMerged(pDbContext));
+      PiDescription_BufAppend(pb, "\n", 1);
 
-      PiDescription_AppendShortAndLongInfoText(pPi, DumpText_PiInfoTextCb, fp, EpgDbContextIsMerged(pDbContext));
-      fprintf(fp, "\n");
+      assert(str_buf[sizeof(str_buf) - 1] == 0);  // check for buffer overrun
    }
 }
 
 // ---------------------------------------------------------------------------
 // Export network table to MySQL
 //
-static void DumpText_Ai( FILE *fp, const AI_BLOCK * pAi )
+static void DumpText_Ai( PI_DESCR_BUF * pb, const AI_BLOCK * pAi )
 {
    const AI_NETWOP *pNetwop;
-   const uchar * pCfNetname;
-   uchar cni_str[7];
-   Tcl_DString ds;
-   char * native;
+   const uchar * pNetname;
+   uchar str_buf[128];
    uint netwop;
+   uint len;
 
    if (pAi != NULL)
    {
@@ -195,27 +196,20 @@ static void DumpText_Ai( FILE *fp, const AI_BLOCK * pAi )
 
       for (netwop=0; netwop < pAi->netwopCount; netwop++)
       {
-         // get user-configured network name
-         sprintf(cni_str, "0x%04X", pNetwop->cni);
-         pCfNetname = Tcl_GetVar2(interp, "cfnetnames", cni_str, TCL_GLOBAL_ONLY);
-         if (pCfNetname != NULL)
-         {  // convert the String from Tcl internal format to Latin-1
-            native = Tcl_UtfToExternalDString(NULL, pCfNetname, -1, &ds);
-         }
-         else
-            native = NULL;
-
-         fprintf(fp, "%u\t%u\t%d\t%u\t%u\t%u\t%s\n",
+         len = sprintf(str_buf, "%u\t%u\t%d\t%u\t%u\t%u\t",
                      netwop,
-                     pNetwop->cni,
+                     AI_GET_NET_CNI(pNetwop),
                      pNetwop->lto * 15,
                      pNetwop->dayCount,
                      pNetwop->alphabet,
-                     pNetwop->addInfo,
-                     ((native != NULL) ? (char*) native : (char*) AI_GET_STR_BY_OFF(pAi, pNetwop->off_name)));
+                     0 /*pNetwop->addInfo*/);
+         PiDescription_BufAppend(pb, str_buf, len);
 
-         if (pCfNetname != NULL)
-            Tcl_DStringFree(&ds);
+         // get user-configured network name
+         pNetname = EpgSetup_GetNetName(pAi, netwop, NULL);
+
+         PiDescription_BufAppend(pb, pNetname, -1);
+         PiDescription_BufAppend(pb, "\n", 1);
 
          pNetwop += 1;
       }
@@ -225,12 +219,14 @@ static void DumpText_Ai( FILE *fp, const AI_BLOCK * pAi )
 // ---------------------------------------------------------------------------
 // Export PDC themes table to MySQL
 //
-static void DumpText_PdcThemes( FILE *fp )
+static void DumpText_PdcThemes( PI_DESCR_BUF * pb )
 {
    const uchar * pThemeStr_eng;
    const uchar * pThemeStr_ger;
    const uchar * pThemeStr_fra;
-   uint          idx;
+   uchar str_buf[128];
+   uint  idx;
+   uint  len;
 
    for (idx=0; idx <= 128; idx++)
    {
@@ -239,70 +235,88 @@ static void DumpText_PdcThemes( FILE *fp )
       pThemeStr_fra = PdcThemeGetByLang(idx, 4);
       if ( (pThemeStr_eng != NULL) && (pThemeStr_ger != NULL) && (pThemeStr_fra != NULL) )
       {
-         fprintf(fp, "%u\t%u\t%s\t%s\t%s\n",
-                     idx, PdcThemeGetCategory(idx),
-                     pThemeStr_eng, pThemeStr_ger, pThemeStr_fra);
+         len = sprintf(str_buf, "%u\t%u\t",
+                               idx, PdcThemeGetCategory(idx));
+         PiDescription_BufAppend(pb, str_buf, len);
+
+         PiDescription_BufAppend(pb, pThemeStr_eng, -1);
+         PiDescription_BufAppend(pb, "\t", 1);
+
+         PiDescription_BufAppend(pb, pThemeStr_ger, -1);
+         PiDescription_BufAppend(pb, "\t", 1);
+
+         PiDescription_BufAppend(pb, pThemeStr_fra, -1);
+         PiDescription_BufAppend(pb, "\n", 1);
       }
    }
 }
 
 // ---------------------------------------------------------------------------
-// Translate string into dump mode
+// Export a single programme in the database into a buffer in memory
+// - data is appended to the buffer, so the buffer must be initialized
 //
-EPGTAB_DUMP_MODE EpgDumpText_GetMode( const char * pModeStr )
+bool EpgDumpText_Single( EPGDB_CONTEXT * pDbContext, const PI_BLOCK * pPi, PI_DESCR_BUF * pb )
 {
-   EPGTAB_DUMP_MODE  mode = EPGTAB_DUMP_COUNT;
+   const AI_BLOCK * pAi;
+   const AI_NETWOP *pNetwop;
+   const uchar * pNetname;
+   bool  result = FALSE;
 
-   if (pModeStr != NULL)
+   EpgDbIsLocked(pDbContext);
+
+   if ((pDbContext != NULL) && (pPi != NULL))
    {
-      if (strcasecmp("ai", pModeStr) == 0)
-         mode = EPGTAB_DUMP_AI;
-      else if (strcasecmp("pi", pModeStr) == 0)
-         mode = EPGTAB_DUMP_PI;
-      else if (strcasecmp("pdc", pModeStr) == 0)
-         mode = EPGTAB_DUMP_PDC;
-      else if (strcasecmp("xml", pModeStr) == 0)
-         mode = EPGTAB_DUMP_XMLTV_ANY;
-      else if (strcasecmp("xml5", pModeStr) == 0)
-         mode = EPGTAB_DUMP_XMLTV_DTD_5_GMT;
-      else if (strcasecmp("xml5ltz", pModeStr) == 0)
-         mode = EPGTAB_DUMP_XMLTV_DTD_5_LTZ;
-      else if (strcasecmp("xml6", pModeStr) == 0)
-         mode = EPGTAB_DUMP_XMLTV_DTD_6;
-      else if (strcasecmp("raw", pModeStr) == 0)
-         mode = EPGTAB_DUMP_DEBUG;
+      pAi = EpgDbGetAi(pDbContext);
+      if (pAi != NULL)
+      {
+         pNetwop = AI_GET_NETWOP_N(pAi, pPi->netwop_no);
+
+         // get user-configured network name
+         pNetname = EpgSetup_GetNetName(pAi, pPi->netwop_no, NULL);
+
+         PiDescription_BufAppend(pb, pNetname, -1);
+         PiDescription_BufAppend(pb, "\t", 1);
+
+         DumpText_Pi(pb, pPi, pDbContext);
+
+         result = TRUE;
+      }
       else
-         debug1("DumpText-GetMode: unknown mode: %s", pModeStr);
+         debug0("EpgDumpText-Single: no AI in db");
    }
    else
-      debug0("DumpText-GetMode: illegal NULL ptr param");
+      fatal2("EpgDumpText-Single: illegal NULL ptr param: %lX, %lX", (long)pDbContext, (long)pPi);
 
-   return mode;
+   return result;
 }
 
 // ---------------------------------------------------------------------------
 // Export the complete database in "tab-seprarated" format for SQL import
 //
-void EpgDumpText_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp, EPGTAB_DUMP_MODE mode )
+void EpgDumpText_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp, DUMP_TEXT_MODE mode )
 {
    const AI_BLOCK * pAi;
    const PI_BLOCK * pPi;
+   PI_DESCR_BUF pbuf;
+
+   memset(&pbuf, 0, sizeof(pbuf));
+   pbuf.fp = fp;
 
    EpgDbLockDatabase(pDbContext, TRUE);
 
    // Dump PDC theme list
-   if (mode == EPGTAB_DUMP_PDC)
+   if (mode == DUMP_TEXT_PDC)
    {
-      DumpText_PdcThemes(fp);
+      DumpText_PdcThemes(&pbuf);
    }
    else
    {
-      if (mode == EPGTAB_DUMP_AI)
+      if (mode == DUMP_TEXT_AI)
       {  // Dump application information block
          pAi = EpgDbGetAi(pDbContext);
          if (pAi != NULL)
          {
-            DumpText_Ai(fp, pAi);
+            DumpText_Ai(&pbuf, pAi);
          }
       }
       else
@@ -310,91 +324,12 @@ void EpgDumpText_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp, EPGTAB_DUMP_
          pPi = EpgDbSearchFirstPi(pDbContext, NULL);
          while (pPi != NULL)
          {
-            DumpText_Pi(fp, pPi, pDbContext);
+            DumpText_Pi(&pbuf, pPi, pDbContext);
 
             pPi = EpgDbSearchNextPi(pDbContext, NULL, pPi);
          }
       }
    }
    EpgDbLockDatabase(pDbContext, FALSE);
-}
-
-// ----------------------------------------------------------------------------
-// Dump the database in TAB-separated format
-//
-static int EpgDumpText_Database( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
-{
-   const char * const pUsage = "Usage: C_DumpTabsDatabase <file-name> <type>";
-   EPGTAB_DUMP_MODE mode;
-   const char * pFileName;
-   Tcl_DString ds;
-   FILE *fp;
-   int result;
-
-   if (objc != 1+2)
-   {  // parameter count is invalid
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR;
-   }
-   else if ( (pFileName = Tcl_GetString(objv[1])) == NULL )
-   {  // internal error: can not get filename string
-      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
-      result = TCL_ERROR;
-   }
-   else
-   {
-      mode = EpgDumpText_GetMode(Tcl_GetString(objv[2]));
-      if (mode != EPGTAB_DUMP_NONE)
-      {
-         if (Tcl_GetCharLength(objv[1]) > 0)
-         {
-            pFileName = Tcl_UtfToExternalDString(NULL, pFileName, -1, &ds);
-            fp = fopen(pFileName, "w");
-            if (fp != NULL)
-            {  // file created successfully -> start dump
-               EpgDumpText_Standalone(pUiDbContext, fp, mode);
-
-               fclose(fp);
-            }
-            else
-            {  // access, create or truncate failed -> inform the user
-               sprintf(comm, "tk_messageBox -type ok -icon error -parent .dumptabs -message \"Failed to open file '%s' for writing: %s\"",
-                             Tcl_GetString(objv[1]), strerror(errno));
-               eval_check(interp, comm);
-               Tcl_ResetResult(interp);
-            }
-            Tcl_DStringFree(&ds);
-         }
-         else
-         {  // no file name given -> dump to stdout
-            EpgDumpText_Standalone(pUiDbContext, stdout, mode);
-         }
-
-         result = TCL_OK;
-      }
-      else
-      {  // unsupported mode (internal error, since the GUI should use radio buttons)
-         Tcl_SetResult(interp, "C_DumpTabsDatabase: illegal type keyword", TCL_STATIC);
-         result = TCL_ERROR;
-      }
-   }
-
-   return result;
-}
-
-// ----------------------------------------------------------------------------
-// Free resources allocated by this module (cleanup during program exit)
-//
-void EpgDumpText_Destroy( void )
-{
-}
-
-// ----------------------------------------------------------------------------
-// Create the Tcl/Tk commands provided by this module
-// - this should be called only once during start-up
-//
-void EpgDumpText_Init( void )
-{
-   Tcl_CreateObjCommand(interp, "C_DumpTabsDatabase", EpgDumpText_Database, (ClientData) NULL, NULL);
 }
 

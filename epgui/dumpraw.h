@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumpraw.h,v 1.12 2004/08/07 14:13:38 tom Exp tom $
+ *  $Id: dumpraw.h,v 1.13 2005/04/07 18:41:50 tom Exp tom $
  */
 
 #ifndef __DUMPRAW_H
@@ -35,7 +35,8 @@ void EpgDumpRaw_IncomingUnknown( BLOCK_TYPE type, uint size, uchar stream );
 void EpgDumpRaw_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp );
 void EpgDumpRaw_Toggle( void );
 
-void EpgDumpRaw_Init( void );
-void EpgDumpRaw_Destroy( void );
+void EpgDumpRaw_Database( EPGDB_CONTEXT *pDbContext, FILE *fp,
+                          bool do_pi, bool do_xi, bool do_ai, bool do_ni,
+                          bool do_oi, bool do_mi, bool do_li, bool do_ti );
 
 #endif  // __DUMPRAW_H

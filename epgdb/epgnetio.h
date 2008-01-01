@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgnetio.h,v 1.27 2004/09/25 18:38:33 tom Exp $
+ *  $Id: epgnetio.h,v 1.28 2006/12/05 21:30:54 tom Exp tom $
  */
 
 #ifndef __EPGNETIO_H
@@ -25,7 +25,7 @@
 #include "epgdb/epgtscqueue.h"
 #include "epgdb/epgdbmerge.h"
 
-#define PROTOCOL_COMPAT          EPG_VERSION_TO_INT(2,7,0xB2)
+#define PROTOCOL_COMPAT          EPG_VERSION_TO_INT(2,7,0xCF)
 #define PROTOCOL_ENDIAN_MAGIC    0xAA55
 #define PROTOCOL_WRONG_ENDIAN    (((PROTOCOL_ENDIAN_MAGIC>>8)&0xFF)|((PROTOCOL_ENDIAN_MAGIC&0xFF)<<8))
 
@@ -60,6 +60,7 @@ typedef enum
    MSG_TYPE_STATS_IND,
    MSG_TYPE_TSC_IND,
    MSG_TYPE_VPS_PDC_IND,
+   MSG_TYPE_DB_UPD_IND,
    MSG_TYPE_CLOSE_IND
 } EPGNETIO_MSG_TYPE;
 

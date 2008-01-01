@@ -21,13 +21,15 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: uictrl.c,v 1.45 2004/12/24 10:19:21 tom Exp $
+ *  $Id: uictrl.c,v 1.56 2007/12/31 00:19:08 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
 #define DPRINTF_OFF
 
+#include <stdlib.h>
 #include <stdio.h>
+#include <errno.h>
 #include <time.h>
 #include <string.h>
 
@@ -46,14 +48,22 @@
 #include "epgctl/epgscan.h"
 #include "epgctl/epgacqsrv.h"
 #include "epgctl/epgacqclnt.h"
+#include "epgvbi/syserrmsg.h"
+#include "epgui/daemon.h"
 #include "epgui/epgmain.h"
+#include "epgui/daemon.h"
 #include "epgui/pifilter.h"
 #include "epgui/pibox.h"
 #include "epgui/piremind.h"
 #include "epgui/uictrl.h"
+#include "epgui/epgsetup.h"
 #include "epgui/menucmd.h"
 #include "epgui/statswin.h"
 #include "epgui/timescale.h"
+#include "epgui/cmdline.h"
+#include "epgui/rcfile.h"
+#include "xmltv/xmltv_main.h"
+#include "xmltv/xmltv_cni.h"
 #include "epgctl/epgctxctl.h"
 
 
@@ -61,6 +71,7 @@
 typedef enum
 {
    EPGDB_NOT_INIT,
+   EPGDB_TVCARD_CFG,
    EPGDB_WAIT_SCAN,
    EPGDB_PROV_SCAN,
    EPGDB_PROV_TUNE_EXT,
@@ -98,21 +109,28 @@ static const uchar * UiControl_GetDbStateMsg( EPGDB_STATE state )
 
    switch (state)
    {
+      case EPGDB_TVCARD_CFG:
+         pMsg = "Before EPG data can be acquired via teletext, you have to "
+                "configure your TV card and tuner types. To do so please open "
+                "the 'TV card input' dialog in the configure menu and select "
+                "'Configure card'.";
+         break;
+
       case EPGDB_WAIT_SCAN:
          pMsg = "Please wait until the provider scan has finished.";
          break;
 
       case EPGDB_PROV_SCAN:
-         pMsg = "There are no providers for Nextview data known yet. "
-                "Please start a provider scan from the Configure menu "
+         pMsg = "There are no EPG providers known yet. "
+                "Please start an EPG provider scan via the Configure menu "
                 "(you only have to do this once). "
-                "During the scan all TV channels are checked for Nextview "
+                "During the scan all TV channels are checked for Nextview EPG "
                 "transmissions. Among the found ones you then can select your "
                 "favorite provider and start reading in its TV programme database.";
          break;
 
       case EPGDB_PROV_TUNE_EXT:
-         pMsg = "There are no providers for Nextview data known yet. "
+         pMsg = "There are no EPG providers known yet. "
                 "Since you have configured an external video input source, "
                 "you have to manually select a provider's TV channel at the "
                 "external video equipment. nxtvepg should then automatically "
@@ -121,20 +139,20 @@ static const uchar * UiControl_GetDbStateMsg( EPGDB_STATE state )
          break;
 
       case EPGDB_PROV_SEL:
-         pMsg = "Please select your favorite provider from the Configure menu.";
+         pMsg = "Please select your favorite provider via the Configure menu.";
          break;
 
       case EPGDB_ACQ_NO_FREQ:
-         pMsg = "The database of the currently selected provider is empty "
+         pMsg = "The database of the currently selected provider is empty (or all programmes expired) "
                 "and the provider's TV channel is unknown. Please do start "
-                "a provider scan from the Configure menu to find out the frequency "
+                "a provider scan via the Configure menu to find out the frequency "
                 "(this has to be done only this one time). Else, please make sure "
-                "you have tuned the TV channel of the selected Nextview provider "
-                "or select a different provider from the Configure menu.";
+                "you have tuned the TV channel of the selected EPG provider "
+                "or select a EPG different provider via the Configure menu.";
          break;
 
       case EPGDB_ACQ_NO_TUNER:
-         pMsg = "The database of the currently selected provider is empty. "
+         pMsg = "The database of the currently selected provider is empty (or all programmes expired). "
                 "Since you have configured an external video input source, "
                 "you have to manually select a provider's TV channel at the "
                 "external video equipment to enable nxtvepg to refresh its database. "
@@ -142,44 +160,44 @@ static const uchar * UiControl_GetDbStateMsg( EPGDB_STATE state )
          break;
 
       case EPGDB_ACQ_ACCESS_DEVICE:
-         pMsg = "The database of the currently selected provider is empty. "
+         pMsg = "The database of the currently selected provider is empty (or all programmes expired). "
                 "The TV channel could not be changed because the video device is "
                 "kept busy by another application. Therefore you have to make sure "
-                "you have tuned the TV channel of the selected Nextview provider "
-                "or select a different provider from the Configure menu.";
+                "you have tuned the TV channel of the selected EPG provider "
+                "or select a different EPG provider via the Configure menu.";
          break;
 
       case EPGDB_ACQ_PASSIVE:
-         pMsg = "The database of the currently selected provider is empty. "
+         pMsg = "The database of the currently selected provider is empty (or all programmes expired). "
                 "You have configured acquisition mode to passive, so data for "
                 "this provider can only be acquired if you use another application "
                 "to tune to it's TV channel.";
          break;
 
       case EPGDB_ACQ_WAIT:
-         pMsg = "The database of the currently selected provider is empty. "
-                "Please wait a few seconds until Nextview data is received "
-                "or select a different provider from the Configure menu.";
+         pMsg = "The database of the currently selected provider is empty (or all programmes expired). "
+                "Please wait a few seconds until EPG data is received "
+                "or select a different provider via the Configure menu.";
          break;
 
       case EPGDB_ACQ_WAIT_DAEMON:
-         pMsg = "The database of the currently selected provider is empty. "
+         pMsg = "The database of the currently selected provider is empty (or all programmes expired). "
                 "The acquisition daemon is currently working on a different provider. "
                 "Either change the daemon's acquisition mode to \"Follow-UI\" "
-                "or select a different provider from the Configure menu.";
+                "or select a different provider via the Configure menu.";
          break;
 
       case EPGDB_ACQ_OTHER_PROV:
-         pMsg = "The database of the currently selected provider is empty. "
+         pMsg = "The database of the currently selected provider is empty (or all programmes expired). "
                 "This provider is not in your selection for acquisition! "
                 "Please choose a different provider, or change the "
-                "acquisition mode from the Configure menu.";
+                "acquisition mode via the Configure menu.";
          break;
 
       case EPGDB_EMPTY:
-         pMsg = "The database of the currently selected provider is empty. "
-                "Start the acquisition from the Control menu or select a "
-                "different provider from the Configure menu.";
+         pMsg = "The database of the currently selected provider is empty (or all programmes expired). "
+                "Start the acquisition via the Control menu or select a "
+                "different provider via the Configure menu.";
          break;
 
       case EPGDB_PREFILTERED_EMPTY:
@@ -205,8 +223,9 @@ static const uchar * UiControl_GetDbStateMsg( EPGDB_STATE state )
 
 // ---------------------------------------------------------------------------
 // Determine state of UI database and acquisition
-// - this is used to display a helpful message in the PI listbox as long as
-//   the database is empty
+// - this is used to display a helpful message in the PI listbox
+// - called when no PI is found with default pre-filters enabled
+//   or if no provider is configured yet
 //
 static EPGDB_STATE UiControl_GetDbState( void )
 {
@@ -220,14 +239,19 @@ static EPGDB_STATE UiControl_GetDbState( void )
 
    if (uiCni == 0)
    {  // no AI block in current UI database
-      if (acqState.state == ACQDESCR_SCAN)
+      if (acqState.nxtvState == ACQDESCR_SCAN)
       {
          dbState = EPGDB_WAIT_SCAN;
       }
-      else if (EpgContextCtl_GetProvCount() == 0)
+#ifdef WIN32
+      else if (EpgSetup_CheckTvCardConfig() == FALSE)
       {
-         if ( (acqState.state != ACQDESCR_DISABLED) &&
-              (acqState.mode == ACQMODE_FORCED_PASSIVE) &&
+         dbState = EPGDB_TVCARD_CFG;
+      }
+#endif
+      else if (EpgContextCtl_GetProvCount(TRUE) == 0)
+      {
+         if ( (acqState.nxtvState != ACQDESCR_DISABLED) &&
               (acqState.passiveReason == ACQPASSIVE_NO_TUNER) )
             dbState = EPGDB_PROV_TUNE_EXT;
          else
@@ -240,31 +264,33 @@ static EPGDB_STATE UiControl_GetDbState( void )
    {  // AI present, but no PI in database
 
       // check if acquisition is working for the browser database
-      if ( (acqState.state == ACQDESCR_NET_CONNECT) ||
-           (acqState.state == ACQDESCR_DISABLED) ||
-           (acqState.state == ACQDESCR_SCAN) ||
-           (acqState.dbCni == 0) )
+      if ( (acqState.nxtvState == ACQDESCR_NET_CONNECT) ||
+           (acqState.nxtvState == ACQDESCR_DISABLED) ||
+           (acqState.nxtvState == ACQDESCR_SCAN) ||
+           (acqState.nxtvDbCni == 0) )
          acqWorksOnUi = FALSE;
       else if ( EpgDbContextIsMerged(pUiDbContext) )
-         acqWorksOnUi = EpgContextMergeCheckForCni(pUiDbContext, acqState.dbCni);
+         acqWorksOnUi = EpgContextMergeCheckForCni(pUiDbContext, acqState.nxtvDbCni);
+      else if ( EpgDbContextIsXmltv(pUiDbContext) )
+         acqWorksOnUi = FALSE;
       else
-         acqWorksOnUi = (acqState.dbCni == uiCni);
+         acqWorksOnUi = (acqState.nxtvDbCni == uiCni);
 
-      if (acqState.state == ACQDESCR_NET_CONNECT)
+      if (acqState.nxtvState == ACQDESCR_NET_CONNECT)
       {  // in network acq mode: no stats available yet
          dbState = EPGDB_ACQ_WAIT_DAEMON;
       }
-      else if (acqState.state == ACQDESCR_DISABLED)
+      else if (acqState.nxtvState == ACQDESCR_DISABLED)
       {
          dbState = EPGDB_EMPTY;
       }
-      else if (acqState.state == ACQDESCR_SCAN)
+      else if (acqState.nxtvState == ACQDESCR_SCAN)
       {
          dbState = EPGDB_WAIT_SCAN;
       }
       else if ((acqState.mode == ACQMODE_PASSIVE) || (acqState.mode == ACQMODE_EXTERNAL))
       {
-         if ((acqState.state == ACQDESCR_RUNNING) && acqWorksOnUi)
+         if ((acqState.nxtvState == ACQDESCR_RUNNING) && acqWorksOnUi)
          {  // note: this state should actually never be reached, because once acq has reached
             // "running" state an AI has been received and usually some PI too, so the UI db
             // would no longer be empty
@@ -273,7 +299,7 @@ static EPGDB_STATE UiControl_GetDbState( void )
          else
             dbState = EPGDB_ACQ_PASSIVE;
       }
-      else if (acqState.mode == ACQMODE_FORCED_PASSIVE)
+      else if (acqState.passiveReason != ACQPASSIVE_NONE)
       {
          // translate forced-passive reason to db state
          switch (acqState.passiveReason)
@@ -387,57 +413,78 @@ void UiControl_CheckDbState( void )
 void UiControl_AiStateChange( ClientData clientData )
 {
    uint target = PVOID2UINT(clientData);
+   uint acqCni;
    const AI_BLOCK *pAiBlock;
-   Tcl_DString msg_dstr;
    Tcl_DString cmd_dstr;
 
+#if 0
    if ( (EpgDbContextGetCni(pUiDbContext) == 0) &&
-        (EpgDbContextGetCni(pAcqDbContext) != 0) &&
+        (EpgAcqCtl_GetProvCni() != 0) &&
         (EpgScan_IsActive() == FALSE) )
    {  // UI db is completely empty (should only happen if there's no provider at all)
-      dprintf1("UiControl-AiStateChange: browser db empty, switch to acq db 0x%04X\n", EpgDbContextGetCni(pAcqDbContext));
+      dprintf1("UiControl-AiStateChange: browser db empty, switch to acq db 0x%04X\n", EpgAcqCtl_GetProvCni());
       // switch browser to acq db
       EpgContextCtl_Close(pUiDbContext);
-      pUiDbContext = EpgContextCtl_Open(EpgDbContextGetCni(pAcqDbContext), CTX_FAIL_RET_DUMMY, CTX_RELOAD_ERR_ANY);
+      pUiDbContext = EpgContextCtl_Open(EpgAcqCtl_GetProvCni(), FALSE, CTX_FAIL_RET_DUMMY, CTX_RELOAD_ERR_ANY);
 
       // update acq CNI list in case follow-ui acq mode is selected
-      SetAcquisitionMode(NETACQ_KEEP);
+      EpgSetup_AcquisitionMode(NETACQ_KEEP);
       // display the data from the new db
       PiBox_Reset();
    }
+#endif
 
    // check if the message relates to the browser db
+   acqCni = EpgAcqCtl_GetProvCni();
    if ( (pUiDbContext != NULL) &&
-        ((target == DB_TARGET_UI) || (pAcqDbContext == pUiDbContext)) )
+        ( (target == DB_TARGET_UI) ||
+          ((acqCni == EpgDbContextGetCni(pUiDbContext)) && (acqCni != 0)) ))
    {
       EpgDbLockDatabase(pUiDbContext, TRUE);
       pAiBlock = EpgDbGetAi(pUiDbContext);
       if (pAiBlock != NULL)
       {
          // set the window title according to the new AI
-         strcpy(comm, "Nextview EPG: ");
-         strcat(comm, AI_GET_SERVICENAME(pAiBlock));
-         if (Tcl_ExternalToUtfDString(NULL, comm, -1, &msg_dstr) != NULL)
+#ifdef USE_XMLTV_IMPORT
+         if ( EpgDbContextIsXmltv(pUiDbContext) )
+            sprintf(comm, "XMLTV: %s", XmltvCni_LookupProviderPath(EpgDbContextGetCni(pUiDbContext)));
+         else
+#endif
+         if ( EpgDbContextIsMerged(pUiDbContext) )
+            sprintf(comm, "nxtvepg: %s", AI_GET_SERVICENAME(pAiBlock));
+         else
+            sprintf(comm, "Nextview EPG: %s", AI_GET_SERVICENAME(pAiBlock));
+
          {
             Tcl_DStringInit(&cmd_dstr);
             Tcl_DStringAppend(&cmd_dstr, "wm title .", -1);
+            // limit length of title to apx. 100 characters
+            // (because else the assignment may silently fail, e.g. with fvwm)
+            if (strlen(comm) > 104)
+               strcpy(comm + 100, "...");
             // append message as list element, so that '{' etc. is escaped properly
-            Tcl_DStringAppendElement(&cmd_dstr, Tcl_DStringValue(&msg_dstr));
+            Tcl_DStringAppendElement(&cmd_dstr, comm);
 
             eval_check(interp, Tcl_DStringValue(&cmd_dstr));
 
             Tcl_DStringFree(&cmd_dstr);
-            Tcl_DStringFree(&msg_dstr);
          }
 
          // generate the netwop mapping tables and update the netwop filter bar
+         EpgSetup_UpdateProvCniTable();
          sprintf(comm, "UpdateProvCniTable 0x%04X\n"
                        "UpdateNetwopFilterBar\n",
                        EpgDbContextGetCni(pUiDbContext));
          eval_check(interp, comm);
 
-         // update network prefilters (restrict to user-selected networks)
-         PiFilter_SetNetwopPrefilter();
+         {
+            const uint * pSupCnis;
+            uint supCniCount;
+            RcFile_GetNetworkSelection(EpgDbContextGetCni(pUiDbContext), NULL, NULL, &supCniCount, &pSupCnis);
+
+            // update network prefilters (restrict to user-selected networks)
+            PiFilter_SetNetwopPrefilter(supCniCount, pSupCnis);
+         }
 
          // adapt reminder list to database (network index cache)
          PiRemind_CheckDb();
@@ -458,7 +505,7 @@ void UiControl_AiStateChange( ClientData clientData )
       }
       else
       {  // no AI block in db -> reset window title to empty
-         sprintf(comm, "wm title . {Nextview EPG}\n");
+         sprintf(comm, "wm title . {nxtvepg}\n");
          eval_check(interp, comm);
 
          // clear the programme display
@@ -477,14 +524,134 @@ void UiControl_AiStateChange( ClientData clientData )
    }
 }
 
+#ifdef USE_XMLTV_IMPORT
+// ----------------------------------------------------------------------------
+// Process notification about XMLTV update by external process
+// - triggered by the TTX grabber after updating an XML file
+// - check open UI database if newer version are available on disk;
+//   if yes re-open the db, or merge in the new data
+//
+static void UiControl_LoadAcqDb( ClientData clientData )
+{
+   EPGDB_CONTEXT * pDbContext;
+   uint  dbIdx, provCount;
+   uint  provCniTab[MAX_MERGED_DB_COUNT];
+   uint  count;
+   uint  cni;
+
+   if (pUiDbContext != NULL)
+   {
+      if ( EpgDbContextIsMerged(pUiDbContext) )
+      {
+         if (EpgContextMergeGetCnis(pUiDbContext, &provCount, provCniTab))
+         {
+            count = 0;
+            cni = 0;
+            for (dbIdx=0; dbIdx < provCount; dbIdx++)
+            {
+               if ( IS_XMLTV_CNI(provCniTab[dbIdx]) &&
+                    (EpgContextCtl_GetAiUpdateTime(provCniTab[dbIdx], FALSE) <
+                       EpgContextCtl_GetAiUpdateTime(provCniTab[dbIdx], TRUE)) )
+               {
+                  if (count == 0)
+                     cni = provCniTab[dbIdx];
+                  count += 1;
+               }
+            }
+            if (count > 0)
+            {
+               pDbContext = EpgContextCtl_Open(cni, TRUE, CTX_FAIL_RET_NULL, CTX_RELOAD_ERR_NONE);
+               if (pDbContext != NULL)
+               {
+                  dprintf2("UiControl-LoadAcqDb: merge DB 0x%04X (first DB of %d)\n", cni, count);
+
+                  if (EpgContextMergeUpdateDb(pDbContext))
+                  {
+                     EpgContextCtl_Close(pDbContext);
+
+                     if (count > 1)
+                     {
+                        AddMainIdleEvent(UiControl_LoadAcqDb, NULL, TRUE);
+                     }
+                  }
+               }
+               else
+                  debug2("UiControl-LoadAcqDb: failed to load db 0x%04X for merge update (total %d CNIs)\n", cni, count);
+            }
+         }
+      }
+      else if ( EpgDbContextIsXmltv(pUiDbContext) )
+      {
+         cni = EpgDbContextGetCni(pUiDbContext);
+
+         if ( EpgContextCtl_GetAiUpdateTime(cni, FALSE) <
+                EpgContextCtl_GetAiUpdateTime(cni, TRUE) )
+         {
+            pDbContext = EpgContextCtl_Open(cni, TRUE, CTX_FAIL_RET_NULL, CTX_RELOAD_ERR_NONE);
+            if (pDbContext != NULL)
+            {
+               EpgContextCtl_Close(pUiDbContext);
+               pUiDbContext = pDbContext;
+
+               PiBox_Refresh();
+               UiControl_AiStateChange(DB_TARGET_UI);
+            }
+            else
+               debug1("UiControl-LoadAcqDb: failed to load db 0x%04X\n", cni);
+         }
+      }
+      else
+         dprintf0("UiControl-LoadAcqDb: ignoring trigger\n");
+   }
+}
+#endif // USE_XMLTV_IMPORT
+
+// ----------------------------------------------------------------------------
+// Display error message in a popup message box
+//
+void UiControl_DisplayErrorMessage( char * pMsg )
+{
+   Tcl_DString cmd_dstr;
+
+   if (pMsg != NULL)
+   {
+      if (interp != NULL)
+      {
+         {
+            Tcl_DStringInit(&cmd_dstr);
+
+            if (Tk_GetNumMainWindows() > 0)
+               Tcl_DStringAppend(&cmd_dstr, "tk_messageBox -type ok -icon error -parent . -message ", -1);
+            else
+               Tcl_DStringAppend(&cmd_dstr, "tk_messageBox -type ok -icon error -message ", -1);
+
+            // append message as list element, so that '{' etc. is escaped properly
+            Tcl_DStringAppendElement(&cmd_dstr, pMsg);
+
+            eval_check(interp, Tcl_DStringValue(&cmd_dstr));
+
+            Tcl_DStringFree(&cmd_dstr);
+         }
+      }
+      else
+      {
+         fprintf(stderr, "nxtvepg: %s\n", pMsg);
+      }
+   }
+   else
+      debug0("UiControl-DisplayErrorMessage: illegal NULL ptr param");
+}
+
 // ----------------------------------------------------------------------------
 // Add or update an EPG provider channel frequency in the rc/ini file
 // - called by acq control when the first AI is received after a provider change
 //
 void UiControlMsg_NewProvFreq( uint cni, uint freq )
 {
-   sprintf(comm, "UpdateProvFrequency {0x%04X %d}\n", cni, freq);
-   eval_check(interp, comm);
+   if ( RcFile_UpdateProvFrequency(cni, freq) )
+   {
+      UpdateRcFile(TRUE);
+   }
 }
 
 // ----------------------------------------------------------------------------
@@ -493,7 +660,7 @@ void UiControlMsg_NewProvFreq( uint cni, uint freq )
 //
 uint UiControlMsg_QueryProvFreq( uint cni )
 {
-   return GetProvFreqForCni(cni);
+   return RcFile_GetProvFreqForCni(cni);
 }
 
 // ----------------------------------------------------------------------------
@@ -504,10 +671,21 @@ void UiControl_ReloadError( ClientData clientData )
    MSG_RELOAD_ERR * pMsg = (MSG_RELOAD_ERR *) clientData;
    const char *pReason, *pHint;
    char * comm2 = xmalloc(2048);
+#ifdef USE_XMLTV_IMPORT
+   const char *pXmlPath;
+#endif
 
    pReason = NULL;
    pHint = "";
 
+#ifdef USE_XMLTV_IMPORT
+   if (pMsg->dberr & EPGDB_RELOAD_XML_MASK)
+   {
+      pReason = Xmltv_TranslateErrorCode(pMsg->dberr & ~EPGDB_RELOAD_XML_MASK);
+      pHint = "";
+   }
+   else
+#endif // USE_XMLTV_IMPORT
    // translate the error result code from the reload or peek function to human readable form
    switch (pMsg->dberr)
    {
@@ -526,17 +704,33 @@ void UiControl_ReloadError( ClientData clientData )
       case EPGDB_RELOAD_ENDIAN:
          pReason = "of an 'endian' mismatch, i.e. the database was generated on a different CPU architecture";
          break;
+      case EPGDB_RELOAD_INT_WIDTH:
+         pReason = "of an 32 vs. 64 bit mismatch, i.e. the database was generated with nxtvepg compiled for a different CPU architecture";
+         break;
+      case EPGDB_RELOAD_ENCODING:
+#ifdef USE_UTF8
+         pReason = "of an text encoding mismatch (i.e. the database is encoded in Latin-1, but this version of nxtvepg only supports UTF-8). You should remove the database file";
+#else
+         pReason = "of an text encoding mismatch (i.e. the database is encoded in UTF-8, but this version of nxtvepg only supports Latin-1). You should remove the database file";
+#endif
+         break;
       case EPGDB_RELOAD_VERSION:
          pReason = "it's an incompatible version";
-         pHint = "You should start an EPG scan from the Configure menu. ";
+         if (IS_XMLTV_CNI(pMsg->cni) == FALSE)
+            pHint = "You should start an EPG scan from the Configure menu. ";
          break;
       case EPGDB_RELOAD_EXIST:
          pReason = "the database file does not exist";
-         pHint = "You should start an EPG scan from the Configure menu. ";
+         if (IS_XMLTV_CNI(pMsg->cni) == FALSE)
+            pHint = "You should start an EPG scan from the Configure menu. ";
          break;
       case EPGDB_RELOAD_MERGE:
          pReason = "databases could not be merged";
          pHint = "You should check your database selection in the merge configuration dialog. ";
+         break;
+      case EPGDB_RELOAD_XML_CNI:
+         pReason = "its XMLTV file path is unknown";
+         pHint = "Probably the nxtvepg cofiguration file (rc/ini file) was manually edited or corrupted. ";
          break;
       case EPGDB_RELOAD_OK:
          SHOULD_NOT_BE_REACHED;
@@ -563,20 +757,37 @@ void UiControl_ReloadError( ClientData clientData )
             break;
 
          case CTX_RELOAD_ERR_ACQ:
-            sprintf(comm2, "tk_messageBox -type ok -icon warning -message {"
-                             "Failed to load the database of provider %X because %s. "
-                             "Cannot switch the TV channel to start acquisition for this provider. "
-                             "%s%s}\n",
-                             pMsg->cni, pReason, pHint,
-                             ((pMsg->dberr == EPGDB_RELOAD_EXIST) ? "Or choose a different acquisition mode. " : ""));
+#ifdef USE_XMLTV_IMPORT
+            if ( IS_XMLTV_CNI(pMsg->cni) &&
+                 ((pXmlPath = XmltvCni_LookupProviderPath(pMsg->cni)) != NULL) )
+               sprintf(comm2, "tk_messageBox -type ok -icon warning -message {"
+                                "Failed to load XML file \"%s\" (CNI %X) because %s. "
+                                "%s}\n",
+                                pXmlPath, pMsg->cni, pReason, pHint);
+            else
+#endif
+               sprintf(comm2, "tk_messageBox -type ok -icon warning -message {"
+                                "Failed to load the database of provider %X because %s. "
+                                "Cannot switch the TV channel to start acquisition for this provider. "
+                                "%s%s}\n",
+                                pMsg->cni, pReason, pHint,
+                                ((pMsg->dberr == EPGDB_RELOAD_EXIST) ? "Or choose a different acquisition mode. " : ""));
             eval_check(interp, comm2);
             break;
 
          case CTX_RELOAD_ERR_REQ:
-            if (pMsg->cni == 0x00FF)
+            if (pMsg->cni == MERGED_PROV_CNI)
                sprintf(comm2, "tk_messageBox -type ok -icon error -message {"
                                 "Failed to create a merged database. %s"
                                 "}\n", pHint);
+#ifdef USE_XMLTV_IMPORT
+            else if ( IS_XMLTV_CNI(pMsg->cni) &&
+                      ((pXmlPath = XmltvCni_LookupProviderPath(pMsg->cni)) != NULL) )
+               sprintf(comm2, "tk_messageBox -type ok -icon error -message {"
+                                "Failed to load XML file \"%s\" (CNI %X) because %s. "
+                                "%s"
+                                "}\n", pXmlPath, pMsg->cni, pReason, pHint);
+#endif
             else
                sprintf(comm2, "tk_messageBox -type ok -icon error -message {"
                                 "Failed to load the database of provider %X because %s. "
@@ -663,7 +874,7 @@ void UiControlMsg_ReloadError( uint cni, EPGDB_RELOAD_RESULT dberr, CONTEXT_RELO
          if ( (errHand != CTX_RELOAD_ERR_ANY) ||
               ((isNewDb == FALSE) && (dberr != EPGDB_RELOAD_EXIST)) )
          {
-            if (cni == 0x00ff)
+            if (cni == MERGED_PROV_CNI)
                fprintf(stderr, "nxtvepg: warning: database merge failed: check configuration\n");
             else
                fprintf(stderr, "nxtvepg: warning: failed to load database 0x%04X\n", cni);
@@ -697,12 +908,19 @@ void UiControlMsg_MissingTunerFreq( uint cni )
 {
    dprintf0("UiControlMsg-MissingTunerFreq\n");
 
-   if (uiControlInitialized)
+   if (IS_XMLTV_CNI(cni) == FALSE)
    {
-      AddMainIdleEvent(UiControl_MissingTunerFreq, UINT2PVOID(cni), FALSE);
+      if (uiControlInitialized)
+      {
+         AddMainIdleEvent(UiControl_MissingTunerFreq, UINT2PVOID(cni), FALSE);
+      }
+      else
+         fprintf(stderr, "nxtvepg: warning: cannot tune channel for provider 0x%04X: frequency unknown\n", cni);
    }
    else
-      fprintf(stderr, "nxtvepg: warning: cannot tune channel for provider 0x%04X: frequency unknown\n", cni);
+   {  // no dramatic error - made fatal to make sure this gets debugged
+      fatal1("UiControlMsg-MissingTunerFreq: suppress message for XMLTV CNI 0x%X - FIXME!\n", cni);
+   }
 }
 
 // ----------------------------------------------------------------------------
@@ -810,6 +1028,10 @@ void UiControlMsg_AcqEvent( ACQ_EVENT acqEvent )
             MenuCmd_AcqStatsUpdate();
             break;
 
+         case ACQ_EVENT_CTL:
+            StatsWin_StatsUpdate(DB_TARGET_ACQ);
+            break;
+
          case ACQ_EVENT_PI_ADDED:
             TimeScale_AcqPiAdded();
             break;
@@ -823,6 +1045,12 @@ void UiControlMsg_AcqEvent( ACQ_EVENT acqEvent )
 
          case ACQ_EVENT_PI_MERGED:
             TimeScale_AcqPiMerged();
+            break;
+
+         case ACQ_EVENT_NEW_DB:
+#ifdef USE_XMLTV_IMPORT
+            AddMainIdleEvent(UiControl_LoadAcqDb, NULL, TRUE);
+#endif
             break;
 
          case ACQ_EVENT_VPS_PDC:
@@ -849,7 +1077,7 @@ bool UiControlMsg_AcqQueueOverflow( bool prepare )
 
    if (prepare)
    {
-      acqCni = EpgDbContextGetCni(pAcqDbContext);
+      acqCni = EpgAcqCtl_GetProvCni();
       if (acqCni != 0)
       {
          debug0("UiControlMsg-AcqQueueOverflow: locking acq -> ui connection");
@@ -880,6 +1108,113 @@ bool UiControlMsg_AcqQueueOverflow( bool prepare )
 #endif
 
    return acqWorksOnUi;
+}
+
+// ---------------------------------------------------------------------------
+// Write config data to disk
+//
+void UpdateRcFile( bool immediate )
+{
+   Tcl_DString dstr;
+   char * pErrMsg = NULL;
+   FILE * fp;
+   size_t wlen;
+   bool   writeOk;
+
+   #ifdef USE_DAEMON
+   if (uiControlInitialized == FALSE)
+   {
+      Daemon_UpdateRcFile(immediate);
+      return;
+   }
+   #endif
+
+   fp = RcFile_WriteCreateFile(mainOpts.rcfile, &pErrMsg);
+   if (fp != NULL)
+   {
+      // write C level sections
+      writeOk = RcFile_WriteOwnSections(fp) && (fflush(fp) == 0);
+
+      if (ferror(fp) && (pErrMsg == NULL))
+      {
+         SystemErrorMessage_Set(&pErrMsg, errno, "Write error in new config file: ", NULL);
+      }
+
+      // write GUI level sections
+      if (Tcl_EvalEx(interp, "GetGuiRcData", -1, TCL_EVAL_GLOBAL) == TCL_OK)
+      {
+         Tcl_UtfToExternalDString(NULL, Tcl_GetStringResult(interp), -1, &dstr);
+         wlen = fprintf(fp, "\n%s", Tcl_DStringValue(&dstr));
+
+         if (wlen != 1 + Tcl_DStringLength(&dstr))
+         {
+            debug2("UpdateRcFile: short write: %d of %d", (int)wlen, 1 + Tcl_DStringLength(&dstr));
+            writeOk = FALSE;
+         }
+         Tcl_DStringFree(&dstr);
+      }
+      else
+      {
+         debugTclErr(interp, "UpdateRcFile: GetGuiRcData");
+         writeOk = FALSE;
+      }
+      Tcl_ResetResult(interp);
+
+      RcFile_WriteCloseFile(fp, writeOk, mainOpts.rcfile, &pErrMsg);
+   }
+   if (pErrMsg != NULL)
+   {
+      UiControl_DisplayErrorMessage(pErrMsg);
+      xfree(pErrMsg);
+   }
+}
+
+// ----------------------------------------------------------------------------
+// Load config data from rc/ini file
+//
+void LoadRcFile( void )
+{
+   Tcl_DString msg_dstr;
+   Tcl_DString cmd_dstr;
+   Tcl_Obj  * pVarObj;
+   bool loadOk;
+   char * pErrMsg = NULL;
+
+   // first load the sections managed at epgui level
+   loadOk = RcFile_Load(mainOpts.rcfile, !mainOpts.isUserRcFile, &pErrMsg);
+
+   if (pErrMsg != NULL)
+   {
+      UiControl_DisplayErrorMessage(pErrMsg);
+      xfree(pErrMsg);
+   }
+
+   // secondly load the sections managed at Tcl level
+   if (loadOk)
+   {
+      if (Tcl_ExternalToUtfDString(NULL, mainOpts.rcfile, -1, &msg_dstr) != NULL)
+      {
+         Tcl_DStringInit(&cmd_dstr);
+         Tcl_DStringAppend(&cmd_dstr, "LoadRcFile", -1);
+         // append file name as list element, so that '{' etc. is escaped properly
+         Tcl_DStringAppendElement(&cmd_dstr, Tcl_DStringValue(&msg_dstr));
+
+         eval_check(interp, Tcl_DStringValue(&cmd_dstr));
+
+         Tcl_DStringFree(&cmd_dstr);
+         Tcl_DStringFree(&msg_dstr);
+
+         pVarObj = Tcl_GetVar2Ex(interp, "rcfileUpgradeStr", NULL, TCL_GLOBAL_ONLY);
+         if (pVarObj != NULL)
+         {
+            Tcl_UtfToExternalDString(NULL, Tcl_GetString(pVarObj), -1, &msg_dstr);
+            RcFile_LoadFromString(Tcl_DStringValue(&msg_dstr));
+            Tcl_DStringFree(&msg_dstr);
+
+            Tcl_UnsetVar(interp, "rcfileUpgradeStr", TCL_GLOBAL_ONLY);
+         }
+      }
+   }
 }
 
 // ----------------------------------------------------------------------------

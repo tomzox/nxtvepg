@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbif.c,v 1.46 2003/09/19 22:07:55 tom Exp tom $
+ *  $Id: epgdbif.c,v 1.48 2007/01/20 21:32:24 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -84,21 +84,19 @@ bool EpgDbIsLocked( CPDBC dbc )
 }
 
 // ---------------------------------------------------------------------------
-// Query the CNI of a context
+// Query the provider CNI of a database context
+// - NULL pointer or empty or dummy databases are allowed as argument
 //
 uint EpgDbContextGetCni( CPDBC dbc )
 {
    uint cni;
 
-   if ((dbc != NULL) && (dbc->pAiBlock != NULL))
+   if (dbc != NULL)
    {
-      if (dbc->merged == FALSE)
-         cni = AI_GET_CNI(&dbc->pAiBlock->blk.ai);
-      else
-         cni = 0x00FF;
+      cni = dbc->provCni;
    }
    else
-      cni = 0;  // NULL ptr is permitted
+      cni = 0;
 
    return cni;
 }
@@ -111,6 +109,19 @@ bool EpgDbContextIsMerged( CPDBC dbc )
    if (dbc != NULL)
       return dbc->merged;
    else
+      return FALSE;
+}
+
+// ---------------------------------------------------------------------------
+// Query if the db is imported from an XMLTV file
+//
+bool EpgDbContextIsXmltv( CPDBC dbc )
+{
+#ifdef USE_XMLTV_IMPORT
+   if (dbc != NULL)
+      return (dbc->xmltv);
+   else
+#endif
       return FALSE;
 }
 
@@ -848,7 +859,7 @@ uint EpgDbGetProgIdx( CPDBC dbc, const PI_BLOCK * pPiBlock )
                nowIdx = 1;
             }
 
-            if (dbc->merged == FALSE)
+            if (!EpgDbContextIsMerged(dbc) && !EpgDbContextIsXmltv(dbc))
             {
                startNo = AI_GET_NETWOP_N(&dbc->pAiBlock->blk.ai, netwop)->startNo;
 
@@ -868,7 +879,7 @@ uint EpgDbGetProgIdx( CPDBC dbc, const PI_BLOCK * pPiBlock )
                   debug4("EpgDb-GetProgIdx: block #%d,net#%d should already have expired; start=%ld,first=%ld", pPiBlock->block_no, netwop, startNo, firstBlockNo);
             }
             else
-            {  // merged database: no block numbers available
+            {  // non-native database: no block numbers available
                if (pPiBlock == &pBlock->blk.pi)
                   result = nowIdx;
                else if ( (nowIdx == 0) &&
@@ -1254,16 +1265,21 @@ void EpgDbResetAcqRepCounters( PDBC dbc )
 }
 
 // ----------------------------------------------------------------------------
-// Check the maximum repetition count for the first PI block of each netwop
+// Determine the maximum repetition count for the first PI block of each netwop
+// - repetition counters are incremented during reception when a block is
+//   received and the version number hasn't changed
 //
-uint EpgDbGetNowCycleMaxRepCounter( CPDBC dbc )
+void EpgDbGetNowCycleMaxRepCounter( CPDBC dbc, uint * pMaxVal, uint * pMaxCount )
 {
-   uint maxNowPiRepCount;
-   uchar netwop;
+   const EPGDB_BLOCK * pBlock;
+   uint maxRepVal;
+   uint maxNetCount;
+   uint netwop;
    time_t now;
 
    now = time(NULL);
-   maxNowPiRepCount = 0;
+   maxRepVal = 0;
+   maxNetCount = 0;
 
    if (dbc != NULL)
    {
@@ -1271,22 +1287,77 @@ uint EpgDbGetNowCycleMaxRepCounter( CPDBC dbc )
       {
          for (netwop=0; netwop < dbc->pAiBlock->blk.ai.netwopCount; netwop++)
          {
-            if ( (dbc->pFirstNetwopPi[netwop] != NULL) &&
-                 (dbc->pFirstNetwopPi[netwop]->blk.pi.start_time < now) )
+            // skip expired blocks of this network
+            pBlock = dbc->pFirstNetwopPi[netwop];
+            while ( (pBlock != NULL) &&
+                    (pBlock->blk.pi.stop_time < now) )
+            {
+               pBlock = pBlock->pNextNetwopBlock;
+            }
+
+            if ( (pBlock != NULL) &&
+                 ( (pBlock->blk.pi.start_time <= now) ||
+                   ( (pBlock->blk.pi.block_no_in_ai) &&
+                     (pBlock->blk.pi.block_no == AI_GET_NETWOP_N(&dbc->pAiBlock->blk.ai, netwop)->startNo) )))
             {  // PI is currently running, i.e. it's a "NOW" block
 
-               if (dbc->pFirstNetwopPi[netwop]->acqRepCount > maxNowPiRepCount)
+               if (pBlock->acqRepCount > maxRepVal)
                {  // found new maximum
-                  maxNowPiRepCount = dbc->pFirstNetwopPi[netwop]->acqRepCount;
+                  maxRepVal = pBlock->acqRepCount;
+                  maxNetCount = 1;
+               }
+               else if ( (pBlock->acqRepCount == maxRepVal) && (maxRepVal > 0) )
+               {
+                  maxNetCount += 1;
                }
             }
          }
-         dprintf1("EpgDb-GetNowCycleMaxRepCounter: max rep count = %d\n", maxNowPiRepCount);
+         dprintf2("EpgDb-GetNowCycleMaxRepCounter: max.rep=%d, net.count=%d\n", maxRepVal, maxNetCount);
       }
+
+      if (pMaxVal != NULL)
+         *pMaxVal = maxRepVal;
+      if (pMaxCount != NULL)
+         *pMaxCount = maxNetCount;
    }
    else
       fatal0("EpgDb-GetNowCycleMaxRepCounter: illegal NULL ptr param");
+}
 
-   return maxNowPiRepCount;
+// ----------------------------------------------------------------------------
+// Compare PI range in two AI blocks
+// - called after AI updates to trigger update of statistics display in GUI
+//
+bool EpgDbComparePiRanges( PDBC dbc, const AI_BLOCK * pOldAi, const AI_BLOCK * pNewAi )
+{
+   const AI_NETWOP * pOldNets;
+   const AI_NETWOP * pNewNets;
+   uint netwop;
+   bool result = TRUE;
+
+   if ( EpgDbIsLocked(dbc) )
+   {
+      if ((pOldAi != NULL) && (pNewAi != NULL))
+      {
+         pOldNets = AI_GET_NETWOPS(pOldAi);
+         pNewNets = AI_GET_NETWOPS(pNewAi);
+
+         for (netwop=0; netwop < pNewAi->netwopCount; netwop++)
+         {
+            if ( (pOldNets[netwop].startNo != pNewNets[netwop].startNo) ||
+                 (pOldNets[netwop].stopNoSwo != pNewNets[netwop].stopNoSwo) )
+            {
+               result = FALSE;
+               break;
+            }
+         }
+      }
+      else
+         fatal0("EpgDb-ComparePiRanges: illegal NULL ptr param");
+   }
+   else
+      fatal0("EpgDb-ComparePiRanges: DB not locked");
+
+   return result;
 }
 

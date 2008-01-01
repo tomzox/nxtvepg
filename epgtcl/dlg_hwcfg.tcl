@@ -18,31 +18,50 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_hwcfg.tcl,v 1.14 2004/04/02 11:30:17 tom Exp $
+#  $Id: dlg_hwcfg.tcl,v 1.21 2007/12/29 21:03:39 tom Exp tom $
 #
-
-set hwcf_cardidx 0
-set hwcf_input 0
-set hwcf_acq_prio 0
-set hwcf_slicer_type 0
-set hwcf_wdm_stop 0
-set hwcf_dsdrv_log 0
-
 set hwcfg_popup 0
 set tvcard_popup 0
 
-# Windows only: array indices for tvcardcf()
+set hwcf_dsdrv_log 0
+set hwcf_acq_reenable 0
+set hwcfg_drvsrc_sel 0
+
+# Windows only: array indices for tvcard config list
 #=CONST= ::tvcf_chip_idx         0
 #=CONST= ::tvcf_card_idx         1
 #=CONST= ::tvcf_tuner_idx        2
 #=CONST= ::tvcf_pll_idx          3
 #=CONST= ::tvcf_idx_count        4
 
-# Used for Windows only: PCI chip IDs (stored at $::tvcf_chip_idx in tvcardcf)
+# Windows only: driver selection
+# (note: undef is already replaced by default type at C level)
+#=CONST= ::tvcf_drvsrc_undef     -2
+#=CONST= ::tvcf_drvsrc_none      -1
+#=CONST= ::tvcf_drvsrc_wdm       0
+#=CONST= ::tvcf_drvsrc_dsdrv     1
+#=CONST= ::tvcf_drvsrc_unix      0
+
+# Used for Windows only: PCI chip IDs (stored at $::tvcf_chip_idx in config list)
 #=CONST= ::pci_id_unknown        0
 #=CONST= ::pci_id_brooktree      0x109e
 #=CONST= ::pci_id_phlips         0x1131
 #=CONST= ::pci_id_conexant       0x14F1
+
+# Causes for acquisition re-enable:
+# 0: don't reenable; 1: only if quit with 'Ok';
+# 2: was temporary disable, re-enable also if quit with 'Abort'
+#=CONST= ::tvcf_acq_disa_none    0
+#=CONST= ::tvcf_acq_disa_drv     1
+#=CONST= ::tvcf_acq_disa_tmp     2
+
+# Used for return values of proc C_GetHardwareConfig
+#=CONST= ::hwcf_ret_cardidx_idx 0
+#=CONST= ::hwcf_ret_input_idx 1
+#=CONST= ::hwcf_ret_drvsrc_idx 2
+#=CONST= ::hwcf_ret_prio_idx 3
+#=CONST= ::hwcf_ret_slicer_idx 4
+#=CONST= ::hwcf_ret_wdm_stop_idx 5
 
 #=LOAD=PopupHardwareConfig
 #=DYNAMIC=
@@ -52,8 +71,8 @@ set tvcard_popup 0
 ##
 proc PopupHardwareConfig {} {
    global is_unix netacq_enable
-   global hwcf_cardidx hwcf_input hwcf_acq_prio hwcf_slicer_type hwcf_dsdrv_log hwcf_wdm_stop
-   global hwcfg_cardidx_sel hwcfg_input_sel hwcfg_prio_sel hwcfg_slicer_sel hwcf_wdm_stop_sel
+   global hwcfg_cardidx_sel hwcfg_input_sel hwcfg_drvsrc_sel
+   global hwcfg_prio_sel hwcfg_slicer_sel hwcf_dsdrv_log hwcf_wdm_stop_sel
    global hwcfg_card_list hwcfg_chip_list
    global hwcfg_popup
 
@@ -69,98 +88,126 @@ proc PopupHardwareConfig {} {
       CreateTransientPopup .hwcfg "Video input configuration"
       set hwcfg_popup 1
 
-      set hwcfg_cardidx_sel $hwcf_cardidx
-      set hwcfg_input_sel $hwcf_input
-      set hwcfg_prio_sel $hwcf_acq_prio
-      set hwcfg_slicer_sel $hwcf_slicer_type
-      set hwcf_wdm_stop_sel $hwcf_wdm_stop
-      # scan PCI bus an retrieve card names (must be called before other driver queries)
-      HardwareConfigLoad 0
+      set hwcfg [C_GetHardwareConfig]
+      set hwcfg_cardidx_sel [lindex $hwcfg $::hwcf_ret_cardidx_idx]
+      set hwcfg_input_sel [lindex $hwcfg $::hwcf_ret_input_idx]
+      set hwcfg_drvsrc_sel [lindex $hwcfg $::hwcf_ret_drvsrc_idx]
+      set hwcfg_prio_sel [lindex $hwcfg $::hwcf_ret_prio_idx]
+      set hwcfg_slicer_sel [lindex $hwcfg $::hwcf_ret_slicer_idx]
+      set hwcf_wdm_stop_sel [lindex $hwcfg $::hwcf_ret_wdm_stop_idx]
 
-
-      frame .hwcfg.opt1
+      if {!$is_unix} {
+         labelframe .hwcfg.opt1 -text "Video input connectors"
+      } else {
+         frame .hwcfg.opt1
+      }
       # create menu to select video input
       frame .hwcfg.opt1.input
-      label .hwcfg.opt1.input.curname -text "Video source: "
+      label .hwcfg.opt1.input.curname -text "Current input: "
       menubutton .hwcfg.opt1.input.mb -text "Select" -menu .hwcfg.opt1.input.mb.menu \
-                                      -relief raised -borderwidth 2 -indicatoron 1 -underline 0
+                                      -indicatoron 1 -underline 0
+      config_menubutton .hwcfg.opt1.input.mb
       menu .hwcfg.opt1.input.mb.menu -tearoff 0 -postcommand {PostDynamicMenu .hwcfg.opt1.input.mb.menu HardwareCreateInputMenu {}}
       pack .hwcfg.opt1.input.curname -side left -padx 10 -anchor w -expand 1
       pack .hwcfg.opt1.input.mb -side left -padx 10 -anchor e
       pack .hwcfg.opt1.input -side top -pady 5 -anchor w -fill x
-      pack .hwcfg.opt1 -side top -fill x
+      pack .hwcfg.opt1 -side top -fill x -padx 5 -pady 3
 
       # create menu to select TV card
-      frame .hwcfg.opt2
+      if {!$is_unix} {
+         labelframe .hwcfg.opt2 -text "TV card & driver selection"
+      } else {
+         frame .hwcfg.opt2
+      }
       frame .hwcfg.opt2.card
       label .hwcfg.opt2.card.label -text "TV card: "
       pack .hwcfg.opt2.card.label -side left -padx 10
 
       menubutton .hwcfg.opt2.card.mb -text "Select" -menu .hwcfg.opt2.card.mb.menu \
-                                     -relief raised -borderwidth 2 -indicatoron 1 -underline 1
+                                     -indicatoron 1 -underline 1
+      config_menubutton .hwcfg.opt2.card.mb
       menu .hwcfg.opt2.card.mb.menu -tearoff 0
       pack .hwcfg.opt2.card.mb -side right -padx 10 -anchor e
       pack .hwcfg.opt2.card -side top -anchor w -pady 5 -fill x
-      pack .hwcfg.opt2 -side top -fill x
 
       if {!$is_unix} {
-         button .hwcfg.tvcardcfg -text "Configure card" -command PopupTvCardConfig
-         pack   .hwcfg.tvcardcfg -side top -padx 10 -pady 5
-      }
+         frame .hwcfg.opt2.drvsrc
+         radiobutton .hwcfg.opt2.drvsrc.src_wdm -text "WDM (card vendor's driver)" \
+                           -variable hwcfg_drvsrc_sel -value $::tvcf_drvsrc_wdm -command HwCfg_WinDrvChanged
+         grid .hwcfg.opt2.drvsrc.src_wdm -row 0 -column 0 -sticky w
+         radiobutton .hwcfg.opt2.drvsrc.src_dsdrv -text "DsDrv4 (internal driver)" \
+                           -variable hwcfg_drvsrc_sel -value $::tvcf_drvsrc_dsdrv -command HwCfg_WinDrvChanged
+         grid .hwcfg.opt2.drvsrc.src_dsdrv -row 1 -column 0 -sticky w
+         radiobutton .hwcfg.opt2.drvsrc.src_none -text "None (no TV card)" \
+                           -variable hwcfg_drvsrc_sel -value $::tvcf_drvsrc_none -command HwCfg_WinDrvChanged
+         grid .hwcfg.opt2.drvsrc.src_none -row 2 -column 0 -sticky w
+         pack .hwcfg.opt2.drvsrc -side top -padx 5 -pady 3 -anchor w
 
-      # create radio buttons to select slicer
-      frame .hwcfg.opt3
-      label .hwcfg.opt3.lab_slicer -text "Slicer quality:"
-      grid  .hwcfg.opt3.lab_slicer -row 0 -column 0 -sticky w
-      radiobutton .hwcfg.opt3.slicer_auto -text "automatic" -variable hwcfg_slicer_sel -value 0
-      grid        .hwcfg.opt3.slicer_auto -row 0 -column 1 -sticky w
-      radiobutton .hwcfg.opt3.slicer_trivial   -text "simple" -variable hwcfg_slicer_sel -value 1
-      grid        .hwcfg.opt3.slicer_trivial -row 0 -column 2 -sticky w
-      radiobutton .hwcfg.opt3.slicer_zvbi   -text "elaborate" -variable hwcfg_slicer_sel -value 2
-      grid        .hwcfg.opt3.slicer_zvbi -row 0 -column 3 -sticky w
+         label .hwcfg.opt2.hint -text "Hint: Prefer WDM sources if they work with nxtvepg.\nAvoid dsdrv when using WDM in other applications,\nbecause this may cause hardware conflicts." \
+                                -font $::font_normal -justify left
+         pack .hwcfg.opt2.hint -side top -anchor w -pady 2
+         pack .hwcfg.opt2 -side top -fill x -padx 5 -pady 3
 
-      if {!$is_unix} {
-         # create radio buttons to select acquisition priority
-         label .hwcfg.opt3.lab_prio -text "Priority:"
-         grid  .hwcfg.opt3.lab_prio -row 1 -column 0 -sticky w
-         radiobutton .hwcfg.opt3.prio_normal -text "normal" -variable hwcfg_prio_sel -value 0
-         grid        .hwcfg.opt3.prio_normal -row 1 -column 1 -sticky w
-         radiobutton .hwcfg.opt3.prio_high   -text "high" -variable hwcfg_prio_sel -value 1
-         grid        .hwcfg.opt3.prio_high   -row 1 -column 2 -sticky w
-         radiobutton .hwcfg.opt3.prio_crit   -text "real-time" -variable hwcfg_prio_sel -value 2
-         grid        .hwcfg.opt3.prio_crit   -row 1 -column 3 -sticky w
+         labelframe .hwcfg.opt3 -text "DsDrv4 configuration"
+         # create button to open sub-dialog window for card type selection etc.
+         button .hwcfg.opt3.tvcardcfg -text "Configure card for DsDrv4" -command PopupTvCardConfig
+         pack   .hwcfg.opt3.tvcardcfg -side top -padx 10 -pady 5
 
          # create checkbutton to enable DScaler driver debug logging
          checkbutton .hwcfg.opt3.dsdrv_log -text "Driver startup logging into file 'dsdrv.log'" -variable hwcf_dsdrv_log
-         grid        .hwcfg.opt3.dsdrv_log -row 2 -column 0 -columnspan 4 -sticky w
+         pack        .hwcfg.opt3.dsdrv_log -side top -anchor w
 
          # create checkbutton to allow stopping WDM before dsdrv start
-         checkbutton .hwcfg.opt3.wdm_stop  -text "Stop conflicting WDM drivers before start" -variable hwcf_wdm_stop_sel
-         grid        .hwcfg.opt3.wdm_stop  -row 3 -column 0 -columnspan 4 -sticky w
-      }
-      grid columnconfigure .hwcfg.opt3 0 -weight 1
-      pack .hwcfg.opt3 -side top -padx 10 -pady 5 -fill x -anchor w
+         checkbutton .hwcfg.opt3.wdm_stop -text "Stop conflicting WDM drivers before start" -variable hwcf_wdm_stop_sel
+         pack        .hwcfg.opt3.wdm_stop -side top -anchor w
 
-      # add card names list to menu
-      if {([llength $hwcfg_card_list] > 1) || \
-          ($hwcfg_cardidx_sel >= [llength $hwcfg_card_list])} {
-         set idx 0
-         foreach name $hwcfg_card_list {
-            .hwcfg.opt2.card.mb.menu add radiobutton -variable hwcfg_cardidx_sel -value $idx \
-                                                     -label $name -command HardwareConfigCard
-            incr idx
+         if {$hwcfg_drvsrc_sel == $::tvcf_drvsrc_dsdrv} {
+            pack .hwcfg.opt3 -side top -fill x -padx 5 -pady 3
          }
       } else {
-         .hwcfg.opt2.card.mb configure -state disabled
+         pack .hwcfg.opt2 -side top -fill x -padx 5 -pady 3
       }
+
+      # create radio buttons to select slicer
+      if {!$is_unix} {
+         labelframe .hwcfg.opt4 -text "Options"
+      } else {
+         frame .hwcfg.opt4
+      }
+      label .hwcfg.opt4.lab_slicer -text "Slicer quality:"
+      grid  .hwcfg.opt4.lab_slicer -row 1 -column 0 -sticky w
+      radiobutton .hwcfg.opt4.slicer_auto -text "automatic" -variable hwcfg_slicer_sel -value 0
+      grid        .hwcfg.opt4.slicer_auto -row 1 -column 1 -sticky w
+      radiobutton .hwcfg.opt4.slicer_trivial   -text "simple" -variable hwcfg_slicer_sel -value 1
+      grid        .hwcfg.opt4.slicer_trivial -row 1 -column 2 -sticky w
+      radiobutton .hwcfg.opt4.slicer_zvbi   -text "elaborate" -variable hwcfg_slicer_sel -value 2
+      grid        .hwcfg.opt4.slicer_zvbi -row 1 -column 3 -sticky w
+
+      if {!$is_unix} {
+         # create radio buttons to select acquisition priority
+         label .hwcfg.opt4.lab_prio -text "Priority:"
+         grid  .hwcfg.opt4.lab_prio -row 2 -column 0 -sticky w
+         radiobutton .hwcfg.opt4.prio_normal -text "normal" -variable hwcfg_prio_sel -value 0
+         grid        .hwcfg.opt4.prio_normal -row 2 -column 1 -sticky w
+         radiobutton .hwcfg.opt4.prio_high   -text "high" -variable hwcfg_prio_sel -value 1
+         grid        .hwcfg.opt4.prio_high   -row 2 -column 2 -sticky w
+         radiobutton .hwcfg.opt4.prio_crit   -text "real-time" -variable hwcfg_prio_sel -value 2
+         grid        .hwcfg.opt4.prio_crit   -row 2 -column 3 -sticky w
+      }
+      grid columnconfigure .hwcfg.opt4 0 -weight 1
+      pack .hwcfg.opt4 -side top -fill x -padx 5 -pady 3
+
+      # scan PCI bus and retrieve card names (must be called before other driver queries)
+      HwCfg_LoadTvCardList 1
+
       # display current card name and input source
-      HardwareConfigCard
+      HwCfg_TvCardChanged
 
       # create standard command buttons
       frame .hwcfg.cmd
-      button .hwcfg.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Configuration) "TV card input"}
-      button .hwcfg.cmd.abort -text "Abort" -width 5 -command {HardwareConfigQuit 0}
-      button .hwcfg.cmd.ok -text "Ok" -width 5 -command {HardwareConfigQuit 1} -default active
+      button .hwcfg.cmd.help -text "Help" -width 6 -command {PopupHelp $helpIndex(Configuration) "TV card input"}
+      button .hwcfg.cmd.abort -text "Abort" -width 6 -command {HardwareConfigQuit 0}
+      button .hwcfg.cmd.ok -text "Ok" -width 6 -command {HardwareConfigQuit 1} -default active
       pack .hwcfg.cmd.help .hwcfg.cmd.abort .hwcfg.cmd.ok -side left -padx 10
       pack .hwcfg.cmd -side top -pady 10
 
@@ -178,53 +225,77 @@ proc PopupHardwareConfig {} {
 }
 
 # Query the driver for a list of available TV cards
-proc HardwareConfigLoad {showDrvErr} {
+proc HwCfg_LoadTvCardList {showDrvErr} {
    global hwcfg_card_list hwcfg_chip_list
+   global hwcfg_cardidx_sel hwcfg_drvsrc_sel
    global is_unix
 
    if $is_unix {
-      set hwcfg_card_list [C_HwCfgGetTvCards $showDrvErr]
+      set hwcfg_card_list [C_HwCfgScanTvCards $::tvcf_drvsrc_unix $showDrvErr]
    } else {
 
       set hwcfg_card_list {}
       set hwcfg_chip_list {}
 
-      # note: this call loads the driver temporarily for a PCI scan
-      # if that fails, card IDs are taken from the config variables, but chip IDs are set to 0
-      foreach {chip name} [C_HwCfgGetTvCards $showDrvErr] {
-         lappend hwcfg_card_list $name
-         lappend hwcfg_chip_list $chip
+      if {$hwcfg_drvsrc_sel != $::tvcf_drvsrc_none} {
+         # note: this call loads the driver temporarily for a PCI scan
+         # if that fails, card IDs are taken from the config variables, but chip IDs are set to 0
+         foreach {chip name} [C_HwCfgScanTvCards $hwcfg_drvsrc_sel $showDrvErr] {
+            lappend hwcfg_card_list $name
+            lappend hwcfg_chip_list $chip
+         }
       }
    }
 
-   # update card type names in the card selection menu
-   if {([llength [info commands .hwcfg.opt2.card.mb.menu]] > 0) && \
-       ([llength $hwcfg_card_list] > 1)} {
+   .hwcfg.opt2.card.mb.menu delete 0 end
+   if {([llength $hwcfg_card_list] > 1) || \
+       ($hwcfg_cardidx_sel >= [llength $hwcfg_card_list])} {
       set idx 0
       foreach name $hwcfg_card_list {
-         .hwcfg.opt2.card.mb.menu entryconfigure $idx -label $name
+         .hwcfg.opt2.card.mb.menu add radiobutton -variable hwcfg_cardidx_sel -value $idx \
+                                                  -label $name -command HwCfg_TvCardChanged
          incr idx
       }
+   } else {
+      .hwcfg.opt2.card.mb configure -state disabled
    }
 }
 
 # Card index has changed - update card and video input names
-proc HardwareConfigCard {} {
+proc HwCfg_TvCardChanged {} {
    global is_unix
-   global hwcfg_input_sel hwcfg_cardidx_sel
+   global hwcfg_input_sel hwcfg_cardidx_sel hwcfg_drvsrc_sel
    global hwcfg_input_list hwcfg_card_list hwcfg_chip_list
+   global hwcf_acq_reenable
    global tvcardcf
 
    if {$hwcfg_cardidx_sel < [llength $hwcfg_card_list]} {
       .hwcfg.opt2.card.label configure -text "TV card: [lindex $hwcfg_card_list $hwcfg_cardidx_sel]"
 
-      # get list of video input names directly from the driver
-      if {!$is_unix && [info exists tvcardcf($hwcfg_cardidx_sel)]} {
-         set card_type [lindex $tvcardcf($hwcfg_cardidx_sel) $::tvcf_card_idx]
-      } else {
-         set card_type 0
+      # WIN32: retrieve card type from RC file (because input list differs between card types)
+      set card_type 0
+      if {!$is_unix} {
+         set card_idx 0
+         foreach tmpl [C_HwCfgGetTvCardConfig] {
+            set tvcardcf($card_idx) $tmpl
+            incr card_idx
+         }
+         if {[info exists tvcardcf($hwcfg_cardidx_sel)]} {
+            set card_type [lindex $tvcardcf($hwcfg_cardidx_sel) $::tvcf_card_idx]
+         }
+
+         # stop acquisition when selecting a new WDM source (required to query input list)
+         set hwcfg [C_GetHardwareConfig]
+         if {[C_IsAcqEnabled] &&
+             ([lindex $hwcfg $::hwcf_ret_drvsrc_idx] == $::tvcf_drvsrc_wdm) &&
+             ([lindex $hwcfg $::hwcf_ret_cardidx_idx] != $hwcfg_cardidx_sel)} {
+            C_ToggleAcq 0 0
+            set hwcf_acq_reenable $::tvcf_acq_disa_tmp
+         }
       }
-      set hwcfg_input_list [C_HwCfgGetInputList $hwcfg_cardidx_sel $card_type]
+
+      # get list of video input names directly from the driver
+      set hwcfg_input_list [C_HwCfgGetInputList $hwcfg_cardidx_sel $card_type $hwcfg_drvsrc_sel]
 
       if {$hwcfg_input_sel >= [lindex $hwcfg_input_list $hwcfg_input_sel]} {
          set hwcfg_input_sel 0
@@ -243,28 +314,56 @@ proc HardwareConfigCard {} {
          } else {
             .hwcfg.opt3.wdm_stop configure -state disabled
          }
-         .hwcfg.tvcardcfg configure -state normal
+
          catch {destroy .tvcard}
       }
    } else {
       # invalid card index (e.g. card was removed or invalid -card command line parameter
-      .hwcfg.opt2.card.label configure -text "TV card: device #[expr $hwcfg_cardidx_sel + 1] not found"
+      # or (Windows only) driver type set to "none"
+      if {$hwcfg_drvsrc_sel != $::tvcf_drvsrc_none} {
+         .hwcfg.opt2.card.label configure -text "TV card: device #[expr $hwcfg_cardidx_sel + 1] not found"
+      } else {
+         .hwcfg.opt2.card.label configure -text "TV card: none"
+      }
 
       set hwcfg_input_list "None"
       set hwcfg_input_sel 0
-      .hwcfg.opt1.input.curname configure -text "Video source: none (invalid device)"
+      if {$hwcfg_drvsrc_sel != $::tvcf_drvsrc_none} {
+         .hwcfg.opt1.input.curname configure -text "Video source: none (invalid device)"
+      } else {
+         .hwcfg.opt1.input.curname configure -text "Video source: none"
+      }
 
       if {!$is_unix} {
          .hwcfg.opt3.wdm_stop configure -state disabled
-         .hwcfg.tvcardcfg configure -state disabled
       }
+   }
+}
+
+proc HwCfg_WinDrvChanged {} {
+   global is_unix
+   global hwcfg_drvsrc_sel
+
+   if {!$is_unix} {
+      if {$hwcfg_drvsrc_sel == $::tvcf_drvsrc_dsdrv} {
+         # show dsdrv setup options
+         if {[lsearch -exact [pack slaves .hwcfg] .hwcfg.opt3] == -1} {
+            pack .hwcfg.opt3 -after .hwcfg.opt2 -side top -fill x -padx 5 -pady 3
+         }
+      } else {
+         if {[lsearch -exact [pack slaves .hwcfg] .hwcfg.opt3] != -1} {
+            pack forget .hwcfg.opt3 -side top -fill x -padx 5 -pady 3
+         }
+      }
+      HwCfg_LoadTvCardList 1
+      HwCfg_TvCardChanged
    }
 }
 
 # callback for dynamic input source menu
 proc HardwareCreateInputMenu {widget dummy} {
    global is_unix
-   global hwcfg_input_sel hwcfg_cardidx_sel
+   global hwcfg_input_sel hwcfg_cardidx_sel hwcfg_drvsrc_sel
    global hwcfg_input_list
    global tvcardcf
 
@@ -274,7 +373,7 @@ proc HardwareCreateInputMenu {widget dummy} {
    } else {
       set card_type 0
    }
-   set hwcfg_input_list [C_HwCfgGetInputList $hwcfg_cardidx_sel $card_type]
+   set hwcfg_input_list [C_HwCfgGetInputList $hwcfg_cardidx_sel $card_type $hwcfg_drvsrc_sel]
 
    if {[llength $hwcfg_input_list] > 0} {
       set idx 0
@@ -292,53 +391,101 @@ proc HardwareCreateInputMenu {widget dummy} {
 # Leave popup with OK button
 proc HardwareConfigQuit {is_ok} {
    global is_unix
-   global hwcf_cardidx hwcf_input hwcf_acq_prio hwcf_slicer_type hwcf_dsdrv_log hwcf_wdm_stop
-   global hwcfg_cardidx_sel hwcfg_input_sel hwcfg_prio_sel hwcfg_slicer_sel hwcf_wdm_stop_sel
-   global hwcfg_card_list hwcfg_input_list
+   global hwcfg_cardidx_sel hwcfg_input_sel hwcfg_drvsrc_sel
+   global hwcfg_prio_sel hwcfg_slicer_sel hwcf_dsdrv_log hwcf_wdm_stop_sel
+   global hwcfg_chip_list hwcfg_card_list hwcfg_input_list
+   global hwcf_acq_reenable
    global tvcardcf
 
-   # Windows only: check if the user selected a card & tuner model
-   if { !$is_unix && ![info exists tvcardcf($hwcfg_cardidx_sel)] } {
-      set answer [tk_messageBox -type okcancel -default cancel -icon warning -parent .hwcfg \
-                     -message "You haven't configured the selected TV card - acquisition will not be possible!"]
-   } else {
-      set answer "ok"
+   set answer "ok"
+   if {$is_ok && ($hwcfg_drvsrc_sel != $::tvcf_drvsrc_none)} {
+      # check if the user selected a valid card
+      if {$hwcfg_cardidx_sel >= [llength $hwcfg_card_list]} {
+         set answer [tk_messageBox -type okcancel -default cancel -icon warning -parent .hwcfg \
+                        -message "An invalid TV card is still selected - acquisition cannot be enabled!"]
+      # Windows only: check if the user configured his hardware (tuner type etc.)
+      } elseif { !$is_unix && \
+           ($hwcfg_drvsrc_sel == $::tvcf_drvsrc_dsdrv) && \
+           ( ![info exists tvcardcf($hwcfg_cardidx_sel)] || \
+             [string match -nocase "unknown*" [lindex $hwcfg_card_list $hwcfg_cardidx_sel]] || \
+             ([lindex $tvcardcf($hwcfg_cardidx_sel) $::tvcf_card_idx] == 0)) } {
+         set answer [tk_messageBox -type okcancel -default cancel -icon warning -parent .hwcfg \
+                        -message "You haven't configured the selected TV card - acquisition won't work properly!"]
+      }
    }
+
    # Windows only: warn about WDM stop option
    if {([string compare $answer "ok"] == 0) &&
-       !$is_unix && !$hwcf_wdm_stop && $hwcf_wdm_stop_sel} {
+       !$is_unix && !$hwcf_wdm_stop_sel &&
+       ($hwcfg_drvsrc_sel == $::tvcf_drvsrc_dsdrv) &&
+       (([lindex $hwcfg_chip_list $hwcfg_cardidx_sel] >> 16) == $::pci_id_conexant)} {
       set answer [tk_messageBox -type okcancel -default cancel -icon warning -parent .hwcfg \
-                     -message "WARNING: WDM stop is an experimental feature and should only be used as a last resort.  Press 'Cancel' and then 'Help' for details."]
+                     -message "WARNING: Using dsdrv for TV cards with the Conexant 881 capture chip is very risky when a WDM driver is installed. If your system crashes, enable the 'stop WDM driver' option and try again."]
    }
 
    if {[string compare $answer "ok"] == 0} {
 
       if $is_ok {
          # OK button -> save config into the global variables
-         set hwcf_cardidx $hwcfg_cardidx_sel
-         set hwcf_input $hwcfg_input_sel
-         set hwcf_acq_prio $hwcfg_prio_sel
-         set hwcf_slicer_type $hwcfg_slicer_sel
-         set hwcf_wdm_stop $hwcf_wdm_stop_sel
 
-         if {!$is_unix && $hwcf_dsdrv_log} {
-            set msg "To produce a driver startup logfile "
-            if $::menuStatusStartAcq {
-               append msg "first stop, then re-"
-            } else {
-               append msg "now, "
+         if { !$is_unix } {
+            set hwcfg [C_GetHardwareConfig]
+
+            if { $hwcf_acq_reenable && ![C_IsAcqEnabled] &&
+                 ($hwcfg_drvsrc_sel == $::tvcf_drvsrc_dsdrv) } {
+
+               # Win32: initial TV card configuration
+               set answer [tk_messageBox -type okcancel -default ok -icon warning -parent .hwcfg \
+                              -message "Nextview acquisition will be enabled now. In the unlikely case your system should crash, remove the 'nxtvepg.ini' file and try again with the 'WDM stop' option enabled, or use a WDM source."]
+               if {[string compare $answer "ok"] != 0} {
+                  return
+               }
+            } elseif { ([lindex $hwcfg $::hwcf_ret_drvsrc_idx] == $::tvcf_drvsrc_wdm) &&
+                       ($hwcfg_drvsrc_sel == $::tvcf_drvsrc_dsdrv) } {
+               # Win32: switching from WDM to dsdrv
+               if {[C_IsAcqEnabled]} {
+                  C_ToggleAcq 0 0
+                  set hwcf_acq_reenable $::tvcf_acq_disa_tmp
+               }
+               set answer [tk_messageBox -type okcancel -default ok -icon warning -parent .hwcfg \
+                              -message "WARNING: switching from a WDM driver to dsdrv is risky because the WDM driver may still be active. It's recommended to press 'Cancel' now and reboot before re-starting Nextview acquisition with dsdrv4."]
+               if {[string compare $answer "ok"] != 0} {
+                  # new config is still saved, but acq not re-enabled
+                  set hwcf_acq_reenable $::tvcf_acq_disa_none
+               }
+            } elseif {$hwcf_dsdrv_log} {
+               # Win32: driver start-up logging
+               set msg "To produce a driver startup logfile "
+               if {[C_IsAcqEnabled]} {
+                  append msg "first stop, then re-"
+               } else {
+                  append msg "now, "
+               }
+               append msg "start acquisition via the 'Control' menu."
+               tk_messageBox -type ok -icon info -parent .hwcfg -message $msg
             }
-            append msg "start acquisition via the 'Control' menu."
-            tk_messageBox -type ok -icon info -parent .hwcfg -message $msg
          }
 
-         C_UpdateHardwareConfig
-         UpdateRcFile
+         C_UpdateHardwareConfig $hwcfg_cardidx_sel $hwcfg_input_sel $hwcfg_drvsrc_sel \
+                                $hwcfg_prio_sel $hwcfg_slicer_sel $hwcf_wdm_stop_sel
+
+         if {!$is_unix && $hwcf_acq_reenable && ![C_IsAcqEnabled]} {
+            set hwcf_acq_reenable $::tvcf_acq_disa_none
+            C_ToggleAcq 1 0
+         }
+      } else {
+
+         if {!$is_unix && ($hwcf_acq_reenable == $::tvcf_acq_disa_tmp) &&
+             ![C_IsAcqEnabled]} {
+            set hwcf_acq_reenable $::tvcf_acq_disa_none
+            C_ToggleAcq 1 0
+         }
       }
 
       # free memory
       unset hwcfg_card_list hwcfg_input_list
       unset hwcfg_cardidx_sel hwcfg_input_sel hwcfg_prio_sel
+      array unset tvcardcf
 
       # close config dialogs
       destroy .hwcfg
@@ -351,7 +498,7 @@ proc HardwareConfigQuit {is_ok} {
 ##  WIN32 TV card configuration dialog
 ##
 proc PopupTvCardConfig {} {
-   global is_unix netacq_enable fileImage win_frm_fg font_normal
+   global is_unix netacq_enable fileImage font_normal
    global hwcfg_cardidx_sel hwcfg_chip_list
    global tvcard_cardtype_names tvcard_cardtype_idxlist
    global tvcard_tuner_names
@@ -364,7 +511,7 @@ proc PopupTvCardConfig {} {
       if {([llength $hwcfg_chip_list] == 0) || \
           ([lindex $hwcfg_chip_list $hwcfg_cardidx_sel] == $::pci_id_unknown)} {
          # no PCI scan yet -> try again
-         HardwareConfigLoad 1
+         HwCfg_LoadTvCardList 1
 
          if {[lindex $hwcfg_chip_list $hwcfg_cardidx_sel] == $::pci_id_unknown} {
 
@@ -373,7 +520,7 @@ proc PopupTvCardConfig {} {
             return
          } else {
             # PCI scan successful -> refresh card & input list
-            HardwareConfigCard
+            HwCfg_TvCardChanged
          }
       }
       # check card index (esp. if 0 cards found)
@@ -386,7 +533,7 @@ proc PopupTvCardConfig {} {
 
       array unset tvcard_cardtype_names
       set idx 0
-      foreach name [C_HwCfgGetTvCardList $hwcfg_cardidx_sel] {
+      foreach name [C_HwCfgGetTvCardNameList $hwcfg_cardidx_sel] {
          set tvcard_cardtype_names($idx) $name
          incr idx
       }
@@ -460,7 +607,8 @@ proc PopupTvCardConfig {} {
       frame .tvcard.opt2.tuner
       label .tvcard.opt2.tuner.curname -text "Tuner type: $tvcard_tuner_names($tvcard_tuner_sel)"
       menubutton .tvcard.opt2.tuner.mb -text "Select" -menu .tvcard.opt2.tuner.mb.menu \
-                                       -relief raised -borderwidth 2 -indicatoron 1 -underline 0
+                                       -indicatoron 1 -underline 0
+      config_menubutton .tvcard.opt2.tuner.mb
       CreateTunerMenu .tvcard.opt2.tuner.mb.menu
       pack .tvcard.opt2.tuner.curname -side left -padx 10 -anchor w -expand 1
       pack .tvcard.opt2.tuner.mb -side left -padx 10 -anchor e
@@ -527,33 +675,31 @@ proc TvCardConfigQuit {} {
                                              $tvcard_cardtyp_sel \
                                              $tvcard_tuner_sel \
                                              $tvcard_pll_sel]
+      eval C_HwCfgUpdateTvCardConfig $hwcfg_cardidx_sel $tvcardcf($hwcfg_cardidx_sel)
 
-      UpdateRcFile
-      C_UpdateHardwareConfig
       destroy .tvcard
 
       if $hwcfg_popup {
-         HardwareConfigLoad 0
-         HardwareConfigCard
+         HwCfg_LoadTvCardList 0
+         HwCfg_TvCardChanged
       }
    }
 }
 
 # attempt to auto-detect the card & tuner
 proc TvCardConfigAuto {} {
-   global menuStatusStartAcq hwcf_cardidx hwcfg_cardidx_sel
+   global hwcfg_cardidx_sel hwcfg_drvsrc_sel
    global tvcard_cardtyp_sel tvcard_tuner_sel tvcard_pll_sel
    global tvcard_cardtype_idxlist tvcard_cardtype_names
    global tvcard_tuner_names
+   global hwcf_acq_reenable
+
+   set cur_cardidx [lindex [C_GetHardwareConfig] $::hwcf_ret_cardidx_idx]
 
    # if acquisition is active for a different card it has to be stopped
-   if {$menuStatusStartAcq && ($hwcfg_cardidx_sel != $hwcf_cardidx)} {
-      set answer [tk_messageBox -type okcancel -default ok -icon warning -parent .tvcard \
-                     -message "Nextview acquisition has to be stopped to allow auto-detection for a different TV card."]
-      if {[string compare $answer "ok"] != 0} {
-         return
-      }
+   if {[C_IsAcqEnabled] && ($hwcfg_cardidx_sel != $cur_cardidx)} {
       C_ToggleAcq 0 0
+      set hwcf_acq_reenable $::tvcf_acq_disa_drv
    }
 
    set tmpl [C_HwCfgQueryCardParams $hwcfg_cardidx_sel -1]
@@ -591,7 +737,7 @@ proc TvCardConfigManual {} {
    global tvcard_cardtyp_sel tvcard_tuner_sel tvcard_pll_sel
    global tvcard_cardtype_idxlist tvcard_cardtype_names
    global tvcard_tuner_names
-   global hwcfg_cardidx_sel
+   global hwcfg_cardidx_sel hwcfg_drvsrc_sel
 
    set sel [.tvcard.opt1.lnames curselection]
    if {[llength $sel] == 1} {

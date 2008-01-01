@@ -1,20 +1,20 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: intro.html,v 1.18 2006/07/23 16:38:21 tom Exp $ -->
+<!-- $Id: intro.html,v 1.20 2008/01/06 20:32:58 tom Exp $ -->
 <HEAD>
-<TITLE>nexTView EPG Decoder Software Introduction</TITLE>
+<TITLE>About nexTView EPG</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
 <META name="language" content="en">
-<META name="keywords" lang="en" content="nexTView, EPG, electronic program guide, TV-Guide, Premiere, TV program listing, TV schedule, Nextview decoder, bttv, video4linux, VBI, vertical blanking interval, multimedia, data service, subscription free, TV tuner card, Kabel1">
-<META name="description" lang="en" content="This nexTView EPG decoder software offers access to a subscription-free electronic TV program guide in the analog domain. Nextview currently is broadcasted in Germany, Austria, Switzerland, and France and covers the schedules of all major TV networks in these countries.">
+<META name="keywords" lang="en" content="EPG, TV program listing, Nextview decoder, VBI, vertical blanking interval, TV tuner card, ETSI standard, ETS 300 707, ETS 300 708, standard, protocol">
+<META name="description" lang="en" content="This page explains what the Nextview electronic programme guide is about and how it works.">
 <META name="author" content="Tom Zoerner">
 <META name="copyright" content="Tom Zoerner">
 <META name="robots" content="index, follow">
 <META name="revisit-after" content="01 month">
 <LINK rel="stylesheet" type="text/css" href="nxtvepg.css">
-<LINK rel="alternate" type="text/html" href="intro-de.html" hreflang="de" lang="de" title="nexTView EPG Einführung">
+<LINK rel="alternate" type="text/html" href="intro-de.html" hreflang="de" lang="de" title="Einführung in nexTView EPG">
 <LINK rel="shortcut icon" type="image/x-icon" href="nxtvepg.ico">
-<LINK rel="top" href="http://nxtvepg.sourceforge.net/" title="nexTView EPG Decoder Homepage">
+<LINK rel="top" href="http://nxtvepg.sourceforge.net/" title="nxtvepg homepage">
 </HEAD>
 <BODY>
 
@@ -77,20 +77,20 @@ Programme Guide for the analog domain.  It enables you to receive and browse
 free TV programme listings for all of the major networks in Germany, Austria,
 France and Switzerland.
 </P><P>
-The nexTView standard was developed by the major European consumer electronics
+The nexTView EPG standard was developed by the major European consumer electronics
 manufacturers under the hood of the <A HREF="http://www.etsi.org/">European Telecommunications Standards Institute</A> (ETSI)
 in 1995-1997 with the aim to offer an "electronic TV magazine" inside their
 analog TV sets.  The transmission protocol is based on teletext, however
-using a compact binary format instead of preformatted text pages. The advantage
+using a compact binary format instead of pre-formatted text pages. The advantage
 compared to paper-based TV magazines is that you have an immediate overview
 what's running <I>Now &amp; Next</I>, plus you can search through the programme
 database by many different filter categories.
 </P><P>
-Now the <I>nxtvepg</I> software enables you to use nexTView with your PC too,
+Now the <I>nxtvepg</I> software enables you to use nexTView EPG with your PC too,
 and adds a lot of features that would not be possible to implement inside a TV set.
 The only preconditions are (a) that you have a TV tuner card for TV reception
-inside your PC and (b) that you receive one of the nexTView content provider's
-TV channels.  Note you also can receive Nextview through digital transmissions,
+inside your PC and (b) that you receive one of the nexTView EPG content provider's
+TV channels.  Note you also can receive Nextview EPG through digital transmissions,
 if your equipment is capable of teletext output.  See
 <A HREF="download.html#requirements">system requirements</A> for details.
 </P><P>
@@ -102,7 +102,7 @@ Currently nexTView EPG is transmitted by the following TV stations:
 <LI>in Switzerland: SF1, TSR1, TSI1, TV5
     (coverage: apx. 37 networks)
 <LI>in France: Canal+, M6, TV5 (coverage: 8 networks)
-<LI>in Belgium: VT4, M6, TV5 (coverage: 32 networks)
+<LI>in Belgium: M6, TV5 (coverage: 32 networks)
 <LI>in Turkey: TRT family (coverage: 17 networks)
 </UL>
 <P>
@@ -111,7 +111,7 @@ If you don't receive any of these, then unfortunately this software is
 useless to you, except for a demo mode. For detailed information please
 refer to the <A HREF="man.html">nxtvepg manual page</A>.
 </P><P>
-If you're interested in buying a TV with nexTView inside, look for it
+If you're interested in buying a TV with nexTView EPG inside, look for it
 at one of the following manufacturers:
 <A HREF="http://www.grundig.com">Grundig</A>,
 <A HREF="http://www.loewe.de">Loewe</A>,
@@ -148,12 +148,12 @@ channel and usually loads in less than 1.5 minutes.  You can observe
 the loading progress by opening the <I>Acquisition Timescales</I> in
 the control menu in nxtvepg.
 </P><P>
-The data on the Nextview page is encoded in a very compact binary format,
+The data on the Nextview EPG page is encoded in a very compact binary format,
 except for text (i.e. programme titles and descriptions) which is
 transmitted in plain.
 Hence if you would manage to point your teletext reader to this page
 (possible with some computer software, e.g. alevt on Linux) you'd see
-a lot of funny characters with some text inbetween.  The binary parts
+a lot of funny characters with some text in-between.  The binary parts
 are control data, such as start times and length, network code, theme
 codes etc.
 </P><P>
@@ -177,7 +177,7 @@ relevant if your teletext reception is bad.)
 If you're interested in more details, you can download specifications
 for Nextview EPG (ETS 300 707) and the data stream (ETS 300 708) for free
 from <A HREF="http://www.etsi.org/">etsi.org</A>.  The latter one is a
-bit harder to read, but at least the Nextview spec contains a few
+bit harder to read, but at least the Nextview EPG spec contains a few
 introductionary chapters which should be easy to comprehend.
 </P>
 
@@ -186,16 +186,16 @@ introductionary chapters which should be easy to comprehend.
 DVB natively supports an EPG which is completely unrelated to Nextview EPG.
 A major difference between those two is that DVB EPG is provided by the
 respective networks themselves and covers at most several related networks
-(i.e. channels in the same <I>buquet</I>), while Nextview EPG is provided
+(i.e. channels in the same <I>bouquet</I>), while Nextview EPG is provided
 network independently and usually covers all national networks in a country.
 </P><P>
 nxtvepg ist not capable of decoding these "digital" EPGs.  It may however
 be possible to receive Nextview EPG even if you're using digital TV
-reception.  As explained above, Nextview is transmitted as part of the
+reception.  As explained above, Nextview EPG is transmitted as part of the
 teletext data stream.  Most networks also encode teletext in their
-digital broadcast, hence Nextview is included, too.
+digital broadcast, hence Nextview EPG is included, too.
 </P><P>
-Pre-condition to receive Nextview if you're using an external set-top box is
+Pre-condition to receive Nextview EPG if you're using an external set-top box is
 its capability to provide teletext output (so-called <I>VBI Insertion</I>)
 or, if you have an internal SAT TV card, a Linux driver which supports
 the <I>video4linux</I> VBI API (i.e. if other VBI applications like alevt

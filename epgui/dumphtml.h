@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumphtml.h,v 1.2 2004/12/29 12:05:21 tom Exp tom $
+ *  $Id: dumphtml.h,v 1.4 2005/12/29 16:51:22 tom Exp tom $
  */
 
 #ifndef __DUMPHTML_H
@@ -26,12 +26,10 @@
 // ----------------------------------------------------------------------------
 // Interface functions declaration
 
-// Interface to main module
+// Interface to dump main control
 void EpgDumpHtml_Init( void );
 void EpgDumpHtml_Destroy( void );
 
-void EpgDumpHtml_WriteString( FILE *fp, const char * pText, sint strlen );
-void EpgDumpHtml_RemoveQuotes( const uchar * pStr, uchar * pBuf, uint maxOutLen );
-
+void EpgDumpHtml_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp, uint subMode );
 
 #endif  // __DUMPHTML_H

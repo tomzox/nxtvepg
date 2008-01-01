@@ -40,7 +40,7 @@
  *  DScaler #Id: TDA8275.cpp,v 1.10 2005/10/04 19:59:48 to_see Exp #
  *  DScaler #Id: TDA8275.h,v 1.6 2005/10/04 19:59:09 to_see Exp #
  *
- *  $Id: wintuner.c,v 1.25 2006/12/21 20:34:36 tom Exp tom $
+ *  $Id: wintuner.c,v 1.26 2007/12/30 21:40:27 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -3003,7 +3003,7 @@ bool Tuner_Init( TUNER_TYPE type, TVCARD * pNewTvCardIf )
          if (result == FALSE)
          {
             TunerDeviceI2C = 0;
-            MessageBox(NULL, "Warning: no tuner found on I2C bus.\nAcquisition will probably not work (cannot switch TV channels.)\nSee README.txt for more info.", "Nextview EPG driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+            MessageBox(NULL, "Warning: no tuner found on I2C bus.\nAcquisition will probably not work (cannot switch TV channels.)\nSee README.txt for more info.", "nxtvepg driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
             debug0("Tuner-Init: no tuner found - disabling module");
          }
          I2CBus_Unlock();

@@ -31,7 +31,7 @@
 #package require Tk 8.0
 #package provide mclistbox 1.02
 
-#  nxtvepg $Id: mclistbox.tcl,v 1.2 2003/08/16 10:24:15 tom Exp tom $
+#  nxtvepg $Id: mclistbox.tcl,v 1.3 2007/12/29 21:22:59 tom Exp tom $
 
 #=LOAD=mclistbox_load
 #=DYNAMIC=
@@ -120,6 +120,7 @@ proc ::mclistbox::Init {} {
 	    -selectforeground    {selectForeground    Background} \
 	    -selectmode          {selectMode          SelectMode} \
 	    -setgrid             {setGrid             SetGrid} \
+	    -state               {state               State} \
 	    -takefocus           {takeFocus           TakeFocus} \
 	    -width               {width               Width} \
 	    -xscrollcommand      {xScrollCommand      ScrollCommand} \
@@ -348,6 +349,8 @@ proc ::mclistbox::Build {w args} {
     if {[llength $args] > 0} {
 	array set options $args
     }
+    # TZO work-around for Tcl/Tk 8.5: listbox bindings call cget -state
+    set options(-state) normal
     
     # the columns all go into a text widget since it has the 
     # ability to scroll.

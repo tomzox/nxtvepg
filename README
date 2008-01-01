@@ -1,12 +1,12 @@
 Hi there,
 
-In this software package you find a decoder for Nextview - an Electronic
+In this software package you find a decoder for Nextview EPG - an Electronic
 TV Programme Guide for the analog domain (as opposed to the various digital
-EPGs that come with most digital broadcasts). It allows you to decode and
+EPGs that come with most digital broadcasts). It allows you to receive and
 browse TV programme listings for most of the major networks in Germany,
 Austria, France, Belgium and Switzerland.
 
-Currently Nextview EPG is transmitted by:
+As of December 2007 Nextview EPG is transmitted by:
 - in Germany and Austria: Kabel1 (coverage: apx. 32 networks)
 - in Switzerland: SF1, TSR1, TSI1, TV5 (coverage: apx. 37 networks)
 - in France: Canal+, M6, TV5 (coverage: 8 networks)
@@ -14,29 +14,35 @@ Currently Nextview EPG is transmitted by:
 - in Turkey: TRT family (coverage: apx. 17 networks)
 
 If you don't receive any of those, then this software unfortunately is
-almost useless to you, except for a demo mode. For more details please
-refer to the documentation in the "Help" menus or the UNIX manual page.
+almost useless to you, except for the possibility to acquire EPG data
+from teletext and external sources via XMLTV (but those are mainly
+designed to accompany Nextview EPG so they won't work very well
+stand-alone.)  For more details on pre-requesites please refer to
+the documentation in the "Help" menus and manual page.
 
 The Nextview standard was developed by the major European consumer electronics
 manufacturers under the hood of the European Telecommunications Standards
-Institute (http://www.etsi.org/) in 1995-1997. The author of this software
-has no connections whatsoever to the ETSI - but he still hopes this software
-distribution will be kindly tolerated.
+Institute (http://www.etsi.org/) in 1995-1997 and is freely available as
+standard number ETS 300 707. The author of this software has no connections
+whatsoever to the ETSI - but he still hopes this software distribution will
+be kindly tolerated.
 
 
 System requirements:
 
 Hardware minimum requirements are a PC or workstation with performance
-equivalent to a 90 MHz Intel Pentium CPU and 64 MB of RAM (note nxtvepg
+equivalent to a 90 MHz Intel Pentium CPU and 128 MB of RAM (note nxtvepg
 is also known to work fine on Power-PC and Ultra-Sparc platforms.)
-Additionally a TV tuner card (analog, i.e. not DVB) is required.
+Additionally an analog TV tuner card is required. In some cases you
+may also be able to use a DVB card as input, see below.
 
 The Windows version supports all PCI TV cards based either on the capture
 chips Brooktree Fusion Bt878/Bt848, sucessor Conexant CX23881 or
-Philips SAA7134via the internal "dsdrv4" driver (which is taken from
-the DScaler project.)  Note pre-installed drivers are not used by
-nxtvepg. (Support for WDM drivers will be added in the next release
-nxtvepg 2.8.0)
+Philips SAA7134 via the internal "dsdrv4" driver (which is taken from
+the DScaler project.)  With the help of an external DLL (currently not
+included - please refer to the download page) additionally all cards
+which come with a WDM Driver which supports "VBI" decoding (e.g. teletext)
+are supported.
 
 The Linux version supports all cards for which a "video4linux" or v4l2
 compatible driver exists (e.g. bttv, saa7134, cx8800, possibly even USB
@@ -56,18 +62,19 @@ Linux software requirements:
   use snapshot video4linux-20040330 or later from http://www.bytesex.org/
 - GNU C Compiler 2.93.3 or later, unless you got nxtvepg precompiled for
   your platform
-- Tcl/Tk version 8.3 or later (note versions 8.4.0 to 8.4.3 are depreciated)
+- Tcl/Tk version 8.4 or later (version 8.5 recommended due to improved look)
   Sources available for download from http://www.tcl.tk/
-- Any release of X11R5 or X11R6 (Note: builds without X11 and Tk will be
-  supported in the next release nxtvepg 2.8.0)
+- Any release of X11R5 or X11R6
+  Note: X11 and Tcl/Tk are not required if you only build the daemon
 
 NetBSD software requirements:
 - kernel >= 1.5 including the bktr driver 2.17 or later,
   available from http://vulture.dmem.strath.ac.uk/bt848/
 - GNU C Compiler, unless you got nxtvepg in a precompiled NetBSD package
-- Tcl/Tk version 8.3 or later (note versions 8.4.0 to 8.4.3 are depreciated)
+- Tcl/Tk version 8.4 or later
   Sources available for download from http://www.tcl.tk/
 - Any release of X11R5 or X11R6
+  Note: X11 and Tcl/Tk are not required if you only build the daemon
 
 Windows software requirements:
 - Nothing actually: nxtvepg is shipped with all the required components.
@@ -75,8 +82,13 @@ Windows software requirements:
   the daemon feature) which - in contrary to newer Windows versions - was
   not included with this OS.
 - Supported OS: Windows NT, Windows 2000, Windows XP, Windows 95/98/ME.
-- On Windows NT and Windows 2000 you need to run nxtvepg under an account
-  with special privileges (you must be allowed to install and start a service)
+- On Windows NT/2000/XP you need to run nxtvepg under an account with
+  special privileges (you must be allowed to install and start a service)
+  unless you use a DirectShow source (i.e. WDM driver; requires DirectX 9)
+- Exception for unsupported hardware: If the internal driver doesn't
+  recognize your card or fails to load data, you may obtain the external
+  VbiAcqWdmDrv.dll which allows to address your TV card via the vendor's
+  WDM driver. This DLL is available separately at the nxtvepg homepage.
 
 
 UNIX installation procedure (when compiling from source):
@@ -104,6 +116,13 @@ UNIX installation procedure (when compiling from source):
     schar, uchar, sint, uint, slong, ulong.  Compilation may fail if these
     are already defined in system header files; in this case you probably
     have to comment out nxtvepg's definition.
+  + If compilation fails due to missing "include files", you probably lack
+    development versions of standard libraries. On Debian/Ubuntu you need:
+    apt-get install tcl8.4 tcl8.4-dev tk8.4 tk8.4-dev
+    apt-get install libx11-dev libxmu6 libxmu-dev
+  + To build the "nxtvepgd" executable type "make daemon" or "make all".
+    This will compile one extra module and otherwise just link a smaller
+    executable which does not contain the graphical user interface.
   + To compile the tvsim test & development suite too, invoke "make all"
     (Note these tools are not installed into system directories since they
     are intended for temporary use in debugging only.)
@@ -178,7 +197,7 @@ Compilation procedure for Windows
   the sources also lacked the tcl/tk script libraries; these are
   available on request.
 - Fastest way is to cross-compile for Windows under Linux.  You need to
-  install "gcc-win" RPM package and then type "make -f Makefile.win"
+  install "mingw32" package and then type "make -f Makefile.win"
 - Alternatively you can install GNU/Cygwin on your Windows host, see
   http://www.cygwin.com/  Most important are packages for make, gcc,
   mingw ("Minimalistic GNU for Windows") and win32 header files.  After

@@ -22,7 +22,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: debug.c,v 1.27 2006/11/12 18:36:54 tom Exp $
+ *  $Id: debug.c,v 1.28 2007/12/30 21:46:54 tom Exp tom $
  */
 
 #define __DEBUG_C
@@ -140,7 +140,7 @@ void DebugLogLine( bool doHalt )
       #ifndef WIN32
       abort();
       #else
-      MessageBox(NULL, debugStr, "Nextview EPG", MB_ICONSTOP | MB_OK | MB_SETFOREGROUND);
+      MessageBox(NULL, debugStr, "nxtvepg", MB_ICONSTOP | MB_OK | MB_SETFOREGROUND);
       #endif
    }
    #endif
@@ -408,7 +408,7 @@ void * xmalloc( size_t size )
       SHOULD_NOT_BE_REACHED;
       exit(-1);
       #else
-      MessageBox(NULL, "Memory allocation failure - Terminating", "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+      MessageBox(NULL, "Memory allocation failure - Terminating", "nxtvepg", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
       // force an exception that will be caught and shut down the process properly
       *(uchar *)ptr = 0;
       #endif
@@ -431,7 +431,7 @@ void * xrealloc( void * ptr, size_t size )
       SHOULD_NOT_BE_REACHED;
       exit(-1);
       #else
-      MessageBox(NULL, "Memory allocation failure - Terminating", "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+      MessageBox(NULL, "Memory allocation failure - Terminating", "nxtvepg", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
       // force an exception that will be caught and shut down the process properly
       *(uchar *)ptr = 0;
       #endif

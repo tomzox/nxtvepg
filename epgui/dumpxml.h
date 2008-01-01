@@ -16,20 +16,28 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: dumpxml.h,v 1.2 2004/12/29 20:26:56 tom Exp $
+ *  $Id: dumpxml.h,v 1.5 2007/01/21 14:11:24 tom Exp tom $
  */
 
 #ifndef __DUMPXML_H
 #define __DUMPXML_H
 
 
+typedef enum
+{
+   DUMP_XMLTV_ANY,
+   DUMP_XMLTV_DTD_5_GMT,
+   DUMP_XMLTV_DTD_5_LTZ,
+   DUMP_XMLTV_DTD_6,
+   DUMP_XMLTV_COUNT
+} DUMP_XML_MODE;
+
 // ----------------------------------------------------------------------------
 // Interface functions declaration
 
-// Interface to main module
-void EpgDumpXml_Init( void );
-void EpgDumpXml_Destroy( void );
+void EpgDumpXml_HtmlWriteString( FILE *fp, const char * pText, sint strlen );
+void EpgDumpXml_HtmlRemoveQuotes( const uchar * pStr, uchar * pBuf, uint maxOutLen );
 
-void EpgDumpXml_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp, EPGTAB_DUMP_MODE dumpMode );
+void EpgDumpXml_Standalone( EPGDB_CONTEXT * pDbContext, FILE * fp, DUMP_XML_MODE dumpMode );
 
 #endif  // __DUMPXML_H

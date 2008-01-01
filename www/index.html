@@ -1,18 +1,18 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: index.html,v 1.101 2007/01/28 13:19:58 tom Exp $ -->
+<!-- $Id: index.html,v 1.105 2008/01/06 20:32:58 tom Exp $ -->
 <HEAD>
-<TITLE>nexTView EPG Decoder Software Download Page</TITLE>
+<TITLE>nxtvepg - nexTView EPG Decoder Software</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
 <META name="language" content="en">
-<META name="keywords" lang="en" content="nexTView, EPG, decoder, nxtvepg, teletext, Fusion Bt878, SAA7134, Conexant CX23881, electronic program guide, TV-Guide, Premiere, TV program listing, TV schedule, Nextview decoder, Linux, NetBSD, FreeBSD, software download, bttv, video4linux, VBI, vertical blanking interval, multimedia, data service, subscription free, TV tuner card, Bt848, Brooktree, video capture, capture, browser, Kabel1, RTL2, Canal+, EuroNews, nexttview">
-<META name="description" lang="en" content="This nexTView EPG decoder software offers access to a subscription-free electronic TV program guide in the analog domain. Nextview currently is broadcasted in Germany, Austria, Switzerland, and France and covers the schedules of all major TV networks in these countries.">
+<META name="keywords" lang="en" content="nxtvepg, software, freeware, GPL, nexTView, EPG, teletext, Brooktree, Bt848, Bt878, Philips, SAA7134, Conexant, CX23881, cx8800, electronic program guide, TV-Guide, TV program listing, TV schedule, Linux, NetBSD, FreeBSD, bttv, video4linux, bktr, VBI, vertical blanking interval, multimedia, data service, subscription free, TV tuner card, capture, browser, nexttview">
+<META name="description" lang="en" content="The nxtvepg software allows access to Nextview EPG, a subscription-free electronic TV program guide in the analog domain. Nextview EPG is currently aired in Germany, Austria, Switzerland, and France and covers the schedules of all major TV networks in these countries.">
 <META name="author" content="Tom Zoerner">
 <META name="copyright" content="Tom Zoerner">
 <META name="robots" content="index, follow">
 <META name="revisit-after" content="01 month">
 <LINK rel="stylesheet" type="text/css" href="nxtvepg.css">
-<LINK rel="alternate" type="text/html" href="index-de.html" hreflang="de" lang="de" title="nexTView EPG Dekoder Software">
+<LINK rel="alternate" type="text/html" href="index-de.html" hreflang="de" lang="de" title="Nxtvepg Homepage">
 <LINK rel="alternate" type="text/html" href="index-fr.html" hreflang="fr" lang="fr" title="Logiciel de Décodage Nextview EPG">
 <LINK rel="shortcut icon" type="image/x-icon" href="nxtvepg.ico">
 </HEAD>
@@ -71,55 +71,66 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 <BR>EPG Decoder Software</SPAN></H1>
 
 <P>
-Welcome to the homepage of the <I>nxtvepg</I> software package: A decoder
-for nexTView EPG, an Electronic TV Programme Guide for the analog domain
-(as opposed to the various digital EPGs that come with most digital broadcasts,
-although you can receive Nextview EPG <A HREF="intro.html#DVB">digitally</A>, too).
-It enables you to receive and browse free TV programme schedules for all of
-the major networks in Germany, Austria, Switzerland, France and Belgium with an
-analog TV card, without access to the internet.
+Welcome to the homepage of the <I>nxtvepg</I> software package, which
+enables you to receive and browse Nextview EPG on your PC.  Nextview is
+an <A HREF="http://www.etsi.org/">ETSI</A> standard for the broadcast of
+Electronic TV Programme Guides in TV signals, alongside to teletext
+(both analog and digitally via <A HREF="intro.html#DVB">DVB</A>.) This
+free service is offered by several <A HREF="provnets.html">content providers</A>
+in Germany, Austria, Switzerland, France and Belgium. Together they
+cover the daily TV schedules of all major networks in these countries.
 <A HREF="intro.html">More...</A>
 </P>
 
 <H2>Site navigation</H2>
 <UL>
 <LI><A HREF="intro.html">About Nextview EPG</A>
-<LI><A HREF="provnets.html">List of Nextview providers</A>
+<LI><A HREF="provnets.html">List of Nextview EPG providers</A>
 <P></P>
 <LI><A HREF="download.html">Software download</A>
 <LI><A HREF="download.html#requirements">System Requirements</A>
 <P></P>
-<LI><A HREF="index.html#new_2_7_7">About the latest release 2.7.7</A>
+<LI><A HREF="index.html#releases">About the current releases</A>
 <LI><A HREF="index.html#feedback">Questions and feedback</A>
 <LI><A HREF="index.html#copyright">Copyright notice</A>
 </UL>
 
 
-<H2><SPAN CLASS="red"><A NAME="new_2_7_7">Current release 2.7.7 (Jan/21/2007)</A></SPAN></H2>
+<H2><A NAME="releases">Current releases 2.7.7 and 2.8.0 (Dec/31/2007)</A></H2>
 <P>
-Release 2.7.7 once more is mainly a maintenance release with mostly
-bug fixes and a few feature enhancements. Highlights include:
+After 3 years of (sporadic) development, there's finally an official
+release 2.8.0 which includes several major new features.  The older
+release 2.7.7 which has still been maintained until recently remains
+as stable fall-back in case you encounter any problems with the newer
+release.
+</P>
+<P>
+Major changes in release 2.8.0 compared to 2.7.7 are:
 </P>
 <UL>
-<LI>Improved robustness of the decoder against transmission errors due
-  to bad TV reception.
-<LI><I>Windows:</I> Update of TV card drivers to improve hardware support
-  (Imported from <A HREF="http://www.dscaler.org/">DScaler</A>.)
-<LI><I>UNIX:</I> Fixed <A HREF="man.html#tv_application_interaction">interaction</A>
-  with TV-application <A HREF="http://tvtime.sourceforge.net/">tvtime</A>
-<LI><I>Linux:</I> Work-around for bttv driver bug in Linux
-  <A HREF="http://kernel.org/">kernel</A> 2.6.16
-<LI>Many fixes and improvements in the
-  <A HREF="man-de.html">German translation</A> of the documentation.
-  <BR><SPAN class="anno">(Thanks again to Kurt Lettmaier.)</SPAN>
+<LI>Split of a separate EPG acquisition daemon without GUI ("nxtvepgd")<BR>
+  (Mainly intended for Linux-based HTPCs without X11 libraries.)
+<LI>Grabbing EPG data from regular teletext pages (German networks only;
+  <A HREF="man.html#teletext_grabber">Read more...</A>)<BR>
+  (Note this optional feature requires installation of a
+  <A HREF="http://www.cpan.org/">Perl</A> interpreter.<BR>
+  Note this feature is also available as a separate
+  <A HREF="pre-releases.html#ttx_grabber">Perl script</A>.)
+<LI>Import and merge of EPG data from external sources via files in
+  <A HREF="http://xmltv.org/">XMLTV</A> format.
+<LI>Extended EPG info for on-screen-display in TV applications (for
+  <A HREF="xiccc-proto.html#iccc">UNIX</A> and Windows)<BR>
+  (Note due to this change all <A HREF="http://www.kastortv.org/">K!TV</A>
+  users must replace their Nextview EPG plugin.)
+<LI>Support for exotic and non-PCI TV cards on Windows<BR>
+  (Note this requires download of a separate
+  <A HREF="pre-releases.html#wdm_if_lib">WDM interface library</A>.<BR>
+  Many thanks to Gérard Chevalier for developing the library.)
 </UL>
 <P>
-Fetch this new release from the <A HREF="download.html">download section</A>.
+You can fetch these releases via the <A HREF="download.html">download section</A>.
 <BR>Please refer to the <A HREF="changelog.html">changelog</A> for a detailed
-list of changes.
-</P><P>
-Note new development is currently proceeding on a separate development
-line. See the <A HREF="pre-releases.html">pre-release page</A>.
+list of changes of this an previous releases.
 </P>
 
 

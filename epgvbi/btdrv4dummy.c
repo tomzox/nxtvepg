@@ -18,12 +18,15 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: btdrv4dummy.c,v 1.20 2004/07/11 19:11:27 tom Exp tom $
+ *  $Id: btdrv4dummy.c,v 1.23 2007/12/30 21:43:40 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
 #define DPRINTF_OFF
 
+#ifdef WIN32
+#include <windows.h>
+#endif
 #include <string.h>
 
 #include "epgctl/mytypes.h"
@@ -52,6 +55,11 @@ void BtDriver_Exit( void )
 
 bool BtDriver_StartAcq( void )
 {
+#ifdef WIN32
+   MessageBox(NULL, "Cannot start acquisition: the application was compiled without VBI device support",
+                    "nxtvepg driver problem",
+                    MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+#endif
    return FALSE;
 }
 
@@ -61,8 +69,33 @@ void BtDriver_StopAcq( void )
 
 const char * BtDriver_GetLastError( void )
 {
+#ifndef WIN32
    return "application was compiled without VBI device support";
+#else
+   // errors are already reported by the driver in WIN32
+   return NULL;
+#endif
 }
+
+#ifdef WIN32
+bool BtDriver_Restart( void )
+{
+   BtDriver_StopAcq();
+   return BtDriver_StartAcq();
+}
+
+bool BtDriver_GetState( bool * pEnabled, bool * pHasDriver, uint * pCardIdx )
+{
+   if (pEnabled != NULL)
+      *pEnabled = FALSE;
+   if (pHasDriver != NULL)
+      *pHasDriver = FALSE;
+   if (pCardIdx != NULL)
+      *pCardIdx = 0;
+
+   return TRUE;
+}
+#endif
 
 bool BtDriver_IsVideoPresent( void )
 {
@@ -112,12 +145,39 @@ int BtDriver_GetDeviceOwnerPid( void )
 // ---------------------------------------------------------------------------
 // Interface to GUI
 //
+#ifndef WIN32
 const char * BtDriver_GetCardName( uint cardIdx )
 {
    if (cardIdx == 0)
       return "Bt8x8 dummy";
    else
       return NULL;
+}
+#else  // WIN32
+BTDRV_SOURCE_TYPE BtDriver_GetDefaultDrvType( void )
+{
+   return BTDRV_SOURCE_PCI;
+}
+
+const char * BtDriver_GetCardNameFromList( uint cardIdx, uint listIdx )
+{
+   return NULL;
+}
+
+bool BtDriver_EnumCards( uint drvType, uint cardIdx, uint cardType,
+                         uint * pChipType, const char ** pName, bool showDrvErr )
+{
+   return FALSE;
+}
+
+bool BtDriver_QueryCardParams( uint cardIdx, sint * pCardType, sint * pTunerType, sint * pPllType )
+{
+   return FALSE;
+}
+
+bool BtDriver_CheckCardParams( uint drvType, uint cardIdx, uint chipId, uint cardType, uint tunerType, uint pll, uint input )
+{
+   return TRUE;
 }
 
 const char * BtDriver_GetTunerName( uint tunerIdx )
@@ -127,8 +187,9 @@ const char * BtDriver_GetTunerName( uint tunerIdx )
    else
       return NULL;
 }
+#endif
 
-const char * BtDriver_GetInputName( uint cardIdx, uint cardType, uint inputIdx )
+const char * BtDriver_GetInputName( uint cardIdx, uint cardType, uint drvType, uint inputIdx )
 {
    if (inputIdx == 0)
       return "Dummy input";
@@ -136,8 +197,8 @@ const char * BtDriver_GetInputName( uint cardIdx, uint cardType, uint inputIdx )
       return NULL;
 }
 
-bool BtDriver_Configure( int cardIndex, int prio, int chipType, int cardType,
-                         int tuner, int pll, bool wdmStop )
+bool BtDriver_Configure( int sourceIdx, int drvType, int prio, int chipType, int cardType,
+                         int tunerType, int pllType, bool wdmStop )
 {
    return TRUE;
 }

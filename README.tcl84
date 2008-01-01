@@ -1,4 +1,33 @@
-This describes how to compile Tcl/Tk version 8.4b1 for gcc/mingw32
+Building TCL 8.5.0
+------------------
+
+Building the Tcl and Tk libraries version 8.5.0 works in the same way
+as described below for 8.4.  However the Tk library patch is no longer
+required (since it's now possible to catch shutdown messages by means
+of the wm protocol command.)  The message box patch is currently also
+not used.
+
+To cross-compile the libraries for Windows on a Linux host, proceed
+as follows:
+
+- cd into the "win" sub-directory
+- extend your PATH so that "windres" is found, if necessary
+- set environment variable CC so that the mingw32 gcc compiler is
+  used instead of gcc (e.g. setenv CC i586-mingw32msvc-gcc)
+- run the configure script with parameter --host=linux
+- in the generated makefiles, edit the rule for ".rc.$(RES):" to
+  add the path to the mingw32 include directory (else compilation
+  of the "rc" files will fail)
+- finally, to get the nxtvepg logo in the Windows task bar, all ico
+  files must be overwritten with the content of nxtvepg.ico (nxtvepg
+  tries to override the logo at run-time, but that doesn't work)
+- make && make install
+
+
+Building TCL 8.4.x
+------------------
+
+This describes how to compile Tcl/Tk version 8.4b1 and later for gcc/mingw32
 (i.e. on Windows in the GNU/Cygwin environment) and which patches
 have been made against the original Tk 8.4b1 library.
 

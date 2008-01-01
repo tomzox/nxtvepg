@@ -18,54 +18,36 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_xawtvcf.tcl,v 1.8 2004/05/22 17:56:30 tom Exp tom $
+#  $Id: dlg_xawtvcf.tcl,v 1.14 2007/12/29 21:03:39 tom Exp tom $
 #
 set xawtvcf_popup 0
 
 # option defaults
-set xawtvcf {tunetv 1 follow 1 dopop 1 poptype 0 duration 7}
+set xawtvcf {tunetv 1 follow 1 dopop 1 poptype 0 duration 7 appcmd ""}
 set wintvcf {shm 1 tunetv 1 follow 1 dopop 1}
-set wintvapp_idx -1
-set wintvapp_path {}
-
-# name of TV app which is configured for channel table
-# set generic default here; actual name is set in C module
-set tvapp_name "TV app."
-
-# store the TV app name which is used in various dialogs
-proc UpdateTvappName {} {
-   global tvapp_name
-   global wintvapp_idx
-   global is_unix
-
-   if {$wintvapp_idx == -1} {
-      set wintvapp_idx [C_Tvapp_GetDefaultApp]
-   }
-
-   # note: in UNIX there is only one name, and it's set on C level
-   if {$wintvapp_idx > 0} {
-      set name_list [C_Tvapp_GetTvappList]
-      set tvapp_name [lindex $name_list $wintvapp_idx]
-   } else {
-      set tvapp_name "TV app."
-   }
-}
 
 # callback invoked when a TV app attaches or detaches in the background
 proc XawtvConfigShmAttach {attach} {
-   global is_unix
 
-   if {!$is_unix} {
-      # check if the dialog is currently open
-      if {[string length [info commands .xawtvcf.connect.lab_tvapp]] > 0} {
-         XawtvConfigDisplayShmAttach
-      }
+   # check if the dialog is currently open
+   if {[string length [info commands .xawtvcf.connect.lab_tvapp]] > 0} {
+      XawtvConfigDisplayShmAttach
    }
 }
 
-# callback invoked when TV station is changed - unused by nxtvepg
-proc XawtvConfigShmChannelChange {station freq} {
+proc TvAppGetName {} {
+   set tvapp_idx [lindex [C_Tvapp_GetConfig] 0]
+   if {$tvapp_idx != 0} {
+      set tvapp_name [lindex [C_Tvapp_GetTvappList] $tvapp_idx]
+   } else {
+      set tvapp_name "TV app."
+   }
+   return $tvapp_name
 }
+
+
+# callback invoked when TV station is changed - only used by vbirec, unused by nxtvepg
+proc XawtvConfigShmChannelChange {station freq} {}
 
 #=LOAD=XawtvConfigPopup
 #=DYNAMIC=
@@ -76,12 +58,20 @@ proc XawtvConfigShmChannelChange {station freq} {
 proc XawtvConfigPopup {} {
    global xawtvcf_popup
    global xawtvcf wintvcf xawtv_tmpcf
-   global tvapp_name wintvapp_idx wintvapp_path xawtv_tmp_tvapp_list
-   global is_unix fileImage win_frm_fg
+   global xawtv_tmp_tvapp_list
+   global xawtv_poptype_names
+   global is_unix fileImage font_fixed
 
    if {$xawtvcf_popup == 0} {
       CreateTransientPopup .xawtvcf "TV Application Interaction Configuration"
       set xawtvcf_popup 1
+
+      # load TV app config into temporary variables
+      set tmpl [C_Tvapp_GetConfig]
+      set xawtv_tmpcf(tvapp_idx) [lindex $tmpl 0]
+      set xawtv_tmpcf(tvapp_path) [lindex $tmpl 1]
+
+      set xawtv_tmp_tvapp_list [C_Tvapp_GetTvappList]
 
       # load configuration into temporary array
       if $is_unix {
@@ -91,7 +81,7 @@ proc XawtvConfigPopup {} {
       }
 
       frame .xawtvcf.all
-      label .xawtvcf.all.lab_main -text "En-/Disable $tvapp_name interaction features:"
+      label .xawtvcf.all.lab_main -text "En-/Disable TV app. interaction features:"
       pack .xawtvcf.all.lab_main -side top -anchor w -pady 5 -padx 5
 
       if {!$is_unix} {
@@ -111,41 +101,51 @@ proc XawtvConfigPopup {} {
 
          label .xawtvcf.all.lab_poptype -text "How to display EPG info:"
          pack .xawtvcf.all.lab_poptype -side top -anchor w -pady 5
-         frame .xawtvcf.all.poptype -borderwidth 2 -relief raised
-         radiobutton .xawtvcf.all.poptype.t0 -text "Separate popup" -variable xawtv_tmpcf(poptype) -value 0 -command XawtvConfigPopupSelected
-         radiobutton .xawtvcf.all.poptype.t1 -text "Video overlay" -variable xawtv_tmpcf(poptype) -value 1 -command XawtvConfigPopupSelected
-         radiobutton .xawtvcf.all.poptype.t2 -text "Video overlay, 2 lines" -variable xawtv_tmpcf(poptype) -value 2 -command XawtvConfigPopupSelected
-         radiobutton .xawtvcf.all.poptype.t3 -text "Xawtv window title" -variable xawtv_tmpcf(poptype) -value 3 -command XawtvConfigPopupSelected
-         pack .xawtvcf.all.poptype.t0 .xawtvcf.all.poptype.t1 .xawtvcf.all.poptype.t2 .xawtvcf.all.poptype.t3 -side top -anchor w
-         pack .xawtvcf.all.poptype -side top -anchor w -fill x
+         menubutton .xawtvcf.all.poptype_mb -menu .xawtvcf.all.poptype_mb.men -indicatoron 1
+         config_menubutton .xawtvcf.all.poptype_mb
+         pack .xawtvcf.all.poptype_mb -side top -anchor w -fill x
+
+         set xawtv_poptype_names [list "Separate popup" \
+                                       "Video overlay" \
+                                       "Video overlay, 2 lines" \
+                                       "Xawtv window title" \
+                                       "Use external application"]
+
+         menu .xawtvcf.all.poptype_mb.men -tearoff 0
+         for {set idx 0} {$idx < [llength $xawtv_poptype_names]} {incr idx} {
+            .xawtvcf.all.poptype_mb.men add radiobutton -label [lindex $xawtv_poptype_names $idx] \
+                                           -variable xawtv_tmpcf(poptype) -value $idx \
+                                           -command XawtvConfigPopupSelected
+         }
 
          frame .xawtvcf.all.duration
          scale .xawtvcf.all.duration.s -from 0 -to 60 -orient horizontal -label "Popup duration \[seconds\]" \
                                    -variable xawtv_tmpcf(duration)
          pack .xawtvcf.all.duration.s -side left -fill x -expand 1
          pack .xawtvcf.all.duration -side top -fill x -expand 1 -pady 5
+
+         frame .xawtvcf.all.app
+         label .xawtvcf.all.app.lab_cmd -text "Command line: "
+         pack  .xawtvcf.all.app.lab_cmd -side left -padx 5
+         entry .xawtvcf.all.app.ent_cmd -textvariable xawtv_tmpcf(appcmd) -font $font_fixed -width 33
+         pack  .xawtvcf.all.app.ent_cmd -side left -padx 5 -fill x -expand 1
+         bind  .xawtvcf.all.app.ent_cmd <Enter> {SelectTextOnFocus %W}
+         #pack .xawtvcf.all.app -side top -fill x -expand 1 -pady 5
          pack .xawtvcf.all -side top -fill x
 
          # set widget states according to initial option settings
          XawtvConfigPopupSelected
       } else {
          pack .xawtvcf.all -side top -fill x
-
-         frame  .xawtvcf.connect -borderwidth 1 -relief raised
-         checkbutton  .xawtvcf.connect.lab_tvapp -text "" -disabledforeground black -takefocus 0
-         bindtags  .xawtvcf.connect.lab_tvapp {.connect .}
-         pack   .xawtvcf.connect.lab_tvapp -side top -anchor w -pady 5 -padx 5
-         pack   .xawtvcf.connect -side top -fill x
-         # display the name of the currently connected TV app, if any
-         XawtvConfigDisplayShmAttach
       }
 
-      # load TV app config into temporary variables
-      set xawtv_tmpcf(tvapp_idx) $wintvapp_idx
-      set xawtv_tmpcf(tvapp_path) $wintvapp_path
-      set xawtv_tmp_tvapp_list [C_Tvapp_GetTvappList]
-      set xawtv_tmpcf(chk_tvapp_idx) $wintvapp_idx
-      set xawtv_tmpcf(chk_tvapp_path) $wintvapp_path
+      frame  .xawtvcf.connect -borderwidth 1 -relief raised
+      checkbutton  .xawtvcf.connect.lab_tvapp -text "" -disabledforeground black -takefocus 0
+      bindtags  .xawtvcf.connect.lab_tvapp {.connect .}
+      pack   .xawtvcf.connect.lab_tvapp -side top -anchor w -pady 5 -padx 5
+      pack   .xawtvcf.connect -side top -fill x
+      # display the name of the currently connected TV app, if any
+      XawtvConfigDisplayShmAttach
 
       # create TV app selection popdown menu and "Test" command button
       frame  .xawtvcf.tvapp -borderwidth 1 -relief raised
@@ -156,8 +156,9 @@ proc XawtvConfigPopup {} {
       label  .xawtvcf.tvapp.apptype.lab -text "TV application:"
       pack   .xawtvcf.tvapp.apptype.lab -side left -padx 5
       menubutton .xawtvcf.tvapp.apptype.mb -text [lindex $xawtv_tmp_tvapp_list $xawtv_tmpcf(tvapp_idx)] \
-                      -justify center -relief raised -borderwidth 2 -menu .xawtvcf.tvapp.apptype.mb.men \
-                      -indicatoron 1 -takefocus 1 -highlightthickness 1 -highlightcolor $win_frm_fg
+                                           -menu .xawtvcf.tvapp.apptype.mb.men \
+                                           -justify center -indicatoron 1
+      config_menubutton .xawtvcf.tvapp.apptype.mb
       menu   .xawtvcf.tvapp.apptype.mb.men -tearoff 0
       set cmd {.xawtvcf.tvapp.apptype.mb configure -text [lindex $xawtv_tmp_tvapp_list $xawtv_tmpcf(tvapp_idx)]}
       set idx 0
@@ -178,7 +179,7 @@ proc XawtvConfigPopup {} {
       frame  .xawtvcf.tvapp.name
       label  .xawtvcf.tvapp.name.prompt -text "Path:"
       pack   .xawtvcf.tvapp.name.prompt -side left -anchor w
-      entry  .xawtvcf.tvapp.name.filename -textvariable xawtv_tmpcf(tvapp_path) -font {courier -12 normal} -width 33
+      entry  .xawtvcf.tvapp.name.filename -textvariable xawtv_tmpcf(tvapp_path) -font $font_fixed -width 33
       pack   .xawtvcf.tvapp.name.filename -side left -padx 5 -fill x -expand 1
       bind   .xawtvcf.tvapp.name.filename <Enter> {SelectTextOnFocus %W}
       button .xawtvcf.tvapp.name.dlgbut -image $fileImage -command {
@@ -225,18 +226,17 @@ proc XawtvConfigPopup {} {
 # callback for changes in popup options: adjust state of depending widgets
 proc XawtvConfigPopupSelected {} {
    global xawtv_tmpcf
+   global xawtv_poptype_names
 
    if $xawtv_tmpcf(dopop) {
       set state "normal"
    } else {
       set state "disabled"
    }
-   .xawtvcf.all.poptype.t0 configure -state $state
-   .xawtvcf.all.poptype.t1 configure -state $state
-   .xawtvcf.all.poptype.t2 configure -state $state
-   .xawtvcf.all.poptype.t3 configure -state $state
+   .xawtvcf.all.poptype_mb configure -state $state
+   .xawtvcf.all.poptype_mb configure -text [lindex $xawtv_poptype_names $xawtv_tmpcf(poptype)]
 
-   if {$xawtv_tmpcf(dopop) && ($xawtv_tmpcf(poptype) != 3)} {
+   if {$xawtv_tmpcf(dopop) && ($xawtv_tmpcf(poptype) < 3)} {
       set state "normal"
       set fg black
    } else {
@@ -244,6 +244,12 @@ proc XawtvConfigPopupSelected {} {
       set fg [.xawtvcf.all.lab_main cget -disabledforeground]
    }
    .xawtvcf.all.duration.s configure -state $state -foreground $fg
+
+   if {$xawtv_tmpcf(poptype) == 4} {
+      pack .xawtvcf.all.app -after .xawtvcf.all.duration -side top -fill x -expand 1 -pady 5
+   } else {
+      pack forget .xawtvcf.all.app
+   }
 }
 
 # callback for TV application type popup: disable or enable path entry field
@@ -267,22 +273,19 @@ proc XawtvConfigSetTvapp {} {
 # callback for "Test" button next to TV app type and path selection
 proc XawtvConfigTestPathAndType {} {
    global xawtv_tmpcf xawtv_tmp_tvapp_list
-   global cfnetnames
 
    set name [lindex $xawtv_tmp_tvapp_list $xawtv_tmpcf(tvapp_idx)]
-   set chn_count [C_Tvapp_TestChanTab $xawtv_tmpcf(tvapp_idx) $xawtv_tmpcf(tvapp_path)]
+   set chn_count [C_Tvapp_TestChanTab 1 $xawtv_tmpcf(tvapp_idx) $xawtv_tmpcf(tvapp_path)]
 
    if {$chn_count > 0} {
       # OK
-      if {[array size cfnetnames] > 0} {
+      if {[llength [C_GetNetwopNames]] > 0} {
          tk_messageBox -type ok -icon info -parent .xawtvcf \
                        -message "Test sucessful: found $chn_count names in the $name channel table."
       } else {
          tk_messageBox -type ok -icon info -parent .xawtvcf \
                        -message "Test sucessful: found $chn_count channels. You can now use the network name dialog in the configure menu to synchronize names between nxtvepg and $name"
       }
-      set xawtv_tmpcf(chk_tvapp_idx) $xawtv_tmpcf(tvapp_idx)
-      set xawtv_tmpcf(chk_tvapp_path) $xawtv_tmpcf(tvapp_path)
 
    } elseif {$chn_count == 0} {
       # opened ok, but no channels found
@@ -308,27 +311,26 @@ proc XawtvConfigGeneralEnable {} {
 
 # callback invoked when a TV app attaches or detaches in the background
 proc XawtvConfigDisplayShmAttach {} {
-   global is_unix
 
-   if {!$is_unix} {
-      # fetch the attached app's name from shared memory and display it
-      set name [C_Tvapp_QueryTvapp]
-      if {[string length $name] > 0} {
-         .xawtvcf.connect.lab_tvapp configure -text "Connected to: $name" -selectcolor green
-         .xawtvcf.connect.lab_tvapp invoke
-      } else {
-         # no app is currently connected
-         .xawtvcf.connect.lab_tvapp configure -text "Connected to: not connected" -selectcolor red
-         .xawtvcf.connect.lab_tvapp deselect
-      }
+   # fetch the attached app's name from shared memory and display it
+   set name [C_Tvapp_QueryTvapp]
+   if {[string length $name] > 0} {
+      .xawtvcf.connect.lab_tvapp configure -text "Connected to: $name" -selectcolor green
+      after idle .xawtvcf.connect.lab_tvapp invoke
+   } else {
+      # no app is currently connected
+      .xawtvcf.connect.lab_tvapp configure -text "Connected to: not connected" -selectcolor red
+      after idle .xawtvcf.connect.lab_tvapp deselect
    }
 }
 
 # clean up temporary variables ans close main window
 proc XawtvConfigQuit {} {
    global xawtv_tmp_tvapp_list xawtv_tmpcf
+   global xawtv_poptype_names
 
    # free memory in temporary variables
+   catch {unset xawtv_poptype_names}
    unset xawtv_tmp_tvapp_list
    array unset xawtv_tmpcf
 
@@ -339,18 +341,19 @@ proc XawtvConfigQuit {} {
 # callback for OK button: save config into variables
 proc XawtvConfigSave {} {
    global xawtvcf wintvcf xawtv_tmpcf
-   global wintvapp_idx wintvapp_path
    global is_unix
 
+   set tmpl [C_Tvapp_GetConfig]
+
    if {($xawtv_tmpcf(tvapp_idx) != 0)} {
-      if {($xawtv_tmpcf(tvapp_idx) != $wintvapp_idx) && \
-          ($xawtv_tmpcf(tvapp_idx) != $xawtv_tmpcf(chk_tvapp_idx))} {
+      # silently test the channel table (i.e. don't show diagnostics as with "Test" button)
+      set test_result [C_Tvapp_TestChanTab 0 $xawtv_tmpcf(tvapp_idx) $xawtv_tmpcf(tvapp_path)]
+      if {$test_result < 0} {
          set answer [tk_messageBox -type okcancel -default cancel -icon warning -parent .xawtvcf \
-                        -message "You have selected a TV app. but not tested if it's channel table can be loaded!"]
-      } elseif {([string compare $xawtv_tmpcf(tvapp_path) $wintvapp_path] != 0) && \
-                ([string compare $xawtv_tmpcf(tvapp_path) $xawtv_tmpcf(chk_tvapp_path)] != 0)} {
+                        -message "Cannot load the TV channel table - You should press 'Cancel' now and then use the 'Test' button to the TV application type and path settings."]
+      } elseif {$test_result == 0} {
          set answer [tk_messageBox -type okcancel -default cancel -icon warning -parent .xawtvcf \
-                        -message "You have changed the TV app. path but not tested if the channel table can be loaded!"]
+                        -message "The selected TV application's channel table is empty. Some features will not work without a frequency table!"]
       } else {
          set answer "ok"
       }
@@ -362,23 +365,26 @@ proc XawtvConfigSave {} {
                         "follow" $xawtv_tmpcf(follow) \
                         "dopop" $xawtv_tmpcf(dopop) \
                         "poptype" $xawtv_tmpcf(poptype) \
-                        "duration" $xawtv_tmpcf(duration)]
+                        "duration" $xawtv_tmpcf(duration) \
+                        "appcmd" $xawtv_tmpcf(appcmd)]
    } else {
       set wintvcf [list "shm" $xawtv_tmpcf(shm) \
                         "tunetv" $xawtv_tmpcf(tunetv) \
                         "follow" $xawtv_tmpcf(follow) \
                         "dopop" $xawtv_tmpcf(dopop)]
    }
-   set wintvapp_idx $xawtv_tmpcf(tvapp_idx)
-   set wintvapp_path $xawtv_tmpcf(tvapp_path)
 
-   # save options
+   # save config
+   C_Tvapp_UpdateConfig $xawtv_tmpcf(tvapp_idx) $xawtv_tmpcf(tvapp_path)
    UpdateRcFile
-   # load config vars into the C module
+
+   # load config vars into the TV interaction module
    C_Tvapp_InitConfig
-   # update the TV app name
-   UpdateTvappName
 
    XawtvConfigQuit
+
+   # trigger related dialogs, if open
+   EpgScan_UpdateTvApp
+   NetworkNaming_UpdateTvApp
 }
 

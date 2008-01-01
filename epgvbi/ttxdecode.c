@@ -32,7 +32,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: ttxdecode.c,v 1.59 2004/09/05 18:32:09 tom Exp tom $
+ *  $Id: ttxdecode.c,v 1.61 2006/12/05 21:06:23 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -57,11 +57,18 @@
 // struct that holds the state of the slave process, i.e. ttx decoder
 static struct
 {
-   bool       isEpgPage;         // current ttx page is the EPG page
-   uchar      isMipPage;         // bitfield: current ttx page in magazine M is the MIP page for M=0..7
+   bool       magParallel;       // 0: serial page mode; 1: parallel (invert of header bit C11)
    uint       frameSeqNo;        // last reported VBI frame sequence number
    bool       skipFrames;        // skip first frames after channel change
    uint       pkgPerFrame;       // counter to determine teletext data rate (as ttx pkg per frame)
+   uint       lastMag;
+   uint       vbiMaxReaderIdx;
+   struct
+   {
+      uint    curPageNo;         // current ttx page number per magazine; 0 if unknown
+      bool    fwdPage;           // current ttx page is forwarded
+      bool    isMipPage;         // current ttx page in this magazine is the MIP page for M=0..7
+   } mags[8];
 } acqSlaveState;
 
 // max. number of pages that are allowed for EPG transmission: mFd & mdF: m[0..7],d[0..9]
@@ -90,26 +97,59 @@ void TtxDecode_StartEpgAcq( uint epgPageNo, bool isEpgScan )
    pVbiBuf->isEpgScan = isEpgScan;
 
    // enable ttx processing in the slave process/thread
-   pVbiBuf->isEnabled = TRUE;
-
-   // for backwards compatibility initialize former doVpsPdc flag
-   pVbiBuf->obsolete1 = TRUE;  // (XXX remove upon increment of EPG_SHM_VERSION)
+   pVbiBuf->epgEnabled = TRUE;
 
    // skip first VBI frame, reset ttx decoder, then set reader idx to writer idx
-   pVbiBuf->chanChangeReq = pVbiBuf->chanChangeCnf + 2;
+   if (pVbiBuf->chanChangeReq == pVbiBuf->chanChangeCnf)
+   {
+      pVbiBuf->chanChangeReq = pVbiBuf->chanChangeCnf + 2;
+   }
 }
 
 // ----------------------------------------------------------------------------
-// Stop the acquisition
+// Start teletext grabbing
+//
+void TtxDecode_StartTtxAcq( bool enableScan, uint startPageNo, uint stopPageNo )
+{
+   dprintf3("TtxDecode-StartTtxAcq: scan:%d page=%03X..%03X\n", enableScan, startPageNo, stopPageNo);
+
+   // pass the configuration variables to the ttx process via shared memory
+   pVbiBuf->startPageNo = startPageNo;
+   pVbiBuf->stopPageNo = stopPageNo;
+
+   // enable ttx processing in the slave process/thread
+   pVbiBuf->ttxEnabled = TRUE;
+   pVbiBuf->ttxHeader.op_mode = (enableScan ? EPGACQ_TTX_HEAD_DEC : 0);
+
+   // skip first VBI frame, reset ttx decoder, then set reader idx to writer idx
+   if (pVbiBuf->chanChangeReq == pVbiBuf->chanChangeCnf)
+   {
+      pVbiBuf->chanChangeReq = pVbiBuf->chanChangeCnf + 2;
+   }
+}
+
+// ----------------------------------------------------------------------------
+// Stop EPG acquisition
 // - the external process may continue to collect data
 //
-void TtxDecode_StopAcq( void )
+void TtxDecode_StopEpgAcq( void )
 {
-   dprintf0("TtxDecode-StopAcq\n");
+   dprintf0("TtxDecode-StopEpgAcq\n");
 
    // inform writer process/thread
-   pVbiBuf->isEnabled = FALSE;
+   pVbiBuf->epgEnabled = FALSE;
    pVbiBuf->isEpgScan = FALSE;
+}
+
+// ----------------------------------------------------------------------------
+// Stop EPG acquisition
+//
+void TtxDecode_StopTtxAcq( void )
+{
+   dprintf0("TtxDecode-StopTtxAcq\n");
+
+   // inform writer process/thread
+   pVbiBuf->ttxEnabled = FALSE;
 }
 
 // ---------------------------------------------------------------------------
@@ -144,7 +184,12 @@ void TtxDecode_GetScanResults( uint *pCni, bool *pNiWait, uint *pDataPageCnt, uc
       {
          if (pVbiBuf->cnis[type].haveCni)
          {  // have a verified CNI -> return it
-            cni = pVbiBuf->cnis[type].outCni;
+            if (type == CNI_TYPE_NI)
+               cni = CniConvertP8301ToVps(pVbiBuf->cnis[type].outCni);
+            else if (type == CNI_TYPE_PDC)
+               cni = CniConvertPdcToVps(pVbiBuf->cnis[type].outCni);
+            else
+               cni = pVbiBuf->cnis[type].outCni;
             break;
          }
          else if (pVbiBuf->cnis[type].cniRepCount > 0)
@@ -196,15 +241,17 @@ void TtxDecode_GetScanResults( uint *pCni, bool *pNiWait, uint *pDataPageCnt, uc
 
 // ---------------------------------------------------------------------------
 // Return captured and verified CNI and PIL information
-// - deletes the information after the query - this ensures that only valid
-//   information is returned even after a channel change to a channel w/o CNI
+// - return an ID which is incremented each time a new CNI or PIL value is
+//   added - this can be used by the caller to ignore obsolete values
+//   (e.g. after a channel change to a channel w/o CNI)
 // - CNI can be transmitted in 3 ways: VPS, PDC, NI. This function returns
 //   values from the "best" available source (speed, reliability).
 // - Note: for channels which have different IDs in VPS and PDC or NI, the
 //   CNI value is converted to VPS or PDC respectively so that the caller
 //   needs not care how the CNI was obtained.
 //
-bool TtxDecode_GetCniAndPil( uint * pCni, uint *pPil, volatile EPGACQ_BUF *pThisVbiBuf )
+bool TtxDecode_GetCniAndPil( uint * pCni, uint * pPil, CNI_TYPE * pCniType,
+                             uint * pCniInd, uint * pPilInd, volatile EPGACQ_BUF * pThisVbiBuf )
 {
    CNI_TYPE type;
    bool result = FALSE;
@@ -220,32 +267,42 @@ bool TtxDecode_GetCniAndPil( uint * pCni, uint *pPil, volatile EPGACQ_BUF *pThis
          // search for the best available source
          for (type=0; type < CNI_TYPE_COUNT; type++)
          {
-            if (pThisVbiBuf->cnis[type].haveCni)
+            if ( pThisVbiBuf->cnis[type].haveCni &&
+                 ((pCniInd == NULL) || (*pCniInd != pThisVbiBuf->cnis[type].outCniInd)) )
             {
                if (pCni != NULL)
-                  *pCni = pThisVbiBuf->cnis[type].outCni;
+               {
+                  if (type == CNI_TYPE_NI)
+                     *pCni = CniConvertP8301ToVps(pThisVbiBuf->cnis[type].outCni);
+                  else if (type == CNI_TYPE_PDC)
+                     *pCni = CniConvertPdcToVps(pThisVbiBuf->cnis[type].outCni);
+                  else
+                     *pCni = pThisVbiBuf->cnis[type].outCni;
+
+                  if (pCniInd != NULL)
+                     *pCniInd = pThisVbiBuf->cnis[type].outCniInd;
+               }
 
                if (pPil != NULL)
                {
-                  if (pThisVbiBuf->cnis[type].havePil)
+                  if ( pThisVbiBuf->cnis[type].havePil &&
+                       ((pPilInd == NULL) || (*pPilInd != pThisVbiBuf->cnis[type].outPilInd)) )
                   {
                      *pPil = pThisVbiBuf->cnis[type].outPil;
-                     pThisVbiBuf->cnis[type].havePil = FALSE;
+
+                     if (pPilInd != NULL)
+                        *pPilInd = pThisVbiBuf->cnis[type].outPilInd;
                   }
                   else
                      *pPil = INVALID_VPS_PIL;
                }
+               if (pCniType != NULL)
+               {
+                  *pCniType = type;
+               }
                result = TRUE;
                break;
             }
-         }
-
-         // Reset all result values (but not the entire state machine,
-         // i.e. repetition counters stay at 2 so that any newly received
-         // CNI will immediately make an result available again)
-         for (type=0; type < CNI_TYPE_COUNT; type++)
-         {
-            pThisVbiBuf->cnis[type].haveCni = FALSE;
          }
       }
    }
@@ -286,9 +343,8 @@ static void TtxDecode_AddCni( CNI_TYPE type, uint cni, uint pil )
                   pVbiBuf->cnis[type].havePil = FALSE;
                }
                pVbiBuf->cnis[type].outCni = cni;
-               // set flag that CNI is available, but only if not already set to avoid concurrency problems
-               if (pVbiBuf->cnis[type].haveCni == FALSE)
-                  pVbiBuf->cnis[type].haveCni = TRUE;
+               pVbiBuf->cnis[type].outCniInd += 1;
+               pVbiBuf->cnis[type].haveCni = TRUE;
             }
 
             if (pil != INVALID_VPS_PIL)
@@ -310,9 +366,9 @@ static void TtxDecode_AddCni( CNI_TYPE type, uint cni, uint pil )
                   if (pVbiBuf->cnis[type].haveCni && (pVbiBuf->cnis[type].outCni == cni))
                   {
                      pVbiBuf->cnis[type].outPil = pil;
-                     // set flag that PIL is available, but only if not already set to avoid concurrency problems
-                     if (pVbiBuf->cnis[type].havePil == FALSE)
-                        pVbiBuf->cnis[type].havePil = TRUE;
+                     // set flag that PIL is available
+                     pVbiBuf->cnis[type].outPilInd += 1;
+                     pVbiBuf->cnis[type].havePil = TRUE;
                   }
                }
             }
@@ -383,7 +439,7 @@ static void TtxDecode_AddText( CNI_TYPE type, const uchar * data )
 //
 static void TtxDecode_AddTime( CNI_TYPE type, uint timeVal, sint lto )
 {
-   volatile TIME_ACQ_STATE * pState;
+   volatile TTX_TIME_BUF * pState;
 
    if (type < CNI_TYPE_COUNT)
    {
@@ -418,14 +474,13 @@ static void TtxDecode_AddTime( CNI_TYPE type, uint timeVal, sint lto )
 //
 uint TtxDecode_GetDateTime( sint * pLto )
 {
-   volatile TIME_ACQ_STATE * pState;
+   volatile TTX_TIME_BUF * pState;
    uint result = 0;
 
    pState = &pVbiBuf->ttxTime;
 
    if (pState->haveTime)
    {
-
       if (pLto != NULL)
          *pLto = pState->lto;
 
@@ -552,7 +607,7 @@ void TtxDecode_AddVpsData( const uchar * data )
          hour   =  (data[12] & 0x1f);
          minute =  (data[13] >> 2);
 
-         dprintf4("AddVpsData: %d.%d. %02d:%02d\n", mday, month, hour, minute);
+         dprintf5("AddVpsData: CNI 0x%04X, PIL %d.%d. %02d:%02d\n", cni, mday, month, hour, minute);
 
          // check the date and time and assemble them to a PIL
          pil = TtxDecode_AssemblePil(mday, month, hour, minute);
@@ -611,7 +666,6 @@ static void TtxDecode_GetP830Cni( const uchar * data )
                       TtxDecode_ReverseBitOrder(data[8]);
          if ((cni != 0) && (cni != 0xffff))
          {
-            cni = CniConvertP8301ToVps(cni);
             TtxDecode_AddCni(CNI_TYPE_NI, cni, INVALID_VPS_PIL);
          }
          TtxDecode_AddText(CNI_TYPE_NI, data + 20);
@@ -664,7 +718,6 @@ static void TtxDecode_GetP830Cni( const uchar * data )
                hour   = ((pdcbuf[3] & 0x1) << 4) | pdcbuf[4];
                minute = (pdcbuf[5] << 2) | ((pdcbuf[6] & 0xc) >> 2);
 
-               cni = CniConvertPdcToVps(cni);
                pil = TtxDecode_AssemblePil(mday, month, hour, minute);
                TtxDecode_AddCni(CNI_TYPE_PDC, cni, pil);
             }
@@ -679,23 +732,18 @@ static void TtxDecode_GetP830Cni( const uchar * data )
 }
 
 // ---------------------------------------------------------------------------
-// Return statistics collected by slave process/thread during acquisition
+// Return reception statistics collected by slave process/thread
 //
-void TtxDecode_GetStatistics( uint32_t * pTtxPkgCount,
-                              uint32_t * pEpgPkgCount, uint32_t * pEpgPagCount )
+void TtxDecode_GetStatistics( TTX_DEC_STATS * pStats )
 {
    // check if initialization for the current channel is complete
    if (pVbiBuf->chanChangeReq == pVbiBuf->chanChangeCnf)
    {
-      *pTtxPkgCount  = pVbiBuf->ttxStats.ttxPkgCount;
-      *pEpgPkgCount  = pVbiBuf->ttxStats.epgPkgCount;
-      *pEpgPagCount  = pVbiBuf->ttxStats.epgPagCount;
+      *pStats = pVbiBuf->ttxStats;
    }
    else
    {
-      *pTtxPkgCount  = 0;
-      *pEpgPkgCount  = 0;
-      *pEpgPagCount  = 0;
+      memset(pStats, 0, sizeof(*pStats));
    }
 }
 
@@ -809,6 +857,124 @@ static bool TtxDecode_EpgScanPacket( uchar mag, uchar packNo, const uchar * dat 
 }
 
 // ---------------------------------------------------------------------------
+// Store teletext page headers in rolling buffer
+// - note: not a ring buffer, i.e. writer does not wait for reader
+//
+static void TtxDecode_AddPageHeader( uint pageNo, uint ctrl, const uchar * data )
+{
+   bool do_add;
+   uint mag;
+   uint idx;
+
+   if (pVbiBuf->ttxHeader.write_lock == FALSE)
+   {
+      if (pVbiBuf->ttxHeader.op_mode == EPGACQ_TTX_HEAD_DEC)
+      {
+         // add pages with decimal numbers only (only 2nd and 3d digit can be hex)
+         do_add = ((pageNo & 0x0f) <= 9) && (((pageNo >> 4) & 0x0f) <= 9);
+      }
+      else if (pVbiBuf->ttxHeader.op_mode == EPGACQ_TTX_HEAD_ALL)
+      {
+         do_add = TRUE;
+      }
+      else
+         do_add = FALSE;
+
+      if (do_add)
+      {
+         idx = pVbiBuf->ttxHeader.write_idx;
+         if ((idx >= EPGACQ_ROLL_HEAD_COUNT) || (idx > pVbiBuf->ttxHeader.fill_cnt))
+            idx = 0;
+
+         memcpy((char*)pVbiBuf->ttxHeader.ring_buf[idx].data, data, 40);
+         pVbiBuf->ttxHeader.ring_buf[idx].pageno = pageNo;
+         pVbiBuf->ttxHeader.ring_buf[idx].ctrl_lo = ctrl & 0xffff;
+         pVbiBuf->ttxHeader.ring_buf[idx].ctrl_hi = ctrl >> 16;
+
+         pVbiBuf->ttxHeader.write_ind += 1;  // overflow ok
+         pVbiBuf->ttxHeader.write_idx = (pVbiBuf->ttxHeader.write_idx + 1) % EPGACQ_ROLL_HEAD_COUNT;
+         if (pVbiBuf->ttxHeader.fill_cnt < EPGACQ_ROLL_HEAD_COUNT)
+            pVbiBuf->ttxHeader.fill_cnt += 1;
+      }
+
+      // page number sequence statistics
+      if (pVbiBuf->ttxHeader.magPgResetReq != pVbiBuf->ttxHeader.magPgResetCnf)
+      {
+         memset((void*)pVbiBuf->ttxHeader.magPgCounts, 0, sizeof(pVbiBuf->ttxHeader.magPgCounts));
+         pVbiBuf->ttxHeader.magPgDirection = 0;
+         pVbiBuf->ttxHeader.magPgResetCnf = pVbiBuf->ttxHeader.magPgResetReq;
+      }
+      if ( ((pageNo & 0x0f) <= 9) && (((pageNo >> 4) & 0x0f) <= 9) )
+      {
+         pVbiBuf->ttxHeader.magPgCounts[pageNo >> 8] += 1;
+      }
+
+      // page number direction prediction
+      mag = (pageNo >> 8) & 7;
+      if (acqSlaveState.mags[mag].curPageNo != ~0u)
+      {
+         if (pageNo < acqSlaveState.mags[mag].curPageNo)
+            pVbiBuf->ttxHeader.magPgDirection -= 1;
+         else if (pageNo > acqSlaveState.mags[mag].curPageNo)
+            pVbiBuf->ttxHeader.magPgDirection += 1;
+      }
+   }
+}
+
+// ---------------------------------------------------------------------------
+// Retrieve last page header
+// - the buffer must have space fo 40 bytes
+//
+bool TtxDecode_GetPageHeader( char * pBuf, uint * pPgNum, uint pkgOff )
+{
+   uint idx;
+   bool result = FALSE;
+
+   if ( (pVbiBuf != NULL) &&
+        (pVbiBuf->ttxHeader.fill_cnt >= 1 + pkgOff) )
+   {
+      pVbiBuf->ttxHeader.write_lock = TRUE;
+
+      idx = (pVbiBuf->ttxHeader.write_idx + (EPGACQ_ROLL_HEAD_COUNT - (pkgOff + 1))) % EPGACQ_ROLL_HEAD_COUNT;
+      memcpy(pBuf, (char *)pVbiBuf->ttxHeader.ring_buf[idx].data, 40);
+      *pPgNum = pVbiBuf->ttxHeader.ring_buf[idx].pageno;
+
+      pVbiBuf->ttxHeader.write_lock = FALSE;
+      result = TRUE;
+   }
+   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Retrieve per-magazine page count statistics
+// - the magazine counter buffer must be large enough for 8 integers
+//
+bool TtxDecode_GetMagStats( uint * pMagBuf, sint * pPgDirection, bool reset )
+{
+   uint idx;
+   bool result = FALSE;
+
+   if ( (pVbiBuf != NULL) &&
+        (pVbiBuf->ttxHeader.magPgResetReq == pVbiBuf->ttxHeader.magPgResetCnf) )
+   {
+      if (pMagBuf != NULL)
+      {
+         for (idx = 0; idx < 8; idx++)
+         {
+            *(pMagBuf++) = pVbiBuf->ttxHeader.magPgCounts[idx];
+         }
+         *pPgDirection = pVbiBuf->ttxHeader.magPgDirection;
+      }
+      if (reset)
+      {
+         pVbiBuf->ttxHeader.magPgResetReq += 1;
+      }
+      result = TRUE;
+   }
+   return result;
+}
+
+// ---------------------------------------------------------------------------
 // The following functions implement a ring buffer for incoming EPG packets
 //
 //    All icoming EPG packets are stored in a ring buffer to
@@ -820,36 +986,29 @@ static bool TtxDecode_EpgScanPacket( uchar mag, uchar packNo, const uchar * dat 
 // Retrieve the next available teletext packet from the ring buffer
 // - at this point the EPG database process/thread takes the data from the
 //   teletext acquisition process
-// - note that the buffer slot is not yet freed in this functions;
+// - note that the buffer slot is not yet freed in this function;
 //   that has to be done separately after the packet was processed
 //
-const VBI_LINE * TtxDecode_GetPacket( bool freePrevPkg )
+const VBI_LINE * TtxDecode_GetPacket( uint pkgOff )
 {
    const VBI_LINE * pVbl = NULL;
+   uint pkgIdx;
 
    if ( (pVbiBuf != NULL) &&
         (pVbiBuf->chanChangeReq == pVbiBuf->chanChangeCnf) )
    {
-      assert((pVbiBuf->reader_idx <= EPGACQ_BUF_COUNT) && (pVbiBuf->writer_idx <= EPGACQ_BUF_COUNT));
+      assert((pVbiBuf->reader_idx <= TTXACQ_BUF_COUNT) && (pVbiBuf->writer_idx <= TTXACQ_BUF_COUNT));
 
-      if ( freePrevPkg )
-      {
-         if (pVbiBuf->reader_idx != pVbiBuf->writer_idx)
-         {
-            pVbiBuf->reader_idx = (pVbiBuf->reader_idx + 1) % EPGACQ_BUF_COUNT;
-         }
-         else
-            fatal0("TtxDecode-FreePacket: buffer is already empty");
-      }
+      pkgIdx = (pVbiBuf->reader_idx + pkgOff) % TTXACQ_BUF_COUNT;
 
-      if (pVbiBuf->reader_idx != pVbiBuf->writer_idx)
+      if (pkgIdx != acqSlaveState.vbiMaxReaderIdx)
       {
-         pVbl = (const VBI_LINE *) &pVbiBuf->line[pVbiBuf->reader_idx];
+         pVbl = (const VBI_LINE *) &pVbiBuf->line[pkgIdx];
 
          #if DUMP_TTX_PACKETS == ON
          // dump the complete parity decoded content of the TTX packet
-         DebugDumpTeletextPkg("TTX", pVbl->data, pVbl->frame, pVbl->line, pVbl->pkgno, pVbl->pageno, pVbl->sub, TRUE);
-         //printf("TTX frame=%d line %2d: pkg=%2d page=%03X sub=%04X '%s' BP=0x%02x\n", pVbl->frame, pVbl->line, pVbl->pkgno, pVbl->pageno, pVbl->sub, tmparr, pVbl->data[0]);
+         DebugDumpTeletextPkg("TTX", pVbl->data, pVbl->frame, pVbl->line, pVbl->pkgno, pVbl->pageno, pVbl->ctrl_lo & 0x3F7F, TRUE);
+         //printf("TTX frame=%d line %2d: pkg=%2d page=%03X sub=%04X '%s' BP=0x%02x\n", pVbl->frame, pVbl->line, pVbl->pkgno, pVbl->pageno, pVbl->ctrl_lo & 0x3F7F, tmparr, pVbl->data[0]);
          #endif
       }
       else
@@ -863,6 +1022,18 @@ const VBI_LINE * TtxDecode_GetPacket( bool freePrevPkg )
 }
 
 // ---------------------------------------------------------------------------
+// Release all packets in the ring buffer
+// - the index must be the value passed up by the "check" function
+//
+void TtxDecoder_ReleasePackets( void )
+{
+   if (pVbiBuf->reader_idx != pVbiBuf->writer_idx)
+   {
+      pVbiBuf->reader_idx = acqSlaveState.vbiMaxReaderIdx;
+   }
+}
+
+// ---------------------------------------------------------------------------
 // Check if there are packets in the buffer
 //
 bool TtxDecode_CheckForPackets( bool * pStopped )
@@ -872,9 +1043,14 @@ bool TtxDecode_CheckForPackets( bool * pStopped )
 
    if (pVbiBuf != NULL)
    {
+      acqSlaveState.vbiMaxReaderIdx = pVbiBuf->writer_idx;
+
       if (pVbiBuf->chanChangeReq == pVbiBuf->chanChangeCnf)
       {
-         result = (pVbiBuf->reader_idx != pVbiBuf->writer_idx);
+         if (pVbiBuf->reader_idx != pVbiBuf->writer_idx)
+         {
+            result = TRUE;
+         }
 
          if ((result == FALSE) && (pVbiBuf->hasFailed))
          {  // vbi slave has stopped acquisition -> inform master control
@@ -906,25 +1082,26 @@ bool TtxDecode_CheckForPackets( bool * pStopped )
 // ---------------------------------------------------------------------------
 // Append a packet to the VBI buffer
 //
-static void TtxDecode_BufferAdd( uint pageNo, uint sub, uchar pkgno, const uchar * data, uint line )
+static void TtxDecode_BufferAdd( uint pageNo, uint ctrl, uchar pkgno, const uchar * data, uint line )
 {
    DBGONLY(static int overflow = 0;)
 
-   assert((pVbiBuf->reader_idx <= EPGACQ_BUF_COUNT) && (pVbiBuf->writer_idx <= EPGACQ_BUF_COUNT));
+   assert((pVbiBuf->reader_idx <= TTXACQ_BUF_COUNT) && (pVbiBuf->writer_idx <= TTXACQ_BUF_COUNT));
 
-   if (pVbiBuf->reader_idx != ((pVbiBuf->writer_idx + 1) % EPGACQ_BUF_COUNT))
+   if (pVbiBuf->reader_idx != ((pVbiBuf->writer_idx + 1) % TTXACQ_BUF_COUNT))
    {
       #if DUMP_TTX_PACKETS == ON
       pVbiBuf->line[pVbiBuf->writer_idx].frame  = acqSlaveState.frameSeqNo;
       pVbiBuf->line[pVbiBuf->writer_idx].line   = line;
       #endif
-      pVbiBuf->line[pVbiBuf->writer_idx].pageno = pageNo;
-      pVbiBuf->line[pVbiBuf->writer_idx].sub    = sub;
-      pVbiBuf->line[pVbiBuf->writer_idx].pkgno  = pkgno;
+      pVbiBuf->line[pVbiBuf->writer_idx].pageno   = pageNo;
+      pVbiBuf->line[pVbiBuf->writer_idx].ctrl_lo  = ctrl & 0xFFFF;
+      pVbiBuf->line[pVbiBuf->writer_idx].ctrl_hi  = ctrl >> 16;
+      pVbiBuf->line[pVbiBuf->writer_idx].pkgno    = pkgno;
 
       memcpy((char *)pVbiBuf->line[pVbiBuf->writer_idx].data, data, 40);
 
-      pVbiBuf->writer_idx = (pVbiBuf->writer_idx + 1) % EPGACQ_BUF_COUNT;
+      pVbiBuf->writer_idx = (pVbiBuf->writer_idx + 1) % TTXACQ_BUF_COUNT;
 
       DBGONLY(overflow = 0;)
    }
@@ -990,7 +1167,8 @@ bool TtxDecode_NewVbiFrame( uint frameSeqNo )
          // reset all result values in shared memory
          memset((void *)&pVbiBuf->cnis, 0, sizeof(pVbiBuf->cnis));
          memset((void *)&pVbiBuf->ttxStats, 0, sizeof(pVbiBuf->ttxStats));
-         pVbiBuf->lastHeader.pageno = 0xffff;
+         pVbiBuf->ttxHeader.fill_cnt = 0;
+         pVbiBuf->ttxHeader.magPgResetReq = pVbiBuf->ttxHeader.magPgResetCnf - 1;
          pVbiBuf->mipPageNo     = 0;
          pVbiBuf->dataPageCount = 0;
 
@@ -1009,9 +1187,8 @@ bool TtxDecode_NewVbiFrame( uint frameSeqNo )
          pVbiBuf->writer_idx    = 0;
 
          // reset internal ttx decoder state
-         acqSlaveState.isEpgPage   = FALSE;
-         acqSlaveState.isMipPage   = 0;
-         acqSlaveState.pkgPerFrame = 0;
+         memset(&acqSlaveState, 0, sizeof(acqSlaveState));
+         acqSlaveState.lastMag = 8;
 
          // skip the current and the following frame, since they could contain data from the previous channel
          acqSlaveState.skipFrames  = 2;
@@ -1051,8 +1228,7 @@ bool TtxDecode_NewVbiFrame( uint frameSeqNo )
             #if DEBUG_SWITCH_STREAM == ON
             debug1("TtxDecode-NewVbiFrame: lost vbi frame #%u", acqSlaveState.frameSeqNo + 1);
             #endif
-            acqSlaveState.isEpgPage = FALSE;
-            acqSlaveState.isMipPage = 0;
+            memset(&acqSlaveState.mags, 0, sizeof(acqSlaveState.mags));
          }
       }
 
@@ -1071,10 +1247,10 @@ bool TtxDecode_NewVbiFrame( uint frameSeqNo )
 //
 void TtxDecode_AddPacket( const uchar * data, uint line )
 {
-   sint  tmp1, tmp2, tmp3;
+   sint  tmp1, tmp2, tmp3, tmp4;
    uchar mag, pkgno;
    uint  pageNo;
-   uint  sub;
+   uint  ctrlBits;
 
    if ( (pVbiBuf != NULL) &&
         (pVbiBuf->chanChangeReq == pVbiBuf->chanChangeCnf) &&
@@ -1087,87 +1263,100 @@ void TtxDecode_AddPacket( const uchar * data, uint line )
       {
          mag   = tmp1 & 7;
          pkgno = (tmp1 >> 3) & 0x1f;
-         pageNo= sub = 0;
+         pageNo= ctrlBits = 0;
 
          if (pkgno == 0)
          {  // new teletext page header
             if (UnHam84Byte(data + 2, &tmp1) &&
                 UnHam84Byte(data + 4, &tmp2) &&
-                UnHam84Byte(data + 6, &tmp3))
+                UnHam84Byte(data + 6, &tmp3) &&
+                UnHam84Byte(data + 8, &tmp4))
             {
                pageNo = tmp1 | ((uint)mag << 8);
-               sub    = (tmp2 | (tmp3 << 8)) & 0x3f7f;
+               ctrlBits = tmp2 | (tmp3 << 8) | (tmp4 << 16);
 
-               if ((pVbiBuf->isEnabled) && (pageNo == pVbiBuf->epgPageNo))
+               acqSlaveState.magParallel = ((tmp3 & 0x10) == 0);
+
+               if ( (acqSlaveState.magParallel == FALSE) &&
+                    (mag != acqSlaveState.lastMag) && (pkgno < 30) &&
+                    (acqSlaveState.lastMag < 8) )
                {
-                  acqSlaveState.isEpgPage = TRUE;
-                  TtxDecode_BufferAdd(pageNo, sub, 0, data + 2, line);
+                  // serial mode: magazine change -> close previous page
+                  acqSlaveState.mags[acqSlaveState.lastMag].curPageNo = ~0u;
+                  acqSlaveState.mags[acqSlaveState.lastMag].fwdPage = FALSE;
+               }
+
+               if ((pVbiBuf->epgEnabled) && (pageNo == pVbiBuf->epgPageNo))
+               {
+                  acqSlaveState.mags[mag].fwdPage = TRUE;
+                  TtxDecode_BufferAdd(pageNo, ctrlBits, 0, data + 2, line);
 
                   pVbiBuf->ttxStats.epgPkgCount += 1;
                   pVbiBuf->ttxStats.epgPagCount += 1;
                }
+               else if ((pVbiBuf->ttxEnabled) &&
+                        (pageNo >= pVbiBuf->startPageNo) && (pageNo <= pVbiBuf->stopPageNo))
+               {
+                  acqSlaveState.mags[mag].fwdPage = TRUE;
+                  TtxDecode_BufferAdd(pageNo, ctrlBits, 0, data + 2, line);
+
+                  pVbiBuf->ttxStats.ttxPkgGrab += 1;
+                  pVbiBuf->ttxStats.ttxPagGrab += 1;
+               }
                else
                {
-                  if ( mag == (pVbiBuf->epgPageNo >> 8) )
-                  {  // same magazine, but not the EPG page -> previous EPG page closed
-                     acqSlaveState.isEpgPage = FALSE;
-                  }
+                  acqSlaveState.mags[mag].fwdPage = FALSE;
 
-                  if ( (pageNo & 0xFF) == 0xFD )
-                  {  // magazine inventory page - is decoded immediately by the ttx client
-                     acqSlaveState.isMipPage |= (1 << mag);
-                  }
-                  else
-                     acqSlaveState.isMipPage &= ~(1 << mag);
+                  // magazine inventory page - is decoded immediately by the ttx slave
+                  acqSlaveState.mags[mag].isMipPage = ((pageNo & 0xFF) == 0xFD);
                }
 
                if (pVbiBuf->isEpgScan)
-                  TtxDecode_EpgScanHeader(pageNo, sub);
+                  TtxDecode_EpgScanHeader(pageNo, ctrlBits);
 
                // save the last received page header
-               memcpy((char*)pVbiBuf->lastHeader.data, data + 2, 40);
-               pVbiBuf->lastHeader.pageno = pageNo;
-               pVbiBuf->lastHeader.sub    = sub;
+               TtxDecode_AddPageHeader(pageNo, ctrlBits, data + 2);
+
+               acqSlaveState.mags[mag].curPageNo = pageNo;
+               acqSlaveState.lastMag = mag;
             }
             else
             {  // missed a teletext page header due to hamming error
                pVbiBuf->ttxStats.ttxPkgDrop += 1;
 
                // close all previous pages in the same magazine
-               if ( (acqSlaveState.isEpgPage) &&
-                    (mag == (pVbiBuf->epgPageNo >> 8)) )
+               if (acqSlaveState.mags[mag].fwdPage)
                {
                   #if DEBUG_SWITCH_STREAM == ON
-                  debug0("TtxDecode-AddPacket: closing EPG page after hamming err");
+                  debug1("TtxDecode-AddPacket: closing TTX page %03X after hamming err", acqSlaveState.mags[mag].curPageNo);
                   #endif
-                  acqSlaveState.isEpgPage = FALSE;
+                  acqSlaveState.mags[mag].fwdPage = FALSE;
                }
-               else if (acqSlaveState.isMipPage & (1 << mag) )
-               {
-                  acqSlaveState.isMipPage &= ~(1 << mag);
-               }
+               acqSlaveState.mags[mag].isMipPage = FALSE;
+               acqSlaveState.mags[mag].curPageNo = ~0u;
             }
          }
          else
          {  // regular teletext packet (i.e. not a header)
 
-            if ( (pVbiBuf->isEnabled) && 
-                 (acqSlaveState.isEpgPage) &&
-                 (mag == (pVbiBuf->epgPageNo >> 8)) &&
-                 (pkgno < 26) )
-            {  // new EPG packet
-               TtxDecode_BufferAdd(0, 0, pkgno, data + 2, line);
-               pVbiBuf->ttxStats.epgPkgCount += 1;
+            if ( ((pVbiBuf->epgEnabled) || (pVbiBuf->ttxEnabled)) && 
+                 (acqSlaveState.mags[mag].fwdPage) &&
+                 (pkgno < 30) )
+            {
+               TtxDecode_BufferAdd(acqSlaveState.mags[mag].curPageNo, 0, pkgno, data + 2, line);
+               if ((pVbiBuf->epgEnabled) && (acqSlaveState.mags[mag].curPageNo == pVbiBuf->epgPageNo))
+                  pVbiBuf->ttxStats.epgPkgCount += 1;
+               else
+                  pVbiBuf->ttxStats.ttxPkgGrab += 1;
             }
-            else if ( acqSlaveState.isMipPage & (1 << mag) )
+            else if ( acqSlaveState.mags[mag].isMipPage )
             {  // new MIP packet (may be received in parallel for several magazines)
                TtxDecode_MipPacket(mag, pkgno, data + 2);
             }
             else if ((pkgno == 30) && (mag == 0))
-            {  // packet 8/30/1 is evaluated for CNI during EPG scan
+            {  // packet 8/30/1
                TtxDecode_GetP830Cni(data + 2);
             }
-            // packets from other magazines (e.g. in parallel mode) and 8/30 have to be ignored
 
             if (pVbiBuf->isEpgScan)
                if (TtxDecode_EpgScanPacket(mag, pkgno, data + 2))
@@ -1176,8 +1365,8 @@ void TtxDecode_AddPacket( const uchar * data, uint line )
 
          #if DUMP_TTX_PACKETS == ON
          // dump all TTX packets, even non-EPG ones
-         DebugDumpTeletextPkg("SLAVE", data+2, acqSlaveState.frameSeqNo, line, pkgno, pageNo, sub, acqSlaveState.isEpgPage);
-         //printf("SLAVE frame=%d line %2d: pkg=%2d page=%03X sub=%04X %d '%s'\n", acqSlaveState.frameSeqNo, line, pkgno, pageNo, sub, acqSlaveState.isEpgPage, tmparr);
+         DebugDumpTeletextPkg("SLAVE", data+2, acqSlaveState.frameSeqNo, line, pkgno, pageNo, ctrlBits & 0x3F7F, acqSlaveState.mags[mag].fwdPage);
+         //printf("SLAVE frame=%d line %2d: pkg=%2d page=%03X sub=%04X %d '%s'\n", acqSlaveState.frameSeqNo, line, pkgno, pageNo, sub, acqSlaveState.mags[mag].fwdPage, tmparr);
          #endif
       }
       else

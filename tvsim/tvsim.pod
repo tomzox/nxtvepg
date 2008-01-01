@@ -24,7 +24,7 @@
 #
 #  Author: Tom Zoerner
 #
-# $Id: tvsim.pod,v 1.9 2004/03/23 15:59:54 tom Exp tom $
+# $Id: tvsim.pod,v 1.10 2005/03/06 19:46:44 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME
@@ -48,9 +48,12 @@ code of tvsim's source modules, remove everthing you don't need (esp.
 the Tcl/Tk GUI and support for all but one protocols), put it in a
 library and link it to your TV app.
 
-In the current version two protocols are supported: On UNIX an X11 atoms
-based protocol which allows interaction with I<xawtv> and I<xawdecode>.
-On Windows a shared memory based protocol which allows interaction
+In the current version three protocols are supported: On UNIX two
+protocols based on message transfer via the X11 server: the newer
+one is based on the ICCCM selection manager protocol, the older
+one is the Xawtv remote control protocol (supported by multiple
+applications such as I<xawtv>, I<xawdecode> and I<Zapping>.)
+On Windows, a shared memory based protocol which allows interaction
 with I<K!TV>.
 
 =head1 OPTIONS
@@ -281,7 +284,7 @@ made to Xawtv.)
 
 =head1 COPYRIGHT
 
-Copyright (C) 2002,2004 by T. Zoerner.
+Copyright (C) 2002,2004,2005 by T. Zoerner.
 All rights reserved.
 
 This program is free software; you can redistribute it and/or modify

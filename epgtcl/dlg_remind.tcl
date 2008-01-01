@@ -51,7 +51,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_remind.tcl,v 1.21 2005/12/27 19:37:00 tom Exp $
+#  $Id: dlg_remind.tcl,v 1.23 2007/12/29 21:09:16 tom Exp tom $
 #
 # import constants from other modules
 #=INCLUDE= "epgtcl/dlg_udefcols.h"
@@ -458,7 +458,6 @@ proc RemAlarm_SetSelection {topwid tline} {
 proc RemAlarm_GetNetname {netwop} {
 
    set netsel_ailist [C_GetAiNetwopList 0 netsel_names]
-   ApplyUserNetnameCfg netsel_names
 
    set cni [lindex $netsel_ailist $netwop]
    if [info exists netsel_names($cni)] {
@@ -631,7 +630,7 @@ proc Reminder_AlarmTimer {} {
    #   into the "confirmed" time, i.e. all events before this time are marked "done";
    #   the confirmed time is also stored in the rc/ini file to prevent repetitions
    # - round up to next minute because checks should be done closely after minute changes
-   set rem_msg_disp_time [clock seconds]
+   set rem_msg_disp_time [C_ClockSeconds]
    if {($rem_msg_disp_time % 60) != 0} {
       set rem_msg_disp_time [expr $rem_msg_disp_time - ($rem_msg_disp_time % 60) + 60]
    }
@@ -683,7 +682,7 @@ proc Reminder_AlarmTimer {} {
          if {($event_abs_time >= $rem_msg_cnf_time) && \
              ($event_abs_time < $rem_msg_disp_time) && \
              ([lindex $elem $::rpi_stop_idx] >= $rem_msg_base_time)} {
-            set toffs [expr [lindex $elem $::rpi_start_idx] - [clock seconds]]
+            set toffs [expr [lindex $elem $::rpi_start_idx] - [C_ClockSeconds]]
             set group_elem $remgroups([lindex $elem $::rpi_grptag_idx])
             set is_latest 1
             foreach off [lindex [lindex $group_elem $::rgp_msg_idx] $::ract_toffl_idx] {
@@ -788,7 +787,7 @@ proc Reminder_UpdateTimer {} {
 
    # for fail-safety check for pending events at least every 15 minutes
    set min_delta [expr 15*60]
-   set now [clock seconds]
+   set now [C_ClockSeconds]
 
    if {$remalarm_popup == 0} {
       set msg_min_time $rem_msg_cnf_time
@@ -1077,8 +1076,8 @@ proc PopupReminderList {tab_idx} {
       ## second column: command buttons
       frame      ${frm1}.cmd
       menubutton ${frm1}.cmd.mb_grp -text "Set group" -menu ${frm1}.cmd.mb_grp.men \
-                                    -takefocus 1 -highlightthickness 1 -borderwidth 2 -relief raised \
                                     -indicatoron 1 -direction flush
+      config_menubutton ${frm1}.cmd.mb_grp
       pack       ${frm1}.cmd.mb_grp -side top -anchor nw -fill x
       menu       ${frm1}.cmd.mb_grp.men -tearoff 0 -postcommand [list PostDynamicMenu ${frm1}.cmd.mb_grp.men RemList_PostGroupMenu 1]
       button     ${frm1}.cmd.delete -text "Delete" -command RemPiList_Delete
@@ -1087,8 +1086,8 @@ proc PopupReminderList {tab_idx} {
       frame      ${frm1}.cmd.pady20
       pack       ${frm1}.cmd.pady20 -side top -pady 20
       menubutton ${frm1}.cmd.mb_disp -text "Display" -menu ${frm1}.cmd.mb_disp.men \
-                                    -takefocus 1 -highlightthickness 1 -borderwidth 2 -relief raised \
-                                    -indicatoron 1 -direction flush
+                                     -indicatoron 1 -direction flush
+      config_menubutton ${frm1}.cmd.mb_disp
       pack       ${frm1}.cmd.mb_disp -side top -anchor nw -fill x
       menu       ${frm1}.cmd.mb_disp.men -tearoff 0
       ${frm1}.cmd.mb_disp.men add checkbutton -label "Pending reminders" -variable remlist_disp_pend -command RemPiList_CheckDispFlags
@@ -1131,14 +1130,14 @@ proc PopupReminderList {tab_idx} {
       ## second column: command buttons
       frame      ${frm2}.cmd
       menubutton ${frm2}.cmd.mb_scl -text "Add shortcut" -menu ${frm2}.cmd.mb_scl.men \
-                                    -takefocus 1 -highlightthickness 1 -borderwidth 2 -relief raised \
                                     -indicatoron 1 -direction flush
+      config_menubutton ${frm2}.cmd.mb_scl
       pack       ${frm2}.cmd.mb_scl -side top -anchor nw -fill x
       menu       ${frm2}.cmd.mb_scl.men -tearoff 0 \
                     -postcommand [list PostDynamicMenu ${frm2}.cmd.mb_scl.men RemScList_PostScMenu 0]
       menubutton ${frm2}.cmd.mb_grp -text "Set group" -menu ${frm2}.cmd.mb_grp.men \
-                                    -takefocus 1 -highlightthickness 1 -borderwidth 2 -relief raised \
                                     -indicatoron 1 -direction flush
+      config_menubutton ${frm2}.cmd.mb_grp
       pack       ${frm2}.cmd.mb_grp -side top -anchor nw -fill x
       menu       ${frm2}.cmd.mb_grp.men -tearoff 0 -postcommand [list PostDynamicMenu ${frm2}.cmd.mb_grp.men RemList_PostGroupMenu 0]
       button     ${frm2}.cmd.delete -text "Delete" -command RemScList_Delete
@@ -1206,7 +1205,7 @@ proc RemPiList_FillPi {mode} {
       set frm1 [Rnotebook:frame .remlist.nb 1]
 
       # generate sorted index list into reminder list (sort by start time & network)
-      set now [clock seconds]
+      set now [C_ClockSeconds]
       set remlist_pilist {}
       for {set idx 0} {$idx < [llength $reminders]} {incr idx} {
          set elem [lindex $reminders $idx]
@@ -1221,7 +1220,6 @@ proc RemPiList_FillPi {mode} {
 
       # fetch CNI list and netwop names from AI block in database
       set ailist [C_GetAiNetwopList 0 netnames]
-      ApplyUserNetnameCfg netnames
 
       ${frm1}.selist delete 0 end
 
@@ -1390,7 +1388,7 @@ proc RemList_PostStateCtxMenu {wid frm1} {
 
          set elem [lindex $reminders $rem_idx]
          if {(([lindex $elem $::rpi_ctrl_idx] & $::rpi_ctrl_mask) == $::rpi_ctrl_repeat) && \
-             (([lindex $elem $::rpi_ctrl_idx] & ~ $::rpi_ctrl_mask) >= [clock seconds])} {
+             (([lindex $elem $::rpi_ctrl_idx] & ~ $::rpi_ctrl_mask) >= [C_ClockSeconds])} {
             set state_reset normal
             set state_suppress normal
          } elseif {([lindex $elem $::rpi_ctrl_idx] & $::rpi_ctrl_mask) == $::rpi_ctrl_suppress} {
@@ -1882,7 +1880,7 @@ proc PopupReminderConfig {} {
       grid       .remcfg.frm1.frm11 -row 0 -column 2 -sticky ns -pady 10 -padx 10
 
       # column three: options
-      frame      .remcfg.frm1.frm12 -borderwidth 2 -relief ridge
+      frame      .remcfg.frm1.frm12 -borderwidth 2 -relief groove
       label      .remcfg.frm1.frm12.lab_name -text "Label:"
       grid       .remcfg.frm1.frm12.lab_name -row 0 -column 0 -sticky w
       entry      .remcfg.frm1.frm12.ent_name -textvariable remcfg_label -width 15 -exportselection 0
@@ -2086,7 +2084,7 @@ proc RemCfg_GroupCreate {} {
 
       # generate "random", unique new tag
       # (note: deleted tags shouldn't be re-used either; use of wall-clock time makes this probable)
-      set grp_tag [clock seconds]
+      set grp_tag [C_ClockSeconds]
       set ltmp {}
       foreach elem $remcfg_selist {
          set cmp_tag [lindex $elem $::rgp_ctxcache_idx]

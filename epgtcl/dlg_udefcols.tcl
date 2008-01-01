@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_udefcols.tcl,v 1.17 2004/12/12 17:26:40 tom Exp tom $
+#  $Id: dlg_udefcols.tcl,v 1.19 2007/12/29 21:21:53 tom Exp tom $
 #
 # import constants from other modules
 #=INCLUDE= "epgtcl/dlg_remind.h"
@@ -206,22 +206,23 @@ proc PopupUserDefinedColumns {} {
    global remgroups remgroup_order
    global usercols colsel_tabs colsel_ailist_predef
    global usercol_scnames usercol_cf_tag usercol_cf_filt_idx
-   global usercol_popup text_fg text_bg pi_font pi_img win_frm_fg entry_disabledforeground
+   global usercol_popup text_fg text_bg pi_font pi_img entry_disabledforeground
 
    if {$usercol_popup == 0} {
       CreateTransientPopup .usercol "Attribute composition & display format"
       set usercol_popup 1
 
       # 1st row: attribute selection and link to manual pages
-      frame   .usercol.head -relief ridge -borderwidth 2
+      frame   .usercol.head -relief groove -borderwidth 2
       frame   .usercol.head.sel
       label   .usercol.head.sel.lab -text "Currently editing:"
       pack    .usercol.head.sel.lab -side left
       entry   .usercol.head.sel.cur -width 20 -textvariable usercol_cf_lab
       bind    .usercol.head.sel.cur <Enter> {SelectTextOnFocus %W}
       pack    .usercol.head.sel.cur -side left -fill x -expand 1
-      menubutton .usercol.head.sel.mb -text "Select definition" -direction below -indicatoron 1 -borderwidth 2 -relief raised \
-                                 -menu .usercol.head.sel.mb.men -underline 0
+      menubutton .usercol.head.sel.mb -text "Select definition" -indicatoron 1 \
+                                      -menu .usercol.head.sel.mb.men -underline 0
+      config_menubutton .usercol.head.sel.mb
       menu    .usercol.head.sel.mb.men -tearoff 0
       pack    .usercol.head.sel.mb -side right
       pack    .usercol.head.sel -side top -fill x -padx 5 -pady 5
@@ -243,8 +244,9 @@ proc PopupUserDefinedColumns {} {
       pack    .usercol.txt.ent_head -side left -padx 5 -fill x -expand 1
       label   .usercol.txt.lab_lab -text "Header menu:"
       pack    .usercol.txt.lab_lab -side left -padx 5
-      menubutton .usercol.txt.hmenu -text "none" -indicatoron 1 -borderwidth 2 -relief raised -width 22 -menu .usercol.txt.hmenu.men \
-                                    -takefocus 1 -highlightthickness 1 -highlightcolor $win_frm_fg
+      menubutton .usercol.txt.hmenu -text "none" -width 22 -indicatoron 1 \
+                                    -menu .usercol.txt.hmenu.men
+      config_menubutton .usercol.txt.hmenu
       menu    .usercol.txt.hmenu.men -tearoff 0 -takefocus 1
       pack    .usercol.txt.hmenu -side left -padx 5
       pack    .usercol.txt -side top -fill x -pady 5
@@ -256,15 +258,15 @@ proc PopupUserDefinedColumns {} {
       grid    .usercol.all.lab_sel -sticky w -row 0 -column 0 -padx 5 -columnspan 2
 
       frame   .usercol.all.selcmd
-      menubutton  .usercol.all.selcmd.scadd -text "Add shortcut" -indicatoron 1 \
-                                            -borderwidth 2 -relief raised \
+      menubutton .usercol.all.selcmd.scadd -text "Add shortcut" -indicatoron 1 \
                                             -menu .usercol.all.selcmd.scadd.men -underline 0
+      config_menubutton .usercol.all.selcmd.scadd
       menu    .usercol.all.selcmd.scadd.men -tearoff 0 \
                   -postcommand [list PostDynamicMenu .usercol.all.selcmd.scadd.men UserColsDlg_FillShortcutMenu 0]
       pack    .usercol.all.selcmd.scadd -side top -fill x -anchor nw
-      menubutton  .usercol.all.selcmd.remadd -text "Add reminder" -indicatoron 1 \
-                                            -borderwidth 2 -relief raised \
+      menubutton .usercol.all.selcmd.remadd -text "Add reminder" -indicatoron 1 \
                                             -menu .usercol.all.selcmd.remadd.men -underline 0
+      config_menubutton .usercol.all.selcmd.remadd
       menu    .usercol.all.selcmd.remadd.men -tearoff 0 \
                   -postcommand [list PostDynamicMenu .usercol.all.selcmd.remadd.men UserColsDlg_FillReminderMenu 0]
       pack    .usercol.all.selcmd.remadd -side top -fill x -anchor nw
@@ -282,8 +284,9 @@ proc PopupUserDefinedColumns {} {
       frame   .usercol.all.sel
       scrollbar .usercol.all.sel.sb -orient vertical -command [list .usercol.all.sel.selist yview] -takefocus 0
       pack    .usercol.all.sel.sb -side left -fill y
-      listbox .usercol.all.sel.selist -exportselection false -height 10 -relief ridge \
-                                      -selectmode single -yscrollcommand [list .usercol.all.sel.sb set]
+      listbox .usercol.all.sel.selist -exportselection false -height 10 -selectmode single \
+                                      -yscrollcommand {.usercol.all.sel.sb set}
+      relief_listbox .usercol.all.sel.selist
       bind    .usercol.all.sel.selist <<ListboxSelect>> [list after idle [list UserColsDlg_SelectShortcut]]
       bind    .usercol.all.sel.selist <Key-Delete> [list tkButtonInvoke .usercol.all.selcmd.delsc]
       bind    .usercol.all.sel.selist <Control-Key-Up> [concat tkButtonInvoke .usercol.all.selcmd.updown.up {;} break]
@@ -295,9 +298,7 @@ proc PopupUserDefinedColumns {} {
       ## 3rd row, 3rd column: shortcut display choices
 
       frame   .usercol.all.disp
-      frame   .usercol.all.disp.attr -relief ridge -borderwidth 2
-      label   .usercol.all.disp.attr.lab_type -text "Display match as:"
-      grid    .usercol.all.disp.attr.lab_type -sticky w -row 0 -column 0 -columnspan 2
+      labelframe .usercol.all.disp.attr -text "Display match as:"
       radiobutton .usercol.all.disp.attr.type_text -text "Text:" -variable usercol_cf_type -value 0
       grid    .usercol.all.disp.attr.type_text -sticky w -column 0 -row 1
       entry   .usercol.all.disp.attr.ent_text -textvariable usercol_cf_text
@@ -306,31 +307,29 @@ proc PopupUserDefinedColumns {} {
       grid    .usercol.all.disp.attr.ent_text -sticky we -column 1 -row 1
       radiobutton .usercol.all.disp.attr.type_image -text "Image:" -variable usercol_cf_type -value 1
       grid    .usercol.all.disp.attr.type_image -sticky w -column 0 -row 2
-      menubutton  .usercol.all.disp.attr.img -text "Image" -indicatoron 1 -borderwidth 2 -relief raised \
-                                             -menu .usercol.all.disp.attr.img.men -height 20 \
-                                             -takefocus 1 -highlightthickness 1 -highlightcolor $win_frm_fg
+      menubutton .usercol.all.disp.attr.img -text "Image" -indicatoron 1 -height 20 \
+                                            -menu .usercol.all.disp.attr.img.men
+      config_menubutton .usercol.all.disp.attr.img
       menu    .usercol.all.disp.attr.img.men -tearoff 0
       grid    .usercol.all.disp.attr.img -sticky we -column 1 -row 2
       radiobutton .usercol.all.disp.attr.type_attr -text "Attribute:" -variable usercol_cf_type -value 2
       grid    .usercol.all.disp.attr.type_attr -sticky w -column 0 -row 3
-      menubutton  .usercol.all.disp.attr.att -text "Attribute" -indicatoron 1 -borderwidth 2 -relief raised \
-                                             -menu .usercol.all.disp.attr.att.men \
-                                             -takefocus 1 -highlightthickness 1 -highlightcolor $win_frm_fg
+      menubutton .usercol.all.disp.attr.att -text "Attribute" -indicatoron 1 \
+                                            -menu .usercol.all.disp.attr.att.men
+      config_menubutton .usercol.all.disp.attr.att
       menu    .usercol.all.disp.attr.att.men -tearoff 0
       grid    .usercol.all.disp.attr.att -sticky we -column 1 -row 3
       grid    columnconfigure .usercol.all.disp.attr 1 -weight 1
       pack    .usercol.all.disp.attr -side top -anchor nw -fill x
       grid    .usercol.all.disp -sticky wen -row 1 -column 2 -padx 5
 
-      frame   .usercol.all.disp.fmt -relief ridge -borderwidth 2
-      label   .usercol.all.disp.fmt.lab_fmt -text "Text format:"
-      grid    .usercol.all.disp.fmt.lab_fmt -sticky w -row 1 -column 0
+      labelframe .usercol.all.disp.fmt -text "Display format options:"
       text    .usercol.all.disp.fmt.txtdemo -height 2 -width 1 -font $pi_font \
-                                            -background $text_bg -wrap none -relief ridge \
+                                            -background $text_bg -wrap none -relief groove \
                                             -borderwidth 2 -takefocus 0 -highlightthickness 0 \
                                             -exportselection 0 -insertofftime 0 -spacing1 0 -spacing2 0
       set lh [font metrics $pi_font -linespace]
-      .usercol.all.disp.fmt.txtdemo tag configure half_line -font [list Helvetica [expr $lh / -2]]
+      .usercol.all.disp.fmt.txtdemo tag configure half_line -font [list [font actual $pi_font -family] [expr $lh / -2]]
       .usercol.all.disp.fmt.txtdemo tag configure txt_margin -lmargin1 10 -rmargin 10 -justify center
       .usercol.all.disp.fmt.txtdemo tag configure samplet -font $pi_font
       .usercol.all.disp.fmt.txtdemo tag configure sampleb -background $text_bg
@@ -355,33 +354,33 @@ proc PopupUserDefinedColumns {} {
                                                       -command UserColsDlg_UpdateFmtDemoText
       grid    .usercol.all.disp.fmt.chk_overstrike -sticky w -row 4 -column 0
 
-      menubutton .usercol.all.disp.fmt.mb_fgcolor -text "Text color" -direction flush -indicatoron 1 \
-                                                  -takefocus 1 -highlightthickness 1 -borderwidth 2 -relief raised \
+      menubutton .usercol.all.disp.fmt.mb_fgcolor -text "Text color" -indicatoron 1 \
                                                   -menu .usercol.all.disp.fmt.mb_fgcolor.men
+      config_menubutton .usercol.all.disp.fmt.mb_fgcolor
       grid    .usercol.all.disp.fmt.mb_fgcolor -sticky we -row 2 -column 1
       UserColsDlg_CreateColorMenu .usercol.all.disp.fmt.mb_fgcolor.men fg \
                   {auto fg_UNDEF black fg_RGB000000 white fg_RGBFFFFFF red fg_RGBCC0000 blue fg_RGB0000CC \
                    green fg_RGB00CC00 yellow fg_RGBCCCC00 pink fg_RGBCC00CC cyan fg_RGB00CCCC}
 
-      menubutton .usercol.all.disp.fmt.mb_agcolor -text "Attribute background" -direction flush -indicatoron 1 \
-                                                  -takefocus 1 -highlightthickness 1 -borderwidth 2 -relief raised \
+      menubutton .usercol.all.disp.fmt.mb_agcolor -text "Attribute background" -indicatoron 1 \
                                                   -menu .usercol.all.disp.fmt.mb_agcolor.men
+      config_menubutton .usercol.all.disp.fmt.mb_agcolor
       grid    .usercol.all.disp.fmt.mb_agcolor -sticky we -row 3 -column 1
       UserColsDlg_CreateColorMenu .usercol.all.disp.fmt.mb_agcolor.men ag \
                               {auto bg_UNDEF black ag_RGB000000 white ag_RGBFFFFFF red ag_RGBFFCCCC blue ag_RGBCCCCFF \
                                green ag_RGBCCFFCC yellow ag_RGBFFFFCC pink ag_RGBFFCCFF cyan ag_RGBCCFFFF}
 
-      menubutton .usercol.all.disp.fmt.mb_bgcolor -text "Column background" -direction flush -indicatoron 1 \
-                                                  -takefocus 1 -highlightthickness 1 -borderwidth 2 -relief raised \
+      menubutton .usercol.all.disp.fmt.mb_bgcolor -text "Column background" -indicatoron 1 \
                                                   -menu .usercol.all.disp.fmt.mb_bgcolor.men
+      config_menubutton .usercol.all.disp.fmt.mb_bgcolor
       grid    .usercol.all.disp.fmt.mb_bgcolor -sticky we -row 4 -column 1
       UserColsDlg_CreateColorMenu .usercol.all.disp.fmt.mb_bgcolor.men bg \
                               {auto bg_UNDEF black bg_RGB000000 white bg_RGBFFFFFF red bg_RGBFFCCCC blue bg_RGBCCCCFF \
                                green bg_RGBCCFFCC yellow bg_RGBFFFFCC pink bg_RGBFFCCFF cyan bg_RGBCCFFFF}
 
-      menubutton .usercol.all.disp.fmt.mb_cgcolor -text "Column text color" -direction flush -indicatoron 1 \
-                                                  -takefocus 1 -highlightthickness 1 -borderwidth 2 -relief raised \
+      menubutton .usercol.all.disp.fmt.mb_cgcolor -text "Column text color" -indicatoron 1 \
                                                   -menu .usercol.all.disp.fmt.mb_cgcolor.men
+      config_menubutton .usercol.all.disp.fmt.mb_cgcolor
       grid    .usercol.all.disp.fmt.mb_cgcolor -sticky we -row 5 -column 1
       UserColsDlg_CreateColorMenu .usercol.all.disp.fmt.mb_cgcolor.men cg \
                               {auto fg_UNDEF black cg_RGB000000 white cg_RGBFFFFFF red cg_RGBCC0000 blue cg_RGB0000CC \
@@ -678,7 +677,7 @@ proc UserColsDlg_NewCol {} {
    global usercols
 
    # generate a new, unique tag
-   set tag [clock seconds]
+   set tag [C_ClockSeconds]
    while [info exists usercols($tag)] {
       incr tag
    }
@@ -723,23 +722,11 @@ proc UserColsDlg_UpdateFmtDemoText {} {
    } else {
       set demo_font $pi_font
    }
-   if $usercol_cf_underline {
-      if {[string compare [lindex $demo_font 2] "normal"] != 0} {
-         lappend demo_font "underline"
-      } else {
-         set demo_font [lreplace $demo_font 2 2 "underline"]
-      }
-   }
-   if $usercol_cf_overstrike {
-      if {[string compare [lindex $demo_font 2] "normal"] != 0} {
-         lappend demo_font "overstrike"
-      } else {
-         set demo_font [lreplace $demo_font 2 2 "overstrike"]
-      }
-   }
-
    set fgcol [TextTag2Color $usercol_cf_fgcolor]
    .usercol.all.disp.fmt.txtdemo tag configure samplet -font $demo_font -foreground $fgcol
+
+   .usercol.all.disp.fmt.txtdemo tag configure samplet -underline $usercol_cf_underline
+   .usercol.all.disp.fmt.txtdemo tag configure samplet -overstrike $usercol_cf_overstrike
 
    if {[string compare $usercol_cf_agcolor bg_UNDEF] != 0} {
       set agcol [TextTag2Color $usercol_cf_agcolor]

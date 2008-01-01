@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: tvsim_main.c,v 1.27 2004/12/12 14:53:06 tom Exp tom $
+ *  $Id: tvsim_main.c,v 1.33 2007/12/31 17:14:05 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_TVSIM
@@ -57,8 +57,17 @@
 #include "epgvbi/winshm.h"
 #include "epgvbi/ttxdecode.h"
 #include "epgdb/epgblock.h"
+#include "epgdb/epgtscqueue.h"
+#include "epgdb/epgdbmerge.h"
+#include "epgctl/epgacqctl.h"
+#include "epgui/xiccc.h"
+#include "epgui/epgmain.h"
+#include "epgui/cmdline.h"
+#include "epgui/rcfile.h"
 #include "epgui/wintvcfg.h"
+#include "epgui/wintvui.h"
 #include "epgui/pdc_themes.h"
+#include "epgtcl/dlg_hwcfg.h"
 #include "tvsim/winshmclnt.h"
 #include "tvsim/tvsim_gui.h"
 #include "tvsim/tvsim_version.h"
@@ -92,11 +101,30 @@ Tcl_Interp *interp;          // Interpreter for application
 // add one extra byte at the end of the comm buffer for overflow detection
 char comm[TCL_COMM_BUF_SIZE + 1];
 
-#ifndef WIN32
-static Window xawtv_wid = None;
+Tcl_Encoding encIso88591 = NULL;
 
+#ifndef WIN32
+static Window toplevel_wid = None;
+
+// variables used for XAWTV protocol
 static Atom xawtv_station_atom = None;
 static Atom xawtv_remote_atom = None;
+
+static Tcl_AsyncHandler asyncIcccmHandler = NULL;
+static XICCC_STATE xiccc;
+#if 0
+static Atom icccm_atom_manager = None;
+#endif
+
+typedef enum
+{
+   EPG_IPC_BOTH,
+   EPG_IPC_XAWTV,
+   EPG_IPC_ICCCM,
+   EPG_IPC_COUNT
+} EPG_IPC_PROTOCOL;
+#define IPC_XAWTV_ENABLED (epgIpcProtocol != EPG_IPC_ICCCM)
+#define IPC_ICCCM_ENABLED (epgIpcProtocol != EPG_IPC_XAWTV)
 #endif
 
 static Tcl_AsyncHandler asyncThreadHandler = NULL;
@@ -114,14 +142,35 @@ static bool             haveIdleHandler    = FALSE;
 #define TVSIM_PDC_THEME_LANGUAGE  0
 
 // command line options
-#ifdef WIN32
-static const char * const defaultRcFile = "nxtvepg.ini";
-#else
-static char * defaultRcFile = "~/.nxtvepgrc";
-#endif
 static const char * rcfile = NULL;
+static bool isDefaultRcfile = TRUE;
 static uint videoCardIndex = TVSIM_CARD_IDX;
 static bool startIconified = FALSE;
+#ifndef WIN32
+static EPG_IPC_PROTOCOL epgIpcProtocol = EPG_IPC_BOTH;
+#endif
+
+typedef struct
+{
+   char       * pNetName;
+   uchar        net_idx;
+   time_t       start_time;
+   time_t       stop_time;
+   uint         pil;
+   uchar        prat;
+   uchar        erat;
+   char       * pSound;
+   bool         is_wide;
+   bool         is_palplus;
+   bool         is_digital;
+   bool         is_encrypted;
+   bool         is_live;
+   bool         is_repeat;
+   bool         is_subtitled;
+   uchar        pdc_themes[7];
+   char       * pTitle;
+   char       * pDescription;
+} EPG_PI;
 
 #ifndef WIN32
 /* same as ioctl(), but repeat if interrupted */
@@ -135,6 +184,171 @@ static int video_fd = -1;
 
 // forward declarations
 static void TvSimu_ParseRemoteCmd( char * argStr, uint argc );
+
+static void TvSimu_DisplayPiDescription( const char * pText )
+{
+   Tcl_Obj * objv[2];
+
+   objv[0] = Tcl_NewStringObj("DisplayPiDescription", -1);
+   objv[1] = TranscodeToUtf8(EPG_ENC_NXTVEPG, NULL, pText, NULL);
+   Tcl_IncrRefCount(objv[0]);
+   Tcl_IncrRefCount(objv[1]);
+
+   if (Tcl_EvalObjv(interp, 2, objv, 0) != TCL_OK)
+      debugTclErr(interp, "TvSimu-DisplayPiDescription");
+
+   Tcl_DecrRefCount(objv[0]);
+   Tcl_DecrRefCount(objv[1]);
+}
+
+#ifndef DPRINTF_OFF
+// ---------------------------------------------------------------------------
+// Break up a TAB separated PI Info string into C structure
+// - the given string is modified
+// - warning: strings are references into the text
+//   hence only valid as long as the text is not freed
+//
+static bool TvSimu_ParsePiDescription( char * pText, EPG_PI * pi )
+{
+   char * pOrigText = pText;
+   char * pEnd;
+   struct tm t;
+   int int_val, nscan, scan_pos;
+   uint oldMoD;
+   uint idx;
+
+   memset(pi, 0, sizeof(*pi));
+
+   pEnd = strchr(pText, '\t');
+   if (pEnd == NULL) goto error;
+   pi->pNetName = pText;
+   *pEnd = 0;
+   pText = pEnd + 1;
+
+   nscan = sscanf(pText, "%d\t%n", &int_val, &scan_pos);
+   if (nscan < 1) goto error;
+   pi->net_idx = int_val;
+   pText += scan_pos;
+
+   nscan = sscanf(pText, "%u-%u-%u\t%u:%u:00\t%n",
+                         &t.tm_year, &t.tm_mon, &t.tm_mday, &t.tm_hour, &t.tm_min, &scan_pos);
+   if (nscan < 5) goto error;
+   t.tm_year -= 1900;
+   t.tm_mon -= 1;
+   t.tm_isdst = -1;
+   t.tm_sec = 0;
+   oldMoD = t.tm_hour*60 + t.tm_min;
+   pi->start_time = mktime(&t);
+   pText += scan_pos;
+
+   nscan = sscanf(pText, "%u:%u:00\t%n", &t.tm_hour, &t.tm_min, &scan_pos);
+   if (nscan < 2) goto error;
+   t.tm_isdst = -1;
+   t.tm_sec = 0;
+   if (oldMoD < t.tm_hour*60 + t.tm_min)
+      t.tm_mday += 1;
+   pi->stop_time = mktime(&t);
+   pText += scan_pos;
+
+   if (strncmp(pText, "\\N\t", 3) == 0)
+   {
+      pi->pil = INVALID_VPS_PIL;
+      pText += 3;
+   }
+   else
+   {
+      nscan = sscanf(pText, "%04u-%02u-%02u %02u:%02u:00\t%n",
+                            &t.tm_year, &t.tm_mon, &t.tm_mday, &t.tm_hour, &t.tm_min, &scan_pos);
+      if (nscan < 5) goto error;
+      pi->pil = (t.tm_mday << 15) | (t.tm_mon << 11) | (t.tm_hour << 6) | t.tm_min;
+      pText += scan_pos;
+   }
+
+   nscan = sscanf(pText, "%d\t%n", &int_val, &scan_pos);
+   if (nscan < 1) goto error;
+   pi->prat = int_val;
+   pText += scan_pos;
+
+   nscan = sscanf(pText, "%d\t%n", &int_val, &scan_pos);
+   if (nscan < 1) goto error;
+   pi->erat = int_val;
+   pText += scan_pos;
+
+   pEnd = strchr(pText, '\t');
+   if (pEnd == NULL) goto error;
+   pi->pSound = pText;
+   *pEnd = 0;
+   pText = pEnd + 1;
+
+   nscan = sscanf(pText, "%d\t%n", &int_val, &scan_pos);
+   if (nscan < 1) goto error;
+   pi->is_wide = int_val;
+   pText += scan_pos;
+
+   nscan = sscanf(pText, "%d\t%n", &int_val, &scan_pos);
+   if (nscan < 1) goto error;
+   pi->is_palplus = int_val;
+   pText += scan_pos;
+
+   nscan = sscanf(pText, "%d\t%n", &int_val, &scan_pos);
+   if (nscan < 1) goto error;
+   pi->is_digital = int_val;
+   pText += scan_pos;
+
+   nscan = sscanf(pText, "%d\t%n", &int_val, &scan_pos);
+   if (nscan < 1) goto error;
+   pi->is_encrypted = int_val;
+   pText += scan_pos;
+
+   nscan = sscanf(pText, "%d\t%n", &int_val, &scan_pos);
+   if (nscan < 1) goto error;
+   pi->is_live = int_val;
+   pText += scan_pos;
+
+   nscan = sscanf(pText, "%d\t%n", &int_val, &scan_pos);
+   if (nscan < 1) goto error;
+   pi->is_repeat = int_val;
+   pText += scan_pos;
+
+   nscan = sscanf(pText, "%d\t%n", &int_val, &scan_pos);
+   if (nscan < 1) goto error;
+   pi->is_subtitled = int_val;
+   pText += scan_pos;
+
+   for (idx = 0; idx < 7; idx++)
+   {
+      nscan = sscanf(pText, "%d\t%n", &int_val, &scan_pos);
+      if (nscan < 1) goto error;
+      pi->pdc_themes[idx] = int_val;
+      pText += scan_pos;
+   }
+
+   pEnd = strchr(pText, '\t');
+   if (pEnd == NULL) goto error;
+   pi->pTitle = pText;
+   *pEnd = 0;
+   pText = pEnd + 1;
+
+   pEnd = strchr(pText, '\n');
+   if (pEnd == NULL) goto error;
+   pi->pDescription = pText;
+   *pEnd = 0;
+   pText = pEnd + 1;
+
+   return TRUE;
+
+error:
+   idx = pText - pOrigText;
+   // undo substitutions
+   for ( ; pText >= pOrigText; pText--)
+   {
+      if (*pText == 0)
+         *pText = '\t';
+   }
+   debug2("TvSimu-ParsePiDescription: parse error at offset %d: %s", idx, pOrigText);
+   return FALSE;
+}
+#endif
 
 #ifndef WIN32
 // ---------------------------------------------------------------------------
@@ -168,7 +382,7 @@ static Display * TvSim_GetTvDisplay( void )
 // - note the command string is not cleared after it's processed; we rely on
 //   event triggers by the X server to execute new commands
 //
-static int Xawtv_QueryRemoteCommand( Window wid, char * pBuffer, int bufLen )
+static int Xawtv_QueryRemoteCommand( Window wid, Atom property, char * pBuffer, int bufLen )
 {
    Tk_ErrorHandler errHandler;
    Display *dpy;
@@ -186,7 +400,7 @@ static int Xawtv_QueryRemoteCommand( Window wid, char * pBuffer, int bufLen )
       errHandler = Tk_CreateErrorHandler(dpy, -1, -1, -1, (Tk_ErrorProc *) NULL, (ClientData) NULL);
 
       args = NULL;
-      if ( (XGetWindowProperty(dpy, wid, xawtv_remote_atom, 0, (65536 / sizeof (long)), False, XA_STRING,
+      if ( (XGetWindowProperty(dpy, wid, property, 0, (65536 / sizeof (long)), False, XA_STRING,
                                &type, &format, &nitems, &bytesafter, &args) == Success) && (args != NULL) )
       {
          if (nitems >= bufLen)
@@ -223,17 +437,13 @@ static int Xawtv_QueryRemoteCommand( Window wid, char * pBuffer, int bufLen )
 
 // ----------------------------------------------------------------------------
 // Process events triggered by EPG application
-// - executed inside the main thread, but triggered by the msg receptor thread
-// - this functions polls shared memory for changes in the EPG controlled
-//   parameters; one such change is reported for each call of GetEpgEvent(),
-//   most important ones first (e.g. attach first)
 //
 static void TvSimu_IdleHandler( ClientData clientData )
 {
    char buf[1000];
    int argc;
 
-   argc = Xawtv_QueryRemoteCommand(xawtv_wid, buf, sizeof(buf));
+   argc = Xawtv_QueryRemoteCommand(toplevel_wid, xawtv_remote_atom, buf, sizeof(buf));
    if (argc > 0)
    {
       TvSimu_ParseRemoteCmd(buf, argc);
@@ -258,27 +468,167 @@ static int TvSimu_AsyncThreadHandler( ClientData clientData, Tcl_Interp *interp,
 }
 
 // ----------------------------------------------------------------------------
+// ICCM protocol
+//
+
+static void TvSimu_IcccmAttach( bool attach )
+{
+   // update the connection indicator in the GUI
+   sprintf(comm, "ConnectEpg %d\n", attach);
+   eval_check(interp, comm);
+}
+
+static void TvSimu_IcccmIdleHandler( ClientData clientData )
+{
+   Tk_ErrorHandler errHandler;
+   Display *dpy;
+   Atom  type;
+   int   format;
+   ulong nitems, bytesafter;
+   uchar * args;
+
+   dprintf1("TvSimu-IcccmIdleHandler: event mask 0x%X\n", xiccc.events);
+
+   // internal event handler must be called first - may generate application level events
+   if ( IS_XICCC_INTERNAL_EVENT(xiccc.events) )
+   {
+      Xiccc_HandleInternalEvent(&xiccc);
+   }
+
+   if (xiccc.events & XICCC_LOST_PEER)
+   {
+      xiccc.events &= ~XICCC_LOST_PEER;
+      TvSimu_IcccmAttach(FALSE);
+   }
+   if (xiccc.events & XICCC_NEW_PEER)
+   {
+      xiccc.events &= ~XICCC_NEW_PEER;
+      TvSimu_IcccmAttach(TRUE);
+   }
+   if (xiccc.events & XICCC_GOT_MGMT)
+   {
+      xiccc.events &= ~XICCC_GOT_MGMT;
+   }
+   if (xiccc.events & XICCC_LOST_MGMT)
+   {
+      xiccc.events &= ~XICCC_LOST_MGMT;
+   }
+
+   if ( (xiccc.events & XICCC_SETSTATION_REPLY) && (xiccc.remote_manager_wid != None) )
+   {
+      xiccc.events &= ~XICCC_SETSTATION_REPLY;
+
+      dpy = TvSim_GetTvDisplay();
+      if (dpy != NULL)
+      {
+         // push an /dev/null handler onto the stack that catches any type of X11 error events
+         errHandler = Tk_CreateErrorHandler(dpy, -1, -1, -1, (Tk_ErrorProc *) NULL, (ClientData) NULL);
+
+         args = NULL;
+         if ( (XGetWindowProperty(dpy, xiccc.manager_wid, xiccc.atoms._NXTVEPG_SETSTATION_RESULT, 0, (65536 / sizeof (long)), False, XA_STRING,
+                                  &type, &format, &nitems, &bytesafter, &args) == Success) && (args != NULL) )
+         {
+            if (popDownEvent != NULL)
+               Tcl_DeleteTimerHandler(popDownEvent);
+            popDownEvent = NULL;
+
+            TvSimu_DisplayPiDescription(args);
+
+#ifndef DPRINTF_OFF
+            if (args[0] != 0)
+            {
+               EPG_PI epg_pi;
+               if (TvSimu_ParsePiDescription(args, &epg_pi))
+                  dprintf2("TvSimuMsg-IcccmIdleHandler: RECV NETNAME:%s TITLE:%s\n", epg_pi.pNetName, epg_pi.pTitle);
+            }
+#endif
+            XFree(args);
+         }
+         else
+            dprintf2("TvSimu-IcccmIdleHandler: failed to read property 0x%X on wid 0x%X\n", (int)xiccc.atoms._NXTVEPG_SETSTATION_RESULT, (int)xiccc.manager_wid);
+
+         // remove the dummy error handler
+         Tk_DeleteErrorHandler(errHandler);
+      }
+      else
+         debug0("No Tk display available");
+   }
+
+   if (xiccc.events & XICCC_REMOTE_REQ)
+   {
+      XICCC_EV_QUEUE * pReq;
+      char buf[4000];
+      int argc;
+
+      xiccc.events &= ~XICCC_REMOTE_REQ;
+
+      dpy = TvSim_GetTvDisplay();
+      if (dpy != NULL)
+      {
+         errHandler = Tk_CreateErrorHandler(dpy, -1, -1, -1, (Tk_ErrorProc *) NULL, (ClientData) NULL);
+
+         while (xiccc.pRemoteCmdQueue != NULL)
+         {
+            pReq = xiccc.pRemoteCmdQueue;
+            Xiccc_QueueUnlinkEvent(&xiccc.pRemoteCmdQueue, pReq);
+
+            argc = Xawtv_QueryRemoteCommand(pReq->requestor, xiccc.atoms._NXTVEPG_REMOTE, buf, sizeof(buf));
+            if (argc > 0)
+            {
+               TvSimu_ParseRemoteCmd(buf, argc);
+
+               Xiccc_SendReply(&xiccc, "OK", -1, pReq, xiccc.atoms._NXTVEPG_SETSTATION);
+            }
+            xfree(pReq);
+         }
+         Tk_DeleteErrorHandler(errHandler);
+      }
+   }
+}
+
+static int TvSimu_AsyncIcccmHandler( ClientData clientData, Tcl_Interp *interp, int code )
+{
+   Tcl_DoWhenIdle(TvSimu_IcccmIdleHandler, NULL);
+   return code;
+}
+
+// ----------------------------------------------------------------------------
 // X event handler
 // - this function is called for every incoming X event
 // - filters out events on the pseudo xawtv main window
 //
 static int Xawtv_EventNotification( ClientData clientData, XEvent *eventPtr )
 {
+   bool needHandler;
    bool result = FALSE;
 
-   if ( (eventPtr->type == PropertyNotify) &&
-        (eventPtr->xproperty.window == xawtv_wid) && (xawtv_wid != None) )
+   if (IPC_XAWTV_ENABLED)
    {
-      dprintf1("PropertyNotify event from window 0x%X\n", (int)eventPtr->xproperty.window);
-      if (eventPtr->xproperty.atom == xawtv_remote_atom)
+      if ( (eventPtr->type == PropertyNotify) &&
+           (eventPtr->xproperty.window == toplevel_wid) && (toplevel_wid != None) )
       {
-         if (eventPtr->xproperty.state == PropertyNewValue)
-         {  // the remote command text has changed
-            // install event at top of Tcl event loop
-            Tcl_AsyncMark(asyncThreadHandler);
+         dprintf1("PropertyNotify event from window 0x%X\n", (int)eventPtr->xproperty.window);
+         if (eventPtr->xproperty.atom == xawtv_remote_atom)
+         {
+            if (eventPtr->xproperty.state == PropertyNewValue)
+            {  // the remote command text has changed
+               // install event at top of Tcl event loop
+               Tcl_AsyncMark(asyncThreadHandler);
+            }
          }
+         result = TRUE;
       }
-      result = TRUE;
+   }
+   if (IPC_ICCCM_ENABLED)
+   {
+      if ( Xiccc_XEvent(eventPtr, &xiccc, &needHandler) )
+      {
+         if (needHandler)
+         {
+            Tcl_AsyncMark(asyncIcccmHandler);
+         }
+         result = TRUE;
+      }
    }
    return result;
 }
@@ -294,7 +644,7 @@ static void TvSim_XawtvSetStation( int freq, const char *channel, const char *na
    int  len;
    char line[80];
 
-   if (xawtv_wid != None)
+   if (toplevel_wid != None)
    {
       dpy = TvSim_GetTvDisplay();
       if (dpy != NULL)
@@ -303,7 +653,7 @@ static void TvSim_XawtvSetStation( int freq, const char *channel, const char *na
          len += sprintf(line+len, "%s", channel ? channel : "?") +1;
          len += sprintf(line+len, "%s", name    ? name    : "?") +1;
 
-         XChangeProperty(dpy, xawtv_wid, xawtv_station_atom,
+         XChangeProperty(dpy, toplevel_wid, xawtv_station_atom,
                          XA_STRING, 8, PropModeReplace,
                          line, len);
       }
@@ -364,6 +714,7 @@ static Window Xawtv_QueryParent( Display * dpy, Window wid )
 //
 static void TvSim_XawtvCreateAtoms( void )
 {
+   Tk_ErrorHandler errHandler;
    Tk_Window  mainWindow;
    Display   * dpy;
 
@@ -373,18 +724,41 @@ static void TvSim_XawtvCreateAtoms( void )
       dpy = TvSim_GetTvDisplay();
       if (dpy != NULL)
       {
-         // create atoms for communication with TV client
-         xawtv_station_atom = XInternAtom(dpy, "_XAWTV_STATION", False);
-         xawtv_remote_atom = XInternAtom(dpy, "_XAWTV_REMOTE", False);
-
-         xawtv_wid = Xawtv_QueryParent(dpy, Tk_WindowId(mainWindow));
-
-         if (xawtv_wid != None)
+         toplevel_wid = Xawtv_QueryParent(dpy, Tk_WindowId(mainWindow));
+         if (toplevel_wid != None)
          {
-            TvSim_XawtvSetStation(0, "1", "ARD");
-
             Tk_CreateGenericHandler(Xawtv_EventNotification, NULL);
+
+            // create atoms for communication with TV client
+            if (IPC_XAWTV_ENABLED)
+            {
+               xawtv_station_atom = XInternAtom(dpy, "_XAWTV_STATION", False);
+               xawtv_remote_atom = XInternAtom(dpy, "_XAWTV_REMOTE", False);
+
+               TvSim_XawtvSetStation(0, "1", "ARD");
+            }
+            if (IPC_ICCCM_ENABLED)
+            {
+               char * pIdArgv;
+               uint   idLen;
+
+               errHandler = Tk_CreateErrorHandler(dpy, -1, -1, -1, (Tk_ErrorProc *) NULL, (ClientData) NULL);
+
+               Xiccc_BuildArgv(&pIdArgv, &idLen, ICCCM_PROTO_VSTR, "tvsim", TVSIM_VERSION_STR, "", NULL);
+               Xiccc_Initialize(&xiccc, dpy, FALSE, pIdArgv, idLen);
+               xfree(pIdArgv);
+
+               Xiccc_ClaimManagement(&xiccc, FALSE);
+               Xiccc_SearchPeer(&xiccc);
+
+               Tk_DeleteErrorHandler(errHandler);
+
+               if (xiccc.events != 0)
+                  Tcl_DoWhenIdle(TvSimu_IcccmIdleHandler, NULL);
+            }
          }
+         else
+            debug0("TvSim-XawtvCreateAtoms: no toplevel window");
       }
       else
          debug0("TvSim-XawtvCreateAtoms: no display");
@@ -446,7 +820,8 @@ void BtDriver_StopAcq( void )
 }
 
 
-bool BtDriver_Configure( int cardIndex, int prio, int chipType, int cardType, int tuner, int pll, bool wdmStop )
+bool BtDriver_Configure( int sourceIdx, int drvType, int prio, int chipType, int cardType,
+                         int tunerType, int pllType, bool wdmStop )
 {
    return TRUE;
 }
@@ -601,14 +976,36 @@ static void WinApiDestructionHandler( ClientData clientData)
    ExitProcess(0);
 }
 
+#if (TCL_MAJOR_VERSION != 8) || (TCL_MINOR_VERSION >= 5)
+static int TclCbWinHandleShutdown( ClientData ttp, Tcl_Interp *interp, int argc, CONST84 char *argv[] )
+{
+   WinApiDestructionHandler(NULL);
+   return TCL_OK;
+}
+#endif
+
 #ifdef __MINGW32__
 static LONG WINAPI WinApiExceptionHandler(struct _EXCEPTION_POINTERS *exc_info)
 {
+   static bool inExit = FALSE;
+
    //debug1("FATAL exception caught: %d", GetExceptionCode());
    debug0("FATAL exception caught");
-   // skip EpgAcqCtl_Stop() because it tries to dump the db - do as little as possible here
-   BtDriver_Exit();
-   ExitProcess(-1);
+
+   // prevent recursive calls - may occur upon crash in acq stop function
+   if (inExit == FALSE)
+   {
+      inExit = TRUE;
+
+      // skip EpgAcqCtl_Stop() because it tries to dump the db - do as little as possible here
+      BtDriver_Exit();
+      ExitProcess(-1);
+   }
+   else
+   {
+      ExitProcess(-1);
+   }
+
    // dummy return
    return EXCEPTION_EXECUTE_HANDLER;
 }
@@ -760,6 +1157,104 @@ static void SetWorkingDirectoryFromExe( const char *argv0 )
 #endif  // WIN32
 
 // ---------------------------------------------------------------------------
+// Helper function to convert text content into UTF-8
+// - copied from epgmain.c
+//
+Tcl_Obj * TranscodeToUtf8( T_EPG_ENCODING enc,
+                           const char * pPrefix, const char * pStr, const char * pPostfix )
+{
+   Tcl_Obj * pObj;
+   Tcl_DString dstr;
+
+   assert(pStr != NULL);
+
+   switch (enc)
+   {
+      case EPG_ENC_ASCII:
+         Tcl_DStringInit(&dstr);
+         Tcl_DStringAppend(&dstr, pStr, -1);
+         break;
+
+      case EPG_ENC_NXTVEPG:
+#ifdef USE_UTF8
+         Tcl_DStringInit(&dstr);
+         Tcl_DStringAppend(&dstr, pStr, -1);
+#else
+         Tcl_ExternalToUtfDString(encIso88591, pStr, -1, &dstr);
+#endif
+         break;
+
+      case EPG_ENC_ISO_8859_1:
+         Tcl_ExternalToUtfDString(encIso88591, pStr, -1, &dstr);
+         break;
+
+      case EPG_ENC_SYSTEM:
+      default:
+         Tcl_ExternalToUtfDString(NULL, pStr, -1, &dstr);
+         break;
+   }
+
+   if ((pPrefix != NULL) && (*pPrefix != 0))
+   {
+      pObj = Tcl_NewStringObj(pPrefix, -1);
+      Tcl_AppendToObj(pObj, Tcl_DStringValue(&dstr), Tcl_DStringLength(&dstr));
+   }
+   else
+   {
+      pObj = Tcl_NewStringObj(Tcl_DStringValue(&dstr), Tcl_DStringLength(&dstr));
+   }
+   Tcl_DStringFree(&dstr);
+
+   if ((pPostfix != NULL) && (*pPostfix != 0))
+   {
+      Tcl_AppendToObj(pObj, pPostfix, -1);
+   }
+   return pObj;
+}
+// ----------------------------------------------------------------------------
+// Return the name according to a PDC theme index
+//
+static int GetPdcString( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[] )
+{  
+   const char * const pUsage = "Usage: C_GetPdcString <index>";
+   const uchar * pThemeStr;
+   int index;
+   int result; 
+   
+   if ( (objc != 2) || (Tcl_GetIntFromObj(interp, objv[1], &index) != TCL_OK) )
+   {  // wrong parameter count or no integer parameter
+      Tcl_SetResult(interp, (char *)pUsage, TCL_STATIC);
+      result = TCL_ERROR; 
+   }  
+   else
+   {
+      if (index >= 0x80)
+      {  // PDC codes 0x80..0xff identify series (most EPG providers just use 0x80 for
+         // all series, but they could use different codes for every series of a network)
+         pThemeStr = PdcThemeGet(PDC_THEME_SERIES);
+      }
+      else if (PdcThemeIsDefined(index))
+      {  // this is a known PDC series code
+         pThemeStr = PdcThemeGet(index);
+      }
+      else
+         pThemeStr = "";
+
+      Tcl_SetObjResult(interp, TranscodeToUtf8(EPG_ENC_NXTVEPG, NULL, pThemeStr, NULL));
+      result = TCL_OK; 
+   }
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Dummy for rcfile.c
+// - (not needed because tvsim doesn't write rc file anyways)
+// 
+void CmdLine_AddRcFilePostfix( const char * pPostfix )
+{
+}
+
+// ---------------------------------------------------------------------------
 // Print Usage and exit
 //
 static void Usage( const char *argv0, const char *argvn, const char * reason )
@@ -774,8 +1269,11 @@ static void Usage( const char *argv0, const char *argvn, const char * reason )
                    "       -geometry <geometry>\t: window position\n"
                    "       -iconic     \t\t: iconify window\n"
                    "       -rcfile <path>      \t: path and file name of setup file\n"
-                   "       -card <digit>       \t: index of TV card for acq (starting at 0)\n",
-                   argv0, reason, argvn, argv0);
+                   "       -card <digit>       \t: index of TV card for acq (starting at 0)\n"
+#ifndef WIN32
+                   "       -protocol xawtv|iccc\t: protocol for communication with EPG app\n"
+#endif
+                   , argv0, reason, argvn, argv0);
 #if 0
       /*balance brackets for syntax highlighting*/  )
 #endif
@@ -791,13 +1289,30 @@ static void Usage( const char *argv0, const char *argvn, const char * reason )
 //
 static void ParseArgv( int argc, char * argv[] )
 {
+#ifndef WIN32
+   char * pHome;
+   char * pTmp;
+#endif
    int argIdx = 1;
 
 #ifdef WIN32
    SetWorkingDirectoryFromExe(argv[0]);
 #endif
 
-   rcfile = defaultRcFile;
+#ifndef WIN32
+   pHome = getenv("HOME");
+   if (pHome != NULL)
+   {
+      pTmp = xmalloc(strlen(pHome) + 1 + strlen(".nxtvepgrc") + 1);
+      strcpy(pTmp, pHome);
+      strcat(pTmp, "/.nxtvepgrc");
+      rcfile = pTmp;
+   }
+   else
+      rcfile = xstrdup(".nxtvepgrc");
+#else
+   rcfile = xstrdup("nxtvepg.ini");
+#endif
 
    while (argIdx < argc)
    {
@@ -813,7 +1328,9 @@ static void ParseArgv( int argc, char * argv[] )
          {
             if (argIdx + 1 < argc)
             {  // read file name of rc/ini file
-               rcfile = argv[argIdx + 1];
+               xfree((void *) rcfile);
+               rcfile = xstrdup(argv[argIdx + 1]);
+               isDefaultRcfile = FALSE;
                argIdx += 2;
             }
             else
@@ -833,6 +1350,23 @@ static void ParseArgv( int argc, char * argv[] )
             else
                Usage(argv[0], argv[argIdx], "missing card index after");
          }
+#ifndef WIN32
+         else if (!strcmp(argv[argIdx], "-protocol"))
+         {
+            if (argIdx + 1 < argc)
+            {
+               if (strcmp(argv[argIdx + 1], "xawtv") == 0)
+                  epgIpcProtocol = EPG_IPC_XAWTV;
+               else if (strcmp(argv[argIdx + 1], "iccc") == 0)
+                  epgIpcProtocol = EPG_IPC_ICCCM;
+               else
+                  Usage(argv[0], argv[argIdx+1], "invalid protocol keyword");
+               argIdx += 2;
+            }
+            else
+               Usage(argv[0], argv[argIdx], "missing card index after");
+         }
+#endif // WIN32
          else if ( !strcmp(argv[argIdx], "-iconic") )
          {  // start with iconified main window
             startIconified = TRUE;
@@ -862,55 +1396,45 @@ static void ParseArgv( int argc, char * argv[] )
 // - the parameters must be loaded before from the nxtvepg rc/ini file,
 //   except for the TV card index, which is set by a command line switch only
 //
-static bool SetHardwareConfig( Tcl_Interp *interp, uint cardIdx )
+static bool SetHardwareConfig( uint cardIdx )
 {
-   Tcl_Obj  * pVarObj;
-   #ifdef WIN32
-   Tcl_Obj  * pCardCfList;
-   Tcl_Obj ** pCardCfObjv;
-   char  idx_str[10];
-   int   llen;
-   int   chipType, cardType, tuner, pll, wdmStop;
-   #endif
-   int   prio;
-   bool  result;
+   const RCFILE * pRc = RcFile_Query();
+   uint drvType, input, prio, slicer, wdmStop;
+   bool result;
 
-   pVarObj = Tcl_GetVar2Ex(interp, "hwcf_acq_prio", NULL, TCL_GLOBAL_ONLY);
-   if ( (pVarObj == NULL) ||
-        (Tcl_GetIntFromObj(interp, pVarObj, &prio) != TCL_OK) )
-   {
-      prio = 0;
-   }
+   drvType = pRc->tvcard.drv_type;
+   //cardIdx = pRc->tvcard.card_idx;
+   input   = pRc->tvcard.input;
+   prio    = pRc->tvcard.acq_prio;
+   slicer  = pRc->tvcard.slicer_type;
+   wdmStop = pRc->tvcard.wdm_stop;
+
 #ifdef WIN32
-   pVarObj = Tcl_GetVar2Ex(interp, "hwcf_wdm_stop", NULL, TCL_GLOBAL_ONLY);
-   if ( (pVarObj == NULL) ||
-        (Tcl_GetIntFromObj(interp, pVarObj, &wdmStop) != TCL_OK) )
+   if ( (drvType == BTDRV_SOURCE_WDM) ||
+        (cardIdx < pRc->tvcard.winsrc_count) )
    {
-      wdmStop = 0;
-   }
-   // retrieve card specific parameters
-   sprintf(idx_str, "%d", cardIdx);
-   pCardCfList = Tcl_GetVar2Ex(interp, "tvcardcf", idx_str, TCL_GLOBAL_ONLY);
-   if ( (pCardCfList != NULL) &&
-        (Tcl_ListObjGetElements(interp, pCardCfList, &llen, &pCardCfObjv) == TCL_OK) &&
-        (llen == 4) &&
-        (Tcl_GetIntFromObj(interp, pCardCfObjv[0], &chipType) == TCL_OK) &&
-        (Tcl_GetIntFromObj(interp, pCardCfObjv[1], &cardType) == TCL_OK) &&
-        (Tcl_GetIntFromObj(interp, pCardCfObjv[2], &tuner) == TCL_OK) &&
-        (Tcl_GetIntFromObj(interp, pCardCfObjv[3], &pll) == TCL_OK) )
-   {
+      uint  chipType, cardType, tuner, pll;
+
+      // retrieve card specific parameters
+      chipType = pRc->tvcard.winsrc[cardIdx][EPGTCL_TVCF_CHIP_IDX];
+      cardType = pRc->tvcard.winsrc[cardIdx][EPGTCL_TVCF_CARD_IDX];
+      tuner    = pRc->tvcard.winsrc[cardIdx][EPGTCL_TVCF_TUNER_IDX];
+      pll      = pRc->tvcard.winsrc[cardIdx][EPGTCL_TVCF_PLL_IDX];
+
       // pass the hardware config params to the driver
-      result = BtDriver_Configure(cardIdx, prio, chipType, cardType, tuner, pll, wdmStop);
+      result = BtDriver_Configure(cardIdx, drvType, prio, chipType, cardType, tuner, pll, wdmStop);
    }
    else
    {
+      dprintf2("SetHardwareConfig: card #%d not configured (have %d)\n", cardIdx, pRc->tvcard.winsrc_count);
+
       MessageBox(NULL, "Failed to load TV card configuration from nxtvepg INI file. "
                  "Configure this card first in nxtvepg's TV card input configuration dialog.",
                  "TV App. Interaction Simulator", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
       result = FALSE;
    }
 #else
-   result = BtDriver_Configure(cardIdx, prio, 0, 0, 0, 0, 0);
+   result = BtDriver_Configure(cardIdx, drvType, prio, 0, 0, 0, 0, 0);
 #endif
    return result;
 }
@@ -983,7 +1507,7 @@ static void TvSimu_ParseRemoteCmd( char * argStr, uint argc )
             Tcl_DeleteTimerHandler(popDownEvent);
          popDownEvent = NULL;
 
-         sprintf(comm, "set program_title {%s}; set program_times {}; set program_theme {}\n", pArg2);
+         sprintf(comm, "DisplayPiDescriptionSimple {%s} {} {}", pArg2);
          eval_check(interp, comm);
       }
    }
@@ -999,7 +1523,7 @@ static void TvSimu_TitleChangeTimer( ClientData clientData )
 
    debug0("TvSimu-TitleChangeTimer: no answer from EPG app - clearing display");
 
-   sprintf(comm, "set program_title {}; set program_times {}; set program_theme {}\n");
+   sprintf(comm, "ClearPiDescription");
    eval_check(interp, comm);
 }
 
@@ -1009,11 +1533,11 @@ static void TvSimu_TitleChangeTimer( ClientData clientData )
 //
 #include "epgvbi/winshm.h"
 #include "epgvbi/winshmsrv.h"
-bool WintvSharedMem_ReqTvCardIdx( uint cardIdx ) { return TRUE; }
+bool WintvSharedMem_ReqTvCardIdx( uint cardIdx, bool * pEpgHasDriver ) { return TRUE; }
 void WintvSharedMem_FreeTvCard( void ) {}
 bool WintvSharedMem_SetInputSrc( uint inputIdx ) { return FALSE; }
-bool WintvSharedMem_SetTunerFreq( uint freq ) { return FALSE; }
-uint WintvSharedMem_GetTunerFreq( void ) { return 0; }
+bool WintvSharedMem_SetTunerFreq( uint freq, uint norm ) { return FALSE; }
+bool WintvSharedMem_GetTunerFreq( uint * pFreq, bool * pIsTuner ) { return FALSE; }
 uint WintvSharedMem_GetInputSource( void ) { return 0; }
 volatile EPGACQ_BUF * WintvSharedMem_GetVbiBuf( void ) { return NULL; }
 
@@ -1062,17 +1586,24 @@ static void TvSimuMsg_ReqTuner( void )
 {
    uint  inputSrc;
    uint  freq;
-   bool  dummy;
+   uint  norm;
+   bool  isTuner;
 
-   if (WinSharedMemClient_GetInpFreq(&inputSrc, &freq))
+   if (WinSharedMemClient_GetInpFreq(&inputSrc, &freq, &norm))
    {
-      // set the TV input source (tuner, composite, S-video) and frequency
-      BtDriver_TuneChannel(inputSrc, freq, FALSE, &dummy);
-      BtDriver_SelectSlicer(VBI_SLICER_ZVBI);
+      if ( (inputSrc != EPG_REQ_INPUT_NONE) &&
+           (freq != EPG_REQ_FREQ_NONE) )
+      {
+         // set the TV input source (tuner, composite, S-video) and frequency
+         if ( BtDriver_TuneChannel(inputSrc, freq | (norm << 24), FALSE, &isTuner) )
+         {
+            BtDriver_SelectSlicer(VBI_SLICER_ZVBI);
 
-      // inform EPG app that the frequency has been set (note: this function is a
-      // variant of _SetStation which does not request EPG info for the new channel)
-      WinSharedMemClient_SetInputFreq(inputSrc, freq);
+            // inform EPG app that the frequency has been set (note: this function is a
+            // variant of _SetStation which does not request EPG info for the new channel)
+            WinSharedMemClient_SetInputFreq(isTuner, freq, norm);
+         }
+      }
    }
 }
 
@@ -1107,64 +1638,28 @@ static void TvSimuMsg_HandleEpgCmd( void )
 //
 static void TvSimuMsg_UpdateProgInfo( void )
 {
-   uchar  epgProgTitle[EPG_TITLE_MAX_LEN];
-   time_t epgStartTime;
-   time_t epgStopTime;
-   uint   epgPdcThemeCount;
-   uchar  epgPdcThemes[7];
-   const char * pThemeStr;
-   uint   themeIdx;
-   char   str_buf[50];
+   EPG_PI epg_pi;
+   char * pBuffer;
 
-   if ( WinSharedMemClient_GetProgInfo(&epgStartTime, &epgStopTime,
-                                       epgPdcThemes, &epgPdcThemeCount,
-                                       epgProgTitle, sizeof(epgProgTitle)) )
+   pBuffer = WinSharedMemClient_GetProgInfo();
+   if (pBuffer != NULL)
    {
       // remove the pop-down timer (which would clear the EPG display if no answer arrives in time)
       if (popDownEvent != NULL)
          Tcl_DeleteTimerHandler(popDownEvent);
       popDownEvent = NULL;
 
-      if ( (epgProgTitle[0] != 0) && (epgStartTime != epgStopTime) )
+      TvSimu_DisplayPiDescription(pBuffer);
+
+#ifndef DPRINTF_OFF
+      if ( (pBuffer[0] != 0) &&
+           TvSimu_ParsePiDescription(pBuffer, &epg_pi) )
       {
-         // Process start and stop time
-         // (times are given in UNIX format, i.e. seconds since 1.1.1970 0:00am UTC)
-         strftime(str_buf, sizeof(str_buf), "%a %d.%m %H:%M - ", localtime(&epgStartTime));
-         strftime(str_buf + strlen(str_buf), sizeof(str_buf) - strlen(str_buf), "%H:%M", localtime(&epgStopTime));
-
-         // Process PDC theme array: convert theme code to text
-         // Note: up to 7 theme codes can be supplied (e.g. "movie general" plus "comedy")
-         //       you have to decide yourself how to display them; you might use icons for the
-         //       main themes (e.g. movie, news, talk show) and add text for sub-categories.
-         // Use loop to search for the first valid theme code (simplest possible handling)
-         pThemeStr = "";
-         for (themeIdx = 0; themeIdx < epgPdcThemeCount; themeIdx++)
-         {
-            if (epgPdcThemes[themeIdx] >= 128)
-            {  // PDC codes 0x80..0xff identify series (most EPG providers just use 0x80 for
-               // all series, but they could use different codes for every series of a network)
-               pThemeStr = PdcThemeGet(PDC_THEME_SERIES);
-               break;
-            }
-            else if (PdcThemeIsDefined(epgPdcThemes[themeIdx]))
-            {  // this is a known PDC series code
-               pThemeStr = PdcThemeGet(epgPdcThemes[themeIdx]);
-               break;
-            }
-            // else: unknown series code -> keep searching
-         }
-
-         // Finally display program title, start/stop times and theme text
-         // Note: the Tcl variables are bound to the "entry" widget
-         //       by writing to the variables the widget is automatically updated
-         sprintf(comm, "set program_title {%s}; set program_times {%s}; set program_theme {%s}\n", epgProgTitle, str_buf, pThemeStr);
-         eval_check(interp, comm);
+         dprintf2("TvSimuMsg-UpdateProgInfo: %s: %s\n", epg_pi.pNetName, epg_pi.pTitle);
       }
-      else
-      {  // empty string transmitted (EPG has no info for the current channel) -> clear display
-         sprintf(comm, "set program_title {}; set program_times {}; set program_theme {}\n");
-         eval_check(interp, comm);
-      }
+#endif
+
+      free(pBuffer);
    }
 }
 
@@ -1202,8 +1697,12 @@ static void TvSimu_IdleHandler( ClientData clientData )
             shouldExit = TRUE;
             break;
 
-         case SHM_EVENT_PROG_INFO:
+         case SHM_EVENT_STATION_INFO:
             TvSimuMsg_UpdateProgInfo();
+            break;
+
+         case SHM_EVENT_EPG_INFO:
+            // TODO
             break;
 
          case SHM_EVENT_CMD_ARGV:
@@ -1322,6 +1821,7 @@ static int TclCb_GrantTuner( ClientData ttp, Tcl_Interp *interp, int argc, CONST
 static int TclCb_TuneChan( ClientData ttp, Tcl_Interp *interp, int argc, CONST84 char *argv[] )
 {
    const char * const pUsage = "C_TuneChan <idx> <name>";
+   char  * pErrMsg;
    uint  * pFreqTab;
    uint    freqCount;
    int     freqIdx;
@@ -1339,7 +1839,8 @@ static int TclCb_TuneChan( ClientData ttp, Tcl_Interp *interp, int argc, CONST84
       if (result == TCL_OK)
       {
          // read frequencies & norms from channel table file
-         if ( WintvCfg_GetFreqTab(interp, &pFreqTab, &freqCount) &&
+         pErrMsg = NULL;
+         if ( WintvCfg_GetFreqTab(NULL, &pFreqTab, &freqCount, &pErrMsg) &&
               (pFreqTab != NULL) && (freqCount > 0))
          {
             if ((freqIdx < freqCount) && (freqIdx >= 0))
@@ -1349,14 +1850,51 @@ static int TclCb_TuneChan( ClientData ttp, Tcl_Interp *interp, int argc, CONST84
                BtDriver_SelectSlicer(VBI_SLICER_ZVBI);
 
                #ifdef WIN32
-               // Request EPG info & update frequency info
-               // - norms are coded into the high byte of the frequency dword (0=PAL-BG, 1=NTSC, 2=SECAM)
-               // - input source is hard-wired to TV tuner in this simulation
-               // - channel ID is hard-wired to 0 too (see comments in the winshmclnt.c)
-               WinSharedMemClient_SetStation(argv[2], 0, 0, pFreqTab[freqIdx]);
+               {
+                  Tcl_Obj  * pVarObj;
+                  int  piCount;
+                  pVarObj = Tcl_GetVar2Ex(interp, "epg_pi_count", NULL, TCL_GLOBAL_ONLY);
+                  if ( (pVarObj == NULL) ||
+                       (Tcl_GetIntFromObj(interp, pVarObj, &piCount) != TCL_OK) )
+                  {
+                     piCount = 1;
+                  }
+
+                  // Request EPG info & update frequency info
+                  // - norms are coded into the high byte of the frequency dword (0=PAL-BG, 1=NTSC, 2=SECAM)
+                  // - input source is hard-wired to TV tuner in this simulation
+                  // - channel ID is hard-wired to 0 too (see comments in the winshmclnt.c)
+                  WinSharedMemClient_SetStation(argv[2], -1, 0,
+                                                isTuner, pFreqTab[freqIdx] & 0xffffff,
+                                                pFreqTab[freqIdx] >> 24, piCount);
+               }
                #else
                // Xawtv: provide station name and frequency (FIXME channel code omitted)
-               TvSim_XawtvSetStation(pFreqTab[freqIdx], "-", argv[2]);
+               if (IPC_XAWTV_ENABLED)
+               {
+                  TvSim_XawtvSetStation(pFreqTab[freqIdx], "-", argv[2]);
+               }
+               if (IPC_ICCCM_ENABLED)
+               {
+                  CONST84 char * pPiCountStr;
+                  char * pArgv;
+                  char   freq_buf[15];
+                  uint   arg_len;
+
+                  if (xiccc.manager_wid != None)
+                  {
+                     pPiCountStr = Tcl_GetVar(interp, "epg_pi_count", TCL_GLOBAL_ONLY);
+                     if (pPiCountStr == NULL)
+                        pPiCountStr = "1";
+
+                     sprintf(freq_buf, "%d", pFreqTab[freqIdx]);
+
+                     Xiccc_BuildArgv(&pArgv, &arg_len, ICCCM_PROTO_VSTR, argv[2], freq_buf, "-", "", "Text/Tabular", pPiCountStr, "1", NULL);
+                     Xiccc_SendQuery(&xiccc, pArgv, arg_len, xiccc.atoms._NXTVEPG_SETSTATION,
+                                     xiccc.atoms._NXTVEPG_SETSTATION_RESULT);
+                     xfree(pArgv);
+                  }
+               }
                #endif
 
                // Install a timer handler to clear the title display in case EPG app fails to answer
@@ -1370,6 +1908,17 @@ static int TclCb_TuneChan( ClientData ttp, Tcl_Interp *interp, int argc, CONST84
                //result = TCL_ERROR;
             }
             xfree(pFreqTab);
+         }
+         else
+         {
+            sprintf(comm, "tk_messageBox -type ok -icon error -message {"
+                          "Could not tune the channel: %s "
+                          "(Note the \"Test\" button in the TV app. interaction dialog.)}",
+                          ((pErrMsg != NULL) ? pErrMsg : "Please check your TV application settings."));
+            eval_check(interp, comm);
+
+            if (pErrMsg != NULL)
+               xfree(pErrMsg);
          }
       }
    }
@@ -1385,7 +1934,8 @@ static int ui_init( int argc, char **argv )
    char * args;
 
    // set up the default locale to be standard "C" locale so parsing is performed correctly
-   setlocale(LC_ALL, "C");
+   setlocale(LC_ALL, "");
+   setlocale(LC_NUMERIC, "C");  // required for Tcl or parsing of floating point numbers fails
 
    if (argc >= 1)
    {
@@ -1409,9 +1959,14 @@ static int ui_init( int argc, char **argv )
    #ifdef WIN32
    Tcl_SetVar(interp, "argv0", argv[0], TCL_GLOBAL_ONLY);
    #else
-   // WM_CLASS property for toplevel is derived from argv0
-   // changing WM_CLASS later via Tk_SetClass() does not work, so we need this hack
-   Tcl_SetVar(interp, "argv0", "Xawtv", TCL_GLOBAL_ONLY);
+   if (IPC_XAWTV_ENABLED)
+   {
+      // WM_CLASS property for toplevel is derived from argv0
+      // changing WM_CLASS later via Tk_SetClass() does not work, so we need this hack
+      Tcl_SetVar(interp, "argv0", "Xawtv", TCL_GLOBAL_ONLY);
+   }
+   else
+      Tcl_SetVar(interp, "argv0", argv[0], TCL_GLOBAL_ONLY);
    #endif
 
    Tcl_SetVar(interp, "tcl_library", TCL_LIBRARY_PATH, TCL_GLOBAL_ONLY);
@@ -1457,9 +2012,16 @@ static int ui_init( int argc, char **argv )
 
    // create an asynchronous event source that allows to receive triggers from the EPG message receptor thread
    asyncThreadHandler = Tcl_AsyncCreate(TvSimu_AsyncThreadHandler, NULL);
+   #ifdef WIN32
+   Tcl_SetVar2Ex(interp, "is_xiccc_proto", NULL, Tcl_NewBooleanObj(0), TCL_GLOBAL_ONLY);
+   #else
+   asyncIcccmHandler = Tcl_AsyncCreate(TvSimu_AsyncIcccmHandler, NULL);
+   Tcl_SetVar2Ex(interp, "is_xiccc_proto", NULL, Tcl_NewBooleanObj(IPC_ICCCM_ENABLED), TCL_GLOBAL_ONLY);
+   #endif
 
    Tcl_CreateCommand(interp, "C_GrantTuner", TclCb_GrantTuner, (ClientData) NULL, NULL);
    Tcl_CreateCommand(interp, "C_TuneChan", TclCb_TuneChan, (ClientData) NULL, NULL);
+   Tcl_CreateObjCommand(interp, "C_GetPdcString", GetPdcString, (ClientData) NULL, NULL);
 
    if (TCL_EVAL_CONST(interp, tvsim_gui_tcl_static) != TCL_OK)
    {
@@ -1469,6 +2031,11 @@ static int ui_init( int argc, char **argv )
 
    sprintf(comm, "Tvsim_LoadRcFile {%s}\n", rcfile);
    eval_check(interp, comm);
+
+   #if defined (WIN32) && ((TCL_MAJOR_VERSION != 8) || (TCL_MINOR_VERSION >= 5))
+   Tcl_CreateCommand(interp, "C_WinHandleShutdown", TclCbWinHandleShutdown, (ClientData) NULL, NULL);
+   eval_check(interp, "wm protocol . WM_SAVE_YOURSELF C_WinHandleShutdown\n");
+   #endif
 
    Tcl_ResetResult(interp);
    return (TRUE);
@@ -1483,6 +2050,7 @@ int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 int main( int argc, char *argv[] )
 #endif
 {
+   char * pErrMsg = NULL;
    #ifdef WIN32
    WINSHMCLNT_EVENT  attachEvent;
    int argc;
@@ -1493,11 +2061,17 @@ int main( int argc, char *argv[] )
    #endif
    ParseArgv(argc, argv);
 
+   RcFile_Init();
+   RcFile_Load(rcfile, !isDefaultRcfile, &pErrMsg);
+   if (pErrMsg != NULL)
+      xfree(pErrMsg);
+
    // mark Tcl/Tk interpreter as uninitialized
    interp = NULL;
 
    ui_init(argc, argv);
-   WintvCfg_Init(FALSE);
+   encIso88591 = Tcl_GetEncoding(interp, "iso8859-1");
+   WintvUi_Init();
 
    BtDriver_Init();
    #ifdef WIN32
@@ -1505,8 +2079,10 @@ int main( int argc, char *argv[] )
    #endif
    {
       #ifdef WIN32
+      #if (TCL_MAJOR_VERSION == 8) && (TCL_MINOR_VERSION <= 4)
       // set up callback to catch shutdown messages (requires tk83.dll patch, see README.tcl83)
       Tk_RegisterMainDestructionHandler(WinApiDestructionHandler);
+      #endif
       #ifndef __MINGW32__
       __try {
       #else
@@ -1515,7 +2091,7 @@ int main( int argc, char *argv[] )
       #endif
 
       // pass bt8x8 driver parameters to the driver
-      if (SetHardwareConfig(interp, videoCardIndex))
+      if (SetHardwareConfig(videoCardIndex))
       {
          // select language for PDC theme text output
          PdcThemeSetLanguage(TVSIM_PDC_THEME_LANGUAGE);
@@ -1558,6 +2134,9 @@ int main( int argc, char *argv[] )
             }
 
             BtDriver_StopAcq();
+            #ifndef WIN32
+            Xiccc_Destroy(&xiccc);
+            #endif
          }
          else
          {
@@ -1575,10 +2154,7 @@ int main( int argc, char *argv[] )
       }
       __except (EXCEPTION_EXECUTE_HANDLER)
       {  // caught a fatal exception -> stop the driver to prevent system crash ("blue screen")
-         debug1("FATAL exception caught: %d", GetExceptionCode());
-         // skip EpgAcqCtl_Stop() because it tries to dump the db - do as little as possible
-         BtDriver_Exit();
-         ExitProcess(-1);
+         WinApiExceptionHandler(NULL);
       }
       #endif
 
@@ -1594,12 +2170,16 @@ int main( int argc, char *argv[] )
    }
    #endif
 
-   WintvCfg_Destroy();
+   WintvUi_Destroy();
+   RcFile_Destroy();
+   Tcl_FreeEncoding(encIso88591);
+   encIso88591 = NULL;
 
    #if CHK_MALLOC == ON
    #ifdef WIN32
    xfree(argv);
    #endif
+   xfree((void *) rcfile);
    // check for allocated memory that was not freed
    chk_memleakage();
    #endif

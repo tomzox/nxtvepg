@@ -1,20 +1,20 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: download.html,v 1.24 2007/01/28 13:19:58 tom Exp $ -->
+<!-- $Id: download.html,v 1.26 2008/01/06 20:32:58 tom Exp $ -->
 <HEAD>
-<TITLE>nexTView EPG Decoder Software Download</TITLE>
+<TITLE>Download nxtvepg</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
 <META name="language" content="en">
-<META name="keywords" lang="en" content="nexTView, EPG, electronic program guide, TV-Guide, Premiere, TV program listing, TV schedule, Nextview decoder, bttv, video4linux, VBI, vertical blanking interval, multimedia, data service, subscription free, TV tuner card, Kabel1, RTL2, Canal+, EuroNews">
+<META name="keywords" lang="en" content="nxtvepg, software, download, freeware, open-source, GPL, installation, Linux, video4linux, upgrade, release, package, distribution, bugfix, source-code, Tcl/Tk">
 <META name="description" lang="en" content="Download page for the free nxtvepg software: A decoder for the nexTView Electronic Program Guide on PCs">
 <META name="author" content="Tom Zoerner">
 <META name="copyright" content="Tom Zoerner">
 <META name="robots" content="index, follow">
 <META name="revisit-after" content="01 month">
 <LINK rel="stylesheet" type="text/css" href="nxtvepg.css">
-<LINK rel="alternate" type="text/html" href="index-de.html" hreflang="de" lang="de" title="nexTView Dekoder Download">
+<LINK rel="alternate" type="text/html" href="download-de.html" hreflang="de" lang="de" title="Nxtvepg Download">
 <LINK rel="shortcut icon" type="image/x-icon" href="nxtvepg.ico">
-<LINK rel="top" href="http://nxtvepg.sourceforge.net/" title="nexTView EPG Decoder Homepage">
+<LINK rel="top" href="http://nxtvepg.sourceforge.net/" title="nxtvepg homepage">
 </HEAD>
 <BODY>
 
@@ -71,31 +71,49 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 
 <DIV class="mainBlock">
 
-<H1>Software download</H1>
+<H1>Download nxtvepg</H1>
 <P>
-The latest stable release is version 2.7.7.
-See the <A HREF="index.html#new_2_7_7">overview</A> on the homepage
-for a list of contents, or refer to the more detailed
-<A HREF="changelog.html#release_2_7_7">changelog 2.7.7</A>.
-</P><P>
-For older release packages see the
+The latest official nxtvepg release is version <B>2.8.0</B>, the latest
+stable release is <B>2.7.7</B>.  The difference between these two is a
+number of <A HREF="index.html#releases">new features</A>
+(see also a list of <A HREF="changelog.html#release_2_8_0">all details</A>)
+which have been introduced in 2.8.0.  If you already
+have a working installation of nxtvepg 2.7.7, you need only upgrade
+if you're interested in any of the new features.  For new users
+it's recommended to start with 2.8.0 and only fall back to 2.7.7
+if you encounter serious bugs (and if you do, please remember to
+report them in the 
+<A HREF="http://sourceforge.net/forum/forum.php?forum_id=217872">discussion forum</A>.)
+</P>
+<P>
+When upgrading from older releases you should keep a copy of your old
+<KBD>nxtvepg.ini</KBD> file so that you can go back to the old software
+in case of problems (i.e. the older software will not be able to read
+an nxtvepg.ini file which was modified by newer releases.)  Also note
+if you're using the nxtvepg acquisition daemon together with the
+nxtvepg GUI, both programs need to have the same version.
+</P>
+<P>
+For older releases see the
 <A HREF="http://sourceforge.net/project/showfiles.php?group_id=64430">SourceForge File List</A>.
 </P>
 
 <DIV CLASS="box">
 <H2><A NAME="download_unix">Source distribution</A></H2>
+<UL>
+<LI><A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.8.0.tar.gz?download">nxtvepg-2.8.0.tar.gz</A>
+<LI><A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.7.7.tar.gz?download">nxtvepg-2.7.7.tar.gz</A>
+</UL>
 <P>
-<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.7.7.tar.gz?download">nxtvepg-2.7.7.tar.gz</A>
-</P><P>
-Source distribution for Linux, NetBSD and FreeBSD: unpack
+This is the source distribution for Linux, NetBSD and FreeBSD: unpack
 the archive, then change into the source directory and compile
 with "make", install with "make install".  If you encounter problems
 see the README file for more detailed instructions.  Of course it's
 also possible to compile the Windows port from these sources; this is
-also explained in README.
+also explained in the README file.
 </P><P>
 You can build a RPM package from the source tarball simply by running
-<KBD>rpm -ta nxtvepg-2.7.7.tar.gz</KBD> and install it as usual with
+<KBD>rpm -ta nxtvepg-2.8.0.tar.gz</KBD> and install it as usual with
 <KBD>rpm -i</KBD>.
 </P><P>
 Alternatively, pre-compiled packages are provided at the following sites
@@ -105,7 +123,7 @@ Alternatively, pre-compiled packages are provided at the following sites
 <LI>For Linux Red Hat/Fedora Core from
     <A HREF="http://atrpms.physik.fu-berlin.de/name/nxtvepg/">ATrpms.net</A>,<BR>
     for Debian from
-    <A HREF="http://packages.debian.org/stable/utils/nxtvepg.html">debian.org</A>,<BR>
+    <A HREF="http://packages.debian.org/search?keywords=nxtvepg&amp;searchon=names&amp;suite=all&amp;section=all">debian.org</A>,<BR>
     for other Linux distributions try
     <A HREF="http://rpmfind.net/linux/rpm2html/search.php?query=nxtvepg">rpmfind.net</A>
 <LI>For NetBSD at
@@ -118,23 +136,42 @@ Alternatively, pre-compiled packages are provided at the following sites
 
 <DIV CLASS="box">
 <H2><A NAME="download_windows">Binary distribution for M$ Windows</A></H2>
+<UL>
+<LI><A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.8.0-win.zip?download">nxtvepg-2.8.0-win.zip</A><BR>
+<LI><A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.7.7-win.exe?download">nxtvepg-2.7.7-win.exe</A>
+</UL>
 <P>
-<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.7.7-win.exe?download">nxtvepg-2.7.7-win.exe</A>
-</P><P>
-<!--
-Windows executable:
-Simply unpack the nxtvepg ZIP file into an empty directory and then
-double-click the nxtvepg.exe file.
--->
- If you're upgrading from an older version
+If your TV card is not supported by the included <I>dsdrv4</I> driver,
+you may download the <A HREF="pre-releases.html#wdm_if_lib">WDM interface library</A>
+(this feature is still experimental.)
+</P>
+<P>
+<B>Important</B> notice for <A HREF="http://www.kastortv.org/">K!TV</A> users:
+To use nxtvepg 2.8.0 with K!TV, you must copy a new version of library
+<KBD>NextViewPlugin.dll</KBD> which is included in the above package
+into the <KBD>Plugin</KBD> sub-directory in your K!TV installation.
+</P>
+<P>
+Last but not least: alternative version for release 2.8.0:
+<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.8.0-win-utf8.zip?download">nxtvepg-2.8.0-win-utf8.zip</A>.
+This variant uses UTF-8 encoding internally so that XMLTV files from
+outside of Western Europe can be imported and merged.
+</P>
+<P>
+An installer for version 2.8.0 will be available within a few days. For now
+please install nxtvepg from the ZIP file: Simply unpack the nxtvepg ZIP file
+into a new, empty directory and then double-click the nxtvepg.exe file to
+start the program.
+</P>
+<P>
+If you're upgrading from an older version
 of nxtvepg, you can copy your previous INI file and databases into the new
-directory.  The optional tvsim ZIP file should be unpacked into the same
 directory.  Please refer to the Help menu or HTML manual page, section
 <A HREF="man.html#getting_started">Getting Started</A> for setup instructions.
 </P><P>
-For developers: demo application for TV application interaction
+For developers: A demo application for TV application interaction is available
 (see also <A HREF="tvsim-faq.html">FAQ</A>):
-<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.7.7-tvsim.zip?download">nxtvepg-2.7.7-tvsim.zip</A>
+<A HREF="http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-2.8.0-tvsim.zip?download">nxtvepg-2.8.0-tvsim.zip</A>
 (see <A HREF="tvsim.html">tvsim</A>,
 <A HREF="vbirec.html">vbirec</A> or
 <A HREF="vbiplay.html">vbiplay</A> manuals, or
@@ -168,21 +205,24 @@ please do not redistribute.
 <H1><A NAME="requirements">System Requirements</A></H1>
 <P>
 Hardware minimum requirements are a PC or workstation with performance
-equivalent to a 90 MHz Intel Pentium CPU and 64 MB of RAM (note nxtvepg
+equivalent to a 90 MHz Intel Pentium CPU and 128 MB of RAM (note nxtvepg
 is also known to work fine on Power-PC and Ultra-Sparc platforms.)
-Additionaly a TV tuner card (analog, i.e.
-not <A HREF="intro.html#DVB">DVB</A>) is required.
+Additionally an analog TV tuner card is required. (With some workarounds
+<A HREF="intro.html#DVB">DVB</A> can be made to work too on Linux.)
 </P><P>
-The Windows version supports all PCI capture cards based either on the
-capture chips Brooktree Fusion Bt878/Bt848, sucessor Conexant CX23881 or
-Philips SAA7134.  Please note that
-<B><SPAN class="red">no AGP cards or USB TV boxes</SPAN></B> are supported!
+The Windows version supports most PCI capture cards based either on the
+capture chips Brooktree Fusion Bt878/Bt848, successor Conexant CX23881 or
+Philips SAA7134 using the internal "dsdrv4"
+(<A HREF="http://www.dscaler.org/">DScaler</A>) driver.  
+Additional cards may be supported by using the card vendor's WDM driver and
+a separate <A HREF="pre-releases.html#wdm_if_lib">WDM interface library</A>.
 </P><P>
 The Linux version supports all cards for which a
 <A HREF="http://roadrunner.swansea.uk.linux.org/v4l.shtml">video4linux</A>
-or <A HREF="http://bytesex.org/">v4l2</A> compatible driver exists
-(e.g. bttv, saa7134, cx8800, possibly even USB TV boxes.)
-Acquisition from DVB devices does reportedly not work yet.
+or <A HREF="http://bytesex.org/">v4l2</A> driver exists
+(e.g. bttv, saa7134 and cx8800.) Acquisition from DVB devices works when compiling
+with the <A HREF="http://zapping.sourceforge.net/doc/libzvbi/index.html">ZVBI library</A>
+(by uncommenting "-DUSE_LIBZVBI" in the nxtvepg Makefile.)
 The NetBSD and FreeBSD versions support all cards which are supported by the
 <A HREF="http://vulture.dmem.strath.ac.uk/bt848/">bktr driver</A>.
 </P>
@@ -190,20 +230,30 @@ The NetBSD and FreeBSD versions support all cards which are supported by the
 <DIV CLASS="box">
 <H2>Linux software requirements</H2>
 <UL>
-<LI>For bttv kernel &gt;= 2.0.35 (2.0.x was prone to freezes with bttv though,
-  hence upgrade to at least 2.2.x is highly recommended)
-<LI>SAA7134 and CX23881 cards require at least kernel 2.4.x plus some v4l2
-  kernel patches (your Linux distribution may already include those if it
-  comes with saa7134 support), see <A HREF="http://bytesex.org/">bytesex.org</A>;
-  alternatively use kernel 2.6.2 or later, which needs not be patched.
-<LI>Kernel must have video4linux support enabled (preferrably as modules
-  to simplify upgrades) and include <A HREF="http://bytesex.org/bttv/">bttv</A>
-  (at least version &gt;= 0.7.55 recommended) or
-  <A HREF="http://bytesex.org/saa7134/">saa7134</A> (at least version 0.2.9);
-  cx8800 has no official releases yet, use the latest development snapshot.
-<LI>GNU C Compiler (version 2.95.3 or 3.2 or later) to compile nxtvepg
-<LI>Tcl/Tk version 8.3.2 or later, available from
-<A HREF="http://www.tcl.tk/">http://www.tcl.tk/</A>
+<LI><I>video4linux</I> drivers with <I>VBI</I> support for your TV card.
+  Since kernel version 2.6.x, the vanilla kernels include working drivers
+  for the most used analog TV cards, so you'll probably need no extra drivers.
+  Restrictions: bttv drivers in kernel versions 2.6.16 or newer are supported
+  by nxtvepg 2.7.7 or newer only. bttv drivers in kernel versions 2.6.21 or
+  newer require nxtvepg version 2.8.0.<BR>
+  Older kernel versions:
+  <UL>
+  <LI>TV cards with Brooktree Bt848 or Bt878 capture chip: Kernel 2.0.35 or newer and
+    <A HREF="http://bytesex.org/bttv">bttv</A> driver version &gt;= 0.7.55; for
+    kernel 2.4 or older a separate video4linux kernel module is also required.
+  <LI>TV cards with Philips SAA7134 capture chip: kernel 2.4.x with
+    <A HREF="http://bytesex.org/saa7134/">saa7134</A> driver 0.2.9 or newer, plus
+    <A HREF="http://roadrunner.swansea.uk.linux.org/v4l.shtml">video4linux</A> module.
+  <LI>TV cards with Conexant 2388x capture chip: kernel 2.4.x plus cx88xx driver from
+    snapshot video4linux-20040330 or newer (note there were no official driver releases
+    for these chips before kernel line 2.6)
+  </UL>
+<LI>GNU C Compiler (version 2.95.3 or 3.2 or later) unless you got nxtvepg
+  pre-compiled for your platform
+<LI><A HREF="http://tcl.tk/">Tcl/Tk</A> version 8.4 or later
+  (version 8.5 is recommended due to improved widget appearance.)
+<LI>Any release of X11R5 or X11R6.
+  Note: X11 and Tcl/Tk are not required when building the "nxtvepgd" daemon only.
 </UL>
 </DIV>
 
@@ -212,9 +262,9 @@ The NetBSD and FreeBSD versions support all cards which are supported by the
 <UL>
 <LI>kernel &gt;= 1.5 including the
 <A HREF="http://vulture.dmem.strath.ac.uk/bt848/">bktr driver</A> 2.17 or later,
-<LI>GNU C Compiler, unless you got nxtvepg in a precompiled NetBSD package
-<LI>Tcl/Tk version 8.3.2 or later (8.4.4 recommended) available from
-<A HREF="http://www.tcl.tk/">http://www.tcl.tk/</A>
+<LI>GNU C Compiler, unless you got nxtvepg in a pre-compiled NetBSD package
+<LI><A HREF="http://tcl.tk/">Tcl/Tk</A> version 8.4 or later
+  (version 8.5 is recommended due to improved widget appearance.)
 </UL>
 </DIV>
 
@@ -222,22 +272,21 @@ The NetBSD and FreeBSD versions support all cards which are supported by the
 <H2>FreeBSD software requirements</H2>
 <UL>
 <LI><A href="http://www.FreeBSD.org/">FreeBSD</A> 4-STABLE as of November 1st 2000 (or more
-recent) or FreeBSD 5, i.e. a system that contains the bktr(4)-driver 2.18 or
-later. Older installations of FreeBSD (2.x, 3.x, 4.x) may be upgraded with the
-latest <A HREF="http://vulture.dmem.strath.ac.uk/bt848/">bktr driver</A>.</LI>
-<LI>Tcl/Tk version 8.3.2 or later (8.4.4 recommended).<BR></LI>
-<LI>Installation instructions:
-<P>Update your ports collection and install the
-<KBD>ports/multimedia/nxtvepg</KBD>
-<A href="http://www.freebsd.org/cgi/cvsweb.cgi/ports/multimedia/nxtvepg/">
-port</A>.</P>
-<P>Alternatively, you can install a pre-compiled package with the
-following command <KBD>pkg_add -r nxtvepg</KBD> directly from FreeBSD
-FTP server.</P>
-<P>If you need help with one of these steps, please have a look at the
-<A href="http://www.FreeBSD.org/handbook/ports.html">FreeBSD handbook</A>
-</P></LI>
+  recent) or FreeBSD 5, i.e. a system that contains the bktr(4)-driver 2.18 or
+  later. Older installations of FreeBSD (2.x, 3.x, 4.x) may be upgraded with the
+  latest <A HREF="http://vulture.dmem.strath.ac.uk/bt848/">bktr driver</A>.
+<LI><A HREF="http://tcl.tk/">Tcl/Tk</A> version 8.4 or later
+  (version 8.5 is recommended due to improved widget appearance.)
 </UL>
+<P>
+Installation instructions: Update your ports collection and install the
+<A href="http://www.freebsd.org/cgi/cvsweb.cgi/ports/multimedia/nxtvepg/">ports/multimedia/nxtvepg</A>
+port.  Alternatively, you can install a pre-compiled package with the
+following command: <KBD>pkg_add -r nxtvepg</KBD> directly from the
+FreeBSD FTP server.  If you need help with one of these steps, please
+have a look at the
+<A href="http://www.FreeBSD.org/handbook/ports.html">FreeBSD handbook</A>
+</P>
 </DIV>
 
 <DIV CLASS="box">

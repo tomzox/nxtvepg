@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: winshmclnt.h,v 1.6 2004/03/28 13:18:27 tom Exp tom $
+ *  $Id: winshmclnt.h,v 1.7 2007/12/31 17:03:12 tom Exp tom $
  */
 
 #ifndef __WINSHMCLNT_H
@@ -32,9 +32,10 @@ typedef enum
    SHM_EVENT_ATTACH,
    SHM_EVENT_DETACH,
    SHM_EVENT_ATTACH_ERROR,
-   SHM_EVENT_PROG_INFO,
+   SHM_EVENT_STATION_INFO,
    SHM_EVENT_CMD_ARGV,
-   SHM_EVENT_INP_FREQ
+   SHM_EVENT_INP_FREQ,
+   SHM_EVENT_EPG_INFO
 
 } WINSHMCLNT_EVENT;
 
@@ -55,17 +56,16 @@ typedef struct
 // ---------------------------------------------------------------------------
 // declaration of service interface functions
 //
-bool WinSharedMemClient_GetProgInfo( time_t * pStart, time_t * pStop,
-                                     uchar * pThemes, uint * pThemeCount,
-                                     uchar * pTitle, uint maxTitleLen );
+char * WinSharedMemClient_GetProgInfo( void );
 bool WinSharedMemClient_GetCmdArgv( uint * pArgc, uint * pArgLen, char * pCmdBuf, uint cmdMaxLen );
-bool WinSharedMemClient_GetInpFreq( uint * pInputSrc, uint * pFreq );
+bool WinSharedMemClient_GetInpFreq( uint * pInputSrc, uint * pFreq, uint * pNorm );
 const uchar * WinSharedMemClient_GetErrorMsg( void );
 WINSHMCLNT_EVENT WinSharedMemClient_GetEpgEvent( void );
 
 bool WinSharedMemClient_GrantTuner( bool doGrant );
-bool WinSharedMemClient_SetStation( const char * pChanName, uint cni, uint inputSrc, uint freq );
-bool WinSharedMemClient_SetInputFreq( uint inputSrc, uint freq );
+bool WinSharedMemClient_SetStation( const char * pChanName, sint nameLen, uint cni,
+                                    bool isTuner, uint freq, uint norm, uint epgPiCnt );
+bool WinSharedMemClient_SetInputFreq( bool isTuner, uint freq, uint norm );
 void WinSharedMemClient_HandleEpgEvent( void );
 bool WinSharedMemClient_Init( const WINSHMCLNT_TVAPP_INFO * pInitInfo,
                               uint cardIdx, WINSHMCLNT_EVENT * pEvent );

@@ -19,7 +19,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: mytypes.h,v 1.21 2004/08/29 21:46:59 tom Exp tom $
+ *  $Id: mytypes.h,v 1.22 2005/06/04 20:10:56 tom Exp tom $
  */
 
 #ifndef __MYTYPES_H
@@ -79,6 +79,7 @@ typedef   signed long  slong;    // >=32 bit signed
 #define DEBUG_SWITCH_TCL_BGERR   OFF
 #define DEBUG_SWITCH_TVSIM       OFF
 #define DEBUG_SWITCH_DSDRV       OFF
+#define DEBUG_SWITCH_XMLTV       OFF
 
 // enable memory leak detection for debugging
 #define CHK_MALLOC               OFF

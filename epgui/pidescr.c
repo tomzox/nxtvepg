@@ -14,12 +14,13 @@
  *
  *  Description:
  *
- *    Implements display for programme descriptions in the main window
- *    and sub-functions for description text output for database export.
+ *    This modules contains functions to build description texts
+ *    for output in the "short info window" below the PI programme list
+ *    and for database export.
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pidescr.c,v 1.8 2003/09/19 21:56:27 tom Exp tom $
+ *  $Id: pidescr.c,v 1.11 2005/12/29 19:17:18 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -31,9 +32,6 @@
 #include <string.h>
 #include <ctype.h>
 
-#include <tcl.h>
-#include <tk.h>
-
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
 #include "epgdb/epgblock.h"
@@ -43,23 +41,6 @@
 #include "epgui/pdc_themes.h"
 #include "epgui/pidescr.h"
 
-
-// ----------------------------------------------------------------------------
-// Array which keeps pre-allocated Tcl/Tk string objects
-//
-typedef enum
-{
-   TCLOBJ_WID_INFO,
-   TCLOBJ_STR_INSERT,
-   TCLOBJ_STR_END,
-   TCLOBJ_STR_TITLE,
-   TCLOBJ_STR_FEATURES,
-   TCLOBJ_STR_BOLD,
-   TCLOBJ_STR_PARAGRAPH,
-   TCLOBJ_COUNT
-} PIBOX_TCLOBJ;
-
-static Tcl_Obj * tcl_obj[TCLOBJ_COUNT];
 
 // ----------------------------------------------------------------------------
 // Table to implement isalnum() for all latin fonts
@@ -723,178 +704,37 @@ void PiDescription_AppendFeatureList( const PI_BLOCK *pPiBlock, char * outstr )
 }
 
 // ----------------------------------------------------------------------------
-// Insert a character string into a text widget at a given line
-// - could be done simpler by Tcl_Eval() but using objects has the advantage
-//   that no command line needs to be parsed so that a '}' in the string
-//   does no harm.
+// Helper function to print text into buffer or stream
 //
-static void PiDescription_InsertText( PIBOX_TCLOBJ widgetObjIdx, int trow, const char * pStr, PIBOX_TCLOBJ tagObjIdx )
+void PiDescription_BufAppend( PI_DESCR_BUF * pBuf, const char * pStr, sint len )
 {
-   Tcl_Obj * objv[10];
-   char   linebuf[15];
-   uint   objc;
+   char * pNewbuf;
 
-   // assemble a command vector, starting with the widget name/command
-   objv[0] = tcl_obj[widgetObjIdx];
-   objv[1] = tcl_obj[TCLOBJ_STR_INSERT];
-   if (trow >= 0)
-   {  // line number was specified; add 1 because first line is 1.0
-      sprintf(linebuf, "%d.0", trow + 1);
-      objv[2] = Tcl_NewStringObj(linebuf, -1);
-      Tcl_IncrRefCount(objv[2]);
+   if (len < 0)
+   {
+      len = strlen(pStr);
+   }
+
+   if (pBuf->fp != NULL)
+   {
+      fwrite(pStr, sizeof(char), len, pBuf->fp);
    }
    else
-      objv[2] = tcl_obj[TCLOBJ_STR_END];
-   objv[3] = Tcl_NewStringObj(pStr, -1);
-   Tcl_IncrRefCount(objv[3]);
-   objv[4] = tcl_obj[tagObjIdx];
-   objc = 5;
-
-   // execute the command vector
-   if (Tcl_EvalObjv(interp, objc, objv, 0) != TCL_OK)
-      debugTclErr(interp, "PiDescription-InsertText");
-
-   // free temporary objects
-   if (trow >= 0)
-      Tcl_DecrRefCount(objv[2]);
-   Tcl_DecrRefCount(objv[3]);
-}
-
-// ----------------------------------------------------------------------------
-// Callback function for PiDescription-AppendShortAndLongInfoText
-//
-static void PiDescription_AppendInfoTextCb( void *fp, const char * pDesc, bool addSeparator )
-{
-   assert(fp == NULL);
-
-   if (pDesc != NULL)
    {
-      if (addSeparator)
-      {  // separator between info texts of different providers
-         sprintf(comm, ".all.pi.info.text insert end {\n\n} title\n"
-                       ".all.pi.info.text image create {end - 2 line} -image bitmap_line\n");
-         eval_check(interp, comm);
-      }
-
-      //Tcl_VarEval(interp, ".all.pi.info.text insert end {", pShortInfo, "}", NULL);
-      PiDescription_InsertText(TCLOBJ_WID_INFO, -1, pDesc, TCLOBJ_STR_PARAGRAPH);
-   }
-}
-
-// ----------------------------------------------------------------------------
-// Display short and long info for the given PI block
-//
-void PiDescription_UpdateText( const PI_BLOCK * pPiBlock, bool keepView )
-{  
-   const AI_BLOCK *pAiBlock;
-   const uchar *pCfNetname;
-   uchar start_str[40], stop_str[20], cni_str[7];
-   uchar view_buf[20];
-   int len;
-   
-   if (keepView)
-   {  // remember the viewable fraction of the text
-      sprintf(comm, "lindex [.all.pi.info.text yview] 0\n");
-      eval_check(interp, comm);
-      strncpy(view_buf, Tcl_GetStringResult(interp), sizeof(view_buf));
-      view_buf[sizeof(view_buf) - 1] = 0;
-   }
-
-   sprintf(comm, ".all.pi.info.text delete 1.0 end\n");
-   eval_check(interp, comm);
-
-   if (pPiBlock != NULL)
-   {
-      pAiBlock = EpgDbGetAi(pUiDbContext);
-
-      if ((pAiBlock != NULL) && (pPiBlock->netwop_no < pAiBlock->netwopCount))
+      if (pBuf->off + len + 1 > pBuf->size)
       {
-         // top of the info window: programme title text
-         strcpy(comm, PI_GET_TITLE(pPiBlock));
-         strcat(comm, "\n");
-         PiDescription_InsertText(TCLOBJ_WID_INFO, -1, comm, TCLOBJ_STR_TITLE);
-
-         // now add a feature summary: start with theme list
-         PiDescription_AppendCompressedThemes(pPiBlock, comm, TCL_COMM_BUF_SIZE);
-
-         // append features list
-         strcat(comm, " (");
-         PiDescription_AppendFeatureList(pPiBlock, comm + strlen(comm));
-         // remove opening bracket if nothing follows
-         len = strlen(comm);
-         if ((comm[len - 2] == ' ') && (comm[len - 1] == '('))
-            strcpy(comm + len - 2, "\n");
-         else
-            strcpy(comm + len, ")\n");
-         // append the feature string to the text widget content
-         PiDescription_InsertText(TCLOBJ_WID_INFO, -1, comm, TCLOBJ_STR_FEATURES);
-
-         // print network name, start- & stop-time, short info
-         strftime(start_str, sizeof(start_str), " %a %d.%m., %H:%M", localtime(&pPiBlock->start_time));
-         strftime(stop_str, sizeof(stop_str), "%H:%M", localtime(&pPiBlock->stop_time));
-
-         sprintf(cni_str, "0x%04X", AI_GET_NETWOP_N(pAiBlock, pPiBlock->netwop_no)->cni);
-         pCfNetname = Tcl_GetVar2(interp, "cfnetnames", cni_str, TCL_GLOBAL_ONLY);
-         if (pCfNetname == NULL)
-            pCfNetname = AI_GET_NETWOP_NAME(pAiBlock, pPiBlock->netwop_no);
-
-         sprintf(comm, "%s, %s - %s: ", pCfNetname, start_str, stop_str);
-         PiDescription_InsertText(TCLOBJ_WID_INFO, -1, comm, TCLOBJ_STR_BOLD);
-
-         PiDescription_AppendShortAndLongInfoText(pPiBlock, PiDescription_AppendInfoTextCb, NULL, EpgDbContextIsMerged(pUiDbContext));
+         pNewbuf = xmalloc(pBuf->size + len + 2048);
+         if (pBuf->pStrBuf != NULL)
+         {
+            memcpy(pNewbuf, pBuf->pStrBuf, pBuf->size);
+            xfree(pBuf->pStrBuf);
+         }
+         pBuf->pStrBuf = pNewbuf;
+         pBuf->size  += len + 2048;
       }
-      else
-         debug1("PiDescription-UpdateDescr: no AI block or invalid netwop=%d", pPiBlock->netwop_no);
+
+      memcpy(pBuf->pStrBuf + pBuf->off, pStr, len + 1);
+      pBuf->off += len;
    }
-   else
-      fatal0("PiDescription-UpdateDescr: invalid NULL ptr param");
-
-   if (keepView)
-   {  // set the view back to its previous position
-      sprintf(comm, ".all.pi.info.text yview moveto %s\n", view_buf);
-      eval_check(interp, comm);
-   }
-}
-
-// ----------------------------------------------------------------------------
-// Free resources allocated by the listbox
-//
-void PiDescription_ClearText( void )
-{
-   sprintf(comm, ".all.pi.info.text delete 1.0 end\n");
-   eval_check(interp, comm);
-}
-
-// ----------------------------------------------------------------------------
-// Free resources allocated by the listbox
-//
-void PiDescription_Destroy( void )
-{
-   uint  idx;
-
-   for (idx=0; idx < TCLOBJ_COUNT; idx++)
-      Tcl_DecrRefCount(tcl_obj[idx]);
-   memset(tcl_obj, 0, sizeof(tcl_obj));
-}
-
-// ----------------------------------------------------------------------------
-// create the listbox and its commands
-// - this should be called only once during start-up
-//
-void PiDescription_Init( void )
-{
-   uint  idx;
-
-   memset(&tcl_obj, 0, sizeof(tcl_obj));
-   tcl_obj[TCLOBJ_WID_INFO]      = Tcl_NewStringObj(".all.pi.info.text", -1);
-   tcl_obj[TCLOBJ_STR_INSERT]    = Tcl_NewStringObj("insert", -1);
-   tcl_obj[TCLOBJ_STR_END]       = Tcl_NewStringObj("end", -1);
-   tcl_obj[TCLOBJ_STR_TITLE]     = Tcl_NewStringObj("title", -1);
-   tcl_obj[TCLOBJ_STR_FEATURES]  = Tcl_NewStringObj("features", -1);
-   tcl_obj[TCLOBJ_STR_BOLD]      = Tcl_NewStringObj("bold", -1);
-   tcl_obj[TCLOBJ_STR_PARAGRAPH] = Tcl_NewStringObj("paragraph", -1);
-
-   for (idx=0; idx < TCLOBJ_COUNT; idx++)
-      Tcl_IncrRefCount(tcl_obj[idx]);
 }
 

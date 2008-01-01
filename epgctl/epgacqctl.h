@@ -1,5 +1,5 @@
 /*
- *  Nextview acquisition control
+ *  Acquisition main control
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License Version 2 as
@@ -12,37 +12,27 @@
  *  GNU General Public License for more details.
  *
  *
- *  Description: see according C source file.
+ *  Description: see C source file.
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqctl.h,v 1.43 2004/03/11 22:22:20 tom Exp tom $
+ *  $Id: epgacqctl.h,v 1.45 2006/11/25 22:12:10 tom Exp tom $
  */
 
 #ifndef __EPGACQCTL_H
 #define __EPGACQCTL_H
 
-#include "epgdb/epgstream.h"
-
-extern EPGDB_CONTEXT * pAcqDbContext;
+#include "epgdb/epgstream.h"  // for statistic structs
+#include "epgdb/ttxgrab.h"
+#include "epgvbi/btdrv.h"
 
 // ---------------------------------------------------------------------------
 // describing the state of the acq
 //
 
-// internal state of the control module
-typedef enum
-{
-   ACQSTATE_OFF,            // acq is disabled
-   ACQSTATE_WAIT_BI,        // wait for BI block
-   ACQSTATE_WAIT_AI,        // wait for BI block
-   ACQSTATE_RUNNING         // acq is up & running
-} EPGACQ_STATE;
-
 // user-configured acquisition mode
 typedef enum
 {
-   ACQMODE_FORCED_PASSIVE,  // forced passive
    ACQMODE_PASSIVE,         // do not touch /dev/video
    ACQMODE_NETWORK,         // connect to remote server
    ACQMODE_EXTERNAL,        // set input source, then passive
@@ -55,7 +45,6 @@ typedef enum
    ACQMODE_COUNT
 } EPGACQ_MODE;
 
-#define ACQMODE_IS_PASSIVE(X) (((X) == ACQMODE_PASSIVE) || ((X) == ACQMODE_NETWORK))
 #define ACQMODE_IS_CYCLIC(X)  ((X) >= ACQMODE_FOLLOW_MERGED)
 #define ACQMODE_IS_FOLLOW(X)  (((X) == ACQMODE_FOLLOW_UI) || ((X) == ACQMODE_FOLLOW_MERGED) || ((X) == ACQMODE_NETWORK))
 
@@ -79,32 +68,10 @@ typedef enum
    ACQPASSIVE_ACCESS_DEVICE     // failed to tune channel (access /dev/video)
 } EPGACQ_PASSIVE;
 
-
-#define EPGACQCTL_SLICER_INTV    20   // check slicer after X secs
-#define EPGACQCTL_DUMP_INTV      60   // interval between db dumps
-#define EPGACQCTL_MODIF_INTV  (2*60)  // max. interval without reception
-
-#define EPGACQCTL_STREAM1_UPD_INTV    (1*60*60)
-#define EPGACQCTL_STREAM2_UPD_INTV   (14*60*60)
-
-#define MIN_CYCLE_QUOTE     0.33
-#define MIN_CYCLE_VARIANCE  0.25
-#define MAX_CYCLE_VAR_DIFF  0.01
-
-#define MAX_CYCLE_ACQ_REP_COUNT   1.1
-
-#define NOWNEXT_TIMEOUT_AI_COUNT  5
-#define NOWNEXT_TIMEOUT          (5*60)
-#define STREAM1_TIMEOUT         (30*60)
-#define STREAM2_TIMEOUT         (30*60)
-
 // ---------------------------------------------------------------------------
 // Structure to describe the state of acq to the user
 
-// number of seconds without AI after which acq is considered "stalled"
-#define ACQ_DESCR_STALLED_TIMEOUT  30
-
-#define ACQ_COUNT_TO_PERCENT(C,T) (((T)>0) ? ((int)((double)(C) * 100.0 / (T))) : 100)
+#define ACQ_COUNT_TO_PERCENT(C,T) (((T)>0) ? ((int)(((double)(C) * 100.0 + (T)/2) / (T))) : 100)
 
 typedef enum
 {
@@ -112,24 +79,31 @@ typedef enum
    ACQDESCR_DISABLED,
    ACQDESCR_SCAN,
    ACQDESCR_STARTING,
+   ACQDESCR_TTX_PG_SEQ_SCAN,
    ACQDESCR_NO_RECEPTION,
    ACQDESCR_DEC_ERRORS,
    ACQDESCR_STALLED,
+   ACQDESCR_IDLE,
    ACQDESCR_RUNNING,
 } ACQDESCR_STATE;
 
 typedef struct
 {
-   ACQDESCR_STATE state;
+   ACQDESCR_STATE nxtvState;
+   ACQDESCR_STATE ttxGrabState;
    EPGACQ_MODE    mode;
    EPGACQ_PHASE   cyclePhase;
    EPGACQ_PASSIVE passiveReason;
-   uint16_t       cniCount;
-   uint32_t       dbCni;
+   uint32_t       nxtvDbCni;
    uint32_t       cycleCni;
+   uint16_t       cniCount;
+   uint16_t       ttxSrcCount;
+   int16_t        ttxGrabIdx;
+   uint16_t       ttxGrabDone;
+   bool           isTtxSrc;
    bool           isNetAcq;
    bool           isLocalServer;
-
+   bool           reserved_1;
 } EPGACQ_DESCR;
 
 // ---------------------------------------------------------------------------
@@ -159,13 +133,6 @@ typedef struct
 
 typedef struct
 {
-   uint32_t  ttxPkgCount;
-   uint32_t  epgPkgCount;
-   uint32_t  epgPagCount;
-} EPGDB_ACQ_TTX_STATS;
-
-typedef struct
-{
    time_t    lastAiTime;
    time_t    minAiDistance;
    time_t    maxAiDistance;
@@ -175,17 +142,16 @@ typedef struct
 
 typedef struct
 {
+   uint8_t   cniType;
    uint32_t  cni;
    uint32_t  pil;
-} EPGDB_ACQ_VPS_PDC;
+} EPG_ACQ_VPS_PDC;
 
 typedef struct
 {
    time_t              acqStartTime;
-   time_t              lastStatsUpdate;
 
    EPGDB_ACQ_AI_STATS  ai;
-   EPGDB_ACQ_TTX_STATS ttx;
    EPG_STREAM_STATS    stream;
 
    EPGDB_HIST          hist[STATS_HIST_WIDTH];
@@ -194,15 +160,33 @@ typedef struct
 
    EPGDB_BLOCK_COUNT   count[2];
    EPGDB_VAR_HIST      varianceHist[2];
-   uint32_t            nowNextMaxAcqRepCount;
-
-   EPGDB_ACQ_VPS_PDC   vpsPdc;
+   uint32_t            nowMaxAcqRepCount;
+   uint32_t            nowMaxAcqNetCount;
    uint8_t             resvd_1[4];
+} EPG_NXTV_ACQ_STATS;
 
-} EPGDB_STATS;
+#define EPG_TTX_STATS_NAMLEN 32
+
+typedef struct
+{
+   time_t              acqStartTime;
+   uint8_t             srcName[EPG_TTX_STATS_NAMLEN];
+   int32_t             srcIdx;
+   TTX_GRAB_STATS      pkgStats;
+} EPG_TTX_GRAB_STATS;
+
+typedef struct
+{
+   time_t              lastStatsUpdate;
+   uint8_t             nxtvMaster;
+   TTX_DEC_STATS       ttx_dec;
+   EPG_TTX_GRAB_STATS  ttx_grab;
+   EPG_NXTV_ACQ_STATS  nxtv;
+} EPG_ACQ_STATS;
 
 typedef enum
 {
+   VPSPDC_REQ_POLL,
    VPSPDC_REQ_TVAPP,
    VPSPDC_REQ_STATSWIN,
    VPSPDC_REQ_DAEMON,
@@ -212,32 +196,38 @@ typedef enum
 // ---------------------------------------------------------------------------
 // Interface to main control module and user interface
 //
-void EpgAcqCtl_InitDaemon( void );
+void EpgAcqCtl_Init( void );
+void EpgAcqCtl_Destroy( bool isEmergency );
 bool EpgAcqCtl_Start( void );
 void EpgAcqCtl_Stop( void );
 const char * EpgAcqCtl_GetLastError( void );
 bool EpgAcqCtl_SelectMode( EPGACQ_MODE newAcqMode, EPGACQ_PHASE maxPhase,
-                           uint cniCount, const uint * pCniTab );
+                           uint cniCount, const uint * pCniTab,
+                           uint ttxSrcCount, const char * pTtxNames, const uint * pTtxFreqs );
 bool EpgAcqCtl_SetInputSource( uint inputIdx, uint slicerType );
 bool EpgAcqCtl_CheckDeviceAccess( void );
 void EpgAcqCtl_DescribeAcqState( EPGACQ_DESCR * pAcqState );
 void EpgAcqCtl_Suspend( bool suspend );
+bool EpgAcqCtl_IsActive( void );
 
-// interface to acq server and client
-void EpgAcqCtl_AddNetVpsPdc( const EPGDB_ACQ_VPS_PDC * pVpsPdcUpd );
-void EpgAcqCtl_UpdateNetProvList( uint cniCount, const uint * pCniList );
+// interface to acq server
+void EpgAcqCtl_UpdateProvList( uint cniCount, const uint * pCniTab );
 
-// has to be invoked about once a second by a timer when acq is running
-void EpgAcqCtl_Idle( void );
+// interface to sub-modules
+bool EpgAcqCtl_TuneProvider( bool isTtx, uint freq, uint cni, EPGACQ_PASSIVE * pMode );
+
+// timer events used during acquisition
 bool EpgAcqCtl_ProcessPackets( void );
 void EpgAcqCtl_ProcessBlocks( void );
 bool EpgAcqCtl_ProcessVps( void );
 
-// interface to statistics windows
-const EPGDB_BLOCK_COUNT * EpgAcqCtl_GetDbStats( void );
-const EPGDB_ACQ_VPS_PDC * EpgAcqCtl_GetVpsPdc( VPSPDC_REQ_ID clientId );
-const EPGDB_STATS * EpgAcqCtl_GetAcqStats( void );
+// interface for status, statistics and timescales display
+EPGDB_CONTEXT * EpgAcqCtl_GetDbContext( bool lock );
+uint EpgAcqCtl_GetProvCni( void );
+bool EpgAcqCtl_GetDbStats( EPGDB_BLOCK_COUNT * pDbStats, uint * pNowMaxAcqNetCount );
+bool EpgAcqCtl_GetAcqStats( EPG_ACQ_STATS * pAcqStats );
 void EpgAcqCtl_EnableAcqStats( bool enable );
+bool EpgAcqCtl_GetVpsPdc( EPG_ACQ_VPS_PDC * pVpsPdc, VPSPDC_REQ_ID clientId, bool force );
 void EpgAcqCtl_ResetVpsPdc( void );
 void EpgAcqCtl_EnableTimescales( bool enable, bool allProviders );
 #ifdef __EPGTSCQUEUE_H

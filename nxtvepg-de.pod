@@ -1,4 +1,4 @@
-# ---------------------------------------------------------------------------
+ ---------------------------------------------------------------------------
 #
 #  Nextview decoder online manual - German version
 #
@@ -20,12 +20,12 @@
 #  Author: Tom Zoerner (Original)
 #          German translation by Kurt Lettmaier & Olaf Nöhring
 #
-# $Id: nxtvepg-de.pod,v 1.9.1.1 2006/12/21 21:55:13 tom Exp $
+# $Id: nxtvepg-de.pod,v 1.14 2008/01/01 01:13:28 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME
 
-nxtvepg - Dekodierung, Anzeige und Analyse des elektronischen Programmführers NexTView
+nxtvepg - Empfang, Anzeige und Analyse von NexTView EPG
 
 =head1 SYNOPSIS
 
@@ -33,9 +33,9 @@ B<nxtvepg> S<[ options ]> S<[ database ]>
 
 =head1 DESCRIPTION
 
-B<nxtvepg> ist eine X11- und Windows-Anwendung zum Dekodieren, Browsen und Analysieren von TV-Programmzeitschriften, die über analoge TV-Kanäle - wie in ETS 300 707 definiert - übertragen werden: "Protocol for a TV Guide using electronic data transmission" des European Telecommunications Standards Institute.
+B<nxtvepg> ist eine X11- und Windows-Anwendung zum Empfang, Anzeige und Analyse von TV-Programmzeitschriften, die über analoge TV-Kanäle gemäß Standard ETS 300 707 ("Protocol for a TV Guide using electronic data transmission") übertragen werden. Dieser offene Standard wurde vom European Telecommunications Standards Institute in den Jahren 1995-1997 entwickelt und ist bei http://www.etsi.org/ frei verfügbar.
 
-Der NexTView-Standard wurde für den Gebrauch in Fernsehgeräten entwickelt, jedoch können die Daten auch in einem PC empfangen und verwendet werden. Voraussetzung ist lediglich eine Teletext-fähige TV-Tuner-Karte und natürlich ein NexTView-Anbieter in Ihrem Land.
+NexTView EPG wurde für den Gebrauch in Fernsehgeräten entwickelt, jedoch können die Daten auch in einem PC empfangen und verwendet werden. Voraussetzung ist lediglich eine Teletext-fähige TV-Tuner-Karte und natürlich der Empfang eines TV-Senders auf dem das EPG ausgestrahlt wird.
 
 B<nxtvepg> ermöglicht den Empfang kostenloser TV-Programmlisten für alle bzw. die meisten überregionalen Fernsehsender in Deutschland, Österreich, Frankreich, Belgien und der Schweiz. Derzeit wird NexTView EPG von folgenden Sendern übertragen (Beachten Sie, dass jeder dieser Anbieter nicht nur (s)ein Programm sondern mehrere abdeckt):
 
@@ -64,6 +64,8 @@ In der Türkei: TRT (Abdeckung: ca. 17 Sender)
 =back
 
 Aktuelle Informationen zu den Anbietern finden Sie auf der nxtvepg-Homepage im Internet (siehe "About" im Help-Menü). Falls Sie keine der oben genannten Sender empfangen, können Sie nur den Demo-Modus verwenden - wie bei der Befehlszeilen-Option B<-demo> beschrieben.
+
+Seit Version 2.8.0 erlaubt nxtvepg auch EPG Daten aus dem Teletext auszulesen oder von externen Quellen wie z.B. DVB-EPG zu importieren und diese mit dem Nextview EPG zu vereinigen. Bitte beachten Sie beim Import (genauso wie beim Datenexport) stets die geltenden Copyright-Bestimmungen. Insbesondere ist es in Deutschland nach der aktuellen Gesetzeslage selbst zu privaten Zwecken nicht erlaubt, ohne ausdrückliche Genehmigung Programmdaten von Internet (Web-) Seiten von Online-Programmzeitschriften maschinell auszulesen und weiterzuverarbeiten.
 
 =head1 OPTIONS
 
@@ -102,6 +104,12 @@ Wenn nxtvepg im "Daemon"-Modus benutzt wird, muss der Browser so konfiguriert we
 =item B<-card> I<index>
 
 Gibt an welche TV-Hardware benutzt werden soll, wenn mehr als eine Karte verfügbar ist. Vorgabe: Index 0. Bei Linux wird der Index an den Gerätenamen angehängt, z.B. F</dev/vbi2> und F</dev/video2> (siehe auch L<"FILES">). Auf Windows bedeutet der Index "n" die n-te gefundene Karte, die beim Scan des PCI-Busses nach Karten mit unterstütztem Capture-Chip (z.B. Brooktree Bt878, Bt878A, Bt848, Bt849, Philips SAA7134, Conexant 23881) gefunden wurde. Wird mehr als eine Karte mit dem gleichen Chip gefunden, ist die Reihenfolge dieser undefiniert aber konstant. (Die Reihenfolge wird vom Treiber, nicht von nxtvepg festgelegt.)
+
+=item B<-dvbpid> I<number>
+
+Nur UNIX, und auch dort nur verfügbar wenn nxtvepg bei der Compilierung mit Benutzung der I<ZVBI library> (C<http://zapping.sf.net/>) konfiguriert wurde (d.h. in der Datei I<Makefile>)
+
+Diese Option gibt an dass ein DVB device zur Akquisition verwendet werden soll. Der Kanal muß jedoch mittels externer Applikationen eingestellt werden. Ebenso muß der PID Parameter anderweitig ermittelt werden. Die PID bezeichnet den Datenstrom in dem Teletext des gewünschten Senders übertragen wird. Beachten Sie dass DVB support rein experimentell ist und nicht offiziell unterstützt wird. Des weiteren funktionieren der EPG scan und aktive Akqusitionsmodi nicht für DVB devices da nxtvepg nicht in der Lage ist DVB TV-Sender umzuschalten.
 
 =item B<-provider> I<CNI>
 
@@ -152,6 +160,8 @@ Mit diesem Argument exportiert nxtvepg nur die Datenbank und beendigt sich danac
 
 Verwenden Sie das Schlüsselwort I<xml> als Modus, um die Datenbank in das XML-Format zu exportieren. Benötigen Sie eine andere als die zuletzt im "Export"-Dialog des Control-Menüs eingestellte XMLTV-Version, verwenden Sie I<xml5>, I<xml5ltz> oder I<xml6> um eine Version direkt auszuwählen. Weitere Details siehe L<"CONTROL: Export as XMLTV">.
 
+Verwenden Sie das Schlüsselwort I<html> als Modus, um Programmdaten in ein HTML Dokument zu exportieren.  Es werden die zuletzt im HTML-Export Dialog eingestellten Optionen verwendet (siehe L<"CONTROL: Export as HTML">.)  Zusätzlich können Sie die Zahl der exportierten Programme limitieren indem Sie das Limit durch Doppelpunkt getrennt anhängen (z.B. C<-dump html:50>.)  Das Format der Programmliste ist nicht konfigurierbar.
+
 Um die Daten in tabellarischer Form in eine Textdatei zu exportieren (z.B. für den Import in eine SQL-Datenbank) sind die folgenden Schlüsselwörter vorhanden: I<pi>, um die gesamte TV-Sendungsbeschreibungen auszugeben; I<ai>, um die Kanal- bzw. Sendertabelle auszugeben; I<pdc>, um die Themenkategorien-Tabelle auszugeben. Weitere Details siehe L<"CONTROL: Export as text">.
 
 Für Analysezwecke gibt es außerdem noch den Modus I<raw> der den gesamten Inhalt der Datenbank in einem Format ausgibt das sich eng an die internen Datenstrukturen anlehnt.  Das Format kann sich jederzeit ändern, daher sollte dieser Modus nicht zur Weiterverarbeitung der Daten verwendet werden. Für mehr Details siehe L<"CONTROL: Dump raw database">.
@@ -199,7 +209,7 @@ Gibt eine kurze Übersicht aller verfügbaren Befehlszeilen-Optionen aus.
 
 =back
 
-Am Ende der Optionen können Sie einen Dateinamen hinzufügen. Dies entspricht der Angabe von B<-dbdir> und B<-provider>. Der Provider-CNI wird aus dem Dateinamen ermittelt. Wenn der Dateiname nicht das in L<"FILES"> definierte Format besitzt, wird er als Name einer Demo-Datenbank angenommen und wie die Option B<-demo> geladen. Das Argument Datenbank-Dateiname überschreibt jede zuvor gesetzte Option.
+Am Ende der Optionen können Sie einen Dateinamen hinzufügen. Im Fall von Nextview EPG Datenbankdateien entspricht das Angabe von B<-dbdir> und B<-provider>: Die Provider-Kennung (CNI) wird dann aus dem Dateinamen ermittelt. (Wenn der Dateiname nicht das in L<"FILES"> definierte Format besitzt, wird er als Name einer Demo-Datenbank angenommen und wie die Option B<-demo> geladen. Das Argument Datenbank-Dateiname überschreibt jede zuvor gesetzte Option.) Alternativ können Sie hier den Namen einer Datei mit XMLTV Daten angeben.
 
 Dies ist besonders nützlich für Nutzer grafischer Dateimanager (wie dem Windows Explorer), da man so eine Datenbankdatei einfach auf eine ausführbare Datei ziehen und fallenlassen kann (Drag & Drop). Auf Windows-Systemen wird das Arbeitsverzeichnis auf den Ordner gesetzt, der die ausführbare Datei enthält. (Da der Explorer sonst offenbar den Desktop-Ordner verwendet, so dass keine der DLLs und Treiber gefunden werden). Dies bedeutet, dass die Datei nxtvepg.ini im selben Verzeichnis erwartet wird.
 
@@ -215,7 +225,17 @@ Dieses Handbuch beschreibt alle Eigenschaften von nxtvepg im Detail. Sie müssen 
 
 Windows-Anwender müssen zuerst den Treiber für ihre TV-Karte im Dialog "TV card input" vom Configure-Menü aus konfigurieren (weitere Informationen siehe auch L<"CONFIGURATION: TV card input">). UNIX-Anwender können diesen Abschnitt überspringen.
 
-Mit Betätigen des Buttons "I<Configure card>" in der Mitte des Dialogfeldes wird die Kartenkonfiguration in einer weiteren Dialogbox gestartet. Falls keine unterstützten TV-Capture-Chips auf Ihrem System gefunden wurden, ist der Button deaktiviert. Eine eventuell erscheinende Meldung "I<PCI scan failed>" bedeutet, dass der TV-Kartentreiber nicht geladen werden konnte. In diesem Fall sollten Sie es nach dem Schließen aller anderen Video-Anwendungen nochmals versuchen oder ausführliche Beschreibungen von Treiber-Fehlermeldungen in der README-Datei nachschlagen.
+Zuerst müssen Sie entscheiden welchen Treibertyp Sie verwenden möchten: Für TV-Karten mit Brooktree Bt8x8 oder Philips SAA713x Capture-Chips ist der interne I<dsdrv> Treiber zu empfehlen. Für TV-Karten mit Conexant CX2388x Capture-Chips ist hingegen ein WDM-Treiber zu empfehlen. Generell ist der interne Treiber besser für nxtvepg geeignet da er für Teletext-Datenakquisition optimiert wurde. Die von den Herstellern mitgelieferten WDM Treiber hingegen sind üblicherweise für Video optimiert und unterstützen Teletext oft nur schlecht oder gar nicht.  Allerdings unterstüzt der "dsdrv" Treiber nicht alle TV-Karten; zudem treten speziell bei Karten mit Conexant Chip manchmal Konflikte auf wenn der WDM Treiber auch installiert ist (siehe auch Beschreibung zur Option "Stop conflicting WDM drivers...")
+
+nxtvepg erlaubt die Verwendung von WDM Treibern nur mittels einer "Interface Library" (VBIAcqWDMDrv.dll), die Sie separat von der nxtvepg homepage herunterladen müssen. Der Grund dafür ist dass WDM Unterstützung in nxtvepg noch in einer beta-Testphase ist. Die DLL muß ins selbe Verzeichnis wie nxtvepg.exe gelegt werden.  Solange Sie die Library nicht installiert haben, sehen Sie eine Fehlermeldung "Failed to load WDM interface library" beim Versuch auf eine WDM Quelle umzuschalten.
+
+Bei Verwendung des WDM-Treibers können Sie das folgende Kapitel überspringen.
+
+Falls Sie gar keinen funktionierenden Treiber finden, können Sie als letzte Option nxtvepg parallel zu K!TV laufen lassen. In dem Fall übernimmt die TV-Applikation die Teletext-Akquisition ohne so dass nxtvepg gar nicht auf die TV-Karte zugreifen muß.
+
+=head2 Dsdrv driver configuration on M$ Windows
+
+Um den I<dsdrv> Treiber zu konfigurieren öffnen Sie den "TV card input" dialog und betätigen Sie den Button "I<Configure card>" in der Mitte des Dialogfeldes.  Der Button ist deaktiviert falls keine unterstützten TV-Capture-Chips auf Ihrem System gefunden wurden. (In dem Fall werden Sie außerdem eine Meldung I<"PCI scan failed"> sehen; eine Erklärung dieser und weiterer Fehlermeldungen als auch eine Liste unterstützter TV-Karten findet sich in der README Datei.)  In dem Fall bleibt Ihnen nur die Möglichkeit den WDM Treiber zu verwenden.
 
 Drücken Sie zunächst den Button I<Autodetect> im rechten Teil des Dialogfensters. Falls vorhanden, wird der nichtflüchtige Speicher (EEPROM) Ihrer Karte gelesen, um den Hersteller und das Modell zu bestimmen. Im Optimalfall können so alle benötigten Parameter automatisch bestimmt werden. Klappt dies, werden alle benötigten Kartenparameter gesetzt und Sie brauchen nichts weiter zu tun, als den Konfigurations-Dialog mit OK zu schließen. Wenn Sie wollen, können Sie jedoch automatisch ermittelte Werte (z.B. Tuner-Typ) mit den unten beschriebenen Optionen überschreiben.
 
@@ -297,7 +317,7 @@ Benutzen Sie bei Verwendung des Keyboards die "Pfeil auf/ab"-Tasten, um einen Ti
 
 Sie können die Programmwahl auf verschiedenste Art einschränken, um dadurch leichter zu finden was Sie interessiert. Beispielsweise können Sie die Liste auf Sendungen bestimmter Sender beschränken; oder Sie beschränken die Liste nur auf Filme. Dieser Prozess wird I<filtering> genannt und weiter unten detailliert beschrieben, siehe L<"FILTERING">. Für die geläufigsten Filteroptionen gibt es eine Liste mit I<Shortcuts> auf der linken Seite des Hauptfensters. Zu bemerken ist, dass diese Liste frei konfigurierbar ist, siehe L<"FILTER SHORTCUTS">.
 
-Seit Version 2.5.0 bietet nxtvepg zwei Layouts für den TV-Zeitplan an: Standardmäßig sind die Programme aller Sender nach ihrer Startzeit in einer einzigen Liste kombiniert, d.h. in einer großen Tabelle. Alternativ können Programme spaltenweise getrennt angezeigt werden, sodass jeder Sender seine eigene Spalte erhält. Dieses Format ähnelt dem der meisten Programmzeitschriften. In diesem Layout kann sowohl vertikal nach Anfangszeit als auch horizontal nach Sendern gescrollt werden.
+Seit Version 2.5.0 bietet nxtvepg zwei Layouts für die TV-Programmübersicht an: Standardmäßig sind die Programme aller Sender nach Startzeit sortiert in eine Liste kombiniert. Alternativ können Programme spaltenweise nach Sendern getrennt angezeigt werden, sodass jeder TV-Sender seine eigene Spalte erhält. Dieses Format ähnelt dem der meisten Programmzeitschriften. In diesem Layout kann sowohl vertikal nach Anfangszeit als auch horizontal nach Sendern gescrollt werden.
 
 Wenn Sie die Höhe des Programmfensters verändern, wird das Infotext-Fenster unten entsprechend angepasst. Sie können die Größenverhältnisse zwischen Programmliste und Infotext mit dem dazwischen liegenden Button mit den zwei kleinen auf/ab-Pfeilen anpassen, indem Sie diese mit gedrückt gehaltener Maustaste verschieben.
 
@@ -373,7 +393,7 @@ Beachten Sie außerdem, dass die zyklischen Modi von den Übermittlungszyklen der 
 
 =head1 STATISTICS
 
-Es gibt zurzeit drei Möglichkeiten, Informationen zum Status der Datenbank und des Akquisitions-Prozesses zu erhalten: Der Erste und prägnanteste ist die Statuszeile am unteren Rand des Hauptfensters (nur wenn diese auch aktiviert ist, siehe L<"CONFIGURATION">). Der Zweite besteht in den Zeitplan-Fenstern ("timescale"), welche die mit TV-Programmdaten belegten Zeitspannen jedes TV-Senders visualisieren. Der Dritte besteht aus den Fenstern mit den Datenbankstatistiken, welche technische Details über die Datenbank liefern (wie z.B. welcher Prozentsatz an Einträgen bereits geladen ist usw.) jeweils in Textform und als Grafik.
+Es gibt zurzeit drei Möglichkeiten, Informationen zum Status der Datenbank und des Akquisitions-Prozesses zu erhalten: Der Erste und prägnanteste ist die Statuszeile am unteren Rand des Hauptfensters (nur wenn diese auch aktiviert ist, siehe L<"CONFIGURATION">). Der Zweite besteht in den Zeitskalen-Fenstern ("timescale"), welche die mit TV-Programmdaten belegten Zeitspannen jedes TV-Senders visualisieren. Der Dritte besteht aus den Fenstern mit den Datenbankstatistiken, welche technische Details über die Datenbank liefern (wie z.B. welcher Prozentsatz an Einträgen bereits geladen ist usw.) jeweils in Textform und als Grafik.
 
 Die beiden letzteren Fenster stehen jeweils getrennt für die Browser- und die Akquisitionsdatenbanken zur Verfügung. (Standardmäßig sind beides dieselben Datenbanken, jedoch können Sie eine Hintergrundakquisition für mehrere Datenbanken einstellen, siehe L<"ACQUISITION MODES">). Alle Statistiktypen werden während der laufenden Akquisition regelmäßig aktualisiert. Während einer bestehenden Verbindung zu einem Akquisitions-Daemon, verweisen alle Statistikausgaben auf die im Daemon laufende Akquisition (siehe L<"CONTROL: Connect to acq. daemon">)
 
@@ -395,11 +415,11 @@ Zusätzlich kann ein Hinweis über den aktuellen Modus der Akquisition erscheinen,
 
 =head2 Timescale popup windows
 
-Sie können den Prozess der Akquisition mittels des Zeitplanfensters beobachten, welches über das Control-Menü geöffnet werden kann. Es gibt je ein Fenster für die Browser- und für die Akquisitionsdatenbank. Das Akquisitionsfenster wird bei jedem empfangenen neuen EPG-Block aktualisiert.
+Das Zeitskalenfenster spiegelt für jeden TV-Sender wieder, welche Zeitspannen mit TV-Programminformationen in der Datenbank belegt sind. Arbeitet die Akquisition an der Datenbank, können Sie die Fortschritt bzw. den Füllstand der TV-Programmdatenbank beobachten.
 
-Die Zeitplanfenster besitzen eine Skala für jeden Sender, der vom gewählten Provider abgedeckt wird. Das linke Ende der Skalen verweist auf die Startzeit der ältesten in der Datenbank vorhandenen TV-Sendung. Abhängig davon wie lange das letzte Update der Datenbank zurückliegt und abhängig von der eingestellten Verzögerung bis zur automatischen Löschung abgelaufener Programme (siehe L<"FILTERING: Expired Programmes Display">), können manche oder alle Sendungen in der Vergangenheit liegen. Die exakten Datierungen werden in der Datumsskala am oberen Rand des Fensters ausgegeben, wobei die aktuelle Zeit zusätzlich durch einen mit "now" gekennzeichneten kleinen Pfeil markiert ist.
+Die Fenster besitzen eine Skala für jeden TV-Sender, der vom gewählten EPG-Anbieter abgedeckt wird. Das linke Ende der Skalen verweist auf die Startzeit der ältesten in der Datenbank vorhandenen TV-Sendung. Abhängig davon wie lange das letzte Update der Datenbank zurückliegt und abhängig von der eingestellten Verzögerung bis zur automatischen Löschung abgelaufener Programme (siehe L<"FILTERING: Expired Programmes Display">), können die Sendungen teilweise oder sogar ganz in der Vergangenheit liegen. Die exakten Datierungen werden in der Datumsskala am oberen Rand des Fensters ausgegeben, wobei die aktuelle Zeit zusätzlich durch einen mit "now" gekennzeichneten kleinen Pfeil markiert ist.
 
-Bereiche die von Sendungen des jeweiligen Senders in der Datenbank belegt werden, sind durch rote oder blaue Farbe markiert, nicht belegte Bereiche sind schwarz belassen. Die unterschiedlichen Farben spiegeln den Sub-Datenstrom (engl. "stream") wieder, in dem die Daten empfangen wurden, oder weisen auf Inkonsistenzen hin. Sub-Datenströme sind direkt mit den unter L<"ACQUISITION MODES"> erwähnten Zyklusphasen identisch; abgesehen davon ist die Unterscheidung während des normalen Betriebs nicht relevant.
+Bereiche die von Sendungen des jeweiligen Senders in der Datenbank belegt werden, sind durch rote oder blaue Farbe markiert, nicht belegte Bereiche sind schwarz belassen. Die unterschiedlichen Farben spiegeln den Sub-Datenstrom (engl. "stream") wieder, in dem die Daten empfangen wurden, oder weisen auf Inkonsistenzen hin. Sub-Datenströme sind mit den unter L<"ACQUISITION MODES"> erwähnten Zyklusphasen identisch; abgesehen davon ist die Unterscheidung während des normalen Betriebs nicht relevant.
 
 =over 4
 
@@ -547,7 +567,7 @@ Die statistische Varianz des Block-Sendebereichs über alle Sender hinweg. Dieser
 
 =back
 
-Das Diagramm links zeigt den Verlauf der prozentualen Füllung für Stream 1 und Stream 2; die Bedeutung der Farben ist dieselbe wie in den Zeitplan-Fenstern.
+Das Diagramm links zeigt den Verlauf der prozentualen Füllung für Stream 1 und Stream 2; die Bedeutung der Farben ist dieselbe wie in den Zeitskalen-Fenstern.
 
 =head1 MERGED DATABASES
 
@@ -757,9 +777,9 @@ B<Tipp:> Noch schneller können Sie einen einzelnen Shortcut ändern indem Sie das
 
 =head1 COMPOSITE ATTRIBUTES
 
-Standardmäßig zeigt die Programmliste für jede Sendung eine Auswahl an elementaren Attributen wie Datum, Startzeit, Titel, TV-Sender. Indem Sie die Composite-Attribute verwenden, können Sie den TV-Zeitplan Ihren persönlichen Vorlieben entsprechend anpassen. Beispielsweise könnten Sie (1) das Anzeigeformat vordefinierter Attribute verändern (z.B. Farben zur Hervorhebung benutzen), (2) neue Attribute hinzufügen, beispielsweise für Bilder als Kennzeichnung bevorzugter Sendungen, und/oder (3) die Anzeige durch die Kombination verschiedener Attribute in ein einziges verdichten.
+Standardmäßig zeigt die Programmliste für jede Sendung eine Auswahl an elementaren Attributen wie Datum, Startzeit, Titel, TV-Sender. Indem Sie die Composite-Attribute verwenden, können Sie die TV-Programmtabelle Ihren persönlichen Vorlieben entsprechend anpassen. Beispielsweise könnten Sie (1) das Anzeigeformat vordefinierter Attribute verändern (z.B. Farben zur Hervorhebung benutzen), (2) neue Attribute hinzufügen, beispielsweise für Bilder als Kennzeichnung bevorzugter Sendungen, und/oder (3) die Anzeige durch die Kombination verschiedener Attribute in ein einziges verdichten.
 
-Composite-Attribute ersetzen einzelne Attribute in der Anzeige (z.B. nur die Spalte mit den Themenkategorien). Neu erstellte Composite-Attribute werden an die Liste der vordefinierten Attribute angehängt. Sie können dann Ihre Sendungsliste als eine Mischung aus vordefinierten und Composite-Attributen konfigurieren (siehe L<"CONFIGURATION: Select attributes">).
+Zusammengesetzte Attribute ("composite attribute") ersetzen einzelne Attribute in der Anzeige (z.B. nur die Spalte mit den Themenkategorien). Neu erstellte Composite-Attribute werden an die Liste der vordefinierten Attribute angehängt. Sie können dann Ihre Sendungsliste als eine Mischung aus vordefinierten und Composite-Attributen konfigurieren (siehe L<"CONFIGURATION: Select attributes">).
 
 Composite-Attribute werden über den Dialog "I<Attribute composition>" im I<Configure>-Menü erstellt und bearbeitet (siehe L<"CONFIGURATION: Attribute composition">).
 
@@ -947,7 +967,7 @@ B<Tipp:> Die Dateien können auch direkt über die Befehlszeile mittels der Schalt
 
 B<Tipp:> Sie können die Menge der exportierten Daten einschränken indem Sie eine zusammengeführte Datenbank konfigurieren. Dies ist auch für einen einzelnen Provider möglich. Auf diese Weise können Sie bestimmte Sender oder Attribute ausschließen, z.B. um Themen-Kategorien von der Ausgabe auszuschließen (siehe Untermenü I<Configure> im Dialog der Merge-Konfiguration).
 
-Einige TV-Anwendungen sind dafür bekannt, XMLTV-Timestamps nicht korrekt auszuwerten. Um diese Probleme zu umgehen gibt es eine Option, die erlaubt, Datumsangaben und Uhrzeiten in lokaler Zeit anstatt UTC (auch bekannt als I<Greenwhich Mean Time> oder GMT) zu exportieren. Erscheinen alle Programmdaten um eine oder zwei Stunden verschoben im Zeitplan Ihrer TV-Anwendung, versuchen Sie es mit dieser Option.
+Einige TV-Anwendungen sind dafür bekannt, XMLTV-Timestamps nicht korrekt auszuwerten. Um diese Probleme zu umgehen gibt es eine Option, die erlaubt, Datumsangaben und Uhrzeiten in lokaler Zeit anstatt UTC (auch bekannt als I<Greenwhich Mean Time> oder GMT) zu exportieren. Erscheinen alle Programmdaten um eine oder zwei Stunden verschoben in Ihrer TV-Anwendung, versuchen Sie es mit dieser Option.
 
 B<Tipp:> Die Datenbank kann auch direkt über die Befehlszeile mittels des Schalters B<-dump xml> exportiert werden. (Siehe auch L<"OPTIONS">)
 
@@ -977,7 +997,7 @@ Die folgenden vier Kommandos öffnen Fenster mit Statistiken zu den Programmdaten
 
 =item B<View timescales>
 
-Blendet das Zeitplanfenster für die Browserdatenbank ein und aus. Das Fenster spiegelt für jeden in der gewählten Datenbank eingebundenen Sender wieder, welche Zeitspannen mit Programminformationen belegt sind. Arbeitet die Akquisition an der Datenbank, können Sie beobachten, wie die Skalierungen mehr und mehr belegt werden. Siehe auch L<"STATISTICS: Status line">.
+Blendet das Zeitskalenfenster für die Browserdatenbank ein und aus. Das Fenster spiegelt für jeden in der gewählten Datenbank eingebundenen Sender wieder, welche Zeitspannen mit Programminformationen belegt sind. Arbeitet die Akquisition an der Datenbank, können Sie fortlaufend beobachten, wie sich die Datenbank füllt. Siehe auch L<"STATISTICS: Status line">.
 
 =item B<View statistics>
 
@@ -985,7 +1005,7 @@ Blendet das Statistikfenster für die Browser-Datenbank ein oder aus (d.h. für de
 
 =item B<View acq timescales>
 
-Blendet das Zeitplanfenster für die aktuell von der Akquisition befüllte Datenbank ein oder aus.  Dieser Eintrag ist nur verfügbar, wenn die Akquisition auf einer anderen Datenbank arbeitet als der, die im Browsers verwendet wird (z.B. im Falle der Akquisitionsmodi I<manual> oder I<cyclic>, siehe L<"DATA ACQUISITION">).
+Blendet das Zeitskalenfenster für die aktuell von der Akquisition befüllte Datenbank ein oder aus.  Dieser Eintrag ist nur verfügbar, wenn die Akquisition auf einer anderen Datenbank arbeitet als der, die im Browsers verwendet wird (z.B. im Falle der Akquisitionsmodi I<manual> oder I<cyclic>, siehe L<"DATA ACQUISITION">).
 
 =item B<View acq statistics>
 
@@ -1017,15 +1037,32 @@ Um überflüssige NexTView-Provider zu entfernen (z.B. solche, die keinen NexTView
 
 Öffnet einen Dialog, der erlaubt, den Hintergrund-Akquisitionsprozess zu steuern. Siehe L<"ACQUISITION MODES"> für weitere Details.
 
+=head2 Teletext grabber
+
+B<Bitte beachten> Sie dass sich dieses Feature noch in der Entwicklung befindet. Zur Zeit werden nur deutsche TV-Sender unterstützt und die Konfigurationsoptionen sind noch minimal.
+
+Öffnet einen Dialog, mit dem der Teletext EPG Grabber eingeschaltet und konfiguriert werden kann.  Um EPG Daten aus dem Teletext zu laden, werden reihum alle TV-Kanäle eingestellt, die TV-Übersichtsseiten gelesen (meist 301-309) und daraus eine Programmliste erstellt. Falls für einzelne Programme Referenzen auf weitere Teletext-Seiten angegeben sind, wird versucht von dort Beschreibungstexte zu laden.  Die Ausgabe des Teletext-Grabbers erfolgt in einzelne Dateien im XMLTV-Format. Für jeden TV-Sender wird eine getrennte XML Datei angelegt.
+
+Dieser Grabber ist dazu gedacht Nextview EPG zu ergänzen. Der Hauptnachteil gegenüber Nextview ist die lange Ladezeit. Diese kommt hauptsächlich dadurch zustande, dass die TV-Übersicht auf mehrere Unterseiten einzelner Teletext-Seiten verteilt sind. Dadurch werden mehrere Teletext-Zyklen für jeden TV-Sender benötigt um alle relevanten Seiten zu laden, meist mindestens 90 Sekunden. Bei nur 30 TV-Sendern beträgt die Ladezeit also insgesamt schon 45 Minuten.  Ein weiteres zentrales Problem besteht darin dass die TV-Übersicht kein einheitliches Format hat, so dass die Erkennung nicht immer zuverlässig arbeiten kann. Insbesondere können aktuell keine Kategorien erkannt werden.  Dieser Nachteil kann jedoch überwunden werden, indem die aus dem Teletext gewonnenen Daten mit einer Nextview Datenbank vereinigt werden (siehe L<"MERGED DATABASES">)
+
+Um den grabber starten zu können müssen Sie auf Ihrem PC einen "Perl Interpreter" installieren. Perl ist in jeder bekannten Linux-Desktop-Distribution enthalten und kann dort falls nötig ganz einfach über den Paketmanager installiert werden, Sektion "Programmiersprachen."  Bei MS-Windows müssen Sie Perl manuell herunterladen und installieren (http://www.activestate.com/Products/ActivePerl/?mp=1 oder http://www.cygwin.com/) und im Konfigurationsdialog den Installationspfad angeben. (Alternativ können Sie natürlich auf die C<PATH> Environment-Variable um den Pfad zu perl.exe erweitern.)
+
+Nach der Installation ist der Teletext-Grabber zuerst deaktiviert, da er noch in einer Beta-Testphase ist. Um ihn zu aktivieren, müssen Sie die Option "Enable teletext grabber" einschalten. Falls Sie noch keine TV-Applikation konfiguriert haben wird eine diesbezügliche Fehlermeldung erscheinen, denn der grabber benötigt eine TV-Kanaltabelle. Der Grabber liest EPG Daten startend mit dem ersten in der Tabelle gelisteten Sender und danach der Reihe nach die folgenden Sender. Diese Reihenfolge läßt sich momentan noch nicht ändern, jedoch können Sie die Anzahl der Sender begrenzen.
+
+Tipp: Wenn der Akquisitionsmodus "Cyclic: Now - All" selektiert ist (siehe auch L<"ACQUISITION MODES">) wird während der "Now" Phase eine optimierte Strategie verwendet bei der die Reihenfolge der Sender so gelegt wird dass Wartezeiten minimiert werden. Damit kann ein Schnitt von 15-20 Sekunden pro Sender erreicht werden.  In der "Full" Phase werden dann immer für die bei I<capture duration> angegebene Zeit Teletext-Daten gelesen; normalerweise sind dies 90 Sekunden (solch eine lange Zeit ist nötig da viele Sender die Programminfos auf Unterseiten legen, die nicht in jedem Teletextzyklus enthalten sind.)
+
+Um die vom Teletext gelesenen EPG Daten zu verwenden, müssen Sie zuerst warten bis der grabber alle Sender einmal ausgelesen hat. Danach sollten Sie für jeden Sender eine XML Datei im nxtvepg Verzeichnis vorfinden (mit Namen im Muster "ttx-XXX.xml" wobei XXX die jeweiligen Sendernamen sind.) Diese Dateien tauchen dann in den Providerauswahllisten auf und können wie Nextview EPG Daten verwendet werden, insbesondere auch für den Provider-Merge (siehe L<"MERGED DATABASES">)
+
+
 =head2 Provider scan
 
 Öffnet einen Dialog mit dem alle TV-Kanäle nach Nextview-EPG-Anbietern abgesucht werden können. Diese Suche sollte mindestens einmal ausgeführt werden, zum einen um die empfangbaren Provider zu erkennen und zum anderen um die TV-Kanäle bzw. Frequenzen der EPG-Anbieter festzustellen. Diese werden für die meisten Akquisitionsmodi benötigt und sind bei alten bttv-Treibern (<=0.7.50) sonst oft nicht verfügbar. Bedenken Sie, dass der Scan nur funktionieren kann, wenn sie den internen TV-Tuner als Video-Input eingestellt haben. Siehe auch L<"GETTING STARTED"> und die folgenden Kapitel zur Konfiguration der TV-Karte.
 
 In Frankreich oder Belgien sollte die französische Frequenztabelle (welche gleichzeitig die I<Secam L> TV-Norm impliziert) für die Sendersuche ausgewählt werden. In allen anderen Ländern sollte die Standard-Frequenztabelle ausgewählt werden. Letztere deckt alle üblichen westeuropäischen Frequenzen in Kabel- und Antennenausstrahlung mit PAL TV-Norm ab. Andere Länder werden zurzeit nicht unterstützt, da hier keine NexTView-Provider bekannt sind. In einer Gegend, in der sowohl PAL- als auch SECAM-Sender empfangen werden können, sollte die Suche zweimal mit verschiedenen Frequenztabellen ausgeführt werden.
 
-Der Button "I<Use TV app.>" wird automatisch ausgewählt, wenn eine Konfigurationsdatei von I<xawtv> im home-Verzeichnis gefunden (nur UNIX) oder eine TV-Anwendung im Dialog "I<TV app. interaction>" eingestellt wurde. Anstatt alle möglichen TV-Kanäle oder -Frequenzen in allen Bändern zu durchsuchen, wird nxtvepg dann lediglich die dort definierten TV-Kanäle überprüfen. So wird die Suche nicht nur verkürzt, sondern auch zuverlässiger.
+Der Button "I<Use TV app.>" wird automatisch ausgewählt, wenn eine TV-Anwendung im Dialog "I<TV app. interaction>" eingestellt wurde. Anstatt alle möglichen TV-Kanäle oder -Frequenzen in allen Bändern zu durchsuchen, wird nxtvepg dann lediglich die dort definierten TV-Kanäle überprüfen. So wird die Suche nicht nur verkürzt, sondern auch zuverlässiger.
 
-Setzen Sie ein Häkchen an der Checkbox I<Slow>, wenn Sie auf manchen Kanälen einen schlechten Empfang haben. Im Slow-Modus wird der Suchlauf Kanäle mit "instabilem" Videosignal nicht überspringen (d.h. kein PLL H-lock innerhalb 150 Millisekunden) und auf alles doppelt so lange als sonst warten, d.h. bis zu 4 Sekunden auf eine VPS/PDC-Kanal-Identifikation und bis zu 90 Sekunden auf ein EPG bei bekannten Providern oder wenn potentielle EPG-Datenpakete gefunden wurden. Zu bemerken ist, dass Sie die Einstellung "Slow" auch während des Suchlaufs ändern können.
+Setzen Sie ein Häkchen an der Checkbox I<Slow>, wenn Sie auf manchen Kanälen einen schlechten Empfang haben. Im Slow-Modus wird der Suchlauf Kanäle mit "instabilem" Videosignal nicht überspringen (d.h. kein PLL H-lock innerhalb 150 Millisekunden) und auf alles doppelt so lange als sonst warten, d.h. bis zu 4 Sekunden auf eine VPS/PDC-Kanal-Identifikation und bis zu 90 Sekunden auf ein EPG wenn potentielle EPG-Datenpakete gefunden wurden. Zu bemerken ist, dass Sie die Einstellung "Slow" auch während des Suchlaufs ändern können.
 
 Verwenden Sie den Modus "I<Refresh only>", wenn Sie Ihre Datenbank-Dateien gelöscht haben (oder aus einer inkompatiblen Software-Version aktualisieren) oder wenn Sie veraltete Provider identifizieren oder löschen wollen. In diesem Modus werden nur Kanäle überprüft, auf denen zuvor NexTView-Daten empfangen wurden (die Frequenzen werden sowohl in den Datenbanken als auch in Ihrer rc/ini-Datei aufbewahrt). Dies erlaubt, Ihre komplette Provider-Auswahl sehr schnell wiederzugewinnen. Wird auf dem Kanal eines Providers keine Daten-Übertragung gefunden, wird ein Button "I<Remove this provider>" im Ausgabefenster zugefügt, den Sie nach dem Beenden des Suchlaufs zum Entfernen der Datenbank und jeder über den Provider gespeicherten Information verwenden können. Zu bemerken ist, dass das Entfernen fehlschlagen wird, wenn die Datenbank in diesem Moment in Gebrauch ist, also müssen Sie möglicherweise die Akquisition anhalten und einen anderen Provider wählen.
 
@@ -1145,7 +1182,7 @@ Mit "I<Separate popup>" wird nxtvepg ein kleines Popupfenster erzeugen und es ge
 
 =back
 
-Nur Windows: in der Mitte des Dialogs befindet sich eine Zeile, die den aktuellen Verbindungsstatus der TV-Anwendung anzeigt. Sie enthält den Namen der verbundenen Applikation oder "I<not connected>". Letztere Meldung erscheint wenn keine TV-Anwendung läuft oder eine die nicht mit nxtvepg interagiert (siehe auch L<"GETTING STARTED: Configuring a TV application">). Sie können mit anderen Applikationen als unten konfiguriert Verbindung aufnehmen, sind jedoch die Sendernamen nicht mit nxtvepg synchronisiert, wird die Interaktion nicht optimal funktionieren (d.h. nxtvepg könnte nicht in der Lage dazu sein, alle Sender zu identifizieren, und daher keine Sendungstitel bereitstellen).
+In der Mitte des Dialogs befindet sich eine Zeile, die den aktuellen Verbindungsstatus der TV-Anwendung anzeigt. Sie enthält den Namen der verbundenen Applikation oder "I<not connected>". Letztere Meldung erscheint wenn keine TV-Anwendung läuft oder eine die nicht mit nxtvepg interagiert (siehe auch L<"GETTING STARTED: Configuring a TV application">). Sie können mit anderen Applikationen als unten konfiguriert Verbindung aufnehmen, sind jedoch die Sendernamen nicht mit nxtvepg synchronisiert, wird die Interaktion nicht optimal funktionieren (d.h. nxtvepg könnte nicht in der Lage dazu sein, alle Sender zu identifizieren, und daher keine Sendungstitel bereitstellen).
 
 Im unteren Teil des Dialogfensters können Sie Typ und (auf Windows) den Installationspfad Ihrer bevorzugten TV-Anwendung konfigurieren. Diese Information wird genutzt, um auf die Kanalliste der TV-Anwendung (d.h. Frequenzen und Stationsnamen des TV-Tuners) während des EPG-Provider-Suchlaufs zuzugreifen (siehe L<"CONFIGURATION: Provider scan">) und im Dialog zur Konfiguration der Sendernamen (siehe L<"CONFIGURATION: Network names">).
 
@@ -1161,13 +1198,13 @@ Zu bemerken ist, dass nicht alle TV-Anwendungen, die im Popupmenü aufgelistet we
 
 Das Listenfeld zur Rechten enthält die Typen, die aktuell zur Anzeige ausgewählt sind. Der oberste Eintrag erscheint im "single list"-Layout auf der Linken Seite des Listenfelds; im tabellarischen "grid"-Layout erscheint entsprechend der oberste Eintrag in der ersten Zeile usw.  Drücken Sie I<Apply>, um das Browserlistenfeld mit der neuen Spaltenauswahl aktualisieren zu lassen.
 
-Im "single list"-Layout (siehe L<"CONFIGURATION: List layout">) besitzt jedes Attribut seine eigene Spalte im TV-Zeitplan und ein damit verbundenes Filtermenü im Button oberhalb der Spalte (vorausgesetzt die Spaltenköpfe wurden nicht deaktiviert, siehe L<"CONFIGURATION: Show/Hide">). Sie können die Breite jeder Spalte ändern, indem Sie den Mauspfeil an die rechte Seite jedes Menüeintrages bewegen bis ein Pfeil an einem senkrechten Strich zu sehen ist und diesen dann mit gedrückter Maustaste an die neue Position ziehen.
+Im "single list"-Layout (siehe L<"CONFIGURATION: List layout">) besitzt jedes Attribut seine eigene Spalte in TV-Programmübersicht und ein damit verbundenes Filtermenü im Button oberhalb der Spalte (vorausgesetzt die Spaltenköpfe wurden nicht deaktiviert, siehe L<"CONFIGURATION: Show/Hide">). Sie können die Breite jeder Spalte ändern, indem Sie den Mauspfeil an die rechte Seite jedes Menüeintrages bewegen bis ein Pfeil an einem senkrechten Strich zu sehen ist und diesen dann mit gedrückter Maustaste an die neue Position ziehen.
 
-Im "separate network columns"-Layout werden die Attribute untereinander in separaten Zeilen der Spalten des TV-Zeitplans ausgedruckt, es sei denn Sie wählen "I<No new line after element>" während das jeweilig Attribut im rechten Listenfeld gewählt ist. Leere Zeilen werden automatisch unterdrückt, sodass im Gegensatz zum "single list"-Layout die tatsächlich gezeigte Anzahl an Attributen variieren kann. Dies ist insbesondere bei benutzerdefinierten Attributen nützlich: So könnten Sie z.B. das Attribut so definieren, dass Themen-Kategorien nur für Filme ausgedruckt werden, um die Auflistung kompakter zu halten.
+Im "separate network columns"-Layout werden die Attribute untereinander in separaten Zeilen der Spalten des TV-Programmübersicht ausgedruckt, es sei denn Sie wählen "I<No new line after element>" während das jeweilig Attribut im rechten Listenfeld gewählt ist. Leere Zeilen werden automatisch unterdrückt, sodass im Gegensatz zum "single list"-Layout die tatsächlich gezeigte Anzahl an Attributen variieren kann. Dies ist insbesondere bei benutzerdefinierten Attributen nützlich: So könnten Sie z.B. das Attribut so definieren, dass Themen-Kategorien nur für Filme ausgedruckt werden, um die Auflistung kompakter zu halten.
 
 =head2 Attribute composition
 
-Öffnet den Konfigurations-Dialog für "I<composite attributes>", welcher erlaubt, neue Spaltentypen für das "single list"-TV-Zeitplan-Layout zu erstellen (siehe L<"CONFIGURATION: List layout">) beziehungsweise neue Zeilen im "spearate network columns"-Layout, die danach zusätzlich zu den vorgegebenen Attributtypen gewählt werden können (z.B. "Titel" und "Thema") wie im vorherigen Kapitel beschrieben.
+Öffnet den Konfigurations-Dialog für "I<composite attributes>", welcher erlaubt, neue Spaltentypen für das "single list"-Layout der TV-Programmübersicht zu erstellen (siehe L<"CONFIGURATION: List layout">) beziehungsweise neue Zeilen im "spearate network columns"-Layout, die danach zusätzlich zu den vorgegebenen Attributtypen gewählt werden können (z.B. "Titel" und "Thema") wie im vorherigen Kapitel beschrieben.
 
 Für eine allgemeine Beschreibung von Composite-Attributen siehe L<"COMPOSITE ATTRIBUTES">. Dieses Kapitel beschreibt lediglich den Gebrauch des Konfigurations-Dialoges. Dieses Kapitel geht auch davon aus, dass Sie mit dem Konzept der Filter-Shortcuts (siehe L<"FILTER SHORTCUTS">) und Reminder vertraut sind (siehe L<"REMINDERS">).
 
@@ -1192,8 +1229,6 @@ Unten gibt es auch einen I<Delete>-Button, der das Entfernen veralteter Definiti
 Öffnet den Dialog zur Senderwahl. Er erlaubt das permanente Abschalten eines TV-Senders in einer Provider-Auflistung, z.B. wenn Sie den Kanal gar nicht empfangen können. Sie können auch die Anordnung der Sender andern, z.B. indem Sie ihre Favoriten-Sender an die Spitze des Filtermenüs setzen.
 
 Dieses Fenster enthält zwei Listen: auf der linken Seite werden Sie alle vom Provider abgedeckten Sender in Ihrer originalen Anordnung vorfinden, auf der rechten Seite diejenigen, welche für die Programmauflistung in Ihrer bevorzugten Reihenfolge gewählt wurden. Standardmäßig werden beide Listen den genau gleichen Inhalt haben. Wollen Sie Sender ausschließen, markieren Sie sie in der rechten Liste und drücken Sie auf I<Delete>. Sie können sie jederzeit wieder einschließen, indem Sie sie in der linken Liste markieren und auf I<Add> drücken. Die Reihenfolge können Sie in der rechten Liste durch das Markieren eines oder mehrerer Sender und dem Drücken der I<Auf>- oder I<Ab>-Pfeile verändern.
-
-Wollen Sie dieselbe Auswahl und Reihenfolge für alle Provider, können Sie ganz einfach Ihre Reihenfolge und Auswahl mit dem I<copy>-Popupmenü kopieren; dieses Menü enthält eine Liste aller bekannten Provider. Zu bemerken ist, dass wenn Sie von einem Provider mit weniger (oder anderen) Sendern kopieren, solche Sender, die in der Datenbank des anderen Providers fehlen, am Ende der Senderauswahl im rechten Listenfeld erscheinen.
 
 Am unteren Ende des Dialogfensters steht ein Eingabefeld namens B<Air times>, das die Begrenzung der Programmauflistung eines Senders auf einen bestimmten Zeitrahmen erlaubt. Zum Beispiel, wenn Sie I<Arte> nur von 19:00 bis 07:00 Uhr empfangen, wählen Sie "Arte" entweder in der linken oder der rechten Liste, geben dann "19:00" und "07:00" in die Felder ein (stellen Sie sicher, dass Sie immer 4 Ziffern und einen trennenden Doppelpunkt verwenden). Sendungen, die vollkommen außerhalb dieses Zeitfensters liegen, werden im Browserfenster nicht auftauchen. Wollen Sie die Begrenzung rückgängig machen, geben Sie 00:00 bis 00:00 oder gleiche Zeitwerte ein.
 
@@ -1377,7 +1412,7 @@ Dies ist das Original-Layout (das einzige Layout bis nxtvepg Version 2.4) in dem
 
 =item I<Separate columns for each network>
 
-In diesem Layout werden die Sendungen immer nach Startzeit sortiert, aber in getrennten Spalten für jeden Sender präsentiert. Zeitpläne der verschiedenen Sender werden so angeordnet, dass Programme die gleichzeitig laufen, annähernd auf gleicher Höhe stehen.
+In diesem Layout werden die Sendungen immer nach Startzeit sortiert, aber in getrennten Spalten für jeden Sender präsentiert. Die TV-Programme der verschiedenen Sender werden so angeordnet, dass Programme die gleichzeitig laufen, annähernd auf gleicher Höhe stehen.
 
 Sie können über das I<Control>-Menü mehrere Spalten zu einer einzigen verbinden (gedacht für Sender, die sich den selben Kanal teilen; verwenden Sie dies im Zusammenhang mit der "I<air times restriction>" wie in L<"CONFIGURATION: Select networks"> beschrieben). Das Control-Menü ist Teil des Dropdown-Menüs unterhalb des Buttons am oberen Ende der Spalte. Dieses Menü beinhaltet ebenso Befehle, um die Anzahl sichtbarer Spalten zu erhöhen oder zu senken.
 
@@ -1493,11 +1528,27 @@ Sie können gerne Bug-Reports einsenden wenn Sie glauben einen Fehler gefunden zu
 
 =head1 AUTHOR
 
-Th. "Tom" Zörner, Nürnberg, Deutschland.
+Th. "Tom" Zörner
+C<tomzo (at) users (dot) sourceforge (dot) net>
 
-Der beste Weg Feedback zu übermitteln, ist über das Diskussionsforum auf der nxtvepg-Homepage. Es ist aber auch möglich mich direkt per Mail zu erreichen: C<tomzo (at) users (punkt) sourceforge (punkt) net>
+Der beste Weg Feedback zu übermitteln, ist über das Diskussionsforum auf der nxtvepg-Homepage.
 
-Vielen Dank an Kurt Lettmaier und Olaf Nöhring für die deutsche Übersetzung des Manuals; an Néo für die französische Übersetzung der Web-Seiten; an Thierry Ménétrier und Peter Rolf für ihr wertvolles Feedback und ihre Anregungen; an Simon Barner für die FreeBSD-Portierung; an Matthieu für die Französische Übersetzung von PDC-Themen-Deskriptoren; an E-nek für die DScaler-Treiber-Portierung und seiner Zusammenarbeit bei der Entwicklung der Interaktion mit der TV-Anwendung; an John Adcock für den DScaler-Treiber; an Jan Schuster für seinen Beta-Test an nxtvepg 0.7.0; an Mario Kemper für seinen Beta-Test der NetBSD-Portierung und frühere Beta-Tests; an "Mario's Brunder" für seinen Beta-Test an der ersten Windows-Portierung; an Gerd Knorr für xawtv und das Warten der Debian- und SuSE-nxtvepg-Packages; an Ralph Metzler für seinen Teletext-Dekoder; an Edgar Toernig für die Latin-1 Konvertierungstabellen in alevt; und nicht zuletzt an die Autoren von bttv und v4l für ihre exzellente Arbeit, und die Autoren der Cygwin GNU- und XFree86-Portierung, ohne die nxtvepg nie nach M$ Windows übertragen worden wäre.
+Vielen Dank
+an Néo für die Bereitstellung der setup.exe für Windows Releases
+und die französische Übersetzung der Web-Seiten;
+an Kurt Lettmaier und Olaf Nöhring für die deutsche Übersetzung des Manuals;
+an Thierry Ménétrier und Peter Rolf für ihr wertvolles Feedback und ihre Anregungen;
+an Simon Barner für die FreeBSD-Portierung;
+an Matthieu für die Französische Übersetzung von PDC-Themen-Deskriptoren;
+an E-nek für die DScaler-Treiber-Portierung und seiner Zusammenarbeit bei der Entwicklung der Interaktion mit der TV-Anwendung;
+an John Adcock für den DScaler-Treiber;
+an Jan Schuster für seinen Beta-Test an nxtvepg 0.7.0;
+an Mario Kemper für seinen Beta-Test der NetBSD-Portierung und frühere Beta-Tests;
+an "Mario's Bruder" für seinen Beta-Test an der ersten Windows-Portierung;
+an Gerd Knorr für xawtv und das Warten der Debian- und SuSE-nxtvepg-Packages;
+an Ralph Metzler für seinen Teletext-Dekoder;
+an Edgar Toernig für die Latin-1 Konvertierungstabellen in alevt;
+und nicht zuletzt an die Autoren von bttv und v4l für ihre exzellente Arbeit, und die Autoren der Cygwin GNU & XFree86, ohne die nxtvepg nie nach Windows portiert worden wäre.
 
 =head1 COPYRIGHT
 

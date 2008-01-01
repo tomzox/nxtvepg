@@ -34,7 +34,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgscan.c,v 1.40 2005/07/01 21:24:35 tom Exp tom $
+ *  $Id: epgscan.c,v 1.46 2007/12/30 21:48:09 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -144,13 +144,14 @@ static bool EpgScan_AiCallback( const AI_BLOCK *pNewAi )
    uint oldPageNo;
    uint oldAppId;
    uchar msgbuf[80];
+   bool isNew;
    bool accept = FALSE;
 
    if ( ( (scanCtl.state == SCAN_STATE_WAIT_NI_OR_EPG) ||
           (scanCtl.state == SCAN_STATE_WAIT_EPG) ) &&
-        (AI_GET_CNI(pNewAi) != 0))
+        (AI_GET_THIS_NET_CNI(pNewAi) != 0))
    {
-      dprintf3("EpgScan: AI found, CNI=0x%04X version %d/%d\n", AI_GET_CNI(pNewAi), pNewAi->version, pNewAi->version_swo);
+      dprintf3("EpgScan: AI found, CNI=0x%04X version %d/%d\n", AI_GET_THIS_NET_CNI(pNewAi), pNewAi->version, pNewAi->version_swo);
       EpgDbLockDatabase(scanCtl.pDbContext, TRUE);
 
       pOldAi = EpgDbGetAi(scanCtl.pDbContext);
@@ -163,7 +164,7 @@ static bool EpgScan_AiCallback( const AI_BLOCK *pNewAi )
 
          EpgDbLockDatabase(scanCtl.pDbContext, FALSE);
          EpgContextCtl_Close(scanCtl.pDbContext);
-         scanCtl.pDbContext = EpgContextCtl_Open(AI_GET_CNI(pNewAi), CTX_FAIL_RET_CREATE, CTX_RELOAD_ERR_NONE);
+         scanCtl.pDbContext = EpgContextCtl_Open(AI_GET_THIS_NET_CNI(pNewAi), FALSE, CTX_FAIL_RET_CREATE, CTX_RELOAD_ERR_NONE);
 
          if (EpgDbContextGetCni(scanCtl.pDbContext) == 0)
          {  // new provider -> nothing to do here, just add the AI and keep all params
@@ -171,6 +172,8 @@ static bool EpgScan_AiCallback( const AI_BLOCK *pNewAi )
             scanCtl.MsgCallback(msgbuf, TRUE);
             // count the number of newly found providers
             scanCtl.newProvCount += 1;
+            scanCtl.pDbContext->provCni = AI_GET_THIS_NET_CNI(pNewAi);
+            isNew = TRUE;
          }
          else
          {
@@ -178,6 +181,7 @@ static bool EpgScan_AiCallback( const AI_BLOCK *pNewAi )
                             AI_GET_NETWOP_NAME(pNewAi, pNewAi->thisNetwop),
                             scanCtl.doRefresh ? "ok" : "already known - skipping");
             scanCtl.MsgCallback(msgbuf, TRUE);
+            isNew = FALSE;
 
             // in refresh mode count this provider as done (used in the summary)
             if (scanCtl.doRefresh)
@@ -189,24 +193,24 @@ static bool EpgScan_AiCallback( const AI_BLOCK *pNewAi )
 
          if (scanCtl.pDbContext->tunerFreq != oldTunerFreq)
          {
-            debug3("EpgScan-AiCallback: CNI 0x%04X: updating tuner freq: 0x%x -> 0x%x", AI_GET_CNI(pNewAi), scanCtl.pDbContext->tunerFreq, oldTunerFreq);
+            debug3("EpgScan-AiCallback: CNI 0x%04X: updating tuner freq: 0x%x -> 0x%x", AI_GET_THIS_NET_CNI(pNewAi), scanCtl.pDbContext->tunerFreq, oldTunerFreq);
             scanCtl.pDbContext->modified = TRUE;
             scanCtl.pDbContext->tunerFreq = oldTunerFreq;
 
-            if (EpgDbContextGetCni(scanCtl.pDbContext) != 0)
+            if (isNew == FALSE)
             {
                scanCtl.MsgCallback("storing provider's tuner frequency", TRUE);
-               EpgContextCtl_UpdateFreq(AI_GET_CNI(pNewAi), scanCtl.pDbContext->tunerFreq);
+               EpgContextCtl_UpdateFreq(AI_GET_THIS_NET_CNI(pNewAi), scanCtl.pDbContext->tunerFreq);
             }
 
             // store the provider channel frequency in the rc/ini file
-            UiControlMsg_NewProvFreq(AI_GET_CNI(pNewAi), scanCtl.pDbContext->tunerFreq);
+            UiControlMsg_NewProvFreq(AI_GET_THIS_NET_CNI(pNewAi), scanCtl.pDbContext->tunerFreq);
          }
          // update teletext page number in the database if changed
          // note: store is delayed until AI reception to be sure the db matches the current stream
          if (scanCtl.pDbContext->pageNo != oldPageNo)
          {
-            debug3("EpgScan-AiCallback: CNI 0x%04X: updating EPG page no: 0x%03x -> 0x%03x", AI_GET_CNI(pNewAi), scanCtl.pDbContext->pageNo, oldPageNo);
+            debug3("EpgScan-AiCallback: CNI 0x%04X: updating EPG page no: 0x%03x -> 0x%03x", AI_GET_THIS_NET_CNI(pNewAi), scanCtl.pDbContext->pageNo, oldPageNo);
             // don't report the initial page update to the user
             if ( VALID_EPG_PAGENO(scanCtl.pDbContext->pageNo) &&
                  (scanCtl.pDbContext->pageNo != EPG_DEFAULT_PAGENO) )
@@ -221,13 +225,13 @@ static bool EpgScan_AiCallback( const AI_BLOCK *pNewAi )
       }
       else
       {
-         debug1("EpgScan: 2nd AI block received - ignored (prev CNI 0x%04X)", AI_GET_CNI(pOldAi));
+         debug1("EpgScan: 2nd AI block received - ignored (prev CNI 0x%04X)", AI_GET_THIS_NET_CNI(pOldAi));
          EpgDbLockDatabase(scanCtl.pDbContext, FALSE);
       }
    }
    else
    {  // should be reached only during epg scan -> discard block
-      dprintf1("EpgScan: during scan, new AI 0x%04X\n", AI_GET_CNI(pNewAi));
+      dprintf1("EpgScan: during scan, new AI 0x%04X\n", AI_GET_THIS_NET_CNI(pNewAi));
    }
 
    return accept;
@@ -281,7 +285,7 @@ uint EpgScan_EvHandler( void )
    time_t now = time(NULL);
    uchar chanName[10], msgbuf[300], dispText[PDC_TEXT_LEN + 1];
    uint  freq;
-   uint32_t ttxPkgCount, epgPkgCount, epgPageCount;
+   TTX_DEC_STATS ttxStats;
    uint cni, dataPageCnt;
    uint pageNo;
    time_t delay;
@@ -324,11 +328,11 @@ uint EpgScan_EvHandler( void )
       }
       else if (scanCtl.state == SCAN_STATE_WAIT_SIGNAL)
       {  // skip this channel if there's no stable signal
-         TtxDecode_GetStatistics(&ttxPkgCount, &epgPkgCount, &epgPageCount);
+         TtxDecode_GetStatistics(&ttxStats);
          if ( scanCtl.doSlow || scanCtl.useXawtv || scanCtl.doRefresh ||
-              BtDriver_IsVideoPresent() || (ttxPkgCount > 0) )
+              BtDriver_IsVideoPresent() || (ttxStats.ttxPkgCount > 0) )
          {
-            dprintf2("WAIT for data on channel %d (%d ttx pkgs)\n", scanCtl.channel, ttxPkgCount);
+            dprintf2("WAIT for data on channel %d (%d ttx pkgs)\n", scanCtl.channel, ttxStats.ttxPkgCount);
             if (BtDriver_IsVideoPresent())
                scanCtl.signalFound += 1;
             scanCtl.state = SCAN_STATE_WAIT_ANY;
@@ -417,7 +421,7 @@ uint EpgScan_EvHandler( void )
             // check if there's already a database for this provider
             // note: must do a complete open, not only a peek, to make sure the db is intact
             if ( (scanCtl.doRefresh == FALSE) &&
-                 ((pDbContext = EpgContextCtl_Open(cni, CTX_FAIL_RET_NULL, CTX_RELOAD_ERR_NONE)) != NULL) )
+                 ((pDbContext = EpgContextCtl_Open(cni, FALSE, CTX_FAIL_RET_NULL, CTX_RELOAD_ERR_NONE)) != NULL) )
             {  // database available
                EpgDbLockDatabase(pDbContext, TRUE);
                pAi = EpgDbGetAi(pDbContext);
@@ -442,7 +446,7 @@ uint EpgScan_EvHandler( void )
             }
             else
             {  // no database for this CNI yet: check if it's a known provider
-               if (CniIsKnownProvider(cni) || scanCtl.doRefresh)
+               if (scanCtl.doRefresh)
                {
                   // known provider -> wait for BI/AI
                   if (scanCtl.state <= SCAN_STATE_WAIT_NI)
@@ -515,9 +519,9 @@ uint EpgScan_EvHandler( void )
             if (scanCtl.foundBi)
             {
                if (EpgDbQueue_GetBlockCount(&scanCtl.dbQueue) > 0)
-                  scanCtl.MsgCallback("Nextview transmission found, but no application info received", TRUE);
+                  scanCtl.MsgCallback("Nextview EPG transmission found, but no application info received", TRUE);
                else if (scanCtl.foundBi)
-                  scanCtl.MsgCallback("Nextview announced in \"Bundle Inventory\", but no data received", TRUE);
+                  scanCtl.MsgCallback("Nextview EPG announced in \"Bundle Inventory\", but no data received", TRUE);
                scanCtl.MsgCallback("Giving up, try again later.", TRUE);
             }
             else
@@ -541,7 +545,7 @@ uint EpgScan_EvHandler( void )
          {  // refresh failed on one provider (aborted by timeout)
             // load the database to check if it's defective
             bool isDefective = TRUE;
-            pDbContext = EpgContextCtl_Open(scanCtl.provCniTab[scanCtl.channel - 1], CTX_FAIL_RET_NULL, CTX_RELOAD_ERR_NONE);
+            pDbContext = EpgContextCtl_Open(scanCtl.provCniTab[scanCtl.channel - 1], FALSE, CTX_FAIL_RET_NULL, CTX_RELOAD_ERR_NONE);
             if (pDbContext != NULL)
             {  // load succeeded -> not defective
                EpgDbLockDatabase(pDbContext, TRUE);
@@ -618,12 +622,12 @@ uint EpgScan_EvHandler( void )
             {
                if (scanCtl.newProvCount > 0)
                {
-                  sprintf(msgbuf, "\nFound %d new Nextview provider%s.", scanCtl.newProvCount, ((scanCtl.newProvCount == 1) ? "" : "s"));
+                  sprintf(msgbuf, "\nFound %d new Nextview EPG provider%s.", scanCtl.newProvCount, ((scanCtl.newProvCount == 1) ? "" : "s"));
                   scanCtl.MsgCallback(msgbuf, FALSE);
                }
                else
                {
-                  if (EpgContextCtl_GetProvCount() > 0)
+                  if (EpgContextCtl_GetProvCount(TRUE) > 0)
                      scanCtl.MsgCallback("\nSorry, no new providers found.", FALSE);
                   else
                      scanCtl.MsgCallback("\nSorry, no providers found.", FALSE);
@@ -691,7 +695,7 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv,
    scanCtl.doRefresh     = doRefresh;
    scanCtl.doSlow        = doSlow;
    scanCtl.useXawtv      = useXawtv;
-   scanCtl.acqWasEnabled = (pAcqDbContext != NULL);
+   scanCtl.acqWasEnabled = EpgAcqCtl_IsActive();
    scanCtl.provFreqCount = freqCount;
    scanCtl.provFreqTab   = freqTab;
    scanCtl.provCniTab    = cniTab;
@@ -804,10 +808,12 @@ EPGSCAN_START_RESULT EpgScan_Start( int inputSource, bool doSlow, bool useXawtv,
 
          if (scanCtl.acqWasEnabled == FALSE)
          {
-            TtxDecode_StopAcq();
+            TtxDecode_StopEpgAcq();
          }
-         else if (pAcqDbContext == NULL)
+         else if (EpgAcqCtl_IsActive())
+         {
             EpgAcqCtl_Suspend(FALSE);
+         }
       }
 
       if (scanCtl.provFreqTab != NULL)
@@ -861,7 +867,7 @@ void EpgScan_Stop( void )
       BtDriver_CloseDevice();
       if (scanCtl.acqWasEnabled == FALSE)
       {
-         TtxDecode_StopAcq();
+         TtxDecode_StopEpgAcq();
          BtDriver_StopAcq();
          EpgStreamClear();
       }

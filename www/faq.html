@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: faq.html,v 1.19 2006/07/23 16:38:21 tom Exp $ -->
+<!-- $Id: faq.html,v 1.20 2008/01/06 20:32:58 tom Exp $ -->
 <HEAD>
 <TITLE>Nxtvepg Frequently Asked Questions (with Answers)</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
@@ -14,7 +14,7 @@
 <LINK rel="alternate" type="text/html" href="faq.html" hreflang="de" lang="de" title="nxtvepg FAQ">
 <LINK rel="stylesheet" type="text/css" href="nxtvepg.css">
 <LINK rel="shortcut icon" type="image/x-icon" href="nxtvepg.ico">
-<LINK rel="top" href="http://nxtvepg.sourceforge.net/" title="nexTView EPG Decoder Homepage">
+<LINK rel="top" href="http://nxtvepg.sourceforge.net/" title="nxtvepg homepage">
 </HEAD>
 <BODY>
 
@@ -140,7 +140,7 @@ This is a problem which should only occur with <I>v4l2</I> drivers
 The reason is that v4l2 allows multiple opens on the /dev/video device, hence
 the old v4l1 trick of switching channels through the video device (which would
 only succeed if no TV app had already opened it) does not work anymore. The
-problem was already adressed early 2003 by designing a new driver interface
+problem was already addressed early 2003 by designing a new driver interface
 which allows background data harvesting applications to lower their priority
 beneath that of interactive applications like TV watching. You can check if
 your kernel or video4linux module supports that feature by looking for ioctl
@@ -379,7 +379,7 @@ reception problems:
     the latest drivers, or try to move the TV card to a different PCI slot.
 </UL>
 <P>
-Note if the statistics are resetted every couple seconds, i.e. the
+Note if the statistics are reset every couple seconds, i.e. the
 acquisition runtime restarts at zero, this is just another indication of
 decoding errors (i.e. nxtvepg falsely assumes there's been a channel change
 when there are too many changes in teletext headers.)
@@ -436,7 +436,7 @@ highlights with by a small red dot, like in this
 <A HREF="screenshot-grid2.png">screenshot</A>)
 </P><P>
 Note this provider also makes extensive use of
-<A HREF="man.html#filter types">sorting criterions</A>, but you have
+<A HREF="man.html#filter types">sorting criteria</A>, but you have
 to figure out for yourself which categories they are meant to represent.
 </P>
 
@@ -478,7 +478,7 @@ section <KBD>.Xdefaults</KBD> for details.
 </P>
 
 <DT><A NAME="tip_database_sharing">
-    Tip: Sharing databases and configuation between Windows and Linux</A>
+    Tip: Sharing databases and configuration between Windows and Linux</A>
 <DD><P>
 If you dual-boot your PC you'll probably want to use the same databases
 under both operating systems, to avoid having to load everything twice.

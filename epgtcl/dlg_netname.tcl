@@ -18,24 +18,35 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_netname.tcl,v 1.6 2006/01/29 14:51:28 tom Exp $
+#  $Id: dlg_netname.tcl,v 1.13 2008/01/01 02:36:17 tom Exp tom $
 #
 set netname_popup 0
 
-##  --------------------------------------------------------------------------
-##  Replace provider-supplied network names with user-configured names
-##
-proc ApplyUserNetnameCfg {name_arr} {
-   upvar $name_arr netnames
-   global cfnetnames
+# called by tv application config dialog
+proc NetworkNaming_UpdateTvApp {} {
+   global netname_ailist netname_names netname_idx
+   global netname_popup
 
-   foreach cni [array names netnames] {
-      if [info exists cfnetnames($cni)] {
-         set netnames($cni) $cfnetnames($cni)
+   if $netname_popup {
+      # read TV app channel table
+      NetworkNameReadTvChanTab
+
+      # insert network names from all providers into listbox on the left
+      .netname.list.ailist delete 0 end
+      foreach cni $netname_ailist {
+         .netname.list.ailist insert end $netname_names($cni)
+         if {![NetworkNameIsInXawtv $netname_names($cni)]} {
+            .netname.list.ailist itemconfigure end -foreground red -selectforeground red
+         }
       }
+      # set the cursor onto the first network in the listbox
+      set netname_idx -1
+      .netname.list.ailist selection set 0
+      NetworkNameSelection
+
+      NetworkNameUpdateSimilar
    }
 }
-
 
 #=LOAD=NetworkNamingPopup
 #=DYNAMIC=
@@ -44,14 +55,18 @@ proc ApplyUserNetnameCfg {name_arr} {
 ##  Configure individual names for networks
 ##
 proc NetworkNamingPopup {} {
-   global cfnetnames cfnetwops
    global netname_ailist netname_names netname_idx netname_xawtv netname_automatch
    global netname_prov_cnis netname_prov_names netname_provnets
    global netname_entry
-   global netname_popup font_fixed entry_disabledforeground win_frm_fg
-   global tvapp_name
+   global netname_popup font_fixed entry_disabledforeground
 
    if {$netname_popup == 0} {
+
+      set cur_prov_cni [C_GetCurrentDatabaseCni]
+      if {$cur_prov_cni == 0} {
+         tk_messageBox -type ok -default ok -icon error -message "You have to open a provider database before you can configure networks."
+         return
+      }
 
       # build list of available providers
       set netname_prov_cnis {}
@@ -64,65 +79,31 @@ proc NetworkNamingPopup {} {
       # sort provider list according to user preferences
       set netname_prov_cnis [SortProvList $netname_prov_cnis]
 
-      if {[llength $netname_prov_cnis] == 0} {
-         # no providers found -> abort
-         tk_messageBox -type ok -icon info -message "There are no providers available yet.\nPlease start a provider scan from the Configure menu."
-         return
-      }
-
-      set netname_ailist {}
       # retrieve all networks from all providers
       foreach prov $netname_prov_cnis {
          array unset tmparr
-         set cnilist [C_GetAiNetwopList $prov tmparr]
+         set cnilist [C_GetAiNetwopList $prov tmparr ai_names]
          foreach cni $cnilist {
             set netname_provnets($prov,$cni) $tmparr($cni)
-         }
-
-         if [info exists cfnetwops($prov)] {
-            foreach cni [lindex $cfnetwops($prov) 0] {
-               if [info exists tmparr($cni)] {
-                  if {[lsearch -exact $netname_ailist $cni] == -1} {
-                     lappend netname_ailist $cni
-                  }
-                  unset tmparr($cni)
-               }
-            }
-         }
-         foreach cni $cnilist {
-            if [info exists tmparr($cni)] {
-               if {[lsearch -exact $netname_ailist $cni] == -1} {
-                  lappend netname_ailist $cni
-               }
-            }
          }
       }
       array unset tmparr
 
-      # re-sort CNI list for the merged database
-      if {[info exists cfnetwops(0x00FF)] && ([C_GetCurrentDatabaseCni] == 0x00FF)} {
-         set tmp {}
-         foreach cni [lindex $cfnetwops(0x00FF) 0] {
-            set idx [lsearch -exact $netname_ailist $cni]
-            if {$idx >= 0} {
-               lappend tmp $cni
-               set netname_ailist [lreplace $netname_ailist $idx $idx]
-            }
-         }
-         set netname_ailist [concat $tmp $netname_ailist]
+      # retrieve list of all networks of the current provider
+      set netname_ailist [lindex [C_GetProvCniConfig $cur_prov_cni] 0]
+      if {[llength $netname_ailist] == 0} {
+         # network selection dialog was not used yet
+         set netname_ailist [C_GetAiNetwopList $cur_prov_cni tmparr ai_names]
       }
 
       # build array with all names from .xawtv rc file
-      set xawtv_list [C_Tvapp_GetStationNames]
-      foreach name $xawtv_list {
-         set netname_xawtv($name) $name
-         regsub -all -- {[\0-\/\:-\?\[\\\]\^\_\{\|\}\~]*} $name {} tmp
-         set netname_xawtv([string tolower $tmp]) $name
-      }
+      # (note: additional entries are generated for name parts separated by "/")
+      NetworkNameReadTvChanTab
 
       # copy or build an array with the currently configured network names
       set netname_automatch {}
       set xawtv_auto_match 0
+      array set cfnetnames [C_GetNetwopNames]
       foreach cni $netname_ailist {
          if [info exists cfnetnames($cni)] {
             # network name is already configured by the user
@@ -150,100 +131,119 @@ proc NetworkNamingPopup {} {
                }
             }
             if {![info exists netname_names($cni)]} {
-               # should never happen
-               set netname_names($cni) "undefined"
+               set netname_names($cni) "??"
             }
          }
       }
 
+      # load special widget libraries
+      mclistbox_load
+
       CreateTransientPopup .netname "Network name configuration"
       set netname_popup 1
 
+      # determine listbox height and check if scrollbar is required
+      set lbox_height [llength $netname_ailist]
+      set do_scrollbar 0
+      if {$lbox_height > 27} {
+         set lbox_height 25
+         set do_scrollbar 1
+      }
+
       ## first column: listbox with sorted listing of all netwops
       frame .netname.list
-      listbox .netname.list.ailist -exportselection false -height 20 -width 0 -selectmode single -relief ridge -yscrollcommand {.netname.list.sc set}
+      listbox .netname.list.ailist -exportselection false -height $lbox_height -width 0 \
+                                   -selectmode single -yscrollcommand {.netname.list.sc set}
+      relief_listbox .netname.list.ailist
       pack .netname.list.ailist -anchor nw -side left -fill both -expand 1
       scrollbar .netname.list.sc -orient vertical -command {.netname.list.ailist yview} -takefocus 0
-      pack .netname.list.sc -side left -fill y
+      if $do_scrollbar {pack .netname.list.sc -side left -fill y}
       pack .netname.list -side left -pady 10 -padx 10 -fill both -expand 1
       bind .netname.list.ailist <ButtonPress-1> [list + after idle NetworkNameSelection]
       bind .netname.list.ailist <Key-space>     [list + after idle NetworkNameSelection]
 
       ## second column: info and commands for the selected network
-      frame .netname.cmd
+      frame .netname.ctrl
       # first row: entry field
-      entry .netname.cmd.myname -textvariable netname_entry -font $font_fixed
-      pack .netname.cmd.myname -side top -anchor nw -fill x
+      label .netname.ctrl.lab_myname -text "Enter your preferred name:" -font $::font_normal
+      pack .netname.ctrl.lab_myname -side top -anchor nw
+      entry .netname.ctrl.myname -textvariable netname_entry -font $font_fixed -width 40
+      bind .netname.ctrl.myname <Key-Return> NetworkName_KeyReturn
+      bind .netname.ctrl.myname <Key-Escape> NetworkName_KeyEscape
+      pack .netname.ctrl.myname -side top -anchor nw -fill x
       trace variable netname_entry w NetworkNameEdited
 
+      labelframe .netname.ctrl.tv -text "Name synchronization with [TvAppGetName]"
+      checkbutton .netname.ctrl.tv.chk_tvsync -text "TV app. name sync status " -onvalue 0 \
+                               -disabledforeground black -takefocus 0 -font $::font_normal
+      pack .netname.ctrl.tv.chk_tvsync -side top -anchor nw
+      bindtags .netname.ctrl.tv.chk_tvsync {.netname .}
+
       # second row: xawtv selection
-      frame .netname.cmd.fx
-      label .netname.cmd.fx.lab -text "In $tvapp_name:  "
-      pack .netname.cmd.fx.lab -side left -anchor w
-      menubutton .netname.cmd.fx.mb -takefocus 1 -relief raised -borderwidth 2 -indicatoron 1 \
-                                    -highlightthickness 1 -highlightcolor $win_frm_fg
-      if [array exists netname_xawtv] {
-         menu .netname.cmd.fx.mb.men -tearoff 0
-         .netname.cmd.fx.mb configure -menu .netname.cmd.fx.mb.men
-      } else {
-         .netname.cmd.fx.mb configure -state disabled -text "none"
-      }
-      pack .netname.cmd.fx.mb -side right -anchor e
-      pack .netname.cmd.fx -side top -fill x -pady 5
+      label .netname.ctrl.tv.lab_tvapp -text "Similar names in TV channel table:" -font $::font_normal
+      pack .netname.ctrl.tv.lab_tvapp -side top -anchor nw
+      frame .netname.ctrl.tv.tvl
+      listbox .netname.ctrl.tv.tvl.ailist -exportselection false -height 5 -width 0 \
+                         -selectmode single -yscrollcommand {.netname.ctrl.tv.tvl.sc set}
+      pack .netname.ctrl.tv.tvl.ailist -anchor nw -side left -fill both -expand 1
+      scrollbar .netname.ctrl.tv.tvl.sc -orient vertical -command {.netname.ctrl.tv.tvl.ailist yview} -takefocus 0
+      pack .netname.ctrl.tv.tvl.sc -side left -fill y
+      pack .netname.ctrl.tv.tvl -side top -fill both -expand 1
+      bind .netname.ctrl.tv.tvl.ailist <Double-Button-1> NetworkNameXawtvSelection
+      pack .netname.ctrl.tv -side top -fill both -expand 1 -pady 5
 
-      # third row: closest match
-      frame .netname.cmd.fm
-      label .netname.cmd.fm.lab -text "Closest match: "
-      pack .netname.cmd.fm.lab -side left -anchor w
-      button .netname.cmd.fm.match -command NetworkNameUseMatch
-      pack .netname.cmd.fm.match -side left -anchor e -fill x -expand 1
-      pack .netname.cmd.fm -side top -fill x -pady 5
-      if {![array exists netname_xawtv]} {
-         .netname.cmd.fm.match configure -state disabled -text "none"
-      }
+      # third row: network description
+      labelframe .netname.ctrl.id -text "Network identification"
+      checkbutton .netname.ctrl.id.chk_netdesc -text "Official network description" -onvalue 0 \
+                                  -disabledforeground black -takefocus 0 -font $::font_normal
+      pack .netname.ctrl.id.chk_netdesc -side top -anchor nw
+      bindtags .netname.ctrl.id.chk_netdesc {.netname .}
+      entry .netname.ctrl.id.enetdesc $entry_disabledforeground black
+      pack  .netname.ctrl.id.enetdesc -side top -anchor nw -fill x
+      # copy event bindings which are required for selection (outbound copy&paste)
+      #foreach event {<Control-Key-backslash> <Control-Key-slash> <Shift-Key-Select> \
+      #               <Key-Select> <Key-End> <Key-Home> <Control-Button-1> <ButtonRelease-1> \
+      #               <Triple-Button-1> <Double-Button-1> <B1-Motion> <Button-1> <Key-Tab> \
+      #               <Key-Left> <Key-Right> <Shift-Key-Left> <Shift-Key-Right> <<Copy>>} {
+      #   bind EntryReadOnly $event [bind Entry $event]
+      #}
+      #bindtags .netname.ctrl.id.enetdesc {.netname.ctrl.id.enetdesc EntryReadOnly .netname}
 
-      # fourth row: network description
-      label .netname.cmd.lnetdesc -text "Official network description:"
-      pack  .netname.cmd.lnetdesc -side top -anchor nw -pady 5
-      entry .netname.cmd.enetdesc -state disabled $entry_disabledforeground black
-      pack  .netname.cmd.enetdesc -side top -anchor nw -fill x
-
-      # fifth row: provider name selection
-      label .netname.cmd.lprovnams -text "Names used by providers:"
-      pack .netname.cmd.lprovnams -side top -anchor nw -pady 5
-      listbox .netname.cmd.provnams -exportselection false -height [llength $netname_prov_cnis] -width 0 -selectmode single
-      pack .netname.cmd.provnams -side top -anchor n -fill both -expand 1
-      bind .netname.cmd.provnams <ButtonPress-1> [list + after idle NetworkNameProvSelection]
-      bind .netname.cmd.provnams <Key-space>     [list + after idle NetworkNameProvSelection]
+      # fourth row: provider name selection
+      label .netname.ctrl.id.lprovnams -text "Original names for this network:" -font $::font_normal -justify left
+      pack .netname.ctrl.id.lprovnams -side top -anchor nw
+      frame .netname.ctrl.id.provnams
+      mclistbox::mclistbox .netname.ctrl.id.provnams.lbox -relief sunken -columnrelief flat -labelanchor c \
+                                -height 4 -selectmode browse -columnborderwidth 0 \
+                                -exportselection 0 -font $::font_normal -labelfont [DeriveFont $::font_normal 0 bold] \
+                                -yscrollcommand [list .netname.ctrl.id.provnams.sc set] -fillcolumn title
+      .netname.ctrl.id.provnams.lbox column add state -label "Provider" -width 20
+      .netname.ctrl.id.provnams.lbox column add group -label "Network name" -width 20
+      bind .netname.ctrl.id.provnams.lbox <Double-Button-1> NetworkNameProvSelection
+      bind .netname.ctrl.id.provnams.lbox <Key-Return>      NetworkNameProvSelection
+      bind .netname.ctrl.id.provnams.lbox <Key-space>       NetworkNameProvSelection
+      pack .netname.ctrl.id.provnams.lbox -side left -anchor n -fill both -expand 1
+      scrollbar .netname.ctrl.id.provnams.sc -orient vertical -command {.netname.ctrl.id.provnams.lbox yview} -takefocus 0
+      pack .netname.ctrl.id.provnams.sc -side left -fill y
+      pack .netname.ctrl.id.provnams -side top -fill y -fill both -expand 1
+      pack .netname.ctrl.id -side top -fill both -expand 1 -pady 5
 
       # bottom row: command buttons
-      button .netname.cmd.save -text "Save" -width 7 -command NetworkNamesSave
-      button .netname.cmd.abort -text "Abort" -width 7 -command NetworkNamesAbort
-      button .netname.cmd.help -text "Help" -width 7 -command {PopupHelp $helpIndex(Configuration) "Network names"}
-      pack .netname.cmd.help .netname.cmd.abort .netname.cmd.save -side bottom -anchor sw
+      frame .netname.ctrl.cmd
+      button .netname.ctrl.cmd.help -text "Help" -width 7 -command {PopupHelp $helpIndex(Configuration) "Network names"}
+      button .netname.ctrl.cmd.abort -text "Abort" -width 7 -command {NetworkNamesQuit 1}
+      button .netname.ctrl.cmd.ok -text "Ok" -width 7 -command {NetworkNamesQuit 0} -default active
+      bind .netname.ctrl.cmd.ok <Return> {tkButtonInvoke .netname.ctrl.cmd.ok}
+      bind .netname.ctrl <Escape> {tkButtonInvoke .netname.ctrl.cmd.abort}
+      pack .netname.ctrl.cmd.help .netname.ctrl.cmd.abort .netname.ctrl.cmd.ok -side left -padx 10
+      pack .netname.ctrl.cmd -side top -fill x -pady 5
 
-      pack .netname.cmd -side left -anchor n -pady 10 -padx 10 -fill both -expand 1
+      pack .netname.ctrl -side left -anchor n -pady 10 -padx 10 -fill both -expand 1
 
       bind .netname <Key-F1> {PopupHelp $helpIndex(Configuration) "Network names"}
-      bind .netname.cmd <Destroy> {+ set netname_popup 0}
-      wm protocol .netname WM_DELETE_WINDOW NetworkNamesAbort
-      focus .netname.cmd.myname
-
-      if {[array exists netname_xawtv]} {
-         # insert xawtv station names to popup menu & measure max. name width
-         set mbfont [.netname.cmd.fx.mb cget -font]
-         set mbwidth 0
-         foreach name $xawtv_list {
-            .netname.cmd.fx.mb.men add command -label $name -command [list NetworkNameXawtvSelection $name]
-            set mbwidthc [font measure $mbfont $name]
-            if {$mbwidthc > $mbwidth} {set mbwidth $mbwidthc}
-         }
-         # set width of xawtv menu buttons to max. width of all station names
-         # convert pixel width to character count
-         set mbwidth [expr 1 + $mbwidth / [font measure $mbfont "0"]]
-         .netname.cmd.fx.mb configure -width [expr $mbwidth + 2]
-         .netname.cmd.fm.match configure -width $mbwidth
-      }
+      bind .netname.ctrl <Destroy> {+ set netname_popup 0}
+      wm protocol .netname WM_DELETE_WINDOW {NetworkNamesQuit 1}
+      focus .netname.ctrl.myname
 
       # insert network names from all providers into listbox on the left
       foreach cni $netname_ailist {
@@ -291,7 +291,8 @@ proc NetworkNameSaveEntry {} {
    if {$netname_idx != -1} {
       set cni [lindex $netname_ailist $netname_idx]
 
-      if {[string compare $netname_names($cni) $netname_entry] != 0} {
+      if {([string compare $netname_names($cni) $netname_entry] != 0) && \
+          ($netname_entry ne "")} {
 
          # save the selected name
          set netname_names($cni) $netname_entry
@@ -318,37 +319,155 @@ proc NetworkNameSaveEntry {} {
 
 # callback (variable trace) for change in the entry field
 proc NetworkNameEdited {trname trops trcmd} {
+   global netname_simi_upd_sched
+
+   if {![info exists netname_simi_upd_sched]} {
+      after idle NetworkNameUpdateSimilar
+      set netname_simi_upd_sched 1
+   }
+}
+
+proc NetworkNameUpdateSimilar {} {
    global netname_entry netname_ailist netname_idx netname_names netname_xawtv
+   global netname_simi_upd_sched
+
+   catch {unset netname_simi_upd_sched}
 
    if {[array exists netname_xawtv]} {
 
+      .netname.ctrl.tv.tvl.ailist delete 0 end
+
+      set sync_color "red"
+      set sync_text "Does not match any TV channel name"
       if {$netname_idx != -1} {
-         set cni [lindex $netname_ailist $netname_idx]
+         if {[string length $netname_entry] > 0} {
+            set cni [lindex $netname_ailist $netname_idx]
+            set nl {}
 
-         regsub -all -- {[\0-\/\:-\?\[\\\]\^\_\{\|\}\~]*} $netname_entry {} name
-         set name [string tolower $name]
+            # whitespace and non-alpha compression
+            regsub -all -- {[\0-\/\:-\?\[\\\]\^\_\{\|\}\~]*} $netname_entry {} name
+            set name [string tolower $name]
 
-         if {[info exists netname_xawtv($netname_entry)]} {
-            .netname.cmd.fm.match configure -text $netname_xawtv($netname_entry)
-            if {[string compare $netname_xawtv($netname_entry) $netname_entry] == 0} {
-               .netname.cmd.fm.match configure -foreground black -activeforeground black
-            } else {
-               .netname.cmd.fm.match configure -foreground red -activeforeground red
+            # exact same name
+            if {[info exists netname_xawtv($netname_entry)]} {
+               if {$netname_xawtv($netname_entry) eq $netname_entry} {
+                  set sync_color "green"
+                  set sync_text "Identical name in TV channel table"
+                  lappend nl $netname_xawtv($netname_entry)
+               }
             }
-         } elseif {[info exists netname_xawtv($name)]} {
-            .netname.cmd.fm.match configure -foreground red -activeforeground red -text $netname_xawtv($name)
+            # exact after whitespace & punctuation compression
+            if {[info exists netname_xawtv($name)]} {
+               if {[llength $nl] == 0} {
+                  set sync_color "yellow"
+                  set sync_text "Slightly different name in TV channel table"
+               }
+               lappend nl $netname_xawtv($name)
+            }
+            # entry is prefix (1 letter)
+            set tmpl [array names netname_xawtv]
+            foreach name_idx [lsearch -glob -all $tmpl "${name}*"] {
+               lappend nl $netname_xawtv([lindex $tmpl $name_idx])
+            }
+            # entry is part of the name (at least 3 letters)
+            if {[string length $name] >= 3} {
+               foreach name_idx [lsearch -glob -all $tmpl "*${name}*"] {
+                  lappend nl $netname_xawtv([lindex $tmpl $name_idx])
+               }
+            }
+            # channel name is prefix of entry
+            for {set name_part [string replace $name 0 0]} {$name_part ne ""} {set name_part [string replace $name_part 0 0]} {
+               if {[info exists netname_xawtv($name_part)]} {
+                  lappend nl $netname_xawtv($name_part)
+               }
+            }
+            # channel name is part of the entry
+            for {set name_part [string replace $name end end]} {$name_part ne ""} {set name_part [string replace $name_part end end]} {
+               if {[info exists netname_xawtv($name_part)]} {
+                  lappend nl $netname_xawtv($name_part)
+               }
+            }
+            # beginning of the entry is prefix (1 letter)
+            for {set name_part [string replace $name end end]} {[string length $name_part] >= 2} {set name_part [string replace $name_part end end]} {
+               foreach name_idx [lsearch -glob -all $tmpl "${name_part}*"] {
+                  lappend nl $netname_xawtv([lindex $tmpl $name_idx])
+               }
+            }
+
+            # unify and display the list of names
+            array set tmpa {}
+            foreach name $nl {
+               if {![info exists tmpa($name)]} {
+                  .netname.ctrl.tv.tvl.ailist insert end $name
+                  set tmpa($name) 0
+               }
+            }
+
          } else {
-            .netname.cmd.fm.match configure -foreground red -activeforeground red -text "none"
+            # entry field is empty -> display all TV channel names in correct order
+            foreach name [C_Tvapp_GetStationNames 1] {
+               .netname.ctrl.tv.tvl.ailist insert end $name
+            }
          }
+
+      }
+   } else {
+      set sync_color "red"
+      set sync_text "No TV application is configured"
+   }
+
+   # sync status
+   .netname.ctrl.tv.chk_tvsync configure -selectcolor $sync_color -text $sync_text
+}
+
+# called by tv application config dialog
+proc NetworkNameReadTvChanTab {} {
+   global netname_xawtv
+
+   array unset netname_xawtv
+
+   set xawtv_enabled [expr [lindex [C_Tvapp_GetConfig] 0] != 0]
+   if $xawtv_enabled {
+      set xawtv_list [C_Tvapp_GetStationNames 1]
+      foreach name $xawtv_list {
+         set netname_xawtv($name) $name
+         regsub -all -- {[\0-\/\:-\?\[\\\]\^\_\{\|\}\~]*} $name {} tmp
+         set netname_xawtv([string tolower $tmp]) $name
       }
    }
 }
 
-# callback for "closest match" button
-proc NetworkNameUseMatch {} {
-   global netname_entry
+# callback for "Return" key in name entry field
+proc NetworkName_KeyReturn {} {
+   global netname_ailist
 
-   set netname_entry [.netname.cmd.fm.match cget -text]
+   # save name of the selected network
+   NetworkNameSaveEntry
+
+   # move cursor to the next network
+   set sel [.netname.list.ailist curselection]
+   if {([string length $sel] > 0) && ($sel + 1 < [llength $netname_ailist])} {
+      incr sel
+
+      .netname.list.ailist selection clear 0 end
+      .netname.list.ailist selection set $sel
+      NetworkNameSelection
+   }
+}
+
+# callback for "Escape" key in name entry field
+proc NetworkName_KeyEscape {} {
+   global netname_entry netname_ailist netname_names
+
+   set sel [.netname.list.ailist curselection]
+   if {([string length $sel] > 0) && ($sel + 1 < [llength $netname_ailist])} {
+
+      # copy old name into the entry field
+      set cni [lindex $netname_ailist $sel]
+      set netname_entry $netname_names($cni)
+
+      .netname.ctrl.myname icursor end
+   }
 }
 
 # callback for selection of a network in the ailist
@@ -366,32 +485,32 @@ proc NetworkNameSelection {} {
       set netname_idx $sel
 
       # copy the name of the currently selected network into the entry field
+      # note: trace on the assigned variable causes update of "similar" list
       set cni [lindex $netname_ailist $netname_idx]
       set netname_entry $netname_names($cni)
-
-      # display the matched name in the TV app's channel table
-      if {[array exists netname_xawtv]} {
-         if {[info exists netname_xawtv($netname_names($cni))]} {
-            .netname.cmd.fx.mb configure -text $netname_xawtv($netname_names($cni))
-         } else {
-            .netname.cmd.fx.mb configure -text "select"
-         }
-      }
+      set cni_desc [C_GetCniDescription $cni]
+      .netname.ctrl.myname icursor end
 
       # display description of the network if available
-      .netname.cmd.enetdesc configure -state normal
-      .netname.cmd.enetdesc delete 0 end
-      .netname.cmd.enetdesc insert 0 [C_GetCniDescription $cni]
-      .netname.cmd.enetdesc configure -state disabled
+      .netname.ctrl.id.enetdesc configure -state normal
+      .netname.ctrl.id.enetdesc delete 0 end
+      .netname.ctrl.id.enetdesc insert 0 $cni_desc
+      .netname.ctrl.id.enetdesc configure -state disabled
+
+      if {($cni_desc ne "") && ($cni != 0)} {
+         .netname.ctrl.id.chk_netdesc configure -selectcolor green -text "Unique VPS/PDC identifier - Official name:"
+      } else {
+         .netname.ctrl.id.chk_netdesc configure -selectcolor red -text "Can only be identified by TV channel name"
+      }
 
       # rebuild the list of provider's network names
       set netname_provlist {}
-      .netname.cmd.provnams delete 0 end
+      .netname.ctrl.id.provnams.lbox delete 0 end
       foreach prov $netname_prov_cnis {
          if [info exists netname_provnets($prov,$cni)] {
             # the netname_provlist keeps track which providers are listed in the box
             lappend netname_provlist $prov
-            .netname.cmd.provnams insert end "\[$netname_prov_names($prov)\]  $netname_provnets($prov,$cni)"
+            .netname.ctrl.id.provnams.lbox insert end [list $netname_prov_names($prov) $netname_provnets($prov,$cni)]
          }
       }
    }
@@ -404,7 +523,7 @@ proc NetworkNameProvSelection {} {
    global netname_entry
 
    set cni [lindex $netname_ailist $netname_idx]
-   set sel [.netname.cmd.provnams curselection]
+   set sel [.netname.ctrl.id.provnams.lbox curselection]
    if {([string length $sel] > 0) && ($sel < [llength $netname_provlist])} {
       set prov [lindex $netname_provlist $sel]
 
@@ -421,64 +540,29 @@ proc NetworkNameProvSelection {} {
 }
 
 # callback for selection of a name in the xawtv menu
-proc NetworkNameXawtvSelection {name} {
+proc NetworkNameXawtvSelection {} {
    global netname_entry netname_idx
 
-   set netname_entry $name
-   .netname.cmd.fx.mb configure -text $name
-   .netname.list.ailist delete $netname_idx
-   .netname.list.ailist insert $netname_idx $netname_entry
-   .netname.list.ailist selection set $netname_idx
-}
+   set sel [.netname.ctrl.tv.tvl.ailist curselection]
+   if {[llength $sel] == 1} {
+      set netname_entry [.netname.ctrl.tv.tvl.ailist get $sel]
+      .netname.ctrl.myname icursor end
 
-# "Save" command button
-proc NetworkNamesSave {} {
-   global netname_ailist netname_names netname_idx netname_xawtv netname_automatch
-   global netname_prov_cnis netname_prov_names netname_provnets netname_provlist
-   global netname_entry
-   global cfnetnames
-
-   # save name of the currently selected network, if changed
-   NetworkNameSaveEntry
-
-   # save names to the rc/ini file
-   array unset cfnetnames
-   foreach cni $netname_automatch {
-      # do not save failed auto-matches - a new provider's name for the CNI might match
-      if {![NetworkNameIsInXawtv $netname_names($cni)]} {
-         array unset netname_names $cni
-      }
-   }
-   array set cfnetnames [array get netname_names]
-   UpdateRcFile
-
-   # update the network menus with the new names
-   UpdateNetwopFilterBar
-
-   # Redraw the PI listbox with the new network names
-   C_PiBox_Refresh
-
-   # close the window
-   destroy .netname
-
-   # free memory
-   foreach var {netname_ailist netname_names netname_idx netname_xawtv netname_automatch
-                netname_prov_cnis netname_prov_names netname_provnets netname_provlist
-                netname_entry} {
-      if [info exists $var] {unset $var}
+      .netname.list.ailist delete $netname_idx
+      .netname.list.ailist insert $netname_idx $netname_entry
+      .netname.list.ailist selection set $netname_idx
    }
 }
 
-# "Abort" command button
-proc NetworkNamesAbort {} {
+# helper function which checks for modifications (used for "Abort" button callback)
+proc NetworkNames_CheckAbort {} {
    global netname_automatch
-   global cfnetnames netname_names
+   global netname_names
 
-   # save name of the currently selected network, if changed
-   NetworkNameSaveEntry
-
+   set cfnetname_list [C_GetNetwopNames]
    set changed 0
-   if [array exists cfnetnames] {
+   if {[llength $cfnetname_list] > 0} {
+      array set cfnetnames $cfnetname_list
       # check if any names have changed (or if there are new CNIs)
       foreach cni [array names netname_names] {
          # ignore automatic name config
@@ -494,9 +578,9 @@ proc NetworkNamesAbort {} {
    if $changed {
       set answer [tk_messageBox -type okcancel -icon warning -parent .netname -message "Discard all changes?"]
       if {[string compare $answer cancel] == 0} {
-         return
+         return 0
       }
-   } elseif {([llength $netname_automatch] > 0) || ![array exists cfnetnames]} {
+   } elseif {([llength $netname_automatch] > 0) || ([llength $cfnetname_list] == 0)} {
       # failed auto-matches would not have been saved
       set auto 0
       foreach cni $netname_automatch {
@@ -509,16 +593,56 @@ proc NetworkNamesAbort {} {
       if $auto {
          set answer [tk_messageBox -type okcancel -icon warning -parent .netname -message "Network names have been configured automatically. Really discard them?"]
          if {[string compare $answer cancel] == 0} {
-            return
+            return 0
          }
       }
    }
-
-   # close the popup window
-   destroy .netname
+   return 1
 }
 
-# check if a user-define or auto-matched name is equivalent to TV app's chhnel table
+# "OK" command button
+proc NetworkNamesQuit {is_abort} {
+   global netname_ailist netname_names netname_idx netname_xawtv netname_automatch
+   global netname_prov_cnis netname_prov_names netname_provnets netname_provlist
+   global netname_entry netname_simi_upd_sched
+
+   # save name of the currently selected network, if changed
+   NetworkNameSaveEntry
+
+   # warn about losing changes when doing abort
+   if $is_abort {
+      if {[NetworkNames_CheckAbort] == 0} {
+         return
+      }
+   } else {
+      # save names to the rc/ini file
+      foreach cni $netname_automatch {
+         # do not save failed auto-matches - a new provider's name for the CNI might match
+         if {![NetworkNameIsInXawtv $netname_names($cni)]} {
+            array unset netname_names $cni
+         }
+      }
+      C_UpdateNetwopNames [array get netname_names]
+
+      # update the network menus with the new names
+      UpdateNetwopFilterBar
+
+      # Redraw the PI listbox with the new network names
+      C_PiBox_Refresh
+   }
+
+   # close the window
+   destroy .netname
+
+   # free memory
+   foreach var {netname_ailist netname_names netname_idx netname_xawtv netname_automatch
+                netname_prov_cnis netname_prov_names netname_provnets netname_provlist
+                netname_entry netname_simi_upd_sched} {
+      catch {unset $var}
+   }
+}
+
+# check if a user-defined or auto-matched name is equivalent to TV app's channel table
 proc NetworkNameIsInXawtv {name} {
    global netname_xawtv netname_names
 

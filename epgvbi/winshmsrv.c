@@ -19,7 +19,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: winshmsrv.c,v 1.10 2004/03/28 13:18:49 tom Exp tom $
+ *  $Id: winshmsrv.c,v 1.11 2007/12/31 16:34:02 tom Exp tom $
  */
 
 #ifndef WIN32
@@ -50,13 +50,16 @@ static const WINSHMSRV_CB * pWinShmSrvCb = NULL;
 static volatile TVAPP_COMM * pTvShm = NULL;
 static HANDLE map_fd = NULL;
 static HANDLE shm_fd = 0;
-static HANDLE epgEventHandle = NULL;
+static HANDLE epgGuiEventHandle = NULL;
+static HANDLE epgAcqEventHandle = NULL;
 static HANDLE tvEventHandle = NULL;
 static HANDLE epgMutexHandle = NULL;
 static HANDLE shmMutexHandle = NULL;
 static HANDLE msgThreadHandle = NULL;
+static bool   msgThreadWaitsOnGui = FALSE;
 static bool   stopMsgThread;
 static uchar * pLastErrorText = NULL;
+static uint winShmAppType;
 
 
 // ---------------------------------------------------------------------------
@@ -66,12 +69,15 @@ static uchar * pLastErrorText = NULL;
 //
 static struct
 {
+   uint8_t   epgAppAlive;
    uint8_t   tvAppAlive;
    uint8_t   tvReqTvCard;
    uint8_t   tvCardIdx;
    uint8_t   tvGrantTuner;
-   //uint32_t  tvCurFreq;
-   uint32_t  tvChanNameIdx;
+   uint32_t  tvStationIdx;
+   uint32_t  tvEpgQueryIdx;
+   uint32_t  vpsCniInd;
+   uint32_t  vpsPilInd;
 } shmTvCache;
 
 // ----------------------------------------------------------------------------
@@ -178,7 +184,11 @@ bool WintvSharedMem_GetCniAndPil( uint * pCni, uint * pPil )
 
    if ( (pTvShm != NULL) && (pTvShm->tvAppAlive) )
    {
-      result = TtxDecode_GetCniAndPil(pCni, pPil, &pTvShm->vbiBuf);
+      result = TtxDecode_GetCniAndPil(pCni, pPil, NULL,
+                                      &shmTvCache.vpsCniInd, &shmTvCache.vpsPilInd,
+                                      &pTvShm->vbiBuf);
+
+      //dprintf2("WintvSharedMem-GetCniAndPil: cni=0x%04X, PIL=%X\n", *pCni, *pPil);
    }
    return result;
 }
@@ -284,8 +294,7 @@ bool WintvSharedMem_SetEpgCommand( uint argc, const char * pArgStr, uint cmdlen 
 //   if it doesn't match the current channel index the info is discarded
 //   (this happens if the channel is changed while the query is processed)
 //
-bool WintvSharedMem_SetEpgInfo( time_t start_time, time_t stop_time, const char * pTitle,
-                                uchar themeCount, const uchar * pThemes, uint chanIdx )
+bool WintvSharedMem_SetEpgInfo( const char * pData, uint dataLen, uint reqIdx, bool curStation )
 {
    bool result = FALSE;
 
@@ -294,21 +303,28 @@ bool WintvSharedMem_SetEpgInfo( time_t start_time, time_t stop_time, const char 
       // wait for the semaphore and request "ownership"
       if (WaitForSingleObject(shmMutexHandle, INFINITE) != WAIT_FAILED)
       {
-         if (chanIdx == pTvShm->tvChanNameIdx)
+         if ((curStation == FALSE) || (reqIdx == pTvShm->tvStationIdx))
          {
-            strncpy((char *) pTvShm->epgProgTitle, pTitle, EPG_TITLE_MAX_LEN);
-            pTvShm->epgProgTitle[EPG_TITLE_MAX_LEN - 1] = 0;
-            pTvShm->epgStartTime     = start_time;
-            pTvShm->epgStopTime      = stop_time;
-            if (pThemes != NULL)
+            if (dataLen > 0)
             {
-               memcpy((char *) pTvShm->epgPdcThemes, pThemes, 7);
-               pTvShm->epgPdcThemeCount = themeCount;
+               if (dataLen > EPG_DATA_BUF_SIZE)  // TODO
+                  dataLen = EPG_DATA_BUF_SIZE;
+               memcpy((void *)pTvShm->epgData, pData, dataLen);
+               pTvShm->epgDataLen = dataLen;
+               pTvShm->epgDataOff = 0;
             }
             else
-               pTvShm->epgPdcThemeCount = 0;
+            {  // send at least a zero byte (empty string)
+               pTvShm->epgData[0] = 0;
+               pTvShm->epgDataLen = 1;
+               pTvShm->epgDataOff = 0;
+            }
 
-            pTvShm->epgProgInfoIdx += 1;
+            pTvShm->epgDataRespType = (curStation ? EPG_DATA_RESP_CHN : EPG_DATA_RESP_QUERY);
+            if (curStation)
+               pTvShm->epgStationIdx += 1;
+            else
+               pTvShm->epgDataIdx += 1;
 
             result = TRUE;
          }
@@ -316,6 +332,8 @@ bool WintvSharedMem_SetEpgInfo( time_t start_time, time_t stop_time, const char 
          // release the semaphore
          if (ReleaseMutex(shmMutexHandle) == 0)
             debug1("WintvSharedMem-SetEpgInfo: ReleaseMutex: %ld", GetLastError());
+
+         dprintf5("WintvSharedMem-SetEpgInfo: %d bytes sent (OK:%d is_station=%d req=%d idx=%d)\n", dataLen, result, curStation, reqIdx, pTvShm->epgStationIdx);
 
          // wake up the receiver
          SetEvent(tvEventHandle);
@@ -329,20 +347,67 @@ bool WintvSharedMem_SetEpgInfo( time_t start_time, time_t stop_time, const char 
 // ---------------------------------------------------------------------------
 // Fetch channel name from shared memory
 //
-bool WintvSharedMem_QueryChanName( char * pTitle, uint maxLen, uint * pChanIdx )
+bool WintvSharedMem_GetEpgQuery( char * pBuffer, uint maxLen )
 {
+   uint len;
    bool result = FALSE;
+
+   if (pBuffer != NULL)
+   {
+      if (maxLen > EPG_QUERY_MAX_LEN)
+         maxLen = EPG_QUERY_MAX_LEN;
+
+      if (pTvShm != NULL)
+      {
+         // wait for the semaphore and request "ownership"
+         if (WaitForSingleObject(shmMutexHandle, INFINITE) != WAIT_FAILED)
+         {
+            len = pTvShm->tvEpgQueryLen;
+
+            if (maxLen >= len)
+            {
+               memcpy(pBuffer, (char *)pTvShm->tvEpgQuery, len);
+               result = TRUE;
+            }
+            else
+
+            // release the semaphore
+            if (ReleaseMutex(shmMutexHandle) == 0)
+               debug1("WintvSharedMem-GetStation: ReleaseMutex: %ld", GetLastError());
+
+            if (result == FALSE)
+               debug0("WintvSharedMem-GetStation: failed");
+            else
+               dprintf2("WintvSharedMem-GetStation: recv %d bytes: EPGQUERY \"%s\"\n", len, pBuffer);
+         }
+         else
+            debug1("WintvSharedMem-GetStation: WaitForSingleObject: %ld", GetLastError());
+      }
+   }
+   else
+      debug0("WintvSharedMem-GetStation: illegal NULL ptr param");
+
+   return result;
+}
+
+
+// ---------------------------------------------------------------------------
+// Fetch channel name from shared memory
+//
+bool WintvSharedMem_GetStation( char * pStation, uint maxLen, uint * pChanIdx, uint * pEpgCnt )
+{
    char *ps, *pe;
+   bool result = FALSE;
 
    if (pTvShm != NULL)
    {
       // wait for the semaphore and request "ownership"
       if (WaitForSingleObject(shmMutexHandle, INFINITE) != WAIT_FAILED)
       {
-         if (maxLen > CHAN_NAME_MAX_LEN)
-           maxLen = CHAN_NAME_MAX_LEN;
+         if (maxLen > TV_CHAN_NAME_MAX_LEN)
+           maxLen = TV_CHAN_NAME_MAX_LEN;
 
-         if (pTitle != NULL)
+         if (pStation != NULL)
          {
             // skip any spaces at the start of the name
             ps = (char *) pTvShm->tvChanName;
@@ -363,32 +428,37 @@ bool WintvSharedMem_QueryChanName( char * pTitle, uint maxLen, uint * pChanIdx )
 
             if (maxLen >= (pe - ps + 1 + 1))
             {
-               strncpy((char *) pTitle, ps, pe - ps + 1);
-               pTitle[pe - ps + 1] = 0;
+               strncpy((char *) pStation, ps, pe - ps + 1);
+               pStation[pe - ps + 1] = 0;
             }
             else if (maxLen > 0)
             {
-               strncpy((char *) pTitle, ps, maxLen);
-               pTitle[maxLen - 1] = 0;
+               strncpy((char *) pStation, ps, maxLen);
+               pStation[maxLen - 1] = 0;
             }
+
+            // CNI in SHM is currently not used since no TV app supports it
+            //*pCni = pTvShm->tvChanCni;
+
+            if (pChanIdx != NULL)
+               *pChanIdx = pTvShm->tvStationIdx;
+            if (pEpgCnt != NULL)
+               *pEpgCnt = pTvShm->tvChanEpgPiCnt;
+
+            result = TRUE;
          }
-
-         // CNI in SHM is currently not used since no TV app supports it
-         //*pCni = pTvShm->tvChanCni;
-
-         if (pChanIdx != NULL)
-            *pChanIdx = pTvShm->tvChanNameIdx;
-
-         result = TRUE;
 
          // release the semaphore
          if (ReleaseMutex(shmMutexHandle) == 0)
-            debug1("WintvSharedMem-QueryChanName: ReleaseMutex: %ld", GetLastError());
+            debug1("WintvSharedMem-GetStation: ReleaseMutex: %ld", GetLastError());
 
-         dprintf1("WintvSharedMem-QueryChanName: channel \"%s\"\n", pTitle);
+         if (result == FALSE)
+            debug0("WintvSharedMem-GetStation: failed");
+         else
+            dprintf2("WintvSharedMem-GetStation: station=\"%s\", cnt=%d\n", pStation, ((pEpgCnt != NULL) ? *pEpgCnt : 0));
       }
       else
-         debug1("WintvSharedMem-QueryChanName: WaitForSingleObject: %ld", GetLastError());
+         debug1("WintvSharedMem-GetStation: WaitForSingleObject: %ld", GetLastError());
    }
    return result;
 }
@@ -427,10 +497,10 @@ static void WinSharedMem_AttachTvapp( void )
          }
 
          if (ReleaseMutex(shmMutexHandle) == 0)
-            debug1("WintvSharedMem-HandleTvCmd: ReleaseMutex: %ld", GetLastError());
+            debug1("WintvSharedMem-AttachTvapp: ReleaseMutex: %ld", GetLastError());
       }
       else
-         debug1("WintvSharedMem-HandleTvCmd: WaitForSingleObject: %ld", GetLastError());
+         debug1("WintvSharedMem-AttachTvapp: WaitForSingleObject: %ld", GetLastError());
    }
 
    if (restarted)
@@ -479,10 +549,10 @@ static void WinSharedMem_DetachTvapp( void )
             restarted = TRUE;
 
             if (ReleaseMutex(shmMutexHandle) == 0)
-               debug1("WintvSharedMem-HandleTvCmd: ReleaseMutex: %ld", GetLastError());
+               debug1("WintvSharedMem-DetachTvapp: ReleaseMutex: %ld", GetLastError());
          }
          else
-            debug1("WintvSharedMem-HandleTvCmd: WaitForSingleObject: %ld", GetLastError());
+            debug1("WintvSharedMem-DetachTvapp: WaitForSingleObject: %ld", GetLastError());
       }
    }
    else
@@ -506,6 +576,17 @@ void WintvSharedMem_HandleTvCmd( void )
 
    if (pTvShm != NULL)
    {
+      if (shmTvCache.epgAppAlive != pTvShm->epgAppAlive)
+      {
+         if (WaitForSingleObject(shmMutexHandle, INFINITE) != WAIT_FAILED)
+         {
+            dprintf1("WintvSharedMem-HandleTvCmd: new EPG app connected: %d\n", pTvShm->epgAppAlive & ~winShmAppType);
+            shmTvCache.epgAppAlive = pTvShm->epgAppAlive;
+
+            ReleaseMutex(shmMutexHandle);
+         }
+      }
+
       if (pTvShm->tvAppAlive)
       {
          // check if TV app was newly attached or req. a new TV card
@@ -517,15 +598,24 @@ void WintvSharedMem_HandleTvCmd( void )
          }
 
          // check for channel change by TV app
-         if (shmTvCache.tvChanNameIdx != pTvShm->tvChanNameIdx)
+         if (shmTvCache.tvStationIdx != pTvShm->tvStationIdx)
          {
-            shmTvCache.tvChanNameIdx = pTvShm->tvChanNameIdx;
+            shmTvCache.tvStationIdx = pTvShm->tvStationIdx;
             // notify the GUI
             if (pWinShmSrvCb->pCbStationSelected != NULL)
                pWinShmSrvCb->pCbStationSelected();
 
             // reset VPS/PDC decoder
             TtxDecode_NotifyChannelChange(&pTvShm->vbiBuf);
+         }
+
+         // check for EPG query
+         if (shmTvCache.tvEpgQueryIdx != pTvShm->tvEpgQueryIdx)
+         {
+            shmTvCache.tvEpgQueryIdx = pTvShm->tvEpgQueryIdx;
+            // notify the GUI
+            if (pWinShmSrvCb->pCbEpgQuery != NULL)
+               pWinShmSrvCb->pCbEpgQuery();
          }
 
          // check if tuner was granted or reposessed
@@ -549,6 +639,19 @@ void WintvSharedMem_HandleTvCmd( void )
    }
 }
 
+#if 0
+      HANDLE arr[2];
+      DWORD ret;
+      arr[0] = epgAcqEventHandle;
+      arr[1] = epgGuiEventHandle;
+      ret = WaitForMultipleObjects(2, arr, FALSE, INFINITE);
+      if (ret == WAIT_FAILED)
+         ;
+      else if ((ret == WAIT_OBJECT_0) || (ret == WAIT_ABANDONED_0))
+         ;
+      else if ((ret == WAIT_OBJECT_1) || (ret == WAIT_ABANDONED_1))
+         ;
+#endif
 // ---------------------------------------------------------------------------
 // Thread which waits for incoming messages sent by a connected TV app
 // - to avoid neccessity of mutual exclusion no processing is done by
@@ -557,13 +660,30 @@ void WintvSharedMem_HandleTvCmd( void )
 //
 static DWORD WINAPI WintvSharedMem_WaitCommEventThread( LPVOID dummy )
 {
+   HANDLE  evHandle;
+
    for (;;)
    {
-      if (WaitForSingleObject(epgEventHandle, INFINITE) == WAIT_FAILED)
+      if ( (pTvShm != NULL) &&
+           (pTvShm->epgAppAlive == (EPG_APP_GUI | EPG_APP_DAEMON)) &&
+           (winShmAppType == EPG_APP_GUI) )
+      {
+         msgThreadWaitsOnGui = TRUE;
+         evHandle = epgGuiEventHandle;
+      }
+      else
+      {
+         msgThreadWaitsOnGui = FALSE;
+         evHandle = epgAcqEventHandle;
+      }
+      dprintf1("WintvSharedMem-WaitCommEventThread: block GUI: %d\n", msgThreadWaitsOnGui);
+
+      if (WaitForSingleObject(evHandle, INFINITE) == WAIT_FAILED)
       {
          debug1("WintvSharedMem-WaitCommEventThread: WaitForSingleObject: %ld", GetLastError());
          break;
       }
+      dprintf0("WintvSharedMem-WaitCommEventThread: woke up\n");
 
       if ((pTvShm != NULL) && (stopMsgThread == FALSE))
       {
@@ -575,6 +695,7 @@ static DWORD WINAPI WintvSharedMem_WaitCommEventThread( LPVOID dummy )
          break;
       }
    }
+   dprintf0("WintvSharedMem-WaitCommEventThread: terminated.\n");
    return 0;
 }
 
@@ -587,22 +708,33 @@ static DWORD WINAPI WintvSharedMem_WaitCommEventThread( LPVOID dummy )
 // - if the card is free, it's registered in shared memory
 // - called by the Bt8x8 driver when acq is started
 //
-bool WintvSharedMem_ReqTvCardIdx( uint cardIdx )
+bool WintvSharedMem_ReqTvCardIdx( uint cardIdx, bool * pEpgHasDriver )
 {
+   bool epgHasDriver = FALSE;
    bool result = FALSE;
 
    if (pTvShm != NULL)
    {
       if (WaitForSingleObject(shmMutexHandle, INFINITE) != WAIT_FAILED)
       {
+         // check if a TV app is connected and if yes, if it's using the same card
          if ( (pTvShm->tvAppAlive  == FALSE) ||
               (pTvShm->tvReqTvCard == FALSE) ||
               ( (pTvShm->tvCardIdx != cardIdx) &&
                 (pTvShm->tvCardIdx != TVAPP_CARD_REQ_ALL) ))
          {
-            pTvShm->epgHasDriver = TRUE;
-            pTvShm->epgTvCardIdx = cardIdx;
-            result = TRUE;
+            // check if an EPG sibling is connected and if yes, if it's using the same card
+            if ( ((pTvShm->epgAppAlive & ~winShmAppType) == 0) ||
+                 (pTvShm->epgHasDriver == FALSE) ||
+                 (pTvShm->epgTvCardIdx != cardIdx) )
+            {
+               // card is free -> mark it as busy from now on
+               pTvShm->epgHasDriver = TRUE;
+               pTvShm->epgTvCardIdx = cardIdx;
+               result = TRUE;
+            }
+            else
+               epgHasDriver = pTvShm->epgHasDriver;
          }
 
          // release the semaphore
@@ -613,14 +745,19 @@ bool WintvSharedMem_ReqTvCardIdx( uint cardIdx )
          {  // status was changed -> wake up the receiver
             SetEvent(tvEventHandle);
          }
+         dprintf2("WintvSharedMem-ReqTvCardIdx: card %d is %s\n", cardIdx, (result ? "free" : "busy"));
       }
       else
-         debug1("WintvSharedMem-SetEpgCmd: WaitForSingleObject: %ld", GetLastError());
+         debug1("WintvSharedMem-ReqTvCardIdx: WaitForSingleObject: %ld", GetLastError());
    }
    else
    {  // not connected to shared memory
+      dprintf1("WintvSharedMem-ReqTvCardIdx: card %d is free (SHM disabled)\n", cardIdx);
       result = TRUE;
    }
+
+   if (pEpgHasDriver != NULL)
+      *pEpgHasDriver = epgHasDriver;
 
    return result;
 }
@@ -633,6 +770,8 @@ void WintvSharedMem_FreeTvCard( void )
 {
    if ( (pTvShm != NULL) && (pTvShm->epgHasDriver) )
    {
+      //assert(pTvShm->epgHasDriver == winShmAppType);
+
       pTvShm->epgHasDriver = FALSE;
       pTvShm->epgReqInput  = EPG_REQ_INPUT_NONE;
       pTvShm->epgReqFreq   = EPG_REQ_FREQ_NONE;
@@ -663,7 +802,7 @@ bool WintvSharedMem_SetInputSrc( uint inputIdx )
 // Forward a request for a TV tuner frequency to the TV app
 // - called by the driver when in slave mode
 //
-bool WintvSharedMem_SetTunerFreq( uint freq )
+bool WintvSharedMem_SetTunerFreq( uint freq, uint norm )
 {
    assert(pTvShm->epgHasDriver == FALSE);  // only useful in slave mode
 
@@ -671,6 +810,7 @@ bool WintvSharedMem_SetTunerFreq( uint freq )
    {
       dprintf1("WintvSharedMem-SetTunerFreq: request new freq %d\n", freq);
       pTvShm->epgReqFreq = freq;
+      pTvShm->epgReqNorm = norm;
       SetEvent(tvEventHandle);
    }
 
@@ -678,25 +818,29 @@ bool WintvSharedMem_SetTunerFreq( uint freq )
 }
 
 // ---------------------------------------------------------------------------
-// Query the input source from which VBI originates
-//
-uint WintvSharedMem_GetInputSource( void )
-{
-   if (pTvShm != NULL)
-      return pTvShm->tvCurInput;
-   else
-      return EPG_REQ_INPUT_NONE;
-}
-
-// ---------------------------------------------------------------------------
 // Query the TV tuner frequency from which VBI originates
+// - if the current source isn't a TV tuner the frequency is meaningless
 //
-uint WintvSharedMem_GetTunerFreq( void )
+bool WintvSharedMem_GetTunerFreq( uint * pFreq, bool * pIsTuner )
 {
-   if (pTvShm != NULL)
-      return pTvShm->tvCurFreq;
+   bool result = FALSE;
+
+   if ((pFreq != NULL) && (pIsTuner != NULL))
+   {
+      if (pTvShm != NULL)
+      {
+         *pFreq = pTvShm->tvCurFreq;
+         *pIsTuner = pTvShm->tvCurIsTuner;
+
+         result = TRUE;
+      }
+      else
+         result = FALSE;
+   }
    else
-      return EPG_REQ_FREQ_NONE;
+      debug0("WintvSharedMem-GetTunerFreq: illegal NULL ptr params");
+
+   return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -715,19 +859,129 @@ volatile EPGACQ_BUF * WintvSharedMem_GetVbiBuf( void )
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
-// Create and initialize shared memory
+// Attach to shared memory which was already created by an EPG sibling
+//
+static bool WintvSharedMem_ShmAttach( void )
+{
+   bool result = FALSE;
+
+   map_fd = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, EPG_SHM_NAME);
+   if (map_fd != NULL)
+   {
+      pTvShm = MapViewOfFileEx(map_fd, FILE_MAP_ALL_ACCESS, 0, 0, sizeof(TVAPP_COMM), NULL);
+      if (pTvShm != NULL)
+      {
+         if (pTvShm->epgAppAlive != 0)
+         {
+            if ((pTvShm->epgAppAlive & winShmAppType) == 0)
+            {
+               if ( (pTvShm->epgShmVersion == EPG_SHM_VERSION) &&
+                    (pTvShm->epgShmSize == sizeof(TVAPP_COMM)) )
+               {
+                  pTvShm->epgAppAlive |= winShmAppType;
+
+                  memset(&shmTvCache, 0, sizeof(shmTvCache));
+                  shmTvCache.epgAppAlive = pTvShm->epgAppAlive;
+
+                  result = TRUE;
+               }
+               // else XXX TODO: error message
+            }
+            else
+               WinSharedMem_SetErrorText(0, "TV interaction setup failed: ", ((winShmAppType == EPG_APP_DAEMON) ? "EPG daemon" : "EPG application"), " already registered in shared memory", NULL);
+         }
+         else
+            WinSharedMem_SetErrorText(0, "TV interaction setup failed: shared memory exists, but remote ", ((winShmAppType == EPG_APP_GUI) ? "EPG daemon" : "EPG application"), " is not registered", NULL);
+      }
+      else
+         WinSharedMem_SetErrorText(GetLastError(), "TV interaction setup failed: can't map shared memory", NULL);
+
+      if (result == FALSE)
+      {
+         pTvShm = NULL;
+         CloseHandle(map_fd);
+         map_fd = NULL;
+      }
+   }
+   else
+      WinSharedMem_SetErrorText(GetLastError(), "TV interaction setup failed: can't open shared memory handle", NULL);
+
+   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Create shared memory
+//
+static bool WintvSharedMem_ShmCreate( void )
+{
+   bool result = FALSE;
+
+   shm_fd = CreateFile(EPG_SHM_FILE_NAME, GENERIC_READ|GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS,
+                       FILE_ATTRIBUTE_HIDDEN|FILE_ATTRIBUTE_TEMPORARY|FILE_FLAG_DELETE_ON_CLOSE, NULL);
+   if (shm_fd != NULL)
+   {
+      map_fd = CreateFileMapping(shm_fd, NULL, PAGE_READWRITE, 0, sizeof(TVAPP_COMM), EPG_SHM_NAME);
+      if (map_fd != NULL)
+      {
+         pTvShm = MapViewOfFileEx(map_fd, FILE_MAP_ALL_ACCESS, 0, 0, sizeof(TVAPP_COMM), NULL);
+         if (pTvShm != NULL)
+         {
+            dprintf1("WintvSharedMem-ShmCreate: initializing shared memory for app %d\n", winShmAppType);
+
+            memset((char *)pTvShm, 0, sizeof(TVAPP_COMM));
+            pTvShm->epgShmSize     = sizeof(TVAPP_COMM);
+            pTvShm->epgShmVersion  = EPG_SHM_VERSION;
+            pTvShm->epgReqInput    = EPG_REQ_INPUT_NONE;
+            pTvShm->epgReqFreq     = EPG_REQ_FREQ_NONE;
+            pTvShm->epgAppAlive    = winShmAppType;
+
+            memset(&shmTvCache, 0, sizeof(shmTvCache));
+            shmTvCache.epgAppAlive = winShmAppType;
+
+            result = TRUE;
+         }
+         else
+            WinSharedMem_SetErrorText(GetLastError(), "TV interaction setup failed: can't map shared memory", NULL);
+
+         if (result == FALSE)
+         {
+            CloseHandle(map_fd);
+            map_fd = NULL;
+         }
+      }
+      else
+         WinSharedMem_SetErrorText(GetLastError(), "TV interaction setup failed: can't create shared memory handle", NULL);
+
+      if (result == FALSE)
+      {
+         CloseHandle(shm_fd);
+         shm_fd = NULL;
+      }
+   }
+   else
+      WinSharedMem_SetErrorText(GetLastError(), "TV interaction setup failed: can't create file '" EPG_SHM_FILE_NAME "' for shared memory", NULL);
+
+   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Create and initialize communication resources
 //
 static bool WintvSharedMem_Enable( void )
 {
    DWORD msgThreadId;
+   const char * tmpName;
+   HANDLE tmpHandle;
    uint cardIdx;
    bool acqEnabled, epgHasDriver;
    bool shmMutexOwned = FALSE;
    bool tvAppAlive = FALSE;
+   bool epgAppAlive = FALSE;
    bool result = FALSE;
 
    // create an owned mutex: make sure there's only one EPG server active at the same time
-   epgMutexHandle = CreateMutex(NULL, TRUE, EPG_MUTEX_NAME);
+   tmpName = (winShmAppType == EPG_APP_DAEMON) ? EPG_ACQ_MUTEX_NAME : EPG_GUI_MUTEX_NAME;
+   epgMutexHandle = CreateMutex(NULL, TRUE, tmpName);
    if (epgMutexHandle != NULL)
    {
       // if the mutex already existed before we attempted to create/open it -> bow out
@@ -742,111 +996,114 @@ static bool WintvSharedMem_Enable( void )
                tvEventHandle = CreateEvent(NULL, FALSE, FALSE, TV_SHM_EVENT_NAME);
                if (tvEventHandle != NULL)
                {
-                  epgEventHandle = CreateEvent(NULL, FALSE, FALSE, EPG_SHM_EVENT_NAME);
-                  if (epgEventHandle != NULL)
+                  // check if the TV app is already running
+                  tvAppAlive = (GetLastError() == ERROR_ALREADY_EXISTS);
+
+                  epgAcqEventHandle = CreateEvent(NULL, FALSE, FALSE, EPG_ACQ_SHM_EVENT_NAME);
+                  epgGuiEventHandle = CreateEvent(NULL, FALSE, FALSE, EPG_GUI_SHM_EVENT_NAME);
+                  if ((epgAcqEventHandle != NULL) && (epgGuiEventHandle != NULL))
                   {
-                     // check if the TV is already running
-                     tvAppAlive = (GetLastError() == ERROR_ALREADY_EXISTS);
-
-                     ResetEvent(epgEventHandle);
-
-                     shm_fd = CreateFile(EPG_SHM_FILE_NAME, GENERIC_READ|GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS,
-                                         FILE_ATTRIBUTE_HIDDEN|FILE_ATTRIBUTE_TEMPORARY|FILE_FLAG_DELETE_ON_CLOSE, NULL);
-                     if (shm_fd != NULL)
+                     tmpName = (winShmAppType == EPG_APP_DAEMON) ? EPG_GUI_MUTEX_NAME : EPG_ACQ_MUTEX_NAME;
+                     tmpHandle = OpenMutex(SYNCHRONIZE, FALSE, tmpName);
+                     if (tmpHandle != NULL)
                      {
-                        map_fd = CreateFileMapping(shm_fd, NULL, PAGE_READWRITE, 0, sizeof(TVAPP_COMM), EPG_SHM_NAME);
-                        if (map_fd != NULL)
+                        epgAppAlive = (GetLastError() == ERROR_ALREADY_EXISTS);
+                        CloseHandle(tmpHandle);
+                     }
+                     else
+                     {
+                        ResetEvent(epgAcqEventHandle);
+                        ResetEvent(epgGuiEventHandle);
+                     }
+
+                     if ( (epgAppAlive == FALSE) ?
+                          WintvSharedMem_ShmCreate() : WintvSharedMem_ShmAttach() )
+                     {
+                        BtDriver_GetState(&acqEnabled, &epgHasDriver, &cardIdx);
+                        if (acqEnabled && epgHasDriver)
                         {
-                           pTvShm = MapViewOfFileEx(map_fd, FILE_MAP_ALL_ACCESS, 0, 0, sizeof(TVAPP_COMM), NULL);
-                           if (pTvShm != NULL)
+                           pTvShm->epgHasDriver   = TRUE;
+                           pTvShm->epgTvCardIdx   = cardIdx;
+                        }
+
+                        if (SetEvent(tvEventHandle) != 0)
+                        {
+                           // create thread suspended so that it doesn't block on the event yet
+                           // which we still need below
+                           stopMsgThread = FALSE;
+                           msgThreadHandle = CreateThread(NULL, 0, WintvSharedMem_WaitCommEventThread,
+                                                          NULL, CREATE_SUSPENDED, &msgThreadId);
+                           if (msgThreadHandle != NULL)
                            {
-                              memset((char *)pTvShm, 0, sizeof(TVAPP_COMM));
-                              memset(&shmTvCache, 0, sizeof(shmTvCache));
-                              pTvShm->epgShmSize     = sizeof(TVAPP_COMM);
-                              pTvShm->epgShmVersion  = EPG_SHM_VERSION;
-                              pTvShm->epgReqInput    = EPG_REQ_INPUT_NONE;
-                              pTvShm->epgReqFreq     = EPG_REQ_FREQ_NONE;
-                              pTvShm->epgAppAlive    = TRUE;
-                              pTvShm->vbiBuf.obsolete1 = TRUE;
+                              shmMutexOwned = FALSE;
+                              if (ReleaseMutex(shmMutexHandle) == 0)
+                                 debug1("WintvSharedMem-Init: ReleaseMutex: %ld", GetLastError());
 
-                              BtDriver_GetState(&acqEnabled, &epgHasDriver, &cardIdx);
-                              pTvShm->epgHasDriver   = acqEnabled && epgHasDriver;
-                              pTvShm->epgTvCardIdx   = cardIdx;
-
-                              if (SetEvent(tvEventHandle) != 0)
+                              if (tvAppAlive && (epgAppAlive == FALSE))
                               {
-                                 stopMsgThread = FALSE;
-                                 msgThreadHandle = CreateThread(NULL, 0, WintvSharedMem_WaitCommEventThread, NULL, 0, &msgThreadId);
-                                 if (msgThreadHandle != NULL)
-                                 {
-                                    shmMutexOwned = FALSE;
-                                    if (ReleaseMutex(shmMutexHandle) == 0)
-                                       debug1("WintvSharedMem-Init: ReleaseMutex: %ld", GetLastError());
-
-                                    if (tvAppAlive)
-                                    {
-                                       dprintf0("WintvSharedMem-Init: TV app already running: wait for SHM init...\n");
-                                       // give the TV app a chance to write it's status into shared memory
-                                       if (WaitForSingleObject(epgEventHandle, 2000) == WAIT_FAILED)
-                                          debug1("WintvSharedMem-Init: WaitForSingleObject " TV_SHM_EVENT_NAME ": %ld", GetLastError());
-
-                                       if (pTvShm->tvAppAlive)
-                                       {
-                                          dprintf0("WintvSharedMem-Init: TV app initialized SHM - entering slave mode\n");
-                                          WinSharedMem_AttachTvapp();
-                                       }
-                                    }
-                                    // initialization completed successfully
-                                    // (the attach to a TV app may have failed, but this is reported separately)
-                                    result = TRUE;
-                                 }
+                                 dprintf0("WintvSharedMem-Init: TV app already running: wait for SHM init...\n");
+                                 // give the TV app a chance to write it's status into shared memory
+                                 if ((shmTvCache.epgAppAlive & ~winShmAppType) == EPG_APP_DAEMON)
+                                    tmpHandle = epgGuiEventHandle;
                                  else
-                                    WinSharedMem_SetErrorText(GetLastError(), "TV interaction setup failed: can't create message receptor thread", NULL);
-                              }
-                              else
-                                 WinSharedMem_SetErrorText(GetLastError(), "TV interaction setup failed: can't trigger TV event", NULL);
+                                    tmpHandle = epgAcqEventHandle;
+                                 if (WaitForSingleObject(tmpHandle, 2000) == WAIT_FAILED)
+                                    debug1("WintvSharedMem-Init: WaitForSingleObject: %ld", GetLastError());
 
-                              if (result == FALSE)
+                                 if (pTvShm->tvAppAlive)
+                                 {
+                                    dprintf0("WintvSharedMem-Init: TV app initialized SHM - entering slave mode\n");
+                                    WinSharedMem_AttachTvapp();
+                                 }
+                              }
+                              if ((shmTvCache.epgAppAlive & ~winShmAppType) == EPG_APP_GUI)
                               {
-                                 pTvShm->epgAppAlive = FALSE;
-                                 SetEvent(tvEventHandle);
-
-                                 UnmapViewOfFile((void *)pTvShm);
-                                 pTvShm = NULL;
+                                 dprintf2("WintvSharedMem-Init: trigger EPG sibling %d (%d)\n", (shmTvCache.epgAppAlive & ~winShmAppType), pTvShm->epgAppAlive);
+                                 // if EPG GUI is active: trigger it so that it switches to the secondary event handle
+                                 SetEvent(epgAcqEventHandle);
                               }
+
+                              // now that a possible EPG sibling has freed the event handle (if necessary) allow our thread to block on it
+                              if (ResumeThread(msgThreadHandle) == 0xFFFFFFFF)
+                                 debug1("WintvSharedMem-Init: ResumeThread: %ld", GetLastError());
+                              // initialization completed successfully
+                              // (the attach to a TV app may have failed, but this is reported separately)
+                              result = TRUE;
                            }
                            else
-                              WinSharedMem_SetErrorText(GetLastError(), "TV interaction setup failed: can't map shared memory", NULL);
-
-                           if (result == FALSE)
-                           {
-                              CloseHandle(map_fd);
-                              map_fd = NULL;
-                           }
+                              WinSharedMem_SetErrorText(GetLastError(), "TV interaction setup failed: can't create message receptor thread", NULL);
                         }
                         else
-                           WinSharedMem_SetErrorText(GetLastError(), "TV interaction setup failed: can't create shared memory handle", NULL);
+                           WinSharedMem_SetErrorText(GetLastError(), "TV interaction setup failed: can't trigger TV event", NULL);
 
                         if (result == FALSE)
                         {
-                           CloseHandle(shm_fd);
+                           pTvShm->epgAppAlive &= ~winShmAppType;
+                           SetEvent(tvEventHandle);
+
+                           UnmapViewOfFile((void *)pTvShm);
+                           pTvShm = NULL;
+
+                           CloseHandle(map_fd);
+                           map_fd = NULL;
+
+                           if (shm_fd != NULL)
+                              CloseHandle(shm_fd);
                            shm_fd = NULL;
                         }
                      }
-                     else
-                        WinSharedMem_SetErrorText(GetLastError(), "TV interaction setup failed: can't create file '" EPG_SHM_FILE_NAME "' for shared memory", NULL);
-
-                     if (result == FALSE)
-                     {
-                        CloseHandle(epgEventHandle);
-                        epgEventHandle = NULL;
-                     }
                   }
                   else
-                     WinSharedMem_SetErrorText(GetLastError(), "TV interaction setup failed: can't create EPG event handle", NULL);
+                     WinSharedMem_SetErrorText(GetLastError(), "TV interaction setup failed: can't create EPG event handles", NULL);
 
                   if (result == FALSE)
                   {
+                     if (epgAcqEventHandle != NULL)
+                        CloseHandle(epgAcqEventHandle);
+                     if (epgGuiEventHandle != NULL)
+                        CloseHandle(epgGuiEventHandle);
+                     epgGuiEventHandle = NULL;
+                     epgAcqEventHandle = NULL;
                      CloseHandle(tvEventHandle);
                      tvEventHandle = NULL;
                   }
@@ -877,7 +1134,7 @@ static bool WintvSharedMem_Enable( void )
             debug1("WintvSharedMem-Init: ReleaseMutex EPG: %ld", GetLastError());
       }
       else
-         WinSharedMem_SetErrorText(0, "TV interaction setup failed: another EPG application is already running", NULL);
+         WinSharedMem_SetErrorText(0, "TV interaction setup failed: another ", ((winShmAppType == EPG_APP_DAEMON) ? "EPG daemon" : "EPG application"), " is already running", NULL);
 
       if (result == FALSE)
       {
@@ -896,34 +1153,60 @@ static bool WintvSharedMem_Enable( void )
 //
 static void WintvSharedMem_Disable( void )
 {
-   // lock shared memory to avoid race with TV app
-   if (shmMutexHandle != NULL)
-      WaitForSingleObject(shmMutexHandle, 5000);
+   dprintf0("WintvSharedMem-Disable: detaching from shm\n");
 
-   // notify the TV app that we're going down
-   if ((pTvShm != NULL) && (tvEventHandle != NULL))
-   {
-      pTvShm->epgAppAlive = FALSE;
-      SetEvent(tvEventHandle);
-   }
-
-   // stop the message receptor thread (after setting epgAppAlive FALSE)
+   // stop the message receptor thread (stop flag already set above)
    if (msgThreadHandle != NULL)
    {
       stopMsgThread = TRUE;
-      // wake up the thread
-      SetEvent(epgEventHandle);
+      dprintf0("WintvSharedMem-Disable: waiting for thread to terminate\n");
+      // wake up thread
+      if (epgAcqEventHandle != NULL)
+         SetEvent(epgAcqEventHandle);
+      if ((epgGuiEventHandle != NULL) && (winShmAppType == EPG_APP_GUI))
+         SetEvent(epgGuiEventHandle);
       // wait until the thread has terminated
-      WaitForSingleObject(msgThreadHandle, INFINITE);
+      WaitForSingleObject(msgThreadHandle, 30*1000);
       CloseHandle(msgThreadHandle);
       msgThreadHandle = NULL;
    }
 
-   if ((epgEventHandle != NULL) && (CloseHandle(epgEventHandle) == 0))
-      debug1("WintvSharedMem-Exit: CloseHandle epgEventHandle: %ld", GetLastError());
+   // lock shared memory to avoid race with TV app or EPG sibling
+   if (shmMutexHandle != NULL)
+      WaitForSingleObject(shmMutexHandle, 10*1000);
+
+   if (pTvShm != NULL)
+   {
+      // re-register the EPG app from shared memory
+      pTvShm->epgAppAlive &= ~winShmAppType;
+
+      if (pTvShm->epgAppAlive != 0)
+      {
+         dprintf2("WintvSharedMem-Disable: app type %d remains attached (self %d)\n", pTvShm->epgAppAlive, winShmAppType);
+
+         // wake up sibling
+         if (epgAcqEventHandle != NULL)
+            SetEvent(epgAcqEventHandle);
+         if (epgGuiEventHandle != NULL)
+            SetEvent(epgGuiEventHandle);
+      }
+   }
+
+   // notify the TV app that we're going down
+   if (tvEventHandle != NULL)
+   {
+      SetEvent(tvEventHandle);
+   }
+
+   if ((epgAcqEventHandle != NULL) && (CloseHandle(epgAcqEventHandle) == 0))
+      debug1("WintvSharedMem-Exit: CloseHandle epgAcqEventHandle: %ld", GetLastError());
+   if ((epgGuiEventHandle != NULL) && (CloseHandle(epgGuiEventHandle) == 0))
+      debug1("WintvSharedMem-Exit: CloseHandle epgGuiEventHandle: %ld", GetLastError());
+   epgAcqEventHandle = NULL;
+   epgGuiEventHandle = NULL;
+
    if ((tvEventHandle != NULL) && (CloseHandle(tvEventHandle) == 0))
       debug1("WintvSharedMem-Exit: CloseHandle tvEventHandle: %ld", GetLastError());
-   epgEventHandle = NULL;
    tvEventHandle  = NULL;
 
    if ((map_fd != NULL) && (CloseHandle(map_fd) == FALSE))
@@ -987,7 +1270,6 @@ bool WintvSharedMem_StartStop( bool start, bool * pAcqEnabled )
    }
    else if ( (start == FALSE) && (pTvShm != NULL) )
    {
-      dprintf0("WintvSharedMem-StartStop: stopping service\n");
       // when acq is running in slave mode, it must be stopped
       // (note: cannot do a restart before of after - the shm must be disabled inbetween stop and start)
       if (acqEnabled && (epgHasDriver == FALSE))
@@ -1048,10 +1330,11 @@ void WintvSharedMem_Exit( void )
 // Initialize the driver module
 // - called once at program start
 //
-bool WintvSharedMem_Init( void )
+bool WintvSharedMem_Init( bool isDaemon )
 {
    pTvShm = NULL;
    memset(&shmTvCache, 0, sizeof(shmTvCache));
+   winShmAppType = (isDaemon ? EPG_APP_DAEMON : EPG_APP_GUI);
    return TRUE;
 }
 

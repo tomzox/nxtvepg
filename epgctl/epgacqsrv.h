@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqsrv.h,v 1.9 2004/06/19 19:52:42 tom Exp tom $
+ *  $Id: epgacqsrv.h,v 1.10 2006/11/25 22:12:51 tom Exp tom $
  */
 
 #ifndef __EPGACQSRV_H
@@ -41,6 +41,8 @@
 #define STATS_REQ_BITS_VPS_PDC_REQ  0x08   // forward VPS/PDC CNI and PIL
 #define STATS_REQ_BITS_VPS_PDC_UPD  0x10   // forward the next new VPS/PDC reading
 
+#define STATS_IND_INVALID_VPS_PDC   0xFF
+
 typedef enum
 {
    EPGDB_STATS_UPD_TYPE_MINIMAL,
@@ -62,26 +64,30 @@ typedef struct MSG_STRUCT_STATS_IND_STRUCT
       struct
       {
          EPGDB_BLOCK_COUNT    count[2];
-         EPGDB_ACQ_VPS_PDC    vpsPdc;
+         uint32_t             nowMaxAcqNetCount;
+         EPG_ACQ_VPS_PDC      vpsPdc;
          time_t               lastAiTime;
          uint32_t             resv_align2; // 64-bit alignment for Sparc
       } minimal;
 
       struct
       {
-         EPGDB_STATS          stats;
+         EPG_ACQ_STATS        stats;
+         EPG_ACQ_VPS_PDC      vpsPdc;
       } initial;
 
       struct
       {
          EPGDB_BLOCK_COUNT    count[2];
          EPGDB_ACQ_AI_STATS   ai;
-         EPGDB_ACQ_TTX_STATS  ttx;
+         TTX_DEC_STATS        ttx_dec;
+         TTX_GRAB_STATS       grabTtxStats;
          EPG_STREAM_STATS     stream;
-         EPGDB_ACQ_VPS_PDC    vpsPdc;
+         EPG_ACQ_VPS_PDC      vpsPdc;
          EPGDB_HIST           hist;
          uint16_t             histIdx;
-         uint32_t             nowNextMaxAcqRepCount;
+         uint32_t             nowMaxAcqRepCount;
+         uint32_t             nowMaxAcqNetCount;
          time_t               lastStatsUpdate;
       } update;
    } u;
@@ -139,8 +145,13 @@ typedef struct
 
 typedef struct
 {
-   EPGDB_ACQ_VPS_PDC  vpsPdc;
+   EPG_ACQ_VPS_PDC  vpsPdc;
 } MSG_STRUCT_VPS_PDC_IND;
+
+typedef struct
+{
+   uint32_t  mtime;
+} MSG_STRUCT_DB_UPD_IND;
 
 typedef union
 {
@@ -153,6 +164,7 @@ typedef union
    MSG_STRUCT_STATS_REQ     stats_req;
    MSG_STRUCT_STATS_IND     stats_ind;
    MSG_STRUCT_VPS_PDC_IND   vps_pdc_ind;
+   MSG_STRUCT_DB_UPD_IND    db_upd_ind;
 } EPGDBSRV_MSG_BODY;
 
 // ----------------------------------------------------------------------------
@@ -164,6 +176,8 @@ void EpgAcqServer_SetMaxConn( uint max_conn );
 void EpgAcqServer_SetAddress( bool do_tcp_ip, const char * pIpStr, const char * pPort );
 void EpgAcqServer_SetProvider( uint cni );
 void EpgAcqServer_SetVpsPdc( bool change );
+void EpgAcqServer_TriggerStats( void );
+void EpgAcqServer_TriggerDbUpdate( time_t mtime );
 void EpgAcqServer_Destroy( void );
 sint EpgAcqServer_GetFdSet( fd_set * rd, fd_set * wr );
 void EpgAcqServer_HandleSockets( fd_set * rd, fd_set * wr );

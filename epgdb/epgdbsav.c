@@ -29,7 +29,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbsav.c,v 1.56.1.1 2006/12/21 22:25:54 tom Exp $
+ *  $Id: epgdbsav.c,v 1.62 2007/12/30 23:52:45 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -70,18 +70,19 @@
 typedef long ssize_t;
 #endif
 
-//internal shortcuts
+// internal shortcuts
 typedef const EPGDB_CONTEXT * CPDBC;
 typedef       EPGDB_CONTEXT * PDBC;
 
-
+// path to database directory, set during start-up
 static const char * epgDbDirPath = NULL;
-static const char * epgDemoDb    = NULL;
 
 // cache current time during database reload (optimization only)
 static time_t  epgDbReloadCurTime;
 static time_t  epgDbReloadExpireDelayPi = EPGDBSAV_DEFAULT_EXPIRE_TIME;
 
+// dummy CNI used to identify "-demo" reload mode
+#define RELOAD_DEMO_CNI   0
 
 // ---------------------------------------------------------------------------
 // Write the file header
@@ -98,9 +99,10 @@ static bool EpgDbDumpHeader( CPDBC dbc, int fd )
       strncpy(header.magic, MAGIC_STR, MAGIC_STR_LEN);
       memset(header.reserved, 0, sizeof(header.reserved));
       header.endianMagic   = ENDIAN_MAGIC;
+      header.encoding      = DUMP_ENCODING_SUP;
       header.compatVersion = DUMP_COMPAT;
       header.swVersion     = EPG_VERSION_NO;
-      header.cni = AI_GET_NETWOP_N(&dbc->pAiBlock->blk.ai, dbc->pAiBlock->blk.ai.thisNetwop)->cni;
+      header.cni = dbc->provCni;
       header.pageNo = dbc->pageNo;
       header.tunerFreq = dbc->tunerFreq;
       header.appId = dbc->appId;
@@ -186,6 +188,8 @@ static DB_FMT_TYPE EpgDbBuildFileName( uint cni, char * pFilename )
    DB_FMT_TYPE firstFmt;
    DB_FMT_TYPE curFmt;
 
+   assert((cni & ~0xFFFF) == 0);  // only 16 bit CNI expected here
+
    curFmt = firstFmt = DUMP_NAME_DEF_FMT;
    do
    {
@@ -222,18 +226,16 @@ bool EpgDbDump( PDBC dbc )
    EPGDB_BLOCK *pWalk;
    BLOCK_TYPE type;
    int  fd;
-   uint cni;
    bool result = FALSE;
 
    EpgDbLockDatabase(dbc, TRUE);
-   if ((dbc->pAiBlock != NULL) && (dbc->modified))
+   if ((dbc->pAiBlock != NULL) && (dbc->modified) && (dbc->provCni != 0))
    {
       pFilename = xmalloc(strlen(epgDbDirPath) + 1 + DUMP_NAME_MAX_LEN);
-      cni = AI_GET_NETWOP_N(&dbc->pAiBlock->blk.ai, dbc->pAiBlock->blk.ai.thisNetwop)->cni;
       if (dbc->fileNameFormat == DB_FMT_UNIX)
-         sprintf(pFilename, "%s" PATH_SEPARATOR_STR DUMP_NAME_FMT_UNIX, epgDbDirPath, cni);
+         sprintf(pFilename, "%s" PATH_SEPARATOR_STR DUMP_NAME_FMT_UNIX, epgDbDirPath, dbc->provCni);
       else
-         sprintf(pFilename, "%s" PATH_SEPARATOR_STR DUMP_NAME_FMT_DOS, epgDbDirPath, cni);
+         sprintf(pFilename, "%s" PATH_SEPARATOR_STR DUMP_NAME_FMT_DOS, epgDbDirPath, dbc->provCni);
       #ifdef DUMP_NAME_TMP
       pTmpname = xmalloc(strlen(epgDbDirPath) + 1 + DUMP_NAME_MAX_LEN);
       strcpy(pTmpname, pFilename);
@@ -311,24 +313,39 @@ bool EpgDbDump( PDBC dbc )
 static EPGDB_RELOAD_RESULT EpgDbReloadAddAiBlock( PDBC dbc, EPGDB_BLOCK * pBlock )
 {
    EPGDB_RELOAD_RESULT result;
-
    if ( EpgBlockCheckConsistancy(pBlock) )
    {
-      if (dbc->pAiBlock == NULL)
-      {
-         pBlock->pNextBlock       = NULL;
-         pBlock->pPrevBlock       = NULL;
-         pBlock->pNextNetwopBlock = NULL;
-         pBlock->pPrevNetwopBlock = NULL;
+      // backwards compatibility: zero out the former "addInfo" element
+      AI_NETWOP *pNetwops;
+      uint netIdx;
+      pNetwops = (AI_NETWOP*) AI_GET_NETWOPS(&pBlock->blk.ai);
+      for (netIdx = 0; netIdx < pBlock->blk.ai.netwopCount; netIdx++, pNetwops++)
+         pNetwops->netCniMSB = 0;
 
-         dbc->pAiBlock = pBlock;
+      if (dbc->provCni == AI_GET_THIS_NET_CNI(&pBlock->blk.ai))
+      {
+         if (dbc->pAiBlock == NULL)
+         {
+            pBlock->pNextBlock       = NULL;
+            pBlock->pPrevBlock       = NULL;
+            pBlock->pNextNetwopBlock = NULL;
+            pBlock->pPrevNetwopBlock = NULL;
+
+            dbc->pAiBlock = pBlock;
+         }
+         else
+         {
+            debug1("EpgDbReload-AddAiBlock: prov=0x%04X: AI block already exists", dbc->provCni);
+            xfree(pBlock);
+         }
+         result = EPGDB_RELOAD_OK;
       }
       else
       {
-         debug2("EpgDbReload-AddAiBlock: prov=0x%04X: AI block already exists - new CNI 0x%04X", AI_GET_CNI(&dbc->pAiBlock->blk.ai), AI_GET_CNI(&pBlock->blk.ai));
+         debug2("EpgDbReload-AddAiBlock: prov=0x%04X: mismatching CNI 0x%04X in AI block", dbc->provCni, AI_GET_THIS_NET_CNI(&pBlock->blk.ai));
          xfree(pBlock);
+         result = EPGDB_RELOAD_CORRUPT;
       }
-      result = EPGDB_RELOAD_OK;
    }
    else
    {
@@ -377,14 +394,14 @@ static EPGDB_RELOAD_RESULT EpgDbReloadAddGenericBlock( PDBC dbc, EPGDB_BLOCK *pB
             }
             else
             {  // unexpected block number - refuse (should never happen, since blocks are dumped sorted)
-               debug3("EpgDbReload-AddGenericBlock: prov=0x%04X: blockno=%d <= pPrev %d", AI_GET_CNI(&dbc->pAiBlock->blk.ai), block_no, pPrev->blk.all.block_no);
+               debug3("EpgDbReload-AddGenericBlock: prov=0x%04X: blockno=%d <= pPrev %d", dbc->provCni, block_no, pPrev->blk.all.block_no);
                xfree(pBlock);
             }
          }
       }
       else
       {
-         debug4("EpgDbReload-AddGenericBlock: prov=0x%04X: type=%d: invalid block_no=%d >= count=%d", AI_GET_CNI(&dbc->pAiBlock->blk.ai), pBlock->type, pBlock->blk.all.block_no, blockCount);
+         debug4("EpgDbReload-AddGenericBlock: prov=0x%04X: type=%d: invalid block_no=%d >= count=%d", dbc->provCni, pBlock->type, pBlock->blk.all.block_no, blockCount);
          xfree(pBlock);
       }
       //assert(EpgDbCheckChains());
@@ -420,7 +437,7 @@ static EPGDB_RELOAD_RESULT EpgDbReloadAddDefectPiBlock( PDBC dbc, EPGDB_BLOCK * 
          }
          else
          {
-            debug4("EpgDbReload-AddDefectPiBlock: prov=0x%04X: invalid netwop=%d stop=%ld block_no=%d", AI_GET_CNI(&dbc->pAiBlock->blk.ai), pBlock->blk.pi.netwop_no, pBlock->blk.pi.stop_time, pBlock->blk.pi.block_no);
+            debug4("EpgDbReload-AddDefectPiBlock: prov=0x%04X: invalid netwop=%d stop=%ld block_no=%d", dbc->provCni, pBlock->blk.pi.netwop_no, pBlock->blk.pi.stop_time, pBlock->blk.pi.block_no);
             xfree(pBlock);
          }
       }
@@ -512,7 +529,7 @@ static EPGDB_RELOAD_RESULT EpgDbReloadAddPiBlock( PDBC dbc, EPGDB_BLOCK * pBlock
             }
             else
             {  // unexpected block number or start time -> refuse the block (should never happen)
-               debug4("EpgDbReload-AddPiBlock: PI not consecutive: prov=0x%04X: netwop=%02d block_no=%d start=%ld", AI_GET_CNI(&dbc->pAiBlock->blk.ai), netwop, pBlock->blk.pi.block_no, pBlock->blk.pi.start_time);
+               debug4("EpgDbReload-AddPiBlock: PI not consecutive: prov=0x%04X: netwop=%02d block_no=%d start=%ld", dbc->provCni, netwop, pBlock->blk.pi.block_no, pBlock->blk.pi.start_time);
                xfree(pBlock);
             }
 
@@ -575,11 +592,26 @@ static EPGDB_RELOAD_RESULT EpgDbReloadHeader( uint cni, int fd, EPGDBSAV_HEADER 
 
             if (pHead->compatVersion == DUMP_COMPAT)
             {
-               if ((cni == RELOAD_ANY_CNI) || (pHead->cni == cni))
+               if ((cni == RELOAD_DEMO_CNI) || (pHead->cni == cni))
                {
-                  result = EPGDB_RELOAD_OK;
-                  if (pSwapEndian != NULL)
-                     *pSwapEndian = swapEndian;
+                  if (pHead->encoding != DUMP_ENCODING_SUP)
+                  {
+                     debug2("EpgDbReload-Header: reload db 0x%04X: incompatible encoding %d", cni, pHead->encoding);
+                     result = EPGDB_RELOAD_ENCODING;
+                  }
+                  else
+                  {
+                     result = EPGDB_RELOAD_OK;
+                     if (pSwapEndian != NULL)
+                        *pSwapEndian = swapEndian;
+                  }
+               }
+               else if ( (((EPGDBSAV_HEADER_TIME_T_32*)pHead)->cni == cni) ||
+                         (((EPGDBSAV_HEADER_TIME_T_64*)pHead)->cni == cni) )
+               {
+                  // CNI is located behind the time values in the header, so it's OK only if the int width matches
+                  // FIXME doesn't work if endian swap was done above
+                  result = EPGDB_RELOAD_INT_WIDTH;
                }
                else
                {
@@ -598,7 +630,7 @@ static EPGDB_RELOAD_RESULT EpgDbReloadHeader( uint cni, int fd, EPGDBSAV_HEADER 
             OBSOLETE_EPGDBSAV_HEADER * pObsHead = (OBSOLETE_EPGDBSAV_HEADER *) pHead;
             if ( (pObsHead->dumpVersion >= OBSOLETE_DUMP_MIN_VERSION) &&
                  (pObsHead->dumpVersion <= OBSOLETE_DUMP_MAX_VERSION) &&
-                 ((cni == RELOAD_ANY_CNI) || (pObsHead->cni == cni)) )
+                 ((cni == RELOAD_DEMO_CNI) || (pObsHead->cni == cni)) )
             {
                debug2("EpgDbReload-Header: reload db 0x%04X: incompatible version %06lx", pObsHead->cni, pObsHead->dumpVersion);
                result = EPGDB_RELOAD_VERSION;
@@ -626,9 +658,42 @@ static EPGDB_RELOAD_RESULT EpgDbReloadHeader( uint cni, int fd, EPGDBSAV_HEADER 
 }
 
 // ---------------------------------------------------------------------------
-// Restore the complete Nextview EPG database from a file dump
+// Retrieve file modification time (OS specific)
 //
-PDBC EpgDbReload( uint cni, EPGDB_RELOAD_RESULT * pResult )
+static bool EpgDbReloadGetMtime( int fd, const char * pPath, time_t * pMtime )
+{
+   bool result = FALSE;
+#ifndef WIN32
+   struct stat st;
+#else
+   struct _stat st;
+#endif
+
+   if (pMtime != NULL)
+   {
+#ifndef WIN32
+      if (fstat(fd, &st) == 0)
+#else
+      if (_fstat(fd, &st) == 0)
+#endif
+      {
+         *pMtime = st.st_mtime;
+         result = TRUE;
+      }
+      else
+      {
+         debug3("EpgDb-ReloadGetMtime: fstat fd=%d/path=\"%s\" failed: %d", fd, ((pPath!=NULL)?pPath:""), errno);
+         *pMtime = 0;
+      }
+   }
+   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Load an Nextview EPG database from the given file
+//
+static PDBC EpgDbReloadInt( const char * pFilename, uint cni,
+                            EPGDB_RELOAD_RESULT * pResult, time_t * pMtime )
 {
    EPGDBSAV_HEADER head;
    EPGDB_CONTEXT * dbc;
@@ -640,41 +705,27 @@ PDBC EpgDbReload( uint cni, EPGDB_RELOAD_RESULT * pResult )
    ssize_t readSize;
    int     fd;
    bool    swapEndian;
-   uchar * pFilename;
    time_t  piStartOff;
    BLOCK_TYPE type, lastType;
-   DB_FMT_TYPE nameFmt;
    EPGDB_RELOAD_RESULT result;
 
    dbc = EpgDbCreate();
 
-   if (epgDemoDb == NULL)
-   {  // append database file name to db directory (from -dbdir argument)
-      pFilename = xmalloc(strlen(epgDbDirPath) + 1 + DUMP_NAME_MAX_LEN);
-      nameFmt = EpgDbBuildFileName(cni, pFilename);
-   }
-   else
-   {  // demo mode: database file name is taken from command line argument
-      // CNI function parameter is ignored
-      pFilename = xmalloc(strlen(epgDemoDb) + 1);
-      strcpy(pFilename, epgDemoDb);
-      cni = RELOAD_ANY_CNI;
-      nameFmt = DB_FMT_UNIX;  // dummy, never used
-   }
-
    fd = open(pFilename, O_RDONLY|O_BINARY);
    if (fd >= 0)
    {
+      EpgDbReloadGetMtime(fd, pFilename, pMtime);
+
       result = EpgDbReloadHeader(cni, fd, &head, &swapEndian);
       if (result == EPGDB_RELOAD_OK)
       {
+         dbc->provCni      = cni;
          dbc->pageNo       = head.pageNo;
          dbc->tunerFreq    = head.tunerFreq;
          dbc->appId        = head.appId;
-         dbc->fileNameFormat = nameFmt;
          dbc->expireDelayPi = epgDbReloadExpireDelayPi;
 
-         if (epgDemoDb != NULL)
+         if (cni == RELOAD_DEMO_CNI)
          {  // demo mode: shift all PI in time to the current time and future
             piStartOff = time(NULL) - head.lastAiUpdate;
             piStartOff -= piStartOff % (60*60L);
@@ -794,7 +845,6 @@ PDBC EpgDbReload( uint cni, EPGDB_RELOAD_RESULT * pResult )
       else
          result = EPGDB_RELOAD_EXIST;
    }
-   xfree(pFilename);
 
    // upon any errors, destroy the context
    if (result != EPGDB_RELOAD_OK)
@@ -808,6 +858,31 @@ PDBC EpgDbReload( uint cni, EPGDB_RELOAD_RESULT * pResult )
    {
       *pResult = result;
    }
+
+   return dbc;
+}
+
+// ---------------------------------------------------------------------------
+// Load the complete Nextview EPG database from a file into memory
+//
+PDBC EpgDbReload( uint cni, EPGDB_RELOAD_RESULT * pResult, time_t * pMtime )
+{
+   EPGDB_CONTEXT * dbc;
+   DB_FMT_TYPE nameFmt;
+   char * pFilename;
+
+   assert(cni != 0);  // zero has special meaning as "invalid CNI"
+
+   // append database file name to db directory (from -dbdir argument)
+   pFilename = xmalloc(strlen(epgDbDirPath) + 1 + DUMP_NAME_MAX_LEN);
+   nameFmt = EpgDbBuildFileName(cni, pFilename);
+
+   dbc = EpgDbReloadInt(pFilename, cni, pResult, pMtime);
+
+   // store file name format (so that same format is used for dump)
+   if (dbc != NULL)
+      dbc->fileNameFormat = nameFmt;
+   xfree(pFilename);
 
    return dbc;
 }
@@ -900,7 +975,7 @@ static EPGDB_BLOCK * EpgDbPeekOi( int fd, bool swapEndian )
 // ---------------------------------------------------------------------------
 // Peek inside a dumped database: retrieve provider info
 //
-EPGDB_CONTEXT * EpgDbPeek( uint cni, EPGDB_RELOAD_RESULT * pResult )
+EPGDB_CONTEXT * EpgDbPeek( uint cni, EPGDB_RELOAD_RESULT * pResult, time_t * pMtime )
 {
    EPGDBSAV_HEADER head;
    EPGDB_CONTEXT * pDbContext;
@@ -923,9 +998,12 @@ EPGDB_CONTEXT * EpgDbPeek( uint cni, EPGDB_RELOAD_RESULT * pResult )
       pDbContext = xmalloc(sizeof(EPGDB_CONTEXT));
       memset(pDbContext, 0, sizeof(EPGDB_CONTEXT));
 
+      EpgDbReloadGetMtime(fd, pFilename, pMtime);
+
       result = EpgDbReloadHeader(cni, fd, &head, &swapEndian);
       if (result == EPGDB_RELOAD_OK)
       {
+         pDbContext->provCni      = cni;
          pDbContext->pageNo       = head.pageNo;
          pDbContext->tunerFreq    = head.tunerFreq;
          pDbContext->appId        = head.appId;
@@ -1008,58 +1086,12 @@ EPGDB_CONTEXT * EpgDbPeek( uint cni, EPGDB_RELOAD_RESULT * pResult )
    return pDbContext;
 }
 
-// ----------------------------------------------------------------------------
-// Append one element to the dynamically growing output buffer
-// - helper function for the dbdir scan
-//
-static EPGDB_SCAN_BUF * EpgDbReloadScanAddCni( EPGDB_SCAN_BUF * pBuf,
-                                               uint cni, time_t mtime, DB_FMT_TYPE nameFormat )
-{
-   EPGDB_SCAN_BUF  * pNewBuf;
-   uint   idx;
-
-   for (idx = 0; idx < pBuf->count; idx++)
-   {
-      if (pBuf->list[idx].cni == cni)
-      {
-         fprintf(stderr, "WARNING: found two database files for provider %04X in %s\n", cni, epgDbDirPath);
-
-         if (mtime > pBuf->list[idx].mtime)
-            pBuf->list[idx].nameFormat = nameFormat;
-         break;
-      }
-   }
-   // don't add element if same CNI already in list
-   if (idx >= pBuf->count)
-   {
-      if (pBuf->count >= pBuf->size)
-      {  // buffer is full -> allocate larger one and copy the old content into it
-         assert(pBuf->count == pBuf->size);
-
-         pNewBuf = xmalloc(EPGDB_SCAN_BUFSIZE(pBuf->size + EPGDB_SCAN_BUFSIZE_INCREMENT));
-         memcpy(pNewBuf, pBuf, EPGDB_SCAN_BUFSIZE(pBuf->size));
-         xfree(pBuf);
-         pBuf = pNewBuf;
-
-         pBuf->size  += EPGDB_SCAN_BUFSIZE_INCREMENT;
-      }
-
-      // append the new element
-      pBuf->list[pBuf->count].cni   = cni;
-      pBuf->list[pBuf->count].mtime = mtime;
-      pBuf->list[pBuf->count].nameFormat = nameFormat;
-      pBuf->count += 1;
-   }
-   return pBuf;
-}
-
 // ---------------------------------------------------------------------------
 // Scans a given directory EPG databases
-// - returns dynamically allocated struct which has to be freed by the caller
-// - the struct holds a list which contains for each database the CNI
-//   (extracted from the file name) and the file modification timestamp
+// - invokes the given callback function for every file which looks like
+//   an EPG database
 //
-const EPGDB_SCAN_BUF * EpgDbReloadScan( void )
+void EpgDbReloadScan( void (*pCb)(uint cni, const char * pPath, sint mtime) )
 {
 #ifndef WIN32
    DIR    *dir;
@@ -1069,11 +1101,6 @@ const EPGDB_SCAN_BUF * EpgDbReloadScan( void )
    int    scanLen;
    char   *pFilePath;
    DB_FMT_TYPE fileFmt;
-   EPGDB_SCAN_BUF  * pBuf;
-
-   pBuf = xmalloc(EPGDB_SCAN_BUFSIZE(EPGDB_SCAN_BUFSIZE_DEFAULT));
-   pBuf->size  = EPGDB_SCAN_BUFSIZE_DEFAULT;
-   pBuf->count = 0;
 
    dir = opendir(epgDbDirPath);
    if (dir != NULL)
@@ -1105,7 +1132,9 @@ const EPGDB_SCAN_BUF * EpgDbReloadScan( void )
             {
                // check if it's a regular file; reject directories, devices, pipes etc.
                if (S_ISREG(st.st_mode))
-                  pBuf = EpgDbReloadScanAddCni(pBuf, cni, st.st_mtime, fileFmt);
+               {
+                  pCb(cni, pFilePath, st.st_mtime);
+               }
                else
                   fprintf(stderr, "dbdir scan: not a regular file: %s (skipped)\n", pFilePath);
             }
@@ -1120,8 +1149,6 @@ const EPGDB_SCAN_BUF * EpgDbReloadScan( void )
    else
       fprintf(stderr, "failed to open dbdir %s: %s\n", epgDbDirPath, strerror(errno));
 
-   return pBuf;
-
 #else  //WIN32
    HANDLE hFind;
    WIN32_FIND_DATA finddata;
@@ -1131,11 +1158,6 @@ const EPGDB_SCAN_BUF * EpgDbReloadScan( void )
    struct tm tm;
    bool bMore;
    DB_FMT_TYPE fileFmt;
-   EPGDB_SCAN_BUF  * pBuf;
-
-   pBuf = xmalloc(EPGDB_SCAN_BUFSIZE(EPGDB_SCAN_BUFSIZE_DEFAULT));
-   pBuf->size  = EPGDB_SCAN_BUFSIZE_DEFAULT;
-   pBuf->count = 0;
 
    pDirPath = xmalloc(strlen(epgDbDirPath) + 1 + DUMP_NAME_MAX_LEN);
    for (fileFmt = 0; fileFmt < DB_FMT_COUNT; fileFmt++)
@@ -1165,15 +1187,13 @@ const EPGDB_SCAN_BUF * EpgDbReloadScan( void )
             tm.tm_mon   = systime.wMonth - 1;
             tm.tm_year  = systime.wYear - 1900;
 
-            pBuf = EpgDbReloadScanAddCni(pBuf, cni, mktime(&tm), fileFmt);
+            pCb(cni, finddata.cFileName, mktime(&tm));
          }
          bMore = FindNextFile(hFind, &finddata);
       }
       FindClose(hFind);
    }
    xfree(pDirPath);
-
-   return pBuf;
 #endif  //WIN32
 }
 
@@ -1188,19 +1208,17 @@ void EpgDbSavSetPiExpireDelay( time_t expireDelayPi )
 // ---------------------------------------------------------------------------
 // Create database directory, if neccessary
 //
-bool EpgDbSavSetupDir( const char * pDirPath, const char * pDemoDb )
+bool EpgDbSavSetupDir( const char * pDirPath, bool isDemoMode )
 {
    bool result = TRUE;
 
 #ifndef WIN32
    struct stat st;
 
+   // save the database path
    epgDbDirPath = pDirPath;
-   if (pDemoDb != NULL)
-   {
-      epgDemoDb = pDemoDb;
-   }
-   else if (pDirPath != NULL)
+
+   if ((pDirPath != NULL) && (isDemoMode == FALSE))
    {
       if (stat(pDirPath, &st) != 0)
       {  // directory does not exist -> create it
@@ -1223,11 +1241,7 @@ bool EpgDbSavSetupDir( const char * pDirPath, const char * pDemoDb )
    char  * pError = NULL;
 
    epgDbDirPath = pDirPath;
-   if (pDemoDb != NULL)
-   {
-      epgDemoDb = pDemoDb;
-   }
-   else if (pDirPath != NULL)
+   if (pDirPath != NULL)
    {
       attr = GetFileAttributes(pDirPath);
       if (attr == INVALID_FILE_ATTRIBUTES)
@@ -1246,7 +1260,7 @@ bool EpgDbSavSetupDir( const char * pDirPath, const char * pDemoDb )
                                       "\nPath does not exist and cannot be created: ", NULL);
                if (pError != NULL)
                {
-                  MessageBox(NULL, pError, "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+                  MessageBox(NULL, pError, "nxtvepg", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
                   xfree(pError);
                }
                result = FALSE;
@@ -1259,7 +1273,7 @@ bool EpgDbSavSetupDir( const char * pDirPath, const char * pDemoDb )
                                                      pDirPath, "\n", NULL);
             if (pError != NULL)
             {
-               MessageBox(NULL, pError, "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+               MessageBox(NULL, pError, "nxtvepg", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
                xfree(pError);
             }
             result = FALSE;
@@ -1271,7 +1285,7 @@ bool EpgDbSavSetupDir( const char * pDirPath, const char * pDemoDb )
                                 pDirPath, "\nAlready exists, but is not a directory", NULL);
          if (pError != NULL)
          {
-            MessageBox(NULL, pError, "Nextview EPG", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+            MessageBox(NULL, pError, "nxtvepg", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
             xfree(pError);
          }
          result = FALSE;
@@ -1283,19 +1297,72 @@ bool EpgDbSavSetupDir( const char * pDirPath, const char * pDemoDb )
 }
 
 // ---------------------------------------------------------------------------
-// Determine dbdir and provider CNI from database file command line argument
+// Load demo database from the given file
+// - in contrary to the regular load function, the file's name can be arbitrary
 //
-void EpgDbDumpGetDirAndCniFromArg( char * pArg, const char ** ppDirPath, uint * pCni )
+EPGDB_CONTEXT * EpgDbLoadDemo( const char * pDemoDatabase, EPGDB_RELOAD_RESULT * pResult, time_t * pMtime )
+{
+   return EpgDbReloadInt(pDemoDatabase, RELOAD_DEMO_CNI, pResult, pMtime);
+}
+
+// ---------------------------------------------------------------------------
+// Check the header in a given file if it's a regular EPG db
+// - intended only as quick check of the file type
+//   (consistency checks and error diagnostics are done during regular reload)
+//
+bool EpgDbDumpCheckFileHeader( const char * pFilename )
+{
+   EPGDBSAV_HEADER head;
+   ssize_t  size;
+   int   fd;
+   bool  result = FALSE;
+
+   fd = open(pFilename, O_RDONLY|O_BINARY);
+   if (fd >= 0)
+   {
+      errno = 0;
+      size = read(fd, (uchar *)&head, sizeof(head));
+      if (size == sizeof(head))
+      {
+         if ( (strncmp(head.magic, MAGIC_STR, MAGIC_STR_LEN) == 0) &&
+              ( (head.endianMagic == ENDIAN_MAGIC) ||
+                (head.endianMagic == WRONG_ENDIAN)) )
+         {
+            result = TRUE;
+         }
+         else
+            errno = EINVAL;
+      }
+      else if (size >= 0)
+      {
+         // file is too short
+         errno = EINVAL;
+      }
+      close(fd);
+   }
+   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Determine database directory and provider CNI from database file name
+// - called during command line parsing if a file name is present
+//   (i.e. instead of a CNI via -prov option)
+// - returns FALSE if the file name doesn't match the expected pattern
+//   (i.e. if the file name doesn't include the CNI value)
+//
+bool EpgDbDumpGetDirAndCniFromArg( char * pArg, const char ** ppDirPath, uint * pCni )
 {
    char *pDirPath, *pNamePath;
-   int len, scanLen;
+   char saveSep = PATH_SEPARATOR;
+   sint len;
+   int  scanLen;
+   bool result;
 
    assert((ppDirPath != NULL) && (pCni != NULL));
 
-   len = strlen(pArg);
-   if (len > 0)
    {
       // search for the begin of the database file name
+      len = strlen(pArg);
       pDirPath = NULL;
       pNamePath = pArg;
       while (--len >= 0)
@@ -1303,6 +1370,7 @@ void EpgDbDumpGetDirAndCniFromArg( char * pArg, const char ** ppDirPath, uint * 
          if (pArg[len] == PATH_SEPARATOR)
          {
             pDirPath = pArg;
+            saveSep = pArg[len];
             pArg[len] = 0;
             pNamePath = pArg + len + 1;
             break;
@@ -1314,7 +1382,7 @@ void EpgDbDumpGetDirAndCniFromArg( char * pArg, const char ** ppDirPath, uint * 
          pDirPath = ".";
          len = 0;
       }
-      else if (len == 0)
+      else if (len <= 0)
       {
          pDirPath = PATH_ROOT;
       }
@@ -1329,19 +1397,19 @@ void EpgDbDumpGetDirAndCniFromArg( char * pArg, const char ** ppDirPath, uint * 
              (scanLen == DUMP_NAME_LEN_DOS) ) )
       {  // this seems to be a regular database file -> set dbdir path
          *ppDirPath = (const char *) pDirPath;
+         result = TRUE;
       }
       else
       {  // not a valid database file format -> assume demo database
          // repair path name
          if (len > 0)
-            pDirPath[len] = PATH_SEPARATOR;
+            pDirPath[len] = saveSep;
          *pCni = 0;
+         result = FALSE;
       }
    }
-   else
-   {  // empty argument -> dummy return values
-      *pCni = 0;
-   }
+
+   return result;
 }
 
 // ---------------------------------------------------------------------------

@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbmgmt.c,v 1.50 2006/11/23 21:11:11 tom Exp $
+ *  $Id: epgdbmgmt.c,v 1.52 2007/03/03 20:36:40 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -189,6 +189,9 @@ bool EpgDbCheckChains( CPDBC dbc )
          {
             assert(pPrev->pNextNetwopBlock == pWalk);
             assert( dbc->merged ||
+#ifdef USE_XMLTV_IMPORT
+                    dbc->xmltv ||
+#endif
                     (pWalk->blk.pi.block_no_in_ai == FALSE) ||
                     (pPrev->blk.pi.block_no_in_ai == FALSE) ||
                     (pWalk->blk.pi.block_no == pPrev->blk.pi.block_no + 1) ||
@@ -352,12 +355,9 @@ static void EpgDbRemoveObsoleteNetwops( PDBC dbc, uchar netwopCount, uchar filte
       }
       else
       {  // check if PI's block number is still registered in the current AI block
-         block_no_in_ai = EpgDbPiBlockNoValid(dbc, pWalk->blk.pi.block_no, netwop);
-         // if no longer registered, remove if expired or preceded by registered PI
-         do_remove = ( (block_no_in_ai == FALSE) && 
-                       ( ( (pWalk->pPrevNetwopBlock != NULL) &&
-                           (pWalk->pPrevNetwopBlock->blk.pi.block_no_in_ai) ) ||
-                         (pWalk->blk.pi.stop_time <= expireTime) ));
+         block_no_in_ai = pWalk->blk.pi.block_no_in_ai &&
+                          EpgDbPiBlockNoValid(dbc, pWalk->blk.pi.block_no, netwop);
+         do_remove = FALSE;
       }
 
       if (do_remove)
@@ -395,10 +395,8 @@ static void EpgDbRemoveObsoleteNetwops( PDBC dbc, uchar netwopCount, uchar filte
       }
       else
       {
-         if (block_no_in_ai != pWalk->blk.pi.block_no_in_ai)
-         {
-            ((PI_BLOCK *)&pWalk->blk.pi)->block_no_in_ai = block_no_in_ai;
-         }
+         ((PI_BLOCK *)&pWalk->blk.pi)->block_no_in_ai = block_no_in_ai;
+
          pWalk = pWalk->pNextBlock;
       }
    }
@@ -426,7 +424,7 @@ static void EpgDbFilterIncompatiblePi( PDBC dbc, const AI_BLOCK *pOldAi, const A
    for (netwop=0; netwop < pOldAi->netwopCount; netwop++)
    {
       if ( (netwop >= pNewAi->netwopCount) ||
-           (pOldNets[netwop].cni != pNewNets[netwop].cni) )
+           (AI_GET_NET_CNI(&pOldNets[netwop]) != AI_GET_NET_CNI(&pNewNets[netwop])) )
       {
          // that index is no longer used by the new AI or
          // at this index there is a different netwop now -> remove the data
@@ -1176,6 +1174,7 @@ static bool EpgDbAddDefectPi( PDBC dbc, EPGDB_BLOCK *pBlock )
       block = pBlock->blk.pi.block_no;
 
       if ( (pBlock->version == dbc->pAiBlock->blk.ai.version) &&
+           (pBlock->blk.pi.block_no_in_ai) &&
            EpgDbPiBlockNoValid(dbc, pBlock->blk.pi.block_no, netwop) )
       {
          // search for the block anywhere in the list
@@ -1212,7 +1211,7 @@ static bool EpgDbAddDefectPi( PDBC dbc, EPGDB_BLOCK *pBlock )
          result = TRUE;
       }
       else
-         dprintf4("refused OBSOLETE PI version ptr=%lx: netwop=%d, blockno=%d, start=%ld\n", (ulong)pBlock, netwop, block, pBlock->blk.pi.start_time);
+         dprintf5("OBSOLETE refused PI ptr=%lx: netwop=%d, blockno=%d, start=%ld v=%d\n", (ulong)pBlock, netwop, block, pBlock->blk.pi.start_time, pBlock->version);
    }
    else
       debug0("EpgDb-AddDefectPi: AI block missing");
@@ -1249,6 +1248,7 @@ static bool EpgDbAddDefectPi( PDBC dbc, EPGDB_BLOCK *pBlock )
 // - possible conflicts in stop time:
 //   1. overlapping running time with previous block and previous block no
 //      is smaller -> don't insert
+// - ignore neighbour blocks with block numbers outside of valid range
 //
 static bool EpgDbPiCheckBlockSequence( PDBC dbc, EPGDB_BLOCK *pPrev, EPGDB_BLOCK *pBlock, EPGDB_BLOCK *pNext )
 {
@@ -1318,8 +1318,8 @@ static void EpgDbPiResolveConflicts( PDBC dbc, EPGDB_BLOCK *pBlock, EPGDB_BLOCK 
    pWalk = *pNext;
    while( (pWalk != NULL) &&
           ( (pBlock->blk.pi.stop_time > pWalk->blk.pi.start_time) ||
-            (pWalk->blk.pi.block_no_in_ai == FALSE) ||
-            !EpgDbPiCmpBlockNoGt(dbc, pWalk->blk.pi.block_no, pBlock->blk.pi.block_no, netwop) ))
+            ( (pWalk->blk.pi.block_no_in_ai) &&
+              !EpgDbPiCmpBlockNoGt(dbc, pWalk->blk.pi.block_no, pBlock->blk.pi.block_no, netwop) )))
    {
       dprintf6("+++++++ DELETE: ptr=%lx next=%lx overlapped: blockno=%d<=%d, start=%ld < stop %ld\n", (ulong)pBlock, (ulong)pWalk, pWalk->blk.pi.block_no, pBlock->blk.pi.block_no, pWalk->blk.pi.start_time, pBlock->blk.pi.stop_time);
       *pNext = pWalk->pNextNetwopBlock;
@@ -1558,7 +1558,7 @@ void EpgDbProcessQueueByType( EPGDB_CONTEXT * const * pdbc, EPGDB_QUEUE * pQueue
       }
       else if (type == BLOCK_TYPE_AI)
       {
-         dprintf2("EpgDbQueue-ProcessBlocks: Offer AI block 0x%04X to acq ctl (0x%lx)\n", AI_GET_CNI(&pBlock->blk.ai), (long)pBlock);
+         dprintf2("EpgDbQueue-ProcessBlocks: Offer AI block 0x%04X to acq ctl (0x%lx)\n", AI_GET_THIS_NET_CNI(&pBlock->blk.ai), (long)pBlock);
          if ( (pCb->pAiCallback(&pBlock->blk.ai) == FALSE) || 
               (EpgDbAddBlock(*pdbc, NULL, pBlock) == FALSE) )
          {  // block was not accepted

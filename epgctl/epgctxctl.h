@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgctxctl.h,v 1.16 2003/09/20 19:13:04 tom Exp tom $
+ *  $Id: epgctxctl.h,v 1.19 2007/01/21 11:57:41 tom Exp tom $
  */
 
 #ifndef __EPGCTXCTL_H
@@ -37,25 +37,27 @@ typedef enum
 // Declaration of service interface functions
 //
 EPGDB_CONTEXT * EpgContextCtl_Peek( uint cni, int failMsgMode );
-EPGDB_CONTEXT * EpgContextCtl_Open( uint cni, CTX_FAIL_RET_MODE failRetMode, int failMsgMode );
+EPGDB_CONTEXT * EpgContextCtl_Open( uint cni, bool forceOpen,
+                                    CTX_FAIL_RET_MODE failRetMode, int failMsgMode );
 EPGDB_CONTEXT * EpgContextCtl_OpenAny( int failMsgMode );
 EPGDB_CONTEXT * EpgContextCtl_OpenDummy( void );
-EPGDB_CONTEXT * EpgContextCtl_OpenDemo( void );
+EPGDB_CONTEXT * EpgContextCtl_OpenDemo( const char * pDemoDatabase );
 void EpgContextCtl_Close( EPGDB_CONTEXT * pContext );
 void EpgContextCtl_ClosePeek( EPGDB_CONTEXT * pDbContext );
 
-uint EpgContextCtl_GetProvCount( void );
+uint EpgContextCtl_GetProvCount( bool nxtvOnly );
 const uint * EpgContextCtl_GetProvList( uint * pCount );
 uint EpgContextCtl_GetFreqList( uint ** ppProvList, uint ** ppFreqList );
-time_t EpgContextCtl_GetAiUpdateTime( uint cni );
+time_t EpgContextCtl_GetAiUpdateTime( uint cni, bool reload );
 uint EpgContextCtl_Remove( uint cni );
+void EpgContextCtl_ScanDbDir( bool nxtvOnly );
 
 void EpgContextCtl_SetPiExpireDelay( time_t expireDelay );
 bool EpgContextCtl_UpdateFreq( uint cni, uint freq );
 void EpgContextCtl_LockDump( bool enable );
 
-void EpgContextCtl_InitCache( void );
-void EpgContextCtl_ClearCache( void );
+void EpgContextCtl_Init( void );
+void EpgContextCtl_Destroy( void );
 
 
 #endif  // __EPGCTXCTL_H

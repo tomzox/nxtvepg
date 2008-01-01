@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: uictrl.h,v 1.14 2003/10/05 19:40:38 tom Exp $
+ *  $Id: uictrl.h,v 1.17 2007/01/28 17:47:02 tom Exp tom $
  */
 
 #ifndef __UICTRL_H
@@ -46,9 +46,11 @@ typedef enum
    ACQ_EVENT_AI_VERSION_CHANGE,
    ACQ_EVENT_AI_PI_RANGE_CHANGE,
    ACQ_EVENT_STATS_UPDATE,
+   ACQ_EVENT_CTL,
    ACQ_EVENT_PI_ADDED,
    ACQ_EVENT_PI_MERGED,
    ACQ_EVENT_PI_EXPIRED,
+   ACQ_EVENT_NEW_DB,
    ACQ_EVENT_VPS_PDC,
 } ACQ_EVENT;
 
@@ -58,6 +60,7 @@ typedef enum
 void UiControl_AiStateChange( ClientData clientData );
 void UiControl_CheckDbState( void );
 void UiControl_ReloadError( ClientData clientData );
+void UiControl_DisplayErrorMessage( char * pMsg );
 #endif
 
 // Interface to acquisition control
@@ -68,6 +71,8 @@ void UiControlMsg_AcqPassive( void );
 void UiControlMsg_NetAcqError( void );
 void UiControlMsg_NewProvFreq( uint cni, uint freq );
 uint UiControlMsg_QueryProvFreq( uint cni );
+void UpdateRcFile( bool immediate );
+void LoadRcFile( void );
 
 // Interface to context control
 #ifdef __EPGDBSAV_H

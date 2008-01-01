@@ -28,90 +28,93 @@
 !    restart the server (e.g. log out and in again.)  You can also
 !    make small changes without modifying the files by entering:
 !
-!      echo "nxtvepg*text_bg: #E9E9EC" | xrdb -merge
+!      echo "Nxtvepg*text_bg: #E9E9EC" | xrdb -merge
 !
 !  Author: Tom Zoerner
 !
-!  $Id: Nxtvepg.ad,v 1.5 2004/12/18 14:54:27 tom Exp tom $
+!  $Id: Nxtvepg.ad,v 1.6 2007/12/31 20:16:59 tom Exp tom $
 !
 
 ! Remove comment sign ! from values you want to change
 ! Values defined below are the compiled-in defaults
 
 ! fore-/background color for all text and list in- and output fields
-!nxtvepg*text_fg: black
-!nxtvepg*text_bg: #e9e9ec
+!Nxtvepg*text_fg: black
+!Nxtvepg*text_bg: #e9e9ec
 ! background in TV schedule for currently running programmes
-!nxtvepg*pi_fg_now: black
-!nxtvepg*pi_bg_now: #d9d9ef
+!Nxtvepg*pi_fg_now: black
+!Nxtvepg*pi_bg_now: #d9d9ef
 ! background in TV schedule for expired programmes
-!nxtvepg*pi_fg_past: black
-!nxtvepg*pi_bg_past: #dfc9c9
+!Nxtvepg*pi_fg_past: black
+!Nxtvepg*pi_bg_past: #dfc9c9
 ! background for cursor in TV schedule
-!nxtvepg*pi_cursor_fg: black
-!nxtvepg*pi_cursor_bg: #d4d4d4
+!Nxtvepg*pi_cursor_fg: black
+!Nxtvepg*pi_cursor_bg: #d4d4d4
 ! background for cursor when above a currently running programme
-!nxtvepg*pi_cursor_fg_now: black
-!nxtvepg*pi_cursor_bg_now: #d8d8ff
+!Nxtvepg*pi_cursor_fg_now: black
+!Nxtvepg*pi_cursor_bg_now: #d8d8ff
 ! background for cursor when above an expired programme
-!nxtvepg*pi_cursor_fg_past: black
-!nxtvepg*pi_cursor_bg_past: #ffd8d8
+!Nxtvepg*pi_cursor_fg_past: black
+!Nxtvepg*pi_cursor_bg_past: #ffd8d8
 ! background for help text
-!nxtvepg*help_fg: black
-!nxtvepg*help_bg: #ffd840
+!Nxtvepg*help_fg: black
+!Nxtvepg*help_bg: #ffd840
 
-!! alternative color scheme with inverted colors (white text on dark background)
-!! note: still needs some tweaking, not officially supported
-!! fore-/background color for all text and list in- and output fields
-!!nxtvepg*text_fg: white
-!!nxtvepg*text_bg: #171714
-!! background in TV schedule for currently running programmes
-!!nxtvepg*pi_fg_now: white
-!!nxtvepg*pi_bg_now: #101050
-!! background in TV schedule for expired programmes
-!!nxtvepg*pi_fg_past: white
-!!nxtvepg*pi_bg_past: #212114
-!! background for cursor in TV schedule
-!!nxtvepg*pi_cursor_fg: #ffe058
-!!nxtvepg*pi_cursor_bg: #444444
-!! background for cursor when above a currently running programme
-!!nxtvepg*pi_cursor_fg_now: #ffe058
-!!nxtvepg*pi_cursor_bg_now: #282880
-!! background for cursor when above an expired programme
-!!nxtvepg*pi_cursor_fg_past: #ffe058
-!!nxtvepg*pi_cursor_bg_past: #48481C
-!! background for help text 
-!!nxtvepg*help_fg: black
-!!nxtvepg*help_bg: #ffd840
-!! fore-/background for selection in lists and plain text
-!!nxtvepg*select_fg: white
-!!nxtvepg*select_bg: #282880
+!!! alternative color scheme with inverted colors (white text on dark background)
+!!! note: still needs some tweaking, not officially supported
+!!! fore-/background color for all text and list in- and output fields
+!!Nxtvepg*text_fg: white
+!!Nxtvepg*text_bg: #171714
+!!! background in TV schedule for currently running programmes
+!!Nxtvepg*pi_fg_now: white
+!!Nxtvepg*pi_bg_now: #101050
+!!! background in TV schedule for expired programmes
+!!Nxtvepg*pi_fg_past: white
+!!Nxtvepg*pi_bg_past: #212114
+!!! background for cursor in TV schedule
+!!Nxtvepg*pi_cursor_fg: #ffe058
+!!Nxtvepg*pi_cursor_bg: #444444
+!!! background for cursor when above a currently running programme
+!!Nxtvepg*pi_cursor_fg_now: #ffe058
+!!Nxtvepg*pi_cursor_bg_now: #282880
+!!! background for cursor when above an expired programme
+!!Nxtvepg*pi_cursor_fg_past: #ffe058
+!!Nxtvepg*pi_cursor_bg_past: #48481C
+!!! background for help text 
+!!Nxtvepg*help_fg: black
+!!Nxtvepg*help_bg: #ffd840
+!!! fore-/background for selection in lists and plain text
+!!Nxtvepg*select_fg: white
+!!Nxtvepg*select_bg: #282880
 
+! NOTE: For Tcl/Tk 8.5 only use fonts that support anti-aliasing (e.g. "DejaVu Sans")
+! NOTE: If the font name includes spaces you must put it in quotes!
+!
 ! font for TV schedule and programme description text
-!nxtvepg*pi_font: Helvetica -12 normal
+!Nxtvepg*pi_font: Helvetica -12 normal
 ! font for help text
-!nxtvepg*help_font: Helvetica -12 normal
+!Nxtvepg*help_font: Helvetica -12 normal
 ! font for xawtv popup window
-!nxtvepg*xawtv_font: Helvetica -14 bold
+!Nxtvepg*xawtv_font: Helvetica -14 bold
 ! foreground color for xawtv overlay
-!nxtvepg*xawtv_overlay_fg: white
+!Nxtvepg*xawtv_overlay_fg: white
 ! background color for xawtv overlay
-!nxtvepg*xawtv_overlay_bg: black
+!Nxtvepg*xawtv_overlay_bg: black
 ! font for message popups (e.g. warnings and error messages)
-!nxtvepg*msgbox_font: Helvetica -14 bold
+!Nxtvepg*msgbox_font: Helvetica -14 bold
 
 ! weekday background colors in date scale to the right of programme list
 ! (7 values, starting with Saturday, ending with Friday)
 ! (note: date scale background colors are painted through a 50% stipple bitmap)
-!nxtvepg*dscale_cols: #ff3d3d,#ff9d3c,#fdff4f,#4eff57,#07d1c1,#5b73ff,#eb41ff
+!Nxtvepg*dscale_cols: #ff3d3d,#ff9d3c,#fdff4f,#4eff57,#07d1c1,#5b73ff,#eb41ff
 ! font for weekday labels in date scale to the right of programme list
-!nxtvepg*dscale_font: Helvetica -12 normal
+!Nxtvepg*dscale_font: Helvetica -12 normal
 ! format of date text in weekday scale; multi-line possible with \n, e.g. %a\n%d
 ! %a: abbreviated weekday name; %d: day of month (see strftime() manual page)
-!nxtvepg*dscale_date_fmt: %a
+!Nxtvepg*dscale_date_fmt: %a
 ! outer width of weekday scale in pixels (minimum 11)
-!nxtvepg*dscale_width: 30
+!Nxtvepg*dscale_width: 30
 ! inner width of the color scale; must be smaller than the overall width
 ! to leave space for the slider frame
-!nxtvepg*dscale_scwidth: 20
+!Nxtvepg*dscale_scwidth: 20
 

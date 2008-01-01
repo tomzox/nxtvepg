@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pibox.c,v 1.3 2004/04/02 12:22:17 tom Exp tom $
+ *  $Id: pibox.c,v 1.4 2005/01/10 14:43:30 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -183,7 +183,6 @@ void PiBox_Destroy( void )
    pibox_type = PIBOX_TYPE_NULL;
 
    PiOutput_Destroy();
-   PiDescription_Destroy();
 }
 
 // ----------------------------------------------------------------------------
@@ -246,7 +245,6 @@ void PiBox_Create( void )
 {
    Tcl_CreateObjCommand(interp, "C_PiBox_Toggle", PiBox_Toggle, INT2PVOID(FALSE), NULL);
 
-   PiDescription_Init();
    PiOutput_Init();
 
    // check if the widget is enabled; if yes allocate memory and initialize

@@ -26,7 +26,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: vbirec_gui.tcl,v 1.10 2004/12/12 15:39:08 tom Exp tom $
+#  $Id: vbirec_gui.tcl,v 1.13 2007/12/31 18:50:23 tom Exp tom $
 #
 
 set dumpttx_filename {ttx.dat}
@@ -41,11 +41,12 @@ set osd_min {}
 set osd_date_off 0
 set osd_duration 60
 
+set tvapp_name "TV app."
 
 proc InitGuiVars {} {
    global ttx_pkg ttx_rate vps_cnt epg_pag epg_pkg
    global cni_vps cni_pdc cni_p8301 cni_name ttx_pgno ttx_head
-   global tvChanName tvChanCni tvCurInput tvCurFreq tvGrantTuner
+   global tvChanName tvChanCni tvCurTvInput tvGrantTuner
    global cmd_argstr_hist osd_title_hist
 
    set ttx_pkg {0}
@@ -61,16 +62,22 @@ proc InitGuiVars {} {
    set ttx_head {}
    set tvChanName {}
    set tvChanCni {---}
-   set tvCurInput {undefined}
-   set tvCurFreq {undefined}
+   set tvCurTvInput {undefined}
    set tvGrantTuner {no}
 }
 
 InitGuiVars
 
+if {($tcl_version >= 8.5) && $is_unix} {
+   set font_family [font actual TkTextFont -family]
+   set font_family_fixed [font actual TkFixedFont -family]
+} else {
+   set font_family "Helvetica"
+   set font_family_fixed "Courier"
+}
 # set font type and size for message popups
 if $is_unix {
-   option add *Dialog.msg.font {Helvetica -12 normal} userDefault
+   option add *Dialog.msg.font [list $font_family -12 normal] userDefault
 } else {
    option add *Dialog.msg.font [list ansi -12 normal] userDefault
 }
@@ -144,8 +151,8 @@ grid      .stats.lab_ttx_head .stats.val_ttx_head -sticky w -padx 5
 
 label     .stats.lab_cni_name -text "Network by VPS/PDC/NI:"
 entry     .stats.val_cni_name -textvariable cni_name -width 32 -state disabled \
-             -borderwidth 0 -background [.stats.lab_cni_name cget -background] \
-             -cursor circle $entry_disabledforeground black
+             -borderwidth 0 -background [. cget -background] \
+             -cursor top_left_arrow $entry_disabledforeground black
 grid      .stats.lab_cni_name .stats.val_cni_name -sticky w -padx 5
 
 label     .stats.separate -text ""
@@ -155,29 +162,31 @@ label     .stats.lab_tvChanName -text "TV app. channel name:"
 label     .stats.val_tvChanName -textvariable tvChanName
 grid      .stats.lab_tvChanName .stats.val_tvChanName -sticky w -padx 5
 
-label     .stats.lab_tvChanCni -text "TV app. channel CNI:"
-label     .stats.val_tvChanCni -textvariable tvChanCni
-grid      .stats.lab_tvChanCni .stats.val_tvChanCni -sticky w -padx 5
+#label     .stats.lab_tvChanCni -text "TV app. channel CNI:"
+#label     .stats.val_tvChanCni -textvariable tvChanCni
+#grid      .stats.lab_tvChanCni .stats.val_tvChanCni -sticky w -padx 5
 
-label     .stats.lab_tvCurInput -text "TV app. input source:"
-label     .stats.val_tvCurInput -textvariable tvCurInput
-grid      .stats.lab_tvCurInput .stats.val_tvCurInput -sticky w -padx 5
-
-label     .stats.lab_tvCurFreq -text "TV app. tuner freq.:"
-label     .stats.val_tvCurFreq -textvariable tvCurFreq
+label     .stats.lab_tvCurFreq -text "TV app. input source:"
+label     .stats.val_tvCurFreq -textvariable tvCurTvInput
 grid      .stats.lab_tvCurFreq .stats.val_tvCurFreq -sticky w -padx 5
 
 label     .stats.lab_tvGrantTuner -text "TV app. grants tuner:"
 label     .stats.val_tvGrantTuner -textvariable tvGrantTuner
 grid      .stats.lab_tvGrantTuner .stats.val_tvGrantTuner -sticky w -padx 5
+
+label     .stats.lab_tvReqCardIdx -text "TV requests TV card:"
+label     .stats.val_tvReqCardIdx -textvariable tvReqCardIdx
+grid      .stats.lab_tvReqCardIdx .stats.val_tvReqCardIdx -sticky w -padx 5
+
 grid      columnconfigure .stats 1 -weight 2
 pack      .stats -side top -fill x
 
 frame     .connect -borderwidth 1 -relief sunken
-checkbutton .connect.but_con -text "" -disabledforeground black
+checkbutton .connect.but_con -text ""
 bindtags  .connect.but_con {.connect.but_con .}
 pack      .connect.but_con -side top -padx 10
 pack      .connect -side top -fill x
+
 
 # frame with controls for TV app interaction
 frame     .interact -borderwidth 1 -relief sunken
@@ -225,7 +234,7 @@ frame     .dumpttx -borderwidth 1 -relief sunken
 frame     .dumpttx.name
 label     .dumpttx.name.prompt -text "File name:"
 pack      .dumpttx.name.prompt -side left
-entry     .dumpttx.name.filename -textvariable dumpttx_filename -font {courier -12 normal} -width 20
+entry     .dumpttx.name.filename -textvariable dumpttx_filename -font [list $font_family_fixed -12 normal] -width 20
 pack      .dumpttx.name.filename -side left -padx 5 -fill x -expand 1
 bind      .dumpttx.name.filename <Enter> {focus %W}
 button    .dumpttx.name.dlgbut -image $fileImage -command {
@@ -253,15 +262,24 @@ pack      .cmd -side top -padx 5 -pady 10
 
 # callback for EPG application attach/detach
 proc ConnectEpg {enable name} {
+   # global variable used in popup error during IPC
+   global tvapp_name
+
    if $enable {
       .connect.but_con configure -text "Connected to $name" -selectcolor green
-      .connect.but_con invoke
+      .connect.but_con select
+      set tvapp_name $name
    } else {
       .connect.but_con configure -text "Not connected" -selectcolor red
       .connect.but_con deselect
+      set tvapp_name "TV app."
    }
 }
 ConnectEpg 0 {}
+
+proc XawtvConfigShmAttach {ena} {
+   ConnectEpg $ena [C_Tvapp_QueryTvapp]
+}
 
 ##  --------------------------------------------------------------------------
 ##  Functions to support interaction with TV applications
@@ -270,11 +288,13 @@ ConnectEpg 0 {}
 proc SendTvAppCmd {} {
    global cmd_argstr cmd_argstr_hist
 
-   regsub -all "  *" $cmd_argstr " " cmd2
-   regsub -all "^ " $cmd2 "" cmd2
-   eval [concat C_Tvapp_SendCmd [split $cmd2]]
+   if {[string length $cmd_argstr] > 0} {
+      regsub -all "  *" $cmd_argstr " " cmd2
+      regsub -all "^ " $cmd2 "" cmd2
+      eval [concat C_Tvapp_SendCmd [split $cmd2]]
 
-   AddComboHistory cmd_argstr_hist $cmd_argstr
+      AddComboHistory cmd_argstr_hist $cmd_argstr
+   }
 }
 
 # callback for "Send" button: send EPG programme title to TV app.
@@ -347,6 +367,14 @@ proc OpenComboHistory {widget hist_var} {
    }
 }
 
+##  --------------------------------------------------------------------------
+##  Called by Xawtv module if external OSD is configured
+##  - this mode is not supported by vbirec - just translate into remote msg
+##
+proc Create_XawtvPopup {dpyname mode xcoo ycoo width height rperc rtime ptitle} {
+
+   C_Tvapp_SendCmd message "$rtime $ptitle"
+}
 
 ##  --------------------------------------------------------------------------
 ##  About window with the obligatory Copyright and License information
@@ -354,7 +382,7 @@ proc OpenComboHistory {widget hist_var} {
 set about_popup 0
 
 proc CreateAbout {} {
-   global TVSIM_VERSION about_popup
+   global TVSIM_VERSION font_family_fixed about_popup
 
    if {$about_popup == 0} {
       toplevel .about
@@ -366,9 +394,9 @@ proc CreateAbout {} {
       label .about.name -text "VBI recoder - vbirec v$TVSIM_VERSION"
       pack .about.name -side top -pady 8
 
-      label .about.copyr1 -text "Copyright (C) 2002,2004 by Tom Zörner"
+      label .about.copyr1 -text "Copyright (C) 2002,2004,2005,2007 by Th. \"Tom\" Zörner"
       label .about.copyr2 -text "tomzo@users.sourceforge.net"
-      label .about.copyr3 -text "http://nxtvepg.sourceforge.net/" -font {courier -12 normal} -foreground blue
+      label .about.copyr3 -text "http://nxtvepg.sourceforge.net/" -font [list $font_family_fixed -12 normal] -foreground blue
       pack .about.copyr1 .about.copyr2 -side top
       pack .about.copyr3 -side top -padx 10 -pady 10
 

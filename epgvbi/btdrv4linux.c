@@ -25,8 +25,8 @@
  *    Master and slave process communicate through shared memory.
  *    It contains control parameters that allow to pass commands
  *    like acquisition on/off, plus a ring buffer for teletext
- *    packets. This buffer is managed in the epgdbacq module. When
- *    you read the code in the module, always remember that some
+ *    packets. This buffer is managed in the ttxdecode module. When
+ *    you read the code in these modules, always remember that some
  *    of it is executed in the master process, some in the slave.
  *
  *    Support for NetBSD required some awkward hacking, since the
@@ -44,7 +44,7 @@
  *    NetBSD:  Mario Kemper <magick@bundy.zhadum.de>
  *    FreeBSD: Simon Barner <barner@gmx.de>
  *
- *  $Id: btdrv4linux.c,v 1.61.1.1 2006/12/21 22:15:36 tom Exp $
+ *  $Id: btdrv4linux.c,v 1.69 2007/12/30 15:17:08 tom Exp tom $
  */
 
 #if !defined(linux) && !defined(__NetBSD__) && !defined(__FreeBSD__) 
@@ -96,6 +96,10 @@ static double            zvbiLastTimestamp;
 static ulong             zvbiLastFrameNo;
 # define ZVBI_BUFFER_COUNT  10
 # define ZVBI_TRACE          DEBUG_SWITCH_VBI
+// automatically enable VBI proxy, if available
+#if (VBI_VERSION_MAJOR>0) || (VBI_VERSION_MINOR>2) || (VBI_VERSION_MICRO >= 9)
+# define USE_VBI_PROXY
+#endif
 #ifdef USE_VBI_PROXY
 static vbi_proxy_client * pProxyClient;
 typedef enum
@@ -107,9 +111,6 @@ typedef enum
    ZVBI_CHN_MSG_DONE
 } ZVBI_CHN_MSG;
 #endif
-#endif
-#if !defined(USE_LIBZVBI) && defined(USE_VBI_PROXY)
-# error "Error: USE_VBI_PROXY used without USE_LIBZVBI"
 #endif
 
 #if defined(__NetBSD__) || defined(__FreeBSD__)
@@ -173,6 +174,7 @@ static pthread_mutex_t  vbi_start_mutex;
 // vars used in the acq slave process
 static bool acqShouldExit;
 static int vbiCardIndex;
+static int vbiDvbPid;
 static int vbi_fdin;
 #ifndef USE_LIBZVBI
 static int bufLineSize;
@@ -205,6 +207,7 @@ typedef enum
 #if defined(__NetBSD__) || defined(__FreeBSD__)
    DEV_TYPE_TUNER,
 #endif
+   DEV_TYPE_DVB,
 } BTDRV_DEV_TYPE;
 
 // ---------------------------------------------------------------------------
@@ -233,6 +236,9 @@ static char * BtDriver_GetDevicePath( BTDRV_DEV_TYPE devType, uint cardIdx )
          break;
       case DEV_TYPE_VBI:
          sprintf(devName, "%s/vbi%u", pDevPath, cardIdx);
+         break;
+      case DEV_TYPE_DVB:
+         sprintf(devName, "/dev/dvb/adapter%u/demux0", cardIdx);
          break;
       default:
          strcpy(devName, "/dev/null");
@@ -435,6 +441,7 @@ void BtDriver_SetChannelProfile( VBI_CHANNEL_PRIO_TYPE prio,
    {
       pVbiBuf->chnPrio        = prio;
 #if defined(USE_VBI_PROXY)
+      // parameters for channel scheduling in proxy daemon
       pVbiBuf->chnProfValid   = TRUE;
       pVbiBuf->chnSubPrio     = subPrio;
       pVbiBuf->chnMinDuration = duration;
@@ -457,6 +464,7 @@ static void BtDriver_OpenVbi( void )
 #endif
 
    vbiCardIndex = pVbiBuf->cardIndex;
+   vbiDvbPid = pVbiBuf->dvbPid;
    pVbiBuf->is_v4l2 = FALSE;
 
    #if defined(__NetBSD__) || defined(__FreeBSD__)
@@ -467,71 +475,99 @@ static void BtDriver_OpenVbi( void )
    if (BtDriver_StartCapture())
    #endif
    {
-      pDevName = BtDriver_GetDevicePath(DEV_TYPE_VBI, vbiCardIndex);
-
 #ifndef USE_LIBZVBI
-      vbi_fdin = open(pDevName, O_RDONLY);
-      if (vbi_fdin != -1)
+      if (vbiDvbPid == -1)
       {
+         pDevName = BtDriver_GetDevicePath(DEV_TYPE_VBI, vbiCardIndex);
+
+         vbi_fdin = open(pDevName, O_RDONLY);
+         if (vbi_fdin != -1)
+         {
 #ifdef HAVE_V4L2
-         struct v4l2_capability  vcap;
-         memset(&vcap, 0, sizeof(vcap));
-         if (IOCTL(vbi_fdin, VIDIOC_QUERYCAP, &vcap) != -1)
-         {  // this is a v4l2 device
+            struct v4l2_capability  vcap;
+            memset(&vcap, 0, sizeof(vcap));
+            if (IOCTL(vbi_fdin, VIDIOC_QUERYCAP, &vcap) != -1)
+            {  // this is a v4l2 device
 #ifdef VIDIOC_S_PRIORITY
-            // set device user priority to "background" -> channel swtiches will fail while
-            // higher-priority users (e.g. an interactive TV app) have opened the device
-            enum v4l2_priority prio = V4L2_PRIORITY_BACKGROUND;
-            if (IOCTL(vbi_fdin, VIDIOC_S_PRIORITY, &prio) != 0)
-               debug4("ioctl VIDIOC_S_PRIORITY=%d failed on %s: %d, %s", pVbiBuf->chnPrio, pDevName, errno, strerror(errno));
+               // set device user priority to "background" -> channel swtiches will fail while
+               // higher-priority users (e.g. an interactive TV app) have opened the device
+               enum v4l2_priority prio = V4L2_PRIORITY_BACKGROUND;
+               if (IOCTL(vbi_fdin, VIDIOC_S_PRIORITY, &prio) != 0)
+                  debug4("ioctl VIDIOC_S_PRIORITY=%d failed on %s: %d, %s", pVbiBuf->chnPrio, pDevName, errno, strerror(errno));
 #endif  // VIDIOC_S_PRIORITY
 
-            dprintf4("BtDriver-OpenVbi: %s (%s) is a v4l2 vbi device, driver %s, version 0x%08x\n", pDevName, vcap.card, vcap.driver, vcap.version);
-            if ((vcap.capabilities & V4L2_CAP_VBI_CAPTURE) == 0)
-            {
-               debug2("%s (%s) does not support vbi capturing - stop acquisition.", pDevName, vcap.card);
-               close(vbi_fdin);
-               errno = ENOSYS;
-               vbi_fdin = -1;
+               dprintf4("BtDriver-OpenVbi: %s (%s) is a v4l2 vbi device, driver %s, version 0x%08x\n", pDevName, vcap.card, vcap.driver, vcap.version);
+               if ((vcap.capabilities & V4L2_CAP_VBI_CAPTURE) == 0)
+               {
+                  debug2("%s (%s) does not support vbi capturing - stop acquisition.", pDevName, vcap.card);
+                  close(vbi_fdin);
+                  errno = ENOSYS;
+                  vbi_fdin = -1;
+               }
+               pVbiBuf->is_v4l2 = TRUE;
             }
-            pVbiBuf->is_v4l2 = TRUE;
-         }
 #endif  // HAVE_V4L2
-      }
-      else
-         debug2("VBI open %s failed: errno=%d", pDevName, errno);
-
-#else  // USE_LIBZVBI
-      services = VBI_SLICED_TELETEXT_B | VBI_SLICED_VPS;
-      pErrStr = NULL;
-#ifdef USE_VBI_PROXY
-      pProxyClient = vbi_proxy_client_create(pDevName, "nxtvepg", 0,
-                                             &pErrStr, ZVBI_TRACE);
-      if (pProxyClient != NULL)
-      {
-         pZvbiCapt = vbi_capture_proxy_new(pProxyClient, ZVBI_BUFFER_COUNT, 0, &services, 0, &pErrStr);
-         if (pZvbiCapt != NULL)
-         {
-            vbi_proxy_client_set_callback(pProxyClient, BtDriver_ProxyCallback, NULL);
-            pVbiBuf->is_v4l2 = (vbi_proxy_client_get_driver_api(pProxyClient) == VBI_API_V4L2);
          }
          else
-         {  // failed to connect to proxy
-            vbi_proxy_client_destroy(pProxyClient);
-            pProxyClient = NULL;
+            debug2("VBI open %s failed: errno=%d", pDevName, errno);
+      }
+      else
+      {  // DVB not supported without ZVBI
+         SystemErrorMessage_Set(&pSysErrorText, 0, "DVB is not supported because nxtvepg was compiled without ZVBI library (see Makefile)", NULL);
+         errno = EINVAL;
+      }
+
+#else  // USE_LIBZVBI
+      pErrStr = NULL;
+      if (vbiDvbPid != -1)
+      {
+#if (VBI_VERSION_MAJOR>0) || (VBI_VERSION_MINOR>2) || (VBI_VERSION_MICRO >= 6)
+         pDevName = BtDriver_GetDevicePath(DEV_TYPE_DVB, vbiCardIndex);
+         services = VBI_SLICED_TELETEXT_B;
+         pZvbiCapt = vbi_capture_dvb_new(pDevName, 0, &services, 0, &pErrStr, ZVBI_TRACE);
+         if (pZvbiCapt != NULL)
+         {
+            vbi_capture_dvb_filter(pZvbiCapt, vbiDvbPid);
          }
+#else
+         // error (note: do not use xstrdup() because free() is used below instead of xfree())
+         pErrStr = strdup("ZVBI library is too old (minimum version is 0.2.6)");
+         errno = EINVAL;
+#endif
       }
-      pVbiBuf->slaveVbiProxy = (pProxyClient != NULL);
-      if (pZvbiCapt == NULL)
+      else
+      {
+         pDevName = BtDriver_GetDevicePath(DEV_TYPE_VBI, vbiCardIndex);
+         services = VBI_SLICED_TELETEXT_B | VBI_SLICED_VPS;
+#ifdef USE_VBI_PROXY
+         pProxyClient = vbi_proxy_client_create(pDevName, "nxtvepg", 0,
+                                                &pErrStr, ZVBI_TRACE);
+         if (pProxyClient != NULL)
+         {
+            pZvbiCapt = vbi_capture_proxy_new(pProxyClient, ZVBI_BUFFER_COUNT, 0, &services, 0, &pErrStr);
+            if (pZvbiCapt != NULL)
+            {
+               vbi_proxy_client_set_callback(pProxyClient, BtDriver_ProxyCallback, NULL);
+               pVbiBuf->is_v4l2 = (vbi_proxy_client_get_driver_api(pProxyClient) == VBI_API_V4L2);
+            }
+            else
+            {  // failed to connect to proxy
+               vbi_proxy_client_destroy(pProxyClient);
+               pProxyClient = NULL;
+            }
+         }
+         pVbiBuf->slaveVbiProxy = (pProxyClient != NULL);
+         if (pZvbiCapt == NULL)
 #endif  // USE_VBI_PROXY
-      {
-         services = VBI_SLICED_TELETEXT_B | VBI_SLICED_VPS;
-         pZvbiCapt = vbi_capture_v4l2_new(pDevName, ZVBI_BUFFER_COUNT, &services, 0, &pErrStr, ZVBI_TRACE);
-      }
-      if (pZvbiCapt == NULL)
-      {
-         services = VBI_SLICED_TELETEXT_B | VBI_SLICED_VPS;
-         pZvbiCapt = vbi_capture_v4l_new(pDevName, 0, &services, 0, &pErrStr, ZVBI_TRACE);
+         {
+            services = VBI_SLICED_TELETEXT_B | VBI_SLICED_VPS;
+            pZvbiCapt = vbi_capture_v4l2_new(pDevName, ZVBI_BUFFER_COUNT, &services, 0, &pErrStr, ZVBI_TRACE);
+         }
+         if (pZvbiCapt == NULL)
+         {
+            services = VBI_SLICED_TELETEXT_B | VBI_SLICED_VPS;
+            pZvbiCapt = vbi_capture_v4l_new(pDevName, 0, &services, 0, &pErrStr, ZVBI_TRACE);
+         }
       }
 
       if (pZvbiCapt != NULL)
@@ -542,7 +578,7 @@ static void BtDriver_OpenVbi( void )
             pZvbiData = xmalloc((pZvbiRawDec->count[0] + pZvbiRawDec->count[1]) * sizeof(*pZvbiData));
             zvbiLastTimestamp = 0.0;
             zvbiLastFrameNo = 0;
-            vbi_fdin = 256;
+            vbi_fdin = vbi_capture_fd(pZvbiCapt);
          }
          else
             vbi_capture_delete(pZvbiCapt);
@@ -559,7 +595,7 @@ static void BtDriver_OpenVbi( void )
    {
       pVbiBuf->failureErrno = errno;
       pVbiBuf->hasFailed = TRUE;
-      debug2("BtDriver-OpenVbi: failed with errno %d (%s)\n", pVbiBuf->failureErrno, strerror(pVbiBuf->failureErrno));
+      debug2("BtDriver-OpenVbi: failed with errno %d (%s)", pVbiBuf->failureErrno, strerror(pVbiBuf->failureErrno));
    }
    else
    {  // open successful -> write pid in file
@@ -651,8 +687,10 @@ void BtDriver_CloseDevice( void )
       {
          dprintf0("Unmuted tuner audio.\n");
       }
-      else 
+      else if (pSysErrorText == NULL)
+      {
          SystemErrorMessage_Set(&pSysErrorText, errno, "unmuting audio (ioctl AUDIO_UNMUTE): ", NULL);
+      }
 
       close(tuner_fd);
       tuner_fd = -1;
@@ -1045,7 +1083,7 @@ bool BtDriver_TuneChannel( int inputIdx, uint freq, bool keepOpen, bool * pIsTun
 //
 bool BtDriver_QueryChannel( uint * pFreq, uint * pInput, bool * pIsTuner )
 {
-#if (!defined (__NetBSD__) && !defined (__FreeBSD__)) ||  defined(USE_VBI_PROXY)
+#if (!defined (__NetBSD__) && !defined (__FreeBSD__)) || defined(USE_LIBZVBI)
 #ifdef HAVE_V4L2
    struct v4l2_frequency v4l2_freq;
    struct v4l2_input v4l2_desc_in;
@@ -1119,7 +1157,7 @@ bool BtDriver_QueryChannel( uint * pFreq, uint * pInput, bool * pIsTuner )
          pthread_mutex_lock(&vbi_start_mutex);
          #endif
          pVbiBuf->vbiQueryFreq = 0;
-         pVbiBuf->vbiQueryInput = 0;
+         pVbiBuf->vbiQueryInput = ~0u;
          pVbiBuf->vbiQueryIsTuner = FALSE;
          pVbiBuf->doQueryFreq = TRUE;
          recvWakeUpSig = FALSE;
@@ -1155,11 +1193,16 @@ bool BtDriver_QueryChannel( uint * pFreq, uint * pInput, bool * pIsTuner )
                tv.tv_usec = 0;
                select(0, NULL, NULL, NULL, &tv);
             }
+         }
+         #endif
+         if ( (pVbiBuf->doQueryFreq == FALSE) &&
+              (pVbiBuf->vbiQueryFreq != 0) && (pVbiBuf->vbiQueryInput != ~0) )
+         {
             *pFreq = pVbiBuf->vbiQueryFreq;
             *pInput = pVbiBuf->vbiQueryInput;
             *pIsTuner = pVbiBuf->vbiQueryIsTuner;
+            result = TRUE;
          }
-         #endif
          pVbiBuf->doQueryFreq = FALSE;
 
          #ifdef USE_THREADS
@@ -1296,6 +1339,17 @@ bool BtDriver_IsVideoPresent( void )
 }
 
 // ---------------------------------------------------------------------------
+// Enable DVB passive mode and pass DVB PID
+// - note: must only be called during program start
+//
+bool BtDriver_SetDvbPid( int pid )
+{
+   pVbiBuf->dvbPid = pid;
+
+   return TRUE;
+}
+
+// ---------------------------------------------------------------------------
 // Return name for given TV card
 //
 const char * BtDriver_GetCardName( uint cardIndex )
@@ -1367,7 +1421,7 @@ const char * BtDriver_GetCardName( uint cardIndex )
 // - has to be called repeatedly with incremented indices until NULL is returned
 // - video device is kept open inbetween calls and only closed upon final call
 //
-const char * BtDriver_GetInputName( uint cardIndex, uint cardType, uint inputIdx )
+const char * BtDriver_GetInputName( uint cardIndex, uint cardType, uint drvType, uint inputIdx )
 {
 #if !defined (__NetBSD__) && !defined (__FreeBSD__)
    struct video_capability vcapab;
@@ -1458,13 +1512,13 @@ const char * BtDriver_GetInputName( uint cardIndex, uint cardType, uint inputIdx
 //   hence these parameters can be ignored in Linux
 // - there isn't any need for priority adaptions, so that's not supported either
 //
-bool BtDriver_Configure( int cardIndex, int prio, int chipType, int cardType,
-                         int tuner, int pll, bool wdmStop )
+bool BtDriver_Configure( int cardIndex, int drvType, int prio, int chipType, int cardType,
+                         int tunerType, int pllType, bool wdmStop )
 {
    struct timeval tv;
    bool wasEnabled;
 
-   wasEnabled = pVbiBuf->isEnabled && !pVbiBuf->hasFailed;
+   wasEnabled = (pVbiBuf->epgEnabled || pVbiBuf->ttxEnabled) && !pVbiBuf->hasFailed;
    pVbiBuf->is_v4l2 = FALSE;
 
    // pass the new card index to the slave via shared memory
@@ -1741,15 +1795,21 @@ void BtDriver_StopAcq( void )
 //
 const char * BtDriver_GetLastError( void )
 {
+   char * pDevName;
+
    if (pVbiBuf != NULL)
    {
       if (pSysErrorText == NULL)
       {
+         if (pVbiBuf->dvbPid != -1)
+           pDevName = BtDriver_GetDevicePath(DEV_TYPE_DVB, pVbiBuf->cardIndex);
+         else
+           pDevName = BtDriver_GetDevicePath(DEV_TYPE_VBI, pVbiBuf->cardIndex);
+
          if (pVbiBuf->failureErrno == EBUSY)
-            SystemErrorMessage_Set(&pSysErrorText, 0, "VBI device is busy (-> close all video, radio and teletext applications)", NULL);
+            SystemErrorMessage_Set(&pSysErrorText, 0, "VBI device ", pDevName, " is busy (-> close all video, radio and teletext applications)", NULL);
          else if (pVbiBuf->failureErrno != 0)
-            SystemErrorMessage_Set(&pSysErrorText, pVbiBuf->failureErrno, "access error ",
-                                   BtDriver_GetDevicePath(DEV_TYPE_VBI, pVbiBuf->cardIndex), ": ", NULL);
+            SystemErrorMessage_Set(&pSysErrorText, pVbiBuf->failureErrno, "access error ", pDevName, ": ", NULL);
          else
             debug0("BtDrvier-GetLastError: no error occurred");
 
@@ -1918,7 +1978,7 @@ static void BtDriver_OpenVbiBuf( void )
       vfmt2.fmt.vbi.flags              &= V4L2_VBI_UNSYNC | V4L2_VBI_INTERLACED;
       vfmt2.fmt.vbi.start[0]		= 6;
       vfmt2.fmt.vbi.count[0]		= 17;
-      vfmt2.fmt.vbi.start[1]		= 318;
+      vfmt2.fmt.vbi.start[1]		= 319;
       vfmt2.fmt.vbi.count[1]		= 17;
       if (IOCTL(vbi_fdin, VIDIOC_S_FMT, &vfmt2) != 0)
       {
@@ -2320,10 +2380,13 @@ static void * BtDriver_Main( void * foo )
          )
       {
          #if !defined (__NetBSD__) && !defined (__FreeBSD__)
-         if ((vbiCardIndex != pVbiBuf->cardIndex) && (vbi_fdin != -1))
+         if ((vbi_fdin != -1) &&
+             ((vbiCardIndex != pVbiBuf->cardIndex) || (vbiDvbPid != pVbiBuf->dvbPid)))
          #else
-         if (((vbiCardIndex != pVbiBuf->cardIndex) && (vbi_fdin != -1)) ||
-             ((vbiInputIndex != pVbiBuf->inputIndex) && (vbi_fdin != -1)))
+         if ((vbi_fdin != -1) &&
+             ((vbiCardIndex != pVbiBuf->cardIndex) ||
+              (vbiInputIndex != pVbiBuf->inputIndex) ||
+              (vbiDvbPid != pVbiBuf->dvbPid)))
          #endif
          {  // switching to a different device -> close the previous one
             BtDriver_CloseVbi();
@@ -2396,7 +2459,7 @@ static void * BtDriver_Main( void * foo )
    #ifdef USE_THREADS
    pVbiBuf->vbiPid = -1;
    #else
-   if (pVbiBuf->isEnabled)
+   if (pVbiBuf->epgEnabled || pVbiBuf->ttxEnabled)
    {  // notify the parent that acq has stopped (e.g. after SIGTERM)
       dprintf1("BtDriver-Main: acq slave exiting - signalling parent %d\n", pVbiBuf->epgPid);
       kill(pVbiBuf->epgPid, SIGHUP);
@@ -2447,6 +2510,7 @@ bool BtDriver_Init( void )
    pVbiBuf->epgPid = getpid();
    pVbiBuf->freeDevice = TRUE;
    pVbiBuf->slicerType = VBI_SLICER_TRIVIAL;
+   pVbiBuf->dvbPid = -1;
 
    #if defined(__NetBSD__) || defined(__FreeBSD__)
    // scan cards and inputs
@@ -2512,6 +2576,8 @@ bool BtDriver_Init( void )
 
    pVbiBuf->epgPid = getpid();
    pVbiBuf->vbiPid = -1;
+   pVbiBuf->slicerType = VBI_SLICER_TRIVIAL;
+   pVbiBuf->dvbPid = -1;
 
    vbi_fdin = -1;
    video_fd = -1;

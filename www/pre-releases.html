@@ -1,17 +1,17 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: pre-releases.html,v 1.81 2007/01/28 13:20:15 tom Exp $ -->
+<!-- $Id: pre-releases.html,v 1.86 2008/01/06 20:32:58 tom Exp $ -->
 <HEAD>
 <TITLE>Developers and alpha testers download page</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
 <META name="language" content="en">
 <META name="author" content="Tom Zoerner">
 <META name="copyright" content="Tom Zoerner">
-<META name="description" content="Software download of alpha and beta software releases of the nxtvepg Nextview EPG decoder software for Windows and Linux.">
+<META name="description" content="Software download of alpha and beta software releases of the nxtvepg software for Windows and Linux.">
 <META name="robots" content="noindex">
 <LINK rel="stylesheet" type="text/css" href="nxtvepg.css">
 <LINK rel="shortcut icon" type="image/x-icon" href="nxtvepg.ico">
-<LINK rel="top" href="http://nxtvepg.sourceforge.net/" title="nexTView EPG Decoder Homepage">
+<LINK rel="top" href="http://nxtvepg.sourceforge.net/" title="nxtvepg homepage">
 </HEAD>
 <BODY>
 
@@ -75,11 +75,11 @@ This page lists the latest updates for the
 The software which is available here is only intended for developers
 and alpha/beta testers.  If you're searching for the regular release
 visit the <A HREF="download.html">download page</A>.
-</P></P>
+</P><P>
 The releases on this page include alot of internal consistany checks and
 produce plenty of debug output.  Hence they should be used for evaluation only.
 Please do not redistribute.
-<P>
+</P>
 
 <P>On this page you find:</P>
 <UL>
@@ -93,7 +93,7 @@ Please do not redistribute.
 <H2><A NAME="pre_rel_nxtvepg">nxtvepg core package</A></H2>
 <P>
 The following packages contain a snapshot of the ongoing development on nxtvepg.
-Please refer to the change-log below or the
+Please refer to the changelog below or the
 <A HREF="http://sourceforge.net/forum/forum.php?forum_id=217872">discussion forum</A>
 for background information.
 <!--
@@ -113,6 +113,10 @@ For a list of bug fixes (and a few new features) see the
 <H3>2.8.0 development line</H3>
 
 <P>
+The latest release is 2.8.0,
+available on the regular <A HREF="download.html">download</A> page.
+</P>
+
 <!--
 <B>Warning:</B> There's a change in the format of user-defined columns
 in the rc/ini file.  Once you start 2.4.1 your configuration will automatically
@@ -120,32 +124,34 @@ be converted.  Make a copy of your old rc/ini file before you first start 2.4.1
 to be able to switch back to 2.4.0 in case you find any severe bugs in 2.4.1
 -->
 
+<!--
+<P>
 Note the format of rc/ini file has changed several times during pre-releases,
-the last time in <B>2.8.0pre14</B>.  The file will be automatically upgraded upon
+the last time in <B>2.8.0pre17</B>.  The file will be automatically upgraded upon
 the first start when using an rc/ini file written by an older version.
 Remember to make a backup copy, so that you can still return to older versions.
 Also note that the protocol in-between the nxtvepg client and daemon has
 changed multiple times, hence use the same version of nxtvepg both on client
 and server side.
 
-<!--
 The acquisition daemon protocol has also changed,
 hence you cannot connect with a 2.7.4pre0 client to 2.7.3 or older daemons, or vice versa.
--->
 </P>
+-->
+
+<!--
 <P>
-<B>nxtvepg release 2.8.0pre16 (December 28th 2006)</B>
+<B>nxtvepg release 2.8.0pre18 (September 9th 2007)</B>
 </P>
-See below for the <A HREF="pre-releases.html#changelog">change log</A>.
+Details on changes in this and older releases is available in the
+<A HREF="changelog-2.8.0pre.html">2.8.0 pre-release changelog</A>.
+-->
 <UL>
+<LI><I>no pre-releases are currently available</I>
 <!--
-<LI>Latest release is 2.7.3 on the regular <A HREF="download.html">download</A> page.
--->
-<!--
-<LI><I>no downloads are currently available</I>
--->
 <LI>Sources:
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre16.tar.gz">nxtvepg-2.8.0pre16.tar.gz</A> (apx 1.7 MB)
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre18.tar.gz">nxtvepg-2.8.0pre18.tar.gz</A> (apx 1.7 MB)
+-->
 <!--
 <BR>Note: if you want to test nxtvepg with
 <A HREF="http://nxtvepg.sourceforge.net/tmp/README-proxy.txt">VBI proxy</A>
@@ -155,15 +161,17 @@ nxtvepg Makefile and get libzvbi from CVS at
 <B>Important</B>: proxy support is no longer on the main branch. You have to
 select branch "proxy" during checkout.
 -->
+<!--
 <LI>Win32 executable:
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre16-win.zip">nxtvepg-2.8.0pre16-win.zip</A> (ca. 1.8 MB)
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre18-win.zip">nxtvepg-2.8.0pre18-win.zip</A> (ca. 1.8 MB)
 
 <LI>Win32 executable with UTF-8 support:
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre16-win-utf8.zip">nxtvepg-2.8.0pre16-win-utf8.zip</A> (ca. 1.8 MB)
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre18-win-utf8.zip">nxtvepg-2.8.0pre18-win-utf8.zip</A> (ca. 1.8 MB)
     <BR>Note this version is for users which want to import XMLTV documents which
     are encoded in UTF-8 (and cannot be converted to Latin-1 without losses.)
     UTF-8 support is not complete yet. Note you can use UTF-8 support on UNIX
     too be setting the 2 UTF switches in the Makefile.
+-->
 <!--
 <LI>If you haven't downloaded pre5, you'll also need new Tcl/Tk libraries:
     <BR>Tcl/Tk 8.4.9 DLL: <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre5-tcltk.zip">nxtvepg-2.8.0pre5-tcltk.zip</A> (apx. 750 kB)
@@ -172,24 +180,33 @@ select branch "proxy" during checkout.
 <!--
 <BR>(Does not contain the Tcl/Tk libraries; please copy them from the last official release.)
 -->
+<!--
 <LI>K!TV nexTView plugin:
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/NextViewPlugin-2.8.0pre16.zip">NextViewPlugin-2.8.0pre16.zip</A> (apx. 330 kB)
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/NextViewPlugin-2.8.0pre18.zip">NextViewPlugin-2.8.0pre18.zip</A> (apx. 330 kB)
     <BR>Note an update of the plugin is required starting with nxtvepg 2.8.0pre13.
     (This is not the final version of the TV app. interface, so please don't forward
     to the K!TV authors yet.)
 
 <LI>To enable use of vendor supplied WDM drivers you need an additional DLL which
     was developed separately by Gérard Chevalier.  Download from below.
+-->
 <!--
 <BR><B>Attention:</B> Please note that Win32 TV card configuration parameters
 and driver version have changed in pre7.
 See the above link to the mailing list archive for details.
 -->
+<!--
 <LI>Win32 TV simulator:
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre16-tvsim.zip">nxtvepg-2.8.0pre16-tvsim.zip</A><BR>
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre18-tvsim.zip">nxtvepg-2.8.0pre18-tvsim.zip</A><BR>
 Please try to reproduce any problems related to interaction with K!TV with tvsim.exe
 before you report them.
+-->
 </UL>
+
+<P>
+Older releases and associated files are still available in the
+<A HREF="http://nxtvepg.sourceforge.net/tmp/">pre-release data directory</A>
+</P>
 
 <!-- ------------------------------------------------------------------------ -->
 
@@ -333,270 +350,7 @@ using the grabber via nxtvepg (see configuration dialog "Teletext grabber")
 
 <!-- ------------------------------------------------------------------------ -->
 
-<HR WIDTH="100%">
-
-<H2><A NAME="changelog">Change history</A></H2>
-
-<!--
-<H3>Changes between 2.8.0pre16 and 2.8.0pre17 (2007-01-21)</H3>
-<UL>
-</UL>
--->
-
-<H3>Changes between 2.8.0pre15 and 2.8.0pre16 (2006-12-28)</H3>
-<UL>
-<LI>Teletext grabber: improved robustness for channels with high
-    decoding error rate (i.e. improved teletext header text based
-    channel change detection)
-<LI>Linux: improved portability of timezone offset calculation
-<LI>Added English translation of the teletext grabber documentation
-<LI>Windows: TV-card driver update (merged once again from DScaler.)
-    Most noteable changes: Added support for TV cards with TDA8275/8290
-    tuner; Driver-adaption for 64-bit platforms
-<LI>Bugfix XMLTV import: default VPS/PDC code was incorrect (caused for
-    example reminders to by applied for all programmes of a network
-    instead of the one programme where it was set on.)
-<LI>UNIX: Added channel table parser for TV application "tvtime"
-<LI>UNIX: minor bugfixes in support for libzvbi; also updated the
-    DVB patch
-<LI>Much internal clean-up (committed many recent and not-so-recent
-    changes to version control system)
-<LI>Backport of fixes and improvements made in 2006 to the nxtvepg
-    "stable" line, i.e. version 2.7.7 (this only has an effect on the
-    changelog in 2.8.0)
-</UL>
-
-<H3>Changes between 2.8.0pre14 and 2.8.0pre15 (2006-11-22)</H3>
-<UL>
-<LI>Bugfix in -merge function of teletext grabber Perl script which
-    caused every 2nd new programme to be dropped.
-<LI>Bugfix in teletext acquisition control which could cause an infinit
-    loop of database merging (i.e. 100% CPU load) when the GUI was
-    displaying a database merged from Nextview EPG and teletext sources.
-<LI>Fixed the Perl script so that it doesn't cause huge RAM and CPU
-    consumption when getting fed input with decoding errors in
-    teletext sub-page numbers.
-<LI>Improved the provider merge so that it allows for slight variations
-    in start times between provider databases. Note this required
-    essentially a complete redesign of essential parts of the merge
-    algorithm (which was almost unchanged for 5 years and very stable),
-    so please report any misbehaviour.
-<LI>Improved acquisition statistics: teletext data rate is now
-    calculated with a running average filter instead of a plain average
-    across the total acquisition runtime.
-</UL>
-
-<H3>Changes between 2.8.0pre13 and 2.8.0pre14 (2006-11-12)</H3>
-<P>
-This pre-release contains various bug-fixes and continued development
-for the teletext EPG grabber.
-</P>
-<UL>
-<LI>Added status line updates and a statistics window for teletext EPG
-    acquisition (see Control menu)
-<LI>Improved speed of teletext grabber in "Now" capture phase:
-    Down from 30 seconds per channel to 15-20 seconds.
-    (Use "Acquisition mode" configuration dialog to enable this mode)
-<LI>Improved merge of XMLTV files (make sure already available
-    programme descriptions aren't lost)
-<LI>Implemented handling of "passive" and "forced passive" modes in
-    teletext grabber (i.e. external channel changes, e.g by a TV app)
-<LI>Added progress output (i.e. percentage of covered channels)
-    in status line during "Now" phase in Nextview EPG acquisition.
-</UL>
-
-<H3>Changes between 2.8.0pre12 and 2.8.0pre13 (2006-10-15)</H3>
-<UL>
-<LI>Integrated EPG acquisition from regular teletext pages (i.e. based
-    on package tv_grab_ttx-0.5.tar.gz)
-    See new configuration dialog "Teletext grabber"
-<LI>Fixed reported bug "Dump to XML fails" (3.8.2006 by pferdekaemper)
-<LI>Implemented feature request "Externes Programm per Doppelklick":
-    Made action which is bound to "Tune TV" button configurable
-<LI>Implemented feature request "Verhalten von nxtvepg als Client"
-    by Bernhard: Win32 only: added option "no driver" in TV card
-    configuration (for PCs without a TV card)
-<LI>Added option to disable automatic start of acquisition at
-    program start in "Acquisition Mode" configuration dialog
-<LI>Various improvements in handling of imported XMLTV data
-<LI>Win32: Improved interface to TV applications: Provide more info
-    about the current programme; Allow use of nxtvepg in daemon mode
-    (i.e. without GUI with option -daemon); Teletext acquisition.
-    Note: due to this change a new plugin is required for K!TV.
-</UL>
-
-<H3>Changes between 2.8.0pre11 and 2.8.0pre12 (2006-07-02)</H3>
-<UL>
-<LI>Several minor fixes in handling databases imported from XMLTV files.
-<LI>Linux: Work-around for bttv driver bug in kernel 2.6.16
-<LI>UNIX: Added work-around for interaction with TV-application <I>tvtime</I>
-<LI>Removed former German provider "RTL2" from list of
-    <A HREF="provnets.html">known providers</A>
-</UL>
-
-<H3>Changes between 2.8.0pre10 and 2.8.0pre11 (2006-01-28)</H3>
-<UL>
-<LI>Bugfix in handling of non-latin character encodings in network name
-  configuration dialog and TV application's channel table import.
-<LI>UNIX: bugfix in TV app detection (to be able to detect "tvtime")
-<LI>UNIX: added possibility to use external program to display EPG info
-  popups to "TV app. interaction" configuration dialog (note: a new
-  variable ${tvapp-wid} can be used to provide the TV app's X11 window
-  identifier to the called application to allow querying the window
-  position.)
-<LI>Windows: Minor fixes in parse error handling in new card
-  configuration INI file parser
-</UL>
-
-<H3>Changes between 2.8.0pre9 and 2.8.0pre10 (2006-01-04)</H3>
-<UL>
-<LI>New algorithm in EPG stream decoder to improve performance under
-  reception conditions with high data loss rates
-<LI>Windows: update of TV card drivers (import of latest DScaler version.)
-  SAA7134 and CX2388x card config is now read from INI files.
-<LI>Minor bugfix in reminder messages: font for programme title can now
-  be changed with "pi_font" in the resource file (Nxtvepg.ad)
-<LI>Bugfix XML import: ISO-8859-2 and following now properly
-  distinguished from ISO-8859-1
-<LI>Prepared use of UTF-8 encoding for internal text processing: not enabled
-  by default, requires compile switch USE_UTF8 and XMLTV_OUTPUT_UTF8 in
-  Makefile (not enabled by default because export functions not adapted yet.)
-  Note before using this mode any old EPG databases should be deleted.
-</UL>
-
-<H3>Changes between 2.8.0pre8 and 2.8.0pre9 (2005-12-11)</H3>
-<UL>
-<LI>Fixed broken assertion which caused annoying popup messages for Windows
-    users with SAA7134 TV cards and MicroTune tuners.
-<LI>Added support for import of UTF-8 encoded XMLTV files
-<LI>Improvements in handling of data imported from XMLTV (still many open
-    issues though.)
-<LI>Added support for export in HTML format via the command line
-    (does not support all features available in the GUI though.)
-<LI>Included bugfix in reminder handling (from release 2.7.6)
-<LI>Included German translation of the manual and help pages
-    (note German translation not updated since 2.7.6, i.e. the manual
-    doesn't cover recently added features yet.)
-</UL>
-
-<H3>Changes between 2.8.0pre7 and 2.8.0pre8 (2005-06-30)</H3>
-<UL>
-<LI>Update of XMLTV parser
-<LI>Minor fix in XMLTV export (DTD 0.6): several elements were not
-    in the correct order, which caused warnings with some XML processors
-<LI>UNIX: Provider scan now issues an appropriate error message upon
-    device errors (Thanks to Andreas for reporting this problem)
-</UL>
-
-<H3>Changes between 2.8.0pre6 and 2.8.0pre7 (2005-06-03)</H3>
-<UL>
-<LI>Added possibility to import EPG data from
-    <A HREF="http://membled.com/work/apps/xmltv/">XMLTV</A> files.
-    (Note: to import XMLTV data, just add the file name to the
-    command line, i.e. start as "nxtvepg tv.xml")
-<LI>Bugfix in handling of command line option "-dump xml"
-    (bug was introduced in 2.8.0pre6)
-</UL>
-<P>
-Note: feedback for XMLTV data import is appreciated.  Currently only
-import of data from grabbers for DE, UK and FR has been tested.  Possible
-errors or warnings during data import are logged in your debug.out file.
-</P>
-
-<H3>Changes between 2.8.0pre5 and 2.8.0pre6 (2005-04-09)</H3>
-<UL>
-<LI>Added support for -dump option in non-GUI executable (nxtvepgd)<BR>
-  Note: export mode "xml" is not supported in this case, you must include
-  the DTD version (e.g. "xml5", see manual); also user-configured network
-  names (via "Network name" configuration dialog in the GUI) are not adhered.
-<LI>Windows: Separated WDM from dsdrv4 sources in the TV card configuration
-  to make the distinction more clear.
-</UL>
-
-<H3>Changes between 2.8.0pre4 and 2.8.0pre5 (2005-03-25)</H3>
-<UL>
-<LI>Bugfix: missing error-check in time conversion lead to inconsistant
-  start/stop times around daylight saving time switch (which lead to
-  reload failure cause: "database corrupt")
-<LI>Fixed timezone format in XMLTV output (DTD 0.5, local timezone only)
-  Thanks to Laurent Garnier for reporting the bug.
-<LI>Updated network ID tables for EPG scan and TV interaction (updated
-  with TR231 rev. 03/2005)  Thanks to Quenotte.
-<LI>Windows: Upgrade of Tcl/Tk library from version 8.3.4 to 8.4.9
-<LI>Windows: Bugfix in new K!TV channel table import (Import "Test"
-  in TV app interaction configuration dialog failed when tried
-  immediately after switching from a different application type.)
-<LI>Windows, WDM support: as work-around for broken Hauppauge drivers:
-  removed VBI frame timestamp check
-</UL>
-
-<H3>Changes between 2.8.0pre3 and 2.8.0pre4 (2005-02-27)</H3>
-<UL>
-<LI>Added support for reading channel table of K!TV 2.3
-  Thanks to Quenotte for providing a patch.
-<LI>Windows only bugfix: "Record this show" did not appear in context
-  menu when connected to K!TV
-<LI>Improved network/channel identification by VPS/PDC during
-  interaction with TV applications (e.g. TV5 was not identified)
-</UL>
-
-<H3>Changes between 2.8.0pre2a and 2.8.0pre3 (2005-02-20)</H3>
-<UL>
-<LI>Fixed error message during provider removal in EPG scan
-<LI>Windows only: fixed !wintv! keyword handling in scripts bound
-  to reminder events (this was already supposed to be in 2.7.4 but
-  lost somehow)
-<LI>Windows only: minor bugfixes in WDM driver support
-</UL>
-
-<H3>Changes between 2.8.0pre1 and 2.8.0pre2a (2005-01-21)</H3>
-<UL>
-<LI>UNIX: Implemented new communication protocol for TV applications:
-  based on the <A HREF="xiccc-proto.html">X11 ICCCM protocol</A>
-  (Download the tvsim package to get a demo)
-<LI>added command line option -remctrl for UNIX (was supported on WIN32 only)
-<LI>Win32: keep acquisition disabled until the user has configured the TV card
-<LI>Win32 (2.8.0pre2a): temporarily disable acquisition while in the TV card config
-  dialog when switching to a WDM source (necessary to allow video input selection)
-</UL>
-
-<H3>Changes between 2.7.5pre1 and 2.8.0pre1 (2005-01-16)</H3>
-<UL>
-<LI>WIN32: merged support for WDM driver previously released as 2.8.0pre0
-  (Note: requires separate DLL, see page; still in alpha testing state;
-  details see <A HREF="WDMpre-releases.html">WDM support development</A> page)
-<LI>Included small fixes previously supplied as patch for 2.7.5pre1:
-   <UL>
-   <LI>Fixed -outfile option for Windows
-   <LI>Win32-only: fixed bug during daemon start via GUI
-   <LI>nxtvepgd: some memory was not freed during exit which triggered a debug exception
-   <LI>Added description for -provscan in manual, added Belgium to country code list
-   </UL>
-<LI>Suppress warning about missing nxtvepg.ini file when nxtvepg is
-  started for the first time.  Thanks to Gérard for pointing out this bug.
-</UL>
-
-<H3>Changes between 2.7.5pre0 and 2.7.5pre1 (2005-01-08)</H3>
-<UL>
-<LI>Split up config file .nxtvepgrc/nxtvepg.ini into sections.  Only
-  sections belonging to GUI are parsed by Tcl code; sections containing
-  database and acquisition parameters are read by a new C module.
-<LI>Added new command line option -provscan de|fr|at|ch: runs an EPG
-  scan without GUI. It can also be used by nxtvepgd, so nxtvepg can
-  now be set up without ever using the GUI (except for some advanced
-  acquisition options)
-</UL>
-
-<H3>Changes between 2.7.4 and 2.7.5pre0 (2005-01-01)</H3>
-<UL>
-<LI>Fixed HTML export (not all text format options were processed,
-  weekday color column was not implemented) and improved layout
-<LI>XML export: format can now be selected via command line options
-<LI>Added command line option -outfile <path>
-<LI>Possibility to compile separate daemon without GUI (note to UNIX
-  users: enter "make daemon" to compile the daemon-only executable)
-</UL>
-
+<P><BR><P>
 <HR WIDTH="75%">
 
 <H2>Copyright &amp; Disclaimer</H2>

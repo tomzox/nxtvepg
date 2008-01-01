@@ -1,4 +1,4 @@
-## $Id: CHANGES.version,v 1.17 2004/04/02 14:17:54 tom Exp $ ##
+## $Id: CHANGES.version,v 1.18 2007/12/31 20:18:31 tom Exp $ ##
 
 Steps to prepare new distribution:
 
@@ -28,6 +28,7 @@ Makefile AND Makefile.win
 - set CFLAGS optimization to -O2
 - replace constant assignment to TCL_VER with dynamic query
 - enable USE_THREADS
+- disable USE_UTF8
 - comment out rules for libt*.def in Makefile.win32
 
 adapt epgctl/mytypes.h

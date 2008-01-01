@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: xawtv.h,v 1.7 2003/07/06 12:15:08 tom Exp tom $
+ *  $Id: xawtv.h,v 1.9 2006/01/29 14:47:45 tom Exp tom $
  */
 
 #ifndef __XAWTV_H
@@ -24,12 +24,20 @@
 
 
 // ----------------------------------------------------------------------------
-// Initialization
+// Types
+
+typedef char * (MAIN_REMOTE_CMD_HANDLER) ( char ** pArgv, uint argc );
+
+
+// ----------------------------------------------------------------------------
+// Interface
 //
-void Xawtv_Init( char * pTvX11Display );
+void Xawtv_Init( char * pTvX11Display, MAIN_REMOTE_CMD_HANDLER * pRemCmdCb );
 void Xawtv_Destroy( void );
 
-void Xawtv_SendCmdArgv(Tcl_Interp *interp, const char * pCmdStr, uint cmdLen );
+bool Xawtv_SendCmdArgv( Tcl_Interp *interp, const char * pCmdStr, uint cmdLen );
+void Xawtv_SendEpgOsd( const PI_BLOCK *pPiBlock );
+int  Xawtv_GetXawtvWid( void );
 
 
 #endif  // __XAWTV_H

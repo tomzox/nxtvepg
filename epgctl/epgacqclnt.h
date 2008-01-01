@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgacqclnt.h,v 1.4 2004/06/20 18:51:08 tom Exp tom $
+ *  $Id: epgacqclnt.h,v 1.5 2006/11/25 22:10:41 tom Exp tom $
  */
 
 #ifndef __EPGACQCLNT_H
@@ -68,21 +68,26 @@ typedef struct
 void EpgAcqClient_Init( void (* pUpdateEvHandler) ( EPGACQ_EVHAND * pAcqEv ) );
 void EpgAcqClient_Destroy( void );
 bool EpgAcqClient_SetAddress( const char * pHostName, const char * pPort );
-#ifdef __EPGTSCQUEUE_H
-bool EpgAcqClient_StartAcq( uint * pCniTab, uint cniCount,
-                           EPGDB_QUEUE * pDbQueue, EPGDB_PI_TSC *pTscQueue );
-#endif
-void EpgAcqClient_StopAcq( void );
+bool EpgAcqClient_Start( void );
+void EpgAcqClient_Stop( void );
 bool EpgAcqClient_TerminateDaemon( char ** pErrorMsg );
 void EpgAcqClient_HandleSocket( EPGACQ_EVHAND * pAcqEv );
 bool EpgAcqClient_CheckTimeouts( void );
-bool EpgAcqClient_ChangeProviders( const uint * pCniTab, uint cniCount );
+bool EpgAcqClient_SetProviders( const uint * pCniTab, uint cniCount );
 bool EpgAcqClient_SetAcqStatsMode( bool enable );
 bool EpgAcqClient_SetAcqTscMode( bool enable,  bool allProviders );
 bool EpgAcqClient_SetVpsPdcMode( bool enable, bool update );
 bool EpgAcqClient_IsLocalServer( void );
 bool EpgAcqClient_DescribeNetState( EPGDBSRV_DESCR * pNetState );
-bool EpgAcqClient_GetNetStats( EPGDB_STATS * pAcqStats, EPGACQ_DESCR * pAcqDescr, bool * pAiFollows );
+
+EPGDB_CONTEXT * EpgAcqClient_GetDbContext( void );
+bool EpgAcqClient_GetAcqStats( EPG_ACQ_STATS * pAcqStats );
+bool EpgAcqClient_GetVpsPdc( EPG_ACQ_VPS_PDC * pVpsPdc, uint * pReqInd );
+void EpgAcqClient_DescribeAcqState( EPGACQ_DESCR * pAcqState );
+void EpgAcqClient_ProcessBlocks( void );
+#ifdef __EPGTSCQUEUE_H
+EPGDB_PI_TSC * EpgAcqClient_GetTimescaleQueue( void );
+#endif
 
 
 #endif  // __EPGACQCLNT_H

@@ -1,11 +1,11 @@
 %define    prefix    /usr/local
-%define    version   2.7.7
+%define    version   2.8.0
 
 Summary:   nexTView EPG decoder and browser
 Name:      nxtvepg
 Version:   %{version}
 Release:   0
-Requires:  tcl >= 8.3, tk >= 8.3
+Requires:  tcl >= 8.4, tk >= 8.4
 Source0:   nxtvepg-%{version}.tar.gz
 Group:     Applications/Multimedia
 License:   GPL
@@ -13,28 +13,25 @@ URL:       http://prdownloads.sourceforge.net/nxtvepg/nxtvepg-%{version}.tar.gz
 BuildRoot: /tmp/nxtvepg-build
 
 %description
-This is a decoder and browser for nexTView - an Electronic TV Programme Guide
-for the analog domain (as opposed to the various digital EPGs that come with
-most digital broadcasts). It allows you to decode and browse TV programme
-listings for most of the major networks in Germany, Austria, France, Belgium
-and Switzerland.
+nxtvepg allows to receive, analyze and browse TV programme schedules
+transmitted on top of Teletext as defined by the European
+Telecommunications Standards Institute (ETSI) in ETS 300 707:
+"Protocol for a TV Guide using electronic data transmission".
 
-Currently Nextview EPG is transmitted by:
-- in Germany and Austria: Kabel1 (coverage: apx. 32 networks)
-- in Switzerland: SF1, TSR1, TSI1, TV5 (coverage: apx. 37 networks)
-- in France: Canal+, M6, TV5 (coverage: 8 networks)
-- in Belgium: M6, TV5 (coverage: 32 networks)
-- in Turkey: TRT family (coverage: apx. 17 networks)
+As of December 2007 the following Nextview EPG providers are available:
+
+- for Germany and Austria: Kabel1 (coverage: apx. 32 networks)
+- for Switzerland: SF1, TSR1, TSI1, TV5 (coverage: apx. 37 networks)
+- for France: Canal+, M6, TV5 (coverage: 8 networks)
+- for Belgium: M6, TV5 (coverage: 32 networks)
+- for Turkey: TRT family (coverage: apx. 17 networks)
 
 If you don't receive any of those, then this software unfortunately is
-almost useless to you, except for a demo mode. For more details please
-refer to the documentation in the "Help" menus or the UNIX manual page.
-
-The Nextview standard was developed by the major European consumer electronics
-manufacturers under the hood of the European Telecommunications Standards
-Institute (http://www.etsi.org/) in 1995-1997. The author of this software
-has no connections whatsoever to the ETSI - but he still hopes this software
-distribution will be kindly tolerated.
+almost useless to you, except for the possibility to acquire EPG data
+from teletext and external sources via XMLTV (but those are mainly
+designed to accompany Nextview EPG so they won't work very well
+stand-alone.)  For more details on pre-requesites please refer to
+the documentation in the "Help" menus and manual page.
 
 %prep
 %setup
@@ -51,8 +48,10 @@ make ROOT="$RPM_BUILD_ROOT" install
 %dir /usr/tmp/nxtvdb
 %attr(777,root,root) /usr/tmp/nxtvdb
 /%{prefix}/bin/nxtvepg
+/%{prefix}/bin/nxtvepgd
 /%{prefix}/man/man1/nxtvepg.1
-/usr/X11R6/lib/X11/app-defaults/Nxtvepg
+/%{prefix}/man/man1/nxtvepgd.1
+/etc/X11/app-defaults/Nxtvepg
 
 %clean
 make clean

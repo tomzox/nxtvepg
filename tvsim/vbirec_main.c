@@ -31,7 +31,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: vbirec_main.c,v 1.21 2004/12/12 15:39:19 tom Exp tom $
+ *  $Id: vbirec_main.c,v 1.27 2007/12/31 18:52:45 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_TVSIM
@@ -66,6 +66,8 @@
 #include "epgvbi/cni_tables.h"
 #include "epgvbi/hamming.h"
 #include "epgdb/epgblock.h"
+#include "epgui/rcfile.h"
+#include "epgui/epgmain.h"
 #include "epgtcl/combobox.h"
 #include "tvsim/vbirec_gui.h"
 #include "tvsim/tvsim_version.h"
@@ -109,6 +111,18 @@ static Tcl_AsyncHandler exitAsyncHandler   = NULL;
 static Tcl_TimerToken   clockHandler       = NULL;
 static bool should_exit;
 
+#ifndef WIN32
+typedef enum
+{
+   EPG_IPC_BOTH,
+   EPG_IPC_XAWTV,
+   EPG_IPC_ICCCM,
+   EPG_IPC_COUNT
+} EPG_IPC_PROTOCOL;
+#define IPC_XAWTV_ENABLED (epgIpcProtocol != EPG_IPC_ICCCM)
+#define IPC_ICCCM_ENABLED (epgIpcProtocol != EPG_IPC_XAWTV)
+#endif
+
 #ifdef WIN32
 volatile EPGACQ_BUF * pVbiBuf = NULL;
 #endif
@@ -141,6 +155,7 @@ static uint          epgPageNo;
 
 #ifndef WIN32
 static uint videoCardIndex = TVSIM_CARD_IDX;
+static EPG_IPC_PROTOCOL epgIpcProtocol = EPG_IPC_BOTH;
 #endif
 static bool startIconified = FALSE;
 
@@ -151,21 +166,46 @@ static bool startIconified = FALSE;
 #include "epgdb/epgdbfil.h"
 #include "epgctl/epgacqctl.h"
 #include "epgdb/epgdbif.h"
-#include "epgui/epgmain.h"
+#include "epgui/epgsetup.h"
+#include "epgui/shellcmd.h"
 #include "epgui/pibox.h"
-#include "epgui/wintvcfg.h"
+#include "epgui/wintvui.h"
 #include "epgui/xawtv.h"
+
+EPGDB_CONTEXT dummyDbContext;
+EPGDB_CONTEXT * pUiDbContext = &dummyDbContext;
+EPGDB_CONTEXT * pAcqDbContext = NULL;
+static AI_BLOCK * pFakeAi = NULL;
+static PI_BLOCK * pFakePi = NULL;
+
 void  EpgDbLockDatabase( EPGDB_CONTEXT * dbc, uchar enable ) {}
 bool  EpgDbIsLocked( const EPGDB_CONTEXT * dbc ) { return TRUE; }
-const AI_BLOCK * EpgDbGetAi( const EPGDB_CONTEXT * dbc ) { return NULL; }
-const PI_BLOCK * EpgDbSearchPiByPil( const EPGDB_CONTEXT * dbc, uchar netwop_no, uint pil ) { return NULL; }
-const PI_BLOCK * EpgDbSearchFirstPiAfter( const EPGDB_CONTEXT * dbc, time_t min_time, EPGDB_TIME_SEARCH_MODE startOrStop, const FILTER_CONTEXT *fc ) { return NULL; }
+const AI_BLOCK * EpgDbGetAi( const EPGDB_CONTEXT * dbc ) { return pFakeAi; }
+const PI_BLOCK * EpgDbSearchPiByPil( const EPGDB_CONTEXT * dbc, uchar netwop_no, uint pil ) { return pFakePi; }
+const PI_BLOCK * EpgDbSearchFirstPiAfter( const EPGDB_CONTEXT * dbc, time_t min_time, EPGDB_TIME_SEARCH_MODE startOrStop, const FILTER_CONTEXT *fc ) { return pFakePi; }
+const PI_BLOCK * EpgDbSearchFirstPi( const EPGDB_CONTEXT * dbc, const FILTER_CONTEXT *fc ) { return pFakePi; }
+const PI_BLOCK * EpgDbSearchNextPi( const EPGDB_CONTEXT * dbc, const FILTER_CONTEXT *fc, const PI_BLOCK * pPiBlock ) { return pFakePi; }
+bool EpgDbContextIsMerged( const EPGDB_CONTEXT * dbc ) { return FALSE; }
 
 FILTER_CONTEXT * EpgDbFilterCreateContext( void ) { return NULL; }
 void   EpgDbFilterDestroyContext( FILTER_CONTEXT * fc ) {}
 void   EpgDbFilterEnable( FILTER_CONTEXT *fc, uint mask ) {}
 void   EpgDbFilterInitNetwop( FILTER_CONTEXT *fc ) {}
 void   EpgDbFilterSetNetwop( FILTER_CONTEXT *fc, uchar netwopNo ) {}
+
+const char * EpgSetup_GetNetName( const AI_BLOCK * pAiBlock, uint netIdx, bool * pIsFromAi )
+{
+   const char * pResult;
+
+   if ((pAiBlock != NULL) && (netIdx < pAiBlock->netwopCount))
+      pResult = AI_GET_NETWOP_NAME(pAiBlock, netIdx);
+   else
+      pResult = "";
+
+   if (pIsFromAi != NULL)
+      *pIsFromAi = TRUE;
+   return pResult;
+}
 
 void AddMainIdleEvent( Tcl_IdleProc *IdleProc, ClientData clientData, bool unique )
 {
@@ -177,18 +217,65 @@ bool RemoveMainIdleEvent( Tcl_IdleProc * IdleProc, ClientData clientData, bool m
    Tcl_CancelIdleCall(IdleProc, clientData);
    return FALSE;
 }
-EPGDB_CONTEXT * pUiDbContext = NULL;
-EPGDB_CONTEXT * pAcqDbContext = NULL;
-
 void EpgAcqCtl_DescribeAcqState( EPGACQ_DESCR * pAcqState ) {}
-const EPGDB_ACQ_VPS_PDC * EpgAcqCtl_GetVpsPdc( VPSPDC_REQ_ID clientId ) { return NULL; }
+bool EpgAcqCtl_GetVpsPdc( EPG_ACQ_VPS_PDC * pVpsPdc, VPSPDC_REQ_ID clientId, bool force ) { return FALSE; }
 bool EpgAcqCtl_CheckDeviceAccess( void ) { return TRUE; }
 void EpgAcqCtl_ResetVpsPdc( void ) {}
 
 void PiBox_GotoPi( const PI_BLOCK * pPiBlock ) {}
-uint WintvCfg_StationNameToCni( char * pName, uint MapName2Cni(const char * station) ) { return 0; }
-bool WintvCfg_CheckAirTimes( uint cni ) { return TRUE; }
+void PiOutput_ExecuteScript( Tcl_Interp *interp, Tcl_Obj * pCmdObj, const PI_BLOCK * pPiBlock ) {}
+uint WintvUi_StationNameToCni( char * pName, uint MapName2Cni(const char * station) ) { return 0; }
+bool WintvUi_CheckAirTimes( uint cni ) { return TRUE; }
+const char * RcFile_GetNetworkName( uint cni ) { return NULL; }
 
+static void TvSimu_CreateFakeAiAndPi( uint cni, time_t start_time, time_t stop_time,
+                                      const char * pTitle )
+{
+   AI_NETWOP * pNetwop;
+   char * pNextStr;
+   uint  blockLen;
+   uint  netwopCount = 1+1;
+   uint  netwop;
+
+   if (pFakeAi != NULL)
+      xfree(pFakeAi);
+   blockLen = sizeof(AI_BLOCK) + netwopCount * sizeof(AI_NETWOP) + 12+1 + netwopCount * 15;
+   pFakeAi = xmalloc(blockLen);
+   memset(pFakeAi, 0, blockLen);
+
+   pFakeAi->netwopCount = netwopCount;
+   pFakeAi->off_netwops = sizeof(AI_BLOCK);
+   pNetwop = (AI_NETWOP *)((char *)pFakeAi + pFakeAi->off_netwops);
+
+   pFakeAi->off_serviceNameStr = sizeof(AI_BLOCK) + sizeof(AI_NETWOP) * netwopCount;
+   pNextStr = (char *)pFakeAi + pFakeAi->off_serviceNameStr;
+   strcpy(pNextStr, "FAKE SERVICE");
+   pNextStr += 12+1;
+
+   for (netwop = 0; netwop < netwopCount; netwop++, pNetwop++)
+   {
+      if (netwop == 0)
+         pNetwop->netCni = 0;
+      else
+         pNetwop->netCni = cni & XMLTV_NET_CNI_MASK;
+      pNetwop->off_name = (char*) pNextStr - (char*) pFakeAi;
+      sprintf(pNextStr, "Network 0x%04X", cni);
+      assert(strlen(pNextStr) == 15-1);
+      pNextStr += 7;
+   }
+
+   if (pFakePi != NULL)
+      xfree(pFakePi);
+   blockLen = sizeof(PI_BLOCK) + strlen(pTitle)+1;
+   pFakePi = xmalloc(blockLen);
+   memset(pFakePi, 0, blockLen);
+
+   pFakePi->netwop_no = 0;
+   pFakePi->start_time = start_time;
+   pFakePi->stop_time = stop_time;
+   pFakePi->off_title = sizeof(PI_BLOCK);
+   strcpy((char *)pFakePi + pFakePi->off_title, pTitle);
+}
 
 // ---------------------------------------------------------------------------
 // called by interrupt handlers when the application should exit
@@ -236,7 +323,7 @@ static int Xawtv_CbStationChange(ClientData ttp, Tcl_Interp *interp, int argc, C
 
       eval_check(interp, "InitGuiVars");
 
-      epgPageNo = pVbiBuf->epgPageNo = 0x1DF;
+      epgPageNo = pVbiBuf->startPageNo = 0x1DF;
       Tcl_SetVar(interp, "ttx_pgno", "1DF", TCL_GLOBAL_ONLY);
 
       Tcl_SetVar(interp, "tvChanName", argv[1], TCL_GLOBAL_ONLY);
@@ -244,7 +331,7 @@ static int Xawtv_CbStationChange(ClientData ttp, Tcl_Interp *interp, int argc, C
       if (tvCurFreq != 0)
       {
          sprintf(comm, "%d = %.2f MHz", tvCurFreq, (double)tvCurFreq / 16);
-         Tcl_SetVar(interp, "tvCurFreq", comm, TCL_GLOBAL_ONLY);
+         Tcl_SetVar(interp, "tvCurTvInput", comm, TCL_GLOBAL_ONLY);
       }
       result = TCL_OK;
    }
@@ -270,13 +357,36 @@ static void WinApiDestructionHandler( ClientData clientData)
    ExitProcess(0);
 }
 
+#if (TCL_MAJOR_VERSION != 8) || (TCL_MINOR_VERSION >= 5)
+static int TclCbWinHandleShutdown( ClientData ttp, Tcl_Interp *interp, int argc, CONST84 char *argv[] )
+{
+   WinApiDestructionHandler(NULL);
+   return TCL_OK;
+}
+#endif
+
 #ifdef __MINGW32__
 static LONG WINAPI WinApiExceptionHandler(struct _EXCEPTION_POINTERS *exc_info)
 {
+   static bool inExit = FALSE;
+
    //debug1("FATAL exception caught: %d", GetExceptionCode());
    debug0("FATAL exception caught");
-   WintvSharedMem_Exit();
-   ExitProcess(-1);
+
+   // prevent recursive calls - may occur upon crash in acq stop function
+   if (inExit == FALSE)
+   {
+      inExit = TRUE;
+
+      // skip EpgAcqCtl_Stop() because it tries to dump the db - do as little as possible here
+      WintvSharedMem_Exit();
+      ExitProcess(-1);
+   }
+   else
+   {
+      ExitProcess(-1);
+   }
+
    // dummy return
    return EXCEPTION_EXECUTE_HANDLER;
 }
@@ -446,6 +556,10 @@ static void VbiRec_CbTvEvent( void )
    }
 }
 
+static void VbiRec_CbEpgQuery( void )
+{
+}
+
 // ----------------------------------------------------------------------------
 // TV application changed the input channel
 //
@@ -453,6 +567,7 @@ static void VbiRec_CbStationSelected( void )
 {
    char station[50];
    uint chanQueryIdx;
+   uint epgCnt;
    TVAPP_COMM * pTvShm;
 
    // channel change -> reset results & state machine
@@ -462,17 +577,18 @@ static void VbiRec_CbStationSelected( void )
    eval_check(interp, "InitGuiVars");
 
    // query which station was selected
-   if ( WintvSharedMem_QueryChanName(station, sizeof(station), &chanQueryIdx) )
+   if ( WintvSharedMem_GetStation( station, sizeof(station), &chanQueryIdx, &epgCnt) )
    {
       Tcl_SetVar(interp, "tvChanName", station, TCL_GLOBAL_ONLY);
    }
 
-   epgPageNo = pVbiBuf->epgPageNo = 0x1DF;
+   epgPageNo = pVbiBuf->startPageNo = 0x1DF;
    Tcl_SetVar(interp, "ttx_pgno", "1DF", TCL_GLOBAL_ONLY);
 
    // really dirty hack to get the pointer to shared memory from the VBI buffer address
    pTvShm = (TVAPP_COMM *)((uchar *)pVbiBuf - (uchar *)&((TVAPP_COMM *)0)->vbiBuf);
 
+#if 0
    if (pTvShm->tvChanCni != 0)
    {
       sprintf(comm, "0x%04x", pTvShm->tvChanCni);
@@ -480,26 +596,39 @@ static void VbiRec_CbStationSelected( void )
    }
    else
       Tcl_SetVar(interp, "tvChanCni", "---", TCL_GLOBAL_ONLY);
+#endif
 
-   if (pTvShm->tvCurInput != EPG_REQ_INPUT_NONE)
+   if (pTvShm->tvCurIsTuner)
    {
-      sprintf(comm, "%d", pTvShm->tvCurInput);
-      Tcl_SetVar(interp, "tvCurInput", comm, TCL_GLOBAL_ONLY);
+      if (pTvShm->tvCurFreq != EPG_REQ_FREQ_NONE)
+      {
+         sprintf(comm, "%d = %.2f MHz (%s)",
+                       pTvShm->tvCurFreq, (double)pTvShm->tvCurFreq / 16,
+                       (pTvShm->tvCurNorm == 0) ? "PAL" :
+                          ((pTvShm->tvCurNorm == 1) ? "SECAM" :
+                             ((pTvShm->tvCurNorm == 2) ? "NTSC" : "invalid")) );
+         Tcl_SetVar(interp, "tvCurTvInput", comm, TCL_GLOBAL_ONLY);
+      }
+      else
+         Tcl_SetVar(interp, "tvCurTvInput", "Tuner: freq. unknown", TCL_GLOBAL_ONLY);
+   }
+   else
+   {
+      Tcl_SetVar(interp, "tvCurTvInput", "Not a tuner", TCL_GLOBAL_ONLY);
    }
 
-   if (pTvShm->tvCurFreq != EPG_REQ_FREQ_NONE)
-   {
-      sprintf(comm, "%d = %.2f MHz", pTvShm->tvCurFreq, (double)pTvShm->tvCurFreq / 16);
-      Tcl_SetVar(interp, "tvCurFreq", comm, TCL_GLOBAL_ONLY);
-   }
+   Tcl_SetVar(interp, "tvGrantTuner", pTvShm->tvGrantTuner ? "yes" : "no", TCL_GLOBAL_ONLY);
 
-   if (pTvShm->tvGrantTuner)
+   if (pTvShm->tvReqTvCard)
    {
-      Tcl_SetVar(interp, "tvGrantTuner", "yes", TCL_GLOBAL_ONLY);
+      sprintf(comm, "%d", pTvShm->tvCardIdx);
+      Tcl_SetVar(interp, "tvReqCardIdx", comm, TCL_GLOBAL_ONLY);
    }
+   else
+      Tcl_SetVar(interp, "tvReqCardIdx", "none", TCL_GLOBAL_ONLY);
 
    // always reply will NULL info
-   WintvSharedMem_SetEpgInfo(0, 0, "", 0, NULL, chanQueryIdx);
+   WintvSharedMem_SetEpgInfo("", 0, chanQueryIdx, TRUE);
 }
 
 // ----------------------------------------------------------------------------
@@ -529,49 +658,72 @@ static void VbiRec_CbAttachTv( bool enable, bool acqEnabled, bool slaveStateChan
 #endif  // WIN32
 
 // ---------------------------------------------------------------------------
-// Update a CNI/PIL/text and network variable
+// Update CNI/PIL/text in the display for one source
 //
 static void UpdateCni( volatile CNI_ACQ_STATE * pNew, CNIPIL * pOld, char * pVar )
 {
-   if ( (pNew->haveCni) &&
-        ( (pOld->cni != pNew->haveCni) ||
-          (pOld->pil != (pNew->havePil ? pNew->outPil : INVALID_VPS_PIL)) ))
+   char *ps, *pe;
+   uint outlen;
+   bool update;
+
+   // check if the CNI or PIL changed
+   update = ( (pNew->haveCni) &&
+              ( (pOld->cni != pNew->haveCni) ||
+                (pOld->pil != (pNew->havePil ? pNew->outPil : INVALID_VPS_PIL)) ));
+   // check if the text changed
+   update |= ( (pNew->haveText) &&
+               (strncmp(pOld->text, (char *) pNew->outText, PDC_TEXT_LEN) != 0) );
+
+   if (update)
    {
       // CNI and/or PIL has changed -> copy the new values
       pOld->cni = pNew->outCni;
       pOld->pil = (pNew->havePil ? pNew->outPil : INVALID_VPS_PIL);
-      pOld->text[0] = 0;
 
       if (pOld->cni != 0)
       {
          if ( VPS_PIL_IS_VALID(pOld->pil) )
          {  // both CNI and PIL are available
-            sprintf(comm, "%04X, %02d.%02d. %02d:%02d",
-                             pOld->cni,
-                             (pOld->pil >> 15) & 0x1F, (pOld->pil >> 11) & 0x0F,
-                             (pOld->pil >>  6) & 0x1F, (pOld->pil) & 0x3F);
+            outlen = sprintf(comm, "%04X, %02d.%02d. %02d:%02d",
+                                   pOld->cni,
+                                   (pOld->pil >> 15) & 0x1F, (pOld->pil >> 11) & 0x0F,
+                                   (pOld->pil >>  6) & 0x1F, (pOld->pil) & 0x3F);
          }
          else if (pOld->pil == VPS_PIL_CODE_EMPTY)
-            sprintf(comm, "%04X (PIL: \"fill material\")", pOld->cni);
+            outlen = sprintf(comm, "%04X (PIL: \"fill material\")", pOld->cni);
          else if (pOld->pil == VPS_PIL_CODE_PAUSE)
-            sprintf(comm, "%04X (PIL: \"pause\")", pOld->cni);
+            outlen = sprintf(comm, "%04X (PIL: \"pause\")", pOld->cni);
          else
-            sprintf(comm, "%04X", pOld->cni);
+            outlen = sprintf(comm, "%04X", pOld->cni);
       }
       else
-         strcpy(comm, "---");
+         outlen = sprintf(comm, "---");
 
-      Tcl_SetVar(interp, pVar, comm, TCL_GLOBAL_ONLY);
-   }
+      if (pNew->haveText)
+      {
+         // "status display" text is available
+         strncpy(pOld->text, (char *) pNew->outText, sizeof(pOld->text));
+         pNew->haveText = FALSE;
 
-   if ( (pNew->haveText) && (pOld->cni == 0) &&
-        (strncmp(pOld->text, (char *) pNew->outText, PDC_TEXT_LEN) != 0) )
-   {  // no CNI, but "status display" text is available
-      strncpy(pOld->text, (char *) pNew->outText, sizeof(pOld->text));
-      pNew->haveText = FALSE;
+         // skip any spaces at the start of the name
+         ps = pOld->text;
+         while (*ps == ' ')
+            ps += 1;
 
-      // display the text instead of CNI value, but place it inside ""
-      sprintf(comm, "\"%s\"", pOld->text);
+         // chop any spaces at the end of the name
+         if (*ps != 0)
+         {
+            pe = ps + strlen(ps) - 1;
+            while ((pe > ps) && (*pe == ' '))
+               pe--;
+
+            *(++pe) = 0;
+            outlen += sprintf(comm + outlen, "  \"%s\"", ps);
+         }
+      }
+      else
+         pOld->text[0] = 0;
+
       Tcl_SetVar(interp, pVar, comm, TCL_GLOBAL_ONLY);
    }
 }
@@ -649,32 +801,38 @@ static void UpdateTtxHeader( const uchar * pHeaderData )
 //
 static void SecTimerEvent( ClientData clientData )
 {
+   uint idx;
+
    if (pVbiBuf->chanChangeReq == pVbiBuf->chanChangeCnf)
    {
       if ( (pVbiBuf->mipPageNo != EPG_ILLEGAL_PAGENO) &&
            (pVbiBuf->mipPageNo != epgPageNo) )
       {
          pVbiBuf->chanChangeReq += 1;
-         pVbiBuf->epgPageNo = pVbiBuf->mipPageNo;
-         epgPageNo          = pVbiBuf->mipPageNo;
+         pVbiBuf->startPageNo = pVbiBuf->mipPageNo;
+         epgPageNo = pVbiBuf->mipPageNo;
 
          sprintf(comm, "%03X", epgPageNo);
          Tcl_SetVar(interp, "ttx_pgno", comm, TCL_GLOBAL_ONLY);
       }
 
-      while (pVbiBuf->reader_idx != pVbiBuf->writer_idx)
+      while ((idx = pVbiBuf->reader_idx) != pVbiBuf->writer_idx)
       {
          if (fdTtxFile != -1)
          {
-            write(fdTtxFile, (char *) &pVbiBuf->line[pVbiBuf->reader_idx], sizeof(VBI_LINE));
+            write(fdTtxFile, (char *) &pVbiBuf->line[idx], sizeof(VBI_LINE));
          }
 
-         pVbiBuf->reader_idx = (pVbiBuf->reader_idx + 1) % EPGACQ_BUF_COUNT;
+         pVbiBuf->reader_idx = (idx + 1) % TTXACQ_BUF_COUNT;
       }
 
-      if (pVbiBuf->lastHeader.pageno != 0xffff)
-         UpdateTtxHeader((char *)pVbiBuf->lastHeader.data + 13 - 5);
-
+      if (pVbiBuf->ttxHeader.fill_cnt != 0)
+      {
+         pVbiBuf->ttxHeader.write_lock = TRUE;
+         idx = (pVbiBuf->ttxHeader.write_idx + (EPGACQ_ROLL_HEAD_COUNT - 1)) % EPGACQ_ROLL_HEAD_COUNT;
+         UpdateTtxHeader((char *)pVbiBuf->ttxHeader.ring_buf[idx].data + 8);
+         pVbiBuf->ttxHeader.write_lock = FALSE;
+      }
       if (ttxStats.ttxPkgCount != pVbiBuf->ttxStats.ttxPkgCount)
       {
          sprintf(comm, "%d", pVbiBuf->ttxStats.ttxPkgCount);
@@ -777,29 +935,73 @@ static int TclCb_SendEpgOsd( ClientData ttp, Tcl_Interp *interp, int objc, Tcl_O
    else
    {
 #ifdef WIN32
-      uchar no_themes, theme_arr[8];
       uint  chanQueryIdx;
+      uint  epgCnt;
       char  station[50];
+      uchar start_str[40], stop_str[20];
+      struct tm *pStart, *pStop;
 
-      WintvSharedMem_QueryChanName(station, sizeof(station), &chanQueryIdx);
-      no_themes = 0;
+      WintvSharedMem_GetStation(station, sizeof(station), &chanQueryIdx, &epgCnt);
 
-      WintvSharedMem_SetEpgInfo(start_time, stop_time, Tcl_GetString(objv[1]),
-                                no_themes, theme_arr,
-                                chanQueryIdx);
+      pStart = localtime((time_t *)&start_time);
+      if (pStart != NULL)
+         strftime(start_str, sizeof(start_str), "%Y-%m-%d\t%H:%M:00", pStart);
+      else
+         strcpy(start_str, "");
+
+      pStop  = localtime((time_t *)&stop_time);
+      if (pStop != NULL)
+         strftime(stop_str, sizeof(stop_str), "%H:%M:00", pStop);
+      else
+         strcpy(stop_str, "");
+
+      sprintf(comm, "%s\t"
+                  "%u\t%s\t%s\t%s\t%u\t%u\t"           // netwop ... e-rat
+                  "%s\t%u\t%u\t%u\t%u\t%u\t%u\t%u\t"   // features
+                  "%u\t%u\t%u\t%u\t%u\t%u\t%u\t"       // themes
+                  "%s\t%s\n",                          // title, description
+              station,
+              0, //pPi->netwop_no,
+              start_str,
+              stop_str,
+              "", //pilStr,
+              0, //pPi->parental_rating *2,
+              0, //pPi->editorial_rating,
+              "", //pStrSoundFormat,
+              0, //((pPi->feature_flags & PI_FEATURE_FMT_WIDE) ? 1 : 0),
+              0, //((pPi->feature_flags & PI_FEATURE_PAL_PLUS) ? 1 : 0),
+              0, //((pPi->feature_flags & PI_FEATURE_DIGITAL) ? 1 : 0),
+              0, //((pPi->feature_flags & PI_FEATURE_ENCRYPTED) ? 1 : 0),
+              0, //((pPi->feature_flags & PI_FEATURE_LIVE) ? 1 : 0),
+              0, //((pPi->feature_flags & PI_FEATURE_REPEAT) ? 1 : 0),
+              0, //((pPi->feature_flags & PI_FEATURE_SUBTITLES) ? 1 : 0),
+              0, //((pPi->no_themes > 0) ? pPi->themes[0] : 0),
+              0, //((pPi->no_themes > 1) ? pPi->themes[1] : 0),
+              0, //((pPi->no_themes > 2) ? pPi->themes[2] : 0),
+              0, //((pPi->no_themes > 3) ? pPi->themes[3] : 0),
+              0, //((pPi->no_themes > 4) ? pPi->themes[4] : 0),
+              0, //((pPi->no_themes > 5) ? pPi->themes[5] : 0),
+              0, //((pPi->no_themes > 6) ? pPi->themes[6] : 0),
+              Tcl_GetString(objv[1]), //((char*) (pPi->off_title != 0) ? PI_GET_TITLE(pPi) : (uchar *) "")
+              ""
+      );
+      WintvSharedMem_SetEpgInfo(comm, strlen(comm) + 1, chanQueryIdx, TRUE);
 #else
-      char  start_str[10], stop_str[10];
-      time_t ltime;
-      uint  cmdLen;
+      uint  cni;
 
-      ltime = start_time;
-      strftime(start_str, 10, "%H:%M", localtime(&ltime));
-      ltime = stop_time;
-      strftime(stop_str, 10, "%H:%M", localtime(&ltime));
+      if (pVbiBuf->cnis[CNI_TYPE_VPS].haveCni)
+         cni = pVbiBuf->cnis[CNI_TYPE_VPS].outCni;
+      else if (pVbiBuf->cnis[CNI_TYPE_PDC].haveCni)
+         cni = pVbiBuf->cnis[CNI_TYPE_PDC].outCni;
+      else if (pVbiBuf->cnis[CNI_TYPE_NI].haveCni)
+         cni = pVbiBuf->cnis[CNI_TYPE_NI].outCni;
+      else
+         cni = 0;
 
-      cmdLen = sprintf(comm, "message%c%s-%s %s%c", 0,
-                       start_str, stop_str, Tcl_GetString(objv[1]), 0);
-      Xawtv_SendCmdArgv(interp, comm, cmdLen);
+      TvSimu_CreateFakeAiAndPi(cni, start_time, stop_time, Tcl_GetString(objv[1]));
+
+      Xawtv_SendEpgOsd(pFakePi);
+      //eval_check(interp, "C_Tvapp_ShowEpg");
 #endif
       result = TCL_OK;
    }
@@ -878,7 +1080,8 @@ bool BtDriver_GetState( bool * pEnabled, bool * pHasDriver, uint * pCardIdx )
       *pEnabled = FALSE;
    return TRUE;
 }
-bool TtxDecode_GetCniAndPil( uint * pCni, uint *pPil, volatile EPGACQ_BUF *pThisVbiBuf ) { return FALSE; }
+bool TtxDecode_GetCniAndPil( uint * pCni, uint * pPil, CNI_TYPE * pCniType,
+                             uint * pCniInd, uint * pPilInd, volatile EPGACQ_BUF * pThisVbiBuf ) { return FALSE; }
 void TtxDecode_NotifyChannelChange( volatile EPGACQ_BUF * pThisVbiBuf ) {}
 
 // ----------------------------------------------------------------------------
@@ -888,10 +1091,18 @@ static const WINSHMSRV_CB vbiRecCb =
 {
    VbiRec_CbTvEvent,
    VbiRec_CbStationSelected,
+   VbiRec_CbEpgQuery,
    VbiRec_CbTunerGrant,
    VbiRec_CbAttachTv
 };
 #endif
+
+Tcl_Obj * TranscodeToUtf8( T_EPG_ENCODING enc, const char * pPrefix, const char * pStr, const char * pPostfix )
+{
+   assert((pPrefix == NULL) && (pPostfix == NULL));  // not used by xawtv.c
+   // note: UTF-8 encoding not required since the value is just passed through
+   return Tcl_NewStringObj(pStr, -1);
+}
 
 // ---------------------------------------------------------------------------
 // Initialize the Tcl/Tk interpreter and load our scripts
@@ -901,7 +1112,8 @@ static int ui_init( int argc, char **argv )
    char * args;
 
    // set up the default locale to be standard "C" locale so parsing is performed correctly
-   setlocale(LC_ALL, "C");
+   setlocale(LC_ALL, "");
+   setlocale(LC_NUMERIC, "C");  // required for Tcl or parsing of floating point numbers fails
 
    if (argc >= 1)
    {
@@ -932,8 +1144,10 @@ static int ui_init( int argc, char **argv )
    #ifndef WIN32
    Tcl_SetVar(interp, "x11_appdef_path", X11_APP_DEFAULTS, TCL_GLOBAL_ONLY);
    Tcl_SetVar2Ex(interp, "is_unix", NULL, Tcl_NewIntObj(1), TCL_GLOBAL_ONLY);
+   Tcl_SetVar2Ex(interp, "is_icccm_proto", NULL, Tcl_NewBooleanObj(IPC_ICCCM_ENABLED), TCL_GLOBAL_ONLY);
    #else
    Tcl_SetVar2Ex(interp, "is_unix", NULL, Tcl_NewIntObj(0), TCL_GLOBAL_ONLY);
+   Tcl_SetVar2Ex(interp, "is_icccm_proto", NULL, Tcl_NewBooleanObj(0), TCL_GLOBAL_ONLY);
    #endif
 
    Tcl_Init(interp);
@@ -988,6 +1202,11 @@ static int ui_init( int argc, char **argv )
 
    Tcl_TraceVar(interp, "dumpttx_enable", TCL_TRACE_WRITES|TCL_GLOBAL_ONLY, TclCb_EnableDump, NULL);
 
+   #if defined (WIN32) && ((TCL_MAJOR_VERSION != 8) || (TCL_MINOR_VERSION >= 5))
+   Tcl_CreateCommand(interp, "C_WinHandleShutdown", TclCbWinHandleShutdown, (ClientData) NULL, NULL);
+   eval_check(interp, "wm protocol . WM_SAVE_YOURSELF C_WinHandleShutdown\n");
+   #endif
+
    Tcl_ResetResult(interp);
    return (TRUE);
 }
@@ -1008,6 +1227,7 @@ static void Usage( const char *argv0, const char *argvn, const char * reason )
                    "       -iconic     \t\t: iconify window\n"
 #ifndef WIN32
                    "       -card <digit>       \t: index of TV card for acq (starting at 0)\n"
+                   "       -protocol xawtv|iccc\t: protocol for communication with EPG app\n"
 #endif
                    , argv0, reason, argvn, argv0);
 #if 0
@@ -1037,9 +1257,9 @@ static void ParseArgv( int argc, char * argv[] )
             sprintf(versbuf, "(version %s)", TVSIM_VERSION_STR);
             Usage(argv[0], versbuf, "the following command line options are available");
          }
+#ifndef WIN32
          else if (!strcmp(argv[argIdx], "-card"))
          {
-#ifndef WIN32
             if (argIdx + 1 < argc)
             {  // read index of TV card device
                char *pe;
@@ -1051,10 +1271,23 @@ static void ParseArgv( int argc, char * argv[] )
             }
             else
                Usage(argv[0], argv[argIdx], "missing card index after");
-#else
-            Usage(argv[0], argv[argIdx], "only supported on UNIX systems");
-#endif
          }
+         else if (!strcmp(argv[argIdx], "-protocol"))
+         {
+            if (argIdx + 1 < argc)
+            {
+               if (strcmp(argv[argIdx + 1], "xawtv") == 0)
+                  epgIpcProtocol = EPG_IPC_XAWTV;
+               else if (strcmp(argv[argIdx + 1], "iccc") == 0)
+                  epgIpcProtocol = EPG_IPC_ICCCM;
+               else
+                  Usage(argv[0], argv[argIdx+1], "invalid protocol keyword");
+               argIdx += 2;
+            }
+            else
+               Usage(argv[0], argv[argIdx], "missing card index after");
+         }
+#endif // WIN32
          else if ( !strcmp(argv[argIdx], "-iconic") )
          {  // start with iconified main window
             startIconified = TRUE;
@@ -1106,12 +1339,14 @@ int main( int argc, char *argv[] )
    ui_init(argc, argv);
 
    #ifdef WIN32
-   if (WintvSharedMem_Init())
+   if (WintvSharedMem_Init(FALSE))
    #endif
    {
       #ifdef WIN32
+      #if (TCL_MAJOR_VERSION == 8) && (TCL_MINOR_VERSION <= 4)
       // set up callback to catch shutdown messages (requires tk83.dll patch!)
       Tk_RegisterMainDestructionHandler(WinApiDestructionHandler);
+      #endif
       #ifndef __MINGW32__
       __try {
       #else
@@ -1129,10 +1364,9 @@ int main( int argc, char *argv[] )
       eval_check(interp, "set xawtvcf {tunetv 1 follow 0 dopop 0 poptype 0 duration 7}");
       eval_check(interp, "proc CreateTuneTvButton {} {}\n");
       eval_check(interp, "proc RemoveTuneTvButton {} {}\n");
-      eval_check(interp, "proc XawtvConfigShmAttach {ena} {ConnectEpg $ena Xawtv}\n");
-      Xawtv_Init(NULL);
+      Xawtv_Init(NULL, NULL);
       // pass bt8x8 driver parameters to the driver
-      BtDriver_Configure(videoCardIndex, 0 /*prio*/, 0, 0, 0, 0, 0);
+      BtDriver_Configure(videoCardIndex, 0, 0 /*prio*/, 0, 0, 0, 0, 0);
       if ( BtDriver_StartAcq() )
       #endif
       {
@@ -1146,12 +1380,13 @@ int main( int argc, char *argv[] )
             pVbiBuf->reader_idx = pVbiBuf->writer_idx;
 
             // pass the configuration variables to the ttx process via IPC
-            epgPageNo = pVbiBuf->epgPageNo = 0x1DF;
+            epgPageNo = pVbiBuf->startPageNo = 0x1DF;
             pVbiBuf->isEpgScan = FALSE;
 
             // enable acquisition in the slave process/thread
             pVbiBuf->chanChangeReq = pVbiBuf->chanChangeCnf + 2;
-            pVbiBuf->isEnabled = TRUE;
+            pVbiBuf->epgEnabled = TRUE;
+            pVbiBuf->ttxHeader.op_mode = EPGACQ_TTX_HEAD_DEC;
 
             #ifdef WIN32
             VbiRec_CbStationSelected();
@@ -1224,9 +1459,7 @@ int main( int argc, char *argv[] )
       }
       __except (EXCEPTION_EXECUTE_HANDLER)
       {  // caught a fatal exception -> free IPC resources
-         debug1("FATAL exception caught: %d", GetExceptionCode());
-         WintvSharedMem_Exit();
-         ExitProcess(-1);
+         WinApiExceptionHandler(NULL);
       }
       #endif
 

@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_filter.tcl,v 1.14 2004/09/25 16:23:10 tom Exp tom $
+#  $Id: dlg_filter.tcl,v 1.17 2007/12/29 21:16:34 tom Exp tom $
 #
 set progidx_first 0
 set progidx_last  0
@@ -81,7 +81,7 @@ proc PiExpTime_ExternalChange {} {
 # week days are specified as numbers 0..6 with 0=Sat...6=Fri
 proc GetNameForWeekday {wday fmt} {
   # get arbirary time as base: use current time
-  set anytime [clock seconds]
+  set anytime [C_ClockSeconds]
   # shift to 0:00 to avoid problems with daylight saving gaps at 2:00
   set anytime [expr $anytime - ($anytime % (60*60*24))]
   # calculate weekday index for the arbitrary timestamp
@@ -126,8 +126,8 @@ proc ProgIdxPopup {} {
 
       frame .progidx.cmd
       button .progidx.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Filtering) "Program index"}
-      button .progidx.cmd.clear -text "Undo" -width 5 -command {set filter_progidx 0; C_SelectProgIdx; C_PiBox_Refresh; destroy .progidx}
-      button .progidx.cmd.dismiss -text "Dismiss" -width 5 -command {destroy .progidx} -default active
+      button .progidx.cmd.clear -text "Abort" -width 5 -command {set filter_progidx 0; C_SelectProgIdx; C_PiBox_Refresh; destroy .progidx}
+      button .progidx.cmd.dismiss -text "Ok" -width 5 -command {destroy .progidx} -default active
       pack .progidx.cmd.help .progidx.cmd.clear .progidx.cmd.dismiss -side left -padx 10
       pack .progidx.cmd -side top -pady 10
 
@@ -182,7 +182,7 @@ proc PopupTimeFilterSelection {} {
       checkbutton .timsel.all.relstart -text "Current time as minimum start time" -command UpdateTimeFilterRelStart -variable timsel_relative
       pack  .timsel.all.relstart -side top -anchor w
 
-      frame .timsel.all.start -bd 2 -relief ridge
+      frame .timsel.all.start -borderwidth 2 -relief groove
       label .timsel.all.start.lab -text "Min. start time:" -width 16 -anchor w
       entry .timsel.all.start.str -width 7 -textvariable timsel_startstr
       trace variable timsel_startstr w Timsel_TraceStartStr
@@ -197,7 +197,7 @@ proc PopupTimeFilterSelection {} {
       checkbutton .timsel.all.absstop -text "End of day as maximum start time" -command UpdateTimeFilterRelStart -variable timsel_absstop
       pack  .timsel.all.absstop -side top -anchor w
 
-      frame .timsel.all.stop -bd 2 -relief ridge
+      frame .timsel.all.stop -borderwidth 2 -relief groove
       label .timsel.all.stop.lab -text "Max. start time:" -width 16 -anchor w
       entry .timsel.all.stop.str -text "00:00" -width 7 -textvariable timsel_stopstr
       trace variable timsel_stopstr w Timsel_TraceStopStr
@@ -218,7 +218,7 @@ proc PopupTimeFilterSelection {} {
             .timsel.all.datemode.dm_wday .timsel.all.datemode.dm_mday -side left
       pack  .timsel.all.datemode -side top -anchor w
 
-      frame .timsel.all.date -bd 2 -relief ridge
+      frame .timsel.all.date -borderwidth 2 -relief groove
       label .timsel.all.date.lab -text "Relative date:" -width 16 -anchor w
       label .timsel.all.date.str -width 7
       scale .timsel.all.date.val -orient hor -length 200 -command {UpdateTimeFilterEntry scale; UpdateTimeFilter 0} -variable timsel_date -from 0 -to 13 -showvalue 0
@@ -229,8 +229,8 @@ proc PopupTimeFilterSelection {} {
 
       frame .timsel.cmd
       button .timsel.cmd.help -text "Help" -command {PopupHelp $helpIndex(Filtering) "Start time"}
-      button .timsel.cmd.undo -text "Undo" -command {Timsel_Quit undo}
-      button .timsel.cmd.dismiss -text "Dismiss" -command {Timsel_Quit dismiss}
+      button .timsel.cmd.undo -text "Abort" -command {Timsel_Quit undo}
+      button .timsel.cmd.dismiss -text "Ok" -command {Timsel_Quit dismiss}
       pack .timsel.cmd.help .timsel.cmd.undo .timsel.cmd.dismiss -side left -padx 10
       pack .timsel.cmd -side top -pady 5
 
@@ -479,8 +479,8 @@ proc PopupDurationFilterSelection {} {
 
       frame .dursel.cmd
       button .dursel.cmd.help -text "Help" -command {PopupHelp $helpIndex(Filtering) "Duration"}
-      button .dursel.cmd.undo -text "Undo" -command {destroy .dursel; set dursel_min 0; set dursel_max 0; SelectDurationFilter}
-      button .dursel.cmd.dismiss -text "Dismiss" -command {destroy .dursel}
+      button .dursel.cmd.undo -text "Abort" -command {destroy .dursel; set dursel_min 0; set dursel_max 0; SelectDurationFilter}
+      button .dursel.cmd.dismiss -text "Ok" -command {destroy .dursel}
       pack .dursel.cmd.help .dursel.cmd.undo .dursel.cmd.dismiss -side left -padx 10
       pack .dursel.cmd -side top -pady 5
 
@@ -595,7 +595,6 @@ proc UpdateDurationFilter { round {val 0} } {
 proc PopupExpireDelaySelection {} {
    global piexpire_display piexpire_days piexpire_mins
    global piexpire_daystr piexpire_minstr piexpire_lastinput
-   global piexpire_cutoff
    global piexpire_cut_daystr piexpire_cut_hourstr
    global piexpire_popup
 
@@ -657,6 +656,7 @@ proc PopupExpireDelaySelection {} {
       ##
       ##  Tab 2: Cut-off time configuration
       ##
+      set piexpire_cutoff [C_GetPiExpireDelay]
       set piexpire_cut_daystr [expr $piexpire_cutoff / (24*60)]
       set piexpire_cut_hourstr [expr ($piexpire_cutoff % (24*60)) / 60]
 
@@ -687,8 +687,8 @@ proc PopupExpireDelaySelection {} {
       ##
       frame  .piexpire.cmd
       button .piexpire.cmd.help -text "Help" -command {PopupHelp $helpIndex(Filtering) "Expired Programmes Display"}
-      button .piexpire.cmd.undo -text "Undo" -command {destroy .piexpire; set piexpire_display 0; SelectExpireDelayFilter}
-      button .piexpire.cmd.dismiss -text "Dismiss" -command {destroy .piexpire}
+      button .piexpire.cmd.undo -text "Abort" -command {destroy .piexpire; set piexpire_display 0; SelectExpireDelayFilter}
+      button .piexpire.cmd.dismiss -text "Ok" -command {destroy .piexpire}
       pack   .piexpire.cmd.help .piexpire.cmd.undo .piexpire.cmd.dismiss -side left -padx 10
       pack   .piexpire.cmd -side top -pady 5
 
@@ -772,7 +772,7 @@ proc UpdateExpiryFilter { round {val 0} } {
    set piexpire_lastinput 0
 
    set frm1 [Rnotebook:frame .piexpire.nb 1]
-   set threshold [expr [clock seconds] - ($piexpire_display * 60)]
+   set threshold [expr [C_ClockSeconds] - ($piexpire_display * 60)]
    ${frm1}.time_frm.str configure -text [C_ClockFormat $threshold {%A %d.%m. %H:%M}]
 
    SelectExpireDelayFilter
@@ -780,7 +780,6 @@ proc UpdateExpiryFilter { round {val 0} } {
 
 proc PiExpTime_UpdateCutOff {} {
    global piexpire_cut_daystr piexpire_cut_hourstr
-   global piexpire_cutoff
 
    set ok [ParseExpireDaysValue days $piexpire_cut_daystr "days"]
    if $ok {
@@ -806,13 +805,12 @@ proc PiExpTime_UpdateCutOff {} {
             }
          }
 
-         set piexpire_cutoff $new_cutoff
-         C_UpdatePiExpireDelay
+         C_UpdatePiExpireDelay $new_cutoff
          UpdateRcFile
 
          # update display (including format corrections)
-         set piexpire_cut_daystr [expr $piexpire_cutoff / (24*60)]
-         set piexpire_cut_hourstr [expr ($piexpire_cutoff % (24*60)) / 60]
+         set piexpire_cut_daystr [expr $new_cutoff / (24*60)]
+         set piexpire_cut_hourstr [expr ($new_cutoff % (24*60)) / 60]
       }
    }
 }
@@ -822,7 +820,6 @@ proc PiExpTime_UpdateCutOff {} {
 ##  Sorting criterion selection popup
 ##
 proc PopupSortCritSelection {} {
-   global win_frm_fg
    global sortcrit_str sortcrit_class sortcrit_class_sel
    global sortcrit_popup
 
@@ -831,8 +828,9 @@ proc PopupSortCritSelection {} {
       set sortcrit_popup 1
 
       frame .sortcrit.fl
-      listbox .sortcrit.fl.list -exportselection false -height 15 -width 10 -relief ridge \
-                                -yscrollcommand {.sortcrit.fl.sb set} -selectmode extended
+      listbox .sortcrit.fl.list -exportselection false -height 15 -width 10 \
+                                -selectmode extended -yscrollcommand {.sortcrit.fl.sb set}
+      relief_listbox .sortcrit.fl.list
       bind .sortcrit.fl.list <Key-Delete> DeleteSortCritSelection
       pack .sortcrit.fl.list -side left -fill both -expand 1
       scrollbar .sortcrit.fl.sb -orient vertical -command {.sortcrit.fl.list yview} -takefocus 0
@@ -841,7 +839,7 @@ proc PopupSortCritSelection {} {
 
       # entry field for additions
       frame .sortcrit.all
-      frame .sortcrit.all.inp -bd 2 -relief ridge
+      labelframe .sortcrit.all.inp -text "Criterium value (hexadecimal):"
       label .sortcrit.all.inp.lab -text "0x"
       pack  .sortcrit.all.inp.lab -side left
       entry .sortcrit.all.inp.str -width 14 -textvariable sortcrit_str
@@ -857,18 +855,18 @@ proc PopupSortCritSelection {} {
       pack .sortcrit.all.scadd .sortcrit.all.scdel -side top -anchor nw
 
       # invert & class selection array
-      frame   .sortcrit.all.sccl -bd 2 -relief ridge
+      frame   .sortcrit.all.sccl -borderwidth 2 -relief groove
       label   .sortcrit.all.sccl.lab_class -text "Class:"
       grid    .sortcrit.all.sccl.lab_class -sticky w -row 0 -column 0
       tk_optionMenu .sortcrit.all.sccl.mb_class sortcrit_class 1 2 3 4 5 6 7 8
-      .sortcrit.all.sccl.mb_class configure -takefocus 1 -highlightthickness 1 -highlightcolor $win_frm_fg
+      config_menubutton .sortcrit.all.sccl.mb_class
       trace variable sortcrit_class w UpdateSortCritClass
       grid    .sortcrit.all.sccl.mb_class -sticky we -row 0 -column 1
-      label   .sortcrit.all.sccl.lab_inv -text "Invert class:"
+      label   .sortcrit.all.sccl.lab_inv -text "Inverted classes:"
       grid    .sortcrit.all.sccl.lab_inv -sticky w -row 1 -column 0
-      menubutton .sortcrit.all.sccl.mb_inv -menu .sortcrit.all.sccl.mb_inv.men -text "Select" \
-                                    -indicatoron 1 -direction flush -relief raised -borderwidth 2 \
-                                    -takefocus 1 -highlightthickness 1 -highlightcolor $win_frm_fg
+      menubutton .sortcrit.all.sccl.mb_inv -text "Select" -indicatoron 1 -direction flush \
+                                           -menu .sortcrit.all.sccl.mb_inv.men
+      config_menubutton .sortcrit.all.sccl.mb_inv
       AddInvertMenuForClasses .sortcrit.all.sccl.mb_inv.men sortcrit
       .sortcrit.all.sccl.mb_inv.men configure -tearoff 0
       grid    .sortcrit.all.sccl.mb_inv -sticky we -row 1 -column 1
@@ -880,10 +878,10 @@ proc PopupSortCritSelection {} {
       button .sortcrit.all.load -text "Load all used" -command LoadAllUsedSortCrits
       pack .sortcrit.all.load -side top -anchor w
 
-      # Buttons at bottom: Help, Clear and Dismiss
+      # Standard buttons at the bottom of the dialog
       button .sortcrit.all.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Filtering) "Sorting Criteria"}
-      button .sortcrit.all.clear -text "Clear" -width 5 -command ClearSortCritSelection
-      button .sortcrit.all.dismiss -text "Dismiss" -width 5 -command {destroy .sortcrit}
+      button .sortcrit.all.clear -text "Abort" -width 5 -command {ClearSortCritSelection; destroy .sortcrit}
+      button .sortcrit.all.dismiss -text "Ok" -width 5 -command {destroy .sortcrit}
       pack .sortcrit.all.dismiss .sortcrit.all.clear .sortcrit.all.help -side bottom -anchor w
       pack .sortcrit.all -side left -anchor n -fill both -expand 1 -padx 5 -pady 5
 

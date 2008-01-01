@@ -19,7 +19,7 @@
  *    Except for configuration functions, the interface is platform,
  *    driver and TV capture chip independent, i.e. the same functions
  *    are provided for UNIX (v4l and bktr drivers) and M$ Windows
- *    (DScaler driver)
+ *    (DScaler driver and WDM)
  *
  *    Currently all UNIX platfors use the btdrv4linux implementation
  *    of the driver support module, M$ Windows uses btdrv4win. For
@@ -37,7 +37,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: btdrv.h,v 1.43 2004/09/05 18:29:46 tom Exp tom $
+ *  $Id: btdrv.h,v 1.49 2007/03/03 19:49:38 tom Exp tom $
  */
 
 #ifndef __BTDRV_H
@@ -106,35 +106,78 @@ typedef enum
    VBI_CHANNEL_PRIO_INTERACTIVE
 } VBI_CHANNEL_PRIO_TYPE;
 
+#ifdef WIN32
+typedef enum
+{
+   BTDRV_SOURCE_WDM = 0,
+   BTDRV_SOURCE_PCI = 1,
+   BTDRV_SOURCE_NONE = -1,
+   BTDRV_SOURCE_UNDEF = -2
+} BTDRV_SOURCE_TYPE;
+#endif
+
 
 // enable dump of all incoming TTX packets
 #define DUMP_TTX_PACKETS         OFF
 
 // ---------------------------------------------------------------------------
 // number of teletext packets that can be stored in ring buffer
+// - room for 1-2 secs should be enough in most cases, i.e. 2*5*24=240
 // - Nextview maximum data rate is 5 pages per second (200ms min distance)
 //   data rate usually is much lower though, around 1-2 pages per sec
-// - room for 1-2 secs should be enough in most cases, i.e. 2*5*24=240
-#define EPGACQ_BUF_COUNT  512
+// - for teletext capture the maximum rate is usually 25 pages/second
+//   (i.e. pages are split across two VBI fields, unless it's a short page;
+//   normally there's at most one page header per field due to the 200ms rule)
+//   Hence we expect at most 2*25*30 = 1500 packets in 2 secs
+//
+#define TTXACQ_BUF_COUNT  1408
 
 // ring buffer element, contains one teletext packet
 typedef struct
 {
+   uint16_t  pageno;            // teletext magazine (0..7 << 8) and page number
+   uint16_t  ctrl_lo;           // control bits
+   uint8_t   ctrl_hi;           // control bits
+   uint8_t   pkgno;             // teletext packet number (0..31)
+   uint8_t   data[40];          // raw teletext data starting at offset 2 (i.e. after mag/pkgno)
+
    #if DUMP_TTX_PACKETS == ON
    uint32_t  frame;             // frame in which the packet was received (for debugging only)
    uint8_t   line;              // VBI line index in the frame in which the data was received
    uint8_t   reserved2[3];      // unused; undefined
    #endif
-
-   uint16_t  pageno;            // teletext magazine (0..7 << 8) and page number
-   uint16_t  sub;               // teletext sub-page number (BCD encoded)
-   uint8_t   pkgno;             // teletext packet number (0..31)
-   uint8_t   reserved;          // unused; undefined
-   uint8_t   data[40];          // raw teletext data starting at offset 2 (i.e. after mag/pkgno)
 } VBI_LINE;
 
 // ---------------------------------------------------------------------------
-// Teletext decoding statistics
+// Page header buffer and page number metrics
+
+// number of buffers for teletext page headers
+#define EPGACQ_ROLL_HEAD_COUNT 8
+
+// possible modes for teletext header capture
+#define EPGACQ_TTX_HEAD_NONE   0        // disable header capture
+#define EPGACQ_TTX_HEAD_DEC    1        // capture from pages with decimal numbers only
+#define EPGACQ_TTX_HEAD_ALL    2        // capture all headers
+
+typedef struct
+{
+   uint32_t  write_idx;         // Out: next write position
+   uint32_t  write_ind;         // Out: incremented after each packet write (to indicate new data)
+   uint32_t  fill_cnt;          // Out: number of valid packets (starting at 0)
+   uint8_t   write_lock;        // In: writer lock during read
+   uint8_t   op_mode;           // In: header capture mode; see defines above
+   uint8_t   reserved_0[2];     // reserved for future use, always 0
+   VBI_LINE  ring_buf[EPGACQ_ROLL_HEAD_COUNT];
+
+   uint32_t  magPgCounts[8];    // Out: number of page headers seen per magazine
+   int32_t   magPgDirection;    // Out: page sequence prediction: <0:down >0:up
+   uint32_t  magPgResetReq;     // In: change value to request reset of page counters
+   uint32_t  magPgResetCnf;     // Out: set to value of "req" after reset
+   uint32_t  reserved_1[4];     // reserved for future use, always 0
+} TTX_HEAD_BUF;
+
+// ---------------------------------------------------------------------------
+// Teletext acquisition statistics
 //
 typedef struct
 {
@@ -145,6 +188,9 @@ typedef struct
    uint32_t  ttxPkgRate;        // number of ttx packets per frame: running average (.16 bit fix-point)
    uint32_t  epgPkgCount;       // number of EPG ttx packets received
    uint32_t  epgPagCount;       // number of EPG ttx pages received
+   uint32_t  ttxPkgGrab;        // number of ttx packets grabbed (for non-EPG)
+   uint32_t  ttxPagGrab;        // number of ttx pages grabbed (for non-EPG)
+   uint32_t  reserved_0[4];     // unused, always 0
 } TTX_DEC_STATS;
 
 // ---------------------------------------------------------------------------
@@ -167,6 +213,9 @@ typedef struct
    uint8_t   havePil;           // PIL available
    uint32_t  outCni;            // latest confirmed CNI - reset when fetched
    uint32_t  outPil;            // latest confirmed PIL - reset when fetched
+   uint32_t  outCniInd;         // Incremented with each new CNI value
+   uint32_t  outPilInd;         // Incremented with each new PIL value
+   uint32_t  outTextInd;        // Incremented with each new text
 
    uint32_t  lastCni;           // last received CNI - copied to outCni after X repetitions
    uint32_t  cniRepCount;       // reception counter - reset upon CNI change
@@ -188,7 +237,7 @@ typedef struct
    int32_t   lastLto;
    uint32_t  timeVal;
    uint32_t  lastTimeVal;
-} TIME_ACQ_STATE;
+} TTX_TIME_BUF;
 
 
 // ---------------------------------------------------------------------------
@@ -201,11 +250,13 @@ typedef struct
 //
 typedef struct
 {
-   uint8_t   isEnabled;         // In:  en-/disable EPG teletext packet forward
+   uint8_t   epgEnabled;        // In:  en-/disable EPG teletext packet forward
+   uint8_t   ttxEnabled;        // In:  en-/disable teletext grabber
    uint8_t   isEpgScan;         // In:  en-/disable EPG syntax scan an all potential EPG pages
-   uint8_t   obsolete1;         // --:  obsolete (former doVps, set to TRUE)
-   uint8_t   reserved1;         // --:  unused; set to 0
+   uint8_t   reserved0;         // --:  unused; set to 0
    uint32_t  epgPageNo;         // In:  EPG teletext page number
+   uint32_t  startPageNo;       // In:  first teletext page number (range 000-7FF)
+   uint32_t  stopPageNo;        // In:  last captured teletext page number
 
    uint8_t   hasFailed;         // Out: TRUE when acq was aborted due to error
    uint8_t   reserved2[3];      // --:  unused; set to 0
@@ -213,19 +264,18 @@ typedef struct
    uint32_t  chanChangeReq;     // In:  channel change request, i.e. reset of ttx decoder
    uint32_t  chanChangeCnf;     // Out: channel change execution confirmation
 
-   uint32_t  mipPageNo;         // Out: EPG page no as listed in MIP
+   uint32_t  mipPageNo;         // Out: EPG page number as listed in MIP
    uint32_t  dataPageCount;     // Out: number of TTX pages with EPG syntax
 
    CNI_ACQ_STATE cnis[CNI_TYPE_COUNT];  // Out: CNIs and PILs
 
    uint32_t  writer_idx;        // Out: current writer slot in ring buffer
    uint32_t  reader_idx;        // In/Out: current reader slot in ring buffer
-   VBI_LINE  line[EPGACQ_BUF_COUNT];  // Out: teletext packets on EPG page
-   VBI_LINE  lastHeader;        // Out: last teletext header (on any page)
+   VBI_LINE  line[TTXACQ_BUF_COUNT];  // Out: teletext packets on requested pages
 
    TTX_DEC_STATS  ttxStats;     // Out: teletext decoder statistics
-
-   TIME_ACQ_STATE ttxTime;      // Out: teletext time
+   TTX_HEAD_BUF   ttxHeader;    // Out: rolling buffer of teletext headers
+   TTX_TIME_BUF   ttxTime;      // Out: teletext time
 
    #ifndef WIN32
    pid_t     vbiPid;
@@ -242,12 +292,12 @@ typedef struct
    uint      vbiQueryFreq;
 
    uchar     cardIndex;
+   int       dvbPid;
    uint      slicerType;
    # if defined(__NetBSD__) || defined(__FreeBSD__)
    uchar     inputIndex;
    struct Card tv_cards[MAX_CARDS];
    # endif
-   # ifdef USE_VBI_PROXY
    uint      slaveChnSwitch;
    bool      slaveChnToken;
    bool      slaveChnTokenGrant;
@@ -256,12 +306,11 @@ typedef struct
    int       chnSubPrio;
    int       chnMinDuration;
    int       chnExpDuration;
-   # endif
    int       chnPrio;
    #else  // WIN32
    uint32_t  slicerType;
-                                // reserved for future additions; set to 0
-   uchar     reserved3[128 - sizeof(uint32_t) - sizeof(TIME_ACQ_STATE)];
+
+   uchar     reserved3[256];    // reserved for future additions; set to 0
    #endif
 } EPGACQ_BUF;
 
@@ -283,6 +332,7 @@ bool BtDriver_TuneChannel( int inputIdx, uint freq, bool keepOpen, bool * pIsTun
 
 #ifndef WIN32
 int BtDriver_GetDeviceOwnerPid( void );
+bool BtDriver_SetDvbPid( int pid );
 #else
 bool BtDriver_Restart( void );
 bool BtDriver_GetState( bool * pEnabled, bool * pHasDriver, uint * pCardIdx );
@@ -296,18 +346,20 @@ void BtDriver_CloseDevice( void );
 #if defined(__NetBSD__) || defined(__FreeBSD__)
 void BtDriver_ScanDevices( bool isMasterProcess );
 #endif
-const char * BtDriver_GetInputName( uint cardIdx, uint cardType, uint inputIdx );
-bool BtDriver_Configure( int cardIndex, int prio, int chipType, int cardType,
-                         int tuner, int pll, bool wdmStop );
+const char * BtDriver_GetInputName( uint cardIdx, uint cardType, uint drvType, uint inputIdx );
+bool BtDriver_Configure( int sourceIdx, int drvType, int prio, int chipType, int cardType,
+                         int tunerType, int pllType, bool wdmStop );
 void BtDriver_SelectSlicer( VBI_SLICER_TYPE slicerType );
 #ifndef WIN32
 const char * BtDriver_GetCardName( uint cardIdx );
 #else
 const char * BtDriver_GetCardNameFromList( uint cardIdx, uint listIdx );
 const char * BtDriver_GetTunerName( uint tunerIdx );
-bool BtDriver_EnumCards( uint cardIdx, uint cardType, uint * pChipType, const char ** pName, bool showDrvErr );
+BTDRV_SOURCE_TYPE BtDriver_GetDefaultDrvType( void );
+bool BtDriver_EnumCards( uint drvType, uint cardIdx, uint cardType,
+                         uint * pChipType, const char ** pName, bool showDrvErr );
 bool BtDriver_QueryCardParams( uint cardIdx, sint * pCardType, sint * pTunerType, sint * pPllType );
-bool BtDriver_CheckCardParams( int cardIdx, int chipId, int cardType, int tunerType, int pll, int input );
+bool BtDriver_CheckCardParams( uint drvType, uint cardIdx, uint chipId, uint cardType, uint tunerType, uint pll, uint input );
 #endif
 
 

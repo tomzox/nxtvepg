@@ -45,7 +45,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: winshmclnt.c,v 1.10 2004/03/28 13:18:27 tom Exp tom $
+ *  $Id: winshmclnt.c,v 1.11 2007/12/31 17:03:12 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_TVSIM
@@ -81,7 +81,8 @@ static volatile TVAPP_COMM * pTvShm = NULL;
 static HANDLE map_fd = NULL;
 
 // handle to EPG app event: used to trigger the EPG app. after updates in shared memory
-static HANDLE epgEventHandle = NULL;
+static HANDLE epgAcqEventHandle = NULL;
+static HANDLE epgGuiEventHandle = NULL;
 
 // handle to TV app event: used to wait for triggers from the EPG app.
 static HANDLE tvEventHandle = NULL;
@@ -111,7 +112,7 @@ static const WINSHMCLNT_TVAPP_INFO * pTvAppInfo;
 // Struct that holds state of SHM when last processed
 // - used to detect state changes, i.e. when the event is signaled, the
 //   current state inside shm is compared with this cache; state changes
-//   are equivalent to messages (e.g. incoming EPG info when epgProgInfoIdx
+//   are equivalent to messages (e.g. incoming EPG info when epgStationIdx
 //   is incremented)
 // - also used to cache parameters that were handed down from GUI,
 //   to save them while detached; they are copied into SHM upon attach
@@ -120,13 +121,16 @@ static const WINSHMCLNT_TVAPP_INFO * pTvAppInfo;
 //
 typedef struct
 {
-   uint32_t  epgProgInfoIdx;
+   uint32_t  epgStationIdx;
+   uint32_t  epgDataIdx;
    uint32_t  epgCommandIdx;
    bool      tvGrantTuner;
    uint8_t   tvCardIdx;
+   uint32_t  tvCurIsTuner;
    uint32_t  tvCurFreq;
-   uint32_t  tvCurInput;
+   uint32_t  tvCurNorm;
    uint32_t  epgReqFreq;
+   uint32_t  epgReqNorm;
    uint32_t  epgReqInput;
 } EPG_SHM_STATE;
 
@@ -247,6 +251,31 @@ static void WinSharedMemClient_VersionErrorMsg( uint32_t epgShmSize, uint32_t ep
 }
 
 // ---------------------------------------------------------------------------
+// Wake up the receiver of a message
+//
+static bool WinSharedMemClient_TriggerEpg( void )
+{
+   bool result = TRUE;
+
+   if ((epgAcqEventHandle != NULL) && (SetEvent(epgAcqEventHandle) == 0))
+   {
+      debug1("WinSharedMemClient-TriggerEpg: SetEvent " EPG_ACQ_SHM_EVENT_NAME ": %ld", GetLastError());
+      result = FALSE;
+   }
+
+   if ( (pTvShm != NULL) &&
+        (pTvShm->epgAppAlive == (EPG_APP_GUI | EPG_APP_DAEMON)) )
+   {
+      if ((epgGuiEventHandle != NULL) && (SetEvent(epgGuiEventHandle) == 0))
+      {
+         debug1("WinSharedMemClient-TriggerEpg: SetEvent " EPG_GUI_SHM_EVENT_NAME ": %ld", GetLastError());
+         result = FALSE;
+      }
+   }
+   return result;
+}
+
+// ---------------------------------------------------------------------------
 // GUI request: Grant the tuner to the EPG app
 // - if doGrant is TRUE, the EPG application is allowed to change input source
 //   and tuner frequency to that of an EPG content provider
@@ -270,8 +299,7 @@ bool WinSharedMemClient_GrantTuner( bool doGrant )
             debug1("WinSharedMemClient-GrantTuner: ReleaseMutex: %ld", GetLastError());
 
          // wake up the receiver
-         if (SetEvent(epgEventHandle) == 0)
-            debug1("WinSharedMemClient-GrantTuner: SetEvent: %ld", GetLastError());
+         WinSharedMemClient_TriggerEpg();
       }
       else
          debug1("WinSharedMemClient-GrantTuner: WaitForSingleObject: %ld", GetLastError());
@@ -286,24 +314,39 @@ bool WinSharedMemClient_GrantTuner( bool doGrant )
 
 // ---------------------------------------------------------------------------
 // GUI request: Notify the EPG peer about a TV channel change
-// - the EPG app will reply with EPG info for the named station a.s.a.p
+// - the EPG app will reply with the given number of EPG records for the named
+//   station (after VPS/PDC detection; starting with currently running programme)
+// - nameLen is string length without the terminating zero;
+//   can also be -1: in this case strlen is used (obviously the string must be
+//   zero terminated in this case
 //
-bool WinSharedMemClient_SetStation( const char * pChanName, uint cni, uint inputSrc, uint freq )
+bool WinSharedMemClient_SetStation( const char * pChanName, sint nameLen, uint cni,
+                                    bool isTuner, uint freq, uint norm, uint epgPiCnt )
 {
    if (pTvShm != NULL)
    {
+      if (nameLen < 0)
+         nameLen = strlen(pChanName);
+      if (nameLen >= TV_CHAN_NAME_MAX_LEN)
+         nameLen = TV_CHAN_NAME_MAX_LEN - 1;
+
       // wait for the semaphore and request "ownership"
       if (WaitForSingleObject(shmMutexHandle, INFINITE) != WAIT_FAILED)
       {
          // copy the values in the cache
-         epgShmCache.tvCurFreq  = freq;
-         epgShmCache.tvCurInput = inputSrc;
+         epgShmCache.tvCurIsTuner = isTuner;
+         epgShmCache.tvCurFreq = freq;
+         epgShmCache.tvCurNorm = norm;
 
-         pTvShm->tvCurFreq  = freq;
-         pTvShm->tvCurInput = inputSrc;
+         pTvShm->tvCurIsTuner = isTuner;
+         pTvShm->tvCurFreq = freq;
+         pTvShm->tvCurNorm = norm;
 
-         strncpy((char *) pTvShm->tvChanName, pChanName, CHAN_NAME_MAX_LEN);
-         pTvShm->tvChanName[CHAN_NAME_MAX_LEN - 1] = 0;
+         memcpy((char *) pTvShm->tvChanName, pChanName, nameLen);
+         pTvShm->tvChanName[nameLen] = 0;  // see above: there's enough space for the zero
+
+         pTvShm->tvEpgQueryLen = nameLen;
+         pTvShm->tvChanEpgPiCnt = epgPiCnt;
 
          // Note: if a non-zero CNI value is given, can be used by the EPG app
          // to identify the new channel instead of the channel name. This has
@@ -319,23 +362,23 @@ bool WinSharedMemClient_SetStation( const char * pChanName, uint cni, uint input
          // enable this only if you have CNIs in your TV app (the TV simulator does not)
          //pTvShm->tvChanCni = cni;
 
-         pTvShm->tvChanNameIdx += 1;
+         pTvShm->tvStationIdx += 1;
 
          // release the semaphore
          if (ReleaseMutex(shmMutexHandle) == 0)
             debug1("WinSharedMemClient-SetChannel: ReleaseMutex: %ld", GetLastError());
 
          // wake up the receiver
-         if (SetEvent(epgEventHandle) == 0)
-            debug1("WinSharedMemClient-SetChannel: SetEvent: %ld", GetLastError());
+         WinSharedMemClient_TriggerEpg();
       }
       else
          debug1("WinSharedMemClient-SetChannel: WaitForSingleObject: %ld", GetLastError());
    }
    else
    {  // not attached -> save the values in the cache; required upon attach
-      epgShmCache.tvCurFreq  = freq;
-      epgShmCache.tvCurInput = inputSrc;
+      epgShmCache.tvCurIsTuner = isTuner;
+      epgShmCache.tvCurFreq = freq;
+      epgShmCache.tvCurNorm = norm;
    }
    return TRUE;
 }
@@ -347,25 +390,25 @@ bool WinSharedMemClient_SetStation( const char * pChanName, uint cni, uint input
 //   function above
 // - this function must be called whenever the tuner frequency is changed,
 //   because the EPG application must known where it's receiving VBI data
-//   from
+//   from which frequency
 //
-bool WinSharedMemClient_SetInputFreq( uint inputSrc, uint freq )
+bool WinSharedMemClient_SetInputFreq( bool isTuner, uint freq, uint norm )
 {
    if (pTvShm != NULL)
    {
       // wait for the semaphore and request "ownership"
       if (WaitForSingleObject(shmMutexHandle, INFINITE) != WAIT_FAILED)
       {
-         pTvShm->tvCurInput = inputSrc;
-         pTvShm->tvCurFreq  = freq;
+         pTvShm->tvCurIsTuner = isTuner;
+         pTvShm->tvCurFreq = freq;
+         pTvShm->tvCurNorm = norm;
 
          // release the semaphore
          if (ReleaseMutex(shmMutexHandle) == 0)
             debug1("WinSharedMemClient-SetInputFreq: ReleaseMutex: %ld", GetLastError());
 
          // wake up the receiver
-         if (SetEvent(epgEventHandle) == 0)
-            debug1("WinSharedMemClient-SetInputFreq: SetEvent: %ld", GetLastError());
+         WinSharedMemClient_TriggerEpg();
       }
       else
          debug1("WinSharedMemClient-SetInputFreq: WaitForSingleObject: %ld", GetLastError());
@@ -377,45 +420,38 @@ bool WinSharedMemClient_SetInputFreq( uint inputSrc, uint freq )
 // Fetch program information from shared memory
 // - note: GUI must check validity of received data
 //   (i.e. title empty or stop time smaller start time)
+// - the EPG side makes sure that no data is sent for an obsolete channel
+//   after a channel change
 //
-bool WinSharedMemClient_GetProgInfo( time_t * pStart, time_t * pStop,
-                                     uchar * pThemes, uint * pThemeCount,
-                                     uchar * pTitle, uint maxTitleLen )
+char * WinSharedMemClient_GetProgInfo( void )
 {
-   bool result = FALSE;
+   char *pBuffer = NULL;
 
    if (WaitForSingleObject(shmMutexHandle, INFINITE) != WAIT_FAILED)
    {
-      if ((pTitle != NULL) && (maxTitleLen > 0))
+      if (pTvShm->epgDataRespType == EPG_DATA_RESP_CHN)
       {
-         if (maxTitleLen > EPG_TITLE_MAX_LEN)
-            maxTitleLen = EPG_TITLE_MAX_LEN;
-         strncpy(pTitle, (char *) pTvShm->epgProgTitle, maxTitleLen);
-         pTitle[maxTitleLen - 1] = 0;
-      }
-      if (pStart != NULL)
-         *pStart = pTvShm->epgStartTime;
-      if (pStop != NULL)
-         *pStop = pTvShm->epgStopTime;
-      if (pThemes != 0)
-         memcpy(pThemes, (char *) pTvShm->epgPdcThemes, 7);
-      if (pThemeCount != NULL)
-         *pThemeCount = pTvShm->epgPdcThemeCount;;
+         if (pTvShm->epgDataLen > 0)
+         {
+            pBuffer = malloc(pTvShm->epgDataLen);
+            memcpy(pBuffer, (char *)pTvShm->epgData, pTvShm->epgDataLen);
+            // TODO: epgDataOff
+         }
+         else
+            pBuffer = NULL;
 
-      epgShmCache.epgProgInfoIdx = pTvShm->epgProgInfoIdx;
+         epgShmCache.epgStationIdx = pTvShm->epgStationIdx;
+      }
 
       if (ReleaseMutex(shmMutexHandle) == 0)
          debug1("WinSharedMemClient-GetProgInfo: ReleaseMutex: %ld", GetLastError());
 
-      if ((pThemes != NULL) && (maxTitleLen> 0))
-         dprintf1("EPG title received: \"%s\"\n", pTitle);
-
-      result = TRUE;
+      dprintf3("EPG info received: %d bytes (station idx %d, type=%d)\n", pTvShm->epgDataLen, pTvShm->epgStationIdx, pTvShm->epgDataRespType);
    }
    else
       debug1("WinSharedMemClient-GetProgInfo: WaitForSingleObject: %ld", GetLastError());
 
-   return result;
+   return pBuffer;
 }
 
 // ---------------------------------------------------------------------------
@@ -450,8 +486,7 @@ bool WinSharedMemClient_GetCmdArgv( uint * pArgc, uint * pArgLen, char * pCmdBuf
          dprintf3("EPG command received (len=%d argc=%d): \"%s\"\n", *pArgLen, *pArgc, pCmdBuf);
 
       // notify EPG app that shared memory content has changed
-      if (SetEvent(epgEventHandle) == 0)
-         debug1("WinSharedMemClient-GetCmdArgv: SetEvent: %ld", GetLastError());
+      WinSharedMemClient_TriggerEpg();
 
       result = TRUE;
    }
@@ -464,7 +499,7 @@ bool WinSharedMemClient_GetCmdArgv( uint * pArgc, uint * pArgLen, char * pCmdBuf
 // ---------------------------------------------------------------------------
 // Fetch requested input source and tuner frequency
 //
-bool WinSharedMemClient_GetInpFreq( uint * pInputSrc, uint * pFreq )
+bool WinSharedMemClient_GetInpFreq( uint * pInputSrc, uint * pFreq, uint * pNorm )
 {
    bool result = FALSE;
 
@@ -472,6 +507,7 @@ bool WinSharedMemClient_GetInpFreq( uint * pInputSrc, uint * pFreq )
    {
       epgShmCache.epgReqInput = pTvShm->epgReqInput;
       epgShmCache.epgReqFreq  = pTvShm->epgReqFreq;
+      epgShmCache.epgReqNorm  = pTvShm->epgReqNorm;
 
       if (ReleaseMutex(shmMutexHandle) == 0)
          debug1("WinSharedMemClient-GetInpFreq: ReleaseMutex: %ld", GetLastError());
@@ -480,8 +516,10 @@ bool WinSharedMemClient_GetInpFreq( uint * pInputSrc, uint * pFreq )
          *pInputSrc = epgShmCache.epgReqInput;
       if (pFreq != NULL)
          *pFreq = epgShmCache.epgReqFreq;
+      if (pNorm != NULL)
+         *pNorm = epgShmCache.epgReqNorm;
 
-      dprintf2("EPG requests input %d, freq %d\n", epgShmCache.epgReqInput, epgShmCache.epgReqFreq);
+      dprintf3("EPG requests input %d, freq %d, norm %d\n", epgShmCache.epgReqInput, epgShmCache.epgReqFreq, epgShmCache.epgReqNorm);
       result = TRUE;
    }
    else
@@ -539,9 +577,24 @@ WINSHMCLNT_EVENT WinSharedMemClient_GetEpgEvent( void )
       else
       {  // EPG app is running: check for changes in EPG controlled params
 
-         if (epgShmCache.epgProgInfoIdx != pTvShm->epgProgInfoIdx)
+         if (epgShmCache.epgStationIdx != pTvShm->epgStationIdx)
          {  // EPG information was updated
-            return SHM_EVENT_PROG_INFO;
+            if (pTvShm->epgDataRespType != EPG_DATA_RESP_CHN)
+            {  // station data was overwritten by query result
+               epgShmCache.epgStationIdx = pTvShm->epgStationIdx;
+            }
+            else
+               return SHM_EVENT_STATION_INFO;
+         }
+
+         if (epgShmCache.epgDataIdx != pTvShm->epgDataIdx)
+         {  // reply to EPG query arrived
+            if (pTvShm->epgDataRespType != EPG_DATA_RESP_QUERY)
+            {  // query result was overwritten by station update
+               epgShmCache.epgDataIdx = pTvShm->epgDataIdx;
+            }
+            else
+               return SHM_EVENT_EPG_INFO;
          }
 
          if (epgShmCache.epgCommandIdx != pTvShm->epgCommandIdx)
@@ -550,7 +603,8 @@ WINSHMCLNT_EVENT WinSharedMemClient_GetEpgEvent( void )
          }
 
          if ( (epgShmCache.epgReqInput != pTvShm->epgReqInput) ||
-              (epgShmCache.epgReqFreq != pTvShm->epgReqFreq) )
+              (epgShmCache.epgReqFreq != pTvShm->epgReqFreq) ||
+              (epgShmCache.epgReqNorm != pTvShm->epgReqNorm) )
          {
             if (epgShmCache.tvGrantTuner)
             {
@@ -576,6 +630,7 @@ static DWORD WINAPI WinSharedMemClient_EventThread( LPVOID dummy )
 
       if (StopMsgThread == FALSE)
       {
+         dprintf0("WinSharedMemClient-EventThread: trigger\n");
          epgTriggerReceived = TRUE;
 
          // trigger the main thread to query shared memory status
@@ -609,7 +664,7 @@ static bool WinSharedMemClient_AttachShm( void )
             pTvShm = MapViewOfFileEx(map_fd, FILE_MAP_ALL_ACCESS, 0, 0, sizeof(TVAPP_COMM), NULL);
             if (pTvShm != NULL)
             {
-               if (pTvShm->epgAppAlive == TRUE)
+               if (pTvShm->epgAppAlive)
                {
                   if ( (pTvShm->epgShmVersion == EPG_SHM_VERSION) &&
                        (pTvShm->epgShmSize == sizeof(TVAPP_COMM)) )
@@ -622,18 +677,20 @@ static bool WinSharedMemClient_AttachShm( void )
                      strncpy((char *) pTvShm->tvAppName, pTvAppInfo->pAppName, TVAPP_NAME_MAX_LEN);
                      strncpy((char *) pTvShm->tvAppPath, pTvAppInfo->tvAppPath, TVAPP_PATH_MAX_LEN);
                      pTvShm->tvGrantTuner = epgShmCache.tvGrantTuner;
+                     pTvShm->tvCurIsTuner = epgShmCache.tvCurIsTuner;
                      pTvShm->tvCurFreq    = epgShmCache.tvCurFreq;
-                     pTvShm->tvCurInput   = epgShmCache.tvCurInput;
+                     pTvShm->tvCurNorm    = epgShmCache.tvCurNorm;
                      pTvShm->tvAppAlive   = TRUE;
 
                      // initialize state cache with EPG app.'s params
-                     epgShmCache.epgProgInfoIdx = pTvShm->epgProgInfoIdx;
+                     epgShmCache.epgStationIdx  = pTvShm->epgStationIdx;
+                     epgShmCache.epgDataIdx     = pTvShm->epgDataIdx;
                      epgShmCache.epgCommandIdx  = pTvShm->epgCommandIdx;
                      // do not copy the actual values here, to trigger an event in the handler
                      epgShmCache.epgReqFreq     = EPG_REQ_FREQ_NONE;
                      epgShmCache.epgReqInput    = EPG_REQ_INPUT_NONE;
 
-                     if (SetEvent(epgEventHandle) != 0)
+                     if ( WinSharedMemClient_TriggerEpg() )
                      {
                         // set VBI buffer address (used by TTX/EPG decoder)
                         pVbiBuf = &pTvShm->vbiBuf;
@@ -758,7 +815,7 @@ bool WinSharedMemClient_Init( const WINSHMCLNT_TVAPP_INFO * pInitInfo,
       memset(&epgShmCache, 0, sizeof(epgShmCache));
       epgShmCache.tvCardIdx  = cardIdx;
       epgShmCache.tvCurFreq  = EPG_REQ_FREQ_NONE;
-      epgShmCache.tvCurInput = EPG_REQ_INPUT_NONE;
+      epgShmCache.tvCurIsTuner = FALSE;
 
       tvMutexHandle = CreateMutex(NULL, TRUE, TV_MUTEX_NAME);
       if (tvMutexHandle != NULL)
@@ -768,8 +825,9 @@ bool WinSharedMemClient_Init( const WINSHMCLNT_TVAPP_INFO * pInitInfo,
             tvEventHandle = CreateEvent(NULL, FALSE, FALSE, TV_SHM_EVENT_NAME);
             if (tvEventHandle != NULL)
             {
-               epgEventHandle = CreateEvent(NULL, FALSE, FALSE, EPG_SHM_EVENT_NAME);
-               if (epgEventHandle != NULL)
+               epgAcqEventHandle = CreateEvent(NULL, FALSE, FALSE, EPG_ACQ_SHM_EVENT_NAME);
+               epgGuiEventHandle = CreateEvent(NULL, FALSE, FALSE, EPG_GUI_SHM_EVENT_NAME);
+               if ((epgAcqEventHandle != NULL) && (epgGuiEventHandle != NULL))
                {
                   epgAppAlive = (GetLastError() == ERROR_ALREADY_EXISTS);
 
@@ -793,8 +851,7 @@ bool WinSharedMemClient_Init( const WINSHMCLNT_TVAPP_INFO * pInitInfo,
                                    ((pTvShm->epgTvCardIdx != cardIdx) && (pTvShm->epgTvCardIdx != TVAPP_CARD_REQ_ALL)) )
                                  break;
 
-                              if (SetEvent(epgEventHandle) == 0)
-                                 debug1("WinSharedMemClient-Init: SetEvent: %ld", GetLastError());
+                              WinSharedMemClient_TriggerEpg();
 
                               if (WaitForSingleObject(tvEventHandle, 1000) == WAIT_FAILED)
                                  debug1("WinSharedMemClient-Init: WaitForSingleObject tvEventHandle: %ld", GetLastError());
@@ -821,13 +878,16 @@ bool WinSharedMemClient_Init( const WINSHMCLNT_TVAPP_INFO * pInitInfo,
 
                   if (result == FALSE)
                   {
-                     if (CloseHandle(epgEventHandle) == 0)
-                        debug1("WinSharedMemClient-Init: CloseHandle epgEventHandle: %ld", GetLastError());
-                     epgEventHandle = NULL;
+                     if (CloseHandle(epgAcqEventHandle) == 0)
+                        debug1("WinSharedMemClient-Init: CloseHandle epgAcqEventHandle: %ld", GetLastError());
+                     epgAcqEventHandle = NULL;
+                     if (CloseHandle(epgGuiEventHandle) == 0)
+                        debug1("WinSharedMemClient-Init: CloseHandle epgGuiEventHandle: %ld", GetLastError());
+                     epgGuiEventHandle = NULL;
                   }
                }
                else
-                  WinSharedMemClient_SetErrorText(GetLastError(), "EPG client init failed: can't create EPG event handle", NULL);
+                  WinSharedMemClient_SetErrorText(GetLastError(), "EPG client init failed: can't create EPG event handles", NULL);
 
                if (result == FALSE)
                {
@@ -885,8 +945,6 @@ void WinSharedMemClient_Exit( void )
             if (WaitForSingleObject(msgThreadHandle, INFINITE) == WAIT_FAILED)
                debug1("WinSharedMemClient-Exit: WaitForSingleObject msgThreadHandle: %ld", GetLastError());
          }
-         else
-            debug1("WinSharedMemClient-Exit: SetEvent tvEventHandle: %ld", GetLastError());
       }
       else
          debug0("WinSharedMemClient-Exit: tvEventHandle already NULL");
@@ -902,19 +960,21 @@ void WinSharedMemClient_Exit( void )
    {
       pTvShm->tvAppAlive = FALSE;
 
-      if ((epgEventHandle != NULL) && (SetEvent(epgEventHandle) == 0))
-         debug1("WinSharedMemClient-Exit: SetEvent " EPG_SHM_EVENT_NAME ": %ld", GetLastError());
+      WinSharedMemClient_TriggerEpg();
    }
 
    // detach from shared memory
    WinSharedMemClient_DetachShm();
 
    // destroy the TV and EPG event handles
-   if ((epgEventHandle != NULL) && (CloseHandle(epgEventHandle) == 0))
-      debug1("WinSharedMemClient-Exit: CloseHandle epgEventHandle: %ld", GetLastError());
+   if ((epgAcqEventHandle != NULL) && (CloseHandle(epgAcqEventHandle) == 0))
+      debug1("WinSharedMemClient-Exit: CloseHandle epgAcqEventHandle: %ld", GetLastError());
+   if ((epgGuiEventHandle != NULL) && (CloseHandle(epgGuiEventHandle) == 0))
+      debug1("WinSharedMemClient-Exit: CloseHandle epgGuiEventHandle: %ld", GetLastError());
    if ((tvEventHandle != NULL) && (CloseHandle(tvEventHandle) == 0))
       debug1("WinSharedMemClient-Exit: CloseHandle tvEventHandle: %ld", GetLastError());
-   epgEventHandle = NULL;
+   epgAcqEventHandle = NULL;
+   epgGuiEventHandle = NULL;
    tvEventHandle  = NULL;
 
    // destroy the TV app mutex (allow other clients to access the EPG app)

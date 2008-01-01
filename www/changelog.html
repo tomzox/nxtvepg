@@ -1,19 +1,19 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="en">
-<!-- $Id: changelog.html,v 1.66 2007/01/28 13:19:58 tom Exp $ -->
+<!-- $Id: changelog.html,v 1.68 2008/01/06 20:32:58 tom Exp $ -->
 <HEAD>
-<TITLE>Nextview EPG Decoder Change Log</TITLE>
+<TITLE>Change log of nxtvepg releases</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
 <META name="language" content="en">
 <META name="author" content="Tom Zoerner">
 <META name="copyright" content="Tom Zoerner">
-<META name="keywords" lang="en" content="Bt848, video capture, capture, browser, Pro7, RTL2, Canal+, EuroNews, nexTView, EPG, nxtvepg, teletext, Bt878, Brooktree, electronic program guide, TV-Guide, Premiere, TV program listing, TV schedule, Nextview decoder, Linux, software download, bttv, video4linux, VBI, vertical blanking interval, multimedia, data service, subscription free, TV tuner card">
-<META name="description" content="History of releases and changes inbetween for the nxtvepg decoder software">
+<META name="keywords" lang="en" content="nxtvepg, changelog, changes, software, release, bugfix, feature, version, stable, maintenance, update">
+<META name="description" content="History of releases and changes in-between for the nxtvepg decoder software">
 <META name="robots" content="index, follow">
 <META name="revisit-after" content="01 month">
 <LINK rel="stylesheet" type="text/css" href="nxtvepg.css">
 <LINK rel="shortcut icon" type="image/x-icon" href="nxtvepg.ico">
-<LINK rel="top" href="//nxtvepg.sourceforge.net/" title="nexTView EPG Dekoder Homepage">
+<LINK rel="top" href="http://nxtvepg.sourceforge.net/" title="nxtvepg homepage">
 </HEAD>
 <BODY>
 
@@ -69,16 +69,71 @@ width="125" height="37" alt="SourceForge.net Logo"></a></span></span>
 </DIV>
 
 <DIV class="mainBlock">
-<H1>Nextview EPG Decoder Change-Log</H1>
+<H1>Change log of nxtvepg releases</H1>
 
 <P>
 This document contains a list of all major changes between releases
-of the <A HREF="http://nxtvepg.sourceforge.net/">nxtvepg</A>
-nexTView EPG decoder software.
+of <A HREF="http://nxtvepg.sourceforge.net/">nxtvepg</A>.
 For details on work in progress please refer to
 <A HREF="http://sourceforge.net/mailarchive/forum.php?forum_id=14102">mailing list archives</A>.
 </P>
 
+
+<H2><A NAME="release_2_8_0">From 2.7.7 to 2.8.0 (Dec/31/2007)</A></H2>
+<P>
+Version 2.8.0 was in development from 2005 - 2007 and has lived on
+the pre-release page during this time. Bug fixes and minor feature
+improvements have been back-ported to the 2.7.x line though and
+were released as 2.7.5 - 2.7.7.  Hence the following just lists
+major new features and improvements.
+</P>
+<UL>
+<LI>Possibility to compile separate daemon "nxtvepgd" without GUI for
+  performing data acquisition only (mainly intended for Linux-based
+  media appliances without X11 libraries.)
+<LI>Grabbing EPG data from regular teletext pages (still experimental and
+  hence disabled by default.) Note: for UNIX this feature is also available
+  as a separate <A HREF="pre-releases.html#ttx_grabber">Perl script</A>.
+  (See also nxtvepg <A HREF="man.html#teletext_grabber">teletext grabber documentation</A>)
+<LI>Import and merge of EPG data from external sources via files in
+  <A HREF="http://xmltv.org/">XMLTV</A> format.  This feature is also used
+  by the internal teletext EPG grabber.  Note the XMLTV parser source code
+  is available as a separate package:
+  <A HREF="http://nxtvepg.sourceforge.net/tmp/tv_grab_ttx-0.7.tar.gz">tv_grab_ttx-0.7.tar.gz</A>
+<LI>Windows: extended the communication protocol for TV applications to
+  allow to transport more EPG data (more details, multiple programmes)
+  and to use the nxtvepg daemon; requires new plugin for
+  <A HREF="http://www.kastortv.org/">K!TV</A>
+  (<KBD>NextViewPlugin.dll</KBD>, included in win32 package)
+<LI>UNIX: Implemented new <A HREF="xiccc-proto.html">communication protocol</A>
+  for TV applications which allows to more EPG data (Download the
+  <A HREF="tvsim.html">tvsim package</A> to get a demo.)
+<LI>UNIX: added possibility to use an external program to display EPG info
+  OSD above the TV image via the
+  <A HREF="man.html#tv_application_interaction">TV app. interaction configuration</A>
+<LI>Added new <A HREF="man.html#options">command line option</A>
+  <KBD>-provscan de|fr|at|ch</KBD>: runs an EPG scan without GUI.
+  It can also be used by nxtvepgd, so nxtvepg can now be set up without
+  ever using the GUI (except for some advanced acquisition options.)
+<LI>Implemented <A HREF="man.html#options">command line option</A>
+  <KBD>-remctrl</KBD> for UNIX (was previously supported on WIN32 only.)
+<LI>Added support for export in HTML format via the command line:
+  <KBD>-dump html</KBD> (does not support all features available in
+  the GUI though.)
+<LI>WIN32: added support for card vendors' WDM drivers via a separate
+  <A HREF="pre-releases.html#wdm_if_lib">WDM interface library</A>
+  (note: DLL is not included in the release as it's still experimental)<BR>
+  Many thanks to Gérard Chevalier for developing the library in the
+  years 2004 - 2006.
+<LI>Upgrade of the <A HREF="http://tcl.tk/">Tcl/Tk library</A> from version
+  8.3.4 to 8.5.0 (to benefit from this UNIX users must also upgrade their
+  installed Tcl/Tk libraries, which is highly recommended due to
+  improvements in <A HREF="screenshot-tcl84-vs-85.png">widget appearances</A>)
+</UL>
+<P>
+There'a also a more detailed changelog of all eighteen
+<A HREF="changelog-2.8.0pre.html">2.8.0 pre-releases</A>.
+</P>
 
 <H2><A NAME="release_2_7_7">From 2.7.6 to 2.7.7 (Jan/21/2007)</A></H2>
 <UL>
@@ -203,7 +258,7 @@ This release is result of a "back-port" of bugfixes made on the
   description text (on user request esp. for DTD version 5); also
   in DTD version 6 descriptions merged from multiple providers are now
   exported in separate description attributes instead of concatenating
-  the text into one with newlines inbetween.
+  the text into one with newlines in-between.
 <LI>Fixed bug in handling external video input source during EPG
   provider scan which caused misleading help messages
 <LI>Added work-around to catch "panic" (i.e. internal errors) in Tcl/Tk
@@ -805,7 +860,7 @@ This release contains the following new features and fixes:
 <LI>Added a "Load all used" button to the sorting criterion filter dialog
   which fills the sorting criterion selection listbox with a list of all
   codes that are actually used in the current database. This allows a quick
-  overview which criterions will produce any matches when filtered for.
+  overview which criteria will produce any matches when filtered for.
 <LI>Linux only: fixed tuner frequency setting (in particular the EPG scan) for
   SECAM/PAL multi-norm tuners. Thanks to "Keuleu 36" for debugging this problem
 <LI>UNIX only: fine tuning offsets and TV norm in the .xawtv file are now
@@ -1348,7 +1403,7 @@ For a detailed description of these new features please refer to the
 </P>
 
 <P><HR><P>
-<H3>History of additions and bug fixes inbetween previous releases</H3>
+<H3>History of additions and bug fixes in-between previous releases</H3>
 
 <H2>From 0.4.pre2 to 0.4.3 (Feb. 2001)</H2>
 <UL>

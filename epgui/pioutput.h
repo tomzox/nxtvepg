@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pioutput.h,v 1.17 2003/09/23 19:27:43 tom Exp tom $
+ *  $Id: pioutput.h,v 1.18 2005/01/10 14:43:40 tom Exp tom $
  */
 
 #ifndef __PIOUTPUT_H
@@ -71,6 +71,8 @@ void PiOutput_Destroy( void );
 // interface to PI listboxes
 void PiOutput_PiListboxInsert( const PI_BLOCK *pPiBlock, uint textrow );
 uint PiOutput_PiNetBoxInsert( const PI_BLOCK * pPiBlock, uint colIdx, sint textRow );
+void PiOutput_DescriptionTextUpdate( const PI_BLOCK * pPiBlock, bool keepView );
+void PiOutput_DescriptionTextClear( void );
 
 // Interface to HTML dump
 #ifdef _TCL

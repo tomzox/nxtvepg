@@ -28,7 +28,7 @@
  *  DScaler #Id: CX2388xProvider.cpp,v 1.3 2002/11/02 09:47:36 adcockj Exp #
  *  DScaler #Id: CX2388xCard_Tuner.cpp,v 1.9 2005/12/27 19:29:35 to_see Exp #
  *
- *  $Id: cx2388x.c,v 1.20 2006/12/21 20:17:22 tom Exp tom $
+ *  $Id: cx2388x.c,v 1.21 2007/12/30 21:40:27 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -998,7 +998,7 @@ static BOOL Cx2388x_AllocDmaMemory( void )
 
    if (HwMem_AllocContigMemory(&m_RiscDMAMem, RISC_CODE_LENGTH) == FALSE)
    {
-      MessageBox(NULL, "Failed to allocate RISC code memory: driver abort", "Nextview EPG driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+      MessageBox(NULL, "Failed to allocate RISC code memory: driver abort", "nxtvepg driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
       Cx2388x_FreeDmaMemory();
       return FALSE;
    }
@@ -1007,7 +1007,7 @@ static BOOL Cx2388x_AllocDmaMemory( void )
    {
       if (HwMem_AllocUserMemory(&m_VBIDMAMem[idx], VBI_LINE_SIZE * VBI_LINES_PER_FIELD * 2) == FALSE)
       {
-         MessageBox(NULL, "VBI Memory for DMA not Allocated", "Nextview EPG driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+         MessageBox(NULL, "VBI Memory for DMA not Allocated", "nxtvepg driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
          Cx2388x_FreeDmaMemory();
          return FALSE;
       }
@@ -1360,7 +1360,7 @@ static bool Cx2388x_Open( TVCARD * pTvCard, bool wdmStop )
                           "Probably another video application is running,\n"
                           "however nxtvepg requires exclusive access.\n"
                           "Aborting data acquisition.",
-                          "Nextview EPG driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
+                          "nxtvepg driver problem", MB_ICONSTOP | MB_OK | MB_TASKMODAL | MB_SETFOREGROUND);
          CardConflictDetected = TRUE;
          result = FALSE;
       }

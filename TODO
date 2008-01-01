@@ -4,6 +4,106 @@ Your feedback is always welcome, so feel free to mail me if you want to
 boost any item's priority, find more points that need to be fixed or if
 you have ideas for additional features.
 
+Missing documentation:
+- TV Tune config in context menu dialog
+- acq auto-start option in acq mode config dialog
+- WDM and source "none" in Win32 TV card config dialog
+
+Teletext grabber:
+- improve TTX parser (-> failing parsertest pages)
+- UNIX cannot load nxtvepg.ini
+- ttx doesn't cope well false channel change detection due to dec. errors
+  - same effect on DSF: toggling between different text headers
+  - endlessly restarting acq. from scratch
+- stats output:
+  - describe errors (i.e. keep grabber's STDERR)  ? send to daemon ?
+  - daemon send CNI or last processed DB to client (for stats popup only)
+  ? stats popup show db stats of last processed XMLTV ?
+    + channel ID & official name (e.g. ard.de - ARD)
+    + number of newly captured pgrogrammes (# slots in overview)
+      total number of available programmes (new & merged)
+    + number of descriptions & unresolved TTX links
+    + number of used overview pages
+    + page range used for overview
+    + sub-page depth of overview pages & descriptions
+      percentag of multi-pages in overview and descriptions
+- merge db open for acq:
+  after merge db open failure: do not attempt to open same db again
+- write help/documentation
+- acq start: if last acq was aborted, continue seamless
+  - determine age of XML files
+  - determine delta between oldest and newest
+    ? post-processing must "touch" files from channels with no reception ?
+  - if age of newest is <2h and delta >2h (or acq cycle time?)
+    -> mark newer ones done (or move them to the end?)
+- acq mode "external", i.e. from non-tuner inputs
+  ? where to write output - ttx-CNI.xml or search matching ttx-NAME.xml ?
+  ? -> config dialog: enable separately to TV channel based grabbing ?
+- passive acq mode for ttx grabber
+  - start grabber after 30 sec (if in NOW phase), next after 2min (reuse data)
+  ? stop grabbing after 2nd grabber start (don't waste CPU) ?
+  - detect channel by frequency
+  ? detect channel by VPS/PDC? also by XMLTV channel ID?
+- acq mode "follow ui" when ttx acq is enabled
+  ? enable TTX acq for selected XML file only ? at least start with that file ?
+  ? how to handle follow-ui in the acq. daemon ?
+- skip "Near" cycle for TTX if both NOW and NEAR are enabled
+- optimize "full" load stage by using channel switching (i.e. as for NOW)
+- ttxdecode: handle page range <800->800, i.e. split 700-799,000-099
+- merge with old XMLTV file
+  ? merge problem: how detect conflicts if programmes have no STOP time?
+- reduce parity errors during repeated reception
+  - both during XMLTV merge and VBI packet reception
+- allow user to handle all TTX sources as one
+  ? i.e. merge sources automatically ?
+- check if all sub-pages are captured (on relevant pages only!)
+  ? implement in nxtvepg or external post-processor ?
+- pass TTX params to acq ctl: CNI list pg range, ov pg, duration
+  ? use callback for params ?
+- acq mode config dialog: add teletext in manual prov. selection
+- configure list of networks for ttx acq, including frequencies
+  ? use internal scan or names only (based on external channel table)
+  ? implement Now/Next/All: Now/Next=1 cycle; All=all subpages
+- config dialog:
+  - check for perl and the ttx grabber script
+  - check if TV app is configured and channel table can be parsed
+  - display channels which will be captured by name (e.g. "ARD - MTV")
+  - configure database directory for generated XML output
+    OR: use the same as for nextview EPG data
+  ? separate channel list or at least channel count for Now/Next ?
+- display EPG into in connected TV app, even if captured "late" from TTX
+- improve netname dialog
+  - add short explanations about button functions
+- make slim perl package with exe, dll and req. modules only
+
+XMLTV DTD 0.6:
+- note: since it appears there will be no switch from 0.5 to 0.6 ever (no
+  other apps support it) version 0.6 support should be removed from nxtvepg
+- <tv> tag should carry DTD version hint
+- DTD for channel ID mapping
+- bug in DTD 0.6: <!ATTLIST remark> actually refers to desc
+
+XMLTV import:
+- get language from XMLTV input for SetUserLanguage(), "auto" mode
+  for non-auto mode: pass language selection to XML parser
+- increase max. netwop count from 80 to 254
+  (or make it dynamic, high effort though in epgfilter.h and epgdbmerge.c)
+- programmes with start time only should not be discarded
+  automatically set stop time to start of subsequent programme
+- extend PI struct to hold all XMLTV info fields?
+- use UTF-8 internally to allow other charsets besides Latin-1 (?)
+  -> German and French PDC theme tables must be converted to UTF-8
+  -> HTML and XML encoding headers must be adapted
+  -> dump functions should use Latin-1 or UTF8 depending on locale
+- theme codes: build custom theme table from theme string in XML file (?)
+  problem #1: storing filter shortcuts (must store theme name, not index)
+  problem #2: building theme main categories/hierarchy (e.g. movie/show/news)
+- follow-ui acq mode: do not attempt to start acq for XML db
+
+XICCC TODO:
+- large data transfers
+- free data after reception
+- remove dead peers from permanent station update queue
 
 Reminders TODO:
 - acq: update event timer for PI starting in +15 - minimal pre-offset
@@ -42,7 +142,6 @@ Recently suggested fixes & changes:
 - allow provider channel names at the -prov command line arg
 - HTML dump: allow to specify which column to use for hyperlink?
 - new PI column type which displays full weekday name (Thierry)
-- WIN32: save main window position in INI file (when manually changed; Thierry)
 - graying out filtered programmes instead of removing them
 - marking attributes which match current filter in the description window,
   esp. for text search (Volker Moell)
@@ -58,7 +157,6 @@ Recently suggested fixes & changes:
 - timescale bug: when acq running in daemon for non-UI database, display is
   cleared but not refilled after zoom +/-
 - weekday scale for grid layout: additional column (Thierry)
-- import data from XMLTV files (e.g. from internet sources; 2003-11-1 in forum)
 - split network prefilter into 2 parts: excluded and unlisted: latter ones are
   still part of filter menus and used for reminder shortcut matches
 - add flag to shortcuts which enables "auto-selection" after filter reset: will
@@ -71,7 +169,6 @@ Recently suggested fixes & changes:
 - allow user to override provider's network CNIs (e.g. to allow to merge
   different providers' data for MTV, RBB and SW3; suggested by Jörk)
 - free configuration of key and mouse bindings
-- allow to select XML DTD version via command line
 - save system encoding setting at the time of rc writing into rc file
   so that correct conversion is used during reload
 - add "Help" button to error popup messages
@@ -92,9 +189,6 @@ New "NetBox" layout: open issues/known problems:
   + align text: left/center/right
 
 Acquisition daemon:
-- make concurrent updates of shared rc file safe (e.g. daemon writes provider
-  list in follow ui mode) or use a different rc for acq parameters; currently
-  data can be lost
 - when dump is aborted, keep the old modification time on client-side
 - VPS: trigger check device access via remove cmd (upon xawtv start/exit)
 - limit queue max length on server side (e.g. when bandwidth too low
@@ -110,18 +204,15 @@ win32 port:
 - TV app interaction, at least to free the driver and use TV app for acq
 
 xawtv TV app interaction:
-- add option for TV app connections via socket, to allow the daemon serving
-  EPG data to TV apps (note: connection must be routed through to GUI to
-  allow changing the channel and following TV channel changes)
 - Tune-TV: warn if station name is not in .xawtv?
-- Tune-TV: offer to start xawtv if not running?
-  may not work if xawtv requires command line options
+- Tune-TV: offer to start TV application if not running?
+  may not work if app. requires command line options
 - VPS empty/pause codes display
 
 WIN32 port fixes:
 - support for Secam/PAL multi-norm TV tuners
   SECAM support for wintvcfg.c channel table parsers
-- use TV app directory in shm for auto-configuration
+- use TV app directory in shared memory for auto-configuration
 - dump stream feature: must use window or file instead of stdout
   note: output to stdout works when started inside a GNU/Cygwin bash
 - need to debug source of main window crash in Windows MessageBox()
@@ -129,14 +220,24 @@ WIN32 port fixes:
 - allow manual horizontal resizing for grid layout
 - menubutton popups does not work when invoked for the 2nd time via
   ALT key binding (Thierry)
+- save main window position in INI file (when manually changed; Thierry)
 - start with main window maximized when requested in Windows shortcut properties
   (requested by Thierry; I've no idea how to query these properties though)
 - systray popup menu should close by any mouse click outside of it
-- support for WDM drivers (esp. for capture chips not supported by dsdrv)
 - Tcl/Tk panic after desktop resulution change (e.g. to start fullscreen game)
   Tk panic in color palette handling, leads to program abort
   possibly use WM_DISPLAYCHANGE to restart
 - catch WM_POWERBROADCAST, PBT_APMRESUMESUSPEND to catch power mode changes
+
+WDM:
+- DLL must not depend on proprietary MS DLL
+- frequency mapping
+- clean interface declaration: API.txt vs. WDMDRV.h
+  API version control
+- device path query function
+- exception handling: call AcqStop regardles of current thread?
+- sometimes crash at end or abort of EPG scan
+- SelectDevice fails after unload/reload of DLL
 
 merged database fixes:
 - fine control for provider merge
@@ -145,6 +246,7 @@ merged database fixes:
 - merged database: block index handling (for statistics)
 - more intelligent redundancy check for merged descriptions:
   break up into substrings at any non-alnum except space
+- user-defined mapping of CNIs in case of CNI mismatch between providers
 
 other required fixes:
 - epgdbmerge.c: AI merge: design fixes (don't modify caller's CNI array)
@@ -162,7 +264,6 @@ other required fixes:
 - AdvanceCyclePhase: limit number of tries to update provider (first "if")
 - improve streams decoder hamming error handling: assemble AI block
   from multiple instances if neccessary
-- add decoding error statistics to epgdbacq (e.g. # of dropped packets & blocks)
 - fix: external mode & tuner input source -> nonsense as status output
 - fix: obsolete series codes can not be deleted, because only series which
   have an instance in the db are listed in the series menu

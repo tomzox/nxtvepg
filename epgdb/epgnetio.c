@@ -22,7 +22,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgnetio.c,v 1.37 2004/06/19 19:55:28 tom Exp tom $
+ *  $Id: epgnetio.c,v 1.38 2007/12/29 22:28:07 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
@@ -551,7 +551,7 @@ void EpgNetIo_WriteMsg( EPGNETIO_STATE * pIO, EPGNETIO_MSG_TYPE type, uint msgLe
    assert((pIO->writeLen == 0) && (pIO->pWriteBuf == NULL));
    assert((msgLen == 0) || (pMsg != NULL));
 
-   dprintf2("EpgNetIo-WriteMsg: msg type %d, len %d\n", type, sizeof(EPGNETIO_MSG_HEADER) + msgLen);
+   dprintf2("EpgNetIo-WriteMsg: msg type %d, len %d\n", type, (int)sizeof(EPGNETIO_MSG_HEADER) + msgLen);
 
    pIO->pWriteBuf    = pMsg;
    pIO->freeWriteBuf = freeBuf;
@@ -576,7 +576,7 @@ bool EpgNetIo_WriteEpgQueue( EPGNETIO_STATE * pIO, EPGDB_QUEUE * pOutQueue )
 
    while ((pBlock = EpgDbQueue_Get(pOutQueue)) != NULL)
    {
-      dprintf2("EpgNetIo-WriteEpgQueue: fd %d: write EPG block, msg size %d\n", pIO->sock_fd, sizeof(EPGNETIO_MSG_HEADER) + pBlock->size + BLK_UNION_OFF);
+      dprintf2("EpgNetIo-WriteEpgQueue: fd %d: write EPG block, msg size %d\n", pIO->sock_fd, (int)sizeof(EPGNETIO_MSG_HEADER) + pBlock->size + BLK_UNION_OFF);
 
       pIO->pWriteBuf        = (void *) pBlock;
       pIO->freeWriteBuf     = TRUE;
@@ -656,7 +656,7 @@ bool EpgNetIo_WriteTscQueue( EPGNETIO_STATE * pIO, EPGDB_PI_TSC * pTscQueue )
 
    while ((pTscBuf = EpgTscQueue_PopBuffer(pTscQueue, &bufLen)) != NULL)
    {
-      dprintf2("EpgNetIo-WriteTscQueue: fd %d: write timescale buffer, msg size %d\n", pIO->sock_fd, sizeof(EPGNETIO_MSG_HEADER) + bufLen);
+      dprintf2("EpgNetIo-WriteTscQueue: fd %d: write timescale buffer, msg size %d\n", pIO->sock_fd, (int)sizeof(EPGNETIO_MSG_HEADER) + bufLen);
 
       pIO->pWriteBuf    = (void *) pTscBuf;
       pIO->freeWriteBuf = TRUE;

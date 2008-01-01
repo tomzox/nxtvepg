@@ -19,7 +19,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_shortcuts.tcl,v 1.17 2004/12/12 14:48:25 tom Exp tom $
+#  $Id: dlg_shortcuts.tcl,v 1.18 2007/12/29 21:03:39 tom Exp tom $
 #
 # import constants from other modules
 #=INCLUDE=  "epgtcl/shortcuts.h"
@@ -149,8 +149,8 @@ proc UpdateFilterShortcut {} {
       set fscupd_popup 1
 
       message .fscupd.msg -text "Please select which shortcut shall be updated with the current filter setting:" \
-                          -aspect 520 -borderwidth 2 -relief ridge \
-                          -foreground $text_fg -background $text_bg -pady 5 -anchor w
+                          -aspect 520 -borderwidth 2 -relief groove \
+                          -foreground $text_fg -background $text_bg -pady 5 -padx 1 -anchor w
       pack .fscupd.msg -side top -fill x
 
       ## first column: listbox with all shortcut labels
@@ -161,8 +161,8 @@ proc UpdateFilterShortcut {} {
                                      -font $sctree_font -selectbackground $sctree_selbg \
                                      -selectforeground $sctree_selfg -cursor top_left_arrow \
                                      -foreground $text_fg -background $text_bg \
-                                     -relief ridge -borderwidth 2 -selectmode browse \
-                                     -yscrollcommand {.fscupd.sc_list.sb set}
+                                     -selectmode browse -yscrollcommand {.fscupd.sc_list.sb set}
+      relief_listbox .fscupd.sc_list.lb
       pack      .fscupd.sc_list.lb -side left -fill both -expand 1
       pack      .fscupd.sc_list -side left -pady 10 -padx 10 -fill both -expand 1
 
@@ -189,6 +189,7 @@ proc UpdateFilterShortcut {} {
       CheckShortcutUpdatePending
 
       ShortcutTree_Fill .fscupd.sc_list.lb {} $fscupd_tree shortcuts 0
+      .fscupd.cmd.update configure -state disabled
 
    } else {
       # edit dialog not open -> use names from the main list
@@ -529,8 +530,8 @@ proc PopupFilterShortcuts {} {
                                 -font $sctree_font -selectbackground $sctree_selbg \
                                 -selectforeground $sctree_selfg \
                                 -foreground $text_fg -background $text_bg \
-                                -relief ridge -borderwidth 2 -selectmode browse \
-                                -yscrollcommand {.fscedit.list_sb set}
+                                -selectmode browse -yscrollcommand {.fscedit.list_sb set}
+      relief_listbox .fscedit.list
       bind .fscedit.list <Enter> {focus %W}
       bind .fscedit.list <<TreeSelect>> {+ SelectEditedShortcut}
       bind .fscedit.list <<TreeOpenClose>> {ShortcutTree_OpenCloseEvent .fscedit.list fscedit_sclist $fscedit_tree}
@@ -606,8 +607,9 @@ proc PopupFilterShortcuts {} {
 
       label .fscedit.flags.lab_mask -text "Filter mask:"
       grid  .fscedit.flags.lab_mask -row 4 -column 0 -sticky w
-      menubutton .fscedit.flags.mb_mask -text "Select" -menu .fscedit.flags.mb_mask.men -indicatoron 1 \
-                                        -underline 0 -direction flush -relief raised -borderwidth 2
+      menubutton .fscedit.flags.mb_mask -text "Select" -menu .fscedit.flags.mb_mask.men \
+                                        -indicatoron 1 -underline 0 -direction flush
+      config_menubutton .fscedit.flags.mb_mask
       menu  .fscedit.flags.mb_mask.men -tearoff 0
       grid  .fscedit.flags.mb_mask -row 4 -column 1 -sticky we -pady 5
 
@@ -619,8 +621,9 @@ proc PopupFilterShortcuts {} {
 
       label .fscedit.flags.lab_logic -text "Combination rule:"
       grid  .fscedit.flags.lab_logic -row 5 -column 0 -sticky w
-      menubutton .fscedit.flags.mb_logic -text "Select" -menu .fscedit.flags.mb_logic.men -indicatoron 1 \
-                                         -underline 2 -direction flush -relief raised -borderwidth 2
+      menubutton .fscedit.flags.mb_logic -text "Select" -menu .fscedit.flags.mb_logic.men \
+                                         -indicatoron 1 -underline 2 -direction flush
+      config_menubutton .fscedit.flags.mb_logic
       grid  .fscedit.flags.mb_logic -row 5 -column 1 -sticky we
       menu  .fscedit.flags.mb_logic.men -tearoff 0
       .fscedit.flags.mb_logic.men add radiobutton -label "merge" -variable fscedit_logic -value "merge"

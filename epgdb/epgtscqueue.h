@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgtscqueue.h,v 1.4 2005/05/29 16:15:27 tom Exp tom $
+ *  $Id: epgtscqueue.h,v 1.5 2007/01/20 21:47:24 tom Exp tom $
  */
 
 #ifndef __EPGTSCQUEUE_H
@@ -66,11 +66,12 @@ typedef struct
 
 typedef struct EPGDB_PI_TSC_BUF_STRUCT
 {
-   uint16_t     provCni;                      // provider the data in the buffer belongs to
+   uint32_t     provCni;                      // provider the data in the buffer belongs to
    uint8_t      mode;                         // mode in which the data was created
    bool         locked;                       // locked until pending EPG blocks are processed
    uint16_t     fillCount;                    // number of valid entries in pi array
    uint16_t     popIdx;                       // number of 'popped' entries
+   uint8_t      reserved[2];                  // unused
    time_t       baseTime;                     // base for start and stop time offsets
    struct EPGDB_PI_TSC_BUF_STRUCT  * pNext;   // pointer to next buffer in the queue
    struct EPGDB_PI_TSC_BUF_STRUCT  * pPrev;   // pointer to previous buffer in the queue

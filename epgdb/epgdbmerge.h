@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbmerge.h,v 1.9 2002/04/29 19:26:43 tom Exp tom $
+ *  $Id: epgdbmerge.h,v 1.13 2007/01/20 22:01:51 tom Exp tom $
  */
 
 #ifndef __EPGDBMERGE_H
@@ -53,16 +53,21 @@ typedef uchar EPGDB_MERGE_MAP[MAX_NETWOP_COUNT];
 
 typedef struct
 {
+   EPGDB_CONTEXT * pDbContext;
+   uint            provCni;
+   EPGDB_MERGE_MAP netwopMap;
+   EPGDB_MERGE_MAP revNetwopMap;
+} EPGDB_MERGE_PROV_CTX;
+
+typedef struct
+{
    uint            dbCount;
    uint            acqIdx;
-   EPGDB_CONTEXT * pDbContext   [MAX_MERGED_DB_COUNT];
-   uint            cnis         [MAX_MERGED_DB_COUNT];
-   EPGDB_MERGE_MAP netwopMap    [MAX_MERGED_DB_COUNT];
-   EPGDB_MERGE_MAP revNetwopMap [MAX_MERGED_DB_COUNT];
 
    EPGDB_PI_TSC    tscQueue;
    bool            tscEnable;
 
+   EPGDB_MERGE_PROV_CTX prov[MAX_MERGED_DB_COUNT];
    MERGE_ATTRIB_VECTOR max[MERGE_TYPE_COUNT];
 } EPGDB_MERGE_CONTEXT;
 
@@ -70,7 +75,8 @@ typedef struct
 // ----------------------------------------------------------------------------
 // Declaration of interface functions
 //
-void EpgDbMergeInsertPi( EPGDB_MERGE_CONTEXT * dbmc, EPGDB_BLOCK * pNewBlock );
+void EpgDbMergeInsertPi( EPGDB_CONTEXT * pDbContext, EPGDB_BLOCK * pNewBlock );
+void EpgDbMergeUpdateNetwork( EPGDB_CONTEXT * pDbContext, uint srcNetwop, EPGDB_BLOCK * pNewBlock );
 void EpgDbMergeAiBlocks( EPGDB_CONTEXT * dbc, uint netwopCount, uint * pNetwopList );
 void EpgDbMergeAllPiBlocks( EPGDB_CONTEXT * dbc );
 void EpgDbMerge_ResetPiVersion( EPGDB_CONTEXT * dbc, uint dbIdx );

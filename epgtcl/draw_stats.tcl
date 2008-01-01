@@ -15,14 +15,17 @@
 #  Description:
 #
 #    Implements support for drawing timescales and database statistics.
+#    All calculations are done at C level, so this module just contains
+#    display functions.
 #
 #  Author: Tom Zoerner
 #
-#  $Id: draw_stats.tcl,v 1.4 2004/02/14 20:00:03 tom Exp tom $
+#  $Id: draw_stats.tcl,v 1.7 2007/12/29 21:03:39 tom Exp tom $
 #
 
 #=LOAD=TimeScale_Open
 #=LOAD=DbStatsWin_Create
+#=LOAD=StatsWinTtx_Create
 #=DYNAMIC=
 
 ## ---------------------------------------------------------------------------
@@ -34,6 +37,10 @@ proc TimeScale_Open {w cni key isMerged scaleWidth} {
 
    # add space for Now & Next boxes to scale width
    incr scaleWidth 40
+   set canvasWidth [expr [winfo screenwidth "."] - 150]
+   if {$canvasWidth > $scaleWidth} {
+      set canvasWidth $scaleWidth
+   }
 
    # fetch network list from AI block in database
    set netsel_ailist [C_GetAiNetwopList $cni netnames]
@@ -53,20 +60,23 @@ proc TimeScale_Open {w cni key isMerged scaleWidth} {
       frame $w.top
       # create a frame in the top left which holds command buttons: help, zoom +/-
       frame  $w.top.cmd
-      button $w.top.cmd.qmark -bitmap bitmap_qmark -cursor top_left_arrow -takefocus 0 -relief ridge \
+      button $w.top.cmd.qmark -bitmap bitmap_qmark -cursor top_left_arrow -takefocus 0 \
                               -command {PopupHelp $helpIndex(Statistics) "Timescale popup windows"}
+      relief_ridge_v84 $w.top.cmd.qmark
       pack   $w.top.cmd.qmark -side left -fill y
       bind   $w <Key-F1> {PopupHelp $helpIndex(Statistics) "Timescale popup windows"}
-      button $w.top.cmd.zoom_in -bitmap bitmap_zoom_in -cursor top_left_arrow -takefocus 0 -relief ridge \
+      button $w.top.cmd.zoom_in -bitmap bitmap_zoom_in -cursor top_left_arrow -takefocus 0 \
                                 -command [list C_TimeScale_Zoom $key 1]
+      relief_ridge_v84 $w.top.cmd.zoom_in
       pack   $w.top.cmd.zoom_in -side left
-      button $w.top.cmd.zoom_out -bitmap bitmap_zoom_out -cursor top_left_arrow -takefocus 0 -relief ridge \
+      button $w.top.cmd.zoom_out -bitmap bitmap_zoom_out -cursor top_left_arrow -takefocus 0 \
                                  -command [list C_TimeScale_Zoom $key -1]
+      relief_ridge_v84 $w.top.cmd.zoom_out
       pack   $w.top.cmd.zoom_out -side left
       grid   $w.top.cmd -sticky we -column 0 -row 0
 
       # create a canvas at the top which holds markers for current time and date breaks
-      canvas $w.top.now -bg $default_bg -height 12 -width $scaleWidth
+      canvas $w.top.now -bg $default_bg -height 12 -width $canvasWidth -scrollregion [list 0 0 12 $scaleWidth]
       grid $w.top.now -sticky we -column 1 -row 0
       grid columnconfigure $w.top 1 -weight 1
 
@@ -129,6 +139,11 @@ proc TimeScale_CreateCanvas {w netwop netwopName isMerged scaleWidth} {
 
    set w $w.top.n$netwop
 
+   set canvasWidth [expr [winfo screenwidth "."] - 150]
+   if {$canvasWidth > $scaleWidth} {
+      set canvasWidth $scaleWidth
+   }
+
    # for merged databases make Now & Next boxes invisible
    if $isMerged {
       set now_bg $default_bg
@@ -141,7 +156,7 @@ proc TimeScale_CreateCanvas {w netwop netwopName isMerged scaleWidth} {
       label ${w}_name -text $netwopName -anchor w
       grid ${w}_name -sticky we -column 0 -row [expr $netwop + 1]
 
-      canvas ${w}_stream -bg $default_bg -height 13 -width $scaleWidth -cursor top_left_arrow
+      canvas ${w}_stream -bg $default_bg -height 13 -width $canvasWidth -cursor top_left_arrow -scrollregion [list 0 0 12 $scaleWidth]
       grid ${w}_stream -sticky we -column 1 -row [expr $netwop + 1]
       bind ${w}_stream <Button-1> [list TimeScale_GotoTime $netwop ${w}_stream %x]
 
@@ -161,7 +176,7 @@ proc TimeScale_CreateCanvas {w netwop netwopName isMerged scaleWidth} {
       ${w}_name configure -text $netwopName -bg $default_bg
 
       # update the canvas width
-      ${w}_stream configure -width $scaleWidth
+      ${w}_stream configure -width $canvasWidth -scrollregion [list 0 0 12 $scaleWidth]
       ${w}_stream coords $tscnowid(bg) 40 4 $scaleWidth 12
 
       # reset the Now & Next boxes
@@ -381,7 +396,12 @@ proc TimeScale_ClearDateScale {frame scaleWidth} {
    catch [ $frame.top.now delete all ]
 
    incr scaleWidth 40
-   $frame.top.now configure -width $scaleWidth
+   set canvasWidth [expr [winfo screenwidth "."] - 150]
+   if {$canvasWidth > $scaleWidth} {
+      set canvasWidth $scaleWidth
+   }
+
+   $frame.top.now configure -width $canvasWidth -scrollregion [list 0 0 12 $scaleWidth]
 }
 
 ## ---------------------------------------------------------------------------
@@ -421,7 +441,8 @@ proc DbStatsWin_Create {wname} {
    # this frame is intentionally not packed
    #pack $wname.acq -side top -anchor nw -fill both
 
-   button $wname.browser.qmark -bitmap bitmap_qmark -cursor top_left_arrow -takefocus 0 -relief ridge
+   button $wname.browser.qmark -bitmap bitmap_qmark -cursor top_left_arrow -takefocus 0
+   relief_ridge_v84 $wname.browser.qmark
    bind   $wname.browser.qmark <ButtonRelease-1> {PopupHelp $helpIndex(Statistics) "Database statistics"}
    pack   $wname.browser.qmark -side top
    bind   $wname <Key-F1> {PopupHelp $helpIndex(Statistics) "Database statistics"}
@@ -513,5 +534,32 @@ proc DbStatsWin_AddHistory {wname pos valEx val1c val1o val2c val2o} {
 proc DbStatsWin_ClearHistory {wname} {
    # the tag "all" is automatically assigned to every item in the canvas
    catch [ $wname.acq.hist delete all ]
+}
+
+## ---------------------------------------------------------------------------
+## Create the acq stats window with histogram and summary text
+##
+proc StatsWinTtx_Create {wname} {
+   global font_fixed
+
+   toplevel $wname
+   wm title $wname {Teletext grabber statistics}
+   wm resizable $wname 0 0
+   wm group $wname .
+
+   frame $wname.acq -relief sunken -borderwidth 2
+   message $wname.acq.stat -font $font_fixed -aspect 2000 -justify left -anchor nw
+   pack $wname.acq.stat -expand 1 -fill both -side left
+   pack $wname.acq -side top -anchor nw -fill both
+
+   # TODO help index wrong For TTX
+   button $wname.acq.qmark -bitmap bitmap_qmark -cursor top_left_arrow -takefocus 0
+   relief_ridge_v84 $wname.acq.qmark
+   bind   $wname.acq.qmark <ButtonRelease-1> {PopupHelp $helpIndex(Statistics) "Database statistics"}
+   pack   $wname.acq.qmark -side top
+   bind   $wname <Key-F1> {PopupHelp $helpIndex(Statistics) "Database statistics"}
+
+   # inform the control code when the window is destroyed
+   bind $wname.acq <Destroy> [list + C_StatsWin_ToggleTtxStats 0]
 }
 

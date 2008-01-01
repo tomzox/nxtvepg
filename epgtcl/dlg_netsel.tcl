@@ -18,25 +18,26 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_netsel.tcl,v 1.10 2006/11/26 14:59:12 tom Exp $
+#  $Id: dlg_netsel.tcl,v 1.13 2007/12/29 21:03:39 tom Exp tom $
 #
 set netsel_popup 0
 
 ## ---------------------------------------------------------------------------
 ## Update network selection configuration after AI update
-## - returns list of indices of suppressed netwops (for prefiltering)
 ## - note: all CNIs have to be in the format 0x%04X
+## - generates mapping tables between AI order and user config order
 ##
 proc UpdateProvCniTable {prov} {
-   global cfnetwops netwop_ai2sel netwop_sel2ai netselmenu
+   global netwop_ai2sel netwop_sel2ai netselmenu
 
    # fetch CNI list from AI block in database
    set ailist [C_GetAiNetwopList 0 {}]
-   # initialize list of user-selected CNIs
-   if {[info exists cfnetwops($prov)]} {
-      set selist [lindex $cfnetwops($prov) 0]
-      set suplist [lindex $cfnetwops($prov) 1]
-   } else {
+
+   # fetch or initialize network selection
+   set net_cf [C_GetProvCniConfig $prov]
+   set selist [lindex $net_cf 0]
+   set suplist [lindex $net_cf 1]
+   if {([llength $selist] == 0) && ([llength $suplist] == 0)} {
       set selist $ailist
       set suplist {}
    }
@@ -46,61 +47,27 @@ proc UpdateProvCniTable {prov} {
    set index 0
    foreach cni $ailist {
       set order($cni) $index
-      set unused($cni) 1
       incr index
    }
 
-   # step #1: collect user-selected networks in the user-defined order
    set nlidx 0
    foreach cni $selist {
-      if {[info exists unused($cni)]} {
+      if [info exists order($cni)] {
          # CNI still exists in actual AI -> add it
          lappend netwop_sel2ai $order($cni)
          set rev_order($cni) $nlidx
-         unset unused($cni)
          # increment index (only when item is not deleted)
          incr nlidx
-      } else {
-         # CNI no longer exists -> remove from selection, do not add to filter bar
-         set selist [lreplace $selist $nlidx $nlidx]
       }
    }
 
-   # step #2: remove suppressed CNIs from the list
-   set index 0
-   foreach cni $suplist {
-      if {[info exists unused($cni)]} {
-         unset unused($cni)
-         incr index
-      } else {
-         # CNI no longer exists -> remove from suppressed list
-         set suplist [lreplace $suplist $index $index]
-      }
-   }
-
-   # step #3: check for unreferenced CNIs and append them to the list
+   # check for unreferenced CNIs and append them to the list
    foreach cni $ailist {
-      if [info exists unused($cni)] {
-         lappend selist $cni
-         lappend netwop_sel2ai $order($cni)
-         lappend netwop_ai2sel $nlidx
-         incr nlidx
+      if [info exists rev_order($cni)] {
+         lappend netwop_ai2sel $rev_order($cni)
       } else {
-         if [info exists rev_order($cni)] {
-            lappend netwop_ai2sel $rev_order($cni)
-         } else {
-            lappend netwop_ai2sel 255
-         }
+         lappend netwop_ai2sel 255
       }
-   }
-
-   # save the new config to the rc file
-   if {(![info exists cfnetwops($prov)]) || \
-       ($selist != [lindex $cfnetwops($prov) 0]) || \
-       ($suplist != [lindex $cfnetwops($prov) 1])} {
-
-      set cfnetwops($prov) [list $selist $suplist]
-      UpdateRcFile
    }
 }
 
@@ -132,7 +99,6 @@ proc PopupNetwopSelection {} {
    global entry_disabledforeground
    global netsel_popup
    global netsel_prov netsel_ailist netsel_selist netsel_names
-   global cfnetwops
 
    if {$netsel_popup == 0} {
       # get CNI of currently selected provider (or 0 if db is empty)
@@ -144,38 +110,34 @@ proc PopupNetwopSelection {} {
          # fetch CNI list from AI block in database
          # as a side effect this function stores all netwop names into the array netsel_names
          set netsel_ailist [C_GetAiNetwopList 0 netsel_names allmerged]
-         ApplyUserNetnameCfg netsel_names
+
          # initialize list of user-selected CNIs
-         if {[info exists cfnetwops($netsel_prov)]} {
+         set tmpl [C_GetProvCniConfig $netsel_prov]
+         if {([llength [lindex $tmpl 0]] == 0) && ([llength [lindex $tmpl 1]] == 0)} {
+            set netsel_selist $netsel_ailist
+         } else {
             set netsel_selist {}
             # filter out unknown CNIs (not part of the AI network table anymore)
-            foreach cni [lindex $cfnetwops($netsel_prov) 0] {
+            foreach cni [lindex $tmpl 0] {
                if {[info exists netsel_names($cni)]} {
                   lappend netsel_selist $cni
                }
             }
-         } else {
-            set netsel_selist $netsel_ailist
          }
 
          frame .netsel.lb
          SelBoxCreate .netsel.lb netsel_ailist netsel_selist netsel_names
 
-         menubutton .netsel.lb.cmd.copy -text "copy" -menu .netsel.lb.cmd.copy.men \
-                                        -relief raised -borderwidth 2 -underline 0
-         pack .netsel.lb.cmd.copy -side top -anchor nw -pady 20 -fill x
-         menu .netsel.lb.cmd.copy.men -tearoff 0 -postcommand {PostDynamicMenu .netsel.lb.cmd.copy.men NetselCreateCopyMenu {}}
-
          button .netsel.lb.cmd.help -text "Help" -width 7 -command {PopupHelp $helpIndex(Configuration) "Select networks"}
          button .netsel.lb.cmd.abort -text "Abort" -width 7 -command {destroy .netsel}
-         button .netsel.lb.cmd.save -text "Save" -width 7 -command {SaveSelectedNetwopList}
-         pack .netsel.lb.cmd.help .netsel.lb.cmd.abort .netsel.lb.cmd.save -side bottom -anchor sw
+         button .netsel.lb.cmd.ok -text "Ok" -width 7 -command {SaveSelectedNetwopList}
+         pack  .netsel.lb.cmd.help .netsel.lb.cmd.abort .netsel.lb.cmd.ok -side bottom -anchor sw
          pack  .netsel.lb -side top -fill both -expand 1
 
          global netsel_off_name
          global cfnettimes netsel_times netsel_start netsel_stop netsel_cni
          global font_fixed
-         frame .netsel.bottom -borderwidth 2 -relief ridge
+         frame .netsel.bottom -borderwidth 2 -relief groove
          label .netsel.bottom.lab_offi -text "Official name:"
          grid  .netsel.bottom.lab_offi -row 0 -column 0 -sticky w
          entry .netsel.bottom.ent_offi -relief flat -textvariable netsel_off_name -state disabled $entry_disabledforeground black
@@ -210,7 +172,7 @@ proc PopupNetwopSelection {} {
          wm minsize .netsel [winfo reqwidth .netsel] [winfo reqheight .netsel]
       } else {
          # no AI block in database
-         tk_messageBox -type ok -default ok -icon error -message "Cannot configure networks without a provider selected."
+         tk_messageBox -type ok -default ok -icon error -message "You have to open a provider database before you can configure networks."
       }
    } else {
       raise .netsel
@@ -220,7 +182,6 @@ proc PopupNetwopSelection {} {
 # finished -> save and apply the user selection
 proc SaveSelectedNetwopList {} {
    global netsel_prov netsel_selist netsel_ailist netsel_names
-   global cfnetwops
    global cfnettimes netsel_times
 
    # close popup
@@ -234,13 +195,14 @@ proc SaveSelectedNetwopList {} {
          lappend sup $cni
       }
    }
-   set cfnetwops($netsel_prov) [list $netsel_selist $sup]
+   C_UpdateProvCniConfig $netsel_prov $netsel_selist $sup
 
    # store start & stop time of the last CNI and store the air times list
    NetselUpdateTimes
    array unset cfnettimes
    array set cfnettimes [array get netsel_times]
    array unset netsel_times
+   array unset netsel_names
 
    # merged database: merge the requested networks
    if {$netsel_prov == 0x00FF} {
@@ -262,7 +224,6 @@ proc NetselUpdateCni {which} {
    global netsel_off_name
    global netsel_times netsel_start netsel_stop netsel_cni
    global netsel_ailist netsel_selist 
-   global cfnetnames
 
    # save the start and stop times of the previously selected CNI
    NetselUpdateTimes
@@ -326,54 +287,6 @@ proc NetselUpdateTimes {} {
    }
 }
 
-# post the menu
-proc NetselCreateCopyMenu {widget dummy} {
-   global netsel_popup netsel_prov cfnetwops
-
-   if {$netsel_popup} {
-      set provlist [C_GetProvCnisAndNames]
-      lappend provlist 0x00FF "Merged"
-      set count 0
-      foreach {cni name} $provlist {
-         if {($cni != $netsel_prov) && [array exists cfnetwops] && [info exists cfnetwops($cni)]} {
-            $widget add command -label "Copy from $name" -command [list NetselCopyNetwopList $cni]
-            incr count
-         }
-      }
-   }
-   # if the menu is empty, add a note
-   if {$count == 0} {
-      $widget add command -label "No providers available for copying" -state disabled
-   }
-}
-
-# copy the netwop selection and order from another provider
-proc NetselCopyNetwopList {copycni} {
-   global netsel_popup netsel_prov cfnetwops
-   global netsel_selist netsel_ailist netsel_names
-
-   if {$netsel_popup} {
-      if {($copycni != $netsel_prov) && [array exists cfnetwops] && [info exists cfnetwops($copycni)]} {
-
-         set netsel_selist {}
-         .netsel.lb.sel.selist delete 0 end
-         foreach cni [lindex $cfnetwops($copycni) 0] {
-            if {[lsearch -exact $netsel_ailist $cni] != -1} {
-               lappend netsel_selist $cni
-               .netsel.lb.sel.selist insert end $netsel_names($cni)
-            }
-         }
-         set suppressed [lindex $cfnetwops($copycni) 1]
-         foreach cni $netsel_ailist {
-            if {([lsearch -exact $suppressed $cni] == -1) && ([lsearch -exact $netsel_selist $cni] == -1)} {
-               lappend netsel_selist $cni
-               .netsel.lb.sel.selist insert end $netsel_names($cni)
-            }
-         }
-      }
-   }
-}
-
 ##  --------------------------------------------------------------------------
 ##  Helper functions for selecting and ordering list items
 ##
@@ -395,7 +308,8 @@ proc SelBoxCreate {lbox arr_ailist arr_selist arr_names} {
    scrollbar $lbox.ai.sb -orient vertical -command [list $lbox.ai.ailist yview] -takefocus 0
    if $do_scrollbar { pack $lbox.ai.sb -fill y -side left }
    listbox $lbox.ai.ailist -exportselection false -height $lbox_height -width 12 \
-                           -selectmode extended -relief ridge -yscrollcommand [list $lbox.ai.sb set]
+                           -selectmode extended -yscrollcommand [list $lbox.ai.sb set]
+   relief_listbox $lbox.ai.ailist
    pack $lbox.ai.ailist -side left -fill both -expand 1
    pack $lbox.ai -anchor nw -side left -pady 10 -padx 10 -fill both -expand 1
    bind $lbox.ai.ailist <<ListboxSelect>> [list + after idle [list SelBoxButtonPress $lbox orig]]
@@ -420,7 +334,8 @@ proc SelBoxCreate {lbox arr_ailist arr_selist arr_names} {
    frame $lbox.sel
    scrollbar $lbox.sel.sb -orient vertical -command [list $lbox.sel.selist yview] -takefocus 0
    listbox $lbox.sel.selist -exportselection false -height $lbox_height -width 12 \
-                            -selectmode extended -relief ridge -yscrollcommand [list $lbox.sel.sb set]
+                            -selectmode extended -yscrollcommand [list $lbox.sel.sb set]
+   relief_listbox $lbox.sel.selist
    if $do_scrollbar { pack $lbox.sel.sb -fill y -side left }
    pack $lbox.sel.selist -side left -fill both -expand 1
    pack $lbox.sel -anchor nw -side left -pady 10 -padx 10 -fill both -expand 1

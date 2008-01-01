@@ -24,28 +24,34 @@
 #
 #  Author: Tom Zoerner
 #
-# $Id: nxtvepg.pod,v 1.118.1.3 2006/12/21 21:52:39 tom Exp $
+# $Id: nxtvepg.pod,v 1.130 2008/01/01 01:13:28 tom Exp tom $
 # ---------------------------------------------------------------------------
 
 =head1 NAME
 
-nxtvepg - Decoder, Browser and Analyzer for the Nextview Electronic Programme Guide
+nxtvepg - Receiving, Browsing and Analyzing Nextview EPG data
 
 =head1 SYNOPSIS
 
 B<nxtvepg> S<[ options ]> S<[ database ]>
 
+B<nxtvepgd> S<[ daemon options ]> S<[ database ]>
+
 =head1 DESCRIPTION
 
 B<nxtvepg>
-is an X11 and Win32API application to decode, analyze and browse TV programme
-schedules transmitted on analog TV channels as defined in ETS 300 707:
-"Protocol for a TV Guide using electronic data transmission" by the
-European Telecommunications Standards Institute.
+is an X11 and Win32 application to receive, analyze and browse TV programme
+schedules transmitted on top of Teletext as defined by the European
+Telecommunications Standards Institute (ETSI) in ETS 300 707:
+"Protocol for a TV Guide using electronic data transmission".
 
-The Nextview standard was developed for use in TV sets, but the data can be
+B<nxtvepgd>
+is a stripped-down version of nxtvepg which only performs data acquisition
+as a background daemon process.
+
+The Nextview EPG standard was developed for use in TV sets, but the data can be
 received and used in a PC, too - provided you have a Teletext capable TV tuner
-card and are lucky enough to have a Nextview content provider in your country.
+card and are lucky enough to have a content provider in your country.
 
 B<nxtvepg>
 enables you to obtain free TV programme listings for all of the major
@@ -82,6 +88,13 @@ For up-to-date information check the nxtvepg homepage in the Internet
 (see the About popup in the Help menu). If you don't receive any of the
 channels listed above, you can only use the demo mode as described
 with the B<-demo> command line option.
+
+Since version 2.8.0 nxtvepg also allows to extract EPG data from teletext
+or import from external XMLTV sources. Note when importing data you need
+to take care to respect copyright, same as when exporting data. In particular,
+the German law does not permit "Web scraping", i.e. extraction of programme
+information from Internet sources without prior permission of the content
+provider.
 
 =head1 OPTIONS
 
@@ -148,6 +161,20 @@ Bt848, Bt849, Philips SAA7134, Conexant 23881).  If you have more
 than one TV card with the same chip, the order between those is undefined,
 but still constant (i.e. the order is determined by the driver, not nxtvepg)
 
+=item B<-dvbpid> I<number>
+
+UNIX only. Also only available when nxtvepg was configured at
+compile time (i.e. in the Makefile) to use the I<ZVBI library>
+(C<http://zapping.sf.net/>) for acquisition.
+
+This option enables data acquisition from a DVB device.  The channel
+must be tuned with an external application. The PID is the identifier
+of the data stream which contains Nextview EPG data.  The PID also
+must be determined by external means.  DVB support is still
+B<experimental> and not officially supported.  In particular, the
+EPG scan and acquisition modes which would require channel changing
+are not supported.
+
 =item B<-provider> I<CNI>
 
 Select a provider by its hexadecimal CNI (Country and Network Identifier),
@@ -167,9 +194,12 @@ The acquisition can still be started later from the Control menu
 
 =item B<-daemon>
 
-Start without the graphical user interface. The process will detach
-from the terminal (i.e. create an invisible window on M$ Windows) and
-perform background acquisition. If no other
+Start without graphical user interface and silently perform acquisition
+"in the background."  This option is implied when running I<nxtvepgd>.
+(The daemon-only executable is slightly more efficient since it's smaller
+and uses less libraries than the GUI executable and hence needs less memory.)
+
+If no other
 options are given the same provider and acquisition mode as configured with
 the GUI will be used. If the -provider option is given acquisition will work
 for this provider only (note the difference to non-daemon mode, where that
@@ -261,6 +291,14 @@ In this case the last mode (i.e. XMLTV DTD version) which was used
 via the main menu is used.  To export the database in another mode,
 use I<xml5>, I<xml5ltz> or I<xml6>.
 For more details see L<"CONTROL: Export as XMLTV">.
+
+To export programme data into a HTML document, use keyword I<html>
+as mode.  The same options as configured in the HTML export dialog
+are applied.  For details see L<"CONTROL: Export as HTML">.  The
+number of exported programmes can be limited by adding a number
+after the keyword, separated by a colon (e.g. C<-dump html:50>.)
+The format of the programme list is currently not configurable
+though.
 
 To export the database into a plain text file (e.g. for import into an
 SQL database) three mode keywords are supported:
@@ -357,6 +395,24 @@ after nxtvepg.  Some Linux distributions automatically take care of
 this during shutdown.
 
 
+=item B<-provscan> I<country>
+
+When started with this argument nxtvepg will start scanning all
+TV channels in the given country's frequency band for Nextview EPG
+providers. Countries are specified by their top-level Internet
+domain names (e.g. de, at, ch, fr, be)
+When the scan is finished, nxtvepg updates the provider list stored
+in the configuration file and terminates itself.
+The scan is performed in the same way as described in
+L<"GETTING STARTED: Search for Nextview providers"> and
+L<"CONFIGURATION: Provider scan">, just without the graphical
+user interface.
+
+During the scan nxtvepg reports progress to I<stdout> unless you
+redirect it into a file or pipe it into another program.
+See option I<-outfile> for details.
+
+
 =item B<-demo> I<path>
 
 Load database given by I<path>
@@ -371,12 +427,13 @@ List all available command line options.
 
 =back
 
-After the options you can add a database filename. This is equivalent
-to specifying B<-dbdir> and B<-provider>. The provider CNI is taken
-from the file name. If the file name does not have the format as
-defined in L<"FILES">, it's assumed to be a demo database and loaded
-just as with the B<-demo> option. The database filename argument
-silently overrides any previously given options.
+After the options you can add a database filename.  If it's a regular
+nxtvepg database, this is equivalent to specifying options B<-dbdir>
+and B<-provider> (if such options are provided, they are silently
+overridden in this case.) If it's a nxtvepg database, but the file name
+does not have the format as defined in L<"FILES">, it's assumed to be a
+demo database and loaded just as with the B<-demo> option.  Last but
+not least, it's also possible to name an XML file with XMLTV data.
 
 This is particularily useful for users of graphical file managers
 (like the Windows Explorer) who can just drag and drop a database file
@@ -399,7 +456,7 @@ I<acquisition>
 from here on), you have to do just a few configurations. Which
 ones depends on your setup and will be described in this chapter.
 As long as your browser window contains no data, there's also a
-recommondation how to get to data in the browser window,
+recommendation how to get to data in the browser window,
 highlighted by a yellow background.
 
 This manual describes all features of nxtvepg in detail. You
@@ -411,17 +468,47 @@ L<"DATA ACQUISITION"> and L<"FILTERING">.
 =head2 TV card Setup on M$ Windows
 
 Windows users first have to configure the driver for their TV card
-in the 'TV card input' dialog from the Configure menu (for additional
+in the "TV card input" dialog via the Configure menu (for additional
 information see also L<"CONFIGURATION: TV card input">).
 UNIX users can skip this section.
 
-To start card configuration, press the I<Configure card> button in the
-middle of the dialog window, which will open another dialog.  If no
-supported TV capture chips were found in your system, the button will
-be disabled.  In case you see a message claiming I<PCI scan failed>,
-this means the TV card driver could not be loaded.  In this case close
-all other video applications and try again or look up a detailed
-description of driver error messages in the README file.
+First you need to decide which driver to use: For TV cards with
+Brooktree Bt8x8 or Philips SAA713x capture chips, the I<dsdrv> driver
+should be preferred. For TV cards with Conexant CX2388x capture chips
+the WDM drivers should be preferred.  Generally, the internal driver
+is more reliable as it is optimized for teletext data acquisition while
+the vendors' WDM drivers usually are optimized for video and sometimes
+don't support teletext at all.  On the other hand, the dsdrv driver
+doesn't support all TV cards and sometimes there are conflicts when
+a WDM driver is installed for the same card (see also description of
+option "Stop conflicting WDM drivers...")
+
+By default nxtvepg doesn't include support for WDM. The reason for this
+separation is that the use of WDM is still experimental.  Hence you need
+to obtain a separate package with an interface library (VBIAcqWDMDrv.dll)
+You should unpack the contents of this package into the same directory
+as the nxtvepg executable.  If you don't have the library you'll see
+an error message stating "Failed to load WDM interface library" when
+switching to a WDM source. 
+
+If you chose to use a WDM driver, you can skip the next chapter and
+continue with the video input configuration.
+
+Note if both WDM and dsdrv drivers fail to work with nxtvepg, a third
+option may be to run nxtvepg in parallel to K!TV.  In this case the
+capturing is done inside of the TV application and teletext data is
+simply forwarded via shared memory to nxtvepg.
+
+
+=head2 Dsdrv driver configuration on M$ Windows
+
+To start driver configuration, press the I<Configure card> button in
+the middle of the "TV card input" dialog window, which will open another
+dialog.  If this button is disabled, this means no supported TV capture
+chips were found in your system.  (You'll also see an error message
+popup stating I<"PCI scan failed">; see also the README file for more
+details on driver error messages.) In this case your only option is to
+use the WDM driver (see the previous chapter.)
 
 First press the I<Autodetect> button to the right of the dialog window;
 this will read certain parameter values from non-volatile memory on
@@ -526,7 +613,7 @@ this mode will tell nxtvepg to set the TV tuner onto your receiver's
 channel (see also L<"ACQUISITION MODES"> for more details.)
 
 
-=head2 EPG scan: Search for Nextview providers
+=head2 Search for Nextview providers (EPG scan)
 
 This section only applies if you chose to use your TV card's internal
 tuner.  In this case the next step to get started is to run a provider
@@ -993,11 +1080,11 @@ PI blocks from an earlier database version.
 
 =item I<orange:>
 
-expired PI blocks from stream 1.
+expired PI blocks from stream 1 or an earlier database version.
 
 =item I<cyan:>
 
-expired PI blocks from stream 2.
+expired PI blocks from stream 2 and the current database version.
 
 =item I<yellow:>
 
@@ -2381,6 +2468,73 @@ Open a dialog that allows to control the background acquisition process.
 See L<"ACQUISITION MODES"> for more details.
 
 
+=head2 Teletext grabber
+
+B<Note> this is still an experimental feature. Support is still
+limited to German networks and configuration options are limited.
+
+Open a dialog which allows to enable and configure the teletext EPG
+grabber.  The grabber works by cyclically tuning all TV channels,
+loading the TV overview teletext pages (e.g. 301-309 in Germany)
+and building a small database from them.  For titles which contain
+references to other teletext pages, the grabber loads these pages
+too and extracts descriptions from them.  Finally the grabber's
+output is written into separate files in XMLTV format.
+
+The main intention of the grabber is to improve on the data provided
+by Nextview EPG.  The main disadvantage of teletext compared to
+Nextview is the long time it takes to grab teletext. The cause for
+the long duration is that most TV networks use sub-pages in their
+TV-schedules, so that it takes several cycles until all parts of a
+given page are loaded, usually at least 90 seconds.  Assuming only
+30 TV networks, the total load time is already 45 minutes. Another
+difficulty encountered by the teletext grabber is the lack of a
+standardized format for the schedules.  Hence the data extraction
+cannot always work correctly.  In particular the capabilities to
+extract theme categories and additional attributes are very limited.
+But these disadvantages can be compensated by merging teletext EPG
+with a Nextview EPG database (see L<"MERGED DATABASES">)
+
+To be able to use the grabber, you have to install a programm called
+"Perl" on your PC.  Perl is included within virtually every UNIX
+and Linux installation, so you probably already have it if you use
+one of these operating systems.  If not, you'll probably find it in
+section "programming languages" on your distribution's CD or DVD.
+M$-Windows users have to download and install Perl manually (from
+http://www.activestate.com/Products/ActivePerl/?mp=1 or
+http://www.cygwin.com/) and then specify the path to perl in the
+configuration dialog.  (Alternatively you can extend your C<PATH>
+environment variable so that perl.exe is automatically found.)
+
+By the default, the grabber is disabled since it's still experimental.
+To enable it, check the box at the top of the configuration dialog.
+If you haven't configured a TV application yet you'll get an error
+message, since the grabber requires a TV channel table. The grabber
+will retrieve EPG data starting with the first channel listed in
+the TV app's channel table, and then switch through one-by-one.
+Currently you cannot change the order or skip any programmes, but
+you can limit the number of channels in the configuration dialog.
+
+Note: When acquisition mode "Cyclic: Now - All" is selected
+(see L<"ACQUISITION MODES">) the grabber uses an optimized
+strategy during the "Now" stage in which waiting times are
+minimized by changing the order in which EPG data is read.
+This way the grabber requires about 15-20 seconds per channel
+in average. In the "Full" stage the grabber waits for the time
+given after I<capture duration> in the configuration dialog;
+by default that's 90 seconds (such a large value is required
+because programme descriptions are often transmitted on
+so-called "sub-pages" which are not included in every teletext
+cycle.)
+
+To use the grabbed data you have to wait until each channel has
+been visited at least once. After that you should see an XML
+file for each TV channel in the nxtvepg directory (named
+"ttx-XXX.xml" where XXX is the TV channel name.) These files
+will appear in the provider selection and merge dialogs and
+can then be used just like Nextview EPG providers.
+
+
 =head2 Provider scan
 
 Open a dialog that allows to start a scan across all TV channels for
@@ -2413,8 +2567,8 @@ Check the I<Slow> button if you have bad reception on some channels.
 In slow mode the scanner will not skip channels with "unstable"
 video signal (i.e. no PLL H-lock within 0.150 seconds) and wait
 twice as long as normal for everything, i.e. up to 4 seconds for a
-VPS/PDC channel identification and up to 90 seconds for EPG for known
-providers or if potential EPG data packets were found.  Note that you
+VPS/PDC channel identification and up to 90 seconds if potential
+EPG data packets were found.  Note that you
 can change this setting while the scan is running.
 
 Use the I<Refresh only> mode if you deleted your database files (or if you
@@ -2435,8 +2589,7 @@ you use one of the options described above) and check for a TV signal.
 If one is detected within 150 ms or if at least one teletext packet
 was received, the scan waits up to two seconds for a valid VPS/PDC
 channel identification.  At the same time it receives packets from all
-potential EPG teletext page addresses.  If a VPS/PDC code is read that
-belongs to one of the known EPG providers or valid data packets have
+potential EPG teletext page addresses.  If valid data packets have
 been received (which does not necessarily mean it's EPG, because other
 services could use the same encoding) the scan waits up to 45 seconds
 for EPG inventory messages (BI and AI blocks). You can watch these
@@ -2461,8 +2614,11 @@ This dialog contains more options on Windows than on UNIX platforms
 because on UNIX the driver is part of the operating system, whereas
 on Windows it's part of the application and has to be configured
 separately for every application.  Hence, before you can use nxtvepg
-you must configure your card in the I<Configure card> sub-dialog.
-Please refer to L<"GETTING STARTED"> for a description of this dialog.
+you must firstly decide between using the internal "dsdrv" driver
+and the card vendor's WDM driver; secondly, if using "dsdrv", you
+need to configure the driver for your hardware in the I<Configure card>
+sub-dialog.  Please refer to L<"GETTING STARTED"> for a detailed
+description of these steop.
 
 I<Video source> allows to choose which video input source to use,
 i.e. where you have connected an video input cable to the TV card:
@@ -2744,10 +2900,15 @@ With I<Xawtv window title> the info will be sent to xawtv and displayed
 in the window title. Except for this last option, you can configure the
 desired display duration with the slider at the bottom of the dialog.
 A duration of zero means the display will never be removed.
+Finally, with I<Use external application> an arbitrary external
+application can be invoked to display the information. Title and runtime
+information can be passed on the command line, in the same way as for
+external commands in the context menu
+(see L<"CONFIGURATION: Context menu configuration">)
 
 =back
 
-Windows only: in the middle of the dialog there's one line that
+In the middle of the dialog there's one line that
 indicates the current TV application connection status.  It contains
 the name of the connected application, or I<not connected> either if
 no TV application is running or if it doesn't support interaction with
@@ -2916,13 +3077,6 @@ include them again by selecting them in the left list and pressing I<Add>.
 You can change the order in the right list by selecting one or more networks
 and pressing the I<up> or I<down> arrows.
 
-If you want the same selection and order for all providers, you can simply
-copy your order and selection with the I<copy> popup menu;  this menu
-contains a list of all known providers.  Note that if you copy from a
-provider with less (or different) networks, those networks that are
-missing in the other provider's database appear at the end of the network
-selection in the right listbox.
-
 At the bottom of the dialog window there's an entry field named
 B<Air times> that allows to limit the program listing for a network
 to a given time frame. For example if you receive I<Arte> only from
@@ -3045,8 +3199,7 @@ For example
 would create a command that switches the TV app's channel to that of
 the currently selected programme (i.e. the same what the I<Tune TV>
 button does).  You should refer to the documentation of your TV app
-to see which commands it supports.  When no TV application is connected,
-such entries are automatically disabled.
+to see which commands it supports.
 
 =item B<Menu title> and B<Menu separator>
 
@@ -3342,6 +3495,9 @@ devices will appear in a subdirectory.  nxtvepg automatically detects
 the existance of this directory and will search the devices there
 instead of the regular paths.
 
+=item B</dev/dvb/adapter0/demux0>
+
+This device is used when option I<-dvbpid> is present.
 
 =item B</tmp/.vbi0.pid>, B</tmp/.vbi1.pid>, etc.
 
@@ -3489,15 +3645,16 @@ for instructions on which information must be included in a bug report.
 
 =head1 AUTHOR
 
-T. Zoerner, Nuremberg, Germany.
-
-Best way to provide feedback is via the discussion forum at the nxtvepg
-homepage, but you can also contact me personally via email:
+T. Zoerner
 C<tomzo (at) users (dot) sourceforge (dot) net>
 
-Many thanks to Kurt Lettmaier and Olaf Nöhring
-for the German translation of the manual;
-to Néo for the French translation of several web pages;
+The best way to provide feedback is via the discussion forum at the
+nxtvepg homepage.
+
+Many thanks
+to Néo for providing the installer for MS-Windows releases
+and for the French translation of several web pages;
+to Kurt Lettmaier and Olaf Nöhring for the German translation of the manual;
 to Thierry Ménétrier and Peter Rolf for their valuable feedback and suggestions;
 to Simon Barner for the FreeBSD port;
 to Matthieu for the French translation of PDC theme descriptors;

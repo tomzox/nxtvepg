@@ -44,7 +44,7 @@
  *
  *    Completely rewritten and functionality added by Tom Zoerner
  *
- *  $Id: tcl2c.c,v 1.14 2005/01/01 18:29:17 tom Exp tom $
+ *  $Id: tcl2c.c,v 1.15 2007/02/26 21:12:16 tom Exp tom $
  */
 
 #include <stdlib.h>
@@ -588,6 +588,18 @@ int main(int argc, char **argv)
                       (sscanf(line, "#=CONST= %127s %127[^\n]", var_name, proc_name) == 2) )
             {
                 AddSubstitution(var_name, proc_name, fpH);
+            }
+            else if (strncmp(line, "#=IF=", 5) == 0)
+            {
+                fprintf(fpC, "\"\n#if %s\"\\\n", line + 5);
+            }
+            else if (strncmp(line, "#=ELSE=", 8) == 0)
+            {
+                fprintf(fpC, "\"\n#else\n\"\\\n");
+            }
+            else if (strncmp(line, "#=ENDIF=", 8) == 0)
+            {
+                fprintf(fpC, "\"\n#endif\n\"\\\n");
             }
             // else: it's a comment, discard it
         }

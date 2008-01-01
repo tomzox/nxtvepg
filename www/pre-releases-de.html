@@ -1,18 +1,18 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="de">
-<!-- $Id: pre-releases-de.html,v 1.10 2007/01/28 13:20:15 tom Exp $ -->
+<!-- $Id: pre-releases-de.html,v 1.14 2008/01/06 20:32:58 tom Exp $ -->
 <HEAD>
 <TITLE>Downloadseite für Entwickler und Alphatester</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
 <META name="language" content="de">
 <META name="author" content="Tom Zoerner">
 <META name="copyright" content="Tom Zoerner">
-<META name="description" content="Software-Download von Alpha- und Beta-Releases der nxtvepg Nextview EPG Decoder Software.">
+<META name="description" content="Software-Download von Alpha- und Beta-Releases der nxtvepg Software.">
 <META name="robots" content="noindex">
 <LINK rel="stylesheet" type="text/css" href="nxtvepg.css">
 <LINK rel="shortcut icon" type="image/x-icon" href="nxtvepg.ico">
 <LINK rel="alternate" type="text/html" href="pre-releases.html" hreflang="en" lang="en" title="nexTView pre-release page">
-<LINK rel="top" href="http://nxtvepg.sourceforge.net/index-de.html" title="nexTView EPG Dekoder Homepage">
+<LINK rel="top" href="http://nxtvepg.sourceforge.net/index-de.html" title="nxtvepg homepage">
 </HEAD>
 <BODY>
 
@@ -121,14 +121,14 @@ Spalten in der rc/ini-Datei. Einmal gestartet 2.4.1 wird Ihre Konfiguration
 automatisch konvertiert. Machen Sie sich eine Kopie Ihrer alten rc/ini-Datei
 bevor Sie zum ersten Mal die 2.4.1 starten, um in der Lage zu sein,
 zur 2.4.0 zurückzukehren, falls Sie Bugs in 2.4.1 feststellen
--->
 
 Beachten Sie, dass sich das Format der rc/ini-Datei mehrmals während der
-Pre-Releases geändert hat, zuletzt in 2.8.0pre11. Die Datei wird
+Pre-Releases geändert hat, zuletzt in 2.8.0pre17. Die Datei wird
 während des ersten Starts automatisch aktualisiert, wenn eine von einer
 älteren Version geschriebene rc/ini-Datei in Gebrauch ist.
 Vergessen Sie nicht, eine Backup-Kopie anzulegen, sodass Sie immer noch
 zu älteren Versionen zurückkehren können.
+-->
 
 <!--
 Das Protokoll des Akquisitionsdaemon hat sich ebenfalls geändert,
@@ -136,20 +136,18 @@ folglich können Sie keine Verbindung mit einem 2.7.4pre0-Clienten zu
 2.7.3 oder älteren Daemons aufnehmen oder umgekehrt.
 -->
 </P>
-<P>
-<B>nxtvepg Release 2.8.0pre16 (28. Dezember 2006)</B>
-</P>
-<UL>
 <!--
-<LI>Neuestes Release ist 2.7.3 auf der regulären
-<A HREF="download.html">Download</A>-Seite.
+<P>
+<B>nxtvepg Release 2.8.0pre18 (9. September 2007)</B>
+</P>
 -->
+<UL>
+<LI>Neuestes Release ist 2.8.0,
+  verfügbar auf der regulären <A HREF="download.html">Download</A> Seite.
 <!--
 <LI><I>momentan sind keine Downloads verfügbar</I>
--->
 <LI>Quelltexte:
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre16.tar.gz">nxtvepg-2.8.0pre16.tar.gz</A> (ca. 1.8 MB)
-<!--
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre18.tar.gz">nxtvepg-2.8.0pre18.tar.gz</A> (ca. 1.8 MB)
 <BR>Beachten Sie: wenn Sie nxtvepg mit
 <A HREF="http://nxtvepg.sourceforge.net/tmp/README-proxy.txt">VBI Proxy</A>
 testen wollen (erlaubt mehrere simultane Nutzer eines VBI-Device), dann
@@ -158,18 +156,16 @@ nxtvepg-Makefile und holen Sie sich libzvbi aus dem CVS auf
 <A HREF="http://zapping.sourceforge.net">zapping.sourceforge.net</A>.
 <B>Wichtig</B>: Proxy-Support steht nicht länger im Hauptzweig.
 Sie müssen den Zweig "proxy" während des Auscheckens wählen.
--->
 <LI>Win32-Executable:
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre16-win.zip">nxtvepg-2.8.0pre16-win.zip</A> (ca. 1.8 MB)
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre18-win.zip">nxtvepg-2.8.0pre18-win.zip</A> (ca. 1.8 MB)
 
 <LI>Win32-Executable mit UTF-8 support:
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre16-win-utf8.zip">nxtvepg-2.8.0pre16-win-utf8.zip</A> (ca. 1.8 MB)
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre18-win-utf8.zip">nxtvepg-2.8.0pre18-win-utf8.zip</A> (ca. 1.8 MB)
     <BR>Diese Version ist für Benutzer geeignet die XMLTV Dateien importieren
     möchten die in UTF-8 kodiert sind (und sich nicht nach Latin-1 konvertieren
     lassen.)  UTF-8 support in nxtvepg ist jedoch noch nicht fertig implementiert.
     Nebenbei: unter UNIX kann UTF-8 support eingeschaltet werden indem die
     beiden UTF switches im Makefile eingeschalten werden.
-<!--
 <LI>Wenn Sie nicht die pre5 heruntergeladen haben, brauchen Sie auch die
 Tcl/Tk-Programmbibliotheken:
     <BR>Tcl/Tk 8.4.9 DLL: <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre5-tcltk.zip">nxtvepg-2.8.0pre5-tcltk.zip</A> (apx. 750 kB)
@@ -179,9 +175,8 @@ Tcl/Tk-Programmbibliotheken:
 <!--
 <BR>(Enthält nicht die Tcl/Tk-Programmbibliotheken; bitte kopieren Sie sich
 diese aus dem neuesten offiziellen Release.)
--->
 <LI>K!TV nexTView plugin:
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/NextViewPlugin-2.8.0pre16.zip">NextViewPlugin-2.8.0pre16.zip</A> (ca. 330 kB)
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/NextViewPlugin-2.8.0pre18.zip">NextViewPlugin-2.8.0pre18.zip</A> (ca. 330 kB)
     <BR>Ein update des plugins ist mit Version 2.8.0pre13 notwendig geworden
     wegen Änderungen am Interface zur TV-Applikation. (Dies ist jedoch
     voraussichtlich noch nicht die endgültige Version des Interfaces.)
@@ -189,17 +184,23 @@ diese aus dem neuesten offiziellen Release.)
 <LI>Um die Verwendung eines vom Hersteller mitgelieferten WDM-Treibers zu
 aktivieren, benötigen Sie eine zusätzliche DLL, die
    separat von Gérard Chevalier entwickelt wurde.  Download siehe unten.
+-->
 <!--
 <BR><B>Achtung:</B> Bitte beachten Sie, dass sich für Win32 die
 Konfigurationsparameter und Treiberversion der TV-Karten in pre7 geändert
 haben.
 Siehe den obigen Link zum Archiv der Mailingliste für Details.
--->
 <LI>Win32 TV-Simulator:
-    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre16-tvsim.zip">nxtvepg-2.8.0pre16-tvsim.zip</A><BR>
+    <A HREF="http://nxtvepg.sourceforge.net/tmp/nxtvepg-2.8.0pre18-tvsim.zip">nxtvepg-2.8.0pre18-tvsim.zip</A><BR>
 Bitte versuchen Sie, Probleme zu reproduzieren, die sich auf eine Interaktion
 zwischen K!TV mit der tvsim.exe beziehen, bevor Sie darüber berichten.
+-->
 </UL>
+
+<P>
+Einige ältere pre-releases sind noch im
+<A HREF="http://nxtvepg.sourceforge.net/tmp/">pre-release directory</A> zu finden.
+</P>
 
 <!-- ------------------------------------------------------------------------ -->
 
@@ -355,12 +356,6 @@ nur via nxtvepg ab Version 2.8.0pre13 unterstützt (siehe Konfigurationsmenü
 <!-- ------------------------------------------------------------------------ -->
 
 <HR WIDTH="75%">
-
-<H2>Historie aller Änderungen</H2>
-
-Siehe <A HREF="pre-releases.html#changelog">Change-Log</A> der englischen
-Ausgabe dieser Seite.
-
 
 <H2>Copyright &amp; Disclaimer</H2>
 <P>

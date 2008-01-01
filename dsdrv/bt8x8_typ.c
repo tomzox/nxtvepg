@@ -28,7 +28,7 @@
  *
  *  DScaler #Id: BT848Card_Types.cpp,v 1.41 2004/01/29 15:14:41 adcockj Exp #
  *
- *  $Id: bt8x8_typ.c,v 1.17 2006/12/21 20:10:44 tom Exp tom $
+ *  $Id: bt8x8_typ.c,v 1.18 2007/12/29 23:21:55 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_VBI
@@ -4202,7 +4202,7 @@ static uint AutoDetectTuner( TVCARD * pTvCard, uint CardId )
                 DWORD id;
                 WriteDword(BT848_GPIO_OUT_EN,( 0x18e0 )&0x00FFFFFFL);
                 id = ReadDword(BT848_GPIO_DATA);
-                dprintf1("AutoDetectTuner: Lifetec card. ID: %08x\n",id);
+                dprintf1("AutoDetectTuner: Lifetec card. ID: %08lx\n", id);
             }
             break;
           case TVCARD_MIRO:
@@ -4220,7 +4220,7 @@ static uint AutoDetectTuner( TVCARD * pTvCard, uint CardId )
                 //Id = ((Id >> 10) & 31) - 1;
                 Id = ((Id >> 10) & 63) - 1;
 
-                dprintf1("AutoDetectTuner: Miro/Pinnacle card. ID: 0x%08X\n",Id);
+                dprintf1("AutoDetectTuner: Miro/Pinnacle card. ID: 0x%08lX\n", Id);
 
                 if (Id < 32)
                 {
@@ -4230,7 +4230,7 @@ static uint AutoDetectTuner( TVCARD * pTvCard, uint CardId )
                     // Get additional data
                     Val = ReadDword(BT848_GPIO_DATA);
 
-                    dprintf1("AutoDetectTuner: Miro/Pinnacle card. Val: 0x%08X\n",Val);
+                    dprintf1("AutoDetectTuner: Miro/Pinnacle card. Val: 0x%08lX\n", Val);
                  }
                  else
                  {
@@ -4283,7 +4283,7 @@ static uint AutoDetectTuner( TVCARD * pTvCard, uint CardId )
                 WriteDword(BT848_GPIO_OUT_EN,( Out )&0x00FFFFFFL);
                     // all cards provide GPIO info, some have an additional eeprom
 
-                dprintf1("AutoDetectTuner: Flyvideo type card. Id: 0x%08X\n",Gpio);
+                dprintf1("AutoDetectTuner: Flyvideo type card. Id: 0x%08lX\n", Gpio);
 
                 // lowest 3 bytes are remote control codes (no handshake needed)
                     TType = (Gpio & 0x0f0000)>>16;

@@ -16,7 +16,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: pidescr.h,v 1.5 2003/09/19 21:56:27 tom Exp tom $
+ *  $Id: pidescr.h,v 1.8 2005/12/29 19:17:18 tom Exp tom $
  */
 
 #ifndef __PIDESCR_H
@@ -34,11 +34,20 @@ extern const schar alphaNumTab[256];
 #define ALNUM_LCHAR  -1
 #define ALNUM_NATION  4
 
+typedef struct
+{
+   FILE         * fp;
+   char         * pStrBuf;
+   uint         size;
+   uint         off;
+
+} PI_DESCR_BUF;
 
 // ----------------------------------------------------------------------------
 // Interface functions declaration
 
 typedef void (PiDescr_AppendInfoTextCb_Type) ( void *fp, const char * pDesc, bool addSeparator );
+void PiDescription_BufAppend( PI_DESCR_BUF * pBuf, const char * pStr, sint len );
 
 // Interface to PI listbox
 void PiDescription_AppendShortAndLongInfoText( const PI_BLOCK *pPiBlock,
@@ -46,15 +55,9 @@ void PiDescription_AppendShortAndLongInfoText( const PI_BLOCK *pPiBlock,
                                                void *fp, bool isMerged );
 void PiDescription_AppendCompressedThemes( const PI_BLOCK *pPiBlock, char * outstr, uint maxlen );
 void PiDescription_AppendFeatureList( const PI_BLOCK *pPiBlock, char * outstr );
-void PiDescription_UpdateText( const PI_BLOCK * pPiBlock, bool keepView );
-void PiDescription_ClearText( void );
 
 // Interface to filter module (series title lists)
 const char * PiDescription_RemoveSeriesIndex( const char * pTitle, char * outbuf, uint maxLen );
 const char * PiDescription_DictifyTitle( const char * pTitle, uchar lang, char * outbuf, uint maxLen );
-
-// Interface to main module
-void PiDescription_Init( void );
-void PiDescription_Destroy( void );
 
 #endif  // __PIDESCR_H

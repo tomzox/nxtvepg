@@ -22,14 +22,16 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgdbmerge.c,v 1.28 2003/10/05 19:13:36 tom Exp tom $
+ *  $Id: epgdbmerge.c,v 1.33 2007/12/30 21:49:10 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGDB
 #define DPRINTF_OFF
 
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <ctype.h>
 
 #include "epgctl/mytypes.h"
 #include "epgctl/debug.h"
@@ -45,11 +47,35 @@
 // internal shortcut
 typedef EPGDB_CONTEXT *PDBC;
 
+#undef MIN
+#undef MAX
+#define MIN(A,B) (((A)<=(B)) ? (A) : (B))
+#define MAX(A,B) (((A)>=(B)) ? (A) : (B))
+
+// ---------------------------------------------------------------------------
+// Helper function for debug output
+//
+#ifndef DPRINTF_OFF
+static const char * EpgDbMergePrintTime( const PI_BLOCK * pPi )
+{
+   static char buf[32];
+   struct tm * pTm;
+   size_t off;
+
+   pTm = localtime(&pPi->start_time);
+   off = strftime(buf, sizeof(buf), "%d.%m %H:%M", pTm);
+
+   pTm = localtime(&pPi->stop_time);
+   strftime(buf + off, sizeof(buf) - off, " - %H:%M", pTm);
+
+   return buf;
+}
+#endif // DPRINTF_OFF
 
 // ---------------------------------------------------------------------------
 // Append a PI block to the database
 //
-static void EpgDbMergeAddPiBlock( PDBC dbc, EPGDB_BLOCK * pBlock, EPGDB_BLOCK **pPrevNetwop )
+static void EpgDbMergeAddPiBlock( PDBC dbc, EPGDB_BLOCK * pBlock, EPGDB_BLOCK *pPrevBlock )
 {
    uchar netwop;
    
@@ -65,7 +91,6 @@ static void EpgDbMergeAddPiBlock( PDBC dbc, EPGDB_BLOCK * pBlock, EPGDB_BLOCK **
       pBlock->pNextBlock = NULL;
       dbc->pFirstPi = pBlock;
       dbc->pLastPi  = pBlock;
-      pPrevNetwop[netwop] = pBlock;
    }
    else
    {  // append to the end
@@ -78,17 +103,68 @@ static void EpgDbMergeAddPiBlock( PDBC dbc, EPGDB_BLOCK * pBlock, EPGDB_BLOCK **
       }
       else
       {
-         pPrevNetwop[netwop]->pNextNetwopBlock = pBlock;
-         pBlock->pPrevNetwopBlock = pPrevNetwop[netwop];
+         pPrevBlock->pNextNetwopBlock = pBlock;
+         pBlock->pPrevNetwopBlock = pPrevBlock;
       }
       pBlock->pNextNetwopBlock = NULL;
-      pPrevNetwop[netwop] = pBlock;
 
       // set pointers of start time chain
       pBlock->pPrevBlock = dbc->pLastPi;
       pBlock->pNextBlock = NULL;
       dbc->pLastPi->pNextBlock = pBlock;
       dbc->pLastPi = pBlock;
+   }
+}
+
+// ---------------------------------------------------------------------------
+// Combine linked PI of separated networks into one database
+//
+static void EpgDbMergeLinkNetworkPi( PDBC dbc, EPGDB_BLOCK ** pFirstNetwopBlock )
+{
+   EPGDB_BLOCK *pPrevNetwopBlock[MAX_NETWOP_COUNT];
+   EPGDB_BLOCK *pBlock;
+   time_t minStartTime;
+   uint minNetwop;
+   uint netwop, netCount;
+
+   // reset start links in DB context
+   dbc->pFirstPi = NULL;
+   dbc->pLastPi = NULL;
+   memset(dbc->pFirstNetwopPi, 0, sizeof(dbc->pFirstNetwopPi));
+
+   memset(pPrevNetwopBlock, 0, sizeof(pPrevNetwopBlock));
+   netCount = dbc->pAiBlock->blk.ai.netwopCount;
+
+   // combine blocks of separately merged networks into one database
+   while (1)
+   {
+      minStartTime = 0;
+      minNetwop = 0xff;
+
+      // search across all networks for the oldest block
+      for (netwop = 0; netwop < netCount; netwop++)
+      {
+         if (pFirstNetwopBlock[netwop] != NULL)
+         {
+            if ( (minStartTime == 0) ||
+                 (pFirstNetwopBlock[netwop]->blk.pi.start_time < minStartTime) )
+            {
+               minStartTime = pFirstNetwopBlock[netwop]->blk.pi.start_time;
+               minNetwop = netwop;
+            }
+         }
+      }
+
+      if (minStartTime == 0)
+         break;
+
+      // pop block off temporary per-network list
+      pBlock = pFirstNetwopBlock[minNetwop];
+      pFirstNetwopBlock[minNetwop] = pBlock->pNextNetwopBlock;
+      pBlock->pNextNetwopBlock = NULL;
+
+      EpgDbMergeAddPiBlock(dbc, pBlock, pPrevNetwopBlock[minNetwop]);
+      pPrevNetwopBlock[minNetwop] = pBlock;
    }
 }
 
@@ -106,7 +182,7 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
    uint slInfoLen;
    uint blockSize, off;
    uint dbCount, dbIdx, actIdx;
-   uint anyIdx, piCount;
+   uint firstIdx, piCount;
    uint idx, idx2;
    uchar stream, version;
    bool haveSeries;
@@ -116,25 +192,26 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
 
    version = 1;
    stream = 1;
-   anyIdx = 0xff;
+   firstIdx = 0xff;
    piCount = 0;
    for (dbIdx=0; dbIdx < dbCount; dbIdx++)
    {
       if (pFoundBlocks[dbIdx] != NULL)
       {
-         anyIdx = dbIdx;
+         if (firstIdx == 0xff)
+            firstIdx = dbIdx;
          piDesc[piCount].type = MERGE_DESCR_TYPE;
          piDesc[piCount].id   = dbIdx;
          piCount += 1;
          stream &= pFoundBlocks[dbIdx]->stream;
          if (pFoundBlocks[dbIdx]->version != ((pFoundBlocks[dbIdx]->stream == NXTV_STREAM_NO_1) ?
-                                              dbmc->pDbContext[dbIdx]->pAiBlock->blk.ai.version :
-                                              dbmc->pDbContext[dbIdx]->pAiBlock->blk.ai.version_swo))
+                                              dbmc->prov[dbIdx].pDbContext->pAiBlock->blk.ai.version :
+                                              dbmc->prov[dbIdx].pDbContext->pAiBlock->blk.ai.version_swo))
             version = 0;
       }
    }
    // abort if no PI are in the list
-   if (anyIdx == 0xff)
+   if (firstIdx == 0xff)
       return NULL;
 
    // get the first title
@@ -187,9 +264,9 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
    off = sizeof(PI_BLOCK);
 
    pPi->block_no          = 0;
-   pPi->netwop_no         = dbmc->netwopMap[anyIdx][pFoundBlocks[anyIdx]->blk.pi.netwop_no];
-   pPi->start_time        = pFoundBlocks[anyIdx]->blk.pi.start_time;
-   pPi->stop_time         = pFoundBlocks[anyIdx]->blk.pi.stop_time;
+   pPi->netwop_no         = dbmc->prov[firstIdx].netwopMap[pFoundBlocks[firstIdx]->blk.pi.netwop_no];
+   pPi->start_time        = pFoundBlocks[firstIdx]->blk.pi.start_time;
+   pPi->stop_time         = pFoundBlocks[firstIdx]->blk.pi.stop_time;
 
    pPi->background_ref    = 0;
    pPi->background_reuse  = 0;
@@ -370,7 +447,7 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
    }
 
    // VPS PIL
-   pPi->pil = 0x07FFF;
+   pPi->pil = 0x07FFF; // = VPS_PIL_CODE_SYSTEM
    for (dbIdx=0; dbIdx < dbCount; dbIdx++)
    {
       actIdx = dbmc->max[MERGE_TYPE_VPS][dbIdx];
@@ -450,293 +527,525 @@ static EPGDB_BLOCK * EpgDbMergePiBlocks( PDBC dbc, EPGDB_BLOCK **pFoundBlocks )
 }
 
 // ---------------------------------------------------------------------------
-// Merge all PI blocks
+// Determine if two PI from different databases can be merged
+// - Example for a critical case, i.e. adjacent programmes with the same title:
+//   DB#0 'Cheers' 21.11 04:00 - 04:20
+//   DB#0 'Cheers' 21.11 04:20 - 04:45
+//   DB#2 'Cheers' 21.11 03:59 - 04:22 
+//   DB#2 'Cheers' 21.11 04:22 - 04:45 
 //
-void EpgDbMergeAllPiBlocks( PDBC dbc )
+static bool EpgDbMerge_PiMatch( const PI_BLOCK * pRefPi, const PI_BLOCK * pNewPi )
+{
+   const uchar * p1, * p2, *pe, *ps;
+   sint ovl, rtmin, rtmax;
+   uint rt1, rt2;
+   bool result = FALSE;
+
+   if ( (pNewPi->start_time == pRefPi->start_time) &&
+        (pNewPi->stop_time == pRefPi->stop_time) )
+   {
+      result = TRUE;
+   }
+   else
+   {
+      // calculate overlap (note: can get negative, if they don't actually overlap)
+      ovl = MIN(pNewPi->stop_time, pRefPi->stop_time) -
+            MAX(pNewPi->start_time, pRefPi->start_time);
+
+      rt1 = (pNewPi->stop_time - pNewPi->start_time);
+      rt2 = (pRefPi->stop_time - pRefPi->start_time);
+      rtmin = MIN(rt1, rt2);
+      rtmax = MAX(rt1, rt2);
+
+      // must overlap at least by 50% of the larger one of both runtimes
+      // AND running times must not differ by more than factor 1.5
+      // OR special case: run-time 1 second, used on case of missing stop times in XMLTV
+
+      if ( ( (ovl > rtmax / 2) &&
+             (rtmin + rtmin/2 >= rtmax) ) ||
+           ( (rtmin == 1) &&
+             (abs(pNewPi->start_time - pRefPi->start_time) < 20*60)) )
+      {
+         // compare the titles
+         p1 = PI_GET_TITLE(pRefPi);
+         p2 = PI_GET_TITLE(pNewPi);
+         while (*p1 && *p2)
+         {
+            // ignore case
+            if ( (*p1 != *p2) &&
+                 (tolower(*p1) != tolower(*p2)) )
+            {
+               // TODO: ignore parity errors (i.e. spaces)
+               break;
+            }
+            else
+            {
+               p1++;
+               p2++;
+            }
+         }
+         // if one title is shorter: next must be non-alpha in longer one
+         pe = (*p1 != 0) ? p1 : p2;
+         ps = pe;
+         if (*ps != 0)
+         {
+            while (isspace(*ps))
+               ps++;
+         }
+         result = (*pe == 0) ||
+                  !isalnum(*ps) ||
+                  (isspace(*pe) && ((p1 - PI_GET_TITLE(pRefPi)) >= 20));
+      }
+      if (result == FALSE)
+         dprintf6("        CMP FAIL   '%s' %s -- %d,%d,%d,%d\n", PI_GET_TITLE(pNewPi), EpgDbMergePrintTime(pNewPi), ovl, rt1, rt2, abs(pNewPi->start_time - pRefPi->start_time));
+   }
+   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Merge all PI blocks of a single network
+//
+static void EpgDbMergeNetworkPi( PDBC dbc, time_t expireTime, uint netwop,
+                                 EPGDB_BLOCK **ppFirstNetwopBlock )
 {
    EPGDB_MERGE_CONTEXT * dbmc;
    EPGDB_BLOCK *pNextBlock[MAX_MERGED_DB_COUNT];
    EPGDB_BLOCK *pFoundBlocks[MAX_MERGED_DB_COUNT];
+   EPGDB_BLOCK *pPrevMerged;
    EPGDB_BLOCK *pBlock;
-   EPGDB_BLOCK *pPrevNetwopBlock[MAX_NETWOP_COUNT];
-   time_t firstStartTime, firstStopTime, minStartTime;
-   time_t expireTime;
-   uchar  netwop, minMappedNetwop, firstNetwop;
-   uint dbCount, dbIdx;
+   time_t firstStartTime, firstStopTime;
+   uint dbCount, dbIdx, firstIdx;
+   bool conflict;
 
    dbmc = dbc->pMergeContext;
    dbCount = dbmc->dbCount;
-   expireTime = time(NULL) - dbc->expireDelayPi;
-   minStartTime = 0;
-   minMappedNetwop = 0;
-   memset(pPrevNetwopBlock, 0, sizeof(pPrevNetwopBlock));
+   memset(pFoundBlocks, 0, sizeof(pFoundBlocks));
+
+   // get first non-expired block of this network from each DB
    for (dbIdx=0; dbIdx < dbCount; dbIdx++)
    {
-      pNextBlock[dbIdx] = dbmc->pDbContext[dbIdx]->pFirstPi;
-   }
-
-   // loop until all PI blocks are processed
-   while (1)
-   {
-      // find earliest unprocessed block
-      firstStartTime = 0;
-      firstStopTime = 0;  //compiler-dummy
-      firstNetwop = 0xff;
-      for (dbIdx=0; dbIdx < dbCount; dbIdx++)
+      uint dbNet = dbmc->prov[dbIdx].revNetwopMap[netwop];
+      if (dbNet != 0xff)
       {
-         // skip PI before the minimum start time
-         pBlock = pNextBlock[dbIdx];
+         pBlock = dbmc->prov[dbIdx].pDbContext->pFirstNetwopPi[dbNet];
          while ( (pBlock != NULL) &&
-                 ( (pBlock->blk.pi.start_time < minStartTime) ||
-                   (pBlock->blk.pi.stop_time < expireTime) ) )
+                 (pBlock->blk.pi.stop_time < expireTime) )
          {
-            pBlock = pBlock->pNextBlock;
+            pBlock = pBlock->pNextNetwopBlock;
          }
          pNextBlock[dbIdx] = pBlock;
+      }
+      else
+         pNextBlock[dbIdx] = NULL;
+   }
+   pPrevMerged = NULL;
 
-         while(pBlock != NULL)
+   // process all blocks (of all source DBs) of this target network
+   while (1)
+   {
+      firstStartTime = 0;
+      firstIdx = MAX_MERGED_DB_COUNT; //dummy
+
+      // determine the oldest unprocessed block of all DBs
+      for (dbIdx=0; dbIdx < dbCount; dbIdx++)
+      {
+         if (pNextBlock[dbIdx] != NULL)
          {
-            netwop = dbmc->netwopMap[dbIdx][pBlock->blk.pi.netwop_no];
-            if (netwop != 0xff)
+            pBlock = pNextBlock[dbIdx];
+            if ( (firstStartTime == 0) ||
+                 (pBlock->blk.pi.start_time < firstStartTime) )
             {
-               assert(pBlock->blk.pi.start_time >= minStartTime);  //enforced by while above
-               if ( (pBlock->blk.pi.start_time > minStartTime) || (netwop > minMappedNetwop) )
-               {
-                  if ( (firstStartTime == 0) ||
-                       (pBlock->blk.pi.start_time < firstStartTime) ||
-                       ((pBlock->blk.pi.start_time == firstStartTime) && (netwop < firstNetwop)) )
-                  {  // new minimum
-                     memset(pFoundBlocks, 0, sizeof(pFoundBlocks));
-                     pFoundBlocks[dbIdx] = pBlock;
-                     firstNetwop = netwop;
-                     firstStartTime = pBlock->blk.pi.start_time;
-                     firstStopTime  = pBlock->blk.pi.stop_time;
-                  }
-                  else if ( (pBlock->blk.pi.start_time == firstStartTime) &&
-                            (pBlock->blk.pi.stop_time == firstStopTime) &&
-                            (netwop == firstNetwop))
-                  {  // second occasion of minimum
-                     pFoundBlocks[dbIdx] = pBlock;
-                  }
-                  else if (pBlock->blk.pi.start_time > firstStartTime)
-                  {
-                     break;
-                  }
-               }
+               firstStartTime = pBlock->blk.pi.start_time;
+               firstIdx = dbIdx;
             }
-            pBlock = pBlock->pNextBlock;
          }
       }
 
-      if (firstNetwop == 0xff)
+      // exit loop when all blocks are processed
+      if (firstStartTime == 0)
          break;
 
-      assert((minStartTime != firstStartTime) || (minMappedNetwop != firstNetwop));
-      minStartTime = firstStartTime;
-      minMappedNetwop = firstNetwop;
-
-      // check for overlapping
-      if ( (pPrevNetwopBlock[firstNetwop] == NULL) ||
-           (firstStartTime >= pPrevNetwopBlock[firstNetwop]->blk.pi.stop_time) )
+      // identify which blocks can be merged
+      dprintf4("MERGE: DB#%d net#%d '%s' %s\n", firstIdx, netwop, PI_GET_TITLE(&pNextBlock[firstIdx]->blk.pi), EpgDbMergePrintTime(&pNextBlock[firstIdx]->blk.pi));
+      pFoundBlocks[firstIdx] = pNextBlock[firstIdx];
+      for (dbIdx=0; dbIdx < dbCount; dbIdx++)
       {
-         bool conflict = FALSE;
-
-         for (dbIdx=0; (dbIdx < dbCount) && (conflict == FALSE); dbIdx++)
+         pBlock = pNextBlock[dbIdx];
+         if ( (pBlock != NULL) &&
+              (pFoundBlocks[dbIdx] == NULL) &&
+              EpgDbMerge_PiMatch(&pFoundBlocks[firstIdx]->blk.pi, &pBlock->blk.pi) )
          {
-            if (pFoundBlocks[dbIdx] == NULL)
+            dprintf4("       DB#%d net#%d '%s' %s\n", dbIdx, netwop, PI_GET_TITLE(&pBlock->blk.pi), EpgDbMergePrintTime(&pBlock->blk.pi));
+            pFoundBlocks[dbIdx] = pBlock;
+
+            if (firstIdx > dbIdx)
+               firstIdx = dbIdx;
+         }
+      }
+
+      // check for overlapping with previous merged block of same network
+      // (note: doing this after PI matching because start time may change)
+      if ( (pPrevMerged != NULL) &&
+           (pFoundBlocks[firstIdx]->blk.pi.start_time < pPrevMerged->blk.pi.stop_time) )
+      {
+         dprintf1("-----  OVERLAP prev. stop %s\n", EpgDbMergePrintTime(&pPrevMerged->blk.pi));
+      }
+      else
+      {
+         // check all databases of higher prio for conflicts with following blocks
+         firstStopTime  = pFoundBlocks[firstIdx]->blk.pi.stop_time;
+         conflict = FALSE;
+         for (dbIdx=0; dbIdx < firstIdx; dbIdx++)
+         {
+            if (pNextBlock[dbIdx] != NULL)
             {
-               pBlock = pNextBlock[dbIdx];
-               while ((pBlock != NULL) && (pBlock->blk.pi.start_time <= firstStopTime))
+               if (pNextBlock[dbIdx]->blk.pi.start_time < firstStopTime)
                {
-                  if ((dbmc->netwopMap[dbIdx][pBlock->blk.pi.netwop_no] == firstNetwop) &&
-                      (pBlock->blk.pi.start_time < firstStopTime))
-                  {
-                     conflict = TRUE;
-                     break;
-                  }
-                  pBlock = pBlock->pNextBlock;
+                  dprintf1("-----  OVERLAP next: DB#%d\n", dbIdx);
+                  conflict = TRUE;
+                  break;
                }
             }
+         }
+
+         if (conflict == FALSE)
+         {
+            // merge all equivalent blocks
+            pBlock = EpgDbMergePiBlocks(dbc, pFoundBlocks);
+
+            // append the merged block to the linked list
+            pBlock->pNextNetwopBlock = NULL;
+            if (*ppFirstNetwopBlock == NULL)
+               *ppFirstNetwopBlock = pBlock;
             else
-            {  // all checked, no overlapping
-               // merge all equivalent blocks
-               pBlock = EpgDbMergePiBlocks(dbc, pFoundBlocks);
-               // append the merged block to the database
-               EpgDbMergeAddPiBlock(dbc, pBlock, pPrevNetwopBlock);
-               break;
-            }
+               pPrevMerged->pNextNetwopBlock = pBlock;
+            pPrevMerged = pBlock;
+         }
+      }
+
+      // finally skip over processed blocks
+      for (dbIdx=0; dbIdx < dbCount; dbIdx++)
+      {
+         if (pFoundBlocks[dbIdx] != NULL)
+         {
+            pNextBlock[dbIdx] = pNextBlock[dbIdx]->pNextNetwopBlock;
+            pFoundBlocks[dbIdx] = NULL;
          }
       }
    }
 }
 
 // ---------------------------------------------------------------------------
-// Search equivalent PI in all dbs for insertion PI and check for conflicts
+// Merge all PI blocks
 //
-static bool EpgDbMergeGetPiEquivs( EPGDB_MERGE_CONTEXT * dbmc, EPGDB_BLOCK * pNewBlock, EPGDB_BLOCK ** pFoundBlocks )
+void EpgDbMergeAllPiBlocks( PDBC dbc )
+{
+   EPGDB_BLOCK *pFirstNetwopBlock[MAX_NETWOP_COUNT];
+   time_t expireTime;
+   uint netwop, netCount;
+
+   netCount = dbc->pAiBlock->blk.ai.netwopCount;
+   expireTime = time(NULL) - dbc->expireDelayPi;
+   memset(pFirstNetwopBlock, 0, sizeof(pFirstNetwopBlock));
+
+   // loop across target networks: merge networks separately
+   for (netwop = 0; netwop < netCount; netwop++)
+   {
+      EpgDbMergeNetworkPi(dbc, expireTime, netwop, &pFirstNetwopBlock[netwop]);
+   }
+
+   // combine networks into a single database
+   EpgDbMergeLinkNetworkPi(dbc, pFirstNetwopBlock);
+
+   assert(EpgDbCheckChains(dbc));
+}
+
+// ---------------------------------------------------------------------------
+// Replace all blocks of one network
+//
+void EpgDbMergeUpdateNetwork( EPGDB_CONTEXT * pDbContext, uint srcNetwop, EPGDB_BLOCK * pNewBlock )
+{
+   EPGDB_MERGE_CONTEXT * dbmc;
+   EPGDB_BLOCK *pFirstNetwopBlock[MAX_NETWOP_COUNT];
+   EPGDB_CONTEXT * pAcqDbContext;
+   EPGDB_BLOCK *pMergedPi;
+   EPGDB_BLOCK *pBlock, *pNext;
+   time_t expireTime;
+   uint netwop;
+
+   assert(pDbContext->merged);
+
+   dbmc = pDbContext->pMergeContext;
+   pAcqDbContext = dbmc->prov[dbmc->acqIdx].pDbContext;
+
+   netwop = dbmc->prov[dbmc->acqIdx].netwopMap[pNewBlock->blk.pi.netwop_no];
+   if (netwop != 0xff)
+   {
+      expireTime = time(NULL) - pAcqDbContext->expireDelayPi;
+      pMergedPi = NULL;
+
+      EpgDbMergeNetworkPi(pDbContext, expireTime, netwop, &pMergedPi);
+
+      // free old blocks of the newly merged network
+      pBlock = pDbContext->pFirstNetwopPi[netwop];
+      while (pBlock != NULL)
+      {
+         pNext = pBlock->pNextNetwopBlock;
+         xfree(pBlock);
+         pBlock = pNext;
+      }
+
+      // copy network block lists and insert newly merged blocks
+      memcpy(pFirstNetwopBlock, pDbContext->pFirstNetwopPi, sizeof(pFirstNetwopBlock));
+      pFirstNetwopBlock[netwop] = pMergedPi;
+
+      EpgDbMergeLinkNetworkPi(pDbContext, pFirstNetwopBlock);
+
+      assert(EpgDbCheckChains(pDbContext));
+
+      // update GUI
+      if (pDbContext->pPiAcqCb != NULL)
+         pDbContext->pPiAcqCb(pDbContext, EPGDB_PI_RESYNC, NULL, NULL);
+   }
+}
+
+// ---------------------------------------------------------------------------
+// Search equivalent PI in all dbs for insertion PI
+// - result is NULL if the new block overlaps other blocks of higher-prio providers
+// - returns all blocks which are to be merged in pFoundBlocks (including the new one)
+// - the function can be called repeatedly for adjacent new blocks (with increasing
+//   start times); as an optimization for this case the starting block for each
+//   provider db is maintained across calls in pStartBlocks.
+//
+static bool EpgDbMergeGetPiEquivs( EPGDB_MERGE_CONTEXT * dbmc, EPGDB_BLOCK * pNewBlock,
+                                   EPGDB_BLOCK ** pFoundBlocks, EPGDB_BLOCK ** pStartBlocks )
 {
    EPGDB_BLOCK *pWalk, *pPrev;
-   uchar mappedNetwop, netwop;
+   EPGDB_BLOCK *pRefBlock;
+   uint firstIdx;
    uint dbIdx;
+   bool match;
+   bool conflict = FALSE;
 
    memset(pFoundBlocks, 0, sizeof(EPGDB_BLOCK *) * dbmc->dbCount);
-   mappedNetwop = dbmc->netwopMap[dbmc->acqIdx][pNewBlock->blk.pi.netwop_no];
+   pFoundBlocks[dbmc->acqIdx] = pNewBlock;
+   firstIdx = dbmc->acqIdx;
 
-   if (mappedNetwop != 0xff)
+   // search the first db that covers the time range of the new PI := master PI
+   for (dbIdx=0; dbIdx < dbmc->dbCount; dbIdx++)
    {
-      // search the first db that covers the time range of the new PI := master PI
-      for (dbIdx=0; dbIdx < dbmc->acqIdx; dbIdx++)
+      if (dbIdx != dbmc->acqIdx)
       {
-         netwop = dbmc->revNetwopMap[dbIdx][mappedNetwop];
-         if (netwop < dbmc->pDbContext[dbIdx]->pAiBlock->blk.ai.netwopCount)
+         if (pStartBlocks[dbIdx] != NULL)
          {
-            pWalk = dbmc->pDbContext[dbIdx]->pFirstNetwopPi[netwop];
-            pPrev = NULL;
+            pWalk = pStartBlocks[dbIdx];
+            pPrev = pWalk->pPrevNetwopBlock;
             while ( (pWalk != NULL) &&
-                    (pWalk->blk.pi.start_time < pNewBlock->blk.pi.start_time) )
+                    (pWalk->blk.pi.stop_time <= pNewBlock->blk.pi.start_time) )
             {
                pPrev = pWalk;
                pWalk = pWalk->pNextNetwopBlock;
             }
-            // test for conflicting run-time
-            if ( (pPrev != NULL) && (pPrev->blk.pi.stop_time > pNewBlock->blk.pi.start_time) )
-            {  // previous block overlaps -> refuse the new block
-               pNewBlock = NULL;
-               break;
-            }
             if (pWalk != NULL)
-            {
-               if ( (pWalk->blk.pi.start_time == pNewBlock->blk.pi.start_time) &&
-                    (pWalk->blk.pi.stop_time == pNewBlock->blk.pi.stop_time) )
-               {  // equivalent block -> found master PI
-                  pFoundBlocks[dbIdx] = pWalk;
-                  break;
-               }
-               else if (pWalk->blk.pi.start_time < pNewBlock->blk.pi.stop_time)
-               {
-                  // new block overlaps -> refuse
-                  pNewBlock = NULL;
-                  break;
-               }
-            }
-         }
-      }
-
-      if (pNewBlock != NULL)
-      {  // no conflicts
-
-         // find equivalent PIs in the following dbs
-         for ( ; dbIdx < dbmc->dbCount; dbIdx++)
-         {
-            if (dbIdx != dbmc->acqIdx)
-            {
-               netwop = dbmc->revNetwopMap[dbIdx][mappedNetwop];
-               if (netwop < dbmc->pDbContext[dbIdx]->pAiBlock->blk.ai.netwopCount)
-               {
-                  pWalk = dbmc->pDbContext[dbIdx]->pFirstNetwopPi[netwop];
-                  while ( (pWalk != NULL) &&
-                          (pWalk->blk.pi.start_time < pNewBlock->blk.pi.start_time) )
-                  {
-                     pWalk = pWalk->pNextNetwopBlock;
-                  }
-
-                  if ( (pWalk != NULL) &&
-                       (pWalk->blk.pi.start_time == pNewBlock->blk.pi.start_time) &&
-                       (pWalk->blk.pi.stop_time == pNewBlock->blk.pi.stop_time) )
-                  {  // equivalent block -> add to merge set
-                     pFoundBlocks[dbIdx] = pWalk;
-                  }
-               }
-            }
+               pStartBlocks[dbIdx] = pWalk;
             else
-            {  // no need to search for the block to be inserted
-               pFoundBlocks[dbIdx] = pNewBlock;
+               pStartBlocks[dbIdx] = pPrev;
+
+            // in case of overlap by a preceding block, try to match
+            match = FALSE;
+            if ( (pWalk != NULL) && (pWalk->blk.pi.start_time < pNewBlock->blk.pi.start_time) )
+            {
+               assert(pWalk->blk.pi.stop_time > pNewBlock->blk.pi.start_time);  //due to while
+
+               match = EpgDbMerge_PiMatch(&pNewBlock->blk.pi, &pWalk->blk.pi);
+               if (match == FALSE)
+               {
+                  // match failed -> skip to next block
+                  pWalk = pWalk->pNextNetwopBlock;
+               }
+            }
+
+            // try match with the next block (start time >= new block's start)
+            // but only if there's an overlap
+            if ( (match == FALSE) &&
+                 (pWalk != NULL) &&
+                 (pWalk->blk.pi.start_time < pNewBlock->blk.pi.stop_time) )
+            {
+               // must loop in case there are several very short programmes which
+               // overlap or fall into the runtime of the matching programme
+               do
+               {
+                  match = EpgDbMerge_PiMatch(&pNewBlock->blk.pi, &pWalk->blk.pi);
+
+               } while ( (match == FALSE) &&
+                         ((pWalk = pWalk->pNextNetwopBlock) != NULL) &&
+                         (pWalk->blk.pi.start_time < pNewBlock->blk.pi.stop_time) );
+            }
+            if (match)
+            {
+               dprintf3("        DB#%d       '%s' %s\n", dbIdx, PI_GET_TITLE(&pWalk->blk.pi), EpgDbMergePrintTime(&pWalk->blk.pi));
+               pFoundBlocks[dbIdx] = pWalk;
+               if (firstIdx > dbIdx)
+                  firstIdx = dbIdx;
             }
          }
-         return TRUE;
       }
       else
-         return FALSE;
+      {  // special case: acquisition database - no matching needed
+         uint dbIdx2;
+         // instead, check for conflicts with non-matched blocks of higher-prio databases
+         // (delayed, because start time may heve been altered due to matches with higher-prio db)
+         pRefBlock = pFoundBlocks[firstIdx];
+         for (dbIdx2=0; dbIdx2 < dbmc->acqIdx; dbIdx2++)
+         {
+            pWalk = pStartBlocks[dbIdx2];
+            if ((pFoundBlocks[dbIdx2] == NULL) && (pWalk != NULL))
+            {
+               // backtracking may be necessary due to time-shift during PI matching
+               pPrev = pWalk;
+               while ( (pPrev != NULL) &&
+                       (pPrev->blk.pi.start_time >= pRefBlock->blk.pi.start_time) )
+               {
+                  pWalk = pPrev;
+                  pPrev = pPrev->pPrevNetwopBlock;
+               }
+               pStartBlocks[dbIdx2] = pWalk;
+
+               // test for conflicting run-time
+               if ( (pPrev != NULL) &&
+                    (pPrev->blk.pi.stop_time > pRefBlock->blk.pi.start_time) )
+               {  // previous block overlaps -> refuse the new block
+                  dprintf3("------: OVLAP PREV DB#%d '%s' %s\n", dbIdx2, PI_GET_TITLE(&pPrev->blk.pi), EpgDbMergePrintTime(&pPrev->blk.pi));
+                  conflict = TRUE;
+                  break;
+               }
+               if ( (pWalk != NULL) &&
+                    (pWalk->blk.pi.start_time < pRefBlock->blk.pi.stop_time) &&
+                    (pWalk->blk.pi.stop_time > pRefBlock->blk.pi.start_time) )
+               {
+                  // following block overlaps -> refuse
+                  dprintf3("------  OVERLAP NEXT DB#%d '%s' %s\n", dbIdx2, PI_GET_TITLE(&pNewBlock->blk.pi), EpgDbMergePrintTime(&pNewBlock->blk.pi));
+                  conflict = TRUE;
+                  break;
+               }
+            }
+         }
+         if (conflict)
+            break;
+      }
    }
-   else
-      return FALSE;
+   return !conflict;
 }
 
 // ---------------------------------------------------------------------------
 // Insert a PI block into the merged db
 // - called after the block was inserted to its provider's database
+// - with flag "allBlocks" all PI of one network can be updated
+//   (e.g. to update after an update of a database with few networks)
 // 
-void EpgDbMergeInsertPi( EPGDB_MERGE_CONTEXT * dbmc, EPGDB_BLOCK * pNewBlock )
+void EpgDbMergeInsertPi( EPGDB_CONTEXT * pDbContext, EPGDB_BLOCK * pNewBlock )
 {
+   EPGDB_MERGE_CONTEXT * dbmc;
    EPGDB_BLOCK *pFoundBlocks[MAX_MERGED_DB_COUNT];
+   EPGDB_BLOCK *pStartBlocks[MAX_MERGED_DB_COUNT];
    EPGDB_BLOCK *pWalk, *pPrev, *pNext;
+   EPGDB_BLOCK *pPrevMerged;
+   EPGDB_BLOCK *pMergedBlock;
+   uchar mappedNetwop, netwop;
+   uint dbIdx;
 
-   // find equivalent blocks in all other dbs and check for conflicts with higher-priorized PI
-   if ( EpgDbMergeGetPiEquivs(dbmc, pNewBlock, pFoundBlocks) )
+   assert(pDbContext->merged);
+   dbmc = pDbContext->pMergeContext;
+
+   if (pDbContext->pPiAcqCb != NULL)
+      pDbContext->pPiAcqCb(pDbContext, EPGDB_PI_PROC_START, NULL, NULL);
+
+   mappedNetwop = dbmc->prov[dbmc->acqIdx].netwopMap[pNewBlock->blk.pi.netwop_no];
+   if (mappedNetwop != 0xff)
    {
-      if (pUiDbContext->pPiAcqCb != NULL)
-         pUiDbContext->pPiAcqCb(pUiDbContext, EPGDB_PI_PROC_START, NULL, NULL);
+      dprintf4("INSERT: DB#%d net#%d '%s' %s\n", dbmc->acqIdx, mappedNetwop, PI_GET_TITLE(&pNewBlock->blk.pi), EpgDbMergePrintTime(&pNewBlock->blk.pi));
 
-      // merge the found blocks
-      pNewBlock = EpgDbMergePiBlocks(pUiDbContext, pFoundBlocks);
-
-      // find the insertion position in the merged db
-      pWalk = pUiDbContext->pFirstNetwopPi[pNewBlock->blk.pi.netwop_no];
-      pPrev = NULL;
-      while ( (pWalk != NULL) &&
-              (pWalk->blk.pi.start_time < pNewBlock->blk.pi.start_time) )
+      for (dbIdx=0; dbIdx < dbmc->dbCount; dbIdx++)
       {
-         pPrev = pWalk;
-         pWalk = pWalk->pNextNetwopBlock;
+         netwop = dbmc->prov[dbIdx].revNetwopMap[mappedNetwop];
+         if (netwop < dbmc->prov[dbIdx].pDbContext->pAiBlock->blk.ai.netwopCount)
+            pStartBlocks[dbIdx] = dbmc->prov[dbIdx].pDbContext->pFirstNetwopPi[netwop];
+         else
+            pStartBlocks[dbIdx] = NULL;
       }
+      pPrevMerged = pDbContext->pFirstNetwopPi[mappedNetwop];
 
-      if ( (pWalk != NULL) &&
-           (pWalk->blk.pi.start_time == pNewBlock->blk.pi.start_time) &&
-           (pWalk->blk.pi.stop_time  == pNewBlock->blk.pi.stop_time) )
-      {  // special case: replacing a block with identical ordering keys
-         // (this case is handled special for performance reasons only:
-         // conflict handling and search of exact insert position is not needed here)
-
-         EpgDbReplacePi(pUiDbContext, pWalk, pNewBlock);
-      }
-      else
+      // find equivalent blocks in all other dbs and check for conflicts with higher-priorized PI
+      if ( EpgDbMergeGetPiEquivs(dbmc, pNewBlock, pFoundBlocks, pStartBlocks) )
       {
-         pNext = pWalk;
-         // delete conflicting blocks in the merged db
-         // (this also covers a replacement of an equivalent block)
-         pWalk = pPrev;
-         while ( (pWalk != NULL) && (pWalk->blk.pi.stop_time > pNewBlock->blk.pi.start_time) )
-         {  // previous blocks overlaps the new one -> remove it
-            dprintf4("+++++++ DELETE: ptr=%lx prev=%lx start=%ld > %ld\n", (ulong)pNewBlock, (ulong)pWalk, pWalk->blk.pi.start_time, pNewBlock->blk.pi.start_time);
-            pPrev = pWalk->pPrevNetwopBlock;
-            EpgDbPiRemove(pUiDbContext, pWalk);
-            xfree(pWalk);
-            pWalk = pPrev;
-         }
+         // merge the found blocks
+         pMergedBlock = EpgDbMergePiBlocks(pDbContext, pFoundBlocks);
 
-         pWalk = pNext;
-         while( (pWalk != NULL) && (pNewBlock->blk.pi.stop_time > pWalk->blk.pi.start_time) )
+         // find the insertion position in the merged db
+         pWalk = pPrevMerged;
+         pPrev = NULL;
+         while ( (pWalk != NULL) &&
+                 (pWalk->blk.pi.start_time < pMergedBlock->blk.pi.start_time) )
          {
-            dprintf4("+++++++ DELETE: ptr=%lx next=%lx overlapped: start=%ld < stop %ld\n", (ulong)pNewBlock, (ulong)pWalk, pWalk->blk.pi.start_time, pNewBlock->blk.pi.stop_time);
-            pNext = pWalk->pNextNetwopBlock;
-            EpgDbPiRemove(pUiDbContext, pWalk);
-            xfree(pWalk);
-            pWalk = pNext;
+            pPrev = pWalk;
+            pWalk = pWalk->pNextNetwopBlock;
          }
 
-         // find the exact insertion position and link the new PI inbetween
-         EpgDbLinkPi(pUiDbContext, pNewBlock, pPrev, pNext);
+         if ( (pWalk != NULL) &&
+              (pWalk->blk.pi.start_time == pMergedBlock->blk.pi.start_time) &&
+              (pWalk->blk.pi.stop_time  == pMergedBlock->blk.pi.stop_time) )
+         {  // special case: replacing a block with identical ordering keys
+            // (this case is handled special for performance reasons only:
+            // conflict handling and search of exact insert position is not needed here)
+
+            EpgDbReplacePi(pDbContext, pWalk, pMergedBlock);
+         }
+         else
+         {
+            pNext = pWalk;
+            // delete conflicting blocks in the merged db
+            // (this also covers a replacement of an equivalent block)
+            pWalk = pPrev;
+            while ( (pWalk != NULL) && (pWalk->blk.pi.stop_time > pMergedBlock->blk.pi.start_time) )
+            {  // previous blocks overlaps the new one -> remove it
+               dprintf2("+++++++ DELETE PREV '%s' %s\n", PI_GET_TITLE(&pWalk->blk.pi), EpgDbMergePrintTime(&pWalk->blk.pi));
+               pPrev = pWalk->pPrevNetwopBlock;
+               EpgDbPiRemove(pDbContext, pWalk);
+               xfree(pWalk);
+               pWalk = pPrev;
+            }
+
+            pWalk = pNext;
+            while( (pWalk != NULL) && (pMergedBlock->blk.pi.stop_time > pWalk->blk.pi.start_time) )
+            {
+               dprintf2("+++++++ DELETE NEXT '%s' %s\n", PI_GET_TITLE(&pWalk->blk.pi), EpgDbMergePrintTime(&pWalk->blk.pi));
+               pNext = pWalk->pNextNetwopBlock;
+               EpgDbPiRemove(pDbContext, pWalk);
+               xfree(pWalk);
+               pWalk = pNext;
+            }
+
+            // find the exact insertion position and link the new PI inbetween
+            EpgDbLinkPi(pDbContext, pMergedBlock, pPrev, pNext);
+         }
+
+         // append the block's covered time range to the PI timescale queue
+         if (dbmc->tscEnable)
+            EpgTscQueue_AddPi(&dbmc->tscQueue, pDbContext, &pMergedBlock->blk.pi, pMergedBlock->stream);
+
+         pPrevMerged = pMergedBlock;
       }
 
-      assert(EpgDbCheckChains(pUiDbContext));
-      // if blocks were removed, re-evaluate scrollbar position
-      if (pUiDbContext->pPiAcqCb != NULL)
-         pUiDbContext->pPiAcqCb(pUiDbContext, EPGDB_PI_PROC_DONE, NULL, NULL);
-
-      // append the block's covered time range to the PI timescale queue
-      if (dbmc->tscEnable)
-         EpgTscQueue_AddPi(&dbmc->tscQueue, pUiDbContext, &pNewBlock->blk.pi, pNewBlock->stream);
+      pNewBlock = pNewBlock->pNextNetwopBlock;
    }
+   else
+      dprintf2("MergePi: netwop=%d of prov idx #%d is not merged\n", pNewBlock->blk.pi.netwop_no, dbmc->acqIdx);
+
+   assert(EpgDbCheckChains(pDbContext));
+
+   // if blocks were removed, re-evaluate scrollbar position
+   if (pDbContext->pPiAcqCb != NULL)
+      pDbContext->pPiAcqCb(pDbContext, EPGDB_PI_PROC_DONE, NULL, NULL);
 }
 
 // ---------------------------------------------------------------------------
@@ -776,7 +1085,7 @@ void EpgDbMerge_ResetPiVersion( PDBC dbc, uint dbIdx )
 //
 static uchar * EpgDbMergeAiServiceNames( EPGDB_MERGE_CONTEXT * dbmc )
 {
-   static const uchar * const mergedServiceName = "Merged database (";
+   static const uchar * const mergedServiceName = "Merged EPG providers (";
    AI_BLOCK  * pAi;
    uint dbIdx, len;
    const uchar *name;
@@ -786,7 +1095,7 @@ static uchar * EpgDbMergeAiServiceNames( EPGDB_MERGE_CONTEXT * dbmc )
    len = strlen(mergedServiceName) + 5;
    for (dbIdx=0; dbIdx < dbmc->dbCount; dbIdx++)
    {
-      pAi = (AI_BLOCK *) &dbmc->pDbContext[dbIdx]->pAiBlock->blk.ai;
+      pAi = (AI_BLOCK *) &dbmc->prov[dbIdx].pDbContext->pAiBlock->blk.ai;
       name = AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop);
       len += strlen(name) + 2;
    }
@@ -798,7 +1107,7 @@ static uchar * EpgDbMergeAiServiceNames( EPGDB_MERGE_CONTEXT * dbmc )
    // concatenate the names
    for (dbIdx=0; dbIdx < dbmc->dbCount; dbIdx++)
    {
-      pAi = (AI_BLOCK *) &dbmc->pDbContext[dbIdx]->pAiBlock->blk.ai;
+      pAi = (AI_BLOCK *) &dbmc->prov[dbIdx].pDbContext->pAiBlock->blk.ai;
       name = AI_GET_NETWOP_NAME(pAi, pAi->thisNetwop);
       strcat(mergeName, name);
       if (dbIdx + 1 < dbmc->dbCount)
@@ -811,13 +1120,8 @@ static uchar * EpgDbMergeAiServiceNames( EPGDB_MERGE_CONTEXT * dbmc )
 
 // ---------------------------------------------------------------------------
 // Merge AI blocks & netwops
-// - build netwop mapping and reverse tables for each database
-// - during the very first merge the network list is always empty, because the
-//   user hasn't had a chance to invoke the network selection -> must include
-//   all CNIs of all providers
-// - XXX must not use passed netwop list to build new netwop list - might be too short!
 //
-void EpgDbMergeAiBlocks( PDBC dbc, uint cfNetwopCount, uint * pNetwopList )
+void EpgDbMergeAiBlocks( PDBC dbc, uint netwopCount, uint * pNetwopList )
 {
    EPGDB_MERGE_CONTEXT * dbmc;
    const AI_BLOCK  * pAi;
@@ -825,96 +1129,40 @@ void EpgDbMergeAiBlocks( PDBC dbc, uint cfNetwopCount, uint * pNetwopList )
    AI_BLOCK  * pTargetAi;
    AI_NETWOP * pTargetNetwops;
    uint netwop, dbIdx, idx;
-   bool  found;
    uchar netOrigIdx[MAX_NETWOP_COUNT];
    uchar dayCount[MAX_NETWOP_COUNT];
    uchar * pServiceName;          // temporarily holds merged service name
    uint nameLen;                  // sum of netwop name lengths
    uint blockLen;                 // length of composed AI block
-   uint netwopCount;              // number of CNIs in merged netwop table
    uint dbCount;
-   uint cni;
 
    // determine number of netwops in merged db
    dbmc = dbc->pMergeContext;
    dbCount = dbmc->dbCount;
    nameLen = 0;
-   if (cfNetwopCount > MAX_NETWOP_COUNT)
-      cfNetwopCount = MAX_NETWOP_COUNT;
+   if (netwopCount > MAX_NETWOP_COUNT)
+      netwopCount = MAX_NETWOP_COUNT;
    memset(netOrigIdx, 0xff, sizeof(netOrigIdx));
 
-   for (dbIdx=0; dbIdx < dbCount; dbIdx++)
+   for (idx = 0; idx < netwopCount; idx++)
    {
-      memset(dbmc->revNetwopMap[dbIdx], 0xff, sizeof(dbmc->revNetwopMap[0]));
-      memset(dbmc->netwopMap[dbIdx], 0xff, sizeof(dbmc->netwopMap[0]));
-   }
-
-   if (cfNetwopCount == 0)
-   {  // user-configured netwop table is empty -> build one of all CNIs in all AIs
+      dayCount[idx] = 0;
       for (dbIdx=0; dbIdx < dbCount; dbIdx++)
       {
-         pAi = (AI_BLOCK *) &dbmc->pDbContext[dbIdx]->pAiBlock->blk.ai;
-         pNetwops = AI_GET_NETWOPS(pAi);
-
-         for (netwop=0; netwop < pAi->netwopCount; netwop++, pNetwops++)
+         pAi = &dbmc->prov[dbIdx].pDbContext->pAiBlock->blk.ai;
+         netwop = dbmc->prov[dbIdx].revNetwopMap[idx];
+         if (netwop != 0xFF)
          {
-            // check if the CNI already is in the generated table
-            for (idx=0; idx < cfNetwopCount; idx++)
-               if (pNetwops->cni == pNetwopList[idx])
-                  break;
-
-            if ((idx == cfNetwopCount) && (cfNetwopCount < MAX_NETWOP_COUNT))
+            if (netOrigIdx[idx] == 0xff)
             {
-               pNetwopList[cfNetwopCount] = pNetwops->cni;
-               cfNetwopCount += 1;
+               netOrigIdx[idx] = dbIdx;
+               nameLen += strlen(AI_GET_NETWOP_NAME(pAi, netwop)) + 1;
             }
+
+            if (AI_GET_NETWOP_N(pAi, netwop)->dayCount > dayCount[idx])
+               dayCount[idx] = AI_GET_NETWOP_N(pAi, netwop)->dayCount;
          }
       }
-   }
-
-   netwopCount = 0;
-   for (idx=0; idx < cfNetwopCount; idx++)
-   {
-      found = FALSE;
-      cni = pNetwopList[idx];
-      // check if the same CNI already was in the list
-      for (netwop=0; netwop < netwopCount; netwop++)
-         if (pNetwopList[netwop] == cni)
-            break;
-      // check if it's a valid CNI
-      if ((netwop >= netwopCount) && (cni != 0) && (cni != 0x00ff) &&
-          (netwopCount < MAX_NETWOP_COUNT))
-      {
-         dayCount[netwopCount] = 0;
-         for (dbIdx=0; dbIdx < dbCount; dbIdx++)
-         {
-            pAi = (AI_BLOCK *) &dbmc->pDbContext[dbIdx]->pAiBlock->blk.ai;
-            pNetwops = AI_GET_NETWOPS(pAi);
-            for (netwop=0; netwop < pAi->netwopCount; netwop++, pNetwops++)
-               if (pNetwops->cni == cni)
-                  break;
-            if (netwop < pAi->netwopCount)
-            {  // found
-               if (found == FALSE)
-               {  // first db with that CNI -> copy params from here
-                  assert(netOrigIdx[netwopCount] == 0xff);
-                  netOrigIdx[netwopCount] = dbIdx;
-                  nameLen += strlen(AI_GET_STR_BY_OFF(pAi, pNetwops->off_name)) + 1;
-
-                  pNetwopList[netwopCount] = cni;
-                  found = TRUE;
-               }
-               if (pNetwops->dayCount > dayCount[netwopCount])
-                  dayCount[netwopCount] = pNetwops->dayCount;
-               dbmc->netwopMap[dbIdx][netwop] = netwopCount;
-               dbmc->revNetwopMap[dbIdx][netwopCount] = netwop;
-            }
-         }
-         if (found)
-            netwopCount += 1;
-      }
-      // if the CNI is in none of the databases, it's skipped
-      ifdebug1(found == FALSE, "EpgDb-MergeAiBlocks: skipping CNI 0x%04X", cni);
    }
 
    // merge service names
@@ -929,7 +1177,7 @@ void EpgDbMergeAiBlocks( PDBC dbc, uint cfNetwopCount, uint * pNetwopList )
    pTargetAi = (AI_BLOCK *) &dbc->pAiBlock->blk.ai;
 
    // init base struct
-   memcpy(pTargetAi, &dbmc->pDbContext[0]->pAiBlock->blk.ai, sizeof(AI_BLOCK));
+   memcpy(pTargetAi, &dbmc->prov[0].pDbContext->pAiBlock->blk.ai, sizeof(AI_BLOCK));
    pTargetAi->off_netwops = sizeof(AI_BLOCK);
    pTargetAi->netwopCount = netwopCount;
    pTargetAi->version     = 1;
@@ -950,14 +1198,16 @@ void EpgDbMergeAiBlocks( PDBC dbc, uint cfNetwopCount, uint * pNetwopList )
       dbIdx = netOrigIdx[netwop];
       if (dbIdx != 0xff)
       {
-         pAi = (AI_BLOCK *) &dbmc->pDbContext[dbIdx]->pAiBlock->blk.ai;
-         idx = dbmc->revNetwopMap[dbIdx][netwop];
+         pAi = (AI_BLOCK *) &dbmc->prov[dbIdx].pDbContext->pAiBlock->blk.ai;
+         idx = dbmc->prov[dbIdx].revNetwopMap[netwop];
          if (idx < pAi->netwopCount)
          {
             pNetwops = AI_GET_NETWOP_N(pAi, idx);
-            assert(pNetwops->cni == pNetwopList[netwop]);
+            // note: following is not an error due to use of CniConvertUnknownToPdc()
+            //ifdebug3(pNetwops->cni != pNetwopList[netwop], "EpgDb-MergeAiBlocks: mismatch of CNIs in netwop #%d: 0x%04X!=0x%04X", idx, pNetwops->cni, pNetwopList[netwop]);
 
-            pTargetNetwops[netwop].cni      = pNetwops->cni;
+            pTargetNetwops[netwop].netCni   = AI_GET_NET_CNI(pNetwops) &  XMLTV_NET_CNI_MASK;
+            pTargetNetwops[netwop].netCniMSB = AI_GET_NET_CNI(pNetwops) >> XMLTV_NET_CNI_MSBS;
             pTargetNetwops[netwop].alphabet = pNetwops->alphabet;
             pTargetNetwops[netwop].dayCount = dayCount[netwop];
             pTargetNetwops[netwop].off_name = blockLen;

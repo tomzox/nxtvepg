@@ -21,7 +21,7 @@
  *  Author:
  *          Tom Zoerner
  *
- *  $Id: epgacqclnt.c,v 1.17 2005/05/29 16:22:49 tom Exp tom $
+ *  $Id: epgacqclnt.c,v 1.19 2007/01/21 11:23:20 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGCTL
@@ -29,6 +29,7 @@
 
 #ifdef USE_DAEMON
 
+#include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
 #include <string.h>
@@ -51,18 +52,18 @@
 #include "epgdb/epgqueue.h"
 #include "epgdb/epgtscqueue.h"
 #include "epgdb/epgnetio.h"
+#include "epgdb/epgdbmgmt.h"
 #include "epgui/epgmain.h"
 #include "epgui/dumpraw.h"
 #include "epgui/uictrl.h"
 #include "epgctl/epgacqctl.h"
 #include "epgctl/epgctxctl.h"
-#include "epgdb/epgnetio.h"
 #include "epgctl/epgacqsrv.h"
 #include "epgctl/epgacqclnt.h"
 
 
-#define CLNT_RETRY_INTERVAL     20
-#define CLNT_MAX_MSG_LOOP_COUNT 50
+// ---------------------------------------------------------------------------
+// Declaration of module state variables
 
 typedef enum
 {
@@ -89,19 +90,32 @@ typedef struct
    char                     *pSrvPort;
    char                     *pErrorText;
 
-   EPGDB_QUEUE              *pDbQueue;
-   EPGDB_PI_TSC             *pTscQueue;
-   EPGDBSRV_MSG_BODY        *pNetStats;
+   EPGDB_CONTEXT            *pAcqDbContext;
+   EPGDB_QUEUE              acqDbQueue;
+   EPGDB_PI_TSC             acqTscQueue;
+   EPG_ACQ_STATS            acqStats;
+   EPG_ACQ_VPS_PDC          acqVpsPdc;
+   uint                     acqVpsPdcInd;
+   EPGACQ_DESCR             acqDescr;
+   EPGDBSRV_MSG_BODY        *pStatsMsg;
    uint                     statsReqBits;
    bool                     statsReqUpdate;
+   bool                     acqContextIsPeek;
    uint                     cniCount;
    uint                     provCnis[MAX_MERGED_DB_COUNT];
    bool                     provUpdate;
+   bool                     waitAi;
    void                     (* pCbUpdateEvHandler) ( EPGACQ_EVHAND * pAcqEv );
 
 } CLNT_CTL_STRUCT;
 
+#define CLNT_RETRY_INTERVAL     20
+#define CLNT_MAX_MSG_LOOP_COUNT 50
+
 #define SRV_REPLY_TIMEOUT       60
+
+// when very many new blocks are in the queue, connection to UI must be locked
+#define EPG_QUEUE_OVERFLOW_LEN  250
 
 // ----------------------------------------------------------------------------
 // Local variables
@@ -109,6 +123,9 @@ typedef struct
 static CLNT_CTL_STRUCT    clientState;
 static EPGDBSRV_MSG_BODY  clientMsg;
 
+// forward declarations
+static void EpgAcqClient_SwitchDb( uint acqCni );
+static void EpgAcqClient_CloseDb( void );
 
 // ----------------------------------------------------------------------------
 // Open client connection
@@ -166,14 +183,14 @@ static void EpgAcqClient_FreeStats( void )
    EPGDBSRV_MSG_BODY  * pWalk;
    EPGDBSRV_MSG_BODY  * pNext;
 
-   pWalk = clientState.pNetStats;
+   pWalk = clientState.pStatsMsg;
    while (pWalk != NULL)
    {
       pNext = pWalk->stats_ind.pNext;
       xfree(pWalk);
       pWalk = pNext;
    }
-   clientState.pNetStats = NULL;
+   clientState.pStatsMsg = NULL;
 }
 
 // ----------------------------------------------------------------------------
@@ -181,13 +198,15 @@ static void EpgAcqClient_FreeStats( void )
 //
 static void EpgAcqClient_SwapEpgAcqDescr( EPGACQ_DESCR * pDescr )
 {
-   swap32(&pDescr->state);
+   swap32(&pDescr->nxtvState);
+   swap32(&pDescr->ttxGrabState);
    swap32(&pDescr->mode);
    swap32(&pDescr->cyclePhase);
    swap32(&pDescr->passiveReason);
    swap16(&pDescr->cniCount);
-   swap32(&pDescr->dbCni);
+   swap16(&pDescr->ttxGrabIdx);
    swap32(&pDescr->cycleCni);
+   swap32(&pDescr->nxtvDbCni);
 }
 
 static void EpgAcqClient_SwapEpgdbBlockCount( EPGDB_BLOCK_COUNT * pCounts )
@@ -375,6 +394,17 @@ static bool EpgAcqClient_CheckMsg( uint len, EPGNETIO_MSG_HEADER * pHead, EPGDBS
          }
          break;
 
+      case MSG_TYPE_DB_UPD_IND:
+         if (len == sizeof(EPGNETIO_MSG_HEADER) + sizeof(pBody->db_upd_ind))
+         {
+            if (clientState.endianSwap)
+            {
+               swap32(&pBody->db_upd_ind.mtime);
+            }
+            result = TRUE;
+         }
+         break;
+
       case MSG_TYPE_STATS_IND:
          if (len > sizeof(EPGNETIO_MSG_HEADER) + sizeof(pBody->stats_ind) - sizeof(pBody->stats_ind.u))
          {
@@ -394,6 +424,7 @@ static bool EpgAcqClient_CheckMsg( uint len, EPGNETIO_MSG_HEADER * pHead, EPGDBS
                      if (clientState.endianSwap)
                      {
                         EpgAcqClient_SwapEpgdbBlockCount(pBody->stats_ind.u.minimal.count);
+                        swap32(&pBody->stats_ind.u.minimal.nowMaxAcqNetCount);
                         swap32(&pBody->stats_ind.u.minimal.vpsPdc.cni);
                         swap32(&pBody->stats_ind.u.minimal.vpsPdc.pil);
                         swap32(&pBody->stats_ind.u.minimal.lastAiTime);
@@ -408,19 +439,25 @@ static bool EpgAcqClient_CheckMsg( uint len, EPGNETIO_MSG_HEADER * pHead, EPGDBS
                   {
                      if (clientState.endianSwap)
                      {
-                        swap32(&pBody->stats_ind.u.initial.stats.acqStartTime);
+                        swap32(&pBody->stats_ind.u.initial.stats.nxtv.acqStartTime);
                         swap32(&pBody->stats_ind.u.initial.stats.lastStatsUpdate);
-                        EpgAcqClient_SwapEpgdbAcqAiStats(&pBody->stats_ind.u.initial.stats.ai);
-                        for (idx=0; idx < sizeof(pBody->stats_ind.u.initial.stats.ttx) / sizeof(uint32_t); idx++)
-                           swap32(((uint32_t *)&pBody->stats_ind.u.initial.stats.ttx) + idx);
-                        for (idx=0; idx < sizeof(pBody->stats_ind.u.initial.stats.stream) / sizeof(uint32_t); idx++)
-                           swap32(((uint32_t *)&pBody->stats_ind.u.initial.stats.stream) + idx);
-                        swap16(&pBody->stats_ind.u.initial.stats.histIdx);
-                        EpgAcqClient_SwapEpgdbBlockCount(pBody->stats_ind.u.initial.stats.count);
-                        EpgAcqClient_SwapEpgdbVarHist(pBody->stats_ind.u.initial.stats.varianceHist);
-                        swap32(&pBody->stats_ind.u.initial.stats.nowNextMaxAcqRepCount);
-                        swap32(&pBody->stats_ind.u.initial.stats.vpsPdc.cni);
-                        swap32(&pBody->stats_ind.u.initial.stats.vpsPdc.pil);
+                        EpgAcqClient_SwapEpgdbAcqAiStats(&pBody->stats_ind.u.initial.stats.nxtv.ai);
+                        for (idx=0; idx < sizeof(pBody->stats_ind.u.initial.stats.ttx_dec) / sizeof(uint32_t); idx++)
+                           swap32(((uint32_t *)&pBody->stats_ind.u.initial.stats.ttx_dec) + idx);
+                        for (idx=0; idx < sizeof(pBody->stats_ind.u.initial.stats.nxtv.stream) / sizeof(uint32_t); idx++)
+                           swap32(((uint32_t *)&pBody->stats_ind.u.initial.stats.nxtv.stream) + idx);
+                        swap16(&pBody->stats_ind.u.initial.stats.nxtv.histIdx);
+                        EpgAcqClient_SwapEpgdbBlockCount(pBody->stats_ind.u.initial.stats.nxtv.count);
+                        EpgAcqClient_SwapEpgdbVarHist(pBody->stats_ind.u.initial.stats.nxtv.varianceHist);
+                        swap32(&pBody->stats_ind.u.initial.stats.nxtv.nowMaxAcqRepCount);
+                        swap32(&pBody->stats_ind.u.initial.stats.nxtv.nowMaxAcqNetCount);
+                        swap32(&pBody->stats_ind.u.initial.vpsPdc.cni);
+                        swap32(&pBody->stats_ind.u.initial.vpsPdc.pil);
+                        // teletext grabber
+                        swap32(&pBody->stats_ind.u.initial.stats.ttx_grab.acqStartTime);
+                        swap32(&pBody->stats_ind.u.initial.stats.ttx_grab.srcIdx);
+                        for (idx=0; idx < sizeof(pBody->stats_ind.u.initial.stats.ttx_grab.pkgStats) / sizeof(uint32_t); idx++)
+                           swap32(((uint32_t *)&pBody->stats_ind.u.initial.stats.ttx_grab.pkgStats) + idx);
                      }
                      result = TRUE;
                   }
@@ -437,12 +474,16 @@ static bool EpgAcqClient_CheckMsg( uint len, EPGNETIO_MSG_HEADER * pHead, EPGDBS
                         swap32(&pBody->stats_ind.u.update.vpsPdc.cni);
                         swap32(&pBody->stats_ind.u.update.vpsPdc.pil);
                         swap16(&pBody->stats_ind.u.update.histIdx);
-                        swap32(&pBody->stats_ind.u.update.nowNextMaxAcqRepCount);
+                        swap32(&pBody->stats_ind.u.update.nowMaxAcqRepCount);
+                        swap32(&pBody->stats_ind.u.update.nowMaxAcqNetCount);
                         swap32(&pBody->stats_ind.u.update.lastStatsUpdate);
-                        for (idx=0; idx < sizeof(pBody->stats_ind.u.update.ttx) / sizeof(uint32_t); idx++)
-                           swap32(((uint32_t *)&pBody->stats_ind.u.update.ttx) + idx);
+                        for (idx=0; idx < sizeof(pBody->stats_ind.u.update.ttx_dec) / sizeof(uint32_t); idx++)
+                           swap32(((uint32_t *)&pBody->stats_ind.u.update.ttx_dec) + idx);
                         for (idx=0; idx < sizeof(pBody->stats_ind.u.update.stream) / sizeof(uint32_t); idx++)
                            swap32(((uint32_t *)&pBody->stats_ind.u.update.stream) + idx);
+                        // teletext grabber
+                        for (idx=0; idx < sizeof(pBody->stats_ind.u.update.grabTtxStats) / sizeof(uint32_t); idx++)
+                           swap32(((uint32_t *)&pBody->stats_ind.u.update.grabTtxStats) + idx);
                      }
                      result = TRUE;
                   }
@@ -508,9 +549,12 @@ static bool EpgAcqClient_TakeMessage( EPGACQ_EVHAND * pAcqEv, EPGDBSRV_MSG_BODY 
                clientState.daemonPid = pMsg->con_cnf.daemon_pid;
                memcpy(&clientMsg.fwd_req.provCnis, clientState.provCnis, sizeof(clientMsg.fwd_req.provCnis));
                for (dbIdx=0; dbIdx < clientState.cniCount; dbIdx++)
-                  clientMsg.fwd_req.dumpStartTimes[dbIdx] = EpgContextCtl_GetAiUpdateTime(clientState.provCnis[dbIdx]);
+                  clientMsg.fwd_req.dumpStartTimes[dbIdx] = EpgContextCtl_GetAiUpdateTime(clientState.provCnis[dbIdx], FALSE);
                clientMsg.fwd_req.cniCount     = clientState.cniCount;
                clientMsg.fwd_req.statsReqBits = clientState.statsReqBits;
+               // if VPS/PDC was requested, force an immediate update
+               if ((clientState.statsReqBits & STATS_REQ_BITS_VPS_PDC_REQ) != 0)
+                  clientMsg.fwd_req.statsReqBits |= STATS_REQ_BITS_VPS_PDC_UPD;
                EpgNetIo_WriteMsg(&clientState.io, MSG_TYPE_FORWARD_REQ, sizeof(clientMsg.fwd_req), &clientMsg.fwd_req, FALSE);
                pAcqEv->blockOnWrite = pAcqEv->blockOnRead = FALSE;
 
@@ -534,7 +578,7 @@ static bool EpgAcqClient_TakeMessage( EPGACQ_EVHAND * pAcqEv, EPGDBSRV_MSG_BODY 
                // it's purpose is to synchronize server and client
                clientState.state = CLNT_STATE_WAIT_DUMP;
 
-               if (EpgDbContextGetCni(pAcqDbContext) == 0)
+               if (EpgDbContextGetCni(clientState.pAcqDbContext) == 0)
                {  // initial connect -> update network state
                   UiControlMsg_AcqEvent(ACQ_EVENT_STATS_UPDATE);
                }
@@ -585,7 +629,7 @@ static bool EpgAcqClient_TakeMessage( EPGACQ_EVHAND * pAcqEv, EPGDBSRV_MSG_BODY 
             EPGDB_BLOCK * pNewBlock = (EPGDB_BLOCK *) pMsg;
 
             if (pNewBlock->type == BLOCK_TYPE_AI)
-               dprintf1("EpgDbClient-TakeMessage: BLOCK_IND: AI block CNI 0x%04x\n", AI_GET_CNI(&pNewBlock->blk.ai));
+               dprintf1("EpgDbClient-TakeMessage: BLOCK_IND: AI block CNI 0x%04x\n", AI_GET_THIS_NET_CNI(&pNewBlock->blk.ai));
 
             // received new EPG block
             pNewBlock->pNextBlock = NULL;
@@ -596,7 +640,7 @@ static bool EpgAcqClient_TakeMessage( EPGACQ_EVHAND * pAcqEv, EPGDBSRV_MSG_BODY 
             // offer the block to the ASCII dump module
             EpgDumpRaw_IncomingBlock(&pNewBlock->blk, pNewBlock->type, pNewBlock->stream);
             // append the block to the end of the input queue
-            EpgDbQueue_Add(clientState.pDbQueue, pNewBlock);
+            EpgDbQueue_Add(&clientState.acqDbQueue, pNewBlock);
             // must not free the message because it's added to the EPG block queue
             pMsg = NULL;
             result = TRUE;
@@ -623,7 +667,7 @@ static bool EpgAcqClient_TakeMessage( EPGACQ_EVHAND * pAcqEv, EPGDBSRV_MSG_BODY 
             pMsg->stats_ind.pNext = NULL;
             // append the message to the queue of stats reports
             pPrev = NULL;
-            pWalk = clientState.pNetStats;
+            pWalk = clientState.pStatsMsg;
             while (pWalk != NULL)
             {
                pPrev = pWalk;
@@ -632,7 +676,7 @@ static bool EpgAcqClient_TakeMessage( EPGACQ_EVHAND * pAcqEv, EPGDBSRV_MSG_BODY 
             if (pPrev != NULL)
                pPrev->stats_ind.pNext = pMsg;
             else
-               clientState.pNetStats = pMsg;
+               clientState.pStatsMsg = pMsg;
             // must not free the message yet
             pMsg = NULL;
             result = TRUE;
@@ -644,10 +688,18 @@ static bool EpgAcqClient_TakeMessage( EPGACQ_EVHAND * pAcqEv, EPGDBSRV_MSG_BODY 
          if (clientState.statsReqBits & STATS_REQ_BITS_VPS_PDC_REQ)
          {
             clientState.statsReqBits &= ~ STATS_REQ_BITS_VPS_PDC_UPD;
-            EpgAcqCtl_AddNetVpsPdc(&pMsg->vps_pdc_ind.vpsPdc);
+            clientState.acqVpsPdc = pMsg->vps_pdc_ind.vpsPdc;
+            clientState.acqVpsPdcInd += 1;
+            UiControlMsg_AcqEvent(ACQ_EVENT_VPS_PDC);
          }
          else  // message accepted, but discarded (forward was disabled)
             dprintf0("EpgDbClient-TakeMessage: discarding VPS/PDC info\n");
+         result = TRUE;
+         break;
+
+      case MSG_TYPE_DB_UPD_IND:
+         // note: mtime parameter is currently unused
+         UiControlMsg_AcqEvent(ACQ_EVENT_NEW_DB);
          result = TRUE;
          break;
 
@@ -655,7 +707,7 @@ static bool EpgAcqClient_TakeMessage( EPGACQ_EVHAND * pAcqEv, EPGDBSRV_MSG_BODY 
          // note: cannot check here if msg must be dropped when only ALL bit was cleared -> done in GUI
          if (clientState.statsReqBits & STATS_REQ_BITS_TSC_REQ)
          {
-            if (EpgTscQueue_PushBuffer(clientState.pTscQueue, (EPGDB_PI_TSC_BUF *) pMsg,
+            if (EpgTscQueue_PushBuffer(&clientState.acqTscQueue, (EPGDB_PI_TSC_BUF *) pMsg,
                                        clientState.io.readHeader.len - sizeof(EPGNETIO_MSG_HEADER)))
             {
                // must not free the message because it's been added to the tsc queue
@@ -705,10 +757,10 @@ static void EpgAcqClient_Close( bool removeHandler )
    clientState.io.lastIoTime = time(NULL);
 
    // free all EPG blocks in the input queue
-   if (clientState.pDbQueue != NULL)
+   if (&clientState.acqDbQueue != NULL)
    {
-      EpgDbQueue_Clear(clientState.pDbQueue);
-      EpgTscQueue_Clear(clientState.pTscQueue);
+      EpgDbQueue_Clear(&clientState.acqDbQueue);
+      EpgTscQueue_Clear(&clientState.acqTscQueue);
    }
 
    EpgAcqClient_FreeStats();
@@ -798,7 +850,7 @@ void EpgAcqClient_HandleSocket( EPGACQ_EVHAND * pAcqEv )
 
                memcpy(&clientMsg.fwd_req.provCnis, clientState.provCnis, sizeof(clientMsg.fwd_req.provCnis));
                for (dbIdx=0; dbIdx < clientState.cniCount; dbIdx++)
-                  clientMsg.fwd_req.dumpStartTimes[dbIdx] = EpgContextCtl_GetAiUpdateTime(clientState.provCnis[dbIdx]);
+                  clientMsg.fwd_req.dumpStartTimes[dbIdx] = EpgContextCtl_GetAiUpdateTime(clientState.provCnis[dbIdx], FALSE);
                clientMsg.fwd_req.cniCount     = clientState.cniCount;
                clientMsg.fwd_req.statsReqBits = clientState.statsReqBits;
                EpgNetIo_WriteMsg(&clientState.io, MSG_TYPE_FORWARD_REQ, sizeof(clientMsg.fwd_req), &clientMsg.fwd_req, FALSE);
@@ -878,30 +930,24 @@ void EpgAcqClient_HandleSocket( EPGACQ_EVHAND * pAcqEv )
    pAcqEv->blockOnRead  = !pAcqEv->blockOnWrite;
    pAcqEv->fd           = clientState.io.sock_fd;
    // trigger acq ctl module if EPG blocks or other messages are queued
-   pAcqEv->processQueue = ( (EpgDbQueue_GetBlockCount(clientState.pDbQueue) > 0) ||
-                            EpgTscQueue_HasElems(clientState.pTscQueue) ||
-                            (clientState.pNetStats != NULL) );
+   pAcqEv->processQueue = ( (EpgDbQueue_GetBlockCount(&clientState.acqDbQueue) > 0) ||
+                            EpgTscQueue_HasElems(&clientState.acqTscQueue) ||
+                            (clientState.pStatsMsg != NULL) );
 }
 
 // ----------------------------------------------------------------------------
 // Start network acquisition, i.e. initiate network connection
 //
-bool EpgAcqClient_StartAcq( uint * pCniTab, uint cniCount,
-                           EPGDB_QUEUE * pDbQueue, EPGDB_PI_TSC *pTscQueue )
+bool EpgAcqClient_Start( void )
 {
    EPGACQ_EVHAND   acqEv;
 
    if (clientState.state == CLNT_STATE_OFF)
    {
-      if (cniCount > MAX_MERGED_DB_COUNT)
-         cniCount = MAX_MERGED_DB_COUNT;
-      if (cniCount > 0)
-         memcpy(clientState.provCnis, pCniTab, sizeof(clientState.provCnis));
-      clientState.cniCount = cniCount;
-      clientState.pDbQueue = pDbQueue;
-      clientState.pTscQueue = pTscQueue;
+      assert(clientState.pAcqDbContext == NULL);
 
-      EpgDbQueue_Clear(clientState.pDbQueue);
+      EpgDbQueue_Init(&clientState.acqDbQueue);
+      EpgTscQueue_Init(&clientState.acqTscQueue);
 
       EpgAcqClient_ConnectServer();
       if (clientState.io.sock_fd != -1)
@@ -913,6 +959,15 @@ bool EpgAcqClient_StartAcq( uint * pCniTab, uint cniCount,
          acqEv.blockOnWrite   = TRUE;
          acqEv.blockOnConnect = TRUE;
          clientState.pCbUpdateEvHandler(&acqEv);
+
+         // open the dummy database
+         clientState.pAcqDbContext = EpgContextCtl_OpenDummy();
+         clientState.acqContextIsPeek = FALSE;
+
+         // first block must be an AI to determine the provider database
+         clientState.waitAi = TRUE;
+         clientState.acqDescr.nxtvState = ACQDESCR_NET_CONNECT;
+         memset(&clientState.acqStats, 0, sizeof(clientState.acqStats));
       }
       else
       {  // connect failed -> abort
@@ -920,7 +975,7 @@ bool EpgAcqClient_StartAcq( uint * pCniTab, uint cniCount,
       }
    }
    else
-      debug0("EpgDbClient-StartAcq: acq already enabled");
+      debug0("EpgDbClient-Start: acq already enabled");
 
    return (clientState.state != CLNT_STATE_OFF);
 }
@@ -928,17 +983,21 @@ bool EpgAcqClient_StartAcq( uint * pCniTab, uint cniCount,
 // ----------------------------------------------------------------------------
 // Stop network acquisition, i.e. close connection
 //
-void EpgAcqClient_StopAcq( void )
+void EpgAcqClient_Stop( void )
 {
    if (clientState.state != CLNT_STATE_OFF)
    {
       // note: set the new state first to prevent callback from close function
       clientState.state = CLNT_STATE_OFF;
 
+      EpgTscQueue_Clear(&clientState.acqTscQueue);
+
+      EpgAcqClient_CloseDb();
+
       EpgAcqClient_Close(TRUE);
    }
    else
-      debug0("EpgDbClient-StopAcq: acq not enabled");
+      debug0("EpgDbClient-Stop: acq not enabled");
 }
 
 #ifndef WIN32
@@ -1127,32 +1186,58 @@ failure:
 #endif
 
 // ----------------------------------------------------------------------------
-// Update the list of requested providers
+// Compare and copy a list of provider CNIs
+// - filters out non-Nextview EPG providers, since XMLTV isn't forwarded
+//
+static bool EpgAcqClient_CmpAndCopyCnis( const uint * pCniTab, uint cniCount )
+{
+   uint dbIdx;
+   uint newCount;
+   bool result = TRUE;
+
+   if (cniCount > MAX_MERGED_DB_COUNT)
+      cniCount = MAX_MERGED_DB_COUNT;
+
+   newCount = 0;
+   for (dbIdx=0; dbIdx < cniCount; dbIdx++)
+   {
+      if ( IS_NXTV_CNI(pCniTab[dbIdx]) )
+      {
+         if ( (newCount >= clientState.cniCount) ||
+              (pCniTab[dbIdx] != clientState.provCnis[newCount]) )
+         {
+            clientState.provCnis[newCount] = pCniTab[dbIdx];
+            result = FALSE;
+         }
+         newCount += 1;
+      }
+   }
+   clientState.cniCount = newCount;
+
+   return result;
+}
+
+// ----------------------------------------------------------------------------
+// Set or change the list of requested providers
 // - the list is stored in the client state and will be used automatically
-//   during connection establishment; only when a connection is already
-//   esablished a message is sent to the server
+//   during connection establishment; the server is sent a message only if
+//   a connection is already established
 // - the message cannot be sent immediately if there's an I/O in progress
 //   e.g. an incoming EPG block; in this case only a flag will be set that's
 //   checked in the client I/O handler
 //
-bool EpgAcqClient_ChangeProviders( const uint * pCniTab, uint cniCount )
+bool EpgAcqClient_SetProviders( const uint * pCniTab, uint cniCount )
 {
    EPGACQ_EVHAND acqEv;
    bool ioBlocked;
    uint dbIdx;
+   uint acqCni;
 
    if (clientState.state != CLNT_STATE_OFF)
    {
-      if (cniCount > MAX_MERGED_DB_COUNT)
-         cniCount = MAX_MERGED_DB_COUNT;
-
-      if ( (cniCount != clientState.cniCount) ||
-           (memcmp(clientState.provCnis, pCniTab, sizeof(uint) * cniCount) != 0) )
+      if (EpgAcqClient_CmpAndCopyCnis(pCniTab, cniCount) == FALSE)
       {
          dprintf5("EpgDbClient-ChangeProviders: request prov list: %d CNIs: 0x%04X, 0x%04X, 0x%04X, 0x%04X\n", cniCount, pCniTab[0], pCniTab[1], pCniTab[2], pCniTab[3]);
-         if (cniCount > 0)
-            memcpy(clientState.provCnis, pCniTab, sizeof(clientState.provCnis));
-         clientState.cniCount = cniCount;
 
          if ( (clientState.state == CLNT_STATE_WAIT_FWD_CNF) ||
               (clientState.state == CLNT_STATE_WAIT_DUMP) ||
@@ -1164,7 +1249,7 @@ bool EpgAcqClient_ChangeProviders( const uint * pCniTab, uint cniCount )
                memcpy(&clientMsg.fwd_req.provCnis, clientState.provCnis, sizeof(clientMsg.fwd_req.provCnis));
                clientMsg.fwd_req.cniCount   = clientState.cniCount;
                for (dbIdx=0; dbIdx < clientState.cniCount; dbIdx++)
-                  clientMsg.fwd_req.dumpStartTimes[dbIdx] = EpgContextCtl_GetAiUpdateTime(clientState.provCnis[dbIdx]);
+                  clientMsg.fwd_req.dumpStartTimes[dbIdx] = EpgContextCtl_GetAiUpdateTime(clientState.provCnis[dbIdx], FALSE);
                clientMsg.fwd_req.statsReqBits = clientState.statsReqBits;
 
                EpgNetIo_WriteMsg(&clientState.io, MSG_TYPE_FORWARD_REQ, sizeof(clientMsg.fwd_req), &clientMsg.fwd_req, FALSE);
@@ -1189,13 +1274,24 @@ bool EpgAcqClient_ChangeProviders( const uint * pCniTab, uint cniCount )
             }
 
             // free all EPG blocks in the input queue
-            EpgDbQueue_Clear(clientState.pDbQueue);
-            EpgTscQueue_Clear(clientState.pTscQueue);
+            EpgDbQueue_Clear(&clientState.acqDbQueue);
+            EpgTscQueue_Clear(&clientState.acqTscQueue);
             EpgAcqClient_FreeStats();
 
             clientState.state = CLNT_STATE_WAIT_FWD_CNF;
          }
       }
+
+      // upgrade/downgrade current acq db from/to peek if now/not-anymore in GUI list
+      acqCni = EpgDbContextGetCni(clientState.pAcqDbContext);
+      if (acqCni != 0)
+      {
+         EpgAcqClient_SwitchDb(acqCni);
+      }
+   }
+   else
+   {  // idle -> just copy parameters
+      EpgAcqClient_CmpAndCopyCnis(pCniTab, cniCount);
    }
    return TRUE;
 }
@@ -1285,7 +1381,14 @@ bool EpgAcqClient_SetAcqTscMode( bool enable, bool allProviders )
          statsReqBits |= STATS_REQ_BITS_TSC_ALL;
    }
    else
+   {
       statsReqBits &= ~(STATS_REQ_BITS_TSC_REQ | STATS_REQ_BITS_TSC_ALL);
+
+      if (clientState.state != CLNT_STATE_OFF)
+      {
+         EpgTscQueue_Clear(&clientState.acqTscQueue);
+      }
+   }
 
    return EpgAcqClient_UpdateAcqStatsMode(statsReqBits);
 }
@@ -1365,7 +1468,11 @@ bool EpgAcqClient_CheckTimeouts( void )
    if (clientState.state == CLNT_STATE_ERROR)
    {  // an error has occured and the upper layer is not yet informed
       dprintf0("EpgDbClient-CheckForBlocks: report error\n");
+      assert(EpgDbQueue_GetBlockCount(&clientState.acqDbQueue) == 0);
       clientState.state = CLNT_STATE_RETRY;
+      clientState.waitAi = TRUE;
+      memset(&clientState.acqStats, 0, sizeof(clientState.acqStats));
+
       stopped = TRUE;
    }
 
@@ -1374,22 +1481,31 @@ bool EpgAcqClient_CheckTimeouts( void )
 
 // ----------------------------------------------------------------------------
 // Process all stats reports received from server
+// - called after the block input queue was processed
+// - 4 modes are supported (to minimize required bandwidth): initial, initial
+//   with prov info, update with prov info, minimal update (prov info must be
+//   forwarded when acq runs on a database whose blocks are not forwarded)
+// - depending on the mode a different structure is enclosed
 //
-bool EpgAcqClient_GetNetStats( EPGDB_STATS * pAcqStats, EPGACQ_DESCR * pAcqDescr, bool * pAiFollows )
+static bool EpgAcqClient_ProcessStats( bool * pAiFollows )
 {
    const MSG_STRUCT_STATS_IND * pUpd;
    EPGDBSRV_MSG_BODY          * pNext;
+   EPG_ACQ_STATS * pAcqStats;
+   EPGACQ_DESCR * pAcqDescr;
    time_t  lastAiAcqTime;
    uint    histIdx;
    bool    received;
 
-   *pAiFollows = FALSE;
+   pAcqStats = &clientState.acqStats;
+   pAcqDescr = &clientState.acqDescr;
    received = FALSE;
    lastAiAcqTime = 0;
+   *pAiFollows = FALSE;
 
-   while (clientState.pNetStats != NULL)
+   while (clientState.pStatsMsg != NULL)
    {
-      pUpd = &clientState.pNetStats->stats_ind;
+      pUpd = &clientState.pStatsMsg->stats_ind;
       *pAiFollows |= pUpd->aiFollows;
       received = TRUE;
 
@@ -1398,63 +1514,73 @@ bool EpgAcqClient_GetNetStats( EPGDB_STATS * pAcqStats, EPGACQ_DESCR * pAcqDescr
          case EPGDB_STATS_UPD_TYPE_MINIMAL:
             // first stats for a new database which is open on client side (i.e. used by GUI)
 
-            // mark the extended statistics data invalid
+            // invalidate extended statistics data
             memset(pAcqStats, 0, sizeof(*pAcqStats));
 
             memcpy(pAcqDescr, &pUpd->descr, sizeof(*pAcqDescr));
-            memcpy(&pAcqStats->count, &pUpd->u.minimal.count, sizeof(pAcqStats->count));
-            pAcqStats->vpsPdc  = pUpd->u.minimal.vpsPdc;
+            memcpy(&pAcqStats->nxtv.count, &pUpd->u.minimal.count, sizeof(pAcqStats->nxtv.count));
+            pAcqStats->nxtv.nowMaxAcqNetCount = pUpd->u.minimal.nowMaxAcqNetCount;
             lastAiAcqTime = pUpd->u.minimal.lastAiTime;
+
+            if (pUpd->u.minimal.vpsPdc.cniType != STATS_IND_INVALID_VPS_PDC)
+               clientState.acqVpsPdcInd += 1;
             break;
 
          case EPGDB_STATS_UPD_TYPE_INITIAL:
             memcpy(pAcqDescr, &pUpd->descr, sizeof(*pAcqDescr));
             memcpy(pAcqStats, &pUpd->u.initial.stats, sizeof(*pAcqStats));
-            lastAiAcqTime = pUpd->u.initial.stats.ai.lastAiTime;
+            lastAiAcqTime = pUpd->u.initial.stats.nxtv.ai.lastAiTime;
+
+            if (pUpd->u.initial.vpsPdc.cniType != STATS_IND_INVALID_VPS_PDC)
+               clientState.acqVpsPdcInd += 1;
             break;
 
          case EPGDB_STATS_UPD_TYPE_UPDATE:
-            if (pAcqDescr->dbCni != pUpd->descr.dbCni)
+            if (pAcqDescr->nxtvDbCni != pUpd->descr.nxtvDbCni)
             {  // should not happen - after provider change an "initial" report is expected
-               debug2("EpgAcqCtl-NetStatsUpdate: unexpected provider change from 0x%04X to 0x%04X in UPDATE", pAcqDescr->dbCni, pUpd->descr.dbCni);
+               debug2("EpgAcqClient-ProcessStats: unexpected provider change from 0x%04X to 0x%04X in UPDATE", pAcqDescr->nxtvDbCni, pUpd->descr.nxtvDbCni);
                // clear all previous information
                memset(pAcqStats, 0, sizeof(*pAcqStats));
             }
 
             memcpy(pAcqDescr, &pUpd->descr, sizeof(*pAcqDescr));
-            memcpy(&pAcqStats->count, &pUpd->u.update.count, sizeof(pAcqStats->count));
+            memcpy(&pAcqStats->nxtv.count, &pUpd->u.update.count, sizeof(pAcqStats->nxtv.count));
 
-            pAcqStats->ai      = pUpd->u.update.ai;
-            pAcqStats->ttx     = pUpd->u.update.ttx;
-            pAcqStats->stream  = pUpd->u.update.stream;
-            pAcqStats->vpsPdc  = pUpd->u.update.vpsPdc;
-            pAcqStats->nowNextMaxAcqRepCount = pUpd->u.update.nowNextMaxAcqRepCount;
+            pAcqStats->nxtv.ai = pUpd->u.update.ai;
+            pAcqStats->ttx_dec = pUpd->u.update.ttx_dec;
+            pAcqStats->nxtv.stream = pUpd->u.update.stream;
+            pAcqStats->nxtv.nowMaxAcqRepCount = pUpd->u.update.nowMaxAcqRepCount;
+            pAcqStats->nxtv.nowMaxAcqNetCount = pUpd->u.update.nowMaxAcqNetCount;
             pAcqStats->lastStatsUpdate = pUpd->u.update.lastStatsUpdate;
+            pAcqStats->ttx_grab.pkgStats = pUpd->u.update.grabTtxStats;
             lastAiAcqTime = pUpd->u.update.ai.lastAiTime;
 
-            histIdx = pAcqStats->histIdx;
+            histIdx = pAcqStats->nxtv.histIdx;
             do
             {
                histIdx = (histIdx + 1) % STATS_HIST_WIDTH;
-               pAcqStats->hist[histIdx] = pUpd->u.update.hist;
+               pAcqStats->nxtv.hist[histIdx] = pUpd->u.update.hist;
             } while (histIdx != pUpd->u.update.histIdx);
-            pAcqStats->histIdx = pUpd->u.update.histIdx;
+            pAcqStats->nxtv.histIdx = pUpd->u.update.histIdx;
+
+            if (pUpd->u.update.vpsPdc.cniType != STATS_IND_INVALID_VPS_PDC)
+               clientState.acqVpsPdcInd += 1;
 
             break;
       }
-      dprintf6("EpgAcqCtl-NetStatsUpdate: type %d, AI follows=%d, acqstate=%d, cyCni=%04X, dbCni=%04X, histIdx=%d\n", pUpd->type, pUpd->aiFollows, pUpd->descr.state, pUpd->descr.cycleCni, pUpd->descr.dbCni, pAcqStats->histIdx);
+      dprintf6("ProcessStats-ProcessStats: type %d, AI follows=%d, acqstate=%d, cyCni=%04X, dbCni=%04X, histIdx=%d\n", pUpd->type, pUpd->aiFollows, pUpd->descr.nxtvState, pUpd->descr.cycleCni, pUpd->descr.nxtvDbCni, pAcqStats->nxtv.histIdx);
 
       // free the message
-      pNext = clientState.pNetStats->stats_ind.pNext;
-      xfree((void *) clientState.pNetStats);
-      clientState.pNetStats = pNext;
+      pNext = clientState.pStatsMsg->stats_ind.pNext;
+      xfree((void *) clientState.pStatsMsg);
+      clientState.pStatsMsg = pNext;
    }
 
    if (received && !*pAiFollows && (lastAiAcqTime != 0))
    {  // update AI block acquisition time
       // required as start time for the next dump (upon connection loss and reestablishment)
       // XXX TODO: must not set time for non-req proviers XXX
-      EpgDbSetAiUpdateTime(pAcqDbContext, lastAiAcqTime);
+      EpgDbSetAiUpdateTime(clientState.pAcqDbContext, lastAiAcqTime);
    }
 
    return received;
@@ -1589,19 +1715,292 @@ bool EpgAcqClient_SetAddress( const char * pHostName, const char * pPort )
       // if acq already running, restart with new params
       if (clientState.state != CLNT_STATE_OFF)
       {
-         uint    cniCount;
-         uint    provCnis[MAX_MERGED_DB_COUNT];
-
-         // save old provider list and callback table pointer
-         memcpy(&provCnis, &clientState.provCnis, sizeof(provCnis));
-         cniCount = clientState.cniCount;
-
-         EpgAcqClient_StopAcq();
-         result = EpgAcqClient_StartAcq(provCnis, cniCount,
-                                       clientState.pDbQueue, clientState.pTscQueue);
+         EpgAcqClient_Stop();
+         result = EpgAcqClient_Start();
       }
    }
    return result;
+}
+
+// ---------------------------------------------------------------------------
+// Close the acq database
+// - automatically chooses the right close function for the acq database
+//   depending on how it was opened, i.e. as peek or fully
+//
+static void EpgAcqClient_CloseDb( void )
+{
+   if (clientState.pAcqDbContext != NULL)
+   {
+      if (clientState.acqContextIsPeek == FALSE)
+         EpgContextCtl_Close(clientState.pAcqDbContext);
+      else
+         EpgContextCtl_ClosePeek(clientState.pAcqDbContext);
+      clientState.pAcqDbContext = NULL;
+   }
+   else
+      fatal0("EpgAcqClient-CloseDb: db not open");
+}
+
+// ---------------------------------------------------------------------------
+// Switch provider database to a new provider
+// - called by AI callback upon provider change
+//   and called upon GUI provider list update
+// - in network mode it may be that the acquisition database is only opened as
+//   "peek" if the acq db is not in the GUI provider list; when the GUI list is
+//   updated it may be required to up-/downgrade the db
+//
+static void EpgAcqClient_SwitchDb( uint acqCni )
+{
+   uint  idx;
+   uint  oldCni;
+
+   oldCni = EpgDbContextGetCni(clientState.pAcqDbContext);
+
+   // check if current acq provider is used by the new GUI providers
+   for (idx=0; idx < clientState.cniCount; idx++)
+      if (clientState.provCnis[idx] == acqCni)
+         break;
+
+   if (idx < clientState.cniCount)
+   {  // used by GUI
+      if (acqCni != oldCni)
+      {  // used by GUI -> open the db completely
+         EpgAcqClient_CloseDb();
+         clientState.acqContextIsPeek = FALSE;
+         clientState.pAcqDbContext = EpgContextCtl_Open(acqCni, FALSE, CTX_FAIL_RET_CREATE, CTX_RELOAD_ERR_ANY);
+      }
+      else if (clientState.acqContextIsPeek == TRUE)
+      {  // currently open as peek -> upgrade to full open
+         dprintf1("EpgAcqClient-Switchdb: upgrade acq db 0x%04X to full open\n", acqCni);
+         EpgAcqClient_CloseDb();
+         clientState.pAcqDbContext = EpgContextCtl_Open(acqCni, FALSE, CTX_FAIL_RET_DUMMY, CTX_RELOAD_ERR_ANY);
+         clientState.acqContextIsPeek = FALSE;
+      }
+   }
+   else
+   {  // current acq db is not in GUI list
+      if (acqCni != oldCni)
+      {  // just open a peek, i.e. AI and OI #0
+         EpgAcqClient_CloseDb();
+         clientState.acqContextIsPeek = FALSE;
+         clientState.pAcqDbContext = EpgContextCtl_Peek(acqCni, CTX_RELOAD_ERR_ANY);
+         if (clientState.pAcqDbContext != NULL)
+            clientState.acqContextIsPeek = TRUE;
+         else
+            clientState.pAcqDbContext = EpgContextCtl_Open(acqCni, FALSE, CTX_FAIL_RET_CREATE, CTX_RELOAD_ERR_ANY);
+      }
+      else if (clientState.acqContextIsPeek)
+      {  // currently fully open -> downgrade to peek
+         dprintf1("EpgAcqClient-Switchdb: downgrade acq db 0x%04X to peek\n", acqCni);
+         EpgAcqClient_CloseDb();
+         clientState.acqContextIsPeek = FALSE;
+         clientState.pAcqDbContext = EpgContextCtl_Peek(acqCni, CTX_RELOAD_ERR_ANY);
+         if (clientState.pAcqDbContext != NULL)
+            clientState.acqContextIsPeek = TRUE;
+         else
+            clientState.pAcqDbContext = EpgContextCtl_OpenDummy();
+      }
+   }
+}
+
+// ---------------------------------------------------------------------------
+// AI callback: invoked before a new AI block is inserted into the database
+//
+static bool EpgAcqClient_AiCallback( const AI_BLOCK *pNewAi )
+{
+   const AI_BLOCK *pOldAi;
+   uint ai_cni;
+
+   assert (AI_GET_THIS_NET_CNI(pNewAi) != 0);  // rejected on server side
+   if (clientState.waitAi)
+      dprintf3("EpgCtl: AI found, CNI=0x%04X version %d/%d\n", AI_GET_THIS_NET_CNI(pNewAi), pNewAi->version, pNewAi->version_swo);
+   clientState.waitAi = FALSE;
+
+   EpgDbLockDatabase(clientState.pAcqDbContext, TRUE);
+   pOldAi = EpgDbGetAi(clientState.pAcqDbContext);
+   ai_cni = AI_GET_THIS_NET_CNI(pNewAi);
+
+   if (pOldAi == NULL)
+   {  // no database open yet -> open db (or dummy db if it's a new provider)
+      EpgDbLockDatabase(clientState.pAcqDbContext, FALSE);
+
+      EpgAcqClient_SwitchDb(ai_cni);
+      dprintf2("EpgAcqClient: empty acq db, AI found: CNI 0x%04X (%s)\n", ai_cni, ((EpgDbContextGetCni(clientState.pAcqDbContext) == 0) ? "new" : "reload ok"));
+
+      // update the ui netwop list and acq stats output if neccessary
+      UiControlMsg_AcqEvent(ACQ_EVENT_PROV_CHANGE);
+   }
+   else
+   {  // already an AI in the database: check if it's the same provider
+      if (clientState.pAcqDbContext->provCni == AI_GET_THIS_NET_CNI(pNewAi))
+      {
+         if ( (pOldAi->version != pNewAi->version) ||
+              (pOldAi->version_swo != pNewAi->version_swo) )
+         {
+            dprintf2("EpgAcqClient: version number has changed, was: %d/%d\n", pOldAi->version, pOldAi->version_swo);
+            UiControlMsg_AcqEvent(ACQ_EVENT_AI_VERSION_CHANGE);
+         }
+         else
+         {  // same AI version
+            if (EpgDbComparePiRanges(clientState.pAcqDbContext, pOldAi, pNewAi))
+            {
+               // new PI added at the end -> redraw timescales to mark ranges with missing PI
+               UiControlMsg_AcqEvent(ACQ_EVENT_AI_PI_RANGE_CHANGE);
+            }
+            else
+               UiControlMsg_AcqEvent(ACQ_EVENT_STATS_UPDATE);
+         }
+         EpgDbLockDatabase(clientState.pAcqDbContext, FALSE);
+      }
+      else
+      {  // different provider -> switch databases
+         dprintf2("EpgAcqClient: switching acq db from %04X to %04X\n", AI_GET_THIS_NET_CNI(pOldAi), ai_cni);
+         EpgDbLockDatabase(clientState.pAcqDbContext, FALSE);
+
+         EpgAcqClient_SwitchDb(ai_cni);
+
+         UiControlMsg_AcqEvent(ACQ_EVENT_PROV_CHANGE);
+         memset(&clientState.acqStats, 0, sizeof(clientState.acqStats));
+      }
+   }
+
+   assert(EpgDbIsLocked(clientState.pAcqDbContext) == FALSE);
+   // always accept the block into the database
+   return TRUE;
+}
+
+// ---------------------------------------------------------------------------
+// Insert newly acquired blocks into the EPG db
+// - to be called when ProcessPackets returns TRUE, i.e. EPG blocks in input queue
+// - database MUST NOT be locked by GUI
+//
+void EpgAcqClient_ProcessBlocks( void )
+{
+   static const EPGDB_ADD_CB epgQueueCb = { EpgAcqClient_AiCallback, NULL };
+   const EPGDB_BLOCK  * pBlock;
+   bool overflow;
+   bool aiFollows;
+
+   if (clientState.state != CLNT_STATE_OFF)
+   {
+      assert(EpgDbIsLocked(clientState.pAcqDbContext) == FALSE);
+
+      overflow = (EpgDbQueue_GetBlockCount(&clientState.acqDbQueue) >= EPG_QUEUE_OVERFLOW_LEN);
+      if (overflow)
+         overflow = UiControlMsg_AcqQueueOverflow(TRUE);
+
+      if (clientState.waitAi)
+      {  // fail-safe: check if the first block is a AI block
+         while ( ((pBlock = EpgDbQueue_Peek(&clientState.acqDbQueue)) != NULL) &&
+                 (pBlock->type != BLOCK_TYPE_AI) )
+         {
+            debug1("EpgAcqClient: illegal block type %d in queue while waiting for AI", pBlock->type);
+            xfree((void *) EpgDbQueue_Get(&clientState.acqDbQueue));
+         }
+      }
+      EpgDbProcessQueue(&clientState.pAcqDbContext, &clientState.acqDbQueue, NULL, &epgQueueCb);
+
+      if (overflow)
+         UiControlMsg_AcqQueueOverflow(FALSE);
+
+      if (EpgTscQueue_HasElems(&clientState.acqTscQueue))
+      {  // PI timescale info has been received -> unlock new buffers and trigger GUI
+         EpgTscQueue_UnlockBuffers(&clientState.acqTscQueue);
+         UiControlMsg_AcqEvent(ACQ_EVENT_PI_ADDED);
+      }
+
+      if (EpgAcqClient_ProcessStats(&aiFollows))
+      {
+         ifdebug2(clientState.acqDescr.nxtvDbCni != EpgDbContextGetCni(clientState.pAcqDbContext), "EpgAcqClient-ProcessBlocks: stats dbCni=0x%04X != acq db CNI=0x%04X", clientState.acqDescr.nxtvDbCni, EpgDbContextGetCni(clientState.pAcqDbContext));
+
+         if (aiFollows == FALSE)
+         {  // no AI transmitted (no reception, or AI unchanged) -> trigger status update from here
+            UiControlMsg_AcqEvent(ACQ_EVENT_STATS_UPDATE);
+         }
+      }
+   }
+}
+
+// ---------------------------------------------------------------------------
+// Get Pointer to PI timescale queue
+// - used by the GUI to retrieve info from the queue (and thereby emptying it)
+// - returns NULL if acq is off (queue might not be initialized yet)
+//
+EPGDB_PI_TSC * EpgAcqClient_GetTimescaleQueue( void )
+{
+   if (clientState.state != CLNT_STATE_OFF)
+      return &clientState.acqTscQueue;
+   else
+      return NULL;
+}
+
+// ---------------------------------------------------------------------------
+// Get acquisition database context
+//
+EPGDB_CONTEXT * EpgAcqClient_GetDbContext( void )
+{
+   return clientState.pAcqDbContext;
+}
+
+// ---------------------------------------------------------------------------
+// Return complete set of acq state and statistic values
+// - used by "View acq statistics" popup window
+//
+bool EpgAcqClient_GetAcqStats( EPG_ACQ_STATS * pAcqStats )
+{
+   bool result = FALSE;
+
+   if (clientState.state != CLNT_STATE_OFF)
+   {
+      memcpy(pAcqStats, &clientState.acqStats, sizeof(EPG_ACQ_STATS));
+      result = TRUE;
+   }
+
+   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Return VPS/PDC data
+//
+bool EpgAcqClient_GetVpsPdc( EPG_ACQ_VPS_PDC * pVpsPdc, uint * pReqInd )
+{
+   bool result = FALSE;
+
+   if ((pReqInd == NULL) || (*pReqInd != clientState.acqVpsPdcInd))
+   {
+      if (pVpsPdc != NULL)
+         *pVpsPdc = clientState.acqVpsPdc;
+
+      if (pReqInd != NULL)
+         *pReqInd = clientState.acqVpsPdcInd;
+
+      result = TRUE;
+   }
+   return result;
+}
+
+// ---------------------------------------------------------------------------
+// Determine state of acquisition for user information
+// - if state is set to INVALID (zero) caller should assume network state "loading db"
+//   because it takes a short while after loading the db until the first stats report
+//   is available
+//
+void EpgAcqClient_DescribeAcqState( EPGACQ_DESCR * pAcqState )
+{
+   assert(clientState.state != CLNT_STATE_OFF);
+
+   if ( (clientState.state != CLNT_STATE_ERROR) &&
+        (clientState.state != CLNT_STATE_RETRY) )
+   {
+      memcpy(pAcqState, &clientState.acqDescr, sizeof(*pAcqState));
+      pAcqState->isLocalServer = EpgAcqClient_IsLocalServer();
+   }
+   else
+   {
+      memset(pAcqState, 0, sizeof(*pAcqState));
+      pAcqState->nxtvState = ACQDESCR_DISABLED;
+   }
+   pAcqState->isNetAcq = TRUE;
 }
 
 // ----------------------------------------------------------------------------
@@ -1626,7 +2025,7 @@ void EpgAcqClient_Destroy( void )
 {
    // close the connection (during normal shutdown it should already be closed)
    if (clientState.state != CLNT_STATE_OFF)
-      EpgAcqClient_StopAcq();
+      EpgAcqClient_Stop();
 
    // free the memory allocated for the config strings and error text
    EpgAcqClient_SetAddress(NULL, NULL);

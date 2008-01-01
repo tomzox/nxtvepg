@@ -18,7 +18,7 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: shortcuts.tcl,v 1.17 2004/09/25 16:23:49 tom Exp tom $
+#  $Id: shortcuts.tcl,v 1.19 2007/12/29 21:11:12 tom Exp tom $
 #
 #=CONST= ::fsc_name_idx 0
 #=CONST= ::fsc_mask_idx 1
@@ -101,7 +101,7 @@ proc GenerateShortcutTag {} {
    global shortcuts
    global fscedit_sclist
 
-   set tag [clock seconds]
+   set tag [C_ClockSeconds]
    foreach stag [array names shortcuts] {
       if {$tag <= $stag} {
          set tag [expr $stag + 1]
@@ -1295,7 +1295,6 @@ proc ShortcutPrettyPrint {filter inv_list} {
 
    # fetch CNI list from AI block in database
    set netsel_ailist [C_GetAiNetwopList 0 netnames]
-   ApplyUserNetnameCfg netnames
 
    set out {}
 

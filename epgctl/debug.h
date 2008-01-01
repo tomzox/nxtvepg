@@ -23,7 +23,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: debug.h,v 1.23 2006/11/12 18:36:54 tom Exp $
+ *  $Id: debug.h,v 1.23 2006/11/12 18:36:54 tom Exp tom $
  */
 
 #ifndef __DEBUG_H

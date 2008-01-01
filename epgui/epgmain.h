@@ -16,16 +16,12 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: epgmain.h,v 1.23 2003/09/19 21:55:37 tom Exp tom $
+ *  $Id: epgmain.h,v 1.25 2007/12/29 16:22:33 tom Exp tom $
  */
 
 #ifndef __EPGMAIN_H
 #define __EPGMAIN_H
 
-
-// software version in form of a string
-extern char *epg_version_str;
-extern char epg_rcs_id_str[];
 
 // Interface to Tcl/Tk interpreter for UI modules
 #ifdef _TCL
@@ -37,12 +33,24 @@ extern char comm[TCL_COMM_BUF_SIZE + 1];
 void AddMainIdleEvent( Tcl_IdleProc *IdleProc, ClientData clientData, bool unique );
 bool RemoveMainIdleEvent( Tcl_IdleProc * IdleProc, ClientData clientData, bool matchData );
 
+typedef enum
+{
+   EPG_ENC_ASCII,       // ASCII (i.e. no transcoding required for UTF-8)
+   EPG_ENC_SYSTEM,      // text from current locale (e.g. weekday names) or local files
+   EPG_ENC_NXTVEPG,     // text from Nextview EPG source: ISO-8859-1 or UTF-8, depending on compile switch
+   EPG_ENC_ISO_8859_1,  // hard-coded ISO-8859-1 (CNI network name table)
+} T_EPG_ENCODING;
+#define EPG_ENC_NETNAME(AI) ((AI) ? EPG_ENC_NXTVEPG : EPG_ENC_SYSTEM)
+extern Tcl_Encoding encIso88591;
+
+Tcl_Obj * TranscodeToUtf8( T_EPG_ENCODING enc, const char * pPrefix, const char * pStr, const char * pPostfix );
+Tcl_Obj * AppendToUtf8( T_EPG_ENCODING enc, Tcl_Obj * pObj, const char * pStr, const char * pPostfix );
+
 bool EpgMain_StartDaemon( void );
 bool EpgMain_StopDaemon( void );
 #ifdef WIN32
 bool EpgMain_CheckDaemon( void );
 #endif
-bool IsDemoMode( void );
 #endif  // _TCL
 
 // Access to databases from UI and acq-ctl

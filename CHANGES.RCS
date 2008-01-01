@@ -18199,3 +18199,3427 @@ www/pre-releases-de.html [rev:1.10, 2007-01-28T13:20:15]:
 www/pre-releases.html [rev:1.81, 2007-01-28T13:20:15]:
 - Updated for release 2.7.7
 #>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_7_7 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+epgctl/epgacqctl.c [rev:1.88, 2005-01-01T18:14:36]:
+- Minor clean-up:
+- removed not needed checks for EpgScan_IsActive() in several internal funcs
+- moved static init into new function EpgAcqCtl_Init()
+    also moved BtDriver_Init(), _Exit() calls here (was in epgmain)
+- removed empty EpgAcqCtl_InitDaemon()
+epgctl/epgacqctl.h [rev:1.44, 2005-01-01T18:15:15]:
+- added new functions EpgAcqCtl_Init() and _Destroy():
+    moved BtDriver_Init(), _Exit() calls here (was in epgmain)
+- removed empty EpgAcqCtl_InitDaemon()
+epgctl/epgacqsrv.c [rev:1.16, 2005-01-01T18:17:59]:
+- Added flag "isLocalCon" to request state struct
+- currently unused (check-in pending since years; was intended for rem.ctrl.)
+epgui/dumptext.c [rev:1.12, 2005-01-01T18:18:23]:
+- Adapted for new dump mode handling: (new module cmdline.c)
+- moved EpgDumpText_GetMode() into cmdline.c
+- made dump mode handling hierarchical: top-level is XML/HTML/text/raw,
+    sub-level is module-specific
+- added new enum type DUMP_TEXT_MODE
+epgui/dumptext.h [rev:1.7, 2005-01-01T18:18:23]:
+- Adapted for new dump mode handling: (new module cmdline.c)
+- moved EpgDumpText_GetMode() into cmdline.c
+- made dump mode handling hierarchical: top-level is XML/HTML/text/raw,
+    sub-level is module-specific
+- added new enum type DUMP_TEXT_MODE
+epgui/dumpxml.c [rev:1.13, 2005-01-01T18:18:46]:
+- Adapted for new dump mode handling: (new module cmdline.c)
+- made dump mode handling hierarchical: top-level is XML/HTML/text/raw,
+    sub-level is module-specific
+- added new enum type DUMP_XML_MODE
+epgui/dumpxml.h [rev:1.3, 2005-01-01T18:18:46]:
+- Adapted for new dump mode handling: (new module cmdline.c)
+- made dump mode handling hierarchical: top-level is XML/HTML/text/raw,
+    sub-level is module-specific
+- added new enum type DUMP_XML_MODE
+epgui/daemon_main.c [rev:1.1, 2005-01-01T18:19:04]:
+- Initial revision
+epgui/daemon.c [rev:1.1, 2005-01-01T18:19:49]:
+- Initial revision
+epgui/daemon.h [rev:1.1, 2005-01-01T18:19:49]:
+- Initial revision
+epgui/cmdline.c [rev:1.1, 2005-01-01T18:20:34]:
+- Initial revision
+epgui/cmdline.h [rev:1.1, 2005-01-01T18:20:34]:
+- Initial revision
+epgui/epgmain.c [rev:1.141, 2005-01-01T18:23:20]:
+- Split off daemon from epgmain & link daemon executable without GUI
+- split off new module daemon.c: daemon main loop, daemon remctl, clock ctl;
+    + don't initialize Tcl anymore for daemon; possible because daemon
+      now reads config from alternate (duplicate) section in rc/ini file
+- split off new module cmdline.c: option vars, argv parsing, usage output etc.
+    + changes in mode handling: clock control is now in optDaemonMode
+    + optDumpMode made hierarchical; split off dump start from main()
+    + put all option vars in struct "mainOpts" -> adapted all references
+- some functionality copied from main() into new module daemon_main.c
+epgui/epgmain.h [rev:1.24, 2005-01-01T18:23:29]:
+- Moved epg_version_* vars and function IsDemoMode() into new module cmdline.c
+epgui/menucmd.c [rev:1.119, 2005-01-01T18:24:00]:
+- Split off daemon from epgmain & link daemon executable without GUI
+- moved function SetDaemonAcquisitionMode() into new module daemon.c
+- changed prefix of daemon ctrl. funcs from EpgMain_ into Daemon_
+epgui/statswin.c [rev:1.70, 2005-01-01T18:24:19]:
+- Added new include "cmdline.h" due to moved function Is_DemoMode()
+epgui/uictrl.c [rev:1.46, 2005-01-01T18:24:23]:
+- Split off daemon from epgmain & link daemon executable without GUI
+- added new include "cmdline.h" due to moved function Is_DemoMode()
+- XXX temporary: UiControlMsg_QueryProvFreq(): in daemon mode use query func
+    in daemon.c instead of menucmd.c: must not use Tcl to parse config file
+epgtcl/dlg_acqmode.tcl [rev:1.5, 2005-01-01T18:25:17]:
+- Defined constants for default values of netacqcf
+- requires new tcl2c.c =CONST= pre-proc. feature: allows string constants
+- note: constants used by new rc file parser in daemon.c
+epgtcl/rcfile.tcl [rev:1.24, 2005-01-01T18:26:17]:
+- Split off daemon from epgmain & link daemon executable without GUI
+- write alternate (duplicate) section to rc/ini file: plain text acq config
+- stop parsing config file after __END__
+- increased compat version to 2.5.0pre0 (0x0207C1)
+- made variable "rcfile_compat" a constant (=CONST=):
+    used by new rc file parser in daemon.c
+tcl2c.c [rev:1.14, 2005-01-01T18:29:17]:
+- Extended pre-processor: allow non-numeric constant definitions with =CONST=
+Makefile [rev:1.78, 2005-01-01T18:34:04]:
+- Split off daemon from epgmain & link daemon executable without GUI
+- added new target "daemon" (not compiled by default)
+- split library list LDLIBS into two: GUILIBS, ACQLIBS
+- split core object list CSRC into two: EPGSRC, GUISRC or CLDSRC
+    ("CLD" means "command line daemon")
+- note WIN32: daemon intentionally kept as non-console GUI application
+    because else a DOS window is opened and a click on "X" crashes the system
+Makefile.bsd [rev:1.5, 2005-01-01T18:35:24]:
+- Split off daemon from epgmain & link daemon executable without GUI
+- split library list LDLIBS into two: GUILIBS, ACQLIBS
+Makefile.win32 [rev:1.52, 2005-01-01T18:36:13]:
+- Split off daemon from epgmain & link daemon executable without GUI
+- added new target "daemon" (not compiled by default)
+- split library list LDLIBS into two: GUILIBS, ACQLIBS
+- split core object list CSRC into two: EPGSRC, GUISRC or CLDSRC
+    ("CLD" means "command line daemon")
+- note WIN32: daemon intentionally kept as non-console GUI application
+    because else a DOS window is opened and a click on "X" crashes the system
+nxtvepg.pod [rev:1.119, 2005-01-01T18:58:42]:
+- Added description of nxtvepgd (new standalone daemon executable)
+www/pre-releases.html [rev:1.53, 2005-01-01T20:21:57]:
+- Released 2.5.0pre0
+www/index-fr.html [rev:1.10, 2005-01-02T12:48:37]:
+- French translation of "Release 2.7.4" section (provided by Neo)
+epgtcl/mainwin.tcl [rev:1.245, 2005-01-02T18:02:36]:
+- Removed commented out "time zone" entry from config menu
+- obsolete, never used and never will be
+epgtcl/dlg_prov.tcl [rev:1.15, 2005-01-02T18:04:47]:
+- Removed unreferenced "time zone config" dialog
+- obsolete, never used and never will be
+epgui/menucmd.c [rev:1.120, 2005-01-02T18:07:00]:
+- Removed Tcl function C_GetTimeZone:
+- intended only for timezone config dialog, which was never enabled
+epgui/rcfile.c [rev:1.1, 2005-01-06T13:58:25]:
+- Initial revision
+epgui/rcfile.h [rev:1.1, 2005-01-06T13:58:35]:
+- Initial revision
+epgui/daemon.c [rev:1.2, 2005-01-06T13:58:45]:
+- Split off rcfile handling into new module epgui/rcfile.c
+- organized rcfile into separate [sections]
+- dropped concept of redundanct C section used in 2.7.5pre0
+- new code in rcfile.c both reads and writes following parameter groups:
+    acq mode, netacq, db merge, provider selection, prov. frequencies,
+    PI expire delay, HW & WIN32 tvcard
+epgui/daemon.h [rev:1.2, 2005-01-06T13:58:45]:
+- Split off rcfile handling into new module epgui/rcfile.c
+- organized rcfile into separate [sections]
+- dropped concept of redundanct C section used in 2.7.5pre0
+- new code in rcfile.c both reads and writes following parameter groups:
+    acq mode, netacq, db merge, provider selection, prov. frequencies,
+    PI expire delay, HW & WIN32 tvcard
+epgui/daemon_main.c [rev:1.2, 2005-01-06T13:59:00]:
+- Split off rcfile handling into new module epgui/rcfile.c
+- added new function UpdateRcFile() (equivalent to same function in epgmain.c)
+epgui/epgmain.c [rev:1.142, 2005-01-06T13:59:17]:
+- Split off rcfile handling into new module epgui/rcfile.c
+- added calls to RcFile_Init() etc.
+- removed "interp" argument from several setup functions in menucmd.c
+epgui/menucmd.c [rev:1.121, 2005-01-06T13:59:25]:
+- Split off rcfile handling into new module epgui/rcfile.c
+- changed parameter handling for config dialogs: acq mode, netacq, db merge,
+    provider selection, prov. frequencies, PI expire delay, HW & WIN32 tvcard:
+    + added get/update functions called by Tcl upon dialog open/close
+    + global Tcl vars are now obsolete, e.g. prov_merge_cf, tvcardcf, ...
+    + moved most provider removal handling after EPG scan from Tcl to C level
+- removed "interp" argument from several global setup functions
+    (because those don't read the configuration from Tcl variables anymore)
+- use new C function UpdateRcFile() instead of Tcl proc UpdateRcFile
+epgui/menucmd.h [rev:1.24, 2005-01-06T13:59:25]:
+- Split off rcfile handling into new module epgui/rcfile.c
+- changed parameter handling for config dialogs: acq mode, netacq, db merge,
+    provider selection, prov. frequencies, PI expire delay, HW & WIN32 tvcard:
+    + added get/update functions called by Tcl upon dialog open/close
+    + global Tcl vars are now obsolete, e.g. prov_merge_cf, tvcardcf, ...
+    + moved most provider removal handling after EPG scan from Tcl to C level
+- removed "interp" argument from several global setup functions
+    (because those don't read the configuration from Tcl variables anymore)
+- use new C function UpdateRcFile() instead of Tcl proc UpdateRcFile
+epgui/uictrl.c [rev:1.47, 2005-01-06T13:59:38]:
+- Split off rcfile handling into new module epgui/rcfile.c
+- added new C function UpdateRcFile(): to replace Tcl proc UpdateRcFile
+- moved GetProvFreqForCni() into new module rcfile.c
+epgui/uictrl.h [rev:1.15, 2005-01-06T13:59:38]:
+- Split off rcfile handling into new module epgui/rcfile.c
+- added new C function UpdateRcFile(): to replace Tcl proc UpdateRcFile
+- moved GetProvFreqForCni() into new module rcfile.c
+epgtcl/dlg_acqmode.tcl [rev:1.6, 2005-01-06T14:05:31]:
+- Split off rcfile handling into new module epgui/rcfile.c
+- changed parameter handling for config dialogs: acq mode, netacq:
+    + params no longer stored in Tcl global variables; removed variables
+      acq_mode acq_mode_cnis, netacq_enable, netacqcf
+    + use get/update C functions upon dialog open/close: C_GetAcqConfig,
+      C_UpdateAcqConfig, C_GetNetAcqConfig, C_UpdateNetAcqConfig
+- moved calls to rc update into C level
+epgtcl/dlg_filter.tcl [rev:1.15, 2005-01-06T14:05:45]:
+- Split off rcfile handling into new module epgui/rcfile.c
+- changed parameter handling for config dialogs: PI expire delay
+    + params no longer stored in Tcl global variables; removed variable
+      piexpire_cutoff
+    + use get/update C functions upon dialog open/close:
+      C_GetPiExpireDelay, C_UpdatePiExpireDelay
+epgtcl/dlg_prov.tcl [rev:1.16, 2005-01-06T14:06:10]:
+- Split off rcfile handling into new module epgui/rcfile.c
+- changed parameter handling for config dialogs: prov selection
+    + params no longer stored in Tcl global variables; removed variables
+      prov_selection, prov_freqs, prov_merge_cnis, prov_merge_cf, acq_mode_*
+    + EPG scan: moved most provider removal handling to C level since vars
+      are now managed there
+    + use get/update C functions upon dialog open/close: C_GetMergeProviderList,
+      C_GetMergeOptions, C_ProvMerge_Start
+    + WIN32: use new function C_CheckTvCardConfig for EPG scan start checks
+epgtcl/mainwin.tcl [rev:1.246, 2005-01-06T14:06:24]:
+- Split off rcfile handling into new module epgui/rcfile.c
+- removed use of global config var prov_selection with [C_GetProvSelection]
+- updated copyright for 2005
+COPYRIGHT [rev:1.13, 2005-01-06T14:08:39]:
+- Updated copyright for 2005
+nxtvepg.pod [rev:1.120, 2005-01-06T14:08:39]:
+- Updated copyright for 2005
+Makefile [rev:1.79, 2005-01-06T14:16:12]:
+- added new module epgui/rcfile to nxtvepg, nxtvepgd and tvsim
+- updated copyright for 2005
+Makefile.win32 [rev:1.53, 2005-01-06T14:18:13]:
+- added "nxtvepgd" to release zip file
+- added new module epgui/rcfile to nxtvepg, nxtvepgd and tvsim
+epgui/epgsetup.c [rev:1.1, 2005-01-06T19:12:04]:
+- Initial revision
+epgui/epgsetup.h [rev:1.1, 2005-01-06T19:12:04]:
+- Initial revision
+epgui/daemon.c [rev:1.3, 2005-01-06T19:12:19]:
+- Split off some config functions into new module epgsetup.c
+epgui/menucmd.h [rev:1.25, 2005-01-06T19:12:19]:
+- Split off some config functions into new module epgsetup.c
+epgui/menucmd.c [rev:1.122, 2005-01-06T19:12:35]:
+- split off some config functions into new module epgsetup.c
+- finished implementation of RemoveProviderDatabase()
+epgui/epgmain.c [rev:1.143, 2005-01-06T19:12:45]:
+- Adapted names of functions which were moved from menucmd.c into epgsetup.c
+epgui/statswin.c [rev:1.71, 2005-01-06T19:12:45]:
+- Adapted names of functions which were moved from menucmd.c into epgsetup.c
+epgui/uictrl.c [rev:1.48, 2005-01-06T19:12:45]:
+- Adapted names of functions which were moved from menucmd.c into epgsetup.c
+epgui/rcfile.c [rev:1.2, 2005-01-06T19:13:01]:
+- Finished implementation of RcFile_RemoveProvider()
+epgtcl/dlg_hwcfg.tcl [rev:1.15, 2005-01-08T13:59:44]:
+- Split off rcfile handling into new module epgui/rcfile.c
+- changed parameter handling for config dialogs: hwcfg, WIN32/tvcard
+    + params no longer stored in Tcl global variables; removed variables
+      hwcf_cardidx, ..., tvcardcf
+    + use get/update C functions upon dialog open/close:
+      C_HwCfgGetTvCardConfig, C_UpdateHardwareConfig
+- also renamed C_HwCfgGetTvCards into C_HwCfgScanTvCards
+epgui/cmdline.c [rev:1.2, 2005-01-08T15:16:08]:
+- removed obsolete CmdLine_GetRcFilePath(): "~" already expanded in
+    CmdLine_SetDefaults(); added flag isUserRcFile to mainOpts
+- added new function CmdLine_AddRcFilePostfix(): preserve incompatible version
+- usage output: suppress GUI options in daemon-only mode
+- added new command line option -provscan: new opmode EPG_CL_PROV_SCAN
+epgui/cmdline.h [rev:1.2, 2005-01-08T15:16:14]:
+- removed obsolete CmdLine_GetRcFilePath(): "~" already expanded in mainOpts
+    added flag isUserRcFile to mainOpts
+- added new function CmdLine_AddRcFilePostfix(): preserve incompatible version
+- added new command line option -provscan: new opmode EPG_CL_PROV_SCAN
+epgui/daemon.c [rev:1.4, 2005-01-08T15:16:21]:
+- added new opmode EPG_CL_PROV_SCAN: new command line option -provscan
+    added new sub-mode enum EPG_CL_PROV_SCAN_MODE
+- implemented rc read/write error checking
+epgui/daemon.h [rev:1.3, 2005-01-08T15:16:21]:
+- added new opmode EPG_CL_PROV_SCAN: new command line option -provscan
+    added new sub-mode enum EPG_CL_PROV_SCAN_MODE
+- implemented rc read/write error checking
+epgui/daemon_main.c [rev:1.3, 2005-01-08T15:16:29]:
+- added new opmode EPG_CL_PROV_SCAN: new command line option -provscan
+- implemented rc read/write error checking
+epgui/epgmain.c [rev:1.144, 2005-01-08T15:16:37]:
+- added new opmode EPG_CL_PROV_SCAN: new command line option -provscan
+- moved rc file load into new function LoadRcFile() in uictrl.c
+- adapted for change in cmdline.c mainOpts: defaultRcFile, isUserRcFile
+epgui/rcfile.c [rev:1.3, 2005-01-08T15:16:43]:
+- implemented rc read/write error and version checking
+    return error message by means of syserrmsg.c service
+- rc file path now passed down by caller
+- split off new function RcFile_ParseLine() from Load function to allow:
+- added new function RcFile_LoadFromString()
+epgui/rcfile.h [rev:1.2, 2005-01-08T15:16:43]:
+- implemented rc read/write error and version checking
+    return error message by means of syserrmsg.c service
+- rc file path now passed down by caller
+- split off new function RcFile_ParseLine() from Load function to allow:
+- added new function RcFile_LoadFromString()
+epgui/uictrl.c [rev:1.49, 2005-01-08T15:16:51]:
+- added new function UiControl_DisplayErrorMessage()
+- moved rc file load into new function LoadRcFile() here from main() func
+- implemented rc read/write error and version checking
+epgui/uictrl.h [rev:1.16, 2005-01-08T15:16:51]:
+- added new function UiControl_DisplayErrorMessage()
+- moved rc file load into new function LoadRcFile() here from main() func
+- implemented rc read/write error and version checking
+epgtcl/rcfile.tcl [rev:1.25, 2005-01-08T15:17:16]:
+- Split off rcfile handling into new module epgui/rcfile.c
+- moved parameters for config dialogs from Tcl vars into C domain:
+    acq mode, netacq, db merge, provider selection, prov. frequencies,
+    PI expire delay, hardware (video input) & WIN32 tvcard
+- adapted for new file format: paraterers separated into sections
+    added proc ConvertV27RcFile to convert C sections from old into new format
+- moved load version and error checks & reporting into C domain
+- removed temporary solution for daemon in previous version (___END___ etc.)
+- removed obsolete proc UpdateDaemonRcFile;
+    moved proc UpdateProvSelection et.al into C domain (rcfile.c)
+Makefile [rev:1.80, 2005-01-08T15:19:03]:
+- added new module epgui/epgsetup
+- added module syserrmsg to tvsim: required by module rcfile
+Makefile.win32 [rev:1.54, 2005-01-08T15:20:57]:
+- added new module epgui/epgsetup
+- added module syserrmsg to tvsim: required by module rcfile
+tvsim/tvsim_gui.tcl [rev:1.13, 2005-01-08T15:31:57]:
+- Adapted for new RC/INI file concept
+- proc Tvsim_LoadRcFile(): removed handling of tvcardcf, hwcf_* variables
+- removed check "exists tvcardcf": now done at C level
+tvsim/tvsim_main.c [rev:1.28, 2005-01-08T15:32:05]:
+- Adapted for new RC/INI file concept
+- call new function RcFile_Load() to read TV card & acq parameters
+- adapted setup functions: fetch params from C struct instead of Tcl vars
+- expand "~" in default rc file path during startup
+epgctl/epgversion.h [rev:1.64, 2005-01-08T15:32:53]:
+- set version to 2.7.5pre1
+www/pre-releases.html [rev:1.54, 2005-01-08T17:33:47]:
+- Released 2.5.0pre1
+epgui/cmdline.c [rev:1.3, 2005-01-09T17:44:12]:
+- fixed implementation of -outfile for WIN32
+- removed obsolete function CmdLine_CheckDaemon()
+- added Belgium to country list for -provscan
+epgui/daemon_main.c [rev:1.4, 2005-01-09T17:45:58]:
+- Adapted for changes in cmdline.c:
+- added call to CmdLine_Destroy; moved free of dbdir path string there
+epgui/menucmd.c [rev:1.123, 2005-01-09T17:47:20]:
+- Fix MenuCmd_StartRemoteAcq() for new rcfile concept: (Win32 only)
+- replaced reference to obsolete Tcl var netacqcf with RcFile_Query()
+nxtvepg.pod [rev:1.121, 2005-01-09T18:05:58]:
+- Added description of new command line option -provscan <country>
+epgtcl/rcfile.tcl [rev:1.26, 2005-01-09T18:08:43]:
+- Improved upgrade checks for ancient versions:
+- they did fire and caused errors when version info was missing in rc file
+epgui/uictrl.c [rev:1.50, 2005-01-09T18:14:55]:
+- WIN32 only: added new startup message for missing card config
+epgvbi/btdrv4win.c [rev:1.46.1.14, 2005-01-09T18:30:38]:
+- merged changed from r1.50: adapted for new ACPI handling
+- plus a debug improvement and a TODO note
+epgui/pidescr.c [rev:1.9, 2005-01-10T14:43:05]:
+- Removed dependencies on Tcl/Tk library from this module
+- moved output into short info text widget into pioutput.c
+- init and destroy functions now obsolete, removed
+epgui/pidescr.h [rev:1.6, 2005-01-10T14:43:05]:
+- Removed dependencies on Tcl/Tk library from this module
+- moved output into short info text widget into pioutput.c
+- init and destroy functions now obsolete, removed
+epgui/pilistbox.c [rev:1.96, 2005-01-10T14:43:18]:
+- Adapted for move of descr. output functions from pidescr.c into pioutput.c
+epgui/pinetbox.c [rev:1.42, 2005-01-10T14:43:18]:
+- Adapted for move of descr. output functions from pidescr.c into pioutput.c
+epgui/pibox.c [rev:1.4, 2005-01-10T14:43:30]:
+- Removed init and destroy calls for pidescr.c
+- no longer needed; functions with state were moved into pioutput.c
+epgui/pioutput.c [rev:1.55, 2005-01-10T14:43:40]:
+- Moved short info text widget output functions here from pidescr.c
+- so that pidescr.c no longer has dependencies on Tcl/Tk library
+- also replaced last remaining Tcl_EvalEx calls with Tcl_EvalObj*
+epgui/pioutput.h [rev:1.18, 2005-01-10T14:43:40]:
+- Moved short info text widget output functions here from pidescr.c
+- so that pidescr.c no longer has dependencies on Tcl/Tk library
+- also replaced last remaining Tcl_EvalEx calls with Tcl_EvalObj*
+epgui/rcfile.c [rev:1.4, 2005-01-12T13:30:21]:
+- bugfix RcFile_Load(): fopen() failure message must be suppresed for
+    errno ENOENT (was: EEXIST aka "file already exists")
+- removed superfluous include epgtcl/rcfile.h
+www/WDMpre-releases.html [rev:1.9, 2005-01-13T23:02:14]:
+- Updated by Gerard for the 2.7.5pre1 merge
+epgui/daemon.c [rev:1.5, 2005-01-16T18:08:30]:
+- Removed obsolete include epgtcl/rcfile.h
+epgvbi/btdrv4win.c [rev:1.51, 2005-01-16T20:17:29]:
+- Merged (copied) from WDM development branch (1.46.1.14)
+epgvbi/tvchan.c [rev:1.9, 2005-01-16T20:31:52]:
+- WIN32: Added conversion function to map frequencies to WDM channel indices
+- added element wdmBaseIdx to FREQ_TABLE
+- new function TvChannels_FreqToWdmChannel()
+- also added (commented out) main function for debugging
+epgvbi/tvchan.h [rev:1.7, 2005-01-16T20:31:52]:
+- WIN32: Added conversion function to map frequencies to WDM channel indices
+- added element wdmBaseIdx to FREQ_TABLE
+- new function TvChannels_FreqToWdmChannel()
+- also added (commented out) main function for debugging
+epgtcl/dlg_hwcfg.tcl [rev:1.16, 2005-01-16T20:33:07]:
+- WDM support: pseudo ID PCI_ID_WDM_PSEUDO
+- pre-defined dummy tvcard entry for WDM sources
+epgctl/epgversion.h [rev:1.65, 2005-01-16T21:00:32]:
+- set version to 2.8.0pre1 (merged with WDM development line)
+RELEASE_2_8_0pre1 [rev:LABEL, 2005-01-16T21:00:32|-r1.65 epgversion.h]:
+-
+Makefile.win32 [rev:1.55, 2005-01-16T21:03:24]:
+- Added module epgvbi/tvchan for tvsim: required by btdrv4win.c for WDM
+epgctl/epgversion.h [rev:1.66, 2005-01-21T20:56:17]:
+- set version to 2.8.0pre2
+www/provnets.html [rev:1.39, 2005-01-21T21:07:58]:
+- Updated network list for SF1
+- provided by HaWo in the forum 2004-01-21
+www/pre-releases.html [rev:1.55, 2005-01-22T13:41:58]:
+- updated for 2.8.0 pre1, pre2 and pre2a
+wdmdrv/wdm_dummy.c [rev:1.1, 2005-01-22T14:46:11]:
+- Initial revision
+epgui/xiccc.c [rev:1.1, 2005-01-23T10:18:39]:
+- Initial revision
+epgui/xiccc.h [rev:1.1, 2005-01-23T10:18:39]:
+- Initial revision
+epgui/xawtv.c [rev:1.46, 2005-01-23T10:30:56]:
+- Communication with TV applications based on ICCCM selection managers
+- added support for ICCC clients in parallel to xawtv
+- added new state struct "xiccc" - used by new module epgui/xiccc.c
+    added new config elements "xawtvProto", "xicccProto"
+- added "remote control callback" to pass received commands to epgmain
+- Also:
+- converted Tcl callbacks to object based
+- added new Tcl procs Xawtv_QueryTvapp, Xawtv_IsConnected
+    to display connection status in TV app configuration dialog
+epgui/xawtv.h [rev:1.8, 2005-01-23T10:31:02]:
+- added "remote control callback" to pass received commands to epgmain
+- added new function Xawtv_SendEpgOsd(): used by vbirec.c
+epgui/uictrl.c [rev:1.51, 2005-01-23T10:31:15]:
+- In daemon mode route UpdateRcFile() call into daemon.c
+- because Tcl is not available in daemon mode to write GUI sections
+epgui/rcfile.c [rev:1.5, 2005-01-23T10:31:22]:
+- Fixed warning on WIN32
+epgui/pidescr.c [rev:1.10, 2005-01-23T10:32:48]:
+- Added new helper function PiDescription_Printf()
+- allows to direct "dump" output into FILE* or string buffer
+- added new struct type PI_DESCR_BUF
+- XXX TODO: printing into buffer not supported on WIN32 (lacks vsnprintf)
+epgui/pidescr.h [rev:1.7, 2005-01-23T10:32:48]:
+- Added new helper function PiDescription_Printf()
+- allows to direct "dump" output into FILE* or string buffer
+- added new struct type PI_DESCR_BUF
+- XXX TODO: printing into buffer not supported on WIN32 (lacks vsnprintf)
+epgui/epgsetup.c [rev:1.2, 2005-01-23T10:32:57]:
+- Fixed EpgSetup_CardDriver(): save -card index into rc file
+- required, else tv card dialog shows wrong index
+epgui/dumptext.c [rev:1.13, 2005-01-23T10:33:20]:
+- Extended to allow output into a string
+- added new function EpgDumpText_Single()
+- replaced use of fprintf() with new func PiDescription_Printf()
+    based on new struct PI_DESCR_BUF* instead of FILE*
+epgui/dumptext.h [rev:1.8, 2005-01-23T10:33:20]:
+- Extended to allow output into a string
+- added new function EpgDumpText_Single()
+- replaced use of fprintf() with new func PiDescription_Printf()
+    based on new struct PI_DESCR_BUF* instead of FILE*
+epgui/daemon.c [rev:1.6, 2005-01-23T10:33:36]:
+- Moved function UpdateRcFile() from daemon_main.c into daemon.c
+- also used via uictrl.c in daemon mode (because Tcl is not available)
+epgui/daemon.h [rev:1.4, 2005-01-23T10:33:36]:
+- Moved function UpdateRcFile() from daemon_main.c into daemon.c
+- also used via uictrl.c in daemon mode (because Tcl is not available)
+epgui/daemon_main.c [rev:1.5, 2005-01-23T10:33:36]:
+- Moved function UpdateRcFile() from daemon_main.c into daemon.c
+- also used via uictrl.c in daemon mode (because Tcl is not available)
+epgui/cmdline.c [rev:1.4, 2005-01-23T10:33:51]:
+- Enabled option -remctrl for UNIX
+- use new enum EPG_REMCTRL_CMD, used instead of WIN32 UWM_*
+- extended mode check macro IS_GUI_MODE(); new macro IS_REMCTL_MODE()
+epgui/cmdline.h [rev:1.3, 2005-01-23T10:33:51]:
+- Enabled option -remctrl for UNIX
+- use new enum EPG_REMCTRL_CMD, used instead of WIN32 UWM_*
+- extended mode check macro IS_GUI_MODE(); new macro IS_REMCTL_MODE()
+epgvbi/btdrv4win.c [rev:1.52, 2005-01-23T10:34:09]:
+- added possibility to use WDM dummy driver "wdmdrv/wdm_dummy.c"
+- added work-around for WdmDrv.GetVideoInputName(): SelectDevice()
+epgui/menucmd.c [rev:1.124, 2005-01-23T10:34:33]:
+- Added new Tcl function C_IsAcqEnabled: for tv card dialog
+epgtcl/dlg_xawtvcf.tcl [rev:1.9, 2005-01-23T10:39:15]:
+- display connection status on UNIX too (mainly for new ICCC protocol)
+- changed selection of EPG popup type from radiobutton into popup menu
+epgui/epgmain.c [rev:1.145, 2005-01-23T11:24:51]:
+- Win32: suppress acquitision auto-enable if TV card not configured
+    + added new func Main_PopupTvCardSetup() to display msg & open config dialog
+- enabled option -remctrl for UNIX
+    + pass callback to xawtv.c, commands received via new XICCC protocol
+    + added new function RemoteControlCmd(): send command via XICCC
+      also split off equiv. WIN32 function from RaiseNxtvepgGuiWindow()
+    + adapted mode handling: handled equiv. to IS_DUMP_MODE etc.
+- added "-title" to all error message popups (daemon start/stop)
+Makefile [rev:1.81, 2005-01-23T11:31:03]:
+- added new module epgui/xiccc
+    added new module plus dumptext modules to tvsim/vbirec
+- added rule to generate daemon manual page
+- added install rules for daemon
+nxtvepg.pod [rev:1.122, 2005-01-23T11:33:09]:
+- Added "nxtvepgd" to description section
+tvsim/vbirec_gui.tcl [rev:1.11, 2005-01-23T12:51:46]:
+- Added support for ICCC protocol (UNIX only)
+- added new command line option -protocol iccc|xawtv
+- changed EPG OSD display: use new function Xawtv_SendEpgOsd()
+    and fake AI and PI to provide EPG infos; added proc Create_XawtvPopup
+    to redirect "external" popup into remote message to TV app
+- moved proc XawtvConfigShmAttach here from vbirec_main.c
+tvsim/vbirec_main.c [rev:1.22, 2005-01-23T12:51:46]:
+- Added support for ICCC protocol (UNIX only)
+- added new command line option -protocol iccc|xawtv
+    added new macros IPC_XAWTV_ENABLED, IPC_ICCCM_ENABLED
+tvsim/tvsim_main.c [rev:1.29, 2005-01-23T12:52:11]:
+- Added support for ICCC protocol (UNIX only)
+- added new command line option -protocol iccc|xawtv
+    added new macros IPC_XAWTV_ENABLED, IPC_ICCCM_ENABLED
+- implemented icccm protocol based on new module epgui/xiccc.c
+    added new state struct XICCC_STATE; added event handler
+- added new Tcl callback C_GetPdcString for long description display
+- new new generic Tcl procs DisplayPiDescription etc. to handle EPG display
+tvsim/tvsim_gui.tcl [rev:1.14, 2005-01-23T12:52:18]:
+- Added support for ICCC protocol (UNIX only)
+- added new command line option -protocol iccc|xawtv
+- in iccc mode display text window for EPG info (instead of separate lines)
+    display description equivalently to nxtvepg in short info window
+- display "connect" button also for UNIX (not used for xawtv)
+- split off new procs DisplayPiDescription etc. to handle EPG display
+tvsim/tvsim_version.h [rev:1.7, 2005-01-23T12:52:25]:
+- Changed version from 2.1 to 3.0 due to implementation of UNIX ICCC protocol
+www/index-de.html [rev:1.76, 2005-02-11T21:07:11]:
+- Removed highlighting by color red from "latest release" headline
+www/index-fr.html [rev:1.11, 2005-02-11T21:07:11]:
+- Removed highlighting by color red from "latest release" headline
+www/index.html [rev:1.88, 2005-02-11T21:07:11]:
+- Removed highlighting by color red from "latest release" headline
+www/xiccc-proto.html [rev:1.1, 2005-02-11T21:21:38]:
+- Initial revision
+www/nxtvepg.css [rev:1.15, 2005-02-11T21:21:56]:
+- Added "TR.func_box" for xiccc-proto.html
+www/xiccc-proto.html [rev:1.2, 2005-02-11T23:39:30]:
+- added description to Xawtv remote commands
+- improved description of client overall structure/sequence
+wdmdrv/wdmdrv.h [rev:1.6, 2005-02-20T20:24:59]:
+- Updated for new DLL:
+- VBI callback: added param "FrameType"
+- added defines for param values
+epgvbi/btdrv4win.c [rev:1.53, 2005-02-20T20:25:12]:
+- moved VBIAcqWDMDrv.dll from wdmdrv subdir into same dir as exe
+- adapted VBI callback for WDM interface change: added param "FrameType":
+    added support for "progressive" frames
+- major bugfix VBI callback: for() loop processed one line too many
+- bugfix: removed VBI_SLICED_VPS from field B
+- bugfix: removed WdmDrv.FreeDrv() call from BtDriver_WdmUnload()
+epgtcl/dlg_prov.tcl [rev:1.17, 2005-02-20T20:25:49]:
+- Fix: removed use of obsolete global Tcl variable prov_merge_cnis
+epgctl/epgversion.h [rev:1.67, 2005-02-26T20:43:22]:
+- set version to 2.8.0pre3
+RELEASE_2_8_0pre3 [rev:LABEL, 2005-02-26T20:43:22|-r1.67 epgversion.h]:
+-
+www/help-wanted.html [rev:1.14, 2005-02-27T12:19:37]:
+- re-enabled link to WDM pre-release page
+- updated status of UNIX TV app interaction support
+www/changelog.html [rev:1.60, 2005-02-27T12:19:51]:
+- fixed typo
+www/pre-releases.html [rev:1.56, 2005-02-27T12:24:57]:
+- updated for 2.8.0 pre3 (note: WDM library interface change)
+- added link to XICCC documentation
+epgctl/epgversion.h [rev:1.68, 2005-02-27T18:41:19]:
+- set version to 2.8.0pre4
+www/pre-releases.html [rev:1.57, 2005-02-27T20:20:46]:
+- updated for 2.8.0 pre4
+tvsim/tvsim.pod [rev:1.10, 2005-03-06T19:46:44]:
+- added mention of new (3rd) UNIX protocol: XICCC
+- extended copyright to 2005
+tvsim/tvsim_main.c [rev:1.30, 2005-03-06T19:46:51]:
+- Added recursion protection in WinApiExceptionHandler()
+tvsim/vbirec.pod [rev:1.11, 2005-03-06T19:47:18]:
+- Extended copyright to 2005
+tvsim/vbirec_main.c [rev:1.23, 2005-03-06T19:47:54]:
+- Added recursion protection in WinApiExceptionHandler()
+epgui/epgmain.c [rev:1.146, 2005-03-06T19:59:15]:
+- added recursion protection in WinApiExceptionHandler()
+- WIN32: fixed detection of unconfigured driver;
+    Main_PopupTvCardSetup(): improved message text
+epgui/xawtv.c [rev:1.47, 2005-03-06T20:16:30]:
+- Improved match of VPS/PDC CNIs onto AI CNI list members
+- TV5 was not identified because AI contained P8/30/1 CNI; network also sends
+    P8/30/1, but it was automatically converted to PDC during reception
+- Xawtv_SearchCurrentPi(): added 2nd loop across AI CNI list which
+    includes conversion of AI CNIs to PDC
+- bug reported in forum 2004-Feb-24 by Manani
+www/provnets.html [rev:1.40, 2005-03-15T20:06:09]:
+- Updated network list of TV5: many more networks, extended preview
+www/provnets.html [rev:1.41, 2005-03-15T20:11:40]:
+- striked out two networks of provider VT4 which no longer transmit data
+- reported in forum 2005-03-14 ("VT4 Belgium")
+nxtvepg.spec [rev:1.21, 2005-03-21T17:37:57]:
+- updated Nextview provider list: removed EuroNews for CH+F; added TV5 for CH
+- changed make target from none (i.e. "all") to daemon
+README [rev:1.41, 2005-03-21T17:39:28]:
+- branches:  1.41.1;
+- Updated Nextview provider list: removed EuroNews for all; added TV5 for CH
+nxtvepg.pod [rev:1.123, 2005-03-21T17:39:52]:
+- Updated Nextview provider list: removed EuroNews for all; added TV5 for CH
+Makefile [rev:1.82, 2005-03-21T17:44:10]:
+- changed CFLAGS from -O2 to -O
+- extended copyright for vbirec and tvsim to 2005
+www/intro-de.html [rev:1.11, 2005-03-21T17:45:51]:
+- Updated Nextview provider list: removed EuroNews for all; added TV5 for CH
+www/intro.html [rev:1.11, 2005-03-21T17:45:51]:
+- Updated Nextview provider list: removed EuroNews for all; added TV5 for CH
+epgctl/epgversion.h [rev:1.69, 2005-03-25T13:07:07]:
+- set version to 2.8.0pre5
+www/changelog-2.6.0pre.html [rev:1.10, 2005-03-29T16:34:07]:
+- Updated screenshots & screenshot links in navigation bar
+www/changelog-2.7.0pre.html [rev:1.6, 2005-03-29T16:34:07]:
+- Updated screenshots & screenshot links in navigation bar
+www/changelog.html [rev:1.61, 2005-03-29T16:34:07]:
+- Updated screenshots & screenshot links in navigation bar
+www/download-de.html [rev:1.17, 2005-03-29T16:34:07]:
+- Updated screenshots & screenshot links in navigation bar
+www/download.html [rev:1.17, 2005-03-29T16:34:07]:
+- Updated screenshots & screenshot links in navigation bar
+www/faq.html [rev:1.13, 2005-03-29T16:34:07]:
+- Updated screenshots & screenshot links in navigation bar
+www/help-wanted.html [rev:1.15, 2005-03-29T16:34:07]:
+- Updated screenshots & screenshot links in navigation bar
+www/index-de.html [rev:1.77, 2005-03-29T16:34:07]:
+- Updated screenshots & screenshot links in navigation bar
+www/index-fr.html [rev:1.12, 2005-03-29T16:34:07]:
+- Updated screenshots & screenshot links in navigation bar
+www/index.html [rev:1.89, 2005-03-29T16:34:07]:
+- Updated screenshots & screenshot links in navigation bar
+www/intro-de.html [rev:1.12, 2005-03-29T16:34:07]:
+- Updated screenshots & screenshot links in navigation bar
+www/intro.html [rev:1.12, 2005-03-29T16:34:07]:
+- Updated screenshots & screenshot links in navigation bar
+www/links.html [rev:1.13, 2005-03-29T16:34:07]:
+- Updated screenshots & screenshot links in navigation bar
+www/man.html [rev:1.38, 2005-03-29T16:34:07]:
+- Updated screenshots & screenshot links in navigation bar
+www/provnets.html [rev:1.42, 2005-03-29T16:34:07]:
+- Updated screenshots & screenshot links in navigation bar
+www/tvsim-faq.html [rev:1.13, 2005-03-29T16:34:07]:
+- Updated screenshots & screenshot links in navigation bar
+www/xiccc-proto.html [rev:1.3, 2005-03-29T16:34:07]:
+- Updated screenshots & screenshot links in navigation bar
+www/WDMpre-releases.html [rev:1.10, 2005-03-29T16:34:39]:
+- Updated screenshots & screenshot links in navigation bar
+www/pre-releases.html [rev:1.58, 2005-03-29T16:34:42]:
+- updated for release 2.8.0pre5
+    including 2.8.0pre5b-win: compiled under windows
+- updated screenshots & screenshot links in navigation bar
+epgui/dumpxml.c [rev:1.14, 2005-03-30T14:31:34]:
+- Bugfixes: (bugs reported by Laurent Garnier via email 2005-03-16)
+- timezone format in local time output (DTD 0.5): was decimal, must be HH:MM
+- <category> without content written for non-standard PDC theme codes
+epgui/epgmain.c [rev:1.147, 2005-03-30T14:47:32]:
+- WIN32: adapted for upgrade from Tk8.3 to Tk 8.4.9
+- suppress "wm iconbitmap" & "wm iconname" in ui_init()
+- else the taskbar logo was messed up
+nxtvepg.pod [rev:1.124, 2005-03-30T15:05:29]:
+- Option -dump: added description of modes xml5, xml5ltz and xml6
+epgtcl/rcfile.tcl [rev:1.27, 2005-03-30T17:50:40]:
+- Added special case for importing 2.7.5 rc files:
+- smaller version #, yet format is older & needs conversion
+www/WDMpre-releases.html [rev:1.11, 2005-03-30T21:09:12]:
+- Import of Gerard's changes for his release of 2005-01-20
+www/WDMpre-releases.html [rev:1.12, 2005-03-31T14:35:14]:
+- Import of Gerard's changes for his release of 2005-03-31
+www/WDMpre-releases.html [rev:1.13, 2005-03-31T14:38:54]:
+- Updated sections on known problems and supported cards:
+- removed problems: ZVBI not implemented; dsdrv disabled
+- added cards Typhoon 90031, Hauppauge PCI CX23881
+Makefile.win32 [rev:1.56, 2005-03-31T16:49:16]:
+- Upgraded Tcl/Tk library version from 8.3.4 to 8.4.9
+epgui/dumpxml.c [rev:1.15, 2005-04-02T12:40:25]:
+- DTD 0.5 fix: removed use of keyword "2-channel": not supported semantically
+- DTD 0.5: added aspect ratio 16:9 for Widescreen and PAL+
+- also replaced last two use cases of function PiOutput_PrintColumnItem()
+    and include pioutput.h
+www/WDMpre-releases.html [rev:1.14, 2005-04-03T15:48:53]:
+- added 2 known problems:
+    + scan doesn't work for German cable networks
+    + scan requires "slow" option
+- added btwincap to list of working cards/drivers
+Makefile [rev:1.83, 2005-04-07T15:33:22]:
+- Added dependencies for all subdirs below build-* (was just toplevel)
+- added new variable SUBDIRS; added new phony rule "build_dir"
+Makefile.win32 [rev:1.57, 2005-04-07T15:36:10]:
+- Added dependencies for all subdirs below build-* (was just toplevel)
+- added new variable SUBDIRS; added new phony rule "build_dir"
+epgvbi/btdrv4dummy.c [rev:1.21, 2005-04-07T15:58:56]:
+- Redesign of WIN32 WDM source configuration: handle WDM and dsdrv separately
+- adapted for interface change in btdrv.h: added "drvType" dummy param
+epgvbi/btdrv4linux.c [rev:1.62, 2005-04-07T15:58:56]:
+- Redesign of WIN32 WDM source configuration: handle WDM and dsdrv separately
+- adapted for interface change in btdrv.h: added "drvType" dummy param
+epgvbi/btdrv.h [rev:1.44, 2005-04-07T15:59:09]:
+- Redesign of WIN32 WDM source configuration: handle WDM and dsdrv separately
+- added new enum type BTDRV_SOURCE_TYPE
+- added "drvType" param to several functions (in addition to TV card index)
+epgvbi/btdrv4win.c [rev:1.54, 2005-04-07T16:07:44]:
+- Redesign of WIN32 WDM source configuration: handle WDM and dsdrv separately
+- removed union from card list: now used for PCI only;
+    for WDM only the source count is saved; no additional info is stored;
+    added "drvType" param to several functions (in addition to TV card index)
+- no longer need to load dsdrv if WDM source is selected;
+    also: don't load WDM DLL if dsdrv source selected; unload WDM upon switch
+tvsim/tvsim_main.c [rev:1.31, 2005-04-07T16:11:34]:
+- Redesign of WIN32 WDM source configuration: handle WDM and dsdrv separately
+- adapted for interface change in btdrv.h: added "drvType" param
+tvsim/vbirec_main.c [rev:1.24, 2005-04-07T16:16:36]:
+- redesign of WIN32 WDM source configuration: handle WDM and dsdrv separately
+    + adapted for interface change in btdrv.h: added "drvType" param
+- split modules for XMLTV, text and raw dump to allow to use them in daemon exe
+    + added dummy function for new function EpgDump_MapCni2Name()
+epgtcl/dlg_hwcfg.tcl [rev:1.17, 2005-04-07T17:27:39]:
+- Redesign of WIN32 WDM source configuration: handle WDM and dsdrv separately
+- added radiobuttons to switch between WDM and dsdrv
+    hide dsdrv related controls when WDM is selected
+- new config variable hwcfg_drvsrc_sel, returned from C_GetHardwareConfig;
+    passed down to HW query and param update functions
+- added warning when switching from WDM to dsdrv
+    reversed warning for CX23881 "WDM stop": warn if option is NOT selected
+- use labelframe for better structuring; added hint text
+- re-enable acq after temporary disable also when leaving with "Abort"
+epgui/daemon.c [rev:1.7, 2005-04-07T17:42:17]:
+- Split modules for XMLTV, text and raw dump to allow to use them in daemon exe
+- added new function Daemon_StartDump()
+epgui/daemon.h [rev:1.5, 2005-04-07T17:42:17]:
+- Split modules for XMLTV, text and raw dump to allow to use them in daemon exe
+- added new function Daemon_StartDump()
+epgui/daemon_main.c [rev:1.6, 2005-04-07T17:43:37]:
+- Split modules for XMLTV, text and raw dump to allow to use them in daemon exe
+- added handling of IS_DUMP_MODE(mainOpts): call new Daemon_StartDump()
+- removed dummy functions for raw stream dump (called by epgstream.c)
+epgui/rcfile.c [rev:1.6, 2005-04-07T18:18:28]:
+- WIN32: Increased number of tvcardcf param sets from 5 to 2*4 for WDM
+- to match card list size in btdrv4win.c
+- (note: released in 2.8.0pre3..pre5)
+epgui/rcfile.h [rev:1.3, 2005-04-07T18:18:28]:
+- WIN32: Increased number of tvcardcf param sets from 5 to 2*4 for WDM
+- to match card list size in btdrv4win.c
+- (note: released in 2.8.0pre3..pre5)
+epgui/rcfile.c [rev:1.7, 2005-04-07T18:23:29]:
+- Redesign of WIN32 WDM source configuration: handle WDM and dsdrv separately
+- reduced number of tvcardcf param sets: back to 4 from 8
+    added backwards compatibility for older versions: correct winsrc_count
+- added new element "hwcf_drv_type" in section [TV CARDS]
+- set compat version to 0x0207C7 (2.8.0pre6)
+epgui/rcfile.h [rev:1.4, 2005-04-07T18:23:29]:
+- Redesign of WIN32 WDM source configuration: handle WDM and dsdrv separately
+- reduced number of tvcardcf param sets: back to 4 from 8
+    added backwards compatibility for older versions: correct winsrc_count
+- added new element "hwcf_drv_type" in section [TV CARDS]
+- set compat version to 0x0207C7 (2.8.0pre6)
+epgui/epgsetup.c [rev:1.3, 2005-04-07T18:28:34]:
+- Redesign of WIN32 WDM source configuration: handle WDM and dsdrv separately
+- pass new param pRc->tvcard.drv_type through from RC to btdrv modules
+epgui/menucmd.c [rev:1.125, 2005-04-07T18:34:43]:
+- Redesign of WIN32 WDM source configuration: handle WDM and dsdrv separately
+- added param "drvType" to query functions: passed through to btdrv module;
+    store drvType in RC struct in C_UpdateHardwareConfig
+- added element "drvType" to result list of C_GetHardwareConfig
+epgui/dumphtml.c [rev:1.4, 2005-04-07T18:38:19]:
+- Split modules for XMLTV, text and raw dump to allow to use them in daemon exe
+- moved helper functions which are shared by HTML and XML into XML module
+    + because HTML is not included in the non-GUI executable
+    + globally adapted for name change (function prefix)
+- 2 funcs affected: ..._RemoveQuotes, _WriteString
+epgui/dumphtml.h [rev:1.3, 2005-04-07T18:38:19]:
+- Split modules for XMLTV, text and raw dump to allow to use them in daemon exe
+- moved helper functions which are shared by HTML and XML into XML module
+    + because HTML is not included in the non-GUI executable
+    + globally adapted for name change (function prefix)
+- 2 funcs affected: ..._RemoveQuotes, _WriteString
+epgui/dumpraw.c [rev:1.30, 2005-04-07T18:41:50]:
+- Split modules for XMLTV, text and raw dump to allow to use them in daemon exe
+- removed dependencies on Tcl/Tk -> funcs moved into new module uidump.c
+- also moved debug function EpgDumpRaw_PopupPi
+epgui/dumpraw.h [rev:1.13, 2005-04-07T18:41:50]:
+- Split modules for XMLTV, text and raw dump to allow to use them in daemon exe
+- removed dependencies on Tcl/Tk -> funcs moved into new module uidump.c
+- also moved debug function EpgDumpRaw_PopupPi
+epgui/dumptext.c [rev:1.14, 2005-04-07T18:42:06]:
+- Split modules for XMLTV, text and raw dump to allow to use them in daemon exe
+- removed dependencies on Tcl/Tk -> funcs moved into new module uidump.c
+- added callback function param MapCni2Name to quey user-configured net.names
+epgui/dumptext.h [rev:1.9, 2005-04-07T18:42:06]:
+- Split modules for XMLTV, text and raw dump to allow to use them in daemon exe
+- removed dependencies on Tcl/Tk -> funcs moved into new module uidump.c
+- added callback function param MapCni2Name to quey user-configured net.names
+epgui/dumpxml.c [rev:1.16, 2005-04-07T18:42:15]:
+- Split modules for XMLTV, text and raw dump to allow to use them in daemon exe
+- removed dependencies on Tcl/Tk -> funcs moved into new module uidump.c
+- added callback function param MapCni2Name to quey user-configured net.names
+- use enum EPG_DUMP_MODE from cmdline.h instead of Tcl constants
+- moved helper functions which are shared by HTML and XML here from HTML module
+    + because HTML is not included in the non-GUI executable
+epgui/dumpxml.h [rev:1.4, 2005-04-07T18:42:15]:
+- Split modules for XMLTV, text and raw dump to allow to use them in daemon exe
+- removed dependencies on Tcl/Tk -> funcs moved into new module uidump.c
+- added callback function param MapCni2Name to quey user-configured net.names
+- use enum EPG_DUMP_MODE from cmdline.h instead of Tcl constants
+- moved helper functions which are shared by HTML and XML here from HTML module
+    + because HTML is not included in the non-GUI executable
+epgui/uidump.c [rev:1.1, 2005-04-07T18:42:34]:
+- Initial revision
+epgui/uidump.h [rev:1.1, 2005-04-07T18:42:34]:
+- Initial revision
+epgui/xawtv.c [rev:1.48, 2005-04-07T18:43:43]:
+- Split modules for XMLTV, text and raw dump to allow to use them in daemon exe
+- adapted for interface change in dumptext.c: added callback function param
+    EpgDump_MapCni2Name to quey user-configured net.names
+epgui/epgmain.c [rev:1.148, 2005-04-07T18:55:09]:
+- Split modules for XMLTV, text and raw dump to allow to use them in daemon exe
+- replaced init/destroy calls to various dump modules with calls to new uidump
+- MainStartDump(): moved switch across dump modes into uidump.c
+epgui/epgmain.c [rev:1.149, 2005-04-07T19:08:31]:
+- WIN32: fixed placement of systray menu
+- since upgrade of Tcl/Tk from 8.3.4 to 8.4.9 placement was off by 3cm
+- replaced "tk_popup" with direct use of menu "post" command
+- reported in forum 2005-05-04 by "Siggi"
+epgui/cmdline.c [rev:1.5, 2005-04-07T19:42:21]:
+- Split modules for XMLTV, text and raw dump to allow to use them in daemon exe
+- allow use of option "-dump" in non-GUI executable (daemonOnly);
+- CmdLine_Process(): delayed evaluation of flag daemonOnly to distinguish
+    from -daemon option which cannot be combined with -dump
+- Also:
+- help output: fixed placement of default dbdir path below -dbdir option
+Makefile.win32 [rev:1.58, 2005-04-08T14:46:35]:
+- Split modules for XMLTV, text and raw dump to allow to use them in daemon exe
+- added new module uidump.c to GUI
+- added dump modules to daemon executable (plus PDC theme table and PI descr)
+Makefile [rev:1.84, 2005-04-08T14:49:51]:
+- Split modules for XMLTV, text and raw dump to allow to use them in daemon exe
+- added new module uidump.c to GUI
+- added dump modules to daemon executable (plus PDC theme table and PI descr)
+Makefile [rev:1.85, 2005-04-09T16:17:45]:
+- removed "devel" from devependency list for target "daemon"
+    to allow to compile only the daemon (people without X11)
+- updated description in header
+epgctl/epgversion.h [rev:1.72, 2005-04-09T19:21:06]:
+- set version to 2.8.0pre6
+xmltv/xml_scan.lex [rev:1.1, 2005-05-10T21:37:25]:
+- Initial revision
+xmltv/xmltv.yy [rev:1.1, 2005-05-10T21:37:25]:
+- Initial revision
+xmltv/xmltv_db.c [rev:1.1, 2005-05-10T21:37:25]:
+- Initial revision
+xmltv/xmltv_db.h [rev:1.1, 2005-05-10T21:37:25]:
+- Initial revision
+www/index-de.html [rev:1.79, 2005-05-26T14:41:23]:
+- Removed <SPAN> highlighting from "latest release" headline
+www/index-fr.html [rev:1.15, 2005-05-26T14:41:23]:
+- Removed <SPAN> highlighting from "latest release" headline
+www/index.html [rev:1.91, 2005-05-26T14:41:23]:
+- Removed <SPAN> highlighting from "latest release" headline
+epgui/dumpraw.c [rev:1.31, 2005-05-29T16:51:31]:
+- Fixed warnings for -m64: added (uint) for strlen() as printf arg
+epgui/uidump.c [rev:1.2, 2005-05-29T16:56:17]:
+- Bugfix EpgDump_Standalone():
+- dumpSubMode DUMP_XMLTV_ANY was not translated to DTD version
+- bug reported in forum by Siggi, 2005-04-20
+epgui/dumpxml.c [rev:1.17, 2005-05-29T16:59:55]:
+- bugfix EpgDumpXml_PrintTimestamp(): returned string was undefined
+    if DTD parameter was invalid
+- added OI header and message to DTD 0.6 <source-info> field
+- use </subtitle> instead of implicit close: depreciated by XML spec
+    for tags which are not declared EMPTY in DTD
+- fix: tag <stereo /> was used for surround sound also
+- fix: channel attribute was given to mono instead of audio for 2-chan. shows
+xmltv/xml_hash.c [rev:1.1, 2005-05-29T17:22:48]:
+- Initial revision
+xmltv/xml_hash.h [rev:1.1, 2005-05-29T17:22:48]:
+- Initial revision
+xmltv/xmltv_themes.c [rev:1.1, 2005-05-29T17:23:11]:
+- Initial revision
+xmltv/xmltv_themes.h [rev:1.1, 2005-05-29T17:23:11]:
+- Initial revision
+xmltv/xml_scan.lex [rev:1.2, 2005-05-29T17:26:57]:
+- branches:  1.2.1;
+- Redesign: no longer use yacc
+- replaced return with function callbacks
+- removed tag and attribute name matching: moved into tables in xmltv_parser
+- Also: added syntax error detection; improved conformance to XML spec
+xmltv/xmltv.yy [rev:1.2, 2005-05-29T17:27:53]:
+- Adapted for interface change in xmltv_db
+xmltv/xmltv_db.c [rev:1.2, 2005-05-29T17:34:22]:
+- module renamed from xmltv_parser into xmltv_db; (note: module xmltv_parser
+    still exists and now takes the place of the former yacc generated file)
+- implemented callbacks for all data types supported by Nextview EPG
+- added char-code entity parsing
+- use hash for theme strings in DTD 0.5; split string match into new module
+- generate OI block from source-info
+- added preliminary automatic version detection
+xmltv/xmltv_db.h [rev:1.2, 2005-05-29T17:34:47]:
+- module renamed from xmltv_parser into xmltv_db; (note: module xmltv_parser
+    still exists and now takes the place of the former yacc generated file)
+- implemented callbacks for all data types supported by Nextview EPG
+xmltv/xmltv_tags.c [rev:1.1, 2005-05-29T17:36:24]:
+- Initial revision
+xmltv/xmltv_tags.h [rev:1.1, 2005-05-29T17:36:24]:
+- Initial revision
+xmltv/xmltv_timestamp.c [rev:1.1, 2005-05-29T17:37:29]:
+- Initial revision
+xmltv/xmltv_timestamp.h [rev:1.1, 2005-05-29T17:37:30]:
+- Initial revision
+Makefile [rev:1.86, 2005-06-02T18:57:16]:
+- Added xmltv parser: new sub-dir, object list and implicit rule for *.lex
+Makefile.win32 [rev:1.59, 2005-06-02T19:54:12]:
+- Added xmltv parser: new sub-dir, object list and implicit rule for *.lex
+epgctl/epgversion.h [rev:1.73, 2005-06-03T20:12:16]:
+- set version to 2.8.0pre7
+www/pre-releases.html [rev:1.61, 2005-06-03T20:13:15]:
+- updated for release 2.8.0pre6
+xmltv/xmltv_db.c [rev:1.3, 2005-06-04T16:34:02]:
+- branches:  1.3.1;
+- moved DTD 0.6 timestamp parsing into xmltv_timestamp.c
+- changed CNI of "this netwop" to 0x00FE (closer to merged db)
+- adapted XmltvParser_Start() for integration in nxtvepg;
+    #if 0'ed former "main" function
+- added new function Xmltv_CheckHeader()
+xmltv/xmltv_db.h [rev:1.3, 2005-06-04T16:34:07]:
+- adapted XmltvParser_Start() for integration in nxtvepg
+- added new function Xmltv_CheckHeader()
+xmltv/xmltv_timestamp.c [rev:1.2, 2005-06-04T16:34:16]:
+- added DTD 0.6 timestamp parsing (moved here from xmltv_db.c)
+- adaptions for tomezone conversion WIN32
+xmltv/xmltv_timestamp.h [rev:1.2, 2005-06-04T16:34:22]:
+- Added DTD 0.6 timestamp parsing (moved here from xmltv_db.c)
+www/pre-releases.html [rev:1.62, 2005-06-04T16:35:20]:
+- updated for release 2.8.0pre7
+epgctl/mytypes.h [rev:1.22, 2005-06-04T20:10:56]:
+- Added debug switch DEBUG_SWITCH_XMLTV for new sub-directory "xmltv"
+xmltv/xmltv_tags.c [rev:1.2, 2005-06-05T18:36:07]:
+- added DTD 0.5 tags <url>, <icon> and <date>
+- adapted for callback function name changes in xmltv_db.c
+- added missing handler for "stereo" in DTD 0.5: Xmltv_PiAudioStereoSet()
+- fixed callbacks for several empty tags (which are used as boolean flags):
+    attach callback to tag-open instead of pcdata
+- added new PCDATA mode XML_DISCARD_PCDATA (to allow tighter error checks)
+- adapted for change in mytypes.h: use DEBUG_SWITCH_XMLTV
+xmltv/xmltv_db.c [rev:1.4, 2005-06-05T18:36:16]:
+- bugfix "code-time" timestamp parsing; also DTD was fixed to 0.5
+- fixed prefix of audio attribute functions: TsSetFeat -> PiAudio
+    also added missing handler for "stereo" in DTD 0.5: Xmltv_PiAudioStereoSet()
+- removed debug code from Xmltv_PiRatingSetSystem (was entity test)
+- added callbacks for DTD 0.5 tags <url> and <date>
+- adapted for change in mytypes.h: use DEBUG_SWITCH_XMLTV
+xmltv/xmltv_db.h [rev:1.4, 2005-06-05T18:36:21]:
+- fixed prefix of audio attribute functions: TsSetFeat -> PiAudio
+- added "Pi" to <video> callbacks functions
+- asl groupes Ts and Pi callbacks separately; added comments
+xmltv/xml_hash.c [rev:1.2, 2005-06-05T18:36:27]:
+- Adapted for change in mytypes.h: use DEBUG_SWITCH_XMLTV
+xmltv/xmltv_themes.c [rev:1.2, 2005-06-05T18:36:37]:
+- bugfixes in German parser: some strings were never reached
+- fixed a few PDC codes in British parser
+- syntax fix of dprintf
+- adapted for change in mytypes.h: use DEBUG_SWITCH_XMLTV
+xmltv/xmltv_timestamp.c [rev:1.3, 2005-06-05T18:36:47]:
+- Adapted for change in mytypes.h: use DEBUG_SWITCH_XMLTV
+nxtvepg-de.pod [rev:1.1, 2005-06-16T19:42:51]:
+- Initial revision
+nxtvepg-de.pod [rev:1.2, 2005-06-17T19:58:03]:
+- First review up to chapter "MERGED DATABASES"
+xmltv/xml_cdata.c [rev:1.1, 2005-06-18T18:14:56]:
+- Initial revision
+xmltv/xml_cdata.h [rev:1.1, 2005-06-18T18:14:56]:
+- Initial revision
+xmltv/xml_prolog.yy [rev:1.1, 2005-06-18T18:42:42]:
+- Initial revision
+xmltv/xml_hash.c [rev:1.3, 2005-06-18T18:46:37]:
+- changed module and function prefixes XmltvHash to XmlHash
+- added new interface function XmlHash_SearchEntry
+- added callback function as parameter to destroy function to free payload
+xmltv/xml_hash.h [rev:1.2, 2005-06-18T18:46:37]:
+- changed module and function prefixes XmltvHash to XmlHash
+- added new interface function XmlHash_SearchEntry
+- added callback function as parameter to destroy function to free payload
+xmltv/xml_cdata.c [rev:1.2, 2005-06-18T21:37:07]:
+- Fixed functions prefixes in dprintf output
+xmltv/xml_prolog.yy [rev:1.2, 2005-06-18T21:37:14]:
+- Adapted includes for name change of xmltv_parser.h into xmltv_tags.h
+xmltv/xml_scan.lex [rev:1.3, 2005-06-18T21:37:25]:
+- added function header and module description
+- added scanner for XML prolog(e.g. <!ENTITY ...>)
+- added recursive replacement of entities in content and attributes
+- added auto-detection of character encoding
+xmltv/xmltv_db.c [rev:1.5, 2005-06-18T21:37:39]:
+- split off string handling into new module xml_cdata;
+    globally changed function prefices from XmltvParser into XmlCdata
+- also adapted for XmltvHash_ to XmlHash_ function prefix change
+- scrapped obsolete entity parsing in CDATA: moved into scanner
+- added function header and module description
+- fixed code for standalone test mode
+xmltv/xmltv_db.h [rev:1.5, 2005-06-18T21:37:45]:
+- moved typedef XMLTV_DTD_VERSION here from xmltv_tags.h
+- removed declaration for XmltvParser_Destroy
+xmltv/xmltv_tags.c [rev:1.3, 2005-06-18T21:37:55]:
+- Adapted for integration of XML prolog parser
+- call yyparse() instead of yylex()
+- Xmltv_TagClose() returns boolean to indicate if the top-level tag was closed
+- added call to scanner initialization and destruction functions
+- renamed module from xmltv_parser.c into xmltv_tags.c
+xmltv/xmltv_tags.h [rev:1.2, 2005-06-18T21:38:01]:
+- Adapted for integration of XML prolog parser
+- Xmltv_TagClose() returns boolean to indicate if the top-level tag was closed
+- renamed module from xmltv_parser.c into xmltv_tags.c
+- moved typedef XMLTV_DTD_VERSION into xmltv_db.h
+- added prototypes for to scanner interface functions (entity definition)
+nxtvepg-de.pod [rev:1.3, 2005-06-20T20:24:27]:
+- Überarbeitet durch Kurt; via email 2005-06-20.20:19
+- Rechtschreibfehler eliminiert
+- Satzstellung korrigiert
+- Kommas reduziert
+- Anrede vereinheitlicht: "Sie"
+- Begriffsvereinheitlichung: merge, command line,
+Makefile [rev:1.87, 2005-06-21T21:23:06]:
+- Restructured XMLTV implementation
+- added parser for XML prolog, generated by yacc
+- renamed several files; split off new module xml_cdata
+- added target for debugging & validation of the XML parser
+nxtvepg-de.pod [rev:1.4, 2005-06-23T19:17:08]:
+- First review continued for the remaining chapters
+nxtvepg-de.pod [rev:1.5, 2005-06-26T11:20:28]:
+- Applied changes inbetween 2.7.0 and 2.7.5 (nxtvepg.pod,v 1.109 .. 1.118.1.1)
+- options -acqonce, -dump, -outfile, -clock
+- chapter "Context menu configuration"
+nxtvepg-de.pod [rev:1.6, 2005-06-26T14:56:49]:
+- Review of recent changes by Kurt
+nxtvepg.pod [rev:1.125, 2005-06-26T15:35:21]:
+- added "Thanks" for German translation of the manual
+- minor corrections, found during proof-reading the German translation
+nxtvepg.pod [rev:1.118.1.2, 2005-06-26T15:36:32]:
+- Merged fixes from revision 1.125
+xmltv/xml_cdata.c [rev:1.3, 2005-06-28T16:06:16]:
+- added size hint for malloc
+- moved whitespace trim here from xmltv_tags.c; added skip element to buffer
+- changed frequently used functions into macros, #ifdef XML_CDATA_INLINE
+- added function XmlCdata_Assign to copy text from buffer to buffer
+- removed obsolete function XmlCdata_AppendXml
+- use realloc instead of malloc/free to grow the buffer
+xmltv/xml_cdata.h [rev:1.2, 2005-06-28T16:06:16]:
+- added size hint for malloc
+- moved whitespace trim here from xmltv_tags.c; added skip element to buffer
+- changed frequently used functions into macros, #ifdef XML_CDATA_INLINE
+- added function XmlCdata_Assign to copy text from buffer to buffer
+- removed obsolete function XmlCdata_AppendXml
+- use realloc instead of malloc/free to grow the buffer
+xmltv/xml_hash.c [rev:1.4, 2005-06-28T16:06:29]:
+- Moved definition of internal structures from header into C file
+- added new types XML_HASH_PTR, XML_HASH_PAYLOAD: void *
+- global functions get only void *, mapped to actual types internally
+xmltv/xml_hash.h [rev:1.3, 2005-06-28T16:06:29]:
+- Moved definition of internal structures from header into C file
+- added new types XML_HASH_PTR, XML_HASH_PAYLOAD: void *
+- global functions get only void *, mapped to actual types internally
+xmltv/xml_prolog.yy [rev:1.3, 2005-06-28T16:06:40]:
+- Added new token XMLTOK_CONTENT_END, adapted "content" rule
+- END token is returned by scanner when top-level tag is closed
+xmltv/xml_scan.lex [rev:1.4, 2005-06-28T16:06:52]:
+- moved XmlScan_ForwardContent to top so that it can be inlined
+- fixed error handling for <?xml...?> and <!DOCTYPE...> tags
+- added error rule for disallowed general entity reference in DTD
+- return XMLTOK_CONTENT_END to yyparse after toplevel tag is closed
+- pass attrib data inside buffer (i.e. now same as content data)
+    (note: did evaluate optimization which avoided copying the data into a
+    buffer when not necessary (almost always for the test files) but this was
+    actually slower)
+- added callback "XmltvTags_AttribsComplete" when opening tag is closed
+    to support filtering, i.e. skipping a tag's data at xmltv_tag level
+- added support for DTD version check: added function XmlScan_Stop
+    and new <stopped> state
+- adapted for interface changes in xml_cdata and xml_hash
+xmltv/xmltv_db.c [rev:1.6, 2005-06-28T16:07:01]:
+- branches:  1.6.1;
+- added long description in function header
+- adapted for interface change to xmltv_tags.c: attribute and content data
+    is now passed inside XML_STR_BUF
+- adapted for interface change to xml_cdata.c/.h: new XmlCdata_Assign and
+    macro name changes to support inline whitespace chopping
+- adapted for interface change in xml_hash (now hides internal state)
+- optimization: use hash to map channel IDs to indices
+- changed names of all content data fnctions: replaced "Set" with "Add"
+- use yyparse for version detection -> new function Xmltv_CheckHeader()
+xmltv/xmltv_db.h [rev:1.6, 2005-06-28T16:07:01]:
+- branches:  1.6.1;
+- added long description in function header
+- adapted for interface change to xmltv_tags.c: attribute and content data
+    is now passed inside XML_STR_BUF
+- adapted for interface change to xml_cdata.c/.h: new XmlCdata_Assign and
+    macro name changes to support inline whitespace chopping
+- adapted for interface change in xml_hash (now hides internal state)
+- optimization: use hash to map channel IDs to indices
+- changed names of all content data fnctions: replaced "Set" with "Add"
+- use yyparse for version detection -> new function Xmltv_CheckHeader()
+xmltv/xmltv_tags.c [rev:1.4, 2005-06-28T16:07:13]:
+- re-implemented DTD version auto-detection: now using yyparse
+- attribute data now passed inside buffer;
+    attrib abd content data passed to xmltv_db inside XML_STR_BUF
+- renamed callback AddAttr into SetAttr: attrib values can be set only once;
+    generally use "Set" for attribs, "Add" fonr content, also in cb. func names
+- added flag "strip" to attrib description: for non-CDATA attribs
+    TODO: strip whitespace if the flag is set
+- added new tag callback "PostAttr": called by new XmltvTags_AttribsComplete:
+    called by scanner at end of opening tag
+- moved whitespace stripping of content into xml_cdata; done inside buffer
+xmltv/xmltv_tags.h [rev:1.3, 2005-06-28T16:07:13]:
+- re-implemented DTD version auto-detection: now using yyparse
+- attribute data now passed inside buffer;
+    attrib abd content data passed to xmltv_db inside XML_STR_BUF
+- renamed callback AddAttr into SetAttr: attrib values can be set only once;
+    generally use "Set" for attribs, "Add" fonr content, also in cb. func names
+- added flag "strip" to attrib description: for non-CDATA attribs
+    TODO: strip whitespace if the flag is set
+- added new tag callback "PostAttr": called by new XmltvTags_AttribsComplete:
+    called by scanner at end of opening tag
+- moved whitespace stripping of content into xml_cdata; done inside buffer
+xmltv/xmltv_tags.c [rev:1.5, 2005-06-28T18:35:21]:
+- Slight optimization:
+- reordered child tags and attribute names according to their probability
+- reduces required number of string comparisons until match is found
+- TODO: evaluate if a perfect hash is faster (at least for lists > N elements)
+xmltv/xmltv_tags.c [rev:1.6, 2005-06-28T21:52:13]:
+- bugfix DTD 0.6 tag <episode>: childs were assigned to <programme>
+- XmltvTags_Open(): restructuring
+- improved debug output
+- removed "TODO perfect hashes": turned out to be slower for <programme>,
+    i.e. even the longest list of strings is too short to warrent them
+xmltv/xml_verify.c [rev:1.1, 2005-06-29T19:50:48]:
+- Initial revision
+xmltv/xml_cdata.c [rev:1.4, 2005-06-29T19:51:00]:
+- bugfixes in XmlCdata_AppendRaw() (and its inline macro):
+    + XmlCdata_Grow was not always called when no buffer was yet allocated
+    + memcpy(...,len+1) was used to append zero-byte; write 0 explicitly now
+- also: removed obsolete macro XML_STR_BUF_GET_BUF;
+    dangerous, did return NULL pointer when no buffer allocated
+xmltv/xml_cdata.h [rev:1.3, 2005-06-29T19:51:00]:
+- bugfixes in XmlCdata_AppendRaw() (and its inline macro):
+    + XmlCdata_Grow was not always called when no buffer was yet allocated
+    + memcpy(...,len+1) was used to append zero-byte; write 0 explicitly now
+- also: removed obsolete macro XML_STR_BUF_GET_BUF;
+    dangerous, did return NULL pointer when no buffer allocated
+xmltv/xml_prolog.yy [rev:1.4, 2005-06-29T19:51:11]:
+- fleshed out parsing of "processing instruction";
+    added callbacks into xml_verify (used for verification only)
+- added callbacks for <!NOTATION...> for verification
+- added callback for DocName
+xmltv/xml_scan.lex [rev:1.5, 2005-06-29T19:51:21]:
+- Several bugfixes made for validation against XML testsuite:
+- use separate namespaces for parameter and general entity definitions
+- remove \r from attribute and content data, except when in char. entities
+    (i.e. also not in entity replacement text)
+- fleshed out parsing of "processing instruction": return PI data,
+    must be forwarded into verification output; also allow "??>" at end
+- bugfix CDATA end detection: "]]]>" is allowed (extra "]")
+- return string data for XMLTOK_SYSLIT and XMLTOK_PUBLIT
+    required for NOTATION declaration
+- replaced XML_STR_BUF_GET_BUF ..._GET_STR to avoid possibly NULL pointer
+- bugfix notation scanner: returned XMLTOK_CLOSE instead of SPACE
+xmltv/xmltv_db.c [rev:1.7, 2005-06-29T19:55:43]:
+- Adapted stand-alone main() function:
+- made DTD version detection failure fatal; there's now a separate module
+    xml_verify.c for verification, so here we allow the XMLTV DTD only
+xmltv/xmltv_tags.c [rev:1.7, 2005-06-29T19:56:47]:
+- Added callbacks for prolog parser: for verifications
+- most are not used here; only in new replacement module xml_verify.c
+xmltv/xmltv_tags.h [rev:1.4, 2005-06-29T19:56:47]:
+- Added callbacks for prolog parser: for verifications
+- most are not used here; only in new replacement module xml_verify.c
+xmltv/xml_scan.lex [rev:1.6, 2005-06-30T16:15:25]:
+- fixed check of parser state after entity replacement: moved check into
+    <<EOF>> rule; expected state pushed on entity stack
+- moved replacmenet of character entity reference into sub-function;
+    added check for illegal NUL character
+- added scanning of default attribute value in <!ATTLIST...>
+- added check for malformed entity references; new state tagattrval3err
+xmltv/xml_prolog.yy [rev:1.5, 2005-06-30T16:15:39]:
+- Changed result value of token XMLTOK_ATTVAL to <str>
+- attribute value now returned by scanner
+xmltv/xml_verify.c [rev:1.2, 2005-06-30T16:16:13]:
+- added check for mismatching end tag <foo></bar>
+- added check for invalid PI target name "xml"
+- added TODO list in functino header
+xmltv/validate.sh [rev:1.1, 2005-06-30T16:20:22]:
+- Initial revision
+Makefile [rev:1.88, 2005-06-30T18:26:30]:
+- Added new target "verifyxml": standalone XMLTV processor for validation
+Makefile.win32 [rev:1.60, 2005-06-30T18:39:15]:
+- updated module list for XML subsystem
+- added targets verifyxml, parsexmltv
+README [rev:1.42, 2005-06-30T18:47:24]:
+- added mention of WDM support
+- raised dependency for Tcl/Tk library to 8.4
+- added description of the daemon
+epgui/dumpxml.c [rev:1.18, 2005-06-30T20:12:53]:
+- Fixed element ordering for DTD 0.6
+- moved <copying> before <source-info>
+- moved <video> before <audio>
+- added <previously-shown>
+epgui/cmdline.c [rev:1.6, 2005-06-30T20:20:49]:
+- Mini-bugfix: error message for -acqonce contained wrong keyword
+epgctl/epgversion.h [rev:1.74, 2005-06-30T21:04:54]:
+- set version to 2.8.0pre8
+epgui/dumpxml.c [rev:1.12.1.4, 2005-07-01T21:56:15]:
+- Merged changes from inbetween r1.16 and r1.18
+xmltv/xml_scan.lex [rev:1.7, 2005-07-04T20:56:01]:
+- branches:  1.7.1;
+- return new token XMLTOK_ERR_CLOSE upon scanner failures (in prolog only)
+- prepared for UTF support
+    + cleaned up reg-ex macros; added new macros XMLWS, XMLNMTOKEN
+    + added new variable xml_scan_encoding and function XmlScan_SetEncoding()
+    + forked off new module "xml_utf_scan.lex" for UTF8
+- encoding auto-detection calls new function XmltvTags_ScanUnsupEncoding():
+    to allow to report it appropriately to the user
+- minor fixes in some patterns
+    + removed remaining uses of [:space:], use {XMLWS} instead
+    + "." was used at some places where "\n" should have matched (cdata1,2)
+    + return <?xml?> version string without the quotes
+- override default YY_FATAL_ERROR macro to avoid exit() after file I/O or
+    malloc failure; XXX TODO: might need longjmp to avoid crash after some
+    kind of errors (file I/O errors are handled as EOF though)
+- call yy_delete_buffer() during destruction to free memory
+- updated/fixed comments
+- added debug control switches at top of file (were forgotten before)
+xmltv/xml_scan.lex [rev:1.7.1.1, 2005-07-04T21:14:29]:
+- Branch with support for UTF-8 and UTF-16 character encoding
+- adapted reg-exp macros for UTF8 (reg-exp taken from xmlparse-0.9.3);
+    adapted character classes for attribute and content data to check for UTF
+    Note: the ISO8859 reg-exp would work also, but would allow malformed UTF8
+- added UTF-8 encoding to XmlScan_AddCharRef()
+- replaced YY_INPUT with function which converts UTF-16 to UTF-8
+- added auto-detection of UTF-16 and BOM in state <INITIAL>;
+    also adapted XmlScan_SetEncoding() to accept UTF encodings
+--> the size of the generated scanner tables is twice of those for ISO8859
+xmltv/xml_prolog.yy [rev:1.6, 2005-07-04T22:20:40]:
+- implemented recovery from syntax errors (skip to next tag)
+    previously the parser aborted completely upon the first error
+- accept new token XMLTOK_ERR_CLOSE to handle scanner syntax errors
+- added callbacks for <?xml?> encoding and version
+- removed superfluous #include <stdint.h>
+xmltv/xmltv_db.c [rev:1.8, 2005-07-05T13:22:24]:
+- use new language handling in xmltv_tags.c for PDC theme mapping
+- adapted for interface change xmltv_timestamp: added "len" param
+- changed prefix of interface funcs into "XmltvDb";
+- added param "isPeek": stop parser upon first <programme>
+xmltv/xmltv_db.h [rev:1.7, 2005-07-05T13:22:29]:
+- changed prefix of interface funcs into "XmltvDb";
+- added param "isPeek": stop parser upon first <programme>
+- new enum type XMLTV_DETECTION (preparation for error reporting to user)
+xmltv/xml_verify.c [rev:1.3, 2005-07-05T13:23:03]:
+- adapted for changes in xmltv_tags.c r1.8: see there for comments
+    (multiple encodings, syntax error count, fatal scanner error handling)
+- added check if toplevel tag matches <!DOCTYPE name>
+xmltv/xmltv_timestamp.c [rev:1.4, 2005-07-05T13:26:37]:
+- interface change: added "len" param to avoid strlen in timezone parsing
+- added "perfect hash" generated by gperf to speed up timezone name lookup
+- converted time offsets in timezone table from "HHMM" into seconds
+xmltv/xmltv_timestamp.h [rev:1.3, 2005-07-05T13:26:40]:
+- interface change: added "len" param to avoid strlen in timezone parsing
+xmltv/xmltv_tags.c [rev:1.8, 2005-07-05T13:26:53]:
+- assigned callback for all "lang" attributes (same function for all)
+    + added local cb XmltvTags_SetLanguage(); added global query function
+    + handle language on the parser stack for DTD 0.6
+- some minor fixes in XMLTV tag tables
+- improved error handling/reporting
+    + added "detection" element to state & version detection result
+    + generate error if top-level tag is not <tv> (previously it was skipped)
+    + scanner calls new func XmltvTags_ScanUnsupEncoding() for UCS-4 etc.
+    + abort after 40th subsequent syntax errors
+- first adaptions to support UTF: new function XmltvTags_Encoding()
+- added function Xmltv_ScanFatalError() to replace exit() call in flex code
+- added global function XmlTags_ScanStop() to allow xmltv_db to stop parsing;
+    intended for the "peek" mode where only the channel table is read
+xmltv/xmltv_tags.h [rev:1.5, 2005-07-05T13:26:56]:
+- first adaptions to support UTF: new function XmltvTags_Encoding()
+    + also added enum type for supported encodings
+- assigned callback for all "lang" attributes (same function for all)
+    + added query function
+    + added typedef and defines for some languages
+- improved error handling/reporting
+    + added "detection" element to state & version detection result
+- added global function XmlTags_ScanStop() to allow xmltv_db to stop parsing;
+    intended for the "peek" mode where only the channel table is read
+xmltv/xml_scan.lex [rev:1.8, 2005-07-05T18:56:13]:
+- Bugfix regexp macros: XMLLETTER did not include letters from Latin-1 code page
+xmltv/xml_cdata.c [rev:1.5, 2005-07-07T14:04:20]:
+- Added support for UTF-8
+- added functions to transcode between UTF-8 and Latin-1;
+    include function XmlCdata_AppendRaw() also when XML_CDATA_INLINE is def'd
+    used by scanner when no transcoding is required
+- added functions to check character sets in content and XML tag names
+xmltv/xml_cdata.h [rev:1.4, 2005-07-07T14:04:20]:
+- Added support for UTF-8
+- added functions to transcode between UTF-8 and Latin-1;
+    include function XmlCdata_AppendRaw() also when XML_CDATA_INLINE is def'd
+    used by scanner when no transcoding is required
+- added functions to check character sets in content and XML tag names
+xmltv/xml_prolog.yy [rev:1.7, 2005-07-07T14:04:30]:
+- Added callbacks to check character sets in terminal tokens
+- for performance reasons the scanner only checks the ASCII range
+- only intended for validation purposes
+xmltv/xml_scan.lex [rev:1.9, 2005-07-07T14:04:38]:
+- Merged support for UTF-8 and UTF-16 from branch 1.7.1; additional changes:
+- added transcoding between source and application character set:
+    replaced calls to .._AppendRaw with function pointer .._CdataAppend
+- simplified patters for UTF-8 and Latin-1 letters in names and content
+xmltv/xmltv_tags.c [rev:1.9, 2005-07-07T14:04:46]:
+- improved DTD version auto-detection: use attributes on <tv> tag
+- added dummy funcs for char set check functions called by prolog parser
+- adapted encoding callback to handle ISO-8859 and UTF
+xmltv/xmltv_tags.h [rev:1.6, 2005-07-07T14:04:52]:
+- added declarations for char set check functions called by prolog parser
+- moved typedefs for DTD version and error detection here from xmltv_db.h
+    because xmltv_main.c was split off from xmltv_db.c
+xmltv/xml_verify.c [rev:1.4, 2005-07-07T14:05:00]:
+- Added functions to check character sets in prolog & element names and content
+xmltv/xmltv_timestamp.h [rev:1.4, 2005-07-07T14:05:09]:
+- Applied patch from Laurent: added extern declarations for C++
+xmltv/xmltv_db.c [rev:1.9, 2005-07-07T14:05:16]:
+- Split off new module xmltv_main.c from xmltv_db.c
+- removed main interface functions .._Load(), .._CheckHeader()
+    also removed standalone test code (for "parsexmltv" target)
+- split off init, destroy and db retrieval functions
+xmltv/xmltv_db.h [rev:1.8, 2005-07-07T14:05:23]:
+- Split off new module xmltv_main.c from xmltv_db.c
+- moved typedefs for DTD version and error detection into xmltv_tags.h
+xmltv/xmltv_main.c [rev:1.1, 2005-07-07T14:05:46]:
+- Initial revision
+xmltv/xmltv_main.h [rev:1.1, 2005-07-07T14:05:46]:
+- Initial revision
+www/pre-releases.html [rev:1.63, 2005-07-07T19:35:22]:
+- updated for release 2.8.0pre8
+xmltv/xml_cdata.c [rev:1.6, 2005-07-09T21:17:14]:
+- Added "lang" element to the buffer; added GET/SET macros
+xmltv/xml_cdata.h [rev:1.5, 2005-07-09T21:17:18]:
+- Added "lang" element to the buffer; added GET/SET macros
+xmltv/xml_scan.lex [rev:1.10, 2005-07-09T21:17:25]:
+- Improved robustness against mal-formed input:
+- esp. avoid use of "*" in reg-exp which often match in garbage files
+- replaced error reg-exps a la "[^>]*>" with C code in new state <resync>
+    added macro XML_SCAN_RESYNC() to enter that state
+- changed comment C code to scan max. 4000 characters in one pass
+- Also:
+- bugfix: changed all reg-exp which match EOF to handle entity stack;
+    split off helper function XmlScan_PopEntityBuffer() from EOF rule
+- doubled size of input buffer: YY_READ_BUF_SIZE
+xmltv/xmltv_tags.c [rev:1.10, 2005-07-09T21:17:37]:
+- pass language to callbacks via cdata buffers
+- added new function XmltvTags_TranslateErrorCode() & improved detection bits
+- fix: limit length of error text output in Xmltv_SyntaxError()
+xmltv/xmltv_tags.h [rev:1.7, 2005-07-09T21:17:40]:
+- Added new function XmltvTags_TranslateErrorCode() & improved detection bits
+xmltv/xml_cdata.c [rev:1.7, 2005-07-10T12:25:44]:
+- Slightly simplified language handling to reduce performance impact:
+- in AssignOrAppend() copy language code unconditionally
+xmltv/xml_cdata.h [rev:1.6, 2005-07-10T12:25:44]:
+- Slightly simplified language handling to reduce performance impact:
+- in AssignOrAppend() copy language code unconditionally
+xmltv/xml_scan.lex [rev:1.11, 2005-07-10T12:25:53]:
+- Undid enlargement of YY_READ_BUF_SIZE: causes performance loss
+xmltv/xml_scan.lex [rev:1.12, 2005-07-10T13:46:28]:
+- Bugfix state resync and error reporting in general:
+- must not change the state via BEGIN after reporting syntax error
+    because the callback might have invoked the scanner stop function
+- syntax reporting should generally be done at the end of a rule
+www/download-de.html [rev:1.19, 2005-07-17T13:57:07]:
+- Changed links to man page to the German version man-de.html
+www/index-de.html [rev:1.80, 2005-07-17T13:57:07]:
+- Changed links to man page to the German version man-de.html
+www/intro-de.html [rev:1.14, 2005-07-17T13:57:07]:
+- Changed links to man page to the German version man-de.html
+www/man.html [rev:1.40, 2005-07-17T13:57:33]:
+- Added link to German version of the man page
+www/WDMpre-releases.html [rev:1.16, 2005-07-17T14:09:40]:
+- Syntax fix: added quotes around width and height numbers for <IMG>
+www/changelog-2.6.0pre.html [rev:1.12, 2005-07-17T14:09:40]:
+- Syntax fix: added quotes around width and height numbers for <IMG>
+www/changelog-2.7.0pre.html [rev:1.8, 2005-07-17T14:09:40]:
+- Syntax fix: added quotes around width and height numbers for <IMG>
+www/changelog.html [rev:1.63, 2005-07-17T14:09:40]:
+- Syntax fix: added quotes around width and height numbers for <IMG>
+www/download-de.html [rev:1.20, 2005-07-17T14:09:40]:
+- Syntax fix: added quotes around width and height numbers for <IMG>
+www/download.html [rev:1.19, 2005-07-17T14:09:40]:
+- Syntax fix: added quotes around width and height numbers for <IMG>
+www/faq.html [rev:1.15, 2005-07-17T14:09:40]:
+- Syntax fix: added quotes around width and height numbers for <IMG>
+www/help-wanted.html [rev:1.17, 2005-07-17T14:09:40]:
+- Syntax fix: added quotes around width and height numbers for <IMG>
+www/index-de.html [rev:1.81, 2005-07-17T14:09:40]:
+- Syntax fix: added quotes around width and height numbers for <IMG>
+www/index-fr.html [rev:1.16, 2005-07-17T14:09:40]:
+- Syntax fix: added quotes around width and height numbers for <IMG>
+www/index.html [rev:1.92, 2005-07-17T14:09:40]:
+- Syntax fix: added quotes around width and height numbers for <IMG>
+www/intro-de.html [rev:1.15, 2005-07-17T14:09:40]:
+- Syntax fix: added quotes around width and height numbers for <IMG>
+www/intro.html [rev:1.14, 2005-07-17T14:09:40]:
+- Syntax fix: added quotes around width and height numbers for <IMG>
+www/links.html [rev:1.15, 2005-07-17T14:09:40]:
+- Syntax fix: added quotes around width and height numbers for <IMG>
+www/man.html [rev:1.41, 2005-07-17T14:09:40]:
+- Syntax fix: added quotes around width and height numbers for <IMG>
+www/pre-releases.html [rev:1.64, 2005-07-17T14:09:40]:
+- Syntax fix: added quotes around width and height numbers for <IMG>
+www/provnets.html [rev:1.44, 2005-07-17T14:09:40]:
+- Syntax fix: added quotes around width and height numbers for <IMG>
+www/tvsim-faq.html [rev:1.15, 2005-07-17T14:09:40]:
+- Syntax fix: added quotes around width and height numbers for <IMG>
+www/xiccc-proto.html [rev:1.5, 2005-07-17T14:09:40]:
+- Syntax fix: added quotes around width and height numbers for <IMG>
+nxtvepg-de.pod [rev:1.7, 2005-07-17T17:47:54]:
+- minor corrections
+Makefile [rev:1.89, 2005-07-17T18:23:49]:
+- updated module list for XML subsystem: added xmltv_main, xmltv_cni
+- added verifyxml to target "all"
+- added German helptexts: pod->tcl conversion & compilation
+Makefile.win32 [rev:1.61, 2005-07-17T18:23:49]:
+- updated module list for XML subsystem: added xmltv_main, xmltv_cni
+- added verifyxml to target "all"
+- added German helptexts: pod->tcl conversion & compilation
+epgtcl/rcfile.tcl [rev:1.28, 2005-07-17T19:07:53]:
+- Added new config variable help_lang
+epgtcl/mainwin.tcl [rev:1.247, 2005-07-17T19:07:56]:
+- Included German translation of help pages
+- PopupHelp: added button to select help; added lang code to helpTexts arr idx
+- new config variable help_lang: saved in rc file
+- also: call new proc LoadHelpTexts_$lang: texts now loaded dynamically
+www/pre-releases.html [rev:1.65, 2005-07-30T20:02:07]:
+- Updated for release of 2.7.6pre0 (with German manual) on maintenance branch
+xmltv/xmltv_cni.c [rev:1.1, 2005-08-06T18:57:31]:
+- Initial revision
+xmltv/xmltv_cni.h [rev:1.1, 2005-08-06T18:57:31]:
+- Initial revision
+xmltv/xmltv_db.c [rev:1.10, 2005-08-06T18:57:37]:
+- split off network to CNI mapping into new module xmltv_cni.c
+- changed prefix of various internal functions from Xmltv to XmltvDb
+- XmltvDb_GetDatabase(), XmltvDb_BuildAi(): added parameters pseudoProvCni,
+    pProvName: assigned to dummy network which is appended to the AI block
+xmltv/xmltv_db.h [rev:1.9, 2005-08-06T18:58:48]:
+- XmltvDb_GetDatabase(): added parameters pseudoProvCni, pProvName
+- assigned to dummy network which is appended to the AI block
+xmltv/xmltv_main.c [rev:1.2, 2005-08-06T19:10:51]:
+- Xmltv_Load(): added parameters pseudoProvCni, pProvName:
+    assigned to dummy network which is appended to the AI block
+- added new function Xmltv_CheckAndLoad(): avoids to open file twice
+    return error codes compatible with epgbsav
+- Xmltv_ScanDir(): ported to WIN32
+- expose function Xmltv_TranslateErrorCode()
+xmltv/xmltv_main.h [rev:1.2, 2005-08-06T19:10:51]:
+- Xmltv_Load(): added parameters pseudoProvCni, pProvName:
+    assigned to dummy network which is appended to the AI block
+- added new function Xmltv_CheckAndLoad(): avoids to open file twice
+    return error codes compatible with epgbsav
+- Xmltv_ScanDir(): ported to WIN32
+- expose function Xmltv_TranslateErrorCode()
+nxtvepg-de.pod [rev:1.8, 2005-08-09T19:10:46]:
+- Complete review by Kurt, via email 2005-08-07
+nxtvepg-de.pod [rev:1.9, 2005-09-04T19:50:24]:
+- branches:  1.9.1;
+- Update by Kurt, by email 2005-09-04
+epgvbi/ttxdecode.c [rev:1.60, 2005-12-11T13:05:10]:
+- Moved CNI format conversion from acquisition into query functions
+- for debugging purposes, i.e. to get original CNI in vbirec
+epgvbi/btdrv4win.c [rev:1.55, 2005-12-11T13:18:01]:
+- WDM related fixes, work-arounds and improvements:
+- skip first 4 frames after channel changes
+- when interface DLL is missing, print explanatory message
+- bugfix VBI callback: check if pVbiBuf ptr is NULL
+- card enumeration: load library instead of just returning TRUE
+epgui/statswin.c [rev:1.72, 2005-12-11T13:38:47]:
+- Bugfix: stats for merged db didn't include "extra" blocks
+epgtcl/dlg_hwcfg.tcl [rev:1.18, 2005-12-11T16:01:09]:
+- Bugfix proc HwCfg_WinDrvChanged: TV card name wasn't updated upon driver switch
+xmltv/xmltv_db.c [rev:1.11, 2005-12-11T17:30:37]:
+- XmltvDb_AddPiBlock: check for overlap with preceding block was missing
+Makefile [rev:1.90, 2005-12-11T18:08:31]:
+- Added rule for manual-de.html, added to default targets
+Makefile.win32 [rev:1.62, 2005-12-11T18:09:17]:
+- Added rule for manual-de.html, added to default targets
+epgctl/epgversion.h [rev:1.76, 2005-12-11T18:51:39]:
+- set version to 2.8.0pre9
+epgui/cmdline.c [rev:1.7, 2005-12-29T16:38:34]:
+- Added support for export in HTML format: option -dump html:NN
+epgui/cmdline.h [rev:1.4, 2005-12-29T16:40:24]:
+- Added support for export in HTML format: option -dump html:NN
+epgui/dumphtml.c [rev:1.5, 2005-12-29T16:51:16]:
+- Added support for HTML export via command line
+- new interface function EpgDumpHtml_Standalone()
+- split off functions to write header, body, footer from GUI dump function
+epgui/dumphtml.h [rev:1.4, 2005-12-29T16:51:22]:
+- Added support for HTML export via command line
+- new interface function EpgDumpHtml_Standalone()
+epgui/pidescr.c [rev:1.11, 2005-12-29T19:17:18]:
+- Adapted helper function for output into in-memory buffer
+- previous implementation wasn't portable to WIN32 due to lack of vsnprintf()
+- moved printf-formatting out of here, one level up
+    renamed function from PiDescription_Printf() into ..._BufAppend()
+- change already from April/2005
+epgui/pidescr.h [rev:1.8, 2005-12-29T19:17:18]:
+- Adapted helper function for output into in-memory buffer
+- previous implementation wasn't portable to WIN32 due to lack of vsnprintf()
+- moved printf-formatting out of here, one level up
+    renamed function from PiDescription_Printf() into ..._BufAppend()
+- change already from April/2005
+epgui/dumptext.c [rev:1.15, 2005-12-29T19:17:28]:
+- Adapted for interface change in pidescr.c
+- moved sprintf formatting here; pass string to PiDescription_BufAppend()
+- Interface change EpgDumpText_Single(): append to buffer instead of returning
+    pointer; removed "count" parameter, i.e. moved loop one level up
+- change already from April/2005
+epgui/dumptext.h [rev:1.10, 2005-12-29T19:17:28]:
+- Adapted for interface change in pidescr.c
+- Interface change EpgDumpText_Single(): append to buffer instead of returning
+    pointer; removed "count" parameter, i.e. moved loop one level up
+- change already from April/2005
+epgui/xawtv.c [rev:1.49, 2005-12-29T19:17:58]:
+- Adapted for interface change in dumptext.c (and pidescr.c)
+- Interface change EpgDumpText_Single(): pass pointer to buffer;
+    removed "count" parameter, i.e. moved loop for multiple PI here
+- change already from April/2005
+Makefile [rev:1.91, 2005-12-31T18:30:36]:
+- Added new module epgdb/epgaifrag.c (AI fragment assembly)
+Makefile.win32 [rev:1.63, 2005-12-31T18:30:36]:
+- Added new module epgdb/epgaifrag.c (AI fragment assembly)
+xmltv/xml_cdata.c [rev:1.8, 2005-12-31T19:30:54]:
+- Added conversion functions for ISO-8859-{2,5,7,8,9,10,15}
+- before, only ISO-8859-1 was supported
+- possible target encodings are UTF-8 or Latin-1
+- Also improved UTF8 to Latin-1 conversion: map missing chars to ASCII
+xmltv/xml_cdata.h [rev:1.7, 2005-12-31T19:31:01]:
+- Added conversion functions for ISO-8859-{2,5,7,8,9,10,15}
+- before, only ISO-8859-1 was supported
+- possible target encodings are UTF-8 or Latin-1
+xmltv/xml_scan.lex [rev:1.13, 2005-12-31T19:31:17]:
+- Added support for ISO-8859-X encodings other than Latin-1
+- based on new string buffer conversion functions in xml_cdata.c
+xmltv/xml_verify.c [rev:1.5, 2005-12-31T19:31:29]:
+- Added support for ISO-8859-X encodings other than Latin-1
+- adapted encoding name parser in XmltvTags_Encoding()
+xmltv/xmltv_tags.c [rev:1.11, 2005-12-31T19:31:29]:
+- Added support for ISO-8859-X encodings other than Latin-1
+- adapted encoding name parser in XmltvTags_Encoding()
+xmltv/xmltv_tags.h [rev:1.8, 2005-12-31T19:31:37]:
+- Added support for ISO-8859-X encodings other than Latin-1
+- split XML_ENC_ISO8859 enum type for each code page
+#TV_TO_TEXT_0_4 [rev:LABEL, 2005-12-31T19:31:37|-r1.8 xmltv_tags.h]:
+epgui/uidump.c [rev:1.3, 2006-01-01T17:44:33]:
+- Added support for HTML export via command line
+- route EPG_DUMP_HTML into new function EpgDumpHtml_Standalone()
+epgdb/epgblock.c [rev:1.55, 2006-01-01T18:25:14]:
+- Added support for UTF-8 as internal character set
+- enabled by compile switch USE_UTF8
+- added teletext character tables to convert G0 and G2 to UTF-8
+- added multi-byte character code handling to ApplyEscapes()
+epgvbi/btdrv4win.c [rev:1.56, 2006-01-04T16:22:44]:
+- Adapted for SAA713x & CX2388x dynamic card list management:
+- free dynamically loaded card lists upon exit
+www/pre-releases.html [rev:1.67, 2006-01-04T18:00:39]:
+- updated for release 2.8.0pre9
+Makefile.win32 [rev:1.64, 2006-01-04T18:12:12]:
+- Added new modules dsdrv/cfg_parse.c, dsdrv/wintuner_typ.c
+- parser for TV card INI files; imported from DScaler
+- also added INI files to release ZIP file
+epgtcl/mainwin.tcl [rev:1.249, 2006-01-04T18:46:12]:
+- updated copyright for 2006
+Makefile [rev:1.92, 2006-01-04T18:48:11]:
+- updated copyright for 2006
+nxtvepg-de.pod [rev:1.10, 2006-01-04T18:52:04]:
+- added description of -dump html
+- updated copyright for 2006
+nxtvepg.pod [rev:1.126, 2006-01-04T18:52:04]:
+- added description of -dump html
+- updated copyright for 2006
+epgdb/epgblock.c [rev:1.56, 2006-01-04T19:21:54]:
+- Bugfixes in UTF-8 diacrit table in rows for cedilla and ogonek
+epgui/menucmd.c [rev:1.126, 2006-01-04T20:53:58]:
+- Added support for UTF-8 as internal character set
+- enabled by compile switch USE_UTF8
+- preliminary only, code duplication should be removed later
+epgui/pifilter.c [rev:1.88, 2006-01-04T21:03:59]:
+- Added support for UTF-8 as internal character set
+- enabled by compile switch USE_UTF8
+- preliminary only, code duplication should be removed later
+epgctl/epgversion.h [rev:1.77, 2006-01-05T14:08:34]:
+- set version to 2.8.0pre10
+epgui/menucmd.c [rev:1.127, 2006-01-05T15:22:07]:
+- Bugfix UTF-8 change in EPG scan message handler (\n was missing)
+epgui/xawtv.c [rev:1.50, 2006-01-29T14:47:45]:
+- added possibility to display EPG OSD via external commands
+    + new popup type POP_APP: forward PI data to PiOutput_ExecuteScript()
+    + new config element "appcmd" in Tcl list xawtvcf
+    + new query func Xawtv_GetXawtvWid(): used by cmdl variable ${tvapp-wid}
+- fixed WM_CLASS query: evaluate all 0-separate strings, not only the first
+    bug reported in forum, by anon 2006-01-28; reported for TVTIME
+epgui/xawtv.h [rev:1.9, 2006-01-29T14:47:45]:
+- Added possibility to display EPG OSD via external commands
+- added new interface function Xawtv_GetXawtvWid()
+epgui/shellcmd.c [rev:1.11, 2006-01-29T14:47:55]:
+- Added possibility to display EPG OSD via external commands
+- added new interface function PiOutput_ExecuteScript()
+- added new variable ${tvapp-wid}: based on new Xawtv_GetXawtvWid()
+epgui/shellcmd.h [rev:1.3, 2006-01-29T14:47:55]:
+- Added possibility to display EPG OSD via external commands
+- added new interface function PiOutput_ExecuteScript()
+epgui/rcfile.h [rev:1.5, 2006-01-29T14:48:12]:
+- Set compat version to 2.8.0pre11
+- due to addition of "appcmd" to xawtvcf (EPG popup via external command)
+epgtcl/dlg_xawtvcf.tcl [rev:1.10, 2006-01-29T14:53:46]:
+- Added possibility to display EPG OSD via external commands
+- added new confg element "appcmd" to xawtvcf
+- added entry field to config dialog (UNIX only)
+COPYRIGHT [rev:1.15, 2006-01-29T14:54:18]:
+- Updated copyright for 2006
+epgctl/epgversion.h [rev:1.78, 2006-01-29T15:10:41]:
+- set version to 2.8.0pre11
+www/intro-de.html [rev:1.16, 2006-05-09T20:27:08]:
+- Fixed some typos
+README [rev:1.43, 2006-07-02T11:37:09]:
+- Removed German provider RTL2 (deceased March/1/2006)
+nxtvepg-de.pod [rev:1.11, 2006-07-02T11:37:09]:
+- Removed German provider RTL2 (deceased March/1/2006)
+nxtvepg.pod [rev:1.127, 2006-07-02T11:37:09]:
+- Removed German provider RTL2 (deceased March/1/2006)
+nxtvepg.spec [rev:1.24, 2006-07-02T11:38:20]:
+- Removed German provider RTL2 (deceased March/1/2006)
+epgvbi/btdrv4linux.c [rev:1.63, 2006-07-02T11:48:02]:
+- Work-around for bttv driver bug in Linux kernel 2.6.16:
+- reduced "strict" param for internal zvbi slicer init from 1 to 0
+- i.e. disable consistency check of offset parameter
+epgctl/epgacqctl.c [rev:1.89, 2006-07-02T12:08:38]:
+- Improved debug output
+epgui/xawtv.c [rev:1.51, 2006-07-02T13:40:04]:
+- Work-around for interaction with tvtime:
+- delay check of WM_CLASS for newly created windows
+- based on a dynamic buffer and a timer
+- after Sf.net thread "tv app integration with unknown app", Jan/25/2006
+xmltv-etsi.map [rev:1.1, 2006-07-02T16:09:58]:
+- Initial revision
+www/index-de.html [rev:1.84, 2006-07-02T17:42:51]:
+- Removed Nedstat counter because it was generating popups (Feb/2006)
+www/index-fr.html [rev:1.19, 2006-07-02T17:42:51]:
+- Removed Nedstat counter because it was generating popups (Feb/2006)
+www/index.html [rev:1.95, 2006-07-02T17:42:51]:
+- Removed Nedstat counter because it was generating popups (Feb/2006)
+www/pre-releases.html [rev:1.69, 2006-07-02T17:43:53]:
+- Updated for 2.8.0pre11 (January 29th 2006)
+www/provnets.html [rev:1.46, 2006-07-02T17:46:59]:
+- Moved RTL2 into section "former providers" (deceased March/1/2006)
+www/intro-de.html [rev:1.17, 2006-07-02T17:52:23]:
+- Removed German provider RTL2 (deceased March/1/2006)
+www/intro.html [rev:1.16, 2006-07-02T17:52:23]:
+- Removed German provider RTL2 (deceased March/1/2006)
+epgctl/epgversion.h [rev:1.79, 2006-07-02T18:45:15]:
+- set version to 2.8.0pre12
+www/faq-de.html [rev:1.1, 2006-07-08T19:12:17]:
+- Initial revision
+www/faq-de.html [rev:1.2, 2006-07-08T19:27:58]:
+- replace &ouml; etc. with Latin-1 characters
+- added footer with translation credits
+- a few minor corrections
+www/faq.html [rev:1.17, 2006-07-08T19:29:56]:
+- Added link to German translation faq-de.html
+www/pre-releases.html [rev:1.70, 2006-07-09T11:27:37]:
+- updated for 2.8.0pre12 (July 2nd 2006)
+- added download section for teletext EPG grabber
+www/faq-de.html [rev:1.3, 2006-07-09T11:29:36]:
+- added <LINK rel="alternate"> for ref's to translations
+- link text in navigation box was still in English
+www/download-de.html [rev:1.22, 2006-07-09T11:29:55]:
+- added/fixed <LINK rel="alternate"> for ref's to translations
+- fixed links on German pages: link to German translation of target page
+www/download.html [rev:1.21, 2006-07-09T11:29:55]:
+- added/fixed <LINK rel="alternate"> for ref's to translations
+- fixed links on German pages: link to German translation of target page
+www/faq.html [rev:1.18, 2006-07-09T11:29:55]:
+- added/fixed <LINK rel="alternate"> for ref's to translations
+- fixed links on German pages: link to German translation of target page
+www/index-de.html [rev:1.85, 2006-07-09T11:29:55]:
+- added/fixed <LINK rel="alternate"> for ref's to translations
+- fixed links on German pages: link to German translation of target page
+www/index.html [rev:1.96, 2006-07-09T11:29:55]:
+- added/fixed <LINK rel="alternate"> for ref's to translations
+- fixed links on German pages: link to German translation of target page
+www/intro-de.html [rev:1.18, 2006-07-09T11:29:55]:
+- added/fixed <LINK rel="alternate"> for ref's to translations
+- fixed links on German pages: link to German translation of target page
+www/intro.html [rev:1.17, 2006-07-09T11:29:55]:
+- added/fixed <LINK rel="alternate"> for ref's to translations
+- fixed links on German pages: link to German translation of target page
+www/links-de.html [rev:1.1, 2006-07-10T20:01:53]:
+- Initial revision
+www/provnets-de.html [rev:1.1, 2006-07-10T20:01:53]:
+- Initial revision
+www/index.html [rev:1.97, 2006-07-10T20:54:42]:
+- downgraded latest release from "new" to "current"
+www/index-de.html [rev:1.86, 2006-07-10T20:55:01]:
+- added/updated links to German translations link-de and provnets-de
+- added note about translations to news section
+- downgraded latest release from "new" to "current"
+www/links-de.html [rev:1.2, 2006-07-10T20:57:24]:
+- initial corrections
+- replaced entities with Latin-1
+www/provnets-de.html [rev:1.2, 2006-07-10T20:57:24]:
+- initial corrections
+- replaced entities with Latin-1
+www/download-de.html [rev:1.23, 2006-07-10T20:57:47]:
+- Added/updated links to German translations link-de and provnets-de
+www/faq-de.html [rev:1.4, 2006-07-10T20:57:47]:
+- Added/updated links to German translations link-de and provnets-de
+www/intro-de.html [rev:1.19, 2006-07-10T20:57:47]:
+- Added/updated links to German translations link-de and provnets-de
+www/links.html [rev:1.17, 2006-07-10T20:57:47]:
+- Added/updated links to German translations link-de and provnets-de
+www/provnets.html [rev:1.47, 2006-07-10T20:57:47]:
+- Added/updated links to German translations link-de and provnets-de
+www/WDMpre-releases.html [rev:1.18, 2006-07-23T16:38:21]:
+- Emptied "News" section in navigation bar
+www/changelog-2.6.0pre.html [rev:1.14, 2006-07-23T16:38:21]:
+- Emptied "News" section in navigation bar
+www/changelog-2.7.0pre.html [rev:1.10, 2006-07-23T16:38:21]:
+- Emptied "News" section in navigation bar
+www/changelog.html [rev:1.65, 2006-07-23T16:38:21]:
+- Emptied "News" section in navigation bar
+www/download-de.html [rev:1.24, 2006-07-23T16:38:21]:
+- Emptied "News" section in navigation bar
+www/download.html [rev:1.22, 2006-07-23T16:38:21]:
+- Emptied "News" section in navigation bar
+www/faq-de.html [rev:1.5, 2006-07-23T16:38:21]:
+- Emptied "News" section in navigation bar
+www/faq.html [rev:1.19, 2006-07-23T16:38:21]:
+- Emptied "News" section in navigation bar
+www/help-wanted.html [rev:1.19, 2006-07-23T16:38:21]:
+- Emptied "News" section in navigation bar
+www/index-de.html [rev:1.87, 2006-07-23T16:38:21]:
+- Emptied "News" section in navigation bar
+www/index-fr.html [rev:1.20, 2006-07-23T16:38:21]:
+- Emptied "News" section in navigation bar
+www/index.html [rev:1.98, 2006-07-23T16:38:21]:
+- Emptied "News" section in navigation bar
+www/intro-de.html [rev:1.20, 2006-07-23T16:38:21]:
+- Emptied "News" section in navigation bar
+www/intro.html [rev:1.18, 2006-07-23T16:38:21]:
+- Emptied "News" section in navigation bar
+www/links-de.html [rev:1.3, 2006-07-23T16:38:21]:
+- Emptied "News" section in navigation bar
+www/links.html [rev:1.18, 2006-07-23T16:38:21]:
+- Emptied "News" section in navigation bar
+www/pre-releases.html [rev:1.71, 2006-07-23T16:39:05]:
+- Emptied "News" section in navigation bar
+www/provnets-de.html [rev:1.3, 2006-07-23T16:39:05]:
+- Emptied "News" section in navigation bar
+www/provnets.html [rev:1.48, 2006-07-23T16:39:05]:
+- Emptied "News" section in navigation bar
+www/tvsim-faq.html [rev:1.17, 2006-07-23T16:39:05]:
+- Emptied "News" section in navigation bar
+www/man.html [rev:1.43, 2006-07-23T16:39:27]:
+- Emptied "News" section in navigation bar
+www/xiccc-proto.html [rev:1.7, 2006-07-23T16:39:27]:
+- Emptied "News" section in navigation bar
+www/WDMpre-releases.html [rev:1.19, 2006-07-26T08:18:06]:
+- moved all content to pre-releases.html
+- only contains link to pre-releases.html now
+www/pre-releases.html [rev:1.72, 2006-07-26T08:20:09]:
+- moved content of WDMpre-releases.html here
+    added note that WDM development has ceased
+- structured document in 3 parts (core, WDM, teletext grabber)
+www/download.html [rev:1.23, 2006-07-29T14:56:41]:
+- Improved description META tag content
+www/links.html [rev:1.19, 2006-07-29T14:56:41]:
+- Improved description META tag content
+www/download-de.html [rev:1.25, 2006-07-29T14:57:32]:
+- fixed "top" link on all German pages: link to index-de.html
+- translated description and keywords META tag contents
+www/faq-de.html [rev:1.6, 2006-07-29T14:57:32]:
+- fixed "top" link on all German pages: link to index-de.html
+- translated description and keywords META tag contents
+www/intro-de.html [rev:1.21, 2006-07-29T14:57:32]:
+- fixed "top" link on all German pages: link to index-de.html
+- translated description and keywords META tag contents
+www/links-de.html [rev:1.4, 2006-07-29T14:57:32]:
+- fixed "top" link on all German pages: link to index-de.html
+- translated description and keywords META tag contents
+www/provnets-de.html [rev:1.4, 2006-07-29T14:58:43]:
+- fix: RTL2 was still among active providers
+- removed unnecessary diff's to English channel lists
+- fixed "top" link on all German pages: link to index-de.html
+- translated description and keywords META tag contents
+www/provnets.html [rev:1.49, 2006-07-29T14:59:22]:
+- minor changes in channel lists to reduce diff to German version
+www/index-de.html [rev:1.88, 2006-07-29T15:01:44]:
+- Removed "top" META tag from top-level index pages
+www/index-fr.html [rev:1.21, 2006-07-29T15:01:44]:
+- Removed "top" META tag from top-level index pages
+www/index.html [rev:1.99, 2006-07-29T15:01:44]:
+- Removed "top" META tag from top-level index pages
+www/pre-releases-de.html [rev:1.1, 2006-07-30T20:18:19]:
+- Initial revision
+www/index-de.html [rev:1.89, 2006-07-30T20:18:36]:
+- Added link to German translation of pre-releases.html
+www/pre-releases.html [rev:1.73, 2006-07-30T20:18:36]:
+- Added link to German translation of pre-releases.html
+www/pre-releases-de.html [rev:1.2, 2006-09-14T19:56:43]:
+- updated for release of tv_grab_ttx-0.4
+www/pre-releases.html [rev:1.74, 2006-09-14T19:56:43]:
+- updated for release of tv_grab_ttx-0.4
+www/pre-releases-de.html [rev:1.3, 2006-09-14T20:01:36]:
+- Applied minor fixes sent by Kurt 2006-09-14 via email
+epgdb/epgdbmerge.c [rev:1.29, 2006-09-26T11:01:27]:
+- Combined separate arrays[MAX_MERGED_DB_COUNT] in struct EPGDB_MERGE_CONTEXT
+- moved into a sub-struct, i.e. in a single array
+- in preparation to remove static limit of number of merged providers
+    (still TODO: MAX_MERGED_DB_COUNT is used in MERGE_ATTRIB_VECTOR)
+epgdb/epgdbmerge.h [rev:1.10, 2006-09-26T11:01:27]:
+- Combined separate arrays[MAX_MERGED_DB_COUNT] in struct EPGDB_MERGE_CONTEXT
+- moved into a sub-struct, i.e. in a single array
+- in preparation to remove static limit of number of merged providers
+    (still TODO: MAX_MERGED_DB_COUNT is used in MERGE_ATTRIB_VECTOR)
+epgctl/epgctxmerge.c [rev:1.12, 2006-09-26T11:34:24]:
+- Combined separate arrays[MAX_MERGED_DB_COUNT] in struct EPGDB_MERGE_CONTEXT
+- moved into a sub-struct, i.e. in a single array
+- in preparation to remove static limit of number of merged providers
+    (still TODO: MAX_MERGED_DB_COUNT is used in MERGE_ATTRIB_VECTOR)
+epgdb/epgdbmerge.c [rev:1.30, 2006-10-03T10:45:57]:
+- Extended EpgDbMergeInsertPi() to allow merging all PI of one network
+- to support teletext grabber (i.e. new PI don't "trickle in" as with nextview)
+- added param "allBlocks" -> loop until pNewBlock->pNextNetwopBlock is NULL
+- optimized search of equivalent blocks for repeated calls on subsequent PI
+epgdb/epgdbmerge.h [rev:1.11, 2006-10-03T10:45:57]:
+- Extended EpgDbMergeInsertPi() to allow merging all PI of one network
+- to support teletext grabber (i.e. new PI don't "trickle in" as with nextview)
+- added param "allBlocks" -> loop until pNewBlock->pNextNetwopBlock is NULL
+epgdb/epgblock.c [rev:1.57, 2006-10-03T10:50:25]:
+- Added dummy assignment to avoid "uninit var" warning with gcc 4.0.3
+epgui/pinetbox.c [rev:1.43, 2006-10-03T10:55:21]:
+- Added dummy assignments to avoid "uninit var" warning with gcc 4.0.3
+epgctl/epgctxmerge.c [rev:1.13, 2006-10-03T11:12:26]:
+- Added support for teletext grabber
+- added new function EpgContextMergeUpdateDb(): merge all PI of all netwops
+- extended EpgDbMergeInsertPi() to allow merging all PI of one network
+- also: replaced AI_GET_CNI() with EpgDbContextGetCni()
+epgctl/epgctxmerge.h [rev:1.5, 2006-10-03T11:12:26]:
+- Added support for teletext grabber
+- added new function EpgContextMergeUpdateDb(): merge all PI of all netwops
+epgctl/epgversion.h [rev:1.80, 2006-10-14T15:24:37]:
+- set version to 2.8.0pre13
+epgdb/ttxgrab.c [rev:1.1, 2006-10-15T18:58:56]:
+- Initial revision
+epgdb/ttxgrab.h [rev:1.1, 2006-10-15T18:58:56]:
+- Initial revision
+epgdb/ttxgrab.c [rev:1.2, 2006-10-19T19:45:51]:
+- Bugfix page header check
+www/provnets-de.html [rev:1.5, 2006-11-05T19:20:02]:
+- Moved VT4 into section "former providers" (deceased March 2006)
+www/provnets.html [rev:1.50, 2006-11-05T19:20:02]:
+- Moved VT4 into section "former providers" (deceased March 2006)
+www/pre-releases-de.html [rev:1.4, 2006-11-05T19:20:54]:
+- Updated for pre-release 2.8.0pre13 and tv_grab_ttx-0.5
+www/pre-releases.html [rev:1.75, 2006-11-05T19:20:54]:
+- Updated for pre-release 2.8.0pre13 and tv_grab_ttx-0.5
+epgctl/epgversion.h [rev:1.81, 2006-11-12T18:37:15]:
+- set version to 2.8.0pre14
+www/pre-releases-de.html [rev:1.5, 2006-11-18T12:05:57]:
+- Updated for pre-release 2.8.0pre14 and tv_grab_ttx-0.6
+www/pre-releases.html [rev:1.76, 2006-11-18T12:05:57]:
+- Updated for pre-release 2.8.0pre14 and tv_grab_ttx-0.6
+www/pre-releases-de.html [rev:1.6, 2006-11-18T13:52:26]:
+- replaced 2.8.0pre14-win with ...win-iso because the previous one
+    was compiled with UTF8 support
+- added small note that WDM DLL support is limited
+www/pre-releases.html [rev:1.77, 2006-11-18T13:52:26]:
+- replaced 2.8.0pre14-win with ...win-iso because the previous one
+    was compiled with UTF8 support
+- added small note that WDM DLL support is limited
+epgctl/epgversion.h [rev:1.82, 2006-11-22T20:35:29]:
+- set version to 2.8.0pre15
+www/pre-releases-de.html [rev:1.7, 2006-11-22T21:55:09]:
+- Updated for pre-release 2.8.0pre15 and tv_grab_ttx-0.7
+www/pre-releases.html [rev:1.78, 2006-11-22T21:55:09]:
+- Updated for pre-release 2.8.0pre15 and tv_grab_ttx-0.7
+epgdb/epgblock.c [rev:1.58, 2006-11-23T21:08:00]:
+- Bugfix EpgLtoInit()
+- did not work on Gentoo Linux (glibc 2.3.6-r5): off by +1 hour
+- use BSD version instead: seems to be more portable
+- kept debug code, inside compile switch DEBUG_SWITCH_LTO
+epgui/pioutput.c [rev:1.56, 2006-11-23T21:08:17]:
+- Added debug code for LTO offset, inside compile switch DEBUG_SWITCH_LTO
+epgdb/ttxgrab.c [rev:1.3, 2006-11-23T21:28:41]:
+- moved provision of channel name from start into post-proc call
+- implemented acquisition metrics: _GetPageStats()
+    based on new VBI service TtxDecode_GetMagStats()
+- added debug mode to keep files with raw teletext data
+- extended statistics
+- moved CNI acquisition entirely inside of the module
+- bugfix header check for page numbers >= 800
+- added header check on non-captured pages, if zero new captured ones
+    to detect channel changes earlier
+- fix UNIX child status check: death detected too late in case of much
+    output to STDERR; also forward output to debug() instead of dprintf()
+epgdb/ttxgrab.h [rev:1.2, 2006-11-23T21:28:41]:
+- moved provision of channel name from start into post-proc call
+- implemented acquisition metrics: _GetPageStats()
+- added debug mode to keep files with raw teletext data
+- extended statistics
+- moved CNI acquisition entirely inside of the module
+epgdb/epgdbmerge.c [rev:1.31, 2006-11-23T21:38:52]:
+- Redesign of merge algorithm (i.e. of identification of equiv. PI)
+- to allow slight mismatches in start/stop times (esp. from TTX grabber)
+- new function EpgDbMerge_PiMatch() decides if two PI can be merged
+    formerly this was simply a check if start and stop times were equal
+- redesign EpgDbMergeAllPiBlocks(): merge each network separately
+- EpgDbMergeInsertPi(): removed allBlocks parameter again: functionality
+    split off into new function EpgDbMergeUpdateNetwork()
+- improved dprintf output
+epgdb/epgdbmerge.h [rev:1.12, 2006-11-23T21:38:52]:
+- Redesign of merge algorithm (i.e. of identification of equiv. PI)
+- to allow slight mismatches in start/stop times (esp. from TTX grabber)
+- EpgDbMergeInsertPi(): removed allBlocks parameter again: functionality
+    split off into new function EpgDbMergeUpdateNetwork()
+epgdb/epgblock.c [rev:1.59, 2006-11-25T20:43:37]:
+- Added include <stdlib.h> for malloc/free (when compiling without CHK_MALLOC)
+epgdb/epgdbif.c [rev:1.47, 2006-11-25T20:56:34]:
+- improved EpgDbGetNowCycleMaxRepCounter() to return count of blocks:
+    supports progress display during NOW acq phase
+- added new func EpgDbComparePiRanges(): split off from AI callback
+epgdb/epgdbif.h [rev:1.31, 2006-11-25T20:57:54]:
+- improved EpgDbGetNowCycleMaxRepCounter() to return count of blocks:
+    supports progress display during NOW acq phase
+- added new func EpgDbComparePiRanges(): split off from AI callback
+epgctl/epgacqnxt.c [rev:1.1, 2006-11-25T22:09:01]:
+- Initial revision
+epgctl/epgacqnxt.h [rev:1.1, 2006-11-25T22:09:01]:
+- Initial revision
+epgctl/epgacqttx.c [rev:1.1, 2006-11-25T22:09:28]:
+- Initial revision
+epgctl/epgacqttx.h [rev:1.1, 2006-11-25T22:09:28]:
+- Initial revision
+epgctl/epgacqclnt.c [rev:1.18, 2006-11-25T22:10:01]:
+- Moved acq queue and database handling from epgacqctl.c into epgacqctl.c
+- this is now a sub-module to epgacqctl, much like nxtv and ttx sub-modules
+- statistics and VPS/PDC now stored internally and retrieved on request
+- Also:
+- adapted statistics messages for changes in acq stats struct
+- added new message to trigger DB re-load (used for ttx acq)
+epgctl/epgacqclnt.h [rev:1.5, 2006-11-25T22:10:41]:
+- Moved acq queue and database handling from epgacqctl.c into epgacqctl.c
+- this is now a sub-module to epgacqctl, much like nxtv and ttx sub-modules
+- statistics and VPS/PDC now stored internally and retrieved on request
+epgctl/epgacqctl.c [rev:1.90, 2006-11-25T22:12:10]:
+- Major reorganisation of acq control to integrate TTX acq
+- split off nextview acq control into new sub-module epgacqnxtv.c
+- added new sub-module epgacqttx.c for teletext EPG acq
+- network mode database and block handling split off and moved to epgacqclnt
+- extended statistics struct for TTX acq
+- removed global pointer pAcqDbContext; added func EpgAcqCtl_GetDbContext()
+- removed internal acq mode ACQMODE_FORCED_PASSIVE
+epgctl/epgacqctl.h [rev:1.45, 2006-11-25T22:12:10]:
+- Major reorganisation of acq control to integrate TTX acq
+- split off nextview acq control into new sub-module epgacqnxtv.c
+- added new sub-module epgacqttx.c for teletext EPG acq
+- network mode database and block handling split off and moved to epgacqclnt
+- extended statistics struct for TTX acq
+- removed global pointer pAcqDbContext; added func EpgAcqCtl_GetDbContext()
+- removed internal acq mode ACQMODE_FORCED_PASSIVE
+epgctl/epgacqsrv.c [rev:1.17, 2006-11-25T22:12:51]:
+- adapted statistics messages for changes in acq stats struct
+- added new message to trigger DB re-load and stats update (used for ttx acq)
+- removed use of global pointer pAcqDbContext with EpgAcqCtl_GetDbContext()
+epgctl/epgacqsrv.h [rev:1.10, 2006-11-25T22:12:51]:
+- adapted statistics messages for changes in acq stats struct
+- added new message to trigger DB re-load and stats update (used for ttx acq)
+Makefile [rev:1.93, 2006-11-25T22:35:11]:
+- added new acq modules: epgacqnxtv, epgacqttx, ttxgrab
+- added new TV app interface modules: wintvui
+- adapted warning control for gcc 4.0
+Makefile.win32 [rev:1.65, 2006-11-25T22:43:48]:
+- added new acq modules: epgacqnxtv, epgacqttx, ttxgrab
+- added new files to WIN zip file: ttx_grab.pl xmltv-etsi.map
+- added new TV app interface module: wintvui
+Makefile.win32 [rev:1.66, 2006-11-25T22:46:51]:
+- adapted cross-compilation for new version of MinGW
+- adapted paths for new PC install
+epgui/wintvui.c [rev:1.1, 2006-11-26T12:56:10]:
+- Initial revision
+epgui/wintvui.h [rev:1.1, 2006-11-26T12:56:10]:
+- Initial revision
+epgui/wintvcfg.c [rev:1.26, 2006-11-26T12:56:52]:
+- split off Tcl/Tk interface into new module wintvui.c
+    to allow the daemon to use the module (read channel table for ttx grabber)
+- combined frequency and channel name parsers
+- removed obsolete "doChanTabFilter" mode for tvsim
+- moved TVAPP config storage from rcfile.tcl into rcfile.c
+- TODO: automatic selection of default TV app during 1st start not implemented
+epgui/wintvcfg.h [rev:1.5, 2006-11-26T12:56:52]:
+- split off Tcl/Tk interface into new module wintvui.c
+    to allow the daemon to use the module (read channel table for ttx grabber)
+- combined frequency and channel name parsers
+- removed obsolete "doChanTabFilter" mode for tvsim
+- moved TVAPP config storage from rcfile.tcl into rcfile.c
+- TODO: automatic selection of default TV app during 1st start not implemented
+epgui/timescale.c [rev:1.13, 2006-11-26T13:45:41]:
+- removed use of global pointer pAcqDbContext:
+    use EpgAcqCtl_GetProvCni() and EpgAcqCtl_GetDbContext() instead
+- adapted for epgacqctl.c statistics interface changes
+epgui/statswin.c [rev:1.73, 2006-11-26T14:15:32]:
+- added teletext grabber acq statistics
+- split off sub-function StatsWin_PrintAcqMode(): used by nxtv and ttx
+- removed use of global pointer pAcqDbContext:
+    use EpgAcqCtl_GetProvCni() and EpgAcqCtl_GetDbContext() instead
+- adapted for epgacqctl.c func interface, statistics struct changes
+    and removal of explicit "forced passive" mode
+epgtcl/rcfile.tcl [rev:1.29, 2006-11-26T14:57:08]:
+- Adapted for tvapp interface change (new module wintvui.c)
+- (reason: mastership of TV-App config data moved from Tcl into C domain)
+- removed wintvapp_idx, wintvapp_path
+- added backward compat conversion: generate C section [TV APPLICATION]
+epgtcl/dlg_xawtvcf.tcl [rev:1.11, 2006-11-26T14:58:12]:
+- Adapted for tvapp interface change (new module wintvui.c)
+- mastership of TV-App config data moved from Tcl into C domain
+    (required to allow the daemon to access it, e.g. TTX grabber chan tab)
+- removed obsolete proc UpdateTvappName
+- added new proc TvAppGetName to replace global $tvapp_name
+- use new cfg query/update funcs C_Tvapp_GetConfig/C_Tvapp_UpdateConfig
+epgtcl/dlg_prov.tcl [rev:1.18, 2006-11-26T14:58:22]:
+- Adapted for tvapp interface change (new module wintvui.c)
+- replaced global $tvapp_name with [TvAppGetName]
+epgtcl/dlg_netname.tcl [rev:1.7, 2006-11-26T14:58:41]:
+- Adapted for tvapp interface change (new module wintvui.c)
+- replaced global $tvapp_name with [TvAppGetName]
+- added param "split=1" to proc C_Tvapp_GetStationNames
+epgtcl/draw_stats.tcl [rev:1.5, 2006-11-26T14:58:54]:
+- Added new statistics window for teletext EPG acquisition
+epgtcl/dlg_hwcfg.tcl [rev:1.19, 2006-11-26T15:30:42]:
+- Win32 only: added new driver "source": "none"
+- allows to use nxtvepg as network client or XMLTV browser only
+- with "none" warning about missing driver config is suppressed
+- first released in 2.8.0pre13; req. by "Bernhard" in forum 2006-05-19
+epgtcl/dlg_acqmode.tcl [rev:1.7, 2006-11-26T15:31:02]:
+- added configuration dialog for the teletext EPG grabber (first draft)
+- added new acq mode config parameter "Start acquisition automatically"
+- adapted call to C_GetProvCnisAndNames: additional param "nxtv only"
+- added info text in acq mode dialog;
+    moved warning about acq mode change in daemon mode to QuitAcqModePopup
+- defined constants for access to [C_GetAcqConfig] results
+epgtcl/dlg_ctxmencf.tcl [rev:1.12, 2006-11-26T15:44:45]:
+- Made GUI "Tune TV" button's command configurable
+- added 2nd tab "Tune TV" to context menu config dialog
+- added config params tunetv_cmd_unix, tunetv_cmd_win
+- added new global proc ExecuteTuneTvCommand: called by mainwin.tcl
+- first released in 2.8.0pre13; req. forum 2006-07-29
+epgtcl/rcfile.tcl [rev:1.30, 2006-11-26T15:45:00]:
+- Made GUI "Tune TV" button's command configurable
+- added config params tunetv_cmd_unix, tunetv_cmd_win
+epgtcl/mainwin.tcl [rev:1.250, 2006-11-26T15:50:56]:
+- reorganized statistics menu entries due to addition of ttx acq stats
+- added menu entry for teletext EPG grabber configuration dialog
+- adapted for tvapp interface change (new module wintvui.c)
+    replaced global $tvapp_name with [TvAppGetName]
+- made GUI "Tune TV" button's command configurable
+    moved command binding into proc ExecuteTuneTvCommand in dlg_ctxmencf.tcl
+- improved SelectTextOnFocus: don't move focus to disabled entry widgets
+epgui/xawtv.c [rev:1.52, 2006-11-26T15:56:35]:
+- adapted for acq status & VPS/PDC interface changes in epgacqctl.c
+- adapted for split of module wintvcfg.c: use new module wintvui.c
+- fixed compiler warnings for gcc 4.0
+epgui/wintv.c [rev:1.24, 2006-11-26T16:01:29]:
+- adapted for split of module wintvcfg.c: use new module wintvui.c
+epgui/rcfile.c [rev:1.8, 2006-11-26T16:08:48]:
+- added new acq mode config parameter "Start acquisition automatically"
+- added new section "TELETEXT GRABBER" for teletext EPG grabber
+- added new section "TV APPLICATION" for TV-app index and path
+    + params moved from GUI secion b/c access to TV chan tab. req. for TTX
+    + TODO: missing distinction between TV app "none" and "yet undefined"
+      (required to select default app automatically upon first start)
+epgui/rcfile.h [rev:1.6, 2006-11-26T16:08:48]:
+- added new acq mode config parameter "Start acquisition automatically"
+- added new section "TELETEXT GRABBER" for teletext EPG grabber
+- added new section "TV APPLICATION" for TV-app index and path
+    + params moved from GUI secion b/c access to TV chan tab. req. for TTX
+    + TODO: missing distinction between TV app "none" and "yet undefined"
+      (required to select default app automatically upon first start)
+epgui/daemon.c [rev:1.8, 2006-11-26T17:26:48]:
+- added teletext EPG grabber: call EpgSetup_TtxGrabber()
+- adapted for interface changes in epgacqctl.c: removed EpgAcqCtl_Idle()
+- removed use of global pointer pAcqDbContext: use new EpgAcqCtl_IsActive()
+- adapted interface EpgContextCtl_Open(): added param "force = FALSE"
+epgui/epgmain.c [rev:1.150, 2006-11-26T17:34:30]:
+- adapted for interface changes in epgacqctl.c: removed EpgAcqCtl_Idle()
+- removed use of global pointer pAcqDbContext: use new EpgAcqCtl_IsActive()
+- adapted interface EpgContextCtl_Open(): added param "force = FALSE"
+- adapted for split of module wintvcfg.c: use new module wintvui.c
+- minimized #include list
+epgui/epgsetup.c [rev:1.4, 2006-11-26T17:51:00]:
+- minor fix in EpgSetup_GetMergeProviders(): abort merge if prov list is empty
+- implemented teletext EPG grabber
+    + added EpgSetup_TtxGrabber(): called during start-up by main()
+    + retrieve and pass TTX params to EpgAcqCtl_SelectMode()
+- adapted for epgacqctl.c func interface, statistics struct changes
+- adapted interface EpgContextCtl_Open(): added param "force = FALSE"
+- Win32 only: handle new driver "source"="none" -> skip TV card setup
+    added query function EpgSetup_HasLocalTvCard() (disable "start acq." menu)
+- minor fixes to allow compilation without USE_DAEMON switch
+epgui/epgsetup.h [rev:1.2, 2006-11-26T17:52:45]:
+- implemented teletext EPG grabber
+    added EpgSetup_TtxGrabber(): called during start-up by main()
+- Win32 only: handle new driver "source"="none":
+    added query function EpgSetup_HasLocalTvCard() (disable "start acq." menu)
+epgui/uictrl.c [rev:1.52, 2006-11-26T18:12:10]:
+- added 2 new acq events to support teletext EPG grabber
+    ACQ_EVENT_NEW_DB -> UiControl_LoadAcqDb(): yet empty, TODO
+    ACQ_EVENT_CTL -> update status line only (esp. for teletext channel scan)
+- adapted for epgacqctl.c acq stats interface changes
+- removed use of global pointer pAcqDbContext
+- adapted interface EpgContextCtl_Open(): added param "force"
+- minor fixes to allow compilation without USE_DAEMON switch
+epgui/menucmd.c [rev:1.128, 2006-11-26T18:41:10]:
+- implemented teletext EPG grabber
+    + reorganized statistics menu entries due to addition of ttx acq stats
+    + pass expire delay to TTX grabber module (passed through to Perl script)
+    + added param get/update functions for GUI config dialog
+    + global adaption for epgacqctl.c acq stats interface changes
+- Win32 only: added new driver "source": "none"
+    + disable "start acq." if local PC has no TV card
+    + first released in 2.8.0pre13; req. by "Bernhard" in forum 2006-05-19
+- added new acq mode config parameter "Start acquisition automatically"
+    + param added to config GUI get/update functions
+    + skip acq start in AutoStartAcq() if disabled
+    + first released in 2.8.0pre13
+- adapted call to C_GetProvCnisAndNames: additional param "nxtv only"
+    yet unused - in preparation for XMLTV import
+- adapted interface EpgContextCtl_Open(): added param "force"
+    + set "force:=TRUE" in provider selection (esp. in prep. for XMLTV import)
+- EPG scan messages: adapted to wintvcfg.c interface change
+    moved generation of error messages into here
+epgctl/epgscan.c [rev:1.41, 2006-11-26T20:32:05]:
+- removed use of global pointer pAcqDbContext
+- adapted interface EpgContextCtl_Open(): added param "force := FALSE"
+epgctl/epgctxctl.c [rev:1.26, 2006-11-26T21:20:41]:
+- update database file mtime during peek and load (to detect external changes)
+- EpgContextCtl_Open(): added "forceOpen" parameter: re-read data from file;
+    -> extended EpgContextCtl_Load() to allow transition {stat|peek|open}->open;
+- split off sub-function EpgContextCtl_OpenInt() (preparation for XML open func)
+- EpgContextCtl_GetAiUpdateTime(): added "reload" parameter
+- added EpgContextCtl_Rescan(): rescan dbdir for new files (TODO; empty)
+epgctl/epgctxctl.h [rev:1.17, 2006-11-26T21:26:00]:
+- EpgContextCtl_Open(): added "forceOpen" parameter: re-read data from file
+- EpgContextCtl_GetAiUpdateTime(): added "reload" parameter
+- added EpgContextCtl_Rescan(): rescan dbdir for new files (TODO; empty)
+epgdb/epgdbsav.c [rev:1.57, 2006-11-26T21:40:35]:
+- Load and Peek: added "mtime" parameter: returns file mtime
+- WIN32 bugfix EpgDbRemoveDatabaseFile(): use PATH_SEPARATOR instead of "/"
+epgdb/epgdbsav.h [rev:1.39, 2006-11-26T21:40:40]:
+- Load and Peek: added "mtime" parameter: returns file mtime
+epgvbi/btdrv.h [rev:1.45, 2006-11-27T20:51:40]:
+- Win32 only: added new BTDRV_SOURCE_TYPE: "none"
+epgvbi/btdrv.h [rev:1.46, 2006-12-05T21:02:39]:
+- Shared memory extensions to support teletext capturing:
+- [used by new module ttx_grab.c via ttxdecode.c]
+- increased size of the TTX packet ring buffer
+- changed struct VBI_LINE to allow passing all TTX header control bits
+- added TTX_HEAD_BUF: rolling buffer of TTX headers and page number metrics;
+    this replaces the buffer of only the very last TTX header packet
+- added 2nd set of enable flags and page range to control TTX capturing
+- removed obsolete elements from earlier release (i.e. dropped bg-compat.)
+- extended CNI_ACQ_STATE to use sequence numbers to indicate data updates
+epgvbi/ttxdecode.c [rev:1.61, 2006-12-05T21:06:23]:
+- Extensions to support teletext capturing:
+- extended internal state to support capturing pages of multiple magazines
+- added support for the "parallel" magazine mode
+- added 2nd set of enable funcs to control TTX capture independently of EPG
+- GetStatistics now fills a struct instead of discrete values
+- extended CNI_ACQ_STATE to use sequence numbers to indicate data updates;
+    "haveCni" etc. flags are no longer cleared after CNI retrieval
+- maintain new TTX_HEAD_BUF with up to 8 TTX headers and page number stats;
+    added new retrieval functions for both features
+- changed packet buffer interface to allow multiple clients: packet release
+    is de-coupled from packet retrieval -> moved into separate function
+- changed struct VBI_LINE to allow passing all TTX header control bits
+- removed obsolete VBI shared memory elements (i.e. dropped K!TV bg-compat.)
+epgvbi/ttxdecode.h [rev:1.30, 2006-12-05T21:06:40]:
+- Extensions to support teletext capturing:
+- added 2nd set of enable funcs to control TTX capture independently of EPG
+- added interface functions to new page header buffer & pg.no. metrics
+- changed CNI query interface: use seq.nos. to detect arrival of new CNI
+- changed packet ring buffer interface to allow reading by multiple clients
+- changed statistics interface to fills a struct instead of discrete values
+epgvbi/btdrv4linux.c [rev:1.64, 2006-12-05T21:11:16]:
+- Adapted to shared memory (VBI buffer) changes:
+- replaced "isEnabled" flag with separate flags for EPG and teletext
+epgvbi/btdrv4win.c [rev:1.57, 2006-12-05T21:25:29]:
+- added new driver type BTDRV_SOURCE_NONE: silently ignore acq start request
+- improved some error messages
+epgdb/epgnetio.h [rev:1.28, 2006-12-05T21:30:54]:
+- Extensions to support teletext EPG grabber:
+- added new message type MSG_TYPE_DB_UPD_IND
+- incremented protocol version due to new message and changes in
+    acquisition staticstics messages
+epgdb/epgblock.h [rev:1.50, 2006-12-05T21:34:53]:
+- Extensions to support teletext EPG grabber:
+- added new "PI_PROC" callback type EPGDB_PI_RESYNC: used to incorporate
+    large numbers of changes (such as by importing teletext grabber output DB)
+- added pseudo-CNI for cimbined teletext source: XMLTV_TTX_PROV_CNI
+- increased MAX_MERGED_DB_COUNT from 10 to 31 since the TTX grabber
+    currently generates a separate database for every TV channel
+dsdrv/bt8x8_typ.c [rev:1.1.1.8, 2006-12-19T14:31:59]:
+-r1.44: moved m_TunerHauppaugeAnalog into wintuner.c
+dsdrv/cfg_parse.c [rev:1.1.1.2, 2006-12-19T14:40:22]:
+- r1.16: fixed compile warning: replaced stricmp with _stricmp
+dsdrv/cx2388x_reg.h [rev:1.1.1.8, 2006-12-19T15:27:23]:
+- Upgrade to CX2388x_Defines.h r1.27
+- added bit mask CX2388X_DEVICE_STATUS_VPRES for V-sync detection
+- removed obsolete/unused defines
+dsdrv/cx2388x.c [rev:1.1.1.6, 2006-12-19T15:44:24]:
+- Upgrade to CX2388xCard.cpp r1.75
+-r1.75: VS.NET 2005 project added, warnings and errors fixed
+-r1.74: Fixed the white crush major selection mask...
+-r1.73: Fixed bug in GetTickCount().
+-r1.72: Card access from one thread at a time
+-r1.71: Test fix for threading issues
+-r1.70: Changed the card list to an ini file
+-r1.69: Moved tuner code to new file CX2388xCard_Tuner.cpp
+-r1.68: Changed TDA9887 detecting to Atsushi's new tda code.
+-r1.67: minor fixes + added "Vertical Sync Detection"...
+dsdrv/wintuner.c [rev:1.1.6.1, 2006-12-19T18:47:57]:
+- DScaler CVS import: TDA8290.cpp r1.4
+dsdrv/wintuner.c [rev:1.1.7.1, 2006-12-19T18:48:33]:
+- DScaler CVS import: TDA8275.cpp r1.10
+dsdrv/hwdrv.c [rev:1.1.1.6, 2006-12-19T19:03:29]:
+- Upgrade to HardwareDriver.cpp r1.24
+-r1.24: Correct driver name.
+-r1.23: Added Michael Lutz's 64 bit code
+dsdrv/hwpci.c [rev:1.1.1.3, 2006-12-19T20:28:30]:
+- Upgrade to PCICard.cpp r1.22
+-r1.22: possible fix for 2003 server problems
+-r1.21: Card access from one thread at a time
+-r1.20: Fixed compile problem introduced in the last commit.
+-r1.19: Added function ManageData(...)
+-r1.18: Added arbitrary data size PCI read and write functions.
+dsdrv/saa7134.c [rev:1.1.1.7, 2006-12-19T21:15:58]:
+- Upgrade to SAA7134Card.cpp r1.46
+-r1.46: Card access from one thread at a time
+-r1.45: Added manage for SAA7133/5's ANALOG_IO_SELECT.
+-r1.44: Changed the card list to an ini file.
+dsdrv/saa7134.c [rev:1.1.2.5, 2006-12-19T21:21:03]:
+- Upgrade to SAA7134Source.cpp r1.100
+-r1.100: Enable gamma control by default.
+-r1.99: Use the new function Channel_GetVBIName
+-r1.98: Added gamma control.
+-r1.97: Avoid tight loops in processing
+-r1.96: Test fix for threading issues
+-r1.95: Fixed card name not saved by initial card  setup dialog if auto-detected.
+-r1.94: Changed default value for automatic volume leveling.
+-r1.93: Added SAA7134 card name setting for storing the card selection as text.
+-r1.92: Renumbered eAudioInputSource constants for consistency to actual values
+dsdrv/saa7134_i2c.c [rev:1.1.1.2, 2006-12-19T21:34:08]:
+- Upgrade to SAA7134I2CBus.cpp r1.6
+-r1.6: Fixed bug in GetTickCount()
+-r1.5: Card access from one thread at a time
+-r1.4: Updated files for better doxygen compatability
+- Note:
+- r1.5 not merged: in nxtvepg I2C/card lock is set at top-level in wintuner.c
+www/index-de.html [rev:1.90, 2006-12-20T17:04:25]:
+- Replaced nxtv_logo.gif with new nxtv_logo.png
+- provided by Néo via email 2006-12-19
+www/index-fr.html [rev:1.22, 2006-12-20T17:04:25]:
+- Replaced nxtv_logo.gif with new nxtv_logo.png
+- provided by Néo via email 2006-12-19
+www/index.html [rev:1.100, 2006-12-20T17:04:25]:
+- Replaced nxtv_logo.gif with new nxtv_logo.png
+- provided by Néo via email 2006-12-19
+README [rev:1.44, 2006-12-21T21:48:19]:
+- Removed Belgium provider VT4: reportedly dead since March 2006
+xmltv/xmltv_db.c [rev:1.3.1.1, 2006-12-22T17:11:13]:
+- Removed dependencies on nxtvepg for release of tv_to_text-0.1
+#TV_TO_TEXT_0_1 [rev:LABEL, 2006-12-22T17:11:13|-r1.3.1.1 xmltv_db.c]:
+xmltv/xmltv_db.c [rev:1.6.1.1, 2006-12-22T17:23:48]:
+- Removed dependencies on nxtvepg for release of tv_to_text-0.2
+- added compile switch ALL_CONTENT to exclude attributes parsing
+- added empty function Xmltv_TsFilter() as callback for xmltv_tags.c:
+    allows to skip unwanted tags (including childs) already at parser level
+xmltv/xmltv_db.h [rev:1.6.1.1, 2006-12-22T18:42:38]:
+- Added declaration for callback Xmltv_TsFilter() for tv_to_text-0.2
+#TV_TO_TEXT_0_2 [rev:LABEL, 2006-12-22T18:42:38|-r1.6.1.1 xmltv_db.h]:
+xmltv/xmltv_db.c [rev:1.6.1.2, 2006-12-22T18:47:52]:
+- Merged changes from main line up to 1.8 for release of tv_to_text-0.3
+xmltv/xmltv_db.h [rev:1.6.1.2, 2006-12-22T18:49:55]:
+- Merged changes from main line up to 1.8 for release of tv_to_text-0.3
+#TV_TO_TEXT_0_3 [rev:LABEL, 2006-12-22T18:49:55|-r1.6.1.2 xmltv_db.h]:
+xmltv/xml_hash.c [rev:1.5, 2006-12-23T19:38:38]:
+- Added new interface function XmlHash_Enum()
+xmltv/xml_hash.h [rev:1.4, 2006-12-23T19:38:44]:
+- Added declaration for new interface function XmlHash_Enum() and its callback
+xmltv/xmltv_db.c [rev:1.12, 2006-12-23T19:52:44]:
+- bugfix: default PIL was 0 instead of INVALID_PIL
+- removed use of "%n" in sscanf for <aspect> and <star-rating><value>
+xmltv/xmltv_cni.c [rev:1.2, 2006-12-23T20:11:52]:
+- added 2nd cache for provider pseudo-CNIs
+    + using new file "xmltv-prov.map" to map file name to CNI
+    + added interface functions to lookup CNI via file path, and reverse
+- renamed old map file from "xmltv-channel-id.map" into "xmltv-etsi.map"
+    and fixed parser for DOS line-ends
+xmltv/xmltv_cni.h [rev:1.2, 2006-12-23T20:13:37]:
+- added 2nd cache for provider pseudo-CNIs
+    added interface functions to lookup CNI via file path, and reverse
+- removed XmltvCni_Load(): now loaded only once during init at start-up
+xmltv/xmltv_main.c [rev:1.3, 2006-12-23T20:34:14]:
+- Xmltv_CheckAndLoad(): added param pMtime
+    also store mtime as AI update time in db header
+- added function Xmltv_GetMtime(): used to check for external db file update
+- bugfix Xmltv_ScanDir() for WIN32: added missing free()
+xmltv/xmltv_main.h [rev:1.3, 2006-12-23T20:34:19]:
+- Xmltv_CheckAndLoad(): added param pMtime
+- added function Xmltv_GetMtime(): used to check for external db file update
+xmltv/xmltv_db.c [rev:1.13, 2006-12-23T20:36:53]:
+- Forward init and destroy calls to xmltv_cni.c
+- network CNI map is now read only once during start-up
+www/pre-releases-de.html [rev:1.8, 2006-12-23T21:47:11]:
+- updated for release of 2.7.7rc0 on maintenance branch
+- fixed typo in WIDTH attribute to <HR> in several places
+www/pre-releases.html [rev:1.79, 2006-12-23T21:47:11]:
+- updated for release of 2.7.7rc0 on maintenance branch
+- fixed typo in WIDTH attribute to <HR> in several places
+epgui/wintvcfg.c [rev:1.27, 2006-12-26T17:54:15]:
+- Added parser for TV. app "tvtime" station list
+- requires to read two files in $HOME/.tvtime
+- also new: requires to sort channel table by "position" parameter
+- [note: tvtime was previously supported only for "interaction" in xawtv.c]
+epgui/rcfile.h [rev:1.7, 2006-12-26T22:27:19]:
+- Added parser for TV. app "tvtime" station list
+- appended TVAPP_TVTIME to enum TVAPP_NAME
+epgvbi/btdrv4linux.c [rev:1.65, 2006-12-27T12:52:33]:
+- Clean-up of libzvbi support:
+- removed USE_VBI_PROXY as Makefile option, as it's officially supported
+    by libzvbi since quite some time; changed into an internal switch
+- bugfix: vbi_fdin was not initialized; req'd for _SlaveQueryChannel()
+- bugfix BtDriver_QueryChannel() for v4l1 and libzvbi: results were never
+    passed back to caller
+epgvbi/btdrv.h [rev:1.47, 2006-12-27T12:52:44]:
+- Clean-up of libzvbi support:
+- removed USE_VBI_PROXY as Makefile option; internal to btdrv4linux.c now
+Makefile [rev:1.94, 2006-12-27T13:17:23]:
+- updated CC rule for dep files: to allow build on multiple CPUs
+    (make -j2 still breaks due to unclean tcl header dependencies though)
+- adapted "bak" rule
+Makefile [rev:1.95, 2006-12-27T13:19:42]:
+- Clean-up of libzvbi support:
+- removed USE_VBI_PROXY as Makefile option; internal to btdrv4linux.c now
+- removed obsolete ACQLIBS def. variant (with path for CVS zvbi build)
+- also removed outdated option SAA7134_0_2_2 (still in btdrv4linux.c though)
+xmltv-etsi.map [rev:1.2, 2006-12-27T21:35:34]:
+- Converted all CNIs from VPS to PDC, i.e. extended from 12 to 16 bit
+xmltv-etsi.map [rev:1.3, 2006-12-27T21:42:43]:
+- Added a few more networks
+- Source: http://www.bucksch.org/1/projects/various/xmltv/channels.html
+epgui/cmdline.c [rev:1.8, 2006-12-28T14:32:38]:
+- Adapted to interface change in dumptext.h: added include "epgui/pidescr.h"
+- forgotten check-in; change is at least a year old
+epgui/cmdline.c [rev:1.9, 2006-12-28T14:33:28]:
+- Cleaned up epgdbsav.h interface for start-up init
+- option -demo and database file arguments: check header of given file
+    exit the program if file is not an EPG database (was ignored before)
+- MainOptionError(): added basic usage info (i.e. same as grep(1) does)
+- also replace a few "Usage" calls with MainOptionError()
+epgui/cmdline.h [rev:1.5, 2006-12-28T14:34:36]:
+- Cleaned up epgdbsav.h interface for start-up init
+- added new macro IS_DEMO_MODE(), used by epgmain.c
+epgui/epgmain.c [rev:1.151, 2006-12-28T14:39:03]:
+- Cleaned up epgdbsav.h interface for start-up init
+- exit the program if the demo DB cannot be loaded
+- adapted interface to EpgDbSavSetupDir()
+- use cmdline.h's new macro IS_DEMO_MODE()
+epgui/daemon_main.c [rev:1.7, 2006-12-28T14:39:57]:
+- Cleaned up epgdbsav.h interface for start-up init
+- adapted to interface change in EpgDbSavSetupDir()
+epgdb/epgdbsav.c [rev:1.58, 2006-12-28T14:41:49]:
+- Cleaned up interface for start-up init (cmdline.c, epgmain, daemon_main)
+- split EpgDbReload() into static EpgDbReloadInt() and two interface
+    functions for regular and demo load (i.e. new function EpgDbLoadDemo)
+- added new function EpgDbDumpCheckFileHeader(): determine file type;
+    + note: this is also needed to distinguish nxtvepg DBs from XML files
+    + hence removed pDemoDb arg from EpgDbSavSetupDir()
+- moved RELOAD_ANY_CNI from H into C file; renamed RELOAD_DEMO_CNI
+- minor clean-up in EpgDbDumpGetDirAndCniFromArg():
+    + return indication of demo DB via boolean result instead of CNI==0
+epgdb/epgdbsav.h [rev:1.40, 2006-12-28T14:43:19]:
+- Cleaned up interface for start-up init (cmdline.c, epgmain, daemon_main)
+- split off new function EpgDbLoadDemo() to load demo DB
+- added new function EpgDbDumpCheckFileHeader(): determine file type;
+    + note: this is also needed to distinguish nxtvepg DBs from XML files
+    + hence removed pDemoDb arg from EpgDbSavSetupDir()
+- minor clean-up in EpgDbDumpGetDirAndCniFromArg():
+    + return indication of demo DB via boolean result instead of CNI==0
+- moved RELOAD_ANY_CNI into C file; renamed RELOAD_DEMO_CNI
+epgdb/epgstream.c [rev:1.32, 2006-12-28T16:14:33]:
+- Adapted to interface changes in ttxdecode.c and VBI shared memory
+- adapted TTX packet retrieval loop in EpgStreamProcessPackets()
+- also: allow EpgStreamClear() to be called even if not initialized before
+- [for teletext EPG grabber]
+epgdb/ttxgrab.c [rev:1.4, 2006-12-28T16:33:56]:
+- Made page header change detection more robust against decoding errors
+- require 3 times repetition of header chars before comparison
+    + to still react fast, check more headers of non-captured pages
+    + use formerly used bit distance to decide if additional headers are req'd
+- also ignore headers which are completely blank
+    and ignore headers with too many parity errors
+- also fixed debug output of TtxGrab_PrintHeader()
+epgctl/epgctxctl.h [rev:1.18, 2006-12-28T16:48:42]:
+- Cleaned up epgdbsav.h interface for start-up init
+- adapted EpgContextCtl_OpenDemo(): added demo db file name as param
+epgctl/epgctxctl.c [rev:1.27, 2006-12-28T16:48:47]:
+- Cleaned up epgdbsav.h interface for start-up init
+-> adapted EpgContextCtl_OpenDemo():
+- added demo db file name as param
+- use new separate function EpgDbLoadDemo() to load demo DB
+- return NULL instead of dummy context if demo load fails
+xmltv/xmltv_main.c [rev:1.4, 2006-12-28T17:01:01]:
+- Cleaned up interfaces for start-up init
+- added function Xmltv_IsXmlDocument() to determine if XML parser error
+    should be printed or general "unknown file type" message
+xmltv/xmltv_main.h [rev:1.4, 2006-12-28T17:01:01]:
+- Cleaned up interfaces for start-up init
+- added function Xmltv_IsXmlDocument() to determine if XML parser error
+    should be printed or general "unknown file type" message
+epgtcl/dlg_netname.tcl [rev:1.8, 2006-12-28T19:28:44]:
+- Limit height of netname config dialog box to apx. 27 lines
+- done by limiting the height of both listboxes in the dialog
+epgctl/epgacqnxt.c [rev:1.2, 2006-12-28T20:30:05]:
+- Bugfixes in forced advance due to "no reception":
+- Start: chanChangeTime was reset to 0 after tuning -> moved before tuning
+- EPGACQ_DB_DUMP_INTV was larger than "no recv" timeout -> back to 60 secs
+epgctl/epgacqctl.c [rev:1.91, 2006-12-28T20:30:14]:
+- Bugfix EpgAcqCtl_DescribeAcqState(): inverted boolean expr. for isTtxSrc
+epgctl/epgscan.c [rev:1.42, 2006-12-28T20:34:40]:
+- Adapted to interface changes in ttxdecode.c for TTX grabber
+- TtxDecode_GetStatistics() returns stats in new struct TTX_DEC_STATS
+- adapted names of start/stop functions (added "Epg" to name)
+epgctl/epgctxmerge.c [rev:1.14, 2006-12-28T20:48:23]:
+- Adapted to interface changes:
+- EpgContextCtl_Open() gets additional "force" param (always FALSE here)
+- ttx EPG merge update uses new function EpgDbMergeUpdateNetwork()
+- also changed EpgContextMergeUpdateDb() to return boolean result
+epgctl/epgctxmerge.h [rev:1.6, 2006-12-28T20:48:29]:
+- Changed EpgContextMergeUpdateDb() from void to boolean result type
+epgctl/epgacqnxt.c [rev:1.3, 2006-12-28T21:04:19]:
+- Adapted acq phase timeouts to current on-air providers:
+- raised limit of stream 2 from 30 to 35: required for Kabel1
+- lowered limit of stream 1 from 30 to 12: due to demise of RTL2
+    (Kabel1 takes about 5 min. for stream 1)
+epgctl/epgversion.h [rev:1.83, 2006-12-28T21:09:14]:
+- set version to 2.8.0pre16
+www/pre-releases-de.html [rev:1.9, 2006-12-31T15:41:49]:
+- Updated for pre-release 2.8.0pre16
+www/pre-releases.html [rev:1.80, 2006-12-31T15:41:49]:
+- Updated for pre-release 2.8.0pre16
+xmltv/xmltv_db.c [rev:1.14, 2007-01-20T19:35:27]:
+- changed content of AI service text: use only XML file name
+    + note this means that XMLTV has different semantics than Nextview DB
+    + moved source and generator info from AI into OI
+    + also avoid duplicate info between OI header and message
+- omit appending dummy network (AI element "this_network" is no longer
+    used for XMLTV imported databases)
+- adapted channel ID to CNI mapping for xmltv_cni.c interface change:
+    open/close a "context" and pass it down to mapping function
+- adapted to DB struct change:
+    + extended network CNIs in AI from 16 to 32 bit
+    + added provider CNI to DB context struct -> passed down from xmltv_main.c
+xmltv/xmltv_cni.c [rev:1.3, 2007-01-20T19:35:59]:
+- removed cache file "xmltv-prov.map": storage of provider pseudo CNI map
+    into rcfile.c; file xmltv-prov.map is now obsolete
+- added permanent storage for xmltv network ID mapping: also stored in rc file
+- implemented source-ID pattern matching when reading xmltv-etsi.map;
+    read the file newly for each XMLTV import -> replaced MapChannelId()
+- normalize XML file path for comparison and storage
+xmltv/xmltv_cni.h [rev:1.3, 2007-01-20T19:36:05]:
+- implemented source-ID pattern matching when reading xmltv-etsi.map;
+    read the file newly for each XMLTV import -> replaced MapChannelId()
+xmltv/xmltv_db.h [rev:1.10, 2007-01-20T19:38:15]:
+- Adapted to DB struct change:
+- pass provider CNI down from xmltv_main.c to store it in the DB context
+xmltv/xmltv_main.c [rev:1.5, 2007-01-20T19:51:53]:
+- Cleaned up provider CNI management:
+- pass down provider CNI to xmltv_db.c to support channel ID mapping
+- db dir scan: moved provider CNI mapping here from epgctxctl.c
+xmltv/xmltv_main.h [rev:1.5, 2007-01-20T19:51:53]:
+- Cleaned up provider CNI management:
+- pass down provider CNI to xmltv_db.c to support channel ID mapping
+- db dir scan: moved provider CNI mapping here from epgctxctl.c
+epgdb/epgblock.c [rev:1.60, 2007-01-20T20:06:30]:
+- Added support for XMLTV database import
+- extended CNI in AI block from 16 to 32 bit for XMLTV import
+    + replaced AI block element addInfo with netCniMSB
+    + renamed element "cni" into "netCni"
+epgdb/epgblock.h [rev:1.51, 2007-01-20T20:06:36]:
+- Added support for XMLTV database import
+- extended CNI in AI block from 16 to 32 bit for XMLTV import
+    + replaced AI block element addInfo with netCniMSB
+    + renamed element "cni" into "netCni"
+    + replaced AI_GET_CNI() with new macros to retrieve 32-bit CNI from AI
+- added elements "provCni" and "xmltv" to DB context
+- added macros to define XMLTV "pseudo" CNI range
+epgdb/epgdbif.c [rev:1.48, 2007-01-20T21:32:24]:
+- Added support for XMLTV database import
+- replaced use of obsolete AI_GET_CNI() with new "provCni" elem in DB context
+- added new query function EpgDbContextIsXmltv()
+epgdb/epgdbif.h [rev:1.32, 2007-01-20T21:32:28]:
+- Added support for XMLTV database import
+- added declaration for new query function EpgDbContextIsXmltv()
+epgdb/epgdbmgmt.c [rev:1.51, 2007-01-20T21:39:42]:
+- Added support for XMLTV database import
+- adapted block no. consistency check for XMLTV
+- adapted for extension of CNI in AI block from 16 to 32 bit for XMLTV import
+epgdb/epgdbsav.c [rev:1.59, 2007-01-20T21:43:07]:
+- Added support for XMLTV database import
+- adapted for extension of CNI in AI block from 16 to 32 bit:
+    replace old "addInfo" struct member with netCniMSB during reload
+- maintain new DB context elements "provCni" and "xmltv"
+- EpgDbReloadScan(): use callback function instead of return of a list
+epgdb/epgdbsav.h [rev:1.41, 2007-01-20T21:44:55]:
+- Added support for XMLTV database import
+- EpgDbReloadScan(): use callback function instead of return of a list
+- added reload error code for XMLTV import
+epgdb/epgtscqueue.h [rev:1.5, 2007-01-20T21:47:24]:
+- Added support for XMLTV database import
+- extended provCni in struct EPGDB_PI_TSC_BUF from 16 to 32 bit
+epgdb/epgdbmerge.c [rev:1.32, 2007-01-20T22:01:45]:
+- removed reference to global pUiDbContext (pass ref' down from epgctl instead)
+- EpgDbMergeAiBlocks(): removed initialization and normalization of CNI list:
+    functionality moved two and one layers upwards respectively
+- adapted for extension of CNI in AI block: assign CNI as 32-bit
+epgdb/epgdbmerge.h [rev:1.13, 2007-01-20T22:01:51]:
+- removed reference to global pUiDbContext (pass ref' down from epgctl instead)
+epgctl/epgacqclnt.c [rev:1.19, 2007-01-21T11:23:20]:
+- Added support for XMLTV database import
+- filter out XMLTV CNIs in forward request
+    + required to split off new func EpgAcqClient_CmpAndCopyCnis()
+- adapted for 32-bit CNI: replaced AI_GET_CNI() with AI_GET_THIS_NET_CNI()
+epgctl/epgacqnxt.c [rev:1.4, 2007-01-21T11:24:09]:
+- Added support for XMLTV database import
+- adapted for 32-bit CNI: replaced AI_GET_CNI() with AI_GET_THIS_NET_CNI()
+epgctl/epgacqsrv.c [rev:1.18, 2007-01-21T11:24:09]:
+- Added support for XMLTV database import
+- adapted for 32-bit CNI: replaced AI_GET_CNI() with AI_GET_THIS_NET_CNI()
+epgctl/epgscan.c [rev:1.43, 2007-01-21T11:24:48]:
+- Added support for XMLTV database import
+- adapted for 32-bit CNI: replaced AI_GET_CNI() with AI_GET_THIS_NET_CNI()
+- added param "nxtvOnly=TRUE" to EpgContextCtl_GetProvCount()
+epgctl/epgctxmerge.c [rev:1.15, 2007-01-21T11:39:48]:
+- call to EpgDbMergeAiBlocks(): moved normalization of CNI list into here;
+    + added new func EpgContextMergeNormalizeCnis()
+    + note: CNI list initialization even moved into epgui layer
+- adapted for interface change in EpgDbMergeInsertPi(), ...UpdateNetwork():
+    pass down reference to pUiDbContext (to avoid epgdb layer referencing it)
+- adapted for 32-bit CNI: replaced use new macro AI_GET_NET_CNI()
+epgctl/epgctxctl.c [rev:1.28, 2007-01-21T11:57:36]:
+- Added support for XMLTV database import
+- open and peek front-end: use IS_XMLTV_CNI() to detect request for XMLTV db
+    load: forward request to xmltv_main.c
+- dump: never try to dump XMLTV database
+- GetAiUpdate: XMLTV: get new mtime from file timestamps
+- GetProvCount: added boolean param "nxtvOnly"
+- added file path param to scan cb. and add_stats func (currently not used)
+- replaced use of obsolete AI_GET_CNI() with new "provCni" elem in DB context
+- delay DBDIR scan to avoid unneeded scan (e.g. -dump) and speed-up start-up
+    + renamed _InitCache/_ClearCache into _Init/_Destroy
+    + renamed _Rescan() into _ScanDbDir()
+    + automatically do scan in certain interface funcs
+epgctl/epgctxctl.h [rev:1.19, 2007-01-21T11:57:41]:
+- Added support for XMLTV database import
+- delay DBDIR scan to avoid unneeded scan (e.g. -dump) and speed-up start-up
+    + renamed _InitCache/_ClearCache into _Init/_Destroy
+    + renamed _Rescan() into _ScanDbDir()
+    + automatically do scan in certain interface funcs
+- GetProvCount: added boolean param "nxtvOnly"
+epgui/cmdline.c [rev:1.10, 2007-01-21T12:04:42]:
+- Added support for XMLTV database import
+- added detection of XMLTV for database file arguments
+- added new query function CmdLine_GetStartProviderCni()
+- extended option consistency checks
+epgui/cmdline.h [rev:1.6, 2007-01-21T12:04:50]:
+- Added support for XMLTV database import
+- added new struct elem pXmlDatabase (for internal use only)
+- added new query function CmdLine_GetStartProviderCni()
+epgui/daemon.c [rev:1.9, 2007-01-21T12:24:17]:
+- Added support for XMLTV database import
+- dump:
+    + moved auto-language detection into EpgSetup_GetDefaultLang()
+    + removed obsolete "MapCni2Name" arg: names now stored in rcfile.c
+- use new query function CmdLine_GetStartProviderCni() instead of startUiCni
+epgui/daemon_main.c [rev:1.8, 2007-01-21T12:57:25]:
+- Added support for XMLTV database import
+- adapted for interface change epgctxctl.c
+    delay DBDIR scan to avoid unneeded scan (e.g. -dump) and speed-up start-up
+    -> renamed _InitCache/_ClearCache into _Init/_Destroy
+- also: use new macro MERGED_PROV_CNI
+epgui/uidump.c [rev:1.4, 2007-01-21T14:09:20]:
+- Added support for XMLTV database import
+- removed obsolete EpgDump_MapCni2Name() and "MapCni2Name" callback parameter
+- EpgDump_PopupPi(): use new EpgSetup_GetNetName() to retrieve net names
+epgui/uidump.h [rev:1.2, 2007-01-21T14:09:23]:
+- Added support for XMLTV database import
+- removed obsolete EpgDump_MapCni2Name() (net names now stored in rcfile.c)
+epgui/dumphtml.c [rev:1.6, 2007-01-21T14:09:48]:
+- Added support for XMLTV database import
+- extended CNI sprintf buffer for CNI extension to 32 bit
+- use new EpgSetup_GetNetName() to retrieve user-configured network names
+epgui/dumpraw.c [rev:1.32, 2007-01-21T14:10:07]:
+- Added support for XMLTV database import
+- adapted for changes in AI block struct: netCni, addInfo
+epgui/dumptext.c [rev:1.16, 2007-01-21T14:10:53]:
+- Added support for XMLTV database import
+- replaced obsolete "MapCni2Name" callback with new EpgSetup_GetNetName()
+- adapted for changes in AI block struct: netCni, addInfo
+    use new macro AI_GET_NET_CNI() to retrieve CNIs from AI
+epgui/dumptext.h [rev:1.11, 2007-01-21T14:11:24]:
+- Added support for XMLTV database import
+- removed obsolete "MapCni2Name" callback parameter
+epgui/dumpxml.h [rev:1.5, 2007-01-21T14:11:24]:
+- Added support for XMLTV database import
+- removed obsolete "MapCni2Name" callback parameter
+epgui/wintvui.c [rev:1.2, 2007-01-21T14:13:00]:
+- Added support for XMLTV database import
+- enlarged CNI sprintf buffer for CNI extension to 32 bit
+- also fixed some comments, removed obsolete includes
+epgui/xawtv.c [rev:1.53, 2007-01-21T14:28:31]:
+- Added support for XMLTV database import
+- use new EpgSetup_GetNetName() to retrieve net names
+    removed "MapCni2Name" callback parameter to EpgDumpText_Single()
+- adapted for extension of CNI in AI block from 16 to 32 bit:
+    use new macro AI_GET_NET_CNI_N() to retrieve CNIs from AI
+epgui/wintvcfg.c [rev:1.28, 2007-01-21T14:29:19]:
+- Added #ifndef WIN32 around new sort functionality to avoid compiler warning
+epgui/statswin.c [rev:1.74, 2007-01-21T14:31:26]:
+- Added support for XMLTV database import
+- make same exceptions for XMLTV imported DB as for merged DB
+- replaced use of obsolete AI_GET_CNI() with EpgDbContextGetCni()
+epgui/wintv.c [rev:1.25, 2007-01-21T14:37:54]:
+- Added support for XMLTV database import
+- use new EpgSetup_GetNetName() to retrieve net names
+    removed "MapCni2Name" callback parameter to EpgDumpText_Single()
+- adapted for extension of CNI in AI block from 16 to 32 bit:
+    use new macro AI_GET_NET_CNI_N() to retrieve CNIs from AI
+epgui/timescale.c [rev:1.14, 2007-01-21T14:42:06]:
+- Added support for XMLTV database import
+- make same exceptions for XMLTV imported DB as for merged DB
+- replaced use of obsolete AI_GET_CNI() with EpgDbContextGetCni()
+- determine timescale width from last PI instead of AI day_count
+epgui/shellcmd.c [rev:1.12, 2007-01-21T14:46:01]:
+- Added support for XMLTV database import
+- enlarged CNI sprintf buffer for CNI extension to 32 bit
+- use new EpgSetup_GetNetName() to retrieve net names
+epgui/pilistbox.c [rev:1.97, 2007-01-21T14:56:18]:
+- Added support for XMLTV database import
+- added callback type EPGDB_PI_RESYNC: for TTX acquisition
+- enlarged CNI sprintf buffer for CNI extension to 32 bit
+- renamed Tcl proc C_PiBox_GetSelectedNetwop() into _GetSelectedNetCni()
+    changed result: now returns only CNI; omitted network name
+epgui/pinetbox.c [rev:1.44, 2007-01-21T14:56:28]:
+- dded support for XMLTV database import
+- added callback type EPGDB_PI_RESYNC: for TTX acquisition
+- use new EpgSetup_GetNetName() to retrieve net names
+- enlarged CNI sprintf buffer for CNI extension to 32 bit
+- renamed Tcl proc C_PiBox_GetSelectedNetwop() into _GetSelectedNetCni()
+    changed result: now returns only CNI; omitted network name
+epgui/epgmain.c [rev:1.152, 2007-01-21T17:42:51]:
+- Added support for XMLTV database import
+- adapted for interface change epgctxctl.c
+    + delay DBDIR scan to avoid unneeded scan (e.g. -dump) and speed-up start-up
+    -> renamed _InitCache/_ClearCache into _Init/_Destroy
+- use new query function CmdLine_GetStartProviderCni() instead of startUiCni
+epgui/pioutput.c [rev:1.57, 2007-01-21T17:47:13]:
+- Added support for XMLTV database import
+- use new EpgSetup_GetNetName() to retrieve network names
+epgui/piremind.c [rev:1.19, 2007-01-21T17:48:22]:
+- Added support for XMLTV database import
+- enlarged CNI sprintf buffer for CNI extension to 32 bit
+- use new macro AI_GET_NET_CNI_N() to retrieve CNIs from AI
+epgui/pifilter.c [rev:1.89, 2007-01-21T17:52:47]:
+- Added support for XMLTV database import
+- use new EpgSetup_GetNetName() to retrieve network names
+- enlarged CNI sprintf buffer for CNI extension to 32 bit
+    use new macro AI_GET_NET_CNI_N() to retrieve CNIs from AI
+- PiFilter_SetNetwopPrefilter(): gets CNI list passwd from caller
+    instead of using Tcl list "netwop_ai2sel"
+epgui/pifilter.h [rev:1.12, 2007-01-21T17:52:53]:
+- Added support for XMLTV database import
+- PiFilter_SetNetwopPrefilter(): gets CNI list passwd from caller
+    instead of using Tcl list "netwop_ai2sel"
+epgui/dumpxml.c [rev:1.19, 2007-01-21T18:01:04]:
+- Added support for XMLTV database import
+- replaced obsolete "MapCni2Name" callback with new EpgSetup_GetNetName()
+    + user-configured channel names now also used in daemon mode
+    + try to keep XMLTV imported channel IDs during dump (not 100% correct yet)
+      build channel name table before start of dump, release after
+- make same exceptions for XMLTV imported DB as for merged DB
+- adapted for changes in AI block struct: netCni, addInfo
+    use new macro AI_GET_NET_CNI() to retrieve CNIs from AI
+epgui/rcfile.c [rev:1.9, 2007-01-28T17:19:35]:
+- Added support for XMLTV database import
+- implemented new/alternate section type: dynamic list (inst. of assignments)
+- added sections for network selection & names (moved here from rcfile.tcl)
+    added new sections XMLTV providers and networks
+- added RC_TYPE_OBS to skip now obsolete "prov_merge_netwops" assignment
+    in database section; also added RC_TYPE_HEX for CNIs
+- incremented rc compat version to 2.8.0pre16
+epgui/rcfile.h [rev:1.8, 2007-01-28T17:19:42]:
+- Added support for XMLTV database import
+- added sections for network selection & names (moved here from rcfile.tcl)
+    added new sections XMLTV providers and networks
+- removed obsolete RcFile_UpdateDbMergeNetwops (now handled like normal nets)
+- incremented rc compat version to 2.8.0pre16
+epgui/epgsetup.c [rev:1.5, 2007-01-28T17:33:20]:
+- Added support for XMLTV database import
+- moved network selection and network name config from rcfile.tcl into rcfile.c
+    + added name lookup function EpgSetup_GetNetName()
+    + added EpgSetup_UpdateProvCniTable(): moved here from dlg_netsel.tcl
+- moved building of network CNI list for merged database from epgdbmerge.c
+    into new EpgSetup_InitMergeDbNetwops()
+- OpenUiDb(): removed loop, i.e. keep empty UI DB if load fails
+    also adapted for epgctxctl.c
+- maintain provider access times via RcFile_UpdateXmltvProvAtime()
+- added EpgSetup_GetDefaultLang(): moved functionality here from UI
+- introduced new compile switch USE_XMLTV_IMPORT
+epgui/epgsetup.h [rev:1.3, 2007-01-28T17:33:57]:
+- Added support for XMLTV database import
+- moved network selection and network name config from rcfile.tcl into rcfile.c
+    + added name lookup function EpgSetup_GetNetName()
+    + added EpgSetup_UpdateProvCniTable(): moved here from dlg_netsel.tcl
+- added EpgSetup_GetDefaultLang(): moved functionality here from UI
+epgui/menucmd.c [rev:1.129, 2007-01-28T17:41:34]:
+- Added support for XMLTV database import
+- adapted for AI struct changes
+    + for XMLTV DBs use AI_GET_SERVICENAME instead of THIS_NETWOP_NAME
+    + enlarged CNI sprintf buffers for CNI extension to 32 bit
+    + use new macro AI_GET_NET_CNI_N() to retrieve CNIs from AI
+- moved network selection and network name configuration into rcfile.c
+    + added query & update funcs for config dialogs
+    + removed obsolete _UpdateMergeNetwops(): merge DB now use regular net cfg.
+- SetUserLanguage(): splitt of language auto-detection into new
+    func EpgSetup_GetDefaultLang()
+- proc C_GetProvCnisAndNames: added option "nxtv_only"
+- introduced new compile switch USE_XMLTV_IMPORT
+epgui/pdc_themes.c [rev:1.12, 2007-01-28T17:43:46]:
+- Added UTF-8 encoded themes table, selected by compile switch USE_UTF8
+- (Implemented already 2006-01-08, checked in one year late)
+epgui/uictrl.h [rev:1.17, 2007-01-28T17:47:02]:
+- Added 2 new acq events to support teletext EPG grabber
+- ACQ_EVENT_NEW_DB -> UiControl_LoadAcqDb()
+- ACQ_EVENT_CTL -> update status line only (esp. for teletext channel scan)
+epgui/uictrl.c [rev:1.53, 2007-01-28T18:43:07]:
+- Added support for XMLTV database import
+- for XMLTV DBs print file path in window title instead of service name
+    plus other minor exceptions for XMLTV
+- adapted for move of network sel. and network name config into rcfile.c
+- do not automatically switch provider to acq. db if ui.db. is empty
+    i.e. after start-up errors keep warning message instead of random DB
+- introduced new compile switch USE_XMLTV_IMPORT
+- bugfix: limit window title len to ~100 chars, else WM can refuse update
+epgtcl/dlg_netname.tcl [rev:1.9, 2007-01-28T19:57:44]:
+- Added support for XMLTV database import
+- moved network selection and network name configuration into rcfile.c
+    + use C query & update funcs instead of global vars cfnetnames, cfnetwops
+    + removed obsolete proc ApplyUserNetnameCfg: already done at C level
+- redesign of the network name config dialog
+    + show only names of the current provider
+    + replaced "closed match" button with listbox containing all similar names
+    + added traffic-light-style color checkbox with "sync status"
+epgtcl/dlg_netsel.tcl [rev:1.11, 2007-01-28T19:57:55]:
+- Added support for XMLTV database import
+- moved network selection and network name configuration into rcfile.c
+    + use C query & update funcs instead of global vars cfnetnames, cfnetwops
+    + reduced proc UpdateProvCniTable to generate GUI mappings only
+- ranamed "Save" button into "Ok"
+- removed "Copy" button (too complicated, not enough providers anymore)
+epgtcl/dlg_prov.tcl [rev:1.19, 2007-01-28T19:58:05]:
+- ranamed "Dismiss" button into "Ok"
+- adapted for move of network sel. and network name config into rcfile.c:
+    replaced update of global var cfnetnames in proc EpgScanDeleteProvider
+epgtcl/dlg_remind.tcl [rev:1.22, 2007-01-28T19:58:11]:
+- adapted for move of network sel. and network name config into rcfile.c:
+    removed mapping function ApplyUserNetnameCfg
+epgtcl/dlg_xawtvcf.tcl [rev:1.12, 2007-01-28T19:58:18]:
+- improved warning about "untested channel table config": so the test
+    automatically in the background during "Ok" and warn only if it fails
+- adapted for move of network sel. and network name config into rcfile.c:
+    replaced global var cfnetnames with proc C_GetNetwopNames
+epgtcl/shortcuts.tcl [rev:1.18, 2007-01-28T19:58:24]:
+- adapted for move of network sel. and network name config into rcfile.c:
+    + removed obsolete ApplyUserNetnameCfg
+epgtcl/rcfile.tcl [rev:1.31, 2007-01-28T19:58:28]:
+- Added support for XMLTV database import
+- moved network selection and network name configuration into rcfile.c
+    + removed global vars cfnetnames, cfnetwops
+    + added backwards compatibility for versions older than pre16
+epgtcl/mainwin.tcl [rev:1.251, 2007-01-28T19:59:02]:
+- adapted for move of network sel. and network name config into rcfile.c:
+    + replaced global vars cfnetnames, cfnetwops with C query procs
+    + removed obsolete ApplyUserNetnameCfg
+    + renamed/changed C_PiBox_GetSelectedNetwop
+- updated copyright for 2007
+xmltv/xmltv_cni.c [rev:1.4, 2007-02-11T19:54:33]:
+- Bugfix XmltvCni_GetFullPath() for WIN32
+epgdb/epgdbsav.c [rev:1.60, 2007-02-11T19:58:58]:
+- Fail-saved EpgDbDump(): refuse dump for invalid provCni in DB context
+epgdb/ttxgrab.c [rev:1.5, 2007-02-11T20:04:43]:
+- TtxGrab_Start(): refuse to start if perl script is missing
+- to avoid to fail silently in post-processing later
+epgctl/epgscan.c [rev:1.44, 2007-02-11T20:07:49]:
+- Bugfix provCni assignment in newly created database contexts
+epgctl/epgversion.h [rev:1.84, 2007-02-13T21:00:18]:
+- set version to 2.8.0pre17
+- note previous EPG_VERSION_PL in the 2.8.0 pre-releases were in conflict
+    with the 2.7.x line; hence switch from 0xD1 in pre16 to 0xE0 in pre17
+www/pre-releases-de.html [rev:1.11, 2007-02-17T19:12:19]:
+- Updated for pre-release 2.8.0pre17
+www/pre-releases.html [rev:1.82, 2007-02-17T19:12:19]:
+- Updated for pre-release 2.8.0pre17
+Makefile [rev:1.96, 2007-02-25T19:12:28]:
+- added switch USE_XMLTV_IMPORT to allow excluding XMLTV code
+- added switched USE_UTF8, XMLTV_OUTPUT_UTF8 (in use since more than 1 year)
+- added switch USE_TTX_GRABBER to enable teletext grabber
+- fixed TCL header dependencies to allow compiling with -j2
+- updated copyright for 2007
+Makefile.win32 [rev:1.67, 2007-02-25T19:12:36]:
+- added switch USE_XMLTV_IMPORT to allow excluding XMLTV code
+- added switched USE_UTF8, XMLTV_OUTPUT_UTF8 (in use since more than 1 year)
+- added switch USE_TTX_GRABBER to enable teletext grabber
+- fixed TCL header dependencies to allow compiling with -j2
+    WIN32 special: requires to handle tcl_libs and tk_libs separately b/c
+    these .tcl files are located in the build sub-tree
+- added missing dependencies in dsdrv libs for daemon
+- moved some rules to be in sync with UNIX Makefile
+xmltv-etsi.map [rev:1.4, 2007-02-25T19:19:51]:
+- Updated comment about manually adding provider
+- non-VPS/PDC provider IDs are now managed automatically in ini/rc file
+- also removed duplicate CNI for mtv.de
+epgvbi/btdrv.h [rev:1.48, 2007-02-25T19:42:05]:
+- WIN32: select default driver type intelligently
+- added new BTDRV_SOURCE_UNDEF and BtDriver_GetDefaultDrvType()
+epgvbi/btdrv4win.c [rev:1.58, 2007-02-25T19:44:07]:
+- WIN32: select default driver type intelligently
+- added new BTDRV_SOURCE_UNDEF and BtDriver_GetDefaultDrvType()
+epgvbi/btdrv4dummy.c [rev:1.22, 2007-02-25T19:46:52]:
+- Added missing dummy functions for WIN32 GUI interface
+wdmdrv/wdmdrv.h [rev:1.7, 2007-02-25T20:01:00]:
+- Syntax fix function prototypes: added missing (void) for funcs w/o args
+epgui/epgmain.c [rev:1.153, 2007-02-25T20:26:55]:
+- moved content of Main_PopupTvCardSetup() into menucmd.c
+    popup is now used also when acq. is enabled manually
+- added #ifdef USE_TTX_GRABBER
+epgui/epgsetup.c [rev:1.6, 2007-02-25T20:30:00]:
+- WIN32: select default driver type intelligently
+- handle new type is BTDRV_SOURCE_UNDEF, call BtDriver_GetDefaultDrvType()
+- also: added #ifdef USE_TTX_GRABBER
+epgui/rcfile.c [rev:1.10, 2007-02-25T20:33:34]:
+- WIN32: select default driver type intelligently
+- initialize tvcard driver type to BTDRV_SOURCE_UNDEF
+epgui/menucmd.h [rev:1.26, 2007-02-25T20:33:42]:
+- WIN32: added call to EpgSetup_CheckTvCardConfig() in acq start function
+    added declaration for MenuCmd_PopupTvCardSetup(), moved from epgmain
+epgui/menucmd.c [rev:1.130, 2007-02-25T20:40:39]:
+- bugfix CNI related changes (preliminary): omit PDC conversion for CNIs
+    given to config dialogs; must match CNIs in AI
+- WIN32: select default driver type intelligently
+    handle new type is BTDRV_SOURCE_UNDEF, call BtDriver_GetDefaultDrvType()
+- WIN32: added call to EpgSetup_CheckTvCardConfig() in acq start function
+    moved content of Main_PopupTvCardSetup() from epgmain.c into here
+- added #ifdef USE_TTX_GRABBER
+epgui/timescale.c [rev:1.15, 2007-02-25T20:42:35]:
+- Bugfix: TimeScale_UpdateDateScale() crashed
+- overflow of comm[] when DB covered too many days
+- solved by assembling Tcl command as Tcl list instead of string
+epgtcl/dlg_acqmode.tcl [rev:1.8, 2007-02-25T20:51:41]:
+- Introduced tcl2c switch #=IF=defined(USE_TTX_GRABBER)
+epgtcl/dlg_hwcfg.tcl [rev:1.20, 2007-02-25T20:51:51]:
+- WIN32: select default driver type intelligently
+- added constant for new BTDRV_SOURCE_UNDEF (not used at Tcl level though)
+epgtcl/dlg_netname.tcl [rev:1.10, 2007-02-25T20:52:00]:
+- update dialog when TV app. config is updated (TV config dialog quit)
+- extended TV channel name similarity matches: added prefix comparison
+- fixes in TV channel name similarity matches:
+    + didn't display "yellow" when name was identical except for the case
+    + suppress network ID for CNI zero
+epgtcl/dlg_netsel.tcl [rev:1.12, 2007-02-25T20:52:09]:
+- Fail-saved proc UpdateProvCniTable
+epgtcl/dlg_prov.tcl [rev:1.20, 2007-02-25T20:52:15]:
+- Fixed connection to TV app. config dialog (auto-update)
+- replaced trace ob obsolete var tvapp_name (formerly global)
+    with hard-wired trigger proc EpgScan_UpdateTvApp
+epgtcl/dlg_xawtvcf.tcl [rev:1.13, 2007-02-25T20:52:22]:
+- Added triggers to EPG scan and network naming dialog in save function
+epgtcl/draw_stats.tcl [rev:1.6, 2007-02-25T20:52:30]:
+- Limit width of timescale window to screen size
+- (still TODO: add scrollbar; limit height)
+epgtcl/mainwin.tcl [rev:1.252, 2007-02-25T20:52:36]:
+- PiDateScale_Redraw: assert minimum height for each date on the scale
+- introduced tcl2c switch #=IF=defined(USE_TTX_GRABBER)
+tvsim/vbirec_main.c [rev:1.25, 2007-02-25T21:07:39]:
+- Added support for XMLTV database import
+- adapted for various interface changes to VPS/PDC acq. in ttxacq
+- adapted to db struct changes for 32-bit CNI
+- adapted to TV channel name interface changes in wintvcfg
+www/index-de.html [rev:1.92, 2007-02-26T20:46:59]:
+- Removed <red> color emphasis for current release header
+www/index-fr.html [rev:1.24, 2007-02-26T20:46:59]:
+- Removed <red> color emphasis for current release header
+www/index.html [rev:1.102, 2007-02-26T20:46:59]:
+- Removed <red> color emphasis for current release header
+www/pre-releases.html [rev:1.83, 2007-02-26T21:01:51]:
+- Replaced link to obsolete page WDMpre-releases.html
+- Note: removed obsolete pages on the server
+tcl2c.c [rev:1.15, 2007-02-26T21:12:16]:
+- Added pre-processor commands for conditional compilation inside Tcl scripts
+- added #=IF=, #=ELSE=, #=ENDIF=
+- (used to exclude some config dialogs when disabling TTX EPG grabber)
+epgui/uictrl.c [rev:1.54, 2007-02-26T21:15:04]:
+- Finally checked in content of UiControl_LoadAcqDb()
+- even though it's state is considered preliminary
+www/index-fr.html [rev:1.25, 2007-03-02T21:57:14]:
+- Included French translation of navigation bar and latest release news
+- sent via mail by Neo 2007-03-02
+epgvbi/btdrv.h [rev:1.49, 2007-03-03T19:49:38]:
+- Merged DVB patch (submitted 2005-03-30 for 2.8.0pre5, UNIX with libzvbi only)
+- added new Interface BtDriver_SetDvbPid() and SHM element dvbPid
+epgvbi/btdrv4linux.c [rev:1.66, 2007-03-03T19:49:44]:
+- Merged DVB patch (submitted 2005-03-30 for 2.8.0pre5, UNIX with libzvbi only)
+- added new Interface BtDriver_SetDvbPid() and SHM element dvbPid
+- use device /dev/dvb/adapter%u/demux0 and vbi_capture_dvb_filter()
+epgui/cmdline.c [rev:1.11, 2007-03-03T19:49:53]:
+- Merged DVB patch (submitted 2005-03-30 for 2.8.0pre5, UNIX with libzvbi only)
+- added command line switch -dvbpid, param stored in mainrc.dvbPid
+epgui/cmdline.h [rev:1.7, 2007-03-03T19:49:53]:
+- Merged DVB patch (submitted 2005-03-30 for 2.8.0pre5, UNIX with libzvbi only)
+- added command line switch -dvbpid, param stored in mainrc.dvbPid
+epgui/epgsetup.c [rev:1.7, 2007-03-03T19:50:40]:
+- Merged DVB patch (submitted 2005-03-30 for 2.8.0pre5, UNIX with libzvbi only)
+- forward DVB PID to BtDriver_SetDvbPid()
+epgdb/epgdbmgmt.c [rev:1.52, 2007-03-03T20:36:40]:
+- Made block number handling more tolerant: extended use of block_no_in_ai
+- AI update: do not remove blocks outside new block ranges, just clear flag
+- adapted EpgDbPiCheckBlockSequence, EpgDbPiResolveConflicts
+- reason: Pro7 transmitting Kabel1 stream with same proviver CNI but
+    different block number ranges 2007-Feb-10 until Feb-15
+epgdb/epgtscqueue.c [rev:1.7, 2007-03-03T20:37:02]:
+- Made block number handling more tolerant: extended use of block_no_in_ai
+- ignore AI version on blocks which are no longer in AI
+epgui/timescale.c [rev:1.16, 2007-03-03T20:39:34]:
+- Improved handling of expired blocks:
+- ignore stream number for blocks with non-current AI version
+- always use color of stream #1, i.e. yellow
+dsdrv/cfg_parse.c [rev:1.4, 2007-03-10T17:35:56]:
+- Fixed compiler warning about \ at end-of-line in C++ comment
+epgui/cmdline.c [rev:1.12, 2007-03-10T17:52:56]:
+- Changed Usage() into MainOptionError() for all "missing arg+1 after ..."
+Makefile.win32 [rev:1.68, 2007-03-10T19:26:01]:
+- Enabled -Werror
+epgdb/ttxgrab.c [rev:1.6, 2007-03-10T19:31:32]:
+- Exclude all content unless USE_TTX_GRABBER is defined
+epgdb/ttxgrab.h [rev:1.3, 2007-03-10T19:31:32]:
+- Exclude all content unless USE_TTX_GRABBER is defined
+epgctl/epgacqttx.c [rev:1.2, 2007-03-10T19:32:23]:
+- Exclude content of all functions unless USE_TTX_GRABBER is defined
+epgvbi/btdrv4linux.c [rev:1.67, 2007-06-03T19:32:00]:
+- Bugfix v4l2 setup (bug reported 30/April/2007 in forum for linux 2.6.21)
+- vbi.start[1] changed from 318 to 319
+epgui/pioutput.c [rev:1.58, 2007-10-01T09:51:22]:
+- Removed compiler warnings about ambiguous else with gcc 4.1.2 and Tk8.4.14
+- Tcl_DecrRefCount is a macro which contains if/else without bracketing
+epgvbi/btdrv4linux.c [rev:1.68, 2007-10-01T09:57:19]:
+- Compile fix for USE_LIBZVBI: missing bracket/wrong #else placement
+- reported via email 2007-09-28 by Wolfgang Schlueschen
+epgctl/epgversion.h [rev:1.85, 2007-12-28T18:47:52]:
+- set version to 2.8.0pre18 (release 2007-09-09)
+epgui/dumphtml.c [rev:1.7, 2007-12-29T15:20:00]:
+- Adapted for Tcl/Tk version 8.5
+- adapted to interface change of  EpgSetup_GetNetName()
+epgui/dumptext.c [rev:1.17, 2007-12-29T15:20:00]:
+- Adapted for Tcl/Tk version 8.5
+- adapted to interface change of  EpgSetup_GetNetName()
+epgui/shellcmd.c [rev:1.13, 2007-12-29T15:20:00]:
+- Adapted for Tcl/Tk version 8.5
+- adapted to interface change of  EpgSetup_GetNetName()
+epgui/dumpxml.c [rev:1.20, 2007-12-29T15:20:15]:
+- Adapted for Tcl/Tk version 8.5
+- adapted to interface change of  EpgSetup_GetNetName()
+- also fixed encoding header for UTF8
+epgui/epgmain.h [rev:1.25, 2007-12-29T16:22:33]:
+- Adapted for Tcl/Tk version 8.5
+- added TranscodeToUtf8() to transcode PI data from Latin-1 into UTF-8
+epgui/epgmain.c [rev:1.154, 2007-12-29T16:25:17]:
+- Adapted for Tcl/Tk version 8.5
+- added TranscodeToUtf8() to transcode PI data from Latin-1 into UTF-8
+- replaced Tk8.4 hack with WM_SAVE_YOURSELF wm protocol
+epgui/epgsetup.c [rev:1.8, 2007-12-29T16:26:40]:
+- Adapted for Tcl/Tk version 8.5
+- EpgSetup_GetNetName(): added result *pIsFromAi to handle encoding
+epgui/epgsetup.h [rev:1.4, 2007-12-29T16:26:40]:
+- Adapted for Tcl/Tk version 8.5
+- EpgSetup_GetNetName(): added result *pIsFromAi to handle encoding
+epgui/pifilter.c [rev:1.90, 2007-12-29T16:54:33]:
+- Adapted for Tcl/Tk version 8.5
+- convert PI content and network names to UTF-8 before passing it to Tcl/Tk
+- changed API from push to pull for C_PiFilter_ContextMenuUndoFilter,
+    C_PiFilter_ContextMenuAddFilter and C_CreateNi: added wrapper at Tcl level:
+    C funcs only return param lists which consists of atomic strings (to avoid
+    difficult escaping of special chars when eval'ing Tcl commands as strings)
+epgui/pifilter.c [rev:1.91, 2007-12-29T16:56:11]:
+- PiFilter_ContextMenuUndoFilter: Added undo for duration and VPS filters
+epgui/pinetbox.c [rev:1.45, 2007-12-29T17:00:42]:
+- Adapted for Tcl/Tk version 8.5
+- convert network names to UTF-8 before passing them to Tcl/Tk; modified
+    PiNetBox_UpdateNetwopNames() to build Tcl cmd. as objv to avoid quoting
+epgui/pioutput.c [rev:1.59, 2007-12-29T17:02:42]:
+- Adapted for Tcl/Tk version 8.5
+- convert PI data, network names and dates to UTF-8 before passing it to Tcl/Tk
+-> added transcoding into PiOutput_PrintColumnItem() and PiOutput_InsertText()
+epgui/uidump.c [rev:1.5, 2007-12-29T17:31:20]:
+- Adapted for Tcl/Tk version 8.5
+- convert PI content and network names to UTF-8 before passing it to Tcl/Tk
+-> changed API from push to pull for C_PopupPi, i.e. added Tcl wrapper, C func
+    returns content text lines as list (avoids dealing with escaping special ch.)
+epgui/wintv.c [rev:1.26, 2007-12-29T17:33:02]:
+- Adapted for Tcl/Tk version 8.5
+- adapted to interface change of  EpgSetup_GetNetName()
+epgui/menucmd.c [rev:1.131, 2007-12-29T20:15:11]:
+- Adapted for Tcl/Tk version 8.5
+- convert PI content and network names to UTF-8 before passing it to Tcl/Tk
+    use new function TranscodeToUtf8(); removed most older USE_UTF8 switches
+- added new proc C_ClockSeconds to replace Tcl "clock" command (because that
+    one requires a library script which depends on msgcat and i18l library)
+epgui/pilistbox.c [rev:1.98, 2007-12-29T20:19:10]:
+- Fixed acq callback for merged db (100% CPU and GUI hung for several minutes):
+- start/stop is called for every single block in merged db
+-> delay refresh via idle event; reset counter only after refresh
+epgui/xawtv.c [rev:1.54, 2007-12-29T20:22:13]:
+- Adapted for Tcl/Tk version 8.5
+- convert PI content and network names to UTF-8 before passing it to Tcl/Tk
+- also convert strings received via X atoms (assuming "system" encoding)
+epgui/piremind.c [rev:1.20, 2007-12-29T20:32:56]:
+- Adapted for Tcl/Tk version 8.5
+- convert PI content and network names to UTF-8 before passing it to Tcl/Tk
+epgui/wintvui.c [rev:1.3, 2007-12-29T20:38:25]:
+- Adapted for Tcl/Tk version 8.5
+- convert text to UTF-8 before passing it to Tcl/Tk
+- note: encoding of data received via shared memory is currently undefined!
+epgtcl/mainwin.tcl [rev:1.253, 2007-12-29T20:44:48]:
+- Adapted for Tcl/Tk version 8.5
+- 8.5: changed default fonts; removed all hard-coded font references
+- 8.5: changed borderwidth for menubuttons from 2 to 1 to match button bdw.
+- 8.5: replaced ridge relief on buttons and all listboxes with raised (bd=1)
+- all: use groove instead of ridge for frames (equiv. to labelframe)
+- use new proc C_ClockSeconds instead of Tcl-internal "clock" command (because
+    in 8.5. that one requires a library script which depends on msgcat et.al.)
+- changed API from push to pull for C_PiFilter_ContextMenuUndoFilter,
+    C_PiFilter_ContextMenuAddFilter, C_CreateNi, C_PopupPi: added wrapper at Tcl
+    level; C funcs only return param lists which consists of atomic strings
+    to avoid problems with escaping special chars in Tcl commands
+- transcode help texts from ISO8859-1 into UTF
+- adapted PI list tab widths to new default font & size
+epgtcl/dlg_ctxmencf.tcl [rev:1.13, 2007-12-29T21:03:24]:
+- Adapted for Tcl/Tk version 8.5 (see mainwin.tcl -r1.253 for all changes)
+- C_PiFilter_ContextMenuUndoFilter, C_PiFilter_ContextMenuAddFilter:
+    removed Tcl command eval at C level to avoid escaping special chars
+- adapted widget config to match both 8.4 and 8.5 styles
+epgtcl/dlg_acqmode.tcl [rev:1.9, 2007-12-29T21:03:39]:
+epgtcl/dlg_dump.tcl [rev:1.10, 2007-12-29T21:03:39]:
+epgtcl/dlg_hwcfg.tcl [rev:1.21, 2007-12-29T21:03:39]:
+epgtcl/dlg_netsel.tcl [rev:1.13, 2007-12-29T21:03:39]:
+epgtcl/dlg_prov.tcl [rev:1.21, 2007-12-29T21:03:39]:
+epgtcl/dlg_shortcuts.tcl [rev:1.18, 2007-12-29T21:03:39]:
+epgtcl/dlg_xawtvcf.tcl [rev:1.14, 2007-12-29T21:03:39]:
+epgtcl/draw_stats.tcl [rev:1.7, 2007-12-29T21:03:39]:
+epgtcl/dlg_substr.tcl [rev:1.3, 2007-12-29T21:10:41]:
+- Adapted for Tcl/Tk version 8.5 (see mainwin.tcl -r1.253 for all changes)
+- adapted widget config to match both 8.4 and 8.5 styles
+epgtcl/dlg_remind.tcl [rev:1.23, 2007-12-29T21:09:16]:
+- Adapted for Tcl/Tk version 8.5 (see mainwin.tcl -r1.253 for all changes)
+- use new proc C_ClockSeconds instead of Tcl-internal "clock" command
+- adapted widget config to match both 8.4 and 8.5 styles
+epgtcl/rcfile.tcl [rev:1.32, 2007-12-29T21:11:12]:
+- Adapted for Tcl/Tk version 8.5 (see mainwin.tcl -r1.253 for all changes)
+- use new proc C_ClockSeconds instead of Tcl-internal "clock" command
+epgtcl/shortcuts.tcl [rev:1.19, 2007-12-29T21:11:12]:
+- Adapted for Tcl/Tk version 8.5 (see mainwin.tcl -r1.253 for all changes)
+- use new proc C_ClockSeconds instead of Tcl-internal "clock" command
+epgtcl/dlg_substr.tcl [rev:1.4, 2007-12-29T21:12:55]:
+- Renamed exit button "Dismiss" into "Ok" (now includes "apply")
+epgtcl/dlg_filter.tcl [rev:1.16, 2007-12-29T21:15:36]:
+- Adapted for Tcl/Tk version 8.5 (see mainwin.tcl -r1.253 for all changes)
+- adapted widget config to match both 8.4 and 8.5 styles
+- use new proc C_ClockSeconds instead of Tcl-internal "clock" command
+epgtcl/dlg_filter.tcl [rev:1.17, 2007-12-29T21:16:34]:
+- Renamed exit buttons "Clear/Dismiss" into "Abort/Ok"
+epgtcl/dlg_netname.tcl [rev:1.11, 2007-12-29T21:17:49]:
+- Added key binding for Return and Escape keys in name entry field
+- as suggested in forum
+epgtcl/dlg_netname.tcl [rev:1.12, 2007-12-29T21:18:57]:
+- Adapted for Tcl/Tk version 8.5 (see mainwin.tcl -r1.253 for all changes)
+- adapted widget config to match both 8.4 and 8.5 styles
+epgtcl/dlg_udefcols.tcl [rev:1.18, 2007-12-29T21:21:31]:
+- Adapted for Tcl/Tk version 8.5 (see mainwin.tcl -r1.253 for all changes)
+- use new proc C_ClockSeconds instead of Tcl-internal "clock" command
+- adapted widget config to match both 8.4 and 8.5 styles
+epgtcl/dlg_udefcols.tcl [rev:1.19, 2007-12-29T21:21:53]:
+- fixed text tag config for underline and overstrike in sample text widget
+- use labelframe in 2 places instead of separate labels
+epgtcl/mclistbox.tcl [rev:1.3, 2007-12-29T21:22:59]:
+- Adapted for Tcl/Tk version 8.5
+- added support for cget -state: required for 8.5 listbox bindings
+epgvbi/cni_tables.c [rev:1.32, 2007-12-29T21:31:07]:
+epgvbi/cni_tables.h [rev:1.7, 2007-12-29T21:31:07]:
+epgctl/epgscan.c [rev:1.45, 2007-12-29T21:34:50]:
+- Removed list of "known providers" (unnecessary, not needed for EPG scan)
+epgdb/epgnetio.c [rev:1.38, 2007-12-29T22:28:07]:
+- Fixed debug output
+epgdb/epgqueue.c [rev:1.10, 2007-12-29T22:28:07]:
+- Fixed debug output
+dsdrv/bt8x8_typ.c [rev:1.18, 2007-12-29T23:21:55]:
+- Fixed syntax errors in dprintf output
+tvsim/tvsim_main.c [rev:1.32, 2007-12-29T23:33:50]:
+- Adapted for Tcl/Tk version 8.5 (see also epgmain.c -r1.154)
+- added TranscodeToUtf8() to transcode PI data from Latin-1 into UTF-8
+- convert text to UTF-8 before passing it to Tcl/Tk
+- replaced Tk8.4 hack with WM_SAVE_YOURSELF wm protocol
+- also fixed locale setting: override LC_NUMERIC only
+tvsim/vbirec_main.c [rev:1.26, 2007-12-29T23:33:50]:
+- Adapted for Tcl/Tk version 8.5 (see also epgmain.c -r1.154)
+- added TranscodeToUtf8() to transcode PI data from Latin-1 into UTF-8
+- convert text to UTF-8 before passing it to Tcl/Tk
+- replaced Tk8.4 hack with WM_SAVE_YOURSELF wm protocol
+- also fixed locale setting: override LC_NUMERIC only
+epgtcl/mainwin.tcl [rev:1.254, 2007-12-30T14:52:22]:
+- Changed email contact address to sourceforge; abbreviated 1st name
+epgvbi/btdrv4linux.c [rev:1.69, 2007-12-30T15:17:08]:
+- Bugfix in DVB support: pVbiBuf->dvbPid was not initialized for USE_THREADS
+- mad acq for non-DVB always fail with EINVAL because dvbPid was 0 != -1
+- bug reported in forum by bjkro 2007/10/21
+Makefile.win32 [rev:1.69, 2007-12-30T15:23:20]:
+- Switched to Tcl/Tk version 8.5.0
+- adapted library version and path definitions; added ttk script library
+- also adapted match on "nm" output in lib*.def rules for 64-bit hosts
+xmltv/xmltv_main.c [rev:1.6, 2007-12-30T15:47:46]:
+- Fixed syntax errors in dprintf output
+dsdrv/bt8x8.c [rev:1.16, 2007-12-30T21:40:27]:
+dsdrv/cx2388x.c [rev:1.21, 2007-12-30T21:40:27]:
+dsdrv/saa7134.c [rev:1.25, 2007-12-30T21:40:27]:
+dsdrv/wintuner.c [rev:1.26, 2007-12-30T21:40:27]:
+epgvbi/btdrv4dummy.c [rev:1.23, 2007-12-30T21:43:40]:
+epgvbi/btdrv4win.c [rev:1.59, 2007-12-30T21:43:40]:
+epgctl/debug.c [rev:1.28, 2007-12-30T21:46:54]:
+- Removed use of "Nextview" in window titles and error messages -> use "nxtvepg"
+epgctl/epgscan.c [rev:1.46, 2007-12-30T21:48:09]:
+- Added "EPG" after mention of "Nextview" in messages
+epgdb/epgdbmerge.c [rev:1.33, 2007-12-30T21:49:10]:
+- Changed service name from "Merged db..." into "Merged EPG providers (...)"
+epgctl/epgacqctl.c [rev:1.92, 2007-12-30T23:21:24]:
+- Bugfix EpgAcqCtl_Stopped(): handling errors during network connect:
+- acq client was stopped, but acq ctl. remained enabled -> assert failed
+epgdb/epgdbsav.c [rev:1.61, 2007-12-30T23:49:56]:
+- added encoding flag to file header (UTF-8 vs. Latin-1)
+- added detection of integer width mismatch (32-bit vs. 64-bit time_t)
+epgdb/epgdbsav.h [rev:1.42, 2007-12-30T23:49:56]:
+- added encoding flag to file header (UTF-8 vs. Latin-1)
+- added detection of integer width mismatch (32-bit vs. 64-bit time_t)
+epgdb/epgdbsav.c [rev:1.62, 2007-12-30T23:52:45]:
+epgui/cmdline.c [rev:1.13, 2007-12-30T23:59:43]:
+epgui/epgmain.c [rev:1.155, 2007-12-31T00:01:50]:
+epgui/daemon.c [rev:1.10, 2007-12-31T00:08:02]:
+- removed use of "Nextview" in window titles and error messages -> use "nxtvepg"
+- added ifdef USE_TTX_GRABBER
+epgui/statswin.c [rev:1.75, 2007-12-31T00:10:05]:
+- StatsWin_UpdateTtxStats: replaced use of "nexTView"
+epgui/uictrl.c [rev:1.55, 2007-12-31T00:15:34]:
+- Handle new reload error indicators EPGDB_RELOAD_ENCODING and _INT_WIDTH
+epgui/uictrl.c [rev:1.56, 2007-12-31T00:19:08]:
+- removed use of "Nextview" in window titles and error messages -> use "nxtvepg"
+    keep "Nextview" as provide prefix in titles, except for merged db
+- improved message for empty db: added note that PI may be expired
+epgui/xawtv.c [rev:1.55, 2007-12-31T00:20:33]:
+- Call Xiccc_Destroy() before _Init() to avoid memory leak
+epgtcl/mainwin.tcl [rev:1.255, 2007-12-31T00:22:48]:
+- Removed use of "Nextview" in window titles and error messages -> use "nxtvepg"
+epgtcl/mainwin.tcl [rev:1.256, 2007-12-31T00:25:58]:
+- Bugfix PiDateScale_Redraw:
+- execution was extremely slow if t_last was far in the future
+-> limit number of painted weekday to visible scale height
+epgui/xiccc.c [rev:1.2, 2007-12-31T16:03:14]:
+- don't destroy manager_wid if already "None"
+- generate LOST_MGMT event after FOCUS_CLEAR (although currently unused)
+- removed obsolete include
+epgdb/epgblock.h [rev:1.52, 2007-12-31T16:11:01]:
+- Increased MAX_NETWOP_COUNT from 80 to 254 for XMLTV support
+epgvbi/cni_tables.c [rev:1.33, 2007-12-31T16:20:31]:
+- Changed CniConvertUnknownToPdc() to not use CniConvertPdcToVps()
+- changed Oct/2006 (2.8.0pre13); intention unknown, probably for XMLTV or TTX
+epgvbi/winshm.h [rev:1.11, 2007-12-31T16:34:02]:
+- Extension of the "winshm" protocol (WIN32 TV app interaction)
+- // implemented around March/April 2005, first release in 2.8.0pre13 Oct/2006
+- extended device access management to allo use of daemon and GUI
+- added TV norm and isTuner
+- added PI count parameter to station change trigger
+- return EPG info in TAB-separated text format (provided by dumptext.c)
+- prepared possibility for EPG database query (indep. of current station)
+epgvbi/winshmsrv.c [rev:1.11, 2007-12-31T16:34:02]:
+- Extension of the "winshm" protocol (WIN32 TV app interaction)
+- // implemented around March/April 2005, first release in 2.8.0pre13 Oct/2006
+- extended device access management to allo use of daemon and GUI
+- added TV norm and isTuner
+- added PI count parameter to station change trigger
+- return EPG info in TAB-separated text format (provided by dumptext.c)
+- prepared possibility for EPG database query (indep. of current station)
+epgvbi/winshmsrv.h [rev:1.5, 2007-12-31T16:34:02]:
+- Extension of the "winshm" protocol (WIN32 TV app interaction)
+- // implemented around March/April 2005, first release in 2.8.0pre13 Oct/2006
+- extended device access management to allo use of daemon and GUI
+- added TV norm and isTuner
+- added PI count parameter to station change trigger
+- return EPG info in TAB-separated text format (provided by dumptext.c)
+- prepared possibility for EPG database query (indep. of current station)
+epgvbi/btdrv4win.c [rev:1.60, 2007-12-31T16:34:13]:
+- Extension of the "winshm" protocol (WIN32 TV app interaction)
+- adaption for interface changes in "winshmsrv.h" interface
+epgui/daemon.c [rev:1.11, 2007-12-31T16:34:24]:
+- Added support for "winshm" (WIN32 TV app interaction)
+- install and handle callbacks in the daemon main loop
+epgui/daemon_main.c [rev:1.9, 2007-12-31T16:34:36]:
+- Extension of the "winshm" protocol (WIN32 TV app interaction)
+- minor adaption for interface change in "winshmsrv.h" interface
+epgui/epgmain.c [rev:1.156, 2007-12-31T16:34:36]:
+- Extension of the "winshm" protocol (WIN32 TV app interaction)
+- minor adaption for interface change in "winshmsrv.h" interface
+epgui/wintv.c [rev:1.27, 2007-12-31T16:34:49]:
+- Extension of the "winshm" protocol (WIN32 TV app interaction)
+- adapted for query format change: use dumptext.c; return multiple PI on req.
+- added dummy callback "Wintv_CbEpgQuery" (not yet implemented)
+tvsim/tvsim_gui.tcl [rev:1.15, 2007-12-31T16:45:36]:
+- Adapted for Tcl/Tk version 8.5 (see mainwin.tcl -r1.253 for all changes)
+- 8.5: changed default fonts; removed all hard-coded font references
+- also updated copyright notice for 2005 (ICCC protocol) and 2007
+tvsim/vbirec_gui.tcl [rev:1.12, 2007-12-31T16:51:17]:
+- Adapted for Tcl/Tk version 8.5 (see mainwin.tcl -r1.253 for all changes)
+- 8.5: changed default fonts; removed all hard-coded font references
+- also updated copyright notice for 2005 (ICCC protocol) and 2007
+tvsim/tvsim_version.h [rev:1.8, 2007-12-31T17:00:47]:
+- Changed version from 3.0 to 3.1 due to adaption for Tcl/Tk 8.5
+tvsim/winshmclnt.c [rev:1.11, 2007-12-31T17:03:12]:
+- Extension of the "winshm" protocol (WIN32 TV app interaction)
+- // implemented around March/April 2005, first release in 2.8.0pre13 Oct/2006
+- extended device access management to allow use of daemon and GUI
+- added TV norm and isTuner
+- added PI count parameter to station change trigger
+- return EPG info in TAB-separated text format (provided by dumptext.c)
+- prepared possibility for EPG database query (indep. of current station)
+tvsim/winshmclnt.h [rev:1.7, 2007-12-31T17:03:12]:
+- Extension of the "winshm" protocol (WIN32 TV app interaction)
+- // implemented around March/April 2005, first release in 2.8.0pre13 Oct/2006
+- extended device access management to allow use of daemon and GUI
+- added TV norm and isTuner
+- added PI count parameter to station change trigger
+- return EPG info in TAB-separated text format (provided by dumptext.c)
+- prepared possibility for EPG database query (indep. of current station)
+tvsim/tvsim_main.c [rev:1.33, 2007-12-31T17:14:05]:
+- Extension of the "winshm" protocol (WIN32 TV app interaction)
+- adaption for interface changes in "winshmclnt.h" interface
+- implemented display of full PI data sets (i.e. no longer title & times only)
+tvsim/tvsim_gui.tcl [rev:1.16, 2007-12-31T17:14:12]:
+- Extension of the "winshm" protocol (WIN32 TV app interaction)
+- enable "extended_pi" display for WIN32 (prev. used for ICCC proto. only)
+tvsim/vbiplay.c [rev:1.8, 2007-12-31T18:46:35]:
+- Adaptions to changes in btdrv.h shared memory for teletext capturing
+- see btdrv.h -r1.46 2006/Dec/05
+tvsim/vbiplay.c [rev:1.9, 2007-12-31T18:47:28]:
+- Extension of the "winshm" protocol (WIN32 TV app interaction)
+- adaption for interface changes in "winshmclnt.h" interface (cb names)
+tvsim/vbirec_gui.tcl [rev:1.13, 2007-12-31T18:50:23]:
+- Extension of the "winshm" protocol (WIN32 TV app interaction)
+- // implemented around March/April 2005, first release in 2.8.0pre13 Oct/2006
+- removed display of obsolete TV app. channel CNI
+- added TV freq. and card req.; adapted input source display
+tvsim/vbirec_main.c [rev:1.27, 2007-12-31T18:52:45]:
+- Extension of the "winshm" protocol (WIN32 TV app interaction)
+- // implemented around March/April 2005, first release in 2.8.0pre13 Oct/2006
+- adaption for interface changes in "winshmclnt.h" interface
+- added TV freq. and card req. display
+- adapted fake EPG data send function to new TAB-separated EPG data format
+xmltv/xmltv_db.c [rev:1.15, 2007-12-31T19:04:11]:
+- checking in some older work-arounds (TODO: need to be improved)
+- limit number of networks to MAX_NETWOP_COUNT (b/c EPG db uses static arrays)
+- assign fake stop time (start + 1 sec) to PI without stop time attribute
+COPYRIGHT [rev:1.17, 2007-12-31T19:09:19]:
+- Updated Tcl/Tk license for release 8.5.0
+nxtvepg-de.pod [rev:1.12, 2007-12-31T19:41:23]:
+- updated intro; replaced "decoding" with "receiving"; mention XMLTV & TTX
+- updated provider list: removed VT4
+- added option -dvbpid & DVB device
+- added teletext grabber
+- removed "known providers" from EPG scan
+- new TV app. interaction option: "ext. app." for OSD
+- network selection dialog: remove "copy" option
+- extended thanks to Neo for windows installer
+nxtvepg.pod [rev:1.128, 2007-12-31T19:41:23]:
+- updated intro; replaced "decoding" with "receiving"; mention XMLTV & TTX
+- updated provider list: removed VT4
+- added option -dvbpid & DVB device
+- added teletext grabber
+- removed "known providers" from EPG scan
+- new TV app. interaction option: "ext. app." for OSD
+- network selection dialog: remove "copy" option
+- extended thanks to Neo for windows installer
+README [rev:1.45, 2007-12-31T19:42:24]:
+- Improved wording; added mention of XMLTV; updated requirements for 2.8.0
+Nxtvepg.ad [rev:1.6, 2007-12-31T20:16:59]:
+- fixed case of application class name: must be "Nxtvepg" (was "nxtvepg")
+- added hints for anti-aliased fonts in Tcl/Tk 8.5 and font names with spaces
+nxtvepg.spec [rev:1.26, 2007-12-31T20:17:57]:
+- updated version number for release 2.8.0
+- updated description with new text from README
+- raised Tcl/Tk requiremenet from 8.3 to 8.4
+- adapted path for app-default (now under /etc/X11)
+- added nxtvepgd executable and man page
+CHANGES.version [rev:1.18, 2007-12-31T20:18:31]:
+- Added switch USE_UTF8 (disabled by default)
+epgctl/epgversion.h [rev:1.86, 2007-12-31T20:19:55]:
+- set version number to 2.8.0 (finally!)
+- changed email address to sourceforge
+epgtcl/mainwin.tcl [rev:1.257, 2007-12-31T22:06:26]:
+- replaced hard-coded email address with global var NXTVEPG_MAILTO
+- improved font syntax check for loading app-defaults (for proc DeriveFont)
+epgctl/epgctxctl.c [rev:1.29, 2007-12-31T22:14:02]:
+- Bugfix inconsistency in EpgContextCtl_Open()
+- upon error in mode CTX_FAIL_RET_CREATE: provCni was not set in returned db
+- also added new consistency check: reloadErr must by "OK" on open db
+README.tcltk [rev:1.5, 2007-12-31T23:04:34]:
+- Added description how to cross-compile Tcl/Tk 8.5.0 for Windows in Linux
+Makefile [rev:1.97, 2007-12-31T23:19:00]:
+- switched from fixed TCL_VER to dynamic query; changed TCL_VER from 8.4 to 8.5
+- extended copyright for vbiplay to 2005 due to adaptions for ttx
+- changed SYS_DBDIR to /var/tmp
+- enabled USE_THREADS (release config should also be used for testing)
+- adapted path for app-default (now under /etc/X11)
+nxtvepg-de.pod [rev:1.13, 2008-01-01T00:11:39]:
+- Added description of WDM configuration
+- in Getting started and TV card config dialog
+nxtvepg.pod [rev:1.129, 2008-01-01T00:11:39]:
+- Added description of WDM configuration
+- in Getting started and TV card config dialog
+Makefile.win32 [rev:1.70, 2008-01-01T00:34:06]:
+- Added NextViewPlugin.dll to zip file
+nxtvepg-de.pod [rev:1.14, 2008-01-01T01:13:28]:
+- Added description for the teletext grabber configuration
+nxtvepg.pod [rev:1.130, 2008-01-01T01:13:28]:
+- Added description for the teletext grabber configuration
+xmltv-etsi.map [rev:1.5, 2008-01-01T02:31:47]:
+- Removed mappings for obsolete tv_grab_de
+epgtcl/dlg_netname.tcl [rev:1.13, 2008-01-01T02:36:17]:
+- Bugfix: netwop list was empty for merged db
+- until network selection dialog was used because ailist was empty
+- solution: query raw AI network list in this case
+CHANGES [rev:1.52, 2008-01-01T15:27:59]:
+- updated for release 2.8.0
+TODO [rev:1.37, 2008-01-01T15:27:59]:
+- updated for release 2.8.0
+www/pre-releases-de.html [rev:1.12, 2008-01-01T15:43:03]:
+- Updated for pre-release 2.8.0pre18
+www/pre-releases.html [rev:1.84, 2008-01-01T15:43:03]:
+- Updated for pre-release 2.8.0pre18
+www/index-fr.html [rev:1.26, 2008-01-01T15:59:45]:
+- fixed french translation of two screenshots
+- added link to Introduction K!TV et nxtvepg
+www/index-de.html [rev:1.93, 2008-01-01T16:00:35]:
+www/index-fr.html [rev:1.27, 2008-01-01T16:00:35]:
+www/index.html [rev:1.103, 2008-01-01T16:00:35]:
+- Improved META keywords
+www/changelog.html [rev:1.67, 2008-01-05T18:02:23]:
+- added changelog for release 2.8.0
+- replaced "Nextview EPG Decoder" with nxtvepg in the header
+www/changelog-2.8.0pre.html [rev:1.1, 2008-01-05T18:02:33]:
+- Initial revision
+www/index-de.html [rev:1.94, 2008-01-05T18:02:47]:
+www/index.html [rev:1.104, 2008-01-05T18:02:47]:
+- updated release notes for 2.8.0
+- rewrote into paragraph to make distinction of nxtvepg and EPG contents
+www/index-fr.html [rev:1.28, 2008-01-05T18:02:52]:
+- updated release notes for 2.8.0
+- rewrote into paragraph to make distinction of nxtvepg and EPG contents
+- updated link to K!TV installation instructions by Neo
+www/intro-de.html [rev:1.22, 2008-01-05T18:02:58]:
+- Inserted "EPG" after all references to Nextview
+www/intro.html [rev:1.19, 2008-01-05T18:02:58]:
+- Inserted "EPG" after all references to Nextview
+www/links-de.html [rev:1.5, 2008-01-05T18:03:06]:
+- removed ancient "new" tags
+- updated link to XMLTV
+www/links.html [rev:1.20, 2008-01-05T18:03:06]:
+- removed ancient "new" tags
+- updated link to XMLTV
+www/man-de.html [rev:1.1, 2008-01-05T18:03:13]:
+- Initial revision
+www/man.html [rev:1.44, 2008-01-05T18:04:40]:
+- Updated for release 2.8.0
+www/pre-releases-de.html [rev:1.13, 2008-01-05T18:05:10]:
+www/pre-releases.html [rev:1.85, 2008-01-05T18:05:10]:
+- updated for release 2.8.0: removed links to pre-releases
+- moved change log of 2.8.0 pre-releases to separate page
+www/xiccc-proto.html [rev:1.8, 2008-01-05T18:05:16]:
+- added NAME anchors to H2 headers as link targets
+- improved Xawtv protocol header text
+www/download-de.html [rev:1.27, 2008-01-05T18:05:24]:
+- updated for release 2.8.0
+- added upgrade hint for nxtvepg and matching daemon version
+- updated system requirements
+www/download.html [rev:1.25, 2008-01-05T18:05:24]:
+- updated for release 2.8.0
+- added upgrade hint for nxtvepg and matching daemon version
+- updated system requirements
+www/faq-de.html [rev:1.7, 2008-01-05T18:05:36]:
+- Fixed encoding of "francais"
+www/WDMpre-releases.html [rev:1.20, 2008-01-06T20:32:58]:
+www/changelog-2.6.0pre.html [rev:1.15, 2008-01-06T20:32:58]:
+www/changelog-2.7.0pre.html [rev:1.11, 2008-01-06T20:32:58]:
+www/changelog-2.8.0pre.html [rev:1.2, 2008-01-06T20:32:58]:
+www/changelog.html [rev:1.68, 2008-01-06T20:32:58]:
+www/download-de.html [rev:1.28, 2008-01-06T20:32:58]:
+www/download.html [rev:1.26, 2008-01-06T20:32:58]:
+www/faq-de.html [rev:1.8, 2008-01-06T20:32:58]:
+www/faq.html [rev:1.20, 2008-01-06T20:32:58]:
+www/help-wanted.html [rev:1.20, 2008-01-06T20:32:58]:
+www/index-de.html [rev:1.95, 2008-01-06T20:32:58]:
+www/index-fr.html [rev:1.29, 2008-01-06T20:32:58]:
+www/index.html [rev:1.105, 2008-01-06T20:32:58]:
+www/intro-de.html [rev:1.23, 2008-01-06T20:32:58]:
+www/intro.html [rev:1.20, 2008-01-06T20:32:58]:
+www/links-de.html [rev:1.6, 2008-01-06T20:32:58]:
+www/links.html [rev:1.21, 2008-01-06T20:32:58]:
+www/man-de.html [rev:1.2, 2008-01-06T20:32:58]:
+www/man.html [rev:1.45, 2008-01-06T20:32:58]:
+www/pre-releases-de.html [rev:1.14, 2008-01-06T20:32:58]:
+www/pre-releases.html [rev:1.86, 2008-01-06T20:32:58]:
+www/provnets-de.html [rev:1.6, 2008-01-06T20:32:58]:
+www/provnets.html [rev:1.51, 2008-01-06T20:32:58]:
+www/tvsim-faq.html [rev:1.18, 2008-01-06T20:32:58]:
+www/xiccc-proto.html [rev:1.9, 2008-01-06T20:32:58]:
+- fixed spelling and HTML syntax
+- improved META tags
+#>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> RELEASE_2_8_0 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<

@@ -18,20 +18,24 @@
 #
 #  Author: Tom Zoerner
 #
-#  $Id: dlg_acqmode.tcl,v 1.4 2003/03/31 19:15:21 tom Exp tom $
+#  $Id: dlg_acqmode.tcl,v 1.9 2007/12/29 21:03:39 tom Exp tom $
 #
 set acqmode_popup 0
-set acq_mode "follow-ui"
-
 set netacqcf_popup 0
-set netacqcf {remctl 1 do_tcp_ip 0 host localhost ip {} port 7658 max_conn 10 sysloglev 3 fileloglev 0 logname {}}
+set ttxgrab_popup 0
+
 set netacqcf_loglev_names {"no logging" error warning notice info}
 set netacqcf_remctl_names {disabled "local only" "from anywhere"}
 set netacqcf_view "both"
-set netacq_enable 0
+
+# Used for return values of proc C_GetAcqConfig
+#=CONST= ::acqcf_ret_mode_idx 0
+#=CONST= ::acqcf_ret_cnilist_idx 1
+#=CONST= ::acqcf_ret_start_idx 2
 
 #=LOAD=PopupAcqMode
 #=LOAD=PopupNetAcqConfig
+#=LOAD=PopupTtxGrab
 #=DYNAMIC=
 
 ## ---------------------------------------------------------------------------
@@ -40,41 +44,38 @@ set netacq_enable 0
 ##
 proc PopupAcqMode {} {
    global acqmode_popup
-   global acqmode_ailist acqmode_selist acqmode_names
+   global acqmode_ailist acqmode_selist acqmode_names acqmode_start
    global acqmode_sel
-   global acq_mode acq_mode_cnis
-   global is_unix netacq_enable
+   global is_unix
 
    if {$acqmode_popup == 0} {
-
-      if {[C_IsNetAcqActive default]} {
-         # warn that params do not affect acquisition running remotely
-         set answer [tk_messageBox -type okcancel -icon info -message "Please note that this dialog does not update acquisition parameters on server side."]
-         if {[string compare $answer "ok"] != 0} {
-            return
-         }
-      }
 
       CreateTransientPopup .acqmode "Acquisition mode selection"
       set acqmode_popup 1
 
       # load list of providers
       set acqmode_ailist {}
-      foreach {cni name} [C_GetProvCnisAndNames] {
+      foreach {cni name} [C_GetProvCnisAndNames nxtv] {
          lappend acqmode_ailist $cni
          set acqmode_names($cni) $name
       }
       set acqmode_ailist [SortProvList $acqmode_ailist]
 
       # initialize popup with current settings
-      set acqmode_sel $acq_mode
+      set tmpl [C_GetAcqConfig]
+      set acqmode_sel [lindex $tmpl $::acqcf_ret_mode_idx]
+      set acqmode_selist [lindex $tmpl $::acqcf_ret_cnilist_idx]
+      set acqmode_start [lindex $tmpl $::acqcf_ret_start_idx]
 
-      if {[info exists acq_mode_cnis] && ([llength $acq_mode_cnis] > 0)} {
-         set acqmode_selist $acq_mode_cnis
+      if {[llength $acqmode_selist] > 0} {
          RemoveObsoleteCnisFromList acqmode_selist $acqmode_ailist
       } else {
          set acqmode_selist $acqmode_ailist
       }
+
+      # info text
+      label .acqmode.info1 -text "If you have more than one EPG provider, you can\nselect here in which order their data is acquired:" -justify left
+      pack  .acqmode.info1 -side top -pady 5 -padx 10 -anchor w
 
       # checkbuttons for modes
       frame .acqmode.mode
@@ -95,6 +96,10 @@ proc PopupAcqMode {} {
       frame .acqmode.lb
       UpdateAcqModePopup
       pack .acqmode.lb -side top
+
+      # check-button to disable automatic acq-start upon program start (note "auto enabled" = 0)
+      checkbutton .acqmode.auto_acq -text "Start acquisition automatically" -variable acqmode_start -onvalue 0 -offvalue 1
+      pack .acqmode.auto_acq -side top -padx 10 -pady 10 -anchor w
 
       # command buttons at the bottom of the window
       frame .acqmode.cmd
@@ -141,9 +146,8 @@ proc UpdateAcqModePopup {} {
 
 # extract, apply and save the settings
 proc QuitAcqModePopup {} {
-   global acqmode_ailist acqmode_selist acqmode_names
+   global acqmode_ailist acqmode_selist acqmode_names acqmode_start
    global acqmode_sel
-   global acq_mode acq_mode_cnis
 
    if {[string compare -length 6 "cyclic" $acqmode_sel] == 0} {
       if {[llength $acqmode_selist] == 0} {
@@ -152,13 +156,22 @@ proc QuitAcqModePopup {} {
       }
       set acq_mode_cnis $acqmode_selist
    }
-   set acq_mode $acqmode_sel
 
-   unset acqmode_ailist acqmode_selist acqmode_sel
+   if {[C_IsNetAcqActive default]} {
+      set tmpl [C_GetAcqConfig]
+      set old_acqmode_sel [lindex $tmpl $::acqcf_ret_mode_idx]
+      set old_acqmode_selist [lindex $tmpl $::acqcf_ret_cnilist_idx]
+      if {($old_acqmode_sel ne $acqmode_sel) || ($old_acqmode_selist ne $acqmode_selist)} {
+         # warn that params do not affect acquisition running remotely
+         tk_messageBox -type ok -icon info -message "Please note that this does not update the acquisition mode on server side."
+      }
+   }
+
+   C_UpdateAcqConfig $acqmode_sel $acqmode_selist $acqmode_start
+
+   # free memory
+   unset acqmode_ailist acqmode_selist acqmode_sel acqmode_start
    if {[info exists acqmode_names]} {unset acqmode_names}
-
-   C_UpdateAcquisitionMode
-   UpdateRcFile
 
    # close the popup window
    destroy .acqmode
@@ -168,10 +181,10 @@ proc QuitAcqModePopup {} {
 ##  Creates the remote acquisition configuration dialog
 ##
 proc PopupNetAcqConfig {} {
-   global netacqcf netacqcf_tmpcf
+   global netacqcf_tmpcf
    global netacqcf_remctl_names
    global netacqcf_view
-   global fileImage font_normal win_frm_fg
+   global fileImage font_normal
    global netacqcf_popup
 
    if {$netacqcf_popup == 0} {
@@ -179,11 +192,9 @@ proc PopupNetAcqConfig {} {
       set netacqcf_popup 1
 
       # load configuration into temporary array
-      foreach {opt val} $netacqcf {
-         set netacqcf_tmpcf($opt) $val
-      }
+      C_GetNetAcqConfig netacqcf_tmpcf
 
-      frame .netacqcf.view -borderwidth 2 -relief ridge
+      frame .netacqcf.view -borderwidth 2 -relief groove
       label .netacqcf.view.view_lab -text "Enable settings for:"
       pack  .netacqcf.view.view_lab -side left -pady 5
       radiobutton .netacqcf.view.clnt_radio -text "client" -variable netacqcf_view -value "client" -command NetAcqChangeView
@@ -197,8 +208,9 @@ proc PopupNetAcqConfig {} {
       label .netacqcf.all.remote_lab -text "Enable remote control:"
       grid  .netacqcf.all.remote_lab -row $gridrow -column 0 -sticky w -padx 5
       menubutton .netacqcf.all.remote_mb -text [lindex $netacqcf_remctl_names $netacqcf_tmpcf(remctl)] \
-                      -width 22 -justify center -relief raised -borderwidth 2 -menu .netacqcf.all.remote_mb.men \
-                      -indicatoron 1 -takefocus 1 -highlightthickness 1 -highlightcolor $win_frm_fg
+                      -menu .netacqcf.all.remote_mb.men \
+                      -width 22 -justify center -indicatoron 1
+      config_menubutton .netacqcf.all.remote_mb
       menu  .netacqcf.all.remote_mb.men -tearoff 0
       set cmd {.netacqcf.all.remote_mb configure -text [lindex $netacqcf_remctl_names $netacqcf_tmpcf(remctl)]}
       set idx 0
@@ -292,7 +304,7 @@ proc PopupNetAcqConfig {} {
 
 # callback for "Abort" and "OK" buttons
 proc NetAcqConfigQuit {do_save} {
-   global netacqcf netacqcf_tmpcf
+   global netacqcf_tmpcf
 
    if $do_save {
       # check config for consistancy
@@ -320,17 +332,7 @@ proc NetAcqConfigQuit {do_save} {
       }
 
       # copy temporary variables back into config parameter list
-      set netacqcf [list "remctl" $netacqcf_tmpcf(remctl) \
-                         "do_tcp_ip" $netacqcf_tmpcf(do_tcp_ip) \
-                         "host" $netacqcf_tmpcf(host) \
-                         "port" $netacqcf_tmpcf(port) \
-                         "ip" $netacqcf_tmpcf(ip) \
-                         "logname" $netacqcf_tmpcf(logname) \
-                         "max_conn" $netacqcf_tmpcf(max_conn) \
-                         "fileloglev" $netacqcf_tmpcf(fileloglev) \
-                         "sysloglev" $netacqcf_tmpcf(sysloglev)]
-      UpdateRcFile
-      C_UpdateNetAcqConfig
+      C_UpdateNetAcqConfig [array get netacqcf_tmpcf]
    }
    # close the dialog window
    destroy .netacqcf
@@ -391,7 +393,6 @@ proc NetAcqChangeView {} {
 
 # create popdown menu to allow choosing log levels (for file logging and syslog)
 proc NetAcqCreateLogLevMenu {wmen logtype} {
-   global win_frm_fg
    global netacqcf_loglev_names
    global netacqcf_tmpcf
 
@@ -402,7 +403,8 @@ proc NetAcqCreateLogLevMenu {wmen logtype} {
 
    menubutton $wmen -text [lindex $netacqcf_loglev_names $netacqcf_tmpcf($logtype)] \
                    -width 22 -justify center -relief raised -borderwidth 2 -menu $wmen.men \
-                   -indicatoron 1 -takefocus 1 -highlightthickness 1 -highlightcolor $win_frm_fg
+                   -indicatoron 1
+   config_menubutton $wmen
    menu  $wmen.men -tearoff 0
    set idx 0
    foreach name $netacqcf_loglev_names {
@@ -410,4 +412,285 @@ proc NetAcqCreateLogLevMenu {wmen logtype} {
       incr idx
    }
 }
+
+#=IF=defined(USE_TTX_GRABBER)
+## ---------------------------------------------------------------------------
+## Open dialog for teletext grabber configuration
+##
+proc PopupTtxGrab {} {
+   global ttxgrab_tmpcf
+   global font_normal font_fixed
+   global ttxgrab_popup
+
+   if {$ttxgrab_popup == 0} {
+
+      # initialize popup with current settings
+      C_GetTtxConfig ttxgrab_tmpcf
+
+      # check if TV app is configured
+      set tmpl [C_Tvapp_GetConfig]
+      if {[C_Tvapp_TestChanTab 0 [lindex $tmpl 0] [lindex $tmpl 1]] <= 0} {
+         if {$ttxgrab_tmpcf(enable)} {
+            # already enabled
+            set answer [tk_messageBox -type okcancel -default ok -icon info -parent . \
+                                      -message "The teletext grabber cannot work without a TV application's channel table. Configure a valid TV app. now?"]
+            if {[string compare $answer "ok"] == 0} {
+               XawtvConfigPopup
+               array unset ttxgrab_tmpcf
+               return
+            }
+         } else {
+            set answer [tk_messageBox -type okcancel -default ok -icon info -parent . \
+                                      -message "Before you can enable the teletext grabber you must configure a TV application, because a TV channel table is required. Configure a TV app. now?"]
+            if {[string compare $answer "ok"] == 0} {
+               XawtvConfigPopup
+            }
+            array unset ttxgrab_tmpcf
+            return
+         }
+      }
+
+      CreateTransientPopup .ttxgrab "Teletext grabber configuration"
+      set ttxgrab_popup 1
+
+      # convert page numbers to decimal
+      set ttxgrab_tmpcf(ovpg) [TtxGrab_Hex2Dec $ttxgrab_tmpcf(ovpg)]
+      set ttxgrab_tmpcf(pg_start) [TtxGrab_Hex2Dec $ttxgrab_tmpcf(pg_start)]
+      set ttxgrab_tmpcf(pg_end) [TtxGrab_Hex2Dec $ttxgrab_tmpcf(pg_end)]
+
+      checkbutton .ttxgrab.ena_chk -text "Enable teletext grabber" -variable ttxgrab_tmpcf(enable) \
+                                   -command TtxGrab_Enabled
+      pack  .ttxgrab.ena_chk -side top -padx 10 -pady 10 -anchor w
+
+      frame .ttxgrab.all
+      set gridrow 0
+      label .ttxgrab.all.chcnt_lab -text "Number of TV channels to grab:"
+      grid  .ttxgrab.all.chcnt_lab -row $gridrow -column 0 -sticky w -padx 5
+      entry .ttxgrab.all.chcnt_ent -textvariable ttxgrab_tmpcf(net_count) -width 4
+      grid  .ttxgrab.all.chcnt_ent -row $gridrow -column 1 -sticky we
+      incr gridrow
+      label .ttxgrab.all.ovpg_lab -text "Overview start page:"
+      grid  .ttxgrab.all.ovpg_lab -row $gridrow -column 0 -sticky w -padx 5
+      entry .ttxgrab.all.ovpg_ent -textvariable ttxgrab_tmpcf(ovpg) -width 4
+      grid  .ttxgrab.all.ovpg_ent -row $gridrow -column 1 -sticky we
+      incr gridrow
+      label .ttxgrab.all.pgrange_lab -text "Capture page range:"
+      grid  .ttxgrab.all.pgrange_lab -row $gridrow -column 0 -sticky w -padx 5
+      entry .ttxgrab.all.pgstart_ent -textvariable ttxgrab_tmpcf(pg_start) -width 4
+      grid  .ttxgrab.all.pgstart_ent -row $gridrow -column 1 -sticky we
+      label .ttxgrab.all.pgrange_lab2 -text "-"
+      grid  .ttxgrab.all.pgrange_lab2 -row $gridrow -column 2 -sticky w -padx 5
+      entry .ttxgrab.all.pgend_ent -textvariable ttxgrab_tmpcf(pg_end) -width 4
+      grid  .ttxgrab.all.pgend_ent -row $gridrow -column 3 -sticky we
+      incr gridrow
+      label .ttxgrab.all.dur_lab -text "Capture duration:"
+      grid  .ttxgrab.all.dur_lab -row $gridrow -column 0 -sticky w -padx 5
+      entry .ttxgrab.all.dur_ent -textvariable ttxgrab_tmpcf(duration) -width 4
+      grid  .ttxgrab.all.dur_ent -row $gridrow -column 1 -sticky we
+      label .ttxgrab.all.dur_lab2 -text {[seconds]} -font $font_normal
+      grid  .ttxgrab.all.dur_lab2 -row $gridrow -column 2 -columnspan 2 -sticky w -padx 5
+      incr gridrow
+      pack  .ttxgrab.all -side top -pady 10 -padx 10 -anchor w
+
+      if {!$::is_unix} {
+         label .ttxgrab.perl_lab -text "The Perl interpreter is required to extract EPG data\nfrom teletext pages. Specify where it's installed\nif it's not included in your standard search PATH:" -justify left -font $font_normal
+         pack  .ttxgrab.perl_lab -side top -pady 5 -padx 10 -anchor w
+         frame .ttxgrab.perl
+         label .ttxgrab.perl.prompt -text "Perl executable:"
+         pack  .ttxgrab.perl.prompt -side left
+         entry .ttxgrab.perl.filename -textvariable ttxgrab_tmpcf(perl_path) -font $font_fixed -width 30
+         pack  .ttxgrab.perl.filename -side left -padx 5
+         button .ttxgrab.perl.dlgbut -image $::fileImage -command {
+            if $::is_unix {set tmp_substr_ext {all {*}}} else {set tmp_substr_ext {Executable {*.exe}}}
+            set tmp [tk_getOpenFile -parent .ttxgrab \
+                        -initialfile [file tail $ttxgrab_tmpcf(perl_path)] \
+                        -initialdir [file dirname $ttxgrab_tmpcf(perl_path)] \
+                        -filetypes [list $tmp_substr_ext]]
+            if {[string length $tmp] > 0} {
+               set ttxgrab_tmpcf(perl_path) $tmp
+            } 
+            unset tmp
+         }
+         pack  .ttxgrab.perl.dlgbut -side left -padx 5
+         pack  .ttxgrab.perl -side top -pady 5 -padx 10 -anchor w
+      }
+
+      checkbutton .ttxgrab.keep_ttx -text "Keep teletext raw capture data (for debugging)" -variable ttxgrab_tmpcf(keep_ttx)
+      pack  .ttxgrab.keep_ttx -side top -padx 10 -pady 5 -anchor w
+
+      # command buttons at the bottom of the window
+      frame .ttxgrab.cmd
+      button .ttxgrab.cmd.help -text "Help" -width 5 -command {PopupHelp $helpIndex(Configuration) "Teletext grabber"}
+      button .ttxgrab.cmd.abort -text "Abort" -width 5 -command {destroy .ttxgrab}
+      button .ttxgrab.cmd.ok -text "Ok" -width 5 -command {QuitTtxGrabPopup} -default active
+      pack .ttxgrab.cmd.help .ttxgrab.cmd.abort .ttxgrab.cmd.ok -side left -padx 10
+      pack .ttxgrab.cmd -side top -pady 10
+
+      bind .ttxgrab <Key-F1> {PopupHelp $helpIndex(Configuration) "Teletext grabber"}
+      bind .ttxgrab.cmd <Destroy> {+ set ttxgrab_popup 0}
+      bind .ttxgrab.cmd.ok <Return> {tkButtonInvoke %W}
+      bind .ttxgrab.cmd.ok <Escape> {tkButtonInvoke .ttxgrab.cmd.abort}
+      focus .ttxgrab.cmd.ok
+
+      # set initial widget state
+      TtxGrab_Enabled
+   } else {
+      raise .ttxgrab
+   }
+}
+
+# callback for "enable" button
+proc TtxGrab_Enabled {} {
+   global ttxgrab_tmpcf
+
+   set wlist [list .ttxgrab.all.chcnt_ent \
+                   .ttxgrab.all.ovpg_ent \
+                   .ttxgrab.all.pgstart_ent \
+                   .ttxgrab.all.pgend_ent \
+                   .ttxgrab.all.dur_ent]
+
+   if $ttxgrab_tmpcf(enable) {
+      foreach wid $wlist {
+         $wid configure -state normal
+      }
+   } else {
+      foreach wid $wlist {
+         $wid configure -state disabled
+      }
+   }
+}
+
+# helper function to check if Perl is installed
+proc TtxGrab_CheckForPerl {} {
+   global ttxgrab_tmpcf
+
+   set result 1
+
+   # remove leading or trailing space
+   set ttxgrab_tmpcf(perl_path) [regsub -all -- {(^[ \t]+|[ \t]+$)} $ttxgrab_tmpcf(perl_path) {}]
+
+   if $::is_unix {
+      # TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO TODO
+      set path "perl"
+      return 1;
+   } else {
+      if {$ttxgrab_tmpcf(perl_path) ne ""} {
+         set path $ttxgrab_tmpcf(perl_path)
+      } else {
+         set path "perl.exe"
+      }
+   }
+
+   # invoke perl with parameter "-v" to query version number
+   if {[catch {exec -- $path -v} results] == 0} {
+      # success -> check result
+      if {[regexp {perl.*v5\.(0+[45]|[1-9]\d+|[456789])} $results] == 0} {
+         tk_messageBox -type ok -default ok -icon error -parent .ttxgrab \
+                       -message "Incompatible version of Perl is installed (need v5.4 or later.) Press 'Help' for more info."
+         set result 0
+      }
+   } else {
+      set msg "A test to start the Perl interpreter failed ([lindex $::errorCode 2]).  Specify the path to perl.exe in the dialog, or press 'Help for more info."
+      tk_messageBox -type ok -default ok -icon error -parent .ttxgrab -message $msg
+      set result 0
+   }
+   return $result
+}
+
+# helper function to convert page numbers to decimal for display
+proc TtxGrab_Hex2Dec {hex} {
+   if {$hex < 0x100} {$hex += 0x800}
+   set dec [expr ($hex & 0x00F) + \
+                 10*(($hex & 0x0F0)>>4) + \
+                 100*(($hex & 0xF00)>>8)]
+   return $dec;
+}
+
+# helper function to convert page numbers to hexadecimal
+proc TtxGrab_Dec2Hex {dec} {
+   if {$dec > 800} {$dec -= 800}
+   set hex [expr ($dec % 10) + \
+                 16*(($dec/10) % 10) + \
+                 256*(($dec/100) % 10)]
+   return $hex;
+}
+
+proc TtxGrab_PgNoCheck {dec item} {
+   if {([regexp {^[1-9][0-9][0-9]$} $dec]) &&
+       (($dec >= 100) && ($dec <= 899))} {
+      # OK
+      set result 1
+   } else {
+      tk_messageBox -type ok -default ok -icon error -parent .ttxgrab \
+                    -message "Invalid $item number: must be a (decimal) number in range 100 to 899"
+      set result 0
+   }
+   return $result
+}
+
+proc TtxGrab_IntCheck {int low item} {
+   if {([regexp {^[0-9]+$} $int]) &&
+       ($int >= $low)} {
+      # OK
+      set result 1
+   } else {
+      tk_messageBox -type ok -default ok -icon error -parent .ttxgrab \
+                    -message "Invalid $item value: must be a number larger or equal $low"
+      set result 0
+   }
+   return $result
+}
+
+# save & apply the settings
+proc QuitTtxGrabPopup {} {
+   global ttxgrab_tmpcf
+
+   if $ttxgrab_tmpcf(enable) {
+      set ok 0
+      if { [TtxGrab_CheckForPerl] && \
+           [TtxGrab_PgNoCheck $ttxgrab_tmpcf(ovpg) "overview page"] && \
+           [TtxGrab_PgNoCheck $ttxgrab_tmpcf(pg_start) "page range start"] && \
+           [TtxGrab_PgNoCheck $ttxgrab_tmpcf(pg_end) "page range end"] &&
+           [TtxGrab_IntCheck $ttxgrab_tmpcf(net_count) 1 "channel count"] &&
+           [TtxGrab_IntCheck $ttxgrab_tmpcf(duration) 1 "duration"]} {
+
+         if {$ttxgrab_tmpcf(pg_start) <= $ttxgrab_tmpcf(pg_end)} {
+            # check ov page is inside capture range
+            if {($ttxgrab_tmpcf(ovpg) >= $ttxgrab_tmpcf(pg_start)) && \
+                ($ttxgrab_tmpcf(ovpg) <= $ttxgrab_tmpcf(pg_end))} {
+
+               # convert page numbers back to hexadecimal
+               set ttxgrab_tmpcf(ovpg) [TtxGrab_Dec2Hex $ttxgrab_tmpcf(ovpg)]
+               set ttxgrab_tmpcf(pg_start) [TtxGrab_Dec2Hex $ttxgrab_tmpcf(pg_start)]
+               set ttxgrab_tmpcf(pg_end) [TtxGrab_Dec2Hex $ttxgrab_tmpcf(pg_end)]
+               set ok 1
+
+            } else {
+               tk_messageBox -type ok -default ok -icon error -parent .ttxgrab \
+                             -message "Overview page number must lie inside capture page range"
+            }
+         } else {
+            tk_messageBox -type ok -default ok -icon error -parent .ttxgrab \
+                          -message "Invalid capture range: end must be larger than start page"
+         }
+      }
+   } else {
+      # forget all changes in the paramete fields
+      C_GetTtxConfig ttxgrab_tmpcf
+      set ttxgrab_tmpcf(enable) 0
+      set ok 1
+   }
+
+   if $ok {
+      # pass params to C level
+      C_UpdateTtxConfig [array get ttxgrab_tmpcf]
+
+      # free memory
+      array unset ttxgrab_tmpcf
+
+      # close the popup window
+      destroy .ttxgrab
+   }
+}
+#=ENDIF=USE_TTX_GRABBER
 

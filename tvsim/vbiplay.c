@@ -20,7 +20,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: vbiplay.c,v 1.7 2003/03/09 19:27:50 tom Exp tom $
+ *  $Id: vbiplay.c,v 1.9 2007/12/31 18:47:28 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_TVSIM
@@ -107,7 +107,8 @@ static void EpgEvent( void )
             shouldExit = TRUE;
             break;
 
-         case SHM_EVENT_PROG_INFO:
+         case SHM_EVENT_STATION_INFO:
+         case SHM_EVENT_EPG_INFO:
             // ignored
             break;
 
@@ -170,8 +171,8 @@ static void PlaybackVbi( int fdTtxFile )
             memset((void *) &pVbiBuf->ttxStats, 0, sizeof(pVbiBuf->ttxStats));
          }
 
-         if ( (pVbiBuf->isEnabled) &&
-              (pVbiBuf->reader_idx != ((pVbiBuf->writer_idx + 1) % EPGACQ_BUF_COUNT)) )
+         if ( (pVbiBuf->epgEnabled) &&
+              (pVbiBuf->reader_idx != ((pVbiBuf->writer_idx + 1) % TTXACQ_BUF_COUNT)) )
          {
             vbl = (VBI_LINE *) &pVbiBuf->line[pVbiBuf->writer_idx];
 
@@ -182,17 +183,22 @@ static void PlaybackVbi( int fdTtxFile )
             }
             pVbiBuf->mipPageNo = vbl->pageno;
 
-            pVbiBuf->writer_idx = (pVbiBuf->writer_idx + 1) % EPGACQ_BUF_COUNT;
+            pVbiBuf->writer_idx = (pVbiBuf->writer_idx + 1) % TTXACQ_BUF_COUNT;
             pVbiBuf->ttxStats.ttxPkgCount  += 1;
             pVbiBuf->ttxStats.epgPkgCount  += 1;
 
             if (vbl->pkgno == 0)
             {
+               VBI_LINE * pHead;
                pVbiBuf->ttxStats.epgPagCount  += 1;
 
-               memcpy((char *) pVbiBuf->lastHeader.data, vbl->data, sizeof(pVbiBuf->lastHeader.data));
-               pVbiBuf->lastHeader.pageno = vbl->pageno;
-               pVbiBuf->lastHeader.sub    = vbl->sub;
+               pVbiBuf->ttxHeader.write_ind += 1;
+               pVbiBuf->ttxHeader.write_idx = (pVbiBuf->ttxHeader.write_idx + 1) % EPGACQ_ROLL_HEAD_COUNT;
+               pHead = (VBI_LINE*) pVbiBuf->ttxHeader.ring_buf + pVbiBuf->ttxHeader.write_idx;
+               memcpy((char *) pHead->data, vbl->data, sizeof(pHead->data));
+               pHead->pageno = vbl->pageno;
+               pHead->ctrl_lo = vbl->ctrl_lo;
+               pHead->ctrl_hi = vbl->ctrl_hi;
             }
             //dprintf1("wrote pkg %d\n", vbl->pkgno);
          }

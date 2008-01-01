@@ -21,7 +21,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: wintv.c,v 1.23 2005/04/07 18:05:11 tom Exp $
+ *  $Id: wintv.c,v 1.27 2007/12/31 16:34:49 tom Exp tom $
  */
 
 #ifndef WIN32
@@ -54,13 +54,17 @@
 #include "epgdb/epgdbif.h"
 #include "epgctl/epgacqctl.h"
 #include "epgui/epgmain.h"
+#include "epgui/epgsetup.h"
 #include "epgui/pibox.h"
-#include "epgui/wintvcfg.h"
+#include "epgui/pidescr.h"
+#include "epgui/uidump.h"
+#include "epgui/dumptext.h"
+#include "epgui/wintvui.h"
 #include "epgui/wintv.h"
 
 
-Tcl_TimerToken   pollVpsEvent = NULL;
-Tcl_AsyncHandler asyncThreadHandler = NULL;
+static Tcl_TimerToken   pollVpsEvent = NULL;
+static Tcl_AsyncHandler asyncThreadHandler = NULL;
 
 // default allocation size for frequency table (will grow if required)
 #define CHAN_CLUSTER_SIZE  50
@@ -91,46 +95,38 @@ static struct
    uint      lastCni;
    time_t    lastStartTime;
    uint32_t  chanQueryIdx;
+   uint32_t  chanEpgCnt;
 } followTvState = {INVALID_VPS_PIL, 0, FALSE, 0, 0, 0, 0};
 
 // ----------------------------------------------------------------------------
-// Compare given name with all network names in AI
-// - names in AI can be overridden by network name user-config
+// Compare given name with all network names
 // - returns 0 if the given name doesn't match any known networks
+// - note: function 100% identical to UNIX version
 //
 static uint Wintv_MapName2Cni( const char * station )
 {
    const AI_BLOCK *pAiBlock;
-   const char * name;
-   const char * cfgn;
-   uchar cni_str[7];
+   const char * pNetName;
    uchar netwop;
-   uint  cni;
+   uint cni;
 
    cni = 0;
+
    EpgDbLockDatabase(pUiDbContext, TRUE);
    pAiBlock = EpgDbGetAi(pUiDbContext);
    if (pAiBlock != NULL)
    {
       for ( netwop = 0; netwop < pAiBlock->netwopCount; netwop++ ) 
       {
-         name = AI_GET_NETWOP_NAME(pAiBlock, netwop);
-         cni  = AI_GET_NETWOP_N(pAiBlock, netwop)->cni;
-         // check if there's a user-configured name for this CNI
-         sprintf(cni_str, "0x%04X", cni);
-         cfgn = Tcl_GetVar2(interp, "cfnetnames", cni_str, TCL_GLOBAL_ONLY);
+         // get user-configured name for this network (fall-back to AI name, if none)
+         pNetName = EpgSetup_GetNetName(pAiBlock, netwop, NULL);
 
-         if ( (cfgn != NULL) ?
-              ((cfgn[0] == station[0]) && (strcmp(cfgn, station) == 0)) :
-              ((name[0] == station[0]) && (strcmp(name, station) == 0)) )
+         if ((pNetName[0] == station[0]) && (strcmp(pNetName, station) == 0))
          {
+            cni  = AI_GET_NET_CNI_N(pAiBlock, netwop);
             break;
          }
       }
-
-      // if no netwop found, return invalid value
-      if (netwop >= pAiBlock->netwopCount)
-         cni = 0;
    }
    EpgDbLockDatabase(pUiDbContext, FALSE);
 
@@ -159,7 +155,7 @@ static const PI_BLOCK * Wintv_SearchCurrentPi( uint cni, uint pil )
       // convert the CNI parameter to a netwop index
       pNetwop = AI_GET_NETWOPS(pAiBlock);
       for ( netwop = 0; netwop < pAiBlock->netwopCount; netwop++, pNetwop++ ) 
-         if (cni == pNetwop->cni)
+         if (cni == AI_GET_NET_CNI(pNetwop))
             break;
 
       // if not found: try 2nd time with conversion to PDC
@@ -167,7 +163,8 @@ static const PI_BLOCK * Wintv_SearchCurrentPi( uint cni, uint pil )
       {
          pNetwop = AI_GET_NETWOPS(pAiBlock);
          for ( netwop = 0; netwop < pAiBlock->netwopCount; netwop++, pNetwop++ ) 
-            if (cni == CniConvertUnknownToPdc(pNetwop->cni))
+            if ( IS_NXTV_CNI(AI_GET_NET_CNI(pNetwop)) &&
+                 (cni == CniConvertUnknownToPdc(AI_GET_NET_CNI(pNetwop))) )
                break;
       }
 
@@ -203,6 +200,35 @@ static const PI_BLOCK * Wintv_SearchCurrentPi( uint cni, uint pil )
    }
 
    return pPiBlock;
+}
+
+// ----------------------------------------------------------------------------
+// Query database and convert PI to text for a station update
+//
+static char * Wintv_PiQuery( const PI_BLOCK *pPiBlock, uint count )
+{
+   PI_DESCR_BUF pbuf;
+   FILTER_CONTEXT *fc;
+   uint  idx;
+
+   memset(&pbuf, 0, sizeof(pbuf));
+
+   // create a search filter to return PI for the current station only
+   fc = EpgDbFilterCreateContext();
+   EpgDbFilterInitNetwop(fc);
+   EpgDbFilterSetNetwop(fc, pPiBlock->netwop_no);
+   EpgDbFilterEnable(fc, FILTER_NETWOP);
+
+   for (idx = 0; (idx < count) && (pPiBlock != NULL); idx++)
+   {
+      if (EpgDumpText_Single(pUiDbContext, pPiBlock, &pbuf) == FALSE)
+         break;
+
+      pPiBlock = EpgDbSearchNextPi(pUiDbContext, fc, pPiBlock);
+   }
+   EpgDbFilterDestroyContext(fc);
+
+   return pbuf.pStrBuf;
 }
 
 // ----------------------------------------------------------------------------
@@ -330,6 +356,7 @@ static int Wintv_SendCmd(ClientData ttp, Tcl_Interp *interp, int argc, CONST84 c
 static void Wintv_FollowTvNetwork( void )
 {
    const PI_BLOCK *pPiBlock;
+   char * pPiDescr;
    
    EpgDbLockDatabase(pUiDbContext, TRUE);
    pPiBlock = Wintv_SearchCurrentPi(followTvState.cni, followTvState.pil);
@@ -345,10 +372,13 @@ static void Wintv_FollowTvNetwork( void )
          // send the programme information to the TV app
          if (wintvcf.doPop)
          {
-            WintvSharedMem_SetEpgInfo(pPiBlock->start_time, pPiBlock->stop_time,
-                                PI_GET_TITLE(pPiBlock),
-                                pPiBlock->no_themes, pPiBlock->themes,
-                                followTvState.chanQueryIdx);
+            pPiDescr = Wintv_PiQuery(pPiBlock, followTvState.chanEpgCnt);
+            if (pPiDescr != NULL)
+            {
+               WintvSharedMem_SetEpgInfo(pPiDescr, strlen(pPiDescr) + 1,
+                                         followTvState.chanQueryIdx, TRUE);
+               xfree(pPiDescr);
+            }
          }
 
          // jump with the cursor on the current programme
@@ -358,7 +388,7 @@ static void Wintv_FollowTvNetwork( void )
    }
    else
    {  // unsupported network or no appropriate PI found -> remove popup
-      WintvSharedMem_SetEpgInfo(0, 0, "", 0, NULL, followTvState.chanQueryIdx);
+      WintvSharedMem_SetEpgInfo("", 1, followTvState.chanQueryIdx, TRUE);
    }
    EpgDbLockDatabase(pUiDbContext, FALSE);
 }
@@ -378,7 +408,7 @@ static void Wintv_PollVpsPil( ClientData clientData )
    if ((wintvcf.follow || wintvcf.doPop) && (followTvState.stationPoll == 0))
    {
       if ( WintvSharedMem_GetCniAndPil(&cni, &pil) &&
-           WintvCfg_CheckAirTimes(cni) )
+           WintvUi_CheckAirTimes(cni) )
       {
          if ( (followTvState.cni != cni) ||
               ((pil != followTvState.pil) && VPS_PIL_IS_VALID(pil)) )
@@ -417,7 +447,7 @@ static void Wintv_StationTimer( ClientData clientData )
    ifdebug0(followTvState.stationPoll == 0, "Wintv-StationTimer: station timer is zero");  // XXX FIXME was an assert, but reportedly failed sometimes
 
    if ( WintvSharedMem_GetCniAndPil(&cni, &pil) &&
-        WintvCfg_CheckAirTimes(cni) )
+        WintvUi_CheckAirTimes(cni) )
    {  // channel ID received - check if it's the expected one
       if ( (cni == followTvState.stationCni) || (followTvState.stationCni == 0) ||
            (followTvState.stationPoll >= 360) )
@@ -467,7 +497,8 @@ static void Wintv_StationSelected( void )
    bool drvEnabled, hasDriver;
 
    // query name of the selected TV station
-   if ( WintvSharedMem_QueryChanName(station, sizeof(station), &followTvState.chanQueryIdx) )
+   if ( WintvSharedMem_GetStation(station, sizeof(station),
+                                  &followTvState.chanQueryIdx, &followTvState.chanEpgCnt) )
    {
       if (pollVpsEvent != NULL)
       {  // remove the regular polling timer - we'll install one with a higher frequency later
@@ -480,7 +511,7 @@ static void Wintv_StationSelected( void )
       followTvState.lastCni = 0;
 
       // translate the station name to a CNI by searching the network table
-      followTvState.stationCni = WintvCfg_StationNameToCni(station, Wintv_MapName2Cni);
+      followTvState.stationCni = WintvUi_StationNameToCni(station, Wintv_MapName2Cni);
       if (followTvState.stationCni != 0)
       {
          // wait for VPS/PDC to determine PIL (and confirm CNI)
@@ -735,6 +766,19 @@ static void Wintv_CbStationSelected( void )
 }
 
 // ---------------------------------------------------------------------------
+// Incoming EPG query
+//
+static void Wintv_CbEpgQuery( void )
+{
+   uint8_t  buf[EPG_CMD_MAX_LEN];
+
+   if ( WintvSharedMem_GetEpgQuery(buf, sizeof(buf)) )
+   {
+      // TODO
+   }
+}
+
+// ---------------------------------------------------------------------------
 // Incoming TV app message: TV tuner was granted or reposessed
 // - the enable parameter is currently not used because the check function
 //   detects this automatically upon attempting to change the channel
@@ -799,6 +843,7 @@ static const WINSHMSRV_CB winShmSrvCb =
 {
    Wintv_CbTvEvent,
    Wintv_CbStationSelected,
+   Wintv_CbEpgQuery,
    Wintv_CbTunerGrant,
    Wintv_CbAttachTv
 };

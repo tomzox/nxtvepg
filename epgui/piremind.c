@@ -24,7 +24,7 @@
  *
  *  Author: Tom Zoerner
  *
- *  $Id: piremind.c,v 1.18 2005/07/30 19:37:47 tom Exp tom $
+ *  $Id: piremind.c,v 1.20 2007/12/29 20:32:56 tom Exp tom $
  */
 
 #define DEBUG_SWITCH DEBUG_SWITCH_EPGUI
@@ -696,7 +696,7 @@ static int PiRemind_GetReminderEvents( ClientData ttp, Tcl_Interp *interp, int o
                         Tcl_ListObjAppendElement(interp, pTmpList, Tcl_NewIntObj(pPiBlock->netwop_no));
                         Tcl_ListObjAppendElement(interp, pTmpList, Tcl_NewIntObj(pPiBlock->start_time));
                         Tcl_ListObjAppendElement(interp, pTmpList, Tcl_NewIntObj(pPiBlock->stop_time));
-                        Tcl_ListObjAppendElement(interp, pTmpList, Tcl_NewStringObj(PI_GET_TITLE(pPiBlock), -1));
+                        Tcl_ListObjAppendElement(interp, pTmpList, TranscodeToUtf8(EPG_ENC_NXTVEPG, NULL, PI_GET_TITLE(pPiBlock), NULL));
                         Tcl_ListObjAppendElement(interp, pResultList, pTmpList);
                         // add only a message for the most distant event (offsets are sorted)
                         break;
@@ -767,7 +767,7 @@ static int PiRemind_AddReminder( const PI_BLOCK * pPiBlock, int groupTag, int co
    const AI_BLOCK * pAiBlock;
    Tcl_Obj  * pRemListObj;
    Tcl_Obj  * pNewRem;
-   uchar strbuf[10];
+   uchar strbuf[16+2+1];
    int   newIdx;
 
    newIdx = -1;
@@ -779,7 +779,7 @@ static int PiRemind_AddReminder( const PI_BLOCK * pPiBlock, int groupTag, int co
          pAiBlock = EpgDbGetAi(dbc);
          if (pAiBlock != NULL)
          {
-            sprintf(strbuf, "0x%04X", AI_GET_NETWOP_N(pAiBlock, pPiBlock->netwop_no)->cni);
+            sprintf(strbuf, "0x%04X", AI_GET_NET_CNI_N(pAiBlock, pPiBlock->netwop_no));
 
             // build a new reminder element
             pNewRem = Tcl_NewListObj(0, NULL);
@@ -1378,11 +1378,11 @@ void PiRemind_CheckDb( void )
                      }
                      // check if netwop index is still correct, i.e. matches the CNI
                      if ( (netwop >= pAiBlock->netwopCount) || (netwop < 0) ||
-                          (AI_GET_NETWOP_N(pAiBlock, netwop)->cni != cni) )
+                          (AI_GET_NET_CNI_N(pAiBlock, netwop) != cni) )
                      {
                         // mismatch -> search CNI in AI's list to determine netwop index
                         for (netwop = 0; netwop < pAiBlock->netwopCount; netwop++)
-                           if (AI_GET_NETWOP_N(pAiBlock, netwop)->cni == cni)
+                           if (AI_GET_NET_CNI_N(pAiBlock, netwop) == cni)
                               break;
                         if (PiReminder_UnshareList(&pRemListObj, &pRemArgv, remIdx, &pElemArgv, EPGTCL_RPI_NETWOP_IDX) != TCL_OK)
                            goto tcl_error;

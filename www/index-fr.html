@@ -1,26 +1,26 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/HTMLlat1.ent">
 <HTML lang="fr">
-<!-- $Id: index-fr.html,v 1.23 2007/01/28 13:19:58 tom Exp $ -->
+<!-- $Id: index-fr.html,v 1.29 2008/01/06 20:32:58 tom Exp $ -->
 <!-- Translated by Néo (hotmail's neojudgment, 2004-03-15) -->
 <HEAD>
-<TITLE>nexTView EPG Decoder Software Download Page</TITLE>
+<TITLE>nxtvepg - Logiciel de Décodage nexTView EPG</TITLE>
 <META http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
 <META name="language" content="fr">
-<META name="keywords" lang="en" content="nexTView, EPG, decoder, nxtvepg, teletext, Fusion Bt878, SAA7134, Conexant CX23881, electronic program guide, TV-Guide, Premiere, TV program listing, TV schedule, Nextview decoder, Linux, NetBSD, FreeBSD, software download, bttv, video4linux, VBI, vertical blanking interval, multimedia, data service, subscription free, TV tuner card, Bt848, Brooktree, video capture, capture, browser, Kabel1, RTL2, Canal+, EuroNews, nexttview">
-<META name="description" lang="en" content="This nexTView EPG decoder software offers access to a subscription-free electronic TV program guide in the analog domain. Nextview currently is broadcasted in Germany, Austria, Switzerland, and France and covers the schedules of all major TV networks in these countries.">
+<META name="keywords" lang="en" content="nxtvepg, nexTView, EPG, teletext, Brooktree, Bt878, Philips, SAA7134, Conexant, CX23881, electronic program guide, TV-Guide, TV program listing, TV schedule, Linux, NetBSD, FreeBSD, bttv, video4linux, bktr, VBI, vertical blanking interval, multimedia, data service, subscription free, TV tuner card, capture, browser, nexttview">
+<META name="description" lang="en" content="The nxtvepg software allows access to Nextview EPG, a subscription-free electronic TV program guide in the analog domain. Nextview EPG is currently aired in Germany, Austria, Switzerland, and France and covers the schedules of all major TV networks in these countries.">
 <META name="author" content="Tom Zoerner">
 <META name="copyright" content="Tom Zoerner">
 <META name="robots" content="index, follow">
 <META name="revisit-after" content="01 month">
 <LINK rel="stylesheet" type="text/css" href="nxtvepg.css">
-<LINK rel="alternate" type="text/html" href="index.html" hreflang="en" lang="en" title="nexTView Decoder Download Page">
-<LINK rel="alternate" type="text/html" href="index-de.html" hreflang="de" lang="en" title="nexTView Decoder Download">
+<LINK rel="alternate" type="text/html" href="index.html" hreflang="en" lang="en" title="nxtvepg hompage">
+<LINK rel="alternate" type="text/html" href="index-de.html" hreflang="de" lang="de" title="nxtvepg homepage">
 <LINK rel="shortcut icon" type="image/x-icon" href="nxtvepg.ico">
 </HEAD>
 <BODY>
 
 <DIV class="navBlock">
-<H2 class="navhead">Language</H2>
+<H2 class="navhead">Langage</H2>
 <P>
 <IMG ALT="" SRC="en.png" WIDTH="16" HEIGHT="10"> <A HREF="index.html">English</A><BR>
 <IMG ALT="" SRC="de.png" WIDTH="16" HEIGHT="10"> <A HREF="index-de.html">Deutsch</A><BR>
@@ -40,6 +40,9 @@
 <A HREF="faq.html">FAQ</A><BR>
 <BR>
 <A HREF="man.html">manuel de nxtvepg</A><BR>
+<BR>
+<A HREF="http://www.nxtvepg-kastortv.org/">Introduction K!TV et nxtvepg</A>
+(écrit par Néo)
 </P>
 
 <H2 class="navhead">Téléchargement</H2>
@@ -49,14 +52,14 @@
 <A HREF="changelog.html">Modifications majeures</A><BR>
 </P>
 
-<H2 class="navhead">Screenshots</H2>
+<H2 class="navhead">Captures</H2>
 <P>
-<A HREF="screenshot-274.png">Main window</A><BR>
-<A HREF="screenshot-grid1.png">"Grid" layout</A><BR>
-<A HREF="screenshot-reminder.png">Reminders</A><BR>
-<A HREF="screenshot-stats.png">Reception statistics</A><BR>
-<A HREF="screenshot-series.png">Series menu</A><BR>
-<A HREF="screenshot-xawtv.jpg">xawtv with EPG OSD</A><BR>
+<A HREF="screenshot-274.png">Fenêtre principale</A><BR>
+<A HREF="screenshot-grid1.png">Disposition sur la "grille"</A><BR>
+<A HREF="screenshot-reminder.png">Rappels</A><BR>
+<A HREF="screenshot-stats.png">Statistiques de réception</A><BR>
+<A HREF="screenshot-series.png">Série de menus</A><BR>
+<A HREF="screenshot-xawtv.jpg">xawtv avec L'EPG en OSD</A><BR>
 </P>
 <span class="center"><span class="logo"><a href="http://sourceforge.net/"><img
 src="http://sourceforge.net/sflogo.php?group_id=64430&amp;type=4"
@@ -78,9 +81,9 @@ analogique (par opposition au EPGs numériques qui viennent avec les émissions
 numériques, bien que vous puissiez recevoir Nextview EPG
 <A HREF="intro.html#DVB">numérique</A>, aussi).
 Il vous permet de recevoir et passer en revue les programmes TV pour tous les
-réseaux principaux en Allemagne, Autriche, la Suisse, la France et la Belgique
-par l'intermédiaire d'une carte de TV analogique, sans accès à Internet.
-<A HREF="intro.html">Plus...</A>
+<A HREF="provnets.html">réseaux principaux</A> en Allemagne, Autriche, la Suisse,
+la France et la Belgique par l'intermédiaire d'une carte de TV analogique,
+sans accès à Internet.  <A HREF="intro.html">Plus...</A>
 </P>
 
 <H2>Plan du site</H2>
@@ -91,56 +94,51 @@ par l'intermédiaire d'une carte de TV analogique, sans accès à Internet.
 <LI><a href="download.html">Téléchargement du programme</a>
 <LI><a href="download.html#requirements">Pré requis</a>
 <P></P>
-<LI><A href="index-fr.html#new_2_7_7">A propos de la version 2.7.7</A>
+<LI><A href="index-fr.html#releases">Versions actuelles</A>
 <LI><A href="index-fr.html#feedback">Questions et feedback</A>
 <LI><A href="index-fr.html#copyright">Notification de copyright</A>
 </UL>
 
 
-<H2><SPAN CLASS="red"><A NAME="new_2_7_7">Version 2.7.7 (21.1.2007)</A></SPAN></H2>
+<!-- French translation by Néo 2008-Jan-02 -->
+<H2><A NAME="releases">Versions actuelles 2.7.7 et 2.8.0 (31/Dec/2007)</A></H2>
 <P>
-La version 2.7.7 est une fois de plus principalement un entretien avec
-la plupart du temps des corrections de bugs et comportent également des
-perfectionnements:
+Après 3 ans de développement (sporadique), il y a finalement une version
+officielle 2.8.0 qui inclut plusieurs nouvelles fonctionnalités importantes.
+La version 2.7.7 plus ancienne qui a toujours été jusqu'à récemment 
+maintenue à jour reste disponible au cas où vous rencontreriez des
+problèmes avec cette nouvelle version.
+</P>
+<P>
+Les changements importants dans la version 2.8.0 comparée à la 2.7.7 sont :
 </P>
 <UL>
-<LI>Implémentation d'un nouvel algorithme dans le décodeur de flux EPG
-pour en améliorer les performances lors de mauvaises conditions de réception
-(c.-à-d. avec un taux élevé de perte de données).
-<LI>Unix: Correction d'un bug lors de la détection des applications TV:
-Correction de l'<A HREF="man.html#tv_application_interaction">interaction</A>
-avec <A HREF="http://tvtime.sourceforge.net/">tvtime</A>
-<LI>WIN32: Mise à jour des pilotes pour les cartes TV (importation de la
-dernière version de <A HREF="http://www.dscaler.org/">DScaler</A>):
-La configuration des cartes SAA7134 et CX2388x est maintenant lue à partir
-des fichiers INI; ajout du support des cartes TV avec tuner TDA8275/8290;
-adaptation des drivers pour les plateformes 64-bit.
-<LI>Correction mineure dans l'affichage des séparateurs définis par
-l'utilisateur dans le menu contextuel pour la liste des programmes.
-<LI>Correction mineure dans les fenêtres popup lors d'un message de rappel;
-la police de caractère pour le titre du programme peut maintenant être modifiée
-à partir de "pi_font" dans le fichier de ressources (c.-à-d. le fichier
-Nxtvepg.ad ou via X11 sous UNIX).
-<LI>Linux: Correction du bug du driver de bttv dans le
-<A HREF="http://kernel.org/">kernel</A> 2.6.16 (corrigé dans la 2.6.18).
-<SPAN class="anno">Merci à toutes les personnes du forum nxtvepg qui ont aidé à corriger ceci
-et spécialement à Lars pour avoir fourni en premier la correction.</SPAN>
-<LI>Linux: Portabilité améliorée du calcul des fuseaux horaires.
-<LI>Les fournisseurs EPG ne fonctionnant plus: "RTL2" (Allemagne) et "VT4"
-(Belgique) sont exclus de la documentation et de la liste du scan EPG des
-fournisseurs prédéfinis.
-<LI>Beaucoup de corrections et d'améliorations dans la
-<A HREF="man-de.html">documentation allemande</A>
-<SPAN class="anno">(Merci encore à Kurt Lettmaier. )</SPAN>
+<LI>Séparation de l'acquisition EPG sans interface graphique ("nxtvepgd")<BR>
+  (Principalement destiné aux systèmes multimédia Linux sans bibliothèques X11)
+<LI>Saisie des données EPG à partir des pages régulières des systèmes télétexte
+  (réseaux allemands seulement)<BR>
+  (Note : ceci exige l'installation d'un <A HREF="http://www.cpan.org/">interprèteur Perl</A>.<BR>
+  Ce dispositif est également disponible dans un
+  <A HREF="pre-releases.html#ttx_grabber">script Perl séparé</A>.)
+<LI>Importation et fusion des données EPG à partir de sources extérieures
+  par l'intermédiaire de fichiers au format <A HREF="http://xmltv.org/">XMLTV</A>.
+<LI>Informations EPG étendues en OSD dans les applications TV (pour
+  <A HREF="xiccc-proto.html#iccc">UNIX</A> et Windows)<BR>
+  (Note : du à ce changement tous les utilisateurs de <A HREF="http://www.kastortv.org/">K!TV</A>
+  doivent remplacer leur plugin Nextview EPG.)
+<LI>Support des cartes TV exotiques et non-PCI sous Windows<BR>
+  (Note : Ceci exige de télécharger séparément la
+  <A HREF="pre-releases.html#wdm_if_lib">bibliothèques WDM</A>.<BR>
+  Un grand merci à Gérard Chevalier pour le développement de la bibliothèque.)
 </UL>
 <P>
-Fetch this new release from the <A HREF="download.html">download section</A>.
+Vous trouverez cette nouvelle version dans
+<A HREF="download.html">la section téléchargement</A>.
 <BR>Regardez aussi la liste détaillée des
 <A HREF="changelog.html">modifications majeures</A>.
+<!--  //this note would be confusing as there's no installer for 2.8.0 yet//
 <BR><SPAN class="anno">Merci encore à Néo de fournir l'installateur pour la version de Windows.</SPAN>
-</P><P>
-Note new development is currently proceeding on a separate development
-line. See the <A HREF="pre-releases.html">pre-release page</A>.
+-->
 </P>
 
 
